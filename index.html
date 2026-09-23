@@ -1124,6 +1124,9 @@
        render moved out, the killMonster kill-tracking logic stayed. Re-exports
        window.openBestiary for inline onclick handlers -->
   <script src="src/render/bestiary.js?v=551"></script>
+  <!-- The Hunt panel (docs/design/HUNT_ANALYZER_UI.md). Renders ONLY the
+       server's projection; nothing on it is computed or predicted client-side. -->
+  <script src="src/render/hunt-panel.js?v=551"></script>
   <!-- Equipment bonuses — 5th render-layer extraction out of legacy.js; the
        renderEquipmentStatsHTML markup + openEquipmentBonuses modal moved out,
        the getEquipmentTotals/getArmorSetBonus logic stayed. Re-exports both onto

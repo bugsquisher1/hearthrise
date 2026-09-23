@@ -2858,6 +2858,82 @@ export function reconcileGemUnlocks(G, res) {
   return { mode: 'server', owned: owned.length };
 }
 
+/* ── THE HUNT, HYDRATED FROM THE ENVELOPE ───────────────────────────────────
+   ⚠ `hydrate`, NOT `reconcile`, AND THE NAME IS THE ARGUMENT.
+     tests/no-new-prediction.mjs freezes the set of `reconcile*` exports in
+     src/net/** and states why in one sentence: "every reconciler exists because
+     some client-held number can disagree with the server's". NOTHING here is
+     client-held. There is no hunt value in the residue, nothing predicts a
+     kill count forward, and no local number is merged with a server one — the
+     projection simply REPLACES scratch on every envelope. Calling this a
+     reconciler would have been a second copy of a word that means "there are
+     two answers to this number", about a feature whose whole design is that
+     there is one (HUNT_ANALYZER_UI.md §6). The guard was right to stop it.
+   Three server-projected blocks in one reconcile, because the Hunt panel renders
+   all three together and a panel whose stance came from one envelope and whose
+   Analyzer came from another would show two different hunts:
+
+     state.hunt_stance / state.hunt_stop   the two standing orders
+     res.vigour                            hr_vigour_of's whole meter
+     res.hunt_analyzer                     the last SETTLED reading, or null
+
+   ⚠ EVERYTHING HERE LANDS IN `_`-PREFIXED SCRATCH AND NOTHING IN THE RESIDUE.
+     HUNT_ANALYZER_UI.md §6 is explicit: "a rate in the residue would be a stale
+     rate rendered with confidence". Every number on that panel is a number a
+     player ACTS on — whether to keep hunting, whether to change spawn — so it is
+     rendered from the server's projection and REPLACED by each envelope, never
+     merged upward and never extrapolated between settles (CLAUDE.md §6, Tyler
+     2026-09-14). Scratch is never synced and is ABSENT on a cold boot, which is
+     what lets the panel tell "not heard yet" from "no hunt running".
+
+   ⚠ ABSOLUTE, NOT A UNION, AND `null` IS A REAL ANSWER. `hunt_analyzer` is null
+     for every character not on a combat pointer, and that null must REPLACE the
+     previous reading — a panel that kept the last hunt's profit line after the
+     player stopped would be the phantom-seed bug with a different noun.
+
+   FAIL-CLOSED ON ABSENCE: a body with no `vigour` key at all (a database that
+   predates the migration) leaves the scratch untouched, so the client renders
+   NO panel rather than a fabricated empty one. PRESENCE is the switch, never a
+   coalesce — the same rule every other watermark on this envelope follows. */
+export function hydrateHunt(G, res) {
+  if (!G || typeof G !== 'object') return null;
+  const st = (res && res.state) || null;
+  const out = { mode: 'absent' };
+
+  /* The two standing orders. Read by PRESENCE: an absent key means this build
+     has no hunts, a null value means "no stance chosen", and the panel must not
+     confuse the two. */
+  if (st && Object.prototype.hasOwnProperty.call(st, 'hunt_stance')) {
+    G._hunt = {
+      stance: typeof st.hunt_stance === 'string' ? st.hunt_stance : null,
+      stop: (st.hunt_stop && typeof st.hunt_stop === 'object' && !Array.isArray(st.hunt_stop))
+        ? st.hunt_stop : null,
+      at: Date.now(),
+    };
+    out.mode = 'server';
+  }
+
+  /* The meter. An OBJECT or nothing; a malformed one is treated as absent
+     rather than rendered, because a bar drawn from garbage is worse than no
+     bar — a player would act on it. */
+  const v = res && res.vigour;
+  if (v && typeof v === 'object' && !Array.isArray(v)) {
+    G._vigour = { ...v, at: Date.now() };
+    out.mode = 'server';
+  }
+
+  /* The Analyzer. `undefined` (key absent) leaves the last reading alone;
+     `null` (key present, not hunting) REPLACES it with null. */
+  if (res && Object.prototype.hasOwnProperty.call(res, 'hunt_analyzer')) {
+    const a = res.hunt_analyzer;
+    G._huntAnalyzer = (a && typeof a === 'object' && !Array.isArray(a))
+      ? { ...a, at: Date.now() }
+      : null;
+    out.mode = 'server';
+  }
+  return out;
+}
+
 /* ── THE LEARNED RECIPES, HYDRATED FROM THE ENVELOPE ─────────────────────────
    hr_recipe_learn (supabase/migrations/2026-09-14-recipe-learn.sql) consumes the
    scroll from player_inventory and writes a player_progress kind='flag'
@@ -3790,6 +3866,12 @@ export function applyEnvelopeState(G, res, ownKey) {
      is REMOVED, because a client-held entitlement that outlives the server is
      the residue-ahead class — see reconcileTraits' header. */
   written.traits = reconcileTraits(G, res);
+
+  /* THE HUNT IS THE SERVER'S — the stance, the stop rules, the Vigour meter and
+     the Analyzer's last settled reading. Reconciled here so all four ride EVERY
+     envelope (away, activity-switch and gold alike), which is what lets the Hunt
+     panel render without a read of its own (HUNT_ANALYZER_UI.md §6). */
+  written.hunt = hydrateHunt(G, res);
 
   /* THE OWNED HERO SLOTS ARE THE SERVER'S (hr_buy_hero_slot). Reconciled here so
      the projection rides EVERY envelope — away, activity-switch and gold alike —
@@ -6224,7 +6306,7 @@ if (typeof window !== 'undefined') {
     /* …to the character that EARNED it and nobody else (QA-DEFER-ID). The
        switch path and the sign-out path call these; nothing else may. */
     accrualIdentity, sameAccrualIdentity, clearCombatXpDeferral, resetAccrualIdentity,
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt,
     receiptStopClause, receiptRecoveryClause,

@@ -129,6 +129,12 @@ export const ENGINE_STATE_KEYS = Object.freeze([
   'recoveringUntilMs', 'consecFalls',
   'deathsTodayBefore', 'deathsLifetimeBefore',
   'hearthfindReady', 'combatXpAccruedToMs',
+  /* THE HUNT'S FOUR (2026-09-22). They belong on THIS list and not in a field
+     list at each call site for the reason the whole module exists: the accrue
+     path, the collect and the world tick must price a hunt the same way, and
+     `vigour` missing from one of the three is a daily limiter that one caller
+     does not have. Named here, they reach all three in one commit. */
+  'huntStance', 'huntStop', 'traits', 'vigour',
 ]);
 
 /* THE POINTER KEYS: the activity and the two watermarks. A chained caller
@@ -265,6 +271,30 @@ export function engineInputsFromEnvelope(env, nowMs) {
        does not exist, and `resolveStyle(weaponType, null)` is exactly the
        pre-migration behaviour. */
     combatStyle: st.combat_style ?? null,
+
+    /* ── THE HUNT (2026-09-22) — FOUR INPUTS, ALL SELF-CONFIGURING ─────────
+       Every one is ABSENT-SAFE, so an edge carrying them is byte-identical
+       until the lane-C migrations are applied:
+         huntStance  `?? null`  -> stanceOf reads null as `steady`, which IS
+                     today's behaviour. A database without the column projects
+                     no key and the engine changes not one draw.
+         huntStop    `?? null`  -> no rules, so the stop predicate never fires.
+         traits      the envelope's trait id ARRAY, at the TOP level and not on
+                     `state`. It is what clamps a stance's auto-eat threshold to
+                     the tier the character actually PAID for; absent reads as
+                     tier 0, whose ceiling is the LOWER one, so a caller that
+                     forgets it gets the safe answer rather than the generous
+                     one.
+         vigour      hr_vigour_of's whole block, including the SERVER's
+                     `budget_min` and its `day_key`, also at the TOP level.
+                     Absent -> the engine proposes no charge and pays no dry
+                     multiplier. The day key travels from the database because a
+                     daily boundary is a database spelling, and two spellings of
+                     "today" is how a daily gets charged twice. */
+    huntStance: st.hunt_stance ?? null,
+    huntStop: st.hunt_stop ?? null,
+    traits: e.traits ?? null,
+    vigour: e.vigour ?? null,
   };
 }
 

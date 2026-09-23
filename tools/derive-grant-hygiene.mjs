@@ -201,6 +201,40 @@ export const LINKS = [
     target: '2026-09-22-trophy-claim.sql',
     patchIds: ['trophy_claim'],
   },
+  /* Link 12 (M6 hunts, 2026-09-22) — TWO READS, AND NOTHING ELSE.
+     The same "must not trail its own grants overnight" rule link 10's note
+     states: hr_hunt_analyzer and hr_vigour_of are granted to hr_engine by
+     2026-09-22-hunt-analyzer.sql and 2026-09-22-vigour-daily.sql, so between
+     those applies and this one the nightly `hr-grant-hygiene` cron RAISES — and
+     a detector that is EXPECTED to be red hides the next genuine regression.
+     THIS FILE THEREFORE APPLIES IN THE SAME LANE-C BATCH as the two that create
+     them, AFTER both. Insertion only, so its declared-removals list in
+     tests/run-sql-tests.mjs PART 1f-ii is EMPTY. It is the new last toucher of
+     hr_assert_grant_hygiene.
+     Caught by tests/run-smoke.mjs, not by review: the first draft of the M6
+     lane granted both and recorded neither, and the suite answered
+     `engine_execute_outside_allowlist: [hr_hunt_analyzer, hr_vigour_of]`.
+
+     ⚠ RE-CUT AS LINK 12 ON 2026-09-22-trophy-claim.sql (Security S-5,
+       2026-09-23). This link was cut as link 11 on
+       2026-09-21-engine-allowlist-tick-settle.sql — the SAME base M7's
+       trophy link was cut on, in a parallel lane. M7 applied first
+       (2026-09-23 00:41:24 UTC), so production's installed detector already
+       carries hr_trophy_of and hr_trophy_claim, and a body derived from the
+       older base would silently REVERT both. It does not get the chance to:
+       this file's own GATE(b) reads the INSTALLED grants and refuses the
+       apply, which is the file failing closed and is exactly what Security
+       measured in production's real order. Re-based here so the derived body
+       is 23 entries + these two, and so the M6 four can leave the nightly
+       detector GREEN rather than raising with no committed file able to clear
+       it. Two lanes cutting a link off one base is invisible to `--check` on
+       either branch and shows up only in the set — a guard that compares link
+       bases against origin/next is owed (Security, R5). */
+  {
+    base: '2026-09-22-trophy-claim.sql',
+    target: '2026-09-22-engine-allowlist-hunt-reads.sql',
+    patchIds: ['hunt_reads'],
+  },
 ];
 
 const OPEN = 'create or replace function public.hr_assert_grant_hygiene(';
@@ -341,6 +375,40 @@ export const PATCHES = [
     -- fence e18c asserts \`hr_tick\` does NOT hold it, because that would be
     -- a door that cannot open and would journal a forgery alert every fire.
     'hr_tick_settle(text,uuid,integer,text,bigint,timestamp with time zone,timestamp with time zone,uuid,jsonb)',
+`,
+    where: 'after',
+  },
+  {
+    id: 'hunt_reads',
+    name: 'the c_engine_allow array head (link 11)',
+    find: '  c_engine_allow constant text[] := array[\n',
+    add: `    -- ── ADDED 2026-09-22 — THE HUNT'S TWO READS (M6) ───────────────────
+    -- At the HEAD, an INSERTION: it removes nothing, so PART 1f-ii grades this
+    -- link with an EMPTY declared-removals list. Position carries no meaning —
+    -- check (7) tests membership with \`<> all (...)\`.
+    --
+    -- ⚠ BOTH ARE READ-ONLY, WHICH IS THE WHOLE CLAIM, and it is the strongest
+    -- form an entry on this list can take: neither writes a row, so neither can
+    -- be replayed into a gain, and a forged call returns another shape of data
+    -- the caller can already reach. Both are asserted STABLE and both are
+    -- asserted free of INSERT/UPDATE/DELETE by their own migrations' section-4
+    -- gates, which run at apply time and refuse to install a body that grew a
+    -- write.
+    --
+    -- NO NEW TARGET. Each takes (p_user, p_slot) — the SAME pair the engine
+    -- already passes to hr_state_of and hr_apply, both of which it already
+    -- holds. The holder of hr_apply can already WRITE any character it names;
+    -- these are strictly NARROWER than what it already has, and they exist so
+    -- the ONE envelope the client renders carries the hunt readout rather than
+    -- the browser growing a second read of its own (HUNT_ANALYZER_UI.md §6).
+    --
+    -- WHY THE ENGINE NEEDS THEM: hr_state_of calls both, and hr_state_of is
+    -- itself engine-only. They are granted to hr_engine ONLY — no client role
+    -- holds either, which tests/hunt-analyzer.mjs A5 and the vigour guard both
+    -- assert by executing has_function_privilege rather than by reading a grant
+    -- line.
+    'hr_hunt_analyzer(uuid,integer)',
+    'hr_vigour_of(uuid,integer)',
 `,
     where: 'after',
   },

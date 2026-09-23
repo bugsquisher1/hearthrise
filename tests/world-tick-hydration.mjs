@@ -203,13 +203,14 @@ async function seedFighter(u) {
     insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version, accrued_to,
       active_kind, active_id, active_since, auto_eat_enabled, auto_eat_food, auto_eat_pct,
       consec_falls, combat_style, tool_carry, combat_xp_accrued_to, recovering_until,
-      fight, buffs, enchant)
+      fight, buffs, enchant, hunt_stance, hunt_stop)
     values ('${u}', 0, 1234, 0, 40, 99, 7, now() - interval '95 seconds',
       'combat', '${FIGHT_MONSTER}', now() - interval '2 hours',
       true, 'cooked_trout', 70,
       2, '{"sword":"aggressive"}'::jsonb, '{}'::jsonb,
       now() - interval '3 hours', now() - interval '10 minutes',
-      '{"id":"${FIGHT_MONSTER}","hp":11}'::jsonb, '[]'::jsonb, '{"weapon":"fire"}'::jsonb)
+      '{"id":"${FIGHT_MONSTER}","hp":11}'::jsonb, '[]'::jsonb, '{"weapon":"fire"}'::jsonb,
+      'careful', '{"hours":6,"food_floor":4,"bag_full":true}'::jsonb)
     on conflict (user_id, slot) do update set version = 7, hp = 40, max_hp = 99, gold = 1234,
       accrued_to = now() - interval '95 seconds',
       active_kind = 'combat', active_id = '${FIGHT_MONSTER}';`);
@@ -615,6 +616,23 @@ try {
          409 on. It cannot carry a swap arm because absent and present are the
          same answer — named here rather than silently skipped. */
       ammoCarry: { from: 'ammo_carry', level: 'state', notYetMigrated: true },
+      /* THE HUNT'S FOUR (2026-09-22, this lane). They are engine inputs like
+         any other, so H5a's own count arm demanded them the moment
+         `ENGINE_STATE_KEYS` grew — the two levels are NOT guessable from the
+         names and that is the whole point: `hunt_stance`/`hunt_stop` are
+         player_state COLUMNS and sit inside `state`, while `traits` and
+         `vigour` are built from other tables and sit at the TOP, one level up
+         from where a reader looking at the names would reach. They are
+         deliberately NOT marked `combat` — H5d's nine are the nine a combat
+         window is PRICED from (finding F4); these four reach the engine
+         through the same session and are covered by H5d's whole-key sweep.
+         The probe seeds a real `careful` stance and a real stop object
+         precisely so H5c's swap arm is not vacuous: a null-valued key reads
+         the same on both levels and would prove nothing. */
+      huntStance: { from: 'hunt_stance', level: 'state' },
+      huntStop: { from: 'hunt_stop', level: 'state' },
+      traits: { from: 'traits', level: 'top' },
+      vigour: { from: 'vigour', level: 'top' },
     };
 
     const declared = Object.keys(SOURCES);
@@ -689,6 +707,8 @@ try {
       inventory: env.inventory, equipment: env.equipment,
       enchant: env.enchant, buffs: env.buffs,
       ammoCarry: null,
+      huntStance: env.state.hunt_stance, huntStop: env.state.hunt_stop,
+      traits: env.traits, vigour: env.vigour,
     };
     const wrongValue = Object.keys(EXPECT).filter((k) => !same(hy[k], EXPECT[k]));
     judge('H5b', wrongValue.length === 0,

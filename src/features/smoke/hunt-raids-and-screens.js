@@ -3830,4 +3830,133 @@ export default [
       if (window.HearthriseAuto._resetEatSync) window.HearthriseAuto._resetEatSync();
     }
   }),
+
+  // ══ THE HUNT PANEL (docs/design/HUNT_ANALYZER_UI.md) ══════════════
+  // PLAYER ACTIONS, happy path: a player opens the Hunt panel and reads what
+  // last night was worth. The panel is a PURE function of the three
+  // server-projected blocks, which is exactly what makes it assertable here —
+  // there is no request to stub and no state to seed, because the client holds
+  // no hunt arithmetic of its own.
+  () => tryRun('hunt panel: the Hunt panel renders the server projection', () => {
+    assert(typeof window.huntPanelHtml === 'function', 'huntPanelHtml missing');
+    const html = window.huntPanelHtml({
+      hunt: { stance: 'careful', stop: { hours: 8 } },
+      vigour: { spent_min: 512, budget_min: 720 },
+      analyzer: {
+        spawn_id: 'goblin', stance: 'careful', elapsed_ms: 11520000, paid_ms: 9660000,
+        downtime_ms: 1860000, kills: 3114, kills_per_h: 974, deaths: 2, gold: 9800,
+        loot_value: 41200, supplies_value: 8400, profit_per_h: 14200,
+        xp_per_h: 18400, raw_xp_per_h: 21900, settled_at: new Date().toISOString(),
+      },
+      monsters: window.MONSTERS || {},
+    });
+    // THE TEN-SECOND TEST (§1), as four assertions.
+    assert(/hunting/.test(html), 'the live pill does not say the character is hunting');
+    assert(/hunt-stance-btn is-on/.test(html), 'no stance is visibly selected');
+    assert(/Stops after 8 hours/.test(html), 'the stop rules are not stated as a sentence');
+    assert(/\+ 14,200 gold \/ h/.test(html), 'the profit verdict is not the headline number');
+    // §C: THE VIGOUR BAR IS HELD (finding C-1). It read spent_min/remaining_min,
+    // which S-1 made wrong by up to 100% — twelve hours hunted still showed
+    // "11h 20m remaining". The engine half is fixed; vigour-daily.sql is STAGED,
+    // so there is no honest meter yet. PASSING A METER MUST NOT DRAW ONE — the
+    // block above hands over a full vigour object on purpose, so this fails the
+    // moment the bar returns without the migration and Security's re-verify.
+    assert(!/hunt-vigour/.test(html),
+      'the Vigour bar is being rendered. It is HELD until 2026-09-22-vigour-daily.sql is applied '
+      + 'and S-1 is re-verified — see THE LIMITER in src/render/hunt-panel.js');
+    assert(!/512 \/ 720 min today/.test(html),
+      'the panel printed a Vigour figure off a meter the server is not projecting yet');
+    // §E: a cost rendered as a positive number is a cost players do not subtract.
+    assert(/− 8,400 g/.test(html), 'supplies is not rendered with a leading minus');
+    // §E: raw XP/h is shown BESIDE effective — the gap IS the diagnosis.
+    assert(/18,400/.test(html) && /21,900/.test(html), 'raw and effective XP/h are not both shown');
+    // §F: the honesty line is a requirement, not decoration.
+    assert(/settled \d\d:\d\d UTC/.test(html), 'the honesty line is missing');
+  }),
+
+  // an UNSETTLED hunt shows em-dashes, never zeroes. A zero is a claim.
+  () => tryRun('hunt panel: the Hunt panel never invents a number', () => {
+    if (typeof window.huntPanelHtml !== 'function') return;
+    const html = window.huntPanelHtml({
+      hunt: { stance: 'steady', stop: null },
+      vigour: { spent_min: 0, budget_min: 720 },
+      analyzer: { spawn_id: 'goblin', elapsed_ms: 60000, paid_ms: 0, kills: null,
+                  profit_per_h: null, xp_per_h: null, raw_xp_per_h: null, settled_at: null },
+      monsters: window.MONSTERS || {},
+    });
+    assert(/nothing settled yet/.test(html),
+      'a hunt with no settled window did not say so');
+    assert(/—/.test(html), 'the unsettled panel shows numbers where it has none');
+    assert(!/refill/i.test(html),
+      'slice 1 ships Vigour READ-ONLY (HUNTS_AND_ANALYZER.md 4.6) — there must be no refill control');
+  }),
+
+  // A HUNT OLDER THAN A DAY SAYS WHICH SPAN ITS TOTALS COVER (finding A-1). The
+  // ledger scan is floored at 24 h and every sum and rate divides by
+  // `window_ms`, while the header clock is the WHOLE hunt — a panel showing both
+  // without saying which is which is the two disagreeing in the reader's head.
+  () => tryRun('hunt panel: a capped readout names the span it covers', () => {
+    if (typeof window.huntPanelHtml !== 'function') return;
+    const base = {
+      spawn_id: 'goblin', stance: 'steady', paid_ms: 79200000, downtime_ms: 7200000,
+      kills: 3000, kills_per_h: 125, deaths: 0, gold: 9000, loot_value: 100,
+      supplies_value: 50, profit_per_h: 380, xp_per_h: 900, raw_xp_per_h: 1000,
+      settled_at: new Date().toISOString(),
+    };
+    const capped = window.huntPanelHtml({
+      hunt: null, vigour: null, monsters: window.MONSTERS || {},
+      analyzer: { ...base, elapsed_ms: 259200000, window_ms: 86400000, window_capped: true },
+    });
+    assert(/totals cover the last 24h/.test(capped),
+      'a three-day hunt printed 24 hours of totals beside a three-day clock and said nothing');
+    const uncapped = window.huntPanelHtml({
+      hunt: null, vigour: null, monsters: window.MONSTERS || {},
+      analyzer: { ...base, elapsed_ms: 86400000, window_ms: 86400000, window_capped: false },
+    });
+    assert(!/totals cover the last 24h/.test(uncapped),
+      'an uncapped hunt claimed its totals were truncated — the line must come from the '
+      + 'server\'s window_capped, never from a clock read here');
+  }),
+
+  // THE EMPTY STATE. Eleven words, no tutorial, no modal.
+  () => tryRun('hunt panel: the Hunt panel empty state explains itself', () => {
+    if (typeof window.huntPanelHtml !== 'function') return;
+    const html = window.huntPanelHtml({ hunt: null, vigour: null, analyzer: null, monsters: {} });
+    assert(/No hunts yet/.test(html), 'the empty state does not explain itself');
+    assert(!/gold \/ h/.test(html), 'the empty state still renders a verdict it has no data for');
+  }),
+
+  // THE STOP SENTENCE never promises a stop the server cannot deliver.
+  // This game has NO bag capacity, so the bag_full rule cannot fire; the field
+  // is accepted and stored for the day a cap exists, and until then the panel
+  // must not print it. (Reported to the Game Designer by the M6 backend lane.)
+  () => tryRun('hunt panel: the stop sentence promises only rules that can fire', () => {
+    assert(typeof window.huntStopSentence === 'function', 'huntStopSentence missing');
+    const s = window.huntStopSentence({ hours: 8, bag_full: true });
+    assert(/after 8 hours/.test(s), 'the hours rule is not stated');
+    assert(!/bag/i.test(s),
+      'the panel promises "if the bag fills", but this game has no bag capacity and the rule '
+      + 'cannot fire — a stop that never comes is how a player concludes the game cheated them');
+    assert(/Runs until you stop it/.test(window.huntStopSentence(null)),
+      'a hunt with no rules does not say so');
+  }),
+
+  // THE INTENT CARRIES THE TWO FIELDS ONLY WHEN NAMED. An absent field
+  // leaves the standing order alone; an explicit null CLEARS it. A client that
+  // restated its own copy on every declaration is how a stale client value ends
+  // up overwriting a server one.
+  () => tryRunAsync('hunt panel: set_activity carries stance/stop only when named', async () => {
+    const mod = await import('../../net/activity.js?v=551');
+    const bodyOf = (o) => JSON.parse(mod.buildActivityRequest(
+      Object.assign({ kind: 'combat', id: 'goblin', intentId: 'k' }, o)).init.body);
+    const bare = bodyOf({});
+    assert(!('stance' in bare.activity) && !('stop' in bare.activity),
+      'an ordinary declaration grew fields the player did not set');
+    const named = bodyOf({ stance: 'careful', stop: { hours: 8 } });
+    assert(named.activity.stance === 'careful', 'the stance did not reach the request');
+    assert(named.activity.stop.hours === 8, 'the stop rules did not reach the request');
+    const cleared = bodyOf({ stance: null });
+    assert('stance' in cleared.activity && cleared.activity.stance === null,
+      'an explicit null did not survive as a CLEAR — a player cannot turn a stance off');
+  }),
 ];

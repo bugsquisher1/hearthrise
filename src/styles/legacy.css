@@ -3650,3 +3650,79 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 .aep-row .aep-q{ color:var(--ink-3); font-variant-numeric:tabular-nums; }
 .aep-empty{ color:var(--ink-3); padding:14px 10px; line-height:1.5; }
 .aep-note{ padding:8px 14px; border-top:1px solid var(--line); color:var(--ink-3); font-size:calc(14.5px * var(--ui-scale,1)); line-height:1.5; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   THE HUNT PANEL (2026-09-22) — docs/design/HUNT_ANALYZER_UI.md
+   Emitted by src/render/hunt-panel.js. ZERO hardcoded colours: every colour
+   below is a token from src/styles/tokens.css, which is the cheapest thing a
+   NEW component can be (there is nothing to convert). No new breakpoint — the
+   frozen set only, owned by tests/breakpoint-guard.mjs.
+   ════════════════════════════════════════════════════════════════════════ */
+.hunt-panel { display: flex; flex-direction: column; gap: 10px; }
+
+/* A. THE HEADER — the spawn in the largest type on the page, the live pill and
+   the elapsed WALL clock beside it. */
+.hunt-head { display: flex; align-items: baseline; gap: 10px; }
+.hunt-spawn { font-family: var(--f-display); font-size: var(--t-h2); color: var(--ink); }
+.hunt-pill { font-size: var(--t-micro); color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; }
+.hunt-pill.is-live { color: var(--green); }
+.hunt-clock { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--ink-2); font-size: var(--t-small); }
+
+/* B. THE SETUP — three buttons reusing the combat-style gesture, and the stop
+   rules as a SENTENCE, which is what a player reads at 11 p.m. */
+.hunt-setup { display: flex; flex-direction: column; gap: 6px; }
+.hunt-setup-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.hunt-key, .hunt-vigour-key, .hunt-verdict-key {
+  font-size: var(--t-micro); color: var(--ink-3); letter-spacing: .08em; min-width: 62px;
+}
+.hunt-stance-buttons { display: flex; gap: 6px; }
+.hunt-stance-btn {
+  font: inherit; font-size: var(--t-small); padding: 4px 12px; border-radius: var(--r-sm);
+  background: var(--bg-2); color: var(--ink-2); border: 1px solid var(--line); cursor: pointer;
+}
+.hunt-stance-btn.is-on { background: var(--gold-bg); color: var(--gold); border-color: var(--gold); }
+.hunt-stops { font-size: var(--t-small); color: var(--ink-2); }
+
+/* C. THE LIMITER — one bar, labelled in ABSOLUTE MINUTES. A percentage of an
+   invisible budget is a number players learn to ignore. */
+.hunt-vigour { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.hunt-vigour-track {
+  flex: 1 1 120px; height: 8px; border-radius: var(--r-sm);
+  background: var(--bg-1); border: 1px solid var(--line); overflow: hidden;
+}
+.hunt-vigour-fill { display: block; height: 100%; background: var(--accent); }
+.hunt-vigour.is-dry .hunt-vigour-fill { background: var(--red); }
+.hunt-vigour-label { font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.hunt-vigour.is-dry .hunt-vigour-label { color: var(--red); }
+
+/* D. THE VERDICT — the one line the whole panel exists to deliver, so it gets
+   the whole row and is not a cell in the table below it. */
+.hunt-verdict {
+  display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: 4px 10px;
+  padding: 8px 0; border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft);
+}
+.hunt-verdict-n { font-family: var(--f-display); font-size: var(--t-h1); font-variant-numeric: tabular-nums; color: var(--ink); }
+.hunt-verdict.is-up .hunt-verdict-n { color: var(--green); }
+.hunt-verdict.is-down .hunt-verdict-n { color: var(--red); }
+.hunt-verdict-sub { grid-column: 2; font-size: var(--t-micro); color: var(--ink-3); }
+
+/* E. THE EVIDENCE — a total beside its rate, or a cost beside its cause. */
+.hunt-evidence { display: flex; flex-direction: column; gap: 2px; }
+.hunt-ev-row {
+  display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px;
+  align-items: baseline; padding: 3px 6px; background: var(--td-cell); border-radius: var(--r-sm);
+}
+.hunt-ev-k, .hunt-ev-k2 { font-size: var(--t-micro); color: var(--ink-3); }
+.hunt-ev-v, .hunt-ev-v2 { font-size: var(--t-small); color: var(--ink); font-variant-numeric: tabular-nums; }
+/* A COST RENDERED AS A POSITIVE NUMBER IS A COST PLAYERS DO NOT SUBTRACT. */
+.hunt-ev-v.is-cost { color: var(--red); }
+
+.hunt-stopped { font-size: var(--t-small); color: var(--ink-2); }
+
+/* F. THE HONESTY LINE — never omitted. Every number above it is the server's
+   last settled projection, and a player who reloads twice inside one window
+   must see the same numbers both times and understand why. */
+.hunt-honesty { font-size: var(--t-micro); color: var(--ink-3); }
+
+/* §3. THE EMPTY STATE — eleven words, no tutorial, no carousel. */
+.hunt-empty { font-size: var(--t-small); color: var(--ink-2); }

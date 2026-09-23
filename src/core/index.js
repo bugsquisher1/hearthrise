@@ -78,3 +78,10 @@ export * as artisanSim from './artisan-sim.js?v=551';
    is a fraction OF (`workerAnchorMs` = the PACED action interval) belong in one
    place. They were previously two mirrored copies and, respectively, nowhere. */
 export * as workers from './workers.js?v=551';
+/* THE HUNT (docs/design/HUNTS_AND_ANALYZER.md). The stance table, the stop
+   predicate and the Vigour arithmetic — the three rules a hunt adds to the
+   activity pointer that already existed. Exported here for the same reason
+   `away` is: BOTH runtimes read them through the one engine, and a stance
+   preset or a stop predicate with two copies would disagree about when a
+   player's night ended. A stance NEVER carries a multiplier (§2.2). */
+export * as hunt from './hunt.js?v=551';

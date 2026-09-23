@@ -579,14 +579,39 @@ export function readIntentId(body) {
   return UUID_RE.test(low) ? low : null;
 }
 
+/** The bounded shape of a stance id. The same reason ACTIVITY_ID_RE is bounded:
+    a lookup token that reaches a `::text` comparison must not be a free way to
+    make the server hash a megabyte. The ALLOWLIST is src/core/hunt.js STANCES
+    and the CATALOGUE is hr_hunt_stances — deliberately NOT checked here, so the
+    intent layer can answer `unknown_stance` BY NAME (the readActivity rule). */
+export const STANCE_ID_RE = /^[a-z]{1,24}$/;
+
+/** The largest stop object a body may carry. Five rules are published
+    (src/core/hunt.js STOP_FIELDS); the bound is a shape guard, not a rule, and
+    an over-long object is dropped to null rather than answered, because a
+    thousand-key object is not a declaration anyone made by tapping. */
+const MAX_STOP_KEYS = 16;
+
 /**
- * The activity DECLARATION. Two strings, both allowlisted, nothing else.
+ * The activity DECLARATION. Two strings, both allowlisted, nothing else —
+ * plus, since 2026-09-22, the hunt's two OPTIONAL standing orders.
  *
  * Returns null when the body did not carry a readable one. It deliberately does
  * NOT enforce the (kind ⇔ id) pairing rule or the "is this kind payable" rule:
  * both of those are answers the intent layer must give BY NAME, and a parser
  * that collapses them into `null` would turn "you cannot fish yet" into
  * "malformed request".
+ *
+ * ⚠ THE SAME RULE GOVERNS THE TWO NEW FIELDS, AND IT IS WHY THEY ARE READ AS
+ *   SHAPE ONLY. A stance outside the catalogue must reach the intent layer to be
+ *   answered `unknown_stance`; a stop rule outside its bounds must be answered
+ *   `bad_stop` with the FIELD named. A parser that nulled either would report
+ *   "malformed request" for "8 hours is fine, 9,999 is not".
+ *
+ * ⚠ `undefined` vs `null` IS LOAD-BEARING on both. An ABSENT field leaves the
+ *   standing order alone; an EXPLICIT null CLEARS it (back to steady / no
+ *   rules). `hasOwnProperty` is the only way to tell those two gestures apart,
+ *   and hr_apply's UPDATE reads exactly the same distinction.
  */
 export function readActivity(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
@@ -600,6 +625,35 @@ export function readActivity(body) {
   const out = Object.create(null);
   out.kind = (kindRaw !== null && ACTIVITY_KINDS.includes(kindRaw)) ? kindRaw : null;
   out.id = (idRaw !== null && ACTIVITY_ID_RE.test(idRaw)) ? idRaw : null;
+
+  /* THE STANCE. Present only when the caller sent the key, so an ordinary
+     `{kind,id}` declaration is byte-for-byte the object it has always been and
+     every existing caller, test and guard sees no new field. */
+  if (Object.prototype.hasOwnProperty.call(a, 'stance')) {
+    const v = a.stance;
+    out.stance = (v === null) ? null
+      : (typeof v === 'string' && STANCE_ID_RE.test(v)) ? v : undefined;
+    /* `undefined` is the UNREADABLE case — not `null`, which MEANS something
+       here. The intent layer answers it `bad_stance`. */
+  }
+
+  /* THE STOP RULES. Copied key by key into a null-prototype object: the body is
+     attacker-controlled JSON and `__proto__` / `constructor` are own, truthy
+     keys on a plain object literal. Values are passed through UNVALIDATED —
+     bounds are the intent layer's answer, by name and by field. */
+  if (Object.prototype.hasOwnProperty.call(a, 'stop')) {
+    const v = a.stop;
+    if (v === null) {
+      out.stop = null;
+    } else if (!v || typeof v !== 'object' || Array.isArray(v)
+               || Object.keys(v).length > MAX_STOP_KEYS) {
+      out.stop = undefined;
+    } else {
+      const stop = Object.create(null);
+      for (const k of Object.keys(v)) stop[k] = v[k];
+      out.stop = stop;
+    }
+  }
   return out;
 }
 

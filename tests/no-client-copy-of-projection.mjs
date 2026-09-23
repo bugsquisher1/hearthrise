@@ -106,6 +106,15 @@ const TOP = {
   gem_unlocks:         { kind: 'split', client: ['ownedThemes', 'ownedCosmetics'], mirror: '_gemUnlocks', reader: ['src/features/gem-unlocks.js', 'ownsGemUnlock'], ratchet: true, why: 'CLIENT HALF LANDED 2026-09-14: accrue.js reconcileGemUnlocks writes G._gemUnlocks from the envelope (and record.js hydrates it on an idle boot), ownsGemUnlock reads ONLY that, and both `client` fields were DELETED from G and from RESIDUE_FIELDS in the same build — they stay named here so the ratchet keeps them at ZERO raw reads and a re-introduction goes red.' },
   unlocked_recipes:    { kind: 'split', client: ['unlockedRecipes'], mirror: '_recipeUnlocks', reader: ['src/features/recipe-scrolls.js', 'unlockedRecipesMap'], ratchet: true, why: 'CLIENT HALF LANDED 2026-09-14: accrue.js reconcileRecipes writes G._recipeUnlocks, unlockedRecipesMap() is the ONE read (legacy gateOk, recipe-book, collection-log, the bag) and the field left RESIDUE_FIELDS with the addItem scroll wrapper. Named here so the ratchet holds it at ZERO.' },
   renown_high:         { kind: 'split', client: ['renownHigh'], mirror: '_serverHigh', reader: ['src/features/renown.js', 'countedRenown'], ratchet: true, why: 'countedRenown() prefers the realm; the residue ratchet is the PREDICTION shown before the first envelope and decides nothing' },
+  /* THE HUNT'S TWO TOP-LEVEL BLOCKS (2026-09-22). Both land in `_`-prefixed
+     SCRATCH and NEITHER is in the residue, deliberately: every number on the
+     Hunt panel is one a player acts on, so HUNT_ANALYZER_UI.md §6 forbids a
+     client copy that could go stale between settles. hydrateHunt() reads all
+     three blocks by PRESENCE, so a database that predates the migration leaves
+     the scratch untouched and the panel renders nothing rather than an empty
+     meter. No ratchet: there is no persisted copy to count. */
+  vigour:              { kind: 'reconciled', client: ['_vigour'], reader: ['src/net/accrue.js', 'hydrateHunt'], why: 'hr_vigour_of\'s whole meter INCLUDING the server\'s day_key — two spellings of "today" is how a daily gets charged twice' },
+  hunt_analyzer:       { kind: 'reconciled', client: ['_huntAnalyzer'], reader: ['src/net/accrue.js', 'hydrateHunt'], why: 'the last SETTLED reading, or null — ABSOLUTE, never a union: a null must REPLACE the previous hunt\'s profit line' },
 };
 
 const STATE = {
@@ -146,6 +155,13 @@ const STATE = {
   hearthfind_ready:      { kind: 'reconciled', client: ['_hearthfind'], reader: ['src/features/hearthfind.js', 'noteEnvelope'], why: 'the server decides when a find is ready' },
   hearthfind_plinth:     { kind: 'reconciled', client: ['_hearthfind'], reader: ['src/features/hearthfind.js', 'noteEnvelope'], why: 'what stands on the plinth is the server\'s' },
   hearthfind_titles:     { kind: 'reconciled', client: ['_hearthfind'], reader: ['src/features/hearthfind.js', 'noteEnvelope'], why: 'earned titles are server rows' },
+  /* THE TWO STANDING ORDERS (2026-09-22). Read by PRESENCE in hydrateHunt():
+     an ABSENT key means this build has no hunts, a NULL value means "no stance
+     chosen", and the panel must not confuse the two. Scratch (`_hunt`), never
+     residue — the stance the engine obeys is the column hr_apply validates
+     against hr_hunt_stances, never a client-held pick. */
+  hunt_stance:           { kind: 'reconciled', client: ['_hunt'], reader: ['src/net/accrue.js', 'hydrateHunt'], why: 'HOW to fight; null = steady. Carries no multiplier (design §2.2) — the id is an allowlist the server enforces' },
+  hunt_stop:             { kind: 'reconciled', client: ['_hunt'], reader: ['src/net/accrue.js', 'hydrateHunt'], why: 'WHEN to stop; the stop predicate runs server-side in the one engine both the tick and the away replay call' },
 };
 
 /* ── CHECK 3'S ONLY ESCAPE HATCH ────────────────────────────────────────────

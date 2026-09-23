@@ -1617,3 +1617,620 @@ update public.hr_tick_config set shadow = true where id;
 ```
 
 None of the four needs an edge deploy, and (2) is reversible by step 9(b).
+
+---
+
+# RE-VERIFY 4 — 2026-09-23
+
+**Reviewer:** security-engineer (veto authority)
+**Head:** `sec/world-tick-m3-5` off `set/b551` (82b57705 — the set that is on production)
+**Trigger:** RE-VERIFY 3's runbook was executed exactly and the combat channel produced
+**nothing**. Nine-plus fires, `lease_holder` null, `owned` false, `rostered = 1` (gather
+only), zero combat `hr_tick_shadow` rows. The arm did not fail — it was never admissible.
+**Two of the eleven steps I signed were wrong, and both are mine.**
+
+## Verdicts
+
+| # | Item | Verdict |
+|---|---|---|
+| S-13a | Step 9(a) armed `owned = false` "so the roster stamps the lease itself" | **CONFIRMED BY EXECUTION — my defect.** The roster's claim CTE is `where o.owned`. An unowned row is never claimed, never leased, never rostered. |
+| S-13b | Step 8's candidate query carries no 24 h fence and orders `behind_ms desc` | **CONFIRMED BY EXECUTION — my defect.** It selects *for* the one predicate that disqualifies. It can only ever surface characters the roster refuses. |
+| S-14 | A shadow cohort silently leaves the roster 24 h after its **player** last settled | **CONFIRMED BY EXECUTION — property, with one finding attached (it is silent).** |
+| S-15 | The R-1 fence (`bestiary_rows = 0`) is unsatisfiable by a character played into combat | **CONFIRMED by reading the ladders — fence restated on the thresholds that actually pay.** |
+| Steps 8 / 9 | Rewritten below, every predicate derived from the live function body | **REPLACED.** L-8 executes every statement. |
+| Cohort source | QA slot 0 or 1, played into combat by Tyler and closed | **RULED — recipe below, with the knockout window that makes the §16.6 fence satisfiable.** |
+| 24 h span vs M2 | Property or finding | **PROPERTY. ≤ 11 h stays, and becomes a hard ceiling with a liveness read behind it.** |
+| Armed-but-idle channel + dead ownership row | leave / (3) / remove | **REMOVE the ownership row (switch 3). LEAVE the channel armed.** |
+
+---
+
+## S-13a and S-13b — confirmed by executing the roster, not by reading it
+
+Both findings were argued from the function text. Text is how I got here, so both are now
+**measured against the chain replay** (`tests/schema-replay.mjs` `bootReplay`, PGlite, no
+credential, production untouched), calling the real `public.hr_tick_roster` on planted
+fixtures. Four arms, one probe character `…0000d13a1`, owner context:
+
+```
+S-13a  the roster leases only OWNED rows — step 9(a) armed owned = false
+  ✓ S-13a — owned = false, accrued_to 10 min old: roster returned 0 row(s), lease_holder = null.
+S-13b  the 24 h fence is on the RAW ps.accrued_to — step 8 had no such fence
+  ✓ S-13b — owned = true but accrued_to 30 days old: roster returned 0 row(s).
+S-13c  the admissible shape — owned = true AND inside 24 h — does lease
+  ✓ S-13c — owned = true, accrued_to 10 min old: roster returned 1 row(s), lease_holder = "proof-13c".
+S-14   a SHADOWED character silently leaves the roster after 24 h of shadowing
+  ✓ S-14 — shadow = true, shadow_accrued_to = now(), raw accrued_to 25 h old: roster returned 0 row(s).
+
+s13-proof: green — all four arms measured as stated.
+EXIT=0
+```
+
+**The proof is the script, not the output.** It is not added to `tests/` because a new file
+there is a `ci-shape` / `guard-hygiene` registration and a workflow edit — a lane-B change
+this brief does not carry. It is therefore reproduced verbatim, so anyone can re-run it:
+save it at the repo root and `node` it (the import is resolved relative to the script).
+
+```js
+// S-13a / S-13b / S-14 — executed against the chain replay, owner context.
+import { bootReplay } from './tests/schema-replay.mjs';
+
+const U = '00000000-0000-4000-8000-0000000d13a1';
+const fails = [];
+const judge = (id, pass, msg) => {
+  console.log(`  ${pass ? '✓' : '✗'} ${id} — ${msg}`);
+  if (!pass) fails.push(id);
+};
+
+const { db, failures } = await bootReplay({});
+if (failures.length) { console.error('replay did not complete:', failures); process.exit(2); }
+
+async function fixture(db, { owned, accruedSql, shadowAccruedSql = 'null', shadow }) {
+  await db.exec(`insert into auth.users (id) values ('${U}') on conflict do nothing;`);
+  await db.exec(`
+    insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version, accrued_to,
+                                     active_kind, active_id, active_since)
+    values ('${U}', 0, 0, 0, 10, 10, 1, ${accruedSql},
+            'combat', (select activity_id from public.hr_activities where kind='combat' limit 1),
+            now() - interval '2 hours')
+    on conflict (user_id, slot) do update set accrued_to = ${accruedSql},
+      active_kind = 'combat', version = 1;`);
+  await db.exec(`delete from public.hr_tick_ownership where user_id = '${U}';`);
+  await db.exec(`
+    insert into public.hr_tick_ownership (user_id, slot, channel, owned, shadow_accrued_to)
+    values ('${U}', 0, 'combat', ${owned}, ${shadowAccruedSql});`);
+  await db.exec(`update public.hr_tick_config set enabled = true, shadow = ${shadow} where id;`);
+}
+
+const roster = async (holder) => (await db.query(
+  `select user_id, slot, accrued_to from public.hr_tick_roster(array['combat'], 0, 200, '${holder}', 30000)`)).rows;
+const lease = async () => (await db.query(
+  `select owned, lease_holder, lease_until from public.hr_tick_ownership
+    where user_id = '${U}' and slot = 0 and channel = 'combat'`)).rows[0];
+
+try {
+  console.log('\nS-13a  the roster leases only OWNED rows — step 9(a) armed owned = false');
+  await fixture(db, { owned: 'false', accruedSql: "now() - interval '10 minutes'", shadow: 'true' });
+  const a = await roster('proof-13a');
+  const la = await lease();
+  judge('S-13a', a.length === 0 && la.lease_holder === null,
+    `owned = false, accrued_to 10 min old: roster returned ${a.length} row(s), `
+    + `lease_holder = ${JSON.stringify(la.lease_holder)}. The claim CTE's \`where o.owned\` `
+    + 'excludes the row, so the roster never stamps a lease and step 9(a) can never produce a cohort.');
+
+  console.log('\nS-13b  the 24 h fence is on the RAW ps.accrued_to — step 8 had no such fence');
+  await fixture(db, { owned: 'true', accruedSql: "now() - interval '30 days'", shadow: 'true' });
+  const b = await roster('proof-13b');
+  judge('S-13b', b.length === 0,
+    `owned = true but accrued_to 30 days old: roster returned ${b.length} row(s). `
+    + '`ps.accrued_to > now() - c_max_span` (24 h) drops it, so step 8\'s `order by behind_ms desc` '
+    + 'surfaces exactly the characters the roster refuses.');
+
+  console.log('\nS-13c  the admissible shape — owned = true AND inside 24 h — does lease');
+  await fixture(db, { owned: 'true', accruedSql: "now() - interval '10 minutes'", shadow: 'true' });
+  const c = await roster('proof-13c');
+  const lc = await lease();
+  judge('S-13c', c.length === 1 && lc.lease_holder === 'proof-13c' && lc.lease_until !== null,
+    `owned = true, accrued_to 10 min old: roster returned ${c.length} row(s), `
+    + `lease_holder = ${JSON.stringify(lc.lease_holder)}. This is what 9(a) must insert.`);
+
+  console.log('\nS-14  a SHADOWED character silently leaves the roster after 24 h of shadowing');
+  await fixture(db, { owned: 'true', accruedSql: "now() - interval '25 hours'",
+                      shadowAccruedSql: 'now()', shadow: 'true' });
+  const d = await roster('proof-14');
+  judge('S-14', d.length === 0,
+    `shadow = true, shadow_accrued_to = now() (the tick shadowed it one second ago), `
+    + `raw accrued_to 25 h old: roster returned ${d.length} row(s). The fence reads the RAW `
+    + 'accrued_to, which hr_apply never advances in shadow, so a shadow cohort expires 24 h '
+    + 'after its player last settled — not 24 h after the tick last saw it.');
+} finally { await db.close(); }
+
+console.log('');
+console.log(fails.length ? `s13-proof: ${fails.length} arm(s) failed — ${fails.join(', ')}`
+                         : 's13-proof: green — all four arms measured as stated.');
+process.exit(fails.length ? 1 : 0);
+```
+
+S-13a and S-13b are each a *zero* where the production arm also measured zero, and S-13c is
+the control that says the zero is the predicate and not the harness: change `owned` to true
+and move `accrued_to` inside the span and the same call leases the same character. Production
+saw exactly S-13a: `lease_holder` null after nine fires.
+
+**The defect in my own reasoning, named.** I wrote "`owned = false` … so the roster stamps
+the lease itself (the `c1b` property)". `c1b` is about the *lease*, which the roster does
+stamp. `owned` is the *ownership* flag, which only an operator sets — 2026-09-20-world-tick-roster.sql
+says so in its own header ("the ownership flag defaults to NOT owned") and its reversibility
+note is `update hr_tick_ownership set owned = false` **to stop the tick**. I armed the kill
+switch and called it the arm. The M1 gather arm used `owned = true`, and it works; I had a
+worked example in front of me and did not read it.
+
+**And S-13b is the same mistake compounded**: `order by behind_ms desc` sorts by exactly the
+quantity `ps.accrued_to > now() - c_max_span` disqualifies, so the query's *first* row is its
+*least* admissible. All five combat pointers on production are 2026-08-24/25, and
+`count(*) where active_kind='combat' and accrued_to > now() - interval '24 hours'` is **0** —
+step 8 had no admissible row to return and said nothing, because it was never asked.
+
+**Class, not bug (CLAUDE.md §3.2).** Both are the same failure: *a runbook step that names a
+server predicate from memory instead of from the function body in the chain.* L-8 already
+proves every statement **executes**; it does not prove a statement **selects what the server
+admits**. That is the gap RE-VERIFY 4 closes for steps 8 and 9, and the rule it leaves
+behind is: **an operator-facing query that mirrors a server predicate quotes the function
+body, in the function's own spelling, with the file and the constant named beside it.**
+
+### The live predicate set, derived from the function body
+
+`public.hr_tick_roster`, `2026-09-20-world-tick-roster.sql`, claim CTE. Nothing here is
+remembered; it is the `where` clause, in order:
+
+| # | Predicate, verbatim | Where it must land |
+|---|---|---|
+| 1 | `o.owned` | **9(a) must insert `true`** |
+| 2 | `o.channel = ps.active_kind` | 8 filters `active_kind='combat'`; 9(a) inserts `channel='combat'` |
+| 3 | `ps.active_kind = any (v_kinds)` | the driver's `p_kinds`, from `hr_tick_config.channels` — 9(b) |
+| 4 | `ps.accrued_to > now() - c_max_span` (`c_max_span constant interval := interval '24 hours'`) | **8 must fence on it and order *with* it** |
+| 5 | `public.hr_shard_of(o.user_id) = coalesce(p_shard, 0)` | 8 must evaluate it (0 for everybody today, §9 — and that is a function body, not a guarantee) |
+| 6 | `o.lease_until is null or o.lease_until < now() or o.lease_holder = v_holder` | satisfied by a fresh insert (both columns null); 8 must still show it |
+| 7 | the keyset on `(m.mark, o.user_id, o.slot)` | driver-side, not operator-side |
+| — | `join public.player_state ps on ps.user_id = o.user_id and ps.slot = o.slot` | an ownership row with no `player_state` row is silently dropped |
+
+---
+
+## S-15 — the R-1 fence as written cannot be satisfied by any character played into combat
+
+R-1 requires `bestiary_rows = 0`. A character played into combat earns
+`ev:kill_monster:<id>` counters on its first kill, so the fence and the cohort requirement
+contradict each other, and the only characters that satisfy it are ones that have never
+fought — which cannot be `active_kind = 'combat'` with a meaningful window.
+
+The fence was right about the *hazard* and wrong about the *threshold*. What the tick
+under-pays is the value the bestiary buys, and both ladders author **exactly 1.00 at their
+first rung**:
+
+- `src/data/bestiary-charms.js` `CHARM_RANKS`: 25 / 100 / 500 / 2000 class kills → `drop`
+  1.00 / 1.01 / 1.02 / 1.03. `charmDropMultFor` (`src/core/charms.js:186`) is
+  `if (!(raw > 1)) return 1`, so **below 100 class kills the factor is exactly 1**.
+  `dmg` is read by nothing (phase 3, deliberate). `reveal` is read by nothing —
+  `charmRevealsAt` has no caller outside its own file (grepped).
+- `src/data/bestiary.js` `TROPHY_STAGES`: 2500 / 5000 / 10000 / 20000 kills of **one
+  monster** → `drop` 1.00 / 1.01 / 1.02 / 1.03, same `!(raw > 1)` guard
+  (`src/core/trophies.js:190`), and `trophyDamageMultFor` returns 1 for every input while
+  `TROPHY_DAMAGE_ARM_ENABLED === false`. **Below 5000 kills of a single monster the factor
+  is exactly 1.**
+
+So `bestiaryKills = undefined` (what the tick passes) and `bestiaryKills = <a character
+under those counts>` produce **byte-identical paid values**. The fence becomes a bound on
+kills, not a demand for zero, and I set it at the **readout**-neutral rung rather than the
+value-neutral one so no judgement is needed at parity-read time:
+
+- **total kills across all monsters < 25** ⇒ no class can reach rank 1 ⇒ `charmRank` is 0 and
+  `charmClass` null in both paths. (A per-class sum is not expressible in SQL — the class
+  lives in `src/data/monster-classes.js` — so the total is the conservative SQL bound.)
+- **max kills of any single monster < 2500** ⇒ `trophyStage` 0 in both paths.
+- **Hard floor, never to be crossed:** total < 100 and max < 5000. Between the two bands only
+  the `charmRank` / `charmClass` / `trophyStage` **readouts** differ; they pay nothing and are
+  not in the 8c comparison set. If 8c is ever widened to compare `meta`, the fence tightens to
+  the first band and this paragraph is the reason.
+
+`hr_perks_of` is unchanged and still `rooms` / `plots` / `propertyTier` empty: playing a
+character into combat does not buy property, so that half of R-1 stays as written. **Do not
+buy a room, a plot or a property tier on the cohort slot for the duration of M2.**
+
+---
+
+## Steps 8 and 9 — REPLACED. Everything above this line supersedes RE-VERIFY 3's copies.
+
+### 8. Choose the cohort — ONE character, read-only
+
+```sql
+-- (8-CAND) CANDIDATES. Every predicate the LIVE roster applies, in the roster's
+--   own spelling, from public.hr_tick_roster's claim CTE
+--   (2026-09-20-world-tick-roster.sql). Read-only; writes nothing.
+--   `span_headroom_h` is how long this character stays admissible if its player
+--   never returns: c_max_span (24 h) minus how far behind it already is.
+with cfg as (select flush_seconds from public.hr_tick_config where id)
+select ps.user_id, ps.slot, ps.active_kind, ps.active_id, ps.accrued_to,
+       floor(extract(epoch from (now() - ps.accrued_to)) * 1000)::bigint as behind_ms,
+       round(extract(epoch from (ps.accrued_to - (now() - interval '24 hours'))) / 3600.0, 2)
+         as span_headroom_h,
+       public.hr_shard_of(ps.user_id) as shard,
+       (select max(k.created_at) from public.hr_kill_credit_log k
+         where k.user_id = ps.user_id and k.slot = ps.slot) as newest_kill_credit
+  from public.player_state ps, cfg
+ where ps.active_kind = 'combat'
+   and ps.active_since is not null
+   and ps.accrued_to > now() - interval '24 hours'
+   and ps.accrued_to < now() - (cfg.flush_seconds || ' seconds')::interval
+   and public.hr_shard_of(ps.user_id) = 0
+   and not exists (select 1 from public.hr_tick_ownership o
+                    where o.user_id = ps.user_id and o.slot = ps.slot)
+ order by ps.accrued_to desc;
+```
+
+Four changes from the query that produced an inadmissible cohort, each tied to a predicate:
+
+1. **`ps.accrued_to > now() - interval '24 hours'` is new.** It is `c_max_span`, spelled as
+   the function spells it. Without it the query returns rows the roster refuses — which is
+   precisely and only what it returned on 2026-09-23.
+2. **The ORDER IS REVERSED — `accrued_to desc`, freshest first, not `behind_ms desc`.**
+   Furthest-behind-first is the *roster's* job (it pays the neediest first, inside its
+   fence). The *operator's* job is the opposite: pick the candidate with the most
+   `span_headroom_h`, because that is the one that survives longest before S-14 drops it.
+   `behind_ms` is kept as a **column** — it is what tells you a window exists — and removed
+   as a **sort key**.
+3. **`hr_shard_of(...) = 0` is evaluated, not assumed.** It returns 0 for everybody today
+   (§9), and that is a function body one edit away from not being true.
+4. **`not exists (… hr_tick_ownership …)`** replaces the `already_rostered` readout with a
+   fence: one channel per CHARACTER, or the parity read cannot attribute a window. It matches
+   on `(user_id, slot)` across **every** channel, so the gather cohort can never be picked.
+
+The **lease** predicate (#6) needs no clause here: a candidate has no ownership row at all,
+so `lease_holder` and `lease_until` are null on insert and the roster admits it. The
+**join** to `player_state` is why this query selects *from* `player_state` — a cohort with no
+state row is dropped silently by the roster and would read as a dead arm.
+
+**Zero rows is the expected, correct answer on a production with no active combat character,
+and it is not a reason to relax a predicate.** It means go and make one — §8-PLAY below.
+
+Then, on the chosen candidate, **three stop conditions**:
+
+```sql
+-- (8-FENCE-i) THE §16.6 ATTENDED FENCE, unchanged and still required.
+--   Live kill credit near the watermark pollutes the first window: the tick
+--   knows nothing about attended overlap and the accrue path subtracts it.
+--   ATTENDED_EDGE_SLACK_MS = 60000 (hr-accrue/accrual.js:361).
+select max(k.created_at)                                as newest_credit,
+       ps.accrued_to,
+       ps.accrued_to - interval '60 seconds'            as must_be_older_than,
+       (max(k.created_at) is null
+        or max(k.created_at) < ps.accrued_to - interval '60 seconds') as fence_i_ok
+  from public.player_state ps
+  left join public.hr_kill_credit_log k
+    on k.user_id = ps.user_id and k.slot = ps.slot
+ where ps.user_id = '<uuid>' and ps.slot = <slot>
+ group by ps.accrued_to;
+-- Require fence_i_ok = true. §8-PLAY's knockout window is how a freshly-played
+-- character reaches it; nothing else on this list does.
+```
+
+```sql
+-- (8-FENCE-ii) R-1, RESTATED ON THE THRESHOLDS THAT ACTUALLY PAY (S-15).
+--   `bestiary_rows = 0` is unsatisfiable by a character that has fought. The
+--   tick prices bestiary at zero; below these counts so does the accrue path,
+--   exactly, so the two are byte-identical rather than merely close.
+select coalesce(sum(b.kills), 0)                     as total_kills,
+       coalesce(max(b.kills), 0)                     as max_one_monster,
+       coalesce(sum(b.kills), 0) < 25                as charm_readout_neutral,
+       coalesce(max(b.kills), 0) < 2500              as trophy_readout_neutral,
+       coalesce(sum(b.kills), 0) < 100               as charm_value_neutral,
+       coalesce(max(b.kills), 0) < 5000              as trophy_value_neutral
+  from public.hr_bestiary_of('<uuid>'::uuid, <slot>) b;
+-- Require all four true. The last two are the HARD floor and are never waived;
+-- the first two are the fence I am signing, and crossing either of them takes a
+-- new review, not a judgement call at read time.
+```
+
+```sql
+-- (8-FENCE-iii) R-1's PERK HALF, unchanged.
+with p as (select public.hr_perks_of('<uuid>'::uuid, <slot>) as j)
+select j as perks,
+       (j->>'ok')::boolean                      as readable,
+       j->'rooms' = '{}'::jsonb
+         and j->'plots' = '{}'::jsonb
+         and (j->>'propertyTier')::int = 0      as prices_nothing
+  from p;
+-- Require readable = true and prices_nothing = true. `rooms`, `plots` and
+-- `propertyTier` are the only three hr_perks_of sources today. ok = false means
+-- no character, not an empty stack.
+```
+
+### 8-PLAY. Where the cohort comes from — the play recipe
+
+Player state is never fabricated (CLAUDE.md §2). There is no admin insert here and no
+`update player_state` anywhere in this runbook. A combat cohort exists only if somebody
+**plays** a character into combat, so:
+
+**Who:** the QA account `0a47ba77-3a6d-495d-8a95-07480a9d90cf`, **slot 0 or slot 1** — both
+idle. **Never slot 2**: it is the gather cohort, and one channel per CHARACTER is what makes
+a shadow row attributable. Two characters on one account is fine and is not a second
+channel on one character — the roster is keyed `(user_id, slot, channel)` and `active_kind`
+is per `player_state` row, so slot 2 on gather and slot 0 on combat never meet.
+
+**The monster tier.** The instinct is "pick something safe". That is the wrong instinct and
+it is the exact shape of the defect `world-tick-combat-parity.mjs` was written for: its P1
+arm stayed green for weeks because the only auto-eat fixture was a maxed character at 99 HP
+fighting a slime, who never reaches the 50 % threshold, so auto-eat never fires and the two
+contracts are indistinguishable. **A cohort that cannot die and never eats measures
+nothing.** So:
+
+> Read the slot's `level`, `max_hp` and owned traits first, then pick **the highest tier the
+> character clears with auto-eat ON and a stocked larder, and that takes it below the
+> auto-eat threshold regularly** — food consumed per hour must be **greater than zero** and
+> deaths in the attended session should be **zero**. A tier that never drops the character
+> below its threshold is too low; a tier that kills it through a full larder is too high.
+> `ate` is compared EXACT in 8c, so a span where nobody ate proves nothing about the input
+> the tick was found not to pass.
+
+Auto-eat is a **purchased trait** (`auto_eat`, 15 marks, cap 25 %; `auto_eat_2`, 100 marks,
+cap 100 % — `src/core/auto-eat.js`). If the slot owns neither, buy tier 1 **in game, as a
+player**, before the session. That is play, not fabrication, and it does not touch
+`hr_perks_of`, so fence (iii) is unaffected.
+
+**The session.** Auto-eat **ON**, larder stocked, attended for **≥ 30 minutes** — long
+enough to leave a real bestiary and gold/xp trail, short enough to stay under the 25-kill
+band of fence (ii). Watch `total_kills` and stop before 25; if the tier chosen exceeds 25
+kills in 30 minutes, take the shorter session, not the weaker tier.
+
+**The close — this is the step that makes fence (i) reachable, and it is not obvious.**
+Closing the tab straight after a kill leaves `newest_kill_credit ≈ accrued_to` and fence (i)
+fails *forever*: in SHADOW, `hr_apply` never advances `accrued_to` (the settle fence writes
+only `shadow_accrued_to` — `2026-09-21-world-tick-settle-fence.sql:474`), so both sides of
+the comparison are frozen and no amount of waiting fixes it. The character must therefore
+spend its **last ≥ 90 seconds attended, in combat, killing nothing**, and the one state that
+does that is **the knockout**:
+
+1. Last five minutes: **turn auto-eat off** (or let the larder run out) and let **one** death
+   land. `RECOVERY_REFUSED_KINDS = ['combat']` (`src/core/away.js:256`) — the recovery window
+   refuses combat, so no kill lands and no `hr_kill_credit_log` row is written while it runs.
+2. `RECOVERY_BASE_MS = 120000` — two minutes at the first rung, doubling per rung, cap
+   64 min. Two minutes is 2× `ATTENDED_EDGE_SLACK_MS`.
+3. **Close the tab during the recovery window, ≥ 90 s after the last kill.** `active_kind`
+   stays `combat`; the pointer is server-owned and survives the close.
+4. Both paths run the same `src/core/away.js`, so a window opening inside a recovery clock is
+   priced identically by the tick and by the accrue path. It costs one span of zero pay,
+   which 8c compares as zero against zero.
+5. **Re-run fence (i) before arming.** If `fence_i_ok` is false, the answer is *arm later or
+   play again* — **never arm anyway**. A contaminated first window is the one thing that
+   makes a red parity read unreadable.
+
+If the death is unacceptable for any reason, the only other way to a clean gap is a second
+QA character that has never fought and is switched to combat cold — but that has no kill
+history, no auto-eat pressure and no larder, so it measures less. Take the knockout.
+
+### 9. The arm — ownership first, then the channel
+
+Ownership **before** the channel. Reversing the two lets the roster see the channel with no
+cohort behind it.
+
+```sql
+-- (9a) THE COHORT. owned = TRUE.
+--   S-13a, confirmed by execution 2026-09-23: hr_tick_roster's claim CTE is
+--   `where o.owned` (2026-09-20-world-tick-roster.sql). An unowned row is never
+--   claimed, never leased and never rostered — `owned = false` IS the kill
+--   switch (step 11 switch 3 and the migration's own reversibility note), and
+--   arming it was how 2026-09-23 produced nine fires and zero rows. The lease
+--   columns stay NULL: `lease_holder`/`lease_until` are the ROSTER's to stamp
+--   (the c1b property), and that is the only part of step 9(a) that was right.
+insert into public.hr_tick_ownership (user_id, slot, channel, owned)
+values ('<uuid>', <slot>, 'combat', true)
+on conflict (user_id, slot, channel) do update set owned = excluded.owned;
+```
+
+```sql
+-- (9a2) ADMISSIBILITY, READ-ONLY, BEFORE THE CHANNEL GOES ON.
+--   The claim CTE's predicates replayed against the row 9(a) just inserted,
+--   WITHOUT calling hr_tick_roster (which would stamp a lease and consume the
+--   first window). Expect EXACTLY ONE row. Zero here means the arm is dead on
+--   arrival and there is no point turning the channel on.
+select o.user_id, o.slot, o.channel, o.owned, o.lease_holder, o.lease_until,
+       ps.active_kind, ps.accrued_to,
+       case when (select shadow from public.hr_tick_config where id)
+            then greatest(ps.accrued_to, coalesce(o.shadow_accrued_to, ps.accrued_to))
+            else ps.accrued_to end                           as mark
+  from public.hr_tick_ownership o
+  join public.player_state ps
+    on ps.user_id = o.user_id and ps.slot = o.slot
+ where o.owned
+   and o.channel = ps.active_kind
+   and ps.active_kind = 'combat'
+   and ps.accrued_to > now() - interval '24 hours'
+   and public.hr_shard_of(o.user_id) = 0
+   and (o.lease_until is null or o.lease_until < now())
+   and o.user_id = '<uuid>' and o.slot = <slot>;
+```
+
+```sql
+-- (9b) THE CHANNEL. One row, id = true. Idempotent and order-stable.
+--   `'combat'::text` IS LOAD-BEARING (S-12): text[] || unknown resolves to
+--   anyarray || anyarray, so the bare literal raises `malformed array literal`.
+update public.hr_tick_config
+   set channels = array(select distinct unnest(channels || 'combat'::text))
+ where id
+   and not ('combat' = any (channels));
+```
+
+```sql
+-- (9c) READ IT BACK before walking away.
+select channels, enabled, shadow, flush_seconds from public.hr_tick_config where id;
+-- Expect: channels = {combat,gather}, enabled true, shadow TRUE.
+```
+
+```sql
+-- (9d) AND AT T+2 FIRES, THE ONE READ THAT SAYS THE ARM TOOK.
+--   2026-09-23 had no such read, which is why nine fires passed before anyone
+--   asked. A null lease_holder here is S-13a repeating; check 9(a2) first.
+select o.user_id, o.slot, o.owned, o.lease_holder, o.lease_until, o.shadow_accrued_to,
+       (select count(*) from public.hr_tick_shadow s
+         where s.user_id = o.user_id and s.slot = o.slot) as shadow_rows
+  from public.hr_tick_ownership o
+ where o.channel = 'combat' and o.owned;
+-- Expect: lease_holder non-null, shadow_accrued_to moving, shadow_rows rising.
+```
+
+---
+
+## Ruling on the 24 h roster span vs M2 — it is a PROPERTY, and the silence is the finding
+
+**The property.** `c_max_span` fences on the **raw** `ps.accrued_to`, and in SHADOW nothing
+advances it: the settle fence writes `shadow_accrued_to` and leaves `player_state` alone
+(`2026-09-21-world-tick-settle-fence.sql:474`), so a shadow cohort leaves the roster **24 h
+after its player last settled**, not 24 h after the tick last saw it. Measured above as S-14:
+`shadow_accrued_to = now()` and a raw `accrued_to` 25 h old returns **zero** roster rows.
+
+**I want this property and I will not have it relaxed.** Past 24 h the comparison M2 exists
+to make stops being a comparison. The accrue path forfeits the tail beyond
+`ACCRUE_MAX_SPAN_MS` and still stamps `accrued_to = now()`, so a character shadowed for 48 h
+and returning once yields ~1,920 shadow rows worth 48 h against one ledger row worth ≤ 12 h.
+Continuing to shadow past the span would manufacture exactly the artefactual 4× over-pay the
+span-fenced pairing was designed to refuse. The fence keeps the roster proportional to
+*active* players, which is also the only thing that keeps it proportional at all at scale.
+
+**The finding attached to it (S-14, P2 — operational, not a code defect).** Crossing the span
+is **silent**. No error, no refusal, no `hr_tick_cron_log` outcome, no `hr_rejections` row —
+the character simply stops appearing, and `rostered` falls from 2 to 1 while `outcome` stays
+`posted`. That is indistinguishable at a glance from "the tick is fine and this character is
+caught up", which is the same shape as the farming-at-zero blindness CLAUDE.md §3.4 was
+written about. A P1-by-definition metric must not have an invisible zero behind it.
+
+**What the ≤ 11 h return rule becomes.** It stays at ≤ 11 h and it stops being a target:
+
+> **≤ 11 h is now a hard ceiling with two distinct cliffs behind it, and the second one is
+> invisible.** At **~12 h** (`hr_offline_cap_ms`) the return is capped, `meta.capped` is
+> true, and 8c discards the interval — a *wasted* interval, loudly. At **24 h** the character
+> leaves the roster, the tick stops producing rows for it, and nothing says so — a *silent*
+> interval, and worse, one that reads as coverage rather than absence. So: return every
+> ≤ 11 h, and treat a missed return as an **incident to be read**, not a gap to be averaged
+> over. M2's "six usable intervals totalling ≥ 24 h of paid time" is unchanged and now
+> implies **at least five returns**, so a 48 h read needs the cohort returned to on a
+> schedule, not when convenient.
+
+**What 8a must read now.** 8a's denominator was `48 × 3600 / flush_seconds` — wall clock. That
+is wrong the moment a return is missed: the character was *inadmissible*, not *starved*, and
+the two must not divide into the same number. 8a becomes **per admissible interval**:
+
+```sql
+-- (8a') COVERAGE, PER ADMISSIBLE INTERVAL — not per wall-clock hour.
+--   The denominator is the time the character was actually ROSTERABLE:
+--   from each settle to the earlier of the next settle and settle + 24 h
+--   (c_max_span). A gap that lands OUTSIDE that window is the fence doing its
+--   job and must not be counted as a miss; a gap INSIDE it is the tick failing
+--   and is the only thing 8a should ever go red on.
+with cfg as (select flush_seconds from public.hr_tick_config where id),
+     settles as (
+       select l.user_id, l.slot, l.at,
+              lead(l.at) over (partition by l.user_id, l.slot order by l.at) as next_at
+         from public.player_ledger l
+        where l.kind = 'combat' and l.intent = 'accrue'
+          and l.at > now() - interval '72 hours'
+          and l.user_id = '<uuid>' and l.slot = <slot>),
+     spans as (
+       select user_id, slot, at as from_at,
+              least(coalesce(next_at, now()), at + interval '24 hours') as to_at,
+              -- THE SPAN CLOSED BECAUSE THE FENCE CLOSED IT, not because the
+              -- player came back. True for the OPEN span too, which is the one
+              -- being watched live and the one a self-join on the next settle
+              -- would have read as healthy.
+              at + interval '24 hours' < coalesce(next_at, now()) as fell_off_the_span
+         from settles)
+select s.from_at, s.to_at, s.fell_off_the_span,
+       extract(epoch from (s.to_at - s.from_at)) as admissible_s,
+       floor(extract(epoch from (s.to_at - s.from_at)) / cfg.flush_seconds)::int as expected_rows,
+       (select count(*) from public.hr_tick_shadow t
+         where t.user_id = s.user_id and t.slot = s.slot
+           and t.window_from >= s.from_at and t.window_to <= s.to_at) as actual_rows
+  from spans s, cfg
+ order by s.from_at;
+-- Require actual_rows >= 0.95 * expected_rows for every span with
+-- fell_off_the_span = false. A span with fell_off_the_span = true is a MISSED
+-- RETURN: report it, do not average it, and do not count its hours toward the
+-- "≥ 24 h of paid time" threshold.
+```
+
+And the standing liveness read, to be run at **every** check-in for as long as M2 runs:
+
+```sql
+-- (8a-LIVE) IS THE COHORT STILL ADMISSIBLE? The S-14 detector.
+select o.user_id, o.slot, o.channel, ps.accrued_to,
+       round(extract(epoch from (ps.accrued_to - (now() - interval '24 hours'))) / 3600.0, 2)
+         as span_headroom_h,
+       ps.accrued_to > now() - interval '24 hours' as still_rosterable
+  from public.hr_tick_ownership o
+  join public.player_state ps on ps.user_id = o.user_id and ps.slot = o.slot
+ where o.owned
+ order by ps.accrued_to;
+-- still_rosterable = false is a MISSED RETURN, not a tick failure. Under
+-- ~3 h of headroom, return the character before doing anything else.
+```
+
+---
+
+## What the Coordinator does NOW — the armed-but-idle channel and the dead ownership row
+
+| Object | Action | Why |
+|---|---|---|
+| `hr_tick_ownership` row for `865bf64e-…` slot 0 `combat`, `owned = false` | **REMOVE** — step 11 switch **(3)** | It is a cohort that can never be claimed: `accrued_to` is 2026-08-24, so even flipped to `owned = true` it fails `c_max_span` (S-13b, measured). Meanwhile it is actively harmful in two ways. It makes `not exists (… hr_tick_ownership …)` false for that character forever, so 8-CAND would skip it if it ever *did* become admissible. And an unowned row is byte-identical to a **de-armed** one — the next operator reading `select * from hr_tick_ownership` sees a combat cohort that does not exist, which is the browser-says-one-thing class (CLAUDE.md §6) pointed at ourselves. Leaving a row whose only meaning is "somebody armed this wrong once" is how the next audit inherits my mistake. |
+| `hr_tick_config.channels = {combat,gather}` | **LEAVE ARMED** | The channel alone cannot roster anybody — **ownership is the gate, and S-13a is the proof**: with the channel on and `owned = false`, production fired nine-plus times and leased nothing. Its cost while empty is one extra element in `p_kinds` per roster call and zero rows returned. Against that, switch (2) followed by 9(b) is a second write to the config singleton and a second thing to verify, for no property gained. It also leaves the **ARM GO already spent** — arming the real cohort becomes 9(a) alone, one statement, which is the smallest possible action at the moment it matters. |
+| `hr_tick_config.shadow` | **VERIFY `true`, CHANGE NOTHING** | `shadow = false` for combat is a separate action with its own GO, which §16.6's attended fence blocks independently and neither this document nor RE-VERIFY 3 grants. |
+| `hr_tick_config.enabled` | **LEAVE `true`** | The gather cohort is mid-measurement. Switch (1) is the blunt one and stops gather too; nothing here justifies it. |
+
+```sql
+-- THE ONE WRITE. Step 11 switch (3), against the dead 2026-09-23 arm.
+delete from public.hr_tick_ownership
+ where user_id = '<uuid>' and slot = <slot> and channel = 'combat' and not owned;
+```
+
+The `and not owned` is a fence, not decoration: it makes the statement a **no-op** against a
+live cohort, so the same line pasted on the wrong day cannot de-cohort a character that is
+mid-measurement.
+
+**This is not a Security GO to re-arm.** It is: clear the dead row, leave the channel, and
+come back with a cohort produced by §8-PLAY that passes 8-CAND and all three fences. The arm
+authorised in RE-VERIFY 3 stands and is unspent — what was withdrawn is the two steps that
+told the operator how to spend it.
+
+---
+
+## Residual risks, unchanged from RE-VERIFY 3 except where named here
+
+`perks` and `bestiaryKills` remain **under**-paying inputs the driver does not read; S-15
+narrows the blast radius from "any bestiary at all" to "a bestiary above the first paying
+rung", which is a measured bound and not a relaxation. The §16.6 attended top-up is still
+unpriced and still a hard blocker for `shadow = false`. C6's ±10 % band still has no in-repo
+calibration for a death-heavy span — and §8-PLAY's knockout deliberately puts **one** death
+in the attended half, before the watermark, not in the measured window, so it does not spend
+that band. The one new risk I am accepting: §8-PLAY depends on a human executing a timed
+close, and nothing enforces it. Fence (i) is the detector and it is checked **before** the
+arm, so the failure mode is a delayed arm, never a contaminated measurement.
+
+## Guards run — real exit codes
+
+Branched on `$?` after each run, never on expectation (CLAUDE.md §4). Head: `sec/world-tick-m3-5`.
+
+| Guard | Exit | What it says here |
+|---|---|---|
+| the S-13 proof (`bootReplay`, four arms, owner context) | **0** | S-13a, S-13b and S-14 confirmed by calling the real `hr_tick_roster`; S-13c is the control that says the zeros are the predicate, not the harness |
+| `node tests/world-tick-ledger-meta.mjs` | **0** | L-8 now executes **61 statements in 34 sql blocks** (was 49 in 22) — every statement RE-VERIFY 4 adds runs against the chain replay and is rolled back |
+| `node tests/world-tick-ledger-meta.mjs --mutate` | **0** | still bites: 4 statements go red on the uncast `channels \|\| 'combat'`, the new 9(b) among them |
+| `node tests/sec-world-tick-m3-seed-label.mjs` | **0** | |
+| `node tests/world-tick-combat-parity.mjs` | **0** | |
+| `node tests/schema-drift.mjs` | **0** | the chain replays; no migration and no edge file was touched by this branch |
+| `node tests/apply-order-honesty.mjs` | **0** | |
+| `node tests/guard-hygiene.mjs` | **0** | |
+| `node tests/ci-shape.mjs` | **0** | |
+| `node tools/lane-done.mjs` | **0** | all ratchets, `bump-version.sh --check` included |
+
+**L-8 needed no extension.** It enumerates the runbook's sql blocks from the file rather than
+against a stored count, so twelve new statements were covered the moment they were written —
+and that is the whole reason this document could be checked before it was signed rather than
+after it was executed on production. What L-8 does **not** prove is the thing that went wrong
+on 2026-09-23: a statement can execute perfectly and still select the complement of what the
+server admits. The predicate table in this section is the answer to that, and it is derived
+from the function body in the chain.

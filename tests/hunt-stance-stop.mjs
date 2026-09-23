@@ -106,6 +106,7 @@ const MUTATIONS = {
   stop_clamps: 'Clamp an out-of-bounds stop value instead of refusing it.',
   stop_away_only: 'Evaluate the stop rules only on the away path (breaks AWAY-1).',
   stop_order: 'Check the time cap before the fall counter (design §2.4 fixes the order).',
+  stop_bound_overflows: 'Cast a stop bound back to bigint, so a huge JSON number RAISES from inside a CHECK (H-2).',
   stances_claim_authority: 'Drop the ID-ALLOWLIST declaration, so the catalogue claims an authority its values do not have (H-1).',
 };
 
@@ -189,6 +190,8 @@ async function run(mutate) {
   let migSrc = await readFile(
     join(ROOT, 'supabase/migrations/2026-09-22-hunt-stance-stop.sql'), 'utf8');
   const MIG_PATCH = {
+    stop_bound_overflows: ["(p_stop->>'hours')::numeric between 1 and 24",
+      "(p_stop->>'hours')::bigint between 1 and 24"],
     stances_claim_authority: ['THIS TABLE IS AN ID ALLOWLIST. THE KNOB VALUES ARE NOT READ AT RUNTIME.',
       '(nothing to say about what the knob columns do)'],
   };
@@ -218,9 +221,28 @@ async function run(mutate) {
   // The SQL bounds and the JS bounds are one rule with two spellings.
   for (const [field, b] of Object.entries(STOP_BOUNDS)) {
     if (b.bool) continue;
-    ok(migSrc.includes(`between ${b.min} and ${b.max}`),
-      `S2: hr_hunt_stop_valid does not carry the published ${field} bounds [${b.min}, ${b.max}].`);
+    ok(migSrc.includes(`'${field}')::numeric between ${b.min} and ${b.max}`),
+      `S2: hr_hunt_stop_valid does not carry the published ${field} bounds [${b.min}, ${b.max}] `
+      + 'as a numeric comparison.');
   }
+
+  /* -- S2b. THE BOUNDS CAST TO numeric, NOT bigint (finding H-2) ---------
+     jsonb numbers ARE numeric and hold far more than a bigint. {"hours": 1e30}
+     passes jsonb_typeof = 'number', renders as 31 digits, matches the digit
+     test - and then OVERFLOWS a bigint cast, raising 22003 FROM INSIDE A CHECK
+     CONSTRAINT instead of returning false. A predicate that raises is not a
+     predicate. Unreachable today (the edge's validateStop refuses a
+     non-integer and hr_apply turns a `false` into a named bad_stop), which is
+     exactly why it is defence in depth: the only caller that can reach
+     hr_apply without the edge is the one this re-validation layer exists for.
+     Asserted on the TEXT because this guard is credential-free by design; the
+     migration's section-6 GATE(b2) drives all four rules through the real
+     function at apply time and fails the install on a raise. */
+  ok(!/p_stop->>'(hours|food_floor|ammo_floor|falls)'\)::bigint/.test(migSrc),
+    'S2b: a stop bound in hr_hunt_stop_valid still casts to ::bigint. A jsonb number can hold far '
+    + 'more than a bigint, so the cast raises 22003 from inside a CHECK constraint rather than '
+    + 'returning false - and the one caller that can reach it is the one that bypassed the edge. '
+    + 'Cast to ::numeric, which cannot overflow here.');
 
   /* -- S2c. THE CATALOGUE SAYS WHICH AUTHORITY IT ACTUALLY HAS (H-1(a)) --
      hr_hunt_stances' `stance_id` IS the authority hr_apply validates against

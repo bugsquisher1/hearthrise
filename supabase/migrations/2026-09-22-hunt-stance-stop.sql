@@ -121,7 +121,19 @@ create policy hr_hunt_stances_read on public.hr_hunt_stances for select to authe
 -- IMMUTABLE so it may be used in a CHECK constraint. Every bound is the one
 -- src/core/hunt.js STOP_BOUNDS publishes; the two are compared by
 -- tests/hunt-stance-stop.mjs rather than trusted to agree.
-
+--
+-- ⚠ THE BOUNDS CAST TO `numeric`, NOT `bigint` (finding H-2). jsonb numbers ARE
+--   numeric and hold far more than a bigint: {"hours": 1e30} passes
+--   jsonb_typeof = 'number', renders as 31 digits, matches ^\d+$ — and then
+--   OVERFLOWS a bigint cast, raising 22003 FROM INSIDE A CHECK CONSTRAINT
+--   instead of returning false. A predicate that raises is not a predicate; it
+--   is an error the caller has to have anticipated. numeric cannot overflow
+--   here, so every shape this function is asked about gets an answer.
+--   Unreachable today — the edge's validateStop refuses anything that is not
+--   Number.isInteger and in range, and hr_apply's patched arm turns a `false`
+--   into a named `bad_stop` refusal — which is exactly why it is defence in
+--   depth: the only way in is a caller that reaches hr_apply without the edge,
+--   which is the case a re-validation layer exists for.
 create or replace function public.hr_hunt_stop_valid(p_stop jsonb)
 returns boolean language sql immutable set search_path = public, pg_catalog as $$
   select case
@@ -133,16 +145,16 @@ returns boolean language sql immutable set search_path = public, pg_catalog as $
     -- the four integers: correct type and INSIDE their bounds (refused, not clamped)
     when (p_stop ? 'hours') and not (jsonb_typeof(p_stop->'hours') = 'number'
           and (p_stop->>'hours') ~ '^\d+$'
-          and (p_stop->>'hours')::bigint between 1 and 24) then false
+          and (p_stop->>'hours')::numeric between 1 and 24) then false
     when (p_stop ? 'food_floor') and not (jsonb_typeof(p_stop->'food_floor') = 'number'
           and (p_stop->>'food_floor') ~ '^\d+$'
-          and (p_stop->>'food_floor')::bigint between 0 and 10000) then false
+          and (p_stop->>'food_floor')::numeric between 0 and 10000) then false
     when (p_stop ? 'ammo_floor') and not (jsonb_typeof(p_stop->'ammo_floor') = 'number'
           and (p_stop->>'ammo_floor') ~ '^\d+$'
-          and (p_stop->>'ammo_floor')::bigint between 0 and 100000) then false
+          and (p_stop->>'ammo_floor')::numeric between 0 and 100000) then false
     when (p_stop ? 'falls') and not (jsonb_typeof(p_stop->'falls') = 'number'
           and (p_stop->>'falls') ~ '^\d+$'
-          and (p_stop->>'falls')::bigint between 1 and 10) then false
+          and (p_stop->>'falls')::numeric between 1 and 10) then false
     when (p_stop ? 'bag_full') and jsonb_typeof(p_stop->'bag_full') <> 'boolean' then false
     else true
   end
@@ -357,6 +369,28 @@ begin
   if     public.hr_hunt_stop_valid('{"hours":2.5}'::jsonb)         then raise exception 'GATE(b): a FRACTIONAL hours was ACCEPTED'; end if;
   if     public.hr_hunt_stop_valid('{"forever":true}'::jsonb)      then raise exception 'GATE(b): an UNKNOWN rule key was ACCEPTED - the allowlist is not one'; end if;
   if     public.hr_hunt_stop_valid('[]'::jsonb)                    then raise exception 'GATE(b): an ARRAY was ACCEPTED as a stop object'; end if;
+
+  -- (b2) A HUGE JSON NUMBER RETURNS false, IT DOES NOT RAISE (finding H-2).
+  --      jsonb numbers are `numeric` and hold far more than a bigint, so
+  --      {"hours": 1e30} used to pass jsonb_typeof, render as 31 digits, match
+  --      ^\d+$ and then OVERFLOW the cast — raising 22003 from inside a CHECK
+  --      CONSTRAINT rather than answering the question. Each of the four
+  --      integer rules is driven, because the cast is written out four times
+  --      and three of them could be fixed while one is missed.
+  --      Any exception here is a FAILURE, including the 22003 itself: a
+  --      predicate that raises is not a predicate.
+  begin
+    if public.hr_hunt_stop_valid('{"hours": 1e30}'::jsonb) then
+      raise exception 'GATE(b2): hours=1e30 was ACCEPTED'; end if;
+    if public.hr_hunt_stop_valid('{"food_floor": 1e40}'::jsonb) then
+      raise exception 'GATE(b2): food_floor=1e40 was ACCEPTED'; end if;
+    if public.hr_hunt_stop_valid('{"ammo_floor": 1e40}'::jsonb) then
+      raise exception 'GATE(b2): ammo_floor=1e40 was ACCEPTED'; end if;
+    if public.hr_hunt_stop_valid('{"falls": 1e30}'::jsonb) then
+      raise exception 'GATE(b2): falls=1e30 was ACCEPTED'; end if;
+  exception when numeric_value_out_of_range or invalid_text_representation then
+    raise exception 'GATE(b2): hr_hunt_stop_valid RAISED (%) on a huge JSON number instead of returning false. It is used in a CHECK constraint, so an INSERT would abort with a cast error rather than a named bad_stop refusal - and the only caller that can reach it without the edge is exactly the one a re-validation layer exists for.', sqlerrm;
+  end;
 
   -- (b3) THE STANCE CATALOGUE IS AN ID ALLOWLIST, AND ITS KNOB VALUES ARE
   --      GENUINELY NOT READ (finding H-1, answer (a)). The table comment and

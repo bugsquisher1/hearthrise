@@ -152,7 +152,20 @@ export const VERBS = Object.freeze(
        prices it from the client-unwritable hr_qm_offers, debits scrip and grants the
        item in ONE transaction. Before this verb the Quartermaster was a client trade
        the settle envelope half-undid (the b372 "get the scrip back" bug). */
-    'quartermaster_buy']);
+    'quartermaster_buy',
+    /* THE TROPHY CLAIM VERB (docs/design/BESTIARY_LADDER.md §4). The wire
+       carries `{trophy:{monster, stage}}` and NOTHING ELSE — no kill count, no
+       multiplier, no "earned" bit. hr_trophy_claim re-reads the kill total from
+       `player_progress` inside its own transaction and refuses a stage the
+       character has not reached; the two fields here NAME which trophy is being
+       asked for and are both re-validated against the server's own catalogue.
+
+       ⚠ IT MINTS NOTHING. No gold, no gems, no items, no XP — the power is
+         DERIVED from the counters and is already on before the button is
+         pressed. That is what makes the verb ranked-safe by construction rather
+         than by a clamp: a forged or replayed claim cannot move a value that
+         crosses into another player's economy, because it moves no value. */
+    'trophy_claim']);
 export const DEFAULT_VERB = 'accrue';
 
 /** The catalogue's activity vocabulary — the `kind` column of `hr_activities`
@@ -215,8 +228,17 @@ export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
     which is the direction that matters. */
 export const INTENT_KEYS = Object.freeze(
   ['slot', 'verb', 'intentId', 'activity', 'offer', 'item', 'qty', 'reward',
-    'listing', 'ask', 'equip', 'enchant', 'dungeon', 'auto'],
+    'listing', 'ask', 'equip', 'enchant', 'dungeon', 'auto', 'trophy'],
 );
+
+/** The stage ceiling a claim may NAME. Deliberately the parse-level bound only:
+    which stage a character has actually REACHED is read by hr_trophy_claim from
+    its own counters, and this number exists so an unbounded integer never
+    reaches a `::int` cast. It mirrors TROPHY_STAGES.length in
+    src/data/bestiary.js and tests/bestiary-trophy.mjs asserts the two agree
+    rather than restating either — a parser that admitted stage 9 would turn a
+    named refusal into an opaque one. */
+export const MAX_TROPHY_STAGE_WIRE = 4;
 
 /** The dungeon-run modes the settle RPC understands. Parse-level allowlist,
     deliberately the SAME set hr_dungeon_settle enforces; an unknown mode is
@@ -277,6 +299,51 @@ export function parseIntent(body) {
   out.enchant = readEnchant(body);
   out.dungeon = readDungeon(body);
   out.auto = readAuto(body);
+  out.trophy = readTrophy(body);
+  return out;
+}
+
+/**
+ * THE TROPHY CLAIM'S WHOLE CALLER-SUPPLIED SURFACE: `{ monster, stage }`.
+ *
+ * ⚠ AND THERE IS NO KILL COUNT ON IT, BY CONSTRUCTION. The claim RPC reads the
+ *   kill total from `player_progress` inside its own transaction, under the
+ *   advisory lock the spend RPCs take, and the signature it is called with has
+ *   no parameter a count could travel on. So a forged count is not refused —
+ *   it is unrepresentable, which is a stronger position than a clamp
+ *   (docs/design/BESTIARY_LADDER.md §5). The two fields here NAME which trophy
+ *   is being asked for and nothing else; both are re-validated server side
+ *   against the server's own monster catalogue and its own counters.
+ *
+ * WHOLE-OBJECT REFUSAL, like readEquip: a claim is ONE gesture, and a
+ * half-readable one ("this monster, some stage") is not a smaller claim, it is
+ * an unreadable request.
+ *
+ * `stage` must be a whole number in 1..MAX_TROPHY_STAGE_WIRE. A float, a
+ * numeric string or an out-of-range integer is the whole object refused — the
+ * parser never rounds a client's number into range, because a rounded stage is
+ * a claim for a trophy nobody asked for.
+ *
+ * @returns a null-prototype `{monster, stage}`, or `null` when absent or
+ *          unreadable. NEVER partially populated.
+ */
+export function readTrophy(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+  if (!Object.prototype.hasOwnProperty.call(body, 'trophy')) return null;
+  const t = body.trophy;
+  if (!t || typeof t !== 'object' || Array.isArray(t)) return null;
+
+  const monster = ownString(t, 'monster');
+  if (monster === null || !CATALOGUE_ID_RE.test(monster)) return null;
+
+  if (!Object.prototype.hasOwnProperty.call(t, 'stage')) return null;
+  const stage = t.stage;
+  if (typeof stage !== 'number' || !Number.isInteger(stage)) return null;
+  if (stage < 1 || stage > MAX_TROPHY_STAGE_WIRE) return null;
+
+  const out = Object.create(null);
+  out.monster = monster;
+  out.stage = stage;
   return out;
 }
 

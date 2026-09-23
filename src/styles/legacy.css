@@ -2228,6 +2228,31 @@ body[data-theme="dark"] .lane1-toggle{
 .charm-next.is-max{color:var(--gold-2)}
 .bestiary-row .charm-element{display:inline-flex;align-items:center;gap:3px;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--gold-2)}
 
+/* ─── Bestiary TROPHIES (docs/design/BESTIARY_LADDER.md) ───
+   The LONG ladder's row furniture. Every colour is a token and the badge
+   borrows the charm badge's shape on purpose: both are "kills the server
+   counted", they sit on the same card, and two visual languages for one idea is
+   how a player learns to read neither. What distinguishes them is the STAGE
+   ramp below and the `is-claimed` fill — reaching a rung and having claimed it
+   are different facts, and the badge says which. */
+.bestiary-row .br-trophy{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin-top:3px}
+.trophy-badge{display:inline-flex;align-items:center;gap:3px;padding:0 6px;border-radius:999px;border:1px solid var(--line-soft);font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-2)}
+.trophy-badge b{font-weight:800}
+.trophy-badge.trophy-s1{color:var(--ink-2)}
+.trophy-badge.trophy-s2{color:var(--ink);border-color:color-mix(in srgb, var(--gold-2) 30%, transparent)}
+.trophy-badge.trophy-s3{color:var(--gold-2);border-color:color-mix(in srgb, var(--gold-2) 50%, transparent)}
+.trophy-badge.trophy-s4{color:var(--gold-2);border-color:var(--gold-2);font-weight:800}
+/* CLAIMED reads as filled rather than as another hue: the ramp above is already
+   carrying the stage, and a second colour axis on one chip is unreadable. */
+.trophy-badge.is-claimed{background:color-mix(in srgb, var(--gold-2) 12%, transparent)}
+.trophy-next{flex:1 0 100%;display:inline-flex;align-items:center;gap:4px;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3)}
+.trophy-next.is-max{color:var(--gold-2)}
+/* The one ACTION on the card. It renders only when the server's own counters
+   have earned a rung the server's own rows say is unclaimed, so it is never a
+   greyed affordance a player has to read past — and it wants to look pressable. */
+.trophy-claim{padding:1px 8px;font-size:calc(14.5px * var(--ui-scale, 1))}
+.trophy-claim[disabled]{opacity:.55;cursor:progress}
+
 /* ─── Friends stub ─── */
 .friend-row{display:flex;align-items:center;gap:10px;padding:6px 8px;background:rgba(0,0,0,.1);border-radius:4px;margin-bottom:4px;opacity:.5}
 /* b217: dashed border + italics is the visual language of an unbuilt

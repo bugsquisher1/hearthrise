@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 183 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot } from './_harness.js?v=550';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot } from './_harness.js?v=551';
 
 export default [
 
@@ -3462,6 +3462,50 @@ export default [
     }
   }),
 
+  () => tryRunAsync('INV-STAGE-9b regression suite — the hr_flags read sent the ACCESSOR, not the JWT', async () => {
+    /* auth.js stores `authToken` as an ACCESSOR (`() => liveAccessToken()`) so a
+       refreshed JWT needs no re-wiring, and every transport in accrue.js unwraps it
+       through tokenOf(). fetchServerArmPermission concatenated `config.authToken`
+       instead, so the wire carried the literal text `Bearer () => liveAccessToken()`,
+       PostgREST answered 401/PGRST301, the swallowed failure left the permission at
+       UNKNOWN, and maybeAutoArm guard (3c) refused forever: the server's
+       `inventory_absolute` row has been enabled since 2026-09-14 and no client could
+       ever observe it. The spy answers as PostgREST does — a malformed bearer is a
+       401, never a row — so (b) is red for the REASON (a) is, not merely alongside it.
+       MUTATION: restore `config.authToken` at that call site ⇒ both go red. */
+    const A = window.HearthriseAccrual, permWas = A.isServerArmPermitted(), realFetch = window.fetch;
+    try {
+      // configureAccrual fires its own flag read; keep that one off the network.
+      window.fetch = () => Promise.resolve({ ok: false, status: 0, json: () => Promise.resolve(null) });
+      A.configureAccrual({ url: 'https://proj.supabase.co', apiKey: 'anon-key',
+        authToken: () => 'jwt-token', slot: 0 });      // the PRODUCTION shape: an accessor
+      A.__resetServerArmPermission();  const seen = [];
+      const postgrest = (u, init) => {
+        const h = (init && init.headers) || {};
+        seen.push({ url: String(u), auth: String(h.Authorization || '') });
+        return Promise.resolve(h.Authorization === 'Bearer jwt-token'
+          ? { ok: true, status: 200, json: () => Promise.resolve([{ enabled: true }]) }
+          : { ok: false, status: 401, json: () => Promise.resolve({ code: 'PGRST301' }) });
+      };
+      await A.fetchServerArmPermission(postgrest);
+      assert(seen.length === 1 && /\/rest\/v1\/hr_flags\?select=enabled&key=eq\./.test(seen[0].url),
+        'guard: expected exactly one hr_flags read, got ' + JSON.stringify(seen));
+      assert(!/=>|function/.test(seen[0].auth),
+        'the Authorization header carries function SOURCE TEXT (' + JSON.stringify(seen[0].auth)
+        + ') — the accessor was string-concatenated instead of called, and PostgREST answers 401');
+      assert(seen[0].auth === 'Bearer jwt-token',
+        'the hr_flags read sent ' + JSON.stringify(seen[0].auth) + ' — it must unwrap through tokenOf() '
+        + 'and carry the live JWT, like every other transport in that file');
+      assert(A.serverArmPermissionState() === 'granted' && A.isServerArmObserved() === true,
+        'the server answered enabled:true and the permission is still ' + A.serverArmPermissionState()
+        + ' — maybeAutoArm guard (3c) arms on nothing less than an OBSERVED grant, so the flip is dead');
+    } finally {
+      window.fetch = realFetch;  A.__resetServerArmPermission();
+      if (permWas === false) A.noteServerArmPermission(false);
+      try { A.resetAccrualGate(); A.configureAccrual(null); } catch (e) {}
+    }
+  }),
+
   () => tryRun('INV-STAGE-10: the start-kit hint discard cannot delete a non-owned id (C-8)', () => {
     /* The hint discard runs on the MERGE path — the NEVER-DELETE path — and
        `cooked_shrimp` is an EXCLUDED id, so before the `serverOwnedItem` guard it
@@ -5004,7 +5048,7 @@ export default [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=550')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=551')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -6991,7 +7035,7 @@ export default [
        fought a Dark Wizard the server settled from 6 straight into death #8).
        The rest of this test is UNCHANGED: away still owns hp mid-fight, and a
        heal still applies. */
-    const A = await import('../../net/accrue.js?v=550');
+    const A = await import('../../net/accrue.js?v=551');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 2, 'an IDLE client refused the server\'s hp (kept ' + G1.playerHp
@@ -7016,7 +7060,7 @@ export default [
        raised hp freely (next >= cur), so the live fight snapped to full and the
        player never took damage. A non-away envelope during a live fight must
        PRESERVE the client's combat hp; an away-return envelope still applies. */
-    const A = await import('../../net/accrue.js?v=550');
+    const A = await import('../../net/accrue.js?v=551');
 
     // Live sync: activeMonster set, NO away block, server hp full, client hp low.
     const G = { playerHp: 4, playerMaxHp: 10, activeMonster: 'goblin' };
@@ -7043,7 +7087,7 @@ export default [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../../net/accrue.js?v=550');
+    const A = await import('../../net/accrue.js?v=551');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);
@@ -7236,7 +7280,7 @@ export default [
        teaches the next author to delete the explanation. */
     const FILES = ['src/net/auth.js', 'src/net/supabase-chat-backend.js', 'src/bug-report.js'];
     for (const f of FILES) {
-      const raw = await (await fetch(f + '?v=550')).text();
+      const raw = await (await fetch(f + '?v=551')).text();
       assert(raw.length > 1000, 'could not read ' + f + ' to guard it — the guard is checking nothing');
       const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
       /* Any remote fetch of EXECUTABLE code: a dynamic import, or a <script>
@@ -7286,7 +7330,7 @@ export default [
        PREREQUISITE for integrity, not a substitute, so the code looked careful
        while verifying nothing. A compromise there is arbitrary JS in every
        player's page beside their session token. */
-    const raw = await (await fetch('src/observability.js?v=550')).text();
+    const raw = await (await fetch('src/observability.js?v=551')).text();
     assert(raw.length > 1000, 'could not read src/observability.js to guard it');
     const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
 
@@ -7390,7 +7434,7 @@ export default [
        pendingArt() names TODAY: the set is read live from monster-art.js, so
        the moment the batch ships and SHIPPED grows, the exemption evaporates
        and a leftover emoji fails again on its own — staleness by construction. */
-    const _art = await import('../../data/monster-art.js?v=550');
+    const _art = await import('../../data/monster-art.js?v=551');
     const _pendingIcons = new Set(
       _art.pendingArt().map((p) => ((window.MONSTERS || {})[p.id] || {}).icon).filter(Boolean)
         .map((s) => String(s).trim()));

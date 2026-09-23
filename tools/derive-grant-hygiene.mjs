@@ -181,6 +181,26 @@ export const LINKS = [
     target: '2026-09-21-engine-allowlist-tick-settle.sql',
     patchIds: ['tick_settle'],
   },
+  /* Link 11 (M7, the Bestiary trophy ladder) — TWO ENGINE ENTRIES, one read and
+     one writer, both hr_engine-only by the Game Designer's ruling
+     (docs/design/BESTIARY_LADDER.md §4.2(1)) rather than client-callable. An
+     INSERTION at the head again, so PART 1f-ii grades this link with an EMPTY
+     declared-removals list.
+
+     ⚠ REBASED 2026-09-22 (merge of set/b551): this link was cut as link 10 on
+     base 2026-09-11-quartermaster-buy.sql. set/b551 landed the world tick's
+     settle fence as link 10, APPLIED to production 2026-09-22 21:26 UTC, so
+     this now chains onto link 10's NOW-LIVE body
+     (2026-09-21-engine-allowlist-tick-settle.sql). Keeping the older base
+     would silently REVERT link 10's hr_tick_settle grant — the exact drift
+     PART 1f-ii exists to catch — and would leave the nightly detector RAISING
+     engine_execute_outside_allowlist on a function the tick needs.
+     It is the new last toucher of hr_assert_grant_hygiene. */
+  {
+    base: '2026-09-21-engine-allowlist-tick-settle.sql',
+    target: '2026-09-22-trophy-claim.sql',
+    patchIds: ['trophy_claim'],
+  },
   /* Link 11 (M6 hunts, 2026-09-22) — TWO READS, AND NOTHING ELSE.
      The same "must not trail its own grants overnight" rule link 10's note
      states: hr_hunt_analyzer and hr_vigour_of are granted to hr_engine by
@@ -681,6 +701,49 @@ export const PATCHES = [
     -- and NO other RPC debits player_state.dungeon_scrip, so without this the only
     -- writer of the spend is the client.
     'hr_quartermaster_buy(uuid,integer,bigint,uuid,text)',
+`,
+    where: 'after',
+  },
+  {
+    id: 'trophy_claim',
+    name: 'the c_engine_allow array head (link 10)',
+    find: '  c_engine_allow constant text[] := array[\n',
+    add: `    -- ── ADDED 2026-09-22 — THE BESTIARY TROPHY PAIR ─────────────────────
+    -- At the HEAD again, an INSERTION, for the same reason as links 1/2/5/6/8/9:
+    -- it removes nothing, so PART 1f-ii grades this link with an EMPTY
+    -- declared-removals list. Position carries no meaning — check (7) tests
+    -- membership with \`<> all (...)\`.
+    --
+    -- read-only (STABLE) projection of the CLAIMED trophy rows for ONE
+    -- character: kind='collection', period_key='', key like 'trophy:%'. It
+    -- writes nothing and calls nothing that writes. SELF-VALIDATING: the row
+    -- set is bounded STRUCTURALLY by the key prefix and by (user, slot) — there
+    -- is no parameter through which a caller can widen it. WHY THE ENGINE NEEDS
+    -- IT: 2026-09-22-state-of-trophy-prefix.sql removed the trophy population
+    -- from hr_state_of's generic envelope (it would breach the 1000-row cap and
+    -- silently truncate a player's quest state), so this is now the ONLY door
+    -- to it — the same position hr_bestiary_of and hr_collection_of are in.
+    -- NO NEW TARGET: p_user is the parameter the engine already passes to
+    -- hr_apply and hr_state_of.
+    'hr_trophy_of(uuid,integer)',
+    -- NOT READ-ONLY, and the claim rests on SELF-VALIDATING, re-derived. Its
+    -- whole caller-supplied surface is: a character slot, a MONSTER ID
+    -- (validated against hr_activities kind='combat', the generated,
+    -- client-unwritable catalogue), a STAGE (bounded 1..4 against the server's
+    -- own ladder) and an idempotency uuid. THERE IS NO KILL-COUNT PARAMETER —
+    -- the threshold is judged against a counter the function reads itself from
+    -- player_progress, under the SAME advisory lock hr_apply takes — so a
+    -- forged count is not refused, it is unrepresentable.
+    -- ⚠ AND IT MINTS NOTHING: no gold, no gems, no items, no XP, no multiplier.
+    -- It writes ONE flag row (value 1, on conflict do nothing, so a replay is a
+    -- refusal) and ONE zero-valued ledger row. The trophy's power is DERIVED
+    -- from the kill counters on every read (src/core/trophies.js) and is
+    -- already on before this is called, so there is no value here for a forged
+    -- or replayed call to move — which is why the CLAUDE.md §1 target property
+    -- holds by construction rather than by a clamp. Measured, not asserted:
+    -- the migration's §5(e) compares gold/gems/xp/inventory AND accrued_to
+    -- across a real claim. NO NEW TARGET: p_user again.
+    'hr_trophy_claim(uuid,integer,text,integer,text)',
 `,
     where: 'after',
   },

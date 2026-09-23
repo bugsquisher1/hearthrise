@@ -29,36 +29,41 @@
 // accrued_to).
 // ============================================================
 
-import * as rngMod from './core/rng.js?v=550';
-import * as xp from './core/xp.js?v=550';
-import * as combat from './core/combat.js?v=550';
-import * as bane from './core/bane.js?v=550';
-import * as elements from './core/elements.js?v=550';
-import * as drops from './core/drops.js?v=550';
-import * as pacing from './core/pacing.js?v=550';
-import * as rested from './core/rested.js?v=550';
-import * as tools from './core/tools.js?v=550';
-import * as farm from './core/farm.js?v=550';
-import * as progression from './core/progression.js?v=550';
-import * as styles from './core/styles.js?v=550';
-import * as artisan from './core/artisan.js?v=550';
-import * as bounty from './core/bounty.js?v=550';
-import * as away from './core/away.js?v=550';
-import * as botd from './core/botd.js?v=550';
-import * as buffs from './core/buffs.js?v=550';
-import * as combatSim from './core/combat-sim.js?v=550';
+import * as rngMod from './core/rng.js?v=551';
+import * as xp from './core/xp.js?v=551';
+import * as combat from './core/combat.js?v=551';
+import * as bane from './core/bane.js?v=551';
+import * as elements from './core/elements.js?v=551';
+import * as drops from './core/drops.js?v=551';
+import * as pacing from './core/pacing.js?v=551';
+import * as rested from './core/rested.js?v=551';
+import * as tools from './core/tools.js?v=551';
+import * as farm from './core/farm.js?v=551';
+import * as progression from './core/progression.js?v=551';
+import * as styles from './core/styles.js?v=551';
+import * as artisan from './core/artisan.js?v=551';
+import * as bounty from './core/bounty.js?v=551';
+import * as away from './core/away.js?v=551';
+import * as botd from './core/botd.js?v=551';
+import * as buffs from './core/buffs.js?v=551';
+import * as combatSim from './core/combat-sim.js?v=551';
+/* THE TROPHY LADDER (docs/design/BESTIARY_LADDER.md). Only `monsterIdIn` is
+   reached from here: the multipliers are read inside `weaknessInfo`, the one
+   expression the live tick and the Edge replay share, and a bridge that also
+   priced a trophy would be the second place one ladder is priced. */
+import * as trophiesMod from './core/trophies.js?v=551';
 /* The gather half of the same unification. `skillSim.sliceSpan` IS
    `replayAwaySpan` (legacy.js:1153), lifted; `simulateSkillSpan` is the loop
    the away gather branch and the accrual Edge Function both run. Published
    here because a core module the client cannot reach is a second
    implementation waiting to happen. */
-import * as skillSim from './core/skill-sim.js?v=550';
+import * as skillSim from './core/skill-sim.js?v=551';
 /* The ARTISAN half. `simulateArtisanSpan` is what legacy.js's artisan away
    branch (`replayAwaySpan` over `window.doArtisanAction`) becomes — 290 of the
    344 catalogue rows, and the last simulation in the game with no DOM-free
    form. It runs on `skillSim.sliceSpan`, so there is still exactly one
    buff-expiry timeline. */
-import * as artisanSim from './core/artisan-sim.js?v=550';
+import * as artisanSim from './core/artisan-sim.js?v=551';
 /* b357 — the consumption seam (R1: one field, one carry, one guard). Published
    because BOTH the pre-flight supply projection and the away card are client
    surfaces, and §4.5 requires them to call the same `hoursOfSupply`/`dryAtMs`
@@ -66,11 +71,11 @@ import * as artisanSim from './core/artisan-sim.js?v=550';
    will disagree, and the player will be told a number the night does not
    honour." WIRED into the fight since E1 (2026-08-31) — `simulateTick` charges
    one swing per tick through `spendForSwings`; see src/core/ammo.js's header. */
-import * as ammo from './core/ammo.js?v=550';
+import * as ammo from './core/ammo.js?v=551';
 /* The auto-eat DECISION, shared with the server accrual engine. Published so
    src/features/auto-actions.js — a classic script, which cannot import — can
    delegate to the same predicate Deno runs. */
-import * as autoEat from './core/auto-eat.js?v=550';
+import * as autoEat from './core/auto-eat.js?v=551';
 /* The PERMANENT PERK CHANNEL, shared with the server accrual engine. Layer 0
    of the getBonus chain — room rungs, plot buildings and the property
    capstone — is this module now, on both sides, so the client's `noBurn` and
@@ -79,7 +84,7 @@ import * as autoEat from './core/auto-eat.js?v=550';
    `hr_perks_of` returns. Published rather than inlined for the reason every
    other core module is: a core module the client cannot reach is a second
    implementation waiting to happen. */
-import * as perks from './core/perks.js?v=550';
+import * as perks from './core/perks.js?v=551';
 /* THE DAILY-TASK SELECTION, shared with the server. `src/data/goal-catalogue.js`
    owns the date-seeded shuffle AND the eligibility filter that stops a level-1
    account being dealt "Craft 8 items" behind a room it cannot build for two
@@ -88,18 +93,18 @@ import * as perks from './core/perks.js?v=550';
    second copy of the selection, which is exactly the drift the SQL port and
    tests/goal-catalogue-drift.mjs exist to prevent. Note this is a `src/data`
    module rather than `src/core`; the seam is the same. */
-import * as goalCatalogue from './data/goal-catalogue.js?v=550';
+import * as goalCatalogue from './data/goal-catalogue.js?v=551';
 /* THE HIRED-CREW RATE MODEL (b497). src/features/workers.js is a classic script
    and cannot import, so it reads the crew's efficiency curve and tick interval
    from here — the same functions the authoritative settle
    (hr-accrue/accrual.js `accrueWorkers`) runs. Before this, the curve existed
    twice and the PACED ANCHOR it is a fraction of existed nowhere, which is how
    the b389 rebalance shipped at 1.60x its stated size. */
-import * as workers from './core/workers.js?v=550';
+import * as workers from './core/workers.js?v=551';
 /* The hearthfind roll AND its table (re-exported by the core module), so the
    suite can derive "which sources pay which trophy" from the one catalogue
    instead of naming the four trophies by hand. */
-import * as hearthfind from './core/hearthfind.js?v=550';
+import * as hearthfind from './core/hearthfind.js?v=551';
 
 /* One stream for the whole session, seeded from the platform RNG. Exposed
    as `reseed` so the smoke suite can pin it and assert determinism from
@@ -108,6 +113,13 @@ let rng = rngMod.createRng((Math.random() * 0x100000000) >>> 0);
 
 const G = () => window.G;
 const ITEMS = () => window.ITEMS || {};
+/* The roster, read off `window` for the SAME reason ITEMS is: src/main.js
+   merges the ESM content INTO the objects legacy.js holds, so `window.MONSTERS`
+   is the same identity as the module's export and `applyClassProfiles` has
+   stamped it. An import here would be a second reference to one catalogue —
+   and `monsterIdIn` matches rows by IDENTITY, so a second reference is a
+   resolver that answers null for every row the game is actually holding. */
+const MONSTERS = () => window.MONSTERS || {};
 
 /* ── THE GATHER INDEX, CLIENT SIDE (b348) ──────────────────────────────────
    `{ [nodeId]: { skill, node } }` over every gathering node, built by the SAME
@@ -279,6 +291,26 @@ function charms() {
   } catch (e) { return null; }
 }
 
+/* THE BESTIARY TROPHY INDEX. The same seam, the same reason, the same defences:
+   the owner of `G._bestiaryTrophies` is src/render/bestiary-trophies.js and a
+   bridge that dug the scratch key out itself would be a second reader of one
+   fact. A build without the module, a tab before its first envelope and a
+   signed-out session all contribute NO trophy, never a stage. */
+function trophies() {
+  try {
+    const T = (typeof window !== 'undefined') ? window.HearthriseTrophies : null;
+    return (T && typeof T.indexForCombat === 'function') ? (T.indexForCombat() || null) : null;
+  } catch (e) { return null; }
+}
+
+/* The roster KEY for a MONSTERS row — `monsterIdIn` bound to the catalogue this
+   bridge already owns. It lives here rather than in src/legacy.js because the
+   lookup is pure and the monolith is not where a pure function goes
+   (CLAUDE.md §7); legacy's `getWeaknessInfo` reaches it as `C.monsterId`. */
+function monsterId(row) {
+  try { return trophiesMod.monsterIdIn(MONSTERS(), row); } catch (e) { return null; }
+}
+
 /* Tool speed still routes through window.HearthriseTools rather than
    straight to core, because that object is a documented public API other
    feature modules call — and it now delegates to core itself. */
@@ -306,6 +338,26 @@ function combatCtx(eq, setBonus) {
     /* The charm rank per class — an INPUT, derived from the server's projected
        counters. See `charms()` above and src/core/charms.js. */
     charms: charms(),
+    /* The trophy stage per MONSTER, from the same counters. `monsterId` is NOT
+       set here and must not be: this context is built once per loadout and read
+       for whichever monster the caller then names, so the id travels with the
+       call (`weaknessInfo(m, eq, charms, trophies, id)`) rather than being
+       frozen into the context. A ctx-level id would price every fight as the one
+       the context happened to be built for.
+
+       ⚠ WHICH MAKES PASSING IT AT THE CALL MANDATORY, and that half went missing
+         for a day (Security F4, 2026-09-22). `playerCombatRolls` calls
+         `weaknessInfo` ITSELF and resolves the trophy off `ctx.monsterId`, so a
+         caller that spreads this context and adds nothing pays every charm and
+         NO trophy — silently, because a charm still moves the number and the
+         result looks plausible. Measured on a stage-4 holder: 1.15 from
+         `getPlayerCombatRolls` against 1.1845 from `getWeaknessInfo` for the
+         same kill, and the SERVER pays the second (combat-sim.js `resolveKill`
+         hands `ctx.weakness` the id it already holds). legacy.js
+         `getPlayerCombatRolls` and hr-accrue/accrual.js `playerRolls(m)` are the
+         two callers; `tests/trophy-call-sites.mjs` lifts both out of the shipped
+         bytes and executes them, so the omission cannot come back unobserved. */
+    trophies: trophies(),
     profile: (typeof window.getCombatStatProfile === 'function')
       ? window.getCombatStatProfile()
       : Object.assign({}, combat.DEFAULT_PROFILE, { type: (eq && eq.weaponType) || 'sword' }),
@@ -397,7 +449,7 @@ window.HearthriseCore = {
   },
 
   /* The adapters legacy.js calls. */
-  bonus, toolSpeed, charms, combatCtx, rateCtx, xpGrantCtx, restedRoads, restedLibraryCap,
+  bonus, toolSpeed, charms, trophies, monsterId, combatCtx, rateCtx, xpGrantCtx, restedRoads, restedLibraryCap,
   /* b348 — the gather index and its lookup, shared with the accrual engine. */
   gatherNodes, gatherNode,
   /* …and the artisan index, on the same contract, plus its reverse (item →

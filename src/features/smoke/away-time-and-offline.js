@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 116 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withClientOwnedSlots, awaySpan, tryRunRestampingBalance, xpOf, xpMap, predZero, goldOf, snapshotG, onFeet, drain, withResidueWire, seedPlayStreak, residuePurgeSnap, residuePurgeRestore, restoreG, restoreGAndRecord, autoEatMirrorReady, autoEatMirrorFixture, on, snapshot, decideRestore } from './_harness.js?v=550';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withClientOwnedSlots, awaySpan, tryRunRestampingBalance, xpOf, xpMap, predZero, goldOf, snapshotG, onFeet, drain, withResidueWire, seedPlayStreak, residuePurgeSnap, residuePurgeRestore, restoreG, restoreGAndRecord, autoEatMirrorReady, autoEatMirrorFixture, on, snapshot, decideRestore } from './_harness.js?v=551';
 
 export default [
 
@@ -6050,7 +6050,7 @@ export default [
       'an unreadable poll must do NOTHING — uncertainty never prompts, even with sync dead');
   }),
 
-  () => tryRun('b333: three days of an open tab costs a bounded number of polls, and a hidden tab costs zero', () => {
+  () => tryRun('b333: three days of an open tab costs a bounded number of polls, and a hidden tab costs four a day', () => {
     const W = window.HearthriseBuildWatch;
     assert(typeof W.decideBuildPoll === 'function', 'the poll gate is gone — this could become a request loop');
     assert(W.POLL_INTERVAL_MS >= 5 * 60000 && W.POLL_INTERVAL_MS <= 60 * 60000,
@@ -6069,13 +6069,38 @@ export default [
     assert(Math.abs(polls - expected) <= 1,
       'three days of a healthy open tab issued ' + polls + ' polls, expected about ' + expected);
 
-    // B. hidden the whole time: not one request. A background tab is not about
-    // to act; it is checked the instant it is looked at.
-    let hiddenPolls = 0;
+    /* B. hidden the whole time. "Not one request, ever" was this contract
+       until 2026-09-22, when one real player's hidden tab — born 2026-08-21,
+       nine releases behind — spent NINE days putting a retired residue key on
+       the wire every ~60 s, being refused (`forbidden_field`) every time,
+       saving nothing, and accounting for ~99% of every refusal the game
+       records. It could not heal itself: its eviction gate's only exit is a
+       reload, the watcher's only escape hatch is a poll, and a hidden tab
+       never polled — so six fresh loads on newer builds did not end it, and it
+       kept reclaiming the account's single session from the tab the player was
+       actually using. Hidden is therefore SLOW, not never. */
+    assert(W.HIDDEN_POLL_INTERVAL_MS >= 60 * 60000 && W.HIDDEN_POLL_INTERVAL_MS <= 24 * 3600000,
+      'the hidden cadence (' + W.HIDDEN_POLL_INTERVAL_MS + 'ms) left the band that is both free and a rescue');
+    let hiddenLast = 0, hiddenPolls = 0, hiddenPollsFirstWindow = 0;
     for (let t = 0; t <= THREE_DAYS; t += STEP) {
-      if (W.decideBuildPoll({ now: t, lastPollAt: 0, fails: 0, hidden: true, trigger: 'interval' }).poll) hiddenPolls++;
+      if (!W.decideBuildPoll({ now: t, lastPollAt: hiddenLast, fails: 0, hidden: true, trigger: 'interval' }).poll) continue;
+      hiddenPolls++; hiddenLast = t;
+      if (t < W.HIDDEN_POLL_INTERVAL_MS) hiddenPollsFirstWindow++;
     }
-    assert(hiddenPolls === 0, 'a hidden tab polled ' + hiddenPolls + ' times — background tabs must cost nothing');
+    const hiddenExpected = Math.floor(THREE_DAYS / W.HIDDEN_POLL_INTERVAL_MS);
+    assert(hiddenPolls === hiddenExpected,
+      'three days hidden issued ' + hiddenPolls + ' polls, expected exactly ' + hiddenExpected
+      + ' — one per hidden interval, no more and no fewer');
+    /* Restating what "background tabs must cost nothing" was actually
+       protecting, which the amendment must not spend: over any span shorter
+       than its own interval a hidden tab still issues ZERO requests, so 30
+       idle tabs and an alt-tab are exactly as free as they were. */
+    assert(hiddenPollsFirstWindow === 0,
+      'a hidden tab polled ' + hiddenPollsFirstWindow + ' times inside its first interval — background tabs must cost nothing');
+    // And the nine-day tab itself, stated as the one case that was red today:
+    // seven hours buried is a poll, not 'hidden'.
+    assert(W.decideBuildPoll({ hidden: true, trigger: 'interval', lastPollAt: 0, fails: 0, now: 7 * 3600e3 }).poll === true,
+      'a hidden tab seven hours stale still refuses to poll — no shipped fix can ever reach it');
 
     // C. the endpoint is 404ing for three days (a bad deploy). Backoff must
     // make that cheap; without it this is 4,320 requests.
@@ -6358,6 +6383,26 @@ export default [
       W.__clearAutoReloadStamp();
       W.__setState(before);
     }
+  }),
+
+  /* HIDDEN OUTRANKS BUSY. `busy` asks "would this take an action away from the
+     player right now?", and on a tab nobody is looking at the answer is no,
+     whatever is on screen underneath. That is the whole rescue: the nine-day
+     tab's blocker WAS a modal — the eviction gate, whose only exit is a reload
+     — so a busy probe that counts it defers forever. Safe because the reload
+     path flushes the residue with the same pagehide keepalive save first. */
+  () => tryRun('a hidden tab two builds behind reloads itself — there is no action left for a modal to cost', () => {
+    const W = window.HearthriseBuildWatch;
+    const T = 1e12;
+    const d = (p) => W.decideBuildUpdate({
+      running: 546, deployed: 548, authDead: false, busy: false, now: T, lastAutoReloadAt: 0, ...p,
+    });
+    assert(d({ busy: true, hidden: true }).action === 'reload',
+      'a hidden tab two builds behind deferred to a modal nobody is looking at — that is the nine-day tab');
+    assert(d({ deployed: 547, hidden: true }).action === 'notify',
+      'hidden lowered the two-build threshold — one build behind is still only a card, looked at or not');
+    assert(d({ hidden: true, lastAutoReloadAt: T - 1000 }).action === 'notify',
+      'hidden spent the cooldown — a CDN edge still serving the old bundle would spin a buried tab forever');
   }),
 
   () => tryRun('the stale tab moves itself: the live poll path reloads once, stamps its cooldown, and defers around a busy moment', () => {

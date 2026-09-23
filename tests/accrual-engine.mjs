@@ -3693,6 +3693,28 @@ function requestGuard() {
 async function shellGuard() {
   const shell = await readFile(join(FN_DIR, 'index.ts'), 'utf8');
   const code = shell.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  /* THE HYDRATION HALF OF THE SHELL (2026-09-22). The envelope -> engine-input
+     map moved OUT of index.ts into ./envelope.js, because the world tick had a
+     SECOND copy of the field list reading `env.state` instead of the envelope
+     top level and handed the engine `skills {}` for a Mining-61 character. The
+     fields this guard exists to protect are therefore now spelled one file
+     over — so the scan follows them. It does NOT simply union two files: (c)
+     below proves index.ts reaches them by spreading THIS function's result, so
+     `hydration` is the shell plus the code the shell demonstrably calls. */
+  const envSrc = await readFile(join(FN_DIR, 'envelope.js'), 'utf8');
+  const envCode = envSrc.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  const hydration = code + '\n' + envCode;
+  ok(/import\s*\{[^}]*\bengineInputsFromEnvelope\b[^}]*\}\s*from\s*'\.\/envelope\.js'/.test(code),
+    'SHELL: index.ts does not import engineInputsFromEnvelope from ./envelope.js — the hydration '
+    + 'scan below would be reading a file the shell never calls');
+  /* AND THE MAP READS AN ENVELOPE, NEVER A BODY. It is handed `hr_state_of`'s
+     result and the server clock and nothing else; a request-shaped identifier
+     appearing in it would put client bytes into the engine on BOTH paths at
+     once, which is the whole reason it is one function. */
+  for (const bad of ['body', 'req.', 'request', 'payload', 'intent.', 'params', 'headers']) {
+    ok(!envCode.includes(bad),
+      `SHELL: envelope.js references '${bad}' — the envelope map may read the envelope and nothing else`);
+  }
 
   // (a) NOTHING request-shaped is ever spread. This is the rule that keeps
   //     `minTickMs` from riding in through the same door as `tickMs`.
@@ -3725,7 +3747,26 @@ async function shellGuard() {
         `SHELL: the computeAccrual literal references '${bad}' — the only request-derived value permitted is slot`);
     }
     ok(/\bslot\b/.test(lit), 'SHELL: the computeAccrual literal does not pass slot at all');
-    ok(!/\.\.\./.test(lit), 'SHELL: the computeAccrual literal contains a spread');
+    /* SPREADS ARE AN ALLOWLIST, NOT A BAN (2026-09-22). The rule this replaces
+       was "no spread at all", and its PURPOSE — stated by (a) above — is that
+       nothing request-shaped rides in through one. That purpose is unchanged;
+       what changed is that the envelope's own fields are now one audited
+       server-side map instead of thirty hand-copied lines, precisely because
+       the second hand-copy (tick-gather.js) read the wrong level of the same
+       projection for four days. So a spread is permitted only when its binder
+       is assigned FROM `engineInputsFromEnvelope` IN THIS FILE — an identity a
+       request body cannot acquire, and the same technique `callerAuthority`
+       uses. `...body`, `...anythingElse` and a renamed binder all stay red. */
+    for (const m of lit.matchAll(/\.\.\.\s*([A-Za-z_$][\w$]*)/g)) {
+      ok(m[1] === 'engineInputsFromEnvelope',
+        `SHELL: the computeAccrual literal spreads '${m[1]}' — only the CALL `
+        + '`...engineInputsFromEnvelope(env, nowMs)` may be spread, never a binder and never '
+        + 'anything else. A binder is a name a later edit can reassign; the call is not.');
+    }
+    ok(/\.\.\.\s*engineInputsFromEnvelope\s*\(\s*env\s*,/.test(lit),
+      'SHELL: the computeAccrual literal no longer spreads engineInputsFromEnvelope(env, …) — the '
+      + 'envelope fields (skills, inventory, equipment, the auto-eat settings, tool_carry, buffs, '
+      + 'the recovery line) would silently stop reaching the engine');
   }
 
   // (d) IDENTITY IS VERIFIED, NOT DECODED (review D2).
@@ -3771,12 +3812,13 @@ async function shellGuard() {
      shell. That gap is exactly how the handler came to be missing in the first
      place, so it gets a source assertion. */
   for (const field of ['inventory:', 'autoEatEnabled:', 'autoEatFood:', 'autoEatPct:']) {
-    ok(code.includes(field),
-      `SHELL: index.ts does not pass '${field.replace(':', '')}' to computeAccrual — the server would `
-      + 'stop eating and every away night would end at the first death, silently');
+    ok(hydration.includes(field),
+      `SHELL: neither index.ts nor envelope.js passes '${field.replace(':', '')}' to computeAccrual — `
+      + 'the server would stop eating and every away night would end at the first death, silently');
   }
-  ok(/auto_eat_enabled/.test(code) && /auto_eat_pct/.test(code) && /auto_eat_food/.test(code),
-    'SHELL: index.ts no longer reads the auto_eat_* columns off hr_state_of');
+  ok(/auto_eat_enabled/.test(hydration) && /auto_eat_pct/.test(hydration)
+     && /auto_eat_food/.test(hydration),
+    'SHELL: the accrue path no longer reads the auto_eat_* columns off hr_state_of');
 
   /* (i) THE SAME RULE FOR GATHERING, and it has the same silent shape. Drop
      `nodes:` and every gathering night answers `unknown_node` — a REFUSING
@@ -3786,13 +3828,74 @@ async function shellGuard() {
      shell. Drop `toolCarry:` and the carry silently restarts from zero every
      span. Both are one-line omissions with no exception and no log. */
   for (const field of ['nodes:', 'toolCarry:']) {
-    ok(code.includes(field),
-      `SHELL: index.ts does not pass '${field.replace(':', '')}' to computeAccrual — gathering would `
-      + 'silently stop paying (nodes) or silently lose its deterministic carry (toolCarry)');
+    ok(hydration.includes(field),
+      `SHELL: neither index.ts nor envelope.js passes '${field.replace(':', '')}' to computeAccrual — `
+      + 'gathering would silently stop paying (nodes) or silently lose its deterministic carry (toolCarry)');
   }
-  ok(/tool_carry/.test(code),
-    'SHELL: index.ts no longer reads tool_carry off hr_state_of — the null branch would be permanent '
-    + 'and applying the migration would change nothing');
+  ok(/tool_carry/.test(hydration),
+    'SHELL: the accrue path no longer reads tool_carry off hr_state_of — the null branch would be '
+    + 'permanent and applying the migration would change nothing');
+
+  /* (j) THE FIELD LIST CANNOT SHRINK SILENTLY (2026-09-22, and it is the hole
+     the extraction itself opened).
+
+     Until today the envelope's fields were hand-copied at each call site and
+     PARITY held them together by COMPARING THE TWO COPIES. One list means
+     there is nothing to compare: delete `hearthfindReady` from
+     ENGINE_STATE_KEYS and both callers lose it in the same commit, PARITY
+     still agrees, and every away night silently stops proposing hearthfinds.
+     That is the same shape as the defect this whole change is about — a value
+     the engine reads and nobody hands it — so it gets the same treatment: the
+     list is checked against the ENGINE, not against another copy of itself.
+
+     `accrual.js` reads its input as `inp.<name>` and nothing else, so the set
+     of names it reads is greppable and is the truth. Subtract the inputs that
+     do NOT come from the envelope — each one named here with where it does
+     come from — and what remains must be exactly what the map declares. */
+  const engineSrc = await readFile(join(FN_DIR, 'accrual.js'), 'utf8');
+  const engineCode = engineSrc.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  const read = new Set([...engineCode.matchAll(/\binp\.([A-Za-z_$][\w$]*)/g)].map((m) => m[1]));
+  /* NOT FROM `hr_state_of`, each from a named other read or a server literal. */
+  const NOT_FROM_ENVELOPE = new Set([
+    'nowMs',            // the server clock, read in the settling transaction
+    'capMs',            // hr_offline_cap_ms, its own column in the same select
+    'seed',             // hr_seed over the window label, the seed transaction
+    'perks',            // hr_perks_of, the seed transaction
+    'unlockedRecipes',  // hr_perks_of's own field
+    'attended',         // hr_attended_kills, the seed transaction
+    'bestiaryKills',    // hr_bestiary_of, behind its own savepoint
+    'crew',             // env.workers, but consumed by accrueWorkers, not computeAccrual
+    'workersAccruedToMs', // ditto — the crew's own watermark
+    'actionBudget',     // the degrade ladder's knob, from the engine's own answer
+    'caller',           // a server literal per call site
+    'callerAuthority',  // an imported object identity
+    'items', 'monsters', 'nodes', 'recipes',  // the generated catalogues
+    'companionXpBacked',                      // a deploy-time constant
+  ]);
+  /* Declared by the map and NOT read by the engine. One entry, and it is
+     honest: both call sites have always passed `gold` and accrual.js has never
+     read it. Listed rather than deleted so removing it is a deliberate edit. */
+  const PASSED_BUT_UNREAD = new Set(['gold']);
+  const declared = new Set([...envCode.matchAll(
+    /export const ENGINE_(?:POINTER|STATE)_KEYS = Object\.freeze\(\[([\s\S]*?)\]\)/g)]
+    .flatMap((m) => [...m[1].matchAll(/'([A-Za-z_$][\w$]*)'/g)].map((x) => x[1])));
+  ok(declared.size >= 20,
+    `SHELL: envelope.js declares only ${declared.size} engine-input keys — the extractor is blind, `
+    + 'so the two comparisons below prove nothing');
+  for (const name of [...read].sort()) {
+    if (NOT_FROM_ENVELOPE.has(name)) continue;
+    ok(declared.has(name),
+      `SHELL: accrual.js reads \`inp.${name}\` but envelope.js's ENGINE_*_KEYS do not declare it, `
+      + 'and it is not on the not-from-the-envelope list. The engine would read undefined on EVERY '
+      + 'path at once — there is only one field list now, so nothing else can notice.');
+  }
+  for (const name of [...declared].sort()) {
+    if (PASSED_BUT_UNREAD.has(name)) continue;
+    ok(read.has(name),
+      `SHELL: envelope.js declares '${name}' but accrual.js never reads \`inp.${name}\` — either `
+      + 'the engine stopped reading it (then say so in PASSED_BUT_UNREAD) or the name is wrong '
+      + 'and the real field is silently undefined.');
+  }
 }
 
 // ── 4b. CROSS-FILE CONSTANTS ────────────────────────────────────────────────
@@ -4667,7 +4770,24 @@ async function packerGuard() {
    rather than as agreement. */
 export function computeAccrualInputParity(fnDir) {
   const found = [];
-  const keysOf = (src) => {
+  /* THE SPREAD IS RESOLVED, NOT IGNORED (2026-09-22). Both literals now spread
+     `engineInputsFromEnvelope(env, nowMs)` — the ONE envelope -> engine-input
+     map, shared with the world tick, which exists because a FOURTH hand-copy of
+     this field list (tick-gather.js) read `env.state.skills` and priced a
+     Mining-61 character at level 0. An extractor that skipped a `...` line
+     would report both sides as agreeing on the twenty-odd fields neither one
+     names any more, i.e. it would go blind on exactly the fields this guard was
+     written for. So the spread expands to the map's own declared key list and
+     the comparison is over the FULL set at each call site. */
+  const spreadKeysOf = (envSrc, name) => {
+    const m = envSrc.match(/export const ENGINE_STATE_KEYS = Object\.freeze\(\[([\s\S]*?)\]\)/);
+    const p = envSrc.match(/export const ENGINE_POINTER_KEYS = Object\.freeze\(\[([\s\S]*?)\]\)/);
+    if (!m || !p) return null;
+    const names = (blob) => [...blob.matchAll(/'([A-Za-z_$][\w$]*)'/g)].map((x) => x[1]);
+    const keys = [...names(p[1]), ...names(m[1])];
+    return keys.length >= 20 ? keys : null;
+  };
+  const keysOf = (src, spreadKeys) => {
     const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
     const at = code.indexOf('computeAccrual({');
     if (at < 0) return null;
@@ -4686,6 +4806,12 @@ export function computeAccrualInputParity(fnDir) {
            report a permanent, meaningless difference and be "fixed" by deletion. */
         const m = d === 0 && line.match(/^\s*([A-Za-z_$][\w$]*)\s*(?::|,\s*$)/);
         if (m) keys.push(m[1]);
+        /* `...engineInputsFromEnvelope(env, nowMs),` — the map's keys ARE this
+           call site's keys. Matched on the CALL, not on a binder name, so a
+           spread of anything else stays unexpanded and shows up as a
+           difference rather than as silent agreement. */
+        const sp = d === 0 && line.match(/^\s*\.\.\.\s*(?:engineInputsFromEnvelope\s*\(|([A-Za-z_$][\w$]*)\s*,)/);
+        if (sp) keys.push(...(sp[1] ? [`<unresolved spread ${sp[1]}>`] : spreadKeys));
         line = ''; continue;
       }
       if (d === 0) line += ch;
@@ -4694,8 +4820,16 @@ export function computeAccrualInputParity(fnDir) {
     return keys.sort();
   };
   return (async () => {
-    const shell = keysOf(await readFile(join(fnDir, 'index.ts'), 'utf8'));
-    const intent = keysOf(await readFile(join(fnDir, 'set-activity.js'), 'utf8'));
+    const envSrc = await readFile(join(fnDir, 'envelope.js'), 'utf8');
+    const spreadKeys = spreadKeysOf(envSrc);
+    if (!spreadKeys) {
+      found.push('PARITY: envelope.js does not declare ENGINE_POINTER_KEYS + ENGINE_STATE_KEYS as '
+        + 'two frozen literal arrays of at least 20 names — the spread both call sites use cannot be '
+        + 'resolved, so this comparison would be blind on every envelope field');
+      return found;
+    }
+    const shell = keysOf(await readFile(join(fnDir, 'index.ts'), 'utf8'), spreadKeys);
+    const intent = keysOf(await readFile(join(fnDir, 'set-activity.js'), 'utf8'), spreadKeys);
     /* CONTROL FIRST. An extractor that returns [] would make the comparison
        below pass on any pair of files forever. */
     if (!shell || shell.length < 10) {

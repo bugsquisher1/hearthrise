@@ -5,7 +5,7 @@
 // the network is unavailable or the endpoint is not configured.
 //
 // Usage (when Supabase is set up):
-//   import { setupSync } from './net/sync.js?v=550';
+//   import { setupSync } from './net/sync.js?v=551';
 //   setupSync({
 //     endpoint: 'https://<project>.supabase.co/rest/v1/game_events',
 //     authToken: () => window.localStorage.getItem('supabaseSession'),
@@ -16,27 +16,27 @@
 // During local-only play, call setupSync() with no args — it stays in offline
 // mode and just buffers events to localStorage for later replay.
 
-import { on, snapshot } from './events.js?v=550';
+import { on, snapshot } from './events.js?v=551';
 /* b342 — WHICH CHARACTER'S SAVE IS THIS? The same resolver src/net/{accrue,
    character,record}.js use, imported rather than re-derived: multi-character.js
    owns the answer and a second reader of that record is a second thing to
    drift. accrue.js has no imports of its own, so this adds no cycle. */
-import { resolveActiveSlot } from './accrue.js?v=550';
+import { resolveActiveSlot } from './accrue.js?v=551';
 /* THE CLOUD-SAVE SELF-TEST READS THE REALM'S PROJECTION, so it borrows
    record.js's own request builder and response classifier rather than growing a
    second copy of the hr_load shape. NO CYCLE: record.js imports accrue /
    client-state / predict / property-record / dungeon-scrip-record, none of which
    import sync.js. (The old `balanceState` import went with the round-trip diff
    the projection replaced — the figures now come from the server, not from G.) */
-import { buildLoadRequest, classifyLoadResponse } from './record.js?v=550';
+import { buildLoadRequest, classifyLoadResponse } from './record.js?v=551';
 /* ── THE CAPSTONE SAVE PATH (blob-retire — the ONLY path since b515) ─────────
    The authoritative snapshot() blob is NOT uploaded: the authority fields flow
    through their own server writes (record / RPCs / accrual) and only the
    self-only residue is persisted, via putClientState. buildResiduePatch is the
    census→patch. No cycle: neither capstone.js nor client-state.js imports
    sync.js. */
-import { buildResiduePatch } from './capstone.js?v=550';
-import { putClientState, isClientStateFromServer } from './client-state.js?v=550';
+import { buildResiduePatch } from './capstone.js?v=551';
+import { putClientState, isClientStateFromServer } from './client-state.js?v=551';
 
 const BUFFER_KEY = 'hearthrise:syncBuffer';
 const SNAPSHOT_KEY = 'hearthrise:cloudSnapshot';
@@ -88,6 +88,15 @@ let buffer = [];
 let flushTimer = null;
 let concurrencyTimer = null;
 let claimTimer = null;
+// setupSync() re-runs on every auth event (see the SYNC-ONCE note below), and
+// these four one-shots were unlatched: each re-run armed a second timer on top
+// of whatever the previous run already scheduled, so boot sent duplicate
+// session_claims writes/reads. Held in module scope and cleared on re-run, same
+// pattern as claimTimer/flushTimer above.
+let concurrentStartTimer = null;
+let claimStartTimer = null;
+let claimCheckTimer = null;
+let flushStartTimer = null;
 let lastSnapshotAt = 0;
 let lastCloudSaveAt = 0;   // b299: last CONFIRMED cloud upload (for the verify tool + status)
 let concurrentWarned = '';   // b366: fallback when sessionStorage is unavailable
@@ -1682,18 +1691,21 @@ export function setupSync(opts = {}) {
   // from session_claims, and without that table there is no liveness evidence to
   // reason from and therefore nothing honest to say.
   if (concurrencyTimer) clearInterval(concurrencyTimer);
+  if (concurrentStartTimer) clearTimeout(concurrentStartTimer);
   if (config.claimEndpoint) {
     concurrencyTimer = setInterval(() => { checkConcurrentDevice(); }, config.concurrencyIntervalMs || 45000);
-    setTimeout(() => { checkConcurrentDevice(); }, 4000);
+    concurrentStartTimer = setTimeout(() => { concurrentStartTimer = null; checkConcurrentDevice(); }, 4000);
   }
 
   // b302: single active device. Claim the account for THIS device on connect
   // (new device wins), then poll for eviction. Inert until the session_claims
   // table + claimEndpoint exist — claim/poll simply no-op or error out safely.
   if (claimTimer) clearInterval(claimTimer);
+  if (claimStartTimer) clearTimeout(claimStartTimer);
+  if (claimCheckTimer) clearTimeout(claimCheckTimer);
   if (config.claimEndpoint && !paused) {
-    setTimeout(() => { claimSession(); }, 1500);                       // take ownership
-    setTimeout(() => { checkSessionClaim(); }, 6000);                  // first eviction check
+    claimStartTimer = setTimeout(() => { claimStartTimer = null; claimSession(); }, 1500);       // take ownership
+    claimCheckTimer = setTimeout(() => { claimCheckTimer = null; checkSessionClaim(); }, 6000);  // first eviction check
     claimTimer = setInterval(() => { checkSessionClaim(); }, config.claimIntervalMs || 15000);
     // Re-check the moment the tab regains focus, so a kicked device locks out on return.
     /* b461 — same once-per-page rule as the forced-save listeners above (this
@@ -1707,7 +1719,8 @@ export function setupSync(opts = {}) {
   }
 
   // And one immediate attempt
-  setTimeout(flush, 1000);
+  if (flushStartTimer) clearTimeout(flushStartTimer);
+  flushStartTimer = setTimeout(() => { flushStartTimer = null; flush(); }, 1000);
 
   console.log('[Cloud Sync]', config.endpoint ? 'configured: ' + config.endpoint : 'offline mode (no endpoint)');
 }

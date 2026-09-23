@@ -564,6 +564,27 @@ export const INTENT_REGISTRY = Object.freeze({
      the item, bumps version and journals, and touches accrued_to NOWHERE. So a
      purchase never confiscates the unpaid accrual window (the b372 rule). */
   quartermaster_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: false }),
+  /* ── THE TROPHY CLAIM VERB (docs/design/BESTIARY_LADDER.md §4) ─────────────
+     `bucket: 'claim'`, shared with claim_reward and dungeon_settle, and it is
+     the same RULING those two made for the same reason: hr_rate_gate's bucket
+     list is a `case` in SQL whose last toucher is FROZEN, and a new arm would
+     be a `create or replace` of the gate for a verb a player fires a few dozen
+     times in a character's LIFE — four stages against 108 monsters is 432
+     presses, ever. Reuse, do not widen. THE COST, stated: a player spamming
+     claims, dungeon settles and trophy claims shares one budget. That is
+     tighter than the fuse the RPC spends for itself, so the Edge gate is the
+     binding one and this adds no reachable write rate.
+
+     `collectsFirst: false`, DERIVED and not preferred: hr_apply stamps
+     `accrued_to = now()` on a delta carrying equip/activity/enchant, and this
+     verb PROPOSES NO hr_apply DELTA AT ALL — its commit point is
+     hr_trophy_claim, which writes one progress row and one ledger row and
+     touches accrued_to NOWHERE. So claiming a trophy never confiscates the
+     unpaid accrual window (the b372 rule). `guardStampKeys` cannot grade an
+     invariant about a FUNCTION (the unlock_buy situation exactly); it is
+     asserted in the migration's own §4 self-check, which measures accrued_to
+     across a real claim. */
+  trophy_claim: Object.freeze({ bucket: 'claim', needsKey: true, collectsFirst: false }),
 });
 
 /** The registry columns every row must carry, exported so the guard reads the
@@ -836,6 +857,34 @@ export const INTENT_ERRORS = Object.freeze({
                          taxonomy that agrees today). */
   UNKNOWN_DUNGEON: 'unknown_dungeon',
   BAD_MODE: 'bad_mode',
+
+  /* ── THE TROPHY CLAIM VERB (docs/design/BESTIARY_LADDER.md §4) ────────────
+     ONE code minted HERE — the shape, answered from the parsed request before
+     any database work. Everything else is hr_trophy_claim's own vocabulary,
+     returned verbatim, and it is DELIBERATELY hr_unlock_buy's words so the
+     client's refusal rendering needs no new case (§4.2.4):
+       bad_trophy      400 — `{trophy:{monster,stage}}` absent or malformed.
+                       Minted here. A stage outside 1..MAX_TROPHY_STAGE_WIRE
+                       lands here too rather than reaching a `::int` cast.
+       unknown_monster 409 — the id is not in the SERVER's own monster
+                       catalogue (hr_activities, kind='combat'). The RPC's, and
+                       it is a refusal rather than an insert on purpose:
+                       inventing a monster from a client string is how a
+                       capability becomes forgeable from a stale save (§4.2.2).
+       not_yet         409 — the character has not reached that stage. The RPC
+                       reads the kill total ITSELF, under the lock; there is no
+                       count on the wire to disbelieve.
+       already_owned   409 — the trophy row is already written. The once-guard
+                       is the `on conflict do nothing` row count, read BEFORE
+                       the journal, so a replay is a refusal and never a second
+                       ledger row.
+       version_conflict · intent_mismatch · intent_in_flight · no_character ·
+       rate_limited — the RPC's own, returned verbatim (a second taxonomy is a
+                       taxonomy that agrees today). */
+  BAD_TROPHY: 'bad_trophy',               // 400 — absent or malformed {monster,stage}
+  UNKNOWN_MONSTER: 'unknown_monster',     // 409 — not in the server's combat catalogue
+  NOT_YET: 'not_yet',                     // 409 — the kill threshold is not reached
+  ALREADY_OWNED: 'already_owned',         // 409 — the trophy row already exists
 });
 
 /* ── THE REFUSALS THAT CANNOT CARRY AN ENVELOPE ────────────────────────────
@@ -946,6 +995,17 @@ export const STATELESS_REFUSALS = Object.freeze([
        never routed through this list. */
   INTENT_ERRORS.UNKNOWN_DUNGEON,
   INTENT_ERRORS.BAD_MODE,
+  /* THE TROPHY CLAIM — its ONE shape refusal, answered from the parsed request
+     BEFORE the rate gate and before any database work, exactly like bad_offer.
+     Nothing was written, so the client's LAST envelope is still current.
+     ⚠ `unknown_monster`, `not_yet` and `already_owned` are NOT here on purpose:
+       every one of them is a fact about ROWS read under the advisory lock (the
+       server's catalogue, the kill counter, the trophy row), so each reached the
+       database and each carries an envelope. `not_yet` in particular MUST carry
+       one — it is the refusal a client sees when its own idea of the kill count
+       ran ahead of the server's, and the envelope is how it reconciles instead
+       of arguing (CLAUDE.md §6). */
+  INTENT_ERRORS.BAD_TROPHY,
 ]);
 
 /** Must a refusal with this code carry the `hr_state_of` envelope? */

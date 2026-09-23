@@ -2224,6 +2224,43 @@ jobs:
           node tests/no-client-xp-mint.mjs --selftest
           node tests/no-client-xp-mint.mjs
 
+      # THE FRAME GATE (M5, docs/design/LIVE_COUNTERS_PUSH.md §7). Before it, the
+      # client had NO whole-envelope version gate: isEnvelopeApplicable asked
+      # only that `version` be a finite number, and the monotonic rule lived in
+      # ONE place for ONE field (gold.js's `lastVersion`). That is survivable
+      # under request/response and is a silent rewind of hp, the bag, the
+      # activity pointer and every buff clock under a push stream. The rule is
+      # now one floor, strictly greater, whole-frame-or-nothing, committed by
+      # all three appliers (accrue / gold / activity).
+      # Base AND selftest, per C4: a selftest-only registration cannot tell a
+      # caught defect from a guard that is broken at rest. --selftest plants
+      # five defects — `>=` restored, a per-key merge below the gate, gold.js
+      # growing its floor back, the activity applier not committing, and the
+      # frame gate moved into classifyAccrueResponse (which would halt the
+      # accrual loop on three duplicates) — and requires each one caught.
+      - name: Envelope frame gate — one monotonic frame, whole frame or nothing
+        run: |
+          node tests/envelope-frame-gate.mjs --selftest
+          node tests/envelope-frame-gate.mjs
+
+      # FRAME DROP STREAK (SEC_PUSH_CHANNEL_M5_2026-09-23.md S3). The gate's two
+      # failure directions are not symmetric: a floor that is too LOW heals on
+      # the next frame; one that is too HIGH refuses every frame including the
+      # `hello` that is the only documented healer, so the healer is gated by
+      # the thing it heals. A client in that state looks IDENTICAL to a quiet
+      # one — in the browser, in a bug report and in vitals.mjs, which CLAUDE.md
+      # §3.4 gives two days to notice. Until lane/m5-live-subscribe ships the
+      # re-read that may RESET the floor, the deliverable is detection, and this
+      # guard is what keeps it honest: it pins that all three appliers count
+      # their refusals, that a landed frame clears the streak, and — D4 — that
+      # the too-high hole is still there. D4 goes RED when the hole is closed,
+      # on purpose, so the author who closes it has to come and say so.
+      # Base AND mutate, per C4: five planted defects, each required caught.
+      - name: Frame drop streak — a refused client must be able to say so
+        run: |
+          node tests/frame-drop-streak.mjs --mutate
+          node tests/frame-drop-streak.mjs
+
       # NO DUPLICATE RPC CALLERS (b514): a RATCHET. The six hand-rolled
       # rpc(name, body) copies stay six (HearthriseRpc is the DECISION, not a
       # transport — folding them is the wrong abstraction), and the mayCall

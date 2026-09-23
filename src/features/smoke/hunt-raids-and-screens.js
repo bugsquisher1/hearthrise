@@ -2422,7 +2422,7 @@ export default [
 
       /* (c) THE PRESS. One intent, five fields, and the figures that follow are
              the SECOND envelope's — not 876-10 and not the RPC's own qty. */
-      env = { ...env, inventory: { [ID]: 866 }, bank: { [ID]: 10 } };
+      env = { ...env, version: env.version + 1, inventory: { [ID]: 866 }, bank: { [ID]: 10 } };   // ⚠ THE VERSION MOVES (M5): the same character's SECOND server statement, so reusing 9 makes it a duplicate the gate drops whole.
       await press(10);
       assert(rpc.length === 1, 'the pressed Store put ' + rpc.length + ' intents on the wire, not one (live: three presses, one POST, no message)');
       assert(rpc[0].p_item === ID && rpc[0].p_qty === 10 && rpc[0].p_dir === 'deposit' && /^[0-9a-f-]{36}$/i.test(String(rpc[0].p_idem)),

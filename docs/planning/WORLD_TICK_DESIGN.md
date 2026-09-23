@@ -328,10 +328,24 @@ contract as well as the client side:
   allocated by the process that produced the frame. For tick frames that is the
   shard; for intent-driven frames it is derived from `player_state.version`, so
   the two producers cannot collide (see below).
-- **A client applies a frame only if `frame > lastAppliedFrame`.** Strictly
-  greater. Equal is a duplicate and is dropped; lower is a reorder and is
-  dropped. There is no merge, no "apply the newer fields", no per-key
+- **A frame ADVANCES the gate only if `frame > lastAppliedFrame`.** Strictly
+  greater. Equal is a duplicate and lower is a reorder, and neither ever raises
+  the floor. There is no merge, no "apply the newer fields", no per-key
   comparison — the whole frame is applied or the whole frame is dropped.
+- **A duplicate is nonetheless RE-APPLIED by the intent applier, absolutely**
+  (amended 2026-09-23, `SEC_PUSH_CHANNEL_M5_2026-09-23.md` S1). "Equal is
+  dropped" is sound for a *stateless* receiver; this client is not one. It
+  carries optimistic writes on top of the applied frame, and the envelope that
+  retires them is a **refusal** — which writes nothing server-side, so
+  `player_state.version` does not move and the correction arrives at exactly
+  `lastAppliedFrame`. Dropping it leaves the browser showing a number the
+  server does not hold, which is `CLAUDE.md` §6 and a P1 class-kill. Re-applying
+  cannot be a rewind: the server never rewrites the content of a version it has
+  already stamped, so an equal frame is byte-for-byte the state behind the
+  floor. **A reorder is still dropped whole** — that one *would* be a rewind.
+  What a duplicate may not do is replay anything non-idempotent: it does not
+  raise the floor and it does not re-hang a collect receipt, because a receipt
+  is replayed into `updateDaily('kill_any')` and that is a shared surface.
 - A dropped frame is not a hole to be patched: a `delta` frame always states
   whole top-level envelope keys, so the next frame that touches a key makes the
   client whole again. A client that wants certainty sends `hello` again and gets

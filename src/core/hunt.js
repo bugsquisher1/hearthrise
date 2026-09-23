@@ -10,7 +10,7 @@
 // Every one of these three rules is read by BOTH runtimes — the live tick and
 // the away replay — through the one engine (`AWAY-1`, CLAUDE.md §6). A stance
 // preset spelled in `accrual.js` and again in a renderer is the shape that made
-// `processOfflineCombat` drift from `combatTick` (b325): two copies that agreed
+// `processOfflineCombat` drift from `combatTick`: two copies that agreed
 // on the day they were written. The stop predicate is worse, because its two
 // copies would disagree about when a player's night ENDED.
 //

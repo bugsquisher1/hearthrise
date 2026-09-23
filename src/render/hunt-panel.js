@@ -130,27 +130,35 @@
     return 'Stops ' + parts.join(' · ') + '.';
   }
 
-  /* ── THE LIMITER (§C) ─────────────────────────────────────────────────────
-     A single bar, labelled in ABSOLUTE MINUTES — never a percentage, because a
-     percentage of an invisible budget is a number players learn to ignore.
-     When it runs out the label becomes one sentence carrying the consequence
-     AND the reset time, so no tooltip is required. */
-  function vigourRow(v) {
-    if (!v || typeof v !== 'object') return '';
-    var spent = Math.max(0, Number(v.spent_min) || 0);
-    var budget = Math.max(1, Number(v.budget_min) || 1);
-    var pct = Math.max(0, Math.min(100, Math.round((spent / budget) * 100)));
-    var dry = spent >= budget;
-    var label = dry
-      ? 'Tired — hunts pay a quarter until 00:00 UTC.'
-      : (num(spent) + ' / ' + num(budget) + ' min today');
-    return ''
-      + '<div class="hunt-vigour' + (dry ? ' is-dry' : '') + '">'
-      + '<span class="hunt-vigour-key">VIGOUR</span>'
-      + '<span class="hunt-vigour-track"><span class="hunt-vigour-fill" style="width:' + pct + '%"></span></span>'
-      + '<span class="hunt-vigour-label">' + esc(label) + '</span>'
-      + '</div>';
-  }
+  /* ── THE LIMITER (§C) — HELD, NOT SHIPPED (2026-09-23) ──────────────
+     THE VIGOUR BAR IS DELIBERATELY NOT RENDERED, and this comment is the whole
+     of what is left of it. Finding C-1 of
+     docs/planning/SEC_HUNTS_M6_2026-09-22.md: the bar read `spent_min` and
+     `remaining_min` off the meter, and finding S-1 made those numbers wrong by
+     up to 100% — the charge floored per settle window and discarded the
+     remainder, so a player who had hunted twelve hours saw "11h 20m remaining"
+     all night. That is the exact class Tyler ruled on 2026-09-14 ("the browser
+     never says one thing while the server says another"), inside the feature
+     that quotes that ruling most.
+
+     The engine half of S-1 is fixed and this lane carries it. THE SERVER HALF
+     IS NOT APPLIED: 2026-09-22-vigour-daily.sql is STAGED, so `state.vigour` is
+     absent from every envelope today and there is no honest meter to draw. The
+     bar comes back when the migration is applied and Security re-verifies S-1 —
+     one function returning the markup below, one `var meter = vigourRow(...)`
+     and one `+ meter` in each of the two returns:
+
+       <div class="hunt-vigour">
+         <span class="hunt-vigour-key">VIGOUR</span>
+         <span class="hunt-vigour-track"><span class="hunt-vigour-fill" style="width:N%"></span></span>
+         <span class="hunt-vigour-label">S / B min today</span>   <!-- §C: ABSOLUTE
+           MINUTES, never a percentage of an invisible budget; the dry label is
+           "Tired — hunts pay a quarter until 00:00 UTC." -->
+       </div>
+
+     Holding it costs a player nothing: design §6 ships Vigour READ-ONLY with no
+     refill control in slice 1, so there is no gate, no intent and no purchase
+     behind this bar. The Analyzer block and the stance/stop sentence ship. */
 
   /* ── THE EVIDENCE (§E) ────────────────────────────────────────────────────
      Six rows, each a total beside its rate or a cost beside its cause. The
@@ -187,7 +195,8 @@
    * lets the smoke suite assert what a player sees without a DOM.
    *
    * @param o.hunt     G._hunt      — {stance, stop} from state.hunt_*
-   * @param o.vigour   G._vigour    — hr_vigour_of's block
+   * @param o.vigour   G._vigour    — hr_vigour_of's block. ACCEPTED AND IGNORED
+   *                                until the meter ships; see THE LIMITER above.
    * @param o.analyzer G._huntAnalyzer — hr_hunt_analyzer's block, or null
    * @param o.monsters window.MONSTERS — the display NAME only, never a value
    */
@@ -228,11 +237,9 @@
       + '<span class="hunt-stops">' + esc(stopSentence(hunt && hunt.stop)) + '</span></div>'
       + '</div>';
 
-    var meter = vigourRow(opt.vigour);
-
     /* §3. THE EMPTY STATE. Eleven words, no tutorial, no carousel. */
     if (!running) {
-      return '<div class="hunt-panel">' + head + setup + meter
+      return '<div class="hunt-panel">' + head + setup
         + '<div class="hunt-empty"><strong>No hunts yet.</strong> '
         + 'Start one and this panel will tell you what it was worth.</div></div>';
     }
@@ -244,6 +251,14 @@
     var honesty = settledIso
       ? ('settled ' + (hhmmUtc(settledIso) || '—') + ' UTC · ' + (agoWords(settledIso) || ''))
       : 'nothing settled yet.';
+    /* ⚠ WHICH SPAN THE TOTALS COVER. The Analyzer's scan is floored at 24 hours
+       (finding A-1) and every sum and rate below divides by `window_ms`, while
+       the clock in the header is the WHOLE hunt. On a hunt older than a day
+       those are different numbers, and a panel that showed both without saying
+       which is which would be the server and the browser disagreeing in the
+       reader's head. Printed only when the server says the window was capped —
+       never inferred from a clock here. */
+    if (a.window_capped === true) honesty += ' · totals cover the last 24h';
 
     /* D. THE VERDICT. One number, alone, with a sign — the line the whole panel
        exists to deliver. Its subtitle is six words that stop it ever being
@@ -260,7 +275,7 @@
       ? ('<div class="hunt-stopped">Stopped: ' + esc(STOP_WORDS[a.stopped] || a.stopped) + '.</div>')
       : '';
 
-    return '<div class="hunt-panel">' + head + setup + meter + verdict + evidence(a)
+    return '<div class="hunt-panel">' + head + setup + verdict + evidence(a)
       + stoppedLine
       + '<div class="hunt-honesty">' + esc(honesty) + '</div></div>';
   }

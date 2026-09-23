@@ -3730,8 +3730,17 @@ export default [
     assert(/hunt-stance-btn is-on/.test(html), 'no stance is visibly selected');
     assert(/Stops after 8 hours/.test(html), 'the stop rules are not stated as a sentence');
     assert(/\+ 14,200 gold \/ h/.test(html), 'the profit verdict is not the headline number');
-    // §C: ABSOLUTE MINUTES, never a percentage of an invisible budget.
-    assert(/512 \/ 720 min today/.test(html), 'the Vigour label is not in absolute minutes');
+    // §C: THE VIGOUR BAR IS HELD (finding C-1). It read spent_min/remaining_min,
+    // which S-1 made wrong by up to 100% — twelve hours hunted still showed
+    // "11h 20m remaining". The engine half is fixed; vigour-daily.sql is STAGED,
+    // so there is no honest meter yet. PASSING A METER MUST NOT DRAW ONE — the
+    // block above hands over a full vigour object on purpose, so this fails the
+    // moment the bar returns without the migration and Security's re-verify.
+    assert(!/hunt-vigour/.test(html),
+      'the Vigour bar is being rendered. It is HELD until 2026-09-22-vigour-daily.sql is applied '
+      + 'and S-1 is re-verified — see THE LIMITER in src/render/hunt-panel.js');
+    assert(!/512 \/ 720 min today/.test(html),
+      'the panel printed a Vigour figure off a meter the server is not projecting yet');
     // §E: a cost rendered as a positive number is a cost players do not subtract.
     assert(/− 8,400 g/.test(html), 'supplies is not rendered with a leading minus');
     // §E: raw XP/h is shown BESIDE effective — the gap IS the diagnosis.
@@ -3755,6 +3764,33 @@ export default [
     assert(/—/.test(html), 'the unsettled panel shows numbers where it has none');
     assert(!/refill/i.test(html),
       'slice 1 ships Vigour READ-ONLY (HUNTS_AND_ANALYZER.md 4.6) — there must be no refill control');
+  }),
+
+  // A HUNT OLDER THAN A DAY SAYS WHICH SPAN ITS TOTALS COVER (finding A-1). The
+  // ledger scan is floored at 24 h and every sum and rate divides by
+  // `window_ms`, while the header clock is the WHOLE hunt — a panel showing both
+  // without saying which is which is the two disagreeing in the reader's head.
+  () => tryRun('hunt panel: a capped readout names the span it covers', () => {
+    if (typeof window.huntPanelHtml !== 'function') return;
+    const base = {
+      spawn_id: 'goblin', stance: 'steady', paid_ms: 79200000, downtime_ms: 7200000,
+      kills: 3000, kills_per_h: 125, deaths: 0, gold: 9000, loot_value: 100,
+      supplies_value: 50, profit_per_h: 380, xp_per_h: 900, raw_xp_per_h: 1000,
+      settled_at: new Date().toISOString(),
+    };
+    const capped = window.huntPanelHtml({
+      hunt: null, vigour: null, monsters: window.MONSTERS || {},
+      analyzer: { ...base, elapsed_ms: 259200000, window_ms: 86400000, window_capped: true },
+    });
+    assert(/totals cover the last 24h/.test(capped),
+      'a three-day hunt printed 24 hours of totals beside a three-day clock and said nothing');
+    const uncapped = window.huntPanelHtml({
+      hunt: null, vigour: null, monsters: window.MONSTERS || {},
+      analyzer: { ...base, elapsed_ms: 86400000, window_ms: 86400000, window_capped: false },
+    });
+    assert(!/totals cover the last 24h/.test(uncapped),
+      'an uncapped hunt claimed its totals were truncated — the line must come from the '
+      + 'server\'s window_capped, never from a clock read here');
   }),
 
   // THE EMPTY STATE. Eleven words, no tutorial, no modal.

@@ -1250,6 +1250,41 @@ jobs:
           node tests/world-tick-ledger-meta.mjs
           node tests/world-tick-ledger-meta.mjs --mutate
 
+      # M8 SLICE 1 — THE PARTY IS A SERVER OBJECT AND ONLY THE VERBS CHANGE IT
+      # (docs/planning/WORLD_TICK_DESIGN.md §18, and Security's threat model in
+      # §18-SEC). Two planted users play the whole membership journey on the
+      # PGlite chain replay as real auth.uid() values — create, invite, accept,
+      # leave, kick — and every refusal code the design names is asserted by
+      # exit code. It carries the findings the slice was briefed on: S-7 (the
+      # SELECT policies neither recurse nor reach a predicate the caller cannot
+      # execute, and hr_party_view is frozen at eight keys and refuses a
+      # non-member), S-11 (an accept is refused party_hunt_running the day
+      # hr_party_hunt_live starts answering TRUE — the body S2 will ship, proved
+      # against the real call site), S-12 (the ten-level spread re-checked on
+      # ACCEPT, which §18.1's "at hunt start only" does not cover) and S-13
+      # (three causes, one string to the sender, three distinct codes to the
+      # journal, plus the receiver clamp at the sixth live card).
+      #
+      # The migrations' own §4 blocks run ONCE, at apply time. This runs on
+      # every push, and it adds three properties a §4 block structurally cannot:
+      # that all three files RE-APPLY byte-identically (measured as a full
+      # schema inventory before and after a second apply — "additive and
+      # idempotent" was a claim in three headers and nothing checked it), that
+      # the `party` rate bucket really refuses the 13th call in a minute, and
+      # the S-11 refusal under a predicate that actually answers TRUE.
+      #
+      # --mutate is TWO STAGES. Stage 1 plants distinguishable refusals in
+      # hr_party_invite — the pre-S-13 oracle — and requires the MIGRATION to
+      # refuse to install. Stage 2 disables file 2's whole §8 self-check as well
+      # so the mutant reaches this file's arms, and requires S13a to go red on
+      # its own: an arm that only ever fails because the apply gate failed is
+      # not a standing guard the day someone edits the verb.
+      - name: M8 parties — membership, and the four findings it carries
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/party-membership.mjs
+          node tests/party-membership.mjs --mutate
+
       # THE DERIVED PER-REQUEST TOKEN, EXECUTED RATHER THAN ASSERTED
       # (SEC_WORLD_TICK_TOKEN_2026-09-23.md, security ruling T-5.3). The
       # migration's own §5 self-check CANNOT RUN THE DERIVATION on the

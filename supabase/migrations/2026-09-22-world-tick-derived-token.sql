@@ -87,6 +87,12 @@
 -- guessed at `extensions`. If `hmac(text,text,text)` is absent the driver
 -- returns the NEW outcome `no_hmac` and posts nothing. IT NEVER FALLS BACK TO
 -- THE STATIC BEARER: a fallback is the entire class this file removes.
+--   AND THE APPLY ITSELF REFUSES rather than landing a silent no-op: §0b raises
+--   `HR_TICK_NO_PGCRYPTO` on any database that has Vault and cannot resolve
+--   pgcrypto (Security T-1, 2026-09-23 — before it, this file applied GREEN and
+--   the tick answered `no_hmac` for ever with a `raise notice` as the only
+--   warning). d10 asserts the same predicate from the far end of §5, so the gate
+--   cannot be deleted quietly.
 --   @electric-sql/pglite ships without pgcrypto (measured 2026-09-22), so the
 --   credential-free replay CANNOT execute the derivation. §5 says so out loud:
 --   on the replay it asserts the fail-closed path and NOTICEs each skipped arm
@@ -124,11 +130,13 @@
 --
 -- ── WHAT THIS FILE DOES ─────────────────────────────────────────────────────
 --   §0  Preflight. Fails closed if the cron driver is not there.
+--   §0a `hr_tick_crypto_schema()` — the ONE pgcrypto resolution in this file.
+--   §0b THE APPLY REFUSES if this database must derive and cannot (T-1).
 --   §1  `hr_tick_cron_log.outcome` admits `no_hmac`.
---   §2  `hr_tick_crypto_schema()` / `hr_tick_body_sha256()` / `hr_tick_auth_header()`.
+--   §2  `hr_tick_body_sha256()` / `hr_tick_auth_header()`.
 --   §3  `hr_tick_cron_run()` RESTATED — same driver, derived header.
 --   §4  Grants: nobody, on all four.
---   §5  Self-check d1-d9, EXECUTED, PROBE ROWS ONLY, rolled back regardless.
+--   §5  Self-check d1-d10, EXECUTED, PROBE ROWS ONLY, rolled back regardless.
 --   §6  The operator section: apply + deploy order, verification reads, kill switch.
 --
 -- MOVES A LIVE HASH: `hr_tick_cron_run` is a restated live body, so
@@ -142,7 +150,7 @@
 --                                                           form (and re-blocks M2)
 -- ════════════════════════════════════════════════════════════════════════
 
--- ── §0 PREFLIGHT ────────────────────────────────────────────────────────────
+-- ── §0 PREFLIGHT ───────────────────────────────────────────────────────────
 do $$
 begin
   if to_regprocedure('public.hr_tick_cron_run()') is null then
@@ -156,19 +164,14 @@ begin
   end if;
 end $$;
 
--- ── §1 THE FIRE LOG ADMITS ONE MORE OUTCOME ─────────────────────────────────
--- `no_hmac` is the fail-closed state when pgcrypto is not reachable. It is a
--- distinct outcome rather than a flavour of `no_secret` because the operator
--- action is different: `no_secret` is a Vault write, `no_hmac` is
--- `create extension pgcrypto`. An outcome that conflates two fixes is an
--- outcome that gets the wrong one applied at 03:00 on a Sunday.
-alter table public.hr_tick_cron_log drop constraint if exists hr_tick_cron_log_outcome_ck;
-alter table public.hr_tick_cron_log add constraint hr_tick_cron_log_outcome_ck check (outcome in
-  ('posted','disabled','locked','empty','pg_net_absent','no_secret','no_hmac','no_edge_url','error'));
-
--- ── §2 THE DERIVATION ───────────────────────────────────────────────────────
-
--- WHERE pgcrypto LIVES, read from the catalogue rather than guessed. Supabase
+-- ── §0a WHERE pgcrypto LIVES ───────────────────────────────────────────────
+-- Created HERE, ahead of everything else, because §0b gates the whole apply on
+-- its answer and a gate cannot call a function that does not exist yet. It is
+-- also the ONLY place in this file that spells the resolution, so there is no
+-- second copy for §0b to drift away from — d10 asserts that equality from the
+-- other end.
+--
+-- Read from the catalogue rather than guessed. Supabase
 -- puts it in `extensions`; a self-hosted database may put it in `public`; PGlite
 -- does not have it at all. Returning NULL is the honest third answer and is what
 -- makes the driver's `no_hmac` reachable.
@@ -187,6 +190,49 @@ returns text language sql stable security definer set search_path = public as $$
    order by (n.nspname = 'extensions') desc, n.nspname
    limit 1
 $$;
+
+-- ── §0b THE APPLY REFUSES IF THIS DATABASE MUST DERIVE AND CANNOT (T-1) ────
+-- Security ruling T-1, SEC_WORLD_TICK_TOKEN_2026-09-23.md, P1: before this
+-- block the file APPLIED GREEN with pgcrypto unreachable and the world tick then
+-- answered `no_hmac` on every fire for ever — a migration that succeeds while
+-- disabling the feature it configures. The only warning was a `raise notice` in
+-- §5, and CLAUDE.md §4 is explicit that a claim is gated on an exit code and
+-- never on someone reading a line of output.
+--
+-- `vault.decrypted_secrets` IS THE DISCRIMINATOR, and it is the right one on its
+-- merits rather than by convenience: a database that has Supabase's Vault is a
+-- database where the derivation is EXPECTED to work, so failing to resolve
+-- pgcrypto there is a misconfiguration and not a state. The credential-free
+-- replay (tests/sql/pglite-fixture.sql defines neither `vault` nor `net`, which
+-- is why the driver's own `to_regclass` guards exist) has no Vault, so it keeps
+-- applying and keeps asserting the fail-closed path — which is the half it is
+-- uniquely able to prove. Both states are executed by
+-- tests/world-tick-token-failclosed.mjs; the third is the one this block removes.
+do $$
+begin
+  if to_regclass('vault.decrypted_secrets') is not null
+     and public.hr_tick_crypto_schema() is null then
+    raise exception
+      'HR_TICK_NO_PGCRYPTO: vault.decrypted_secrets exists, so this database is '
+      'expected to derive the tick token — but hmac(text,text,text)/digest(bytea,text) '
+      'is not resolvable, and the world tick would answer `no_hmac` on EVERY fire, '
+      'for ever. Run `create extension if not exists pgcrypto with schema extensions;` '
+      'and re-apply. Do NOT re-arm the tick instead. (§6 step 2.)'
+      using errcode = 'feature_not_supported';
+  end if;
+end $$;
+
+-- ── §1 THE FIRE LOG ADMITS ONE MORE OUTCOME ────────────────────────────────
+-- `no_hmac` is the fail-closed state when pgcrypto is not reachable. It is a
+-- distinct outcome rather than a flavour of `no_secret` because the operator
+-- action is different: `no_secret` is a Vault write, `no_hmac` is
+-- `create extension pgcrypto`. An outcome that conflates two fixes is an
+-- outcome that gets the wrong one applied at 03:00 on a Sunday.
+alter table public.hr_tick_cron_log drop constraint if exists hr_tick_cron_log_outcome_ck;
+alter table public.hr_tick_cron_log add constraint hr_tick_cron_log_outcome_ck check (outcome in
+  ('posted','disabled','locked','empty','pg_net_absent','no_secret','no_hmac','no_edge_url','error'));
+
+-- ── §2 THE REST OF THE DERIVATION ──────────────────────────────────────────
 
 -- THE BODY HASH, over the bytes pg_net will actually send. `convert_to(…,'UTF8')`
 -- is explicit rather than implicit: the encoding is part of the contract the
@@ -257,7 +303,7 @@ begin
   return 'v1 t=' || p_bucket::text || ' b=' || p_body_sha || ' m=' || v_mac;
 end $$;
 
--- ── §3 THE DRIVER, RESTATED ─────────────────────────────────────────────────
+-- ── §3 THE DRIVER, RESTATED ────────────────────────────────────────────────
 -- Byte-for-byte the 2026-09-21 driver except for section (4)/(5): the shared
 -- secret is no longer read into a variable and no longer posted, the body is
 -- materialised as text so it can be hashed, and the header carries the
@@ -461,7 +507,7 @@ begin
                             'effective_cadence_seconds', v_eff);
 end $$;
 
--- ── §4 GRANTS ───────────────────────────────────────────────────────────────
+-- ── §4 GRANTS ──────────────────────────────────────────────────────────────
 -- Nobody, on all four. `hr_tick_auth_header` in particular is a mac oracle and
 -- is the one function in this file whose grant would matter: holding it is
 -- equivalent to holding the secret for any body of the caller's choosing.
@@ -478,7 +524,7 @@ revoke execute on function public.hr_tick_auth_header(bigint, text) from public;
 revoke execute on function public.hr_tick_auth_header(bigint, text)
   from anon, authenticated, service_role, hr_engine, hr_tick;
 
--- ── §5 SELF-CHECK — EXECUTED (CLAUDE.md §4) ─────────────────────────────────
+-- ── §5 SELF-CHECK — EXECUTED (CLAUDE.md §4) ────────────────────────────────
 -- PROBE ROWS ONLY. The one player row this block reads is one it inserted under
 -- a uuid `gen_random_uuid()` cannot mint; every predicate binds a variable the
 -- block declared. Rolled back regardless.
@@ -500,8 +546,11 @@ revoke execute on function public.hr_tick_auth_header(bigint, text)
 --   MD3 the driver posts instead of refusing `no_hmac`       -> d3
 --   MD4 the derived header is journalled into the fire log   -> d8b  (was GREEN)
 --   MD5 a grant on the mac oracle, after every revoke        -> d1
+--   MD6 §0b downgraded to a `raise notice`                    -> d10  (T-1)
 -- MD2 and MD4 are why d2 raises rather than returning NULL and why d8b exists
--- at all. Neither was caught by the first draft of this block.
+-- at all. Neither was caught by the first draft of this block. MD6 is Security
+-- T-1 and is executed by tests/world-tick-token-failclosed.mjs --selftest,
+-- which is the only place the (Vault, no pgcrypto) state can be BUILT.
 --
 -- THE PINNED VECTOR is shared with tests/edge-tick-gate.mjs (arm T-V1), which
 -- reproduces it with node:crypto. That constant is what binds the SQL
@@ -784,6 +833,50 @@ begin
     end if;
     v_ran := v_ran || 'd8b'::text;
 
+    -- ── d10: THE FAIL-CLOSED GATE, FROM THE OTHER END (T-1). §0b refused the
+    --         apply if this database is Supabase-shaped and cannot derive. This
+    --         arm asserts the STATE THE APPLY LANDED IN is one of the two legal
+    --         ones, which is the same predicate read backwards:
+    --
+    --           vault + crypto      -> the derivation runs; d4-d7 RAN
+    --           no vault, no crypto -> the credential-free replay; d3 executed
+    --                                  the `no_hmac` refusal
+    --           vault, NO crypto    -> REFUSED AT §0b. Unreachable from here.
+    --
+    --         So it bites on exactly the defect T-1 names: delete §0b and the
+    --         third state becomes reachable, and this raise is what finds it.
+    --         It is also why §0a holds the ONLY copy of the resolution — the
+    --         gate and this arm call the same function, so they cannot drift.
+    if to_regclass('vault.decrypted_secrets') is not null and v_schema is null then
+      raise exception 'd10: pgcrypto is unreachable on a database that has Vault, and the '
+                      'apply still reached §5 — §0b''s fail-closed gate is gone (T-1)';
+    end if;
+
+    -- ── d10b: AND THE DRIVER'S HALF OF FAILING CLOSED, STRUCTURALLY — because
+    --          d3 EXECUTES it only where pgcrypto is absent, which on production
+    --          is nowhere. The refusal must exist, and it must be JOURNALLED the
+    --          way `no_secret` is: an outcome that is returned but never written
+    --          to `hr_tick_cron_log` is an outage with no operator surface.
+    --          `v_hex` still holds every `hr_tick_cron_note(...)` argument list
+    --          from d8b, which is the exact text that proves the journalling.
+    if position('''no_hmac''' in v_def) = 0 then
+      raise exception 'd10b: the driver carries no `no_hmac` refusal — the fire path does not fail closed';
+    end if;
+    if position('no_hmac' in v_hex) = 0 then
+      raise exception 'd10c: the driver refuses `no_hmac` but never journals it into hr_tick_cron_log';
+    end if;
+    -- ...and the log will actually ACCEPT that outcome. §1 widens the CHECK; if
+    -- it were ever narrowed back, the fail-closed path would itself raise on the
+    -- insert and the driver would report `error` instead of the fixable outcome.
+    if not exists (select 1 from pg_constraint c
+                    where c.conrelid = 'public.hr_tick_cron_log'::regclass
+                      and c.conname = 'hr_tick_cron_log_outcome_ck'
+                      and pg_get_constraintdef(c.oid) like '%no_hmac%') then
+      raise exception 'd10d: hr_tick_cron_log_outcome_ck does not admit `no_hmac` — the fail-closed '
+                      'path cannot journal its own outcome';
+    end if;
+    v_ran := v_ran || 'd10'::text;
+
     raise notice 'world-tick-derived-token self-check: RAN [%]; SKIPPED [%]',
                  array_to_string(v_ran, ' '), coalesce(array_to_string(v_skipped, ' '), '');
     raise exception 'HR923_ROLLBACK_OK';
@@ -794,7 +887,7 @@ begin
   raise notice 'world-tick-derived-token self-check PASSED; probe rows rolled back';
 end $$;
 
--- ── §6 THE OPERATOR SECTION ─────────────────────────────────────────────────
+-- ── §6 THE OPERATOR SECTION ────────────────────────────────────────────────
 -- THE ORDER. Steps 1 and 4 are the seam: between them the tick posts nothing,
 -- so there is never a build in existence that accepts both the static bearer and
 -- the derived token. Do not skip step 1 to save ten seconds — skipping it is how
@@ -810,10 +903,14 @@ end $$;
 --   2. APPLY THIS FILE.  One file, never inside begin/commit, never 00:00–00:10
 --      UTC, Coordinator only (CLAUDE.md §2):
 --        node tools/apply-migration.mjs supabase/migrations/2026-09-22-world-tick-derived-token.sql
---      EXPECT the §5 notices to name d1 d2 d9 d4 d5 d6 d7 d8 as RAN on
+--      EXPECT the §5 notices to name d1 d2 d9 d4 d5 d6 d7 d8 d8b d10 as RAN on
 --      production. IF d4–d7 READ AS SKIPPED ON PRODUCTION, STOP: pgcrypto is not
 --      reachable and the tick will answer `no_hmac` forever. The fix is
 --      `create extension if not exists pgcrypto;` and a re-apply, not a re-arm.
+--      ★ SINCE 2026-09-23 THAT STOP IS AN EXIT CODE, NOT A LINE TO READ
+--        (Security T-1): §0b raises `HR_TICK_NO_PGCRYPTO` and apply-migration
+--        fails, so a database that cannot derive CANNOT take this file at all.
+--        The notice still names the skips, but you are no longer the gate.
 --
 --   3. DEPLOY THE EDGE HALF. Nothing works until both halves are the same
 --      version — the driver sends `v1 t= b= m=` and only the new build reads it.

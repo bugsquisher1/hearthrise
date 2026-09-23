@@ -47,6 +47,10 @@
 import { createHash, createHmac } from 'node:crypto';
 import { bootReplay } from './schema-replay.mjs';
 import {
+  SHIM_CRYPTO, SHIM_CRYPTO_NAMED, SHIM_VAULT, SHIM_NET,
+  PROBE, K_SECRET, K_BODY, K_BUCKET, K_SHA, K_MAC, lit,
+} from './world-tick-token-shims.mjs';
+import {
   tickGate, tickBodyAuthOk, parseTickToken, tickWindowOk, tickBucketOf,
   tickTokenMac, tickBodySha256, tickSecretUsable,
   TICK_BUCKET_SECONDS, TICK_BUCKET_SKEW, FLUSH_MS_MIN,
@@ -54,80 +58,13 @@ import {
 
 const TOKEN_FILE = '2026-09-22-world-tick-derived-token.sql';
 const CRON_FILE = '2026-09-21-world-tick-cron.sql';
-const PROBE = '00000000-0000-4000-8000-00000000d70c';
 
-// The migration's own pinned vector (§5). Restated here so the two files bind
-// each other: if either constant moves, X-1 goes red.
-const K_SECRET = 'a'.repeat(32) + 'b'.repeat(32);
-const K_BODY = '{"op": "tick"}';
-const K_BUCKET = 59666666;
-const K_SHA = '17282fb11f9af43c5f1eef8209d34638b3a13fb28ab449c2ad33ecdf1c0df883';
-const K_MAC = 'e64d6ce866a3f8a1333f774d5ae022f72a87a93ea3c4c4441571a5da1b5ccb91';
-
-/* ── THE pgcrypto SHIM. RFC 2104 over core sha256(). Not a mock of the answer:
-      a second implementation of the algorithm, which is why it can be pinned. */
-const SHIM_CRYPTO = `
-create schema if not exists extensions;
-create or replace function extensions.digest(bytea, text)
-returns bytea language plpgsql immutable as $f$
-begin
-  if $2 <> 'sha256' then raise exception 'shim: only sha256 (%)', $2; end if;
-  return sha256($1);
-end $f$;
-create or replace function extensions.hmac(text, text, text)
-returns bytea language plpgsql immutable as $f$
-declare k bytea; i bytea := ''::bytea; o bytea := ''::bytea; n int; b int;
-begin
-  if $3 <> 'sha256' then raise exception 'shim: only sha256 (%)', $3; end if;
-  k := convert_to($2, 'UTF8');
-  if octet_length(k) > 64 then k := sha256(k); end if;
-  for n in 0..63 loop
-    if n < octet_length(k) then b := get_byte(k, n); else b := 0; end if;
-    i := i || set_byte('\\x00'::bytea, 0, b # 54);
-    o := o || set_byte('\\x00'::bytea, 0, b # 92);
-  end loop;
-  return sha256(o || sha256(i || convert_to($1, 'UTF8')));
-end $f$;`;
-
-/* ── THE SAME SHIM WITH ITS ARGUMENTS *NAMED*. Byte-for-byte the same algorithm;
-      the only difference is three identifiers that pgcrypto happens not to spell.
-      X-8 uses it to execute finding T-3: `hr_tick_crypto_schema()` resolves by
-      string equality against `pg_get_function_identity_arguments`, which RENDERS
-      ARGUMENT NAMES when they exist (measured on PG 18.3: `hmac(a text,b text,
-      c text)` identifies as `'a text, b text, c text'`, while
-      `oidvectortypes(proargtypes)` is `'text, text, text'` either way). So a
-      pgcrypto whose arguments were ever named would not be found, and the tick
-      would answer `no_hmac` for ever. */
-const SHIM_CRYPTO_NAMED = SHIM_CRYPTO
-  .replace('extensions.digest(bytea, text)', 'extensions.digest(p_data bytea, p_alg text)')
-  .replace('extensions.hmac(text, text, text)', 'extensions.hmac(p_msg text, p_key text, p_alg text)');
-
-/* ── THE VAULT SHIM. Two columns, the ones the driver and the helper read. */
-const SHIM_VAULT = `
-create schema if not exists vault;
-create table if not exists vault.decrypted_secrets (
-  name text primary key, decrypted_secret text);
-insert into vault.decrypted_secrets (name, decrypted_secret)
-values ('hr_tick_shared_secret', ${lit(K_SECRET)}),
-       ('hr_tick_gateway_key', 'test-anon-key-not-a-secret-by-design')
-on conflict (name) do update set decrypted_secret = excluded.decrypted_secret;`;
-
-/* ── THE pg_net SHIM. pg_net's own body serialisation, verbatim. */
-const SHIM_NET = `
-create schema if not exists net;
-create table if not exists net.http_request_queue (
-  id bigserial primary key, method text, url text, headers jsonb, body bytea,
-  timeout_milliseconds int);
-create or replace function net.http_post(url text, body jsonb default '{}'::jsonb,
-  params jsonb default '{}'::jsonb, headers jsonb default '{}'::jsonb,
-  timeout_milliseconds integer default 5000)
-returns bigint language sql as $f$
-  insert into net.http_request_queue (method, url, headers, body, timeout_milliseconds)
-  values ('POST', url, headers, convert_to(body::text, 'UTF8'), timeout_milliseconds)
-  returning id;
-$f$;`;
-
-function lit(s) { return `'${String(s).replace(/'/g, "''")}'`; }
+/* THE FIXTURES AND THE PINNED VECTOR MOVED to tests/world-tick-token-shims.mjs
+   on 2026-09-23, unchanged, when tests/world-tick-token-failclosed.mjs (Security
+   T-1) needed the same three stubs to BUILD the (Vault, no pgcrypto) state. One
+   copy, so the two guards cannot drift apart about what production looks like.
+   X-1 below still pins the crypto shim against node:crypto, against the
+   migration's own constants and against tick.js before anything uses it. */
 
 let failed = 0;
 const ok = (name, cond, detail) => {
@@ -339,27 +276,28 @@ async function main(selftest) {
         .rows[0].n >= 1);
   }
 
-  // ── X-8  THE RESOLUTION IS NAME-SENSITIVE, AND IT FAILS CLOSED ───────────
-  console.log('\nX-8  pgcrypto resolution: the fail-closed path, and what triggers it');
+  // ── X-8  THE RESOLUTION IS NAME-SENSITIVE, AND THE APPLY NOW REFUSES ───
+  // ⚠ REWRITTEN 2026-09-23 BY THE AUTHORING LANE, AFTER T-1 LANDED. The arms
+  //   below used to assert the DEFECT: that a database which cannot resolve
+  //   pgcrypto took the migration GREEN and only then answered `no_hmac` for
+  //   ever (X-8c/d/e). §0b now raises `HR_TICK_NO_PGCRYPTO` on exactly that
+  //   state, so the old arms are not weakened here — they are UNREACHABLE, and
+  //   what replaces them is the refusal itself. The named-argument shim is still
+  //   the instrument, because T-3 (the resolution is name-sensitive) has not
+  //   landed yet and it is still what makes pgcrypto unresolvable on demand.
+  //   The driver's own `no_hmac` fire path did not move and is still executed —
+  //   by the migration's d3 and by tests/world-tick-token-failclosed.mjs F-1c,
+  //   which is where the (no Vault, no pgcrypto) state now lives.
+  console.log('\nX-8  pgcrypto resolution: name-sensitive (T-3), and the apply fails closed (T-1)');
   {
-    const b2 = await boot(SHIM_CRYPTO_NAMED);
-    const sch = (await b2.db.query('select public.hr_tick_crypto_schema() s')).rows[0].s;
-    ok('X-8a the SAME algorithm with NAMED arguments is NOT resolved (finding T-3)',
-      sch === null, `crypto_schema=${sch}`);
-    ok('X-8b ...although the argument TYPES are identical',
-      (await b2.db.query("select oidvectortypes(proargtypes) t from pg_proc p"
-        + " join pg_namespace n on n.oid = p.pronamespace"
-        + " where n.nspname = 'extensions' and p.proname = 'hmac'")).rows[0].t === 'text, text, text');
-    await plantProbe(b2.db);
-    const f2 = (await b2.db.query('select public.hr_tick_cron_run() r')).rows[0].r;
-    ok('X-8c and the driver then FAILS CLOSED with `no_hmac`, posting nothing',
-      f2 && f2.outcome === 'no_hmac' && f2.ok === false, JSON.stringify(f2));
-    ok('X-8d nothing reached the queue on that fire',
-      (await b2.db.query('select count(*)::int n from net.http_request_queue')).rows[0].n === 0);
-    ok('X-8e THE COST OF THAT FAILURE MODE: the log is the ONLY warning, and the '
-      + 'migration still applied green (finding T-1)',
-      (await b2.db.query("select count(*)::int n from public.hr_tick_cron_log"
-        + " where outcome = 'no_hmac'")).rows[0].n >= 1);
+    let applyErr = null;
+    try { await boot(SHIM_CRYPTO_NAMED); }
+    catch (e) { applyErr = String((e && e.message) || e); }
+    ok('X-8a the SAME algorithm with NAMED arguments is not resolved (finding T-3)',
+      applyErr !== null && applyErr.includes('HR_TICK_NO_PGCRYPTO'), applyErr);
+    ok('X-8b ...and the apply REFUSES rather than landing a silent no-op (finding T-1, '
+      + 'now closed: this state cost the world tick everything and warned nobody)',
+      applyErr !== null && /create extension if not exists pgcrypto/.test(applyErr));
   }
 
   if (!selftest) return;

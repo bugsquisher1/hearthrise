@@ -2234,3 +2234,25 @@ after it was executed on production. What L-8 does **not** prove is the thing th
 on 2026-09-23: a statement can execute perfectly and still select the complement of what the
 server admits. The predicate table in this section is the answer to that, and it is derived
 from the function body in the chain.
+
+---
+
+## Coordinator record — RE-VERIFY 4 executed, combat cohort ARMED (2026-09-23 15:36 UTC)
+
+Executed exactly as written above; every read through the read-only management endpoint, the one write through the allowlisted operator statement.
+
+| Step | Read / write | Result |
+|---|---|---|
+| §8-PLAY | QA slot 1 (Hero 2) played into `combat`/`slime` attended, 22 kills, auto-eat OFF, no food; knockout close (tab closed ≥60 s after the last batched credit, inside the recovery window) | three attempts needed — the client resumes the run when the recovery window ends even with the fall modal up, and kill credits batch ~60 s behind the fight; attempt 3 closed at 15:35 |
+| fence (i) | newest `hr_kill_credit_log` 15:33:34.949 vs `accrued_to` 15:35:28.847 | **true** (114 s gap ≥ 60 s) |
+| fence (ii) | bestiary total_kills 22 (< 25), max_one_monster 22 (< 2500) | **true** |
+| fence (iii) | perks `{}` / rooms `{}` / propertyTier 0; slot 1 prices nothing | **true** |
+| 8-CAND | owned/active_kind/span/shard predicates for slot 1 | one candidate |
+| 9(a) | `insert … values ('0a47ba77-…', 1, 'combat', true) on conflict … do update set owned = excluded.owned` | `201 []` at 15:36:10 |
+| 9(a2) | admissibility read | **0 rows at 15:38:56 — because the roster had already leased the row** (`lease_holder = cron:postgres`, `lease_until` 15:39:23 > now), so the `lease_until < now()` predicate excluded it; the leased row is the stronger proof |
+| 9(b) | channels | already `{combat,gather}` from the 05:31 apply — no write |
+| 9(c) | config read-back | `channels {combat,gather}`, `enabled t`, `shadow t`, `flush_seconds 90` |
+| 9(d) | T+2 fires | `lease_holder cron:postgres`; `shadow_accrued_to` 15:36:57 → 15:38:26 (moving); shadow rows 1 → rising; cron outcomes since the arm: posted 7 / rostered 14 |
+| first shadow window | 15:35:28.847 → 15:36:57.647 (recovery ended 15:36:50) | would_kills 0, would_deaths 0, would_ate 0, would_gold 0, would_hp 1 — the sim resumed the fight after recovery and took the character from 4 hp toward the next knockout, exactly the Recovery Rule path with no food |
+
+Standing rules from here: the QA account's last-played slot is now slot 1, so **every QA return must switch to slot 2 from the home screen without playing Hero 2** — one attended kill on slot 1 breaks fence (i) and the measurement restarts. 8a–8e run at T+1 h (16:38 UTC) and at each check-in; 8e `channel_not_driven` would mean the deployed edge lacks `tick-combat.js` (c33bfb86 carries it).

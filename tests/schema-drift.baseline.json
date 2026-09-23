@@ -6,16 +6,16 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-09-21",
- "digest": "d38cdb9c7ce834b33db24f77d77b9d174539b554112ac405e56587fbe3cb83f9",
+ "generated": "2026-09-22",
+ "digest": "ac920d6c6f9f6d12a8fde560ee1119c361d309659c1a24b806af41aca3b93e1d",
  "counts": {
   "relations": 127,
-  "functions": 303,
+  "functions": 305,
   "policies": 90,
   "indexes": 178,
-  "triggers": 20,
-  "constraints": 330,
-  "columns": 752,
+  "triggers": 21,
+  "constraints": 331,
+  "columns": 754,
   "rls": 111,
   "event_triggers": 1
  },
@@ -312,6 +312,8 @@
    "hr_farm_water(p_slot integer, p_plot_idx integer, p_idem uuid)",
    "hr_flag_on(p_key text)",
    "hr_fnv1a(p_s text)",
+   "hr_frame_emit()",
+   "hr_frame_topic(p_user uuid, p_slot integer)",
    "hr_game_events_guard()",
    "hr_gem_unlocks_of(p_user uuid, p_slot integer)",
    "hr_goal_daily_seed(p_str text)",
@@ -747,7 +749,8 @@
    "player_ledger :: hr_ledger_no_truncate",
    "player_progress :: player_progress_bank_cap_sync",
    "player_progress :: player_progress_unlock_guard",
-   "player_skills :: hr_player_skills_max_hp"
+   "player_skills :: hr_player_skills_max_hp",
+   "player_state :: hr_frame_push"
   ],
   "constraints": [
    "active_bounty :: active_bounty_pkey",
@@ -968,6 +971,7 @@
    "hr_tick_config :: hr_tick_config_edge_url_ck",
    "hr_tick_config :: hr_tick_config_flush_ck",
    "hr_tick_config :: hr_tick_config_flush_ge_cadence_ck",
+   "hr_tick_config :: hr_tick_config_frame_keys_known",
    "hr_tick_config :: hr_tick_config_lease_ck",
    "hr_tick_config :: hr_tick_config_pkey",
    "hr_tick_config :: hr_tick_config_singleton_ck",
@@ -1531,6 +1535,8 @@
    "hr_tick_config.edge_url text",
    "hr_tick_config.enabled boolean NOT NULL",
    "hr_tick_config.flush_seconds integer NOT NULL",
+   "hr_tick_config.frame_keys text[] NOT NULL",
+   "hr_tick_config.frame_push boolean NOT NULL",
    "hr_tick_config.id boolean NOT NULL",
    "hr_tick_config.lease_ms integer NOT NULL",
    "hr_tick_config.note text",

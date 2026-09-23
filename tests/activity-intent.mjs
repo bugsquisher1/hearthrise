@@ -125,8 +125,12 @@ const MUTATIONS = {
   no_restart: {
     file: FN('set-activity.js'),
     why: 'the delta stops stamping active_since, so the second watermark never moves',
-    find: '    activity: { kind, id: kind === \'idle\' ? null : id, restart: true },',
-    repl: '    activity: { kind, id: kind === \'idle\' ? null : id },',
+    /* M6 (6933fce) gave the delta its stance/stop orders, so the stamp is its
+       own line and the old one-line-literal anchor stopped matching. Anchor the
+       STAMP, not the literal around it: the plant is the same regression, and it
+       no longer moves when a field is added beside it. */
+    find: '      restart: true,\n',
+    repl: '',
   },
   intent_name_untargeted: {
     file: FN('intents.js'),

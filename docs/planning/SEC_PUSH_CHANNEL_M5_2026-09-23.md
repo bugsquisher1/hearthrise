@@ -1516,3 +1516,496 @@ THE LOCK] 3.23 ms` charge, which is wrong by a factor of three.
   slot**, and a slot that falls ~52 minutes behind at that rate reaches `max_slot_wal_keep_size` and
   is invalidated. That is the number Reliability has to sign, together with a re-read of (e) once a
   partition is old enough to have been dropped.
+
+---
+---
+
+# RE-VERIFY 4 — 2026-09-23 (fourth pass, same reviewer)
+
+**Lane:** `lane/m5-push-channel` @ `b3a92a61`, merged with `origin/set/b551`
+(docs-only on that side; zero conflict hunks, `CLAUDE.md` §3.3).
+**Branch:** `sec/m5-push-channel-4`, docs-only.
+**Under review:** `git diff 622d4c45..b3a92a61` on the migration
+(312 lines) and `tests/schema-drift.mjs` (60), plus the Coordinator's
+CONDITION 8 / WAL measurement on `set/b551` (`c3abd36b`). `npm install
+--no-audit --no-fund` clean.
+
+**Everything below is an exit code or a replay transcript I read. The one
+place I state a fix, I RAN the fix and printed what it changed.**
+
+---
+
+## Verdicts
+
+**MIGRATION `2026-09-22-frame-push-channel.sql`: GO-WITH-CHANGES. Two items,
+both small, one of them already proven.** R1, R2, R5 and R6 are **LANDED** —
+each executed, each with a planted defect that turns the apply red. The diff
+also introduced one new MEDIUM, **R7**, and it is the reason this is not a
+clean GO: the executed `e4` runs its probe settle as the APPLY's role, so
+`hr_apply`'s impersonation seam refuses before the property can be observed,
+and `e4b`/`e4d`'s zeros are earned by that seam rather than by the shadow
+branch returning first. Two lines fix it and I ran the fix.
+
+**CONDITION 8: NOT MET as specified**, and it **gates the flag flip, not the
+apply** — `hr_frame_emit` returns before `hr_state_of` when `frame_push` is
+false, so applying this file cannot add the measured 10.1 ms to any write.
+What the apply DOES add on every accepted write for ever — one trigger
+invocation and one `hr_tick_config` read — is unmeasured. §2 splits it.
+
+**THE WAL READ: ANSWERED, and it no longer withholds condition 8.** It is a
+better answer than the query I wrote asked for. Two items remain owed to
+Reliability; neither blocks this apply, and both gate the flip. §3.
+
+**CLIENT FRAME GATE SHIP: GO (unchanged).** Nothing in this diff touches the
+client. `node tools/lane-done.mjs` exit 0 at this head.
+
+---
+
+## 1. R1, R2, R5, R6 — graded by EXECUTION
+
+Sixteen replays through `tests/schema-replay.mjs` `bootReplay()`, `upTo` the
+file under review. Each asks one question: does
+`2026-09-22-frame-push-channel.sql` **refuse to apply**?
+
+`e1`/`e1d`/`e2`/`e2a`/`s9` **skip** wherever `realtime.messages` is absent, and
+it is absent from the repo's PGlite replay — so on the replay as shipped those
+arms are a NOTICE, not a check. I therefore gave the replay a faithful
+stand-in through `seedBefore` (`realtime.messages` with the columns the policy
+and `e2a`'s probe insert read; `realtime.topic()` as the GUC Supabase sets it
+from; `grant execute` so the predicate is evaluable by `authenticated`) so the
+file's **own** arms EXECUTE rather than skip. The refusals below are the
+migration's, not a side harness's.
+
+| # | What I planted | Result | Arm |
+|---|---|---|---|
+| **A0** | nothing, `realtime` absent (the repo replay) | **APPLIED**, exit 0 | — |
+| **A1** | nothing, `realtime` stand-in present | **APPLIED**, exit 0 | — |
+| **R1a** | `set_config('request.jwt.claim.sub', …)` deleted — the only spelling this replay's `auth.uid()` reads | **REFUSED** | `e2a` |
+| **R1b** | the predicate keeps `auth.uid()` (so `e1b`/`e1c`/`e1d` all still pass) but can never match | **REFUSED** | `e2a` |
+| **R1c** | the shape-scoped policy this review warned about — owner reads, STRANGER reads too | **REFUSED** | `e2` |
+| **R2a** | the `array_length` conjunct deleted from the policy | **REFUSED** | `e1d` |
+| **R2b** | `hr_frame_topic` grows a fourth segment | **REFUSED** | `s3c` |
+| **C** | `proname = 'hr_tick_settle(int)'` — a signature spelled into the name (RE-VERIFY 3 case C) | **REFUSED** | `e4c` |
+| **E** | the shadow branch writes its row and falls through to `hr_apply` (case E) | **REFUSED** | `e4a` ⚠ |
+| **H** | case E plus `raise notice '… will return shortly'` (case H, R6) | **REFUSED** | `e4a` ⚠ |
+| **e4a** | the settle answers a refusal for the probe | **REFUSED** | `e4a` |
+| **e4e** | `mode=shadow` reported without taking the shadow branch | **REFUSED** | `e4e` |
+| **D** | a dormant `hr_apply` before the shadow branch (case D) | **APPLIED** | — (lane discloses) |
+| **F** | case D plus `--` inside a string literal (case F, R5) | **APPLIED** | — |
+| **F2** | ★ a **REACHABLE** `hr_apply` before the shadow branch, `--` in a string literal | **APPLIED** ← **R7** | — |
+| **G2** | ★ the same reachable call with `/*` and `*/` straddling it | **APPLIED** ← **R7** | — |
+
+Verbatim, the ones that matter:
+
+```
+✓ R1a_claim_spelling_removed      REFUSED  e2a: e2 proved nothing — the owner cannot read either, so the
+                                           zero below is the policy being inert, not the policy working …
+✓ R1c_shape_scoped_policy_leaks   REFUSED  e2: a subscriber authenticated as one user read 1 row(s) on
+                                           ANOTHER user's topic …
+✓ R2a_anchor_removed              REFUSED  e1d: the receive policy does not bound the NUMBER of topic segments …
+✓ R2b_emitter_grows_a_segment     REFUSED  s3c: hr_frame_topic (hr:…:3:v2) is not three segments …
+✓ C_homes_on_nothing              REFUSED  e4c: no public.hr_tick_settle is installed …
+✓ e4e_shadow_row_never_written    REFUSED  e4e: the probe shadow settle wrote 0 hr_tick_shadow row(s), expected 1 …
+✗ F2_REACHABLE_hidden_by_dashdash APPLIED  ← a reachable hr_apply call before the shadow branch. R7.
+```
+
+### 1.1 R1 — **LANDED.** The always-null probe is closed, and I reproduced it to prove the closure bites.
+
+`R1a` is RE-VERIFY's finding put back byte-for-byte: delete the one claim
+spelling this environment's `auth.uid()` reads and the cross-user zero becomes
+the zero of a policy doing nothing. **It now refuses the apply.** `R1b` closes
+the other half — a predicate that keeps `auth.uid()` in its text (so `e1b`,
+`e1c` and `e1d` are all satisfied) and still matches nobody — and `e2a` refuses
+that too. `R1c` is the control on the control: the shape-scoped policy leaks
+and `e2` still fires on it, so the arm has not been traded for its own
+positive control. Both claim spellings are set. The `insert`-and-retry has a
+real SKIP path with a stated reason when the probe row cannot be seeded, which
+is the honest behaviour and not a pass it has not earned.
+
+### 1.2 R2 — **LANDED, and executed against the predicate itself.**
+
+Against the installed policy on the stand-in, as one authenticated user:
+
+```
+own topic            hr:<me>:0            rows=2   ← the positive control; the policy is not inert
+R2 suffix attack     hr:<me>:0:injected   rows=0   ← RE-VERIFY 3 measured rows=4 here
+another player       hr:<other>:0         rows=0
+wildcard shape       hr:%:0               rows=0
+no jwt at all        hr:<me>:0            rows=0
+```
+
+The suffix `hr:<own-uid>:0:injected` is now **refused**, `e1d` refuses a policy
+that loses the conjunct, `s3c` refuses an emitter that grows a segment, and both
+false comments are corrected — in the migration §6 and in
+`LIVE_COUNTERS_PUSH.md` §6.1, which now names the correction rather than
+repeating the claim. Nothing left open.
+
+### 1.3 R5 and R6 — **LANDED.** The stripper is gone, so neither defeat exists.
+
+`e4` no longer reads `hr_tick_settle`'s text at all, so there is no
+comments-first/strings-first order left to defeat. Case **H** — RE-VERIFY 3's
+R6 reproduction, an identical fall-through that `APPLIED` once anything between
+the two positions merely *said* the word `return` — now **REFUSES**. The
+"a silent pass it cannot produce" sentence is gone with the stripper.
+`frame_e4_shadow_emits_a_frame` and `frame_e4_shadow_pays` are real mutations:
+`node tests/schema-drift.mjs --mutate` exit 0, **19/19**, both named in the
+transcript. R4 is closed properly — the header now says `e4`, and `e4` is what
+executes the shadow settle.
+
+### 1.4 The arm is **NO LONGER A PURE READ** — and the probe rows do roll back
+
+RE-VERIFY 3 confirmed `e4` was two catalogue reads. It is not any more, by
+design: it now UPDATEs `player_state` twice (scoped to `v_u`, `version`
+deliberately unchanged), INSERTs a lease into `hr_tick_ownership`, calls
+`hr_tick_settle` (which INSERTs `hr_tick_shadow` and UPDATEs
+`hr_tick_ownership`), and UPDATEs `hr_tick_config` **unscoped**:
+
+```sql
+update public.hr_tick_config set enabled = true, shadow = true where id;   -- line 810
+```
+
+That is a global write to the operator singleton, and it **arms the world tick**
+for the duration of the apply transaction. I executed the rollback question
+rather than reading the `begin/exception` shape. After the chain applies, on the
+same database:
+
+```
+hr_tick_config       enabled=false shadow=true frame_push=false keys={state,skills,buffs,place}
+hr_tick_shadow probe rows=0          hr_tick_ownership 'hr922-selfcheck' rows=0
+player_state probe rows=0            realtime.messages probe rows=0
+hr922 trigger still installed=0
+```
+
+**Everything rolls back**, including the probe character, the lease, the
+`realtime.messages` probe row, the probe trigger and all three config columns.
+`node tests/selfcheck-no-global-dml.mjs` exit 0 — **but read that narrowly**:
+`--list` reports **no finding at all** in this file, because that guard's scope
+is `restore-census.baseline.json`'s `player_value_tables`, and
+`hr_tick_config`, `hr_tick_ownership` and `hr_tick_shadow` are **not in it**.
+The two `player_state` writes ARE in scope and are correctly scoped to `v_u`;
+the unscoped `hr_tick_config` write is invisible to the guard. Line 810 is not
+new in class (lines 365 and 419 already wrote `frame_keys` and `frame_push`
+unscoped in the same rolled-back block, reviewed and accepted in pass 1), so I
+am not blocking on it — but it is new in **kind**, and two things follow that
+belong in the runbook rather than in the file:
+
+- The block holds the `hr_tick_config` singleton's row lock from line 810 to the
+  rollback. The live tick driver HOT-updates that same row on **every fire**
+  (the Coordinator's WAL read: ~one per 10 s). So the apply and the tick will
+  briefly block each other. Bounded and short, but it is a real interaction and
+  the apply should not be run with a `statement_timeout` low enough to turn it
+  into a failed tick fire.
+- `enabled = true` inside the apply transaction is uncommitted and invisible to
+  the driver, which is why this is a note and not a finding. It is also why it
+  must stay inside that block: moved one line out, it arms the tick on
+  production.
+
+---
+
+## 2. R7 — NEW, MEDIUM, CONFIRMED. `e4` measures `hr_apply`'s impersonation seam, not the shadow branch.
+
+`e4` exists to pin ONE property: **a shadow settle must never reach
+`hr_apply`.** The arm now executes the settle and asserts zero frames (`e4b`)
+and unmoved `version`/`gold` (`e4d`). But it calls `hr_tick_settle` as the
+role the APPLY runs as, and `hr_apply`'s seam
+(`2026-09-14-hr-apply-restatement.sql:699` — `v_role := coalesce(nullif(
+current_setting('role', true), 'none'), session_user)`) refuses any caller that
+is not `hr_engine`. So when a planted shadow branch DOES reach `hr_apply`, what
+comes back is:
+
+```
+DEBUG hr_apply said {"ok": false, "error": "forbidden_impersonation"} (version arg 3)
+```
+
+Nothing is written, no frame is emitted, and `e4b`/`e4d` pass — **on a function
+that reached `hr_apply`.** The zeros are the seam's, not the branch's. This is
+the same family as R1 one layer down: a check that passes both when the property
+holds and when the thing it is calling refused it. The fence's own `e12`/`e13`
+gets this right, one file earlier, at line 704: `set local role hr_engine;`.
+
+**Executed, three ways.** Each plants a REACHABLE `hr_apply` call scoped to
+`e4`'s own probe uuid (so the fence's `e13` — a different probe user — cannot
+be what refuses, and the verdict is attributable to `e4` alone):
+
+```
+F2  reachable hr_apply BEFORE the shadow branch, `--` in a string literal   APPLIED
+G2  the same, `/*` … `*/` straddling the call                               APPLIED
+E'  reachable fall-through, hr_apply's answer DISCARDED, normal shadow tuple returned  APPLIED
+```
+
+Cases **E** and **H** refuse only because the planted code *returned*
+`hr_apply`'s `ok:false` to the caller, where `e4a` saw it. Discard that answer —
+which is what a real regression does — and the arm is blind. And the two
+mutations in `tests/schema-drift.mjs` cannot see this, because they plant a
+**direct** `update public.player_state`, which bypasses `hr_apply` entirely:
+they are green with the role set and green without it.
+
+**Where the class IS still caught, stated fairly.** Unscoped — reachable for
+every user, which is what an ordinary regression looks like — the fence's own
+`e13` refuses it one file earlier, and I executed that too:
+
+```
+E'  fall-through for ALL users        REFUSED  e13: SHADOW mode moved player state (gold=100, version=2, …)
+D   before-shadow for ALL users       REFUSED  e13: SHADOW mode moved player state (gold=100, version=2, …)
+```
+
+So the blast radius today is **none**: `frame_push` ships `false`, the shadow
+branch is correct, and the fence catches the unscoped shape. What is open is
+that `e4` — the arm this file adds precisely so the claim does not depend on an
+argument about another file — currently depends on `hr_apply` refusing a role,
+and would stay green through a probe-scoped regression. `CLAUDE.md` §4: mutate
+the caller; a guard that has never been red on the thing it is about is not a
+guard.
+
+### 2.1 The required change, RUN rather than proposed
+
+Two lines in the file under review, copied from the fence's own `e12`:
+
+```sql
+    set local role hr_engine;
+    v_r := public.hr_tick_settle('hr922-selfcheck', v_u, 0, 'gather', v_v, v_tf, v_tt,
+             '00000000-0000-4000-8000-00000000fa04', v_d);
+    reset role;
+```
+
+I applied exactly that to the migration on the replay and re-ran the three
+cases it is supposed to catch:
+
+```
+FIXED_control_unpatched             APPLIED   ← the correct function still applies
+FIXED_F2_reachable_dashdash         REFUSED   e4b: a SHADOW settle emitted 1 frame(s) …
+FIXED_G2_reachable_blockcomment     REFUSED   e4b: a SHADOW settle emitted 1 frame(s) …
+FIXED_E_silent_fallthrough          REFUSED   e4b: a SHADOW settle emitted 1 frame(s) …
+```
+
+**All three flip to RED via `e4b`, and the control still applies.** That is the
+whole change. It must ship with one more mutation in `tests/schema-drift.mjs`
+that plants a **reachable, probe-scoped `hr_apply` call** (not a direct
+`player_state` write) and requires `e4b`/`e4d` red — otherwise the mutation
+table stays insensitive to the role and `--mutate`'s green says nothing about
+whether the fix is still there. Case **D** (a genuinely dormant branch the probe
+never reaches) stays invisible and the file's disclosure of that is accurate and
+fairly argued; a dormant branch pays nobody, and I accept the trade in that
+direction.
+
+### 2.2 CONDITION 8 — ruling: **NOT MET**, and it gates the FLIP, not the apply
+
+Read against §4.1's four criteria, on the measurement as written:
+
+| Measure | Line | Measured (3 quiet-hour samples) | |
+|---|---|---|---|
+| `TOTAL p95` | ≤ 10 ms | **10.078 / 9.918 / 10.153 ms** | ✗ **FAIL** |
+| `TOTAL p99` / `max` | ≤ 25 / ≤ 250 ms | 12.216–10.664 / 22.277–23.516 ms | ✓ |
+| added load | ≤ 0.05 | 0.0002 | ✓ |
+| `payload_max_bytes` | ≤ 64 KB | 2,168 B | ✓ |
+
+Two of three samples are over the line and the third is 0.08 ms under it. The
+line is straddled, not cleared; the Coordinator graded it that way and is
+right. §4.1 also asked for the run **twice — once at peak, once at a quiet
+hour** — and only the quiet hour was taken. The quiet hour had **zero** accepted
+writes, so this is a floor, not a typical figure; contention only adds.
+**CONDITION 8 IS NOT MET.**
+
+**But it does not gate this apply, and that matters.** `hr_frame_emit`'s second
+statement is:
+
+```sql
+    select * into v_cfg from public.hr_tick_config where id limit 1;
+    if not found or not coalesce(v_cfg.frame_push, false) then return null; end if;
+```
+
+The emitter returns **before** `hr_state_of`. The 10.1 ms the Coordinator
+measured is the cost of a flipped channel; with `frame_push = false` — how this
+file ships, asserted by `s1` — applying it cannot add that time to any write. So
+condition 8 splits, faithfully to what §4.1 said it was for ("an unmeasured
+addition to `hr_apply`'s row lock"):
+
+- **8a — the apply's addition, and it IS unmeasured.** Every accepted write now
+  fires an `AFTER UPDATE … WHEN (new.version is distinct from old.version)`
+  trigger and does one single-row read of `hr_tick_config` before returning
+  null. That is almost certainly sub-millisecond and I will not assert a number
+  I have not seen (`CLAUDE.md` §4). **Required: run §4.1's block unchanged with
+  `frame_push` left false — three samples, quiet hour is fine, since the trigger
+  is not load-sensitive — and `TOTAL p95` must read ≤ 0.5 ms.** It is the same
+  `do` block, minutes of work, and it is the only latency figure the apply
+  itself is answerable for.
+- **8b — the flip's addition: NOT MET.** This gates `update
+  public.hr_tick_config set frame_push = true`, and nothing else.
+
+**The ONE design change I will accept for 8b** is the one the Coordinator
+recorded without deciding: **the frame is emitted from the envelope `hr_apply`
+already computed — one projection per accepted write, no trigger-side
+`hr_state_of`.** `hr_state_of` alone is 9.4–9.7 ms at p95, ~94 % of the added
+work; the `realtime.send` insert and the key fold are together under 1 ms. That
+change removes almost the entire charge and removes it from inside the lock.
+What it must prove, all of it executed, none of it asserted:
+
+1. **The payload is unchanged.** For at least one real, non-empty character
+   (2,168 B, not an empty probe), the patch built from `hr_apply`'s own envelope
+   is **byte-identical** to the patch the trigger builds from a fresh
+   `hr_state_of` at the same version. Compare them in one block; do not argue it
+   from the fact that both call the same function.
+2. **There is exactly ONE projection per accepted write.** Counted by execution
+   — a call counter on `hr_state_of` in the style of this file's own
+   `hr922.fires`, not a grep and not a comment. This is the property being
+   bought; it is the one that must be pinned.
+3. **A push failure still cannot fail a payment.** The file's non-negotiable.
+   The emit must stay inside a swallowing `exception` block, and this file's
+   existing `HR922_DELIBERATE_PUSH_FAILURE` arm must still show the payment
+   committed with the frame lost.
+4. **The frame gate is unmoved.** The frame still carries `hr_apply`'s
+   post-write `version`, never a synthesised or incremented one, and
+   `tests/envelope-frame-gate.mjs` stays green.
+5. **Re-measure, at BOTH hours.** §4.1's block against the new shape: three
+   samples at a quiet hour AND three at the measured peak, **22:00 UTC** (the
+   Coordinator's peak: 2026-09-22, 66 accepted writes). **All three peak samples
+   must read `TOTAL p95` ≤ 10 ms**, with `hr_state_of`'s own charge reported
+   separately and expected to leave the added work entirely. One sample is not a
+   verdict and the quiet hour already straddled the line, so a single passing
+   peak sample will not lift this.
+6. **Restate the documents from the measurement.** `LIVE_COUNTERS_PUSH.md` §3.6
+   charges `[D, UNMEASURED IN THE LOCK] 3.23 ms` for the thing that measures
+   9.4–9.7 ms — wrong by a factor of three, and it is the number the design
+   decision was made on. `WORLD_TICK_DESIGN.md` §3.6 gets the same treatment
+   wherever it carries that figure.
+
+**Why 10.1 ms inside `hr_apply`'s lock is not acceptable at the scale this
+program targets**, stated from the measured number rather than from principle:
+the charge is not CPU, it is **serialized lock-hold on the money write path**.
+At the world-tick program's own target (5,000 concurrent characters settling
+every 90 s ≈ 55 accepted writes/s), 10.1 ms per write is 0.56 core-seconds of
+lock time per second — **11× the 0.05 pass line**, and it is 0.56 of a
+connection-second per second of extra pool occupancy on the instance every
+player-facing write shares. The design target in `CLAUDE.md` §1 is "a
+large-scale multiplayer semi-idle game"; doubling the projection cost of every
+accepted write, inside the row lock, to copy a fact the transaction already
+holds is the opposite of that, and it costs fourteen lines to not do. At today's
+66 writes/hour it harms nobody — which is exactly why it is cheap to fix now and
+expensive to fix after the flip.
+
+---
+
+## 3. The WAL / retention answer — graded
+
+**ANSWERED, and better than the question.** §4.2 asked for `(f)` by LSN diff;
+the Coordinator ran it, got 80 MB in 653 s, and **refused its own number** —
+`archive_timeout = 120 s` forces a 16 MB segment switch every two minutes on an
+idle server and 5 × 16 MB is the whole figure. The honest measure it substituted
+(`pg_stat_wal` over a quiet 123.5 s window: +76,297 bytes, +228 records, +48
+FPI across 12 tick fires = 6.4 kB/fire, ≈55 MB/day, cross-checked against
+2.9 GB since 2026-08-17 = 78 MB/day) is the right instrument, and the query I
+wrote would have over-reported by ~6×. That correction is credited, not merely
+accepted. `(d)` settles the question the whole read existed for:
+`supabase_realtime_messages_publication` **does** carry `realtime.messages`, so
+every frame row goes through the pgoutput slot and this is a WAL question, not
+heap growth. `(a)`, `(b)`, `(c)` are complete. **Condition 8 is no longer
+withheld for want of this read** — what withholds it is the p95 in §2.2.
+
+**What Reliability still owes, and when it is owed:**
+
+| # | Owed | Blocks the apply? | Blocks the flip? |
+|---|---|---|---|
+| W1 | `(e)` re-read after **2026-09-27**, once a partition is old enough to have been dropped. Today the oldest is from the install date, so "partitions are dropped" is **not observable** — correctly named as unproven rather than assumed. | **No** | **Yes** |
+| W2 | The **14 GB/day at scale** figure signed against `max_slot_wal_keep_size = 512 MB`: a slot ~52 minutes behind at 55 writes/s is **invalidated**, and an invalidated logical slot on `realtime.messages` means Realtime stops delivering — which for the frame channel is a *silent* stop, not an error a player or an operator sees. That needs a lag budget and a named detector, not a headroom calculation. | **No** | **Yes** |
+| W3 | A **worst-case** slot-lag observation. `(b)` was read once at a quiet hour with both slots at zero lag, `wal_status = reserved`, `safe_wal_size = 512 MB`, `unconfirmed = 0`. §4.2 asked for `safe_wal_size` positive at each slot's **worst observed lag**; an idle reading is not that. | **No** | **Yes** |
+
+**None of it blocks THIS apply, at today's load or at any load.** Applying the
+file with `frame_push = false` writes **zero** `realtime.messages` rows and adds
+**zero** WAL through either slot. The WAL question becomes real at the flip and
+only at scale. W1–W3 therefore move from "condition 8 is unsigned" to "the flag
+flip is unsigned", which is where they belong.
+
+---
+
+## 4. Guards — exit codes I read, on `8d26e2a`
+
+`$?` captured after each command; no `|| echo` anywhere (`CLAUDE.md` §4).
+
+| Command | Exit | Last line |
+|---|---|---|
+| `node tests/schema-drift.mjs` | **0** | `OK — repo rebuilds to the committed fingerprint (daaba91163f4…)` |
+| `node tests/schema-drift.mjs --mutate` | **0** | `all 19 planted defects caught` — incl. `frame_e4_shadow_emits_a_frame`, `frame_e4_shadow_pays` |
+| `node tests/selfcheck-no-global-dml.mjs` | **0** | `OK — 212 migrations, 9 global statement(s), all 9 acknowledged with a written reason` |
+| `node tests/envelope-frame-gate.mjs` | **0** | `OK — one monotonic frame gate, strictly greater, whole-frame-or-nothing, committed by all three appliers.` |
+| `node tests/apply-order-honesty.mjs` | **0** | `35 file(s) carry a measured verdict (34 evidenced-live, 1 evidenced-absent) and every note about them agrees with tests/live-hash-drift.baseline.json.` |
+| `node tests/guard-hygiene.mjs` | **0** | `PASSED — no orphans, no ghosts, no stale entries, no vacuous proofs.` |
+| `node tools/lane-done.mjs` | **0** | `lane-done: all green.` |
+
+`apply-order-honesty` is green because the frame-push note still reads
+`STAGED, NOT APPLIED — REVIEW ONLY`, which is correct for a file that has not
+been applied. `tests/live-hash-drift.baseline.json` is untouched by the lane's
+own commit (`git show --stat b3a92a61`: three files, none of them the baseline)
+and untouched by this branch; its diff against `main` arrives with the
+`set/b551` merge, i.e. from the Coordinator, which is where `CLAUDE.md` §2 puts
+it.
+
+**And read `--mutate`'s green narrowly, again.** 19/19 says the defects the
+author thought of are caught. It says nothing about R7, whose two sibling
+mutations are green with the role fix and green without it.
+
+---
+
+## 5. Final verdict
+
+> ### MIGRATION `2026-09-22-frame-push-channel.sql`: **GO-WITH-CHANGES.**
+> The apply may go once these two land. Nothing else is owed by anyone.
+
+| # | Owed | Owner | Proven by |
+|---|---|---|---|
+| **R7** | `set local role hr_engine;` / `reset role;` around `e4`'s probe settle, plus one mutation in `tests/schema-drift.mjs` planting a **reachable, probe-scoped `hr_apply` call** (not a direct `player_state` write) that must turn `e4b`/`e4d` red | the lane | **the fix is already run** — §2.1: three defects flip to RED via `e4b`, control still applies |
+| **8a** | §4.1's block with `frame_push` left **false**, three samples: `TOTAL p95` ≤ 0.5 ms | Coordinator | minutes; same block, one flag |
+
+**LANDED this pass, nothing further owed:** **R1** (executed — `e2a` refuses the
+exact vacuous pass, `e2` still refuses a real leak), **R2** (executed — the
+suffix attack goes 4 rows → 0; `e1d` and `s3c` both bite; both comments
+corrected in the migration and in `LIVE_COUNTERS_PUSH.md` §6.1), **R5** and
+**R6** (the stripper is gone, so neither defeat exists; case H now refuses),
+**R4** (closed by the arm, not by a header).
+
+**NOT lifted, and not this apply's to lift:**
+
+- **Condition 8b** — the flipped 10.1 ms. **NOT MET.** Gates `update
+  public.hr_tick_config set frame_push = true`. One design change accepted
+  (emit from `hr_apply`'s own envelope) with the six proofs in §2.2, or a
+  peak-hour (22:00 UTC) re-measurement in which **all three** samples read
+  `TOTAL p95` ≤ 10 ms.
+- **W1 / W2 / W3** — Reliability's, and they gate the same flip. §3.
+- **Runbook, unchanged from RE-VERIFY**: one file per
+  `node tools/apply-migration.mjs`, never inside `begin/commit`, never
+  00:00–00:10 UTC; read the NOTICEs and treat a `SKIPPED` on production as
+  **unverified**, not passed — `e1`/`e2`/`e2a`/`s9` skip wherever
+  `realtime.messages` is absent, and this pass only executed them against a
+  stand-in; then `live-hash-drift --live --write`, the apply-order note flipped
+  to APPLIED, and `restore-census`. **Added this pass:** do not run the apply
+  under a `statement_timeout` short enough to be tripped by the
+  `hr_tick_config` row lock the self-check and the live tick driver now
+  contend for (§1.4).
+
+**CLIENT FRAME GATE SHIP: GO (unchanged).**
+
+---
+
+## 6. Residual risk I am accepting
+
+- **Real, and the largest thing this diff buys.** R1 and R2 went from "listed
+  and not landed" to executed refusals, and `e4` went from a text check that two
+  string literals defeated to an executed settle. Three passes of findings are
+  closed here, not deferred.
+- **Open, mine to have caught in pass 3.** R7. I graded the *fix direction*
+  ("execute the property") without asking what role the property would be
+  executed as. The lane implemented what I asked for; the gap is in what I
+  asked for.
+- **Accepted, with the trade stated by the lane and re-checked by me.** A
+  genuinely dormant `hr_apply` branch (case D) is invisible to an executed
+  arm and was caught by the text check. A dormant branch pays nobody, and the
+  unscoped shape — what a regression actually looks like — is refused by the
+  fence's `e13`, executed above. I take this direction over the one that passed
+  **reachable** calls outright.
+- **Unmeasured by anyone.** 8a, the flag-off residual. Small, and named rather
+  than assumed.
+- **Not re-run this pass.** The in-page suite; RE-VERIFY §9's container limits
+  are unchanged and this diff touches no client file. The record gate is the
+  GitHub run on the release SHA (`CLAUDE.md` §3.3).
+- **Still true of every green in §4.** A guard's exit code proves the defects
+  somebody planted are caught. R7 is what that sentence looks like when it
+  bites.

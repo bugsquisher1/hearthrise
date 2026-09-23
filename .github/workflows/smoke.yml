@@ -1174,6 +1174,39 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/world-tick-edge-contract.mjs --selftest
 
+      # THE THREE PROPERTIES THE STRIP INTRODUCED THAT ITS OWN GUARD DOES NOT
+      # MEASURE. Written by the security-engineer role during the review of
+      # 2026-09-23-client-state-retired-fields.sql; it deliberately does NOT
+      # repeat tests/client-state-retired-fields.mjs (which already proves a
+      # retired key strips, an authority key refuses and a replay is one effect).
+      #   X1 SIZE ACCOUNTING — the strip moved the merge from `p_patch` to
+      #      `v_patch`. A later restatement that merges the raw patch while still
+      #      reporting `stripped` keeps the answer saying the right thing while
+      #      the forged value lands AND eats the 256 KiB bag cap. 50 KB of
+      #      retired `buffs` must change `bytes` by nothing and the bag by
+      #      nothing, and a bag already 200 KB full must still accept a put whose
+      #      only over-cap key is retired.
+      #   X2 ORDERING IS THE WHOLE FAIL-SAFE — nothing says a name cannot be on
+      #      BOTH lists; what makes the authority key win is that the deny loop
+      #      runs FIRST and reads the RAW patch. The arm proving it bites hoists
+      #      the strip, points the deny loop at the stripped remainder and puts
+      #      `gold` on both lists — the shape a restatement "simplifying" the body
+      #      into one remainder would take.
+      #   X3 THE JOURNAL IS BOUNDED BY A CAP IN ANOTHER FILE — hr_record_rejection
+      #      folds `whys` at c_why_cap = 12 (2026-09-13-rejections-verb-map-2.sql)
+      #      and v_retired holds TEN, so the breakdown naming WHICH key a stale
+      #      tab sends survives on two names of headroom held in a file that has
+      #      never heard of v_retired. The list is read out of the INSTALLED body,
+      #      so the arm grows with it rather than going stale.
+      # Registered in db-replay-2 rather than db-replay on the budget rationale
+      # that split the family: this is one replay plus eight mutation boots, and
+      # db-replay already took the lane's own guard.
+      - name: Client-state retired fields — size accounting, list ordering, journal bound
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/client-state-retired-fields-adversarial.mjs
+          node tests/client-state-retired-fields-adversarial.mjs --selftest
+
   # ── utc-midnight-replay ── SPLIT OUT OF db-replay 2026-09-19 (b550). The
   # GitHub run on ab7572e7 (branch next) measured db-replay's own steps: PGlite
   # snapshot cache 46 s, schema drift 73 s, THIS GUARD 411 s, ledger rollup

@@ -3,15 +3,43 @@
 // tests/vigour-charge-conservation.mjs — THE VIGOUR CHARGE MUST NOT DEPEND
 //                                        ON HOW OFTEN A PLAYER SETTLES.
 //
-//   node tests/vigour-charge-conservation.mjs            # the guard (RED today)
+//   node tests/vigour-charge-conservation.mjs            # the guard
 //   node tests/vigour-charge-conservation.mjs --list     # the mutation catalogue
 //   node tests/vigour-charge-conservation.mjs --selftest # every mutation CAUGHT
 //   node tests/vigour-charge-conservation.mjs --mutate=<id>
 //
 // Written by the security-engineer role for the M6 review
-// (docs/planning/SEC_HUNTS_M6_2026-09-22.md, finding S1). It is RED BY DESIGN
-// against lane/m6-hunts-backend @76af094 and is listed in
-// tests/guards-unregistered.json until the finding is fixed.
+// (docs/planning/SEC_HUNTS_M6_2026-09-22.md, finding S1). It was RED BY DESIGN
+// against lane/m6-hunts-backend @76af094 and listed in
+// tests/guards-unregistered.json.
+//
+// ── 2026-09-22, backend-architect lane: THE FINDING IS FIXED AND THIS FILE IS
+//    NOW THE STANDING REGRESSION GUARD, which is what its author wrote it to
+//    become ("the guard is written to be the regression test for its own fix").
+//    NOT ONE ASSERTION WAS WEAKENED. What changed is the harness DIRECTION and
+//    the unit the charge is read in:
+//      · the plain run is GREEN and is registered in .github/workflows/smoke.yml;
+//        its guards-unregistered.json entry is deleted;
+//      · --selftest reverts to the ordinary direction — each mutation plants the
+//        DEFECT back into the engine and every arm must go RED, and the
+//        unmutated engine must be GREEN. The old catalogue's one entry was the
+//        planted FIX, which has no job left now that the fix is shipped;
+//      · `slack` was TIGHTENED from one minute to 1e-6 for every arm. The charge
+//        is now exact, so an arm that still allowed a minute of drift would stop
+//        measuring the very thing that was wrong;
+//      · `chargeOf` sums BOTH counters the engine now proposes (see below). A
+//        chargeOf that read only the minutes row would read the fix as a defect.
+//
+// ── THE FIX, IN ONE LINE ────────────────────────────────────────────────
+// src/core/hunt.js `vigourCharge(windowMs)` returns the whole minutes AND the
+// sub-minute remainder, and accrual.js proposes both as daily counters
+// ('ev:vigour_min', 'ev:vigour_rem_ms'). hr_vigour_of divides ONCE, at read
+// time: spent_min = minutes + floor(remainder_ms / 60000). For any partition
+// {wi} of a span, sum(wi) = 60000*sum(qi) + sum(ri), so
+// floor(sum(wi)/60000) = sum(qi) + floor(sum(ri)/60000) — the charge is a
+// function of ELAPSED TIME ALONE. Raw ms in a single row is not available:
+// hr_apply clamps one `add` at c_max_progress_add = 1,000,000 and a capped 24 h
+// window is 86,400,000 ms.
 //
 // ── THE PROPERTY ────────────────────────────────────────────────────────
 // docs/design/HUNTS_AND_ANALYZER.md §5: "Vigour is charged from the same `ms`
@@ -71,7 +99,7 @@ import { join } from 'node:path';
 
 import { ROOT } from './schema-replay.mjs';
 import { computeAccrual, CALLER_AUTHORITY } from '../supabase/functions/hr-accrue/accrual.js';
-import { VIGOUR_PROGRESS_KEY, vigourChargeMin } from '../src/core/hunt.js';
+import { VIGOUR_PROGRESS_KEY, VIGOUR_REMAINDER_KEY, vigourCharge } from '../src/core/hunt.js';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
 
@@ -86,13 +114,31 @@ const ok = (cond, msg) => { if (!cond) problems.push(msg); };
    guard decorative, which is why the anchor count is checked. */
 const FN_DIR = join(ROOT, 'supabase/functions/hr-accrue');
 const ENGINE_PATCHES = {
-  /* THE FIX, PLANTED. An exactly-proportional charge conserves under
-     subdivision by construction. It is not shippable as written (the daily
-     counter is an integer), but it is the smallest edit that makes the LAW
-     hold, so it is the right thing for --selftest to require green. */
-  proportional_charge: [[
-    '    const charge = vigourChargeMin(grantMs);',
-    '    const charge = grantMs / 60000;',
+  /* THE ORIGINAL DEFECT, PLANTED BACK. `vigourChargeMin` floored the window and
+     returned, and only the minutes row was proposed. This is the exact shape
+     that charged 40 minutes for an hour at a 90 s poll and ZERO for an hour of
+     sub-minute collects. Every arm below must go RED. */
+  floor_per_window: [[
+    `    if (addMin > 0) {
+      progress.push({ kind: 'daily', key: VIGOUR_PROGRESS_KEY,
+        period, add: addMin, state: 'active' });
+    }
+    if (remMs > 0) {
+      progress.push({ kind: 'daily', key: VIGOUR_REMAINDER_KEY,
+        period, add: remMs, state: 'active' });
+    }`,
+    `    if (addMin > 0) {
+      progress.push({ kind: 'daily', key: VIGOUR_PROGRESS_KEY,
+        period, add: addMin, state: 'active' });
+    }`,
+  ]],
+  /* THE HALF-FIX, which is the regression this file will actually meet: the
+     remainder is COMPUTED but proposed as a floor of itself in whole minutes,
+     so it is always 0 and the row is never written. A reader of the diff would
+     see two counters and believe the law held. */
+  remainder_refloored: [[
+    '    const { addMin, remMs } = vigourCharge(grantMs);',
+    '    const { addMin } = vigourCharge(grantMs);\n    const remMs = Math.floor(grantMs % 60000 / 60000) * 60000;',
   ]],
 };
 
@@ -127,7 +173,8 @@ async function loadEngine(mutate) {
 }
 
 const MUTATIONS = {
-  proportional_charge: 'Charge Vigour in exact proportion to the window, so the law holds and every arm must go GREEN.',
+  floor_per_window: 'Discard the sub-minute remainder again (the shipped defect of 2026-09-22, finding S-1).',
+  remainder_refloored: 'Keep the remainder row but re-floor it to whole minutes, so it is always 0 and never written.',
 };
 
 const MON = 'goblin';
@@ -166,12 +213,26 @@ const window_ = (fromMs, spanMs, caller) => ENGINE({
   ...(caller ? { caller, callerAuthority: AUTHORITY } : {}),
 });
 
-/** What this window PROPOSED to charge — read off the delta the engine actually
-    hands hr_apply, never recomputed here. */
+/** What this window PROPOSED to charge, IN MINUTES — read off the delta the
+    engine actually hands hr_apply, never recomputed here.
+
+    ⚠ BOTH COUNTERS, because the charge is one number in two rows: the whole
+      minutes on VIGOUR_PROGRESS_KEY and the sub-minute remainder in ms on
+      VIGOUR_REMAINDER_KEY, which hr_vigour_of adds back together and divides
+      once. Reading only the minutes row would report the CONSERVING engine as
+      charging 0 for a sub-minute window — i.e. it would reproduce the defect in
+      the measurement instead of in the code, which is the failure mode this
+      whole file exists to make impossible. The fractional value returned here is
+      the exact charged time; the METER floors it once per day, not per window,
+      and that single floor is asserted in tests/vigour.mjs and in the
+      migration's §3 GATE(c7). */
 function chargeOf(out) {
   const rows = (out && out.delta && out.delta.progress) || [];
-  const row = rows.find((r) => r && r.key === VIGOUR_PROGRESS_KEY);
-  return row ? Number(row.add) || 0 : 0;
+  const add = (key) => {
+    const row = rows.find((r) => r && r.key === key);
+    return row ? Number(row.add) || 0 : 0;
+  };
+  return add(VIGOUR_PROGRESS_KEY) + (add(VIGOUR_REMAINDER_KEY) / 60000);
 }
 
 /** Drive a span as `n` equal windows and total what was PAID and CHARGED. */
@@ -194,11 +255,12 @@ const mins = (ms) => ms / 60000;
 
 async function run(mutate) {
   ({ engine: ENGINE, authority: AUTHORITY } = await loadEngine(mutate));
-  const conserving = mutate === 'proportional_charge';
-  /* How much slack the law is allowed. A conserving engine is exact; the
-     shipped one is judged against ONE minute, which is the most a single honest
-     rounding may ever cost across a whole chain. */
-  const slack = conserving ? 1e-6 : 1;
+  /* How much slack the law is allowed, and it is now EXACT. The shipped charge
+     keeps the sub-minute remainder in the ledger's own unit, so a partition of a
+     span charges the span to the millisecond and there is no honest rounding
+     left to pay for. This used to be ONE MINUTE while the guard was red by
+     design; tightening it is the point of the fix, not a side effect of it. */
+  const slack = 1e-6;
 
   // ── C0. THE ONE-WINDOW REFERENCE ───────────────────────────────────────
   // Everything below is measured against what the SAME hour costs when it is
@@ -261,22 +323,31 @@ async function run(mutate) {
     + 'of the flush.');
 
   // ── C4. THE UNIT ITSELF, STATED WITHOUT AN ENGINE ──────────────────────
-  // The arithmetic under all three arms, so a reader can see the defect without
-  // reading the accrual path: the charge is not additive over a partition.
+  // The arithmetic under all three arms, so a reader can see the law hold
+  // without reading the accrual path: the charge IS additive over a partition.
   //
   // SKIPPED under a mutation, and that is not a softening: the mutations patch
   // ENGINE TEXT, and this arm reads src/core/hunt.js directly. Leaving it on
-  // would make the fix arm unreachable for a reason that has nothing to do with
-  // the law being measured — a goalpost, not a catch.
-  if (conserving) return;
-  const whole = vigourChargeMin(HOUR);
-  let split = 0;
-  for (let i = 0; i < 61; i++) split += vigourChargeMin(59000);
-  ok(whole === split || Math.abs(whole - split) <= slack,
-    `C4: vigourChargeMin(1 h) = ${whole}, but the same hour cut into 61 windows charges ${split}. `
-    + 'The charge is not additive over a partition of the span, and nothing carries the remainder — '
-    + 'src/core/hunt.js vigourChargeMin floors and returns, and accrual.js proposes the floored value '
-    + 'with no carry column beside it.');
+  // would make every mutation "caught" for a reason that has nothing to do with
+  // the engine being mutated — a goalpost, not a catch. The unmutated run is
+  // the one that has to answer for src/core/hunt.js, and it does, here.
+  if (mutate) return;
+  const chargeMin = (ms) => { const c = vigourCharge(ms); return c.addMin + (c.remMs / 60000); };
+  // Every partition the design can meet: a browser poll, a set_activity loop,
+  // the world tick's flush, a one-second client, and the 17-minute window a
+  // capped return produces. None of them may cost a different hour.
+  for (const part of [1000, 10000, 45000, 59000, 90000, 17 * 60000]) {
+    const n = Math.floor(HOUR / part);
+    let split = 0;
+    for (let i = 0; i < n; i++) split += chargeMin(part);
+    split += chargeMin(HOUR - (n * part));
+    ok(Math.abs(chargeMin(HOUR) - split) <= slack,
+      `C4: vigourCharge over one hour = ${chargeMin(HOUR)} minutes, but the same hour cut into ${n} `
+      + `windows of ${part} ms charges ${split}. The charge is not additive over a partition of the `
+      + 'span, so the daily limiter is a function of how often a player settles rather than of elapsed '
+      + 'time. src/core/hunt.js vigourCharge must return the sub-minute remainder alongside the whole '
+      + 'minutes, and accrual.js must propose BOTH.');
+  }
 }
 
 // ── HARNESS ─────────────────────────────────────────────────────────────
@@ -291,34 +362,37 @@ if (argv.includes('--list')) {
 const only = (argv.find((a) => a.startsWith('--mutate=')) || '').split('=')[1] || null;
 
 if (argv.includes('--selftest')) {
-  /* THIS GUARD IS RED BY DESIGN, so its self-test is the MIRROR of the usual
-     one: the mutation is the FIX, and it must turn every arm GREEN. A "caught"
-     mutation would prove nothing here — the unmutated run is already red. */
+  /* THE ORDINARY DIRECTION, since 2026-09-22: the finding is fixed, so each
+     mutation plants the DEFECT back into the engine and every one must be
+     CAUGHT, while the shipped engine must be GREEN. (Until the fix landed this
+     was the mirror of that — the one mutation was the planted fix and had to
+     turn the arms green while the shipped engine stayed red. The history is in
+     this file's header; the arms themselves did not move.) */
   let bad = 0;
   for (const id of Object.keys(MUTATIONS)) {
     problems.length = 0;
     // eslint-disable-next-line no-await-in-loop
     await run(id);
-    const green = problems.length === 0;
-    console.log(`  ${green ? 'GREEN' : 'STILL RED'}  ${id} — ${MUTATIONS[id]}`);
-    if (!green) {
+    const caught = problems.length > 0;
+    console.log(`  ${caught ? 'CAUGHT ' : 'MISSED '} ${id} — ${MUTATIONS[id]}`);
+    if (!caught) {
       bad += 1;
-      for (const p of problems) console.log(`      ${p}`);
+      console.log('      the arms did not notice the defect being planted back. A mutation that is not '
+        + 'caught means this guard would not see the regression either.');
     }
   }
   problems.length = 0;
   await run(null);
-  const shippedRed = problems.length > 0;
-  console.log(`  ${shippedRed ? 'RED' : 'GREEN'}     (shipped engine, unmutated)`);
-  if (!shippedRed) {
+  const shippedGreen = problems.length === 0;
+  console.log(`  ${shippedGreen ? 'GREEN' : 'RED'}     (shipped engine, unmutated)`);
+  if (!shippedGreen) {
     bad += 1;
-    console.log('      the shipped engine is GREEN — either the finding was fixed (delete this guard and '
-      + 'its tests/guards-unregistered.json entry) or these arms stopped asserting.');
+    for (const p of problems) console.log(`      ${p}`);
   }
   console.log(bad
     ? `\nvigour-charge-conservation --selftest: ${bad} problem(s)`
-    : '\nvigour-charge-conservation --selftest: the fix makes every arm green and the shipped engine is red — '
-      + 'the arms measure the law, not an implementation.');
+    : '\nvigour-charge-conservation --selftest: every planted defect is caught and the shipped engine is '
+      + 'green — the arms measure the law, not an implementation.');
   process.exit(bad ? 1 : 0);
 }
 

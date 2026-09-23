@@ -366,13 +366,67 @@ export function vigourMult(o) {
     engine and asserted by the migration, so the row the engine writes and the
     row `hr_vigour_of` reads cannot be two rows (design §4.2). */
 export const VIGOUR_PROGRESS_KEY = 'ev:vigour_min';
+/** The SUB-MINUTE REMAINDER's key — same row family, same day period, same
+    writer. See `vigourCharge`: the pair is ONE number in two columns, and
+    `hr_vigour_of` is the only thing that ever adds them back together. */
+export const VIGOUR_REMAINDER_KEY = 'ev:vigour_rem_ms';
 /** The refill counter's key, same row family, same day period. */
 export const VIGOUR_REFILL_KEY = 'ev:vigour_refills';
 
-/** Charge, in whole minutes, for a window of paid ms. FLOOR: a window shorter
-    than a minute charges nothing, which is the same direction every other
-    rounding in this engine takes — toward the player. */
-export function vigourChargeMin(windowMs) {
-  const ms = Math.floor(Number(windowMs) || 0);
-  return ms > 0 ? Math.floor(ms / 60000) : 0;
+/** Minutes are 60,000 ms, and the remainder row is by construction under one. */
+const MS_PER_MIN = 60000;
+
+/**
+ * THE VIGOUR CHARGE FOR ONE SETTLED WINDOW — and it CONSERVES UNDER
+ * SUBDIVISION, which is the whole point of this function's shape.
+ *
+ * ⚠ THIS USED TO BE `vigourChargeMin(windowMs) = floor(ms / 60000)`, PER
+ *   WINDOW, WITH THE REMAINDER DISCARDED, and that was finding S-1 of
+ *   docs/planning/SEC_HUNTS_M6_2026-09-22.md — a P0 BLOCK on both vigour files.
+ *   A floor per window makes the daily limiter a function of how often a player
+ *   settles: 40 minutes charged for an hour at an ordinary 90 s poll cadence
+ *   (no privilege, nothing forged), and ZERO for an hour of sub-minute
+ *   `set_activity` collects, which are exempt from ACCRUE_MIN_MS by design.
+ *   Design §5 states the law this must obey in its own italics —
+ *   "Vigour is charged from the same `ms` the payout is computed from … BECAUSE
+ *   THERE IS ONE NUMBER" — and accrual.js states the payout half of it as
+ *   "time is conserved: switching twice pays the same total as switching once".
+ *
+ * ⚠ A FLOOR IN ANY UNIT HAS THE SAME DEFECT, which is why this is not "the same
+ *   bug in seconds". For a floor of granularity U, windows of just under 2U
+ *   charge U — a 50% discount at whatever cadence the attacker picks. The
+ *   remainder must be KEPT, not made smaller.
+ *
+ * ── WHY TWO ROWS AND NOT ONE, AND WHY NOT A CARRY COLUMN (the review offered
+ *    both; this is option (b), and the file says so) ──────────────────────────
+ * The review's option (b) — "charge in the ledger's own unit and let
+ * `hr_vigour_of` do the division" — cannot be spent as raw ms in ONE row:
+ * `hr_apply`'s `c_max_progress_add` is 1,000,000 and a capped 24 h window is
+ * 86,400,000 ms, so the delta would be REFUSED and the player would lose their
+ * night. So the same number is written as a quotient and a remainder:
+ *
+ *     addMin = floor(windowMs / 60000)          ≤ 1,440   per window
+ *     remMs  = windowMs - addMin * 60000        <  60,000 per window
+ *
+ * and `hr_vigour_of` reads `spent_min = minutes + floor(remainder_ms / 60000)`.
+ * That is EXACT, not merely finer, and the proof is one line of arithmetic:
+ * for any partition {wᵢ} of a span, Σwᵢ = 60000·Σqᵢ + Σrᵢ, so
+ * floor(Σwᵢ/60000) = Σqᵢ + floor(Σrᵢ/60000) — the right-hand side is precisely
+ * what the two counters hold. The total charged for a span is therefore a
+ * function of the ELAPSED TIME ALONE and not of how the span was cut up.
+ *
+ * Option (a), a `vigour_carry_ms` column on `player_state`, would have been a
+ * new column, a new `hr_apply` delta key and a new piece of engine state that
+ * the attended, away and tick paths would each have to thread identically.
+ * This is stateless: the same pure function of `windowMs`, called once, in the
+ * one engine all three callers share (AWAY-1, AWAY-12).
+ *
+ * @param windowMs this window's PAID ms — the same `grantMs` the payout used
+ * @returns { addMin, remMs } — both non-negative, and
+ *          `addMin * 60000 + remMs === floor(windowMs)` exactly
+ */
+export function vigourCharge(windowMs) {
+  const ms = Math.max(0, Math.floor(Number(windowMs) || 0));
+  const addMin = Math.floor(ms / MS_PER_MIN);
+  return { addMin, remMs: ms - (addMin * MS_PER_MIN) };
 }

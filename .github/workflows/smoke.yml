@@ -1801,6 +1801,24 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/vigour.mjs
 
+      # THE CHARGE MUST NOT DEPEND ON HOW OFTEN A PLAYER SETTLES. Finding S-1
+      # of docs/planning/SEC_HUNTS_M6_2026-09-22.md, and a P0: the charge floored
+      # PER WINDOW and discarded the remainder, so an hour of hunting cost 40
+      # Vigour minutes at an ordinary 90 s poll and ZERO at a sub-minute
+      # set_activity loop (which is exempt from ACCRUE_MIN_MS by design, b531) —
+      # a limiter rounded toward the player is a limiter that does not exist,
+      # and the gold and loot it let through are tradeable. This guard was RED
+      # BY DESIGN and carried by tests/guards-unregistered.json until the fix;
+      # its mutations now plant the defect BACK and every arm must catch it.
+      # Drives the real computeAccrual. No database, no credential, seconds.
+      - name: Vigour charge conservation - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/vigour-charge-conservation.mjs --selftest
+
+      - name: Vigour charge conservation - base run
+        if: ${{ !cancelled() }}
+        run: node tests/vigour-charge-conservation.mjs
+
       # The cache-buster must agree across build-info.js, index.html and every
       # ESM import specifier. Cheap, so run it before spending time on a browser.
       - name: Cache-buster invariant

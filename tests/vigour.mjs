@@ -37,9 +37,9 @@ import { join } from 'node:path';
 
 import { bootReplay, ROOT } from './schema-replay.mjs';
 import {
-  vigourGrantMin, vigourBudgetMin, vigourSplit, vigourMult, vigourChargeMin,
+  vigourGrantMin, vigourBudgetMin, vigourSplit, vigourMult, vigourCharge,
   VIGOUR_FLOOR_MIN, VIGOUR_CEILING_MIN, VIGOUR_REFILL_MIN, VIGOUR_MAX_REFILLS,
-  VIGOUR_DRY_MULT, VIGOUR_PROGRESS_KEY,
+  VIGOUR_DRY_MULT, VIGOUR_PROGRESS_KEY, VIGOUR_REMAINDER_KEY,
 } from '../src/core/hunt.js';
 import { AMMO_DRY_MULT } from '../src/core/ammo.js';
 
@@ -54,6 +54,7 @@ const MUTATIONS = {
   refill_past_ceiling: 'Sell a refill at the 22h ceiling instead of refusing it — gold for zero minutes.',
   refill_free_on_replay: 'Let a replayed idempotency key debit again (a double-tap charges twice).',
   budget_ignores_ceiling: 'Drop the 22h ceiling from hr_vigour_of so gold can buy the whole day.',
+  spent_ignores_remainder: 'Drop the sub-minute remainder from hr_vigour_of\'s read, so the charge stops conserving (finding S-1).',
 };
 
 /** The mutations are TEXTUAL patches on the real migrations, so a planted defect
@@ -110,6 +111,18 @@ const patchesFor = (mutate) => {
         + '  if v_cached is not null then return v_cached || jsonb_build_object(\'replayed\', true); end if;',
         '  if v_cached ->> \'error\' = \'intent_mismatch\' then return v_cached; end if;',
       ]]]]));
+    case 'spent_ignores_remainder':
+      /* ⚠ THE READ IS THE OTHER HALF OF THE FIX, AND IT NEEDS ITS OWN PROOF.
+           tests/vigour-charge-conservation.mjs proves the ENGINE proposes the
+           sub-minute remainder; nothing there proves the DATABASE reads it back.
+           Drop the remainder term from hr_vigour_of's sum and the two counters
+           become one counter with a decorative second row — the exact shape of
+           finding S-1, arriving through the reader instead of the writer. */
+      return withShortCircuit([[DAILY, [[
+        "       + coalesce(sum(case when key = 'ev:vigour_rem_ms' then value else 0 end), 0)",
+        '       + 0',
+      ]]]]);
+
     case 'budget_ignores_ceiling':
       return withShortCircuit(new Map([[DAILY, [[
         '  v_budget := least(c_ceiling_min, v_grant + v_bought);',
@@ -167,8 +180,38 @@ async function run(mutate) {
   ok(vigourMult({ spentMin: 10 ** 9, budgetMin: 720, windowMs: 3600000 }) === VIGOUR_DRY_MULT,
     'V3: a night far past the budget paid less than the dry rate. A hard stop charges a player for '
     + 'sleeping, which this game has already done once.');
-  ok(vigourChargeMin(59999) === 0 && vigourChargeMin(60000) === 1,
-    'V3: the charge is whole minutes, floored — a sub-minute window charges nothing.');
+  // ── V3b. THE CHARGE CONSERVES UNDER WINDOW SUBDIVISION (finding S-1) ───
+  // `vigourChargeMin` used to be `floor(ms / 60000)` PER WINDOW with the
+  // remainder DISCARDED, which made the daily limiter a function of the settle
+  // cadence rather than of elapsed time: 40 minutes charged for an hour at a
+  // 90 s poll, ZERO for an hour of sub-minute set_activity collects, which are
+  // exempt from ACCRUE_MIN_MS by design (b531). `vigourCharge` now returns the
+  // whole minutes AND the sub-minute remainder, and BOTH are written as daily
+  // counters; hr_vigour_of adds them back and divides ONCE (arm V6b below).
+  const charge = vigourCharge(59999);
+  ok(charge.addMin === 0 && charge.remMs === 59999,
+    `V3b: a sub-minute window charged ${charge.addMin} min and kept ${charge.remMs} ms. The whole `
+    + 'minutes floor, but the remainder must be KEPT — a floor in ANY unit has the same defect, '
+    + 'because windows of just under twice the unit charge half of what they pay.');
+  ok(vigourCharge(60000).addMin === 1 && vigourCharge(60000).remMs === 0,
+    'V3b: a whole minute did not charge exactly one minute and nothing over.');
+  /* THE PROPERTY ITSELF, over every partition the design can actually meet: a
+     one-second client, a ten-second one, the shipped 90 s poll and tick flush,
+     and the 17-minute window a capped return produces. The charge for [0, 60min]
+     must equal the sum over ANY partition of it, exactly — not to within a
+     minute, which is what the limiter was losing per window. */
+  const exactMin = (ms) => { const c = vigourCharge(ms); return c.addMin + (c.remMs / 60000); };
+  for (const part of [1000, 10000, 90000, 17 * 60000]) {
+    const n = Math.floor(3600000 / part);
+    let sum = 0;
+    for (let i = 0; i < n; i++) sum += exactMin(part);
+    sum += exactMin(3600000 - (n * part));
+    ok(Math.abs(exactMin(3600000) - sum) < 1e-9,
+      `V3b: one hour charges ${exactMin(3600000)} minutes settled once and ${sum} settled as ${n} `
+      + `windows of ${part} ms. The charge must be a function of ELAPSED TIME ALONE — design §5 `
+      + 'says the payout and the charge are ONE NUMBER, and accrual.js states the payout half of '
+      + 'that as "switching twice pays the same total as switching once".');
+  }
 
   // ── V4. GOLD ONLY, AND NO PRICE LIVES IN THE VERB ──────────────────────
   const refillSrc = await readFile(join(ROOT, 'supabase/migrations', REFILL), 'utf8');
@@ -214,6 +257,40 @@ async function run(mutate) {
     'V6: the SQL budget and the JS budget disagree on an unspent day.');
   ok(Number(meter0.spent_min) === 0 && Number(meter0.refills) === 0,
     'V6: a fresh character is not at zero.');
+
+  /* ── V6b. THE METER DIVIDES ONCE, AT READ TIME — THE SQL HALF OF S-1 ────
+     The engine writes the window's charge as a QUOTIENT and a REMAINDER; this
+     is the arm that proves the DATABASE adds them back together. Driven through
+     hr_apply, the only writer, exactly as the migration's §3 GATE(c7) does —
+     sixty-one 59 s windows, every one of them under a minute, which under the
+     old floored charge cost the player NOTHING and let a set_activity loop hunt
+     at full rate forever. */
+  const TODAY = (await q('select public.hr_utc_day_key(now()) as d'))[0].d;
+  const chargeWindow = async (min, rem) => {
+    const rows = [];
+    if (min > 0) rows.push({ kind: 'daily', key: VIGOUR_PROGRESS_KEY, period: TODAY, add: min, state: 'active' });
+    if (rem > 0) rows.push({ kind: 'daily', key: VIGOUR_REMAINDER_KEY, period: TODAY, add: rem, state: 'active' });
+    const ver = (await q('select public.hr_state_of($1, 0) as s', [PROBE]))[0].s.version;
+    const r = (await q('select public.hr_apply($1, 0, $2::bigint, gen_random_uuid(), $3::jsonb) as r',
+      [PROBE, String(ver), JSON.stringify({ progress: rows, journal: { kind: 'admin', intent: 'vigour_probe' } })]))[0].r;
+    ok(r && r.ok === true, `V6b: hr_apply refused a Vigour charge of ${min} min + ${rem} ms: ${JSON.stringify(r)}`);
+  };
+  for (let i = 0; i < 61; i++) await chargeWindow(0, 59000);   // eslint-disable-line no-await-in-loop
+  const meterSub = (await q('select public.hr_vigour_of($1, 0) as v', [PROBE]))[0].v;
+  ok(Number(meterSub.spent_min) === 59,
+    `V6b: sixty-one SUB-MINUTE windows paid 59.98 minutes of hunting and the meter charged `
+    + `${meterSub.spent_min}. hr_vigour_of must sum 'ev:vigour_rem_ms' beside 'ev:vigour_min' and `
+    + 'divide ONCE — a per-window floor makes the daily limiter a function of the poll cadence, and '
+    + 'set_activity is exempt from ACCRUE_MIN_MS by design (b531), so the loop is unbounded.');
+  await chargeWindow(0, 59000);   // the 62nd: the carried 59,000 ms now pays out
+  const meterCarry = (await q('select public.hr_vigour_of($1, 0) as v', [PROBE]))[0].v;
+  ok(Number(meterCarry.spent_min) === 60,
+    `V6b: the 62nd sub-minute window took the meter to ${meterCarry.spent_min}, not 60. The remainder `
+    + 'the earlier windows left behind must be SPENT by the next one; a remainder that is stored and '
+    + 'never read is the same discarded minute with an extra row beside it.');
+  ok(Number(meterCarry.remaining_min) === Number(meterCarry.budget_min) - 60,
+    'V6b: remaining did not fall by the conserved charge — the meter the player acts on and the '
+    + 'counter the engine writes are two numbers again (CLAUDE.md §6).');
 
   // V7. BUY THE WHOLE LADDER. Gold placed on the row directly — a synthetic
   //     probe, not a player, so no faucet is exercised.

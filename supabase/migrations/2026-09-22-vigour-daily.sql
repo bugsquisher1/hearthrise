@@ -7,11 +7,18 @@
 -- stops paying full rate.
 --
 -- ── NO NEW TABLE AND NO NEW COLUMN (design §4.2) ────────────────────────────
---   player_progress(kind='daily', key='ev:vigour_min', period_key=<utc day>)
+--   player_progress(kind='daily', key='ev:vigour_min',    period_key=<utc day>)
+--   player_progress(kind='daily', key='ev:vigour_rem_ms', period_key=<utc day>)
 -- That is the existing daily-counter machinery, the existing c_max_progress_add
 -- clamp, the existing per-period retention and the existing projection. A new
 -- table would be a second place a number a player can act on lives, and two
 -- places can disagree — the class Tyler ruled on 2026-09-14.
+--
+-- The two keys are ONE number — a quotient and its remainder — and §1(4) is the
+-- only thing that ever adds them back together. That is finding S-1's fix: a
+-- charge floored PER WINDOW made the daily limiter a function of the settle
+-- cadence, so the remainder is now kept rather than discarded. §3 GATE(c7)
+-- proves the conservation by execution.
 --
 -- ── THE GRANT IS DERIVED, NOT STORED (design §4.1) ──────────────────────────
 -- `greatest(720, hr_offline_cap_ms / 60000)`. Three properties follow, and no
@@ -85,6 +92,9 @@ declare
   v_bought    int;
   v_budget    int;
   v_spent     bigint;
+  -- The day's charge in MILLISECONDS, before the single division. bigint on
+  -- purpose: 22 h is 79,200,000 and an overspent night is larger still.
+  v_spent_ms  bigint;
 begin
   if p_user is null then return null; end if;
 
@@ -111,10 +121,34 @@ begin
   -- (4) WHAT HAS BEEN SPENT TODAY. Written by the engine out of a SETTLED
   --     window, from the same `ms` the payout was computed from, in the same
   --     transaction - so a window cannot pay and not charge (design §5).
-  select coalesce(value, 0) into v_spent from public.player_progress
+  --
+  -- ⚠ TWO ROWS, ONE NUMBER, AND THE DIVISION HAPPENS HERE (finding S-1).
+  --   The engine writes the window's charge as a QUOTIENT ('ev:vigour_min',
+  --   whole minutes) and a REMAINDER ('ev:vigour_rem_ms', the sub-minute ms it
+  --   used to DISCARD). Summing the remainders and dividing ONCE, at read time,
+  --   is what makes the charge conserve under subdivision:
+  --
+  --       floor(sum(w) / 60000) = sum(floor(w/60000)) + floor(sum(w mod 60000)/60000)
+  --
+  --   so a span cut into forty 90 s windows and the same span settled once
+  --   charge the SAME number of minutes. Before this, `vigourChargeMin` floored
+  --   PER WINDOW and threw the remainder away, and the daily limiter was a
+  --   function of the poll cadence: 40 minutes for an hour at 90 s, ZERO for an
+  --   hour of sub-minute set_activity collects. See §3 GATE(c7), which proves
+  --   the property by EXECUTION rather than by this comment, and
+  --   docs/planning/SEC_HUNTS_M6_2026-09-22.md S-1.
+  --
+  -- ⚠ WHY NOT RAW MS IN ONE ROW: hr_apply clamps a single progress `add` at
+  --   c_max_progress_add = 1,000,000 and a capped 24 h window is 86,400,000 ms.
+  --   One row would refuse the delta and cost the player their whole night.
+  select coalesce(sum(case when key = 'ev:vigour_min' then value else 0 end), 0) * 60000
+       + coalesce(sum(case when key = 'ev:vigour_rem_ms' then value else 0 end), 0)
+    into v_spent_ms
+    from public.player_progress
    where user_id = p_user and slot = coalesce(p_slot, 0)
-     and kind = 'daily' and key = 'ev:vigour_min' and period_key = v_day;
-  v_spent := greatest(0, coalesce(v_spent, 0));
+     and kind = 'daily' and key in ('ev:vigour_min', 'ev:vigour_rem_ms')
+     and period_key = v_day;
+  v_spent := greatest(0, coalesce(v_spent_ms, 0)) / 60000;
 
   return jsonb_build_object(
     'day_key',       v_day,
@@ -135,7 +169,7 @@ begin
 end $$;
 
 comment on function public.hr_vigour_of(uuid, int) is
-  'THE VIGOUR METER (2026-09-22). Derived grant (greatest(720, offline cap in minutes)) + bought minutes, capped at the 22h daily ceiling, minus what a settled window has charged. READ-ONLY: it writes nothing, so it cannot be replayed into a gain. Mirrors src/core/hunt.js vigourBudgetMin.';
+  'THE VIGOUR METER (2026-09-22). Derived grant (greatest(720, offline cap in minutes)) + bought minutes, capped at the 22h daily ceiling, minus what a settled window has charged. The charge is read as a QUOTIENT (ev:vigour_min) plus a REMAINDER (ev:vigour_rem_ms) and divided ONCE here, so it conserves under window subdivision (finding S-1): an hour costs an hour however the hour was cut up. READ-ONLY: it writes nothing, so it cannot be replayed into a gain. Mirrors src/core/hunt.js vigourBudgetMin and vigourCharge.';
 
 -- Engine-only, like hr_offline_cap_ms and hr_bestiary_of beside it. The client
 -- never asks: the number reaches the browser on the envelope (section 2), which
@@ -168,7 +202,8 @@ begin
   v_def := replace(v_def, c_anchor, c_anchor || $new$
     -- vigour (2026-09-22): the daily hunting budget, derived and spent. One
     -- object, so the panel renders a bar and a sentence without holding any
-    -- arithmetic of its own. Two indexed point reads on player_progress.
+    -- arithmetic of its own. Two indexed reads on player_progress, both on the
+    -- (user, slot, kind, key, period) leading edge.
     'vigour', public.hr_vigour_of(p_user, v_st.slot),$new$);
   execute v_def;
   raise notice 'hr_state_of patched: the envelope carries the vigour meter';
@@ -185,6 +220,7 @@ declare
   v_uid constant uuid := '00000000-0000-4000-8000-0000b5510002';
   v_v   jsonb;
   v_r   jsonb;
+  v_i   int;
   v_day text := public.hr_utc_day_key(now());
 begin
   -- (a) THE GRANT IS DERIVED, AND THE FLOOR HOLDS. Asserted against
@@ -246,6 +282,61 @@ begin
     if (v_v->>'remaining_min')::int <> (v_v->>'budget_min')::int - 60 then
       raise exception 'GATE(c3): remaining did not fall by the charge: %', v_v; end if;
 
+    -- (c7) THE CHARGE CONSERVES UNDER WINDOW SUBDIVISION (finding S-1, P0).
+    --      THE PROPERTY THIS WHOLE LIMITER RESTS ON, asserted by EXECUTING the
+    --      engine's own two-row charge through hr_apply rather than by reading
+    --      the comment above §1(4). An hour of hunting must cost an hour of
+    --      Vigour however the hour was cut up - and before this fix it did not:
+    --      forty 90 s windows charged 40 minutes and sixty-one 59 s windows
+    --      charged ZERO, because the sub-minute remainder was thrown away once
+    --      per window. A limiter rounded toward the player is a limiter that
+    --      does not exist (docs/planning/SEC_HUNTS_M6_2026-09-22.md S-1).
+    --
+    --      Each iteration proposes exactly what computeAccrual proposes for
+    --      that window: the whole minutes on 'ev:vigour_min' and the sub-minute
+    --      remainder on 'ev:vigour_rem_ms'. Nothing here is an UPDATE this
+    --      block wrote - hr_apply is the only writer, as in (c3).
+    for v_i in 1..40 loop   -- 40 x 90 s = one hour at the ordinary poll cadence
+      v_r := public.hr_apply(v_uid, 0, (public.hr_state_of(v_uid,0)->>'version')::bigint,
+        gen_random_uuid(), jsonb_build_object(
+          'progress', jsonb_build_array(
+            jsonb_build_object('kind','daily','key','ev:vigour_min','period', v_day, 'add', 1, 'state','active'),
+            jsonb_build_object('kind','daily','key','ev:vigour_rem_ms','period', v_day, 'add', 30000, 'state','active')),
+          'journal', jsonb_build_object('kind','admin','intent','vigour_probe')));
+      if coalesce(v_r->>'ok','false') <> 'true' then
+        raise exception 'GATE(c7): the 90 s charge was refused on window %: %', v_i, v_r; end if;
+    end loop;
+    v_v := public.hr_vigour_of(v_uid, 0);
+    if (v_v->>'spent_min')::bigint <> 60 + 60 then
+      raise exception 'GATE(c7): forty 90 s windows paid one hour and charged % minutes on top of the first 60 - the charge is a function of the POLL CADENCE, not of elapsed time', (v_v->>'spent_min')::bigint - 60;
+    end if;
+
+    for v_i in 1..61 loop   -- 61 x 59 s: EVERY window is under a minute
+      v_r := public.hr_apply(v_uid, 0, (public.hr_state_of(v_uid,0)->>'version')::bigint,
+        gen_random_uuid(), jsonb_build_object(
+          'progress', jsonb_build_array(
+            jsonb_build_object('kind','daily','key','ev:vigour_rem_ms','period', v_day, 'add', 59000, 'state','active')),
+          'journal', jsonb_build_object('kind','admin','intent','vigour_probe')));
+      if coalesce(v_r->>'ok','false') <> 'true' then
+        raise exception 'GATE(c7): the 59 s charge was refused on window %: %', v_i, v_r; end if;
+    end loop;
+    v_v := public.hr_vigour_of(v_uid, 0);
+    -- 61 x 59,000 ms = 3,599,000 ms = 59 whole minutes and 59,000 ms left over.
+    -- The leftover stays on the counter and is spent by the NEXT window, which
+    -- is the difference between a carried remainder and a discarded one.
+    if (v_v->>'spent_min')::bigint <> 120 + 59 then
+      raise exception 'GATE(c7): sixty-one SUB-MINUTE windows paid 59.98 minutes and charged % - set_activity is exempt from ACCRUE_MIN_MS by design, so a client looping just under the minute would hunt at full rate forever', (v_v->>'spent_min')::bigint - 120;
+    end if;
+
+    -- The remainder row is the ledger's own unit and it must stay BELOW the
+    -- c_max_progress_add clamp per add; a row that grew past it would be the
+    -- refused-delta failure this shape exists to avoid.
+    if not exists (select 1 from public.player_progress
+                    where user_id = v_uid and slot = 0 and kind = 'daily'
+                      and key = 'ev:vigour_rem_ms' and period_key = v_day) then
+      raise exception 'GATE(c7): no remainder row was written - the sub-minute time is being discarded again';
+    end if;
+
     -- (c4) THE CEILING IS A FUSE. Even with the maximum refills recorded, the
     --      budget may never pass 22 hours - which is what keeps "richest player
     --      hunts most" from becoming "richest player hunts always".
@@ -301,5 +392,5 @@ begin
     raise exception 'GATE: §3 LEAKED a probe row';
   end if;
 
-  raise notice 'vigour-daily: the grant is derived from hr_offline_cap_ms and floored at 720, no price lives in the meter, the envelope and the read agree, and EXECUTED - a settled charge moves it, 99 recorded refills clamp to 5, the budget never passes the 22h ceiling, remaining floors at 0 and the charge lands on today''s period row - all green, net zero';
+  raise notice 'vigour-daily: the grant is derived from hr_offline_cap_ms and floored at 720, no price lives in the meter, the envelope and the read agree, and EXECUTED - a settled charge moves it, THE CHARGE CONSERVES UNDER SUBDIVISION (40x90s and 61x59s cost the same as the span settled once), 99 recorded refills clamp to 5, the budget never passes the 22h ceiling, remaining floors at 0 and the charge lands on today''s period row - all green, net zero';
 end $$;

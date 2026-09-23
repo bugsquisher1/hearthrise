@@ -124,6 +124,8 @@
     "node tests/hunt-analyzer.mjs": "client-guards",
     "node tests/vigour.mjs --selftest": "client-guards",
     "node tests/vigour.mjs": "client-guards",
+    "node tests/vigour-charge-conservation.mjs --selftest": "client-guards",
+    "node tests/vigour-charge-conservation.mjs": "client-guards",
     "bash bump-version.sh --check": "client-guards",
     "node tests/hearthfind-mint-guard.mjs": "client-guards",
     "node tests/hearthfind-mint-guard.mjs --selftest": "client-guards",

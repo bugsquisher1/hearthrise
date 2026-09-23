@@ -119,7 +119,8 @@ import {
    the away replay end a player's night at different moments (AWAY-1). */
 import {
   stanceOf, evaluateStop, DEFAULT_STANCE,
-  vigourBudgetMin, vigourMult, vigourChargeMin, VIGOUR_PROGRESS_KEY, VIGOUR_DRY_MULT,
+  vigourBudgetMin, vigourMult, vigourCharge, VIGOUR_PROGRESS_KEY,
+  VIGOUR_REMAINDER_KEY, VIGOUR_DRY_MULT,
 } from '../../../src/core/hunt.js';
 import { killBonusesFor } from '../../../src/core/botd.js';
 /* WHICH hours of an over-cap absence are credited. One definition, imported by
@@ -2920,13 +2921,35 @@ export function computeAccrual(input) {
        clock: `nowMs` is a server instant but the DAY BOUNDARY is a database
        spelling, and two spellings of "today" is how a daily gets charged twice.
 
-     Whole minutes, floored — a window shorter than a minute charges nothing,
-     the same direction every other rounding here takes. */
+     ⚠ TWO ROWS, ONE NUMBER, AND THE CHARGE CONSERVES UNDER SUBDIVISION.
+       This used to be `vigourChargeMin(grantMs)` — one row, floored per window,
+       remainder discarded — which made the daily limiter a function of the
+       SETTLE CADENCE rather than of elapsed time: 40 minutes charged for an
+       hour at an ordinary 90 s poll, ZERO for an hour of sub-minute collects.
+       That is finding S-1 of docs/planning/SEC_HUNTS_M6_2026-09-22.md, a P0
+       BLOCK on both vigour files. `vigourCharge` now returns the quotient AND
+       the remainder and BOTH are proposed, so the sub-minute time is kept in
+       the ledger's own unit and `hr_vigour_of` does the one division at read
+       time. `floor(Σwᵢ/60000) = Σqᵢ + floor(Σrᵢ/60000)` — exact for any
+       partition, so the total is a function of ELAPSED TIME ALONE.
+       Raw ms in one row is not an option: c_max_progress_add is 1,000,000 and
+       a capped 24 h window is 86,400,000, so the delta would be refused and the
+       player would lose their night. See src/core/hunt.js vigourCharge.
+
+     ⚠ ONE ENGINE, ALL THREE CALLERS. attended, away and the world tick reach
+       this line through the same computeAccrual (AWAY-1; AWAY-12 forbids a
+       second path), and `vigourCharge` is a pure function of `grantMs` with no
+       carried state, so there is nothing for the three to thread differently. */
   if (vigIn && vigIn.day_key) {
-    const charge = vigourChargeMin(grantMs);
-    if (charge > 0) {
+    const period = String(vigIn.day_key);
+    const { addMin, remMs } = vigourCharge(grantMs);
+    if (addMin > 0) {
       progress.push({ kind: 'daily', key: VIGOUR_PROGRESS_KEY,
-        period: String(vigIn.day_key), add: charge, state: 'active' });
+        period, add: addMin, state: 'active' });
+    }
+    if (remMs > 0) {
+      progress.push({ kind: 'daily', key: VIGOUR_REMAINDER_KEY,
+        period, add: remMs, state: 'active' });
     }
   }
 

@@ -1114,29 +1114,37 @@ const MUTATIONS = [
         const out = await REAL.runTick(Object.assign({}, o, {
           exec: async (text, params) => {
             const rows = await o.exec(text, params);
-            const r = rows && rows[0] && rows[0].res;
+            const row0 = rows && rows[0];
             /* params[1] is the user: a NULL user is the kill-switch probe,
                which is not a character and whose refusal is not a batch
                event. Throwing there would abort the fire before it began and
                would prove nothing about batch isolation. */
-            if (r && r.ok !== true && params[1] !== null
-                && r.error !== 'window_already_settled') {
-              throw new Error('batch aborted: ' + r.error);
-            }
-            /* AND THE PROJECTION'S OWN REFUSAL (Security S-8, 2026-09-23).
-               tickOne used to meet the fence first, so every per-character
-               refusal arrived as a `res` and the line above modelled all of
-               them. S-8 moved `hr_state_of` in front of the fence — the
-               character's channel has to be READ before it can be asked
-               about — so `no_character` now arrives as an ENVELOPE with
-               `ok:false` and no `res` at all. Left unmodelled, the mutation
-               stopped throwing on T-R1's unknown character and the arm went
-               green under it: M6 was vacuous, which is a guard that has
-               never been red. */
-            const env = rows && rows[0] && rows[0].state;
-            if (env && env.ok !== true) {
-              throw new Error('batch aborted: ' + env.error);
-            }
+            if (params[1] === null) return rows;
+            /* ── A CHARACTER IS REFUSED IN TWO SHAPES, AND THIS MUTANT MUST
+                  SEE BOTH (2026-09-23).
+               `res` is the FENCE's answer. `state.ok === false` is
+               `hr_state_of` declining to project a character at all
+               (`no_character`).
+               Until S-8 the fence always spoke first, so the `res` shape alone
+               reached every refusal and this mutant bit. S-8 moved the
+               hr_state_of read AHEAD of the watermark probe — the probe needs
+               the character's own channel, and active_kind is the only
+               server-side answer to that — so an unknown character is now
+               declined by the PROJECTION before any fence call is made. The
+               mutant went silently VACUOUS: it perturbed a path the batch no
+               longer takes, T-R1 stayed green, and `--selftest` reported M6 as
+               not biting. Caught by tests/run-ci-local.mjs, which runs this
+               --selftest; the plain run is green either way, which is why the
+               hand-picked gate list missed it.
+               Both shapes are named here so the mutant follows the refusal
+               rather than the statement order. */
+            const refused = (row0 && row0.res && row0.res.ok !== true
+                             && row0.res.error !== 'window_already_settled')
+              ? row0.res.error
+              : (row0 && row0.state && row0.state.ok === false
+                ? (row0.state.error || 'no_character')
+                : null);
+            if (refused) throw new Error('batch aborted: ' + refused);
             return rows;
           },
         }));

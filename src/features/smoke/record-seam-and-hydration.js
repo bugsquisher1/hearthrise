@@ -8055,4 +8055,93 @@ export default [
       Gd.resetGold();
     }
   }),
+
+  /* ── M5 · regression suite — A REFUSAL MUST STILL CORRECT THE BROWSER ─────
+     docs/planning/SEC_PUSH_CHANNEL_M5_2026-09-23.md S1 (HIGH, CONFIRMED),
+     reproduced here as the player meets it. CLAUDE.md §6.
+
+     THE BUG, EXACTLY. The gate directly above drops an EQUAL frame, on the
+     argument that equality can only mean the client already applied that frame.
+     That is true of what was APPLIED and false of what is ON SCREEN. The client
+     carries optimistic writes on top of the applied frame, and the envelope
+     that retires them is a REFUSAL — which writes nothing server-side, so
+     `player_state.version` does NOT move. The correction therefore arrives at
+     `version === lastAppliedFrame`, classified `duplicate`, and the first
+     revision of this lane returned null before writing a single key. The swap
+     the server refused stayed on the screen, spendable, until the next
+     accepted write happened to move the version.
+
+     WHY THIS APPLIER AND NOT THE OTHER TWO. gold.js runs `rollbackPrediction`
+     on the same verdict, so its carry is retired either way; accrue.js's
+     applyEnvelope answers the away/boot path, where a duplicate is a
+     retransmit of a grant already credited and re-applying it would re-pay the
+     receipt. `applyIntentEnvelope` had no compensator at all — and it is the
+     applier every non-gold intent lands on (equip, enchant, recipe learn, the
+     activity switch, via legacy.js applyServerEnvelope {intent:true}).
+
+     RED WITHOUT THE FIX: (1) fails — G.gold stays at the optimistic 40 while
+     the server holds 100, which is the §6 sentence verbatim.
+
+     PRIVATE G throughout, never window.G. */
+  () => tryRun('M5 regression: a REFUSED intent still corrects the browser (SEC S1)', () => {
+    const A = window.HearthriseAccrual;
+    const M = window.HearthriseActivity;
+    assert(A && typeof A.resetFrameGate === 'function' && typeof A.getAppliedFrame === 'function'
+      && M && typeof M.applyIntentEnvelope === 'function',
+      'the frame gate and the intent applier must both be published');
+
+    /* An INTENT answer: no `away` receipt, because nothing was absent. A
+       REFUSAL is this same body at a version the server did not move. */
+    const intentAt = (version, gold) => ({
+      ok: true, verb: 'set_activity', version, now: '2026-09-22T12:00:00Z',
+      state: { slot: 0, gold, gems: 0, hp: 40, max_hp: 40,
+        accrued_to: '2026-09-22T12:00:00Z', active_kind: 'gather', active_id: 'copper_rock' },
+      skills: { mining: { xp: 10 } }, inventory: { copper_ore: 1 },
+      equipment: {}, bank: {}, progress: [],
+    });
+
+    const wasAcked = A.isReplacementAcknowledged();
+    try {
+      A.acknowledgeReplacement(true);
+      A.resetFrameGate();
+      const G = { gold: 0, gems: 0, skills: {}, inventory: {} };
+      assert(M.applyIntentEnvelope(G, intentAt(77, 100)) && G.gold === 100
+        && A.getAppliedFrame() === 77,
+        'the first intent envelope (77) did not land — the precondition is broken. gold='
+        + G.gold + ' floor=' + A.getAppliedFrame());
+
+      /* (1) THE PLAYER TAPS. The client predicts the spend; the server refuses
+             and answers with its own unchanged truth, at the unchanged version. */
+      G.gold = 40;
+      const corrected = M.applyIntentEnvelope(G, intentAt(77, 100));
+      assert(G.gold === 100,
+        'THE BROWSER SAYS ' + G.gold + ' AND THE SERVER HOLDS 100. A refusal arrives at the '
+        + 'floor (it wrote nothing, so the version did not move) and is the only thing that '
+        + 'retires the prediction. Dropping it is CLAUDE.md §6 — the P1 class this gate exists '
+        + 'to kill, arriving through the gate itself.');
+      assert(corrected !== null,
+        'the correction returned null, so applyServerEnvelope stops at `if(!written) return null` '
+        + '— no saveLocal, no refreshAll, and the stale number stays painted.');
+      assert(corrected.correction === true,
+        'the receipt does not name itself a correction, so no diagnostic can tell a re-statement '
+        + 'of the floor from a step forward');
+
+      /* (2) AND IT ADVANCES NOTHING. commitFrame is raise-only, so re-applying
+             an equal frame cannot move the floor past a frame nobody sent. */
+      assert(A.getAppliedFrame() === 77,
+        'the duplicate RAISED the floor to ' + A.getAppliedFrame() + '. A correction re-states '
+        + 'the frame behind the floor; it is not a step forward.');
+
+      /* (3) A REORDER IS STILL DROPPED WHOLE. That one would be a real rewind —
+             the server has already moved past the state it carries. */
+      G.gold = 40;
+      assert(M.applyIntentEnvelope(G, intentAt(70, 1)) === null && G.gold === 40,
+        'a REORDERED intent envelope (70 < 77) was applied. The correction arm is for an EQUAL '
+        + 'frame only. G.gold=' + G.gold);
+      assert(A.getAppliedFrame() === 77, 'a reordered intent envelope moved the floor');
+    } finally {
+      A.acknowledgeReplacement(wasAcked);
+      A.resetFrameGate();
+    }
+  }),
 ];

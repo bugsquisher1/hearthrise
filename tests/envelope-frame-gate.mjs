@@ -26,9 +26,19 @@
 // the 2026-09-13 "browser says X, server says Y" class (CLAUDE.md §6), which is
 // a P1 CLASS-KILL and not a bug.
 //
-// ── THE FIVE CLAIMS ─────────────────────────────────────────────────────────
+// ── THE CLAIMS ─────────────────────────────────────────────────────────
 //   F1  REORDER      a frame below the floor is refused, and NOTHING is written
-//   F2  DUPLICATE    a frame EQUAL to the floor is refused. Strictly greater.
+//   F2  DUPLICATE    a frame EQUAL to the floor never ADVANCES the gate:
+//                    `isEnvelopeApplicable` is false and the floor stays put.
+//                    Strictly greater, for everything that is a step forward.
+//   F6  CORRECTION   …and yet the INTENT applier RE-APPLIES that equal frame,
+//                    absolutely, because a REFUSAL arrives there: the server
+//                    wrote nothing, so `player_state.version` did not move, and
+//                    dropping it leaves the caller's optimistic write standing
+//                    over a server that never took it (CLAUDE.md §6). A REORDER
+//                    is still dropped, the floor is still not raised, and the
+//                    collect RECEIPT is not re-hung — state replays clean, an
+//                    event does not. SEC_PUSH_CHANNEL_M5_2026-09-23.md S1.
 //   F3  WHOLE FRAME  a refused frame writes no key at all — no per-key merge,
 //                    no "apply the newer fields". This is the claim a naive
 //                    fix gets wrong, and the one that matters most: a per-key
@@ -54,6 +64,11 @@
 //                      the top, and nothing between it and applyEnvelopeState
 //                      writes into G. A per-key merge bolted on below the gate
 //                      passes every behavioural claim about the RETURN value.
+//   S6  CORRECTION     activity.js's gate lets a `duplicate` through and still
+//                      refuses a `reorder`, and its collect receipt is
+//                      suppressed on that arm. Dropping both again is the
+//                      SEC S1 defect, and it is invisible to every claim
+//                      about the RETURN value.
 //   S3  SHAPE ≠ FRAME  classifyAccrueResponse keeps classifying on SHAPE. If
 //                      the frame gate lived there, a duplicate would classify
 //                      `malformed` and three of them would trip
@@ -62,22 +77,23 @@
 //                      permanent.
 //
 // ── WHAT THE PROOF IS, IN TWO HALVES, STATED SO NEITHER IS OVERSOLD ─────────
-// F1-F5 are BEHAVIOURAL: they drive the real, shipped, unmutated modules and
-// they are what says the code is right today. S1-S5 are SOURCE claims about the
-// tree, and they are what the mutations bite — because a mutated module graph
-// cannot be imported without WRITING to the working tree, and a guard that
-// edits the tree is a guard that can leave it edited. So:
+// The F claims are BEHAVIOURAL: they drive the real, shipped, unmutated modules
+// and they are what says the code is right today. The S claims are SOURCE claims
+// about the tree, and they are what the mutations bite — because a mutated
+// module graph cannot be imported without WRITING to the working tree, and a
+// guard that edits the tree is a guard that can leave it edited. So:
 //
-//   · a defect in the shipped code    -> caught by F1-F5 (the plain run)
-//   · a defect re-introduced later    -> caught by S1-S5 (the plain run)
+//   · a defect in the shipped code    -> caught by the F claims (the plain run)
+//   · a defect re-introduced later    -> caught by the S claims (the plain run)
 //   · "can this guard go red at all"  -> --selftest, which patches the source
 //                                        text of the real files in memory and
 //                                        requires each named claim to fire.
 //
-// The honest limitation: --selftest proves the SOURCE claims bite. It does not
-// re-execute F1-F5 against a mutated module, and it does not pretend to. That
-// is why S4 and S5 exist at all — they pin, in the tree, the two behaviours a
-// source mutation can reach but a re-import cannot.
+// The honest limitation: --selftest proves the SOURCE claims bite. It re-runs a
+// behavioural claim only where a MUTANT of the shipped function exists
+// (`mutantGate`, `mutantIntent`), and it does not pretend otherwise. That is why
+// S4, S5 and S6 exist at all — they pin, in the tree, the behaviours a source
+// mutation can reach but a re-import cannot.
 //
 // Credential-free, database-free, no browser, milliseconds. It imports the REAL
 // modules the browser imports (resolving accrue.js's own `?v=`), never a copy.
@@ -130,9 +146,21 @@ const MUTATIONS = {
     why: 'the third applier writes the envelope but never raises the floor, so '
        + 'the floor sits below the state actually in G',
     file: 'src/net/activity.js',
-    from: '  commitFrame(env.version);\n  /* THE CONSTRUCTED envelope goes back to the caller',
-    to:   '  /* THE CONSTRUCTED envelope goes back to the caller',
+    from: '  commitFrame(env.version);\n  /* Which arm wrote this,',
+    to:   '  /* Which arm wrote this,',
     kills: ['S2'],
+  },
+  duplicate_dropped: {
+    why: 'the intent applier goes back to dropping a DUPLICATE as well as a '
+       + 'reorder — the shape that left a REFUSAL uncorrected on screen '
+       + '(SEC_PUSH_CHANNEL_M5_2026-09-23.md S1)',
+    file: 'src/net/activity.js',
+    from: "  if (!frame.apply && frame.verdict !== 'duplicate') return null;",
+    to:   '  if (!frame.apply) return null;',
+    kills: ['S6', 'F6'],
+    /* ALSO behavioural: the mutant re-runs F6 against a gate broken the same
+       way, which is what says F6's assertions are not vacuous. */
+    behaviour: true,
   },
   classify_gates_on_frame: {
     why: 'the frame gate is moved INTO classifyAccrueResponse, so a duplicate '
@@ -198,6 +226,21 @@ function mutantGate(A, id) {
   return A;
 }
 
+/* The same device for the THIRD applier, which lives in its own module and is
+   reached through its own export. The mutant re-imposes the gate this lane
+   removed — `!frame.apply` alone, dropping duplicate and reorder together —
+   over the real applier, so F6 is scored against code broken exactly the way
+   the shipped code was broken before the fix. */
+function mutantIntent(M, A, id) {
+  if (id !== 'duplicate_dropped') return M;
+  return { ...M, applyIntentEnvelope: (G, body) => {
+    const env = M.envelopeOf(body);
+    if (!G || typeof G !== 'object' || !env) return null;
+    if (!A.classifyFrame(env.version).apply) return null;
+    return M.applyIntentEnvelope(G, body);
+  } };
+}
+
 /* ── THE ENVELOPE FIXTURES ──────────────────────────────────────────────────
    Constructed to the SHAPE the client gate requires (ok/accrued/state/skills/
    inventory/away/version), so every refusal below is the FRAME rule biting and
@@ -212,6 +255,24 @@ const envelopeAt = (version, gold, extra) => ({
   away: { ms: 10000, kind: 'gather', credited: true },
   ...(extra || {}),
 });
+
+/* An INTENT answer, which is a different body from an accrue envelope: no
+   `away` receipt (nothing was absent), and `envelopeOf` in activity.js requires
+   only state/skills/inventory + a finite version. A REFUSAL is this same shape
+   at a version the server did not move — that is the whole of the S1 repro. */
+const intentAt = (version, gold) => ({
+  ok: true, accrued: true, version, now: '2026-09-22T12:00:00Z',
+  state: { gold, hp: 40, max_hp: 40, accrued_to: '2026-09-22T12:00:00Z',
+    active_kind: 'gather', active_id: 'copper_rock', slot: 0 },
+  skills: { mining: { xp: gold * 2 } },
+  inventory: { copper_ore: 1 },
+  equipment: {}, bank: {}, progress: [],
+});
+
+/* activity.js is imported by the browser through its own `?v=`, and this guard
+   imports the REAL module and never a copy — so the query is READ from the tree
+   rather than written into this file, where it would rot at the next bump. */
+let ACT_V = '';
 
 async function loadAccrue(patches) {
   const raw = await readFile(new URL('src/net/accrue.js', ROOT), 'utf8');
@@ -263,6 +324,12 @@ export async function envelopeFrameGateGuard(mutation) {
   let goldSrc = await sourceOf('src/net/gold.js');
   let actSrc = await sourceOf('src/net/activity.js');
   let accSrc = await sourceOf('src/net/accrue.js');
+  /* Resolved from the tree, not hard-coded: activity.js's own imports carry the
+     build's `?v=`, and F6 must import the module the BROWSER imports. */
+  {
+    const m = actSrc.match(/accrue\.js\?v=(\d+)/);
+    ACT_V = m ? `?v=${m[1]}` : '';
+  }
   if (mut) {
     const target = { 'src/net/gold.js': () => goldSrc, 'src/net/activity.js': () => actSrc,
       'src/net/accrue.js': () => accSrc }[mut.file];
@@ -294,8 +361,29 @@ export async function envelopeFrameGateGuard(mutation) {
   ok(/commitFrame\(env\.version\)/.test(actSrc), 'S2',
     'activity.js applyIntentEnvelope does not commit the frame it applied — the floor '
     + 'would sit BELOW the state in G, after which an older frame reads as fresh.');
-  ok(/const frame = classifyFrame\(env\.version\);\n  if \(!frame\.apply\) return null;/.test(actSrc), 'S2',
+  ok(/const frame = classifyFrame\(env\.version\);\n  if \(!frame\.apply && frame\.verdict !== 'duplicate'\) return null;/.test(actSrc), 'S2',
     'activity.js applyIntentEnvelope does not GATE on the frame it is about to write.');
+
+  /* S6 — THE CORRECTION ARM, IN THE TREE. The behavioural claim F6 drives the
+     applier and catches the drop on the path it drives; this pins the two
+     halves a future edit is most likely to get wrong separately. The gate must
+     let `duplicate` THROUGH (S1: a refusal arrives at the floor and is the only
+     thing that retires the caller's optimistic write) and must still refuse a
+     `reorder` (that one WOULD be a rewind) — and the collect receipt must be
+     suppressed on the duplicate arm, because legacy.js credits away kills from
+     `written.paidReceipt` into the Muster's SHARED meter and a retransmit that
+     re-hung it would pay a shared surface twice. */
+  ok(/frame\.verdict !== 'duplicate'/.test(actSrc), 'S6',
+    "activity.js applyIntentEnvelope drops a DUPLICATE again. A refusal writes nothing "
+    + 'server-side, so its correcting envelope arrives at `=== floor`; dropping it leaves the '
+    + "caller's optimistic write on screen over a server that never took it (CLAUDE.md §6).");
+  ok(/const duplicate = frame\.verdict === 'duplicate';/.test(actSrc), 'S6',
+    'activity.js no longer names the duplicate arm, so nothing downstream can suppress the '
+    + 'non-idempotent half of the apply.');
+  ok(/const collected = duplicate \? null : collectedOf\(body\);/.test(actSrc), 'S6',
+    'activity.js re-hangs the COLLECT RECEIPT on a duplicate. `written.paidReceipt` is replayed '
+    + "by legacy.js's creditServerAwayKills into updateDaily('kill_any') — the Muster's SHARED "
+    + 'world-event meter — so a retransmit would contribute to a shared surface twice.');
 
   /* S4 — STRICTLY GREATER, in the tree. `>=` is the regression that looks
      right: it reads as "apply anything at least as new", which is exactly the
@@ -425,6 +513,56 @@ export async function envelopeFrameGateGuard(mutation) {
     ok(getAppliedFrame() === 50, 'F5', 'a garbage frame moved the floor.');
     ok(isEnvelopeApplicable(envelopeAt(51, 5)) === true, 'F5',
       'the gate latched shut after a garbage frame — the real frame behind it was refused.');
+  }
+
+  /* ── F6 THE REFUSAL CORRECTS ───────────────────────────────────────────────
+     SEC_PUSH_CHANNEL_M5_2026-09-23.md §1.1, verbatim, against the REAL intent
+     applier. A refused intent writes nothing server-side, so its envelope
+     arrives at the floor; the client is carrying an optimistic value on top of
+     the last applied frame, and this envelope is the only thing that will ever
+     take it off. Driven through activity.js and not through a re-implementation
+     — the defect was in the applier, so the applier is what is driven. */
+  {
+    const M = mutantIntent(await import(mod('src/net/activity.js' + ACT_V)), A, mutation);
+    A.resetFrameGate();
+    const G = {};
+    const wrote = M.applyIntentEnvelope(G, intentAt(77, 100));
+    ok(!!wrote && G.gold === 100 && A.getAppliedFrame() === 77, 'F6',
+      'the first intent envelope (77) did not land — the precondition is broken. gold='
+      + G.gold + ' floor=' + A.getAppliedFrame());
+
+    G.gold = 40;                                   // the player taps; the client predicts
+    const corrected = M.applyIntentEnvelope(G, intentAt(77, 100));   // the server REFUSES
+    ok(G.gold === 100, 'F6',
+      'A REFUSAL AT THE FLOOR DID NOT CORRECT THE CLIENT. The browser shows ' + G.gold
+      + ' and the server holds 100 — CLAUDE.md §6, the class this gate exists to kill. '
+      + 'A duplicate must RE-APPLY in the intent applier; only a reorder is dropped.');
+    ok(corrected !== null, 'F6',
+      'the correcting envelope returned null, so legacy.js’s applyServerEnvelope stops at '
+      + '`if(!written) return null` — no saveLocal, no refreshAll, and the stale number stays '
+      + 'painted even if G were right.');
+    ok(corrected && corrected.correction === true, 'F6',
+      'the receipt does not name itself a correction, so nothing downstream can tell a '
+      + 're-statement of the floor from a step forward.');
+    ok(A.getAppliedFrame() === 77, 'F6',
+      'the duplicate RAISED the floor (now ' + A.getAppliedFrame() + '). commitFrame is '
+      + 'raise-only for exactly this reason; a duplicate re-applies and advances nothing.');
+
+    // …and the receipt half is NOT replayed. A shared surface is paid once.
+    ok(!(corrected && corrected.paidReceipt), 'F6',
+      'a duplicate re-hung the collect receipt. legacy.js replays `paidReceipt` into '
+      + "updateDaily('kill_any') — the Muster's SHARED world-event meter — so a retransmit "
+      + 'would contribute to another player-visible surface twice (CLAUDE.md §1).');
+
+    // A REORDER is still dropped whole: that one really would be a rewind.
+    G.gold = 40;
+    const older = M.applyIntentEnvelope(G, intentAt(70, 1));
+    ok(older === null && G.gold === 40, 'F6',
+      'a REORDERED intent envelope (70 < 77) was applied. The correction arm is for an EQUAL '
+      + 'frame only — a lower one carries state the server has already moved past. G.gold='
+      + G.gold);
+    ok(A.getAppliedFrame() === 77, 'F6', 'a reordered intent envelope moved the floor.');
+    A.resetFrameGate();
   }
 
   // ── S3 behavioural half — a duplicate is not an outage ────────────────────

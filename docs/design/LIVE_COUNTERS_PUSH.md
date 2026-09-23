@@ -260,10 +260,25 @@ this document restates it so the transport cannot drift from it.
 >   allocated by the process that produced the frame. For tick frames that is the
 >   shard; for intent-driven frames it is derived from `player_state.version`, so
 >   the two producers cannot collide (see below).
-> - **A client applies a frame only if `frame > lastAppliedFrame`.** Strictly
->   greater. Equal is a duplicate and is dropped; lower is a reorder and is
->   dropped. There is no merge, no "apply the newer fields", no per-key
+> - **A frame ADVANCES the gate only if `frame > lastAppliedFrame`.** Strictly
+>   greater. Equal is a duplicate and lower is a reorder, and neither ever raises
+>   the floor. There is no merge, no "apply the newer fields", no per-key
 >   comparison — the whole frame is applied or the whole frame is dropped.
+> - **A duplicate is nonetheless RE-APPLIED by the intent applier, absolutely**
+>   (amended 2026-09-23, `SEC_PUSH_CHANNEL_M5_2026-09-23.md` S1). "Equal is
+>   dropped" is sound for a *stateless* receiver; this client is not one. It
+>   carries optimistic writes on top of the applied frame, and the envelope that
+>   retires them is a **refusal** — which writes nothing server-side, so
+>   `player_state.version` does not move and the correction arrives at exactly
+>   `lastAppliedFrame`. Dropping it leaves the browser showing a number the
+>   server does not hold, which is `CLAUDE.md` §6 and a P1 class-kill.
+>   Re-applying cannot be a rewind: the server never rewrites the content of a
+>   version it has already stamped, so an equal frame is byte-for-byte the state
+>   behind the floor. **A reorder is still dropped whole** — that one *would* be
+>   a rewind. What a duplicate may not do is replay anything non-idempotent: it
+>   does not raise the floor and it does not re-hang a collect receipt, because a
+>   receipt is replayed into `updateDaily('kill_any')` and that is a shared
+>   surface.
 > - A dropped frame is not a hole to be patched: a `delta` frame always states
 >   whole top-level envelope keys, so the next frame that touches a key makes the
 >   client whole again. A client that wants certainty sends `hello` again and gets
@@ -302,9 +317,9 @@ protocol in §7 of the parent document.
 |---|---|---|---|
 | **Missed frame** (disconnected, message dropped, Realtime outage) | frames 10, 11, **—**, 13 | §7.2 **key-level replaces**: frame 13 states *whole* top-level keys, so every key frame 12 would have moved is restated by the next frame that touches it. And the poll is still there — `SETTLE_INTERVAL_MS` is untouched by this lane. | Broadcast is fire-and-forget: a disconnected client gets **no replay**, and it does not need one. A path-addressed JSON patch would need one, and that is exactly why §7.2 forbids patches. |
 | **Reorder** (frames arrive 13, 12) | 12 after 13 | §7.1 **strictly greater**: 12 ≤ `lastAppliedFrame` = 13, so the whole frame is dropped. | The state at 13 is newer by definition — `version` is bumped under `hr_apply`'s per-character row lock, so frame order *is* write order. Applying 12 would be a **silent rewind**, and it is the bug the gate exists to make impossible. |
-| **Duplicate** (the same frame twice) | 13, 13 | §7.1 **equal is dropped**. | Idempotent. Note this is a **tightening** of today's gold rule, which accepts equality (`if (env.version < lastVersion)`); §7 records why the tightening is correct and what it costs. |
+| **Duplicate** (the same frame twice) | 13, 13 | §7.1 **equal never advances the floor** — and in the INTENT applier it is nonetheless **re-applied, absolutely**, because a refusal arrives at exactly the floor (`SEC_PUSH_CHANNEL_M5_2026-09-23.md` S1). | Idempotent in both directions: the server never rewrites a version it has already stamped, so re-applying an equal frame restores the server's own numbers and cannot rewind. Dropping it was the §6 defect — the browser kept the optimistic write the server had just refused. The non-idempotent half (the collect receipt, which legacy.js replays into a **shared** meter) is suppressed on that arm. |
 | **Reconnect** (tab wake, network flap, token refresh) | an unknown gap | `hello` → a **full envelope** at the current version. In this codebase that is the existing `hr-accrue` / `hr_state_of` round trip, not a new message. `lastAppliedFrame` jumps to the envelope's version and every in-flight frame below it is dropped by the same rule. | The re-read is the reconciler and the push is the nudge — never the reverse. A Realtime outage degrades M5 to exactly today's behaviour, which is a working game. |
-| **A frame arrives for the wrong character** (slot switch, account switch) | a version from another counter | `frame` is **per character**; the ledger is reset on slot change (`resetFrameGate()`, called from `resetGold()`). | Two characters' `version` counters are unrelated integers. A shared ledger across a slot switch would drop every frame of the new character until its version passed the old one's — so the reset is load-bearing, not hygiene. |
+| **A frame arrives for the wrong character** (slot switch, account switch) | a version from another counter | `frame` is **per character**; the ledger is reset on every identity change (`resetFrameGate()`, called from `resetAccrualIdentity()` — the hook `auth.js`'s sign-out and `multi-character.js`'s slot switch both already run; `resetGold()` also calls it, for the suite). | Two characters' `version` counters are unrelated integers. A shared ledger across a slot switch would drop every frame of the new character until its version passed the old one's — so the reset is load-bearing, not hygiene. |
 | **The push layer itself fails** (Realtime down, `realtime.send` throws) | no frames at all | The emitter is wrapped so that **a push failure can never fail the payment**. `hr_apply` has already committed the value; the frame is a copy. | This is the single non-negotiable property of hanging anything off the money path. §6 spells out the exception handling. |
 
 ---
@@ -353,15 +368,40 @@ appliers commit through it: `applyEnvelope` (accrue), `applyGoldEnvelope` (gold)
 and `applyIntentEnvelope` (activity).
 
 **The one behaviour change, stated plainly rather than buried:** gold's rule
-accepted an **equal** version; the frame rule drops it. An equal version can only
-mean the client already applied that exact frame, so nothing is lost — but the
-prediction the answer belongs to must still be accounted for, so the duplicate
-path rolls the prediction back exactly as the stale path does. `gold.js`'s own
-comment is the argument: the carry is removed because the gesture has now been
-answered, and the envelope already in hand is at least as new.
+accepted an **equal** version; the frame rule never lets one *advance* the floor.
+Each applier then answers for its own outstanding prediction on that verdict:
+`gold.js` rolls the carry back (its own comment is the argument — the carry is
+removed because the gesture has now been answered, and the envelope already in
+hand is at least as new), and `activity.js` **re-applies the frame**.
 
-Guards: `tests/envelope-frame-gate.mjs` (+ `--selftest`) and an in-page
-regression in `src/features/smoke/record-seam-and-hydration.js`.
+**The correction arm (amended 2026-09-23, `SEC_PUSH_CHANNEL_M5_2026-09-23.md`
+S1 — HIGH, CONFIRMED).** The first revision of this lane dropped an equal frame
+in all three appliers, on the argument that equality can only mean the client
+already applied that exact frame. That is true of what was *applied* and false
+of what is *on screen*. The client carries optimistic writes, and the envelope
+that retires them is a **REFUSAL** — which writes nothing server-side, so
+`player_state.version` does not move and the correction arrives at exactly
+`lastAppliedFrame`. `applyGoldEnvelope` survived this because it compensates;
+`applyIntentEnvelope` had no compensator at all and returned `null` before
+writing a key, leaving the swap the server had just refused standing on screen,
+spendable. That is `CLAUDE.md` §6 — the class the gate exists to kill — reached
+through the gate itself, on the path every non-gold intent takes (equip,
+enchant, recipe learn, the activity switch).
+
+So: **in `applyIntentEnvelope` a `duplicate` re-applies, absolutely; a `reorder`
+is still dropped whole.** Re-applying an equal frame cannot be a rewind — the
+server never rewrites the content of a version it has already stamped. Two
+things a duplicate may not do, because a *retransmit* reaches the same branch:
+it does not raise the floor (`commitFrame` is raise-only, so the call is already
+a no-op), and it does not re-hang the **collect receipt** — `legacy.js` replays
+`written.paidReceipt` into `updateDaily('kill_any')`, the Muster's **shared**
+world-event meter, and paying that twice would put a forged contribution on a
+shared surface (`CLAUDE.md` §1). State is absolute and replays clean; an event
+does not.
+
+Guards: `tests/envelope-frame-gate.mjs` (+ `--selftest`; claims F6/S6 and the
+`duplicate_dropped` mutation) and two in-page regressions in
+`src/features/smoke/record-seam-and-hydration.js`.
 
 ---
 

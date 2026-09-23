@@ -300,13 +300,26 @@ export const ACCRUE_OUTCOMES = [
    which CLAUDE.md §6 makes a P1 class-kill, arriving at the cadence of the
    world tick instead of at the cadence of a reload.
 
-   THE RULE, VERBATIM FROM §7.1: a client applies a frame only if
-   `frame > lastAppliedFrame`. STRICTLY greater. Equal is a duplicate and is
-   dropped; lower is a reorder and is dropped. There is no merge, no "apply the
-   newer fields", no per-key comparison — THE WHOLE FRAME IS APPLIED OR THE
+   THE RULE, VERBATIM FROM §7.1: a frame ADVANCES the gate only if
+   `frame > lastAppliedFrame`. STRICTLY greater. Equal is a duplicate and lower
+   is a reorder, and neither ever raises the floor. There is no merge, no "apply
+   the newer fields", no per-key comparison — THE WHOLE FRAME IS APPLIED OR THE
    WHOLE FRAME IS DROPPED. A per-key merge is the failure this gate exists to
    forbid: it produces a state the server never held, assembled from two frames,
    and nothing downstream can tell that it is a fiction.
+
+   ⚠ ADVANCING AND APPLYING ARE DIFFERENT QUESTIONS (amended 2026-09-23,
+   SEC_PUSH_CHANNEL_M5_2026-09-23.md S1). `classifyFrame().apply` answers the
+   first: may this frame move the floor? A DUPLICATE may not, ever. Whether its
+   STATE may be written is the applier's question, and the three answer it
+   differently because they receive different traffic: applyIntentEnvelope
+   re-applies a duplicate (a REFUSAL arrives at exactly the floor — the server
+   wrote nothing, so the version did not move — and re-stating the truth is the
+   only thing that retires the caller's optimistic write); applyGoldEnvelope
+   rolls its prediction back instead; applyEnvelope, the away/boot path, drops
+   it, because a duplicate there is a RETRANSMIT of a grant already credited and
+   re-applying would re-pay the receipt. Each of those is stated at its own
+   applier. A REORDER is dropped by all three.
 
    `frame` IS `player_state.version`, and the client does not get a second
    counter. hr_apply bumps it on every accepted write, from either producer (the

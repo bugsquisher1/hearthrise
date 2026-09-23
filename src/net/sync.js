@@ -88,7 +88,7 @@ let buffer = [];
 let flushTimer = null;
 let concurrencyTimer = null;
 let claimTimer = null;
-// b551 — setupSync() re-runs on every auth event (see the b461 note below), and
+// setupSync() re-runs on every auth event (see the SYNC-ONCE note below), and
 // these four one-shots were unlatched: each re-run armed a second timer on top
 // of whatever the previous run already scheduled, so boot sent duplicate
 // session_claims writes/reads. Held in module scope and cleared on re-run, same

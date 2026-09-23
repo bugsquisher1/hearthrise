@@ -908,58 +908,40 @@ export default [
       'THE BUG: re-running setupSync must not stack another forced-save listener pair');
   }),
 
-  /* SYNC-ONCE-2 (b551): setupSync() runs TWICE at boot (auth.js's own
-     enableLiveSync() call plus onAuthStateChange's INITIAL_SESSION 'persist'),
-     and b461's SYNC-ONCE latch only covers the DOM listeners + claimTimer
-     interval — it left FOUR one-shot setTimeouts unlatched (checkConcurrentDevice
-     @4s, claimSession @1.5s, checkSessionClaim @6s, flush @1s), so every boot
-     sent session_claims a duplicate POST upsert and a duplicate GET. No player
+  /* SYNC-ONCE-2: setupSync() runs TWICE at boot (auth.js's own enableLiveSync()
+     call plus onAuthStateChange's INITIAL_SESSION 'persist'), and the existing
+     SYNC-ONCE latch above only covers the DOM listeners + claimTimer interval —
+     it left FOUR one-shot setTimeouts unlatched (checkConcurrentDevice @4s,
+     claimSession @1.5s, checkSessionClaim @6s, flush @1s), so every boot sent
+     session_claims a duplicate POST upsert and a duplicate GET. No player
      impact (both writes are idempotent upserts to the same row), but it doubles
      load on the claim table for nothing. Drive the REAL claimSession/
      checkSessionClaim paths through a spied fetch and prove exactly one of each
      survives two setupSync() calls in the same tick. */
-  () => tryRunAsync('SYNC-ONCE-2 (b551): the claim/flush one-shots fire once per page, however often setupSync re-runs', async () => {
+  () => tryRunAsync('SYNC-ONCE-2: the claim/flush one-shots fire once per page, however often setupSync re-runs', async () => {
     const S = window.HearthriseSync;
-    assert(S && typeof S.setupSync === 'function', 'setupSync must be exposed');
-    assert(typeof S.__withConfig === 'function', '__withConfig must be exposed');
+    assert(S && typeof S.setupSync === 'function' && typeof S.__withConfig === 'function', 'setupSync/__withConfig must be exposed');
     const realFetch = window.fetch;
-    const claimEndpoint = 'https://example.invalid/rest/v1/session_claims';
     const calls = { post: 0, get: 0 };
-    const urls = [];
     S.resetAuthGate();
     try {
-      window.fetch = function (u, init) {
-        const url = String((u && u.url) || u || '');
-        const method = (init && init.method) || 'GET';
-        urls.push(method + ' ' + url);
-        if (/\/session_claims/.test(url) && method === 'POST') {
-          calls.post++;
-          return Promise.resolve(new Response('', { status: 201 }));
-        }
-        if (/\/session_claims/.test(url) && method === 'GET') {
-          calls.get++;
-          return Promise.resolve(new Response('[]', { status: 200 }));
-        }
-        return Promise.resolve(new Response('{"ok":true}', { status: 200 }));
+      window.fetch = (u, init) => {
+        const url = String((u && u.url) || u || ''), method = (init && init.method) || 'GET';
+        if (/\/session_claims/.test(url)) { if (method === 'POST') calls.post++; else calls.get++; }
+        return Promise.resolve(new Response(method === 'GET' ? '[]' : '', { status: method === 'POST' ? 201 : 200 }));
       };
       await S.__withConfig({
         endpoint: 'https://example.invalid/rest/v1/game_events',
         snapshotEndpoint: 'https://example.invalid/rest/v1/game_saves',
-        claimEndpoint,
+        claimEndpoint: 'https://example.invalid/rest/v1/session_claims',
         apiKey: 'anon', userId: () => 'u1', authToken: () => 'tok',
-        onSyncFailure: () => {}, onSyncRecovered: () => {}, onAuthExpired: () => {},
       }, async () => {
         S.setupSync(); S.setupSync();
         await new Promise((r) => setTimeout(r, 1600));
-        assert(calls.post === 1,
-          'THE BUG: two setupSync() runs must not double the claimSession POST, saw ' + calls.post + ': ' + urls.join(', '));
+        assert(calls.post === 1, 'THE BUG: two setupSync() runs must not double the claimSession POST, saw ' + calls.post);
         await new Promise((r) => setTimeout(r, 4500));   // to ~6.1s total
-        assert(calls.get === 1,
-          'THE BUG: two setupSync() runs must not double the checkSessionClaim GET, saw ' + calls.get + ': ' + urls.join(', '));
-        // Tear the recurring timers this test armed back down before the config
-        // (and the spied fetch) go away — claimEndpoint: null clears
-        // concurrencyTimer/claimTimer/the one-shots without re-arming them.
-        S.setupSync({ claimEndpoint: null });
+        assert(calls.get === 1, 'THE BUG: two setupSync() runs must not double the checkSessionClaim GET, saw ' + calls.get);
+        S.setupSync({ claimEndpoint: null });   // tear the timers back down before fetch/config are restored
       });
     } finally {
       window.fetch = realFetch;

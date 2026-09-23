@@ -3111,3 +3111,24 @@ W1 still puts the earliest possible flip at **2026-09-27**. None of it blocks th
    and this file is that next patch — it earns the exception (14 anchored lines, an anchor
    that raises rather than no-ops, a self-check that grades the installed body), but the
    exception does not renew itself a sixth time.
+
+---
+
+# Coordinator measurement — CONDITION 8b on the shipped seam (2026-09-23, 12:17–12:18 UTC, quiet hour)
+
+`2026-09-23-frame-emit-from-apply.sql` §6, executed as one `do` block ending in `raise exception`
+(everything rolled back: the QA character's row lock, the 100 `realtime.send` rows, the wrapper's
+sends). QA account, slot 2. `frame_push` read back **false** inside the block. Load in the hour:
+12 accepted writes (0.003/s).
+
+| run (UTC) | ARMED p50 | ARMED p95 | ARMED p99 | ARMED max | WRAPPER p95 | **TOTAL p95 (= WRAPPER + ARMED)** | hr_state_of (removed control) p95 | payload max |
+|---|---|---|---|---|---|---|---|---|
+| 12:17:50 | 0.358 ms | 0.410 ms | 0.463 ms | 2.578 ms | 0.041 ms | **0.451 ms** | 7.063 ms | 2,208 B |
+| 12:17:56 | 0.364 ms | 0.424 ms | 0.514 ms | 2.390 ms | 0.041 ms | **0.465 ms** | 6.936 ms | 2,208 B |
+| 12:18:02 | 0.356 ms | 0.469 ms | 0.525 ms | 2.404 ms | 0.044 ms | **0.513 ms** | 6.839 ms | 2,208 B |
+
+Against the lines: Security's ≤ 10 ms — **met by a factor of ~20**; Reliability's scale-table item 1
+(≤ 0.9 ms) — **met**. The removed control (`hr_state_of` re-projection, 6.8–7.1 ms here) is
+reported separately and is no longer inside the lock. The three PEAK-hour samples (22:00 UTC) are
+still owed before 8b's latency half is closed; proof 6 (the documents restated from these numbers)
+is Security's F9; W1 (2026-09-27), W2 and W3 are Reliability's. The flip remains off.

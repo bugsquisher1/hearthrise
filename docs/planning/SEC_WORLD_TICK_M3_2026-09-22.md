@@ -2256,3 +2256,16 @@ Executed exactly as written above; every read through the read-only management e
 | first shadow window | 15:35:28.847 → 15:36:57.647 (recovery ended 15:36:50) | would_kills 0, would_deaths 0, would_ate 0, would_gold 0, would_hp 1 — the sim resumed the fight after recovery and took the character from 4 hp toward the next knockout, exactly the Recovery Rule path with no food |
 
 Standing rules from here: the QA account's last-played slot is now slot 1, so **every QA return must switch to slot 2 from the home screen without playing Hero 2** — one attended kill on slot 1 breaks fence (i) and the measurement restarts. 8a–8e run at T+1 h (16:38 UTC) and at each check-in; 8e `channel_not_driven` would mean the deployed edge lacks `tick-combat.js` (c33bfb86 carries it).
+
+## Coordinator record — T+1 h reads (16:40 UTC) and a measurement defect found in the trace
+
+| Read | Result | Verdict |
+|---|---|---|
+| (8a) shadow rows last hour | 40 (15:38:26 → 16:37:38) | pass |
+| (8b) tiling | 42 windows, 0 breaks | pass |
+| (8c) span-fenced pairing | empty — no combat accrue row exists for the cohort until the QA return | n/a yet |
+| (8d) outcomes 48 h | posted 6,522 / disabled 15; zero error, zero no_secret; tick-sourced ledger rows on the cohort 0 | pass |
+| (8e) outcome histogram last hour | posted 359 only; no `channel_not_driven`, no `channel_moved` | pass |
+| shadow trace, slot 1 | 42 windows: would_deaths 41, would_kills 52, would_gold 103, would_ate 0; would_hp 4 and would_recovering_until ≈ +31 min in EVERY window | **defect** |
+
+**Finding (Coordinator, 16:45 UTC).** The shadow re-fights every 90 s window from the REAL `player_state` (hp 4, recovery clock in the past) and knocks the character out again: one death per window, forty-one in an hour. A chained simulation would sit inside the recovery clock for ~20 windows after each knockout. Cause, from the code: `hr_tick_settle` §8 (settle-fence migration) journals the delta verbatim and chains only `shadow_accrued_to`; `tick.js` step (5) assembles every session from `hr_state_of`; nothing carries hp, `recovering_until`, `consec_falls`, the `fight` checkpoint, `ammo_carry`/`tool_carry` or the consumed inventory across fires, because player_state is (correctly) never written in shadow. `tick-shadow.js`'s `advance()` is the harness's carrier and says so — production has none. The real away settle is one pass with state carried, so 8c's EXACT fields (deaths, kills, hp, consec_falls) cannot agree; the M3 48 h clock cannot start on this shadow. Gather is affected in substance only through `tool_carry`. Not a Security finding against the arm: the tick paid nothing (8d), the fences hold, and the cohort stays armed so the fixed shadow can be compared against the same character. Fix dispatched as a class-kill lane (`lane/m3-shadow-state-chain`: the engine's own continuation state travels with the settle, stored on `hr_tick_ownership` beside the shadow mark, cleared with it on the armed branch, overlaid by the driver only while shadowed); it is a settle-body change and needs Security's GO before apply, then the edge deploy.

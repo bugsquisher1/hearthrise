@@ -18768,7 +18768,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
           /* R5: a completed payout retires any pending two-phase retry/notice. */
           if(window._goalRetry) delete window._goalRetry[_fk];
           if(window._goalSyncNotice) delete window._goalSyncNotice[_fk];
-          if(typeof window.notify === 'function') notify('Reward claimed: '+rewardSummary(reward), 'loot');
+          if(typeof window.notify === 'function') notify('Reward claimed: '+rewardSummary((GC.grantedReward && GC.grantedReward(res)) || reward), 'loot');
           if(typeof window.updateTopbar === 'function') window.updateTopbar();
           if(window.HearthriseEvents) window.HearthriseEvents.emit('questClaim', {goalId:goalId, isWeekly:isWeekly, reward:reward});
         } else if(res && res.error === 'already_claimed'){

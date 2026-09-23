@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-23",
- "replay_ms": 1324,
+ "replay_ms": 1826,
  "counts": {
   "tracked_names": 55,
   "entries": 53
@@ -86,6 +86,7 @@
     "pin"
    ],
    "touched_by": [
+    "2026-08-23-bounty.sql",
     "2026-08-29-bounty-first-contract.sql",
     "2026-09-04-bounty-difficulty-count.sql",
     "2026-09-12-bounty-accept-bh-clamp.sql"
@@ -135,8 +136,6 @@
     "2026-09-13-buff-segments.sql",
     "2026-09-13-buff-shape-code.sql",
     "2026-09-13-consumable-buffs.sql",
-    "2026-09-13-rejections-verb-map-2.sql",
-    "2026-09-13-rejections-verb-map-3.sql",
     "2026-09-14-hr-apply-restatement.sql",
     "2026-09-17-attended-xp-on-settle.sql",
     "2026-09-19-lifetime-facts-off-the-ledger.sql"
@@ -196,6 +195,7 @@
     "pin"
    ],
    "touched_by": [
+    "2026-08-27-bank-store.sql",
     "2026-09-03-intent-mismatch-class.sql",
     "2026-09-12-hr-rejections-journal.sql"
    ],
@@ -219,6 +219,7 @@
     "pin"
    ],
    "touched_by": [
+    "2026-08-26-marks-record.sql",
     "2026-09-03-intent-mismatch-class.sql"
    ],
    "live": {
@@ -263,6 +264,7 @@
     "pin"
    ],
    "touched_by": [
+    "2026-08-23-bounty.sql",
     "2026-09-11-bounty-hunter-xp.sql",
     "2026-09-19-lifetime-facts-off-the-ledger.sql"
    ],
@@ -287,6 +289,7 @@
     "pin"
    ],
    "touched_by": [
+    "2026-08-20-goal-reward-rpc-credit.sql",
     "2026-08-29-daily-task-eligibility.sql",
     "2026-09-04-goal-gold-retune.sql"
    ],
@@ -311,6 +314,7 @@
     "pin"
    ],
    "touched_by": [
+    "2026-08-23-modal-goal-claims.sql",
     "2026-09-03-intent-mismatch-class.sql"
    ],
    "live": {
@@ -334,7 +338,9 @@
     "pin"
    ],
    "touched_by": [
-    "2026-09-04-goal-gold-retune.sql"
+    "2026-08-20-goal-reward-rpc-credit.sql",
+    "2026-09-04-goal-gold-retune.sql",
+    "2026-09-06-quest-item-rewards.sql"
    ],
    "live": {
     "md5": "10372c9994729fabbff1ba492933f81e",
@@ -356,8 +362,8 @@
     "pin"
    ],
    "touched_by": [
-    "2026-09-06-companion-grant-hardening.sql",
-    "2026-09-07-companion-codes-severity.sql"
+    "2026-08-22-companion-grant.sql",
+    "2026-09-06-companion-grant-hardening.sql"
    ],
    "live": {
     "md5": "81b5a41b4861f284f25b0dc1046d941f",
@@ -380,9 +386,10 @@
     "pin"
    ],
    "touched_by": [
+    "2026-08-11-player-state.sql",
+    "2026-08-14-character-bootstrap.sql",
     "2026-09-04-auto-eat-at-creation.sql",
-    "2026-09-08-hero-slot-buy.sql",
-    "2026-09-09-import-apply-slot-entitlement.sql"
+    "2026-09-08-hero-slot-buy.sql"
    ],
    "live": {
     "md5": "134be3455bb53bebcb37200523054472",
@@ -405,6 +412,7 @@
     "pin"
    ],
    "touched_by": [
+    "2026-08-31-combat-xp-credit.sql",
     "2026-09-06-cadence-recovery-floor.sql",
     "2026-09-09-combat-xp-settle-first.sql",
     "2026-09-17-attended-xp-on-settle.sql"
@@ -430,6 +438,7 @@
     "pin"
    ],
    "touched_by": [
+    "2026-08-30-bounty-kill-credit.sql",
     "2026-09-01-kill-daily-credit.sql",
     "2026-09-02-renown-kill-faucet.sql",
     "2026-09-06-cadence-recovery-floor.sql"
@@ -500,6 +509,7 @@
     "pin"
    ],
    "touched_by": [
+    "2026-09-10-dungeon-settle.sql",
     "2026-09-12-dungeon-cooldown.sql"
    ],
    "live": {
@@ -522,6 +532,8 @@
     "pin"
    ],
    "touched_by": [
+    "2026-08-20-server-farming.sql",
+    "2026-08-22-server-farming-complete.sql",
     "2026-09-03-intent-mismatch-class.sql",
     "2026-09-12-hr-rejections-journal.sql"
    ],
@@ -545,6 +557,8 @@
     "pin"
    ],
    "touched_by": [
+    "2026-08-20-server-farming.sql",
+    "2026-08-22-server-farming-complete.sql",
     "2026-08-23-modal-goal-claims.sql",
     "2026-09-03-intent-mismatch-class.sql",
     "2026-09-07-farm-plant-lifetime-counter.sql",
@@ -570,6 +584,7 @@
     "pin"
    ],
    "touched_by": [
+    "2026-08-22-server-farming-complete.sql",
     "2026-09-03-intent-mismatch-class.sql",
     "2026-09-06-plot-tier-reachable.sql",
     "2026-09-12-hr-rejections-journal.sql"
@@ -594,6 +609,7 @@
     "pin"
    ],
    "touched_by": [
+    "2026-08-22-server-farming-complete.sql",
     "2026-09-03-intent-mismatch-class.sql",
     "2026-09-12-hr-rejections-journal.sql"
    ],
@@ -626,7 +642,7 @@
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "2026-09-23: hr_farm_water was RESTATED/INSTALLED on production by 2026-09-22-world-tick-derived-token.sql (APPLIED 2026-09-23T04:14:37Z, Security GO x3 / T-5.3 SATISFIED): the cron driver now posts the derived per-request token (HMAC over nonce+timestamp+body sha256) instead of the static bearer; live and replay agree; the edge half deployed at 3b083f46 04:15:06Z and the first fires read posted / 200 / zero plaintext on the wire."
+   "why": "2026-09-23: hr_frame_emit is NOT on production and is not expected to be: it is authored only by 2026-09-22-frame-push-channel.sql, which is STAGED (Security SEC_PUSH_CHANNEL_M5 re-verify: MIGRATION GO-WITH-CHANGES; the apply waits on R1/R2 landing and the condition-8 lock-hold measurement on a live database). Tracked because the chain authors it; live=null is the expected reading until that apply, after which --live --write must record it."
   },
   {
    "sig": "hr_intent_replay(p_uid uuid, p_slot integer, p_idem uuid, p_intent text)",
@@ -657,7 +673,7 @@
     "pin"
    ],
    "touched_by": [
-    "2026-09-07-drop-dead-server-objects.sql"
+    "2026-08-17-market-v2.sql"
    ],
    "live": {
     "md5": "b527321e54deb4699ba20155d9b1af30",
@@ -779,13 +795,13 @@
     "pin"
    ],
    "touched_by": [
+    "2026-08-11-player-state.sql",
     "2026-09-03-intent-mismatch-class.sql",
     "2026-09-03-intent-mismatch-escalates.sql",
     "2026-09-07-companion-codes-severity.sql",
     "2026-09-12-hr-rejections-journal.sql",
     "2026-09-13-rejections-verb-map-2.sql",
-    "2026-09-13-rejections-verb-map-3.sql",
-    "2026-09-13-town-presence-journal.sql"
+    "2026-09-13-rejections-verb-map-3.sql"
    ],
    "live": {
     "md5": "545d26dafbcd6dc1909ecc31c1525f1f",
@@ -829,6 +845,7 @@
     "pin"
    ],
    "touched_by": [
+    "2026-08-11-player-state.sql",
     "2026-09-12-hr-rejections-journal.sql"
    ],
    "live": {
@@ -877,7 +894,7 @@
     "pin"
    ],
    "touched_by": [
-    "2026-09-06-cadence-recovery-floor.sql"
+    "2026-09-06-recovering-until.sql"
    ],
    "live": {
     "md5": "4fe27ae0417cfd242df90a7a37af9d8b",
@@ -918,7 +935,6 @@
     "2026-08-29-rpc-gate-bucket-restore.sql",
     "2026-08-30-bounty-kill-credit.sql",
     "2026-08-31-combat-xp-credit.sql",
-    "2026-09-01-kill-daily-credit.sql",
     "2026-09-08-hero-slot-buy.sql",
     "2026-09-12-hr-rejections-journal.sql",
     "2026-09-13-town-presence.sql",
@@ -947,6 +963,7 @@
     "pin"
    ],
    "touched_by": [
+    "2026-08-15-auto-eat.sql",
     "2026-08-23-trait-buy.sql",
     "2026-08-29-auto-eat-tiers.sql",
     "2026-09-06-recovering-until.sql"
@@ -971,6 +988,7 @@
     "pin"
    ],
    "touched_by": [
+    "2026-09-13-town-presence.sql",
     "2026-09-13-town-quiet-prune.sql",
     "2026-09-13-town-refresh-cooldown.sql"
    ],
@@ -1047,14 +1065,12 @@
     "2026-09-12-renown-high-projection.sql",
     "2026-09-12-worker-hired-at-projection.sql",
     "2026-09-13-buff-cellar-scale.sql",
-    "2026-09-13-buff-segments.sql",
     "2026-09-13-consumable-buffs.sql",
     "2026-09-13-town-presence.sql",
     "2026-09-14-gem-unlock-buy.sql",
     "2026-09-14-hr-state-of-restatement.sql",
     "2026-09-14-recipe-learn.sql",
-    "2026-09-22-state-of-trophy-prefix.sql",
-    "2026-09-22-trophy-claim.sql"
+    "2026-09-22-state-of-trophy-prefix.sql"
    ],
    "live": {
     "md5": "5527d069e857db9cb653445d12b239d7",
@@ -1076,6 +1092,7 @@
     "pin"
    ],
    "touched_by": [
+    "2026-09-21-world-tick-cron.sql",
     "2026-09-22-world-tick-derived-token.sql"
    ],
    "live": {
@@ -1095,10 +1112,10 @@
    "sig": "hr_tick_settle(p_holder text, p_user uuid, p_slot integer, p_channel text, p_version bigint, p_window_from timestamp with time zone, p_window_to timestamp with time zone, p_intent_id uuid, p_delta jsonb)",
    "name": "hr_tick_settle",
    "tracked_by": [
-    "pin"
+    "floor"
    ],
    "touched_by": [
-    "2026-09-22-frame-push-channel.sql"
+    "2026-09-21-world-tick-settle-fence.sql"
    ],
    "live": {
     "md5": "d6948f6ac30d0466599d94c95d0f3c9e",
@@ -1120,7 +1137,7 @@
     "pin"
    ],
    "touched_by": [
-    "2026-09-13-town-quiet-prune.sql",
+    "2026-09-13-town-presence.sql",
     "2026-09-13-town-refresh-cooldown.sql"
    ],
    "live": {
@@ -1166,6 +1183,7 @@
     "pin"
    ],
    "touched_by": [
+    "2026-08-16-unlock-buy.sql",
     "2026-08-19-companion-unlocks.sql"
    ],
    "live": {
@@ -1188,7 +1206,7 @@
     "pin"
    ],
    "touched_by": [
-    "2026-08-24-worker-hire-cap-read.sql"
+    "2026-08-16-artisan-progress-model.sql"
    ],
    "live": {
     "md5": "11394712df724d52990bce2c6ca6c7d6",
@@ -1283,6 +1301,7 @@
     "pin"
    ],
    "touched_by": [
+    "2026-08-25-workers.sql",
     "2026-09-03-intent-mismatch-class.sql",
     "2026-09-12-hr-rejections-journal.sql"
    ],
@@ -1307,6 +1326,7 @@
    ],
    "touched_by": [
     "2026-08-24-worker-hire-cap-read.sql",
+    "2026-08-25-workers.sql",
     "2026-09-03-intent-mismatch-class.sql",
     "2026-09-09-worker-hire-price.sql",
     "2026-09-12-hr-rejections-journal.sql"

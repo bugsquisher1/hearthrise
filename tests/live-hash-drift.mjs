@@ -149,6 +149,9 @@ const FLOOR = {
   hr_create_character: 'mints the starting kit',
   hr_import_apply: 'the cutover importer — writes a whole character',
   hr_set_auto_eat: 'the food/pct authority the accrual engine prices survival on',
+  hr_tick_settle: 'the world-tick fence — the ONE door the scheduler pays through '
+    + '(shadow today, money at M2). Restated by two files and read by a third with '
+    + 'no signature literal since the M5 e4 fix, so no other rule tracks it (2026-09-23)',
   hr_credit_combat_xp__ungated: 'mints XP from a client-reported fight. One '
     + 'authoring migration and no hash pin, so nothing else in this repo would '
     + 'notice a later file restating it',

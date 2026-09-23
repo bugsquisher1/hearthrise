@@ -581,3 +581,408 @@ ever be red".
 | X-7 a–c | the documented rollback re-applies cleanly, restores the static form, and is not blocked by its own `no_hmac` rows |
 | X-8 a–e | pgcrypto resolution is name-sensitive (T-3); the driver then fails **closed** with `no_hmac`, posts nothing — and the migration still applied green (T-1) |
 | MX1–MX5 | five defects planted in the file under review; **5/5 refused**, three of them by the file's own `d6d`/`d7b`/`d8` — which had never been red anywhere before this guard existed |
+
+---
+---
+
+# RE-VERIFY — 2026-09-23, `lane/world-tick-token` @ `a08bdea3`
+
+**Reviewer:** security-engineer (veto) · **Re-verify branch:** `sec/world-tick-token-2`, cut from
+that head · **Reviewing:** my own GO-WITH-CHANGES above, against the four commits the lane landed
+in answer to it — `fd96c5a3` (T-1), `cb9845ea` (T-2), `7f45e8df` (T-3), `a08bdea3` (T-4), on top of
+`481b0c6` (`sec/world-tick-token` + `origin/next` merged into the lane).
+
+**MIGRATION 2026-09-22-world-tick-derived-token.sql: GO**
+**EDGE DEPLOY (token gate): GO**
+**T-5.3 SATISFIED (may precede shadow=false): YES**
+
+**Read the GO at the right granularity.** It is a verdict on the FILE, and the file is now correct:
+T-1, T-2 and T-3 landed with executing proof, T-4 landed in the runbook, and nothing in the
+migration needs another change from me. It is **not** a verdict that this branch is mergeable
+today — it is neither `lane-done` green nor conflict-free against current `origin/next`, both
+measured below, and both are the lane's to clear before the Coordinator touches it. That is step 0
+of the runbook in §R5, and it is a hard gate, not a nicety.
+
+| # | Required change | Verdict | The executing proof I read |
+|---|---|---|---|
+| **T-1** | the apply RAISES where the tick could not derive | **CLOSED** | `world-tick-token-failclosed` **exit 0**: F-2a the file is refused on Vault-without-pgcrypto, F-2b by `§0b` naming itself, F-2d without leaking the secret into the apply output. `--selftest` **exit 0**: MF1 (§0b → notice) still refused *by d10*, MF2 (d10 → notice) still refused *by §0b*, MF3 (both gone) **reproduces T-1** and F-2a is the arm that goes red. Two independent gates, each proved load-bearing alone. |
+| **T-1b** | the fire path journals `no_hmac` like `no_secret` | **CLOSED** | F-1c the driver refuses and posts nothing, F-1d it **journals** the outcome, F-1e the hint names `create extension`, not the secret. Structurally from the far end: d10b (the refusal exists), d10c (it is inside a `hr_tick_cron_note` argument list), d10d (`hr_tick_cron_log_outcome_ck` admits it, so the fail-closed path cannot itself raise on the insert). F-4b is the arm that matters most: pgcrypto-absent answers `no_hmac` and Vault-absent answers `no_secret` — **an outcome that conflated the two would send the operator to the wrong fix at 03:00.** |
+| **T-1c** | §5 executes it on probe rows | **CLOSED** | d10/d10b/d10c/d10d are inside §5's block and roll back with `HR923_ROLLBACK_OK`. `node tests/selfcheck-no-global-dml.mjs` **exit 0** — 208 migrations, 9 global statements, all 9 acknowledged; this file adds none. |
+| **T-1d** | the PGlite replay still applies with pgcrypto present | **CLOSED** | F-3a the file applies, F-3b it resolves to `extensions`, F-3c **a fire reaches `posted`** — the gate cost the working state nothing. `node tests/schema-drift.mjs` **exit 0**, byte-identical second apply; `node tests/apply-order-honesty.mjs` **exit 0**, 28 files carry a measured verdict. |
+| **T-2** | the dependency stated in the header AND §17.11, bound by a CHECK or a self-check with a test | **CLOSED** | Stated in the migration header (the `★ AND IT DEPENDS ON flush_seconds` block), in `WORLD_TICK_DESIGN.md` §17.3 and in §17.11 (P4). Bound by **d11**, not by a CHECK — d11a pins the 30 s bucket width in the installed body, d11b refuses a column DEFAULT at or below the 60 s window, d11c refuses a `flush_ck` floor that has silently become an invariant, and the **live row is NOTICEd, not refused**. The test: **MX6 refuses a DEFAULT of 30 at apply time** (`d11b: … DEFAULTS to 30 s, which is not longer than the token's 60 s replay window`), X-5d/X-5e bind the same numbers to `tick.js`'s constants. |
+| **T-2 judgement** | CHECK vs self-check | **the lane chose correctly, and better than my patch offered** | I offered "raise the floor to 61 **or** say it in prose". The lane did neither exactly: it gated **what the repo owns** (bucket width, column default, floor-below-window) and NOTICEd **what Reliability owns** (the live `flush_seconds`). A migration that refused to replay because an operator turned a row-volume dial would be a worse failure than T-2 names. That distinction is the right one and I am adopting it. |
+| **T-3** | resolution by types, not by rendering | **CLOSED** | `oidvectortypes(p.proargtypes) = 'text, text, text'` + `'bytea, text'` + `prokind = 'f'`, in `hr_tick_crypto_schema()`, which §0a makes **the only copy** so the gate and d10 cannot drift. Present **and** absent both executed: X-8a the same algorithm with NAMED arguments now resolves, X-8b the types are identical either way and the rendering is not, X-8c so the driver posts instead of dying on a database that had the algorithm all along, X-8d absent-with-Vault still refuses the apply. **MX7 catches the revert** — restore the rendered-name match and the file is refused by §0b at apply time. |
+| **T-4** | §17.11 records the previous payload hash BEFORE the deploy and names the rollback command | **CLOSED, and improved on what I asked for** | §17.11 (P3) is a `curl` of the live GET with a **blank to write the value into**, a timestamp blank, and "if the GET does not answer, STOP". The rollback block names `<P3_HASH>`, finds the deployed commit, packs it **from its own worktree**, and **refuses to deploy until `--hash` prints `<P3_HASH>`**. The deploy goes first on the way back. The section also forbids copying a hash out of a document — including itself — which is the correction I did not think to ask for and is the right one. |
+| **T-4 mechanism** | "pack-edge derives ROOT from its own path" | **verified by execution, not read** | With `cwd` = the lane tree, three runs of three different `tools/pack-edge.mjs` files: lane tree → `92f5d8b5…`, `origin/main` (b551) tree → `e7b8f9b5…`, `origin/next` tree → `0d11badd…`. The binary packs **its own** tree and ignores `cwd`, so the rollback recipe is sound. |
+| T-5 | why step 1 matters for the apply | **CLOSED** | §17.11 step 1 and §6 step 1 both now say the advisory lock, not only the seam. |
+| T-6 | require the function to belong to the pgcrypto extension | **still open, offered not taken** | `order by (n.nspname = 'extensions') desc, n.nspname` is unchanged. Still unreachable (no role we grant can create a schema on production) and still not required. Noted so it does not become folklore that it was closed. |
+
+## R1. New findings from the re-verify
+
+| # | Sev | Finding | Status |
+|---|---|---|---|
+| **R-A** | **P1 — blocks the MERGE, not the file** | `node tools/lane-done.mjs` is **RED** at `a08bdea3` (exit **1**): `comment-ratio-ratchet` (6 counts rose, worst `src/net/accrue.js` 3490 against an allowance of 3452) and `test-file-ratchet` (TF-1, 33.32 → 33.70 past the +1% band). **None of it is this lane's code.** | **CONFIRMED by execution**, and attributed |
+| **R-B** | P2 — blocks the merge | `git merge origin/next` into `a08bdea3` **conflicts in four files**: `.github/workflows/smoke.yml`, `tests/ci-shape.baseline.json`, `tests/schema-apply-order.json`, `tests/schema-drift.baseline.json`. Both sides appended to the same lists. | CONFIRMED by execution |
+| **R-C** | P2 — cutover hazard, new because of the SET | Once this lane is in the set, **the set's edge deploy and the migration apply stop being independent**. Deploying the set's `hr-accrue` for *any other reason* while the static driver is still live stops the world tick — and it stops it **invisibly**, because `net.http_post` is asynchronous and a 401 still writes `posted`. | CONFIRMED (code read + the executed both-directions result above) |
+| **R-D** | P3 — observability | The driver **discards `net.http_post`'s returned request id**, so §17.11's (a) and (b) can be correlated only by **timestamp**. At a 10 s cadence "this `posted` row got that 401" is an inference, not a read. | CONFIRMED (code read, `§3` (5)) |
+| **R-E** | P3 — doc accuracy | The `tests/schema-apply-order.json` note for this file still says "SELF-CHECK d1-d9" and "On production all of d1-d9 run". The file now carries **d10 and d11**. `apply-order-honesty` is green because it gates the *verdict*, not the arm list. | CONFIRMED (read) |
+
+**R-A, attributed by execution rather than by assumption.** Both ratchets are red at `481b0c6` —
+the lane's `origin/next` merge, *before* any of the four T-commits — with the **identical** TF-1
+figure (33.32 → 33.70) and the same CR-1 offenders (`src/net/accrue.js`, `src/net/gold.js`,
+`src/features/smoke/*`), none of which any T-commit touches. They are **green on `origin/main`**
+(b551, `372cf67`) and **green on current `origin/next`** (`6657925`): the lane merged a stale `next`
+and `next` has since been paid down (`505cc89 sync: drop build-number comment lines`), which the
+lane does not have. **Measured directly:** with current `origin/next` merged into `a08bdea3` in a
+scratch worktree, `comment-ratio-ratchet` → **exit 0** and `test-file-ratchet` → **exit 0**
+(neither guard reads any of R-B's four conflicted files, so the resolution cannot have flattered
+the result). **So R-A and R-B are one action: the lane merges current `origin/next` into itself,
+resolves its own four hunks, and re-runs.** CLAUDE.md §3.3 is explicit that the Coordinator does not
+resolve those hunks, and §4 that paydown happens where the code was written.
+
+**R-C is the finding I would not have had before this re-verify, and it is the reason §R5 exists.**
+`origin/next` already packs to `0d11badd88a2931a7c7ed11573f1a01d12774d3db0c61e364e8020d50efaaf25`,
+and `9a3aaba` records that payload as **live on production since 01:29:50Z** (M1f + M7, rollback
+target `c6d03077`). So the edge for this cutover ships **from the set**, carrying M1f, M7 and — when
+it merges — M3. Three consequences the Coordinator must hold at once: the deployed hash will be the
+**assembled set's**, not this branch's `92f5d8b5…`; **rollback granularity is the whole payload**, so
+reverting the token gate also reverts whatever else that deploy carried; and the kill switch must go
+down **before the set's edge deploy**, not merely before the apply.
+
+## R2. The exit codes, read not expected
+
+Run in this worktree at `a08bdea3` after `npm install --no-audit --no-fund`.
+
+| command | exit |
+|---|---|
+| `node tests/world-tick-token-failclosed.mjs` / `--selftest` | **0** / **0** (F-1…F-4, 3/3 mutations) — the T-1 guard |
+| `node tests/world-tick-token-leak.mjs` / `--selftest` | **0** / **0** (**7/7** planted defects caught; MX6 and MX7 are new and cover T-2 and T-3) |
+| `node tests/edge-tick-gate.mjs` / `--selftest` | **0** / **0** — M8 (accept the static bearer again) still goes red on T-A2/T-N4 |
+| `node tests/pg-net-queue-unreachable.mjs` | **0** — 208 migrations, 409 routine bodies, 6 views, no exposed-schema read, no added grant |
+| `node tests/world-tick-parity.mjs` | **0** |
+| `node tests/world-tick-hydration.mjs` | **0** — "one envelope, one field list" |
+| `node tests/world-tick-writer-authz.mjs` | **0** — "every arm of the security verdict is closed" |
+| `node tests/world-tick-shadow-chain.mjs` | **0** — M-1's fix survives the restatement |
+| `node tests/schema-drift.mjs` | **0** — byte-identical second apply |
+| `node tests/apply-order-honesty.mjs` | **0** — 28 files carry a measured verdict |
+| `node tests/selfcheck-no-global-dml.mjs` | **0** — 208 migrations, 9 global statements, all acknowledged |
+| `node tests/guard-hygiene.mjs` | **0** — "no orphans, no ghosts, no stale entries, no vacuous proofs" |
+| `node tools/pack-edge.mjs hr-accrue --check` | **0** — 75 files (45 vendored), 1722.3 KB |
+| `node tools/pack-edge.mjs hr-accrue --hash` | **0** — **`92f5d8b5fab1be4e7516ed94f7d82b7f587877b171c17cdad3e7b3587db32fd6`** |
+| `node tools/lane-done.mjs` | **1** — **RED**, `comment-ratio-ratchet` + `test-file-ratchet`; see R-A |
+
+`node tools/lane-done.mjs` on **this** branch (`sec/world-tick-token-2`, the re-verify commit on
+top of `a08bdea3`) is likewise **exit 1** with the same two guards — this section adds one Markdown
+file under `docs/`, and neither ratchet reads `docs/`. Nothing here is a claim I have not seen an
+exit code for.
+
+⚠ **`92f5d8b5…` is this branch's hash and is NOT the number that will be deployed.** The deploy comes
+from the assembled set. §17.11 already says not to copy a hash out of a document; this line is the
+same warning about its own row.
+
+## R3. The cutover order, ruled
+
+**The static bearer is accepted by the live edge for exactly the window between the apply and the
+set's edge deploy — and in that window the driver emits nothing at all, because the kill switch is
+down.** Both halves of that sentence matter. The old build does still accept a previously-captured
+static bearer until the deploy lands; that is the *pre-existing* M1 exposure, unchanged and not
+widened, and it ends at step 4. What does **not** happen in that window is a new credential of
+either form entering `net.http_request_queue`, because `enabled = false` means no fire.
+
+**Both orders fail closed, and I executed both directions rather than reasoning about them** (§3
+above): OLD edge + NEW derived header → `false`; NEW edge + OLD static bearer → refused by `TOKEN_RE`
+(X-4f), and `edge-tick-gate --selftest` M8 proves a dual-accept build goes red. Migration applied and
+edge not deployed → 401. Edge deployed and migration not applied → 401. **Nothing pays in either
+intermediate state, so safety does not choose the order.**
+
+**Reversibility chooses it, and it chooses APPLY-THEN-DEPLOY.** §0b now *fails* the apply on a
+misconfigured database (T-1) — which means a failed apply is a live possibility, and it must be the
+cheap one. Apply first and a refusal costs nothing: you have deployed no edge and you fix pgcrypto
+and re-apply. Deploy first and the same refusal leaves you holding a live `hr-accrue` **that carries
+M1f, M7 and M3**, which you must now roll back to un-break a world tick that was never migrated —
+and per R-C the rollback unit is the whole payload, so that revert takes other lanes' shipped edge
+halves with it. **Deploy-then-apply converts a five-minute stop into a multi-lane rollback, for no
+security gain.** Keep §17.11's order; keep the kill switch across both steps; and take it down
+*before* the set's edge deploy rather than before the apply, which is the one line R-C adds.
+
+## R4. Residuals
+
+R-T1, R-T2, R-3, R-4, R-5 and R-6 stand **exactly as written in §6 above** — nothing in the four
+commits moved any of them, and T-2's work was to *state* R-T1's dependency, not to change it.
+R-3 (that pg_net stores `convert_to(body::text,'UTF8')` is encoded by my stub, not proved by it) is
+still owed at apply time and is still the second reason `d7` must read as RAN. Two are added:
+
+7. **R-7 (R-C).** The token gate's edge half is not independently deployable or revertible: it rides
+   the set's payload. **Trigger to re-open:** any set edge deploy while `hr_tick_config.enabled` is
+   true and this migration is unapplied.
+8. **R-8.** A Vault `hr_tick_shared_secret` that differs from the edge's `HR_TICK_SHARED_SECRET` is
+   **invisible to every guard in this repo and to the fire log**: the apply is green, `§5` is green,
+   the driver reads `posted`, and only `net._http_response.status_code` says 401. Now that T-1 has
+   removed the silent-apply failure, **this is the most likely way the cutover fails quietly.** It is
+   why §R5's first-fire read is a single row that asserts the fire log and the HTTP status *together*.
+
+## R5. THE FINAL COORDINATOR CUTOVER RUNBOOK
+
+Lane C. Coordinator only, `tools/apply-migration.mjs`, one file, never inside `begin/commit`, never
+00:00–00:10 UTC. §17.11 is the long form; this is the order with R-A/R-B/R-C folded in.
+
+### Step 0 — the lane clears its own gates FIRST (R-A, R-B)
+
+Not the Coordinator's to do by hand. Send it back:
+
+```bash
+# in the lane's worktree, not on main and not on the set
+git merge origin/next                    # 4 conflicts: smoke.yml, ci-shape.baseline.json,
+                                         # schema-apply-order.json, schema-drift.baseline.json
+#  - smoke.yml / schema-apply-order.json : both sides APPENDED; keep both sides' entries
+#  - ci-shape.baseline.json / schema-drift.baseline.json : REGENERATE with their own tools,
+#    never hand-merge (CLAUDE.md §5)
+node tools/lane-done.mjs                 # MUST print `lane-done: all green.` and exit 0
+node tests/world-tick-token-failclosed.mjs && node tests/world-tick-token-leak.mjs
+node tests/edge-tick-gate.mjs && node tests/schema-drift.mjs
+```
+Measured: with current `origin/next` merged in, both red ratchets go to **exit 0**. If `lane-done`
+is still red after the merge, the redness is then genuinely the lane's and paydown happens there.
+
+### Step 1 — pre-flight reads, read-only, BEFORE anything moves
+
+```sql
+-- (P1) ★ pgcrypto PRESENT and resolvable BY TYPE. This is §0b's own predicate,
+--      read by hand before the apply enforces it.
+select to_regprocedure('hmac(bytea,bytea,text)')  is not null as hmac_bytea_form,
+       to_regprocedure('hmac(text,text,text)')    is not null as hmac_text_form,
+       to_regprocedure('digest(bytea,text)')      is not null as digest_form,
+       public.hr_tick_crypto_schema()                         as resolves_to;
+--   ⚠ `hr_tick_crypto_schema()` does not exist until step 4, so on the FIRST
+--     pass read only the three booleans and the catalogue rows below; run the
+--     fourth column again after the apply, where it must answer `extensions`.
+--   ⚠ THE FILE USES hmac(text,text,text) AND digest(bytea,text). The brief's
+--     `hmac(bytea,bytea,text)` is pgcrypto's OTHER overload — a fine presence
+--     probe, but NOT the signature §0a resolves. `hmac_text_form` and
+--     `digest_form` are the two that decide whether the apply can succeed.
+
+select n.nspname as schema, p.proname, p.prokind,
+       oidvectortypes(p.proargtypes)              as arg_types,
+       pg_get_function_identity_arguments(p.oid)  as identity_args
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where p.proname in ('hmac','digest') order by 1, 2, 4;
+--   EXPECT  extensions | digest | f | bytea, text      | bytea, text
+--           extensions | hmac   | f | text, text, text | text, text, text
+--   `identity_args` carrying NAMES is now HARMLESS (T-3 closed) — it was fatal
+--   before 7f45e8df. Record it anyway; it is the only field that would tell you
+--   a rebuild changed under us.
+select extname, extnamespace::regnamespace as schema, extversion
+  from pg_extension where extname = 'pgcrypto';
+--   NO ROWS => DO NOT APPLY (the apply would refuse anyway, by §0b). Run
+--   `create extension if not exists pgcrypto with schema extensions;` first.
+
+-- (P2) the Vault secrets. Absent or short => every fire after step 6 reads
+--      `no_secret`; DIFFERENT from the edge's env var => R-8, and only the
+--      HTTP status will tell you (step 7).
+select name, length(decrypted_secret) as len
+  from vault.decrypted_secrets
+ where name in ('hr_tick_shared_secret','hr_tick_gateway_key') order by 1;
+--   EXPECT hr_tick_shared_secret with len >= 32.
+
+-- (P4) the state the apply lands in, and R-T1's size on THIS database.
+select enabled, shadow, cadence_seconds, flush_seconds, edge_url
+  from public.hr_tick_config;
+--   EXPECT shadow = true (this file does not flip it), flush_seconds = 90.
+--   flush_seconds <= 60 => R-T1 is non-zero here; d11 will NOTICE it.
+
+-- (P5) the probe fire's blast radius. 0 here means d7 proves nothing.
+select count(*) as owned from public.hr_tick_ownership where owned;
+```
+
+```bash
+# (P3) ★ THE ROLLBACK VALUE — the ONLY read that stops being available.
+curl -s https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue
+#   PREVIOUS payload_sha256 = ______________________________________________
+#   read at (UTC)           = ______________________________________________
+#   EXPECT 0d11badd88a2931a7c7ed11573f1a01d12774d3db0c61e364e8020d50efaaf25
+#     — `origin/next` packs to exactly that (executed), and 9a3aaba records it
+#       live since 01:29:50Z. ANY OTHER VALUE means something deployed that the
+#       repo does not know about: STOP and find out what, because your rollback
+#       target is not what you think it is.
+#   If the GET does not answer at all: STOP. A function you cannot read is a
+#   function you cannot roll back to.
+```
+
+### Step 2 — merge the lane into the set
+
+`lane/world-tick-token` merges into `set/b<NNN>` only after step 0 is green and the merge is a
+**zero-hunk** `git merge` (CLAUDE.md §3.3). It changes `supabase/functions/**`, so **from this merge
+onward the set's edge deploy is coupled to this apply (R-C): the set does not deploy `hr-accrue`
+again until step 5.** If the set must deploy for another lane before then, step 3's kill switch goes
+down first and stays down until step 6.
+
+### Step 3 — stop the fires
+
+```sql
+update public.hr_tick_config set enabled = false;
+select at, outcome from public.hr_tick_cron_log order by id desc limit 5;
+--   EXPECT `disabled` within ~10 s. Do not proceed until you have SEEN it:
+--   a live fire holds pg_try_advisory_xact_lock, the §5 probe then answers
+--   `locked`, and d3/d7 SKIP — the apply-time proof silently unarms (T-5).
+```
+
+### Step 4 — apply, one file
+
+```bash
+node tools/apply-migration.mjs supabase/migrations/2026-09-22-world-tick-derived-token.sql
+#  EXPECT: RAN [d1 d2 d9 d4 d5 d6 d7 d8 d8b d10 d11]; SKIPPED [].
+#  ★ d4-d7 in SKIPPED is now an EXIT CODE, not a line to read: §0b raises
+#    HR_TICK_NO_PGCRYPTO and the apply fails by itself (T-1). You are not the gate.
+#  ★ If a `d11 ★ R-T1 IS NON-ZERO` notice appears, flush_seconds is <= 60 here.
+#    Not a reason to stop — a number to know before `shadow = false` is discussed.
+#  ★ A refusal here costs nothing precisely because step 5 has not run. This is
+#    why the order is apply-then-deploy (§R3).
+```
+
+### Step 5 — deploy the edge half, FROM THE SET
+
+```bash
+node tools/pack-edge.mjs hr-accrue --hash      # READ IT. Not 92f5d8b5…, not 0d11badd… —
+                                               # the assembled set's own number.
+node tools/pack-edge.mjs hr-accrue --out <dir>/supabase/functions/hr-accrue
+cp supabase/config.toml <dir>/supabase/config.toml
+npx --yes supabase@latest functions deploy hr-accrue --workdir <dir> \
+  --project-ref nezapsylztqbbwuwembx
+curl -s https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue
+#  The GET's payload_sha256 MUST equal the --hash you just read. Compare the two
+#  VALUES, never a value from a document — including this one.
+```
+
+### Step 6 — re-arm
+
+```sql
+update public.hr_tick_config set enabled = true;
+```
+
+### Step 7 — ★ THE FIRST FIRE. `posted` + an edge 200 + zero refusals, in ONE row
+
+Run ~60 s after step 6. `posted` means **queued**, not accepted — `net.http_post` is asynchronous,
+so a rejected token still writes `posted`. This read is the only evidence the cutover landed.
+
+```sql
+with fires as (
+  select outcome, detail->>'auth' as auth
+    from public.hr_tick_cron_log
+   where at > now() - interval '2 minutes'
+), resp as (
+  select status_code, error_msg, content
+    from net._http_response
+   where created > now() - interval '2 minutes'
+)
+select (select count(*) from fires where outcome = 'posted')                      as posted,
+       (select count(*) from fires
+         where outcome in ('no_hmac','no_secret','error','pg_net_absent',
+                           'no_edge_url'))                                        as refused,
+       (select string_agg(distinct outcome, ',') from fires
+         where outcome not in ('posted','disabled','locked','empty'))             as refusal_codes,
+       (select string_agg(distinct auth, ',') from fires where outcome = 'posted') as auth_tag,
+       (select count(*) from resp where status_code = 200)                        as http_200,
+       (select count(*) from resp where status_code is distinct from 200)         as http_not_200,
+       (select string_agg(distinct status_code::text, ',') from resp
+         where status_code is distinct from 200)                                  as bad_status,
+       (select string_agg(distinct error_msg, ' | ') from resp
+         where error_msg is not null)                                             as transport_errors,
+       (select string_agg(distinct left(content, 80), ' | ') from resp
+         where status_code is distinct from 200)                                  as bad_body;
+```
+
+**THE GO CONDITION, all of it in that one row:**
+
+```
+posted        >= 1
+refused        = 0     AND refusal_codes IS NULL
+auth_tag       = 'v1'
+http_200      >= 1     AND http_not_200 = 0 AND transport_errors IS NULL
+```
+
+Reading the failures:
+
+| what you see | what it is | what to do |
+|---|---|---|
+| `refusal_codes = no_hmac` | pgcrypto went away after the apply | `create extension … pgcrypto`; do **not** re-arm around it |
+| `refusal_codes = no_secret` | the Vault secret is missing or `< 32` chars (P2) | set it; the apply does not need redoing |
+| `refusal_codes = error` | read `detail->>'sqlstate'` on that row | diagnose before re-arming |
+| `posted >= 1` but `bad_status = 401` | **R-8 or a half-landed cutover.** Either step 5 did not land, or Vault's `hr_tick_shared_secret` ≠ the edge's `HR_TICK_SHARED_SECRET`. `bad_body` will read the player 401 shape. **Fails closed — nothing paid — but nothing ticks.** | re-check step 5's hash equality first, then the two secret values |
+| `bad_status = 404` | `edge_url` | (P4) |
+| `bad_status` 5xx | read the function logs | — |
+| `http_200 = 0` and `http_not_200 = 0` | the queue has not drained yet | wait one cadence and re-read; if still empty, `pg_net`'s worker is not running |
+
+⚠ **`net._http_response` is project-wide**: if anything other than the tick uses `pg_net`, its rows
+land here too. `bad_body` is the discriminator — the tick's 401 is the player path's
+`{"ok":false,"error":"not_signed_in"}`. **R-D** is why this is a time window and not an id join: the
+driver discards `net.http_post`'s request id. Journalling it as `detail->>'req'` (an integer — it
+cannot trip d8's 32-hex rule) would turn this whole step into one join, and is worth a follow-up
+lane; it changes the driver body, so it is not a change I am asking for inside this cutover.
+
+### Step 8 — the rest of the verification, then the lane-C bookkeeping
+
+```sql
+-- the plaintext is not on the wire (queue depth is normally 0 — that is health)
+select count(*) as leaked from net.http_request_queue q, vault.decrypted_secrets s
+ where s.name = 'hr_tick_shared_secret' and q.headers->>'X-HR-Tick-Auth' = s.decrypted_secret;
+--   EXPECT 0
+select left(q.headers->>'X-HR-Tick-Auth', 5) as tag
+  from net.http_request_queue q order by q.id desc limit 3;      -- EXPECT 'v1 t='
+
+-- the shadow parity run did not stop (the cutover must not cost M1 its measurement)
+select count(*) as windows, max(at) as latest
+  from public.hr_tick_shadow where at > now() - interval '1 hour';
+--   EXPECT a count still climbing at roughly active/flush_seconds.
+
+select public.hr_assert_grant_hygiene();                          -- EXPECT: no raise
+```
+
+Then: `live-hash-drift --live --write` + a whys entry from `--codediff` (`hr_tick_cron_run` is a
+restated live body; the four functions are new), the apply-order note flipped to APPLIED **and
+corrected from "d1-d9" to "d1-d11" (R-E)**, and `restore-census` re-run — no new table, so a no-op,
+and if it is not, read why before moving on.
+
+### Step 9 — rollback, if step 7 will not go green
+
+Deploy first on the way back, for the same reason the migration went first on the way out: **the
+half that ACCEPTS must never be older than the half that SENDS.** Both intermediate states refuse.
+
+```bash
+# 1.  update public.hr_tick_config set enabled = false;
+# 2.  re-deploy <P3_HASH> — the value written down at (P3), expected 0d11badd…
+git log --oneline -- supabase/functions/hr-accrue
+git worktree add /tmp/hr-rollback <that commit>
+node /tmp/hr-rollback/tools/pack-edge.mjs hr-accrue --hash
+#     ★ MUST print <P3_HASH>. If it does not, that is the wrong commit and
+#       deploying it is a SECOND CHANGE, not a rollback. (Verified by execution:
+#       pack-edge packs its OWN tree and ignores cwd.)
+node /tmp/hr-rollback/tools/pack-edge.mjs hr-accrue \
+  --out /tmp/hr-rollback-pack/supabase/functions/hr-accrue
+cp /tmp/hr-rollback/supabase/config.toml /tmp/hr-rollback-pack/supabase/config.toml
+npx --yes supabase@latest functions deploy hr-accrue --workdir /tmp/hr-rollback-pack \
+  --project-ref nezapsylztqbbwuwembx
+curl -s https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue   # == <P3_HASH>
+# 3.  node tools/apply-migration.mjs supabase/migrations/2026-09-21-world-tick-cron.sql
+#     (X-7a-c execute that this re-applies cleanly, restores the static form, and
+#      is NOT blocked by the `no_hmac` rows a failed cutover wrote)
+# 4.  update public.hr_tick_config set enabled = true;
+#     -- if the JOB was dropped rather than disabled:
+#     select public.hr_cron_ensure('hr-tick-run','10 seconds','select public.hr_tick_cron_run()');
+```
+
+⚠ **R-C again, and it is the sentence to read twice before running any of step 9:** `<P3_HASH>` is a
+whole-payload hash. Re-deploying it reverts **everything** that shipped in the set's `hr-accrue`
+since — M1f and M7 are already live at `0d11badd…`, and M3 will be there too if it merged. Rolling
+the token gate back is therefore a **release-level** decision, not a lane-level one. Prefer the kill
+switch (`enabled = false`), which stops the tick in ≤10 s, costs no deploy, and leaves every other
+lane's edge half exactly where it is. **Step 9 is for a broken edge, not for a disagreeing tick.**
+
+**Rolling back puts the T-5.3 block back, so M2 is blocked again — intended, not a side effect.**
+
+---
+
+**What I am saying, narrowly.** The three changes I held the apply for are closed, each by a guard
+whose mutation proof I watched go red. The file is correct. The branch is not yet mergeable, for
+reasons that are not the file's. And the one thing no guard in this repo can see is whether Vault's
+secret and the edge's env var are the same string — step 7 is where that is found, and it is found
+by a 401 that fails closed.

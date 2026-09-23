@@ -2031,3 +2031,366 @@ dispatch overhead itself is not in this figure (the trigger is not installed unt
 intrinsic to `AFTER UPDATE … WHEN (new.version is distinct from old.version)`.
 
 Condition 8b (the flipped channel, 10.1 ms) stays NOT MET and gates the flag flip, exactly as ruled.
+
+---
+---
+
+# Reliability — W1–W3 (2026-09-23)
+
+Answering RE-VERIFY 4 §3's table. **None of this blocks the apply** — Security
+already ruled that, and the reason holds arithmetically: with `frame_push =
+false` the emitter early-returns in 0.028 ms (CONDITION 8a) and writes **zero**
+`realtime.messages` rows, so zero WAL through either slot. W1–W3 gate the
+**flip**, and this section signs the load ceiling the flip is safe at.
+
+**What I could execute and what I could not.** This lane has no database access
+(`CLAUDE.md` §2 — agents never touch production), so every figure below is
+arithmetic on the Coordinator's own measured numbers in *Coordinator measurement
+— CONDITION 8 and the WAL read* and *CONDITION 8a*, or fetched from the docs
+mirror. Tags follow `LIVE_COUNTERS_PUSH.md` §3.0: **[M]** measured on this
+production database, **[F]** fetched from the vendor docs source, **[D]** derived
+here by arithmetic that is shown. Nothing here is **[R]**. Two reads remain owed
+to the Coordinator because only a `psql` session can take them; they are the
+paste block in §R4.
+
+---
+
+## W1 — the partition-drop question
+
+**The vendor's claim, quoted.** Fetched 2026-09-23 from the docs source mirror
+(`supabase.com` is blocked by this environment's egress proxy; the mirror is the
+same content the site renders) **[F]**:
+
+> "It uses partitioned tables per day, which allows performant deletion of your
+> previous messages by dropping the physical tables of this partitioned table.
+> **Tables older than 3 days are deleted.**"
+>
+> "Messages are stored in daily partitions, and **partitions older than 72 hours
+> are dropped.** Because whole days are removed at once, a message stays
+> available for at least 72 hours and at most 4 days, depending on the time of
+> day it was sent."
+
+Source: `raw.githubusercontent.com/supabase/supabase/master/apps/docs/content/guides/realtime/broadcast.mdx`
+(lines 1021 and 1137), which renders as **https://supabase.com/docs/guides/realtime/broadcast**.
+
+**What the Coordinator must read, and when.** Re-run query (e) verbatim. The
+first drop is observable **2026-09-24**, not 09-27: `messages_2026_09_20` turns
+four days old that day and "at most 4 days" expires it. Security's 09-27 date is
+the better one to *sign* on, because one disappearance could be an install
+artifact and 09-27 gives four consecutive drop events — so read it on both dates
+and sign on the second.
+
+```sql
+-- W1. The partition roll. Run 2026-09-24 and again after 2026-09-27.
+select c.relname, c.relpersistence, c.relreplident,
+       pg_size_pretty(pg_total_relation_size(c.oid)) as total,
+       c.reltuples::bigint                            as est_rows
+  from pg_class c join pg_namespace n on n.oid = c.relnamespace
+ where n.nspname = 'realtime' and c.relname like 'messages%'
+ order by c.relname;
+```
+
+**Expected output if drops happen.** On 2026-09-28 the list is a *rolling window
+that has moved*, not a list that has grown: `messages_2026_09_20` through
+`messages_2026_09_24` are **ABSENT**, and what remains is roughly
+`messages_2026_09_25 … messages_2026_09_31` — the same **7 rows** (3 back + today
++ 3 created ahead) the 09-23 read returned **[M]**, with every name advanced by
+five days. The count staying at ~7 while the names advance **is** the proof;
+`messages_2026_09_20` still being present on 09-28 **is** the failure. Note the
+parent `realtime.messages` row itself never drops — do not read its presence as a
+failure.
+
+**What to do if they do not drop.** Retention is the Realtime service's job, not
+this database's: the 09-23 read found no such job and the repo has no evidence of
+one. Establish which it is before escalating —
+
+```sql
+-- W1b. Is anything in THIS database scheduled to drop them?
+select jobid, jobname, schedule, command, active from cron.job
+ where command ilike '%realtime%' or command ilike '%messages%';
+```
+
+If W1b returns **0 rows** (the expected case) and the partitions are still
+accumulating on 09-28, the vendor's documented behaviour is not happening on this
+project and that is a **support escalation**, not a migration. Do not hand-drop
+the partitions: `realtime.messages` is owned by `supabase_admin`, the 09-22 file
+already records that this role cannot so much as `alter table … enable row level
+security` on it without a notice, and a hand-drop races the service that creates
+them. The interim mitigation is the flag itself — `update public.hr_tick_config
+set frame_push = false;` returns the growth to zero on the next write, which is
+precisely why the kill switch is a config read and not a deploy.
+
+**The size of the downside, so the escalation can be priced [D].** Undropped
+partitions grow at `writes/s × 86,400 × 2.2 kB`:
+
+| accepted writes/s | rows/day | heap/day, never reclaimed |
+|---|---|---|
+| 0.018 (today's measured peak, 66/h) **[M]** | 1,584 | **3.5 MB** |
+| 1.0 (the §R3 ceiling) | 86,400 | **190 MB** |
+| 55.6 (5,000 chars @ 90 s) | 4.8 M | **10.6 GB** |
+
+At beta load a broken retention job is a curiosity — 3.5 MB/day, years of
+runway. At 5,000 characters it ends a Micro instance inside a week. **W1 is
+therefore a scale gate, not a beta gate**, and §R3's ceiling is set low enough
+that the 09-24/09-28 reads can settle it without risk in the meantime.
+
+**What I could not verify from the repo, stated plainly.** (1) Whether the drop
+is a `cron.job` row, a `realtime` internal process, or the Elixir service — the
+repo holds no dump of the `cron` or `realtime` schemas, so W1b is a genuine
+unknown until someone runs it. (2) `realtime.messages` is **not classified by
+`tests/restore-census.mjs`** — I read `tests/restore-census.baseline.json` and it
+contains no `realtime` entry, so this table's growth sits outside the durability
+inventory entirely. If the flip goes, the census needs a row for it; that is a
+lane, and it is named here rather than assumed.
+
+---
+
+## W2 — slot keep at scale, and the detector
+
+**The arithmetic, corrected in one place [D].** Security's figure is one slot's
+worth of *frame* WAL: 55.6 writes/s × 3 kB = 167 kB/s = **14.4 GB/day**, and
+512 MB ÷ 167 kB/s ≈ 52 min. Two corrections, both of which shorten the fuse:
+
+1. **`max_slot_wal_keep_size` is a Postgres GUC, so its "MB" is 1,048,576 bytes**,
+   not 1,000,000. 512 MB = 536,870,912 B. Against frame WAL alone that is
+   **53.7 min**, not 52 — the only correction here that moves the number the
+   *right* way.
+2. **A slot pins ALL WAL, not its own publication's share.** `restart_lsn` is a
+   position in the single physical WAL stream; the frame rows do not travel in a
+   private one. So the budget is consumed by the frame rows *plus* the
+   `player_state` applies that trigger them (~2 kB/apply **[M**,
+   `restore-runbook.md` §14f**]**) plus the tick machinery (55 MB/day **[M]**,
+   0.6 kB/s, negligible):
+
+   | component | at 55.6 writes/s | per day |
+   |---|---|---|
+   | frame rows @ 3 kB | 167 kB/s | 14.4 GB |
+   | `player_state` applies @ 2 kB | 111 kB/s | 9.6 GB |
+   | tick machinery **[M]** | 0.6 kB/s | 0.055 GB |
+   | **total** | **278 kB/s** | **24.0 GB** |
+
+   536,870,912 B ÷ 278,000 B/s = 1,931 s = **32.2 minutes**. *That* is the number
+   to sign: **a slot 32 minutes behind at 5,000 characters is invalidated**, not
+   52. And `max_slot_wal_keep_size` is enforced at **checkpoint**, with
+   `checkpoint_timeout = 300 s` **[M]** — so the enforcement granularity is up to
+   5 minutes, and the usable budget is nearer **27 minutes**.
+
+**What invalidation does, and why it is silent.** `wal_status` walks
+`reserved → extended → unreserved → lost`. At `lost` the slot's WAL is gone and
+Realtime cannot resume decoding from `restart_lsn`; delivery on
+`realtime.messages` stops. Nothing in the frame channel notices: the client's
+frame gate is monotonic and *whole-frame-or-nothing*, so a channel that simply
+stops sending frames looks exactly like a character that stopped settling. No
+error, no refusal, no red guard — the player sees numbers that quietly stop
+moving, which is the failure mode `CLAUDE.md` §6 exists to forbid. **This is why
+W2 asks for a detector and not a headroom calculation.**
+
+**And the second silent stop, which the lag alarm alone would miss.** Both slots
+read `temporary = true` **[M]**. A temporary slot is dropped when its owning
+session ends, so when Realtime reconnects the slot **disappears and a new one is
+created under a new name**. Two consequences the alarm must carry:
+
+- **An alarm keyed to an exact `slot_name` monitors nothing after the first
+  Realtime restart** — the name carries a suffix
+  (`supabase_realtime_messages_replication_slot_…`). Match on `plugin` and prefix.
+- **Absence is a stop.** Zero rows for the pgoutput slot is not "no lag", it is
+  "no channel". The detector must be two-sided: alarm on lag, *and* alarm on
+  count = 0.
+
+**The detector [D].** Thresholds expressed on `safe_wal_size` (bytes remaining
+before invalidation risk), because `wal_status` is already too late to be an
+alarm — `unreserved` means the budget is spent:
+
+| condition | meaning | action |
+|---|---|---|
+| pgoutput slot row count = 0 | Realtime is not decoding at all | **PAGE** |
+| `wal_status <> 'reserved'` | budget spent or slot lost | **PAGE** |
+| `safe_wal_size < 384 MB` (128 MB retained, 25 % of budget) | ~8 min of runway at scale, ~7.5 h at the §R3 ceiling | **ALARM** |
+| `safe_wal_size < 256 MB` (50 % of budget) | ~16 min at scale | **PAGE** |
+| `active = false` on a slot that exists | owner gone, WAL still pinned | **ALARM** |
+
+The exact read is `(W2)` in §R4. Poll it every **60 s** at the §R3 ceiling and
+every **30 s** above 10 writes/s — an alarm whose poll interval is a third of the
+runway it guards is not an alarm. At 5,000 characters the 8-minute runway between
+ALARM and invalidation is shorter than most human responses, which is the honest
+argument that **512 MB is not a 5,000-character setting** (§R3).
+
+---
+
+## W3 — two slots, and what is actually multiplied
+
+**Does the wal2json slot carry the frame rows? No — and the repo's own
+measurement settles it, not an assumption.** Read (d) returned two publications
+**[M]**: `supabase_realtime` (**no tables**, which is `postgres_changes`' own
+publication, trimmed) and `supabase_realtime_messages_publication`, which **does**
+carry `realtime.messages`. Logical decoding filters output by publication
+membership, so the pgoutput slot
+(`supabase_realtime_messages_replication_slot_…`) emits every frame row and the
+wal2json slot (`supabase_realtime_replication_slot_…`, `postgres_changes`) emits
+**none of them** — its publication has nothing in it to emit. Confirm it has not
+drifted with `(W3)` in §R4 before the flip; a future lane adding a table to
+`supabase_realtime` changes this answer silently.
+
+**The WAL multiplier if both did carry them: still 1× on bytes written.** This is
+the part worth stating precisely, because "two slots" invites a doubling that does
+not exist. WAL is written **once**, by the inserting backend, into one physical
+stream; `wal_level = logical` **[M]** already paid the extra cost and it is inside
+the measured 3 kB. A second slot copies nothing, writes nothing and stores
+nothing. So:
+
+| resource | multiplier at 2 slots | why |
+|---|---|---|
+| **WAL bytes written / on disk** | **1×** | one stream; slots hold positions in it, they do not copy it |
+| **WAL retention** | **1×, set by the OLDEST `restart_lsn`** | the laggiest slot decides what checkpoint may remove |
+| **decode CPU** | **2×** | every slot reads and discards every record, including the ones it filters away |
+| **`logical_decoding_work_mem`** | **2×, per slot** | 64 MB default each; a transaction past it spills to `pg_replslot/<slot>/` on the same disk |
+| **egress / Realtime messages** | **1×** | only the pgoutput slot has anything to deliver |
+
+**The non-obvious consequence, and it is the one that bites.** Because retention
+is set by the oldest `restart_lsn` across *all* slots, **the wal2json slot — which
+delivers zero frame rows — can pin the WAL the frame rows generate.** A stalled
+`postgres_changes` slot holds 24 GB/day of disk it has no stake in, and it reaches
+its own 512 MB invalidation on the same 32-minute clock (§W2) even though every
+byte it is counting belongs to a publication it does not carry. The detector in
+§W2 therefore alarms on **both** slots by design — `(W2)` deliberately has no
+`where plugin = 'pgoutput'` filter. Monitoring only the slot that matters is how
+this one gets missed.
+
+One check the 09-23 read did not report and `(W3)` now takes: `relreplident` on
+`realtime.messages`. If it is `f` (FULL), UPDATEs and DELETEs log the old tuple
+too. The frame channel only ever **inserts**, so FULL costs it nothing today — but
+the partition drop is a `DROP TABLE`, not a `DELETE`, precisely so that reclaiming
+three days of rows costs no WAL at all. That is a second reason W1's answer has to
+be "the partitions are dropped": if retention ever degrades to `DELETE`, the WAL
+bill in §W2 roughly doubles and every number above is wrong.
+
+---
+
+## SIGN-OFF
+
+> ### The flip is safe TODAY, on Micro, at **≤ 1.0 accepted write/s sustained** (≤ 3,600/hour).
+> ### That is **55× today's measured peak** of 66 writes/hour **[M]**. Above it, do not flip.
+
+**Why 1.0/s and not 4.9/s.** The CPU line is higher: §4.1's criterion is
+`p95 × writes/s ÷ 1000 ≤ 0.05`, and at the measured 10.153 ms that permits
+**4.92 writes/s** **[D]**. I am not signing the line, for two reasons, both
+arithmetic. (1) 4.92/s *is* the criterion, with no margin, computed from a p95
+that CONDITION 8 already ruled **NOT MET** — signing a ceiling off a failing
+measurement at its exact boundary is how 10.15 ms becomes 12 ms in production and
+nobody notices. (2) W1 is unproven until 09-28, and the downside of a broken
+retention job is priced at 190 MB/day at 1.0/s (≈0.95 GB across the five days to
+the confirming read — absorbable on a Micro) against **3.7 GB** at 4.92/s over the
+same window. 1.0/s buys the W1 answer for free. At 1.0/s every budget is
+comfortable, not merely inside: CPU **1.02 %** of one core against the 5 % line;
+WAL **432 MB/day** (5 kB/s: 3 kB frame + 2 kB apply), giving **29.8 hours** of
+slot lag before invalidation against 512 MB; Realtime **1 msg/s** against the
+500/s Pro-with-cap line; and ~90 concurrent characters at the shipped 90 s flush,
+against the 500-connection wall that `LIVE_COUNTERS_PUSH.md` §3.3 correctly names
+as the binding Realtime limit.
+
+**The two reads that must stay under it.** Both are in §R4; both are the
+Coordinator's, and neither is satisfied by having been green once.
+
+1. **`(L)` — load.** `max(accepted_writes)` over the last 7 days of
+   `public.player_intents` must stay **< 3,600 per hour**. If any hour crosses it,
+   `frame_push` goes back to false and the ceiling is re-signed against a fresh
+   CONDITION 8 at that load — the 10.153 ms p95 was measured at a **quiet** hour
+   and cannot be assumed to hold at a busy one.
+2. **`(W2)` — slot health.** Every row: `wal_status = 'reserved'` **and**
+   `safe_wal_size ≥ 384 MB` **and** at least one row with `plugin = 'pgoutput'`.
+   Zero pgoutput rows fails this read even though nothing is lagging.
+
+Read `(L)` at the flip, at +1 h, at +24 h, then daily. Read `(W2)` on the 60 s
+poll from §W2. **Neither read is a gate that passes once** — the flip is
+reversible by one `update`, and the discipline that makes that worth anything is
+reading the two numbers that tell you to run it.
+
+**What must be true before 5,000 characters.** Seven things, and the first alone
+is disqualifying:
+
+| # | Must be true | Where it stands today |
+|---|---|---|
+| 1 | The trigger's added p95 is **≤ 0.9 ms**, not 10.153 ms. At 55.6 writes/s, 10.153 ms is **564 ms of CPU per wall-clock second — 56 % of one core** **[D]**, against a 5 % criterion. The fix is named in the Coordinator's own measurement: emit the frame from the envelope `hr_apply` **already holds**, one projection per write instead of two — `hr_state_of` is 9.4–9.7 ms of the 10.15 **[M]**, ~94 % of the charge. | **Open.** CONDITION 8b NOT MET. A backend-architect lane under a Security ruling, not a tuning exercise. |
+| 2 | W1 proven: ≥ 2 observed drop events, else 10.6 GB/day of unreclaimable heap. | **Open until 2026-09-28.** |
+| 3 | `max_slot_wal_keep_size` raised, **or** a lag response proven faster than the 27-minute usable budget (§W2). 512 MB at 278 kB/s is not a 5,000-character setting. | **Open.** Raising it needs disk headroom, which needs a compute tier, which is §2's budget freeze. |
+| 4 | W3 re-confirmed: `supabase_realtime` still carries no tables, so the frame rows still take one publication and not two. | **True today [M]**, and silently reversible by any lane that publishes a table. `(W3)` is the standing check. |
+| 5 | Connections: 5,000 concurrent against a **500** Pro-with-spend-cap wall **[M]**. | **Open — Tyler's, and only Tyler's.** `CLAUDE.md` §2's budget freeze (2026-08-17) forbids this lane taking it. |
+| 6 | Compute: 5,000 characters on **Micro** — `max_connections = 60`, `shared_buffers = 256 MB`, ~35 connections of headroom **[M**, `restore-runbook.md` §14f**]**. The frame channel is not the binding constraint here; the instance is. | **Open**, same budget gate as 5. |
+| 7 | A **worst-case** slot-lag observation under real load (W3's original ask): `(b)` was read once at a quiet hour with both slots at zero lag. An idle reading is not a worst case. | **Open.** The `(W2)` poll produces it as a by-product — sign it off the observed maximum after 7 days at the ceiling, not from another idle sample. |
+
+Items 1–3 and 7 are engineering and are ours. Items 5 and 6 are spend and are
+Tyler's. **W1, W2 and W3 are answered; the flip is signed at 1.0 write/s and
+unsigned above it.**
+
+---
+
+## R4 — the standing reads, as one paste block
+
+Read-only, one statement per read, no CTEs, safe at any hour (they take no locks
+and write nothing). `(L)` and `(W2)` are the two the sign-off rests on.
+
+```sql
+-- (L) LOAD — the busiest hour of the last 7 days. CEILING: < 3600 accepted writes/hour.
+select date_trunc('hour', at)     as hour,
+       count(*)                   as accepted_writes,
+       round(count(*)/3600.0, 3)  as writes_per_sec
+  from public.player_intents
+ where at > now() - interval '7 days'
+ group by 1 order by 2 desc limit 5;
+
+-- (W2) SLOT HEALTH — every slot, no plugin filter (§W3: the slot that carries nothing
+-- can still pin the WAL). ALARM if any row is not 'reserved', or safe_wal_size < 384 MB,
+-- or NO row has plugin='pgoutput' (absence is a silent stop, not "no lag").
+select slot_name, plugin, slot_type, active, temporary, wal_status,
+       pg_size_pretty(safe_wal_size)                                              as safe_remaining,
+       pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn))         as retained_wal,
+       pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), confirmed_flush_lsn)) as unconfirmed
+  from pg_replication_slots
+ order by restart_lsn;
+
+-- (W2b) The same read collapsed to ONE alarm row, for a scripted poll.
+-- Expect: pgoutput_slots >= 1, worst_status = 'reserved', min_safe_mb >= 384.
+select count(*) filter (where plugin = 'pgoutput')            as pgoutput_slots,
+       max(wal_status)                                        as worst_status,
+       min(safe_wal_size) / 1048576                           as min_safe_mb,
+       max(pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn)) / 1048576 as max_retained_mb,
+       count(*) filter (where not active)                     as inactive_slots
+  from pg_replication_slots;
+
+-- (W1) PARTITION ROLL — run 2026-09-24 and after 2026-09-27.
+-- Expect the NAMES to advance while the COUNT stays ~7. messages_2026_09_20 present
+-- on 2026-09-28 = retention is not running.
+select c.relname, c.relpersistence, c.relreplident,
+       pg_size_pretty(pg_total_relation_size(c.oid)) as total,
+       c.reltuples::bigint                            as est_rows
+  from pg_class c join pg_namespace n on n.oid = c.relnamespace
+ where n.nspname = 'realtime' and c.relname like 'messages%'
+ order by c.relname;
+
+-- (W1b) Is anything in THIS database scheduled to drop them? 0 rows is expected
+-- (retention is the Realtime service's, not ours) — read it before escalating.
+select jobid, jobname, schedule, command, active
+  from cron.job
+ where command ilike '%realtime%' or command ilike '%messages%';
+
+-- (W3) PUBLICATION DRIFT — expect EXACTLY ONE row: supabase_realtime_messages_publication
+-- carrying realtime.messages. A second row means postgres_changes now decodes frame rows too.
+select p.pubname, p.puballtables, n.nspname, c.relname
+  from pg_publication p
+  left join pg_publication_rel r on r.prpubid = p.oid
+  left join pg_class c           on c.oid = r.prrelid
+  left join pg_namespace n       on n.oid = c.relnamespace
+ order by p.pubname, n.nspname, c.relname;
+
+-- (W3b) Heap growth, if W1 ever reads wrong. At the 1.0 writes/s ceiling this is
+-- ~190 MB/day; anything climbing past a few hundred MB means retention stopped.
+select pg_size_pretty(pg_total_relation_size('realtime.messages'::regclass)) as messages_total;
+
+-- (G) The settings the three answers rest on — re-read after any Supabase platform
+-- upgrade. Expect wal_level=logical, max_slot_wal_keep_size=512MB, checkpoint_timeout=300s.
+select name, setting, unit from pg_settings
+ where name in ('wal_level','max_replication_slots','max_slot_wal_keep_size',
+                'max_wal_size','min_wal_size','wal_keep_size','checkpoint_timeout',
+                'archive_timeout','logical_decoding_work_mem')
+ order by name;
+```

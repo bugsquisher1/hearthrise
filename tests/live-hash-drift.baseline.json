@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-23",
- "replay_ms": 1860,
+ "replay_ms": 1978,
  "counts": {
   "tracked_names": 58,
   "entries": 55
@@ -974,8 +974,8 @@
     "2026-09-23-m8-parties-s1-1-tables.sql"
    ],
    "live": {
-    "md5": "dffb74a4b6e5c1b36effb494316cf4a9",
-    "norm_len": 2921,
+    "md5": "e282db6e53e9bfeddf2c154b7e9f9302",
+    "norm_len": 2954,
     "measured": "2026-09-23",
     "source": "measured-live"
    },
@@ -984,8 +984,7 @@
     "norm_len": 2954,
     "source": "computed-from-replay"
    },
-   "agree": false,
-   "why": "STAGED 2026-09-23 17:45Z: 2026-09-23-m8-parties-s1-1-tables.sql restates hr_rpc_gate to admit the `party` bucket (M8 slice 1, 12/min); NOT applied — production keeps dffb74a4 until Security's S1 GO (sec/m8-s1-review); re-measure with --live --write after the apply."
+   "agree": true
   },
   {
    "sig": "hr_set_auto_eat(p_slot integer, p_enabled boolean, p_food text, p_pct integer, p_clear_food boolean)",

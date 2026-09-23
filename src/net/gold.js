@@ -116,6 +116,7 @@ import {
   isServerAccrualEnabled, resolveActiveSlot, accrueEndpoint, MAX_SLOT,
   applyEnvelopeState, describeReplacement, isReplacementAcknowledged,
   showReplacementSheet, registerPredictionSeam, isReconcilePending,
+  classifyFrame, commitFrame, resetFrameGate, getAppliedFrame, noteFrameDrop,   // the frame gate, §7.1
 } from './accrue.js?v=551';
 import { SHOP_OFFERS } from '../data/shops.js?v=551';
 import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=551';
@@ -282,8 +283,8 @@ export function resolvePurchase(itemId, qty, goldCost) {
 let pending = [];
 let config = null;
 let last = null;
-let lastVersion = -1;      // monotonic, per §9.4's rule for hr_load vs hr-accrue
-
+/* ⚠ `lastVersion` LIVED HERE AND IS GONE (M5): the away applier had no rule at
+   all, so an envelope refused here as stale landed IN FULL a moment later. */
 /** Bounded on purpose. A prediction list that can grow without limit is a leak
  *  with an economy attached; 32 outstanding value gestures is already far past
  *  anything a human produces, and the oldest is dropped LOUDLY. */
@@ -306,7 +307,7 @@ export function goldPredictions() {
 }
 export function predictedGold() { return pending.reduce((s, p) => s + p.delta.gold, 0); }
 export function predictedGems() { return pending.reduce((s, p) => s + p.delta.gems, 0); }
-export function resetGold() { pending = []; last = null; lastVersion = -1; }
+export function resetGold() { pending = []; last = null; resetFrameGate(); }  // the floor is per character (§7.1)
 
 /** A finite integer-ish amount, or 0. F8: `Number(x) || 0` maps NaN to 0 but
  *  lets `Infinity` straight through, and an Infinity in the prediction ledger
@@ -590,15 +591,18 @@ export function applyGoldEnvelope(G, body, ownKey) {
 
      ⚠ F2 — AND THIS CALL IS STILL ANSWERED. The newer envelope that already
        landed CARRIED this prediction (it was outstanding at the time), so the
-       amount is sitting in `G.gold` on top of a server value that is at least
-       as new. Rolling it back is not "reversing a payment": it is removing a
-       CARRY whose gesture has now been answered. If the intent did land, the
-       newer envelope already contains it; if it did not, the newer envelope is
-       still the truth. Either way the carry must come off, and the first
-       revision just returned. */
-  if (env.version < lastVersion) {
+       amount sits in `G.gold` on top of a server value at least as new. Rolling
+       it back removes a CARRY whose gesture has now been answered, either way:
+       if the intent landed the newer envelope contains it, and if it did not
+       the newer envelope is still the truth. The first revision just returned. */
+  /* ⚠ AND `=` IS NOW REFUSED TOO — the M5 lift's one behaviour change, argued
+     in docs/design/LIVE_COUNTERS_PUSH.md §7; F2 is why it still rolls back. */
+  const frame = classifyFrame(env.version);
+  if (!frame.apply) {
+    noteFrameDrop(frame.verdict);   // SEC S3 — the carry comes off below, so the PLAYER is correct either way; the FRAME still did not land.
     const undone = rollbackPrediction(G, ownKey);
-    return { stale: true, version: env.version, current: lastVersion, undone };
+    return { stale: true, verdict: frame.verdict, version: env.version,
+      current: frame.current, undone };
   }
 
   const loss = describeReplacement(G, env);
@@ -639,7 +643,7 @@ export function applyGoldEnvelope(G, body, ownKey) {
   /* ABSOLUTE, never additive — and the prediction sweep now happens INSIDE this
      call, through the seam registered at the bottom of this file, so the away
      and activity envelopes get exactly the same accounting (F4). */
-  lastVersion = env.version;
+  commitFrame(env.version);
   const written = applyEnvelopeState(G, env, ownKey);
 
   written.envelope = env;
@@ -724,7 +728,7 @@ export function applyGoldEnvelope(G, body, ownKey) {
      object `state`, `skills` and `inventory`. A stateless refusal (the shape and
      pre-database codes, which `refusalCarriesState` answers false for) has none
      of that, so `applyGoldEnvelope` returns null at the top: nothing is written,
-     nothing is stamped, `lastVersion` does not move. The `ok:true` we add is a
+     nothing is stamped, the frame floor does not move. The `ok:true` we add is a
      statement about the ENVELOPE (validated, monotonic, freshly read), never
      about the verb.
 
@@ -855,7 +859,7 @@ export function getGoldState() {
     pending: goldPredictions(), predicted: predictedGold(), predictedGems: predictedGems(),
     inflight: pending.filter((p) => p.inflight).length,
     abandoned: pending.filter((p) => !p.inflight).length,
-    version: lastVersion, last,
+    version: getAppliedFrame(), last,
   };
 }
 

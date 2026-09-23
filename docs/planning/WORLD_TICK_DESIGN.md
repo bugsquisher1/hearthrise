@@ -328,10 +328,24 @@ contract as well as the client side:
   allocated by the process that produced the frame. For tick frames that is the
   shard; for intent-driven frames it is derived from `player_state.version`, so
   the two producers cannot collide (see below).
-- **A client applies a frame only if `frame > lastAppliedFrame`.** Strictly
-  greater. Equal is a duplicate and is dropped; lower is a reorder and is
-  dropped. There is no merge, no "apply the newer fields", no per-key
+- **A frame ADVANCES the gate only if `frame > lastAppliedFrame`.** Strictly
+  greater. Equal is a duplicate and lower is a reorder, and neither ever raises
+  the floor. There is no merge, no "apply the newer fields", no per-key
   comparison — the whole frame is applied or the whole frame is dropped.
+- **A duplicate is nonetheless RE-APPLIED by the intent applier, absolutely**
+  (amended 2026-09-23, `SEC_PUSH_CHANNEL_M5_2026-09-23.md` S1). "Equal is
+  dropped" is sound for a *stateless* receiver; this client is not one. It
+  carries optimistic writes on top of the applied frame, and the envelope that
+  retires them is a **refusal** — which writes nothing server-side, so
+  `player_state.version` does not move and the correction arrives at exactly
+  `lastAppliedFrame`. Dropping it leaves the browser showing a number the
+  server does not hold, which is `CLAUDE.md` §6 and a P1 class-kill. Re-applying
+  cannot be a rewind: the server never rewrites the content of a version it has
+  already stamped, so an equal frame is byte-for-byte the state behind the
+  floor. **A reorder is still dropped whole** — that one *would* be a rewind.
+  What a duplicate may not do is replay anything non-idempotent: it does not
+  raise the floor and it does not re-hang a collect receipt, because a receipt
+  is replayed into `updateDaily('kill_any')` and that is a shared surface.
 - A dropped frame is not a hole to be patched: a `delta` frame always states
   whole top-level envelope keys, so the next frame that touches a key makes the
   client whole again. A client that wants certainty sends `hello` again and gets
@@ -2150,3 +2164,440 @@ steps are in the migration header, where the operator running it will look).
    client whose inventory fold is a one-way `Math.max` ratchet reproduces the
    2026-09-13/14 bug class at 10 s resolution. This is a hard ordering
    constraint, not a preference.
+
+---
+
+## 17. The derived per-request token — T-5.3, the condition on PAYING
+
+**Status: STAGED on `lane/world-tick-token`. Security review of T-5.3 pending.**
+M1 is arming in SHADOW on production. M2 — `update public.hr_tick_config set
+shadow = false;` — is BLOCKED by Security ruling T-5.3
+(`docs/planning/SEC_WORLD_TICK_M1_2026-09-21.md`) until the static bearer the
+cron driver posts is replaced by a token derived per fire. This section is the
+design of that replacement. It is a money-gating surface: it decides when the
+tick may PAY.
+
+### 17.1 The problem, restated in one paragraph
+
+`hr_tick_cron_run` reads the Vault secret `hr_tick_shared_secret` and posts it
+verbatim in `X-HR-Tick-Auth`. That header transits `net.http_request_queue` and
+`net._http_response`, both of which carry **SELECT to PUBLIC**, granted by
+`supabase_admin`, which the applying role `postgres` cannot revoke —
+`2026-09-22-pg-net-queue-lockdown.sql` is that revoke and its own self-check
+refused the apply for exactly this reason (T-5.1). The secret is therefore
+unreachable today because of *one PostgREST setting we do not own* plus *the
+absence of a bridge we do own*, and not because of privilege. In SHADOW a
+stolen bearer moves no value, which is why T-5.1 granted the arm. Once
+`shadow = false` a holder of that bearer can propose a legal delta for any
+character the roster leased. **A derived token removes the class: nothing
+long-lived ever transits the queue.**
+
+### 17.2 The shape — T-5.3's, exactly
+
+The brief for this lane sketched `v2.<ts>.<nonce>.<mac>` with a per-isolate
+nonce LRU. **T-5.3 prescribes a different shape and T-5.3 wins** (CLAUDE.md §0:
+a dated ruling is not overridden by an undated one). The shape is:
+
+```
+X-HR-Tick-Auth: v1 t=<bucket> b=<body_sha256_hex> m=<hmac_sha256_hex>
+
+  bucket      = floor(extract(epoch from now()) / 30)::bigint
+  body_sha256 = hex sha256 of the EXACT posted body bytes
+  m           = hex hmac_sha256(key = the Vault secret,
+                                msg = bucket::text || '.' || body_sha256)
+```
+
+- The Vault secret `hr_tick_shared_secret` **never leaves the database**. The
+  driver sends a derivation of it.
+- The edge recomputes `m` from `HR_TICK_SHARED_SECRET` for
+  `bucket ∈ {n-1, n, n+1}` and compares **constant time**. Three 30 s buckets is
+  a **≤90 s acceptance window** — the flush cadence, and far wider than any
+  Postgres↔edge clock skew.
+- The edge ALSO recomputes `sha256(body bytes)` and requires it to equal `b`.
+  **Both checks are load-bearing and neither is redundant**: `m` covers only
+  `t` and `b`, so without the body-hash check a captured triple would
+  authenticate *any* body. That check is the body binding.
+- An unset or short (`< MIN_SECRET_LEN`, 32) `HR_TICK_SHARED_SECRET` refuses
+  every tick request, unchanged from the static form.
+
+### 17.3 Why there is no nonce and no replay cache
+
+The brief asked for an in-memory LRU per isolate. **It is not built, and the
+reason is a liveness bug rather than a preference.** At a 10 s cadence three
+fires land in each 30 s bucket. When the roster has not moved between them the
+driver's body is **byte-identical** — same holder, same geometry, same roster
+rows, same watermarks — so `t`, `b` and therefore `m` are identical too. An LRU
+keyed on the token would refuse the driver's own second and third legitimate
+fire of every bucket. A replay cache that cannot tell a replay from a repeat
+is not a control; it is an outage with a security-shaped name.
+
+Per-isolate memory would not have been a replay control anyway: Deno Deploy
+runs N isolates behind one URL and recycles them, so a cache in one isolate
+sees a fraction of the traffic and forgets it on every cold start. A control
+that catches an unknown fraction of attempts is a control nobody can reason
+about.
+
+**So replay is closed downstream, and here is the honest accounting of it.**
+T-5.3 says a replay "is refused `window_already_settled` by the control that
+already exists (S-3)". That sentence is *nearly* right and the difference
+matters to a reviewer: the entry does **not** take the window origin from the
+body — `tick.js` re-derives it from the fence's watermark probe on every
+request, which is the M-1 fix and the property `T-B1g` executes. So a verbatim
+replay inside the ≤90 s window is not refused as a stale window; it is
+**indistinguishable from an extra driver fire**, and that is the correct
+statement of the residual:
+
+> **Residual R-T1.** A captured `(header, body)` pair can be re-posted verbatim
+> for ≤90 s. Its effect is bounded to what one extra cron fire does: the fence
+> (`hr_tick_settle`) refuses any character the roster did not lease in the
+> driver's own holder name, the watermark CAS under the row lock refuses a
+> second payment for a window already settled (S-3), and the accrual is bounded
+> to `[server watermark, server now()]` whatever the body says. **It cannot
+> double-pay, cannot name an unleased character, and cannot move a watermark
+> backwards.** What it can do is make the tick run marginally early, at the cost
+> of one Edge invocation. That is the whole of it, and it is a smaller residual
+> than a 64-hex long-lived bearer sitting in a PUBLIC-readable table.
+>
+> **★ And its size depends on `flush_seconds`, which is a tunable** (Security
+> T-2, 2026-09-23). Two numbers hide behind "≤90 s" and only one of them is the
+> replay number: ≤90 s is the **width of the accepted set** `{n-1, n, n+1}`,
+> which is the figure that matters for clock skew, while a token minted in
+> bucket *n* is accepted only until the end of bucket *n*+1 — so its **post-mint
+> validity is ≤60 s**. `tick.js` settles only when a *whole* flush period has
+> elapsed since the watermark. Therefore: **at `flush_seconds > 60` a verbatim
+> replay settles nothing, because the flush floor refuses it; below that it can
+> settle one window up to 60 s early, which is still not a double pay.** The
+> shipped default is 90 and is on the zero side, but `hr_tick_config_flush_ck`
+> permits 10 — so the zero residual is a property of the **configuration**, not
+> an invariant. The migration's `d11` gates what is the repo's to keep true (the
+> bucket width, the column default, the floor still sitting below the window)
+> and NOTICEs the live row, which is Reliability's row-volume lever; `X-5a-e` in
+> `tests/world-tick-token-leak.mjs` hold the same sentence to an exit code from
+> the edge's side, and `MX6` proves `d11` bites.
+
+### 17.4 What the body binding costs, stated rather than skipped
+
+The mac covers the body hash, so the edge **must read the body bytes before it
+can authenticate**. Today it reads nothing until the bearer has been accepted.
+That ordering changes, and the change is a real one:
+
+- **Before the read**, the edge checks the header's *shape* (`v1 t= b= m=`,
+  `b` and `m` both 64 lower-case hex) and the *bucket window*. Both are cheap,
+  allocate nothing and run before a single byte of body is buffered.
+- **The read itself stays bounded** by `MAX_BODY_BYTES` (4 MiB), enforced both
+  by `Content-Length` and by counting the bytes that actually arrive, so a
+  chunked sender that omits the header is metered too.
+- **Residual R-T2.** A caller who can present a syntactically valid, in-window
+  header — which needs no secret, because the shape is not authenticated — can
+  make the function buffer up to 4 MiB before being refused. The ceiling is the
+  control; it is the same ceiling that bounded the authenticated caller before,
+  now doing a job it was already sized for. Nothing is parsed, and nothing
+  touches the database, until the mac verifies.
+
+Ordering, in the entry, after this change: **shape → window → bounded byte read
+→ body hash → mac (constant time) → JSON.parse → pooler → engine.** The body is
+now *authenticated before it is parsed*, which the static form never was.
+
+### 17.5 Every pre-auth refusal is the same answer
+
+`401 { ok: false, error: 'not_signed_in' }` — the body the player path returns
+for a bad token — for all of: no usable secret, a malformed header, a bucket
+outside the window, a body that could not be read or exceeded the ceiling, a
+body whose hash does not match `b`, and a mac that does not verify. **The
+oversize-body case is deliberately folded into the 401 rather than answered
+`400 bad_request`**: a body we could not read is a body we could not
+authenticate, and answering differently would hand an unauthenticated caller an
+oracle the static form never gave. `400 bad_request` survives only for a body
+that authenticated and then failed to parse as JSON, where the caller already
+holds the secret.
+
+### 17.6 Hashing the bytes pg_net actually sends
+
+The mac binds `b` to the posted bytes, so the driver must hash exactly what
+leaves. `net.http_post(url, body jsonb, …)` stores `convert_to(body::text,
+'UTF8')` in the queue and the worker sends those bytes verbatim. The driver
+therefore materialises the body as **text first** —
+`v_body_txt := <the jsonb>::text` — hashes `convert_to(v_body_txt, 'UTF8')`,
+and posts `v_body_txt::jsonb`. Both sides call the same `jsonb_out`, on the same
+value, so the bytes are the same bytes; `jsonb::text` is normalised (sorted
+keys, no insignificant whitespace), which is what makes that a property rather
+than a coincidence. Where pg_net is installed, the migration's §4 self-check
+**executes** the equality against the real queue row rather than asserting it in
+prose.
+
+### 17.7 pgcrypto, resolved rather than assumed
+
+`hr_tick_cron_run` carries `set search_path = public`, so `hmac` and `digest`
+must be schema-qualified (T-5.3). The repo has never executed pgcrypto in a
+migration — both existing mentions are comments — so the schema is **resolved
+from `pg_proc` at call time** and interpolated with `quote_ident`, rather than
+guessed at `extensions`. If `hmac(text,text,text)` is not found the driver
+returns the new outcome **`no_hmac`** and posts nothing: it **never falls back
+to the static bearer**, because a fallback is the whole class this change
+removes.
+
+**★ The match is on the argument TYPES, never on their rendering** (Security
+T-3, 2026-09-23). The first draft compared
+`pg_get_function_identity_arguments(p.oid)` to `'text, text, text'`, and that
+function **renders argument names where they exist** — measured on PG 18.3,
+`hmac(a text, b text, c text)` identifies as `'a text, b text, c text'`. The
+equality was therefore correct for pgcrypto *only because pgcrypto happens to
+declare these two unnamed*; any build, repackaging or self-hosted rebuild that
+named them would have been silently not found, and the whole tick would have
+died `no_hmac` on a database where the algorithm was sitting right there.
+`oidvectortypes(proargtypes)` is the same signature with the names taken out,
+and `prokind = 'f'` stops an aggregate or procedure of the same name answering
+for one. `X-8a-d` in `tests/world-tick-token-leak.mjs` execute the same
+algorithm under both spellings and with pgcrypto absent; `MX7` proves the
+revert is caught.
+
+**★ And "not found" is now an exit code at apply time** (Security T-1): §0b of
+the migration raises `HR_TICK_NO_PGCRYPTO` when `vault.decrypted_secrets`
+exists and the resolution comes back NULL, so a Supabase-shaped database
+cannot take this file and then quietly stop ticking.
+`tests/world-tick-token-failclosed.mjs` builds all three states.
+
+`@electric-sql/pglite` ships without pgcrypto (measured, 2026-09-22), so the
+credential-free replay cannot execute the derivation. The self-check is honest
+about that: on the replay it asserts the fail-closed path (`no_hmac`, nothing
+posted, no secret in the log) and NOTICEs the skip; on production, where
+pgcrypto is present, it executes the header shape, the known test vector and
+the queue-row body binding at apply time.
+
+### 17.8 The secret stops being a variable
+
+Today the driver reads the plaintext into `v_secret` and interpolates it into
+the header. After this change the plaintext is never assigned to a plpgsql
+variable at all: `hr_tick_auth_header(bucket, body_sha)` reads
+`vault.decrypted_secrets` and computes the mac **inside one dynamic EXECUTE**,
+and only the mac comes back. That helper is a mac oracle by construction, so it
+is `security definer` and **revoked from `public, anon, authenticated,
+service_role, hr_engine, hr_tick`** — the same posture as `hr_tick_cron_run`,
+asserted by the self-check. `hr_tick_gateway_key` is unchanged and stays a
+variable: it is the project anon key, public by design, and T-5.3 puts it
+explicitly out of scope.
+
+### 17.9 The cutover: one form at a time, no dual-accept
+
+**Chosen: the edge accepts `v1 t= b= m=` ONLY, and the static bearer is refused
+from the moment that build is live.** The seam is the kill switch, not a
+dual-accept window:
+
+1. `update public.hr_tick_config set enabled = false;` — fires stop in ≤10 s.
+2. Apply `2026-09-22-world-tick-derived-token.sql` (Coordinator, one file).
+3. Pack and deploy `hr-accrue`; verify the live `payload_sha256` equals
+   `pack-edge --hash`.
+4. `update public.hr_tick_config set enabled = true;` — re-arm.
+
+Between (1) and (4) the tick posts nothing, so there is no window in which the
+two halves disagree and no window in which a build exists that accepts both
+forms. **Dual-accept was rejected**: it needs two deploys, the second one is the
+one that actually satisfies T-5.3, and a "remove this by <date>" line on a money
+gate is the thing that gets forgotten. It also costs the in-page payload guard
+its meaning for the duration — there would be a live build whose hash is green
+and whose behaviour is the thing Security blocked.
+
+If steps (1)–(4) are not run as one sequence, the honest failure is loud and
+free: the driver posts `v1 …`, an edge still holding the static check finds no
+match and answers `401 not_signed_in`, the watermark does not move, and the owed
+time is paid by the next accepted fire. `net.http_post` is asynchronous, so
+`hr_tick_cron_log` still reads `posted` — **verify a cutover in
+`net._http_response` or the Edge logs, never in the fire log** (the same trap
+the rotation note in `2026-09-21-world-tick-cron.sql` §3 documents).
+
+### 17.10 Rotation, after this lands
+
+Unchanged in shape and strictly better in cost: accept `HR_TICK_SHARED_SECRET`
+and `HR_TICK_SHARED_SECRET_PREV` on the edge for one deploy, then drop the
+second. The plaintext transits nothing either way, so the disagreement window
+stops being a confidentiality question and becomes an availability one.
+**Not built in this lane** — it is a separate change with its own arms, and
+naming it here is not shipping it.
+
+### 17.11 Operator section — apply, deploy, verify, kill
+
+The authoritative copy is §6 of `2026-09-22-world-tick-derived-token.sql`; this
+is the same thing short enough to work from. Coordinator only (CLAUDE.md §2 —
+agents stage, the Coordinator applies).
+
+**Pre-flight, read-only, BEFORE `apply-migration`.** These are reads, not
+checks you can skip because the guards are green: the guards ran on a replay,
+and two of these are about the production database specifically.
+
+```sql
+-- (P1) pgcrypto: PRESENT, and in which schema. §0b of the migration REFUSES the
+--      apply if this comes back empty while `vault.decrypted_secrets` exists
+--      (Security T-1) — so a miss here is a failed apply, not a silent no-op.
+select n.nspname as schema, p.proname, oidvectortypes(p.proargtypes) as arg_types
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where p.proname in ('hmac', 'digest') order by 1, 2;
+--   EXPECT  extensions | digest | bytea, text
+--           extensions | hmac   | text, text, text
+--   NO ROWS => run `create extension if not exists pgcrypto with schema extensions;`
+
+-- (P2) the Vault contract. The apply is harmless without it; the RE-ARM is not.
+select name, length(decrypted_secret) as len from vault.decrypted_secrets
+ where name in ('hr_tick_shared_secret', 'hr_tick_gateway_key') order by 1;
+--   EXPECT hr_tick_shared_secret with len >= 32 (the edge's MIN_SECRET_LEN and
+--   the helper's own floor — a short secret refuses on BOTH sides, by design).
+
+-- (P4) ★ the state the apply lands in, and R-T1's size (Security T-2).
+--      ...and see (P3) below, which is a shell read rather than a SQL one and
+--      is the only one of these that STOPS BEING READABLE once step 3 runs.
+select enabled, shadow, cadence_seconds, flush_seconds, edge_url
+  from public.hr_tick_config;
+--   EXPECT shadow = true. THIS FILE DOES NOT FLIP IT.
+--   flush_seconds SHOULD be 90. The token's post-mint validity is <= 60 s, and
+--   a fire settles only after a WHOLE flush period, so at flush_seconds > 60 a
+--   verbatim replay settles NOTHING; at <= 60 it can settle one window up to
+--   60 s early (never twice, never for an unleased character, never backwards).
+--   d11 NOTICEs this at apply time rather than refusing — the row is
+--   Reliability's row-volume lever, not this file's.
+
+-- (P5) what the §5 probe fire will touch. A 0 here means d7 proves nothing
+--      about a real batch.
+select count(*) as owned from public.hr_tick_ownership where owned;
+```
+
+**★ (P3) THE ROLLBACK VALUE — read it now, because step 3 overwrites it**
+(Security T-4, 2026-09-23). The rollback below says "re-deploy the previous
+hr-accrue payload", and until this read is written down, *nothing anywhere
+records what that payload is*. A deploy is not reversible by memory.
+
+```bash
+curl -s https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue
+#   -> the GET returns `payload_sha256`. WRITE IT DOWN, here, before step 3:
+#
+#        PREVIOUS payload_sha256 = ____________________________________________
+#        read at (UTC)           = ____________________________________________
+#
+#   This is the ONLY pre-flight read that cannot be taken again afterwards.
+#   If the GET does not answer, STOP: a function you cannot read is a function
+#   you cannot roll back to, and the cutover can wait for that.
+```
+
+⚠ **Do not copy a payload hash out of a document — including this one.** The
+value moves whenever anything under `supabase/functions/**` moves, and on this
+branch it already has: Security's review recorded
+`1b97422cd1542ec36224e37e930cc0df5370b76968f1fc2d60316f62c3bd24ec` on
+2026-09-23, and merging `origin/next` (M1f's `hr-accrue/envelope.js` and the M5
+frame gate) took the packed payload to
+`92f5d8b5fab1be4e7516ed94f7d82b7f587877b171c17cdad3e7b3587db32fd6`. Both
+numbers are correct for the tree that produced them and neither is
+authoritative for yours. **`node tools/pack-edge.mjs hr-accrue --hash` at
+deploy time is the number that matters**; what this section pins is the READ,
+not the digest.
+
+**Order.** Steps 1 and 4 are the seam; between them the tick posts nothing, so
+no build ever exists that accepts both forms.
+
+```bash
+# 1. STOP THE FIRES (takes effect on the next fire, ≤10 s)
+#    update public.hr_tick_config set enabled = false;
+#    select at, outcome from public.hr_tick_cron_log order by id desc limit 5;   -- EXPECT: disabled
+
+# 2. APPLY — one file, never inside begin/commit, never 00:00–00:10 UTC
+node tools/apply-migration.mjs supabase/migrations/2026-09-22-world-tick-derived-token.sql
+#    EXPECT the §5 notice to name d1 d2 d9 d4 d5 d6 d7 d8 d8b d10 d11 as RAN.
+#    ⚠ IF d4–d7 READ AS SKIPPED ON PRODUCTION, STOP: pgcrypto is not reachable,
+#      the tick will answer `no_hmac` forever, and the fix is
+#      `create extension if not exists pgcrypto;` + a re-apply, not a re-arm.
+#      ★ Since 2026-09-23 that STOP is an exit code (Security T-1): §0b raises
+#        HR_TICK_NO_PGCRYPTO and the apply fails by itself. You are not the gate.
+#    ★ ALSO READ the `d11` notice if one appears: it means flush_seconds is at
+#      or below the token's 60 s replay window and R-T1's residual is non-zero
+#      on this database (Security T-2). It is not a reason to stop — it is a
+#      number to know before `shadow = false` is discussed.
+
+# 3. DEPLOY THE EDGE HALF — nothing works until both halves are the same version
+node tools/pack-edge.mjs hr-accrue --out <dir>/supabase/functions/hr-accrue
+cp supabase/config.toml <dir>/supabase/config.toml
+npx --yes supabase@latest functions deploy hr-accrue --workdir <dir> \
+  --project-ref nezapsylztqbbwuwembx
+node tools/pack-edge.mjs hr-accrue --hash
+curl -s https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue
+#    The GET's `payload_sha256` MUST equal --hash — compare the two VALUES you
+#    just read, never a value from a document (see (P3)). On this branch
+#    --hash is 92f5d8b5fab1be4e7516ed94f7d82b7f587877b171c17cdad3e7b3587db32fd6
+#    as of the origin/next merge; re-read it rather than trusting that.
+#    ★ (P3) must already be written down. If it is not, go back — the previous
+#      payload_sha256 is no longer readable once this deploy lands.
+
+# 4. RE-ARM
+#    update public.hr_tick_config set enabled = true;
+```
+
+**Then, after the apply:** `live-hash-drift --live --write` plus a whys entry
+(`hr_tick_cron_run` is a restated live body), the apply-order note flipped to
+APPLIED, and `restore-census` re-run — no new table, so it should be a no-op.
+
+**The verification reads, and what each one means.**
+
+| # | read | expect | if not |
+|---|---|---|---|
+| a | `select at, outcome, detail->>'auth', detail->>'bucket' from public.hr_tick_cron_log order by id desc limit 10;` | `posted`, auth `v1` | `no_hmac` → pgcrypto; `no_secret` → Vault secret missing or <32 chars; `error` → read `sqlstate` |
+| b | `select id, status_code from net._http_response order by id desc limit 10;` | 200 | **401 = the two halves disagree.** `net.http_post` is async, so a rejected token still logs `posted` — (a) cannot tell you this and (b) is the only honest read |
+| c | `select count(*) from net.http_request_queue q, vault.decrypted_secrets s where s.name='hr_tick_shared_secret' and q.headers->>'X-HR-Tick-Auth' = s.decrypted_secret;` | **0** | non-zero = the plaintext is on the wire and this whole change did not land |
+| d | `select count(*), max(at) from public.hr_tick_shadow where at > now() - interval '1 hour';` | climbing at ≈ active/flush_seconds | frozen at the cutover instant = step 3 or 4 did not land |
+
+Queue depth is normally **0** (the pg_net worker deletes the row after the
+send), so (c) returning no rows is health, not a failure.
+
+**The kill switch is unchanged by this lane** and is verified in code (T-5.4):
+
+```sql
+update public.hr_tick_config set enabled = false;   -- USE THIS FIRST
+select public.hr_cron_drop('hr-tick-run');          -- stops the driver entirely
+```
+
+The first is a single-row UPDATE on a singleton, takes effect on the next 10 s
+fire, and needs neither a migration nor a deploy — use it at any surprise and
+diagnose second. `hr_cron_drop` returns false rather than raising when the job is
+already gone and is revoked from `public, anon, authenticated, service_role`: no
+client can stop the world tick. After it the job is **gone, not paused**; re-arm
+with `select public.hr_cron_ensure('hr-tick-run', '10 seconds', 'select
+public.hr_tick_cron_run()');`.
+
+**Rolling this lane back.** Both halves, behind the kill switch, and the
+**deploy goes first** on the way back for the same reason the migration went
+first on the way out: the half that ACCEPTS must never be older than the half
+that SENDS. Both intermediate states refuse, so neither direction can pay.
+
+```bash
+# 1. STOP THE FIRES
+#    update public.hr_tick_config set enabled = false;
+
+# 2. RE-DEPLOY THE PREVIOUS PAYLOAD — the one (P3) recorded. <P3_HASH> is that
+#    value; it is not in this file and cannot be, because it describes what was
+#    live before you started.
+git log --oneline -- supabase/functions/hr-accrue   # find the deployed commit
+git worktree add /tmp/hr-rollback <that commit>
+# pack-edge derives its ROOT from its OWN path, so run the copy INSIDE the
+# rollback worktree and it packs that tree (verified 2026-09-23). There is no
+# --root flag; reaching for one is how a rollback quietly packs HEAD instead.
+node /tmp/hr-rollback/tools/pack-edge.mjs hr-accrue --hash
+#    ★ THIS MUST PRINT <P3_HASH>. If it does not, you have the wrong commit and
+#      re-deploying it is a second change, not a rollback. Stop and find the one
+#      that does — that is exactly what (P3) was read for.
+node /tmp/hr-rollback/tools/pack-edge.mjs hr-accrue \
+  --out /tmp/hr-rollback-pack/supabase/functions/hr-accrue
+cp /tmp/hr-rollback/supabase/config.toml /tmp/hr-rollback-pack/supabase/config.toml
+npx --yes supabase@latest functions deploy hr-accrue --workdir /tmp/hr-rollback-pack \
+  --project-ref nezapsylztqbbwuwembx
+curl -s https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue
+#    payload_sha256 MUST now equal <P3_HASH>. That is the rollback, confirmed.
+
+# 3. RESTATE THE DRIVER IN ITS STATIC FORM
+node tools/apply-migration.mjs supabase/migrations/2026-09-21-world-tick-cron.sql
+#    X-7a-c execute that this re-applies cleanly, restores the static form, and
+#    is NOT blocked by the `no_hmac` rows the failed cutover wrote.
+
+# 4. RE-ARM
+#    update public.hr_tick_config set enabled = true;
+#    -- and if the JOB itself was dropped rather than disabled:
+#    select public.hr_cron_ensure('hr-tick-run', '10 seconds',
+#                                 'select public.hr_tick_cron_run()');
+```
+
+Rolling back puts the T-5.3 block back, so **M2 is blocked again** — that is
+the intended consequence, not a side effect.

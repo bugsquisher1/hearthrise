@@ -1250,6 +1250,52 @@ jobs:
           node tests/world-tick-ledger-meta.mjs
           node tests/world-tick-ledger-meta.mjs --mutate
 
+      # THE DERIVED PER-REQUEST TOKEN, EXECUTED RATHER THAN ASSERTED
+      # (SEC_WORLD_TICK_TOKEN_2026-09-23.md, security ruling T-5.3). The
+      # migration's own §5 self-check CANNOT RUN THE DERIVATION on the
+      # credential-free replay: PGlite has no pgcrypto, so d4-d7 skip by name and
+      # only the fail-closed path is proven there. Three of that file's arms —
+      # d6d (the header carries the key), d7b (the queued header binds the queued
+      # body) and d8 (no credential in the fire log) — are therefore VACUOUS on
+      # the replay and had never been red anywhere; the lane hand-wrote d8b for
+      # exactly that reason but did not know it was true of d6d and d7b too.
+      #
+      # This guard gives the replay faithful stubs of the three things Supabase
+      # has and PGlite does not — pgcrypto (a second implementation of RFC 2104
+      # over core sha256(), PINNED against node:crypto AND the migration's own
+      # vector, so it cannot agree by being wrong), vault.decrypted_secrets, and
+      # pg_net's documented convert_to(body::text,'UTF8') queue insert — and then
+      # runs a real fire and sweeps every observable surface for the plaintext:
+      # the driver's return value, hr_tick_cron_log, every routine body in
+      # `public`, and the PUBLIC-readable queue row itself. X-4 replays that
+      # captured row against the real edge verifier: the verbatim pair is
+      # accepted (residual R-T1, executed rather than claimed), one byte of body
+      # is refused, a stale or future bucket is refused, and the old static
+      # bearer is refused outright. --selftest plants five defects in the file
+      # under review and all five are refused.
+      - name: World tick — the derived token carries no secret and binds its body
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-token-leak.mjs
+          node tests/world-tick-token-leak.mjs --selftest
+
+      # SECURITY T-1 (SEC_WORLD_TICK_TOKEN_2026-09-23.md), P1. The token
+      # migration used to APPLY GREEN on a database where pgcrypto could not be
+      # resolved, and the world tick then answered `no_hmac` on every fire for
+      # ever — a migration that succeeds while disabling the feature it
+      # configures, with a `raise notice` as the only warning. This guard builds
+      # all three states the discriminator (`vault.decrypted_secrets`) can be in
+      # and reads the APPLY's own verdict: Vault + no pgcrypto must be REFUSED,
+      # the credential-free replay must still apply and still fail closed with a
+      # journalled `no_hmac`, and the working shape must pay nothing for the
+      # gate. --selftest removes §0b and d10 singly and together: each alone is
+      # still caught by the other, and only removing both reproduces T-1.
+      - name: World tick — a tick that could not derive refuses the apply
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-token-failclosed.mjs
+          node tests/world-tick-token-failclosed.mjs --selftest
+
       # THE THREE PROPERTIES THE STRIP INTRODUCED THAT ITS OWN GUARD DOES NOT
       # MEASURE. Written by the security-engineer role during the review of
       # 2026-09-23-client-state-retired-fields.sql; it deliberately does NOT
@@ -2253,6 +2299,43 @@ jobs:
         run: |
           node tests/no-client-xp-mint.mjs --selftest
           node tests/no-client-xp-mint.mjs
+
+      # THE FRAME GATE (M5, docs/design/LIVE_COUNTERS_PUSH.md §7). Before it, the
+      # client had NO whole-envelope version gate: isEnvelopeApplicable asked
+      # only that `version` be a finite number, and the monotonic rule lived in
+      # ONE place for ONE field (gold.js's `lastVersion`). That is survivable
+      # under request/response and is a silent rewind of hp, the bag, the
+      # activity pointer and every buff clock under a push stream. The rule is
+      # now one floor, strictly greater, whole-frame-or-nothing, committed by
+      # all three appliers (accrue / gold / activity).
+      # Base AND selftest, per C4: a selftest-only registration cannot tell a
+      # caught defect from a guard that is broken at rest. --selftest plants
+      # five defects — `>=` restored, a per-key merge below the gate, gold.js
+      # growing its floor back, the activity applier not committing, and the
+      # frame gate moved into classifyAccrueResponse (which would halt the
+      # accrual loop on three duplicates) — and requires each one caught.
+      - name: Envelope frame gate — one monotonic frame, whole frame or nothing
+        run: |
+          node tests/envelope-frame-gate.mjs --selftest
+          node tests/envelope-frame-gate.mjs
+
+      # FRAME DROP STREAK (SEC_PUSH_CHANNEL_M5_2026-09-23.md S3). The gate's two
+      # failure directions are not symmetric: a floor that is too LOW heals on
+      # the next frame; one that is too HIGH refuses every frame including the
+      # `hello` that is the only documented healer, so the healer is gated by
+      # the thing it heals. A client in that state looks IDENTICAL to a quiet
+      # one — in the browser, in a bug report and in vitals.mjs, which CLAUDE.md
+      # §3.4 gives two days to notice. Until lane/m5-live-subscribe ships the
+      # re-read that may RESET the floor, the deliverable is detection, and this
+      # guard is what keeps it honest: it pins that all three appliers count
+      # their refusals, that a landed frame clears the streak, and — D4 — that
+      # the too-high hole is still there. D4 goes RED when the hole is closed,
+      # on purpose, so the author who closes it has to come and say so.
+      # Base AND mutate, per C4: five planted defects, each required caught.
+      - name: Frame drop streak — a refused client must be able to say so
+        run: |
+          node tests/frame-drop-streak.mjs --mutate
+          node tests/frame-drop-streak.mjs
 
       # NO DUPLICATE RPC CALLERS (b514): a RATCHET. The six hand-rolled
       # rpc(name, body) copies stay six (HearthriseRpc is the DECISION, not a

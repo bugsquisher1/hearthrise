@@ -73,12 +73,74 @@
 // (not under src/**).
 // ============================================================================
 
-import { createHash, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 
 import {
-  CHANNEL, DEFAULT_CADENCE_MS, DEFAULT_FLUSH_MS,
-  sessionFromRoster, settleGatherSession,
+  CHANNEL as GATHER_CHANNEL, DEFAULT_CADENCE_MS, DEFAULT_FLUSH_MS,
+  sessionFromRoster as gatherSessionFromRoster, settleGatherSession,
 } from './tick-gather.js';
+import {
+  CHANNEL as COMBAT_CHANNEL,
+  sessionFromRoster as combatSessionFromRoster, settleCombatSession,
+} from './tick-combat.js';
+
+/* ── THE DISPATCH TABLE (Security S-8, 2026-09-23) ───────────────────────────
+   Until today this file imported ONE `CHANNEL` — gather's — and used it three
+   ways: as the `p_channel` of the watermark probe, as the kind a character's
+   pointer had to equal, and as the `p_channel` of the settle. A combat
+   character therefore could not be settled at all. Arming `combat` in
+   `hr_tick_config.channels` would have made `hr_tick_roster` hand one out under
+   a stamped lease, and this file would then have asked the fence about it under
+   the WRONG channel — where step (4) looks the lease up by
+   `(user, slot, channel)` and finds nothing, and step (5) refuses
+   `channel_moved`. Every combat character would have burned one of
+   `batch_limit` slots per fire, taken from the running gather cohort, and
+   journalled NOTHING: a 48 h parity read that is empty by construction while
+   every dashboard stays green.
+
+   So the channel is a property of the CHARACTER, read from `hr_state_of` in
+   this request, and this table is the one place that maps it to the code that
+   settles it. A kind with no entry here is SKIPPED by name — never fenced under
+   another channel's spelling, which is the shape that made S-8 invisible.
+
+   `sessionFromRoster` and the settler are taken as a PAIR on purpose: each
+   channel's session builder asserts its own `row.active_kind` and throws on a
+   mismatch, so a table wired to a mismatched pair fails loudly on the first
+   character rather than silently pricing one channel with another's rules. */
+export const CHANNELS = Object.freeze({
+  [GATHER_CHANNEL]: Object.freeze({
+    channel: GATHER_CHANNEL,
+    sessionFromRoster: gatherSessionFromRoster,
+    settle: settleGatherSession,
+  }),
+  [COMBAT_CHANNEL]: Object.freeze({
+    channel: COMBAT_CHANNEL,
+    sessionFromRoster: combatSessionFromRoster,
+    settle: settleCombatSession,
+  }),
+});
+
+/* ── CHANNELS THE DATABASE ADMITS AND THIS FILE CANNOT SETTLE ────────────────
+   `hr_tick_config_channels_ck` (2026-09-22-world-tick-combat-channel.sql §1)
+   is `channels <@ array['combat','gather','artisan']`, so `artisan` is a value
+   an operator CAN put in that column today. There is no artisan settler: the
+   channel is declared here, by name and with its reason, so that
+
+     (a) `tickOne` refuses an artisan character with `channel_not_driven`
+         rather than fencing it under someone else's channel, and
+     (b) the guard can assert that every channel the CHECK admits is either
+         DRIVEN or DECLARED-UNDRIVEN — so a fourth value added to that CHECK
+         without a driver goes red here instead of being discovered as an empty
+         parity read three milestones later.
+
+   ARMING AN UNDRIVEN CHANNEL IS AN OPERATOR ERROR, and it is fail-closed: the
+   characters are leased and skipped by name, nothing is paid and nothing is
+   journalled. It still costs them a roster slot per fire, which is why this is
+   a declaration and not a silent default. */
+export const UNDRIVEN_CHANNELS = Object.freeze({
+  artisan: 'no artisan settler exists; the channel is admitted by '
+    + 'hr_tick_config_channels_ck but must never be armed until one ships',
+});
 
 /* The header the tick bearer rides on. Lower-case because `Headers.get` is
    case-insensitive and every comparison in this file should be too. */
@@ -147,14 +209,30 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
    It is a pure function of a Request-like object so a Node test can drive it
    with a real `Request`; `body` may be absent (a Response-less stub), in which
    case there is nothing to read and `{}` is the honest answer. */
-export async function readTickBody(req, limit = MAX_BODY_BYTES) {
+export async function readTickBytes(req, limit = MAX_BODY_BYTES) {
   const declared = Number(req.headers && req.headers.get
     ? req.headers.get('content-length') : NaN);
   if (Number.isFinite(declared) && declared > limit) return null;
   if (!req.body || typeof req.body.getReader !== 'function') {
     /* No stream to meter (a stub, or a runtime that buffered it already). Fall
-       back to the whole-body read, still bounded by the length check above. */
-    try { return await req.json(); } catch { return null; }
+       back to the whole-body read, still bounded by the length check above, and
+       still returned as BYTES — `text()` then `TextEncoder` round-trips through
+       the same UTF-8 the sender used, which is what the mac is computed over. */
+    try {
+      if (typeof req.text === 'function') {
+        const t = await req.text();
+        const b = new TextEncoder().encode(t);
+        return b.byteLength > limit ? null : b;
+      }
+      if (typeof req.json === 'function') {
+        /* Last resort, for a stub that offers only `json()`: re-serialise. The
+           bytes are then OURS rather than the sender's, so `tickBodyAuthOk`
+           will refuse unless they happen to match — which is the safe
+           direction, and the reason the real runtime never lands here. */
+        return new TextEncoder().encode(JSON.stringify(await req.json()));
+      }
+      return null;
+    } catch { return null; }
   }
   const reader = req.body.getReader();
   const chunks = [];
@@ -171,62 +249,209 @@ export async function readTickBody(req, limit = MAX_BODY_BYTES) {
   const buf = new Uint8Array(n);
   let at = 0;
   for (const c of chunks) { buf.set(c, at); at += c.byteLength; }
-  try { return JSON.parse(new TextDecoder().decode(buf)); } catch { return null; }
+  return buf;
+}
+
+/* The parse, SEPARATED FROM THE READ so that authentication can sit between
+   them. `null` means "not JSON"; the caller answers `bad_request`, and by then
+   the caller already holds the secret, so that answer is not an oracle. */
+export function parseTickBytes(bytes) {
+  if (!(bytes instanceof Uint8Array)) return null;
+  try { return JSON.parse(new TextDecoder().decode(bytes)); } catch { return null; }
+}
+
+/* The old whole-body read, kept because the bound is worth asserting on its own
+   and the guard drives it directly. NOTHING IN THE REQUEST PATH CALLS IT: the
+   entry reads bytes, authenticates them, and only then parses (§the token
+   block below). */
+export async function readTickBody(req, limit = MAX_BODY_BYTES) {
+  const bytes = await readTickBytes(req, limit);
+  return bytes === null ? null : parseTickBytes(bytes);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// THE BEARER
+// THE TOKEN — DERIVED PER FIRE (Security T-5.3, 2026-09-22)
+//
+// The static 64-hex bearer is GONE. It transited `net.http_request_queue` and
+// `net._http_response`, both SELECT-to-PUBLIC by a grant `supabase_admin` made
+// and `postgres` cannot revoke, so its confidentiality rested on PostgREST's
+// exposed-schema list and on the absence of a bridge — reachability, not
+// privilege. T-5.3 makes replacing it the hard condition on the tick ever
+// PAYING. WORLD_TICK_DESIGN.md §17 is the design.
+//
+//     X-HR-Tick-Auth: v1 t=<bucket> b=<body_sha256_hex> m=<hmac_sha256_hex>
+//
+//       bucket = floor(epoch_seconds / 30)
+//       m      = hmac_sha256(key = HR_TICK_SHARED_SECRET,
+//                            msg = bucket + '.' + body_sha256_hex)
+//
+// FOUR CHECKS, AND NONE OF THEM IS REDUNDANT:
+//   1. the secret is usable at all (>= MIN_SECRET_LEN) — else refuse everything;
+//   2. the header parses as exactly this shape, both digests 64 LOWER-CASE hex;
+//   3. `bucket` is within ±1 of ours — a ≤90 s window, the flush cadence, far
+//      wider than any Postgres↔edge skew and narrow enough that a captured
+//      header expires before the next flush;
+//   4. sha256(the body we actually received) === `b`, AND `m` verifies over
+//      `t.b`, constant time.
+// (4) is two halves and both are load-bearing: `m` covers only `t` and `b`, so
+// WITHOUT THE BODY HASH CHECK a captured triple would authenticate any body at
+// all. That check is the body binding, and it is why there is no nonce.
+//
+// ── WHY NO NONCE AND NO PER-ISOLATE REPLAY CACHE ───────────────────────────
+// At a 10 s cadence three fires land in each 30 s bucket, and when the roster
+// has not moved the driver's body is BYTE-IDENTICAL — so `t`, `b` and therefore
+// `m` are identical too. An LRU keyed on the token would refuse the driver's own
+// second and third legitimate fire of every bucket: an outage with a
+// security-shaped name. Per-isolate memory would not be a control anyway (N
+// isolates behind one URL, recycled, catching an unknown fraction). T-5.3 says
+// the same: "no nonce table, no new row growth".
+//   RESIDUAL R-T1: a verbatim replay inside the ≤90 s window is
+//   indistinguishable from an extra cron fire. The fence refuses any character
+//   the roster did not lease in the driver's own holder name, the watermark CAS
+//   refuses a second payment for a settled window (S-3), and accrual is bounded
+//   to [watermark, now()]. IT CANNOT DOUBLE-PAY, CANNOT NAME AN UNLEASED
+//   CHARACTER, AND CANNOT MOVE A WATERMARK BACKWARDS.
+//
+// ── THE ORDERING CHANGE, AND WHAT IT COSTS ─────────────────────────────────
+// The mac binds the body hash, so the bytes must be READ before they can be
+// authenticated. Shape and window are checked FIRST and allocate nothing; the
+// read is bounded by MAX_BODY_BYTES exactly as before; nothing is PARSED and
+// nothing touches the database until the mac verifies. RESIDUAL R-T2: a caller
+// presenting a syntactically valid in-window header — which needs no secret,
+// because the shape is not authenticated — can make the function buffer up to
+// 4 MiB. The ceiling is the control, doing the job it was already sized for.
+//   Net: the body is now AUTHENTICATED BEFORE IT IS PARSED, which the static
+//   form never was.
 // ═══════════════════════════════════════════════════════════════════════════
 
-/* Is this env var usable as the tick bearer at all? Split out so the refusal
+/* Is this env var usable as the tick secret at all? Split out so the refusal
    path can be asserted without an env var and without a request. */
 export function tickSecretUsable(secret) {
   return typeof secret === 'string' && secret.length >= MIN_SECRET_LEN;
+}
+
+/* The bucket width and the skew tolerance. 30 s × {n-1, n, n+1} = a ≤90 s
+   acceptance window, which is T-5.3's number and the gather flush cadence. */
+export const TICK_BUCKET_SECONDS = 30;
+export const TICK_BUCKET_SKEW = 1;
+
+/* The token version tag. A future v2 changes THIS and the migration together;
+   there is deliberately no multi-version accept path (WORLD_TICK_DESIGN.md
+   §17.9 — the cutover is one form at a time, behind the kill switch). */
+export const TICK_TOKEN_VERSION = 'v1';
+
+/* THE SHAPE, PINNED. Lower-case hex only: accepting both cases would mean two
+   spellings of one digest and a comparison that has to normalise before it can
+   be constant time. The driver emits `encode(…, 'hex')`, which is lower-case. */
+const TOKEN_RE = /^v1 t=(0|[1-9][0-9]{0,15}) b=([0-9a-f]{64}) m=([0-9a-f]{64})$/;
+
+/* Parse and nothing else — no secret is touched here, so a malformed header
+   costs a regex and not a digest. Returns null for anything that is not
+   exactly the shape. */
+export function parseTickToken(presented) {
+  if (typeof presented !== 'string') return null;
+  const m = TOKEN_RE.exec(presented);
+  if (m === null) return null;
+  const bucket = Number(m[1]);
+  if (!Number.isSafeInteger(bucket) || bucket <= 0) return null;
+  const out = Object.create(null);
+  out.bucket = bucket;
+  out.bodySha = m[2];
+  out.mac = m[3];
+  return out;
+}
+
+/* The bucket this instant belongs to. `nowMs` is a parameter so every arm can
+   drive the clock instead of sleeping. */
+export function tickBucketOf(nowMs) {
+  return Math.floor(nowMs / 1000 / TICK_BUCKET_SECONDS);
+}
+
+/* ±TICK_BUCKET_SKEW buckets. A token from the future is refused as firmly as a
+   stale one: a clock that far ahead is a broken driver, not a slow network. */
+export function tickWindowOk(bucket, nowMs) {
+  if (!Number.isSafeInteger(bucket)) return false;
+  return Math.abs(bucket - tickBucketOf(nowMs)) <= TICK_BUCKET_SKEW;
+}
+
+/* The mac the driver should have sent for this (bucket, body hash). Exported so
+   the guard can build a real token rather than a plausible-looking string. */
+export function tickTokenMac(bucket, bodyShaHex, secret) {
+  return createHmac('sha256', secret)
+    .update(`${bucket}.${bodyShaHex}`, 'utf8').digest('hex');
+}
+
+/* The sha256 of the bytes as they arrived. `Uint8Array` in, lower-case hex out,
+   so it is comparable to the driver's `encode(digest(…), 'hex')` directly. */
+export function tickBodySha256(bytes) {
+  return createHash('sha256').update(bytes).digest('hex');
 }
 
 /* CONSTANT TIME, AND LENGTH-INDEPENDENT.
    `timingSafeEqual` throws on a length mismatch, and catching that throw would
    itself be the length oracle — so both sides are hashed to a fixed 32 bytes
    FIRST and the comparison is always over 32 bytes. A wrong guess therefore
-   costs exactly what a right one costs, whatever its length, and the digest of
-   a secret is not the secret.
+   costs exactly what a right one costs, whatever its length.
 
-   `presented` is attacker-controlled and may be null; `secret` is the env var
-   and is only ever reached through `tickSecretUsable`. */
-export function tickBearerOk(presented, secret) {
-  if (!tickSecretUsable(secret)) return false;
-  if (typeof presented !== 'string' || presented.length === 0) return false;
+   Both arguments here are hex digests rather than secrets, but the discipline
+   stays: this is the function that answers "is the presented mac the right
+   one", and that answer must not be reachable one character at a time. */
+export function tickMacOk(presented, expected) {
+  if (typeof presented !== 'string' || typeof expected !== 'string') return false;
+  if (presented.length === 0 || expected.length === 0) return false;
   const a = createHash('sha256').update(presented, 'utf8').digest();
-  const b = createHash('sha256').update(secret, 'utf8').digest();
+  const b = createHash('sha256').update(expected, 'utf8').digest();
   return timingSafeEqual(a, b);
 }
 
-/* THE GATE, AS A PURE FUNCTION OF (headers, env).
+/* THE GATE, AS A PURE FUNCTION OF (headers, env, clock). Stage one of two: it
+   decides whether this is a tick request at all, and whether the token is
+   well-formed and fresh — WITHOUT reading the body, because the body is the
+   thing the rest of the check is about.
 
    Three answers, and the caller in index.ts must handle all three:
      null                 → not a tick request; fall through to the player path,
                             byte for byte unchanged.
-     { ok:false, … }      → a tick request that failed the bearer. 401
-                            `not_signed_in` — the SAME body the player path
-                            returns for a bad token, so this branch is not an
-                            oracle for "does op:tick exist here".
-     { ok:true }          → proceed, and only now may anything else run.
+     { ok:false, … }      → a tick request that failed. 401 `not_signed_in` —
+                            the SAME body the player path returns for a bad
+                            token, so this branch is not an oracle for "does
+                            op:tick exist here", and the same body for EVERY
+                            reason, so it is not an oracle for which check bit.
+     { ok:true, token }   → the shape and the window hold. `token` must then be
+                            carried to `tickBodyAuthOk` with the bytes; nothing
+                            else may run first.
 
-   THE DISCRIMINATOR IS THE HEADER'S PRESENCE, NEVER THE BODY. Reading the body
-   to decide whether to check the bearer would mean parsing attacker-controlled
-   JSON before authenticating it, which is the thing §15c says must not happen.
-   A request with no `X-HR-Tick-Auth` is simply not a tick request and is
-   handled by the player path exactly as it was before this file existed —
-   including a body that says `op: 'tick'`, which reaches `parseIntent` and is
-   answered as that caller's own accrual, never as a tick. */
-export function tickGate(headers, secret) {
+   THE DISCRIMINATOR IS THE HEADER'S PRESENCE, NEVER THE BODY. A request with no
+   `X-HR-Tick-Auth` is simply not a tick request and is handled by the player
+   path exactly as it was before this file existed — including a body that says
+   `op: 'tick'`, which reaches `parseIntent` and is answered as that caller's own
+   accrual, never as a tick. */
+export function tickGate(headers, secret, nowMs = Date.now()) {
   const presented = headers && typeof headers.get === 'function'
     ? headers.get(TICK_HEADER) : null;
   if (presented === null || presented === undefined) return null;
-  if (!tickBearerOk(presented, secret)) {
-    return { ok: false, status: 401, body: { ok: false, error: 'not_signed_in' } };
-  }
-  return { ok: true };
+  const refuse = { ok: false, status: 401, body: { ok: false, error: 'not_signed_in' } };
+  if (!tickSecretUsable(secret)) return refuse;
+  const token = parseTickToken(presented);
+  if (token === null) return refuse;
+  if (!tickWindowOk(token.bucket, nowMs)) return refuse;
+  return { ok: true, token };
+}
+
+/* Stage two: the body binding and the mac, in that order. `bytes` is exactly
+   what arrived — not a re-serialisation of a parsed object, which would be a
+   different byte string and would defeat the whole point.
+
+   `bytes === null` means the read was refused (over the ceiling, or the stream
+   died). That is a FALSE, not a separate answer: a body we could not read is a
+   body we could not authenticate, and answering it differently would hand an
+   unauthenticated caller an oracle the static form never gave. */
+export function tickBodyAuthOk(token, bytes, secret) {
+  if (!tickSecretUsable(secret)) return false;
+  if (!token || typeof token.bodySha !== 'string' || typeof token.mac !== 'string') return false;
+  if (!(bytes instanceof Uint8Array)) return false;
+  if (tickBodySha256(bytes) !== token.bodySha) return false;
+  return tickMacOk(token.mac, tickTokenMac(token.bucket, token.bodySha, secret));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -336,10 +561,18 @@ export async function probeKillSwitch(exec, holder) {
    It is also the LEASE and OWNERSHIP check, for free and before any engine
    time is spent: steps (3)–(5) of the fence run first, so a character this
    driver does not hold, does not own, or is no longer gathering is refused
-   here with its own code. Nothing is written on any of those paths. */
-export async function probeWatermark(exec, holder, sel, nowIso) {
+   here with its own code. Nothing is written on any of those paths.
+
+   ⚠ `channel` IS THE CHARACTER'S OWN, NOT A CONSTANT (Security S-8). The
+     fence looks the lease up by `(user, slot, channel)` at step (4) and
+     compares `player_state.active_kind` to it at step (5), so probing under a
+     hard-coded 'gather' asks a combat character's question about a lease that
+     does not exist and reads back `not_tick_owned` — indistinguishable from an
+     unleased character, and the reason the combat shadow could not produce one
+     row. The caller reads `active_kind` from `hr_state_of` and passes it. */
+export async function probeWatermark(exec, holder, sel, nowIso, channel) {
   const res = await fence(exec, {
-    holder, user: sel.userId, slot: sel.slot, channel: CHANNEL,
+    holder, user: sel.userId, slot: sel.slot, channel,
     version: null, windowFrom: PROBE_FROM_ISO, windowTo: nowIso,
     intentId: '00000000-0000-0000-0000-000000000000',
     delta: JSON.stringify({ accrued_to: nowIso }),
@@ -375,8 +608,12 @@ export async function probeWatermark(exec, holder, sel, nowIso) {
    — a level-up inside the window changing the action interval, say — the real
    pass simply walks past the end of the ladder and stops, and the tail is owed
    rather than paid on a seed that names the wrong instant. */
-export function planSeedLabels(session, fromMs, toMs, opts) {
-  const dry = settleGatherSession(session, fromMs, toMs, opts);
+export function planSeedLabels(settle, session, fromMs, toMs, opts) {
+  /* THE DRY PASS MUST BE THE CHANNEL'S OWN (S-8). Running gather's chain over
+     a combat session would walk a different ladder of instants than the real
+     pass then asks for, so the real pass would stop at the first watermark the
+     ladder does not name and settle nothing. */
+  const dry = settle(session, fromMs, toMs, opts);
   const out = [];
   const seen = new Set();
   /* THE FIRST WINDOW'S INSTANT IS CARRIED, NOT RE-SPELLED. It is the instant
@@ -428,9 +665,8 @@ async function seedLadder(exec, sel, labels) {
    Returns a verdict, never a throw: a character that cannot be settled must not
    cost the rest of the batch its window. */
 async function tickOne(exec, holder, sel, body) {
-  /* (1) THE FENCE FIRST. It answers "do I hold this character, is it still
-         gathering, and from when" in one call that writes nothing — so an
-         unleased character costs one round trip and zero engine time. */
+  /* (0) THE SERVER CLOCK. Every instant this function names comes from here or
+         from the fence; none of them comes from the body. */
   const read0 = await exec('select now()::timestamptz as now', []);
   /* THE DRIVER HANDS BACK A `Date`, NOT A STRING (T-1). `postgres` parses OID
      1184 into a JS Date and index.ts gives it no `types` override, so
@@ -442,13 +678,25 @@ async function tickOne(exec, holder, sel, body) {
      `.toISOString()` is the spelling index.ts:775 already uses on the accrue
      path; tests/world-tick-edge-contract.mjs EC-1b/EC-2a is the exit code. */
   const nowIso = new Date(read0[0].now).toISOString();
-  const probe = await probeWatermark(exec, holder, sel, nowIso);
-  if (!probe.ok) return { outcome: 'skipped', reason: probe.reason };
 
-  /* (2) THE STATE, FROM THE DATABASE, IN THIS REQUEST. Not one field of it
+  /* (1) THE STATE, FROM THE DATABASE, IN THIS REQUEST. Not one field of it
          comes from the body — `hr_state_of` is the same projection the player's
          own envelope is built from, and `version` is the number `hr_apply`
-         refuses a stale copy of. */
+         refuses a stale copy of.
+
+         ⚠ THIS READ MOVED AHEAD OF THE PROBE (Security S-8, 2026-09-23), and
+           the order is the finding. The probe IS the lease check, and the fence
+           looks a lease up by `(user, slot, channel)` — so the probe cannot be
+           asked until this driver knows which channel the character is on, and
+           the only server-side answer to that is `active_kind` on this
+           projection. `hr_engine` is revoked from `player_state`, so there is
+           no cheaper read of it.
+
+           The cost is one `hr_state_of` for a character that turns out to be
+           unleased, where the old order cost none. That is bounded: the body's
+           roster is clamped to MAX_ROSTER and the branch already sits behind
+           the tick bearer. It buys the property S-8 is about — a character is
+           never asked about under a channel that is not its own. */
   const [row] = await exec(
     'select public.hr_state_of($1::uuid, $2::int) as state,'
     + ' public.hr_offline_cap_ms($1::uuid, $2::int) as cap_ms,'
@@ -457,15 +705,30 @@ async function tickOne(exec, holder, sel, body) {
   const env = row && row.state;
   if (!env || env.ok !== true) return { outcome: 'skipped', reason: 'no_character' };
   const st = env.state || {};
-  if (st.active_kind !== CHANNEL) {
-    return { outcome: 'skipped', reason: 'channel_moved' };
-  }
+
+  /* (2) THE DISPATCH. The character's pointer picks the code that settles it.
+         A kind with no entry is skipped BY NAME: `channel_not_driven` says the
+         edge cannot settle this character, which is a different sentence from
+         `channel_moved` ("it was here and moved") and from `no_lease` ("it is
+         not mine"). Collapsing the three is exactly how S-8 stayed invisible —
+         a wall of `channel_moved` read as players switching activity. */
+  const driver = Object.prototype.hasOwnProperty.call(CHANNELS, st.active_kind)
+    ? CHANNELS[st.active_kind]
+    : null;
+  if (!driver) return { outcome: 'skipped', reason: 'channel_not_driven' };
+  const channel = driver.channel;
+
+  /* (3) THE FENCE, UNDER THE CHARACTER'S OWN CHANNEL. It answers "do I hold
+         this character, is it still on this channel, and from when" in one call
+         that writes nothing. */
+  const probe = await probeWatermark(exec, holder, sel, nowIso, channel);
+  if (!probe.ok) return { outcome: 'skipped', reason: probe.reason };
   /* Same driver contract as (1): `row.now` is a Date. `String()` happened to
      survive here only because JS can parse what Postgres cannot. */
   const nowMs = new Date(row.now).getTime();
   const markMs = probe.markMs;
 
-  /* (3) THE WINDOW. It ENDS at one flush period past the mark or at the server
+  /* (4) THE WINDOW. It ENDS at one flush period past the mark or at the server
          clock, whichever is sooner — so a fire computes at most one flush
          window per character and emits at most one intent. A character further
          behind than that catches up one flush per fire; the tail is owed, never
@@ -478,7 +741,7 @@ async function tickOne(exec, holder, sel, body) {
     return { outcome: 'skipped', reason: 'below_flush' };
   }
 
-  /* (4) THE SESSION. Assembled from SERVER values field by field, with the
+  /* (5) THE SESSION. Assembled from SERVER values field by field, with the
          watermark the FENCE reported rather than `st.accrued_to` — in shadow
          the two differ, and chaining on `accrued_to` is the overlapping-window
          bug §15c's shadow mark exists to prevent.
@@ -491,7 +754,7 @@ async function tickOne(exec, holder, sel, body) {
            came back `would_ticks: 0` with `activity: {kind:'idle'}` — the
            level gate, on a character who can mine that node. The field list
            itself is now ./envelope.js, shared with index.ts's accrue path. */
-  const session = sessionFromRoster({
+  const session = driver.sessionFromRoster({
     user_id: sel.userId,
     slot: sel.slot,
     shard: 0,                       // hr_shard_of is `select 0`; see the header
@@ -499,6 +762,22 @@ async function tickOne(exec, holder, sel, body) {
     active_id: st.active_id,
     active_since: st.active_since,
     accrued_to: new Date(markMs).toISOString(),
+    /* THE FENCE'S OWN RENDERING OF THE WATERMARK (Security S-8/T-2).
+       `accrued_to` above is `new Date(markMs).toISOString()` — the `…Z`
+       spelling, and `markMs` has already lost the microseconds. Combat's
+       `rosterWatermarkText` needs a SERVER rendering of that same instant to
+       spell the seed label with, and it checks the candidates it is given
+       against `markMs` before accepting one. Until today nothing set this key,
+       so the only candidate was `state.accrued_to` — which in SHADOW is a
+       DIFFERENT instant from the fence's mark, so every displaced shadow
+       window would have been refused outright ("no server rendering of the
+       watermark"). `probe.markText` is the fence's own jsonb rendering of the
+       mark it just reported, microseconds and `+00:00` included, and it is the
+       only spelling that is both correct and available here.
+
+       Gather's `sessionFromRoster` ignores it: its label is planned by
+       Postgres from the instant (SEED_LABEL_EXPR), never from a JS string. */
+    mark_text: probe.markText,
     version: env.version,
     /* THE ABSENCE CAP, read in the same transaction as everything else —
        `hr_offline_cap_ms`, exactly as the accrue path reads it. Without it the
@@ -514,16 +793,16 @@ async function tickOne(exec, holder, sel, body) {
     holder,
   };
 
-  /* (5) THE SEEDS, THEN THE ONE REAL PASS. */
-  const labels = planSeedLabels(session, markMs, toMs,
+  /* (6) THE SEEDS, THEN THE ONE REAL PASS. */
+  const labels = planSeedLabels(driver.settle, session, markMs, toMs,
     Object.assign({}, geom, { markText: probe.markText }));
   const seeds = await seedLadder(exec, sel, labels);
-  const run = settleGatherSession(session, markMs, toMs,
+  const run = driver.settle(session, markMs, toMs,
     Object.assign({}, geom, { seedOf: (ms) => (seeds.has(ms) ? seeds.get(ms) : null) }));
 
   if (run.intents.length === 0) return { outcome: 'skipped', reason: 'nothing_settled' };
 
-  /* (6) THE SETTLE. Intents 2..N are stale by construction and say so
+  /* (7) THE SETTLE. Intents 2..N are stale by construction and say so
          (`rehydrateBefore`, S-6): they carry a null version precisely so the
          database refuses them, and the honest answer is to stop and re-hydrate
          on the next fire rather than to invent a successor version. */
@@ -534,7 +813,7 @@ async function tickOne(exec, holder, sel, body) {
     holder,                          // ours, never `a.p_holder` from the fold
     user: sel.userId,
     slot: sel.slot,
-    channel: CHANNEL,
+    channel,                         // the character's own, as the probe used
     version: a.p_version,
     windowFrom: a.p_window_from,
     windowTo: a.p_window_to,

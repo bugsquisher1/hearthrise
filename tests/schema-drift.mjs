@@ -414,6 +414,26 @@ const MUTATIONS = {
       "     and split_part(pp.key, ':', 3) ~ '^[1-9][0-9]*$'",
     ]]]],
   },
+  /* ── 2026-09-23, the M5 push channel's e4 arm ─────────────────────────
+     The frame-push self-check asserts that hr_tick_settle's SHADOW branch
+     returns before hr_apply, so a dry-run tick can never write player_state
+     and can never push a frame. It asked `to_regprocedure('public.
+     hr_tick_settle(int)')` for the body — a one-argument form that has never
+     existed, the fence's door taking nine — so the lookup answered NULL, the
+     arm printed a NOTICE and skipped, and every apply since reported a
+     property nothing had measured. The signature is now DERIVED from pg_proc
+     by name and finding none RAISES (e4c); this mutation spells a signature
+     into the name again, exactly as the defect did, and requires the file to
+     REFUSE TO APPLY rather than skip. An arm that homes on nothing is
+     decoration, and a mutation is the only thing that tells the two apart. */
+  frame_e4_homes_on_nothing: {
+    what: "the frame-push e4 arm names an hr_tick_settle that pg_proc cannot match, so the shadow-branch claim is graded against no function at all",
+    expect: 'replay', // e4c raises: no public.hr_tick_settle is installed …
+    patches: [['2026-09-22-frame-push-channel.sql', [[
+      "       where n.nspname = 'public' and p.proname = 'hr_tick_settle'",
+      "       where n.nspname = 'public' and p.proname = 'hr_tick_settle(int)'",
+    ]]]],
+  },
   reopen_a11: {
     what: 'the beta_invites lockdown GUC is unset, so a rebuild leaves every invite code world-readable',
     expect: 'replay', // live-market-rls §3b raises without it, by design

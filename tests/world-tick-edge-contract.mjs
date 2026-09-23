@@ -57,6 +57,33 @@
 // The arms marked (control) are the negatives: they pin the OLD spellings as
 // still wrong, so a revert is still caught.
 //
+// ── EC-4, THE COMBAT DRIVER (Security S-8, added 2026-09-23) ────────────────
+// Nothing in the edge settled combat until this build: `tick.js` imported one
+// `CHANNEL` — gather's — and used it as the probe's `p_channel`, as the kind a
+// pointer had to equal, and as the settle's `p_channel`. `settleCombatSession`
+// had no production caller and `services/world-tick/combat.js` was not in the
+// payload. EC-4a drives the shipped `runTick` over a level-61 fighter and
+// requires a real `hr_tick_shadow` row with `would_kills`/`would_xp` > 0;
+// EC-4b requires gather to still settle through the same dispatch; EC-4c pins
+// the old spelling as still refused; EC-4d reads
+// `hr_tick_config_channels_ck` out of the catalogue and requires every channel
+// it admits to be DRIVEN or DECLARED-UNDRIVEN, so the roster can never lease
+// what the edge cannot settle; EC-4e requires the SECOND window — the one
+// whose shadow mark has displaced from `player_state.accrued_to` — to settle
+// too, which is the arm that needs `mark_text`.
+//
+// MUTATION PROOF for EC-4, run 2026-09-23 with each revert applied to the real
+// source and then restored (exit codes observed, not expected):
+//   · tick.js dispatch -> today's shape (`CHANNELS[GATHER_CHANNEL]`, pointer
+//     must equal gather): exit 1, EC-4a RED with
+//     `reasons {"channel_moved":1}` and NO shadow row — S-8's own signature.
+//     EC-4b/c/d stayed green, so the arm is specific.
+//   · tick.js session build -> `mark_text` line deleted: exit 1, EC-4e RED
+//     with `error:rosterWatermarkText: no server rendering of the watermark`
+//     and 1 -> 1 shadow rows, while EC-4a stayed GREEN. The two arms isolate
+//     different defects: the first window settles without `mark_text` and
+//     every window after it throws.
+//
 // MUTATION PROOF (run by hand 2026-09-22, each revert applied to the real
 // source): tick.js `String(read0[0].now)` -> EC-2a red; tick.js
 // `SEED_LABEL_EXPR` back to the `to_char`/`toISOString` spelling -> EC-3a and
@@ -86,7 +113,9 @@
 // ============================================================================
 
 import { bootReplay } from './schema-replay.mjs';
-import { runTick, SEED_LABEL_EXPR } from '../supabase/functions/hr-accrue/tick.js';
+import {
+  runTick, SEED_LABEL_EXPR, CHANNELS, UNDRIVEN_CHANNELS,
+} from '../supabase/functions/hr-accrue/tick.js';
 
 const problems = [];
 function judge(id, pass, good, bad) {
@@ -541,6 +570,254 @@ try {
       + `\n           old roster : ${oldRoster}  seed ${ctl.seeds.roster}`
       + `\n           session TimeZone : ${zone}  (the renderings above are Postgres's, in that `
       + 'zone; none of the claims depend on it)');
+  }
+
+  // ── EC-4 ── THE COMBAT DRIVER (Security S-8) ────────────────────────────
+  // Until 2026-09-23 NOTHING IN THE EDGE SETTLED COMBAT. `tick.js` imported a
+  // single `CHANNEL` from `tick-gather.js`, fenced every character under
+  // 'gather', and `settleCombatSession` had no production caller at all — its
+  // only callers were three test files, and `services/` is not in the payload.
+  // Arming `combat` would have leased combat characters under a stamped lease
+  // and then asked the fence about them under the wrong channel, where the
+  // lease lookup is `(user, slot, channel)` and finds nothing. Result: zero
+  // `hr_tick_shadow` combat rows, one `batch_limit` slot burned per character
+  // per fire out of the running gather cohort, and a 48 h parity read that is
+  // empty BY CONSTRUCTION while every dashboard stays green.
+  //
+  // These arms drive the shipped `runTick` — not a re-implementation — against
+  // the real fence, so reverting tick.js to the constant turns EC-4a red.
+  group('EC-4  the combat driver: a combat character settles, a gather one still does');
+  {
+    const FIGHT_MONSTER = 'goblin';
+    const XP_AT_61 = 302288;
+    const holder = (await db.query(
+      "select left('cron:' || coalesce(current_database(), 'db'), 64) as h")).rows[0].h;
+
+    /* THE LEVEL-61 FIGHTER, the same shape world-tick-hydration seeds: armed,
+       fed, auto-eat on, mid-fight, six deaths today and sixty in the ladder,
+       an enchanted weapon and a chosen style. Nothing here is a round default
+       — a character who cannot kill cannot prove that the settler ran. */
+    const seedFighter = async (u, channel) => {
+      await db.exec(`insert into auth.users (id) values ('${u}') on conflict do nothing;`);
+      for (const t of ['player_skills', 'player_inventory', 'player_equipment', 'player_progress']) {
+        await db.exec(`delete from public.${t} where user_id = '${u}';`);
+      }
+      await db.exec(`
+        insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version, accrued_to,
+          active_kind, active_id, active_since, auto_eat_enabled, auto_eat_food, auto_eat_pct,
+          consec_falls, combat_style, tool_carry, combat_xp_accrued_to, recovering_until,
+          fight, buffs, enchant)
+        values ('${u}', 0, 1234, 0, 99, 99, 7, now() - interval '10 minutes',
+          'combat', '${FIGHT_MONSTER}', now() - interval '2 hours',
+          true, 'cooked_trout', 70,
+          0, '{"sword":"aggressive"}'::jsonb, '{}'::jsonb,
+          now() - interval '3 hours', now() - interval '3 hours',
+          '{"id":"${FIGHT_MONSTER}","hp":11}'::jsonb, '[]'::jsonb, '{"weapon":"fire"}'::jsonb)
+        on conflict (user_id, slot) do update set version = 7, hp = 99, max_hp = 99, gold = 1234,
+          accrued_to = now() - interval '10 minutes',
+          active_kind = 'combat', active_id = '${FIGHT_MONSTER}';`);
+      await db.exec(`
+        insert into public.player_skills (user_id, slot, skill_id, xp) values
+          ('${u}', 0, 'attack',    ${XP_AT_61}),
+          ('${u}', 0, 'strength',  ${XP_AT_61}),
+          ('${u}', 0, 'defence',   150000),
+          ('${u}', 0, 'hitpoints', ${XP_AT_61});`);
+      await db.exec(`
+        insert into public.player_inventory (user_id, slot, item_id, qty) values
+          ('${u}', 0, 'cooked_trout', 40), ('${u}', 0, 'bones', 2);`);
+      await db.exec(`
+        insert into public.player_equipment (user_id, slot, equip_slot, item_id)
+        values ('${u}', 0, 'weapon', 'mithril_sword');`);
+      await db.exec(`
+        insert into public.player_progress (user_id, slot, kind, key, period_key, value) values
+          ('${u}', 0, 'stat', 'deaths', '', 60),
+          ('${u}', 0, 'stat', 'deaths', public.hr_utc_day_key(now()), 6);`);
+      await db.exec(`delete from public.hr_tick_ownership where user_id = '${u}';`);
+      await db.exec(`
+        insert into public.hr_tick_ownership (user_id, slot, channel, owned, lease_holder, lease_until)
+        values ('${u}', 0, '${channel}', true, '${holder}', now() + interval '5 minutes');`);
+    };
+
+    const execSeam = async (text, params) => {
+      await db.exec('begin'); await db.exec('set local role hr_engine');
+      try { return (await db.query(text, params)).rows; }
+      finally { await db.exec('commit'); }
+    };
+    const fire = async (u) => {
+      try {
+        return (await runTick({
+          exec: execSeam,
+          body: { op: 'tick', roster: [{ user_id: u, slot: 0 }],
+            cadence_ms: 10000, flush_ms: 90000 },
+        })).body;
+      } catch (e) { return { RAISED: String(e.message).slice(0, 160) }; }
+    };
+
+    /* THE CHANNEL IS ARMED FOR THIS GUARD ONLY. Production stays `{gather}`
+       until Security lifts the ARM block; the point here is that the EDGE can
+       settle what an armed roster would hand it, which is the precondition the
+       arm is blocked on — not a recommendation to arm. */
+    await db.exec("update public.hr_tick_config set channels = array['combat','gather']::text[],"
+      + ' enabled = true, shadow = true where id;');
+
+    const uc = U(10);
+    await seedFighter(uc, 'combat');
+    await db.exec(`delete from public.hr_tick_shadow where user_id = '${uc}';`);
+    const combatFire = await fire(uc);
+    const row = (await db.query(
+      `select channel, would_kills, would_xp, would_gold, would_ate, delta
+         from public.hr_tick_shadow where user_id = '${uc}' order by window_to desc limit 1`)).rows[0];
+    const kills = row ? Number(row.would_kills) : 0;
+    const xpKeys = row && row.would_xp ? Object.keys(row.would_xp) : [];
+    const xpTotal = xpKeys.reduce((a, k) => a + Number(row.would_xp[k] || 0), 0);
+
+    judge('EC-4a', !!row && row.channel === 'combat' && kills > 0 && xpTotal > 0,
+      'a combat roster row reached settleCombatSession and journalled a SHADOW row: '
+      + `would_kills=${kills}, would_xp=${JSON.stringify(row && row.would_xp)}, `
+      + `would_gold=${row && row.would_gold}, would_ate=${row && row.would_ate} `
+      + `(fire: ${JSON.stringify({ shadowed: combatFire.shadowed, skipped: combatFire.skipped, refused: combatFire.refused, reasons: combatFire.reasons })})`,
+      'NOTHING IN THE EDGE SETTLED COMBAT (Security S-8). The fire answered '
+      + `${JSON.stringify(combatFire)} and hr_tick_shadow holds `
+      + `${row ? JSON.stringify({ kills, xp: row.would_xp }) : 'NO ROW'} for this character. `
+      + 'A `channel_moved` or `channel_not_driven` reason means tickOne never dispatched to '
+      + 'settleCombatSession; zero kills with a shadow row means the settler ran but the level-61 '
+      + 'fighter reached the engine at level 0 (that is S-7, not S-8).');
+
+    /* THE GATHER PATH IS UNTOUCHED. The dispatch table is the change; the
+       channel that already worked must still work, or S-8's fix has traded one
+       empty parity read for another. */
+    const ug = U(11);
+    await db.exec(`insert into auth.users (id) values ('${ug}') on conflict do nothing;`);
+    await db.exec(`
+      insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version, accrued_to,
+                                       active_kind, active_id, active_since)
+      values ('${ug}', 0, 0, 0, 10, 10, 1, now() - interval '10 minutes',
+              'gather', '${ACT}', now() - interval '2 hours')
+      on conflict (user_id, slot) do update set version = 1, gold = 0,
+        accrued_to = now() - interval '10 minutes', active_kind = 'gather', active_id = '${ACT}';`);
+    await db.exec(`delete from public.hr_tick_ownership where user_id = '${ug}';`);
+    await db.exec(`
+      insert into public.hr_tick_ownership (user_id, slot, channel, owned, lease_holder, lease_until)
+      values ('${ug}', 0, 'gather', true, '${holder}', now() + interval '5 minutes');`);
+    await db.exec(`delete from public.hr_tick_shadow where user_id = '${ug}';`);
+    const gatherFire = await fire(ug);
+    const gRows = Number((await db.query(
+      `select count(*) as n from public.hr_tick_shadow
+        where user_id = '${ug}' and channel = 'gather'`)).rows[0].n);
+    judge('EC-4b', gatherFire.ok === true && gatherFire.shadowed === 1 && gRows === 1,
+      'and the gather path still reaches settleGatherSession through the same dispatch — '
+      + `${gRows} shadow row, fire ${JSON.stringify({ shadowed: gatherFire.shadowed, skipped: gatherFire.skipped, reasons: gatherFire.reasons })}`,
+      `the dispatch broke the channel that already worked: ${JSON.stringify(gatherFire)}, `
+      + `${gRows} gather shadow rows`);
+
+    /* ── EC-4c (control) — TODAY'S SHAPE, PINNED AS STILL WRONG ─────────────
+       The defect was not "combat settled badly", it was "combat was asked
+       about under gather's channel". Ask the fence the OLD question about the
+       combat character and require it to be REFUSED: the lease lookup is
+       `(user, slot, channel)` (2026-09-21-world-tick-settle-fence.sql step 4),
+       so a combat character probed as 'gather' has no lease row at all. This
+       is why the old code could not have settled one, and it stays red if
+       anyone re-hardcodes the channel. */
+    const probeAs = async (u, channel) => {
+      await db.exec('begin'); await db.exec('set local role hr_engine');
+      let out;
+      try {
+        out = (await db.query(
+          `select public.hr_tick_settle($1::text, $2::uuid, 0, $3::text, null::bigint,
+             '1970-01-01T00:00:00.000Z'::timestamptz, now()::timestamptz, $4::uuid,
+             jsonb_build_object('accrued_to', now()::text)) as r`,
+          [holder, u, channel, KEY0])).rows[0].r;
+      } catch (e) { out = { RAISED: String(e.message).slice(0, 90) }; }
+      await db.exec('commit');
+      return out;
+    };
+    const asGather = await probeAs(uc, 'gather');
+    const asCombat = await probeAs(uc, 'combat');
+    judge('EC-4c (control)', asGather.ok !== true && asGather.error !== 'window_already_settled'
+        && asCombat.error === 'window_already_settled',
+      "the OLD spelling is still wrong: probing the combat character as 'gather' is refused "
+      + `\`${asGather.error}\` (no lease row on that channel), while its OWN channel reads the `
+      + `watermark back (\`${asCombat.error}\`, accrued_to=${asCombat.accrued_to}). That pair is `
+      + 'exactly why a hard-coded channel journalled nothing',
+      'the two spellings are no longer distinguishable, so EC-4a can no longer tell the fix from '
+      + `the defect: as-gather=${JSON.stringify(asGather)} as-combat=${JSON.stringify(asCombat)}`);
+
+    /* ── EC-4d — THE ROSTER MUST NEVER LEASE WHAT THE EDGE CANNOT SETTLE ────
+       `hr_tick_config_channels_ck` is the set of values an operator can put in
+       `channels`, and the roster hands out a lease for every one of them. Any
+       value the edge neither DRIVES nor explicitly DECLARES UNDRIVEN is a
+       channel that can be armed into silence — S-8 exactly. Read the CHECK
+       from the catalogue rather than restating it, so widening the constraint
+       without wiring or declaring the channel goes red HERE. */
+    const ck = (await db.query(
+      `select pg_get_constraintdef(oid) as def from pg_constraint
+        where conname = 'hr_tick_config_channels_ck'`)).rows[0];
+    const admitted = ck ? [...new Set([...String(ck.def).matchAll(/'([a-z_]+)'::text/g)]
+      .map((m) => m[1]))].sort() : [];
+    const driven = Object.keys(CHANNELS).sort();
+    const declaredUndriven = Object.keys(UNDRIVEN_CHANNELS).sort();
+    const unaccounted = admitted.filter(
+      (c) => !driven.includes(c) && !declaredUndriven.includes(c));
+    const undrivenNotAdmitted = declaredUndriven.filter((c) => !admitted.includes(c));
+    judge('EC-4d', admitted.length > 0 && unaccounted.length === 0
+        && undrivenNotAdmitted.length === 0 && driven.includes('combat') && driven.includes('gather'),
+      `every channel the CHECK admits is accounted for — admitted [${admitted.join(', ')}], `
+      + `driven [${driven.join(', ')}], declared undriven [${declaredUndriven.join(', ')}] `
+      + '(an undriven channel is refused by name as `channel_not_driven`, never fenced under '
+      + 'another channel)',
+      admitted.length === 0
+        ? 'hr_tick_config_channels_ck was not found — the CHECK this arm reads is gone, so nothing '
+          + 'bounds what an operator can arm'
+        : `the roster can lease a channel the edge cannot settle: [${unaccounted.join(', ')}] is `
+          + `admitted by the CHECK but neither in tick.js CHANNELS [${driven.join(', ')}] nor `
+          + `declared in UNDRIVEN_CHANNELS [${declaredUndriven.join(', ')}]`
+          + (undrivenNotAdmitted.length
+            ? `; and [${undrivenNotAdmitted.join(', ')}] is declared undriven but the CHECK no `
+              + 'longer admits it, so the declaration is stale' : ''));
+
+    /* ── EC-4e — THE DISPLACED SHADOW WINDOW (Security S-8, second half) ────
+       The FIRST combat window is easy: `player_state.accrued_to` still equals
+       the fence's mark, so combat's `rosterWatermarkText` finds a server
+       rendering of it on the envelope and the seed label can be spelled. From
+       the SECOND window on they diverge — in shadow the fence chains on
+       `hr_tick_ownership.shadow_accrued_to`, which has moved, while
+       `accrued_to` has not — and the ONLY server rendering of the fence's mark
+       is `probe.markText`. `tick.js` did not put it on the roster row, so
+       `rosterWatermarkText` would have thrown on every window after the first:
+       a combat cohort that settles exactly once and then goes silent, which
+       reads as "the tick stalled" and not as a missing field.
+
+       So: fire twice and require the SECOND window to journal too. This arm is
+       red without `mark_text: probe.markText` in the session build. */
+    const before = Number((await db.query(
+      `select count(*) as n from public.hr_tick_shadow
+        where user_id = '${uc}' and channel = 'combat'`)).rows[0].n);
+    const mark1 = (await db.query(
+      `select ps.accrued_to, o.shadow_accrued_to
+         from public.hr_tick_ownership o
+         join public.player_state ps using (user_id, slot)
+        where o.user_id = '${uc}' and o.channel = 'combat'`)).rows[0];
+    const fire2 = await fire(uc);
+    const after = Number((await db.query(
+      `select count(*) as n from public.hr_tick_shadow
+        where user_id = '${uc}' and channel = 'combat'`)).rows[0].n);
+    const displaced = mark1 && mark1.shadow_accrued_to != null
+      && String(mark1.shadow_accrued_to) !== String(mark1.accrued_to);
+    judge('EC-4e', displaced && after === before + 1 && fire2.shadowed === 1,
+      'the SECOND combat window settles too — the shadow mark has displaced from '
+      + `player_state.accrued_to (${mark1 && mark1.shadow_accrued_to} vs ${mark1 && mark1.accrued_to}) `
+      + `and the fence's own rendering still spells the seed label: ${before} -> ${after} shadow rows`,
+      !displaced
+        ? 'the shadow mark never displaced, so this arm did not exercise what it is for — the '
+          + `ownership row reads ${JSON.stringify(mark1)}`
+        : 'THE DISPLACED WINDOW WAS REFUSED. Without `mark_text: probe.markText` on the roster row '
+          + 'combat\'s rosterWatermarkText has no server rendering of the fence mark and throws, so '
+          + `a combat character settles once and then stalls: ${JSON.stringify(fire2)} `
+          + `(${before} -> ${after} shadow rows)`);
+
+    /* Leave the singleton as production holds it. A guard that arms a channel
+       and walks away is a guard that changed the thing it measures. */
+    await db.exec("update public.hr_tick_config set channels = array['gather']::text[] where id;");
   }
 } finally {
   await db.close();

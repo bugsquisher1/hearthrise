@@ -19,11 +19,22 @@
 // ── THE NINE ARMS ──────────────────────────────────────────────────────────
 //   T-G1  the two geometry clamps still match hr_tick_config's CHECK ranges
 //   T-A1  no X-HR-Tick-Auth  -> not a tick request at all; NOTHING runs
-//   T-A2  wrong bearer       -> 401 not_signed_in, the same body the player
-//                              path returns, and no database call
+//   T-A2  a token that does not verify, AND THE STATIC BEARER ITSELF -> 401
+//         not_signed_in, the same body the player path returns, no database call
 //   T-A3  unset / short env  -> every tick request refused, even a right guess
 //   T-A4  constant time      -> the comparison is over two fixed-length
 //                              digests, so length is not an oracle
+//   T-V1  THE PINNED VECTOR shared with 2026-09-22-world-tick-derived-token.sql
+//         §5 d4: node:crypto and pgcrypto must agree, and neither runtime can
+//         run in the other's process, so a constant is the only binding there is
+//   T-N1  a stale or future bucket -> refused (±90 s, and BOTH directions)
+//   T-N2  the body tampered after signing -> refused; the mac covers `t` and `b`
+//         ONLY, so the body-hash check is what makes a captured triple useless
+//   T-N3  R-T1 EXECUTED, not wished for: a verbatim replay inside the window
+//         DOES verify (there is no nonce, by T-5.3), and what bounds it is the
+//         window closing and the fence's CAS — this arm states the truth so that
+//         nobody reads the absence of a replay test as an absence of replay
+//   T-N4  EVERY refusal is byte-identical: not an oracle for WHICH check bit
 //   T-B1  a forged body naming a user/slot/ts/amount changes NOTHING: the
 //         selectors survive, every other field is dropped on the floor
 //   T-K1  kill switch off    -> no-op: no engine, no settle, no write
@@ -42,8 +53,13 @@
 // A guard that has never been red is not a guard (CLAUDE.md §4). Each mutation
 // is applied to the REAL caller — a patched module object, not a
 // re-implementation — and the run fails if the arms stay green:
-//   M1 remove the bearer check        M2 accept a body-supplied user id
+//   M1 remove the token check         M2 accept a body-supplied user id
 //   M3 skip the kill switch           M4 write payable rows while shadowed
+//   M8 accept the STATIC BEARER again (the T-5.3 regression, exactly)
+//   M9 drop the body-hash check, keeping the mac (a captured triple signs any
+//      body — the one defect that looks like working code)
+//   M10 widen the window to "any bucket" (the ±90 s bound stops bounding)
+//   M11 answer a distinguishable 400 when the body cannot be read (the oracle)
 //   M5 chain the next window on the BODY's accrued_to instead of the fence's
 //      watermark (the M-1 stall, reproduced through the entry)
 //   M6 abort the whole batch on the first refused character
@@ -54,14 +70,18 @@
 // ════════════════════════════════════════════════════════════════════════════
 
 import { readFile } from 'node:fs/promises';
+import { createHash, createHmac } from 'node:crypto';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { pack } from '../tools/pack-edge.mjs';
 import {
-  tickGate, tickBearerOk, tickSecretUsable, parseTickBody, parseSelectors,
-  probeKillSwitch, runTick, readTickBody,
-  TICK_HEADER, TICK_OP, MIN_SECRET_LEN, MAX_ROSTER, MAX_BODY_BYTES,
+  tickGate, tickBodyAuthOk, tickSecretUsable, tickMacOk, tickTokenMac,
+  tickBodySha256, tickBucketOf, tickWindowOk, parseTickToken,
+  parseTickBody, parseSelectors, parseTickBytes,
+  probeKillSwitch, runTick, readTickBody, readTickBytes,
+  TICK_HEADER, TICK_OP, TICK_TOKEN_VERSION, TICK_BUCKET_SECONDS, TICK_BUCKET_SKEW,
+  MIN_SECRET_LEN, MAX_ROSTER, MAX_BODY_BYTES,
   CADENCE_MS_MIN, CADENCE_MS_MAX, FLUSH_MS_MIN, FLUSH_MS_MAX,
 } from '../supabase/functions/hr-accrue/tick.js';
 
@@ -81,6 +101,32 @@ const SECRET = 'a'.repeat(32) + 'b'.repeat(32);
 const WRONG = 'c'.repeat(64);
 
 const headers = (o) => new Headers(o || {});
+
+/* ── THE TOKEN, BUILT THE WAY THE DRIVER BUILDS IT ─────────────────────────
+   Not a plausible-looking string: the real hmac over the real bytes, so an arm
+   that passes here would pass against `hr_tick_cron_run`'s output too. Options
+   let each arm move ONE thing — the bucket, the body, the secret — which is how
+   a refusal gets attributed to the check that caused it. */
+function token({ body = '{"op":"tick"}', bucketDelta = 0, secret = SECRET,
+                 nowMs = NOW_MS, bodySha = null, mac = null } = {}) {
+  const bytes = new TextEncoder().encode(body);
+  const bucket = Math.floor(nowMs / 1000 / TICK_BUCKET_SECONDS) + bucketDelta;
+  const sha = bodySha || createHash('sha256').update(bytes).digest('hex');
+  const m = mac || createHmac('sha256', secret)
+    .update(`${bucket}.${sha}`, 'utf8').digest('hex');
+  /* `bodySha` as well as `sha`: the first is the field name `tickBodyAuthOk`
+     reads, so an arm can hand this object straight to it as if it were the
+     gate's own parsed token. */
+  return { header: `v1 t=${bucket} b=${sha} m=${m}`,
+           bytes, bucket, sha, bodySha: sha, mac: m, body };
+}
+
+/* A real `Request`, so the bounded read runs against the transport rather than
+   against a stub that is more forgiving than it (finding T-3's lesson). */
+const tickRequest = (t) => new Request('https://example.invalid/hr-accrue', {
+  method: 'POST', body: t.body,
+  headers: { 'content-type': 'application/json', [TICK_HEADER]: t.header },
+});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // THE FAKE DATABASE — a recording `exec` that answers the four statements the
@@ -259,16 +305,70 @@ async function runArms(mod) {
   }
 
   // ── T-A2 ────────────────────────────────────────────────────────────────
-  group('T-A2  a wrong bearer');
+  group('T-A2  a token that does not verify — and the STATIC BEARER itself');
   {
-    const g = tickGate(headers({ [TICK_HEADER]: WRONG }), SECRET);
-    ok(g && g.ok === false && g.status === 401, 'T-A2a — refused with 401');
-    ok(g && g.body && g.body.error === 'not_signed_in',
-      'T-A2b — the SAME body the player path returns, so the branch is not an oracle',
-      JSON.stringify(g && g.body));
-    ok(mod.tickBearerOk('', SECRET) === false && mod.tickBearerOk(null, SECRET) === false,
-      'T-A2c — an empty or absent presented value never compares equal');
-    ok(mod.tickBearerOk(SECRET, SECRET) === true, 'T-A2d — the right bearer is accepted');
+    const good = token();
+    const g = tickGate(headers({ [TICK_HEADER]: good.header }), SECRET, NOW_MS);
+    ok(g && g.ok === true && g.token && g.token.bodySha === good.sha,
+      'T-A2a — a real v1 token passes the shape+window gate', JSON.stringify(g));
+    ok(mod.tickBodyAuthOk(g.token, good.bytes, SECRET) === true,
+      'T-A2b — ...and binds the bytes it was signed over');
+
+    /* THE T-5.3 PROPERTY, AND IT IS THE WHOLE POINT OF THIS LANE. The static
+       bearer is the RIGHT SECRET, presented exactly as the 2026-09-21 driver
+       presented it, and it must now be refused. If this arm ever goes green
+       the long-lived value is back on the wire and M2 is unblocked by
+       accident. */
+    const stat = tickGate(headers({ [TICK_HEADER]: SECRET }), SECRET, NOW_MS);
+    ok(stat && stat.ok === false && stat.status === 401,
+      'T-A2c — THE STATIC BEARER IS REFUSED, though it is the right secret',
+      JSON.stringify(stat));
+    ok(tickGate(headers({ [TICK_HEADER]: WRONG }), SECRET, NOW_MS).ok === false,
+      'T-A2d — so is a wrong 64-hex value');
+
+    /* Shapes a reviewer asks about rather than the one shape I first imagined.
+       Every one is refused BEFORE any digest is computed. */
+    const malformed = [
+      '', ' ', SECRET, `v1 t=${good.bucket} b=${good.sha}`,
+      `v2 t=${good.bucket} b=${good.sha} m=${good.mac}`,
+      `v1 t=${good.bucket} b=${good.sha.toUpperCase()} m=${good.mac}`,
+      `v1 t=${good.bucket} b=${good.sha} m=${good.mac.toUpperCase()}`,
+      `v1 t=-1 b=${good.sha} m=${good.mac}`,
+      `v1 t=0 b=${good.sha} m=${good.mac}`,
+      `v1 t=${good.bucket} b=${good.sha.slice(0, 63)} m=${good.mac}`,
+      `v1 t=${good.bucket} b=${good.sha} m=${good.mac}0`,
+      `v1  t=${good.bucket} b=${good.sha} m=${good.mac}`,
+      `V1 t=${good.bucket} b=${good.sha} m=${good.mac}`,
+    ];
+    const bad = malformed.map((h) => tickGate(headers({ [TICK_HEADER]: h }), SECRET, NOW_MS));
+    ok(bad.every((r) => r && r.ok === false && r.status === 401),
+      'T-A2e — every malformed spelling is refused (' + malformed.length + ' of them)',
+      JSON.stringify(bad.map((r, i) => (r && r.ok === false ? null : malformed[i])).filter(Boolean)));
+    ok(bad.every((r) => r.body && r.body.error === 'not_signed_in'),
+      'T-A2f — the SAME body the player path returns, so the branch is not an oracle');
+    /* THE CR/LF CASE CANNOT GO THROUGH `Headers` AT ALL — undici refuses to
+       construct it ("is an invalid header value"), which is a stronger answer
+       than ours and is the one a real request meets. So it is asserted against
+       the PARSER directly, because the parser is what would have to hold if a
+       future transport were laxer than this one. The migration's own d2 makes
+       the same check on the minting side. */
+    for (const hostile of [
+      `v1 t=${good.bucket} b=${good.sha} m=${good.mac}\r\nX-Evil: 1`,
+      `v1 t=${good.bucket} b=${good.sha} m=${good.mac}\nX-Evil: 1`,
+      `v1 t=${good.bucket} b=${good.sha} m=${good.mac}\u0000`,
+    ]) {
+      ok(parseTickToken(hostile) === null,
+        'T-A2g — a token carrying a control character is refused by the parser',
+        JSON.stringify(hostile.slice(-14)));
+    }
+    let constructed = true;
+    try { headers({ [TICK_HEADER]: `v1 t=1 b=${good.sha} m=${good.mac}\r\nX-Evil: 1` }); }
+    catch { constructed = false; }
+    ok(constructed === false,
+      'T-A2h — ...and the transport will not even build such a header');
+
+    const db = fakeDb();
+    ok(db.calls.length === 0, 'T-A2i — and not one of them reached the database');
   }
 
   // ── T-A3 ────────────────────────────────────────────────────────────────
@@ -279,9 +379,14 @@ async function runArms(mod) {
       && mod.tickSecretUsable(short) === false && mod.tickSecretUsable(SECRET) === true,
       'T-A3a — usable() is false for unset and for anything under ' + MIN_SECRET_LEN + ' chars');
     for (const [name, env] of [['unset', ''], ['undefined', undefined], ['short', short]]) {
-      const g = tickGate(headers({ [TICK_HEADER]: env || 'x' }), env);
+      /* The token is minted WITH THAT SAME SECRET, so it is the caller's best
+         possible guess — a matching derivation — and it is still refused. */
+      const t = token({ secret: env || '' });
+      const g = tickGate(headers({ [TICK_HEADER]: t.header }), env, NOW_MS);
       ok(g && g.ok === false && g.status === 401,
-        `T-A3b — with a ${name} secret even a matching guess is refused`);
+        `T-A3b — with a ${name} secret even a correctly derived token is refused`);
+      ok(mod.tickBodyAuthOk(t, t.bytes, env) === false,
+        `T-A3c — and stage two refuses it too, so neither stage carries the other`);
     }
   }
 
@@ -293,13 +398,199 @@ async function runArms(mod) {
        length reaches a different code path. Every one of these is a single
        32-byte digest comparison and every one answers false. */
     const lengths = [1, 8, 31, 32, 63, 64, 65, 4096];
-    const all = lengths.map((n) => mod.tickBearerOk('z'.repeat(n), SECRET));
+    const all = lengths.map((n) => mod.tickMacOk('z'.repeat(n), SECRET));
     ok(all.every((v) => v === false),
       'T-A4a — every wrong length answers false through the same digest compare',
       JSON.stringify(all));
     const nearly = SECRET.slice(0, -1) + 'z';
-    ok(mod.tickBearerOk(nearly, SECRET) === false && nearly.length === SECRET.length,
+    ok(mod.tickMacOk(nearly, SECRET) === false && nearly.length === SECRET.length,
       'T-A4b — a same-length near miss is refused');
+    ok(mod.tickMacOk(SECRET, SECRET) === true, 'T-A4c — and an exact match is accepted');
+    ok(mod.tickMacOk('', '') === false && mod.tickMacOk(null, SECRET) === false,
+      'T-A4d — an empty or absent side never compares equal');
+  }
+
+  // ── T-V1 ────────────────────────────────────────────────────────────────
+  group('T-V1  the pinned vector — node:crypto and pgcrypto must agree');
+  {
+    /* THE CROSS-RUNTIME BINDING. PGlite has no pgcrypto and Deno is not Node,
+       so no single process can run both derivations; a shared CONSTANT is the
+       only honest join. These five values are the ones
+       2026-09-22-world-tick-derived-token.sql §5 asserts against SQL's own
+       `hmac`/`digest` (arm d4/d5) at apply time. If either side drifts, one of
+       the two goes red — which is the entire point of pinning rather than
+       computing the expectation from the code under test. */
+    const K_SECRET = 'a'.repeat(32) + 'b'.repeat(32);
+    const K_BODY = '{"op": "tick"}';
+    const K_BUCKET = 59666666;
+    const K_SHA = '17282fb11f9af43c5f1eef8209d34638b3a13fb28ab449c2ad33ecdf1c0df883';
+    const K_MAC = 'e64d6ce866a3f8a1333f774d5ae022f72a87a93ea3c4c4441571a5da1b5ccb91';
+
+    const sql = await readFile(join(ROOT, 'supabase', 'migrations',
+      '2026-09-22-world-tick-derived-token.sql'), 'utf8');
+    ok(sql.includes(K_SHA) && sql.includes(K_MAC) && sql.includes(String(K_BUCKET)),
+      'T-V1a — the migration pins the same vector this file does',
+      'a vector that lives on one side only is not a binding');
+
+    ok(mod.tickBodySha256(new TextEncoder().encode(K_BODY)) === K_SHA,
+      'T-V1b — node:crypto reproduces the pinned body hash');
+    ok(mod.tickTokenMac(K_BUCKET, K_SHA, K_SECRET) === K_MAC,
+      'T-V1c — node:crypto reproduces the pinned mac');
+
+    /* The body is spelled as `jsonb_out` renders it — with the space after the
+       colon — because the bytes pg_net sends are `<jsonb>::text`. A vector
+       written in JS's own JSON.stringify spelling would be a vector the driver
+       never produces. */
+    ok(K_BODY === '{"op": "tick"}' && K_BODY !== JSON.stringify({ op: 'tick' }),
+      'T-V1d — the pinned body is postgres\'s jsonb spelling, not JS\'s');
+  }
+
+  // ── T-N1 ────────────────────────────────────────────────────────────────
+  group('T-N1  a stale or future bucket is refused (±90 s, both directions)');
+  {
+    const inWindow = [-1, 0, 1];
+    const outWindow = [-2, 2, -120, 120];
+    for (const d of inWindow) {
+      const t = token({ bucketDelta: d });
+      const g = tickGate(headers({ [TICK_HEADER]: t.header }), SECRET, NOW_MS);
+      ok(g && g.ok === true, `T-N1a — bucket ${d >= 0 ? '+' : ''}${d} is inside the window`);
+    }
+    for (const d of outWindow) {
+      const t = token({ bucketDelta: d });
+      const g = tickGate(headers({ [TICK_HEADER]: t.header }), SECRET, NOW_MS);
+      ok(g && g.ok === false && g.status === 401,
+        `T-N1b — bucket ${d >= 0 ? '+' : ''}${d} is refused`, JSON.stringify(g));
+    }
+    /* THE WIDTH, MEASURED. ±1 bucket of 30 s is a ≤90 s acceptance window and
+       T-5.3 names that number; an arm that only tested "some delta is refused"
+       would stay green if the bucket became a minute. */
+    ok(TICK_BUCKET_SECONDS === 30 && TICK_BUCKET_SKEW === 1,
+      'T-N1c — the window is still ±1 bucket of 30 s = ≤90 s, as T-5.3 specifies',
+      `${TICK_BUCKET_SECONDS}s × ±${TICK_BUCKET_SKEW}`);
+    ok(tickBucketOf(NOW_MS) === Math.floor(NOW_MS / 30000)
+      && tickWindowOk(tickBucketOf(NOW_MS) + 2, NOW_MS) === false,
+      'T-N1d — the bucket arithmetic is the driver\'s: floor(epoch/30)');
+    /* A CAPTURED HEADER EXPIRES. The same bytes, the same token, 91 s later. */
+    const t = token();
+    ok(tickGate(headers({ [TICK_HEADER]: t.header }), SECRET, NOW_MS + 91_000).ok === false,
+      'T-N1e — a captured header is dead 91 s after it was minted');
+  }
+
+  // ── T-N2 ────────────────────────────────────────────────────────────────
+  group('T-N2  the body is bound: a tampered body is refused');
+  {
+    const t = token({ body: '{"op":"tick","roster":[]}' });
+    ok(mod.tickBodyAuthOk(t, t.bytes, SECRET) === true,
+      'T-N2a — the body it was signed over verifies');
+
+    /* ONE BYTE. Not a different request — the SAME token, the SAME bucket, the
+       SAME mac, with the payload edited in flight. This is the attack the
+       static bearer could not even be asked about. */
+    const tampered = new TextEncoder().encode('{"op":"tick","roster":[ ]}');
+    ok(mod.tickBodyAuthOk(t, tampered, SECRET) === false,
+      'T-N2b — one byte changed in the body and the token no longer authenticates it');
+
+    /* AND THE HALF THAT IS EASY TO GET WRONG: the mac covers `t` and `b` ONLY.
+       A captured triple re-attached to a body of the attacker's choosing has a
+       mac that still verifies — so the BODY-HASH check, not the mac, is what
+       refuses it. An implementation that checked only the mac would pass every
+       other arm in this file. */
+    const evil = new TextEncoder().encode('{"op":"tick","roster":[{"user_id":"x"}]}');
+    ok(mod.tickMacOk(t.mac, mod.tickTokenMac(t.bucket, t.sha, SECRET)) === true,
+      'T-N2c — the mac still verifies against (t, b): it does not cover the body');
+    ok(mod.tickBodyAuthOk(t, evil, SECRET) === false,
+      'T-N2d — ...and the body-hash check is what refuses the substituted body');
+
+    /* A forged `b` that matches the evil body needs a mac over the NEW b. */
+    const forgedSha = createHash('sha256').update(evil).digest('hex');
+    const forged = { bucket: t.bucket, bodySha: forgedSha, mac: t.mac };
+    ok(mod.tickBodyAuthOk(forged, evil, SECRET) === false,
+      'T-N2e — restating `b` for the evil body breaks the mac; both must hold at once');
+
+    ok(mod.tickBodyAuthOk(t, null, SECRET) === false
+      && mod.tickBodyAuthOk(t, undefined, SECRET) === false,
+      'T-N2f — an unread body is FALSE, never a separate answer');
+  }
+
+  // ── T-N3 ────────────────────────────────────────────────────────────────
+  group('T-N3  R-T1: a verbatim replay inside the window DOES verify — executed');
+  {
+    /* THIS ARM STATES A RESIDUAL RATHER THAN A DEFENCE, and it is written down
+       so that nobody reads "there is no replay test" as "replay was not
+       considered". T-5.3 forbids a nonce and forbids server-side state; at a
+       10 s cadence into 30 s buckets the driver's own repeat fires are
+       byte-identical, so a cache keyed on the token would refuse the driver
+       itself. What bounds a replay is (a) the window closing — T-N1e — and
+       (b) the fence: `tests/world-tick-double-pay.mjs` proves the watermark CAS
+       under the row lock refuses a second payment for a settled window, and
+       `tests/world-tick-writer-authz.mjs` proves an unleased character is
+       refused. If this arm ever flips to "refused", the nonce came back and
+       the driver is about to lose two fires in three. */
+    const t = token();
+    const first = tickGate(headers({ [TICK_HEADER]: t.header }), SECRET, NOW_MS);
+    const again = tickGate(headers({ [TICK_HEADER]: t.header }), SECRET, NOW_MS + 5_000);
+    ok(first.ok === true && again.ok === true,
+      'T-N3a — the same token verifies twice inside the window (R-T1, by design)');
+    ok(mod.tickBodyAuthOk(again.token, t.bytes, SECRET) === true,
+      'T-N3b — ...and so does its body binding; there is no per-isolate state');
+    ok(tickGate(headers({ [TICK_HEADER]: t.header }), SECRET, NOW_MS + 91_000).ok === false,
+      'T-N3c — and the replay window is bounded by the clock, not by memory');
+  }
+
+  // ── T-N4 ────────────────────────────────────────────────────────────────
+  group('T-N4  every refusal is byte-identical');
+  {
+    /* NOT AN ORACLE FOR WHICH CHECK BIT. Six different reasons, one answer.
+       A caller must not be able to learn "your shape was fine but your clock is
+       off" — that is a map of the gate, handed out one request at a time. */
+    const good = token();
+    /* BOTH STAGES, because the refusal can come from either and the caller
+       cannot tell them apart — which is the property. `entry` is what index.ts
+       does with the two functions, in index.ts's order, so an arm that passed
+       here while the entry answered differently would be measuring the wrong
+       system (finding T-3's lesson, one layer up). */
+    const REFUSAL = { ok: false, status: 401, body: { ok: false, error: 'not_signed_in' } };
+    const entry = (headerValue, bytes, secret) => {
+      const g = mod.tickGate(headers({ [TICK_HEADER]: headerValue }), secret, NOW_MS);
+      if (g === null) return { ok: null };            // not a tick request at all
+      if (!g.ok) return { ok: g.ok, status: g.status, body: g.body };
+      if (!mod.tickBodyAuthOk(g.token, bytes, secret)) return REFUSAL;
+      return { ok: true };
+    };
+    const cases = {
+      'bad shape': entry('nonsense', good.bytes, SECRET),
+      'static bearer': entry(SECRET, good.bytes, SECRET),
+      'stale bucket': entry(token({ bucketDelta: -9 }).header, good.bytes, SECRET),
+      'future bucket': entry(token({ bucketDelta: 9 }).header, good.bytes, SECRET),
+      'wrong secret': entry(token({ secret: WRONG }).header, good.bytes, SECRET),
+      'tampered body': entry(good.header, new TextEncoder().encode('{"op":"tick "}'), SECRET),
+      'unreadable body': entry(good.header, null, SECRET),
+      'unset env': entry(good.header, good.bytes, ''),
+    };
+    ok(entry(good.header, good.bytes, SECRET).ok === true,
+      'T-N4z — the control: a good token with its own body is ACCEPTED, so the '
+      + 'arm below is not measuring a gate that refuses everything');
+    const shapes = new Set(Object.values(cases)
+      .map((r) => JSON.stringify({ ok: r.ok, status: r.status, body: r.body })));
+    ok(shapes.size === 1,
+      'T-N4a — all eight refusals are one response, byte for byte',
+      [...shapes].join('\n      '));
+    ok([...shapes][0] === JSON.stringify(
+      { ok: false, status: 401, body: { ok: false, error: 'not_signed_in' } }),
+      'T-N4b — and it is the player path\'s own 401', [...shapes][0]);
+    /* THE ONE THAT WOULD HAVE BEEN AN ORACLE. A body over the ceiling cannot be
+       authenticated, so it must answer 401 like everything else rather than the
+       400 `bad_request` the AUTHENTICATED caller gets for malformed JSON. */
+    ok(mod.tickBodyAuthOk(good.token, null, SECRET) === false,
+      'T-N4c — an unreadable body refuses through the same path, not a 400');
+    const index = await readFile(join(ROOT, 'supabase', 'functions', 'hr-accrue', 'index.ts'), 'utf8');
+    const authAt = index.indexOf('tickBodyAuthOk(');
+    const parseAt = index.indexOf('parseTickBytes(bytes)');
+    const badAt = index.indexOf("error: 'bad_request' }, 400)");
+    ok(authAt > 0 && parseAt > authAt,
+      'T-N4d — index.ts authenticates the bytes BEFORE it parses them');
+    ok(badAt > authAt,
+      'T-N4e — the only 400 on this branch is downstream of the mac, so it costs the secret');
   }
 
   // ── T-B1 ────────────────────────────────────────────────────────────────
@@ -500,8 +791,11 @@ async function runArms(mod) {
       { method: 'POST', body: 'not json' })) === null,
       'T-BB1e — unparseable is the same refusal, so the answer is not an oracle');
     const index = await readFile(join(ROOT, 'supabase', 'functions', 'hr-accrue', 'index.ts'), 'utf8');
-    ok(index.includes('readTickBody(req)') && !/runTick\(\{[^}]*req\.json\(\)/s.test(index),
+    ok(index.includes('readTickBytes(req)') && !/runTick\(\{[^}]*req\.json\(\)/s.test(index),
       'T-BB1f — index.ts reads the tick body through the bounded reader, never req.json()');
+    ok(!index.includes('readTickBody('),
+      'T-BB1g — and reads BYTES, not a parsed body: the mac is computed over what '
+      + 'arrived, so a re-serialised object would authenticate a different string');
   }
 
   // ── T-F1 — THE PACK-TIME FENCE ROUND THE 'tick' CALLER ──────────────────
@@ -535,8 +829,36 @@ async function runArms(mod) {
     ok(P([GATE, TICKMOD, { name: 'supabase/functions/hr-accrue/index.ts',
       src: "import { x } from './tick-gather.js';\n" }]).length === 1,
       'T-F1f — (3) bites: even the entrypoint may reach only tick.js');
-    ok(TICK_MODULES.length === 4 && TICK_MODULES.every((m) => m.startsWith('supabase/functions/hr-accrue/tick')),
-      'T-F1g — the allowlist is four named files, not a directory or a prefix');
+    /* PINNED BY NAME, not by size (2026-09-23). This arm read
+       `length === 4 && every(startsWith(...))`, which a fifth file makes red —
+       correctly — but which is then answered by editing a number, and the arm
+       cannot tell a legitimately-registered settler from a module somebody
+       added to get a payload green. The set itself is the claim now, so adding
+       or removing ANY entry goes red and has to be argued for here. */
+    const EXPECTED_TICK_MODULES = [
+      'supabase/functions/hr-accrue/tick.js',
+      'supabase/functions/hr-accrue/tick-gather.js',
+      'supabase/functions/hr-accrue/tick-combat.js',
+      'supabase/functions/hr-accrue/tick-shadow.js',
+      'supabase/functions/hr-accrue/tick-contract.js',
+    ];
+    ok(JSON.stringify([...TICK_MODULES].sort()) === JSON.stringify([...EXPECTED_TICK_MODULES].sort())
+      && TICK_MODULES.every((m) => m.startsWith('supabase/functions/hr-accrue/tick')),
+      'T-F1g — the allowlist is these five NAMED files, not a directory or a prefix',
+      `allowlist drifted: ${JSON.stringify(TICK_MODULES)}`);
+
+    /* T-F1h — the newly-registered settler is fenced exactly as gather is.
+       Registering a file must not be a way to exempt it. */
+    const COMBATMOD = { name: 'supabase/functions/hr-accrue/tick-combat.js',
+      src: "  Object.assign({}, o, { caller: 'tick', seedOf });\n" };
+    ok(P([GATE, COMBATMOD]).length === 0,
+      'T-F1h — tick-combat.js may spell `caller:\'tick\'` behind the bearer gate');
+    ok(P([COMBATMOD]).length === 1,
+      'T-F1i — (2) bites on it too: tick-combat.js with no bearer gate is refused',
+      JSON.stringify(P([COMBATMOD])));
+    ok(P([GATE, COMBATMOD, { name: 'supabase/functions/hr-accrue/equip.js',
+      src: "import { settleCombatSession } from './tick-combat.js';\n" }]).length === 1,
+      'T-F1j — (3) bites on it too: an ordinary verb importing the combat settler is refused');
   }
 
   // ── T-W1 / T-P1 — WIRING, against the PACKED bytes ──────────────────────
@@ -598,8 +920,8 @@ async function runArms(mod) {
 // THE MUTATIONS
 // ═══════════════════════════════════════════════════════════════════════════
 const REAL = {
-  tickGate, tickBearerOk, tickSecretUsable, parseTickBody, parseSelectors,
-  probeKillSwitch, runTick,
+  tickGate, tickBodyAuthOk, tickSecretUsable, tickMacOk, tickTokenMac,
+  tickBodySha256, parseTickBody, parseSelectors, probeKillSwitch, runTick,
 };
 
 /* Each mutation replaces ONE function on the module object the arms are driven
@@ -608,13 +930,82 @@ const REAL = {
    all green is itself the failure. */
 const MUTATIONS = [
   {
-    id: 'M1', what: 'remove the bearer check',
+    id: 'M1', what: 'remove the token check',
     patch: (m) => Object.assign({}, m, {
-      tickGate: (h) => (h.get(TICK_HEADER) === null ? null : { ok: true }),
-      tickBearerOk: () => true,
+      tickGate: (h) => (h.get(TICK_HEADER) === null ? null : { ok: true, token: {} }),
+      tickBodyAuthOk: () => true,
+      tickMacOk: () => true,
       tickSecretUsable: () => true,
     }),
-    mustFail: ['T-A2', 'T-A3', 'T-A4'],
+    mustFail: ['T-A2', 'T-A3', 'T-A4', 'T-N1', 'T-N2', 'T-N4'],
+  },
+  {
+    /* THE T-5.3 REGRESSION, EXACTLY. Not "authentication is broken" — the
+       narrower and far likelier defect: somebody adds the old comparison back
+       "for one release" and the long-lived value is on the wire again. */
+    id: 'M8', what: 'accept the STATIC BEARER again alongside the token',
+    patch: (m) => Object.assign({}, m, {
+      tickGate: (h, secret, nowMs) => {
+        const presented = h && typeof h.get === 'function' ? h.get(TICK_HEADER) : null;
+        if (presented === null || presented === undefined) return null;
+        if (REAL.tickSecretUsable(secret) && REAL.tickMacOk(presented, secret)) {
+          return { ok: true, token: { bucket: 0, bodySha: '', mac: '' } };
+        }
+        return REAL.tickGate(h, secret, nowMs);
+      },
+      tickBodyAuthOk: (t, b, secret) => (t && t.bodySha === ''
+        ? true : REAL.tickBodyAuthOk(t, b, secret)),
+    }),
+    mustFail: ['T-A2', 'T-N4'],
+  },
+  {
+    /* THE ONE THAT LOOKS LIKE WORKING CODE. The mac is checked, carefully, in
+       constant time — and the body hash is not, so a captured triple signs any
+       body at all. Every other arm in this file stays green under it, which is
+       why T-N2 has to name the halves separately. */
+    id: 'M9', what: 'verify the mac but drop the body-hash check',
+    patch: (m) => Object.assign({}, m, {
+      tickBodyAuthOk: (t, bytes, secret) => {
+        if (!REAL.tickSecretUsable(secret)) return false;
+        if (!t || typeof t.mac !== 'string') return false;
+        if (!(bytes instanceof Uint8Array)) return false;
+        return REAL.tickMacOk(t.mac, REAL.tickTokenMac(t.bucket, t.bodySha, secret));
+      },
+    }),
+    mustFail: ['T-N2'],
+  },
+  {
+    /* THE ±90 s BOUND STOPS BOUNDING. A captured header never expires, which
+       turns R-T1 from "a replay costs one early fire" into "a replay is a
+       standing credential" — the residual the whole design is priced against. */
+    id: 'M10', what: 'accept any bucket (the window stops being a window)',
+    patch: (m) => Object.assign({}, m, {
+      tickGate: (h, secret, nowMs) => {
+        const r = REAL.tickGate(h, secret, nowMs);
+        if (r !== null && r.ok === false) {
+          const presented = h.get(TICK_HEADER);
+          const t = parseTickToken(presented);
+          if (t && REAL.tickSecretUsable(secret)) return { ok: true, token: t };
+        }
+        return r;
+      },
+    }),
+    mustFail: ['T-N1', 'T-N3', 'T-N4'],
+  },
+  {
+    /* THE ORACLE. An unread body (over the ceiling, or a dead stream) is
+       answered as its own thing rather than folded into the 401 — which is how
+       an unauthenticated caller learns the ceiling exists and roughly where it
+       is. The static form never gave that away because it never read a byte
+       before authenticating; the body binding is what creates the opportunity,
+       so the arm has to exist alongside it. */
+    id: 'M11', what: 'answer an unreadable body distinguishably (the 400 oracle)',
+    patch: (m) => Object.assign({}, m, {
+      tickBodyAuthOk: (t, bytes, secret) => (bytes instanceof Uint8Array
+        ? REAL.tickBodyAuthOk(t, bytes, secret)
+        : { ok: false, status: 400, body: { ok: false, error: 'bad_request' } }),
+    }),
+    mustFail: ['T-N4'],
   },
   {
     id: 'M2', what: 'accept a body-supplied user id',
@@ -723,15 +1114,37 @@ const MUTATIONS = [
         const out = await REAL.runTick(Object.assign({}, o, {
           exec: async (text, params) => {
             const rows = await o.exec(text, params);
-            const r = rows && rows[0] && rows[0].res;
+            const row0 = rows && rows[0];
             /* params[1] is the user: a NULL user is the kill-switch probe,
                which is not a character and whose refusal is not a batch
                event. Throwing there would abort the fire before it began and
                would prove nothing about batch isolation. */
-            if (r && r.ok !== true && params[1] !== null
-                && r.error !== 'window_already_settled') {
-              throw new Error('batch aborted: ' + r.error);
-            }
+            if (params[1] === null) return rows;
+            /* ── A CHARACTER IS REFUSED IN TWO SHAPES, AND THIS MUTANT MUST
+                  SEE BOTH (2026-09-23).
+               `res` is the FENCE's answer. `state.ok === false` is
+               `hr_state_of` declining to project a character at all
+               (`no_character`).
+               Until S-8 the fence always spoke first, so the `res` shape alone
+               reached every refusal and this mutant bit. S-8 moved the
+               hr_state_of read AHEAD of the watermark probe — the probe needs
+               the character's own channel, and active_kind is the only
+               server-side answer to that — so an unknown character is now
+               declined by the PROJECTION before any fence call is made. The
+               mutant went silently VACUOUS: it perturbed a path the batch no
+               longer takes, T-R1 stayed green, and `--selftest` reported M6 as
+               not biting. Caught by tests/run-ci-local.mjs, which runs this
+               --selftest; the plain run is green either way, which is why the
+               hand-picked gate list missed it.
+               Both shapes are named here so the mutant follows the refusal
+               rather than the statement order. */
+            const refused = (row0 && row0.res && row0.res.ok !== true
+                             && row0.res.error !== 'window_already_settled')
+              ? row0.res.error
+              : (row0 && row0.state && row0.state.ok === false
+                ? (row0.state.error || 'no_character')
+                : null);
+            if (refused) throw new Error('batch aborted: ' + refused);
             return rows;
           },
         }));
@@ -786,8 +1199,9 @@ async function main() {
     console.log(`edge-tick-gate: RED — ${fails} assertion(s) failed.`);
     process.exit(1);
   }
-  console.log('edge-tick-gate: green — the tick branch is reachable only with the bearer, '
-    + 'reads nothing but selectors from the body, honours the kill switch, and pays nothing in shadow.');
+  console.log('edge-tick-gate: green — the tick branch is reachable only with a token derived '
+    + 'per fire and bound to the body it carries (the static bearer is refused), reads nothing but '
+    + 'selectors from that body, honours the kill switch, and pays nothing in shadow.');
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });

@@ -149,6 +149,9 @@ const FLOOR = {
   hr_create_character: 'mints the starting kit',
   hr_import_apply: 'the cutover importer — writes a whole character',
   hr_set_auto_eat: 'the food/pct authority the accrual engine prices survival on',
+  hr_tick_settle: 'the world-tick fence — the ONE door the scheduler pays through '
+    + '(shadow today, money at M2). Restated by two files and read by a third with '
+    + 'no signature literal since the M5 e4 fix, so no other rule tracks it (2026-09-23)',
   hr_credit_combat_xp__ungated: 'mints XP from a client-reported fight. One '
     + 'authoring migration and no hash pin, so nothing else in this repo would '
     + 'notice a later file restating it',
@@ -222,6 +225,112 @@ async function applyOrder(sources) {
   return new Map(seq.map((f, i) => [f, i]));
 }
 
+// ── ATTRIBUTION: A READ IS NOT A TOUCH (2026-09-22) ────────────────────────
+// `touched_by` is not decoration. tests/apply-order-honesty.mjs grades every
+// migration note against it with one rule: the LAST file in the apply order
+// that touches a tracked body, with production carrying what the chain builds,
+// is EVIDENCED-LIVE. So a file earns a place in that list only by RESTATING the
+// body — by a literal `create or replace function public.<name>`, or by the
+// anchored-patch idiom (read the installed definition with pg_get_functiondef,
+// edit it at an anchor, `execute` the result; 2026-08-23-modal-goal-claims.sql
+// §5). A pg_get_functiondef read that only ASSERTS on the text — a hash pin, a
+// property check, a comparison — installs nothing and must not be attributed.
+//
+// Measured 2026-09-22: 2026-09-22-frame-push-channel.sql creates hr_frame_topic,
+// hr_frame_emit and a trigger, and reads hr_tick_settle's installed source in
+// its §4 self-check to assert that the shadow branch returns before hr_apply. It
+// restates hr_tick_settle nowhere. Attributing that read made a STAGED file the
+// last toucher of a body production already agreed with, and apply-order-honesty
+// called an honest note `stale-staged` — a false APPLIED verdict out of the very
+// guard that exists to catch that lie in the other direction.
+//
+// The body stays TRACKED either way: rule `pin` is unchanged, because a body the
+// repo reads back is a body the repo has an opinion about, and shrinking the
+// tracked set is the one failure this file cannot afford. Only the ATTRIBUTION
+// narrows.
+
+/* An `execute` whose SQL is built from variables — the anchored-patch idiom.
+   A literal-headed execute states its own kind (`execute 'alter …'`,
+   `execute $t$…$t$`, `execute format('select …', …)`) and cannot be carrying a
+   body read back at runtime; a literal `create or replace function` inside one
+   is already attributed precisely by `authored`. `execute function|procedure` is
+   the CREATE TRIGGER clause, not a statement — reading it as one is what would
+   re-attribute the frame-push read above. */
+const EXEC_STMT = /^[ \t]*execute[ \t\r\n]+(?!function\b|procedure\b)([\s\S]{0,600}?);/gim;
+const EXEC_LITERAL_HEAD = /^\s*(?:format\s*\(\s*)?(?:'|\$[a-z0-9_]*\$)/i;
+
+/**
+ * Which tracked bodies does THIS file restate through the anchored-patch idiom?
+ * @param {string} sql the file, `--` lines already stripped
+ * @returns {{names:Set<string>, all:boolean}} `all:true` means the file patches
+ *   but the patched signature cannot be read statically (a loop-driven patcher,
+ *   or an `execute` of a variable nothing in the file connects to a body read).
+ *   Every body the file reads is then attributed — the over-collection the sweep
+ *   has always preferred over a silent miss, and the direction that keeps the
+ *   apply-order guard LOUD rather than quiet.
+ */
+export function anchoredPatches(sql) {
+  /* The signatures a single statement reads back — the same four shapes the pin
+     sweep below understands. `null` is a read whose signature is a loop or
+     record expression (`r.sig::regprocedure`) that no static reading resolves. */
+  const sigNamesIn = (stmt) => {
+    const out = new Set();
+    const put = (s) => { if (SIGLIT.test(s)) out.add(s.replace(/^public\./, '').replace(/\(.*$/s, '')); };
+    for (const m of stmt.matchAll(/pg_get_functiondef\(\s*'([^']+)'\s*::\s*regprocedure\s*\)/g)) put(m[1]);
+    for (const m of stmt.matchAll(/pg_get_functiondef\(\s*to_regprocedure\(\s*'([^']+)'\s*\)/g)) put(m[1]);
+    for (const m of stmt.matchAll(/pg_get_functiondef\(\s*oid\s*\)\s+from\s+pg_proc\s+where\s+proname\s*=\s*'([a-z_0-9]+)'/g)) out.add(m[1]);
+    for (const m of stmt.matchAll(/pg_get_functiondef\(\s*([a-z_][a-z0-9_]*(?:\.[a-z_][a-z0-9_]*)?)\s*::\s*regprocedure\s*\)/g)) {
+      const base = m[1].split('.')[0];
+      let found = 0;
+      for (const c of sql.matchAll(new RegExp(`\\b${base}\\s+constant\\s+text\\s*:=\\s*'([^']+)'`, 'g'))) { put(c[1]); found += 1; }
+      if (!found) out.add(null);
+    }
+    return out;
+  };
+
+  // (1) SEED — the variables an installed definition lands in. A read that lands
+  //     in no variable (a bare `select pg_get_functiondef(…);`) cannot be fed to
+  //     an execute and is therefore never a patch.
+  const taint = new Map();
+  const add = (v, n) => taint.set(v, (taint.get(v) || new Set()).add(n));
+  const mentions = (v, s) => new RegExp(`\\b${v}\\b`).test(s);
+  for (const m of sql.matchAll(/pg_get_functiondef\s*\(/g)) {
+    const from = sql.lastIndexOf(';', m.index) + 1;
+    const to = sql.indexOf(';', m.index) < 0 ? sql.length : sql.indexOf(';', m.index);
+    // the assignment target precedes the call; an `into` target follows it
+    const asg = [...sql.slice(from, m.index).matchAll(/([a-z_][a-z0-9_]*)\s*:=/g)].pop();
+    const into = /\binto\s+(?:strict\s+)?([a-z_][a-z0-9_]*)/i.exec(sql.slice(m.index, to));
+    const lhs = asg ? asg[1] : (into ? into[1] : null);
+    if (!lhs) continue;
+    const names = sigNamesIn(sql.slice(from, to));
+    for (const n of (names.size ? names : [null])) add(lhs, n);
+  }
+
+  // (2) PROPAGATE — `v_new := replace(v_src, anchor, repl)` carries the body on.
+  for (let pass = 0; pass < 4; pass += 1) {
+    for (const m of sql.matchAll(/([a-z_][a-z0-9_]*)\s*:=\s*([^;]*)/g)) {
+      for (const [v, ns] of [...taint]) {
+        if (v !== m[1] && mentions(v, m[2])) for (const n of ns) add(m[1], n);
+      }
+    }
+  }
+
+  // (3) EXECUTE — only now is a body actually reinstalled.
+  const names = new Set();
+  let all = false;
+  for (const m of sql.matchAll(EXEC_STMT)) {
+    if (EXEC_LITERAL_HEAD.test(m[1])) continue;
+    let hit = 0;
+    for (const [v, ns] of taint) {
+      if (!mentions(v, m[1])) continue;
+      hit += 1;
+      for (const n of ns) { if (n === null) all = true; else names.add(n); }
+    }
+    if (!hit) all = true;
+  }
+  return { names, all };
+}
+
 /**
  * Every function whose LIVE body this repo has an opinion about.
  * @param {Map<string,string>} [sources] filename -> SQL, for the selftest. Reading
@@ -235,14 +344,18 @@ export async function sweep(sources) {
     ? [...sources.keys()].sort()
     : (await readdir(MIGDIR)).filter((f) => f.endsWith('.sql')).sort();
   const byName = new Map();
-  const note = (name, rule, file) => {
+  /** @param {boolean} [touches] does this file RESTATE the body (see ATTRIBUTION
+   *  above)? A read-only pin still TRACKS the name; it never claims the install. */
+  const note = (name, rule, file, touches = true) => {
     if (!byName.has(name)) byName.set(name, { rules: new Set(), files: new Set() });
     const e = byName.get(name);
     e.rules.add(rule);
-    if (file) e.files.add(file);
-    // A `pin` file READS the body back — to hash-pin it or to patch it at an
-    // anchor. Either way the body it touches is one the chain still builds, so
-    // it counts as a build for the drop-ordering decision below.
+    if (file && touches) e.files.add(file);
+    // DELIBERATELY WIDER THAN `touches`: a `pin` file reads the body back, so at
+    // that point in the apply order the body still EXISTS. Counting every pin as
+    // a build keeps a name TRACKED past a drop it evidently survived, which is
+    // the fail-closed direction — the drop decision may keep measuring a body
+    // that is gone, never stop measuring one that is there.
     if (file && rule === 'pin') addTo(builtIn, name, file);
   };
   const restated = new Map();
@@ -261,6 +374,12 @@ export async function sweep(sources) {
       authored.add(m[1]);
     }
     for (const n of authored) { restated.set(n, (restated.get(n) || new Set()).add(f)); addTo(builtIn, n, f); }
+
+    /* (attribution) the two shapes that RESTATE a body — see ATTRIBUTION above.
+       Everything the pin rules below derive is TRACKED; only a name this
+       predicate accepts is ATTRIBUTED to this file in `touched_by`. */
+    const patched = anchoredPatches(sql);
+    const restates = (n) => authored.has(n) || patched.all || patched.names.has(n);
 
     // (drop) the one shape above — read BEFORE any early `continue`, since a
     // file may drop a function without ever reading a body back.
@@ -286,13 +405,13 @@ export async function sweep(sources) {
       for (const r of oidReads) {
         if (r[2]) {
           // inline form: `where oid = to_regprocedure('public.name(args)')`
-          if (SIGLIT.test(r[2])) { note(r[2].replace(/^public\./, '').replace(/\(.*$/s, ''), 'pin', f); prosrcHits += 1; }
+          if (SIGLIT.test(r[2])) { const n = r[2].replace(/^public\./, '').replace(/\(.*$/s, ''); note(n, 'pin', f, restates(n)); prosrcHits += 1; }
           continue;
         }
         // variable form: resolve ONLY the literal that feeds the oid variable,
         // not every to_regprocedure in the file — those are §-gate existence checks.
         for (const m of sql.matchAll(new RegExp(`\\b${r[1]}\\s*:=\\s*to_regprocedure\\(\\s*'(public\\.[a-z_][a-z0-9_]*\\([^']*\\))'\\s*\\)`, 'g'))) {
-          if (SIGLIT.test(m[1])) { note(m[1].replace(/^public\./, '').replace(/\(.*$/s, ''), 'pin', f); prosrcHits += 1; }
+          if (SIGLIT.test(m[1])) { const n = m[1].replace(/^public\./, '').replace(/\(.*$/s, ''); note(n, 'pin', f, restates(n)); prosrcHits += 1; }
         }
       }
       if (oidReads.length && !prosrcHits) shapeless.push(`${f}: reads prosrc from pg_proc by oid but no to_regprocedure assignment resolves the signature`);
@@ -312,11 +431,11 @@ export async function sweep(sources) {
 
     // (pin) the four shapes this repo actually uses to read a body back.
     let hits = 0;
-    const sig = (s) => { note(s.replace(/^public\./, '').replace(/\(.*$/s, ''), 'pin', f); hits += 1; };
+    const sig = (s) => { const n = s.replace(/^public\./, '').replace(/\(.*$/s, ''); note(n, 'pin', f, restates(n)); hits += 1; };
     for (const m of sql.matchAll(/pg_get_functiondef\(\s*'([^']+)'\s*::\s*regprocedure\s*\)/g)) sig(m[1]);
     for (const m of sql.matchAll(/pg_get_functiondef\(\s*to_regprocedure\(\s*'([^']+)'\s*\)/g)) sig(m[1]);
     for (const m of sql.matchAll(/pg_get_functiondef\(\s*oid\s*\)\s+from\s+pg_proc\s+where\s+proname\s*=\s*'([a-z_0-9]+)'/g)) {
-      note(m[1], 'pin', f); hits += 1;
+      note(m[1], 'pin', f, restates(m[1])); hits += 1;
     }
     // …and the indirect shape: pg_get_functiondef(<var>::regprocedure).
     const vars = new Set();
@@ -357,6 +476,18 @@ export async function sweep(sources) {
 
   for (const [n, fs_] of restated) if (fs_.size >= CHAIN_AT) for (const f of fs_) note(n, 'chain', f);
   for (const n of Object.keys(FLOOR)) note(n, 'floor', null);
+
+  /* THE OTHER HALF OF ATTRIBUTION. `create or replace function public.<name>(`
+     installs a body outright, so it is a touch whatever rule tracks that body —
+     but until now the only path from `restated` into `touched_by` was the
+     `chain` rule, which fires at THREE restatements. A body tracked by `pin` or
+     `floor` and restated by one or two migrations therefore lost the files that
+     actually install it: hr_tick_settle's evidence read
+     2026-09-22-frame-push-channel.sql, which only ASSERTS on it, and not
+     2026-09-21-world-tick-settle-fence.sql, which authors it. Narrowing the read
+     side without widening this one would have replaced a false toucher with no
+     toucher at all. Runs after FLOOR so floor-only names are included. */
+  for (const [n, fs_] of restated) if (byName.has(n)) for (const f of fs_) byName.get(n).files.add(f);
 
   /* The drop decision, in APPLY order. `>=` on the build side means a file that
      drops and then re-creates a signature (the market_v2 idiom) counts as a
@@ -1114,6 +1245,55 @@ async function selftest() {
     }
   }
 
+  /* ── ATTRIBUTION, PROVEN IN BOTH DIRECTIONS ─────────────────────────────
+     `touched_by` is the evidence apply-order-honesty.mjs grades a migration
+     note against, so an over-wide attribution is a FALSE "it is APPLIED" out of
+     the guard that exists to catch a false "it is STAGED". Arm 1 was RED before
+     2026-09-22 — the sweep counted a read-only §4 assertion as a toucher and
+     turned an honest STAGED note on 2026-09-22-frame-push-channel.sql into
+     `stale-staged`. Arms 2 and 3 are the controls that keep the narrowing from
+     becoming a silence: the two shapes that really do install a body must still
+     be attributed. Synthetic sources; nothing is written to a real migration. */
+  const A = 'hr_selftest_attrib_verb';
+  const ASIG = `public.${A}(p_slot integer)`;
+  const A_MAKE = `create or replace function ${ASIG} returns int language sql as $b$ select 1 $b$;`;
+  const A_READ = 'do $$ declare v_txt text; begin\n'
+    + `  v_txt := pg_get_functiondef('${ASIG}'::regprocedure);\n`
+    + "  if position('select 1' in v_txt) = 0 then raise exception 'property gone'; end if;\nend $$;";
+  const A_PATCH = 'do $$ declare v_src text; v_new text; begin\n'
+    + `  v_src := pg_get_functiondef('${ASIG}'::regprocedure);\n`
+    + "  v_new := replace(v_src, 'select 1', 'select 2');\n  execute v_new;\nend $$;";
+  const touchedBy = (t) => [...(t.get(A) || { files: new Set() }).files].sort();
+  const ATTRIB = {
+    readonly_assert_is_not_a_toucher: {
+      what: 'a migration READS a tracked body with pg_get_functiondef and only asserts a property '
+          + 'on the text. It installs nothing, so it must not appear in touched_by — the '
+          + '2026-09-22-frame-push-channel.sql / hr_tick_settle defect',
+      files: [['9100-01-make.sql', A_MAKE], ['9100-02-assert.sql', A_READ]],
+      want: ['9100-01-make.sql'],
+    },
+    anchored_patch_is_a_toucher: {
+      what: 'the anchored-patch idiom — read the installed definition, edit it, execute the '
+          + 'result — really does install a body and must stay attributed',
+      files: [['9100-01-make.sql', A_MAKE], ['9100-02-patch.sql', A_PATCH]],
+      want: ['9100-01-make.sql', '9100-02-patch.sql'],
+    },
+    restatement_is_a_toucher: {
+      what: 'a literal `create or replace function` restatement is the plainest touch there is',
+      files: [['9100-01-assert.sql', A_READ], ['9100-02-make.sql', A_MAKE]],
+      want: ['9100-02-make.sql'],
+    },
+  };
+  for (const [id, c] of Object.entries(ATTRIB)) {
+    const got = touchedBy(await sweep(new Map(c.files)));
+    if (got.join('|') === c.want.join('|')) console.log(`  ok  ${id.padEnd(26)} touched_by ${JSON.stringify(got)}`);
+    else {
+      console.error(`  ✗  ${id} — expected touched_by ${JSON.stringify(c.want)}, got `
+        + `${JSON.stringify(got)}\n     ${c.what}`);
+      process.exitCode = 1; bad += 1;
+    }
+  }
+
   for (const [id, c] of Object.entries(cases)) {
     const b = c.base ? c.base() : base;
     const nm = c.names ? [...c.names()] : derived;
@@ -1166,7 +1346,7 @@ async function selftest() {
     process.exit(1);
   }
   console.log(`\nall ${Object.keys(cases).length + Object.keys(SHAPES).length
-    + Object.keys(CHAINS).length + 1} planted defects caught by their NAMED assertion`);
+    + Object.keys(CHAINS).length + Object.keys(ATTRIB).length + 1} planted defects caught by their NAMED assertion`);
 }
 
 // ── --mutate: the same proof, against the REAL migration text ──────────────

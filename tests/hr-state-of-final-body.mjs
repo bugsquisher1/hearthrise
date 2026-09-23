@@ -52,6 +52,13 @@
 // (must refuse), which is what a re-apply onto a production that has since taken
 // a hotfix looks like.
 //
+// "UNTOUCHED" MEANS THE CHAIN UP TO THIS FILE, NOT THE CHAIN'S END. Anchored
+// patches land on hr_state_of after a restatement — 2026-09-22-state-of-trophy
+// -prefix.sql is the first — so the arm replays `upTo` HR_STATE_OF_FINAL and
+// measures the body this file was cut from. The chain's HEAD is then measured
+// separately, with §0's verdict on it tied to a direct comparison of the two
+// bodies rather than to a guess about which file patched what.
+//
 // Exit: 0 green · 1 an assertion failed · 2 harness.
 // NO ?v= on the imports (this is tests/**, not a browser module — b332).
 // ════════════════════════════════════════════════════════════════════════
@@ -281,7 +288,26 @@ async function main() {
      patched AFTER the restatement landed, which is what a re-apply onto a
      production that has since taken a hotfix looks like. */
   const s0 = extractS0(sql);
-  const { db } = await bootReplay();
+
+  /* THE BODY THIS FILE WAS CUT FROM IS THE CHAIN *UP TO* THE RESTATEMENT, NOT
+     THE CHAIN'S END (fixed 2026-09-23, b552 CI red).
+     2026-09-22-state-of-trophy-prefix.sql (applied to production
+     2026-09-23T00:40:44Z under a Security GO) patches hr_state_of at two
+     anchors AFTER this file, so the chain's FINAL body legitimately is no
+     longer the one the restatement installs — and §0 re-applied over it
+     REFUSES. That refusal is §0 doing precisely the job it exists for; it is
+     the subject of the NEXT arm, not of this one. Booting the whole chain here
+     made this arm measure a moved body and report the guard's correct verdict
+     as a miss, which is how a --selftest goes red without a defect.
+     `upTo` is bootReplay's OWN answer to this, in its own words: "validate the
+     database as of ITS migration, isolated from a LATER batch that would mask
+     its effect". It throws on a name that is not in the chain, so this cannot
+     silently drift back to measuring the whole thing.
+     NO PIN MOVED. HR_STATE_OF_CODE still names the body the restatement
+     installs and is still the constant the migration itself carries — the
+     floor above asserts those two agree. An APPLIED migration's hash is never
+     hand-edited to make a guard green. */
+  const { db } = await bootReplay({ upTo: HR_STATE_OF_FINAL });
   try {
     await db.exec(s0);
     console.log('  ok      re-apply on an UNTOUCHED body: §0 is a no-op, as required');
@@ -289,6 +315,35 @@ async function main() {
     console.error(`  FAIL    re-apply on an untouched body raised: ${String(e.message).split('\n')[0]}`);
     missed += 1;
   }
+
+  /* ── AND THE CHAIN AS IT STANDS IS MEASURED TOO ───────────────────────
+     Pinning the arm above to `upTo` buys isolation at the price of no longer
+     saying anything about the tree anybody actually applies. So the FULL chain
+     is booted as well and §0's verdict on it is tied to a fact, not to a
+     guess: the two bodies are compared directly, and §0 must be a no-op
+     exactly when they are the same text and must REFUSE exactly when they are
+     not. Nothing here parses a migration to decide which file patched what —
+     the databases answer. The day a restatement is re-cut and HR_STATE_OF_FINAL
+     moves, this flips on its own rather than going quiet. */
+  const DEF_SQL = "select replace(pg_get_functiondef('public.hr_state_of(uuid,int)'::regprocedure), "
+    + "chr(13), '') as d";
+  const { db: full } = await bootReplay();
+  const defAtCut = (await db.query(DEF_SQL)).rows[0].d;
+  const defAtHead = (await full.query(DEF_SQL)).rows[0].d;
+  const moved = defAtHead !== defAtCut;
+  let headErr = null;
+  try { await full.exec(s0); } catch (e) { headErr = String(e.message); }
+  if (moved && headErr && headErr.includes('NEITHER the body this file was cut from')) {
+    console.log('  ok      the FULL chain has moved hr_state_of past the restatement, and §0 refuses it');
+  } else if (!moved && !headErr) {
+    console.log('  ok      the FULL chain still ends on the restated body, and §0 is a no-op on it');
+  } else {
+    console.error(`  MISSED  §0 disagrees with the chain: the head body ${moved ? 'HAS' : 'has NOT'} moved `
+      + `since ${HR_STATE_OF_FINAL}, but §0 ${headErr ? `raised — ${headErr.split('\n')[0]}` : 'installed'}. `
+      + 'A restatement applied over a body it cannot name DISCARDS whatever made them differ.');
+    missed += 1;
+  }
+  await full.close?.();
   await db.exec(`do $probe$
 declare v_def text;
 begin
@@ -336,8 +391,9 @@ end $probe$;`);
     return 1;
   }
   console.log(`\nhr-state-of-final-body --selftest PASSED — ${Object.keys(MUTATIONS).length} mutations caught by the `
-    + 'assertion written for each, a comment-only control stayed green, and §0 is a no-op on an untouched '
-    + 'body while refusing both a body a later patch has moved and a body whose declare list has grown.');
+    + 'assertion written for each, a comment-only control stayed green, §0 is a no-op on the body this '
+    + 'file was cut from, its verdict on the chain HEAD matches whether that body has actually moved, '
+    + 'and it refuses both a body a later patch has moved and a body whose declare list has grown.');
   return 0;
 }
 

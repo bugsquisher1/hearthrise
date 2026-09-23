@@ -217,9 +217,27 @@ const MUTATIONS = {
     repl: '    -- mutated: bucket removed',
   },
   input_set_drift: {
-    file: FN('set-activity.js'),
-    why: 'the collect loses an engine input the accrue verb still passes — two verbs, two prices '
-       + 'for one window (this is the shape the auto-eat merge would have produced)',
+    /* RE-POINTED 2026-09-23 (M1f, 82606827). The anchor was `set-activity.js`'s
+       own `gold:` line; M1f moved every envelope->engine read into the ONE
+       builder `engineInputsFromEnvelope` in envelope.js, which index.ts, this
+       collect and tick-gather all spread. The arm was reading a file that no
+       longer owns the text, and a mutation whose anchor is gone is not a weaker
+       arm — it is NO arm, which is why --selftest exits 2 rather than 1 on it.
+       So it is re-pointed at the file that owns the collect's engine inputs
+       TODAY, per the final-body rule tests/hr-state-of-final-body.mjs states.
+       NOT hand-weakened: the anchor is still one real engine input, still
+       matched exactly once, and the patch still runs from the temp copy that
+       set-activity.js imports.
+       WHAT MOVED WITH IT: the DIVERGENCE half of the old why ("two verbs, two
+       prices") is no longer plantable here — one shared builder cannot
+       disagree with itself — and that property is now owned by
+       tests/accrual-engine.mjs, which pins `...engineInputsFromEnvelope(env,
+       nowMs)` as a SPREAD at each call site and refuses a binder. This arm
+       keeps the other half, which is the half this guard can see: the collect
+       prices its window from those inputs, so losing one misprices it. */
+    file: FN('envelope.js'),
+    why: 'the collect loses an engine input, so the switch prices the window it is closing against '
+       + 'a state the server never had (this is the shape the auto-eat merge would have produced)',
     find: '    gold: Number(st.gold) || 0,\n',
     repl: '',
   },

@@ -7,13 +7,13 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-09-23",
- "digest": "3a47e8b9c1601b26be64cd6afce5ec954937d66c31d5fc4f3bdf709222678494",
+ "digest": "52b960e927526233df78d7f83b56bde7db6a3e6098b0ea3573e87f67d0833118",
  "counts": {
   "relations": 129,
-  "functions": 315,
+  "functions": 316,
   "policies": 92,
   "indexes": 180,
-  "triggers": 21,
+  "triggers": 20,
   "constraints": 342,
   "columns": 771,
   "rls": 113,
@@ -314,7 +314,8 @@
    "hr_farm_water(p_slot integer, p_plot_idx integer, p_idem uuid)",
    "hr_flag_on(p_key text)",
    "hr_fnv1a(p_s text)",
-   "hr_frame_emit()",
+   "hr_frame_payload(p_env jsonb, p_keys text[])",
+   "hr_frame_send(p_user uuid, p_slot integer, p_env jsonb)",
    "hr_frame_topic(p_user uuid, p_slot integer)",
    "hr_game_events_guard()",
    "hr_gem_unlocks_of(p_user uuid, p_slot integer)",
@@ -765,8 +766,7 @@
    "player_ledger :: hr_ledger_no_truncate",
    "player_progress :: player_progress_bank_cap_sync",
    "player_progress :: player_progress_unlock_guard",
-   "player_skills :: hr_player_skills_max_hp",
-   "player_state :: hr_frame_push"
+   "player_skills :: hr_player_skills_max_hp"
   ],
   "constraints": [
    "active_bounty :: active_bounty_pkey",

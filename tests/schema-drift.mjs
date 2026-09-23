@@ -495,6 +495,96 @@ const MUTATIONS = {
       + "    return jsonb_build_object('ok', true, 'mode', 'shadow', 'paid', false,",
     ]]]],
   },
+  /* ── 2026-09-23, the emit-from-apply seam ────────────────────────────
+     2026-09-23-frame-emit-from-apply.sql moves the emit off the AFTER UPDATE
+     trigger and into hr_apply, handing it the envelope hr_apply already
+     built. Six mutations, one per EXECUTED property of its §9 self-check,
+     because the six fail independently and five of them are invisible to any
+     amount of reading:
+
+       · reprojects        — f2. The property the whole file buys: ONE
+         hr_state_of per accepted write. The call site asks for a FRESH
+         projection instead of passing the envelope in hand, which is exactly
+         the 9.4–9.7 ms p95 inside hr_apply's row lock that SEC §2.2 refused.
+         Counted by the delegating stand-in over hr_state_of, not by a grep.
+       · trigger_left_armed — f0/f7. The two drops are taken out, so the old
+         trigger survives beside the new call site: two frames for one write,
+         the second of which raises no floor and drops as a duplicate, and the
+         second projection is back inside the lock.
+       · shadow_emits      — f5. A dry-run tick reaches hr_apply, so it pays
+         AND pushes; the client raises its floor to a version for a payment
+         that was never made. Scoped to THIS file's probe uuid, so the
+         frame-push file's own e4 and the fence's e13 still see an untouched
+         shadow settle.
+       · refusal_emits     — f6. The `ok` half of the gate is dropped. A
+         version_conflict carries the row's real version in its payload, so
+         the emitter fires on a call that wrote nothing at all.
+       · synthesised       — f4. The call site doctors the version it hands
+         the emitter. A frame the database did not stamp is a floor the
+         client raises past the real frame at that version, which is then
+         dropped as a duplicate — the failure is permanent and silent.
+       · push_failure_fails_payment — f3. The call site's handler RE-RAISES
+         instead of swallowing. `exception when others then` is still there,
+         so f8b's source read stays green and only the executed arm sees it:
+         the deliberately throwing probe emitter's failure escapes hr_apply
+         and takes a committed, journalled payment with it. */
+  frame_emit_reprojects: {
+    what: "hr_apply hands the emitter a FRESH hr_state_of instead of the envelope it already computed, so every accepted write pays for two projections inside the row lock again",
+    expect: 'replay', // f2 raises: one accepted write made 2 hr_state_of call(s), not 1
+    patches: [['2026-09-23-frame-emit-from-apply.sql', [[
+      "      perform public.hr_frame_send(v_uid, v_slot, v_out);",
+      "      perform public.hr_frame_send(v_uid, v_slot, public.hr_state_of(v_uid, v_slot));",
+    ]]]],
+  },
+  frame_trigger_left_armed: {
+    what: "the AFTER UPDATE trigger and hr_frame_emit survive beside the new call site, so one accepted write emits two frames and re-reads the projection inside the lock",
+    expect: 'replay', // f0 raises: the trigger hr_frame_push is still on player_state
+    patches: [['2026-09-23-frame-emit-from-apply.sql', [[
+      "drop trigger if exists hr_frame_push on public.player_state;\n"
+      + "drop function if exists public.hr_frame_emit();",
+      "-- (the trigger path is LEFT ARMED for the mutation proof)",
+    ]]]],
+  },
+  frame_shadow_emits: {
+    what: "hr_tick_settle's shadow branch reaches hr_apply for the emit-from-apply probe, so a DRY-RUN tick pays and pushes a frame while still reporting mode=shadow",
+    expect: 'replay', // f5 raises: a SHADOW settle emitted 1 frame(s)
+    patches: [['2026-09-21-world-tick-settle-fence.sql', [[
+      "    return jsonb_build_object('ok', true, 'mode', 'shadow', 'paid', false,",
+      "    if p_user = '00000000-0000-4000-8000-00000000fb3e'::uuid then\n"
+      + "      perform public.hr_apply(p_user, p_slot, p_version, p_intent_id, p_delta);\n"
+      + "    end if;\n"
+      + "    return jsonb_build_object('ok', true, 'mode', 'shadow', 'paid', false,",
+    ]]]],
+  },
+  frame_refusal_emits: {
+    what: "the emit gate drops its `ok` half, so a REFUSED intent pushes a frame — a version_conflict carries the row's real version, and nothing was written",
+    expect: 'replay', // f6 raises: a REFUSED intent emitted 1 frame(s)
+    patches: [['2026-09-23-frame-emit-from-apply.sql', [[
+      "  if coalesce(v_out->>'ok', 'false') = 'true'\n"
+      + "     and (v_out->>'version')::bigint is distinct from p_version then",
+      "  if (v_out->>'version')::bigint is distinct from p_version then",
+    ]]]],
+  },
+  frame_synthesised_version: {
+    what: "hr_apply hands the emitter a version one ahead of the row it wrote, so the client raises its floor past the real frame and drops it as a duplicate for the rest of the session",
+    expect: 'replay', // f4 raises: the emitter was handed frame N+1 for a row at version N
+    patches: [['2026-09-23-frame-emit-from-apply.sql', [[
+      "      perform public.hr_frame_send(v_uid, v_slot, v_out);",
+      "      perform public.hr_frame_send(v_uid, v_slot,\n"
+      + "        jsonb_set(v_out, '{version}', to_jsonb((v_out->>'version')::bigint + 1)));",
+    ]]]],
+  },
+  frame_push_failure_fails_payment: {
+    what: "hr_apply's frame handler RE-RAISES instead of swallowing, so a transport failure rolls back a payment that is already computed, clamped and journalled — and f8b's source read stays green on it",
+    expect: 'replay', // the probe's HR923_DELIBERATE_PUSH_FAILURE escapes hr_apply; f3's arm is what fires it
+    patches: [['2026-09-23-frame-emit-from-apply.sql', [[
+      "    exception when others then\n"
+      + "      raise warning 'hr_apply: frame % for %/% not sent (%) — the write is committed anyway',\n"
+      + "        v_out->>'version', v_uid, v_slot, sqlerrm;",
+      "    exception when others then\n"
+      + "      raise;",
+    ]]]],
+  },
   reopen_a11: {
     what: 'the beta_invites lockdown GUC is unset, so a rebuild leaves every invite code world-readable',
     expect: 'replay', // live-market-rls §3b raises without it, by design

@@ -555,6 +555,120 @@ revoke execute on function public.hr_tick_auth_header(bigint, text) from public;
 revoke execute on function public.hr_tick_auth_header(bigint, text)
   from anon, authenticated, service_role, hr_engine, hr_tick;
 
+-- ── §6 THE OPERATOR SECTION ────────────────────────────────────────────────
+-- THE ORDER. Steps 1 and 4 are the seam: between them the tick posts nothing,
+-- so there is never a build in existence that accepts both the static bearer and
+-- the derived token. Do not skip step 1 to save ten seconds — skipping it is how
+-- a rotation window becomes a debugging session.
+--
+--   1. STOP THE FIRES.  Takes effect on the next fire (≤10 s).
+--        update public.hr_tick_config set enabled = false;
+--        -- read it back, and read the log:
+--        select enabled, shadow, edge_url from public.hr_tick_config;
+--        select at, outcome, rostered, detail from public.hr_tick_cron_log
+--          order by id desc limit 5;         -- EXPECT: `disabled` within 10 s
+--
+--   2. APPLY THIS FILE.  One file, never inside begin/commit, never 00:00–00:10
+--      UTC, Coordinator only (CLAUDE.md §2):
+--        node tools/apply-migration.mjs supabase/migrations/2026-09-22-world-tick-derived-token.sql
+--      EXPECT the §5 notices to name d1 d2 d9 d4 d5 d6 d7 d8 d8b d10 d11 as RAN on
+--      production. IF d4–d7 READ AS SKIPPED ON PRODUCTION, STOP: pgcrypto is not
+--      reachable and the tick will answer `no_hmac` forever. The fix is
+--      `create extension if not exists pgcrypto;` and a re-apply, not a re-arm.
+--      ★ SINCE 2026-09-23 THAT STOP IS AN EXIT CODE, NOT A LINE TO READ
+--        (Security T-1): §0b raises `HR_TICK_NO_PGCRYPTO` and apply-migration
+--        fails, so a database that cannot derive CANNOT take this file at all.
+--        The notice still names the skips, but you are no longer the gate.
+--
+--   3. DEPLOY THE EDGE HALF. Nothing works until both halves are the same
+--      version — the driver sends `v1 t= b= m=` and only the new build reads it.
+--        node tools/pack-edge.mjs hr-accrue --out <dir>/supabase/functions/hr-accrue
+--        cp supabase/config.toml <dir>/supabase/config.toml
+--        npx --yes supabase@latest functions deploy hr-accrue --workdir <dir> \
+--          --project-ref nezapsylztqbbwuwembx
+--        node tools/pack-edge.mjs hr-accrue --hash
+--        curl -s https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue
+--      The GET returns `payload_sha256`. IT MUST EQUAL `--hash`. The in-page
+--      payload guard is red until they match, and a mismatch here means the
+--      driver is posting a token the live build cannot read.
+--
+--   4. RE-ARM.
+--        update public.hr_tick_config set enabled = true;
+--
+-- THE VERIFICATION READS, in order, and what each one means:
+--
+--   (a) THE FIRE LOG SAYS `posted` AND NAMES THE VERSION.
+--         select at, outcome, rostered, effective_cadence_seconds,
+--                detail->>'auth' as auth, detail->>'bucket' as bucket
+--           from public.hr_tick_cron_log order by id desc limit 10;
+--       EXPECT `posted` with auth = 'v1'. `no_hmac` means pgcrypto; `no_secret`
+--       means the Vault secret is missing or under 32 chars; `error` means the
+--       POST itself raised and `sqlstate` says why.
+--
+--   (b) ⚠ THE FIRE LOG CANNOT TELL YOU THE EDGE ACCEPTED IT. `net.http_post` is
+--       ASYNCHRONOUS — it returns a request id, not a response — so a rejected
+--       token still reads `posted`. THE ONLY HONEST READ IS THE RESPONSE TABLE:
+--         select id, status_code, created
+--           from net._http_response order by id desc limit 10;
+--       EXPECT 200. A 401 means the two halves disagree: the driver is on the
+--       derived token and the live build is not, or the Vault secret and
+--       `HR_TICK_SHARED_SECRET` are different values. This is the trap the
+--       rotation note in 2026-09-21-world-tick-cron.sql §3 documents, and it is
+--       the single most expensive misread available during this cutover.
+--
+--   (c) THE SECRET IS NOT ON THE WIRE. The whole point, measured rather than
+--       assumed. The bearer is 64 hex; so is the mac; so the test is whether the
+--       QUEUED value is the VAULT value:
+--         select count(*) as leaked
+--           from net.http_request_queue q,
+--                vault.decrypted_secrets s
+--          where s.name = 'hr_tick_shared_secret'
+--            and q.headers->>'X-HR-Tick-Auth' = s.decrypted_secret;
+--       EXPECT 0. And the shape:
+--         select left(q.headers->>'X-HR-Tick-Auth', 5) as tag
+--           from net.http_request_queue q order by q.id desc limit 3;
+--       EXPECT 'v1 t='. (Queue depth is normally 0 — the worker deletes the row
+--       after the send — so an empty result is health, not a failure. Run it
+--       inside the same second as a fire, or accept 0 rows.)
+--
+--   (d) THE SHADOW PARITY RUN IS STILL RUNNING. The cutover must not cost the
+--       measurement M1 exists to take:
+--         select count(*) as windows, max(at) as latest
+--           from public.hr_tick_shadow where at > now() - interval '1 hour';
+--       EXPECT a count that keeps climbing at roughly active/flush_seconds. A
+--       count frozen at the cutover instant means step 3 or step 4 did not land.
+--
+-- THE KILL SWITCH — UNCHANGED BY THIS FILE, AND VERIFIED IN CODE (T-5.4):
+--
+--       update public.hr_tick_config set enabled = false;   -- USE THIS FIRST
+--       select public.hr_cron_drop('hr-tick-run');          -- stops the driver
+--
+--   The first is a single-row UPDATE on a singleton (`id boolean primary key
+--   check (id)`), takes effect on the next 10 s fire, and needs neither a
+--   migration nor a deploy. Use it at any surprise and diagnose second.
+--   `hr_cron_drop(text)` is `security definer set search_path = public`, returns
+--   false rather than raising when the job is already gone, and is revoked from
+--   public, anon, authenticated and service_role — NO CLIENT CAN STOP THE WORLD
+--   TICK. After it the job is GONE, not paused; re-arm with
+--     select public.hr_cron_ensure('hr-tick-run', '10 seconds',
+--                                  'select public.hr_tick_cron_run()');
+--   which is revoked the same way.
+--
+--   ROLLING BACK THIS FILE means re-deploying the previous hr-accrue payload
+--   and re-applying 2026-09-21-world-tick-cron.sql (which restates
+--   `hr_tick_cron_run` in its static form). Both halves, behind the kill switch,
+--   and THE DEPLOY GOES FIRST on the way back — the mirror of step 2-then-3
+--   going out, for the same reason: the half that ACCEPTS must never be older
+--   than the half that SENDS. It puts the T-5.3 block back, so M2 is blocked.
+--
+--   ★ "THE PREVIOUS PAYLOAD" IS A VALUE, AND IT IS ONLY READABLE BEFORE STEP 3
+--     (Security T-4). Before deploying, `curl` the function's GET and write its
+--     `payload_sha256` down — step 3 overwrites it and nothing else records it.
+--     The full rollback runbook, with the command that proves you packed the
+--     right commit, is WORLD_TICK_DESIGN.md §17.11 (P3).
+-- (Placed before §5 so the file ends on the self-check's terminator: the in-page
+--  migration guard requires every migration to end on `;`. Comment-only move; no SQL changed.)
+
 -- ── §5 SELF-CHECK — EXECUTED (CLAUDE.md §4) ────────────────────────────────
 -- PROBE ROWS ONLY. The one player row this block reads is one it inserted under
 -- a uuid `gen_random_uuid()` cannot mint; every predicate binds a variable the
@@ -993,115 +1107,3 @@ begin
   end;
   raise notice 'world-tick-derived-token self-check PASSED; probe rows rolled back';
 end $$;
-
--- ── §6 THE OPERATOR SECTION ────────────────────────────────────────────────
--- THE ORDER. Steps 1 and 4 are the seam: between them the tick posts nothing,
--- so there is never a build in existence that accepts both the static bearer and
--- the derived token. Do not skip step 1 to save ten seconds — skipping it is how
--- a rotation window becomes a debugging session.
---
---   1. STOP THE FIRES.  Takes effect on the next fire (≤10 s).
---        update public.hr_tick_config set enabled = false;
---        -- read it back, and read the log:
---        select enabled, shadow, edge_url from public.hr_tick_config;
---        select at, outcome, rostered, detail from public.hr_tick_cron_log
---          order by id desc limit 5;         -- EXPECT: `disabled` within 10 s
---
---   2. APPLY THIS FILE.  One file, never inside begin/commit, never 00:00–00:10
---      UTC, Coordinator only (CLAUDE.md §2):
---        node tools/apply-migration.mjs supabase/migrations/2026-09-22-world-tick-derived-token.sql
---      EXPECT the §5 notices to name d1 d2 d9 d4 d5 d6 d7 d8 d8b d10 d11 as RAN on
---      production. IF d4–d7 READ AS SKIPPED ON PRODUCTION, STOP: pgcrypto is not
---      reachable and the tick will answer `no_hmac` forever. The fix is
---      `create extension if not exists pgcrypto;` and a re-apply, not a re-arm.
---      ★ SINCE 2026-09-23 THAT STOP IS AN EXIT CODE, NOT A LINE TO READ
---        (Security T-1): §0b raises `HR_TICK_NO_PGCRYPTO` and apply-migration
---        fails, so a database that cannot derive CANNOT take this file at all.
---        The notice still names the skips, but you are no longer the gate.
---
---   3. DEPLOY THE EDGE HALF. Nothing works until both halves are the same
---      version — the driver sends `v1 t= b= m=` and only the new build reads it.
---        node tools/pack-edge.mjs hr-accrue --out <dir>/supabase/functions/hr-accrue
---        cp supabase/config.toml <dir>/supabase/config.toml
---        npx --yes supabase@latest functions deploy hr-accrue --workdir <dir> \
---          --project-ref nezapsylztqbbwuwembx
---        node tools/pack-edge.mjs hr-accrue --hash
---        curl -s https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue
---      The GET returns `payload_sha256`. IT MUST EQUAL `--hash`. The in-page
---      payload guard is red until they match, and a mismatch here means the
---      driver is posting a token the live build cannot read.
---
---   4. RE-ARM.
---        update public.hr_tick_config set enabled = true;
---
--- THE VERIFICATION READS, in order, and what each one means:
---
---   (a) THE FIRE LOG SAYS `posted` AND NAMES THE VERSION.
---         select at, outcome, rostered, effective_cadence_seconds,
---                detail->>'auth' as auth, detail->>'bucket' as bucket
---           from public.hr_tick_cron_log order by id desc limit 10;
---       EXPECT `posted` with auth = 'v1'. `no_hmac` means pgcrypto; `no_secret`
---       means the Vault secret is missing or under 32 chars; `error` means the
---       POST itself raised and `sqlstate` says why.
---
---   (b) ⚠ THE FIRE LOG CANNOT TELL YOU THE EDGE ACCEPTED IT. `net.http_post` is
---       ASYNCHRONOUS — it returns a request id, not a response — so a rejected
---       token still reads `posted`. THE ONLY HONEST READ IS THE RESPONSE TABLE:
---         select id, status_code, created
---           from net._http_response order by id desc limit 10;
---       EXPECT 200. A 401 means the two halves disagree: the driver is on the
---       derived token and the live build is not, or the Vault secret and
---       `HR_TICK_SHARED_SECRET` are different values. This is the trap the
---       rotation note in 2026-09-21-world-tick-cron.sql §3 documents, and it is
---       the single most expensive misread available during this cutover.
---
---   (c) THE SECRET IS NOT ON THE WIRE. The whole point, measured rather than
---       assumed. The bearer is 64 hex; so is the mac; so the test is whether the
---       QUEUED value is the VAULT value:
---         select count(*) as leaked
---           from net.http_request_queue q,
---                vault.decrypted_secrets s
---          where s.name = 'hr_tick_shared_secret'
---            and q.headers->>'X-HR-Tick-Auth' = s.decrypted_secret;
---       EXPECT 0. And the shape:
---         select left(q.headers->>'X-HR-Tick-Auth', 5) as tag
---           from net.http_request_queue q order by q.id desc limit 3;
---       EXPECT 'v1 t='. (Queue depth is normally 0 — the worker deletes the row
---       after the send — so an empty result is health, not a failure. Run it
---       inside the same second as a fire, or accept 0 rows.)
---
---   (d) THE SHADOW PARITY RUN IS STILL RUNNING. The cutover must not cost the
---       measurement M1 exists to take:
---         select count(*) as windows, max(at) as latest
---           from public.hr_tick_shadow where at > now() - interval '1 hour';
---       EXPECT a count that keeps climbing at roughly active/flush_seconds. A
---       count frozen at the cutover instant means step 3 or step 4 did not land.
---
--- THE KILL SWITCH — UNCHANGED BY THIS FILE, AND VERIFIED IN CODE (T-5.4):
---
---       update public.hr_tick_config set enabled = false;   -- USE THIS FIRST
---       select public.hr_cron_drop('hr-tick-run');          -- stops the driver
---
---   The first is a single-row UPDATE on a singleton (`id boolean primary key
---   check (id)`), takes effect on the next 10 s fire, and needs neither a
---   migration nor a deploy. Use it at any surprise and diagnose second.
---   `hr_cron_drop(text)` is `security definer set search_path = public`, returns
---   false rather than raising when the job is already gone, and is revoked from
---   public, anon, authenticated and service_role — NO CLIENT CAN STOP THE WORLD
---   TICK. After it the job is GONE, not paused; re-arm with
---     select public.hr_cron_ensure('hr-tick-run', '10 seconds',
---                                  'select public.hr_tick_cron_run()');
---   which is revoked the same way.
---
---   ROLLING BACK THIS FILE means re-deploying the previous hr-accrue payload
---   and re-applying 2026-09-21-world-tick-cron.sql (which restates
---   `hr_tick_cron_run` in its static form). Both halves, behind the kill switch,
---   and THE DEPLOY GOES FIRST on the way back — the mirror of step 2-then-3
---   going out, for the same reason: the half that ACCEPTS must never be older
---   than the half that SENDS. It puts the T-5.3 block back, so M2 is blocked.
---
---   ★ "THE PREVIOUS PAYLOAD" IS A VALUE, AND IT IS ONLY READABLE BEFORE STEP 3
---     (Security T-4). Before deploying, `curl` the function's GET and write its
---     `payload_sha256` down — step 3 overwrites it and nothing else records it.
---     The full rollback runbook, with the command that proves you packed the
---     right commit, is WORLD_TICK_DESIGN.md §17.11 (P3).

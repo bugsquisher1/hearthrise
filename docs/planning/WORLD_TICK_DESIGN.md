@@ -4314,3 +4314,133 @@ separate watermark (§18.2.4), the per-character Recovery Rule left untouched
 with two party rules layered on top (§18.1), and `collectsFirst: true` derived
 from "does the delta stamp" rather than preferred (§18.3). Those are the load-bearing
 ones and they are sound.
+
+---
+
+## §18-SEC-2 RE-VERIFY (2026-09-23)
+
+Second pass by the security-engineer over `lane/m8-parties-design-2` @ `646fa09b`,
+which answered §18-SEC.1's sixteen findings by rewriting §18.2 and amending
+§18.1/§18.3/§18.4/§18.5. §18 and §18-SEC above are RECORDS and no line of either
+was edited to produce this section; where this pass disagrees with the answer it
+says so here.
+
+Every claim below was checked against the code the answer cites, not against the
+answer's description of it: `c_delta_keys` and the journal merge in
+`2026-09-14-hr-apply-restatement.sql` (lines 318, 2492, 2540), `META_KEYS` and
+`metaProblems()` in `tests/accrual-engine.mjs:3520`, `hr_tick_settle`'s mark in
+`2026-09-21-world-tick-settle-fence.sql`, §16.6, `hr_frame_topic` and the
+`frame_keys` CHECK in `2026-09-22-frame-push-channel.sql`, and M5's topic policy
+in `SEC_PUSH_CHANNEL_M5_2026-09-23.md`.
+
+### §18-SEC-2.1 Finding by finding
+
+| # | Ruling | In one line |
+|---|---|---|
+| **S-1** | **CLOSED** | `journal` is on `c_delta_keys` (restatement line 358) and `hr_apply` merges `v_j->'meta'` verbatim, so the delta's top-level key set is byte-for-byte a solo settle's and nothing new reaches the `unknown_delta_key` branch. |
+| **S-2** | **CLOSED, with one precision fix owed to S2's brief** | One nested key is the `att` precedent exactly, and the level is right: `jsonb_build_object('delta', v_meta) \|\| coalesce(v_j->'meta','{}')` puts journal keys at the TOP, so `meta->'party'` is the read. |
+| **S-3** | **CLOSED** | Invariant 8 states the equality as a predicate, names `hr_party_tick_settle` as the only writer of either watermark, closes four doors with one predicate, and DELETES the drag-forward sentence rather than softening it — which is what the finding asked for. |
+| **S-4** | **CLOSED** | Option (1) taken, and taken as invariant 8's predicate at a fifth door rather than as a third rule; the fence's liveness is an emptiness (§18-SEC.2's 8c) and it is named an M4 co-blocker in ordering constraint 2. |
+| **S-5** | **CLOSED** | The floor is XP-only; gold and the lottery weights follow raw damage with no floor and no threshold, and T-2/T-4 are restated to what that makes true. The split now carries two vectors, `dmg_bp` and `xp_bp`, and §18.2.6 (P-b) asks both for 10,000 bp — which is the correct consequence, not a drift from the finding's `share_bp`. |
+| **S-6** | **CLOSED for membership, OPEN for the hunt verbs** | 8 boundaries per party per UTC day with `party_settle_churn`, the right to leave untouched, and the remainder to the lowest `(user_id, slot)`. See B-A1: the budget counts membership changes only. |
+| **S-7** | **CLOSED, and the design's own restatement is now wrong** | S1 measured the finding's proposed mechanism unbuildable and built a narrower surface. §18.2.2's paragraph still describes the policy the lane could not write; see B-A2. |
+| **S-8** | **CLOSED** | `hr_partied` by join, `hr_tick_roster` gains one clause and no column, the denormalised column is demoted to index helper in writing, and the disjointness guard is named. |
+| **S-9** | **CLOSED, with one mechanism note for S2** | The savepoint argument is correct — plpgsql rolls back the sub-block's writes and the handler runs in the surviving outer transaction, and variable assignments survive the rollback so `v_bad_user` is readable in the handler. See B-A3 on `exception when others`. |
+| **S-10** | **CLOSED** | (a), (b) and (c) all taken; (P-c) is an inequality in the safe direction with an exact equality underneath, and both the fellowship line and the dry reduction are journalled so the equality is checkable rather than assumed. |
+| **S-11** | **CLOSED and BUILT** | `hr_party_hunt_live` exists, returns FALSE, is called on every accept, and the refusal is proved against a predicate stubbed TRUE. |
+| **S-12** | **CLOSED and BUILT** | Ten levels, re-checked on accept over the member set as it would be, proved against a planted 30-level gap. |
+| **S-13** | **CLOSED and BUILT**, and narrowed honestly | One string for five causes, distinct journal codes, the receiver clamp added, and the file states plainly that name EXISTENCE is already public (`display_names` is `for select using (true)`) so the fence is only over "is this player partied". The residual channel is timing, closed on this branch — see JOB B. |
+| **S-14** | **CLOSED and BUILT** | Six entries with argued claims, four asserted absences, `c_engine_allow` untouched and asserted untouched, `hr_assert_grant_hygiene(true)` read for its two findable lists rather than only for the absence of a raise. |
+| **S-15** | **CLOSED** | Verified against the code: `hr_frame_topic` is `'hr:' \|\| user \|\| ':' \|\| slot` and the policy pins segment 2 by equality, so a party topic is unauthorizable by construction — N per-member frames is the only design that fits, and the unsubscribe-is-an-absence argument is right. One condition for S5 in B-A4. |
+| **S-16** | **CLOSED** | The claim is corrected rather than buried, and the correction is the true one: a plain nullable add is catalog-only, a `GENERATED … STORED` add rewrites. |
+| **I-1/I-2/I-3** | **CLOSED** | Decided per code, recorded as a knowing dependency, and stated in characters respectively. |
+
+**The two corrections the answer asked me to re-verify are both right, and I adopt them.**
+
+1. `hr_apply(p_user, p_slot, p_version, p_intent_id, p_delta)` has no `p_meta`
+   argument. S-1's proposed mechanism named one that does not exist; the
+   `journal` delta key satisfies S-1's **rule** without it, and the rule — not
+   the mechanism — was the finding. The route is better than the one I proposed:
+   no new argument, no new writer.
+2. `META_KEYS` is eleven, not ten: `ms, ticks, kills, capped, ate, att, spent, w,
+   from, to, stopped`. My number was one behind `stopped`, which landed
+   2026-09-22. The budget argument is unaffected and the ONE-key ruling stands.
+
+### §18-SEC-2.2 What is still open, and whose it is
+
+None of these reopens a ruling. Each is a gap between a ruling and what will be
+built from it, and each belongs to a brief below rather than to this document.
+
+- **B-A1 — the 8-boundary budget counts membership changes and nothing else, and
+  `party_hunt_start`/`party_hunt_stop` are settle boundaries too.** S-6 priced a
+  player-chosen settle boundary at 8 per party per UTC day. §18.1's *"the start
+  closes four windows at once, so it collects first for all four"* makes
+  `party_hunt_start` a boundary for four characters, and `party_hunt_stop`
+  another; both sit in the `activity` bucket at **60 per character per day**. The
+  lever S-6 measured is therefore open at roughly 7× the price it was clamped
+  at, through a door S-6's wording did not cover. **S4's brief must rule
+  explicitly**: either start/stop boundaries count against the same 8, or the
+  argument for why a hunt boundary is not the same lever as a membership one is
+  written down. Not S1's — S1 has no hunt.
+- **B-A2 — §18.2.2's `hr_party_view` paragraph still describes the policy the S1
+  lane measured unbuildable.** S-7's fix as I wrote it cannot be built: a policy
+  `USING` clause runs as the CALLING role, so `hr_party_of` inside one needs
+  EXECUTE granted to `authenticated`, which is the sweepable oracle my own
+  citation of `hr_clan_may_admit` forbids. The lane removed the read instead of
+  relocating it — `party_member`'s policy is `auth.uid() = user_id`, the roster
+  goes through `hr_party_view` — which is strictly narrower and is the right
+  answer. **The finding is CLOSED on the code and OPEN on the prose**: §18.2.2 is
+  a record like everything else in §18, so it is not edited here, but S2's brief
+  must not read the roster predicate out of it.
+- **B-A3 — §18.2.5a's handler is `exception when others`.** It will also catch a
+  deadlock (40P01), a lock timeout, a statement cancellation and a bug in the
+  split, and turn each into "end the party hunt, blame a member". Two of those
+  are things an adversary can provoke. **S2's brief: catch the named condition
+  (or one reserved SQLSTATE) and RE-RAISE everything else** — a party ended
+  because the arithmetic threw is a defect that must be loud, and
+  `member_unpayable:<user>` names an innocent player for it. The savepoint
+  argument itself is sound and I do not disturb it.
+- **B-A4 — the `party` frame key carries another player's data on a topic whose
+  policy only proves whose topic it is.** S-15 is right that N per-member frames
+  is the only fitting transport, and the emitter is a trigger keyed to
+  `new.user_id`, so the projection is naturally per recipient. **S5's brief must
+  state it as a requirement rather than rely on it**: the `party` block is built
+  by calling `hr_party_view` **as the recipient**, once per recipient, and a
+  guard asserts the block is absent for a non-member. `frame_keys`' CHECK
+  (`<@` an enumerated array, `array_length between 1 and 12`) widens by one.
+- **B-A5 — `meta.party`'s own seven fields are bounded by nothing.**
+  `metaProblems()` checks TOP-LEVEL keys only; nesting buys the count and does
+  not buy a bound, and `att` has the same hole. **S2's guard must allowlist the
+  party object's key set as an equality**, not only add `party` to `META_KEYS`.
+  And the `--mutate` proof the answer describes is off by one: with `party`
+  added the allowlist is **twelve**, so the key that must still go red is a
+  **thirteenth**, not "a twelfth flat key".
+- **B-A6 — `party_hunt_start` writes three other players' `player_state`, and
+  that is the first cross-user write in the architecture.** It follows
+  necessarily from invariant 8 (the equality has to be ESTABLISHED, and only a
+  collect can establish it) and it is safe on its face — each member is priced
+  under their own solo rules and paid their own earnings, so no value crosses.
+  It is recorded because it is not obvious and because its failure mode is:
+  **S4's self-check must EXECUTE that a `member_uncollectable` on any one member
+  leaves all four windows intact and no `left_at`, no pointer and no watermark
+  written** — the refusal table already promises exactly that, and a promise in
+  a table is not a §4 block.
+
+### §18-SEC-2.3 Are S2, S3, S4 and S5 briefable?
+
+§18-SEC.0 set one condition: *"S2 through S5 are not briefable until S-1 through
+S-4 are answered in this document."* S-1, S-2, S-3 and S-4 are answered, in this
+document, against the real code. **The condition is met.** Each slice separately:
+
+| Slice | Briefable? | What the brief must carry, over and above §18.5's own cell |
+|---|---|---|
+| **S2** — roster unit in shadow | **YES** | B-A3 (name the exception, re-raise the rest) and B-A5 (the nested key set as an equality, and the thirteenth-key `--mutate`). §18-SEC.3's S2 self-check list unchanged and complete. Add: `hr_party_hunt_live`'s body becomes the real existence test in the SAME file that creates `party_hunt`, and S1's call site is asserted still reached. Do NOT read the roster predicate out of §18.2.2 (B-A2). **Own GO — a money-surface review** (§18-SEC.3, Correction 1). |
+| **S3** — the split, in shadow | **YES, and it may run in parallel with S2** | The split is pure, so its brief is `tests/party-split.mjs --mutate` plus the one executing assertion §18.5 already names, now on BOTH vectors (`dmg_bp` and `xp_bp` each to 10,000 bp) per S-5. The mutation list must include *applying the floor to gold or to the lottery weights*, which is the whole of S-5. **Own GO.** |
+| **S4** — the hunt intents | **YES, and it lands after S3**, not merely numbered after it | B-A1 (rule the start/stop boundary budget) and B-A6 (execute the all-or-nothing of `member_uncollectable` across four members). Plus §18-SEC.3's S4 list. **Own GO.** |
+| **S5** — ARM | **NOT YET, and not because of §18** | Its own pre-arm bar is unmet by definition — 48 h of shadow that has not started — and its two structural blockers stand: M4 (ordering constraint 2, now with invariant 9 as a co-blocker in both directions) and M5 + §7a (constraint 3). B-A4 is its extra condition. It becomes briefable when S2–S4 are applied and the shadow clock starts; the **GO** is a separate document. |
+
+A one-line ruling for the record: **the answer is accepted in full.** Sixteen
+findings, sixteen closings, two corrections back to me that were both right, and
+no ruling softened in the course of being implemented — including the two
+(S-3's four closed doors, S-5's XP-only floor) that cost the design real player
+affordances and said so rather than hiding the cost.

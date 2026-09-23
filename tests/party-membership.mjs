@@ -423,6 +423,70 @@ try {
       + `(wanted ${want}); ${journalled} invite_inbox_full journal row(s)`);
   }
 
+  // ══ B2 / B4 / B1 — THE REJOIN PATH, WHICH IS S-6'S LEVER ════════════════
+  // Security's re-verify of the staged slice (2026-09-23). All three defects
+  // sat on leave → re-invite → accept, the path §18-SEC.1 S-6 prices at
+  // "20/day of headroom per member", and all three were permanent and silent:
+  //   B4  party_invite_live is unique on (party_id, user_id, slot) `where
+  //       accepted_at is null and revoked_at is null` — EXPIRY is neither, so a
+  //       timed-out card held the door shut for ever.
+  //   B2  party_member's PK is (party_id, user_id, slot), so the dead row from
+  //       the first tenure made the rejoin raise on the PK, reported as
+  //       `already_in_party` — a player told they are in a party they left.
+  //   B1  the answer's `members` was built from a variable the day-clamp read
+  //       had already overwritten, so it came back NULL on the first accept of
+  //       a UTC day and as the acceptor's daily accept count thereafter.
+  // File 2's §8(f) walks this path but is refused one step earlier by the
+  // stubbed hunt predicate, so nothing in the batch reached any of them.
+  await ungate();
+  group('B-REJOIN  a party you left can be rejoined, and an expired card is not a lock');
+  {
+    const [{ p: pid }] = await q('select public.hr_party_of($1::uuid, 0) as p', [A]);
+    await as(B);
+    await call(`public.hr_party_leave(0, '${await uuid()}'::uuid)`);
+    await as(A);
+    await db.exec(`update public.party_invite set revoked_at = now()
+                    where user_id = '${B}'::uuid and accepted_at is null and revoked_at is null;`);
+    const first = await call(`public.hr_party_invite(0, 'Bram Test', '${await uuid()}'::uuid)`);
+    await db.exec(`update public.party_invite set expires_at = now() - interval '1 minute'
+                    where party_id = '${pid}'::uuid and user_id = '${B}'::uuid and slot = 0
+                      and accepted_at is null and revoked_at is null;`);
+    const second = await call(`public.hr_party_invite(0, 'Bram Test', '${await uuid()}'::uuid)`);
+    judge('B4', first?.ok === true && second?.ok === true,
+      'an EXPIRED card does not hold the (party, character) slot shut — expiry is written down as '
+      + 'a revocation, so a fifteen-minute timeout is not a permanent denial the leader cannot see',
+      `the first invite answered ${JSON.stringify(first)} and the second, after the card expired, `
+      + `answered ${JSON.stringify(second)}`);
+
+    const [card] = await q(
+      `select id from public.party_invite where party_id = $1 and user_id = $2
+         and accepted_at is null and revoked_at is null and expires_at > now()`, [pid, B]);
+    await as(B);
+    const back = card ? await call(`public.hr_party_accept(0, '${card.id}'::uuid, '${await uuid()}'::uuid)`) : null;
+    const rows = Number((await q(
+      'select count(*) as n from public.party_member where party_id = $1 and user_id = $2',
+      [pid, B]))[0].n);
+    const size = Number((await q(
+      'select count(*) as n from public.party_member where party_id = $1 and left_at is null',
+      [pid]))[0].n);
+    judge('B2', back?.ok === true && rows === 1 && size >= 2,
+      'rejoining a party this character LEFT revives the dead membership row as a new tenure — one '
+      + 'row, not two, and not a primary-key violation mis-reported as already_in_party',
+      `the rejoin answered ${JSON.stringify(back)}; ${rows} party_member row(s) for this `
+      + `character in this party, ${size} live member(s)`);
+    judge('B1', Number(back?.members) === size,
+      'the answer\'s `members` is the party\'s live size, read under the party row lock — never a '
+      + 'daily counter that happened to share the variable (CLAUDE.md §6: the browser is never '
+      + 'told a number the server does not hold)',
+      `accept answered members=${JSON.stringify(back?.members)} against ${size} live member(s)`);
+    // Put B back outside the party: S12 below needs an invitable character, and
+    // an arm that leaves state behind for the next one is how a suite starts
+    // depending on its own order.
+    await ungate();
+    await as(B);
+    await call(`public.hr_party_leave(0, '${await uuid()}'::uuid)`);
+  }
+
   // ══ S-12 — THE SPREAD, RE-CHECKED ON ACCEPT ══════════════════════════════
   await ungate();
   group('S12  the ten-level spread is re-checked on every accept');
@@ -598,7 +662,9 @@ if (MUTATE) {
     + 'journey plays end to end through the verbs; leadership transfers by tenure and the last '
     + 'member out dissolves the party and its cards; S-13 answers one string to the sender and '
     + 'three codes to the journal, and the receiver clamp bites at the sixth card; the ten-level '
-    + 'spread is re-checked on accept; the policies neither recurse nor need a predicate grant; '
+    + 'spread is re-checked on accept; a party a character LEFT can be rejoined and an expired '
+    + 'card is not a permanent lock on the door; the policies neither recurse nor need a '
+    + 'predicate grant; '
     + 'hr_party_view is frozen at eight keys and refuses a non-member; and S-11 refuses an accept '
     + 'the day hr_party_hunt_live starts answering TRUE.');
 }

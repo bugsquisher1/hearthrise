@@ -114,8 +114,13 @@ begin
    'detail, never another member''s envelope. Adding a column is a code change with a review and '
    'file 1 §7(c) asserts the key set as an EQUALITY so it cannot drift. Caller surface: one party '
    'uuid, and a uuid they are not a member of answers not_in_party — the same string as one that '
-   'never existed, so it is no existence probe. Read-only: writes nothing, calls nothing that '
-   'writes. Rate-gated on the `party` bucket at 12/min.'),
+   'never existed, so it is no existence probe. It writes no player state and reads no table '
+   'outside party/party_member/player_state/player_skills/profiles; the ONE write anywhere '
+   'behind it is hr_rpc_gate''s own rate counter, which is why it is declared STABLE and must '
+   'be invoked with POST — PostgREST runs a STABLE function in a READ ONLY transaction on GET '
+   'and the counter upsert would raise 25006 there. Rate-gated on the `party` bucket at 12/min, '
+   'which it SHARES with the five write verbs: a panel polling this read spends the same '
+   'budget a player''s own membership actions do.'),
 
   ('hr_party_create', 'p_slot integer, p_idem uuid', 'authenticated',
    'added 2026-09-23 (M8 S1): forms a party of ONE with the calling character as its leader, in '
@@ -289,6 +294,17 @@ begin
                   and grantee in ('anon','authenticated','PUBLIC','service_role')
                   and privilege_type <> 'SELECT') then
       raise exception 'GATE(d): a client role holds a non-SELECT privilege on public.%. The RPCs are the only door (§18.2.2): a client that could write here could invite itself.', t;
+    end if;
+    -- AND THE READ IS `authenticated` ONLY (Security B11, 2026-09-23). The
+    -- clause above admits SELECT for any of the four, which is one privilege
+    -- wider than file 1 grants. It matters most for service_role, which is
+    -- BYPASSRLS: for it the revoke is the ONLY fence — file 1 says so in a
+    -- comment and nothing asserted it — and a SELECT left in place would read
+    -- every party in the game past every policy.
+    if exists (select 1 from information_schema.role_table_grants
+                where table_schema = 'public' and table_name = t
+                  and grantee in ('anon','PUBLIC','service_role')) then
+      raise exception 'GATE(d): anon, PUBLIC or service_role holds a privilege on public.%. Only `authenticated` may hold SELECT, and only behind the policies; service_role is BYPASSRLS, so for it the revoke is the only fence there is.', t;
     end if;
   end loop;
   if to_regclass('public.hr_client_write_baseline') is not null then

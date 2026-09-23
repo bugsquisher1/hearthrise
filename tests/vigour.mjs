@@ -55,6 +55,7 @@ const MUTATIONS = {
   refill_free_on_replay: 'Let a replayed idempotency key debit again (a double-tap charges twice).',
   budget_ignores_ceiling: 'Drop the 22h ceiling from hr_vigour_of so gold can buy the whole day.',
   spent_ignores_remainder: 'Drop the sub-minute remainder from hr_vigour_of\'s read, so the charge stops conserving (finding S-1).',
+  refill_sells_partial: 'Refuse only a refill that would buy NOTHING, so a ceiling-clamped one is sold at full price for half the minutes (S-3).',
 };
 
 /** The mutations are TEXTUAL patches on the real migrations, so a planted defect
@@ -101,8 +102,13 @@ const patchesFor = (mutate) => {
         '  v_nth := 1;',
       ]]]]));
     case 'refill_past_ceiling':
+      /* ANCHOR MOVED 2026-09-22 with finding S-3: the predicate this deletes
+         used to read `budget_min >= ceiling_min` and now reads
+         `v_delivers < v_min`. Same branch, same deletion — the whole ceiling
+         test goes, so a refill at the ceiling is sold for zero minutes. The
+         sibling `refill_sells_partial` narrows it instead of deleting it. */
       return withShortCircuit(new Map([[REFILL, [[
-        "  if coalesce((v_vig->>'budget_min')::int, 0) >= coalesce((v_vig->>'ceiling_min')::int, 0) then",
+        '  if v_delivers < v_min then',
         '  if false then',
       ]]]]));
     case 'refill_free_on_replay':
@@ -121,6 +127,16 @@ const patchesFor = (mutate) => {
       return withShortCircuit([[DAILY, [[
         "       + coalesce(sum(case when key = 'ev:vigour_rem_ms' then value else 0 end), 0)",
         '       + 0',
+      ]]]]);
+
+    case 'refill_sells_partial':
+      /* THE FINDING, PLANTED BACK: `v_delivers <= 0` is the pre-fix predicate
+         (`budget_min >= ceiling_min` spelled in the new variable), which
+         refuses only the sale that delivers ZERO and lets the PARTIAL one
+         through at full price with a receipt that reports the whole block. */
+      return withShortCircuit([[REFILL, [[
+        '  if v_delivers < v_min then',
+        '  if v_delivers <= 0 then',
       ]]]]);
 
     case 'budget_ignores_ceiling':
@@ -378,6 +394,67 @@ async function run(mutate) {
     `V9: the refill that would have bought NOTHING was answered '${lastErr}' after ${perkedSold} `
     + 'sales. A refill at the ceiling must be REFUSED, not sold — taking gold for zero minutes is '
     + 'the `already_owned` defect in a new currency.');
+
+  /* ── V10. NOR MAY IT SELL PARTIAL AIR (finding S-3) ────────────────────
+     The refusal above only ever covered the sale that delivers ZERO.
+     hr_vigour_of clamps with least(ceiling, grant + bought), so a refill that
+     CROSSES the ceiling delivers less than the block it charges for and still
+     reported `minutes: 120`. On this perked probe (900-minute grant) the budget
+     reaches 1,260 after three refills and the fourth would hand over 60 of the
+     120 minutes it takes 54,000 gold for — the receipt and the meter on the
+     same envelope disagreeing by an hour, inside a gold verb, which is the
+     class Tyler ruled on 2026-09-14. BOTH BRANCHES are driven: every sale must
+     move the budget by exactly the minutes its receipt reports, and the one
+     that cannot must be refused by name without taking gold. */
+  const perkedAt = (await q('select public.hr_vigour_of($1, 0) as v', [P3]))[0].v;
+  ok(Number(perkedAt.budget_min) + VIGOUR_REFILL_MIN > Number(perkedAt.ceiling_min),
+    `V10 CANNOT RUN: the perked probe stopped at a ${perkedAt.budget_min}-minute budget with room `
+    + `for another whole ${VIGOUR_REFILL_MIN}-minute block under the ${perkedAt.ceiling_min} ceiling, `
+    + 'so the clamped branch was never reached and this arm proves nothing.');
+  ok(Number(perkedAt.budget_min) < Number(perkedAt.ceiling_min),
+    `V10 CANNOT RUN: the perked probe saturated the ceiling exactly (${perkedAt.budget_min} of `
+    + `${perkedAt.ceiling_min}), which is the ZERO-minute case V9 already covers. The PARTIAL case `
+    + 'needs a grant that leaves a fraction of a block under the ceiling.');
+  const clamped = (await db.query('select public.hr_vigour_refill__ungated(0, gen_random_uuid()) as r')).rows[0].r;
+  ok(clamped.ok !== true && clamped.error === 'vigour_ceiling',
+    `V10: a refill that would deliver only ${Number(perkedAt.ceiling_min) - Number(perkedAt.budget_min)} `
+    + `of its ${VIGOUR_REFILL_MIN} minutes was answered '${clamped.error}'. The server takes the full `
+    + 'rung, reports the full block and the meter on the same envelope shows less.');
+  ok(Number(clamped.would_deliver) < Number(clamped.minutes),
+    `V10: the refusal claims it would have delivered ${clamped.would_deliver} of ${clamped.minutes} `
+    + 'minutes — if that were the whole block it should have been SOLD, and the panel cannot tell '
+    + 'the player what they would actually have got.');
+  const afterClamp = (await q('select public.hr_vigour_of($1, 0) as v', [P3]))[0].v;
+  ok(Number(afterClamp.budget_min) === Number(perkedAt.budget_min)
+     && Number(afterClamp.refills) === Number(perkedAt.refills),
+    'V10: the REFUSED partial refill still moved the meter.');
+
+  /* ── V10b. THE CEILING IS IN THE METER, NOT ONLY IN THE SALE ───────────
+     ⚠ THIS ARM EXISTS BECAUSE S-3 TOOK THE OLD ONE AWAY, and saying so is the
+       point. Before the partial-refill refusal landed, `budget_ignores_ceiling`
+       (the ceiling deleted from hr_vigour_of) was caught by the V9 loop: the
+       fourth sale pushed the perked budget to 1,380 and the assertion fired.
+       With the refusal in place that sale never happens — v_delivers goes
+       negative and the verb refuses, which LOOKS correct — so the unclamped
+       meter would have gone unnoticed through the sale path. The clamp is a
+       property of the READ, so it is asserted on the READ: the counter is
+       driven through hr_apply, the only writer, exactly as the migration's
+       GATE(c4) does, and the meter must clamp whatever it is handed. */
+  const verP3 = (await q('select public.hr_state_of($1, 0) as s', [P3]))[0].s.version;
+  await db.query('select public.hr_apply($1, 0, $2::bigint, gen_random_uuid(), $3::jsonb)', [P3, String(verP3),
+    JSON.stringify({ progress: [{ kind: 'daily', key: 'ev:vigour_refills', period: TODAY, add: 99, state: 'active' }],
+      journal: { kind: 'admin', intent: 'vigour_probe' } })]);
+  const stuffed = (await q('select public.hr_vigour_of($1, 0) as v', [P3]))[0].v;
+  ok(Number(stuffed.refills) === VIGOUR_MAX_REFILLS,
+    `V10b: ${stuffed.refills} refills read back from a counter holding far more — the per-day clamp `
+    + 'is not applied on READ, so a corrupted counter would widen the budget.');
+  ok(Number(stuffed.budget_min) <= VIGOUR_CEILING_MIN,
+    `V10b: the meter reported a ${stuffed.budget_min}-minute budget, past the ${VIGOUR_CEILING_MIN}-minute `
+    + 'ceiling. Two hours a day gold cannot buy is what keeps "richest player hunts most" from becoming '
+    + '"richest player hunts always", and it must hold in the READ every caller sees — the engine pays '
+    + 'against this number and the panel renders it.');
+
+
   ok(perkedSold < VIGOUR_MAX_REFILLS,
     `V9: a perked character bought all ${VIGOUR_MAX_REFILLS} refills, so the ceiling never bit and `
     + 'this arm is measuring the day cap again.');

@@ -136,6 +136,10 @@ declare
   v_nth     int;
   v_cost    bigint;
   v_min     int;
+  -- How many of `v_min` this purchase would ACTUALLY add to the budget once
+  -- hr_vigour_of's ceiling clamp has had its say (finding S-3). Computed before
+  -- the debit; a refill that would deliver fewer than it charges for is refused.
+  v_delivers int;
   v_cap     int;
   v_intent  text;
   v_result  jsonb;
@@ -199,11 +203,38 @@ begin
   --        sold. Taking gold for zero minutes is the `already_owned` defect in a
   --        new currency, and it is the likeliest way this verb becomes a
   --        complaint: a player at a 22-hour grant would pay 2,000 gold for air.
-  if coalesce((v_vig->>'budget_min')::int, 0) >= coalesce((v_vig->>'ceiling_min')::int, 0) then
+  --
+  -- ⚠ AND NOT A MINUTE OF PARTIAL AIR EITHER (finding S-3). This test used to
+  --   read `budget_min >= ceiling_min`, which refuses only the case that
+  --   delivers ZERO. hr_vigour_of clamps with least(ceiling, grant + bought),
+  --   so a refill that CROSSES the ceiling delivers less than the 120 minutes
+  --   it charges for and still reports `minutes: 120` - the receipt and the
+  --   meter on the same envelope disagreeing by up to 119 minutes, which is
+  --   exactly the class Tyler ruled on 2026-09-14 arriving inside a gold verb.
+  --   Reachable with whole-hour grants: a 15-hour character (900 min) is at
+  --   1,260 after three refills, and the fourth would be sold for 54,000 gold
+  --   and deliver 60 minutes.
+  --
+  -- ⚠ WE REFUSE RATHER THAN PRICE THE PARTIAL, and that is the choice this file
+  --   makes of the two the review offered. It matches the `already_owned`
+  --   reasoning three lines up, it keeps the catalogue a flat ladder (a
+  --   pro-rated price is a second pricing rule, in code, under a Security GO
+  --   that reviewed a table), and a player refused at 1,260 still spends their
+  --   remaining 60 minutes - they simply cannot buy a fourth block they would
+  --   only half receive. The DELIVERED minutes are computed BEFORE the debit,
+  --   which is the property: no branch below can take gold for time the ceiling
+  --   will clamp away.
+  v_delivers := least(coalesce((v_vig->>'ceiling_min')::int, 0)
+                        - coalesce((v_vig->>'budget_min')::int, 0), v_min);
+  if v_delivers < v_min then
     perform public.hr_record_rejection(v_uid, v_slot, 'vigour_refill', 'vigour_ceiling',
-      jsonb_build_object('budget_min', v_vig->>'budget_min', 'ceiling_min', v_vig->>'ceiling_min'), 1);
+      jsonb_build_object('budget_min', v_vig->>'budget_min', 'ceiling_min', v_vig->>'ceiling_min',
+                         'would_deliver', greatest(0, v_delivers), 'minutes', v_min), 1);
     return jsonb_build_object('ok', false, 'error', 'vigour_ceiling',
       'budget_min', (v_vig->>'budget_min')::int, 'ceiling_min', (v_vig->>'ceiling_min')::int,
+      -- NAMED, so the panel can say "this would only buy you 60 of the 120
+      -- minutes" instead of a bare refusal the player cannot act on.
+      'would_deliver', greatest(0, v_delivers), 'minutes', v_min,
       'vigour', v_vig);
   end if;
 
@@ -349,6 +380,13 @@ declare
   v_gold bigint;
   v_p1   bigint;
   v_p2   bigint;
+  -- The PERKED probe of (e7) and its clan. The ceiling branch is unreachable at
+  -- the floor grant (720 + 5x120 = 1,320 = exactly 22 h), so an arm that only
+  -- ever ran on v_uid would be proving nothing about it.
+  v_uid2 constant uuid := '00000000-0000-4000-8000-0000b5510005';
+  v_clan uuid;
+  v_i    int;
+  v_gold2 bigint;
   v_day  text := public.hr_utc_day_key(now());
 begin
   select regexp_replace(p.prosrc, '--[^' || chr(10) || ']*', '', 'g') into v_src
@@ -434,10 +472,11 @@ begin
       raise exception 'GATE(e1): the REFUSED refill counted anyway';
     end if;
 
+    update public.player_state set gold = v_p1 + v_p2 + 1 where user_id = v_uid and slot = 0;
+
     -- (e2) THE HAPPY PATH. Gold placed on the row directly (a synthetic probe,
     --      not a player - no faucet is exercised). It must debit EXACTLY the
     --      catalogue price, count exactly one, and journal the signed movement.
-    update public.player_state set gold = v_p1 + v_p2 + 1 where user_id = v_uid and slot = 0;
     v_r := public.hr_vigour_refill__ungated(0, '00000000-0000-4000-8000-0000b5510aa1');
     if coalesce(v_r->>'ok','false') <> 'true' then raise exception 'GATE(e2): a funded refill was refused: %', v_r; end if;
     if (v_r->>'cost')::bigint <> v_p1 then
@@ -498,22 +537,89 @@ begin
       raise exception 'GATE(e6): a refill counted against a day that is not today';
     end if;
 
+    -- (e7) THE CEILING-CLAMPED REFILL IS REFUSED, NOT SOLD (finding S-3), AND
+    --      BOTH BRANCHES ARE DRIVEN.
+    --
+    -- ⚠ ON A PERKED CHARACTER, BECAUSE THE BRANCH IS UNREACHABLE WITHOUT ONE.
+    --   At the floor grant the numbers saturate EXACTLY - 720 + 5 x 120 = 1,320
+    --   = 22 h - so the day cap always refuses first and every arm above would
+    --   pass against a verb with no ceiling test at all. The only perk source
+    --   today is clan level (hr_offline_cap_ms), and level 7 is cumulative:
+    --   12 + 1 + 2 = 15 h = a 900-minute grant. Three refills take the budget to
+    --   1,260; the fourth would deliver 60 of the 120 it charges 54,000 gold
+    --   for, which is the receipt and the meter disagreeing by an hour on the
+    --   same envelope. The clan rows are probe rows in the same rolled-back
+    --   subtransaction and §7's leak check counts them.
+    insert into auth.users (id) values (v_uid2);
+    insert into public.clans (name, created_by) values ('__vigour_ceiling_probe__', v_uid2)
+      returning id into v_clan;
+    update public.clans set level = 7 where id = v_clan;
+    insert into public.clan_members (clan_id, user_id) values (v_clan, v_uid2);
+    perform set_config('request.jwt.claim.sub', v_uid2::text, true);
+    v_r := public.hr_create_character(0);
+    if v_r->>'created' <> 'true' then raise exception 'GATE(e7): no perked probe character: %', v_r; end if;
+    update public.player_state set gold = 100000000 where user_id = v_uid2 and slot = 0;
+
+    v_vig := public.hr_vigour_of(v_uid2, 0);
+    if (v_vig->>'grant_min')::int <= 720 then
+      raise exception 'GATE(e7) CANNOT RUN: the perked probe derived a %-minute grant, no better than the floor, so the ceiling branch is still unreachable and this arm proves nothing. Re-derive the clan rung.', v_vig->>'grant_min'; end if;
+
+    -- BRANCH 1: every refill that DELIVERS ITS WHOLE BLOCK is sold, and the
+    -- budget grows by exactly the minutes the receipt reports. A receipt that
+    -- overstates what was bought is the defect whatever the policy.
+    v_i := 0;
+    loop
+      v_vig := public.hr_vigour_of(v_uid2, 0);
+      exit when (v_vig->>'budget_min')::int + 120 > (v_vig->>'ceiling_min')::int;
+      v_r := public.hr_vigour_refill__ungated(0, gen_random_uuid());
+      if coalesce(v_r->>'ok','false') <> 'true' then
+        raise exception 'GATE(e7): a refill with room for its whole block was refused: %', v_r; end if;
+      if (v_r->'vigour'->>'budget_min')::int - (v_vig->>'budget_min')::int <> (v_r->>'minutes')::int then
+        raise exception 'GATE(e7): the receipt reported % minutes and the budget moved by % - the browser and the server are saying different things about a number the player just paid for', v_r->>'minutes', (v_r->'vigour'->>'budget_min')::int - (v_vig->>'budget_min')::int; end if;
+      v_i := v_i + 1;
+      exit when v_i > 5;   -- the ladder cannot outlive its row count
+    end loop;
+    if v_i = 0 then
+      raise exception 'GATE(e7) CANNOT RUN: not one refill was delivered in full, so branch 1 measured nothing'; end if;
+
+    -- BRANCH 2: the NEXT one would cross the ceiling and deliver less than it
+    -- charges for. It must be refused BY NAME, take no gold, count nothing, and
+    -- say how much it would have delivered.
+    v_gold2 := (select gold from public.player_state where user_id = v_uid2 and slot = 0);
+    v_vig := public.hr_vigour_of(v_uid2, 0);
+    v_r := public.hr_vigour_refill__ungated(0, gen_random_uuid());
+    if coalesce(v_r->>'error','') <> 'vigour_ceiling' then
+      raise exception 'GATE(e7): a refill that would deliver only % of its % minutes was answered % - the server takes 54,000 gold, reports 120 minutes and the meter on the same envelope says 60', (v_vig->>'ceiling_min')::int - (v_vig->>'budget_min')::int, 120, v_r; end if;
+    if (v_r->>'would_deliver')::int >= (v_r->>'minutes')::int then
+      raise exception 'GATE(e7): the refusal claims it would have delivered the whole block (% of %) - then it should have been SOLD', v_r->>'would_deliver', v_r->>'minutes'; end if;
+    if (select gold from public.player_state where user_id = v_uid2 and slot = 0) <> v_gold2 then
+      raise exception 'GATE(e7): the REFUSED partial refill still took gold. A refusal that charges is worse than a sale.'; end if;
+    if public.hr_vigour_of(v_uid2, 0) is distinct from v_vig then
+      raise exception 'GATE(e7): the refused refill moved the meter'; end if;
+
+    perform set_config('request.jwt.claim.sub', v_uid::text, true);
+
     raise exception using errcode = 'HR922', message = 'vigour-refill §7 complete - rolling back';
   exception when sqlstate 'HR922' then null;
   end;
 
   perform set_config('request.jwt.claim.sub', '', true);
 
-  if exists (select 1 from public.player_state     where user_id = v_uid)
-     or exists (select 1 from public.player_skills    where user_id = v_uid)
-     or exists (select 1 from public.player_inventory where user_id = v_uid)
-     or exists (select 1 from public.player_equipment where user_id = v_uid)
-     or exists (select 1 from public.player_progress  where user_id = v_uid)
-     or exists (select 1 from public.player_ledger    where user_id = v_uid)
-     or exists (select 1 from public.player_intents   where user_id = v_uid)
-     or exists (select 1 from auth.users             where id = v_uid) then
+  -- BOTH probes, and the clan rows (e7) had to create to reach the ceiling
+  -- branch at all. A leak check that named only the first probe would have gone
+  -- green over the second one from the day (e7) was written.
+  if exists (select 1 from public.player_state     where user_id in (v_uid, v_uid2))
+     or exists (select 1 from public.player_skills    where user_id in (v_uid, v_uid2))
+     or exists (select 1 from public.player_inventory where user_id in (v_uid, v_uid2))
+     or exists (select 1 from public.player_equipment where user_id in (v_uid, v_uid2))
+     or exists (select 1 from public.player_progress  where user_id in (v_uid, v_uid2))
+     or exists (select 1 from public.player_ledger    where user_id in (v_uid, v_uid2))
+     or exists (select 1 from public.player_intents   where user_id in (v_uid, v_uid2))
+     or exists (select 1 from public.clan_members     where user_id in (v_uid, v_uid2))
+     or exists (select 1 from public.clans            where name = '__vigour_ceiling_probe__')
+     or exists (select 1 from auth.users             where id in (v_uid, v_uid2)) then
     raise exception 'GATE: §7 LEAKED a probe row';
   end if;
 
-  raise notice 'vigour-refill: no price literal lives in the verb, no currency but gold is named, the wrapper is gated + seamed + defaulted and the ungated body is callable by nobody, the ladder strictly rises, and EXECUTED - a broke character is refused and counts nothing, a funded one pays exactly rung 1 and journals the signed debit, the replay charges nothing, rung 2 costs more, the day cap is the catalogue row count and refuses without taking gold, and five refills never pass the 22h ceiling - all green, net zero';
+  raise notice 'vigour-refill: no price literal lives in the verb, no currency but gold is named, the wrapper is gated + seamed + defaulted and the ungated body is callable by nobody, the ladder strictly rises, and EXECUTED - a broke character is refused and counts nothing, a funded one pays exactly rung 1 and journals the signed debit, the replay charges nothing, rung 2 costs more, the day cap is the catalogue row count and refuses without taking gold, five refills never pass the 22h ceiling, on a CLAN-PERKED probe a refill that would be clamped by the ceiling is REFUSED while every refill delivered in full moves the budget by exactly the minutes its receipt reports - all green, net zero';
 end $$;

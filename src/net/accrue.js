@@ -397,9 +397,17 @@ export const FRAME_VERDICTS = Object.freeze(['fresh', 'duplicate', 'reorder', 'u
  *  ⚠ FAIL CLOSED ON AN UNREADABLE VERSION — a frame whose ORDER cannot be
  *    established must not land on top of an ordered one. `Infinity` is the
  *    worst case: `> lastAppliedFrame` for every finite floor, so one garbage
- *    frame would latch the gate shut against every real frame after it. */
+ *    frame would latch the gate shut against every real frame after it.
+ *  ⚠ AND `since` IS A NUMBER OR IT IS ABSENT (SEC S4, 2026-09-23). The first
+ *    spelling was `Number.isFinite(Number(since))`, and `Number(null)`,
+ *    `Number('')` and `Number(false)` are all a finite 0 — so a caller passing
+ *    a falsy-but-not-numeric `since` silently gated against floor ZERO instead
+ *    of the module floor. That is the fail-OPEN direction, inside the one
+ *    function whose contract is to fail closed: every frame the server has ever
+ *    stamped is `> 0`. Latent today (no production caller passes `since`) and
+ *    live the moment the subscription lane forwards an optional one. */
 export function classifyFrame(version, since) {
-  const floor = Number.isFinite(Number(since)) ? Number(since) : lastAppliedFrame;
+  const floor = (typeof since === 'number' && Number.isFinite(since)) ? since : lastAppliedFrame;
   const v = Number(version);
   if (!Number.isFinite(v)) return { apply: false, verdict: 'unversioned', frame: null, current: floor };
   if (v > floor) return { apply: true, verdict: 'fresh', frame: v, current: floor };

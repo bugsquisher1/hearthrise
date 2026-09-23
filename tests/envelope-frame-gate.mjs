@@ -47,6 +47,12 @@
 //                    ARRIVES is refused on arrival, not on its own timestamp.
 //   F5  HELLO HEALS  a fresh full envelope after a drop restores the client in
 //                    one step, and the floor jumps to it. §7.1's reconnect rule.
+//   F7  `since`      the floor OVERRIDE is a number or it is absent. A falsy
+//                    non-number (`null`, `''`, `false`) coerces to a finite 0,
+//                    and gating against floor 0 accepts every frame the server
+//                    has ever stamped — fail OPEN, in the one function whose
+//                    contract is to fail closed. Latent (no production caller
+//                    passes `since`) until the subscription lane forwards one.
 //
 //   S1  ONE AUTHORITY  gold.js holds no second monotonic rule. The `lastVersion`
 //                      binding is GONE, not shadowed — two floors are two
@@ -169,6 +175,17 @@ const MUTATIONS = {
        way, which is what says F6's assertions are not vacuous. */
     behaviour: true,
   },
+  since_fails_open: {
+    why: 'the `since` override goes back to `Number.isFinite(Number(since))`, '
+       + "so `null` / `''` / `false` coerce to a finite 0 and the gate is asked "
+       + 'against floor ZERO — the fail-OPEN direction, inside the one function '
+       + 'whose contract is to fail closed (SEC_PUSH_CHANNEL_M5_2026-09-23 S4)',
+    file: 'src/net/accrue.js',
+    from: '  const floor = (typeof since === \'number\' && Number.isFinite(since)) ? since : lastAppliedFrame;',
+    to:   '  const floor = Number.isFinite(Number(since)) ? Number(since) : lastAppliedFrame;',
+    kills: ['F7'],
+    behaviour: true,
+  },
   identity_reset_missing: {
     why: 'the frame floor stops being reset on an identity change — the shape '
        + 'that let a signed-in account B inherit account A\'s floor and have '
@@ -225,6 +242,20 @@ function mutantGate(A, id) {
         if (!G || !isEnvelopeApplicable(res)) return null;
         return A.applyEnvelope(G, res);
       } };
+  }
+  if (id === 'since_fails_open') {
+    /* The old spelling, over the REAL module floor: `Number(null) === 0`. */
+    const classifyFrame = (version, since) => {
+      const f = Number.isFinite(Number(since)) ? Number(since) : A.getAppliedFrame();
+      const v = Number(version);
+      if (!Number.isFinite(v)) return { apply: false, verdict: 'unversioned', frame: null, current: f };
+      if (v > f) return { apply: true, verdict: 'fresh', frame: v, current: f };
+      if (v === f) return { apply: false, verdict: 'duplicate', frame: v, current: f };
+      return { apply: false, verdict: 'reorder', frame: v, current: f };
+    };
+    return { ...A, classifyFrame,
+      isEnvelopeApplicable: (res, since) =>
+        A.isEnvelopeShapeComplete(res) && classifyFrame(res.version, since).apply };
   }
   if (id === 'per_key_merge') {
     /* The fix a hurried author writes: refuse the frame, but keep the keys it
@@ -601,6 +632,34 @@ export async function envelopeFrameGateGuard(mutation) {
       + G.gold);
     ok(A.getAppliedFrame() === 77, 'F6', 'a reordered intent envelope moved the floor.');
     A.resetFrameGate();
+  }
+
+  /* ── F7 `since` IS A NUMBER OR IT IS ABSENT (SEC S4) ──────────────────────
+     `classifyFrame`'s second argument is the floor OVERRIDE, and its whole job
+     is to let a caller ask the question without owning the session. The first
+     spelling coerced: `Number(null)`, `Number('')` and `Number(false)` are all
+     a finite 0, so a caller handing it a falsy non-number was silently asking
+     "is this frame above ZERO" — which every frame the server has ever stamped
+     is. Fail OPEN, in the function whose own comment is FAIL CLOSED. No
+     production caller passes `since` today; the subscription lane will. */
+  {
+    resetFrameGate();
+    commitFrame(500);
+    for (const falsy of [null, '', false, undefined, NaN]) {
+      const v = classifyFrame(3, falsy);
+      ok(v.current === 500 && v.apply === false, 'F7',
+        'classifyFrame(3, ' + JSON.stringify(falsy) + ') gated against floor ' + v.current
+        + ' instead of the module floor 500, and returned apply=' + v.apply + '. A falsy '
+        + 'non-number must fall back to the ledger, not coerce to 0 — gating against 0 accepts '
+        + 'every frame the server can stamp.');
+    }
+    // …and a REAL numeric override still overrides, including the number 0.
+    ok(classifyFrame(3, 0).current === 0 && classifyFrame(3, 0).apply === true, 'F7',
+      'an EXPLICIT numeric floor of 0 stopped overriding the ledger — the fix must reject the '
+      + 'coercion, not the value.');
+    ok(classifyFrame(3, 900).verdict === 'reorder', 'F7',
+      'an explicit numeric override of 900 was ignored.');
+    resetFrameGate();
   }
 
   // ── S3 behavioural half — a duplicate is not an outage ────────────────────

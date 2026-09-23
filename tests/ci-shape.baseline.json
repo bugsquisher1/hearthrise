@@ -60,6 +60,8 @@
     "node tests/world-tick-writer-authz.mjs": "db-replay-2",
     "node tests/world-tick-shadow-chain.mjs": "db-replay-2",
     "node tests/world-tick-edge-contract.mjs": "db-replay-2",
+    "node tests/world-tick-hydration.mjs": "db-replay-2",
+    "node tests/world-tick-hydration.mjs --mutate": "db-replay-2",
     "node tests/world-tick-edge-contract.mjs --selftest": "db-replay-2",
     "node tests/utc-midnight-replay.mjs": "utc-midnight-replay",
     "node tests/utc-midnight-replay.mjs --selftest": "utc-midnight-replay",

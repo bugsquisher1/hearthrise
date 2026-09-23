@@ -1073,6 +1073,29 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/world-tick-edge-contract.mjs
 
+      # ── AND WHAT DOES THE ENTRY HAND THE ENGINE? (2026-09-22, the gather
+      # shadow's first armed measurement.) Every row in hr_tick_shadow for a
+      # Mining 61-64 character on mithril_rock came back `would_ticks: 0,
+      # would_qty: 0` carrying `activity: {kind:'idle'}` — the LEVEL gate, on a
+      # character whose ACCRUE path had just paid +3,375 items for a 12 h
+      # absence off the same projection. tick.js hydrated the session from
+      # `env.state`, and `hr_state_of` keeps skills / inventory / equipment /
+      # enchant / buffs at the ENVELOPE TOP LEVEL.
+      #
+      # world-tick-parity.mjs could not see it and still cannot: its fixtures
+      # are already in post-hydration engine shape, so they prove the LOOP and
+      # say nothing about where its fields came from. This guard starts one step
+      # earlier — a probe character written into a real PGlite replay,
+      # hr_state_of projecting it, and the envelope that comes back handed to
+      # BOTH callers. --mutate restores `sessionFromRoster(row, env.state)` in a
+      # temp copy of the function directory and requires H1b/H1c/H1d/H2c/H2d/
+      # H2e/H4a to go red, so a green run is a measurement and not a belief.
+      - name: World tick — the envelope the tick hands the engine
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-hydration.mjs
+          node tests/world-tick-hydration.mjs --mutate
+
       # EC-3d, the control, carries its own proof since 2026-09-22. It shipped
       # asserting the literal `+00:00` on the accrue path's rendering, which is
       # the replay session's TimeZone talking — PGlite takes that GUC from the

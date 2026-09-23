@@ -18,6 +18,7 @@
 import { computeAccrual, CALLER_AUTHORITY } from './accrual.js';
 import { hashSeed } from '../../../src/core/rng.js';
 import { planWindows } from './tick-contract.js';
+import { engineStateOf } from './envelope.js';
 
 /* ── THE SEED, PER WINDOW, FROM THE WATERMARK ───────────────────────────────
    Production does NOT hand the engine a constant. `hr-accrue/index.ts` (~L641)
@@ -119,15 +120,17 @@ export function shadowTick(char, fromMs, toMs, catalogues, opts) {
     seed: (o.fixedSeed && char.seed) ? char.seed
       : (typeof o.seedOf === 'function' ? o.seedOf(fromMs)
                                         : seedFor(char.userId, char.slot, fromMs)),
-    hp: char.hp,
-    maxHp: char.maxHp,
-    gold: char.gold,
-    skills: char.skills,
-    inventory: char.inventory,
-    equipment: char.equipment,
-    fight: char.fight,
-    consecFalls: char.consecFalls,
-    recoveringUntilMs: char.recoveringUntilMs,
+    /* ── THE CHARACTER'S STATE, AS ONE LIST (2026-09-22) ──────────────────
+       `engineStateOf` forwards exactly `ENGINE_STATE_KEYS` from ./envelope.js —
+       the SAME list `engineInputsFromEnvelope` fills from `hr_state_of`, so a
+       field that reaches the accrue path reaches a tick window too. It used to
+       be thirteen names written out here, and the four that were missing
+       (`enchant`, `combatStyle`, the auto-eat trio, `hearthfindReady`) were
+       inputs the engine reads and a tick silently priced without. Only keys the
+       character actually HOLDS are forwarded: several of these are
+       presence-of-key switches, so an offline fixture that never had the column
+       must keep reading as "no column". */
+    ...engineStateOf(char),
     bestiaryKills: char.bestiaryKills,
     items: catalogues.items,
     monsters: catalogues.monsters,
@@ -141,9 +144,10 @@ export function shadowTick(char, fromMs, toMs, catalogues, opts) {
        "the column does not exist for this character", and emitting the key
        against an hr_apply that does not implement it is a 409. */
     nodes: catalogues.nodes,
-    toolCarry: char.toolCarry,
+    /* NOT from the envelope: `hr_perks_of` is its own read and the tick does
+       not make it yet, so this is undefined in production and a fixture's
+       pinned value offline. Under-paying, and named in the lane report. */
     perks: char.perks,
-    buffs: char.buffs,
     /* `goals` WAS HERE AND WAS DEAD (removed 2026-09-22, milestone 3).
        `computeAccrual` builds its own counter — `const goals = makeGoalCounter()`
        (accrual.js :1759/:3232) — and never reads `inp.goals`; `hr-accrue/index.ts`
@@ -152,14 +156,22 @@ export function shadowTick(char, fromMs, toMs, catalogues, opts) {
        it and it silently does nothing. Found by the M3 key-set parity arm
        (tests/world-tick-combat-parity.mjs C1), which compares this object
        against index.ts's own source in BOTH directions for exactly that reason. */
-    /* ══ THE COMBAT CHANNEL'S INPUTS (2026-09-22, milestone 3) ═════════════
+    /* ══ THE COMBAT CHANNEL'S INPUTS ═══════════════════════════════════════
        ELEVEN KEYS A GATHER WINDOW DOES NOT NEED AND A COMBAT WINDOW CANNOT BE
-       CORRECT WITHOUT. They are `undefined` for every gather caller and for
-       any fixture that does not set them, so the gather arms are byte-identical
-       to before — P-G1..P-G8 staying green is the assertion.
+       CORRECT WITHOUT — the auto-eat trio, the two death counters,
+       `combatXpAccruedToMs`, `hearthfindReady`, `enchant`, `combatStyle`,
+       `buffs` and `ammoCarry`. They ARE NOT LISTED HERE ANY MORE: every one of
+       them is in `ENGINE_STATE_KEYS` and arrives through the
+       `...engineStateOf(char)` spread above (M1f, 2026-09-22). Listing them a
+       second time here is not redundant, it is WRONG — the explicit key would
+       sit after the spread and overwrite a present value with `char.X`, and for
+       the presence-of-key switches (`buffs`, `ammoCarry`) it would turn an
+       ABSENT key into an explicit `undefined`, which is the "this database has
+       no column" signal spelled as a value. One list, in envelope.js, read by
+       the accrue path and by a tick window alike (AWAY-12).
 
-       ⚠ THIS BLOCK IS THE MILESTONE. Two of the keys were measured, on the
-         SAME character, window and seed, to move a ten-minute combat window:
+       ⚠ THIS BLOCK WAS THE MILESTONE and the two measurements that bought it
+         stand, on the SAME character, window and seed over ten minutes:
 
          · auto-eat absent  ->  48 kills / 276 gold / 2,464 xp / 5 deaths,
            against 139 / 788 / 6,568 / 0 with it. -65.0% gold, -62.5% xp.
@@ -179,29 +191,10 @@ export function shadowTick(char, fromMs, toMs, catalogues, opts) {
        The guard was blind, not wrong. tests/world-tick-combat-parity.mjs C1
        closes the class STRUCTURALLY: it derives the accrue path's key set from
        `hr-accrue/index.ts`'s own source and requires this object to match it,
-       so a key added there and not here is red on that commit.
-
-       Every one is a SERVER-OWNED value off the `hr_state_of` projection or
-       the `player_state` row — the same columns `index.ts` reads inside the
-       transaction hr_apply locks. Nothing here is client-authored, and
-       `undefined` is the self-configuring "this database/character does not
-       have it" that every other input in this file already uses. */
-    autoEatEnabled: char.autoEatEnabled,
-    autoEatFood: char.autoEatFood,
-    autoEatPct: char.autoEatPct,
-    deathsTodayBefore: char.deathsTodayBefore,
-    deathsLifetimeBefore: char.deathsLifetimeBefore,
-    combatXpAccruedToMs: char.combatXpAccruedToMs,
-    hearthfindReady: char.hearthfindReady,
-    enchant: char.enchant,
-    combatStyle: char.combatStyle,
+       so a key added there and not here is red on that commit. */
+    /* NOT an envelope key and NOT in ENGINE_STATE_KEYS: `hr_companion_xp_of`
+       is its own read, exactly as `perks` above. Named at every call site. */
     companionXpBacked: char.companionXpBacked,
-    /* Null TODAY on every database — `player_state.ammo_carry` does not exist
-       — and the engine then starts from an empty carry and omits the delta
-       key. Wired now so the migration that creates the column is one SQL file
-       and not an SQL file plus a second engine change (index.ts says the same
-       about its own `ammo_carry ?? null`). */
-    ammoCarry: char.ammoCarry,
     /* ── THE ATTENDED TOP-UP IS STRUCTURALLY ABSENT, NOT FORGOTTEN ─────────
        Every term of `min(claimed, attendedKillCap, MAX_FIDELITY x sim) - sim`
        is priced against the SPAN. Hand sixty windows the same claim and it is

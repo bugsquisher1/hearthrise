@@ -56,6 +56,11 @@ import {
 import { shadowTick, hydrate, advance, seedFor }
   from '../supabase/functions/hr-accrue/tick-shadow.js';
 import { tickIntentId } from '../supabase/functions/hr-accrue/tick-gather.js';
+/* THE SPREAD'S OWN DECLARED KEY SETS. C1 resolves a depth-1 `...f(...)` in
+   either source against these, so the guard still DERIVES both key sets
+   rather than retyping them — see resolveSpread below. */
+import { ENGINE_INPUT_KEYS, ENGINE_STATE_KEYS }
+  from '../supabase/functions/hr-accrue/envelope.js';
 import {
   computeAccrual, accrueRested, CALLER_AUTHORITY, PAYABLE_KINDS, MAX_DEATH_ROWS,
 } from '../supabase/functions/hr-accrue/accrual.js';
@@ -199,28 +204,61 @@ function CLAIM_TEXT() {
 /* Read the key set `hr-accrue/index.ts` hands `computeAccrual` out of that
    file's own source. Retyping it here would make this guard agree with itself
    for ever, which is precisely how the auto-eat gap survived. */
-function accrueInputKeysFromSource() {
-  const src = readFileSync(join(ROOT, 'supabase/functions/hr-accrue/index.ts'), 'utf8');
-  const start = src.indexOf('computeAccrual({');
-  if (start < 0) throw new Error('C1 harness: no computeAccrual({ call site in index.ts');
-  let i = src.indexOf('{', start);
+/* The only two spreads either call site uses, each resolved to the frozen list
+   the callee itself exports (`envelope.js`). Keeping the mapping here — rather
+   than re-listing the keys — means a key added to ENGINE_STATE_KEYS is counted
+   by this guard on the commit that adds it. */
+const C1_SPREADS = {
+  engineInputsFromEnvelope: () => ENGINE_INPUT_KEYS,
+  engineStateOf: () => ENGINE_STATE_KEYS,
+};
+
+function resolveSpread(fnName, what) {
+  const r = C1_SPREADS[fnName];
+  if (!r) {
+    throw new Error(`C1 harness: unresolved spread \`...${fnName}(...)\` in ${what}'s `
+      + 'engine-input object literal. Add it to C1_SPREADS with the frozen key list it '
+      + 'forwards, or the keys it contributes are invisible to this guard.');
+  }
+  return r();
+}
+
+function objectLiteralKeys(file, anchor, what) {
+  const src = readFileSync(join(ROOT, file), 'utf8');
+  const start = src.indexOf(anchor);
+  if (start < 0) throw new Error(`C1 harness: no \`${anchor}\` in ${file}`);
+  const i = src.indexOf('{', start);
   let depth = 0; let end = -1;
   for (let j = i; j < src.length; j++) {
     const c = src[j];
     if (c === '{' || c === '[' || c === '(') depth++;
     else if (c === '}' || c === ']' || c === ')') { depth--; if (depth === 0) { end = j; break; } }
   }
-  if (end < 0) throw new Error('C1 harness: unbalanced object literal in index.ts');
+  if (end < 0) throw new Error(`C1 harness: unbalanced object literal in ${file}`);
   const body = src.slice(i + 1, end);
-  /* Depth-1 `key:` and bare shorthand `key,` only — nested object keys are not
-     inputs. Comments are stripped first so a key named in prose is not read as
-     one that is passed. */
+  /* Depth-1 `key:`, bare shorthand `key,` and a depth-1 spread only — nested
+     object keys are not inputs. Comments are stripped first so a key named in
+     prose is not read as one that is passed. */
   const clean = body.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
   const keys = new Set();
-  let d = 0; let line = '';
-  for (const raw of clean.split('\n')) {
-    line = raw;
+  let d = 0;
+  for (const line of clean.split('\n')) {
     if (d === 0) {
+      /* A DEPTH-1 SPREAD CONTRIBUTES KEYS AND MUST BE RESOLVED, NOT SKIPPED.
+         Since M1f the accrue path spells 25 of its inputs
+         `...engineInputsFromEnvelope(env, nowMs)` and the tick spells 21 of
+         them `...engineStateOf(char)`. A parser that only sees `key:` lines
+         reads that as index.ts passing 17 keys — which made C1 red for the
+         harness's own reason rather than for a real divergence. Skipping the
+         line instead would be worse: those keys would vanish from BOTH sets
+         and C1's "the tick passes a SMALLER input" arm would stop measuring
+         the exact fields (auto-eat, the death counters) this guard exists for.
+         So a spread resolves against the callee's OWN frozen export, which is
+         still derivation from source and not a retyped list. An UNKNOWN spread
+         THROWS: a new one is harness drift, and a guard that silently
+         under-counts is the failure mode C1 was written against. */
+      const sp = line.match(/^\s*\.\.\.\s*([A-Za-z_$][\w$]*)\s*\(/);
+      if (sp) { for (const k of resolveSpread(sp[1], what)) keys.add(k); }
       const m = line.match(/^\s*([A-Za-z_$][\w$]*)\s*[:,]/);
       if (m) keys.add(m[1]);
     }
@@ -231,6 +269,22 @@ function accrueInputKeysFromSource() {
   }
   return keys;
 }
+
+/* THE ACCRUE PATH's key set, out of that file's own source. Retyping it here
+   would make this guard agree with itself for ever, which is precisely how the
+   auto-eat gap survived. */
+const accrueInputKeysFromSource = () => objectLiteralKeys(
+  'supabase/functions/hr-accrue/index.ts', 'computeAccrual({', 'index.ts');
+
+/* THE TICK'S key set, read the SAME way out of `tick-shadow.js`. It used to be
+   read off the runtime object instead, and after M1f that stopped measuring
+   the CALLER: `engineStateOf` forwards only the keys the character actually
+   holds (deliberately — absence is the "this database has no column" switch),
+   so a combat fixture with no `buffs` and no `toolCarry` made C1 red for the
+   FIXTURE's shape. Declared-vs-declared is the AWAY-12 question; the runtime
+   object is still checked below, against what absence is allowed to explain. */
+const tickInputKeysFromSource = () => objectLiteralKeys(
+  'supabase/functions/hr-accrue/tick-shadow.js', 'const input = {', 'tick-shadow.js');
 
 /* EXEMPTIONS, EACH WITH A WRITTEN REASON. Being on this list is a debt with an
    owner, exactly as tests/guards-unregistered.json says of its own entries. A
@@ -249,11 +303,13 @@ const C1_EXEMPT = {
   workersAccruedToMs: 'read by accrueWorkers (:4083); see `crew`.',
 };
 
-function checkInputKeys(tickInput) {
+function checkInputKeys(tickInput, session) {
   const accrueKeys = accrueInputKeysFromSource();
+  const tickKeys = tickInputKeysFromSource();
   ok('C1', accrueKeys.size >= 30,
     `harness: only ${accrueKeys.size} keys parsed out of index.ts — the parser has drifted`);
-  const tickKeys = new Set(Object.keys(tickInput));
+  ok('C1', tickKeys.size >= 30,
+    `harness: only ${tickKeys.size} keys parsed out of tick-shadow.js — the parser has drifted`);
   const missing = [...accrueKeys].filter((k) => !tickKeys.has(k) && !(k in C1_EXEMPT));
   ok('C1', missing.length === 0,
     `the tick hands computeAccrual a SMALLER input than hr-accrue/index.ts does. `
@@ -263,8 +319,36 @@ function checkInputKeys(tickInput) {
   const invented = [...tickKeys].filter((k) => !accrueKeys.has(k));
   ok('C1', invented.length === 0,
     `the tick hands computeAccrual key(s) the accrue path does not: ${invented.join(', ')}`);
-  say(`   C1  index.ts passes ${accrueKeys.size} keys; the tick passes ${tickKeys.size}; `
-    + `${Object.keys(C1_EXEMPT).length} exempt with a written reason`);
+
+  /* ── C1b: THE DECLARED SET vs WHAT THE ENGINE ACTUALLY GOT ────────────────
+     The two sets above are both read out of source, which answers "does the
+     caller name the same inputs?" and not "did they arrive?". This arm closes
+     that gap on the real object `computeAccrual` was handed.
+
+     A declared key may be ABSENT at runtime for exactly ONE reason:
+     `engineStateOf` forwards only the keys THE CHARACTER HOLDS, because
+     several of these inputs are presence-of-key switches and an offline
+     fixture that never had the column must keep reading as "no column". So the
+     exemption is not "any state key" — it is "a state key this character does
+     not carry", measured against the session itself. Spelt the broad way it
+     stops biting: the `noAutoEat` and `noDeathCounters` mutants delete exactly
+     those keys from the input, and a blanket ENGINE_STATE_KEYS exemption
+     declares the milestone's own two P0s legal. */
+  const runtime = new Set(Object.keys(tickInput));
+  const heldByChar = new Set(ENGINE_STATE_KEYS.filter((k) => session && (k in session)));
+  const dropped = [...tickKeys].filter((k) => !runtime.has(k)
+    && !(ENGINE_STATE_KEYS.includes(k) && !heldByChar.has(k)));
+  ok('C1', dropped.length === 0,
+    `the tick NAMES key(s) it did not pass to computeAccrual: ${dropped.join(', ')}. `
+    + 'A state key may only be absent when the character does not carry it.');
+  const smuggled = [...runtime].filter((k) => !tickKeys.has(k));
+  ok('C1', smuggled.length === 0,
+    `computeAccrual was handed key(s) no call site declares: ${smuggled.join(', ')}`);
+
+  say(`   C1  index.ts passes ${accrueKeys.size} keys; the tick declares ${tickKeys.size}; `
+    + `${Object.keys(C1_EXEMPT).length} exempt with a written reason; `
+    + `${heldByChar.size}/${ENGINE_STATE_KEYS.length} state keys carried by this fixture, `
+    + 'every one of them delivered');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -557,7 +641,11 @@ for (const raw of SESSIONS) {
     })();
 
   // ── C1 ────────────────────────────────────────────────────────────────────
-  if (tick.windows.length && tick.windows[0].inp) checkInputKeys(tick.windows[0].inp);
+  /* `hydrate(c)` is the session window 0 was built from, so C1b can tell a
+     key the character never had from a key the caller dropped. */
+  if (tick.windows.length && tick.windows[0].inp) {
+    checkInputKeys(tick.windows[0].inp, hydrate(c));
+  }
 
   // ── C2: per-window byte identity over the WHOLE chain ─────────────────────
   const n = Math.min(ref.windows.length, tick.windows.length);

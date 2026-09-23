@@ -59,6 +59,8 @@
     "node tests/world-tick-shadow-chain.mjs": "db-replay-2",
     "node tests/world-tick-edge-contract.mjs": "db-replay-2",
     "node tests/world-tick-edge-contract.mjs --selftest": "db-replay-2",
+    "node tests/client-state-retired-fields-adversarial.mjs": "db-replay-2",
+    "node tests/client-state-retired-fields-adversarial.mjs --selftest": "db-replay-2",
     "node tests/utc-midnight-replay.mjs": "utc-midnight-replay",
     "node tests/utc-midnight-replay.mjs --selftest": "utc-midnight-replay",
     "node tests/renown-kill-faucet.mjs --selftest": "economy-selftests",

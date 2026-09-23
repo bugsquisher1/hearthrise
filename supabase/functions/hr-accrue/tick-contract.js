@@ -298,6 +298,20 @@ export function countersFromProgress(progress) {
   return { deathsLifetime, deathsToday, vigourMin };
 }
 
+/* BYTES, NOT UTF-16 CODE UNITS (Security S-4, 2026-09-23). The column's CHECK
+   in 2026-09-23-world-tick-shadow-state-chain.sql §1 is
+   `octet_length(shadow_state::text) <= 16384` and the fence re-checks the same
+   `octet_length`, so measuring the edge's half with `String.prototype.length`
+   counts a non-ASCII item id, activity id or monster name in `fight` as ONE
+   where the database counts two to four. The two halves are supposed to agree
+   "by declaration, not by luck"; with `.length` they agree only on pure ASCII,
+   and past it the edge would send a carrier the fence refuses
+   `shadow_state_too_large` — a countable refusal rather than a silent loss, but
+   a bound that does not hold where it says it does. */
+function jsonByteLength(o) {
+  return new TextEncoder().encode(JSON.stringify(o)).length;
+}
+
 /* Serialise the continuation object `advance()` holds into the bounded jsonb
    the fence stores verbatim. `baseVersion` is `player_state.version` as the
    chain STARTED — the overlay is dropped when it no longer matches, so any
@@ -346,7 +360,7 @@ export function shadowStateOf(char, opts) {
   /* Nothing moved — no window settled. Sending `{v:1}` would chain an empty
      proposal and look like a carrier that works; null is the honest answer. */
   if (Object.keys(st).length <= (st.at ? 3 : 2)) return null;
-  if (JSON.stringify(st).length > MAX_SHADOW_STATE_BYTES) return null;
+  if (jsonByteLength(st) > MAX_SHADOW_STATE_BYTES) return null;
   return st;
 }
 

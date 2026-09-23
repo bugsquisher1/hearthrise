@@ -164,6 +164,25 @@
 --   half ships. That is deliberate: migration BEFORE edge, because the new
 --   payload sends an argument the old function does not have.
 --
+-- ── AFTER APPLYING, tests/live-hash-drift.mjs IS RED WITH THREE PROBLEMS, NOT
+--    ONE (Security S-6, 2026-09-23; measured credential-free on this branch,
+--    exit 1). All three are this file and all three are deliberate:
+--      (1) RED replay hr_assert_grant_hygiene(p_strict boolean) — §4 restates
+--          the detector as link 13 of HR_GRANT_HYGIENE_CHAIN.
+--      (2) RED replay-missing hr_tick_settle(text,uuid,integer,text,bigint,
+--          timestamptz,timestamptz,uuid,jsonb) — §2 DROPS the nine-argument
+--          door and production still has it until this file lands.
+--      (3) RED replay-extra hr_tick_settle(…,jsonb,jsonb) — §2 creates the
+--          ten-argument door and production does not have it yet.
+--    The Coordinator re-seeds tests/live-hash-drift.baseline.json with
+--    `--live --write` and writes THREE whys from `--codediff` (CLAUDE.md §2 —
+--    agents never touch that file); `touched_by` for BOTH hr_tick_settle and
+--    hr_assert_grant_hygiene gains this filename. A note that named ONE entry
+--    against a guard that wants three is how a re-seed ends up with two
+--    unexplained rows — the failure 2026-09-23-frame-emit-from-apply.sql was
+--    made to write down. NO NEW TABLE (shadow_state is a column on an existing
+--    one), so `restore-census` re-pins as a no-op.
+--
 -- REVERSIBLE: `update public.hr_tick_ownership set shadow_state = null;` stops
 -- the chain with nothing else touched. Re-applying the fence file restores the
 -- nine-argument door, and the allowlist entry with it.
@@ -1129,6 +1148,7 @@ declare
   v_n     int;
   v_g     bigint;
   v_v     bigint;
+  v_hp    int;
   v_w     timestamptz;
   v_state jsonb;
   v_from  timestamptz := date_trunc('second', now()) - interval '10 minutes';
@@ -1141,6 +1161,8 @@ declare
   v_s2    jsonb := jsonb_build_object('v', 1, 'base_version', 1, 'hp', 9);
   v_shadow_before  boolean;
   v_enabled_before boolean;
+  v_shadow         boolean;
+  v_enabled        boolean;
 begin
   begin
     -- ── e1: THE COLUMN EXISTS, IS NULLABLE, AND EVERY EXISTING ROW IS NULL.
@@ -1259,11 +1281,26 @@ begin
     --        whole claim of shadow mode, re-asserted on the branch this file
     --        changed, because a carrier written on the paying branch by mistake
     --        would be invisible to every other check here.
-    select gold, version, accrued_to into v_g, v_v, v_w from public.player_state
+    select gold, version, accrued_to, hp into v_g, v_v, v_w, v_hp from public.player_state
      where user_id = v_u and slot = 0;
     if v_g <> 500 or v_v <> 1 or v_w is distinct from v_from then
       raise exception 'e6: a shadow settle MOVED player value — gold %, version %, accrued_to % '
                       '(expected 500 / 1 / %)', v_g, v_v, v_w, v_from;
+    end if;
+    /* ── hp AND inventory, EXPLICITLY (Security S-3, 2026-09-23) ───────────
+       gold/version/accrued_to were the fence's original e15 triple, written
+       before anything carried a character. THIS file's whole subject is `hp`
+       and the bag: `v_s1` above says hp 4 and cooked_trout -3 against a probe
+       row at hp 10 with an empty inventory, so a carrier that leaked onto the
+       PAYING side would land exactly here — and the triple above would not
+       notice. Asserting the two fields the carrier actually carries is what
+       makes e6 a check of THIS change rather than an inherited one. */
+    if v_hp <> 10 then
+      raise exception 'e6c: a shadow settle MOVED hp — % (expected 10); the carrier reached player_state', v_hp;
+    end if;
+    select count(*) into v_n from public.player_inventory where user_id = v_u and slot = 0;
+    if v_n <> 0 then
+      raise exception 'e6d: a shadow settle wrote % player_inventory row(s) — the carrier''s bag was paid', v_n;
     end if;
     select count(*) into v_n from public.player_ledger where user_id = v_u;
     if v_n <> 0 then raise exception 'e6b: a shadow settle wrote % ledger row(s)', v_n; end if;
@@ -1424,6 +1461,22 @@ begin
     if strpos(pg_get_functiondef('public.hr_assert_grant_hygiene(boolean)'::regprocedure),
               'c_engine_allow') = 0 then
       raise exception 'e14: the detector no longer consults c_engine_allow at all';
+    end if;
+
+    /* ── THE TWO SWITCHES THIS BLOCK FLIPPED, RESTORED AND READ BACK
+       (Security S-5, 2026-09-23). `v_shadow_before` / `v_enabled_before` were
+       captured above and then never used, which reads like a restore that is
+       not one. The rollback below IS the real mechanism — but `enabled` and
+       `shadow` are the two booleans that decide whether the world tick PAYS,
+       and the M5 frame-emit review already ruled (f11d) that no boolean,
+       least of all one that arms a payer, is left to a rollback that might
+       not take. Restored explicitly, then re-read, so a rollback that did not
+       take is harmless rather than an armed tick. */
+    update public.hr_tick_config set enabled = v_enabled_before, shadow = v_shadow_before where id;
+    select shadow, enabled into v_shadow, v_enabled from public.hr_tick_config where id;
+    if v_shadow is distinct from v_shadow_before or v_enabled is distinct from v_enabled_before then
+      raise exception 'e14b: hr_tick_config was not restored — shadow %/% enabled %/%',
+        v_shadow, v_shadow_before, v_enabled, v_enabled_before;
     end if;
 
     raise exception 'HR923_ROLLBACK_OK';

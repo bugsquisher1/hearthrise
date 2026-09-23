@@ -88,7 +88,7 @@ import {
    `shadowStateOf` serialises the engine's own output state; `applyShadowState`
    lays it back over a session read from `hr_state_of`. Neither computes a
    delta and neither is authority. */
-import { shadowStateOf, applyShadowState } from './tick-contract.js';
+import { shadowStateOf, applyShadowState, SHADOW_STATE_V } from './tick-contract.js';
 
 /* ── THE DISPATCH TABLE (Security S-8, 2026-09-23) ───────────────────────────
    Until today this file imported ONE `CHANNEL` — gather's — and used it three
@@ -901,9 +901,33 @@ async function tickOne(exec, holder, sel, body) {
      which is a measurement that is honest about being short rather than one
      that silently pays twice. */
   const atMark = run.watermarkMs === Date.parse(a.p_window_to);
-  const carry = (probe.shadow === true && atMark)
+  const carried = (probe.shadow === true && atMark)
     ? shadowStateOf(run.char, { baseVersion: env.version, atMs: run.watermarkMs })
     : null;
+  /* ── ANYTHING THAT OVERLAID MUST SEND A CARRIER (Security S-1, 2026-09-23) ─
+     `chaining` above laid the shadow's own proposals over this session, so the
+     delta just computed is built on a character that is PART PROPOSAL. The one
+     thing standing between that delta and hr_apply is the fence's
+     `shadow_state_while_armed` refusal — and that refusal keys on a NON-NULL
+     tenth argument.
+
+     `carried` is null on two reachable paths that have nothing to do with the
+     mode: the bound breaking (`shadowStateOf` returns null BY DESIGN so the
+     chain restarts rather than lying) and `!atMark`. On either of those, an
+     operator who arms between `probeWatermark` and this call would have the
+     armed branch accept a null carrier and PAY a delta built on the overlay —
+     exactly what design constraint 2 forbids, reached through the gap between
+     "we overlaid" and "we have something to carry". The header above claims
+     that race is covered by `shadow_state_while_armed`; it only is while those
+     two conditions agree, so they are made one here.
+
+     The marker carries NO state, so the next window's overlay applies nothing
+     and re-seeds from `hr_state_of` — the same restart `carried === null`
+     already meant — while the armed branch still sees a non-null argument and
+     refuses before hr_apply. Covered by tests/world-tick-shadow-chain.mjs
+     SC-11 and by its `--mutate armedPaysOverlay` mutant. */
+  const carry = carried
+    || (chaining ? { v: SHADOW_STATE_V, base_version: env.version, restart: true } : null);
   const res = await fence(exec, {
     holder,                          // ours, never `a.p_holder` from the fold
     user: sel.userId,

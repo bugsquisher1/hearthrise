@@ -146,6 +146,42 @@ declare
     -- line.
     'hr_hunt_analyzer(uuid,integer)',
     'hr_vigour_of(uuid,integer)',
+    -- ── ADDED 2026-09-22 — THE BESTIARY TROPHY PAIR ─────────────────────
+    -- At the HEAD again, an INSERTION, for the same reason as links 1/2/5/6/8/9:
+    -- it removes nothing, so PART 1f-ii grades this link with an EMPTY
+    -- declared-removals list. Position carries no meaning — check (7) tests
+    -- membership with `<> all (...)`.
+    --
+    -- read-only (STABLE) projection of the CLAIMED trophy rows for ONE
+    -- character: kind='collection', period_key='', key like 'trophy:%'. It
+    -- writes nothing and calls nothing that writes. SELF-VALIDATING: the row
+    -- set is bounded STRUCTURALLY by the key prefix and by (user, slot) — there
+    -- is no parameter through which a caller can widen it. WHY THE ENGINE NEEDS
+    -- IT: 2026-09-22-state-of-trophy-prefix.sql removed the trophy population
+    -- from hr_state_of's generic envelope (it would breach the 1000-row cap and
+    -- silently truncate a player's quest state), so this is now the ONLY door
+    -- to it — the same position hr_bestiary_of and hr_collection_of are in.
+    -- NO NEW TARGET: p_user is the parameter the engine already passes to
+    -- hr_apply and hr_state_of.
+    'hr_trophy_of(uuid,integer)',
+    -- NOT READ-ONLY, and the claim rests on SELF-VALIDATING, re-derived. Its
+    -- whole caller-supplied surface is: a character slot, a MONSTER ID
+    -- (validated against hr_activities kind='combat', the generated,
+    -- client-unwritable catalogue), a STAGE (bounded 1..4 against the server's
+    -- own ladder) and an idempotency uuid. THERE IS NO KILL-COUNT PARAMETER —
+    -- the threshold is judged against a counter the function reads itself from
+    -- player_progress, under the SAME advisory lock hr_apply takes — so a
+    -- forged count is not refused, it is unrepresentable.
+    -- ⚠ AND IT MINTS NOTHING: no gold, no gems, no items, no XP, no multiplier.
+    -- It writes ONE flag row (value 1, on conflict do nothing, so a replay is a
+    -- refusal) and ONE zero-valued ledger row. The trophy's power is DERIVED
+    -- from the kill counters on every read (src/core/trophies.js) and is
+    -- already on before this is called, so there is no value here for a forged
+    -- or replayed call to move — which is why the CLAUDE.md §1 target property
+    -- holds by construction rather than by a clamp. Measured, not asserted:
+    -- the migration's §5(e) compares gold/gems/xp/inventory AND accrued_to
+    -- across a real claim. NO NEW TARGET: p_user again.
+    'hr_trophy_claim(uuid,integer,text,integer,text)',
     -- ── ADDED 2026-09-21 — THE WORLD TICK'S ONE DOOR ───────────────────
     -- At the HEAD again, an INSERTION, for the same reason as links 1/2/5/6/8/9:
     -- it removes nothing, so PART 1f-ii grades this link with an EMPTY
@@ -641,10 +677,25 @@ begin
   --      a DERIVED restatement of the whole detector, so the way it goes wrong
   --      is by being cut against a stale base and silently dropping somebody
   --      else's entry — which reads as a pass on every marker test.
+  --
+  --      ⚠ THE TWO TROPHY ENTRIES ARE NAMED HERE BECAUSE THEY ARE THE ONES
+  --        THIS FILE ACTUALLY DROPPED (Security S-5, 2026-09-23). This link and
+  --        M7's were cut off the SAME base in parallel lanes; M7 applied first,
+  --        so the live body carries hr_trophy_of and hr_trophy_claim and a body
+  --        derived from the older base reverts both. GATE(b) caught it by
+  --        reading the installed GRANTS, which is the right backstop but the
+  --        late one — it refuses the apply after nine sections have run. Named
+  --        here, the next link cut off THIS one cannot drop them either: the
+  --        gate is only as good as the names in it, which is why every link
+  --        that widens the list adds its own.
   if strpos(pg_get_functiondef('public.hr_assert_grant_hygiene(boolean)'::regprocedure),
             'hr_tick_settle(text,uuid,integer,text,bigint,timestamp with time zone,') = 0
      or strpos(pg_get_functiondef('public.hr_assert_grant_hygiene(boolean)'::regprocedure),
-               'hr_quartermaster_buy(uuid,integer,bigint,uuid,text)') = 0 then
+               'hr_quartermaster_buy(uuid,integer,bigint,uuid,text)') = 0
+     or strpos(pg_get_functiondef('public.hr_assert_grant_hygiene(boolean)'::regprocedure),
+               'hr_trophy_of(uuid,integer)') = 0
+     or strpos(pg_get_functiondef('public.hr_assert_grant_hygiene(boolean)'::regprocedure),
+               'hr_trophy_claim(uuid,integer,text,integer,text)') = 0 then
     raise exception 'GATE(a2): this restatement DROPPED an allowlist entry an earlier link recorded - it was hand-edited or cut against a stale base';
   end if;
 

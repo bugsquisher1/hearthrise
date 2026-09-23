@@ -201,7 +201,7 @@ export const LINKS = [
     target: '2026-09-22-trophy-claim.sql',
     patchIds: ['trophy_claim'],
   },
-  /* Link 11 (M6 hunts, 2026-09-22) — TWO READS, AND NOTHING ELSE.
+  /* Link 12 (M6 hunts, 2026-09-22) — TWO READS, AND NOTHING ELSE.
      The same "must not trail its own grants overnight" rule link 10's note
      states: hr_hunt_analyzer and hr_vigour_of are granted to hr_engine by
      2026-09-22-hunt-analyzer.sql and 2026-09-22-vigour-daily.sql, so between
@@ -213,9 +213,25 @@ export const LINKS = [
      hr_assert_grant_hygiene.
      Caught by tests/run-smoke.mjs, not by review: the first draft of the M6
      lane granted both and recorded neither, and the suite answered
-     `engine_execute_outside_allowlist: [hr_hunt_analyzer, hr_vigour_of]`. */
+     `engine_execute_outside_allowlist: [hr_hunt_analyzer, hr_vigour_of]`.
+
+     ⚠ RE-CUT AS LINK 12 ON 2026-09-22-trophy-claim.sql (Security S-5,
+       2026-09-23). This link was cut as link 11 on
+       2026-09-21-engine-allowlist-tick-settle.sql — the SAME base M7's
+       trophy link was cut on, in a parallel lane. M7 applied first
+       (2026-09-23 00:41:24 UTC), so production's installed detector already
+       carries hr_trophy_of and hr_trophy_claim, and a body derived from the
+       older base would silently REVERT both. It does not get the chance to:
+       this file's own GATE(b) reads the INSTALLED grants and refuses the
+       apply, which is the file failing closed and is exactly what Security
+       measured in production's real order. Re-based here so the derived body
+       is 23 entries + these two, and so the M6 four can leave the nightly
+       detector GREEN rather than raising with no committed file able to clear
+       it. Two lanes cutting a link off one base is invisible to `--check` on
+       either branch and shows up only in the set — a guard that compares link
+       bases against origin/next is owed (Security, R5). */
   {
-    base: '2026-09-21-engine-allowlist-tick-settle.sql',
+    base: '2026-09-22-trophy-claim.sql',
     target: '2026-09-22-engine-allowlist-hunt-reads.sql',
     patchIds: ['hunt_reads'],
   },

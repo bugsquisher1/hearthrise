@@ -2373,3 +2373,18 @@ already armed.
 | `node tools/pack-edge.mjs hr-accrue --hash` | **0** — `c8edbc99188fbaafb508a34d793ac7ae0f10847db969d22d64f33facbcd8f8c1` |
 | `node tools/lane-done.mjs` | **0** — all green |
 | `node tests/live-hash-drift.mjs` | **1** — the three entries of **S-6**, deliberate, Coordinator re-seeds |
+
+---
+
+## Coordinator record — RE-VERIFY 5 executed: applied 20:06:00 UTC, edge deployed 20:06:49 UTC, clock restarted
+
+| Step | Result |
+|---|---|
+| merge | `sec/m3-shadow-state-chain` @ 3f7317dd merged clean into `set/b553` (a4118fc8) before the apply |
+| apply | `2026-09-23-world-tick-shadow-state-chain.sql` at 20:06:00 UTC, `apply result: []`; landed hr_tick_settle (ten arguments, 9a9b03d1) and hr_assert_grant_hygiene (fa2e6915) |
+| post-apply reads 20:07 | both ownership rows `shadow_state IS NULL` (e1b); only the ten-argument settle exists; CHECK `hr_tick_ownership_shadow_state_ck` (object, ≤16384 octets) present; roster EXECUTE hr_tick only, settle EXECUTE hr_engine only; `hr_assert_grant_hygiene(true)` clean; config {combat,gather}/enabled/shadow untouched; 2 owned rows |
+| edge deploy | 20:06:31–20:06:49 UTC from the assembled set (`scratchpad/edge-b553`); live `payload_sha256` = `pack-edge --hash` = c8edbc99188fbaafb508a34d793ac7ae0f10847db969d22d64f33facbcd8f8c1 |
+| live-hash | `--live --write`: hr_assert_grant_hygiene live == replay bbcca700; the nine-argument hr_tick_settle entry retired; the ten-argument signature tracked, live == replay (3b923311); guard green |
+| clock | **restarts at 2026-09-23T20:06:49Z**: 8a/8b/8c/8e read with `at >= 2026-09-23T20:06:49Z`; 8d over the whole span; the three new refusal names must stay at zero; fence (i) held at the deploy (slot 1's return at 19:41 was a knockout — no attended credit since 15:33) |
+
+Hero 2's real settle for 15:35→19:41 (read from the away receipt at the 19:41 return): 5 kills, 2 falls, +8 gold, +145 XP, 4 h 05 m knocked out — against the unchained shadow's 52 kills / 41 deaths in its first hour. That is the before; the after is the chained shadow from 20:06:49.

@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-23",
- "replay_ms": 1978,
+ "replay_ms": 25050,
  "counts": {
   "tracked_names": 58,
   "entries": 55
@@ -176,17 +176,18 @@
     "2026-09-11-quartermaster-buy.sql",
     "2026-09-21-engine-allowlist-tick-settle.sql",
     "2026-09-22-engine-allowlist-hunt-reads.sql",
-    "2026-09-22-trophy-claim.sql"
+    "2026-09-22-trophy-claim.sql",
+    "2026-09-23-world-tick-shadow-state-chain.sql"
    ],
    "live": {
-    "md5": "b11266627ba398a653c10a3f5fc37f67",
-    "norm_len": 33400,
+    "md5": "bbcca700e107a05f9fc746429a82c6f9",
+    "norm_len": 35520,
     "measured": "2026-09-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "b11266627ba398a653c10a3f5fc37f67",
-    "norm_len": 33400,
+    "md5": "bbcca700e107a05f9fc746429a82c6f9",
+    "norm_len": 35520,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1144,23 +1145,24 @@
    "agree": true
   },
   {
-   "sig": "hr_tick_settle(p_holder text, p_user uuid, p_slot integer, p_channel text, p_version bigint, p_window_from timestamp with time zone, p_window_to timestamp with time zone, p_intent_id uuid, p_delta jsonb)",
+   "sig": "hr_tick_settle(p_holder text, p_user uuid, p_slot integer, p_channel text, p_version bigint, p_window_from timestamp with time zone, p_window_to timestamp with time zone, p_intent_id uuid, p_delta jsonb, p_shadow_state jsonb)",
    "name": "hr_tick_settle",
    "tracked_by": [
     "floor"
    ],
    "touched_by": [
-    "2026-09-21-world-tick-settle-fence.sql"
+    "2026-09-21-world-tick-settle-fence.sql",
+    "2026-09-23-world-tick-shadow-state-chain.sql"
    ],
    "live": {
-    "md5": "d6948f6ac30d0466599d94c95d0f3c9e",
-    "norm_len": 9241,
+    "md5": "3b9233111f9ae4e546c701a41c87ed1a",
+    "norm_len": 9611,
     "measured": "2026-09-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "d6948f6ac30d0466599d94c95d0f3c9e",
-    "norm_len": 9241,
+    "md5": "3b9233111f9ae4e546c701a41c87ed1a",
+    "norm_len": 9611,
     "source": "computed-from-replay"
    },
    "agree": true

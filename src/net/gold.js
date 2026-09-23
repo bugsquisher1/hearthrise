@@ -116,6 +116,11 @@ import {
   isServerAccrualEnabled, resolveActiveSlot, accrueEndpoint, MAX_SLOT,
   applyEnvelopeState, describeReplacement, isReplacementAcknowledged,
   showReplacementSheet, registerPredictionSeam, isReconcilePending,
+  /* THE FRAME GATE, IMPORTED — NOT RE-IMPLEMENTED. This module used to own the
+     client's ONLY monotonic rule (`lastVersion`, for gold alone). It is now one
+     rule for the whole envelope, in accrue.js, shared with the away applier and
+     the activity applier. See WORLD_TICK_DESIGN.md §7.1. */
+  classifyFrame, commitFrame, resetFrameGate, getAppliedFrame,
 } from './accrue.js?v=551';
 import { SHOP_OFFERS } from '../data/shops.js?v=551';
 import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=551';
@@ -282,7 +287,12 @@ export function resolvePurchase(itemId, qty, goldCost) {
 let pending = [];
 let config = null;
 let last = null;
-let lastVersion = -1;      // monotonic, per §9.4's rule for hr_load vs hr-accrue
+/* ⚠ `lastVersion` LIVED HERE AND IS GONE (M5). It was the client's only
+   monotonic rule and it guarded ONE field; the floor it kept is now
+   accrue.js's `lastAppliedFrame`, read through classifyFrame/commitFrame and
+   shared by all three appliers. Two floors would be two answers to "is this
+   frame stale", and the away applier's silence was the gap: an envelope this
+   module refused as stale was applied in full by applyEnvelope a moment later. */
 
 /** Bounded on purpose. A prediction list that can grow without limit is a leak
  *  with an economy attached; 32 outstanding value gestures is already far past
@@ -306,7 +316,12 @@ export function goldPredictions() {
 }
 export function predictedGold() { return pending.reduce((s, p) => s + p.delta.gold, 0); }
 export function predictedGems() { return pending.reduce((s, p) => s + p.delta.gems, 0); }
-export function resetGold() { pending = []; last = null; lastVersion = -1; }
+/* ⚠ RESETS THE SHARED FRAME FLOOR TOO, AND THAT IS THE POINT. Every caller of
+   this function is a moment when the character in `G` has been replaced — a
+   slot change, a sign-out, a fixture teardown — and a floor carried across that
+   boundary would silently drop every frame of the NEW character until its
+   version happened to pass the old one's. Per character, per §7.1. */
+export function resetGold() { pending = []; last = null; resetFrameGate(); }
 
 /** A finite integer-ish amount, or 0. F8: `Number(x) || 0` maps NaN to 0 but
  *  lets `Infinity` straight through, and an Infinity in the prediction ledger
@@ -596,9 +611,31 @@ export function applyGoldEnvelope(G, body, ownKey) {
        newer envelope already contains it; if it did not, the newer envelope is
        still the truth. Either way the carry must come off, and the first
        revision just returned. */
-  if (env.version < lastVersion) {
+  /* ⚠ AND `=` IS NOW REFUSED TOO (M5 — the one behaviour change in the lift).
+     The old spelling was `env.version < lastVersion`, so an envelope carrying a
+     version this client had ALREADY applied was applied a second time. Under
+     request/response that was harmless — the second write is absolute and
+     writes the same numbers. Under a push stream it is not harmless, because
+     "apply it again" and "apply it again OUT OF ORDER" are the same code path,
+     and §7.1's rule is STRICTLY greater for exactly that reason: the whole
+     frame is applied or the whole frame is dropped, with no per-key mercy.
+
+     NOTHING IS LOST BY REFUSING AN EQUAL FRAME. Equality can only mean this
+     client already holds the state the server stamped at that version — the
+     first arrival raised the floor — so the re-write would be a no-op on every
+     value. What is NOT a no-op is the prediction accounting, which is why this
+     branch still rolls back below rather than returning bare: the F2 argument
+     covers the duplicate exactly as it covers the reorder. The envelope that
+     already landed CARRIED this prediction (it was outstanding at the time), so
+     the carry is sitting on top of a server value at least as new. Removing it
+     is not reversing a payment; it is retiring a carry whose gesture has now
+     been answered. If the intent landed, the frame in hand contains it; if it
+     did not, the frame in hand is still the truth. */
+  const frame = classifyFrame(env.version);
+  if (!frame.apply) {
     const undone = rollbackPrediction(G, ownKey);
-    return { stale: true, version: env.version, current: lastVersion, undone };
+    return { stale: true, verdict: frame.verdict, version: env.version,
+      current: frame.current, undone };
   }
 
   const loss = describeReplacement(G, env);
@@ -639,7 +676,7 @@ export function applyGoldEnvelope(G, body, ownKey) {
   /* ABSOLUTE, never additive — and the prediction sweep now happens INSIDE this
      call, through the seam registered at the bottom of this file, so the away
      and activity envelopes get exactly the same accounting (F4). */
-  lastVersion = env.version;
+  commitFrame(env.version);
   const written = applyEnvelopeState(G, env, ownKey);
 
   written.envelope = env;
@@ -724,7 +761,7 @@ export function applyGoldEnvelope(G, body, ownKey) {
      object `state`, `skills` and `inventory`. A stateless refusal (the shape and
      pre-database codes, which `refusalCarriesState` answers false for) has none
      of that, so `applyGoldEnvelope` returns null at the top: nothing is written,
-     nothing is stamped, `lastVersion` does not move. The `ok:true` we add is a
+     nothing is stamped, the frame floor does not move. The `ok:true` we add is a
      statement about the ENVELOPE (validated, monotonic, freshly read), never
      about the verb.
 
@@ -855,7 +892,7 @@ export function getGoldState() {
     pending: goldPredictions(), predicted: predictedGold(), predictedGems: predictedGems(),
     inflight: pending.filter((p) => p.inflight).length,
     abandoned: pending.filter((p) => !p.inflight).length,
-    version: lastVersion, last,
+    version: getAppliedFrame(), last,
   };
 }
 

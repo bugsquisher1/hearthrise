@@ -2032,6 +2032,25 @@ jobs:
           node tests/no-client-xp-mint.mjs --selftest
           node tests/no-client-xp-mint.mjs
 
+      # THE FRAME GATE (M5, docs/design/LIVE_COUNTERS_PUSH.md §7). Before it, the
+      # client had NO whole-envelope version gate: isEnvelopeApplicable asked
+      # only that `version` be a finite number, and the monotonic rule lived in
+      # ONE place for ONE field (gold.js's `lastVersion`). That is survivable
+      # under request/response and is a silent rewind of hp, the bag, the
+      # activity pointer and every buff clock under a push stream. The rule is
+      # now one floor, strictly greater, whole-frame-or-nothing, committed by
+      # all three appliers (accrue / gold / activity).
+      # Base AND selftest, per C4: a selftest-only registration cannot tell a
+      # caught defect from a guard that is broken at rest. --selftest plants
+      # five defects — `>=` restored, a per-key merge below the gate, gold.js
+      # growing its floor back, the activity applier not committing, and the
+      # frame gate moved into classifyAccrueResponse (which would halt the
+      # accrual loop on three duplicates) — and requires each one caught.
+      - name: Envelope frame gate — one monotonic frame, whole frame or nothing
+        run: |
+          node tests/envelope-frame-gate.mjs --selftest
+          node tests/envelope-frame-gate.mjs
+
       # NO DUPLICATE RPC CALLERS (b514): a RATCHET. The six hand-rolled
       # rpc(name, body) copies stay six (HearthriseRpc is the DECISION, not a
       # transport — folding them is the wrong abstraction), and the mayCall

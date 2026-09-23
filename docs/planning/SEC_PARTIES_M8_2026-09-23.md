@@ -1159,3 +1159,22 @@ out of the request.
   it.
 
 This verdict covers S2 only.
+
+---
+
+## Coordinator record — S2 applied 2026-09-23 23:29:35–23:30:06 UTC, edge deployed 23:30:35 UTC, verified read-only 23:31 UTC
+
+Merged `sec/m8-s2-review` @ cc43fec1 into `set/b553` first; applied from that tree, one file per call, one sitting: hunt-tables 23:29:35 (hr_partied, hr_party_hunt_live), roster-settle 23:29:58 (hr_party_roster, hr_party_tick_settle), engine-allowlist 23:30:06 (hr_assert_grant_hygiene 614a95d4); every call `apply result: []`. Edge packed from the assembled set and deployed 23:30:31–23:30:35, strictly after the third apply (§5.2); live `payload_sha256` = `pack-edge --hash` = c799d1594e286d3b872d41a2d6970f4ac50e5f8eab61c98ff03586d55a517bad.
+
+| §5.3 read | Result |
+|---|---|
+| 1 tables empty | party_hunt 0, party_tick_lease 0 |
+| 2 RLS + policies | both `relrowsecurity` true; party_hunt one SELECT policy; party_tick_lease zero policies; grants: `authenticated` SELECT on party_hunt and nothing else for anyone |
+| 3 function matrix | hr_partied: anon/authenticated/service_role false (hr_engine true); hr_party_hunt_live: all false; hr_party_roster: hr_tick only, hr_engine absent; hr_party_tick_settle: hr_engine only, hr_tick absent |
+| 4 hr_tick_roster | the invariant-7 clause once; LATERAL, `for update of o skip locked` retained; hr_party_hunt_live(random uuid) = false |
+| 5 grant hygiene | `hr_assert_grant_hygiene(true)`: unapproved_client_rpcs [], ungated_client_rpcs [], engine_execute_outside_allowlist [] (key present) |
+| 6 config | {combat,gather}, enabled true, shadow TRUE — untouched |
+| 7 hr_tick_shadow.party | nullable jsonb, no default; channel CHECK still the three-value one; 0 rows with party set |
+| 8 live-hash | `--codediff` had nothing divergent to diff; `--live --write`: THREE entries as D3 said — hr_tick_roster and hr_party_hunt_live newly tracked (live == replay), hr_assert_grant_hygiene restated (live == replay 1437ce54); guard green |
+
+Notes flipped STAGED → APPLIED with timestamps (apply-order honesty: 36 files, all agree); restore-census: production matches the recorded census (118 tables). §5.4 stands: shadow stays TRUE, no party parity number until §3's partition rule is met, B-A1 and B-A6 owed by S4.

@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-23",
- "replay_ms": 25050,
+ "replay_ms": 22697,
  "counts": {
-  "tracked_names": 58,
-  "entries": 55
+  "tracked_names": 60,
+  "entries": 57
  },
  "functions": [
   {
@@ -177,17 +177,18 @@
     "2026-09-21-engine-allowlist-tick-settle.sql",
     "2026-09-22-engine-allowlist-hunt-reads.sql",
     "2026-09-22-trophy-claim.sql",
+    "2026-09-23-m8-parties-s2-3-engine-allowlist.sql",
     "2026-09-23-world-tick-shadow-state-chain.sql"
    ],
    "live": {
-    "md5": "bbcca700e107a05f9fc746429a82c6f9",
-    "norm_len": 35520,
+    "md5": "1437ce5480ce6229ac007c67546a038c",
+    "norm_len": 38966,
     "measured": "2026-09-23",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "bbcca700e107a05f9fc746429a82c6f9",
-    "norm_len": 35520,
+    "md5": "1437ce5480ce6229ac007c67546a038c",
+    "norm_len": 38966,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -742,6 +743,30 @@
    "agree": true
   },
   {
+   "sig": "hr_party_hunt_live(p_party uuid)",
+   "name": "hr_party_hunt_live",
+   "tracked_by": [
+    "chain"
+   ],
+   "touched_by": [
+    "2026-09-23-m8-parties-s1-1-tables.sql",
+    "2026-09-23-m8-parties-s1-2-verbs.sql",
+    "2026-09-23-m8-parties-s2-1-hunt-tables.sql"
+   ],
+   "live": {
+    "md5": "545af821ac3e2f3d8add9f70f6ecec61",
+    "norm_len": 287,
+    "measured": "2026-09-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "545af821ac3e2f3d8add9f70f6ecec61",
+    "norm_len": 287,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_perks_of(p_user uuid, p_slot integer)",
    "name": "hr_perks_of",
    "tracked_by": [
@@ -1140,6 +1165,29 @@
    "replay": {
     "md5": "abdaed1a6a0f652f23d9c29760c9ec34",
     "norm_len": 8735,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_tick_roster(p_kinds text[], p_shard integer, p_limit integer, p_holder text, p_lease_ms integer, p_after_accrued timestamp with time zone, p_after_user uuid, p_after_slot integer)",
+   "name": "hr_tick_roster",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-20-world-tick-roster.sql",
+    "2026-09-23-m8-parties-s2-1-hunt-tables.sql"
+   ],
+   "live": {
+    "md5": "e47047b564223a3a4499aff452aad517",
+    "norm_len": 12519,
+    "measured": "2026-09-23",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "e47047b564223a3a4499aff452aad517",
+    "norm_len": 12519,
     "source": "computed-from-replay"
    },
    "agree": true

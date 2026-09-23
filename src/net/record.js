@@ -1053,7 +1053,28 @@ export function applyRecord(G, res) {
     retired = retirePredictions(G, written, cover.at, nowMs);
     if (retired) { retired.coverage = cover; retired.credited = credited; }
   } catch (e) {}
+  repaintHeader();
   return { written, missing: dec.missing, version, filledStale: stale, retired };
+}
+
+/* ── THE HEADER FOLLOWS THE RECORD (2026-09-23) ─────────────────────────────
+   §6: the browser never says one thing while the server says another. The top bar
+   renders balances through `balPaint` → `balanceForDisplay`, which reads THE RECORD
+   for a moved field — so the record moving is not by itself a repaint. LIVE (Hero 2
+   slot 1, 15:18 UTC): the daily claim was paid and journalled, `G.gold` read the new
+   total, and the top bar kept the old one until an unrelated shop buy repainted it on
+   its way past. The claim handler's own `updateTopbar()` runs before the intent is even
+   sent, so what it paints is by construction not the server's answer; every gold verb
+   shared the gap, and the rest only looked right because their click handler repaints
+   anyway. SITED AT THE COMMON TAIL: every envelope applier calls `applyRecord`, AFTER
+   the authoritative value lands — repainting inside `applyEnvelopeState` would paint the
+   gold verbs from the not-yet-restamped record. Success return only; the other exits
+   wrote nothing. Guarded and window-gated: the Node guards import this module. */
+function repaintHeader() {
+  try {
+    if (typeof window === 'undefined') return;
+    if (typeof window.updateTopbar === 'function') window.updateTopbar();
+  } catch (e) {}
 }
 
 /** A defensive copy for the last-known-good cache. Scalars pass through; a map

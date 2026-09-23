@@ -7511,6 +7511,113 @@ export default [
     }
   }),
 
+  /* ══════════════════════════════════════════════════════════════════════
+     regression suite — THE HEADER THAT KEPT THE OLD NUMBER (live P1)
+
+     Hero 2 slot 1 on hearthrise.net, 15:18 UTC 2026-09-23. The player had 500
+     gold and tapped "Claim Day 1 — 500". The server paid it (player_ledger
+     kind=quest intent=claim_reward:daily:login:2026-9-23 delta.g=500,
+     player_state.gold=1000), the toast said "Daily reward: 500 Gold" and
+     `window.G.gold` read 1000 straight away — while the TOP BAR went on saying
+     500 until an unrelated shop buy repainted it to 850.
+
+     §6: the header renders through `balPaint`, so the number on screen changes
+     only when something repaints it — and applying the envelope was not that
+     something. The claim handler's own `updateTopbar()` runs before the intent
+     is even sent, so what it paints is never the server's answer; every gold
+     verb shared the gap, and the others only looked right because their legacy
+     click handler repaints on the way out. A claim's payout exists ONLY in the
+     server's answer, so it had nothing to hide behind.
+
+     THE FIX IS AT THE SEAM, NOT IN THE CLAIM: `applyRecord` (src/net/record.js)
+     repaints on its success path — the common tail of every envelope apply.
+     MUTATION: drop that `repaintHeader()` call → RED here.
+     ══════════════════════════════════════════════════════════════════════ */
+  () => tryRunAsync('claim regression: the top bar follows the envelope, not the click', async () => {
+    const A = window.HearthriseAccrual;
+    const Gd = window.HearthriseGold;
+    const G = window.G;
+    const D = window.HearthriseDaily;
+    assert(Gd && typeof Gd.settle === 'function', 'src/net/gold.js did not load — the whole gold seam is absent');
+    const cell = document.getElementById('top-gold');
+    assert(cell, 'there is no #top-gold in the page — the surface this guard watches is gone');
+
+    /* The rendered figure as a NUMBER. `paintBalance` writes the grouped form
+       ("1,000"), and an em dash (the pending glyph) must read as "no number"
+       rather than as zero — that is a different failure and it deserves its own
+       sentence in the assertion below. */
+    const shown = () => {
+      const t = String(cell.textContent || '').replace(/[,\s]/g, '');
+      return /^\d+$/.test(t) ? Number(t) : null;
+    };
+
+    const realFetch = window.fetch;
+    const wasOn = A.isServerAccrualEnabled();
+    const wasAck = A.isReplacementAcknowledged();
+    const save = { gold: G.gold, gems: G.gems, streak: G.streak, dailyReward: G.dailyReward,
+      skills: JSON.parse(JSON.stringify(G.skills)), inventory: JSON.parse(JSON.stringify(G.inventory)) };
+
+    try {
+      A.setServerAccrualEnabled(true);
+      A.acknowledgeReplacement(true);
+      Gd.resetGold();
+      Gd.configureGold({ url: 'https://probe.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
+      seedPlayStreak(1);
+      G.dailyReward = { lastClaimDay: 0 };
+      G.gold = 500; G.gems = 5;
+      /* THE RECORD, STAMPED THE WAY A BOOT STAMPS IT. The header reads the
+         RECORD for a moved field, so a test that only set `G.gold` would be
+         watching the fallback rung and not the surface the player saw. */
+      stampBalanceLikeLoad(G);
+      window.updateTopbar();
+      assert(shown() === 500,
+        'CONTROL: the top bar reads ' + JSON.stringify(cell.textContent) + ' before the claim, not 500 — '
+        + 'the fixture never reached the surface, so every assertion below would pass for free');
+
+      const rw = D.rewardFor(G);
+      assert(rw && rw.gold > 0,
+        'CONTROL: the daily reward prices no gold, so this guard would claim nothing');
+
+      /* Deliberately NOT 500 + the client's guess: the number on screen must be
+         the one the SERVER stated, and a figure the client could have computed
+         cannot tell the two apart. */
+      const SERVER_GOLD = 12345;
+      window.fetch = function (u, init) {
+        const s = String(u);
+        if (!/hr-accrue/.test(s)) return realFetch.apply(this, arguments);
+        const skills = {}; for (const k of Object.keys(G.skills || {})) skills[k] = { xp: G.skills[k] };
+        return Promise.resolve(new Response(JSON.stringify({
+          ok: true, verb: 'claim_reward', version: Date.now(), now: new Date().toISOString(),
+          state: { gold: SERVER_GOLD, gems: 5, active_kind: 'idle', active_id: null, accrued_to: null },
+          skills, inventory: Object.assign({}, G.inventory),
+          granted: { kind: 'daily', key: 'login', gold: rw.gold, gems: rw.gems || 0 },
+        }), { status: 200 }));
+      };
+      D.claim(G);
+      await drain();
+
+      assert(G.gold === SERVER_GOLD,
+        'CONTROL: the envelope did not land — gold is ' + G.gold + ' and the server said ' + SERVER_GOLD
+        + '. This guard is about the HEADER; a failure here is the apply, not the repaint');
+      assert(shown() === SERVER_GOLD,
+        'THE BROWSER SAYS ' + JSON.stringify(cell.textContent) + ' AND THE REALM SAYS ' + SERVER_GOLD
+        + '. The claim was paid, journalled and applied — `G.gold` is ' + G.gold + ' — and the top bar '
+        + 'still shows ' + (shown() === null ? 'no number at all' : shown()) + ', so the player is being '
+        + 'invited to spend a balance that is not theirs and refused one that is. §6: every number a '
+        + 'player can act on is REPLACED by each envelope. Applying an envelope must repaint the header; '
+        + 'the claim handler\'s own updateTopbar() runs before the intent is sent and can never do it.');
+    } finally {
+      window.fetch = realFetch;
+      Gd.resetGold(); Gd.configureGold(null);
+      A.acknowledgeReplacement(wasAck);
+      restoreAccrualSwitch(wasOn);
+      Object.assign(G, save);
+      stampBalanceLikeLoad(G);
+      try { window.updateTopbar(); } catch (e) {}
+      try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
   /* B354-5 IS RETIRED (b515), and it is the clearest case in the batch. Every
      one of its assertions was about the DARK position: with the b353 kill
      switch off, no gold verb may reach hr-accrue, the daily claim and the

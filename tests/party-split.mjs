@@ -100,7 +100,7 @@ import { bootReplay, ROOT } from './schema-replay.mjs';
    §18.1 names ("derived and not retyped … Tyler may set it to 0.00 in one
    edit") and not against itself. A constant a guard reads out of the module it
    is grading is a constant nothing is guarding. */
-import { VIGOUR_DRY_MULT as HUNT_VIGOUR_DRY_MULT } from '../src/core/hunt.js?v=552';
+import { VIGOUR_DRY_MULT as HUNT_VIGOUR_DRY_MULT } from '../src/core/hunt.js';
 
 const MUTATE = process.argv.slice(2).includes('--mutate');
 const SRC = join(ROOT, 'src', 'core', 'party-split.js');
@@ -113,7 +113,12 @@ const bad = (id, msg) => console.log(`  ✗ ${id} — ${msg}`);
 /** The mutated copy lives outside src/, so its one relative import has to be
     re-pointed at the real file. Everything hunt.js itself imports keeps
     resolving relative to hunt.js, which is where it lives. */
-const HUNT_URL = `${pathToFileURL(join(ROOT, 'src', 'core', 'hunt.js')).href}?v=552`;
+const HUNT_URL = pathToFileURL(join(ROOT, 'src', 'core', 'hunt.js')).href;
+
+/* party-split.js's own import of hunt.js carries bump-version.sh's CURRENT
+   ?v= (src/ is walked and bumped; this file is not) — named by digits, not
+   pinned to one, so a bump never rots this anchor the way ?v=552 rotted here. */
+const HUNT_ANCHOR_RE = /'\.\/hunt\.js\?v=\d+'/g;
 
 let TMP = null;
 let planted = 0;
@@ -128,16 +133,20 @@ let SRC_TEXT = null;
 async function loadSplit(patch) {
   if (!patch) {
     SRC_TEXT = await readFile(SRC, 'utf8');
-    return import(`${pathToFileURL(SRC).href}?v=552`);
+    return import(pathToFileURL(SRC).href);
   }
   const raw = await readFile(SRC, 'utf8');
   const hits = raw.split(patch.from).length - 1;
   if (hits !== 1) {
     throw new Error(`mutant ${patch.id}: anchor occurs ${hits}× in party-split.js, expected exactly 1`);
   }
+  const huntHits = [...raw.matchAll(HUNT_ANCHOR_RE)].length;
+  if (huntHits !== 1) {
+    throw new Error(`mutant ${patch.id}: the hunt.js import anchor occurs ${huntHits}× in party-split.js, expected exactly 1`);
+  }
   const body = raw
     .replace(patch.from, patch.to)
-    .replace("'./hunt.js?v=552'", JSON.stringify(HUNT_URL));
+    .replace(HUNT_ANCHOR_RE, JSON.stringify(HUNT_URL));
   SRC_TEXT = body;
   const file = join(TMP, `party-split.${patch.id}.${++planted}.mjs`);
   await writeFile(file, body, 'utf8');

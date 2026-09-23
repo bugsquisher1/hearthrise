@@ -149,6 +149,28 @@ begin
     return jsonb_build_object('ok', false, 'error', 'bad_slot', 'slot', p_slot);
   end if;
 
+  -- ── (0) THE IDEMPOTENCY KEY IS REQUIRED ON A MONEY VERB (finding S-4).
+  --        The DEFAULT stays in the signature and the reason is PostgREST: it
+  --        resolves an RPC by the named arguments in the POST body, so a
+  --        two-argument function with no defaults answers PGRST202 — a 404
+  --        indistinguishable from "the migration was never applied". But a
+  --        default is not permission to run without one. A null key skips
+  --        idempotency at BOTH ends — hr_intent_replay returns null immediately
+  --        (§3) and nothing is cached (§9) — so `{"p_slot":0}` is a verb that
+  --        DEBITS ON EVERY CALL, and a double-tap or a retry on a flaky
+  --        connection costs a real player real gold. The per-day cap bounds the
+  --        loss at five rungs, so this is not a faucet; it is a player paying
+  --        twice for one gesture, and the fix is one branch.
+  --
+  -- ⚠ BEFORE THE ADVISORY LOCK, deliberately: a call that cannot be made safe
+  --   must not first serialise every other call on this character behind it.
+  --   Refused by NAME so the panel and hr_rejections can both say which rule
+  --   fired, and journalled like every other refusal in this verb.
+  if p_idem is null then
+    perform public.hr_record_rejection(v_uid, v_slot, 'vigour_refill', 'missing_idem', '{}'::jsonb, 1);
+    return jsonb_build_object('ok', false, 'error', 'missing_idem', 'slot', v_slot);
+  end if;
+
   -- ── (1) SERIALISE ON THE CHARACTER. The key is byte-identical to the one
   --        hr_apply takes, so this also serialises against an accrual settling
   --        the same character - which matters here because that accrual is what
@@ -289,11 +311,12 @@ begin
   -- ⚠ SUCCESSES ONLY. A cached refusal would make "not enough gold" permanent
   --   for that key; the client generates a fresh key per gesture, so a genuine
   --   retry of the SAME gesture replays this envelope and debits nothing.
-  if p_idem is not null then
-    insert into public.player_intents (user_id, intent_id, slot, intent, result, at)
-      values (v_uid, p_idem, v_slot, v_intent, v_result, now())
-      on conflict (user_id, intent_id) do nothing;
-  end if;
+  -- UNCONDITIONAL since finding S-4: §0 refuses a null key, so every call that
+  -- reaches here HAS one and the old `if p_idem is not null` branch could only
+  -- ever have been the path that made this verb non-idempotent.
+  insert into public.player_intents (user_id, intent_id, slot, intent, result, at)
+    values (v_uid, p_idem, v_slot, v_intent, v_result, now())
+    on conflict (user_id, intent_id) do nothing;
 
   return v_result;
 end $$;
@@ -472,7 +495,22 @@ begin
       raise exception 'GATE(e1): the REFUSED refill counted anyway';
     end if;
 
+    -- (e1b) A NULL IDEMPOTENCY KEY IS REFUSED BY NAME (finding S-4), AND IT IS
+    --       REFUSED WITH THE GOLD ALREADY THERE - otherwise `insufficient_gold`
+    --       would be doing the refusing and this arm would prove nothing. A null
+    --       key skips idempotency at both ends, so the verb would debit on every
+    --       call and a double-tap or a retry on a flaky connection would cost a
+    --       real player real gold.
     update public.player_state set gold = v_p1 + v_p2 + 1 where user_id = v_uid and slot = 0;
+    v_gold := (select gold from public.player_state where user_id = v_uid and slot = 0);
+    v_r := public.hr_vigour_refill__ungated(0, null);
+    if coalesce(v_r->>'error','') <> 'missing_idem' then
+      raise exception 'GATE(e1b): a null p_idem was answered % - a money verb without an idempotency key debits on every call', v_r; end if;
+    if (select gold from public.player_state where user_id = v_uid and slot = 0) <> v_gold then
+      raise exception 'GATE(e1b): the key-less refill MOVED GOLD'; end if;
+    if exists (select 1 from public.player_progress where user_id = v_uid
+                and kind='daily' and key='ev:vigour_refills' and period_key = v_day) then
+      raise exception 'GATE(e1b): the key-less refill counted anyway'; end if;
 
     -- (e2) THE HAPPY PATH. Gold placed on the row directly (a synthetic probe,
     --      not a player - no faucet is exercised). It must debit EXACTLY the
@@ -621,5 +659,5 @@ begin
     raise exception 'GATE: §7 LEAKED a probe row';
   end if;
 
-  raise notice 'vigour-refill: no price literal lives in the verb, no currency but gold is named, the wrapper is gated + seamed + defaulted and the ungated body is callable by nobody, the ladder strictly rises, and EXECUTED - a broke character is refused and counts nothing, a funded one pays exactly rung 1 and journals the signed debit, the replay charges nothing, rung 2 costs more, the day cap is the catalogue row count and refuses without taking gold, five refills never pass the 22h ceiling, on a CLAN-PERKED probe a refill that would be clamped by the ceiling is REFUSED while every refill delivered in full moves the budget by exactly the minutes its receipt reports - all green, net zero';
+  raise notice 'vigour-refill: no price literal lives in the verb, no currency but gold is named, the wrapper is gated + seamed + defaulted and the ungated body is callable by nobody, the ladder strictly rises, and EXECUTED - a broke character is refused and counts nothing, a funded one pays exactly rung 1 and journals the signed debit, the replay charges nothing, rung 2 costs more, the day cap is the catalogue row count and refuses without taking gold, five refills never pass the 22h ceiling, a NULL idempotency key is refused by name and moves no gold, and on a CLAN-PERKED probe a refill that would be clamped by the ceiling is REFUSED while every refill delivered in full moves the budget by exactly the minutes its receipt reports - all green, net zero';
 end $$;

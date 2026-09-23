@@ -56,6 +56,7 @@ const MUTATIONS = {
   budget_ignores_ceiling: 'Drop the 22h ceiling from hr_vigour_of so gold can buy the whole day.',
   spent_ignores_remainder: 'Drop the sub-minute remainder from hr_vigour_of\'s read, so the charge stops conserving (finding S-1).',
   refill_sells_partial: 'Refuse only a refill that would buy NOTHING, so a ceiling-clamped one is sold at full price for half the minutes (S-3).',
+  refill_idem_optional: 'Let a null p_idem through, so the money verb debits on every call (S-4).',
 };
 
 /** The mutations are TEXTUAL patches on the real migrations, so a planted defect
@@ -138,6 +139,17 @@ const patchesFor = (mutate) => {
         '  if v_delivers < v_min then',
         '  if v_delivers <= 0 then',
       ]]]]);
+
+    case 'refill_idem_optional':
+      /* Both halves, so this is the SHIPPED defect rather than a NOT NULL
+         violation wearing its name: drop the refusal AND restore the
+         conditional intent cache the pre-fix body carried. */
+      return withShortCircuit([[REFILL, [
+        ["  if p_idem is null then\n    perform public.hr_record_rejection(v_uid, v_slot, 'vigour_refill', 'missing_idem', '{}'::jsonb, 1);\n    return jsonb_build_object('ok', false, 'error', 'missing_idem', 'slot', v_slot);\n  end if;",
+          '  if false then null; end if;'],
+        ['  insert into public.player_intents (user_id, intent_id, slot, intent, result, at)\n    values (v_uid, p_idem, v_slot, v_intent, v_result, now())\n    on conflict (user_id, intent_id) do nothing;',
+          '  if p_idem is not null then\n  insert into public.player_intents (user_id, intent_id, slot, intent, result, at)\n    values (v_uid, p_idem, v_slot, v_intent, v_result, now())\n    on conflict (user_id, intent_id) do nothing;\n  end if;'],
+      ]]]);
 
     case 'budget_ignores_ceiling':
       return withShortCircuit(new Map([[DAILY, [[
@@ -454,7 +466,30 @@ async function run(mutate) {
     + '"richest player hunts always", and it must hold in the READ every caller sees — the engine pays '
     + 'against this number and the panel renders it.');
 
-
+  /* ── V11. THE MONEY VERB REQUIRES AN IDEMPOTENCY KEY (finding S-4) ─────
+     `p_idem uuid default null` is right for PostgREST — a two-argument function
+     with no defaults answers PGRST202, a 404 indistinguishable from "never
+     applied" — but a default is not permission to run without one. A null key
+     skipped idempotency at BOTH ends (hr_intent_replay returns null; nothing is
+     cached), so the verb debited on every call and a double-tap or a retry on a
+     flaky connection cost a real player real gold. Driven on the FIRST probe,
+     which still has gold, so `insufficient_gold` cannot be what refuses. */
+  const P4 = '00000000-0000-4000-8000-0000b5510b04';
+  await db.query('insert into auth.users (id) values ($1)', [P4]);
+  await db.query("select set_config('request.jwt.claim.sub', $1, false)", [P4]);
+  await db.query('select public.hr_create_character(0)');
+  await db.query('update public.player_state set gold = 100000000 where user_id = $1', [P4]);
+  const goldNoKey = BigInt((await q('select gold from public.player_state where user_id=$1', [P4]))[0].gold);
+  const noKey = (await db.query('select public.hr_vigour_refill__ungated(0, null) as r')).rows[0].r;
+  ok(noKey.ok !== true && noKey.error === 'missing_idem',
+    `V11: a refill with a NULL idempotency key was answered '${noKey.error || noKey.ok}'. A money verb `
+    + 'that treats a missing key as "no idempotency at all" debits on every call — the per-day cap '
+    + 'bounds the loss at five rungs, so this is not a faucet, it is a player paying five times for '
+    + 'one gesture.');
+  ok(BigInt((await q('select gold from public.player_state where user_id=$1', [P4]))[0].gold) === goldNoKey,
+    'V11: the key-less refill MOVED GOLD.');
+  ok(Number((await q('select public.hr_vigour_of($1, 0) as v', [P4]))[0].v.refills) === 0,
+    'V11: the key-less refill counted against the day.');
   ok(perkedSold < VIGOUR_MAX_REFILLS,
     `V9: a perked character bought all ${VIGOUR_MAX_REFILLS} refills, so the ceiling never bit and `
     + 'this arm is measuring the day cap again.');

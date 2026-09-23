@@ -547,6 +547,16 @@ export async function versionQueryGuard() {
 export const TICK_MODULES = Object.freeze([
   'supabase/functions/hr-accrue/tick.js',
   'supabase/functions/hr-accrue/tick-gather.js',
+  /* THE COMBAT SETTLER, REGISTERED 2026-09-23 (Security S-8). It moved here
+     from `services/world-tick/combat.js` because `tick.js` now dispatches on
+     `active_kind` and actually runs it, and `services/` is unreachable from a
+     payload. It earns the same fence as `tick-gather.js` and for the same
+     reason — it spells `caller: 'tick'`, nothing but `tick.js` imports it, and
+     `tick.js` sits behind the X-HR-Tick-Auth bearer. This is the allowlist
+     LEARNING a file, not the rule relaxing: all three properties below still
+     apply to it unchanged, and T-F1g pins the set by NAME so a fifth entry
+     cannot arrive unnoticed. */
+  'supabase/functions/hr-accrue/tick-combat.js',
   'supabase/functions/hr-accrue/tick-shadow.js',
   'supabase/functions/hr-accrue/tick-contract.js',
 ]);

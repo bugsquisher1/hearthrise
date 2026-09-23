@@ -76,9 +76,71 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 
 import {
-  CHANNEL, DEFAULT_CADENCE_MS, DEFAULT_FLUSH_MS,
-  sessionFromRoster, settleGatherSession,
+  CHANNEL as GATHER_CHANNEL, DEFAULT_CADENCE_MS, DEFAULT_FLUSH_MS,
+  sessionFromRoster as gatherSessionFromRoster, settleGatherSession,
 } from './tick-gather.js';
+import {
+  CHANNEL as COMBAT_CHANNEL,
+  sessionFromRoster as combatSessionFromRoster, settleCombatSession,
+} from './tick-combat.js';
+
+/* ── THE DISPATCH TABLE (Security S-8, 2026-09-23) ───────────────────────────
+   Until today this file imported ONE `CHANNEL` — gather's — and used it three
+   ways: as the `p_channel` of the watermark probe, as the kind a character's
+   pointer had to equal, and as the `p_channel` of the settle. A combat
+   character therefore could not be settled at all. Arming `combat` in
+   `hr_tick_config.channels` would have made `hr_tick_roster` hand one out under
+   a stamped lease, and this file would then have asked the fence about it under
+   the WRONG channel — where step (4) looks the lease up by
+   `(user, slot, channel)` and finds nothing, and step (5) refuses
+   `channel_moved`. Every combat character would have burned one of
+   `batch_limit` slots per fire, taken from the running gather cohort, and
+   journalled NOTHING: a 48 h parity read that is empty by construction while
+   every dashboard stays green.
+
+   So the channel is a property of the CHARACTER, read from `hr_state_of` in
+   this request, and this table is the one place that maps it to the code that
+   settles it. A kind with no entry here is SKIPPED by name — never fenced under
+   another channel's spelling, which is the shape that made S-8 invisible.
+
+   `sessionFromRoster` and the settler are taken as a PAIR on purpose: each
+   channel's session builder asserts its own `row.active_kind` and throws on a
+   mismatch, so a table wired to a mismatched pair fails loudly on the first
+   character rather than silently pricing one channel with another's rules. */
+export const CHANNELS = Object.freeze({
+  [GATHER_CHANNEL]: Object.freeze({
+    channel: GATHER_CHANNEL,
+    sessionFromRoster: gatherSessionFromRoster,
+    settle: settleGatherSession,
+  }),
+  [COMBAT_CHANNEL]: Object.freeze({
+    channel: COMBAT_CHANNEL,
+    sessionFromRoster: combatSessionFromRoster,
+    settle: settleCombatSession,
+  }),
+});
+
+/* ── CHANNELS THE DATABASE ADMITS AND THIS FILE CANNOT SETTLE ────────────────
+   `hr_tick_config_channels_ck` (2026-09-22-world-tick-combat-channel.sql §1)
+   is `channels <@ array['combat','gather','artisan']`, so `artisan` is a value
+   an operator CAN put in that column today. There is no artisan settler: the
+   channel is declared here, by name and with its reason, so that
+
+     (a) `tickOne` refuses an artisan character with `channel_not_driven`
+         rather than fencing it under someone else's channel, and
+     (b) the guard can assert that every channel the CHECK admits is either
+         DRIVEN or DECLARED-UNDRIVEN — so a fourth value added to that CHECK
+         without a driver goes red here instead of being discovered as an empty
+         parity read three milestones later.
+
+   ARMING AN UNDRIVEN CHANNEL IS AN OPERATOR ERROR, and it is fail-closed: the
+   characters are leased and skipped by name, nothing is paid and nothing is
+   journalled. It still costs them a roster slot per fire, which is why this is
+   a declaration and not a silent default. */
+export const UNDRIVEN_CHANNELS = Object.freeze({
+  artisan: 'no artisan settler exists; the channel is admitted by '
+    + 'hr_tick_config_channels_ck but must never be armed until one ships',
+});
 
 /* The header the tick bearer rides on. Lower-case because `Headers.get` is
    case-insensitive and every comparison in this file should be too. */
@@ -336,10 +398,18 @@ export async function probeKillSwitch(exec, holder) {
    It is also the LEASE and OWNERSHIP check, for free and before any engine
    time is spent: steps (3)–(5) of the fence run first, so a character this
    driver does not hold, does not own, or is no longer gathering is refused
-   here with its own code. Nothing is written on any of those paths. */
-export async function probeWatermark(exec, holder, sel, nowIso) {
+   here with its own code. Nothing is written on any of those paths.
+
+   ⚠ `channel` IS THE CHARACTER'S OWN, NOT A CONSTANT (Security S-8). The
+     fence looks the lease up by `(user, slot, channel)` at step (4) and
+     compares `player_state.active_kind` to it at step (5), so probing under a
+     hard-coded 'gather' asks a combat character's question about a lease that
+     does not exist and reads back `not_tick_owned` — indistinguishable from an
+     unleased character, and the reason the combat shadow could not produce one
+     row. The caller reads `active_kind` from `hr_state_of` and passes it. */
+export async function probeWatermark(exec, holder, sel, nowIso, channel) {
   const res = await fence(exec, {
-    holder, user: sel.userId, slot: sel.slot, channel: CHANNEL,
+    holder, user: sel.userId, slot: sel.slot, channel,
     version: null, windowFrom: PROBE_FROM_ISO, windowTo: nowIso,
     intentId: '00000000-0000-0000-0000-000000000000',
     delta: JSON.stringify({ accrued_to: nowIso }),
@@ -375,8 +445,12 @@ export async function probeWatermark(exec, holder, sel, nowIso) {
    — a level-up inside the window changing the action interval, say — the real
    pass simply walks past the end of the ladder and stops, and the tail is owed
    rather than paid on a seed that names the wrong instant. */
-export function planSeedLabels(session, fromMs, toMs, opts) {
-  const dry = settleGatherSession(session, fromMs, toMs, opts);
+export function planSeedLabels(settle, session, fromMs, toMs, opts) {
+  /* THE DRY PASS MUST BE THE CHANNEL'S OWN (S-8). Running gather's chain over
+     a combat session would walk a different ladder of instants than the real
+     pass then asks for, so the real pass would stop at the first watermark the
+     ladder does not name and settle nothing. */
+  const dry = settle(session, fromMs, toMs, opts);
   const out = [];
   const seen = new Set();
   /* THE FIRST WINDOW'S INSTANT IS CARRIED, NOT RE-SPELLED. It is the instant
@@ -428,9 +502,8 @@ async function seedLadder(exec, sel, labels) {
    Returns a verdict, never a throw: a character that cannot be settled must not
    cost the rest of the batch its window. */
 async function tickOne(exec, holder, sel, body) {
-  /* (1) THE FENCE FIRST. It answers "do I hold this character, is it still
-         gathering, and from when" in one call that writes nothing — so an
-         unleased character costs one round trip and zero engine time. */
+  /* (0) THE SERVER CLOCK. Every instant this function names comes from here or
+         from the fence; none of them comes from the body. */
   const read0 = await exec('select now()::timestamptz as now', []);
   /* THE DRIVER HANDS BACK A `Date`, NOT A STRING (T-1). `postgres` parses OID
      1184 into a JS Date and index.ts gives it no `types` override, so
@@ -442,13 +515,25 @@ async function tickOne(exec, holder, sel, body) {
      `.toISOString()` is the spelling index.ts:775 already uses on the accrue
      path; tests/world-tick-edge-contract.mjs EC-1b/EC-2a is the exit code. */
   const nowIso = new Date(read0[0].now).toISOString();
-  const probe = await probeWatermark(exec, holder, sel, nowIso);
-  if (!probe.ok) return { outcome: 'skipped', reason: probe.reason };
 
-  /* (2) THE STATE, FROM THE DATABASE, IN THIS REQUEST. Not one field of it
+  /* (1) THE STATE, FROM THE DATABASE, IN THIS REQUEST. Not one field of it
          comes from the body — `hr_state_of` is the same projection the player's
          own envelope is built from, and `version` is the number `hr_apply`
-         refuses a stale copy of. */
+         refuses a stale copy of.
+
+         ⚠ THIS READ MOVED AHEAD OF THE PROBE (Security S-8, 2026-09-23), and
+           the order is the finding. The probe IS the lease check, and the fence
+           looks a lease up by `(user, slot, channel)` — so the probe cannot be
+           asked until this driver knows which channel the character is on, and
+           the only server-side answer to that is `active_kind` on this
+           projection. `hr_engine` is revoked from `player_state`, so there is
+           no cheaper read of it.
+
+           The cost is one `hr_state_of` for a character that turns out to be
+           unleased, where the old order cost none. That is bounded: the body's
+           roster is clamped to MAX_ROSTER and the branch already sits behind
+           the tick bearer. It buys the property S-8 is about — a character is
+           never asked about under a channel that is not its own. */
   const [row] = await exec(
     'select public.hr_state_of($1::uuid, $2::int) as state,'
     + ' public.hr_offline_cap_ms($1::uuid, $2::int) as cap_ms,'
@@ -457,15 +542,30 @@ async function tickOne(exec, holder, sel, body) {
   const env = row && row.state;
   if (!env || env.ok !== true) return { outcome: 'skipped', reason: 'no_character' };
   const st = env.state || {};
-  if (st.active_kind !== CHANNEL) {
-    return { outcome: 'skipped', reason: 'channel_moved' };
-  }
+
+  /* (2) THE DISPATCH. The character's pointer picks the code that settles it.
+         A kind with no entry is skipped BY NAME: `channel_not_driven` says the
+         edge cannot settle this character, which is a different sentence from
+         `channel_moved` ("it was here and moved") and from `no_lease` ("it is
+         not mine"). Collapsing the three is exactly how S-8 stayed invisible —
+         a wall of `channel_moved` read as players switching activity. */
+  const driver = Object.prototype.hasOwnProperty.call(CHANNELS, st.active_kind)
+    ? CHANNELS[st.active_kind]
+    : null;
+  if (!driver) return { outcome: 'skipped', reason: 'channel_not_driven' };
+  const channel = driver.channel;
+
+  /* (3) THE FENCE, UNDER THE CHARACTER'S OWN CHANNEL. It answers "do I hold
+         this character, is it still on this channel, and from when" in one call
+         that writes nothing. */
+  const probe = await probeWatermark(exec, holder, sel, nowIso, channel);
+  if (!probe.ok) return { outcome: 'skipped', reason: probe.reason };
   /* Same driver contract as (1): `row.now` is a Date. `String()` happened to
      survive here only because JS can parse what Postgres cannot. */
   const nowMs = new Date(row.now).getTime();
   const markMs = probe.markMs;
 
-  /* (3) THE WINDOW. It ENDS at one flush period past the mark or at the server
+  /* (4) THE WINDOW. It ENDS at one flush period past the mark or at the server
          clock, whichever is sooner — so a fire computes at most one flush
          window per character and emits at most one intent. A character further
          behind than that catches up one flush per fire; the tail is owed, never
@@ -478,7 +578,7 @@ async function tickOne(exec, holder, sel, body) {
     return { outcome: 'skipped', reason: 'below_flush' };
   }
 
-  /* (4) THE SESSION. Assembled from SERVER values field by field, with the
+  /* (5) THE SESSION. Assembled from SERVER values field by field, with the
          watermark the FENCE reported rather than `st.accrued_to` — in shadow
          the two differ, and chaining on `accrued_to` is the overlapping-window
          bug §15c's shadow mark exists to prevent.
@@ -491,7 +591,7 @@ async function tickOne(exec, holder, sel, body) {
            came back `would_ticks: 0` with `activity: {kind:'idle'}` — the
            level gate, on a character who can mine that node. The field list
            itself is now ./envelope.js, shared with index.ts's accrue path. */
-  const session = sessionFromRoster({
+  const session = driver.sessionFromRoster({
     user_id: sel.userId,
     slot: sel.slot,
     shard: 0,                       // hr_shard_of is `select 0`; see the header
@@ -499,6 +599,22 @@ async function tickOne(exec, holder, sel, body) {
     active_id: st.active_id,
     active_since: st.active_since,
     accrued_to: new Date(markMs).toISOString(),
+    /* THE FENCE'S OWN RENDERING OF THE WATERMARK (Security S-8/T-2).
+       `accrued_to` above is `new Date(markMs).toISOString()` — the `…Z`
+       spelling, and `markMs` has already lost the microseconds. Combat's
+       `rosterWatermarkText` needs a SERVER rendering of that same instant to
+       spell the seed label with, and it checks the candidates it is given
+       against `markMs` before accepting one. Until today nothing set this key,
+       so the only candidate was `state.accrued_to` — which in SHADOW is a
+       DIFFERENT instant from the fence's mark, so every displaced shadow
+       window would have been refused outright ("no server rendering of the
+       watermark"). `probe.markText` is the fence's own jsonb rendering of the
+       mark it just reported, microseconds and `+00:00` included, and it is the
+       only spelling that is both correct and available here.
+
+       Gather's `sessionFromRoster` ignores it: its label is planned by
+       Postgres from the instant (SEED_LABEL_EXPR), never from a JS string. */
+    mark_text: probe.markText,
     version: env.version,
     /* THE ABSENCE CAP, read in the same transaction as everything else —
        `hr_offline_cap_ms`, exactly as the accrue path reads it. Without it the
@@ -514,16 +630,16 @@ async function tickOne(exec, holder, sel, body) {
     holder,
   };
 
-  /* (5) THE SEEDS, THEN THE ONE REAL PASS. */
-  const labels = planSeedLabels(session, markMs, toMs,
+  /* (6) THE SEEDS, THEN THE ONE REAL PASS. */
+  const labels = planSeedLabels(driver.settle, session, markMs, toMs,
     Object.assign({}, geom, { markText: probe.markText }));
   const seeds = await seedLadder(exec, sel, labels);
-  const run = settleGatherSession(session, markMs, toMs,
+  const run = driver.settle(session, markMs, toMs,
     Object.assign({}, geom, { seedOf: (ms) => (seeds.has(ms) ? seeds.get(ms) : null) }));
 
   if (run.intents.length === 0) return { outcome: 'skipped', reason: 'nothing_settled' };
 
-  /* (6) THE SETTLE. Intents 2..N are stale by construction and say so
+  /* (7) THE SETTLE. Intents 2..N are stale by construction and say so
          (`rehydrateBefore`, S-6): they carry a null version precisely so the
          database refuses them, and the honest answer is to stop and re-hydrate
          on the next fire rather than to invent a successor version. */
@@ -534,7 +650,7 @@ async function tickOne(exec, holder, sel, body) {
     holder,                          // ours, never `a.p_holder` from the fold
     user: sel.userId,
     slot: sel.slot,
-    channel: CHANNEL,
+    channel,                         // the character's own, as the probe used
     version: a.p_version,
     windowFrom: a.p_window_from,
     windowTo: a.p_window_to,

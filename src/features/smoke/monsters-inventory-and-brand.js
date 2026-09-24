@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 183 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot } from './_harness.js?v=552';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot, closeOverlays } from './_harness.js?v=552';
 
 export default [
 
@@ -8501,14 +8501,20 @@ export default [
   () => tryRunAsync('B533-1: after a fight, tapping the node you came FROM sends the switch — a stale paint cannot swallow the gesture', async () => {
     const tree = (window.TREES || []).find((t) => t.id === 'willow_tree') || (window.TREES || [])[1]; const mid = (window.MONSTERS || {}).slime ? 'slime' : Object.keys(window.MONSTERS || {})[0];
     assert(!!tree && !!mid && !!window.HearthriseActivity && typeof window.openSkillDetail === 'function', 'setup: no tree/monster/activity-seam fixture — the reported gesture cannot be driven');
-    await cameFromArc({ skillId: 'woodcutting', targetId: tree.id, prod: tree.prod, mid, seed: (G) => { G.skills = Object.assign({}, G.skills, { woodcutting: 14000000 }); }, start: () => window.startSkill('woodcutting', tree.id, tree.ms) },
-      async ({ G, M, sent, settle, tile, stalePaint }) => {
-        tile.click(); await settle();
-        const sw = sent.filter((b) => b.activity && b.activity.kind === 'gather' && b.activity.id === tree.id);
-        assert(sw.length >= 1, 'tapping the node the player came FROM declared NOTHING (' + sent.length + ' declaration(s): ' + JSON.stringify(sent.map((b) => b.activity)) + '; painted while active: ' + stalePaint + ') — the tile baked its stop handler at paint time, the cross-stop cleared the pointer without rebuilding the panel, and the stop returned in silence. The player cannot get back to their own node with one tap');
-        assert(M.isIntentKey(sw[sw.length - 1].intentId), 'the switch carried no canonical uuid key: ' + sw[sw.length - 1].intentId);
-        assert(G.activeSkill === 'woodcutting' && G.skillTargetId === tree.id && !G.activeMonster, 'the tap did not land: pointer ' + G.activeSkill + '/' + G.skillTargetId + ', monster ' + G.activeMonster + ' — the header would still read as a fight');
-      });
+    try {
+      await cameFromArc({ skillId: 'woodcutting', targetId: tree.id, prod: tree.prod, mid, seed: (G) => { G.skills = Object.assign({}, G.skills, { woodcutting: 14000000 }); }, start: () => window.startSkill('woodcutting', tree.id, tree.ms) },
+        async ({ G, M, sent, settle, tile, stalePaint }) => {
+          tile.click(); await settle();
+          const sw = sent.filter((b) => b.activity && b.activity.kind === 'gather' && b.activity.id === tree.id);
+          assert(sw.length >= 1, 'tapping the node the player came FROM declared NOTHING (' + sent.length + ' declaration(s): ' + JSON.stringify(sent.map((b) => b.activity)) + '; painted while active: ' + stalePaint + ') — the tile baked its stop handler at paint time, the cross-stop cleared the pointer without rebuilding the panel, and the stop returned in silence. The player cannot get back to their own node with one tap');
+          assert(M.isIntentKey(sw[sw.length - 1].intentId), 'the switch carried no canonical uuid key: ' + sw[sw.length - 1].intentId);
+          assert(G.activeSkill === 'woodcutting' && G.skillTargetId === tree.id && !G.activeMonster, 'the tap did not land: pointer ' + G.activeSkill + '/' + G.skillTargetId + ', monster ' + G.activeMonster + ' — the header would still read as a fight');
+        });
+    } finally {
+      /* The activity switch this test drives raises the accrual replacement
+         gate, a full-viewport sheet; left up it covers every later screen. */
+      closeOverlays();
+    }
   }),
 
   /* ARTISAN HALF of the same arc: cook shrimp → fight → tap Cook Shrimp again.
@@ -8517,16 +8523,20 @@ export default [
   () => tryRunAsync('B539-1: after a fight, tapping the artisan recipe you came FROM sends the switch — a stale paint cannot swallow the gesture', async () => {
     const rec = ((window.ARTISAN_RECIPES || {}).cooking || []).find((r) => r.id === 'cook_shrimp'); const mid = (window.MONSTERS || {}).slime ? 'slime' : Object.keys(window.MONSTERS || {})[0];
     assert(!!rec && !!mid && !!window.HearthriseActivity && typeof window.startArtisan === 'function', 'setup: no cook_shrimp recipe / monster / activity seam — the reported gesture cannot be driven');
-    await withCookingArmed(() => cameFromArc({ skillId: 'cooking', targetId: rec.id, prod: rec.output, mid, start: () => window.startArtisan('cooking', rec.id),   /* the bench pause is not this test's subject */
-      seed: (G) => { const inp = rec.inputs || { [rec.input]: rec.inputQty || 1 }; Object.keys(inp).forEach((id) => { G.inventory[id] = (G.inventory[id] || 0) + 200; }); } },
-      async ({ G, sent, settle, tileOf, tile, stalePaint }) => {
-        tile.click(); await settle();
-        const sw = sent.filter((b) => b.activity && b.activity.kind === 'artisan' && b.activity.id === rec.id);
-        assert(sw.length >= 1, 'tapping the recipe the player came FROM declared NOTHING (' + sent.length + ' declaration(s): ' + JSON.stringify(sent.map((b) => b.activity)) + '; painted while active: ' + stalePaint + ') — the tile baked its stop handler at paint time and the stop returned in silence. The player cannot get back to their own bench with one tap');
-        assert(G.activeSkill === 'cooking' && G.skillTargetId === rec.id && !G.activeMonster, 'the tap did not land: pointer ' + G.activeSkill + '/' + G.skillTargetId + ', monster ' + G.activeMonster);
-        const back = tileOf(); back.click(); await settle(); assert(!G.activeSkill && !G.skillTargetId, 'a second tap on the RUNNING recipe did not stop it (' + G.activeSkill + '/' + G.skillTargetId + ')');
-        const third = tileOf(); third.click(); await settle(); assert(G.activeSkill === 'cooking' && G.skillTargetId === rec.id, 'the tap AFTER a stop did not restart the recipe (' + G.activeSkill + '/' + G.skillTargetId + ') — a stop strips .active in place and rebuilds nothing');
-      }));
+    try {
+      await withCookingArmed(() => cameFromArc({ skillId: 'cooking', targetId: rec.id, prod: rec.output, mid, start: () => window.startArtisan('cooking', rec.id),   /* the bench pause is not this test's subject */
+        seed: (G) => { const inp = rec.inputs || { [rec.input]: rec.inputQty || 1 }; Object.keys(inp).forEach((id) => { G.inventory[id] = (G.inventory[id] || 0) + 200; }); } },
+        async ({ G, sent, settle, tileOf, tile, stalePaint }) => {
+          tile.click(); await settle();
+          const sw = sent.filter((b) => b.activity && b.activity.kind === 'artisan' && b.activity.id === rec.id);
+          assert(sw.length >= 1, 'tapping the recipe the player came FROM declared NOTHING (' + sent.length + ' declaration(s): ' + JSON.stringify(sent.map((b) => b.activity)) + '; painted while active: ' + stalePaint + ') — the tile baked its stop handler at paint time and the stop returned in silence. The player cannot get back to their own bench with one tap');
+          assert(G.activeSkill === 'cooking' && G.skillTargetId === rec.id && !G.activeMonster, 'the tap did not land: pointer ' + G.activeSkill + '/' + G.skillTargetId + ', monster ' + G.activeMonster);
+          const back = tileOf(); back.click(); await settle(); assert(!G.activeSkill && !G.skillTargetId, 'a second tap on the RUNNING recipe did not stop it (' + G.activeSkill + '/' + G.skillTargetId + ')');
+          const third = tileOf(); third.click(); await settle(); assert(G.activeSkill === 'cooking' && G.skillTargetId === rec.id, 'the tap AFTER a stop did not restart the recipe (' + G.activeSkill + '/' + G.skillTargetId + ') — a stop strips .active in place and rebuilds nothing');
+        }));
+    } finally {
+      closeOverlays();   // same accrual replacement gate as B533-1
+    }
   }),
 
   /* regression suite — THE BENCH BANNER ASKED FOR A GESTURE THE GAME NO LONGER

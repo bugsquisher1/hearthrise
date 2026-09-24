@@ -11,7 +11,7 @@
 // one live G and several depend on what the previous one left behind, so the
 // concatenation below is a CONTRACT, not a convenience. Add a domain module where its
 // tests used to sit; never re-sort this list to tidy it.
-import { errorLog, analyzeAssertionCoverage, stampBalanceLikeLoad, watchUiOverlaps } from './smoke/_harness.js?v=552';
+import { errorLog, analyzeAssertionCoverage, stampBalanceLikeLoad, watchUiOverlaps, overlayResidue } from './smoke/_harness.js?v=552';
 import boot from './smoke/boot.js?v=552';
 import propertyAndUnlocks from './smoke/property-and-unlocks.js?v=552';
 import companionsClaimsAndRenown from './smoke/companions-claims-and-renown.js?v=552';
@@ -166,8 +166,35 @@ export async function runSmokeTest(opts = {}) {
   } catch (e) {}
   const results = [];
   try {
+    let residueBefore = overlayResidue();
     for (const t of PLAN) {
       const r = await t();
+      /* ── THE TEARDOWN ASSERTION (2026-09-23) ──────────────────────────────
+         A test that finishes with a modal still up, the body scroll still
+         locked, or a full-viewport scrim painted does not fail. The NEXT test
+         does — or a layout guard running on a different page entirely does,
+         hundreds of tests later, with nothing in its output pointing back
+         here. That bill has now been paid twice: the renown celebration scrim
+         parked above (a shop test failing on a COVER= some 340 tests after
+         whichever battery crossed the rank) and the 2026-09-23 reachability
+         red. So the residue is measured after
+         every test and ATTRIBUTED to the test that introduced it, which is the
+         only way the name in the ✗ is the name of the offender; then the
+         baseline is re-taken so one dirty test cannot redden every test after
+         it. Closing it is the test's own job, in its finally — this only says
+         whose job it was. */
+      const residueAfter = overlayResidue();
+      const introduced = residueAfter.filter((x) => residueBefore.indexOf(x) === -1);
+      if (introduced.length) {
+        try { if (typeof window.closeAllModals === 'function') window.closeAllModals(); } catch (e) {}
+        if (r.status === 'PASS') {
+          r.status = 'FAIL';
+          r.why = 'left the page dirty for every test after it — ' + introduced.join('; ')
+            + '. Close it in the test\'s finally; an overlay left up covers later screens '
+            + 'and reads as an unrelated failure somewhere else.';
+        }
+      }
+      residueBefore = overlayResidue();
       if (verbose) {
         const mark = r.status === 'PASS' ? '✓ ' : (r.status === 'SKIP' ? '⃠ SKIP ' : '✗ ');
         console.log(mark + r.name + (r.why ? ' — ' + r.why : ''));

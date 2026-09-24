@@ -253,6 +253,7 @@ declare
   v_hunt   uuid;
   v_spent  int;
   v_m      record;
+  v_mem    record;
   c_spread constant int      := 10;   -- §18.1: TEN combat levels, written once there
   c_min    constant int      := 2;    -- §18.1: party size 2..4
   c_span   constant interval := interval '24 hours';  -- the accrual absence cap
@@ -520,15 +521,46 @@ begin
     --   watermark — and `hr_party_tick_settle` stays the only writer of either
     --   side of it. `version` is raised because the character's inputs changed
     --   and a client holding the old one must be refused its next accrue.
-    update public.player_state ps
-       set active_kind  = 'combat',
-           active_id    = p_active_id,
-           active_since = v_at,
-           version      = ps.version + 1,
-           updated_at   = now()
-      from public.party_member m
-     where m.party_id = v_pid and m.left_at is null
-       and ps.user_id = m.user_id and ps.slot = m.slot;
+    --
+    -- ★ ONE MEMBER PER STATEMENT, BOUND TO A (user_id, slot) THIS CALL HOLDS
+    --   (S-SC-1 family C, 2026-09-24). The join form this replaced — `update
+    --   player_state ps … from party_member m where ps.user_id = m.user_id and
+    --   ps.slot = m.slot` — binds the owner column to a COLUMN, so WHICH ROWS
+    --   the statement reaches is decided by a join predicate sitting beside it
+    --   rather than by the statement itself. Drop the `m.party_id = v_pid`
+    --   conjunct, or widen that join by one table, and it becomes a write
+    --   across every player in the game with no syntax error and no failing
+    --   assertion. That is the family tests/selfcheck-no-global-dml.mjs refuses
+    --   (and it refused this body at its §6 call sites, correctly): the reach of
+    --   a cross-user write must be legible in the statement's own text. Below,
+    --   the predicate names the two values this verb is holding, per row.
+    --
+    --   NOTHING ABOUT THE WRITE MOVES: the same SET list, over the same rows,
+    --   inside the same sub-block and the same transaction — so B-A6's
+    --   all-or-nothing and invariant 8's equality are exactly as reviewed.
+    --   2..4 statements instead of one, on a set capped at four.
+    --
+    --   LOCK ORDER, UNCHANGED. The `party` row is held (the 2..4 re-count), and
+    --   accept, kick and leave each take that row BEFORE touching
+    --   `party_member`, so the `for update` below can only ever be waited ON,
+    --   never circularly. The `player_state` rows are already locked ABOVE, in
+    --   this same (user_id, slot) order (Security E1), so no update in the loop
+    --   waits on a lock this call has not already taken.
+    for v_mem in
+      select m.user_id, m.slot
+        from public.party_member m
+       where m.party_id = v_pid and m.left_at is null
+       order by m.user_id, m.slot
+         for update of m
+    loop
+      update public.player_state ps
+         set active_kind  = 'combat',
+             active_id    = p_active_id,
+             active_since = v_at,
+             version      = ps.version + 1,
+             updated_at   = now()
+       where ps.user_id = v_mem.user_id and ps.slot = v_mem.slot;
+    end loop;
 
     insert into public.party_settle_boundary (party_id, day_key, verb, user_id, slot)
       values (v_pid, public.hr_utc_day_key(now()), 'party_hunt_start', v_uid, v_slot);

@@ -85,8 +85,17 @@ const partyRig = () => {
   if (I) I.displayName = () => 'Wren';
   window.HearthriseParty.__resetForTest();
   const el = (sel) => document.querySelector('#party-panel ' + sel);
+  /* EVERY REQUEST THE PAGE MAKES LANDS IN `calls`, NOT JUST THE PANEL'S. The
+     stub replaces `window.fetch` wholesale, so a sync, an accrue or a record
+     write from the live engine's own timers is recorded too — and those fire on
+     a clock nobody here controls, which is how PARTY-2's last arm came to read
+     `a closed panel made 1 requests` on a loaded runner and stay green on CI.
+     The panel's own surface is the party contract's reads and verbs, so the
+     cadence arms count those. */
+  const PARTY_URL = /\/rpc\/hr_party_|party_member\?|party_invite\?|party\?select=id,size_cap/;
   return {
     world, calls, el,
+    partyCalls: () => calls.filter((c) => PARTY_URL.test(c.url)),
     rpcs: (n) => calls.filter((c) => c.url.indexOf('/rpc/' + n) !== -1),
     text: () => (document.getElementById('party-panel') || { textContent: '' }).textContent,
     open: async () => { window.showTab('party'); await drain(); await drain(); },
@@ -3877,19 +3886,72 @@ export default [
          has to read the last request of ANY kind. Measured: keyed on the roster
          read alone, an EMPTY panel re-read its membership and its whole inbox
          on every tick, for ever, because no roster read ever happened. */
-      const idle = rig.calls.length;
+      const idle = rig.partyCalls().length;
       for (let i = 0; i < 4; i++) { P.pollNow(); await drain(); }
-      assert(rig.calls.length === idle, 'an idle EMPTY panel spent ' + (rig.calls.length - idle) + ' requests');
+      assert(rig.partyCalls().length === idle,
+        'an idle EMPTY panel spent ' + (rig.partyCalls().length - idle) + ' requests: '
+        + rig.partyCalls().slice(idle).map((c) => c.url).join(', '));
 
       // And a CLOSED panel reads nothing at all.
-      const before = rig.calls.length;
+      const before = rig.partyCalls().length;
       P.setVisible(false);
       for (let i = 0; i < 4; i++) { P.pollNow(); await drain(); }
-      assert(rig.calls.length === before, 'a closed panel made ' + (rig.calls.length - before) + ' requests');
+      assert(rig.partyCalls().length === before,
+        'a closed panel made ' + (rig.partyCalls().length - before) + ' requests: '
+        + rig.partyCalls().slice(before).map((c) => c.url).join(', '));
     } finally {
       rig.restore();
     }
   }),
+  /* PARTY-2b — A READ THE CLOSE CAUGHT IN FLIGHT, which is the leak PARTY-2
+     above kept catching by accident and could never name. `doRefresh` is three
+     sequential requests; closing or resetting used to null `inFlight` and walk
+     away, so the read made its remaining requests against whatever
+     `window.fetch` was by then and `put()` a projection for a panel nobody had
+     open — a stray request landing in a LATER test's recorded calls. The first
+     request is HELD here so the close always lands mid-flight. Both halves are
+     asserted: no further request, and no projection, because abandoning a read
+     must not evict what the panel last heard (§6). */
+  () => tryRunAsync('M8 PARTY-2b: a read the close catches in flight spends nothing more and writes no projection', async () => {
+    const P = window.HearthriseParty;
+    const rig = partyRig();
+    try {
+      rig.world.member = [{ party_id: 'P1', role: 'member' }];
+      rig.world.view = { ok: true, party_id: 'P1',
+        members: [{ name: 'Wren', combat_level: 57, hp: 38, hp_max: 61, recovering_until: null,
+                    share_bp: null, xp: null, gold: null }] };
+      /* The rig's stub RECORDS first and only then is held, so the membership
+         request counts as spent before the close — holding it earlier would
+         make the release itself look like a new request. */
+      const recording = window.fetch;
+      let release = null;
+      window.fetch = (url, init) => {
+        const p = recording(url, init);
+        if (String(url).indexOf('party_member?') !== -1 && !release) {
+          return new Promise((res) => { release = () => res(p); });
+        }
+        return p;
+      };
+      const flight = P.refresh('in-flight-probe');
+      await drain();
+      assert(release, 'the probe never caught the membership read in flight — the arm is vacuous');
+      const spent = rig.partyCalls().length;
+      const projection = JSON.stringify(P.getState());
+      P.setVisible(false);
+      release();
+      await flight; await drain(); await drain();
+      assert(rig.partyCalls().length === spent,
+        'a read the close abandoned went on to spend ' + (rig.partyCalls().length - spent)
+        + ' more request(s) — ' + rig.partyCalls().slice(spent).map((c) => c.url).join(', ')
+        + ' — "a closed panel reads NOTHING" is the module\'s own first line, '
+        + 'and a stray read lands in whichever test is running when it finishes');
+      assert(JSON.stringify(P.getState()) === projection,
+        'an abandoned read still wrote a projection for a panel nobody has open');
+    } finally {
+      rig.restore();
+    }
+  }),
+
   /* PARTY-3..7 — THE PURE HALF. `partyPanelHtml(view, opts)` is a function of
      what it is handed, so these five properties cost a fixture each instead of
      a rig: the states a player can be in, the bar's arithmetic, the three

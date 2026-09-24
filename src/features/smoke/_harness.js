@@ -73,6 +73,40 @@ export function closeOverlays() {
   });
 }
 
+/* THE APP SHELL'S SCROLL LOCKS, MEASURED AT BOOT RATHER THAN LISTED BY NAME.
+   The brief that produced this asked for "every class that sets overflow hidden
+   on html/body/.main/.app, derived from the CSS". Derived, and there are NONE:
+   scanned every rule in src/styles/*.css whose SUBJECT is html or body and
+   whose body sets `overflow(-x|-y): hidden|clip`, and the only two hits are
+   `html{...}` and `body{...}` from one unconditional line —
+   legacy.css:24 `html,body{height:100%;overflow:hidden;overscroll-behavior:none}`.
+   The app shell is overflow:hidden BY DESIGN, on every viewport, always, with
+   no class involved; `hide-profile-overflow` is a profile-strip GRID class
+   (legacy.css 2314-2498) that sets no overflow at all and is added
+   unconditionally at legacy.js block 23, so it is never residue and never a
+   lock. A hard-coded class list would therefore have been an empty list that
+   looked like coverage.
+   So the lock is measured instead: the four shell boxes' computed overflow is
+   captured once before the first test and compared after every test. That
+   catches a class, an inline style, an injected stylesheet or a JS-set property
+   with one assertion, and it cannot go stale the day a real lock class is
+   authored — which a name list would. */
+const SHELL_BOXES = ['html', 'body', '.main', '.app'];
+const shellLockState = () => SHELL_BOXES.map((sel) => {
+  const e = sel === 'html' ? document.documentElement
+    : (sel === 'body' ? document.body : document.querySelector(sel));
+  if (!e) return sel + ':absent';
+  const cs = getComputedStyle(e);
+  return sel + ':' + cs.overflowX + '/' + cs.overflowY;
+});
+let shellLockBaseline = null;
+/* Called once by the runner before the first test, so the baseline is the
+   APP's authored state and not whatever the first test left. */
+export function captureShellLocks() {
+  try { shellLockBaseline = shellLockState(); } catch (e) { shellLockBaseline = null; }
+  return shellLockBaseline;
+}
+
 export function overlayResidue() {
   const out = [];
   const nm = (e) => (e.id ? '#' + e.id : '') + e.tagName.toLowerCase()
@@ -90,7 +124,30 @@ export function overlayResidue() {
         if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity < 0.05) return;
         out.push('open overlay ' + nm(e));
       });
-    if (document.body.style.overflow === 'hidden') out.push('body scroll lock (body.style.overflow)');
+    /* An inline lock on a box whose stylesheet already says `hidden` does not
+       move the COMPUTED value, so the baseline diff below cannot see it — and
+       body is exactly that box here. The two checks are complementary, not
+       redundant: this one reads the property the test set, that one reads what
+       the page ended up with. `overflow-y` as well as the shorthand, because
+       `body.style.overflowY='hidden'` locks the page just as hard and the
+       original spelling of this line missed it. */
+    for (const [label, e] of [['body', document.body], ['html', document.documentElement]]) {
+      const inline = ((e.style.overflow || '') + ' ' + (e.style.overflowY || '')).trim();
+      if (/hidden|clip/.test(inline)) out.push(label + ' scroll lock (inline style: ' + inline + ')');
+    }
+    /* THE SHELL'S OWN LOCKS. A test that leaves html/body/.main/.app with a
+       different overflow than the app booted with has taken scrolling away from
+       every screen after it — and the bill arrives somewhere else entirely, as
+       a control that "cannot be reached" on a surface the test never opened. */
+    if (shellLockBaseline) {
+      const now = shellLockState();
+      for (let i = 0; i < now.length && i < shellLockBaseline.length; i++) {
+        if (now[i] === shellLockBaseline[i]) continue;
+        out.push('app-shell scroll lock changed — booted with ' + shellLockBaseline[i]
+          + ', now ' + now[i] + ' (the shell\'s overflow is authored once in legacy.css; '
+          + 'changing it leaves every later screen unable to scroll)');
+      }
+    }
     document.querySelectorAll('body > *').forEach((e) => {
       if (out.length > 5) return;
       const cs = getComputedStyle(e);

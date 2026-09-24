@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 92 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, awayArtisanSpan, withFightScreen, xpOf, xpZero, snapshotG, drain, restoreG, restoreGAndRecord, combatScreen, on, snapshot, decideRestore, decideLocalOwnership } from './_harness.js?v=552';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, awayArtisanSpan, withFightScreen, xpOf, xpZero, snapshotG, drain, restoreG, restoreGAndRecord, combatScreen, on, snapshot, decideRestore, decideLocalOwnership, withDesktopBanner, assertBannerReserved } from './_harness.js?v=552';
 
 export default [
 
@@ -5006,17 +5006,10 @@ export default [
      desktop mode, which is why it shipped that way for 250 builds;
      `__hrDesktopModeShowBanner` builds it here so it is MEASURED instead. */
   () => tryRun('b550: the desktop-mode banner reserves its space and covers no number', () => {
-    if (typeof window.__hrDesktopModeShowBanner !== 'function') { skip('detector not loaded'); return; }
-    const KEY = 'hr_desktopModeBannerDismissed'; let was = null;
-    try { was = sessionStorage.getItem(KEY); sessionStorage.removeItem(KEY); } catch (e) {}
     const app = document.querySelector('.app');
     if (!app) { skip('no app shell'); return; }
-    let bar = null;
-    try {
-      bar = window.__hrDesktopModeShowBanner();
-      assert(bar && bar.isConnected, 'the banner did not build');
+    withDesktopBanner((bar) => {
       const r = bar.getBoundingClientRect();
-      assert(r.height > 0, 'the banner has no box');
 
       // 1. NO EMOJI AS ART. The mark is uiWarn from the baked atlas.
       const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/u;
@@ -5033,9 +5026,7 @@ export default [
       // 3. IT RESERVES ITS OWN HEIGHT — the property the bug was.
       assert(document.body.getAttribute('data-hr-desktop-mode') === '1',
         'the banner did not flag the body, so no rule can move the shell out from under it');
-      const reserved = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hr-dm-banner-h')) || 0;
-      assert(Math.abs(reserved - r.height) <= 1,
-        'the reserved height (' + reserved + ') does not match the banner (' + Math.round(r.height) + ')');
+      assertBannerReserved(bar, 'the reservation does not match the banner');
       const ar = app.getBoundingClientRect();
       assert(ar.top >= r.bottom - 1,
         'the app shell still starts UNDER the banner (app top ' + Math.round(ar.top) + ' < banner bottom ' + Math.round(r.bottom) + ')');
@@ -5049,12 +5040,7 @@ export default [
       });
       assert(!hit.length, 'the banner covers ' + hit.length + ' top-bar element(s): '
         + JSON.stringify(hit.slice(0, 4).map((e) => (e.textContent || '').trim().slice(0, 18))));
-
-      bar = null;
-    } finally {
-      try { window.__hrDesktopModeHideBanner(); } catch (e) {}
-      try { if (was === null) sessionStorage.removeItem(KEY); else sessionStorage.setItem(KEY, was); } catch (e) {}
-    }
+    });
   }),
 
   /* The same banner's CONTROLS. The player's way out of desktop mode is a one-tap
@@ -5062,39 +5048,28 @@ export default [
      old pair was a 32px ✕ drawn as a character and no instructions beyond one
      Chrome-only line. */
   () => tryRun('b550: the desktop-mode banner explains the fix and dismisses for the session', () => {
-    if (typeof window.__hrDesktopModeShowBanner !== 'function') { skip('detector not loaded'); return; }
-    const KEY = 'hr_desktopModeBannerDismissed'; let was = null;
-    try { was = sessionStorage.getItem(KEY); sessionStorage.removeItem(KEY); } catch (e) {}
-    try {
-      const bar = window.__hrDesktopModeShowBanner();
-      assert(bar && bar.isConnected, 'the banner did not build');
-      const dis = bar.querySelector('#hr-dm-dismiss');
-      const how = bar.querySelector('#hr-dm-howbtn');
-      assert(dis && how, 'the banner must carry a dismiss AND a "how do I turn it off" control');
+    withDesktopBanner((bar) => {
+      const [dis, how, steps] = ['#hr-dm-dismiss', '#hr-dm-howbtn', '#hr-dm-how'].map((s) => bar.querySelector(s));
+      assert(dis && how && steps, 'the banner must carry a dismiss AND a "how do I turn it off" control');
       [dis, how].forEach((b) => assert(b.getBoundingClientRect().height >= 40,
         'the ' + b.id + ' control is ' + Math.round(b.getBoundingClientRect().height) + 'px — under the 40px thumb target'));
-      assert(how.getAttribute('aria-expanded') === 'false' && bar.querySelector('#hr-dm-how').hasAttribute('hidden'),
+      assert(how.getAttribute('aria-expanded') === 'false' && steps.hasAttribute('hidden'),
         'the steps must start collapsed and say so');
       how.click();
-      const steps = bar.querySelector('#hr-dm-how');
       assert(how.getAttribute('aria-expanded') === 'true' && !steps.hasAttribute('hidden'),
         'one tap on "how" must reveal the steps');
       assert(/Chrome/i.test(steps.textContent) && /Safari/i.test(steps.textContent),
         'the steps must cover both phone browsers, not just Chrome: ' + steps.textContent.slice(0, 80));
-      const grown = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hr-dm-banner-h')) || 0;
-      assert(Math.abs(grown - bar.getBoundingClientRect().height) <= 1,
-        'the reservation did not follow the opened disclosure (' + grown + ' vs ' + Math.round(bar.getBoundingClientRect().height) + ')');
+      assertBannerReserved(bar, 'the reservation did not follow the opened disclosure');
 
       dis.click();
       assert(!document.getElementById('hr-desktopmode-banner'), 'Dismiss must remove the banner');
       assert(!document.body.hasAttribute('data-hr-desktop-mode'),
         'dismissing must release the reserved space, or the shell keeps a gap for a banner that is gone');
-      assert(sessionStorage.getItem(KEY) === '1', 'the dismissal must be remembered for the session');
+      assert(sessionStorage.getItem('hr_desktopModeBannerDismissed') === '1',
+        'the dismissal must be remembered for the session');
       assert(window.__hrDesktopModeShowBanner() === null, 'a dismissed banner must not rebuild this session');
-    } finally {
-      try { window.__hrDesktopModeHideBanner(); } catch (e) {}
-      try { if (was === null) sessionStorage.removeItem(KEY); else sessionStorage.setItem(KEY, was); } catch (e) {}
-    }
+    });
   }),
 
   /* ── regression suite — THE ALERT THAT CLIPPED THE BOTTOM OFF EVERY SCREEN ──
@@ -5110,13 +5085,9 @@ export default [
      stayed green through all of it; this one measures what the shell CONTAINS,
      on a real screen reached the way a player reaches it. */
   () => tryRun('b553: the desktop-mode banner must not clip the bottom of every screen', () => {
-    if (typeof window.__hrDesktopModeShowBanner !== 'function') { skip('detector not loaded'); return; }
     const app = document.querySelector('.app');
     const main = document.querySelector('.main');
     if (!app || !main) { skip('no app shell'); return; }
-    const KEY = 'hr_desktopModeBannerDismissed'; let was = null;
-    try { was = sessionStorage.getItem(KEY); sessionStorage.removeItem(KEY); } catch (e) {}
-
     const box = (e) => e.getBoundingClientRect();
     const tag = (e) => (e.tagName + (e.id ? '#' + e.id : '.' + String(e.className || '').split(' ')[0])).slice(0, 34);
     const scrolls = (e) => /(auto|scroll)/.test(getComputedStyle(e).overflowY)
@@ -5139,7 +5110,6 @@ export default [
     });
 
     const fixture = combatScreen();
-    let bar = null;
     try {
       window.showTab('combat');
       try { window.stopCombat(); } catch (e) {}
@@ -5148,44 +5118,41 @@ export default [
       const fight = document.querySelector('#panel-combat .fs-fight');
       assert(fight && box(fight).height > 0, 'the Fight screen has no FIGHT button to measure');
       const spillBefore = new Set(below());
+      /* The banner is raised LAST, on a screen already standing: the whole
+         subject is what it does to a surface that was fine without it. */
+      withDesktopBanner((bar) => {
+        void app.offsetHeight;                       // the reservation is a reflow
+        const ar = box(app), mr = box(main);
 
-      bar = window.__hrDesktopModeShowBanner();
-      assert(bar && bar.isConnected, 'the banner did not build');
-      void app.offsetHeight;                       // the reservation is a reflow
-      const br = box(bar);
-      assert(br.height > 0, 'the banner has no box');
-      const ar = box(app), mr = box(main);
+        // 1. THE MAIN COLUMN FOLLOWS THE SHORTENED SHELL — the property the bug was.
+        assert(ar.bottom <= innerHeight + 1,
+          'the shell itself is off the ' + innerHeight + 'px screen (bottom ' + Math.round(ar.bottom) + ')');
+        assert(mr.bottom <= ar.bottom + 1,
+          'the main column still measures the FULL viewport: its bottom (' + Math.round(mr.bottom)
+            + ') is ' + Math.round(mr.bottom - ar.bottom) + 'px past the shortened shell (' + Math.round(ar.bottom)
+            + '), and .app{overflow:hidden} clips that band off the bottom of every screen');
 
-      // 1. THE MAIN COLUMN FOLLOWS THE SHORTENED SHELL — the property the bug was.
-      assert(ar.bottom <= innerHeight + 1,
-        'the shell itself is off the ' + innerHeight + 'px screen (bottom ' + Math.round(ar.bottom) + ')');
-      assert(mr.bottom <= ar.bottom + 1,
-        'the main column still measures the FULL viewport: its bottom (' + Math.round(mr.bottom)
-          + ') is ' + Math.round(mr.bottom - ar.bottom) + 'px past the shortened shell (' + Math.round(ar.bottom)
-          + '), and .app{overflow:hidden} clips that band off the bottom of every screen');
+        // 2. …AND SO DOES EVERY OTHER THING IN IT. The banner adds no new spill.
+        const added = below().filter((e) => !spillBefore.has(e));
+        assert(!added.length, 'the banner pushed ' + added.length + ' element(s) below the ' + innerHeight
+          + 'px screen: ' + JSON.stringify(added.slice(0, 4).map(tag)));
 
-      // 2. …AND SO DOES EVERY OTHER THING IN IT. The banner adds no new spill.
-      const added = below().filter((e) => !spillBefore.has(e));
-      assert(!added.length, 'the banner pushed ' + added.length + ' element(s) below the ' + innerHeight
-        + 'px screen: ' + JSON.stringify(added.slice(0, 4).map(tag)));
-
-      // 3. AND THE PRIMARY CTA IS STILL PRESSABLE: on screen, or scrollable to.
-      const fits = () => { const b = box(fight); return b.top >= -1 && b.bottom <= innerHeight + 1; };
-      if (!fits()) fight.scrollIntoView({ block: 'center' });
-      const fb = box(fight);
-      assert(fits(), 'FIGHT is off a ' + innerHeight + 'px screen (' + Math.round(fb.top) + '..'
-        + Math.round(fb.bottom) + ') with nothing a player can scroll to bring it back');
-      /* …and the banner itself is not the thing on top of it. Deliberately not
-         "elementFromPoint returns FIGHT": this suite runs with the FTUE scrim up
-         and that is a different (and already-guarded) condition — what this test
-         owns is whether the ALERT covers the control. */
-      const hit = document.elementFromPoint(fb.left + fb.width / 2, fb.top + fb.height / 2);
-      assert(!hit || (hit !== bar && !bar.contains(hit)),
-        'FIGHT is on screen but the banner is drawn over it — the press lands on ' + tag(hit));
+        // 3. AND THE PRIMARY CTA IS STILL PRESSABLE: on screen, or scrollable to.
+        const fits = () => { const b = box(fight); return b.top >= -1 && b.bottom <= innerHeight + 1; };
+        if (!fits()) fight.scrollIntoView({ block: 'center' });
+        const fb = box(fight);
+        assert(fits(), 'FIGHT is off a ' + innerHeight + 'px screen (' + Math.round(fb.top) + '..'
+          + Math.round(fb.bottom) + ') with nothing a player can scroll to bring it back');
+        /* …and the banner itself is not the thing on top of it. Deliberately not
+           "elementFromPoint returns FIGHT": this suite runs with the FTUE scrim up
+           and that is a different (and already-guarded) condition — what this test
+           owns is whether the ALERT covers the control. */
+        const hit = document.elementFromPoint(fb.left + fb.width / 2, fb.top + fb.height / 2);
+        assert(!hit || (hit !== bar && !bar.contains(hit)),
+          'FIGHT is on screen but the banner is drawn over it — the press lands on ' + tag(hit));
+      });
     } finally {
-      try { window.__hrDesktopModeHideBanner(); } catch (e) {}
       try { fixture.restore(); } catch (e) {}
-      try { if (was === null) sessionStorage.removeItem(KEY); else sessionStorage.setItem(KEY, was); } catch (e) {}
     }
   }),
 

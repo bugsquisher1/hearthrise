@@ -423,6 +423,10 @@ export default [
        notification in the DOM for a later whole-document scan (b227) to catch. */
     const notifyBefore = window.notify;
     window.notify = function () {};
+    // Same for the once-a-day sheet: `autoBoot()` opens `#hr-dl-modal` at the first quiet moment iff `todayKey() !== lastClaimDay`, so unpinned this arm's page state depends on the date. Pinned through the module's own day key; put away below through the × the sheet draws, never a node removal (that skips the close unhooking its document-level Escape).
+    const dailyBefore = G.dailyReward;
+    assert(window.HearthriseDaily._todayKey, 'daily-reward.js stopped publishing its own day key — the sheet cannot be pinned');
+    G.dailyReward = { lastClaimDay: window.HearthriseDaily._todayKey() };
     const buyCalls = [], hireCalls = [], assignCalls = [];
     const SRV_UID = 'wSRV1';
     // gold stub: buyUnlock always "lands" so the hire proceeds to materialise.
@@ -495,6 +499,8 @@ export default [
       window.HearthriseWorkersNet = netBefore;
       window.HearthriseGold = goldBefore;
       window.notify = notifyBefore;
+      G.dailyReward = dailyBefore;
+      try { const x = document.querySelector('#hr-dl-modal [data-dl-close]'); if (x) x.click(); } catch (e) {}
       G.workers = saved.workers; G.homestead = saved.homestead; G.skills = saved.skills; G.gold = saved.gold;
       try { stampBalanceLikeLoad(G); } catch (e) {}
     }

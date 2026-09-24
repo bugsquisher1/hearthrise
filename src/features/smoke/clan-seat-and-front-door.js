@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 72 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withFarmServer, withClaimServer, xpOf, predZero, xpZero, goldOf, snapshotG, restoreG, restoreGAndRecord, TYPE_FLOOR, typeHandoffOwner, typeTokenPx, TYPE_OWNED_SHEETS, on, snapshot, decideRestore, decideSessionEvent, stubSignedIn, drain } from './_harness.js?v=552';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withFarmServer, withClaimServer, xpOf, predZero, xpZero, goldOf, snapshotG, restoreG, restoreGAndRecord, TYPE_FLOOR, typeHandoffOwner, typeTokenPx, TYPE_OWNED_SHEETS, on, snapshot, decideRestore, decideSessionEvent, stubSignedIn, drain, firstRunAnswered } from './_harness.js?v=552';
 
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -76,13 +76,12 @@ const partyRig = () => {
     return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(payload) });
   };
   const unstub = stubSignedIn(0);
-  /* WHO THE LOCAL PLAYER IS. The panel marks your own row and withholds Remove
-     from it; without pinning the name that branch is never taken and the test
-     would pass on a panel that offers a leader a button the server answers
-     `bad_party` to. Restored with everything else. */
-  const I = window.HearthriseIdentity;
-  const realName = I && I.displayName;
-  if (I) I.displayName = () => 'Wren';
+  /* WHO THE LOCAL PLAYER IS — and why the page stays quiet while these arms run.
+     The panel marks your own row and withholds Remove from it; without a name that
+     branch is never taken. A monkey-patch over `I.displayName` pinned the panel's
+     reading and nothing else, while the session stubbed above armed BOTH first-run
+     sheets behind the test's back (`firstRunAnswered`). Restored with the rest. */
+  const unanswer = firstRunAnswered('Wren');
   window.HearthriseParty.__resetForTest();
   const el = (sel) => document.querySelector('#party-panel ' + sel);
   /* EVERY REQUEST THE PAGE MAKES LANDS IN `calls`, NOT JUST THE PANEL'S. The
@@ -95,6 +94,9 @@ const partyRig = () => {
   const PARTY_URL = /\/rpc\/hr_party_|party_member\?|party_invite\?|party\?select=id,size_cap/;
   return {
     world, calls, el,
+    // ALREADY A MEMBER, from the rig's own Wren: two arms re-spelled his fields.
+    joinAs: (role) => { world.member = [{ party_id: 'P1', role: role }]; world.view = { ok: true, party_id: 'P1', members: [WREN] }; },
+    idle: async (n) => { for (let i = 0; i < n; i++) { window.HearthriseParty.pollNow(); await drain(); } },
     partyCalls: () => calls.filter((c) => PARTY_URL.test(c.url)),
     rpcs: (n) => calls.filter((c) => c.url.indexOf('/rpc/' + n) !== -1),
     text: () => (document.getElementById('party-panel') || { textContent: '' }).textContent,
@@ -115,7 +117,7 @@ const partyRig = () => {
       try { window.HearthriseParty.setVisible(false); } catch (e) {}
       try { window.HearthriseParty.__resetForTest(); } catch (e) {}
       window.fetch = realFetch;
-      if (I && realName) I.displayName = realName;
+      unanswer();
       unstub();
       try { window.showTab('profile'); } catch (e) {}
     },
@@ -3857,8 +3859,7 @@ export default [
     const P = window.HearthriseParty;
     const rig = partyRig();
     try {
-      rig.world.member = [{ party_id: 'P1', role: 'member' }];
-      rig.world.view = { ok: true, party_id: 'P1', members: [{ name: 'Wren', combat_level: 57, hp: 38, hp_max: 61, recovering_until: null, share_bp: null, xp: null, gold: null }] };
+      rig.joinAs('member');
       await rig.open();
       const reads = rig.rpcs('hr_party_view');
       assert(reads.length === 1, 'opening the panel should read the roster exactly once, got ' + reads.length);
@@ -3872,7 +3873,7 @@ export default [
 
       // B8 — the floor is real, and an IDLE tick does not spend a read.
       assert(P.SLOW_REFRESH_MS >= 60000, 'the slow refresh is ' + P.SLOW_REFRESH_MS + 'ms — §5.3 sets the floor at 60 s');
-      for (let i = 0; i < 6; i++) { P.pollNow(); await drain(); }
+      await rig.idle(6);
       assert((Date.now() - P.stats().lastViewAt) < 60000, 'the arm is vacuous — a minute really passed during it');
       assert(rig.rpcs('hr_party_view').length === 1,
         'six idle ticks spent ' + rig.rpcs('hr_party_view').length + ' roster reads — B8 allows one per ' + P.SLOW_REFRESH_MS + 'ms');
@@ -3887,7 +3888,7 @@ export default [
          read alone, an EMPTY panel re-read its membership and its whole inbox
          on every tick, for ever, because no roster read ever happened. */
       const idle = rig.partyCalls().length;
-      for (let i = 0; i < 4; i++) { P.pollNow(); await drain(); }
+      await rig.idle(4);
       assert(rig.partyCalls().length === idle,
         'an idle EMPTY panel spent ' + (rig.partyCalls().length - idle) + ' requests: '
         + rig.partyCalls().slice(idle).map((c) => c.url).join(', '));
@@ -3895,7 +3896,7 @@ export default [
       // And a CLOSED panel reads nothing at all.
       const before = rig.partyCalls().length;
       P.setVisible(false);
-      for (let i = 0; i < 4; i++) { P.pollNow(); await drain(); }
+      await rig.idle(4);
       assert(rig.partyCalls().length === before,
         'a closed panel made ' + (rig.partyCalls().length - before) + ' requests: '
         + rig.partyCalls().slice(before).map((c) => c.url).join(', '));
@@ -3916,10 +3917,7 @@ export default [
     const P = window.HearthriseParty;
     const rig = partyRig();
     try {
-      rig.world.member = [{ party_id: 'P1', role: 'member' }];
-      rig.world.view = { ok: true, party_id: 'P1',
-        members: [{ name: 'Wren', combat_level: 57, hp: 38, hp_max: 61, recovering_until: null,
-                    share_bp: null, xp: null, gold: null }] };
+      rig.joinAs('member');
       /* The rig's stub RECORDS first and only then is held, so the membership
          request counts as spent before the close — holding it earlier would
          make the release itself look like a new request. */
@@ -3950,6 +3948,24 @@ export default [
     } finally {
       rig.restore();
     }
+  }),
+
+  /* PARTY-2c — regression suite — THE TWO SHEETS THE RIG USED TO ARM. A stubbed
+     session is the ONLY thing either first-run flow waits for: where localStorage
+     is fresh `#hr-post-signup-modal` opened after PARTY-2 and the next test's
+     teardown reported it; where the name record exists the same rig left
+     `div.hr-id-scrim`. THE 2.5 s WAIT IS THE ASSERTION — `maybeShow()` re-polls
+     every 2 s while it waits. MUTATION: drop `firstRunAnswered` -> RED. */
+  () => tryRunAsync('M8 PARTY-2c: the party rig leaves no first-run sheet behind, and none arrives 2.5 s later', async () => {
+    const SHEETS = '.hr-id-scrim, #hr-post-signup-modal';
+    const was = new Set(document.querySelectorAll(SHEETS));
+    const added = () => [...document.querySelectorAll(SHEETS)].filter((e) => !was.has(e)).map((e) => e.id || e.className);
+    const rig = partyRig();
+    try { await rig.open(); } finally { rig.restore(); }
+    assert(!added().length, 'the rig left a first-run sheet up: ' + added().join(', '));
+    await new Promise((r) => setTimeout(r, 2500));
+    assert(!added().length, 'a first-run sheet opened 2.5 s after the arm — inside post-signup-welcome\'s '
+      + 'own poll window, which is where it landed on CI: ' + added().join(', '));
   }),
 
   /* PARTY-3..7 — THE PURE HALF. `partyPanelHtml(view, opts)` is a function of

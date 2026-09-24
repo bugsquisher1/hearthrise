@@ -1822,6 +1822,96 @@ export const cameFromArc = async (cfg, body) => {
     try { window.stopSkill(); } catch (e) {} try { window.stopCombat(); } catch (e) {} restoreG(snap); window.showTab('profile');
   }
 };
+/* ── THE FIRST-RUN SHEETS, ALREADY ANSWERED ──────────────────────────────────
+   `stubSignedIn` hands the page the one thing both first-run flows wait for: a
+   session. Neither of them asks anything else. So a test that stubs a session
+   has also, silently, armed the name modal (identity.js `tick()`, every 2 s)
+   and the post-signup welcome (post-signup-welcome.js `maybeShow()`, which
+   RE-POLLS every 2 s for as long as it is made to wait) — and whichever of them
+   wins lands on a test that never asked for it. Measured both ways: on CI, where
+   localStorage is fresh, `#hr-post-signup-modal` opened AFTER M8 PARTY-2 and
+   covered the viewport for every test after it; locally the same rig left
+   `div.hr-id-scrim` up instead, because here the name record already exists.
+
+   The precondition a RETURNING player's browser has is simply that both have
+   already happened: welcomed once, name chosen. That is what this states, and
+   it states it through each module's own published hook — the welcome's SEEN
+   flag setter, and identity's own harness seam, whose documented contract is
+   that "the name prompt is pre-answered so a fake identity can never open a
+   modal over a test or a screenshot". Neither sheet is suppressed by selector
+   or by removing a node; they simply have nothing left to say.
+
+   Marking SEEN first is what stops the poll rather than merely losing the race:
+   `maybeShow()` returns on its FIRST line when the flag is set and schedules no
+   successor, so no 2 s chain outlives the arm — including one an earlier test
+   started. Returns the restore, which puts the sheet away through its own
+   dismiss and both flags back exactly as found. */
+export const firstRunAnswered = (name) => {
+  const I = window.HearthriseIdentity, W = window.HearthrisePostSignup;
+  /* ASSERTED, not shrugged at: a hook that quietly goes missing would turn this
+     into a no-op and hand the sheets back their opening, which is the whole bug. */
+  assert(I && I._installHarnessIdentity && W && W.markSeen, 'a first-run seam is gone from identity.js / post-signup-welcome.js');
+  const wasWelcomed = W.seen();
+  /* `_clearHarnessIdentity()` blanks the record, so the real one is parked and
+     put back field for field: this seam must cost the page nothing it owned. */
+  const hadRec = JSON.parse(JSON.stringify(I._record()));
+  W.markSeen();
+  I._installHarnessIdentity({ name: name || 'Adventurer' });
+  return () => {
+    try { W.close(); } catch (e) {}
+    try { I._clearHarnessIdentity(); Object.assign(I._record(), hadRec); I._persist(); I.applyAvatar(); } catch (e) {}
+    if (wasWelcomed) W.markSeen(); else W.forget();
+  };
+};
+
+/* ── THE DESKTOP-MODE BANNER, ARMED AND PUT AWAY, WRITTEN ONCE ───────────────
+   Three arms each carried the same seven lines: probe the detector, park and
+   clear the session-scoped dismissal, build the banner, assert it built, and in
+   a finally hide it and put the flag back. `fn(bar)` gets the built banner, and
+   an absent detector declares the skip() here rather than in three places. */
+export const withDesktopBanner = (fn) => {
+  if (typeof window.__hrDesktopModeShowBanner !== 'function') { skip('detector not loaded'); return false; }
+  const KEY = 'hr_desktopModeBannerDismissed'; let was = null;
+  try { was = sessionStorage.getItem(KEY); sessionStorage.removeItem(KEY); } catch (e) {}
+  try {
+    const bar = window.__hrDesktopModeShowBanner();
+    assert(bar && bar.isConnected, 'the banner did not build');
+    assert(bar.getBoundingClientRect().height > 0, 'the banner has no box');
+    fn(bar);
+    return true;
+  } finally {
+    try { window.__hrDesktopModeHideBanner(); } catch (e) {}
+    try { if (was === null) sessionStorage.removeItem(KEY); else sessionStorage.setItem(KEY, was); } catch (e) {}
+  }
+};
+
+/* ── A RESIDUE DETECTOR'S OWN MUTATION PROOF, WRITTEN ONCE ───────────────────
+   Three self-tests shared one shape: count the residue, make the page dirty in
+   one specific way, assert the detector NAMES that way, undo it, assert the
+   count is back. `dirty()` returns its own undo; `match` is a substring or a
+   RegExp. The app-shell arm below keeps its own body on purpose — it asserts
+   WHICH box was named and re-pins the baseline, and folding two more hooks in
+   here to reach it would cost more than it saves. */
+export const residueProbe = (dirty, match, why) => {
+  const before = overlayResidue().length;
+  const undo = dirty();
+  try {
+    const seen = overlayResidue();
+    assert(seen.some((x) => (match.test ? match.test(x) : x.indexOf(match) !== -1)), why + ', got: ' + JSON.stringify(seen));
+  } finally { undo(); }
+  assert(overlayResidue().length === before, 'this test did not put the page back the way it found it');
+};
+
+/* THE BANNER'S RESERVATION, ASSERTED ONCE. Two arms check the same property —
+   `--hr-dm-banner-h` equals the banner's measured height — one on the collapsed
+   banner and one after the disclosure grows it, and each carried its own read of
+   the custom property and its own arithmetic. */
+export const assertBannerReserved = (bar, why) => {
+  const px = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hr-dm-banner-h')) || 0;
+  const h = bar.getBoundingClientRect().height;
+  assert(Math.abs(px - h) <= 1, why + ' — reserved ' + px + 'px against a ' + Math.round(h) + 'px banner');
+};
+
 /* THE SIGNED-IN SERVER ENVIRONMENT, WRITTEN ONCE — five claim tests each carried
    the same four stubs and restores; a forgotten copy leaks a fake session. */
 export const stubSignedIn = (slot) => {

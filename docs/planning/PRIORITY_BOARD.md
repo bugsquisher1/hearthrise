@@ -22,6 +22,21 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 | Last five merges | f9da2e5b Merge branch 'worktree-agent-ad408251ef743025a'<br>07b83f0a Merge branch 'worktree-agent-a13103d1368b3ed10'<br>68ab4a9b Merge branch 'worktree-agent-ad408251ef743025a'<br>b729ae21 Merge branch 'worktree-agent-a5ec5d462bc708b2b'<br>8a700736 Merge branch 'worktree-agent-a4bd50bfbdabbad36' |
 <!-- END GENERATED -->
 
+## 2026-09-24 04:10 UTC — M8 S2 + S4 applied overnight · party panel on the set · three CI reds root-caused (Coordinator)
+
+| Item | State |
+|---|---|
+| M8 slice 2 (party_hunt, lease, roster, settle in shadow) | APPLIED 23:29–23:30 UTC on Security GO-WITH-CHANGES (landed); edge deployed 23:30:35 UTC after the applies; eight read-only checks pass |
+| M8 slice 4 (hunt intents, boundary budget, kick-before-split) | APPLIED 03:44–03:45 UTC on Security GO-WITH-CHANGES + re-look (the fan-out restated as a per-member loop after the self-check guard refused the join-bound shape); six read-only checks pass; no edge deploy |
+| M8 slice 3 (the split) | Security GO-WITH-CHANGES, nine findings landed, merged |
+| Party panel (client half of S1) | built + art-director pass, seven in-page tests, merged; membership only — the hunt screen stays dark until S5 arms the channel (a shadow party hunt would pay nothing) |
+| Goal-claim P1 (found at the b552 gate) | fixed at the transport seam (every credit verb reconciles), on the set for b553 |
+| CI reds | conservation fuzz: the selftest's equip-dupe plant was seed-dependent (pre-existing, not S2) — made deterministic; in-page: the reachability guard measured before layout settled + six tests left overlays — settle-then-measure plus a per-test teardown assertion; version-tag literals in a test file — removed |
+| b553 candidate | set/b553 @ 6e3bf4e8: GitHub 7/7 green, local suite green, visual gate read (party, combat, both sizes) |
+| M3 combat shadow | chained since the 20:06 UTC deploy; first parity interval at the next QA return |
+| Open on Tyler | the four Vigour refill prices |
+
+
 ## 2026-09-23 20:00 UTC — b552 LIVE and PLAYED (Coordinator) · M8 slice 1 applied · M3 shadow defect found and fixed in lane
 
 | Item | State |

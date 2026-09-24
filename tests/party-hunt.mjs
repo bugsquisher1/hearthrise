@@ -111,14 +111,14 @@ const MUTANTS = {
      are still pointed somewhere else: the settle then refuses `channel_moved`
      for them forever and the party wedges with its window growing against the
      24 h cap. All-or-nothing is not tidiness. */
+  /* Re-anchored 2026-09-24: the fan-out is a per-member loop rather than an
+     `update … from party_member` join (S-SC-1 family C), so the mutation is
+     written on the loop's own predicate. The ARM is unchanged — narrow the
+     write to the leader and only one of four pointers moves. */
   partialStart: { file: F2, arm: 'B-A6', pair: [
-    '      from public.party_member m\n'
-    + '     where m.party_id = v_pid and m.left_at is null\n'
-    + '       and ps.user_id = m.user_id and ps.slot = m.slot;',
-    '      from public.party_member m\n'
-    + '     where m.party_id = v_pid and m.left_at is null\n'
-    + '       and ps.user_id = m.user_id and ps.slot = m.slot\n'
-    + '       and ps.user_id = v_uid;   /* --mutate partialStart */'] },
+    '       where ps.user_id = v_mem.user_id and ps.slot = v_mem.slot;',
+    '       where ps.user_id = v_mem.user_id and ps.slot = v_mem.slot\n'
+    + '         and ps.user_id = v_uid;   /* --mutate partialStart */'] },
   /* T-3. The leader kicks at minute 59 of a sixty-minute window and the
      removed member loses the fellowship bonus and the XP floor for all of it.
      §18.4: "the kick is never the cheaper path." */

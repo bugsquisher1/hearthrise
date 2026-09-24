@@ -350,6 +350,43 @@ body[data-hr-desktop-mode] .app {
   height: calc(100vh - var(--hr-dm-banner-h, 0px));
 }
 body[data-hr-desktop-mode] .sidebar { height: 100%; }
+/* …AND SO DOES EVERYTHING ELSE MEASURED AGAINST THE FULL VIEWPORT (b553).
+ * b550 shortened `.app` and released the sidebar and stopped there, so `.main`
+ * kept `height:100vh` (legacy.css:174). `.app` is a grid whose single row is
+ * `auto`, so a 100vh item stretches that row back to full height: at 922x423
+ * with the banner up, `.app` was 88..423 while `.main` ran 88..511 and
+ * `.app{overflow:hidden}` sliced the bottom 88px off EVERY screen. That is the
+ * band the buttons live in — FIGHT, EAT and STOP, the last Buy, the last
+ * Accept — so the cohort the banner exists for could read the advice and then
+ * not play. (It also dragged the sidebar back down with it: `height:100%` of a
+ * row that 100vh had re-inflated is still 100vh.)
+ *
+ * The rest of the class is fixed where each rule is written, by subtracting the
+ * same variable in place — the rail (theme-cozy.css), the chat dock and the two
+ * full-screen run modals (audit-overrides.css). Those carry `!important` for
+ * their own reasons and a gated override here would have to out-shout them; an
+ * unset variable is 0px, so the edited rule is byte-identical for every player
+ * without the banner and nothing new shouts. The four below need no such thing:
+ * a plain attribute gate outranks them. */
+body[data-hr-desktop-mode] .main {
+  height: calc(100vh - var(--hr-dm-banner-h, 0px));
+}
+/* The two scrollers that budget their own height off the viewport rather than
+   off a parent, each keeping its own ledger and now the banner on top of it. */
+body[data-hr-desktop-mode] #panel-skills .layout-2col-a,
+body[data-hr-desktop-mode] #panel-skills .layout-2col-b {
+  max-height: calc(100vh - 120px - var(--hr-dm-banner-h, 0px));
+}
+body[data-hr-desktop-mode] #chat-dock.full {
+  max-height: calc(100vh - 100px - var(--hr-dm-banner-h, 0px));
+}
+/* The run modals are `position:fixed; inset:0` at z-index 99999 and the banner
+   is at the maximum, so a dungeon or scavenger run opened with the banner up
+   lost its top 88px — the header and the way out of the run. */
+body[data-hr-desktop-mode] .dgn-run-overlay,
+body[data-hr-desktop-mode] .scv-overlay {
+  top: var(--hr-dm-banner-h, 0px);
+}
 
 body[data-theme] .topbar {
   background: linear-gradient(180deg, #1c1811, #131009);

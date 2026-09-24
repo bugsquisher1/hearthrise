@@ -2723,7 +2723,9 @@ body.in-combat #combat-area {
     max-height: 100vh !important;
     border-radius: 0 !important;
     padding: 18px 16px !important;
-    height: 100vh;
+    /* b553: minus the desktop-mode banner, which is fixed above this overlay at
+       a higher z-index; unset (0px) for every player who does not see it. */
+    height: calc(100vh - var(--hr-dm-banner-h, 0px));
   }
   .drm-foe { font-size:calc(56px * var(--ui-scale, 1)); }
   .drm-gather-board { height: 220px; }
@@ -2735,7 +2737,7 @@ body.in-combat #combat-area {
   .scv-modal {
     width: 100% !important;
     max-height: 100vh !important;
-    height: 100vh;
+    height: calc(100vh - var(--hr-dm-banner-h, 0px));   /* b553, as .drm-modal above */
     border-radius: 0 !important;
     padding: 18px 16px !important;
   }

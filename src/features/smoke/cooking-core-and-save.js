@@ -5097,6 +5097,98 @@ export default [
     }
   }),
 
+  /* ── regression suite — THE ALERT THAT CLIPPED THE BOTTOM OFF EVERY SCREEN ──
+     The banner's reservation shortened `.app` by its measured height and
+     released the sidebar, and stopped there. `.main` kept `height:100vh`,
+     and because `.app` is a grid whose single row is `auto`, a 100vh item
+     stretches that row back to the FULL viewport: the shell was 88..423 on a
+     922x423 landscape phone while the main column ran 88..511, and
+     `.app{overflow:hidden}` sliced off the bottom 88px of every screen — FIGHT,
+     EAT, STOP, the last Buy, the last Accept. The cohort the banner exists for
+     could read the advice and then not play.
+     The reservation test above measured the SHELL, which was correct, so it
+     stayed green through all of it; this one measures what the shell CONTAINS,
+     on a real screen reached the way a player reaches it. */
+  () => tryRun('b553: the desktop-mode banner must not clip the bottom of every screen', () => {
+    if (typeof window.__hrDesktopModeShowBanner !== 'function') { skip('detector not loaded'); return; }
+    const app = document.querySelector('.app');
+    const main = document.querySelector('.main');
+    if (!app || !main) { skip('no app shell'); return; }
+    const KEY = 'hr_desktopModeBannerDismissed'; let was = null;
+    try { was = sessionStorage.getItem(KEY); sessionStorage.removeItem(KEY); } catch (e) {}
+
+    const box = (e) => e.getBoundingClientRect();
+    const tag = (e) => (e.tagName + (e.id ? '#' + e.id : '.' + String(e.className || '').split(' ')[0])).slice(0, 34);
+    const scrolls = (e) => /(auto|scroll)/.test(getComputedStyle(e).overflowY)
+      && e.scrollHeight > e.clientHeight + 1;
+    /* Everything inside the shell that pokes past the bottom of the screen AND
+       has nothing between it and the shell that a player can scroll. Below the
+       fold of a SCROLLER is a list doing what lists do (the rail has been
+       `overflow-y:auto` for 300-odd builds); below the fold of an
+       `overflow:hidden` box is simply gone. Taken as a DELTA around the banner on top of that, so a
+       surface that was already spilling for its own reasons is not this test's
+       finding — what must be zero is what the BANNER puts there. */
+    const below = () => [...document.querySelectorAll('.app, .app *')].filter((e) => {
+      const b = box(e);
+      if (b.height <= 2 || b.bottom <= innerHeight + 1) return false;
+      for (let p = e.parentElement; p; p = p.parentElement) {
+        if (scrolls(p)) return false;
+        if (p === app || p === document.body) break;
+      }
+      return true;
+    });
+
+    const fixture = combatScreen();
+    let bar = null;
+    try {
+      window.showTab('combat');
+      try { window.stopCombat(); } catch (e) {}
+      fixture.G.activeMonster = null;
+      assert(fixture.CS.preview('rat'), 'preview() refused a live monster id');
+      const fight = document.querySelector('#panel-combat .fs-fight');
+      assert(fight && box(fight).height > 0, 'the Fight screen has no FIGHT button to measure');
+      const spillBefore = new Set(below());
+
+      bar = window.__hrDesktopModeShowBanner();
+      assert(bar && bar.isConnected, 'the banner did not build');
+      void app.offsetHeight;                       // the reservation is a reflow
+      const br = box(bar);
+      assert(br.height > 0, 'the banner has no box');
+      const ar = box(app), mr = box(main);
+
+      // 1. THE MAIN COLUMN FOLLOWS THE SHORTENED SHELL — the property the bug was.
+      assert(ar.bottom <= innerHeight + 1,
+        'the shell itself is off the ' + innerHeight + 'px screen (bottom ' + Math.round(ar.bottom) + ')');
+      assert(mr.bottom <= ar.bottom + 1,
+        'the main column still measures the FULL viewport: its bottom (' + Math.round(mr.bottom)
+          + ') is ' + Math.round(mr.bottom - ar.bottom) + 'px past the shortened shell (' + Math.round(ar.bottom)
+          + '), and .app{overflow:hidden} clips that band off the bottom of every screen');
+
+      // 2. …AND SO DOES EVERY OTHER THING IN IT. The banner adds no new spill.
+      const added = below().filter((e) => !spillBefore.has(e));
+      assert(!added.length, 'the banner pushed ' + added.length + ' element(s) below the ' + innerHeight
+        + 'px screen: ' + JSON.stringify(added.slice(0, 4).map(tag)));
+
+      // 3. AND THE PRIMARY CTA IS STILL PRESSABLE: on screen, or scrollable to.
+      const fits = () => { const b = box(fight); return b.top >= -1 && b.bottom <= innerHeight + 1; };
+      if (!fits()) fight.scrollIntoView({ block: 'center' });
+      const fb = box(fight);
+      assert(fits(), 'FIGHT is off a ' + innerHeight + 'px screen (' + Math.round(fb.top) + '..'
+        + Math.round(fb.bottom) + ') with nothing a player can scroll to bring it back');
+      /* …and the banner itself is not the thing on top of it. Deliberately not
+         "elementFromPoint returns FIGHT": this suite runs with the FTUE scrim up
+         and that is a different (and already-guarded) condition — what this test
+         owns is whether the ALERT covers the control. */
+      const hit = document.elementFromPoint(fb.left + fb.width / 2, fb.top + fb.height / 2);
+      assert(!hit || (hit !== bar && !bar.contains(hit)),
+        'FIGHT is on screen but the banner is drawn over it — the press lands on ' + tag(hit));
+    } finally {
+      try { window.__hrDesktopModeHideBanner(); } catch (e) {}
+      try { fixture.restore(); } catch (e) {}
+      try { if (was === null) sessionStorage.removeItem(KEY); else sessionStorage.setItem(KEY, was); } catch (e) {}
+    }
+  }),
+
   /* ── regression suite — THE SIDEWAYS RAIL WITH NO WAY TO KNOW IT SCROLLS ────
      The landscape destination rail is a sideways scroller on measured evidence
      (two rows of chips cost 229px of a 393px screen), and it left six

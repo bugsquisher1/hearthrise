@@ -407,7 +407,12 @@ body[data-theme="classic"] {
   body[data-theme] .bottom-nav {
     position: fixed !important;
     left: 0 !important;
-    top: 0 !important;
+    /* b553: the rail is viewport-anchored, so shortening the app shell does not
+       move it — its first two destinations sat UNDER the desktop-mode banner and
+       this rail is the ONLY navigation on a landscape phone. It starts below the
+       banner and gives back exactly that height. `--hr-dm-banner-h` is unset
+       unless the banner is on screen, so both terms are the old values. */
+    top: var(--hr-dm-banner-h, 0px) !important;
     bottom: 0 !important;
     right: auto !important;
     /* b284 (player's-eye QA): the rail was 64px with overflow-x:hidden, but
@@ -415,7 +420,7 @@ body[data-theme="classic"] {
        was physically sliced mid-word ("HARACT"). One token now drives the rail
        width and everything offset by it, so they can never drift apart. */
     width: calc(var(--rail-w, 64px) + var(--safe-l, 0px)) !important;
-    height: 100vh !important;
+    height: calc(100vh - var(--hr-dm-banner-h, 0px)) !important;
     flex-direction: column !important;
     justify-content: flex-start !important;
     align-items: stretch !important;
@@ -621,7 +626,10 @@ body[data-theme="classic"] {
     right: 0 !important;
     bottom: 0 !important;
     width: auto !important;
-    height: 100vh !important;
+    /* b553: …minus the desktop-mode banner, which is `position:fixed` at the very
+       top and so is not moved by the shortened app shell. `--hr-dm-banner-h` is
+       unset unless that banner is on screen, so this is 0px for everyone else. */
+    height: calc(100vh - var(--hr-dm-banner-h, 0px)) !important;
   }
 }
 
@@ -966,7 +974,7 @@ body[data-theme="classic"] {
   /* When user opens chat via the More menu, dock goes full-screen */
   #chat-dock.full {
     bottom: calc(56px + var(--safe-b, 0px)) !important;
-    height: calc(100vh - 56px - var(--safe-b, 0px) - 60px) !important;
+    height: calc(100vh - 56px - var(--safe-b, 0px) - 60px - var(--hr-dm-banner-h, 0px)) !important;
     width: 100% !important;
     right: 0 !important; left: 0 !important;
     border-radius: 12px 12px 0 0 !important;

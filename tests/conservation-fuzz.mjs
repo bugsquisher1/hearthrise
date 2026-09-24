@@ -1280,6 +1280,13 @@ async function runFuzz({ seed, ops, injection }) {
   const verdicts = Object.create(null);
   const divergences = [];
   const bump = (m, k) => { m[k] = (m[k] || 0) + 1; };
+  /* PHASE 0's leg and PHASE 1's coverage of the same path, MEASURED. The
+     equip_dupe incident (see PHASE 0) was invisible because nothing reported
+     how often the return-to-bag branch actually ran — a run with zero occupied
+     unequips printed the same summary as a run with ten. summarise() prints
+     these, so the leg cannot be deleted, and the bias cannot regress, without
+     the next run saying so out loud. */
+  const equip = { leg: false, unequips: 0, worn: 0 };
 
   // Rate buckets: the fuzz issues far more calls per wall-clock minute than a
   // player ever could, so it would spend most of a long run rate-limited and
@@ -1376,6 +1383,78 @@ async function runFuzz({ seed, ops, injection }) {
     [3, 'list_overqty'], [3, 'list_untradeable'], [3, 'cancel_foreign'],
     [3, 'buy_own'], [3, 'buy_poor'], [2, 'rate_storm'],
   ];
+
+  /* ── PHASE 0 — THE EQUIPMENT TRANSFER, ON EVERY SEED ──────────────────
+     hr_apply returns the worn unit to the bag in ONE place, and that place is
+     guarded: `if v_cur is not null then delete … ; insert into
+     player_inventory …` (the unequip branch). A slot that holds nothing takes
+     the guard's false arm, moves no value, and is therefore blind to every
+     defect in the transfer.
+
+     The random walk reached the true arm only by luck. `unequip` picks
+     `rng.pick(WEAR).equip_slot` with no regard for what the character is
+     wearing, so most unequips were no-ops against an empty slot, and whether
+     ANY unequip in a 400-op run landed on an occupied one was a property of
+     the seed. Measured 2026-09-24: the `equip_dupe` plant — the equipment row
+     surviving the unequip, the item worn AND held — SLIPPED on seed
+     3855906536 and was caught on seven other seeds, ~1 run in 8. It is what
+     reddened economy-selftests on `next` at 1a26e29a (GitHub run 35934075346,
+     `16/17 caught`), and it was never an S2 regression: S2 touches neither
+     hr_apply nor player_equipment, and the green on 186d4204 was a lucky seed.
+     The selftest self-seeds, so every run was rolling that die.
+
+     A plant that is caught on most seeds is not caught. The coverage a gate
+     depends on cannot be left to the RNG, so the transfer runs here, in the
+     open, before the walk: wear one unit, reconcile, take it off, reconcile.
+     It is net-zero on the books — the same item returns to the same bag at the
+     same count — so the random walk below starts from the position seeding
+     left, and PHASE 1 keeps its own unequip op for the COLLISION cases (a slot
+     that is empty, a slot re-worn, an item already listed) that a fixed leg
+     cannot reach. The bias added to that op covers the same path a second way;
+     this leg is what makes it a certainty rather than a likelihood. */
+  {
+    // Seeding has already spent this character's rate budget, and a leg that
+    // exists to remove a flake must not become one: roll the window first, the
+    // same clock simulation PHASE 1 does every 40 ops.
+    await rollWindows();
+    const w = WEAR[0];
+    const c = books.char(keys[0]);
+    const prior = c.equip.get(w.equip_slot) || null;
+
+    const rEq = await applyAs(c, c.version, uuidOf(rng),
+      { equip: { [w.equip_slot]: w.item_id }, journal: { kind: 'equip', intent: 'equip' } });
+    if (rEq.ok !== true) {
+      process.stderr.write(`HARNESS: PHASE 0 could not wear ${w.item_id} in ${w.equip_slot}: `
+        + `${JSON.stringify(rEq)}\n  The leg exists to guarantee the transfer path runs; it cannot `
+        + 'be skipped on a refusal, or the guarantee is back to being a coin flip.\n');
+      process.exit(2);
+    }
+    c.version += 1;
+    if (prior !== w.item_id) {
+      books.invAdd(c, w.item_id, -1);
+      if (prior) books.invAdd(c, prior, 1);
+      c.equip.set(w.equip_slot, w.item_id);
+    }
+    const r0 = await reconcile(db, books, { i: -1, op: 'phase0-equip' });
+    if (!r0.ok) { await db.close(); return { ok: false, seed, detail: r0.detail, opsRun: 0, counts, verdicts, divergences }; }
+
+    // THE ASSERTION THIS LEG WAS ADDED FOR: the slot is OCCUPIED, so this
+    // unequip takes hr_apply's `v_cur is not null` arm and the unit must come
+    // back to the bag exactly once — out of player_equipment and into
+    // player_inventory, never both.
+    const rUn = await applyAs(c, c.version, uuidOf(rng),
+      { equip: { [w.equip_slot]: null }, journal: { kind: 'equip', intent: 'unequip' } });
+    if (rUn.ok !== true) {
+      process.stderr.write(`HARNESS: PHASE 0 could not remove ${w.equip_slot}: ${JSON.stringify(rUn)}\n`);
+      process.exit(2);
+    }
+    c.version += 1;
+    books.invAdd(c, w.item_id, 1);
+    c.equip.delete(w.equip_slot);
+    const r1 = await reconcile(db, books, { i: -1, op: 'phase0-unequip' });
+    if (!r1.ok) { await db.close(); return { ok: false, seed, detail: r1.detail, opsRun: 0, counts, verdicts, divergences }; }
+    equip.leg = true;
+  }
 
   for (let i = 0; i < ops; i++) {
     if (i % 40 === 0) await rollWindows();
@@ -1508,8 +1587,20 @@ async function runFuzz({ seed, ops, injection }) {
         break;
       }
       case 'unequip': {
-        const slotName = rng.pick(WEAR).equip_slot;
+        /* PREFER A SLOT THIS CHARACTER IS ACTUALLY WEARING. `rng.pick(WEAR)`
+           alone drew from the catalogue, not from the character, so most
+           unequips were no-ops against an empty slot and hr_apply's return-to-
+           bag branch went unexercised for whole runs — the coverage hole PHASE 0
+           above documents and measures. The empty-slot draw still has to
+           happen (it is what asserts that removing nothing moves nothing), so
+           it keeps a quarter of them. */
+        const worn = [...c.equip.keys()];
+        const slotName = (worn.length && rng() < 0.75)
+          ? rng.pick(worn)
+          : rng.pick(WEAR).equip_slot;
         const cur = c.equip.get(slotName) || null;
+        equip.unequips += 1;
+        if (cur) equip.worn += 1;
         const intentId = uuidOf(rng);
         const r = await applyAs(c, c.version, intentId,
           { equip: { [slotName]: null }, journal: { kind: 'equip', intent: 'unequip' } });
@@ -1883,7 +1974,7 @@ async function runFuzz({ seed, ops, injection }) {
   const final = await reconcile(db, books, { i: ops, op: 'final' });
   await db.close();
   if (!final.ok) return { ok: false, seed, detail: final.detail, opsRun: ops, counts, verdicts, divergences };
-  return { ok: true, seed, opsRun: ops, counts, verdicts, divergences, accrual, budget };
+  return { ok: true, seed, opsRun: ops, counts, verdicts, divergences, accrual, budget, equip };
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -2614,6 +2705,11 @@ function summarise(res) {
     const L = res.budget.limits; const U = res.budget.finalUsed;
     process.stdout.write(`  day budget : ${res.budget.checks}/7 legs · ceilings gold ${L.gold} / xp ${L.xp} / qty ${L.qty}`
       + ` · probe finished at gold ${U.gold} xp ${U.xp} qty ${U.qty} over ${U.rows} ledger rows\n`);
+  }
+  if (res.equip) {
+    const e = res.equip;
+    process.stdout.write(`  equipment  : PHASE 0 transfer leg ${e.leg ? 'ran' : 'DID NOT RUN'}`
+      + ` · ${e.worn}/${e.unequips} PHASE 1 unequips took hr_apply's return-to-bag branch\n`);
   }
   if (res.divergences && res.divergences.length) {
     process.stdout.write('  DIVERGENCES (harness model vs server — not conservation violations):\n');

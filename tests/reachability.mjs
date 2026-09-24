@@ -63,6 +63,28 @@ export const VIEWPORTS = [
   { w: 922, h: 423 },
 ];
 
+/* THE DESKTOP-MODE BANNER PASS (b553), and it is a SECOND pass on purpose.
+   Until this lane the banner reached this guard only by ACCIDENT, and on one
+   machine. Playwright leaves `screen` equal to the viewport, so at 922x423
+   `screen.height` is 423 — under the detector's PHONE_MAX_SHORT_EDGE of 500 —
+   and on a Windows PC with a touch digitizer `navigator.maxTouchPoints` is 10
+   with a desktop UA, so `looksLikeDesktopMode()` came back TRUE and the banner
+   mounted inside the probe unasked. KILL_OVERLAYS then removed it, which is
+   why the four ordinary passes above say nothing about it either way. GitHub's
+   runner has no digitizer, the predicate is false there, and the banner was
+   never on screen for any of it. That is exactly how b553 shipped in b550: the
+   shortened shell left `.main` on `height:100vh`, `.app{overflow:hidden}` cut
+   the bottom 88px off every screen, and FIGHT/EAT/STOP, the last Buy and the
+   last Accept were unreachable for the very cohort the banner exists for.
+   So the banner is now MOUNTED DELIBERATELY, by the detector's own exported
+   `__hrDesktopModeShowBanner()`, at the one viewport a phone in 'Desktop site'
+   mode actually presents — and the environment above is pinned so it can never
+   mount by accident again. Same CTAs, same PROBE, findings labelled
+   `922x423+banner`. */
+export const BANNER_PASSES = [
+  { w: 922, h: 423, banner: true },
+];
+
 /* THE DECLARED CTAs.
      id      — what fails in the output
      open    — steps to reach the screen, run in the page before measuring
@@ -408,14 +430,53 @@ function PROBE(spec) {
       return { churning: true, el: name(el), attempts };
     }
     const r = el.getBoundingClientRect();
-    const inView = spec.noScroll ? fitsUnscrolled : fits();
 
-    const cx = r.left + r.width / 2;
-    const cy = r.top + r.height / 2;
+    /* HIT-TEST THE POINT A PLAYER CAN ACTUALLY CLICK, which is not always the
+       geometric centre — and the banner pass is what proved it. At 922x423
+       with the desktop-mode banner up, `#panel-character`'s window is 157px
+       while `#csk-account` is a 336px BLOCK: scrolled to the bottom of its own
+       list it runs y 65..401 inside a window of 258..415, so its centre at
+       y=233 is a hundred pixels above the window and elementFromPoint there
+       returns the quest strip. The guard called that COVERED. It is not: every
+       cell of that block is readable and clickable, one scroll position apart,
+       which is what a container twice the height of its window means. The
+       geometric centre of a subject bigger than its own scroll window is a
+       point no scroll position can expose, so asserting on it is asserting on
+       an artefact — CLAUDE.md §2, a guard that is wrong is fixed, not
+       tolerated and not loosened.
+       So the point is the centre of the VISIBLE rect: the box intersected with
+       every clipping ancestor and the viewport. This is strictly MORE
+       assertive than what it replaces, because an intersection that comes back
+       EMPTY is now a failure in its own right — a control clipped entirely out
+       of existence by an `overflow:hidden` ancestor used to pass `fits()` on
+       the strength of a box that was inside the viewport but painted nowhere,
+       which is b553's exact shape (`.app{overflow:hidden}` slicing the bottom
+       88px off every screen). It cannot make a covered control green: the hit
+       test still runs, on a point inside the subject, and a scrim over the
+       visible area still blocks it (mutation M3). */
+    const clipOf = (node) => {
+      let top = 0, left = 0, right = innerWidth, bottom = innerHeight;
+      for (let p = node.parentElement; p; p = p.parentElement) {
+        const cs = getComputedStyle(p);
+        if (cs.overflowX === 'visible' && cs.overflowY === 'visible') continue;
+        const b = p.getBoundingClientRect();
+        top = Math.max(top, b.top); left = Math.max(left, b.left);
+        right = Math.min(right, b.right); bottom = Math.min(bottom, b.bottom);
+      }
+      return { top, left, right, bottom };
+    };
+    const clip = clipOf(el);
+    const vTop = Math.max(r.top, clip.top), vBottom = Math.min(r.bottom, clip.bottom);
+    const vLeft = Math.max(r.left, clip.left), vRight = Math.min(r.right, clip.right);
+    const clippedAway = !(vRight - vLeft > 1 && vBottom - vTop > 1);
+    const inView = spec.noScroll ? fitsUnscrolled : (fits() && !clippedAway);
+
+    const cx = (vLeft + vRight) / 2;
+    const cy = (vTop + vBottom) / 2;
     // A centre outside the viewport cannot be hit-tested at all — say so
     // rather than reporting whatever elementFromPoint returns for a clamped
     // point, which is how "11px visible" reads as a pass.
-    const inside = cx >= 0 && cx < innerWidth && cy >= 0 && cy < innerHeight;
+    const inside = !clippedAway && cx >= 0 && cx < innerWidth && cy >= 0 && cy < innerHeight;
     const hit = inside ? document.elementFromPoint(cx, cy) : null;
     /* AN ANCESTOR COUNTS AS A HIT ONLY IF IT IS A NEAR ONE, and this is not
        pedantry — it is the difference between a live assertion and a dead one.
@@ -482,6 +543,8 @@ function PROBE(spec) {
 
     return {
       el: name(el), scrolled: Math.round(moved), noScroll: !!spec.noScroll,
+      clippedAway,
+      clip: `${Math.round(clip.top)}..${Math.round(clip.bottom)}`,
       top: Math.round(r.top), bottom: Math.round(r.bottom),
       left: Math.round(r.left), right: Math.round(r.right),
       vh: innerHeight, vw: innerWidth,
@@ -531,22 +594,29 @@ const SEED = () => {
 /* Overlays are dismissed rather than tolerated: the daily-reward scrim is a
    full-viewport fixed layer, so with it up EVERY control on EVERY screen fails
    the hit test and the guard says nothing useful about layout. */
-const KILL_OVERLAYS = () => {
+const KILL_OVERLAYS = (keepBanner) => {
   try { if (window.G) { window.G.ftueDone = true; window.G.ftueStep = 99; } } catch (e) {}
+  window.__hrKeepDesktopBanner = !!keepBanner;
   const kill = () => {
-    /* The desktop-mode banner is a HARNESS ARTIFACT here and dismissing it is
-       not sweeping a defect under the rug. Headless Chromium reports
-       `navigator.maxTouchPoints = 10`, and Playwright sets `screen` equal to
-       the viewport — so at 922x423 the detector sees "touch device, 423px
-       short edge, non-mobile UA" and correctly concludes desktop-mode. On the
-       real device that clause cannot fire (a phone UA with DPR 2.75 fails
-       `!uaMobile || lowDpr`). The banner is `position:fixed; top:0`, so
-       leaving it up makes every top-of-screen control report COVERED and the
-       guard stops saying anything about layout. The detector's own thresholds
+    /* On the ORDINARY passes the desktop-mode banner is a HARNESS ARTIFACT and
+       removing it is not sweeping a defect under the rug — it is removing a
+       variable the machine, not the product, supplies. Chromium on a PC with a
+       touch digitizer reports `navigator.maxTouchPoints = 10`, and Playwright
+       leaves `screen` equal to the viewport, so at 922x423 the detector saw
+       "touch device, 423px short edge, non-mobile UA" and mounted the banner —
+       on THAT machine and not on GitHub's runner, which has no digitizer. A
+       guard whose subject depends on the host's hardware asserts nothing, in
+       either direction, which is why the context below now pins `screen` and
+       `hasTouch` and the predicate is false by construction everywhere.
+       The banner is still tested, deliberately, by BANNER_PASSES: that pass
+       sets `keepBanner` and mounts it through the detector's own entry point,
+       so this sweep must leave it alone there. The detector's own thresholds
        are asserted directly by the b371 test in smoke-test.js, which is the
        right place for them. */
-    const dm = document.getElementById('hr-desktopmode-banner');
-    if (dm) dm.remove();
+    if (!window.__hrKeepDesktopBanner) {
+      const dm = document.getElementById('hr-desktopmode-banner');
+      if (dm) dm.remove();
+    }
     /* TOASTS ARE HIDDEN, and this is a scope decision rather than a blind eye.
        `.notifs` is a transient stack with a 4-9 second lifetime that lands
        wherever the last combat burst left it, so asserting around it makes
@@ -630,10 +700,30 @@ function describe(st) {
 
 export async function reachabilityGuard(browser, url, opts = {}) {
   const problems = [];
-  const viewports = opts.viewports || VIEWPORTS;
+  const viewports = opts.viewports || [...VIEWPORTS, ...BANNER_PASSES];
 
   for (const vp of viewports) {
-    const ctx = await browser.newContext({ viewport: { width: vp.w, height: vp.h }, deviceScaleFactor: 1 });
+    const ctx = await browser.newContext({
+      viewport: { width: vp.w, height: vp.h },
+      deviceScaleFactor: 1,
+      /* PIN THE DEVICE, because this guard was reading the host's hardware
+         (2026-09-24). Playwright defaults `screen` to the viewport, so at
+         922x423 `screen.height` was 423 — under the detector's
+         PHONE_MAX_SHORT_EDGE of 500 — and on a PC with a touch digitizer
+         `navigator.maxTouchPoints` is 10 against a desktop UA. Every clause of
+         `looksLikeDesktopMode()` passed and the desktop-mode banner mounted
+         inside the probe by accident; GitHub's runner has no digitizer, so the
+         same guard on the same SHA had a different page in front of it. That
+         is how b553 (`.main` still 100vh under the shortened shell) shipped in
+         b550 unseen by a guard that was, by luck, looking straight at it.
+         A physically large screen and no touch make the predicate FALSE by
+         construction on every machine, so the passes below measure the layout
+         a desktop player gets and nothing else. The banner is not dropped: it
+         is mounted on purpose by BANNER_PASSES, through the detector's own
+         `__hrDesktopModeShowBanner()`. */
+      screen: { width: 1920, height: 1080 },
+      hasTouch: false,
+    });
     const page = await ctx.newPage();
     await page.addInitScript(() => { window.__HR_TEST_HARNESS__ = true; });
     try {
@@ -642,7 +732,33 @@ export async function reachabilityGuard(browser, url, opts = {}) {
       await page.waitForTimeout(3_500);
       await page.evaluate(SEED);
       await page.waitForTimeout(400);
-      await page.evaluate(KILL_OVERLAYS);
+      await page.evaluate(KILL_OVERLAYS, !!vp.banner);
+      /* MOUNT THE BANNER THROUGH THE PRODUCT'S OWN PATH. `build()` is what the
+         detector calls when it fires for real, so the banner that appears here
+         is the shipped one — same inline styles, same ResizeObserver, same
+         `reserve()` publishing `--hr-dm-banner-h` and flagging the body. No
+         part of the reservation is faked, which is the point: the CTAs below
+         are then measured against art-direction.css's real release of it.
+         Waiting for BOTH the attribute and a non-zero measured height is what
+         makes the pass honest — a banner that mounted but never published its
+         height would leave the shell full-size and the pass would be green on
+         a page the release never touched. A timeout here is reported as a
+         harness failure by the catch below, which is the correct verdict: the
+         pass could not be set up, so it has asserted nothing. */
+      if (vp.banner) {
+        await page.evaluate(() => {
+          try { window.__hrDesktopModeShowBanner && window.__hrDesktopModeShowBanner(); } catch (e) {}
+        });
+        await page.waitForFunction(() => {
+          const bar = document.getElementById('hr-desktopmode-banner');
+          if (!bar || !bar.isConnected) return false;
+          if (document.body.getAttribute('data-hr-desktop-mode') !== '1') return false;
+          const h = parseFloat(
+            getComputedStyle(document.documentElement).getPropertyValue('--hr-dm-banner-h')) || 0;
+          return h > 0;
+        }, { timeout: 20_000 });
+        await page.waitForTimeout(400);
+      }
       /* The mutation sheet goes in LAST and with `!important`, so it outranks
          the real stylesheets it is undoing. It is appended to <head> rather
          than written to disk: a harness that edits production CSS can leave
@@ -673,9 +789,21 @@ export async function reachabilityGuard(browser, url, opts = {}) {
            so this spec's screen is not measured under a live combat tick. */
         if (!spec.open.includes('fight')) await page.evaluate(QUIESCE).catch(() => {});
         // Re-kill: opening a screen can raise a new modal (level-up, tour step).
-        await page.evaluate(() => { try { window.__hrKillOverlays && window.__hrKillOverlays(); } catch (e) {} });
+        /* And on a banner pass, re-assert the banner the same way. The detector
+           re-evaluates on every `resize`/`orientationchange`, and with the
+           device pinned its verdict is false — so any stray resize would tear
+           the banner down mid-pass and the rest of the CTAs would be measured
+           on a full-height shell without saying so. `build()` is idempotent
+           (it returns null when the banner is already mounted), so on the
+           ordinary path this costs one no-op call. */
+        await page.evaluate((keepBanner) => {
+          try { window.__hrKillOverlays && window.__hrKillOverlays(); } catch (e) {}
+          if (keepBanner) {
+            try { window.__hrDesktopModeShowBanner && window.__hrDesktopModeShowBanner(); } catch (e) {}
+          }
+        }, !!vp.banner);
         const r = await page.evaluate(PROBE, spec).catch((e) => ({ threw: String(e && e.message || e).slice(0, 120) }));
-        const at = `${vp.w}x${vp.h} ${spec.id}`;
+        const at = `${vp.w}x${vp.h}${vp.banner ? '+banner' : ''} ${spec.id}`;
         if (r.threw) { problems.push(`${at}: probe threw — ${r.threw}`); continue; }
         if (r.skipped) continue;
         if (r.missing) { problems.push(`${at}: the control does not exist or is not laid out (${spec.sel})`); continue; }
@@ -692,7 +820,11 @@ export async function reachabilityGuard(browser, url, opts = {}) {
         if (!r.inView) {
           problems.push(`${at}: ` + (r.noScroll
             ? `BELOW THE FOLD — this control must be visible WITHOUT scrolling`
-            : `OFF SCREEN after scrolling everything a player can scroll (${r.scrolled}px of travel used)`)
+            : r.clippedAway
+              ? `CLIPPED AWAY — no part of this control is painted: its box survives inside the `
+                + `viewport but every pixel of it falls outside the clipping ancestors (visible band `
+                + `y ${r.clip}), so it is on screen only in the arithmetic`
+              : `OFF SCREEN after scrolling everything a player can scroll (${r.scrolled}px of travel used)`)
             + ` — ${r.el} at y ${r.top}..${r.bottom} in a ${r.vh}px viewport, `
             + `x ${r.left}..${r.right} in ${r.vw}. ${spec.why}` + describe(r.state));
           continue;
@@ -703,7 +835,7 @@ export async function reachabilityGuard(browser, url, opts = {}) {
         }
       }
     } catch (err) {
-      problems.push(`${vp.w}x${vp.h}: harness failure — ${err.message}`);
+      problems.push(`${vp.w}x${vp.h}${vp.banner ? '+banner' : ''}: harness failure — ${err.message}`);
     } finally {
       await ctx.close().catch(() => {});
     }
@@ -832,6 +964,27 @@ const MUTATIONS = [
     expect: ['home/CLAIM'],
   },
   {
+    /* b553 VERBATIM, and the one mutation in this file that could not be
+       written before the banner pass existed. b550 shortened `.app` by the
+       banner's measured height and released the sidebar and stopped there, so
+       `.main` kept `height:100vh` from legacy.css:174. `.app` is a grid whose
+       single row is `auto`, so a 100vh item stretched the row back to full
+       height: at 922x423 with the banner up, `.app` ran 110..423 while `.main`
+       ran 110..533 and `.app{overflow:hidden}` sliced the bottom 110px off
+       EVERY screen — the band FIGHT, EAT and STOP, the last Buy and the last
+       Accept live in. The cohort the banner exists for could read the advice
+       and then not play.
+       This plants the one declaration b553 removed, on top of the real banner,
+       which is the only state the defect ever existed in: that is why the
+       viewport carries `banner: true` and why an ordinary 922x423 pass cannot
+       host this mutation at all — with no banner the body attribute is absent
+       and the rule below does not match anything. */
+    name: 'M6 — put `.main` back on 100vh under the shortened shell (b553 verbatim: the bottom band of every screen sliced off behind the desktop-mode banner)',
+    css: 'body[data-hr-desktop-mode] .main{height:100vh !important}',
+    viewports: [{ w: 922, h: 423, banner: true }],
+    expect: ['combat/FIGHT'],
+  },
+  {
     name: 'M3 — drop a fixed bar over the bottom of the screen (proves the HIT TEST is live, not just the box maths)',
     css: 'body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:140px;'
        + 'background:rgba(0,0,0,.5);z-index:2147483000;pointer-events:auto}',
@@ -874,7 +1027,9 @@ if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}`
       process.exitCode = 1;
     } else {
       console.log(`Reachability guard — every declared CTA is on screen and hit-testable at `
-        + VIEWPORTS.map((v) => `${v.w}x${v.h}`).join(', ') + '.');
+        + VIEWPORTS.map((v) => `${v.w}x${v.h}`).join(', ')
+        + ', and at ' + BANNER_PASSES.map((v) => `${v.w}x${v.h}+banner`).join(', ')
+        + ' with the desktop-mode banner up.');
     }
   }
   await browser.close();

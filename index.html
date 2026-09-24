@@ -255,7 +255,7 @@
          then hide it in CSS" arrangement is precisely what made dungeons and
          the flagship clan raid undiscoverable. A smoke test now guards it. -->
     <button class="nav-btn" data-tab="events"><span class="ic"></span><span class="lbl">Events</span></button>
-    <button class="nav-btn" data-tab="bounty"><span class="ic"></span><span class="lbl">Bounty Board</span></button>
+    <button class="nav-btn" data-tab="bounty"><span class="ic"></span><span class="lbl">Bounty</span></button>
     <!-- b232: Skills is a standalone door again (above). The Character screen
          reverted to an overview (grid + account); openSkillDetail/showTab('skills')
          land on #panel-skills where training happens. -->
@@ -296,6 +296,13 @@
          disappears. Smoke tests guard the entry and the routing. -->
     <div class="nav-group-label">Realm</div>
     <button class="nav-btn" data-tab="clan"><span class="ic"></span><span class="lbl">Clan</span></button>
+    <!-- M8 slice 1: PARTY. Directly under Clan because the two are the same
+         KIND of thing at two scales — the hold you belong to and the handful of
+         people you are out with tonight — and a player looking for one will
+         look for the other beside it. Static markup, like every entry in this
+         rail: the b220 lesson is that an injected-then-hidden nav entry is how
+         a whole feature disappears. -->
+    <button class="nav-btn" data-tab="party"><span class="ic"></span><span class="lbl">Party</span></button>
     <!-- b230 (Tyler): "'shops' should be under Realm". Trade is something you
          do with the realm — the counter in the village, the boards other
          players post to, and the merchant who takes real coin. One door,
@@ -586,6 +593,20 @@
       </div>
     </section>
 
+    <!-- ── PARTY (M8 slice 1) ──
+         MEMBERSHIP ONLY. Every row in here is painted from what the server
+         answered — src/net/party.js reads it, src/render/party-panel.js draws
+         it, and nothing between them holds a roster of its own. -->
+    <section class="panel" id="panel-party">
+      <!-- NO CARD HEAD, for the Clan Seat's reason one card up: the rail entry
+           says "Party", the panel's own first line says "Your party", and a
+           third "Party" between them is the same word three times inside 80px
+           — which on a 423px-tall landscape phone is most of a member row. -->
+      <div class="card" id="party-card">
+        <div class="card-body" id="party-panel"></div>
+      </div>
+    </section>
+
     <!-- ── SHOPS ──────────────────────────────────────────────────────────
          ONE destination, three toggles (Tyler, b230): Local Shop = the
          village counter, Market = the player exchange, Premium Shop = real
@@ -703,6 +724,7 @@
            labels still carry them and icon-set.js strips those at runtime;
            nothing new should be added for it to strip. -->
       <button class="btn tap" data-tab="clan">Clan</button>
+      <button class="btn tap" data-tab="party">Party</button>
       <button class="btn tap" data-tab="inventory">🎒 Items</button>
       <button class="btn tap" data-tab="house">🏠 House</button>
       <!-- Stable is a homestead fixture; static route so it is reachable on
@@ -1003,6 +1025,11 @@
        HearthriseWorkersNet to fire hr_worker_hire / hr_worker_assign once the
        crew is server-owned. Must load before features/workers.js. -->
   <script src="src/net/workers.js?v=552"></script>
+  <!-- M8 slice 1 — PARTY MEMBERSHIP. Classic IIFE (window global) like the two
+       above; render/party-panel.js is the only caller. It reads hr_party_view
+       by POST and never with { get: true }, and never at the envelope's
+       cadence — SEC_PARTIES_M8_2026-09-23.md findings B7 and B8. -->
+  <script src="src/net/party.js?v=552"></script>
   <!-- THE SIGN-UP DOOR'S RULES. Pure, no DOM, no network — the confirm-link
        return target, what an auth-callback URL IS, the resend cooldown, and why
        an invite code was refused. MUST load before the account wall: the wall
@@ -1127,6 +1154,10 @@
   <!-- The Hunt panel (docs/design/HUNT_ANALYZER_UI.md). Renders ONLY the
        server's projection; nothing on it is computed or predicted client-side. -->
   <script src="src/render/hunt-panel.js?v=552"></script>
+  <!-- The Party screen (M8 slice 1: MEMBERSHIP only). Draws src/net/party.js's
+       projection and nothing else — no client-held roster, no predicted join.
+       Must load after it; both are classic scripts, so source order is enough. -->
+  <script src="src/render/party-panel.js?v=552"></script>
   <!-- Equipment bonuses — 5th render-layer extraction out of legacy.js; the
        renderEquipmentStatsHTML markup + openEquipmentBonuses modal moved out,
        the getEquipmentTotals/getArmorSetBonus logic stayed. Re-exports both onto

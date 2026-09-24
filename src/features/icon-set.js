@@ -219,6 +219,10 @@
     // a shield — the destination is a keep you build, and it has to read as a
     // different KIND of thing from navSocial's podium sitting under it.
     clan: 'uiCastle',
+    // M8 slice 1: the Party entry sits under Clan and must not read as a second
+    // castle. `uiPeople` is already in the atlas — a handful of figures against
+    // the keep above it, which is exactly the difference between the two.
+    party: 'uiPeople',
     // b230: one door for all three shops. `navStore` (a shopfront) and not
     // `navMarket` (a balance) or `gems` — the entry has to read as a PLACE you
     // walk into, the way the other two Realm entries are a castle and a

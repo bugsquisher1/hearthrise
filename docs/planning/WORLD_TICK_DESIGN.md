@@ -1712,6 +1712,14 @@ reasonable-looking fallback, not a mistake anybody typed.
 needs. `hr-accrue/index.ts` `runAccrual` builds it from the whole `hr_state_of`
 row. The difference, for a combat pointer, is eleven keys, and this is the list:
 
+> **ELEVEN HERE, NINE IN THE GUARD, and the two counts are different questions.**
+> Eleven is what this milestone found MISSING. Nine is what a production combat
+> tick actually *passes* that the old one did not, and it is the number lane
+> M1f's `C16` makes load-bearing — `ammoCarry` is null on every database today
+> (`player_state.ammo_carry` does not exist) and `attended` is a refusal rather
+> than a value (16.6), so neither can be shown to move a window. Read the guard
+> for what is asserted; read this list for what was wrong.
+
 | input | what it drives | direction if omitted |
 |---|---|---|
 | **`autoEatEnabled` / `autoEatFood` / `autoEatPct`** | `fx.autoEat` → `resolveAutoEat` | **UNDER-PAY, catastrophically** |
@@ -1773,26 +1781,32 @@ The fold law (§6) classifies every delta key. Gather's flush only ever exercise
 in `APPEND`, and **three of its per-call clamps are re-checked after the fold
 for the first time**. All three were measured to bite on ordinary play.
 
-**(a) `progress` — measured 69 ops against `hr_apply`'s cap of 64.**
+**(a) `progress` — measured 73 ops against `hr_apply`'s cap of 64.**
 `c_max_progress_ops constant int := 64` (2026-09-14-hr-apply-restatement.sql
 :316). A combat window files up to **ten** progress ops — `stat:kills`,
 `stat:crits`, `stat:deaths` (lifetime), `stat:deaths` (UTC day), `stat:rare_drops`,
 the goal counters (`ev:kill_any`, `ev:kill_monster:<id>`, `ev:loot:<item>` …),
 the modal-goal daily rows, and a `flag:recipe:<id>` for every recipe scroll that
 dropped. Nine of those windows is ONE 90 s flush at the shipped 10 s cadence.
-Measured on the M3 fixtures over ten minutes, raw ops per flush → folded
-(`node tests/world-tick-combat-parity.mjs --verbose` reprints this on every run):
 
-| fixture | flush 1 | 2 | 3 | 4 | 5 | 6 |
-|---|---|---|---|---|---|---|
-| goblin grind | 55→7 | 56→9 | 52→6 | 58→11 | 56→9 | **64**→11 |
-| auto-eat, bag empties | **68**→9 | **65**→9 | **65**→9 | 62→9 | **65**→9 | 62→9 |
-| opens Knocked Out | 0→0 | 32→9 | 63→11 | **65**→11 | 54→9 | 53→7 |
-| bow vs rat | **65**→9 | **66**→9 | 59→8 | 63→8 | **65**→9 | **69**→9 |
+The number below is the WORST any nine consecutive settled windows could file,
+not an aligned partition of the span — a flush boundary is wherever the clock
+puts it, so the conservative reading is the only honest one. It is what
+`node tests/world-tick-combat-parity.mjs --verbose` prints on every run, so this
+table cannot drift from the guard:
+
+| fixture | worst 9-window flush | folded |
+|---|---|---|
+| away goblin grind | **73** | 11 |
+| auto-eat, bag empties | **72** | 11 |
+| bow vs rat | **65** | 9 |
+| opens Knocked Out | 63 | 11 |
+| the NINE combat inputs | 47 | 11 |
+| seven falls deep (spends its span knocked out) | 3 | 3 |
 
 **Anything over 64 is `too_many_progress_ops`, which refuses the whole flush
-window.** Three of the four fixtures are over it on an ORDINARY fight, and the
-fourth touches 64 exactly. So the combat flush folds `progress` by
+window.** Three of the six measuring fixtures are over it on an ORDINARY fight
+and a fourth is one op under. So the combat flush folds `progress` by
 `(kind, key, period, state)` and sums `add`.
 
 That is a FOLD and not a clamp, and the distinction is the whole argument for
@@ -1945,7 +1959,7 @@ and not about combat.
 | 3 | no recovery | a window can be **entirely recovery** and must still settle | 16.1; RECOVER-2 |
 | 4 | bag is written only | bag is **spent** (auto-eat) and read back | 16.2; `advance()` carries it |
 | 5 | pointer changes only on a level stop | **retreat** idles the pointer mid-flush (measured: a weak character retreats and 58 of 60 windows then refuse `no_activity`) | the batch CLOSES on an `activity` key and the character leaves the roster; C5 |
-| 6 | ≤2 progress ops/window | up to **10**, and **69** in a 90 s flush against a cap of 64 | the progress fold, 16.5(a) |
+| 6 | ≤2 progress ops/window | up to **10**, and **73** in a 90 s flush against a cap of 64 | the progress fold, 16.5(a) |
 | 7 | `hearthfind` possible but rare | same key, and the fold turns two into an ARRAY `hr_apply` refuses | 16.5(b) |
 | 8 | no attended surface | the attended top-up cannot be decomposed | refused, 16.6 |
 | 9 | 8 engine inputs | **19** — eleven more, two of them P0 | 16.4, C1 |

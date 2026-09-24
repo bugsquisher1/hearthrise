@@ -22,8 +22,9 @@
       "name": "away goblin grind — the drop table, and the progress-op volume",
       "why": [
         "The ordinary unattended night, and the one that measured the progress",
-        "cliff: 10 windows of progress ops per window and 65 in one 90 s flush",
-        "against hr_apply's c_max_progress_ops = 64. Also the only fixture that",
+        "cliff: up to 10 progress ops per window, and its worst nine consecutive",
+        "windows file 73 against hr_apply's c_max_progress_ops of 64 — the",
+        "highest of any fixture here. Also the only fixture that",
         "reaches the rare rows (goblin_seal, goblin_totem, bronze_sword), which is",
         "what makes the stream-health arm mean anything on a drop-table channel."
       ],

@@ -6,7 +6,112 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 72 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withFarmServer, withClaimServer, xpOf, predZero, xpZero, goldOf, snapshotG, restoreG, restoreGAndRecord, TYPE_FLOOR, typeHandoffOwner, typeTokenPx, TYPE_OWNED_SHEETS, on, snapshot, decideRestore, decideSessionEvent } from './_harness.js?v=552';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withFarmServer, withClaimServer, xpOf, predZero, xpZero, goldOf, snapshotG, restoreG, restoreGAndRecord, TYPE_FLOOR, typeHandoffOwner, typeTokenPx, TYPE_OWNED_SHEETS, on, snapshot, decideRestore, decideSessionEvent, stubSignedIn, drain } from './_harness.js?v=552';
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   M8 SLICE 1 — THE PARTY PANEL'S RIG.
+
+   A server-shaped realm behind a stubbed `window.fetch`, shared by the two
+   END-TO-END arms below (PARTY-1 and PARTY-2) so neither carries its own copy;
+   PARTY-3..7 need no realm at all, because the renderer is pure. It answers the
+   three table reads and the five verbs the way the applied migrations answer —
+   2026-09-23-m8-parties-s1-{1-tables,2-verbs}.sql — and it RECORDS every
+   request, because the negative arm's subject is not what the panel drew but
+   what the client asked for (findings B7 and B8).
+
+   The numbers it hands back are deliberately ones the client could not derive:
+   a combat level it has no skills for, an hp pair belonging to another account.
+   A test that asserts the panel shows 43 can only pass if 43 came off the wire.
+   ══════════════════════════════════════════════════════════════════════════ */
+const partyRig = () => {
+  const realFetch = window.fetch;
+  const calls = [];
+  const WREN = { name: 'Wren', combat_level: 57, hp: 38, hp_max: 61, recovering_until: null, share_bp: null, xp: null, gold: null };
+  const BRAM = { name: 'Bram', combat_level: 43, hp: 12, hp_max: 74, share_bp: null, xp: null, gold: null,
+                 recovering_until: new Date(Date.now() + 20 * 60000).toISOString() };
+  const world = {
+    member: [],
+    view: null,
+    invites: [{ id: 'inv-1', party_id: 'P9', created_at: new Date().toISOString(),
+                expires_at: new Date(Date.now() + 11 * 60000).toISOString() }],
+    inviteAnswer: { ok: false, error: 'invite_target_unavailable' },
+  };
+  const answer = (u) => {
+    if (u.indexOf('/rpc/hr_party_create') !== -1) {
+      world.member = [{ party_id: 'P1', role: 'leader' }];
+      world.view = { ok: true, party_id: 'P1', members: [WREN] };
+      world.invites = [];
+      return { ok: true, party_id: 'P1', role: 'leader', members: 1 };
+    }
+    if (u.indexOf('/rpc/hr_party_invite') !== -1) {
+      const r = world.inviteAnswer;
+      /* A SUCCESSFUL INVITE IS ANSWERED `{ok:true, sent:true}` AND NOTHING ELSE
+         — the verb tells the sender nothing about the target. Bram appears in
+         the ROSTER, i.e. only once the realm says he is there. */
+      if (r.ok) world.view = { ok: true, party_id: 'P1', members: [WREN, BRAM] };
+      return r;
+    }
+    if (u.indexOf('/rpc/hr_party_kick') !== -1) {
+      world.view = { ok: true, party_id: 'P1', members: [WREN] };
+      return { ok: true, kicked: true, members: 1 };
+    }
+    if (u.indexOf('/rpc/hr_party_leave') !== -1) {
+      world.member = []; world.view = null;
+      return { ok: true, left: true, dissolved: true, members: 0 };
+    }
+    if (u.indexOf('/rpc/hr_party_view') !== -1) return world.view || { ok: false, error: 'not_in_party' };
+    if (u.indexOf('party_member?') !== -1) return world.member;
+    if (u.indexOf('party_invite?') !== -1) return world.invites;
+    if (u.indexOf('party?select=id,size_cap') !== -1) return world.member.length ? [{ id: 'P1', size_cap: 4 }] : [];
+    return [];
+  };
+  window.fetch = (url, init) => {
+    const u = String(url);
+    const method = (init && init.method) || 'GET';
+    let body = null;
+    try { body = (init && init.body) ? JSON.parse(init.body) : null; } catch (e) { body = null; }
+    calls.push({ url: u, method, body });
+    const payload = answer(u);
+    return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(payload) });
+  };
+  const unstub = stubSignedIn(0);
+  /* WHO THE LOCAL PLAYER IS. The panel marks your own row and withholds Remove
+     from it; without pinning the name that branch is never taken and the test
+     would pass on a panel that offers a leader a button the server answers
+     `bad_party` to. Restored with everything else. */
+  const I = window.HearthriseIdentity;
+  const realName = I && I.displayName;
+  if (I) I.displayName = () => 'Wren';
+  window.HearthriseParty.__resetForTest();
+  const el = (sel) => document.querySelector('#party-panel ' + sel);
+  return {
+    world, calls, el,
+    rpcs: (n) => calls.filter((c) => c.url.indexOf('/rpc/' + n) !== -1),
+    text: () => (document.getElementById('party-panel') || { textContent: '' }).textContent,
+    open: async () => { window.showTab('party'); await drain(); await drain(); },
+    /* TYPE A NAME AND SUBMIT, re-reading the live nodes every time: the panel
+       replaces its own innards on each read, so a field captured before a
+       repaint is a detached node and the keystrokes go nowhere. That is not a
+       test detail — it is the bug a repaint-on-every-read panel invites. */
+    invite: async (name) => {
+      const field = el('#party-invite-name');
+      assert(field, 'the leader has no invite field');
+      field.value = name;
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+      el('form[data-party-act="invite"]').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      await drain(); await drain();
+    },
+    restore: () => {
+      try { window.HearthriseParty.setVisible(false); } catch (e) {}
+      try { window.HearthriseParty.__resetForTest(); } catch (e) {}
+      window.fetch = realFetch;
+      if (I && realName) I.displayName = realName;
+      unstub();
+      try { window.showTab('profile'); } catch (e) {}
+    },
+  };
+};
 
 export default [
 
@@ -3646,5 +3751,221 @@ export default [
       probe.remove();
       S.set(before, true);
     }
+  }),
+  // ══════════════════════════════════════════════════════════════════
+  // M8 SLICE 1 — THE PARTY PANEL (player actions)
+  // ══════════════════════════════════════════════════════════════════
+
+  /* PARTY-1 — THE WHOLE GESTURE, THROUGH THE REAL SCREEN.
+     Not a render of a fixture: showTab opens the panel, the buttons in it are
+     clicked, the form in it is submitted, and every number asserted is one the
+     stubbed REALM sent. Bram's combat level 43 and his 12/74 belong to another
+     account — this build has no skills, no hp and no formula that could produce
+     them — so the assertions can only pass if the panel printed what came off
+     the wire (CLAUDE.md §6). */
+  () => tryRunAsync('M8 PARTY-1: form → invite (refused, then sent) → the server\'s roster → leave', async () => {
+    const P = window.HearthriseParty;
+    assert(P && typeof P.createParty === 'function', 'HearthriseParty transport missing');
+    assert(document.getElementById('panel-party'), '#panel-party is not in index.html — the screen is unreachable');
+    const rig = partyRig();
+    try {
+      // 1. THE EMPTY STATE, and the one honest line about what slice 1 is not.
+      await rig.open();
+      assert(/not in a party/i.test(rig.text()), 'the empty state is missing: ' + rig.text().slice(0, 120));
+      assert(/Hunting together arrives in a later build/.test(rig.text()),
+        'the panel must say that hunting together is not here yet');
+      // An invitation the player has received is offered where they can act on it.
+      assert(rig.el('[data-party-act="accept"]'), 'the received invite has no Accept control');
+      assert(/expires in 11 min/.test(rig.text()), 'the invite must print the SERVER\'s expiry: ' + rig.text());
+
+      // 2. FORM ONE. Nothing is predicted — the roster is the re-read's.
+      rig.el('[data-party-act="create"]').click();
+      await drain(); await drain();
+      assert(rig.rpcs('hr_party_create').length === 1, 'create fired ' + rig.rpcs('hr_party_create').length + ' times');
+      assert(/Wren/.test(rig.text()), 'the founder is not on the roster: ' + rig.text().slice(0, 160));
+      assert(/Lv 57/.test(rig.text()), 'the SERVER\'s combat level 57 is not rendered: ' + rig.text());
+      assert(/38 \/ 61/.test(rig.text()), 'the SERVER\'s hp pair is not rendered: ' + rig.text());
+      assert(/1 of 4/.test(rig.text()), 'the count must be the roster length over the party\'s own cap: ' + rig.text());
+      const idem = rig.rpcs('hr_party_create')[0].body.p_idem;
+      assert(/^[0-9a-f-]{36}$/i.test(String(idem)), 'the create carried no uuid idempotency key: ' + idem);
+
+      // 3. INVITE BY NAME — REFUSED. One sentence, and never a guess at which
+      //    of the five reasons S-13 collapsed into `invite_target_unavailable`.
+      await rig.invite('Nobody');
+      assert(rig.rpcs('hr_party_invite').length === 1, 'the invite fired ' + rig.rpcs('hr_party_invite').length + ' times');
+      assert(rig.rpcs('hr_party_invite')[0].body.p_name === 'Nobody', 'the typed name did not reach the verb');
+      assert(/That adventurer cannot be invited right now\./.test(rig.text()),
+        'the single refusal sentence is missing: ' + rig.text().slice(0, 200));
+      assert(!/already in a party|does not exist|no such/i.test(rig.text()),
+        'the panel invented a reason the server deliberately did not give');
+      assert(!/Bram/.test(rig.text()), 'a refused invite must not put anybody on the roster');
+
+      // 4. INVITE AGAIN — SENT. The new member appears only because the realm
+      //    named him, with HIS numbers and HIS recovery clock.
+      rig.world.inviteAnswer = { ok: true, sent: true };
+      await rig.invite('Bram');
+      assert(rig.rpcs('hr_party_invite').length === 2, 'the second invite never left the panel');
+      assert(!/cannot be invited/.test(rig.text()), 'the previous refusal outlived the gesture that cleared it');
+      assert(/Bram/.test(rig.text()), 'the accepted member is not on the roster: ' + rig.text().slice(0, 200));
+      assert(/Lv 43/.test(rig.text()), 'Bram\'s SERVER combat level is not rendered: ' + rig.text());
+      assert(/12 \/ 74/.test(rig.text()), 'Bram\'s SERVER hp pair is not rendered: ' + rig.text());
+      assert(/2 of 4/.test(rig.text()), 'the count did not follow the server roster: ' + rig.text());
+      assert(/Recovering/.test(rig.text()), 'a member whose recovering_until is in the future must be tagged');
+      const fill = document.querySelector('#party-panel .party-member.is-recovering .party-hp-fill');
+      assert(fill && fill.style.width === '16%', 'the hp bar must be 12/74 of its track, got ' + (fill && fill.style.width));
+      // The leader may remove a member, and NEVER themselves — the server
+      // answers `bad_party` to a self-kick, so offering the button would be a
+      // control that exists only to be refused.
+      const kicks = [...document.querySelectorAll('#party-panel [data-party-act="kick"]')]
+        .map((b) => b.getAttribute('data-party-name'));
+      assert(kicks.join(',') === 'Bram', 'Remove is offered on [' + kicks.join(',') + '] — it belongs on Bram alone');
+      assert(document.querySelector('#party-panel .party-member.is-you .party-m-name').textContent === 'Wren',
+        'the player\'s own row is not marked');
+
+      // 5. LEAVE — two steps, then the empty state the realm now reports.
+      rig.el('[data-party-act="leave-ask"]').click();
+      assert(rig.el('[data-party-act="leave-yes"]'), 'Leave must confirm before it fires');
+      assert(rig.rpcs('hr_party_leave').length === 0, 'asking to leave must not already have left');
+      rig.el('[data-party-act="leave-yes"]').click();
+      await drain(); await drain();
+      assert(rig.rpcs('hr_party_leave').length === 1, 'the confirm did not fire hr_party_leave');
+      assert(/not in a party/i.test(rig.text()), 'after leaving, the panel must show the empty state: ' + rig.text().slice(0, 160));
+      assert(!/Bram|Wren/.test(rig.text()), 'the roster survived the leave — the projection was merged, not replaced');
+    } finally {
+      rig.restore();
+    }
+  }),
+
+  /* PARTY-2 — THE TWO THINGS SECURITY SAID MUST NOT HAPPEN (§5.3, B7/B8).
+     B7: hr_party_view is `stable` and transitively writes, so PostgREST run it
+     under GET raises 25006 and the panel's only read surface dies. B8: the read
+     spends the same 12/min bucket as the five write verbs, so a panel polling
+     at the envelope's cadence eats a player's own membership budget.
+     Both are properties of the CLIENT, which is why they are asserted here and
+     not in SQL, and both are asserted against the recorded requests rather than
+     against the source text — a comment promising POST is not a POST. */
+  () => tryRunAsync('M8 PARTY-2: the roster read is POSTed, never GET, and never twice inside a minute', async () => {
+    const P = window.HearthriseParty;
+    const rig = partyRig();
+    try {
+      rig.world.member = [{ party_id: 'P1', role: 'member' }];
+      rig.world.view = { ok: true, party_id: 'P1', members: [{ name: 'Wren', combat_level: 57, hp: 38, hp_max: 61, recovering_until: null, share_bp: null, xp: null, gold: null }] };
+      await rig.open();
+      const reads = rig.rpcs('hr_party_view');
+      assert(reads.length === 1, 'opening the panel should read the roster exactly once, got ' + reads.length);
+
+      // B7 — the POST half, on every read this session has made.
+      reads.forEach((c) => {
+        assert(c.method === 'POST', 'hr_party_view was called with ' + c.method + ' — B7 says that raises 25006');
+        assert(c.url.indexOf('?') === -1, 'hr_party_view carried a query string: ' + c.url + ' — that is the { get: true } shape');
+        assert(c.body && Object.keys(c.body).join(',') === 'p_party', 'the read body must be p_party alone, got ' + JSON.stringify(c.body));
+      });
+
+      // B8 — the floor is real, and an IDLE tick does not spend a read.
+      assert(P.SLOW_REFRESH_MS >= 60000, 'the slow refresh is ' + P.SLOW_REFRESH_MS + 'ms — §5.3 sets the floor at 60 s');
+      for (let i = 0; i < 6; i++) { P.pollNow(); await drain(); }
+      assert((Date.now() - P.stats().lastViewAt) < 60000, 'the arm is vacuous — a minute really passed during it');
+      assert(rig.rpcs('hr_party_view').length === 1,
+        'six idle ticks spent ' + rig.rpcs('hr_party_view').length + ' roster reads — B8 allows one per ' + P.SLOW_REFRESH_MS + 'ms');
+
+      // A read the PLAYER earned is not throttled: their own verb re-reads at once.
+      await P.leave();
+      assert(rig.rpcs('hr_party_view').length >= 1, 'a verb must reconcile through a re-read');
+      assert(rig.rpcs('hr_party_leave').length === 1, 'the verb itself fired once');
+
+      /* OUT of a party there is no roster read to move the meter, so the floor
+         has to read the last request of ANY kind. Measured: keyed on the roster
+         read alone, an EMPTY panel re-read its membership and its whole inbox
+         on every tick, for ever, because no roster read ever happened. */
+      const idle = rig.calls.length;
+      for (let i = 0; i < 4; i++) { P.pollNow(); await drain(); }
+      assert(rig.calls.length === idle, 'an idle EMPTY panel spent ' + (rig.calls.length - idle) + ' requests');
+
+      // And a CLOSED panel reads nothing at all.
+      const before = rig.calls.length;
+      P.setVisible(false);
+      for (let i = 0; i < 4; i++) { P.pollNow(); await drain(); }
+      assert(rig.calls.length === before, 'a closed panel made ' + (rig.calls.length - before) + ' requests');
+    } finally {
+      rig.restore();
+    }
+  }),
+  /* PARTY-3..7 — THE PURE HALF. `partyPanelHtml(view, opts)` is a function of
+     what it is handed, so these five properties cost a fixture each instead of
+     a rig: the states a player can be in, the bar's arithmetic, the three
+     columns slice 1 must NOT draw, who may remove whom, and the refusal
+     vocabulary. Cheap, and each one is a thing that has to stay true. */
+  () => tryRun('M8 PARTY-3: every state says what it is, and every state carries the honest line', () => {
+    const H = window.partyPanelHtml;
+    const base = { known: true, partyId: null, members: [], invites: [] };
+    const cases = [
+      [{ ...base, signedOut: true }, /Sign in to play with other people/],
+      [{ ...base, known: false }, /Asking the realm/],
+      [base, /not in a party — form one or accept an invite/],
+      [{ ...base, partyId: 'P1', role: 'member', members: [{ name: 'Nia', combat_level: 9, hp: 5, hp_max: 5 }] }, /Nia/],
+    ];
+    cases.forEach(([v, re]) => {
+      const html = H(v, { nowMs: 0 });
+      assert(re.test(html), 'state did not render ' + re + ': ' + html.slice(0, 120));
+      assert(/Hunting together arrives in a later build/.test(html),
+        'the slice-1 honesty line was dropped from a state — it is never optional');
+    });
+  }),
+
+  () => tryRun('M8 PARTY-4: the hp bar is the ratio of two SERVER numbers, clamped, and never invents one', () => {
+    const H = window.partyPanelHtml;
+    const bar = (hp, max) => {
+      const m = /party-hp-fill" style="width:(\d+)%/.exec(H({ known: true, partyId: 'P1', role: 'member',
+        members: [{ name: 'A', combat_level: 3, hp: hp, hp_max: max }], invites: [] }, { nowMs: 0 }));
+      return m ? Number(m[1]) : null;
+    };
+    assert(bar(12, 74) === 16, '12/74 must draw 16%, got ' + bar(12, 74));
+    assert(bar(61, 61) === 100, 'a full bar must be 100%, got ' + bar(61, 61));
+    assert(bar(0, 40) === 0, 'an empty bar must be 0%, got ' + bar(0, 40));
+    assert(bar(5, 0) === 0, 'a zero maximum must not divide, got ' + bar(5, 0));
+    assert(bar(80, 61) === 100, 'hp over hp_max must clamp, got ' + bar(80, 61));
+    const unknown = H({ known: true, partyId: 'P1', role: 'member', members: [{ name: 'A' }], invites: [] }, { nowMs: 0 });
+    assert(/—/.test(unknown) && !/Lv 0/.test(unknown), 'a value the server did not send must print as an em-dash, never as 0');
+  }),
+
+  () => tryRun('M8 PARTY-5: the three columns S2 owns are NOT drawn while they are NULL', () => {
+    /* hr_party_view's frozen shape already carries share_bp / xp / gold and
+       answers NULL until a party window settles. A column of em-dashes is a
+       worse lie than an absent column — and a panel that renders the key today
+       is a panel that will quietly show a stale split the day it fills. */
+    const html = window.partyPanelHtml({ known: true, partyId: 'P1', role: 'leader', invites: [],
+      members: [{ name: 'Nia', combat_level: 51, hp: 44, hp_max: 58, share_bp: null, xp: null, gold: null }] }, { nowMs: 0 });
+    assert(!/share|bp|\bxp\b|gold/i.test(html), 'slice 1 rendered a settle column it has no value for: ' + html.slice(0, 200));
+  }),
+
+  () => tryRun('M8 PARTY-6: Remove is the leader\'s, by NAME, and never on your own row', () => {
+    const H = window.partyPanelHtml;
+    const roster = [{ name: 'Wren', combat_level: 57, hp: 61, hp_max: 61 }, { name: 'Nia', combat_level: 51, hp: 44, hp_max: 58 }];
+    const view = { known: true, partyId: 'P1', members: roster, invites: [] };
+    const opts = { nowMs: 0, you: 'Wren', canon: window.HearthriseIdentity.canon };
+    const asLeader = H({ ...view, role: 'leader' }, opts);
+    const asMember = H({ ...view, role: 'member' }, opts);
+    assert(/data-party-name="Nia"/.test(asLeader), 'the leader cannot remove another member');
+    assert(!/data-party-name="Wren"/.test(asLeader), 'the leader is offered Remove on their own row — the server answers bad_party');
+    assert(!/data-party-act="kick"/.test(asMember), 'a plain member was offered a control only a leader may use');
+    assert(!/user_id|uuid/i.test(asLeader), 'the panel leaked an addressable handle — the frozen view carries names, not ids');
+  }),
+
+  () => tryRun('M8 PARTY-7: every refusal the five verbs can answer has a sentence a player can read', () => {
+    /* The list is the migrations' own, retyped here ON PURPOSE: it is the drift
+       check. A verb that grows a code nobody mapped shows the player "that did
+       not work", which is the shrug this test exists to prevent. */
+    const P = window.HearthriseParty;
+    const CODES = ['not_signed_in', 'rate_limited', 'already_in_party', 'not_in_party', 'not_party_leader',
+      'invite_target_unavailable', 'party_full', 'party_level_spread', 'party_hunt_running', 'party_daily_cap',
+      'invite_gone', 'invite_expired', 'unknown_party', 'intent_in_flight', 'intent_mismatch', 'no_character',
+      'bad_slot', 'bad_party', 'rpc_missing'];
+    CODES.forEach((c) => {
+      const s = P.refusalSentence(c);
+      assert(s && s !== 'That did not work.', c + ' has no sentence of its own — the player is told nothing');
+      assert(/[.!]$/.test(s) && s.length < 60, c + ' is not one short sentence: "' + s + '"');
+    });
+    assert(P.refusalSentence('rate_limited') === 'Slow down a moment.', 'the party bucket must say "Slow down a moment"');
+    assert(P.refusalSentence('what_is_this') === 'That did not work.', 'an unmapped code must still say something');
   }),
 ];

@@ -94,7 +94,7 @@ img,svg{display:block;max-width:100%}
   grid-column:1;
   height:100vh;
   padding:12px 8px calc(12px + var(--safe-b));
-  display:flex;flex-direction:column;gap:4px;
+  display:flex;flex-direction:column;gap:3px;
   background:linear-gradient(180deg,#0c1620,#070d13);
   border-right:1px solid var(--line);
   /* b225 (#18): the rail SCROLLS. It was overflow:hidden, which meant every
@@ -942,10 +942,10 @@ img,svg{display:block;max-width:100%}
    space around it pays for it (3 labels x 3px + 2px off the brand = 11px). */
 .nav-group-label{
   font-size:calc(14.5px * var(--ui-scale, 1));font-weight:800;letter-spacing:.18em;color:var(--gold-2);
-  text-transform:uppercase;padding:9px 12px 3px;opacity:.7;pointer-events:none;
-  margin-top:3px;border-top:1px solid var(--line-soft);padding-top:8px;
+  text-transform:uppercase;padding:5px 12px 2px;opacity:.7;pointer-events:none;
+  margin-top:2px;border-top:1px solid var(--line-soft);padding-top:6px;
 }
-.nav-group-label:first-of-type{padding-top:5px;border-top:none;margin-top:5px}
+.nav-group-label:first-of-type{padding-top:4px;border-top:none;margin-top:3px}
 
 /* ─── b371: THE RAIL FITS A LAPTOP, IT DOES NOT JUST SCROLL ON ONE ───────────
    MEASURED at 1366x768, the most common laptop resolution there is: the rail's
@@ -977,12 +977,35 @@ img,svg{display:block;max-width:100%}
    is not relaxed anywhere a finger can reach it.
 
    Cut-off is 899px because 900 is where the uncompacted rail exactly fits
-   (measured: 889 of 900). ─────────────────────────────────────────────────── */
+   (measured: 889 of 900).
+
+   ── M8, 2026-09-24: THE FIFTEENTH DESTINATION (Party, under Clan) ───────────
+   b371's own warning — "an OSRS-scale game grows destinations" — came due. A
+   15th button is +48px uncompacted and +41px compacted, and 889 of 900 had no
+   slack at all, so Settings went below the fold at all three laptop sizes and
+   tests/reachability.mjs said so. Paid the way b371 paid: leading and chrome,
+   never type and never the tap floor. Four places, MEASURED not estimated —
+   the rail gap (4→3 base, 3→2 compacted, ~20px over twenty gaps), the three
+   group labels (~4px each), the brand (the theme-prefix fix below), and one
+   label: the rail's "Bounty Board" is now "Bounty", the word the bottom nav
+   has always used. It was the only two-word entry in the rail and the only one
+   that WRAPPED, which cost 19px of pure overflow at every width; the screen's
+   own card title is unchanged. Measured after: 811 of 768 with Settings
+   bottoming at 766, and 946 of 900 with Settings at 894 — the scroll is a net
+   again rather than the layout. ───────────────────────────────────────────── */
 @media (max-height: 899px) {
-  .sidebar{gap:3px;padding-top:8px}
-  .brand{padding:6px 10px 6px;margin-bottom:4px}
+  .sidebar{gap:2px;padding-top:5px}
+  /* ⚠ THEME-PREFIXED, AND THAT IS THE WHOLE POINT (M8, 2026-09-24). b371
+     budgeted "8px off the brand" here and never got a pixel of it:
+     `body[data-theme] .brand` in art-direction.css carries `padding:11px 10px
+     13px; margin-bottom:8px`, and a bare `.brand` loses that specificity on
+     every themed page — which is every page. The compaction was 16px short of
+     what its own comment claimed for three builds. Stated rather than quietly
+     corrected, because the arithmetic in that comment is what the next person
+     adding a destination will budget against. */
+  body[data-theme] .brand{padding:5px 10px 5px;margin-bottom:3px}
   .nav-btn{min-height:38px;padding:5px 10px}
-  .nav-group-label{padding:5px 12px 2px;margin-top:0;padding-top:5px}
+  .nav-group-label{padding:4px 12px 2px;margin-top:0;padding-top:4px}
   .nav-group-label:first-of-type{padding-top:3px;margin-top:2px}
   .nav-foot{padding:5px 10px}
 }
@@ -3726,3 +3749,154 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 
 /* §3. THE EMPTY STATE — eleven words, no tutorial, no carousel. */
 .hunt-empty { font-size: var(--t-small); color: var(--ink-2); }
+
+/* ════════════════════════════════════════════════════════════════════════
+   THE PARTY PANEL (M8 slice 1 — MEMBERSHIP) — emitted by
+   src/render/party-panel.js. ZERO hardcoded colours: every colour below is a
+   token, which is the cheapest thing a NEW component can be (there is nothing
+   to convert). No new breakpoint — the frozen set only, owned by
+   tests/breakpoint-guard.mjs.
+
+   THE ONE LAYOUT DECISION WORTH WRITING DOWN. A member is a two-line BLOCK, not
+   a table row: name and level on the first line, the HP bar full-width under
+   it. A bar squeezed into a cell is unreadable at phone scale, and this screen's
+   whole job is to let you see at a glance who is hurt.
+   ════════════════════════════════════════════════════════════════════════ */
+/* A ROSTER IS AN OBJECT, NOT A FORM. Uncapped, the four rows stretched to
+   1240px on a laptop: an HP bar a metre wide, a "Form a party" button the width
+   of the screen, and a level, an hp figure and a Remove control each landing at
+   a different x. A party of four is a small thing and it should look like one.
+   The column is capped and everything inside it aligns to that measure. */
+.party-panel { display: flex; flex-direction: column; gap: 14px; max-width: 640px; }
+/* A primary action hugs its label. Only the panel's OWN children — a button
+   inside the invite row or the confirm row is a flex item there and must keep
+   its row's cross-axis alignment. */
+.party-panel > .party-btn { align-self: flex-start; }
+
+/* A. THE HEAD — who you are with, how many, and whether it is yours to run. */
+.party-head { display: flex; align-items: baseline; gap: 10px; }
+.party-sub {
+  margin: 0; font-family: var(--f-display); font-size: var(--t-h3);
+  color: var(--ink); font-weight: normal;
+}
+.party-count { font-size: var(--t-small); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.party-role {
+  margin-left: auto; font-size: var(--t-micro); letter-spacing: .08em;
+  text-transform: uppercase; color: var(--gold); background: var(--gold-bg);
+  border-radius: var(--r-sm); padding: 2px 8px;
+}
+
+/* B. THE ROSTER. */
+.party-roster { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.party-member {
+  display: grid; grid-template-columns: 1fr 58px 92px;
+  grid-template-areas: "line lvl kick" "hp hp kick";
+  align-items: center; gap: 4px 10px;
+  padding: 10px 12px; border-radius: var(--r-sm);
+  background: var(--surf-sunken); border: 1px solid var(--line-soft);
+}
+/* YOUR OWN ROW IS MARKED, NOT PROMOTED. The roster's order is the server's
+   (tenure, then user id) and re-sorting it to float yourself to the top would
+   make two players describe the same party differently. */
+.party-member.is-you { border-color: var(--line-strong); }
+.party-m-line { grid-area: line; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.party-m-name { font-size: var(--t-lead); color: var(--ink); }
+.party-m-you { font-size: var(--t-micro); color: var(--ink-3); letter-spacing: .06em; }
+.party-m-lvl {
+  grid-area: lvl; text-align: right; font-size: var(--t-small); color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.party-m-tag {
+  font-size: var(--t-micro); text-transform: uppercase; letter-spacing: .06em;
+  color: var(--red); background: var(--red-bg); border-radius: var(--r-sm); padding: 1px 7px;
+}
+.party-hp { grid-area: hp; display: flex; align-items: center; gap: 8px; }
+.party-hp-track {
+  flex: 1 1 auto; height: 8px; border-radius: var(--r-sm); overflow: hidden;
+  background: var(--bg-1); border: 1px solid var(--line);
+}
+.party-hp-fill { display: block; height: 100%; background: var(--green); }
+.party-member.is-recovering .party-hp-fill { background: var(--red); }
+.party-hp-num {
+  font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: tabular-nums;
+  min-width: 58px; text-align: right;
+}
+.party-m-kick {
+  grid-area: kick; justify-self: end; font: inherit; font-size: var(--t-small);
+  min-height: var(--tap); min-width: var(--tap); padding: 0 12px;
+  border-radius: var(--r-sm); cursor: pointer;
+  background: var(--bg-2); color: var(--ink-3); border: 1px solid var(--line);
+}
+.party-m-kick:hover { color: var(--red); border-color: var(--red-line); }
+
+/* C. THE CONTROLS. One button shape, three roles — every one at the tap floor,
+   because a 28px "Remove" next to a name is how the wrong person gets removed. */
+.party-btn {
+  font: inherit; font-size: var(--t-small); min-height: var(--tap); padding: 0 16px;
+  border-radius: var(--r-sm); cursor: pointer;
+  background: var(--bg-2); color: var(--ink); border: 1px solid var(--line);
+}
+.party-btn.is-primary { background: var(--gold-bg); color: var(--gold); border-color: var(--gold); }
+.party-btn.is-quiet { color: var(--ink-3); }
+.party-btn.is-danger { color: var(--red); border-color: var(--red-line); background: var(--red-bg); }
+.party-btn:disabled { opacity: .5; cursor: default; }
+/* A verb is in flight: the controls stop taking clicks rather than queueing a
+   second intent behind the first. Opacity only — no spinner, because a gesture
+   this small resolves faster than a spinner reads as anything but a stutter. */
+.party-panel.is-busy button, .party-panel.is-busy input { pointer-events: none; opacity: .6; }
+
+.party-invite { display: flex; flex-direction: column; gap: 6px; }
+.party-invite-lab { font-size: var(--t-micro); color: var(--ink-3); letter-spacing: .06em; }
+.party-invite-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.party-invite-in {
+  flex: 1 1 180px; min-width: 0; min-height: var(--tap); padding: 0 12px;
+  font: inherit; font-size: var(--t-small); border-radius: var(--r-sm);
+  background: var(--field-sunk); color: var(--ink); border: 1px solid var(--line);
+}
+.party-invite-in::placeholder { color: var(--ink-3); }
+
+.party-foot { display: flex; }
+.party-confirm { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.party-confirm-q { font-size: var(--t-small); color: var(--ink-2); }
+
+/* D. THE INBOX — only ever shown when you are in no party, because an invite
+   you cannot accept is a button that lies. */
+.party-inbox { display: flex; flex-direction: column; gap: 8px; }
+.party-inv-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.party-inv {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 12px; border-radius: var(--r-sm);
+  background: var(--surf-sunken); border: 1px solid var(--line-soft);
+}
+.party-inv-line { display: flex; flex-direction: column; gap: 2px; flex: 1 1 160px; }
+.party-inv-what { font-size: var(--t-small); color: var(--ink); }
+.party-inv-when { font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+/* E. THE SENTENCES. The refusal, the empty state, and the one honest line about
+   what slice 1 is not. `.party-later` is never omitted in either state. */
+.party-notice {
+  margin: 0; font-size: var(--t-small); color: var(--ink);
+  background: var(--red-bg); border: 1px solid var(--red-line);
+  border-radius: var(--r-sm); padding: 8px 12px;
+}
+.party-empty { margin: 0; font-size: var(--t-small); color: var(--ink-2); line-height: 1.5; }
+.party-later { margin: 0; font-size: var(--t-micro); color: var(--ink-3); }
+
+/* F. THE LANDSCAPE PHONE. The rail layout is already the desktop one at scale
+   (§7 — phones are landscape-only and never get the bottom nav), so this is a
+   DENSITY pass and not a second layout: the kick control leaves the grid's
+   right column and sits under the bar, because at 922×423 a third column takes
+   the name down to two words. The tap floor does not move. */
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  /* A LANDSCAPE PHONE IS SHORT, NOT NARROW (922x423 is the measured case), so
+     the density pass buys ROWS, not width: a member stays exactly two lines,
+     the Remove control keeps its column on the first of them instead of
+     claiming a third, and the bar spans the full row underneath. Three lines a
+     member put one and a half members above the fold. The tap floor does not
+     move — the controls are all still `--tap`. */
+  .party-panel { gap: 9px; }
+  .party-roster, .party-inv-list { gap: 6px; }
+  .party-member { grid-template-areas: "line lvl kick" "hp hp hp"; padding: 7px 10px; gap: 2px 8px; }
+  .party-inv { padding: 7px 10px; }
+  .party-invite-row { flex-wrap: nowrap; }
+}

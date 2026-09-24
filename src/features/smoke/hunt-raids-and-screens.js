@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 131 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays } from './_harness.js?v=552';
+import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays } from './_harness.js?v=552';
 
 export default [
 
@@ -3079,6 +3079,71 @@ export default [
     } finally {
       window.G._town = prior;
       window.showTab('profile');
+    }
+  }),
+
+  /* ── STUB-ORIGIN-1 — regression suite — THE HARNESS ORIGIN IS NOT A SERVER ─
+     `https://test.local` is `stubSignedIn`'s own fake origin. A module that runs
+     on a CADENCE and reads the CONFIGURED origin spends a request on it for as
+     long as a stubbed session stands; the CSP refuses it, and the refusal is a
+     PAGE ERROR that fails the run's clean-console gate however many tests passed.
+     Two callers, measured, NOT the same two in every runner — which is why one
+     fix for one symptom would read green here and stay red there:
+       · GitHub 36001561175 on next@c380562d (`passed 1354/1367 failed 0`, step
+         exit 1) caught net/town.js's 25 s poll and its heartbeat — `Fetch API
+         cannot load https://test.local/rest/v1/rpc/hr_heartbeat … violates the
+         document's Content Security Policy`, and the same for hr_town_of;
+       · this runner catches network-status.js's 4 s reconnect probe (twice per
+         run) and never the town pair.
+     c380562d widened the window; it did not create it. No number was ever lost.
+     THE PROPERTY, for the class: while a stubbed session stands, not one request
+     leaves for the stub origin from any channel on the helper's list, and every
+     pause is BALANCED, so each is live again the moment the stub is restored.
+
+     MUTATION: comment out the `__pauseForTest` line in `stubSignedIn` → RED,
+     `the stub origin was asked for 4 request(s): …/hr_town_of, …/hr_heartbeat,
+     2 network-status probe(s)`. The spy REJECTS a stub-origin request, so even
+     the RED run raises none of the page errors this test exists to prevent. */
+  () => tryRunAsync('STUB-ORIGIN-1: a stubbed session pauses every cadenced channel, and none asks the harness origin', async () => {
+    const T = window.HearthriseTown, N = window.HearthriseNetStatus;
+    const hookable = (m) => m && typeof m.__pauseForTest === 'function' && typeof m.__resumeForTest === 'function';
+    assert(hookable(T) && typeof T.refreshTown === 'function' && typeof T.heartbeat === 'function'
+      && hookable(N) && typeof N.__probeForTest === 'function' && typeof N.__probesForTest === 'function',
+      'a channel on the helper\'s list has no pause seam — this test would pass vacuously');
+    const realFetch = window.fetch, hits = [], prior = window.G._town;
+    const STUB = 'https://test.local';
+    /* TWO OBSERVATION POINTS: net/town.js goes out through `window.fetch`, but
+       network-status.js holds the fetch it captured at module load, so no spy
+       can see its probe — its own counter is the only honest read of that half. */
+    const probes0 = N.__probesForTest();
+    window.fetch = function (input, init) {
+      const url = String((input && input.url) || input || '');
+      if (url.indexOf(STUB) === 0) { hits.push(url); return Promise.reject(new Error('blocked by STUB-ORIGIN-1')); }
+      return realFetch.apply(this, arguments);
+    };
+    try {
+      const unstub = stubSignedIn(0, 'Wren');
+      /* Driven directly rather than waited out (the intervals are 25 s and 4 s).
+         Three straddle the restore unawaited — the "after teardown with a cached
+         config" half of the live symptom. */
+      const straddling = [T.refreshTown(Date.now() + T.TOWN_POLL_MS), T.heartbeat(Date.now() + T.TOWN_POLL_MS), N.__probeForTest()];
+      await T.refreshTown(Date.now() + T.TOWN_POLL_MS);
+      await T.heartbeat(Date.now() + T.TOWN_POLL_MS);
+      await N.__probeForTest();
+      unstub();
+      await Promise.all(straddling);
+      await T.refreshTown(Date.now() + T.TOWN_POLL_MS * 2);
+      await T.heartbeat(Date.now() + T.TOWN_POLL_MS * 2);
+      const spent = N.__probesForTest() - probes0;
+      assert(!hits.length && !spent, 'the stub origin was asked for ' + (hits.length + spent)
+        + ' request(s): ' + hits.concat(spent ? [spent + ' network-status probe(s)'] : []).join(', '));
+      assert(T.__pauseForTest() === 1 && T.__resumeForTest() === 0
+        && N.__pauseForTest() === 1 && N.__resumeForTest() === 0,
+        'the stub did not resume a channel it paused — a depth did not return to zero, so that channel '
+        + 'stays dead for every arm after it and this test would pass by silencing the feature');
+    } finally {
+      window.fetch = realFetch;
+      window.G._town = prior;
     }
   }),
 

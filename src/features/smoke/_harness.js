@@ -1927,6 +1927,23 @@ export const assertBannerReserved = (bar, why) => {
 export const stubSignedIn = (slot, name) => {
   const o = [window.HearthriseSupabase, window.HearthriseAuth, window.HearthriseRpc, window.HearthriseProfile];
   const unanswer = firstRunAnswered(name);
+  /* AND THE LIVE CADENCES GO QUIET WITH IT. `https://test.local` is not a
+     server: it is this helper's own origin, and the page's CSP refuses it. Any
+     module that both runs on a cadence and reads the CONFIGURED origin will
+     therefore spend a request on it for as long as this stub stands — sometimes
+     inside the arm, sometimes after the restore — and each refusal is a PAGE
+     ERROR that costs the whole run its clean-console gate, whatever the tests
+     did. Two callers were measured, and they are not the same two everywhere:
+       · GitHub 36001561175 (`passed 1354/1367 failed 0`, step exit 1) caught
+         net/town.js's 25 s poll and its heartbeat — hr_town_of, hr_heartbeat;
+       · this repo's own runner catches network-status.js's 4 s reconnect probe.
+     So the list below is the CLASS, not the one bug: a cadenced module that
+     reads the config belongs on it. Each is paused through its OWN hook and
+     resumed on restore, so no arm has to remember a rule its own subject never
+     mentions, and nothing here reaches in for a timer or swaps `window.fetch`.
+     Regression: STUB-ORIGIN-1. */
+  const CHANNELS = [window.HearthriseTown, window.HearthriseNetStatus];
+  CHANNELS.forEach((m) => { if (m && typeof m.__pauseForTest === 'function') m.__pauseForTest(); });
   window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
   window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
   window.HearthriseRpc = { mayCall: () => true };
@@ -1934,6 +1951,9 @@ export const stubSignedIn = (slot, name) => {
   return () => {
     window.HearthriseSupabase = o[0]; window.HearthriseAuth = o[1];
     window.HearthriseRpc = o[2]; window.HearthriseProfile = o[3];
+    /* AFTER the real config is back, never before: resuming first would open a
+       tick's window onto the stub origin that this helper had just closed. */
+    CHANNELS.forEach((m) => { if (m && typeof m.__resumeForTest === 'function') m.__resumeForTest(); });
     unanswer();
   };
 };

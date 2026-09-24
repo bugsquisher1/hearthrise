@@ -64,12 +64,40 @@
   // read for status (opaque response), but a genuine network failure —
   // DNS, connection refused, no route — rejects the promise, which is the
   // one signal this needs.
+  /* ── THE PAUSE, FOR A STUBBED SESSION ───────────────────────
+     This probe fetches the CONFIGURED ORIGIN, whatever it currently is. The
+     suite's `stubSignedIn` (src/features/smoke/_harness.js) installs a fake
+     config whose origin is `https://test.local`, which is not a host: the
+     page's CSP refuses it and the refusal is logged as a PAGE ERROR, so the
+     run cannot claim a clean console. Measured in this repo's own suite: two
+     such lines per run, both from the 4 s reconnect poll below.
+     Paused for the stub's lifetime through this module's own hook, never by
+     the suite reaching in for the timer. A paused probe answers `false` —
+     "not confirmed" — because an unknown must never flip the badge (§6: never
+     restore or evict on uncertainty). Depth-counted for a nested stub.
+     NO BEHAVIOUR CHANGE FOR PLAYERS: nothing in the shipped game calls these.
+     There is no generation counter here because nothing is awaited between
+     reading the config and the wire; the flag alone closes the window. */
+  let paused = false, pauseDepth = 0, probes = 0;
+  function pauseForTest() { pauseDepth += 1; paused = true; return pauseDepth; }
+  function resumeForTest() {
+    pauseDepth = pauseDepth > 0 ? pauseDepth - 1 : 0;
+    if (!pauseDepth) paused = false;
+    return pauseDepth;
+  }
+
   function probeHost() {
+    if (paused) return Promise.resolve(false);
     const url = cfgUrl();
     if (!url) return Promise.resolve(navigator.onLine);
     const hasAbort = typeof AbortController !== 'undefined';
     const ctrl = hasAbort ? new AbortController() : null;
     const timer = ctrl ? setTimeout(() => ctrl.abort(), 5000) : null;
+    /* COUNTED HERE, at the only place this module spends a request. It holds
+       `origFetch` from before the counting wrapper below was installed, so a
+       spy on `window.fetch` cannot see this probe at all — the counter is the
+       only honest way for a test to assert that a paused probe asked nothing. */
+    probes += 1;
     return origFetch(url, {
       method: 'HEAD', mode: 'no-cors', cache: 'no-store',
       signal: ctrl ? ctrl.signal : undefined,
@@ -83,6 +111,7 @@
   function startReconnectPoll() {
     if (reconnectTimer) return;
     reconnectTimer = setInterval(() => {
+      if (paused) return;            // a stubbed session is not a network
       if (!navigator.onLine) return; // browser already says no network — nothing to confirm yet
       probeHost().then((ok) => { if (ok) { consecutiveErrors = 0; setMode('ok'); } });
     }, 4000);
@@ -188,5 +217,13 @@
   // Initial check
   if (!navigator.onLine) setMode('offline');
 
-  window.HearthriseNetStatus = { setMode, getMode: () => mode };
+  window.HearthriseNetStatus = {
+    setMode, getMode: () => mode,
+    /* TEST SEAMS — stop/restart the probe around a stubbed session (both return
+       the resulting depth, so a caller can prove it balanced), one probe on
+       demand so a test need not wait out the 4 s poll, and the count of requests
+       this module has actually spent. */
+    __pauseForTest: pauseForTest, __resumeForTest: resumeForTest,
+    __probeForTest: probeHost, __probesForTest: () => probes,
+  };
 })();

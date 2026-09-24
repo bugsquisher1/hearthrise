@@ -114,6 +114,7 @@ function noteOnce(msg) {
  * Returns the server's own body, or `{ok:false, error:…}`. Never throws.
  */
 async function call(name, body) {
+  const gen = epoch;
   const R = w().HearthriseRpc;
   if (R && typeof R.mayCall === 'function' && !R.mayCall(name, signedIn())) return { ok: false, error: 'not_signed_in' };
   if (R && typeof R.shouldTry === 'function' && !R.shouldTry(name)) return { ok: false, error: 'rpc_missing' };
@@ -121,6 +122,9 @@ async function call(name, body) {
   if (!c) return { ok: false, error: 'no_config' };
   const s = session();
   let res = null, json = null;
+  /* Last thing before the wire, so an await added above this line can never
+     reopen the window: a retired generation spends nothing. */
+  if (paused || gen !== epoch) return { ok: false, error: 'paused' };
   try {
     res = await fetch(c.url + '/rest/v1/rpc/' + name, {
       method: 'POST',
@@ -260,7 +264,7 @@ let nextTownAt = 0;
 
 async function refreshTown(nowMs) {
   const now = Number(nowMs) || Date.now();
-  if (inFlight || now < nextTownAt) return readTown();
+  if (paused || inFlight || now < nextTownAt) return readTown();
   inFlight = (async () => {
     /* NO p_zone. The verb defaults to the realm's own zone and refuses any
        other string with bad_zone, so naming it here would be the client
@@ -300,7 +304,7 @@ let beatInFlight = false;
  */
 async function heartbeat(nowMs) {
   const now = Number(nowMs) || Date.now();
-  if (beatInFlight || now < nextBeatAt || !signedIn()) return false;
+  if (paused || beatInFlight || now < nextBeatAt || !signedIn()) return false;
   beatInFlight = true;
   try {
     const body = await call(BEAT_RPC, { p_slot: activeSlot() });
@@ -343,6 +347,41 @@ async function setQuiet(quiet) {
 
 let timer = null;
 
+/* ── THE PAUSE, AND WHY A DISPLAY-ONLY CHANNEL NEEDS ONE ────────────────────
+   The suite hands the page a fake session (`stubSignedIn` in
+   src/features/smoke/_harness.js), and with it a fake config whose origin is
+   `https://test.local`. Both of this channel's cadences keep running while that
+   stub is installed, so a tick lands on the stub origin, the page's CSP refuses
+   the request, and the run cannot claim a clean console — GitHub 36001561175
+   read `passed 1354/1367 failed 0` and still exited 1 on two page errors, one
+   per verb. Nothing was lost (both verbs are display-only), but a console gate
+   that cannot be trusted is not a gate.
+
+   So the stub PAUSES the channel for its lifetime and resumes it on restore,
+   through this module's own hooks — the suite never reaches in for the timer
+   and never swaps `window.fetch` to do it. Depth-counted, because a nested stub
+   must not resume the outer one's channel.
+
+   `epoch` is party.js's generation pattern: a call that began in one generation
+   abandons itself the moment that generation is retired, so a tick caught
+   mid-flight at teardown cannot go on to spend a request against whatever
+   config is installed by the time it reaches the wire.
+
+   NO BEHAVIOUR CHANGE FOR PLAYERS: nothing in the shipped game calls either
+   hook, and with neither called `paused` is false and `epoch` never moves. */
+let paused = false;
+let pauseDepth = 0;
+let epoch = 0;
+
+/** TEST SEAM. Both return the resulting depth, so a caller can prove it balanced. */
+function pauseForTest() { pauseDepth += 1; paused = true; epoch += 1; return pauseDepth; }
+function resumeForTest() {
+  pauseDepth = pauseDepth > 0 ? pauseDepth - 1 : 0;
+  if (!pauseDepth) paused = false;
+  epoch += 1;
+  return pauseDepth;
+}
+
 /** Home visible AND the tab in front. Either falsy ⇒ no read goes out. */
 function shouldPoll() {
   const d = (typeof document !== 'undefined') ? document : null;
@@ -353,6 +392,7 @@ function shouldPoll() {
 
 function tick() {
   const d = (typeof document !== 'undefined') ? document : null;
+  if (paused) return;                    // a stubbed session is not a player
   if (!d || d.hidden) return;            // a background tab is not a person
   heartbeat().catch(() => {});
   if (shouldPoll()) refreshTown().catch(() => {});
@@ -385,5 +425,8 @@ if (typeof window !== 'undefined') {
     refreshTown, heartbeat, setQuiet, shouldPoll, startTownChannel,
     /** TEST SEAM — park a fixture body. Writes only `G._town`. */
     __setTown: setTown,
+    /** TEST SEAM — stop/restart both cadences around a stubbed session. */
+    __pauseForTest: pauseForTest,
+    __resumeForTest: resumeForTest,
   };
 }

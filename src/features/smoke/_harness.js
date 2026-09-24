@@ -40,6 +40,70 @@ window.addEventListener('unhandledrejection', (e) => {
 // runtime-error check at the end of each test run.
 on('*', () => {});
 
+/* What a test must not leave behind. Deliberately the SAME patterns
+   `closeAllModals()` in legacy.js knows about (it is the game's own census of
+   every modal idiom that ever evolved here), plus the one case it cannot see:
+   a viewport-covering fixed layer that is not a modal at all — the renown
+   celebration scrim, a FTUE step, a dim layer whose owner forgot it.
+   Only `body > *` is swept for that case, which is where full-screen layers
+   live and is what tests/reachability.mjs sweeps for the same reason; a full
+   `body *` walk with getComputedStyle would run 1,300+ times a suite. */
+/* PUT EVERY OVERLAY BACK DOWN, through the game's own close paths rather than
+   by removing nodes — a test that rips a scrim out of the DOM proves nothing
+   about the close button a player has to press, and can leave the owner module
+   believing its sheet is still up.
+   `closeAllModals()` is the game's own census of the modal idioms; the four
+   below are the layers it cannot see, each closed by its owner's published
+   close. Call it from a test's finally, never as the last statement of the
+   body: a test that throws is exactly the one that leaves the page dirty. */
+export function closeOverlays() {
+  const t = (fn) => { try { fn(); } catch (e) {} };
+  t(() => window.closeAllModals && window.closeAllModals());
+  t(() => window.closeQuestsModal && window.closeQuestsModal());
+  t(() => window.HearthriseChronicle && window.HearthriseChronicle.close());
+  t(() => window.HearthriseDeathSheet && window.HearthriseDeathSheet.close());
+  t(() => window.HearthriseAccrual && window.HearthriseAccrual.hideReplacementSheet
+    && window.HearthriseAccrual.hideReplacementSheet());
+  /* The character picker's own close() is a closure over the overlay it built;
+     what it does is drop `.open`, which is what returns the layer to
+     `display:none`. Same effect, no node removed. */
+  t(() => {
+    const ov = document.getElementById('char-select-overlay');
+    if (ov) ov.classList.remove('open');
+  });
+}
+
+export function overlayResidue() {
+  const out = [];
+  const nm = (e) => (e.id ? '#' + e.id : '') + e.tagName.toLowerCase()
+    + (typeof e.className === 'string' && e.className ? '.' + e.className.trim().split(/\s+/)[0] : '');
+  try {
+    /* VISIBLE ones only. Several of these layers are built once and then shown
+       and hidden by class — HearthriseDeathSheet.close() drops `.show` and
+       leaves #hr-death-scrim in the DOM at display:none, still carrying
+       role=dialog. A node that paints nothing covers nothing, and counting it
+       would make the correct teardown look like a dirty one. */
+    document.querySelectorAll('.modal.show,.modal.open,.ach-overlay.show,.stats-modal.show,'
+      + '#quests-modal-overlay,dialog[open],[role=dialog]:not([hidden])')
+      .forEach((e) => {
+        const cs = getComputedStyle(e);
+        if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity < 0.05) return;
+        out.push('open overlay ' + nm(e));
+      });
+    if (document.body.style.overflow === 'hidden') out.push('body scroll lock (body.style.overflow)');
+    document.querySelectorAll('body > *').forEach((e) => {
+      if (out.length > 5) return;
+      const cs = getComputedStyle(e);
+      if (cs.position !== 'fixed' || cs.pointerEvents === 'none') return;
+      if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity < 0.05) return;
+      const r = e.getBoundingClientRect();
+      if (r.width < innerWidth * 0.6 || r.height < innerHeight * 0.5) return;
+      out.push('viewport-covering fixed layer ' + nm(e));
+    });
+  } catch (e) { /* a hygiene detector that throws must never redden a suite */ }
+  return out;
+}
+
 export const pass = (name) => ({ name, status: 'PASS' });
 export const fail = (name, why) => ({ name, status: 'FAIL', why: String(why) });
 /* SA-013 (increment 2) — a SKIP is an honest "this seam is not armed yet / this

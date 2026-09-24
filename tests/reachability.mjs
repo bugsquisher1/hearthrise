@@ -189,14 +189,18 @@ function PROBE(spec) {
      box only if its computed overflow-y is auto/scroll AND it actually has
      travel. The document itself counts (it is scrollable by definition when
      scrollingElement has travel). */
-  const userScroll = (el) => {
-    let moved = 0;
+  const scrollChain = (el) => {
     const chain = [];
     for (let p = el.parentElement; p; p = p.parentElement) chain.push(p);
     const doc = document.scrollingElement || document.documentElement;
     if (doc && !chain.includes(doc)) chain.push(doc);
-    // outermost first, so an inner container's final position is measured last
-    for (const p of chain.reverse()) {
+    return chain.reverse();   // outermost first
+  };
+
+  const onePass = (el) => {
+    let moved = 0;
+    const doc = document.scrollingElement || document.documentElement;
+    for (const p of scrollChain(el)) {
       const cs = getComputedStyle(p);
       const scrollable = /auto|scroll/.test(cs.overflowY)
         || p === document.scrollingElement || p === document.documentElement;
@@ -215,21 +219,58 @@ function PROBE(spec) {
     return moved;
   };
 
+  /* ONE PASS IS NOT WHAT A PLAYER DOES, and the CI red of 2026-09-23 is the
+     receipt: `character/LAST-SKILL-ROW (506px used, still off)`. A single
+     outermost-to-innermost sweep lands the box where the geometry AT THAT
+     MOMENT said it should go; moving an outer container changes where the
+     inner one has to sit, and a list still filling in grows under the scroll
+     we just made. A player keeps scrolling until the thing stops moving, so
+     this does too — up to 6 passes, stopping the moment a pass achieves
+     nothing. It cannot turn a genuinely unreachable control green: with no
+     scrollable ancestor (the b370 defect, mutation M1/M4) every pass moves
+     0px and the verdict is unchanged. */
+  const userScroll = (el) => {
+    let moved = 0;
+    for (let i = 0; i < 6; i++) {
+      const step = onePass(el);
+      moved += step;
+      if (step < 1) break;
+    }
+    return moved;
+  };
+
   return (async () => {
     // ── open the screen ──────────────────────────────────────────────
+    /* EACH STEP WAITS FOR ITS OWN EFFECT, up to a ceiling, instead of sleeping
+       a number that was long enough on the machine it was written on. The
+       2026-09-23 CI red reported combat/EAT and combat/STOP off screen with
+       0-1px of travel, which is what measuring the PRE-fight screen looks like:
+       if the click that opens the fight view has not taken effect after 900ms,
+       the sleep expires anyway and the probe measures whatever is up. The
+       ceilings below are far past any real transition, and they are ceilings —
+       a screen that opens in 80ms costs 80ms. */
+    const until = async (ok, ms) => {
+      const end = Date.now() + ms;
+      while (Date.now() < end) { try { if (ok()) return true; } catch (e) {} await sleep(60); }
+      return false;
+    };
+
     for (const step of spec.open) {
       if (step.startsWith('tab:')) {
         const t = step.slice(4);
         try { if (typeof window.showTab === 'function') window.showTab(t); } catch (e) {}
-        await sleep(450);
+        await until(() => laidOut(document.getElementById('panel-' + t)), 3_000);
+        await sleep(250);
       } else if (step === 'monster') {
         const c = [...document.querySelectorAll('[data-monster]')].find(laidOut);
         if (c) c.click();
-        await sleep(900);
+        await until(() => !![...document.querySelectorAll('.fs-fight')].find(laidOut), 3_000);
+        await sleep(250);
       } else if (step === 'fight') {
         const f = [...document.querySelectorAll('.fs-fight')].find(laidOut);
         if (f) f.click();
-        await sleep(900);
+        await until(() => !!document.querySelector('#panel-combat[data-combat-view="fight"]'), 3_000);
+        await sleep(250);
       }
     }
     await sleep(200);
@@ -239,15 +280,84 @@ function PROBE(spec) {
       if (!sb || !laidOut(sb)) return { skipped: 'the nav rail is not rendered at this viewport' };
     }
 
-    const el = pick(spec.sel, spec.last);
+    /* WAIT FOR THE SUBJECT, THEN FOR THE GEOMETRY TO STOP MOVING — and this is
+       the fix for the 2026-09-23 CI red, where six CTAs failed at 922x423 on a
+       commit that touched no src/** and no CSS, and passed standalone on the
+       same SHA an hour later. The steps above are fixed sleeps (450ms for a
+       tab, 900ms for a click). On a loaded two-core runner they are not enough:
+       the screen is measured while it is still laying out, so a flex pane has
+       not resolved its scroll extent yet (`0px of travel used` on a panel that
+       scrolls perfectly well once it has) and a list is still appending rows
+       under the scroll we just made (`506px used, still off`). Both readings
+       are artefacts of WHEN we looked, not of the layout.
+       So: wait for the control to exist and be laid out, then hold still until
+       two consecutive animation frames report the same box AND the same scroll
+       extents on every ancestor. This cannot make a real defect green — a
+       control with no scrollable ancestor settles immediately and is still off
+       screen (mutations M1/M4), and a covered one settles under its cover
+       (M3). What it removes is the half-rendered reading. */
+    /* rAF NEVER FIRES IN A PAGE CHROMIUM CONSIDERS HIDDEN, and this guard runs
+       on a browser that already has another page open. Racing it against a
+       timer means a throttled page settles on the clock instead of hanging
+       here until page.evaluate gives up. */
+    const raf = () => Promise.race([
+      new Promise((r) => requestAnimationFrame(() => r())),
+      sleep(120),
+    ]);
+
+    const geomKey = (node) => {
+      const b = node.getBoundingClientRect();
+      const parts = [Math.round(b.top), Math.round(b.bottom), Math.round(b.left), Math.round(b.right),
+        innerWidth, innerHeight];
+      let n = 0;
+      for (let p = node.parentElement; p && n < 12; p = p.parentElement, n++) {
+        parts.push(p.clientHeight, p.scrollHeight, p.scrollTop);
+      }
+      return parts.join(',');
+    };
+
+    const settle = async (node) => {
+      let prev = null;
+      for (let i = 0; i < 40; i++) {
+        const key = geomKey(node);
+        if (key === prev) return { frames: i, stable: true };
+        prev = key;
+        await raf();
+        await sleep(50);
+      }
+      return { frames: 40, stable: false };
+    };
+
+    /* The subject may still be rendering. Waiting for it is not leniency: a
+       control that never arrives is still reported missing, just 5s later. */
+    let el = null;
+    for (let i = 0; i < 50; i++) {
+      el = pick(spec.sel, spec.last);
+      if (el) break;
+      await sleep(100);
+    }
     if (!el) return { missing: true };
 
     const fits = () => {
       const b = el.getBoundingClientRect();
       return b.top >= -1 && b.bottom <= innerHeight + 1 && b.left >= -1 && b.right <= innerWidth + 1;
     };
+
+    let settled = await settle(el);
     const fitsUnscrolled = fits();
-    const moved = spec.noScroll ? 0 : userScroll(el);
+    let moved = 0;
+    if (!spec.noScroll) {
+      /* Scroll, let the consequences of scrolling finish, scroll again if the
+         geometry moved under us. Three rounds of (scroll → settle) is past the
+         point any real surface keeps changing. */
+      for (let round = 0; round < 3; round++) {
+        const step = userScroll(el);
+        moved += step;
+        const afterScroll = geomKey(el);
+        settled = await settle(el);
+        if (step < 1 && geomKey(el) === afterScroll) break;
+      }
+    }
     const r = el.getBoundingClientRect();
     const inView = spec.noScroll ? fitsUnscrolled : fits();
 
@@ -272,12 +382,62 @@ function PROBE(spec) {
     for (let p = el, i = 0; p && i <= 2; p = p.parentElement, i++) { if (p === hit) { hops = i; break; } }
     const hittable = !!(hit && (hit === el || el.contains(hit) || hops >= 0));
 
+    /* WHAT THE PAGE LOOKED LIKE WHEN IT FAILED. A red that reads "OFF SCREEN
+       after scrolling everything a player can scroll (0px of travel used)" and
+       stops there cannot be told apart from a red caused by a modal nobody
+       closed, a body scroll lock, a screen-covering scrim or a half-settled
+       layout — which is exactly the hour the 2026-09-23 CI red cost, because
+       the run that produced it could not be read after the fact. Gathered only
+       on a failure (it walks the DOM), and printed with the finding. */
+    const snapshot = () => {
+      const dialogs = [...document.querySelectorAll(
+        '[role=dialog]:not([hidden]),dialog[open],.modal.open,.ftue-root,.ftue-overlay,'
+        + '.qm-overlay,.dr-overlay,#hr-dl-modal,.inv-detail.show')]
+        .filter(laidOut).map(name);
+      const covers = [];
+      const all = document.querySelectorAll('body *');
+      for (let i = 0; i < all.length && covers.length < 4; i++) {
+        const e = all[i];
+        const cs = getComputedStyle(e);
+        if (cs.position !== 'fixed' || cs.pointerEvents === 'none') continue;
+        if (!laidOut(e)) continue;
+        const b = e.getBoundingClientRect();
+        if (b.width < innerWidth * 0.5 || b.height < innerHeight * 0.3) continue;
+        covers.push(`${name(e)} ${Math.round(b.width)}x${Math.round(b.height)}@y${Math.round(b.top)}`);
+      }
+      const chain = [];
+      let n = 0;
+      for (let p = el.parentElement; p && n < 6; p = p.parentElement, n++) {
+        const cs = getComputedStyle(p);
+        chain.push(`${name(p)}{oy:${cs.overflowY} client:${p.clientHeight} scroll:${p.scrollHeight}`
+          + ` top:${p.scrollTop}}`);
+      }
+      const ov = (sel) => {
+        const e = typeof sel === 'string' ? document.querySelector(sel) : sel;
+        if (!e) return `${sel}:absent`;
+        const cs = getComputedStyle(e);
+        return `${typeof sel === 'string' ? sel : name(e)}:${cs.overflowY}/${cs.position}`;
+      };
+      return {
+        settled: settled.stable, settleFrames: settled.frames,
+        ready: document.readyState,
+        booted: window.__hrBooted === true, iconsAt: !!window.__hrIconsReadyAt,
+        bodyClass: (document.body.className || '(none)').slice(0, 160),
+        htmlClass: (document.documentElement.className || '(none)').slice(0, 120),
+        locks: [ov(document.documentElement), ov(document.body), ov('.main'), ov('.app')].join(' '),
+        vp: `${innerWidth}x${innerHeight} visual:${Math.round(visualViewport?.width || 0)}`
+          + `x${Math.round(visualViewport?.height || 0)}@${(visualViewport?.scale ?? 1)}`,
+        dialogs, covers, chain,
+      };
+    };
+
     return {
       el: name(el), scrolled: Math.round(moved), noScroll: !!spec.noScroll,
       top: Math.round(r.top), bottom: Math.round(r.bottom),
       left: Math.round(r.left), right: Math.round(r.right),
       vh: innerHeight, vw: innerWidth,
       inView, hittable, blocker: hittable ? null : name(hit),
+      state: (inView && hittable) ? null : snapshot(),
     };
   })();
 }
@@ -370,6 +530,22 @@ const KILL_OVERLAYS = () => {
  *        nothing.
  * @returns {Promise<string[]>} problems (empty === green)
  */
+/* Renders the page-state capture onto a finding. Kept out of PROBE so the
+   in-page half stays serialisable and cheap. */
+function describe(st) {
+  if (!st) return '';
+  const L = [];
+  L.push(`      page: ${st.vp}, readyState=${st.ready}, __hrBooted=${st.booted}, `
+    + `iconsReady=${st.iconsAt}, layout ${st.settled ? `settled after ${st.settleFrames} frame(s)`
+      : 'NEVER SETTLED (still moving after 40 frames)'}`);
+  L.push(`      locks: ${st.locks}`);
+  L.push(`      body.class=${st.bodyClass}  html.class=${st.htmlClass}`);
+  L.push(`      open dialogs: ${st.dialogs.length ? st.dialogs.join(', ') : 'none'}`);
+  L.push(`      viewport-covering fixed layers: ${st.covers.length ? st.covers.join(', ') : 'none'}`);
+  L.push(`      scroll chain: ${st.chain.join(' < ')}`);
+  return '\n' + L.join('\n');
+}
+
 export async function reachabilityGuard(browser, url, opts = {}) {
   const problems = [];
   const viewports = opts.viewports || VIEWPORTS;
@@ -414,12 +590,12 @@ export async function reachabilityGuard(browser, url, opts = {}) {
             ? `BELOW THE FOLD — this control must be visible WITHOUT scrolling`
             : `OFF SCREEN after scrolling everything a player can scroll (${r.scrolled}px of travel used)`)
             + ` — ${r.el} at y ${r.top}..${r.bottom} in a ${r.vh}px viewport, `
-            + `x ${r.left}..${r.right} in ${r.vw}. ${spec.why}`);
+            + `x ${r.left}..${r.right} in ${r.vw}. ${spec.why}` + describe(r.state));
           continue;
         }
         if (!r.hittable) {
           problems.push(`${at}: COVERED — a click at the centre of ${r.el} (y ${r.top}..${r.bottom}) `
-            + `lands on ${r.blocker}. ${spec.why}`);
+            + `lands on ${r.blocker}. ${spec.why}` + describe(r.state));
         }
       }
     } catch (err) {
@@ -485,6 +661,24 @@ const MUTATIONS = [
      ('b371: the Character panel can scroll to the bottom of its own content'),
      where it is exact and mutation-proven. Claiming it here would be claiming
      coverage this file does not have. */
+  {
+    /* THE GUARD-FIX OF 2026-09-23 HAS ITS OWN MUTATION, and it needs one.
+       That change made the probe wait for the subject and hold still until the
+       geometry stops moving, and made the scroll multi-pass, because six CTAs
+       went red at 922x423 on a commit that touched no src/** and no CSS. Every
+       one of those cures makes the guard MORE patient, and a more patient
+       guard is one edit away from a guard that waits until the problem goes
+       away. M1 and M3 prove the desktop verdicts survived it; this proves the
+       MOBILE one did, at the exact viewport the red was reported on.
+       Synthetic rather than a shipped defect — 922x423 has no b-number of its
+       own for this — but the shape is b370's verbatim: content below the fold
+       with nothing in the chain that a player can scroll. */
+    name: 'M4 — push FIGHT below the fold at the mobile target with nothing that scrolls (the settle/multi-pass cure must not swallow it)',
+    css: '#panel-combat{padding-top:360px !important}'
+       + '#panel-combat,#panel-combat *{overflow:hidden !important}',
+    viewports: [{ w: 922, h: 423 }],
+    expect: ['combat/FIGHT'],
+  },
   {
     name: 'M3 — drop a fixed bar over the bottom of the screen (proves the HIT TEST is live, not just the box maths)',
     css: 'body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:140px;'

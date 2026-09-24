@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 131 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS } from './_harness.js?v=552';
+import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays } from './_harness.js?v=552';
 
 export default [
 
@@ -1581,10 +1581,14 @@ export default [
     }
     // The topbar is core UI on the desktop viewport the suite runs at — at least
     // one of these controls must exist, or the assertions above never ran.
-    assert(clicked > 0, 'no topbar buttons (' + ids.join(', ') + ') were present to click');
-    // Close any modal we opened so the rest of the suite can run
-    document.querySelectorAll('.modal.show, [class*="modal"][class*="show"]').forEach(m => m.classList.remove('show'));
-    document.querySelectorAll('[data-modal-close], .modal-close').forEach(el => { try { el.click(); } catch {} });
+    try {
+      assert(clicked > 0, 'no topbar buttons (' + ids.join(', ') + ') were present to click');
+    } finally {
+      /* These buttons open the Chronicle scrim and the Quests overlay, neither
+         of which is a `.modal.show` — the class-removal sweep that used to
+         stand here missed both and left them covering every screen after. */
+      closeOverlays();
+    }
   }),
 
   () => tryRun('clicks: profile feat-buttons (achievements/bestiary/etc)', () => {
@@ -1605,10 +1609,15 @@ export default [
     assert(missing.length === 0, 'profile feat button(s) missing from the row: ' + missing.join(', ') + ' (present: ' + labels.join(' | ') + ')');
     const extra = labels.filter((l) => !EXPECT_FEATS.some((n) => l.includes(n)));
     assert(extra.length === 0, 'unexpected profile feat button(s) not in the census: ' + extra.join(' | '));
-    for (const b of btns) {
-      try { b.click(); } catch (e) { throw new Error(`feat button "${b.textContent.trim()}" threw: ${e.message}`); }
-      // Close any modal opened
-      document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show'));
+    try {
+      for (const b of btns) {
+        try { b.click(); } catch (e) { throw new Error(`feat button "${b.textContent.trim()}" threw: ${e.message}`); }
+      }
+    } finally {
+      /* Lifetime Stats is `.stats-modal`, Achievements and Bestiary are
+         `.ach-overlay` — the `.modal.show` sweep that used to sit inside this
+         loop closed none of the three. */
+      closeOverlays();
     }
   }),
 

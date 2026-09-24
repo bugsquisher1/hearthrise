@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 31 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, withFarmServer, snapshotG, restoreG, restoreGAndRecord, on } from './_harness.js?v=552';
+import { pass, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, withFarmServer, snapshotG, restoreG, restoreGAndRecord, on, overlayResidue } from './_harness.js?v=552';
 
 export default [
   () => tryRun('boot: G defined', () => {
@@ -774,4 +774,57 @@ export default [
       assert(!window.G.farmPlots[5], 'plot 5 (beyond camp cap of 2) must refuse to plant');
     } finally { restoreG(snap); }
   })),
+
+  /* ── THE SUITE'S OWN TEARDOWN ASSERTION (2026-09-23) ──────────────────────
+     The runner calls overlayResidue() after every test and turns a PASS that
+     left an overlay up, the body scroll locked, or a viewport-covering fixed
+     layer painted into a ✗ naming that test. A detector that never fires is
+     not a detector, and this one runs 1,300+ times a suite, where a false
+     positive reddens a green run and a false negative goes on costing the
+     investigations it exists to end. So each of the three things it claims to
+     see is planted and measured — one test each, so a red names which of the
+     three broke — and each tears its own plant down, which makes the runner's
+     check its own proof: if the cleanup here were wrong, these tests would
+     fail themselves. */
+  () => tryRun('suite hygiene: overlayResidue reports an open modal left on the page', () => {
+    assert(typeof overlayResidue === 'function', 'the teardown detector is gone — nothing attributes a dirty page to the test that dirtied it');
+    const before = overlayResidue().length;
+    const modal = document.createElement('div');
+    modal.id = 'hr-residue-probe'; modal.className = 'modal show';
+    // visible, but far too small to be read as a viewport-covering scrim
+    modal.setAttribute('style', 'display:block;position:fixed;top:0;left:0;width:10px;height:10px');
+    try {
+      document.body.appendChild(modal);
+      const seen = overlayResidue();
+      assert(seen.some((x) => x.indexOf('#hr-residue-probe') !== -1),
+        'an open .modal.show was not reported as residue, got: ' + JSON.stringify(seen));
+    } finally { modal.remove(); }
+    assert(overlayResidue().length === before, 'this test did not put the page back the way it found it');
+  }),
+
+  () => tryRun('suite hygiene: overlayResidue reports a body scroll lock left behind', () => {
+    const before = overlayResidue().length;
+    const was = document.body.style.overflow;
+    try {
+      document.body.style.overflow = 'hidden';
+      assert(overlayResidue().some((x) => /body scroll lock/.test(x)), 'a body scroll lock was not reported as residue');
+    } finally { document.body.style.overflow = was; }
+    assert(overlayResidue().length === before, 'this test did not put the page back the way it found it');
+  }),
+
+  /* The scrim is the case closeAllModals() cannot see: a full-viewport fixed
+     layer that is not a modal by any of the game's idioms, which is exactly
+     what the renown celebration turned out to be. */
+  () => tryRun('suite hygiene: overlayResidue reports a full-viewport fixed scrim', () => {
+    const before = overlayResidue().length;
+    const scrim = document.createElement('div');
+    scrim.id = 'hr-residue-scrim';
+    scrim.setAttribute('style', 'position:fixed;inset:0;width:100vw;height:100vh;z-index:99999');
+    try {
+      document.body.appendChild(scrim);
+      assert(overlayResidue().some((x) => x.indexOf('#hr-residue-scrim') !== -1),
+        'a full-viewport fixed scrim was not reported — this is the shape that covers every later screen');
+    } finally { scrim.remove(); }
+    assert(overlayResidue().length === before, 'this test did not put the page back the way it found it');
+  }),
 ];

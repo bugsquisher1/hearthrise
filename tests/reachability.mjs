@@ -677,9 +677,17 @@ const QUIESCE = async () => {
  * @param {import('playwright').Browser} browser
  * @param {string} url
  * @param {{viewports?: typeof VIEWPORTS, injectCss?: string, injectJs?: string,
- *           only?: string[]}} [opts]
- *        — all three exist for the mutation harness; production callers pass
- *        nothing.
+ *           only?: string[], verify?: string}} [opts]
+ *        — all four exist for the mutation harness; production callers pass
+ *        nothing. `verify` is a mutation's assertion about ITSELF: a function
+ *        body evaluated in the page after the CTA loop, on the mutation's own
+ *        screen, returning a string when the PLANT failed to take. It exists
+ *        because M4's plant went inert (a `!important` padding at higher
+ *        specificity cancelled it) while the mutation still reported `caught`
+ *        on Linux off unrelated font metrics — a mutation that is caught by
+ *        accident proves nothing, and nothing in this file could tell the
+ *        difference. Its findings are tagged PLANT_FAILED and read separately
+ *        by the runner, so they can never be mistaken for the defect.
  * @returns {Promise<string[]>} problems (empty === green)
  */
 /* Renders the page-state capture onto a finding. Kept out of PROBE so the
@@ -697,6 +705,11 @@ function describe(st) {
   L.push(`      scroll chain: ${st.chain.join(' < ')}`);
   return '\n' + L.join('\n');
 }
+
+/* Tag for a `verify` finding. Kept distinct from every real problem string so
+   the mutation runner can never count "the plant did not apply" as "the guard
+   caught the defect" — the exact confusion that let M4 rot. */
+export const PLANT_FAILED = 'PLANT_FAILED';
 
 export async function reachabilityGuard(browser, url, opts = {}) {
   const problems = [];
@@ -834,6 +847,16 @@ export async function reachabilityGuard(browser, url, opts = {}) {
             + `lands on ${r.blocker}. ${spec.why}` + describe(r.state));
         }
       }
+      /* LAST, so the mutation's own screen is still the one on show and the
+         computed values read here are the ones the CTAs above were measured
+         against. A mutation only gets to claim a defect it actually planted. */
+      if (opts.verify) {
+        const v = await page.evaluate((src) => {
+          try { return (new Function(src))() || null; }
+          catch (e) { return 'verify threw — ' + String(e && e.message || e).slice(0, 120); }
+        }, opts.verify).catch((e) => 'verify threw — ' + String(e && e.message || e).slice(0, 120));
+        if (v) problems.push(`${vp.w}x${vp.h}${vp.banner ? '+banner' : ''}: ${PLANT_FAILED} — ${v}`);
+      }
     } catch (err) {
       problems.push(`${vp.w}x${vp.h}${vp.banner ? '+banner' : ''}: harness failure — ${err.message}`);
     } finally {
@@ -930,10 +953,59 @@ const MUTATIONS = [
        MOBILE one did, at the exact viewport the red was reported on.
        Synthetic rather than a shipped defect — 922x423 has no b-number of its
        own for this — but the shape is b370's verbatim: content below the fold
-       with nothing in the chain that a player can scroll. */
+       with nothing in the chain that a player can scroll.
+
+       THE PLANT WAS INERT UNTIL 2026-09-24, AND IT WAS STILL REPORTED `caught`.
+       It pushed on `#panel-combat` (1,0,0); combat-screens.css:1218
+       `@media (max-height:560px) #panel-combat.active { padding: 6px !important }`
+       is (1,1,0), and between two importants the higher specificity wins — so
+       the computed padding-top under the mutation was 6px and the push never
+       happened. MEASURED at 922x423 with the old plant: FIGHT at y 318..347 on
+       a 423px screen — on screen, and the mutation's own `caught` line came
+       from `COVERED` (a click landing on `button.csb-btn`), which is not the
+       defect this mutation names. On Windows it ESCAPED outright. Both verdicts
+       were accidents of platform font metrics, and §4 is explicit that a guard
+       which has never been red for its stated reason is not a guard.
+       The universal half leaked too, and by more than specificity arithmetic
+       suggests: `#panel-combat *` is also (1,0,0) and lost to
+       combat-screens.css:1012 `#panel-combat[data-combat-view="fight"]
+       .combat-arena { overflow: visible !important }` at (1,2,0) — which is the
+       `.card` in the fight stage, the node carrying `class="card combat-arena"`.
+       So both halves now DOUBLE THE ID (`#panel-combat#panel-combat…`, (2,…)):
+       an id count of two outranks every single-id rule in the product whatever
+       its class tail, so no future rule can quietly cancel the plant the way
+       1218 and 1012 did. The transform is the belt to that brace — a
+       `translateY` is not a padding and no padding rule can cancel it at any
+       specificity — and it is what makes the displacement the same on every
+       platform instead of a few pixels of font metrics.
+       MEASURED with this plant: padding-top computes 360px, every box in
+       FIGHT's chain is `overflow:hidden`, and FIGHT lands at y 977..1005 on a
+       423px screen — `CLIPPED AWAY`, for exactly the reason the name claims.
+       `verify` below is the standing half of the repair: the mutation now
+       asserts its OWN preconditions, so the next rule that outranks the plant
+       makes this red as INERT PLANT rather than passing on an accident. */
     name: 'M4 — push FIGHT below the fold at the mobile target with nothing that scrolls (the settle/multi-pass cure must not swallow it)',
-    css: '#panel-combat{padding-top:360px !important}'
-       + '#panel-combat,#panel-combat *{overflow:hidden !important}',
+    css: '#panel-combat#panel-combat.active{padding-top:360px !important}'
+       + '#panel-combat#panel-combat,#panel-combat#panel-combat *{overflow:hidden !important}'
+       + '#panel-combat#panel-combat .fs-body{transform:translateY(360px) !important}',
+    verify: 'var p=document.getElementById("panel-combat");'
+      + 'if(!p)return "#panel-combat is not in the page";'
+      + 'var bad=[];'
+      + 'var pt=parseFloat(getComputedStyle(p).paddingTop)||0;'
+      + 'if(pt<360)bad.push("#panel-combat padding-top computed "+pt+"px, not 360px \u2014 a rule '
+      + 'of higher specificity cancelled the push");'
+      + 'var b=document.querySelector("#panel-combat .fs-body");'
+      + 'if(!b)bad.push("#panel-combat .fs-body is not in the page");'
+      + 'else if(getComputedStyle(b).transform==="none")'
+      + 'bad.push(".fs-body transform computed none \u2014 the 360px shift did not apply");'
+      + 'var leak=[],n=document.querySelector("#panel-combat .fs-fight");'
+      + 'while(n&&n!==document.documentElement){var c=getComputedStyle(n);'
+      + 'if(/auto|scroll/.test(c.overflowY+" "+c.overflowX))'
+      + 'leak.push((n.id?"#"+n.id:n.tagName.toLowerCase())+"."+String(n.className||"").split(" ")[0]);'
+      + 'n=n.parentElement;}'
+      + 'if(leak.length)bad.push("FIGHT can still be scrolled to, so the nothing-scrolls half '
+      + 'did not take: "+leak.join(", "));'
+      + 'return bad.length?bad.join("; "):null;',
     viewports: [{ w: 922, h: 423 }],
     expect: ['combat/FIGHT'],
   },
@@ -1002,9 +1074,18 @@ if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}`
   if (mutate) {
     let escaped = 0;
     for (const m of MUTATIONS) {
-      const problems = await reachabilityGuard(browser, url,
-        { viewports: m.viewports, injectCss: m.css, injectJs: m.js, only: m.expect });
-      if (!problems.length) {
+      const all = await reachabilityGuard(browser, url,
+        { viewports: m.viewports, injectCss: m.css, injectJs: m.js, only: m.expect,
+          verify: m.verify });
+      const inert = all.filter((p) => p.includes(PLANT_FAILED));
+      const problems = all.filter((p) => !p.includes(PLANT_FAILED));
+      if (inert.length) {
+        console.log(`  ✗ INERT PLANT — ${m.name}`);
+        console.log('      the mutation did not reach the page, so whatever the guard said it said '
+          + 'about the UNMUTATED layout. Any "caught" here would be an accident.');
+        inert.forEach((p) => console.log('        ' + p));
+        escaped++;
+      } else if (!problems.length) {
         console.log(`  ✗ ESCAPED — ${m.name}`);
         console.log('      the guard stayed green with the defect planted; it is not asserting this.');
         escaped++;

@@ -1146,6 +1146,33 @@ begin
     raise exception 'GATE(y2b): hr_party_hunt_start takes its member row locks AFTER reading the common watermark. A lock taken after the read it protects locks nothing.';
   end if;
 
+  -- (y2c) ★ AND THE FAN-OUT'S **REACH** IS PINNED, WHERE IT NOW LIVES
+  --      (Security E7, 2026-09-24). The per-member loop that replaced the
+  --      `update … from party_member` join is correct, but it MOVED the
+  --      scoping predicate: the join form put `m.party_id = v_pid` inside the
+  --      UPDATE, where tests/selfcheck-no-global-dml.mjs reads it (family B);
+  --      the loop form puts it in a cursor SELECT, which that guard does not
+  --      examine because the UPDATE beneath it is bound to plpgsql variables
+  --      and reads clean. Nothing else covers it either: §6's probe has ONE
+  --      party of four, so GATE(f)'s "4 of 4" holds just as well over a loop
+  --      that iterates every party_member row in the game, and party-hunt's
+  --      partialStart mutant only ever NARROWS the write.
+  --
+  --      So drop either conjunct from the cursor below and this verb stamps
+  --      active_kind, active_id, active_since and version + 1 across every
+  --      live party member on the server, inside one leader's transaction,
+  --      with no syntax error, no failing assertion and every guard in the
+  --      repo still green. That is the same blast radius family B exists to
+  --      refuse, one clause further from the statement. The cursor's shape is
+  --      therefore asserted HERE, against the installed body, exactly as
+  --      (y2b) asserts the lock it cannot otherwise see.
+  if v_src !~ 'from\s+public\.party_member\s+m\s+where\s+m\.party_id\s*=\s*v_pid\s+and\s+m\.left_at\s+is\s+null\s+order\s+by\s+m\.user_id\s*,\s*m\.slot\s+for\s+update\s+of\s+m' then
+    raise exception 'GATE(y2c): hr_party_hunt_start''s member fan-out no longer iterates `party_member where m.party_id = v_pid and m.left_at is null` under `for update of m`. The loop predicate IS the reach of a cross-user write to player_state, and it is the one place selfcheck-no-global-dml cannot see it: widen it and the verb writes every live party member in the game.';
+  end if;
+  if v_src !~ 'update\s+public\.player_state\s+ps\s+set[^;]*where\s+ps\.user_id\s*=\s*v_mem\.user_id\s+and\s+ps\.slot\s*=\s*v_mem\.slot' then
+    raise exception 'GATE(y2c): hr_party_hunt_start''s fan-out UPDATE is not bound to (v_mem.user_id, v_mem.slot). One member per statement, bound to two values this call is holding, is what makes the write legible to selfcheck-no-global-dml at all (S-SC-1 family C). (A further NARROWING conjunct is GATE(f)''s arm, not this one.)';
+  end if;
+
   -- …and the STOP writes no player_state at all: idling a member here would
   -- confiscate the residual window this verb cannot collect.
   select regexp_replace(p.prosrc, '--[^' || chr(10) || ']*', '', 'g') into v_src

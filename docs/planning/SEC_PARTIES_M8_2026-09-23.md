@@ -1495,3 +1495,90 @@ through a side door.
    `--live --write` anyway; a why appearing here is a finding, not a formality.
 9. `restore-census`: classify the ONE new table, `party_settle_boundary`
    (append-only journal, per-party, no client surface).
+
+---
+
+### S4 re-look (2026-09-24)
+
+Re-reviewed on `sec/m8-s4-relook`, branched from `origin/set/b553` at `52ee28c0`
+— which already carries the restatement `462b7f01` ("the hunt fan-out is a
+per-member loop, not a join"). Nothing merged by hand.
+
+**The restatement is sound, and it is NOT byte-neutral in one respect the lane
+did not name.** Confirmed against the code, in the order the brief asks:
+
+1. **Invariant 8 holds, under one lock.** `accrued_to` is still absent from the
+   SET list, so the start writes the pointer and never a watermark. The `party`
+   row is taken first (`:301`), every live member's `player_state` row is locked
+   in `(user_id, slot)` order **before** the first `max(ps.accrued_to)` read
+   (`:451`, E1, unmoved), and the loop runs inside that same transaction and the
+   same sub-block. There is no window between members in which a member's own
+   solo settle could land: the loop takes no `player_state` lock this call is
+   not already holding. `GATE(f)` executes the equality at 4 of 4.
+2. **B-A6 all-or-nothing is unmoved.** Every refusal is above the sub-block, and
+   `GATE(e)` — the four-member zero-row arm — is executed verbatim: no
+   `party_hunt` row, no boundary spent, no pointer moved, no watermark moved, no
+   `left_at`. The restatement touched neither.
+3. **No deadlock against the settle.** `hr_party_tick_settle` locks
+   `party_hunt` → `party_tick_lease` → `player_state` in `(user_id, slot)` order
+   (S2 `:479/:484/:633`) and **never locks `party_member` at all**, so the new
+   `for update of m` cannot close a cycle with it. Accept, leave and kick each
+   take the `party` row before touching `party_member` (S1 `:516/:679/:782`, S4
+   `:843/:984`), and this call holds that row — so they can only wait on it.
+4. **The §5 md5 PIN is intact**, byte-for-byte: the restatement's only two hunks
+   are at `:253` (one declaration) and `:521` (the fan-out). `c_kick`
+   `933cf326…` / `c_leave` `84b3460e…` still name the S1 bodies production runs,
+   and `schema-drift` replays the pin green.
+5. **All four landed S4 changes survived byte-for-byte** — E1, E2, E3 and E4 are
+   outside both hunks.
+6. **The guard is green by construction, not by acknowledgement:** 228
+   migrations, 9 globals, 9 acknowledged, and **none of the six acknowledgement
+   keys names an M8 file**. `--selftest` still catches all 16 shapes with 5
+   controls silent — including `B update_from_join`, the shape this file used to
+   carry.
+
+#### E7 — the restatement moved the fan-out's reach somewhere nothing watches **[P2, LANDED here + proved]**
+
+The join bound the owner column to a column, which is why the guard refused it;
+the loop binds it to `v_mem`, which reads clean. But the **reach** of the write
+did not become safer — it moved, from the UPDATE (where
+`selfcheck-no-global-dml` reads it, family B) into a cursor SELECT that guard
+does not examine. Nothing else covered it either: §6's probe has ONE party, so
+`GATE(f)`'s "4 of 4" holds just as well over a loop iterating every
+`party_member` row on the server, and `partialStart` only ever NARROWS. Drop
+`m.party_id = v_pid` from `:552` and the verb stamps `active_kind`, `active_id`,
+`active_since` and `version + 1` across every live party member in the game,
+inside one leader's transaction, with every guard in this repo still green.
+
+Landed: **`GATE(y2c)`** in §6, asserting the installed body's cursor shape and
+its `(v_mem.user_id, v_mem.slot)` bind the way `GATE(y2b)` asserts the lock it
+cannot otherwise see, plus two mutants — `globalStart` (widen the cursor) and
+`rebindFanOut` (unbind the UPDATE) — one per half. `partialStart` keeps
+`GATE(f)` as its detector: one gate, one property, no shadowing.
+
+#### Guards — real exit codes, on `sec/m8-s4-relook` after the change
+
+| gate | exit |
+|---|---|
+| `node tests/selfcheck-no-global-dml.mjs` | **0** — 9 globals, 9 acknowledged, none an M8 file |
+| `node tests/selfcheck-no-global-dml.mjs --selftest` | **0** — 16 defects caught, 5 controls silent |
+| `node tests/party-hunt.mjs` | **0** |
+| `node tests/party-hunt.mjs --mutate` | **0** — NINE mutants, each RED at the apply; five RED again in stage 2 |
+| `node tests/schema-drift.mjs` | **0** (byte-identical second apply; the §5 pin replayed) |
+| `node tests/apply-order-honesty.mjs` | **0** |
+| `node tests/party-settle.mjs` | **0** |
+| `node tests/patch-chain-guard.mjs` | **0** |
+| `node tests/guard-hygiene.mjs` | **0** |
+| `node tests/ci-shape.mjs` | **0** |
+| `node tools/lane-done.mjs` | **0** |
+
+No `?v=` added or bumped; no baseline regenerated; no DB touched.
+
+#### VERDICT — **GO-WITH-CHANGES, and the change is LANDED on `sec/m8-s4-relook` and re-proved.**
+
+The S4 APPLY GO stands, on the apply order and every condition §5 already sets,
+**once `sec/m8-s4-relook` is merged into the set branch.** Applying
+`462b7f01`'s file without `GATE(y2c)` ships the fan-out with its scoping
+predicate unguarded by anything — which is the one thing the guard's refusal was
+telling the lane, and restating the statement to satisfy the guard answered the
+letter of it.

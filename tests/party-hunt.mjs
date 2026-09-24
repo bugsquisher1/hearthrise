@@ -119,6 +119,26 @@ const MUTANTS = {
     '       where ps.user_id = v_mem.user_id and ps.slot = v_mem.slot;',
     '       where ps.user_id = v_mem.user_id and ps.slot = v_mem.slot\n'
     + '         and ps.user_id = v_uid;   /* --mutate partialStart */'] },
+  /* E7 (2026-09-24). The OTHER direction, and the one the restatement opened:
+     the loop predicate IS the reach of the fan-out, and selfcheck-no-global-dml
+     cannot see it there — the UPDATE beneath it binds to plpgsql variables and
+     reads clean. Drop `m.party_id = v_pid` and the verb stamps active_kind and
+     version + 1 across every live party member on the server. §6's probe has
+     one party, so GATE(f)'s "4 of 4" still holds; GATE(y2c) is what bites. */
+  globalStart: { file: F2, arm: 'E7', pair: [
+    '       where m.party_id = v_pid and m.left_at is null\n'
+    + '       order by m.user_id, m.slot\n'
+    + '         for update of m',
+    '       where m.left_at is null   /* --mutate globalStart */\n'
+    + '       order by m.user_id, m.slot\n'
+    + '         for update of m'] },
+  /* E7, the other half of GATE(y2c): the loop is scoped correctly but the
+     UPDATE stops being bound to the record it iterates. The statement then
+     reads clean to selfcheck-no-global-dml — v_uid is a variable — while the
+     fan-out writes the leader four times and nobody else. */
+  rebindFanOut: { file: F2, arm: 'E7', pair: [
+    '       where ps.user_id = v_mem.user_id and ps.slot = v_mem.slot;',
+    '       where ps.user_id = v_uid and ps.slot = v_mem.slot;   /* --mutate rebindFanOut */'] },
   /* T-3. The leader kicks at minute 59 of a sixty-minute window and the
      removed member loses the fellowship bonus and the XP floor for all of it.
      §18.4: "the kick is never the cheaper path." */
@@ -185,7 +205,7 @@ const STAGE2 = ['budgetNotCounted', 'partialStart', 'leftAtWritten',
   'unlockedInvariant8', 'refusalNamesAccount'];
 
 console.log('party-hunt: M8 slice 4, four members through the hunt intents and one fenced settle'
-  + (MUTATE ? '  [--mutate: seven apply-time mutants, five of them re-run against THIS file]' : ''));
+  + (MUTATE ? '  [--mutate: nine apply-time mutants, five of them re-run against THIS file]' : ''));
 
 // ── STAGE 1 OF THE MUTATION PROOF ──────────────────────────────────────────
 // Planted alone, EVERY one of these must be refused BY THE APPLY, because the

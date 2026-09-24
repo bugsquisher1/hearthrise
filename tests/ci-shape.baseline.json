@@ -79,6 +79,8 @@
     "node tests/party-split.mjs --mutate": "db-replay-2",
     "node tests/party-settle.mjs": "db-replay-2",
     "node tests/party-settle.mjs --mutate": "db-replay-2",
+    "node tests/party-hunt.mjs": "db-replay-2",
+    "node tests/party-hunt.mjs --mutate": "db-replay-2",
     "node tests/world-tick-token-leak.mjs": "db-replay-2",
     "node tests/world-tick-token-leak.mjs --selftest": "db-replay-2",
     "node tests/world-tick-token-failclosed.mjs": "db-replay-2",

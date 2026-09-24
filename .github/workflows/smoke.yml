@@ -1361,6 +1361,52 @@ jobs:
           node tests/party-settle.mjs
           node tests/party-settle.mjs --mutate
 
+      # M8 SLICE 4 — THE HUNT INTENTS, AND THE SETTLE BOUNDARY PRICED. The three
+      # migrations carry their own §4 blocks (Security's §18-SEC.3 S4 list plus
+      # §18-SEC-2.2's B-A1 and B-A6, executed at apply time and refusing to
+      # install otherwise); this is the STANDING half. A four-member party is
+      # formed through the REAL membership verbs, starts a hunt, is settled once
+      # in SHADOW through S2's own hr_party_tick_settle, and is then kicked, left
+      # and stopped.
+      #
+      #   P-IDEM   the three files re-apply byte-identically — and file 2 PATCHES
+      #            two existing bodies (hr_party_kick, hr_party_leave) by anchored
+      #            pg_get_functiondef replacement, so this is also the proof that
+      #            the patch is SKIPPED on a second apply rather than stapled in
+      #            twice. It runs BEFORE the fixture is planted, because both
+      #            files' §(z) arms require the S4 tables EMPTY after an apply.
+      #   P-SETTLE the last window goes through S2's settle and NOTHING else:
+      #            four hr_tick_shadow rows, the attribution key set as an
+      #            EQUALITY, zero ledger rows, the party watermark moved by the
+      #            settle rather than by the verb. A second settle path on a
+      #            client verb is S-3 and AWAY-12 in one move.
+      #   P-B-A1   the eight-boundary budget across ALL FOUR doors — start, stop,
+      #            leave, kick — which no single migration arm can walk end to
+      #            end because it is a property of the four verbs together.
+      #
+      # ★ B-A6 is the arm to read first: a start with one of four members' windows
+      #   still open is refused member_uncollectable and writes ZERO ROWS — no
+      #   hunt, no boundary spent, no pointer moved, no watermark moved, no
+      #   left_at. ★ T-3 is the second: a kick whose settle cannot run is refused
+      #   with left_at UNWRITTEN, the key released and no boundary spent, and the
+      #   same kick then LANDS once the settle has run.
+      #
+      # --mutate plants five defects, each of which the MIGRATIONS' OWN §4 blocks
+      # must refuse at apply time: a start that stops counting against the eight
+      # (B-A1), a start that writes ONE member's pointer instead of all four
+      # (B-A6), a kick that closes the row although the settle could not run
+      # (T-3), a stop that calls hr_party_tick_settle itself (S-3), and a
+      # party_settle_required refusal that hands the leader the watermark no
+      # caller may read. THREE of them are then re-run with the migration's §6
+      # gate neutered, so the node arms have to catch them on their own — which
+      # is the only state that matters the day somebody edits a verb without
+      # re-running the apply.
+      - name: M8 parties — the hunt intents, T-3 and the eight-boundary budget
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/party-hunt.mjs
+          node tests/party-hunt.mjs --mutate
+
       # THE DERIVED PER-REQUEST TOKEN, EXECUTED RATHER THAN ASSERTED
       # (SEC_WORLD_TICK_TOKEN_2026-09-23.md, security ruling T-5.3). The
       # migration's own §5 self-check CANNOT RUN THE DERIVATION on the

@@ -263,6 +263,21 @@
   var visible = false;
   var timer = null;
   var inFlight = null;
+  /* ── THE READ'S GENERATION, and it exists because dropping the HANDLE to an
+     in-flight read does not stop the read.
+     `doRefresh` is three sequential requests. `setVisible(false)` and
+     `__resetForTest` both used to null `inFlight` and walk away — so a read
+     caught between its first and second request went on to make the other two,
+     against whatever `window.fetch` was by then, and to `put()` a projection
+     for a panel that had been closed or reset. Under the suite that is a stray
+     request arriving in a LATER test's recorded calls: PARTY-2's last arm read
+     `a closed panel made 1 requests` on a loaded runner, green on CI, on one
+     SHA, and the request was a previous arm's read still talking.
+     A read now carries the generation it started in and abandons itself — no
+     further request, no `put` — the moment that generation is retired. It
+     returns the CURRENT projection, so nothing is restored or evicted on the
+     uncertainty (§6); the panel keeps saying what it last heard. */
+  var epoch = 0;
 
   /** True when a SLOW (idle) refresh is allowed to spend a read right now. A
       gesture and a panel-open do not ask this — they are the player acting. */
@@ -294,6 +309,8 @@
   }
 
   async function doRefresh(reason) {
+    var myEpoch = epoch;
+    var stale = function () { return myEpoch !== epoch; };
     /* SIGNED OUT IS A STATE, NOT A PAUSE. Answering `known:false` would leave
        the panel saying "asking the realm…" for ever at a door it never knocked
        on — a spinner is a promise, and this one could not be kept. */
@@ -304,6 +321,7 @@
                                    // outlives the read that follows it
     var mine = await tableGet('party_member?select=party_id,role&left_at=is.null&slot=eq.'
       + encodeURIComponent(String(activeSlot())));
+    if (stale()) return cur;               // the panel closed or reset under us
     if (mine === null) {
       /* The read did not land. NEVER restore or evict on uncertainty (§6): the
          last known projection stands, and the panel keeps saying what it last
@@ -316,17 +334,20 @@
 
     if (!mine.length) {                           // out of a party: no roster read
       next.invites = await inboxRows();
+      if (stale()) return cur;
       return put(next);
     }
     next.partyId = mine[0].party_id || null;
     next.role = mine[0].role || null;
 
     var rows = await tableGet('party?select=id,size_cap&id=eq.' + encodeURIComponent(next.partyId));
+    if (stale()) return cur;
     if (rows && rows.length) next.sizeCap = rows[0].size_cap;
 
     stats.viewReads += 1;
     stats.lastViewAt = Date.now();
     var view = await rpcPost('hr_party_view', { p_party: next.partyId });
+    if (stale()) return cur;
     if (view && view.ok === true && Array.isArray(view.members)) {
       next.members = view.members;
     } else if (view && view.error === 'not_in_party') {
@@ -393,8 +414,14 @@
     if (visible) {
       if (!timer) timer = setInterval(pollNow, Math.round(SLOW_REFRESH_MS / 3));
       refresh('open');
-    } else if (timer) {
-      clearInterval(timer); timer = null;
+    } else {
+      /* CLOSING RETIRES THE READ IN FLIGHT, which is what makes the module's own
+         first line — "A closed panel reads NOTHING" — true of a panel closed
+         mid-read as well as one closed between reads. Unconditional: a flight
+         can be open with no timer (a gesture's re-read), and that flight is
+         exactly the one that used to keep spending requests after the close. */
+      epoch += 1; inFlight = null;
+      if (timer) { clearInterval(timer); timer = null; }
     }
   }
 
@@ -430,6 +457,9 @@
     __resetForTest: function () {
       stats = { viewReads: 0, lastViewAt: 0, lastReadAt: 0, verbCalls: 0 };
       probe = {};
+      /* The generation FIRST: nulling inFlight only drops the handle, and a read
+         still in flight would otherwise finish against the next test's stub. */
+      epoch += 1;
       inFlight = null;
       visible = false;
       if (timer) { clearInterval(timer); timer = null; }

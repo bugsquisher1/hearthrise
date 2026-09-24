@@ -306,6 +306,14 @@ function PROBE(spec) {
     ]);
 
     const geomKey = (node) => {
+      /* CONNECTIVITY IS PART OF THE GEOMETRY, and leaving it out is what the
+         2026-09-24 red was made of. A node the page has replaced reports a
+         0x0 box forever, so it "settles" on the first frame and every later
+         reading is taken on a corpse: `y 0..0`, every ancestor
+         `client:0 scroll:0`, and `overflow-y` the EMPTY STRING that
+         getComputedStyle returns for an unrendered element. That reads as
+         COVERED. Keying on isConnected makes the settle loop see the swap. */
+      if (!node.isConnected) return 'DETACHED';
       const b = node.getBoundingClientRect();
       const parts = [Math.round(b.top), Math.round(b.bottom), Math.round(b.left), Math.round(b.right),
         innerWidth, innerHeight];
@@ -343,20 +351,61 @@ function PROBE(spec) {
       return b.top >= -1 && b.bottom <= innerHeight + 1 && b.left >= -1 && b.right <= innerWidth + 1;
     };
 
-    let settled = await settle(el);
-    const fitsUnscrolled = fits();
+    /* MEASURE A NODE THE PAGE STILL OWNS, and re-pick when it does not — the
+       root cause of the 2026-09-24 red and the only thing in this file that
+       was ever wrong about it. A live surface re-renders under the probe: the
+       Profile header is rebuilt by the 200ms combat tick, the activity bar by
+       its own, a list by a late fixture. `pick()` returns the node that was
+       there THEN; by the time the box is read the panel has been replaced and
+       the handle is an orphan. Measuring an orphan is not a lenient reading of
+       the layout, it is a reading of no layout at all, and it reports the
+       control COVERED at y 0..0 on a screen where a player can press it.
+       So: settle, and if the subject was swapped, pick the fresh one and start
+       the measurement over. Bounded at 4 attempts — a surface that never stops
+       swapping its own CTA is itself the finding, and says so below rather
+       than looping. This cannot make a real defect green: the re-picked node
+       is the SAME selector on the SAME screen and every geometric assertion
+       runs on it unchanged (mutations M1–M4 all stay caught). */
+    let settled = null;
+    let fitsUnscrolled = false;
     let moved = 0;
-    if (!spec.noScroll) {
-      /* Scroll, let the consequences of scrolling finish, scroll again if the
-         geometry moved under us. Three rounds of (scroll → settle) is past the
-         point any real surface keeps changing. */
-      for (let round = 0; round < 3; round++) {
-        const step = userScroll(el);
-        moved += step;
-        const afterScroll = geomKey(el);
-        settled = await settle(el);
-        if (step < 1 && geomKey(el) === afterScroll) break;
+    let attempts = 0;
+    let measured = false;
+    while (attempts < 4) {
+      attempts++;
+      settled = await settle(el);
+      if (!el.isConnected) {
+        const fresh = pick(spec.sel, spec.last);
+        if (!fresh) break;
+        el = fresh; continue;
       }
+      fitsUnscrolled = fits();
+      moved = 0;
+      if (!spec.noScroll) {
+        /* Scroll, let the consequences of scrolling finish, scroll again if the
+           geometry moved under us. Three rounds of (scroll → settle) is past the
+           point any real surface keeps changing. */
+        for (let round = 0; round < 3; round++) {
+          const step = userScroll(el);
+          moved += step;
+          const afterScroll = geomKey(el);
+          settled = await settle(el);
+          if (step < 1 && geomKey(el) === afterScroll) break;
+        }
+      }
+      /* A READING ONLY COUNTS IF THE PAGE STILL OWNS THE NODE IT WAS TAKEN FROM.
+         The subject can be swapped DURING the scroll rounds as easily as before
+         them, and the first draft of this loop tested connectivity only after
+         re-picking — which meant the freshly picked node was trivially connected
+         and the churn verdict below could never fire. Mutation M5 escaped on
+         exactly that, which is what mutations are for. */
+      if (el.isConnected) { measured = true; break; }
+      const fresh = pick(spec.sel, spec.last);
+      if (!fresh) break;
+      el = fresh;
+    }
+    if (!measured) {
+      return { churning: true, el: name(el), attempts };
     }
     const r = el.getBoundingClientRect();
     const inView = spec.noScroll ? fitsUnscrolled : fits();
@@ -522,10 +571,43 @@ const KILL_OVERLAYS = () => {
   window.__hrKillOverlays = kill;
 };
 
+/* PUT THE FIGHT DOWN BEFORE MEASURING THE NEXT SCREEN.
+   `combat/EAT` and `combat/STOP` open a REAL fight, and nothing used to end
+   it, so every CTA declared after them — character, bounty, market, shop and
+   the daily claim — was measured on a page where a 200ms combat tick was
+   rebuilding surfaces underneath the probe. On a quiet runner the rebuild
+   happens to miss the window between picking the control and reading its box;
+   on a loaded one it does not, and the guard reports the control COVERED at
+   `y 0..0` with `oy:` blank — the signature of a node the page has replaced.
+   That is the whole of the 2026-09-23/24 order-dependent red: six CTAs at
+   922x423 on a Windows runner, `home/CLAIM` here, green on CI, on one SHA.
+   Measured A/B on 2026-09-24: with a fight live the Profile header's `.hd-cta`
+   is detached inside 750ms; with no fight it is still the same node after 2.5s.
+
+   Ended through the CONTROL A PLAYER PRESSES — `.fs-stop`, which this file
+   declares as a CTA in its own right — so the app unwinds the fight itself.
+   `window.stopCombat()` is the fallback for the case where Stop is not on the
+   screen; the class is never stripped by hand, which would leave every combat
+   module believing the fight is still running. */
+const QUIESCE = async () => {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const fighting = () => !!(window.G && window.G.activeMonster);
+  if (!fighting()) return;
+  const stop = [...document.querySelectorAll('#panel-combat .fs-stop')]
+    .find((e) => e.getBoundingClientRect().height > 1);
+  try { if (stop) stop.click(); else if (typeof window.stopCombat === 'function') window.stopCombat(); } catch (e) {}
+  for (let i = 0; i < 40 && fighting(); i++) await sleep(50);
+  /* A Stop the app refused (a confirm sheet, a mutex) still has to leave the
+     page quiet or the next screen is measured under a live tick. */
+  if (fighting()) { try { window.stopCombat && window.stopCombat(); } catch (e) {} }
+  for (let i = 0; i < 20 && fighting(); i++) await sleep(50);
+};
+
 /**
  * @param {import('playwright').Browser} browser
  * @param {string} url
- * @param {{viewports?: typeof VIEWPORTS, injectCss?: string, only?: string[]}} [opts]
+ * @param {{viewports?: typeof VIEWPORTS, injectCss?: string, injectJs?: string,
+ *           only?: string[]}} [opts]
  *        — all three exist for the mutation harness; production callers pass
  *        nothing.
  * @returns {Promise<string[]>} problems (empty === green)
@@ -574,10 +656,22 @@ export async function reachabilityGuard(browser, url, opts = {}) {
         }, opts.injectCss);
         await page.waitForTimeout(300);
       }
+      /* JS mutations exist for ONE mutation and would not otherwise be here:
+         the churn defect cannot be planted in a stylesheet. A stylesheet
+         cannot detach a node, and detaching the subject under the probe is
+         precisely the failure this build learned to see. Same discipline as
+         injectCss — evaluated into the page, never written to disk. */
+      if (opts.injectJs) {
+        await page.evaluate((js) => { try { (new Function(js))(); } catch (e) {} }, opts.injectJs);
+        await page.waitForTimeout(300);
+      }
       await page.waitForTimeout(200);
 
       for (const spec of CTAS) {
         if (opts.only && !opts.only.includes(spec.id)) continue;
+        /* End any fight a previous spec started BEFORE opening the next screen,
+           so this spec's screen is not measured under a live combat tick. */
+        if (!spec.open.includes('fight')) await page.evaluate(QUIESCE).catch(() => {});
         // Re-kill: opening a screen can raise a new modal (level-up, tour step).
         await page.evaluate(() => { try { window.__hrKillOverlays && window.__hrKillOverlays(); } catch (e) {} });
         const r = await page.evaluate(PROBE, spec).catch((e) => ({ threw: String(e && e.message || e).slice(0, 120) }));
@@ -585,6 +679,16 @@ export async function reachabilityGuard(browser, url, opts = {}) {
         if (r.threw) { problems.push(`${at}: probe threw — ${r.threw}`); continue; }
         if (r.skipped) continue;
         if (r.missing) { problems.push(`${at}: the control does not exist or is not laid out (${spec.sel})`); continue; }
+        /* NOT a lenient skip: the screen replaced its own primary control four
+           times while the probe tried to hold it still, which is a finding
+           about the screen and is reported as one. */
+        if (r.churning) {
+          problems.push(`${at}: the screen REPLACES this control faster than it can be measured — `
+            + `${r.el} was detached on all ${r.attempts} attempts. Something is re-rendering this `
+            + `surface on a tick; a player cannot press a button that is rebuilt under the cursor. `
+            + `${spec.why}`);
+          continue;
+        }
         if (!r.inView) {
           problems.push(`${at}: ` + (r.noScroll
             ? `BELOW THE FOLD — this control must be visible WITHOUT scrolling`
@@ -622,11 +726,33 @@ export async function reachabilityGuard(browser, url, opts = {}) {
    mutation must produce at least one problem or the run is red. */
 const MUTATIONS = [
   {
-    name: 'M1 — re-clip the arena (the b370 defect verbatim: the scroll net back inside @media max-height:560)',
+    /* RE-MEASURED 2026-09-24, AND THE OLD FORM OF THIS MUTATION HAD GONE INERT
+       — which is worth more than the mutation it replaces, because a mutation
+       nobody re-measures is a green line that asserts nothing. `--mutate` was
+       already red for `M1 ESCAPED` on set/b553 before this lane touched the
+       file (verified against the unmodified guard at HEAD), so this is a repair,
+       not a regression.
+       As written it reverted b370's two clip clauses and sized the foe portrait
+       at `min(42vh,340px)`. With all three planted, FIGHT measured y 648..685 in
+       a 768px viewport — on screen, so the guard was RIGHT to stay green.
+       Measured at 42vh, 52vh, 58vh and 64vh: FIGHT does not move one pixel. The
+       portrait clause is inert, and b513 says why in this very file — the stage
+       is `flex: 1 0 auto; max-height: 100%` with row 1 on `minmax(0, cap)`, so
+       the plate is whatever the card has left and a bigger REQUEST buys nothing.
+       The clamp, not the portrait, is what closed b370.
+       So the plant reverts THE CLAMP, which is the pre-b513 state the defect
+       actually shipped in: `max-height: none` puts the stage back to a no-shrink
+       flex item that can outgrow its clipping card, and a 340px plate then pays
+       for nothing. Measured: FIGHT lands at y 785..822 in a 768px viewport with
+       not one auto/scroll box in its chain — b370's own reading was y 776..813.
+       Keep the two net clauses: without them `.fs-view` scrolls and the control
+       is reachable, which is the §3.9 net doing its job. */
+    name: 'M1 — revert b513\'s stage clamp and b371\'s scroll net (b370 verbatim: FIGHT at y 785..822 in a 768px viewport, nothing in the chain a player can scroll)',
     css: '#panel-combat[data-combat-view="fight"] .combat-arena{overflow:hidden !important}'
        + '#panel-combat[data-combat-view="fight"] .fs-view{overflow-y:visible !important}'
-       + '#panel-combat .arena-vs.fs-stage .arena-side.foe .arena-portrait{'
-       + 'width:min(42vh,340px) !important;height:min(42vh,340px) !important}',
+       + '#panel-combat .arena-vs.fs-stage{max-height:none !important}'
+       + '#panel-combat .arena-vs.fs-stage .arena-side .arena-portrait{'
+       + 'width:340px !important;height:340px !important}',
     viewports: [{ w: 1366, h: 768 }],
     expect: ['combat/FIGHT'],
   },
@@ -680,6 +806,32 @@ const MUTATIONS = [
     expect: ['combat/FIGHT'],
   },
   {
+    /* THE 2026-09-24 CURE HAS ITS OWN MUTATION, because the cure added a new
+       verdict and a verdict with no mutation behind it is not an assertion.
+       That red was a node the Profile header had REPLACED while the probe held
+       it — a detached handle reads 0x0 forever, settles on frame one, and
+       reports COVERED. The probe now re-picks a swapped subject, which is the
+       right answer for a surface that rebuilds once; a surface that rebuilds
+       its primary CTA on every tick is a real defect and must still be red.
+       This plants exactly that: the daily claim re-created four times a second.
+       If the re-pick loop ever grows into "wait until it stops", this escapes. */
+    name: 'M5 — rebuild the daily-claim button on every animation frame (the re-pick cure must not swallow a CTA the screen churns)',
+    /* EVERY FRAME, NOT every 250ms, and the difference is the assertion.
+       Measured: at 250ms the probe re-picks the fresh node, measures it and is
+       green — correctly, because a button rebuilt four times a second IS
+       pressable; whatever node is under the cursor takes the click. A button
+       rebuilt every frame is not: it never survives long enough to be held,
+       hit-tested or focused, and the probe is right to say so rather than
+       re-picking forever. This is the rate that separates the cure from a
+       guard that waits until the problem goes away. */
+    js: 'var ch=function(){'
+      + 'var b=document.querySelector("#panel-profile .hd-cta");'
+      + 'if(b&&b.parentNode){var c=b.cloneNode(true); b.parentNode.replaceChild(c,b);}'
+      + 'requestAnimationFrame(ch);}; requestAnimationFrame(ch);',
+    viewports: [{ w: 1366, h: 768 }],
+    expect: ['home/CLAIM'],
+  },
+  {
     name: 'M3 — drop a fixed bar over the bottom of the screen (proves the HIT TEST is live, not just the box maths)',
     css: 'body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:140px;'
        + 'background:rgba(0,0,0,.5);z-index:2147483000;pointer-events:auto}',
@@ -698,7 +850,7 @@ if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}`
     let escaped = 0;
     for (const m of MUTATIONS) {
       const problems = await reachabilityGuard(browser, url,
-        { viewports: m.viewports, injectCss: m.css, only: m.expect });
+        { viewports: m.viewports, injectCss: m.css, injectJs: m.js, only: m.expect });
       if (!problems.length) {
         console.log(`  ✗ ESCAPED — ${m.name}`);
         console.log('      the guard stayed green with the defect planted; it is not asserting this.');

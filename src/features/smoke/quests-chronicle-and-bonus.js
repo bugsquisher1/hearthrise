@@ -1196,11 +1196,16 @@ export default [
         if (typeof window.openSkillDetail === 'function') window.openSkillDetail(c.skill);
         window.startArtisan(c.skill, c.recipe);
         assert(window.G.activeSkill === c.skill, c.skill + ': did not start');
-        // consume the single feed, then fire once more with nothing left
-        window.doArtisanAction(c.skill, c.recipe);
-        window.doArtisanAction(c.skill, c.recipe);
+        /* Two actions made this RNG-dependent: craftSave refunds the inputs on
+           a 1% `workshop: 1` proc, crafting-only (core/artisan.js:202). */
+        let ticks = 0;
+        while (window.G.activeSkill !== null && ticks < 40) {
+          window.doArtisanAction(c.skill, c.recipe);
+          ticks += 1;
+        }
         assert(window.G.activeSkill === null,
-          c.skill + ': activeSkill still "' + window.G.activeSkill + '" after inputs ran out'
+          c.skill + ': activeSkill still "' + window.G.activeSkill + '" after ' + ticks
+          + ' actions on one action\'s worth of inputs — the bench never stopped'
          );
         assert(!document.querySelector('.act-tile.active'),
           c.skill + ': a tile still claims Active after exhaustion');

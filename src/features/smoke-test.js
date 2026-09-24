@@ -11,7 +11,7 @@
 // one live G and several depend on what the previous one left behind, so the
 // concatenation below is a CONTRACT, not a convenience. Add a domain module where its
 // tests used to sit; never re-sort this list to tidy it.
-import { errorLog, analyzeAssertionCoverage, stampBalanceLikeLoad, watchUiOverlaps, overlayResidue } from './smoke/_harness.js?v=552';
+import { errorLog, analyzeAssertionCoverage, stampBalanceLikeLoad, watchUiOverlaps, overlayResidue, captureShellLocks } from './smoke/_harness.js?v=552';
 import boot from './smoke/boot.js?v=552';
 import propertyAndUnlocks from './smoke/property-and-unlocks.js?v=552';
 import companionsClaimsAndRenown from './smoke/companions-claims-and-renown.js?v=552';
@@ -166,6 +166,9 @@ export async function runSmokeTest(opts = {}) {
   } catch (e) {}
   const results = [];
   try {
+    /* The shell's authored overflow, taken BEFORE the first test so the baseline
+       is the app's own state. Everything after this is measured against it. */
+    captureShellLocks();
     let residueBefore = overlayResidue();
     for (const t of PLAN) {
       const r = await t();

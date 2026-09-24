@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 31 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, withFarmServer, snapshotG, restoreG, restoreGAndRecord, on, overlayResidue } from './_harness.js?v=552';
+import { pass, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, withFarmServer, snapshotG, restoreG, restoreGAndRecord, on, overlayResidue, captureShellLocks } from './_harness.js?v=552';
 
 export default [
   () => tryRun('boot: G defined', () => {
@@ -826,5 +826,27 @@ export default [
         'a full-viewport fixed scrim was not reported — this is the shape that covers every later screen');
     } finally { scrim.remove(); }
     assert(overlayResidue().length === before, 'this test did not put the page back the way it found it');
+  }),
+
+  /* The other half of the same detector, and the reason it is measured rather
+     than listed: no rule in src/styles/*.css sets overflow hidden on html or
+     body through a CLASS — legacy.css:24 does it unconditionally — so a name
+     list would have been an empty list that looked like coverage. */
+  () => tryRun('suite hygiene: overlayResidue names a changed app-shell scroll lock, and a clean shell is silent', () => {
+    const el = document.querySelector('.main');
+    assert(el, 'no .main — the shell census has no subject');
+    const locks = () => overlayResidue().filter((x) => x.indexOf('app-shell scroll lock') !== -1);
+    captureShellLocks();
+    assert(locks().length === 0, 'a clean shell already reads as residue: ' + locks().join('; '));
+    const had = el.getAttribute('style');
+    try {
+      el.style.setProperty('overflow-y', 'scroll', 'important');
+      assert(locks().length === 1, 'a changed shell box was not named: ' + JSON.stringify(overlayResidue()));
+      assert(locks()[0].indexOf('.main:') !== -1, 'it named the wrong box: ' + locks()[0]);
+    } finally {
+      if (had === null) el.removeAttribute('style'); else el.setAttribute('style', had);
+      captureShellLocks();
+    }
+    assert(locks().length === 0, 'this test did not put the shell back the way it found it');
   }),
 ];

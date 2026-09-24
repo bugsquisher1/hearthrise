@@ -1582,3 +1582,19 @@ The S4 APPLY GO stands, on the apply order and every condition §5 already sets,
 predicate unguarded by anything — which is the one thing the guard's refusal was
 telling the lane, and restating the statement to satisfy the guard answered the
 letter of it.
+
+---
+
+## Coordinator record — S4 applied 2026-09-24 03:44:39–03:45:00 UTC, verified read-only 03:46 UTC
+
+Merged `sec/m8-s4-review` @ c36e40e6, the fan-out restatement `lane/m8-s4-selfcheck-scope` @ 462b7f01 (the CI self-check guard had refused the join-bound fan-out at all twelve call sites; restated as a per-member loop) and the re-look `sec/m8-s4-relook` @ d091c709 into `set/b553`; `selfcheck-no-global-dml` green by construction on the merged tree before the apply. Applied from that tree, one file per call, one sitting: boundary-budget 03:44:39 (four predicates), hunt-intents 03:44:52 (hr_party_hunt_start, hr_party_hunt_stop; hr_party_kick and hr_party_leave restated under the §5 PIN), client-surface 03:45:00 (no function). Every call `apply result: []`. No edge deploy (§5.2).
+
+| §6 read | Result |
+|---|---|
+| 2 party_settle_boundary | 0 rows; RLS enabled and forced; 0 policies; no grant to any non-owner role |
+| 3 function matrix | hr_party_boundaries_today / hr_party_boundary_room / hr_party_mark / hr_party_settle_current: EXECUTE false for all five roles; hr_party_hunt_start and hr_party_hunt_stop: authenticated true, the other four false |
+| 4 grant hygiene | `hr_assert_grant_hygiene(true)`: unapproved_client_rpcs [], ungated_client_rpcs [], engine_execute_outside_allowlist [] (key present); the two new hr_client_rpc_baseline rows carry identity_args equal to pg_get_function_arguments |
+| 5 party_hunt | party_hunt_stance_fk and party_hunt_stop_shape present; hr_tick_config shadow TRUE, channels {combat,gather}; party_hunt 0 rows, party 0 rows |
+| records | live-hash `--live --write`: every tracked body live == replay (guard green; the two long-standing divergences keep their whys); the three notes flipped to APPLIED; restore-census: production matches (119 tables) |
+
+§5.3 stands for the client half: hunt start/stop need `INTENT_REGISTRY` entries in the edge (collectsFirst, bucket party) before any UI calls them; that is a separate lane. §5.4 stands: shadow stays TRUE.

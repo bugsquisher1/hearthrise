@@ -72,6 +72,17 @@
   }
   function seen(){ try { return !!localStorage.getItem(SEEN_KEY); } catch { return false; } }
   function markSeen(){ try { localStorage.setItem(SEEN_KEY, '1'); } catch {} }
+  function forget(){ try { localStorage.removeItem(SEEN_KEY); } catch {} }
+  /* The sheet's own way out, for anything that needs it PUT AWAY rather than
+     torn out: "Look around first" is the dismiss a player presses, and pressing
+     it runs the same close() the overlay click and the CTA run. Removing the
+     node instead would skip that close and leave whatever it unhooks hooked. */
+  function close(){
+    const ov = document.getElementById('hr-post-signup-modal');
+    const btn = ov && ov.querySelector('#hr-psw-close');
+    if (btn) btn.click();
+    return !document.getElementById('hr-post-signup-modal');
+  }
 
   function maybeShow() {
     if (seen()) return;
@@ -138,8 +149,16 @@
   else arm();
 
   // Public hook: manual trigger from settings ("show welcome again")
+  /* THE SEEN FLAG IS PART OF THE PUBLIC SURFACE, not a private detail.
+     The M8 party arms stub a signed-in session, which is all this sheet waits
+     for, so where localStorage is fresh its 2 s poll landed the welcome on top
+     of whichever test was running when the name prompt cleared.
+     A test cannot state "this browser has already been welcomed" — the one
+     precondition every returning player's browser has — unless the flag it
+     keys on can be set and unset from outside. So it can be, through here,
+     and nobody has to know the key's spelling to do it. */
   window.HearthrisePostSignup = {
-    show: () => { try { localStorage.removeItem(SEEN_KEY); } catch {}; maybeShow(); },
-    seen,
+    show: () => { forget(); maybeShow(); },
+    seen, markSeen, forget, close,
   };
 })();

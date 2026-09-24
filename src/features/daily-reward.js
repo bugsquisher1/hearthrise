@@ -400,7 +400,12 @@
         + 'background:transparent;color:var(--ink-3,#a5896a);font-size:calc(19px * var(--ui-scale, 1));'
         + 'display:flex;align-items:center;justify-content:center;padding:0}',
       '.hr-dl-close:hover{color:var(--ink,#e9e2cf);border-color:var(--gold,#e0a64a)}',
-      '.hr-dl-hint{margin-top:10px;font-size:calc(13px * var(--ui-scale, 1));color:var(--ink-3,#a5896a)}'
+      /* 14.5px, not the 13px this shipped with: the suite's type floor is the
+         smallest the game may set anywhere, and this line is the sheet's only
+         instruction for getting OUT of it. It read as a violation the moment a
+         run caught the sheet open, which happens only on the one day a claim is
+         waiting — so CI never saw it and a Coordinator's PC did. */
+      '.hr-dl-hint{margin-top:10px;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3,#a5896a)}'
     ].join('');
     document.head.appendChild(s);
   }
@@ -590,7 +595,15 @@
     open: open,
     ensureState: ensureState,
     _blockingOverlays: function () { return BLOCKING_OVERLAYS; },
-    _anotherModalUp: function () { return anotherModalUp(); }
+    _anotherModalUp: function () { return anotherModalUp(); },
+    /* THE MODULE'S OWN READING OF "WHAT DAY IS IT", exposed so a test can pin
+       `lastClaimDay` to it and be deterministic on EVERY date. autoBoot()'s one
+       irreversible decision is `if (!isClaimable(G)) return;`, and isClaimable
+       is todayKey() vs lastClaimDay — so an arm that does not pin it is an arm
+       whose page state depends on whether a claim happened to be waiting. A
+       test re-deriving the UTC key itself would be a second clock read that can
+       disagree with this one; there is only ever one. */
+    _todayKey: todayKey
   };
 
   // Gentle once-per-day auto-popup: wait for G, then only show when no other

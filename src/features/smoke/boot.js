@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 31 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, withFarmServer, snapshotG, restoreG, restoreGAndRecord, on, overlayResidue, captureShellLocks } from './_harness.js?v=552';
+import { pass, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, withFarmServer, snapshotG, restoreG, restoreGAndRecord, on, overlayResidue, captureShellLocks, residueProbe } from './_harness.js?v=552';
 
 export default [
   () => tryRun('boot: G defined', () => {
@@ -788,44 +788,36 @@ export default [
      fail themselves. */
   () => tryRun('suite hygiene: overlayResidue reports an open modal left on the page', () => {
     assert(typeof overlayResidue === 'function', 'the teardown detector is gone — nothing attributes a dirty page to the test that dirtied it');
-    const before = overlayResidue().length;
-    const modal = document.createElement('div');
-    modal.id = 'hr-residue-probe'; modal.className = 'modal show';
-    // visible, but far too small to be read as a viewport-covering scrim
-    modal.setAttribute('style', 'display:block;position:fixed;top:0;left:0;width:10px;height:10px');
-    try {
+    residueProbe(() => {
+      const modal = document.createElement('div');
+      modal.id = 'hr-residue-probe'; modal.className = 'modal show';
+      // visible, but far too small to be read as a viewport-covering scrim
+      modal.setAttribute('style', 'display:block;position:fixed;top:0;left:0;width:10px;height:10px');
       document.body.appendChild(modal);
-      const seen = overlayResidue();
-      assert(seen.some((x) => x.indexOf('#hr-residue-probe') !== -1),
-        'an open .modal.show was not reported as residue, got: ' + JSON.stringify(seen));
-    } finally { modal.remove(); }
-    assert(overlayResidue().length === before, 'this test did not put the page back the way it found it');
+      return () => modal.remove();
+    }, '#hr-residue-probe', 'an open .modal.show was not reported as residue');
   }),
 
   () => tryRun('suite hygiene: overlayResidue reports a body scroll lock left behind', () => {
-    const before = overlayResidue().length;
-    const was = document.body.style.overflow;
-    try {
+    residueProbe(() => {
+      const was = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
-      assert(overlayResidue().some((x) => /body scroll lock/.test(x)), 'a body scroll lock was not reported as residue');
-    } finally { document.body.style.overflow = was; }
-    assert(overlayResidue().length === before, 'this test did not put the page back the way it found it');
+      return () => { document.body.style.overflow = was; };
+    }, /body scroll lock/, 'a body scroll lock was not reported as residue');
   }),
 
   /* The scrim is the case closeAllModals() cannot see: a full-viewport fixed
      layer that is not a modal by any of the game's idioms, which is exactly
      what the renown celebration turned out to be. */
   () => tryRun('suite hygiene: overlayResidue reports a full-viewport fixed scrim', () => {
-    const before = overlayResidue().length;
-    const scrim = document.createElement('div');
-    scrim.id = 'hr-residue-scrim';
-    scrim.setAttribute('style', 'position:fixed;inset:0;width:100vw;height:100vh;z-index:99999');
-    try {
+    residueProbe(() => {
+      const scrim = document.createElement('div');
+      scrim.id = 'hr-residue-scrim';
+      scrim.setAttribute('style', 'position:fixed;inset:0;width:100vw;height:100vh;z-index:99999');
       document.body.appendChild(scrim);
-      assert(overlayResidue().some((x) => x.indexOf('#hr-residue-scrim') !== -1),
-        'a full-viewport fixed scrim was not reported — this is the shape that covers every later screen');
-    } finally { scrim.remove(); }
-    assert(overlayResidue().length === before, 'this test did not put the page back the way it found it');
+      return () => scrim.remove();
+    }, '#hr-residue-scrim',
+      'a full-viewport fixed scrim was not reported — this is the shape that covers every later screen');
   }),
 
   /* The other half of the same detector, and the reason it is measured rather

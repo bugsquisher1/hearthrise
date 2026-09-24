@@ -3,7 +3,7 @@
 // tests/party-hunt.mjs — THE HUNT INTENTS, AND THE SETTLE BOUNDARY IS PRICED.
 //
 //   node tests/party-hunt.mjs            the guard
-//   node tests/party-hunt.mjs --mutate   five mutants, each required to go RED
+//   node tests/party-hunt.mjs --mutate   seven mutants, each required to go RED
 //
 // M8 slice 4 (docs/planning/WORLD_TICK_DESIGN.md §18.1 / §18.3 / §18.4 T-3 and
 // T-3b, §18-SEC.3's S4 list, §18-SEC-2.2's B-A1 and B-A6), built by
@@ -37,7 +37,7 @@
 //           four verbs together.
 //
 // ── THE MUTATION PROOF (CLAUDE.md §4) ──────────────────────────────────────
-// Five mutants, each breaking one load-bearing line and naming the arm that
+// Seven mutants, each breaking one load-bearing line and naming the arm that
 // must go red. A guard that has never been red is not a guard.
 //
 //   budgetNotCounted    B-A1 — a start stops counting against the eight
@@ -48,8 +48,14 @@
 //   refusalLeaksWatermark      the party_settle_required refusal starts
 //                              distinguishing a cause it must not, by carrying
 //                              the watermark no caller may read
+//   unlockedInvariant8  E1   — the start asserts invariant 8 against UNLOCKED
+//                              player_state rows, so a member's own solo settle
+//                              can break the equality before it commits
+//   refusalNamesAccount E2   — a refusal hands the client another account's
+//                              auth.users id and slot, outside hr_party_view's
+//                              frozen column set
 //
-// The first three are also run as STAGE 2, with file 2's whole §6 block
+// Five of the seven are also run as STAGE 2, with file 2's whole §6 block
 // neutered, so the node arms have to catch them on their own rather than
 // riding the migration's gate forever — which is every day after this batch
 // lands.
@@ -139,6 +145,27 @@ const MUTANTS = {
      request. A refusal that hands the leader the watermark is that fence open,
      wearing a better error message — which is exactly how S-13's invite oracle
      would have shipped. */
+  /* Security E1. The `party` row lock serialises the start against an accept,
+     a leave, a kick and another start — it does NOT serialise it against a
+     member's OWN solo settle, which takes nothing on `party`. Until the hunt
+     row commits hr_partied is FALSE for all four, so hr_tick_settle may move
+     any member's accrued_to between the assertion and the commit, and the start
+     then commits invariant 8 BROKEN. hr_party_tick_settle catches it — and
+     refuses with `party_window_already_settled`, the same string a benign CAS
+     refusal returns, so the hunt wedges for its whole life invisibly. */
+  unlockedInvariant8: { file: F2, arm: 'E1', pair: [
+    '   order by ps.user_id, ps.slot\n'
+    + '     for update of ps;',
+    '   order by ps.user_id, ps.slot;   /* --mutate unlockedInvariant8 */'] },
+  /* Security E2. hr_party_view's column set is FROZEN without user_id and
+     without slot, and S1 resolves a kick by name "and not by user id" for that
+     reason. An auth.users id in a refusal is that column set widened without
+     the review its own comment demands — a stable cross-account handle that
+     survives a rename and carries the slot with it (S-13). */
+  refusalNamesAccount: { file: F2, arm: 'E2', pair: [
+    "      'detail', jsonb_build_object('member', v_m.who, 'why', 'window_open')); end if;",
+    "      'detail', jsonb_build_object('user', v_m.user_id, 'slot', v_m.slot,\n"
+    + "                                  'why', 'window_open')); end if;"] },
   refusalLeaksWatermark: { file: F2, arm: 'MARK', pair: [
     "      return jsonb_build_object('ok', false, 'error', 'party_settle_required');",
     "      return jsonb_build_object('ok', false, 'error', 'party_settle_required',\n"
@@ -154,10 +181,11 @@ const NEUTER_SELFCHECK = [
   'begin\n  return;   -- tests/party-hunt.mjs --mutate stage 2\n'
   + '  -- (y) NOT A PAYER, PROVED BY READING THE INSTALLED BODIES.',
 ];
-const STAGE2 = ['budgetNotCounted', 'partialStart', 'leftAtWritten'];
+const STAGE2 = ['budgetNotCounted', 'partialStart', 'leftAtWritten',
+  'unlockedInvariant8', 'refusalNamesAccount'];
 
 console.log('party-hunt: M8 slice 4, four members through the hunt intents and one fenced settle'
-  + (MUTATE ? '  [--mutate: five apply-time mutants, three of them re-run against THIS file]' : ''));
+  + (MUTATE ? '  [--mutate: seven apply-time mutants, five of them re-run against THIS file]' : ''));
 
 // ── STAGE 1 OF THE MUTATION PROOF ──────────────────────────────────────────
 // Planted alone, EVERY one of these must be refused BY THE APPLY, because the
@@ -339,11 +367,24 @@ try {
     const rec = await call('public.hr_party_hunt_start(0, $1, $2, $3::jsonb, $4::uuid)',
       ['slime', 'steady', '{}', await uuid()]);
     judge('S3', rec?.error === 'party_member_recovering'
-      && rec?.detail?.user === U[2] && Number(rec?.detail?.remaining_ms) > 0,
+      && rec?.detail?.member === NAME(U[2]) && Number(rec?.detail?.remaining_ms) > 0,
       'a party with a knocked-out member cannot start, and the refusal carries the member and '
       + '`remaining_ms` so the client renders a COUNTDOWN rather than a retry loop (§18.3: it is '
       + 'STATEFUL, so it is not on STATELESS_REFUSALS)',
       `a recovering member answered ${JSON.stringify(rec)}`);
+    /* ★ Security E2 — AND IT NAMES THE MEMBER, NEVER THE ACCOUNT. hr_party_view's
+       column set is FROZEN at name, combat_level, hp, hp_max, recovering_until,
+       share_bp, xp, gold — no user_id, no slot — and S1 resolves a kick by name
+       "and not by user id" for that reason. An auth.users id handed to a client
+       is a stable cross-account handle: it survives a rename, carries the slot
+       with it, and is the ready-made argument for every (user, slot) predicate
+       S1 refuses to grant (S-13). §18.3's own copy is "Ilse is recovering". */
+    judge('S3b', !('user' in (rec?.detail ?? {})) && !('slot' in (rec?.detail ?? {}))
+      && !JSON.stringify(rec).includes(U[2]),
+      'and it names the member the way the panel does — by NAME — handing back no account id and '
+      + 'no slot: hr_party_view\'s column set is frozen without them, and "a column added here is '
+      + 'a code change with a review"',
+      `the refusal carried an account identifier: ${JSON.stringify(rec)}`);
     await q('update public.player_state set recovering_until = null where user_id = $1 and slot = 0', [U[2]]);
     await ungate();
 
@@ -353,11 +394,21 @@ try {
     const unc = await call('public.hr_party_hunt_start(0, $1, $2, $3::jsonb, $4::uuid)',
       ['slime', 'careful', '{"hours": 6}', await uuid()]);
     judge('S4', unc?.error === 'member_uncollectable'
-      && unc?.detail?.user === U[3] && unc?.detail?.why === 'window_open',
+      && unc?.detail?.member === NAME(U[3]) && unc?.detail?.why === 'window_open',
       'a start with ONE of four members\' windows still open is refused member_uncollectable, '
       + 'naming that member — the equality invariant 8 needs has to be ESTABLISHED, and admitting '
       + 'them would stamp three other players forward without collecting them',
       `the fourth member's open window answered ${JSON.stringify(unc)}`);
+    /* Security E2 again, and one field further: not the WATERMARK either.
+       hr_party_mark is granted to nobody precisely so that "the server picks
+       whose world ticks, and from when" is a claim about a row somebody else
+       wrote rather than about a request a leader can make. */
+    judge('S4b', !JSON.stringify(unc).includes(U[3])
+      && !('accrued_to' in (unc?.detail ?? {})) && !('party_at' in (unc?.detail ?? {})),
+      'and it carries no account id, no slot and no watermark — §18.3\'s copy is a NAME '
+      + '("Couldn\'t price Bram\'s last session"), and the ids stay in hr_rejections where an '
+      + 'operator reads them',
+      `member_uncollectable leaked: ${JSON.stringify(unc)}`);
 
     const wrote = await one('select (select count(*) from public.party_hunt where party_id = $1) as hunts,'
       + ' (select count(*) from public.party_settle_boundary where party_id = $1) as boundaries,'
@@ -441,6 +492,31 @@ try {
       + 'four characters\' windows at an instant the leader chooses, so it IS a boundary, and '
       + '§18.1 prices the BOUNDARY rather than the VERB',
       `the start spent ${spent.n} boundaries`);
+
+    /* ★ H7 — Security E1. Invariant 8 is asserted against LOCKED rows. The
+       `party` row lock serialises the start against an accept, a leave, a kick
+       and another start; it takes NOTHING that a member's own solo settle
+       takes, and until the hunt row commits `hr_partied` is FALSE for all four
+       — so hr_tick_settle may move any member's accrued_to between the
+       assertion and the commit. The start would then commit with
+       party_hunt.accrued_to behind one member, and hr_party_tick_settle would
+       refuse that party for the life of its hunt under
+       `party_window_already_settled` — the same string a benign CAS refusal
+       returns, which is how it would sit at zero for days with nobody able to
+       see it (CLAUDE.md §3.4). Read off the INSTALLED body, and by POSITION:
+       a lock taken after the read it protects locks nothing. */
+    const startSrc = (await one("select p.prosrc as src from pg_proc p"
+      + " join pg_namespace n on n.oid = p.pronamespace"
+      + " where n.nspname = 'public' and p.proname = 'hr_party_hunt_start'")).src;
+    const lockAt = startSrc.indexOf('for update of ps');
+    const readAt = startSrc.indexOf('max(ps.accrued_to)');
+    judge('H7', lockAt >= 0 && readAt >= 0 && lockAt < readAt,
+      'the start locks every live member\'s player_state row, in (user_id, slot) order, BEFORE it '
+      + 'reads the common watermark — hr_party_tick_settle\'s own lock order, so the two can only '
+      + 'wait on each other and never circularly, and a member\'s own solo settle cannot break '
+      + 'invariant 8 between the assertion and the commit',
+      `for update of ps at ${lockAt}, max(ps.accrued_to) at ${readAt} — the equality is asserted `
+      + 'against rows this transaction does not hold');
     await ungate();
   }
 
@@ -687,7 +763,7 @@ if (problems.length) {
   process.exit(1);
 }
 console.log('\nparty-hunt: green'
-  + (MUTATE ? ' — and every mutant was caught, by the apply and, for three of them, by this file'
+  + (MUTATE ? ' — and every mutant was caught, by the apply and, for five of them, by this file'
     : ''));
 
 // ── stage 2 ────────────────────────────────────────────────────────────────
@@ -753,6 +829,30 @@ async function stage2(mdb, name) {
     const row = await m1('select left_at from public.party_member where party_id = $1'
       + ' and user_id = $2 and slot = 0', [p, U[3]]);
     return { caught: row?.left_at !== null, saw: `the kick with no settle wrote left_at = ${row?.left_at}` };
+  }
+
+  if (name === 'unlockedInvariant8') {
+    /* Two sessions racing on one PGlite connection is not something this
+       harness can stage, and a flaky race is worse than no arm. The property
+       that SURVIVES an edit is structural and it is read off the INSTALLED
+       body: the lock exists, and it is taken BEFORE the read it protects. A
+       lock taken after that read locks nothing. */
+    const src = (await m1("select p.prosrc as src from pg_proc p"
+      + " join pg_namespace n on n.oid = p.pronamespace"
+      + " where n.nspname = 'public' and p.proname = 'hr_party_hunt_start'")).src;
+    const lock = src.indexOf('for update of ps');
+    const read = src.indexOf('max(ps.accrued_to)');
+    return { caught: !(lock >= 0 && read >= 0 && lock < read),
+      saw: `for update of ps at ${lock}, max(ps.accrued_to) at ${read}` };
+  }
+
+  if (name === 'refusalNamesAccount') {
+    await mq("update public.player_state set accrued_to = $2::timestamptz - interval '4 minutes'"
+      + ' where user_id = $1 and slot = 0', [U[3], t0]);
+    const r = await mcall('public.hr_party_hunt_start(0, $1, $2, $3::jsonb, $4::uuid)',
+      ['slime', 'steady', '{}', await mid()]);
+    return { caught: r?.error === 'member_uncollectable' && JSON.stringify(r).includes(U[3]),
+      saw: `member_uncollectable answered ${JSON.stringify(r)}` };
   }
 
   return { caught: false, saw: 'no stage-2 fixture for this mutant' };

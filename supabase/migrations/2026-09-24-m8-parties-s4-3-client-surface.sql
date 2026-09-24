@@ -41,10 +41,14 @@
 --     no engine grant), hr_apply (not touched — no party verb reaches it,
 --     file 2 §6(y) asserts that by reading the installed bodies) and
 --     hr_party_hunt_live (READ by the new verbs, never rewritten).
---     `hr_party_kick` and `hr_party_leave` ARE rewritten, by anchored patch,
---     and NEITHER is tracked in the baseline — which is the reason file 2
---     patches rather than restates: nothing in this repo would have seen a
---     silent revert.
+--     `hr_party_kick` and `hr_party_leave` ARE rewritten — RESTATED IN FULL,
+--     not patched by anchor: tests/patch-chain-guard.mjs refused three anchors
+--     per body (PATCH-3). NEITHER is tracked in the baseline, so a silent
+--     revert of either would have been seen by NOTHING in this repo — which is
+--     why file 2 §5 hashes the INSTALLED body first and REFUSES THE APPLY if it
+--     is not the text the restatement was derived from. The Coordinator reads a
+--     pin failure as "a parallel lane touched these verbs", never as a broken
+--     file.
 --
 -- S-14 also names the four functions file 1 adds — hr_party_boundaries_today,
 -- hr_party_boundary_room, hr_party_mark and hr_party_settle_current. Their

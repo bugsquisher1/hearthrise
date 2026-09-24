@@ -341,9 +341,21 @@ begin
   -- ══ NOBODY IS RECOVERING ════════════════════════════════════════════════
   -- §18.3: STATEFUL, so it carries `until` + `remaining_ms` and the client
   -- renders a countdown rather than a retry loop — `recovering`s own shape.
-  select m.user_id, m.slot, ps.recovering_until into v_m
+  -- ⚠ THE DETAIL NAMES THE MEMBER BY **NAME**, NEVER BY user_id (Security E2,
+  --   2026-09-24). hr_party_view's column set is FROZEN at name, combat_level,
+  --   hp, hp_max, recovering_until, share_bp, xp, gold — no user_id and no slot
+  --   — and S1 resolves a kick by name "and not by user id" for that reason. An
+  --   auth.users id handed to a client is a stable cross-account handle that
+  --   survives a rename, carries the slot with it, and is the ready-made
+  --   argument for every (user, slot) predicate S1 refuses to grant. §18.3's own
+  --   copy for all three of these refusals is a NAME ("Ilse is recovering",
+  --   "Couldn't price Bram's last session"). The JOURNAL still gets the ids:
+  --   hr_rejections is server-side and an operator needs them.
+  select m.user_id, m.slot, ps.recovering_until,
+         coalesce(pr.display_name, 'Adventurer') as who into v_m
     from public.party_member m
     join public.player_state ps on ps.user_id = m.user_id and ps.slot = m.slot
+    left join public.profiles pr on pr.id = m.user_id
    where m.party_id = v_pid and m.left_at is null
      and ps.recovering_until is not null and ps.recovering_until > now()
    order by ps.recovering_until desc limit 1;
@@ -351,7 +363,7 @@ begin
     perform public.hr_record_rejection(v_uid, v_slot, 'party_hunt_start', 'party_member_recovering',
       jsonb_build_object('user', v_m.user_id, 'slot', v_m.slot, 'until', v_m.recovering_until));
     return jsonb_build_object('ok', false, 'error', 'party_member_recovering',
-      'detail', jsonb_build_object('user', v_m.user_id, 'slot', v_m.slot,
+      'detail', jsonb_build_object('member', v_m.who,
         'until', v_m.recovering_until,
         'remaining_ms', floor(extract(epoch from (v_m.recovering_until - now())) * 1000))); end if;
 
@@ -383,18 +395,60 @@ begin
   -- holds nobody anywhere. Read BEFORE the member scan so the terminal answer
   -- is given first rather than naming another player as the blocker when the
   -- real answer is "not again today".
+  --
+  -- ⚠ AND THE COUNT NEVER CROSSES TO THE CLIENT (Security E3, 2026-09-24).
+  --   File 1 grants hr_party_boundaries_today and hr_party_boundary_room to
+  --   NOBODY, gives party_settle_boundary no policy and no grant, and raises in
+  --   its own GATE(a) on any client privilege, for one stated reason: *"a budget
+  --   a player can read is a budget a player can plan against."* Answering the
+  --   number here is that fence open wearing a better error message. §18.3's own
+  --   copy for this code carries no number — *"Leaving now — your share of this
+  --   window pays on the next settle"* — so the CODE is the whole message, and
+  --   the count stays where it belongs: in hr_rejections, server-side, where
+  --   vitals.mjs --refusals reads it.
   v_spent := public.hr_party_boundaries_today(v_pid);
   if not public.hr_party_boundary_room(v_pid) then
     perform public.hr_record_rejection(v_uid, v_slot, 'party_hunt_start', 'party_settle_churn',
       jsonb_build_object('spent', v_spent));
-    return jsonb_build_object('ok', false, 'error', 'party_settle_churn',
-      'detail', jsonb_build_object('spent', v_spent)); end if;
+    return jsonb_build_object('ok', false, 'error', 'party_settle_churn'); end if;
 
   -- ══ ★ B-A6 — INVARIANT 8's EQUALITY, ASSERTED, ALL-OR-NOTHING ★ ═════════
   -- `v_at` is the live members' COMMON watermark. Every member must be exactly
   -- there; a member who is not has an open window this call cannot price, and
   -- the whole start is refused with NOTHING written. See the header for why a
   -- tolerance here would confiscate three other players' minutes.
+  -- ★ THE MEMBER ROW LOCKS, BEFORE THE FIRST READ OF A WATERMARK (Security
+  --   E1, 2026-09-24). The `party` row lock above serialises this call against
+  --   an accept, a leave, a kick and another start — it does NOT serialise it
+  --   against a member's OWN solo settle, which takes nothing on `party`. Until
+  --   the hunt row commits `hr_partied` is FALSE for all four, so every member
+  --   is still on the per-character roster and `hr_tick_settle` may move their
+  --   `accrued_to` at any instant.
+  --
+  --   Unlocked, the equality below is asserted against a row that can change
+  --   before this transaction commits, and the start would then commit with
+  --   `party_hunt.accrued_to = v_at` and one member AHEAD of it — invariant 8
+  --   broken at the commit boundary, by exactly the ordinary event the
+  --   collect-then-start seam makes most likely (a member's own ~90 s attended
+  --   accrue landing between the collect and this call). Nothing is mis-paid:
+  --   hr_party_tick_settle re-asserts the equality under its own lock and
+  --   REFUSES. But it refuses with `party_window_already_settled`, the same
+  --   string a benign CAS refusal returns, so the hunt is wedged for all four
+  --   members, for the life of the hunt, invisibly to the driver and to
+  --   vitals.mjs — the §3.4 failure where a feature sits at zero and nobody
+  --   can see it.
+  --
+  --   (user_id, slot) order is hr_party_tick_settle's own (§18.2.5 step 4/5b),
+  --   so the two can only ever wait on each other, never circularly. The other
+  --   direction was already closed: a solo settle that blocks HERE and commits
+  --   after this one is refused `version_conflict` by the `version + 1` below.
+  perform 1
+    from public.player_state ps
+    join public.party_member m on m.user_id = ps.user_id and m.slot = ps.slot
+   where m.party_id = v_pid and m.left_at is null
+   order by ps.user_id, ps.slot
+     for update of ps;
+
   select max(ps.accrued_to) into v_at
     from public.party_member m
     join public.player_state ps on ps.user_id = m.user_id and ps.slot = m.slot
@@ -404,16 +458,17 @@ begin
   -- max is read as authoritative: the join above would silently omit them and
   -- the equality would then hold over a SHORTER set than the one the settle
   -- will re-count under the lock (§18.2.5 step 6).
-  select m.user_id, m.slot into v_m
+  select m.user_id, m.slot, coalesce(pr.display_name, 'Adventurer') as who into v_m
     from public.party_member m
     left join public.player_state ps on ps.user_id = m.user_id and ps.slot = m.slot
+    left join public.profiles pr on pr.id = m.user_id
    where m.party_id = v_pid and m.left_at is null and ps.user_id is null
    order by m.user_id, m.slot limit 1;
   if v_m.user_id is not null then
     perform public.hr_record_rejection(v_uid, v_slot, 'party_hunt_start', 'member_uncollectable',
       jsonb_build_object('user', v_m.user_id, 'slot', v_m.slot, 'why', 'no_character'));
     return jsonb_build_object('ok', false, 'error', 'member_uncollectable',
-      'detail', jsonb_build_object('user', v_m.user_id, 'slot', v_m.slot, 'why', 'no_character')); end if;
+      'detail', jsonb_build_object('member', v_m.who, 'why', 'no_character')); end if;
 
   if v_at is null or v_at > now() or v_at <= now() - c_span then
     -- No watermark, a watermark AHEAD of the server clock, or one past the
@@ -427,9 +482,11 @@ begin
                                                when v_at > now() then 'watermark_ahead'
                                                else 'absence_cap' end)); end if;
 
-  select m.user_id, m.slot, ps.accrued_to into v_m
+  select m.user_id, m.slot, ps.accrued_to,
+         coalesce(pr.display_name, 'Adventurer') as who into v_m
     from public.party_member m
     join public.player_state ps on ps.user_id = m.user_id and ps.slot = m.slot
+    left join public.profiles pr on pr.id = m.user_id
    where m.party_id = v_pid and m.left_at is null
      and ps.accrued_to is distinct from v_at
    order by m.user_id, m.slot limit 1;
@@ -437,8 +494,10 @@ begin
     perform public.hr_record_rejection(v_uid, v_slot, 'party_hunt_start', 'member_uncollectable',
       jsonb_build_object('user', v_m.user_id, 'slot', v_m.slot, 'why', 'window_open',
                          'accrued_to', v_m.accrued_to, 'party_at', v_at));
+    -- …and NEVER accrued_to or party_at: those are the watermark hr_party_mark
+    --   is granted to nobody precisely so a request cannot learn it.
     return jsonb_build_object('ok', false, 'error', 'member_uncollectable',
-      'detail', jsonb_build_object('user', v_m.user_id, 'slot', v_m.slot, 'why', 'window_open')); end if;
+      'detail', jsonb_build_object('member', v_m.who, 'why', 'window_open')); end if;
 
   insert into public.player_intents (user_id, intent_id, slot, intent)
     values (v_uid, p_idem, v_slot, 'party_hunt_start')
@@ -485,10 +544,14 @@ begin
     return jsonb_build_object('ok', false, 'error', 'party_hunt_running');
   end;
 
+  -- `boundaries` is DELIBERATELY ABSENT (Security E3). It was a running count
+  -- of a budget file 1 fences out of every client role, beside a literal `8`
+  -- that is a SECOND copy of the number hr_party_boundary_room exists to write
+  -- ONCE — the four-numbers-that-can-disagree shape file 1 §3a argues against,
+  -- re-introduced in the one place a client would read it.
   v_out := jsonb_build_object('ok', true, 'hunt_id', v_hunt, 'party_id', v_pid,
     'active_id', p_active_id, 'stance', v_stance, 'stop', v_stop,
-    'accrued_to', v_at, 'members', v_live,
-    'boundaries', jsonb_build_object('spent', v_spent + 1, 'cap', 8));
+    'accrued_to', v_at, 'members', v_live);
   update public.player_intents set result = v_out
    where user_id = v_uid and intent_id = p_idem;
   return v_out;
@@ -1035,6 +1098,22 @@ begin
   if v_src ~* 'update\s+public\.player_state[^;]*\yaccrued_to\s*=' then
     raise exception 'GATE(y2): hr_party_hunt_start SETS player_state.accrued_to. Invariant 8 makes hr_party_tick_settle the only writer of either watermark, and stamping a member forward without collecting confiscates their elapsed window — at up to four characters at once, three of whom did not press the button (CLAUDE.md §3 rule 3, B-A6).';
   end if;
+  -- (y2b) ★ AND THE EQUALITY IS ASSERTED AGAINST **LOCKED** ROWS (Security E1).
+  --      The `party` row lock does not serialise this verb against a member's
+  --      OWN solo settle — hr_tick_settle takes nothing on `party`, and until
+  --      the hunt row commits hr_partied is FALSE, so all four are still on the
+  --      per-character roster. An unlocked read commits invariant 8 BROKEN and
+  --      wedges the hunt for its whole life behind a refusal string that is
+  --      indistinguishable from a benign CAS. Asserted by POSITION, because a
+  --      lock taken after the assertion is a lock that locks nothing: the
+  --      `for update` must appear before the first `max(ps.accrued_to)` read.
+  if v_src !~* 'for\s+update\s+of\s+ps' then
+    raise exception 'GATE(y2b): hr_party_hunt_start asserts invariant 8 against UNLOCKED player_state rows. A member''s own solo settle can move accrued_to between the assertion and the commit, and hr_party_tick_settle then refuses party_window_already_settled for the life of the hunt — silently, because that is the same string a benign CAS refusal returns.';
+  end if;
+  if position('for update of ps' in v_src) > position('max(ps.accrued_to)' in v_src) then
+    raise exception 'GATE(y2b): hr_party_hunt_start takes its member row locks AFTER reading the common watermark. A lock taken after the read it protects locks nothing.';
+  end if;
+
   -- …and the STOP writes no player_state at all: idling a member here would
   -- confiscate the residual window this verb cannot collect.
   select regexp_replace(p.prosrc, '--[^' || chr(10) || ']*', '', 'g') into v_src
@@ -1176,9 +1255,15 @@ begin
     v_r := public.hr_party_hunt_start(0, 'slime', 'steady', '{}'::jsonb, gen_random_uuid());
     if coalesce(v_r->>'error','') <> 'party_member_recovering' then
       raise exception 'GATE(d): a party with a knocked-out member started anyway: %', v_r; end if;
-    if (v_r#>>'{detail,user}')::uuid is distinct from v_c
+    if coalesce(v_r#>>'{detail,member}','') <> 'Probe ' || substring(v_c::text, 30)
        or (v_r#>>'{detail,remaining_ms}')::bigint is null then
-      raise exception 'GATE(d): party_member_recovering named % with remaining_ms %. §18.3: it is STATEFUL and carries until + remaining_ms so the client renders a COUNTDOWN rather than a retry loop.', v_r#>>'{detail,user}', v_r#>>'{detail,remaining_ms}'; end if;
+      raise exception 'GATE(d): party_member_recovering named % with remaining_ms %. §18.3: it is STATEFUL and carries until + remaining_ms so the client renders a COUNTDOWN rather than a retry loop, and it names the member the way hr_party_view does — BY NAME.', v_r#>>'{detail,member}', v_r#>>'{detail,remaining_ms}'; end if;
+    -- ★ AND IT HANDS BACK NO ACCOUNT IDENTIFIER (Security E2). hr_party_view's
+    --   column set is FROZEN with no user_id and no slot, and a refusal that
+    --   adds them is that column set widened without the review its own comment
+    --   demands.
+    if v_r#>'{detail}' ?| array['user','slot'] then
+      raise exception 'GATE(d): party_member_recovering carries % — an auth.users id handed to a client is a stable cross-account handle that survives a rename and is the ready-made argument for every (user, slot) predicate S1 refuses to grant (S-13).', v_r->'detail'; end if;
     update public.player_state set recovering_until = null where user_id = v_c and slot = 0;
     delete from public.hr_rate_counters where user_id = any (v_all);
 
@@ -1194,9 +1279,16 @@ begin
     v_r := public.hr_party_hunt_start(0, 'slime', 'careful', '{"hours": 6}'::jsonb, gen_random_uuid());
     if coalesce(v_r->>'error','') <> 'member_uncollectable' then
       raise exception 'GATE(e): a start with ONE member''s window still open answered %. The equality invariant 8 needs has to be ESTABLISHED, and admitting that member would stamp three other players forward without collecting them.', v_r; end if;
-    if (v_r#>>'{detail,user}')::uuid is distinct from v_d
+    if coalesce(v_r#>>'{detail,member}','') <> 'Probe ' || substring(v_d::text, 30)
        or coalesce(v_r#>>'{detail,why}','') <> 'window_open' then
-      raise exception 'GATE(e): member_uncollectable named % / % rather than the fourth member and window_open — the panel has to say WHOSE session could not be priced', v_r#>>'{detail,user}', v_r#>>'{detail,why}'; end if;
+      raise exception 'GATE(e): member_uncollectable named % / % rather than the fourth member and window_open — the panel has to say WHOSE session could not be priced, and §18.3''s copy is a NAME ("Couldn''t price Bram''s last session")', v_r#>>'{detail,member}', v_r#>>'{detail,why}'; end if;
+    if v_r#>'{detail}' ?| array['user','slot','accrued_to','party_at'] then
+      raise exception 'GATE(e): member_uncollectable carries % — never an account id, never a slot, and never a watermark. hr_party_mark is granted to NOBODY precisely so that "the server picks whose world ticks, and from when" is a claim about a row somebody else wrote rather than about a request (Security E2).', v_r->'detail'; end if;
+    -- …and the JOURNAL still has the ids, because an operator needs them and
+    -- hr_rejections is server-side.
+    if not exists (select 1 from public.hr_rejections
+                    where user_id = v_a and code = 'member_uncollectable') then
+      raise exception 'GATE(e): member_uncollectable was not journalled — a refusal burst with no verb reads as ten "accrue" refusals in vitals.mjs (CLAUDE.md §3.4)'; end if;
     -- ★ ZERO ROWS. Not "the hunt did not start" — nothing anywhere.
     if exists (select 1 from public.party_hunt where party_id = v_p) then
       raise exception 'GATE(e): the refused start left a party_hunt row behind'; end if;
@@ -1241,6 +1333,8 @@ begin
       raise exception 'GATE(f): hr_partied is true for % of 4 members — the per-character roster would serve a partied character and pay one member the whole party stream', v_n; end if;
     if public.hr_party_boundaries_today(v_p) <> 1 then
       raise exception 'GATE(f): the start spent % boundaries, not 1. B-A1: a start IS a boundary.', public.hr_party_boundaries_today(v_p); end if;
+    if v_r ?| array['boundaries','spent','cap'] then
+      raise exception 'GATE(f): the successful start answers % — it carried the party''s running boundary count and a SECOND hand-typed copy of the eight, which is the four-numbers-that-can-disagree shape file 1 §3a exists to stop, re-introduced in the one place a client would read it (Security E3).', v_r; end if;
 
     -- ══ (h) A SECOND START IS party_hunt_running ═════════════════════════
     v_r := public.hr_party_hunt_start(0, 'slime', 'steady', '{}'::jsonb, gen_random_uuid());
@@ -1341,6 +1435,12 @@ begin
     v_r := public.hr_party_hunt_start(0, 'slime', 'steady', '{}'::jsonb, gen_random_uuid());
     if coalesce(v_r->>'error','') <> 'party_settle_churn' then
       raise exception 'GATE(m): B-A1 FAILED — a start past the eighth boundary answered %. §18.1 prices the BOUNDARY and not the VERB, and a start closes FOUR characters'' windows at an instant the leader chooses.', v_r; end if;
+    -- ★ AND THE BUDGET DOES NOT CROSS TO THE CLIENT (Security E3). File 1 grants
+    --   the two budget reads to NOBODY and gives the journal no policy and no
+    --   grant, on the argument that a budget a player can read is a budget a
+    --   player can plan against. A count in the answer is that fence open.
+    if (select array(select jsonb_object_keys(v_r) order by 1)) <> array['error','ok'] then
+      raise exception 'GATE(m): the party_settle_churn refusal carries % — §18.3''s copy for this code carries no number, and the count belongs in hr_rejections where vitals.mjs --refusals reads it.', v_r; end if;
     if exists (select 1 from public.party_hunt where party_id = v_p and ended_at is null) then
       raise exception 'GATE(m): the refused start opened a hunt anyway'; end if;
 

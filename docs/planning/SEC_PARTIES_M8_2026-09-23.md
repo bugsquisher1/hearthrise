@@ -1178,3 +1178,320 @@ Merged `sec/m8-s2-review` @ cc43fec1 into `set/b553` first; applied from that tr
 | 8 live-hash | `--codediff` had nothing divergent to diff; `--live --write`: THREE entries as D3 said — hr_tick_roster and hr_party_hunt_live newly tracked (live == replay), hr_assert_grant_hygiene restated (live == replay 1437ce54); guard green |
 
 Notes flipped STAGED → APPLIED with timestamps (apply-order honesty: 36 files, all agree); restore-census: production matches the recorded census (118 tables). §5.4 stands: shadow stays TRUE, no party parity number until §3's partition rule is met, B-A1 and B-A6 owed by S4.
+
+---
+
+## S4 — the hunt intents (2026-09-24)
+
+Reviewed on `sec/m8-s4-review`, branched from `lane/m8-parties-s4` at `aa515d9`
+with `origin/set/b553` merged in (fast-forward, no conflict hunk, no baseline
+regenerated). Three STAGED migrations, `tests/party-hunt.mjs`, a `smoke.yml`
+step, no edge code and no client code.
+
+**The lane's two rulings are RIGHT, and both are now executed rather than
+described.** B-A1 — a start and a stop DO count against S-6's eight, because
+§18.1 prices the BOUNDARY and not the VERB, and the asymmetry lives in the
+CONSEQUENCE (a start is refusable because a refused start holds nobody; a stop,
+a leave and a kick-on-a-natural-boundary land, because a refusal there would
+hold four players in a hunt or one in a party). B-A6 — invariant 8's equality
+is ESTABLISHED BY ASSERTION and the start writes the POINTER only, so
+`hr_party_tick_settle` stays the only writer of either watermark.
+
+### 1. Findings
+
+| # | finding | sev | state |
+|---|---|---|---|
+| **E1** | `hr_party_hunt_start` asserts invariant 8 against **unlocked** `player_state` rows | P2 | **LANDED + re-proved** |
+| **E2** | three refusals hand the client another account's `auth.users` id and slot, outside `hr_party_view`'s frozen column set | P2 | **LANDED + re-proved** |
+| **E3** | file 1 fences the boundary budget out of every grant; file 2 hands the count back in the answer, beside a second copy of the eight | P3 | **LANDED + re-proved** |
+| **E4** | file 3 says file 2 patches `hr_party_kick`/`hr_party_leave` by anchor; file 2 restates them under an md5 pin | P3 | **LANDED** |
+| **E5** | a party that falls below two members keeps its hunt, against §18.1's *"its hunt stops"* | INFORMATIONAL | recorded, owed to S5 |
+| **E6** | the budget prices RPC CALLS, not settles | INFORMATIONAL | recorded as a standing condition on the S5 edge half |
+
+#### E1 — the equality is asserted against rows this transaction does not hold **[P2, LANDED]**
+
+The start takes `select * from public.party … for update`, which serialises it
+against an accept, a leave, a kick and another start. It takes **nothing a
+member's own solo settle takes**: `hr_tick_settle` locks `player_state` and
+`hr_tick_ownership` and never touches `party`. And until the `party_hunt` row
+commits, `hr_partied` is FALSE for all four members, so every one of them is
+still on the per-character roster and `hr_tick_settle` may move their
+`accrued_to` at any instant.
+
+One of the two directions was already closed and the file did not know it: a
+solo settle that BLOCKS on the start's own `update player_state` and commits
+afterwards is refused `version_conflict`, because the start writes
+`version = ps.version + 1`. The other direction was open. A solo settle that
+commits **between** the `select max(ps.accrued_to)` and the start's writes
+leaves that member ahead of `v_at`, and the start then commits with
+`party_hunt.accrued_to = v_at` and one member past it — invariant 8 broken at
+the commit boundary, by exactly the ordinary event the collect-then-start seam
+makes most likely (a member's own ~90 s attended accrue landing in the network
+round trip between the edge's collect and this call).
+
+Nothing is mis-paid — `hr_party_tick_settle` re-asserts the equality under its
+own `for update` (S2 file 2, the member loop) and refuses. **It refuses with
+`party_window_already_settled`, which is the same string a benign CAS refusal
+returns.** So the hunt is wedged for all four members, for the life of the
+hunt, and the driver and `vitals.mjs` cannot tell it from a normal skip: the
+§3.4 failure where a feature sits at zero for days and nobody can see it.
+
+LANDED: every live member's `player_state` row is locked `for update of ps` in
+`(user_id, slot)` order — `hr_party_tick_settle`'s own order (§18.2.5 step
+4/5b), so the two can only ever wait on each other and never circularly —
+before the first read of a watermark. Proved by `GATE(y2b)` (the lock exists,
+and by POSITION it precedes `max(ps.accrued_to)`; a lock taken after the read
+it protects locks nothing), by arm `H7`, and by mutant `unlockedInvariant8`,
+RED at the apply and RED again in stage 2 with the migration's §6 disabled.
+
+#### E2 — a refusal is not a place to widen a frozen column set **[P2, LANDED]**
+
+`hr_party_view` is *"THE ONE cross-user read M8 adds"* and its column set is
+FROZEN at `name, combat_level, hp, hp_max, recovering_until, share_bp, xp,
+gold` — **no `user_id`, no `slot`** — with its own comment: *"A column added
+here is a code change with a review."* S1 resolves a kick by NAME *"and not by
+user id"* for the same reason, and §18.3's copy for all three of these refusals
+is a name (*"Ilse is recovering"*, *"Couldn't price Bram's last session"*).
+
+Three of S4's refusals returned `detail: {user: <auth.users.id>, slot: <int>,
+…}`: `party_member_recovering` and both `member_uncollectable` arms. An account
+id handed to a client is a stable cross-account handle — it survives a rename,
+carries the slot with it, and is the ready-made argument for every `(user,
+slot)` predicate S1's own GATE(b) refuses to grant on the ground that a
+client-callable one *"is an oracle it can sweep"*. It widened the frozen set
+without the review the set's comment demands.
+
+LANDED: all three now name the member by `coalesce(pr.display_name,
+'Adventurer')` — the exact string `hr_party_view` shows and the string
+`hr_party_kick` resolves against — under key `member`, and carry no `user`, no
+`slot`, and (in the `window_open` arm) no `accrued_to` and no `party_at`
+either, since `hr_party_mark` is granted to nobody precisely so a request
+cannot learn a watermark. The ids stay in `hr_rejections`, server-side, where
+an operator needs them; `GATE(e)` now also asserts the journal row exists.
+Proved by `GATE(d)`, `GATE(e)`, arms `S3b`/`S4b` and mutant
+`refusalNamesAccount`.
+
+#### E3 — the budget was fenced out of every grant and handed back in the answer **[P3, LANDED]**
+
+File 1 grants `hr_party_boundaries_today` and `hr_party_boundary_room` to
+NOBODY, gives `party_settle_boundary` no policy and no grant, revokes the table
+privilege from `service_role` because it is BYPASSRLS, and raises in its own
+`GATE(a)` on any client privilege — on one stated argument: *"a budget a player
+can read is a budget a player can plan against, and a membership oracle they
+can sweep."* File 2 then answered `boundaries: {spent, cap: 8}` on every
+successful start and `detail: {spent}` on `party_settle_churn`. Two problems in
+one field: the fence's own rationale is contradicted by the verb it fences for,
+and the literal `8` is a SECOND hand-typed copy of the number
+`hr_party_boundary_room` exists to write ONCE — the four-numbers-that-can-
+disagree shape file 1 §3a argues against, re-introduced in the one place a
+client would read it.
+
+LANDED: both removed. §18.3's copy for `party_settle_churn` carries no number
+(*"Leaving now — your share of this window pays on the next settle"*), so the
+CODE is the whole message; the count stays in `hr_rejections` where
+`vitals.mjs --refusals` reads it. `GATE(m)` now asserts the refusal's key set
+is exactly `{ok, error}` and `GATE(f)` that the success answer carries no
+`boundaries`/`spent`/`cap`.
+
+#### E4 — a stale claim in the sentence the Coordinator reads **[P3, LANDED]**
+
+File 3's live-hash paragraph said `hr_party_kick` and `hr_party_leave` are
+rewritten *"by anchored patch … which is the reason file 2 patches rather than
+restates"*. `patch-chain-guard` refused the anchored patch (PATCH-3) and file 2
+RESTATES both under an md5 pin. Rewritten to say what file 2 does, and to say
+that a pin failure means *"a parallel lane touched these verbs"*, not a broken
+file.
+
+#### E5 — §18.1 says the hunt stops below two members; nothing stops it **[INFORMATIONAL]**
+
+§18.1: *"a party that falls to one member keeps existing so its last member can
+invite again, but its hunt stops."* Neither `hr_party_leave` nor
+`hr_party_kick` ends the hunt when the live count drops below 2, and
+`hr_party_hunt_start`'s `party_too_small` only guards the door.
+
+**It is not a money finding, and I checked rather than assumed.**
+`fellowshipBp(1) = 0` and `xpFloorBp(1)` is non-binding at one member, so a
+party of one is economically identical to a solo hunt on the same monster. A
+party that empties leaves an inert `party_hunt` row with `ended_at is null`,
+but `hr_party_roster`'s `mc.n between 1 and 4` will not offer it, so it is a
+stale row and not a roster poison. And S2 admits `n = 1` DELIBERATELY —
+*"§18.2.6 (P-a) degenerate parity is the single most valuable guard in the
+milestone and needs a real one-member party"* — so closing this in S4 would be
+taking a decision away from the design authority in a lane that was not briefed
+for it, and widening a restatement whose reviewability rests on being exactly
+three marked, purely additive edits per body. Recorded for the game-designer
+and S5: either implement *"its hunt stops"* at `n < 2` in the two membership
+verbs, or write the deviation into §18 with S2's parity argument behind it.
+
+#### E6 — the budget prices RPC calls, not settles **[INFORMATIONAL]**
+
+`hr_party_settle_current` is the only thing a client verb can assert about a
+settle it is structurally unable to run, and it can only be TRUE because the
+world tick flushed this party, or because the edge's `collectsFirst: true` half
+ran the collect in front of the verb. A caller that reaches the verb on raw
+PostgREST and skips the collect therefore spends **no boundary** for a stop or
+a leave. It gains nothing today — no collect means no settle at a chosen
+instant, which means no re-simulation and no re-roll, which is the whole of
+what S-6 priced — so the clamp is not bypassable for the thing it clamps. But
+the property holds only while the edge's party collect is reachable from these
+four verbs and nowhere else. **Standing condition on the S5 edge half: if any
+other intent can cause a party settle, the boundary must be journalled by the
+settle rather than by the verb.**
+
+### 2. What I attacked and could not break
+
+| attack | outcome |
+|---|---|
+| start a hunt with a member in another party | invariant 2 is S1's; `hr_party_of` is per (user, slot) and the member set is read off `party_member` under the party row lock |
+| stop a hunt you do not lead | `not_party_leader`, before any write and before the idempotency claim |
+| kick yourself | `bad_party` / `self_kick`; leaving is `hr_party_leave`, which also transfers leadership in the same transaction |
+| race two starts on one party | the `party` row lock serialises them; the partial unique index `party_hunt_one_live` is the authority, and the `unique_violation` handler releases the key and rolls back every write **inside** the sub-block (B3's lesson) |
+| race a start against an accept | both take `select … from public.party … for update`; the size re-count, the spread and the invariant-8 assertion are all inside it (T-6) |
+| race a leave against the settle | the settle re-counts the live membership under its own lock and refuses unless the declared set IS the live set with no member named twice. Nothing is double-paid: a leaver's `accrued_to` is untouched and their own per-character roster prices the residual ONCE. The interval the party then re-simulates for the remaining members is §18.1's stated design (*"the leaver loses nothing"*), and it is bounded at one per member per hunt, because S-11 refuses an accept back into a live hunt |
+| **can a kicked member's share be lost or double-paid across the boundary?** | **No.** T-3 requires the settle to be current within `hr_party_tick_settle`'s own 60 s skew, so the un-settled residual at the instant of the kick is at most that skew; the kicked member's `accrued_to` is left where the settle put it and their own roster prices the rest; and a settle whose member set is stale is refused outright |
+| exceed the budget through leave/kick churn | a member can burn at most ONE boundary without the leader's cooperation — re-entry needs an invite, and S-11 refuses an accept into a live hunt, so re-joining needs the leader to stop first (another boundary they choose) |
+| strand a party in a state nobody can leave | `hr_party_leave` has no refusal but `not_signed_in`, `rate_limited` (12/min), `bad_slot`, `not_in_party` and `intent_in_flight` — every one transient or a client bug. The kick's `party_settle_required` is a refusal to the leader, never to the member |
+| make a stop skip the settle | the stop cannot RUN a settle and does not try; `GATE(y)` reads the installed body and raises if any of the four verbs names `hr_apply`, `hr_party_tick_settle`, the ledger, inventory, equipment, bank, `hr_tick_shadow`, a currency or XP. Mutant `secondSettlePath` is RED |
+| make a start stamp one member's mark and not another's | `GATE(y2)` raises if `hr_party_hunt_start` SETS `player_state.accrued_to` at all; the pointer update is one statement over the whole live set; mutant `partialStart` is RED at the apply and in stage 2 |
+| farm boundaries past the eighth | past the eighth nothing is journalled because nothing is forced; a start is refused. The kick that still lands inside 60 s of a NATURAL flush is the correct reading of a budget on the boundary, and §18.3's 20-kicks-per-party-per-day is what bounds it |
+
+### 3. The md5 PIN — verified against what production RUNS, not against the lane's copy
+
+The question the brief asked is the right one, and the answer is clean.
+
+- `hr_party_kick` → `933cf326dd9cdc545cfb8751a4a93ad1`, `hr_party_leave` →
+  `84b3460e0bf4874e549c286037b5251c`. Both are the md5 of
+  `2026-09-23-m8-parties-s1-2-verbs.sql`'s own body text, comment-stripped the
+  way the pin strips it. Re-measured here independently of the lane.
+- That file has ONE content commit after S1 was staged — `0b032d0`, Security's
+  own S1 landing — and `0b032d0` is an ANCESTOR of the apply record `8c14351`
+  ("m8-parties-s1 APPLIED 18:33–18:34Z"). `git diff 8c14351 HEAD` on the file
+  is empty. So the text the pin names IS the text that was applied.
+- No migration between S1 and S4 re-creates either function: the only other
+  `create or replace` for both is in S4 file 2 itself.
+- The restatements are **purely additive**: 18 added code lines and ZERO removed
+  for the kick, 12 and ZERO for the leave, all three marked edits per body
+  visible in the diff (one declaration, the fence, the churn notice). Nothing of
+  S1's applied body is dropped.
+
+A pin that matched a subtly different body was the finding to look for, and it
+is not there. The pin is strictly stronger than the patch it replaced, and its
+failure mode is the safe one.
+
+### 4. Guards — real exit codes, on `sec/m8-s4-review` after the changes
+
+| gate | exit |
+|---|---|
+| `node tests/party-hunt.mjs` | **0** |
+| `node tests/party-hunt.mjs --mutate` | **0** — SEVEN mutants, each RED at the apply; FIVE of them RED again in stage 2 with file 2's §6 disabled |
+| `node tests/schema-drift.mjs` | **0** (byte-identical second apply) |
+| `node tests/apply-order-honesty.mjs` | **0** |
+| `node tests/party-settle.mjs` | **0** |
+| `node tests/party-membership.mjs` | **0** |
+| `node tests/party-split.mjs` | **0** |
+| `node tests/world-tick-ledger-meta.mjs` | **0** |
+| `node tests/restore-census.mjs` | **0** |
+| `node tests/patch-chain-guard.mjs` | **0** |
+| `node tests/guard-hygiene.mjs` | **0** |
+| `node tests/ci-shape.mjs` | **0** |
+| `node tools/lane-done.mjs` | **0** (all 23 ratchets) |
+| `node tools/pack-edge.mjs hr-accrue --hash` | **0** — `c799d159…`, byte-identical to the payload the S2 record says is deployed |
+
+`?v=` followed by digits under `tests/**` and `supabase/functions/**`: every
+hit is PROSE inside a comment (`cache-buster-guard.mjs` documenting itself,
+`predict-display.mjs`, `conservation-fuzz.mjs`). **None in code**, and
+`versionQueryGuard()` in `pack-edge` agrees. Nothing removed, nothing bumped.
+
+### 5. VERDICT
+
+#### **GO-WITH-CHANGES — and every change is LANDED on `sec/m8-s4-review` and re-proved.**
+
+##### 5.1 The APPLY — order, one file per call, Coordinator only, never 00:00–00:10 UTC
+
+1. `supabase/migrations/2026-09-24-m8-parties-s4-1-boundary-budget.sql`
+2. `supabase/migrations/2026-09-24-m8-parties-s4-2-hunt-intents.sql`
+3. `supabase/migrations/2026-09-24-m8-parties-s4-3-client-surface.sql`
+
+**ONE SITTING, all three.** Between 2 and 3 the nightly `hr-grant-hygiene` cron
+is RED on `unapproved_client_rpcs` for two entries, and a detector expected to
+be red hides the next real regression.
+
+File 2's §5 PIN is expected to be the first thing that fails if anything on
+production has drifted. A pin failure is **"a parallel lane touched
+`hr_party_kick` or `hr_party_leave`"** — re-derive the restatement from the
+INSTALLED text and bring it back to Security. It is not a broken file and it is
+not a reason to loosen the pin.
+
+##### 5.2 The EDGE DEPLOY — **NOT NEEDED for this apply**
+
+The batch touches no `supabase/functions/**`, and `pack-edge --hash` measures
+`c799d159…`, byte-identical to the payload the S2 record says is live. The two
+new verbs are reachable exactly as S1's are: `grant execute … to authenticated`
+plus an `hr_client_rpc_baseline` row, i.e. PostgREST `rpc/`. File 3's
+precondition refuses to record either one unless `authenticated` actually holds
+it.
+
+**The client half is a different matter and it needs its own deploy.** §18.3
+marks both verbs `collectsFirst: true`, and `collectsFirst` lives in
+`supabase/functions/hr-accrue/intents.js`, whose `INTENT_REGISTRY` names **no
+party verb at all**. Raw PostgREST will not work: `hr_party_hunt_start` refuses
+`member_uncollectable` unless every member's window is already closed to ONE
+instant, and only the edge's collect-first half can close four windows in one
+request.
+
+##### 5.3 What the client half MUST and MUST NOT do
+
+MUST: register `party_hunt_start` and `party_hunt_stop` in the edge's
+`INTENT_REGISTRY` with `collectsFirst: true`, `needsKey: true`, bucket
+`party`; send a slot, a monster id, a stance, a stop object and an
+idempotency key, and NOTHING else; render `party_member_recovering` as a
+countdown from `until` + `remaining_ms`; render `member_uncollectable` and
+`party_member_recovering` from `detail.member`, which is a NAME; render
+`party_settle_churn` as §18.3's copy with no number; retry
+`party_settle_required` once after 2 s and then show the party panel; register
+the STATELESS codes and NOT the four stateful ones (I-1).
+
+MUST NOT: send a party id, a hunt id, a member, a window, a watermark, a share,
+a weight or a timestamp; hold any of these numbers past the next envelope;
+gate any button on a client-held boundary count (there is none to hold, and
+`residue-ahead` is a bug class); keep a second copy of "what a character is
+doing" to restore after a stop — §18's one-sentence design forbids it, and the
+stop deliberately leaves every pointer alone.
+
+##### 5.4 What must NOT happen next
+
+`hr_tick_config.shadow` stays **TRUE**. All three files assert it after their
+own apply. S5 is its own GO and its pre-arm bar is unmet by definition; arming
+through a self-check, an operator `update`, or "the batch is green" is arming
+through a side door.
+
+### 6. The post-apply read list for the Coordinator (read-only; no write, no seed, no probe row)
+
+1. The three `raise notice` lines, in order — each names the properties its
+   file executed. A missing one means a file did not run its §4 block.
+2. `party_settle_boundary`: **0 rows**, RLS enabled AND forced, **no policy**,
+   and no privilege for `anon`/`authenticated`/`service_role`/`hr_engine`/`hr_tick`.
+3. `has_function_privilege` on the four file-1 predicates
+   (`hr_party_boundaries_today`, `hr_party_boundary_room`, `hr_party_mark`,
+   `hr_party_settle_current`) for all five roles → **false everywhere**; and on
+   `hr_party_hunt_start`/`hr_party_hunt_stop` → `authenticated` **true**, the
+   other four **false**.
+4. `hr_assert_grant_hygiene(true)`: `unapproved_client_rpcs []`,
+   `ungated_client_rpcs []`, `engine_execute_outside_allowlist []`. Two new
+   `hr_client_rpc_baseline` rows, `identity_args` equal to
+   `pg_get_function_arguments` for both.
+5. `party_hunt` carries BOTH `party_hunt_stance_fk` and `party_hunt_stop_shape`,
+   and the table is still **empty**.
+6. `hr_tick_config`: `shadow` **TRUE**, `enabled` and `channels` unchanged from
+   the S2 record ({combat,gather}, enabled true).
+7. `md5` of the installed `hr_party_kick` and `hr_party_leave` bodies now
+   DIFFERS from the two pins (they are the restated bodies), and `'M8 S4 T-3'`
+   appears exactly ONCE in each.
+8. **live-hash: expect NO new whys.** This batch restates none of the tracked
+   bodies — `hr_assert_grant_hygiene` is not restated (nothing was granted to
+   `hr_engine`, so no `derive-grant-hygiene` link is cut), `hr_apply` is not
+   touched, `hr_party_hunt_live` is read and never rewritten, and
+   `hr_party_kick`/`hr_party_leave` are rewritten but are **not tracked**. Run
+   `--live --write` anyway; a why appearing here is a finding, not a formality.
+9. `restore-census`: classify the ONE new table, `party_settle_boundary`
+   (append-only journal, per-party, no client surface).

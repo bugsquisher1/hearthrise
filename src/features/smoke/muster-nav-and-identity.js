@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 59 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, assert, skip, stampRecordLikeLoad, withFarmServer, farmReplantFixtureG, farmHarvestThenPlant, withDeferredFarmPlant, goldOf, gemsOf, snapshotG, restoreG, snapRoundTrip, on, snapshot } from './_harness.js?v=552';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, stampRecordLikeLoad, withFarmServer, farmReplantFixtureG, farmHarvestThenPlant, withDeferredFarmPlant, goldOf, gemsOf, snapshotG, restoreG, snapRoundTrip, on, snapshot } from './_harness.js?v=552';
 
 export default [
 
@@ -2410,5 +2410,48 @@ export default [
     } finally {
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
     }
+  }),
+
+  /* ── regression suite — A STUBBED SESSION ARMS NEITHER FIRST-RUN SHEET ────
+     THE CLASS, not the arm above it: a session is the ONLY thing `maybeShow()`
+     and identity's `tick()` wait for, and both re-poll every 2 s, so the sheet
+     lands on whichever test is running when the poll comes round — never the one
+     that stubbed. The precondition belongs to `stubSignedIn` for that reason.
+     THE CONTROL COMES FIRST, or "no sheet" passes against a sheet that could not
+     have built here: `forget()` puts this browser back to never-welcomed and the
+     sheet MUST build under exactly this stub, then leaves through its own
+     `close()`. MUTATION: drop `firstRunAnswered` from `stubSignedIn` → RED on
+     the precondition line. */
+  () => tryRunAsync('SIGNED-IN-STUB: stubbing a session states the returning player, so neither first-run sheet arrives in the poll window', async () => {
+    const W = window.HearthrisePostSignup;
+    assert(W && W.seen && W.forget && W.close, 'post-signup-welcome.js lost the hooks a test states its precondition through');
+    const SHEETS = '.hr-id-scrim, #hr-post-signup-modal';
+    const was = new Set(document.querySelectorAll(SHEETS));
+    const added = () => [...document.querySelectorAll(SHEETS)].filter((e) => !was.has(e)).map((e) => e.id || e.className);
+    const wasWelcomed = W.seen();
+    const unstub = stubSignedIn(0);
+    try {
+      assert(W.seen(), 'stubSignedIn handed the page a session without stating the one thing every returning '
+        + "player's browser has already done — maybeShow() will fire inside its 2 s poll window and cover "
+        + 'whichever test is running by then');
+      /* `maybeShow()` also queues behind the front door, so the control parks
+         whatever is up for exactly as long as it needs and puts it back where it
+         stood — the same parking the whats-new stacking arm does. */
+      const parked = [...document.querySelectorAll('.ftue-root, .hr-id-scrim')]
+        .map((e) => ({ e, parent: e.parentNode, next: e.nextSibling }));
+      parked.forEach((p) => p.e.remove());
+      try {
+        W.show();
+        assert(document.getElementById('hr-post-signup-modal'),
+          'the sheet did NOT build under this stub — the assertions below would be proving nothing');
+        assert(W.close(), 'the sheet would not go away through its own dismiss');
+      } finally {
+        parked.forEach((p) => { try { p.parent.insertBefore(p.e, p.next); } catch (x) { document.body.appendChild(p.e); } });
+      }
+      assert(!added().length, 'the stub left a first-run sheet up: ' + added().join(', '));
+      await new Promise((r) => setTimeout(r, 2500));
+      assert(!added().length, 'a first-run sheet opened inside the 2 s poll window: ' + added().join(', '));
+    } finally { unstub(); }
+    assert(W.seen() === wasWelcomed, 'the stub left this browser\'s welcome flag somewhere it did not find it');
   }),
 ];

@@ -16,8 +16,7 @@ export default [
 
      THE DEFECT. src/features/companions.js unlockCompanion PUSHED the id into
      G.companions.ownedIds, toasted "Companion unlocked", emitted the chronicle
-     milestone, and only THEN fired hr_companion_grant fire-and-forget with a
-     bare `.catch(noop)`. The blob-retire capstone is ARMED (capstone.js
+     milestone, and only THEN fired hr_companion_grant fire-and-forget, `.catch(noop)`. The blob-retire capstone is ARMED (capstone.js
      BLOB_RETIRED = true), so accrue.js reconcileCompanions rebuilds
      G.companions from the SERVER owned-set on the next envelope: a refused grant
      therefore produced a toast, a Stable card and a chronicle line, and then the
@@ -38,19 +37,16 @@ export default [
     if (!CO || typeof CO.requestServerUnlock !== 'function' || !Cap || !Cap.__setBlobRetired) return;
     if (!window.COMPANIONS || !window.COMPANIONS.whelp) return;
     const snap = snapshotG();
-    const origFetch = window.fetch, origSb = window.HearthriseSupabase, origAuth = window.HearthriseAuth;
-    const origRpc = window.HearthriseRpc, origProf = window.HearthriseProfile, origNotify = window.notify;
+    const origFetch = window.fetch, origNotify = window.notify;
     const said = [];
+    let unstub = () => {};
     let grantCalls = 0, body = null, wasParked = false;
     try {
       Cap.__setBlobRetired(true);
       wasParked = CO.__parkGrants(false);   // this test drives the ladder itself
       CO.__clearGrantBlocks();
       CO.__setGrantRetryMs([0, 5]);          // keep the transport ladder test-fast
-      window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
-      window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
-      window.HearthriseRpc = { mayCall: () => true };
-      window.HearthriseProfile = { activeSlot: () => 2 };
+      unstub = stubSignedIn(2);
       window.notify = function (m, k) { said.push({ m: String(m), k }); };
       window.G.companions = { ownedIds: [], xp: {}, equipped: null };
       window.G.inventory = Object.assign({}, window.G.inventory, { dragon_egg: 2 });
@@ -121,8 +117,7 @@ export default [
       CO.__clearGrantBlocks();
       CO.__setGrantRetryMs();
       Cap.__setBlobRetired(null);
-      window.fetch = origFetch; window.HearthriseSupabase = origSb; window.HearthriseAuth = origAuth;
-      window.HearthriseRpc = origRpc; window.HearthriseProfile = origProf; window.notify = origNotify;
+      window.fetch = origFetch; unstub(); window.notify = origNotify;
       restoreG(snap);
     }
   }),
@@ -134,18 +129,16 @@ export default [
     const id = Object.keys(window.COMPANIONS || {}).find((k) => String(window.COMPANIONS[k].source || '').indexOf('drop:') === 0);
     if (!id) return;
     const snap = snapshotG();
-    const origFetch = window.fetch, origSb = window.HearthriseSupabase, origAuth = window.HearthriseAuth;
-    const origRpc = window.HearthriseRpc, origNotify = window.notify;
+    const origFetch = window.fetch, origNotify = window.notify;
     const said = [];
+    let unstub = () => {};
     let grantCalls = 0, wasParked = false;
     try {
       Cap.__setBlobRetired(true);
       wasParked = CO.__parkGrants(false);   // this test drives the ladder itself
       CO.__clearGrantBlocks();
       CO.__setGrantRetryMs([0, 5]);
-      window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
-      window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
-      window.HearthriseRpc = { mayCall: () => true };
+      unstub = stubSignedIn(2);
       window.notify = function (m, k) { said.push({ m: String(m), k }); };
       window.G.companions = { ownedIds: [], xp: {}, equipped: null };
       /* §4(a)'s success envelope. `egg_consumed` is null for the sixteen
@@ -168,8 +161,7 @@ export default [
       assert(cheered === 1, 'the call-site celebration must fire exactly once; fired ' + cheered);
       const cheers = said.filter((s) => /Companion unlocked/.test(s.m));
       assert(cheers.length === 1, 'exactly one unlock toast; saw ' + JSON.stringify(said));
-      /* Subject-scoped, not channel-scoped — see the note in HATCH-REFUSE-1. The
-         suite is a live page and unrelated async toasts share the 'kill' channel. */
+      /* Subject-scoped, not channel-scoped — the note in HATCH-REFUSE-1 says why. */
       const nameOf = (window.COMPANIONS[id] || {}).n || id;
       assert(!said.some((s) => s.k === 'kill' && s.m.indexOf(nameOf) >= 0),
         'a SUCCESS produced a refusal notice about ' + nameOf + ': ' + JSON.stringify(said));
@@ -178,8 +170,7 @@ export default [
       CO.__clearGrantBlocks();
       CO.__setGrantRetryMs();
       Cap.__setBlobRetired(null);
-      window.fetch = origFetch; window.HearthriseSupabase = origSb; window.HearthriseAuth = origAuth;
-      window.HearthriseRpc = origRpc; window.notify = origNotify;
+      window.fetch = origFetch; unstub(); window.notify = origNotify;
       restoreG(snap);
     }
   }),
@@ -191,17 +182,15 @@ export default [
     const id = Object.keys(window.COMPANIONS || {}).find((k) => String(window.COMPANIONS[k].source || '').indexOf('drop:') === 0);
     if (!id) return;
     const snap = snapshotG();
-    const origFetch = window.fetch, origSb = window.HearthriseSupabase, origAuth = window.HearthriseAuth;
-    const origRpc = window.HearthriseRpc, origNotify = window.notify;
+    const origFetch = window.fetch, origNotify = window.notify;
+    let unstub = () => {};
     let said = [], grantCalls = 0, answers = [], wasParked = false;
     try {
       Cap.__setBlobRetired(true);
       wasParked = CO.__parkGrants(false);   // this test drives the ladder itself
       CO.__clearGrantBlocks();
       CO.__setGrantRetryMs([0, 5, 5]);
-      window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
-      window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
-      window.HearthriseRpc = { mayCall: () => true };
+      unstub = stubSignedIn(2);
       window.notify = function (m, k) { said.push({ m: String(m), k }); };
       window.fetch = function (url) {
         if (String(url).indexOf('hr_companion_grant') !== -1) {
@@ -223,19 +212,15 @@ export default [
       await CO.requestServerUnlock(id);
       assert(grantCalls === 1, 'an unknown_unlock is a server catalogue defect — retrying it is pointless spend; saw ' + grantCalls);
       assert(window.G.companions.ownedIds.length === 0, 'an unknown_unlock still delivered the companion');
-      /* Subject-scoped, not channel-scoped — see the note in HATCH-REFUSE-1. An
-         unrelated async toast from an earlier test ("Could not plant — try
-         again", measured twice) also rides the 'kill' channel, and counting the
-         channel made this test fail on another feature's noise. */
+      /* Subject-scoped, not channel-scoped — the note in HATCH-REFUSE-1 says why. */
       const nameOf = (window.COMPANIONS[id] || {}).n || id;
       const r = said.filter((s) => s.k === 'kill' && s.m.indexOf(nameOf) >= 0);
       assert(r.length === 1 && !/unknown_unlock/.test(r[0].m),
         'the catalogue refusal needs its own player sentence, not the machine code; said ' + JSON.stringify(said));
 
-      /* THE MEMO IS REAL, and this is where it has to be cleared: (a) blocked
-         this id for the session, so (b) would be refused before it reached the
-         transport. Asserted rather than just cleared, so the block cannot
-         silently stop existing. */
+      /* THE MEMO IS REAL, and this is where it has to be cleared: (a) blocked this
+         id for the session, so (b) would be refused before it reached the transport.
+         Asserted, not just cleared, so the block cannot silently stop existing. */
       assert(await CO.requestServerUnlock(id) === false && grantCalls === 1,
         'the definitive refusal in (a) was not remembered — the repeating trigger would re-ask forever');
       CO.__clearGrantBlocks();
@@ -258,8 +243,7 @@ export default [
       CO.__clearGrantBlocks();
       CO.__setGrantRetryMs();
       Cap.__setBlobRetired(null);
-      window.fetch = origFetch; window.HearthriseSupabase = origSb; window.HearthriseAuth = origAuth;
-      window.HearthriseRpc = origRpc; window.notify = origNotify;
+      window.fetch = origFetch; unstub(); window.notify = origNotify;
       restoreG(snap);
     }
   }),
@@ -655,18 +639,13 @@ export default [
     const snap = snapshotG();
     const origMay = window.clientMayWriteRecordField;
     const origFetch = window.fetch;
-    const origSb = window.HearthriseSupabase;
-    const origAuth = window.HearthriseAuth;
-    const origRpc = window.HearthriseRpc;
-    const origProf = window.HearthriseProfile;
     const origRec = window.HearthriseRecord;
     const origNotify = window.notify;
+    let unstub = () => {};
     let claimCalls = 0, verdict = null;
     const said = [];
     try {
-      window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
-      window.HearthriseRpc = { mayCall: () => true };
-      window.HearthriseProfile = { activeSlot: () => 0 };
+      unstub = stubSignedIn(0);
       window.HearthriseRecord = { requestRecord: () => Promise.resolve(null) };
       window.notify = (m) => { said.push(String(m || '')); };
       window.fetch = function (url) {
@@ -727,10 +706,7 @@ export default [
     } finally {
       window.clientMayWriteRecordField = origMay;
       window.fetch = origFetch;
-      window.HearthriseSupabase = origSb;
-      window.HearthriseAuth = origAuth;
-      window.HearthriseRpc = origRpc;
-      window.HearthriseProfile = origProf;
+      unstub();
       window.HearthriseRecord = origRec;
       window.notify = origNotify;
       if (R.__resetClaimState) R.__resetClaimState();

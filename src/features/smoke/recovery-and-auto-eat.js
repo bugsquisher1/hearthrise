@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 30 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, snapshotG, drain, restoreG, on, snapshot, closeOverlays } from './_harness.js?v=552';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, snapshotG, drain, restoreG, stubSignedIn, on, snapshot, closeOverlays } from './_harness.js?v=552';
 
 export default [
 
@@ -39,18 +39,15 @@ export default [
     const A = window.HearthriseAuto, GC = window.HearthriseGoalClaim;
     if (!A || typeof A._flushEatSync !== 'function' || !GC || typeof GC.setAutoEat !== 'function') return;
     const snap = snapshotG();
-    const origFetch = window.fetch, origSb = window.HearthriseSupabase, origAuth = window.HearthriseAuth;
-    const origRpc = window.HearthriseRpc, origProf = window.HearthriseProfile, origAcc = window.HearthriseAccrual;
+    const origFetch = window.fetch, origAcc = window.HearthriseAccrual;
     const before = A.getEat();
     const bodies = [];
+    let unstub = () => {};
     let wasParked = false;
     try {
       wasParked = A._parkEatSync(false);   // this test drives the sync itself
       A._resetEatSync();
-      window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
-      window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
-      window.HearthriseRpc = { mayCall: () => true };
-      window.HearthriseProfile = { activeSlot: () => 2 };
+      unstub = stubSignedIn(2);
       /* The server's own projected belief — hr_state_of has carried all three
          columns since 2026-08-15-auto-eat.sql; accrue.js reads them off every
          envelope. This is the dedupe anchor. */
@@ -83,8 +80,7 @@ export default [
       assert(b.p_slot === 2, 'the active slot must ride along; got ' + JSON.stringify(b));
     } finally {
       A._resetEatSync();
-      window.fetch = origFetch; window.HearthriseSupabase = origSb; window.HearthriseAuth = origAuth;
-      window.HearthriseRpc = origRpc; window.HearthriseProfile = origProf; window.HearthriseAccrual = origAcc;
+      window.fetch = origFetch; unstub(); window.HearthriseAccrual = origAcc;
       A.setEat(before); A._resetEatSync(); A._parkEatSync(wasParked);
       restoreG(snap);
     }

@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 72 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withFarmServer, withClaimServer, xpOf, predZero, xpZero, goldOf, snapshotG, restoreG, restoreGAndRecord, TYPE_FLOOR, typeHandoffOwner, typeTokenPx, TYPE_OWNED_SHEETS, on, snapshot, decideRestore, decideSessionEvent, stubSignedIn, drain, firstRunAnswered } from './_harness.js?v=552';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withFarmServer, withClaimServer, xpOf, predZero, xpZero, goldOf, snapshotG, restoreG, restoreGAndRecord, TYPE_FLOOR, typeHandoffOwner, typeTokenPx, TYPE_OWNED_SHEETS, on, snapshot, decideRestore, decideSessionEvent, stubSignedIn, drain } from './_harness.js?v=552';
 
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -75,13 +75,11 @@ const partyRig = () => {
     const payload = answer(u);
     return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(payload) });
   };
-  const unstub = stubSignedIn(0);
-  /* WHO THE LOCAL PLAYER IS — and why the page stays quiet while these arms run.
-     The panel marks your own row and withholds Remove from it; without a name that
-     branch is never taken. A monkey-patch over `I.displayName` pinned the panel's
-     reading and nothing else, while the session stubbed above armed BOTH first-run
-     sheets behind the test's back (`firstRunAnswered`). Restored with the rest. */
-  const unanswer = firstRunAnswered('Wren');
+  /* WHO THE LOCAL PLAYER IS — the panel marks your own row and withholds Remove
+     from it, and without a name that branch is never taken. A monkey-patch over
+     `I.displayName` pinned the panel's reading and nothing else. The first-run
+     sheets a session arms are `stubSignedIn`'s business now, not this rig's. */
+  const unstub = stubSignedIn(0, 'Wren');
   window.HearthriseParty.__resetForTest();
   const el = (sel) => document.querySelector('#party-panel ' + sel);
   /* EVERY REQUEST THE PAGE MAKES LANDS IN `calls`, NOT JUST THE PANEL'S. The
@@ -117,7 +115,6 @@ const partyRig = () => {
       try { window.HearthriseParty.setVisible(false); } catch (e) {}
       try { window.HearthriseParty.__resetForTest(); } catch (e) {}
       window.fetch = realFetch;
-      unanswer();
       unstub();
       try { window.showTab('profile'); } catch (e) {}
     },

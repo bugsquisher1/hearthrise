@@ -1913,9 +1913,20 @@ export const assertBannerReserved = (bar, why) => {
 };
 
 /* THE SIGNED-IN SERVER ENVIRONMENT, WRITTEN ONCE — five claim tests each carried
-   the same four stubs and restores; a forgotten copy leaks a fake session. */
-export const stubSignedIn = (slot) => {
+   the same four stubs and restores; a forgotten copy leaks a fake session.
+
+   AND THE FIRST-RUN SHEETS COME WITH IT, because they are not a property of any
+   one arm. A session is the ONLY thing either flow waits for, so the sheets are
+   armed by the STUB, not by the test that installs it: measured as
+   `✗ HATCH-REFUSE-3 … viewport-covering fixed layer #hr-post-signup-modal`,
+   which then covered the shop's buy control for every test after it. Stated per
+   arm, every future arm had to remember a rule its own subject never mentions;
+   stated here it cannot be forgotten, and an arm that WANTS the sheets is one
+   `forget()` away. `name` is the display name the simulated player answers with
+   — pass it where the surface under test reads who you are. */
+export const stubSignedIn = (slot, name) => {
   const o = [window.HearthriseSupabase, window.HearthriseAuth, window.HearthriseRpc, window.HearthriseProfile];
+  const unanswer = firstRunAnswered(name);
   window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
   window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };
   window.HearthriseRpc = { mayCall: () => true };
@@ -1923,6 +1934,7 @@ export const stubSignedIn = (slot) => {
   return () => {
     window.HearthriseSupabase = o[0]; window.HearthriseAuth = o[1];
     window.HearthriseRpc = o[2]; window.HearthriseProfile = o[3];
+    unanswer();
   };
 };
 

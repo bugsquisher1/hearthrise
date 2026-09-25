@@ -1033,14 +1033,21 @@
       "replay": 80,
       "note": "Generated unlock catalogue (2026-08-16-unlocks.generated.sql, by tools/gen-unlocks.mjs --check): merge rule, storage kind, ceiling, rung ladder per namespace. Rebuilt from repo, never restored. ⚠ PRODUCTION RUNS 65 AND A REBUILD PRODUCES 82 — see production.divergence_vs_repo; the whole delta is namespace='companion' (4 vs 21) and it is an apply-state issue, not a DR one. RULED 2026-08-30: a wholesale `delete from public.hr_unlocks;` in this very file destroyed the 17 rows 2026-08-22-companion-grant.sql had added when it was regenerated and re-applied on 2026-08-23. The fix is forward — supabase/migrations/2026-09-05-companion-unlock-catalogue-reseed.sql, STAGED/REVIEW-ONLY — and the replay pin stays 82 because the rebuild already produced them. ⚠ NEVER re-apply this file to production to 'refresh' the catalogue: it deletes 20 rows it does not own and silently flag-shapes the four shop companions. tests/unlock-catalogue-ownership.mjs measures that and proves the declared repair."
     },
-    "hr_vigour_prices": {
+    "hr_vigour_price_rule": {
       "class": "operator_tunable",
-      "replay": 0,
+      "replay": 1,
       "wiped_at_cutover": false,
-      "note": "THE VIGOUR REFILL LADDER (created 2026-09-22-vigour-refill.sql, APPLIED 2026-09-23 06:26:46 UTC). SHIPS EMPTY (Security I-3, 2026-09-23): the designer's placeholder ladder (2,000 gold tripling to 162,000, x5 within the UTC day) is recorded in the migration as a rolled-back fixture only; GATE(d0)/GATE(f) fail the apply if a row is ever seeded by a migration, and hr_vigour_refill refuses every call by name (refill_unpriced) while the table is empty. OPERATOR TUNABLE: Tyler's four money figures (docs/design/HUNTS_AND_ANALYZER.md 4.6) land as a reviewed INSERT under the same Security review, never a migration, so a rebuild must not resurrect placeholders. THE ROW COUNT IS ALSO THE PER-DAY CAP - a truncated or empty table does not open a faucet, it closes the shop. Public read, no client write policy and no client write grant; hr_vigour_refill is the only reader that prices from it. live_value MEASURED on production 2026-09-23 after the apply: 0 rows. Re-measure after Tyler's ruling.",
+      "note": "THE VIGOUR REFILL PRICE RULE (created 2026-09-25-vigour-price-by-level.sql, STAGED - SECURITY GO REQUIRED; supersedes the empty hr_vigour_prices ladder, which that file drops). ONE row (`id boolean primary key check (id)`), seeded `on conflict do nothing` with Tyler's 2026-09-25 ruling: refill n costs floor((base_gold + per_level_gold x combat level) x (1 + (n-1) x step)), refills_max = the per-day cap. OPERATOR TUNABLE: every adjustment is a reviewed UPDATE under a Security GO, so a rebuild restores the AUTHORED DEFAULT and must re-apply live_value. Coming back EMPTY is the SAFE direction: hr_vigour_refill refuses every call by name (refill_unpriced) and the meter offers nothing, while minutes already bought stand. RLS enabled and forced, zero policies, zero grants; read only by hr_vigour_refill_price. live_value below is the AUTHORED default, not a production measurement - re-measure after the apply.",
       "live_value": {
-        "measured": "2026-09-23",
-        "value": []
+        "measured": "2026-09-25",
+        "value": [
+          {
+            "base_gold": 1500,
+            "per_level_gold": 450,
+            "step": 0.5,
+            "refills_max": 5
+          }
+        ]
       }
     },
     "hr_xp_table": {

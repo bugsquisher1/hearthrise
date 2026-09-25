@@ -282,21 +282,23 @@ selling the same hours under a new noun would be the same product. This is not a
 price question and it does not go to Tyler: it is decided.
 
 - **+120 minutes per refill.**
-- **Price rises within the UTC day:** 2,000 → 6,000 → 18,000 → 54,000 → 162,000
-  gold (×3 per refill), resetting with the day key.
+- **Price scales with the character's combat level and rises within the UTC
+  day** (Tyler, 2026-09-25 — §4.6 has the formula and the table), resetting
+  with the day key. (Replaces the ×3 ladder 2,000 → 162,000 first proposed here.)
 - **At most 5 refills per day** = +600 minutes bought, and never more than a
   **22-hour** total paid ceiling however large the grant grows. Two hours a day
   that gold cannot buy is what keeps "richest player hunts most" from becoming
   "richest player hunts always".
 
-Why ×3 and not ×1.32 (the bank curve): the bank ladder is a permanent capability
-bought once, so it wants a curve a player climbs. Vigour is bought *again every
-day*, so a shallow curve becomes a fixed daily tax that the wealthy stop
-noticing by week two. ×3 means refill 1 is an easy yes, refill 3 is a real
-decision, and refill 5 is something a player does on purpose for a reason.
+Why the price climbs within the day at all: the bank ladder is a permanent
+capability bought once, but Vigour is bought *again every day*, so a flat price
+becomes a fixed daily tax the wealthy stop noticing by week two. Refill 1 is an
+easy yes, refill 5 is something a player does on purpose. (The first proposal
+was ×3 per rung; Tyler's 2026-09-25 ruling scales the price with level instead,
+which is what keeps it meaningful at every stage — §4.6.)
 
-The sink is the point: 242,000 gold a day at full refill, leaving the economy
-through a faucet nobody can resell.
+The sink is the point: gold leaving the economy through a faucet nobody can
+resell — at full refill, 37,500 a day at combat level 5 and 420,000 at 90.
 
 ### 4.5 What Vigour is NOT
 
@@ -318,27 +320,37 @@ Slice 1 ships Vigour **read-only**: the meter displays, the charge accrues, and
 the refill button does not exist. That keeps the first playable slice out of the
 money lane entirely.
 
-**TYLER — 2026-09-23, still unanswered, and the figures below are PLACEHOLDERS.**
-Nothing in the repo records his ruling, so the backend lane did not invent one.
-The four numbers live as **catalogue rows** (`hr_vigour_prices`) and one
-imported constant (`VIGOUR_DRY_MULT`, currently `AMMO_DRY_MULT` = 0.25), which
-is the right shape: **his answer is a reviewed `INSERT`/`UPDATE`, not a code
-change**, and the row count IS the per-day cap so a sixth rung re-opens the
-Security review. Condition 5 of `docs/planning/SEC_HUNTS_M6_2026-09-22.md`:
-*"the refill verb must not reach production with four unanswered money numbers
-in it."*
+**TYLER — 2026-09-25, RULED:** *(1) the Vigour refill price SCALES WITH THE
+CHARACTER'S LEVEL, Huntera-style; (2) when Vigour runs out the hunt pays 25%
+(`VIGOUR_DRY_MULT` stays 0.25).* Not reopened: gold only, +120 minutes per
+refill, at most 5 refills per UTC day, the 22-hour paid ceiling, reset on
+`hr_utc_day_key`. (Replaces the 2026-09-23 "still unanswered" note; the ×3
+placeholder ladder and the empty `hr_vigour_prices` are retired.)
 
-**AND SO THE CATALOGUE SHIPS EMPTY (2026-09-23, Security R4.1/R5 condition 2).**
-`2026-09-22-vigour-refill.sql` seeds **no row**. The proposed ladder — 2,000 /
-6,000 / 18,000 / 54,000 / 162,000 for 120 minutes each, ×3 within the UTC day,
-five rungs — is the Game Designer's and is recorded in the migration's §2 and
-driven by its §7 as a rolled-back *fixture*, never as a seed. Until a priced row
-exists the verb refuses every call by name, `refill_unpriced`, **before the
-advisory lock and before the gold test**, so no gold can move on a number nobody
-ruled on; `GATE(d0)` and `GATE(f)` fail the apply if a row is ever seeded here,
-and `tests/vigour.mjs` V4b asserts the same on the shipped chain. Tyler's ruling
-then lands as a reviewed `INSERT` under this same review. Nothing about the
-playable slice waits on this — slice 1 ships no refill control at all.
+**The shape (Huntera's, measured 2026-09-18; our coefficients, not theirs):**
+refill *n* of the day costs `floor((BASE + PER_LEVEL × L) × (1 + (n−1) × STEP))`
+with **BASE 1,500 · PER_LEVEL 450 · STEP 0.5**, *L* = the server's combat level
+(`hr_party_level` over `player_skills`, read inside the price function, never a
+parameter). One row, `hr_vigour_price_rule`, holds the three coefficients and
+`refills_max = 5`; a future adjustment is a reviewed `UPDATE`.
+`hr_vigour_refill_price` is the only formula — the meter's `next_refill_gold`
+and the verb's charge both call it. Migration:
+`2026-09-25-vigour-price-by-level.sql` (STAGED, SECURITY GO REQUIRED).
+
+| Combat level | gold/h hunting (engine) | refill 1 | 2 | 3 | 4 | 5 | day total |
+|---|---|---|---|---|---|---|---|
+| 5  | ~1,900  | 3,750  | 5,625  | 7,500  | 9,375   | 11,250  | 37,500  |
+| 15 | ~2,530  | 8,250  | 12,375 | 16,500 | 20,625  | 24,750  | 82,500  |
+| 30 | ~5,670  | 15,000 | 22,500 | 30,000 | 37,500  | 45,000  | 150,000 |
+| 60 | ~13,600 | 28,500 | 42,750 | 57,000 | 71,250  | 85,500  | 285,000 |
+| 90 | ~30,000 | 42,000 | 63,000 | 84,000 | 105,000 | 126,000 | 420,000 |
+
+Why these numbers (2026-09-25, backend lane):
+1. Gold/h is coin credited by `computeAccrual` → `simulateSpan`, 2 h runs, best 0-death monster with tier gear and auto-eat; loot is not auto-sold and is excluded.
+2. Income is convex in level (~×2 per 15–30 levels) and a price linear in L cannot track it, so the line is fit to the whole range: refill 1 costs 0.7–1.6× the two hours it buys (1.0× at L5 and L60).
+3. The top is priced soft on purpose: food-unlimited L90 hunting measures ~46k/h, so 42,000 is well under two hours for the players most able to pay.
+4. STEP 0.5 makes refill 5 cost 3× refill 1 — about six hours of income for two hours of hunting — a deliberate choice, not a habit; a day of five costs 10× refill 1.
+5. Combat level, not total level: a hunt's gold comes from the monster combat lets you kill; total level adds 14 skills that pay a hunt nothing.
 
 ---
 

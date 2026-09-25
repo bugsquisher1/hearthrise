@@ -10,6 +10,9 @@
 //
 // Ships with: src/core/hunt.js · supabase/migrations/2026-09-22-vigour-daily.sql
 //             supabase/migrations/2026-09-22-vigour-refill.sql
+//             supabase/migrations/2026-09-25-vigour-price-by-level.sql (supersedes
+//             the two bodies and the empty ladder: Tyler 2026-09-25, the price
+//             scales with the SERVER's combat level; the mutations target it)
 //
 // ── WHAT IT DRIVES, AND WHERE ───────────────────────────────────────────
 // V1-V3 are the ARITHMETIC, in process, against src/core/hunt.js.
@@ -45,6 +48,10 @@ import { AMMO_DRY_MULT } from '../src/core/ammo.js';
 
 const REFILL = '2026-09-22-vigour-refill.sql';
 const DAILY = '2026-09-22-vigour-daily.sql';
+/* THE LAST TOUCHER of hr_vigour_of and hr_vigour_refill__ungated. A mutation
+   planted in an earlier file would be overwritten by this one and "caught" by
+   nothing, so every body mutation below targets it. */
+const PRICE = '2026-09-25-vigour-price-by-level.sql';
 
 const problems = [];
 const ok = (cond, msg) => { if (!cond) problems.push(msg); };
@@ -57,8 +64,11 @@ const MUTATIONS = {
   spent_ignores_remainder: 'Drop the sub-minute remainder from hr_vigour_of\'s read, so the charge stops conserving (finding S-1).',
   refill_sells_partial: 'Refuse only a refill that would buy NOTHING, so a ceiling-clamped one is sold at full price for half the minutes (S-3).',
   refill_idem_optional: 'Let a null p_idem through, so the money verb debits on every call (S-4).',
-  refill_prices_seeded: 'Seed the placeholder ladder in the migration, so a player pays a price Tyler never ruled on (I-3).',
-  refill_unpriced_unnamed: 'Drop the refill_unpriced branch, so an unpriced catalogue refuses as vigour_daily_cap (I-3).',
+  refill_unpriced_unnamed: 'Drop the refill_unpriced branch, so a missing price rule refuses as vigour_daily_cap (I-3).',
+  price_ignores_level: 'Drop the level from the formula, so every character pays the level-1 price (Tyler 2026-09-25).',
+  price_flat_within_day: 'Drop the within-day step, so refill 5 costs what refill 1 does (a flat daily tax).',
+  meter_misquotes: 'Let hr_vigour_of quote the rung AFTER next, so the panel advertises a price the verb does not charge (CLAUDE.md 6).',
+  meter_offers_past_ceiling: 'Let refills_left ignore the ceiling, so the meter offers a refill the verb refuses (S-3, CLAUDE.md 6).',
 };
 
 /** The mutations are TEXTUAL patches on the real migrations, so a planted defect
@@ -77,6 +87,7 @@ const MUTATIONS = {
 const SHORT_CIRCUIT = [
   [REFILL, [['begin\n  select regexp_replace(p.prosrc,', 'begin\n  return;\n  select regexp_replace(p.prosrc,']]],
   [DAILY, [['begin\n  -- (a) THE GRANT IS DERIVED', 'begin\n  return;\n  -- (a) THE GRANT IS DERIVED']]],
+  [PRICE, [['begin\n  -- (a) STATICS on the executable text', 'begin\n  return;\n  -- (a) STATICS on the executable text']]],
 ];
 
 const withShortCircuit = (m) => {
@@ -91,16 +102,17 @@ const patchesFor = (mutate) => {
       /* ⚠ THE MUTATION TARGETS `v_nth` ITSELF, NOT THE `v_nth > v_cap` BRANCH,
            AND THE REASON IS A REAL FINDING THIS GUARD MADE.
          TWO controls in the verb refuse with `vigour_daily_cap`: the explicit
-         comparison, and the catalogue lookup that finds no row for an nth past
-         the ladder. Deleting the first leaves the second holding, so a guard
+         comparison, and hr_vigour_refill_price answering NULL for an nth past
+         refills_max. Deleting the first leaves the second holding, so a guard
          aimed at the comparison reports "caught" while proving only that a
          REDUNDANT control exists. Pinning `v_nth` to 1 defeats BOTH — every
          refill looks like the first, the cheapest rung is always found, and the
-         day cap becomes an unlimited faucet at 2,000 gold a go. That is the
+         day cap becomes an unlimited faucet at the rung-1 price. That is the
          defect the cap exists to prevent, so that is what the mutation plants.
-         The redundancy is fine and deliberate (the catalogue's ROW COUNT is the
-         cap by design); what is not fine is a guard that cannot tell. */
-      return withShortCircuit(new Map([[REFILL, [[
+         The redundancy is fine and deliberate (hr_vigour_refill_price refuses
+         an nth past refills_max too); what is not fine is a guard that cannot
+         tell. */
+      return withShortCircuit(new Map([[PRICE, [[
         "  v_nth := coalesce((v_vig->>'refills')::int, 0) + 1;",
         '  v_nth := 1;',
       ]]]]));
@@ -110,12 +122,12 @@ const patchesFor = (mutate) => {
          `v_delivers < v_min`. Same branch, same deletion — the whole ceiling
          test goes, so a refill at the ceiling is sold for zero minutes. The
          sibling `refill_sells_partial` narrows it instead of deleting it. */
-      return withShortCircuit(new Map([[REFILL, [[
+      return withShortCircuit(new Map([[PRICE, [[
         '  if v_delivers < v_min then',
         '  if false then',
       ]]]]));
     case 'refill_free_on_replay':
-      return withShortCircuit(new Map([[REFILL, [[
+      return withShortCircuit(new Map([[PRICE, [[
         '  if v_cached ->> \'error\' = \'intent_mismatch\' then return v_cached; end if;\n'
         + '  if v_cached is not null then return v_cached || jsonb_build_object(\'replayed\', true); end if;',
         '  if v_cached ->> \'error\' = \'intent_mismatch\' then return v_cached; end if;',
@@ -127,7 +139,7 @@ const patchesFor = (mutate) => {
            Drop the remainder term from hr_vigour_of's sum and the two counters
            become one counter with a decorative second row — the exact shape of
            finding S-1, arriving through the reader instead of the writer. */
-      return withShortCircuit([[DAILY, [[
+      return withShortCircuit([[PRICE, [[
         "       + coalesce(sum(case when key = 'ev:vigour_rem_ms' then value else 0 end), 0)",
         '       + 0',
       ]]]]);
@@ -137,7 +149,7 @@ const patchesFor = (mutate) => {
          (`budget_min >= ceiling_min` spelled in the new variable), which
          refuses only the sale that delivers ZERO and lets the PARTIAL one
          through at full price with a receipt that reports the whole block. */
-      return withShortCircuit([[REFILL, [[
+      return withShortCircuit([[PRICE, [[
         '  if v_delivers < v_min then',
         '  if v_delivers <= 0 then',
       ]]]]);
@@ -146,46 +158,55 @@ const patchesFor = (mutate) => {
       /* Both halves, so this is the SHIPPED defect rather than a NOT NULL
          violation wearing its name: drop the refusal AND restore the
          conditional intent cache the pre-fix body carried. */
-      return withShortCircuit([[REFILL, [
+      return withShortCircuit([[PRICE, [
         ["  if p_idem is null then\n    perform public.hr_record_rejection(v_uid, v_slot, 'vigour_refill', 'missing_idem', '{}'::jsonb, 1);\n    return jsonb_build_object('ok', false, 'error', 'missing_idem', 'slot', v_slot);\n  end if;",
           '  if false then null; end if;'],
         ['  insert into public.player_intents (user_id, intent_id, slot, intent, result, at)\n    values (v_uid, p_idem, v_slot, v_intent, v_result, now())\n    on conflict (user_id, intent_id) do nothing;',
           '  if p_idem is not null then\n  insert into public.player_intents (user_id, intent_id, slot, intent, result, at)\n    values (v_uid, p_idem, v_slot, v_intent, v_result, now())\n    on conflict (user_id, intent_id) do nothing;\n  end if;'],
       ]]]);
 
-    case 'refill_prices_seeded':
-      /* THE I-3 DEFECT, PLANTED BACK: the placeholder ladder seeded at apply
-         time. Nothing else in the file changes — the verb sells exactly as it
-         does today — so what this catches is the ONE thing I-3 is about: gold
-         moving on four figures Tyler has not ruled on. V4b(a) is the assertion
-         that must go red; the migration's own GATE(d0) is short-circuited on a
-         mutated run, so the catch is this guard's, not the apply's. */
-      return withShortCircuit(new Map([[REFILL, [[
-        'create table if not exists public.hr_vigour_prices (',
-        "insert into public.hr_vigour_prices (nth, cost_gold, minutes)\n"
-        + '  select * from (values (1, 2000::bigint, 120), (2, 6000::bigint, 120)) v\n'
-        + '  on conflict (nth) do nothing;\n'
-        + 'create table if not exists public.hr_vigour_prices (',
-      ]]]]));
-
     case 'refill_unpriced_unnamed':
-      /* The branch deleted, not the behaviour. An empty catalogue is still
+      /* The branch deleted, not the behaviour. A missing rule row is still
          refused — hr_vigour_of reports refills_max 0 and the day-cap test fires
          — so the money property survives and ONLY THE NAME is wrong. That is
          the whole point of the arm: a player told "you have used your daily
          limit" for a control that has never been purchasable, and a vitals row
          that reads as a real cap biting. A guard that only asserted "no gold
          moved" would call this caught-nothing and pass forever. */
-      return withShortCircuit(new Map([[REFILL, [[
-        "  if not exists (select 1 from public.hr_vigour_prices) then\n"
+      return withShortCircuit(new Map([[PRICE, [[
+        "  if not exists (select 1 from public.hr_vigour_price_rule where id) then\n"
         + "    perform public.hr_record_rejection(v_uid, v_slot, 'vigour_refill', 'refill_unpriced', '{}'::jsonb, 1);\n"
         + "    return jsonb_build_object('ok', false, 'error', 'refill_unpriced', 'slot', v_slot);\n"
         + '  end if;',
         '  if false then null; end if;',
       ]]]]));
 
+    /* ── TYLER 2026-09-25: THE PRICE SCALES WITH THE SERVER'S LEVEL ──────
+       All four plant into 2026-09-25-vigour-price-by-level.sql, the one file
+       that holds the formula and the two callers of it. */
+    case 'price_ignores_level':
+      return withShortCircuit(new Map([[PRICE, [[
+        "    'gold',  floor((r.base_gold + r.per_level_gold * v_lvl)::numeric",
+        "    'gold',  floor((r.base_gold + r.per_level_gold)::numeric",
+      ]]]]));
+    case 'price_flat_within_day':
+      return withShortCircuit(new Map([[PRICE, [[
+        '                   * (1 + (p_nth - 1) * r.step))::bigint);',
+        '                   * 1)::bigint);',
+      ]]]]));
+    case 'meter_misquotes':
+      return withShortCircuit(new Map([[PRICE, [[
+        '    v_next := public.hr_vigour_refill_price(p_user, v_slot, v_refills + 1);',
+        '    v_next := public.hr_vigour_refill_price(p_user, v_slot, v_refills + 2);',
+      ]]]]));
+    case 'meter_offers_past_ceiling':
+      return withShortCircuit(new Map([[PRICE, [[
+        '                              (c_ceiling_min - v_budget) / c_refill_min));',
+        '                              coalesce(v_cap, 0)));',
+      ]]]]));
+
     case 'budget_ignores_ceiling':
-      return withShortCircuit(new Map([[DAILY, [[
+      return withShortCircuit(new Map([[PRICE, [[
         '  v_budget := least(c_ceiling_min, v_grant + v_bought);',
         '  v_budget := v_grant + v_bought;',
       ]]]]));
@@ -274,15 +295,22 @@ async function run(mutate) {
       + 'that as "switching twice pays the same total as switching once".');
   }
 
-  // ── V4. GOLD ONLY, AND NO PRICE LIVES IN THE VERB ──────────────────────
-  const refillSrc = await readFile(join(ROOT, 'supabase/migrations', REFILL), 'utf8');
-  const body = refillSrc.slice(refillSrc.indexOf('hr_vigour_refill__ungated(p_slot int, p_idem uuid)'),
-    refillSrc.indexOf('-- ── 4. The gated wrapper'));
-  const exec = body.replace(/--[^\n]*/g, '');
+  // ── V4. GOLD ONLY, AND NO PRICE LIVES IN THE VERB OR THE FORMULA ─────
+  // Read from the LAST toucher of the verb: an earlier file's body is history.
+  const priceSrc = await readFile(join(ROOT, 'supabase/migrations', PRICE), 'utf8');
+  const cut = (from, to) => priceSrc.slice(priceSrc.indexOf(from), priceSrc.indexOf(to))
+    .replace(/--[^\n]*/g, '');
+  const exec = cut('create or replace function public.hr_vigour_refill__ungated(p_slot int, p_idem uuid)',
+    '-- ── 5. RETIRE THE EMPTY');
+  const formula = cut('create or replace function public.hr_vigour_refill_price(',
+    'comment on function public.hr_vigour_refill_price');
+  ok(exec.length > 0 && formula.length > 0, 'V4 HARNESS: the verb or the price function was not found in ' + PRICE);
   ok(!/[^0-9a-zA-Z_]\d{3,}/.test(exec),
     'V4: hr_vigour_refill__ungated contains a 3+ digit literal outside a comment. The price must '
-    + 'come only from hr_vigour_prices so Tyler\'s ruling (design §4.6) is an UPDATE under review '
-    + 'and not a code change.');
+    + 'come only from hr_vigour_price_rule so Tyler\'s adjustments (design §4.6) are an UPDATE under '
+    + 'review and not a code change.');
+  ok(!/[^0-9a-zA-Z_]\d{2,}/.test(formula),
+    'V4: hr_vigour_refill_price contains a 2+ digit literal. Every coefficient is a rule-row column.');
   ok(!/\b(gems|hearth_tokens|dungeon_scrip|marks)\b/.test(exec.replace(/gems_in/g, '')),
     'V4: the refill verb names a currency that is not gold. Gems and Hearth Tokens may NEVER buy '
     + 'hunting time — selling away-accrual hours for cash is pay-to-win on a ranked economy.');
@@ -297,59 +325,99 @@ async function run(mutate) {
   await db.query('insert into auth.users (id) values ($1)', [PROBE]);
   await as('select public.hr_create_character(0)');
 
-  /* ── V4b. THE CATALOGUE SHIPS EMPTY, AND THE VERB SAYS SO BY NAME (I-3) ──
-     Tyler has not ruled on the four design §4.6 figures, so the migration seeds
-     NO ROW: the refill verb ships live and refuses every call without moving
-     gold, and the ruling lands later as a reviewed INSERT. Asserted on the
-     UNTOUCHED chain, before this guard seeds its own fixture below — the only
-     moment the shipped state is observable. */
-  const shipped = Number((await q('select count(*)::int as n from public.hr_vigour_prices'))[0].n);
-  ok(shipped === 0,
-    `V4b: the chain shipped ${shipped} price row(s). Nothing in the repo records Tyler's ruling on `
-    + 'the design §4.6 figures, and a seeded placeholder is a real player paying a made-up number '
-    + 'the first night this applies. The ruling is DATA — a reviewed INSERT, never a seed.');
+  /* ── V4b. TYLER'S RULE SHIPS, AND WITHOUT IT THE VERB SAYS SO BY NAME ───
+     2026-09-25: the price scales with level, 5 a day. ONE rule row carries the
+     coefficients; the cap is its refills_max. With the row gone the shop is
+     closed and every refill is `refill_unpriced` — I-3's fail-closed shape,
+     kept — broke and funded alike, taking no gold and counting nothing. */
+  const rules = await q('select base_gold::text as b, per_level_gold::text as p, step::text as s,'
+    + ' refills_max as m from public.hr_vigour_price_rule');
+  ok(rules.length === 1,
+    `V4b: the chain shipped ${rules.length} price rule row(s), not one. Tyler ruled on 2026-09-25; the `
+    + 'rule is ONE row a reviewed UPDATE adjusts.');
+  const rule = rules[0] || { b: '0', p: '0', s: '0', m: 0 };
+  ok(Number(rule.m) === VIGOUR_MAX_REFILLS,
+    `V4b/V5: the rule caps the day at ${rule.m} but src/core/hunt.js publishes ${VIGOUR_MAX_REFILLS}. `
+    + 'refills_max IS the per-day cap, so the two must be one number.');
+  ok(BigInt(rule.p) > 0n, 'V4b: per_level_gold is not positive — Tyler ruled the price SCALES WITH LEVEL.');
 
+  await db.query('delete from public.hr_vigour_price_rule');
   const broke = (await as('select public.hr_vigour_refill__ungated(0, gen_random_uuid()) as r'))[0].r;
   ok(broke.error === 'refill_unpriced',
-    `V4b: an unpriced catalogue answered "${broke.error}". It must refuse by its OWN name, ahead of `
-    + 'the gold test and the day cap: "you have used your daily limit" for a control that has never '
-    + 'been purchasable tells the player the wrong thing and tells vitals a real cap is biting.');
-
+    `V4b: with no price rule a refill answered "${broke.error}". It must refuse by its OWN name, ahead of `
+    + 'the gold test and the day cap: "you have used your daily limit" for a control that is not '
+    + 'purchasable tells the player the wrong thing and tells vitals a real cap is biting.');
   await db.query('update public.player_state set gold = 100000000 where user_id = $1', [PROBE]);
   const fundedGold = (await q('select gold from public.player_state where user_id = $1', [PROBE]))[0].gold;
   const funded = (await as('select public.hr_vigour_refill__ungated(0, gen_random_uuid()) as r'))[0].r;
   ok(funded.error === 'refill_unpriced',
-    `V4b: a FUNDED character on an unpriced catalogue was answered "${funded.error}". The broke `
-    + 'probe above cannot tell "refused because unpriced" from "refused because broke"; this one can.');
+    `V4b: a FUNDED character with no price rule was answered "${funded.error}". The broke probe `
+    + 'above cannot tell "refused because unpriced" from "refused because broke"; this one can.');
   ok(String((await q('select gold from public.player_state where user_id = $1', [PROBE]))[0].gold)
      === String(fundedGold),
-    'V4b: the unpriced refill MOVED GOLD. No gold may move on a price nobody ruled on — that is the '
-    + 'whole of what shipping the catalogue empty buys.');
+    'V4b: the unpriced refill MOVED GOLD.');
   ok((await q("select count(*)::int as n from public.player_progress where user_id = $1"
               + " and kind='daily' and key='ev:vigour_refills'", [PROBE]))[0].n === 0,
     'V4b: the unpriced refill counted against the day anyway.');
+  const closed = (await q('select public.hr_vigour_of($1, 0) as v', [PROBE]))[0].v;
+  ok(closed.next_refill_gold === null && Number(closed.refills_left) === 0,
+    `V4b: with no price rule the meter still offers a refill (${closed.next_refill_gold} gold, `
+    + `${closed.refills_left} left) that the verb refuses — the browser and the server disagree.`);
+  await db.query('insert into public.hr_vigour_price_rule (id, base_gold, per_level_gold, step, refills_max, ruled)'
+    + ' values (true, $1::bigint, $2::bigint, $3::numeric, $4, $5)', [rule.b, rule.p, rule.s, rule.m, 'restored by tests/vigour.mjs']);
   await db.query('update public.player_state set gold = 0 where user_id = $1', [PROBE]);
 
-  /* ── THIS GUARD'S OWN LADDER ────────────────────────────────────────────
-     V5-V11 price real purchases and the shipped table is empty, so the fixture
-     is the Game Designer's proposed curve (design §4.6) — the same five rows
-     the migration's §7 inserts inside its rolled-back subtransaction. It is a
-     FIXTURE, not the seed: V4b above asserts the shipped chain carries none,
-     and `refill_prices_seeded` plants the seed back and must go red. */
-  await db.query(`insert into public.hr_vigour_prices (nth, cost_gold, minutes) values
-    (1, 2000, 120), (2, 6000, 120), (3, 18000, 120), (4, 54000, 120), (5, 162000, 120)
-    on conflict (nth) do nothing`);
-
-  const ladder = (await q('select nth, cost_gold from public.hr_vigour_prices order by nth'))
-    .map((r) => ({ nth: Number(r.nth), cost: BigInt(r.cost_gold) }));
-  ok(ladder.length === VIGOUR_MAX_REFILLS,
-    `V5: the catalogue holds ${ladder.length} rungs but src/core/hunt.js publishes a cap of `
-    + `${VIGOUR_MAX_REFILLS}. The ROW COUNT is the per-day cap, so the two must be one number.`);
+  /* ── THE LADDER THE RULE IMPLIES FOR THIS PROBE ─────────────────────────
+     Computed here from the rule row and the SERVER's combat level with an
+     expression of this guard's own, so a mutation of the one function
+     (hr_vigour_refill_price) cannot move the expectation with it. */
+  const lvl = Number((await q('select public.hr_party_level($1, 0) as l', [PROBE]))[0].l);
+  const rungOf = async (L, n) => BigInt((await q(
+    'select floor(($1::bigint + $2::bigint * $3::int)::numeric * (1 + ($4::int - 1) * $5::numeric))::bigint::text as c',
+    [rule.b, rule.p, L, n, rule.s]))[0].c);
+  const ladder = [];
+  for (let n = 1; n <= VIGOUR_MAX_REFILLS; n++) ladder.push({ nth: n, cost: await rungOf(lvl, n) }); // eslint-disable-line no-await-in-loop
   for (let i = 1; i < ladder.length; i++) {
     ok(ladder[i].cost > ladder[i - 1].cost,
       `V5: rung ${ladder[i].nth} is not dearer than rung ${ladder[i].nth - 1}. A flat curve becomes `
       + 'a fixed daily tax the wealthy stop noticing by week two.');
   }
+
+  /* ── V12. TWO LEVELS, TWO PRICES — AS THE FORMULA SAYS (Tyler 2026-09-25) ──
+     A second probe at a higher COMBAT level, set on its own player_skills rows.
+     Its rung-1 price must exceed the first probe's by exactly per_level x the
+     level difference, on the METER (what the panel shows) and on the SALE. */
+  const PH = '00000000-0000-4000-8000-0000b5510b05';
+  await db.query('insert into auth.users (id) values ($1)', [PH]);
+  await db.query("select set_config('request.jwt.claim.sub', $1, false)", [PH]);
+  await db.query('select public.hr_create_character(0)');
+  await db.query("update public.player_skills set xp = public.hr_xp_for_level(60) where user_id = $1"
+    + " and slot = 0 and skill_id in ('attack','strength','defense','hitpoints')", [PH]);
+  await db.query('update public.player_state set gold = 100000000 where user_id = $1', [PH]);
+  const lvlH = Number((await q('select public.hr_party_level($1, 0) as l', [PH]))[0].l);
+  ok(lvlH > lvl, `V12 CANNOT RUN: the high probe is combat level ${lvlH}, not above ${lvl}.`);
+  const meterH = (await q('select public.hr_vigour_of($1, 0) as v', [PH]))[0].v;
+  const meterL = (await q('select public.hr_vigour_of($1, 0) as v', [PROBE]))[0].v;
+  ok(BigInt(meterH.next_refill_gold ?? -1) - BigInt(meterL.next_refill_gold ?? -1)
+     === BigInt(rule.p) * BigInt(lvlH - lvl),
+    `V12: level ${lvlH} is quoted ${meterH.next_refill_gold} and level ${lvl} ${meterL.next_refill_gold}; `
+    + `the formula says they differ by exactly ${BigInt(rule.p) * BigInt(lvlH - lvl)}. Tyler ruled the price `
+    + 'scales with the character\'s level.');
+  ok(Number(meterH.level) === lvlH && Number(meterL.level) === lvl,
+    `V12: the meter reports levels ${meterH.level}/${meterL.level}, the server's combat levels are ${lvlH}/${lvl}.`);
+  // A LEVEL OR PRICE ON THE WIRE CANNOT EVEN RESOLVE.
+  for (const extra of ['p_level', 'p_price', 'p_cost']) {
+    let resolved = true;
+    try {
+      await db.query(`select public.hr_vigour_refill(p_slot => 0, p_idem => gen_random_uuid(), ${extra} => 1)`); // eslint-disable-line no-await-in-loop
+    } catch { resolved = false; }
+    ok(!resolved, `V12: hr_vigour_refill accepted a ${extra} argument — the client can hand the verb its own price.`);
+  }
+  const saleH = (await db.query('select public.hr_vigour_refill__ungated(0, gen_random_uuid()) as r')).rows[0].r;
+  ok(saleH.ok === true && BigInt(saleH.cost) === await rungOf(lvlH, 1),
+    `V12: the level-${lvlH} probe was charged ${saleH.cost} for rung 1; the rule says ${await rungOf(lvlH, 1)}.`);
+  // Hand the session back to the first probe: every arm below acts as it.
+  await db.query("select set_config('request.jwt.claim.sub', $1, false)", [PROBE]);
 
   // THE MIRROR: the SQL meter and the JS arithmetic are one rule.
   const meter0 = (await q('select public.hr_vigour_of($1, 0) as v', [PROBE]))[0].v;
@@ -403,12 +471,16 @@ async function run(mutate) {
   let sold = 0;
   for (let i = 0; i < VIGOUR_MAX_REFILLS; i++) {
     const before = BigInt((await q('select gold from public.player_state where user_id=$1', [PROBE]))[0].gold);
+    const quoted = (await q('select public.hr_vigour_of($1, 0) as v', [PROBE]))[0].v.next_refill_gold;
+    ok(quoted !== null && BigInt(quoted) === ladder[i].cost,
+      `V7: before rung ${i + 1} the meter quoted ${quoted}; the rule says ${ladder[i].cost}. The panel `
+      + 'must advertise exactly what the verb is about to charge (CLAUDE.md §6).');
     const r = (await as('select public.hr_vigour_refill__ungated(0, gen_random_uuid()) as r'))[0].r;
     if (r.ok !== true) break;
     sold++;
     const after = BigInt((await q('select gold from public.player_state where user_id=$1', [PROBE]))[0].gold);
     ok(before - after === ladder[i].cost,
-      `V7: rung ${i + 1} debited ${before - after} gold; the catalogue says ${ladder[i].cost}.`);
+      `V7: rung ${i + 1} debited ${before - after} gold; the rule says ${ladder[i].cost}.`);
   }
   ok(sold === VIGOUR_MAX_REFILLS,
     `V7: only ${sold} of ${VIGOUR_MAX_REFILLS} rungs could be bought with gold to spare.`);
@@ -504,6 +576,10 @@ async function run(mutate) {
     `V10 CANNOT RUN: the perked probe saturated the ceiling exactly (${perkedAt.budget_min} of `
     + `${perkedAt.ceiling_min}), which is the ZERO-minute case V9 already covers. The PARTIAL case `
     + 'needs a grant that leaves a fraction of a block under the ceiling.');
+  ok(Number(perkedAt.refills_left) === 0 && perkedAt.next_refill_gold === null,
+    `V10: the meter offers ${perkedAt.refills_left} more refill(s) at ${perkedAt.next_refill_gold} gold `
+    + 'when the next one would be clamped by the ceiling and refused — the panel would advertise a '
+    + 'purchase the server refuses (S-3, CLAUDE.md §6).');
   const clamped = (await db.query('select public.hr_vigour_refill__ungated(0, gen_random_uuid()) as r')).rows[0].r;
   ok(clamped.ok !== true && clamped.error === 'vigour_ceiling',
     `V10: a refill that would deliver only ${Number(perkedAt.ceiling_min) - Number(perkedAt.budget_min)} `
@@ -651,6 +727,6 @@ if (found.length) {
 }
 console.log('vigour: OK — the grant is derived and floored, the ceiling holds against every refill, '
   + 'dry means exactly AMMO_DRY_MULT and never a hard stop, the SQL meter and the JS arithmetic '
-  + 'agree, and the real RPC charges the catalogue price once, caps the day and refuses without '
+  + 'agree, the real RPC charges the level-scaled rule price the meter quoted, once, caps the day and refuses without '
   + 'taking gold.');
 process.exit(only ? 1 : 0);

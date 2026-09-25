@@ -4,6 +4,16 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 553 — 2026-09-25 (Parties have a home)
+
+**Parties have a screen.** A new Party entry in the sidebar lets you start a party, invite a friend by name, accept an invite, leave, or remove someone if you lead. Everything on it is read from the realm and refreshed while it is open, never guessed by the browser. Hunting as a party is not switched on yet: that arrives once party combat has run safely in shadow, and the screen says so rather than offering a button that would do nothing.
+
+**Claims land on the realm's number.** After claiming a reward, the balance you see is the one the realm answered with, so a claim can no longer leave the bar one step ahead of your real gold.
+
+**The desktop-mode banner no longer hides the bottom of the screen.** On small landscape screens the banner could push the last row of every panel out of reach, including the Fight button. Every screen now makes room for it.
+
+**Under the hood.** Parties gained the rest of their server groundwork, all reviewed and applied: a party is a single unit for the world tick (in shadow, paying nothing), the fair split of a party hunt's kills and loot is written and tested, and party hunts can be started and stopped on the realm with a per-party action budget. The shadow world tick now carries a character's state from one 10-second step to the next instead of starting fresh each time, which is what the combat comparison needed.
+
 ## v0.9.2-beta build 552 — 2026-09-23 (Hunts get orders, trophies go live)
 
 The fifth daily release. Everything server-side below was applied and verified on the realm during the night; this build is the client that shows it.

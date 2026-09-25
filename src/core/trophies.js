@@ -63,7 +63,7 @@
 import {
   TROPHY_STAGES, MAX_TROPHY_STAGE, MAX_TROPHY_DROP_MULT, MAX_TROPHY_DAMAGE_MULT,
   MAX_MEMORY_DROP_MULT, trophyStageAt,
-} from '../data/bestiary.js?v=552';
+} from '../data/bestiary.js?v=553';
 
 /**
  * THE DAMAGE ARM. False, and BESTIARY_LADDER.md §3.1 is the ruling: the x1.01

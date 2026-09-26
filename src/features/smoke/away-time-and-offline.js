@@ -37,7 +37,8 @@ function mfReach(el, what) {
     + Math.round(x) + ',' + Math.round(y) + ') in a ' + innerHeight + 'px viewport lands on '
     + (hit ? hit.tagName + '#' + hit.id + '.' + hit.className : 'nothing on screen'));
 }
-const mfEsc = () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+// A real keypress targets the focused element and bubbles to document — dispatch it where a player's would land.
+const mfEsc = () => (document.activeElement || document.body).dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
 /* What's New from a FIXED changelog: a live heading shorter than this one would
    turn the RED green with no fix. Resolves the rendered overlay, or null. */
 async function mfWhatsNew() {
@@ -441,8 +442,8 @@ export default [
     }
   }),
 
-  /* -- regression suite -- MODAL-FIT-1 (b556): A SHEET NEVER OUTGROWS THE SCREEN
-     MEASURED LIVE at 1384x771 on b555: the welcome-back card grew to 1179 px, centred
+  /* -- regression suite -- MODAL-FIT-1: A SHEET NEVER OUTGROWS THE SCREEN
+     MEASURED LIVE at 1384x771: the welcome-back card grew to 1179 px, centred
      itself off BOTH edges (top -204), and html/body overflow:hidden left nothing to
      scroll — Continue unreachable, Escape a no-op, the only way out a 20 px backdrop
      strip at 922x423. Asserted through the DOM only, never through HearthriseSheet, so

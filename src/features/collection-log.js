@@ -462,8 +462,8 @@
          style is for labels. Tokens only, same fallback convention as above. */
       '.hr-cl-msnote{margin-top:3px;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3,#a5896a);line-height:1.35}',
       /* The next unearned rung per domain: a quiet line, no button. */
-      '.hr-cl-next{display:flex;align-items:center;gap:10px;padding:7px 12px;margin:6px 12px;border:1px dashed var(--line-soft,rgba(122,94,58,.25));border-radius:10px;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-2,#cbb890)}',
-      '.hr-cl-next b{color:var(--ink,#e9e2cf);font-variant-numeric:tabular-nums}',
+      '.hr-cl-next{display:flex;align-items:center;gap:10px;padding:7px 12px;margin:6px 12px;border:1px dashed var(--line-soft);border-radius:10px;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-2)}',
+      '.hr-cl-next b{color:var(--ink);font-variant-numeric:tabular-nums}',
       '.hr-cl-claim{border:none;border-radius:8px;padding:7px 13px;font-weight:800;font-size:calc(14.5px * var(--ui-scale, 1));cursor:pointer;background:linear-gradient(180deg,var(--gold,#f0b860),var(--gold-2,#d99c40));color:var(--bg-0,#20160a)}',
       '.hr-cl-detail{padding:14px}',
       /* the detail sheet's hero slot. Was an inline 46px font-size holding an

@@ -1703,10 +1703,8 @@
     if (window.HearthriseCollection && window.HearthriseCollection.getStats) {
       try {
         var _clp = Math.round(window.HearthriseCollection.getStats(G).overall * 100);
-        /* LEDGER OF FIRSTS: the tile says whether a rung is ready, else the
-           nearest next rung — both from the SERVER's counts (tileLine), never
-           from G.bestiary / G.collection, so it cannot promise a claim the
-           server refuses. */
+        /* LEDGER OF FIRSTS: 'Claim ready' or the nearest next rung, from the
+           SERVER's counts (tileLine) — never a claim the server refuses. */
         var _cln = (typeof window.HearthriseCollection.tileLine === 'function')
           ? window.HearthriseCollection.tileLine(G) : null;
         html += '<div class="hd-card hd-mini" data-hd="collection" style="cursor:pointer">' +

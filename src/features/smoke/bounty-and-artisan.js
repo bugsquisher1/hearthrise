@@ -1977,6 +1977,12 @@ export default [
     } finally { restoreG(snap); }
   }),
 
+  () => tryRun('item flavour coverage — Hearthfinds and dungeon uniques explain themselves too', () => {
+    for (const id of ['dungeon_scrip', 'emberheart', 'voidmaw_scepter']) {
+      assert(typeof window.itemDesc(id) === 'string' && window.itemDesc(id).length > 0, `"${id}" must carry a flavour line`);
+    }
+  }),
+
   () => tryRun('b241: a stray item tooltip is dismissed by a tap (mobile stuck-tooltip fix)', () => {
     const tip = document.getElementById('item-tooltip');
     assert(tip, 'the item hover-tooltip element must exist');

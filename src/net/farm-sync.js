@@ -119,13 +119,23 @@ function resolveConfig(opts) {
  * the last reconciled server state or their optimistic prediction, and the next
  * gesture (carrying the SAME idem on a retry) settles it.
  */
+/* A deadline across the fetch AND its body: a farm gesture that never answers
+   must end as a non-fatal refusal, not hold the plot's pending state for ever.
+   Same bound as gold.js GOLD_TIMEOUT_MS; `opts.timeoutMs` is the test seam. */
+const FARM_RPC_TIMEOUT_MS = 15000;
+
 async function callFarmRpc(name, body, opts) {
   const cfg = resolveConfig(opts);
   if (!cfg) return { ok: false, error: 'no_config' };
   const f = (typeof fetch !== 'undefined') ? fetch : null;
   if (!f) return { ok: false, error: 'no_fetch' };
+  const ms = (opts && Number(opts.timeoutMs) > 0) ? Number(opts.timeoutMs) : FARM_RPC_TIMEOUT_MS;
+  const ctl = (typeof AbortController === 'function') ? new AbortController() : null;
+  const TIMED_OUT = {};
+  let timer = null;
+  const deadline = new Promise((r) => { timer = setTimeout(() => { if (ctl) ctl.abort(); r(TIMED_OUT); }, ms); });
   try {
-    const resp = await f(cfg.url + '/rest/v1/rpc/' + name, {
+    const resp = await Promise.race([f(cfg.url + '/rest/v1/rpc/' + name, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -133,12 +143,18 @@ async function callFarmRpc(name, body, opts) {
         'Authorization': 'Bearer ' + cfg.jwt,
       },
       body: JSON.stringify(body),
-    });
+      signal: ctl ? ctl.signal : undefined,
+    }), deadline]);
+    if (resp === TIMED_OUT) return { ok: false, error: 'timeout' };
     if (!resp || !resp.ok) return { ok: false, error: 'http_' + (resp && resp.status) };
-    const json = await resp.json();
+    const json = await Promise.race([resp.json(), deadline]);
+    if (json === TIMED_OUT) return { ok: false, error: 'timeout' };
     return (json && typeof json === 'object') ? json : { ok: false, error: 'bad_response' };
   } catch (e) {
+    if (ctl && ctl.signal.aborted) return { ok: false, error: 'timeout' };
     return { ok: false, error: 'transport', detail: e && e.message };
+  } finally {
+    clearTimeout(timer);
   }
 }
 

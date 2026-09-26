@@ -46,6 +46,14 @@
 //       fall.
 //   F9  src/features/death-sheet.js does not resurrect the client-side timer
 //       fallback, and reads the ladder off the server's own counters.
+//   ST  EVERY STEP OF A SETTLE ENDS. The fall is answered by a settle, and one
+//       settle that never ends (a hung credit flush, a hung fetch, or the flush
+//       re-entering the settle it runs inside) blocked every later settle, the
+//       fall re-ask and every settle-first intent until a reload — and nothing
+//       retired the display's predictions (live b555, 2026-09-25).
+//       ST-1 hung flush → abandoned unsent · ST-2 hung fetch → timeout ·
+//       ST-3 the flush↔settle cycle ends · ST-4 kill AND xp credits land before
+//       the fetch · ST-5 goal-claim.js's RPC transport has a deadline.
 //
 // ── THE MUTATION PROOF ──────────────────────────────────────────────────────
 //   node tests/attended-fall.mjs              green
@@ -131,6 +139,40 @@ const MUTATIONS = {
        + 'by a question that belonged to the run before it',
     find: '  hrClearFall();\n',
     repl: '',
+  },
+  no_flush_bound: {
+    file: 'net/accrue.js',
+    why: 'the credit flush before a settle waits for ever. One credit that never answers holds the '
+       + 'settle latch, and every settle after it joins the hung one until a reload',
+    find: 'new Promise((r) => { timer = e.setTimer(() => { timedOut = true; r(); }, CREDIT_FLUSH_WAIT_MS); }),',
+    repl: 'new Promise(() => {}),',
+  },
+  send_after_flush_timeout: {
+    file: 'net/accrue.js',
+    why: 'the settle is sent although its credit never landed, so the server prices the attended '
+       + 'window UNATTENDED and the late credit then pays it again (credit-before-settle broken)',
+    find: '      if (flushed.timedOut) {',
+    repl: '      if (false) {',
+  },
+  no_accrue_watchdog: {
+    file: 'net/accrue.js',
+    why: 'the accrue fetch has no deadline: a request the network black-holes holds the settle '
+       + 'latch until a reload',
+    find: '{ try { if (ctl) ctl.abort(); } catch (x) {} r(TIMED_OUT); }',
+    repl: '{}',
+  },
+  no_kill_flush_before_settle: {
+    file: 'net/accrue.js',
+    why: 'buffered kills are not credited before the settle closes the window, so their gold is '
+       + 'retired from the display at this settle and paid at the next one — the header dips',
+    find: "['hrCreditCombatXpFlush', 'hrKillCreditFlush']",
+    repl: "['hrCreditCombatXpFlush']",
+  },
+  no_call_timeout: {
+    file: 'net/goal-claim.js',
+    why: 'the credit RPC transport has no deadline, which is what hangs the flush in the first place',
+    find: 'var timer = setTimeout(function () { timedOut = true; if (ctl) ctl.abort(); }, callTimeoutMs);',
+    repl: 'var timer = null;',
   },
   sheet_invents_a_timer: {
     file: 'features/death-sheet.js',
@@ -316,10 +358,152 @@ export async function runAll({ mutate } = {}) {
       'F9: the sheet no longer branches on the fall PHASE. "No timer" is three different facts — a '
       + 'free first fall, an answer still in flight, and a fall the server never saw — and one '
       + 'branch tells all three the same story');
+
+    await settleDeadlines(A, staged.dir);
   } finally {
     if (staged.base) await rm(staged.base, { recursive: true, force: true }).catch(() => {});
   }
   return { checks, fails };
+}
+
+/* ── ST: EVERY STEP OF A SETTLE ENDS ────────────────────────────────────────
+   requestAccrual uses the GLOBAL fetch (no transport seam, on purpose) and its
+   deadlines run on setSettleEnv's timer, so both are driven here: the fake timer
+   fires only when a test says so. Every await is raced against 200 ms of real
+   time, so a tree without the deadlines reports RED instead of hanging. */
+const HUNG = Symbol('hung');
+const within = (p) => Promise.race([Promise.resolve(p), new Promise((r) => setTimeout(() => r(HUNG), 200))]);
+const ticks = async (n = 20) => { for (let i = 0; i < n; i++) await new Promise((r) => setImmediate(r)); };
+
+async function settleDeadlines(A, srcDir) {
+  const prevWindow = globalThis.window;
+  const prevFetch = globalThis.fetch;
+  const timers = [];
+  const fireTimer = (ms) => {
+    const t = timers.find((x) => x.ms === ms && !x.done);
+    if (t) { t.done = true; t.fn(); }
+    return !!t;
+  };
+  let fetches = 0;
+  const answer = async () => { fetches++; return { status: 200, json: async () => ({ ok: true, accrued: false, reason: 'none' }) }; };
+  const done = () => Promise.resolve(null);
+  try {
+    A.setSettleEnv({
+      setTimer: (fn, ms) => { timers.push({ fn, ms, done: false }); return timers.length; },
+      clearTimer: (id) => { if (timers[id - 1]) timers[id - 1].done = true; },
+    });
+    A.configureAccrual({ url: 'https://example.invalid/hr-accrue', apiKey: 'k', authToken: 't', slot: 0 });
+
+    /* ST-1 CONTROL (the away/boot path): the latch is open, so the settle skips
+       the flush entirely and still goes out, however hung the flush would be. */
+    A.__resetAwaySettleLatch(false);
+    let flushCalls = 0;
+    globalThis.window = { G: {}, hrCreditCombatXpFlush: () => { flushCalls++; return new Promise(() => {}); }, hrKillCreditFlush: done };
+    globalThis.fetch = answer; fetches = 0;
+    const boot = await within(A.requestAccrual({ force: true }));
+    ok(boot !== HUNG && fetches === 1 && flushCalls === 0,
+      'ST-1 CONTROL: the boot settle did not go out on its own (fetches ' + fetches + ', flushes ' + flushCalls
+      + ') — the away window must be priced without waiting on any credit');
+
+    /* ST-1: a credit flush that never answers. */
+    A.__resetAwaySettleLatch(true);
+    fetches = 0;
+    const p1 = A.requestAccrual({ force: true });
+    await ticks();
+    fireTimer(35000);
+    const r1 = await within(p1);
+    ok(r1 !== HUNG && r1.outcome === 'unreachable' && r1.reason === 'credit_flush_timeout' && r1.abandoned === true,
+      'ST-1: a hung credit flush held the settle for ever (got ' + (r1 === HUNG ? 'no answer' : JSON.stringify(r1))
+      + '). One credit that never answers must not block every settle until a reload');
+    ok(fetches === 0, 'ST-1: the settle was SENT after its credit flush timed out (' + fetches + ' fetches) — '
+      + 'the server would price the attended window before the credit landed');
+    ok(A.settleInFlight() === false, 'ST-1: the settle latch is still held after the abandoned attempt');
+    globalThis.window.hrCreditCombatXpFlush = done;
+    const again = await within(A.requestAccrual({ force: true }));
+    ok(again !== HUNG && fetches === 1, 'ST-1: the next settle after an abandoned one did not reach the wire');
+
+    /* ST-2: an accrue fetch that never answers (but honours abort). */
+    let aborted = false;
+    globalThis.fetch = (u, init) => new Promise((_, rej) => {
+      fetches++;
+      if (init && init.signal) init.signal.addEventListener('abort', () => { aborted = true; rej(new Error('aborted')); });
+    });
+    fetches = 0;
+    const p2 = A.requestAccrual({ force: true });
+    await ticks();
+    fireTimer(160000);
+    const r2 = await within(p2);
+    ok(r2 !== HUNG && r2.outcome === 'unreachable' && r2.reason === 'timeout' && aborted,
+      'ST-2: a hung accrue request held the settle for ever (got ' + (r2 === HUNG ? 'no answer' : JSON.stringify(r2))
+      + ', aborted ' + aborted + ')');
+    ok(A.settleInFlight() === false, 'ST-2: the settle latch is still held after the request timed out');
+
+    /* ST-3: the cycle — the flush re-enters the very settle it runs inside
+       (goal-claim's not_in_combat re-declare → collect refusal → accrual). */
+    globalThis.fetch = answer; fetches = 0;
+    let inner = null;
+    globalThis.window.hrCreditCombatXpFlush = () => (inner = A.requestAccrual({ force: true }));
+    const p3 = A.requestAccrual({ force: true });
+    await ticks();
+    fireTimer(35000);
+    const r3 = await within(p3);
+    const i3 = await within(inner);
+    ok(r3 !== HUNG && i3 !== HUNG && r3.reason === 'credit_flush_timeout' && i3 && i3.reason === 'credit_flush_timeout',
+      'ST-3: the flush↔settle cycle did not end (outer ' + (r3 === HUNG ? 'hung' : JSON.stringify(r3)) + ', inner '
+      + (i3 === HUNG ? 'hung' : JSON.stringify(i3)) + ')');
+    ok(fetches === 0, 'ST-3: the cycle put ' + fetches + ' settle(s) on the wire — it must join, not recurse');
+    ok(A.settleInFlight() === false, 'ST-3: the settle latch is still held after the cycle ended');
+
+    /* ST-4: the order — BOTH attended credits land before the settle's fetch. */
+    const order = [];
+    const credit = (name) => (force) => {
+      order.push(name + (force === true ? ':force' : ':soft'));
+      return new Promise((r) => setImmediate(() => { order.push(name + ':done'); r(null); }));
+    };
+    globalThis.window.hrCreditCombatXpFlush = credit('xp');
+    globalThis.window.hrKillCreditFlush = credit('kill');
+    globalThis.fetch = async () => { order.push('fetch'); return { status: 200, json: async () => ({ ok: true, accrued: false, reason: 'none' }) }; };
+    const r4 = await within(A.requestAccrual({ force: true }));
+    const at = (k) => order.indexOf(k);
+    ok(r4 !== HUNG && at('fetch') > 0 && at('xp:force') >= 0 && at('kill:force') >= 0
+      && at('xp:done') < at('fetch') && at('kill:done') < at('fetch'),
+      'ST-4: the settle did not wait for BOTH forced credits (order ' + JSON.stringify(order) + '). A kill still '
+      + 'buffered when the settle closes its window is retired from the display now and paid a settle later');
+
+    /* ST-5: goal-claim.js's RPC transport ends a call that never answers. */
+    const vm = await import('node:vm');
+    const code = await readFile(join(srcDir, 'net', 'goal-claim.js'), 'utf8');
+    const gcTimers = [];
+    let gcAborted = false;
+    const win = {
+      HearthriseSupabase: { getConfig: () => ({ url: 'https://example.invalid', anonKey: 'anon' }) },
+      HearthriseAuth: { getSession: () => ({ user: { id: 'u' }, access_token: 'jwt' }) },
+      HearthriseRpc: { mayCall: () => true },
+    };
+    const ctx = vm.createContext({
+      window: win, console, AbortController,
+      setTimeout: (fn, ms) => { gcTimers.push({ fn, ms }); return gcTimers.length; },
+      clearTimeout: () => {},
+      fetch: (u, init) => new Promise((_, rej) => {
+        if (init && init.signal) init.signal.addEventListener('abort', () => { gcAborted = true; rej(new Error('aborted')); });
+      }),
+    });
+    vm.runInContext(code, ctx, { filename: 'goal-claim.js' });
+    const GC = win.HearthriseGoalClaim;
+    const p5 = GC.creditCombatXp({ attack: 5 });
+    await ticks();
+    const t5 = gcTimers.find((t) => t.ms === 15000);
+    if (t5) t5.fn();
+    const r5 = await within(p5);
+    ok(r5 !== HUNG && r5 && r5.ok === false && r5.error === 'timeout' && gcAborted,
+      'ST-5: a credit RPC that never answers never ended (got ' + (r5 === HUNG ? 'no answer' : JSON.stringify(r5))
+      + '). This is what held the forced flush, and with it the settle, until a reload');
+  } finally {
+    A.setSettleEnv(null);
+    A.configureAccrual(null);
+    globalThis.window = prevWindow;
+    globalThis.fetch = prevFetch;
+  }
 }
 
 const main = async () => {

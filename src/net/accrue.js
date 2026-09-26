@@ -545,8 +545,9 @@ export function settleInFlight() { return !!inFlight; }
    equip report (2026-09-11) that one retry did not close.
 
    BOUNDED AND SWALLOWING, both deliberately: a hung settle must not hold a tap
-   for ever (the ceiling is the settle's own request timeout, so a wait that
-   reaches it means the settle is gone, not slow), and "the settle threw" is
+   for ever (the ceiling is SETTLE_RACE_WAIT_MS; the settle itself is bounded by
+   CREDIT_FLUSH_WAIT_MS then ACCRUE_REQUEST_TIMEOUT_MS, so a slow one may still
+   be on the wire when the tap goes ahead), and "the settle threw" is
    never a reason to skip the player's retry. Nothing in flight ⇒ resolves on
    the next microtask, so the caller has ONE code path. Returns true when a
    settle was actually waited on — stated so a test can measure the ordering
@@ -801,6 +802,7 @@ export function getAccrualState() {
     enabled: true,               // b515: the kill switch is retired; always on
     configured: !!config,
     pending: !!inFlight,
+    pendingSinceMs: inFlight ? inFlightSince : 0,
     /* SEC S3/R3 — the frame gate, readable from devtools; no sheet carries it yet. */
     frame: lastAppliedFrame,
     ...getFrameDrops(),
@@ -876,6 +878,50 @@ function fire(name, arg) {
   try { fn(arg); } catch (e) { console.warn('[accrue] hook ' + name + ' threw:', e && e.message); }
 }
 
+/* ── EVERY STEP OF A SETTLE HAS A DEADLINE ──────────────────────────────────
+   One settle is in flight at a time and every later ask REUSES it, so a settle
+   that never ends blocks every cadence settle, the fall re-ask and every
+   settle-first intent until a reload — and nothing then retires what the client
+   predicted. Two bounds close it:
+   · CREDIT_FLUSH_WAIT_MS on the attended-credit flush. A forced flush may wait
+     for a credit already in flight and then send one follow-up (legacy.js
+     hrCreditCombatXpFlush), each bounded by goal-claim.js's 15 s, so 2×15+5.
+     On timeout the attempt is ABANDONED, never sent: sending anyway would price
+     the attended window before its credit landed (credit-before-settle).
+   · ACCRUE_REQUEST_TIMEOUT_MS on the fetch AND its body. Above the platform's
+     own 150 s Edge idle limit (per Supabase docs, not measured), so it never
+     aborts an answer the platform could still deliver. */
+const CREDIT_FLUSH_WAIT_MS = 35000;
+const ACCRUE_REQUEST_TIMEOUT_MS = 160000;
+let inFlightSince = 0;
+
+/**
+ * FLUSH THE ATTENDED CREDITS (combat XP and kills) and wait for both, bounded.
+ * The kill credit is here as well as the XP: hr_attended_kills pays only credit
+ * rows inside the settle's window, so a kill still buffered when the settle
+ * closes is retired from the display at this settle and paid at the next one.
+ * The microtask hop before the flushes lets a caller's own latch be assigned
+ * first, so a flush that re-enters the settle joins it rather than recursing.
+ * @returns {Promise<{timedOut:boolean}>}
+ */
+export async function flushAttendedCredits() {
+  if (typeof window === 'undefined') return { timedOut: false };
+  const w = window;
+  const jobs = ['hrCreditCombatXpFlush', 'hrKillCreditFlush']
+    .filter((k) => typeof w[k] === 'function')
+    .map((k) => Promise.resolve().then(() => w[k](true)).catch(() => null));
+  if (!jobs.length) return { timedOut: false };
+  const e = env();
+  let timer = null;
+  let timedOut = false;
+  await Promise.race([
+    Promise.all(jobs),
+    new Promise((r) => { timer = e.setTimer(() => { timedOut = true; r(); }, CREDIT_FLUSH_WAIT_MS); }),
+  ]);
+  e.clearTimer(timer);
+  return { timedOut };
+}
+
 /**
  * ASK THE SERVER. Returns a verdict; NEVER a number this device computed.
  *
@@ -900,6 +946,7 @@ export async function requestAccrual(opts) {
   const { url, init } = buildAccrueRequest({ url: config.url, apiKey: config.apiKey, token, slot });
 
   let skippedSnap = null;
+  inFlightSince = now;
   inFlight = (async () => {
     /* bug #5 root pt2 — CREDIT ATTENDED COMBAT XP BEFORE THE SETTLE PRICES IT.
        hr_credit_combat_xp advances combat_xp_accrued_to; the settle then reads
@@ -912,10 +959,14 @@ export async function requestAccrual(opts) {
        ⚠ NOT BEFORE THE FIRST SETTLE OF THE SESSION: on a BOOT this settle's window
        is the player's ABSENCE, which the credit has no standing to speak for, and
        flushing first stamps the watermark and trims it — see the latch above. */
-    if (awaySettleClosed
-        && typeof window !== 'undefined' && typeof window.hrCreditCombatXpFlush === 'function') {
-      try { await window.hrCreditCombatXpFlush(true); } catch (e) {}
-    } else if (!awaySettleClosed) {
+    if (awaySettleClosed) {
+      const flushed = await flushAttendedCredits();
+      /* ABANDONED, not sent and not settled: no halt strike, no settle-first
+         change. The latch clears in the finally below and the next ask retries. */
+      if (flushed.timedOut) {
+        return { outcome: 'unreachable', reason: 'credit_flush_timeout', applied: false, abandoned: true };
+      }
+    } else {
       /* C1: the flush was SKIPPED because this settle's window is the unpaid
          absence. The settle is about to pay it, so the XP the client observed up
          to this moment belongs to the settle, not to a later credit. Snapshot it
@@ -924,18 +975,31 @@ export async function requestAccrual(opts) {
          where no `settle_first` refusal is ever seen. */
       skippedSnap = snapshotPendingCombatXp();
     }
-    let res = null;
+    const e = env();
+    const ctl = (typeof AbortController === 'function') ? new AbortController() : null;
+    const TIMED_OUT = {};
+    let timer = null;
+    /* Raced as well as signalled: a transport that ignores the signal still ends. */
+    const deadline = new Promise((r) => {
+      timer = e.setTimer(() => { try { if (ctl) ctl.abort(); } catch (x) {} r(TIMED_OUT); }, ACCRUE_REQUEST_TIMEOUT_MS);
+    });
     try {
-      res = await fetch(url, init);
-    } catch (e) {
-      /* A CORS preflight failure, a DNS failure and a dead network are
-         indistinguishable here BY DESIGN of the fetch spec. All three mean the
-         same thing to us: we were not told what the player earned. */
-      return settle({ outcome: 'unreachable', reason: String((e && e.message) || e) }, nowMs());
-    }
-    let body = null;
-    try { body = await res.json(); } catch (e) { body = null; }
-    return settle({ ...classifyAccrueResponse(res.status, body), status: res.status }, nowMs());
+      let res = null;
+      try {
+        res = await Promise.race([fetch(url, ctl ? { ...init, signal: ctl.signal } : init), deadline]);
+      } catch (err) {
+        if (ctl && ctl.signal.aborted) return settle({ outcome: 'unreachable', reason: 'timeout' }, nowMs());
+        /* A CORS preflight failure, a DNS failure and a dead network are
+           indistinguishable here BY DESIGN of the fetch spec. All three mean the
+           same thing to us: we were not told what the player earned. */
+        return settle({ outcome: 'unreachable', reason: String((err && err.message) || err) }, nowMs());
+      }
+      if (res === TIMED_OUT) return settle({ outcome: 'unreachable', reason: 'timeout' }, nowMs());
+      let body = null;
+      try { body = await Promise.race([res.json(), deadline]); } catch (err) { body = (ctl && ctl.signal.aborted) ? TIMED_OUT : null; }
+      if (body === TIMED_OUT) return settle({ outcome: 'unreachable', reason: 'timeout' }, nowMs());
+      return settle({ ...classifyAccrueResponse(res.status, body), status: res.status }, nowMs());
+    } finally { e.clearTimer(timer); }
   })();
 
   try {
@@ -950,7 +1014,7 @@ export async function requestAccrual(opts) {
        deferral stands for the next flush. */
     try { if (out) resolveCombatXpDeferral(out.outcome); } catch (e) {}
     return out;
-  } finally { inFlight = null; }
+  } finally { inFlight = null; inFlightSince = 0; }
 }
 
 /** The ONE place an outcome becomes state. Everything funnels here. */

@@ -77,7 +77,7 @@ import {
   isServerAccrualEnabled, resolveActiveSlot, accrueEndpoint, MAX_SLOT,
   applyEnvelopeState, summaryFromAway, describeReplacement,
   isReplacementAcknowledged, showReplacementSheet, beginServerAccrual,
-  isReconcilePending, isAccrualFailure, awaitSettleRaceClear,
+  isReconcilePending, isAccrualFailure, awaitSettleRaceClear, flushAttendedCredits,
   /* THE FRAME GATE (WORLD_TICK_DESIGN.md §7.1), imported — this module is the
      THIRD applier of a server envelope and it had no monotonic rule at all. */
   classifyFrame, commitFrame, noteFrameDrop, clearFrameDrops,
@@ -1207,6 +1207,15 @@ export async function declareActivity(rawKind, rawId, opts) {
   }
 
   inFlight = (async () => {
+    /* THE ATTENDED TAIL GOES OUT BEFORE THE SWITCH CLOSES ITS WINDOW. Leaving a
+       fight collects it; XP and kills still buffered then (the credit cadence is
+       60 s) were stranded in _combatXpPending / _killCreditPending and on the
+       display. Bounded (accrue.js CREDIT_FLUSH_WAIT_MS); a timeout switches anyway.
+       NEVER on {force}: the credit's own not_in_combat re-declare is forced and
+       runs INSIDE this flush, so pre-flushing there is a cycle. */
+    if (!o.force && confirmed && confirmed.kind === 'combat') {
+      try { await flushAttendedCredits(); } catch (e) {}
+    }
     collectRetryArmed = true;
     deferredReconcile = null;
     let verdict = await runDeclaration(kind, id);

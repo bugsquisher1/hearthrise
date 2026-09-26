@@ -183,6 +183,15 @@
     return { gold: gold > 0 ? gold : 0, gems: gems > 0 ? gems : 0, xp: xp, items: items };
   }
 
+  /* A DEADLINE ON EVERY RPC. A credit that never answers held the forced flush,
+     and with it the settle latch (accrue.js requestAccrual), until a reload —
+     every settle, the fall re-ask and every settle-first intent queued behind it.
+     Armed across fetch AND res.json(): a body that stalls is the same hang. An
+     abort is a not-ok answer, which every caller already keeps its pending for.
+     Same bound as gold.js GOLD_TIMEOUT_MS. */
+  var CALL_TIMEOUT_MS = 15000;
+  var callTimeoutMs = CALL_TIMEOUT_MS;
+
   async function call(name, body) {
     var R = window.HearthriseRpc;
     if (R && typeof R.mayCall === 'function' && !R.mayCall(name, isSignedIn())) {
@@ -192,12 +201,17 @@
     var c = cfg();
     if (!c) return { ok: false, error: 'no_config' };
     var reconcile = CREDIT_VERBS[name] ? serverOwnsBalance() : false;
+    var ctl = (typeof AbortController === 'function') ? new AbortController() : null;
+    var timedOut = false;
+    var timer = setTimeout(function () { timedOut = true; if (ctl) ctl.abort(); }, callTimeoutMs);
     try {
       var res = await fetch(c.url + '/rest/v1/rpc/' + name, {
-        method: 'POST', headers: headers(), body: JSON.stringify(body || {})
+        method: 'POST', headers: headers(), body: JSON.stringify(body || {}),
+        signal: ctl ? ctl.signal : undefined
       });
       var json = null;
       try { json = await res.json(); } catch (e) { json = null; }
+      if (timedOut) return { ok: false, error: 'timeout' };
       if (isMissingShape(json, res.status)) { note(name, false); return { ok: false, error: 'rpc_missing' }; }
       note(name, true);
       if (json && typeof json === 'object') {
@@ -206,7 +220,9 @@
       }
       return { ok: false, error: 'bad_response', status: res.status };
     } catch (e) {
-      return { ok: false, error: 'network' };
+      return { ok: false, error: timedOut ? 'timeout' : 'network' };
+    } finally {
+      clearTimeout(timer);
     }
   }
 
@@ -274,6 +290,8 @@
        under test is "exactly one re-declare and one retry, and never two", and
        that is a property of this function, not of the network. */
     _creditWithCombatRedeclare: creditWithCombatRedeclare,
+    /* Test seam (tests/attended-fall.mjs ST-5): shorten the RPC deadline. */
+    __setCallTimeoutMs: function (ms) { callTimeoutMs = Number(ms) > 0 ? Number(ms) : CALL_TIMEOUT_MS; },
     /** @returns Promise<jsonb> the RPC envelope: {ok, gold, ...} or {ok:false,error} */
     claimDaily: function (taskId) { return call('hr_claim_daily', { p_task_id: String(taskId || ''), p_slot: activeSlot() }); },
     claimQuest: function (questId) { return call('hr_claim_quest', { p_quest_id: String(questId || ''), p_slot: activeSlot() }); },

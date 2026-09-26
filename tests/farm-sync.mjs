@@ -97,6 +97,26 @@ export async function farmSyncGuard() {
       }
     }
 
+    // ── FARM-TIMEOUT-1: A HUNG RPC ENDS AS A NON-FATAL TIMEOUT ────────────────
+    // A fetch that never answers (but honours abort) must not hold the gesture for
+    // ever. RED before callFarmRpc had a deadline: the race below reported 'hung'.
+    {
+      const realFetch = globalThis.fetch;
+      let aborted = false;
+      globalThis.fetch = (url, opt) => new Promise((_, rej) => {
+        if (opt && opt.signal) opt.signal.addEventListener('abort', () => { aborted = true; rej(new Error('aborted')); });
+      });
+      try {
+        const cfg = { url: 'https://x.supabase.co', anonKey: 'anon', jwt: 'jwt', slot: 0, timeoutMs: 20 };
+        const r = await Promise.race([F.farmWater(1, cfg), new Promise((res) => setTimeout(() => res('hung'), 300))]);
+        if (r === 'hung') fail('FARM-TIMEOUT-1: a farm RPC that never answers hung the gesture (no deadline on callFarmRpc)');
+        else if (!r || r.ok !== false || r.error !== 'timeout') fail('FARM-TIMEOUT-1: a hung RPC answered ' + JSON.stringify(r) + ', want {ok:false, error:"timeout"}');
+        else if (!aborted) fail('FARM-TIMEOUT-1: the timeout did not abort the request (the socket stays open)');
+      } finally {
+        globalThis.fetch = realFetch;
+      }
+    }
+
     // ── RECONCILE: RENDER THE SERVER RESPONSE INTO G ─────────────────────────
     // A counting deps stub proves produce/XP/seed/deed are applied exactly the
     // server's numbers, exactly once.

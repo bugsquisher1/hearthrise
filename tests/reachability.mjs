@@ -626,7 +626,12 @@ const KILL_OVERLAYS = (keepBanner) => {
        exactly that for the Fight action bar), not by making a layout guard
        intermittently red. What this guard is for is geometry that is true for
        as long as the screen is open. */
-    document.querySelectorAll('.notifs').forEach((e) => e.style.setProperty('display', 'none', 'important'));
+    /* `.ach-toast` is the same class of layer (src/render/achievements.js, a
+       4.2s self-removing popup) and got the same treatment in b554: with the
+       dead 80px quest strip gone, Profile's CLAIM rose into the corner the
+       "Achievement unlocked!" toast occupies for its four seconds after the
+       harness save unlocks one — COVERED or not by the clock, not the layout. */
+    document.querySelectorAll('.notifs, .ach-toast').forEach((e) => e.style.setProperty('display', 'none', 'important'));
     document.querySelectorAll('#hr-dl-modal,.ftue-root,.ftue-overlay,#ftue-overlay,.modal.open,'
       + '.qm-overlay,.dr-overlay,#daily-reward-overlay,.welcome-overlay,#welcome-modal,.inv-detail.show')
       .forEach((e) => e.style.setProperty('display', 'none', 'important'));

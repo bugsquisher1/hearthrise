@@ -69,6 +69,7 @@ const MUTATIONS = {
   price_flat_within_day: 'Drop the within-day step, so refill 5 costs what refill 1 does (a flat daily tax).',
   meter_misquotes: 'Let hr_vigour_of quote the rung AFTER next, so the panel advertises a price the verb does not charge (CLAUDE.md 6).',
   meter_offers_past_ceiling: 'Let refills_left ignore the ceiling, so the meter offers a refill the verb refuses (S-3, CLAUDE.md 6).',
+  cap_cut_confiscates: 'Clamp the bought count by today\'s refills_max, so cutting the cap takes back minutes already paid for (Security VP-1).',
 };
 
 /** The mutations are TEXTUAL patches on the real migrations, so a planted defect
@@ -205,6 +206,14 @@ const patchesFor = (mutate) => {
         '                              coalesce(v_cap, 0)));',
       ]]]]));
 
+    case 'cap_cut_confiscates':
+      /* VP-1 PLANTED BACK: the lane's first draft clamped the day's count by the
+         rule's CURRENT cap, so an operator lowering refills_max shrank budgets
+         players had already paid gold for. */
+      return withShortCircuit(new Map([[PRICE, [[
+        '  v_refills := least(c_refills_bound, v_refills);',
+        '  v_refills := least(coalesce(v_cap, c_refills_bound), v_refills);',
+      ]]]]));
     case 'budget_ignores_ceiling':
       return withShortCircuit(new Map([[PRICE, [[
         '  v_budget := least(c_ceiling_min, v_grant + v_bought);',
@@ -512,6 +521,24 @@ async function run(mutate) {
   ok(goldBefore === goldAfter,
     'V8: the REFUSED refill still took gold. A refusal that charges is worse than a sale.');
 
+  /* ── V8b. CUTTING THE CAP NEVER TAKES BACK PAID MINUTES (Security VP-1) ──
+     refills_max is DATA now; an operator lowering it mid-day must stop the
+     NEXT sale and leave the day's paid budget exactly where it was. */
+  const full = (await q('select public.hr_vigour_of($1, 0) as v', [PROBE]))[0].v;
+  await db.query('update public.hr_vigour_price_rule set refills_max = 2');
+  const capCut = (await q('select public.hr_vigour_of($1, 0) as v', [PROBE]))[0].v;
+  ok(Number(capCut.budget_min) === Number(full.budget_min) && Number(capCut.bought_min) === Number(full.bought_min),
+    `V8b: cutting refills_max to 2 moved the paid budget ${full.budget_min} -> ${capCut.budget_min} `
+    + `(bought ${full.bought_min} -> ${capCut.bought_min}). ${VIGOUR_MAX_REFILLS} refills were paid in gold `
+    + 'and journalled; a tuning UPDATE must never confiscate them.');
+  ok(Number(capCut.refills_left) === 0 && capCut.next_refill_gold === null,
+    `V8b: after the cap cut the meter still offers ${capCut.refills_left} refill(s).`);
+  const afterCut = (await as('select public.hr_vigour_refill__ungated(0, gen_random_uuid()) as r'))[0].r;
+  ok(afterCut.error === 'vigour_daily_cap'
+     && BigInt((await q('select gold from public.player_state where user_id=$1', [PROBE]))[0].gold) === goldAfter,
+    `V8b: after the cap cut a refill answered ${JSON.stringify(afterCut.error)} or moved gold.`);
+  await db.query('update public.hr_vigour_price_rule set refills_max = $1', [VIGOUR_MAX_REFILLS]);
+
   /* ── THE CEILING, ON A CHARACTER IT CAN ACTUALLY BITE ──────────────────
      ⚠ AT THE FLOOR GRANT THE CEILING IS UNREACHABLE, AND THAT IS ARITHMETIC
        RATHER THAN AN OVERSIGHT: 720 + 5 x 120 = 1,320 minutes, which is EXACTLY
@@ -610,7 +637,11 @@ async function run(mutate) {
     JSON.stringify({ progress: [{ kind: 'daily', key: 'ev:vigour_refills', period: TODAY, add: 99, state: 'active' }],
       journal: { kind: 'admin', intent: 'vigour_probe' } })]);
   const stuffed = (await q('select public.hr_vigour_of($1, 0) as v', [P3]))[0].v;
-  ok(Number(stuffed.refills) === VIGOUR_MAX_REFILLS,
+  /* RE-POINTED 2026-09-26 (Security VP-1): the read clamp is the rule's HARD
+     bound (refills_max CHECK <= 11), not today's refills_max, so a cap cut never
+     confiscates paid minutes (V8b). With the 720 floor any count >= 5 already
+     saturates the ceiling, so the budget assertion below is unchanged. */
+  ok(Number(stuffed.refills) <= 11,
     `V10b: ${stuffed.refills} refills read back from a counter holding far more — the per-day clamp `
     + 'is not applied on READ, so a corrupted counter would widen the budget.');
   ok(Number(stuffed.budget_min) <= VIGOUR_CEILING_MIN,

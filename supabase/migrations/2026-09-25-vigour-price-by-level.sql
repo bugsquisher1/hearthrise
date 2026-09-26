@@ -91,8 +91,12 @@ end $$;
 --   is 3x refill 1. The table and the five-line argument are in design §4.6.
 create table if not exists public.hr_vigour_price_rule (
   id             boolean primary key default true check (id),
-  base_gold      bigint  not null check (base_gold > 0),
-  per_level_gold bigint  not null check (per_level_gold >= 0),
+  -- BOUNDED (Security VP-2, 2026-09-26): hr_vigour_of prices through these on
+  -- EVERY envelope, so a typo that overflowed bigint would take hr_state_of down
+  -- for every player, not just the shop. 1e9 each: (1e9 + 1e9 x 126) x 101 is
+  -- ~1.3e13, five orders under bigint at the top combat level and step/cap.
+  base_gold      bigint  not null check (base_gold > 0 and base_gold <= 1000000000),
+  per_level_gold bigint  not null check (per_level_gold >= 0 and per_level_gold <= 1000000000),
   -- The within-day escalation, EXACT (numeric, never float): rung n pays
   -- (1 + (n-1) x step) times rung 1.
   step           numeric(6,4) not null check (step > 0 and step <= 10),
@@ -151,8 +155,9 @@ revoke execute on function public.hr_vigour_refill_price(uuid, int, int)
 -- ── 3. hr_vigour_of — the meter, now also stating the next price ───────────
 -- 2026-09-22-vigour-daily.sql §1's body, carried verbatim except:
 --   · the per-day cap comes from hr_vigour_price_rule.refills_max (DATA), not a
---     constant. With no rule row the READ clamp is the ceiling alone, so an
---     operator closing the shop never shrinks minutes a player already bought;
+--     constant, and it gates only what is still for sale: bought minutes are
+--     clamped by the ceiling alone, so an operator cutting the cap or closing
+--     the shop never shrinks minutes a player already bought (VP-1);
 --   · refill_min, refills_left, next_refill_gold and level are added. refills_left
 --     is what the verb would still SELL (day cap AND whole blocks under the
 --     ceiling, finding S-3), so the panel can never offer a refill the server
@@ -171,6 +176,10 @@ declare
   -- and the per-day CAP are not here: they are hr_vigour_price_rule's row,
   -- read through hr_vigour_refill_price, because money is tuned by data.
   c_refill_min  constant int := 120;
+  -- THE READ CLAMP on the day's counter: the most refills ANY rule row could
+  -- ever have sold (hr_vigour_price_rule.refills_max CHECK <= 11, because
+  -- 11 x 120 = the ceiling). Not today's refills_max - see (2).
+  c_refills_bound constant int := 11;
   v_day       text := public.hr_utc_day_key(now());
   v_slot      int  := coalesce(p_slot, 0);
   v_cap       int;
@@ -199,10 +208,14 @@ begin
    where user_id = p_user and slot = v_slot
      and kind = 'daily' and key = 'ev:vigour_refills' and period_key = v_day;
   v_refills := greatest(0, coalesce(v_refills, 0));
-  -- The per-day cap, as DATA. A missing rule row does NOT clamp to zero: that
-  -- would confiscate minutes already paid for; the ceiling below still holds.
+  -- The per-day cap, as DATA. It gates what is still FOR SALE (3b) and never
+  -- what was BOUGHT: clamping the count by today's cap would confiscate paid
+  -- minutes the moment an operator lowered refills_max (Security VP-1,
+  -- 2026-09-26). A corrupted counter is still clamped on READ (M6 GATE(c4)),
+  -- by the bound no rule can exceed; with the 720 floor the budget below is the
+  -- ceiling for any count >= 5 either way, so this widens nothing.
   select refills_max into v_cap from public.hr_vigour_price_rule where id;
-  if v_cap is not null then v_refills := least(v_cap, v_refills); end if;
+  v_refills := least(c_refills_bound, v_refills);
   v_bought  := v_refills * c_refill_min;
 
   -- (3) THE BUDGET. The ceiling is applied HERE and only here, so every reader
@@ -565,6 +578,19 @@ begin
   if r.per_level_gold <= 0 then
     raise exception 'GATE(b): per_level_gold is % - Tyler ruled the price SCALES WITH LEVEL', r.per_level_gold; end if;
 
+  -- (b2) THE COEFFICIENTS ARE BOUNDED (VP-2): an overflowing typo is refused
+  --      at the UPDATE, never discovered by hr_state_of.
+  begin
+    update public.hr_vigour_price_rule set per_level_gold = 1000000001 where id;
+    raise exception 'GATE(b2): per_level_gold accepted 1,000,000,001 - an unbounded coefficient can overflow the envelope';
+  exception when check_violation then null;
+  end;
+  begin
+    update public.hr_vigour_price_rule set base_gold = 1000000001 where id;
+    raise exception 'GATE(b2): base_gold accepted 1,000,000,001 - an unbounded coefficient can overflow the envelope';
+  exception when check_violation then null;
+  end;
+
   begin  -- ── SUBTRANSACTION ────────────────────────────────────────────────
     insert into auth.users (id) values (v_uid), (v_uidh), (v_uidp);
     perform set_config('request.jwt.claim.sub', v_uidh::text, true);
@@ -684,6 +710,30 @@ begin
     if exists (select 1 from public.player_progress where user_id = v_uid
                 and kind = 'daily' and key = 'ev:vigour_refills' and period_key <> v_day) then
       raise exception 'GATE(e7): a refill counted against a day that is not today'; end if;
+
+    -- (e7b) CUTTING THE CAP NEVER TAKES BACK WHAT WAS PAID (VP-1). With the
+    --       whole day bought, refills_max drops to 1: the budget stands, the
+    --       meter offers nothing, and the verb refuses by the cap with no debit.
+    update public.hr_vigour_price_rule set refills_max = 1 where id;
+    if (public.hr_vigour_of(v_uid, 0)->>'budget_min')::int <> (v_vig->>'budget_min')::int
+       or (public.hr_vigour_of(v_uid, 0)->>'refills')::int <> r.refills_max
+       or (public.hr_vigour_of(v_uid, 0)->>'refills_left')::int <> 0 then
+      raise exception 'GATE(e7b): cutting refills_max moved paid minutes: % -> %', v_vig, public.hr_vigour_of(v_uid, 0); end if;
+    v_r := public.hr_vigour_refill__ungated(0, gen_random_uuid());
+    if v_r->>'error' is distinct from 'vigour_daily_cap'
+       or (select gold from public.player_state where user_id = v_uid and slot = 0) <> v_gold then
+      raise exception 'GATE(e7b): after the cap cut a refill answered % or moved gold', v_r; end if;
+    update public.hr_vigour_price_rule set refills_max = r.refills_max where id;
+    -- (e7c) A CORRUPTED COUNTER IS STILL CLAMPED ON READ (M6 GATE(c4)): 99
+    --       refills read back as at most the rule's hard bound, and the budget
+    --       never passes the ceiling.
+    update public.player_progress set value = 99 where user_id = v_uid and slot = 0
+       and kind = 'daily' and key = 'ev:vigour_refills' and period_key = v_day;
+    if (public.hr_vigour_of(v_uid, 0)->>'refills')::int > 11
+       or (public.hr_vigour_of(v_uid, 0)->>'budget_min')::int > (v_vig->>'ceiling_min')::int then
+      raise exception 'GATE(e7c): a stuffed counter widened the meter: %', public.hr_vigour_of(v_uid, 0); end if;
+    update public.player_progress set value = r.refills_max where user_id = v_uid and slot = 0
+       and kind = 'daily' and key = 'ev:vigour_refills' and period_key = v_day;
 
     -- (e8) GEMS AND HEARTH TOKENS NEVER MOVED through the whole day.
     if (select gems from public.player_state where user_id = v_uid and slot = 0) <> v_gems

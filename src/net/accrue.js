@@ -1460,6 +1460,8 @@ let fall = { at: 0, answered: false, serverDied: false, answeredAt: 0, asks: 0, 
 /* The re-ask timer handle. Module-scope so `clearFall` can cancel a timer the
    fall started — the same rule the death sheet countdown follows. */
 let fallTimer = null;
+/* Nested appliers announce once, at the outermost tail (see holdFallAnnounce). */
+let fallAnnounceHold = 0;
 
 /** How long a pending fall may go unanswered before the client stops waiting.
  *  Twice the server floor: one whole legal settle may be missed (a throttled
@@ -3589,6 +3591,11 @@ export function reconcileFarm(G, res, opts) {
 }
 
 export function applyEnvelopeState(G, res, ownKey) {
+  const release = holdFallAnnounce();
+  try { return applyEnvelopeStateBody(G, res, ownKey); } finally { release(); }
+}
+
+function applyEnvelopeStateBody(G, res, ownKey) {
   const st = (res && res.state) || {};
   const written = { skills: {}, inventory: 0 };
   const absolute = isEnvelopeAbsolute();
@@ -4467,19 +4474,37 @@ export function reconcileFall(G, res) {
   /* AFTER all three: a no-op unless the CLIENT saw itself fall this session
      (`fall.at`), which on the boot path it never has. */
   noteFallAnswer(res);
-  /* THE ANNOUNCEMENT. Measured live: a character with `recovering_until` 27
-     minutes ahead RELOADED and got a normal "Fighting Goblin" bar - no sheet,
-     no countdown, no Rest button. The sheet was never broken; its only trigger
-     was the fall MOMENT in the live tick, and a reload has no such moment.
-     One-way: a listener that throws must not poison an envelope apply. */
+  /* NO ANNOUNCEMENT HERE. It fired from this line until the KO-sheet fix and
+     raised the sheet partway through the apply - before hp, the bag and the
+     receipt had landed - on BOTH doors. Every applier now announces once, at
+     its own tail: `holdFallAnnounce` below, and record.js's 'fall-announce'. */
+  return written;
+}
+
+/** THE ANNOUNCEMENT. A reload has no fall MOMENT, so the envelope is the only
+ *  trigger the knocked-out sheet has (RETREAT-A4). One-way: a
+ *  listener that throws must not poison the apply that announced. */
+export function announceFall() {
   try {
     if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function'
         && typeof CustomEvent === 'function') {
       window.dispatchEvent(new CustomEvent('hearthrise:fall', { detail: fallState() }));
     }
   } catch (e) {}
+}
 
-  return written;
+/** Hold the announcement until the returned release runs; nested holds release
+ *  once, at the outermost tail, so the sheet is raised after hp, the bag and
+ *  the receipt have all landed. Call the release from a `finally`. */
+export function holdFallAnnounce() {
+  fallAnnounceHold++;
+  let open = true;
+  return () => {
+    if (!open) return;
+    open = false;
+    fallAnnounceHold = Math.max(0, fallAnnounceHold - 1);
+    if (fallAnnounceHold === 0) announceFall();
+  };
 }
 
 let lastServerHp = null;   /* {hp, maxHp, at} — the last hp the SERVER stated. */
@@ -4897,6 +4922,13 @@ export function applyEnvelope(G, res) {
      envelope to overwrite, so applying it IS the load. `describeReplacement` /
      `showReplacementSheet` remain exported for the tests that pin the copy;
      nothing calls the sheet on the load path any more. */
+  const release = holdFallAnnounce();
+  try { return applyAcceptedEnvelope(G, res); } finally { release(); }
+}
+
+/* The accepted envelope and its receipts, under ONE announcement: the sheet is
+   raised after `lastAwayReceipt` below, never between the state and it. */
+function applyAcceptedEnvelope(G, res) {
   const st = res.state || {};
   const written = applyEnvelopeState(G, res);
   /* RAISE THE FLOOR, AND ONLY HERE — AFTER the write, never before. A throw
@@ -6309,6 +6341,7 @@ if (typeof window !== 'undefined') {
     requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt,
+    announceFall,
     receiptStopClause, receiptRecoveryClause,
     noteVisibility, visibleSince, receiptAttended,
     getAccrualState, resetAccrualGate, setAccrualHooks,

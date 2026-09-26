@@ -8,6 +8,80 @@
 // ══════════════════════════════════════════════════════════════════════
 import { pass, fail, tryRun, tryRunAsync, assert, skip, snapshotG, drain, restoreG, stubSignedIn, on, snapshot, closeOverlays } from './_harness.js?v=555';
 
+/* ══ THE KO-SHEET FIXTURE (KO-*) — one self-consistent fall, both doors ═══════
+   RUNG is the ladder's own price of the third fall today; the receipt's `at`
+   is 30 s ago and the line ends one RUNG later, so the record is PAIRED with the
+   knockout. `door2` is the accrue envelope (A.applyEnvelope), `door1` the boot
+   hr_load through R.requestRecord — never applyRecord, which skips the steps.
+   `reload()` is a fresh page: every module mirror and the NO_SYNC scratch go.
+   Runs on the live G (legacy's binding is the one activity-resume writes), and
+   `done()` restores it, the transport, the switch and the sheet together. */
+const koFix = () => {
+  const A = window.HearthriseAccrual, D = window.HearthriseDeathSheet, R = window.HearthriseRecord;
+  const AW = window.HearthriseCore && window.HearthriseCore.away, G = window.G;
+  assert(A && D && R && AW && typeof A.applyEnvelope === 'function', 'the KO seams are not wired');
+  const RUNG = AW.recoveryFor({ deathsTodayBefore: 2, deathsLifetimeBefore: 8 });
+  assert(RUNG > 60000, 'the fixture rung is ' + RUNG + 'ms, too short to be a running line');
+  const AT = Date.now() - 30000, UNTIL = AT + RUNG, iso = (t) => new Date(t).toISOString();
+  const snap = snapshotG(), realFetch = window.fetch, realAuto = window.HearthriseAuto;
+  const realGC = window.HearthriseGoalClaim, wasOn = A.isServerAccrualEnabled();
+  const keep = { log: G.combatLog, kills: G.combatKillsThisFoe, consec: G.consecFalls, off: G.lastOfflineSummary };
+  let ver = 1000;
+  const receipt = (o) => Object.assign({ grantMs: 60000, awayMs: 60000, paidMs: 30000, at: AT, gold: 0,
+    xp: {}, items: {}, kills: 7, crits: 0, burnt: 0, stoppedBy: null, stoppedById: null, stoppedSkill: null,
+    stoppedPerHour: 0, died: true, diedTo: 'slime', deaths: 1, recoverMs: RUNG, recoverLadder: [RUNG],
+    foodEaten: 2, autoEat: { enabled: true, pct: 25, hadFood: true }, blessed: false, featuredMs: 0 }, o);
+  const state = (o) => Object.assign({ slot: 0, accrued_to: iso(Date.now()), active_kind: 'combat',
+    active_id: 'slime', hp: 8, max_hp: 20, recovering_until: iso(UNTIL), consec_falls: 1, deaths_today: 3,
+    deaths_lifetime: 9, last_away_receipt: receipt() }, o);
+  const autoOn = (on) => { window.HearthriseAuto = Object.assign({}, realAuto,
+    { getEat: () => Object.assign({}, realAuto.getEat(), { enabled: on }) }); };
+  const quiet = () => { try { window.stopCombat(); window.stopSkill(); } catch (e) {}
+    try { window.HearthriseActivity.setConfirmedActivity(null); } catch (e) {} };
+  const reload = (bag) => {
+    window.fetch = realFetch; D.__resetForTest(); A.clearFall(); A.__resetAwayReceipt(); A.__resetServerHp();
+    R.resetRecord(); quiet();
+    Object.assign(G, { inventory: Object.assign({}, bag), combatLog: [], combatKillsThisFoe: 0,
+      lastOfflineSummary: null, playerHp: 20, playerMaxHp: 20 });
+    delete G.consecFalls;
+  };
+  const door2 = (st, inv) => A.applyEnvelope(G, { ok: true, accrued: true, version: ++ver, now: iso(Date.now()),
+    state: st, skills: {}, inventory: inv || {}, away: receipt() });
+  const door1 = async (st, inv) => {
+    window.fetch = function (u) {
+      if (!/hr_load/.test(String(u))) return realFetch.apply(this, arguments);
+      return Promise.resolve(new Response(JSON.stringify({ ok: true, version: ++ver, now: iso(Date.now()),
+        state: st, skills: {}, inventory: inv || {} }), { status: 200 }));
+    };
+    R.configureRecord({ url: 'https://proj.supabase.co/', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
+    const v = await R.requestRecord();
+    assert(v.outcome === 'loaded', 'the boot read did not load: ' + JSON.stringify(v));
+  };
+  const sheet = () => {
+    const el = document.getElementById('hr-death-scrim');
+    if (!el || !el.classList.contains('show')) return null;
+    const tx = (n) => (n ? n.textContent : null), tip = el.querySelector('.hr-death-tip');
+    return { title: tx(el.querySelector('h2')), lead: tx(el.querySelector('.hr-death-lead')).replace(/\d/g, ''),
+      rows: Array.from(el.querySelectorAll('.hr-death-row')).map((r) => ({ k: r.getAttribute('data-row'),
+        t: tx(r.querySelector('.hr-death-t')), v: tx(r.querySelector('b')) || '' })),
+      tipKey: tip ? tip.getAttribute('data-tip') : null, tip: tx(tip), note: tx(el.querySelector('[data-note]')),
+      acts: Array.from(el.querySelectorAll('.hr-death-acts button')).map((b) => [b.textContent, b.disabled]) };
+  };
+  const row = (sh, k) => (sh && sh.rows.filter((r) => r.k === k)[0]) || null;
+  const done = () => {
+    window.fetch = realFetch; window.HearthriseAuto = realAuto; window.HearthriseGoalClaim = realGC;
+    try { R.resetRecord(); R.configureRecord(null); } catch (e) {}
+    try { D.__resetForTest(); A.clearFall(); A.__resetAwayReceipt(); A.setServerAccrualEnabled(wasOn); } catch (e) {}
+    quiet();
+    Object.assign(G, { combatLog: keep.log, combatKillsThisFoe: keep.kills, lastOfflineSummary: keep.off });
+    if (keep.consec === undefined) delete G.consecFalls; else G.consecFalls = keep.consec;
+    restoreG(snap);
+    try { D.__resetForTest(); } catch (e) {}
+  };
+  A.setServerAccrualEnabled(true); autoOn(true); reload({});
+  return { A, D, R, G, RUNG, AT, UNTIL, iso, receipt, state, autoOn, reload, door1, door2, sheet, row, done };
+};
+
 export default [
 
   /* ══════════════════════════════════════════════════════════════════════════
@@ -2445,4 +2519,48 @@ export default [
       restoreG(snap);
     }
   }),
+  /* ══ KO-* — THE KNOCKED-OUT SHEET TELLS ONE STORY (CLAUDE.md §6) ════════════
+     MEASURED LIVE: 'Slain by Slime · 3 kills first' became 'Slain in battle · no
+     kills' on a reload, and the tip read today's bag instead of the bag at the
+     fall. ROOT CAUSE: the sheet read the event from client scratch and state as
+     it is NOW, and was announced partway through the apply on both doors.
+     Mutations proven in the commit messages (M1-M9). */
+  () => tryRun('KO-DOOR-ORDER-1: the accrue door raises the sheet AFTER hp and the bag land', () => {
+    const F = koFix();
+    let a = null;
+    /* THE SHEET AS FIRST RAISED, not after a later redraw repaired it: the
+       sheet's own listener runs first, so this reads what the player saw. */
+    const first = () => { if (!a) a = F.sheet(); };
+    window.addEventListener('hearthrise:fall', first);
+    try {
+      F.door2(F.state(), { cooked_shrimp: 5 });
+      assert(a && a.acts.some((x) => /^Rest at the Hearth/.test(x[0]) && !x[1]),
+        'the raised sheet offers no enabled Rest with 5 shrimp and 12 health missing: ' + JSON.stringify(a && a.acts));
+      assert(!/no cooked food left/.test(a.note || ''), 'the sheet says the bag is empty: ' + a.note);
+    } finally { window.removeEventListener('hearthrise:fall', first); F.done(); }
+  }),
+
+  () => tryRun('KO-ANSWERTAP-1: a refused tap keeps the open sheet\'s own engine facts', () => {
+    const F = koFix();
+    try {
+      F.A.noteFall(Date.now());
+      F.D.show({}, { streakBroken: true, recoverMs: 0, resumeHp: 8 });
+      assert(F.row(F.sheet(), 'streak'), 'the fixture sheet has no streak row');
+      F.D.answerTap('Knocked out');
+      assert(F.row(F.sheet(), 'streak'), 'the tap redrew the sheet without its engine info: ' + JSON.stringify(F.sheet()));
+    } finally { F.done(); }
+  }),
+
+  () => tryRunAsync('KO-REST-INFLIGHT: an envelope during a Rest does not re-arm the button', async () => {
+    const F = koFix();
+    try {
+      await F.door1(F.state(), { cooked_shrimp: 5 });
+      window.HearthriseGoalClaim = Object.assign({}, window.HearthriseGoalClaim, { rest: () => new Promise(() => {}) });
+      document.querySelector('#hr-death-scrim [data-act="rest"]').click();
+      F.door2(F.state({ hp: 10 }), {});
+      const b = document.querySelector('#hr-death-scrim [data-act="rest"]');
+      assert(b && b.disabled && b.textContent === 'Resting…', 'the redraw re-armed Rest: ' + (b && b.outerHTML));
+    } finally { F.done(); }
+  }),
+
 ];

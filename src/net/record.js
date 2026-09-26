@@ -103,7 +103,7 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, isInventoryAbsolute, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcilePlayStreak, reconcileToolCarry, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileHp, reconcileFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=555';
+import { isServerAccrualEnabled, resolveActiveSlot, isInventoryAbsolute, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcilePlayStreak, reconcileToolCarry, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileHp, reconcileFall, announceFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=555';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
@@ -1733,12 +1733,10 @@ function settle(verdict) {
        `recovering_until` 11 minutes ahead and `isKnockedOut()` false after the
        reload, and again for the Retreat with `consec_falls: 3` coming back
        UNDEFINED, so the rule that ended a hopeless run forgot it had.
-       ORDER MATTERS, AND IT IS NOT NEXT TO 'hp'. reconcileFall dispatches
-         `hearthrise:fall`, which RAISES the knocked-out sheet synchronously.
-         That sheet reads hp/max_hp (the cost of Rest) AND `G.inventory` (which
-         decides whether Rest is offered), so raised before the bag hydrates a
-         player holding food is told they have none. Runs AFTER 'hp' and
-         'inventory+bank+workers' or not at all.
+       IT DOES NOT ANNOUNCE. reconcileFall only mirrors; the sheet is raised
+         by 'fall-announce', the LAST step below, because the sheet reads hp,
+         the bag, the receipt and the resumed pointer, and every one of those
+         lands in a later step.
        `accrued_to` IS DELIBERATELY NOT IN `reconcileFall` - it feeds the
          welcome-back card's statement of how long the player was away, and
          moving its first observation here would change a player-visible number
@@ -1868,6 +1866,10 @@ function settle(verdict) {
         }
       }
     });
+    /* THE ANNOUNCEMENT, LAST: every fact the knocked-out sheet reads has landed
+       by now. Moved here from inside reconcileFall, which raised the sheet on
+       an empty bag and a default hp. A missed door is a reload with no sheet (RETREAT-A4). */
+    hydrationStep('fall-announce', announceFall);
   } else {
     console.warn('[record] the server did not supply the record (' + verdict.outcome
       + (verdict.reason ? ': ' + verdict.reason : '') + ') — '

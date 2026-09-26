@@ -75,7 +75,7 @@
 
 import {
   isServerAccrualEnabled, resolveActiveSlot, accrueEndpoint, MAX_SLOT,
-  applyEnvelopeState, summaryFromAway, describeReplacement,
+  applyEnvelopeState, holdFallAnnounce, summaryFromAway, describeReplacement,
   isReplacementAcknowledged, showReplacementSheet, beginServerAccrual,
   isReconcilePending, isAccrualFailure, awaitSettleRaceClear,
   /* THE FRAME GATE (WORLD_TICK_DESIGN.md §7.1), imported — this module is the
@@ -843,6 +843,12 @@ export function applyIntentEnvelope(G, body) {
     return null;
   }
 
+  /* ONE announcement for the state AND the collect receipt below, at the tail. */
+  const release = holdFallAnnounce();
+  try { return applyAcceptedIntentEnvelope(G, body, env, duplicate); } finally { release(); }
+}
+
+function applyAcceptedIntentEnvelope(G, body, env, duplicate) {
   const written = applyEnvelopeState(G, env);
   /* AFTER the write, never before — same reasoning as applyEnvelope's commit:
      a throw must not leave the floor above a frame nothing applied. On the

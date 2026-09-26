@@ -1007,17 +1007,19 @@
       /* Did the bag hold ANYTHING auto-eatable at this moment? The same chooser
          the simulation gates on, so the sheet and the night agree. `undefined`
          when core is not up — the row then claims nothing. */
-      hadFood: (function () {
-        try {
-          var AE = window.HearthriseCore && window.HearthriseCore.autoEat;
-          if (!AE || typeof AE.chooseFood !== 'function') return undefined;
-          var A = window.HearthriseAuto;
-          /* The SERVER's nomination — the same one the night eats with. */
-          var nom = (A && typeof A.eatFoodId === 'function') ? A.eatFoodId() : null;
-          return !!AE.chooseFood(nom, G.inventory || {}, window.ITEMS || {}, Infinity);
-        } catch (e) { return undefined; }
-      })()
+      hadFood: readHadFood(G)
     };
+  }
+
+  function readHadFood(G) {
+    try {
+      var AE = window.HearthriseCore && window.HearthriseCore.autoEat;
+      if (!AE || typeof AE.chooseFood !== 'function') return undefined;
+      var A = window.HearthriseAuto;
+      /* The SERVER's nomination — the same one the night eats with. */
+      var nom = (A && typeof A.eatFoodId === 'function') ? A.eatFoodId() : null;
+      return !!AE.chooseFood(nom, (G && G.inventory) || {}, window.ITEMS || {}, Infinity);
+    } catch (e) { return undefined; }
   }
 
   // ════════════════════════════════════════════════════════════
@@ -1137,9 +1139,9 @@
     if (el) el.classList.remove('show');
   }
 
-  /* The two server-owned facts this sheet is a view of, read as cheaply as
-     possible so the 1 Hz watch below can compare them without rebuilding the
-     whole moment (which walks the inventory). */
+  /* The two server-owned facts this sheet's PHASE is a view of, read as
+     cheaply as possible so the 1 Hz watch below can compare them without
+     rebuilding the whole moment. */
   function serverFall() {
     var out = { phase: '', until: 0 };
     try {
@@ -1234,7 +1236,7 @@
        against it too (see syncToServer). A per-render closure variable made the
        poll the only thing that could ever notice a phase change. */
     shown = { info: info, phase: model.fallPhase || '',
-      until: Number(moment && moment.recoveringUntilMs) || 0 };
+      until: Number(moment && moment.recoveringUntilMs) || 0, facts: factsKey() };
     countdownTimer = setInterval(function () {
       var el = document.getElementById(ROOT_ID);
       if (!el || !el.classList.contains('show')) { clearInterval(countdownTimer); countdownTimer = null; return; }
@@ -1262,6 +1264,8 @@
      renderer started, which is the only way to guarantee one sheet's timer
      cannot outlive it into the next. */
   var countdownTimer = null;
+  /* True while an hr_rest call is out; see syncToServer. */
+  var restInFlight = false;
 
   /* WHAT THE OPEN SHEET IS A VIEW OF: the engine's death info plus the two
      server-stated facts it was drawn from. Module-scope, and the reason is the
@@ -1279,20 +1283,38 @@
      timers in a background or occluded tab to once a second, and to once a
      MINUTE after five minutes hidden. Every other surface in this file is
      server-truth-derived and correct at the instant it is asked; the only
-     broken link was WHEN it was asked. `hearthrise:fall` already fires
-     synchronously out of applyEnvelopeState on every envelope (accrue.js), and
-     a network response is not throttled — so the answer arrives with its own
-     trigger and the poll goes back to being what it says it is, a ticker for
-     the seconds digit.
+     broken link was WHEN it was asked. `hearthrise:fall` fires at the TAIL of
+     every envelope apply (accrue.js holdFallAnnounce, record.js 'fall-announce'),
+     and a network response is not throttled — so the answer arrives with its
+     own trigger and the poll goes back to being what it says it is, a ticker
+     for the seconds digit.
 
      Idempotent by construction: it re-renders only when a server-stated fact
      has actually moved away from what is on screen, so firing it on every
      envelope costs one cheap read. */
+  /* EVERYTHING ELSE THE SHEET IS DRAWN FROM, as one comparable string: which
+     server record of the fall it reads, and the state half — is there food to
+     Rest with, how much health Rest buys, is the bag empty. A redraw keyed on
+     phase/until alone left a Rest button disabled after the bag landed. */
+  function factsKey() {
+    try {
+      var G = window.G || {};
+      var AC = window.HearthriseAccrual;
+      var rec = (AC && typeof AC.fallRecord === 'function') ? AC.fallRecord() : null;
+      var food = bestProvision(G);
+      var missing = Math.max(0, (Number(G.playerMaxHp) || 0) - (Number(G.playerHp) || 0));
+      return [rec ? rec.at : 'none', food && food.qty > 0 ? 1 : 0, missing, String(readHadFood(G))].join('|');
+    } catch (e) { return ''; }
+  }
+
   function syncToServer() {
     var el = document.getElementById(ROOT_ID);
     if (!el || !el.classList.contains('show') || !shown) return false;
+    /* A Rest in flight owns the button: a rebuild would re-enable "Resting…". */
+    if (restInFlight) return false;
     var now = serverFall();
-    if (!((now.phase && now.phase !== shown.phase) || now.until !== shown.until)) return false;
+    if (!((now.phase && now.phase !== shown.phase) || now.until !== shown.until
+        || factsKey() !== shown.facts)) return false;
     var next = readMoment(shown.info);
     render(describeDeath(next), next, shown.info);
     return true;
@@ -1395,7 +1417,9 @@
         if (btn) { btn.disabled = true; btn.textContent = 'Resting…'; }
         note(root, 'Asking the Hearth…', '');
         var label = btn ? btn.getAttribute('data-label') : null;
+        restInFlight = true;
         GC.rest().then(function (r) {
+          restInFlight = false;
           if (r && r.ok === true) {
             /* SUCCESS CLOSES IT, and clears the client's reading of the recovery
                line from the SERVER's own fresh envelope rather than by zeroing a
@@ -1420,6 +1444,7 @@
           if (btn) { btn.disabled = false; btn.textContent = label || 'Rest at the Hearth'; }
           note(document.getElementById(ROOT_ID), restRefusalText(r, moment), 'bad');
         }).catch(function () {
+          restInFlight = false;
           if (btn) { btn.disabled = false; btn.textContent = label || 'Rest at the Hearth'; }
           note(document.getElementById(ROOT_ID),
             'The Hearth could not be reached. Nothing was eaten — try again in a moment.', 'bad');
@@ -1495,7 +1520,14 @@
   var openerForTest = null;
 
   function answerTap(why) {
-    try { (openerForTest || show)(null, null); } catch (e) {}
+    try {
+      /* AN OPEN SHEET IS REDRAWN WITH ITS OWN ENGINE INFO. show(null, null)
+         here threw away the streak, retreat and resume the fall stated. */
+      if (!openerForTest && shown && isOpen()) {
+        var m = readMoment(shown.info);
+        render(describeDeath(m), m, shown.info);
+      } else (openerForTest || show)(null, null);
+    } catch (e) {}
     if (isOpen()) return true;
     try {
       if (typeof window.notify === 'function') { window.notify(why, 'kill'); return true; }
@@ -1558,6 +1590,7 @@
 
   /* See the export note below for why this exists. */
   function __resetForTest() {
+    restInFlight = false;
     close();
     raisedForUntil = 0;
     dismissedUntil = 0;

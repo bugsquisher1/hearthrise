@@ -11710,9 +11710,9 @@ setInterval(function(){ refreshActivityBar(); try{ tickPlayMs(); }catch(e){} }, 
    occluded tab's timers to 1/s and, after five minutes hidden, 1/MINUTE. Same
    defect the b373 note above this file describes for woodcutting, arriving
    through a different door.
-   `hearthrise:fall` is dispatched synchronously from applyEnvelopeState on
-   every envelope (src/net/accrue.js), so the fact and its repaint travel
-   together and neither is subject to a timer. One link, no new wrapper. */
+   `hearthrise:fall` is dispatched at the tail of every envelope apply
+   (src/net/accrue.js holdFallAnnounce, record.js 'fall-announce'), so the fact
+   and its repaint travel together and neither is subject to a timer. */
 try{
   window.addEventListener('hearthrise:fall', function(){
     try{ refreshActivityBar(); }catch(e){}

@@ -8568,4 +8568,176 @@ export default [
       restoreG(snap);
     }
   }),
+
+  /* ══════════════════════════════════════════════════════════════════════
+     LUCKY FINDS (content pack 1) — the server announces; the client never does.
+     A `lucky:true` row (src/data/monsters.js) rolled by the CLIENT's dice — the
+     live tick or the local away replay, both Math.random-seeded — is a roll the
+     server never made, so it must leave no trace (CLAUDE.md §6). The reveal
+     comes only from the settle's `away.events` {type:'rare_drop'}.
+     src/features/lucky-finds.js; the rows are held by tests/lucky-finds.mjs.
+     ══════════════════════════════════════════════════════════════════════ */
+  () => tryRun('LUCKY-1: a client-dice drop of a lucky row leaves the bag, rail, collection, drop log and combat log untouched, with no toast (attended AND away)', () => {
+    const G = window.G, C = window.HearthriseCore, P = window.HearthrisePresence;
+    const fx = window.HearthriseCombatSim && window.HearthriseCombatSim.fx;
+    assert(window.HearthriseLuckyFinds && fx && fx.__hrLuckyHooked, 'lucky-finds.js did not bind to COMBAT_FX — client dice would announce lucky rows');
+    assert(P && typeof P._withOfflineReplay === 'function', 'setup: no away-replay seam');
+    const m = window.MONSTERS.small_wolf;
+    const row = m.drops[m.drops.length - 1];
+    assert(row && row.lucky && row.id === 'wolfbone_torc', 'setup: small_wolf\'s lucky row is not wolfbone_torc: ' + JSON.stringify(row));
+    const { restore } = combatScreen();
+    const keep = JSON.stringify({ collection: G.collection || null, dropLog: G.dropLog || null });
+    const realNotify = window.notify; const toasts = [];
+    const realCh = row.ch;
+    try {
+      /* A certain roll for the lucky row only (effective chance < 1%), at its
+         REAL ch so the event keeps its 'rare' band — the path that counts
+         stats.rareDrops before onDrop (core/combat-sim.js). */
+      G.combatLog = [];
+      if (G.collection) delete G.collection.wolfbone_torc;
+      const bag0 = G.inventory.wolfbone_torc || 0;
+      const dl0 = (G.dropLog && G.dropLog.small_wolf && G.dropLog.small_wolf.drops.wolfbone_torc) || 0;
+      window.__hrCombatCredits = {};
+      G.stats = G.stats || {};
+      const rare0 = G.stats.rareDrops || 0;
+      window.notify = function (msg) { toasts.push(String(msg)); };
+      const kill = () => { G.activeMonster = 'small_wolf'; G.monsterHp = 1; G.monsterMaxHp = m.hp;
+        G.playerHp = 500; G.playerMaxHp = 500;
+        const r = C.reseed(0x1ACC); const roll = r.chance.bind(r);
+        r.chance = (p) => (p > 0 && p < 0.01) || roll(p);
+        window.killMonster(m); };
+      kill();                                   // ATTENDED
+      P._withOfflineReplay(kill);               // AWAY (the local replay)
+      assert((G.inventory.wolfbone_torc || 0) === bag0, 'a client-dice lucky roll reached the bag: ' + (G.inventory.wolfbone_torc || 0));
+      assert(!(window.__hrCombatCredits || {}).wolfbone_torc, 'a client-dice lucky roll reached the fight rail');
+      assert(!(G.collection && G.collection.wolfbone_torc), 'a client-dice lucky roll was written into the collection log');
+      assert(((G.dropLog && G.dropLog.small_wolf && G.dropLog.small_wolf.drops.wolfbone_torc) || 0) === dl0, 'a client-dice lucky roll was counted in the drop log');
+      const log = (G.combatLog || []).join(' | ');
+      assert(!/Wolfbone Torc|VERY RARE/.test(log), 'a client-dice lucky roll was narrated in the combat log: ' + log);
+      assert(!toasts.some((t) => /Wolfbone Torc/.test(t)), 'a client-dice lucky roll raised a toast: ' + toasts.join(' | '));
+      assert((G.stats.rareDrops || 0) === rare0, 'a client-dice lucky roll was counted in stats.rareDrops (' + rare0 + ' -> ' + G.stats.rareDrops + ')');
+      /* CONTROL: the same kills still credit an ordinary drop, so the silence
+         above is the hook and not a fight that never happened. */
+      assert((G.dropLog && G.dropLog.small_wolf && G.dropLog.small_wolf.drops.bones) > 0, 'control: the kills credited no ordinary drop (bones is ch 1)');
+    } finally {
+      row.ch = realCh;
+      window.notify = realNotify;
+      try { delete window.__hrCombatCredits; } catch (e) {}
+      const k = JSON.parse(keep);
+      if (k.collection === null) delete G.collection; else G.collection = k.collection;
+      if (k.dropLog === null) delete G.dropLog; else G.dropLog = k.dropLog;
+      C.randomSeed();
+      restore();
+    }
+  }),
+
+  () => tryRun('LUCKY-2: the server\'s rare_drop for a lucky row writes VERY RARE once with a base-odds toast; replaying the envelope adds nothing', () => {
+    const G = window.G, LF = window.HearthriseLuckyFinds;
+    assert(LF && typeof LF.noteEnvelope === 'function', 'lucky-finds.js is not loaded');
+    const snap = snapshotG();
+    const prevLog = G.combatLog;
+    try {
+      LF.__reset();
+      G.combatLog = [];
+      const r = applyAwayEnvelope({ events: [{ type: 'rare_drop', item: 'wolfbone_torc' }, { type: 'rare_drop', item: 'wolfbone_torc' }] });
+      const lines = G.combatLog.filter((l) => /VERY RARE: Wolfbone Torc/.test(l));
+      assert(lines.length === 1, 'expected ONE "VERY RARE: Wolfbone Torc" line, got ' + lines.length + ': ' + G.combatLog.join(' | '));
+      assert(/class="rare vrare"/.test(lines[0]), 'the line is not styled rare vrare: ' + lines[0]);
+      const t = r.toasts.filter((x) => /Wolfbone Torc/.test(x));
+      assert(t.length === 1 && /about 1 in 1,087/.test(t[0]), 'expected ONE toast with "about 1 in 1,087" (small_wolf .0008 x dropBonus 1.15): ' + r.toasts.join(' | '));
+      /* The same response again — the funnel's own dedupe on `version`. */
+      assert(LF.noteEnvelope(r.env) === 0, 'replaying the same envelope announced the find again');
+      assert(G.combatLog.filter((l) => /VERY RARE/.test(l)).length === 1, 'replaying the same envelope wrote a second VERY RARE line');
+      /* No events (a world-tick frame) says nothing; a non-lucky rare_drop is not ours. */
+      assert(LF.noteEnvelope({ version: r.env.version + 1, away: {} }) === 0, 'an envelope with no events announced something');
+      assert(LF.noteEnvelope({ version: r.env.version + 2, away: { events: [{ type: 'rare_drop', item: 'sticky_core' }] } }) === 0, 'a non-lucky rare_drop was announced as VERY RARE');
+    } finally {
+      G.combatLog = prevLog;
+      LF.__reset();
+      try { window.HearthriseAccrual.__resetAwayReceipt(); } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('LUCKY-3: an ordinary 5% row still reads RARE:, never VERY RARE', () => {
+    const G = window.G, fx = window.HearthriseCombatSim.fx;
+    const prevLog = G.combatLog; const realNotify = window.notify; const toasts = [];
+    const m = window.MONSTERS.small_wolf;
+    try {
+      G.combatLog = [];
+      window.notify = function (msg) { toasts.push(String(msg)); };
+      fx.onDrop({ type: 'drop', id: 'sticky_core', band: 'rare', rare: true }, m, { away: true });
+      const log = G.combatLog.join(' | ');
+      assert(/RARE: Sticky Core|RARE: /.test(log) && !/VERY RARE/.test(log), 'an ordinary rare row lost its RARE: line or became VERY RARE: ' + log);
+      assert(toasts.some((t) => /^Rare: /.test(t)), 'an ordinary rare row lost its toast: ' + toasts.join(' | '));
+    } finally {
+      window.notify = realNotify;
+      G.combatLog = prevLog;
+    }
+  }),
+
+  () => tryRun('LUCKY-4: every drop-table surface states a lucky row as "1 in N", never "0.0%" (collection log <1%, fight screen, BotD card, monster panel)', () => {
+    const G = window.G, C = window.HearthriseCore, HUD = window.HearthriseCombatHud;
+    assert(typeof window.__lootRowHtml === 'function' && HUD && window.HearthriseBossOfDay, 'setup: a drop-table surface is unpublished');
+    const wolf = window.MONSTERS.small_wolf.drops.find((d) => d.lucky);
+    const devil = window.MONSTERS.fire_devil.drops.find((d) => d.lucky);
+    assert(wolf && devil && devil.ch === 0.0004, 'setup: the lucky rows moved: ' + JSON.stringify([wolf, devil]));
+    /* Monster panel. */
+    const panel = window.__lootRowHtml(wolf);
+    assert(/1 in 1,250/.test(panel), 'the monster panel does not state the base row as 1 in 1,250: ' + panel);
+    const devilPanel = window.__lootRowHtml(devil);
+    assert(/1 in 2,500/.test(devilPanel) && !/0\.0%/.test(devilPanel), 'fire_devil\'s .0004 row reads ' + devilPanel);
+    /* Fight screen (the loot modal). */
+    const { restore } = combatScreen();
+    const snap = snapshotG();
+    const realBotd = C.botd;
+    try {
+      G.activeMonster = 'small_wolf';
+      assert(HUD.openLoot(), 'the loot modal did not open');
+      const scrim = document.querySelector('.hr-room-scrim');
+      const txt = scrim ? scrim.textContent : '';
+      assert(/Wolfbone Torc/.test(txt) && /1 in 1,250/.test(txt), 'the fight screen does not state Wolfbone Torc at its base 1 in 1,250: ' + txt.slice(0, 400));
+      assert(!/0\.0%/.test(txt), 'the fight screen prints 0.0%: ' + txt.slice(0, 400));
+      HUD.close();
+      G.activeMonster = 'fire_devil';
+      assert(HUD.openLoot(), 'the loot modal did not open for fire_devil');
+      const dt = (document.querySelector('.hr-room-scrim') || {}).textContent || '';
+      assert(/1 in 2,500/.test(dt) && !/0\.0%/.test(dt), 'the fight screen prints fire_devil\'s .0004 row as: ' + dt.slice(0, 400));
+      HUD.close();
+      /* Boss of the Day card, rendered with small_wolf featured. */
+      C.botd = Object.assign({}, realBotd, { botdFor: function (at, ms) { return Object.assign({}, realBotd.botdFor(at, ms), { dailyId: 'small_wolf' }); } });
+      window.HearthriseBossOfDay.render();
+      const card = document.getElementById('hr-botd-card');
+      const ct = card ? card.textContent : '';
+      assert(/Wolfbone Torc/.test(ct) && /1 in 1,250/.test(ct) && !/0\.0%/.test(ct), 'the BotD card does not state Wolfbone Torc as 1 in 1,250: ' + ct.slice(0, 400));
+    } finally {
+      C.botd = realBotd;
+      try { HUD.close(); } catch (e) {}
+      try { window.HearthriseBossOfDay.render(); } catch (e) {}
+      restoreG(snap);
+      restore();
+    }
+    /* Collection log detail: '<1%', its own established rule. */
+    const CL = window.HearthriseCollection;
+    const prev = { bestiary: G.bestiary };
+    try {
+      G.bestiary = Object.assign({}, G.bestiary, { small_wolf: Object.assign({ kills: 1 }, (G.bestiary || {}).small_wolf) });
+      assert(CL && typeof CL.open === 'function', 'setup: the collection log is unpublished');
+      CL.open();
+      const tab = document.querySelector('#hr-cl-modal [data-cl-tab="bestiary"]');
+      if (tab) tab.click();                      // the log remembers its last tab
+      const cell = document.querySelector('#hr-cl-modal [data-mon="small_wolf"]');
+      assert(cell, 'the collection log has no small_wolf cell');
+      cell.click();
+      const rowEl = [...document.querySelectorAll('.hr-cl-drop')].find((el) => /Wolfbone Torc/.test(el.textContent));
+      assert(rowEl && /<1%/.test(rowEl.textContent), 'the collection-log detail does not list Wolfbone Torc at <1%: ' + (rowEl ? rowEl.textContent : 'no row'));
+      const back = document.querySelector('#hr-cl-modal [data-cl-back]');
+      if (back) back.click();                    // leave the log on its grid, as found
+    } finally {
+      G.bestiary = prev.bestiary;
+      const modal = document.getElementById('hr-cl-modal');
+      if (modal) modal.remove();
+      closeOverlays();
+    }
+  }),
 ];

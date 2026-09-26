@@ -2025,6 +2025,23 @@ jobs:
           node tests/hearthfind-boss-rate.mjs
           node tests/hearthfind-boss-rate.mjs --selftest
 
+      # LUCKY FINDS (content pack 1). A {id, ch, lucky:true} drop row is a server
+      # faucet into tradeable inventories, so every row keeps the Security
+      # review's rules: live tradeable gear with art and no other source (not
+      # QM/dungeon/shop/boss loot, not unique, not a Hearthfind), not on a
+      # Hearthfind or seeded-fixture monster, ch x dropBonus x vendor price <= 5%
+      # of the gp midpoint, item tier = monster tier or +1, the lucky row LAST,
+      # >= 4 per tier, the bounty proof item unchanged, and 4-30 MEASURED hours
+      # (simulateSpan, fixed seed, tier loadout, fed) with >= 1.5 h at the
+      # multiplier ceiling. Both paths: computeAccrual mints the item with its
+      # ev:loot op and rare_drop event; the live tick credits it on the same
+      # seed. 9 mutations + a clean-tree negative control, no credentials, no DB.
+      - name: Lucky finds - the very-rare drop rows keep the faucet rules
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/lucky-finds.mjs
+          node tests/lucky-finds.mjs --selftest
+
       # THE SQL HALF, ON A REAL DATABASE (PGlite, the ordered migration chain).
       # An honest find pays ONE trophy + ONE ledger row + ONE broadcast + a
       # receipt, with the SERVER's odds read from the catalogue (there is no delta

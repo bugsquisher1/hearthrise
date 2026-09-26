@@ -127,6 +127,8 @@
     "node tests/hearthfind-roll.mjs --selftest": "economy-selftests",
     "node tests/hearthfind-boss-rate.mjs": "economy-selftests",
     "node tests/hearthfind-boss-rate.mjs --selftest": "economy-selftests",
+    "node tests/lucky-finds.mjs": "economy-selftests",
+    "node tests/lucky-finds.mjs --selftest": "economy-selftests",
     "node tests/hearthfind-authority.mjs": "economy-selftests",
     "node tests/hearthfind-authority.mjs --selftest": "economy-selftests",
     "node tests/cadence-recovery-floor.mjs": "economy-selftests",

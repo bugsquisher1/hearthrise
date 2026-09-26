@@ -4,6 +4,36 @@ _Team-wide decisions and their rationale. Append newest at top. Every entry: DEC
 
 ---
 
+### 2026-09-26 — LUCKY FINDS (content pack 1): swaps, the collection faucet, the reveal
+**Game Designer, acting under design authority. Binding until superseded.**
+
+**1 · THE SWAPS AND THE DROPPED ROW.** 26 rows, not 27. `war_king -> crown_of_the_fallen_king`
+is DROPPED: the crown is rarity `unique`, forged at Smithing 88 by design, and a drop would skip
+the game's top-helmet sink. Security's three swaps stand: `witchs_apprentice -> adept_body`
+(oak_staff is sold for 650g in the equip shop), `giant_spider -> wraithglass_drops` (widows_fang
+is tier 3 and a drop-gated wave-3 recipe item), `vampire_bride -> archmage_gloves`
+(rubyfire_studs is tier 5). TWO FURTHER SWAPS, found by the guard's art rule: `maple_staff` and
+`demoncaller_staff` have their art on `REJECTED_WRONG_SUBJECT` (item-art.js), so a player's
+chase item would render as the wrong object. `fire_devil -> warlock_helmet` (T4 mage armour,
+v1260 against maple_staff's 1500, same .0004, 11.1 h) and `chained_demon -> yew_staff` (T5
+Magic 60 staff, keeps the caster identity, same .0005, 19.2 h).
+
+**2 · THE COLLECTION FAUCET → ACCEPTED, THRESHOLD UNCHANGED.** Every lucky item is a first-ever
+combat drop, so the collectible pool grows by 26 and the ids reachable through T5 rise past 100:
+`collect100` (15,000g + 15 gems, once) becomes reachable without T6, and the renown ceiling
+rises by 78 (3 per entry). Accepted: reaching 100 without T6 now costs three or more lucky finds
+at 5-19 h each, which is a real chase of the same order as levelling into T6, and it is the
+reward the pack exists to create. Moving the threshold would be a lane-C `hr_claim_milestone`
+migration against a one-time bounded payout; not worth it.
+
+**3 · THE REVEAL IS EXEMPT FROM "ATTENDED SETTLES NARRATE NOTHING".** A lucky find is
+announced from the settle's `away.events` `rare_drop` — a VERY RARE combat-log line and one
+toast with the BASE odds — on an attended settle too. The rarest thing a hunter can meet is not
+chatter. The client's own dice never announce or credit a lucky row (CLAUDE.md §6).
+
+AFFECTED: backend-architect (edge deploy), security-engineer (re-review), art-director (the
+`.vrare` glint and chime are yours; no CSS shipped), qa-engineer.
+
 ### 2026-08-31 — DESIGN RULINGS BATCH (four queued from the b497/b498 reviews)
 **Game Designer, acting under design authority. Binding until superseded.**
 

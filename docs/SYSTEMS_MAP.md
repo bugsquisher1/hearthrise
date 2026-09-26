@@ -202,6 +202,14 @@ Played by `TIMBERLINE-1..4` in-page and `TIMBERLINE-S1` in `tests/accrual-engine
 exist in `ITEMS`.
 Hunter's note per monster: `src/data/monster-notes.js` (client-only display, never edge-imported); FIELDNOTES-1 requires exactly one per MONSTERS id, so a new monster ships with its note.
 
+⚠ **A drop row is a SERVER FAUCET** (hr-accrue mints it into a tradeable
+inventory), so it ships in lane C order: **Security GO → hr-accrue edge deploy →
+then the client**. The client must never show a drop the deployed engine cannot
+roll. **Lucky finds** (`{id, ch, lucky:true}`, always the LAST row) are announced
+by the SERVER only — the settle's `away.events` `rare_drop` — never by the
+client's own dice (`src/features/lucky-finds.js`); their rules (item, faucet cap,
+4-30 measured hours, tier) are `tests/lucky-finds.mjs`.
+
 ### 6. Dungeon / boss loot — data
 `src/dungeons.js` → `DUNGEONS[id].loot:[{id, qty:[min,max], chance}]`, plus
 `.boss:{name,title}`. Signature gear = `bop:true` in items.js; the loot row is

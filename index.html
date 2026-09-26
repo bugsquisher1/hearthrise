@@ -1215,6 +1215,11 @@
   <!-- The Hearthfind (slate §2). AFTER rarity.js: the reveal, the away band and
        the collection rows all paint at var(--rr-glow), which .rr-unique defines. -->
   <script src="src/features/hearthfind.js?v=553"></script>
+  <!-- Lucky finds (content pack 1). AFTER legacy.js (it wraps COMBAT_FX via
+       HearthriseCombatSim.fx) and collection-log.js: a lucky row the CLIENT's
+       dice rolled is never shown or credited; only the server's rare_drop
+       event reveals one (fed from the accrue.js envelope funnel). -->
+  <script src="src/features/lucky-finds.js?v=553"></script>
   <!-- b201 SYS 1-3: the progression spine — tools ladder, homestead→castle
        property tiers (rooms are workbenches), idle workers. Order matters:
        tools (no deps) → homestead (gates) → workers (needs homestead slots). -->

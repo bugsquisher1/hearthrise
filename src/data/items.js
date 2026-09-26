@@ -256,7 +256,7 @@ export const ITEMS={
     buff:{type:'drop_rate', magnitude:3,  durationMs:300000},
   },
   cooked_shark: {
-    n:'Cooked Shark', icon:'🍣', v:900, heals:42, foodTier:4, foodClass:'healing',
+    n:'Cooked Shark', icon:'🍣', v:900, heals:44, foodTier:4, foodClass:'healing',
     buff:{type:'damage', magnitude:4, durationMs:360000},
   },
 
@@ -359,7 +359,7 @@ export const ITEMS={
   cooked_herring:  {n:'Cooked Herring', icon:'🐟', v:40, heals:6, foodTier:1, foodClass:'healing',
     buff:{type:'gather_speed', magnitude:1, durationMs:120000}},
   frostfin:        {n:'Raw Frostfin', icon:'❄️', v:520, heals:18},
-  cooked_frostfin: {n:'Frostfin Supper', icon:'🍲', v:1300, heals:28, foodTier:4, foodClass:'healing',
+  cooked_frostfin: {n:'Frostfin Supper', icon:'🍲', v:1300, heals:38, foodTier:4, foodClass:'healing',
     buff:{type:'defense', magnitude:4, durationMs:360000}},
   /* ── "Reed & Tide" (game-designer ruling, 2026-09-13) ─────────────────
      The four fish that close the Trout(20)→Lobster(40) silence, their cooked
@@ -388,12 +388,30 @@ export const ITEMS={
     buff:{type:'defense', magnitude:2, durationMs:300000}},
   fishers_pie:           {n:"Fisher's Pie", icon:'🥧', v:520, heals:34, foodClass:'buff',
     buff:{type:'damage', magnitude:2, durationMs:600000}},
-  /* Fishing (55 / 90) — swordfish also fills the old 40→76 dead zone */
+  /* Fishing (55 / 90) — swordfish also fills the old 40→76 dead zone.
+     ── "DEEP WATERS" HEAL CLIMB (game-designer ruling, content pack 8) ──────
+     A higher fish is better food: Lobster 25 < Swordfish 32 < Frostfin 38
+     < Shark 44 < Moonfish 50 (was 22 / 28 / 42 / 38, so a Fishing-55 fish
+     healed less than a Fishing-40 one). Healing per fishing-hour at the named
+     spots now climbs 7,031 / 7,200 / 7,435 / 7,615 / 8,036. The same numbers
+     live in hr_items.heals and hr_feast_foods (2026-09-26-deep-waters.sql).
+     RULED, STATED HONESTLY (the pack's "stays under" claim was false):
+     (i)  Cooked Moonfish 50 is ABOVE the gated Dragon Stew 45 and EQUAL to
+          Lich Soul Soup 50; only Void Banquet 60 stays above it. It is the top
+          auto-eatable healing Provision (above Moonbloom Elixir 40). The
+          ceiling is 50 for a foodClass 'healing' item — pinned by DEEPWATERS-4.
+     (ii) The auto-eat fallback (biggest healer, when nothing covers the
+          deficit) now eats Cooked Moonfish (2,100 g, 42 g/HP) instead of
+          Cooked Shark (900 g, 20.5 g/HP); the mid-tier fallback moves from
+          River Chowder to Cooked Swordfish. Accepted: a late-game auto-eater
+          who stocks Moonfish pays more per meal for fewer meals; the chooser
+          still prefers the CHEAPEST food that covers the deficit first.
+     v / foodTier / foodClass / buff are unchanged. */
   swordfish:        {n:'Raw Swordfish', icon:'🐠', v:220, heals:14},
-  cooked_swordfish: {n:'Swordfish Steak', icon:'🍥', v:560, heals:22, foodTier:3, foodClass:'healing',
+  cooked_swordfish: {n:'Swordfish Steak', icon:'🍥', v:560, heals:32, foodTier:3, foodClass:'healing',
     buff:{type:'damage', magnitude:3, durationMs:300000}},
   moonfish:         {n:'Raw Moonfish', icon:'🌙', v:900, heals:24},
-  cooked_moonfish:  {n:'Moonfish Fillet', icon:'🍣', v:2100, heals:38, foodTier:4, foodClass:'healing',
+  cooked_moonfish:  {n:'Moonfish Fillet', icon:'🍣', v:2100, heals:50, foodTier:4, foodClass:'healing',
     buff:{type:'all_xp', magnitude:3, durationMs:420000}},
   /* Farming (62 / 75 / 88) */
   goldenroot:      {n:'Goldenroot', icon:'🥕', v:260, heals:12},

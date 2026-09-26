@@ -1760,7 +1760,7 @@ export default [
      same seed, a bag with a real choice in it, and the INVENTORY comparison
      (which stacks were drained, food by food) is the assertion.
 
-     The 95% trigger is not decoration: the largest Provision heals 42, so at
+     The 95% trigger is not decoration: the largest Provision heals 50, so at
      the default 50% a 60 HP character is 30 HP down and only the top of the
      ladder covers it — the cheap branch would never fire and this arm would be
      AWAY-1 again with extra steps. The server-side twin of this assertion is
@@ -1886,7 +1886,7 @@ export default [
            shrimp           heals 3,  v 5,   RAW  (Cooking's own input)
            cooked_wolf_meat heals 6,  v 12        (processed, dearer, WINS)
            cooked_shrimp    heals 8,  v 18
-           cooked_shark     heals 42, v 900       (the pre-ruling answer) */
+           cooked_shark     heals 44, v 900       (the pre-ruling answer) */
       const I = window.ITEMS;
       assert(I.shrimp.raw === true && I.shrimp.v === 5 && I.cooked_wolf_meat.v === 12,
         'the fixture rows moved — this test is no longer about what it says it is about');

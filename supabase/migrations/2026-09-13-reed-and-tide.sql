@@ -377,11 +377,37 @@ begin
     raise exception 'GATE(b2): % fishing level(s) carry more than one node — the bench ladder is '
                     'no longer one rung per level', v_n;
   end if;
-  select count(*) into v_n from public.hr_activities
-   where kind = 'gather' and req_skill = 'fishing';
-  if v_n <> 12 then
-    raise exception 'GATE(b3): the fishing bench holds % nodes, the ruling leaves 12 (8 shipped + '
-                    '4 new). A 13th means a node was added without the ladder being re-read', v_n;
+  -- POST-APPLY AMENDMENT (self-check ONLY, no body/data; Deep Waters, 2026-09-26):
+  -- this gate was a bare `count(*) <> 12` over the whole fishing bench. The
+  -- regenerated catalogue replays BEFORE this file and carries every later
+  -- pack's rows, so a bare total raised on every pack after this one. It now
+  -- asserts THIS ruling's 12 named ids are present at their req; the bench
+  -- total at chain end is tests/catalogue-literal-drift.mjs's job. (b2) above
+  -- still covers NULL req and one node per level over the whole bench.
+  select count(*),
+         string_agg(x.activity_id || '=' || coalesce(a.req_lv::text,'MISSING')
+                      || ' (want ' || x.req_lv || ')', ', ' order by x.activity_id)
+           filter (where a.req_lv is distinct from x.req_lv)
+    into v_n, v_bad
+    from (values
+      ('shrimp_s',1),
+      ('herring_s',10),
+      ('trout_s',20),
+      ('pikeperch_s',24),
+      ('copper_crab_s',28),
+      ('silverfin_s',32),
+      ('goldgill_s',36),
+      ('lobster_s',40),
+      ('swordfish_s',55),
+      ('frostfin_s',66),
+      ('shark_s',76),
+      ('moonfish_s',90)
+    ) as x(activity_id, req_lv)
+    left join public.hr_activities a
+      on a.kind = 'gather' and a.req_skill = 'fishing' and a.activity_id = x.activity_id;
+  if v_bad is not null then
+    raise exception 'GATE(b3): the fishing ruling''s 12 named nodes are not all present at '
+                    'their req: %', v_bad;
   end if;
   select count(*) into v_n from public.hr_activities
    where kind = 'artisan' and req_skill = 'cooking';

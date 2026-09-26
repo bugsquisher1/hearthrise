@@ -6,10 +6,10 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 3d040ae0aa091226a1eeb9022ae2a9eb192f572b919dcb1cb3d52312b53213e9
+--   catalogue digest: 235d6a1646672e176de12a59da3761519f8d972f0335f1a850b42b30217a31d6
 --   rows: 538 items (20 untradeable) ·
 --         280 item-slot pairs · 15 equip slots ·
---         17 skills · 9 crops · 508 activities ·
+--         17 skills · 9 crops · 514 activities ·
 --         3 runes
 --
 -- APPLY ORDER: 2026-08-11-player-state.sql → THIS FILE → 2026-08-11-apply-engine.sql
@@ -278,17 +278,17 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('colossus_seal','Colossus Seal',false,null,0,null,null,null,false),
   ('cooked_bear_meat','Cooked Bear Meat',true,null,42,null,null,13,true),
   ('cooked_copper_crab','Steamed Copper Crab',true,null,100,null,null,18,true),
-  ('cooked_frostfin','Frostfin Supper',true,null,1300,null,null,28,true),
+  ('cooked_frostfin','Frostfin Supper',true,null,1300,null,null,38,true),
   ('cooked_goldgill','Goldgill Steak',true,null,180,null,null,23,true),
   ('cooked_herring','Cooked Herring',true,null,40,null,null,6,true),
   ('cooked_lobster','Cooked Lobster',true,null,240,null,null,25,true),
-  ('cooked_moonfish','Moonfish Fillet',true,null,2100,null,null,38,true),
+  ('cooked_moonfish','Moonfish Fillet',true,null,2100,null,null,50,true),
   ('cooked_panther_meat','Cooked Panther Meat',true,null,22,null,null,9,true),
   ('cooked_pikeperch','Grilled Pikeperch',true,null,75,null,null,16,true),
-  ('cooked_shark','Cooked Shark',true,null,900,null,null,42,true),
+  ('cooked_shark','Cooked Shark',true,null,900,null,null,44,true),
   ('cooked_shrimp','Cooked Shrimp',true,null,18,null,null,8,true),
   ('cooked_silverfin','Silverfin Fillet',true,null,135,null,null,21,true),
-  ('cooked_swordfish','Swordfish Steak',true,null,560,null,null,22,true),
+  ('cooked_swordfish','Swordfish Steak',true,null,560,null,null,32,true),
   ('cooked_trout','Cooked Trout',true,null,55,null,null,14,true),
   ('cooked_wolf_meat','Cooked Wolf Meat',true,null,12,null,null,6,true),
   ('copper_bar','Copper Bar',true,null,35,null,null,null,false),
@@ -1522,11 +1522,14 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('gather','copper_crab_s','fishing',28,null,false),
   ('gather','copper_rock','mining',1,null,false),
   ('gather','dawnstone_rock','mining',90,null,false),
+  ('gather','deep_ember_vein','mining',82,null,false),
+  ('gather','deep_mithril_vein','mining',67,null,false),
   ('gather','deep_verdite_seam','mining',48,null,false),
   ('gather','duskwood_tree','woodcutting',90,null,false),
   ('gather','elder_yew_tree','woodcutting',68,null,false),
   ('gather','emberstone_rock','mining',75,null,false),
   ('gather','fluxsalt_pocket','mining',40,null,false),
+  ('gather','frostfin_reach_s','fishing',71,null,false),
   ('gather','frostfin_s','fishing',66,null,false),
   ('gather','gold_rock','mining',45,null,false),
   ('gather','goldgill_s','fishing',36,null,false),
@@ -1534,6 +1537,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('gather','herring_s','fishing',10,null,false),
   ('gather','hollow_oak_tree','woodcutting',22,null,false),
   ('gather','iron_rock','mining',15,null,false),
+  ('gather','lobster_reef_s','fishing',47,null,false),
   ('gather','lobster_s','fishing',40,null,false),
   ('gather','maple_grove','woodcutting',52,null,false),
   ('gather','maple_tree','woodcutting',45,null,false),
@@ -1545,8 +1549,10 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('gather','rich_coal_rock','mining',52,null,false),
   ('gather','runewood_tree','woodcutting',75,null,false),
   ('gather','shark_s','fishing',76,null,false),
+  ('gather','shark_shelf_s','fishing',83,null,false),
   ('gather','shrimp_s','fishing',1,null,false),
   ('gather','silverfin_s','fishing',32,null,false),
+  ('gather','swordfish_deeps_s','fishing',61,null,false),
   ('gather','swordfish_s','fishing',55,null,false),
   ('gather','trout_s','fishing',20,null,false),
   ('gather','verdite_seam','mining',36,null,false),
@@ -1584,7 +1590,7 @@ insert into public.hr_runes (rune_id, element) values
   ('poison_rune','poison');
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '3d040ae0aa091226a1eeb9022ae2a9eb192f572b919dcb1cb3d52312b53213e9', now())
+  values (true, '235d6a1646672e176de12a59da3761519f8d972f0335f1a850b42b30217a31d6', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1618,7 +1624,7 @@ begin
     raise exception 'untradeable count is %, generator emitted 20', v_n;
   end if;
   select count(*) into v_n from public.hr_activities;
-  if v_n <> 508 then raise exception 'hr_activities has % rows, expected 508', v_n; end if;
+  if v_n <> 514 then raise exception 'hr_activities has % rows, expected 514', v_n; end if;
 
   -- MONSTER HP. The count is asserted for the same reason auto_eatable's is: a
   -- re-apply against a database that created hr_activities before the column
@@ -1749,7 +1755,7 @@ begin
   select count(*) into v_n from public.hr_runes;
   if v_n <> 3 then raise exception 'hr_runes has % rows, generator emitted 3', v_n; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 3d040ae0aa091226a1eeb9022ae2a9eb192f572b919dcb1cb3d52312b53213e9',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 235d6a1646672e176de12a59da3761519f8d972f0335f1a850b42b30217a31d6',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

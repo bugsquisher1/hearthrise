@@ -795,8 +795,8 @@ function autoEatParityGuard() {
 
        So the same fixture runs again on a MIXED bag at a trigger point high
        enough for the cheap branch to fire (see cheapestSufficientGuard for why
-       95%: the largest Provision heals 42, and a 99 HP veteran at 50% is 49 HP
-       down). Same seed, same state; the FULL parity set is re-asserted, plus
+       95%: the largest Provision heals 50 since Deep Waters, and a 99 HP veteran
+       at 50% is 49 HP down, so only that one food could ever cover it). Same seed, same state; the FULL parity set is re-asserted, plus
        the per-item delta, because "the two sides ate the same NUMBER of meals"
        is exactly what a divergent chooser would still satisfy. */
     {
@@ -1105,7 +1105,7 @@ function cheapestSufficientGuard() {
   premise('cooked_wolf_meat', 6, 12, false);
   premise('cooked_shrimp', 8, 18, false);
   premise('cooked_lobster', 25, 240, false);
-  premise('cooked_shark', 42, 900, false);
+  premise('cooked_shark', 44, 900, false);
   premise('moonbloom', 20, 850, true);
 
   // ══ A · THE ORDER LAW ════════════════════════════════════════════════════
@@ -1191,9 +1191,9 @@ function cheapestSufficientGuard() {
 
   /* WHY 95%, AND NOT THE 50% THE OTHER FIXTURES USE. The cheap branch can only
      fire when something in the bag heals to FULL, and the largest Provision in
-     the game heals 42. A 99 HP veteran at a 50% trigger is 49 HP down, so
-     branch (b) would never run and this whole section would silently compare a
-     rule to itself. 95% is a real setting (Auto-Eat II's ceiling is 100) and it
+     the game heals 50 (Cooked Moonfish since Deep Waters). A 99 HP veteran at a
+     50% trigger is 49 HP down, so branch (b) could only ever pick that one food
+     and this whole section would near-silently compare a rule to itself. 95% is a real setting (Auto-Eat II's ceiling is 100) and it
      is the setting under which the overheal the ruling measured actually
      happens. The coverage assertions at the end refuse a vacuous run. */
   const NIGHT_PCT = 95;
@@ -1220,11 +1220,12 @@ function cheapestSufficientGuard() {
 
   const BAGS = [
     /* THE LATE-GAME FISHER/COOK the ruling costed: a cooked ladder plus the raw
-       stock feeding it. The old rule reaches for the Cooked Shark every time. */
+       stock feeding it. The old rule reaches for the biggest healer every time —
+       Cooked Moonfish (50) since Deep Waters re-seated the fish heals. */
     { name: 'late-game fisher/cook', bag: {
       cooked_shark: STACK, cooked_moonfish: STACK, cooked_lobster: STACK,
       cooked_trout: STACK, cooked_shrimp: STACK, moonfish: STACK, shark: STACK },
-      dear: 'cooked_shark', monster: DAY1_BOSS },
+      dear: 'cooked_moonfish', monster: DAY1_BOSS },
     /* THE FARMER. Here the biggest healer IS the crafting reagent, so the old
        rule eats 1,750 g of Moonbloom Elixir supply per meal while a Cooked
        Shrimp does the identical job. This is the ruling's headline case. */
@@ -6033,6 +6034,90 @@ async function timberlineServerGuard() {
     + `accrued=${refused.accrued} reason=${refused.reason}, not a refusal as unknown_node`);
 }
 
+/* DEEPWATERS-S1 — THE EDGE PAYLOAD CARRIES THE DEEP MITHRIL VEIN (server half of
+   the in-page DEEPWATERS-1/2). Same shape as TIMBERLINE-S1, against the index
+   the edge imports. A seeded 1 h span at Mining 67, no tool, no gear:
+   3,600,000 / pacedActionMs(9300) = 3,600,000 / 14,880 = 241 actions at
+   floor(118 x 0.39) = 46 XP, 1-2 mithril_ore each, the ore count pinned on the
+   seed. The ATTENDED path (clientGatherSpan, the client's own loop) on the same
+   seed must pay the identical span. CONTROL: with the vein removed from the
+   index the span is REFUSED unknown_node. */
+async function deepWatersServerGuard() {
+  const { GATHER_NODES } = await import('../supabase/functions/hr-accrue/catalogue.js');
+  const NODE = 'deep_mithril_vein';
+  const SEEDED_ORE = 348;   // measured once on SEED; pinned, never banded
+  const run = (nodes) => computeAccrual({
+    userId: '00000000-0000-4000-8000-000000000001', slot: 0,
+    nowMs: FROM_MS + 3600000, accruedToMs: FROM_MS, activeSinceMs: FROM_MS,
+    activeKind: 'gather', activeId: NODE, capMs: 12 * 3600000, seed: SEED,
+    hp: 60, maxHp: 60, gold: 0, skills: { mining: xpForLevel(67) },
+    equipment: {}, inventory: {},
+    autoEatEnabled: false, autoEatFood: null, autoEatPct: 0, toolCarry: {},
+    items: ITEMS, monsters: MONSTERS, nodes,
+  });
+  const entry = GATHER_NODES[NODE];
+  ok(!!entry && entry.skill === 'mining' && entry.node.req === 67,
+    `DEEPWATERS-S1: the edge GATHER_NODES has no mining-67 ${NODE} — the payload cannot pay the vein the client paints`);
+  if (!entry) return;
+  const s = run(GATHER_NODES);
+  ok(s.accrued === true, `DEEPWATERS-S1: a 1 h span at ${NODE} accrued nothing (reason: ${s.reason})`);
+  if (!s.accrued) return;
+  eq(s.summary.ticks, 241, `DEEPWATERS-S1: 1 h at ${NODE} ran ${s.summary.ticks} actions, not 241`);
+  eq(s.summary.xp.mining, 46 * 241, `DEEPWATERS-S1: ${NODE} paid ${s.summary.xp.mining} mining XP, not 46 x 241`);
+  const ore = s.summary.items.mithril_ore || 0;
+  ok(ore >= 241 && ore <= 482, `DEEPWATERS-S1: ${ore} mithril_ore over 241 actions is outside the [1,2] yield`);
+  eq(ore, SEEDED_ORE, `DEEPWATERS-S1: the seeded span paid ${ore} mithril_ore, the seed pins ${SEEDED_ORE}`);
+  const c = clientGatherSpan({ skill: 'mining', node: entry.node, spanMs: 3600000, rng: createRng(SEED),
+    skills: { mining: xpForLevel(67) }, inventory: {}, equipment: {}, toolCarry: {} });
+  eq(c.ticks, s.summary.ticks, 'DEEPWATERS-S1 ATTENDED: the client loop ran a different number of actions');
+  eq(c.items, s.summary.items, 'DEEPWATERS-S1 ATTENDED: the client loop paid different ore on the same seed');
+  eq(c.xp, s.summary.xp, 'DEEPWATERS-S1 ATTENDED: the client loop paid different XP on the same seed');
+  const without = Object.assign(Object.create(null), GATHER_NODES);
+  delete without[NODE];
+  const refused = run(without);
+  ok(refused.accrued !== true && refused.reason === 'unknown_node',
+    `DEEPWATERS-S1 CONTROL: with ${NODE} removed the span answered accrued=${refused.accrued} `
+    + `reason=${refused.reason}, not unknown_node`);
+}
+
+/* DEEPWATERS-S2 (AWAY COMBAT) — THE SWORDFISH HEAL CLIMB, ON BOTH ENGINES. A
+   seeded night vs the day-1 boss with ONLY Swordfish Steaks and auto-eat on.
+   At a 50% trigger on 99 max HP every meal starts >= 50 HP down, so no meal is
+   capped: each one must heal exactly 32 (asserted on the one decision function
+   both sides call, at every reachable hp), and the server engine and the
+   client's away span must agree meal for meal. The old 22 fails the first half;
+   a server reading a different heal than the client fails the second. */
+function deepWatersAwayCombatGuard() {
+  const P = (m) => `DEEPWATERS-S2: ${m}`;
+  eq(ITEMS.cooked_swordfish.heals, 32, P('cooked_swordfish no longer heals 32'));
+  for (let hp = 1; hp <= 49; hp++) {
+    const d = resolveAutoEat({ enabled: true, owned: true, hp, maxHp: 99, threshold: 0.5,
+      foodId: null, inventory: { cooked_swordfish: 3 }, items: ITEMS });
+    if (!d || d.foodId !== 'cooked_swordfish' || d.hp !== hp + 32) {
+      ok(false, P(`at ${hp}/99 the auto-eat decision was ${JSON.stringify(d)}, not +32 from one Swordfish Steak`));
+      return;
+    }
+  }
+  const bag = { cooked_swordfish: 5000 };
+  const s = serverAccrual({ activeId: DAY1_BOSS, skills: MAXED, hp: 99, maxHp: 99,
+    inventory: { ...bag }, autoEatEnabled: true, autoEatFood: null, autoEatPct: 50 });
+  ok(s.accrued === true, P(`the night accrued nothing (reason: ${s.reason})`));
+  if (!s.accrued) return;
+  const c = clientAwaySpan({ monsterId: DAY1_BOSS, equipment: EQUIPMENT, skills: MAXED,
+    hp: 99, maxHp: 99, seed: SEED, fromMs: FROM_MS, toMs: NOW_MS, capped: false,
+    inventory: { ...bag }, traits: { auto_eat: true }, eat: { enabled: true, threshold: 0.5, foodId: null } });
+  ok(s.summary.foodEaten >= 20, P(`only ${s.summary.foodEaten} meals — too few to measure the heal`));
+  eq(c.ate, s.summary.foodEaten, P('the client and the server ate a different number of meals'));
+  eq((s.delta.items || {}).cooked_swordfish, -s.summary.foodEaten, P('the server did not debit one steak per meal'));
+  eq(5000 - (c.inventory.cooked_swordfish || 0), c.ate, P('the client did not debit one steak per meal'));
+  eq(s.summary.ticks, c.summary.ticks, P('tick count differs'));
+  eq(s.summary.kills, c.summary.kills, P('kill count differs'));
+  eq(s.summary.died, c.summary.died, P('death outcome differs'));
+  eq(s.summary.survivedMs, c.summary.survivedMs, P('time survived differs'));
+  eq(s.summary.xp, c.xp, P('XP grants differ'));
+  eq(s.delta.hp, Math.max(0, Math.min(c.maxHp, Math.floor(c.hp))), P('resulting HP differs'));
+}
+
 /* THE MUTATION SEAM. `computeAccrualInputParity` is exported for the same
    reason: a guard whose failures cannot be reproduced in isolation is a guard
    nobody mutation-proves, and `runAll` costs a network round trip. This runs the
@@ -6058,6 +6143,8 @@ export async function runAll() {
   gatherParityGuard();
   gatherBuffTimelineGuard();
   await timberlineServerGuard();
+  await deepWatersServerGuard();
+  deepWatersAwayCombatGuard();
   toolCarryContinuityGuard();
   crewBacklogGuard();
   hostileGuard();

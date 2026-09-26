@@ -8,6 +8,34 @@
 // ══════════════════════════════════════════════════════════════════════
 import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays } from './_harness.js?v=553';
 
+/* DEEPWATERS fixture (content pack 8). Bonus-free and gear-free — getBonus and
+   the rested quantum pinned to 0 and an EMPTY equipment stat block (Timberline
+   TL-1: gear xpB left equipped by an earlier test paid 31/49 instead of 30/48)
+   — one skill at one level, an empty bag, and the pointer on `nodeId` (or
+   idle). Everything is restored in `finally`. The tests reseed the RNG and hold
+   the away latch themselves, because only the action tests need them. */
+function dwBench(skill, lv, nodeId, fn) {
+  const G = window.G, C = window.HearthriseCore, snap = snapshotG();
+  const real = { getBonus: window.getBonus, restedQuantum: window.restedQuantum, getEquipmentStats: window.getEquipmentStats, pred: G._pred ? JSON.parse(JSON.stringify(G._pred)) : undefined };
+  const setLv = (n) => { G.skills = Object.assign({}, G.skills, { [skill]: window.xpForLevel(n) }); };
+  /* The DISPLAY read: server truth + prediction, so an armed skills record
+     (addXp predicts rather than writing G.skills) measures the same delta. */
+  const xpView = () => {
+    try { if (typeof window.hrSkillXpDisplay === 'function') return window.hrSkillXpDisplay(skill).value || 0; } catch (e) {}
+    return (G.skills && G.skills[skill]) || 0;
+  };
+  try {
+    window.getBonus = () => 0; window.restedQuantum = () => 0;
+    window.getEquipmentStats = () => C.combat.equipmentStats({}, window.ITEMS, {});
+    setLv(lv); G.inventory = {}; G.buffs = [];
+    G.activeSkill = nodeId ? skill : null; G.skillTargetId = nodeId || null;
+    fn(G, { setLv, xpView });
+  } finally {
+    window.getBonus = real.getBonus; window.restedQuantum = real.restedQuantum; window.getEquipmentStats = real.getEquipmentStats;
+    G._pred = real.pred; restoreG(snap);
+  }
+}
+
 export default [
 
   // ══ b223 · THE HUNT (backlog #16) ═══════════════════════════
@@ -3161,6 +3189,120 @@ export default [
       assert(yew >= 208 && yew <= 416, 'the away span banked ' + yew + ' yew_log, outside the [1,2] × 208 envelope [208, 416]');
       assert(yew === SEEDED_YEW, 'the seeded away span banked ' + yew + ' yew_log, the 0xC0FFEE stream pins exactly ' + SEEDED_YEW + ' — a changed count is a changed draw order or yield');
     } finally { window.getBonus = real.getBonus; window.restedQuantum = real.restedQuantum; window.getEquipmentStats = real.getEquipmentStats; G._pred = real.pred; restoreG(snap); }
+  }),
+
+  /* ── DEEPWATERS-1..5 — four fish stands, two ore veins, the heal climb ────
+     Content pack 8: fishing stands at 47/61/71/83 and mining veins at 67/82,
+     each yielding an EXISTING raw, and cooked fish that heal more the higher
+     the fish (32/38/44/50). The server half is 2026-09-26-deep-waters.sql —
+     its §2(d) plays hr_apply's level gate, §2(e) hr_rest's 32 and §2(f) the
+     Tavern's 50 — and DEEPWATERS-S1/S2 in tests/accrual-engine.mjs play the
+     edge payload and the away night. EXACT, NOT BANDED: dwBench above. */
+  () => tryRun('DEEPWATERS-1: the six stands sit at their req in req order and yield existing raws; one action at the Lobster Reef at Fishing 47 banks exactly 1 Lobster and floor(98 × 0.39) = 38 XP, and the tile names it', () => {
+    const I = window.ITEMS;
+    [['FISH_SPOTS', 'lobster_reef_s', 47], ['FISH_SPOTS', 'swordfish_deeps_s', 61], ['FISH_SPOTS', 'frostfin_reach_s', 71],
+      ['FISH_SPOTS', 'shark_shelf_s', 83], ['ROCKS', 'deep_mithril_vein', 67], ['ROCKS', 'deep_ember_vein', 82]].forEach(([t, id, req]) => {
+      const T = window[t] || [], i = T.findIndex((n) => n.id === id);
+      assert(i > 0 && T[i].req === req, t + ' has no ' + id + ' at req ' + req + ' — got ' + JSON.stringify(T[i]));
+      assert(T[i - 1].req < req && (i === T.length - 1 || T[i + 1].req > req),
+        id + ' is out of req order — the ladder guards read the array order, so a stand is inserted, not appended');
+      assert(I[T[i].prod] && I[T[i].prod].raw === true, id + ' yields ' + T[i].prod + ', which is not an existing raw item');
+    });
+    const node = window.FISH_SPOTS.find((n) => n.id === 'lobster_reef_s');
+    dwBench('fishing', 47, node.id, (G, b) => {
+      const xp0 = b.xpView();
+      window.HearthriseCore.reseed(0xC0FFEE);
+      window.HearthrisePresence._withOfflineReplay(() => window.doSkillAction(true));
+      assert((G.inventory.lobster || 0) === 1, 'one catch at the Lobster Reef banked ' + (G.inventory.lobster || 0) + ' Lobster, the stand is [1,1]');
+      const gained = b.xpView() - xp0;
+      assert(gained === Math.floor(98 * 0.39) && gained === 38, 'one catch at the Lobster Reef paid ' + gained + ' fishing XP, the paced grant is 38');
+    });
+    const AG = window.HearthriseActivitiesGrid;
+    assert(AG && typeof AG.__tileForGather === 'function', 'the gather-tile builder is unpublished — the paint half would pass vacuously');
+    assert(AG.__tileForGather(node, 'fishing').indexOf('Yields ' + I.lobster.n) >= 0, 'the Lobster Reef tile does not name ' + I.lobster.n + ' as its yield');
+  }),
+
+  () => tryRun('DEEPWATERS-2: the Lobster Reef tile is LOCKED at Fishing 46 (notify, no start) and LIVE at 47 — the client half of hr_apply activity_locked', () => {
+    const node = (window.FISH_SPOTS || []).find((t) => t.id === 'lobster_reef_s');
+    assert(node && node.req === 47, 'lobster_reef_s must be the Fishing 47 stand, got ' + JSON.stringify(node));
+    const AG = window.HearthriseActivitiesGrid;
+    assert(AG && typeof AG.__tileForGather === 'function', 'the gather-tile builder is unpublished — this test would pass vacuously');
+    /* A GATHER tile locks by class, an at-lock "Level N" label and a notify()
+       click (it has no `disabled` attribute — that is the artisan bench). */
+    const head = (html) => html.slice(0, html.indexOf('>') + 1);
+    dwBench('fishing', 46, null, (G, b) => {
+      const below = AG.__tileForGather(node, 'fishing');
+      assert(/class="act-tile[^"]*\blocked\b/.test(head(below)), 'at Fishing 46 the Lobster Reef tile must carry the `locked` class: ' + head(below));
+      assert(/class="at-lock"[^>]*>[\s\S]*Level 47/.test(below), 'the locked tile must name the level it needs (Level 47)');
+      assert(/onclick="notify\(/.test(head(below)) && below.indexOf('hrActivityTileClick') < 0,
+        'at Fishing 46 the click must only toast the requirement and never reach hrActivityTileClick: ' + head(below));
+      b.setLv(47);
+      const live = AG.__tileForGather(node, 'fishing');
+      assert(!/class="act-tile[^"]*\blocked\b/.test(head(live)) && live.indexOf('at-lock') < 0, 'at Fishing 47 the Lobster Reef tile must be LIVE: ' + head(live));
+      assert(head(live).indexOf("onclick=\"hrActivityTileClick('fishing','lobster_reef_s',9000)\"") >= 0,
+        'at Fishing 47 the click must start the stand: ' + head(live));
+    });
+  }),
+
+  () => tryRun('DEEPWATERS-3: Woodcutting, Mining and Fishing time-to-99 stay within 5% of each other (b390 parity) at 1065.7 / 1051.0 / 1036.8 h', () => {
+    /* Best available rung at every level, bonus-free, the same paced series the
+       strictly-faster and full-tier ladder guards read: hours = Σ xpToNext(L) ÷ best xp/s(L). */
+    const rate = (r) => Math.max(1, Math.floor(r.xp * window.PACE.xp)) / (window.pacedActionMs(r.ms) / 1000);
+    const hoursTo99 = (table) => {
+      let s = 0;
+      for (let L = 1; L < 99; L++) {
+        const best = Math.max(...table.filter((r) => r.req <= L).map(rate));
+        s += (window.xpForLevel(L + 1) - window.xpForLevel(L)) / best;
+      }
+      return s / 3600;
+    };
+    const h = { woodcutting: hoursTo99(window.TREES), mining: hoursTo99(window.ROCKS), fishing: hoursTo99(window.FISH_SPOTS) };
+    const vals = Object.values(h);
+    assert(Math.max(...vals) / Math.min(...vals) <= 1.05,
+      'the gathering 99s are more than 5% apart: ' + JSON.stringify(h) + ' — a new rung moved one skill off b390 parity');
+    [['woodcutting', 1065.7], ['mining', 1051.0], ['fishing', 1036.8]].forEach(([k, want]) => {
+      assert(Math.abs(h[k] - want) < 0.05, k + ' time-to-99 is ' + h[k].toFixed(1) + ' h, the ruling measured ' + want + ' h');
+    });
+  }),
+
+  () => tryRun('DEEPWATERS-4: the cooked fish heal climbs Lobster < Swordfish < Frostfin < Shark < Moonfish, healing per fishing-hour climbs on the named spots, all four are auto-eatable, and the ruled 50 is the ceiling', () => {
+    const I = window.ITEMS, F = window.FISH_SPOTS || [];
+    const ladder = [['lobster_s', 'cooked_lobster', 25, 7031], ['swordfish_s', 'cooked_swordfish', 32, 7200], ['frostfin_s', 'cooked_frostfin', 38, 7435],
+      ['shark_s', 'cooked_shark', 44, 7615], ['moonfish_s', 'cooked_moonfish', 50, 8036]];
+    ladder.forEach(([spot, food, heals, perHour]) => {
+      const s = F.find((n) => n.id === spot), f = I[food];
+      assert(s && f && f.heals === heals, food + ' must heal ' + heals + ', got ' + (f && f.heals));
+      assert(f.foodClass === 'healing' && window.HearthriseCore.autoEat.isAutoEatable(f),
+        food + ' must be auto-eatable healing food (foodClass ' + f.foodClass + ')');
+      const got = Math.round(3600000 / window.pacedActionMs(s.ms) * s.qty[0] * heals);
+      assert(got === perHour, food + ' heals ' + got + ' per fishing-hour at ' + spot + ', the ruling measured ' + perHour);
+    });
+    /* THE RULED CEILING (items.js design block): Moonfish 50 is the top healing
+       Provision — above Dragon Stew 45, equal to Lich Soul Soup 50 — and Void
+       Banquet 60 stays the one food above it. */
+    const top = Math.max(...Object.keys(I).filter((id) => I[id] && I[id].foodClass === 'healing').map((id) => Number(I[id].heals) || 0));
+    assert(top === 50, 'the biggest healing Provision heals ' + top + ', the designer ruled a ceiling of 50 (Cooked Moonfish)');
+    assert(I.dragon_stew.heals === 45 && I.lich_soul_soup.heals === 50 && I.void_banquet.heals === 60, 'the ruling was measured against Dragon Stew 45 / Lich Soul Soup 50 / Void Banquet 60');
+  }),
+
+  () => tryRun('DEEPWATERS-5 (ATTENDED): with only Swordfish Steaks the auto-eat adapter and a manual eat each restore exactly 32 HP from one steak', () => {
+    const A = window.HearthriseAuto;
+    assert(A && typeof A.maybeAutoEat === 'function' && typeof window.eatFood === 'function', 'the auto-eat adapter or eatFood is unpublished — this test would pass vacuously');
+    const beforeEat = A.getEat();
+    let wasParked = false;
+    dwBench('fishing', 1, null, (G) => {
+      try {
+        wasParked = (typeof A._parkEatSync === 'function') ? A._parkEatSync(true) : false;
+        G.traits = Object.assign({}, G.traits, { auto_eat: true, auto_eat_2: true });
+        G.playerMaxHp = 99; G.playerHp = 49; G.inventory = { cooked_swordfish: 2 };
+        A.setEat({ enabled: true, threshold: 0.5, foodId: null });
+        assert(A.maybeAutoEat() === true, 'the client refused to auto-eat a 50 HP deficit at a 50% trigger');
+        assert(G.playerHp === 81 && G.inventory.cooked_swordfish === 1, 'the auto-eat adapter restored ' + (G.playerHp - 49) + ' HP (want exactly 32) and left ' + G.inventory.cooked_swordfish + ' steak(s)');
+        G.playerHp = 59;
+        assert(window.eatFood('cooked_swordfish') === true, 'a manual eat of a Swordfish Steak 40 HP down was refused');
+        assert(G.playerHp === 91 && !G.inventory.cooked_swordfish, 'a manual eat restored ' + (G.playerHp - 59) + ' HP (want exactly 32) and left ' + (G.inventory.cooked_swordfish || 0) + ' steak(s)');
+      } finally { A.setEat(beforeEat); if (typeof A._parkEatSync === 'function') A._parkEatSync(wasParked); }
+    });
   }),
 
   /* ── TOWN-1 — THE COMMON, painted and un-paintable ──────────────────────

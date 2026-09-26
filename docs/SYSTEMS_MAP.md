@@ -196,6 +196,27 @@ Server half = the `hr_activities` rows (`2026-09-26-timberline.sql`; the level
 gate for `hr_apply` and `hr_worker_assign`); xp/ms/yield ride the edge payload.
 Played by `TIMBERLINE-1..4` in-page and `TIMBERLINE-S1` in `tests/accrual-engine.mjs`.
 
+**Fishing and Mining (Deep Waters)** — a new stand every 5-8 levels from 40 to
+90. Each yields an EXISTING raw: no item, recipe or art. Fish stands stay 1 a
+catch (cooked fish vend at full value); the veins pay 1–2.
+
+| req | node id | name | prod | qty | xp | ms |
+|---|---|---|---|---|---|---|
+| 47 | `lobster_reef_s` | Lobster Reef | `lobster` | 1 | 98 | 9000 |
+| 61 | `swordfish_deeps_s` | Swordfish Deeps | `swordfish` | 1 | 133 | 10600 |
+| 71 | `frostfin_reach_s` | Frostfin Reach | `frostfin` | 1 | 166 | 12200 |
+| 83 | `shark_shelf_s` | Shark Shelf | `shark` | 1 | 195 | 13600 |
+| 67 | `deep_mithril_vein` | Deep Mithril Vein | `mithril_ore` | 1–2 | 118 | 9300 |
+| 82 | `deep_ember_vein` | Deep Ember Vein | `emberstone_ore` | 1–2 | 157 | 11200 |
+
+Heal climb (same number in `items.js`, `hr_items.heals` and `hr_feast_foods`):
+Cooked Lobster 25 < Swordfish 32 < Frostfin 38 < Shark 44 < Moonfish 50 (was
+22/28/42/38). Moonfish 50 is above Dragon Stew 45 and equal to Lich Soul Soup
+50, and is now the auto-eat fallback (biggest healer) — ruled in `items.js`.
+Server half = `2026-09-26-deep-waters.sql` (6 activity rows + 4 heals in both
+tables); xp/ms/yield ride the edge payload. Played by `DEEPWATERS-1..5` in-page
+and `DEEPWATERS-S1`/`-S2` in `tests/accrual-engine.mjs`.
+
 ### 5. Monsters + drops — data
 `src/data/monsters.js` → `MONSTERS`. Drops live inline:
 `drops:[{id, ch}]` (ch = 0..1 chance). Add a drop = add to the array; the id must

@@ -1622,6 +1622,16 @@ Scope: `supabase/migrations/2026-09-26-party-view-volatile.sql`, `tests/readonly
 
 Not a money surface (no value, row, grant or baseline row moves). `hr_client_rpc_baseline` unchanged (§4(b) exactly one row); `hr_assert_grant_hygiene(true)` strict green in §4(f) on replay.
 
+#### Gates — real exit codes (final tree, `sec/party-view-volatile`)
+
+| Gate | Exit |
+|---|---|
+| `node tests/schema-drift.mjs` | **0** |
+| `node tests/apply-order-honesty.mjs` | **0** |
+| `node tests/readonly-rpc.mjs` / `--selftest` / `--mutate` | **0 / 0 / 0** (selftest S0–S3; RO-1 mutant → S3 RED, exit 1) |
+| `node tools/lane-done.mjs` | **0** (first run: comment-ratio RED on four "b553" comment lines, paid down; ci-shape RED once, 0 on rerun and standalone) |
+| `node tests/run-smoke.mjs` | **1** — 1355/1369, the ONE ✗ is `errors: clean log` (unhandled "Failed to fetch"), with edge-payload / account-wall / cold-load guards red on "403 / Failed to fetch". **Identical on the base `set/b554` c0f3a4ad (1354/1368, same ✗, same three guards)**: this sandbox cannot reach the Supabase project. Not this branch's; the record gate is the GitHub run. PARTY-8 green; CL-1 mutant (clear removed) → PARTY-8 RED (filtered run) |
+
 MIGRATION: GO
 CLIENT SHIP: GO-WITH-CHANGES
 

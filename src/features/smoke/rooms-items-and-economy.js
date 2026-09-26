@@ -3634,4 +3634,41 @@ export default [
       try { const p = R.render(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
     }
   }),
+  () => tryRun('PROVISION-1: the counter sells lobster by the five and no longer sells one arrow for 150', () => {
+    /* Pack 9. Iron Arrows were an EQUIP_SHOP row at 150 g for ONE arrow that
+       a ranger burns one per shot — a trap, so the row is retired. Lobster is
+       the Supplies meal one band above trout for a knocked-out fighter with
+       gold. Pure resolver only: the edge half is tests/gold-intents.mjs G-PROV. */
+    const Gold = window.HearthriseGold;
+    assert(Gold && typeof Gold.resolvePurchase === 'function' && typeof Gold.shopOfferIndex === 'function',
+      'the gold module does not publish the offer resolver');
+    const r = Gold.resolvePurchase('cooked_lobster', 5, 2000);
+    assert(JSON.stringify(r) === JSON.stringify({ offer: 'seed.cooked_lobster', count: 1 }),
+      'the server cannot price the lobster bundle: ' + JSON.stringify(r));
+    const bad = Gold.resolvePurchase('cooked_lobster', 5, 1);
+    assert(bad.error === 'price_mismatch', 'a forged lobster price resolved: ' + JSON.stringify(bad));
+    const idx = Gold.shopOfferIndex();
+    assert(!Object.values(idx).some(e => e && e.offer === 'equip.iron_arrows'),
+      'equip.iron_arrows is still a gold offer — the one-arrow-for-150 trap is back');
+    assert(Array.isArray(window.EQUIP_SHOP) && !window.EQUIP_SHOP.some(row => row.id === 'iron_arrows'),
+      'EQUIP_SHOP still lists iron_arrows');
+  }),
+
+  () => tryRun('PROVISION-2: no gold offer sells for less than the vendor pays back', () => {
+    /* THE NO-PROFIT RULE, for EVERY item-granting gold offer that ships:
+       buy-then-sell must never mint gold. `>=`, not `>`: seven shipped rows sit
+       at exactly 1.00 (equip.steel_platebody 1500/1500 and seed.carrot_seed,
+       potato_seed, pumpkin_seed, tomato_seed, turnip_seed, wheat_seed) — a
+       designer follow-up, not a faucet. The strict food margin is the empty-bag test. */
+    const idx = window.HearthriseGold && window.HearthriseGold.shopOfferIndex();
+    assert(idx && typeof window.vendorPrice === 'function', 'offer index or vendorPrice not published');
+    const ids = Object.keys(idx);
+    assert(ids.length > 20, 'the offer index is suspiciously small: ' + ids.length);
+    for (const id of ids) {
+      const e = idx[id];
+      const buyback = e.grants * window.vendorPrice(id);
+      assert(e.gold >= buyback,
+        e.offer + ' costs ' + e.gold + ' and sells back for ' + buyback + ' — a gold faucet');
+    }
+  }),
 ];

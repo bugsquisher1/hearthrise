@@ -16,15 +16,15 @@
 //   hand-authored source, tools/gen-shops.mjs is deleted, and the preflight
 //   goes with it. The filename does not change, so nothing downstream moves.
 //
-//   catalogue digest: be3d18ecf0101db9605d140620f8bbfd28f2fb5f5d43dc7af94fed34ba7865b5
+//   catalogue digest: 1fbb112f1a44a5dc9f7b5eafa0d428f19e72c205c72e67ca6ca0382ceeccaf1f
 //   129 offers · 225 cost lines · 6 prices that are formulas, not data
 //
 // EXTRACTED FROM
 //   room              40  src/legacy.js
 //   plot               4  src/legacy.js
 //   theme              6  src/legacy.js
-//   seed              12  src/legacy.js
-//   equip             20  src/legacy.js
+//   seed              13  src/legacy.js
+//   equip             19  src/legacy.js
 //   bounty             5  src/legacy.js
 //   trait              2  src/legacy.js
 //   cosmetic           4  src/render/shop.js
@@ -65,7 +65,7 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-export const SHOPS_DIGEST = "be3d18ecf0101db9605d140620f8bbfd28f2fb5f5d43dc7af94fed34ba7865b5";
+export const SHOPS_DIGEST = "1fbb112f1a44a5dc9f7b5eafa0d428f19e72c205c72e67ca6ca0382ceeccaf1f";
 
 /** Every offer whose price is fully known as data. */
 export const SHOP_OFFERS = [
@@ -269,13 +269,6 @@ export const SHOP_OFFERS = [
     name: "Hunter Necklace",
     cost: [{ kind: "currency", id: "gold", amount: 500 }],
     grant: [{ kind: "item", id: "hunter_necklace", amount: 1 }],
-    repeatable: true,
-  },
-  {
-    id: "equip.iron_arrows", table: "equip",
-    name: "Iron Arrows",
-    cost: [{ kind: "currency", id: "gold", amount: 150 }],
-    grant: [{ kind: "item", id: "iron_arrows", amount: 1 }],
     repeatable: true,
   },
   {
@@ -746,6 +739,13 @@ export const SHOP_OFFERS = [
     repeatable: true,
   },
   {
+    id: "seed.cooked_lobster", table: "seed",
+    name: "Cooked Lobster",
+    cost: [{ kind: "currency", id: "gold", amount: 2000 }],
+    grant: [{ kind: "item", id: "cooked_lobster", amount: 5 }],
+    repeatable: true,
+  },
+  {
     id: "seed.cooked_shrimp", table: "seed",
     name: "Cooked Shrimp",
     cost: [{ kind: "currency", id: "gold", amount: 150 }],
@@ -958,14 +958,14 @@ export const SHOP_TABLES = [
     "anchor": "const SEED_SHOP=[",
     "spends_at": "legacy.js buyShopItem(id, qty, cost)",
     "note": "the price is per BUNDLE of qty, not per unit",
-    "count": 12
+    "count": 13
   },
   {
     "table": "equip",
     "origin": "src/legacy.js",
     "anchor": "const EQUIP_SHOP=[",
     "spends_at": "legacy.js buyShopItem(id, qty, cost)",
-    "count": 20
+    "count": 19
   },
   {
     "table": "bounty",

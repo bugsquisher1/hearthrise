@@ -1588,7 +1588,7 @@ export default [
     const G = window.G; const snap = snapshotG();
     try {
       G.enchant = { weapon: 'ember' };
-      G.skills = Object.assign({}, G.skills, { attack: 4000000, strength: 4000000, defense: 4000000 });
+      G.skills = Object.assign({}, G.skills, { attack: 4000000, strength: 4000000, defense: 4000000 }); stampRecordLikeLoad(window.G);
       G.equipment = Object.assign({}, G.equipment, { weapon: 'bronze_sword' });
       G.inventory = Object.assign({}, G.inventory, { iron_sword: 1 });
       // The levels above meet the wield gate; the client-only key is gone.
@@ -1601,7 +1601,7 @@ export default [
       /* A non-weapon slot change never touches it. */
       window.clearEnchantOnWeaponChange('helmet', null, 'steel_helm');
       assert(G.enchant.weapon === 'frost', 'a non-weapon slot change must never clear the enchant');
-    } finally { restoreG(snap); }
+    } finally { restoreGAndRecord(snap); }
   }),
 
   () => tryRun('ELEM-6: the enchant persists (in the snapshot, absent from NO_SYNC) and the applier authors it', () => {
@@ -8502,7 +8502,7 @@ export default [
     const tree = (window.TREES || []).find((t) => t.id === 'willow_tree') || (window.TREES || [])[1]; const mid = (window.MONSTERS || {}).slime ? 'slime' : Object.keys(window.MONSTERS || {})[0];
     assert(!!tree && !!mid && !!window.HearthriseActivity && typeof window.openSkillDetail === 'function', 'setup: no tree/monster/activity-seam fixture — the reported gesture cannot be driven');
     try {
-      await cameFromArc({ skillId: 'woodcutting', targetId: tree.id, prod: tree.prod, mid, seed: (G) => { G.skills = Object.assign({}, G.skills, { woodcutting: 14000000 }); }, start: () => window.startSkill('woodcutting', tree.id, tree.ms) },
+      await cameFromArc({ skillId: 'woodcutting', targetId: tree.id, prod: tree.prod, mid, seed: (G) => { G.skills = Object.assign({}, G.skills, { woodcutting: 14000000 }); stampRecordLikeLoad(window.G); }, start: () => window.startSkill('woodcutting', tree.id, tree.ms) },
         async ({ G, M, sent, settle, tile, stalePaint }) => {
           tile.click(); await settle();
           const sw = sent.filter((b) => b.activity && b.activity.kind === 'gather' && b.activity.id === tree.id);

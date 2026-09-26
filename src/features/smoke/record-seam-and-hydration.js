@@ -39,7 +39,7 @@ const benchSwitchArc = async (body) => {
   };
   try {
     window.notify = function (m) { said.push(String(m)); };
-    G.skills = Object.assign({}, G.skills, { smithing: 200000 });
+    G.skills = Object.assign({}, G.skills, { smithing: 200000 }); stampRecordLikeLoad(G);
     G.inventory = Object.assign({}, G.inventory, { iron_bar: 200, oak_plank: 50 });
     window.fetch = function (u, init) {
       if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
@@ -67,7 +67,7 @@ const benchSwitchArc = async (body) => {
     M.resetActivity(); M.configureActivity(null);
     try { A.configureAccrual(null); } catch (e) {}
     try { window.stopSkill(); } catch (e) {}
-    restoreG(snap);
+    restoreGAndRecord(snap);
   }
 };
 

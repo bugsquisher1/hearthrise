@@ -1919,6 +1919,97 @@ export default [
       'the slot line\'s TEXT must keep the b348 wording for _renderInvSummary\'s contract — got "' + out.spaceText + '"');
   }),
 
+  /* ── regression suite — THE BAG'S FILTER CHIPS WERE 28px ON A PHONE ──
+     visual-qa P1 since 2026-09-12: at 852x393 the Keep chips were 28px tall and
+     33px wide, the category squares 30px — the smallest targets on the screen a
+     player filters most. The phone floor is `--tap` (44px) on BOTH axes, and
+     what is measured is the HIT AREA (`elementFromPoint` walked out from each
+     chip's centre), not the painted box, so a neighbour overlapping the chip
+     cannot pass for a big target. Same iframe method as the bag probe above: the media
+     queries evaluate against the frame, so 852x393 is the device. RED at 28. */
+  () => tryRun('b554: the bag\'s Keep and category chips take a 44px thumb at 852x393', () => {
+    const render = window._renderInvFancy || window.renderInvFancy;
+    assert(typeof render === 'function', 'the inventory renderer seam (window._renderInvFancy) must exist');
+    const panel = document.getElementById('panel-inventory');
+    assert(panel, '#panel-inventory must exist');
+    render();
+    if (window.HearthriseInvSubTabs) window.HearthriseInvSubTabs.install();
+    const markup = panel.innerHTML;
+    assert(/invc-lf-chip/.test(markup) && /invc-cat-btn/.test(markup),
+      'the probe needs the real Keep chips and category strip — renderInvFancy produced ' + (/invc-lf-chip/.test(markup) ? 'no category strip' : 'no Keep chips'));
+    let css = '', sheetsSeen = 0;
+    for (const sheet of document.styleSheets) {
+      let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
+      const href = sheet.href || '';
+      if (href && !/(tokens|legacy|audit-overrides|theme-cozy|art-direction)\.css/.test(href)) continue;
+      if (href) sheetsSeen++;
+      for (const r of rules) css += r.cssText + '\n';
+    }
+    assert(sheetsSeen >= 5, 'the probe must find the token sheet and all four inventory stylesheets, saw ' + sheetsSeen);
+    const frame = document.createElement('iframe');
+    frame.setAttribute('style', 'position:fixed;left:-4000px;top:0;width:852px;height:393px;border:0;visibility:hidden');
+    document.body.appendChild(frame);
+    let chips;
+    try {
+      const doc = frame.contentDocument;
+      doc.open();
+      doc.write('<!doctype html><html><head><meta charset="utf-8"><style>' + css + '</style></head>' +
+        '<body data-theme="hearthlight"><div id="app" class="app"><main class="main">' +
+        '<div style="flex:0 0 72px;height:72px"></div>' +
+        '<section class="panel active" id="panel-inventory" data-mobile-sub="bag">' + markup + '</section>' +
+        '</main></div></body></html>');
+      doc.close();
+      const hitOf = (el) => {
+        el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' });
+        const b = el.getBoundingClientRect(), cx = b.left + b.width / 2, cy = b.top + b.height / 2;
+        const hits = (x, y) => { const e = doc.elementFromPoint(x, y); return !!e && (e === el || el.contains(e)); };
+        const reach = (dx, dy) => { let n = 0; while (n < 44 && hits(cx + dx * (n + 1), cy + dy * (n + 1))) n++; return n; };
+        return { cls: el.className.split(' ')[0], t: el.getAttribute('title') || '', box: Math.round(b.width) + 'x' + Math.round(b.height),
+          centre: hits(cx, cy), w: reach(-1, 0) + reach(1, 0) + 1, h: reach(0, -1) + reach(0, 1) + 1 };
+      };
+      chips = [...doc.querySelectorAll('.invc-lf-chip, .invc-cat-btn')].map(hitOf);
+    } finally { frame.remove(); }
+    assert(chips.filter((c) => c.cls === 'invc-lf-chip').length >= 2, 'the probe found no Keep chips in the 852x393 frame');
+    chips.forEach((c) => {
+      assert(c.centre, 'the ' + c.cls + ' "' + c.t + '" is covered at its own centre in the 852x393 frame (' + c.box + ')');
+      assert(c.h >= 44 && c.w >= 44,
+        'THE b554 BUG: the ' + c.cls + ' "' + c.t + '" takes a ' + c.w + 'x' + c.h + 'px thumb on a landscape phone (painted ' + c.box + ') — the floor is --tap, 44px on both axes');
+    });
+  }),
+
+  /* ── regression suite — A STRAY BRACE DELETED A RULE, SILENTLY ──────
+     theme-cozy.css carried `}e: 12px;\n}` — the tail of a botched edit. CSS error
+     recovery turns an unmatched `}` at top level into the start of a selector,
+     which swallowed the NEXT rule whole: `.global-quests-strip{display:none
+     !important}`. So the 80px legacy quest strip, meant to be replaced by the
+     topbar Quests pill, sat on every screen — a fifth of a 393px phone, and the
+     reason the 44px tap floor first buried the bag. No guard reads a sheet's
+     text, so this checks every shipped stylesheet's brace balance (comments and
+     quoted strings stripped) and the strip it hid. */
+  () => tryRunAsync('b554: every stylesheet balances its braces, and the legacy quest strip stays hidden', async () => {
+    const links = [...document.querySelectorAll('link[rel="stylesheet"]')]
+      .map((l) => l.getAttribute('href') || '').filter((h) => /^src\/styles\/[\w-]+\.css/.test(h));
+    assert(links.length >= 8, 'the probe found only ' + links.length + ' src/styles sheets linked from index.html');
+    for (const href of links) {
+      const res = await fetch(href, { cache: 'no-store' });
+      assert(res.ok, href + ' did not load (' + res.status + ')');
+      const text = (await res.text()).replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
+        .replace(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g, (m) => m.replace(/[{}]/g, ' '));
+      let depth = 0, line = 1;
+      for (const ch of text) {
+        if (ch === '\n') line++;
+        else if (ch === '{') depth++;
+        else if (ch === '}' && --depth < 0) break;
+      }
+      assert(depth >= 0, 'THE b554 BUG: ' + href.split('?')[0] + ' closes a brace it never opened at line ' + line
+        + ' — the browser will read the next rule as garbage and drop it');
+      assert(depth === 0, href.split('?')[0] + ' ends with ' + depth + ' unclosed brace(s) — every rule after the gap is inside it');
+    }
+    const strip = document.getElementById('global-quests-strip');
+    if (strip) assert(getComputedStyle(strip).display === 'none',
+      'THE b554 BUG: the legacy .global-quests-strip is drawn (' + getComputedStyle(strip).display + ') — the topbar Quests pill replaces it (theme-cozy.css)');
+  }),
+
   () => tryRun('b369: Character > Equipment survives a 922x423 landscape phone — square, contained, non-overlapping slots (Tyler: "the weapon sprite is floating over the Cape cell")', () => {
     /* WHY THE EXISTING LANDSCAPE GUARD DID NOT CATCH THIS. b327 (immediately
      * above) is the 922x423 iframe probe, and it renders `#panel-inventory`
@@ -4959,6 +5050,33 @@ export default [
      fitting six across can hold on one line, so it must WRAP), and the row fits
      the rail it is drawn in. The landscape chip rail scrolls sideways on
      purpose and is held out by the viewport guard, not by an exception. */
+  /* ── regression suite — "Board Board" ────────────────────────────────
+     The no-contract Bounty card read "Take one at the Bounty Board" and then a
+     button reading "Board ▸" — visual-qa's duplicate-word finding on the combat
+     panel at both viewports. Asserted on the RENDERED card text, in the state
+     that produced it (no active contract), for every destination, so the next
+     card whose prose and verb collide is caught too. */
+  () => tryRun('b554: no War Table destination card doubles a word ("Board Board")', () => {
+    const CS = window.HearthriseCombatScreens;
+    if (!CS || typeof CS.setView !== 'function') { skip('combat screens module absent'); return; }
+    const snap = snapshotG();
+    try {
+      const g = window.G;
+      if (g.bountyHunter) g.bountyHunter.active = null;
+      CS.setView('table'); CS.render();
+      const dests = document.getElementById('wt-dests');
+      const cards = dests ? [...dests.querySelectorAll('.wt-dest')] : [];
+      assert(cards.some((c) => /Bounty/.test((c.querySelector('.wtd-kick') || {}).textContent || '')),
+        'the no-contract Bounty destination did not render — the state that read "Board Board" is not under test');
+      cards.forEach((c) => {
+        const text = (c.textContent || '').replace(/\s+/g, ' ').trim();
+        const dup = text.match(/\b(\w{3,})\s+\1\b/i);
+        assert(!dup, 'THE b554 BUG: the ' + ((c.querySelector('.wtd-kick') || {}).textContent || '?')
+          + ' destination reads "' + (dup && dup[0]) + '" — "' + text.slice(0, 90) + '"');
+      });
+    } finally { restoreG(snap); try { CS.render(); } catch (e) {} }
+  }),
+
   () => tryRun('b548: War Table destinations fit their rail and never trim a name', () => {
     const CS = window.HearthriseCombatScreens;
     if (!CS || typeof CS.setView !== 'function') { skip('combat screens module absent'); return; }

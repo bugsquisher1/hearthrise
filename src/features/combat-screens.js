@@ -816,7 +816,7 @@ function destinations() {
   } else {
     out.push({
       kick: 'Bounty', glyph: 'uiTarget', name: 'No contract',
-      meta: 'Take one at the Bounty Board', verb: 'Board ▸', go: 'tab', tab: 'bounty',
+      meta: 'Take one at the Bounty Board', verb: 'Browse ▸', go: 'tab', tab: 'bounty',
     });
   }
 

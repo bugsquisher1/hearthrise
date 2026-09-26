@@ -2312,7 +2312,7 @@ body[data-theme] .brand-word {
   }
   body[data-theme] #panel-inventory .td-tabs .td-tab {
     padding: 4px 4px !important;
-    min-height: 30px !important;
+    min-height: var(--tap) !important;
     min-width: 0;
   }
   body[data-theme] #panel-inventory[data-mobile-sub="equip"] .invc-stats-col {
@@ -2367,7 +2367,7 @@ body[data-theme] .brand-word {
     flex-direction: row !important;
     align-items: center; justify-content: center;
     gap: 6px !important;
-    min-height: 30px !important;
+    min-height: var(--tap) !important;
     padding: 3px 8px !important;
     letter-spacing: .06em;
   }
@@ -2401,18 +2401,18 @@ body[data-theme] .brand-word {
   body[data-theme] #panel-inventory .invc-topbar .invc-actions button,
   body[data-theme] #panel-inventory .invc-topbar .invc-actions .btn {
     padding: 4px 9px !important;
-    min-height: 34px !important;
+    min-height: var(--tap) !important;
     font-size: var(--t-micro);
     white-space: nowrap;
   }
   body[data-theme] #panel-inventory .invc-search-row input {
-    padding: 5px 10px; min-height: 34px; font-size: var(--t-micro);
+    padding: 5px 10px; min-height: var(--tap); font-size: var(--t-micro);
   }
   body[data-theme] #panel-inventory .invc-search-row button {
-    padding: 5px 10px !important; min-height: 34px !important; font-size: var(--t-micro);
+    padding: 5px 10px !important; min-height: var(--tap) !important; font-size: var(--t-micro);
   }
 
-  /* Category chips: one non-wrapping scrollable rank of 30px squares. */
+  /* Category chips: one non-wrapping scrollable rank of `--tap` squares (b554; were 30px). */
   body[data-theme] #panel-inventory .invc-cat-strip {
     /* `flex: 0 0 auto` is load-bearing: the bag below it carries `flex:1` with
      * a 660px content height, so a shrinkable strip was squeezed from 30px to
@@ -2425,8 +2425,8 @@ body[data-theme] .brand-word {
   }
   body[data-theme] #panel-inventory .invc-cat-strip::-webkit-scrollbar { height: 0; }
   body[data-theme] #panel-inventory .invc-cat-btn {
-    width: 30px !important; height: 30px !important;
-    min-height: 30px !important;
+    width: var(--tap) !important; height: var(--tap) !important;
+    min-height: var(--tap) !important;
   }
 
   /* The STANDING kept-classes row (src/features/loot-filter.js) is chrome too,
@@ -2446,8 +2446,8 @@ body[data-theme] .brand-word {
    * (tests/run-smoke.mjs ~1426). Measured: 41px past, offender .invc-lf-chip.
    *
    * So the words come off instead and the chip keeps its bag-category glyph: the
-   * same rank is ~440px and simply fits, at one rank, with nothing clipped and
-   * nothing scrolled. The title attribute carries the word for a long-press, and
+   * same rank is ~440px (~620px at b554's 44px thumb floor) and simply fits, at
+   * one rank, with nothing clipped and nothing scrolled. The title attribute carries the word for a long-press, and
    * `:has(.hr-glyph)` means a chip that somehow has no glyph keeps its label.
    * KNOWN CEILING, shared with the category strip: past roughly twenty item
    * classes even the glyph rank stops fitting 820px, at which point BOTH controls
@@ -2461,7 +2461,9 @@ body[data-theme] .brand-word {
   body[data-theme] #panel-inventory .invc-lf-chip {
     flex: 0 0 auto;
     padding: 4px 7px;
-    min-height: 28px;
+    min-height: var(--tap);
+    min-width: var(--tap);
+    justify-content: center;
   }
   body[data-theme] #panel-inventory .invc-lf-chip:has(.hr-glyph) .invc-lf-txt { display: none; }
 

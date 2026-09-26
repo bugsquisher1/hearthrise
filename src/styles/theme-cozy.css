@@ -643,12 +643,13 @@ body[data-theme="classic"] {
  * giving the actual game content most of the screen.
  * ============================================================ */
 @media (max-height: 540px) and (orientation: landscape) and (max-width: 1024px) {
-  /* Topbar — single short row, no wrap */
+  /* Topbar — single short row, no wrap. `--tap` tall (b554): the Quests pill
+     sits in it, and a 40px bar capped that pill's hit area at 36px. */
   .topbar {
     padding: 2px 6px !important;
     flex-wrap: nowrap !important;
-    height: 40px !important;
-    min-height: 40px !important;
+    height: var(--tap) !important;
+    min-height: var(--tap) !important;
   }
   .top-stats { flex-wrap: nowrap !important; }
   .t-stat {
@@ -678,24 +679,25 @@ body[data-theme="classic"] {
   }
   /* b285 (player's-eye QA): these sub-tab strips are the PRIMARY in-screen
      navigation (Foes/Arena/Style, Wood/Mine/Fish, Bag/Equip) and were 32px — too
-     small for a thumb. 40px is a real improvement while staying compact enough for
-     a 393px-tall landscape screen (44px everywhere would eat the viewport). */
+     small for a thumb. b285 stopped at 40px to save height; b554 raises every
+     floor in this block to `--tap` (44px) — the phone tap floor audit-overrides.css
+     already declares for .btn/.chip, which these !important 40s were undercutting.
+     tests/visual-qa-gate.mjs ratchets the per-screen count of sub-44px hit areas. */
   .cmb-mob-tabs .cmt-btn,
   .inv-mob-tabs .imt-btn,
   .act-mob-strip .ams-btn {
-    min-height: 40px !important;
+    min-height: var(--tap) !important;
     padding: 5px 8px !important;
     font-size:calc(14.5px * var(--ui-scale, 1)) !important;
   }
   /* b285: the other constantly-tapped in-panel controls — filter chips (Rooms /
      Themes / leaderboard categories / shop tabs) and the inventory action row —
-     were 34-35px. Same 40px floor. The topbar stays deliberately slim (32px strip)
-     because raising it costs scarce vertical space on a landscape phone. */
+     were 34-35px. Same `--tap` floor (b554; was 40px). */
   /* b285: the "Bigger plot" badge is a real shortcut (onclick -> House/Plot) but
      rendered as a 20px inline label — the smallest tap target in the game. If it
      is clickable it gets a real target. */
   .panel .mr-lock[onclick] {
-    min-height: 40px !important;
+    min-height: var(--tap) !important;
     display: inline-flex !important; align-items: center;
     padding: 0 10px !important;
   }
@@ -703,7 +705,7 @@ body[data-theme="classic"] {
   .panel .shops-tab,
   .invc-topbar .invc-actions button,
   .invc-topbar .invc-actions .btn {
-    min-height: 40px !important;
+    min-height: var(--tap) !important;
   }
   .cmb-mob-tabs .cmt-btn .cmt-ic,
   .inv-mob-tabs .imt-btn .imt-ic { font-size:calc(14.5px * var(--ui-scale, 1)) !important; }
@@ -1114,7 +1116,7 @@ body[data-theme="classic"] {
   }
   #panel-combat .combat-picker button {
     padding: 4px 10px !important;
-    min-height: 36px !important;
+    min-height: var(--tap) !important;
     font-size:calc(14.5px * var(--ui-scale, 1)) !important;
   }
   /* Monster cards in the picker — denser */
@@ -1246,7 +1248,7 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
   /* Topbar pills (Quests, stats, gear) */
 .topbar button,
 .topbar .t-stat {
-    min-height: 36px !important;
+    min-height: var(--tap) !important;
     padding: 6px 10px !important;
   }
   /* Monster cards / bounty cards / shop rows */
@@ -1261,7 +1263,7 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
   .shop-row button,
   .iap-card button,
   .btn-sm {
-    min-height: 40px !important;
+    min-height: var(--tap) !important;
     padding: 8px 14px !important;
     font-size:calc(14.5px * var(--ui-scale, 1)) !important;
   }
@@ -1330,7 +1332,6 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
     height: 44px !important;
     flex-basis: 44px !important;
   }
-}e: 12px;
 }
 
 /* Card body padding (legacy uses padding on .card; offset for the band) */

@@ -46,7 +46,18 @@
 // detail text, because the sweep names the bar in the detail rather than the el.
 // If that banner ever becomes real chrome, delete the EXCLUDE list and re-record.
 //
-// Exit: 0 green (or green-with-notes) · 1 a P0 or a NEW P1 · 2 harness problem.
+// ── THE TAP-TARGET RATCHET (b554) ───────────────────────────────────────────
+// Small targets are P3 in the key comparison above (reported, never red), which
+// is how the phone pass sat at 116 sub-44px controls for a fortnight. So they
+// get a COUNT ceiling instead of a key: per screen at the landscape-phone
+// viewport, `stats.smallTargets` (controls whose HIT AREA — not painted box —
+// is under 44px either way; see visual-qa.mjs) may never exceed
+// tests/small-target-ratchet.baseline.json. A screen the baseline does not name
+// has a ceiling of 0. `--write` only ever LOWERS a ceiling; raising one is a
+// hand edit with a reason, reviewed like any guard change.
+//
+// Exit: 0 green (or green-with-notes) · 1 a P0, a NEW P1 or a risen tap-target
+// count · 2 harness problem.
 // ════════════════════════════════════════════════════════════════════════
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -56,6 +67,8 @@ import { spawnSync } from 'node:child_process';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const FINDINGS = join(ROOT, 'docs', 'reports', 'visual-qa', 'findings.json');
+const TAP_BASELINE = join(ROOT, 'tests', 'small-target-ratchet.baseline.json');
+export const TAP_VIEWPORT = 'landscape';
 
 /* The environmental exclusion. Matched against BOTH the `el` selector and the
    `detail` string of every finding. Keep this list short and justified. */
@@ -82,6 +95,31 @@ export function index(findings) {
     }
   }
   return { keys, hard };
+}
+
+/** Per-screen sub-44px hit-area counts at the phone viewport. A swept screen
+ *  that carries no count is null — the sweep did not measure it, which must
+ *  read as a failure, never as zero. */
+export function tapCounts(findings) {
+  const out = {};
+  for (const f of findings || []) {
+    if (f.viewport !== TAP_VIEWPORT) continue;
+    const n = f.stats && f.stats.smallTargets;
+    out[f.screen] = Number.isInteger(n) ? n : null;
+  }
+  return out;
+}
+
+/** The ratchet: a count may fall, never rise. `ceilings` = { screen: max }. */
+export function ratchet(current, ceilings) {
+  const fails = [], notes = [];
+  for (const [screen, n] of Object.entries(tapCounts(current))) {
+    const max = Number.isInteger(ceilings && ceilings[screen]) ? ceilings[screen] : 0;
+    if (n === null) fails.push(`TAP ${screen}/${TAP_VIEWPORT}: no smallTargets count — the sweep did not measure hit areas`);
+    else if (n > max) fails.push(`TAP ${screen}/${TAP_VIEWPORT}: ${n} controls under a 44px hit area (ceiling ${max})`);
+    else if (n < max) notes.push(`tap ceiling ${screen}/${TAP_VIEWPORT} can drop ${max}→${n} (--write)`);
+  }
+  return { fails, notes };
 }
 
 /** The whole comparison, as a pure function — this is what --selftest exercises. */
@@ -138,7 +176,17 @@ function main(argv) {
     return 2;
   }
 
+  const ceilings = (readJson(TAP_BASELINE) || {}).ceilings || {};
   if (WRITE) {
+    const counts = tapCounts(current);
+    const next = { ...ceilings };
+    for (const [screen, n] of Object.entries(counts)) {
+      if (n === null) continue;
+      next[screen] = Number.isInteger(ceilings[screen]) ? Math.min(ceilings[screen], n) : n;
+      if (Number.isInteger(ceilings[screen]) && n > ceilings[screen])
+        console.error(`  ! tap ceiling ${screen} NOT raised ${ceilings[screen]}→${n}: a ceiling only falls (hand-edit with a reason)`);
+    }
+    writeFileSync(TAP_BASELINE, JSON.stringify({ viewport: TAP_VIEWPORT, ceilings: next }, null, 2) + '\n');
     const { fails, notes } = compare(current, baseline || []);
     console.log(`\n✓ visual-qa baseline recorded (${index(current).keys.size} comparable findings, `
       + `.hr-desktopmode-banner excluded). Was: ${fails.length} would-be failure(s), ${notes.length} fix(es).`);
@@ -146,10 +194,12 @@ function main(argv) {
   }
 
   const { fails, notes, counts } = compare(current, baseline);
+  const tap = ratchet(current, ceilings);
+  fails.push(...tap.fails); notes.push(...tap.notes);
   writeFileSync(FINDINGS, baselineRaw);   // byte-for-byte: the baseline stays the baseline
   console.log(`\n${''.padEnd(70, '-')}`);
   if (fails.length) {
-    console.error(`  ✗ visual gate: ${fails.length} P0/new-P1 finding(s)`);
+    console.error(`  ✗ visual gate: ${fails.length} P0/new-P1/tap-ratchet finding(s)`);
     for (const f of fails) console.error('      ' + f);
     console.error('\n  A NEW clipped heading or a NEW block of content under a fixed bar is a player-');
     console.error('  visible regression on a rendered screen. Fix the layout. If the finding is a');
@@ -223,6 +273,26 @@ function selftest() {
   if (r11.fails.length) fails.push('SELFTEST: an empty report failed rather than noting every finding as fixed');
   if (r11.notes.length < 2) fails.push('SELFTEST: an empty report did not note the baseline findings as fixed');
 
+  // 12-16. THE TAP-TARGET RATCHET. A count that rises is red; equal and lower
+  // are green (lower is a note); a screen the baseline never named has a ceiling
+  // of 0; a screen with no count at all is red, not zero.
+  const T = (screen, n) => ({ screen, viewport: 'landscape', issues: [], stats: n === undefined ? {} : { smallTargets: n } });
+  const tapOk = (label, cur, ceil, want) => {
+    const r = ratchet(cur, ceil);
+    if ((r.fails.length > 0) !== want) fails.push(`SELFTEST: tap ${label} — expected ${want ? 'RED' : 'GREEN'}, got ${JSON.stringify(r)}`);
+    return r;
+  };
+  tapOk('count equal to its ceiling', [T('inventory', 2)], { inventory: 2 }, false);
+  tapOk('count ONE over its ceiling (the b554 class returning)', [T('inventory', 3)], { inventory: 2 }, true);
+  if (!tapOk('count under its ceiling', [T('inventory', 0)], { inventory: 2 }, false).notes.length)
+    fails.push('SELFTEST: tap — a fallen count produced no --write note');
+  tapOk('an unnamed screen with a small target', [T('brand-new', 1)], {}, true);
+  tapOk('a swept screen with no count', [T('combat')], { combat: 5 }, true);
+  tapOk('desktop counts are not ratcheted', [{ screen: 'combat', viewport: 'desktop', issues: [], stats: { smallTargets: 30 } }], {}, false);
+  const realTap = readJson(TAP_BASELINE);
+  if (!realTap || realTap.viewport !== TAP_VIEWPORT || !realTap.ceilings || !Object.keys(realTap.ceilings).length)
+    fails.push('SELFTEST: tests/small-target-ratchet.baseline.json is missing or names no screens');
+
   // the committed baseline must actually parse and index
   if (existsSync(FINDINGS)) {
     const real = readJson(FINDINGS);
@@ -237,7 +307,8 @@ function selftest() {
   if (fails.length) { for (const f of fails) console.error('  ✗ ' + f); return 1; }
   console.log('✓ visual-qa-gate --selftest: 11 comparison cases — P0/ERR and new-P1 keys red; '
     + 'pixel/copy deltas, new P2/P3 and .hr-desktopmode-banner findings green; fixes are notes; '
-    + 'committed baseline indexes clean');
+    + 'committed baseline indexes clean. Tap ratchet: 6 cases — a count over its ceiling, an '
+    + 'unnamed screen and an unmeasured screen red; equal, lower and desktop green');
   return 0;
 }
 

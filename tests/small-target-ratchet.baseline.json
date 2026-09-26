@@ -1,0 +1,18 @@
+{
+  "viewport": "landscape",
+  "ceilings": {
+    "profile": 0,
+    "character": 0,
+    "combat": 0,
+    "skills": 0,
+    "farming": 0,
+    "inventory": 0,
+    "house": 0,
+    "events": 0,
+    "shops": 0,
+    "clan": 0,
+    "party": 0,
+    "social": 0,
+    "bounty": 0
+  }
+}

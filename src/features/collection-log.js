@@ -382,6 +382,8 @@
   function monDetailHtml(id) {
     var M = (window.MONSTERS || {})[id]; if (!M) return '';
     var b = (window.G.bestiary || {})[id] || {};
+    var note = (window.HearthriseMonsterNotes || {})[id];
+    var noteHtml = (typeof note === 'string') ? '<div class="hr-cl-stats hr-cl-note">' + note + '</div>' : '';
     var drops = (M.drops || []).map(function (d) {
       var it = (window.ITEMS || {})[d.id];
       var pct = (d.ch || 0) * 100;
@@ -400,6 +402,7 @@
       '<div style="text-align:center"><div class="hr-cl-hero">' + window.monsterArt(id, 46) + '</div>' +
       '<div class="hr-cl-hn" style="font-size:calc(23px * var(--ui-scale, 1))">' + M.name + '</div>' +
       '<div class="hr-cl-eyebrow">Tier ' + (M.tier || 1) + ' · ' + (M.family || '') + ' · ' + fmt(b.kills || 0) + ' slain</div></div>' +
+      noteHtml +
       '<div class="hr-cl-sec">Combat</div>' +
       '<div class="hr-cl-stats">' + M.hp + ' HP · ' + M.atk + ' ATK · ' + M.def + ' DEF · ' + M.xp + ' xp · weak to ' + (M.weaponWeak || '—') + '</div>' +
       '<div class="hr-cl-sec">Drop table</div><div style="padding:2px 12px 14px">' + drops + '</div>' +

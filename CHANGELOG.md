@@ -4,6 +4,16 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 555 — 2026-09-26 (Every item has a story)
+
+**Every item has a line.** All 538 items in the game now carry a short "what is it" line in their details: 119 of them had none before. Ores, fish, seeds, charms and trophies all say what they are and where they come from.
+
+**A hunter's note for every monster.** Each of the 108 monsters in the bestiary now has a field note from a hunter who has met it: in the bestiary once you have found or fought it, and in its collection-log entry. Monsters you have not met yet keep their secrets.
+
+**Buy twice in a row.** After a purchase, the shop's Buy buttons stay usable. Before this build, buying once greyed out every Buy button on the tab until you left and came back.
+
+**Coming next (built and security-reviewed, waiting on the server switch-over):** Lucky Finds, Timberline's five new woodcutting stands, the bigger collection log, and tomorrow's batch: Field Salvage armour drops, Deep Waters fishing and mining, the Journeyman's Road quests after the starter chain, and lobster at the Provisioner's counter.
+
 ## v0.9.2-beta build 554 — 2026-09-26 (Every button fits a thumb)
 
 **Bigger buttons on phones.** On a landscape phone, every control on every screen now takes a full thumb (44 px or more): the bag's filter chips, the Keep and category squares, the War Table's tier and class chips, the shop and bounty buttons, and the Quests button in the top bar. Before this build over a hundred of them were smaller than that.

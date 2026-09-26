@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 64 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, awayGatherSpan, tryRunRestampingBalance, xpOf, xpZero, goldOf, snapshotG, setAway, restoreG, restoreGAndRecord, on } from './_harness.js?v=554';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, awayGatherSpan, tryRunRestampingBalance, xpOf, xpZero, goldOf, snapshotG, setAway, restoreG, restoreGAndRecord, on } from './_harness.js?v=555';
 
 export default [
 
@@ -1975,6 +1975,12 @@ export default [
       assert(document.querySelector('.inv-detail-info'), 'the flyout must render the Source / Used-in lines');
       window.closeInvDetail();
     } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('item flavour coverage — Hearthfinds and dungeon uniques explain themselves too', () => {
+    for (const id of ['dungeon_scrip', 'emberheart', 'voidmaw_scepter']) {
+      assert(typeof window.itemDesc(id) === 'string' && window.itemDesc(id).length > 0, `"${id}" must carry a flavour line`);
+    }
   }),
 
   () => tryRun('b241: a stray item tooltip is dismissed by a tap (mobile stuck-tooltip fix)', () => {

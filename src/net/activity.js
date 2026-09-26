@@ -81,14 +81,14 @@ import {
   /* THE FRAME GATE (WORLD_TICK_DESIGN.md §7.1), imported — this module is the
      THIRD applier of a server envelope and it had no monotonic rule at all. */
   classifyFrame, commitFrame, noteFrameDrop, clearFrameDrops,
-} from './accrue.js?v=554';
+} from './accrue.js?v=555';
 /* THE PAYABLE-BENCH PREDICATE, read — never restated. `benchPayable` lives in
    src/core/artisan-sim.js and is the SAME function the accrual engine's
    `computeAccrual` and the intent's shape check read, so the client, the engine
    and the intent cannot disagree about which benches exist tonight. Precedent:
    src/net/gold.js already imports src/data/shops.js for exactly this reason. */
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=554';
-import { indexArtisanRecipes, recipePayable } from '../core/artisan-sim.js?v=554';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=555';
+import { indexArtisanRecipes, recipePayable } from '../core/artisan-sim.js?v=555';
 
 export const ACTIVITY_VERB = 'set_activity';
 

@@ -2489,6 +2489,18 @@ jobs:
           node tests/quest-reward-parity.mjs
           node tests/quest-reward-parity.mjs --selftest
 
+      # ITEM FLAVOUR COVERAGE — every catalogued item has a "what is it" line.
+      # Content pack 4 closed 419/538 to 538/538 in the base ITEM_DESC literal;
+      # this is the floor that keeps it there. Client-only (item-descriptions.js
+      # is not one of the 19 files hr-accrue vendors), so no database or
+      # credentials — milliseconds. --selftest plants the nine defect classes
+      # the brief names, each caught by its own named FLV assertion.
+      - name: Item flavour coverage - every item has a line
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/item-flavour-coverage.mjs
+          node tests/item-flavour-coverage.mjs --selftest
+
       # THE PLOT-TIER PRICE — the client and the server may never disagree.
       # b510 re-priced the farm plot tier in GOLD behind a farming level after
       # production measured farm plants per day falling to ZERO for nine days

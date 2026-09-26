@@ -117,9 +117,9 @@ import {
   applyEnvelopeState, describeReplacement, isReplacementAcknowledged,
   showReplacementSheet, registerPredictionSeam, isReconcilePending,
   classifyFrame, commitFrame, resetFrameGate, getAppliedFrame, noteFrameDrop,   // the frame gate, §7.1
-} from './accrue.js?v=554';
-import { SHOP_OFFERS } from '../data/shops.js?v=554';
-import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=554';
+} from './accrue.js?v=555';
+import { SHOP_OFFERS } from '../data/shops.js?v=555';
+import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=555';
 
 export const SHOP_BUY_VERB = 'shop_buy';
 export const VENDOR_SELL_VERB = 'vendor_sell';
@@ -435,6 +435,7 @@ export function rollbackPrediction(G, key) {
   if (G && typeof G === 'object') {
     for (const f of PREDICTED_FIELDS) if (p.delta[f]) G[f] = (Number(G[f]) || 0) - p.delta[f];
   }
+  announceResolved();
   return p.delta.gold;
 }
 
@@ -495,6 +496,7 @@ export function reconcilePredictions(G, res, ownKey) {
     }
   }
   pending = keep;
+  announceResolved();
   return { retired, carried, dropped, outstanding: pending.length };
 }
 
@@ -844,7 +846,7 @@ function tokenOf() {
   catch (e) { return null; }
 }
 
-let hooks = { onEnvelope: null, onOutcome: null, onRollback: null, onAbandon: null };
+let hooks = { onEnvelope: null, onOutcome: null, onRollback: null, onAbandon: null, onResolved: null };
 export function setGoldHooks(h) { hooks = { ...hooks, ...(h || {}) }; }
 function fire(name, a, b) {
   const fn = hooks && hooks[name];
@@ -852,6 +854,24 @@ function fire(name, a, b) {
   try { return fn(a, b); }
   catch (e) { console.warn('[gold] hook ' + name + ' threw:', e && e.message); return null; }
 }
+
+/* ── THE BALANCE-RESOLVED SEAM (live: "Buy once, every Buy stays grey").
+   A gesture's `settle` makes the balance a PREDICTION, and `canAfford`
+   fail-closes on it — so every surface painted in that instant paints its
+   affordability-gated controls disabled. Nothing repainted them when the answer
+   RESOLVED the balance again, so the shop sat 13/13 disabled against a known
+   11,676. The two places a balance is resolved are here: `reconcilePredictions`
+   (EVERY envelope — gold verbs, accrue, activity) and `rollbackPrediction` (a
+   provable refusal). Both announce ONCE, on a microtask, so the listener runs
+   after the same stack's `applyRecord` has re-stamped the field. DOM-free: the
+   browser wiring below turns it into `hr:balance-resolved`; renderers listen. */
+let resolvedQueued = false;
+function announceResolved() {
+  if (resolvedQueued) return;
+  resolvedQueued = true;
+  Promise.resolve().then(() => { resolvedQueued = false; fire('onResolved'); });
+}
+export const BALANCE_RESOLVED_EVENT = 'hr:balance-resolved';
 
 export function getGoldState() {
   return {
@@ -1305,6 +1325,7 @@ if (typeof window !== 'undefined') {
     onEnvelope: (body, v) => applyGoldEnvelope(window.G, body, v && v.key),
     onRollback: (key) => rollbackPrediction(window.G, key),
     onAbandon: (key) => abandonPrediction(key),
+    onResolved: () => { try { window.dispatchEvent(new CustomEvent(BALANCE_RESOLVED_EVENT)); } catch (e) {} },
   });
 
   window.HearthriseGold = {
@@ -1324,6 +1345,6 @@ if (typeof window !== 'undefined') {
        prediction — see its header. legacy.js buyTrait() is the only caller. */
     buyTrait, buildTraitBuyRequest, classifyTraitResponse, isTraitOwnedOutcome,
     TRAIT_BUY_RPC, TRAIT_ID_RE,
-    LEDGER: GOLD_SITE_LEDGER,
+    LEDGER: GOLD_SITE_LEDGER, BALANCE_RESOLVED_EVENT,
   };
 }

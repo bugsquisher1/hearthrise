@@ -4049,7 +4049,7 @@ export default [
     assert(P.refusalSentence('what_is_this') === 'That did not work.', 'an unmapped code must still say something');
   }),
 
-  /* PARTY-8 (regression, live b553 2026-09-26) — hr_party_view was STABLE and
+  /* PARTY-8 (regression, found live 2026-09-26) — hr_party_view was STABLE and
      wrote the rate bucket, so PostgREST ran it READ ONLY and every roster read
      answered 405 {code:25006}. The body had no `ok` and no `error`, so the
      panel painted "Your party 0 of 4 / LEADER" with no rows and no word why.

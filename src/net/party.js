@@ -358,7 +358,7 @@
       next.partyId = null; next.role = null; next.sizeCap = null;
     } else {
       /* THE ROSTER COULD NOT BE READ — a refusal, an HTTP error, or a PostgREST
-         {code,message} body with no `ok` at all (live b553: 405 / 25006). An
+         {code,message} body with no `ok` at all (found live 2026-09-26: 405 / 25006). An
          empty list here would paint "0 of 4" under a leader the realm just
          seated. Keep the last roster read for this same party, else say so and
          draw no count; never invent a member. */

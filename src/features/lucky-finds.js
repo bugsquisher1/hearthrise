@@ -14,7 +14,7 @@
 //        global addItem that credit would have reached), no drop-log count.
 //        The RNG draw itself is untouched — core/combat-sim.js still walks the
 //        row — so AWAY-1 parity holds; only presentation and credit are dropped.
-//        Every NON-lucky row keeps legacy.js's existing 'RARE:' branch exactly.
+//        Every other row keeps legacy.js's existing 'RARE:' branch exactly.
 //   (ii) REVEAL WHAT THE SERVER SAID. A settle response's `away.events` carries
 //        {type:'rare_drop', item} (hr-accrue accrual.js onDrop). For a lucky
 //        item that is the one and only announcement: a VERY RARE combat-log
@@ -25,13 +25,21 @@
 // CLAUDE.md §6 ("the browser never says one thing while the server says
 // another") and Tyler's 2026-09-16 no-new-prediction ruling are the reason for
 // (i); tests/lucky-finds.mjs holds the rows, LUCKY-1..4 (in-page) hold this.
+//
+// FIELD SALVAGE (content pack 6) is the same contract for a commoner row:
+// `{id, ch, salvage:true}`, an own-tier helm/boots/gloves/belt at 0.5-10 h.
+// Both kinds are "server-revealed rows" here. (i) is identical; (ii) reads
+// RARE (not VERY RARE, which stays lucky-only) with the base odds through the
+// one formatter, formatDropOdds. tests/field-salvage.mjs holds the rows,
+// SALVAGE-1..2 (in-page) hold this.
 // ════════════════════════════════════════════════════════════════════════
 (function () {
   'use strict';
 
-  /* item id -> {mid, row}. A lucky item is a drop of exactly ONE row in the
-     roster (tests/lucky-finds.mjs rule a), so the id alone identifies it —
-     which matters, because COMBAT_FX.addItem is handed nothing but the id. */
+  /* item id -> {mid, row}. A lucky or salvage item is a drop of exactly ONE
+     row in the roster (rule a of tests/lucky-finds.mjs and
+     tests/field-salvage.mjs), so the id alone identifies it — which matters,
+     because COMBAT_FX.addItem is handed nothing but the id. */
   var _index = null;
   function index() {
     if (_index) return _index;
@@ -39,12 +47,15 @@
     if (!ms) return {};
     var out = {};
     Object.keys(ms).forEach(function (mid) {
-      (ms[mid].drops || []).forEach(function (d) { if (d && d.lucky) out[d.id] = { mid: mid, row: d }; });
+      (ms[mid].drops || []).forEach(function (d) { if (d && (d.lucky || d.salvage)) out[d.id] = { mid: mid, row: d }; });
     });
     _index = out;
     return out;
   }
-  function isLucky(id) { return !!(id && Object.prototype.hasOwnProperty.call(index(), id)); }
+  function hit(id) { return (id && Object.prototype.hasOwnProperty.call(index(), id)) ? index()[id] : null; }
+  function isRevealed(id) { return !!hit(id); }
+  function isLucky(id) { var h = hit(id); return !!(h && h.row.lucky); }
+  function isSalvage(id) { var h = hit(id); return !!(h && h.row.salvage && !h.row.lucky); }
 
   function itemName(id) { var it = window.ITEMS && window.ITEMS[id]; return (it && it.n) || id; }
 
@@ -52,13 +63,16 @@
      dropBonus and nothing else — no charm, no buff, no Boss of the Day, no
      Vigour — because those vary per player and per night. small_wolf's
      .0008 x 1.15 reads "1 in 1,087". */
-  function baseOneIn(id) {
-    var hit = index()[id];
-    if (!hit) return null;
-    var m = (window.MONSTERS || {})[hit.mid] || {};
+  function baseChance(id) {
+    var h = hit(id);
+    if (!h) return 0;
+    var m = (window.MONSTERS || {})[h.mid] || {};
     var D = window.HearthriseCore && window.HearthriseCore.drops;
-    var ch = (D && typeof D.effectiveDropChance === 'function')
-      ? D.effectiveDropChance(hit.row, { dropMult: m.dropBonus || 1 }) : hit.row.ch;
+    return (D && typeof D.effectiveDropChance === 'function')
+      ? D.effectiveDropChance(h.row, { dropMult: m.dropBonus || 1 }) : h.row.ch;
+  }
+  function baseOneIn(id) {
+    var ch = baseChance(id);
     return ch > 0 ? Math.round(1 / ch) : null;
   }
 
@@ -73,13 +87,13 @@
     if (!fx || fx.__hrLuckyHooked) return !!fx;
     fx.__hrLuckyHooked = true;
     var addItem = fx.addItem, onDrop = fx.onDrop, recordKill = fx.recordKill;
-    fx.addItem = function (id) { if (isLucky(id)) return; return addItem.apply(this, arguments); };
+    fx.addItem = function (id) { if (isRevealed(id)) return; return addItem.apply(this, arguments); };
     /* core/combat-sim.js counts a rare event into state.stats.rareDrops BEFORE
        onDrop, and the client's state is G on both paths — so the client-dice
        count is taken back here, or "Rare drops looted" and the Lucky
        achievement would record a roll the server never made. */
     fx.onDrop = function (ev) {
-      if (ev && isLucky(ev.id)) {
+      if (ev && isRevealed(ev.id)) {
         var st = window.G && window.G.stats;
         if (ev.rare && st && st.rareDrops > 0) st.rareDrops--;
         return;
@@ -90,7 +104,7 @@
       var kept = dropped;
       if (dropped && typeof dropped === 'object') {
         kept = {};
-        Object.keys(dropped).forEach(function (k) { if (!isLucky(k)) kept[k] = dropped[k]; });
+        Object.keys(dropped).forEach(function (k) { if (!isRevealed(k)) kept[k] = dropped[k]; });
       }
       return recordKill.call(this, mid, kept);
     };
@@ -114,17 +128,26 @@
     var ver = String(res.version);
     var said = 0;
     ev.forEach(function (e) {
-      if (!e || e.type !== 'rare_drop' || !isLucky(e.item)) return;
+      if (!e || e.type !== 'rare_drop' || !isRevealed(e.item)) return;
       var key = ver + ':' + e.item;
       if (_told.indexOf(key) >= 0) return;
       _told.push(key);
       if (_told.length > TOLD_MAX) _told.shift();
       var name = itemName(e.item);
       var G = window.G;
-      if (G && Array.isArray(G.combatLog)) G.combatLog.push('<span class="rare vrare">VERY RARE: ' + name + '</span>');
-      var n = baseOneIn(e.item);
-      var odds = n ? ' (base odds about 1 in ' + n.toLocaleString('en-US') + ')' : '';
-      if (typeof window.notify === 'function') window.notify('Very rare find: ' + name + '!' + odds, 'levelup');
+      var line, toast;
+      if (isLucky(e.item)) {
+        var n = baseOneIn(e.item);
+        line = '<span class="rare vrare">VERY RARE: ' + name + '</span>';
+        toast = 'Very rare find: ' + name + '!' + (n ? ' (base odds about 1 in ' + n.toLocaleString('en-US') + ')' : '');
+      } else {
+        var D = window.HearthriseCore && window.HearthriseCore.drops;
+        var ch = baseChance(e.item);
+        line = '<span class="rare">RARE: ' + name + '</span>';
+        toast = 'Rare find: ' + name + '!' + ((ch > 0 && D && D.formatDropOdds) ? ' (base odds ' + D.formatDropOdds(ch) + ')' : '');
+      }
+      if (G && Array.isArray(G.combatLog)) G.combatLog.push(line);
+      if (typeof window.notify === 'function') window.notify(toast, 'levelup');
       said++;
     });
     return said;
@@ -132,6 +155,8 @@
 
   window.HearthriseLuckyFinds = {
     isLucky: isLucky,
+    isSalvage: isSalvage,
+    isRevealed: isRevealed,
     baseOneIn: baseOneIn,
     noteEnvelope: noteEnvelope,
     /* test seam: forget what was announced (the in-page suite replays one

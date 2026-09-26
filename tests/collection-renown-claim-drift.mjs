@@ -296,7 +296,48 @@ async function selftest() {
     return src.replace(find, () => repl);
   };
   const order = JSON.parse(await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+  /* The two REACHABILITY arms are DERIVED from the live pool of distinct
+     non-BoP drop ids, never hard-coded: a content pack that grows the pool
+     (Field Salvage took it 133 -> 181) turned the old literals '141' and
+     '9 lucky ids' reachable, and the arms went MISSED. They are run on the live
+     roster AND on the roster with the salvage rows stripped, so the proof holds
+     on both sides of the pack. */
+  const poolOf = (monsters) => {
+    const ids = [];
+    for (const m of Object.values(monsters)) for (const d of (m.drops || [])) {
+      if (d && d.id && !(ITEMS[d.id] && ITEMS[d.id].bop) && !ids.includes(d.id)) ids.push(d.id);
+    }
+    /* flag the rarest rows first (lucky, then salvage), the ones a player would
+       think of as "the long chase", then anything else the count still needs */
+    const rank = (id) => (Object.values(monsters).some((m) => (m.drops || []).some((d) => d.id === id && d.lucky)) ? 0
+      : Object.values(monsters).some((m) => (m.drops || []).some((d) => d.id === id && d.salvage)) ? 1 : 2);
+    return ids.map((id, i) => ({ id, i, r: rank(id) })).sort((a, b) => a.r - b.r || a.i - b.i).map((x) => x.id);
+  };
+  const reachArms = (monsters, label) => {
+    const pool = poolOf(monsters);
+    const over = pool.length + 1;
+    const nBop = pool.length - 125 + 1;
+    const b = { ...base, monsters };
+    return [
+      [`collect125 = ${over} = pool+1 (catalogue, client and SQL together — unreachable; ${label})`,
+        () => ({ ...b, catalogue: cat({ collect125: { threshold: over } }),
+          clientSrc: sub(b.clientSrc, 'goal: 125,', `goal: ${over},`),
+          chainEnd: { ...b.chainEnd, sql: b.chainEnd.sql.replace('v_thresh := 125;', `v_thresh := ${over};`) } })],
+      [`collect125 reachable only through BoP drops (${nBop} = pool-125+1 ids flagged bop; ${label})`,
+        () => {
+          const items = { ...ITEMS };
+          for (const id of pool.slice(0, nBop)) items[id] = { ...items[id], bop: true };
+          return { ...b, items };
+        }],
+    ];
+  };
+  const stripped = Object.fromEntries(Object.entries(MONSTERS)
+    .map(([id, m]) => [id, { ...m, drops: (m.drops || []).filter((d) => !d.salvage) }]));
+  const strippedRed = checkCollection({ ...base, monsters: stripped });
+  if (strippedRed.length) { console.log('selftest: the roster WITHOUT salvage rows is red — fix the guard first:'); strippedRed.forEach((x) => console.log(`  ✗ ${x}`)); return 1; }
   const MUT = [
+    ...reachArms(MONSTERS, 'live roster'),
+    ...reachArms(stripped, 'roster without salvage rows'),
     ['drop the hunter40 SQL arm',
       () => ({ ...base, chainEnd: { ...base.chainEnd, sql: base.chainEnd.sql.replace(/\n\s*when 'hunter40'[^\n]*/, '') } })],
     ['hunter40 gold 9000 in the client rows only',
@@ -305,10 +346,6 @@ async function selftest() {
       () => ({ ...base, clientSrc: sub(base.clientSrc, "domain: 'monsters', goal: 40,", "domain: 'monsters', goal: 45,") })],
     ['collect75 domain monsters in the client rows only',
       () => ({ ...base, clientSrc: sub(base.clientSrc, "label: 'Curator',             domain: 'items',", "label: 'Curator',             domain: 'monsters',") })],
-    ['collect125 = 141 (catalogue, client and SQL together — unreachable)',
-      () => ({ ...base, catalogue: cat({ collect125: { threshold: 141 } }),
-        clientSrc: sub(base.clientSrc, 'goal: 125,', 'goal: 141,'),
-        chainEnd: { ...base.chainEnd, sql: base.chainEnd.sql.replace("v_thresh := 125;", "v_thresh := 141;") } })],
     ['collect75 gems 5 (catalogue, client and SQL together — a new gem faucet)',
       () => ({ ...base, catalogue: cat({ collect75: { gems: 5 } }),
         clientSrc: sub(base.clientSrc, 'reward: { gold: 10000 }', 'reward: { gold: 10000, gems: 5 }'),
@@ -317,14 +354,6 @@ async function selftest() {
       async () => ({ ...base, chainEnd: await chainEndMilestoneSql(order.slice(0, order.indexOf('2026-08-22-collection-claim.sql') + 1)) })],
     ['no file restates the function (chain end absent)',
       async () => ({ ...base, chainEnd: await chainEndMilestoneSql([]) })],
-    ['collect125 reachable only through BoP drops (9 lucky ids flagged bop)',
-      () => {
-        const lucky = [];
-        for (const m of Object.values(MONSTERS)) for (const d of (m.drops || [])) if (d.lucky && !lucky.includes(d.id)) lucky.push(d.id);
-        const items = { ...ITEMS };
-        for (const id of lucky.slice(0, 9)) items[id] = { ...items[id], bop: true };
-        return { ...base, items };
-      }],
     ['hunter60 gold 7000 everywhere (ladder gold not increasing)',
       () => ({ ...base, catalogue: cat({ hunter60: { gold: 7000 } }),
         clientSrc: sub(base.clientSrc, 'reward: { gold: 15000 } }', 'reward: { gold: 7000 } }'),

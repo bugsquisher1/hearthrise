@@ -33,7 +33,7 @@
     "Classifications are AUTHORED, never generated — deciding what a restore owes",
     "a table is a judgement, and --write preserves whatever is already here."
   ],
-  "generated": "2026-09-24",
+  "generated": "2026-09-26",
   "production": {
     "measured": "2026-08-30",
     "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Micro compute)",
@@ -673,8 +673,8 @@
     },
     "hr_activities": {
       "class": "seeded",
-      "replay": 503,
-      "note": "Generated from src/data/*.js by tools/gen-catalogues.mjs; content guarded by --check as a smoke preflight. 344 rows on 2026-08-15, 473 now. Rebuilt from repo, never restored."
+      "replay": 508,
+      "note": "Generated from src/data/*.js by tools/gen-catalogues.mjs; content guarded by --check as a smoke preflight. 344 rows on 2026-08-15, 508 now. Rebuilt from repo, never restored."
     },
     "hr_bounty_monsters": {
       "class": "seeded",

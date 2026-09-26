@@ -181,6 +181,21 @@ the Watchknight's deathsteel before it) is five pieces in `src/data/items.js`
 with explicit `reqSkill`/`reqLv`, each stat, wield level and price strictly
 between its steel and mithril twin — asserted by `DEEPSEAM-3`.
 
+**Woodcutting (Timberline)** — a new stand every 7-8 levels (the tree ladder was
+1/15/30/45/60/75/90). Each stand yields an EXISTING log: no item, recipe or art.
+
+| req | node id | name | prod | qty | xp | ms |
+|---|---|---|---|---|---|---|
+| 22 | `hollow_oak_tree` | Hollow Oak | `oak_log` | 1 | 26 | 4200 |
+| 38 | `weeping_willow_tree` | Weeping Willow | `willow_log` | 1–2 | 52 | 6800 |
+| 52 | `maple_grove` | Maple Grove | `maple_log` | 2 | 78 | 8200 |
+| 68 | `elder_yew_tree` | Elder Yew | `yew_log` | 1–2 | 124 | 10800 |
+| 82 | `ancient_runewood_tree` | Ancient Runewood | `runewood_log` | 1–2 | 168 | 12200 |
+
+Server half = the `hr_activities` rows (`2026-09-26-timberline.sql`; the level
+gate for `hr_apply` and `hr_worker_assign`); xp/ms/yield ride the edge payload.
+Played by `TIMBERLINE-1..4` in-page and `TIMBERLINE-S1` in `tests/accrual-engine.mjs`.
+
 ### 5. Monsters + drops — data
 `src/data/monsters.js` → `MONSTERS`. Drops live inline:
 `drops:[{id, ch}]` (ch = 0..1 chance). Add a drop = add to the array; the id must

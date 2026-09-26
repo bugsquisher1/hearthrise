@@ -26,11 +26,30 @@
 export const TREES=[
   {id:'normal_tree',name:'Normal Tree',icon:'🌳',req:1,xp:15,ms:3000,prod:'normal_log',qty:[1,1]},
   {id:'oak_tree',name:'Oak Tree',icon:'🌳',req:15,xp:23,ms:4000,prod:'oak_log',qty:[1,1]},
+  /* ── "TIMBERLINE" (game-designer ruling) ──────────────────────────────────
+     Woodcutting was the one gathering skill with a new tree only every 15
+     levels (60→75 and 75→90 were the longest silences on any gather table).
+     Five stands close it: every req gap is now 7 or 8. Each yields an EXISTING
+     log, so there is no new item, recipe or art (the tile paints the product).
+     Inserted by `req`, not appended: the array order is the ladder the
+     strictly-faster and full-tier +6% guards read.
+     PACED guard series, floor(xp × PACE.xp) ÷ pacedActionMs(ms):
+       oak 1.2500 → hollow 1.4881 → willow 1.7045 → weeping 1.8382
+       → maple 2.0536 → grove 2.2866 → yew 2.5000 → elder 2.7778
+       → runewood 3.0435 → ancient 3.3299 → duskwood 3.7019
+     Every step clears +7.8%. Hollow Oak is the third rung, so it stays [1,1].
+     The server half is the hr_activities rows (the level gate); xp/ms/yield
+     ride the edge payload, which vendors this file. */
+  {id:'hollow_oak_tree',name:'Hollow Oak',icon:'🌳',req:22,xp:26,ms:4200,prod:'oak_log',qty:[1,1]},
   {id:'willow_tree',name:'Willow',icon:'🌿',req:30,xp:41,ms:5500,prod:'willow_log',qty:[1,1]},
+  {id:'weeping_willow_tree',name:'Weeping Willow',icon:'🌿',req:38,xp:52,ms:6800,prod:'willow_log',qty:[1,2]},
   {id:'maple_tree',name:'Maple Tree',icon:'🍁',req:45,xp:60,ms:7000,prod:'maple_log',qty:[1,2]},
+  {id:'maple_grove',name:'Maple Grove',icon:'🍁',req:52,xp:78,ms:8200,prod:'maple_log',qty:[2,2]},
   {id:'yew_tree',name:'Yew Tree',icon:'🌲',req:60,xp:105,ms:10000,prod:'yew_log',qty:[1,1]},
+  {id:'elder_yew_tree',name:'Elder Yew',icon:'🌲',req:68,xp:124,ms:10800,prod:'yew_log',qty:[1,2]},
   /* b215: woodcutting used to end at 60 — these carry it to the cap. */
   {id:'runewood_tree',name:'Runewood',icon:'🌲',req:75,xp:144,ms:11500,prod:'runewood_log',qty:[1,1]},
+  {id:'ancient_runewood_tree',name:'Ancient Runewood',icon:'🌲',req:82,xp:168,ms:12200,prod:'runewood_log',qty:[1,2]},
   {id:'duskwood_tree',name:'Duskwood',icon:'🌲',req:90,xp:198,ms:13000,prod:'duskwood_log',qty:[1,1]},
 ];
 

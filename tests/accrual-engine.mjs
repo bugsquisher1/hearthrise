@@ -71,7 +71,7 @@ import {
 import { bestTool, toolSpeed, toolXpB, toolDouble } from '../src/core/tools.js';
 import { pacedActionMs, speedClamp } from '../src/core/pacing.js';
 import { nextBuffExpiryMs, hasActiveBuff, tickBuffs, buffBonusFor } from '../src/core/buffs.js';
-import { levelOf, levelFromXp } from '../src/core/xp.js';
+import { levelOf, levelFromXp, xpForLevel } from '../src/core/xp.js';
 /* THE CONSUMPTION SEAM (E1). Imported as a namespace so the guard below can
    assert against the module's own frozen tables — `AMMO_EMPTY_SLOT_IS_DRY` is a
    design position, and a test that restated it instead of reading it would
@@ -5986,6 +5986,53 @@ function charmGuard() {
   }
 }
 
+/* TIMBERLINE-S1 — THE EDGE PAYLOAD CARRIES THE NEW STANDS (the server half of
+   the in-page TIMBERLINE-1..4). Credential-free: the index is the one the edge
+   imports (hr-accrue/catalogue.js GATHER_NODES), not a local rebuild, so a
+   stand the client paints but the payload lacks is caught here rather than as
+   an away night refused `unknown_node`. A seeded 1 h span at the Elder Yew at
+   Woodcutting 68, no tool: 3,600,000 / pacedActionMs(10800) = 208 actions at
+   floor(124 x 0.39) = 48 XP each. CONTROL: the same span against the index with
+   the stand removed must be REFUSED unknown_node, or the pass above proves
+   nothing about the payload. */
+async function timberlineServerGuard() {
+  const { GATHER_NODES } = await import('../supabase/functions/hr-accrue/catalogue.js');
+  const NODE = 'elder_yew_tree';
+  const from = FROM_MS;
+  const run = (nodes) => computeAccrual({
+    userId: '00000000-0000-4000-8000-000000000001', slot: 0,
+    nowMs: from + 3600000, accruedToMs: from, activeSinceMs: from,
+    activeKind: 'gather', activeId: NODE, capMs: 12 * 3600000, seed: SEED,
+    hp: 60, maxHp: 60, gold: 0, skills: { woodcutting: xpForLevel(68) },
+    equipment: {}, inventory: {},
+    autoEatEnabled: false, autoEatFood: null, autoEatPct: 0, toolCarry: {},
+    items: ITEMS, monsters: MONSTERS, nodes,
+  });
+  const entry = GATHER_NODES[NODE];
+  ok(!!entry && entry.skill === 'woodcutting' && entry.node.req === 68,
+    `TIMBERLINE-S1: the edge GATHER_NODES has no woodcutting-68 ${NODE} — the payload the server `
+    + 'runs cannot pay the stand the client paints');
+  if (!entry) return;
+  const s = run(GATHER_NODES);
+  ok(s.accrued === true, `TIMBERLINE-S1: a 1 h span at ${NODE} accrued nothing (reason: ${s.reason})`);
+  if (!s.accrued) return;
+  eq(s.summary.ticks, 208, `TIMBERLINE-S1: 1 h at ${NODE} ran ${s.summary.ticks} actions, not 208`);
+  ok((s.summary.items.yew_log || 0) > 0,
+    `TIMBERLINE-S1: 1 h at ${NODE} paid no yew_log — ${JSON.stringify(s.summary.items)}`);
+  const yew = s.summary.items.yew_log || 0;
+  ok(yew >= s.summary.ticks && yew <= 2 * s.summary.ticks,
+    `TIMBERLINE-S1: ${yew} yew_log over ${s.summary.ticks} actions is outside the [1,2] yield`);
+  eq(s.summary.xp.woodcutting, 48 * s.summary.ticks,
+    `TIMBERLINE-S1: ${NODE} paid ${s.summary.xp.woodcutting} woodcutting XP over `
+    + `${s.summary.ticks} actions, not 48 per action`);
+  const without = Object.assign(Object.create(null), GATHER_NODES);
+  delete without[NODE];
+  const refused = run(without);
+  ok(refused.accrued !== true && refused.reason === 'unknown_node',
+    `TIMBERLINE-S1 CONTROL: with ${NODE} removed from the index the span answered `
+    + `accrued=${refused.accrued} reason=${refused.reason}, not a refusal as unknown_node`);
+}
+
 /* THE MUTATION SEAM. `computeAccrualInputParity` is exported for the same
    reason: a guard whose failures cannot be reproduced in isolation is a guard
    nobody mutation-proves, and `runAll` costs a network round trip. This runs the
@@ -6010,6 +6057,7 @@ export async function runAll() {
   charmGuard();
   gatherParityGuard();
   gatherBuffTimelineGuard();
+  await timberlineServerGuard();
   toolCarryContinuityGuard();
   crewBacklogGuard();
   hostileGuard();

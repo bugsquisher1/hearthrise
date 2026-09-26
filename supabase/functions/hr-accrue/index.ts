@@ -722,7 +722,30 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         if (String((e as { code?: string } | null)?.code ?? '') !== '42883') throw e;
         trophyRows = null;
       }
-      return { ...(row as Row), bestiary_rows: kills, trophy_rows: trophyRows } as Row;
+      /* THE SERVER'S COLLECTION COUNT (Ledger of Firsts, 2026-09-27). The
+         number of DISTINCT combat drops hr_claim_milestone verifies the items
+         rungs against — `count(*)` over hr_collection_of, the exact read that
+         RPC makes. Until now it rode no envelope, so the Collection log gated
+         its items rungs on G.collection (the bag + attended pickups, gathered
+         and crafted ids included) and offered Claim on rungs the server
+         answered `incomplete` (CLAUDE.md §6). Its OWN savepoint, for the reason
+         the trophy read has one: a database without the function must not
+         cost the kill counters. The VERIFIED user and slot only, never a body
+         field. 42883 AND ONLY 42883 degrades, to null — the key is then
+         omitted and the client's fail-safe is "nothing claimable". */
+      let collectionFound: number | null = null;
+      try {
+        const counted = await tx.savepoint((sp: typeof tx) => sp`
+          select count(*)::int as n
+            from public.hr_collection_of(${user}::uuid, ${slot}::int)`) as unknown as Row[];
+        const n = Number(counted?.[0]?.n ?? 0);
+        collectionFound = Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+      } catch (e) {
+        if (String((e as { code?: string } | null)?.code ?? '') !== '42883') throw e;
+        collectionFound = null;
+      }
+      return { ...(row as Row), bestiary_rows: kills, trophy_rows: trophyRows,
+        collection_found: collectionFound } as Row;
     });
 
     if (read?.limited) return json({ ok: false, error: 'rate_limited' }, 429);
@@ -830,6 +853,16 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       };
       bestiaryKills = byId;
     }
+
+    /* THE COLLECTION BLOCK — `{ found }`, the server's distinct combat-drop
+       count, or null when hr_collection_of did not answer. ABSENCE STAYS
+       ABSENCE (the trophy wire's Security F3 rule): null omits the key at every
+       emit site; a present `found: 0` is a truthful "none yet". */
+    const collectionFoundRaw = (read as Record<string, unknown>)?.collection_found;
+    const collection: { found: number } | null =
+      (typeof collectionFoundRaw === 'number' && Number.isFinite(collectionFoundRaw))
+        ? { found: Math.max(0, Math.floor(collectionFoundRaw)) }
+        : null;
 
     const st = env.state;
     const nowMs = new Date(read.now as string).getTime();
@@ -1291,6 +1324,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
              non-colliding key and the roster survives. */
           return json({ ok: true, accrued: true, ...wr, away,
             ...(bestiary ? { bestiary } : {}),
+            ...(collection ? { collection } : {}),
             ...(wout.accrued ? { workerSummary: wout.summary } : {}),
             ...(rout.accrued ? { rested: { granted: rout.granted } } : {}) });
         }
@@ -1317,6 +1351,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          Bestiary after a reload. Nothing is minted here; it is a read. */
       return json({ ok: true, accrued: false, reason: out.reason, version: env.version, now: env.now,
         ...(bestiary ? { bestiary } : {}),
+        ...(collection ? { collection } : {}),
         ...(Array.isArray((env as Record<string, any>).workers) ? { workers: (env as Record<string, any>).workers } : {}) });
     }
 
@@ -1493,7 +1528,8 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
        receipt is dropped and the reason is stated. */
     if (res.replayed === true) {
       return json({ ...res, ok: true, accrued: false, reason: 'replayed',
-        ...(bestiary ? { bestiary } : {}) });
+        ...(bestiary ? { bestiary } : {}),
+        ...(collection ? { collection } : {}) });
     }
 
     return json({
@@ -1510,6 +1546,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          alternative is adding the delta's kills to a projection by hand here,
          i.e. the client being shown a number the database has not confirmed. */
       ...(bestiary ? { bestiary } : {}),
+      ...(collection ? { collection } : {}),
       levels: levelsOf(Object.fromEntries(
         Object.entries(res.skills || {}).map(([k, v]) => [k, (v as any).xp]),
       )),

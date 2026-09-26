@@ -19,8 +19,14 @@
 // witness and still needs hr_bestiary_of projected onto the envelope; see the
 // note on the bestiary toast below.
 //
-// Milestones (G.collectionLog.claimed[]) hand out a reward the first time you
-// cross a completion threshold — the reason to chase 100%.
+// Milestones hand out a reward the first time you cross a completion
+// threshold — the reason to chase 100%. LEDGER OF FIRSTS (2026-09-27): eleven
+// rungs, and every rung is EARNED only by the SERVER's counts — monsters from
+// the hr_bestiary_of mirror (G._bestiaryTrophies.killsByMonster), items from
+// the hr_collection_of count the edge projects as `collection.found`
+// (G._collectionServer). G.bestiary / G.collection draw the grid and never
+// gate a rung (CLAUDE.md §6). CLAIMED is the residue G.collectionLog.claimed
+// merged with the server's own kind='collection' progress rows.
 //
 // Classic IIFE (window.HearthriseCollection), loaded after legacy.js.
 // ============================================================
@@ -37,12 +43,24 @@
       : '';
   }
 
+  /* THE RUNGS ARE DATA. Bound three ways (src/data/collection-milestones.js,
+     these rows, the chain-end hr_claim_milestone__ungated CASE) by
+     tests/collection-renown-claim-drift.mjs — id, domain, goal, gold, gems. */
   var MILESTONES = [
-    { id: 'hunter10',  label: 'Novice Hunter',   test: function (s) { return s.mon.found >= 10; },        reward: { gold: 2000 } },
-    { id: 'hunterAll', label: 'Bestiary Master',  test: function (s) { return s.mon.total && s.mon.found >= s.mon.total; }, reward: { gold: 50000, gems: 25 } },
-    { id: 'collect50', label: 'Collector',        test: function (s) { return s.item.found >= 50; },       reward: { gold: 5000 } },
-    { id: 'collect100', label: 'Hoarder',         test: function (s) { return s.item.found >= 100; },      reward: { gold: 15000, gems: 15 } }
+    { id: 'hunter10',   label: 'Novice Hunter',       domain: 'monsters', goal: 10,  reward: { gold: 2000 } },
+    { id: 'hunter25',   label: 'Journeyman Hunter',   domain: 'monsters', goal: 25,  reward: { gold: 4000 } },
+    { id: 'hunter40',   label: 'Tracker',             domain: 'monsters', goal: 40,  reward: { gold: 8000 } },
+    { id: 'hunter60',   label: 'Beastwise',           domain: 'monsters', goal: 60,  reward: { gold: 15000 } },
+    { id: 'hunter85',   label: 'Warden of the Wilds', domain: 'monsters', goal: 85,  reward: { gold: 25000 } },
+    { id: 'hunterAll',  label: 'Bestiary Master',     domain: 'monsters', goal: 108, reward: { gold: 50000, gems: 25 } },
+    { id: 'collect25',  label: 'Magpie',              domain: 'items',    goal: 25,  reward: { gold: 1000 } },
+    { id: 'collect50',  label: 'Collector',           domain: 'items',    goal: 50,  reward: { gold: 5000 } },
+    { id: 'collect75',  label: 'Curator',             domain: 'items',    goal: 75,  reward: { gold: 10000 } },
+    { id: 'collect100', label: 'Hoarder',             domain: 'items',    goal: 100, reward: { gold: 15000, gems: 15 } },
+    { id: 'collect125', label: 'Keeper of Rarities',  domain: 'items',    goal: 125, reward: { gold: 30000 } }
   ];
+  var MILESTONE_IDS = Object.create(null);
+  MILESTONES.forEach(function (m) { MILESTONE_IDS[m.id] = m; });
 
   function ensureState(G) {
     G = G || window.G; if (!G) return null;
@@ -158,10 +176,100 @@
     };
   }
 
+  /* ══════════════════════════════════════════════════════════════════════════
+     THE SERVER'S COUNTS ARE THE ONLY THING THAT EARNS A RUNG.
+     hr_claim_milestone re-derives the DISTINCT count from hr_bestiary_of /
+     hr_collection_of; the log used to decide "earned" from G.bestiary (attended
+     kills, runs ahead of the server) and G.collection (the bag, so gathered,
+     crafted and bought ids counted), and offered Claim on rungs the server then
+     answered `incomplete`. Both server numbers now ride the envelope:
+       monsters → keys of G._bestiaryTrophies.killsByMonster (hr_bestiary_of)
+       items    → G._collectionServer.found (edge `collection.found`)
+     A mirror that has not arrived is null → count 0 → nothing is claimable.
+     ══════════════════════════════════════════════════════════════════════════ */
+  function serverCounts(G) {
+    G = G || window.G;
+    var out = { monsters: null, items: null };
+    if (!G) return out;
+    var b = G._bestiaryTrophies;
+    if (b && b.killsByMonster && typeof b.killsByMonster === 'object') out.monsters = Object.keys(b.killsByMonster).length;
+    var c = G._collectionServer;
+    if (c && typeof c.found === 'number' && isFinite(c.found)) out.items = Math.max(0, Math.floor(c.found));
+    return out;
+  }
+  function haveOf(m, counts) { return Math.max(0, Math.floor(Number(counts[m.domain]) || 0)); }
+  /* THE one earned test. */
+  function earned(m, counts) { return counts[m.domain] != null && haveOf(m, counts) >= m.goal; }
+
+  /* The server's claim rows (player_progress kind='collection', period '', a
+     MILESTONES id, state 'claimed'), replaced by each envelope that carries a
+     progress array. A lost residue can no longer re-offer a paid rung. */
+  function noteServerClaims(progress) {
+    try {
+      if (!Array.isArray(progress)) return false;
+      var G = window.G; if (!G) return false;
+      var ids = [];
+      for (var i = 0; i < progress.length; i++) {
+        var r = progress[i];
+        if (!r || r.kind !== 'collection' || r.state !== 'claimed') continue;
+        var per = (r.period != null) ? r.period : r.period_key;
+        if (per != null && per !== '') continue;
+        if (typeof r.key !== 'string' || !MILESTONE_IDS[r.key]) continue;
+        if (ids.indexOf(r.key) < 0) ids.push(r.key);
+      }
+      G._collectionServerClaimed = ids;
+      return true;
+    } catch (e) { return false; }
+  }
+  /* The edge's `collection: {found}` block. Absent key ⇒ nothing changes
+     (absence is never a claim, and never a zero either). */
+  function noteServerCounts(res) {
+    try {
+      var c = res && typeof res === 'object' ? res.collection : null;
+      if (!c || typeof c !== 'object') return false;
+      var n = Number(c.found);
+      if (!isFinite(n) || n < 0) return false;
+      var G = window.G; if (!G) return false;
+      G._collectionServer = { found: Math.floor(n) };
+      return true;
+    } catch (e) { return false; }
+  }
+  function isClaimed(G, id) {
+    var s = ensureState(G); if (!s) return false;
+    if (s.claimed.indexOf(id) >= 0) return true;
+    var sv = G._collectionServerClaimed;
+    return !!(Array.isArray(sv) && sv.indexOf(id) >= 0);
+  }
+
   function claimable(G) {
     G = G || window.G; var s = ensureState(G); if (!s) return [];
-    var st = getStats(G);
-    return MILESTONES.filter(function (m) { return m.test(st) && s.claimed.indexOf(m.id) < 0; });
+    var counts = serverCounts(G);
+    return MILESTONES.filter(function (m) { return earned(m, counts) && !isClaimed(G, m.id); });
+  }
+  /* Per domain, the lowest rung the SERVER's count has not reached yet:
+     [{m, have, goal}]. Monsters first. */
+  function nextRungs(G) {
+    G = G || window.G; if (!G) return [];
+    var counts = serverCounts(G), out = [];
+    ['monsters', 'items'].forEach(function (d) {
+      var rows = MILESTONES.filter(function (m) { return m.domain === d; })
+        .sort(function (a, b) { return a.goal - b.goal; });
+      for (var i = 0; i < rows.length; i++) {
+        if (!earned(rows[i], counts)) { out.push({ m: rows[i], have: haveOf(rows[i], counts), goal: rows[i].goal }); break; }
+      }
+    });
+    return out;
+  }
+  function domainNoun(d) { return d === 'items' ? 'combat drops' : 'monsters'; }
+  /* The Home tile's one line: 'Claim ready', else the nearest next rung. */
+  function tileLine(G) {
+    G = G || window.G;
+    if (claimable(G).length) return { ready: true, text: 'Claim ready' };
+    var best = null;
+    nextRungs(G).forEach(function (r) {
+      if (!best || (r.have / r.goal) > (best.have / best.goal)) best = r;
+    });
+    return best ? { ready: false, text: 'Next: ' + best.m.label + ' ' + fmt(best.have) + '/' + fmt(best.goal) } : null;
   }
 
   /* ══════════════════════════════════════════════════════════════════════════
@@ -175,9 +283,10 @@
      FOREVER — gone from `claimable`, no reward, and under the arm the local
      credit is a no-op, so the click's ONLY effect was to consume it.
 
-     AND THE REFUSAL IS THE COMMON CASE, not the edge one. `getStats` counts
-     from `G.bestiary` / `G.collection` — the client's own record of everything
-     the ATTENDED player ever killed or picked up. hr_claim_milestone counts
+     AND THE REFUSAL WAS THE COMMON CASE. `getStats` counted from
+     `G.bestiary` / `G.collection` — the client's own record of everything
+     the ATTENDED player ever killed or picked up (since 2026-09-27 the gate
+     reads the server's counts, see serverCounts). hr_claim_milestone counts
      from `hr_bestiary_of` / `hr_collection_of`, server rows the away/span-sim
      writes, which realise 60–99% fewer kills than attended play (see
      goal-claim.js creditKills). So the client says 12 monsters and the server
@@ -246,10 +355,10 @@
      an ok credit and null on every refusal. Never rejects. Owns its messaging. */
   function claimMilestone(id, G) {
     G = G || window.G; var s = ensureState(G); if (!s) return Promise.resolve(null);
-    if (s.claimed.indexOf(id) >= 0) return Promise.resolve(null);
-    var m = null; for (var i = 0; i < MILESTONES.length; i++) if (MILESTONES[i].id === id) m = MILESTONES[i];
+    if (isClaimed(G, id)) return Promise.resolve(null);
+    var m = MILESTONE_IDS[id] || null;
     if (!m) return Promise.resolve(null);
-    var st = getStats(G); if (!m.test(st)) return Promise.resolve(null);
+    if (!earned(m, serverCounts(G))) return Promise.resolve(null);
     var rw = m.reward || {};
 
     var armed = !!((rw.gold && !msMayWrite('gold')) || (rw.gems && !msMayWrite('gems')));
@@ -352,6 +461,9 @@
          it must not borrow .hr-cl-eyebrow's uppercase letter-spacing — that
          style is for labels. Tokens only, same fallback convention as above. */
       '.hr-cl-msnote{margin-top:3px;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3,#a5896a);line-height:1.35}',
+      /* The next unearned rung per domain: a quiet line, no button. */
+      '.hr-cl-next{display:flex;align-items:center;gap:10px;padding:7px 12px;margin:6px 12px;border:1px dashed var(--line-soft);border-radius:10px;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-2)}',
+      '.hr-cl-next b{color:var(--ink);font-variant-numeric:tabular-nums}',
       '.hr-cl-claim{border:none;border-radius:8px;padding:7px 13px;font-weight:800;font-size:calc(14.5px * var(--ui-scale, 1));cursor:pointer;background:linear-gradient(180deg,var(--gold,#f0b860),var(--gold-2,#d99c40));color:var(--bg-0,#20160a)}',
       '.hr-cl-detail{padding:14px}',
       /* the detail sheet's hero slot. Was an inline 46px font-size holding an
@@ -520,6 +632,12 @@
       return '<div class="hr-cl-ms"><div class="hr-cl-msb"><b>' + m.label + '</b> — ' + rw.join(' ') +
         shLine + '</div><button class="hr-cl-claim" data-cl-claim="' + m.id + '">Claim</button></div>';
     }).join('');
+    /* THE NEXT RUNG, per domain, from the SERVER's count — what the player is
+       chasing, with its reward. Never a button: it is not earned. */
+    msHtml += nextRungs(G).map(function (r) {
+      return '<div class="hr-cl-next" data-cl-next="' + r.m.id + '"><div class="hr-cl-msb"><b>' + r.m.label + ': ' +
+        fmt(r.have) + '/' + fmt(r.goal) + ' ' + domainNoun(r.m.domain) + '</b> — ' + msRewardText(r.m.reward) + '</div></div>';
+    }).join('');
 
     var scrim = document.createElement('div');
     scrim.className = 'hr-cl-scrim'; scrim.id = 'hr-cl-modal';
@@ -579,6 +697,11 @@
   window.HearthriseCollection = {
     getStats: getStats,
     claimable: claimable,
+    nextRungs: nextRungs,
+    tileLine: tileLine,
+    serverCounts: serverCounts,
+    noteServerCounts: noteServerCounts,
+    noteServerClaims: noteServerClaims,
     /* ⚠ RETURNS A PROMISE<reward|null> since the two-phase fix — a claim is a
        server round-trip. Resolves null on every refusal, never rejects, and owns
        its own toast. */

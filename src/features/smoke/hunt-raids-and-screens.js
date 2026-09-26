@@ -554,11 +554,20 @@ export default [
     const sBest = G.bestiary ? JSON.parse(JSON.stringify(G.bestiary)) : undefined;
     const sCL = G.collectionLog ? JSON.parse(JSON.stringify(G.collectionLog)) : undefined;
     const sGold = G.gold;
+    /* LEDGER OF FIRSTS: a rung is earned by the SERVER's count only, so the 12
+       monsters are seeded through the hr_bestiary_of mirror (`_` scratch,
+       saved and restored by reference here). */
+    const hadMirror = Object.prototype.hasOwnProperty.call(G, '_bestiaryTrophies');
+    const sMirror = G._bestiaryTrophies;
+    const hadClaims = Object.prototype.hasOwnProperty.call(G, '_collectionServerClaimed');
+    const sClaims = G._collectionServerClaimed;
     try {
-      G.bestiary = {};
-      Object.keys(window.MONSTERS).slice(0, 12).forEach(function (id) { G.bestiary[id] = { kills: 1, firstKill: 0 }; });
+      const kbm = Object.create(null);
+      Object.keys(window.MONSTERS).slice(0, 12).forEach(function (id) { kbm[id] = 1; });
+      G._bestiaryTrophies = { killsByMonster: kbm, index: Object.create(null), hasTrophyKey: false, claimed: new Set() };
+      delete G._collectionServerClaimed;
       G.collectionLog = { claimed: [] };
-      assert(C.claimable(G).some(function (m) { return m.id === 'hunter10'; }), 'hunter10 should be claimable at 12 monsters');
+      assert(C.claimable(G).some(function (m) { return m.id === 'hunter10'; }), 'hunter10 should be claimable at 12 server-counted monsters');
       const before = goldOf();
       /* b515 — THE MILESTONE'S REWARD IS THE SERVER'S. `claimMilestone` takes
          its armed branch (the reward is gold/gems, both server-of-record), so it
@@ -591,6 +600,8 @@ export default [
       G.gold = sGold;
       if (sBest === undefined) delete G.bestiary; else G.bestiary = sBest;
       if (sCL === undefined) delete G.collectionLog; else G.collectionLog = sCL;
+      if (hadMirror) G._bestiaryTrophies = sMirror; else delete G._bestiaryTrophies;
+      if (hadClaims) G._collectionServerClaimed = sClaims; else delete G._collectionServerClaimed;
     }
   }),
   () => tryRunAsync('b166: daily login reward claims once per day + escalates with streak', async () => {

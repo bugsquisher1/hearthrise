@@ -3,7 +3,8 @@
 //
 // The GOAL (a distinct-count threshold) and the GOLD/GEM REWARD for every
 // Collection-Log MILESTONE the server credits under `hr_claim_milestone`
-// (supabase/migrations/2026-08-22-collection-claim.sql). This is the SINGLE
+// (the chain-end restatement of hr_claim_milestone__ungated — today
+// supabase/migrations/2026-09-27-ledger-of-firsts.sql). This is the SINGLE
 // SOURCE for those numbers; the SQL RPC embeds a copy and
 // tests/collection-renown-claim-drift.mjs binds THREE sides so none can drift
 // in silence:
@@ -33,9 +34,21 @@
    src/data/monsters.js Object.keys(MONSTERS).length by the drift guard. */
 export const MONSTER_TOTAL = 108;
 
+/* LEDGER OF FIRSTS (2026-09-27, pack 3): 4 rungs → 11. Every rung added by
+   that pack is GOLD-ONLY (no new premium faucet; the drift guard pins gems 0
+   on every id outside the original four). Within each domain thresholds and
+   gold strictly increase, and every threshold is reachable: monsters ≤
+   MONSTER_TOTAL, items ≤ the distinct drop ids across MONSTERS[*].drops. */
 export const COLLECTION_MILESTONES = Object.freeze({
   hunter10:   Object.freeze({ domain: 'monsters', threshold: 10,            gold: 2000 }),
+  hunter25:   Object.freeze({ domain: 'monsters', threshold: 25,            gold: 4000 }),
+  hunter40:   Object.freeze({ domain: 'monsters', threshold: 40,            gold: 8000 }),
+  hunter60:   Object.freeze({ domain: 'monsters', threshold: 60,            gold: 15000 }),
+  hunter85:   Object.freeze({ domain: 'monsters', threshold: 85,            gold: 25000 }),
   hunterAll:  Object.freeze({ domain: 'monsters', threshold: MONSTER_TOTAL, gold: 50000, gems: 25 }),
+  collect25:  Object.freeze({ domain: 'items',    threshold: 25,            gold: 1000 }),
   collect50:  Object.freeze({ domain: 'items',    threshold: 50,            gold: 5000 }),
+  collect75:  Object.freeze({ domain: 'items',    threshold: 75,            gold: 10000 }),
   collect100: Object.freeze({ domain: 'items',    threshold: 100,           gold: 15000, gems: 15 }),
+  collect125: Object.freeze({ domain: 'items',    threshold: 125,           gold: 30000 }),
 });

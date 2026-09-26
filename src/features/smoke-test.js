@@ -11,23 +11,23 @@
 // one live G and several depend on what the previous one left behind, so the
 // concatenation below is a CONTRACT, not a convenience. Add a domain module where its
 // tests used to sit; never re-sort this list to tidy it.
-import { errorLog, analyzeAssertionCoverage, stampBalanceLikeLoad, watchUiOverlaps, overlayResidue, captureShellLocks } from './smoke/_harness.js?v=553';
-import boot from './smoke/boot.js?v=553';
-import propertyAndUnlocks from './smoke/property-and-unlocks.js?v=553';
-import companionsClaimsAndRenown from './smoke/companions-claims-and-renown.js?v=553';
-import roomsItemsAndEconomy from './smoke/rooms-items-and-economy.js?v=553';
-import huntRaidsAndScreens from './smoke/hunt-raids-and-screens.js?v=553';
-import recoveryAndAutoEat from './smoke/recovery-and-auto-eat.js?v=553';
-import farmAndProfile from './smoke/farm-and-profile.js?v=553';
-import musterNavAndIdentity from './smoke/muster-nav-and-identity.js?v=553';
-import clanSeatAndFrontDoor from './smoke/clan-seat-and-front-door.js?v=553';
-import cookingCoreAndSave from './smoke/cooking-core-and-save.js?v=553';
-import bountyAndArtisan from './smoke/bounty-and-artisan.js?v=553';
-import questsChronicleAndBonus from './smoke/quests-chronicle-and-bonus.js?v=553';
-import awayTimeAndOffline from './smoke/away-time-and-offline.js?v=553';
-import recordSeamAndHydration from './smoke/record-seam-and-hydration.js?v=553';
-import marketNightAndPrices from './smoke/market-night-and-prices.js?v=553';
-import monstersInventoryAndBrand from './smoke/monsters-inventory-and-brand.js?v=553';
+import { errorLog, analyzeAssertionCoverage, stampBalanceLikeLoad, watchUiOverlaps, overlayResidue, captureShellLocks } from './smoke/_harness.js?v=554';
+import boot from './smoke/boot.js?v=554';
+import propertyAndUnlocks from './smoke/property-and-unlocks.js?v=554';
+import companionsClaimsAndRenown from './smoke/companions-claims-and-renown.js?v=554';
+import roomsItemsAndEconomy from './smoke/rooms-items-and-economy.js?v=554';
+import huntRaidsAndScreens from './smoke/hunt-raids-and-screens.js?v=554';
+import recoveryAndAutoEat from './smoke/recovery-and-auto-eat.js?v=554';
+import farmAndProfile from './smoke/farm-and-profile.js?v=554';
+import musterNavAndIdentity from './smoke/muster-nav-and-identity.js?v=554';
+import clanSeatAndFrontDoor from './smoke/clan-seat-and-front-door.js?v=554';
+import cookingCoreAndSave from './smoke/cooking-core-and-save.js?v=554';
+import bountyAndArtisan from './smoke/bounty-and-artisan.js?v=554';
+import questsChronicleAndBonus from './smoke/quests-chronicle-and-bonus.js?v=554';
+import awayTimeAndOffline from './smoke/away-time-and-offline.js?v=554';
+import recordSeamAndHydration from './smoke/record-seam-and-hydration.js?v=554';
+import marketNightAndPrices from './smoke/market-night-and-prices.js?v=554';
+import monstersInventoryAndBrand from './smoke/monsters-inventory-and-brand.js?v=554';
 
 const TESTS = [].concat(
   boot, propertyAndUnlocks, companionsClaimsAndRenown,

@@ -499,12 +499,12 @@ export const GOLD_SITE_LEDGER = Object.freeze({
       + 'RESIDUE_FIELDS allowlist (stats/chronicle/settings/…), never an arbitrary bag key. A forged '
       + 'authority key is not on the allowlist and is never assigned. Same boundary as the ones above.',
   },
-  'src/net/accrue.js#applyEnvelopeState': {
+  'src/net/accrue.js#applyEnvelopeStateBody': {
     kind: 'server', status: 'none',
     why: 'The server\'s own number, written ABSOLUTELY. This is the site every other one is trying '
       + 'to become.',
   },
-  'src/net/accrue.js#applyEnvelopeState@2': {
+  'src/net/accrue.js#applyEnvelopeStateBody@2': {
     kind: 'false-positive', status: 'none',
     why: '`written.gold` — a diagnostic record of what was written, on the same source line. Not a '
       + 'balance. Declared rather than special-cased in the scanner: a scanner that skips receivers '

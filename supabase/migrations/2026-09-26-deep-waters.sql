@@ -52,9 +52,13 @@
 --          -> DEEP EMBER 3.4040 -> dawnstone 3.5938
 --
 -- ── THE ECONOMY HALF ───────────────────────────────────────────────────────
---   Every new node's items/h, xp/h and raw g/h is BELOW the current table
---   maximums (750 items/h, 13,327 xp/h, 52,500 g/h), so hr_apply's per-call
---   clamps and hr_day_budget headroom are unchanged. Fish stands are [1,1]
+--   Every new node's paced items/h and xp/h is BELOW the current table
+--   maximums (750 items/h, 13,327 xp/h), so hr_apply's per-call clamps and
+--   hr_day_budget headroom (quantity-based) are unchanged. Raw book g/h, paced
+--   (Security DW-1 corrected an earlier "52,500 g/h" max that four of the six
+--   exceed): 25,000 / 46,698 / 95,902 / 66,176 fish, 72,581 / 156,696 ore —
+--   each fish stand BELOW the named spot under it, each vein between its
+--   neighbours, all under Dawnstone's 262,500 (raws vendor at a 20% bid). Fish stands are [1,1]
 --   (fewer fish/h than the named spot below each); the veins are [1,2]
 --   (363 / 301 ore/h vs 281 / 214), and the one-ore bars (smelt_mithril 1 ore
 --   + 3 coal, smelt_ember 1 ore + 4 coal) stay coal-bound.

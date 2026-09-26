@@ -2833,18 +2833,12 @@ export default [
     const G = window.G;
     const ID = 'hundred_kills';
     const snap = snapshotG();
-    /* STUBBED CLAIM: past 500 on stats.evKillAny, road_hunt (Journeyman's Road)
-       completes on the same tick and would post a REAL hr_claim_quest for the
-       QA character during the play gate. */
     const origClaim = window.HearthriseGoalClaim;
-    window.HearthriseGoalClaim = { isSignedIn: () => false, claimQuest: () => Promise.resolve({ ok: false, error: 'test_stub' }) };
+    window.HearthriseGoalClaim = { isSignedIn: () => false, claimQuest: () => Promise.resolve({ ok: false, error: 'test_stub_road_hunt_completes_past_500' }) };
     try {
       const def = (window.QUEST_DEFS || []).find((q) => q.id === ID);
       assert(def, 'the hundred-kill milestone must be a QUEST_DEFS row, not bespoke UI');
       assert(def.goal === 100, 'the goal must be 100 monsters, got ' + def.goal);
-      /* Journeyman's Road (2026-09-26): the mirror is the SERVER's projection
-         (ev:kill_any -> stats.evKillAny), not the client-only stats.kills, which
-         runs up to 368 ahead of the server on live characters. */
       assert(def.mirror === 'stats.evKillAny',
         'the quest must MIRROR stats.evKillAny (the projection of ev:kill_any), got ' + def.mirror);
       assert(def.reward && def.reward.combatXp === 1500,

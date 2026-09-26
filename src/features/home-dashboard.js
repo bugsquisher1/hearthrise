@@ -1053,9 +1053,7 @@
        ahead      an open step further down. NOT "locked" — every row in the
                   chain counts from the first minute, and a padlock would be
                   this card's first lie. */
-  /* `chain` null = the first day (rows with no `chain` field); a string = that
-     named line. The ONE model for every chain card, so the Road cannot grow a
-     second, drifting copy of the state rules above. */
+  /* `chain` null = the first day (no `chain` field); a string = that line. */
   function chainModel(chain) {
     var G = window.G;
     if (!G || !Array.isArray(G.quests)) return null;
@@ -1096,15 +1094,11 @@
     return { steps: steps, currentIndex: currentIndex, total: steps.length, chain: chain || null };
   }
   function firstDayModel() { return chainModel(null); }
-  /* The Journeyman's Road: visible ONLY when the first day has nothing open and
-     a road step does. Both halves are the model's, so the card and the suite
-     read the same answer. */
+  /* The Road: only once the first day has nothing open, and a road step does. */
   function roadModel() {
     if (firstDayModel()) return null;
     return chainModel('road');
   }
-  /* A chain's card heading. Keyed by the model's `chain`; the first day is the
-     null key. */
   var CHAIN_CARDS = {
     '': 'Your first day',
     road: "Journeyman's Road",
@@ -1128,8 +1122,7 @@
   }
 
   /* Both chain cards draw through this, so the Road reuses every First Light
-     class — and with them the b554 tap-target sizing (`.hd-fl-row` 44px rows on
-     a phone). `hd-chain-<key>` is a hook for the suite, not a style. */
+     class (and the 44px phone rows). `hd-chain-<key>` is a suite hook. */
   function firstDayHtml(model) {
     if (!model) return '';
     var key = model.chain || '';
@@ -1408,9 +1401,7 @@
        for a brand-new account that one row was a skill. The chain goes above
        it because on day one it IS the game, and it removes itself the moment
        the last step is finished — see firstDayModel(). */
-    /* The Journeyman's Road takes the same slot once the first day is done —
-       never both (roadModel() is null while a first-day step is open). The
-       rest of render() and wire() read `chainCard`, whichever one drew. */
+    /* One chain card at a time; render() and wire() read `chainCard`. */
     var firstDay = firstDayModel();
     var chainCard = firstDay || roadModel();
     html += firstDayHtml(chainCard);

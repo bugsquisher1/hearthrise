@@ -220,6 +220,28 @@ Seed shop (`SEED_SHOP`), store traits, board tasks, etc. are data tables in
 `legacy.js` / feature files. A drop that has **no** faucet will fail the
 reachability guard — wire it into a drop table, recipe, or shop.
 
+### 8. Quests (server-paid) — data in THREE places + one SQL arm
+`legacy.js` `QUEST_DEFS` rows `{id, chain?, type, mirror?, label, goal, reward:{gold?, item?, qty?, combatXp?}, note}`.
+- **`chain`** — absent = the first day ("Your first day" card on Home). `chain:'road'` =
+  **Journeyman's Road** (content pack 7: `road_forge`, `road_craft`, `road_cook`,
+  `road_gather`, `road_hunt`, `road_harvest`), drawn by its own Home card only once the
+  first day is done (`home-dashboard.js` `chainModel`/`roadModel`, `CHAIN_CARDS`). A new
+  quest line = a new `chain` value + a `CHAIN_CARDS` row.
+- **`mirror`** — the row READS a projected server counter instead of counting events.
+  Every server-paid lifetime quest must mirror one: `accrue.js` `EVENT_COUNTER_PROJECTION`
+  maps the server's lifetime `ev:<type>` rows onto `G.stats` leaves —
+  `ev:harvest→harvested`, `ev:planted→planted`, and the dedicated road leaves
+  `ev:gather→evGather`, `ev:cooked→evCooked`, `ev:smithed→evSmithed`,
+  `ev:crafted→evCrafted`, `ev:kill_any→evKillAny` (`hundred_kills` reads `evKillAny`
+  too). Never project onto a stats field another system reads; add a new leaf. Readers:
+  `MIRRORED_QUEST_SOURCES` (legacy.js).
+- **Reward** — `src/data/goal-catalogue.js` `QUEST_REWARDS[id] = {checkKey, goal, gold, items}`
+  plus the chain-end SQL (`hr_claim_quest__ungated` CASE arm + `hr_quest_rewards` row;
+  today `supabase/migrations/2026-09-28-journeymans-road.sql`). Adding a paid quest is a
+  lane-C change: new migration restating the body, Security GO before apply.
+  `tests/quest-reward-parity.mjs` + `tests/goal-catalogue-drift.mjs` bind all copies at the
+  chain end of `tests/schema-apply-order.json`.
+
 ---
 
 ## Free infrastructure you get automatically

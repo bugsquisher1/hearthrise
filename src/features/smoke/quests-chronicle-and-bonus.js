@@ -2828,7 +2828,7 @@ export default [
       const html = H.__firstDayHtml(road);
       assert(/Journeyman(&#39;|&#039;|')s Road/.test(html) && !/Your first day/.test(html), 'the Road card is mistitled: ' + html.slice(0, 200));
       assert(/hd-fl-row/.test(html) && new RegExp('Step 1 of 6').test(html),
-        'the Road card must reuse the First Light rows (hd-fl-row, the b554 tap targets) and count its own steps');
+        'the Road card must reuse the First Light rows (hd-fl-row tap targets) and count its own steps');
       if (panel) {
         panel.classList.add('active');
         H.render();

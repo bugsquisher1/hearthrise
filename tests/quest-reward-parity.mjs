@@ -25,8 +25,13 @@
 //   (2) src/legacy.js                QUEST_DEFS reward.item/qty — what the
 //                                     player is SHOWN (and the tooltip they
 //                                     believe)
-//   (3) supabase/migrations/2026-09-06-quest-item-rewards.sql — what the server
-//                                     actually CREDITS
+//   (3) the CHAIN-END seed — the LAST file in tests/schema-apply-order.json
+//                                     `order` that refills hr_quest_rewards
+//                                     (2026-09-28-journeymans-road.sql today;
+//                                     2026-09-06 until then) — what the server
+//                                     actually CREDITS. Derived, never a
+//                                     hard-coded file: a superseded seed is
+//                                     not what a rebuild or production runs.
 // A drift means a player is promised 30 shrimp and paid 5, or promised an item
 // and paid nothing at all. This guard fails the build on any one-sided edit.
 //
@@ -54,7 +59,30 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const LEGACY = join(ROOT, 'src', 'legacy.js');
-const MIG = join(ROOT, 'supabase', 'migrations', '2026-09-06-quest-item-rewards.sql');
+
+/* ── THE CHAIN END ───────────────────────────────────────────────────────────
+   The LAST file in schema-apply-order.json `order` whose text matches `re` —
+   the body/seed a rebuild installs last, which is also the one production runs
+   once the order is applied. Same derivation collection-renown-claim-drift uses;
+   shared here so goal-catalogue-drift and goal-counter-kinds bind the SAME file
+   this guard does. Returns {file, sql} or null. */
+export async function chainEndMigration(re, orderOverride) {
+  const order = orderOverride
+    || JSON.parse(await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+  let end = null;
+  for (const f of order) {
+    let txt;
+    try { txt = await readFile(join(ROOT, 'supabase', 'migrations', f), 'utf8'); } catch { continue; }
+    if (re.test(txt)) end = { file: f, sql: txt };
+  }
+  return end;
+}
+export const SEED_RE = /insert into public\.hr_quest_rewards \(quest_id, items\) values/i;
+async function seedMigration() {
+  const end = await chainEndMigration(SEED_RE);
+  if (!end) throw new Error('no file in tests/schema-apply-order.json `order` seeds hr_quest_rewards');
+  return end;
+}
 
 /* ── (2) legacy.js QUEST_DEFS ────────────────────────────────────────────────
    Parsed from TEXT, never imported: legacy.js is a classic script that needs a
@@ -164,7 +192,7 @@ export async function questRewardParityGuard(over = {}) {
   if (over.QUEST_REWARDS) QUEST_REWARDS = over.QUEST_REWARDS;
 
   const legacySrc = over.legacy ?? await readFile(LEGACY, 'utf8');
-  const sql = over.sql ?? await readFile(MIG, 'utf8');
+  const sql = over.sql ?? (await seedMigration()).sql;
 
   const defs = parseQuestDefs(legacySrc);
   if (!defs) return ['CONTROL: QUEST_DEFS could not be located in src/legacy.js — the authored side is unreadable.'];
@@ -247,7 +275,9 @@ export async function questRewardParityGuard(over = {}) {
 async function list() {
   const { QUEST_REWARDS, questRewardItems } = await import('../src/data/goal-catalogue.js');
   const defs = parseQuestDefs(await readFile(LEGACY, 'utf8'));
-  const seed = parseSeed(await readFile(MIG, 'utf8'));
+  const end = await seedMigration();
+  process.stdout.write(`chain-end seed: ${end.file}\n`);
+  const seed = parseSeed(end.sql);
   const ids = new Set([...Object.keys(QUEST_REWARDS), ...(defs ? defs.keys() : []), ...(seed ? seed.keys() : [])]);
   process.stdout.write('quest        QUEST_DEFS (legacy.js)   QUEST_REWARDS (data)     hr_quest_rewards (sql)\n');
   for (const id of [...ids].sort()) {
@@ -275,15 +305,29 @@ const MUTATIONS = [
   { name: 'sql seed row removed (server pays gold only)',
     apply: (s) => ({ sql: s.sql.replace("('first_blood', '{\"turnip_seed\": 5}'),\n", '') }) },
   { name: 'sql seed grants an id that exists nowhere (the small_bones class)',
-    apply: (s) => ({ sql: s.sql.replace('"wheat_seed": 5', '"small_bones": 5') }) },
+    /* Anchored on the SEED TUPLE, not the bare `"wheat_seed": 5`: the chain-end
+       file also quotes the pre-state rows in its §0 precondition, and a bare
+       anchor mutated that copy — changing text, proving nothing. */
+    apply: (s) => ({ sql: s.sql.replace("('farmhand',    '{\"wheat_seed\": 5}')", "('farmhand',    '{\"small_bones\": 5}')") }) },
   { name: 'catalogue item map emptied (the client stops asking the server for it)',
     apply: (s, cat) => ({ QUEST_REWARDS: { ...cat, first_cook: { ...cat.first_cook, items: {} } } }) },
   { name: 'catalogue qty drift against both other sides',
     apply: (s, cat) => ({ QUEST_REWARDS: { ...cat, first_cook: { ...cat.first_cook, items: { shrimp: 31 } } } }) },
+  /* ── Journeyman's Road (content pack 7) — the road rows are bound the same way */
+  { name: 'road: legacy bone_key qty drift (road_hunt shows 2 keys, the server pays 1)',
+    apply: (s) => ({ legacy: s.legacy.replace("reward:{gold:1500,item:'bone_key',qty:1}", "reward:{gold:1500,item:'bone_key',qty:2}") }) },
+  { name: 'road: chain-end seed potato_seed drift (the number that actually gets credited)',
+    apply: (s) => ({ sql: s.sql.replace("('road_harvest', '{\"potato_seed\": 10}')", "('road_harvest', '{\"potato_seed\": 1}')") }) },
+  { name: 'road: catalogue iron_pickaxe qty drift against both other sides',
+    apply: (s, cat) => ({ QUEST_REWARDS: { ...cat, road_forge: { ...cat.road_forge, items: { iron_pickaxe: 2 } } } }) },
+  { name: 'road: chain-end seed row removed (road_cook pays gold only)',
+    apply: (s) => ({ sql: s.sql.replace("  ('road_cook',    '{\"oak_rod\": 1}'),\n", '') }) },
 ];
 
 async function selftest() {
-  const base = { legacy: await readFile(LEGACY, 'utf8'), sql: await readFile(MIG, 'utf8') };
+  const end = await seedMigration();
+  process.stdout.write(`  chain-end seed: ${end.file}\n`);
+  const base = { legacy: await readFile(LEGACY, 'utf8'), sql: end.sql };
   const { QUEST_REWARDS } = await import('../src/data/goal-catalogue.js');
 
   const clean = await questRewardParityGuard();
@@ -319,7 +363,7 @@ if (process.argv[1]?.endsWith('quest-reward-parity.mjs')) {
         if (problems.length) {
           for (const p of problems) process.stdout.write(`  FAIL  ${p}\n`);
           process.stdout.write(`\n${problems.length} quest-reward drift(s). The three sides are src/data/goal-catalogue.js, `
-            + 'src/legacy.js QUEST_DEFS and supabase/migrations/2026-09-06-quest-item-rewards.sql.\n');
+            + 'src/legacy.js QUEST_DEFS and the chain-end hr_quest_rewards seed (schema-apply-order.json).\n');
           return 1;
         }
         process.stdout.write('  ok    every quest item reward agrees across data, client and server, and every id is real.\n\nin sync.\n');

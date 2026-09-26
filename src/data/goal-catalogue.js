@@ -9,7 +9,10 @@
 // silence:
 //   (1) this module,
 //   (2) the authored client rows in src/legacy.js (QUEST_DEFS / DAILY_TASK_POOL),
-//   (3) the server catalogue inside the migration SQL.
+//   (3) the server catalogue inside the migration SQL — for QUESTS, the LAST
+//       file in tests/schema-apply-order.json that restates
+//       hr_claim_quest__ungated / refills hr_quest_rewards (the chain end;
+//       2026-09-28-journeymans-road.sql today), never a superseded one.
 //
 // ── WHY GOLD — AND, SINCE THE QUEST-ITEM SLICE, THE ITEM HALF TOO ───────
 // The gold-arming program moves ONE domain at a time (gold first). Under arm,
@@ -17,8 +20,12 @@
 // (clientMayWriteRecordField('gold') → false), so the reward has to be paid by
 // a server RPC.
 //
+// Ten QUEST rows: the five-step first day (four here; hundred_kills pays XP
+// only) and the six-step Journeyman's Road (chain:'road').
+//
 // The QUEST rows now also carry `items` — the SERVER-CREDITED item grant.
-// supabase/migrations/2026-09-06-quest-item-rewards.sql seeds it into
+// supabase/migrations/2026-09-06-quest-item-rewards.sql seeded it (the road
+// rows are refilled by 2026-09-28-journeymans-road.sql, which now OWNS it) into
 // public.hr_quest_rewards and hr_claim_quest credits it into player_inventory in
 // the SAME transaction as the gold, once-guarded on the same (user, slot,
 // quest_id) claim row and journalled to player_ledger. `completeQuest` no longer
@@ -53,7 +60,8 @@
 
    `hundred_kills` is ABSENT: its reward is combatXp only (no gold), so it never
    defers under the gold arm and needs no server credit — the client pays its XP
-   exactly as before. Its `mirror:'stats.kills'` equals `ev:kill_any` anyway. */
+   exactly as before. It mirrors `stats.evKillAny`, the projection of
+   `ev:kill_any` (NOT the client-only `stats.kills`, which runs ahead). */
 export const QUEST_REWARDS = Object.freeze({
   gatherer:    { checkKey: 'ev:gather',   goal: 15, gold: 150, items: Object.freeze({}) },
   /* ── FIRST-NIGHT IDLE RESCUE, RESTORED ON THE SERVER SIDE ────────────────
@@ -85,6 +93,23 @@ export const QUEST_REWARDS = Object.freeze({
      already carrying progress ≥ 6 completes on its next harvest tick rather
      than re-granting (ensureRetentionState merges BY ID and keeps `done`). */
   farmhand:    { checkKey: 'ev:harvest',  goal: 6,  gold: 500, items: Object.freeze({ wheat_seed: 5 }) },
+  /* ── JOURNEYMAN'S ROAD (content pack 7; 2026-09-28-journeymans-road.sql) ──
+     The day-2 chain, legacy.js QUEST_DEFS `chain:'road'`. Same two tests as
+     every row above: a lifetime ev:<type> the server already keeps, and a fixed
+     gold amount. Each item is one tier ahead of the level-18 rung (the three
+     tools) or opens the next place to go (bone_key, potato_seed); road_gather
+     pays gold only. Per character, once ever: 6,000 gold + the five grants.
+     Designer rulings 2026-09-26: B1 road_hunt 1,500 for 500 kills and B3
+     road_gather 1,000 for 500 are CONFIRMED — these are one-off lifetime
+     signposts that stack on the dailies/weeklies the same kills already pay,
+     not a rate, and road_hunt above 2,000 reopens the accepted forge residual
+     (see the migration header). */
+  road_forge:   { checkKey: 'ev:smithed',  goal: 60,  gold: 700,  items: Object.freeze({ iron_pickaxe: 1 }) },
+  road_craft:   { checkKey: 'ev:crafted',  goal: 60,  gold: 700,  items: Object.freeze({ iron_axe: 1 }) },
+  road_cook:    { checkKey: 'ev:cooked',   goal: 60,  gold: 600,  items: Object.freeze({ oak_rod: 1 }) },
+  road_gather:  { checkKey: 'ev:gather',   goal: 500, gold: 1000, items: Object.freeze({}) },
+  road_hunt:    { checkKey: 'ev:kill_any', goal: 500, gold: 1500, items: Object.freeze({ bone_key: 1 }) },
+  road_harvest: { checkKey: 'ev:harvest',  goal: 40,  gold: 1500, items: Object.freeze({ potato_seed: 10 }) },
 });
 
 /* ── THE ONE NORMALISER FOR A QUEST'S ITEM REWARD ────────────────────────

@@ -2641,4 +2641,225 @@ export default [
       restoreG(snap);
     }
   }),
+
+  /* ══ ROAD-1..5 — Journeyman's Road (content pack 7) ═══════════════════════
+     Six chain:'road' QUEST_DEFS rows, each MIRRORED onto a dedicated `ev*`
+     projection of the server's lifetime counter (accrue.js
+     EVENT_COUNTER_PROJECTION) and paid by hr_claim_quest
+     (2026-09-28-journeymans-road.sql). The client never decides a claim: it
+     shows the server's number, fires on it, and banks what the RPC reports.
+     Every claim here is STUBBED — the suite runs on a live signed-in account
+     during the play gate and must never pay a real quest out of a test. */
+  () => tryRunAsync('ROAD-1 (away): a complete statement with ev:smithed=60 shows road_forge 60/60 and fires its claim; the grant banks exactly what the RPC reports, no mint', async () => {
+    const G = window.G;
+    const A = window.HearthriseAccrual;
+    const snap = snapshotG();
+    const origClaim = window.HearthriseGoalClaim;
+    const fired = [];
+    try {
+      assert(A && typeof A.reconcileEventCounters === 'function', 'HearthriseAccrual.reconcileEventCounters is unpublished');
+      assert(typeof window.hrApplyQuestClaimGrant === 'function', 'hrApplyQuestClaimGrant is unpublished');
+      const def = (window.QUEST_DEFS || []).find((q) => q.id === 'road_forge');
+      assert(def && def.chain === 'road' && def.mirror === 'stats.evSmithed' && def.goal === 60,
+        'road_forge must be a chain:road row mirroring stats.evSmithed at 60: ' + JSON.stringify(def));
+      window.HearthriseGoalClaim = {
+        isSignedIn: () => false,
+        claimQuest: (id) => {
+          fired.push(id);
+          return Promise.resolve(id === 'road_forge'
+            ? { ok: true, credited: true, quest: id, gold: 700, items: { iron_pickaxe: 1 }, skipped_items: {} }
+            : { ok: false, error: 'test_stub' });
+        },
+      };
+      G.stats = {};
+      G.quests = [];
+      G.inventory = Object.assign({}, G.inventory);
+      delete G.inventory.iron_pickaxe;
+      window.ensureRetentionState();
+      A.reconcileEventCounters(G, { progress_truncated: false,
+        progress: [{ kind: 'stat', key: 'ev:smithed', period: '', value: 60, state: 'active' }] });
+      assert(G.stats.evSmithed === 60, 'the away statement did not project ev:smithed onto stats.evSmithed: ' + G.stats.evSmithed);
+      window.ensureRetentionState();
+      const q = () => G.quests.find((x) => x.id === 'road_forge');
+      assert(q() && q().progress === 60, 'road_forge must read 60/60 off the projection, got ' + (q() && q().progress));
+      /* The next quest tick is what completes a mirrored row (the sync never grants). */
+      window.updateQuest('smithed', 0);
+      assert(q().done === true, 'road_forge at the server\'s 60 did not complete');
+      assert(fired.indexOf('road_forge') !== -1, 'completing road_forge did not fire hr_claim_quest: ' + JSON.stringify(fired));
+      assert(!(G.inventory.iron_pickaxe > 0),
+        'THE CLIENT MINTED the pickaxe before the server answered — completeQuest must mirror the RPC, not addItem');
+      await new Promise((r) => setTimeout(r, 0));
+      await new Promise((r) => setTimeout(r, 0));
+      assert(q().claimed === true, 'an ok claim must mark the row claimed so the sweep stops asking');
+      assert(G.inventory.iron_pickaxe === 1,
+        'hrApplyQuestClaimGrant must bank EXACTLY the reported {iron_pickaxe:1}, got ' + G.inventory.iron_pickaxe);
+      /* A replay answer (credited false) banks nothing. */
+      const again = window.hrApplyQuestClaimGrant({ ok: false, error: 'already_claimed' });
+      assert(again === null && G.inventory.iron_pickaxe === 1, 'a refused/replayed claim banked an item');
+    } finally {
+      window.HearthriseGoalClaim = origClaim;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('ROAD-2 (attended): updateQuest(\'smithed\',999) and a live smithing tick leave road_forge at the server figure', () => {
+    const G = window.G;
+    const snap = snapshotG();
+    const origClaim = window.HearthriseGoalClaim;
+    const realNotify = window.notify, realDeclare = window.declareActivity;
+    const fired = [];
+    try {
+      window.HearthriseGoalClaim = { isSignedIn: () => false, claimQuest: (id) => { fired.push(id); return Promise.resolve({ ok: false, error: 'test_stub' }); } };
+      window.notify = () => {};
+      window.declareActivity = () => null;
+      G.stats = { evSmithed: 12, smithed: 0 };
+      G.quests = [];
+      window.ensureRetentionState();
+      const q = () => G.quests.find((x) => x.id === 'road_forge');
+      assert(q().progress === 12, 'CONTROL: road_forge must start at the projected 12, got ' + q().progress);
+      window.updateQuest('smithed', 999);
+      assert(q().progress === 12 && !q().done,
+        'a client updateQuest(\'smithed\',999) moved road_forge to ' + q().progress + ' — the row must READ the server figure, never count');
+      /* A LIVE bench tick: the client's own counters move, the road row does not. */
+      const r = (window.ARTISAN_RECIPES.smithing || []).find((x) => x.req <= 1
+        && (x.input || (x.inputs && Object.keys(x.inputs).length)));
+      assert(r, 'no level-1 smithing recipe for the probe');
+      const feed = {};
+      if (r.inputs) Object.keys(r.inputs).forEach((k) => { feed[k] = r.inputs[k] * 3; });
+      else feed[r.input] = 3;
+      G.rooms = Object.assign({}, G.rooms, { forge: 1 });
+      G.inventory = Object.assign({}, G.inventory, feed);
+      G.skills = Object.assign({}, G.skills, { smithing: 100000 });
+      const before = Number(G.stats.smithed) || 0;
+      window.doArtisanAction('smithing', r.id);
+      assert((Number(G.stats.smithed) || 0) > before,
+        'CONTROL: the live tick did not run (stats.smithed did not move) — the assertion below would be vacuous');
+      assert(q().progress === 12 && !q().done,
+        'a live smithing tick moved road_forge to ' + q().progress + ' — only the server\'s ev:smithed may');
+      assert(fired.indexOf('road_forge') === -1, 'road_forge fired a claim below its server goal');
+    } finally {
+      try { if (typeof window._stopArtisan === 'function') window._stopArtisan(); } catch (e) {}
+      window.HearthriseGoalClaim = origClaim; window.notify = realNotify; window.declareActivity = realDeclare;
+      restoreG(snap);
+    }
+  }),
+
+  /* THE P1 THIS LANE CLOSES: stats.kills is a client-only residue counter that
+     runs up to 368 ahead of the server's ev:kill_any on live characters. A
+     mirror of it shows 500/500, fires a claim the server refuses, and the
+     sweep re-fires it every minute. MUTATION: point road_hunt (or
+     hundred_kills) back at 'stats.kills' and this test goes red. */
+  () => tryRun('ROAD-2b: stats.kills=500 with a projected ev:kill_any of 132 — road_hunt and hundred_kills show 132, stay open, and fire no claim', () => {
+    const G = window.G;
+    const A = window.HearthriseAccrual;
+    const snap = snapshotG();
+    const origClaim = window.HearthriseGoalClaim;
+    const fired = [];
+    try {
+      window.HearthriseGoalClaim = { isSignedIn: () => false, claimQuest: (id) => { fired.push(id); return Promise.resolve({ ok: false, error: 'test_stub' }); } };
+      G.stats = { kills: 500 };
+      G.quests = [];
+      window.ensureRetentionState();
+      A.reconcileEventCounters(G, { progress_truncated: false,
+        progress: [{ kind: 'stat', key: 'ev:kill_any', period: '', value: 132, state: 'active' }] });
+      assert(G.stats.kills === 500, 'CONTROL: the client tally must stay ahead (500), got ' + G.stats.kills);
+      window.updateQuest('kill_any', 1);
+      const hunt = G.quests.find((x) => x.id === 'road_hunt');
+      const hk = G.quests.find((x) => x.id === 'hundred_kills');
+      assert(hunt && hunt.progress === 132 && !hunt.done,
+        'road_hunt must show the server\'s 132 and stay open, got ' + JSON.stringify(hunt && { p: hunt.progress, d: hunt.done }));
+      assert(hk && hk.progress === 100 && hk.done === true,
+        'CONTROL: hundred_kills at the server\'s 132 >= 100 completes — got ' + JSON.stringify(hk && { p: hk.progress, d: hk.done }));
+      assert(fired.indexOf('road_hunt') === -1, 'road_hunt fired a claim the server would refuse: ' + JSON.stringify(fired));
+      /* And below 100 the XP milestone is not handed out on the client's say-so. */
+      G.quests = [];
+      window.ensureRetentionState();
+      A.reconcileEventCounters(G, { progress_truncated: false,
+        progress: [{ kind: 'stat', key: 'ev:kill_any', period: '', value: 60, state: 'active' }] });
+      window.updateQuest('kill_any', 1);
+      const hk2 = G.quests.find((x) => x.id === 'hundred_kills');
+      assert(hk2.progress === 60 && !hk2.done,
+        'hundred_kills paid on the client tally (500) while the server says 60: ' + JSON.stringify({ p: hk2.progress, d: hk2.done }));
+    } finally {
+      window.HearthriseGoalClaim = origClaim;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('ROAD-3: questDestination resolves every Journeyman\'s Road row without the fallback', () => {
+    const QN = window.HearthriseQuestNav;
+    assert(QN && typeof QN.destination === 'function', 'the quest-nav resolver is not loaded');
+    const road = (window.QUEST_DEFS || []).filter((d) => d.chain === 'road');
+    assert(road.length === 6, 'expected the six road rows, got ' + road.map((d) => d.id).join(','));
+    road.forEach((d) => {
+      const dest = QN.destination(Object.assign({}, d));
+      assert(dest && dest.tab && dest.via !== 'fallback', d.id + ' reaches no destination (via ' + (dest && dest.via) + ')');
+    });
+  }),
+
+  () => tryRun('ROAD-4: "Your first day" draws only the rows with no chain; the Road card is hidden while a first-day step is open and shown after', () => {
+    const G = window.G;
+    const H = window.HearthriseHome;
+    const snap = snapshotG();
+    const panel = document.getElementById('panel-profile');
+    const hadActive = !!(panel && panel.classList.contains('active'));
+    try {
+      assert(H && typeof H.__roadModel === 'function' && typeof H.__firstDayModel === 'function', 'the chain-card seams are unpublished');
+      G.stats = { kills: 0, gathered: 0, harvested: 0, cropsHarvested: 0, rareDrops: 0 };
+      G.quests = [];
+      G.daily = { lastReset: window.hrGoalDayKey(), tasks: [] };
+      window.ensureRetentionState();
+      const dayDefs = window.QUEST_DEFS.filter((d) => !d.chain);
+      const m0 = H.__firstDayModel();
+      assert(m0 && m0.total === dayDefs.length,
+        'the first-day card must draw exactly the ' + dayDefs.length + ' rows with no chain, drew ' + (m0 && m0.total));
+      assert(m0.steps.every((s) => !/^road_/.test(s.id)), 'a road row leaked into "Your first day"');
+      assert(H.__roadModel() === null, 'the Road card must be hidden while a first-day step is open');
+      const lead = window.HearthriseLaunchpad && window.HearthriseLaunchpad.getNextMilestone();
+      assert(!(lead && lead.kind === 'quest' && lead.goal && lead.goal.chain),
+        '"Next up" offered a road row (' + (lead && lead.label) + ') while the first day is still open');
+
+      // The first day, finished and paid.
+      G.quests.forEach((q) => { if (!q.chain) { q.done = true; q.claimed = true; q.progress = q.goal; } });
+      assert(H.__firstDayModel() === null, 'CONTROL: a finished first day yields no model');
+      const road = H.__roadModel();
+      assert(road && road.chain === 'road' && road.total === 6 && road.currentIndex === 0,
+        'the Road card must draw its six rows once the first day is done: ' + JSON.stringify(road && { t: road.total, c: road.currentIndex }));
+      const html = H.__firstDayHtml(road);
+      assert(/Journeyman(&#39;|&#039;|')s Road/.test(html) && !/Your first day/.test(html), 'the Road card is mistitled: ' + html.slice(0, 200));
+      assert(/hd-fl-row/.test(html) && new RegExp('Step 1 of 6').test(html),
+        'the Road card must reuse the First Light rows (hd-fl-row, the b554 tap targets) and count its own steps');
+      if (panel) {
+        panel.classList.add('active');
+        H.render();
+        const root = document.getElementById('hd-root');
+        assert(root && root.querySelector('.hd-firstlight.hd-chain-road .hd-fl-row'), 'the rendered Home has no Road card');
+        assert(root.querySelectorAll('.hd-firstlight').length === 1, 'two chain cards drew at once');
+      }
+      // The road finished too: nothing left to draw.
+      G.quests.forEach((q) => { q.done = true; q.claimed = true; q.progress = q.goal; });
+      assert(H.__roadModel() === null, 'a finished road must leave the screen');
+    } finally {
+      if (panel && !hadActive) panel.classList.remove('active');
+      restoreG(snap);
+      try { H.render(); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('ROAD-5: a complete statement with no ev rows zeroes the ev* road fields and leaves stats.gathered, cooked and kills untouched', () => {
+    const A = window.HearthriseAccrual;
+    const g = { stats: { evGather: 90, evCooked: 7, evSmithed: 5, evCrafted: 4, evKillAny: 300,
+      gathered: 1234, cooked: 56, kills: 789, smithed: 11, crafted: 12 } };
+    A.reconcileEventCounters(g, { progress_truncated: false, progress: [] });
+    ['evGather', 'evCooked', 'evSmithed', 'evCrafted', 'evKillAny'].forEach((k) => {
+      assert(g.stats[k] === 0, 'a complete empty statement must zero ' + k + ', got ' + g.stats[k]);
+    });
+    assert(g.stats.gathered === 1234 && g.stats.cooked === 56 && g.stats.kills === 789
+      && g.stats.smithed === 11 && g.stats.crafted === 12,
+      'the projection touched a shared client counter (goal board / weeklies / cook_100 read these): ' + JSON.stringify(g.stats));
+    const rows = (A.EVENT_COUNTER_PROJECTION || []).map((r) => r.stat);
+    ['gathered', 'cooked', 'smithed', 'crafted', 'kills'].forEach((k) => {
+      assert(rows.indexOf(k) === -1, 'EVENT_COUNTER_PROJECTION maps onto the shared stats.' + k);
+    });
+  }),
 ];

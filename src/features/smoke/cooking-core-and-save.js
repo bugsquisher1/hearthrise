@@ -1978,10 +1978,10 @@ export default [
   }),
 
   /* ── regression suite — THE BAG COUNTER WAS CUT TO "0 / 1" ─────────
-     b555 sweep: the bag header row never wraps, but it sat in a `minmax(0,1fr)`
-     grid column, so once the b554 44px buttons widened its neighbours the
+     Clipped-label sweep: the bag header row never wraps, but it sat in a `minmax(0,1fr)`
+     grid column, so once the 44px tap-floor buttons widened its neighbours the
      counter was squeezed to 49px at 852x393 ("0 / 1") and 119px at 922x423
-     ("(100 fr"). Same iframe method as the chip probe above. RED on b554. */
+     ("(100 fr"). Same iframe method as the chip probe above. RED before the fix. */
   () => tryRun('b555: the bag counter reads whole at 852x393 and 922x423', () => {
     const render = window._renderInvFancy || window.renderInvFancy;
     assert(typeof render === 'function', 'the inventory renderer seam (window._renderInvFancy) must exist');

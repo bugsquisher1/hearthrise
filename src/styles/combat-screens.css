@@ -1351,7 +1351,7 @@ body.in-combat #panel-combat .fs-style .combat-style-block .csb-btn small {
      which both broke that alignment and pushed the card ~16px over its budget,
      costing the second row. Shrinking the gap and letting the label ellipsise
      keeps both numbers visible and the row count honest.
-     b555: it never ellipsised. The row had no width cap, so "2H Hammer 8 HP"
+     And it never ellipsised. The row had no width cap, so "2H Hammer 8 HP"
      laid out at max-content (~130px) CENTRED in a 94px card and the card's
      overflow cut BOTH ends ("H Hammer 8 H"). No width holds a weakness and a
      3-digit HP at this size, so the card reflows instead of clipping: the

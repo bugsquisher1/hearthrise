@@ -427,13 +427,13 @@ export default [
   }),
 
   /* ── regression suite — THE WAR TABLE TILE CUT ITS STAT LINE AT BOTH ENDS ──
-     b555 visual-qa, 922x423: "2H Hammer 8 HP" painted as "H Hammer 8 H". The
+     Visual-qa, 922x423: "2H Hammer 8 HP" painted as "H Hammer 8 H". The
      phone rule made the weakness+HP row `nowrap` with no width cap, so it laid
      out at max-content CENTRED in a 102px card whose overflow cut both sides —
-     the ellipsis it was written for never fired. Same iframe method as the b554
-     bag probe (media queries evaluate against the frame; a 64px block stands in
+     the ellipsis it was written for never fired. Same iframe method as the bag
+     tap-target probe (media queries evaluate against the frame; a 64px block stands in
      for the rail). Every stat/badge text node must sit wholly inside its card
-     and none may overflow its own box. RED on b554 (every T1 card). */
+     and none may overflow its own box. RED before the fix (every T1 card). */
   () => tryRun('b555: every War Table tile shows its whole weakness + HP line at 922x423', () => {
     const { CS, G, restore } = combatScreen();
     let bad = [], seen = 0, cardW = 0;

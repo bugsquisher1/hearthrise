@@ -2342,9 +2342,9 @@ body[data-theme] .brand-word {
    * this rule. */
   body[data-theme] #panel-inventory.active {
     display: grid !important;
-    /* b555: `max-content`, not 0 — the counter row never wraps, so a column
+    /* `max-content`, not 0 — the counter row never wraps, so a column
      * narrower than it cut "0 / 100 (100 free)" to "0 / 1" at 852x393 once
-     * the b554 44px buttons widened its neighbours. The search column gives. */
+     * the 44px tap-floor buttons widened its neighbours. The search column gives. */
     grid-template-columns: minmax(max-content, 1fr) minmax(0, 320px) !important;
     grid-template-rows: auto auto minmax(0, 1fr) !important;
     align-content: start;

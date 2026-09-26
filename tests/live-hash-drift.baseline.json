@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-26",
- "replay_ms": 2359,
+ "replay_ms": 1637,
  "counts": {
   "tracked_names": 60,
   "entries": 57
@@ -339,13 +339,15 @@
    "sig": "hr_claim_quest__ungated(p_quest_id text, p_slot integer)",
    "name": "hr_claim_quest__ungated",
    "tracked_by": [
+    "chain",
     "floor",
     "pin"
    ],
    "touched_by": [
     "2026-08-20-goal-reward-rpc-credit.sql",
     "2026-09-04-goal-gold-retune.sql",
-    "2026-09-06-quest-item-rewards.sql"
+    "2026-09-06-quest-item-rewards.sql",
+    "2026-09-28-journeymans-road.sql"
    ],
    "live": {
     "md5": "10372c9994729fabbff1ba492933f81e",
@@ -354,11 +356,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "10372c9994729fabbff1ba492933f81e",
-    "norm_len": 4749,
+    "md5": "557591eac172a53e3eaa67b0ec806545",
+    "norm_len": 5277,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "DELIBERATE 2026-09-26: code differs by design (--codediff: first divergence at char 1025, replay adds the six road_* arms road_forge/road_craft/road_cook/road_gather/road_hunt/road_harvest after harvest_6; nothing else). The repo carries the STAGED 2026-09-28-journeymans-road.sql (Security MIGRATION GO sec/journeymans-road bec12670; runbook in SEC_HUNTS_M6). Production still runs 2026-09-06-quest-item-rewards.sql. Re-measure with --live --write right after the apply; this entry must then agree."
   },
   {
    "sig": "hr_companion_grant(p_slot integer, p_companion text, p_source text, p_idem uuid)",

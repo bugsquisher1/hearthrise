@@ -91,11 +91,16 @@
       var shown = tKills > 0 ? tKills : entry.kills;
       var named = disc || tKills > 0;
       var note = (window.HearthriseMonsterNotes || {})[id];
-      var noteHtml = (named && typeof note === 'string') ? ('<small class="br-note">' + note + '</small>') : '';
+      /* The note is a full-card-width teaser BELOW the row, clamped to two
+         lines — never inside .br-info, whose ~76px column glued it to the
+         stats and stretched the card one word per line. The full text
+         rides title/aria-label; the collection log prints it whole. */
+      var noteHtml = (named && typeof note === 'string')
+        ? ('<small class="br-note" title="' + note + '" aria-label="' + note + '">' + note + '</small>') : '';
       return '<div class="bestiary-row ' + (named ? 'discovered' : 'undiscovered') + '">' +
         '<div class="br-icon">' + img + '</div>' +
-        '<div class="br-info"><b>' + (named ? m.name : '???') + '</b><small>Tier ' + m.tier + (disc ? ' · ' + m.hp + ' HP' : '') + '</small>' + noteHtml + el + trophy + '</div>' +
-        '<div class="br-kills">' + (shown > 0 ? shown.toLocaleString() + '×' : '—') + '</div>' +
+        '<div class="br-info"><b>' + (named ? m.name : '???') + '</b><small>Tier ' + m.tier + (disc ? ' · ' + m.hp + ' HP' : '') + '</small>' + el + trophy + '</div>' +
+        '<div class="br-kills">' + (shown > 0 ? shown.toLocaleString() + '×' : '—') + '</div>' + noteHtml +
       '</div>';
     }).join('');
     ov.classList.add('show');

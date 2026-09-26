@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 43 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, predZero, snapshotG, drain, stubSignedIn, restoreG, zeroRenownTerms, restoreRenownTerms, on, withClaimServer, goldOf } from './_harness.js?v=554';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, predZero, snapshotG, drain, stubSignedIn, restoreG, zeroRenownTerms, restoreRenownTerms, on, withClaimServer, goldOf } from './_harness.js?v=555';
 
 /* LEDGER OF FIRSTS — the collection-log rungs read the SERVER mirrors, which
    are `_` scratch outside snapshotG. Each test saves and restores them by

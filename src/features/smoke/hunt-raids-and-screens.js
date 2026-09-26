@@ -3011,6 +3011,145 @@ export default [
     } finally { restoreG(snap); }
   }),
 
+  /* ── TIMBERLINE-1..4 — five woodcutting stands, PLAYED ───────────────────
+     Woodcutting was the one gathering skill with a new tree only every 15
+     levels; five stands at 22/38/52/68/82 each yield an EXISTING log. The
+     server half is five hr_activities rows (the level gate); xp/ms/yield ride
+     the edge payload, whose server-path twin is TIMBERLINE-S1 in
+     tests/accrual-engine.mjs.
+     EXACT, NOT BANDED. Every number here is a seeded, bonus-free fixture: no
+     axe (tool double-yield and tool XP), no buff, getBonus and the rested
+     quantum pinned to 0, the away latch held and the RNG reseeded — so a
+     blessing, a room perk or an unlucky draw cannot make one run red. */
+  () => tryRun('TIMBERLINE-1: the five stands sit at 22/38/52/68/82 in req order, a real chop at the Hollow Oak lands exactly one Oak Log, and the tile names it', () => {
+    const snap = snapshotG();
+    const G = window.G, I = window.ITEMS, T = window.TREES || [];
+    const C = window.HearthriseCore, P = window.HearthrisePresence;
+    const real = { getBonus: window.getBonus, restedQuantum: window.restedQuantum, pred: G._pred ? JSON.parse(JSON.stringify(G._pred)) : undefined };
+    try {
+      assert(T.length === 12, 'TREES holds ' + T.length + ' stands, the ruling leaves 12 (7 shipped + 5 new)');
+      const ids = ['hollow_oak_tree', 'weeping_willow_tree', 'maple_grove', 'elder_yew_tree', 'ancient_runewood_tree'];
+      const nodes = ids.map((id) => T.find((t) => t.id === id));
+      nodes.forEach((n, i) => assert(n, 'woodcutting stand ' + ids[i] + ' is missing — the 15-level tree silence is back'));
+      assert(nodes.map((n) => n.req).join(',') === '22,38,52,68,82', 'the five stands must gate at 22/38/52/68/82, got ' + nodes.map((n) => n.req).join(','));
+      for (let i = 1; i < T.length; i++) assert(T[i].req > T[i - 1].req, 'TREES is out of req order at ' + T[i].id + ' — the ladder guards read the array order, so a stand must be inserted, not appended');
+      nodes.forEach((n) => {
+        assert(I[n.prod] && I[n.prod].raw === true, n.id + ' yields ' + n.prod + ', which is not an existing raw item');
+      });
+      const node = nodes[0];
+      window.getBonus = () => 0; window.restedQuantum = () => 0;
+      G.skills = Object.assign({}, G.skills, { woodcutting: window.xpForLevel(node.req) });
+      assert(window.getLevel('woodcutting') === node.req, 'fixture: woodcutting is ' + window.getLevel('woodcutting') + ', not ' + node.req);
+      G.inventory = {}; G.buffs = [];
+      G.activeSkill = 'woodcutting'; G.skillTargetId = node.id;
+      C.reseed(0xC0FFEE);
+      P._withOfflineReplay(() => window.doSkillAction(true));
+      assert((G.inventory.oak_log || 0) === 1, 'one chop at the Hollow Oak banked ' + (G.inventory.oak_log || 0) + ' Oak Log, the ruling says exactly 1 (it is the third rung, so [1,1])');
+      const AG = window.HearthriseActivitiesGrid;
+      assert(AG && typeof AG.__tileForGather === 'function', 'the gather-tile builder is unpublished — the paint half would pass vacuously');
+      assert(AG.__tileForGather(node, 'woodcutting').indexOf('Yields ' + I.oak_log.n) >= 0, 'the Hollow Oak tile does not name ' + I.oak_log.n + ' as its yield');
+    } finally { window.getBonus = real.getBonus; window.restedQuantum = real.restedQuantum; G._pred = real.pred; restoreG(snap); }
+  }),
+
+  () => tryRun('TIMBERLINE-2: the Maple Grove tile is LOCKED at Woodcutting 51 (notify, no start) and LIVE at 52 — the client half of hr_apply activity_locked', () => {
+    const snap = snapshotG();
+    const G = window.G;
+    try {
+      const node = (window.TREES || []).find((t) => t.id === 'maple_grove');
+      assert(node && node.req === 52, 'maple_grove must be the Woodcutting 52 stand, got ' + JSON.stringify(node));
+      const AG = window.HearthriseActivitiesGrid;
+      assert(AG && typeof AG.__tileForGather === 'function', 'the gather-tile builder is unpublished — this test would pass vacuously');
+      /* A GATHER tile has no `disabled` attribute (that is the artisan bench):
+         it locks by class, an at-lock "Level N" label and a notify() click. */
+      const head = (html) => html.slice(0, html.indexOf('>') + 1);
+      G.activeSkill = null; G.skillTargetId = null;
+      G.skills = Object.assign({}, G.skills, { woodcutting: window.xpForLevel(node.req - 1) });
+      const below = AG.__tileForGather(node, 'woodcutting');
+      assert(/class="act-tile[^"]*\blocked\b/.test(head(below)), 'at Woodcutting 51 the Maple Grove tile must carry the `locked` class: ' + head(below));
+      assert(/class="at-lock"[^>]*>[\s\S]*Level 52/.test(below), 'the locked tile must name the level it needs (Level 52)');
+      assert(/onclick="notify\(/.test(head(below)) && below.indexOf('hrActivityTileClick') < 0,
+        'at Woodcutting 51 the click must only toast the requirement and never reach hrActivityTileClick: ' + head(below));
+      G.skills = Object.assign({}, G.skills, { woodcutting: window.xpForLevel(node.req) });
+      const live = AG.__tileForGather(node, 'woodcutting');
+      assert(!/class="act-tile[^"]*\blocked\b/.test(head(live)) && live.indexOf('at-lock') < 0, 'at Woodcutting 52 the Maple Grove tile must be LIVE: ' + head(live));
+      assert(head(live).indexOf("onclick=\"hrActivityTileClick('woodcutting','maple_grove',8200)\"") >= 0,
+        'at Woodcutting 52 the click must start the stand: ' + head(live));
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('TIMBERLINE-3: one real chop at the Maple Grove at Woodcutting 52 banks exactly 2 Maple Logs and floor(78 × 0.39) = 30 XP', () => {
+    const snap = snapshotG();
+    const G = window.G, C = window.HearthriseCore, P = window.HearthrisePresence;
+    const real = { getBonus: window.getBonus, restedQuantum: window.restedQuantum, pred: G._pred ? JSON.parse(JSON.stringify(G._pred)) : undefined };
+    /* The DISPLAY read: server truth + prediction, so an armed skills record
+       (addXp predicts rather than writing G.skills) measures the same delta. */
+    const xpView = () => {
+      try { if (typeof window.hrSkillXpDisplay === 'function') return window.hrSkillXpDisplay('woodcutting').value || 0; }
+      catch (e) {}
+      return (G.skills && G.skills.woodcutting) || 0;
+    };
+    try {
+      const node = (window.TREES || []).find((t) => t.id === 'maple_grove');
+      assert(node && node.qty[0] === 2 && node.qty[1] === 2 && node.xp === 78, 'maple_grove must be the 2-log, 78-xp stand, got ' + JSON.stringify(node));
+      window.getBonus = () => 0; window.restedQuantum = () => 0;
+      G.skills = Object.assign({}, G.skills, { woodcutting: window.xpForLevel(node.req) });
+      G.inventory = {}; G.buffs = [];
+      G.activeSkill = 'woodcutting'; G.skillTargetId = node.id;
+      const xp0 = xpView();
+      C.reseed(0xC0FFEE);
+      P._withOfflineReplay(() => window.doSkillAction(true));
+      assert((G.inventory.maple_log || 0) === 2, 'one chop at the Maple Grove banked ' + (G.inventory.maple_log || 0) + ' Maple Log, the ruling says exactly 2');
+      const gained = xpView() - xp0;
+      assert(gained === Math.floor(78 * 0.39) && gained === 30, 'one chop at the Maple Grove paid ' + gained + ' woodcutting XP, the paced grant is floor(78 × 0.39) = 30');
+    } finally { window.getBonus = real.getBonus; window.restedQuantum = real.restedQuantum; G._pred = real.pred; restoreG(snap); }
+  }),
+
+  () => tryRun('TIMBERLINE-4 (AWAY): a seeded 1 h away span at the Elder Yew at Woodcutting 68 runs exactly 208 actions, pays 48 XP each and a pinned yew_log count', () => {
+    const snap = snapshotG();
+    const G = window.G, C = window.HearthriseCore, P = window.HearthrisePresence;
+    const real = { getBonus: window.getBonus, restedQuantum: window.restedQuantum, pred: G._pred ? JSON.parse(JSON.stringify(G._pred)) : undefined };
+    const xpView = () => {
+      try { if (typeof window.hrSkillXpDisplay === 'function') return window.hrSkillXpDisplay('woodcutting').value || 0; }
+      catch (e) {}
+      return (G.skills && G.skills.woodcutting) || 0;
+    };
+    try {
+      assert(C && C.skillSim && typeof C.skillSim.simulateSkillSpan === 'function', 'core skill-sim is unpublished — the away half would pass vacuously');
+      const node = (window.TREES || []).find((t) => t.id === 'elder_yew_tree');
+      assert(node && node.req === 68 && node.ms === 10800 && node.xp === 124, 'elder_yew_tree must be the Woodcutting 68, 10.8 s, 124-xp stand, got ' + JSON.stringify(node));
+      window.getBonus = () => 0; window.restedQuantum = () => 0;
+      G.skills = Object.assign({}, G.skills, { woodcutting: window.xpForLevel(node.req) });
+      G.inventory = {}; G.buffs = []; G.toolCarry = {};
+      G.stats = Object.assign({}, G.stats, { gathered: 0, chopped: 0 });
+      G.activeSkill = 'woodcutting'; G.skillTargetId = node.id;
+      const nodes = C.skillSim.indexGatherNodes({ woodcutting: window.TREES, mining: window.ROCKS, fishing: window.FISH_SPOTS });
+      const xp0 = xpView();
+      let summary = null;
+      C.reseed(0xC0FFEE);
+      P._withOfflineReplay(() => {
+        summary = C.skillSim.simulateSkillSpan(G, {
+          away: true, fromMs: 0, toMs: 3600000,
+          rng: C.rng, items: window.ITEMS, nodes, bonus: window.getBonus,
+          fx: {
+            addItem: (id, qty) => window.addItem(id, qty),
+            addXp: (sk, amt) => window.addXp(sk, amt),
+            updateDaily: () => {}, updateQuest: () => {},
+            onStop: () => window.stopSkill && window.stopSkill(),
+          },
+        });
+      });
+      /* 3,600,000 ÷ pacedActionMs(10800) = 3,600,000 ÷ 17,280 = 208.3 → 208. */
+      assert(summary && summary.ticks === 208, 'the 1 h away span ran ' + (summary && summary.ticks) + ' actions, not 208 (' + (summary && summary.stoppedBy) + ')');
+      const gained = xpView() - xp0;
+      assert(gained === 48 * 208 && gained === 9984, 'the away span paid ' + gained + ' woodcutting XP, the ruling is 48 × 208 = 9,984');
+      /* Measured once on the 0xC0FFEE stream; pinned, never banded. */
+      const SEEDED_YEW = 304;
+      const yew = G.inventory.yew_log || 0;
+      assert(yew >= 208 && yew <= 416, 'the away span banked ' + yew + ' yew_log, outside the [1,2] × 208 envelope [208, 416]');
+      assert(yew === SEEDED_YEW, 'the seeded away span banked ' + yew + ' yew_log, the 0xC0FFEE stream pins exactly ' + SEEDED_YEW + ' — a changed count is a changed draw order or yield');
+    } finally { window.getBonus = real.getBonus; window.restedQuantum = real.restedQuantum; G._pred = real.pred; restoreG(snap); }
+  }),
+
   /* ── TOWN-1 — THE COMMON, painted and un-paintable ──────────────────────
      THE HAPPY PATH for the live-world week-1 slice: a fixture town body is
      parked exactly as `hr_town_of` would answer it, Home is drawn, and the

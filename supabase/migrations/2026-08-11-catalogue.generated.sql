@@ -6,10 +6,10 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 9917d7c722d8da04493cbb7a3e8d6aba7a1b43ecf0f5002890b63813ddb4f333
+--   catalogue digest: 3d040ae0aa091226a1eeb9022ae2a9eb192f572b919dcb1cb3d52312b53213e9
 --   rows: 538 items (20 untradeable) ·
 --         280 item-slot pairs · 15 equip slots ·
---         17 skills · 9 crops · 503 activities ·
+--         17 skills · 9 crops · 508 activities ·
 --         3 runes
 --
 -- APPLY ORDER: 2026-08-11-player-state.sql → THIS FILE → 2026-08-11-apply-engine.sql
@@ -1517,12 +1517,14 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('combat','wyrmling',null,null,61,false),
   ('combat','wyvern',null,null,135,false),
   ('combat','zombie',null,null,78,false),
+  ('gather','ancient_runewood_tree','woodcutting',82,null,false),
   ('gather','coal_rock','mining',30,null,false),
   ('gather','copper_crab_s','fishing',28,null,false),
   ('gather','copper_rock','mining',1,null,false),
   ('gather','dawnstone_rock','mining',90,null,false),
   ('gather','deep_verdite_seam','mining',48,null,false),
   ('gather','duskwood_tree','woodcutting',90,null,false),
+  ('gather','elder_yew_tree','woodcutting',68,null,false),
   ('gather','emberstone_rock','mining',75,null,false),
   ('gather','fluxsalt_pocket','mining',40,null,false),
   ('gather','frostfin_s','fishing',66,null,false),
@@ -1530,8 +1532,10 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('gather','goldgill_s','fishing',36,null,false),
   ('gather','heartgarnet_geode','mining',56,null,false),
   ('gather','herring_s','fishing',10,null,false),
+  ('gather','hollow_oak_tree','woodcutting',22,null,false),
   ('gather','iron_rock','mining',15,null,false),
   ('gather','lobster_s','fishing',40,null,false),
+  ('gather','maple_grove','woodcutting',52,null,false),
   ('gather','maple_tree','woodcutting',45,null,false),
   ('gather','mithril_rock','mining',60,null,false),
   ('gather','moonfish_s','fishing',90,null,false),
@@ -1546,6 +1550,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('gather','swordfish_s','fishing',55,null,false),
   ('gather','trout_s','fishing',20,null,false),
   ('gather','verdite_seam','mining',36,null,false),
+  ('gather','weeping_willow_tree','woodcutting',38,null,false),
   ('gather','willow_tree','woodcutting',30,null,false),
   ('gather','yew_tree','woodcutting',60,null,false);
 
@@ -1579,7 +1584,7 @@ insert into public.hr_runes (rune_id, element) values
   ('poison_rune','poison');
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '9917d7c722d8da04493cbb7a3e8d6aba7a1b43ecf0f5002890b63813ddb4f333', now())
+  values (true, '3d040ae0aa091226a1eeb9022ae2a9eb192f572b919dcb1cb3d52312b53213e9', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1613,7 +1618,7 @@ begin
     raise exception 'untradeable count is %, generator emitted 20', v_n;
   end if;
   select count(*) into v_n from public.hr_activities;
-  if v_n <> 503 then raise exception 'hr_activities has % rows, expected 503', v_n; end if;
+  if v_n <> 508 then raise exception 'hr_activities has % rows, expected 508', v_n; end if;
 
   -- MONSTER HP. The count is asserted for the same reason auto_eatable's is: a
   -- re-apply against a database that created hr_activities before the column
@@ -1744,7 +1749,7 @@ begin
   select count(*) into v_n from public.hr_runes;
   if v_n <> 3 then raise exception 'hr_runes has % rows, generator emitted 3', v_n; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 9917d7c722d8da04493cbb7a3e8d6aba7a1b43ecf0f5002890b63813ddb4f333',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 3d040ae0aa091226a1eeb9022ae2a9eb192f572b919dcb1cb3d52312b53213e9',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

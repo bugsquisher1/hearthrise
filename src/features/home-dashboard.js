@@ -284,6 +284,10 @@
       R + '.hd-buff .hd-buff-cellar{display:block;color:var(--ink-3) !important;font-weight:600;'
         + 'font-size:calc(14.5px * var(--ui-scale, 1));line-height:1.3}',
       R + '.hd-buff-note{color:var(--ink-3) !important;align-items:flex-start;padding-top:2px}',
+      /* Collection-log tile: the next rung / Claim ready, quiet line under the label. */
+      R + '.hd-mini span.hd-cl-next{display:block;color:var(--ink-3) !important;font-weight:600;'
+        + 'font-size:calc(14.5px * var(--ui-scale, 1));line-height:1.3}',
+      R + '.hd-mini span.hd-cl-next.ready{color:var(--gold) !important}',
       R + '.hd-buff-note .mi{margin-top:-4px}',
       R + '.hd-buff-note div:not([data-hd]){color:var(--ink-3) !important;line-height:1.35}',
 
@@ -1699,9 +1703,16 @@
     if (window.HearthriseCollection && window.HearthriseCollection.getStats) {
       try {
         var _clp = Math.round(window.HearthriseCollection.getStats(G).overall * 100);
+        /* LEDGER OF FIRSTS: the tile says whether a rung is ready, else the
+           nearest next rung — both from the SERVER's counts (tileLine), never
+           from G.bestiary / G.collection, so it cannot promise a claim the
+           server refuses. */
+        var _cln = (typeof window.HearthriseCollection.tileLine === 'function')
+          ? window.HearthriseCollection.tileLine(G) : null;
         html += '<div class="hd-card hd-mini" data-hd="collection" style="cursor:pointer">' +
           '<div class="mi">' + gly('uiBook', 20, '', 'var(--ink-2)') + '</div>' +
-          '<div>Collection log</div>' +
+          '<div>Collection log' + (_cln ? '<span class="hd-cl-next' + (_cln.ready ? ' ready' : '') + '">' +
+            esc(_cln.text) + '</span>' : '') + '</div>' +
           '<b class="go" style="font-variant-numeric:tabular-nums">' + _clp + '%</b></div>';
       } catch (e) {}
     }

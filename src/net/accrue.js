@@ -999,6 +999,14 @@ function settle(verdict, now) {
          and one adopter throwing must not cost the other its mirror. */
       if (W && typeof W.hrNoteServerTrophies === 'function') W.hrNoteServerTrophies(verdict.body);
     } catch (e) {}
+    /* THE SERVER'S COLLECTION COUNT (Ledger of Firsts): the edge's
+       `collection.found`, which is what earns an items rung. Its own try —
+       a display adopter must never cost the trophy mirror or the settle. */
+    try {
+      const W = (typeof window !== 'undefined') ? window : null;
+      const HC = W && W.HearthriseCollection;
+      if (HC && typeof HC.noteServerCounts === 'function') HC.noteServerCounts(verdict.body);
+    } catch (e) {}
   }
   /* ── b368: A RECOVERED SERVER TAKES ITS OWN SHEET DOWN ────────────────────
      The halted sheet used to be removable by exactly one actor: the player.
@@ -3613,6 +3621,16 @@ export function applyEnvelopeState(G, res, ownKey) {
     if (w && w.HearthriseDaily && typeof w.HearthriseDaily.markServerClaim === 'function') {
       w.HearthriseDaily.markServerClaim(res && res.progress);
     }
+  } catch (e) { /* a marker must never break an envelope */ }
+  /* Ledger of Firsts — the server's kind='collection' claim rows mark the
+     Collection-log rungs claimed, whatever the residue thought. Own try. */
+  try {
+    const w = (typeof window !== 'undefined') ? window : null;
+    const HC = w && w.HearthriseCollection;
+    if (HC && typeof HC.noteServerClaims === 'function') HC.noteServerClaims(res && res.progress);
+  } catch (e) { /* a marker must never break an envelope */ }
+  try {
+    const w = (typeof window !== 'undefined') ? window : null;
     /* b475/b498 — feed the WHOLE envelope so the daily-reward sheet can derive
        the day the server will pay from the server's own daily/login claim rows
        (`progress`) against the server's own clock (`now`).

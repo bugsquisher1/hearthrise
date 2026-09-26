@@ -1071,6 +1071,30 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/trophy-wire-shape.mjs
 
+      # LEDGER OF FIRSTS (2026-09-27): the Collection log earns a rung ONLY from
+      # the server's counts. hr-accrue reads count(hr_collection_of) in its own
+      # savepoint and emits `collection: { found }` beside every bestiary spread
+      # (omitted on 42883, any other error propagates); collection-log.js gates
+      # on that and on the hr_bestiary_of mirror, never on G.bestiary /
+      # G.collection. The read and projection are lifted out of index.ts's bytes
+      # and executed; the consumer runs in a vm. --selftest plants each defect.
+      - name: Collection wire - the log earns rungs from server counts only
+        if: ${{ !cancelled() }}
+        run: node tests/collection-wire-shape.mjs --selftest
+
+      - name: Collection wire - base run
+        if: ${{ !cancelled() }}
+        run: node tests/collection-wire-shape.mjs
+
+      # The three-way milestone bind (catalogue / client rows / chain-end SQL)
+      # had a --selftest flag it ignored (exit 0 on the normal body). It now
+      # plants nine defects - a dropped SQL arm, client-only gold/goal/domain
+      # drift, an unreachable threshold, a new gem faucet, a stale chain end -
+      # and each must turn it red. The plain body runs inside run-smoke.mjs.
+      - name: Collection/renown claim drift - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/collection-renown-claim-drift.mjs --selftest
+
       # REALTIME COST. Measured on production 2026-09-06 over 20.25 days: the
       # Realtime WAL poller is 2,706,517 calls / 15,669 s / max 9.8 s — ~61% of
       # all exec time and ~36x the #2 statement — for two published tables, one

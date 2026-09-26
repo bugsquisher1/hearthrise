@@ -113,7 +113,8 @@ export const EQUIP_SLOT_INDEX = Object.freeze(equipSlotSet);
 
 const itemSlotIdx = Object.create(null);
 for (const id of Object.keys(ITEMS)) {
-  const slots = expandItemSlot(ITEMS[id] && ITEMS[id].slot);
+  const it = catalogueGet(ITEMS, id);
+  const slots = expandItemSlot(it && it.slot);
   if (!slots.length) continue;
   const m = Object.create(null);
   for (const s of slots) m[s] = true;
@@ -145,7 +146,7 @@ export const ITEM_EQUIP_SLOTS = Object.freeze(itemSlotIdx);
 const RUNE_ELEMENTS = Object.freeze(['ember', 'frost', 'poison']);
 const runeIdx = Object.create(null);
 for (const id of Object.keys(ITEMS)) {
-  const it = ITEMS[id];
+  const it = catalogueGet(ITEMS, id);
   if (it && it.tag === 'rune' && RUNE_ELEMENTS.includes(it.element)) runeIdx[id] = it.element;
 }
 /** `{ [rune_id]: element }` — the `hr_runes` map, null-prototype. An item that

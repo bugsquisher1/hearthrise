@@ -225,8 +225,8 @@ export const ITEMS={
   turnip_mash: {
     n:'Turnip Mash', icon:'🥣', v:14, heals:5, foodTier:1, foodClass:'healing',
   },
-  /* ── THE TWO ROWS THE LOCAL SHOP SELLS (Designer ruling 2026-09-08) ──────
-     Cooked Shrimp and Cooked Trout are the only cooked food an NPC counter
+  /* ── THE ROWS THE LOCAL SHOP SELLS (Designer ruling 2026-09-08; pack 9) ─
+     Cooked Shrimp, Trout and Lobster are the only cooked food an NPC counter
      stocks (`SEED_SHOP`, src/legacy.js — the "Supplies" tab). Measured live on
      b524: a Combat 14 character with 10,290 gold and an empty bag was knocked
      out 45 minutes with no legal move — recovery refuses every payable kind so
@@ -236,10 +236,12 @@ export const ITEMS={
 
      ⚠ THE PRICES ARE PINNED TO THESE `v` VALUES AND MAY NOT BE READ ALONE.
        Cooked food is not `raw`, so `vendorPriceOf` pays the FULL `v` back.
-       The shop prices (150 per 5 shrimp, 450 per 5 trout) sit ~40% above the
-       buyback (90 / 275): raising `v` past 30 / 90 turns the counter into an
-       infinite gold faucet. The b525 smoke regression asserts price > buyback
-       as a rule rather than as two literals, so it bites whichever side moves.
+       The shop prices (150 / 450 / 2000 per 5 shrimp / trout / lobster) sit
+       ~40% above the buyback (90 / 275 / 1200): raising `v` past 30 / 90
+       turns the counter into an infinite gold faucet, and
+       cooked_lobster.v must stay < 400 (price 2000/5). The b526 smoke
+       regression asserts price > buyback as a rule rather than as literals,
+       so it bites whichever side moves.
        Buying is also deliberately worse than cooking — you forgo the Fishing
        and Cooking XP — which is what keeps the fire the standard answer and
        the counter the emergency one. */

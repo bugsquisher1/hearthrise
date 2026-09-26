@@ -976,6 +976,56 @@ async function run(mutate) {
     ok(sell.resolveSale('normal_log').ok === true, 'G8-CONTROL: resolveSale refuses a real item');
   }
 
+  // ── G-PROV. THE PROVISIONER'S COUNTER (content pack 9) ──────────────────
+  // Lobster is sold by the five at 2000, and the 150g single iron arrow is
+  // retired. The price is the edge's own catalogue, charged per BUNDLE; a
+  // body that carries its own price or grant is not read, and the purchase is
+  // journalled with the unit price the server charged.
+  {
+    await clearGate();
+    await grant({ gold: 10000, journal: { kind: 'admin', intent: 'fixture:prov' } });
+    const LOB = 'seed.cooked_lobster';
+    const res = buy.resolveOffer(LOB);
+    ok(res.ok === true && res.offer.gold === 2000
+      && JSON.stringify(res.offer.grant) === JSON.stringify([{ id: 'cooked_lobster', amount: 1 * 5 }]),
+      `G-PROV: resolveOffer('${LOB}') returned ${JSON.stringify(res)}`);
+
+    const before = await state(db, UID);
+    const lobBefore = await invOf(db, UID, 'cooked_lobster');
+    const beforeLedger = (await ledger(db, UID)).length;
+    /* A forged body: its own price, a bigger grant and a bundle size. None of
+       it is read — the server charges its catalogue's 2000 for one bundle of 5. */
+    const r = await doBuy({ intentId: uuid(), offer: LOB, qty: 1,
+      gold: 1, cost: 1, price: 1, unit_gold: 1, grant: [{ id: 'cooked_lobster', amount: 999 }] });
+    ok(r.status === 200 && r.body.ok === true, `G-PROV: ${r.status} ${JSON.stringify(r.body).slice(0, 300)}`);
+    const st = await state(db, UID);
+    ok(Number(before.gold) - Number(st.gold) === 2000,
+      `G-PROV: one lobster bundle cost ${Number(before.gold) - Number(st.gold)} gold, expected 2000`);
+    ok(await invOf(db, UID, 'cooked_lobster') - lobBefore === 5,
+      `G-PROV: the bag gained ${await invOf(db, UID, 'cooked_lobster') - lobBefore} lobster, expected 5`);
+    const rows = (await ledger(db, UID)).slice(beforeLedger);
+    ok(rows.length === 1 && rows[0].kind === 'shop' && Number(rows[0].gold) === -2000
+      && rows[0].meta && rows[0].meta.offer === LOB && Number(rows[0].meta.unit_gold) === 2000,
+      `G-PROV: the purchase is not journalled as {offer:${LOB}, unit_gold:2000}: ${JSON.stringify(rows)}`);
+
+    /* The count multiplies BUNDLES, never the price down: 2 bundles = 4000 for 10. */
+    const b2 = await state(db, UID);
+    const r2 = await doBuy({ intentId: uuid(), offer: LOB, qty: 2 });
+    ok(r2.body.ok === true, `G-PROV: two bundles refused: ${JSON.stringify(r2.body).slice(0, 200)}`);
+    ok(Number(b2.gold) - Number((await state(db, UID)).gold) === 4000
+      && await invOf(db, UID, 'cooked_lobster') - lobBefore === 15,
+      'G-PROV: two lobster bundles did not cost 4000 for 10');
+
+    /* The retired trap row is an unknown offer, and it moves nothing. */
+    const g0 = Number((await state(db, UID)).gold);
+    const a0 = await invOf(db, UID, 'iron_arrows');
+    const arrows = await doBuy({ intentId: uuid(), offer: 'equip.iron_arrows', qty: 1 });
+    ok(arrows.status === 409 && arrows.body.error === 'unknown_offer',
+      `G-PROV: equip.iron_arrows answered ${arrows.status} ${JSON.stringify(arrows.body).slice(0, 200)}`);
+    ok(Number((await state(db, UID)).gold) === g0 && await invOf(db, UID, 'iron_arrows') === a0,
+      'G-PROV: a refused equip.iron_arrows moved gold or arrows');
+  }
+
   // ── G9. SELLING ─────────────────────────────────────────────────────────
   {
     await clearGate();

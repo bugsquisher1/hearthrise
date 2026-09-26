@@ -6711,13 +6711,15 @@ export default [
     assert(Array.isArray(seed), 'SEED_SHOP is not published');
     const shrimp = seed.find(r => r.id === 'cooked_shrimp');
     const trout  = seed.find(r => r.id === 'cooked_trout');
+    const lobster = seed.find(r => r.id === 'cooked_lobster');
     assert(shrimp && trout, 'the Supplies counter stocks no cooked food');
+    assert(lobster, 'the Supplies counter stocks no mid-tier meal (pack 9)');
 
     /* NO GOLD LOOP, IN EITHER DIRECTION. Cooked food is not `raw`, so the
        vendor pays the FULL `v` — the buyback is the number this price has to
        beat, and beating it by a hair is not enough to survive a rounding
        change. Asserted as a RULE (price > buyback), not as 150 and 450. */
-    for (const row of [shrimp, trout]) {
+    for (const row of [shrimp, trout, lobster]) {
       const buyback = (window.ITEMS[row.id] || {}).v * row.qty;
       assert(row.cost > buyback,
         row.id + ' sells back for ' + buyback + ' and costs ' + row.cost

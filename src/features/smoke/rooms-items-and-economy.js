@@ -3634,4 +3634,68 @@ export default [
       try { const p = R.render(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
     }
   }),
+
+  /* ── regression suite — ONE BUY GREYED EVERY BUY (live, QA account) ──
+     Supplies at 11,826 gold: Buy Cooked Shrimp ×5 → gold and Have were right,
+     then all 13 Buy buttons stayed `disabled` for good while balCanAfford(150)
+     answered true. The gesture repainted the shop while its own prediction made
+     the balance PENDING (canAfford fail-closes), and nothing repainted it when
+     the answer resolved the balance. The class: every affordability-gated
+     surface must repaint on the resolve, not only at the gesture. Swept, all
+     through ONE listener on gold.js's `hr:balance-resolved` (announced from
+     reconcilePredictions = every envelope, and rollbackPrediction = a refusal):
+       shop (seeds/equip/cosmetics + injected companion rows) · House rooms,
+       plots, homestead + room modal (renderHouseSurfaces) · Buy-back modal ·
+       bank-space modal · market buy sheet (its own listener: purse + Confirm). Gesture-time-only
+       gates (clans, dungeons, workers, bank, multi-character) paint nothing.
+     Both resolve points are driven: an applied envelope and a refusal. */
+  () => tryRunAsync('b555 regression: the shop repaints its Buy buttons when a purchase settles', async () => {
+    if (typeof window.buyShopItem !== 'function' || typeof window.renderShop !== 'function') return;
+    const snap = snapshotG();
+    const rows = window.SEED_SHOP || [];
+    const shrimp = rows.find((r) => r.id === 'cooked_shrimp');
+    const top = rows.reduce((a, r) => (r.cost > a.cost ? r : a), rows[0]);
+    assert(shrimp && top && top.cost > 3 * shrimp.cost, 'fixture: needs the shrimp row and a dearer row');
+    const buttons = () => Array.from(document.querySelectorAll('#shop-panel .shop-row button'))
+      .filter((b) => /buyShopItem\(/.test(b.getAttribute('onclick') || ''));
+    const btnFor = (id) => buttons().find((b) => (b.getAttribute('onclick') || '').indexOf("'" + id + "'") !== -1);
+    const check = (label, serverGold) => {
+      assert(goldOf() === serverGold, label + ': the balance is ' + goldOf() + ', the server said ' + serverGold);
+      const all = buttons();
+      const stuck = all.filter((b) => {
+        const cost = Number(((b.getAttribute('onclick') || '').match(/,(\d+)\)\s*$/) || [])[1]);
+        return b.disabled && cost <= serverGold;
+      });
+      assert(all.length === rows.length, label + ': expected ' + rows.length + ' Buy rows, found ' + all.length);
+      assert(stuck.length === 0, label + ': ' + stuck.length + '/' + all.length + ' affordable Buy buttons are still '
+        + 'disabled after the answer resolved the balance — the fail-closed paint from the pending instant stuck');
+      assert(btnFor(top.id) && btnFor(top.id).disabled, label + ': the ' + top.cost + 'g row must stay disabled at '
+        + serverGold + ' gold — the repaint must not light a genuinely unaffordable row');
+    };
+    try {
+      window.G.gold = top.cost - 1;
+      stampBalanceLikeLoad(window.G);
+      window.showTab('shop');
+      if (typeof window.setShopTab === 'function') window.setShopTab('seeds');
+      assert(btnFor(shrimp.id) && !btnFor(shrimp.id).disabled, 'precondition: the shrimp Buy is enabled before the buy');
+
+      // 1) APPLIED: the server answers with its own number (not the client's subtraction).
+      const applied = top.cost - 1 - shrimp.cost - 7;
+      await withServerBacked({ state: { gold: applied } }, async (rig) => {
+        window.buyShopItem(shrimp.id, shrimp.qty, shrimp.cost);
+        await rig.drain();
+        assert(rig.sent.length === 1 && rig.sent[0].verb === 'shop_buy', 'expected one shop_buy, sent ' + JSON.stringify(rig.sent));
+      });
+      check('after an applied buy', applied);
+
+      // 2) REFUSED: no envelope, the prediction is rolled back — the other resolve point.
+      await withServerBacked({}, async (rig) => {
+        rig.reply(() => new Response(JSON.stringify({ ok: false, error: 'insufficient_gold' }), { status: 409 }));
+        window.buyShopItem(shrimp.id, shrimp.qty, shrimp.cost);
+        await rig.drain();
+        assert(rig.sent.length === 1, 'expected one shop_buy on the refusal leg, sent ' + rig.sent.length);
+      });
+      check('after a refused buy', applied);
+    } finally { restoreGAndRecord(snap); try { window.renderShop(); } catch (e) {} }
+  }),
 ];

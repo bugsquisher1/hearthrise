@@ -377,5 +377,21 @@ window.invSellOne      = invSellOne;
 window.invSellAll      = invSellAll;
 window.invSellSelected = invSellSelected;
 
+/* REPAINT WHAT GATED ON THE BALANCE WHEN THE SERVER RESOLVES IT. Every
+   Buy / Build / Buy-back button here is painted from balCanAfford, which
+   fail-closes while a gesture's own prediction is in flight — so the gesture's
+   repaint paints them disabled and, before this, nothing lit them again when the
+   answer landed. src/net/gold.js announces `hr:balance-resolved` from its two
+   resolve points; this is the one listener for the counter-side surfaces (the
+   market sheet binds its own). Only what is on screen repaints. */
+function repaintBalanceSurfaces(){
+  try{ updateTopbar(); }catch(e){}
+  try{ if(activeTab==='shop') renderShop(); }catch(e){}
+  try{ if(activeTab==='house') window.renderHouseSurfaces(); }catch(e){}
+  try{ var bb=document.getElementById('bb-modal'); if(bb&&bb.classList.contains('show')) window.renderBuyback(); }catch(e){}
+  try{ _renderBankModal(); }catch(e){}
+}
+window.addEventListener('hr:balance-resolved', repaintBalanceSurfaces);
+
 console.log('Shop counter: loaded');
 })();

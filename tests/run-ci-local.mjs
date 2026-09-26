@@ -259,7 +259,12 @@ async function main() {
       console.log(`  ${j.name.padEnd(20)} ${String(j.steps.length).padStart(3)} step(s)  `
         + `${String(cmds).padStart(3)} command(s)  timeout ${j.timeoutMinutes ?? '—'}m`);
     }
-    process.exit(0);
+    /* NOT process.exit(0): stdout to a PIPE is asynchronous in Node, and an
+       immediate exit drops whatever has not flushed. tests/ci-shape.mjs reads
+       --list through spawnSync and saw 9,092 of 20,527 bytes (1 run in 8), then
+       reported 86-145 commands "not enumerated". Return and let it drain. */
+    process.exitCode = 0;
+    return;
   }
 
   if (JOB && !jobs.some((j) => j.name === JOB)) {
@@ -299,7 +304,12 @@ async function main() {
       console.log(`  ${p.name}`);
       for (const c of p.cmds) console.log(`      ${c}`);
     }
-    process.exit(0);
+    /* NOT process.exit(0): stdout to a PIPE is asynchronous in Node, and an
+       immediate exit drops whatever has not flushed. tests/ci-shape.mjs reads
+       --list through spawnSync and saw 9,092 of 20,527 bytes (1 run in 8), then
+       reported 86-145 commands "not enumerated". Return and let it drain. */
+    process.exitCode = 0;
+    return;
   }
 
   const t0 = Date.now();

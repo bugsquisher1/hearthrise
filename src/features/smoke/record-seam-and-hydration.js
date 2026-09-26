@@ -59,6 +59,10 @@ const benchSwitchArc = async (body) => {
     t.plan([t.accept(900, a.id)]);
     window.startArtisan('smithing', a.id); await drain();
     assert(G.skillTargetId === a.id, 'setup: the bench never started ' + a.id + ' (' + G.skillTargetId + ')');
+    /* The setup envelope (version 900, below the stamp) rewrites G.skills outside
+       the record, which trips the fingerprint and would read the level gates as 1.
+       Re-stamp so every tap below meets the same loaded character. */
+    stampRecordLikeLoad(G);
     t.reset();
     await body(t);
   } finally {

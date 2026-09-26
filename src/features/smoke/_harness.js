@@ -2303,9 +2303,20 @@ export const retreatFixture = () => {
   const foodless = Object.assign({}, BASE,
     { retreatMs: 8040000, retreatFalls: 3, retreatFoodless: true });
   const fTxt = flat(foodless);
-  const down = flat(Object.assign({}, foodless, { recoverRemainingMs: 47000 }));
+  const down = withLiveLine(47000, () => flat(Object.assign({}, foodless, { recoverRemainingMs: 47000 })));
   return { C, CS, AW, FOE, FOOD, MAXHP, mkState, mkCtx, runUntil, H, flat, BASE,
     foodless, fTxt, down };
+};
+
+/* THE HOME CARD'S RECOVERY CLOCK IS THE LIVE SERVER LINE, not the receipt's
+   settle-time snapshot (HOME-KO-CLOCK-1). A render that asserts "Still
+   recovering" states that line the only way the client learns it — an envelope
+   — and retires it through the death-sheet teardown. +400 ms so the rounding
+   of the sentence is arithmetic, not a race with the page. */
+export const withLiveLine = (ms, fn) => {
+  const A = window.HearthriseAccrual, D = window.HearthriseDeathSheet;
+  A.applyEnvelopeState(window.G || {}, { state: { recovering_until: new Date(Date.now() + ms + 400).toISOString() } });
+  try { return fn(); } finally { try { D.__resetForTest(); } catch (e) {} }
 };
 
 /* THE RETREAT-RELOAD FIXTURE, written once (TF-1: "if the setup is genuinely

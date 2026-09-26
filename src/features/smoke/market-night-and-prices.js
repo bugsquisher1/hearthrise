@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 76 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, awaySpan, awayGatherSpan, awayArtisanSpan, applyAwayEnvelope, xpOf, predZero, goldOf, snapshotG, setAway, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, nightWorld, retreatFixture, retreatReload, restoreBankCap, hfPoll, on, snapshot, decideRestore } from './_harness.js?v=555';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, awaySpan, awayGatherSpan, awayArtisanSpan, applyAwayEnvelope, xpOf, predZero, goldOf, snapshotG, setAway, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, nightWorld, retreatFixture, retreatReload, withLiveLine, restoreBankCap, hfPoll, on, snapshot, decideRestore } from './_harness.js?v=555';
 
 export default [
 
@@ -1679,7 +1679,7 @@ export default [
 
     /* Still down when they got back: the durable surface owes this too, or it
        describes a character who is fighting while the server refuses swings. */
-    const stillDown = flat(Object.assign({}, rev2, { recoverRemainingMs: 47000 }));
+    const stillDown = withLiveLine(47000, () => flat(Object.assign({}, rev2, { recoverRemainingMs: 47000 })));
     assert(/Still recovering — 47s to go/.test(stillDown),
       'the card does not say the character is still Knocked Out — ' + stillDown);
     assert(!/Still recovering/.test(aTxt),

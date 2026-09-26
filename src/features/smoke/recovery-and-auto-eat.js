@@ -2672,4 +2672,39 @@ export default [
     } finally { F.done(); }
   }),
 
+  () => tryRun('WELCOME-AE-OFF-1: the auto-eat-off line never quotes today\'s bag as the night\'s', () => {
+    const F = koFix();
+    try {
+      const off = { hrs: 8, awayMs: 8 * 3600000, gainedXp: 10, gainedItems: 0, gainedGold: 0, gainedKills: 3,
+        at: Date.now(), died: true, diedTo: 'slime', deaths: 4, recoverMs: 2 * 3600000, foodEaten: 0,
+        recoverLadder: [0, 120000, 240000, 120000], autoEat: { enabled: false, pct: 25, hadFood: true } };
+      const read = (bag) => {
+        Object.assign(F.G, { inventory: bag, lastOfflineSummary: Object.assign({}, off) });
+        window.__maybeShowWelcome({ again: true });
+        return document.getElementById('welcome-rows').textContent;
+      };
+      const t1 = read({ cooked_shrimp: 5 }), t2 = read({ cooked_shrimp: 12 });
+      assert(/Auto-Eat was switched off/.test(t1), 'the fixture never reached the auto-eat-off line: ' + t1);
+      assert(t1 === t2 && !/You were carrying \d+/.test(t1), 'the line reads the bag now: ' + t1 + ' | ' + t2);
+    } finally {
+      const ov = document.getElementById('welcome-overlay');
+      if (ov) ov.classList.remove('show');
+      F.done();
+    }
+  }),
+
+  () => tryRun('HOME-KO-CLOCK-1: the Home card\'s recovery clock is the live server line', () => {
+    const F = koFix();
+    const H = window.HearthriseHome;
+    try {
+      const rec = { hrs: 1, awayMs: 3600000, at: Date.now(), died: true, diedTo: 'slime', deaths: 1,
+        recoverMs: 12 * 60000, recoverRemainingMs: 12 * 60000, recoverLadder: [12 * 60000], stoppedBy: null };
+      F.A.applyEnvelopeState(F.G, { state: { recovering_until: null } });
+      assert(!/Still recovering/.test(H.__awayCardHtml(rec)), 'a Rest cleared the line and the card still counts it down');
+      F.door2(F.state(), {});
+      const restored = Object.assign({}, rec, { restored: true });
+      delete restored.recoverRemainingMs;
+      assert(/Still recovering/.test(H.__awayCardHtml(restored)), 'the server line runs and the card says nothing');
+    } finally { F.done(); }
+  }),
 ];

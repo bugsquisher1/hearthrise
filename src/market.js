@@ -1582,6 +1582,15 @@
         : 'Not enough gold';
     }
     updateSummary();
+    /* Purse + Confirm may have painted from a pending (fail-closed) balance:
+       repaint both when the server resolves it, while this sheet is open. */
+    var purseEl = modal.querySelectorAll('.bm-val')[2];
+    var onBalance = function(){
+      if(!modal.isConnected){ window.removeEventListener('hr:balance-resolved', onBalance); return; }
+      if(purseEl) purseEl.innerHTML = window.balMarkup('gold') + (window.balKnown('gold') ? 'g' : '');
+      updateSummary();
+    };
+    window.addEventListener('hr:balance-resolved', onBalance);
 
     qtyEl.addEventListener('input', updateSummary);
     if(offerEl) offerEl.addEventListener('change', updateSummary);   // absent under the seam

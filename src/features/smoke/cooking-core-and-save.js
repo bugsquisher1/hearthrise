@@ -1981,18 +1981,12 @@ export default [
      theme-cozy.css carried `}e: 12px;\n}` — the tail of a botched edit. CSS error
      recovery turns an unmatched `}` at top level into the start of a selector,
      which swallowed the NEXT rule whole: `.global-quests-strip{display:none
-     !important}`. So the 80px legacy quest strip sat on EVERY screen, desktop
-     included, from 2026-05-03 until b554 removed the brace — which re-armed the
-     rule unscoped and hid the strip on desktop too, a silent removal of a
-     feature players had had for five months. Coordinator ruling (2026-09-26):
-     desktop keeps the strip; only the phone media query
-     (max-width: 540px), (max-height: 540px) and (max-width: 1024px) — where the
-     topbar Quests pill already does the same job — may hide it. No guard reads
-     a sheet's text, so this checks every shipped stylesheet's brace balance
-     (comments and quoted strings stripped), then renders the real strip markup
-     against the real stylesheets at a desktop AND a phone size, in iframes so
-     each is graded by its OWN viewport, not the harness page's. */
-  () => tryRunAsync('b554/quests-strip: every stylesheet balances its braces; the strip shows on desktop, hides only on phones', async () => {
+     !important}`. So the 80px legacy quest strip, meant to be replaced by the
+     topbar Quests pill, sat on every screen — a fifth of a 393px phone, and the
+     reason the 44px tap floor first buried the bag. No guard reads a sheet's
+     text, so this checks every shipped stylesheet's brace balance (comments and
+     quoted strings stripped). */
+  () => tryRunAsync('b554: every stylesheet balances its braces', async () => {
     const links = [...document.querySelectorAll('link[rel="stylesheet"]')]
       .map((l) => l.getAttribute('href') || '').filter((h) => /^src\/styles\/[\w-]+\.css/.test(h));
     assert(links.length >= 8, 'the probe found only ' + links.length + ' src/styles sheets linked from index.html');
@@ -2011,7 +2005,17 @@ export default [
         + ' — the browser will read the next rule as garbage and drop it');
       assert(depth === 0, href.split('?')[0] + ' ends with ' + depth + ' unclosed brace(s) — every rule after the gap is inside it');
     }
+  }),
 
+  /* ── regression suite — QUESTS STRIP: DESKTOP KEEPS IT, PHONES HIDE IT ──
+     Fixing the stray brace above re-armed `.global-quests-strip{display:none}`
+     UNSCOPED, which hid the strip on desktop too — a silent removal of a
+     feature players had had since 2026-05-03. Coordinator ruling (2026-09-26):
+     desktop keeps the strip; only the phone media query — where the topbar
+     Quests pill already does the same job — may hide it. Renders the real
+     strip markup against the real shipped stylesheets at a desktop AND a
+     phone size, each in its own iframe so it is graded by ITS viewport. */
+  () => tryRun('quests-strip: shows on desktop, hides only on phones', () => {
     let css = '', sheetsSeen = 0;
     for (const sheet of document.styleSheets) {
       let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
@@ -2021,10 +2025,8 @@ export default [
       for (const r of rules) css += r.cssText + '\n';
     }
     assert(sheetsSeen >= 5, 'the probe must find the token sheet and all four theme stylesheets, saw ' + sheetsSeen);
-
-    const stripMarkup = '<div id="global-quests-strip" class="global-quests-strip">'
-      + '<span class="gq-label">Quests</span><div class="gq-list"></div>'
-      + '<span class="gq-meta" id="gq-reset"></span><span class="gq-open-hint">Click to open ▸</span></div>';
+    const stripMarkup = '<div id="global-quests-strip" class="global-quests-strip"><span class="gq-label">Quests</span>'
+      + '<div class="gq-list"></div><span class="gq-meta" id="gq-reset"></span><span class="gq-open-hint">Click to open ▸</span></div>';
     const displayAt = (w, h) => {
       const frame = document.createElement('iframe');
       frame.setAttribute('style', `position:fixed;left:-4000px;top:0;width:${w}px;height:${h}px;border:0;visibility:hidden`);
@@ -2038,16 +2040,12 @@ export default [
         return doc.defaultView.getComputedStyle(doc.getElementById('global-quests-strip')).display;
       } finally { frame.remove(); }
     };
-
     const desktop = displayAt(1440, 900);
-    assert(desktop !== 'none',
-      'THE quests-strip regression: the strip is hidden at a 1440x900 DESKTOP viewport (' + desktop + ') — '
-      + 'players have seen this strip since 2026-05-03; only the phone media query may hide it (theme-cozy.css)');
-
+    assert(desktop !== 'none', 'THE quests-strip regression: the strip is hidden at a 1440x900 DESKTOP viewport ('
+      + desktop + ') — players have seen it since 2026-05-03; only the phone media query may hide it (theme-cozy.css)');
     const phone = displayAt(852, 393);
-    assert(phone === 'none',
-      'THE b554 BUG: the legacy .global-quests-strip is drawn (' + phone + ') at an 852x393 phone viewport — '
-      + 'the topbar Quests pill already covers this job on phones (theme-cozy.css)');
+    assert(phone === 'none', 'THE b554 BUG: the legacy .global-quests-strip is drawn (' + phone + ') at an 852x393 phone '
+      + 'viewport — the topbar Quests pill already covers this job on phones (theme-cozy.css)');
   }),
 
   () => tryRun('b369: Character > Equipment survives a 922x423 landscape phone — square, contained, non-overlapping slots (Tyler: "the weapon sprite is floating over the Cape cell")', () => {

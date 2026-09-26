@@ -68,13 +68,13 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { resolveGatherAction } from './progression.js?v=553';
-import { bestTool, toolSpeed, toolXpB, toolDouble } from './tools.js?v=553';
-import { actionIntervalMs, MIN_ACTION_MS, GATHER_SKILLS } from './pacing.js?v=553';
-import { CHANNEL, channelApplies, rateMult } from './away.js?v=553';
-import { nextBuffExpiryMs, hasActiveBuff, tickBuffs, pruneBuffs } from './buffs.js?v=553';
-import { levelOf } from './xp.js?v=553';
-import { resolveHearthfind } from './hearthfind.js?v=553';
+import { resolveGatherAction } from './progression.js?v=554';
+import { bestTool, toolSpeed, toolXpB, toolDouble } from './tools.js?v=554';
+import { actionIntervalMs, MIN_ACTION_MS, GATHER_SKILLS } from './pacing.js?v=554';
+import { CHANNEL, channelApplies, rateMult } from './away.js?v=554';
+import { nextBuffExpiryMs, hasActiveBuff, tickBuffs, pruneBuffs } from './buffs.js?v=554';
+import { levelOf } from './xp.js?v=554';
+import { resolveHearthfind } from './hearthfind.js?v=554';
 
 function fxOf(ctx) { return (ctx && ctx.fx) || {}; }
 function call(fx, name, ...args) {

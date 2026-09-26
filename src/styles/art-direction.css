@@ -2342,7 +2342,10 @@ body[data-theme] .brand-word {
    * this rule. */
   body[data-theme] #panel-inventory.active {
     display: grid !important;
-    grid-template-columns: minmax(0, 1fr) minmax(200px, 320px) !important;
+    /* b555: `max-content`, not 0 — the counter row never wraps, so a column
+     * narrower than it cut "0 / 100 (100 free)" to "0 / 1" at 852x393 once
+     * the b554 44px buttons widened its neighbours. The search column gives. */
+    grid-template-columns: minmax(max-content, 1fr) minmax(0, 320px) !important;
     grid-template-rows: auto auto minmax(0, 1fr) !important;
     align-content: start;
     gap: 4px 10px !important;
@@ -2405,8 +2408,10 @@ body[data-theme] .brand-word {
     font-size: var(--t-micro);
     white-space: nowrap;
   }
+  /* `min-width: 0`: an <input>'s flex minimum is its ~180px intrinsic size,
+   * which is what the search column gives up for the counter beside it. */
   body[data-theme] #panel-inventory .invc-search-row input {
-    padding: 5px 10px; min-height: var(--tap); font-size: var(--t-micro);
+    padding: 5px 10px; min-height: var(--tap); font-size: var(--t-micro); min-width: 0;
   }
   body[data-theme] #panel-inventory .invc-search-row button {
     padding: 5px 10px !important; min-height: var(--tap) !important; font-size: var(--t-micro);

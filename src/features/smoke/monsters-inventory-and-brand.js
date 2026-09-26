@@ -426,6 +426,64 @@ export default [
     } finally { restore(); }
   }),
 
+  /* ── regression suite — THE WAR TABLE TILE CUT ITS STAT LINE AT BOTH ENDS ──
+     b555 visual-qa, 922x423: "2H Hammer 8 HP" painted as "H Hammer 8 H". The
+     phone rule made the weakness+HP row `nowrap` with no width cap, so it laid
+     out at max-content CENTRED in a 102px card whose overflow cut both sides —
+     the ellipsis it was written for never fired. Same iframe method as the b554
+     bag probe (media queries evaluate against the frame; a 64px block stands in
+     for the rail). Every stat/badge text node must sit wholly inside its card
+     and none may overflow its own box. RED on b554 (every T1 card). */
+  () => tryRun('b555: every War Table tile shows its whole weakness + HP line at 922x423', () => {
+    const { CS, G, restore } = combatScreen();
+    let bad = [], seen = 0, cardW = 0;
+    try {
+      window.showTab('combat');
+      try { window.stopCombat(); } catch (e) {}
+      G.activeMonster = null;
+      let css = '';
+      for (const sheet of document.styleSheets) {
+        let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
+        for (const r of rules) css += r.cssText + '\n';
+      }
+      const frame = document.createElement('iframe');
+      frame.setAttribute('style', 'position:fixed;left:-4000px;top:0;width:922px;height:423px;border:0;visibility:hidden');
+      document.body.appendChild(frame);
+      try {
+        const doc = frame.contentDocument;
+        for (const tier of [1, 6]) {           // T1 is the reported screen; T6 carries 3-digit HP and Lv badges
+          G.currentCombatTier = tier;
+          CS.setView('table'); CS.render();
+          const panel = document.getElementById('panel-combat');
+          assert(panel.querySelector('#wt-grid .wt-card .wtc-stats'), 'the War Table rendered no monster tiles for tier ' + tier);
+          doc.open();
+          doc.write('<!doctype html><html><head><meta charset="utf-8"><style>' + css + '</style></head>' +
+            '<body' + (document.body.dataset.theme ? ' data-theme="' + document.body.dataset.theme + '"' : '') + '>' +
+            '<div style="display:flex;height:423px"><div style="flex:0 0 64px"></div>' +
+            '<main class="main" style="flex:1 1 auto;min-width:0">' + panel.outerHTML + '</main></div></body></html>');
+          doc.close();
+          doc.querySelectorAll('#wt-grid .wt-card').forEach((card) => {
+            const c = card.getBoundingClientRect();
+            cardW = Math.round(c.width);
+            card.querySelectorAll('.wtc-stats em, .wtc-stats b, .wtc-kills').forEach((el) => {
+              seen++;
+              const r = el.getBoundingClientRect();
+              const out = r.left < c.left - 0.5 || r.right > c.right + 0.5;
+              if (out || el.scrollWidth > el.clientWidth + 1) {
+                bad.push('T' + tier + ' ' + card.dataset.monster + ' "' + el.textContent.trim() + '" ' +
+                  (out ? 'spans ' + Math.round(r.left - c.left) + '..' + Math.round(r.right - c.left) + ' of a ' + Math.round(c.width) + 'px tile'
+                    : 'overflows its box ' + el.scrollWidth + '>' + el.clientWidth));
+              }
+            });
+          });
+        }
+      } finally { frame.remove(); }
+    } finally { restore(); }
+    assert(seen >= 6, 'the probe measured only ' + seen + ' stat/badge nodes in the 922x423 frame');
+    assert(cardW > 0 && cardW < 140, 'the frame did not reach the phone layout (tile ' + cardW + 'px wide)');
+    assert(bad.length === 0, 'THE b555 BUG: ' + bad.length + ' War Table stat line(s) clipped at 922x423 — ' + bad.slice(0, 4).join('; '));
+  }),
+
   () => tryRun('COMBAT-UI-15: the preview state is the fight screen with the fight not started', () => {
     const { CS, G, restore } = combatScreen();
     try {

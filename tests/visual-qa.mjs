@@ -15,8 +15,10 @@
 //
 //   node tests/visual-qa.mjs [--url http://localhost:8123]
 //   node tests/visual-qa.mjs --selftest    mutation proof for the broken-value
-//                                          detector, the font precondition and
-//                                          the per-card finding key
+//                                          detector, the font precondition, the
+//                                          per-card finding key and the
+//                                          hit-area small-target rule (b554)
+//   node tests/visual-qa.mjs --dump-small  list every sub-44px control
 //
 // WIDTHS ARE ONLY MEASURED ONCE THE THEME'S FACES RENDER (b544). Cinzel and
 // Alegreya Sans arrive from the Google Fonts CDN with `display=swap`; measured
@@ -42,6 +44,9 @@ const OUT = join(ROOT, 'docs', 'reports', 'visual-qa');
 const argv = process.argv.slice(2);
 const argOf = (f) => { const i = argv.indexOf(f); return i >= 0 ? argv[i + 1] : null; };
 const EXTERNAL_URL = argOf('--url');
+// `--dump-small` lists EVERY under-44px control per screen in findings.json
+// (the report keeps three); a working aid for a tap-target pass, never gated.
+const DUMP_SMALL = argv.includes('--dump-small');
 
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css',
   '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg',
@@ -74,7 +79,7 @@ const SCREENS = ['profile', 'character', 'combat', 'skills', 'farming', 'invento
    ARG is an object, not a bare label: the text-metric detectors are only honest
    when the page is rendering the fonts the design asks for, so the walk hands
    the sweep the font verdict it measured (see awaitFonts). */
-function SWEEP({ label, fontsMissing = [], fontStatus = '' }) {
+function SWEEP({ label, fontsMissing = [], fontStatus = '', dumpSmall = false }) {
   const vw = innerWidth, out = { screen: label, vw, vh: innerHeight, issues: [], stats: {} };
   const fontsOk = !fontsMissing.length;
   /* CARDS THAT SHARE ONE SELECTOR PATH. The six War Table destinations are
@@ -224,15 +229,60 @@ function SWEEP({ label, fontsMissing = [], fontStatus = '' }) {
     if (r.width > 2 && (r.right > vw + 2 || r.left < -2) && !clippedByAncestor(el))
       add('P1', 'offscreen-x', `${Math.round(r.right - vw)}px past right`, el); });
 
-  const small = [];
+  /* TAP TARGETS ARE MEASURED BY HIT AREA, NOT BY PAINTED BOX (b554). A thumb
+     lands on whatever `elementFromPoint` answers, so that is what is measured:
+     from the control's centre, walk out 1px at a time on each axis while the
+     hit test still returns the control (or a child of it — a ::before/::after
+     hit box hit-tests as its element). That is what lets a compact chip keep
+     its look and still take a 44px thumb, and it is also why a hit box that a
+     NEIGHBOUR overlaps does not count: in the overlap the neighbour wins, so
+     two 28px chips stacked 6px apart cannot both claim 44px however big their
+     pseudo-elements are. A control off-screen is scrolled to the centre for
+     its measurement and every scroller is put back before the next detector
+     reads a pixel. A TRANSIENT layer — anything `position:fixed` outside the
+     swept panel and chrome (a toast, the "Cloud is slow" pill, a blessing card)
+     — is looked through: it is gone in seconds and covering is the
+     under-fixed-bar detector's finding, not a size. A control whose centre
+     anything else covers keeps its painted box. */
+  const HIT = 44, small = [];
+  const scrolls = new Map();
+  const keep = (p) => { if (p && !scrolls.has(p)) scrolls.set(p, [p.scrollTop, p.scrollLeft]); };
+  keep(document.scrollingElement);
+  const layers = new Map();
+  const transient = (e) => {
+    if (!layers.has(e)) {
+      let fixed = null;
+      for (let p = e; p && p !== document.body; p = p.parentElement) if (getComputedStyle(p).position === 'fixed') fixed = p;
+      layers.set(e, !!fixed && !scope.some((n) => n.contains(fixed) || fixed.contains(n)));
+    }
+    return layers.get(e);
+  };
+  const hitOf = (el) => {
+    const r0 = el.getBoundingClientRect();
+    if (r0.width >= HIT && r0.height >= HIT) return { w: r0.width, h: r0.height };
+    for (let p = el.parentElement; p; p = p.parentElement)
+      if (p.scrollHeight > p.clientHeight || p.scrollWidth > p.clientWidth) keep(p);
+    el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' });
+    const r = el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    const hits = (x, y) => { const e = document.elementsFromPoint(x, y).find((h) => !transient(h)); return !!e && (e === el || el.contains(e)); };
+    if (!hits(cx, cy)) return { w: r0.width, h: r0.height };
+    const reach = (dx, dy) => { let n = 0; while (n < HIT && hits(cx + dx * (n + 1), cy + dy * (n + 1))) n++; return n; };
+    return { w: reach(-1, 0) + reach(1, 0) + 1, h: reach(0, -1) + reach(0, 1) + 1 };
+  };
   scope.forEach((n) => n.querySelectorAll('button,.btn,.chip,[onclick]').forEach((el) => { if (!vis(el)) return;
-    const r = el.getBoundingClientRect(); if (r.height < 44) small.push({ h: Math.round(r.height), n: nameOf(el), t: TXT(el).slice(0, 14) }); }));
+    const hit = hitOf(el); if (hit.h < HIT || hit.w < HIT)
+      small.push({ h: Math.round(Math.min(hit.h, hit.w)), n: nameOf(el), t: TXT(el).slice(0, 14) }); }));
+  for (const [p, [t, l]] of scrolls) { p.scrollTop = t; p.scrollLeft = l; }
+  out.stats.smallTargets = small.length;
   // Honest thresholds: <36px is genuinely too small for a thumb (P1); 36-43px is a
   // deliberate density tradeoff on a short landscape screen (P3), not a defect.
   if (small.length) { small.sort((a, b) => a.h - b.h);
     const worst = small[0].h;
-    add(vw <= 900 ? (worst < 36 ? 'P1' : 'P3') : 'P3', 'small-target',
-      `${small.length} controls <44px — worst: ` + small.slice(0, 3).map((x) => `${x.h}px "${x.t}" ${x.n}`).join(' | '), panel); }
+    const iss = { sev: vw <= 900 ? (worst < 36 ? 'P1' : 'P3') : 'P3', kind: 'small-target',
+      detail: `${small.length} controls <44px hit area — worst: ` + small.slice(0, 3).map((x) => `${x.h}px "${x.t}" ${x.n}`).join(' | '),
+      el: nameOf(panel), count: small.length };
+    if (dumpSmall) iss.all = small.map((x) => `${x.h}px "${x.t}" ${x.n}`);
+    out.issues.push(iss); }
 
   const pr = panel.getBoundingClientRect(); let maxRight = 0, maxBottom = 0;
   all.forEach((el) => { const r = el.getBoundingClientRect(); if (r.width > 4 && r.height > 4) { maxRight = Math.max(maxRight, r.right); maxBottom = Math.max(maxBottom, r.bottom); } });
@@ -462,7 +512,7 @@ async function walk() {
          is the first to ask for a weight (an 800 label) is awaited here too rather
          than measured mid-swap. Bounded by the same budget as the boot wait. */
       await page.evaluate(() => document.fonts.ready).catch(() => {});
-      const arg = { label: s, fontsMissing: fonts.missing, fontStatus: fonts.after.status };
+      const arg = { label: s, fontsMissing: fonts.missing, fontStatus: fonts.after.status, dumpSmall: DUMP_SMALL };
       const res = await page.evaluate(SWEEP, arg).catch((e) => ({ screen: s, issues: [{ sev: 'ERR', kind: 'sweep-threw', detail: String(e).slice(0, 120) }], stats: {} }));
       res.viewport = vp.key;
       // attribute any runtime/console errors raised while this screen rendered
@@ -651,6 +701,70 @@ async function selftest() {
       fails.push('SELFTEST: a scroller WITH an edge fade still reported: '
         + JSON.stringify([...scCued.clips, ...scCued.afford].map((i) => i.kind + ' ' + i.detail)));
 
+    /* ── b554: THE HIT-AREA RULE, MUTATION-PROVED ─────────────────────────────
+       The small-target detector measures what a thumb hits, not the painted
+       box — the shape of change that could make it blind. Four planted
+       fixtures in the live active panel, each measured as a DELTA over the
+       same screen without it:
+
+         bare      a 20px button                           → +1, named
+         hitbox    a 20px button with a 44px ::after       → +0 (the fix shape)
+         crowded   two such buttons 4px apart, boxes
+                   overlapping                             → +1 or +2, never 0:
+                   in the overlap one neighbour wins
+         toast     the hitbox button under a fixed toast
+                   outside the swept panel                 → +0 (transient) */
+    const tapCase = async (mode) => {
+      await page.evaluate((mode) => {
+        const host = document.querySelector('.panel.active') || document.body;
+        document.getElementById('__hr_tap_fx')?.remove();
+        document.getElementById('__hr_tap_toast')?.remove();
+        const box = document.createElement('div');
+        box.id = '__hr_tap_fx';
+        box.style.cssText = 'position:relative;display:flex;flex-direction:column;gap:4px;padding:30px 0;width:200px';
+        const css = document.createElement('style');
+        css.textContent = '#__hr_tap_fx .fx-hit{position:relative;overflow:visible}'
+          + '#__hr_tap_fx .fx-hit::after{content:"";position:absolute;left:0;right:0;top:-12px;bottom:-12px}';
+        box.appendChild(css);
+        const btn = (h, hit) => { const b = document.createElement('button');
+          b.className = 'btn' + (hit ? ' fx-hit' : ''); b.textContent = 'Probe';
+          b.style.cssText = `min-height:0;height:${h}px;width:120px;padding:0;border:0`; box.appendChild(b); return b; };
+        if (mode === 'bare') btn(20, false);
+        if (mode === 'hitbox') btn(20, true);
+        if (mode === 'crowded') { btn(20, true); btn(20, true); }
+        if (mode === 'toast') btn(20, true);
+        host.appendChild(box);
+        if (mode === 'toast') {
+          // Centre it first, as the sweep will, so the toast is still over it then.
+          box.querySelector('button').scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' });
+          const r = box.querySelector('button').getBoundingClientRect();
+          const t = document.createElement('div');
+          t.id = '__hr_tap_toast';
+          t.style.cssText = `position:fixed;left:${r.left}px;top:${r.top - 14}px;width:${r.width}px;height:${r.height + 28}px;z-index:99999`;
+          document.body.appendChild(t);
+        }
+      }, mode);
+      await page.waitForTimeout(80);
+      const res = await page.evaluate(SWEEP, { ...ARG, dumpSmall: true });
+      await page.evaluate(() => { document.getElementById('__hr_tap_fx')?.remove(); document.getElementById('__hr_tap_toast')?.remove(); });
+      const iss = (res.issues || []).find((i) => i.kind === 'small-target');
+      return { n: res.stats.smallTargets, named: ((iss && iss.all) || []).filter((x) => x.includes('__hr_tap_fx')).length };
+    };
+    const tap0 = (await page.evaluate(SWEEP, ARG)).stats.smallTargets;
+    if (!Number.isInteger(tap0)) fails.push('SELFTEST: the sweep carries no stats.smallTargets count — the ratchet has nothing to read');
+    const tBare = await tapCase('bare');
+    if (tBare.n !== tap0 + 1 || tBare.named !== 1)
+      fails.push(`SELFTEST: a 20px button was not counted as a small target (count ${tap0}→${tBare.n}, named ${tBare.named}) — the detector is blind`);
+    const tHit = await tapCase('hitbox');
+    if (tHit.n !== tap0)
+      fails.push(`SELFTEST: a 20px button with a 44px ::after hit box was still counted (${tap0}→${tHit.n}) — the detector measures paint, not hit area`);
+    const tCrowd = await tapCase('crowded');
+    if (tCrowd.n === tap0)
+      fails.push('SELFTEST: two 20px buttons 4px apart both claimed 44px through overlapping hit boxes — the overlap was counted twice');
+    const tToast = await tapCase('toast');
+    if (tToast.n !== tap0)
+      fails.push(`SELFTEST: a 44px hit area under a transient fixed toast was counted (${tap0}→${tToast.n}) — covering is not a size`);
+
     const tags = await page.evaluate(() => {
       const cards = [...document.querySelectorAll('.wt-dest')];
       return cards.map((c) => ((c.querySelector('.wtd-kick') || {}).textContent || '').trim());
@@ -676,10 +790,14 @@ async function selftest() {
     + 'planted NaN and undefined on the visible Boss-of-the-Day card both flagged and attributed to it; '
     + 'the same NaN on the display:none #hr-botd-card stays silent; "covenant/maintenance" no longer reds the gate. '
     + 'Font precondition: the theme faces rendered on this page, and a missing face yields one ERR fonts-unloaded '
-    + 'with ZERO text-width findings. Card key: every .wt-dest finding carries its own {kicker}.');
+    + 'with ZERO text-width findings. Card key: every .wt-dest finding carries its own {kicker}. '
+    + 'Hit area: a bare 20px button counts, the same button with a 44px ::after does not, two '
+    + 'overlapping hit boxes cannot both claim 44px, and a transient toast is looked through.');
   return 0;
 }
 
 /* exitCode, not process.exit(): the gate spawns this with stdio:'inherit', and an
    immediate exit can truncate the last lines of the report on a pipe. */
-process.exitCode = await (argv.includes('--selftest') ? selftest() : walk());
+export { SWEEP, bootPage, serve, VIEWPORTS, SCREENS };
+if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('tests/visual-qa.mjs'))
+  process.exitCode = await (argv.includes('--selftest') ? selftest() : walk());

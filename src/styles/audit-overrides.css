@@ -2679,7 +2679,9 @@ body.in-combat #combat-area {
   body[data-theme] .ftue-btn,
   body[data-theme] .mp-fight,
   body[data-theme] .scv-finish {
-    min-height: 44px;
+    /* b554: BOTH axes. A 44px-tall "T1" chip 32px wide is still a 32px target. */
+    min-height: var(--tap);
+    min-width: var(--tap);
   }
   body[data-theme] .icon-btn { min-width: 44px; }
   .chip { padding: 8px 12px; }

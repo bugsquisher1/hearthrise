@@ -5,47 +5,15 @@
     "vh": 900,
     "issues": [
       {
-        "sev": "ERR",
-        "kind": "fonts-unloaded",
-        "detail": "text metrics NOT measured — Cinzel, Alegreya Sans, Alegreya Sans SC did not render (document.fonts.status=loaded). Every clipped-text/offscreen width would be the platform fallback's, not the design's.",
-        "el": ""
-      },
-      {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "16 controls <44px hit area — worst: 18px \"\" .hd-who>.hd-name>button.hd-rename | 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn | 32px \"\" .main>.topbar>.top-stats>#btn-settingsbutton.icon-btn",
-        "el": "#app>.main>#panel-profilesection.panel",
-        "count": 16
-      },
-      {
-        "sev": "P1",
-        "kind": "runtime-error",
-        "detail": "console: Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
-        "el": ""
-      },
-      {
-        "sev": "P1",
-        "kind": "runtime-error",
-        "detail": "console: Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
-        "el": ""
-      },
-      {
-        "sev": "P1",
-        "kind": "runtime-error",
-        "detail": "console: [capture] TypeError: Failed to fetch\n    at window.fetch (http://127.0.0.1:44821/src/network-status.js?v=553:183:35)\n    at SupabaseChatBack",
-        "el": ""
-      },
-      {
-        "sev": "P1",
-        "kind": "runtime-error",
-        "detail": "pageerror: Failed to fetch",
-        "el": ""
+        "detail": "16 controls <44px — worst: 18px \"\" .hd-who>.hd-name>button.hd-rename | 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn | 32px \"\" .main>.topbar>.top-stats>#btn-settingsbutton.icon-btn",
+        "el": "#app>.main>#panel-profilesection.panel"
       }
     ],
     "stats": {
-      "els": 477,
-      "chars": 2655,
-      "smallTargets": 16
+      "els": 469,
+      "chars": 2836
     },
     "viewport": "desktop"
   },
@@ -55,29 +23,15 @@
     "vh": 900,
     "issues": [
       {
-        "sev": "ERR",
-        "kind": "fonts-unloaded",
-        "detail": "text metrics NOT measured — Cinzel, Alegreya Sans, Alegreya Sans SC did not render (document.fonts.status=loaded). Every clipped-text/offscreen width would be the platform fallback's, not the design's.",
-        "el": ""
-      },
-      {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "6 controls <44px hit area — worst: 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn | 32px \"\" .main>.topbar>.top-stats>#btn-settingsbutton.icon-btn | 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton",
-        "el": "#app>.main>#panel-charactersection.panel",
-        "count": 6
-      },
-      {
-        "sev": "P1",
-        "kind": "runtime-error",
-        "detail": "console: WebSocket connection to 'wss://nezapsylztqbbwuwembx.supabase.co/realtime/v1/websocket?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOi",
-        "el": ""
+        "detail": "6 controls <44px — worst: 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn | 32px \"\" .main>.topbar>.top-stats>#btn-settingsbutton.icon-btn | 35px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton",
+        "el": "#app>.main>#panel-charactersection.panel"
       }
     ],
     "stats": {
-      "els": 384,
-      "chars": 416,
-      "smallTargets": 6
+      "els": 376,
+      "chars": 416
     },
     "viewport": "desktop"
   },
@@ -87,29 +41,21 @@
     "vh": 900,
     "issues": [
       {
-        "sev": "ERR",
-        "kind": "fonts-unloaded",
-        "detail": "text metrics NOT measured — Cinzel, Alegreya Sans, Alegreya Sans SC did not render (document.fonts.status=loaded). Every clipped-text/offscreen width would be the platform fallback's, not the design's.",
-        "el": ""
-      },
-      {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "24 controls <44px hit area — worst: 30px \"T2\" #wt-tiers>button.chip | 30px \"T3\" #wt-tiers>button.chip | 30px \"T4\" #wt-tiers>button.chip",
-        "el": "#app>.main>#panel-combatsection.panel",
-        "count": 24
+        "detail": "25 controls <44px — worst: 30px \"T1\" #wt-tiers>button.chip | 30px \"T2\" #wt-tiers>button.chip | 30px \"T3\" #wt-tiers>button.chip",
+        "el": "#app>.main>#panel-combatsection.panel"
       },
       {
         "sev": "P2",
         "kind": "duplicate-word",
-        "detail": "\"Elemental Elemental\"",
+        "detail": "\"Board Board\"",
         "el": "#app>.main>#panel-combatsection.panel"
       }
     ],
     "stats": {
-      "els": 580,
-      "chars": 3714,
-      "smallTargets": 24
+      "els": 572,
+      "chars": 3668
     },
     "viewport": "desktop"
   },
@@ -119,29 +65,15 @@
     "vh": 900,
     "issues": [
       {
-        "sev": "ERR",
-        "kind": "fonts-unloaded",
-        "detail": "text metrics NOT measured — Cinzel, Alegreya Sans, Alegreya Sans SC did not render (document.fonts.status=loaded). Every clipped-text/offscreen width would be the platform fallback's, not the design's.",
-        "el": ""
-      },
-      {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "4 controls <44px hit area — worst: 31px \"Recipe Book\" #panel-skills>.card>.card-head>button.btn | 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn | 32px \"\" .main>.topbar>.top-stats>#btn-settingsbutton.icon-btn",
-        "el": "#app>.main>#panel-skillssection.panel",
-        "count": 4
-      },
-      {
-        "sev": "P1",
-        "kind": "runtime-error",
-        "detail": "console: Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
-        "el": ""
+        "detail": "4 controls <44px — worst: 31px \"Recipe Book\" #panel-skills>.card>.card-head>button.btn | 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn | 32px \"\" .main>.topbar>.top-stats>#btn-settingsbutton.icon-btn",
+        "el": "#app>.main>#panel-skillssection.panel"
       }
     ],
     "stats": {
-      "els": 354,
-      "chars": 519,
-      "smallTargets": 4
+      "els": 346,
+      "chars": 519
     },
     "viewport": "desktop"
   },
@@ -151,23 +83,15 @@
     "vh": 900,
     "issues": [
       {
-        "sev": "ERR",
-        "kind": "fonts-unloaded",
-        "detail": "text metrics NOT measured — Cinzel, Alegreya Sans, Alegreya Sans SC did not render (document.fonts.status=loaded). Every clipped-text/offscreen width would be the platform fallback's, not the design's.",
-        "el": ""
-      },
-      {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "12 controls <44px hit area — worst: 22px \"Bigger plot\" #crops-guide>.shop-row>span.mr-lock | 22px \"Bigger plot\" #crops-guide>.shop-row>span.mr-lock | 22px \"Bigger plot\" #crops-guide>.shop-row>span.mr-lock",
-        "el": "#app>.main>#panel-farmingsection.panel",
-        "count": 12
+        "detail": "12 controls <44px — worst: 21px \"Bigger plot\" #crops-guide>.shop-row>span.mr-lock | 21px \"Bigger plot\" #crops-guide>.shop-row>span.mr-lock | 21px \"Bigger plot\" #crops-guide>.shop-row>span.mr-lock",
+        "el": "#app>.main>#panel-farmingsection.panel"
       }
     ],
     "stats": {
-      "els": 279,
-      "chars": 639,
-      "smallTargets": 12
+      "els": 271,
+      "chars": 639
     },
     "viewport": "desktop"
   },
@@ -177,23 +101,15 @@
     "vh": 900,
     "issues": [
       {
-        "sev": "ERR",
-        "kind": "fonts-unloaded",
-        "detail": "text metrics NOT measured — Cinzel, Alegreya Sans, Alegreya Sans SC did not render (document.fonts.status=loaded). Every clipped-text/offscreen width would be the platform fallback's, not the design's.",
-        "el": ""
-      },
-      {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "34 controls <44px hit area — worst: 32px \"Equipment\" #invc-doll-host>.td-wrap>.td-tabs>button.td-tab | 32px \"Stats\" #invc-doll-host>.td-wrap>.td-tabs>button.td-tab | 32px \"Companion\" #invc-doll-host>.td-wrap>.td-tabs>button.td-tab",
-        "el": "#app>.main>#panel-inventorysection.panel",
-        "count": 34
+        "detail": "34 controls <44px — worst: 31px \"Equipment\" #invc-doll-host>.td-wrap>.td-tabs>button.td-tab | 31px \"Stats\" #invc-doll-host>.td-wrap>.td-tabs>button.td-tab | 31px \"Companion\" #invc-doll-host>.td-wrap>.td-tabs>button.td-tab",
+        "el": "#app>.main>#panel-inventorysection.panel"
       }
     ],
     "stats": {
-      "els": 617,
-      "chars": 769,
-      "smallTargets": 34
+      "els": 609,
+      "chars": 769
     },
     "viewport": "desktop"
   },
@@ -203,23 +119,15 @@
     "vh": 900,
     "issues": [
       {
-        "sev": "ERR",
-        "kind": "fonts-unloaded",
-        "detail": "text metrics NOT measured — Cinzel, Alegreya Sans, Alegreya Sans SC did not render (document.fonts.status=loaded). Every clipped-text/offscreen width would be the platform fallback's, not the design's.",
-        "el": ""
-      },
-      {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "7 controls <44px hit area — worst: 31px \"Upgrade Proper\" #hh-property-card>.card-body>button.btn | 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn | 32px \"\" .main>.topbar>.top-stats>#btn-settingsbutton.icon-btn",
-        "el": "#app>.main>#panel-housesection.panel",
-        "count": 7
+        "detail": "7 controls <44px — worst: 31px \"Upgrade Proper\" #hh-property-card>.card-body>button.btn | 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn | 32px \"\" .main>.topbar>.top-stats>#btn-settingsbutton.icon-btn",
+        "el": "#app>.main>#panel-housesection.panel"
       }
     ],
     "stats": {
-      "els": 390,
-      "chars": 668,
-      "smallTargets": 7
+      "els": 382,
+      "chars": 668
     },
     "viewport": "desktop"
   },
@@ -229,35 +137,15 @@
     "vh": 900,
     "issues": [
       {
-        "sev": "ERR",
-        "kind": "fonts-unloaded",
-        "detail": "text metrics NOT measured — Cinzel, Alegreya Sans, Alegreya Sans SC did not render (document.fonts.status=loaded). Every clipped-text/offscreen width would be the platform fallback's, not the design's.",
-        "el": ""
-      },
-      {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "4 controls <44px hit area — worst: 32px \"Quartermaster\" #panel-dungeons>.dgn-scrip-bar>button.btn | 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn | 32px \"\" .main>.topbar>.top-stats>#btn-settingsbutton.icon-btn",
-        "el": "#app>.main>#panel-eventssection.panel",
-        "count": 4
-      },
-      {
-        "sev": "P1",
-        "kind": "runtime-error",
-        "detail": "console: Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
-        "el": ""
-      },
-      {
-        "sev": "P1",
-        "kind": "runtime-error",
-        "detail": "console: WebSocket connection to 'wss://nezapsylztqbbwuwembx.supabase.co/realtime/v1/websocket?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOi",
-        "el": ""
+        "detail": "4 controls <44px — worst: 31px \"Quartermaster\" #panel-dungeons>.dgn-scrip-bar>button.btn | 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn | 32px \"\" .main>.topbar>.top-stats>#btn-settingsbutton.icon-btn",
+        "el": "#app>.main>#panel-eventssection.panel"
       }
     ],
     "stats": {
-      "els": 464,
-      "chars": 2799,
-      "smallTargets": 4
+      "els": 456,
+      "chars": 2810
     },
     "viewport": "desktop"
   },
@@ -267,23 +155,15 @@
     "vh": 900,
     "issues": [
       {
-        "sev": "ERR",
-        "kind": "fonts-unloaded",
-        "detail": "text metrics NOT measured — Cinzel, Alegreya Sans, Alegreya Sans SC did not render (document.fonts.status=loaded). Every clipped-text/offscreen width would be the platform fallback's, not the design's.",
-        "el": ""
-      },
-      {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "23 controls <44px hit area — worst: 31px \"Buy\" #shop-panel>.sc-counter>.shop-row>button.btn | 31px \"Buy\" #shop-panel>.sc-counter>.shop-row>button.btn | 31px \"Buy\" #shop-panel>.sc-counter>.shop-row>button.btn",
-        "el": "#app>.main>#panel-shopsection.panel",
-        "count": 23
+        "detail": "23 controls <44px — worst: 31px \"Buy\" #shop-panel>.sc-counter>.shop-row>button.btn | 31px \"Buy\" #shop-panel>.sc-counter>.shop-row>button.btn | 31px \"Buy\" #shop-panel>.sc-counter>.shop-row>button.btn",
+        "el": "#app>.main>#panel-shopsection.panel"
       }
     ],
     "stats": {
-      "els": 474,
-      "chars": 1471,
-      "smallTargets": 23
+      "els": 466,
+      "chars": 1471
     },
     "viewport": "desktop"
   },
@@ -293,49 +173,15 @@
     "vh": 900,
     "issues": [
       {
-        "sev": "ERR",
-        "kind": "fonts-unloaded",
-        "detail": "text metrics NOT measured — Cinzel, Alegreya Sans, Alegreya Sans SC did not render (document.fonts.status=loaded). Every clipped-text/offscreen width would be the platform fallback's, not the design's.",
-        "el": ""
-      },
-      {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "3 controls <44px hit area — worst: 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn | 32px \"\" .main>.topbar>.top-stats>#btn-settingsbutton.icon-btn | 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton",
-        "el": "#app>.main>#panel-clansection.panel",
-        "count": 3
+        "detail": "3 controls <44px — worst: 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn | 32px \"\" .main>.topbar>.top-stats>#btn-settingsbutton.icon-btn | 35px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton",
+        "el": "#app>.main>#panel-clansection.panel"
       }
     ],
     "stats": {
-      "els": 172,
-      "chars": 429,
-      "smallTargets": 3
-    },
-    "viewport": "desktop"
-  },
-  {
-    "screen": "party",
-    "vw": 1440,
-    "vh": 900,
-    "issues": [
-      {
-        "sev": "ERR",
-        "kind": "fonts-unloaded",
-        "detail": "text metrics NOT measured — Cinzel, Alegreya Sans, Alegreya Sans SC did not render (document.fonts.status=loaded). Every clipped-text/offscreen width would be the platform fallback's, not the design's.",
-        "el": ""
-      },
-      {
-        "sev": "P3",
-        "kind": "small-target",
-        "detail": "3 controls <44px hit area — worst: 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn | 32px \"\" .main>.topbar>.top-stats>#btn-settingsbutton.icon-btn | 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton",
-        "el": "#app>.main>#panel-partysection.panel",
-        "count": 3
-      }
-    ],
-    "stats": {
-      "els": 171,
-      "chars": 76,
-      "smallTargets": 3
+      "els": 164,
+      "chars": 429
     },
     "viewport": "desktop"
   },
@@ -345,29 +191,15 @@
     "vh": 900,
     "issues": [
       {
-        "sev": "ERR",
-        "kind": "fonts-unloaded",
-        "detail": "text metrics NOT measured — Cinzel, Alegreya Sans, Alegreya Sans SC did not render (document.fonts.status=loaded). Every clipped-text/offscreen width would be the platform fallback's, not the design's.",
-        "el": ""
-      },
-      {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "8 controls <44px hit area — worst: 32px \"See what’s com\" #social-panel>.soc-signpost>button.btn | 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn | 32px \"\" .main>.topbar>.top-stats>#btn-settingsbutton.icon-btn",
-        "el": "#app>.main>#panel-socialsection.panel",
-        "count": 8
-      },
-      {
-        "sev": "P1",
-        "kind": "runtime-error",
-        "detail": "console: Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
-        "el": ""
+        "detail": "10 controls <44px — worst: 31px \"See what’s com\" #social-panel>.soc-signpost>button.btn | 32px \"0\" .topbar>.top-stats>.notif-bell-wrap>#btn-notifbutton.icon-btn | 32px \"\" .main>.topbar>.top-stats>#btn-settingsbutton.icon-btn",
+        "el": "#app>.main>#panel-socialsection.panel"
       }
     ],
     "stats": {
-      "els": 194,
-      "chars": 305,
-      "smallTargets": 8
+      "els": 289,
+      "chars": 699
     },
     "viewport": "desktop"
   },
@@ -377,23 +209,15 @@
     "vh": 900,
     "issues": [
       {
-        "sev": "ERR",
-        "kind": "fonts-unloaded",
-        "detail": "text metrics NOT measured — Cinzel, Alegreya Sans, Alegreya Sans SC did not render (document.fonts.status=loaded). Every clipped-text/offscreen width would be the platform fallback's, not the design's.",
-        "el": ""
-      },
-      {
         "sev": "P3",
         "kind": "small-target",
-        "detail": "14 controls <44px hit area — worst: 31px \"Accept\" .bb-notices>.bb-notice>.bb-foot>button.btn | 31px \"Accept\" .bb-notices>.bb-notice>.bb-foot>button.btn | 31px \"Buy\" #bounty-shop-body>.bounty-shop-row>button.btn",
-        "el": "#app>.main>#panel-bountysection.panel",
-        "count": 14
+        "detail": "14 controls <44px — worst: 31px \"Accept\" .bb-notices>.bb-notice>.bb-foot>button.btn | 31px \"Accept\" .bb-notices>.bb-notice>.bb-foot>button.btn | 31px \"Accept\" .bb-notices>.bb-notice>.bb-foot>button.btn",
+        "el": "#app>.main>#panel-bountysection.panel"
       }
     ],
     "stats": {
-      "els": 375,
-      "chars": 1085,
-      "smallTargets": 14
+      "els": 367,
+      "chars": 1079
     },
     "viewport": "desktop"
   },
@@ -403,40 +227,15 @@
     "vh": 393,
     "issues": [
       {
-        "sev": "ERR",
-        "kind": "fonts-unloaded",
-        "detail": "text metrics NOT measured — Cinzel, Alegreya Sans, Alegreya Sans SC did not render (document.fonts.status=loaded). Every clipped-text/offscreen width would be the platform fallback's, not the design's.",
-        "el": ""
-      },
-      {
-        "sev": "P1",
-        "kind": "runtime-error",
-        "detail": "console: Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
-        "el": ""
-      },
-      {
-        "sev": "P1",
-        "kind": "runtime-error",
-        "detail": "console: Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
-        "el": ""
-      },
-      {
-        "sev": "P1",
-        "kind": "runtime-error",
-        "detail": "console: WebSocket connection to 'wss://nezapsylztqbbwuwembx.supabase.co/realtime/v1/websocket?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOi",
-        "el": ""
-      },
-      {
-        "sev": "P1",
-        "kind": "runtime-error",
-        "detail": "console: [capture] TypeError: Failed to fetch\n    at window.fetch (http://127.0.0.1:44821/src/network-status.js?v=553:183:35)\n    at SupabaseChatBack",
-        "el": ""
+        "sev": "P3",
+        "kind": "small-target",
+        "detail": "1 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton",
+        "el": "#app>.main>#panel-profilesection.panel"
       }
     ],
     "stats": {
       "els": 414,
-      "chars": 2655,
-      "smallTargets": 0
+      "chars": 2836
     },
     "viewport": "landscape"
   },
@@ -446,22 +245,15 @@
     "vh": 393,
     "issues": [
       {
-        "sev": "ERR",
-        "kind": "fonts-unloaded",
-        "detail": "text metrics NOT measured — Cinzel, Alegreya Sans, Alegreya Sans SC did not render (document.fonts.status=loaded). Every clipped-text/offscreen width would be the platform fallback's, not the design's.",
-        "el": ""
-      },
-      {
-        "sev": "P1",
-        "kind": "runtime-error",
-        "detail": "console: WebSocket connection to 'wss://nezapsylztqbbwuwembx.supabase.co/realtime/v1/websocket?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOi",
-        "el": ""
+        "sev": "P3",
+        "kind": "small-target",
+        "detail": "1 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton",
+        "el": "#app>.main>#panel-charactersection.panel"
       }
     ],
     "stats": {
       "els": 326,
-      "chars": 416,
-      "smallTargets": 0
+      "chars": 416
     },
     "viewport": "landscape"
   },
@@ -471,22 +263,21 @@
     "vh": 393,
     "issues": [
       {
-        "sev": "ERR",
-        "kind": "fonts-unloaded",
-        "detail": "text metrics NOT measured — Cinzel, Alegreya Sans, Alegreya Sans SC did not render (document.fonts.status=loaded). Every clipped-text/offscreen width would be the platform fallback's, not the design's.",
-        "el": ""
+        "sev": "P3",
+        "kind": "small-target",
+        "detail": "23 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton | 40px \"Board ▸\" #wt-dests>.wt-dest>button.btn {Bounty} | 40px \"Fight ▸\" #wt-dests>.wt-dest>button.btn {Boss of the Day}",
+        "el": "#app>.main>#panel-combatsection.panel"
       },
       {
         "sev": "P2",
         "kind": "duplicate-word",
-        "detail": "\"Elemental Elemental\"",
+        "detail": "\"Board Board\"",
         "el": "#app>.main>#panel-combatsection.panel"
       }
     ],
     "stats": {
       "els": 311,
-      "chars": 3714,
-      "smallTargets": 0
+      "chars": 3668
     },
     "viewport": "landscape"
   },
@@ -496,22 +287,15 @@
     "vh": 393,
     "issues": [
       {
-        "sev": "ERR",
-        "kind": "fonts-unloaded",
-        "detail": "text metrics NOT measured — Cinzel, Alegreya Sans, Alegreya Sans SC did not render (document.fonts.status=loaded). Every clipped-text/offscreen width would be the platform fallback's, not the design's.",
-        "el": ""
-      },
-      {
-        "sev": "P1",
-        "kind": "runtime-error",
-        "detail": "console: Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
-        "el": ""
+        "sev": "P3",
+        "kind": "small-target",
+        "detail": "2 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton | 40px \"Recipe Book\" #panel-skills>.card>.card-head>button.btn",
+        "el": "#app>.main>#panel-skillssection.panel"
       }
     ],
     "stats": {
       "els": 351,
-      "chars": 519,
-      "smallTargets": 0
+      "chars": 519
     },
     "viewport": "landscape"
   },
@@ -521,16 +305,15 @@
     "vh": 393,
     "issues": [
       {
-        "sev": "ERR",
-        "kind": "fonts-unloaded",
-        "detail": "text metrics NOT measured — Cinzel, Alegreya Sans, Alegreya Sans SC did not render (document.fonts.status=loaded). Every clipped-text/offscreen width would be the platform fallback's, not the design's.",
-        "el": ""
+        "sev": "P3",
+        "kind": "small-target",
+        "detail": "10 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton | 40px \"Plant all (2)\" #farm-panel>.farm-status>.row>button.btn | 40px \"Water all\" #farm-panel>.farm-status>.row>button.btn",
+        "el": "#app>.main>#panel-farmingsection.panel"
       }
     ],
     "stats": {
       "els": 221,
-      "chars": 639,
-      "smallTargets": 0
+      "chars": 639
     },
     "viewport": "landscape"
   },
@@ -540,16 +323,15 @@
     "vh": 393,
     "issues": [
       {
-        "sev": "ERR",
-        "kind": "fonts-unloaded",
-        "detail": "text metrics NOT measured — Cinzel, Alegreya Sans, Alegreya Sans SC did not render (document.fonts.status=loaded). Every clipped-text/offscreen width would be the platform fallback's, not the design's.",
-        "el": ""
+        "sev": "P1",
+        "kind": "small-target",
+        "detail": "31 controls <44px — worst: 28px \"Everything\" .invc-main>.invc-left>.invc-lootfilter>button.invc-lf-chip | 28px \"Weapons\" .invc-main>.invc-left>.invc-lootfilter>button.invc-lf-chip | 28px \"Armour\" .invc-main>.invc-left>.invc-lootfilter>button.invc-lf-chip",
+        "el": "#app>.main>#panel-inventorysection.panel"
       }
     ],
     "stats": {
       "els": 368,
-      "chars": 769,
-      "smallTargets": 0
+      "chars": 769
     },
     "viewport": "landscape"
   },
@@ -559,16 +341,15 @@
     "vh": 393,
     "issues": [
       {
-        "sev": "ERR",
-        "kind": "fonts-unloaded",
-        "detail": "text metrics NOT measured — Cinzel, Alegreya Sans, Alegreya Sans SC did not render (document.fonts.status=loaded). Every clipped-text/offscreen width would be the platform fallback's, not the design's.",
-        "el": ""
+        "sev": "P3",
+        "kind": "small-target",
+        "detail": "5 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton | 40px \"Upgrade Proper\" #hh-property-card>.card-body>button.btn | 40px \"Rooms\" #panel-house>.card>.chips>button.chip",
+        "el": "#app>.main>#panel-housesection.panel"
       }
     ],
     "stats": {
       "els": 332,
-      "chars": 668,
-      "smallTargets": 0
+      "chars": 668
     },
     "viewport": "landscape"
   },
@@ -578,16 +359,15 @@
     "vh": 393,
     "issues": [
       {
-        "sev": "ERR",
-        "kind": "fonts-unloaded",
-        "detail": "text metrics NOT measured — Cinzel, Alegreya Sans, Alegreya Sans SC did not render (document.fonts.status=loaded). Every clipped-text/offscreen width would be the platform fallback's, not the design's.",
-        "el": ""
+        "sev": "P3",
+        "kind": "small-target",
+        "detail": "2 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton | 40px \"Quartermaster\" #panel-dungeons>.dgn-scrip-bar>button.btn",
+        "el": "#app>.main>#panel-eventssection.panel"
       }
     ],
     "stats": {
       "els": 406,
-      "chars": 2799,
-      "smallTargets": 0
+      "chars": 2810
     },
     "viewport": "landscape"
   },
@@ -597,28 +377,15 @@
     "vh": 393,
     "issues": [
       {
-        "sev": "ERR",
-        "kind": "fonts-unloaded",
-        "detail": "text metrics NOT measured — Cinzel, Alegreya Sans, Alegreya Sans SC did not render (document.fonts.status=loaded). Every clipped-text/offscreen width would be the platform fallback's, not the design's.",
-        "el": ""
-      },
-      {
-        "sev": "P1",
-        "kind": "runtime-error",
-        "detail": "console: Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
-        "el": ""
-      },
-      {
-        "sev": "P1",
-        "kind": "runtime-error",
-        "detail": "console: WebSocket connection to 'wss://nezapsylztqbbwuwembx.supabase.co/realtime/v1/websocket?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOi",
-        "el": ""
+        "sev": "P3",
+        "kind": "small-target",
+        "detail": "21 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton | 40px \"Local Shop\" #panel-shop>.shops-tabs>button.shops-tab | 40px \"Market\" #panel-shop>.shops-tabs>button.shops-tab",
+        "el": "#app>.main>#panel-shopsection.panel"
       }
     ],
     "stats": {
       "els": 416,
-      "chars": 1471,
-      "smallTargets": 0
+      "chars": 1471
     },
     "viewport": "landscape"
   },
@@ -628,35 +395,15 @@
     "vh": 393,
     "issues": [
       {
-        "sev": "ERR",
-        "kind": "fonts-unloaded",
-        "detail": "text metrics NOT measured — Cinzel, Alegreya Sans, Alegreya Sans SC did not render (document.fonts.status=loaded). Every clipped-text/offscreen width would be the platform fallback's, not the design's.",
-        "el": ""
+        "sev": "P3",
+        "kind": "small-target",
+        "detail": "1 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton",
+        "el": "#app>.main>#panel-clansection.panel"
       }
     ],
     "stats": {
       "els": 114,
-      "chars": 429,
-      "smallTargets": 0
-    },
-    "viewport": "landscape"
-  },
-  {
-    "screen": "party",
-    "vw": 852,
-    "vh": 393,
-    "issues": [
-      {
-        "sev": "ERR",
-        "kind": "fonts-unloaded",
-        "detail": "text metrics NOT measured — Cinzel, Alegreya Sans, Alegreya Sans SC did not render (document.fonts.status=loaded). Every clipped-text/offscreen width would be the platform fallback's, not the design's.",
-        "el": ""
-      }
-    ],
-    "stats": {
-      "els": 113,
-      "chars": 76,
-      "smallTargets": 0
+      "chars": 429
     },
     "viewport": "landscape"
   },
@@ -666,22 +413,15 @@
     "vh": 393,
     "issues": [
       {
-        "sev": "ERR",
-        "kind": "fonts-unloaded",
-        "detail": "text metrics NOT measured — Cinzel, Alegreya Sans, Alegreya Sans SC did not render (document.fonts.status=loaded). Every clipped-text/offscreen width would be the platform fallback's, not the design's.",
-        "el": ""
-      },
-      {
-        "sev": "P1",
-        "kind": "runtime-error",
-        "detail": "console: Failed to load resource: net::ERR_TUNNEL_CONNECTION_FAILED",
-        "el": ""
+        "sev": "P3",
+        "kind": "small-target",
+        "detail": "8 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton | 40px \"Overall\" #lb-cats>button.chip | 40px \"Skills\" #lb-cats>button.chip",
+        "el": "#app>.main>#panel-socialsection.panel"
       }
     ],
     "stats": {
-      "els": 136,
-      "chars": 305,
-      "smallTargets": 0
+      "els": 239,
+      "chars": 699
     },
     "viewport": "landscape"
   },
@@ -691,16 +431,15 @@
     "vh": 393,
     "issues": [
       {
-        "sev": "ERR",
-        "kind": "fonts-unloaded",
-        "detail": "text metrics NOT measured — Cinzel, Alegreya Sans, Alegreya Sans SC did not render (document.fonts.status=loaded). Every clipped-text/offscreen width would be the platform fallback's, not the design's.",
-        "el": ""
+        "sev": "P3",
+        "kind": "small-target",
+        "detail": "12 controls <44px — worst: 36px \"Quests6\" .main>.topbar>.top-stats>#hr-quests-btnbutton | 40px \"Accept\" .bb-notices>.bb-notice>.bb-foot>button.btn | 40px \"New notices\" #bounty-board-body>.bb-board>.bb-rail>button.btn",
+        "el": "#app>.main>#panel-bountysection.panel"
       }
     ],
     "stats": {
       "els": 317,
-      "chars": 1111,
-      "smallTargets": 0
+      "chars": 1095
     },
     "viewport": "landscape"
   }

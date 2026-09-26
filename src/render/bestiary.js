@@ -89,9 +89,12 @@
       /* The server's count wins the `×` too when it has one: two numbers for
          one fact on one row is how a player learns not to trust either. */
       var shown = tKills > 0 ? tKills : entry.kills;
-      return '<div class="bestiary-row ' + (disc || tKills > 0 ? 'discovered' : 'undiscovered') + '">' +
+      var named = disc || tKills > 0;
+      var note = (window.HearthriseMonsterNotes || {})[id];
+      var noteHtml = (named && typeof note === 'string') ? ('<small class="br-note">' + note + '</small>') : '';
+      return '<div class="bestiary-row ' + (named ? 'discovered' : 'undiscovered') + '">' +
         '<div class="br-icon">' + img + '</div>' +
-        '<div class="br-info"><b>' + (disc || tKills > 0 ? m.name : '???') + '</b><small>Tier ' + m.tier + (disc ? ' · ' + m.hp + ' HP' : '') + '</small>' + el + trophy + '</div>' +
+        '<div class="br-info"><b>' + (named ? m.name : '???') + '</b><small>Tier ' + m.tier + (disc ? ' · ' + m.hp + ' HP' : '') + '</small>' + noteHtml + el + trophy + '</div>' +
         '<div class="br-kills">' + (shown > 0 ? shown.toLocaleString() + '×' : '—') + '</div>' +
       '</div>';
     }).join('');

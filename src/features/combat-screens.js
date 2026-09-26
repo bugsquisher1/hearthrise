@@ -814,8 +814,6 @@ function destinations() {
       counter: `${num(active.progress || 0)}/${num(active.required || 0)}`,
     });
   } else {
-    /* b554 — the verb was "Board ▸", straight after "…at the Bounty Board":
-       the card read "Board Board" (visual-qa duplicate-word). */
     out.push({
       kick: 'Bounty', glyph: 'uiTarget', name: 'No contract',
       meta: 'Take one at the Bounty Board', verb: 'Browse ▸', go: 'tab', tab: 'bounty',

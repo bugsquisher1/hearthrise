@@ -1919,13 +1919,13 @@ export default [
       'the slot line\'s TEXT must keep the b348 wording for _renderInvSummary\'s contract — got "' + out.spaceText + '"');
   }),
 
-  /* ── regression suite — b554: THE BAG'S FILTER CHIPS WERE 28px ON A PHONE ──
+  /* ── regression suite — THE BAG'S FILTER CHIPS WERE 28px ON A PHONE ──
      visual-qa P1 since 2026-09-12: at 852x393 the Keep chips were 28px tall and
      33px wide, the category squares 30px — the smallest targets on the screen a
      player filters most. The phone floor is `--tap` (44px) on BOTH axes, and
      what is measured is the HIT AREA (`elementFromPoint` walked out from each
      chip's centre), not the painted box, so a neighbour overlapping the chip
-     cannot pass for a big target. Same iframe method as b327 above: the media
+     cannot pass for a big target. Same iframe method as the bag probe above: the media
      queries evaluate against the frame, so 852x393 is the device. RED at 28. */
   () => tryRun('b554: the bag\'s Keep and category chips take a 44px thumb at 852x393', () => {
     const render = window._renderInvFancy || window.renderInvFancy;
@@ -1977,13 +1977,13 @@ export default [
     });
   }),
 
-  /* ── regression suite — b554: A STRAY BRACE DELETED A RULE, SILENTLY ──────
+  /* ── regression suite — A STRAY BRACE DELETED A RULE, SILENTLY ──────
      theme-cozy.css carried `}e: 12px;\n}` — the tail of a botched edit. CSS error
      recovery turns an unmatched `}` at top level into the start of a selector,
      which swallowed the NEXT rule whole: `.global-quests-strip{display:none
      !important}`. So the 80px legacy quest strip, meant to be replaced by the
      topbar Quests pill, sat on every screen — a fifth of a 393px phone, and the
-     reason the b554 tap floor first buried the bag. No guard reads a sheet's
+     reason the 44px tap floor first buried the bag. No guard reads a sheet's
      text, so this checks every shipped stylesheet's brace balance (comments and
      quoted strings stripped) and the strip it hid. */
   () => tryRunAsync('b554: every stylesheet balances its braces, and the legacy quest strip stays hidden', async () => {
@@ -5050,7 +5050,7 @@ export default [
      fitting six across can hold on one line, so it must WRAP), and the row fits
      the rail it is drawn in. The landscape chip rail scrolls sideways on
      purpose and is held out by the viewport guard, not by an exception. */
-  /* ── regression suite — b554: "Board Board" ────────────────────────────────
+  /* ── regression suite — "Board Board" ────────────────────────────────
      The no-contract Bounty card read "Take one at the Bounty Board" and then a
      button reading "Board ▸" — visual-qa's duplicate-word finding on the combat
      panel at both viewports. Asserted on the RENDERED card text, in the state

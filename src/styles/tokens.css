@@ -341,6 +341,7 @@ body[data-theme="classic"] {
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-l: env(safe-area-inset-left, 0px);
   --safe-r: env(safe-area-inset-right, 0px);
+  --modal-gutter: clamp(8px, 2.5vmin, 20px);
 }
 
 /* ── theme-cozy.css · HEARTHLIGHT base — the default. Declared on :root as well as on the body scope, so a token resolved outside <body> is still dark

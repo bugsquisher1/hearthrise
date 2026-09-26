@@ -6996,9 +6996,9 @@ window.closeAllModals = closeAllModals;
 // Esc key dismisses all modals (except the bug-report modal — that has
 // its own close to preserve form input).
 document.addEventListener('keydown', function(e){
-  if(e.key === 'Escape'){
-    var bug = document.getElementById('hr-bug-modal');
-    if(bug && bug.classList.contains('show')) return; // let bug-report handle its own
+  if(e.key === 'Escape' && !e.defaultPrevented){
+    if(document.getElementById('hr-bug-modal')) return; // form keeps its typed text; node exists only while open
+    if(window.HearthriseSheet && window.HearthriseSheet.closeTop()){ e.preventDefault(); return; }
     closeAllModals();
   }
 });
@@ -9455,7 +9455,6 @@ function bindEvents(){
   document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('show');}));
   /* keyboard shortcuts */
   document.addEventListener('keydown',e=>{
-    if(e.key==='Escape'){document.querySelectorAll('.modal.show').forEach(m=>m.classList.remove('show'));return;}
     if(e.target.matches('input,textarea,select'))return;
     const map={'1':'profile','2':'combat','3':'skills','4':'inventory','5':'farming','6':'house','7':'social','8':'shops'};
     if(map[e.key]){showTab(map[e.key]);e.preventDefault();}
@@ -13718,12 +13717,11 @@ window.__resetWelcomePresentation = function(spent, waitMs, maxWaitMs){
 function buildWelcomeOverlay(){
   if(document.getElementById('welcome-overlay')) return;
   var ov = document.createElement('div');
-  ov.id = 'welcome-overlay'; ov.className = 'welcome-overlay';
-  ov.innerHTML = '<div class="welcome-modal" onclick="event.stopPropagation()">'+
-    '<h2>Welcome back, adventurer</h2>'+
-    '<div class="wb-time">Your homestead missed you.</div>'+
-    '<div class="wb-rewards" id="welcome-rows"></div>'+
-    '<button class="wb-claim" onclick="document.getElementById(\'welcome-overlay\').classList.remove(\'show\')">Continue</button>'+
+  ov.id = 'welcome-overlay'; ov.className = 'welcome-overlay hr-scrim';
+  ov.innerHTML = '<div class="welcome-modal hr-sheet" onclick="event.stopPropagation()">'+
+    '<div class="hr-sheet-head"><h2>Welcome back, adventurer</h2><div class="wb-time">Your homestead missed you.</div></div>'+
+    '<div class="wb-rewards hr-sheet-body" id="welcome-rows"></div>'+
+    '<div class="hr-sheet-foot"><button class="wb-claim" data-hr-dismiss onclick="document.getElementById(\'welcome-overlay\').classList.remove(\'show\')">Continue</button></div>'+
     '</div>';
   ov.addEventListener('click', function(e){ if(e.target===ov) ov.classList.remove('show'); });
   document.body.appendChild(ov);

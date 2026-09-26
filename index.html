@@ -1015,6 +1015,9 @@
        that asks the player anything. tests/native-dialog.mjs refuses a new
        native call site under src/. -->
   <script src="src/utils/dialog.js?v=555"></script>
+  <!-- b556: the one Escape for .hr-sheet modals (pairs with the layout primitive
+       in art-direction.css). Before legacy.js, whose global Escape listener calls it. -->
+  <script src="src/render/modal-sheet.js?v=555"></script>
   <script src="src/net/server-rpc.js?v=555"></script>
   <!-- b414: the daily-task / quest gold-claim transport. Classic IIFE (window
        global) like server-rpc.js above; legacy.js calls HearthriseGoalClaim to

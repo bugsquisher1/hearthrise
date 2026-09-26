@@ -94,22 +94,25 @@
     if (document.getElementById('hr-welcome-modal')) return;
     const overlay = document.createElement('div');
     overlay.id = 'hr-welcome-modal';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99998;display:flex;align-items:center;justify-content:center;padding:20px';
+    // The pill DISPLAYS the build players name (b556); `version` stays the seen-key.
+    const pill = window.HearthriseBuild ? 'b' + window.HearthriseBuild.cache : version;
+    overlay.className = 'hr-scrim';   // position, inset, padding and the height cap: art-direction.css
+    overlay.style.cssText = 'background:rgba(0,0,0,.7);z-index:99998;display:flex;align-items:center;justify-content:center';
     // Colors come from theme tokens (with dark fallbacks) so the modal matches
     // the active theme — cream on cozy-light, dark on hearthlight — instead of
     // being a hardcoded dark box (per the "no hardcoded colors" rule).
     overlay.innerHTML = `
-      <div style="background:var(--bg-1,#1a1f2e);border:2px solid var(--gold,#f3d181);border-radius:10px;padding:22px;max-width:480px;width:100%;color:var(--ink,#dfe9ee);font-family:var(--f-ui,system-ui,sans-serif);max-height:85vh;overflow:auto">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px">
+      <div class="hr-sheet" style="background:var(--bg-1,#1a1f2e);border:2px solid var(--gold,#f3d181);border-radius:10px;padding:22px;max-width:480px;width:100%;color:var(--ink,#dfe9ee);font-family:var(--f-ui,system-ui,sans-serif)">
+        <div class="hr-sheet-head" style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px">
           <div>
             <div style="font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3,#9aa3b0);letter-spacing:.5px;text-transform:uppercase">What's new</div>
             <h2 style="margin:2px 0 0;color:var(--gold,#f3d181);font-size:calc(19px * var(--ui-scale, 1));font-family:var(--f-display,inherit)">${title}</h2>
           </div>
-          <span style="font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3,#9aa3b0);background:var(--bg-0,#0f1320);border:1px solid var(--bg-3,#2a3142);border-radius:4px;padding:3px 8px">${version}</span>
+          <span style="font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3,#9aa3b0);background:var(--bg-0,#0f1320);border:1px solid var(--bg-3,#2a3142);border-radius:4px;padding:3px 8px;white-space:nowrap;flex:none">${pill}</span>
         </div>
-        <div style="font-size:calc(14.5px * var(--ui-scale, 1));line-height:1.55;color:var(--ink,#dfe9ee)">${mdToHtml(body)}</div>
-        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
-          <button id="hr-welcome-ok" style="padding:8px 16px;background:var(--gold,#f3d181);color:var(--bg-0,#0f1320);border:none;border-radius:5px;font-weight:700;cursor:pointer">Got it</button>
+        <div class="hr-sheet-body" style="font-size:calc(14.5px * var(--ui-scale, 1));line-height:1.55;color:var(--ink,#dfe9ee)">${mdToHtml(body)}</div>
+        <div class="hr-sheet-foot" style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
+          <button id="hr-welcome-ok" data-hr-dismiss style="padding:8px 16px;background:var(--gold,#f3d181);color:var(--bg-0,#0f1320);border:none;border-radius:5px;font-weight:700;cursor:pointer">Got it</button>
         </div>
       </div>
     `;

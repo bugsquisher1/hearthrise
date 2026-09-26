@@ -75,36 +75,45 @@
       closeOpen();
 
       var ov = document.createElement('div');
-      ov.className = 'qm-overlay';
+      ov.className = 'qm-overlay hr-scrim';
       ov.id = OVERLAY_ID;
       ov.setAttribute('role', 'dialog');
       ov.setAttribute('aria-modal', 'true');
 
       var modal = document.createElement('div');
-      modal.className = 'qm-modal hr-confirm';
+      modal.className = 'qm-modal hr-confirm hr-sheet';
       modal.style.cssText = 'position:relative;max-width:460px';
       ov.appendChild(modal);
 
       var h = document.createElement('h3');
+      h.className = 'hr-sheet-head';
       h.style.margin = '0 0 6px';
       h.textContent = String(o.title || 'Are you sure?');
       modal.appendChild(h);
+
+      /* Everything between the title and the buttons scrolls (b556): the body
+         and whatever `build` adds, so the answer row never leaves the screen. */
+      var mid = document.createElement('div');
+      mid.className = 'hr-sheet-body';
+      modal.appendChild(mid);
 
       if (o.body) {
         var b = document.createElement('div');
         b.className = 'hr-confirm-body';
         b.style.cssText = 'margin:0 0 16px;white-space:pre-wrap';
         b.textContent = String(o.body);
-        modal.appendChild(b);
+        mid.appendChild(b);
       }
 
       var row = document.createElement('div');
+      row.className = 'hr-sheet-foot';
       row.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:16px';
 
       var no = document.createElement('button');
       no.className = 'btn btn-sm';
       no.type = 'button';
       no.setAttribute('data-hrc', 'no');
+      no.setAttribute('data-hr-dismiss', '');
       no.textContent = String(o.cancelLabel || 'Cancel');
 
       var yes = document.createElement('button');
@@ -127,7 +136,7 @@
 
       /* `build` owns the middle of the modal and decides what "yes" resolves
          to; everything above and below is identical for every dialog kind. */
-      var api = build ? build({ modal: modal, row: row, yes: yes, no: no, finish: finish, opts: o }) : null;
+      var api = build ? build({ modal: mid, row: row, yes: yes, no: no, finish: finish, opts: o }) : null;
 
       if (!o.hideCancel) row.appendChild(no);
       if (!o.hideConfirm) row.appendChild(yes);

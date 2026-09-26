@@ -2111,7 +2111,7 @@ body[data-theme="dark"] .lane1-toggle{
 @keyframes nav-pulse{0%,100%{opacity:.7}50%{opacity:1}}
 
 /* ─── Welcome-back modal ─── */
-.welcome-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)}
+.welcome-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:none;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
 .welcome-overlay.show{display:flex;animation:fade-in .3s}
 @keyframes fade-in{from{opacity:0}to{opacity:1}}
 .welcome-modal{max-width:480px;width:100%;background:var(--bg-card);border:3px solid var(--gold-2);border-radius:var(--r);padding:24px;text-align:center;box-shadow:0 0 80px rgba(243,209,129,.3)}

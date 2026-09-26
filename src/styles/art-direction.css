@@ -2581,3 +2581,45 @@ body[data-theme] #app .bal-pending.bal-pending * {
   color: var(--ink-3) !important;
   font-size: inherit !important;
 }
+
+/* ── THE SHEET PRIMITIVE (b556) — a modal can never outgrow the screen ──────
+   MEASURED LIVE at 1384x771: the welcome-back card grew to 1179 px, a centred
+   flex item spilled off BOTH edges, and html/body overflow:hidden meant nothing
+   could scroll — Continue unreachable. Every overlay had picked its own `Nvh`
+   cap (or none) and its own scroll region (or none).
+   LAYOUT ONLY, on purpose: no `display` (owners keep their own open contract —
+   `.show`, node insertion, inline flex; a display here would outrank
+   `.welcome-overlay{display:none}` and leave a permanent full-screen layer), no
+   skin, no z-index. The sheet's cap is the scrim's padded content box, so it
+   cannot overshoot; head and foot never shrink, so the primary action sits in
+   the foot on screen at scroll 0 and only the body scrolls. Escape is
+   src/render/modal-sheet.js. */
+.hr-scrim {
+  position: fixed;
+  inset: 0;
+  box-sizing: border-box;
+  padding: max(var(--modal-gutter), var(--safe-t)) max(var(--modal-gutter), var(--safe-r))
+           max(var(--modal-gutter), var(--safe-b)) max(var(--modal-gutter), var(--safe-l));
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+/* The desktop-mode banner is fixed at top:0 over everything — keep the sheet's
+   head out from under it, as the dungeon-run overlays above already do. */
+body[data-hr-desktop-mode] .hr-scrim { top: var(--hr-dm-banner-h, 0px); }
+.hr-sheet {
+  max-height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.hr-sheet-head,
+.hr-sheet-foot { flex: none; }
+.hr-sheet-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+/* A child with its own overflow (the Hearthfind band) would otherwise collapse to 0. */
+.hr-sheet-body > * { flex-shrink: 0; }

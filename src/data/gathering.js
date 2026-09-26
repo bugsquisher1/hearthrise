@@ -110,10 +110,14 @@ export const ROCKS=[
      b390: xp 92 → 98 — Mithril was a near-lateral over Rich Coal (Tyler's
      report: "+8 levels for +1 xp"). It is now a clear ~+8.5% step over Gold. */
   {id:'mithril_rock',name:'Mithril Rock',icon:'🔵',req:60,xp:98,ms:8000,prod:'mithril_ore',qty:[1,1]},
+  /* "DEEP WATERS": a [1,2] vein between Mithril and Emberstone (series and
+     reasoning at the fishing block below). */
+  {id:'deep_mithril_vein',name:'Deep Mithril Vein',icon:'🔵',req:67,xp:118,ms:9300,prod:'mithril_ore',qty:[1,2]},
   /* b215: mining used to end at 60 — these feed the Emberforged/Dawnsteel tiers.
      b390: Emberstone xp 126 → 140 so the 60→75 tier is a real upgrade, not a
      +4% lateral; Dawnstone (top endpoint) is left at 178 to hold 99-parity. */
   {id:'emberstone_rock',name:'Emberstone Vein',icon:'🔶',req:75,xp:140,ms:10500,prod:'emberstone_ore',qty:[1,1]},
+  {id:'deep_ember_vein',name:'Deep Ember Vein',icon:'🔶',req:82,xp:157,ms:11200,prod:'emberstone_ore',qty:[1,2]},
   {id:'dawnstone_rock',name:'Dawnstone Vein',icon:'🌟',req:90,xp:178,ms:12000,prod:'dawnstone_ore',qty:[1,1]},
 ];
 
@@ -144,6 +148,27 @@ export const FISH_SPOTS=[
   {id:'silverfin_s',name:'Silverfin Shoal',icon:'🐠',req:32,xp:56,ms:6500,prod:'silverfin',qty:[1,1]},
   {id:'goldgill_s',name:'Goldgill Eddy',icon:'🐟',req:36,xp:68,ms:7200,prod:'goldgill',qty:[1,1]},
   {id:'lobster_s',name:'Lobster Spot',icon:'🦞',req:40,xp:84,ms:8000,prod:'lobster',qty:[1,1]},
+  /* ── "DEEP WATERS" (game-designer ruling, content pack 8) ─────────────────
+     Fishing had nothing new from 41 to 54; mining nothing from 61 to 74 or 76
+     to 89. Four fish stands (47/61/71/83) and two ore veins (67/82) make every
+     req gap 5-8 from 40 to 90. Each yields an EXISTING raw item: no new item,
+     recipe or art. Inserted by `req`, not appended — the array order is the
+     ladder the strictly-faster and full-tier +6% guards read.
+     PACED guard series, floor(xp × PACE.xp) ÷ (floor(ms × 1.6) / 1000):
+       FISH  lobster 2.5000 → REEF 2.6389 → swordfish 2.8125 → DEEPS 3.0071
+             → frostfin 3.1522 → REACH 3.2787 → shark 3.3654 → SHELF 3.4926
+             → moonfish 3.6161
+       ORE   mithril 2.9688 → DEEP MITHRIL 3.0914 → emberstone 3.2143
+             → DEEP EMBER 3.4040 → dawnstone 3.5938
+     Fish stands stay [1,1] on purpose: cooked fish vend at full value, so more
+     fish per hour widens the fish→cook vendor faucet. Each stand is the XP
+     choice; the named spot below it is the food choice. The ore stands are
+     [1,2] (363 / 301 ore per hour vs 281 / 214); the one-ore bars are
+     smelt_mithril (1 ore + 3 coal) and smelt_ember (1 ore + 4 coal), so coal,
+     not ore, stays the binding constraint on bars.
+     The server half is the hr_activities rows (the level gate); xp/ms/yield
+     ride the edge payload, which vendors this file. */
+  {id:'lobster_reef_s',name:'Lobster Reef',icon:'🦞',req:47,xp:98,ms:9000,prod:'lobster',qty:[1,1]},
   /* b215: swordfish fills the old 40→76 dead zone; moonfish carries it to 90.
      b390 (gathering-plateau ruling): fishing had the same top-band plateau as
      mining — Swordfish(55)→Frostfin(66)→Shark(76) sat flat at ~11.6/11.9/12.2
@@ -153,9 +178,12 @@ export const FISH_SPOTS=[
      within 5% of woodcutting and aligns the three top tiers at ~15 xp/sec.
      ms/qty untouched, so the cooking-fish faucet is unchanged. */
   {id:'swordfish_s',name:'Swordfish Shoal',icon:'🐠',req:55,xp:117,ms:10000,prod:'swordfish',qty:[1,1]},
+  {id:'swordfish_deeps_s',name:'Swordfish Deeps',icon:'🐠',req:61,xp:133,ms:10600,prod:'swordfish',qty:[1,1]},
   /* b215: frostfin closes the 55→76 gap */
   {id:'frostfin_s',name:'Frostfin Shallows',icon:'❄️',req:66,xp:150,ms:11500,prod:'frostfin',qty:[1,1]},
+  {id:'frostfin_reach_s',name:'Frostfin Reach',icon:'❄️',req:71,xp:166,ms:12200,prod:'frostfin',qty:[1,1]},
   {id:'shark_s',name:'Shark Spot',icon:'🦈',req:76,xp:181,ms:13000,prod:'shark',qty:[1,1]},
+  {id:'shark_shelf_s',name:'Shark Shelf',icon:'🦈',req:83,xp:195,ms:13600,prod:'shark',qty:[1,1]},
   {id:'moonfish_s',name:'Moonlit Pool',icon:'🌙',req:90,xp:210,ms:14000,prod:'moonfish',qty:[1,1]},
 ];
 

@@ -184,7 +184,7 @@ const ITEMS={
   cooked_shrimp: {n:'Cooked Shrimp',icon:'🍤',v:18,heals:8,foodTier:1,buff:{type:'gather_speed',magnitude:5,durationMs:120000}},
   cooked_trout: {n:'Cooked Trout',icon:'🐠',v:55,heals:14,foodTier:2,buff:{type:'all_xp',magnitude:5,durationMs:180000}},
   cooked_lobster: {n:'Cooked Lobster',icon:'🦞',v:240,heals:25,foodTier:3,buff:{type:'drop_rate',magnitude:8,durationMs:300000}},
-  cooked_shark: {n:'Cooked Shark',icon:'🍣',v:900,heals:42,foodTier:4,buff:{type:'damage',magnitude:12,durationMs:360000}},
+  cooked_shark: {n:'Cooked Shark',icon:'🍣',v:900,heals:44,foodTier:4,buff:{type:'damage',magnitude:12,durationMs:360000}},
   copper_bar: {n:'Copper Bar',icon:'🟫',v:35},
   iron_bar: {n:'Iron Bar',icon:'⬛',v:90},
   gold_bar: {n:'Gold Bar',icon:'🟨',v:280},

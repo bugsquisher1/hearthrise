@@ -187,7 +187,7 @@ export function clampThreshold(t) {
    deficit (the new default) and the BIGGEST healer (the fallback for when
    nothing covers it). Late game the fallback is the COMMON case, not the
    rare one — a 99 HP character at the tier-I 25% trigger is 74 HP down and
-   the largest Provision in the game heals 42 — so a naive
+   the largest Provision in the game heals 50 (Cooked Moonfish, Deep Waters) — so a naive
    "try cheapest, else best" would walk a 500-key bag twice on every meal of
    an 18,000-tick night. It also would have been TWO implementations of
    "which items are edible", which is the drift this file exists to prevent.

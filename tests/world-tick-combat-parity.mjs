@@ -561,9 +561,22 @@ _hashSeed = hashSeed;
    decomposition can never reach is the defect. The `fixedSeed` mutant — the
    real failure, one constant instant seeding every window — still starves
    `goblin_totem` and `goblin_seal` at every N tried, so the arm bites harder
-   than the draw it replaces, at 350 ms. */
-const HEALTH_STARTS = 8;
+   than the draw it replaces, at 350 ms.
+   LUCKY FINDS (content pack 1, 2026-09-26). The appended `lucky:true` rows add
+   one draw per kill, which re-rolled every fixture stream: at 8 starts
+   `steel_helm` (.015) then missed at every decomposed start (and at 12), and it
+   is reached at 16 — the one-sample problem above, so the set is 16. A lucky
+   row itself (1 in 1,000-2,500, hours per hit) is EXCLUDED from the starvation
+   verdict: a ten-minute window reaching it once is a single event, and no
+   sample size of such windows can make "the decomposition reached it too" a
+   rate claim (measured: 16, 24 and 32 starts all flag `warlords_torc`). Those
+   rows' rates are held by tests/lucky-finds.mjs instead. `fixedSeed` still
+   starves goblin_totem/goblin_seal at 16. */
+const HEALTH_STARTS = 16;
 const HEALTH_STEP_MS = 1800000;
+const { MONSTERS: ROSTER } = await import('../src/data/monsters.js');
+const LUCKY_IDS = new Set(Object.values(ROSTER)
+  .flatMap((mon) => (mon.drops || []).filter((d) => d.lucky).map((d) => d.id)));
 
 function raresOf(deltaItems, into) {
   for (const k of Object.keys(deltaItems || {})) if (deltaItems[k] > 0) into.add(k);
@@ -593,7 +606,7 @@ function streamHealth(rawSession, mut) {
     const run = settleCombatSession(c, from, to, opts);
     for (const r of run.results) if (r.res.accrued) raresOf(r.res.delta.items, many);
   }
-  return { one, many, starved: [...one].filter((k) => !many.has(k)) };
+  return { one, many, starved: [...one].filter((k) => !many.has(k) && !LUCKY_IDS.has(k)) };
 }
 
 const SESSIONS = loadCombatSessions();

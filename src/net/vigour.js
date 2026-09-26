@@ -1,37 +1,37 @@
 // ============================================================================
-// src/net/vigour.js — THE VIGOUR REFILL: ONE CATALOGUE READ AND ONE GOLD VERB.
+// src/net/vigour.js — THE VIGOUR REFILL: ONE GOLD VERB, NO CATALOGUE.
 //
 // Server half: supabase/migrations/2026-09-22-vigour-daily.sql (the meter,
-// `hr_vigour_of`, projected on every envelope as `res.vigour`) and
-// 2026-09-22-vigour-refill.sql (the verb `hr_vigour_refill` and the price
-// catalogue `hr_vigour_prices`, readable by signed-in clients). Design:
-// docs/design/HUNTS_AND_ANALYZER.md §4.4.
+// `hr_vigour_of`, projected on every envelope as `res.vigour`),
+// 2026-09-22-vigour-refill.sql (the verb `hr_vigour_refill`) and
+// 2026-09-25-vigour-price-by-level.sql (the price, computed server-side from
+// the character's combat level by `hr_vigour_refill_price` and stated on the
+// meter as `next_refill_gold` / `refills_left` / `refill_min`). The old
+// `hr_vigour_prices` catalogue is DROPPED; nothing here reads a price table.
+// Design: docs/design/HUNTS_AND_ANALYZER.md §4.4 / §4.6.
 //
 // This file is the wire and nothing else. It prices nothing, counts nothing
-// and never touches a balance: it READS the catalogue the server charges from,
-// POSTS one intent, and hands the server's answer to the panel.
+// and never touches a balance: it POSTS one intent and hands the server's
+// answer (and the fresh meter it carries) to the panel.
 //
-// ── THE SWITCH IS THE CATALOGUE (Security C-1, condition 5) ─────────────────
-// The bar is drawn only when the server has priced rows. Today the catalogue
-// ships EMPTY (or, before the refill migration applies, does not exist), so
-// `G._vigourPrices.rows` is `[]` and src/render/hunt-panel.js draws NOTHING —
-// no meter, no button. The reviewed INSERT of Tyler's prices is the only thing
-// that turns it on; there is no client flag to flip.
-//   · a read that cannot be made (network) leaves the last answer standing —
-//     "not heard yet" is null, and null draws nothing either;
-//   · a 404 / missing table / refused read answers `[]`, the same as empty;
-//   · a refill answered `rpc_missing` or `refill_unpriced` re-closes the switch
-//     in the same round trip, so a bar can never outlive the server's prices.
+// ── THE SWITCH IS THE METER (Security C-1, condition 5) ─────────────────────
+// src/render/hunt-panel.js draws the bar only while the projected meter itself
+// carries the refill fields (`refills_left`, a positive `refills_max`). A
+// production meter that predates the price-by-level migration has no
+// `refills_left`, so nothing is drawn. A refill answered `rpc_missing` or
+// `refill_unpriced` closes the bar for THAT meter (by its `at`); the next
+// envelope's meter is the server's answer again.
 //
 // ── GOLD ONLY, AND NOT FROM HERE ────────────────────────────────────────────
 // The intent carries a slot and an idempotency key. No amount, no price, no
 // currency: the verb reads `player_state.gold` under the character lock and
-// the price from its own catalogue. Gems and Hearth Tokens cannot buy hunting
-// time (design §4.4) and are not named anywhere on this path. Nothing local is
-// debited, not even optimistically: the top bar repaints from a record read.
+// prices through `hr_vigour_refill_price`. Gems and Hearth Tokens cannot buy
+// hunting time (design §4.4) and are not named anywhere on this path. Nothing
+// local is debited, not even optimistically: the top bar repaints from a
+// record read.
 //
-// `G._vigourPrices` and `G._vigourRefill` are `_`-prefixed SCRATCH (§6): never
-// persisted, never in RESIDUE_FIELDS, re-read after a reload.
+// `G._vigourRefill` is `_`-prefixed SCRATCH (§6): never persisted, never in
+// RESIDUE_FIELDS, gone after a reload.
 // ============================================================================
 (function () {
   'use strict';
@@ -111,54 +111,6 @@
   }
 
   function G() { return window.G || null; }
-  function setPrices(rows) {
-    var g = G();
-    if (g) g._vigourPrices = { rows: rows, at: Date.now() };
-  }
-
-  /* A priced row, or nothing. A malformed row is dropped rather than drawn: a
-     price read from garbage is a price a player would act on. */
-  function cleanRows(json) {
-    if (!Array.isArray(json)) return [];
-    var out = [];
-    for (var i = 0; i < json.length; i++) {
-      var r = json[i];
-      if (r && Number.isFinite(Number(r.nth)) && Number.isFinite(Number(r.cost_gold))
-          && Number.isFinite(Number(r.minutes))) {
-        out.push({ nth: Number(r.nth), cost_gold: Number(r.cost_gold), minutes: Number(r.minutes) });
-      }
-    }
-    return out;
-  }
-
-  /* ── THE CATALOGUE READ ─────────────────────────────────────────────────
-     Re-read at most every READ_TTL_MS, and only while signed in. It spends no
-     rate bucket (a plain RLS table read), and prices only ever change by a
-     reviewed INSERT/UPDATE, so ten minutes is generous. */
-  var READ_TTL_MS = 600000;
-  var _reading = null;
-  function pricesStale() {
-    var g = G(), p = g && g._vigourPrices;
-    return !p || !(Date.now() - (p.at || 0) < READ_TTL_MS);
-  }
-  function readPrices() {
-    if (_reading) return _reading;
-    if (!isSignedIn()) return Promise.resolve(null);
-    var c = cfg();
-    _reading = Promise.resolve().then(function () {
-      return fetch(c.url + '/rest/v1/hr_vigour_prices?select=nth,cost_gold,minutes&order=nth.asc',
-        { method: 'GET', headers: headers() });
-    }).then(function (res) {
-      if (!res || !res.ok) { setPrices([]); return []; }
-      return Promise.resolve(res.json()).then(function (json) {
-        var rows = cleanRows(json);
-        setPrices(rows);
-        return rows;
-      }, function () { setPrices([]); return []; });
-    }, function () { return null; })
-      .then(function (r) { _reading = null; return r; });
-    return _reading;
-  }
 
   /* ── THE REFILL ─────────────────────────────────────────────────────────
      ONE IN FLIGHT. A double tap is one gesture, not two purchases.
@@ -230,25 +182,25 @@
         }, notice: null });
         return res;
       }
-      /* THE SERVER SAYS THERE IS NOTHING TO SELL: close the switch now rather
-         than on the next catalogue read. */
-      if (res && (res.error === 'rpc_missing' || res.error === 'refill_unpriced')) setPrices([]);
+      /* THE SERVER SAYS THERE IS NOTHING TO SELL: close the bar for the meter
+         now held, rather than keep offering what the verb just refused. A
+         fresher envelope (a later `at`) re-opens it on the server's word. */
+      var g = G(), closed = !!(res && (res.error === 'rpc_missing' || res.error === 'refill_unpriced'));
       setRefill({ busy: false, ok: false, error: (res && res.error) || 'bad_response',
-        notice: refusalSentence(res) });
+        notice: refusalSentence(res),
+        closedAt: closed ? ((g && g._vigour && g._vigour.at) || Date.now()) : null });
       return res || { ok: false, error: 'bad_response' };
     }).then(function (r) { _inflight = null; return r; });
     return _inflight;
   }
 
   function __resetForTest() {
-    _pendingIdem = null; _inflight = null; _reading = null;
+    _pendingIdem = null; _inflight = null;
     var g = G();
-    if (g) { delete g._vigourPrices; delete g._vigourRefill; }
+    if (g) delete g._vigourRefill;
   }
 
   window.HearthriseVigour = {
-    readPrices: readPrices,
-    pricesStale: pricesStale,
     refill: refill,
     refusalSentence: refusalSentence,
     __resetForTest: __resetForTest

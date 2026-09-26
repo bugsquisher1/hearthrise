@@ -27,10 +27,11 @@
 // window must see the SAME numbers both times and understand why.
 //
 // ── WHAT IS DELIBERATELY ABSENT ─────────────────────────────────────────────
-//  · NO VIGOUR BAR WITHOUT PRICES. The meter and its refill control are one
-//    block, drawn only when the server's catalogue (`hr_vigour_prices`, read by
-//    src/net/vigour.js) has priced rows — Security C-1 / condition 5. Empty or
-//    absent catalogue = nothing drawn, exactly as the held bar was.
+//  · NO VIGOUR BAR WITHOUT A PRICED METER. The meter and its refill control
+//    are one block, drawn only when the server's meter (`hr_vigour_of`, on the
+//    envelope) states the refill fields — Security C-1 / condition 5. A meter
+//    without them (production before 2026-09-25-vigour-price-by-level.sql) or
+//    with the shop closed draws nothing, exactly as the held bar did.
 //  · NO "if the bag fills" IN THE STOP SENTENCE. This game has no bag capacity
 //    today, so the rule cannot fire; printing it would promise a stop that
 //    never comes. The field is still accepted and stored server-side for the
@@ -131,30 +132,33 @@
     return 'Stops ' + parts.join(' · ') + '.';
   }
 
-  /* ── THE LIMITER (§C) — ON ONLY WHEN THE SERVER HAS PRICES ───────────────
+  /* ── THE LIMITER (§C) — ON ONLY WHEN THE SERVER'S METER SELLS ─────────
      The bar was held (Security C-1): a meter with nothing to act on only
-     raises questions, and until the refill catalogue is priced there is
-     nothing to act on. So the SWITCH IS THE CATALOGUE: no priced row, no bar
-     and no control, whatever meter the envelope carries. The reviewed INSERT
-     of Tyler's prices turns it on with no client change.
+     raises questions. So THE SWITCH IS A SERVER FACT ON THE METER ITSELF:
+     `refills_left` present and finite AND `refills_max` > 0 (the price rule
+     row exists). A meter without them — today's production, where
+     2026-09-25-vigour-price-by-level.sql is not applied — draws NOTHING, no
+     bar and no control. There is no client flag and no price table to read.
 
      EVERY NUMBER BELOW IS A FIELD THE SERVER SENT, printed as sent:
        meter    hr_vigour_of via `res.vigour` — spent_min, budget_min,
                 grant_min, bought_min, remaining_min, refills, refills_max,
-                dry_mult
-       price    the catalogue row whose nth is the next refill — cost_gold,
-                minutes (the same row the verb charges from)
+                refills_left, refill_min, next_refill_gold, dry_mult
        receipt  hr_vigour_refill's own answer — minutes, cost, gold
-     The one derived thing is the fill WIDTH, a display ratio no gate reads.
-     Whether a refill is affordable or fits under the ceiling is NOT predicted
-     here: the verb decides under the lock and the refusal is shown in words.
+     The price is `next_refill_gold` VERBATIM: the server computes it from the
+     combat level it reads itself, and this file never does (no level, no
+     formula). The button is offered only while the server says a refill is
+     for sale (refills_left > 0 and a price). The one derived thing is the fill
+     WIDTH, a display ratio no gate reads. Affordability is NOT predicted: the
+     verb decides under the lock and the refusal is shown in words.
      §C: ABSOLUTE MINUTES, never a percentage of an invisible budget. */
   function fin(n) { return typeof n === 'number' && isFinite(n); }
 
-  function vigourRow(v, prices, refill) {
-    var rows = prices && Array.isArray(prices.rows) ? prices.rows : null;
-    if (!rows || !rows.length) return '';
+  function vigourRow(v, refill) {
     if (!v || typeof v !== 'object' || !fin(v.spent_min) || !fin(v.budget_min)) return '';
+    if (!fin(v.refills_left) || !fin(v.refills_max) || !(v.refills_max > 0)) return '';
+    var r = refill || {};
+    if (r.closedAt != null && !(fin(v.at) && v.at > r.closedAt)) return '';
 
     var dry = v.remaining_min === 0;
     var pct = v.budget_min > 0 ? Math.max(0, Math.min(100, (v.spent_min / v.budget_min) * 100)) : 100;
@@ -174,24 +178,16 @@
           : 'Tired — hunts pay reduced rates until the day turns (UTC).') + '</div>'
       : '';
 
-    /* THE NEXT RUNG. The verb's cap is the smaller of the meter's refills_max
-       and the last priced nth (a nth with no row is refused), so the counter
-       names whichever of those two SERVER numbers binds. */
-    var last = 0;
-    for (var i = 0; i < rows.length; i++) if (rows[i].nth > last) last = rows[i].nth;
-    var cap = fin(v.refills_max) ? Math.min(v.refills_max, last) : last;
+    /* THE NEXT REFILL, as the server states it: for sale only while it says
+       refills_left > 0 AND names a price and a block size. */
+    var forSale = v.refills_left > 0 && fin(v.next_refill_gold) && fin(v.refill_min);
     var bought = fin(v.refills) ? v.refills : 0;
-    var next = null;
-    for (var j = 0; j < rows.length; j++) {
-      if (rows[j].nth === bought + 1 && rows[j].nth <= cap) next = rows[j];
-    }
-    var r = refill || {};
-    var control = next
+    var control = forSale
       ? '<button type="button" class="hunt-vigour-btn" data-vigour-refill="1"' + (r.busy ? ' disabled' : '') + '>'
-        + esc(r.busy ? 'Refilling…' : ('Refill +' + num(next.minutes) + ' min · ' + num(next.cost_gold) + ' gold'))
+        + esc(r.busy ? 'Refilling…' : ('Refill +' + num(v.refill_min) + ' min · ' + num(v.next_refill_gold) + ' gold'))
         + '</button>'
       : '<span class="hunt-vigour-none">No refills left today.</span>';
-    var count = '<span class="hunt-vigour-count">' + esc(num(bought) + ' of ' + num(cap) + ' refills bought today') + '</span>';
+    var count = '<span class="hunt-vigour-count">' + esc(num(bought) + ' of ' + num(v.refills_max) + ' refills bought today') + '</span>';
     var notice = '';
     if (r.ok === true && r.receipt) {
       notice = 'Bought ' + num(r.receipt.minutes) + ' min for ' + num(r.receipt.cost) + ' gold'
@@ -241,9 +237,8 @@
    * lets the smoke suite assert what a player sees without a DOM.
    *
    * @param o.hunt     G._hunt      — {stance, stop} from state.hunt_*
-   * @param o.vigour   G._vigour    — hr_vigour_of's block
-   * @param o.prices   G._vigourPrices — {rows} from hr_vigour_prices; no priced
-   *                                row = no bar (see THE LIMITER above)
+   * @param o.vigour   G._vigour    — hr_vigour_of's block; no refill fields =
+   *                                no bar (see THE LIMITER above)
    * @param o.refill   G._vigourRefill — the last refill gesture's state/answer
    * @param o.analyzer G._huntAnalyzer — hr_hunt_analyzer's block, or null
    * @param o.monsters window.MONSTERS — the display NAME only, never a value
@@ -259,7 +254,7 @@
       ? monsters[a.spawn_id] : null;
     var name = running ? ((mon && mon.name) || a.spawn_id) : 'No hunt';
     var stance = (a && a.stance) || (hunt && hunt.stance) || 'steady';
-    var meter = vigourRow(opt.vigour || null, opt.prices || null, opt.refill || null);
+    var meter = vigourRow(opt.vigour || null, opt.refill || null);
 
     /* A. THE HEADER. The live pill and the elapsed WALL clock beside it. */
     var head = '<div class="hunt-head">'
@@ -338,14 +333,12 @@
     node.innerHTML = huntPanelHtml({
       hunt: G._hunt || null,
       vigour: G._vigour || null,
-      prices: G._vigourPrices || null,
       refill: G._vigourRefill || null,
       analyzer: G._huntAnalyzer || null,
       monsters: window.MONSTERS || {},
     });
     /* THE REFILL GESTURE, delegated once per container: the panel replaces its
        innards on every paint, so a listener on the button would die with it. */
-    var V = window.HearthriseVigour;
     if (!node.__huntVigourWired) {
       node.__huntVigourWired = true;
       node.addEventListener('click', function (ev) {
@@ -355,13 +348,6 @@
         var p = M.refill();
         renderHuntPanel(node);
         Promise.resolve(p).then(function () { renderHuntPanel(node); });
-      });
-    }
-    /* The catalogue is read only once the server projects a meter at all, and
-       re-read on its own slow clock; a changed answer repaints. */
-    if (V && G._vigour && V.pricesStale()) {
-      Promise.resolve(V.readPrices()).then(function (rows) {
-        if (rows && node.isConnected) renderHuntPanel(node);
       });
     }
     return node;

@@ -2066,6 +2066,20 @@ jobs:
           node tests/lucky-finds.mjs
           node tests/lucky-finds.mjs --selftest
 
+      # FIELD SALVAGE (content pack 6). A {id, ch, salvage:true} row is a server
+      # faucet too: own-tier helm/boots/gloves/belt from GEAR_ITEMS, tradeable,
+      # art, no other source, not lucky; the monster has no lucky row and is not
+      # a fixture, boss or Hearthfind source; ch <= the tier rate and <= 4% of the
+      # gp midpoint per row, <= 5% for ALL the monster's gear rows; 0.5-10
+      # MEASURED hours (>= 0.25 h at the ceiling); LAST, one per monster, and a
+      # salvage-shaped row never ships unflagged; bounty proof unchanged. Both
+      # paths on wild_boar. 10 mutations + a clean control arm, no DB.
+      - name: Field salvage - the tier armour drop rows keep the faucet rules
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/field-salvage.mjs
+          node tests/field-salvage.mjs --selftest
+
       # THE SQL HALF, ON A REAL DATABASE (PGlite, the ordered migration chain).
       # An honest find pays ONE trophy + ONE ledger row + ONE broadcast + a
       # receipt, with the SERVER's odds read from the catalogue (there is no delta

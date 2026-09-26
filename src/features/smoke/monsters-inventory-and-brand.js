@@ -8,6 +8,12 @@
 // ══════════════════════════════════════════════════════════════════════
 import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot, closeOverlays } from './_harness.js?v=553';
 
+/* SALVAGE-1's regression pin: the goblin drop panel as a player reads it (the
+   text of each row, not the markup, so an icon path or cache bump cannot move
+   it). Goblin is a seeded-fixture monster and carries no salvage row, so a pack
+   that touched it would show here first. */
+const GOBLIN_PANEL = 'Goblin Ear50% | BonesAlways | Bronze Sword3% | Goblin Totem1% | Goblin Seal2%';
+
 export default [
 
   /* ══════════════════════════════════════════════════════════════════════
@@ -8738,6 +8744,107 @@ export default [
       const modal = document.getElementById('hr-cl-modal');
       if (modal) modal.remove();
       closeOverlays();
+    }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════
+     FIELD SALVAGE (content pack 6) — the same contract as LUCKY-1..2 for the
+     `salvage:true` rows: own-tier helm/boots/gloves/belt at 0.5-10 h. The
+     client's dice never show one; the server's rare_drop reveals it as RARE
+     (VERY RARE stays lucky-only). src/features/lucky-finds.js; the rows are
+     held by tests/field-salvage.mjs.
+     ══════════════════════════════════════════════════════════════════════ */
+  () => tryRun('SALVAGE-1: wild_boar lists Leather Belt at 0.4%; the server\'s rare_drop + leather_belt:1 lands it in the bag with ONE "RARE: Leather Belt" line and ONE toast; a replay adds nothing; the goblin panel is untouched', () => {
+    const G = window.G, LF = window.HearthriseLuckyFinds;
+    assert(LF && typeof LF.isSalvage === 'function', 'lucky-finds.js does not know salvage rows');
+    const boar = window.MONSTERS.wild_boar;
+    const row = boar.drops[boar.drops.length - 1];
+    assert(row && row.salvage && row.id === 'leather_belt' && row.ch === 0.004, 'setup: wild_boar\'s salvage row moved: ' + JSON.stringify(row));
+    /* Monster panel: formatDropOdds(.004) is '0.4%' ('1 in N' is below .001). */
+    const panel = window.__lootRowHtml(row);
+    assert(/Leather Belt/.test(panel) && /0\.4%/.test(panel), 'the monster panel does not list Leather Belt at 0.4%: ' + panel);
+    /* REGRESSION: the goblin panel (a fixture monster, no salvage row) reads
+       exactly as it did before the pack. */
+    const gob = window.MONSTERS.goblin.drops.map((d) => {
+      const el = document.createElement('div'); el.innerHTML = window.__lootRowHtml(d);
+      return el.textContent.replace(/\s+/g, ' ').trim();
+    }).join(' | ');
+    assert(gob === GOBLIN_PANEL, 'the goblin drop panel changed:\n  got  ' + gob + '\n  want ' + GOBLIN_PANEL);
+    const snap = snapshotG();
+    const prevLog = G.combatLog;
+    try {
+      LF.__reset();
+      G.combatLog = [];
+      const bag0 = G.inventory.leather_belt || 0;
+      const inv = Object.assign({}, G.inventory, { leather_belt: bag0 + 1 });
+      const version = Math.max(((G._record && Number(G._record.version)) || 0) + 1, Date.now());
+      const away = { events: [{ type: 'rare_drop', item: 'leather_belt' }] };
+      const r = applyAwayEnvelope(away, { env: { version, inventory: inv } });
+      assert((G.inventory.leather_belt || 0) === bag0 + 1, 'the server\'s leather_belt:1 did not land in the bag (' + bag0 + ' -> ' + (G.inventory.leather_belt || 0) + ')');
+      const lines = G.combatLog.filter((l) => /RARE: Leather Belt/.test(l));
+      assert(lines.length === 1 && !/VERY RARE/.test(lines[0]) && /class="rare"/.test(lines[0]), 'expected ONE "RARE: Leather Belt" line (not VERY RARE), got: ' + G.combatLog.join(' | '));
+      const t = r.toasts.filter((x) => /Leather Belt/.test(x));
+      assert(t.length === 1 && /^Rare find: Leather Belt! \(base odds 0\.4%\)$/.test(t[0]), 'expected ONE "Rare find: Leather Belt! (base odds 0.4%)" toast: ' + r.toasts.join(' | '));
+      /* The same envelope again: nothing more in the bag, the log or the toasts. */
+      const r2 = applyAwayEnvelope(away, { env: { version, inventory: inv } });
+      assert((G.inventory.leather_belt || 0) === bag0 + 1, 'replaying the envelope added to the bag: ' + (G.inventory.leather_belt || 0));
+      assert(G.combatLog.filter((l) => /RARE: Leather Belt/.test(l)).length === 1, 'replaying the envelope wrote a second RARE line');
+      assert(!r2.toasts.some((x) => /Leather Belt/.test(x)), 'replaying the envelope raised a second toast: ' + r2.toasts.join(' | '));
+    } finally {
+      G.combatLog = prevLog;
+      LF.__reset();
+      try { window.HearthriseAccrual.__resetAwayReceipt(); } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('SALVAGE-2: a client-dice drop of the wild_boar salvage row leaves the bag, rail, collection, drop log, combat log and stats.rareDrops untouched, with no toast (attended AND away)', () => {
+    const G = window.G, C = window.HearthriseCore, P = window.HearthrisePresence;
+    const fx = window.HearthriseCombatSim && window.HearthriseCombatSim.fx;
+    assert(fx && fx.__hrLuckyHooked, 'lucky-finds.js did not bind to COMBAT_FX — client dice would announce salvage rows');
+    assert(P && typeof P._withOfflineReplay === 'function', 'setup: no away-replay seam');
+    const m = window.MONSTERS.wild_boar;
+    const row = m.drops[m.drops.length - 1];
+    assert(row && row.salvage && row.id === 'leather_belt', 'setup: wild_boar\'s salvage row is not leather_belt: ' + JSON.stringify(row));
+    const { restore } = combatScreen();
+    const keep = JSON.stringify({ collection: G.collection || null, dropLog: G.dropLog || null });
+    const realNotify = window.notify; const toasts = [];
+    try {
+      G.combatLog = [];
+      if (G.collection) delete G.collection.leather_belt;
+      const bag0 = G.inventory.leather_belt || 0;
+      const dl0 = (G.dropLog && G.dropLog.wild_boar && G.dropLog.wild_boar.drops.leather_belt) || 0;
+      window.__hrCombatCredits = {};
+      G.stats = G.stats || {};
+      const rare0 = G.stats.rareDrops || 0;
+      window.notify = function (msg) { toasts.push(String(msg)); };
+      /* A certain roll for the salvage row only (the one row under 1%), at its
+         REAL ch so the event keeps its 'rare' band. */
+      const kill = () => { G.activeMonster = 'wild_boar'; G.monsterHp = 1; G.monsterMaxHp = m.hp;
+        G.playerHp = 500; G.playerMaxHp = 500;
+        const r = C.reseed(0x5A17); const roll = r.chance.bind(r);
+        r.chance = (p) => (p > 0 && p < 0.01) || roll(p);
+        window.killMonster(m); };
+      kill();                                   // ATTENDED
+      P._withOfflineReplay(kill);               // AWAY (the local replay)
+      assert((G.inventory.leather_belt || 0) === bag0, 'a client-dice salvage roll reached the bag: ' + (G.inventory.leather_belt || 0));
+      assert(!(window.__hrCombatCredits || {}).leather_belt, 'a client-dice salvage roll reached the fight rail');
+      assert(!(G.collection && G.collection.leather_belt), 'a client-dice salvage roll was written into the collection log');
+      assert(((G.dropLog && G.dropLog.wild_boar && G.dropLog.wild_boar.drops.leather_belt) || 0) === dl0, 'a client-dice salvage roll was counted in the drop log');
+      const log = (G.combatLog || []).join(' | ');
+      assert(!/Leather Belt/.test(log), 'a client-dice salvage roll was narrated in the combat log: ' + log);
+      assert(!toasts.some((t) => /Leather Belt/.test(t)), 'a client-dice salvage roll raised a toast: ' + toasts.join(' | '));
+      assert((G.stats.rareDrops || 0) === rare0, 'a client-dice salvage roll was counted in stats.rareDrops (' + rare0 + ' -> ' + G.stats.rareDrops + ')');
+      /* CONTROL: the same kills still credit an ordinary drop (bones, ch 1). */
+      assert((G.dropLog && G.dropLog.wild_boar && G.dropLog.wild_boar.drops.bones) > 0, 'control: the kills credited no ordinary drop (bones is ch 1)');
+    } finally {
+      window.notify = realNotify;
+      try { delete window.__hrCombatCredits; } catch (e) {}
+      const k = JSON.parse(keep);
+      if (k.collection === null) delete G.collection; else G.collection = k.collection;
+      if (k.dropLog === null) delete G.dropLog; else G.dropLog = k.dropLog;
+      C.randomSeed();
+      restore();
     }
   }),
 ];

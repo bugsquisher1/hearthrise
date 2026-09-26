@@ -4,6 +4,34 @@ _Team-wide decisions and their rationale. Append newest at top. Every entry: DEC
 
 ---
 
+### 2026-09-26 — FIELD SALVAGE (content pack 6): the collection faucet, the rows, the reveal
+**Game Designer, acting under design authority. Binding until superseded.**
+
+**1 · THE COLLECTION FAUCET → ACCEPTED, THRESHOLDS UNCHANGED.** 46 first-ever combat drops
+grow the non-BoP pool 133 -> 179 (through T3 68 -> 94, T4 92 -> 127, T5 113 -> 157):
+collect75 moves to T3, collect100 (15,000g + 15 gems) to T4, and collect125 (30,000g) no
+longer needs a Lucky Find; renown rises by up to +138 (3 per entry). Accepted: each rung is
+one-time and journalled, every salvage piece is still 0.9-8.8 measured hours of hunting, and
+a collection faucet that tracks the drop table is the collection working. Pack-3's "Lucky
+Finds long chase" moves UP a rung rather than holding 125 hostage: a future collect150+
+rung is a separate lane-C `hr_claim_milestone` migration with its own Security GO, not
+this lane. The guard's reachability arms are now derived from the live pool size.
+
+**2 · THE ROWS.** DROPPED, because their existing gear already pays over the 5% all-gear
+cap: goblin_brute (steel_sword, 26.7%), death_knight (captains_ribblade, 11.2%),
+ancient_bear (alpha_cloak, 4.0% + 3.4%), war_king (chief_blade, 2.8% + 4.0%). RE-HOMED:
+steel_gauntlets -> bog_vine .0033 (3.92%), rune_gauntlets -> bandit_lord .0024 (3.90%).
+SWAPPED: revenant takes ember_gauntlets .0016 (3.81%, 8.8 h) instead of ember_boots .0014
+(9.92 h against the 10 h ceiling, already at the cap). T6 keeps 2 rows: no eligible unused
+T6 monster exists.
+
+**3 · THE REVEAL READS RARE, NOT VERY RARE.** A salvage piece is announced only from the
+settle's `rare_drop` event: `RARE: <name>` and one toast "Rare find: <name>! (base odds
+<formatDropOdds>)", once per item per envelope version. VERY RARE stays the Lucky Find's
+word; the client's own dice never announce or credit a salvage row (CLAUDE.md §6).
+
+AFFECTED: backend-architect (edge deploy), security-engineer (re-review), qa-engineer.
+
 ### 2026-09-26 — LUCKY FINDS (content pack 1): swaps, the collection faucet, the reveal
 **Game Designer, acting under design authority. Binding until superseded.**
 

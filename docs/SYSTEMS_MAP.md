@@ -209,6 +209,13 @@ roll. **Lucky finds** (`{id, ch, lucky:true}`, always the LAST row) are announce
 by the SERVER only — the settle's `away.events` `rare_drop` — never by the
 client's own dice (`src/features/lucky-finds.js`); their rules (item, faucet cap,
 4-30 measured hours, tier) are `tests/lucky-finds.mjs`.
+**Field salvage** (`{id, ch, salvage:true}`, LAST row, at most one per monster,
+never beside a lucky row) is the same server-revealed contract one band commoner:
+an own-tier helm/boots/gloves/belt from `GEAR_ITEMS`, revealed as RARE (never
+VERY RARE) by the same file. 46 rows T1-T6; their rules (item, tier rate, 4% per
+row / 5% all-gear faucet caps, 0.5-10 measured hours, both paths) are
+`tests/field-salvage.mjs`. A salvage-shaped row without the flag is a guard red,
+because the flag is what silences the client's dice.
 
 ### 6. Dungeon / boss loot — data
 `src/dungeons.js` → `DUNGEONS[id].loot:[{id, qty:[min,max], chance}]`, plus

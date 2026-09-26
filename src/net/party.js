@@ -226,6 +226,7 @@
       members: [],       // hr_party_view's frozen rows, verbatim
       invites: [],       // party_invite rows addressed to ME, live, unexpired
       notice: null,      // the sentence from my last refused gesture
+      rosterUnread: false, // in a party, but no roster read has landed for it
       busy: false,
       readAt: 0
     };
@@ -355,8 +356,19 @@
          kicked or the party dissolved between the two reads. The SERVER wins:
          the panel shows the empty state, not a roster nothing backs. */
       next.partyId = null; next.role = null; next.sizeCap = null;
-    } else if (view && view.error) {
-      next.notice = refusalSentence(view.error);
+    } else {
+      /* THE ROSTER COULD NOT BE READ — a refusal, an HTTP error, or a PostgREST
+         {code,message} body with no `ok` at all (live b553: 405 / 25006). An
+         empty list here would paint "0 of 4" under a leader the realm just
+         seated. Keep the last roster read for this same party, else say so and
+         draw no count; never invent a member. */
+      var sameParty = cur.partyId === next.partyId && Array.isArray(cur.members) && cur.members.length;
+      next.members = sameParty ? cur.members : [];
+      next.rosterUnread = !sameParty;
+      if (next.rosterUnread) {
+        next.notice = (view && view.error && SENTENCES[String(view.error)])
+          || 'Could not load your party right now.';
+      }
     }
     return put(next);
   }

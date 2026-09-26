@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 67 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, xpOf, predZero, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, zeroRenownTerms, restoreRenownTerms, on, snapshot, closeOverlays } from './_harness.js?v=554';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, xpOf, predZero, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, zeroRenownTerms, restoreRenownTerms, on, snapshot, closeOverlays, hrCharmDriver } from './_harness.js?v=554';
 
 export default [
 
@@ -2521,6 +2521,123 @@ export default [
       assert(!document.getElementById('hr-dl-modal'), 'an open sheet on a paid reward must fold away');
     } finally {
       const el = document.getElementById('hr-dl-modal'); if (el) el.remove();
+      restoreG(snap);
+    }
+  }),
+
+  /* ══ FIELDNOTES-1..3 — the bestiary hunter's notes (content pack 5) ═══════
+     108 lines in src/data/monster-notes.js, one per MONSTERS id. FIELDNOTES-1
+     is the data contract: every id covered exactly once, charset-clean,
+     unique, and mechanically silent about the monster's own elementWeak (the
+     Bestiary Charms rank-1 reward) and about any item it does not drop.
+     FIELDNOTES-2/3 play the two surfaces that actually render a name: the
+     Collection Log's ATTENDED/residue detail and the Bestiary modal's
+     AWAY/server list — TROPHY-1's own reviewer finding was that only the
+     second reads the server's kill count, so both get their own test. */
+  () => tryRun('FIELDNOTES-1: every MONSTERS id has exactly one hunter\'s note, charset-clean, unique, and silent about its own weakness and undropped items', () => {
+    const NOTES = window.HearthriseMonsterNotes;
+    const MON = window.MONSTERS || {};
+    const ITEMS = window.ITEMS || {};
+    assert(NOTES && typeof NOTES === 'object', 'window.HearthriseMonsterNotes is unpublished');
+    assert(Object.isFrozen(NOTES), 'MONSTER_NOTES must be frozen');
+    const monIds = Object.keys(MON).sort();
+    const noteIds = Object.keys(NOTES).sort();
+    const missing = monIds.filter((id) => noteIds.indexOf(id) === -1);
+    const orphan = noteIds.filter((id) => monIds.indexOf(id) === -1);
+    assert(missing.length === 0 && orphan.length === 0,
+      'missing notes: ' + JSON.stringify(missing) + ' — orphan notes: ' + JSON.stringify(orphan));
+    const CHARSET = /^[A-Za-z ,.;:'’!?—-]+$/u;
+    const SYN = {
+      ember: /\b(ember\w*|fire\w*|flame\w*|burn\w*|blaz\w*|scorch\w*|smoulder\w*|heat|torch\w*|kindl\w*|candle\w*|lantern\w*)\b/i,
+      frost: /\b(frost\w*|ice|icy|cold\w*|freez\w*|snow\w*|chill\w*|winter\w*|rime)\b/i,
+      poison: /\b(poison\w*|venom\w*|toxi\w*|blight\w*)\b/i,
+    };
+    const multiItemIds = Object.keys(ITEMS).filter((id) => ITEMS[id] && ITEMS[id].n && ITEMS[id].n.indexOf(' ') >= 0);
+    const seen = new Map();
+    for (const id of noteIds) {
+      const note = NOTES[id];
+      assert(typeof note === 'string', id + ': note is not a string');
+      assert(note.length >= 60 && note.length <= 160, id + ': note length ' + note.length + ' out of [60,160]: "' + note + '"');
+      assert(CHARSET.test(note), id + ': note fails the charset whitelist: "' + note + '"');
+      assert(!seen.has(note), id + ': note duplicates ' + seen.get(note));
+      seen.set(note, id);
+      const m = MON[id];
+      if (!m) continue;
+      if (m.hiddenElement) {
+        for (const el of Object.keys(SYN)) {
+          assert(!SYN[el].test(note), id + ' (hiddenElement) note leaks the ' + el + ' element: "' + note + '"');
+        }
+      } else if (m.elementWeak && SYN[m.elementWeak]) {
+        assert(!SYN[m.elementWeak].test(note), id + ' note leaks its own elementWeak (' + m.elementWeak + '): "' + note + '"');
+      }
+      const dropIds = new Set((m.drops || []).map((d) => d.id));
+      const lower = note.toLowerCase();
+      for (const itemId of multiItemIds) {
+        const n = ITEMS[itemId].n.toLowerCase();
+        assert(lower.indexOf(n) === -1 || dropIds.has(itemId),
+          id + ' note names "' + ITEMS[itemId].n + '" which it does not drop: "' + note + '"');
+      }
+    }
+  }),
+
+  () => tryRunAsync('FIELDNOTES-2: the collection log plays a found monster\'s note in its detail, and leaks nothing to an undiscovered cell', async () => {
+    const G = window.G, HC = window.HearthriseCollection;
+    const NOTES = window.HearthriseMonsterNotes || {};
+    assert(HC && typeof HC.open === 'function', 'HearthriseCollection.open is unpublished');
+    const snap = snapshotG();
+    try {
+      G.bestiary = { kobold: { kills: 1 } };
+      HC.open();
+      let tab = document.querySelector('[data-cl-tab="bestiary"]');
+      assert(tab, 'no Bestiary tab painted in the collection log');
+      tab.click();
+      const monCell = document.querySelector('[data-mon="kobold"]');
+      assert(monCell, 'no clickable kobold cell after switching to the Bestiary tab');
+      monCell.click();
+      const body = document.getElementById('hr-cl-body');
+      assert(body && body.innerHTML.indexOf(NOTES.kobold) >= 0,
+        '#hr-cl-body does not contain the kobold note: ' + (body && body.innerHTML.slice(0, 200)));
+      const back = document.querySelector('[data-cl-back]');
+      assert(back, 'no Back to log control in the detail view');
+      back.click();
+      const slimeCell = document.querySelector('[data-mon="slime"]');
+      assert(!slimeCell, 'an undiscovered slime cell still carries a data-mon handler');
+      const modal = document.getElementById('hr-cl-modal');
+      assert(modal && modal.innerHTML.indexOf(NOTES.slime) === -1,
+        'the slime note leaked into the collection log while slime is undiscovered');
+    } finally {
+      const el = document.getElementById('hr-cl-modal'); if (el) el.remove();
+      restoreG(snap);
+      try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
+  () => tryRunAsync('FIELDNOTES-3: the Bestiary modal plays an away-only goblin\'s note under the same predicate that un-???s its name, and fails safe with the namespace gone', async () => {
+    const G = window.G;
+    const NOTES = window.HearthriseMonsterNotes;
+    assert(NOTES, 'window.HearthriseMonsterNotes is unpublished');
+    const snap = snapshotG();
+    const prev = G._bestiaryTrophies;
+    const rig = hrCharmDriver();
+    const listHtml = () => (document.getElementById('best-list') || {}).innerHTML || '';
+    try {
+      G.bestiary = {};
+      await rig.drive({ kills_by_class: {}, kills_by_monster: { goblin: 12 }, trophies: [] });
+      window.openBestiary();
+      assert(listHtml().indexOf(NOTES.goblin) >= 0,
+        'an away-only goblin kill count did not paint the goblin note in the Bestiary: ' + listHtml().slice(0, 300));
+      assert(listHtml().indexOf(NOTES.slime) === -1, 'the undiscovered slime note leaked into the Bestiary list');
+      // FAIL-SAFE ARM: the namespace disappears — the name must still render and no row may print "undefined".
+      const stashed = window.HearthriseMonsterNotes;
+      delete window.HearthriseMonsterNotes;
+      window.openBestiary();
+      assert(/Goblin/.test(listHtml()), 'the goblin name stopped rendering once HearthriseMonsterNotes was removed');
+      assert(!/undefined/.test(listHtml()), 'a missing note namespace printed the literal string "undefined": ' + listHtml().slice(0, 300));
+      window.HearthriseMonsterNotes = stashed;
+    } finally {
+      rig.restore();
+      const ov = document.getElementById('best-overlay'); if (ov) ov.classList.remove('show');
+      if (prev === undefined) delete G._bestiaryTrophies; else G._bestiaryTrophies = prev;
       restoreG(snap);
     }
   }),

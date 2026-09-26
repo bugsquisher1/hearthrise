@@ -1959,6 +1959,17 @@ export default [
     const snap = snapshotG(); const realFetch = window.fetch; const prevCharms = G._bestiaryCharms;
     const chips = () => (document.getElementById('best-charms') || {}).innerHTML || '';
     const listHtml = () => (document.getElementById('best-list') || {}).innerHTML || '';
+    /* Scoped to void_mote's OWN row, not the whole list's HTML: every other
+       row carries free-text hunter's-note prose (src/data/monster-notes.js)
+       a bare word match over the whole list would false-positive on. The
+       `.charm-element` span is the one markup the reveal ever paints
+       (src/render/bestiary-charms.js elementLineHtml). */
+    const voidMoteName = (window.MONSTERS && window.MONSTERS.void_mote && window.MONSTERS.void_mote.name) || 'Void Mote';
+    const voidMoteRow = () => {
+      const list = document.getElementById('best-list');
+      const rows = list ? Array.from(list.querySelectorAll('.bestiary-row')) : [];
+      return rows.find((r) => { const b = r.querySelector('b'); return b && b.textContent === voidMoteName; }) || null;
+    };
     const envOf = (bestiary) => ({ ok: true, accrued: false, reason: 'idle', version: 3, now: new Date().toISOString(), ...(bestiary ? { bestiary } : {}) });
     const drive = async (bestiary) => {
       window.fetch = (u, init) => (/hr-accrue/.test(String(u))
@@ -1986,13 +1997,16 @@ export default [
       window.openBestiary();
       assert(/charm-chip/.test(chips()) && /Vermin/.test(chips()) && /Studied/.test(chips()) && /Next charm at 100/.test(chips()), 'the Vermin chip did not paint its badge and threshold: ' + chips().slice(0, 240));
       assert(/charm-element/.test(listHtml()) && /weak to frost/.test(listHtml()), 'a Studied class did not print its element weakness — that reveal IS rank 1\'s reward');
-      assert(!/ember/.test(listHtml()), 'void_mote\'s hidden element printed at 3 kills — hiddenElement must stay hidden until the class is Studied');
+      const vmRowAt3 = voidMoteRow();
+      assert(vmRowAt3 && !vmRowAt3.querySelector('.charm-element'), 'void_mote\'s hidden element printed at 3 kills — hiddenElement must stay hidden until the class is Studied: ' + (vmRowAt3 ? vmRowAt3.innerHTML.slice(0, 200) : 'void_mote row not found'));
       /* ARM 3 — THE HIDDEN ELEMENT, REVEALED BY THE CHARM AND NOTHING ELSE. */
       await drive({ kills_by_class: { vermin: 2000, extra_dimensional: 25 } });
       assert(C.rankOfClass('vermin') === 4 && C.rankOfClass('extra_dimensional') === 1, 'the ladder top read ' + C.rankOfClass('vermin') + ' at 2000 kills');
       window.openBestiary();
       assert(/Banesworn/.test(chips()) && /Ladder complete/.test(chips()), 'the top rung did not paint as complete: ' + chips().slice(0, 240));
-      assert(/weak to ember/.test(listHtml()), 'void_mote\'s element stayed hidden at 25 kills — the charm is the only door there is');
+      const vmRowAt25 = voidMoteRow();
+      const vmElementAt25 = vmRowAt25 && vmRowAt25.querySelector('.charm-element');
+      assert(vmElementAt25 && /weak to ember/.test(vmElementAt25.textContent), 'void_mote\'s element stayed hidden at 25 kills — the charm is the only door there is: ' + (vmRowAt25 ? vmRowAt25.innerHTML.slice(0, 200) : 'void_mote row not found'));
     } finally {
       window.fetch = realFetch;
       try { A.resetAccrualGate(); A.configureAccrual(null); } catch (e) {}

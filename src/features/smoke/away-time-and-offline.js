@@ -8,6 +8,50 @@
 // ══════════════════════════════════════════════════════════════════════
 import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withClientOwnedSlots, awaySpan, tryRunRestampingBalance, xpOf, xpMap, predZero, goldOf, snapshotG, onFeet, drain, withResidueWire, seedPlayStreak, residuePurgeSnap, residuePurgeRestore, restoreG, restoreGAndRecord, autoEatMirrorReady, autoEatMirrorFixture, on, snapshot, decideRestore } from './_harness.js?v=555';
 
+/* MODAL-FIT-1's probes. `mfClear` parks every layer that can sit above a sheet
+   (scrims DETACHED, so no "another modal is up" check defers; toasts hidden) and
+   returns the undo. `mfReach` asks the player's question: with every scroll at 0,
+   is this control's centre on screen, and does a tap there land on it? */
+function mfClear() {
+  const gone = [...document.querySelectorAll('.hr-dl-scrim,.qm-overlay,.hr-id-scrim,.ftue-root,#hr-desktopmode-banner,#hr-welcome-modal')]
+    .map((e) => [e, e.parentNode, e.nextSibling]);
+  const hid = [...document.querySelectorAll('.notifs,.ach-toast')].map((e) => [e, e.style.visibility]);
+  gone.forEach(([e]) => e.remove());
+  hid.forEach(([e]) => { e.style.visibility = 'hidden'; });
+  return () => {
+    hid.forEach(([e, v]) => { e.style.visibility = v; });
+    gone.reverse().forEach(([e, p, n]) => { if (p) p.insertBefore(e, n && n.parentNode === p ? n : null); });
+  };
+}
+function mfInView(el, what, minTop = 0) {
+  const r = el.getBoundingClientRect();
+  assert(r.top >= minTop - 1 && r.bottom <= innerHeight + 1 && r.left >= -1 && r.right <= innerWidth + 1,
+    what + ' is not inside the ' + innerWidth + 'x' + innerHeight + ' viewport' + (minTop ? ' below a ' + minTop + 'px banner' : '')
+    + ': top ' + Math.round(r.top) + ', bottom ' + Math.round(r.bottom));
+}
+function mfReach(el, what) {
+  for (let e = el; e; e = e.parentElement) e.scrollTop = 0;
+  const r = el.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+  const hit = (y >= 0 && y <= innerHeight && x >= 0 && x <= innerWidth) ? document.elementFromPoint(x, y) : null;
+  assert(!!hit && (hit === el || el.contains(hit)), what + ' is not reachable at scroll 0: its centre ('
+    + Math.round(x) + ',' + Math.round(y) + ') in a ' + innerHeight + 'px viewport lands on '
+    + (hit ? hit.tagName + '#' + hit.id + '.' + hit.className : 'nothing on screen'));
+}
+const mfEsc = () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+/* What's New from a FIXED changelog: a live heading shorter than this one would
+   turn the RED green with no fix. Resolves the rendered overlay, or null. */
+async function mfWhatsNew() {
+  const realFetch = window.fetch;
+  const md = '## v0.9.2-beta build 555 — 2026-09-26 (A deliberately long release title that has to wrap inside the card header)\n\n'
+    + Array.from({ length: 80 }, (_, n) => '* line ' + n).join('\n') + '\n';
+  window.fetch = (u, ...a) => (/^CHANGELOG\.md/.test(String(u)) ? Promise.resolve(new Response(md)) : realFetch(u, ...a));
+  try {
+    window.HearthriseWelcome.force();
+    for (let i = 0; i < 40 && !document.getElementById('hr-welcome-modal'); i++) await new Promise((r) => setTimeout(r, 50));
+  } finally { window.fetch = realFetch; }
+  return document.getElementById('hr-welcome-modal');
+}
+
 export default [
 
   /* ══════════════════════════════════════════════════════════════════════════
@@ -394,6 +438,108 @@ export default [
       if (sStreak === undefined) delete G.streak; else G.streak = sStreak;
       seedPlayStreak(null);
       if (sDR === undefined) delete G.dailyReward; else G.dailyReward = sDR;
+    }
+  }),
+
+  /* -- regression suite -- MODAL-FIT-1 (b556): A SHEET NEVER OUTGROWS THE SCREEN
+     MEASURED LIVE at 1384x771 on b555: the welcome-back card grew to 1179 px, centred
+     itself off BOTH edges (top -204), and html/body overflow:hidden left nothing to
+     scroll — Continue unreachable, Escape a no-op, the only way out a 20 px backdrop
+     strip at 922x423. Asserted through the DOM only, never through HearthriseSheet, so
+     the same tests are RED on the build that shipped it. Rows are cloned until the
+     body is 1.5 viewports tall, so no suite viewport can hide the overflow. */
+  () => tryRun('MODAL-FIT-1 (b556): the welcome-back card fits on BOTH return paths — Continue reachable, rows scroll, Escape closes it, navigation does not', () => {
+    assert(typeof window.__maybeShowWelcome === 'function', 'the b341 seam __maybeShowWelcome is gone');
+    const s = { seen: G.lastSeen, wel: G.lastWelcome, off: G.lastOfflineSummary };
+    const root = document.documentElement, bannerH = root.style.getPropertyValue('--hr-dm-banner-h');
+    const dm = document.body.getAttribute('data-hr-desktop-mode'), unpark = mfClear();
+    const died = { hrs: 8, awayMs: 8 * 3600e3, gainedXp: 5000, gainedItems: 40, gainedGold: 0, gainedKills: 30,
+      burnt: 0, combat: null, capped: false, blessed: false, buffsPaused: false, crits: 0, died: true,
+      diedAfterMs: 3 * 3600e3, diedTo: 'goblin', featuredMs: 0, featuredDropMult: 1, rateMult: 1, at: Date.now() };
+    try {
+      for (const [want, receipt] of [['stats', null], ['away', died]]) {
+        G.lastOfflineSummary = receipt; G.lastSeen = Date.now() - 8 * 3600e3; G.lastWelcome = 0;
+        assert(window.__maybeShowWelcome() === want, 'CONTROL: the ' + want + ' path did not present');
+        const ov = document.getElementById('welcome-overlay'), rows = document.getElementById('welcome-rows');
+        if (!rows.querySelector('.wb-row')) rows.insertAdjacentHTML('beforeend', '<div class="wb-row"><span>Row</span><b>1</b></div>');
+        for (let i = 0; i < 300 && rows.scrollHeight <= 1.5 * innerHeight; i++) rows.appendChild(rows.querySelector('.wb-row').cloneNode(true));
+        mfReach(ov.querySelector('.wb-claim'), 'Continue (' + want + ' path)');
+        mfInView(ov.querySelector('.welcome-modal'), 'the ' + want + ' card');
+        assert(ov.querySelector('h2').getBoundingClientRect().top >= 0, 'the ' + want + ' card\'s heading is above the screen');
+        const oy = getComputedStyle(rows).overflowY;
+        assert(/auto|scroll/.test(oy) && rows.scrollHeight > rows.clientHeight, 'the rows are not a scroll region (overflow-y ' + oy + ')');
+        window.closeAllModals();
+        assert(ov.classList.contains('show'), 'closeAllModals() (every tab change) dismissed the ' + want + ' card, and it never re-opens');
+        mfEsc();
+        assert(!ov.classList.contains('show'), 'Escape did not close the ' + want + ' card');
+      }
+      root.style.setProperty('--hr-dm-banner-h', '88px');
+      document.body.setAttribute('data-hr-desktop-mode', '1');
+      document.getElementById('welcome-overlay').classList.add('show');
+      mfInView(document.querySelector('#welcome-overlay .welcome-modal'), 'the card with the desktop-mode banner up', 88);
+    } finally {
+      const ov = document.getElementById('welcome-overlay'); if (ov) ov.classList.remove('show');
+      if (bannerH) root.style.setProperty('--hr-dm-banner-h', bannerH); else root.style.removeProperty('--hr-dm-banner-h');
+      if (dm === null) document.body.removeAttribute('data-hr-desktop-mode'); else document.body.setAttribute('data-hr-desktop-mode', dm);
+      G.lastSeen = s.seen; G.lastWelcome = s.wel; G.lastOfflineSummary = s.off;
+      unpark();
+    }
+  }),
+
+  () => tryRunAsync('MODAL-FIT-1 (b556): What\'s New fits — "Got it" on screen at scroll 0, the build pill one line, Escape closes it, the seen-key unmoved', async () => {
+    const B = window.HearthriseBuild, KEY = 'hearthrise:changelog:lastSeen', prevKey = localStorage.getItem(KEY);
+    assert(!!B && !!window.HearthriseWelcome, 'HearthriseBuild / HearthriseWelcome are gone');
+    const unpark = mfClear();
+    try {
+      const ov = await mfWhatsNew();
+      assert(!!ov, 'What\'s New never rendered from the fixture');
+      mfReach(document.getElementById('hr-welcome-ok'), '"Got it"');
+      mfInView(ov.firstElementChild, 'the What\'s New card');
+      const pill = ov.firstElementChild.firstElementChild.querySelector(':scope > span'), cs = getComputedStyle(pill);
+      const lh = parseFloat(cs.lineHeight) || 1.2 * parseFloat(cs.fontSize);
+      const inner = pill.getBoundingClientRect().height - ['paddingTop', 'paddingBottom', 'borderTopWidth', 'borderBottomWidth'].reduce((t, k) => t + parseFloat(cs[k]), 0);
+      assert(inner <= 1.5 * lh, 'the build pill wraps: ' + Math.round(inner) + 'px of text for a ' + Math.round(lh) + 'px line');
+      assert(pill.textContent.trim() === 'b' + B.cache, 'the pill must read b' + B.cache + ', got ' + pill.textContent.trim());
+      assert(localStorage.getItem(KEY) === B.version + '-' + B.cache, 'the seen-key moved: ' + localStorage.getItem(KEY));
+      mfEsc();
+      assert(!document.getElementById('hr-welcome-modal'), 'Escape did not close What\'s New');
+    } finally {
+      const ov = document.getElementById('hr-welcome-modal'); if (ov) ov.remove();
+      if (prevKey === null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, prevKey);
+      unpark();
+    }
+  }),
+
+  () => tryRunAsync('MODAL-FIT-1 (b556): one Escape closes ONE layer — a long confirm over the welcome card, then What\'s New over it', async () => {
+    const D = window.HearthriseDialog, KEY = 'hearthrise:changelog:lastSeen', prevKey = localStorage.getItem(KEY);
+    assert(!!D && typeof D.confirm === 'function', 'HearthriseDialog.confirm is gone');
+    const s = { seen: G.lastSeen, wel: G.lastWelcome, off: G.lastOfflineSummary }, unpark = mfClear();
+    let p = null;
+    try {
+      G.lastOfflineSummary = null; G.lastSeen = Date.now() - 8 * 3600e3; G.lastWelcome = 0;
+      assert(window.__maybeShowWelcome() === 'stats', 'CONTROL: the welcome card did not present');
+      const ov = document.getElementById('welcome-overlay');
+      p = D.confirm({ title: 'Long', body: Array(Math.ceil(innerHeight / 10)).fill('line').join('\n') });
+      mfReach(document.querySelector('[data-hrc=yes]'), 'the long confirm\'s Yes');
+      let sc = document.querySelector('.hr-confirm-body');
+      while (sc && !/auto|scroll/.test(getComputedStyle(sc).overflowY)) sc = sc.parentElement;
+      assert(!!sc && sc.scrollHeight > sc.clientHeight, 'the long confirm has no scroll region around its body');
+      mfEsc();
+      assert(await p === false, 'Escape did not answer the confirm with its safe "no"');
+      p = null;
+      assert(ov.classList.contains('show'), 'one Escape closed the confirm AND the welcome card under it');
+      assert(!!await mfWhatsNew(), 'What\'s New never rendered over the welcome card');
+      mfEsc();
+      assert(!document.getElementById('hr-welcome-modal') && ov.classList.contains('show'), 'the first Escape must close What\'s New, and only it');
+      mfEsc();
+      assert(!ov.classList.contains('show'), 'the second Escape must close the welcome card');
+    } finally {
+      if (p) { const no = document.querySelector('[data-hrc=no]'); if (no) no.click(); await p; }
+      const wn = document.getElementById('hr-welcome-modal'); if (wn) wn.remove();
+      const ov = document.getElementById('welcome-overlay'); if (ov) ov.classList.remove('show');
+      if (prevKey === null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, prevKey);
+      G.lastSeen = s.seen; G.lastWelcome = s.wel; G.lastOfflineSummary = s.off;
+      unpark();
     }
   }),
 

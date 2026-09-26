@@ -3080,7 +3080,7 @@ export default [
   () => tryRun('TIMBERLINE-3: one real chop at the Maple Grove at Woodcutting 52 banks exactly 2 Maple Logs and floor(78 × 0.39) = 30 XP', () => {
     const snap = snapshotG();
     const G = window.G, C = window.HearthriseCore, P = window.HearthrisePresence;
-    const real = { getBonus: window.getBonus, restedQuantum: window.restedQuantum, pred: G._pred ? JSON.parse(JSON.stringify(G._pred)) : undefined };
+    const real = { getBonus: window.getBonus, restedQuantum: window.restedQuantum, getEquipmentStats: window.getEquipmentStats, pred: G._pred ? JSON.parse(JSON.stringify(G._pred)) : undefined };
     /* The DISPLAY read: server truth + prediction, so an armed skills record
        (addXp predicts rather than writing G.skills) measures the same delta. */
     const xpView = () => {
@@ -3092,6 +3092,7 @@ export default [
       const node = (window.TREES || []).find((t) => t.id === 'maple_grove');
       assert(node && node.qty[0] === 2 && node.qty[1] === 2 && node.xp === 78, 'maple_grove must be the 2-log, 78-xp stand, got ' + JSON.stringify(node));
       window.getBonus = () => 0; window.restedQuantum = () => 0;
+      window.getEquipmentStats = () => C.combat.equipmentStats({}, window.ITEMS, {});   // no gear xpB (an earlier test's equipment paid 31/49)
       G.skills = Object.assign({}, G.skills, { woodcutting: window.xpForLevel(node.req) });
       G.inventory = {}; G.buffs = [];
       G.activeSkill = 'woodcutting'; G.skillTargetId = node.id;
@@ -3101,13 +3102,13 @@ export default [
       assert((G.inventory.maple_log || 0) === 2, 'one chop at the Maple Grove banked ' + (G.inventory.maple_log || 0) + ' Maple Log, the ruling says exactly 2');
       const gained = xpView() - xp0;
       assert(gained === Math.floor(78 * 0.39) && gained === 30, 'one chop at the Maple Grove paid ' + gained + ' woodcutting XP, the paced grant is floor(78 × 0.39) = 30');
-    } finally { window.getBonus = real.getBonus; window.restedQuantum = real.restedQuantum; G._pred = real.pred; restoreG(snap); }
+    } finally { window.getBonus = real.getBonus; window.restedQuantum = real.restedQuantum; window.getEquipmentStats = real.getEquipmentStats; G._pred = real.pred; restoreG(snap); }
   }),
 
   () => tryRun('TIMBERLINE-4 (AWAY): a seeded 1 h away span at the Elder Yew at Woodcutting 68 runs exactly 208 actions, pays 48 XP each and a pinned yew_log count', () => {
     const snap = snapshotG();
     const G = window.G, C = window.HearthriseCore, P = window.HearthrisePresence;
-    const real = { getBonus: window.getBonus, restedQuantum: window.restedQuantum, pred: G._pred ? JSON.parse(JSON.stringify(G._pred)) : undefined };
+    const real = { getBonus: window.getBonus, restedQuantum: window.restedQuantum, getEquipmentStats: window.getEquipmentStats, pred: G._pred ? JSON.parse(JSON.stringify(G._pred)) : undefined };
     const xpView = () => {
       try { if (typeof window.hrSkillXpDisplay === 'function') return window.hrSkillXpDisplay('woodcutting').value || 0; }
       catch (e) {}
@@ -3118,6 +3119,7 @@ export default [
       const node = (window.TREES || []).find((t) => t.id === 'elder_yew_tree');
       assert(node && node.req === 68 && node.ms === 10800 && node.xp === 124, 'elder_yew_tree must be the Woodcutting 68, 10.8 s, 124-xp stand, got ' + JSON.stringify(node));
       window.getBonus = () => 0; window.restedQuantum = () => 0;
+      window.getEquipmentStats = () => C.combat.equipmentStats({}, window.ITEMS, {});   // no gear xpB (an earlier test's equipment paid 31/49)
       G.skills = Object.assign({}, G.skills, { woodcutting: window.xpForLevel(node.req) });
       G.inventory = {}; G.buffs = []; G.toolCarry = {};
       G.stats = Object.assign({}, G.stats, { gathered: 0, chopped: 0 });
@@ -3147,7 +3149,7 @@ export default [
       const yew = G.inventory.yew_log || 0;
       assert(yew >= 208 && yew <= 416, 'the away span banked ' + yew + ' yew_log, outside the [1,2] × 208 envelope [208, 416]');
       assert(yew === SEEDED_YEW, 'the seeded away span banked ' + yew + ' yew_log, the 0xC0FFEE stream pins exactly ' + SEEDED_YEW + ' — a changed count is a changed draw order or yield');
-    } finally { window.getBonus = real.getBonus; window.restedQuantum = real.restedQuantum; G._pred = real.pred; restoreG(snap); }
+    } finally { window.getBonus = real.getBonus; window.restedQuantum = real.restedQuantum; window.getEquipmentStats = real.getEquipmentStats; G._pred = real.pred; restoreG(snap); }
   }),
 
   /* ── TOWN-1 — THE COMMON, painted and un-paintable ──────────────────────

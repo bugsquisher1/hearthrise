@@ -6,8 +6,9 @@
 //
 //   node tests/readonly-rpc.mjs             the guard
 //   node tests/readonly-rpc.mjs --selftest  plant a STABLE function that writes
-//                                           (must go RED) and one that only
-//                                           reads (must stay GREEN)
+//                                           (must go RED), one that writes past
+//                                           a refusal (must go RED) and one that
+//                                           only reads (must stay GREEN)
 //   node tests/readonly-rpc.mjs --mutate    put hr_party_view back to STABLE:
 //                                           the migration's own §4 must refuse
 //                                           the apply, and with that neutered
@@ -79,6 +80,9 @@ const NEUTER_SELFCHECK = [
 // is refused by Postgres everywhere (0A000) and is judged RED separately.
 const PLANT_WRITER = 'hr_ro_probe_writer';
 const PLANT_READER = 'hr_ro_probe_reader';
+// RO-1: writes only past an argument check the synthesised 0 fails, the shape
+// hr_party_view has (it refuses a caller before its gate). Must be judged RED.
+const PLANT_GATED = 'hr_ro_probe_gated';
 const PLANTS = `
   create function public.${PLANT_WRITER}__meter() returns void language sql volatile security definer
   set search_path = public, pg_catalog as $p$
@@ -96,8 +100,15 @@ const PLANTS = `
   set search_path = public, pg_catalog as $p$
     select jsonb_build_object('ok', true, 'slots', (select count(*) from public.player_state where user_id = auth.uid()))
   $p$;
-  revoke execute on function public.${PLANT_WRITER}(), public.${PLANT_READER}() from public;
-  grant execute on function public.${PLANT_WRITER}(), public.${PLANT_READER}() to authenticated;`;
+  create function public.${PLANT_GATED}(p_n int) returns jsonb language plpgsql stable security definer
+  set search_path = public, pg_catalog as $p$
+  begin
+    if p_n <= 0 then return jsonb_build_object('ok', false, 'error', 'bad_n'); end if;
+    perform public.${PLANT_WRITER}__meter();
+    return jsonb_build_object('ok', true);
+  end $p$;
+  revoke execute on function public.${PLANT_WRITER}(), public.${PLANT_READER}(), public.${PLANT_GATED}(int) from public;
+  grant execute on function public.${PLANT_WRITER}(), public.${PLANT_READER}(), public.${PLANT_GATED}(int) to authenticated;`;
 
 const problems = [];
 const judge = (id, pass, good, bad) => {
@@ -193,6 +204,13 @@ async function sweep(db, seed, label) {
     } else if (ro.sqlstate) {
       console.log(`      ✗ ${tag} raised ${ro.sqlstate} read only and not read-write — "${ro.message}"`);
       bad.push(m.proname);
+    } else if (rw.value && typeof rw.value === 'object' && rw.value.ok === false) {
+      // A REFUSAL IS NOT A PASS (Security 2026-09-26, RO-1): a body that answers
+      // {ok:false} on the synthesised arguments may return before the write it
+      // would make for a real caller, so a clean read-only call proves nothing.
+      console.log(`      ✗ ${tag} REFUSED the synthesised call (${JSON.stringify(rw.value).slice(0, 60)}) — `
+        + 'it never reached its body; add an OVERRIDE that it accepts');
+      bad.push(m.proname);
     } else {
       console.log(`      ✓ ${tag} read-only clean → ${JSON.stringify(ro.value).slice(0, 80)}`);
     }
@@ -275,12 +293,12 @@ try {
       `hr_party_view is provolatile=${pv}`);
 
     if (SELFTEST) {
-      console.log('\nS1/S2  plant a STABLE writer and a STABLE reader, both granted to authenticated');
+      console.log('\nS1-S3  plant two STABLE writers and a STABLE reader, all granted to authenticated');
       await db.exec(PLANTS);
       const planted = await sweep(db, seed, 'planted chain');
       const names = planted.members.map((m) => m.proname);
-      judge('S0', names.includes(PLANT_WRITER) && names.includes(PLANT_READER),
-        'discovery found both plants by GRANT alone (neither is baselined)',
+      judge('S0', [PLANT_WRITER, PLANT_READER, PLANT_GATED].every((n) => names.includes(n)),
+        'discovery found all three plants by GRANT alone (none is baselined)',
         `discovery missed a plant: ${JSON.stringify(names)}`);
       judge('S1', planted.bad.includes(PLANT_WRITER),
         `the STABLE writer went RED — ${PLANT_WRITER} caught on 25006`,
@@ -288,6 +306,9 @@ try {
       judge('S2', !planted.bad.includes(PLANT_READER),
         'the STABLE reader stayed GREEN — the guard does not accuse a function that only reads',
         `the STABLE reader was accused: ${JSON.stringify(planted.bad)}`);
+      judge('S3', planted.bad.includes(PLANT_GATED),
+        `a STABLE writer that REFUSED the synthesised call went RED — ${PLANT_GATED} was not passed on its refusal`,
+        `a refused call was judged read-only clean: ${JSON.stringify(planted.bad)}`);
     } else {
       // ── P-IDEM: the file re-applies as a byte-identical no-op ────────────
       console.log('\nP-IDEM  ' + FILE + ' re-applied onto the full chain');
@@ -311,4 +332,4 @@ if (problems.length) {
   console.log(`\nreadonly-rpc: RED — ${problems.join(', ')}`);
   process.exit(1);
 }
-console.log(`\nreadonly-rpc: GREEN${MUTATE ? ' — every mutation caught' : SELFTEST ? ' — both plants judged correctly' : ''}`);
+console.log(`\nreadonly-rpc: GREEN${MUTATE ? ' — every mutation caught' : SELFTEST ? ' — every plant judged correctly' : ''}`);

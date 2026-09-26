@@ -1598,3 +1598,49 @@ Merged `sec/m8-s4-review` @ c36e40e6, the fan-out restatement `lane/m8-s4-selfch
 | records | live-hash `--live --write`: every tracked body live == replay (guard green; the two long-standing divergences keep their whys); the three notes flipped to APPLIED; restore-census: production matches (119 tables) |
 
 §5.3 stands for the client half: hunt start/stop need `INTENT_REGISTRY` entries in the edge (collectsFirst, bucket party) before any UI calls them; that is a separate lane. §5.4 stands: shadow stays TRUE.
+
+---
+
+## PARTY VIEW VOLATILE — 2026-09-26 review
+
+Scope: `supabase/migrations/2026-09-26-party-view-volatile.sql`, `tests/readonly-rpc.mjs`, `src/net/party.js` + `src/render/party-panel.js` + PARTY-8, on `sec/party-view-volatile` = `lane/party-view-readonly` 0a084d3e merged with `set/b554` c0f3a4ad (conflict only in `tests/schema-apply-order.json`: both STAGED entries kept, vigour 09-25 then party-view 09-26 at chain end; no generator exists for that file, `apply-order-honesty` and `schema-drift` are its checks, both 0).
+
+**B7 was mine and its premise was wrong.** §1 recorded B7 as "PostgREST runs STABLE read-only on GET" and ruled POST-only enough. Live b553 proved PostgREST opens a READ ONLY transaction for any STABLE/IMMUTABLE function whatever the verb (POST → 405 / 25006). The recorded-not-blocking verdict let a dead roster ship. This file is the correction.
+
+| # | Sev | Finding | Status |
+|---|---|---|---|
+| PV-1 | — | `alter … volatile` moves only `provolatile`: no ACL, owner, `prosecdef`, `proconfig` or body change (ALTER FUNCTION touches none of them). §4(a)/(b) prove it by execution; the S-7 frozen key set is untouched | verified |
+| PV-2 | — | Rate bucket still bounds reads: `hr_rpc_gate('party')` is the body's second statement, after `auth.uid()` and before any read; VOLATILE guarantees a per-call evaluation (never folded), and a client reaches it only one call per PostgREST request, so no loop bypasses the 12/min per-user budget | verified |
+| PV-3 | — | §4 goes RED if STABLE again: `readonly-rpc --mutate` M1 shows GATE(a) refusing the apply; M2 shows the sweep catching 25006 with §4 neutered | verified (exit 0) |
+| PV-4 | — | Guard enumerates from `pg_proc` (grant to anon/authenticated incl. PUBLIC, or baseline row), never a hand list; `--selftest` finds plants by grant alone | verified |
+| RO-1 | M | Guard false negative: a member whose body refuses the synthesised arguments (`{ok:false}`) before its write passed "read-only clean" in both transactions — `hr_party_view` itself has that shape (refuses a non-member before reading). Now RED with "add an OVERRIDE"; selftest S3 plants the shape; mutation proof: the branch disabled → S3 RED, exit 1 | **LANDED** |
+| CL-1 | L | Client: the "Could not load your party right now." notice outlived a read that later landed (`next.notice = cur.notice` carried it), so the panel said the roster had failed next to a roster that loaded. Now the read-failure notice is tagged (`readNotice`) and a landed read clears it; a gesture refusal still carries. PARTY-8 asserts it | **LANDED** |
+| CL-2 | I | `src/net/party.js` header carried B7's wrong premise; rewritten to the measured behaviour | **LANDED** |
+| CL-3 | — | Client never invents a member: a failed read keeps only rows the server returned for the SAME party id, else `[]` + a notice and NO count (`rosterUnread`); `not_in_party` still empties to the server's answer. No "0 of N" on a failed read (PARTY-8 step 1). The roster gates no spend: kicks are resolved server-side | verified |
+| PV-5 | I | Nothing detects a LIVE flip back to STABLE: `schema-drift`'s inventory is signature-level (blind to `provolatile`; its fingerprint did not move with this file) and `hr_party_view` is not in `live-hash-drift`. `readonly-rpc` covers the replay only. Hardening lane (not blocking): add `provolatile` to the schema inventory or track `hr_party_view` in live-hash | recorded |
+| PV-6 | I | §4(e) is a production-wide assertion (no client-executable public function is STABLE/IMMUTABLE). Replay says 0; production could hold an out-of-chain function. It fails closed (apply refused), so run the pre-check below first | runbook |
+
+Not a money surface (no value, row, grant or baseline row moves). `hr_client_rpc_baseline` unchanged (§4(b) exactly one row); `hr_assert_grant_hygiene(true)` strict green in §4(f) on replay.
+
+MIGRATION: GO
+CLIENT SHIP: GO-WITH-CHANGES
+
+CLIENT SHIP changes are RO-1, CL-1, CL-2, landed on `sec/party-view-volatile`; ship that head. The client half rides the next cut AFTER the apply.
+
+### COORDINATOR RUNBOOK
+
+Not 00:00–00:10 UTC. Read-only pre-checks (management endpoint, `~/.supabase-token`):
+```sql
+select provolatile, prosecdef, proconfig from pg_proc where oid = 'public.hr_party_view(uuid)'::regprocedure;  -- expect s, t, {search_path=public, pg_catalog}
+select p.oid::regprocedure from pg_proc p where p.pronamespace = 'public'::regnamespace and p.provolatile <> 'v'
+   and (has_function_privilege('authenticated', p.oid, 'execute') or has_function_privilege('anon', p.oid, 'execute'));  -- expect exactly hr_party_view(uuid); anything else: STOP, §4(e) will refuse
+select count(*) from public.hr_client_rpc_baseline where proname = 'hr_party_view';  -- expect 1
+select public.hr_assert_grant_hygiene(true);  -- expect the three lists []
+```
+Apply (one file, no `begin/commit`):
+```bash
+node tools/apply-migration.mjs supabase/migrations/2026-09-26-party-view-volatile.sql
+```
+Post-apply read-only: rerun the four pre-checks — expect `v, t, {search_path=public, pg_catalog}`, ZERO rows from the second, 1, green. LIVE-SHAPED PROOF: on the QA account, Party panel → a party formed → `POST /rest/v1/rpc/hr_party_view {"p_party": <id>}` answers **HTTP 200** with `ok:true` and the member rows, and the panel shows "N of 4" with rows (no "Could not load"). `live-hash-drift --live`: expect no change (hr_party_view untracked); flip the apply-order note to APPLIED; no census change (no table). No edge deploy.
+
+Rollback: `alter function public.hr_party_view(uuid) stable;` — re-breaks the roster (405/25006) and makes nothing else safer; use only if VOLATILE is shown to cause a new fault.

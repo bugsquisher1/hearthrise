@@ -4074,6 +4074,7 @@ export default [
       rig.world.deadView = null;
       await window.HearthriseParty.refresh('test'); await drain();
       assert(/1 of 4/.test(rig.text()) && /Wren/.test(rig.text()), 'the recovered read is not rendered: ' + rig.text().slice(0, 160));
+      assert(!/Could not load your party/.test(rig.text()), 'the failed-read notice outlived a read that landed: ' + rig.text().slice(0, 200));
       rig.world.deadView = DEAD;
       await window.HearthriseParty.refresh('test'); await drain();
       assert(/Wren/.test(rig.text()) && /1 of 4/.test(rig.text()), 'a failed read threw away the known roster: ' + rig.text().slice(0, 160));

@@ -121,10 +121,8 @@
       .slice(0, n || 4);
   }
 
-  function pct(ch) {
-    var p = ch * 100;
-    return p >= 1 ? Math.round(p) + '%' : p.toFixed(1) + '%';
-  }
+  /* The ONE odds formatter (core/drops.js): a .0004 row reads '1 in 2,500'. */
+  function pct(ch) { return window.HearthriseCore.drops.formatDropOdds(ch); }
 
   /* b283 (studio-review P1): draw the PAINTED monster portrait when one exists —
      many featured mobs (dragon, lich, death_knight…) already have 128px art that

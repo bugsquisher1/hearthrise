@@ -12092,8 +12092,7 @@ console.log('Activity bar: loaded');
     if(ch == null){ chanceStr = '—'; band = ''; }
     else if(ch >= 1){ chanceStr = 'Always'; band = 'mp-always'; }
     else {
-      var pct = ch * 100;
-      chanceStr = (pct < 1 ? pct.toFixed(1) : Math.round(pct)) + '%';
+      chanceStr = window.HearthriseCore.drops.formatDropOdds(ch);   // the ONE odds formatter
       band = 'mp-' + ((typeof dropBand==='function') ? dropBand(ch) : (ch<=0.05?'rare':(ch<=0.15?'uncommon':'common')));  // Wave 4: shared bands
     }
     var qtyStr = (typeof d === 'object' && d.qty) ? (d.qty[0] === d.qty[1] ? d.qty[0] : d.qty.join('-')) + '× · ' : '';

@@ -16,6 +16,7 @@
 
 import { MONSTERS } from '../data/monsters.js?v=553';
 import { ITEMS } from '../data/items.js?v=553';
+import { formatDropOdds } from '../core/drops.js?v=553';
 
 function getMonsterIconHtml(id) {
   const path = window._monsterIcon?.[id];
@@ -358,13 +359,13 @@ const HUD = (() => {
       const base = d.ch;
       const eff = base >= 1 ? 1 : Math.min(0.95, base * mult);
       const def = ITEMS[d.id];
-      const pct = eff >= 1 ? 'always' : (eff * 100 >= 1 ? (eff * 100).toFixed(0) : (eff * 100).toFixed(1)) + '%';
+      const pct = eff >= 1 ? 'always' : formatDropOdds(eff);
       const lifted = mult > 1 && base < 1;
       const by = charmMult > 1
         ? (matchupMult > 1 ? 'your matchup and charm' : 'your charm') : 'your matchup';
       return {
         name: `<span class="cdr-name">${esc(def ? def.n : d.id)}</span>`,
-        meta: lifted ? `${(base * 100).toFixed(base * 100 >= 1 ? 0 : 1)}% base, lifted by ${by}` : '',
+        meta: lifted ? `${formatDropOdds(base)} base, lifted by ${by}` : '',
         right: `<span class="hr-cs-amt cdr-pct">${pct}</span>`,
         band: rarityBand(eff),
       };

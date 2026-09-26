@@ -3629,6 +3629,11 @@ export function applyEnvelopeState(G, res, ownKey) {
     if (w && w.HearthriseHearthfind && typeof w.HearthriseHearthfind.noteEnvelope === 'function') {
       w.HearthriseHearthfind.noteEnvelope(res);
     }
+    /* LUCKY FINDS (content pack 1) — the server's `away.events` rare_drop is the
+       ONLY reveal of a lucky row; the client's own dice never announce one. */
+    if (w && w.HearthriseLuckyFinds && typeof w.HearthriseLuckyFinds.noteEnvelope === 'function') {
+      w.HearthriseLuckyFinds.noteEnvelope(res);
+    }
     /* THE ACTIVE BOUNTY'S SERVER PROGRESS (2026-09-09). hr_state_of projects
        `state.bounty.progress` = hr_bounty_kills(target) - baseline, i.e. the
        number hr_claim_bounty judges the turn-in by, INCLUDING the settled/away

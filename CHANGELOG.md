@@ -4,6 +4,20 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 554 — 2026-09-26 (Every button fits a thumb)
+
+**Bigger buttons on phones.** On a landscape phone, every control on every screen now takes a full thumb (44 px or more): the bag's filter chips, the Keep and category squares, the War Table's tier and class chips, the shop and bounty buttons, and the Quests button in the top bar. Before this build over a hundred of them were smaller than that.
+
+**The Quests strip.** Desktop keeps the full-width Quests strip you know. On phones it now tucks away to give the screen back its height; the Quests button in the top bar opens the same list.
+
+**"Board Board" is gone.** The bounty card on the War Table no longer reads "…at the Bounty Board" followed by a button that also said "Board"; the button now says Browse.
+
+**Parties say what they know.** If the realm cannot hand the party screen its member list, the screen now says "Could not load your party right now" instead of showing "0 of 4" and no names. The server fix that makes the list load is reviewed and is being applied next.
+
+**Vigour is ready and waiting.** The daily hunting-budget bar and its refill button are built, reading every number from the realm, and switch on by themselves the moment the refill prices go live on the server. Until then nothing changes on your screen.
+
+**Under the hood.** The build checks were rebalanced so no single check runs past its time limit, and a new check makes sure every function the game calls as "read only" really is.
+
 ## v0.9.2-beta build 553 — 2026-09-25 (Parties have a home)
 
 **Parties have a screen.** A new Party entry in the sidebar lets you start a party, invite a friend by name, accept an invite, leave, or remove someone if you lead. Everything on it is read from the realm and refreshed while it is open, never guessed by the browser. Hunting as a party is not switched on yet: that arrives once party combat has run safely in shadow, and the screen says so rather than offering a button that would do nothing.

@@ -185,6 +185,7 @@ between its steel and mithril twin — asserted by `DEEPSEAM-3`.
 `src/data/monsters.js` → `MONSTERS`. Drops live inline:
 `drops:[{id, ch}]` (ch = 0..1 chance). Add a drop = add to the array; the id must
 exist in `ITEMS`.
+Hunter's note per monster: `src/data/monster-notes.js` (client-only display, never edge-imported); FIELDNOTES-1 requires exactly one per MONSTERS id, so a new monster ships with its note.
 
 ⚠ **A drop row is a SERVER FAUCET** (hr-accrue mints it into a tradeable
 inventory), so it ships in lane C order: **Security GO → hr-accrue edge deploy →

@@ -175,6 +175,8 @@
     "node tests/no-duplicate-toplevel-fns.mjs": "client-guards",
     "node tests/quest-reward-parity.mjs": "client-guards",
     "node tests/quest-reward-parity.mjs --selftest": "client-guards",
+    "node tests/item-flavour-coverage.mjs": "client-guards",
+    "node tests/item-flavour-coverage.mjs --selftest": "client-guards",
     "node tests/plot-tier-parity.mjs": "client-guards",
     "node tests/plot-tier-parity.mjs --selftest": "client-guards",
     "node tests/plot-tier-parity.mjs --mutate": "client-guards",

@@ -436,6 +436,9 @@ export default [
      and none may overflow its own box. RED before the fix (every T1 card). */
   () => tryRun('b555: every War Table tile shows its whole weakness + HP line at 922x423', () => {
     const { CS, G, restore } = combatScreen();
+    /* The tier is not in snapshotG: put it back and repaint while the tab is
+       still showing, or a later sweep meets a hidden T6 grid mid-load. */
+    const tier0 = G.currentCombatTier;
     let bad = [], seen = 0, cardW = 0;
     try {
       window.showTab('combat');
@@ -478,7 +481,11 @@ export default [
           });
         }
       } finally { frame.remove(); }
-    } finally { restore(); }
+    } finally {
+      if (tier0 === undefined) delete G.currentCombatTier; else G.currentCombatTier = tier0;
+      try { CS.render(); } catch (e) {}
+      restore();
+    }
     assert(seen >= 6, 'the probe measured only ' + seen + ' stat/badge nodes in the 922x423 frame');
     assert(cardW > 0 && cardW < 140, 'the frame did not reach the phone layout (tile ' + cardW + 'px wide)');
     assert(bad.length === 0, 'THE b555 BUG: ' + bad.length + ' War Table stat line(s) clipped at 922x423 — ' + bad.slice(0, 4).join('; '));

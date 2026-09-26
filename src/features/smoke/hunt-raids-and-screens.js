@@ -3497,12 +3497,15 @@ export default [
 
       const m0 = H.__firstDayModel();
       assert(m0, 'a fresh character has an open chain — the card must draw');
-      /* THE COUNT IS THE DATA'S, NEVER FIVE. Five today, six the day the
-         `first_light` capstone row lands; asserting a literal here is how a
-         lane-C row would arrive and silently not be shown. */
-      assert(m0.total === window.QUEST_DEFS.length,
-        'the card must render every chain row the data declares: QUEST_DEFS has '
-        + window.QUEST_DEFS.length + ', the card drew ' + m0.total);
+      /* THE COUNT IS THE DATA'S, NEVER FIVE. The first day is every QUEST_DEFS
+         row with no `chain` (a `chain:'road'` row is a later line with its own
+         card — ROAD-4); asserting a literal here is how a lane-C row would
+         arrive and silently not be shown. Re-derived, not loosened: every
+         first-day row the data declares must still be drawn. */
+      const dayDefs = window.QUEST_DEFS.filter((d) => !d.chain);
+      assert(m0.total === dayDefs.length,
+        'the card must render every first-day row the data declares: QUEST_DEFS has '
+        + dayDefs.length + ' with no chain, the card drew ' + m0.total);
       assert(m0.steps.length === m0.total, 'model.total must equal the rows drawn');
       assert(m0.steps[0].id === 'gatherer', 'row 1 must be the first authored step, got ' + m0.steps[0].id);
       assert(m0.currentIndex === 0 && m0.steps[0].state === 'current',

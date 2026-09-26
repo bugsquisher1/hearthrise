@@ -313,9 +313,16 @@
        can carry its own tie-break tier: a QUEST_DEFS row is the first-day
        chain (the surface Home pins above "Next up"), a daily task resets at
        midnight. Both are "open goals"; only their tie-break rank differs. */
+    /* A row with a `chain` (the Journeyman's Road) is a LATER line: it is not a
+       candidate while any first-day row is still open, the same rule that keeps
+       its card off Home (home-dashboard.js roadModel). Otherwise a day-one
+       player with 30 gathers would be told "Gather 500 resources" is next. */
     var open = [];
-    if(Array.isArray(window.G.quests))
-      open = open.concat(window.G.quests.filter(q => !q.done).map(q => ({ q: q, tier: TIER_CHAIN })));
+    if(Array.isArray(window.G.quests)){
+      var dayOpen = window.G.quests.some(q => q && !q.done && !q.chain);
+      open = open.concat(window.G.quests.filter(q => q && !q.done && (!q.chain || !dayOpen))
+        .map(q => ({ q: q, tier: TIER_CHAIN })));
+    }
     if(window.G.daily && Array.isArray(window.G.daily.tasks))
       open = open.concat(window.G.daily.tasks.filter(t => !t.done).map(t => ({ q: t, tier: TIER_DAILY })));
     for(var j = 0; j < open.length; j++){

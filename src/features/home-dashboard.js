@@ -996,23 +996,29 @@
      fresh boot and credited by `hr_claim_quest`. This card renders no new
      content and computes no new number.
 
-     THE CHAIN IS `QUEST_DEFS`, IN ITS AUTHORED ORDER. Not a list of ids here.
-     Two properties fall out of that and both are load-bearing:
-       · It is DATA. Five rows today; six the moment the `first_light` capstone
-         row lands in the catalogue — no edit in this file, and no count typed
-         anywhere in it (the header reads "Step 2 of N", derived).
+     THE CHAIN IS `QUEST_DEFS`, IN ITS AUTHORED ORDER, FILTERED BY `chain`.
+     Not a list of ids here. Two properties fall out of that and both are
+     load-bearing:
+       · It is DATA. The first day is every row with NO `chain` field — five
+         today — and no count is typed anywhere in this file (the header reads
+         "Step 2 of N", derived).
        · It never invents progress. A def with no matching row in `G.quests` is
          not drawn at all. `G.quests` is the projected save state; a card that
          showed 0/15 for a quest the player does not hold would be the
          residue-ahead shape one surface over (CLAUDE §6).
 
-     THE CONTRACT AT SCALE: `QUEST_DEFS` is the FIRST DAY. Adding a row there
-     adds a step to this card, uncapped and unwindowed on purpose — a cap would
-     mean a catalogue row could ship and never be shown, the exact failure this
-     feature exists to end. A quest that is not part of a new player's first
-     session belongs in a pool (DAILY_TASK_POOL, the goal catalogue) with its own
-     surface; a long-arc quest LINE wants its own table and its own section, not
-     a thirtieth row under "Your first day".
+     THE CONTRACT AT SCALE: a QUEST_DEFS row with no `chain` is the FIRST DAY.
+     Adding one adds a step to "Your first day", uncapped and unwindowed on
+     purpose — a cap would mean a catalogue row could ship and never be shown,
+     the exact failure this feature exists to end. A quest LINE past the first
+     day carries a `chain` key and gets its OWN card from the same model:
+     `chain:'road'` is the Journeyman's Road (content pack 7), drawn only once
+     the first day is finished and while a road step is open. ONE card is on
+     screen at a time — the first day always wins — so a veteran never reads
+     "Step 7 of 11" under "Your first day". A new line is a new `chain` value
+     plus a row in CHAIN_CARDS below; never a thirtieth row in someone else's
+     card. A quest that is not a line at all belongs in a pool (DAILY_TASK_POOL,
+     the goal catalogue) with its own surface.
 
      WHAT THIS MAY NOT DO: grant, complete, claim or persist anything.
      `completeQuest` fires the claim; `hrSweepUnclaimedQuests` recovers a dropped
@@ -1047,10 +1053,13 @@
        ahead      an open step further down. NOT "locked" — every row in the
                   chain counts from the first minute, and a padlock would be
                   this card's first lie. */
-  function firstDayModel() {
+  /* `chain` null = the first day (no `chain` field); a string = that line. */
+  function chainModel(chain) {
     var G = window.G;
     if (!G || !Array.isArray(G.quests)) return null;
-    var defs = Array.isArray(window.QUEST_DEFS) ? window.QUEST_DEFS : [];
+    var defs = (Array.isArray(window.QUEST_DEFS) ? window.QUEST_DEFS : []).filter(function (def) {
+      return def && (chain ? def.chain === chain : !def.chain);
+    });
     if (!defs.length) return null;
     var byId = {};
     G.quests.forEach(function (q) { if (q && q.id && !byId[q.id]) byId[q.id] = q; });
@@ -1082,8 +1091,18 @@
        chain that is finished — including one whose last reward is still in
        flight — has nothing left to tell a player, so it leaves the screen. */
     if (currentIndex < 0) return null;
-    return { steps: steps, currentIndex: currentIndex, total: steps.length };
+    return { steps: steps, currentIndex: currentIndex, total: steps.length, chain: chain || null };
   }
+  function firstDayModel() { return chainModel(null); }
+  /* The Road: only once the first day has nothing open, and a road step does. */
+  function roadModel() {
+    if (firstDayModel()) return null;
+    return chainModel('road');
+  }
+  var CHAIN_CARDS = {
+    '': 'Your first day',
+    road: "Journeyman's Road",
+  };
 
   /* The reward, in the player's words. Names come from ITEMS via itemName()
      (`.n`, the display name) — never the id: "5x small_bones" is a bug this
@@ -1102,9 +1121,13 @@
     return bits.join('<span class="hd-fl-sep">·</span>');
   }
 
+  /* Both chain cards draw through this, so the Road reuses every First Light
+     class (and the 44px phone rows). `hd-chain-<key>` is a suite hook. */
   function firstDayHtml(model) {
     if (!model) return '';
-    var out = '<div class="hd-firstlight"><div class="hd-h"><h3>Your first day</h3>' +
+    var key = model.chain || '';
+    var out = '<div class="hd-firstlight' + (key ? ' hd-chain-' + esc(key) : '') + '"><div class="hd-h"><h3>' +
+      esc(CHAIN_CARDS[key] || CHAIN_CARDS['']) + '</h3>' +
       '<span class="hd-fl-count">Step ' + (model.currentIndex + 1) + ' of ' + model.total + '</span>' +
       '</div><div class="hd-rows">';
     model.steps.forEach(function (s, i) {
@@ -1378,8 +1401,10 @@
        for a brand-new account that one row was a skill. The chain goes above
        it because on day one it IS the game, and it removes itself the moment
        the last step is finished — see firstDayModel(). */
+    /* One chain card at a time; render() and wire() read `chainCard`. */
     var firstDay = firstDayModel();
-    html += firstDayHtml(firstDay);
+    var chainCard = firstDay || roadModel();
+    html += firstDayHtml(chainCard);
 
     /* ── AND THEN "NEXT UP" MUST NOT SAY IT AGAIN ──────────────────────────
        IT IS A CLASS, NOT ONE ROW. `getNextMilestone()` picks the closest OPEN
@@ -1397,7 +1422,7 @@
     var mileWasDup = false;
     if (mile && mile.kind === 'quest' && mile.goal) {
       var mid = mile.goal.id;
-      var inChain = !!(firstDay && mid && firstDay.steps.some(function (s) { return s.id === mid; }));
+      var inChain = !!(chainCard && mid && chainCard.steps.some(function (s) { return s.id === mid; }));
       var inTasks = tasks.some(function (t) { return t === mile.goal || (mid && t && t.id === mid); });
       mileWasDup = inChain || inTasks;
       if (mileWasDup) mile = null;
@@ -1719,10 +1744,10 @@
     html += '</div></div></div>';
 
     root.innerHTML = html;
-    wire(root, tasks, mile, resume, firstDay);
+    wire(root, tasks, mile, resume, chainCard);
   }
 
-  function wire(root, tasks, mile, resume, firstDay) {
+  function wire(root, tasks, mile, resume, chainCard) {
     // Your heroes — switch / buy, both routed through the SHARED helpers so Home
     // and the drawer act identically (switchSlot → reload is preserved inside
     // selectSlot). Separate from the [data-hd] table below because these carry a
@@ -1775,13 +1800,13 @@
           else if (kind === 'mile' && mile && mile.deepLink) { mile.deepLink(); }
           else if (kind === 'allquests') { openQuests(); }
           else if (kind === 'q') { var i = +el.getAttribute('data-i'); var t = tasks[i]; if (t) questRoute(t).go(); }
-          /* First Light. The ROW is the door on every step — its CTA carries no
+          /* First Light (and the Road — one card at a time). The ROW is the door on every step — its CTA carries no
              `data-hd`, so a click on the button bubbles to exactly this one
              handler — and it routes through the shared resolver, never a
              private route table. */
           else if (kind === 'fl') {
             var fi = +el.getAttribute('data-i');
-            var step = firstDay && firstDay.steps && firstDay.steps[fi];
+            var step = chainCard && chainCard.steps && chainCard.steps[fi];
             if (step && step.goalRow) questRoute(step.goalRow).go();
           }
           else if (kind === 'active') { nav('profile'); if (window.G.activeMonster) nav('combat'); else nav('skills'); }
@@ -1840,6 +1865,7 @@
     __awayCardHtml: awayCardHtml,
     __awayBankingRow: awayBankingRow,
     __firstDayModel: firstDayModel,
+    __roadModel: roadModel,
     __firstDayHtml: firstDayHtml,
     retreatSentence: retreatSentence,
   };

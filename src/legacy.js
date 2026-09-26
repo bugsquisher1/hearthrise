@@ -2070,8 +2070,8 @@ function creditServerAwayKills(summary){
   /* The this-fight streak resumes only if the same fight is still standing — a
      death ended it and the next startCombat resets it to 0 anyway. */
   if(G.activeMonster&&!(s.combat&&s.combat.died)) G.combatKillsThisFoe=(G.combatKillsThisFoe||0)+k;
-  /* stats.kills is set ABOVE this, so the mirrored `hundred_kills` quest
-     (mirror:'stats.kills') reads the post-credit total; a non-mirror kill_any
+  /* The mirrored kill quests (hundred_kills, road_hunt) read stats.evKillAny,
+     the server's projection, not this client tally; a non-mirror kill_any
      quest and the kill_any dailies add `k`. An observer that throws must never
      eat the credit, hence the guards. */
   try{ if(typeof updateDaily==='function') updateDaily('kill_any',k); }catch(e){}
@@ -5176,10 +5176,9 @@ const QUEST_DEFS=[
      It is now an ordinary QUEST_DEFS row and nothing anywhere reads it as a
      permission. If you are here to re-add a precondition, read processOffline.
 
-     It MIRRORS `stats.kills` rather than counting `kill_any` events, so it is
-     correct on a save that already had the kills before the quest existed and
-     it cannot drift from the counter it displays. (That property is why the
-     row survived the gate's removal unchanged.)
+     It MIRRORS `stats.evKillAny` (the server's ev:kill_any, projected), never
+     the client-only `stats.kills`, which ran up to 368 ahead of the server on
+     live — a §6 "client shows X, server refuses" bar.
 
      THE REWARD: 1,500 combat XP, routed through the player's active style
      exactly the way a kill routes (src/core/styles.js killXpRoute), so a bow
@@ -5199,11 +5198,19 @@ const QUEST_DEFS=[
        • Against the 57.2-day first-99 floor (`pacing-overhaul.md` A.2):
          1,500 / 13,034,431 = 0.0115% of one skill's first 99. It cannot
          distort the first hour because it is not a rate. */
-  {id:'hundred_kills',type:'kill_any',mirror:'stats.kills',
+  {id:'hundred_kills',type:'kill_any',mirror:'stats.evKillAny',
    label:'Defeat 100 monsters',goal:100,progress:0,
    reward:{combatXp:1500},
    note:'One hundred monsters down — you have the measure of a fight now.',
    done:false},
+  /* JOURNEYMAN'S ROAD (chain:'road', own Home card): mirrors server ev:* projections; server-paid.
+     "in all" (ruling B2) keeps the labels apart from weeklies wk_smith/wk_craft. */
+  {id:'road_forge',chain:'road',type:'smithed',mirror:'stats.evSmithed',label:'Smith 60 items in all',goal:60,progress:0,reward:{gold:700,item:'iron_pickaxe',qty:1},note:'Sixty pieces off the anvil. Take this pick: iron waits at Mining 15.',done:false},
+  {id:'road_craft',chain:'road',type:'crafted',mirror:'stats.evCrafted',label:'Craft 60 items in all',goal:60,progress:0,reward:{gold:700,item:'iron_axe',qty:1},note:'Sixty things made by hand. This axe will keep the sawmill fed.',done:false},
+  {id:'road_cook',chain:'road',type:'cooked',mirror:'stats.evCooked',label:'Cook 60 dishes',goal:60,progress:0,reward:{gold:600,item:'oak_rod',qty:1},note:'Sixty meals cooked. A better rod means more fish for the pan.',done:false},
+  {id:'road_gather',chain:'road',type:'gather',mirror:'stats.evGather',label:'Gather 500 resources',goal:500,progress:0,reward:{gold:1000},note:'Five hundred loads hauled. The homestead is built on this.',done:false},
+  {id:'road_hunt',chain:'road',type:'kill_any',mirror:'stats.evKillAny',label:'Defeat 500 monsters',goal:500,progress:0,reward:{gold:1500,item:'bone_key',qty:1},note:'Five hundred down. The Crypt of Bones opens at combat 25, and this key fits its door.',done:false},
+  {id:'road_harvest',chain:'road',type:'harvest',mirror:'stats.harvested',label:'Harvest 40 crops',goal:40,progress:0,reward:{gold:1500,item:'potato_seed',qty:10},note:'Forty crops in. Potatoes grow at Farming 30.',done:false},
 ];
 window.QUEST_DEFS=QUEST_DEFS;
 
@@ -5252,6 +5259,8 @@ const MIRRORED_QUEST_SOURCES={
      so this reads a number hr_claim_quest can and does verify. */
   'stats.harvested':function(g){ var n=Number((g&&g.stats&&g.stats.harvested)||0); return (isFinite(n)&&n>0)?Math.floor(n):0; },
 };
+/* Journeyman's Road: dedicated projections (see EVENT_COUNTER_PROJECTION), same defensive shape. */
+['evSmithed','evCrafted','evCooked','evGather','evKillAny'].forEach(function(f){ MIRRORED_QUEST_SOURCES['stats.'+f]=function(g){ var n=Number((g&&g.stats&&g.stats[f])||0); return (isFinite(n)&&n>0)?Math.floor(n):0; }; });
 function mirroredQuestValue(key){
   const f=MIRRORED_QUEST_SOURCES[key];
   return f?f(G):0;
@@ -5819,7 +5828,7 @@ function completeQuest(q){
   /* b414: quest gold is now SERVER-CREDITED. hr_claim_quest
      (2026-08-20-goal-reward-rpc-credit.sql) VERIFIES completion from the
      server's own kind='stat' ev:<type> lifetime counter (a mirrored quest like
-     hundred_kills reads ev:kill_any, which equals stats.kills), owns the fixed
+     road_hunt shows stats.evKillAny, the projection OF ev:kill_any), owns the fixed
      gold amount, once-guards per quest id and journals it. The b411 whole-
      completion defer is LIFTED: the quest completes (done + item + XP) even
      under arm, and the gold arrives from the server. The local G.gold write is a

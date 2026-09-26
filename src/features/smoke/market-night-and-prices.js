@@ -2829,16 +2829,18 @@ export default [
     }
   }),
 
-  () => tryRun('QUEST-100: the hundred-kill milestone is an ordinary QUEST — it reaches an existing save, mirrors stats.kills, pays authored combat XP once, and never pays twice across the b343 rename', () => {
+  () => tryRun('QUEST-100: the hundred-kill milestone is an ordinary QUEST — it reaches an existing save, mirrors the server-projected stats.evKillAny, pays authored combat XP once, and never pays twice across the b343 rename', () => {
     const G = window.G;
     const ID = 'hundred_kills';
     const snap = snapshotG();
+    const origClaim = window.HearthriseGoalClaim;
+    window.HearthriseGoalClaim = { isSignedIn: () => false, claimQuest: () => Promise.resolve({ ok: false, error: 'test_stub_road_hunt_completes_past_500' }) };
     try {
       const def = (window.QUEST_DEFS || []).find((q) => q.id === ID);
       assert(def, 'the hundred-kill milestone must be a QUEST_DEFS row, not bespoke UI');
       assert(def.goal === 100, 'the goal must be 100 monsters, got ' + def.goal);
-      assert(def.mirror === 'stats.kills',
-        'the quest must MIRROR stats.kills, or the counter drifts from the number it displays');
+      assert(def.mirror === 'stats.evKillAny',
+        'the quest must MIRROR stats.evKillAny (the projection of ev:kill_any), got ' + def.mirror);
       assert(def.reward && def.reward.combatXp === 1500,
         'the reward must be the authored 1,500 combat XP, got ' + JSON.stringify(def.reward));
       assert(!def.reward.marks && !def.reward.gold, 'it pays XP, not marks and not gold');
@@ -2852,7 +2854,7 @@ export default [
       /* (1) IT REACHES AN EXISTING SAVE. Seeding "only when the array is
          empty" is why a quest added after launch used to reach nobody. */
       G.quests = [{ id: 'gatherer', type: 'gather', label: 'old', goal: 15, progress: 15, reward: { gold: 150 }, done: true }];
-      G.stats = Object.assign({}, G.stats, { kills: 40 });
+      G.stats = Object.assign({}, G.stats, { evKillAny: 40 });
       window.ensureRetentionState();
       const q = G.quests.find((x) => x.id === ID);
       assert(q, 'the quest never reached a save that already had quests');
@@ -2860,11 +2862,11 @@ export default [
 
       /* (2) IT MIRRORS. A save that already had 40 kills shows 40/100 the
          moment the quest appears — an event counter would show 0. */
-      assert(q.progress === 40, 'the counter must mirror stats.kills, got ' + q.progress);
-      G.stats.kills = 77;
+      assert(q.progress === 40, 'the counter must mirror stats.evKillAny, got ' + q.progress);
+      G.stats.evKillAny = 77;
       window.updateQuest('kill_any', 1);
       assert(G.quests.find((x) => x.id === ID).progress === 77,
-        'the counter drifted from stats.kills — it must READ, never count');
+        'the counter drifted from stats.evKillAny — it must READ, never count');
       assert(!G.quests.find((x) => x.id === ID).done, 'the quest completed below its goal');
 
       /* (3) IT PAYS, ONCE, AS AN AUTHORED PAYOUT ROUTED LIKE A KILL. */
@@ -2875,7 +2877,7 @@ export default [
         const route = window.HearthriseCore.styles.killXpRoute(style, def.reward.combatXp, 1);
         assert(route.length > 0, 'the style must route the reward somewhere');
         const before = {}; route.forEach((r) => { before[r.skill] = xpOf(r.skill); });
-        G.stats.kills = 100;
+        G.stats.evKillAny = 100;
         window.updateQuest('kill_any', 1);
         const done = G.quests.find((x) => x.id === ID);
         assert(done.done === true, 'the quest did not complete at 100 kills');
@@ -2890,7 +2892,7 @@ export default [
         });
         /* ONCE. Another 500 kills pays nothing more. */
         const after = {}; route.forEach((r) => { after[r.skill] = xpOf(r.skill); });
-        G.stats.kills += 500;
+        G.stats.evKillAny += 500;
         window.updateQuest('kill_any', 1);
         route.forEach((r) => {
           assert(xpOf(r.skill) === after[r.skill], 'the milestone paid twice on ' + r.skill);
@@ -2909,7 +2911,7 @@ export default [
           { id: 'field_licence', type: 'kill_any', mirror: 'stats.kills', label: 'Field Licence — defeat 100 monsters',
             goal: 100, progress: 100, reward: { combatXp: 1500 }, done: true },
         ];
-        G.stats.kills = 4000;
+        G.stats.evKillAny = 4000;
         window.ensureRetentionState();
         window.updateQuest('kill_any', 1);
         const rows = G.quests.filter((x) => x.id === ID || x.id === 'field_licence');
@@ -2926,7 +2928,7 @@ export default [
         /* An IN-FLIGHT row keeps its place too, and is still payable. */
         G.quests = [{ id: 'field_licence', type: 'kill_any', mirror: 'stats.kills', label: 'old',
           goal: 100, progress: 62, reward: { combatXp: 1500 }, done: false }];
-        G.stats.kills = 62;
+        G.stats.evKillAny = 62;
         window.ensureRetentionState();
         const mid = G.quests.filter((x) => x.id === ID);
         assert(mid.length === 1 && mid[0].done === false && mid[0].progress === 62,
@@ -2948,7 +2950,7 @@ export default [
           reward: { combatXp: 1500 }, done: false });
         [['old first', [oldRow(), newRow()]], ['fresh first', [newRow(), oldRow()]]].forEach(([label, rows2]) => {
           G.quests = rows2;
-          G.stats.kills = 4000;
+          G.stats.evKillAny = 4000;
           const held = {}; route.forEach((r) => { held[r.skill] = G.skills[r.skill] || 0; });
           window.ensureRetentionState();
           window.updateQuest('kill_any', 1);
@@ -2965,7 +2967,7 @@ export default [
           });
         });
       } finally { window.getBonus = origBonus; }
-    } finally { restoreG(snap); }
+    } finally { window.HearthriseGoalClaim = origClaim; restoreG(snap); }
   }),
 
   /* ── AWAY-HONEST-5 — THE TOUR'S AWAY PROMISE, BOUND TO THE AWAY ENGINE ──────────────────────────

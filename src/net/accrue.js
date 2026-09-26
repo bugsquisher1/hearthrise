@@ -3268,6 +3268,22 @@ export const EVENT_COUNTER_PROJECTION = Object.freeze([
      server-mirrored" set from — add a row, and any goal reading that stat is
      baseline-protected without touching the goal code. */
   Object.freeze({ key: 'ev:planted', stat: 'planted' }),
+  /* ── JOURNEYMAN'S ROAD (content pack 7) — DEDICATED targets, never shared ──
+     The road quests mirror these (legacy.js QUEST_DEFS chain:'road', plus
+     hundred_kills on evKillAny) and hr_claim_quest grades the same lifetime
+     keys. They land on NEW `ev*` leaves on purpose: stats.gathered / cooked /
+     smithed / crafted / kills already have live readers (DAILY_GOAL_POOL 'cook',
+     weeklies wk_smith / wk_craft / wk_cook, achievement cook_100, the
+     profile-launchpad day delta) and measured client/server divergence, and a
+     row here SETS its target — downward included — on a complete statement.
+     Projecting onto them would quietly re-baseline four goal-board fallbacks
+     (goalSourceMirrored derives from this table). ⚠ NEVER re-point one of
+     these at an existing stats field; add a new leaf. */
+  Object.freeze({ key: 'ev:gather',   stat: 'evGather' }),
+  Object.freeze({ key: 'ev:cooked',   stat: 'evCooked' }),
+  Object.freeze({ key: 'ev:smithed',  stat: 'evSmithed' }),
+  Object.freeze({ key: 'ev:crafted',  stat: 'evCrafted' }),
+  Object.freeze({ key: 'ev:kill_any', stat: 'evKillAny' }),
 ]);
 
 export function reconcileEventCounters(G, res) {

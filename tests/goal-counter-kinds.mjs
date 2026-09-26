@@ -51,7 +51,7 @@
 //   · the same character WITH a daily counter at target does complete it, so
 //     the check above is not passing because the fixture is broken;
 //   · the installed hr_claim_quest__ungated names no 'ev:planted' (with a
-//     positive control on the four keys it does name);
+//     positive control on the six keys it does name);
 //   · the migration is placed in tests/schema-apply-order.json with the exact
 //     "STAGED, NOT APPLIED - REVIEW ONLY; " prefix.
 //
@@ -63,10 +63,18 @@
 
 import { readFile } from 'node:fs/promises';
 import { bootReplay, MANIFEST_PATH } from './schema-replay.mjs';
+import { chainEndMigration } from './quest-reward-parity.mjs';
 
 const MIG = '2026-09-07-goal-counter-kind-check.sql';
 const CATALOGUE_MIG = '2026-08-23-modal-goal-claims.sql';
-const QUEST_MIG = '2026-09-06-quest-item-rewards.sql';
+/* THE QUEST BODY'S CHAIN END — the LAST file in schema-apply-order.json `order`
+   that creates hr_claim_quest__ungated. It was hard-coded to 2026-09-06 until
+   Journeyman's Road restated the body, which would have left the
+   quest_reads_planted mutation patching a SUPERSEDED body (so the planted arm
+   never reached the replay and the arm proved nothing). */
+const QUEST_END = await chainEndMigration(/create\s+or\s+replace\s+function\s+public\.hr_claim_quest__ungated\b/i);
+if (!QUEST_END) { console.error('goal-counter-kinds: no file in the apply order creates hr_claim_quest__ungated'); process.exit(2); }
+const QUEST_MIG = QUEST_END.file;
 const STAGED_PREFIX = 'STAGED, NOT APPLIED - REVIEW ONLY; ';
 
 const UID = '000000f8-0000-0000-0000-0000000000c1';
@@ -83,14 +91,29 @@ const PAYING_KINDS = ['daily', 'ledger_gold'];
    the constraint or teaching the quest CASE a new key, long after Sec 4 has
    stopped running. Each defect is therefore caught twice: once by the gate,
    once by the guard standing alone. */
+/* A LIST of [file, find, replace]: 2026-09-07's whole Sec 4, and the quest
+   chain end's OWN ev:planted gate (Journeyman's Road §4(c)), which would
+   otherwise refuse the quest_reads_planted mutation at apply time and leave the
+   gate-blind arm proving that file's gate instead of this guard. */
 const GATE_BLIND = [
-  MIG,
-  `begin
+  [MIG,
+    `begin
   -- (a) A validated check constraint pins the column, whatever its name.`,
-  `begin
+    `begin
   raise notice 'SEC 4 SHORT-CIRCUITED FOR THE MUTATION PROOF';
   return;
-  -- (a) A validated check constraint pins the column, whatever its name.`,
+  -- (a) A validated check constraint pins the column, whatever its name.`],
+  [QUEST_MIG,
+    `  if position('ev:planted' in v_src) > 0 then
+    raise exception 'VERIFY(c): hr_claim_quest__ungated names ev:planted`,
+    `  if false then
+    raise exception 'VERIFY(c): hr_claim_quest__ungated names ev:planted`],
+  /* …and its exact-arm-count check, which a FIFTH-style extra arm also trips. */
+  [QUEST_MIG,
+    `  if v_n <> 10 then
+    raise exception 'VERIFY(c): the body has % quest arm(s), expected 10', v_n;`,
+    `  if false then
+    raise exception 'VERIFY(c): the body has % quest arm(s), expected 10', v_n;`],
 ];
 
 /* ── MUTATIONS ─────────────────────────────────────────────────────────────
@@ -134,10 +157,12 @@ const MUTATIONS = {
     expect: 'red',
     why: 'THE PATH NO CONSTRAINT CAN REACH: a fifth quest branch grades the LIFETIME ev:planted '
        + 'counter, so all 27 backfilled characters can claim it for work done before it existed',
+    /* Anchored on a ROAD arm line, which exists only in the chain end — the
+       original four lines are quoted in its §0/§4 byte checks too. */
     patches: [[QUEST_MIG,
-      "    when 'farmhand'    then v_key := 'ev:harvest';  v_goal := 6;  v_gold := 500;",
-      "    when 'farmhand'    then v_key := 'ev:harvest';  v_goal := 6;  v_gold := 500;\n"
-      + "    when 'planter'     then v_key := 'ev:planted';  v_goal := 6;  v_gold := 500;"]],
+      "    when 'road_harvest' then v_key := 'ev:harvest'; v_goal := 40; v_gold := 1500;\n",
+      "    when 'road_harvest' then v_key := 'ev:harvest'; v_goal := 40; v_gold := 1500;\n"
+      + "    when 'planter' then v_key := 'ev:planted'; v_goal := 6; v_gold := 500;\n"]],
   },
   goal_state_reads_lifetime: {
     expect: 'red',
@@ -174,7 +199,7 @@ async function boot(name, gateBlind) {
     map.get(file).push([find, repl]);
   };
   if (name) for (const [f, find, repl] of MUTATIONS[name].patches) add(f, find, repl);
-  if (gateBlind) add(GATE_BLIND[0], GATE_BLIND[1], GATE_BLIND[2]);
+  if (gateBlind) for (const [f, find, repl] of GATE_BLIND) add(f, find, repl);
   const { db } = await bootReplay(map.size ? { patches: map } : undefined);
   return db;
 }
@@ -321,7 +346,7 @@ async function runAll(db) {
      "hr_claim_quest__ungated names NO 'ev:planted' — its quests grade LIFETIME stat counters from a "
      + 'hardcoded CASE, which is exactly the shape the plant backfill wrote, and no constraint on '
      + 'hr_goal_rewards can stop a branch being added here');
-  for (const k of ['ev:gather', 'ev:cooked', 'ev:kill_any', 'ev:harvest']) {
+  for (const k of ['ev:gather', 'ev:cooked', 'ev:kill_any', 'ev:harvest', 'ev:smithed', 'ev:crafted']) {
     ok(body.includes(k),
        `…and it still names ${k} — the positive control, without which the absence check above would `
        + 'pass on an empty or unrelated body');

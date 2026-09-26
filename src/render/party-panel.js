@@ -221,11 +221,15 @@
     var count = isFinite(Number(v.sizeCap))
       ? (members.length + ' of ' + num(v.sizeCap))
       : String(members.length);
+    /* NO ROSTER CAME BACK, so there is no length to print: the notice says the
+       read failed and the head carries no count rather than a "0" the realm
+       never stated (hr_party_view 405 / 25006, found live). */
+    var countHtml = v.rosterUnread ? '' : '<span class="party-count">' + esc(count) + '</span>';
 
     return '<div class="party-panel' + busy + '">'
       + '<div class="party-head">'
       +   '<h3 class="party-sub">Your party</h3>'
-      +   '<span class="party-count">' + esc(count) + '</span>'
+      +   countHtml
       +   (v.role === 'leader' ? '<span class="party-role">leader</span>' : '')
       + '</div>'
       + notice

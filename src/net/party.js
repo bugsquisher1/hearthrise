@@ -27,13 +27,13 @@
 // ── THE READ CADENCE IS THE SECURITY REVIEW'S, NOT A CONVENIENCE ────────────
 // docs/planning/SEC_PARTIES_M8_2026-09-23.md §5.3, findings B7 and B8:
 //
-//   B7  hr_party_view is declared `stable` and transitively writes (the rate
-//       bucket upserts). PostgREST runs a STABLE function in a READ ONLY
-//       transaction when it is invoked with GET, and there the counter upsert
-//       raises 25006 and the panel's only read surface fails hard. So this
-//       module POSTs it — `{ get: true }` is never passed, and rpcPost() is the
-//       ONLY door any verb or read leaves by, so there is no second call site
-//       that could acquire one.
+//   B7  hr_party_view transitively writes (the rate bucket upserts), so it
+//       must never run in a READ ONLY transaction. B7 assumed only GET did
+//       that; live play proved PostgREST opens one for ANY STABLE function,
+//       POST included (405 / 25006), so the function is now VOLATILE
+//       (2026-09-26-party-view-volatile.sql; tests/readonly-rpc.mjs). This
+//       module still POSTs everything through rpcPost(), the ONLY door, since
+//       PostgREST refuses a VOLATILE function over GET.
 //   B8  the read spends the SAME 12/min `party` bucket as the five write verbs.
 //       A panel polling at the envelope's cadence would spend half a player's
 //       own membership budget on looking at it. So the read happens exactly
@@ -226,6 +226,8 @@
       members: [],       // hr_party_view's frozen rows, verbatim
       invites: [],       // party_invite rows addressed to ME, live, unexpired
       notice: null,      // the sentence from my last refused gesture
+      rosterUnread: false, // in a party, but no roster read has landed for it
+      readNotice: null,    // the notice a failed roster read set; a landed read clears it
       busy: false,
       readAt: 0
     };
@@ -319,6 +321,7 @@
     var next = blank();
     next.notice = cur.notice;      // a refusal the player has not acknowledged
                                    // outlives the read that follows it
+    next.readNotice = cur.readNotice;
     var mine = await tableGet('party_member?select=party_id,role&left_at=is.null&slot=eq.'
       + encodeURIComponent(String(activeSlot())));
     if (stale()) return cur;               // the panel closed or reset under us
@@ -350,13 +353,26 @@
     if (stale()) return cur;
     if (view && view.ok === true && Array.isArray(view.members)) {
       next.members = view.members;
+      // The read landed, so the sentence saying it had not is now false.
+      if (cur.notice && cur.notice === cur.readNotice) next.notice = null;
     } else if (view && view.error === 'not_in_party') {
       /* The realm and my own row disagree, which means the row is stale — I was
          kicked or the party dissolved between the two reads. The SERVER wins:
          the panel shows the empty state, not a roster nothing backs. */
       next.partyId = null; next.role = null; next.sizeCap = null;
-    } else if (view && view.error) {
-      next.notice = refusalSentence(view.error);
+    } else {
+      /* THE ROSTER COULD NOT BE READ — a refusal, an HTTP error, or a PostgREST
+         {code,message} body with no `ok` at all (live: 405 / 25006). An
+         empty list here would paint "0 of 4" under a leader the realm just
+         seated. Keep the last roster read for this same party, else say so and
+         draw no count; never invent a member. */
+      var sameParty = cur.partyId === next.partyId && Array.isArray(cur.members) && cur.members.length;
+      next.members = sameParty ? cur.members : [];
+      next.rosterUnread = !sameParty;
+      if (next.rosterUnread) {
+        next.notice = next.readNotice = (view && view.error && SENTENCES[String(view.error)])
+          || 'Could not load your party right now.';
+      }
     }
     return put(next);
   }

@@ -36,6 +36,7 @@ const partyRig = () => {
     invites: [{ id: 'inv-1', party_id: 'P9', created_at: new Date().toISOString(),
                 expires_at: new Date(Date.now() + 11 * 60000).toISOString() }],
     inviteAnswer: { ok: false, error: 'invite_target_unavailable' },
+    deadView: null,   // PARTY-8: when set, every roster read answers this instead
   };
   const answer = (u) => {
     if (u.indexOf('/rpc/hr_party_create') !== -1) {
@@ -60,7 +61,7 @@ const partyRig = () => {
       world.member = []; world.view = null;
       return { ok: true, left: true, dissolved: true, members: 0 };
     }
-    if (u.indexOf('/rpc/hr_party_view') !== -1) return world.view || { ok: false, error: 'not_in_party' };
+    if (u.indexOf('/rpc/hr_party_view') !== -1) return world.deadView || world.view || { ok: false, error: 'not_in_party' };
     if (u.indexOf('party_member?') !== -1) return world.member;
     if (u.indexOf('party_invite?') !== -1) return world.invites;
     if (u.indexOf('party?select=id,size_cap') !== -1) return world.member.length ? [{ id: 'P1', size_cap: 4 }] : [];
@@ -73,6 +74,10 @@ const partyRig = () => {
     try { body = (init && init.body) ? JSON.parse(init.body) : null; } catch (e) { body = null; }
     calls.push({ url: u, method, body });
     const payload = answer(u);
+    // `{ __http, body }` answers a non-200 the way PostgREST does (PARTY-8).
+    if (payload && payload.__http) {
+      return Promise.resolve({ ok: false, status: payload.__http, json: () => Promise.resolve(payload.body) });
+    }
     return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(payload) });
   };
   /* WHO THE LOCAL PLAYER IS — the panel marks your own row and withholds Remove
@@ -4042,5 +4047,39 @@ export default [
     });
     assert(P.refusalSentence('rate_limited') === 'Slow down a moment.', 'the party bucket must say "Slow down a moment"');
     assert(P.refusalSentence('what_is_this') === 'That did not work.', 'an unmapped code must still say something');
+  }),
+
+  /* PARTY-8 (regression, found live 2026-09-26) — hr_party_view was STABLE and
+     wrote the rate bucket, so PostgREST ran it READ ONLY and every roster read
+     answered 405 {code:25006}. The body had no `ok` and no `error`, so the
+     panel painted "Your party 0 of 4 / LEADER" with no rows and no word why.
+     Server half: 2026-09-26-party-view-volatile.sql + tests/readonly-rpc.mjs. */
+  () => tryRunAsync('M8 PARTY-8: a roster read that fails (405 / 25006) never paints "0 of 4" — it says so, and keeps a known roster', async () => {
+    const rig = partyRig();
+    const DEAD = { __http: 405, body: { code: '25006', details: null, hint: null,
+      message: 'cannot execute INSERT in a read-only transaction' } };
+    try {
+      // 1. Exactly the live sequence: form a party, and the re-read that follows
+      //    the create fails. No count, no rows, one plain notice.
+      rig.world.deadView = DEAD;
+      await rig.open();
+      rig.el('[data-party-act="create"]').click();
+      await drain(); await drain();
+      assert(rig.rpcs('hr_party_view').length >= 1, 'the create was not followed by a roster read');
+      assert(/Your party/.test(rig.text()), 'the leader is not shown their party: ' + rig.text().slice(0, 160));
+      assert(!/\b0 of 4\b/.test(rig.text()), 'a failed roster read painted "0 of 4": ' + rig.text().slice(0, 160));
+      assert(/Could not load your party right now/.test(rig.text()), 'no notice said the roster read failed: ' + rig.text().slice(0, 200));
+      assert(!document.querySelector('#party-panel .party-member'), 'a failed read drew a member row');
+      // 2. A read lands, then fails again: the last known roster stands.
+      rig.world.deadView = null;
+      await window.HearthriseParty.refresh('test'); await drain();
+      assert(/1 of 4/.test(rig.text()) && /Wren/.test(rig.text()), 'the recovered read is not rendered: ' + rig.text().slice(0, 160));
+      assert(!/Could not load your party/.test(rig.text()), 'the failed-read notice outlived a read that landed: ' + rig.text().slice(0, 200));
+      rig.world.deadView = DEAD;
+      await window.HearthriseParty.refresh('test'); await drain();
+      assert(/Wren/.test(rig.text()) && /1 of 4/.test(rig.text()), 'a failed read threw away the known roster: ' + rig.text().slice(0, 160));
+    } finally {
+      rig.restore();
+    }
   }),
 ];

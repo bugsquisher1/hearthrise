@@ -6,7 +6,27 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 43 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, predZero, snapshotG, drain, stubSignedIn, restoreG, zeroRenownTerms, restoreRenownTerms, on } from './_harness.js?v=553';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, predZero, snapshotG, drain, stubSignedIn, restoreG, zeroRenownTerms, restoreRenownTerms, on, withClaimServer, goldOf } from './_harness.js?v=553';
+
+/* LEDGER OF FIRSTS — the collection-log rungs read the SERVER mirrors, which
+   are `_` scratch outside snapshotG. Each test saves and restores them by
+   reference so no seeded count outlives its test. */
+const MIRROR_KEYS = ['_bestiaryTrophies', '_collectionServer', '_collectionServerClaimed'];
+const saveMirrors = () => {
+  const G = window.G || {};
+  const out = {};
+  for (const k of MIRROR_KEYS) out[k] = Object.prototype.hasOwnProperty.call(G, k) ? { v: G[k] } : null;
+  return out;
+};
+const restoreMirrors = (saved) => {
+  const G = window.G; if (!G || !saved) return;
+  for (const k of MIRROR_KEYS) { if (saved[k]) G[k] = saved[k].v; else delete G[k]; }
+};
+/* The hr_bestiary_of mirror the settle writes, seeded directly: `ids` killed once. */
+const seedServerMonsters = (ids) => {
+  const kbm = Object.create(null); ids.forEach((m) => { kbm[m] = 1; });
+  window.G._bestiaryTrophies = { killsByMonster: kbm, index: Object.create(null), hasTrophyKey: false, claimed: new Set() };
+};
 
 export default [
 
@@ -321,6 +341,7 @@ export default [
     const monIds = Object.keys(window.MONSTERS).slice(0, 10);
     if (monIds.length < 10) return;
     const snap = snapshotG();
+    const mirrors = saveMirrors();
     const origMay = window.clientMayWriteRecordField;
     const origFetch = window.fetch;
     let unstub = () => {};
@@ -341,8 +362,9 @@ export default [
         }
         return Promise.resolve(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
       };
-      // Seed 10 discovered monsters so 'hunter10' (reward gold:2000) tests true.
-      window.G.bestiary = {}; monIds.forEach((m) => { window.G.bestiary[m] = { kills: 1 }; });
+      // Seed 10 SERVER-counted monsters (the hr_bestiary_of mirror — the only
+      // thing that earns a rung since the Ledger of Firsts) so hunter10 is earned.
+      seedServerMonsters(monIds);
 
       // ── CONTROL (pre-arm): the claim pays LOCALLY as a display prediction.
       window.clientMayWriteRecordField = function () { return true; };
@@ -373,6 +395,7 @@ export default [
       unstub();
       window.HearthriseRecord = origRec;
       if (C.__resetClaimState) C.__resetClaimState();
+      restoreMirrors(mirrors);
       restoreG(snap);
     }
   }),
@@ -391,6 +414,7 @@ export default [
     const monIds = Object.keys(window.MONSTERS).slice(0, 12);
     if (monIds.length < 12) return;
     const snap = snapshotG();
+    const mirrors = saveMirrors();
     const origMay = window.clientMayWriteRecordField;
     const origFetch = window.fetch;
     let unstub = () => {};
@@ -412,11 +436,11 @@ export default [
         return Promise.resolve(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
       };
       window.clientMayWriteRecordField = function (f) { return f !== 'gold' && f !== 'gems'; };  // ARMED
-      window.G.bestiary = {}; monIds.forEach((m) => { window.G.bestiary[m] = { kills: 1 }; });
+      seedServerMonsters(monIds);
       window.G.collectionLog = { claimed: [] };
       predZero(); window.G.gold = 0;
 
-      assert(C.claimable(window.G).some((m) => m.id === 'hunter10'), 'hunter10 must be claimable at 12 monsters');
+      assert(C.claimable(window.G).some((m) => m.id === 'hunter10'), 'hunter10 must be claimable at 12 server-counted monsters');
       const out = await C.claimMilestone('hunter10', window.G);
 
       assert(claimCalls === 1, 'the claim must reach the server exactly once; saw ' + claimCalls);
@@ -456,6 +480,135 @@ export default [
       window.HearthriseRecord = origRec;
       window.notify = origNotify;
       if (C.__resetClaimState) C.__resetClaimState();
+      restoreMirrors(mirrors);
+      restoreG(snap);
+    }
+  }),
+
+  /* ── LEDGER OF FIRSTS (2026-09-27) — A RUNG IS EARNED ONLY BY THE SERVER'S COUNT ──
+     hr_claim_milestone verifies against hr_bestiary_of / hr_collection_of. The
+     log used to decide "earned" from G.bestiary (attended kills, runs ahead of
+     the server) and G.collection (the bag — gathered, crafted, bought) and so
+     offered Claim on rungs the server answered `incomplete` (CLAUDE.md §6).
+     Every test below seeds the RESIDUE richer than the SERVER, so pointing the
+     gate back at G.bestiary / G.collection turns it red. */
+  () => tryRunAsync('LEDGER-1: server 25 monsters (residue 40) — hunter25 claimable, hunter40 NOT; a credit marks it, a replay says already claimed', async () => {
+    const C = window.HearthriseCollection;
+    if (!C || typeof C.claimMilestone !== 'function' || !window.MONSTERS || typeof window.hrNoteServerTrophies !== 'function') {
+      return skip('HearthriseCollection / hrNoteServerTrophies not loaded');
+    }
+    const ids = Object.keys(window.MONSTERS);
+    if (ids.length < 40) return skip('fewer than 40 monsters');
+    const snap = snapshotG();
+    const mirrors = saveMirrors();
+    const origMay = window.clientMayWriteRecordField;
+    const origNotify = window.notify;
+    const said = [];
+    try {
+      window.clientMayWriteRecordField = function (f) { return f !== 'gold' && f !== 'gems'; };  // ARMED
+      window.notify = (m) => { said.push(String(m || '')); };
+      window.G.bestiary = {}; ids.slice(0, 40).forEach((m) => { window.G.bestiary[m] = { kills: 3 }; });
+      // The SERVER half, through the real adopter the settle calls.
+      const kbm = {}; ids.slice(0, 25).forEach((m) => { kbm[m] = 1; });
+      window.hrNoteServerTrophies({ ok: true, bestiary: { kills_by_monster: kbm, kills_by_class: {} } });
+      window.G.collectionLog = { claimed: [] };
+      const cl = C.claimable(window.G).map((m) => m.id);
+      assert(cl.indexOf('hunter25') >= 0, 'hunter25 must be claimable at a SERVER count of 25; got ' + JSON.stringify(cl));
+      assert(cl.indexOf('hunter40') < 0,
+        'hunter40 is offered at a server count of 25 because the RESIDUE holds 40 — the server would answer incomplete');
+      const before = goldOf();
+      await withClaimServer({ ok: true, milestone: 'hunter25', gold: 4000, gems: 0, credited: true }, async (rig) => {
+        const r = await C.claimMilestone('hunter25', window.G);
+        assert(r && r.gold === 4000, 'a confirmed hunter25 claim must report its 4,000 gold');
+        assert(rig.calls.length === 1 && rig.calls[0].args[0] === 'hunter25', 'the claim sent ' + JSON.stringify(rig.calls));
+      });
+      assert(goldOf() === before, 'the client paid the server-owned reward itself (' + before + ' -> ' + goldOf() + ')');
+      assert(window.G.collectionLog.claimed.indexOf('hunter25') >= 0, 'a credited hunter25 must be marked claimed');
+      assert(C.claimable(window.G).every((m) => m.id !== 'hunter25'), 'a claimed hunter25 is still offered');
+      // REPLAY: a lost residue re-offers it; the server's once-guard answers.
+      window.G.collectionLog = { claimed: [] };
+      said.length = 0;
+      await withClaimServer({ ok: false, error: 'already_claimed', milestone: 'hunter25' }, async () => {
+        await C.claimMilestone('hunter25', window.G);
+      });
+      assert(said.some((m) => /already claimed/i.test(m)), 'the replay must say already claimed; said ' + JSON.stringify(said));
+      assert(window.G.collectionLog.claimed.indexOf('hunter25') >= 0, 'already_claimed must mark the rung claimed');
+    } finally {
+      window.clientMayWriteRecordField = origMay;
+      window.notify = origNotify;
+      if (C.__resetClaimState) C.__resetClaimState();
+      restoreMirrors(mirrors);
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('LEDGER-2: residue 30 items, server found 10 — collect25 NOT claimable and the next rung reads 10/25; at found 25 it is', () => {
+    const C = window.HearthriseCollection;
+    if (!C || typeof C.noteServerCounts !== 'function' || !window.ITEMS) return skip('HearthriseCollection not loaded');
+    const itemIds = Object.keys(window.ITEMS).slice(0, 30);
+    if (itemIds.length < 30) return skip('fewer than 30 items');
+    const snap = snapshotG();
+    const mirrors = saveMirrors();
+    const sCol = window.G.collection ? JSON.parse(JSON.stringify(window.G.collection)) : undefined;
+    try {
+      window.G.collection = {}; itemIds.forEach((id) => { window.G.collection[id] = 2; });
+      window.G.collectionLog = { claimed: [] };
+      assert(C.noteServerCounts({ ok: true, collection: { found: 10 } }) === true, 'the envelope block was not adopted');
+      assert(C.claimable(window.G).every((m) => m.id !== 'collect25'),
+        'collect25 is offered at a server count of 10 because the bag holds 30 ids — the server counts combat drops only');
+      const nx = C.nextRungs(window.G).filter((r) => r.m.domain === 'items')[0];
+      assert(nx && nx.m.id === 'collect25' && nx.have === 10 && nx.goal === 25,
+        'the next items rung must read collect25 10/25; got ' + JSON.stringify(nx && { id: nx.m.id, have: nx.have, goal: nx.goal }));
+      C.open();
+      const line = document.querySelector('#hr-cl-modal [data-cl-next="collect25"]');
+      assert(line && /Magpie: 10\/25 combat drops/.test(line.textContent || ''),
+        'the log must render the next rung "Magpie: 10/25 combat drops"; got ' + (line && line.textContent));
+      assert(!document.querySelector('#hr-cl-modal [data-cl-claim="collect25"]'), 'an unearned rung rendered a Claim button');
+      C.noteServerCounts({ ok: true, collection: { found: 25 } });
+      assert(C.claimable(window.G).some((m) => m.id === 'collect25'), 'collect25 must be claimable at server found 25');
+    } finally {
+      const m = document.getElementById('hr-cl-modal'); if (m) m.remove();
+      if (sCol === undefined) delete window.G.collection; else window.G.collection = sCol;
+      restoreMirrors(mirrors);
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('LEDGER-3: a server claim row (kind collection, hunter25, claimed) wins over an unclaimed residue', () => {
+    const C = window.HearthriseCollection;
+    if (!C || typeof C.noteServerClaims !== 'function' || !window.MONSTERS) return skip('HearthriseCollection not loaded');
+    const snap = snapshotG();
+    const mirrors = saveMirrors();
+    try {
+      seedServerMonsters(Object.keys(window.MONSTERS).slice(0, 30));
+      window.G.collectionLog = { claimed: [] };
+      assert(C.claimable(window.G).some((m) => m.id === 'hunter25'), 'CONTROL: hunter25 must be claimable before the claim row arrives');
+      C.noteServerClaims([{ kind: 'collection', key: 'hunter25', period: '', state: 'claimed' }]);
+      assert(C.claimable(window.G).every((m) => m.id !== 'hunter25'),
+        'the server holds a hunter25 claim row and the log still offers it — the residue alone decided "claimed"');
+      assert(C.claimable(window.G).some((m) => m.id === 'hunter10'), 'hunter10 has no server claim row and must stay claimable');
+    } finally {
+      restoreMirrors(mirrors);
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('LEDGER-4: no server mirror — zero claimable rungs, whatever the residue holds', () => {
+    const C = window.HearthriseCollection;
+    if (!C || typeof C.claimable !== 'function' || !window.MONSTERS || !window.ITEMS) return skip('HearthriseCollection not loaded');
+    const snap = snapshotG();
+    const mirrors = saveMirrors();
+    const sCol = window.G.collection ? JSON.parse(JSON.stringify(window.G.collection)) : undefined;
+    try {
+      delete window.G._bestiaryTrophies; delete window.G._collectionServer; delete window.G._collectionServerClaimed;
+      window.G.bestiary = {}; Object.keys(window.MONSTERS).forEach((m) => { window.G.bestiary[m] = { kills: 1 }; });
+      window.G.collection = {}; Object.keys(window.ITEMS).forEach((id) => { window.G.collection[id] = 1; });
+      window.G.collectionLog = { claimed: [] };
+      const cl = C.claimable(window.G).map((m) => m.id);
+      assert(cl.length === 0, 'with no server mirror the log offered ' + JSON.stringify(cl) + ' off the residue alone');
+    } finally {
+      if (sCol === undefined) delete window.G.collection; else window.G.collection = sCol;
+      restoreMirrors(mirrors);
       restoreG(snap);
     }
   }),

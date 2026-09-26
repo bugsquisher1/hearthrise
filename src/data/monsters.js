@@ -37,6 +37,14 @@
 //   drops        `{id, ch}` — `id` MUST exist in ITEMS. Every drop id used
 //                here already shipped; this wave invents no items (that is a
 //                separate change), so no drop can dangle.
+//   lucky        `{id, ch, lucky:true}` — a LUCKY FIND (content pack 1): a
+//                very-rare named gear drop, 4-30 expected hours at its tier.
+//                Always the LAST row of its array (an appended row leaves every
+//                earlier draw of the seeded stream where it was). The engine
+//                reads only id/ch; the flag is for the client, which never
+//                shows or credits a lucky row its own dice rolled — only the
+//                server's `rare_drop` event reveals one. Guarded by
+//                tests/lucky-finds.mjs (item rules, faucet cap, hours band).
 //
 // `neutral` IS RETIRED (DEC-NEUT-01). Every monster answers a real weapon.
 // The 7 monsters that used to opt out of the triangle earned a x1.15 drop
@@ -89,19 +97,23 @@ export const MONSTERS = {
   small_wolf: { name: 'Wolf Cub', icon: '🐺', tier: 1, cls: 'mammal', family: 'Mammal',
     dropBonus: 1.15,
     hp: 16, atk: 5, def: 1, xp: 14, gp: [3, 9],
-    drops: [{ id: 'wolf_pelt', ch: .32 }, { id: 'small_fang', ch: .18 }, { id: 'bones', ch: 1 }, { id: 'raw_wolf_meat', ch: .6 }] },
+    drops: [{ id: 'wolf_pelt', ch: .32 }, { id: 'small_fang', ch: .18 }, { id: 'bones', ch: 1 }, { id: 'raw_wolf_meat', ch: .6 },
+      { id: 'wolfbone_torc', ch: .0008, lucky: true }] },
   mandrake: { name: 'Mandrake', icon: '🌱', tier: 1, cls: 'plant', family: 'Plant',
     hp: 11, atk: 3, def: 1, xp: 9, gp: [2, 5],
-    drops: [{ id: 'goldenroot', ch: .3 }, { id: 'moonbloom', ch: .08 }, { id: 'turnip', ch: .35 }] },
+    drops: [{ id: 'goldenroot', ch: .3 }, { id: 'moonbloom', ch: .08 }, { id: 'turnip', ch: .35 },
+      { id: 'bramble_blade', ch: .0006, lucky: true }] },
   goblin: { name: 'Goblin', icon: '👺', tier: 1, cls: 'humanoid', family: 'Humanoid',
     hp: 15, atk: 4, def: 1, xp: 13, gp: [2, 8],
     drops: [{ id: 'goblin_ear', ch: .5 }, { id: 'bones', ch: 1 }, { id: 'bronze_sword', ch: .03 }, { id: 'goblin_totem', ch: .01 }, { id: 'goblin_seal', ch: .02 }] },
   kobold: { name: 'Kobold', icon: '🦎', tier: 1, cls: 'humanoid', family: 'Humanoid',
     hp: 12, atk: 3, def: 1, xp: 10, gp: [2, 6],
-    drops: [{ id: 'goblin_totem', ch: .06 }, { id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .3 }, { id: 'copper_ore', ch: .18 }] },
+    drops: [{ id: 'goblin_totem', ch: .06 }, { id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .3 }, { id: 'copper_ore', ch: .18 },
+      { id: 'banded_signet', ch: .0006, lucky: true }] },
   witchs_apprentice: { name: "Witch's Apprentice", icon: '🧹', tier: 1, cls: 'human', family: 'Human',
     hp: 10, atk: 5, def: 0, xp: 12, gp: [2, 7],
-    drops: [{ id: 'magic_essence', ch: .3 }, { id: 'rune_frag', ch: .1 }, { id: 'normal_log', ch: .25 }] },
+    drops: [{ id: 'magic_essence', ch: .3 }, { id: 'rune_frag', ch: .1 }, { id: 'normal_log', ch: .25 },
+      { id: 'adept_body', ch: .0006, lucky: true }] },
   cutpurse: { name: 'Cutpurse', icon: '🎭', tier: 1, cls: 'human', family: 'Human',
     hp: 11, atk: 4, def: 0, xp: 10, gp: [2, 6],
     drops: [{ id: 'rat_tail', ch: .2 }, { id: 'copper_ore', ch: .2 }, { id: 'bones', ch: .4 }] },
@@ -125,7 +137,8 @@ export const MONSTERS = {
 
   giant_bat: { name: 'Giant Bat', icon: '🦇', tier: 2, cls: 'vermin', family: 'Vermin',
     hp: 24, atk: 7, def: 1, xp: 24, gp: [4, 12],
-    drops: [{ id: 'bat_wing', ch: .7 }, { id: 'night_fang', ch: .025 }, { id: 'bones', ch: .5 }] },
+    drops: [{ id: 'bat_wing', ch: .7 }, { id: 'night_fang', ch: .025 }, { id: 'bones', ch: .5 },
+      { id: 'fang_studs', ch: .0008, lucky: true }] },
   locust_swarm: { name: 'Locust Swarm', icon: '🦗', tier: 2, cls: 'vermin', family: 'Vermin',
     hp: 25, atk: 8, def: 1, xp: 27, gp: [4, 13],
     drops: [{ id: 'wheat', ch: .8 }, { id: 'silk_thread', ch: .2 }, { id: 'venom_sac', ch: .1 }] },
@@ -148,12 +161,14 @@ export const MONSTERS = {
     drops: [{ id: 'oak_log', ch: .5 }, { id: 'moonbloom', ch: .12 }, { id: 'goldenroot', ch: .25 }] },
   hobgoblin: { name: 'Hobgoblin', icon: '👹', tier: 2, cls: 'humanoid', family: 'Humanoid',
     hp: 34, atk: 9, def: 4, xp: 38, gp: [8, 22],
-    drops: [{ id: 'goblin_ear', ch: .65 }, { id: 'iron_ore', ch: .12 }, { id: 'iron_sword', ch: .012 }, { id: 'goblin_totem', ch: .02 }, { id: 'goblin_seal', ch: .04 }] },
+    drops: [{ id: 'goblin_ear', ch: .65 }, { id: 'iron_ore', ch: .12 }, { id: 'iron_sword', ch: .012 }, { id: 'goblin_totem', ch: .02 }, { id: 'goblin_seal', ch: .04 },
+      { id: 'rat_stick', ch: .0005, lucky: true }] },
   gnoll: { name: 'Gnoll', icon: '🐺', tier: 2, cls: 'humanoid', family: 'Humanoid',
     hp: 31, atk: 9, def: 3, xp: 36, gp: [7, 17],
     /* the scavenger: it drops another monster's loot, which is how the world
        starts to feel connected. */
-    drops: [{ id: 'goblin_ear', ch: .4 }, { id: 'wolf_pelt', ch: .35 }, { id: 'bat_wing', ch: .2 }, { id: 'iron_ore', ch: .1 }] },
+    drops: [{ id: 'goblin_ear', ch: .4 }, { id: 'wolf_pelt', ch: .35 }, { id: 'bat_wing', ch: .2 }, { id: 'iron_ore', ch: .1 },
+      { id: 'willow_longbow', ch: .0005, lucky: true }] },
   dark_wizard: { name: 'Dark Wizard', icon: '🧙', tier: 2, cls: 'human', family: 'Human',
     dropBonus: 1.15,
     hp: 28, atk: 12, def: 1, xp: 55, gp: [10, 25],
@@ -168,7 +183,8 @@ export const MONSTERS = {
     drops: [{ id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .6 }, { id: 'iron_ore', ch: .15 }, { id: 'ancient_fragment', ch: .025 }, { id: 'bone_key', ch: .04 }] },
   wight: { name: 'Wight', icon: '🪦', tier: 2, cls: 'undead', family: 'Undead',
     hp: 30, atk: 10, def: 3, xp: 42, gp: [7, 18],
-    drops: [{ id: 'grave_dust', ch: .45 }, { id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .4 }] },
+    drops: [{ id: 'grave_dust', ch: .45 }, { id: 'bones', ch: 1 }, { id: 'bone_chips', ch: .4 },
+      { id: 'willow_staff', ch: .0005, lucky: true }] },
   nightmare: { name: 'Nightmare', icon: '🐴', tier: 2, cls: 'demon', family: 'Demon',
     hp: 28, atk: 11, def: 2, xp: 46, gp: [8, 20],
     drops: [{ id: 'demon_shard', ch: .2 }, { id: 'coal', ch: .4 }, { id: 'bones', ch: .8 }] },
@@ -195,7 +211,8 @@ export const MONSTERS = {
 
   venom_spider: { name: 'Venom Spider', icon: '🕷️', tier: 3, cls: 'vermin', family: 'Vermin',
     hp: 52, atk: 15, def: 6, xp: 82, gp: [14, 34],
-    drops: [{ id: 'venom_sac', ch: .55 }, { id: 'silk_thread', ch: .3 }, { id: 'spider_eye', ch: .035 }, { id: 'poison_essence', ch: .08 }] },
+    drops: [{ id: 'venom_sac', ch: .55 }, { id: 'silk_thread', ch: .3 }, { id: 'spider_eye', ch: .035 }, { id: 'poison_essence', ch: .08 },
+      { id: 'spidersilk_choker', ch: .0005, lucky: true }] },
   centipede: { name: 'Centipede', icon: '🐛', tier: 3, cls: 'vermin', family: 'Vermin',
     hp: 60, atk: 17, def: 8, xp: 98, gp: [16, 40],
     drops: [{ id: 'void_chitin', ch: .05 }, { id: 'venom_sac', ch: .4 }, { id: 'iron_ore', ch: .3 }, { id: 'coal', ch: .35 }, { id: 'frost_essence', ch: .07 }] },
@@ -233,7 +250,8 @@ export const MONSTERS = {
        your weapon choice is about HIS kit, not his species. */
     weaponWeak: 'hammer', weaponResist: ['magic'],
     hp: 57, atk: 20, def: 9, xp: 112, gp: [19, 46],
-    drops: [{ id: 'iron_bar', ch: .35 }, { id: 'steel_bar', ch: .12 }, { id: 'iron_fitting', ch: .25 }, { id: 'bones', ch: .8 }] },
+    drops: [{ id: 'iron_bar', ch: .35 }, { id: 'steel_bar', ch: .12 }, { id: 'iron_fitting', ch: .25 }, { id: 'bones', ch: .8 },
+      { id: 'maple_bow', ch: .0004, lucky: true }] },
   /* FOLD-15 — THE DIFFERENTIATION. zombie and ghoul shared Tier 3 Undead and
      were indistinguishable by role, so the pair is pushed to opposite corners of
      the SAME tier band (monster-classes.js TIER_BANDS[3]: hp 52-78, atk 14-24,
@@ -245,13 +263,15 @@ export const MONSTERS = {
      That is a real choice at the card, and it costs two data fields each. */
   zombie: { name: 'Zombie', icon: '🧟', tier: 3, cls: 'undead', family: 'Undead',
     hp: 78, atk: 14, def: 12, xp: 115, gp: [18, 45],
-    drops: [{ id: 'grave_dust', ch: .65 }, { id: 'big_bones', ch: .5 }, { id: 'ancient_fragment', ch: .04 }, { id: 'bone_key', ch: .05 }] },
+    drops: [{ id: 'grave_dust', ch: .65 }, { id: 'big_bones', ch: .5 }, { id: 'ancient_fragment', ch: .04 }, { id: 'bone_key', ch: .05 },
+      { id: 'lazlos_maul', ch: .0005, lucky: true }] },
   ghoul: { name: 'Ghoul', icon: '🧟', tier: 3, cls: 'undead', family: 'Undead',
     hp: 52, atk: 24, def: 5, xp: 100, gp: [17, 42],
     drops: [{ id: 'grave_dust', ch: .55 }, { id: 'venom_sac', ch: .3 }, { id: 'big_bones', ch: .4 }, { id: 'bone_chips', ch: .5 }] },
   fire_devil: { name: 'Fire Devil', icon: '😈', tier: 3, cls: 'demon', family: 'Demon',
     hp: 56, atk: 22, def: 6, xp: 125, gp: [21, 52],
-    drops: [{ id: 'demon_shard', ch: .3 }, { id: 'coal', ch: .6 }, { id: 'hell_ember', ch: .01 }, { id: 'ember_essence', ch: .08 }] },
+    drops: [{ id: 'demon_shard', ch: .3 }, { id: 'coal', ch: .6 }, { id: 'hell_ember', ch: .01 }, { id: 'ember_essence', ch: .08 },
+      { id: 'warlock_helmet', ch: .0004, lucky: true }] },
   wyrmling: { name: 'Wyrmling', icon: '🐉', tier: 3, cls: 'dragon', family: 'Dragon',
     /* breathes Frost, so it fears Ember. */
     elementWeak: 'ember', elementImmune: ['frost'],
@@ -273,7 +293,8 @@ export const MONSTERS = {
   giant_spider: { name: 'Giant Spider', icon: '🕸️', tier: 4, cls: 'vermin', family: 'Vermin',
     /* the silk faucet the arrow chain is starved of. */
     hp: 118, atk: 32, def: 14, xp: 252, gp: [44, 98],
-    drops: [{ id: 'silk_thread', ch: .9 }, { id: 'venom_sac', ch: .5 }, { id: 'spider_eye', ch: .06 }, { id: 'shadow_thread', ch: .05 }] },
+    drops: [{ id: 'silk_thread', ch: .9 }, { id: 'venom_sac', ch: .5 }, { id: 'spider_eye', ch: .06 }, { id: 'shadow_thread', ch: .05 },
+      { id: 'wraithglass_drops', ch: .0004, lucky: true }] },
   bear: { name: 'Bear', icon: '🐻', tier: 4, cls: 'mammal', family: 'Mammal',
     hp: 140, atk: 34, def: 16, xp: 275, gp: [42, 95],
     drops: [{ id: 'bear_pelt', ch: .75 }, { id: 'bear_claw', ch: .35 }, { id: 'big_bones', ch: 1 }, { id: 'raw_bear_meat', ch: .6 }] },
@@ -288,13 +309,15 @@ export const MONSTERS = {
     drops: [{ id: 'maple_log', ch: .6 }, { id: 'moonbloom', ch: .3 }, { id: 'goldenroot', ch: .35 }, { id: 'emberfruit', ch: .12 }, { id: 'poison_essence', ch: .09 }] },
   goblin_warlord: { name: 'Goblin Warlord', icon: '👺', tier: 4, cls: 'humanoid', family: 'Humanoid',
     hp: 125, atk: 30, def: 18, xp: 250, gp: [45, 100],
-    drops: [{ id: 'brute_plate', ch: .5 }, { id: 'warlord_badge', ch: .16 }, { id: 'steel_helm', ch: .015 }, { id: 'chief_blade_recipe', ch: .05 }, { id: 'goblin_seal', ch: .10 }] },
+    drops: [{ id: 'brute_plate', ch: .5 }, { id: 'warlord_badge', ch: .16 }, { id: 'steel_helm', ch: .015 }, { id: 'chief_blade_recipe', ch: .05 }, { id: 'goblin_seal', ch: .10 },
+      { id: 'warlords_torc', ch: .0006, lucky: true }] },
   /* b214: was defined ONLY in legacy.js's inline MONSTERS const — every ESM
      reader (combat-render imports this module) saw undefined for it.
      b356 wave: moved Beast→Humanoid. It duplicated `bear` where it sat. */
   mountain_troll: { name: 'Mountain Troll', icon: '🧌', tier: 4, cls: 'humanoid', family: 'Humanoid',
     hp: 165, atk: 36, def: 22, xp: 305, gp: [50, 108],
-    drops: [{ id: 'troll_hide', ch: .7 }, { id: 'big_bones', ch: 1 }, { id: 'bear_pelt', ch: .18 }, { id: 'iron_warhammer', ch: .012 }] },
+    drops: [{ id: 'troll_hide', ch: .7 }, { id: 'big_bones', ch: 1 }, { id: 'bear_pelt', ch: .18 }, { id: 'iron_warhammer', ch: .012 },
+      { id: 'trollhide_cape', ch: .0006, lucky: true }] },
   ogre: { name: 'Ogre', icon: '👹', tier: 4, cls: 'humanoid', family: 'Humanoid',
     hp: 160, atk: 33, def: 19, xp: 290, gp: [50, 110],
     drops: [{ id: 'troll_hide', ch: .5 }, { id: 'big_bones', ch: 1 }, { id: 'brute_plate', ch: .2 }, { id: 'raw_bear_meat', ch: .35 }] },
@@ -357,7 +380,8 @@ export const MONSTERS = {
     /* hidden element — the bestiary reveals it at 25 kills (PROG-01). */
     elementWeak: 'ember', elementResist: ['frost', 'poison'],
     hp: 104, atk: 38, def: 13, xp: 326, gp: [57, 126],
-    drops: [{ id: 'void_chitin', ch: .3 }, { id: 'magic_essence', ch: .6 }, { id: 'rune_frag', ch: .4 }] },
+    drops: [{ id: 'void_chitin', ch: .3 }, { id: 'magic_essence', ch: .6 }, { id: 'rune_frag', ch: .4 },
+      { id: 'void_censer', ch: .0005, lucky: true }] },
 
   /* ══ Tier 5 — mythic threats ══════════════════════════════════════════ */
 
@@ -368,7 +392,8 @@ export const MONSTERS = {
     drops: [{ id: 'plague_ichor', ch: .7 }, { id: 'swarm_heart', ch: .04 }, { id: 'venom_sac', ch: .6 }, { id: 'poison_essence', ch: .1 }] },
   panther: { name: 'Night Panther', icon: '🐈‍⬛', tier: 5, cls: 'mammal', family: 'Mammal',
     hp: 205, atk: 60, def: 25, xp: 520, gp: [100, 210],
-    drops: [{ id: 'shadow_pelt', ch: .65 }, { id: 'razor_claw', ch: .3 }, { id: 'ruby', ch: .03 }, { id: 'raw_panther_meat', ch: .7 }] },
+    drops: [{ id: 'shadow_pelt', ch: .65 }, { id: 'razor_claw', ch: .3 }, { id: 'ruby', ch: .03 }, { id: 'raw_panther_meat', ch: .7 },
+      { id: 'panthers_eye_pendant', ch: .0005, lucky: true }] },
   giant_boar: { name: 'Giant Boar', icon: '🐗', tier: 5, cls: 'mammal', family: 'Mammal',
     /* fat, slow, enormous HP — the away-farming beast, forgiving of a bad loadout. */
     hp: 252, atk: 52, def: 33, xp: 565, gp: [115, 238],
@@ -414,10 +439,12 @@ export const MONSTERS = {
     drops: [{ id: 'big_bones', ch: 1 }, { id: 'death_steel', ch: .25 }, { id: 'captains_ribblade', ch: .012 }, { id: 'obsidian_sigil', ch: .05 }] },
   grave_banshee: { name: 'Grave Banshee', icon: '😱', tier: 5, cls: 'undead', family: 'Undead',
     hp: 194, atk: 68, def: 23, xp: 645, gp: [135, 286],
-    drops: [{ id: 'wraith_veil', ch: .35 }, { id: 'grave_dust', ch: .8 }, { id: 'vamp_dust', ch: .2 }, { id: 'ancient_rune', ch: .06 }] },
+    drops: [{ id: 'wraith_veil', ch: .35 }, { id: 'grave_dust', ch: .8 }, { id: 'vamp_dust', ch: .2 }, { id: 'ancient_rune', ch: .06 },
+      { id: 'wraithsilk_shroud', ch: .0005, lucky: true }] },
   chained_demon: { name: 'Chained Demon', icon: '⛓️', tier: 5, cls: 'demon', family: 'Demon',
     hp: 240, atk: 61, def: 32, xp: 602, gp: [122, 254],
-    drops: [{ id: 'demon_shard', ch: .7 }, { id: 'hell_ember', ch: .06 }, { id: 'death_steel', ch: .15 }, { id: 'iron_fitting', ch: .5 }, { id: 'ember_essence', ch: .1 }] },
+    drops: [{ id: 'demon_shard', ch: .7 }, { id: 'hell_ember', ch: .06 }, { id: 'death_steel', ch: .15 }, { id: 'iron_fitting', ch: .5 }, { id: 'ember_essence', ch: .1 },
+      { id: 'yew_staff', ch: .0005, lucky: true }] },
   fury: { name: 'Fury', icon: '🦇', tier: 5, cls: 'demon', family: 'Demon',
     /* one override (weapon): blades glass over on the carapace. */
     weaponResist: ['sword'],
@@ -427,7 +454,8 @@ export const MONSTERS = {
     /* breathes neither, so Poison is its answer (art sheet §0.2). */
     elementWeak: 'poison',
     hp: 234, atk: 58, def: 34, xp: 572, gp: [116, 240],
-    drops: [{ id: 'dragon_scale', ch: .8 }, { id: 'dragon_bones', ch: .6 }, { id: 'mithril_ore', ch: .3 }, { id: 'steel_bar', ch: .4 }] },
+    drops: [{ id: 'dragon_scale', ch: .8 }, { id: 'dragon_bones', ch: .6 }, { id: 'mithril_ore', ch: .3 }, { id: 'steel_bar', ch: .4 },
+      { id: 'yew_bow', ch: .0006, lucky: true }] },
   magma_elemental: { name: 'Magma Elemental', icon: '🌋', tier: 5, cls: 'elemental', family: 'Elemental',
     elementWeak: 'frost', elementImmune: ['ember'],
     hp: 226, atk: 60, def: 31, xp: 580, gp: [117, 242],
@@ -438,7 +466,8 @@ export const MONSTERS = {
   shadow_creeper: { name: 'Shadow Creeper', icon: '🕸️', tier: 5, cls: 'extradimensional', family: 'Extra Dimensional',
     elementWeak: 'frost', elementResist: ['ember', 'poison'],
     hp: 190, atk: 48, def: 26, xp: 475, gp: [90, 190],
-    drops: [{ id: 'shadow_thread', ch: .45 }, { id: 'silk_thread', ch: .6 }, { id: 'void_chitin', ch: .018 }] },
+    drops: [{ id: 'shadow_thread', ch: .45 }, { id: 'silk_thread', ch: .6 }, { id: 'void_chitin', ch: .018 },
+      { id: 'shadowsilk_cape', ch: .0005, lucky: true }] },
   starhusk: { name: 'Starhusk', icon: '✨', tier: 5, cls: 'extradimensional', family: 'Extra Dimensional',
     elementWeak: 'frost', elementResist: ['ember', 'poison'],
     hp: 208, atk: 66, def: 26, xp: 628, gp: [130, 272],
@@ -454,7 +483,8 @@ export const MONSTERS = {
     drops: [{ id: 'bear_pelt', ch: 1 }, { id: 'ancient_claw', ch: .3 }, { id: 'alpha_pattern', ch: .04 }, { id: 'alpha_fang', ch: .12 }, { id: 'moonbloom', ch: .5 }] },
   broodmother: { name: 'Broodmother', icon: '🕷️', tier: 6, cls: 'vermin', family: 'Vermin', boss: true,
     hp: 402, atk: 95, def: 45, xp: 1125, gp: [276, 572],
-    drops: [{ id: 'silk_thread', ch: 1 }, { id: 'spider_eye', ch: .3 }, { id: 'void_chitin', ch: .1 }, { id: 'swarm_heart', ch: .08 }, { id: 'shadow_thread', ch: .35 }] },
+    drops: [{ id: 'silk_thread', ch: 1 }, { id: 'spider_eye', ch: .3 }, { id: 'void_chitin', ch: .1 }, { id: 'swarm_heart', ch: .08 }, { id: 'shadow_thread', ch: .35 },
+      { id: 'chitinweave_cloak', ch: .0007, lucky: true }] },
   treant: { name: 'Treant', icon: '🌲', tier: 6, cls: 'plant', family: 'Plant', boss: true,
     hp: 512, atk: 78, def: 60, xp: 1060, gp: [258, 528],
     drops: [{ id: 'duskwood_log', ch: .6 }, { id: 'runewood_log', ch: .35 }, { id: 'timber_beam', ch: .3 }, { id: 'moonbloom', ch: .7 }, { id: 'yew_log', ch: 1 }] },
@@ -479,7 +509,8 @@ export const MONSTERS = {
        weakness is untouched — fire does everything. */
     weaponResist: ['ranged'],
     hp: 372, atk: 98, def: 38, xp: 1160, gp: [290, 608],
-    drops: [{ id: 'vamp_dust', ch: .8 }, { id: 'wraith_veil', ch: .45 }, { id: 'ruby', ch: .12 }, { id: 'ancient_rune', ch: .25 }] },
+    drops: [{ id: 'vamp_dust', ch: .8 }, { id: 'wraith_veil', ch: .45 }, { id: 'ruby', ch: .12 }, { id: 'ancient_rune', ch: .25 },
+      { id: 'archmage_gloves', ch: .001, lucky: true }] },
   grim_reaper: { name: 'Grim Reaper', icon: '⏳', tier: 6, cls: 'undead', family: 'Undead', boss: true,
     hp: 388, atk: 102, def: 40, xp: 1215, gp: [308, 668],
     drops: [{ id: 'lich_soul', ch: .5 }, { id: 'death_steel', ch: .5 }, { id: 'hollow_sigil', ch: .06 }, { id: 'big_bones', ch: 1 }, { id: 'vamp_dust', ch: .4 }] },
@@ -499,7 +530,8 @@ export const MONSTERS = {
     /* breathes Frost: Frost-resistant, Ember-weak. Ashwing's mirror. */
     elementWeak: 'ember', elementResist: ['frost'],
     hp: 484, atk: 99, def: 55, xp: 1198, gp: [300, 646],
-    drops: [{ id: 'dragon_bones', ch: 1 }, { id: 'dragon_scale', ch: .8 }, { id: 'dragon_gem', ch: .05 }, { id: 'ancient_claw', ch: .2 }, { id: 'alpha_pattern', ch: .03 }] },
+    drops: [{ id: 'dragon_bones', ch: 1 }, { id: 'dragon_scale', ch: .8 }, { id: 'dragon_gem', ch: .05 }, { id: 'ancient_claw', ch: .2 }, { id: 'alpha_pattern', ch: .03 },
+      { id: 'dragonrib_bow', ch: .0008, lucky: true }] },
     /* NOTE: `dragon_marrow_recipe` was the obvious flavour drop here and is
        deliberately NOT wired — its target item (`dragonbone_spear`) does not
        exist, and the b145 rule is that a recipe unlocking nothing is a
@@ -515,11 +547,13 @@ export const MONSTERS = {
        unpopular third, which is exactly the job Poison needs. */
     elementWeak: 'poison', elementResist: ['ember', 'frost'],
     hp: 392, atk: 92, def: 44, xp: 1085, gp: [268, 548],
-    drops: [{ id: 'magic_essence', ch: 1 }, { id: 'ancient_rune', ch: .3 }, { id: 'dawnstone_ore', ch: .1 }, { id: 'rune_bar', ch: .2 }] },
+    drops: [{ id: 'magic_essence', ch: 1 }, { id: 'ancient_rune', ch: .3 }, { id: 'dawnstone_ore', ch: .1 }, { id: 'rune_bar', ch: .2 },
+      { id: 'runewood_staff', ch: .0007, lucky: true }] },
   elder_cinder: { name: 'Elder Cinder', icon: '🕯️', tier: 6, cls: 'elemental', family: 'Elemental', boss: true,
     elementWeak: 'frost', elementImmune: ['ember'],
     hp: 440, atk: 96, def: 48, xp: 1130, gp: [278, 578],
-    drops: [{ id: 'hell_ember', ch: .6 }, { id: 'ember_bar', ch: .7 }, { id: 'emberstone_ore', ch: .9 }, { id: 'dawnstone_ore', ch: .08 }, { id: 'ancient_rune', ch: .25 }] },
+    drops: [{ id: 'hell_ember', ch: .6 }, { id: 'ember_bar', ch: .7 }, { id: 'emberstone_ore', ch: .9 }, { id: 'dawnstone_ore', ch: .08 }, { id: 'ancient_rune', ch: .25 },
+      { id: 'emberfang_blade', ch: .0008, lucky: true }] },
   iron_colossus: { name: 'Iron Colossus', icon: '⚙️', tier: 6, cls: 'construct', family: 'Construct', boss: true,
     hp: 518, atk: 80, def: 62, xp: 1075, gp: [264, 544],
     drops: [{ id: 'rune_bar', ch: .35 }, { id: 'mithril_bar', ch: .7 }, { id: 'keystone', ch: .25 }, { id: 'iron_fitting', ch: 1 }, { id: 'death_steel', ch: .2 }] },

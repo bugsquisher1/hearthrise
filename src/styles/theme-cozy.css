@@ -1485,11 +1485,17 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
    below each section header — also too faded by default */
 
 
-/* ─── Topbar Quests button (replaces .global-quests-strip) ───
-   Hide the original full-width strip; the new wax-stamp red
-   button injected by quests-topbar-button.js sits in .top-stats
-   next to the Combat stat. */
-.global-quests-strip { display: none !important; }
+/* ─── Topbar Quests button (adds to .global-quests-strip on desktop) ───
+   Desktop keeps the full-width strip players have seen since May 2026
+   (a stray brace had silently disabled its hide rule for five months,
+   so removing that brace elsewhere must not remove a shipped feature).
+   The wax-stamp red button injected by quests-topbar-button.js sits in
+   .top-stats next to the Combat stat everywhere; on phones the strip
+   is hidden there to reclaim vertical space, since the topbar button
+   already covers the same job. */
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .global-quests-strip { display: none !important; }
+}
 
 
 #hr-quests-btn:hover { filter: brightness(1.12); }

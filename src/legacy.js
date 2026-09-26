@@ -5203,11 +5203,8 @@ const QUEST_DEFS=[
    reward:{combatXp:1500},
    note:'One hundred monsters down — you have the measure of a fight now.',
    done:false},
-  /* JOURNEYMAN'S ROAD: `chain:'road'` keeps these off "Your first day" (Home
-     draws them on their own card once it is done). Every row MIRRORS a
-     dedicated server projection (accrue.js EVENT_COUNTER_PROJECTION); rewards
-     are server-owned and bound by quest-reward-parity / goal-catalogue-drift.
-     "in all" (ruling B2): the weeklies already say "Smith/Craft 60 items". */
+  /* JOURNEYMAN'S ROAD (chain:'road', own Home card): mirrors server ev:* projections; server-paid.
+     "in all" (ruling B2) keeps the labels apart from weeklies wk_smith/wk_craft. */
   {id:'road_forge',chain:'road',type:'smithed',mirror:'stats.evSmithed',label:'Smith 60 items in all',goal:60,progress:0,reward:{gold:700,item:'iron_pickaxe',qty:1},note:'Sixty pieces off the anvil. Take this pick: iron waits at Mining 15.',done:false},
   {id:'road_craft',chain:'road',type:'crafted',mirror:'stats.evCrafted',label:'Craft 60 items in all',goal:60,progress:0,reward:{gold:700,item:'iron_axe',qty:1},note:'Sixty things made by hand. This axe will keep the sawmill fed.',done:false},
   {id:'road_cook',chain:'road',type:'cooked',mirror:'stats.evCooked',label:'Cook 60 dishes',goal:60,progress:0,reward:{gold:600,item:'oak_rod',qty:1},note:'Sixty meals cooked. A better rod means more fish for the pan.',done:false},

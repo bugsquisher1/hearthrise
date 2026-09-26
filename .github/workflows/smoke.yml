@@ -50,14 +50,15 @@ permissions:
 # and the second time this workflow has raised that number rather than the
 # question underneath it.
 #
-# The steps are now partitioned by what they NEED, into SEVEN jobs that run in
+# The steps are now partitioned by what they NEED, into EIGHT jobs that run in
 # parallel, so the wall clock is the slowest family rather than the sum:
 #
 #   job                  needs                      MEASURED   timeout (= x2)
 #   in-page              a real Chromium            ~15.5 min * 30
 #   economy-selftests    an applied migration chain  15.8 min  32
 #   db-replay            an applied migration chain   7.75 min 16 [1]
-#   db-replay-2          an applied migration chain   9.2 min  19 [1]
+#   db-replay-2          an applied migration chain  10.8 min  19 [1][4]
+#   db-replay-3          an applied migration chain   9.5 min  19 [4]
 #   utc-midnight-replay  an applied migration chain   6.85 min 14 [2]
 #   client-guards        nothing but this repo        4.3 min   9 [3]
 #   edge                 the live gateway              0.5 s    5 (floor)
@@ -95,6 +96,14 @@ permissions:
 #     7b509de8 was cancelled by the old 5-min (300 s) timeout mid "hr_state_of
 #     final body" — a margin of ~40 s over the measured total, nowhere near
 #     x2. Budget = 258 s x2 = 8.6 min, rounded up to 9.
+# [4] db-replay-2 SPLIT IN TWO 2026-09-26 (CI-SPLIT-2): runs 36219670449 and
+#     36221547317 (next) were CANCELLED at db-replay-2's own 19-min timeout
+#     (19.3 min), the second AFTER readonly-rpc had already moved out to
+#     db-replay — three prior green runs measured 18.5/16.2/14.7 min, so the
+#     job was structurally at its budget rather than one guard regressing.
+#     Split at the family boundary (see db-replay-2's own header for the exact
+#     step assignment); both halves stay on the SAME 19-min timeout as
+#     before — the split buys headroom, not a bigger ceiling.
 #
 # RE-MEASURED 2026-09-07 after merging main, which brought SIXTEEN steps this
 # branch forked before (guard-hygiene, window-globals, no-client-farm-mint,
@@ -663,6 +672,29 @@ jobs:
   # run's own timeout cancelled them (see the note above `jobs:`), plus this
   # job's own PGlite snapshot cache verify (46 s, not in the original single-
   # job total). Budget = measured x2 = 18.4 min, rounded up to 19.
+  # ── db-replay-2 ── THE SECOND HALF OF db-replay, SPLIT OUT 2026-09-20;
+  # REBALANCED 2026-09-26 (CI-SPLIT-2) as the job outgrew even that half's
+  # budget: GitHub runs 36219670449 and 36221547317 (next) were CANCELLED at
+  # this job's own 19-min timeout (19.3 min; three prior green runs measured
+  # 18.5/16.2/14.7 min), the second AFTER readonly-rpc had already moved out
+  # to db-replay. Per-step timings on the cancelled run (the slower of two
+  # runners CI actually drew that day) showed the whole family running
+  # 25-30% slower on some runners, not one guard regressing, so every
+  # PGlite chain-replay step here only grows as the migration chain grows.
+  #
+  # Split at the family boundary, not alphabetically: this half keeps Renown
+  # projection, Restore census, Town presence, Gem unlock buy, M8's roster/
+  # settle slice and the world-tick token-derivation pair — the other half
+  # (db-replay-3, below) takes the rest. PGlite snapshot cache verification
+  # runs again, FIRST, as its own independent step (CI-SHAPE-4 — no guard
+  # command may run in two jobs, and that includes the cache verify).
+  #
+  # MEASURED on the cancelled run's own per-step timings (the slow runner):
+  # verify 57 s + Renown 113 s + Restore census 92 s + Town presence 136 s +
+  # Gem unlock buy 115 s + M8 roster/settle 64 s + token-derivation 62 s =
+  # 639 s of guards, plus ~11 s of checkout/setup-node/install = 650 s
+  # (10.8 min) — comfortably inside the EXISTING 19-min timeout, which is
+  # left unraised: the point of the split is headroom, not a bigger ceiling.
   db-replay-2:
     runs-on: ubuntu-latest
     timeout-minutes: 19
@@ -765,6 +797,189 @@ jobs:
           node tests/restore-census.mjs
           node tests/restore-census.mjs --mutate
           node tests/restore-census.mjs --baseline-selftest
+
+      # IS PRESENCE A SERVER FACT, AND DOES THE PLAZA LEAK EXACTLY SEVEN KEYS?
+      # 2026-09-13-town-presence.sql opens the first cross-player READ surface in
+      # the game that is not a leaderboard: a named list of who is in town and what
+      # they are doing. Nothing economic moves in it, so the failure modes are a
+      # forged presence, a leaked column and an ignored opt-out — and none of those
+      # is visible to any other guard in this repo.
+      #
+      # The migration's §13 gate asserts all of it at APPLY time and does bite
+      # (measured 2026-09-12: three arms each fail the apply by name). That is the
+      # second layer, and it is exactly the layer a later file restating hr_state_of
+      # or hr_rpc_gate can quietly remove — so this replays the whole ordered chain
+      # with §13 DISARMED and proves the properties by EXECUTION: the flag closes
+      # the surface AND the cron body; a heartbeat stamps now() on the caller's own
+      # row, bumps no version and journals NOTHING (at one call per 25 s a journal
+      # row is the game_events 1.6M-row mistake at ledger scale); a second beat
+      # inside 20 s writes nothing; the signature carries no uuid and no clock and
+      # user A never moves user B's stamp; the projection is EXACTLY the 7-key peer
+      # / 6-key crier allowlist by jsonb_object_keys with no economy or identity
+      # key in it; a quiet character is absent from peers AND from the named crier
+      # feed with one ledger row per CHANGE; away/seen_ago_s are read-time so a
+      # stale snapshot shows nobody; the level is a BAND; an uncatalogued
+      # active_id has no label; an account is one body; town_snapshot is reachable
+      # by no client role; and the envelope gained `place` and carries no peers.
+      #
+      # --selftest plants 12 real defects and requires each to be caught by THIS
+      # guard's assertions (0 by a declared refusal — the gate is disarmed on
+      # purpose so a green arm cannot be an explosion). Per C4, base AND selftest:
+      # a selftest-only registration cannot tell a broken migration from a working
+      # guard. No credentials; production untouched.
+      #
+      # MEASURED 2026-09-12 on the dev machine: 2 s base + 16 s selftest on the
+      # shared PGlite snapshot. The 12-minute budget is unmoved.
+      - name: Town presence — a forged presence, a leaked key, an ignored opt-out
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/town-presence.mjs
+          node tests/town-presence.mjs --selftest
+
+      # DID THE REALM ACTUALLY SELL YOU THAT THEME?
+      # `ownedThemes`/`ownedCosmetics` are RESIDUE and the server has never held a
+      # theme or a cosmetic for anybody — the half of the b371 gem dupe that made
+      # a free purchase STICK, and the reason src/legacy.js REFUSES the gesture
+      # outright today (nine gem sinks the shop renders are dead buttons).
+      # 2026-09-14-gem-unlock-buy.sql is the server half: one verb, one price
+      # read from a GENERATED catalogue under the character lock, one flag row,
+      # one ledger row, and a top-level `gem_unlocks` projection so ownership
+      # stops living in a store a cloud restore can rewind.
+      #
+      # The load-bearing assertions are not "a key appears". They are that the
+      # generated catalogue IS src/data/shops.js in BOTH directions (a hand edit
+      # to the SQL is the money-number double-copy this repo generates to
+      # prevent), that the debit is EXACTLY the catalogue price, that the FREE
+      # theme is owned by everybody and sellable to nobody (missing => the
+      # starting theme becomes unequippable the moment ownership reads
+      # server-first; priced => a 0-gem faucet), that a replay and a re-buy each
+      # charge zero, and that the ungated twin never became client-executable.
+      # --selftest plants ten defects, each twice (with and without the
+      # migration's own §7 gate), plus a comment-only negative control.
+      #
+      # No credentials; production untouched. Base AND selftest, per C4.
+      # MEASURED 2026-09-14 on this machine: base 12 s, --selftest 36 s.
+      - name: Gem unlock buy — the price is the server's and the theme is the server's
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/gem-unlock-buy.mjs
+          node tests/gem-unlock-buy.mjs --selftest
+
+      # M8 SLICE 2 — THE PARTY AS A ROSTER UNIT, IN SHADOW. The three migrations
+      # carry their own §4 blocks (Security's §18-SEC.3 S2 list, executed at
+      # apply time and refusing to install otherwise); this is the STANDING half,
+      # and it asserts three things a §4 block structurally cannot.
+      #
+      #   P-IDEM  the three files re-apply byte-identically. tools/apply-migration
+      #           .mjs is run by hand, at speed, on a file that may already be in.
+      #           It runs BEFORE the fixture is planted, because file 1's §7(z)
+      #           requires the two S2 tables to be EMPTY after an apply.
+      #   P-ARM   the ARMED branch END TO END on a throwaway database: four
+      #           hr_apply calls in one transaction, the party mark and all four
+      #           member marks advancing TOGETHER (invariant 8 as a fact rather
+      #           than a promise), the carrier cleared, `meta->'party'` readable
+      #           at the level hr_apply actually writes it and the two wrong
+      #           spellings pinned empty. The migration cannot arm itself — file
+      #           2's §5(z) requires `shadow` TRUE after the apply — so the armed
+      #           half has nowhere else to live, and S5 flips an operator switch
+      #           over code no later review sees.
+      #   P-FENCE invariant 8 at the INTENT door, driven through the real
+      #           party-fence.js bytes the edge deploys: a partied character's own
+      #           accrue refused party_settle_required, every collectsFirst verb
+      #           party_hunt_running, a non-collecting verb untouched, and an
+      #           UNPARTIED character NOT refused — the last of which is what
+      #           tells a fence apart from a wall.
+      #
+      # Every call is made AS THE ROLE THAT HOLDS IT — the settle as hr_engine,
+      # both rosters as hr_tick — because driving them as the replay's owner
+      # passes either way and measures a door nobody in production knocks on.
+      #
+      # --mutate plants four defects, each of which the MIGRATIONS' OWN §4 blocks
+      # must refuse at apply time, which is the strongest verdict available: a
+      # thirteenth (nested) journal key that metaProblems() cannot see (B-A5),
+      # `exception when others` in the armed handler (B-A3), a member set the CAS
+      # must reject being accepted (S-9), and the two rosters overlapping (S-8).
+      - name: M8 parties — the roster unit and the one-call settle, in shadow
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/party-settle.mjs
+          node tests/party-settle.mjs --mutate
+
+      # THE DERIVED PER-REQUEST TOKEN, EXECUTED RATHER THAN ASSERTED
+      # (SEC_WORLD_TICK_TOKEN_2026-09-23.md, security ruling T-5.3). The
+      # migration's own §5 self-check CANNOT RUN THE DERIVATION on the
+      # credential-free replay: PGlite has no pgcrypto, so d4-d7 skip by name and
+      # only the fail-closed path is proven there. Three of that file's arms —
+      # d6d (the header carries the key), d7b (the queued header binds the queued
+      # body) and d8 (no credential in the fire log) — are therefore VACUOUS on
+      # the replay and had never been red anywhere; the lane hand-wrote d8b for
+      # exactly that reason but did not know it was true of d6d and d7b too.
+      #
+      # This guard gives the replay faithful stubs of the three things Supabase
+      # has and PGlite does not — pgcrypto (a second implementation of RFC 2104
+      # over core sha256(), PINNED against node:crypto AND the migration's own
+      # vector, so it cannot agree by being wrong), vault.decrypted_secrets, and
+      # pg_net's documented convert_to(body::text,'UTF8') queue insert — and then
+      # runs a real fire and sweeps every observable surface for the plaintext:
+      # the driver's return value, hr_tick_cron_log, every routine body in
+      # `public`, and the PUBLIC-readable queue row itself. X-4 replays that
+      # captured row against the real edge verifier: the verbatim pair is
+      # accepted (residual R-T1, executed rather than claimed), one byte of body
+      # is refused, a stale or future bucket is refused, and the old static
+      # bearer is refused outright. --selftest plants five defects in the file
+      # under review and all five are refused.
+      - name: World tick — the derived token carries no secret and binds its body
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-token-leak.mjs
+          node tests/world-tick-token-leak.mjs --selftest
+
+  # ── db-replay-3 ── SPLIT OUT OF db-replay-2 2026-09-26 (CI-SPLIT-2, see the
+  # note above db-replay-2 for the two cancelled runs that forced it). Same
+  # inputs (an applied migration chain), fresh runner, so the PGlite snapshot
+  # cache verification runs again, FIRST, as its own independent step
+  # (CI-SHAPE-4 — no guard command may run in two jobs, and `--for=` exists
+  # so this one is a distinct command line from db-replay-2's and db-replay's).
+  #
+  # Everything db-replay-2 did not keep: the bestiary/trophy family, realtime
+  # cost, RPC resolution, World finds projection, Recipe learn, Projected key
+  # set, the world-tick parity/combat/shadow/hydration/ledger-meta arms, M8
+  # membership/split/hunt-intents, the token fail-closed arm and the client-
+  # state adversarial arm.
+  #
+  # MEASURED on the same cancelled run's per-step timings (the slow runner):
+  # verify 57 s + 501 s across the guards below = 558 s of guards, plus ~11 s
+  # of checkout/setup-node/install = 569 s (9.5 min) — inside the SAME 19-min
+  # timeout as db-replay-2, unraised.
+  db-replay-3:
+    runs-on: ubuntu-latest
+    timeout-minutes: 19
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+
+      # THE SNAPSHOT CACHE'S OWN PROOF, AGAIN. This job shares no PGlite
+      # snapshot with db-replay — each job is a fresh runner — so the same
+      # proof that stopped every guard below from reading a stale rebuild
+      # (build, restore, and again with the cache switched off; two planted
+      # corruptions, both refused) runs here too, FIRST, for the same reason
+      # it runs first in db-replay: nothing measured after it means anything
+      # if it is red.
+      - name: PGlite snapshot cache - restored == replayed, corruption refused
+        if: ${{ !cancelled() }}
+        run: node tests/pglite-template.mjs --verify --for=db-replay-3
 
       # THE BESTIARY TROPHY LADDER, BOTH HALVES (docs/design/BESTIARY_LADDER.md).
       # It lives in THIS job and not in client-guards because its second arm
@@ -892,44 +1107,6 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/rpc-resolution.mjs --selftest
 
-      # IS PRESENCE A SERVER FACT, AND DOES THE PLAZA LEAK EXACTLY SEVEN KEYS?
-      # 2026-09-13-town-presence.sql opens the first cross-player READ surface in
-      # the game that is not a leaderboard: a named list of who is in town and what
-      # they are doing. Nothing economic moves in it, so the failure modes are a
-      # forged presence, a leaked column and an ignored opt-out — and none of those
-      # is visible to any other guard in this repo.
-      #
-      # The migration's §13 gate asserts all of it at APPLY time and does bite
-      # (measured 2026-09-12: three arms each fail the apply by name). That is the
-      # second layer, and it is exactly the layer a later file restating hr_state_of
-      # or hr_rpc_gate can quietly remove — so this replays the whole ordered chain
-      # with §13 DISARMED and proves the properties by EXECUTION: the flag closes
-      # the surface AND the cron body; a heartbeat stamps now() on the caller's own
-      # row, bumps no version and journals NOTHING (at one call per 25 s a journal
-      # row is the game_events 1.6M-row mistake at ledger scale); a second beat
-      # inside 20 s writes nothing; the signature carries no uuid and no clock and
-      # user A never moves user B's stamp; the projection is EXACTLY the 7-key peer
-      # / 6-key crier allowlist by jsonb_object_keys with no economy or identity
-      # key in it; a quiet character is absent from peers AND from the named crier
-      # feed with one ledger row per CHANGE; away/seen_ago_s are read-time so a
-      # stale snapshot shows nobody; the level is a BAND; an uncatalogued
-      # active_id has no label; an account is one body; town_snapshot is reachable
-      # by no client role; and the envelope gained `place` and carries no peers.
-      #
-      # --selftest plants 12 real defects and requires each to be caught by THIS
-      # guard's assertions (0 by a declared refusal — the gate is disarmed on
-      # purpose so a green arm cannot be an explosion). Per C4, base AND selftest:
-      # a selftest-only registration cannot tell a broken migration from a working
-      # guard. No credentials; production untouched.
-      #
-      # MEASURED 2026-09-12 on the dev machine: 2 s base + 16 s selftest on the
-      # shared PGlite snapshot. The 12-minute budget is unmoved.
-      - name: Town presence — a forged presence, a leaked key, an ignored opt-out
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/town-presence.mjs
-          node tests/town-presence.mjs --selftest
-
       # IS THE FINDER'S NAME MINTED IN ONE PLACE, AND IS `presence_quiet` REAL?
       # 2026-09-08-hearthfind.sql granted SELECT on ALL of world_finds — user_id
       # and slot included — to anon AND authenticated, while profiles and
@@ -972,35 +1149,6 @@ jobs:
         run: |
           node tests/world-finds-projection.mjs
           node tests/world-finds-projection.mjs --selftest
-
-      # DID THE REALM ACTUALLY SELL YOU THAT THEME?
-      # `ownedThemes`/`ownedCosmetics` are RESIDUE and the server has never held a
-      # theme or a cosmetic for anybody — the half of the b371 gem dupe that made
-      # a free purchase STICK, and the reason src/legacy.js REFUSES the gesture
-      # outright today (nine gem sinks the shop renders are dead buttons).
-      # 2026-09-14-gem-unlock-buy.sql is the server half: one verb, one price
-      # read from a GENERATED catalogue under the character lock, one flag row,
-      # one ledger row, and a top-level `gem_unlocks` projection so ownership
-      # stops living in a store a cloud restore can rewind.
-      #
-      # The load-bearing assertions are not "a key appears". They are that the
-      # generated catalogue IS src/data/shops.js in BOTH directions (a hand edit
-      # to the SQL is the money-number double-copy this repo generates to
-      # prevent), that the debit is EXACTLY the catalogue price, that the FREE
-      # theme is owned by everybody and sellable to nobody (missing => the
-      # starting theme becomes unequippable the moment ownership reads
-      # server-first; priced => a 0-gem faucet), that a replay and a re-buy each
-      # charge zero, and that the ungated twin never became client-executable.
-      # --selftest plants ten defects, each twice (with and without the
-      # migration's own §7 gate), plus a comment-only negative control.
-      #
-      # No credentials; production untouched. Base AND selftest, per C4.
-      # MEASURED 2026-09-14 on this machine: base 12 s, --selftest 36 s.
-      - name: Gem unlock buy — the price is the server's and the theme is the server's
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/gem-unlock-buy.mjs
-          node tests/gem-unlock-buy.mjs --selftest
 
       # AND DOES THE NIGHT KNOW WHICH RECIPES YOU HAVE READ?
       # 2026-08-16-artisan-progress-model.sql built the STORAGE for a learned
@@ -1340,46 +1488,6 @@ jobs:
           node tests/party-split.mjs
           node tests/party-split.mjs --mutate
 
-      # M8 SLICE 2 — THE PARTY AS A ROSTER UNIT, IN SHADOW. The three migrations
-      # carry their own §4 blocks (Security's §18-SEC.3 S2 list, executed at
-      # apply time and refusing to install otherwise); this is the STANDING half,
-      # and it asserts three things a §4 block structurally cannot.
-      #
-      #   P-IDEM  the three files re-apply byte-identically. tools/apply-migration
-      #           .mjs is run by hand, at speed, on a file that may already be in.
-      #           It runs BEFORE the fixture is planted, because file 1's §7(z)
-      #           requires the two S2 tables to be EMPTY after an apply.
-      #   P-ARM   the ARMED branch END TO END on a throwaway database: four
-      #           hr_apply calls in one transaction, the party mark and all four
-      #           member marks advancing TOGETHER (invariant 8 as a fact rather
-      #           than a promise), the carrier cleared, `meta->'party'` readable
-      #           at the level hr_apply actually writes it and the two wrong
-      #           spellings pinned empty. The migration cannot arm itself — file
-      #           2's §5(z) requires `shadow` TRUE after the apply — so the armed
-      #           half has nowhere else to live, and S5 flips an operator switch
-      #           over code no later review sees.
-      #   P-FENCE invariant 8 at the INTENT door, driven through the real
-      #           party-fence.js bytes the edge deploys: a partied character's own
-      #           accrue refused party_settle_required, every collectsFirst verb
-      #           party_hunt_running, a non-collecting verb untouched, and an
-      #           UNPARTIED character NOT refused — the last of which is what
-      #           tells a fence apart from a wall.
-      #
-      # Every call is made AS THE ROLE THAT HOLDS IT — the settle as hr_engine,
-      # both rosters as hr_tick — because driving them as the replay's owner
-      # passes either way and measures a door nobody in production knocks on.
-      #
-      # --mutate plants four defects, each of which the MIGRATIONS' OWN §4 blocks
-      # must refuse at apply time, which is the strongest verdict available: a
-      # thirteenth (nested) journal key that metaProblems() cannot see (B-A5),
-      # `exception when others` in the armed handler (B-A3), a member set the CAS
-      # must reject being accepted (S-9), and the two rosters overlapping (S-8).
-      - name: M8 parties — the roster unit and the one-call settle, in shadow
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/party-settle.mjs
-          node tests/party-settle.mjs --mutate
-
       # M8 SLICE 4 — THE HUNT INTENTS, AND THE SETTLE BOUNDARY PRICED. The three
       # migrations carry their own §4 blocks (Security's §18-SEC.3 S4 list plus
       # §18-SEC-2.2's B-A1 and B-A6, executed at apply time and refusing to
@@ -1425,35 +1533,6 @@ jobs:
         run: |
           node tests/party-hunt.mjs
           node tests/party-hunt.mjs --mutate
-
-      # THE DERIVED PER-REQUEST TOKEN, EXECUTED RATHER THAN ASSERTED
-      # (SEC_WORLD_TICK_TOKEN_2026-09-23.md, security ruling T-5.3). The
-      # migration's own §5 self-check CANNOT RUN THE DERIVATION on the
-      # credential-free replay: PGlite has no pgcrypto, so d4-d7 skip by name and
-      # only the fail-closed path is proven there. Three of that file's arms —
-      # d6d (the header carries the key), d7b (the queued header binds the queued
-      # body) and d8 (no credential in the fire log) — are therefore VACUOUS on
-      # the replay and had never been red anywhere; the lane hand-wrote d8b for
-      # exactly that reason but did not know it was true of d6d and d7b too.
-      #
-      # This guard gives the replay faithful stubs of the three things Supabase
-      # has and PGlite does not — pgcrypto (a second implementation of RFC 2104
-      # over core sha256(), PINNED against node:crypto AND the migration's own
-      # vector, so it cannot agree by being wrong), vault.decrypted_secrets, and
-      # pg_net's documented convert_to(body::text,'UTF8') queue insert — and then
-      # runs a real fire and sweeps every observable surface for the plaintext:
-      # the driver's return value, hr_tick_cron_log, every routine body in
-      # `public`, and the PUBLIC-readable queue row itself. X-4 replays that
-      # captured row against the real edge verifier: the verbatim pair is
-      # accepted (residual R-T1, executed rather than claimed), one byte of body
-      # is refused, a stale or future bucket is refused, and the old static
-      # bearer is refused outright. --selftest plants five defects in the file
-      # under review and all five are refused.
-      - name: World tick — the derived token carries no secret and binds its body
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/world-tick-token-leak.mjs
-          node tests/world-tick-token-leak.mjs --selftest
 
       # SECURITY T-1 (SEC_WORLD_TICK_TOKEN_2026-09-23.md), P1. The token
       # migration used to APPLY GREEN on a database where pgcrypto could not be
@@ -1504,6 +1583,7 @@ jobs:
         run: |
           node tests/client-state-retired-fields-adversarial.mjs
           node tests/client-state-retired-fields-adversarial.mjs --selftest
+
 
   # ── utc-midnight-replay ── SPLIT OUT OF db-replay 2026-09-19 (b550). The
   # GitHub run on ab7572e7 (branch next) measured db-replay's own steps: PGlite

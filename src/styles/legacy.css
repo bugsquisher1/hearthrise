@@ -2224,6 +2224,10 @@ body[data-theme="dark"] .lane1-toggle{
 .bestiary-row .br-info b{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink);display:block}
 .bestiary-row .br-info small{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3)}
 .bestiary-row .br-kills{font-size:calc(14.5px * var(--ui-scale, 1));font-weight:800;color:var(--gold-2)}
+/* Field note: its own full-width line under icon/info/kills (the row wraps),
+   clamped to two lines so a discovered card stays close to an undiscovered one. */
+.bestiary-row.discovered{flex-wrap:wrap;row-gap:2px}
+.bestiary-row .br-note{flex:1 0 100%;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;font-size:var(--t-micro);line-height:1.3;font-style:italic;color:var(--ink-3)}
 
 /* ─── Bestiary charms (phase 1, display only) ───
    One chip per monster class the SERVER has counted kills for, above the roster.

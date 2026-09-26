@@ -2641,4 +2641,33 @@ export default [
       restoreG(snap);
     }
   }),
+  /* FIELDNOTES-4: the note sat INSIDE .br-info after an inline
+     <small>, so it glued to the stats ("8 HPIt eats…") and wrapped one word per
+     line in the ~76px info column, stretching a found card to ~330px. It is now
+     a full-width, two-line-clamped line under the row; the full text rides title. */
+  () => tryRun('FIELDNOTES-4: a Bestiary note sits below the stats line, full width, and keeps the found card near an undiscovered card\'s height', () => {
+    const G = window.G;
+    const NOTES = window.HearthriseMonsterNotes || {};
+    const snap = snapshotG();
+    try {
+      G.bestiary = { slime: { kills: 12 } };
+      window.openBestiary();
+      const rows = Array.from(document.querySelectorAll('#best-list .bestiary-row'));
+      const found = rows.find((r) => r.classList.contains('discovered'));
+      assert(found, 'no discovered bestiary row painted for slime');
+      const note = found.querySelector('.br-note');
+      const stats = found.querySelector('.br-info small:not(.br-note)');
+      assert(note && stats, 'discovered slime row lacks .br-note or its stats line');
+      const nb = note.getBoundingClientRect(), sb = stats.getBoundingClientRect();
+      assert(nb.top >= sb.bottom - 0.5, 'the note runs into the stats line: note top ' + nb.top + ' < stats bottom ' + sb.bottom);
+      const undisc = rows.filter((r) => r.classList.contains('undiscovered')).map((r) => r.getBoundingClientRect().height);
+      assert(undisc.length, 'no undiscovered row to compare against');
+      const base = Math.min.apply(null, undisc), h = found.getBoundingClientRect().height;
+      assert(base > 0 && h <= base * 2.25, 'discovered card ' + h.toFixed(0) + 'px vs undiscovered ' + base.toFixed(0) + 'px (> 2.25x; the glued note made it ~5x): the note stretches the card');
+      assert(note.getAttribute('title') === NOTES.slime, 'the full note is not reachable via title: ' + note.getAttribute('title'));
+    } finally {
+      const ov = document.getElementById('best-overlay'); if (ov) ov.classList.remove('show');
+      restoreG(snap);
+    }
+  }),
 ];

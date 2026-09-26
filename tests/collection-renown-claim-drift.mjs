@@ -13,7 +13,8 @@
 //         the monster-catalogue size in src/data/monsters.js.
 //   Checked both directions on id/domain/goal/gold/gems; per domain the
 //   thresholds AND gold strictly increase; rungs outside the original four pay
-//   0 gems; every threshold is reachable (items ≤ distinct MONSTERS drops,
+//   0 gems; every threshold is reachable (items ≤ distinct MONSTERS drops
+//   that are not bind-on-pickup — a BoP key never makes a rung reachable,
 //   monsters ≤ MONSTER_TOTAL). `--selftest` plants each defect and must see red.
 //   RENOWN
 //     (1) src/data/renown-ranks.js                 — the single source
@@ -36,6 +37,7 @@ import { dirname, join } from 'node:path';
 import { COLLECTION_MILESTONES, MONSTER_TOTAL } from '../src/data/collection-milestones.js';
 import { RENOWN_RANK_REWARDS } from '../src/data/renown-ranks.js';
 import { MONSTERS } from '../src/data/monsters.js';
+import { ITEMS } from '../src/data/items.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -119,7 +121,7 @@ export function parseSqlArms(sql) {
 const ORIGINAL_FOUR = new Set(['hunter10', 'hunterAll', 'collect50', 'collect100']);
 
 /* The collection half, pure over its inputs so --selftest can mutate each. */
-export function checkCollection({ catalogue, monsterTotal, monsters, clientSrc, chainEnd }) {
+export function checkCollection({ catalogue, monsterTotal, monsters, clientSrc, chainEnd, items = ITEMS }) {
   const problems = [];
   const ok = (cond, msg) => { if (!cond) problems.push(msg); };
   const catIds = Object.keys(catalogue);
@@ -191,11 +193,15 @@ export function checkCollection({ catalogue, monsterTotal, monsters, clientSrc, 
   }
 
   // ── REACHABILITY ─────────────────────────────────────────────────────────
+  // Security 2026-09-26: BoP drops (dungeon keys) are excluded from the pool,
+  // so no rung can depend on a bind-on-pickup-only drop.
   const drops = new Set();
-  for (const m of Object.values(monsters)) for (const d of (m.drops || [])) if (d && d.id) drops.add(d.id);
+  for (const m of Object.values(monsters)) for (const d of (m.drops || [])) {
+    if (d && d.id && !(items[d.id] && items[d.id].bop)) drops.add(d.id);
+  }
   for (const [id, c] of Object.entries(catalogue)) {
     if (c.domain === 'items') ok(c.threshold <= drops.size,
-      `collection '${id}' needs ${c.threshold} distinct combat drops; only ${drops.size} exist in MONSTERS[*].drops — unreachable`);
+      `collection '${id}' needs ${c.threshold} distinct combat drops; only ${drops.size} non-BoP ids exist in MONSTERS[*].drops — unreachable`);
     if (c.domain === 'monsters') ok(c.threshold <= monsterTotal,
       `collection '${id}' needs ${c.threshold} distinct monsters; MONSTER_TOTAL is ${monsterTotal} — unreachable`);
   }
@@ -311,6 +317,14 @@ async function selftest() {
       async () => ({ ...base, chainEnd: await chainEndMilestoneSql(order.slice(0, order.indexOf('2026-08-22-collection-claim.sql') + 1)) })],
     ['no file restates the function (chain end absent)',
       async () => ({ ...base, chainEnd: await chainEndMilestoneSql([]) })],
+    ['collect125 reachable only through BoP drops (9 lucky ids flagged bop)',
+      () => {
+        const lucky = [];
+        for (const m of Object.values(MONSTERS)) for (const d of (m.drops || [])) if (d.lucky && !lucky.includes(d.id)) lucky.push(d.id);
+        const items = { ...ITEMS };
+        for (const id of lucky.slice(0, 9)) items[id] = { ...items[id], bop: true };
+        return { ...base, items };
+      }],
     ['hunter60 gold 7000 everywhere (ladder gold not increasing)',
       () => ({ ...base, catalogue: cat({ hunter60: { gold: 7000 } }),
         clientSrc: sub(base.clientSrc, 'reward: { gold: 15000 } }', 'reward: { gold: 7000 } }'),

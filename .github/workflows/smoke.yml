@@ -1088,8 +1088,8 @@ jobs:
 
       # The three-way milestone bind (catalogue / client rows / chain-end SQL)
       # had a --selftest flag it ignored (exit 0 on the normal body). It now
-      # plants nine defects - a dropped SQL arm, client-only gold/goal/domain
-      # drift, an unreachable threshold, a new gem faucet, a stale chain end -
+      # plants ten defects - a dropped SQL arm, client-only gold/goal/domain
+      # drift, an unreachable (or BoP-only) threshold, a new gem faucet, a stale chain end -
       # and each must turn it red. The plain body runs inside run-smoke.mjs.
       - name: Collection/renown claim drift - mutation proof
         if: ${{ !cancelled() }}

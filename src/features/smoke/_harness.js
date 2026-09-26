@@ -2409,6 +2409,28 @@ export const retreatReload = () => {
   return { A, D, R, AW, settle, boot, done };
 };
 
+/* A LANDSCAPE-PHONE FRAME, written once. Media queries evaluate against an
+   iframe's own viewport, so `w`x`h` IS the device: every same-origin sheet is
+   inlined, `body` is written under the page's theme, `fn(doc)` measures, and
+   the frame is always removed. Returns whatever `fn` returns. */
+export const phoneFrame = (w, h, body, fn) => {
+  let css = '';
+  for (const sheet of document.styleSheets) {
+    let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
+    for (const r of rules) css += r.cssText + '\n';
+  }
+  const frame = document.createElement('iframe');
+  frame.setAttribute('style', `position:fixed;left:-4000px;top:0;width:${w}px;height:${h}px;border:0;visibility:hidden`);
+  document.body.appendChild(frame);
+  try {
+    const doc = frame.contentDocument, theme = document.body.dataset.theme || 'hearthlight';
+    doc.open();
+    doc.write(`<!doctype html><html><head><meta charset="utf-8"><style>${css}</style></head><body data-theme="${theme}">${body}</body></html>`);
+    doc.close();
+    return fn(doc);
+  } finally { frame.remove(); }
+};
+
 /* THE COMBAT-SCREEN FIXTURE, written once (test-file ratchet TF-1: "if the
    setup is genuinely large, it is a helper, and a helper is written once").
    Sixteen COMBAT-UI tests opened with the same four lines and closed with the

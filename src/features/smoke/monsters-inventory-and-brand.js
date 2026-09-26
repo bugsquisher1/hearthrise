@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 183 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot, closeOverlays } from './_harness.js?v=554';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot, closeOverlays, phoneFrame } from './_harness.js?v=554';
 
 export default [
 
@@ -439,48 +439,30 @@ export default [
     /* The tier is not in snapshotG: put it back and repaint while the tab is
        still showing, or a later sweep meets a hidden T6 grid mid-load. */
     const tier0 = G.currentCombatTier;
-    let bad = [], seen = 0, cardW = 0;
+    const bad = [];
+    let seen = 0, cardW = 0;
     try {
       window.showTab('combat');
       try { window.stopCombat(); } catch (e) {}
       G.activeMonster = null;
-      let css = '';
-      for (const sheet of document.styleSheets) {
-        let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
-        for (const r of rules) css += r.cssText + '\n';
-      }
-      const frame = document.createElement('iframe');
-      frame.setAttribute('style', 'position:fixed;left:-4000px;top:0;width:922px;height:423px;border:0;visibility:hidden');
-      document.body.appendChild(frame);
-      try {
-        const doc = frame.contentDocument;
-        for (const tier of [1, 6]) {           // T1 is the reported screen; T6 carries 3-digit HP and Lv badges
-          G.currentCombatTier = tier;
-          CS.setView('table'); CS.render();
-          const panel = document.getElementById('panel-combat');
-          assert(panel.querySelector('#wt-grid .wt-card .wtc-stats'), 'the War Table rendered no monster tiles for tier ' + tier);
-          doc.open();
-          doc.write('<!doctype html><html><head><meta charset="utf-8"><style>' + css + '</style></head>' +
-            '<body' + (document.body.dataset.theme ? ' data-theme="' + document.body.dataset.theme + '"' : '') + '>' +
-            '<div style="display:flex;height:423px"><div style="flex:0 0 64px"></div>' +
-            '<main class="main" style="flex:1 1 auto;min-width:0">' + panel.outerHTML + '</main></div></body></html>');
-          doc.close();
+      for (const tier of [1, 6]) {             // T1 is the reported screen; T6 carries 3-digit HP and Lv badges
+        G.currentCombatTier = tier;
+        CS.setView('table'); CS.render();
+        const panel = document.getElementById('panel-combat');
+        assert(panel.querySelector('#wt-grid .wt-card .wtc-stats'), 'the War Table rendered no monster tiles for tier ' + tier);
+        phoneFrame(922, 423, '<div style="display:flex;height:423px"><div style="flex:0 0 64px"></div>' +
+          '<main class="main" style="flex:1 1 auto;min-width:0">' + panel.outerHTML + '</main></div>', (doc) =>
           doc.querySelectorAll('#wt-grid .wt-card').forEach((card) => {
             const c = card.getBoundingClientRect();
             cardW = Math.round(c.width);
             card.querySelectorAll('.wtc-stats em, .wtc-stats b, .wtc-kills').forEach((el) => {
               seen++;
-              const r = el.getBoundingClientRect();
-              const out = r.left < c.left - 0.5 || r.right > c.right + 0.5;
-              if (out || el.scrollWidth > el.clientWidth + 1) {
-                bad.push('T' + tier + ' ' + card.dataset.monster + ' "' + el.textContent.trim() + '" ' +
-                  (out ? 'spans ' + Math.round(r.left - c.left) + '..' + Math.round(r.right - c.left) + ' of a ' + Math.round(c.width) + 'px tile'
-                    : 'overflows its box ' + el.scrollWidth + '>' + el.clientWidth));
-              }
+              const r = el.getBoundingClientRect(), out = r.left < c.left - 0.5 || r.right > c.right + 0.5;
+              if (out || el.scrollWidth > el.clientWidth + 1) bad.push('T' + tier + ' ' + card.dataset.monster + ' "' + el.textContent.trim() + '" ' +
+                (out ? 'spans ' + Math.round(r.left - c.left) + '..' + Math.round(r.right - c.left) + ' of a ' + cardW + 'px tile' : 'overflows ' + el.scrollWidth + '>' + el.clientWidth));
             });
-          });
-        }
-      } finally { frame.remove(); }
+          }));
+      }
     } finally {
       if (tier0 === undefined) delete G.currentCombatTier; else G.currentCombatTier = tier0;
       try { CS.render(); } catch (e) {}

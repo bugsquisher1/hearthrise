@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 92 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, awayArtisanSpan, withFightScreen, xpOf, xpZero, snapshotG, drain, restoreG, restoreGAndRecord, combatScreen, on, snapshot, decideRestore, decideLocalOwnership, withDesktopBanner, assertBannerReserved } from './_harness.js?v=554';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, awayArtisanSpan, withFightScreen, xpOf, xpZero, snapshotG, drain, restoreG, restoreGAndRecord, combatScreen, on, snapshot, decideRestore, decideLocalOwnership, withDesktopBanner, assertBannerReserved, phoneFrame } from './_harness.js?v=554';
 
 export default [
 
@@ -1985,36 +1985,18 @@ export default [
   () => tryRun('b555: the bag counter reads whole at 852x393 and 922x423', () => {
     const render = window._renderInvFancy || window.renderInvFancy;
     assert(typeof render === 'function', 'the inventory renderer seam (window._renderInvFancy) must exist');
-    const panel = document.getElementById('panel-inventory');
-    assert(panel, '#panel-inventory must exist');
     render();
-    const markup = panel.innerHTML;
+    const markup = document.getElementById('panel-inventory').innerHTML;
     assert(/invc-space-free/.test(markup), 'the probe needs the real bag counter — renderInvFancy drew no free-stack count');
-    let css = '';
-    for (const sheet of document.styleSheets) {
-      let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
-      for (const r of rules) css += r.cssText + '\n';
-    }
     const bad = [];
     for (const [w, h] of [[852, 393], [922, 423]]) {
-      const frame = document.createElement('iframe');
-      frame.setAttribute('style', 'position:fixed;left:-4000px;top:0;width:' + w + 'px;height:' + h + 'px;border:0;visibility:hidden');
-      document.body.appendChild(frame);
-      try {
-        const doc = frame.contentDocument;
-        doc.open();
-        doc.write('<!doctype html><html><head><meta charset="utf-8"><style>' + css + '</style></head>' +
-          '<body data-theme="hearthlight"><div id="app" class="app"><main class="main">' +
-          '<div style="flex:0 0 72px;height:72px"></div>' +
-          '<section class="panel active" id="panel-inventory" data-mobile-sub="bag">' + markup + '</section>' +
-          '</main></div></body></html>');
-        doc.close();
-        const space = doc.querySelector('.invc-topbar .invc-space');
+      phoneFrame(w, h, '<div id="app" class="app"><main class="main"><div style="flex:0 0 72px;height:72px"></div>' +
+        '<section class="panel active" id="panel-inventory" data-mobile-sub="bag">' + markup + '</section></main></div>', (doc) => {
+        const space = doc.querySelector('.invc-topbar .invc-space'), p = doc.getElementById('panel-inventory');
         assert(space, 'the ' + w + 'x' + h + ' frame drew no bag counter');
         if (space.scrollWidth > space.clientWidth + 1) bad.push(w + 'x' + h + ': "' + space.textContent.trim() + '" needs ' + space.scrollWidth + 'px, gets ' + space.clientWidth);
-        const p = doc.getElementById('panel-inventory');
         if (p.scrollWidth > p.clientWidth + 1) bad.push(w + 'x' + h + ': the bag panel spills sideways (' + p.scrollWidth + '>' + p.clientWidth + ')');
-      } finally { frame.remove(); }
+      });
     }
     assert(bad.length === 0, 'THE b555 BUG: the bag counter is clipped on a landscape phone — ' + bad.join('; '));
   }),

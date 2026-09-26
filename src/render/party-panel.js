@@ -223,7 +223,7 @@
       : String(members.length);
     /* NO ROSTER CAME BACK, so there is no length to print: the notice says the
        read failed and the head carries no count rather than a "0" the realm
-       never stated (live b553, hr_party_view 405 / 25006). */
+       never stated (hr_party_view 405 / 25006, found live). */
     var countHtml = v.rosterUnread ? '' : '<span class="party-count">' + esc(count) + '</span>';
 
     return '<div class="party-panel' + busy + '">'

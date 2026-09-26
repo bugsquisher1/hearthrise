@@ -29,7 +29,7 @@
 //
 //   B7  hr_party_view transitively writes (the rate bucket upserts), so it
 //       must never run in a READ ONLY transaction. B7 assumed only GET did
-//       that; live b553 proved PostgREST opens one for ANY STABLE function,
+//       that; live play proved PostgREST opens one for ANY STABLE function,
 //       POST included (405 / 25006), so the function is now VOLATILE
 //       (2026-09-26-party-view-volatile.sql; tests/readonly-rpc.mjs). This
 //       module still POSTs everything through rpcPost(), the ONLY door, since
@@ -362,7 +362,7 @@
       next.partyId = null; next.role = null; next.sizeCap = null;
     } else {
       /* THE ROSTER COULD NOT BE READ — a refusal, an HTTP error, or a PostgREST
-         {code,message} body with no `ok` at all (live b553: 405 / 25006). An
+         {code,message} body with no `ok` at all (live: 405 / 25006). An
          empty list here would paint "0 of 4" under a leader the realm just
          seated. Keep the last roster read for this same party, else say so and
          draw no count; never invent a member. */

@@ -470,7 +470,8 @@ function equipToSlot(id, targetSlot){
   }
   /* b246: the paper-doll drag-equip is a second equip path — gate it too. */
   var _w = (typeof canWield === 'function') ? canWield(id) : {ok:true};
-  if(!_w.ok){ if(typeof notify==='function') notify(`Requires ${(SKILLS_DEF[_w.req.skill]&&SKILLS_DEF[_w.req.skill].name)||_w.req.skill} Lv ${_w.req.lv} to wield ${def.n}`,'kill'); return; }
+  if(!_w.ok){ var _m = `Requires ${(SKILLS_DEF[_w.req.skill]&&SKILLS_DEF[_w.req.skill].name)||_w.req.skill} Lv ${_w.req.lv} to wield ${def.n}`;
+    if(typeof notify==='function') notify(window.hrLevelGateText ? window.hrLevelGateText(_w.req.skill, _w.req.lv, _m) : _m,'kill'); return; }
   /* Move existing item back to inventory */
   var _b = (typeof equipStateSnapshot === 'function') ? equipStateSnapshot() : null;
   var old = G.equipment[targetSlot];

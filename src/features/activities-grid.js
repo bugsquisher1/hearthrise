@@ -153,7 +153,7 @@ function buildHead(skillId) {
 
 function tileForGather(action, skillId) {
   const lv = window.getLevel(skillId);
-  const unlocked = lv >= action.req;
+  const unlocked = (window.hrGateLevel?window.hrGateLevel(skillId):1) >= action.req;
   const active = window.G.activeSkill === skillId && window.G.skillTargetId === action.id;
   const qty = window.G.inventory?.[action.prod] || 0;
   /* b226: the tile must state the paced duration, tool speed included — the
@@ -225,7 +225,7 @@ function xpSkillLabel(skillId, recipe) {
 
 function tileForArtisan(recipe, skillId) {
   const lv = window.getLevel(skillId);
-  const unlocked = lv >= recipe.req;
+  const unlocked = (window.hrGateLevel?window.hrGateLevel(skillId):1) >= recipe.req;
   // b226: startArtisan writes activeSkill+skillTargetId, NEVER activeArtisanRecipe
   // — that key made no artisan tile ever .active, so the progress fill never
   // moved (Tyler's "no progress bar when cooking shrimp").

@@ -319,9 +319,40 @@ function resolveLevelFn(levelFn) {
   return null;
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   THE GATE LEVEL — what a level REQUIREMENT reads
+   ══════════════════════════════════════════════════════════════════════════
+   CLAUDE.md §6: a gate never reads a client-held number. `getLevel` is the
+   DISPLAY level (server xp + prediction), so an equip/craft/plant gated on it
+   opened on xp the server had not credited yet and the server then refused the
+   intent — the browser saying one thing and the server another. A gate reads the
+   SERVER's level through `skillLevelOf`, with the fail-safe "not unlocked" (1)
+   while the record cannot vouch for it. Display sites keep `getLevel`. */
+export function gateLevelOf(G, id, levelFn) {
+  const lv = skillLevelOf(G, id, levelFn || resolveLevelFn(null));
+  return (typeof lv === 'number' && Number.isFinite(lv) && lv >= 1) ? lv : 1;
+}
+
+/** The ONE sentence for "the bar says you have it, the realm has not agreed yet". */
+export const LEVEL_PENDING_TEXT = 'Your new level is still being confirmed by the realm — try again in a moment.';
+
+/** The refusal/label for a failed level gate: LEVEL_PENDING_TEXT when the
+ *  DISPLAY level (the caller passes it) already meets `req`, else `text`. */
+export function levelGateText(G, id, req, displayLv, text) {
+  const r = Number(req);
+  if (Number(displayLv) >= r && gateLevelOf(G, id) < r) return LEVEL_PENDING_TEXT;
+  return text;
+}
+
 if (typeof window !== 'undefined') {
   window.HearthriseSkillRecord = {
     skillXpOf, isSkillXpKnown, skillXpNum, skillXpOr, skillLevelOf,
     skillXpForDisplay, skillXpForDisplayOr, skillLevelForDisplay, skillsForDisplay,
+    gateLevelOf, levelGateText, LEVEL_PENDING_TEXT,
   };
+  /* The legacy.js/screen seam: the monolith is a classic script and adds no
+     function, so the gate reaches it through window like getLevel's own reads. */
+  window.hrGateLevel = (sk) => gateLevelOf(window.G, sk);
+  window.hrLevelGateText = (sk, req, text) => levelGateText(window.G, sk, req,
+    typeof window.getLevel === 'function' ? window.getLevel(sk) : 0, text);
 }

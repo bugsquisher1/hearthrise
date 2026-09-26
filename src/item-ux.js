@@ -142,7 +142,8 @@
        the server's rule now, so these two statuses are the whole truth. */
     var status = w.ok
       ? 'you can wear this'
-      : 'you have ' + (have === null ? '—' : have);
+      : (window.hrLevelGateText ? window.hrLevelGateText(req.skill, req.lv, 'you have ' + (have === null ? '—' : have))
+        : 'you have ' + (have === null ? '—' : have));
     /* Two BLOCK lines, not a flex row: the tooltip is ~280px, and flexing the
        bold clause against a trailing one wrapped it mid-phrase
        ("Requires / Defense Lv / 30  to wear you have 15"). Verified in the

@@ -1289,7 +1289,7 @@ function openSlotPicker(slot) {
       const line = gearLine(def);
       const right = w.ok
         ? `<button class="btn btn-sm btn-primary" data-cs="equip" data-item="${esc(id)}">Equip</button>`
-        : `<span class="hr-cs-amt">Lv ${esc(w.req.lv)} ${esc(w.req.skill)}</span>`;
+        : `<span class="hr-cs-amt">${esc(window.hrLevelGateText ? window.hrLevelGateText(w.req.skill, w.req.lv, 'Lv ' + w.req.lv + ' ' + w.req.skill) : 'Lv ' + w.req.lv + ' ' + w.req.skill)}</span>`;
       return {
         name: `${itemImg(id, 'fsm-pick-art')}${esc(def.n)}`,
         meta: line || `×${num(inv[id])} held`,

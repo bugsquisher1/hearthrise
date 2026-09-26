@@ -1456,10 +1456,19 @@ let deathsLifetimeCount = 0;
 /* THE PENDING FALL. `at` is when the client saw itself go down (local clock,
    used only to ask "has a priced window reached it yet"); `answered` flips when
    one has; `serverDied` is the server's own statement for that window. */
-let fall = { at: 0, answered: false, serverDied: false, answeredAt: 0, asks: 0, reaskAt: 0, lastAskAt: 0 };
+let fall = { at: 0, answered: false, serverDied: false, answeredAt: 0, asks: 0, reaskAt: 0, lastAskAt: 0, answerSeq: 0 };
 /* The re-ask timer handle. Module-scope so `clearFall` can cancel a timer the
    fall started — the same rule the death sheet countdown follows. */
 let fallTimer = null;
+/* THE LAST FALL THE SERVER RECORDED: a frozen, read-only mirror of
+   `state.last_away_receipt` when that receipt states a death. NEVER persisted
+   and never residue (§6) — every envelope that carries the key restates it.
+   The knocked-out sheet reads the EVENT half of a fall (killer, food, cost,
+   retreat) from `fallRecord()` so a reload cannot rewrite what happened.
+   `lastFallSeq` names the record, so a down-free fall can be paired with the
+   envelope that answered it (`fall.answerSeq`). */
+let lastFall = null;
+let lastFallSeq = 0;
 /* Nested appliers announce once, at the outermost tail (see holdFallAnnounce). */
 let fallAnnounceHold = 0;
 
@@ -1523,7 +1532,7 @@ export function noteFall(atMs) {
   const t = Number(atMs);
   cancelFallReask();
   fall = { at: (Number.isFinite(t) && t > 0) ? t : Date.now(), answered: false, serverDied: false,
-    answeredAt: 0, asks: 0, reaskAt: 0, lastAskAt: 0 };
+    answeredAt: 0, asks: 0, reaskAt: 0, lastAskAt: 0, answerSeq: 0 };
   /* THE QUESTION IS RE-ASKED BY THE FALL, NEVER LEFT TO THE CADENCE. See
      scheduleFallReask for the measurement that forced this. */
   scheduleFallReask(nowFall());
@@ -1533,7 +1542,7 @@ export function noteFall(atMs) {
 /** Forget the pending fall (the player stopped the run, or it resolved). */
 export function clearFall() {
   cancelFallReask();
-  fall = { at: 0, answered: false, serverDied: false, answeredAt: 0, asks: 0, reaskAt: 0, lastAskAt: 0 };
+  fall = { at: 0, answered: false, serverDied: false, answeredAt: 0, asks: 0, reaskAt: 0, lastAskAt: 0, answerSeq: 0 };
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -1694,7 +1703,7 @@ export function isKnockedOut(nowArg) {
 /** Observe a priced window off an arriving envelope. Called by
  *  applyEnvelopeState — every envelope, away or not — so there is ONE reader of
  *  the server's answer and no second idea of when a fall has been settled. */
-function noteFallAnswer(res) {
+function noteFallAnswer(res, wroteFall) {
   if (!fall.at || fall.answered) return;
   if (!(accruedToAt >= fall.at)) return;
   const away = (res && res.away && typeof res.away === 'object') ? res.away : null;
@@ -1704,7 +1713,10 @@ function noteFallAnswer(res) {
   const died = recoveringUntil > 0
     || !!(away && (away.died === true || Number(away.deaths) > 0));
   fall = { at: fall.at, answered: true, serverDied: died, answeredAt: Date.now(),
-    asks: fall.asks, reaskAt: 0, lastAskAt: fall.lastAskAt };
+    asks: fall.asks, reaskAt: 0, lastAskAt: fall.lastAskAt,
+    /* Paired ONLY with a record this same envelope wrote: an older receipt
+       riding along describes some other fall. */
+    answerSeq: wroteFall ? lastFallSeq : 0 };
   /* ANSWERED ⇒ STOP ASKING. Both outcomes end the wait: a death puts the
      server's recovery line on screen, and NO death in a priced window that
      COVERS the fall resolves to `unconfirmed`, which stands the player up on
@@ -4471,14 +4483,77 @@ export function reconcileFall(G, res) {
     if (G && typeof G === 'object') G.consecFalls = v;
     written.consecFalls = v;
   }
-  /* AFTER all three: a no-op unless the CLIENT saw itself fall this session
+  /* THE RECORD OF THE FALL - KEY PRESENCE, never coalescing: an absent key
+     (an older server, or a body that does not carry it) leaves the mirror
+     alone; a null or death-free receipt clears it. */
+  let wroteFall = false;
+  if (st && Object.prototype.hasOwnProperty.call(st, 'last_away_receipt')) {
+    wroteFall = noteLastFall(st.last_away_receipt);
+    written.lastFall = wroteFall;
+  }
+  /* AFTER all four: a no-op unless the CLIENT saw itself fall this session
      (`fall.at`), which on the boot path it never has. */
-  noteFallAnswer(res);
+  noteFallAnswer(res, wroteFall);
   /* NO ANNOUNCEMENT HERE. It fired from this line until the KO-sheet fix and
      raised the sheet partway through the apply - before hp, the bag and the
      receipt had landed - on BOTH doors. Every applier now announces once, at
      its own tail: `holdFallAnnounce` below, and record.js's 'fall-announce'. */
   return written;
+}
+
+/* Mirror a stored receipt that states a death; clear it for one that does not.
+   Returns true when a death record was written. */
+function noteLastFall(r) {
+  if (!r || typeof r !== 'object' || Array.isArray(r) || r.died !== true) { lastFall = null; return false; }
+  const at = Number(r.at);
+  const n = (v) => Math.max(0, Math.floor(Number(v) || 0));
+  const ae = (r.autoEat && typeof r.autoEat === 'object' && !Array.isArray(r.autoEat)) ? r.autoEat : null;
+  if (!lastFall || lastFall.at !== at) lastFallSeq++;
+  const rec = {
+    at: Number.isFinite(at) ? at : 0,
+    diedTo: (typeof r.diedTo === 'string' && r.diedTo) ? r.diedTo : null,
+    deaths: n(r.deaths),
+    foodEaten: n(r.foodEaten),
+    recoverLadder: Object.freeze(Array.isArray(r.recoverLadder) ? r.recoverLadder.map(n) : []),
+    stoppedBy: (typeof r.stoppedBy === 'string' && r.stoppedBy) ? r.stoppedBy : null,
+  };
+  /* Omitted when the engine did not state it - never a fabricated "off". */
+  if (ae) {
+    rec.autoEat = Object.freeze({ enabled: ae.enabled === true, pct: n(ae.pct),
+      hadFood: (typeof ae.hadFood === 'boolean') ? ae.hadFood : undefined });
+  }
+  lastFall = Object.freeze(rec);
+  return true;
+}
+
+/** Receipt `at` vs the recovery line, in ms: the settle that stamps a receipt
+ *  runs after the fall it prices, so `at` is never before the fall's own end. */
+export const FALL_PAIR_SLACK_MS = 5000;
+
+/**
+ * THE SERVER'S RECORD OF THE CURRENT FALL, or null. Returned only when it is
+ * PAIRED with the fall `fallState` reports, so a receipt about some other fall
+ * can never be read as this one:
+ *   recovering  the record's last rung, ending at `recovering_until`, contains
+ *               the receipt's `at`: until - rung - slack <= at <= until + slack.
+ *   down-free   the envelope that answered the client's fall wrote it.
+ * Anything else answers null, and the sheet then claims nothing it cannot back.
+ * KNOWN LIMIT: an away settle of 10 minutes or more inside a long knockout
+ * replaces the receipt (away-receipt.js), and the sheet degrades to claiming
+ * nothing until the server keeps its own record of the last fall.
+ */
+export function fallRecord(nowArg) {
+  if (!lastFall) return null;
+  const f = fallState(nowArg);
+  if (f.phase === 'recovering') {
+    const lad = lastFall.recoverLadder;
+    const rung = lad.length ? lad[lad.length - 1] : 0;
+    if (!(rung > 0)) return null;
+    const ok = lastFall.at >= f.until - rung - FALL_PAIR_SLACK_MS && lastFall.at <= f.until + FALL_PAIR_SLACK_MS;
+    return ok ? lastFall : null;
+  }
+  if (f.phase === 'down-free') return (fall.answerSeq > 0 && fall.answerSeq === lastFallSeq) ? lastFall : null;
+  return null;
 }
 
 /** THE ANNOUNCEMENT. A reload has no fall MOMENT, so the envelope is the only
@@ -5425,7 +5500,7 @@ export function getLastAwayReceipt() { return lastAwayReceipt; }
 
 /** TEST SEAM ONLY. An away fixture landed by one test would otherwise stay on
     the Home screen for the next thirty minutes of the suite. */
-export function __resetAwayReceipt() { lastAwayReceipt = null; }
+export function __resetAwayReceipt() { lastAwayReceipt = null; lastFall = null; }
 
 /**
  * 'switch' | 'sync' | 'away' — the three genuinely different events that share
@@ -6341,7 +6416,7 @@ if (typeof window !== 'undefined') {
     requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt,
-    announceFall,
+    fallRecord, announceFall,
     receiptStopClause, receiptRecoveryClause,
     noteVisibility, visibleSince, receiptAttended,
     getAccrualState, resetAccrualGate, setAccrualHooks,

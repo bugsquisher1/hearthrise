@@ -2413,7 +2413,7 @@ export default [
       const fed = D.describeDeath({
         monsterName: window.MONSTERS[FOE].name, maxHp: 13, deaths: RUNG, deathsToday: RUNG,
         recoveryMs: 32 * 60000, resumeHp: 5, recoveringUntilMs: A.recoveringUntilMs(),
-        nowMs: A.recoveringUntilMs() - 32 * 60000, hadFood: true, foodQty: 9, missingHp: 8,
+        nowMs: A.recoveringUntilMs() - 32 * 60000, hadFood: true, foodQty: 9, restFood: 9, missingHp: 8,
         retreat: true, retreatFoodless: false, retreatFalls: RUNG });
       const restAct = (fed.actions || []).filter(function (x) { return x.k === 'rest'; })[0];
       assert(restAct && restAct.disabled !== true && /eat 8 health/.test(restAct.label),

@@ -405,7 +405,14 @@
     var foodQty = Math.max(0, Number(d.foodQty) || 0);
     var foodName = String(d.foodName || 'provision');
     var ate = Math.max(0, Number(d.ateThisFight) || 0);
+    /* `null` = NOT STATED (a settled fall: no server field holds the kills
+       before it), so the row claims no count at all. Opt-in: a hand-built
+       model that omits the field still reads 0 as "no kills". */
+    var killsStated = d.killsThisFoe !== null;
     var kills = Math.max(0, Number(d.killsThisFoe) || 0);
+    /* The Rest gate is the LIVE bag (the state half); `foodQty` is the tip's
+       fact about the fall. Two questions, two fields. */
+    var restFood = Math.max(0, Number(d.restFood) || 0);
     var maxHp = Math.max(1, Number(d.maxHp) || 1);
     var deaths = Math.max(1, Number(d.deaths) || 1);
     /* THE LADDER, AS THE SERVER COUNTED IT (rev. 2). `n` is falls TODAY
@@ -456,7 +463,10 @@
        branch where the player already owned the answer — that is the most
        teachable death there is, and it is the one the FTUE run hit. */
     var tipKey;
-    if (foodQty > 0 && ate === 0) tipKey = 'food-unused';
+    /* `tipStated:false` = the server never said what the bag did at the fall,
+       so there is no tip rather than one read off today's bag (D1). */
+    if (d.tipStated === false) tipKey = null;
+    else if (foodQty > 0 && ate === 0) tipKey = 'food-unused';
     /* ATE ANYTHING AT ALL → outmatched, and this clause must come BEFORE the
        auto-eat one. The first draft asked "bag empty and Auto-Eat owned?"
        second, which told a player who had just burned five Trout that their bag
@@ -481,7 +491,7 @@
     rows.push({
       g: 'uiSkull', tone: 'bad', k: 'killed-by',
       t: monsterName ? 'Slain by ' + monsterName : 'Slain in battle',
-      v: kills > 0 ? (kills + (kills === 1 ? ' kill' : ' kills') + ' first') : 'no kills'
+      v: !killsStated ? '' : (kills > 0 ? (kills + (kills === 1 ? ' kill' : ' kills') + ' first') : 'no kills')
     });
     /* THE REASSURING HALF, and it is not filler. A new player's first
        assumption on death in an RPG is that they were just robbed. Hearthrise
@@ -518,13 +528,19 @@
     } else if (phase === 'unconfirmed') {
       rows.push({ g: 'uiHourglass', tone: 'ok', k: 'run-stopped',
         t: 'The hearth recorded no fall — your run never stopped', v: 'no delay' });
-    } else if (nToday <= 1 || recoveryMs <= 0) {
+    } else if (d.fallCostMs === null) {
+      /* A settled fall with no record paired to it: its cost was never stated,
+         and "First fall of the day" under a running countdown is a lie. */
+    } else if ((d.fallCostMs === undefined) ? (nToday <= 1 || recoveryMs <= 0) : !(d.fallCostMs > 0)) {
       rows.push({ g: 'uiHourglass', tone: 'ok', k: 'run-stopped',
         t: 'First fall of the day — you are back on your feet at once', v: 'no delay' });
     } else {
+      /* `fallCostMs` is the rung the SERVER charged this fall (its receipt);
+         absent, the pre-record reading off today's counter stands. */
+      var cost = (d.fallCostMs === undefined) ? recoveryMs : d.fallCostMs;
       rows.push({ g: 'uiHourglass', tone: 'bad', k: 'run-stopped',
-        t: 'Knocked out for ' + fmtDur(recoveryMs) + ' — nothing earns while you recover',
-        v: fmtDur(recoveryMs) });
+        t: 'Knocked out for ' + fmtDur(cost) + ' — nothing earns while you recover',
+        v: fmtDur(cost) });
     }
     /* THE POINTER SURVIVES. The single most important thing this sheet can say
        to somebody who just watched a twelve-hour night end at minute four
@@ -646,7 +662,7 @@
       deaths: deaths,
       rows: rows,
       tipKey: tipKey,
-      tip: TIPS[tipKey](
+      tip: tipKey && TIPS[tipKey](
         { foodQty: foodQty, foodName: foodName, monsterName: monsterName || 'That foe',
           autoEatOwned: !!d.autoEatOwned,
           // b497: the live-combat SWITCH, distinct from ownership. See the
@@ -673,7 +689,10 @@
          only one who gets a button — an owner with it ON would be offered a
          switch already thrown, and a non-owner a switch they do not have. */
       enableAutoEat: (tipKey === 'food-unused' || tipKey === 'auto-eat-off-repeat')
-        && !!d.autoEatOwned && !d.autoEatOn,
+        && !!d.autoEatOwned
+        /* The BUTTON reads the live switch (state half); the tip may be about
+           the switch as it stood at the fall. */
+        && !((typeof d.autoEatLiveOn === 'boolean') ? d.autoEatLiveOn : d.autoEatOn),
       /* ── THE RELIEF VALVE (rev. 2, N1) ────────────────────────────────
          "Rest at the Hearth" is the ONLY way off the floor early, and it is
          bought with FOOD — never with gold, marks, gems or a trait (the R10
@@ -690,12 +709,12 @@
          at the Hearth — eat 7 health", and `hr_rest` answered
          `insufficient_food` — an action that could never succeed, offered as
          the PRIMARY tap on a screen the player is stuck behind.
-         `foodQty` is read from `G.inventory` through `bestProvision`, i.e. from
+         `restFood` is read from `G.inventory` through `bestProvision`, i.e. from
          the bag AFTER the boot/settle reconcile — which is the server's food
          count now that reconcileInventory lets a server-eaten provision reach
-         zero (src/net/accrue.js, the phantom-food rule). One source, no second
-         idea of how much food exists. */
-      restFood: foodQty,
+         zero (src/net/accrue.js, the phantom-food rule). The sheet is only
+         announced at the tail of each envelope apply, so the bag has landed. */
+      restFood: restFood,
       /* NO "Fight again" WHILE THE FALL IS UNRESOLVED, and that is not caution:
          `startCombat` declares a new activity, hr_apply stamps
          `accrued_to = now()` on any activity delta, and the window the fall is
@@ -707,7 +726,7 @@
         : (phase === 'unconfirmed'
           ? [{ k: 'table', label: 'Back to the fight', primary: true }]
           : (recoverLeft > 0 && missingHp > 0
-            ? [(foodQty > 0
+            ? [(restFood > 0
                  ? { k: 'rest', label: 'Rest at the Hearth — eat ' + missingHp + ' health', primary: true }
                  /* No provisions: the tap is shown so the player learns WHY the
                     relief valve is closed, and disabled so it cannot lie. */
@@ -778,22 +797,28 @@
        left UNDEFINED by an older server, and an undefined counter must claim
        NOTHING: inventing a 0 (or a 3) would put the ruled ending on a sheet the
        database cannot back. Non-number ⇒ no retreat, full stop.
-     ⚠ THE POINTER IS THE OTHER HALF. An ordinary knockout mid-fight boots with
-       `active_kind:'combat'` and record.js re-points `G.activeMonster`; a
-       retreat ALWAYS boots idle. A character still pointed at a fight has not
-       pulled back, whatever their fall count reads, so the fight wins the tie.
+     ⚠ A PAIRED RECORD DECIDES IT BOTH WAYS. When the server's receipt of this
+       fall is in hand (`rec`, accrue.js fallRecord), its `stoppedBy` is the
+       engine's own answer: 'retreat' claims the retreat, anything else claims
+       nothing — a fed character at 3-5 falls was never pulled back.
+     ⚠ UNPAIRED, THE POINTER IS THE OTHER HALF. An ordinary knockout boots with
+       the server's pointer resumed (combat, or a gather/bench run, which is
+       legal while down); a retreat ALWAYS boots idle. ANY live pointer vetoes
+       the inference — the sheet is announced after 'activity-resume', so the
+       pointer is the server's by the time this is asked.
      ⚠ WHICH RUNG DECIDES THE COPY, and nothing else does. Fed (6) is asked
        FIRST because it is the strictly weaker condition — a count at 6 is a
        retreat whatever the bag held, and the ruled fed sentence ("out of your
        league") is the honest one there. Only a count the fed rung does not
        reach can be the foodless rung's, and that is the only inference here. */
-  function bootRetreat(G) {
+  function bootRetreat(G, rec) {
     var none = { retreat: false, foodless: undefined, falls: 0 };
     try {
       if (!G || typeof G.consecFalls !== 'number' || !isFinite(G.consecFalls)) return none;
       var n = Math.floor(G.consecFalls);
       if (!(n > 0)) return none;
-      if (G.activeMonster) return none;
+      if (rec) { if (rec.stoppedBy !== 'retreat') return none; }
+      else if (G.activeMonster || G.activeSkill || G.activeAction || G.activeArtisanRecipe) return none;
       var A = window.HearthriseCore && window.HearthriseCore.away;
       if (!A || typeof A.retreatAtFall !== 'function') return none;
       if (A.retreatAtFall({ consecFalls: n, foodless: false })) {
@@ -802,8 +827,37 @@
       if (A.retreatAtFall({ consecFalls: n, foodless: true })) {
         return { retreat: true, foodless: true, falls: n };
       }
-      return none;
+      /* The engine said it retreated at a count neither rung names: claim the
+         ending, and leave the rung's sentence to the count alone. */
+      return rec ? { retreat: true, foodless: undefined, falls: n } : none;
     } catch (e) { return none; }
+  }
+
+  /* ── THE EVENT HALF OF A SETTLED FALL, FROM THE SERVER'S RECORD ONLY ──────
+     Once the server has priced the fall ('recovering' / 'down-free'), what
+     HAPPENED is read from its record (`rec`, accrue.js fallRecord: paired with
+     this fall or null) and never from client scratch or today's state: the
+     live target, kill counter and combat log are NO_SYNC and gone after a
+     reload, and today's bag and day counter describe NOW. Nothing is inferred
+     that the record does not state (D1):
+       - no kill count (no server field holds the kills before the fall);
+       - food eaten > 0            -> outmatched;
+       - nothing eaten, bag empty  -> the switch as the engine ran it;
+       - otherwise                 -> no tip. The sim never counts a manual
+         Eat, so "held food, never ate" cannot be read off `foodEaten: 0`.
+     The cost is the rung the record charged; unpaired, no cost is claimed. */
+  function settledEvent(rec) {
+    var ev = { monsterId: (rec && rec.diedTo) || null, tipStated: false, foodQty: 0, ate: 0,
+      autoEatOn: undefined, fallCostMs: null };
+    if (!rec) return ev;
+    var lad = rec.recoverLadder || [];
+    ev.fallCostMs = lad.length ? Math.max(0, Number(lad[lad.length - 1]) || 0) : 0;
+    if (rec.foodEaten > 0) { ev.tipStated = true; ev.ate = rec.foodEaten; }
+    else if (rec.autoEat && rec.autoEat.hadFood === false) {
+      ev.tipStated = true;
+      ev.autoEatOn = rec.autoEat.enabled === true;
+    }
+    return ev;
   }
 
   /**
@@ -820,23 +874,53 @@
    * `info.monsterId` is still read first, so if that field ever does arrive for
    * a real reason this keeps working. The ordering contract is asserted by the
    * "RESPAWN IS A FULL HEAL" test, which fails if onDeath ever moves.
+   * ALL OF THAT IS THE PENDING MINUTE ONLY. Once the fall settles the killer is
+   * the server record's `diedTo` (see settledEvent): the live target is gone
+   * after a reload, and a sheet must not change its story when it is.
    */
   function readMoment(info) {
     var G = window.G || {};
     var MON = window.MONSTERS || {};
-    /* Asked ONCE, and only where there is no engine `info` to state it: the
-       engine's answer always wins, so a live fall is untouched by this. */
-    var _boot = info ? null : bootRetreat(G);
-    var id = (info && info.monsterId) || G.activeMonster || null;
+    var AC = window.HearthriseAccrual;
+    var phase = '';
+    try { if (AC && typeof AC.fallState === 'function') phase = AC.fallState().phase || ''; } catch (e) {}
+    /* 'pending' / 'unconfirmed' (and a sheet with no fall) keep the engine
+       info plus client state: that is instant feedback for the first minute.
+       A SETTLED fall reads its event half from the server's record only. */
+    var settled = phase === 'recovering' || phase === 'down-free';
+    var rec = null;
+    if (settled) { try { rec = (AC && typeof AC.fallRecord === 'function') ? AC.fallRecord() : null; } catch (e) {} }
+    var ev = settled ? settledEvent(rec) : null;
+    /* Asked ONCE, and only where no engine `info` states it or the fall has
+       settled: then the record (or, unpaired, the server's counter) decides. */
+    var _boot = (info && !ev) ? null : bootRetreat(G, rec);
+    var id = ev ? ev.monsterId : ((info && info.monsterId) || G.activeMonster || null);
     var m = id && MON[id];
     var food = bestProvision(G);
+    var liveOn = (function () {
+      try {
+        var A = window.HearthriseAuto;
+        return !!(A && typeof A.getEat === 'function' && A.getEat().enabled);
+      } catch (e) { return false; }
+    })();
+    var serverHp = (function () {
+      try {
+        var h = (AC && typeof AC.serverHp === 'function') ? AC.serverHp() : null;
+        return (h && Number(h.hp) >= 0) ? Number(h.hp) : Number(G.playerHp) || 0;
+      } catch (e) { return Number(G.playerHp) || 0; }
+    })();
     return {
       monsterId: id,
       monsterName: (m && m.name) || '',
-      killsThisFoe: G.combatKillsThisFoe || 0,
-      foodQty: food ? food.qty : 0,
+      killsThisFoe: ev ? null : (G.combatKillsThisFoe || 0),
+      /* The tip's facts: at the fall when settled, the live bag while pending. */
+      foodQty: ev ? ev.foodQty : (food ? food.qty : 0),
       foodName: food ? food.name : 'provision',
-      ateThisFight: ateThisFight(G),
+      ateThisFight: ev ? ev.ate : ateThisFight(G),
+      tipStated: ev ? ev.tipStated : undefined,
+      fallCostMs: ev ? ev.fallCostMs : undefined,
+      /* The state half: Rest is priced off the bag as it is NOW. */
+      restFood: food ? food.qty : 0,
       /* ANY TIER OWNS THE FEATURE. Asking about the entry-tier id alone told a
          character holding only Auto-Eat II that they did not have Auto-Eat, and
          then quoted them the Store price for it — which is exactly the sale the
@@ -857,12 +941,8 @@
          every character is granted Auto-Eat I at creation, ownership no longer
          answers "is it running"; only this does. Absent module => false, which
          is the honest reading of "we cannot tell, so do not claim it is on". */
-      autoEatOn: (function () {
-        try {
-          var A = window.HearthriseAuto;
-          return !!(A && typeof A.getEat === 'function' && A.getEat().enabled);
-        } catch (e) { return false; }
-      })(),
+      autoEatOn: (ev && typeof ev.autoEatOn === 'boolean') ? ev.autoEatOn : liveOn,
+      autoEatLiveOn: liveOn,
       /* b432: the Marks price of Auto-Eat, read from the ONE place it is
          authored (legacy.js TRAITS, the same row the Bounty Shop renders), so
          the death sheet and the shop can never quote different numbers. Guard
@@ -874,7 +954,7 @@
         return Number(t.cost) > 0 ? Number(t.cost) : 0;
       })(),
       maxHp: G.playerMaxHp || 10,
-      streakBroken: !!(info && info.streakBroken),
+      streakBroken: !ev && !!(info && info.streakBroken),
       deaths: (G.stats && G.stats.deaths) || 1,
       /* THE LADDER'S NUMBERS, STATED BY THE SIMULATION (rev. 2). `info` is
          combat-sim's own death info, which read them off the two SERVER
@@ -933,7 +1013,7 @@
         } catch (e) {}
         return Math.max(0, Number(info && info.nextRecoverMs) || 0);
       })(),
-      resumeHp: Math.max(0, Number(info && info.resumeHp) || Number(G.playerHp) || 0),
+      resumeHp: ev ? serverHp : Math.max(0, Number(info && info.resumeHp) || Number(G.playerHp) || 0),
       /* ── THE RETREAT (Recovery rev. 3) ──────────────────────────────────
          STATED BY THE ENGINE and by nothing else. `info.retreat` is
          `resolveDeath`'s own answer, computed from the durable server counter
@@ -951,19 +1031,19 @@
          now reads `bootRetreat` above: the SERVER's own `consec_falls` put to
          away.js's `retreatAtFall`. That is an observation of state, not a
          second copy of the rule; an absent counter still claims nothing. */
-      retreat: !!(info ? info.retreat : (_boot && _boot.retreat)),
+      retreat: !!(_boot ? _boot.retreat : (info && info.retreat)),
       /* WHICH RUNG, AND HOW MANY FALLS — STATED BY THE ENGINE beside `retreat`
          itself (`resolveDeath` returns `foodless` and `consecFalls` in the same
          object) so the sheet's sentence names the rung the server charged.
          WITH NO `info` they come from `bootRetreat` — the server's counter and
          nothing else — and are omitted entirely unless it claimed a retreat, so
          a sheet that claims nothing still feeds the lead nothing. */
-      retreatFoodless: info
+      retreatFoodless: !_boot
         ? ((typeof info.foodless === 'boolean') ? info.foodless : undefined)
-        : ((_boot && _boot.retreat) ? _boot.foodless : undefined),
-      retreatFalls: info
+        : (_boot.retreat ? _boot.foodless : undefined),
+      retreatFalls: !_boot
         ? Math.max(0, Math.floor(Number(info.consecFalls) || 0))
-        : ((_boot && _boot.retreat) ? _boot.falls : 0),
+        : (_boot.retreat ? _boot.falls : 0),
       /* What "Rest at the Hearth" costs, in health. The SERVER recomputes it
          under the row lock and this number never crosses back — it is a label. */
       missingHp: Math.max(0, (Number(G.playerMaxHp) || 0) - (Number(G.playerHp) || 0)),
@@ -996,13 +1076,7 @@
          number happens to be zero — "no timer" is three different facts (a
          free first fall, an answer still in flight, and a fall the server never
          saw) and the old sheet told all three the same story. */
-      fallPhase: (function () {
-        try {
-          var AC = window.HearthriseAccrual;
-          if (AC && typeof AC.fallState === 'function') return AC.fallState().phase || '';
-        } catch (e) {}
-        return '';
-      })(),
+      fallPhase: phase,
       nowMs: Date.now(),
       /* Did the bag hold ANYTHING auto-eatable at this moment? The same chooser
          the simulation gates on, so the sheet and the night agree. `undefined`
@@ -1167,7 +1241,7 @@
     var rows = model.rows.map(function (r) {
       return '<div class="hr-death-row" data-tone="' + r.tone + '" data-row="' + r.k + '">' +
         '<span>' + gly(r.g, 17, r.tone === 'bad' ? 'var(--red,#a04830)' : 'var(--gold-2)') + '</span>' +
-        '<span class="hr-death-t">' + esc(r.t) + '</span><b>' + esc(r.v) + '</b></div>';
+        '<span class="hr-death-t">' + esc(r.t) + '</span>' + (r.v ? '<b>' + esc(r.v) + '</b>' : '') + '</div>';
     }).join('');
 
     root.innerHTML =
@@ -1178,6 +1252,9 @@
         '</div>' +
         '<p class="hr-death-lead">' + esc(model.lead) + '</p>' +
         '<div class="hr-death-rows">' + rows + '</div>' +
+        /* No stated tip, no block: an empty "What to do differently" is a
+           heading promising advice the sheet does not have. */
+        (!model.tipKey ? '' :
         '<div class="hr-death-tip" data-tip="' + esc(model.tipKey) + '">' +
           '<b>What to do differently</b>' + esc(model.tip) +
           (model.shopLink ? '<button class="hr-death-shop" data-act="shop">Open the Bounty Shop</button>' : '') +
@@ -1185,7 +1262,7 @@
           /* Same class as the shop link — one affordance in this slot, so the
              two never look like different kinds of thing. */
           (model.enableAutoEat ? '<button class="hr-death-shop" data-act="autoeat">Turn Auto-Eat back on</button>' : '') +
-        '</div>' +
+        '</div>') +
         '<div class="hr-death-acts">' +
           '<p class="hr-death-note" data-note role="status" aria-live="polite"></p>' +
           model.actions.map(function (a) {

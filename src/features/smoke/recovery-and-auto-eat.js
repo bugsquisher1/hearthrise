@@ -678,7 +678,7 @@ export default [
        refusal was silent. So the PRICE is asserted where it is honest (a bag
        with food) and the DISABLED wording where it is not. */
     const downFed = D.describeDeath(Object.assign({}, base, {
-      recoveringUntilMs: 1000000 + 107000, foodQty: 4, foodName: 'Cooked Shrimp' }));
+      recoveringUntilMs: 1000000 + 107000, foodQty: 4, restFood: 4, foodName: 'Cooked Shrimp' }));
     assert(downFed.actions[0].label === 'Rest at the Hearth — eat 6 health' && !downFed.actions[0].disabled,
       'the Rest action does not price itself in health, so the player cannot tell whether their bag '
       + 'covers it: ' + downFed.actions[0].label);
@@ -2525,6 +2525,41 @@ export default [
      fall. ROOT CAUSE: the sheet read the event from client scratch and state as
      it is NOW, and was announced partway through the apply on both doors.
      Mutations proven in the commit messages (M1-M9). */
+  () => tryRunAsync('KO-RELOAD-1 (attended): the sheet reads the same before and after a reload', async () => {
+    const F = koFix();
+    try {
+      Object.assign(F.G, { activeMonster: 'slime', combatKillsThisFoe: 3, inventory: { cooked_shrimp: 5 },
+        combatLog: ['Auto-ate Cooked Shrimp (+8)', 'You eat Cooked Shrimp.'] });
+      F.A.noteFall(Date.now());
+      F.D.show({}, { streakBroken: false, recoverMs: F.RUNG, resumeHp: 8, deathsToday: 3, retreat: false });
+      F.door2(F.state(), { cooked_shrimp: 5 });
+      const a = F.sheet();
+      F.reload({ cooked_shrimp: 5 });
+      await F.door1(F.state(), { cooked_shrimp: 5 });
+      const b = F.sheet();
+      assert(a && b && JSON.stringify(a) === JSON.stringify(b),
+        'the reload rewrote the sheet:\n  before ' + JSON.stringify(a) + '\n  after  ' + JSON.stringify(b));
+      assert(F.row(b, 'killed-by').t === 'Slain by Slime', 'the killer is not the record\'s: ' + JSON.stringify(b.rows[0]));
+      assert(!b.rows.some((r) => /kill/.test(r.v)), 'a kill count nobody stated: ' + JSON.stringify(b.rows));
+      assert(b.tipKey === 'outmatched' && !/carrying \d+ x/.test(b.tip || ''), 'tip ' + b.tipKey + ': ' + b.tip);
+    } finally { F.done(); }
+  }),
+
+  () => tryRunAsync('KO-RELOAD-1 (away): the envelope-raised sheet equals the reloaded one, Rest priced', async () => {
+    const F = koFix();
+    try {
+      F.door2(F.state(), { cooked_shrimp: 5 });
+      const a = F.sheet();
+      F.reload({ cooked_shrimp: 5 });
+      await F.door1(F.state(), { cooked_shrimp: 5 });
+      const b = F.sheet();
+      assert(a && b && JSON.stringify(a) === JSON.stringify(b),
+        'the two doors disagree:\n  door 2 ' + JSON.stringify(a) + '\n  door 1 ' + JSON.stringify(b));
+      assert(b.acts.some((x) => x[0] === 'Rest at the Hearth — eat 12 health' && !x[1]),
+        'Rest is not offered for the 12 missing health: ' + JSON.stringify(b.acts));
+    } finally { F.done(); }
+  }),
+
   () => tryRun('KO-DOOR-ORDER-1: the accrue door raises the sheet AFTER hp and the bag land', () => {
     const F = koFix();
     let a = null;
@@ -2538,6 +2573,80 @@ export default [
         'the raised sheet offers no enabled Rest with 5 shrimp and 12 health missing: ' + JSON.stringify(a && a.acts));
       assert(!/no cooked food left/.test(a.note || ''), 'the sheet says the bag is empty: ' + a.note);
     } finally { window.removeEventListener('hearthrise:fall', first); F.done(); }
+  }),
+
+  () => tryRunAsync('KO-FOOD-AT-FALL-1: the tip is the bag AT the fall; Rest follows the bag NOW', async () => {
+    const F = koFix();
+    try {
+      /* (i) the engine ate nothing from an EMPTY bag, then the player buys food. */
+      const st = F.state({ last_away_receipt: F.receipt({ foodEaten: 0, autoEat: { enabled: true, pct: 25, hadFood: false } }) });
+      await F.door1(st, {});
+      const a = F.sheet();
+      assert(a && a.tipKey === 'auto-eat-idle' && a.acts.some((x) => /No food to rest with/.test(x[0]) && x[1]),
+        '(i) the empty-bag boot: ' + JSON.stringify(a));
+      F.door2(st, { cooked_shrimp: 5 });
+      const b = F.sheet();
+      assert(b.acts.some((x) => /^Rest at the Hearth/.test(x[0]) && !x[1]) && !F.row(b, 'no-food'),
+        '(i) the purchase landed and the sheet did not redraw: ' + JSON.stringify(b));
+      assert(b.tipKey === 'auto-eat-idle' && !/carrying \d+ x/.test(b.tip || ''), '(i) tip moved: ' + b.tipKey + ' ' + b.tip);
+      F.reload({ cooked_shrimp: 5 });
+      await F.door1(st, { cooked_shrimp: 5 });
+      assert(JSON.stringify(F.sheet()) === JSON.stringify(b), '(i) the reload rewrote it: ' + JSON.stringify(F.sheet()));
+      /* (ii) food held, nothing auto-eaten: a manual Eat is not counted, so no tip. */
+      const st2 = F.state({ last_away_receipt: F.receipt({ foodEaten: 0 }) });
+      F.reload({ cooked_shrimp: 5 });
+      await F.door1(st2, { cooked_shrimp: 5 });
+      const c = F.sheet();
+      F.reload({});
+      await F.door1(st2, {});
+      const d = F.sheet();
+      assert(c.tipKey === d.tipKey && !/carrying \d+ x/.test((c.tip || '') + (d.tip || '')),
+        '(ii) the tip followed the bag: ' + c.tipKey + ' → ' + d.tipKey + ' ' + c.tip);
+    } finally { F.done(); }
+  }),
+
+  () => tryRunAsync('KO-FED-3-BOOT: a fed third fall the engine did not end is not a retreat', async () => {
+    const F = koFix();
+    try {
+      await F.door1(F.state({ consec_falls: 3 }), { cooked_shrimp: 5 });
+      const a = F.sheet();
+      assert(a && !/You pulled back|empty bag/.test(JSON.stringify(a)), 'a fed run was retreated: ' + JSON.stringify(a));
+      assert(F.row(a, 'resume').v === 'automatic', 'the resume row: ' + JSON.stringify(F.row(a, 'resume')));
+    } finally { F.done(); }
+  }),
+
+  () => tryRunAsync('KO-FED-3-GATHER: fishing while knocked out is not a retreat, record or no record', async () => {
+    const F = koFix();
+    try {
+      await F.door1(F.state({ consec_falls: 3, active_kind: 'gather', active_id: 'shrimp_s', last_away_receipt: null }),
+        { cooked_shrimp: 5 });
+      const a = F.sheet();
+      assert(F.G.activeSkill, 'the boot did not resume the gather run, so this proves nothing');
+      assert(a && !/You pulled back/.test(JSON.stringify(a)), 'a live gather run read as a retreat: ' + JSON.stringify(a));
+    } finally { F.done(); }
+  }),
+
+  () => tryRunAsync('RETREAT-PAIRED: a record that says the engine retreated is still believed', async () => {
+    const F = koFix();
+    try {
+      await F.door1(F.state({ consec_falls: 3, active_kind: 'idle', active_id: null,
+        last_away_receipt: F.receipt({ stoppedBy: 'retreat' }) }), { cooked_shrimp: 5 });
+      assert(/You pulled back/.test(JSON.stringify(F.sheet())), 'the retreat was dropped: ' + JSON.stringify(F.sheet()));
+    } finally { F.done(); }
+  }),
+
+  () => tryRunAsync('KO-MIDNIGHT: a knockout across 00:00 UTC keeps the cost it was charged', async () => {
+    const F = koFix();
+    try {
+      await F.door1(F.state({ deaths_today: 0 }), { cooked_shrimp: 5 });
+      const want = 'Knocked out for ' + Math.round(F.RUNG / 60000) + 'm — nothing earns while you recover';
+      const r = F.row(F.sheet(), 'run-stopped');
+      assert(r && r.t === want, 'paired: ' + JSON.stringify(r) + ' — wanted "' + want + '"');
+      F.reload({ cooked_shrimp: 5 });
+      await F.door1(F.state({ deaths_today: 0, last_away_receipt: null }), { cooked_shrimp: 5 });
+      assert(!/First fall of the day/.test(JSON.stringify(F.sheet())),
+        'unpaired: "First fall of the day" under a running countdown: ' + JSON.stringify(F.sheet()));
+    } finally { F.done(); }
   }),
 
   () => tryRun('KO-ANSWERTAP-1: a refused tap keeps the open sheet\'s own engine facts', () => {

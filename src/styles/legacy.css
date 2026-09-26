@@ -3717,6 +3717,20 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 .hunt-vigour.is-dry .hunt-vigour-fill { background: var(--red); }
 .hunt-vigour-label { font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .hunt-vigour.is-dry .hunt-vigour-label { color: var(--red); }
+/* The refill control sits UNDER the bar it feeds: one block, drawn only when
+   the server's catalogue is priced (src/net/vigour.js). Gold, never gems. */
+.hunt-vigour-block { display: flex; flex-direction: column; gap: 6px; }
+.hunt-vigour-dry { font-size: var(--t-small); color: var(--red); }
+.hunt-vigour-refill { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.hunt-vigour-btn {
+  font: inherit; font-size: var(--t-small); padding: 4px 12px; border-radius: var(--r-sm);
+  background: var(--gold-bg); color: var(--gold); border: 1px solid var(--gold); cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.hunt-vigour-btn[disabled] { opacity: .6; cursor: default; }
+.hunt-vigour-none, .hunt-vigour-count { font-size: var(--t-micro); color: var(--ink-3); }
+.hunt-vigour-notice { font-size: var(--t-small); color: var(--ink-2); }
+.hunt-vigour-notice.is-refused { color: var(--red); }
 
 /* D. THE VERDICT — the one line the whole panel exists to deliver, so it gets
    the whole row and is not a cell in the table below it. */

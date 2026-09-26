@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 131 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays } from './_harness.js?v=553';
+import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays } from './_harness.js?v=553';
 
 export default [
 
@@ -3915,7 +3915,10 @@ export default [
     assert(typeof window.huntPanelHtml === 'function', 'huntPanelHtml missing');
     const html = window.huntPanelHtml({
       hunt: { stance: 'careful', stop: { hours: 8 } },
-      vigour: { spent_min: 512, budget_min: 720 },
+      // Today's PRODUCTION meter: 2026-09-22-vigour-daily.sql's whole shape,
+      // WITHOUT the price-by-level fields (refills_left / next_refill_gold).
+      vigour: { day_key: '2026-9-25', grant_min: 720, refills: 0, refills_max: 5, bought_min: 0,
+        budget_min: 720, ceiling_min: 1320, spent_min: 512, remaining_min: 208, dry_mult: 0.25 },
       analyzer: {
         spawn_id: 'goblin', stance: 'careful', elapsed_ms: 11520000, paid_ms: 9660000,
         downtime_ms: 1860000, kills: 3114, kills_per_h: 974, deaths: 2, gold: 9800,
@@ -3929,15 +3932,14 @@ export default [
     assert(/hunt-stance-btn is-on/.test(html), 'no stance is visibly selected');
     assert(/Stops after 8 hours/.test(html), 'the stop rules are not stated as a sentence');
     assert(/\+ 14,200 gold \/ h/.test(html), 'the profit verdict is not the headline number');
-    // §C: THE VIGOUR BAR IS HELD (finding C-1). It read spent_min/remaining_min,
-    // which S-1 made wrong by up to 100% — twelve hours hunted still showed
-    // "11h 20m remaining". The engine half is fixed; vigour-daily.sql is STAGED,
-    // so there is no honest meter yet. PASSING A METER MUST NOT DRAW ONE — the
-    // block above hands over a full vigour object on purpose, so this fails the
-    // moment the bar returns without the migration and Security's re-verify.
+    // §C: THE VIGOUR BAR IS HELD WITHOUT A PRICED METER (C-1, condition 5).
+    // The switch is the meter's own refill fields: a meter that does not state
+    // refills_left draws nothing. The block above hands over today's full
+    // production meter on purpose, so this fails the moment the bar can appear
+    // before 2026-09-25-vigour-price-by-level.sql is applied.
     assert(!/hunt-vigour/.test(html),
-      'the Vigour bar is being rendered. It is HELD until 2026-09-22-vigour-daily.sql is applied '
-      + 'and S-1 is re-verified — see THE LIMITER in src/render/hunt-panel.js');
+      'the Vigour bar rendered off a meter with no refill fields — it is HELD until the server '
+      + 'states refills_left / next_refill_gold; see THE LIMITER in src/render/hunt-panel.js');
     assert(!/512 \/ 720 min today/.test(html),
       'the panel printed a Vigour figure off a meter the server is not projecting yet');
     // §E: a cost rendered as a positive number is a cost players do not subtract.
@@ -3999,6 +4001,190 @@ export default [
     assert(/No hunts yet/.test(html), 'the empty state does not explain itself');
     assert(!/gold \/ h/.test(html), 'the empty state still renders a verdict it has no data for');
   }),
+
+  // ══ THE VIGOUR BAR + REFILL (HUNTS_AND_ANALYZER.md §4.4 / §4.6) ══════
+  // The bar is ON only when the SERVER's meter (hr_vigour_of, field names
+  // copied from 2026-09-25-vigour-price-by-level.sql §3) states the refill
+  // fields, and every number on it is a field of the stubbed server's answer.
+  // The stub's numbers are ones the client could not derive (a 913-minute
+  // grant, a 7,777-gold next refill that no level formula yields), so an
+  // assertion that finds them can only pass if they came off the wire. Signed
+  // in via stubSignedIn; fetch stubbed and restored in `finally`.
+  ...(() => {
+    const METER = () => ({ day_key: '2026-9-25', grant_min: 913, refills: 1, refills_max: 5,
+      refill_min: 120, refills_left: 4, next_refill_gold: 7777, level: 37,
+      bought_min: 120, budget_min: 1033, ceiling_min: 1320, spent_min: 407, remaining_min: 626,
+      dry_mult: 0.25 });
+    /* Today's production meter (2026-09-22-vigour-daily.sql): no refill fields. */
+    const PROD_METER = () => { const { refill_min, refills_left, next_refill_gold, level, ...m } = METER(); return m; };
+    const rig = (world) => {
+      const realFetch = window.fetch, realRecord = window.HearthriseRecord;
+      const calls = [];
+      window.fetch = (url, init) => {
+        const u = String(url);
+        let body = null; try { body = JSON.parse(init.body); } catch (e) { /* a GET has no body */ }
+        calls.push({ url: u, method: (init && init.method) || 'GET', body });
+        if (u.indexOf('/rpc/hr_vigour_refill') !== -1) {
+          const a = world.refill(body);
+          return Promise.resolve({ ok: a.status !== 404, status: a.status || 200, json: () => Promise.resolve(a.json) });
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) });
+      };
+      /* The balance repaint asks the record; answered here so no live read
+         leaves the page during the arm. */
+      window.HearthriseRecord = Object.assign({}, realRecord || {}, { requestRecord: () => Promise.resolve(null) });
+      const unstub = stubSignedIn(0, 'Wren');
+      const G = window.G;
+      const saved = { v: G._vigour, a: G._huntAnalyzer, h: G._hunt };
+      window.HearthriseVigour.__resetForTest();
+      window.HearthriseAccrual.hydrateHunt(G, { vigour: world.meter });
+      G._huntAnalyzer = null; G._hunt = null;
+      const host = document.createElement('div');
+      host.id = 'vigour-test-host';
+      document.body.appendChild(host);
+      const paint = async () => { window.renderHuntPanel(host); await drain(); await drain(); };
+      return {
+        calls, host, paint,
+        text: () => ((host.querySelector('.hunt-vigour-block') || {}).textContent || ''),
+        rpcs: () => calls.filter((c) => c.url.indexOf('/rpc/hr_vigour_refill') !== -1),
+        click: async () => {
+          const b = host.querySelector('[data-vigour-refill]');
+          assert(b, 'no refill button to press');
+          b.click();
+          await drain(); await drain();
+        },
+        restore: () => {
+          window.fetch = realFetch;
+          window.HearthriseRecord = realRecord;
+          unstub();
+          window.HearthriseVigour.__resetForTest();
+          G._vigour = saved.v; G._huntAnalyzer = saved.a; G._hunt = saved.h;
+          if (saved.v === undefined) delete G._vigour;
+          host.remove();
+        },
+      };
+    };
+    /* Every digit-run in the bar's TEXT, commas stripped. The regression arm
+       checks each against the numbers the stub actually sent. */
+    const numbersIn = (t) => (String(t).replace(/(\d),(?=\d{3})/g, '$1').match(/\d+(?:\.\d+)?/g) || []);
+    const numbersOf = (...objs) => {
+      const out = new Set();
+      const walk = (o) => {
+        if (o == null) return;
+        if (typeof o === 'number') { out.add(String(o)); return; }
+        if (Array.isArray(o)) { o.forEach(walk); return; }
+        if (typeof o === 'object') Object.keys(o).forEach((k) => walk(o[k]));
+      };
+      objs.forEach(walk);
+      return out;
+    };
+    return [
+      // PLAYER ACTIONS, happy path: the meter offers a refill, the bar and button
+      // appear with the server's numbers, a click sends ONE intent with an
+      // idempotency key and renders the server's new balance, minutes and price.
+      () => tryRunAsync('vigour: a priced meter shows the bar and a refill renders the server answer', async () => {
+        const after = Object.assign(METER(), { refills: 2, refills_left: 3, next_refill_gold: 11665,
+          bought_min: 240, budget_min: 1153, remaining_min: 746 });
+        const world = { meter: METER(),
+          refill: () => ({ json: { ok: true, nth: 2, cost: 7777, minutes: 120, currency: 'gold', level: 37,
+            gold: 40404, version: 9, slot: 0, vigour: after } }) };
+        const r = rig(world);
+        try { await r.paint();
+          const t = r.text();
+          assert(/407 \/ 1,033 min today/.test(t), 'the meter does not show the server\'s spent/budget: ' + t);
+          assert(/913 free/.test(t) && /120 bought/.test(t), 'the grant and bought minutes are not the server\'s: ' + t);
+          assert(/Refill \+120 min · 7,777 gold/.test(t), 'the button does not show the meter\'s next_refill_gold: ' + t);
+          assert(/1 of 5 refills bought today/.test(t), 'the refills counter is not the server\'s: ' + t);
+          assert(!/gem|token/i.test(t), 'gems or tokens appear beside a gold-only refill');
+          await r.click();
+          const sent = r.rpcs();
+          assert(sent.length === 1, 'one tap sent ' + sent.length + ' refill intents');
+          const b = sent[0].body || {};
+          assert(typeof b.p_idem === 'string' && b.p_idem.length >= 32, 'the refill intent carries no idempotency key');
+          assert(Object.keys(b).sort().join(',') === 'p_idem,p_slot',
+            'the refill intent carries more than a slot and a key: ' + Object.keys(b).join(','));
+          const t2 = r.text();
+          assert(/Bought 120 min for 7,777 gold — 40,404 gold left/.test(t2), 'the receipt is not the server\'s answer: ' + t2);
+          assert(/407 \/ 1,153 min today/.test(t2), 'the meter did not follow the server\'s new budget: ' + t2);
+          assert(/Refill \+120 min · 11,665 gold/.test(t2), 'the button did not move to the server\'s next price: ' + t2);
+        } finally { r.restore(); }
+      }),
+
+      // THE SWITCH IS THE METER (C-1, condition 5): today's production meter (no
+      // refill fields), a closed shop (refills_max 0) and no meter at all draw
+      // nothing, and never ask the verb. All bought today keeps the meter and
+      // says so, with no button.
+      () => tryRunAsync('vigour: a meter without refill fields keeps the whole bar hidden', async () => {
+        const closed = Object.assign(METER(), { refills_max: 0, refills_left: 0, next_refill_gold: null, level: null });
+        for (const meter of [PROD_METER(), closed, null]) {
+          const r = rig({ meter, refill: () => ({ json: { ok: false, error: 'refill_unpriced' } }) });
+          try { if (meter === null) delete window.G._vigour; await r.paint();
+            assert(!r.host.querySelector('.hunt-vigour'), 'the Vigour bar rendered off meter ' + JSON.stringify(meter));
+            assert(!r.host.querySelector('[data-vigour-refill]'), 'a refill control rendered with nothing for sale');
+            assert(!/refill|vigour/i.test(r.host.textContent), 'the panel mentions refills with nothing for sale');
+            assert(r.rpcs().length === 0, 'the verb was called with nothing for sale');
+          } finally { r.restore(); }
+        }
+        const done = Object.assign(METER(), { refills: 5, refills_left: 0, next_refill_gold: null, level: null });
+        const r = rig({ meter: done, refill: () => ({ json: { ok: false, error: 'vigour_daily_cap' } }) });
+        try { await r.paint();
+          assert(r.host.querySelector('.hunt-vigour'), 'the meter vanished once every refill was bought');
+          assert(!r.host.querySelector('[data-vigour-refill]'), 'a refill button with refills_left 0');
+          assert(/No refills left today/.test(r.text()) && /5 of 5 refills bought today/.test(r.text()),
+            'the sold-out state is not stated from the server\'s fields: ' + r.text());
+        } finally { r.restore(); }
+      }),
+
+      // REFUSED: the server's refusal is shown in plain words, the server's
+      // meter is kept, and `refill_unpriced` closes the bar in the same trip.
+      () => tryRunAsync('vigour: a refused refill is shown in plain words and spends nothing', async () => {
+        const world = { meter: METER(),
+          refill: () => ({ json: { ok: false, error: 'insufficient_gold', cost: 7777, have: 1000, short_by: 6777, vigour: METER() } }) };
+        const r = rig(world);
+        try { await r.paint(); await r.click();
+          const t = r.text();
+          assert(/Not enough gold — you need 6,777 more/.test(t), 'the refusal is not in plain words: ' + t);
+          assert(/407 \/ 1,033 min today/.test(t), 'a refusal changed the meter: ' + t);
+          assert(/Refill \+120 min · 7,777 gold/.test(t), 'a refusal moved the price: ' + t);
+          world.refill = () => ({ json: { ok: false, error: 'refill_unpriced' } });
+          await r.click();
+          assert(!r.host.querySelector('.hunt-vigour'), 'refill_unpriced left the bar standing');
+        } finally { r.restore(); }
+      }),
+
+      // REGRESSION: the bar renders NO number the server did not send, and the
+      // client never asks the DROPPED hr_vigour_prices catalogue. Every digit-run
+      // in its text must be a field of the stubbed meter (a price computed from
+      // `level`, a retyped constant or a derived "left" count fails); then a
+      // projected field is MUTATED and the DOM must follow it (a cached render
+      // fails); and not one request may name the catalogue.
+      () => tryRunAsync('vigour: the bar prints only numbers the server sent, and never reads hr_vigour_prices', async () => {
+        const world = { meter: Object.assign(METER(), { spent_min: 1100, remaining_min: 0 }),
+          refill: () => ({ json: { ok: false, error: 'rate_limited' } }) };
+        const r = rig(world);
+        try { await r.paint();
+          const allowed = numbersOf(world.meter);
+          const seen = numbersIn(r.text());
+          assert(seen.length >= 5, 'the bar printed too few numbers to judge: ' + r.text());
+          seen.forEach((n) => assert(allowed.has(n), 'the bar printed ' + n + ', which the server never sent: ' + r.text()));
+          assert(/Tired — hunts pay ×0\.25/.test(r.text()), 'the dry state does not quote the server\'s dry_mult: ' + r.text());
+          const m2 = Object.assign(METER(), { spent_min: 222, budget_min: 1400, grant_min: 1280, refills: 2,
+            refills_left: 3, next_refill_gold: 23456, level: 88 });
+          window.HearthriseAccrual.hydrateHunt(window.G, { vigour: m2 });
+          await r.paint();
+          const t2 = r.text();
+          assert(/222 \/ 1,400 min today/.test(t2) && /1,280 free/.test(t2), 'the DOM did not follow the mutated meter: ' + t2);
+          assert(/23,456 gold/.test(t2) && /2 of 5/.test(t2), 'the price did not follow the mutated next_refill_gold: ' + t2);
+          assert(!/7,777/.test(t2), 'the old price outlived the envelope that replaced it');
+          assert(!/Tired/.test(t2), 'the dry line outlived the server\'s remaining_min');
+          numbersIn(t2).forEach((n) => assert(numbersOf(m2).has(n), 'after the mutation the bar printed ' + n));
+          await r.click();
+          const cat = r.calls.filter((c) => c.url.indexOf('hr_vigour_prices') !== -1);
+          assert(cat.length === 0, 'the client queried the dropped hr_vigour_prices catalogue ' + cat.length + ' time(s)');
+        } finally { r.restore(); }
+      }),
+    ];
+  })(),
 
   // THE STOP SENTENCE never promises a stop the server cannot deliver.
   // This game has NO bag capacity, so the bag_full rule cannot fire; the field

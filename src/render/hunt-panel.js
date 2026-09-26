@@ -27,9 +27,11 @@
 // window must see the SAME numbers both times and understand why.
 //
 // ── WHAT IS DELIBERATELY ABSENT ─────────────────────────────────────────────
-//  · NO REFILL BUTTON. Slice 1 ships Vigour read-only (HUNTS_AND_ANALYZER.md
-//    §4.6); the gold sink is staged but unapplied and needs Tyler's four
-//    numbers plus a Security GO.
+//  · NO VIGOUR BAR WITHOUT A PRICED METER. The meter and its refill control
+//    are one block, drawn only when the server's meter (`hr_vigour_of`, on the
+//    envelope) states the refill fields — Security C-1 / condition 5. A meter
+//    without them (production before 2026-09-25-vigour-price-by-level.sql) or
+//    with the shop closed draws nothing, exactly as the held bar did.
 //  · NO "if the bag fills" IN THE STOP SENTENCE. This game has no bag capacity
 //    today, so the rule cannot fire; printing it would promise a stop that
 //    never comes. The field is still accepted and stored server-side for the
@@ -130,35 +132,75 @@
     return 'Stops ' + parts.join(' · ') + '.';
   }
 
-  /* ── THE LIMITER (§C) — HELD, NOT SHIPPED (2026-09-23) ──────────────
-     THE VIGOUR BAR IS DELIBERATELY NOT RENDERED, and this comment is the whole
-     of what is left of it. Finding C-1 of
-     docs/planning/SEC_HUNTS_M6_2026-09-22.md: the bar read `spent_min` and
-     `remaining_min` off the meter, and finding S-1 made those numbers wrong by
-     up to 100% — the charge floored per settle window and discarded the
-     remainder, so a player who had hunted twelve hours saw "11h 20m remaining"
-     all night. That is the exact class Tyler ruled on 2026-09-14 ("the browser
-     never says one thing while the server says another"), inside the feature
-     that quotes that ruling most.
+  /* ── THE LIMITER (§C) — ON ONLY WHEN THE SERVER'S METER SELLS ─────────
+     The bar was held (Security C-1): a meter with nothing to act on only
+     raises questions. So THE SWITCH IS A SERVER FACT ON THE METER ITSELF:
+     `refills_left` present and finite AND `refills_max` > 0 (the price rule
+     row exists). A meter without them — today's production, where
+     2026-09-25-vigour-price-by-level.sql is not applied — draws NOTHING, no
+     bar and no control. There is no client flag and no price table to read.
 
-     The engine half of S-1 is fixed and this lane carries it. THE SERVER HALF
-     IS NOT APPLIED: 2026-09-22-vigour-daily.sql is STAGED, so `state.vigour` is
-     absent from every envelope today and there is no honest meter to draw. The
-     bar comes back when the migration is applied and Security re-verifies S-1 —
-     one function returning the markup below, one `var meter = vigourRow(...)`
-     and one `+ meter` in each of the two returns:
+     EVERY NUMBER BELOW IS A FIELD THE SERVER SENT, printed as sent:
+       meter    hr_vigour_of via `res.vigour` — spent_min, budget_min,
+                grant_min, bought_min, remaining_min, refills, refills_max,
+                refills_left, refill_min, next_refill_gold, dry_mult
+       receipt  hr_vigour_refill's own answer — minutes, cost, gold
+     The price is `next_refill_gold` VERBATIM: the server computes it from the
+     combat level it reads itself, and this file never does (no level, no
+     formula). The button is offered only while the server says a refill is
+     for sale (refills_left > 0 and a price). The one derived thing is the fill
+     WIDTH, a display ratio no gate reads. Affordability is NOT predicted: the
+     verb decides under the lock and the refusal is shown in words.
+     §C: ABSOLUTE MINUTES, never a percentage of an invisible budget. */
+  function fin(n) { return typeof n === 'number' && isFinite(n); }
 
-       <div class="hunt-vigour">
-         <span class="hunt-vigour-key">VIGOUR</span>
-         <span class="hunt-vigour-track"><span class="hunt-vigour-fill" style="width:N%"></span></span>
-         <span class="hunt-vigour-label">S / B min today</span>   <!-- §C: ABSOLUTE
-           MINUTES, never a percentage of an invisible budget; the dry label is
-           "Tired — hunts pay a quarter until 00:00 UTC." -->
-       </div>
+  function vigourRow(v, refill) {
+    if (!v || typeof v !== 'object' || !fin(v.spent_min) || !fin(v.budget_min)) return '';
+    if (!fin(v.refills_left) || !fin(v.refills_max) || !(v.refills_max > 0)) return '';
+    var r = refill || {};
+    if (r.closedAt != null && !(fin(v.at) && v.at > r.closedAt)) return '';
 
-     Holding it costs a player nothing: design §6 ships Vigour READ-ONLY with no
-     refill control in slice 1, so there is no gate, no intent and no purchase
-     behind this bar. The Analyzer block and the stance/stop sentence ship. */
+    var dry = v.remaining_min === 0;
+    var pct = v.budget_min > 0 ? Math.max(0, Math.min(100, (v.spent_min / v.budget_min) * 100)) : 100;
+    var detail = [];
+    if (fin(v.grant_min)) detail.push(num(v.grant_min) + ' free');
+    if (fin(v.bought_min) && v.bought_min > 0) detail.push(num(v.bought_min) + ' bought');
+    var meter = '<div class="hunt-vigour' + (dry ? ' is-dry' : '') + '">'
+      + '<span class="hunt-vigour-key">VIGOUR</span>'
+      + '<span class="hunt-vigour-track"><span class="hunt-vigour-fill" style="width:'
+      + pct.toFixed(1) + '%"></span></span>'
+      + '<span class="hunt-vigour-label">' + esc(num(v.spent_min) + ' / ' + num(v.budget_min) + ' min today')
+      + (detail.length ? ' · ' + esc(detail.join(' + ')) : '') + '</span>'
+      + '</div>';
+    var dryLine = dry
+      ? '<div class="hunt-vigour-dry">' + esc(fin(v.dry_mult)
+          ? 'Tired — hunts pay ×' + v.dry_mult + ' until the day turns (UTC).'
+          : 'Tired — hunts pay reduced rates until the day turns (UTC).') + '</div>'
+      : '';
+
+    /* THE NEXT REFILL, as the server states it: for sale only while it says
+       refills_left > 0 AND names a price and a block size. */
+    var forSale = v.refills_left > 0 && fin(v.next_refill_gold) && fin(v.refill_min);
+    var bought = fin(v.refills) ? v.refills : 0;
+    var control = forSale
+      ? '<button type="button" class="hunt-vigour-btn" data-vigour-refill="1"' + (r.busy ? ' disabled' : '') + '>'
+        + esc(r.busy ? 'Refilling…' : ('Refill +' + num(v.refill_min) + ' min · ' + num(v.next_refill_gold) + ' gold'))
+        + '</button>'
+      : '<span class="hunt-vigour-none">No refills left today.</span>';
+    var count = '<span class="hunt-vigour-count">' + esc(num(bought) + ' of ' + num(v.refills_max) + ' refills bought today') + '</span>';
+    var notice = '';
+    if (r.ok === true && r.receipt) {
+      notice = 'Bought ' + num(r.receipt.minutes) + ' min for ' + num(r.receipt.cost) + ' gold'
+        + (fin(r.receipt.gold) ? ' — ' + num(r.receipt.gold) + ' gold left.' : '.');
+    } else if (r.ok === false && r.notice) {
+      notice = r.notice;
+    }
+    return '<div class="hunt-vigour-block">' + meter + dryLine
+      + '<div class="hunt-vigour-refill">' + control + count + '</div>'
+      + (notice ? '<div class="hunt-vigour-notice' + (r.ok === false ? ' is-refused' : '') + '">'
+        + esc(notice) + '</div>' : '')
+      + '</div>';
+  }
 
   /* ── THE EVIDENCE (§E) ────────────────────────────────────────────────────
      Six rows, each a total beside its rate or a cost beside its cause. The
@@ -195,8 +237,9 @@
    * lets the smoke suite assert what a player sees without a DOM.
    *
    * @param o.hunt     G._hunt      — {stance, stop} from state.hunt_*
-   * @param o.vigour   G._vigour    — hr_vigour_of's block. ACCEPTED AND IGNORED
-   *                                until the meter ships; see THE LIMITER above.
+   * @param o.vigour   G._vigour    — hr_vigour_of's block; no refill fields =
+   *                                no bar (see THE LIMITER above)
+   * @param o.refill   G._vigourRefill — the last refill gesture's state/answer
    * @param o.analyzer G._huntAnalyzer — hr_hunt_analyzer's block, or null
    * @param o.monsters window.MONSTERS — the display NAME only, never a value
    */
@@ -211,6 +254,7 @@
       ? monsters[a.spawn_id] : null;
     var name = running ? ((mon && mon.name) || a.spawn_id) : 'No hunt';
     var stance = (a && a.stance) || (hunt && hunt.stance) || 'steady';
+    var meter = vigourRow(opt.vigour || null, opt.refill || null);
 
     /* A. THE HEADER. The live pill and the elapsed WALL clock beside it. */
     var head = '<div class="hunt-head">'
@@ -239,7 +283,7 @@
 
     /* §3. THE EMPTY STATE. Eleven words, no tutorial, no carousel. */
     if (!running) {
-      return '<div class="hunt-panel">' + head + setup
+      return '<div class="hunt-panel">' + head + setup + meter
         + '<div class="hunt-empty"><strong>No hunts yet.</strong> '
         + 'Start one and this panel will tell you what it was worth.</div></div>';
     }
@@ -275,7 +319,7 @@
       ? ('<div class="hunt-stopped">Stopped: ' + esc(STOP_WORDS[a.stopped] || a.stopped) + '.</div>')
       : '';
 
-    return '<div class="hunt-panel">' + head + setup + verdict + evidence(a)
+    return '<div class="hunt-panel">' + head + setup + meter + verdict + evidence(a)
       + stoppedLine
       + '<div class="hunt-honesty">' + esc(honesty) + '</div></div>';
   }
@@ -289,9 +333,23 @@
     node.innerHTML = huntPanelHtml({
       hunt: G._hunt || null,
       vigour: G._vigour || null,
+      refill: G._vigourRefill || null,
       analyzer: G._huntAnalyzer || null,
       monsters: window.MONSTERS || {},
     });
+    /* THE REFILL GESTURE, delegated once per container: the panel replaces its
+       innards on every paint, so a listener on the button would die with it. */
+    if (!node.__huntVigourWired) {
+      node.__huntVigourWired = true;
+      node.addEventListener('click', function (ev) {
+        var t = ev.target && ev.target.closest ? ev.target.closest('[data-vigour-refill]') : null;
+        var M = window.HearthriseVigour;
+        if (!t || t.disabled || !M) return;
+        var p = M.refill();
+        renderHuntPanel(node);
+        Promise.resolve(p).then(function () { renderHuntPanel(node); });
+      });
+    }
     return node;
   }
 

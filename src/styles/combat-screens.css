@@ -1309,12 +1309,15 @@ body.in-combat #panel-combat .fs-style .combat-style-block .csb-btn small {
   #panel-combat .wt-bar { flex-wrap: nowrap; gap: 8px; overflow: hidden; }
   #panel-combat .wt-chips { flex-wrap: nowrap; }
   #panel-combat .wt-classes { overflow-x: auto; overscroll-behavior-x: contain; }
-  /* NOT SHRUNK ON PURPOSE. These chips resolve to 40px from
-     `.panel .chip { min-height: 40px !important }` in theme-cozy.css — b285's
-     deliberate thumb-target floor for in-panel filters on a landscape phone.
-     The second card row is worth 16px; a filter you cannot reliably hit with a
-     thumb is not. The row below pays for the grid instead. */
-  #panel-combat .wt-chips .chip { padding: 1px 8px; white-space: nowrap; }
+  /* NOT SHRUNK ON PURPOSE. These chips resolve to `--tap` (44px) tall from
+     `.panel .chip { min-height: var(--tap) !important }` in theme-cozy.css — the
+     thumb floor for in-panel filters on a landscape phone (b285 set 40px; b554
+     raised it). The second card row is worth 16px; a filter you cannot reliably
+     hit with a thumb is not. The row below pays for the grid instead.
+     b554: and `--tap` WIDE — "T1" was a 32px target. `flex-shrink: 0` because
+     an explicit min-width replaces flex's content minimum: without it the class
+     chips squeezed to 44px and their words ran into each other in the scroller. */
+  #panel-combat .wt-chips .chip { padding: 1px 8px; white-space: nowrap; min-width: var(--tap); flex-shrink: 0; }
   #panel-combat .wt-ribbon { padding: 3px 8px; gap: 8px; }
   #panel-combat .wtr-art { width: 24px; height: 24px; }
   /* 104px cards, 8 across, two full rows visible with the third peeking so the

@@ -8590,16 +8590,22 @@ export default [
     const realNotify = window.notify; const toasts = [];
     const realCh = row.ch;
     try {
-      /* A certain roll, so every kill below puts the lucky row in `rolled`. */
-      row.ch = 0.95;
+      /* A certain roll for the lucky row only (effective chance < 1%), at its
+         REAL ch so the event keeps its 'rare' band — the path that counts
+         stats.rareDrops before onDrop (core/combat-sim.js). */
       G.combatLog = [];
       if (G.collection) delete G.collection.wolfbone_torc;
       const bag0 = G.inventory.wolfbone_torc || 0;
       const dl0 = (G.dropLog && G.dropLog.small_wolf && G.dropLog.small_wolf.drops.wolfbone_torc) || 0;
       window.__hrCombatCredits = {};
+      G.stats = G.stats || {};
+      const rare0 = G.stats.rareDrops || 0;
       window.notify = function (msg) { toasts.push(String(msg)); };
       const kill = () => { G.activeMonster = 'small_wolf'; G.monsterHp = 1; G.monsterMaxHp = m.hp;
-        G.playerHp = 500; G.playerMaxHp = 500; C.reseed(0x1ACC); window.killMonster(m); };
+        G.playerHp = 500; G.playerMaxHp = 500;
+        const r = C.reseed(0x1ACC); const roll = r.chance.bind(r);
+        r.chance = (p) => (p > 0 && p < 0.01) || roll(p);
+        window.killMonster(m); };
       kill();                                   // ATTENDED
       P._withOfflineReplay(kill);               // AWAY (the local replay)
       assert((G.inventory.wolfbone_torc || 0) === bag0, 'a client-dice lucky roll reached the bag: ' + (G.inventory.wolfbone_torc || 0));
@@ -8609,6 +8615,7 @@ export default [
       const log = (G.combatLog || []).join(' | ');
       assert(!/Wolfbone Torc|VERY RARE/.test(log), 'a client-dice lucky roll was narrated in the combat log: ' + log);
       assert(!toasts.some((t) => /Wolfbone Torc/.test(t)), 'a client-dice lucky roll raised a toast: ' + toasts.join(' | '));
+      assert((G.stats.rareDrops || 0) === rare0, 'a client-dice lucky roll was counted in stats.rareDrops (' + rare0 + ' -> ' + G.stats.rareDrops + ')');
       /* CONTROL: the same kills still credit an ordinary drop, so the silence
          above is the hook and not a fight that never happened. */
       assert((G.dropLog && G.dropLog.small_wolf && G.dropLog.small_wolf.drops.bones) > 0, 'control: the kills credited no ordinary drop (bones is ch 1)');

@@ -74,7 +74,18 @@
     fx.__hrLuckyHooked = true;
     var addItem = fx.addItem, onDrop = fx.onDrop, recordKill = fx.recordKill;
     fx.addItem = function (id) { if (isLucky(id)) return; return addItem.apply(this, arguments); };
-    fx.onDrop = function (ev) { if (ev && isLucky(ev.id)) return; return onDrop.apply(this, arguments); };
+    /* core/combat-sim.js counts a rare event into state.stats.rareDrops BEFORE
+       onDrop, and the client's state is G on both paths — so the client-dice
+       count is taken back here, or "Rare drops looted" and the Lucky
+       achievement would record a roll the server never made. */
+    fx.onDrop = function (ev) {
+      if (ev && isLucky(ev.id)) {
+        var st = window.G && window.G.stats;
+        if (ev.rare && st && st.rareDrops > 0) st.rareDrops--;
+        return;
+      }
+      return onDrop.apply(this, arguments);
+    };
     fx.recordKill = function (mid, dropped) {
       var kept = dropped;
       if (dropped && typeof dropped === 'object') {

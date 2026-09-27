@@ -4756,13 +4756,16 @@ export default [
       G.bountyHunter.active = { id:'t', type:'cull', target:'goblin', tier:1, difficulty:'easy', progress:3, required:10, rewards:{gold:1,marks:1,xp:1} };
       G.activeMonster = 'goblin'; G.monsterHp = 10; G.monsterMaxHp = 15; G.playerHp = 50; G.playerMaxHp = 50;
       window.refreshActivityBar();
+      assert(/—\/10/.test(document.getElementById('ab-meta').innerHTML), 'before the server names it the chip reads —/10');
+      window.hrNoteServerBounty({ bounty: { bounty_id: 't', target: 'goblin', required: 10, progress: 3 } });
+      window.refreshActivityBar();
       const html = document.getElementById('ab-meta').innerHTML;
       assert(/ab-bounty/.test(html) && /3\/10/.test(html), 'combat activity bar must show the active bounty progress, got: ' + html.slice(0, 140));
       // No chip when the bounty targets a DIFFERENT monster than the one you're fighting.
       G.activeMonster = 'rat';
       window.refreshActivityBar();
       assert(!/ab-bounty/.test(document.getElementById('ab-meta').innerHTML), 'no bounty chip when fighting a non-target monster');
-    } finally { restoreG(snap); }
+    } finally { restoreG(snap); delete window.G._bountyServer; }
   }),
 
   () => tryRunAsync('b261: a throttled background must not shred the offline gap (paione: AFK credits zero on Android)', async () => {

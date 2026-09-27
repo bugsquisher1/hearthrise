@@ -1055,8 +1055,8 @@ export default [
       const ci = calls.findIndex((c) => c.fn === 'credit'), qi = calls.findIndex((c) => c.fn === 'claim');
       assert(ci < qi, 'credit must precede the turn-in: ' + JSON.stringify(calls));
       const ab = G.bountyHunter.active;
-      assert(ab && ab._serverConfirmed === 3,
-        'a held turn-in must reconcile the confirmed count DOWN to the server value (3), got ' + (ab && ab._serverConfirmed));
+      assert(ab && G._bountyServer && G._bountyServer.progress === 3 && window.hrBountyView(ab).progress === 3,
+        'a held turn-in must show the server value (3), got ' + JSON.stringify(G._bountyServer));
     } finally {
       window.HearthriseGoalClaim = saved.gc;
       G.bountyHunter = saved.bh;
@@ -1073,16 +1073,16 @@ export default [
   () => tryRun('bounty: the envelope\'s server progress renders OVER the local attended counter', () => {
     const G = window.G, rig = bountyRig();
     try {
-      assert(typeof window.hrNoteServerBounty === 'function' && typeof window.bountyShownProgress === 'function',
-        'the server-bounty seam is missing — hrNoteServerBounty/bountyShownProgress are the whole fix');
+      assert(typeof window.hrNoteServerBounty === 'function' && typeof window.hrBountyView === 'function',
+        'the server-bounty seam is missing — hrNoteServerBounty/hrBountyView are the whole fix');
       // The live shape: 9 attended kills locally, 218 real kills server-side.
       const ab = rig.set({ id: 'b_settled', type: 'cull', target: rig.target, difficulty: 'normal',
         required: 20, progress: 9, rewards: { gold: 100, marks: 6, xp: 40 } });
-      assert(window.bountyShownProgress(ab) === 9, 'precondition: with no server value the local counter shows');
+      assert(window.hrBountyView(ab).mark === '—', 'precondition: with no server value the board renders pending');
       const rec = window.hrNoteServerBounty(rig.envelope('b_settled', 218));
       assert(rec && rec.noted === true, 'a matching envelope bounty must be adopted; got ' + JSON.stringify(rec));
-      assert(ab._serverConfirmed === 20, 'the server progress must land clamped to `required` (20), got ' + ab._serverConfirmed);
-      assert(window.bountyShownProgress(ab) === 20, 'the bar must show the SERVER 20, not the local 9 — got ' + window.bountyShownProgress(ab));
+      assert(rec.progress === 20, 'the server progress must land clamped to `required` (20), got ' + rec.progress);
+      assert(window.hrBountyView(ab).progress === 20, 'the bar must show the SERVER 20, not the local 9 — got ' + window.hrBountyView(ab).progress);
       assert(window.bountyProgressText(ab) === '20 / 20', 'the text must read the server count, got "' + window.bountyProgressText(ab) + '"');
       // A finished contract offering only "Fight target" is the bug with a full bar.
       assert(/hrTurnInBounty\(\)/.test(String(window.renderBountyPanel() || '')),
@@ -1092,14 +1092,14 @@ export default [
       const ah = rig.set({ id: 'b_ahead', type: 'cull', target: rig.target, difficulty: 'normal',
         required: 20, progress: 19, rewards: { gold: 100, marks: 6, xp: 40 } });
       window.hrNoteServerBounty(rig.envelope('b_ahead', 4));
-      assert(window.bountyShownProgress(ah) === 4, 'a local 19 must never exceed the server 4; got ' + window.bountyShownProgress(ah));
+      assert(window.hrBountyView(ah).progress === 4, 'a local 19 must never exceed the server 4; got ' + window.hrBountyView(ah).progress);
 
       // FAIL-SAFE + IDENTITY: a foreign id, or no key at all, writes nothing.
       const miss = window.hrNoteServerBounty(rig.envelope('someone_elses', 20));
       assert(miss.noted === false && miss.reason === 'mismatch', 'an envelope for a DIFFERENT bounty must be refused: ' + JSON.stringify(miss));
       const none = window.hrNoteServerBounty({ state: { gold: 5 } });
       assert(none.noted === false && none.reason === 'no_key', 'an envelope without the key must be a no-op: ' + JSON.stringify(none));
-      assert(ah._serverConfirmed === 4, 'neither refusal may move the confirmed count, got ' + ah._serverConfirmed);
+      assert(window.hrBountyView(ah).known === false, 'after the server names a different contract, b_ahead renders pending');
     } finally { rig.restore(); }
   }),
   /* A FINISHED CONTRACT IS NEVER BURNED WITHOUT A RECEIPT (P2). The away replay
@@ -1162,6 +1162,41 @@ export default [
       one(f, '—', 'confirming'); assert(!f.claim && !f.badge && /Verifying/.test(f.pill) && !/(^|\D)0\/20/.test(f.pill), 'confirming: Verifying, no Claim, no badge, no 0/20');
       rig.set(c('b_four', 9)); window.hrNoteServerBounty(rig.envelope('b_four', 20)); await tick(); f = await rig.figures();
       one(f, '20', 'server 20'); assert(f.claim && f.badge, 'server 20 of 20: Claim offered and the badge lit');
+    } finally { rig.restore(); }
+  }),
+  /* BOTH DOORS (§4 both-path): the figure lands through the attended envelope
+     AND the idle boot's hr_load, whose `bounty` is top-level and which nothing
+     adopted on accrued:false (record.js hydrationStep('bounty')). */
+  () => tryRunAsync('bounty: the server figure lands through BOTH doors', async () => {
+    const rig = bountyRig(), c = { type: 'cull', target: rig.target, difficulty: 'normal', required: 20, progress: 9, rewards: { gold: 1, marks: 1, xp: 1 } };
+    try {
+      rig.set(Object.assign({ id: 'b_one' }, c));
+      window.HearthriseAccrual.applyEnvelopeState(window.G, { bounty: rig.envelope('b_one', 15).bounty });
+      const f = await rig.figures();
+      assert(f.set.size === 1 && f.set.has('15'), 'ATTENDED: every surface must read 15, got ' + JSON.stringify([...f.set]) + ' wt=' + f.wt);
+      rig.set(Object.assign({ id: 'b_boot' }, c));
+      const b = await rig.boot({ bounty_id: 'b_boot', target: rig.target, required: 20, baseline: 100, kills_now: 115, progress: 15 });
+      assert(b.v && b.v.outcome === 'loaded', 'AWAY: the boot read did not load: ' + JSON.stringify(b.v));
+      assert(b.mirror && b.mirror.progress === 15 && b.view.progress === 15, 'AWAY: the idle boot must adopt the server figure 15, got ' + JSON.stringify([b.mirror, b.view.mark]));
+    } finally { rig.restore(); }
+  }),
+  /* A SAVE TAKEN MID-CONFIRM: the seven in-flight keys ride neither residue seam,
+     and a live pre-fix save that still carries them hydrates clean. */
+  () => tryRunAsync('bounty: a mid-confirm save never wedges the next reload', async () => {
+    const CS = window.HearthriseClientState, CAP = window.HearthriseCapstone, rig = bountyRig();
+    const seven = { _serverConfirmed: 12, _confirming: true, _syncNoticed: true, _retryTimer: 417, _creditAt: 5, _confirmed: false, _awaitingServerClaim: true };
+    const act = Object.assign({ id: 'b_wedge', type: 'cull', target: rig.target, difficulty: 'normal', required: 20, progress: 9, rewards: { gold: 1, marks: 1, xp: 1 }, _serverContract: true }, seven);
+    const left = (a) => Object.keys(seven).filter((k) => a && k in a);
+    try {
+      const out = JSON.parse(JSON.stringify(CAP.buildResiduePatch({ bountyHunter: { active: act } }))).bountyHunter.active;
+      assert(left(out).length === 0 && out._serverContract === true, 'OUT: the patch carried ' + JSON.stringify(left(out)) + ' and must keep _serverContract');
+      const into = {}; CS.hydrateInto(into, { bountyHunter: { active: act } });
+      assert(left(into.bountyHunter.active).length === 0, 'IN: a pre-fix save hydrated ' + JSON.stringify(left(into.bountyHunter.active)));
+      if (!rig.armed) { skip('the server-gated turn-in only runs under the gold arm'); return; }
+      const ab = rig.set(into.bountyHunter.active); window.hrNoteBountyProgress({ bounty_id: 'b_wedge', target: rig.target, progress: 20 });
+      assert(window.hrBountyView(ab).claimable === true, 'the reloaded contract must be claimable at the server 20: ' + JSON.stringify(window.hrBountyView(ab)));
+      window.completeBounty();
+      assert(rig.calls.some((x) => x.fn === 'credit'), 'completeBounty returned early on the reloaded contract; log: ' + JSON.stringify(rig.calls));
     } finally { rig.restore(); }
   }),
   /* bug #5 ROOT (Paione, live): the b484 credit only fired at target, and the

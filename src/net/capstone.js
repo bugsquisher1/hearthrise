@@ -81,7 +81,7 @@
 // DOM-free. Node-importable. `fetch`/`window` resolve at call time.
 // ============================================================================
 
-import { isClientStateFromServer, RESIDUE_FIELDS, sanitizeResidueField } from './client-state.js?v=558';
+import { isClientStateFromServer, RESIDUE_FIELDS, sanitizeResidueField, BOUNTY_TRANSIENT_KEYS } from './client-state.js?v=558';
 
 /* ── THE CAPSTONE ARM — LIVE SINCE b454 (2026-08-22, 953bd626) ──────────────
    Same shape as record.js's per-field arms (SKILLS_RECORD_ARM_ENABLED et al): one
@@ -154,6 +154,10 @@ export function buildResiduePatch(G) {
           if (!Object.prototype.hasOwnProperty.call(bh, k)) continue;
           if (k === 'marks' || k === 'xp') continue;
           copy[k] = bh[k];
+        }
+        if (copy.active && typeof copy.active === 'object' && !Array.isArray(copy.active)) {
+          copy.active = { ...copy.active };
+          for (const k of BOUNTY_TRANSIENT_KEYS) delete copy.active[k];
         }
         out[f] = copy;
       } else {

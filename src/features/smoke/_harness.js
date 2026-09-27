@@ -426,6 +426,30 @@ export function bountyRig(opts) {
       out.badge = !!document.querySelector('.nav-btn[data-tab=bounty] .nav-badge:not(.hide)');
       return out;
     },
+    /* A RELOAD'S IDLE BOOT (retreatReload's shape): a fresh G holding only this
+       contract, hr_load stubbed to answer with a top-level `bounty`, the real
+       requestRecord. Returns the verdict and what the fresh G ended up holding. */
+    async boot(bounty) {
+      const R = window.HearthriseRecord, realFetch = window.fetch, act = G.bountyHunter.active;
+      window.G = { inventory: {}, offlineBudget: {}, playerHp: 5, playerMaxHp: 13, activeMonster: null,
+        skills: {}, stats: {}, combatLog: [], bountyHunter: { active: act, board: [] } };
+      window.fetch = function (u) {
+        if (!/hr_load/.test(String(u))) return realFetch.apply(this, arguments);
+        const now = new Date().toISOString();
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, version: 9, now, skills: {}, inventory: {}, bounty,
+          state: { slot: 0, accrued_to: now, hp: 5, max_hp: 13, active_kind: 'idle' } }), { status: 200 }));
+      };
+      try {
+        R.resetRecord();
+        R.configureRecord({ url: 'https://proj.supabase.co/', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
+        const v = await R.requestRecord();
+        return { v, mirror: window.G._bountyServer || null, view: window.hrBountyView(act) };
+      } finally {
+        window.fetch = realFetch;
+        try { R.resetRecord(); R.configureRecord(null); } catch (e) {}
+        window.G = G;
+      }
+    },
     restore() {
       window.HearthriseGoalClaim = savedGC;
       const ab = G.bountyHunter && G.bountyHunter.active;

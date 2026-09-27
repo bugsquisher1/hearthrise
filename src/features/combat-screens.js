@@ -809,11 +809,14 @@ function destinations() {
   const active = bh && bh.active;
   if (active && MONSTERS[active.target]) {
     const m = MONSTERS[active.target];
+    // The server's figure or '—' (src/render/bounty-progress.js view), never the attended count.
+    const v = window.hrBountyView ? window.hrBountyView(active) : null;
+    const mk = v ? v.mark : '—';
     out.push({
       kick: 'Bounty', art: active.target, name: m.name,
-      meta: `${num(active.progress || 0)} / ${num(active.required || 0)} slain`,
+      meta: `${mk} / ${num(active.required || 0)} slain`,
       verb: 'Jump ▸', go: 'monster', monster: active.target,
-      counter: `${num(active.progress || 0)}/${num(active.required || 0)}`,
+      counter: `${mk}/${num(active.required || 0)}`,
     });
   } else {
     out.push({

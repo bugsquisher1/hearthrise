@@ -4,18 +4,17 @@
 // Render-layer extraction out of src/legacy.js, following the playbook in
 // docs/design/render-extraction-pattern.md.
 //
-// WHAT THIS IS: the four presentation-side seams the Bounty Board needs once
-// the envelope carries the server's own progress —
-//   shown()      the number a bar/label may display
-//   attempt()    "does the player believe this contract is finished?"
-//   noteServer() adopt `state.bounty` off an arriving envelope
-//   turnIn()     the board's Claim control
-// The JUDGEMENT is pure and lives in src/core/bounty.js (shownProgress /
-// attemptProgress / adoptServerBounty); this module is the DOM-side glue that
+// WHAT THIS IS: the presentation-side seams of the Bounty Board —
+//   view()               the ONE figure every surface prints: server's, or '—'
+//   attempt()            "does the player believe this contract is finished?"
+//   noteServerProgress() the ONE writer of G._bountyServer
+//   noteServer()         adopt `bounty` off an envelope or the boot hr_load
+//   turnIn()             the board's Claim control
+// The JUDGEMENT is pure and lives in src/core/bounty.js (bountyView /
+// attemptProgress / judgeServerBounty); this module is the DOM-side glue that
 // supplies the inventory-derived proof count and routes a finished contract
 // into the EXISTING two-phase turn-in. It computes no reward, mints nothing and
-// writes exactly one field on the active bounty: `_serverConfirmed`, a display
-// number sourced from a server receipt.
+// writes exactly one field: `G._bountyServer`, the server's figure as received.
 //
 // THE BUG BEHIND IT: a bounty's `progress` is a client-local counter moved on
 // ATTENDED kills only. In a semi-idle game most kills are SETTLED (away), so a
@@ -43,33 +42,40 @@ function core() {
   return (CK && CK.bounty) ? CK.bounty : null;
 }
 
-/** The number a bar or label may show. The server's when it has spoken; the
-    local pre-echo only until then. See the block in src/core/bounty.js. */
-export function shown(b) {
-  const C = core();
-  if (!C || typeof C.shownProgress !== 'function') {
-    // Pre-core boot: the honest fallback is the local counter, as it always was.
-    return Math.max(0, Math.min(Number(b && b.required) || 1, Number(b && b.progress) || 0));
-  }
-  return C.shownProgress(b, proofHave(b));
+/* THE ONE WRITER of G._bountyServer, the server's figure for the contract it
+   names. Rules are src/core/bounty.js judgeServerBounty: a different contract
+   REPLACES, the same one is raise-only, `null` records "no contract". `_`-prefixed
+   top-level scratch is never on RESIDUE_FIELDS, so it is never saved or hydrated. */
+export function noteServerProgress(p) {
+  const C = core(), G = w().G;
+  if (!C || !G || typeof C.judgeServerBounty !== 'function') return null;
+  const m = C.judgeServerBounty(p, G._bountyServer || null);
+  if (m) G._bountyServer = m;
+  return m;
 }
 
-/** "Does the player believe this is finished?" — the HIGHER of the two counts.
-    The hold-retry timer and the "Verifying your kills…" label read THIS, not
-    shown(): the retry exists for the case where the local count is at target
-    and the server's is still catching up under the plausibility cap. */
+/** THE ONE VIEW every bounty surface prints: the server's figure, or '—'. */
+export function view(b) {
+  const C = core(), G = w().G;
+  if (!C || typeof C.bountyView !== 'function') {
+    const r = Math.max(1, Math.floor(Number(b && b.required) || 1));
+    return { known: false, progress: null, mark: '—', required: r, text: `— / ${r}`, claimable: false, confirming: false, orphan: false };
+  }
+  return C.bountyView(b, (G && G._bountyServer) || null, { proofHave: proofHave(b), inFlight: !!(b && b._confirming) });
+}
+
+/** "Does the player believe this is finished?" — the retry timer reads THIS. */
 export function attempt(b) {
   const C = core();
   if (!C || typeof C.attemptProgress !== 'function') return Number(b && b.progress) || 0;
-  return C.attemptProgress(b, proofHave(b));
+  return C.attemptProgress(b, proofHave(b), view(b).progress);
 }
 
-/* Adopt the envelope's `state.bounty`. The identity checks, the clamping and
-   the refusal reasons are src/core/bounty.js `adoptServerBounty`; this writes
-   the display number and, when the contract is FINISHED, schedules the existing
-   two-phase turn-in — which still goes through hr_claim_bounty and still pays
-   from the RESPONSE. A missing key is a no-op, which is exactly the behaviour a
-   server without the projection gets.
+/* Adopt the envelope's (or hr_load's) `bounty`, top-level or under `state`. The
+   mirror is stored whenever the key is present, even before the contract is
+   hydrated; the receipt is then judged against `active`. When the contract is
+   FINISHED, schedule the existing two-phase turn-in (hr_claim_bounty still
+   judges it and still pays from the RESPONSE). A missing key is a no-op.
    @returns a receipt, so the suite asserts the rule and not a rendered string. */
 export function noteServer(res) {
   const out = { noted: false, reason: '', progress: null, turnIn: false };
@@ -77,22 +83,23 @@ export function noteServer(res) {
   const src = has(res && res.state, 'bounty') ? res.state : (has(res, 'bounty') ? res : null);
   if (!src) { out.reason = 'no_key'; return out; }          // FAIL-SAFE: today's behaviour
   const C = core();
-  if (!C || typeof C.adoptServerBounty !== 'function') { out.reason = 'no_core'; return out; }
+  if (!C || typeof C.judgeServerBounty !== 'function') { out.reason = 'no_core'; return out; }
   const W = w();
   try { if (typeof W.ensureBountyState === 'function') W.ensureBountyState(); } catch (e) {}
+  if (!noteServerProgress(src.bounty)) { out.reason = 'bad_progress'; return out; }
   const G = W.G || {};
   const act = (G.bountyHunter && G.bountyHunter.active) || null;
-  const v = C.adoptServerBounty(act, src.bounty);
-  if (!v.ok) { out.reason = v.reason; return out; }
-  act._serverConfirmed = v.progress;
+  if (!act) { out.reason = 'no_active'; return out; }
+  const v = view(act);
+  if (!v.known) { out.reason = src.bounty === null ? 'no_server_bounty' : 'mismatch'; return out; }
   out.noted = true; out.progress = v.progress;
   /* FINISHED AWAY ⇒ FIRE THE TURN-IN THE PLAYER CAME BACK TO. Only the one type
      the server verifies, only live, and only under the arm — the dormant path
      still owns its own reward and must not be driven from an envelope. */
   const armed = (typeof W.clientMayWriteRecordField === 'function' && !W.clientMayWriteRecordField('gold'));
   const live = (typeof W.inOfflineReplay !== 'function' || !W.inOfflineReplay());
-  if (armed && live && act.type === 'cull' && v.progress >= act.required
-      && !act._confirming && !act._confirmed && typeof W.completeBounty === 'function') {
+  if (armed && live && act.type === 'cull' && v.claimable
+      && !act._confirmed && typeof W.completeBounty === 'function') {
     out.turnIn = true;
     try { W.completeBounty(); } catch (e) {}
   }
@@ -101,16 +108,16 @@ export function noteServer(res) {
   return out;
 }
 
-/* The player-fired turn-in. The board offers Claim on the SERVER's count,
+/* The player-fired turn-in. The board offers Claim on the SERVER's figure,
    because that is the number hr_claim_bounty judges — a Claim drawn off the
-   local pre-echo would be a button that refuses. Routes into the same two-phase
+   local count would be a button that refuses. Routes into the same two-phase
    completeBounty() as every other turn-in; nothing here mints anything. */
 export function turnIn() {
   const W = w();
   const G = W.G || {};
   const b = (G.bountyHunter && G.bountyHunter.active) || null;
   if (!b) return;
-  if (shown(b) < Math.max(1, Math.floor(Number(b.required) || 1))) {
+  if (!view(b).claimable) {
     if (typeof W.notify === 'function') W.notify('The board has not counted enough kills yet.', 'kill');
     return;
   }
@@ -143,10 +150,14 @@ export function label(b) {
   return `Defeat ${b.required} ${m.name}s`;
 }
 
-/** "12 / 20" — reads shown(), so the text can never disagree with the bar. */
+/** "12 / 20", or "— / 20" while the server has not named this contract. A
+    contract the server refused to accept (no row) says so, with the way out. */
 export function progressText(b) {
   if (!b) return '';
-  return `${shown(b)} / ${b.required}`;
+  const v = view(b);
+  if (!v.orphan) return v.text;
+  const why = String(b._acceptError).replace(/[&<>"']/g, '');
+  return `${v.text} · The realm refused this contract (${why}) — abandon it and accept another.`;
 }
 
 export function bbNail() { return '<span class="bb-nail" aria-hidden="true"></span>'; }
@@ -160,10 +171,11 @@ export function bbCut(id) {
 
 export function setupBountyProgress() {
   const W = w();
-  W.HearthriseBountyView = { shown, attempt, noteServer, turnIn, label, progressText, bbNail, bbCut };
+  W.HearthriseBountyView = { view, attempt, noteServer, noteServerProgress, turnIn, label, progressText, bbNail, bbCut };
   /* Bare globals too: legacy.js's four render sites and the envelope hook call
      these by name, and the Claim control is an inline onclick. */
-  W.bountyShownProgress = shown;
+  W.hrBountyView = view;
+  W.hrNoteBountyProgress = noteServerProgress;
   W.bountyAttemptProgress = attempt;
   W.hrNoteServerBounty = noteServer;
   W.hrTurnInBounty = turnIn;

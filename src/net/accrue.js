@@ -3765,17 +3765,10 @@ function applyEnvelopeStateBody(G, res, ownKey) {
     if (w && w.HearthriseLuckyFinds && typeof w.HearthriseLuckyFinds.noteEnvelope === 'function') {
       w.HearthriseLuckyFinds.noteEnvelope(res);
     }
-    /* THE ACTIVE BOUNTY'S SERVER PROGRESS (2026-09-09). hr_state_of projects
-       `state.bounty.progress` = hr_bounty_kills(target) - baseline, i.e. the
-       number hr_claim_bounty judges the turn-in by, INCLUDING the settled/away
-       kills the client's attended counter cannot see. Read from the one funnel
-       every envelope passes (settle AND switch AND the boot hr_load), so a
-       player who finished a contract while away sees it finished the moment
-       they land rather than never. Guarded like every other note: a display
-       adopter must never throw into an envelope apply, and a server without the
-       projection simply carries no key, which reads as absent. */
-    if (w && typeof w.hrNoteServerBounty === 'function') w.hrNoteServerBounty(res);
   } catch (e) {}
+  /* The contract's server figure: settle, switch, gold, death; the idle boot is
+     record.js hydrationStep('bounty'). Its own try, so a throw above cannot skip it. */
+  try { const w = (typeof window !== 'undefined') ? window : null; if (w && typeof w.hrNoteServerBounty === 'function') w.hrNoteServerBounty(res); } catch (e) {}
   written.absolute = absolute;
 
   /* THE PRICED WINDOW, OBSERVED - same KEY-PRESENCE rule; `accrued_to` answers

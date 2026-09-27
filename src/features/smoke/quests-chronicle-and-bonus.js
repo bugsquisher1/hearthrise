@@ -1354,7 +1354,7 @@ export default [
     window.HearthriseRenown.RANKS.forEach((r) => {
       if (!r.perk) return;
       Object.keys(r.perk).forEach((k) => {
-        if (k === 'offlineHours' || k === 'bankSlots' || k === 'marketSlots' || k === 'dailyTasks') return;
+        if (k === 'bankSlots') return;
         check('RANKS.' + r.id, k, r.perk[k]);
       });
     });
@@ -1437,7 +1437,7 @@ export default [
          NOTHING and the fuse test measures a house with no rooms in it. */
       stampRecordLikeLoad(window.G);
       window.G.plotBuildings = [{ id: 'toolshed' }, { id: 'watchtower' }, { id: 'scarecrow' }];
-      R.getPerks = () => ({ allXP: 0.04, offlineHours: 12, marketSlots: 1, dailyTasks: 1 });
+      R.getPerks = () => ({ allXP: 0.04 });
       /* b349 — THE CAPSTONE IS DRIVEN BY REAL STATE NOW, not by a stub of
          isCastle(). getBonus's layer 0 delegates to src/core/perks.js and hands
          it `propertyTier` (an INT), because the server has a tier and not a
@@ -1555,56 +1555,24 @@ export default [
 
   () => tryRun('b228: renown rank perks, pinned literally', () => {
     /* The +22% allXP figure existed nowhere except a stub and two comments —
-       the suite only ever asserted `perks.allXP > 0`. Pinned now, rank by rank,
-       including the two that CONVERTED from a percentage to a slot. */
+       the suite only ever asserted `perks.allXP > 0`. Pinned now, rank by rank;
+       the offline hours, the Count slot and the King task were retired (the server pays none). */
     const R = window.HearthriseRenown;
     const byId = (id) => R.RANKS.find((r) => r.id === id);
     assert(byId('squire').perk.allXP === 0.01, 'Squire is +1% XP');
     assert(byId('baron').perk.allXP === 0.01, 'Baron is +1% XP');
     assert(byId('duke').perk.allXP === 0.01, 'Duke is +1% XP');
     assert(byId('highking').perk.allXP === 0.01, 'High King is +1% XP');
-    // The two conversions (bonus-rebase.md §5.3): a slot, not a percentage.
-    assert(byId('count').perk.marketSlots === 1 && byId('count').perk.allXP === undefined,
-      'Count converts to a market listing slot');
-    assert(byId('king').perk.dailyTasks === 1 && byId('king').perk.allXP === undefined,
-      'King converts to a daily task slot');
+    assert(byId('count').perk === null && byId('king').perk === null, 'Count and King carry no perk');
     // The aggregate, at the top of the ladder.
     const snap = snapshotG();
     try {
       window.G.renownHigh = 10000000;
       const p = R.getPerks(window.G);
       assert(Math.abs(p.allXP - 0.04) < 1e-9, 'the whole ladder is +4% allXP, got ' + p.allXP);
-      assert(p.offlineHours === 12, 'the offline ladder is unchanged at +12h, got ' + p.offlineHours);
-      assert(p.marketSlots === 1 && p.dailyTasks === 1, 'both converted slots must be granted');
+      ['offlineHours', 'marketSlots', 'dailyTasks'].forEach((k) => assert(!(k in p),
+        'the ladder carries no ' + k + ' key — the server pays none of it: ' + JSON.stringify(p)));
     } finally { restoreG(snap); }
-  }),
-
-  () => tryRun('b228: the two converted renown slots are actually READ, not just declared', () => {
-    /* `marketSlots` and `dailyTasks` were declared in getPerks() from the day
-       renown shipped and nothing ever granted or read either one. A perk with no
-       reader is a ghost, and converting a rank onto a ghost would have been a
-       worse reward than the +1% it replaced. Both readers are wired here. */
-    const R = window.HearthriseRenown;
-    const snap = snapshotG();
-    const savedPerks = R.getPerks;
-    try {
-      R.getPerks = () => ({ allXP: 0, offlineHours: 0, bankSlots: 0, marketSlots: 0, dailyTasks: 0, dropRate: 0 });
-      const baseListings = window.HearthriseMarket.listingLimit();
-      assert(baseListings === window.HearthriseMarket.PER_CHAR_LIMIT,
-        'without the Count rank the cap is the base 12, got ' + baseListings);
-      window.G.daily = { lastReset: null, tasks: [] };
-      window.generateDailyTasks(false);
-      const baseTasks = window.G.daily.tasks.length;
-      assert(baseTasks === 3, 'the base daily board is 3 tasks, got ' + baseTasks);
-
-      R.getPerks = () => ({ allXP: 0, offlineHours: 0, bankSlots: 0, marketSlots: 1, dailyTasks: 1, dropRate: 0 });
-      assert(window.HearthriseMarket.listingLimit() === baseListings + 1,
-        'the Count rank must buy a real listing slot');
-      window.G.daily = { lastReset: null, tasks: [] };
-      window.generateDailyTasks(false);
-      assert(window.G.daily.tasks.length === baseTasks + 1,
-        'the King rank must buy a real daily task, got ' + window.G.daily.tasks.length);
-    } finally { R.getPerks = savedPerks; restoreG(snap); }
   }),
 
   () => tryRun('DAILY-HEAL-1 (b461): a stale pre-eligibility slate is healed in place — impossible tasks swapped, progress on kept tasks preserved', () => {

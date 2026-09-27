@@ -10,20 +10,18 @@
 //       mapped so the room can sell SPEED and QUALITY. Permission is the
 //       skill LEVEL and only the skill level. See UNGATED below.
 //   • worker slots (see features/workers.js — idle resource production)
-//   • bonus offline-cap hours (wired into processOffline like renown)
-//   • castle capstone: +5% all XP (wired into getBonus)
+//   • castle capstone: +2% all XP (wired into getBonus)
 //
 // ensureState() infers a tier from OWNED rooms and plots once the server has stated a rung; XP infers nothing.
 //
 // Integration points touched in legacy.js (all guarded):
-//   upgradeRoom (tier gate) · buildPlot (plot cap) · processOffline
-//   (bonus hours) · getBonus (castle XP)
+//   upgradeRoom (tier gate) · buildPlot (plot cap) · getBonus (castle XP)
 // ============================================================
 (function () {
   'use strict';
 
   var TIERS = [
-    { id: 'camp',      name: "Wanderer's Camp",      glyph: 'uiCamp', plots: 2,  workers: 0, offlineHours: 0,
+    { id: 'camp',      name: "Wanderer's Camp",      glyph: 'uiCamp', plots: 2,  workers: 0,
       desc: 'A bedroll, a fire, and two rows of dirt. Everyone starts somewhere.',
       cost: null, rooms: [] },
     /* b213 QA: tier costs may only require materials a player can actually
@@ -32,15 +30,15 @@
        2-3 (bars need the Forge — a tier-3 room): a hard progression deadlock
        for every fresh account (veterans were grandfathered past it, which is
        why it went unseen). Each tier's new room now feeds the NEXT rung. */
-    { id: 'homestead', name: 'Hearthside Homestead', glyph: 'uiHome', plots: 4,  workers: 1, offlineHours: 0,
+    { id: 'homestead', name: 'Hearthside Homestead', glyph: 'uiHome', plots: 4,  workers: 1,
       desc: 'Four walls and a hearth. Unlocks the Kitchen and Garden — and your first hired hand.',
       cost: { gold: 400, normal_log: 30, copper_ore: 20 },
       rooms: ['kitchen', 'garden'] },
-    { id: 'farmstead', name: 'Fieldworth Farmstead', glyph: 'uiBarn', plots: 6,  workers: 2, offlineHours: 1,
+    { id: 'farmstead', name: 'Fieldworth Farmstead', glyph: 'uiBarn', plots: 6,  workers: 2,
       /* b226 (Tyler): the Forge moves DOWN to tier 2 — smithing opens with the
          farmstead. Moving a bench EARLIER can never create a b213-style cost
          deadlock (it only relaxes what later tiers may demand). */
-      desc: 'Barns and fences. Unlocks the Workshop, Cellar and Forge, a second worker, +1h offline cap.',
+      desc: 'Barns and fences. Unlocks the Workshop, Cellar and Forge, and a second worker.',
       cost: { gold: 2500, oak_log: 40, copper_ore: 25, wolf_pelt: 4, cooked_shrimp: 10 },
       rooms: ['workshop', 'cellar', 'forge'] },
     /* ── b357: ASHLAR ENTERS THE TOP THREE TIERS (consumable-economy.md §8) ──
@@ -63,16 +61,16 @@
        Quantities are deliberately modest — 25 ashlar at the castle is 100
        granite blocks, i.e. a real Stonemason commitment but not a second
        property grind bolted onto the first. */
-    { id: 'manor',     name: 'Stonecross Manor',     glyph: 'navHouse', plots: 8,  workers: 3, offlineHours: 2,
-      desc: 'Cut stone and iron gates. Unlocks the Library, a third worker, +2h offline cap.',
+    { id: 'manor',     name: 'Stonecross Manor',     glyph: 'navHouse', plots: 8,  workers: 3,
+      desc: 'Cut stone and iron gates. Unlocks the Library and a third worker.',
       cost: { gold: 10000, willow_plank: 35, iron_ore: 40, silk_thread: 8, ashlar: 6 },
       rooms: ['library'] },
-    { id: 'keep',      name: 'Ironvale Keep',        glyph: 'uiCastle', plots: 10, workers: 4, offlineHours: 3,
-      desc: 'Ramparts and a watch bell. Unlocks the Shrine and Trophy Room, a fourth worker, +3h offline cap.',
+    { id: 'keep',      name: 'Ironvale Keep',        glyph: 'uiCastle', plots: 10, workers: 4,
+      desc: 'Ramparts and a watch bell. Unlocks the Shrine and Trophy Room, and a fourth worker.',
       cost: { gold: 40000, maple_plank: 50, steel_bar: 35, big_bones: 20, bear_pelt: 5, ashlar: 12 },
       rooms: ['shrine', 'trophy'] },
-    { id: 'castle',    name: 'Hearthrise Castle',    glyph: 'uiCrown', plots: 12, workers: 6, offlineHours: 4,
-      desc: 'The banner over the valley. Six workers, +4h offline cap, and the pride of the realm: +5% all XP.',
+    { id: 'castle',    name: 'Hearthrise Castle',    glyph: 'uiCrown', plots: 12, workers: 6,
+      desc: 'The banner over the valley. Six workers, and the pride of the realm: +2% all XP.',
       cost: { gold: 150000, yew_plank: 70, mithril_bar: 40, rune_bar: 8, dragon_scale: 4, ashlar: 25 },
       rooms: [] }
   ];
@@ -142,8 +140,8 @@
 
   /* ── b502 — THE TIER **IS** THE SERVER'S RUNG, AND THIS IS THE ONE READ ───────
      Every property-gated number in the game funnels through getTier(): maxPlots
-     (the farm's plantable count), workerSlots, offlineBonusHours, isCastle (the
-     +5% XP capstone), roomAllowed/canBuildRoom (every room prerequisite),
+     (the farm's plantable count), workerSlots, isCastle (the
+     +2% XP capstone), roomAllowed/canBuildRoom (every room prerequisite),
      nextTier (the upgrade price AND which rung is offered), and legacy.js
      clientPerkState.propertyTier. That is the whole blast radius of ONE integer
      — which is why it was the whole blast radius of TWO live P1s.
@@ -213,7 +211,6 @@
     }
     return base;
   }
-  function offlineBonusHours() { return tierDef().offlineHours; }
   function isCastle() { return getTier() === TIERS.length - 1; }
 
   /* ── IS THE SERVER'S RUNG KNOWN THIS SESSION? AND WHY UNKNOWN DOES NOT
@@ -536,12 +533,11 @@
         '<div class="hh-stats">' +
           '<div class="hh-stat"><b>' + maxPlots() + '</b><span>Plots</span></div>' +
           '<div class="hh-stat"><b>' + workerSlots() + '</b><span>Workers</span></div>' +
-          '<div class="hh-stat"><b>+' + offlineBonusHours() + 'h</b><span>Offline cap</span></div>' +
-          (isCastle() ? '<div class="hh-stat"><b>+5%</b><span>All XP</span></div>' : '') +
+          (isCastle() ? '<div class="hh-stat"><b>+2%</b><span>All XP</span></div>' : '') +
         '</div>' +
         (nxt
           ? '<div style="border-top:1px solid var(--line-soft);padding-top:8px">' +
-              '<div class="tiny" style="margin-bottom:4px;color:var(--ink-2)">Next: <b style="color:var(--gold-2)">' + nxt.name + '</b> — plots ' + nxt.plots + ', workers ' + nxt.workers + ', +' + nxt.offlineHours + 'h offline</div>' +
+              '<div class="tiny" style="margin-bottom:4px;color:var(--ink-2)">Next: <b style="color:var(--gold-2)">' + nxt.name + '</b> — plots ' + nxt.plots + ', workers ' + nxt.workers + '</div>' +
               '<div class="hh-reqs">' + fmtCostRow(nxt.cost) + '</div>' +
               '<button class="btn btn-primary btn-sm" onclick="window.HearthriseHomestead.upgradeProperty()">Upgrade Property</button>' +
             '</div>'
@@ -1371,7 +1367,6 @@
     nextTier: nextTier,
     maxPlots: maxPlots,
     workerSlots: workerSlots,
-    offlineBonusHours: offlineBonusHours,
     isCastle: isCastle,
     roomMinTier: roomMinTier,
     canBuildRoom: canBuildRoom,

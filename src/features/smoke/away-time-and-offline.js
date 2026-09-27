@@ -7168,15 +7168,14 @@ export default [
   /* ── OFFLINE-CAP (CLAUDE.md §6): the away limit is the server's hr_offline_cap_ms,
      read as hr_vigour_of.grant_min. No client perk sum, no guessed 12, no promise. */
   () => tryRun('OFFLINE-CAP-1a: offlineCapHours reads the server grant, never a perk sum', () => {
-    const R = window.HearthriseRenown, HH = window.HearthriseHomestead, gp = R.getPerks, ob = HH.offlineBonusHours;
+    const R = window.HearthriseRenown, gp = R.getPerks;
     R.getPerks = () => ({ allXP: 0, offlineHours: 12, bankSlots: 0, marketSlots: 0, dailyTasks: 0, dropRate: 0 });
-    if (ob) HH.offlineBonusHours = () => 4;
     try {
       const at = (min) => withCap(min, () => window.offlineCapHours());
       assert(at(720) === 12, 'grant_min 720 must read 12h whatever the client perks say, got ' + at(720));
       assert(at(900) === 15, 'grant_min 900 (clan 7) must read 15h, got ' + at(900));
       assert(at(null) === null, 'an unknown meter must read null, never a guessed cap, got ' + at(null));
-    } finally { R.getPerks = gp; if (ob) HH.offlineBonusHours = ob; }
+    } finally { R.getPerks = gp; }
   }),
 
   () => tryRun('OFFLINE-CAP-1b: the banking row prints the server cap, or the pending mark when unknown', () => {

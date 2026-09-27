@@ -38,38 +38,23 @@
   // `perk` is a permanent account bonus (wired incrementally). `unlock` is
   // the tangible reason to climb (regions are future content hooks).
   // `min` = Renown needed. Names are data — rename freely.
-  // Every perk uses a WIRED type (allXP → getBonus, offlineHours → processOffline)
-  // so nothing shown here is a broken promise. The bonuses stack as you climb —
-  // higher rank literally makes everything faster (a retention engine in itself).
-  //
-  // ── b228 · THE BONUS REBASE (docs/design/bonus-rebase.md §3.1, §5.3) ──────
-  // The ladder used to pay +22% allXP by High King — on its own, more than the
-  // entire rebased permanent ceiling for that key. The six XP ranks come to
-  // +1% each on the WIDE-key half-step, four of them survive as percentages,
-  // and TWO CONVERT, because +1% is not an unlock line worth 13,500 and 72,000
-  // renown:
-  //
-  //   Count → +1 market listing slot     (`marketSlots`, declared in getPerks
-  //   King  → +1 daily task slot          and `dailyTasks` — both fields have
-  //                                       existed unread since renown shipped)
-  //
-  // Access rewards are outside the power budget by design (§2.5): a slot does
-  // not scale a rate, cannot compound, and is felt every single day. Renown's
-  // six offline-hour ranks were always this shape — these two now match them.
-  // Total after: +4% allXP, +12h offline, +1 market slot, +1 daily task.
+  // Perks are only what the server pays (allXP through getBonus, +4% by High King).
+  // The six offline-hour ranks, the Count's listing slot and the King's daily task
+  // were retired: hr_offline_cap_ms, hr_market_config.max_listings and the daily
+  // task set pay none of them, so the client may not promise them either.
   var RANKS = [
     { id: 'peasant',  name: 'Peasant',   title: 'a Peasant',    min: 0,      reward: {},                           perk: null,                            unlock: 'Your journey begins.' },
-    { id: 'serf',     name: 'Serf',      title: 'a Serf',       min: 400,    reward: { gold: 250 },                perk: { offlineHours: 1 },             unlock: '+1 hour offline progress' },
+    { id: 'serf',     name: 'Serf',      title: 'a Serf',       min: 400,    reward: { gold: 250 },                perk: null,                            unlock: 'The Serf title — your first rank' },
     { id: 'squire',   name: 'Squire',    title: 'a Squire',     min: 900,    reward: { gold: 750 },                perk: { allXP: 0.01 },                 unlock: '+1% XP from every skill' },
-    { id: 'knight',   name: 'Knight',    title: 'a Knight',     min: 2200,   reward: { gold: 2000 },               perk: { offlineHours: 1 },             unlock: '+1 more hour offline progress' },
+    { id: 'knight',   name: 'Knight',    title: 'a Knight',     min: 2200,   reward: { gold: 2000 },               perk: null,                            unlock: 'Knighted — the Knight title' },
     { id: 'baron',    name: 'Baron',     title: 'a Baron',      min: 4500,   reward: { gold: 5000, gems: 25 },     perk: { allXP: 0.01 },                 unlock: '+1% XP · 25 gems' },
-    { id: 'viscount', name: 'Viscount',  title: 'a Viscount',   min: 8000,   reward: { gold: 10000 },              perk: { offlineHours: 2 },             unlock: '+2 hours offline progress' },
-    { id: 'count',    name: 'Count',     title: 'a Count',      min: 13500,  reward: { gold: 20000, gems: 50 },    perk: { marketSlots: 1 },              unlock: '+1 market listing slot · 50 gems' },
-    { id: 'marquis',  name: 'Marquis',   title: 'a Marquis',    min: 21000,  reward: { gold: 40000 },              perk: { offlineHours: 2 },             unlock: '+2 hours offline · the Marquis title' },
+    { id: 'viscount', name: 'Viscount',  title: 'a Viscount',   min: 8000,   reward: { gold: 10000 },              perk: null,                            unlock: 'The Viscount title' },
+    { id: 'count',    name: 'Count',     title: 'a Count',      min: 13500,  reward: { gold: 20000, gems: 50 },    perk: null,                            unlock: 'The Count title · 50 gems' },
+    { id: 'marquis',  name: 'Marquis',   title: 'a Marquis',    min: 21000,  reward: { gold: 40000 },              perk: null,                            unlock: 'The Marquis title' },
     { id: 'duke',     name: 'Duke',      title: 'a Duke',       min: 32000,  reward: { gold: 75000, gems: 100 },   perk: { allXP: 0.01 },                 unlock: '+1% XP · 100 gems' },
-    { id: 'prince',   name: 'Prince',    title: 'a Prince',     min: 48000,  reward: { gold: 150000 },             perk: { offlineHours: 3 },             unlock: '+3 hours offline progress' },
-    { id: 'king',     name: 'King',      title: 'the King',     min: 72000,  reward: { gold: 300000, gems: 250 },  perk: { dailyTasks: 1 },               unlock: 'King of your own realm · +1 daily task' },
-    { id: 'highking', name: 'High King', title: 'the High King', min: 120000, reward: { gold: 1000000, gems: 500 }, perk: { allXP: 0.01, offlineHours: 3 }, unlock: 'Legend of the realm · +1% XP · +3h offline' }
+    { id: 'prince',   name: 'Prince',    title: 'a Prince',     min: 48000,  reward: { gold: 150000 },             perk: null,                            unlock: 'The Prince title' },
+    { id: 'king',     name: 'King',      title: 'the King',     min: 72000,  reward: { gold: 300000, gems: 250 },  perk: null,                            unlock: 'King of your own realm' },
+    { id: 'highking', name: 'High King', title: 'the High King', min: 120000, reward: { gold: 1000000, gems: 500 }, perk: { allXP: 0.01 },                 unlock: 'Legend of the realm · +1% XP' }
   ];
 
   // ── Scoring weights (tunable) ───────────────────────────────
@@ -751,7 +736,7 @@
   // not claim-gated). Game systems query this for bonuses.
   function getPerks(G) {
     G = G || window.G;
-    var p = { allXP: 0, offlineHours: 0, bankSlots: 0, marketSlots: 0, dailyTasks: 0, dropRate: 0 };
+    var p = { allXP: 0, bankSlots: 0, dropRate: 0 };
     if (!G) return p;
     /* PERKS ARE A CAPABILITY (allXP, dropRate, bank and market slots), so they
        are granted on the counted figure and never on the prediction — a bonus

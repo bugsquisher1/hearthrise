@@ -1516,8 +1516,6 @@
       grants.push((HS.maxPlots ? HS.maxPlots() : hsDef.plots) + ' farm plots');
       var ws = HS.workerSlots ? HS.workerSlots() : hsDef.workers;
       grants.push(ws ? (ws + ' worker' + (ws === 1 ? '' : 's')) : 'no hired hands');
-      var oh = hsDef.offlineHours || 0;
-      grants.push(oh ? ('+' + oh + 'h offline cap') : 'base offline cap');
       html += '<div class="hd-card hd-mile is-title" data-hd="house" style="cursor:pointer;padding-left:0">' +
         '<div class="hd-mile-badge">' + gly(HOLDING_GLYPH[hsDef.id] || 'uiHome', 22, '', '#e6d6b4') + '</div>' +
         '<div class="hd-mile-body">' +

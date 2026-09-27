@@ -5540,20 +5540,8 @@ function generateDailyTasks(notice=true){
   G.daily.lastReset=today;
   // Deterministic shuffle of pool by date seed
   const indexes=dailyTaskIndexes(today);
-  /* b228 (bonus-rebase.md §5.3): the King's rank stops paying +1% XP and
-     starts paying a DAILY TASK SLOT. `dailyTasks` has been declared in
-     renown.getPerks() since renown shipped and nothing ever granted or read
-     it; this is the reader. Access, not throughput — outside the power budget
-     (§2.5), felt every single day, and it can never compound.
-     Bounded by the pool so a future perk can never ask for more tasks than
-     exist to hand out. */
-  var extraTasks=0;
-  try{
-    if(window.HearthriseRenown && typeof window.HearthriseRenown.getPerks==='function'){
-      extraTasks=Math.max(0, window.HearthriseRenown.getPerks(G).dailyTasks|0);
-    }
-  }catch(e){}
-  const taskCount=Math.min(DAILY_TASK_POOL.length, 3+extraTasks);
+  /* Three tasks: the server's daily task set offers no more (not_offered). */
+  const taskCount=Math.min(DAILY_TASK_POOL.length, 3);
   /* b45x (P0) — ELIGIBILITY. `indexes` is the raw date-seeded order; the offered
      SET skips a task whose bench the player has not built and takes the next one
      down the same order. The rule and the algorithm live in
@@ -17101,7 +17089,7 @@ function buildSlotsCard(){
     + '</div>'
     + '<div class="cr-paywall-hint">'
       + '<span>'+_hrGly('gems',14,'--gem')+'</span>'
-      + '<div><b>Hearth Hall Premium:</b> 3 character slots, +25% offline progress, exclusive cosmetics, monthly chests.</div>'
+      + '<div><b>Hearth Hall Premium:</b> 3 character slots and exclusive cosmetics.</div>'
       + '<button onclick="window.showTab && showTab(\'shop\')">Learn more</button>'
     + '</div>'
   + '</div>';

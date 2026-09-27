@@ -2986,6 +2986,62 @@ export default [
     } finally { restoreG(snap); }
   }),
 
+  /* LORE — companion, rank and trophy-stage lore (src/data/lore-notes.js). */
+  () => tryRun('LORE-1: every rank and companion has lore, and every Stable card shows it', () => {
+    const L = window.HearthriseLore, R = window.HearthriseRenown, C = window.COMPANIONS || {};
+    assert(L && R && Array.isArray(R.RANKS), 'HearthriseLore / HearthriseRenown not published');
+    R.RANKS.forEach((r) => assert(L.rank(r.id), 'rank ' + r.id + ' has no lore line'));
+    Object.keys(C).forEach((id) => assert(L.companion(id), 'companion ' + id + ' has no lore line'));
+    if (!document.getElementById('stable-body')) return skip('#stable-body absent');
+    window.renderStable();
+    const cards = document.querySelectorAll('.stable-card').length;
+    const lore = document.querySelectorAll('.stable-card .sc-lore').length;
+    assert(cards === Object.keys(C).length && lore === cards, 'Stable: ' + lore + ' lore of ' + cards + ' cards, ' + Object.keys(C).length + ' companions');
+  }),
+
+  () => tryRun('LORE-2: ladder lore narrates the current rank only once the realm has counted it', () => {
+    const R = window.HearthriseRenown;
+    const saved = R.serverRenownHigh();
+    const count = () => document.querySelectorAll('#hr-rn-modal .hr-rn-lore');
+    try {
+      R.__resetClaimState(); R.openLadder();
+      assert(count().length === 0, 'uncounted: ' + count().length + ' lore lines on a predicted rank');
+      R.noteServerRenown({ renown_high: 0 }); R.openLadder();
+      const got = count();
+      assert(got.length === 1 && got[0].textContent === window.HearthriseLore.rank('peasant'),
+        'counted 0: want exactly the peasant line, got ' + got.length);
+    } finally {
+      const m = document.getElementById('hr-rn-modal'); if (m) m.remove();
+      R.__resetClaimState();
+      if (saved !== null) R.noteServerRenown({ renown_high: saved });
+    }
+  }),
+
+  () => tryRun('LORE-3: wallRows keeps the highest claimed stage and reports unknown claims', () => {
+    const T = window.HearthriseTrophies;
+    assert(T && typeof T.wallRows === 'function', 'HearthriseTrophies.wallRows not published');
+    const opts = { roster: { goblin: { name: 'Goblin' } }, isClaimed: (id, s) => id === 'goblin' && s <= 2, known: true };
+    const w = T.wallRows(opts);
+    assert(w.known === true && w.rows.length === 1 && w.rows[0].name === 'Goblin' && w.rows[0].stageName === 'Stalker',
+      'want one Goblin/Stalker row, got ' + JSON.stringify(w.rows));
+    assert(w.topStageId === 'stalker' && w.more === 0, 'topStageId ' + w.topStageId + ' more ' + w.more);
+    assert(T.wallRows(Object.assign({}, opts, { known: false })).known === false, 'known:false must be reported');
+  }),
+
+  () => tryRun('LORE-3b: the Trophy Room omits its wall while the realm has not stated the claims', () => {
+    const T = window.HearthriseTrophies, H = window.HearthriseHomestead, RR = window.HearthriseRooms;
+    if (!T || !H || !RR || typeof RR.roomRung !== 'function') return skip('trophies / homestead / rooms seam absent');
+    const ck = T.claimsKnown, rung = RR.roomRung;
+    const wall = () => H.modalDescriptor('trophy').sections.some((s) => s.kind === 'rows' && s.title === 'On the wall');
+    try {
+      RR.roomRung = (g, id) => (id === 'trophy' ? 1 : rung(g, id));
+      T.claimsKnown = () => false;
+      assert(!wall(), 'claims unknown: the wall section must be omitted, never "bare"');
+      T.claimsKnown = () => true;
+      assert(wall(), 'claims known: the wall section must render (the arm above is not vacuous)');
+    } finally { T.claimsKnown = ck; RR.roomRung = rung; }
+  }),
+
   () => tryRun('b227: every room opens a themed modal through the shared seam', () => {
     const H = window.HearthriseHomestead;
     if (!H || typeof H.modalDescriptor !== 'function' || !window.HearthriseRoomModal) return;

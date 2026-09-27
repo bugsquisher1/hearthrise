@@ -233,6 +233,8 @@ export function claimsKnown() {
  * the mirror only through isClaimed/claimsKnown. One row per monster at its
  * highest claimed stage, highest stage first, then roster order; `cap` rows
  * shown and `more` counts the rest. Names are raw — the caller escapes them.
+ * The Trophy Room (homestead.js trophyWallSections) omits its wall while
+ * `known` is false, so "the wall is bare" is said only of a KNOWN empty set.
  */
 export function wallRows(opts) {
   const o = opts || {};

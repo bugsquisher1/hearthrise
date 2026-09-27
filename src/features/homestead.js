@@ -1021,11 +1021,6 @@
     });
   }
 
-  /* The Trophy Room wall: the server's claimed rows via HearthriseTrophies,
-     never the mirror. Claims UNKNOWN (no settle yet, or a body without the
-     trophies key) ⇒ no section at all, so a player with trophies is never told
-     the wall is bare; the bare line shows only when known AND empty. Names are
-     escaped here; the lore line is charset-guarded (tests/lore-notes.mjs). */
   function trophyWallSections() {
     var T = window.HearthriseTrophies;
     if (!T || typeof T.wallRows !== 'function' || typeof T.claimsKnown !== 'function') return [];

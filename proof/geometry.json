@@ -1,0 +1,282 @@
+[
+ {
+  "tag": "1280x800",
+  "tab": "farming",
+  "active": "panel-farming",
+  "primer": "panel-farming",
+  "first": true,
+  "w": 1094,
+  "pw": 1110,
+  "btn": [
+   68,
+   44
+  ],
+  "color": "rgb(236, 225, 204)",
+  "bg": "linear-gradient(rgb(42, 34, 25), rgb(27, 22, 15))"
+ },
+ {
+  "tag": "1280x800",
+  "tab": "house",
+  "active": "panel-house",
+  "primer": "panel-house",
+  "first": true,
+  "w": 1094,
+  "pw": 1110,
+  "btn": [
+   68,
+   44
+  ],
+  "color": "rgb(236, 225, 204)",
+  "bg": "linear-gradient(rgb(42, 34, 25), rgb(27, 22, 15))"
+ },
+ {
+  "tag": "1280x800",
+  "tab": "stable",
+  "active": "panel-stable",
+  "primer": "panel-stable",
+  "first": true,
+  "w": 1094,
+  "pw": 1110,
+  "btn": [
+   68,
+   44
+  ],
+  "color": "rgb(236, 225, 204)",
+  "bg": "linear-gradient(rgb(42, 34, 25), rgb(27, 22, 15))"
+ },
+ {
+  "tag": "1280x800",
+  "tab": "shops",
+  "active": "panel-shop",
+  "primer": "panel-shop",
+  "first": true,
+  "w": 1094,
+  "pw": 1110,
+  "btn": [
+   68,
+   44
+  ],
+  "color": "rgb(236, 225, 204)",
+  "bg": "linear-gradient(rgb(42, 34, 25), rgb(27, 22, 15))"
+ },
+ {
+  "tag": "1280x800",
+  "tab": "market",
+  "active": "panel-market",
+  "primer": "panel-market",
+  "first": true,
+  "w": 1090,
+  "pw": 1110,
+  "btn": [
+   68,
+   44
+  ],
+  "color": "rgb(236, 225, 204)",
+  "bg": "linear-gradient(rgb(42, 34, 25), rgb(27, 22, 15))"
+ },
+ {
+  "tag": "1280x800",
+  "tab": "bounty",
+  "active": "panel-bounty",
+  "primer": "panel-bounty",
+  "first": true,
+  "w": 1094,
+  "pw": 1110,
+  "btn": [
+   68,
+   44
+  ],
+  "color": "rgb(236, 225, 204)",
+  "bg": "linear-gradient(rgb(42, 34, 25), rgb(27, 22, 15))"
+ },
+ {
+  "tag": "1280x800",
+  "tab": "events",
+  "active": "panel-events",
+  "primer": "panel-events",
+  "first": true,
+  "w": 1090,
+  "pw": 1110,
+  "btn": [
+   68,
+   44
+  ],
+  "color": "rgb(236, 225, 204)",
+  "bg": "linear-gradient(rgb(42, 34, 25), rgb(27, 22, 15))"
+ },
+ {
+  "tag": "1280x800",
+  "tab": "social",
+  "active": "panel-social",
+  "primer": "panel-social",
+  "first": true,
+  "w": 1094,
+  "pw": 1110,
+  "btn": [
+   68,
+   44
+  ],
+  "color": "rgb(236, 225, 204)",
+  "bg": "linear-gradient(rgb(42, 34, 25), rgb(27, 22, 15))"
+ },
+ {
+  "tag": "1280x800",
+  "tour": "topbar",
+  "text": "Step 2 of 6\nYour stats live up here\n\nCombat level, total level, gold and gems. G"
+ },
+ {
+  "tag": "1280x800",
+  "tour": "skills",
+  "text": "Step 3 of 6\nGathering feeds everything else\n\nWoodcutting, Mining, Fishing and Fa"
+ },
+ {
+  "tag": "1280x800",
+  "tour": "combat",
+  "text": "Step 4 of 6\nFight monsters for loot\n\nCombat is the part you play with your hands"
+ },
+ {
+  "tag": "1280x800",
+  "tour": "inventory",
+  "text": "Step 5 of 6\nYour loot lives here\n\nEverything you gather, cook and kill for lands"
+ },
+ {
+  "tag": "922x423",
+  "tab": "farming",
+  "active": "panel-farming",
+  "primer": "panel-farming",
+  "first": true,
+  "w": 834,
+  "pw": 858,
+  "btn": [
+   76,
+   44
+  ],
+  "color": "rgb(236, 225, 204)",
+  "bg": "linear-gradient(rgb(42, 34, 25), rgb(27, 22, 15))"
+ },
+ {
+  "tag": "922x423",
+  "tab": "house",
+  "active": "panel-house",
+  "primer": "panel-house",
+  "first": true,
+  "w": 834,
+  "pw": 858,
+  "btn": [
+   76,
+   44
+  ],
+  "color": "rgb(236, 225, 204)",
+  "bg": "linear-gradient(rgb(42, 34, 25), rgb(27, 22, 15))"
+ },
+ {
+  "tag": "922x423",
+  "tab": "stable",
+  "active": "panel-stable",
+  "primer": "panel-stable",
+  "first": true,
+  "w": 834,
+  "pw": 858,
+  "btn": [
+   76,
+   44
+  ],
+  "color": "rgb(236, 225, 204)",
+  "bg": "linear-gradient(rgb(42, 34, 25), rgb(27, 22, 15))"
+ },
+ {
+  "tag": "922x423",
+  "tab": "shops",
+  "active": "panel-shop",
+  "primer": "panel-shop",
+  "first": true,
+  "w": 834,
+  "pw": 858,
+  "btn": [
+   76,
+   44
+  ],
+  "color": "rgb(236, 225, 204)",
+  "bg": "linear-gradient(rgb(42, 34, 25), rgb(27, 22, 15))"
+ },
+ {
+  "tag": "922x423",
+  "tab": "market",
+  "active": "panel-market",
+  "primer": "panel-market",
+  "first": true,
+  "w": 834,
+  "pw": 858,
+  "btn": [
+   76,
+   44
+  ],
+  "color": "rgb(236, 225, 204)",
+  "bg": "linear-gradient(rgb(42, 34, 25), rgb(27, 22, 15))"
+ },
+ {
+  "tag": "922x423",
+  "tab": "bounty",
+  "active": "panel-bounty",
+  "primer": "panel-bounty",
+  "first": true,
+  "w": 834,
+  "pw": 858,
+  "btn": [
+   76,
+   44
+  ],
+  "color": "rgb(236, 225, 204)",
+  "bg": "linear-gradient(rgb(42, 34, 25), rgb(27, 22, 15))"
+ },
+ {
+  "tag": "922x423",
+  "tab": "events",
+  "active": "panel-events",
+  "primer": "panel-events",
+  "first": true,
+  "w": 834,
+  "pw": 858,
+  "btn": [
+   76,
+   44
+  ],
+  "color": "rgb(236, 225, 204)",
+  "bg": "linear-gradient(rgb(42, 34, 25), rgb(27, 22, 15))"
+ },
+ {
+  "tag": "922x423",
+  "tab": "social",
+  "active": "panel-social",
+  "primer": "panel-social",
+  "first": true,
+  "w": 834,
+  "pw": 858,
+  "btn": [
+   76,
+   44
+  ],
+  "color": "rgb(236, 225, 204)",
+  "bg": "linear-gradient(rgb(42, 34, 25), rgb(27, 22, 15))"
+ },
+ {
+  "tag": "922x423",
+  "tour": "topbar",
+  "text": "Step 2 of 6\nYour stats live up here\n\nCombat level, total level, gold and gems. G"
+ },
+ {
+  "tag": "922x423",
+  "tour": "skills",
+  "text": "Step 3 of 6\nGathering feeds everything else\n\nWoodcutting, Mining, Fishing and Fa"
+ },
+ {
+  "tag": "922x423",
+  "tour": "combat",
+  "text": "Step 4 of 6\nFight monsters for loot\n\nCombat is the part you play with your hands"
+ },
+ {
+  "tag": "922x423",
+  "tour": "inventory",
+  "text": "Step 5 of 6\nYour loot lives here\n\nEverything you gather, cook and kill for lands"
+ }
+]

@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 92 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, awayArtisanSpan, withFightScreen, xpOf, xpZero, snapshotG, drain, restoreG, restoreGAndRecord, combatScreen, on, snapshot, decideRestore, decideLocalOwnership, withDesktopBanner, assertBannerReserved } from './_harness.js?v=555';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, awayArtisanSpan, withFightScreen, xpOf, xpZero, snapshotG, drain, restoreG, restoreGAndRecord, combatScreen, on, snapshot, decideRestore, decideLocalOwnership, withDesktopBanner, assertBannerReserved, phoneFrame } from './_harness.js?v=555';
 
 export default [
 
@@ -1975,6 +1975,30 @@ export default [
       assert(c.h >= 44 && c.w >= 44,
         'THE b554 BUG: the ' + c.cls + ' "' + c.t + '" takes a ' + c.w + 'x' + c.h + 'px thumb on a landscape phone (painted ' + c.box + ') — the floor is --tap, 44px on both axes');
     });
+  }),
+
+  /* ── regression suite — THE BAG COUNTER WAS CUT TO "0 / 1" ─────────
+     Clipped-label sweep: the bag header row never wraps, but it sat in a `minmax(0,1fr)`
+     grid column, so once the 44px tap-floor buttons widened its neighbours the
+     counter was squeezed to 49px at 852x393 ("0 / 1") and 119px at 922x423
+     ("(100 fr"). Same iframe method as the chip probe above. RED before the fix. */
+  () => tryRun('b555: the bag counter reads whole at 852x393 and 922x423', () => {
+    const render = window._renderInvFancy || window.renderInvFancy;
+    assert(typeof render === 'function', 'the inventory renderer seam (window._renderInvFancy) must exist');
+    render();
+    const markup = document.getElementById('panel-inventory').innerHTML;
+    assert(/invc-space-free/.test(markup), 'the probe needs the real bag counter — renderInvFancy drew no free-stack count');
+    const bad = [];
+    for (const [w, h] of [[852, 393], [922, 423]]) {
+      phoneFrame(w, h, '<div id="app" class="app"><main class="main"><div style="flex:0 0 72px;height:72px"></div>' +
+        '<section class="panel active" id="panel-inventory" data-mobile-sub="bag">' + markup + '</section></main></div>', (doc) => {
+        const space = doc.querySelector('.invc-topbar .invc-space'), p = doc.getElementById('panel-inventory');
+        assert(space, 'the ' + w + 'x' + h + ' frame drew no bag counter');
+        if (space.scrollWidth > space.clientWidth + 1) bad.push(w + 'x' + h + ': "' + space.textContent.trim() + '" needs ' + space.scrollWidth + 'px, gets ' + space.clientWidth);
+        if (p.scrollWidth > p.clientWidth + 1) bad.push(w + 'x' + h + ': the bag panel spills sideways (' + p.scrollWidth + '>' + p.clientWidth + ')');
+      });
+    }
+    assert(bad.length === 0, 'THE b555 BUG: the bag counter is clipped on a landscape phone — ' + bad.join('; '));
   }),
 
   /* ── regression suite — A STRAY BRACE DELETED A RULE, SILENTLY ──────

@@ -955,7 +955,7 @@
     return Math.floor(h/24) + 'd ago';
   }
 
-  function historyBlockHtml(hist, filter, now){
+  function historyBlockHtml(hist, filter, now, limit){
     var head = '<div class="mk-block mk-ledger"><h3>Your trade history</h3>';
     if(!hist || hist.status !== 'ok'){
       return head + '<div class="mk-empty">Your sales and purchases will appear here once '
@@ -974,7 +974,9 @@
       if(e.role === 'sale'){ soldN++; earned += e.goldNet; }
       else { boughtN++; spent += e.goldGross; }
     });
+    /* The read is capped, so a full page is a window, not a lifetime — say so. */
     var totals = '<div class="mk-stats mk-ledger-totals">'
+      + (limit && all.length >= limit ? '<span class="mk-stat">last ' + limit + ' trades</span>' : '')
       + '<span class="mk-stat">' + soldN + ' sold <b>+' + earned.toLocaleString() + 'g</b></span>'
       + '<span class="mk-stat">' + boughtN + ' bought <b>-' + spent.toLocaleString() + 'g</b></span>'
       + '</div>';
@@ -1168,7 +1170,9 @@
       return true;
     }).map(function(id){
       var d = items[id] || {};
-      return { id: id, name: d.n || id, qty: inv[id], v: d.v || 0 };
+      // The vendor's REAL bid (raw materials pay a fraction of v), as the bag tooltip quotes it.
+      var bid = (typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : (d.v || 0);
+      return { id: id, name: d.n || id, qty: inv[id], v: bid };
     }).sort(function(a, b){ return a.name.localeCompare(b.name); });
 
     var pickerOpts = '<option value="">— Pick an item from your bag —</option>'
@@ -1200,7 +1204,7 @@
     if(MH){
       try{
         MH.refreshHistoryIfStale();
-        historyBlock = historyBlockHtml(MH.getHistory(), ui.ledger || 'all', Date.now());
+        historyBlock = historyBlockHtml(MH.getHistory(), ui.ledger || 'all', Date.now(), MH.HISTORY_LIMIT);
       }catch(e){ historyBlock = ''; }
     }
 

@@ -8376,6 +8376,36 @@ export default [
     assert(o.said.some((m) => /did not confirm/i.test(m)), 'the unknown outcome was never said: ' + JSON.stringify(o.said));
   }),
 
+  () => tryRun('MP-R4: the listing hint quotes the vendor\'s real bid', () => {
+    const snap = snapshotG();
+    try {
+      assert(window.ITEMS.iron_ore && window.ITEMS.iron_ore.raw === true, 'fixture: iron_ore must be a raw material');
+      const bid = window.vendorPrice('iron_ore'), v = window.ITEMS.iron_ore.v;
+      assert(bid !== v, 'fixture: a raw item\'s vendor bid must differ from its v (' + bid + ' vs ' + v + ')');
+      window.addItem('iron_ore', 2); window.renderMarket();
+      const pick = document.getElementById('mk-list-id');
+      pick.value = 'iron_ore'; pick.dispatchEvent(new Event('change'));
+      const hint = document.getElementById('mk-list-hint').textContent;
+      assert(hint.indexOf('pays ' + bid + 'g') >= 0 && hint.indexOf(v + 'g each') < 0,
+        'the Market quoted a vendor price the vendor does not pay: "' + hint + '" (vendor pays ' + bid + 'g)');
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('MP-R5: ledger totals name their window', () => {
+    const MH = window.HearthriseMarketHistory, before = MH.getHistory(), N = MH.HISTORY_LIMIT;
+    assert(N > 0, 'market-history.js publishes no HISTORY_LIMIT');
+    const rows = (n) => MH.normalizeSales(Array.from({ length: n }, (_, i) => ({ id: i + 1, seller_user_id: 'me',
+      buyer_user_id: 'x', item_id: 'oak_log', qty: 1, gold_gross: 20, tax: 0, gold_net: 20, at: new Date().toISOString() })), 'me');
+    const head = (n) => {
+      MH.__setHistoryCache({ status: 'ok', userId: 'me', at: Date.now(), entries: rows(n) }); window.renderMarket();
+      return document.getElementById('market-root').textContent;
+    };
+    try {
+      assert(head(N).indexOf('last ' + N + ' trades') >= 0, 'a full ledger page printed lifetime-looking totals');
+      assert(head(N - 1).indexOf('last ' + N + ' trades') < 0, 'a short ledger claimed to be a window');
+    } finally { MH.__setHistoryCache(before); }
+  }),
+
   () => tryRunAsync('B355-4: the client-authored buy-offer sub-market is INERT under the seam (Security M5/M6)', async () => {
     const A = window.HearthriseAccrual;
     const M = window.HearthriseMarket;

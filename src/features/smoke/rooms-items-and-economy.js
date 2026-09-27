@@ -1141,6 +1141,29 @@ export default [
         'a REFUSED claim must leave the contract active — the client never finalizes on its own');
     } finally { rig.restore(); }
   }),
+  /* ONE FIGURE PER CONTRACT (2026-09-27, CLAUDE.md §6). Six surfaces print the
+     contract count; each prints the server's figure or the pending mark, never
+     the attended counter (9 vs 15), never past target (23/20), never an
+     invented "0/20 confirmed" while the server has not answered. */
+  () => tryRunAsync('bounty: every surface renders ONE figure — the server\'s, or pending', async () => {
+    const rig = bountyRig({ credit: { ok: true, progress: 4 } });
+    const c = (id, progress, x) => Object.assign({ id, type: 'cull', target: rig.target, difficulty: 'normal', required: 20, progress, rewards: { gold: 1, marks: 1, xp: 1 } }, x);
+    const one = (f, want, at) => assert(f.set.size === 1 && f.set.has(want), at + ': every surface must read ' + want + ', got ' + JSON.stringify([...f.set]) + ' wt=' + f.wt + ' pill=' + f.pill.trim().slice(0, 80) + ' chip=' + f.chip);
+    const tick = () => new Promise((r) => setTimeout(r, 0));
+    try {
+      if (!rig.armed) { skip('the server-gated bounty only runs under the gold arm'); return; }
+      rig.set(c('b_one', 9)); let f = await rig.figures();
+      one(f, '—', 'unknown'); assert(!f.claim && !f.badge && !/(^|\D)0\/20/.test(f.pill + f.chip), 'unknown: no Claim, no badge, no invented 0/20');
+      window.hrNoteServerBounty(rig.envelope('b_one', 15)); f = await rig.figures();
+      one(f, '15', 'server 15'); assert(!f.claim, 'server 15 of 20: no Claim');
+      rig.set(c('b_two', 19)); window.completeBounty(); await tick();
+      one(await rig.figures(), '4', 'credit receipt 4');
+      rig.set(c('b_three', 23, { _confirming: true })); f = await rig.figures();
+      one(f, '—', 'confirming'); assert(!f.claim && !f.badge && /Verifying/.test(f.pill) && !/(^|\D)0\/20/.test(f.pill), 'confirming: Verifying, no Claim, no badge, no 0/20');
+      rig.set(c('b_four', 9)); window.hrNoteServerBounty(rig.envelope('b_four', 20)); await tick(); f = await rig.figures();
+      one(f, '20', 'server 20'); assert(f.claim && f.badge, 'server 20 of 20: Claim offered and the badge lit');
+    } finally { rig.restore(); }
+  }),
   /* bug #5 ROOT (Paione, live): the b484 credit only fired at target, and the
      cap grows with elapsed — so a burst of fast kills reached the bar while the
      server cap was still below it, the turn-in was refused, the player stopped,

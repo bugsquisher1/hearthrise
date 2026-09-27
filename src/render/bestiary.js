@@ -41,7 +41,7 @@
     var ov = document.getElementById('best-overlay');
     if (!ov) {
       ov = document.createElement('div'); ov.id = 'best-overlay'; ov.className = 'ach-overlay hr-scrim';
-      ov.innerHTML = '<div class="ach-modal hr-sheet" onclick="event.stopPropagation()"><h2 class="hr-sheet-head">Bestiary</h2><div class="hr-sheet-body"><div id="best-charms" class="charm-strip"></div><div id="best-list" class="bestiary-list"></div></div><button class="btn hr-sheet-foot" data-hr-dismiss onclick="document.getElementById(\'best-overlay\').classList.remove(\'show\')" style="margin-top:12px;width:100%">Close</button></div>';
+      ov.innerHTML = '<div class="ach-modal hr-sheet" onclick="event.stopPropagation()"><h2 class="hr-sheet-head">Bestiary</h2><div class="hr-sheet-body"><div id="best-charms" class="charm-strip"></div><details id="best-luck" class="luck-ledger"></details><div id="best-list" class="bestiary-list"></div></div><button class="btn hr-sheet-foot" data-hr-dismiss onclick="document.getElementById(\'best-overlay\').classList.remove(\'show\')" style="margin-top:12px;width:100%">Close</button></div>';
       ov.addEventListener('click', function (e) { if (e.target === ov) ov.classList.remove('show'); });
       document.body.appendChild(ov);
     }
@@ -58,6 +58,7 @@
        absent. Fail-safe, never a gate. */
     var T = window.HearthriseTrophies || null;
     paintCharmStrip(C);
+    window.HearthriseLuckLedger && window.HearthriseLuckLedger.paint();
     list.innerHTML = Object.entries(MONSTERS).map(function (kv) {
       var id = kv[0], m = kv[1];
       var entry = G.bestiary[id] || { kills: 0 };

@@ -4,6 +4,20 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 558 — 2026-09-27 (Every screen explains itself)
+
+**First Steps.** The starter tour tells the truth (Auto-Eat is yours from the start; armour is not what keeps you alive), the post-signup sheet points at screens that exist, and eight screens open with a one-line primer the first time you see them. Settings has a "Show screen tips again" row.
+
+**Skill Primer.** Every skill screen says what the skill is for and what the next level opens. A level-up names what it unlocked, and the welcome-back card lists the levels you gained while away.
+
+**Signposts.** When a bench runs dry, the toast names the missing material and a door to get more. The Bounty strip shows only chips that are real, locked War Table cards say how far the unlock is, and an empty bag category says what would fill it.
+
+**The Hearth Codex.** A glossary under More and Settings: twenty entries, each sentence bound to a guard so it cannot drift from the game.
+
+**Stable and Throne lore.** Each of the 22 companions has a line of lore, each of the 12 renown ranks has a rank-up line, and the Trophy Room shows the trophies you have claimed.
+
+**Popups, all of them.** Twenty families of overlays now use the same sheet as build 557's fix: they fit the screen on phones and desktops, the middle scrolls, the button stays in view, and Escape closes the top one.
+
 ## v0.9.2-beta build 557 — 2026-09-27 (The bar you couldn't see)
 
 **The Vigour bar is back on the Fight rail.** The bar, its Refill button and a chip in the top bar are mounted again. The panel had been built but nothing showed it, so a hunter could run dry and earn a quarter of the pay with nothing on screen saying why.

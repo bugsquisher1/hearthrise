@@ -12938,12 +12938,12 @@ function buildOverlay(){
   if(document.getElementById('acq-overlay')) return;
   var ov = document.createElement('div');
   ov.id = 'acq-overlay';
-  ov.className = 'acq-overlay';
-  ov.innerHTML = '<div class="acq-modal" onclick="event.stopPropagation()">' +
-    '<h3 id="acq-title">How to get this</h3>' +
-    '<p id="acq-desc"></p>' +
-    '<div class="acq-paths" id="acq-paths"></div>' +
-    '<button class="acq-close" onclick="hideAcquisitionTip()">Close</button>' +
+  ov.className = 'acq-overlay hr-scrim';
+  ov.innerHTML = '<div class="acq-modal hr-sheet" onclick="event.stopPropagation()">' +
+    '<h3 id="acq-title" class="hr-sheet-head">How to get this</h3>' +
+    '<p id="acq-desc" class="hr-sheet-head"></p>' +
+    '<div class="acq-paths hr-sheet-body" id="acq-paths"></div>' +
+    '<button class="acq-close hr-sheet-foot" data-hr-dismiss onclick="hideAcquisitionTip()">Close</button>' +
     '</div>';
   ov.addEventListener('click', hideAcquisitionTip);
   document.body.appendChild(ov);

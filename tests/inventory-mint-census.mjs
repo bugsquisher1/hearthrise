@@ -147,7 +147,7 @@ const BASELINE = {
      stays here because several other legacy.js sites still use that token. */
   'src/legacy.js': [
     "'hearth_token'", 'cur', 'id', 'kv[0]',
-    'r.item', 'r.output', 'res.produced.id',
+    'r.item', 'res.produced.id',
     'inv:id', 'inv:old',
   ],
   /* THE SHOP COUNTER. Two mints, both a PURCHASE the player just paid for:

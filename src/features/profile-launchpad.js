@@ -51,7 +51,7 @@
   function todayKey(){ return new Date().toDateString(); }
 
   /* b431 — skill-xp READ accessor (src/net/skill-record.js), DORMANT no-op today;
-     the ESM analogue of the b429 legacy skillXp() sweep. See activities-grid.js. */
+     the ESM analogue of the b429 legacy skillXp() sweep. */
   function srXpOf(id){
     var SR = window.HearthriseSkillRecord;
     if (SR && typeof SR.skillXpForDisplayOr === 'function') return SR.skillXpForDisplayOr(window.G, id, 0);

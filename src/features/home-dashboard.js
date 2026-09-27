@@ -1661,6 +1661,7 @@
           '</div></div>';
       } catch (e) { /* renown optional */ }
     }
+    try { var HL = window.HearthriseHuntersLedger; if (HL && typeof HL.card === 'function') html += HL.card(G); } catch (e) { /* display only */ }
 
     // The realm — world events. They already change how fast every skill runs,
     // but the only place they were stated was a one-line ticker pinned in the

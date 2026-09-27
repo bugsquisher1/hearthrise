@@ -2592,6 +2592,15 @@ jobs:
           node tests/breakpoint-guard.mjs --report
           node tests/breakpoint-guard.mjs --selftest
 
+      # Every full-screen layer is a sheet (.hr-scrim/.hr-sheet), or is counted:
+      # a ratchet on the modal class that let the welcome-back card outgrow the
+      # screen with nothing to scroll. The count may only fall.
+      - name: Presentation floor - full-screen layers use the sheet primitive
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/modal-primitive-census.mjs --report
+          node tests/modal-primitive-census.mjs --selftest
+
       # slice 5 step 1 - src/styles/tokens.css is the single source of design
       # tokens. Before it, 367 token declarations lived in four sheets at four
       # points in the load order and 41 of them were shadowed later with a

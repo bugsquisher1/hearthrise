@@ -19,6 +19,7 @@ const STEPS = [
   ['node', ['tests/token-single-source.mjs']],
   ['node', ['tests/css-literal-ratchet.mjs']],
   ['node', ['tests/breakpoint-guard.mjs']],
+  ['node', ['tests/modal-primitive-census.mjs']],
   // The server projects it, the client must not keep its own copy (Tyler, 2026-09-14).
   // Text-only here; the executed hr_state_of key set is pinned in the db-replay-3 job
   // (split from db-replay 2026-09-20, then from db-replay-2 2026-09-26).

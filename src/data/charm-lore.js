@@ -15,7 +15,7 @@ export const CHARM_CLASS_LORE = Object.freeze({
   dragon: 'A dragon is patient as a mountain and twice as proud, and those who study one learn that pride leaves its flank open at dusk',
   elemental: 'Storm, ember and stone given a will: an elemental has no heart to pierce, only a nature to learn and turn against itself',
   construct: 'Golems and clockwork do only what they were built to do; find the maker’s habit and every one of them walks into it again',
-  extradimensional: 'They step in from somewhere the maps end, and what hurts them hides behind the folding air until a hunter learns to look',
+  extra_dimensional: 'They step in from somewhere the maps end, and what hurts them hides behind the folding air until a hunter learns to look',
 });
 
 export const CHARM_RANK_LORE = Object.freeze({

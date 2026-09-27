@@ -2339,45 +2339,6 @@ export default [
     }
   }),
 
-  () => tryRun('b420: companion gold PROC stays arm-gated (the un-gate is purchase-only, not the proc)', () => {
-    // The PURCHASE un-gated, but rollProc's clientMayWriteRecordField('gold') defer
-    // for gold/extraGold procs is UNTOUCHED. Reuses the b342 MARK harness: a
-    // distinctive proc amount (no gather reward is near it) fired through the
-    // addItem/gather seam with chance=1. With gold UNARMED the proc pays exactly
-    // once; with gold ARMED it pays NOTHING — proving the proc gate survives.
-    if (!window.COMPANIONS || !window.COMPANIONS.fox || typeof window.addItem !== 'function') return;
-    const MARK = 1e7;
-    const G = window.G;
-    const snap = snapshotG();
-    const origMay = window.clientMayWriteRecordField;
-    const savedFoxProc = JSON.parse(JSON.stringify(window.COMPANIONS.fox.proc));
-    const fireGatherProc = () => {
-      const g0 = G.gold;
-      G.activeMonster = null; G.activeArtisanRecipe = null; G.activeSkill = 'mining';
-      window.addItem('copper_ore', 1);
-      return Math.floor((G.gold - g0) / MARK);
-    };
-    try {
-      Object.assign(window.COMPANIONS.fox.proc,
-        { trigger: 'gather', chance: 1, effect: 'extraGold', amount: MARK, label: '__b420proc__' });
-      G.companions = { ownedIds: ['fox'], xp: { fox: 0 }, equipped: 'fox' };
-
-      // UNARMED: the proc pays once (control — proves the harness fires the proc).
-      window.clientMayWriteRecordField = function () { return true; };
-      G.gold = 0;
-      assert(fireGatherProc() === 1, 'control: an UNARMED gold proc must pay exactly once');
-
-      // ARMED: the rollProc gold-flip defer no-ops the whole proc — nothing minted.
-      window.clientMayWriteRecordField = function (f) { return f !== 'gold'; };
-      G.gold = 0;
-      assert(fireGatherProc() === 0, 'an ARMED companion gold proc must mint NO gold — the proc gate must stay');
-    } finally {
-      window.clientMayWriteRecordField = origMay;
-      window.COMPANIONS.fox.proc = savedFoxProc;
-      restoreG(snap);
-    }
-  }),
-
   () => tryRun('slice 4: non-shop companion acquisition is UNAFFECTED by the gold arm-gate', () => {
     // unlockCompanion is the acquisition path for drop/quest/skill/boss/hatch
     // companions. It moves NO gold, so arming gold must not touch it — a player

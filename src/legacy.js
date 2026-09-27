@@ -2770,10 +2770,9 @@ function ensureStarterCombatKit(){
    comments now live in that file — one implementation, which is what lets a
    Deno Edge Function resolve an offline kill exactly the way the client does.
 
-   The window.* hops are kept deliberately: getEquipmentStats and
-   getArmorSetBonus are WRAPPED by feature modules (companions.js:501,
-   legacy.js:12565), and calling core directly would silently escape those
-   wrappers. Delegation must not change who is in the chain. ── */
+   The window.* hops are kept deliberately: getArmorSetBonus is WRAPPED by
+   the clan seat, and calling core directly would silently escape that
+   wrapper. Delegation must not change who is in the chain. ── */
 function getPlayerCombatRolls(m,eq=getEquipmentStats()){
   const C=window.HearthriseCore;
   const _set=(typeof getArmorSetBonus==='function')?getArmorSetBonus():null;
@@ -6435,9 +6434,8 @@ function combatSimCtx(){
     items:ITEMS,
     bonus:C.bonus,
     style:(typeof window.getActiveCombatStyle==='function')?window.getActiveCombatStyle():null,
-    /* Through the window.* helpers, not straight to core: getEquipmentStats
-       and getArmorSetBonus are WRAPPED by companions.js and the clan seat, and
-       calling core directly would silently drop those links. */
+    /* Through the window.* helpers, not straight to core: getArmorSetBonus
+       is WRAPPED by the clan seat, and calling core directly would drop it. */
     playerRolls:function(m){ eq=getEquipmentStats(); return getPlayerCombatRolls(m,eq); },
     monsterRolls:function(m){ return getMonsterCombatRolls(m,eqOf()); },
     weakness:function(m){ return getWeaknessInfo(m,eqOf()); },
@@ -16837,59 +16835,6 @@ function ensureCompanionState(){
      own column. */
 }
 
-// Bonus helper — scaled by level.
-// b228: the key skeleton follows data/companions.js's corrected names (allXP /
-// goldFind / prayerSpeed replace the misspelled xpB / goldBonus / prayerXp).
-window.getCompanionBonus = function(){
-  ensureCompanionState();
-  var b = {strB:0, atkB:0, defB:0, crit:0, allXP:0, gatherSpeed:0, farmYield:0,
-           cookSpeed:0, smithSpeed:0, craftSpeed:0, prayerSpeed:0,
-           rareDrop:0, goldFind:0, hpRegen:0};
-  var eq = G.companions && G.companions.equipped;
-  if(!eq) return b;
-  var def = window.COMPANIONS[eq];
-  if(!def) return b;
-  var xp = (G.companions.xp && G.companions.xp[eq]) || 0;
-  var lv = window.companionLevelFromXp(xp);
-  var scale = 1 + (lv - 1) * 0.05; // +5% per level above 1; lv30 = +145% bonus magnitude
-  Object.entries(def.bonus || {}).forEach(function(kv){
-    b[kv[0]] = (b[kv[0]] || 0) + (kv[1] * scale);
-  });
-  return b;
-};
-
-/* ── b228 P0 — THE COMPANION DOUBLE-COUNT, REMOVED ────────────────────────
-   A getBonus wrapper adding `getCompanionBonus()[key]` lived HERE *and* in
-   features/companions.js setupCompanions(). Both installed at boot, both
-   called the same (module) getCompanionBonus, and the chain therefore added
-   every pet's bonus TWICE. Measured before the fix, in the harness: a Forge
-   Imp declaring smithSpeed .10 moved getBonus('smithSpeed') by 0.20 — a
-   level-30 Forge Imp was worth +49% smithing, not the +24.5% the census
-   budgeted, and no screen anywhere said so.
-
-   It could not be found by reading either file: each wrapper is correct on its
-   own. It is exactly the failure mode the power budget exists to make
-   impossible, so it is fixed inside the rebase and pinned by a regression test
-   that asserts the delta equals the companion's bonus EXACTLY ONCE.
-
-   features/companions.js keeps the hook (it owns the data and the level
-   curve); this copy is deleted. */
-
-// Hook into getEquipmentStats() if it exists, so combat/character pages see companion stat bonuses
-(function(){
-  if(typeof window.getEquipmentStats !== 'function') return;
-  var orig = window.getEquipmentStats;
-  window.getEquipmentStats = function(){
-    var s = orig.apply(this, arguments) || {};
-    var cb = window.getCompanionBonus();
-    ['strB','atkB','defB','rangeStrB','rangeAtkB','magicStrB','magicAtkB'].forEach(function(k){
-      if(typeof cb[k] === 'number') s[k] = (s[k]||0) + cb[k];
-    });
-    if(typeof cb.crit === 'number') s.critB = (s.critB||0) + cb.crit;
-    return s;
-  };
-})();
-
 // Award XP to the equipped companion. b228: the cap is DERIVED from the curve
 // (companionXpToReach(30)) — the old flat 50,000 stopped every pet at level 14
 // on a bar the Stable draws as "/ 30".
@@ -16943,34 +16888,6 @@ ensureCompanionState();
 console.log('[Companions A: logic] loaded — table owned by data/companions.js ('
   + Object.keys(window.COMPANIONS || {}).length + ' seen at this point)');
 })();
-
-/* ── b342 P0 — THE COMPANION PROC HOOKS, REMOVED ──────────────────────────
-   Block 31 (companions-hooks) lived here. b228 above deleted the duplicated
-   getBonus wrapper and left this standing; it is the SAME defect one layer up.
-   `rollProc` and `awardXpForRole` existed HERE and in features/companions.js,
-   and BOTH files wrapped window.killMonster, window.combatTick and
-   window.addItem. Each wrapper calls the next, so one trigger ran TWO proc
-   rolls and TWO XP awards.
-
-   MEASURED in the real client, headless, before the fix (proc chance forced
-   to 1 and the payout marked, so it could not be confused with a kill reward):
-     one killMonster()    -> proc applied 2x, 2 toasts, pet XP +1.0 (want 0.5)
-     one combatTick()     -> proc applied 2x, 2 toasts
-     one addItem() gather -> proc applied 2x, 2 toasts
-     one addItem() cook   -> proc applied 2x, 2 toasts, pet XP +1.0 (want 0.5)
-   So a Raccoon advertising "20% on kill" really fired at 1-0.8^2 = 36%, and
-   every proc pet in the game paid roughly double its declared rate against a
-   power budget that had never been told. This block also ran a 250ms interval
-   that fired a THIRD gather proc each time G.skillProgress crossed 0.99.
-
-   It cannot be found by reading either file — each wrapper is correct on its
-   own — so it is pinned by a behavioural regression test:
-   'b342 P0: a companion proc applies EXACTLY ONCE per trigger'.
-
-   features/companions.js keeps the hooks. It owns the data, the level curve,
-   the seeded drop roll and the HearthrisePetSession attribution this copy
-   never reported to (which is why the pet-impact panel was under-reporting by
-   exactly half). Do not reintroduce a second set. */
 
 // ===== block 32: companions-ui-js — REMOVED (bug-duty, Stable single-owner) =====
 /* The Stable nav button, #panel-stable, renderStable and the profile-card /
@@ -17099,14 +17016,6 @@ function getEquipmentBonusFor(style){
     s.def += it.defB||0;
     s.crit += it.critB||0;
   });
-  /* Add companion bonuses */
-  if(typeof getCompanionBonus === 'function'){
-    var cb = getCompanionBonus();
-    if(style === 'melee'){ s.str += cb.strB||0; s.atk += cb.atkB||0; }
-    if(style === 'ranged'){ s.str += cb.rangeStrB||0; s.atk += cb.rangeAtkB||0; }
-    if(style === 'magic'){ s.str += cb.magicStrB||0; s.atk += cb.magicAtkB||0; }
-    s.def += cb.defB||0; s.crit += cb.crit||0;
-  }
   return s;
 }
 
@@ -17460,15 +17369,7 @@ window._buyCompanion = function(id, price){
      hr_perks_of PROJECTS the equipped companion's PASSIVE bonus, priced at accrual
      by src/core/companion-perk.js. So the passive bonus is honoured by the SERVER
      whether or not gold is armed, and the purchase is safe to arm.
-
-     ⚠ WHAT IS STILL CLIENT-ONLY, AND WHY IT DOES NOT REOPEN THE HAZARD: the
-     companion PROCS (gold/extraGold, e.g. the raccoon's +5g/kill) remain a live
-     client-authored grant, and rollProc() in features/companions.js KEEPS its own
-     clientMayWriteRecordField('gold') defer — an armed proc no-ops there, not here.
-     Procs are a bonus on top of a bought pet, not the thing bought; a pet with its
-     passive honoured is not "pay gold, get nothing" just because one RNG proc is
-     deferred until the RNG-seam follow-up. So the PURCHASE arms now; the PROC stays
-     gated at its own site. */
+ */
   if(!balCanAfford(price,'gold')){ if(typeof notify==='function') notify(balShortfall(price,'gold'),'kill'); return; }
   if(G.companions && G.companions.ownedIds.indexOf(id) >= 0){ if(typeof notify==='function') notify('Already owned','info'); return; }
   var _ck=(typeof goldIntentKey==='function')?goldIntentKey():null;

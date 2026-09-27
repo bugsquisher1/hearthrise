@@ -3000,7 +3000,7 @@ export default [
         cooked_shrimp: 'cooked food (ARTISAN_RECIPES.cooking output)',
         potato:        'crop product (CROPS.potato.prod)',
         warboss_standard: 'dungeon reward (BOSSES signature)',
-        carrot:        'companion-proc bonus (doubleYield mints a crop)',
+        carrot:        'crop product (CROPS.carrot.prod)',
       };
       for (const id of Object.keys(UNMODELED)) {
         assert(A.serverOwnedItem(id) === false,

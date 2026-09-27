@@ -159,7 +159,8 @@
        companion's own progression into the pane. All data is authored in
        src/data/companions.js and read through the companions ESM module's
        window bindings (companionLevelFromXp / companionXpToReach /
-       getCompanionBonus) — no invented fields, same source the Stable renders. */
+       HearthriseCompanions.paidLines) — only what the engine pays, the same
+       lines the Stable renders. */
     (function(){
       var info = document.createElement('div');
       info.className = 'td-companion-info';
@@ -171,14 +172,10 @@
         var nextXp = window.companionXpToReach(lv + 1);
         var thisXp = window.companionXpToReach(lv);
         var pct = nextXp > thisXp ? Math.min(100, ((xp - thisXp) / (nextXp - thisXp)) * 100) : 100;
-        var cb = typeof window.getCompanionBonus === 'function' ? window.getCompanionBonus() : {};
-        /* b228: the corrected key names (allXP / goldFind / prayerSpeed), and
-           farmYield leaves the percent list — it is a count of crops. */
-        var LBL = {strB:'STR',atkB:'ATK',defB:'DEF',crit:'Crit',allXP:'All XP',gatherSpeed:'Gather',farmYield:'Farm',cookSpeed:'Cook',smithSpeed:'Smith',craftSpeed:'Craft',prayerSpeed:'Prayer',rareDrop:'Rare drop',goldFind:'Gold find',hpRegen:'HP/s'};
-        var PCT = {crit:1,allXP:1,gatherSpeed:1,cookSpeed:1,smithSpeed:1,craftSpeed:1,prayerSpeed:1,rareDrop:1,goldFind:1};
-        var bonuses = Object.keys(cb).filter(function(k){return cb[k];}).map(function(k){
-          var v = PCT[k] ? '+' + (cb[k] * 100).toFixed(0) + '%' : '+' + (Math.round(cb[k] * 10) / 10);
-          return '<span class="td-comp-bonus"><b>' + v + '</b> ' + (LBL[k] || k) + '</span>';
+        var HC = window.HearthriseCompanions;
+        var lines = HC && typeof HC.paidLines === 'function' ? HC.paidLines(eq, xp) : [];
+        var bonuses = lines.map(function(l){
+          return '<span class="td-comp-bonus"><b>' + l.text + '</b> ' + l.label + '</span>';
         }).join('');
         info.innerHTML =
           '<div class="td-comp-head"><span class="td-comp-icon">' + window.companionIconHtml(eq, 28) + '</span>' +
@@ -186,8 +183,7 @@
             '<div class="td-comp-role">' + (def.role || '') + ' companion</div></div></div>' +
           '<div class="td-comp-bar"><i style="width:' + pct.toFixed(1) + '%"></i></div>' +
           '<div class="td-comp-xp">' + xp.toLocaleString() + ' / ' + nextXp.toLocaleString() + ' XP</div>' +
-          (bonuses ? '<div class="td-comp-bonuses">' + bonuses + '</div>' : '') +
-          (def.proc ? '<div class="td-comp-proc">' + def.proc.label + ' (' + (def.proc.chance * 100).toFixed(0) + '% on ' + def.proc.trigger + ')</div>' : '');
+          (bonuses ? '<div class="td-comp-bonuses">' + bonuses + '</div>' : '');
       } else {
         info.innerHTML = '<div class="td-comp-empty">No companion equipped.<br>'
           + '<button class="td-comp-stable" onclick="window.showTab&&window.showTab(\'stable\')">Open the Stable →</button></div>';

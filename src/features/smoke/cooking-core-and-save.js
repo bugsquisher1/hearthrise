@@ -4479,8 +4479,8 @@ export default [
      answer must equal the client's. Any bare Math.random() on that path breaks
      it BY CONSTRUCTION — not probabilistically, every single time.
 
-     The three sites that were left (companions.js rollProc, pets.js
-     rollSkillPet and rollBossPet) were found by INSTRUMENTING the real global
+     The three sites that were left (a companion proc roll, since deleted from
+     the client, pets.js rollSkillPet and rollBossPet) were found by INSTRUMENTING the real global
      across a set of away nights, not by grep: hundreds of draws a night, and
      with the SEED PINNED and only Math.random() varied the same night paid
      7,899 gold against 7,789 and unlocked a different pet in each replay.
@@ -4599,10 +4599,10 @@ export default [
 
       assert(cLo.kills > 5,
         'FIXTURE: the away night must land several kills or every assertion below is vacuous, got ' + cLo.kills);
-      // SITE 1 — companions.js rollProc. The Raccoon pays extraGold on kill, so
-      // an unseeded proc shows up as gold and nothing else.
+      // SITE 1 — the Raccoon (once an extraGold-on-kill proc pet): an unseeded
+      // companion roll would show up as gold and nothing else.
       assert(cLo.gold === cHi.gold,
-        'companions.js rollProc reads Math.random(): the SAME seeded night paid ' + cLo.gold
+        'a companion roll reads Math.random(): the SAME seeded night paid ' + cLo.gold
         + ' gold with Math.random()=0.0001 and ' + cHi.gold + ' with 0.9999. A companion proc pays, '
         + 'so the server and the client would compute different totals for the same absence.');
       // SITE 2 — pets.js rollBossPet, on the lich's 1-in-200.
@@ -4640,58 +4640,26 @@ export default [
         return read();
       };
 
-      /* b515 — WHAT THE THREE SITES ARE READ THROUGH CHANGED, because the
-         client no longer authors the outcome. Each used to be read through its
-         EFFECT: the Raccoon's proc toast, and `ownedIds` containing the pet a
-         line after the roll. Neither is available now, and both for correct
-         reasons documented at their call sites:
-
-           · `rollProc` DEFERS a gold/extraGold proc entirely under the gold arm
-             (companions.js: "do NOT show a +Xg proc animation or record a
-             contribution the pet did not make"), so the Raccoon fires nothing;
-           · `unlockCompanion` waits for hr_companion_grant before a non-shop
-             companion joins (`needsServerConfirm`), so `ownedIds` is
-             legitimately still empty a line later — HATCH-REFUSE-1..3's subject.
-
-         So each site is read through the thing that is still the CLIENT's: the
-         roll DECIDED. A hit routes to `unlockCompanion` (spied), a miss does
-         not; a non-gold proc still shows its label. That is a tighter reading
-         than the old one — it cannot pass because an effect happened for some
-         other reason — and it is the half a server-side recompute depends on. */
-
-      /* SITE 1 again — a proc whose EFFECT is not a gold credit, so the arm
-         does not defer it. Chosen from the catalogue rather than named, so a
-         data change fails here loudly instead of making this vacuous. */
+      /* SITE 1 — the client draws NOTHING for a companion proc. The same kill
+         from the same seed, with a proc pet equipped and with none, must leave
+         the stream at the same position; a proc roll would advance it one draw. */
       const procId = Object.keys(window.COMPANIONS).filter((id) => {
         const pr = window.COMPANIONS[id].proc;
-        return pr && pr.trigger === 'kill' && pr.effect !== 'gold' && pr.effect !== 'extraGold';
+        return pr && pr.trigger === 'kill';
       })[0];
-      if (procId) {
-        const procLabel = window.COMPANIONS[procId].proc.label;
-        let procs = 0;
-        window.notify = function (msg) { if (String(msg).indexOf(procLabel) >= 0) procs++; };
-        const oneKill = (seamValue, globalValue) => followsSeam(
-          () => {
-            combatFixture();
-            G.companions = { equipped: procId, ownedIds: [procId], xp: {} };
-            G.monsterHp = 999999; G.monsterMaxHp = 999999;
-            procs = 0;
-          },
-          () => window.killMonster(window.MONSTERS.goblin),
-          () => procs, seamValue, globalValue);
-        assert(oneKill(0, 0.9999) === 1,
-          'companions.js rollProc did not follow the SEEDED stream: the seam said hit and the global said '
-          + 'miss, and the proc did not fire — either it reads Math.random() or the roll is gone');
-        assert(oneKill(0.9999, 0.0001) === 0,
-          'companions.js rollProc followed Math.random(): the seam said miss and the global said hit, '
-          + 'and the proc fired anyway');
-        window.notify = savedNotify;
-      } else {
-        /* Every kill-triggered proc in the catalogue pays gold, so all of them
-           are deferred under the arm and site 1 has no observable effect at
-           all. Say so rather than passing quietly. */
-        skip('no non-gold kill proc in the catalogue — rollProc is unobservable under the gold arm');
-      }
+      assert(procId, 'FIXTURE: the catalogue must carry a kill-triggered proc pet or site 1 is vacuous');
+      const streamAfterKill = (equipped) => {
+        combatFixture();
+        G.companions = { equipped, ownedIds: [procId], xp: {} };
+        G.monsterHp = 999999; G.monsterMaxHp = 999999;
+        C.reseed(SEED);
+        window.killMonster(window.MONSTERS.goblin);
+        return C.rng.next();
+      };
+      const withPet = streamAfterKill(procId), noPet = streamAfterKill(null);
+      assert(withPet === noPet,
+        'a companion proc drew from the session stream: one kill with ' + procId + ' equipped left the rng at '
+        + withPet + ' and with no pet at ' + noPet + ' — the client must roll no proc the engine does not pay');
 
       /* SITES 2 and 3 — the pet rolls, read through the DECISION rather than
          through ownership. `unlockCompanion` is the one call a hit makes; under

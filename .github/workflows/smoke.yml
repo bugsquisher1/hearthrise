@@ -2552,6 +2552,8 @@ jobs:
       # the brief names, each caught by its own named FLV assertion.
       # lore-notes.mjs rides the same step: one lore line per companion, rank
       # and trophy stage, charset-guarded (the lines render as raw HTML).
+      # companion-pays-parity / companion-promise-parity: a companion shows and
+      # applies only what the engine pays (COMPANION_KEYS), away and on screen.
       - name: Item flavour coverage - every item has a line
         if: ${{ !cancelled() }}
         run: |
@@ -2559,6 +2561,10 @@ jobs:
           node tests/item-flavour-coverage.mjs --selftest
           node tests/lore-notes.mjs
           node tests/lore-notes.mjs --selftest
+          node tests/companion-pays-parity.mjs
+          node tests/companion-pays-parity.mjs --selftest
+          node tests/companion-promise-parity.mjs
+          node tests/companion-promise-parity.mjs --selftest
 
       # SKILL GUIDE COVERAGE — every skill says what it is for, and every
       # "Next:" it promises is one the server will honour (no scroll-gated

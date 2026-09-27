@@ -111,14 +111,6 @@ function getEquipmentBonusFor(style) {
     s.def += it.defB || 0;
     s.crit += it.critB || 0;
   }
-  if (typeof window.getCompanionBonus === 'function') {
-    const cb = window.getCompanionBonus();
-    if (style === 'melee') { s.str += cb.strB || 0; s.atk += cb.atkB || 0; }
-    if (style === 'ranged') { s.str += cb.rangeStrB || 0; s.atk += cb.rangeAtkB || 0; }
-    if (style === 'magic') { s.str += cb.magicStrB || 0; s.atk += cb.magicAtkB || 0; }
-    s.def += cb.defB || 0;
-    s.crit += cb.crit || 0;
-  }
   return s;
 }
 

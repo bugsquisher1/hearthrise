@@ -317,10 +317,8 @@ export const GOLD_SITE_LEDGER = Object.freeze({
       + 'client wiring landed WITH the un-gate: equipCompanion()/unequipCompanion() in '
       + 'src/features/companions.js fire HearthriseGoalClaim.equipCompanion()/.unequipCompanion() '
       + '(hr_companion_equip), so the server learns the equipped id and pays the passive bonus. '
-      + '⚠ The companion PROCS (gold/extraGold) stay client-authored and KEEP their own '
-      + 'clientMayWriteRecordField(\'gold\') defer at rollProc (src/features/companions.js#rollProc, '
-      + 'the two grant rows below) — a proc is a bonus on top of the bought pet, not the pet, and it '
-      + 'no-ops under arm until the RNG-seam follow-up.',
+      + 'A companion pays nothing else: the client proc roll is deleted, so no companion site '
+      + 'writes gold; engine-paid procs are a LANE C follow-up.',
   },
   'seam:vendor.sell_one': {
     kind: 'vendor', status: 'wired', verb: 'vendor_sell',
@@ -572,16 +570,6 @@ export const GOLD_SITE_LEDGER = Object.freeze({
       + 'envelope reconciles by key — the same follow-up as muster/raid.',
     site: 'the collection-milestone payout',
   },
-  'src/features/companions.js#rollProc': {
-    kind: 'grant', status: 'deferred', blockedBy: B.LIVE_ACTION_INTENTS,
-    flipGuard: { gated: 'clientMayWriteRecordField' },
-    site: 'companion gold proc, inside killMonster',
-  },
-  'src/features/companions.js#rollProc@2': {
-    kind: 'grant', status: 'deferred', blockedBy: B.LIVE_ACTION_INTENTS,
-    flipGuard: { gated: 'clientMayWriteRecordField' },
-    site: 'companion extraGold proc, inside killMonster',
-  },
   /* b494 — the write moved from claimRank into grantLocally, the DISPLAY half
      of the claim that now runs only after the server's verdict. Same site, same
      verb, renamed with it: a census row that names a function nobody runs is
@@ -752,7 +740,7 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   /* _buyCompanion is now `seam:companion.buy` (wired, unlock_buy — slice 4); it no
      longer writes `.gold` raw, so the scanner reports it under the seam id. b420:
      the arm-gate is LIFTED (the pet EFFECT is server-owned now) — see the seam row
-     above. The companion PROCS stay gated at rollProc, their own grant rows. */
+     above. Companion procs no longer exist on the client. */
   /* 2026-09-14: the vendor counter moved out of the monolith into the shop
      screen controller (task #129). The row follows the code — the census fails
      BOTH ways on a stale path (undeclared site here, missing site there), which
@@ -873,10 +861,6 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   'src/features/daily-reward.js#rewardFor': {
     kind: 'false-positive', status: 'none',
     why: '`out.gold = p.gold` builds the reward DESCRIPTION handed to the renderer. No balance moves.',
-  },
-  'src/features/pet-session.js#recordProc': {
-    kind: 'false-positive', status: 'none',
-    why: '`a.gold += amount` accumulates a per-session PROC TALLY for the pet card. No balance moves.',
   },
   'src/net/sync.js#readRealmProjection': {
     kind: 'false-positive', status: 'none',

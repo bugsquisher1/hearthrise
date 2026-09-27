@@ -16,6 +16,7 @@
 import { COMPANIONS } from '../data/companions.js?v=557';
 import { companionLore } from '../data/lore-notes.js?v=557';
 import { emit } from '../net/events.js?v=557';
+import { companionPaidBonus, companionPaidLines } from '../render/companion-lines.js?v=557';
 /* THE SERVER-OF-RECORD ARM SWITCH for companion XP — ARMED. The accrual
    engine is the sole writer (a `stat companion_xp:<id>` op priced at
    settle AND away over the same role-matched actions this client seam counts),
@@ -178,22 +179,9 @@ function ensureState() {
 
 export function getCompanionBonus() {
   ensureState();
-  const out = {
-    strB: 0, atkB: 0, defB: 0, crit: 0, allXP: 0,
-    gatherSpeed: 0, farmYield: 0, cookSpeed: 0, smithSpeed: 0,
-    craftSpeed: 0, prayerSpeed: 0, rareDrop: 0, goldFind: 0, hpRegen: 0,
-  };
   const eq = window.G?.companions?.equipped;
-  if (!eq) return out;
-  const def = COMPANIONS[eq];
-  if (!def) return out;
-  const xp = window.G.companions.xp[eq] || 0;
-  const lv = companionLevelFromXp(xp);
-  const scale = 1 + (lv - 1) * 0.05;  // +5% per level above 1
-  for (const [k, v] of Object.entries(def.bonus || {})) {
-    out[k] = (out[k] || 0) + v * scale;
-  }
-  return out;
+  if (!eq) return {};
+  return companionPaidBonus(eq, window.G.companions.xp[eq] || 0);
 }
 
 // ── Mutations ──
@@ -606,101 +594,6 @@ function parseSource(src) {
   return { kind, arg1, arg2 };
 }
 
-function awardXpForRole(activityType) {
-  const G = window.G;
-  if (!G || !G.companions) return;
-  const eq = G.companions.equipped;
-  if (!eq) return;
-  const role = COMPANIONS[eq]?.role;
-  if (!role) return;
-  let xp = 0;
-  const isUtility = role === 'utility' || role === 'hybrid';
-  if (activityType === 'combat-kill' && (role === 'combat' || isUtility)) xp = isUtility ? 0.5 : 1;
-  if (activityType === 'gather' && (role === 'gather' || isUtility)) xp = isUtility ? 0.5 : 1;
-  if (activityType === 'artisan' && (role === 'artisan' || isUtility)) xp = isUtility ? 0.5 : 1;
-  if (xp) awardCompanionXp(xp);
-}
-
-function showProc(label) {
-  if (typeof window.notify === 'function') window.notify(label, 'loot');
-  try {
-    const el = document.createElement('div');
-    el.textContent = label;
-    /* Font floor (project HARD RULE, enforced by the b227 document scan): the proc
-       toast was 13.5px — below the 14.5px floor. It slips past the scan only when
-       no toast is live, so it was a latent violation; the headless page throttles
-       the removal timer below, which can keep the toast alive long enough for the
-       scan to catch it. Use the scalable floor form the rest of the UI uses
-       (calc(14.5px * --ui-scale)). Colour left as-is and flagged to the Art
-       Director in CONFLICTS.md (the toast bg/ink are hardcoded, not tokens). */
-    el.style.cssText = 'position:fixed;top:60px;right:20px;z-index:99998;background:rgba(127,154,79,.95);'
-      + 'color:#0f1320;padding:6px 12px;border-radius:6px;font-weight:800;font-size:calc(14.5px * var(--ui-scale, 1));'
-      + 'box-shadow:0 4px 12px rgba(0,0,0,.3);animation:proc-fade 1.6s ease-out forwards';
-    document.body.appendChild(el);
-    setTimeout(() => el.remove(), 1700);
-  } catch {}
-}
-
-function rollProc(triggerType, ctx) {
-  const G = window.G;
-  if (!G?.companions?.equipped) return;
-  const def = COMPANIONS[G.companions.equipped];
-  if (!def?.proc || def.proc.trigger !== triggerType) return;
-  /* Through the SEEDED session stream, not Math.random() — the same rule the
-     drop roll below and dungeons.js's key drop already follow, and the last of
-     the three deferred in b342.
-
-     Every proc trigger is reachable from the AWAY replay: 'kill' rides the
-     killMonster wrapper (23 draws in a 30-minute away night on the lich,
-     measured), 'gather' and 'cook' ride the addItem wrapper (400 draws in a
-     400-action away gather night, measured). A proc PAYS — the raccoon's
-     `extraGold` is 5 gold a kill — so a bare draw here means the server and
-     the client compute different totals for the same absence from the same
-     seed: measured at 7,899 gold against 7,789 for one identical pinned-seed
-     night, varying nothing but Math.random(). Falls back only if the core has
-     not booted. */
-  const C = window.HearthriseCore;
-  const hit = (C && C.rng) ? C.rng.chance(def.proc.chance) : (Math.random() < def.proc.chance);
-  if (!hit) return;
-  const e = def.proc.effect;
-  /* ARM-SAFE (gold flip): a companion gold proc is a live client-authored grant
-     (its away-replay twin is priced by combat-sim, but the LIVE tick here is not
-     server-credited). Under arm the gold credit no-ops, so DEFER the whole proc —
-     do NOT show a "+Xg" proc animation or record a contribution the pet did not
-     make. A proc latches nothing, so deferring is simply firing nothing this
-     draw. No-op until gold is armed, so seeded parity is unchanged. */
-  if ((e === 'gold' || e === 'extraGold')
-      && window.clientMayWriteRecordField && !window.clientMayWriteRecordField('gold')) return;
-  switch (e) {
-    case 'gold': G.gold = (G.gold || 0) + (def.proc.amount || 1); break;
-    case 'extraGold': G.gold = (G.gold || 0) + (def.proc.amount || 5); break;
-    case 'doubleDrop':
-      if (ctx?.lastDrop?.id && G.inventory) {
-        G.inventory[ctx.lastDrop.id] = (G.inventory[ctx.lastDrop.id] || 0) + (ctx.lastDrop.qty || 1);
-      } break;
-    case 'doubleYield':
-      if (ctx?.cropId && G.inventory) {
-        G.inventory[ctx.cropId] = (G.inventory[ctx.cropId] || 0) + (ctx.qty || 1);
-      } break;
-    case 'instant': if (typeof G.skillProgress === 'number') G.skillProgress = 1; break;
-    case 'refundIngredients':
-      if (ctx?.inputs && G.inventory) {
-        for (const [k, v] of Object.entries(ctx.inputs)) G.inventory[k] = (G.inventory[k] || 0) + v;
-      } break;
-    case 'guaranteedRare': G._companionRareNext = true; break;
-    case 'fireDot':
-      if (G.activeMonster) G.activeMonster.hp = Math.max(0, (G.activeMonster.hp || 0) - 5);
-      break;
-  }
-  showProc(def.proc.label);
-  // b269: record the pet's real, concrete contribution for the session-impact
-  // panel — the amount/ctx here are exactly what the effect above paid out.
-  if (window.HearthrisePetSession) {
-    try { window.HearthrisePetSession.recordProc(e, def.proc.amount, ctx); } catch (err) {}
-  }
-  emit('companionProc', { id: G.companions.equipped, effect: e });
-}
-
 /* monsterId -> [[companionId, def]] for every `drop:<monsterId>` source.
    Built once, lazily, and keyed on the table's identity so a data reload or a
    test substituting the catalogue invalidates it rather than serving a stale
@@ -732,8 +625,6 @@ function wireKillHook() {
       }
     }
     if (monsterId) {
-      awardXpForRole('combat-kill');
-      rollProc('kill', {});
       /* Drop check, through a PREBUILT index. This used to walk the whole
          COMPANIONS table (Object.entries + a string split per row) on every
          kill; a 12-hour away catch-up is ~1,000 kills, and since the away
@@ -775,28 +666,13 @@ function showCompanionUnlockedToast(def) {
   } catch {}
 }
 
-function wireCombatTickProc() {
-  if (typeof window.combatTick !== 'function') return;
-  const orig = window.combatTick;
-  window.combatTick = function () {
-    const r = orig.apply(this, arguments);
-    if (window.G?.activeMonster) rollProc('combatHit', {});
-    return r;
-  };
-}
-
 function wireAddItemForGather() {
   if (typeof window.addItem !== 'function') return;
   const orig = window.addItem;
   window.addItem = function (id, qty) {
     const r = orig.apply(this, arguments);
     const G = window.G;
-    if (G?.activeArtisanRecipe) {
-      awardXpForRole('artisan');
-      rollProc('cook', { inputs: {} });
-    } else if (G?.activeSkill && ['mining', 'woodcutting', 'fishing', 'farming'].includes(G.activeSkill)) {
-      awardXpForRole('gather');
-      rollProc('gather', { lastDrop: { id, qty } });
+    if (!G?.activeArtisanRecipe && G?.activeSkill && ['mining', 'woodcutting', 'fishing', 'farming'].includes(G.activeSkill)) {
       emit('gather', { skill: G.activeSkill, item: id, qty });
     }
     return r;
@@ -928,18 +804,6 @@ function renderStable() {
     utility: 'var(--steel)',
     hybrid:  'var(--ink-3)',
   };
-  // b228: the three misspelled keys are gone from the data, so the Stable now
-  // labels the real ones. `farmYield` moves out of the percent list — it is a
-  // count of extra crops and always was.
-  const labelMap = {
-    strB: 'STR', atkB: 'ATK', defB: 'DEF', crit: 'Crit', allXP: 'All XP',
-    gatherSpeed: 'Gather', farmYield: 'Farm yield', cookSpeed: 'Cook speed',
-    smithSpeed: 'Smith speed', craftSpeed: 'Craft speed', prayerSpeed: 'Prayer speed',
-    rareDrop: 'Rare drop', goldFind: 'Gold find', hpRegen: 'HP/sec',
-  };
-  const isPercent = (k) => ['crit', 'allXP', 'gatherSpeed', 'cookSpeed', 'smithSpeed',
-    'craftSpeed', 'prayerSpeed', 'rareDrop', 'goldFind'].includes(k);
-
   const cards = Object.entries(COMPANIONS).map(([id, def]) => {
     const owned = G.companions.ownedIds.includes(id);
     const equipped = G.companions.equipped === id;
@@ -948,10 +812,10 @@ function renderStable() {
     const nextXp = companionXpToReach(lv + 1);
     const thisLvXp = companionXpToReach(lv);
     const pct = nextXp > thisLvXp ? Math.min(100, ((xp - thisLvXp) / (nextXp - thisLvXp)) * 100) : 100;
-    const bonuses = Object.entries(def.bonus || {}).map(([k, v]) => {
-      const display = isPercent(k) ? `+${(v * 100).toFixed(0)}%` : `+${v}`;
-      return `<span><b>${display}</b> ${labelMap[k] || k}</span>`;
-    }).join(' &nbsp;·&nbsp; ');
+    const lines = companionPaidLines(id, xp);
+    const bonuses = lines.length
+      ? lines.map((l) => `<span><b>${l.text}</b> ${l.label}</span>`).join(' &nbsp;·&nbsp; ')
+      : 'No stat bonus yet';
     const lore = companionLore(id);
 
     return `<div class="stable-card ${equipped ? 'equipped' : ''} ${owned ? '' : 'locked'}">
@@ -968,7 +832,6 @@ function renderStable() {
       ${owned ? `
         <div class="sc-bar"><i style="width:${pct.toFixed(1)}%"></i></div>
         <div style="font-size:13.5px;color:var(--ink-3)">${xp.toLocaleString()} / ${nextXp.toLocaleString()} XP</div>
-        ${def.proc ? `<div class="sc-bonuses" style="font-size:13.5px;font-style:italic">${def.proc.label} (${(def.proc.chance * 100).toFixed(0)}% on ${def.proc.trigger})</div>` : ''}
         <button class="sc-equip" onclick="${equipped ? 'window.unequipCompanion()' : `window.equipCompanion('${id}')`}">${equipped ? 'Unequip' : 'Equip'}</button>
       ` : `<div class="sc-source">${companionSourceLabel(def.source)}</div>`}
     </div>`;
@@ -1024,6 +887,8 @@ export function setupCompanions() {
      for the guard that walks every authored `source` in the data. */
   window.HearthriseCompanions = Object.assign(window.HearthriseCompanions || {}, {
     sourceLabel: companionSourceLabel,
+    paidBonus: companionPaidBonus,
+    paidLines: companionPaidLines,
     /* b499 — the server-confirmed acquisition path, published so the regression
        suite can drive it directly (it is async and has a retry ladder; a test
        that could only reach it through a 1-in-2,500 drop roll would not exist).
@@ -1041,31 +906,19 @@ export function setupCompanions() {
 
   // Hook into existing engine functions
   wireKillHook();
-  wireCombatTickProc();
   wireAddItemForGather();
   wireBunnyQuest();
   wireDragonEggHatch();
 
-  // Hook into existing getBonus + getEquipmentStats so companion bonuses apply
+  /* Layer 1: the equipped companion's paid keys, added after the fused base,
+     exactly as the engine adds companionBonus. Nothing else — a companion
+     pays no combat stat, so getEquipmentStats is not wrapped here. */
   if (typeof window.getBonus === 'function') {
     const orig = window.getBonus;
     window.getBonus = function (key) {
-      let v = orig.apply(this, arguments) || 0;
-      const cb = getCompanionBonus();
-      if (typeof cb[key] === 'number') v += cb[key];
-      return v;
-    };
-  }
-  if (typeof window.getEquipmentStats === 'function') {
-    const orig = window.getEquipmentStats;
-    window.getEquipmentStats = function () {
-      const s = orig.apply(this, arguments) || {};
-      const cb = getCompanionBonus();
-      for (const k of ['strB', 'atkB', 'defB', 'rangeStrB', 'rangeAtkB', 'magicStrB', 'magicAtkB']) {
-        if (typeof cb[k] === 'number') s[k] = (s[k] || 0) + cb[k];
-      }
-      if (typeof cb.crit === 'number') s.critB = (s.critB || 0) + cb.crit;
-      return s;
+      const v = orig.apply(this, arguments) || 0;
+      const paid = getCompanionBonus()[key];
+      return typeof paid === 'number' ? v + paid : v;
     };
   }
 
@@ -1101,7 +954,6 @@ export function setupCompanions() {
     const s = document.createElement('style');
     s.id = 'comp-bigtoast-css';
     s.textContent = `
-      @keyframes proc-fade{0%{opacity:0;transform:translateY(-10px)}20%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(20px)}}
       @keyframes bigtoast{0%{opacity:0;transform:translate(-50%,-20px)}15%{opacity:1;transform:translate(-50%,0)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,20px)}}
     `;
     document.head.appendChild(s);

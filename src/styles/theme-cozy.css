@@ -3136,9 +3136,6 @@ body[data-theme="hearthlight"] .td-comp-bonus {
   font-size:calc(14.5px * var(--ui-scale, 1)); color: var(--ink-2) !important;
 }
 body[data-theme="hearthlight"] .td-comp-bonus b { color: var(--gold-2) !important; }
-body[data-theme="hearthlight"] .td-comp-proc {
-  margin-top: 8px; font-size:calc(14.5px * var(--ui-scale, 1)); font-style: italic; color: var(--ink-3) !important;
-}
 body[data-theme="hearthlight"] .td-comp-empty {
   color: var(--ink-3) !important; font-size:calc(14.5px * var(--ui-scale, 1)); text-align: center; line-height: 1.7;
 }

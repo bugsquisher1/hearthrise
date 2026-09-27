@@ -39,15 +39,9 @@
 // this module reports for the security review, never a data-loss bug.
 //
 // ── COMPANION / PET PROCS ───────────────────────────────────────────────────
-// The proc handler (src/features/companions.js) adds EXTRA QUANTITY to items it
-// does not own an id for: `doubleYield` mints a CROP (already excluded → safe),
-// `refundIngredients` restores a cook recipe's inputs (the server never modelled
-// the cook, so its figure still counts them → the absolute replace over-credits
-// rather than deletes → safe), and `doubleDrop` mints one extra of a combat/
-// gather drop. That last one is OWNABLE, so an absolute replace drops the ~2-3%
-// proc bonus copy. It is bounded, non-forgeable, and cannot be excluded without
-// emptying the ownable set of all drops — so it is a FLAGGED residual, not a new
-// excluded id. See docs/CONFLICTS handoff.
+// None on the client: a companion pays only its passive keys
+// (src/core/companion-perk.js), so no companion path mints inventory and there
+// is no proc residual for the absolute replace to drop.
 //
 // PURE ESM. No DOM required to import. `window.DUNGEONS` is read lazily and only
 // when present, so this loads and answers in Node and before the legacy IIFE.

@@ -345,12 +345,12 @@ function _renderBankModal(){
 function openBankModal(){
   closeBankModal();
   var overlay=document.createElement('div');
-  overlay.className='qm-overlay'; overlay.id='bank-modal-overlay';
+  overlay.className='qm-overlay hr-scrim'; overlay.id='bank-modal-overlay';
   overlay.innerHTML=
-    '<div class="qm-modal bank-modal" style="position:relative;max-width:460px">'
-    + '<button class="qm-close" aria-label="Close">✕</button>'
-    + '<h3 style="margin:0 0 4px">Buy bank space</h3>'
-    + '<div id="bank-modal-body">'+_bankRowsHTML()+'</div>'
+    '<div class="qm-modal bank-modal hr-sheet" style="position:relative;max-width:460px">'
+    + '<button class="qm-close" aria-label="Close" data-hr-dismiss>✕</button>'
+    + '<h3 class="hr-sheet-head" style="margin:0 0 4px">Buy bank space</h3>'
+    + '<div id="bank-modal-body" class="hr-sheet-body">'+_bankRowsHTML()+'</div>'
     + '</div>';
   overlay.querySelector('.qm-close').addEventListener('click', closeBankModal);
   overlay.addEventListener('click', function(e){ if(e.target===overlay) closeBankModal(); });

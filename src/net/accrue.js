@@ -1353,6 +1353,20 @@ export function consumedKeysOf(res) {
   return out;
 }
 
+/* Reads the server's SIGNED receipt item map: `gained` = units that entered
+   the bag (positives only; inputs are negatives), `usedIds` = consumed ids,
+   the same predicate as consumedKeysOf. Receipt text counts `gained`. */
+export function itemMovesOf(items) {
+  const out = { gained: 0, usedIds: new Set() };
+  if (!items || typeof items !== 'object' || Array.isArray(items)) return out;
+  for (const k of Object.keys(items)) {
+    const n = Number(items[k]);
+    if (!Number.isFinite(n) || n === 0) continue;
+    if (n < 0) out.usedIds.add(k); else out.gained += n;
+  }
+  return out;
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
    PHASE 2 (b366) — THE FLIP TO ABSOLUTE. live-settlement.md §5.3, §8.
 
@@ -5237,8 +5251,7 @@ export function reconcileAwayReceipt(G, res) {
 export function summaryFromAway(away, res) {
   const a = away || {};
   const ms = Number(a.grantMs) || 0;
-  const items = a.items && typeof a.items === 'object'
-    ? Object.keys(a.items).reduce((s, k) => s + (Number(a.items[k]) || 0), 0) : 0;
+  const items = itemMovesOf(a.items).gained;
   const xp = a.xp && typeof a.xp === 'object'
     ? Object.keys(a.xp).reduce((s, k) => s + (Number(a.xp[k]) || 0), 0) : (Number(a.xp) || 0);
   return {
@@ -6471,7 +6484,7 @@ if (typeof window !== 'undefined') {
     __resetServerArmPermission,
     envelopeBaselineComplete, noteBaselineComplete, isBaselineCompleteSeen, __resetBaselineComplete,
     serverOwnedItem, serverConsumedItem, serverAccruedSkill, markEquipAuthorityLive,
-    equippedCount, unaccountedEquipped, consumedKeysOf,
+    equippedCount, unaccountedEquipped, consumedKeysOf, itemMovesOf,
     /* "How many does the SERVER say I hold?" — null while unstated. Read by any
        surface that gates a server-owned spend (dungeon entry keys today); never
        use `G.inventory` for that, it is a display bag with a ratchet. */

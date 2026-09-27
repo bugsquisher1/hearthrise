@@ -154,11 +154,20 @@
      §C: ABSOLUTE MINUTES, never a percentage of an invisible budget. */
   function fin(n) { return typeof n === 'number' && isFinite(n); }
 
-  function vigourRow(v, refill) {
-    if (!v || typeof v !== 'object' || !fin(v.spent_min) || !fin(v.budget_min)) return '';
-    if (!fin(v.refills_left) || !fin(v.refills_max) || !(v.refills_max > 0)) return '';
+  /** THE SWITCH, shared by the block and the activity-bar chip: the meter is
+      shown only while the server's meter states the refill fields and the last
+      refusal has not closed it (see above). One predicate, so the two surfaces
+      cannot disagree about whether there is a meter at all. */
+  function vigourOn(v, refill) {
+    if (!v || typeof v !== 'object' || !fin(v.spent_min) || !fin(v.budget_min)) return false;
+    if (!fin(v.refills_left) || !fin(v.refills_max) || !(v.refills_max > 0)) return false;
     var r = refill || {};
-    if (r.closedAt != null && !(fin(v.at) && v.at > r.closedAt)) return '';
+    return !(r.closedAt != null && !(fin(v.at) && v.at > r.closedAt));
+  }
+
+  function vigourRow(v, refill) {
+    if (!vigourOn(v, refill)) return '';
+    var r = refill || {};
 
     var dry = v.remaining_min === 0;
     var pct = v.budget_min > 0 ? Math.max(0, Math.min(100, (v.spent_min / v.budget_min) * 100)) : 100;
@@ -324,6 +333,39 @@
       + '<div class="hunt-honesty">' + esc(honesty) + '</div></div>';
   }
 
+  /* ── THE ACTIVITY-BAR CHIP ────────────────────────────────────────────
+     The always-on readout's one-glance answer to "is this hunt paying in
+     full?". Same switch as the block; the two numbers are the server's own
+     `remaining_min` and `dry_mult`, printed as sent. PURE, like the builder. */
+  function vigourChipHtml(v, refill) {
+    if (!vigourOn(v, refill)) return '';
+    if (v.remaining_min === 0) {
+      return '<span class="ab-vigour is-dry" title="Out of Vigour — hunts pay reduced rates until the day turns (UTC). '
+        + 'Refills are on the Fight screen.">Out of Vigour'
+        + (fin(v.dry_mult) ? ' · <span class="ab-vigour-verb">pays </span><b>×' + esc(v.dry_mult) + '</b>' : '') + '</span>';
+    }
+    if (!fin(v.remaining_min)) return '';
+    return '<span class="ab-vigour" title="Hunting time left today at the full rate.">Vigour <b>'
+      + esc(num(v.remaining_min)) + '</b> min</span>';
+  }
+
+  /* THE REFILL GESTURE, delegated once per container: the panel replaces its
+     innards on every paint, so a listener on the button would die with it.
+     The receipt's fresh meter reaches G._vigour inside HearthriseVigour.refill
+     (adoptMeter -> hydrateHunt), so the repaint after it IS the server's word. */
+  function wireRefill(node, repaint) {
+    if (node.__huntVigourWired) return;
+    node.__huntVigourWired = true;
+    node.addEventListener('click', function (ev) {
+      var t = ev.target && ev.target.closest ? ev.target.closest('[data-vigour-refill]') : null;
+      var M = window.HearthriseVigour;
+      if (!t || t.disabled || !M) return;
+      var p = M.refill();
+      repaint(node);
+      Promise.resolve(p).then(function () { repaint(node); });
+    });
+  }
+
   /** Paint it into a container from the CURRENT projection. The globals are
       read HERE and nowhere else, so the builder above stays pure. */
   function renderHuntPanel(el) {
@@ -337,23 +379,30 @@
       analyzer: G._huntAnalyzer || null,
       monsters: window.MONSTERS || {},
     });
-    /* THE REFILL GESTURE, delegated once per container: the panel replaces its
-       innards on every paint, so a listener on the button would die with it. */
-    if (!node.__huntVigourWired) {
-      node.__huntVigourWired = true;
-      node.addEventListener('click', function (ev) {
-        var t = ev.target && ev.target.closest ? ev.target.closest('[data-vigour-refill]') : null;
-        var M = window.HearthriseVigour;
-        if (!t || t.disabled || !M) return;
-        var p = M.refill();
-        renderHuntPanel(node);
-        Promise.resolve(p).then(function () { renderHuntPanel(node); });
-      });
-    }
+    wireRefill(node, renderHuntPanel);
     return node;
+  }
+
+  /** The Vigour block ALONE — the meter and its refill control — for a screen
+      that already owns the rest of the hunt (the Fight's rail). Returns whether
+      anything was drawn, so the caller can hide the frame around it.
+      `repaint` (optional) is what a refill gesture repaints after the receipt —
+      the mount passes its own, so the activity-bar chip follows in the same turn. */
+  function renderVigourBlock(el, repaint) {
+    var node = (typeof el === 'string') ? document.getElementById(el) : el;
+    if (!node) return false;
+    var G = window.G || {};
+    var html = vigourRow(G._vigour || null, G._vigourRefill || null);
+    /* Diffed before it is written: this runs on a tick, and replacing the
+       button under a finger would cancel the press (combat-render.js paintPlayer). */
+    if (node.__vigourSig !== html) { node.__vigourSig = html; node.innerHTML = html; }
+    wireRefill(node, repaint || renderVigourBlock);
+    return html !== '';
   }
 
   window.huntPanelHtml = huntPanelHtml;
   window.renderHuntPanel = renderHuntPanel;
+  window.renderVigourBlock = renderVigourBlock;
+  window.vigourChipHtml = vigourChipHtml;
   window.huntStopSentence = stopSentence;
 }());

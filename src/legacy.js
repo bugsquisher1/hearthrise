@@ -8616,7 +8616,7 @@ function renderHouse(){
       plotCard = `<div class="shop-row" style="border:1px solid var(--accent,#7f9a4f);background:rgba(127,154,79,0.05)">
         <span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center">${_hrGly('navFarm',30)}</span>
         <div class="info">
-          <b>Farm Plot · Lv ${lv}/${max}</b>
+          ${window.HearthriseFarm.tierHeadHtml()}${window.HearthriseFarm.tierLoreHtml()}
           <span>${lv >= max ? 'Maxed — all crops unlocked' : `Next tier unlocks: ${newCropsLabel}`}</span>
           ${priceLine?`<span class="tiny">${priceLine}</span>`:''}
           ${haveLine?`<span class="tiny muted">${haveLine}</span>`:''}

@@ -75,6 +75,33 @@ const benchSwitchArc = async (body) => {
   }
 };
 
+/* ONE market_list ON A SCRIPTED WIRE (MP-R3a/b): list 3 normal_log @ 7g with
+   the seam configured, let `respond` answer, and report what is left behind. */
+const marketListArc = async (respond) => {
+  const G = window.G, A = window.HearthriseAccrual, Gd = window.HearthriseGold, M = window.HearthriseMarket;
+  const snap = snapshotG(), realFetch = window.fetch, realNotify = window.notify, wasOn = A.isServerAccrualEnabled();
+  const wasAck = A.isReplacementAcknowledged(), KEY = 'hearthrise:market:listings', saved = localStorage.getItem(KEY);
+  const said = [];
+  try {
+    A.setServerAccrualEnabled(true); A.acknowledgeReplacement(true);
+    Gd.resetGold(); Gd.configureGold({ url: 'https://probe.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
+    localStorage.setItem(KEY, '[]');
+    window.notify = (m) => { said.push(String(m)); };
+    window.fetch = function (u) { return /hr-accrue/.test(String(u)) ? respond() : realFetch.apply(this, arguments); };
+    window.addItem('normal_log', 3);
+    const before = G.inventory.normal_log || 0;
+    const r = M.listItem('normal_log', 3, 7);
+    await drain();
+    const rows = JSON.parse(localStorage.getItem(KEY) || '[]').filter((l) => l.itemId === 'normal_log' && l.askEach === 7);
+    return { r, before, have: G.inventory.normal_log || 0, rows, said };
+  } finally {
+    window.fetch = realFetch; window.notify = realNotify;
+    Gd.resetGold(); Gd.configureGold(null); A.acknowledgeReplacement(wasAck); restoreAccrualSwitch(wasOn);
+    if (saved === null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, saved);
+    restoreG(snap);
+  }
+};
+
 export default [
 
   /* ══ b337 — SERVER-AUTHORITATIVE AWAY TIME (the client rewire, slice 1) ════
@@ -8253,15 +8280,16 @@ export default [
       }]));
       const localId = JSON.parse(localStorage.getItem('hearthrise:market:listings'))[0].id;
       G.gold = 900; G.inventory = {}; sent = []; stampBalanceLikeLoad(G);
-      M.buyListing(localId, 3);
+      const r3 = M.buyListing(localId, 3);
       await drain();
+      assert(r3 && r3.ok === false, 'a listing the server never named was bought: ' + JSON.stringify(r3));
       assert(sent.length === 0,
         'a listing that exists only locally was named to the server: ' + JSON.stringify(sent));
       assert(Gd.getGoldState().pending.length === 0,
         'a local-only listing recorded a prediction nothing will ever retire');
-      assert(G.gold === 900 - 21,
-        'the local-only buy left gold at ' + G.gold + ' instead of ' + (900 - 21)
-        + ' — with no server call the local payment IS the payment');
+      assert(G.gold === 900 && !G.inventory.normal_log,
+        'the local-only buy moved gold to ' + G.gold + ' / logs to ' + G.inventory.normal_log
+        + ' with no server call — the next envelope would silently undo it (C2)');
     } finally {
       window.fetch = realFetch;
       Gd.resetGold(); Gd.configureGold(null);
@@ -8329,6 +8357,23 @@ export default [
       tile.remove(); MP.__setListingsState(was);
       if (saved === null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, saved);
     }
+  }),
+
+  () => tryRunAsync('MP-R3a: a refused market_list leaves no ghost and returns the escrow', async () => {
+    const o = await marketListArc(() => Promise.resolve(new Response(JSON.stringify(
+      { ok: false, verb: 'market_list', error: 'too_many_listings' }), { status: 409 })));
+    assert(o.r && o.r.ok === true, 'setup: the listing refused locally: ' + JSON.stringify(o.r));
+    assert(o.rows.length === 0, 'a refused listing stayed on the books (ghost, counts toward the cap): ' + JSON.stringify(o.rows));
+    assert(o.have === o.before, 'the refused listing kept the escrow: have ' + o.have + ', had ' + o.before);
+    assert(o.said.some((m) => /refused/i.test(m)), 'the refusal was never said: ' + JSON.stringify(o.said));
+  }),
+
+  () => tryRunAsync('MP-R3b: an unanswered market_list is dropped without a local refund', async () => {
+    const o = await marketListArc(() => Promise.reject(new TypeError('Failed to fetch')));
+    assert(o.r && o.r.ok === true, 'setup: the listing refused locally: ' + JSON.stringify(o.r));
+    assert(o.rows.length === 0, 'an unanswered listing stayed on the books: ' + JSON.stringify(o.rows));
+    assert(o.have === o.before - 3, 'an unanswered listing refunded locally (the server may have written): have ' + o.have);
+    assert(o.said.some((m) => /did not confirm/i.test(m)), 'the unknown outcome was never said: ' + JSON.stringify(o.said));
   }),
 
   () => tryRunAsync('B355-4: the client-authored buy-offer sub-market is INERT under the seam (Security M5/M6)', async () => {

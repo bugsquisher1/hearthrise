@@ -154,6 +154,35 @@
       try { window.renderMarket(); } catch(e){}
     }
   }
+  /* Local 'L…' rows whose market_list is still awaiting its answer. Under the
+     seam these are the ONLY local rows that exist: a row not in here is not on
+     the market, whatever this browser's copy says. */
+  var inFlightLocal = new Set();
+  function onMarketUnderSeam(l){ return isServerListingId(l.id) || inFlightLocal.has(l.id); }
+  function dropLocalRow(localId){
+    var list = loadListings();
+    var idx = list.findIndex(function(l){ return l.id === localId; });
+    if(idx >= 0){ list.splice(idx, 1); saveListings(list); }
+  }
+  /** The ANSWER to a market_list. Applied: adopt the server id. Provably
+   *  unwritten or never sent: the escrow comes back by the exact inverse of the
+   *  removeItem that took it. Anything else may have written: drop the row and
+   *  move nothing — the next envelope and listings read are the truth. */
+  function settleLocalListing(localId, v, itemId, qty){
+    inFlightLocal.delete(localId);
+    var out = v && v.outcome;
+    if(out === 'applied' || out === 'replayed'){ adoptServerListingId(localId, v); return; }
+    dropLocalRow(localId);
+    var S = window.HearthriseGold;
+    var unwritten = !!v && (v.sent === false || !!(S && typeof S.isProvablyUnwritten === 'function' && S.isProvablyUnwritten(out)));
+    if(unwritten && typeof window.addItem === 'function') window.addItem(itemId, qty);
+    if(typeof window.notify === 'function'){
+      window.notify(unwritten ? ('Listing refused — ' + (v.reason || out) + '. Items returned.')
+        : 'The market did not confirm your listing — check Your listings shortly.', 'kill');
+    }
+    rerenderMarketIfOpen();
+    if(typeof window.renderInvFancy === 'function') window.renderInvFancy();
+  }
 
 
   function activeSlot(){
@@ -220,7 +249,8 @@
       // Keep my un-synced local temp rows (id starts 'L'), drop npc seeds,
       // mirror everything else from the server.
       var mine = loadListings().filter(function(l){
-        return l.id && String(l.id).indexOf('L') === 0 && l.sellerId === currentSellerId();
+        return l.id && String(l.id).indexOf('L') === 0 && l.sellerId === currentSellerId()
+          && (!serverMarketActive() || inFlightLocal.has(l.id));
       });
       saveListings(rows.concat(mine));
       noteRead('ok', rows.length);
@@ -330,6 +360,7 @@
 
   // ── Listing operations ────────────────────────────────────────
   function expireOld(list){
+    if(serverMarketActive()) return false;   // the server sweeps; local rows end with their intent
     var now = Date.now();
     var changed = false;
     for(var i = list.length - 1; i >= 0; i--){
@@ -363,10 +394,15 @@
 
     var list = loadListings();
     expireOld(list);
-    var mine = list.filter(function(l){ return l.sellerId === currentSellerId(); });
+    var mine = list.filter(function(l){
+      return l.sellerId === currentSellerId() && (!serverMarketActive() || onMarketUnderSeam(l));
+    });
     if(mine.length >= listingLimit()){
       return { ok:false, reason:'Max ' + listingLimit() + ' active listings reached' };
     }
+    var _lk = serverMarketActive() ? marketIntentKey() : null;
+    var _lS = _lk && marketApi();
+    if(serverMarketActive() && !_lS) return { ok:false, reason:'Not connected to the market right now' };
 
     // Escrow the qty out of inventory.
     if(typeof window.removeItem === 'function') window.removeItem(itemId, qty);
@@ -403,11 +439,12 @@
        server's absolute inventory is what settles it. With it off, the v1
        backend push is byte-for-byte what shipped. Never both — see
        serverMarketActive. */
-    var _lk = newL.qty > 0 ? marketIntentKey() : null;
-    var _lS = _lk && marketApi();
     if(_lS){
+      inFlightLocal.add(newL.id);
       var _lp = _lS.listOnMarket(itemId, newL.qty, askEach, _lk);
-      if(_lp && _lp.then) _lp.then(function(v){ adoptServerListingId(newL.id, v); }, function(){});
+      var _settle = function(v){ settleLocalListing(newL.id, v, itemId, newL.qty); };
+      if(_lp && _lp.then) _lp.then(_settle, function(){ _settle(null); });
+      else _settle(null);
     } else if(newL.qty > 0 && !serverMarketActive()){
       pushListingToBackend(newL, item.n || itemId);                  // b208: sync to server
     }
@@ -491,6 +528,9 @@
     if(idx < 0) return { ok:false, reason:'Listing not found' };
     var l = list[idx];
     if(l.sellerId === currentSellerId()) return { ok:false, reason:"Can't buy your own listing" };
+    /* A row the server has never named is not for sale: nothing is charged,
+       delivered or announced for it (C2 — the next envelope used to undo it). */
+    if(serverMarketActive() && !isServerListingId(l.id)) return { ok:false, reason:'That listing is still reaching the market' };
     qtyWanted = Math.max(1, Math.min(qtyWanted, l.qty));
     var totalCost = qtyWanted * l.askEach;
     if(!window.balCanAfford(totalCost, 'gold')){
@@ -554,8 +594,9 @@
     expireOld(list);
     var meId = currentSellerId();
     // Eligible listings: same item, at-or-below max price, not mine.
+    var seam = serverMarketActive();
     var pool = list.filter(function(l){
-      return l.itemId === itemId && l.askEach <= maxEach && l.sellerId !== meId;
+      return l.itemId === itemId && l.askEach <= maxEach && l.sellerId !== meId && (!seam || isServerListingId(l.id));
     });
     pool.sort(function(a, b){ return a.askEach - b.askEach || a.postedAt - b.postedAt; });
 
@@ -997,8 +1038,9 @@
     var list = loadListings();
     expireOld(list);
     saveListings(list);
-    var mine = list.filter(function(l){ return l.sellerId === currentSellerId(); });
-    var others = list.filter(function(l){ return l.sellerId !== currentSellerId(); });
+    var seam = serverMarketActive();
+    var mine = list.filter(function(l){ return l.sellerId === currentSellerId() && (!seam || onMarketUnderSeam(l)); });
+    var others = list.filter(function(l){ return l.sellerId !== currentSellerId() && (!seam || isServerListingId(l.id)); });
 
     var ui = loadUiState();
     // ── Search + sort ──
@@ -1276,8 +1318,9 @@
     if(!item) return;
     // How many are available at this price or cheaper, from sellers other than me?
     var meId = currentSellerId();
+    var seam = serverMarketActive();
     var pool = loadListings().filter(function(l){
-      return l.itemId === itemId && l.askEach <= atPrice && l.sellerId !== meId;
+      return l.itemId === itemId && l.askEach <= atPrice && l.sellerId !== meId && (!seam || isServerListingId(l.id));
     });
     var available = pool.reduce(function(s, l){ return s + l.qty; }, 0);
     var iconHtml = (window._itemPath && window._itemPath[itemId])

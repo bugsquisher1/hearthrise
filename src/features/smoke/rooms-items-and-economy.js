@@ -2386,8 +2386,9 @@ export default [
       assert(setLine.indexOf('+' + pct + '% crit') !== -1, 'set line % must equal the engine delta');
       assert(Math.abs(window.getPlayerCritChance() - window.getPlayerCombatRolls(m).critChance) < 1e-9, 'the display seam IS the engine number');
       window.renderLoadout(); assert((document.querySelector('#loadout-panel .stat-grid') || {}).textContent.indexOf(pct + '%') !== -1, 'Combat loadout crit is the engine number');
-      window.renderCharacter(); assert((document.querySelector('#panel-character .cr-style-stats') || {}).textContent.indexOf(pct + '%') !== -1, 'Character card crit is the engine number');
-      window.renderInventory(); const inv = (document.getElementById('panel-inventory') || {}).innerHTML || '';
+      const pane = window._charPane; window._charPane = 'hero'; window.renderCharacter(); window._charPane = pane;
+      assert((document.querySelector('#panel-character .cr-style-stats') || {}).textContent.indexOf(pct + '%') !== -1, 'Character card crit is the engine number');
+      window.renderInvFancy(); const inv = (document.getElementById('panel-inventory') || {}).innerHTML || '';
       assert(new RegExp('Crit Chance</span><b>' + pct + '%').test(inv) && !/Damage Reduction/.test(inv), 'Inventory crit is the engine number; no fabricated Damage Reduction row');
       const W = { helmet: 'watchknight_helmet', body: 'watchknight_body', pants: 'watchknight_pants', boots: 'watchknight_boots', gloves: 'watchknight_gloves', belt: 'watchknight_belt' };
       assert(window.armourSetLabel({ tier: 5, armourClass: 'plate', pieces: 6 }, W, window.ITEMS) === 'Watchknight set', 'a shared bucket names the WORN line, never Rune');

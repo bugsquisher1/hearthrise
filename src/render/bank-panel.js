@@ -191,11 +191,10 @@ export function flyoutButtonHtml(id, bagQty) {
    affordance and the same stacking instead of inventing a third dialog. */
 function css() {
   return [
-    /* The sheet itself scrolls: on a landscape phone the two stacked columns are
-       taller than the modal, and a clipped list with no scroll is a Depot whose
-       last rows a player cannot reach (measured at 922×423 before this line). */
-    '#' + OVERLAY_ID + ' .qm-modal{max-width:720px;width:min(720px,94vw);'
-      + 'max-height:92vh;overflow:auto}',
+    /* Width only. The height cap and the scroll are the .hr-sheet primitive's:
+       on a landscape phone the two stacked columns are taller than the sheet,
+       so .bp-body (the hr-sheet-body) scrolls and the × stays put. */
+    '#' + OVERLAY_ID + ' .qm-modal{max-width:720px;width:min(720px,94vw)}',
     '.bp-head h3{margin:0 0 2px;font-family:var(--f-display)}',
     '.bp-sub{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);margin-bottom:8px}',
     '.bp-search{width:100%;box-sizing:border-box;margin-bottom:10px;padding:7px 9px;'
@@ -266,11 +265,11 @@ export function openDepot() {
   closeDepot();
   search = ''; busy = false;
   const overlay = document.createElement('div');
-  overlay.className = 'qm-overlay';
+  overlay.className = 'qm-overlay hr-scrim';
   overlay.id = OVERLAY_ID;
-  overlay.innerHTML = '<div class="qm-modal bank-panel" style="position:relative">'
-    + '<button class="qm-close" aria-label="Close">&times;</button>'
-    + '<div class="bp-body">' + bankPanelHtml(bankPanelView(w().G || {}, { search, busy })) + '</div>'
+  overlay.innerHTML = '<div class="qm-modal bank-panel hr-sheet" style="position:relative">'
+    + '<button class="qm-close" aria-label="Close" data-hr-dismiss>&times;</button>'
+    + '<div class="bp-body hr-sheet-body">' + bankPanelHtml(bankPanelView(w().G || {}, { search, busy })) + '</div>'
     + '</div>';
   overlay.querySelector('.qm-close').addEventListener('click', closeDepot);
   overlay.addEventListener('click', (e) => { if (e.target === overlay) closeDepot(); });

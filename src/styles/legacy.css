@@ -2010,8 +2010,8 @@ body[data-theme="dark"] .lane1-toggle{
 .monster-row .mi{display:flex;align-items:center;justify-content:center;width:42px;height:42px;font-size:0!important;overflow:hidden}
 .monster-row .mi img{border-radius:var(--r-portrait,6px)}
 
-/* Empty-state acquisition popover */
-.acq-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9998;display:none;align-items:center;justify-content:center;padding:20px}
+/* Empty-state acquisition popover; position, gutter and height cap are the .hr-scrim/.hr-sheet primitive's */
+.acq-overlay{background:rgba(0,0,0,.6);z-index:9998;display:none;align-items:center;justify-content:center}
 .acq-overlay.show{display:flex}
 .acq-modal{max-width:420px;width:100%;background:var(--bg-card);border:3px solid var(--line);border-radius:var(--r);padding:18px;color:var(--ink);box-shadow:0 8px 32px rgba(0,0,0,.5)}
 .acq-modal h3{margin:0 0 10px;font-size:calc(19px * var(--ui-scale, 1));color:var(--gold-2)}

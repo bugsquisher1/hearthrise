@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 557 — 2026-09-27 (The bar you couldn't see)
+
+**The Vigour bar is back on the Fight rail.** The bar, its Refill button and a chip in the top bar are mounted again. The panel had been built but nothing showed it, so a hunter could run dry and earn a quarter of the pay with nothing on screen saying why.
+
+**Popups fit the screen.** The welcome-back card, What's New and confirm dialogs now cap at the screen height: the middle scrolls, the button stays in view, and Escape closes the top one. Before, a tall welcome-back card could run off both edges of a phone with Continue out of reach.
+
+**Level gates read the server's level.** Equip, craft, plant and rite checks use the level the server holds, not the client's running guess, so a screen never says "unlocked" while the server refuses. If your shown level already meets the bar, the refusal says the level is still pending.
+
 ## v0.9.2-beta build 556 — 2026-09-27 (Seven new things to find)
 
 **Lucky Finds.** Twenty-six hunting spots across every tier now hide one very rare named drop. The realm rolls it; when one lands, you'll know.

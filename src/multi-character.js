@@ -156,16 +156,16 @@
       var prev = document.getElementById('hr-confirm-overlay');
       if(prev){ try { prev.remove(); } catch(e){} }
       var ov = document.createElement('div');
-      ov.className = 'qm-overlay';
+      ov.className = 'qm-overlay hr-scrim';
       ov.id = 'hr-confirm-overlay';
       ov.setAttribute('role', 'dialog');
       ov.setAttribute('aria-modal', 'true');
       ov.innerHTML =
-        '<div class="qm-modal hr-confirm" style="position:relative;max-width:440px">' +
-          '<h3 style="margin:0 0 6px">' + esc(o.title || 'Are you sure?') + '</h3>' +
-          '<div class="hr-confirm-body" style="margin:0 0 16px">' + esc(o.body || '') + '</div>' +
-          '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">' +
-            '<button class="btn btn-sm" data-hrc="no">' + esc(o.cancelLabel || 'Cancel') + '</button>' +
+        '<div class="qm-modal hr-confirm hr-sheet" style="position:relative;max-width:440px">' +
+          '<h3 class="hr-sheet-head" style="margin:0 0 6px">' + esc(o.title || 'Are you sure?') + '</h3>' +
+          '<div class="hr-confirm-body hr-sheet-body" style="margin:0 0 16px">' + esc(o.body || '') + '</div>' +
+          '<div class="hr-sheet-foot" style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">' +
+            '<button class="btn btn-sm" data-hrc="no" data-hr-dismiss>' + esc(o.cancelLabel || 'Cancel') + '</button>' +
             '<button class="btn btn-sm btn-primary" data-hrc="yes">' + esc(o.confirmLabel || 'Confirm') + '</button>' +
           '</div>' +
         '</div>';
@@ -1222,8 +1222,8 @@
     if(document.getElementById('char-select-overlay')) return;
     var ov = document.createElement('div');
     ov.id = 'char-select-overlay';
-    ov.className = 'char-select-overlay';
-    ov.innerHTML = '<div class="cs-modal" id="cs-modal"></div>';
+    ov.className = 'char-select-overlay hr-scrim';
+    ov.innerHTML = '<div class="cs-modal hr-sheet" id="cs-modal"></div>';
     ov.addEventListener('click', function(e){ if(e.target === ov) close(); });
     document.body.appendChild(ov);
 
@@ -1299,16 +1299,16 @@
            the shipped atlas close icon (Final Directive: no emoji/dingbats as
            art). Falls back to the character only if the atlas has not loaded,
            so the modal can never render a dismissless box. */
-        '<button class="cs-close" aria-label="Close">' + (closeGlyph() || '×') + '</button>' +
-        '<h2>Characters</h2>' +
+        '<button class="cs-close" aria-label="Close" data-hr-dismiss>' + (closeGlyph() || '×') + '</button>' +
+        '<h2 class="hr-sheet-head">Characters</h2>' +
         /* b373 — the copy now states the SCOPE SPLIT in both directions,
            because the old sentence listed only what is separate and left the
            player to discover the account-level half by being surprised by it
            (audit: a fresh hero wearing the account's name, face and clan tag).
            Two clauses, one line, and nothing on screen contradicts either. */
-        '<p class="cs-sub">Your name, portrait and clan belong to your account — every hero shares them. ' +
+        '<p class="cs-sub hr-sheet-head">Your name, portrait and clan belong to your account — every hero shares them. ' +
         'Skills, inventory, gold, equipment and quests are separate for each. Up to ' + MAX_SLOTS + ' heroes.</p>' +
-        '<div class="cs-slots">' + html + '</div>';
+        '<div class="cs-slots hr-sheet-body">' + html + '</div>';
 
       modal.querySelector('.cs-close').addEventListener('click', close);
       modal.querySelectorAll('.cs-slot[data-slot]').forEach(function(b){

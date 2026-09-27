@@ -1423,9 +1423,9 @@
       '.mu-slot .mu-pledged{display:flex;align-items:center;gap:5px;font-size:calc(14.5px * var(--ui-scale, 1));font-weight:700;',
       '  color:var(--gold-2);letter-spacing:.02em}',
       '.mu-slot .mu-pledge{width:100%}',
-      /* ── the shared modal (reuses the renown/daily scrim pattern) ── */
-      '.hr-mu-scrim{position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);',
-      '  display:flex;align-items:center;justify-content:center;padding:18px}',
+      /* ── the shared modal: position, gutter and height cap are the .hr-scrim/.hr-sheet primitive's ── */
+      '.hr-mu-scrim{z-index:100000;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);',
+      '  display:flex;align-items:center;justify-content:center}',
       '.hr-mu-wrap{background:var(--surface-2,#221b14);border:1px solid var(--line);border-radius:14px;',
       '  max-width:520px;width:100%;padding:20px;box-shadow:0 24px 60px -20px rgba(0,0,0,.9)}',
       '.hr-mu-wrap h3{margin:0 0 4px;font-family:var(--f-display,inherit);font-size:calc(21px * var(--ui-scale, 1));color:var(--ink)}',
@@ -1528,13 +1528,14 @@
     return !(G && G.settings && G.settings.musterHeralds === false);
   }
 
-  // ── The modal ───────────────────────────────────────────────
+  // ── The modal (`foot`, the answer row, stays on screen while `html` scrolls) ──
   function closeModal() { var m = document.querySelector('.hr-mu-scrim'); if (m) m.remove(); }
-  function scrim(html, onClick) {
+  function scrim(html, foot, onClick) {
     ensureStyle(); closeModal();
     var s = document.createElement('div');
-    s.className = 'hr-mu-scrim';
-    s.innerHTML = '<div class="hr-mu-wrap">' + html + '</div>';
+    s.className = 'hr-mu-scrim hr-scrim';
+    s.innerHTML = '<div class="hr-mu-wrap hr-sheet"><div class="hr-sheet-body">' + html + '</div>' +
+      '<div class="hr-sheet-foot">' + foot + '</div></div>';
     s.addEventListener('click', function (e) {
       if (e.target === s || e.target.getAttribute('data-close')) { closeModal(); return; }
       if (onClick) onClick(e);
@@ -1549,9 +1550,9 @@
       '<div class="tiny muted" style="margin-bottom:6px">This is your muster for today. ' +
       'You can join one muster per day, and there is no leaving — the other slot will be closed to you.</div>' +
       '<div class="tiny muted">Contributes: <b>' + esc(w.event.what) + '</b>. ' +
-      'You keep the Blessing either way.</div>' +
+      'You keep the Blessing either way.</div>',
       '<div class="hr-mu-row"><button class="btn btn-primary btn-sm" data-mu="confirm">Join the muster</button>' +
-      '<button class="btn btn-sm" data-close="1">Not today</button></div>',
+      '<button class="btn btn-sm" data-close="1" data-hr-dismiss>Not today</button></div>',
       function (e) {
         if (e.target.getAttribute('data-mu') === 'confirm') { closeModal(); join(true); }
       });
@@ -1559,7 +1560,7 @@
 
   function openModal() {
     var s = pillState(), st = ensureState(), live = liveWindow(), slots = displaySlots();
-    var body = '';
+    var body = '', foot = '';
 
     if (s.state === 'signedout') {
       body = '<h3>The Rally</h3><div class="tiny muted">Sign in to join the realm’s rally and its shared goal.</div>';
@@ -1571,8 +1572,8 @@
         fmtClock(live.endMs - now()) + ' left</div>' + communityHtml();
       if (joinedThisWindow()) {
         body += '<div class="tiny" style="margin-top:8px">Your contribution: <b>' + st.points.toLocaleString() + '</b> points' +
-          (st.server ? '' : ' <span class="muted">(solo muster)</span>') + '</div>' +
-          '<div class="hr-mu-row">' +
+          (st.server ? '' : ' <span class="muted">(solo muster)</span>') + '</div>';
+        foot = '<div class="hr-mu-row">' +
           (st.rallied ? '<button class="btn btn-sm" disabled>Rallied</button>'
                       : '<button class="btn btn-primary btn-sm" data-mu="rally">Rally</button>') +
           '<button class="btn btn-sm" data-mu="events">Open Events</button></div>';
@@ -1580,9 +1581,9 @@
         body += '<div class="tiny muted" style="margin-top:8px">You already answered a muster today. ' +
           'Next muster ' + fmtClock((nextWindow() ? nextWindow().startMs : now()) - now()) + '.</div>';
       } else {
-        body += '<div class="hr-mu-row"><button class="btn btn-primary btn-sm" data-mu="join">Join the muster</button>' +
-          '<button class="btn btn-sm" data-mu="events">Open Events</button></div>' +
-          (isSignedIn() ? '' : '<div class="tiny muted" style="margin-top:8px">Playing offline — you can still muster ' +
+        foot = '<div class="hr-mu-row"><button class="btn btn-primary btn-sm" data-mu="join">Join the muster</button>' +
+          '<button class="btn btn-sm" data-mu="events">Open Events</button></div>';
+        body += (isSignedIn() ? '' : '<div class="tiny muted" style="margin-top:8px">Playing offline — you can still muster ' +
             'solo and take the base chest. Sign in for the realm’s shared goal and the Rally Seal.</div>');
       }
     } else {
@@ -1590,10 +1591,11 @@
         '<div class="tiny muted">Twice a day the realm calls a muster. Join one per day, play as you '
         + 'normally would, and take a chest when it closes.</div>' + slotsHtml(slots);
       if (s.state === 'reward') {
-        body += '<div class="hr-mu-row"><button class="btn btn-primary btn-sm" data-mu="claim">Claim your chest</button></div>';
+        foot = '<div class="hr-mu-row"><button class="btn btn-primary btn-sm" data-mu="claim">Claim your chest</button></div>';
       }
     }
-    scrim(body + '<div class="hr-mu-row"><button class="btn btn-sm" data-close="1">Close</button></div>', modalAction);
+    scrim(body, foot + '<div class="hr-mu-row"><button class="btn btn-sm" data-close="1" data-hr-dismiss>Close</button></div>',
+      modalAction);
   }
 
   function modalAction(e) {

@@ -4197,6 +4197,169 @@ export default [
           assert(cat.length === 0, 'the client queried the dropped hr_vigour_prices catalogue ' + cat.length + ' time(s)');
         } finally { r.restore(); }
       }),
+
+      // ── regression suite — THE VIGOUR BAR WAS BUILT AND NEVER MOUNTED ──────
+      // Live, 2026-09-25 23:36 UTC: the QA hero's meter said remaining_min 0 /
+      // dry_mult 0.25 with five refills for sale, and no screen in the game
+      // showed it — hunt-panel.js built the bar and nothing ever called it. These
+      // drive the REAL mount (src/features/vigour-mount.js) on the real Fight
+      // screen and activity bar, not a test host. The meter's price is 6,917, a
+      // number no level formula yields, so finding it proves it came off the wire.
+      ...(() => {
+        const DRY = () => Object.assign(METER(), { grant_min: 720, refills: 0, refills_left: 5,
+          next_refill_gold: 6917, level: 12, bought_min: 0, budget_min: 720, spent_min: 1237, remaining_min: 0 });
+        const fight = async (meter, body) => {
+          const G = window.G;
+          const snap = snapshotG();
+          const saved = { v: G._vigour, r: G._vigourRefill };
+          try {
+            assert(window.HearthriseVigourMount && typeof window.HearthriseVigourMount.paint === 'function',
+              'THE BUG: nothing mounts the Vigour bar — window.HearthriseVigourMount (src/features/vigour-mount.js) is missing');
+            window.HearthriseVigour.__resetForTest();
+            if (meter) window.HearthriseAccrual.hydrateHunt(G, { vigour: meter }); else delete G._vigour;
+            window.showTab('combat');
+            window.startCombat('goblin');
+            assert(G.activeMonster, 'the test needs a live fight');
+            window.HearthriseVigourMount.paint();
+            await body({
+              frame: () => document.getElementById('fsm-vigour'),
+              block: () => document.getElementById('fs-vigour'),
+              chip: () => document.getElementById('ab-vigour-host'),
+              paint: () => window.HearthriseVigourMount.paint(),
+            });
+          } finally {
+            try { window.stopCombat(); } catch (e) {}
+            restoreG(snap);
+            window.HearthriseVigour.__resetForTest();
+            G._vigour = saved.v; if (saved.v === undefined) delete G._vigour;
+            if (saved.r !== undefined) G._vigourRefill = saved.r;
+            try { window.HearthriseVigourMount && window.HearthriseVigourMount.paint(); } catch (e) {}
+          }
+        };
+        return [
+          () => tryRunAsync('vigour mount: with no priced meter the Fight screen and activity bar show no Vigour', async () => {
+            for (const meter of [null, PROD_METER()]) {
+              await fight(meter, async (m) => {
+                const f = m.frame(), b = m.block(), c = m.chip();
+                assert(f && b && c, 'the mount built no hosts (frame ' + !!f + ', block ' + !!b + ', chip ' + !!c + ')');
+                assert(f.hidden && b.innerHTML === '', 'the Fight rail drew a Vigour block off meter ' + JSON.stringify(meter));
+                assert(c.hidden && c.innerHTML === '', 'the activity bar drew a Vigour chip off meter ' + JSON.stringify(meter));
+                assert(!/vigour|refill/i.test(document.getElementById('activity-bar').textContent),
+                  'the activity bar mentions Vigour with no priced meter');
+              });
+            }
+          }),
+
+          () => tryRunAsync('vigour mount: a DRY meter is on the Fight screen and the activity bar, price verbatim', async () => {
+            await fight(DRY(), async (m) => {
+              const f = m.frame(), b = m.block();
+              assert(f && !f.hidden, 'THE BUG: a dry hunter\'s Fight screen shows no Vigour block');
+              assert(f.closest('#panel-combat .fs-view'), 'the Vigour block is not on the Fight screen');
+              const t = b.textContent;
+              assert(b.querySelector('.hunt-vigour.is-dry'), 'the dry meter is not drawn as dry: ' + t);
+              assert(/1,237 \/ 720 min today/.test(t), 'the bar is not the server\'s spent/budget: ' + t);
+              assert(/hunts pay ×0\.25/.test(t), 'the dry line does not state the server\'s 25% rate: ' + t);
+              const btn = b.querySelector('[data-vigour-refill]');
+              assert(btn, 'no Refill button beside a dry meter with refills for sale');
+              assert(/6,917 gold/.test(btn.textContent) && /\+120 min/.test(btn.textContent),
+                'the Refill price is not next_refill_gold verbatim: ' + btn.textContent);
+              const chip = m.chip();
+              assert(chip && !chip.hidden && /Out of Vigour/.test(chip.textContent) && /×0\.25/.test(chip.textContent),
+                'the activity bar does not say the hunter is out of Vigour: ' + (chip && chip.textContent));
+              assert(chip.closest('#activity-bar'), 'the Vigour chip is not in the activity bar');
+              // …and the chip leaves with the fight: Vigour is the HUNTING limiter.
+              window.stopCombat(); m.paint();
+              assert(chip.hidden && chip.textContent === '', 'the Vigour chip outlived the fight');
+            });
+          }),
+
+          () => tryRunAsync('vigour mount: Refill calls HearthriseVigour.refill once and repaints from the receipt', async () => {
+            const after = Object.assign(DRY(), { refills: 1, refills_left: 4, next_refill_gold: 10371,
+              bought_min: 120, budget_min: 840, spent_min: 707, remaining_min: 133 });
+            const realFetch = window.fetch, realRecord = window.HearthriseRecord, V = window.HearthriseVigour;
+            const realRefill = V.refill;
+            let calls = 0, posts = 0;
+            window.fetch = (url) => {
+              if (String(url).indexOf('/rpc/hr_vigour_refill') !== -1) {
+                posts++;
+                return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ok: true, nth: 1,
+                  cost: 6917, minutes: 120, currency: 'gold', level: 12, gold: 3141, version: 7, slot: 0, vigour: after }) });
+              }
+              return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) });
+            };
+            window.HearthriseRecord = Object.assign({}, realRecord || {}, { requestRecord: () => Promise.resolve(null) });
+            V.refill = function () { calls++; return realRefill.apply(this, arguments); };
+            const unstub = stubSignedIn(0, 'Wren');
+            try {
+              await fight(DRY(), async (m) => {
+                const btn = m.block().querySelector('[data-vigour-refill]');
+                assert(btn, 'no Refill button to press');
+                btn.click();
+                await drain(); await drain();
+                assert(calls === 1 && posts === 1, 'one tap made ' + calls + ' refill call(s) and ' + posts + ' request(s)');
+                const t = m.block().textContent;
+                assert(/707 \/ 840 min today/.test(t), 'the bar did not repaint from the receipt\'s meter: ' + t);
+                const btn2 = m.block().querySelector('[data-vigour-refill]');
+                assert(btn2 && /10,371 gold/.test(btn2.textContent),
+                  'the button did not move to the receipt\'s next_refill_gold: ' + (btn2 && btn2.textContent));
+                assert(/Bought 120 min for 6,917 gold — 3,141 gold left/.test(t), 'the receipt is not shown: ' + t);
+                assert(!m.block().querySelector('.hunt-vigour.is-dry'), 'the bar stayed dry after the receipt said 133 min left');
+                assert(/Vigour 133 min/.test(m.chip().textContent),
+                  'the activity-bar chip did not follow the receipt in the same turn: ' + m.chip().textContent);
+              });
+            } finally {
+              V.refill = realRefill;
+              window.fetch = realFetch; window.HearthriseRecord = realRecord;
+              unstub();
+            }
+          }),
+
+          // THE PHONE (the 44px tap floor): at 922x423 the Refill is a 44px thumb on both axes and
+          // nothing in the block runs past the rail. Same iframe method as the bag's
+          // chips: the media queries evaluate against the frame, so 922x423 IS the device.
+          () => tryRunAsync('vigour mount: at 922x423 the Refill takes a 44px thumb and nothing clips', async () => {
+            await fight(DRY(), async (m) => {
+              const panel = document.getElementById('panel-combat');
+              let css = '';
+              for (const sheet of document.styleSheets) {
+                let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
+                for (const r of rules) css += r.cssText + '\n';
+              }
+              const frame = document.createElement('iframe');
+              frame.setAttribute('style', 'position:fixed;left:-4000px;top:0;width:922px;height:423px;border:0;visibility:hidden');
+              document.body.appendChild(frame);
+              let out;
+              try {
+                const doc = frame.contentDocument;
+                doc.open();
+                doc.write('<!doctype html><html><head><meta charset="utf-8"><style>' + css + '</style></head>'
+                  + '<body class="' + document.body.className + '" data-theme="' + (document.body.dataset.theme || 'hearthlight') + '">'
+                  + '<div id="app" class="app"><main class="main">' + panel.outerHTML + '</main></div></body></html>');
+                doc.close();
+                const btn = doc.querySelector('#fs-vigour [data-vigour-refill]');
+                const block = doc.querySelector('#fs-vigour .hunt-vigour-block');
+                const rail = doc.getElementById('fs-manage');
+                assert(btn && block && rail, 'the frame lost the mounted block');
+                btn.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' });
+                const b = btn.getBoundingClientRect(), rr = rail.getBoundingClientRect();
+                const cx = b.left + b.width / 2, cy = b.top + b.height / 2;
+                const hits = (x, y) => { const e = doc.elementFromPoint(x, y); return !!e && (e === btn || btn.contains(e)); };
+                const reach = (dx, dy) => { let n = 0; while (n < 44 && hits(cx + dx * (n + 1), cy + dy * (n + 1))) n++; return n; };
+                out = { box: Math.round(b.width) + 'x' + Math.round(b.height), centre: hits(cx, cy),
+                  w: reach(-1, 0) + reach(1, 0) + 1, h: reach(0, -1) + reach(0, 1) + 1,
+                  right: Math.round(b.right), railRight: Math.round(rr.right), left: Math.round(b.left), railLeft: Math.round(rr.left),
+                  over: [...block.querySelectorAll('*')].filter((e) => e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).overflow !== 'visible')
+                    .map((e) => e.className) };
+              } finally { frame.remove(); }
+              assert(out.centre, 'the Refill button is covered at its own centre at 922x423 (' + out.box + ')');
+              assert(out.w >= 44 && out.h >= 44, 'the Refill takes a ' + out.w + 'x' + out.h + 'px thumb at 922x423 (painted ' + out.box + ') — the floor is --tap, 44px');
+              assert(out.left >= out.railLeft && out.right <= out.railRight,
+                'the Refill button runs out of the rail at 922x423: ' + out.left + '..' + out.right + ' vs ' + out.railLeft + '..' + out.railRight);
+              assert(!out.over.length, 'text clips inside the Vigour block at 922x423: ' + out.over.join(', '));
+            });
+          }),
+        ];
+      })(),
     ];
   })(),
 

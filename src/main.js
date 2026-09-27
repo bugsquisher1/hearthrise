@@ -462,6 +462,7 @@ import { setupActivitiesGrid } from './features/activities-grid.js?v=555';
 import { setupCharacterPage } from './features/character-page.js?v=555';
 import { setupCombatRender } from './features/combat-render.js?v=555';
 import { setupCombatScreens } from './features/combat-screens.js?v=555';
+import { setupVigourMount } from './features/vigour-mount.js?v=555';
 import { setupRecipeBook } from './features/recipe-book.js?v=555';
 import { setupItemIndex } from './features/item-index.js?v=555';
 
@@ -515,6 +516,8 @@ function tryBootFeatures() {
   /* AFTER combat-render, which installs HearthriseCombatHud — the Fight screen
      reads the HUD's forecast and hands it the two action mounts. */
   boot('combat-screens', setupCombatScreens);
+  /* AFTER combat-screens, which builds the Fight rail the Vigour block heads. */
+  boot('vigour-mount', setupVigourMount);
   boot('recipe-book', setupRecipeBook);
   boot('item-index', setupItemIndex);
   /* b228: setupCompanions() wraps window.getBonus, and it is the LAST wrapper

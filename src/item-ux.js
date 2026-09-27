@@ -244,11 +244,6 @@
       } else {
         // BoP and not in NPC shop: show neither vendor lines (untradeable).
       }
-      // Player market line: only for tradeable items.
-      if(!item.bop){
-        var pmAvg = (typeof window.getMarketAvgPrice === 'function') ? window.getMarketAvgPrice(itemId) : null;
-        marketBlock += '<div class="ttl-row-2"><span>' + _iuGly('uiTrend',13) + '</span><b>Player market avg</b><i>' + (pmAvg ? pmAvg.toLocaleString() + 'g' : '— (no recent sales)') + '</i></div>';
-      }
     }
     marketBlock += '</div>';
 

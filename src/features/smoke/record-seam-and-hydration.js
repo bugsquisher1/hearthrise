@@ -8146,6 +8146,7 @@ export default [
     const save = { gold: G.gold, gems: G.gems,
       skills: JSON.parse(JSON.stringify(G.skills)), inventory: JSON.parse(JSON.stringify(G.inventory)) };
     const savedListings = localStorage.getItem('hearthrise:market:listings');
+    const savedHistory = localStorage.getItem('hearthrise:market:history');
     let ver = 400;
     let sent = [];
 
@@ -8229,9 +8230,12 @@ export default [
         return Promise.resolve(new Response(JSON.stringify({ ok: false, verb: 'market_buy', error: 'gone' }),
           { status: 409 }));
       };
-      const r2 = M.buyListing(LID, 8);
+      localStorage.setItem('hearthrise:market:history', '{"probe":1}');
+      const r2 = M.buyAggregated('normal_log', 8, 25, false);
       assert(r2 && r2.ok === true, 'the second market buy refused locally: ' + JSON.stringify(r2));
       await drain();
+      assert(localStorage.getItem('hearthrise:market:history') === '{"probe":1}',
+        'the player Buy path wrote a client-side price record — a refused buy moved "market" stats');
       assert(sent.length === 1, 'the refused buy sent ' + sent.length + ' intents, expected 1');
       assert(G.gold === 5000,
         'a refused market buy left gold at ' + G.gold + ' instead of 5000. `gone` is refused before '
@@ -8265,8 +8269,34 @@ export default [
       restoreAccrualSwitch(wasOn);
       if (savedListings === null) localStorage.removeItem('hearthrise:market:listings');
       else localStorage.setItem('hearthrise:market:listings', savedListings);
+      if (savedHistory === null) localStorage.removeItem('hearthrise:market:history');
+      else localStorage.setItem('hearthrise:market:history', savedHistory);
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
+  () => tryRunAsync('MP-R1: a poisoned price store is never rendered — no 7d avg, no Top movers, no market avg', async () => {
+    const KEYS = ['hearthrise:market:history', 'hearthrise:market:listings'];
+    const saved = KEYS.map((k) => localStorage.getItem(k));
+    const tile = document.createElement('div');
+    try {
+      localStorage.setItem(KEYS[0], JSON.stringify({ normal_log: [{ eachPrice: 999, qty: 5, at: Date.now() }] }));
+      localStorage.setItem(KEYS[1], JSON.stringify([{ id: '11111111-2222-4333-8444-555555555555',
+        sellerId: 'someone-else', sellerName: 'Someone Else', itemId: 'normal_log', qty: 1, askEach: 9,
+        postedAt: Date.now(), expiresAt: Date.now() + 3600000 }]));
+      window.renderMarket();
+      const txt = document.getElementById('market-root').textContent;
+      assert(!/7d avg|Top movers|vs avg|No 7-day sales/.test(txt), 'the Market rendered a client-computed price statistic: ' + txt.slice(0, 300));
+      tile.className = 'invc-tile'; tile.setAttribute('data-item-id', 'normal_log');
+      document.body.appendChild(tile);
+      tile.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 60));
+      const tip = (document.getElementById('item-tooltip') || {}).textContent || '';
+      assert(!/market avg|999/.test(tip), 'the tooltip quoted the browser-local price store: ' + tip);
+    } finally {
+      tile.remove();
+      KEYS.forEach((k, i) => (saved[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, saved[i])));
     }
   }),
 

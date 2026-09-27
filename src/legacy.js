@@ -8332,17 +8332,17 @@ function openEnchantPicker(preselectId){
   const ov=document.getElementById('enchant-overlay')||(function(){
     const el=document.createElement('div');
     el.id='enchant-overlay';
-    el.className='inv-detail';
+    el.className='inv-detail hr-scrim';
     el.addEventListener('click',e=>{ if(e.target===el)closeEnchantPicker(); });
     document.body.appendChild(el);
     return el;
   })();
-  ov.innerHTML=`<div class="inv-detail-card" style="max-width:360px">`
-    +`<div class="inv-detail-head"><b>Enchant Weapon</b>`
-    +`<button class="btn ghost" onclick="closeEnchantPicker()" aria-label="Close">✕</button></div>`
-    +`<div class="muted tiny" style="margin:6px 0 8px">Bind an element rune to <b>${wit.n}</b>${cur?` — currently <b style="color:var(--accent)">${cur}</b>`:''}. `
+  ov.innerHTML=`<div class="inv-detail-card hr-sheet" style="max-width:360px">`
+    +`<div class="inv-detail-head hr-sheet-head"><b>Enchant Weapon</b>`
+    +`<button class="btn ghost" onclick="closeEnchantPicker()" aria-label="Close" data-hr-dismiss>✕</button></div>`
+    +`<div class="hr-sheet-body"><div class="muted tiny" style="margin:6px 0 8px">Bind an element rune to <b>${wit.n}</b>${cur?` — currently <b style="color:var(--accent)">${cur}</b>`:''}. `
     +`A match pays +15% damage against foes weak to that element; a mismatch is harmless.</div>`
-    +rows
+    +rows+`</div>`
     +`</div>`;
   ov.classList.add('show');
   if(preselectId){ try{ const hot=ov.querySelector(`.enchant-rune-opt[data-rune="${preselectId}"]`); if(hot&&hot.scrollIntoView)hot.scrollIntoView({block:'nearest'}); }catch(e){} }
@@ -10122,7 +10122,7 @@ function openInvDetail(id){
   const d = document.getElementById('inv-detail-overlay') || (function(){
     const el = document.createElement('div');
     el.id = 'inv-detail-overlay';
-    el.className = 'inv-detail';
+    el.className = 'inv-detail hr-scrim';
     /* b372: route the backdrop tap through closeInvDetail() rather than
        stripping the class here, so the one close path also clears the z-index
        lift and _invDetailId. Two closes that do different amounts of cleanup
@@ -10309,21 +10309,21 @@ function openInvDetail(id){
      The close mark and the three coin emoji in the same card go with it: same
      rule, same card, and `uiClose` / `HR.amount('gold', …)` already exist. */
   const closeGlyph = (window.HR && window.HR.icon) ? (window.HR.icon('uiClose', 14, 'currentColor') || '') : '';
-  d.innerHTML = `<div class="inv-detail-card">
-    <div class="inv-detail-close" onclick="closeInvDetail()" role="button" aria-label="Close">${closeGlyph || '&times;'}</div>
-    <div class="inv-detail-head">
+  d.innerHTML = `<div class="inv-detail-card hr-sheet">
+    <div class="inv-detail-close" onclick="closeInvDetail()" role="button" aria-label="Close" data-hr-dismiss>${closeGlyph || '&times;'}</div>
+    <div class="inv-detail-head hr-sheet-head">
       <div class="inv-detail-icon">${itemArt(id, 48)}</div>
       <div>
         <div class="inv-detail-name">${it.n}</div>
         <div class="inv-detail-meta">${cat}${it.slot?' · '+it.slot:''}${it.weaponType?' · '+it.weaponType:''}${_itemTier(id)?' · T'+_itemTier(id):''}</div>
       </div>
     </div>
-    ${descHtml}
+    <div class="hr-sheet-body">${descHtml}
     <div class="inv-detail-stats">${stats.join('')}</div>
     ${infoBlock}
     ${foodNote}
-    ${enchantNote}
-    <div class="inv-detail-actions">${acts.join('')}</div>
+    ${enchantNote}</div>
+    <div class="inv-detail-actions hr-sheet-foot">${acts.join('')}</div>
   </div>`;
   d.classList.add('show');
 }

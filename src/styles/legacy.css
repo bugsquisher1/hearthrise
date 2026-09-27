@@ -821,10 +821,11 @@ img,svg{display:block;max-width:100%}
 #panel-inventory .card:first-child{height:auto}
 /* When equipped, the item icon takes the slot — kill the SVG hint */
 
-/* Detail flyout */
+/* Detail flyout. Position, inset, gutter and the height cap come from
+   `.hr-scrim`/`.hr-sheet` (art-direction.css); it stays anchored to the bottom. */
 .inv-detail{
-  position:fixed;inset:0;z-index:1500;background:rgba(0,0,0,.55);backdrop-filter:blur(2px);
-  display:flex;align-items:flex-end;justify-content:center;padding:max(20px,var(--safe-b));
+  z-index:1500;background:rgba(0,0,0,.55);backdrop-filter:blur(2px);
+  display:flex;align-items:flex-end;justify-content:center;
   opacity:0;pointer-events:none;transition:opacity .15s;
 }
 .inv-detail.show{opacity:1;pointer-events:all}

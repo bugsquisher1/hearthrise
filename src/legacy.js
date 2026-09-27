@@ -1227,52 +1227,8 @@ function utcDayKey(now){
   const d=new Date(typeof now==='number'?now:Date.now());
   return d.getUTCFullYear()*10000+(d.getUTCMonth()+1)*100+d.getUTCDate();
 }
-function ensureOfflineBudget(now){
-  now=(typeof now==='number'&&isFinite(now))?now:Date.now();
-  let b=G.offlineBudget;
-  if(!b||typeof b!=='object'){
-    /* Seed the watermark from `lastSeen` so a returning player is credited for
-       the absence they actually had. (Legacy usedMs/dayKey are no longer used.) */
-    b=G.offlineBudget={at:(typeof G.lastSeen==='number'?G.lastSeen:now)};
-  }
-  if(typeof b.at!=='number'||!isFinite(b.at)||b.at>now) b.at=now;
-  return b;
-}
-/* b307: credit ONE absence, capped per-absence. Returns the milliseconds of
-   progress to simulate: min(time since last here, the per-absence cap). Advances
-   the watermark to `now` (this IS "signing in resets the timer"); the next
-   absence is measured from here. No daily bucket. */
-function claimOfflineMs(now,active,minMs){
-  now=(typeof now==='number'&&isFinite(now))?now:Date.now();
-  const b=ensureOfflineBudget(now);
-  /* b261 — CRITICAL: while the tab is HIDDEN, do NOT advance the watermark or
-     grant. The whole point is to let a background gap ACCUMULATE so it is credited
-     once on return. Android throttles (not freezes) background timers to ~1/min,
-     so the 4s watchdog and 90s autosave keep firing while backgrounded; if each
-     advanced b.at here it would slice a real absence into sub-threshold (~60s)
-     pieces that each grant 0 → a multi-minute AFK credits ZERO (paione). Leaving
-     b.at alone while hidden means the first VISIBLE call after return sees the
-     full elapsed span. */
-  if(typeof document!=='undefined' && document.hidden) return 0;
-  const elapsed=Math.max(0,now-b.at);
-  b.at=now;
-  /* Below the threshold nothing is simulated, so nothing may be charged —
-     but the watermark still moves, because the wall-clock did. */
-  if(!active||elapsed<(minMs||0)) return 0;
-  const capMs=offlineCapHours()*3600000;
-  return Math.min(elapsed,capMs);   // PER-ABSENCE cap — no daily accumulation
-}
-/* b307: the per-absence cap in ms (what "your offline max" means now). Kept for
-   any legacy caller + the offline summary; the old daily-remaining meaning is
-   gone because there is no longer a daily bucket. */
-function offlineBudgetRemainingMs(){
-  return offlineCapHours()*3600000;
-}
 window.utcDayKey=utcDayKey;
 window.offlineCapHours=offlineCapHours;
-window.ensureOfflineBudget=ensureOfflineBudget;
-window.claimOfflineMs=claimOfflineMs;
-window.offlineBudgetRemainingMs=offlineBudgetRemainingMs;
 
 /* b227 — the interval the offline replay divides elapsed time by.
    Deliberately NOT `G.skillMs`: that value was frozen when the activity

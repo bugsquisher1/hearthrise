@@ -2621,66 +2621,6 @@ export default [
     } finally { E._force(null); restoreG(snap); }
   }),
 
-  () => tryRun('b307: the offline cap is PER-ABSENCE — each trip caps on its own, no daily bucket', () => withCap(720, () => {
-    // b307 replaces b226's daily bucket (which pinned every save to its cap and
-    // killed offline for the rest of the day — paione's report). The cap now
-    // applies to a SINGLE absence; signing in resets the timer.
-    //
-    // b330 — THE CLOCK IS FROZEN, and that is the fix for a real flake. Every
-    // claim below used to pass its own fresh `Date.now()`, so the "a second read
-    // of the SAME INSTANT must bank nothing" assertion only held when two
-    // consecutive Date.now() calls landed in the same millisecond: an instrumented
-    // run measured 160 of 200 iterations returning 1–4ms of banked time instead
-    // of 0. claimOfflineMs takes `now` as a parameter precisely so a caller can
-    // be explicit about the instant, and the sentence the test is asserting names
-    // one instant — so it passes ONE `NOW` everywhere rather than sampling the
-    // wall clock five times. This is the seam, not a tolerance: a tolerance here
-    // would have quietly accepted a genuine double-pay of a few milliseconds.
-    const G = window.G;
-    const snap = snapshotG();
-    const hidden = Object.getOwnPropertyDescriptor(document, 'hidden');
-    try {
-      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
-      G.entitlements = {}; G.rooms = {}; G.clanName = null;
-      const cap = window.offlineCapHours();
-      const gap = cap * 0.75;
-      const NOW = Date.now();
-
-      // A gap inside the cap banks in full.
-      G.offlineBudget = { at: NOW - gap * 3600000 };
-      const first = window.claimOfflineMs(NOW, true) / 3600000;
-      assert(Math.abs(first - gap) < 0.01, 'a gap inside the cap banks in full, got ' + first);
-
-      // THE WHOLE CHANGE: a SECOND absence the same day ALSO banks in full.
-      // There is no shared daily bucket to deplete — each absence caps alone.
-      G.offlineBudget = { at: NOW - gap * 3600000 };
-      const second = window.claimOfflineMs(NOW, true) / 3600000;
-      assert(Math.abs(second - gap) < 0.01,
-        'a second absence must bank in full per-absence (not truncated by a daily bucket), got ' + second);
-
-      // A single absence longer than the cap truncates to exactly the cap.
-      G.offlineBudget = { at: NOW - (cap + 6) * 3600000 };
-      const huge = window.claimOfflineMs(NOW, true) / 3600000;
-      assert(Math.abs(huge - cap) < 0.01, 'an absence longer than the cap banks exactly the cap, got ' + huge);
-
-      // Signing in resets the timer: an immediate re-claim banks nothing. This is
-      // also the b214 double-pay guard — the watermark cannot be read twice.
-      assert(window.claimOfflineMs(NOW, true) === 0,
-        'a second read of the same instant must bank nothing (timer reset / double-pay guard)');
-
-      // An absence with nothing running banks nothing, but the watermark still
-      // advances because the wall-clock passed.
-      G.offlineBudget = { at: NOW - 5 * 3600000 };
-      assert(window.claimOfflineMs(NOW, false) === 0, 'an absence with no activity banks nothing');
-      assert(G.offlineBudget.at === NOW,
-        'the watermark still advances, to exactly the instant it was read at — got a drift of ' +
-        (G.offlineBudget.at - NOW) + 'ms');
-    } finally {
-      if(hidden) Object.defineProperty(document, 'hidden', hidden); else { try{ delete document.hidden; }catch(e){} }
-      restoreG(snap);
-    }
-  })),
-
   () => tryRun('b226/b505: the offline cap is EARNED — no entitlement may raise it', () => withCap(720, () => {
     /* This test used to assert the opposite: that the Offline+ entitlement added
        4h to the cap. b505 removed that product (Tyler: "kill ... both offline

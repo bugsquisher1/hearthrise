@@ -301,6 +301,19 @@ body[data-theme="hearthlight"] #panel-house .hh-room-badge,
   opacity: .85;
 }
 
+.hh-rung-lore {
+  display: block;
+  font-size: 14.5px;
+  line-height: 1.35;
+  font-style: italic;
+  color: var(--ink-3);
+}
+.hh-almanac-line {
+  display: block;
+  font-style: italic;
+  color: var(--ink-3);
+}
+
 /* An owned rung is a receipt, not an offer: it keeps its name and its effect,
    loses its price, and gains the one word that says you already did this. */
 .hh-rung-owned {

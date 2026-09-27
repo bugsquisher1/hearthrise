@@ -310,7 +310,7 @@ reachability guard — wire it into a drop table, recipe, or shop.
 - **One special weapon/armour** → an `items.js` entry (+ a recipe row or a drop row).
 - **New recipe** → an `ARTISAN_RECIPES[skill]` row; make sure inputs are obtainable.
 - **New gathering resource** → a `TREES/ROCKS/FISH_SPOTS` row + its product item.
-- **Skill guide text** (the Skills header's flavour line and "Good for") → a `SKILL_GUIDE` row in `src/data/skill-guide.js` — client-only, NOT vendored into hr-accrue; the "Next:" ladder derives itself from the catalogues (`src/render/skill-guide.js`), so a new node/recipe/gear row appears there with no edit. Guard: `tests/skill-guide-coverage.mjs`.
+- **Skill guide text** (the Skills header's flavour line and "Good for") → a `SKILL_GUIDE` row in `src/data/skill-guide.js` — client-only, NOT vendored into hr-accrue; the "Next:" ladder derives itself from the catalogues (`src/render/skill-guide.js`), so a new node/recipe/gear row appears there with no edit. Guard: `tests/skill-guide-coverage.mjs`; plus its `title` (the Hero class name; heroClass in `src/render/skill-guide.js`).
 - **New monster drop / boss loot** → a `drops`/`loot` row referencing an existing item id.
 - **Route an orphan drop into gear** → give it a recipe or a use; the reachability
   guard confirms it's no longer a dead end (see wave3-uniques.js for the pattern).

@@ -16930,31 +16930,12 @@ console.log('[Visual Polish v2] applied');
 (function(){
 "use strict";
 
-/* Pick a "class" name based on highest skill or training pattern */
+/* The Hero class: delegates to heroClass (src/render/skill-guide.js) */
 function deriveClass(){
-  if(typeof G==='undefined' || !G.skills) return {name:'Adventurer', tagline:'Path: Wanderer'};
-  var entries = Object.entries(G.skills);
-  if(entries.length === 0) return {name:'Adventurer', tagline:'Path: Wanderer'};
-  /* Find skill with the highest XP */
-  var top = entries.reduce(function(a,b){ return (b[1]||0) > (a[1]||0) ? b : a; });
-  var topId = top[0];
-  var topXp = top[1];
-  var s = (typeof SKILLS_DEF !== 'undefined') ? SKILLS_DEF[topId] : null;
-  if(!s) return {name:'Adventurer', tagline:'Path: Wanderer'};
-  /* Class names by category and specific skill */
-  var classMap = {
-    attack:'Warrior', strength:'Berserker', defense:'Guardian', hitpoints:'Brawler',
-    prayer:'Devotee', magic:'Mage', ranged:'Ranger', bountyHunter:'Bounty Hunter',
-    woodcutting:'Lumberjack', mining:'Miner', fishing:'Angler', farming:'Farmhand',
-    cooking:'Chef', crafting:'Artificer', smithing:'Smith'
-  };
-  var cn = classMap[topId] || 'Adventurer';
-  var tag;
-  if(topXp < 100) tag = 'Path: '+cn;
-  else if(topXp < 1000) tag = 'Aspiring '+cn;
-  else if(topXp < 10000) tag = 'Skilled '+cn;
-  else tag = 'Master '+cn;
-  return {name:cn, tagline:tag};
+  var SG = window.HearthriseSkillGuide, SR = window.HearthriseSkillRecord, B = window.HearthriseBalance;
+  var xpOf = function(id){ return (SR && typeof SR.skillXpForDisplayOr === 'function' && typeof G !== 'undefined') ? SR.skillXpForDisplayOr(G, id, null) : null; };
+  var c = (SG && typeof SG.heroClass === 'function') ? SG.heroClass(xpOf) : null;
+  return c || {name:null, tagline:(B && B.UNKNOWN_TEXT) || '—'};
 }
 
 /* Look up a sample monster pack icon for character avatars (currently use existing player avatar) */

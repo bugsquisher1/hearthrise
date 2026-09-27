@@ -137,8 +137,25 @@ function awayLevelsLine(levelUps) {
   return 'Levels while you were away: ' + parts.join(', ') + tail;
 }
 
+/** The Hero class: the title (SKILL_GUIDE[id].title) of the skill with the
+    most XP, tiered at 100 / 1,000 / 10,000. Iterates the ROSTER, so a new
+    skill is named the day its guide row lands. xpOf(id) returns a number or
+    null (unknown); all-unknown returns null and the caller paints the pending
+    mark. Ties keep roster order. */
+export function heroClass(xpOf, defs = SKILLS_DEF) {
+  let top = null, topXp = -1;
+  Object.keys(defs).forEach((id) => {
+    const xp = xpOf(id);
+    if (typeof xp === 'number' && Number.isFinite(xp) && xp > topXp) { top = id; topXp = xp; }
+  });
+  if (top === null) return null;
+  const name = SKILL_GUIDE[top] ? SKILL_GUIDE[top].title : defs[top].name;
+  const tier = topXp < 100 ? 'Path: ' : topXp < 1000 ? 'Aspiring ' : topXp < 10000 ? 'Skilled ' : 'Master ';
+  return { name, tagline: tier + name };
+}
+
 if (typeof window !== 'undefined') {
-  window.HearthriseSkillGuide = { opensAt, nextUnlock, nextLine, headHtml, awayLevelsLine };
+  window.HearthriseSkillGuide = { opensAt, nextUnlock, nextLine, headHtml, awayLevelsLine, heroClass };
 }
 
 export { headHtml };

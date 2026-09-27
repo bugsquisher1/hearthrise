@@ -1,0 +1,23 @@
+/* src/styles/night-plan.css — the Night Plan (src/features/night-plan.js):
+ * the Fight rail's Tonight block and the doors row it shares with the welcome
+ * card and Home's away card. Tokens only. */
+.np-sentence {
+  margin: 0;
+  font-size: var(--t-small, 12px);
+  line-height: 1.4;
+  color: var(--ink);
+}
+.np-doors { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.np-line {
+  margin: 0;
+  font-size: var(--t-micro, 11px);
+  line-height: 1.35;
+  color: var(--ink-2);
+}
+.np-door-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.np-door { white-space: nowrap; }
+
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .np-door-row { gap: 4px; }
+  .np-door { white-space: normal; }
+}

@@ -1489,9 +1489,9 @@
           '</div>';
       });
     }
-    if (!anyNext) {
+    if (!anyNext && G.daily && Array.isArray(G.daily.tasks) && G.daily.tasks.length > 0 && window.HearthriseSignposts) {
       html += '<div class="hd-card hd-mini"><div class="mi">' + gly('uiCheck', 20, '', 'var(--green)') +
-        '</div><div>All daily quests done — new ones at reset.</div></div>';
+        '</div><div>' + esc(window.HearthriseSignposts.fill('home.dailyDone')) + '</div></div>';
     }
     html += '</div></div>';
     /* REWIND. The only row this section had was the chain quest the card above

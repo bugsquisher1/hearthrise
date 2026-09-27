@@ -222,6 +222,7 @@ and `DEEPWATERS-S1`/`-S2` in `tests/accrual-engine.mjs`.
 `drops:[{id, ch}]` (ch = 0..1 chance). Add a drop = add to the array; the id must
 exist in `ITEMS`.
 Hunter's note per monster: `src/data/monster-notes.js` (client-only display, never edge-imported); FIELDNOTES-1 requires exactly one per MONSTERS id, so a new monster ships with its note.
+Dead-end copy: `src/data/signposts.js` (client-only, rendered by `src/features/signposts.js` as `window.HearthriseSignposts`) — empty bag classes, bench stalls, farm seeds, War Table locks, the Bounty strip; tests/signposts.mjs SIGN-1..5 and SIGN-7 (never edge-packed).
 
 ⚠ **A drop row is a SERVER FAUCET** (hr-accrue mints it into a tradeable
 inventory), so it ships in lane C order: **Security GO → hr-accrue edge deploy →

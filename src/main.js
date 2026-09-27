@@ -468,6 +468,7 @@ import { setupCombatScreens } from './features/combat-screens.js?v=557';
 import { setupVigourMount } from './features/vigour-mount.js?v=557';
 import { setupRecipeBook } from './features/recipe-book.js?v=557';
 import { setupItemIndex } from './features/item-index.js?v=557';
+import { setupSignposts } from './features/signposts.js?v=557';
 // Pack 1: one "what is this screen for?" note per screen, first visit only.
 import { setupScreenPrimers } from './features/screen-primers.js?v=557';
 
@@ -525,6 +526,7 @@ function tryBootFeatures() {
   boot('vigour-mount', setupVigourMount);
   boot('recipe-book', setupRecipeBook);
   boot('item-index', setupItemIndex);
+  boot('signposts', setupSignposts);
   boot('screen-primers', setupScreenPrimers);
   /* b228: setupCompanions() wraps window.getBonus, and it is the LAST wrapper
      any boot path installs. Hand the per-key power budget back the outermost

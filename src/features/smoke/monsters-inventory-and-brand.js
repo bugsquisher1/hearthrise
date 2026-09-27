@@ -6559,7 +6559,7 @@ export default [
     assert(CS && typeof CS._destinations === 'function', 'combat-screens _destinations is not published');
     const d = CS._destinations().filter((x) => x.kick === 'Dungeon')[0];
     assert(d, 'there is no Dungeon destination');
-    const gated = /unlocks at Combat Lv/.test(d.meta || '');
+    const gated = /opens at/.test(d.meta || '');
     if (gated) {
       assert(d.locked, 'the dungeon card says "' + d.meta + '" and STILL offers a live Enter button');
       assert(/Combat Lv \d+/.test(d.locked), 'the locked chip does not name the level: ' + d.locked);

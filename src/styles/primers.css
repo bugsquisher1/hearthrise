@@ -1,0 +1,45 @@
+/* ============================================================
+   src/styles/primers.css — the one-time screen primer (src/features/screen-primers.js)
+
+   `.panel.active` is a CSS grid (legacy.css, art-direction.css), so the aside
+   spans every column instead of becoming a cell that pushes the cards aside.
+   Seven of the eight panels sit under theme-cozy.css's forced
+   `color: var(--ink) !important`, so the surface is the theme's own card
+   surface, on which --ink is the readable ink by construction. Tokens only;
+   no !important; in flow (never absolute/fixed).
+   ============================================================ */
+.hr-primer {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px var(--gap);
+  margin: 0 0 var(--gap);
+  padding: 10px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--line-strong);
+  border-left: 3px solid var(--gold);
+  border-radius: var(--r);
+  color: var(--ink);
+}
+.hr-primer > b {
+  flex: 1 0 100%;
+  color: var(--gold-2);
+  letter-spacing: .02em;
+}
+.hr-primer > p {
+  flex: 1 1 320px;
+  margin: 0;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.hr-primer [data-primer-dismiss] {
+  min-height: 44px;
+  min-width: 44px;
+  margin-left: auto;
+}
+
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .hr-primer { padding: 8px 10px; }
+  .hr-primer > p { flex-basis: 220px; }
+}

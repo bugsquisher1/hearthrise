@@ -2659,6 +2659,17 @@ jobs:
           node tests/token-single-source.mjs --report
           node tests/token-single-source.mjs --selftest
 
+      # PACK 1 (First Steps) - the first-five-minutes copy may not lie. The eight
+      # screen primers (src/data/screen-primers.js) are real panels, digit-free,
+      # frozen, out of the edge bundle, and tied to the flags they describe (the
+      # web-beta purchase refusal, CLAN_LAUNCHED); the tour carries none of the
+      # retired sentences. --selftest plants one defect per rule in a temp copy.
+      - name: Copy truth - screen primers and the tour
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/screen-primers.mjs
+          node tests/screen-primers.mjs --selftest
+
       # slice 3 — deletions proven dead (derived censuses, never hand-pinned).
       # Appended at the END of the file on purpose: slice 2 is appending its own
       # steps here too, and two blocks under distinct comments merge cleanly.

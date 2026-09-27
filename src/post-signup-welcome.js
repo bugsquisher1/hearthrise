@@ -7,7 +7,7 @@
 //   • Hasn't seen this welcome before (localStorage flag).
 //
 // Tells them their name, gives them a single clear CTA: "Train
-// your first skill →" which jumps to Activities. Optional dismiss.
+// your first skill →" which jumps to Skills. Optional dismiss.
 //
 // Why this exists: previously, after email confirmation, the
 // player landed back on the Profile sheet with no guidance about
@@ -37,8 +37,8 @@
       +     "<h2 style=\"font-family:'Cinzel',serif;color:#5c2d08;font-size:calc(25px * var(--ui-scale, 1));letter-spacing:.04em;margin:0 0 14px\">"
       +       (displayName ? esc(displayName) : 'Adventurer')
       +     '</h2>'
-      +     '<p style="margin:0 0 12px;font-size:calc(16px * var(--ui-scale, 1));line-height:1.55">Your save is now syncing to the cloud — pick up on any device any time.</p>'
-      +     '<p style="margin:0 0 18px;font-size:calc(16px * var(--ui-scale, 1));line-height:1.55"><b>First step:</b> head to <b>Activities</b> and start training a skill. Every action earns XP, even while you\'re away.</p>'
+      +     '<p style="margin:0 0 12px;font-size:calc(16px * var(--ui-scale, 1));line-height:1.55">Your hero lives on the server, not in this browser — sign in on any device and your progress is waiting.</p>'
+      +     '<p style="margin:0 0 18px;font-size:calc(16px * var(--ui-scale, 1));line-height:1.55"><b>First step:</b> open <b>Skills</b> and start one. It keeps earning while you are away.</p>'
       +     '<div style="display:flex;gap:8px;justify-content:center">'
       +       '<button id="hr-psw-go" style="'
       +         'background:linear-gradient(180deg,#d44a3a,#8b2a1f);color:#fff8e2;'

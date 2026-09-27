@@ -636,7 +636,9 @@
       + row('Left-handed mode (mobile)', toggle('leftHand', d.leftHand))
       + autoEatHtml()
       + '<div class="ss-row"><div class="ss-label">Replay tutorial</div>'
-      +   '<button class="btn btn-sm" id="set-replay-tutorial">Show again</button></div>';
+      +   '<button class="btn btn-sm" id="set-replay-tutorial">Show again</button></div>'
+      + '<div class="ss-row"><div class="ss-label">Show screen tips again</div>'
+      +   '<button class="btn btn-sm" id="set-replay-primers">Show again</button></div>';
   }
 
   // ── Chat & Privacy ─────────────────────────────────────────
@@ -1228,6 +1230,17 @@
         if(document.querySelector('.ftue-root .ftue-card')) return;
         if(typeof window.notify === 'function') window.notify('The tutorial could not be started.', 'kill');
       }, 600);
+    });
+    // Screen tips (src/features/screen-primers.js): a missing seam says so.
+    var tips = root.querySelector('#set-replay-primers');
+    if(tips) tips.addEventListener('click', function(){
+      var SP = window.HearthriseScreenPrimers;
+      if(!SP || typeof SP.reset !== 'function'){
+        if(typeof window.notify === 'function') window.notify('Screen tips could not be reset.', 'kill');
+        return;
+      }
+      SP.reset();
+      if(typeof window.notify === 'function') window.notify('Screen tips will show again the next time you open each screen.', 'info');
     });
 
     // Block list

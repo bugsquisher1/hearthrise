@@ -293,6 +293,10 @@ reachability guard — wire it into a drop table, recipe, or shop.
 - **Data identity** — asserts ESM data actually reached the engine (no double-copy).
 - **Currency-leak guards** — assert no drop/recipe/shop mints `hearth_token` or
   `muster_seal`.
+- **Screen primers** (`src/data/screen-primers.js`, one `{title, body}` row per
+  panel id; client-only, never edge-imported) — `tests/screen-primers.mjs` G1-G8
+  (real panel id, lengths, no digits/markup, unique, frozen, flag-tied copy) and
+  PRIMER-1..3 in-page. A new screen gets its primer by adding a row.
 - **Every fix/feature ships with its own test** (`CLAUDE.md` → Testing discipline).
 
 ---

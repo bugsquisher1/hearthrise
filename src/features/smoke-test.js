@@ -156,6 +156,13 @@ export async function runSmokeTest(opts = {}) {
      on where the 4 s poll lands. Same class as the settle loop and the autosave
      above; same answer. RENOWN tests that are ABOUT the celebration call
      `celebrate()` directly, which the park does not touch. */
+  /* ── AND THE SCREEN PRIMERS (Pack 1) ──────────────────────────────────
+     The suite boots with empty localStorage, so every first visit to one of
+     eight panels would prepend a note and move the layout under that screen's
+     tests. PRIMER-1..3 (smoke/boot.js) unpark inside their own bodies. */
+  const _SP = window.HearthriseScreenPrimers;
+  let _primersWereParked = false;
+  try { if (_SP && typeof _SP._park === 'function') _primersWereParked = _SP._park(true); } catch (e) {}
   const _Rn = window.HearthriseRenown;
   let _rnPollWasOn = true;
   try { if (_Rn && typeof _Rn.__setPollEnabled === 'function') _rnPollWasOn = _Rn.__setPollEnabled(false); } catch (e) {}
@@ -214,6 +221,7 @@ export async function runSmokeTest(opts = {}) {
     try { if (_SG) _SG.parked = _ambientGoalsWereParked; } catch (e) {}
     try { if (_Comp && typeof _Comp.__clearGrantBlocks === 'function') _Comp.__clearGrantBlocks(); } catch (e) {}
     try { if (_Rn && typeof _Rn.__setPollEnabled === 'function') _Rn.__setPollEnabled(_rnPollWasOn); } catch (e) {}
+    try { if (_SP && typeof _SP._park === 'function') _SP._park(_primersWereParked); } catch (e) {}
     try {
       /* THE RECEIPT, not the pair: __resetPropertyRecord round-trips the
          exact/floor provenance too, so a live session whose record was only a

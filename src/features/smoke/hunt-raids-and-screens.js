@@ -2607,7 +2607,7 @@ export default [
 
 
       G.inventory = { bone_chips: 5 };
-      G.skills = { prayer: window.xpForLevel(39) };
+      G.skills = { prayer: window.xpForLevel(39) }; stampRecordLikeLoad(window.G);
       assert(window.getLevel('prayer') === 39, 'fixture: Prayer is ' + window.getLevel('prayer') + ', not 39');
       const at39 = window.renderArtisanActivities('prayer');
       const cell = (html) => {   /* the WHOLE button: `disabled` sits in the opening tag BEFORE the onclick carrying the id, so slicing forward from the id would read the NEXT tile's state */
@@ -2620,7 +2620,7 @@ export default [
       assert(cell(at39).indexOf('Lv ' + first.req) >= 0,
         'the locked tile must name the level it needs (Lv ' + first.req + ')');
 
-      G.skills = { prayer: window.xpForLevel(40) };
+      G.skills = { prayer: window.xpForLevel(40) }; stampRecordLikeLoad(window.G);
       const at40 = window.renderArtisanActivities('prayer');
       assert(!/disabled/.test(cell(at40)),
         'at Prayer 40, holding bone chips, the rung must be LIVE: ' + cell(at40).slice(0, 200));
@@ -2629,7 +2629,7 @@ export default [
         'a null-output rung must promise no product — the tile printed an output arrow');
       assert(cell(at40).indexOf(window.ITEMS.bone_chips.n) >= 0,
         'the live tile must name the drop it consumes');
-    } finally { restoreG(snap); }
+    } finally { restoreGAndRecord(snap); }
   }),
 
   /* ── REEDTIDE-1..5 — the "Reed & Tide" band, PLAYED ─────────────────────
@@ -2742,15 +2742,15 @@ export default [
         assert(at > 0, 'the cooking bench rendered no cook_pikeperch tile at all');
         return html.slice(html.lastIndexOf('<button', at), html.indexOf('</button>', at) + 9);
       };
-      G.skills = Object.assign({}, G.skills, { cooking: window.xpForLevel(rec.req - 1) });
+      G.skills = Object.assign({}, G.skills, { cooking: window.xpForLevel(rec.req - 1) }); stampRecordLikeLoad(window.G);
       const below = cell(window.renderArtisanActivities('cooking'));
       assert(/disabled/.test(below), 'at Cooking ' + (rec.req - 1) + ' the ' + rec.req + ' rung must render DISABLED');
       assert(below.indexOf('Lv ' + rec.req) >= 0, 'the locked tile must name the level it needs (Lv ' + rec.req + ')');
-      G.skills = Object.assign({}, G.skills, { cooking: window.xpForLevel(rec.req) });
+      G.skills = Object.assign({}, G.skills, { cooking: window.xpForLevel(rec.req) }); stampRecordLikeLoad(window.G);
       const live = cell(window.renderArtisanActivities('cooking'));
       assert(!/disabled/.test(live), 'at Cooking ' + rec.req + ', holding pikeperch, the rung must be LIVE: ' + live.slice(0, 200));
       assert(live.indexOf(I.cooked_pikeperch.n) >= 0, 'the live tile must name what it makes, ' + I.cooked_pikeperch.n);
-    } finally { restoreG(snap); }
+    } finally { restoreGAndRecord(snap); }
   }),
 
   /* ── DEEPSEAM-1..6 — the "Deep Seam" band, PLAYED ───────────────────────
@@ -2868,15 +2868,15 @@ export default [
         assert(at > 0, 'the smithing bench rendered no forge_verdite_platebody tile at all');
         return html.slice(html.lastIndexOf('<button', at), html.indexOf('</button>', at) + 9);
       };
-      G.skills = Object.assign({}, G.skills, { smithing: window.xpForLevel(rec.req - 1) });
+      G.skills = Object.assign({}, G.skills, { smithing: window.xpForLevel(rec.req - 1) }); stampRecordLikeLoad(window.G);
       const below = cell(window.renderArtisanActivities('smithing'));
       assert(/disabled/.test(below), 'at Smithing ' + (rec.req - 1) + ' the ' + rec.req + ' rung must render DISABLED');
       assert(below.indexOf('Lv ' + rec.req) >= 0, 'the locked tile must name the level it needs (Lv ' + rec.req + ')');
-      G.skills = Object.assign({}, G.skills, { smithing: window.xpForLevel(rec.req) });
+      G.skills = Object.assign({}, G.skills, { smithing: window.xpForLevel(rec.req) }); stampRecordLikeLoad(window.G);
       const live = cell(window.renderArtisanActivities('smithing'));
       assert(!/disabled/.test(live), 'at Smithing ' + rec.req + ', holding bars, the rung must be LIVE: ' + live.slice(0, 200));
       assert(live.indexOf(I.verdite_platebody.n) >= 0, 'the live tile must name what it makes, ' + I.verdite_platebody.n);
-    } finally { restoreG(snap); }
+    } finally { restoreGAndRecord(snap); }
   }),
 
   () => tryRun('SELFSUPPLY-1: at Smithing 30 the bench offers the Steel Bar AND the steel armour it feeds — the tier opens on ONE rung', () => {
@@ -2901,7 +2901,7 @@ export default [
         return html.slice(html.lastIndexOf('<button', at), html.indexOf('</button>', at) + 9);
       };
       const atLevel = (lv) => {
-        G.skills = Object.assign({}, G.skills, { smithing: window.xpForLevel(lv) });
+        G.skills = Object.assign({}, G.skills, { smithing: window.xpForLevel(lv) }); stampRecordLikeLoad(window.G);
         return window.renderArtisanActivities('smithing');
       };
 
@@ -2920,7 +2920,7 @@ export default [
       const at31 = atLevel(31);
       assert(!/disabled/.test(cell(at31, 'forge_steel_gauntlets')),
         'at Smithing 31, holding bars, the first steel armour rung must be LIVE');
-    } finally { restoreG(snap); }
+    } finally { restoreGAndRecord(snap); }
   }),
 
   () => tryRun('SELFSUPPLY-2: no tier gate sits above the first rung it feeds, and no bar opens below the reagent it eats', () => {
@@ -3049,7 +3049,7 @@ export default [
       assert(typeof window.canWield === 'function' && typeof window.equipItem === 'function', 'canWield/equipItem are unpublished — the client half of the wield gate would pass vacuously');
       G.inventory = { verdite_platebody: 1 };
       G.equipment = Object.assign({}, G.equipment, { body: null });
-      G.skills = Object.assign({}, G.skills, { defense: window.xpForLevel(37) });
+      G.skills = Object.assign({}, G.skills, { defense: window.xpForLevel(37) }); stampRecordLikeLoad(window.G);
       const no = window.canWield('verdite_platebody');
       assert(no.ok === false && no.req && no.req.skill === 'defense' && no.req.lv === 38,
         'at Defence 37 the Verdite Platebody must be refused with defense/38, got ' + JSON.stringify(no));
@@ -3057,11 +3057,11 @@ export default [
       assert(G.equipment.body !== 'verdite_platebody', 'the refused equip still put the platebody on the body slot');
       assert((G.inventory.verdite_platebody || 0) === 1, 'the refused equip consumed the piece out of the bag');
       /* ONE level of Defence is the whole difference. */
-      G.skills = Object.assign({}, G.skills, { defense: window.xpForLevel(38) });
+      G.skills = Object.assign({}, G.skills, { defense: window.xpForLevel(38) }); stampRecordLikeLoad(window.G);
       assert(window.canWield('verdite_platebody').ok === true, 'at Defence 38 the piece must be wieldable — the bridge is unreachable otherwise');
       window.equipItem('verdite_platebody');
       assert(G.equipment.body === 'verdite_platebody', 'at Defence 38 the platebody did not equip');
-    } finally { restoreG(snap); }
+    } finally { restoreGAndRecord(snap); }
   }),
 
   /* ── TIMBERLINE-1..4 — five woodcutting stands, PLAYED ───────────────────

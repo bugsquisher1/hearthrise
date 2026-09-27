@@ -39,7 +39,7 @@ const benchSwitchArc = async (body) => {
   };
   try {
     window.notify = function (m) { said.push(String(m)); };
-    G.skills = Object.assign({}, G.skills, { smithing: 200000 });
+    G.skills = Object.assign({}, G.skills, { smithing: 200000 }); stampRecordLikeLoad(G);
     G.inventory = Object.assign({}, G.inventory, { iron_bar: 200, oak_plank: 50 });
     window.fetch = function (u, init) {
       if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
@@ -59,6 +59,10 @@ const benchSwitchArc = async (body) => {
     t.plan([t.accept(900, a.id)]);
     window.startArtisan('smithing', a.id); await drain();
     assert(G.skillTargetId === a.id, 'setup: the bench never started ' + a.id + ' (' + G.skillTargetId + ')');
+    /* The setup envelope (version 900, below the stamp) rewrites G.skills outside
+       the record, which trips the fingerprint and would read the level gates as 1.
+       Re-stamp so every tap below meets the same loaded character. */
+    stampRecordLikeLoad(G);
     t.reset();
     await body(t);
   } finally {
@@ -67,7 +71,7 @@ const benchSwitchArc = async (body) => {
     M.resetActivity(); M.configureActivity(null);
     try { A.configureAccrual(null); } catch (e) {}
     try { window.stopSkill(); } catch (e) {}
-    restoreG(snap);
+    restoreGAndRecord(snap);
   }
 };
 
@@ -7713,6 +7717,67 @@ export default [
       predZero();
       restoreGAndRecord(snap);
       try { window.updateTopbar(); } catch (e) {}
+      }
+    }),
+
+  /* ══════════════════════════════════════════════════════════════════════
+     regression suite — A GATE THAT OPENED ON XP THE SERVER HAD NOT CREDITED
+     (§6, live P1 class found with the stale-gold header, 2026-09-25)
+
+     getLevel is the DISPLAY level: server xp plus the prediction. Every level
+     REQUIREMENT read it, so a fight's un-credited XP opened Equip and Craft one
+     settle early and hr_apply then refused the intent (requirement_not_met) —
+     the browser saying one thing and the server another. Gates now read the
+     SERVER's level (window.hrGateLevel → skill-record.js gateLevelOf), fail-safe
+     1, and a refusal whose display level already meets the bar says the level is
+     still being confirmed (one shared LEVEL_PENDING_TEXT).
+     MUTATION: canWield back to getLevel → RED here.
+     ══════════════════════════════════════════════════════════════════════ */
+  () => tryRun('gate regression: equip and craft read the server level, not the predicted one', () => {
+    const G = window.G;
+    const SR = window.HearthriseSkillRecord;
+    assert(typeof window.hrGateLevel === 'function' && SR && typeof SR.LEVEL_PENDING_TEXT === 'string',
+      'skill-record.js publishes no hrGateLevel/LEVEL_PENDING_TEXT — every level gate still reads the display level');
+    const xpAt = (lv) => window.xpForLevel(lv);
+    const wieldId = Object.keys(window.ITEMS).find((id) => { const r = window.gearWieldReq(window.ITEMS[id]); return r && r.skill === 'attack' && r.lv >= 2; });
+    assert(wieldId, 'CONTROL: no item in the catalogue needs an Attack level — pick another fixture');
+    const L = window.gearWieldReq(window.ITEMS[wieldId]).lv;
+    const recipes = window.ARTISAN_RECIPES || {};
+    let craft = null;
+    for (const sk of Object.keys(recipes)) {
+      const r = (recipes[sk] || []).find((x) => x && x.req >= 5 && !x.gated);
+      if (r) { craft = { sk, r }; break; }
+    }
+    assert(craft, 'CONTROL: no ungated artisan recipe needs Lv 5+ — pick another fixture');
+    const snap = snapshotG();
+    const realNotify = window.notify;
+    const realStart = window.startArtisan;
+    const told = [];
+    let started = 0;
+    try {
+      predZero();
+      G.skills = Object.assign({}, G.skills, { attack: xpAt(L - 1), [craft.sk]: xpAt(craft.r.req - 1) });
+      stampRecordLikeLoad(G);
+      assert(window.hrGateLevel('attack') === L - 1, 'CONTROL: the server attack level is ' + window.hrGateLevel('attack') + ', not ' + (L - 1));
+      /* A credited fight's worth of XP, not yet on the server: the DISPLAY reads L. */
+      window.hrPredictXp('attack', xpAt(L) - xpAt(L - 1), true);
+      window.hrPredictXp(craft.sk, xpAt(craft.r.req) - xpAt(craft.r.req - 1), true);
+      assert(window.getLevel('attack') === L && window.getLevel(craft.sk) === craft.r.req,
+        'CONTROL: the prediction did not lift the display level (' + window.getLevel('attack') + ')');
+      assert(window.canWield(wieldId).ok === false,
+        'THE BROWSER SAYS YOU CAN WIELD ' + wieldId + ' AT DISPLAY LEVEL ' + L + ' AND THE REALM SAYS ' + (L - 1) + '. canWield read the '
+        + 'predicted level; hr_apply refuses the equip with requirement_not_met (§6).');
+      window.notify = (m) => { told.push(String(m)); };
+      window.startArtisan = () => { started++; };
+      window.hrArtisanGateClick(craft.sk, craft.r.id);
+      assert(started === 0, 'the Craft gate opened on the predicted ' + craft.sk + ' level and started ' + craft.r.id);
+      assert(told[0] === SR.LEVEL_PENDING_TEXT,
+        'the Craft refusal did not say the level is still being confirmed (got ' + JSON.stringify(told[0]) + ')');
+    } finally {
+      window.notify = realNotify;
+      window.startArtisan = realStart;
+      predZero();
+      restoreGAndRecord(snap);
     }
   }),
 

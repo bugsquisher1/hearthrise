@@ -889,7 +889,7 @@
       say('Auto-replant: out of ' + (crop.name || fr.cropId) + ' seeds');
       return false;
     }
-    if(typeof window.getLevel === 'function' && window.getLevel('farming') < crop.req){
+    if((window.hrGateLevel?window.hrGateLevel('farming'):1) < crop.req){
       say('Auto-replant: ' + (crop.name || fr.cropId) + ' needs Farming Lv ' + crop.req
           + ' (you have Lv ' + window.getLevel('farming') + ')');
       return false;

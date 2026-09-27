@@ -336,7 +336,7 @@ function plantCrop(plotIdx,cropId){
     var _sn=(typeof ITEMS!=='undefined'&&ITEMS[seedId]&&ITEMS[seedId].n)||crop.name+' Seed';
     notify('You have no '+_sn+' — the Local Shop sells them','kill');return;
   }
-  if(getLevel('farming')<crop.req){notify(`Farming Lv ${crop.req} required`,'kill');return;}
+  if((window.hrGateLevel?window.hrGateLevel('farming'):1)<crop.req){notify((window.hrLevelGateText?window.hrLevelGateText('farming',crop.req,`Farming Lv ${crop.req} required`):`Farming Lv ${crop.req} required`),'kill');return;}
   // b136: Plot-level gate. canPlantCrop returns true if cropId is in
   // the unlocked set for the player's current Farm Plot tier. The
   // engine is in src/features/farm-progression.js. Defensive fallback:
@@ -517,7 +517,7 @@ function renderFarm(){
     return id === 'turnip';
   };
   cg.innerHTML=Object.entries(CROPS).map(([id,c])=>{
-    const lv=getLevel('farming');const lvOk=lv>=c.req;const plotOk=canPlot(id);
+    const lv=getLevel('farming');const lvOk=(window.hrGateLevel?window.hrGateLevel('farming'):1)>=c.req;const plotOk=canPlot(id);
     let badge;
     /* b217: an "Unlocked" tag on every available crop is noise — available is
        the default state and does not need a label. Only the GATE is news. */
@@ -595,7 +595,7 @@ function openSeedPicker(i){
      locked-by-tier (shown with a House deep-link); anything short of seeds or farming
      level stays hidden. The count is the SERVER's — the picker used to offer the
      start kit on a character whose rows were long spent. */
-  const haveSeed = (c)=> heldByServer(c.seed) > 0 && getLevel('farming') >= c.req;
+  const haveSeed = (c)=> heldByServer(c.seed) > 0 && (window.hrGateLevel?window.hrGateLevel('farming'):1) >= c.req;
   const canPlant = (id)=> {
     if(window.HearthriseFarm && typeof window.HearthriseFarm.canPlantCrop === 'function'){
       return window.HearthriseFarm.canPlantCrop(id);

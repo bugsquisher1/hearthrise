@@ -119,8 +119,8 @@
     /* No room read here: Prayer carries no client room gate (the altar ruling);
        the two gates left are the two the server enforces — a rite must exist,
        and hr_apply re-checks req_lv against server XP. */
-    if(typeof window.getLevel === 'function' && window.getLevel('prayer') < r.req){
-      out.why = 'Needs Prayer ' + r.req;
+    if((window.hrGateLevel?window.hrGateLevel('prayer'):1) < r.req){
+      out.why = (window.hrLevelGateText?window.hrLevelGateText('prayer',r.req,'Needs Prayer ' + r.req):'Needs Prayer ' + r.req);
     }
     return out;
   }

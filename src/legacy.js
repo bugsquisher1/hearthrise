@@ -8385,7 +8385,7 @@ function gearWieldReq(it){
 function canWield(id){
   const it=ITEMS[id]; const req=gearWieldReq(it);
   if(!req) return { ok:true };
-  if(getLevel(req.skill) >= req.lv) return { ok:true };   // the realm's rule, nothing else
+  if((window.hrGateLevel?window.hrGateLevel(req.skill):1) >= req.lv) return { ok:true };   // the realm's rule, read off the SERVER's level
   return { ok:false, req };
 }
 window.gearWieldReq=gearWieldReq; window.canWield=canWield;
@@ -8393,7 +8393,7 @@ function equipItem(id){
   migrateEquipmentSlots();
   const def=ITEMS[id];if(!def||(!def.type&&!def.slot))return;
   const w=canWield(id);   // b246: the wield gate, the realm's rule, no exemption set
-  if(!w.ok){ notify(`Requires ${(SKILLS_DEF[w.req.skill]&&SKILLS_DEF[w.req.skill].name)||w.req.skill} Lv ${w.req.lv} to wield ${def.n}`,'kill'); return; }
+  if(!w.ok){ const _m=`Requires ${(SKILLS_DEF[w.req.skill]&&SKILLS_DEF[w.req.skill].name)||w.req.skill} Lv ${w.req.lv} to wield ${def.n}`; notify(window.hrLevelGateText?window.hrLevelGateText(w.req.skill,w.req.lv,_m):_m,'kill'); return; }
   const slot=getPreferredSlot(def);if(!slot||!EQUIP_SLOTS.includes(slot))return;
   const _b=equipStateSnapshot();
   const old=G.equipment[slot];if(old)G.inventory[old]=(G.inventory[old]||0)+1;
@@ -8426,9 +8426,9 @@ function renderSkillDetail(id){
   const xp=skillXp(id),lv=getLevel(id),pct=xpPct(xp)*100,toNext=xpToNext(xp);
   document.getElementById('skill-detail-title').textContent=s.name; /* b213: no emoji in titles */
   let acts='',calc=null;
-  if(id==='woodcutting'){acts=renderActivities(TREES,id);calc=TREES.find(a=>a.id===G.skillTargetId)||TREES.find(a=>getLevel(id)>=a.req)||TREES[0];}
-  else if(id==='mining'){acts=renderActivities(ROCKS,id);calc=ROCKS.find(a=>a.id===G.skillTargetId)||ROCKS.find(a=>getLevel(id)>=a.req)||ROCKS[0];}
-  else if(id==='fishing'){acts=renderActivities(FISH_SPOTS,id);calc=FISH_SPOTS.find(a=>a.id===G.skillTargetId)||FISH_SPOTS.find(a=>getLevel(id)>=a.req)||FISH_SPOTS[0];}
+  if(id==='woodcutting'){acts=renderActivities(TREES,id);calc=TREES.find(a=>a.id===G.skillTargetId)||TREES.find(a=>(window.hrGateLevel?window.hrGateLevel(id):1)>=a.req)||TREES[0];}
+  else if(id==='mining'){acts=renderActivities(ROCKS,id);calc=ROCKS.find(a=>a.id===G.skillTargetId)||ROCKS.find(a=>(window.hrGateLevel?window.hrGateLevel(id):1)>=a.req)||ROCKS[0];}
+  else if(id==='fishing'){acts=renderActivities(FISH_SPOTS,id);calc=FISH_SPOTS.find(a=>a.id===G.skillTargetId)||FISH_SPOTS.find(a=>(window.hrGateLevel?window.hrGateLevel(id):1)>=a.req)||FISH_SPOTS[0];}
   /* DERIVED from the recipe table rather than a name list: a bench exists iff
      ARTISAN_RECIPES has a lane for it, which is what made Runecrafting and
      Stonemason data rows instead of five more edits to this file. */
@@ -11073,7 +11073,7 @@ function renderBountyTab(){
       {lv:5,  label:'Proof',          on:types.includes('proof')},
       {lv:10, label:'Weapon',         on:types.includes('weapon')},
       {lv:15, label:'Streak',         on:types.includes('streak')},
-      {lv:20, label:'Tier 2 Board',   on:lv>=20},
+      {lv:20, label:'Tier 2 Board',   on:(window.hrGateLevel?window.hrGateLevel('bountyHunter'):1)>=20},
       {lv:30, label:'Boss',           on:types.includes('boss')},
       {lv:40, label:'Chain',          on:types.includes('chain')},
       {lv:50, label:'Hard',           on:!!diff.hard},
@@ -14566,7 +14566,7 @@ window.renderArtisanActivities = function(skillId){
   var lv = getLevel(skillId);
   return recipes.map(function(r){
     var have = (G.inventory && G.inventory[r.input]) || 0;
-    var unlocked = lv >= r.req;
+    var unlocked = (window.hrGateLevel?window.hrGateLevel(skillId):1) >= r.req;
     var canDo = unlocked && have > 0;
     var active = G.activeSkill===skillId && G.skillTargetId===r.id;
     var inputName = (typeof ITEMS!=='undefined' && ITEMS[r.input]) ? ITEMS[r.input].n : r.input;
@@ -14597,7 +14597,7 @@ window.startArtisan = function(skillId, recipeId){
   if(!recipes) return;
   var r = recipes.find(function(x){return x.id===recipeId;});
   if(!r) return;
-  if(getLevel(skillId) < r.req){ if(typeof notify==='function') notify('Need Lv '+r.req+' '+skillId,'kill'); return; }
+  if((window.hrGateLevel?window.hrGateLevel(skillId):1) < r.req){ if(typeof notify==='function') notify((window.hrLevelGateText?window.hrLevelGateText(skillId,r.req,'Need Lv '+r.req+' '+skillId):'Need Lv '+r.req+' '+skillId),'kill'); return; }
   if(!(G.inventory[r.input] > 0)){ if(typeof notify==='function') notify('No '+(ITEMS[r.input]?.n||r.input),'kill'); return; }
   /* b348 SEAM 6 — quiet inner stop, one gesture one declaration. */
   if(typeof stopSkill === 'function') activityQuietly(stopSkill);
@@ -15126,7 +15126,7 @@ window.startArtisan = function(skillId, recipeId){
   /* THE ROOM CHECK IS GONE, not disabled: no room is permission (homestead.js
      UNGATED), so the gates that remain are the ones hr_apply itself re-checks
      — the LEVEL, then the recipe scroll, then the inputs. */
-  if(typeof getLevel==='function' && getLevel(skillId) < r.req){ if(typeof notify==='function') notify('Need Lv '+r.req+' '+skillId,'kill'); return; }
+  if((window.hrGateLevel?window.hrGateLevel(skillId):1) < r.req){ if(typeof notify==='function') notify((window.hrLevelGateText?window.hrLevelGateText(skillId,r.req,'Need Lv '+r.req+' '+skillId):'Need Lv '+r.req+' '+skillId),'kill'); return; }
   if(!gateOk(r)){ if(typeof notify==='function') notify('Need recipe scroll: '+(ITEMS[r.gated]?.n||r.gated),'kill'); return; }
   if(!hasInputs(r)){ 
     var missing = []; var inp = getInputs(r);
@@ -15156,7 +15156,7 @@ window.renderArtisanActivities = function(skillId){
       var nm = (ITEMS[kv[0]]&&ITEMS[kv[0]].n)||kv[0];
       return kv[1]+'×'+nm+'('+(G.inventory[kv[0]]||0)+')';
     }).join(' + ');
-    var unlocked = lv >= r.req;
+    var unlocked = (window.hrGateLevel?window.hrGateLevel(skillId):1) >= r.req;
     var gated = r.gated && !window.knowsRecipe(r.gated);
     var canDo = unlocked && !gated && hasInputs(r);
     var active = G.activeSkill===skillId && G.skillTargetId===r.id;
@@ -15993,7 +15993,7 @@ window.hrToolLineHtml = function(skillId){
 
 function tileForGather(action, skillId){
   var lv = getLevel(skillId);
-  var unlocked = lv >= action.req;
+  var unlocked = (window.hrGateLevel?window.hrGateLevel(skillId):1) >= action.req;
   var active = G.activeSkill===skillId && G.skillTargetId===action.id;
   var qty = (G.inventory && G.inventory[action.prod]) || 0;
   /* b226: the tile is a price tag — it must state the PACED duration, tool
@@ -16078,7 +16078,7 @@ window.hrArtisanGateClick = function(skillId, recipeId){
   var r = recipes && recipes.find(function(x){ return x.id === recipeId; });
   if(!r) return;
   var sName = (window.SKILLS_DEF && window.SKILLS_DEF[skillId] && window.SKILLS_DEF[skillId].name) || skillId;
-  if(getLevel(skillId) < r.req){ if(typeof notify==='function') notify('Requires '+sName+' Lv '+r.req, 'kill'); return; }
+  if((window.hrGateLevel?window.hrGateLevel(skillId):1) < r.req){ if(typeof notify==='function') notify((window.hrLevelGateText?window.hrLevelGateText(skillId,r.req,'Requires '+sName+' Lv '+r.req):'Requires '+sName+' Lv '+r.req), 'kill'); return; }
   if(typeof gateOk==='function' && !gateOk(r)){
     if(typeof notify==='function') notify('Needs recipe scroll: '+((ITEMS[r.gated]&&ITEMS[r.gated].n)||r.gated), 'kill');
     return;
@@ -16093,7 +16093,7 @@ function tileForArtisan(recipe, skillId){
      shows a persistent lock naming the FIRST failing one rather than dying
      silently on click. The workbench arm is gone with the room gate — a room
      sells speed, never permission — so the gates are LEVEL then recipe scroll. */
-  var levelOk = lv >= recipe.req;
+  var levelOk = (window.hrGateLevel?window.hrGateLevel(skillId):1) >= recipe.req;
   var scrollOk = (typeof gateOk === 'function') ? gateOk(recipe) : true;
   var unlocked = levelOk && scrollOk;
   var lockLabel = '', benchLock = false;

@@ -1819,7 +1819,7 @@ export const cameFromArc = async (cfg, body) => {
     await body({ G, M, sent, settle, tileOf, tile, stalePaint });
   } finally {
     window.fetch = realFetch; restoreAccrualSwitch(wasOn); M.resetActivity(); M.configureActivity(null);
-    try { window.stopSkill(); } catch (e) {} try { window.stopCombat(); } catch (e) {} restoreG(snap); window.showTab('profile');
+    try { window.stopSkill(); } catch (e) {} try { window.stopCombat(); } catch (e) {} restoreGAndRecord(snap); window.showTab('profile');
   }
 };
 /* ── THE FIRST-RUN SHEETS, ALREADY ANSWERED ──────────────────────────────────

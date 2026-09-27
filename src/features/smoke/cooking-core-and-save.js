@@ -1470,14 +1470,14 @@ export default [
       assert(req && req.skill === 'defense' && req.lv === 60, 'rune platebody must require Defence 60, got ' + JSON.stringify(req));
       const isEquipped = () => Object.values(G.equipment || {}).indexOf(rid) >= 0;
       // Under-level: cannot equip, item stays in the bag.
-      G.skills = { defense: 0 }; G.inventory = { [rid]: 1 }; G.equipment = {};
+      G.skills = { defense: 0 }; stampRecordLikeLoad(window.G); G.inventory = { [rid]: 1 }; G.equipment = {};
       window.equipItem(rid);
       assert(!isEquipped() && (G.inventory[rid] || 0) === 1, 'an under-level player must NOT equip gated armour');
       // Meeting the requirement works.
-      G.inventory = { [rid]: 1 }; G.equipment = {}; G.skills = { defense: 5000000 };
+      G.inventory = { [rid]: 1 }; G.equipment = {}; G.skills = { defense: 5000000 }; stampRecordLikeLoad(window.G);
       window.equipItem(rid);
       assert(isEquipped(), 'meeting the requirement lets you equip');
-    } finally { restoreG(snap); }
+    } finally { restoreGAndRecord(snap); }
   }),
 
   /* regression suite — THE WIELD GATE READS THE REALM, NOT A CLIENT FLAG.

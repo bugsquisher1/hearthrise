@@ -2,7 +2,7 @@
  * Home's charm and trophy rows, the Fight rail's 'Charm & trophy' lines and the
  * 'A charm is earned' sheet. Layout of the sheet is .hr-scrim/.hr-sheet
  * (art-direction.css); z matches .ach-overlay. Tokens only. */
-.hl-rows { display: flex; flex-direction: column; gap: 10px; }
+.hl-rows { display: flex; flex-direction: column; gap: 10px; padding: 10px 4px; }
 .hl-row .hd-cta { min-height: var(--tap); }
 
 .hl-rail { display: flex; flex-direction: column; gap: 3px; }

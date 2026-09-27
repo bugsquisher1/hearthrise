@@ -140,14 +140,14 @@ function rowHtml(r) {
 export function cardHtml(snap) {
   const head = '<div class="hd-h"><h3>Hunter\'s ledger</h3><a data-hl-open="bestiary">Bestiary →</a></div>';
   if (!snap) {
-    return '<div class="hl-card">' + head + '<div class="hd-card hd-mile hl-rows">'
+    return '<div class="hl-card">' + head + '<div class="hd-card hl-rows">'
       + '<div class="hl-row"><div class="hd-mile-title">Nearest charm</div><div class="hd-mile-sub">' + PENDING + '</div></div>'
       + '<div class="hl-row"><div class="hd-mile-title">Nearest trophy</div><div class="hd-mile-sub">' + PENDING + '</div></div>'
       + '</div></div>';
   }
   if (!Object.keys(snap.classes || {}).length) return '';
   const rows = [charmRow(snap.classes), trophyRow(snap.monsters, snap.readyId, snap.readyStage)].filter(Boolean);
-  return '<div class="hl-card">' + head + '<div class="hd-card hd-mile hl-rows">' + rows.map(rowHtml).join('') + '</div></div>';
+  return '<div class="hl-card">' + head + '<div class="hd-card hl-rows">' + rows.map(rowHtml).join('') + '</div></div>';
 }
 
 /** The Fight rail's two lines for one foe. '' without a foe. */
@@ -251,8 +251,10 @@ export function tick(deps) {
 }
 
 function openMoment(ups) {
-  if (document.getElementById(SHEET_ID)) return;
   const snap = snapshot();
+  /* Already up (busy() excludes it): a further rank-up joins it rather than being lost. */
+  const body = document.querySelector('#' + SHEET_ID + ' .hr-sheet-body');
+  if (body) { body.insertAdjacentHTML('beforeend', momentHtml(ups, snap && snap.classes)); return; }
   const scrim = document.createElement('div');
   scrim.className = 'hl-scrim hr-scrim';
   scrim.id = SHEET_ID;

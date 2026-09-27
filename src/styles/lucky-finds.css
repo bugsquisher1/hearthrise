@@ -7,7 +7,12 @@
    ============================================================ */
 #hr-lucky-veil { z-index: 10040; }
 .hr-lf-card { max-width: 420px; text-align: center; }
-.hr-lf-body { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.hr-lf-body { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+.hr-lf-body > * { max-width: 100%; }
+.hr-lf-art, .luck-art { flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.hr-lf-art { width: 64px; height: 64px; }
+.luck-art { width: 36px; height: 36px; }
+.hr-lf-art > *, .luck-art > * { max-width: 100%; max-height: 100%; }
 .hr-lf-name { font-size: calc(19px * var(--ui-scale, 1)); font-weight: 800; color: var(--gold-2); }
 .hr-lf-meta, .hr-lf-desc { color: var(--ink-3); }
 .hr-lf-rumour { color: var(--ink); }
@@ -37,9 +42,13 @@
   border: 1px solid var(--line-soft);
   border-radius: var(--r);
 }
-.luck-art { flex-shrink: 0; }
 .luck-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .luck-info > b { color: var(--ink); }
 .luck-info > small { color: var(--ink-3); }
 .luck-rumour { color: var(--ink); }
 .luck-info > .luck-bench { color: var(--gold-2); }
+
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .hr-lf-art { width: 40px; height: 40px; }
+  .hr-lf-body { gap: 2px; }
+}

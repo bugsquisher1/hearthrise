@@ -2379,6 +2379,20 @@ export default [
       // the crit passive must reach the combat rolls
       const m = window.MONSTERS && Object.values(window.MONSTERS)[0];
       if (m) assert(window.getPlayerCombatRolls(m).critChance >= 0.07, 'the set crit must flow into getPlayerCombatRolls');
+      const pct = Math.round(window.getPlayerCombatRolls(m).critChance * 100);   // the engine's number
+      const setLine = (window.renderEquipmentStatsHTML().match(/class="eqb-set">([\s\S]*?)<\/div>/) || [])[1] || '';
+      assert(setLine, 'the set line must render for a stamped full set');
+      assert(/Dawnsteel set/.test(setLine) && !/Tier \d/.test(setLine), 'set line names the worn line, never "Tier N": ' + setLine);
+      assert(setLine.indexOf('+' + pct + '% crit') !== -1, 'set line % must equal the engine delta');
+      assert(Math.abs(window.getPlayerCritChance() - window.getPlayerCombatRolls(m).critChance) < 1e-9, 'the display seam IS the engine number');
+      window.renderLoadout(); assert((document.querySelector('#loadout-panel .stat-grid') || {}).textContent.indexOf(pct + '%') !== -1, 'Combat loadout crit is the engine number');
+      const pane = window._charPane; window._charPane = 'hero'; window.renderCharacter(); window._charPane = pane;
+      assert((document.querySelector('#panel-character .cr-style-stats') || {}).textContent.indexOf(pct + '%') !== -1, 'Character card crit is the engine number');
+      window.renderInvFancy(); const inv = (document.getElementById('panel-inventory') || {}).innerHTML || '';
+      assert(new RegExp('Crit Chance</span><b>' + pct + '%').test(inv) && !/Damage Reduction/.test(inv), 'Inventory crit is the engine number; no fabricated Damage Reduction row');
+      const W = { helmet: 'watchknight_helmet', body: 'watchknight_body', pants: 'watchknight_pants', boots: 'watchknight_boots', gloves: 'watchknight_gloves', belt: 'watchknight_belt' };
+      assert(window.armourSetLabel({ tier: 5, armourClass: 'plate', pieces: 6 }, W, window.ITEMS) === 'Watchknight set', 'a shared bucket names the WORN line, never Rune');
+      assert(window.armourSetLabel({ tier: 1, armourClass: 'plate', pieces: 6 }, { helmet: 'bronze_helm', body: 'bronze_platebody', pants: 'bronze_platelegs', belt: 'bronze_belt', boots: 'leather_boots', gloves: 'leather_gloves' }, window.ITEMS) === 'tier-1 heavy set', 'a mixed bucket falls back to class + tier');
       delete G.equipment.belt; delete G.equipment.gloves;
       stampRecordLikeLoad(G);
       assert(!window.getArmorSetBonus(), 'a 4-piece set must NOT trigger the bonus');

@@ -115,13 +115,12 @@ function renderInvFancy(){
      a raw balance read, so it is gone rather than converted.) */
 
   /* Equipment bonuses summary */
-  var bonus = {atk:0, str:0, def:0, rangeAtk:0, rangeStr:0, magicAtk:0, magicStr:0, crit:0};
+  var bonus = {atk:0, str:0, def:0, rangeAtk:0, rangeStr:0, magicAtk:0, magicStr:0};
   Object.values(equipmentMapG()).forEach(function(id){
     var it = ITEMS[id]; if(!it) return;
     bonus.atk += it.atkB||0; bonus.str += it.strB||0; bonus.def += it.defB||0;
     bonus.rangeAtk += it.rangeAtkB||0; bonus.rangeStr += it.rangeStrB||0;
     bonus.magicAtk += it.magicAtkB||0; bonus.magicStr += it.magicStrB||0;
-    bonus.crit += it.critB||0;
   });
 
   /* Filter items */
@@ -337,9 +336,8 @@ function renderInvFancy(){
         '</div>'+
         '<div class="invc-stat-card">'+
           '<h4><span class="h4-icon">'+_hrGly('uiSpark')+'</span>Bonuses</h4>'+
-          '<div class="invc-misc-row"><span>Crit Chance</span><b>+'+((bonus.crit||0)*100).toFixed(1)+'%</b></div>'+
+          (function(){ var c = window.getPlayerCritChance ? window.getPlayerCritChance() : null; return '<div class="invc-misc-row" title="Gear + set bonus + active buffs — what your hits roll against"><span>Crit Chance</span><b>'+(c==null ? '—' : Math.round(c*100)+'%')+'</b></div>'; })()+
           (function(){ var xpB=0,spdB=0; Object.values(equipmentMapG()).forEach(function(id){var it=ITEMS[id];if(!it)return;xpB+=it.xpB||0;spdB+=it.spdB||0;}); return '<div class="invc-misc-row"><span>XP Bonus (gear)</span><b>+'+(xpB*100).toFixed(0)+'%</b></div><div class="invc-misc-row"><span>Speed Bonus (gear)</span><b>+'+(spdB*100).toFixed(0)+'%</b></div>'; })()+
-          '<div class="invc-misc-row"><span>Damage Reduction</span><b>'+Math.floor(bonus.def*0.5)+'</b></div>'+
         '</div>'+
         (function(){ var style = (typeof window.getActiveCombatStyle==="function") ? window.getActiveCombatStyle() : null; var wt = (typeof window.getWeaponType==="function") ? window.getWeaponType() : "sword"; if(!style) return ""; /* b348: the same derived route the picker prints — one sentence, one source. */
           var _route = (typeof window.styleXpRouteText==='function') ? window.styleXpRouteText(style) : style.trains;

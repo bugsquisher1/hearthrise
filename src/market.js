@@ -38,28 +38,22 @@
   const HOUSE_TAX = 0.015;
   const LISTING_TTL_MS = 48 * 3600 * 1000;
   const PER_CHAR_LIMIT_BASE = 12;
-  const PRICE_HISTORY_KEY = 'hearthrise:market:history';
+  var _seq = 0;   // local temp-id suffix; ids are never random
+  // The retired client-side price series: purge it from every device.
+  try{ localStorage.removeItem('hearthrise:market:history'); }catch(e){}
 
   /* The server's limit (hr_market_config.max_listings, 12); no client perk raises it. */
   function listingLimit(){ return PER_CHAR_LIMIT_BASE; }
 
   // ── State ─────────────────────────────────────────────────────
   // Listings: { id, sellerId, sellerName, itemId, qty, askEach, postedAt }
-  // History:  { itemId, soldEach, qty, at } — keep last 50 sales per item.
+  // Listings: { id, sellerId, sellerName, itemId, qty, askEach, postedAt }
   function loadListings(){
     try { return JSON.parse(localStorage.getItem(MARKET_KEY)) || []; }
     catch(e){ return []; }
   }
   function saveListings(list){
     try { localStorage.setItem(MARKET_KEY, JSON.stringify(list)); }
-    catch(e){}
-  }
-  function loadHistory(){
-    try { return JSON.parse(localStorage.getItem(PRICE_HISTORY_KEY)) || {}; }
-    catch(e){ return {}; }
-  }
-  function saveHistory(h){
-    try { localStorage.setItem(PRICE_HISTORY_KEY, JSON.stringify(h)); }
     catch(e){}
   }
   // ── Buy offers (open buy orders) ───────────────────────────
@@ -139,156 +133,36 @@
       try { window.renderMarket(); } catch(e){}
     }
   }
-
-  function recordSale(itemId, eachPrice, qty){
-    var h = loadHistory();
-    h[itemId] = h[itemId] || [];
-    h[itemId].push({ eachPrice: eachPrice, qty: qty, at: Date.now() });
-    if(h[itemId].length > 50) h[itemId] = h[itemId].slice(-50);
-    saveHistory(h);
-  }
-  // Expose avg price so the item tooltip can show "Player market avg".
-  window.getMarketAvgPrice = function(itemId){
-    var h = loadHistory();
-    var sales = h[itemId] || [];
-    if(!sales.length) return null;
-    var totalGold = 0, totalQty = 0;
-    sales.forEach(function(s){ totalGold += s.eachPrice * s.qty; totalQty += s.qty; });
-    return totalQty > 0 ? Math.round(totalGold / totalQty) : null;
-  };
-
-  // ── 7-day analytics ──────────────────────────────────────────
-  // Returns { avgPrice, volume, salesCount, lastSale, lowest, highest }
-  // where:
-  //   avgPrice   = volume-weighted average price each over the last 7 days
-  //   volume     = total qty sold in the last 7 days
-  //   salesCount = number of separate sales transactions in the last 7 days
-  //   lastSale   = ms-timestamp of most recent sale (any age)
-  //   lowest     = lowest each-price seen in the window
-  //   highest    = highest each-price seen in the window
-  // Returns null if no sales recorded (ever, not just in window).
-  var WINDOW_MS_7D = 7 * 24 * 3600 * 1000;
-  function getStats7d(itemId){
-    var h = loadHistory();
-    var sales = h[itemId] || [];
-    if(!sales.length) return null;
-    var cutoff = Date.now() - WINDOW_MS_7D;
-    var recent = sales.filter(function(s){ return s.at >= cutoff; });
-    var lastSale = sales[sales.length-1].at;
-    if(!recent.length){
-      return { avgPrice:null, volume:0, salesCount:0, lastSale:lastSale, lowest:null, highest:null };
-    }
-    var totalGold = 0, volume = 0, lowest = Infinity, highest = 0;
-    recent.forEach(function(s){
-      totalGold += s.eachPrice * s.qty;
-      volume    += s.qty;
-      if(s.eachPrice < lowest)  lowest  = s.eachPrice;
-      if(s.eachPrice > highest) highest = s.eachPrice;
-    });
-    return {
-      avgPrice:  Math.round(totalGold / volume),
-      volume:    volume,
-      salesCount: recent.length,
-      lastSale:  lastSale,
-      lowest:    lowest,
-      highest:   highest,
-    };
-  }
-  // Top movers — items with the highest 7-day volume (gold value).
-  function getTopMovers7d(limit){
-    limit = limit || 10;
-    var h = loadHistory();
-    var rows = Object.keys(h).map(function(itemId){
-      var s = getStats7d(itemId);
-      if(!s || !s.volume) return null;
-      return {
-        itemId: itemId,
-        avgPrice: s.avgPrice,
-        volume:  s.volume,
-        salesCount: s.salesCount,
-        goldValue: s.avgPrice * s.volume,
-      };
-    }).filter(Boolean);
-    rows.sort(function(a,b){ return b.goldValue - a.goldValue; });
-    return rows.slice(0, limit);
-  }
-  window.getMarketStats7d  = getStats7d;
-  window.getMarketTopMovers = getTopMovers7d;
-
-  // ── Admin / QA seeding ───────────────────────────────────────
-  // Drops fake listings from fictional sellers + plausible sales
-  // history so the market panel's stats and search have real data
-  // to work with during beta. Idempotent — only seeds if no fake
-  // listings already exist.
-  function seedFakeListings(){
-    if(backendActive()){
-      return { ok:false, reason:'Live market active — no NPC seeds (final directive: no fake data)' };
-    }
-    var existing = loadListings();
-    if(existing.some(function(l){ return l.sellerId && l.sellerId.indexOf('npc-') === 0; })){
-      return { ok:false, reason:'Already seeded — clear first via window.HearthriseMarket.clearSeed()' };
-    }
-    var items = window.ITEMS || {};
-    var pool = [
-      'iron_sword','steel_sword','iron_helm','steel_helm','iron_platebody',
-      'wolf_pelt','bear_pelt','silk_thread','iron_ore','coal','gold_ore',
-      'mithril_ore','oak_log','willow_log','maple_log','cooked_trout',
-      'cooked_lobster','wheat_bread','tomato_soup','bronze_bar','iron_bar',
-      'steel_bar','copper_ring','hunter_necklace','leather_boots','traveler_cape',
-    ].filter(function(id){ return items[id]; });
-    var npcs = ['Marisol','Greyhand','BoldWarrior42','VioletForge','TimberKing','SaltyHook'];
-    var added = [];
-    var now = Date.now();
-    pool.forEach(function(itemId, i){
-      var def = items[itemId];
-      var npcIdx = i % npcs.length;
-      var qty = Math.max(1, Math.floor(Math.random() * 8) + 1);
-      var basePrice = Math.max(1, Math.ceil((def.v || 50) * (1.2 + Math.random() * 0.8)));   // 1.2x–2x vendor
-      added.push({
-        id: 'L-seed-' + now + '-' + i,
-        sellerId: 'npc-' + npcIdx,
-        sellerName: npcs[npcIdx],
-        itemId: itemId,
-        qty: qty,
-        askEach: basePrice,
-        postedAt: now - Math.floor(Math.random() * 12 * 3600 * 1000),  // up to 12h ago
-      });
-    });
+  /* Local 'L…' rows whose market_list is still awaiting its answer. Under the
+     seam these are the ONLY local rows that exist: a row not in here is not on
+     the market, whatever this browser's copy says. */
+  var inFlightLocal = new Set();
+  function onMarketUnderSeam(l){ return isServerListingId(l.id) || inFlightLocal.has(l.id); }
+  function dropLocalRow(localId){
     var list = loadListings();
-    list = list.concat(added);
-    saveListings(list);
+    var idx = list.findIndex(function(l){ return l.id === localId; });
+    if(idx >= 0){ list.splice(idx, 1); saveListings(list); }
+  }
+  /** The ANSWER to a market_list. Applied: adopt the server id. Provably
+   *  unwritten or never sent: the escrow comes back by the exact inverse of the
+   *  removeItem that took it. Anything else may have written: drop the row and
+   *  move nothing — the next envelope and listings read are the truth. */
+  function settleLocalListing(localId, v, itemId, qty){
+    inFlightLocal.delete(localId);
+    var out = v && v.outcome;
+    if(out === 'applied' || out === 'replayed'){ adoptServerListingId(localId, v); return; }
+    dropLocalRow(localId);
+    var S = window.HearthriseGold;
+    var unwritten = !!v && (v.sent === false || !!(S && typeof S.isProvablyUnwritten === 'function' && S.isProvablyUnwritten(out)));
+    if(unwritten && typeof window.addItem === 'function') window.addItem(itemId, qty);
+    if(typeof window.notify === 'function'){
+      window.notify(unwritten ? ('Listing refused — ' + (v.reason || out) + '. Items returned.')
+        : 'The market did not confirm your listing — check Your listings shortly.', 'kill');
+    }
+    rerenderMarketIfOpen();
+    if(typeof window.renderInvFancy === 'function') window.renderInvFancy();
+  }
 
-    // Also seed sales history so 7d stats have data to show.
-    var h = loadHistory();
-    pool.forEach(function(itemId){
-      var def = items[itemId];
-      h[itemId] = h[itemId] || [];
-      // 3–8 sales spread over the last 7 days
-      var nSales = 3 + Math.floor(Math.random() * 6);
-      for(var i = 0; i < nSales; i++){
-        var basePrice = Math.max(1, Math.ceil((def.v || 50) * (1.0 + Math.random() * 1.0)));
-        h[itemId].push({
-          eachPrice: basePrice,
-          qty: 1 + Math.floor(Math.random() * 5),
-          at: now - Math.floor(Math.random() * WINDOW_MS_7D),
-        });
-      }
-      // Sort chronologically so lastSale is sensible
-      h[itemId].sort(function(a,b){ return a.at - b.at; });
-      if(h[itemId].length > 50) h[itemId] = h[itemId].slice(-50);
-    });
-    saveHistory(h);
-    return { ok:true, listings:added.length, items:pool.length };
-  }
-  function clearSeed(){
-    var list = loadListings().filter(function(l){
-      return !(l.sellerId && l.sellerId.indexOf('npc-') === 0);
-    });
-    saveListings(list);
-    // History cleared too (since seed touches all pool items)
-    saveHistory({});
-    return { ok:true };
-  }
 
   function activeSlot(){
     var prof = window.HearthriseProfile && window.HearthriseProfile.profile;
@@ -335,20 +209,35 @@
   var refreshTimer = null;
   function backendActive(){ return !!(backend && liveSession()); }
 
+  /* THE MARKET'S OWN WORD ON WHAT IS LISTED: every read reports ok/error to the
+     prices module, and until one succeeds the panel shows the pending mark. */
+  function noteRead(status, n){
+    var MP = window.HearthriseMarketPrices;
+    if(MP) MP.noteListingsRead(status, n, (backend && backend.FETCH_LIMIT) || 500);
+  }
+  function listingsKnown(){
+    var MP = window.HearthriseMarketPrices;
+    return !!(MP && MP.getListingsState().status === 'ok');
+  }
+  function pendingMark(){
+    return '<span class="bal-pending" role="status">' + window.balUnknownText() + '</span>';
+  }
   function refreshFromBackend(){
     if(!backendActive()) return Promise.resolve(false);
     return backend.fetchListings().then(function(rows){
       // Keep my un-synced local temp rows (id starts 'L'), drop npc seeds,
       // mirror everything else from the server.
       var mine = loadListings().filter(function(l){
-        return l.id && String(l.id).indexOf('L') === 0 && l.sellerId === currentSellerId();
+        return l.id && String(l.id).indexOf('L') === 0 && l.sellerId === currentSellerId()
+          && (!serverMarketActive() || inFlightLocal.has(l.id));
       });
       saveListings(rows.concat(mine));
+      noteRead('ok', rows.length);
       /* #market-root ALWAYS exists (static markup), so it cannot stand in for
          "the market is on screen"; only the panel's active state means that. */
       rerenderMarketIfOpen();
       return true;
-    }).catch(function(){ return false; });
+    }).catch(function(){ noteRead('error'); rerenderMarketIfOpen(); return false; });
   }
   function scheduleRefresh(){
     if(refreshTimer) return;
@@ -373,7 +262,6 @@
       sales.forEach(function(s){
         var net = s.goldTotal - Math.ceil(s.goldTotal * HOUSE_TAX);   // ceil tax = sink rounds UP, matching the server
         total += net;
-        recordSale(s.itemId, Math.round(s.goldTotal / Math.max(1, s.qty)), s.qty);
       });
       if(total > 0){
         window.G.gold = (window.G.gold || 0) + total;
@@ -451,6 +339,7 @@
 
   // ── Listing operations ────────────────────────────────────────
   function expireOld(list){
+    if(serverMarketActive()) return false;   // the server sweeps; local rows end with their intent
     var now = Date.now();
     var changed = false;
     for(var i = list.length - 1; i >= 0; i--){
@@ -484,17 +373,22 @@
 
     var list = loadListings();
     expireOld(list);
-    var mine = list.filter(function(l){ return l.sellerId === currentSellerId(); });
+    var mine = list.filter(function(l){
+      return l.sellerId === currentSellerId() && (!serverMarketActive() || onMarketUnderSeam(l));
+    });
     if(mine.length >= listingLimit()){
       return { ok:false, reason:'Max ' + listingLimit() + ' active listings reached' };
     }
+    var _lk = serverMarketActive() ? marketIntentKey() : null;
+    var _lS = _lk && marketApi();
+    if(serverMarketActive() && !_lS) return { ok:false, reason:'Not connected to the market right now' };
 
     // Escrow the qty out of inventory.
     if(typeof window.removeItem === 'function') window.removeItem(itemId, qty);
     else window.G.inventory[itemId] = (window.G.inventory[itemId]||0) - qty;
 
     var newL = {
-      id: 'L' + Date.now() + '-' + Math.floor(Math.random()*1000),
+      id: 'L' + Date.now() + '-' + (++_seq),
       sellerId: currentSellerId(),
       sellerName: currentSellerName(),
       itemId: itemId,
@@ -524,11 +418,12 @@
        server's absolute inventory is what settles it. With it off, the v1
        backend push is byte-for-byte what shipped. Never both — see
        serverMarketActive. */
-    var _lk = newL.qty > 0 ? marketIntentKey() : null;
-    var _lS = _lk && marketApi();
     if(_lS){
+      inFlightLocal.add(newL.id);
       var _lp = _lS.listOnMarket(itemId, newL.qty, askEach, _lk);
-      if(_lp && _lp.then) _lp.then(function(v){ adoptServerListingId(newL.id, v); }, function(){});
+      var _settle = function(v){ settleLocalListing(newL.id, v, itemId, newL.qty); };
+      if(_lp && _lp.then) _lp.then(_settle, function(){ _settle(null); });
+      else _settle(null);
     } else if(newL.qty > 0 && !serverMarketActive()){
       pushListingToBackend(newL, item.n || itemId);                  // b208: sync to server
     }
@@ -612,6 +507,9 @@
     if(idx < 0) return { ok:false, reason:'Listing not found' };
     var l = list[idx];
     if(l.sellerId === currentSellerId()) return { ok:false, reason:"Can't buy your own listing" };
+    /* A row the server has never named is not for sale: nothing is charged,
+       delivered or announced for it (C2 — the next envelope used to undo it). */
+    if(serverMarketActive() && !isServerListingId(l.id)) return { ok:false, reason:'That listing is still reaching the market' };
     qtyWanted = Math.max(1, Math.min(qtyWanted, l.qty));
     var totalCost = qtyWanted * l.askEach;
     if(!window.balCanAfford(totalCost, 'gold')){
@@ -648,8 +546,6 @@
     if(l.qty <= 0) list.splice(idx, 1);
     saveListings(list);
 
-    // Record sale (after-tax for seller, full price for history)
-    recordSale(l.itemId, l.askEach, qtyWanted);
     // Seller's gold credited net of house tax. NOTE: in dev mode the
     // seller is the same player on the same browser, so we just no-op.
     // In production this writes to the seller's account via Supabase.
@@ -677,8 +573,9 @@
     expireOld(list);
     var meId = currentSellerId();
     // Eligible listings: same item, at-or-below max price, not mine.
+    var seam = serverMarketActive();
     var pool = list.filter(function(l){
-      return l.itemId === itemId && l.askEach <= maxEach && l.sellerId !== meId;
+      return l.itemId === itemId && l.askEach <= maxEach && l.sellerId !== meId && (!seam || isServerListingId(l.id));
     });
     pool.sort(function(a, b){ return a.askEach - b.askEach || a.postedAt - b.postedAt; });
 
@@ -728,7 +625,6 @@
       } else if(!serverMarketActive()){
         pushBuyToBackend(list[lIdx].id, itemId, take, cost);         // b208
       }
-      recordSale(itemId, list[lIdx].askEach, take);
       list[lIdx].qty -= take;
       if(list[lIdx].qty <= 0) list.splice(lIdx, 1);
       bought += take;
@@ -807,7 +703,7 @@
 
     window.G.gold -= totalEscrow;
     var offer = {
-      id: 'O' + Date.now() + '-' + Math.floor(Math.random()*1000),
+      id: 'O' + Date.now() + '-' + (++_seq),
       buyerId: currentSellerId(),
       buyerName: currentSellerName(),
       itemId: itemId,
@@ -896,8 +792,6 @@
       o.qty      -= take;
       o.escrowed -= escrowedFor;
       newListing.qty -= take;
-      // Record sale
-      recordSale(newListing.itemId, newListing.askEach, take);
       listingChanged = true;
       if(typeof window.notify === 'function' && o.buyerId === currentSellerId()){
         var item = window.ITEMS && window.ITEMS[newListing.itemId];
@@ -927,10 +821,6 @@
    *   expireOld: () => void,
    *   HOUSE_TAX: number,
    *   PER_CHAR_LIMIT: number,
-   *   getStats7d: (itemId: string) => MarketStats|null,
-   *   getTopMovers7d: (limit?: number) => Array<{itemId: string, avgPrice: number, volume: number}>,
-   *   seedFakeListings: () => {ok: boolean, listings?: number, items?: number, reason?: string},
-   *   clearSeed: () => {ok: boolean},
    * }}
    */
   window.HearthriseMarket = {
@@ -945,10 +835,6 @@
     expireOld: function(){ var l = loadListings(); if(expireOld(l)) saveListings(l); },
     HOUSE_TAX: HOUSE_TAX,
     PER_CHAR_LIMIT: PER_CHAR_LIMIT_BASE, listingLimit: listingLimit,
-    getStats7d: getStats7d,
-    getTopMovers7d: getTopMovers7d,
-    seedFakeListings: seedFakeListings,
-    clearSeed: clearSeed,
     /* b208 (SYS-7): live-backend seam — supabase-market-backend.js
        auto-installs itself here when credentials are present. */
     setBackend: setBackend,
@@ -1048,7 +934,7 @@
     return Math.floor(h/24) + 'd ago';
   }
 
-  function historyBlockHtml(hist, filter, now){
+  function historyBlockHtml(hist, filter, now, limit){
     var head = '<div class="mk-block mk-ledger"><h3>Your trade history</h3>';
     if(!hist || hist.status !== 'ok'){
       return head + '<div class="mk-empty">Your sales and purchases will appear here once '
@@ -1067,7 +953,9 @@
       if(e.role === 'sale'){ soldN++; earned += e.goldNet; }
       else { boughtN++; spent += e.goldGross; }
     });
+    /* The read is capped, so a full page is a window, not a lifetime — say so. */
     var totals = '<div class="mk-stats mk-ledger-totals">'
+      + (limit && all.length >= limit ? '<span class="mk-stat">last ' + limit + ' trades</span>' : '')
       + '<span class="mk-stat">' + soldN + ' sold <b>+' + earned.toLocaleString() + 'g</b></span>'
       + '<span class="mk-stat">' + boughtN + ' bought <b>-' + spent.toLocaleString() + 'g</b></span>'
       + '</div>';
@@ -1125,11 +1013,15 @@
        A renderer owns a container, not a panel. */
     var panel = document.getElementById('market-root') || document.getElementById('panel-market');
     if(!panel) return;
+    var MP = window.HearthriseMarketPrices;
+    if(MP){ try{ MP.refreshListingsIfStale(); }catch(e){} }
+    var known = listingsKnown();
     var list = loadListings();
     expireOld(list);
     saveListings(list);
-    var mine = list.filter(function(l){ return l.sellerId === currentSellerId(); });
-    var others = list.filter(function(l){ return l.sellerId !== currentSellerId(); });
+    var seam = serverMarketActive();
+    var mine = list.filter(function(l){ return l.sellerId === currentSellerId() && (!seam || onMarketUnderSeam(l)); });
+    var others = list.filter(function(l){ return l.sellerId !== currentSellerId() && (!seam || isServerListingId(l.id)); });
 
     var ui = loadUiState();
     // ── Search + sort ──
@@ -1165,22 +1057,12 @@
         ? '<img src="' + window._itemPath[l.itemId] + '" alt="">'
         : '<span>' + icon + '</span>';
       var total = l.askEach * l.qty;
-      var ttlH = ((LISTING_TTL_MS - (Date.now() - l.postedAt))/3600000).toFixed(1);
-      // 7-day stats line — only render if we have any history
-      var stats = getStats7d(l.itemId);
-      var statsLine = '';
-      if(stats && stats.salesCount > 0){
-        var deltaPct = stats.avgPrice ? Math.round(((l.askEach - stats.avgPrice) / stats.avgPrice) * 100) : 0;
-        var deltaCls = deltaPct > 5 ? 'high' : (deltaPct < -5 ? 'low' : 'fair');
-        var deltaSign = deltaPct >= 0 ? '+' : '';
-        statsLine = '<div class="mk-stats">'
-          + '<span class="mk-stat">7d avg <b>' + stats.avgPrice.toLocaleString() + 'g</b></span>'
-          + '<span class="mk-stat">vol <b>' + stats.volume.toLocaleString() + '</b></span>'
-          + '<span class="mk-stat">' + stats.salesCount + ' sale' + (stats.salesCount===1?'':'s') + '</span>'
-          + '<span class="mk-delta ' + deltaCls + '">' + deltaSign + deltaPct + '% vs avg</span>'
-          + '</div>';
-      } else {
-        statsLine = '<div class="mk-stats"><span class="mk-stat muted">No 7-day sales yet</span></div>';
+      // Time left is the SERVER's expires_at; an own row still in flight has none yet.
+      var ttl = '';
+      if(ownsIt && !isServerListingId(l.id)) ttl = ' · sending…';
+      else if(Number.isFinite(l.expiresAt)){
+        var hLeft = (l.expiresAt - Date.now()) / 3600000;
+        ttl = ' · ' + (hLeft > 0 ? hLeft.toFixed(1) + 'h left' : 'expiring');
       }
       var actionBtn = ownsIt
         ? '<button class="mk-cancel" data-cancel="' + l.id + '">Cancel</button>'
@@ -1189,36 +1071,11 @@
         '<div class="mk-icon">' + iconHtml + '</div>' +
         '<div class="mk-info">' +
           '<div class="mk-name">' + (item ? item.n : l.itemId) + '<span class="mk-qty">×' + l.qty + '</span></div>' +
-          '<div class="mk-meta">' + l.askEach.toLocaleString() + 'g each · seller: <b>' + escapeAttr(l.sellerName) + '</b> · ' + ttlH + 'h left</div>' +
-          statsLine +
+          '<div class="mk-meta">' + l.askEach.toLocaleString() + 'g each · seller: <b>' + escapeAttr(l.sellerName) + '</b>' + ttl + '</div>' +
         '</div>' +
         '<div class="mk-action">' + actionBtn + '</div>' +
       '</div>';
     };
-
-    // ── Top movers (7-day analytics block) ──
-    var movers = getTopMovers7d(6);
-    var moversBlock = '';
-    if(movers.length){
-      moversBlock = '<div class="mk-block"><h3>' + _mkGly('uiTrend', 15) + ' Top movers (last 7 days)</h3>'
-        + '<div class="mk-movers">'
-        + movers.map(function(m){
-            var item = window.ITEMS && window.ITEMS[m.itemId];
-            var icon = (window._itemPath && window._itemPath[m.itemId])
-              ? '<img src="' + window._itemPath[m.itemId] + '" alt="">'
-              : '<span>' + window.itemFallbackIcon(m.itemId, 22, item) + '</span>';
-            var name = (item && item.n) || m.itemId;
-            return '<button class="mk-mover" data-search="' + (item && item.n ? item.n : m.itemId) + '" title="Search for ' + name + '">'
-              + '<div class="mm-icon">' + icon + '</div>'
-              + '<div class="mm-name">' + name + '</div>'
-              + '<div class="mm-stats">'
-                + '<span>' + m.avgPrice.toLocaleString() + 'g avg</span> · '
-                + '<span>' + m.volume.toLocaleString() + ' sold</span>'
-              + '</div>'
-              + '</button>';
-          }).join('')
-        + '</div></div>';
-    }
 
     // ── My open buy offers (gold escrowed) ──
     var allOffers = loadOffers();
@@ -1268,13 +1125,14 @@
     var mineBlock = '<div class="mk-block"><h3>Your listings (' + mine.length + ' / ' + listingLimit() + ')</h3>' +
       (mine.length ? mine.map(function(l){ return listingRow(l, true); }).join('') : '<div class="mk-empty">You haven\'t listed anything yet.</div>') +
     '</div>';
+    var othersCount = known ? '(' + others.length + ')' : pendingMark();
     var othersHeader = ui.q
-      ? 'Open listings — matching "' + escapeAttr(ui.q) + '" (' + others.length + ')'
-      : 'Open listings (' + others.length + ')';
+      ? 'Open listings — matching "' + escapeAttr(ui.q) + '" ' + othersCount
+      : 'Open listings ' + othersCount;
     var othersBlock = '<div class="mk-block"><h3>' + othersHeader + '</h3>' +
       (others.length
         ? others.map(function(l){ return listingRow(l, false); }).join('')
-        : '<div class="mk-empty">' + (ui.q
+        : '<div class="mk-empty">' + (!known ? pendingMark() : ui.q
             ? 'Nothing matches "' + escapeAttr(ui.q) + '" — try a different search.'
             : 'No open listings right now. List something above and be first to market.') + '</div>') +
     '</div>';
@@ -1291,7 +1149,9 @@
       return true;
     }).map(function(id){
       var d = items[id] || {};
-      return { id: id, name: d.n || id, qty: inv[id], v: d.v || 0 };
+      // The vendor's REAL bid (raw materials pay a fraction of v), as the bag tooltip quotes it.
+      var bid = (typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : (d.v || 0);
+      return { id: id, name: d.n || id, qty: inv[id], v: bid };
     }).sort(function(a, b){ return a.name.localeCompare(b.name); });
 
     var pickerOpts = '<option value="">— Pick an item from your bag —</option>'
@@ -1323,11 +1183,11 @@
     if(MH){
       try{
         MH.refreshHistoryIfStale();
-        historyBlock = historyBlockHtml(MH.getHistory(), ui.ledger || 'all', Date.now());
+        historyBlock = historyBlockHtml(MH.getHistory(), ui.ledger || 'all', Date.now(), MH.HISTORY_LIMIT);
       }catch(e){ historyBlock = ''; }
     }
 
-    panel.innerHTML = housing + listForm + moversBlock + mineBlock + historyBlock
+    panel.innerHTML = housing + listForm + mineBlock + historyBlock
       + offersBlock + toolbar + othersBlock;
 
     panel.querySelectorAll('button.mk-ledger-tab[data-ledger]').forEach(function(b){
@@ -1375,17 +1235,6 @@
         render();
       });
     }
-    // Click a top-mover card to filter the listings to that item
-    panel.querySelectorAll('.mk-mover').forEach(function(btn){
-      btn.addEventListener('click', function(){
-        ui.q = btn.getAttribute('data-search') || '';
-        saveUiState(ui);
-        render();
-        // Scroll listings into view
-        var openBlock = panel.querySelectorAll('.mk-block')[panel.querySelectorAll('.mk-block').length - 1];
-        if(openBlock) openBlock.scrollIntoView({ behavior:'smooth', block:'start' });
-      });
-    });
 
     // When the player picks an item, populate the qty input with the
     // amount they have and the asking-each field with a sensible default
@@ -1452,8 +1301,9 @@
     if(!item) return;
     // How many are available at this price or cheaper, from sellers other than me?
     var meId = currentSellerId();
+    var seam = serverMarketActive();
     var pool = loadListings().filter(function(l){
-      return l.itemId === itemId && l.askEach <= atPrice && l.sellerId !== meId;
+      return l.itemId === itemId && l.askEach <= atPrice && l.sellerId !== meId && (!seam || isServerListingId(l.id));
     });
     var available = pool.reduce(function(s, l){ return s + l.qty; }, 0);
     var iconHtml = (window._itemPath && window._itemPath[itemId])
@@ -1473,7 +1323,7 @@
       +   '<div class="bm-body">'
       +     '<div class="bm-stat-row">'
       +       '<div class="bm-stat"><div class="bm-lbl">PRICE EACH</div><div class="bm-val">' + atPrice.toLocaleString() + 'g</div></div>'
-      +       '<div class="bm-stat"><div class="bm-lbl">AVAILABLE AT THIS PRICE</div><div class="bm-val">' + available.toLocaleString() + '</div></div>'
+      +       '<div class="bm-stat"><div class="bm-lbl">AVAILABLE AT THIS PRICE</div><div class="bm-val">' + (listingsKnown() ? available.toLocaleString() : pendingMark()) + '</div></div>'
       /* The buyer's own purse, on the sheet where they commit gold. A pending
          balance renders as the dash — "0g" here would be a claim, and on this
          particular sheet a badly wrong one. */

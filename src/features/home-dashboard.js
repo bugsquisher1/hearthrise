@@ -882,7 +882,9 @@
     var srcHtml = earnedWhile
       ? '<div class="hd-away-src">Earned while ' + esc(earnedWhile) + '.</div>' : '';
 
-    return '<div class="hd-awayband"><div class="hd-h"><h3>While you were away</h3></div>' +
+    var LF = window.HearthriseLuckyFinds, lfBand = '';
+    try { lfBand = (LF && typeof LF.awayBandHtml === 'function' && LF.awayBandHtml()) || ''; } catch (e) { lfBand = ''; }
+    return '<div class="hd-awayband"><div class="hd-h"><h3>While you were away</h3></div>' + lfBand +
       '<div class="hd-away">' +
         '<div class="hd-away-sum">' +
           '<div class="mi">' + gly('uiIdle', 22, '', 'var(--gold-2)') + '</div>' +

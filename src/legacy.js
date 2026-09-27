@@ -2750,18 +2750,14 @@ function ensureStarterCombatKit(){
    getBonus wrapper chain, the combat-style modules) into an explicit context
    and hands it to the pure core. The formulas, the clamps and the balance
    comments now live in that file — one implementation, which is what lets a
-   Deno Edge Function resolve an offline kill exactly the way the client does.
-
-   The window.* hops are kept deliberately: getArmorSetBonus is WRAPPED by
-   the clan seat, and calling core directly would silently escape that
-   wrapper. Delegation must not change who is in the chain. ── */
+   Deno Edge Function resolve an offline kill exactly the way the client does. ── */
 function getPlayerCombatRolls(m,eq=getEquipmentStats()){
   const C=window.HearthriseCore;
   const _set=(typeof getArmorSetBonus==='function')?getArmorSetBonus():null;
   return C.combat.playerCombatRolls(m, { ...C.combatCtx(eq, _set), monsterId: C.monsterId(m) }); /* id AT THE CALL, never in combatCtx — that function says why (Security F4) */
 }
-/* Wave 5c: armour SET bonus. Count equipped armour pieces by material tier; the
-   dominant tier at 5+ pieces (a near-full/full same-tier set) grants tier×1% crit
+/* Wave 5c: armour SET bonus. Count equipped armour pieces by tier AND archetype
+   (tier|armourClass, combat.js:245); the dominant bucket at 5+ pieces grants tier×1% crit
    (Dawnsteel full set = +7%). Derived from item.tier — no per-item authoring. */
 function getArmorSetBonus(){
   if(typeof G==='undefined' || !G) return null;
@@ -6400,8 +6396,6 @@ function combatSimCtx(){
     items:ITEMS,
     bonus:C.bonus,
     style:(typeof window.getActiveCombatStyle==='function')?window.getActiveCombatStyle():null,
-    /* Through the window.* helpers, not straight to core: getArmorSetBonus
-       is WRAPPED by the clan seat, and calling core directly would drop it. */
     playerRolls:function(m){ eq=getEquipmentStats(); return getPlayerCombatRolls(m,eq); },
     monsterRolls:function(m){ return getMonsterCombatRolls(m,eqOf()); },
     weakness:function(m){ return getWeaknessInfo(m,eqOf()); },
@@ -7537,7 +7531,7 @@ function renderLoadout(){
       <div class="stat"><b>+${fmtStat(s.atkB)}</b><span>Atk</span></div>
       <div class="stat"><b>+${fmtStat(s.strB)}</b><span>Str</span></div>
       <div class="stat"><b>+${fmtStat(s.defB)}</b><span>Def</span></div>
-      <div class="stat"><b>+${Math.round(s.critB*100)}%</b><span>Crit</span></div>
+      <div class="stat" title="Gear + set bonus + active buffs — what your hits roll against"><b>${(c=>c==null?'—':Math.round(c*100)+'%')(window.getPlayerCritChance?window.getPlayerCritChance():null)}</b><span>Crit</span></div>
       <div class="stat"><b>+${Math.round(s.xpB*100)}%</b><span>XP</span></div>
       <div class="stat"><b>+${Math.round(s.spdB*100)}%</b><span>Spd</span></div>
       <div class="stat"><b>${WEAPON_TYPES[s.weaponType]}</b><span>Type</span></div>
@@ -13531,7 +13525,7 @@ function maybeShowWelcome(opts){
   var _hfBand = '';
   try {
     if (window.HearthriseHearthfind && typeof window.HearthriseHearthfind.claimAwayBand === 'function') {
-      _hfBand = window.HearthriseHearthfind.claimAwayBand() || '';
+      _hfBand = (window.HearthriseHearthfind.claimAwayBand() || '') + ((window.HearthriseLuckyFinds && window.HearthriseLuckyFinds.claimAwayBand && window.HearthriseLuckyFinds.claimAwayBand()) || '');
     }
   } catch (e) { _hfBand = ''; }
   document.getElementById('welcome-rows').innerHTML = _hfBand + rows.map(function(r){

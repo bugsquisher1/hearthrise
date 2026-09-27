@@ -81,16 +81,6 @@
           };
         }
 
-        // ── Player market tracking (added with src/market.js)
-        if(!save.marketStats){
-          save.marketStats = {
-            listed: 0,
-            sold: 0,
-            bought: 0,
-            taxPaidGold: 0,
-          };
-        }
-
         // ── Bounty hunter shape: warrants must be an object
         save.bountyHunter = save.bountyHunter || {};
         if(typeof save.bountyHunter.warrants !== 'object' || !save.bountyHunter.warrants){

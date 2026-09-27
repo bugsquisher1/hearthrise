@@ -75,6 +75,33 @@ const benchSwitchArc = async (body) => {
   }
 };
 
+/* ONE market_list ON A SCRIPTED WIRE (MP-R3a/b): list 3 normal_log @ 7g with
+   the seam configured, let `respond` answer, and report what is left behind. */
+const marketListArc = async (respond) => {
+  const G = window.G, A = window.HearthriseAccrual, Gd = window.HearthriseGold, M = window.HearthriseMarket;
+  const snap = snapshotG(), realFetch = window.fetch, realNotify = window.notify, wasOn = A.isServerAccrualEnabled();
+  const wasAck = A.isReplacementAcknowledged(), KEY = 'hearthrise:market:listings', saved = localStorage.getItem(KEY);
+  const said = [];
+  try {
+    A.setServerAccrualEnabled(true); A.acknowledgeReplacement(true);
+    Gd.resetGold(); Gd.configureGold({ url: 'https://probe.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
+    localStorage.setItem(KEY, '[]');
+    window.notify = (m) => { said.push(String(m)); };
+    window.fetch = function (u) { return /hr-accrue/.test(String(u)) ? respond() : realFetch.apply(this, arguments); };
+    window.addItem('normal_log', 3);
+    const before = G.inventory.normal_log || 0;
+    const r = M.listItem('normal_log', 3, 7);
+    await drain();
+    const rows = JSON.parse(localStorage.getItem(KEY) || '[]').filter((l) => l.itemId === 'normal_log' && l.askEach === 7);
+    return { r, before, have: G.inventory.normal_log || 0, rows, said };
+  } finally {
+    window.fetch = realFetch; window.notify = realNotify;
+    Gd.resetGold(); Gd.configureGold(null); A.acknowledgeReplacement(wasAck); restoreAccrualSwitch(wasOn);
+    if (saved === null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, saved);
+    restoreG(snap);
+  }
+};
+
 export default [
 
   /* ══ b337 — SERVER-AUTHORITATIVE AWAY TIME (the client rewire, slice 1) ════
@@ -8159,6 +8186,7 @@ export default [
     const save = { gold: G.gold, gems: G.gems,
       skills: JSON.parse(JSON.stringify(G.skills)), inventory: JSON.parse(JSON.stringify(G.inventory)) };
     const savedListings = localStorage.getItem('hearthrise:market:listings');
+    const savedHistory = localStorage.getItem('hearthrise:market:history');
     let ver = 400;
     let sent = [];
 
@@ -8242,9 +8270,12 @@ export default [
         return Promise.resolve(new Response(JSON.stringify({ ok: false, verb: 'market_buy', error: 'gone' }),
           { status: 409 }));
       };
-      const r2 = M.buyListing(LID, 8);
+      localStorage.setItem('hearthrise:market:history', '{"probe":1}');
+      const r2 = M.buyAggregated('normal_log', 8, 25, false);
       assert(r2 && r2.ok === true, 'the second market buy refused locally: ' + JSON.stringify(r2));
       await drain();
+      assert(localStorage.getItem('hearthrise:market:history') === '{"probe":1}',
+        'the player Buy path wrote a client-side price record — a refused buy moved "market" stats');
       assert(sent.length === 1, 'the refused buy sent ' + sent.length + ' intents, expected 1');
       assert(G.gold === 5000,
         'a refused market buy left gold at ' + G.gold + ' instead of 5000. `gone` is refused before '
@@ -8262,15 +8293,16 @@ export default [
       }]));
       const localId = JSON.parse(localStorage.getItem('hearthrise:market:listings'))[0].id;
       G.gold = 900; G.inventory = {}; sent = []; stampBalanceLikeLoad(G);
-      M.buyListing(localId, 3);
+      const r3 = M.buyListing(localId, 3);
       await drain();
+      assert(r3 && r3.ok === false, 'a listing the server never named was bought: ' + JSON.stringify(r3));
       assert(sent.length === 0,
         'a listing that exists only locally was named to the server: ' + JSON.stringify(sent));
       assert(Gd.getGoldState().pending.length === 0,
         'a local-only listing recorded a prediction nothing will ever retire');
-      assert(G.gold === 900 - 21,
-        'the local-only buy left gold at ' + G.gold + ' instead of ' + (900 - 21)
-        + ' — with no server call the local payment IS the payment');
+      assert(G.gold === 900 && !G.inventory.normal_log,
+        'the local-only buy moved gold to ' + G.gold + ' / logs to ' + G.inventory.normal_log
+        + ' with no server call — the next envelope would silently undo it (C2)');
     } finally {
       window.fetch = realFetch;
       Gd.resetGold(); Gd.configureGold(null);
@@ -8278,9 +8310,113 @@ export default [
       restoreAccrualSwitch(wasOn);
       if (savedListings === null) localStorage.removeItem('hearthrise:market:listings');
       else localStorage.setItem('hearthrise:market:listings', savedListings);
+      if (savedHistory === null) localStorage.removeItem('hearthrise:market:history');
+      else localStorage.setItem('hearthrise:market:history', savedHistory);
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
     }
+  }),
+
+  () => tryRunAsync('MP-R1: a poisoned price store is never rendered — no 7d avg, no Top movers, no market avg', async () => {
+    const KEYS = ['hearthrise:market:history', 'hearthrise:market:listings'];
+    const saved = KEYS.map((k) => localStorage.getItem(k));
+    const tile = document.createElement('div');
+    try {
+      localStorage.setItem(KEYS[0], JSON.stringify({ normal_log: [{ eachPrice: 999, qty: 5, at: Date.now() }] }));
+      localStorage.setItem(KEYS[1], JSON.stringify([{ id: '11111111-2222-4333-8444-555555555555',
+        sellerId: 'someone-else', sellerName: 'Someone Else', itemId: 'normal_log', qty: 1, askEach: 9,
+        postedAt: Date.now(), expiresAt: Date.now() + 3600000 }]));
+      window.renderMarket();
+      const txt = document.getElementById('market-root').textContent;
+      assert(!/7d avg|Top movers|vs avg|No 7-day sales/.test(txt), 'the Market rendered a client-computed price statistic: ' + txt.slice(0, 300));
+      tile.className = 'invc-tile'; tile.setAttribute('data-item-id', 'normal_log');
+      document.body.appendChild(tile);
+      tile.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 60));
+      const tip = (document.getElementById('item-tooltip') || {}).textContent || '';
+      assert(!/market avg|999/.test(tip), 'the tooltip quoted the browser-local price store: ' + tip);
+    } finally {
+      tile.remove();
+      KEYS.forEach((k, i) => (saved[i] === null ? localStorage.removeItem(k) : localStorage.setItem(k, saved[i])));
+    }
+  }),
+
+  () => tryRunAsync('MP-R2: the tooltip and Open listings never say a number the market has not read', async () => {
+    const MP = window.HearthriseMarketPrices;
+    assert(MP && typeof MP.__setListingsState === 'function', 'src/net/market-prices.js did not load');
+    const KEY = 'hearthrise:market:listings', saved = localStorage.getItem(KEY), was = MP.getListingsState();
+    const one = JSON.stringify([{ id: '11111111-2222-4333-8444-555555555555', sellerId: 'someone-else',
+      sellerName: 'Someone Else', itemId: 'normal_log', qty: 1, askEach: 9, postedAt: Date.now() }]);
+    const tile = Object.assign(document.createElement('div'), { className: 'invc-tile' });
+    tile.setAttribute('data-item-id', 'normal_log'); document.body.appendChild(tile);
+    const line = (state, listings) => {
+      localStorage.setItem(KEY, listings); MP.__setListingsState(state);
+      tile.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+      const b = [...document.querySelectorAll('#item-tooltip b')].find((e) => e.textContent === 'On the market');
+      return b ? b.nextElementSibling : null;
+    };
+    try {
+      let el = line({ status: 'unknown' }, one);
+      assert(el && el.querySelector('[role="status"]') && !/g/.test(el.textContent), 'unknown market rendered a claim: ' + (el && el.textContent));
+      assert(line({ status: 'ok', at: Date.now() }, one).textContent === 'from 9g · 1 listed', 'a read market must say what is listed');
+      assert(line({ status: 'ok', at: Date.now() }, '[]').textContent === 'None listed', 'an empty read market must say None listed');
+      el = line({ status: 'error' }, one);
+      assert(el.querySelector('[role="status"]'), 'a failed read rendered ' + el.textContent);
+      MP.__setListingsState({ status: 'unknown' }); window.renderMarket();
+      const h = [...document.querySelectorAll('#market-root h3')].find((e) => /^Open listings/.test(e.textContent));
+      assert(h && h.querySelector('[role="status"]') && !/No open listings/.test(document.getElementById('market-root').textContent),
+        'an unread market claimed a count or emptiness: ' + (h && h.textContent));
+    } finally {
+      tile.remove(); MP.__setListingsState(was);
+      if (saved === null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, saved);
+    }
+  }),
+
+  () => tryRunAsync('MP-R3a: a refused market_list leaves no ghost and returns the escrow', async () => {
+    const o = await marketListArc(() => Promise.resolve(new Response(JSON.stringify(
+      { ok: false, verb: 'market_list', error: 'too_many_listings' }), { status: 409 })));
+    assert(o.r && o.r.ok === true, 'setup: the listing refused locally: ' + JSON.stringify(o.r));
+    assert(o.rows.length === 0, 'a refused listing stayed on the books (ghost, counts toward the cap): ' + JSON.stringify(o.rows));
+    assert(o.have === o.before, 'the refused listing kept the escrow: have ' + o.have + ', had ' + o.before);
+    assert(o.said.some((m) => /refused/i.test(m)), 'the refusal was never said: ' + JSON.stringify(o.said));
+  }),
+
+  () => tryRunAsync('MP-R3b: an unanswered market_list is dropped without a local refund', async () => {
+    const o = await marketListArc(() => Promise.reject(new TypeError('Failed to fetch')));
+    assert(o.r && o.r.ok === true, 'setup: the listing refused locally: ' + JSON.stringify(o.r));
+    assert(o.rows.length === 0, 'an unanswered listing stayed on the books: ' + JSON.stringify(o.rows));
+    assert(o.have === o.before - 3, 'an unanswered listing refunded locally (the server may have written): have ' + o.have);
+    assert(o.said.some((m) => /did not confirm/i.test(m)), 'the unknown outcome was never said: ' + JSON.stringify(o.said));
+  }),
+
+  () => tryRun('MP-R4: the listing hint quotes the vendor\'s real bid', () => {
+    const snap = snapshotG();
+    try {
+      assert(window.ITEMS.iron_ore && window.ITEMS.iron_ore.raw === true, 'fixture: iron_ore must be a raw material');
+      const bid = window.vendorPrice('iron_ore'), v = window.ITEMS.iron_ore.v;
+      assert(bid !== v, 'fixture: a raw item\'s vendor bid must differ from its v (' + bid + ' vs ' + v + ')');
+      window.addItem('iron_ore', 2); window.renderMarket();
+      const pick = document.getElementById('mk-list-id');
+      pick.value = 'iron_ore'; pick.dispatchEvent(new Event('change'));
+      const hint = document.getElementById('mk-list-hint').textContent;
+      assert(hint.indexOf('pays ' + bid + 'g') >= 0 && hint.indexOf(v + 'g each') < 0,
+        'the Market quoted a vendor price the vendor does not pay: "' + hint + '" (vendor pays ' + bid + 'g)');
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('MP-R5: ledger totals name their window', () => {
+    const MH = window.HearthriseMarketHistory, before = MH.getHistory(), N = MH.HISTORY_LIMIT;
+    assert(N > 0, 'market-history.js publishes no HISTORY_LIMIT');
+    const rows = (n) => MH.normalizeSales(Array.from({ length: n }, (_, i) => ({ id: i + 1, seller_user_id: 'me',
+      buyer_user_id: 'x', item_id: 'oak_log', qty: 1, gold_gross: 20, tax: 0, gold_net: 20, at: new Date().toISOString() })), 'me');
+    const head = (n) => {
+      MH.__setHistoryCache({ status: 'ok', userId: 'me', at: Date.now(), entries: rows(n) }); window.renderMarket();
+      return document.getElementById('market-root').textContent;
+    };
+    try {
+      assert(head(N).indexOf('last ' + N + ' trades') >= 0, 'a full ledger page printed lifetime-looking totals');
+      assert(head(N - 1).indexOf('last ' + N + ' trades') < 0, 'a short ledger claimed to be a window');
+    } finally { MH.__setHistoryCache(before); }
   }),
 
   () => tryRunAsync('B355-4: the client-authored buy-offer sub-market is INERT under the seam (Security M5/M6)', async () => {

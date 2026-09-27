@@ -26,7 +26,8 @@ import { ARTISAN_RECIPES } from '../data/recipes.js?v=558';
 import { SKILL_GUIDE } from '../data/skill-guide.js?v=558';
 /* The UNKNOWN-balance accessor. This screen prints the purse, so it is one of
    the surfaces that must render a pending balance rather than a number. */
-import { balanceMarkup } from '../net/balance.js?v=558';
+import { balanceMarkup, UNKNOWN_TEXT } from '../net/balance.js?v=558';
+import { heroClass } from '../render/skill-guide.js?v=558';
 
 /* b431 — skill-xp READ accessor (src/net/skill-record.js), DORMANT no-op today;
    the ESM analogue of the b429 legacy skillXp() sweep. */
@@ -38,26 +39,13 @@ function srXpOf(G, id) {
     : ((G && G.skills && G.skills[id]) || 0);
 }
 
+/* The Hero class line. heroClass walks the SKILLS_DEF roster through the
+   server-mirrored XP; nothing known yet paints the pending mark, never a
+   class built from factory defaults. */
 function deriveClass() {
-  const G = window.G;
-  if (!G?.skills) return { name: 'Adventurer', tagline: 'Path: Wanderer' };
-  const ids = Object.keys(G.skills);
-  if (ids.length === 0) return { name: 'Adventurer', tagline: 'Path: Wanderer' };
-  const topId = ids.reduce((a, b) => (srXpOf(G, b) > srXpOf(G, a) ? b : a));
-  const topXp = srXpOf(G, topId);
-  const classMap = {
-    attack: 'Warrior', strength: 'Berserker', defense: 'Guardian', hitpoints: 'Brawler',
-    prayer: 'Devotee', magic: 'Mage', ranged: 'Ranger', bountyHunter: 'Bounty Hunter',
-    woodcutting: 'Lumberjack', mining: 'Miner', fishing: 'Angler', farming: 'Farmhand',
-    cooking: 'Chef', crafting: 'Artificer', smithing: 'Smith',
-  };
-  const cn = classMap[topId] || 'Adventurer';
-  let tag;
-  if (topXp < 100) tag = 'Path: ' + cn;
-  else if (topXp < 1000) tag = 'Aspiring ' + cn;
-  else if (topXp < 10000) tag = 'Skilled ' + cn;
-  else tag = 'Master ' + cn;
-  return { name: cn, tagline: tag };
+  const G = window.G, SR = window.HearthriseSkillRecord;
+  const xpOf = (id) => (SR && typeof SR.skillXpForDisplayOr === 'function') ? SR.skillXpForDisplayOr(G, id, null) : null;
+  return heroClass(xpOf) || { name: null, tagline: UNKNOWN_TEXT };
 }
 
 // b221: the identity seam owns the portrait now — it resolves the player's

@@ -16,11 +16,11 @@
     var ov = document.getElementById('prof-pop-objectives');
     if(!ov){
       ov = document.createElement('div');
-      ov.id = 'prof-pop-objectives'; ov.className = 'prof-popout';
-      ov.innerHTML = '<div class="prof-popout-inner" onclick="event.stopPropagation()">'+
-        '<h3>'+((window.HR&&window.HR.icon)?(window.HR.icon('uiScroll',15,'--gold-2')||''):'')+' Objectives</h3>'+
-        '<div id="prof-pop-objectives-body"></div>'+
-        '<button class="prof-popout-close" onclick="document.getElementById(\'prof-pop-objectives\').classList.remove(\'show\')">Close</button>'+
+      ov.id = 'prof-pop-objectives'; ov.className = 'prof-popout hr-scrim';
+      ov.innerHTML = '<div class="prof-popout-inner hr-sheet" onclick="event.stopPropagation()">'+
+        '<h3 class="hr-sheet-head">'+((window.HR&&window.HR.icon)?(window.HR.icon('uiScroll',15,'--gold-2')||''):'')+' Objectives</h3>'+
+        '<div id="prof-pop-objectives-body" class="hr-sheet-body"></div>'+
+        '<button class="prof-popout-close hr-sheet-foot" data-hr-dismiss onclick="document.getElementById(\'prof-pop-objectives\').classList.remove(\'show\')">Close</button>'+
         '</div>';
       ov.addEventListener('click', function(e){if(e.target===ov) ov.classList.remove('show');});
       document.body.appendChild(ov);

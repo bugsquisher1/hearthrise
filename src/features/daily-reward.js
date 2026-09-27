@@ -615,7 +615,7 @@
   // them; this one had been quietly exempt since b169.
   var BLOCKING_OVERLAYS = '.ftue-root,.hr-rn-scrim,.hr-id-scrim,.hr-gate,#hr-account-gate,' +
     '#hr-welcome-modal,#hr-post-signup-modal,.beta-overlay,' +
-    '[class*="welcome-overlay"],.acq-overlay,.ach-overlay';
+    '#welcome-overlay.show,.acq-overlay.show,.ach-overlay.show';   // OPEN state: these nodes outlive their close
   function anotherModalUp() {
     return !!document.querySelector(BLOCKING_OVERLAYS);
   }

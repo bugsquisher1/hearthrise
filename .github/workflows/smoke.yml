@@ -2556,6 +2556,17 @@ jobs:
           node tests/item-flavour-coverage.mjs
           node tests/item-flavour-coverage.mjs --selftest
 
+      # THE HEARTH CODEX — every glossary sentence is bound to the engine or the
+      # SQL authority. Client-only (src/data/codex.js is outside the hr-accrue
+      # pack, CODEX-8), so milliseconds. --selftest plants ten defects (a slowed
+      # away rate, a named cap raiser, a digit, "twelve", an unclaimed sentence,
+      # a static import, a fake opener, a missing bind, "double", a G read).
+      - name: Hearth Codex claims - the glossary cannot drift from the game
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/codex-claims.mjs
+          node tests/codex-claims.mjs --selftest
+
       # THE PLOT-TIER PRICE — the client and the server may never disagree.
       # b510 re-priced the farm plot tier in GOLD behind a farming level after
       # production measured farm plants per day falling to ZERO for nine days

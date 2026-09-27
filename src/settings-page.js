@@ -636,7 +636,9 @@
       + row('Left-handed mode (mobile)', toggle('leftHand', d.leftHand))
       + autoEatHtml()
       + '<div class="ss-row"><div class="ss-label">Replay tutorial</div>'
-      +   '<button class="btn btn-sm" id="set-replay-tutorial">Show again</button></div>';
+      +   '<button class="btn btn-sm" id="set-replay-tutorial">Show again</button></div>'
+      + '<div class="ss-row"><div class="ss-label">Hearth Codex — what everything means</div>'
+      +   '<button class="btn btn-sm" id="set-open-codex">Open</button></div>';
   }
 
   // ── Chat & Privacy ─────────────────────────────────────────
@@ -1228,6 +1230,13 @@
         if(document.querySelector('.ftue-root .ftue-card')) return;
         if(typeof window.notify === 'function') window.notify('The tutorial could not be started.', 'kill');
       }, 600);
+    });
+
+    var cx = root.querySelector('#set-open-codex');
+    if(cx) cx.addEventListener('click', function(){
+      var m = document.getElementById('settings-modal');
+      if(m) m.classList.remove('show');
+      if(window.HearthriseCodex) window.HearthriseCodex.open();
     });
 
     // Block list

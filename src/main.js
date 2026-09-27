@@ -464,6 +464,7 @@ import { setupCombatRender } from './features/combat-render.js?v=555';
 import { setupCombatScreens } from './features/combat-screens.js?v=555';
 import { setupRecipeBook } from './features/recipe-book.js?v=555';
 import { setupItemIndex } from './features/item-index.js?v=555';
+import { setupCodex } from './features/codex.js?v=555';
 
 // Boot diagnostics
 const counts = {
@@ -517,6 +518,7 @@ function tryBootFeatures() {
   boot('combat-screens', setupCombatScreens);
   boot('recipe-book', setupRecipeBook);
   boot('item-index', setupItemIndex);
+  boot('codex', setupCodex);
   /* b228: setupCompanions() wraps window.getBonus, and it is the LAST wrapper
      any boot path installs. Hand the per-key power budget back the outermost
      position immediately rather than waiting for its 1s watchdog — otherwise

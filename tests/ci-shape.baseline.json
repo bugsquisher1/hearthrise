@@ -182,6 +182,8 @@
     "node tests/quest-reward-parity.mjs --selftest": "client-guards",
     "node tests/item-flavour-coverage.mjs": "client-guards",
     "node tests/item-flavour-coverage.mjs --selftest": "client-guards",
+    "node tests/codex-claims.mjs": "client-guards",
+    "node tests/codex-claims.mjs --selftest": "client-guards",
     "node tests/plot-tier-parity.mjs": "client-guards",
     "node tests/plot-tier-parity.mjs --selftest": "client-guards",
     "node tests/plot-tier-parity.mjs --mutate": "client-guards",

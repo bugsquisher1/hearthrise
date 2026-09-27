@@ -788,14 +788,14 @@ body.in-combat #combat-area {
 
 /* ---------- Combat preview modal (zone-modal) ------------------- */
 
+/* Position, gutter and height cap are the .hr-scrim/.hr-sheet primitive's
+   (art-direction.css); the header and footer stay put, the middle scrolls. */
 .mob-preview-overlay {
-  position: fixed; inset: 0;
   background: rgba(0,0,0,.78);
   backdrop-filter: blur(4px);
   z-index: 99998;
   display: none;
   align-items: center; justify-content: center;
-  padding: 24px;
   animation: mp-fade .15s ease-out;
 }
 .mob-preview-overlay.open { display: flex; }
@@ -804,7 +804,7 @@ body.in-combat #combat-area {
 .mp-modal {
   background: linear-gradient(180deg,#201b15,#110e0a);
   border: 1px solid rgba(243,209,129,.3); border-radius: 12px;
-  width: min(820px, 100%); max-height: 92vh; overflow-y: auto;
+  width: min(820px, 100%);
   box-shadow: 0 24px 80px rgba(0,0,0,.6), 0 0 80px rgba(243,209,129,.08);
   position: relative;
   padding: 24px 28px 20px;
@@ -2625,7 +2625,7 @@ body.in-combat #combat-area {
 /* ===== <= 768px : tablet/landscape phone ===== */
 @media (max-width: 768px) {
   /* Combat preview modal — already has 600px rule, tighten further */
-  .mp-modal { max-width: calc(100vw - 24px); padding: 18px; }
+  .mp-modal { padding: 18px; }
   .mp-foe-name { font-size:calc(21.5px * var(--ui-scale, 1)); }
 
   /* Combat layout: collapse arena to single column */

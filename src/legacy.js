@@ -11922,8 +11922,8 @@ console.log('Activity bar: loaded');
     if(document.getElementById('mob-preview')) return;
     var ov = document.createElement('div');
     ov.id = 'mob-preview';
-    ov.className = 'mob-preview-overlay';
-    ov.innerHTML = '<div class="mp-modal" id="mp-modal"></div>';
+    ov.className = 'mob-preview-overlay hr-scrim';
+    ov.innerHTML = '<div class="mp-modal hr-sheet" id="mp-modal"></div>';
     ov.addEventListener('click', function(e){ if(e.target === ov) closePreview(); });
     document.body.appendChild(ov);
   }
@@ -12203,15 +12203,15 @@ console.log('Activity bar: loaded');
     var foodName = foodId && window.ITEMS[foodId] ? window.ITEMS[foodId].n : 'No food';
 
     modal.innerHTML = `
-      <button class="mp-close" aria-label="Close">✕</button>
-      <div class="mp-header">
+      <button class="mp-close" aria-label="Close" data-hr-dismiss>✕</button>
+      <div class="mp-header hr-sheet-head">
         <div class="mp-portrait">${getMonsterIcon(monsterId)}</div>
         <div class="mp-title">
           <h2>${m.name}</h2>
           <div class="mp-sub">${m.family||'monster'} · Tier ${m.tier||1}</div>
         </div>
       </div>
-
+      <div class="hr-sheet-body">
       <div class="mp-stats-row">
         <div class="mp-stat-card">
           <div class="mp-stat-label">HP</div>
@@ -12265,8 +12265,8 @@ console.log('Activity bar: loaded');
         <h4>Loot Table (${(m.drops||[]).length})</h4>
         <div class="mp-loot-grid">${(m.drops||[]).map(lootRowHtml).join('') || '<div class="mp-empty">No drops.</div>'}</div>
       </div>
-
-      <div class="mp-footer">
+      </div>
+      <div class="mp-footer hr-sheet-foot">
         <div class="mp-food">
           <div class="mp-food-icon">${foodIcon}</div>
           <div class="mp-food-info">

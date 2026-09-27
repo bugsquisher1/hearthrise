@@ -12,6 +12,13 @@ import { SCREEN_PRIMERS } from '../../data/screen-primers.js?v=555';
 /* The primer markers on this device, so a PRIMER test can put them back exactly. */
 const primerSnap = (S) => S.keys().filter((k) => k.indexOf('hearthrise:primer:') === 0).map((k) => [k, S.get(k)]);
 const primerRestore = (S, snap) => { primerSnap(S).forEach(([k]) => S.remove(k)); snap.forEach(([k, v]) => S.set(k, v)); };
+/* A cold harness boot has the FTUE tour up, and a primer rightly never mounts
+   over it; detach the tour for the test body and put it back where it was. */
+const parkTour = () => {
+  const held = [...document.querySelectorAll('.ftue-root')].map((el) => [el, el.parentNode, el.nextSibling]);
+  held.forEach(([el]) => el.remove());
+  return () => held.forEach(([el, parent, next]) => parent.insertBefore(el, next && next.parentNode === parent ? next : null));
+};
 
 export default [
   () => tryRun('boot: G defined', () => {
@@ -140,7 +147,7 @@ export default [
   () => tryRun('PRIMER-1: a first visit to the Farm shows one in-flow primer, and Got it retires it', () => {
     const SP = window.HearthriseScreenPrimers, S = window.HearthriseStorage, K = 'hearthrise:primer:panel-farming';
     assert(SP && S, 'the primer seam or the storage seam is not published');
-    const was = SP._park(false), mark = S.get(K);
+    const was = SP._park(false), mark = S.get(K), unpark = parkTour();
     try {
       S.remove(K); showTab('profile'); showTab('farming');
       const panel = document.getElementById('panel-farming'), els = panel.querySelectorAll('[data-primer="panel-farming"]');
@@ -158,13 +165,13 @@ export default [
     } finally {
       if (mark == null) S.remove(K); else S.set(K, mark);
       document.querySelectorAll('[data-primer]').forEach((el) => el.remove());
-      SP._park(was);
+      SP._park(was); unpark();
     }
   }),
   () => tryRun('PRIMER-2: no row, a dismissal or the tour on screen means no primer; reset() spares the FTUE flag', () => {
     const SP = window.HearthriseScreenPrimers, S = window.HearthriseStorage, F = 'hearthrise:ftue:completed';
     assert(SP && S, 'the primer seam or the storage seam is not published');
-    const was = SP._park(false), flag = S.get(F), snap = primerSnap(S), tour = document.createElement('div');
+    const was = SP._park(false), flag = S.get(F), snap = primerSnap(S), tour = document.createElement('div'), unpark = parkTour();
     const clean = () => ({ dismissed: false, panel: document.createElement('section') });
     try {
       assert(SP.html('panel-profile') === '', 'a panel with no row rendered a primer');
@@ -174,7 +181,7 @@ export default [
       assert(!SP.shouldShow('panel-farming', clean()), 'a primer would mount while the tour card is on screen');
       tour.remove(); S.set(F, 'sentinel'); SP.reset();
       assert(S.get(F) === 'sentinel', 'reset() touched the FTUE flag; it may clear the SCREEN_PRIMERS keys only');
-    } finally { tour.remove(); if (flag == null) S.remove(F); else S.set(F, flag); primerRestore(S, snap); SP._park(was); }
+    } finally { tour.remove(); if (flag == null) S.remove(F); else S.set(F, flag); primerRestore(S, snap); SP._park(was); unpark(); }
   }),
   () => tryRun('PRIMER-3: Settings > Show screen tips again clears exactly the SCREEN_PRIMERS markers', () => {
     const SP = window.HearthriseScreenPrimers, S = window.HearthriseStorage, OTHER = 'hearthrise:ftue:completed';

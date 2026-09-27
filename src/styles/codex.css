@@ -25,3 +25,8 @@
   margin: 0 0 var(--gap);
   line-height: 1.5;
 }
+/* The door is a real touch target: a later .btn rule out-ranks
+   the plain .tap floor (measured 36px), so it is restated here. */
+#codex-modal .codex-door {
+  min-height: var(--tap);
+}

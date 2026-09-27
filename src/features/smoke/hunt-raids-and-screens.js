@@ -17,7 +17,7 @@ import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, 
 function dwBench(skill, lv, nodeId, fn) {
   const G = window.G, C = window.HearthriseCore, snap = snapshotG();
   const real = { getBonus: window.getBonus, restedQuantum: window.restedQuantum, getEquipmentStats: window.getEquipmentStats, pred: G._pred ? JSON.parse(JSON.stringify(G._pred)) : undefined };
-  const setLv = (n) => { G.skills = Object.assign({}, G.skills, { [skill]: window.xpForLevel(n) }); };
+  const setLv = (n) => { G.skills = Object.assign({}, G.skills, { [skill]: window.xpForLevel(n) }); stampRecordLikeLoad(G); };
   /* The DISPLAY read: server truth + prediction, so an armed skills record
      (addXp predicts rather than writing G.skills) measures the same delta. */
   const xpView = () => {
@@ -32,7 +32,7 @@ function dwBench(skill, lv, nodeId, fn) {
     fn(G, { setLv, xpView });
   } finally {
     window.getBonus = real.getBonus; window.restedQuantum = real.restedQuantum; window.getEquipmentStats = real.getEquipmentStats;
-    G._pred = real.pred; restoreG(snap);
+    G._pred = real.pred; restoreGAndRecord(snap);
   }
 }
 
@@ -3116,18 +3116,18 @@ export default [
          it locks by class, an at-lock "Level N" label and a notify() click. */
       const head = (html) => html.slice(0, html.indexOf('>') + 1);
       G.activeSkill = null; G.skillTargetId = null;
-      G.skills = Object.assign({}, G.skills, { woodcutting: window.xpForLevel(node.req - 1) });
+      G.skills = Object.assign({}, G.skills, { woodcutting: window.xpForLevel(node.req - 1) }); stampRecordLikeLoad(window.G);
       const below = AG.__tileForGather(node, 'woodcutting');
       assert(/class="act-tile[^"]*\blocked\b/.test(head(below)), 'at Woodcutting 51 the Maple Grove tile must carry the `locked` class: ' + head(below));
       assert(/class="at-lock"[^>]*>[\s\S]*Level 52/.test(below), 'the locked tile must name the level it needs (Level 52)');
       assert(/onclick="notify\(/.test(head(below)) && below.indexOf('hrActivityTileClick') < 0,
         'at Woodcutting 51 the click must only toast the requirement and never reach hrActivityTileClick: ' + head(below));
-      G.skills = Object.assign({}, G.skills, { woodcutting: window.xpForLevel(node.req) });
+      G.skills = Object.assign({}, G.skills, { woodcutting: window.xpForLevel(node.req) }); stampRecordLikeLoad(window.G);
       const live = AG.__tileForGather(node, 'woodcutting');
       assert(!/class="act-tile[^"]*\blocked\b/.test(head(live)) && live.indexOf('at-lock') < 0, 'at Woodcutting 52 the Maple Grove tile must be LIVE: ' + head(live));
       assert(head(live).indexOf("onclick=\"hrActivityTileClick('woodcutting','maple_grove',8200)\"") >= 0,
         'at Woodcutting 52 the click must start the stand: ' + head(live));
-    } finally { restoreG(snap); }
+    } finally { restoreGAndRecord(snap); }
   }),
 
   () => tryRun('TIMBERLINE-3: one real chop at the Maple Grove at Woodcutting 52 banks exactly 2 Maple Logs and floor(78 × 0.39) = 30 XP', () => {

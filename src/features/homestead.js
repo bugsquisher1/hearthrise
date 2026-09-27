@@ -1021,6 +1021,31 @@
     });
   }
 
+  /* The Trophy Room wall: the server's claimed rows via HearthriseTrophies,
+     never the mirror. Claims UNKNOWN (no settle yet, or a body without the
+     trophies key) ⇒ no section at all, so a player with trophies is never told
+     the wall is bare; the bare line shows only when known AND empty. Names are
+     escaped here; the lore line is charset-guarded (tests/lore-notes.mjs). */
+  function trophyWallSections() {
+    var T = window.HearthriseTrophies;
+    if (!T || typeof T.wallRows !== 'function' || typeof T.claimsKnown !== 'function') return [];
+    var w = T.wallRows({ known: T.claimsKnown() === true });
+    if (!w || w.known !== true) return [];
+    var out = [{
+      kind: 'rows',
+      title: 'On the wall',
+      rows: w.rows.map(function (r) {
+        return { name: esc(r.name), right: '<span class="hr-cs-val"><b>' + esc(r.stageName) + '</b></span>' };
+      }),
+      empty: 'The wall is bare. A trophy goes up after enough kills of a single monster, and the Bestiary shows how close each one is.'
+    }];
+    if (w.more > 0) out.push({ kind: 'note', html: 'and ' + w.more + ' more on the wall' });
+    var L = window.HearthriseLore;
+    var lore = (w.rows.length && L && typeof L.trophy === 'function') ? L.trophy(w.topStageId) : '';
+    if (lore) out.push({ kind: 'note', html: esc(lore) });
+    return out;
+  }
+
   /* Descriptor → the seam's section list. This is the ONLY place that knows
      the RoomModal's vocabulary, and it never asks the renderer for anything
      pillar-specific — `theme` is a class suffix and the rest is the published
@@ -1046,6 +1071,7 @@
         }),
         empty: 'This rung grants no passive bonus.'
       });
+      if (id === 'trophy') sections = sections.concat(trophyWallSections());
     }
 
     /* The FULL ladder, owned rungs included (spec §5 rule 3). A ladder that
@@ -1366,6 +1392,7 @@
     roomCap: roomCap,
     roomDescriptor: roomDescriptor,
     modalDescriptor: modalDescriptor,
+    trophyWallSections: trophyWallSections,
     roomScene: roomScene,
     renderRoomGrid: renderRoomGrid,
     openRoom: openRoom,

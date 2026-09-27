@@ -800,6 +800,13 @@
   // legacy always-on `[class*=...]` rules can't hijack them. Token colors +
   // fallbacks → theme-aware (cream on Cozy, dark on Hearthlight).
   function fmt(n) { return (n || 0).toLocaleString(); }
+  /* Rank lore from src/data/lore-notes.js via window.HearthriseLore, read at
+     render time; '' when it is absent so a missing module shows no line. */
+  function rankLoreOf(id) {
+    var L = window.HearthriseLore;
+    var t = (L && typeof L.rank === 'function') ? L.rank(id) : '';
+    return typeof t === 'string' ? t : '';
+  }
 
   function ensureStyle() {
     if (document.getElementById('hr-rn-css')) return;
@@ -833,6 +840,7 @@
       '.hr-rn-info{flex:1;min-width:0}',
       '.hr-rn-nm{font-weight:700;font-size:calc(16px * var(--ui-scale, 1));color:var(--ink,#e9e2cf)}',
       '.hr-rn-unlock{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3,#a5896a);margin-top:1px}',
+      '.hr-rn-lore{font-size:calc(14px * var(--ui-scale, 1));color:var(--ink-2);font-style:italic;line-height:1.45;margin-top:4px}',
       '.hr-rn-req{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3,#a5896a);white-space:nowrap}',
       '.hr-rn-claim{border:none;border-radius:8px;padding:7px 12px;font-weight:800;font-size:calc(14.5px * var(--ui-scale, 1));cursor:pointer;background:linear-gradient(180deg,var(--gold,#f0b860),var(--gold-2,#d99c40));color:var(--bg-0,#20160a);white-space:nowrap;flex:0 0 auto}',
       '.hr-rn-claim:active{transform:translateY(1px)}',
@@ -949,11 +957,15 @@
         ? '<div class="hr-rn-unlock">The realm has counted ' + fmt(short.high) + ' of ' +
             fmt(short.min) + ' — this unlocks itself as it catches up.</div>'
         : '';
+      /* Lore narrates the CURRENT rank only once the realm has counted it;
+         st.rank may otherwise be the client's prediction (countedRenown). */
+      var lore = (i === curIdx && st.counted === true) ? rankLoreOf(rank.id) : '';
+      var loreLine = lore ? '<div class="hr-rn-lore">' + lore + '</div>' : '';
       return '<div class="' + cls + '">' +
         '<div class="hr-rn-medal">' + medal + '</div>' +
         '<div class="hr-rn-info"><div class="hr-rn-nm">' + rank.name + '</div>' +
         '<div class="hr-rn-unlock">' + rank.unlock + (hasReward(rank) ? '  ·  ' + rewardText(rank.reward) : '') + '</div>' +
-        shortLine + '</div>' +
+        shortLine + loreLine + '</div>' +
         right + '</div>';
     }).join('');
 
@@ -1012,6 +1024,7 @@
   function celebrate(rank) {
     ensureStyle();
     var claimable = hasReward(rank);
+    var lore = rankLoreOf(rank.id);
     var scrim = document.createElement('div');
     scrim.className = 'hr-rn-scrim';
     scrim.id = 'hr-rn-cele';
@@ -1028,6 +1041,7 @@
         '</svg>' +
         '<div class="big">' + rank.name + '</div>' +
         '<div class="hr-rn-sub" style="margin-bottom:4px">You are now <b>' + rank.title + '</b></div>' +
+        (lore ? '<div class="hr-rn-lore">' + lore + '</div>' : '') +
         '<div class="hr-rn-unlock" style="font-size:calc(14.5px * var(--ui-scale, 1));margin-bottom:16px">' + rank.unlock + '</div>' +
         (claimable
           ? '<button class="hr-rn-claim" data-cele-claim="' + rank.id + '" style="padding:10px 20px;font-size:calc(16px * var(--ui-scale, 1))">Claim ' + rewardText(rank.reward) + '</button>'

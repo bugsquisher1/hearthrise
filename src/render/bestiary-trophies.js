@@ -218,6 +218,43 @@ export function isClaimable(id, stage) {
   return stageOfMonster(id) >= st && !isClaimed(id, st);
 }
 
+/**
+ * Has the SERVER stated the claimed set at all? True only when a mirror exists
+ * AND its envelope carried the trophies key — so "no trophies" (known, empty)
+ * is never confused with "not yet told" (no settle, or a lean body). Read-only.
+ */
+export function claimsKnown() {
+  const b = mirror();
+  return !!b && b.hasTrophyKey === true;
+}
+
+/**
+ * The Trophy Room wall, PURE: every input is injectable and the defaults read
+ * the mirror only through isClaimed/claimsKnown. One row per monster at its
+ * highest claimed stage, highest stage first, then roster order; `cap` rows
+ * shown and `more` counts the rest. Names are raw — the caller escapes them.
+ */
+export function wallRows(opts) {
+  const o = opts || {};
+  const roster = o.roster || w().MONSTERS || {};
+  const has = typeof o.isClaimed === 'function' ? o.isClaimed : isClaimed;
+  const known = 'known' in o ? o.known === true : claimsKnown();
+  const cap = Number.isFinite(o.cap) ? Math.max(0, Math.floor(o.cap)) : 12;
+  const all = [];
+  Object.keys(roster).forEach((id, order) => {
+    for (let s = MAX_TROPHY_STAGE; s >= 1; s -= 1) {
+      if (!has(id, s)) continue;
+      const row = TROPHY_STAGES[s - 1];
+      all.push({ id, name: (roster[id] && roster[id].name) || id, stage: s,
+        stageId: row.id, stageName: TROPHY_STAGE_NAMES[row.id] || row.id, order });
+      break;
+    }
+  });
+  all.sort((a, b) => (b.stage - a.stage) || (a.order - b.order));
+  const rows = all.slice(0, cap).map(({ order, ...r }) => r);
+  return { known, rows, more: Math.max(0, all.length - cap), topStageId: all.length ? all[0].stageId : '' };
+}
+
 /** The display name of a stage, by its stable id. '' below the first rung. */
 export function stageName(stage) {
   const row = TROPHY_STAGES[Math.floor(Number(stage) || 0) - 1];
@@ -398,6 +435,8 @@ export function setupBestiaryTrophies() {
     nextOfMonster,
     isClaimed,
     isClaimable,
+    claimsKnown,
+    wallRows,
     stageName,
     badgeHtml,
     nextThresholdHtml,

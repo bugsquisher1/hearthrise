@@ -28,6 +28,7 @@ import { MONSTERS } from './data/monsters.js?v=555';
 import { MONSTER_CLASSES, MONSTER_CLASS_ORDER, resolveMonsterProfile, auditRoster, TIER_BANDS } from './data/monster-classes.js?v=555';
 import { wiredIconMap, EXPECTED as MONSTER_ART_EXPECTED, pendingArt } from './data/monster-art.js?v=555';
 import { MONSTER_NOTES } from './data/monster-notes.js?v=555';
+import { companionLore, rankLore, trophyLore } from './data/lore-notes.js?v=555';
 import * as ItemArt from './data/item-art.js?v=555';
 import { ITEMS, foodClassOf, isAutoEatable, foodKindOf, FOOD_KIND_META } from './data/items.js?v=555';
 import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, EQUIP_SLOT_META } from './data/gathering.js?v=555';
@@ -112,6 +113,7 @@ window.HearthriseMonsterClasses = {
 };
 window.HearthriseMonsterArt = { expected: MONSTER_ART_EXPECTED, pending: pendingArt };
 window.HearthriseMonsterNotes = MONSTER_NOTES;
+window.HearthriseLore = Object.freeze({ companion: companionLore, rank: rankLore, trophy: trophyLore });
 window._monsterIcon = Object.assign(window._monsterIcon || {}, wiredIconMap());
 
 /* b358 — the Hearthfire ITEM art manifest, same shape as the monster one.

@@ -362,16 +362,6 @@
         <pre id="ap-audit-out" style="display:none"></pre>
       </div>
 
-      <div class="ap-section">
-        <h4>Player Market</h4>
-        <div class="ap-row">
-          <button class="ap-btn" data-act="market-seed">Seed Test Listings</button>
-          <button class="ap-btn danger" data-act="market-clear">Clear Seeded</button>
-        </div>
-        <div class="ap-row" style="margin-top:4px;font-size:calc(14.5px * var(--ui-scale, 1));color:#8a92a0">
-          Drops 26 fake listings from fictional NPC sellers + 7 days of sales history so you can test buy / search / analytics.
-        </div>
-      </div>
     `;
 
     // Wire all the buttons
@@ -392,22 +382,6 @@
         else if(act === 'dump') Admin.dumpState();
         else if(act === 'audit-loot') runAudit('loot');
         else if(act === 'audit-recipes') runAudit('recipes');
-        else if(act === 'market-seed'){
-          if(window.HearthriseMarket && typeof window.HearthriseMarket.seedFakeListings === 'function'){
-            var r = window.HearthriseMarket.seedFakeListings();
-            if(typeof window.notify === 'function'){
-              window.notify(r.ok ? ('Seeded ' + r.listings + ' listings + history') : (r.reason || 'Seed failed'), r.ok ? 'info' : 'kill');
-            }
-            if(typeof window.renderMarket === 'function') window.renderMarket();
-          }
-        }
-        else if(act === 'market-clear'){
-          if(window.HearthriseMarket && typeof window.HearthriseMarket.clearSeed === 'function'){
-            window.HearthriseMarket.clearSeed();
-            if(typeof window.notify === 'function') window.notify('Cleared seeded listings + history', 'info');
-            if(typeof window.renderMarket === 'function') window.renderMarket();
-          }
-        }
       });
     });
   }

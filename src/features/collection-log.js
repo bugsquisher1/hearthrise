@@ -231,13 +231,15 @@
       if (!isFinite(n) || n < 0) return false;
       var G = window.G; if (!G) return false;
       G._collectionServer = { found: Math.floor(n) };
-      repaintIfPending();
+      /* The mirror write is the contract; a repaint (DOM-only) never turns it into false. */
+      try { repaintIfPending(); } catch (e) {}
       return true;
     } catch (e) { return false; }
   }
   /* An OPEN log resolves in place, but only while it shows a pending mark: a
      90 s settle must not reset the scroll of a resolved log. */
   function repaintIfPending() {
+    if (typeof document === 'undefined') return;
     if (document.querySelector('#hr-cl-modal .bal-pending')) open();
   }
   function isClaimed(G, id) {

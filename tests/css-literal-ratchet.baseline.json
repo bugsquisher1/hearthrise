@@ -8,7 +8,7 @@
       "important": 53
     },
     "audit-overrides.css": {
-      "literals": 531,
+      "literals": 521,
       "important": 156
     },
     "board-and-shop.css": {
@@ -45,7 +45,7 @@
     },
     "theme-cozy.css": {
       "literals": 171,
-      "important": 584
+      "important": 583
     },
     "tokens.css": {
       "literals": 0,
@@ -54,7 +54,7 @@
   },
   "js": {
     "src/admin.js": {
-      "literals": 22
+      "literals": 21
     },
     "src/beta-banner.js": {
       "literals": 8
@@ -87,7 +87,7 @@
       "literals": 1
     },
     "src/features/companions.js": {
-      "literals": 6
+      "literals": 5
     },
     "src/features/daily-reward.js": {
       "literals": 19

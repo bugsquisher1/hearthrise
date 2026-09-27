@@ -14,6 +14,7 @@ const STEPS = [
   ['node', ['tests/property-gate-census.mjs']],
   ['node', ['tests/dead-exports.mjs']],
   ['node', ['tests/dead-css.mjs']],
+  ['node', ['tests/market-price-source.mjs']],
   ['node', ['tests/window-globals-exist.mjs']],
   ['node', ['tests/no-duplicate-toplevel-fns.mjs']],
   ['node', ['tests/token-single-source.mjs']],

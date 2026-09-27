@@ -44,6 +44,8 @@
 
 /** How long a cached history read is considered current. */
 export const HISTORY_TTL_MS = 60 * 1000;
+/** One ledger read returns at most this many trades (the header names the window when full). */
+export const HISTORY_LIMIT = 60;
 
 /**
  * One `market_sales` row → the shape the UI reads.
@@ -234,7 +236,7 @@ export function refreshHistory(opts) {
   if (!B) return Promise.resolve(getHistory());
   inFlight = (async () => {
     let res = null;
-    try { res = await B.fetchSalesHistory(opts || {}); }
+    try { res = await B.fetchSalesHistory(opts || { limit: HISTORY_LIMIT }); }
     catch (e) { res = null; }
     if (res && Array.isArray(res.rows)) {
       cache = {
@@ -263,7 +265,7 @@ export function salesLineFor(summary) {
 
 if (typeof window !== 'undefined') {
   window.HearthriseMarketHistory = {
-    HISTORY_TTL_MS,
+    HISTORY_TTL_MS, HISTORY_LIMIT,
     normalizeSaleRow, normalizeSales, salesSince, receiptWindow,
     salesSummaryLine, salesLineForReceipt, salesLineFor,
     getHistory, isHistoryStale, refreshHistory, refreshHistoryIfStale,

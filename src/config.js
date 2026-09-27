@@ -21,19 +21,6 @@
 // tune between releases.
 // ============================================================
 
-export const MARKET = {
-  /** House tax taken from every successful sale. 1.5% during soft beta. */
-  HOUSE_TAX: 0.015,
-  /** Listings expire and refund the seller after this many ms. 48h. */
-  LISTING_TTL_MS: 48 * 3600 * 1000,
-  /** Max simultaneous active listings PER character (also used for buy offers). */
-  PER_CHAR_LIMIT: 12,
-  /** localStorage cap for sales history per item id. */
-  SALES_HISTORY_CAP: 50,
-  /** Window for "7-day" stats. Bump during testing if needed. */
-  STATS_WINDOW_MS: 7 * 24 * 3600 * 1000,
-};
-
 export const CHAT = {
   /** Max characters in a single chat message. */
   MAX_MSG_LEN: 240,
@@ -66,7 +53,7 @@ export const FTUE = {
 };
 
 // ── Aggregate view for devtools ──────────────────────────────
-export const CONFIG = { MARKET, CHAT, OFFLINE, COMBAT, FTUE };
+export const CONFIG = { CHAT, OFFLINE, COMBAT, FTUE };
 
 // Classic-script bridge
 if (typeof window !== 'undefined') {

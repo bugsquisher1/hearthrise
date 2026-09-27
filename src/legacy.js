@@ -9450,9 +9450,9 @@ function bindEvents(){
   /* b230: the topbar gem counter means "I want gems" — it opens the Premium
      Shop toggle directly, not the shop's front door. */
   document.getElementById('top-gem-btn').addEventListener('click',()=>showTab('premium'));
-  /* modals close */
+  /* modals close; the backdrop is DELEGATED so a .modal built after boot (buy-back, block list) closes too */
   document.querySelectorAll('[data-close-modal]').forEach(b=>b.addEventListener('click',()=>document.getElementById(b.dataset.closeModal).classList.remove('show')));
-  document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('show');}));
+  document.addEventListener('click',e=>{if(e.target.classList&&e.target.classList.contains('modal'))e.target.classList.remove('show');});
   /* keyboard shortcuts */
   document.addEventListener('keydown',e=>{
     if(e.key==='Escape')return; // Escape is the one seam by closeAllModals, never a hotkey

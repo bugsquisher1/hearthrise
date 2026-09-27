@@ -1296,6 +1296,8 @@
                + '</div>';
         }).join('')
       : '<div class="ss-hint">You haven\'t blocked anyone.</div>';
+    // Escape and the backdrop HIDE the sheet; the next open replaces it, never duplicates the id.
+    var stale = document.getElementById('blocklist-modal'); if (stale) stale.remove();
     var modal = document.createElement('div');
     modal.className = 'modal show';
     modal.id = 'blocklist-modal';

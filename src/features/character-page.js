@@ -99,7 +99,7 @@ function playerName() {
 }
 
 function getEquipmentBonusFor(style) {
-  const s = { str: 0, atk: 0, def: 0, crit: 0 };
+  const s = { str: 0, atk: 0, def: 0 };
   const G = window.G;
   const eq = window.HearthriseEquipRead ? window.HearthriseEquipRead.equipmentMap(G) : (G?.equipment || {});
   for (const id of Object.values(eq)) {
@@ -109,7 +109,6 @@ function getEquipmentBonusFor(style) {
     else if (style === 'ranged') { s.str += it.rangeStrB || 0; s.atk += it.rangeAtkB || 0; }
     else if (style === 'magic') { s.str += it.magicStrB || 0; s.atk += it.magicAtkB || 0; }
     s.def += it.defB || 0;
-    s.crit += it.critB || 0;
   }
   return s;
 }
@@ -291,13 +290,14 @@ function buildAccountStatGrid() {
 
 function buildCombatCard() {
   const lv = (id) => (typeof window.getLevel === 'function' ? window.getLevel(id) : 0);
+  const crit = window.getPlayerCritChance ? window.getPlayerCritChance() : null;   // style-independent
   const styleCard = (title, icon, lvAtk, lvStr, lvDef, st) =>
     `<div class="cr-card"><div class="cr-section-title">${icon}${title}</div>
       <div class="cr-style-stats">
         <div class="cr-stat-row"><span>Attack</span><b>Lv ${lvAtk}</b><span class="cr-bonus">+${st.atk}</span></div>
         <div class="cr-stat-row"><span>Strength</span><b>Lv ${lvStr}</b><span class="cr-bonus">+${st.str}</span></div>
         <div class="cr-stat-row"><span>Defense</span><b>Lv ${lvDef}</b><span class="cr-bonus">+${st.def}</span></div>
-        <div class="cr-stat-row"><span>Crit</span><b>${(st.crit * 100).toFixed(0)}%</b><span class="cr-bonus"></span></div>
+        <div class="cr-stat-row" title="Gear + set bonus + active buffs — what your hits roll against"><span>Crit</span><b>${crit == null ? '—' : Math.round(crit * 100) + '%'}</b><span class="cr-bonus"></span></div>
       </div>
     </div>`;
   return `<div class="cr-row">

@@ -2727,6 +2727,14 @@ jobs:
           node tests/no-new-prediction.mjs
           node tests/no-new-prediction.mjs --selftest
 
+      # One figure per contract (CLAUDE.md §6): bountyView prints the server's
+      # figure or '—', never the attended counter.
+      - name: Bounty view - one figure per contract
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/bounty-view.mjs
+          node tests/bounty-view.mjs --selftest
+
       - name: Cleanup slice 3 - dead CSS class census
         if: ${{ !cancelled() }}
         run: |

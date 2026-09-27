@@ -130,12 +130,13 @@ export default [
        welcome modal (a779c9cf, Set the Night, FEATURE_SLATE.md §3). The site is
        gone, so a tap for it would be a tap on nothing. This list is the census of
        SURVIVING migrated sites: a name here that the registry does not report is
-       still a dropped trigger, which is the property this test exists to hold. */
+       still a dropped trigger, which is the property this test exists to hold.
+       'activities-autoopen' left with the deleted activities-grid.js twin; 'auto-open-activity' is the surviving site. */
     const EXPECTED = [
       'inv-new', 'bounty-tab', 'combat-style-selector', 'character-render', 'panel-extras',
       'clan-activity', 'inv-fancy', 'inv-dragdrop', 'auto-open-activity',
       'character-rebuild', 'dungeons-render', 'nav-consol-bootall', 'obs-tabchange',
-      'character-page', 'activities-autoopen', 'stable-render', 'combat-tier-chips',
+      'character-page', 'stable-render', 'combat-tier-chips',
       'combat-screens-nav', 'identity-decorate', 'home-dashboard', 'ui-overlap',
       'muster-events', 'lifetime-stats-place', 'screen-primers',
     ];

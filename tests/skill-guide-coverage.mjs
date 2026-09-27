@@ -27,10 +27,11 @@
 //           does not
 //   SKG-12  neither new file is in the hr-accrue payload (client-only text
 //           must never move the edge hash)
-//   SKG-13  source text: both buildHead twins call headHtml; legacy
+//   SKG-13  source text: legacy buildHead calls headHtml; legacy
 //           hrSkillUnlocksAt derives nothing itself (no TREES / ROCKS /
 //           FISH_SPOTS / CROPS / ARTISAN_RECIPES); levelup-celebration.js
 //           does not reference HearthriseSkillGuide
+//   SKG-14  src/features/activities-grid.js does not exist (block 27 is the only tile renderer)
 //
 // Gear rungs need window.gearWieldReq (the monolith), so in node the combat
 // ladders are gear-less; the in-page SKILLGUIDE-1 test covers gear.
@@ -41,7 +42,7 @@
 // Exit: 0 green · 1 red · 2 harness error.
 // ════════════════════════════════════════════════════════════════════════
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join, normalize } from 'node:path';
 
@@ -126,7 +127,6 @@ export function check(ctx) {
 
   // SKG-13
   const src = ctx.src || {};
-  if (!/headHtml\(/.test(fnBody(src.activities || '', 'buildHead'))) add('SKG-13', 'activities-grid.js buildHead does not call headHtml');
   if (!/headHtml\(/.test(fnBody(src.legacy || '', 'buildHead'))) add('SKG-13', 'legacy.js buildHead does not call headHtml');
   const unl = fnBody(src.legacy || '', 'hrSkillUnlocksAt');
   if (!unl) add('SKG-13', 'legacy.js hrSkillUnlocksAt not found');
@@ -134,6 +134,9 @@ export function check(ctx) {
     if (new RegExp('\\b' + t + '\\b').test(unl)) add('SKG-13', `legacy hrSkillUnlocksAt derives from ${t} — it must delegate`);
   }
   if (/HearthriseSkillGuide/.test(src.levelup || '')) add('SKG-13', 'levelup-celebration.js references HearthriseSkillGuide');
+
+  // SKG-14
+  if (ctx.twinExists) add('SKG-14', 'src/features/activities-grid.js exists: legacy.js block 27 is the only tile renderer');
 
   return problems;
 }
@@ -154,8 +157,8 @@ async function loadReal() {
   return {
     skillIds, guide, ladders, recipes: ARTISAN_RECIPES, crops: CROPS, plotTier: requiredPlotLevel,
     origins: files.map((f) => f.origin),
+    twinExists: existsSync(join(ROOT, 'src/features/activities-grid.js')),
     src: {
-      activities: read('src/features/activities-grid.js'),
       legacy: read('src/legacy.js'),
       levelup: read('src/render/levelup-celebration.js'),
     },
@@ -202,6 +205,7 @@ async function selftest() {
     ['SKG-11', (c) => { c.ladders.farming = c.ladders.farming.map((r) => (/^Carrot/.test(r.name) ? { ...r, name: 'Carrot' } : r)); }],
     ['SKG-12', (c) => { c.origins.push('src/data/skill-guide.js'); }],
     ['SKG-13', (c) => { c.src.legacy = c.src.legacy.replace(/HearthriseSkillGuide\.headHtml\(skillId,lv\)/, "''"); }],
+    ['SKG-14', (c) => { c.twinExists = true; }],
   ];
   let bad = 0;
   console.log('skill-guide-coverage --selftest');

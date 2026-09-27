@@ -3534,10 +3534,6 @@ function activeBonusKeys(){
   return keys;
 }
 window.HearthriseBlessingNote = blessingNote;
-/* b226 shipped this name and activities-grid.js calls it; it renders the same
-   kind of thing (the live modifier beside the XP), so the name survives the
-   rework rather than churning a caller for no gain. */
-window.HearthrisePresenceNote = blessingNote;
 /* b226 named this global; b227 gave it the blessing gate; b229 narrowed the
    gate to "the session is online". The name survives the narrowing rather than
    churning every caller — what it answers is still "is the player here?", only
@@ -15859,8 +15855,7 @@ function patchSkillsList(){
              the level set at 14px bold above the skill's own name at 10px
              grey, so the stat outweighed the subject across sixteen tiles,
              each carrying ~60px of dead space. Now a row with the hierarchy
-             the right way up. Kept in sync with the identical tile in
-             src/features/activities-grid.js. */
+             the right way up. */
           +'<span class="st-ic">'+iconHtml+'</span>'
           +'<span class="st-body">'
             +'<span class="snm">'+s.name+'</span>'
@@ -15895,10 +15890,10 @@ window.hrToolLineHtml = function(skillId){
 };
 
 function tileForGather(action, skillId){
-  var lv = getLevel(skillId);
   var unlocked = (window.hrGateLevel?window.hrGateLevel(skillId):1) >= action.req;
   var active = G.activeSkill===skillId && G.skillTargetId===action.id;
   var qty = (G.inventory && G.inventory[action.prod]) || 0;
+  var prodName = (ITEMS[action.prod] && ITEMS[action.prod].n) || action.prod;
   /* b226: the tile is a price tag — it must state the PACED duration, tool
      speed included, because that is what startSkill() will actually set.
      ── b345: AND IT MUST NOT COMPUTE THAT PRICE ITSELF ────────────────────
@@ -15924,8 +15919,7 @@ function tileForGather(action, skillId){
   var skillName = (window.SKILLS_DEF && window.SKILLS_DEF[skillId] && window.SKILLS_DEF[skillId].name) || skillId;
   var click = unlocked   /* ONE handler both ways: the toggle resolves at the CLICK against the live pointer (src/render/activity-tile.js), never baked here; `active` below is paint only */
     ? "hrActivityTileClick('"+skillId+"','"+action.id+"',"+action.ms+")"
-    : "notify('Requires "+skillName+" Lv "+action.req+"','kill')";
-  var qtyClass = qty>0 ? 'at-qty' : 'at-qty muted';
+    : "notify((window.hrLevelGateText?window.hrLevelGateText('"+skillId+"',"+action.req+",'Requires "+skillName+" Lv "+action.req+"'):'Requires "+skillName+" Lv "+action.req+"'),'kill')";
   return '<div class="act-tile '+(unlocked?'':'locked')+' '+(active?'active':'')+'" '
     +'data-prod="'+action.prod+'" '
     +'onclick="'+click+'" '
@@ -15937,6 +15931,7 @@ function tileForGather(action, skillId){
     +'<div class="at-icon">'+HearthriseIcons.actIconHtml(action.prod, skillId)+'</div>'
     +'<div class="at-name">'+(action.name||action.id)+'</div>'
     +'<div class="at-meta">'+xpPer+' XP · '+fmtSec(ms)+'</div>'
+    +'<div class="at-yield">Yields '+prodName+'</div>'
     +(unlocked ? toolLine : '')
     +(qty>0 ? '<div class="at-qty">'+fmtQty(qty)+'</div>' : '')
     +(unlocked ? '' : '<div class="at-lock">'+lockGlyph()+'Level '+action.req+'</div>')
@@ -15955,9 +15950,7 @@ function tileForGather(action, skillId){
    Defence 30 to put on. A player training Smithing on a mule build could forge
    a full set they cannot wear and only find out at the equip screen.
 
-   Shared by the legacy tile builder and its ESM twin in
-   features/activities-grid.js, so the two renderers cannot drift — the same
-   arrangement hrToolLineHtml/burnRiskLine already use. Reads gearWieldReq, the
+   Reads gearWieldReq, the
    authority equipItem() enforces, so it is right for the hand-authored pieces
    whose gate is derived from `tier` rather than authored on the item. */
 window.hrWearLineHtml = function(outputId){
@@ -15990,7 +15983,6 @@ window.hrArtisanGateClick = function(skillId, recipeId){
 };
 
 function tileForArtisan(recipe, skillId){
-  var lv = getLevel(skillId);
   var active = (G.activeSkill === skillId && G.skillTargetId === recipe.id) || G.activeArtisanRecipe === recipe.id; /* b226: startArtisan never writes activeArtisanRecipe */
   /* Wave 1 (audit fix): a tile is "unlocked" only when EVERY gate passes, and it
      shows a persistent lock naming the FIRST failing one rather than dying
@@ -16003,7 +15995,6 @@ function tileForArtisan(recipe, skillId){
   if(!levelOk){ lockLabel = 'Level ' + recipe.req; }
   else if(!scrollOk){ lockLabel = 'Recipe scroll'; benchLock = true; }
   var outId = recipe.output;
-  var outDef = ITEMS[outId];
   var qty = (G.inventory && G.inventory[outId]) || 0;
   var skillName2 = (window.SKILLS_DEF && window.SKILLS_DEF[skillId] && window.SKILLS_DEF[skillId].name) || skillId;
   var click = unlocked                                                    /* start-vs-stop resolves at the CLICK against the live pointer (src/render/activity-tile.js), never baked here; `active` below is paint only. The LOCKED arm is already click-time truth: hrArtisanGateClick re-reads level and scroll and forwards to the start when they pass. */
@@ -16013,16 +16004,12 @@ function tileForArtisan(recipe, skillId){
   /* b237 (tester): show how many of each input you OWN on the tile (e.g. sawing
      planks → watch your log count fall), red when short of one action. data-have/
      data-need let the live refresh below update it as stock is consumed. */
-  /* b372: the input name links to that item's flyout — kept identical to the
-     ESM twin in features/activities-grid.js, which is the copy that actually
-     paints on most boots. Two renderers, one behaviour. */
   var inputsLine = Object.entries(inputs).map(function(kv){
     var d = ITEMS[kv[0]]; var nm = d?d.n.split(' ')[0]:kv[0];
     var have = (G.inventory && G.inventory[kv[0]]) || 0;
     var nmHtml = (typeof window.hrInspectSpan==='function') ? window.hrInspectSpan(kv[0], nm, 'at-in-nm') : nm;
     return (kv[1]>1?kv[1]+'× ':'')+nmHtml+' <span class="at-have'+(have<kv[1]?' low':'')+'" data-have="'+kv[0]+'" data-need="'+kv[1]+'">'+fmtQty(have)+'</span>';
   }).join(' + ');
-  var qtyClass = qty>0 ? 'at-qty' : 'at-qty muted';
   /* b345: the artisan tile carried the SAME two lies as the gather tile, plus
      one of its own — it printed `pacedActionMs(recipe.ms)` with no speed perk
      applied at all, so a cook with +15% cookSpeed was quoted the unbuffed
@@ -16045,7 +16032,7 @@ function tileForArtisan(recipe, skillId){
     +'title="'+tileTitle.replace(/"/g,'&quot;')+'">'
     +'<div class="at-icon">'+HearthriseIcons.actIconHtml(outId, skillId)+'</div>'
     +'<div class="at-name">'+(recipe.name||recipe.id)+'</div>'
-    /* Cross-skill lane honesty (kept identical to the ESM twin's xpSkillLabel):
+    /* Cross-skill lane honesty:
        a quarry rung on the Stonemason page pays MINING XP by design — say so. */
     +'<div class="at-meta">'+xpPer+' '+(recipe.xpSkill && recipe.xpSkill!==skillId
         ? (((window.SKILLS_DEF||{})[recipe.xpSkill]||{}).name || (recipe.xpSkill.charAt(0).toUpperCase()+recipe.xpSkill.slice(1)))+' '
@@ -16060,6 +16047,7 @@ function tileForArtisan(recipe, skillId){
     +(unlocked ? '<div class="at-prog"><div class="at-prog-fill"></div></div>' : '')
     +'</div>';
 }
+window.HearthriseActivitiesGrid = {__tileForGather: tileForGather, __tileForArtisan: tileForArtisan};
 
 /* ══════════════════════════════════════════════════════════════════════
    b220 — ARTISAN CATEGORY STRIP (crafting-cooking-taxonomy §6)
@@ -16082,9 +16070,6 @@ function tileForArtisan(recipe, skillId){
    _tdPane / _invFilter): the panel is rebuilt from scratch by activity-driven
    re-renders, so a category held only in the DOM would snap back to the
    default every few seconds — the b218 doll bug, one screen over.
-
-   This object is also what src/features/activities-grid.js (the ESM twin of
-   this renderer) uses, so the two cannot drift.
    ══════════════════════════════════════════════════════════════════════ */
 window._artisanCat = window._artisanCat || {};
 
@@ -16212,7 +16197,7 @@ function lightUpdate(skillId){
     var prodId = tile.getAttribute('data-prod');
     if(qe && prodId && G.inventory){
       var q = G.inventory[prodId] || 0;
-      qe.textContent = 'Qty: ' + fmtQty(q);
+      qe.textContent = fmtQty(q);
       if(q===0) qe.classList.add('muted'); else qe.classList.remove('muted');
     }
   });
@@ -16261,7 +16246,7 @@ function patchSkillDetail(){
        whether to repaint it has to carry that fact. One extra getBonus() per
        render (measured below 0.01ms; the key already calls one for cooking). */
     var catXp = (typeof getBonus==='function') ? getBonus('allXP') : 0;
-    var activeKey = (G.activeSkill||'')+'|'+(G.skillTargetId||'')+'|'+(G.activeArtisanRecipe||'')+'|'+(catSel||'')+'|'+catLv+'|'+catBurn+'|'+catXp;
+    var activeKey = (G.activeSkill||'')+'|'+(G.skillTargetId||'')+'|'+(G.activeArtisanRecipe||'')+'|'+(catSel||'')+'|'+catLv+'|'+catBurn+'|'+catXp+'|'+(window.hrGateLevel?window.hrGateLevel(id):'');
     var detailEl = document.getElementById('skill-detail');
     var alreadyRendered = detailEl && detailEl.querySelector('.act-grid');
     if(alreadyRendered && window._actLastRender.skillId===id && window._actLastRender.activeKey===activeKey){
@@ -16291,25 +16276,20 @@ function patchSkillDetail(){
       return;
     }
     var tiles = '';
-    var count = 0;
     var cats = '';
 
     if(id==='woodcutting'){
       tiles = TREES.map(function(a){return tileForGather(a, id);}).join('');
-      count = TREES.length;
     } else if(id==='mining'){
       tiles = ROCKS.map(function(a){return tileForGather(a, id);}).join('');
-      count = ROCKS.length;
     } else if(id==='fishing'){
       tiles = FISH_SPOTS.map(function(a){return tileForGather(a, id);}).join('');
-      count = FISH_SPOTS.length;
     } else if(id==='farming'){
       tiles = '<div class="act-tile" onclick="showTab(\'farming\')" style="grid-column:1/-1">'
         +'<div class="at-name">Open the Farm tab</div>'
         +'<div class="at-meta">Plant and harvest crops on your plots.</div>'
         +'<div class="at-icon"><span class="at-emoji">'+skillIconHTML('farming',34)+'</span></div>'
         +'</div>';
-      count = 1;
     } else if(window.ARTISAN_RECIPES && window.ARTISAN_RECIPES[id]){
       /* b220: filtered to the selected category (all of them when the skill
          has no taxonomy, e.g. prayer). recipesFor() falls back to the full
@@ -16325,16 +16305,12 @@ function patchSkillDetail(){
         cats += '<div class="muted tiny" style="margin:2px 0 8px">Bind essences into runes, then enchant your weapon (Combat) for +15% vs element-weak foes.</div>';
       }
       tiles = recipes.map(function(r){return tileForArtisan(r, id);}).join('');
-      count = recipes.length;
     } else {
       tiles = '<div class="act-tile" style="grid-column:1/-1"><div class="at-name">No activities</div><div class="at-meta">This skill has no available activities.</div></div>';
-      count = 1;
     }
 
     /* b215: size by readable minimum width, not a hand-tuned column count.
-       (Mirrors src/features/activities-grid.js — this legacy copy is the one
-       that actually renders, since it runs first and the ESM version bails on
-       `alreadyRendered`.) The old table capped at "more than 15 → 6 columns",
+       The old table capped at "more than 15 → 6 columns",
        which squeezed smithing's 81 recipes into 93px tiles with the names
        clipped to "FORGE". */
     var grid = '<div class="act-grid" style="grid-template-columns:repeat(auto-fit,minmax(186px,1fr))">'+tiles+'</div>';

@@ -490,14 +490,14 @@
     <!-- ── SKILLS ──
          b229: the Skills screen folded into the Character screen's Skills
          sub-tab. #skills-list / #skill-detail / #skill-detail-title now live
-         inside #panel-character (built by character-page.js), so activities-grid
+         inside #panel-character (built by character-page.js), so legacy.js block 27
          paints them there — the ids moved, not duplicated. This stays as an
          empty deprecated stub so showTab has a panel to no-op against if ever
          reached raw (the alias converts 'skills'→'character' first). -->
     <!-- b232 (Tyler): the ACTIVITY screen lives under Adventure again. The
          Character screen is a clean overview (skills grid + account); tapping a
          skill there routes here (or to Combat/Farm) to actually train it.
-         #skills-list / #skill-detail are the same ids activities-grid.js renders
+         #skills-list / #skill-detail are the same ids legacy.js block 27 renders
          into by id, so no renderer changed. -->
     <section class="panel" id="panel-skills">
       <div class="card"><div class="card-head"><div class="card-title">Activities</div>

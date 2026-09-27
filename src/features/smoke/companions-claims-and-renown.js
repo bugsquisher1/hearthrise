@@ -2773,10 +2773,8 @@ export default [
     assert(window.speedClamp(undefined) === 1 && window.speedClamp(NaN) === 1, 'garbage must be identity, not NaN');
 
     // (b) Every site that spends a speed key goes through it. A single
-    //     un-routed `(1 - speed)` is a hole the fuse cannot see — and this
-    //     codebase keeps TWO copies of the activity renderers
-    //     (features/activities-grid.js overrides legacy.js's at boot), so
-    //     "patch both or you patch neither" is checked, not assumed.
+    //     un-routed `(1 - speed)` is a hole the fuse cannot see, so every
+    //     live interval site is checked, not assumed.
     //     Read off the live function bodies rather than a source blob, so this
     //     cannot quietly become a no-op the way a missing global would.
     [['startArtisan', window.startArtisan],

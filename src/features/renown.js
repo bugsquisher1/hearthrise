@@ -159,7 +159,7 @@
   }
 
   /* b431 — skill-xp READ accessor (src/net/skill-record.js), DORMANT no-op today;
-     the ESM analogue of the b429 legacy skillXp() sweep. See activities-grid.js. */
+     the ESM analogue of the b429 legacy skillXp() sweep. */
   function srXpOf(G, id) {
     var SR = window.HearthriseSkillRecord;
     return (SR && typeof SR.skillXpOr === 'function')

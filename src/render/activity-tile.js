@@ -10,8 +10,7 @@
    in the same state switched instantly and paid the window; smithing → Willow
    worked. The dead tile was always the node the player CAME FROM.
 
-   Both tile builders — legacy.js's and its ESM twin in
-   features/activities-grid.js — baked the handler at PAINT time: `stopSkill()`
+   Both tile builders — legacy.js's and its since-deleted ESM twin — baked the handler at PAINT time: `stopSkill()`
    while that node was the active one, `startSkill(…)` otherwise. Starting a
    fight runs the activity mutex's cross-stop, which clears the gather pointer
    and strips the `.active` class and the Active badge off the tiles IN PLACE
@@ -38,8 +37,8 @@
 
    GATHER AND ARTISAN, one router. The gather half shipped first with its own
    test; the artisan tiles (four renderers: two `renderArtisanActivities`
-   bodies, the monolith's `tileForArtisan` that actually paints, and its ESM
-   twin) baked the identical toggle and died the identical death — cook shrimp
+   bodies, the monolith's `tileForArtisan` that actually paints, and its
+   since-deleted ESM twin) baked the identical toggle and died the identical death — cook shrimp
    → fight → tap Cook Shrimp again → nothing. `kind` is the only difference
    between them: BOTH engines write the SAME pointer pair (`activeSkill` /
    `skillTargetId`), so the stop half is shared and only the start differs.

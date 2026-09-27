@@ -29,7 +29,7 @@ import { SKILL_GUIDE } from '../data/skill-guide.js?v=558';
 import { balanceMarkup } from '../net/balance.js?v=558';
 
 /* b431 — skill-xp READ accessor (src/net/skill-record.js), DORMANT no-op today;
-   the ESM analogue of the b429 legacy skillXp() sweep. See activities-grid.js. */
+   the ESM analogue of the b429 legacy skillXp() sweep. */
 function srXpOf(G, id) {
   const SR = window.HearthriseSkillRecord;
   if (SR && typeof SR.skillXpForDisplayOr === 'function') return SR.skillXpForDisplayOr(G, id, 0);
@@ -568,7 +568,7 @@ export function setupCharacterPage() {
   // b232 (Tyler): the Character screen is now an OVERVIEW (grid + account), and
   // the activities live back under Adventure on their own #panel-skills screen.
   // So showTab('skills') NO LONGER aliases to Character — it lands on the real
-  // Skills/activity panel (base showTab handles it, activities-grid auto-opens
+  // Skills/activity panel (base showTab handles it, legacy.js block 27 auto-opens
   // the first skill). Every deep link (quest-nav, Home "cook", openSkillDetail,
   // FTUE) funnels through showTab('skills') and keeps working, now arriving at
   // the activity screen where training happens.

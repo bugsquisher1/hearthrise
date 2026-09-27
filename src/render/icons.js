@@ -243,15 +243,12 @@ function setActivityIcon(el, glyphKey, color){
 
 /* `fallbackSkillId` (was `fallbackEmoji`, and the callers really were passing
    `action.icon` — the node's emoji — into it). Nothing here has drawn that
-   emoji since b217, but a parameter NAMED fallbackEmoji is an invitation, and
-   the ESM twin in features/activities-grid.js was still honouring it. */
+   emoji since b217, but a parameter NAMED fallbackEmoji is an invitation. */
 function actIconHtml(prod, fallbackSkillId){
   var path = prod && window._itemPath && window._itemPath[prod];
   if(path){
     /* b217: tier tint (window.itemTintClass) so ladders that share one sprite
-       still read as distinct materials. This is the live copy — the ESM
-       renderer in features/activities-grid.js has the same helper, but this
-       one is what actually paints the Skills screen. */
+       still read as distinct materials. */
     var tint = (typeof window.itemTintClass === 'function') ? window.itemTintClass(prod) : '';
     return '<img src="'+path+'" class="'+tint+'" alt="" loading="lazy" draggable="false" />';
   }

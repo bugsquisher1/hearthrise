@@ -463,7 +463,6 @@ import { setupBankPanel } from './render/bank-panel.js?v=558';
    it. Guard: tests/boot-budget.mjs. */
 import { setupSmokeTestLoader } from './features/smoke-test-loader.js?v=558';
 import { setupCompanions } from './features/companions.js?v=558';
-import { setupActivitiesGrid } from './features/activities-grid.js?v=558';
 import { setupCharacterPage } from './features/character-page.js?v=558';
 import { setupCombatRender } from './features/combat-render.js?v=558';
 import { setupCombatScreens } from './features/combat-screens.js?v=558';
@@ -489,7 +488,7 @@ const counts = {
 };
 
 console.log('[Hearthrise ESM] Data loaded:', counts);
-window.__esmBoot = { counts, ts: Date.now(), modules: ['smoke-test-loader', 'companions', 'activities-grid', 'character-page', 'combat-render', 'auth', 'sync'] };
+window.__esmBoot = { counts, ts: Date.now(), modules: ['smoke-test-loader', 'companions', 'character-page', 'combat-render', 'auth', 'sync'] };
 
 // 4. Wait for engine to be available, then run feature setups
 function tryBootFeatures() {
@@ -519,7 +518,6 @@ function tryBootFeatures() {
   boot('bank-panel', setupBankPanel);
   boot('smoke-test-loader', setupSmokeTestLoader);
   boot('companions', setupCompanions);
-  boot('activities-grid', setupActivitiesGrid);
   boot('character-page', setupCharacterPage);
   boot('combat-render', setupCombatRender);
   /* AFTER combat-render, which installs HearthriseCombatHud — the Fight screen

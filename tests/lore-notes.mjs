@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
 // tests/lore-notes.mjs — ONE LORE LINE PER COMPANION, RANK, TROPHY STAGE,
-//                        ROOM RUNG, FARM PLOT TIER, CHARM CLASS AND CHARM RANK
+//                        ROOM RUNG, FARM PLOT TIER, CHARM CLASS, CHARM RANK
+//                        AND LUCKY FIND
 //
 //   node tests/lore-notes.mjs             gate
-//   node tests/lore-notes.mjs --selftest  mutation proof (clean arm + 15 plants)
+//   node tests/lore-notes.mjs --selftest  mutation proof (clean arm + 18 plants)
 //
 // src/data/lore-notes.js is client-only display text. The Stable card, the
 // renown ladder, the rank-up card and the Trophy Room render it as RAW HTML,
@@ -12,6 +13,8 @@
 // injection guard for those lines, not a style rule — keep it. LORE-6 keeps
 // the lines lore rather than stats: no word from the UI's own bonus labels.
 // LORE-7 keeps the file off the hr-accrue edge payload (class A).
+// LORE-10/15: src/data/lucky-rumours.js keys every {lucky:true} drop, and no
+// rumour names its monster's own weakness (any element, for a hiddenElement).
 // src/data/homestead-lore.js joins all of the above. LORE-11..13 tie it to
 // the engine (ROOM_PERKS rungs, PLOT_TIERS unlocks); LORE-14 is the census:
 // one tier builder, reading the SERVER plot tier (CLAUDE.md §6).
@@ -43,8 +46,15 @@ export function labelValues(srcText, decl) {
 }
 
 /* LORE-7: a packed origin or content naming any lore file fails. */
-const LORE_FILE = /lore-notes|homestead-lore|charm-lore/;
+const LORE_FILE = /lore-notes|lucky-rumours|homestead-lore|charm-lore/;
 const BAND = [100, 140];
+
+/* The FIELDNOTES-1 element synonyms (smoke/quests-chronicle-and-bonus.js). */
+const SYN = {
+  ember: /\b(ember\w*|fire\w*|flame\w*|burn\w*|blaz\w*|scorch\w*|smoulder\w*|heat|torch\w*|kindl\w*|candle\w*|lantern\w*)\b/i,
+  frost: /\b(frost\w*|ice|icy|cold\w*|freez\w*|snow\w*|chill\w*|winter\w*|rime)\b/i,
+  poison: /\b(poison\w*|venom\w*|toxi\w*|blight\w*)\b/i,
+};
 
 /**
  * THE SETS TABLE — one row per lore map. `id` is the key check's LORE id,
@@ -55,6 +65,7 @@ export function buildSets(m) {
     { id: 'LORE-1', name: 'COMPANION_NOTES', tag: 'companion', map: m.companionNotes, wantKeys: m.companionIds, band: BAND },
     { id: 'LORE-2', name: 'RANK_LORE', tag: 'rank', map: m.rankLore, wantKeys: m.rankIds, band: BAND },
     { id: 'LORE-3', name: 'TROPHY_LORE', tag: 'trophy', map: m.trophyLore, wantKeys: m.stageIds, band: BAND },
+    { id: 'LORE-10', name: 'LUCKY_RUMOURS', tag: 'rumour', map: m.luckyRumours, wantKeys: m.luckyDrops.map((r) => r.id), band: BAND },
     { id: 'LORE-11', name: 'ROOM_RUNG_LORE', tag: 'room', map: m.roomRungLore, wantKeys: m.roomRungKeys, band: BAND },
     { id: 'LORE-12', name: 'PLOT_TIER_LORE', tag: 'plot', map: m.plotLore,
       wantKeys: Array.from({ length: m.maxPlot }, (_, i) => String(i + 1)), band: BAND },
@@ -77,6 +88,12 @@ export function check(d) {
     add(id, `${name} keys differ — missing [${miss}] extra [${extra}]`);
   };
   for (const set of d.sets) keysEq(set.id, set.name, Object.keys(set.map), set.wantKeys);
+  const rumours = (d.sets.find((set) => set.id === 'LORE-10') || { map: {} }).map;
+  for (const r of d.luckyDrops) {
+    const s = String(rumours[r.id] || '');
+    const els = r.hiddenElement ? Object.keys(SYN) : (SYN[r.elementWeak] ? [r.elementWeak] : []);
+    for (const el of els) if (SYN[el].test(s)) add('LORE-15', `rumour ${r.id} names the ${el} element of ${r.mid}`);
+  }
 
   const lines = d.sets.flatMap((set) => Object.entries(set.map).map(([k, v]) => [`${set.tag} ${k}`, v, set.band]));
   const vocab = d.vocab.map((w) => [w, new RegExp(`(^|[^A-Za-z])${reEsc(w)}($|[^A-Za-z])`, 'i')]);
@@ -160,6 +177,10 @@ async function loadReal() {
   let charm;
   try { charm = await import('../src/data/charm-lore.js'); }
   catch (e) { charm = { CHARM_CLASS_LORE: {}, CHARM_RANK_LORE: {} }; }
+  const { LUCKY_RUMOURS } = await import('../src/data/lucky-rumours.js');
+  const { MONSTERS } = await import('../src/data/monsters.js');
+  const luckyDrops = Object.entries(MONSTERS).flatMap(([mid, m]) => (m.drops || [])
+    .filter((r) => r && r.lucky).map((r) => ({ id: r.id, mid, elementWeak: m.elementWeak, hiddenElement: !!m.hiddenElement })));
   const { MONSTER_CLASSES } = await import('../src/core/bane.js');
   const { CHARM_RANKS } = await import('../src/data/bestiary-charms.js');
   const { ROOM_PERKS } = await import('../src/data/perks.js');
@@ -194,6 +215,7 @@ async function loadReal() {
       companionNotes: lore.COMPANION_NOTES, companionIds: Object.keys(COMPANIONS),
       rankLore: lore.RANK_LORE, rankIds: ['peasant', ...Object.keys(RENOWN_RANK_REWARDS)],
       trophyLore: lore.TROPHY_LORE, stageIds: TROPHY_STAGES.map((r) => r.id),
+      luckyRumours: LUCKY_RUMOURS, luckyDrops,
       roomRungLore: home.ROOM_RUNG_LORE,
       roomRungKeys: Object.entries(ROOM_PERKS).flatMap(([id, rungs]) => rungs.map((_, i) => `${id}.${i + 1}`)),
       plotLore: home.PLOT_TIER_LORE, maxPlot: MAX_PLOT_LEVEL,
@@ -201,7 +223,7 @@ async function loadReal() {
       charmClassLore: charm.CHARM_CLASS_LORE, charmClassKeys: [...MONSTER_CLASSES],
       charmRankLore: charm.CHARM_RANK_LORE, charmRankIds: CHARM_RANKS.map((r) => r.id),
     }),
-    plotNames: home.PLOT_TIER_NAMES,
+    luckyDrops, plotNames: home.PLOT_TIER_NAMES,
     maxPlot: MAX_PLOT_LEVEL, plotUnlocks: Object.fromEntries(PLOT_TIERS.map((t, n) => [String(n), t ? t.unlocks : []])),
     cropNames: Object.fromEntries(Object.entries(CROPS).map(([id, c]) => [id, c.name])),
     rungNames: names(between(legacy, 'const ROOMS={', 'window.ROOMS = ROOMS')),
@@ -230,7 +252,7 @@ async function run() {
   return 0;
 }
 
-/* ── MUTATION PROOF (CLAUDE.md §4): a clean arm, then fifteen plants, each of
+/* ── MUTATION PROOF (CLAUDE.md §4): a clean arm, then eighteen plants, each of
    which must be caught by its OWN LORE id. */
 function fixture() {
   const L = (s) => s.padEnd(110, ' and the valley remembers it well');
@@ -239,6 +261,9 @@ function fixture() {
     rankLore: { peasant: L('You own a bedroll'), serf: L('The steward knows your name') },
     trophyLore: { quarry: L('The first trophy goes up'), stalker: L('It knows you now') },
     companionIds: ['fox', 'owl'], rankIds: ['peasant', 'serf'], stageIds: ['quarry', 'stalker'],
+    luckyRumours: { yew_bow: L('Drakes nest in the old groves'), fang_studs: L('Bats roost where trackers camped') },
+    luckyDrops: [{ id: 'yew_bow', mid: 'drake', elementWeak: 'poison', hiddenElement: false },
+      { id: 'fang_studs', mid: 'giant_bat', elementWeak: 'frost', hiddenElement: false }],
     roomRungLore: { 'kitchen.1': L('A flat stone by the fire'), 'kitchen.2': L('Iron that holds its heat') },
     roomRungKeys: ['kitchen.1', 'kitchen.2'],
     plotLore: { 1: L('A patch fit for turnips'), 2: L('Furrows for carrots and wheat') }, maxPlot: 2,
@@ -250,7 +275,7 @@ function fixture() {
   const sets = buildSets(m);
   const set = (id) => sets.find((s) => s.id === id).map;
   return {
-    sets, set,
+    sets, set, luckyDrops: m.luckyDrops,
     foreignLines: ['A goblin measures a raid by what it carries home'],
     vocab: ['all xp', 'gather', 'speed', 'xp'],
     packedFiles: [{ name: 'index.ts', origin: 'supabase/functions/hr-accrue/index.ts', content: 'x' }],
@@ -281,6 +306,13 @@ function selftest() {
     ['add a speed line', 'LORE-6', (f) => { const t = f.set('LORE-3'); t.quarry = t.quarry.replace('goes up', 'adds speed'); }],
     ['pack src/data/lore-notes.js', 'LORE-7', (f) => {
       f.packedFiles.push({ name: '_shared/lore-notes.js', origin: 'src/data/lore-notes.js', content: '' });
+    }],
+    ['drop the yew_bow rumour', 'LORE-10', (f) => { delete f.set('LORE-10').yew_bow; }],
+    ['put frost into giant_bat\'s rumour', 'LORE-15', (f) => {
+      const r = f.set('LORE-10'); r.fang_studs = r.fang_studs.replace('Bats roost', 'Bats roost in frost');
+    }],
+    ['pack src/data/lucky-rumours.js', 'LORE-7', (f) => {
+      f.packedFiles.push({ name: '_shared/lucky-rumours.js', origin: 'src/data/lucky-rumours.js', content: '' });
     }],
     ['drop a rung key', 'LORE-11', (f) => { delete f.set('LORE-11')['kitchen.2']; }],
     ['name a tier Hearthstone', 'LORE-12', (f) => { f.plotNames[2] = 'Hearthstone'; }],

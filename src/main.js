@@ -29,6 +29,7 @@ import { MONSTER_CLASSES, MONSTER_CLASS_ORDER, resolveMonsterProfile, auditRoste
 import { wiredIconMap, EXPECTED as MONSTER_ART_EXPECTED, pendingArt } from './data/monster-art.js?v=558';
 import { MONSTER_NOTES } from './data/monster-notes.js?v=558';
 import { companionLore, rankLore, trophyLore } from './data/lore-notes.js?v=558';
+import { LUCKY_RUMOURS } from './data/lucky-rumours.js?v=558';
 import { roomRungLore, plotTier } from './data/homestead-lore.js?v=558';
 import * as ItemArt from './data/item-art.js?v=558';
 import { ITEMS, foodClassOf, isAutoEatable, foodKindOf, FOOD_KIND_META } from './data/items.js?v=558';
@@ -115,6 +116,7 @@ window.HearthriseMonsterClasses = {
 window.HearthriseMonsterArt = { expected: MONSTER_ART_EXPECTED, pending: pendingArt };
 window.HearthriseMonsterNotes = MONSTER_NOTES;
 window.HearthriseLore = Object.freeze({ companion: companionLore, rank: rankLore, trophy: trophyLore, room: roomRungLore, plot: plotTier });
+window.HearthriseLuckyRumours = LUCKY_RUMOURS;
 window._monsterIcon = Object.assign(window._monsterIcon || {}, wiredIconMap());
 
 /* b358 — the Hearthfire ITEM art manifest, same shape as the monster one.
@@ -377,6 +379,7 @@ import './net/dungeon-settle.js?v=558';
 // It reaches for the backend through `window` at call time, so no Supabase
 // build is a hard dependency.
 import './net/market-history.js?v=558';
+import './net/market-prices.js?v=558';
 import './net/auth.js?v=558';
 import './net/supabase-bootstrap.js?v=558';
 // b492 — "Connecting your character…". AFTER auth.js (it asks HearthriseAuth

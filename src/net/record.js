@@ -103,7 +103,7 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, isInventoryAbsolute, reconcileCompanions, reconcileFarm, reconcileTraits, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcilePlayStreak, reconcileToolCarry, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileHp, reconcileFall, announceFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=558';
+import { isServerAccrualEnabled, resolveActiveSlot, isInventoryAbsolute, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcilePlayStreak, reconcileToolCarry, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileHp, reconcileFall, announceFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=558';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
@@ -1834,6 +1834,8 @@ function settle(verdict) {
        NOTHING — the seeded summary is marked `restored` and legacy.js's
        `creditServerAwayKills` refuses a restored receipt at source, so a boot
        seed can never feed the kill counters or the Muster's shared meter. */
+    /* The Vigour meter carries the away limit (grant_min); hydrated before the receipt that prints it. */
+    hydrationStep('hunt', () => hydrateHunt(G, verdict.body));
     hydrationStep('away-receipt', () => reconcileAwayReceipt(G, verdict.body));
     /* ── THE LIFETIME GOAL COUNTERS, HYDRATED FROM THE SAME ENVELOPE ──────────
        THE FOURTH INSTANCE OF THE IDLE-BOOT HYDRATION CLASS (b467 inventory, b477

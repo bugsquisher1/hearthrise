@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 76 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, awaySpan, awayGatherSpan, awayArtisanSpan, applyAwayEnvelope, xpOf, predZero, goldOf, snapshotG, setAway, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, nightWorld, retreatFixture, retreatReload, withLiveLine, restoreBankCap, hfPoll, on, snapshot, decideRestore } from './_harness.js?v=558';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, withCap, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, awaySpan, awayGatherSpan, awayArtisanSpan, applyAwayEnvelope, xpOf, predZero, goldOf, snapshotG, setAway, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, nightWorld, retreatFixture, retreatReload, withLiveLine, restoreBankCap, hfPoll, on, snapshot, decideRestore } from './_harness.js?v=558';
 
 export default [
 
@@ -4515,7 +4515,7 @@ export default [
           state: { skills: { cooking: 0 }, inventory: { shrimp: shrimp }, rooms: { kitchen: 1 } },
           ctx: { bonus: window.getBonus },
         });
-        const cap = window.offlineCapHours();
+        const cap = withCap(720, () => window.offlineCapHours());   // the server's 12h (grant_min 720)
         const capped = hrs > cap;
         const awayMs = Math.min(hrs, cap) * 3600000;
         G.rooms = Object.assign({}, G.rooms, { kitchen: 1 });
@@ -4620,21 +4620,21 @@ export default [
          first, so this cannot pass by never being capped at all.
          MUTATION PROVEN: drop the `&& !off.stoppedBy` term from the cap note
          in home-dashboard.js and this fails. */
-      const capped = runNight(8, window.offlineCapHours() + 2);
+      const capped = runNight(8, 14);
       assert(capped.rec.capped === true,
         'the fixture did not reach the away ceiling — the cap assertion would prove nothing');
       assert(capped.rec.stoppedBy === 'supplies', 'the capped fixture did not stop on supplies');
       const capTxt = String(H.__awayCardHtml(capped.rec)).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
-      assert(!/away max/i.test(capTxt),
+      assert(!/away limit/i.test(capTxt),
         'the card blames the away ceiling for a night the supplies ended: ' + capTxt);
       assert(!/capped at your/i.test(capped.last),
         'the toast blames the away ceiling for a night the supplies ended: ' + capped.last);
       /* …and a capped night that ran the whole way KEEPS the line, because
          for that player the ceiling is exactly what stopped them. */
-      const capFull = runNight(500000, window.offlineCapHours() + 2);
+      const capFull = runNight(500000, 14);
       assert(capFull.rec.capped === true && capFull.rec.stoppedBy === null,
         'the stocked capped fixture is not the case it claims to be');
-      assert(/away max/i.test(String(H.__awayCardHtml(capFull.rec)).replace(/<[^>]*>/g, ' ')),
+      assert(/away limit/i.test(String(H.__awayCardHtml(capFull.rec)).replace(/<[^>]*>/g, ' ')),
         'a genuinely capped night lost the ceiling note — the fix over-corrected');
 
       /* Back to the reported scenario for the round-trip check. */

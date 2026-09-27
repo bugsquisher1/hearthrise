@@ -3873,10 +3873,9 @@ export default [
   () => tryRun('OFFLINE-CLARITY 2: the Right-now banking row states the cap and whether the activity banks', () => {
     const H = window.HearthriseHome;
     assert(H && typeof H.__awayBankingRow === 'function', 'the banking-row seam must exist');
-    const cap = (typeof window.offlineCapHours === 'function') ? window.offlineCapHours() | 0 : 12;
-    // Combat always banks.
-    const inCombat = H.__awayBankingRow({ activeMonster: 'slime', activeSkill: null });
-    assert(/Banking offline/.test(inCombat) && new RegExp('up to ' + cap + 'h').test(inCombat),
+    // The cap is the SERVER's (grant_min 780 → 13h), never offlineCapHours() compared with itself.
+    const inCombat = withCap(780, () => H.__awayBankingRow({ activeMonster: 'slime', activeSkill: null }));
+    assert(/Banking offline/.test(inCombat) && /up to 13h/.test(inCombat),
       'combat must read as banking, with the real cap: ' + inCombat);
     // A gather skill banks (serverAccruedSkill true).
     const woodcut = H.__awayBankingRow({ activeMonster: null, activeSkill: 'woodcutting' });
@@ -3887,8 +3886,8 @@ export default [
     assert(/Banking offline/.test(cooking),
       'cooking must be shown as banking under the armed settlement: ' + cooking);
     // Idle: nothing banks, but the cap + what DOES bank is still surfaced proactively.
-    const idle = H.__awayBankingRow({ activeMonster: null, activeSkill: null });
-    assert(/Nothing is banking/.test(idle) && new RegExp('up to ' + cap + 'h').test(idle),
+    const idle = withCap(780, () => H.__awayBankingRow({ activeMonster: null, activeSkill: null }));
+    assert(/Nothing is banking/.test(idle) && /up to 13h/.test(idle),
       'an idle camp must proactively state the cap and what banks: ' + idle);
   }),
 

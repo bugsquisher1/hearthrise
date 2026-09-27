@@ -1051,7 +1051,7 @@
   // when it fires, so deferring just waits for the screen to clear.
   function anotherModalUp() {
     return !!document.querySelector(
-      '.ftue-root,#hr-welcome-modal,.beta-overlay,[class*="welcome-overlay"],.hr-dl-scrim,.hr-cl-scrim,.acq-overlay,.ach-overlay'
+      '.ftue-root,#hr-welcome-modal,.beta-overlay,#welcome-overlay.show,.hr-dl-scrim,.hr-cl-scrim,.acq-overlay.show,.ach-overlay.show'
     );
   }
   /* ── THE WATCHER CAN BE PARKED (suite isolation) ──────────────────────────
@@ -1113,6 +1113,7 @@
     pollRankUp: pollRankUp,
     openLadder: openLadder,
     celebrate: celebrate,
+    _anotherModalUp: function () { return anotherModalUp(); },
     /* Read/write park switch for the suite (see `tick`). Never called by the
        game: the watcher is on for every real player, always. */
     __setPollEnabled: function (on) { var was = pollEnabled; pollEnabled = !!on; return was; }

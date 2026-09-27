@@ -66,6 +66,7 @@
   --r:12px;
   --r-lg:16px;
   --tap:44px;            /* min touch target */
+  --hr-panel-pad-t:8px;  /* phone panel top pad; sticky strips cancel it */
 }
 
 /* ── legacy.css · tablet dial — the nav collapses to a 64px icon rail

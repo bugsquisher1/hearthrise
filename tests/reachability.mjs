@@ -266,6 +266,99 @@ async function SHEET_PROBE(spec) {
   };
 }
 
+/* THE DECLARED CHROME — persistent chrome must reserve its own box. The CTA
+   half asks "can the player press it"; this half asks what the CTA half cannot
+   see: a fixed or sticky layer that floats over the content column without
+   covering a declared control's CENTRE (the phone FAB over LOADOUT, the Skills
+   header under the sticky strip). Each row:
+     id        — what fails in the output
+     viewports — the passes it runs on, as `WxH` or `WxH+banner`
+     screens   — [{ open: CTAS step vocabulary, prep?: function body run after it }]
+     check     — an async function BODY run on each screen; it returns null, a
+                 problem string, or { skipped: reason } */
+const WAIT_SCROLL = 'const rf = () => Promise.race([new Promise((r) => requestAnimationFrame(r)), new Promise((r) => setTimeout(r, 120))]);'
+  + ' const settle = async (el) => { let last = -1, same = 0; const end = Date.now() + 2500;'
+  + ' while (Date.now() < end) { await rf(); if (el.scrollTop === last) { if (++same >= 3) return; } else { same = 0; last = el.scrollTop; } } };';
+export const CHROME = [
+  {
+    id: 'skills/HEADER-CLEAR-OF-STRIP',
+    why: 'every skill jump on a phone hid the skill name, level and XP-to-next under the sticky WOOD/MINE/FISH strip',
+    viewports: ['922x423'],
+    screens: [{ open: ['tab:skills'] }],
+    check: WAIT_SCROLL
+      + ' const panel = document.getElementById("panel-skills"), strip = document.getElementById("act-mob-strip");'
+      + ' if (!strip || !strip.getClientRects().length || getComputedStyle(strip).display === "none")'
+      + ' return { skipped: "the skill strip is not rendered at this viewport" };'
+      + ' const bad = [], R = (e) => e.getBoundingClientRect();'
+      + ' const head = () => document.querySelector("#skill-detail .act-head");'
+      + ' const name = () => (document.querySelector("#skill-detail .act-head .ah-name") || {}).textContent;'
+      + ' const clear = (tag) => { const h = head(); if (!h) { bad.push(tag + ": no .act-head rendered"); return; }'
+      + ' const ht = Math.round(R(h).top), sb = Math.round(R(strip).bottom);'
+      + ' if (ht < sb - 1) bad.push(tag + ": the skill header (top " + ht + ") is under the sticky strip (bottom " + sb + ")"); };'
+      + ' window.openSkillDetail("mining"); await new Promise((r) => setTimeout(r, 100)); await settle(panel);'
+      + ' if (!(panel.scrollTop > 0)) return "precondition: openSkillDetail did not scroll #panel-skills (scrollTop " + panel.scrollTop + ")";'
+      + ' clear("openSkillDetail(mining)");'
+      + ' const gap = Math.round(R(strip).top - R(panel).top);'
+      + ' if (Math.abs(gap) > 1) bad.push("the stuck strip sits " + gap + "px below the scroller top, content shows through above it");'
+      + ' const prev = window.G.activeSkill; window.G.activeSkill = "mining";'
+      + ' try { const btn = () => document.querySelector("#act-mob-strip .ams-btn[data-skill=fishing]");'
+      + ' btn().click(); await new Promise((r) => setTimeout(r, 150)); await settle(panel);'
+      + ' const want = window.SKILLS_DEF.fishing.name;'
+      + ' if (name() !== want) bad.push("tapping FISH showed " + name() + ", not " + want);'
+      + ' clear("strip tap FISH");'
+      + ' const act = document.querySelector("#act-mob-strip .ams-btn.active");'
+      + ' if (!act || act.dataset.skill !== "fishing") bad.push("the lit strip button is " + (act && act.dataset.skill) + ", not fishing");'
+      + ' if (window.__viewedSkillId !== "fishing") bad.push("the tap left __viewedSkillId at " + window.__viewedSkillId);'
+      + ' window.renderSkillDetail("mining"); await new Promise((r) => setTimeout(r, 150));'
+      + ' if (name() !== want) bad.push("the training tick snapped the view back to " + name());'
+      + ' const st = panel.scrollTop; btn().click(); await new Promise((r) => setTimeout(r, 150)); await settle(panel);'
+      + ' if (Math.abs(panel.scrollTop - st) > 1) bad.push("a repeat tap crept the panel " + (panel.scrollTop - st) + "px");'
+      + ' } finally { window.G.activeSkill = prev; }'
+      + ' return bad.length ? bad.join("; ") : null;',
+  },
+];
+
+/* Serialised into the browser: opens one CHROME screen and runs the row's check. */
+async function CHROME_PROBE(arg) {
+  const { screen, check } = arg;
+  /* Compiled BEFORE the first await: the page's CSP has no 'unsafe-eval', and
+     only code still on the evaluate call's own stack is exempt from it. */
+  let prep = null, run = null;
+  try {
+    if (screen.prep) prep = new Function('return (async () => {' + screen.prep + '})()');
+    run = new Function('return (async () => {' + check + '})()');
+  } catch (e) { return 'check did not compile — ' + String(e && e.message || e).slice(0, 120); }
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const shown = (el) => !!el && el.getClientRects().length > 0 && getComputedStyle(el).display !== 'none';
+  const until = async (ok, ms) => {
+    const end = Date.now() + ms;
+    while (Date.now() < end) { try { if (ok()) return true; } catch (e) {} await sleep(60); }
+    return false;
+  };
+  for (const step of screen.open) {
+    if (step.startsWith('tab:')) {
+      const t = step.slice(4);
+      try { window.showTab(t); } catch (e) {}
+      await until(() => shown(document.getElementById('panel-' + t)), 3_000);
+    } else if (step === 'monster') {
+      const c = [...document.querySelectorAll('[data-monster]')].find(shown);
+      if (c) c.click();
+      await until(() => !![...document.querySelectorAll('.fs-fight')].find(shown), 3_000);
+    } else if (step === 'fight') {
+      const f = [...document.querySelectorAll('.fs-fight')].find(shown);
+      if (f) f.click();
+      await until(() => !!document.querySelector('#panel-combat[data-combat-view="fight"]'), 3_000);
+    }
+    await sleep(250);
+  }
+  try {
+    if (prep) await prep();
+    await sleep(400);
+    if (window.__hrKillOverlays) window.__hrKillOverlays();
+    return await run();
+  } catch (e) { return 'check threw — ' + String(e && e.message || e).slice(0, 120); }
+}
+
 // ── the page-side probe ─────────────────────────────────────────────────────
 // Serialised into the browser. Kept self-contained (no closures over Node).
 function PROBE(spec) {
@@ -978,6 +1071,24 @@ export async function reachabilityGuard(browser, url, opts = {}) {
           await page.evaluate((src) => { try { (new Function(src))(); } catch (e) {} }, spec.cleanup).catch(() => {});
         }
       }
+      for (const spec of vp.sheetsOnly ? [] : CHROME) {
+        if (opts.only && !opts.only.includes(spec.id)) continue;
+        const tag = `${vp.w}x${vp.h}${vp.banner ? '+banner' : ''}`;
+        if (!spec.viewports.includes(tag)) continue;
+        for (const screen of spec.screens) {
+          await page.evaluate(QUIESCE).catch(() => {});
+          await page.evaluate((keepBanner) => {
+            try { window.__hrKillOverlays && window.__hrKillOverlays(); } catch (e) {}
+            if (keepBanner) {
+              try { window.__hrDesktopModeShowBanner && window.__hrDesktopModeShowBanner(); } catch (e) {}
+            }
+          }, !!vp.banner);
+          const r = await page.evaluate(CHROME_PROBE, { screen, check: spec.check })
+            .catch((e) => 'probe threw — ' + String(e && e.message || e).slice(0, 120));
+          if (r && !r.skipped) problems.push(`${tag} ${spec.id} [${screen.open.join(' > ')}]: ${r}. ${spec.why}`);
+        }
+      }
+      await page.evaluate(QUIESCE).catch(() => {});
       /* LAST, so the mutation's own screen is still the one on show and the
          computed values read here are the ones the CTAs above were measured
          against. A mutation only gets to claim a defect it actually planted. */
@@ -1218,6 +1329,28 @@ const MUTATIONS = [
     expect: ['modal/welcome-back'],
   },
   {
+    /* The Skills strip as it shipped through b558: no scroll-margin on the
+       detail and the strip stuck 8px down, so every skill jump lands the
+       header at the scroller top, under the strip. */
+    name: 'M-STRIP — take the header clearance away (the skill name under the WOOD/MINE/FISH strip)',
+    css: '#panel-skills #skill-detail{scroll-margin-top:0 !important}.act-mob-strip{top:0 !important}',
+    verify: 'var d=document.getElementById("skill-detail");if(!d)return "#skill-detail is not in the page";'
+      + 'var m=getComputedStyle(d).scrollMarginTop;return m==="0px"?null:"scroll-margin-top computed "+m;',
+    viewports: [{ w: 922, h: 423 }],
+    expect: ['skills/HEADER-CLEAR-OF-STRIP'],
+  },
+  {
+    /* The b558 tap path verbatim: renderSkillDetail straight from the strip,
+       never openSkillDetail, so the viewed skill is never recorded. */
+    name: 'M-TAP — route strip taps around openSkillDetail (the tick snaps FISH back to the trained skill)',
+    js: 'var s=document.getElementById("act-mob-strip");if(!s)return;window.__mTapPlanted=true;'
+      + 's.addEventListener("click",function(e){var b=e.target.closest(".ams-btn");if(!b)return;'
+      + 'e.stopImmediatePropagation();window.renderSkillDetail(b.dataset.skill);},true);',
+    verify: 'return window.__mTapPlanted ? null : "the capture listener was never attached (no #act-mob-strip)";',
+    viewports: [{ w: 922, h: 423 }],
+    expect: ['skills/HEADER-CLEAR-OF-STRIP'],
+  },
+  {
     name: 'M3 — drop a fixed bar over the bottom of the screen (proves the HIT TEST is live, not just the box maths)',
     css: 'body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:140px;'
        + 'background:rgba(0,0,0,.5);z-index:2147483000;pointer-events:auto}',
@@ -1230,7 +1363,8 @@ if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}`
   const { chromium } = await import('playwright');
   const mutate = process.argv.includes('--mutate');
   const { server, port } = await serve();
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({
+    ...(process.env.HR_CHROME ? { executablePath: process.env.HR_CHROME } : {}) });
   const url = `http://127.0.0.1:${port}/index.html`;
   if (mutate) {
     let escaped = 0;

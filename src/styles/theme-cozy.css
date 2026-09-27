@@ -569,7 +569,7 @@ body[data-theme="classic"] {
      * max(12px, safe-r - 36px): 0 → 12px (desktop/Android no-op); 59px → 23px
      * (clears the rounded corner, reclaims ~48px of the old 71px right margin).
      * Left keeps 12px — the .app padding already cleared the rail. */
-    padding: 8px max(12px, calc(var(--safe-r, 0px) - 36px)) max(10px, var(--safe-b, 0px)) 12px !important;
+    padding: var(--hr-panel-pad-t) max(12px, calc(var(--safe-r, 0px) - 36px)) max(10px, var(--safe-b, 0px)) 12px !important;
   }
   /* b317 bottom-reserve reclaim. In this landscape RAIL layout the nav is the
    * LEFT rail, so there is NO bottom nav bar — but #panel-combat.active (1,1,0,
@@ -675,7 +675,7 @@ body[data-theme="classic"] {
   /* Sub-tab strips — slimmer */
   .cmb-mob-tabs, .inv-mob-tabs, .act-mob-strip {
     padding: 3px 4px !important;
-    margin: -8px -8px 4px !important;
+    margin: calc(-1 * var(--hr-panel-pad-t)) -8px 4px !important;
   }
   /* b285 (player's-eye QA): these sub-tab strips are the PRIMARY in-screen
      navigation (Foes/Arena/Style, Wood/Mine/Fish, Bag/Equip) and were 32px — too
@@ -716,7 +716,7 @@ body[data-theme="classic"] {
    * phantom for a nav that is a LEFT rail here). Kept in lockstep with the boosted
    * body[data-theme] rule above so whichever wins yields the same fitted padding. */
   .panel.active {
-    padding: 8px 12px max(10px, var(--safe-b, 0px)) !important;
+    padding: var(--hr-panel-pad-t) 12px max(10px, var(--safe-b, 0px)) !important;
   }
   .card { margin-bottom: 4px !important; padding: 6px 8px !important; }
   .card-head, .card-body { padding: 4px 8px !important; }
@@ -828,6 +828,13 @@ body[data-theme="classic"] {
     scrollbar-width: none;
   }
   .act-mob-strip::-webkit-scrollbar { display: none; }
+  /* The stuck strip sits flush with the scroller's top (not 8px down with
+     content showing through above it), and every scrollIntoView on the detail
+     lands its header under the strip, not behind it. --hr-sticky-h is published
+     by activities-mobile-tabs.js. Margin on the target, never scroll-padding on
+     the panel: that jolts the panel on every strip-button scroll. */
+  .act-mob-strip { top: calc(-1 * var(--hr-panel-pad-t)); }
+  #panel-skills #skill-detail { scroll-margin-top: var(--hr-sticky-h, 0px); }
   .act-mob-strip .ams-btn {
     flex: 0 0 auto;
     display: flex; flex-direction: column; align-items: center; gap: 2px;

@@ -14,6 +14,8 @@
 //   SIGN-5  a line's {placeholders} equal its declared vars
 //   SIGN-7  the hr-accrue edge pack carries no signposts file, and no
 //           src/core or src/data module imports one
+//   SIGN-8  RETIRED COPY: no string literal in src/ (not smoke) says the
+//           Recovery rev.1 night ("the fight ends", "until you fall")
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -49,6 +51,51 @@ async function world() {
     sources,
     packOrigins: packed.files.map((f) => f.origin || f.name),
   };
+}
+
+const RETIRED = /fight ends|night ends in recovery|until you fall|nobody eats for you/i;
+const REGEX_PREV = /[(,=:[!&|?{};+\-*%<>~^]|^$|\breturn$|\btypeof$/;
+
+/** Every string literal in a JS source (template text included, `${}` holes
+    scanned as code), with its line; comments and regex literals never count. */
+function stringLiterals(src) {
+  const out = [];
+  const starts = [0];
+  for (let k = 0; k < src.length; k++) if (src[k] === '\n') starts.push(k + 1);
+  const lineAt = (i) => { let lo = 0, hi = starts.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (starts[m] <= i) lo = m; else hi = m - 1; } return lo + 1; };
+  const scan = (i, inHole) => {
+    let prev = '', depth = 0;
+    while (i < src.length) {
+      const c = src[i], d = src[i + 1];
+      if (/\s/.test(c)) { i++; continue; }
+      if (c === '/' && d === '/') { while (i < src.length && src[i] !== '\n') i++; continue; }
+      if (c === '/' && d === '*') { const e = src.indexOf('*/', i + 2); i = e < 0 ? src.length : e + 2; continue; }
+      if (inHole && c === '{') { depth++; i++; prev = c; continue; }
+      if (inHole && c === '}') { if (depth-- === 0) return i + 1; i++; prev = c; continue; }
+      if (c === "'" || c === '"' || c === '`') {
+        const at = i; let j = i + 1, text = '';
+        while (j < src.length && src[j] !== c) {
+          if (src[j] === '\\') { text += src[j + 1]; j += 2; continue; }
+          if (c === '`' && src[j] === '$' && src[j + 1] === '{') { text += '\u0000'; j = scan(j + 2, true); continue; }
+          text += src[j]; j++;
+        }
+        out.push({ text, line: lineAt(at) }); i = j + 1; prev = 'str'; continue;
+      }
+      if (c === '/' && REGEX_PREV.test(prev)) {
+        let j = i + 1, cls = false;
+        while (j < src.length && src[j] !== '\n' && (cls || src[j] !== '/')) {
+          if (src[j] === '\\') j++; else if (src[j] === '[') cls = true; else if (src[j] === ']') cls = false;
+          j++;
+        }
+        i = j + 1; prev = 're'; continue;
+      }
+      const w = /[\w$]/.test(c) ? src.slice(i).match(/^[\w$]+/)[0] : c;
+      prev = w; i += w.length;
+    }
+    return i;
+  };
+  scan(0, false);
+  return out;
 }
 
 const BAD_CHARS = /[\d<>&]|\p{Extended_Pictographic}/u;
@@ -95,6 +142,10 @@ export function check(w) {
     if (!/^src\/(core|data)\//.test(p)) continue;
     for (const m of t.matchAll(SPEC_RE)) if (/signposts/.test(m[1])) fail('SIGN-7', `${p} imports ${m[1]}`);
   }
+  for (const [p, t] of Object.entries(w.sources)) {
+    if (p.startsWith('src/features/smoke') || p === 'src/features/smoke-test.js') continue;
+    for (const l of stringLiterals(t)) if (RETIRED.test(l.text)) fail('SIGN-8', `${p}:${l.line} says the retired rev.1 night: ${JSON.stringify(l.text.slice(0, 80))}`);
+  }
   return fails;
 }
 
@@ -106,6 +157,8 @@ const MUTATIONS = {
   undeclaredVar: ['SIGN-5', (w) => { w.lines['home.dailyDone'].text += ' {x}'; }],
   coreImport: ['SIGN-7', (w) => { w.sources['src/core/zz-planted.js'] = "import { SIGNPOSTS } from '../data/signposts.js';\n"; }],
   packCarries: ['SIGN-7', (w) => { w.packOrigins.push('src/data/signposts.js'); }],
+  retiredCopy: ['SIGN-8', (w) => { w.sources['src/features/zz-planted.js'] = "// the fight ends\nconst t = 'away: until you fall';\n"; }],
+  nightKeyUnused: ['SIGN-1', (w) => { for (const p of Object.keys(w.sources)) w.sources[p] = w.sources[p].split("'night.retreat'").join("'zz'"); }],
 };
 
 async function main() {
@@ -133,7 +186,7 @@ async function main() {
   }
   const fails = check(w);
   for (const f of fails) console.log('  FAIL  ' + f);
-  console.log(fails.length ? `signposts: ${fails.length} failure(s)` : `signposts: ${Object.keys(w.lines).length} lines, ${Object.keys(w.labels).length} labels, SIGN-1..5,7 green`);
+  console.log(fails.length ? `signposts: ${fails.length} failure(s)` : `signposts: ${Object.keys(w.lines).length} lines, ${Object.keys(w.labels).length} labels, SIGN-1..5,7,8 green`);
   process.exit(fails.length ? 1 : 0);
 }
 

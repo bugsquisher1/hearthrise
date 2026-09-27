@@ -1,6 +1,6 @@
 {
   "note": "BARE var(--x) reads — no fallback — whose token is declared nowhere in CSS, in JS setProperty, or in JS-authored style text. Each one makes its whole declaration invalid at computed-value time, so the property silently reverts to its initial value. This is a ratchet: the list may only shrink. A new one is red; fixing one prints a note and is re-recorded with --write. These are real bugs, not exemptions.",
-  "measured": "2026-09-07",
+  "measured": "2026-09-27",
   "single_source": "src/styles/tokens.css",
   "component_scoped_allowlist": {
     "--td-cell": "paper-doll cell size; .td-doll re-declares it per breakpoint",
@@ -22,6 +22,12 @@
   ],
   "optional_hooks_note": "var(--x, fallback) reads whose token is declared nowhere. Deliberate hooks, not failures; recorded only so the list cannot grow unnoticed.",
   "optional_hooks": [
+    {
+      "token": "--btn",
+      "used_by": [
+        "src/features/hearthfind.js"
+      ]
+    },
     {
       "token": "--card",
       "used_by": [
@@ -66,12 +72,6 @@
       ]
     },
     {
-      "token": "--rail-w",
-      "used_by": [
-        "theme-cozy.css"
-      ]
-    },
-    {
       "token": "--rr-color",
       "used_by": [
         "src/features/rarity.js"
@@ -80,6 +80,7 @@
     {
       "token": "--rr-glow",
       "used_by": [
+        "src/features/hearthfind.js",
         "src/features/rarity.js"
       ]
     },

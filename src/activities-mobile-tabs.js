@@ -63,15 +63,26 @@
     return strip;
   }
 
-  function setStripActive(panel, id) {
+  function markActive(panel, id) {
     panel.dataset.mobileSkill = id;
     setActiveSkill(id);
+    let activeBtn = null;
     panel.querySelectorAll('#act-mob-strip .ams-btn').forEach(b => {
-      b.classList.toggle('active', b.dataset.skill === id);
+      const on = b.dataset.skill === id;
+      b.classList.toggle('active', on);
+      if (on) activeBtn = b;
     });
-    // Try to call into the existing skill-selection flow so the right pane
-    // updates to show the chosen skill's detail view. The legacy code uses
-    // window.selectSkill(id) or similar.
+    // Centre the button by scrolling the STRIP only. scrollIntoView walks every
+    // ancestor and nudged #panel-skills ~11px down on every tap.
+    const strip = panel.querySelector('#act-mob-strip');
+    if (strip && activeBtn && typeof strip.scrollTo === 'function') {
+      strip.scrollTo({ left: activeBtn.offsetLeft - (strip.clientWidth - activeBtn.offsetWidth) / 2, behavior: 'smooth' });
+    }
+  }
+
+  // Boot only: show the remembered skill without navigating (no scroll jump).
+  function setStripActive(panel, id) {
+    markActive(panel, id);
     try {
       if (typeof window.showSkill === 'function') window.showSkill(id);
       else if (typeof window.selectSkill === 'function') window.selectSkill(id);
@@ -79,13 +90,38 @@
     } catch (e) {
       console.warn('[activities-mobile] skill switch failed:', e);
     }
-    // Scroll the active button into view in case it's off-screen
-    const activeBtn = panel.querySelector('#act-mob-strip .ams-btn.active');
-    if (activeBtn) {
-      try { activeBtn.scrollIntoView({ inline: 'center', behavior: 'smooth' }); } catch {}
-    }
   }
 
+  // The strip is sticky chrome: publish its height so #skill-detail's
+  // scroll-margin-top (theme-cozy.css) lands the header below it. 0 when hidden.
+  function publishHeight(panel, strip) {
+    const rect = strip.getBoundingClientRect();
+    const h = rect.height > 0
+      ? Math.ceil(rect.height + parseFloat(getComputedStyle(strip).marginBottom || 0)) : 0;
+    panel.style.setProperty('--hr-sticky-h', h + 'px');
+  }
+
+  // A tap is a skill jump like every other entry: one door, openSkillDetail,
+  // so the viewed skill, the viewing banner and the header anchor all follow.
+  function openFromStrip(panel, id) {
+    if (typeof window.openSkillDetail === 'function') window.openSkillDetail(id);
+    else setStripActive(panel, id);
+  }
+
+  // Keep the highlight honest whichever route opened the skill.
+  function wrapOpenDoor() {
+    if (window.__amsOpenWrapped || typeof window.openSkillDetail !== 'function') return;
+    window.__amsOpenWrapped = true;
+    const orig = window.openSkillDetail;
+    window.openSkillDetail = function (id) {
+      const ret = orig.apply(this, arguments);
+      const panel = document.getElementById('panel-skills');
+      if (panel && SKILLS.find(s => s.id === id)) markActive(panel, id);
+      return ret;
+    };
+  }
+
+  let stripObserver = null;
   function install() {
     const panel = document.getElementById('panel-skills');
     if (!panel) return false;
@@ -95,14 +131,26 @@
     strip.addEventListener('click', (e) => {
       const btn = e.target.closest('.ams-btn');
       if (!btn) return;
-      setStripActive(panel, btn.dataset.skill);
+      openFromStrip(panel, btn.dataset.skill);
     });
     setStripActive(panel, getActiveSkill());
+    wrapOpenDoor();
+    publishHeight(panel, strip);
+    if (stripObserver) stripObserver.disconnect();
+    if (typeof ResizeObserver === 'function') {
+      stripObserver = new ResizeObserver(() => publishHeight(panel, strip));
+      stripObserver.observe(strip);
+    }
     return true;
   }
 
   function watch() {
     if (!install()) return;
+    window.addEventListener('resize', () => {
+      const panel = document.getElementById('panel-skills');
+      const strip = panel && panel.querySelector('#act-mob-strip');
+      if (strip) publishHeight(panel, strip);
+    });
     setInterval(() => {
       const panel = document.getElementById('panel-skills');
       if (panel && !panel.querySelector('#act-mob-strip')) install();

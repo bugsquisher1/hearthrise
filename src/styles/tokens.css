@@ -66,6 +66,9 @@
   --r:12px;
   --r-lg:16px;
   --tap:44px;            /* min touch target */
+  --hr-panel-pad-t:8px;  /* phone panel top pad; sticky strips cancel it */
+  --rail-w:64px;         /* landscape-phone nav rail width */
+  --hr-rail-foot-h:var(--tap); /* rail foot box the bug FAB occupies */
 }
 
 /* ── legacy.css · tablet dial — the nav collapses to a 64px icon rail

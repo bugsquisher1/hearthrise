@@ -1871,6 +1871,12 @@ function settle(verdict) {
         window.HearthriseDaily.noteServerStreak(verdict.body);
       }
     });
+    /* The Ledger's claim rows, beside the residue (isClaimed is residue OR server);
+       a truncated progress statement can only under-report, as an idle boot did. */
+    hydrationStep('collection-claims', () => {
+      const HC = window.HearthriseCollection;
+      if (HC && typeof HC.noteServerClaims === 'function') HC.noteServerClaims(verdict.body && verdict.body.progress);
+    });
     /* ── BOOT-RESUME (b456 QA finding): the boot hr_load envelope carries
        state.active_kind/active_id, but reconcileActivityPointer was only wired
        to the activity-SWITCH hook — so a reload booted to "Idle" while the

@@ -154,6 +154,37 @@
      §C: ABSOLUTE MINUTES, never a percentage of an invisible budget. */
   function fin(n) { return typeof n === 'number' && isFinite(n); }
 
+  /** THE RENEWAL CLOCK, from the SERVER's `day_key` ('YYYY-M-D', hr_utc_day_key)
+      and never from the browser's own date: between midnight UTC and the next
+      envelope the meter still says yesterday, and so does this clock ('stale')
+      instead of counting down to the NEXT midnight. The one number in the block
+      that is not a meter field, printed only inside .hunt-vigour-clock. */
+  function vigourRenewText(dayKey, nowMs) {
+    var m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(String(dayKey == null ? '' : dayKey));
+    if (!m) return null;
+    var atMs = Date.UTC(+m[1], +m[2] - 1, +m[3] + 1);
+    var now = fin(nowMs) ? nowMs : Date.now();
+    var local = null;
+    try { local = new Date(atMs).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) || null; } catch (e) { local = null; }
+    var stale = now >= atMs;
+    return { atMs: atMs, local: local, left: stale ? null : dur(atMs - now), stale: stale };
+  }
+
+  function vigourClock(v) {
+    var M = window.HearthriseMuster;
+    return vigourRenewText(v && v.day_key, (M && typeof M.now === 'function') ? M.now() : Date.now());
+  }
+
+  /** The server's for-sale condition, ONE spelling for the button, the dry
+      line and the chip title: refills left, a price and a block size. */
+  function vigourForSale(v) {
+    return !!v && v.refills_left > 0 && fin(v.next_refill_gold) && fin(v.refill_min);
+  }
+
+  function clockSpan(c, text) {
+    return '<span class="hunt-vigour-clock" data-renew-at="' + esc(c.atMs) + '">' + esc(text) + '</span>';
+  }
+
   /** THE SWITCH, shared by the block and the activity-bar chip: the meter is
       shown only while the server's meter states the refill fields and the last
       refusal has not closed it (see above). One predicate, so the two surfaces
@@ -170,6 +201,8 @@
     var r = refill || {};
 
     var dry = v.remaining_min === 0;
+    var clock = vigourClock(v);
+    var forSale = vigourForSale(v);
     var pct = v.budget_min > 0 ? Math.max(0, Math.min(100, (v.spent_min / v.budget_min) * 100)) : 100;
     var detail = [];
     if (fin(v.grant_min)) detail.push(num(v.grant_min) + ' free');
@@ -179,17 +212,22 @@
       + '<span class="hunt-vigour-track"><span class="hunt-vigour-fill" style="width:'
       + pct.toFixed(1) + '%"></span></span>'
       + '<span class="hunt-vigour-label">' + esc(num(v.spent_min) + ' / ' + num(v.budget_min) + ' min today')
-      + (detail.length ? ' · ' + esc(detail.join(' + ')) : '') + '</span>'
+      + (detail.length ? ' · ' + esc(detail.join(' + ')) : '')
+      + (!dry && clock && !clock.stale && clock.local ? clockSpan(clock, ' · renews ' + clock.local) : '') + '</span>'
       + '</div>';
+    var dryClock = !clock ? ''
+      : clock.stale ? clockSpan(clock, ' — the day has turned; fresh Vigour arrives with the next settle')
+      : clock.local ? clockSpan(clock, ' — ' + clock.local + ' your time') : '';
     var dryLine = dry
-      ? '<div class="hunt-vigour-dry">' + esc(fin(v.dry_mult)
-          ? 'Tired — hunts pay ×' + v.dry_mult + ' until the day turns (UTC).'
-          : 'Tired — hunts pay reduced rates until the day turns (UTC).') + '</div>'
+      ? '<div class="hunt-vigour-dry">'
+        + esc('Out of Vigour — hunts pay ' + (fin(v.dry_mult) ? '×' + v.dry_mult : 'reduced rates') + ' until midnight UTC')
+        + dryClock
+        + esc((forSale ? ', or until you buy a refill.' : '.') + ' Gathering, cooking and crafting still pay in full.')
+        + ' <button type="button" class="btn btn-sm" data-codex="vigour">What is Vigour?</button></div>'
       : '';
 
     /* THE NEXT REFILL, as the server states it: for sale only while it says
        refills_left > 0 AND names a price and a block size. */
-    var forSale = v.refills_left > 0 && fin(v.next_refill_gold) && fin(v.refill_min);
     var bought = fin(v.refills) ? v.refills : 0;
     var control = forSale
       ? '<button type="button" class="hunt-vigour-btn" data-vigour-refill="1"' + (r.busy ? ' disabled' : '') + '>'
@@ -339,13 +377,18 @@
      `remaining_min` and `dry_mult`, printed as sent. PURE, like the builder. */
   function vigourChipHtml(v, refill) {
     if (!vigourOn(v, refill)) return '';
+    var clock = vigourClock(v);
     if (v.remaining_min === 0) {
-      return '<span class="ab-vigour is-dry" title="Out of Vigour — hunts pay reduced rates until the day turns (UTC). '
-        + 'Refills are on the Fight screen.">Out of Vigour'
+      var rate = fin(v.dry_mult) ? '×' + v.dry_mult : 'reduced rates';
+      var when = !clock ? '' : clock.stale ? ' (the day has turned; fresh Vigour arrives with the next settle)'
+        : clock.local ? ' (' + clock.local + ' your time, ' + clock.left + ' from now)' : '';
+      return '<span class="ab-vigour is-dry" title="' + esc('Out of Vigour — hunts pay ' + rate + ' until midnight UTC' + when
+        + '. Gathering still pays in full.' + (vigourForSale(v) ? ' Refills are on the Fight screen.' : '')) + '">Out of Vigour'
         + (fin(v.dry_mult) ? ' · <span class="ab-vigour-verb">pays </span><b>×' + esc(v.dry_mult) + '</b>' : '') + '</span>';
     }
     if (!fin(v.remaining_min)) return '';
-    return '<span class="ab-vigour" title="Hunting time left today at the full rate.">Vigour <b>'
+    var renews = clock && !clock.stale && clock.local ? ' (' + clock.local + ' your time)' : '';
+    return '<span class="ab-vigour" title="' + esc('Hunting time left today at the full rate. It renews at midnight UTC' + renews + '.') + '">Vigour <b>'
       + esc(num(v.remaining_min)) + '</b> min</span>';
   }
 
@@ -357,6 +400,11 @@
     if (node.__huntVigourWired) return;
     node.__huntVigourWired = true;
     node.addEventListener('click', function (ev) {
+      var cx = ev.target && ev.target.closest ? ev.target.closest('[data-codex]') : null;
+      if (cx) {
+        if (window.HearthriseCodex && typeof window.HearthriseCodex.open === 'function') window.HearthriseCodex.open(cx.getAttribute('data-codex'));
+        return;
+      }
       var t = ev.target && ev.target.closest ? ev.target.closest('[data-vigour-refill]') : null;
       var M = window.HearthriseVigour;
       if (!t || t.disabled || !M) return;
@@ -404,5 +452,6 @@
   window.renderHuntPanel = renderHuntPanel;
   window.renderVigourBlock = renderVigourBlock;
   window.vigourChipHtml = vigourChipHtml;
+  window.vigourRenewText = vigourRenewText;
   window.huntStopSentence = stopSentence;
 }());

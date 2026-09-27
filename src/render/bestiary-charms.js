@@ -92,6 +92,10 @@ export function noteEnvelope(res) {
      in the same tab) must not survive as a stale rank. */
   G._bestiaryCharms = { killsByClass: clean, index: charmIndex(clean) || Object.create(null) };
   out.noted = true;
+  /* An open Bestiary showing the pending line resolves in place. */
+  if (typeof document !== 'undefined' && document.querySelector('#best-overlay.show #best-charms [data-charm-pending]')) {
+    try { w().openBestiary(); } catch (e) { /* display only */ }
+  }
   return out;
 }
 
@@ -100,6 +104,8 @@ function counters() {
   const b = g()._bestiaryCharms;
   return (b && b.killsByClass && typeof b.killsByClass === 'object') ? b.killsByClass : null;
 }
+/** Has the server stated the counters yet? False ⇒ render pending, not empty. */
+export function countersKnown() { return counters() !== null; }
 
 /**
  * THE CHARM INDEX THE CLIENT'S COMBAT PREDICTION READS (phase 2), or null.
@@ -335,6 +341,7 @@ export function setupBestiaryCharms() {
     awayLine,
     panelLine,
     killsOfClass,
+    countersKnown,
     rankOfClass,
     nextOfClass,
     revealsElement,

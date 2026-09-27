@@ -691,10 +691,12 @@ export default [
     assert(STN && typeof STN.forecast === 'function',
       'HearthriseSetTheNight.forecast is missing — the whole ritual hangs off this seam');
     const snap = snapshotG();
+    const AC = window.HearthriseAccrual, was = { t: AC.deathsToday(), l: AC.deathsLifetime(), c: G.consecFalls };
     try {
       const foe = (window.MONSTERS && window.MONSTERS.slime) ? 'slime'
         : Object.keys(window.MONSTERS || {})[0];
       nightWorld({ foe, inventory: { cooked_shrimp: 107 }, food: 'cooked_shrimp' });
+      AC.reconcileFall(G, { state: { consec_falls: 0, deaths_today: 0, deaths_lifetime: 0 } });
 
       /* THE PROPERTY THAT MATTERS MOST. A forecast is eight hours of the live
          combat engine; if it ran against the real save it would hand the
@@ -717,14 +719,11 @@ export default [
       assert(f.kills > 0, 'a fed character fighting a weak foe must forecast at least one kill, got ' + f.kills);
 
       const s = STN.sentence(f);
-      assert(/^Tonight: your 107 /.test(s),
+      assert(/^Tonight: (even with )?your 107 /.test(s),
         'the sentence must open with the bag, got: ' + JSON.stringify(s));
-      assert(/carry you/.test(s), 'the sentence must say what the food DOES, got: ' + JSON.stringify(s));
-      assert(f.allNight
-        ? /through the night/.test(s)
-        : /then you fall and the night ends in recovery\.$/.test(s),
-        'a night that ends in a fall must SAY so (Recovery Rule rev.2 — it is a knock-out, not a stop), got: '
-          + JSON.stringify(s));
+      assert(f.deaths ? /knocked out/.test(s) : /carry you through the night/.test(s),
+        'a night with falls must SAY it is a knock-out, not a stop (Recovery rev.2), got: ' + JSON.stringify(s));
+      assert(!/night ends/.test(s), 'the retired rev.1 copy is back: ' + JSON.stringify(s));
 
       /* DETERMINISM. A forecast that moved on every repaint would be noise
          dressed as advice, and the strip repaints on every Home render. */
@@ -734,6 +733,7 @@ export default [
         + f.spanMs + '/' + f.kills + ' vs ' + f2.spanMs + '/' + f2.kills);
 
       /* AND IT RENDERS. Home drops this string straight into "Right now". */
+      STN._resetMemo();
       const html = STN.strip(G);
       assert(/hd-night/.test(html) && html.indexOf('Tonight:') > 0,
         'the Home strip did not render the forecast, got: ' + String(html).slice(0, 160));
@@ -741,6 +741,7 @@ export default [
         'the Tonight strip carries a hardcoded colour — tokens only (CLAUDE.md §7): ' + html.slice(0, 200));
     } finally {
       try { STN.forget(); } catch (e) {}
+      AC.reconcileFall(G, { state: { consec_falls: was.c == null ? 0 : was.c, deaths_today: was.t, deaths_lifetime: was.l } });
       restoreG(snap);
     }
   }),
@@ -863,6 +864,7 @@ export default [
       'HearthriseAccrual.bagHydrated is missing — the strip has no way to ask whether the bag is real');
     const snap = snapshotG();
     const hadStamp = window.G._bagFromServerAt;
+    const was = { t: AC.deathsToday(), l: AC.deathsLifetime(), c: window.G.consecFalls };
     try {
       const foe = (window.MONSTERS && window.MONSTERS.slime) ? 'slime'
         : Object.keys(window.MONSTERS || {})[0];
@@ -887,6 +889,7 @@ export default [
 
       // ── THE ENVELOPE LANDS, AND THE BAG IS EMPTY. Same surface, now honest.
       nightWorld({ foe, inventory: {}, food: 'cooked_shrimp' });
+      AC.reconcileFall(window.G, { state: { consec_falls: 0, deaths_today: 0, deaths_lifetime: 0 } });
       assert(AC.bagHydrated(window.G) === true,
         'reconcileInventory did not stamp the bag as server-stated — the strip would stay silent forever');
       const f = STN.forecast(window.G);
@@ -894,12 +897,14 @@ export default [
         'after the envelope the forecast must run against the SERVER bag (empty), got '
         + JSON.stringify(f && { k: f.kind, q: f.foodQty }));
       const s = STN.sentence(f);
-      assert(/^Tonight: with nothing to eat you last /.test(s),
-        'an empty server bag must read as "with nothing to eat", got: ' + JSON.stringify(s));
+      assert(f.deaths ? /^Tonight: with nothing to eat you fall about /.test(s) : /^Tonight: you hold out /.test(s),
+        'an empty server bag must be priced as an empty bag, got: ' + JSON.stringify(s));
+      STN._resetMemo();
       assert(STN.strip(window.G).indexOf('Tonight:') > 0,
         'the strip must render once the bag is real');
     } finally {
       try { STN.forget(); } catch (e) {}
+      AC.reconcileFall(window.G, { state: { consec_falls: was.c == null ? 0 : was.c, deaths_today: was.t, deaths_lifetime: was.l } });
       restoreG(snap);
       if (typeof hadStamp === 'undefined') { try { AC.__forgetBagHydrated(window.G); } catch (e) {} }
       else window.G._bagFromServerAt = hadStamp;
@@ -3453,49 +3458,46 @@ export default [
     const snap = snapshotG();
     const prevTab = window.activeTab;
     const realHasTrait = window.hasTrait;
+    const AC = window.HearthriseAccrual, STN = window.HearthriseSetTheNight, NP = window.HearthriseNightPlan;
+    const was = { t: AC.deathsToday(), l: AC.deathsLifetime(), c: G.consecFalls };
     try {
       window.showTab('combat');
-      /* ── the always-on activity bar ──────────────────────────────────────
-         b342 put a permission counter here. b343 keeps the CHIP and changes
-         what it measures: the honest limit on an unattended fight is Auto-Eat
-         plus a stocked food slot (auto-actions.js eats nothing without the
-         trait), so a flat "pays away" to a player with neither is the same
-         false promise b342 was filed against, with the gate swapped out.
-         MUTATION PROVEN: make `awayChip` the unconditional "pays away" string
-         and the first assertion fails; make it unconditionally "until you
-         fall" and the equipped half fails. */
-      window.hasTrait = function (id) { return id === 'auto_eat' ? false : realHasTrait.apply(this, arguments); };
-      G.activeMonster = 'slime';
-      G.foodSlot = null;
+      /* The chip speaks the Night Plan's stored forecast: pending until it exists,
+         then pays away / you fall / no food. Never the rev.1 wording. */
+      nightWorld({ foe: 'slime', inventory: {} });
+      AC.reconcileFall(G, { state: { consec_falls: 0, deaths_today: 0, deaths_lifetime: 0 } });
       G.stats = Object.assign({}, G.stats, { kills: 41 });
+      STN._resetMemo();
       window.refreshActivityBar();
       const meta = document.getElementById('ab-meta');
       assert(meta, 'the activity bar has no meta element to assert');
       let bar = meta.textContent.replace(/\s+/g, ' ');
-      assert(/until you fall/i.test(bar),
-        'THE b343 BUG: a fighting player with no Auto-Eat is told nothing about what ends their night: ' + bar);
-      assert(!/pays away/i.test(bar),
-        'the bar promises unqualified away pay to a character who cannot survive a minute of it: ' + bar);
-      assert(/Lifetime/.test(bar) && /41/.test(bar),
-        'the lifetime kill total must come back now that nothing is competing for the chip: ' + bar);
+      assert(meta.querySelector('.ab-away.' + window.HearthriseBalance.PENDING_CLASS) && !/pays away|you fall/i.test(bar),
+        'the chip spoke before the forecast existed: ' + bar);
+      assert(/Lifetime/.test(bar) && /41/.test(bar), 'the lifetime kill total is gone: ' + bar);
       assert(!/licen[cs]e/i.test(bar), 'the retired permit copy is back on the activity bar: ' + bar);
-
-      /* Equip the player the way the engine actually checks — the trait AND a
-         slotted food with stock — and the same chip must change its mind. */
-      window.hasTrait = function (id) { return id === 'auto_eat' ? true : realHasTrait.apply(this, arguments); };
-      G.foodSlot = 'cooked_shrimp';
-      G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 60 });
+      const hungry = STN.memo(G);
       window.refreshActivityBar();
       bar = document.getElementById('ab-meta').textContent.replace(/\s+/g, ' ');
-      assert(/pays away/i.test(bar) && !/until you fall/i.test(bar),
-        'a fight that genuinely carries on while you are away must SAY so: ' + bar);
+      assert(hungry && hungry.numeric === true && hungry.foodQty === 0, 'the hungry forecast is wrong: ' + JSON.stringify(hungry));
+      assert(new RegExp(hungry.deaths || hungry.stoppedBy ? 'away: no food' : 'pays away').test(bar),
+        'the hungry chip disagrees with its forecast: ' + bar);
+      nightWorld({ foe: 'slime', inventory: { cooked_shrimp: 60 }, food: 'cooked_shrimp' });
+      STN._resetMemo();
+      const fed = STN.memo(G);
+      window.refreshActivityBar();
+      bar = document.getElementById('ab-meta').textContent.replace(/\s+/g, ' ');
+      assert(fed && bar.indexOf(NP.chipHtml(fed).replace(/<[^>]+>/g, '')) >= 0 && !/no food/.test(bar),
+        'a fed fight must read its own forecast: ' + bar);
+      window.hasTrait = function (id) { return id === 'auto_eat' ? true : realHasTrait.apply(this, arguments); };
+      G.foodSlot = 'cooked_shrimp';
 
       /* ONE PREDICATE, shared with the monster preview and the Stats modal —
          three surfaces answering this question from three copies of the rule
          is how they drift apart between builds. */
       assert(typeof window.awayFightSustains === 'function',
         'the shared away-sustain predicate is gone; every surface will re-derive it');
-      assert(window.awayFightSustains() === true, 'the predicate disagrees with the chip it drives');
+      assert(window.awayFightSustains() === true, 'the predicate disagrees with a stocked slot');
       G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 0 });
       assert(window.awayFightSustains() === false,
         'an empty food slot still reads as sustained — the count is the whole point');
@@ -3536,8 +3538,9 @@ export default [
         'the tick dropped the away line off the cards');
     } finally {
       window.hasTrait = realHasTrait;
+      AC.reconcileFall(G, { state: { consec_falls: was.c == null ? 0 : was.c, deaths_today: was.t, deaths_lifetime: was.l } });
       restoreG(snap);
-      try { window.refreshActivityBar(); } catch (e) {}
+      try { STN._resetMemo(); window.refreshActivityBar(); } catch (e) {}
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
     }
   }),

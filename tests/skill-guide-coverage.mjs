@@ -32,6 +32,11 @@
 //           FISH_SPOTS / CROPS / ARTISAN_RECIPES); levelup-celebration.js
 //           does not reference HearthriseSkillGuide
 //   SKG-14  src/features/activities-grid.js does not exist (block 27 is the only tile renderer)
+//   SKG-15  every guide entry carries a unique `title` (3-20 letters/spaces);
+//           heroClass (src/render/skill-guide.js) is exported and, for EVERY
+//           SKILLS_DEF id leading at 50,000 XP, names that skill's title
+//           ("Master <title>", never 'Adventurer'); all-unknown XP -> null
+//           (the caller paints the pending mark)
 //
 // Gear rungs need window.gearWieldReq (the monolith), so in node the combat
 // ladders are gear-less; the in-page SKILLGUIDE-1 test covers gear.
@@ -138,6 +143,31 @@ export function check(ctx) {
   // SKG-14
   if (ctx.twinExists) add('SKG-14', 'src/features/activities-grid.js exists: legacy.js block 27 is the only tile renderer');
 
+  // SKG-15
+  const titles = new Map();
+  for (const [k, v] of Object.entries(guide || {})) {
+    const t = v && v.title;
+    if (typeof t !== 'string' || t.length < 3 || t.length > 20 || !/^[A-Za-z][A-Za-z ]*$/.test(t)) {
+      add('SKG-15', `${k}.title ${JSON.stringify(t)} is not 3-20 letters/spaces`);
+    } else if (titles.has(t)) add('SKG-15', `${k}.title duplicates ${titles.get(t)}.title`);
+    else titles.set(t, k);
+  }
+  const hc = ctx.heroClass;
+  if (typeof hc !== 'function') add('SKG-15', 'heroClass is not exported from src/render/skill-guide.js');
+  else {
+    const title = (id) => guide && guide[id] && guide[id].title;
+    for (const id of skillIds) {
+      const c = hc((k) => (k === id ? 50000 : k === 'hitpoints' ? 1154 : 0));
+      if (!c || c.name !== title(id) || c.tagline !== 'Master ' + title(id) || c.name === 'Adventurer') {
+        add('SKG-15', `${id} leading at 50,000 XP reads ${JSON.stringify(c)}, not "Master ${title(id)}"`);
+      }
+    }
+    const none = hc(() => null);
+    if (none !== null) add('SKG-15', `all-unknown XP must return null (pending), got ${JSON.stringify(none)}`);
+    const fresh = hc((k) => (k === 'hitpoints' ? 1154 : null));
+    if (!fresh || fresh.tagline !== 'Skilled ' + title('hitpoints')) add('SKG-15', `a fresh hero reads ${JSON.stringify(fresh)}, not "Skilled ${title('hitpoints')}"`);
+  }
+
   return problems;
 }
 
@@ -149,13 +179,14 @@ async function loadReal() {
   const { pack } = await import('../tools/pack-edge.mjs');
   let guide = {};
   let ladderOf = () => [];
+  let heroClass;
   try { ({ SKILL_GUIDE: guide } = await import('../src/data/skill-guide.js')); } catch { /* SKG-1 reports it */ }
-  try { ({ ladderOf } = await import('../src/render/skill-guide.js')); } catch { /* SKG-9 reports it */ }
+  try { ({ ladderOf, heroClass } = await import('../src/render/skill-guide.js')); } catch { /* SKG-9 / SKG-15 report it */ }
   const skillIds = Object.keys(SKILLS_DEF);
   const ladders = Object.fromEntries(skillIds.map((s) => [s, ladderOf(s)]));
   const { files } = await pack('hr-accrue');
   return {
-    skillIds, guide, ladders, recipes: ARTISAN_RECIPES, crops: CROPS, plotTier: requiredPlotLevel,
+    skillIds, guide, ladders, heroClass, recipes: ARTISAN_RECIPES, crops: CROPS, plotTier: requiredPlotLevel,
     origins: files.map((f) => f.origin),
     twinExists: existsSync(join(ROOT, 'src/features/activities-grid.js')),
     src: {
@@ -185,6 +216,7 @@ async function selftest() {
   const real = await loadReal();
   const clone = () => ({
     ...real,
+    skillIds: real.skillIds.slice(),
     guide: Object.fromEntries(Object.entries(real.guide).map(([k, v]) => [k, { ...v }])),
     ladders: Object.fromEntries(Object.entries(real.ladders).map(([k, v]) => [k, v.map((r) => ({ ...r }))])),
     origins: real.origins.slice(),
@@ -206,16 +238,28 @@ async function selftest() {
     ['SKG-12', (c) => { c.origins.push('src/data/skill-guide.js'); }],
     ['SKG-13', (c) => { c.src.legacy = c.src.legacy.replace(/HearthriseSkillGuide\.headHtml\(skillId,lv\)/, "''"); }],
     ['SKG-14', (c) => { c.twinExists = true; }],
+    ['SKG-15', (c) => { delete c.guide.stonemason.title; }],
+    ['SKG-15', (c) => { c.heroClass = (xpOf) => { // the pre-fix 15-key literal
+      const top = c.skillIds.reduce((a, b) => (xpOf(b) > xpOf(a) ? b : a));
+      const cn = { attack: 'Warrior', strength: 'Berserker', defense: 'Guardian', hitpoints: 'Brawler',
+        prayer: 'Devotee', magic: 'Mage', ranged: 'Ranger', bountyHunter: 'Bounty Hunter',
+        woodcutting: 'Lumberjack', mining: 'Miner', fishing: 'Angler', farming: 'Farmhand',
+        cooking: 'Chef', crafting: 'Artificer', smithing: 'Smith' }[top] || 'Adventurer';
+      return { name: cn, tagline: 'Master ' + cn };
+    }; }],
+    [['SKG-1', 'SKG-15'], (c) => { c.skillIds.push('fletching'); }],
+    ['SKG-15', (c) => { c.heroClass = () => ({ name: 'Warrior', tagline: 'Path: Warrior' }); }],
   ];
   let bad = 0;
   console.log('skill-guide-coverage --selftest');
   const clean = check(clone());
   if (clean.length) { bad++; console.error(`  ✗ clean arm is red: ${clean.map((p) => p.id + ' ' + p.msg).join('; ')}`); }
   else console.log('  ✓ clean arm green');
-  for (const [id, plant] of MUTATIONS) {
+  for (const [want, plant] of MUTATIONS) {
     const c = clone(); plant(c);
     const ids = new Set(check(c).map((p) => p.id));
-    if (ids.has(id)) console.log(`  ✓ ${id} planted -> red under ${id}`);
+    const id = [].concat(want).join(' + ');
+    if ([].concat(want).every((w) => ids.has(w))) console.log(`  ✓ ${id} planted -> red under ${id}`);
     else { bad++; console.error(`  ✗ ${id} planted -> NOT caught (got ${[...ids].join(', ') || 'green'})`); }
   }
   console.log(bad ? `✗ selftest: ${bad} arm(s) failed` : `✓ selftest: clean green, ${MUTATIONS.length}/${MUTATIONS.length} defects caught`);

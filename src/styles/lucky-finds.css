@@ -1,0 +1,54 @@
+/* ============================================================
+   src/styles/lucky-finds.css — the lucky-find reveal sheet, the away band
+   and the Bestiary's 'Where luck hides' ledger (src/features/lucky-finds.js,
+   src/render/luck-ledger.js). The sheet reuses the .ach-overlay hr-scrim /
+   .ach-modal hr-sheet shell, which supplies position and inset; this file only
+   lifts it above the welcome card (z 9999) and styles the content. Tokens only.
+   ============================================================ */
+#hr-lucky-veil { z-index: 10040; }
+.hr-lf-card { max-width: 420px; text-align: center; }
+.hr-lf-body { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+.hr-lf-body > * { max-width: 100%; }
+.hr-lf-art, .luck-art { flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.hr-lf-art { width: 64px; height: 64px; }
+.luck-art { width: 36px; height: 36px; }
+.hr-lf-art > *, .luck-art > * { max-width: 100%; max-height: 100%; }
+.hr-lf-name { font-size: calc(19px * var(--ui-scale, 1)); font-weight: 800; color: var(--gold-2); }
+.hr-lf-meta, .hr-lf-desc { color: var(--ink-3); }
+.hr-lf-rumour { color: var(--ink); }
+.hr-lf-foot { display: flex; gap: var(--gap); justify-content: center; }
+
+.hr-lf-band {
+  margin: 0 0 var(--gap);
+  padding: 8px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--line-strong);
+  border-left: 3px solid var(--gold);
+  border-radius: var(--r);
+  color: var(--ink);
+}
+.hr-lf-band-row + .hr-lf-band-row { margin-top: 4px; }
+.hr-lf-see { margin-left: 6px; }
+
+.luck-ledger { margin: var(--gap) 0; }
+.luck-ledger > summary { cursor: pointer; font-weight: 800; color: var(--gold-2); }
+.luck-intro { color: var(--ink-3); }
+.luck-tier > h4 { margin: var(--gap) 0 4px; color: var(--ink); }
+.luck-row {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  margin-bottom: 4px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r);
+}
+.luck-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.luck-info > b { color: var(--ink); }
+.luck-info > small { color: var(--ink-3); }
+.luck-rumour { color: var(--ink); }
+.luck-info > .luck-bench { color: var(--gold-2); }
+
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .hr-lf-art { width: 40px; height: 40px; }
+  .hr-lf-body { gap: 2px; }
+}

@@ -26,7 +26,8 @@ import { ARTISAN_RECIPES } from '../data/recipes.js?v=558';
 import { SKILL_GUIDE } from '../data/skill-guide.js?v=558';
 /* The UNKNOWN-balance accessor. This screen prints the purse, so it is one of
    the surfaces that must render a pending balance rather than a number. */
-import { balanceMarkup } from '../net/balance.js?v=558';
+import { balanceMarkup, UNKNOWN_TEXT } from '../net/balance.js?v=558';
+import { heroClass } from '../render/skill-guide.js?v=558';
 
 /* b431 — skill-xp READ accessor (src/net/skill-record.js), DORMANT no-op today;
    the ESM analogue of the b429 legacy skillXp() sweep. */
@@ -38,26 +39,13 @@ function srXpOf(G, id) {
     : ((G && G.skills && G.skills[id]) || 0);
 }
 
+/* The Hero class line. heroClass walks the SKILLS_DEF roster through the
+   server-mirrored XP; nothing known yet paints the pending mark, never a
+   class built from factory defaults. */
 function deriveClass() {
-  const G = window.G;
-  if (!G?.skills) return { name: 'Adventurer', tagline: 'Path: Wanderer' };
-  const ids = Object.keys(G.skills);
-  if (ids.length === 0) return { name: 'Adventurer', tagline: 'Path: Wanderer' };
-  const topId = ids.reduce((a, b) => (srXpOf(G, b) > srXpOf(G, a) ? b : a));
-  const topXp = srXpOf(G, topId);
-  const classMap = {
-    attack: 'Warrior', strength: 'Berserker', defense: 'Guardian', hitpoints: 'Brawler',
-    prayer: 'Devotee', magic: 'Mage', ranged: 'Ranger', bountyHunter: 'Bounty Hunter',
-    woodcutting: 'Lumberjack', mining: 'Miner', fishing: 'Angler', farming: 'Farmhand',
-    cooking: 'Chef', crafting: 'Artificer', smithing: 'Smith',
-  };
-  const cn = classMap[topId] || 'Adventurer';
-  let tag;
-  if (topXp < 100) tag = 'Path: ' + cn;
-  else if (topXp < 1000) tag = 'Aspiring ' + cn;
-  else if (topXp < 10000) tag = 'Skilled ' + cn;
-  else tag = 'Master ' + cn;
-  return { name: cn, tagline: tag };
+  const G = window.G, SR = window.HearthriseSkillRecord;
+  const xpOf = (id) => (SR && typeof SR.skillXpForDisplayOr === 'function') ? SR.skillXpForDisplayOr(G, id, null) : null;
+  return heroClass(xpOf) || { name: null, tagline: UNKNOWN_TEXT };
 }
 
 // b221: the identity seam owns the portrait now — it resolves the player's
@@ -99,7 +87,7 @@ function playerName() {
 }
 
 function getEquipmentBonusFor(style) {
-  const s = { str: 0, atk: 0, def: 0, crit: 0 };
+  const s = { str: 0, atk: 0, def: 0 };
   const G = window.G;
   const eq = window.HearthriseEquipRead ? window.HearthriseEquipRead.equipmentMap(G) : (G?.equipment || {});
   for (const id of Object.values(eq)) {
@@ -109,7 +97,6 @@ function getEquipmentBonusFor(style) {
     else if (style === 'ranged') { s.str += it.rangeStrB || 0; s.atk += it.rangeAtkB || 0; }
     else if (style === 'magic') { s.str += it.magicStrB || 0; s.atk += it.magicAtkB || 0; }
     s.def += it.defB || 0;
-    s.crit += it.critB || 0;
   }
   return s;
 }
@@ -291,13 +278,14 @@ function buildAccountStatGrid() {
 
 function buildCombatCard() {
   const lv = (id) => (typeof window.getLevel === 'function' ? window.getLevel(id) : 0);
+  const crit = window.getPlayerCritChance ? window.getPlayerCritChance() : null;   // style-independent
   const styleCard = (title, icon, lvAtk, lvStr, lvDef, st) =>
     `<div class="cr-card"><div class="cr-section-title">${icon}${title}</div>
       <div class="cr-style-stats">
         <div class="cr-stat-row"><span>Attack</span><b>Lv ${lvAtk}</b><span class="cr-bonus">+${st.atk}</span></div>
         <div class="cr-stat-row"><span>Strength</span><b>Lv ${lvStr}</b><span class="cr-bonus">+${st.str}</span></div>
         <div class="cr-stat-row"><span>Defense</span><b>Lv ${lvDef}</b><span class="cr-bonus">+${st.def}</span></div>
-        <div class="cr-stat-row"><span>Crit</span><b>${(st.crit * 100).toFixed(0)}%</b><span class="cr-bonus"></span></div>
+        <div class="cr-stat-row" title="Gear + set bonus + active buffs — what your hits roll against"><span>Crit</span><b>${crit == null ? '—' : Math.round(crit * 100) + '%'}</b><span class="cr-bonus"></span></div>
       </div>
     </div>`;
   return `<div class="cr-row">

@@ -41,7 +41,7 @@
     var ov = document.getElementById('best-overlay');
     if (!ov) {
       ov = document.createElement('div'); ov.id = 'best-overlay'; ov.className = 'ach-overlay hr-scrim';
-      ov.innerHTML = '<div class="ach-modal hr-sheet" onclick="event.stopPropagation()"><h2 class="hr-sheet-head">Bestiary</h2><div class="hr-sheet-body"><div id="best-charms" class="charm-strip"></div><div id="best-list" class="bestiary-list"></div></div><button class="btn hr-sheet-foot" data-hr-dismiss onclick="document.getElementById(\'best-overlay\').classList.remove(\'show\')" style="margin-top:12px;width:100%">Close</button></div>';
+      ov.innerHTML = '<div class="ach-modal hr-sheet" onclick="event.stopPropagation()"><h2 class="hr-sheet-head">Bestiary</h2><div class="hr-sheet-body"><div id="best-charms" class="charm-strip"></div><details id="best-luck" class="luck-ledger"></details><div id="best-list" class="bestiary-list"></div></div><button class="btn hr-sheet-foot" data-hr-dismiss onclick="document.getElementById(\'best-overlay\').classList.remove(\'show\')" style="margin-top:12px;width:100%">Close</button></div>';
       ov.addEventListener('click', function (e) { if (e.target === ov) ov.classList.remove('show'); });
       document.body.appendChild(ov);
     }
@@ -58,6 +58,7 @@
        absent. Fail-safe, never a gate. */
     var T = window.HearthriseTrophies || null;
     paintCharmStrip(C);
+    window.HearthriseLuckLedger && window.HearthriseLuckLedger.paint();
     list.innerHTML = Object.entries(MONSTERS).map(function (kv) {
       var id = kv[0], m = kv[1];
       var entry = G.bestiary[id] || { kills: 0 };
@@ -116,12 +117,15 @@
      Reads window.HearthriseCharms, which reads `G._bestiaryCharms` (the server
      block, scratch, `_`-prefixed) and NEVER `G.bestiary` — that is the
      locally-written residue field, and gating a capability on it is the
-     residue-ahead bug class. No counters mirrored yet ⇒ one honest line saying
-     so, never a rank. */
+     residue-ahead bug class. No counters mirrored yet ⇒ a pending line, never "No charms". */
   function paintCharmStrip(C) {
     var strip = document.getElementById('best-charms');
     if (!strip) return;
     if (!C) { strip.innerHTML = ''; return; }
+    if (typeof C.countersKnown === 'function' && !C.countersKnown()) {
+      strip.innerHTML = '<div class="muted charm-pending" data-charm-pending="1">Charm kills not counted yet <span class="bal-pending" aria-label="Not counted yet" title="Waiting for the realm to count this.">—</span></div>';
+      return;
+    }
     /* The class list, its order and its display names are DERIVED from the
        taxonomy + roster by C.charmClasses() — not listed here. A hardcoded
        eleven-string list in a renderer is a third copy of the taxonomy and the

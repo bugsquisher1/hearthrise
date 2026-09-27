@@ -7635,10 +7635,10 @@ export default [
     assert(chest <= Math.ceil(unmapped.length * 0.15),
       chest + ' of ' + unmapped.length + ' unmapped items fall back to the generic chest (cap is 15%) — widen itemGlyphKey rather than shipping a wall of chests');
 
-    /* The two glyphs this pass hand-authored, because the atlas had no row and
+    /* Every skill has a glyph: the atlas once had no row for two of them and
        `stripChromeEmoji()` was leaving an EMPTY medallion in the skills rail. */
-    ['runecrafting', 'stonemason'].forEach((k) => {
-      assert(window.HR && window.HR.has(k), 'the hand-authored ' + k + ' glyph is missing from HR_GLYPHS (src/data/glyphs-extra.js did not load)');
+    Object.keys(window.SKILLS_DEF).forEach((k) => {
+      assert(window.HR && window.HR.has(k), 'the ' + k + ' skill glyph is missing from HR_GLYPHS (src/data/glyphs.js / glyphs-extra.js)');
       const html = window.HR.medallion(k, 34);
       assert(html && /<path fill=/.test(html), k + ' resolves but draws no path');
     });
@@ -8730,28 +8730,25 @@ export default [
     }
   }),
 
-  () => tryRun('LUCKY-2: the server\'s rare_drop for a lucky row writes VERY RARE once with a base-odds toast; replaying the envelope adds nothing', () => {
-    const G = window.G, LF = window.HearthriseLuckyFinds;
+  () => tryRunAsync('LUCKY-2: the server\'s rare_drop for a lucky row writes VERY RARE once and, one task later, ONE reveal sheet (no toast) with the base odds and the rumour; a replay adds nothing', async () => {
+    const G = window.G, LF = window.HearthriseLuckyFinds, task = () => new Promise((r) => setTimeout(r, 0));
     assert(LF && typeof LF.noteEnvelope === 'function', 'lucky-finds.js is not loaded');
+    const vr = () => (G.combatLog || []).filter((l) => /VERY RARE: Wolfbone Torc/.test(l)).length;
     const snap = snapshotG();
-    const prevLog = G.combatLog;
     try {
-      LF.__reset();
-      G.combatLog = [];
+      LF.__reset(); closeOverlays();
+      const n0 = vr();
       const r = applyAwayEnvelope({ events: [{ type: 'rare_drop', item: 'wolfbone_torc' }, { type: 'rare_drop', item: 'wolfbone_torc' }] });
-      const lines = G.combatLog.filter((l) => /VERY RARE: Wolfbone Torc/.test(l));
-      assert(lines.length === 1, 'expected ONE "VERY RARE: Wolfbone Torc" line, got ' + lines.length + ': ' + G.combatLog.join(' | '));
-      assert(/class="rare vrare"/.test(lines[0]), 'the line is not styled rare vrare: ' + lines[0]);
-      const t = r.toasts.filter((x) => /Wolfbone Torc/.test(x));
-      assert(t.length === 1 && /about 1 in 1,087/.test(t[0]), 'expected ONE toast with "about 1 in 1,087" (small_wolf .0008 x dropBonus 1.15): ' + r.toasts.join(' | '));
-      /* The same response again — the funnel's own dedupe on `version`. */
+      assert(vr() - n0 === 1 && /class="rare vrare"/.test(G.combatLog.filter((l) => /VERY RARE/.test(l)).pop()), 'expected ONE "VERY RARE: Wolfbone Torc" line styled rare vrare: ' + (G.combatLog || []).join(' | '));
+      assert(!r.toasts.some((x) => /Wolfbone Torc/.test(x)), 'a lucky find still raised a toast: ' + r.toasts.join(' | '));
+      await task();
+      const txt = (document.getElementById('hr-lucky-veil') || {}).textContent || '';
+      assert(/Wolfbone Torc/.test(txt) && /1 in 1,087/.test(txt) && txt.indexOf(window.HearthriseLuckyRumours.wolfbone_torc) >= 0, 'the reveal sheet is missing the item, "1 in 1,087" (small_wolf .0008 x 1.15) or the rumour: "' + txt + '"');
       assert(LF.noteEnvelope(r.env) === 0, 'replaying the same envelope announced the find again');
-      assert(G.combatLog.filter((l) => /VERY RARE/.test(l)).length === 1, 'replaying the same envelope wrote a second VERY RARE line');
-      /* No events (a world-tick frame) says nothing; a non-lucky rare_drop is not ours. */
-      assert(LF.noteEnvelope({ version: r.env.version + 1, away: {} }) === 0, 'an envelope with no events announced something');
-      assert(LF.noteEnvelope({ version: r.env.version + 2, away: { events: [{ type: 'rare_drop', item: 'sticky_core' }] } }) === 0, 'a non-lucky rare_drop was announced as VERY RARE');
+      await task();
+      assert(document.querySelectorAll('#hr-lucky-veil').length === 1 && vr() - n0 === 1, 'a replay added a second sheet or VERY RARE line');
+      assert(LF.noteEnvelope({ version: r.env.version + 2, away: { events: [{ type: 'rare_drop', item: 'sticky_core' }] } }) === 0, 'a non-lucky rare_drop was announced as a lucky find');
     } finally {
-      G.combatLog = prevLog;
       LF.__reset();
       try { window.HearthriseAccrual.__resetAwayReceipt(); } catch (e) {}
       restoreG(snap);
@@ -8838,6 +8835,67 @@ export default [
       if (modal) modal.remove();
       closeOverlays();
     }
+  }),
+
+  /* LUCKY-5..7 (batch 4 pack 4): the attended/away split is the ONE client
+     classifier read one task after the funnel, the away band is a read (the
+     Home card repaints every 1.5 s), and the ledger reads the server's bag. */
+  () => tryRunAsync('LUCKY-5: ATTENDED — a lucky find on an ordinary 90 s settle after a night opens the reveal sheet one task later; Close removes it', async () => {
+    const LF = window.HearthriseLuckyFinds, task = () => new Promise((r) => setTimeout(r, 0));
+    const snap = snapshotG();
+    try {
+      LF.__reset(); closeOverlays();
+      applyAwayEnvelope({ grantMs: 7200000 });
+      await task();
+      applyAwayEnvelope({ grantMs: 90000, events: [{ type: 'rare_drop', item: 'wolfbone_torc' }] });
+      await task();
+      const v = document.getElementById('hr-lucky-veil');
+      assert(v && /Wolfbone Torc/.test(v.textContent), 'an attended find (90 s settle) opened no sheet — classified away by a 60 s rule, or read the previous receipt; held band: ' + LF.awayBandHtml());
+      v.querySelector('[data-hr-dismiss]').click();
+      assert(!document.getElementById('hr-lucky-veil'), 'Close did not remove the reveal sheet');
+    } finally {
+      LF.__reset();
+      try { window.HearthriseAccrual.__resetAwayReceipt(); } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRunAsync('LUCKY-6: AWAY — a 2 h settle holds the find and the rare list as a band (no sheet) that the Home away card draws on every repaint', async () => {
+    const LF = window.HearthriseLuckyFinds, task = () => new Promise((r) => setTimeout(r, 0));
+    const snap = snapshotG();
+    try {
+      LF.__reset(); closeOverlays();
+      const r = applyAwayEnvelope({ grantMs: 7200000, events: [{ type: 'rare_drop', item: 'wolfbone_torc' }, { type: 'rare_drop', item: 'sticky_core' }] });
+      await task();
+      assert(!document.getElementById('hr-lucky-veil'), 'an away find opened a sheet instead of a band');
+      const band = LF.awayBandHtml();
+      assert(/Lucky find while you were away/.test(band) && /Wolfbone Torc/.test(band) && /Rare finds while you were away/.test(band), 'the away band is incomplete: ' + band);
+      const a = window.HearthriseHome.__awayCardHtml(r.rec), b = window.HearthriseHome.__awayCardHtml(r.rec);
+      assert(a.indexOf(band) >= 0 && b.indexOf(band) >= 0, 'the Home away card lost the band on its next repaint (consume-once read)');
+    } finally {
+      LF.__reset();
+      try { window.HearthriseAccrual.__resetAwayReceipt(); } catch (e) {}
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRun('LUCKY-7: "Where luck hides" lists every lucky find once with its rumour and the server\'s bag; an unnamed spot shows no rumour, no name, no bag line', () => {
+    const L = window.HearthriseLuckLedger, R = window.HearthriseLuckyRumours, M = window.MONSTERS, box = document.createElement('div');
+    assert(L && R, 'luck-ledger.js or the rumours are not loaded');
+    const ids = [];
+    Object.keys(M).forEach((mid) => (M[mid].drops || []).forEach((d) => { if (d.lucky) ids.push([d.id, mid]); }));
+    box.innerHTML = L.html({ named: () => true, count: () => null });
+    for (const [id] of ids) {
+      const rows = box.querySelectorAll('[data-luck-row="' + id + '"]');
+      assert(rows.length === 1 && rows[0].textContent.indexOf(R[id]) >= 0 && rows[0].querySelector('.bal-pending'), id + ': expected one row with its rumour and the pending mark: ' + (rows[0] ? rows[0].innerHTML : 'none'));
+    }
+    assert(/Also made at the bench/.test(box.querySelector('[data-luck-row="maple_bow"]').textContent), 'maple_bow is crafted too, and its row does not say so');
+    box.innerHTML = L.html({ named: () => false, count: () => 0 });
+    for (const [id, mid] of ids) {
+      const t = box.querySelector('[data-luck-row="' + id + '"]').textContent;
+      assert(t.indexOf(R[id]) < 0 && t.indexOf(M[mid].name) < 0 && !/In your bag/.test(t), id + ': an unnamed row leaks a rumour, the monster or a bag line: ' + t);
+    }
+    assert(/In your bag: 2/.test(L.html({ named: () => true, count: () => 2 })), 'a server count of 2 does not read "In your bag: 2"');
   }),
 
   /* ══════════════════════════════════════════════════════════════════════

@@ -2437,6 +2437,20 @@ export default [
       // the crit passive must reach the combat rolls
       const m = window.MONSTERS && Object.values(window.MONSTERS)[0];
       if (m) assert(window.getPlayerCombatRolls(m).critChance >= 0.07, 'the set crit must flow into getPlayerCombatRolls');
+      const pct = Math.round(window.getPlayerCombatRolls(m).critChance * 100);   // the engine's number
+      const setLine = (window.renderEquipmentStatsHTML().match(/class="eqb-set">([\s\S]*?)<\/div>/) || [])[1] || '';
+      assert(setLine, 'the set line must render for a stamped full set');
+      assert(/Dawnsteel set/.test(setLine) && !/Tier \d/.test(setLine), 'set line names the worn line, never "Tier N": ' + setLine);
+      assert(setLine.indexOf('+' + pct + '% crit') !== -1, 'set line % must equal the engine delta');
+      assert(Math.abs(window.getPlayerCritChance() - window.getPlayerCombatRolls(m).critChance) < 1e-9, 'the display seam IS the engine number');
+      window.renderLoadout(); assert((document.querySelector('#loadout-panel .stat-grid') || {}).textContent.indexOf(pct + '%') !== -1, 'Combat loadout crit is the engine number');
+      const pane = window._charPane; window._charPane = 'hero'; window.renderCharacter(); window._charPane = pane;
+      assert((document.querySelector('#panel-character .cr-style-stats') || {}).textContent.indexOf(pct + '%') !== -1, 'Character card crit is the engine number');
+      window.renderInvFancy(); const inv = (document.getElementById('panel-inventory') || {}).innerHTML || '';
+      assert(new RegExp('Crit Chance</span><b>' + pct + '%').test(inv) && !/Damage Reduction/.test(inv), 'Inventory crit is the engine number; no fabricated Damage Reduction row');
+      const W = { helmet: 'watchknight_helmet', body: 'watchknight_body', pants: 'watchknight_pants', boots: 'watchknight_boots', gloves: 'watchknight_gloves', belt: 'watchknight_belt' };
+      assert(window.armourSetLabel({ tier: 5, armourClass: 'plate', pieces: 6 }, W, window.ITEMS) === 'Watchknight set', 'a shared bucket names the WORN line, never Rune');
+      assert(window.armourSetLabel({ tier: 1, armourClass: 'plate', pieces: 6 }, { helmet: 'bronze_helm', body: 'bronze_platebody', pants: 'bronze_platelegs', belt: 'bronze_belt', boots: 'leather_boots', gloves: 'leather_gloves' }, window.ITEMS) === 'tier-1 heavy set', 'a mixed bucket falls back to class + tier');
       delete G.equipment.belt; delete G.equipment.gloves;
       stampRecordLikeLoad(G);
       assert(!window.getArmorSetBonus(), 'a 4-piece set must NOT trigger the bonus');
@@ -3100,6 +3114,24 @@ export default [
     } finally { window.getCombatLevel = lvl; restoreG(snap); }
   }),
 
+  /* ── regression suite — DGN-TRUTH-1: THE SCAVENGER SPOILS ARE THE SERVER'S ──
+     Armed, the Scavenger summary listed the run's own Math.random rolls as "Loot
+     brought home" while hr_dungeon_settle rolled the real chest. It renders the
+     settle verdict now, and "Settling with the server…" until one lands.
+     MUTATION: render `awarded` on the armed branch → RED. */
+  () => tryRun('DGN-TRUTH-1: armed, the Scavenger summary shows the server settle, never the client rolls', () => {
+    assert(typeof window.scavengerSummaryHtml === 'function', 'dungeon-scavenger.js must expose scavengerSummaryHtml');
+    const I = window.ITEMS || {}, name = (id) => (I[id] && I[id].n) || id;
+    const o = { armed: true, victory: true, takenPct: 80, bossName: 'Bone Lord', awarded: [{ id: 'big_bones', qty: 5 }] };
+    const html = window.scavengerSummaryHtml(Object.assign({}, o, { verdict: { outcome: 'settled', body: { settled: { items: { bone_key: 2 }, scrip: 9 } } } }));
+    assert(html.includes(name('bone_key')) && html.includes('+2') && html.includes('9 Dungeon Scrip'),
+      'the armed summary must render the settled chest and scrip (got ' + html + ')');
+    assert(!html.includes(name('big_bones')), 'THE BUG: the armed summary listed a client roll the server never paid');
+    const pending = window.scavengerSummaryHtml(Object.assign({}, o, { verdict: null }));
+    assert(pending.includes('Settling with the server') && !pending.includes(name('big_bones')),
+      'before the verdict the armed summary must say it is settling, and name no client roll (got ' + pending + ')');
+  }),
+
   /* -- regression suite -- DGN-KEY-1: THE ENTRY-KEY COUNT IS THE SERVER'S ------
      REPORTED LIVE 2026-09-13, Tyler's own character: the Goblin Warcamp card
      read "Entry: 1x Goblin Seal (have 2)" and every run button toasted "The server
@@ -3428,7 +3460,7 @@ export default [
       window.__mktXss = 0;
       // sellerId must NOT start with 'npc-' — those are filtered as seeds.
       localStorage.setItem(KEY, JSON.stringify([{
-        id: 'XSS-TEST', sellerId: 'user-hostile-xss', sellerName: evil,
+        id: '99999999-8888-4777-8666-555555555555', sellerId: 'user-hostile-xss', sellerName: evil,
         itemId: 'normal_log', qty: 1, askEach: 5, postedAt: Date.now(),
       }]));
       window.showTab('market');
@@ -3792,5 +3824,50 @@ export default [
       });
       check('after a refused buy', applied);
     } finally { restoreGAndRecord(snap); try { window.renderShop(); } catch (e) {} }
+  }),
+
+  () => tryRun('HOMELORE-1: every room rung carries its Almanac line; the owned rung shows it in the sheet', () => {
+    const H = window.HearthriseHomestead, L = window.HearthriseLore, RR = window.HearthriseRooms;
+    assert(H && L && typeof L.room === 'function' && RR && typeof RR.roomRung === 'function', 'homestead / lore / rooms seam absent');
+    Object.keys(window.ROOMS || {}).forEach((id) => {
+      H.roomDescriptor(id).ladder.forEach((row, i) => {
+        assert(row.line && row.line === L.room(id, i + 1), id + ' rung ' + (i + 1) + ' line: ' + row.line);
+      });
+    });
+    const rung = RR.roomRung;
+    const html = () => H.modalDescriptor('kitchen').sections.map((s) => (s.html || '') + (s.rows || []).map((r) => r.effect || '').join('')).join('');
+    try {
+      RR.roomRung = (g, id) => (id === 'kitchen' ? 2 : rung(g, id));
+      assert(H.roomDescriptor('kitchen').currentLine === L.room('kitchen', 2), 'kitchen 2: currentLine must be rung 2 lore');
+      assert(html().includes(L.room('kitchen', 2)) && html().includes(L.room('kitchen', 5)), 'the sheet must carry the rung 2 and rung 5 lines');
+      RR.roomRung = (g, id) => (id === 'kitchen' ? 0 : rung(g, id));
+      assert(H.roomDescriptor('kitchen').currentLine === null, 'unbuilt kitchen: currentLine must be null');
+    } finally { RR.roomRung = rung; }
+  }),
+
+  () => tryRun('FARMLORE-1: a crop guide row says what the crop is and what it is for, escaped', () => {
+    const L = window.HearthriseLore, esc = window.escapeHtml;
+    assert(typeof window.cropGuideRowHtml === 'function' && typeof esc === 'function' && typeof window.itemDesc === 'function', 'crop guide seam absent');
+    const desc = window.itemDesc('carrot'), row = window.cropGuideRowHtml('carrot');
+    assert(desc.includes("'") && row.includes(esc(desc)), 'the carrot row must carry its escaped Almanac line: ' + row);
+    const used = typeof window.itemUsedInLine === 'function' ? window.itemUsedInLine('carrot') : '';
+    assert(row.includes('Used in:') === !!used && (!used || row.includes(esc(used))), 'Used in must appear exactly when the index has uses: ' + row);
+    assert(L && typeof L.plot === 'function' && L.plot(1).name === 'The Turnip Patch' && L.plot(6) === null, 'plot tier names must key 1..5');
+  }),
+
+  () => tryRun('FARMLORE-2: the plot tier name reads the SERVER tier; unknown shows the pending glyph, never a named tier', () => {
+    const F = window.HearthriseFarm, L = window.HearthriseLore, B = window.HearthriseBalance;
+    assert(F && typeof F.tierHeadHtml === 'function' && typeof F.tierLoreHtml === 'function' && L && B, 'farm tier builder absent');
+    const sv = F.getServerPlotLevel, names = [1, 2, 3, 4, 5].map((n) => L.plot(n).name);
+    try {
+      F.getServerPlotLevel = () => null;
+      const head = F.tierHeadHtml();
+      assert(head.includes(B.UNKNOWN_TEXT) && names.every((n) => !head.includes(n)) && F.tierLoreHtml() === '', 'unknown tier must be pending: ' + head);
+      window.renderFarm();
+      const status = document.querySelector('#farm-panel .farm-status');
+      assert(status && status.innerHTML.includes(head), 'the farm header must render the builder output');
+      F.getServerPlotLevel = () => 3;
+      assert(/The Market Rows · Plot Lv 3\/5/.test(F.tierHeadHtml()) && F.tierLoreHtml().includes(L.plot(3).line), 'tier 3: ' + F.tierHeadHtml());
+    } finally { F.getServerPlotLevel = sv; window.renderFarm(); }
   }),
 ];

@@ -3111,6 +3111,8 @@ export function playStreakDays(G) {
      yet", which every caller already renders as no streak. */
   return 0;
 }
+/** Has the server stated a streak yet? False ⇒ the chip draws the pending dash. */
+export function playStreakKnown(G) { const s = G && G._serverStreak; return !!(s && Number.isFinite(Number(s.days))); }
 
 /* ── THE FRACTIONAL TOOL CARRY IS THE SERVER'S (2026-08-15-tool-carry.sql) ────
    `player_state.tool_carry` is a real column: the Edge engine reads it, every
@@ -6516,7 +6518,7 @@ if (typeof window !== 'undefined') {
     getFrameDrops, noteFrameDrop, clearFrameDrops,
     resetFrameGate, FRAME_VERDICTS,
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
-    nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
+    nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES, playStreakKnown,
     awaySettleDone, __resetAwaySettleLatch, settleInFlight, dropPendingCombatXp,   // settle-first, read by legacy.js's combat-XP cadence
     deferPendingCombatXp, pendingCombatXpDeferral, resolveCombatXpDeferral, __resetCombatXpDeferral,   // a `settle_first` refusal defers, never discards
     restorePendingCombatXp, combatXpReflushPromise, retireCombatXpDeferral,   // …and a CONFIRMED settle re-submits it so the server's span top-up is claimable

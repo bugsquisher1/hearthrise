@@ -8317,7 +8317,7 @@ export default [
      the tour is the FIRST place a player hears either rule. This guard pins the
      retired sentences out and binds the replacement to the constants it quotes,
      so the copy cannot drift away from the engine again in silence. */
-  () => tryRun('FIRST-LIGHT-4: the FTUE teaches the LIVE death and auto-eat rules, and names the Bounty Board', () => {
+  () => tryRun('FIRST-LIGHT-4: the FTUE teaches the LIVE death and auto-eat rules', () => {
     const F = window.HearthriseFTUE;
     assert(F && typeof F.steps === 'function', 'the FTUE step table is not published — this would pass vacuously');
     const steps = F.steps();
@@ -8336,14 +8336,11 @@ export default [
     const combat = steps.find((s) => s.id === 'combat');
     assert(combat, 'CONTROL: the tour has no combat step to check');
     const body = String(combat.body || '');
-    assert(/Bounty Board/.test(body),
-      'the combat step names Auto-Eat and must name where it is sold — the Bounty Board (index.html data-tab="bounty")');
-    const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
-    if (AE && AE.AUTO_EAT_TIERS) {
-      const marks = AE.AUTO_EAT_TIERS[1].marks;
-      assert(new RegExp('\\b' + marks + ' Marks\\b').test(body),
-        'the tour quotes an Auto-Eat I price the tier table does not charge; the table says ' + marks);
-    }
+    // Every hero is created owning Auto-Eat, switched on (2026-09-04-auto-eat-at-creation.sql):
+    // a price is a purchase nobody makes, and "yours is on" is one player's state, not the rule.
+    assert(!/\bMarks\b/.test(body), 'the combat step quotes an Auto-Eat price; every hero is created owning it: ' + body);
+    assert(/new heroes start with Auto-Eat switched on/.test(body),
+      'the combat step must state the creation rule for Auto-Eat, not a price or one player\'s switch: ' + body);
     assert(/knocked out/i.test(body) && /carry on with the same fight/i.test(body),
       'the combat step must state the LIVE rule: knocked out, then the same run resumes: ' + body);
     const AW = window.HearthriseCore && window.HearthriseCore.away;

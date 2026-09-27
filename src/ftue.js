@@ -74,7 +74,7 @@
          mentions the shop at all: the answer to "why do I keep dying on my
          first night" is 700g of starter armour, and nothing in the game says
          so. Point the number at what it buys. */
-      body: 'Combat level, total level, gold and gems. Gold is your first upgrade — a few hundred buys boots, gloves and a belt at Shops, and armour is what stops you dying. Progress saves itself to your account; there is no save button.',
+      body: 'Combat level, total level, gold and gems. Gold is your first upgrade — a few hundred buys boots and gloves at Shops, and armour turns aside some of the blows aimed at you. Progress saves itself to your account as you play.',
       primary: 'Got it',
     },
     {
@@ -110,38 +110,13 @@
          what actually ends an unattended fight is running out of health with
          nobody there to eat, and that is a thing the player can act on rather
          than a permit they have to wait for. */
-      /* b432: "you eat between kills" was true and useless — it never said WHO
-         eats. Nobody does: Auto-Eat is a Bounty Shop unlock, so on day one the
-         Eat button is a thing the player has to press with their own hand, and
-         the audit's very first fight ended with eight uneaten shrimp in the
-         bag. The death sheet already teaches this beautifully; it should not
-         have to be the first place a player hears it. Naming Cooking closes
-         the other half — where food comes from at all.
-
-         ── 2026-09-07 (FEATURE_SLATE fix #2): TWO DEAD RULES, REPLACED ────────
-         This step taught two things the engine no longer does, and the tour is
-         the first place a player hears either of them:
-
-         1. "nobody does it for you yet" — half true and pointed the wrong way.
-            Auto-Eat is real, it is `trait:auto_eat` (src/core/auto-eat.js, tier
-            I at 25%), and it costs 15 Bounty Marks on the Bounty Board. "Yet"
-            promised a future feature; the truth is a purchase the player can
-            walk to. The tour never named the Board, which is where the thing
-            it was complaining about actually lives.
-         2. "A fight ends when you fall" — FALSE since Recovery Rule rev.2
-            (src/core/away.js). A fall knocks you out — the first one each day
-            costs nothing, the next 2 minutes, doubling, and a character with
-            five or fewer lifetime deaths never pays more than that one rung —
-            and then you stand back up at 40% and the SAME fight resumes. That
-            is the single most important thing a new player can know about
-            dying here, and the tour was telling them the opposite.
-
-         Every clause below is checkable against a constant: RECOVERY_BASE_MS
-         (2 min), NOVICE_GRACE_DEATHS (5), RESUME_HP_FRACTION (0.40),
-         AUTO_EAT_TIERS[1] (15 marks / 25%). The FTUE-COPY-1 regression asserts
-         the retired sentences cannot come back and that the live numbers are
-         still the ones the sentence quotes. */
-      body: 'Combat is the part you play with your hands. Monsters hit back, so you eat between kills — press Eat yourself until you own Auto-Eat, 15 Marks on the Bounty Board, and food comes from Cooking. Falling does not end the run: you are knocked out for a spell, stand back up on part of your health and carry on with the same fight, and the first fall of each day costs you no time at all. Your fights keep going while you are away under exactly the same rule.',
+      /* The death and Auto-Eat rules as the engine runs them: a fall knocks you
+         out and the same fight resumes (Recovery Rule rev.2, src/core/away.js),
+         and new heroes are created with Auto-Eat on — stated as the RULE, never
+         as this player's switch, which they may have turned off. Guards:
+         FIRST-LIGHT-4 (in-page, against the live constants) and
+         tests/screen-primers.mjs G8 (the retired sentences stay out). */
+      body: 'Combat is the part you play with your hands. Monsters hit back, so you eat between kills: new heroes start with Auto-Eat switched on, which eats from your bag when your health runs low, and food comes from Cooking. Falling does not end the run: you are knocked out for a spell, stand back up on part of your health and carry on with the same fight, and the first fall of each day costs you no time at all. Your fights keep going while you are away under exactly the same rule.',
       primary: 'Next',
       autoAdvanceOnClick: true,
     },
@@ -157,7 +132,7 @@
          gear, and answer the question every RPG player has already asked
          themselves by this point: what happens to my stuff when I die. */
       title: 'Your loot lives here',
-      body: 'Everything you gather, cook and kill for lands in your bag. Right-click any item to eat it, equip it, bury bones or see what it is for — and once you own gear, drag it onto the doll beside your bag to wear it. Nothing here is lost when you fall.',
+      body: 'Everything you gather, cook and kill for lands in your bag. Right-click any item, or press and hold it on a phone, to eat it, equip it, bury bones or see what it is for — and once you own gear, drag it onto the doll beside your bag to wear it. Nothing here is lost when you fall.',
       primary: 'Next',
       autoAdvanceOnClick: true,
     },

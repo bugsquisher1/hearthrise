@@ -7,6 +7,18 @@
 // the monolith by tools/split-smoke-suite.mjs — 31 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
 import { pass, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, withFarmServer, snapshotG, restoreG, restoreGAndRecord, on, overlayResidue, captureShellLocks, residueProbe } from './_harness.js?v=557';
+import { SCREEN_PRIMERS } from '../../data/screen-primers.js?v=557';
+
+/* The primer markers on this device, so a PRIMER test can put them back exactly. */
+const primerSnap = (S) => S.keys().filter((k) => k.indexOf('hearthrise:primer:') === 0).map((k) => [k, S.get(k)]);
+const primerRestore = (S, snap) => { primerSnap(S).forEach(([k]) => S.remove(k)); snap.forEach(([k, v]) => S.set(k, v)); };
+/* A cold harness boot has the FTUE tour up, and a primer rightly never mounts
+   over it; detach the tour for the test body and put it back where it was. */
+const parkTour = () => {
+  const held = [...document.querySelectorAll('.ftue-root')].map((el) => [el, el.parentNode, el.nextSibling]);
+  held.forEach(([el]) => el.remove());
+  return () => held.forEach(([el, parent, next]) => parent.insertBefore(el, next && next.parentNode === parent ? next : null));
+};
 
 export default [
   () => tryRun('boot: G defined', () => {
@@ -125,10 +137,71 @@ export default [
       'character-rebuild', 'dungeons-render', 'nav-consol-bootall', 'obs-tabchange',
       'character-page', 'activities-autoopen', 'stable-render', 'combat-tier-chips',
       'combat-screens-nav', 'identity-decorate', 'home-dashboard', 'ui-overlap',
-      'muster-events', 'lifetime-stats-place',
+      'muster-events', 'lifetime-stats-place', 'screen-primers',
     ];
     const missing = EXPECTED.filter((n) => !names.includes(n));
     assert(missing.length === 0, 'showTab taps never registered (trigger dropped in migration): ' + missing.join(', '));
+  }),
+  /* ── PRIMER-1..3 — the one-time screen primer (src/features/screen-primers.js) ──
+     The suite parks primers for the run (smoke-test.js); these unpark in their own bodies. */
+  () => tryRun('PRIMER-1: a first visit to the Farm shows one in-flow primer, and Got it retires it', () => {
+    const SP = window.HearthriseScreenPrimers, S = window.HearthriseStorage, K = 'hearthrise:primer:panel-farming';
+    assert(SP && S, 'the primer seam or the storage seam is not published');
+    const was = SP._park(false), mark = S.get(K), unpark = parkTour();
+    try {
+      S.remove(K); showTab('profile'); showTab('farming');
+      const panel = document.getElementById('panel-farming'), els = panel.querySelectorAll('[data-primer="panel-farming"]');
+      assert(els.length === 1 && panel.firstElementChild === els[0], 'expected one primer as the first child; found ' + els.length);
+      assert(els[0].querySelector('b').textContent === 'The Farm', 'the Farm primer is not titled "The Farm"');
+      const r = els[0].getBoundingClientRect(), cs = getComputedStyle(panel);
+      const w = panel.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      assert(r.width >= 0.9 * w, 'the primer spans ' + Math.round(r.width) + 'px of ' + Math.round(w) + 'px — it became a grid cell');
+      const hit = [...panel.querySelectorAll('.card')].find((c) => { const q = c.getBoundingClientRect(); return q.width > 0 && q.left < r.right && r.left < q.right && q.top < r.bottom && r.top < q.bottom; });
+      assert(!hit, 'the primer overlaps a card: ' + (hit && hit.className));
+      const d = els[0].querySelector('[data-primer-dismiss]').getBoundingClientRect();
+      assert(d.width >= 44 && d.height >= 44, 'Got it is ' + Math.round(d.width) + 'x' + Math.round(d.height) + ' — under the 44px touch target');
+      els[0].querySelector('[data-primer-dismiss]').click();
+      assert(!panel.querySelector('[data-primer]') && S.get(K) === '1', 'Got it did not remove the primer and set the marker');
+      showTab('profile'); showTab('farming');
+      assert(!panel.querySelector('[data-primer]'), 'a dismissed primer came back on the next visit');
+    } finally {
+      if (mark == null) S.remove(K); else S.set(K, mark);
+      document.querySelectorAll('[data-primer]').forEach((el) => el.remove());
+      SP._park(was); unpark();
+    }
+  }),
+  () => tryRun('PRIMER-2: no row, a dismissal or the tour on screen means no primer; reset() spares the FTUE flag', () => {
+    const SP = window.HearthriseScreenPrimers, S = window.HearthriseStorage, F = 'hearthrise:ftue:completed';
+    assert(SP && S, 'the primer seam or the storage seam is not published');
+    const was = SP._park(false), flag = S.get(F), snap = primerSnap(S), tour = document.createElement('div'), unpark = parkTour();
+    const clean = () => ({ dismissed: false, panel: document.createElement('section') });
+    try {
+      assert(SP.html('panel-profile') === '', 'a panel with no row rendered a primer');
+      assert(SP.shouldShow('panel-farming', clean()), 'CONTROL: an undismissed row on a clean panel does not show');
+      assert(!SP.shouldShow('panel-farming', { dismissed: true }), 'a dismissed primer would show again');
+      tour.className = 'ftue-root'; tour.innerHTML = '<div class="ftue-card show"></div>'; document.body.appendChild(tour);
+      assert(!SP.shouldShow('panel-farming', clean()), 'a primer would mount while the tour card is on screen');
+      tour.remove(); S.set(F, 'sentinel'); SP.reset();
+      assert(S.get(F) === 'sentinel', 'reset() touched the FTUE flag; it may clear the SCREEN_PRIMERS keys only');
+    } finally { tour.remove(); if (flag == null) S.remove(F); else S.set(F, flag); primerRestore(S, snap); SP._park(was); unpark(); }
+  }),
+  () => tryRun('PRIMER-3: Settings > Show screen tips again clears exactly the SCREEN_PRIMERS markers', () => {
+    const SP = window.HearthriseScreenPrimers, S = window.HearthriseStorage, OTHER = 'hearthrise:ftue:completed';
+    assert(SP && S && typeof window.openSettings === 'function', 'a seam the Settings row needs is missing');
+    const snap = primerSnap(S), other = S.get(OTHER);
+    window.openSettings();
+    try {
+      SP.dismissAll(); S.set(OTHER, 'sentinel');
+      assert(primerSnap(S).length === Object.keys(SCREEN_PRIMERS).length, 'CONTROL: dismissAll() did not mark every row');
+      const btn = document.getElementById('set-replay-primers');
+      assert(btn, 'the Show screen tips again button is not in Settings');
+      btn.click();
+      assert(primerSnap(S).length === 0, 'the row left primer markers behind: ' + primerSnap(S).map((p) => p[0]).join(', '));
+      assert(S.get(OTHER) === 'sentinel', 'the row cleared a key that is not a primer marker');
+    } finally {
+      const m = document.getElementById('settings-modal'); if (m) m.classList.remove('show');
+      if (other == null) S.remove(OTHER); else S.set(OTHER, other); primerRestore(S, snap);
+    }
   }),
   () => tryRun('tabs: a throwing tap does not break sibling taps', () => {
     const R = window.HearthriseShowTab;

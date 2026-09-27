@@ -2963,26 +2963,23 @@ export default [
     const stub = Object.assign({}, B, { isOfferableType: (t, c) => t === 'proof' || B.isOfferableType(t, c) });
     assert(!/Proof/.test(at(1, false, stub)) && /Weapon/.test(at(1, false, stub)), 'the strip ignores isOfferableType');
   }),
-  /* BOUNTY-PENDING — "Verifying your kills…" before the credit answer reads the
-     pending dash, never "0/N confirmed" (CLAUDE.md §6). */
-  () => tryRun('BOUNTY-PENDING: an unanswered kill credit reads pending on the combat bounty card, then the server\'s number', () => {
-    if (typeof window.renderBountyPanel !== 'function' || typeof window.showTab !== 'function') return skip('no bounty panel');
-    const snap = snapshotG(); const G = window.G; const prevTab = window.activeTab;
-    const card = () => { const d = document.createElement('div'); d.innerHTML = window.renderBountyPanel(); return d.querySelector('.bounty-card.confirming .bounty-progress span'); };
+  /* BOUNTY-PENDING — "confirmed" before the credit answer reads the pending
+     dash, never "0/N confirmed" (CLAUDE.md §6). The activity-bar chip is the
+     site a player sees: renderBountyPanel's ensureBountyState strips _confirming. */
+  () => tryRun('BOUNTY-PENDING: an unanswered kill credit reads pending on the combat bounty chip, then the server\'s number', () => {
+    if (typeof window.refreshActivityBar !== 'function' || !document.getElementById('ab-meta')) return skip('no activity bar');
+    const snap = snapshotG(); const G = window.G;
+    const chip = () => { window.refreshActivityBar(); return document.querySelector('#ab-meta .ab-bounty.confirming b'); };
     try {
-      window.showTab('combat');
-      const monId = Object.keys(window.MONSTERS)[0];
-      G.bountyHunter.active = { id: 'pend_cull', type: 'cull', target: monId, tier: 1, progress: 20, required: 20,
-        difficulty: 'easy', rewards: { gold: 270, marks: 5, xp: 38 }, _confirming: true };
-      G.activeMonster = monId;
-      let sp = card();
-      assert(sp && sp.querySelector('.bal-pending') && !/\b0\/\d+ confirmed/.test(sp.textContent), 'the confirming card read ' + (sp && sp.textContent));
+      if (typeof window.ensureBountyState === 'function') window.ensureBountyState();
+      G.bountyHunter.active = { id: 'pend_cull', type: 'cull', target: 'goblin', tier: 1, difficulty: 'easy', progress: 20, required: 20,
+        rewards: { gold: 1, marks: 1, xp: 1 }, _confirming: true };
+      G.activeMonster = 'goblin'; G.monsterHp = 10; G.monsterMaxHp = 15; G.playerHp = 50; G.playerMaxHp = 50;
+      let b = chip();
+      assert(b && b.querySelector('.bal-pending') && !/\b0\/\d+ confirmed/.test(b.textContent), 'the confirming chip read ' + (b && b.textContent));
       G.bountyHunter.active._serverConfirmed = 7;
-      sp = card();
-      assert(sp && !sp.querySelector('.bal-pending') && /^7\/20 confirmed/.test(sp.textContent), 'the answered card read ' + (sp && sp.textContent));
-    } finally {
-      restoreG(snap);
-      try { window.showTab(prevTab || 'combat'); } catch (e) {}
-    }
+      b = chip();
+      assert(b && !b.querySelector('.bal-pending') && /^7\/20 confirmed/.test(b.textContent), 'the answered chip read ' + (b && b.textContent));
+    } finally { restoreG(snap); try { window.refreshActivityBar(); } catch (e) {} }
   }),
 ];

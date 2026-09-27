@@ -8,6 +8,7 @@
 import { SKILLS_DEF } from '../data/skills.js?v=557';
 import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=557';
 import { ARTISAN_RECIPES } from '../data/recipes.js?v=557';
+import { headHtml } from '../render/skill-guide.js?v=557';
 
 const fmtSec = (ms) => (ms / 1000).toFixed(1) + 's';
 
@@ -146,6 +147,7 @@ function buildHead(skillId) {
       <div class="ah-row1"><span class="ah-name">${s.name}</span><span class="ah-lvl"><em>Level</em>${lv}</span></div>
       <div class="ah-xp">${xp.toLocaleString()}${lv < 99 ? ' / ' + (xp + toNext).toLocaleString() + ' XP' : ' XP · MAX'}${presenceNote()}</div>
       <div class="ah-bar"><i style="width:${pct.toFixed(1)}%"></i></div>
+      ${headHtml(skillId, lv)}
       ${goalControl}
     </div>
   </div>`;

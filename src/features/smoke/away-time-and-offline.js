@@ -7127,4 +7127,17 @@ export default [
     assert(window.HearthriseErrorBoundary.TARGETS.indexOf('refreshAll') >= 0,
       'the full repaint is not inside the error boundary — a throw in it blanks the whole UI');
   }),
+
+  () => tryRun('SKILLGUIDE-AWAY-1: the welcome-back card names the levels the server says were gained away', () => {
+    const H = window.HearthriseHome;
+    assert(H && typeof H.__awayCardHtml === 'function', 'the away card seam must exist');
+    const card = (levelUps) => H.__awayCardHtml({ hrs: 8, awayMs: 28800000, gainedXp: 900, levelUps });
+    const html = card([{ skill: 'mining', from: 44, to: 45 }, { skill: 'mining', from: 45, to: 46 }, { skill: 'fishing', from: 30, to: 31 }]);
+    assert(/Mining 44 → 46/.test(html) && /Fishing 30 → 31/.test(html), 'the card must span each skill: ' + html);
+    assert(/Gold Rock is open/.test(html), 'the card must name what the levels opened: ' + html);
+    assert(!/Levels while you were away/.test(card([])), 'no levels, no line');
+    const old = card([{ skill: 'mining', to: 12 }]);
+    assert(/Mining reached 12/.test(old) && !/undefined|NaN/.test(old), 'a receipt entry with no `from` must read "reached": ' + old);
+    assert(!/Levels while you were away/.test(card([{ skill: 'not_a_skill', from: 1, to: 2 }])), 'an unknown skill id prints nothing');
+  }),
 ];

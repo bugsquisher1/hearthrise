@@ -23,6 +23,7 @@
 import { SKILLS_DEF } from '../data/skills.js?v=557';
 import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=557';
 import { ARTISAN_RECIPES } from '../data/recipes.js?v=557';
+import { SKILL_GUIDE } from '../data/skill-guide.js?v=557';
 /* The UNKNOWN-balance accessor. This screen prints the purse, so it is one of
    the surfaces that must render a pending balance rather than a number. */
 import { balanceMarkup } from '../net/balance.js?v=557';
@@ -401,7 +402,10 @@ function skillTile(id) {
     ? `<img src="${window._skillIcon[id]}" alt="" loading="lazy" />`
     : ((window.HearthriseIconSet && window.HearthriseIconSet.medallion && window.HearthriseIconSet.medallion(id, 26)) || `<span class="csk-emoji">${s.icon || ''}</span>`);
   const maxed = lv >= 99;
-  return `<button type="button" class="csk-tile${active}" onclick="window.hrOpenActivity&&window.hrOpenActivity('${id}')" title="${esc(s.name)} — Level ${lv}${maxed ? ' (max)' : ', ' + Math.round(pct) + '% to next'}">
+  const guide = SKILL_GUIDE[id] ? ' · ' + SKILL_GUIDE[id].line : '';
+  const SG = window.HearthriseSkillGuide;
+  const next = SG ? SG.nextLine(id, lv) : '';
+  return `<button type="button" class="csk-tile${active}" onclick="window.hrOpenActivity&&window.hrOpenActivity('${id}')" title="${esc(s.name)} — Level ${lv}${maxed ? ' (max)' : ', ' + Math.round(pct) + '% to next'}${esc(guide)}${next ? '. ' + esc(next) : ''}">
     <span class="csk-ic">${iconHtml}</span>
     <span class="csk-tile-body">
       <span class="csk-nm">${esc(s.name)}</span>

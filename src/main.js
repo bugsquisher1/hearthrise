@@ -398,6 +398,9 @@ import './features/recipe-scrolls.js?v=557';
 /* and the House theme cards those two decide the state of — a pure painter
    (src/render/house-themes.js), loaded here so renderHouse can call it. */
 import './render/house-themes.js?v=557';
+/* what each skill is for and what it opens next — published on window for the
+   classic-script buildHead twin and the level-up banner (src/render/skill-guide.js). */
+import './render/skill-guide.js?v=557';
 // b333 — tells a LIVE tab that a new build shipped. An idle game is played with
 // a tab open for days, so "the fix ships" and "the fix arrives" are different
 // events; without this, every client-side fix reaches only the players who

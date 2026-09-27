@@ -811,6 +811,7 @@
       var charmLine = CH && typeof CH.awayLine === 'function' ? CH.awayLine(off) : '';
       if (charmLine) notes.push({ tone: 'good', icon: 'uiMedal', text: charmLine });
     } catch (e) { /* a card line is never load-bearing */ }
+    try { var SG = window.HearthriseSkillGuide; var t = SG ? SG.awayLevelsLine(off.levelUps) : ''; if (t) notes.push({ tone: 'good', icon: 'uiXp', text: t }); } catch (e) { /* never load-bearing */ }
     if (off.buffsPaused) {
       notes.push({ tone: 'held', icon: 'uiHourglass',
         text: 'Food buffs paused — their time was kept, not spent.' });

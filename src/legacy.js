@@ -3657,19 +3657,11 @@ function addXp(sk,amt,opts){
   }
 }
 /* ─── b374: skill level-up feedback (Tyler: "No popup for raising skill") ───
-   What UNLOCKS at `level` for `skill`: gathering nodes, crops, and artisan
-   recipes whose req is exactly this level. Gates on the BENCH skill (which for
-   artisan is `skill` itself), so a Mining level-up never claims a Stonemason
-   quarry rung and vice-versa. Pure read — safe to call from a test. */
+   What UNLOCKS at `level` for `skill` — a delegate to the ONE derivation in
+   src/render/skill-guide.js (plot-tier and recipe-scroll gates included); [] if
+   it has not loaded. Pure read — safe to call from a test. */
 function hrSkillUnlocksAt(skill, level){
-  const out=[];
-  const add=(name)=>{ if(name && out.indexOf(name)<0) out.push(name); };
-  const gatherMap={woodcutting:TREES, mining:ROCKS, fishing:FISH_SPOTS};
-  if(gatherMap[skill]){ gatherMap[skill].forEach(a=>{ if(a.req===level) add(a.name); }); }
-  if(skill==='farming' && typeof CROPS!=='undefined'){ Object.values(CROPS).forEach(c=>{ if(c.req===level) add(c.name); }); }
-  const R=window.ARTISAN_RECIPES;
-  if(R && Array.isArray(R[skill])){ R[skill].forEach(r=>{ if(r.req===level) add(ITEMS[r.output]?.n || r.name); }); }
-  return out;
+  const SG=window.HearthriseSkillGuide; return (SG&&typeof SG.opensAt==='function')?SG.opensAt(skill,level):[];
 }
 window.hrSkillUnlocksAt=hrSkillUnlocksAt;
 
@@ -3686,8 +3678,9 @@ function _hrRenderLevelUpPop(name, skill, level, unlocks){
      in an idle game. skillIconHTML keeps the medallion and falls to a gilt
      star, never to a pictograph. */
   const med=skillIconHTML(skill,40);
-  const unlockHtml = unlocks && unlocks.length
-    ? `<div class="lu-unlock">Unlocked: ${unlocks.map(escapeHtml).join(', ')}</div>` : '';
+  const SG=window.HearthriseSkillGuide, next=(SG&&typeof SG.nextLine==='function')?SG.nextLine(skill,level):'';
+  const unlockHtml = unlocks && unlocks.length ? `<div class="lu-unlock">Unlocked: ${unlocks.map(escapeHtml).join(', ')}</div>`
+    : (next ? `<div class="lu-unlock">${escapeHtml(next)}</div>` : '');
   el.innerHTML=`<div class="lu-medal">${med}</div>`
     +`<div class="lu-body"><div class="lu-title">Level ${level}</div>`
     +`<div class="lu-skill">${escapeHtml(name)}</div>${unlockHtml}</div>`;
@@ -16297,7 +16290,7 @@ function buildHead(skillId){
         +'<span class="ah-lvl"><em>Level</em>'+lv+'</span>'
       +'</div>'
       +'<div class="ah-xp">'+xp.toLocaleString()+(lv<99?' / '+(xp+toNext).toLocaleString()+' XP':' XP · MAX')+blessingNote()+'</div>'
-      +'<div class="ah-bar"><i style="width:'+pct.toFixed(1)+'%"></i></div>'
+      +'<div class="ah-bar"><i style="width:'+pct.toFixed(1)+'%"></i></div>'+(window.HearthriseSkillGuide?window.HearthriseSkillGuide.headHtml(skillId,lv):'')
     +'</div>'
   +'</div>';
 }

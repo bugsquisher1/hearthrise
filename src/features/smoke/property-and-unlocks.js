@@ -7,6 +7,7 @@
 // the monolith by tools/split-smoke-suite.mjs — 49 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
 import { pass, fail, tryRun, tryRunAsync, assert, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, withRoomServer, awayArtisanSpan, snapshotG, restoreG, restoreGAndRecord, bankEnv, on, snapshot } from './_harness.js?v=555';
+import { SKILL_GUIDE } from '../../data/skill-guide.js?v=555';
 
 export default [
 
@@ -2408,5 +2409,24 @@ export default [
       window.clientMayWriteRecordField = origMay;
       restoreG(snap);
     }
+  }),
+
+  () => tryRun('SKILLGUIDE-1: every skill says what it is for and names only an unlock the server will honour', () => {
+    const SG = window.HearthriseSkillGuide;
+    assert(SG && typeof SG.nextUnlock === 'function', 'window.HearthriseSkillGuide must be published');
+    const n = SG.nextUnlock('woodcutting', 14);
+    assert(n && n.lv === 15 && n.names.indexOf('Oak Tree') >= 0, 'Woodcutting 14 must point at Oak Tree, Lv 15: ' + JSON.stringify(n));
+    assert(JSON.stringify(SG.opensAt('woodcutting', 15)) === JSON.stringify(window.hrSkillUnlocksAt('woodcutting', 15)),
+      'the level-up banner and the guide must be ONE derivation');
+    const sword = window.gearWieldReq(window.ITEMS.iron_sword);
+    assert(SG.nextUnlock('attack', 1).lv === sword.lv, 'Attack 1 must point at the first gear rung, Lv ' + sword.lv);
+    assert(SG.opensAt('cooking', 75).indexOf("Hunter's Feast") < 0, 'a scroll-gated recipe must never be promised by a level');
+    assert(SG.opensAt('farming', 10).some((x) => /Carrot \(plot tier 2\)/.test(x)), 'Carrot must name its plot tier');
+    window.showTab('skills');
+    window.renderSkillDetail('woodcutting');
+    const d = document.getElementById('skill-detail');
+    const guide = d && d.querySelector('.ah-guide'), next = d && d.querySelector('.ah-next');
+    assert(guide && guide.textContent === SKILL_GUIDE.woodcutting.line, 'the live Skills header must paint the woodcutting line');
+    assert(next && /Good for:/.test(next.textContent), 'the live Skills header must paint "Good for:"');
   }),
 ];

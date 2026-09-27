@@ -865,6 +865,9 @@
        reuses the dashboard's own `.hd-cta` (tokens only, no new colour) and
        routes through the same delegated `data-hd` handler every other Home
        button uses. */
+    var NP = window.HearthriseNightPlan;
+    var nightDoors = (NP && window.G && (Number(off.deaths) >= 2 || off.stoppedBy === 'retreat'))
+      ? NP.doorsHtml(NP.ctxNow(window.G)) : '';
     var ctaHtml = quiet
       ? '<button class="hd-cta hd-away-cta" data-hd="trainskill">Train a skill</button>'
       : '';
@@ -891,7 +894,7 @@
             srcHtml +
           '</div>' +
         '</div>' +
-        '<div class="hd-away-notes">' + noteHtml + ctaHtml + '</div>' +
+        '<div class="hd-away-notes">' + noteHtml + nightDoors + ctaHtml + '</div>' +
       '</div></div>';
   }
 
@@ -1743,7 +1746,7 @@
           ? window.HearthriseCollection.tileLine(G) : null;
         html += '<div class="hd-card hd-mini" data-hd="collection" style="cursor:pointer">' +
           '<div class="mi">' + gly('uiBook', 20, '', 'var(--ink-2)') + '</div>' +
-          '<div>Collection log' + (_cln ? '<span class="hd-cl-next' + (_cln.ready ? ' ready' : '') + '">' +
+          '<div>Collection log' + (_cln ? '<span class="hd-cl-next' + (_cln.ready ? ' ready' : '') + '"' + (_cln.pending ? ' data-pending="1"' : '') + '>' +
             esc(_cln.text) + '</span>' : '') + '</div>' +
           '<b class="go" style="font-variant-numeric:tabular-nums">' + _clp + '%</b></div>';
       } catch (e) {}

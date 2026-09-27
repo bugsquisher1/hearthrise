@@ -2744,4 +2744,58 @@ export default [
       assert(/Still recovering/.test(H.__awayCardHtml(restored)), 'the server line runs and the card says nothing');
     } finally { F.done(); }
   }),
+
+  () => tryRun('NIGHT-PLAN-1: the AWAY forecast names the falls and the floor, never a night that ends', () => {
+    const S = window.HearthriseSetTheNight;
+    const f = { kind: 'combat', numeric: true, deaths: 11, downMs: 25200000, foodQty: 0, foodEaten: 0, targetName: 'Slime', spanMs: 1800000 };
+    const s = S.sentence(f);
+    assert(/fall about 11 times/.test(s) && /knocked out/.test(s) && /earning nothing/.test(s), 'the hungry night is unsaid: ' + s);
+    assert(!/night ends/.test(s), 'the retired rev.1 copy is back: ' + s);
+    const r = S.sentence(Object.assign({}, f, { stoppedBy: 'retreat', retreatFalls: 3, retreatMs: 5400000 }));
+    assert(/pull back to camp/.test(r), 'the retreat night is unsaid: ' + r);
+    const u = S.sentence(Object.assign({}, f, { numeric: false }));
+    assert(u && !/\d/.test(u), 'an uncounted night printed a number: ' + u);
+  }),
+
+  () => tryRun('NIGHT-PLAN-2: the AWAY receipt leads with the fix, and only says Auto-Eat was on when it was', () => {
+    const S = window.HearthriseSetTheNight;
+    const set = { at: Date.now() - 60000, spanMs: 3600000 };
+    const off = (ae) => ({ at: Date.now(), paidMs: 3600000, deaths: 9, recoverMs: 5 * 3600000, autoEat: ae });
+    const floor = S.morningLine(off({ enabled: true, hadFood: false }), set);
+    assert(/^You spent more of the night knocked out than fighting/.test(floor), 'the floor night does not lead with the fix: ' + floor);
+    assert(!/the forecast held/.test(floor), 'the floor night was graded as held: ' + floor);
+    const switchedOff = S.morningLine(off({ enabled: false, hadFood: true }), set);
+    assert(!/Auto-Eat on/.test(String(switchedOff)), 'a switched-off night claimed Auto-Eat was on: ' + switchedOff);
+  }),
+
+  () => tryRun('NIGHT-PLAN-3: the ATTENDED doors open the shop and offer the switch only when it is off', () => {
+    const NP = window.HearthriseNightPlan;
+    const f = { kind: 'combat', numeric: true, deaths: 4, downMs: 3600000, foodQty: 12, foodName: 'Cooked Shrimp', foodEaten: 0, autoEatOff: true, targetName: 'Slime' };
+    const off = NP.fightBlockHtml(f, { owned: true, serverEatOn: false });
+    assert(/Buy food at the Local Shop/.test(off) && /Turn Auto-Eat back on/.test(off), 'the doors are missing: ' + off);
+    assert(!/Turn Auto-Eat back on/.test(NP.fightBlockHtml(f, { owned: true, serverEatOn: true })), 'the switch door showed with the switch on');
+    const seen = [], realTab = window.showTab, realShop = window.setShopTab, host = document.createElement('div');
+    try {
+      window.showTab = (t) => seen.push(t); window.setShopTab = (t) => seen.push(t);
+      host.innerHTML = off; document.body.appendChild(host);
+      host.querySelector('[data-night-act="foodshop"]').click();
+      assert(seen.join() === 'seeds,shop', 'Buy food went to ' + seen.join());
+    } finally { window.showTab = realTab; window.setShopTab = realShop; host.remove(); }
+  }),
+
+  () => tryRun('NIGHT-PLAN-5: the forecast prices the Recovery ladder off the SERVER counters, not the residue tally', () => {
+    const S = window.HearthriseSetTheNight;
+    const clone = S.cloneForForecast({ stats: { deaths: 20 }, playerHp: 0, playerMaxHp: 30, inventory: {} },
+      { deathsToday: 0, deathsLifetime: 30, recoveringUntilMs: 0, consecFalls: 0 });
+    const d = window.HearthriseCore.combatSim.resolveDeath(clone, { items: window.ITEMS });
+    assert(d.recoverMs === 0, 'the day\'s first fall was charged ' + d.recoverMs + 'ms off the residue tally');
+  }),
+
+  () => tryRun('NIGHT-PLAN-6: the away chip is pending until the forecast exists', () => {
+    const NP = window.HearthriseNightPlan, B = window.HearthriseBalance;
+    const pending = NP.chipHtml(null);
+    assert(pending.indexOf(B.PENDING_CLASS) >= 0 && !/pays away/.test(pending), 'the chip spoke before the forecast: ' + pending);
+    const chip = NP.chipHtml({ kind: 'combat', numeric: true, deaths: 3, stoppedBy: 'retreat', retreatFalls: 3, retreatMs: 600000, foodQty: 0, foodEaten: 0, targetName: 'Slime' });
+    assert(/away: no food/.test(chip), 'a hungry retreat chip is wrong: ' + chip);
+  }),
 ];

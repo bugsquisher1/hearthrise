@@ -185,7 +185,7 @@
      answered `incomplete`. Both server numbers now ride the envelope:
        monsters → keys of G._bestiaryTrophies.killsByMonster (hr_bestiary_of)
        items    → G._collectionServer.found (edge `collection.found`)
-     A mirror that has not arrived is null → count 0 → nothing is claimable.
+     A mirror that has not arrived is null → pending, never 0 → nothing claimable.
      ══════════════════════════════════════════════════════════════════════════ */
   function serverCounts(G) {
     G = G || window.G;
@@ -197,7 +197,7 @@
     if (c && typeof c.found === 'number' && isFinite(c.found)) out.items = Math.max(0, Math.floor(c.found));
     return out;
   }
-  function haveOf(m, counts) { return Math.max(0, Math.floor(Number(counts[m.domain]) || 0)); }
+  function haveOf(m, counts) { return counts[m.domain] == null ? null : Math.max(0, Math.floor(Number(counts[m.domain]) || 0)); }
   /* THE one earned test. */
   function earned(m, counts) { return counts[m.domain] != null && haveOf(m, counts) >= m.goal; }
 
@@ -231,8 +231,14 @@
       if (!isFinite(n) || n < 0) return false;
       var G = window.G; if (!G) return false;
       G._collectionServer = { found: Math.floor(n) };
+      repaintIfPending();
       return true;
     } catch (e) { return false; }
+  }
+  /* An OPEN log resolves in place, but only while it shows a pending mark: a
+     90 s settle must not reset the scroll of a resolved log. */
+  function repaintIfPending() {
+    if (document.querySelector('#hr-cl-modal .bal-pending')) open();
   }
   function isClaimed(G, id) {
     var s = ensureState(G); if (!s) return false;
@@ -247,7 +253,8 @@
     return MILESTONES.filter(function (m) { return earned(m, counts) && !isClaimed(G, m.id); });
   }
   /* Per domain, the lowest rung the SERVER's count has not reached yet:
-     [{m, have, goal}]. Monsters first. */
+     [{m, have, goal, known}]. Monsters first. Unknown ⇒ the lowest unclaimed
+     rung with have null. */
   function nextRungs(G) {
     G = G || window.G; if (!G) return [];
     var counts = serverCounts(G), out = [];
@@ -255,21 +262,25 @@
       var rows = MILESTONES.filter(function (m) { return m.domain === d; })
         .sort(function (a, b) { return a.goal - b.goal; });
       for (var i = 0; i < rows.length; i++) {
-        if (!earned(rows[i], counts)) { out.push({ m: rows[i], have: haveOf(rows[i], counts), goal: rows[i].goal }); break; }
+        if (counts[d] == null) { if (!isClaimed(G, rows[i].id)) { out.push({ m: rows[i], have: null, goal: rows[i].goal, known: false }); break; } continue; }
+        if (!earned(rows[i], counts)) { out.push({ m: rows[i], have: haveOf(rows[i], counts), goal: rows[i].goal, known: true }); break; }
       }
     });
     return out;
   }
   function domainNoun(d) { return d === 'items' ? 'combat drops' : 'monsters'; }
-  /* The Home tile's one line: 'Claim ready', else the nearest next rung. */
+  /* The Home tile's one line: 'Claim ready', else the nearest KNOWN next rung,
+     else a pending one (plain text; home-dashboard escapes it). */
   function tileLine(G) {
     G = G || window.G;
     if (claimable(G).length) return { ready: true, text: 'Claim ready' };
-    var best = null;
-    nextRungs(G).forEach(function (r) {
-      if (!best || (r.have / r.goal) > (best.have / best.goal)) best = r;
+    var rows = nextRungs(G), best = null;
+    rows.forEach(function (r) {
+      if (r.known && (!best || (r.have / r.goal) > (best.have / best.goal))) best = r;
     });
-    return best ? { ready: false, text: 'Next: ' + best.m.label + ' ' + fmt(best.have) + '/' + fmt(best.goal) } : null;
+    if (best) return { ready: false, text: 'Next: ' + best.m.label + ' ' + fmt(best.have) + '/' + fmt(best.goal) };
+    best = rows[0];
+    return best ? { ready: false, pending: true, text: 'Next: ' + best.m.label + ' —/' + fmt(best.goal) } : null;
   }
 
   /* ══════════════════════════════════════════════════════════════════════════
@@ -634,9 +645,11 @@
     }).join('');
     /* THE NEXT RUNG, per domain, from the SERVER's count — what the player is
        chasing, with its reward. Never a button: it is not earned. */
+    var HB = window.HearthriseBalance;
     msHtml += nextRungs(G).map(function (r) {
+      var have = r.known ? fmt(r.have) : ((HB && HB.countMarkup) ? HB.countMarkup(null, { label: 'Not counted yet' }) : '—');
       return '<div class="hr-cl-next" data-cl-next="' + r.m.id + '"><div class="hr-cl-msb"><b>' + r.m.label + ': ' +
-        fmt(r.have) + '/' + fmt(r.goal) + ' ' + domainNoun(r.m.domain) + '</b> — ' + msRewardText(r.m.reward) + '</div></div>';
+        have + '/' + fmt(r.goal) + ' ' + domainNoun(r.m.domain) + '</b> — ' + msRewardText(r.m.reward) + '</div></div>';
     }).join('');
 
     var scrim = document.createElement('div');
@@ -702,6 +715,7 @@
     serverCounts: serverCounts,
     noteServerCounts: noteServerCounts,
     noteServerClaims: noteServerClaims,
+    repaintIfPending: repaintIfPending,
     /* ⚠ RETURNS A PROMISE<reward|null> since the two-phase fix — a claim is a
        server round-trip. Resolves null on every refusal, never rejects, and owns
        its own toast. */

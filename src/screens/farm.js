@@ -451,8 +451,6 @@ function renderFarm(){
   // b136: plot-level header + plant-all + auto-replant toggle.
   // The HearthriseFarm API drives all gating; we show a status strip
   // so the player understands what's unlocked and where to upgrade.
-  const plotLv = (window.HearthriseFarm && window.HearthriseFarm.getPlotLevel) ? window.HearthriseFarm.getPlotLevel() : 1;
-  const plotMax = (window.HearthriseFarm && window.HearthriseFarm.MAX_LEVEL) || 5;
   const deeds = (window.HearthriseFarm && window.HearthriseFarm.getDeedCount) ? window.HearthriseFarm.getDeedCount() : 0;
   const replant = (window.HearthriseAuto && window.HearthriseAuto.getFarmReplant) ? window.HearthriseAuto.getFarmReplant() : {enabled:false,cropId:null};
   const replantLabel = replant.enabled ? (replant.cropId ? CROPS[replant.cropId]?.name || replant.cropId : 'last crop') : 'off';
@@ -467,7 +465,7 @@ function renderFarm(){
   const header = `
     <div class="farm-status row between" style="margin-bottom:8px;flex-wrap:wrap;gap:8px">
       <div class="tiny muted">
-        Farm Plot <b>Lv ${plotLv}/${plotMax}</b>
+        ${window.HearthriseFarm ? window.HearthriseFarm.tierHeadHtml() : ''}
         · ${deeds} Deed${deeds===1?'':'s'}
         · Auto-replant: <b>${replantLabel}</b>
         <br><span id="farm-next-water">${farmNextWaterText()}</span> · crops grow even while you're away
@@ -508,25 +506,30 @@ function renderFarm(){
   </div>`;
 
   const cg=document.getElementById('crops-guide');
-  // b136: crops guide now shows BOTH skill-level and plot-level gates.
-  // A crop is "Unlocked" only if both pass. Locked-by-plot crops get
-  // a deep-link to House → Plot tab.
-  const canPlot = (id)=>{
-    if(window.HearthriseFarm && typeof window.HearthriseFarm.canPlantCrop === 'function')
-      return window.HearthriseFarm.canPlantCrop(id);
-    return id === 'turnip';
-  };
-  cg.innerHTML=Object.entries(CROPS).map(([id,c])=>{
-    const lv=getLevel('farming');const lvOk=(window.hrGateLevel?window.hrGateLevel('farming'):1)>=c.req;const plotOk=canPlot(id);
-    let badge;
-    /* b217: an "Unlocked" tag on every available crop is noise — available is
-       the default state and does not need a label. Only the GATE is news. */
-    if(lvOk && plotOk) badge = '';
-    else if(!lvOk) badge = `<span class="mr-lock">${lockGlyph()}Level ${c.req}</span>`;
-    else badge = `<span class="mr-lock" style="cursor:pointer" onclick="showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Upgrade Farm Plot in House → Plot">${lockGlyph()}Bigger plot</span>`;
-    const peren = c.regrows ? ` · <b>perennial</b> (regrows ×${c.regrowLimit||'∞'})` : '';
-    return `<div class="shop-row"><span class="si">${itemArt(c.prod)}</span><div class="info"><b>${c.name}</b><span>Lv ${c.req} · ${c.hours}h grow · ${c.yield[0]}-${c.yield[1]} yield${peren}</span></div>${badge}</div>`;
-  }).join('');
+  cg.innerHTML=Object.keys(CROPS).map(cropGuideRowHtml).join('');
+}
+
+// b136: crops guide now shows BOTH skill-level and plot-level gates.
+// A crop is "Unlocked" only if both pass. Locked-by-plot crops get
+// a deep-link to House → Plot tab. The Almanac line and "Used in" answer
+// "why would I grow this?" — text only (icon-boot-order counts the art).
+function cropGuideRowHtml(id){
+  const c=CROPS[id];
+  const plotOk=(window.HearthriseFarm && typeof window.HearthriseFarm.canPlantCrop === 'function')
+    ? window.HearthriseFarm.canPlantCrop(id) : id === 'turnip';
+  const lvOk=(window.hrGateLevel?window.hrGateLevel('farming'):1)>=c.req;
+  let badge;
+  /* b217: an "Unlocked" tag on every available crop is noise — available is
+     the default state and does not need a label. Only the GATE is news. */
+  if(lvOk && plotOk) badge = '';
+  else if(!lvOk) badge = `<span class="mr-lock">${lockGlyph()}Level ${c.req}</span>`;
+  else badge = `<span class="mr-lock" style="cursor:pointer" onclick="showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Upgrade Farm Plot in House → Plot">${lockGlyph()}Bigger plot</span>`;
+  const peren = c.regrows ? ` · <b>perennial</b> (regrows ×${c.regrowLimit||'∞'})` : '';
+  const desc = typeof window.itemDesc === 'function' ? window.itemDesc(c.prod) : '';
+  const used = typeof window.itemUsedInLine === 'function' ? window.itemUsedInLine(c.prod) : '';
+  const almanac = (desc ? `<span class="hh-almanac-line">${escapeHtml(desc)}</span>` : '')
+    + (used ? `<span class="tiny muted">Used in: ${escapeHtml(used)}</span>` : '');
+  return `<div class="shop-row"><span class="si">${itemArt(c.prod)}</span><div class="info"><b>${c.name}</b><span>Lv ${c.req} · ${c.hours}h grow · ${c.yield[0]}-${c.yield[1]} yield${peren}</span>${almanac}</div>${badge}</div>`;
 }
 
 /* Plant all empty plots. The RULE (which crop next, from a REMAINING seed budget
@@ -642,6 +645,7 @@ function openSeedPicker(i){
         plotIsReady       legacy.js Homestead farm tiles (~7785)
         plotPct           legacy.js Homestead farm tiles (~7785)
         plotWindowMs      legacy.js Homestead farm tiles (~7785)
+        cropGuideRowHtml  the smoke suite (FARMLORE-1)
       heldByServer, rollFlatBonus, waterAllPlots, plantAllEmpty and
       toggleAutoReplant publish themselves above, on the same lines they always
       did. Everything else in this file is now module-private. ── */
@@ -655,6 +659,7 @@ window.startFarmCheck = startFarmCheck;
 window.plotIsReady    = plotIsReady;
 window.plotPct        = plotPct;
 window.plotWindowMs   = plotWindowMs;
+window.cropGuideRowHtml = cropGuideRowHtml;
 
 console.log('Farm screen: loaded');
 })();

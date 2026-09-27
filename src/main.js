@@ -29,6 +29,7 @@ import { MONSTER_CLASSES, MONSTER_CLASS_ORDER, resolveMonsterProfile, auditRoste
 import { wiredIconMap, EXPECTED as MONSTER_ART_EXPECTED, pendingArt } from './data/monster-art.js?v=558';
 import { MONSTER_NOTES } from './data/monster-notes.js?v=558';
 import { companionLore, rankLore, trophyLore } from './data/lore-notes.js?v=558';
+import { roomRungLore, plotTier } from './data/homestead-lore.js?v=558';
 import * as ItemArt from './data/item-art.js?v=558';
 import { ITEMS, foodClassOf, isAutoEatable, foodKindOf, FOOD_KIND_META } from './data/items.js?v=558';
 import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, EQUIP_SLOT_META } from './data/gathering.js?v=558';
@@ -113,7 +114,7 @@ window.HearthriseMonsterClasses = {
 };
 window.HearthriseMonsterArt = { expected: MONSTER_ART_EXPECTED, pending: pendingArt };
 window.HearthriseMonsterNotes = MONSTER_NOTES;
-window.HearthriseLore = Object.freeze({ companion: companionLore, rank: rankLore, trophy: trophyLore });
+window.HearthriseLore = Object.freeze({ companion: companionLore, rank: rankLore, trophy: trophyLore, room: roomRungLore, plot: plotTier });
 window._monsterIcon = Object.assign(window._monsterIcon || {}, wiredIconMap());
 
 /* b358 — the Hearthfire ITEM art manifest, same shape as the monster one.
@@ -471,6 +472,7 @@ import { setupRecipeBook } from './features/recipe-book.js?v=558';
 import { setupItemIndex } from './features/item-index.js?v=558';
 import { setupCodex } from './features/codex.js?v=558';
 import { setupSignposts } from './features/signposts.js?v=558';
+import { setupNightPlan } from './features/night-plan.js?v=558';
 // Pack 1: one "what is this screen for?" note per screen, first visit only.
 import { setupScreenPrimers } from './features/screen-primers.js?v=558';
 
@@ -528,6 +530,7 @@ function tryBootFeatures() {
   boot('recipe-book', setupRecipeBook);
   boot('item-index', setupItemIndex);
   boot('signposts', setupSignposts);
+  boot('night-plan', setupNightPlan);
   boot('screen-primers', setupScreenPrimers);
   boot('codex', setupCodex);
   /* b228: setupCompanions() wraps window.getBonus, and it is the LAST wrapper

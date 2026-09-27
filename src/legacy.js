@@ -8586,7 +8586,7 @@ function renderHouse(){
       plotCard = `<div class="shop-row" style="border:1px solid var(--accent,#7f9a4f);background:rgba(127,154,79,0.05)">
         <span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center">${_hrGly('navFarm',30)}</span>
         <div class="info">
-          <b>Farm Plot · Lv ${lv}/${max}</b>
+          ${window.HearthriseFarm.tierHeadHtml()}${window.HearthriseFarm.tierLoreHtml()}
           <span>${lv >= max ? 'Maxed — all crops unlocked' : `Next tier unlocks: ${newCropsLabel}`}</span>
           ${priceLine?`<span class="tiny">${priceLine}</span>`:''}
           ${haveLine?`<span class="tiny muted">${haveLine}</span>`:''}
@@ -11062,7 +11062,7 @@ window.renderBountyPanel = function(){
   /* Decision 1 (bug #5): while the server catches up, show the SERVER-CONFIRMED
      count (never the phantom local total), reconciled DOWN to server truth by the
      credit RPC's returned progress. Never below what the server has confirmed. */
-  const _confirmed = Math.max(0, Math.min(a.required, Math.floor(Number(a._serverConfirmed)||0)));
+  const _confirmed = (a._serverConfirmed != null && Number.isFinite(Number(a._serverConfirmed))) ? Math.max(0, Math.min(a.required, Math.floor(Number(a._serverConfirmed)))) : (window.HearthriseBalance?.countMarkup?.(null, {label:'Not counted yet'}) ?? '—');
   const pct = Math.min(100, (cur/a.required)*100);
   const _curLabel = _confirming
     ? `${_confirmed}/${a.required} confirmed · Verifying your kills…`
@@ -11407,7 +11407,7 @@ function refreshActivityBar(){
         const _cur = (typeof bountyShownProgress==='function') ? bountyShownProgress(_ab) : Math.min(_ab.progress||0,_ab.required);
         const _abConfirming = !!(_ab._confirming || _ab._syncNoticed)
           && ((typeof bountyAttemptProgress==='function'?bountyAttemptProgress(_ab):(_ab.progress||0)) >= _ab.required);
-        const _abConfirmed = Math.max(0, Math.min(_ab.required, Math.floor(Number(_ab._serverConfirmed)||0)));
+        const _abConfirmed = (_ab._serverConfirmed != null && Number.isFinite(Number(_ab._serverConfirmed))) ? Math.max(0, Math.min(_ab.required, Math.floor(Number(_ab._serverConfirmed)))) : (window.HearthriseBalance?.countMarkup?.(null, {label:'Not counted yet'}) ?? '—');
         bountyChip = _abConfirming
           ? '<span class="ab-bounty confirming">Bounty <b>'+_abConfirmed+'/'+_ab.required+' confirmed</b></span>'
           : '<span class="ab-bounty">Bounty <b>'+_cur+'/'+_ab.required+'</b></span>';
@@ -11429,28 +11429,12 @@ function refreshActivityBar(){
             : '<span class="ab-xp">'+_lbl+' <b>'+_lv+'</b> · '+_to.toLocaleString()+' to go</span>';
         }
       }
-      /* ── b343: THE AWAY CHIP SAYS WHAT ACTUALLY ENDS THE NIGHT ────────────
-         b342 put a "Field Licence 41 / 100 · no away pay yet" pair here, and
-         the gate behind it is gone (see processOffline). What is NOT gone is
-         the reason that chip existed: this bar is the one readout on screen
-         for every second of every fight, and the question a player asks at it
-         is "can I leave this running?".
-
-         So the chip still answers, from the thing that is now the real limit —
-         auto-eat plus a stocked food slot. Nobody eats for you without the
-         trait (auto-actions.js), so an unequipped fight is over in about a
-         minute whether or not anyone is watching. Saying "pays away" flatly to
-         that player would be the same false promise b342 was filed against,
-         with the licence merely swapped out.
-
-         ONE predicate, shared with the monster preview's Away line
-         (`awayFightSustains`), so the two surfaces cannot drift. */
+      /* THE AWAY CHIP answers "can I leave this running?" from the Night Plan's
+         stored forecast (night-plan.js chipHtml): pays away, you fall, or no
+         food; a pending mark until the server has stated the bag. It never computes. */
       const licChip = '<span class="ab-tkills">Lifetime <b>'+totalKills.toLocaleString()+'</b></span>';
-      const awayChip = awayFightSustains()
-        ? '<span class="ab-xph ab-away" title="Auto-Eat and a stocked food slot keep this fight '
-          +'running while you are away, at the base rate.">pays away</span>'
-        : '<span class="ab-xph ab-away" title="A fight carries on while you are away, but it ends '
-          +'when you fall — nobody eats for you without Auto-Eat.">away: until you fall</span>';
+      const _NP = window.HearthriseNightPlan, _STN = window.HearthriseSetTheNight;
+      const awayChip = (_NP && _STN) ? _NP.chipHtml(_STN.peek(G)) : '';
       metaEl.innerHTML = ''
         + '<span class="ab-kills">'+_hrGly('uiSword',13)+' <b>'+kills.toLocaleString()+'</b> this fight</span>'
         + xpChip
@@ -13467,7 +13451,7 @@ function maybeShowWelcome(opts){
             _fix = 'Food would have turned that recovery time into fighting — about '
                  + _upTxt + ' the loot.';
           }
-          rows.push({g:'uiFood', t: _fix, v: ''});
+          rows.push({g:'uiFood', t: _fix, v: (window.HearthriseNightPlan && HearthriseNightPlan.doorsHtml(HearthriseNightPlan.ctxNow(G))) || ''});
         }
       }
       /* ── THE COST, ON ONE LINE ────────────────────────────────────────────
@@ -13877,9 +13861,8 @@ function renderDailyGoals(host){
   var goals = getGoalsForToday();
   host.innerHTML = '<div class="card"><div class="card-head"><div class="card-title">Daily Goals</div><span class="card-sub">Resets at UTC midnight</span></div><div class="card-body"><div class="daily-goals">' +
     goals.map(function(g){
-      /* 0 while the baseline is unknown — NOT `readSource - 0`, which is how a
-         freshly-mirrored lifetime counter rendered "Complete!" on the first
-         boot after the backfill. */
+      /* 0 while the baseline is unknown (never `readSource - 0`: the backfill's
+         instant "Complete!"); the chip then draws the pending dash, never 0. */
       var current = goalProgressFrom(G.dailyGoals, g);
       var done = current >= g.target;
       return '<div class="daily-goal'+(done?' done':'')+'">'+
@@ -13887,7 +13870,7 @@ function renderDailyGoals(host){
         '<span class="dg-emoji">'+((window.HR && window.HR.icon)
           ? (window.HR.icon(g.glyph||'uiTarget', 20, 'currentColor') || '') : '')+'</span>'+
         '<div class="dg-text"><b>'+g.name+'</b><span>'+(done?'Complete!':'Resets in ' + hoursTillUTCMidnight() + 'h')+'</span></div>'+
-        '<span class="dg-progress">'+Math.min(current,g.target)+' / '+g.target+'</span>'+
+        '<span class="dg-progress">'+(goalBaselineOf(G.dailyGoals, g).known ? Math.min(current,g.target) : (window.HearthriseBalance?.countMarkup?.(null, {label:'Not counted yet'}) ?? '—'))+' / '+g.target+'</span>'+
       '</div>';
     }).join('') + '</div></div></div>';
 }
@@ -16901,31 +16884,12 @@ console.log('[Visual Polish v2] applied');
 (function(){
 "use strict";
 
-/* Pick a "class" name based on highest skill or training pattern */
+/* The Hero class: delegates to heroClass (src/render/skill-guide.js) */
 function deriveClass(){
-  if(typeof G==='undefined' || !G.skills) return {name:'Adventurer', tagline:'Path: Wanderer'};
-  var entries = Object.entries(G.skills);
-  if(entries.length === 0) return {name:'Adventurer', tagline:'Path: Wanderer'};
-  /* Find skill with the highest XP */
-  var top = entries.reduce(function(a,b){ return (b[1]||0) > (a[1]||0) ? b : a; });
-  var topId = top[0];
-  var topXp = top[1];
-  var s = (typeof SKILLS_DEF !== 'undefined') ? SKILLS_DEF[topId] : null;
-  if(!s) return {name:'Adventurer', tagline:'Path: Wanderer'};
-  /* Class names by category and specific skill */
-  var classMap = {
-    attack:'Warrior', strength:'Berserker', defense:'Guardian', hitpoints:'Brawler',
-    prayer:'Devotee', magic:'Mage', ranged:'Ranger', bountyHunter:'Bounty Hunter',
-    woodcutting:'Lumberjack', mining:'Miner', fishing:'Angler', farming:'Farmhand',
-    cooking:'Chef', crafting:'Artificer', smithing:'Smith'
-  };
-  var cn = classMap[topId] || 'Adventurer';
-  var tag;
-  if(topXp < 100) tag = 'Path: '+cn;
-  else if(topXp < 1000) tag = 'Aspiring '+cn;
-  else if(topXp < 10000) tag = 'Skilled '+cn;
-  else tag = 'Master '+cn;
-  return {name:cn, tagline:tag};
+  var SG = window.HearthriseSkillGuide, SR = window.HearthriseSkillRecord, B = window.HearthriseBalance;
+  var xpOf = function(id){ return (SR && typeof SR.skillXpForDisplayOr === 'function' && typeof G !== 'undefined') ? SR.skillXpForDisplayOr(G, id, null) : null; };
+  var c = (SG && typeof SG.heroClass === 'function') ? SG.heroClass(xpOf) : null;
+  return c || {name:null, tagline:(B && B.UNKNOWN_TEXT) || '—'};
 }
 
 /* Look up a sample monster pack icon for character avatars (currently use existing player avatar) */
@@ -18235,6 +18199,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
     if(typeof window.__hrGoalBaseline === 'function') return window.__hrGoalBaseline(stateObj, goal);
     return {known: true, value: (stateObj && stateObj.startValues && stateObj.startValues[goal.id]) || 0};
   }
+  function shownOr(g, isWeekly, d){ return (!srvGoal(g, isWeekly) && !baselineOf(g, isWeekly).known) ? (window.HearthriseBalance?.countMarkup?.(null, {label:'Not counted yet'}) ?? '—') : d.shown; }
   function getProgress(goal, isWeekly){
     var sg = srvGoal(goal, isWeekly);
     if(sg) return sg.have;
@@ -18640,9 +18605,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
          "ready to claim" (server-confirmed COMPLETE only, never CONFIRMING). */
       var prefix = claimed ? '✓ '
         : (complete ? (((window.HR && window.HR.icon) ? (window.HR.icon('uiGift', 13, '--gold') || '') : '') + ' ') : '');
-      var progText = confirming
-        ? (d.shown + ' / ' + g.target + ' · Confirming…')
-        : (d.shown + ' / ' + g.target);
+      var progText = shownOr(g, false, d) + ' / ' + g.target + (confirming ? ' · Confirming…' : '');
       return '<span class="gq-quest '+(complete?'done':'')+(confirming?' confirming':'')+'">'
         +'<span class="gq-icon">'+goalGlyphHTML(g, 15)+'</span>'
         +'<span class="gq-name">'+prefix+g.name+'</span>'
@@ -18792,7 +18755,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
         if(confirming) rowClass += ' confirming';
         var progText = confirming
           ? (g.target + ' / ' + g.target + ' · Confirming…')
-          : (d.shown + ' / ' + g.target + ' (' + pct.toFixed(0) + '%)');
+          : (shownOr(g, isWeekly, d) + ' / ' + g.target + ' (' + pct.toFixed(0) + '%)');
         return '<div class="qm-quest '+rowClass+'"'
           +(goBtn ? ' data-goto="'+g.id+'" data-weekly="'+(isWeekly?1:0)+'"' : '')+'>'
           +'<div class="qm-q-icon">'+goalGlyphHTML(g, 26, '--gold-2')+'</div>'

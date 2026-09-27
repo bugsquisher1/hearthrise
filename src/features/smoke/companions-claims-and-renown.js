@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 43 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, errorLog, stampBalanceLikeLoad, stampRecordLikeLoad, predZero, snapshotG, drain, stubSignedIn, restoreG, zeroRenownTerms, restoreRenownTerms, on, withClaimServer, goldOf } from './_harness.js?v=558';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, errorLog, stampBalanceLikeLoad, stampRecordLikeLoad, predZero, snapshotG, drain, stubSignedIn, restoreG, zeroRenownTerms, restoreRenownTerms, on, withClaimServer, goldOf, withServerBacked, hrCharmDriver } from './_harness.js?v=558';
 
 /* LEDGER OF FIRSTS — the collection-log rungs read the SERVER mirrors, which
    are `_` scratch outside snapshotG. Each test saves and restores them by
@@ -610,6 +610,94 @@ export default [
       if (sCol === undefined) delete window.G.collection; else window.G.collection = sCol;
       restoreMirrors(mirrors);
       restoreG(snap);
+    }
+  }),
+
+  /* LEDGER-5 — an unknown server count is PENDING, never 0 (CLAUDE.md §6). The
+     numbers ride only settle(), so the idle and away arms go through it. */
+  () => tryRunAsync('LEDGER-5: an unknown count renders pending, never 0; the settle turns it into the number', async () => {
+    const C = window.HearthriseCollection, A = window.HearthriseAccrual;
+    if (!C || typeof C.tileLine !== 'function' || !A || !window.MONSTERS) return skip('HearthriseCollection not loaded');
+    const snap = snapshotG(); const mirrors = saveMirrors(); const rig = hrCharmDriver(); const realFetch = window.fetch;
+    const eight = {}; Object.keys(window.MONSTERS).slice(0, 8).forEach((m) => { eight[m] = 1; });
+    const bestiary = { kills_by_monster: eight, kills_by_class: {} };
+    const line = (id) => { const e = document.querySelector('#hr-cl-modal [data-cl-next="' + id + '"]'); return e ? e.textContent || '' : null; };
+    const unknown = () => { delete window.G._bestiaryTrophies; delete window.G._collectionServer; delete window.G._collectionServerClaimed; window.G.collectionLog = { claimed: [] }; };
+    const resolved = (arm) => {
+      assert(/Novice Hunter: 8\/10 monsters/.test(line('hunter10') || ''), arm + ': monsters line reads ' + line('hunter10'));
+      assert(/Magpie: 21\/25 combat drops/.test(line('collect25') || ''), arm + ': items line reads ' + line('collect25'));
+      assert(!document.querySelector('#hr-cl-modal .bal-pending'), arm + ': a pending mark survived the settle');
+      assert(C.tileLine(window.G).text === 'Next: Magpie 21/25', arm + ': tile reads ' + JSON.stringify(C.tileLine(window.G)));
+    };
+    try {
+      // UNKNOWN: no mirror at all.
+      unknown(); C.open();
+      const rows = [...document.querySelectorAll('#hr-cl-modal [data-cl-next]')];
+      assert(rows.map((r) => r.getAttribute('data-cl-next')).join() === 'hunter10,collect25', 'next rungs: ' + rows.map((r) => r.getAttribute('data-cl-next')));
+      rows.forEach((r) => {
+        assert(!/(^|\D)0\/\d/.test(r.textContent || ''), 'an unknown count rendered as 0: ' + r.textContent);
+        assert(r.querySelector('.bal-pending'), 'no pending mark on ' + r.getAttribute('data-cl-next'));
+      });
+      const tl = C.tileLine(window.G);
+      assert(tl && tl.pending === true && !/\b0\//.test(tl.text), 'tile: ' + JSON.stringify(tl));
+      C.noteServerClaims([{ kind: 'collection', key: 'hunter10', period: '', state: 'claimed' }]); C.open();
+      assert(line('hunter25') !== null && document.querySelector('#hr-cl-modal [data-cl-next="hunter25"] .bal-pending'), 'a claimed rung was named next: ' + line('hunter10'));
+      // ATTENDED/IDLE: the accrued:false reply a reloading player gets; the OPEN log resolves in place.
+      unknown(); C.open();
+      const idle = await rig.drive(bestiary, { collection: { found: 21 } });
+      assert(idle && idle.outcome === 'nothing', 'idle settle: ' + JSON.stringify(idle));
+      resolved('idle, same open modal');
+      C.open(); resolved('idle, re-opened');
+      // AWAY: an accrued:true envelope through settle().
+      unknown(); rig.restore();
+      A.configureAccrual({ url: 'https://proj.supabase.co', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
+      await withServerBacked({ extra: { accrued: true, away: {}, bestiary, collection: { found: 21 } } }, async () => {
+        const away = await A.requestAccrual({ force: true });
+        assert(away && away.outcome === 'accrued', 'away settle: ' + JSON.stringify(away && away.outcome));
+      });
+      C.open(); resolved('away');
+      // REFUSED: a 503 writes no mirror; the line stays pending.
+      unknown(); A.resetAccrualGate();
+      window.fetch = (u, init) => (/hr-accrue/.test(String(u)) ? Promise.resolve(new Response('{"error":"down"}', { status: 503 })) : realFetch.call(window, u, init));
+      const down = await A.requestAccrual({ force: true });
+      assert(down && down.outcome === 'unavailable', 'refused settle: ' + JSON.stringify(down && down.outcome));
+      C.open();
+      assert(document.querySelector('#hr-cl-modal [data-cl-next="hunter10"] .bal-pending') && !window.G._bestiaryTrophies && !window.G._collectionServer, 'a refused settle resolved the count');
+    } finally {
+      window.fetch = realFetch; rig.restore();
+      const m = document.getElementById('hr-cl-modal'); if (m) m.remove();
+      restoreG(snap); try { A.__resetAwayReceipt(); } catch (e) {}
+      restoreMirrors(mirrors);
+    }
+  }),
+
+  () => tryRunAsync('LEDGER-6: the boot hr_load feeds the server claim rows', async () => {
+    const R = window.HearthriseRecord, C = window.HearthriseCollection;
+    if (!R || typeof R.beginRecordLoad !== 'function' || !C || !window.MONSTERS || !window.HearthriseProperty) return skip('record.js not loaded');
+    const realFetch = window.fetch, realG = window.G, P = window.HearthriseProperty;
+    const prevProp = P.__resetPropertyRecord();   // the fixture's complete progress statement would observe tier 0
+    try {
+      R.resetRecord();
+      R.configureRecord({ url: 'https://proj.supabase.co/', apiKey: 'anon', authToken: () => 'jwt', slot: 0 });
+      window.G = {};
+      const now = new Date().toISOString();
+      window.fetch = function (u) {
+        if (!/hr_load/.test(String(u))) return realFetch.apply(this, arguments);
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, version: Date.now(), now,
+          state: { slot: 0, gold: 1, gems: 0, accrued_to: now },
+          progress: [{ kind: 'collection', key: 'hunter10', period: '', state: 'claimed' }], progress_truncated: false }), { status: 200 }));
+      };
+      const out = await R.beginRecordLoad();
+      assert(out && out.outcome === 'loaded', 'boot load: ' + JSON.stringify(out));
+      assert(Array.isArray(window.G._collectionServerClaimed) && window.G._collectionServerClaimed.includes('hunter10'),
+        'the boot load dropped the server claim rows: ' + JSON.stringify(window.G._collectionServerClaimed));
+      seedServerMonsters(Object.keys(window.MONSTERS).slice(0, 30));
+      window.G.collectionLog = { claimed: [] };
+      const cl = C.claimable(window.G).map((m) => m.id);
+      assert(!cl.includes('hunter10') && cl.includes('hunter25'), 'after an idle boot the log offered ' + JSON.stringify(cl));
+    } finally {
+      window.fetch = realFetch; window.G = realG;
+      R.resetRecord(); R.configureRecord(null); P.__resetPropertyRecord(prevProp);
     }
   }),
 

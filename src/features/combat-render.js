@@ -17,6 +17,7 @@
 import { MONSTERS } from '../data/monsters.js?v=558';
 import { ITEMS } from '../data/items.js?v=558';
 import { formatDropOdds } from '../core/drops.js?v=558';
+import { SIGNPOSTS } from '../data/signposts.js?v=558';
 
 function getMonsterIconHtml(id) {
   const path = window._monsterIcon?.[id];
@@ -200,7 +201,7 @@ function awayRow(m, f) {
      promise the player something the engine will not deliver. */
   const stocked = typeof window.awayFightSustains === 'function' && window.awayFightSustains();
   if (!stocked) {
-    return { name: 'About that long', meta: 'then you fall and the fight ends — Auto-Eat keeps it running',
+    return { name: 'Before your first fall', meta: SIGNPOSTS.lines['night.statsFall'].text,
       right: `<span class="hr-cs-amt">≈${num(f.survivalKills || 0)} kills</span>` };
   }
   const capH = typeof window.offlineCapHours === 'function' ? window.offlineCapHours() : null;
@@ -208,11 +209,15 @@ function awayRow(m, f) {
     return { name: 'You keep fighting', meta: 'until your away limit — waiting for the server',
       right: '<span class="bal-pending" role="status" title="Waiting for the server">—</span>' };
   }
+  /* The count is the server's bag or nothing (§6): a pending mark before the first envelope. */
+  const AC = window.HearthriseAccrual;
+  const held = AC && typeof AC.bagHydrated === 'function' && AC.bagHydrated(G)
+    ? num(G.inventory[foodId]) : ((window.HearthriseBalance || {}).UNKNOWN_TEXT || '');
   const foodS = f.survivalSeconds;
   const bound = Math.min(capH * 3600, foodS);
   return { name: 'You keep fighting for', right: `<span class="hr-cs-amt">${fmtRun(bound)}</span>`,
     meta: foodS <= capH * 3600
-      ? `on ${num(G.inventory[foodId])} ${esc((window.ITEMS[foodId] || {}).n || foodId)}`
+      ? `on ${held} ${esc((window.ITEMS[foodId] || {}).n || foodId)}`
       : `your ${capH}h away limit, not your food` };
 }
 

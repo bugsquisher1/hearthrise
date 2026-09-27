@@ -709,12 +709,15 @@
        Printing a permission the server does not check is how the Shrine card
        told 296 builds' worth of players that bones were vendor trash. */
 
+    var L = window.HearthriseLore;
+    var loreOf = function (n) { return L && typeof L.room === 'function' ? L.room(id, n) : ''; };
     var ladder = r.levels.map(function (rung, i) {
       var level = i + 1;
       var g = rungGate(id, level);
       return {
         level: level,
         name: rung.nm || ('Level ' + level),
+        line: loreOf(level),
         effects: rung.bonus || '',
         // A rung may declare a payload that is specced but deliberately NOT
         // shipped yet (Library L4/L5's Rested XP, pending the b228 rework).
@@ -746,6 +749,7 @@
       lockReason: state === 'locked' ? canBuildRoom(id).reason : null,
       currentName: cur ? (cur.nm || ('Level ' + lv)) : null,
       currentBonus: cur ? cur.bonus : null,
+      currentLine: cur ? loreOf(lv) : null,
       now: now,
       ladder: ladder,
       next: nextRung
@@ -1062,6 +1066,7 @@
         }),
         empty: 'This rung grants no passive bonus.'
       });
+      if (d.currentLine) sections.push({ kind: 'note', html: '<span class="hh-rung-lore">' + esc(d.currentLine) + '</span>' });
       if (id === 'trophy') sections = sections.concat(trophyWallSections());
     }
 
@@ -1079,7 +1084,8 @@
         return {
           level: row.level,
           effect: nm + mark + '<span class="hh-rung-eff">' + esc(row.effects) + '</span>' +
-            (row.reserved ? '<span class="hh-rung-resv">' + esc(row.reserved) + '</span>' : ''),
+            (row.reserved ? '<span class="hh-rung-resv">' + esc(row.reserved) + '</span>' : '') +
+            (row.line ? '<span class="hh-rung-lore">' + esc(row.line) + '</span>' : ''),
           // An owned rung shows no price — you already paid it.
           /* b372: `id` rides across the seam. The gate line below has always
              carried one; the COST lines dropped it here, which would have left

@@ -137,6 +137,8 @@ export function noteEnvelope(res) {
     claimed,
   };
   out.noted = true;
+  const HC = w().HearthriseCollection;   // the log's monsters count is this mirror
+  if (HC && typeof HC.repaintIfPending === 'function') { try { HC.repaintIfPending(); } catch (e) { /* display only */ } }
   return out;
 }
 

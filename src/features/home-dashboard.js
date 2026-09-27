@@ -1741,7 +1741,7 @@
           ? window.HearthriseCollection.tileLine(G) : null;
         html += '<div class="hd-card hd-mini" data-hd="collection" style="cursor:pointer">' +
           '<div class="mi">' + gly('uiBook', 20, '', 'var(--ink-2)') + '</div>' +
-          '<div>Collection log' + (_cln ? '<span class="hd-cl-next' + (_cln.ready ? ' ready' : '') + '">' +
+          '<div>Collection log' + (_cln ? '<span class="hd-cl-next' + (_cln.ready ? ' ready' : '') + '"' + (_cln.pending ? ' data-pending="1"' : '') + '>' +
             esc(_cln.text) + '</span>' : '') + '</div>' +
           '<b class="go" style="font-variant-numeric:tabular-nums">' + _clp + '%</b></div>';
       } catch (e) {}

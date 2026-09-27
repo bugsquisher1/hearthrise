@@ -3097,6 +3097,8 @@ export function playStreakDays(G) {
      yet", which every caller already renders as no streak. */
   return 0;
 }
+/** Has the server stated a streak yet? False ⇒ the chip draws the pending dash. */
+export function playStreakKnown(G) { const s = G && G._serverStreak; return !!(s && Number.isFinite(Number(s.days))); }
 
 /* ── THE FRACTIONAL TOOL CARRY IS THE SERVER'S (2026-08-15-tool-carry.sql) ────
    `player_state.tool_carry` is a real column: the Edge engine reads it, every
@@ -3754,12 +3756,9 @@ function applyEnvelopeStateBody(G, res, ownKey) {
     /* THE ACTIVE BOUNTY'S SERVER PROGRESS (2026-09-09). hr_state_of projects
        `state.bounty.progress` = hr_bounty_kills(target) - baseline, i.e. the
        number hr_claim_bounty judges the turn-in by, INCLUDING the settled/away
-       kills the client's attended counter cannot see. Read from the one funnel
-       every envelope passes (settle AND switch AND the boot hr_load), so a
-       player who finished a contract while away sees it finished the moment
-       they land rather than never. Guarded like every other note: a display
-       adopter must never throw into an envelope apply, and a server without the
-       projection simply carries no key, which reads as absent. */
+       kills the client's attended counter cannot see. Settle and switch only —
+       NOT the boot hr_load (record.js never calls here). Guarded: a display
+       adopter must never throw into an envelope apply; no key reads as absent. */
     if (w && typeof w.hrNoteServerBounty === 'function') w.hrNoteServerBounty(res);
   } catch (e) {}
   written.absolute = absolute;
@@ -6510,7 +6509,7 @@ if (typeof window !== 'undefined') {
     getFrameDrops, noteFrameDrop, clearFrameDrops,
     resetFrameGate, FRAME_VERDICTS,
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
-    nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES,
+    nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES, playStreakKnown,
     awaySettleDone, __resetAwaySettleLatch, settleInFlight, dropPendingCombatXp,   // settle-first, read by legacy.js's combat-XP cadence
     deferPendingCombatXp, pendingCombatXpDeferral, resolveCombatXpDeferral, __resetCombatXpDeferral,   // a `settle_first` refusal defers, never discards
     restorePendingCombatXp, combatXpReflushPromise, retireCombatXpDeferral,   // …and a CONFIRMED settle re-submits it so the server's span top-up is claimable

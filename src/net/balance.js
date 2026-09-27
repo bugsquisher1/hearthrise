@@ -310,12 +310,24 @@ function esc(s) {
 export function balanceMarkup(G, field, opts) {
   const o = opts || {};
   const b = balanceForDisplay(G, field);   // b455 — display read (see fmtBalance)
-  const cls = o.className ? ' ' + esc(o.className) : '';
-  if (!b.known) {
-    return '<span class="' + PENDING_CLASS + cls + '" role="status" aria-label="'
-      + esc(UNKNOWN_LABEL) + '" title="' + esc(UNKNOWN_HINT) + '">' + UNKNOWN_TEXT + '</span>';
-  }
+  if (!b.known) return pendingMarkup({ label: UNKNOWN_LABEL, hint: UNKNOWN_HINT, className: o.className, role: 'status' });
   return esc(fmtBalance(G, field, o));
+}
+
+/** The pending dash for ANY server figure not heard yet. `label`/`hint` are
+ *  required (a monster count is not a balance); `role` only when passed. */
+export function pendingMarkup(o) {
+  const cls = o.className ? ' ' + esc(o.className) : '';
+  return '<span class="' + PENDING_CLASS + cls + '"' + (o.role ? ' role="' + esc(o.role) + '"' : '')
+    + ' aria-label="' + esc(o.label) + '" title="' + esc(o.hint) + '">' + UNKNOWN_TEXT + '</span>';
+}
+
+/** A server count: the number when finite, else the pending dash (no role —
+ *  a live region on every Home repaint would re-announce). */
+export function countMarkup(n, o) {
+  if (n != null && Number.isFinite(Number(n))) return esc(String(Math.max(0, Math.floor(Number(n))).toLocaleString()));
+  return pendingMarkup({ label: (o && o.label) || 'Not counted yet',
+    hint: (o && o.hint) || 'Waiting for the realm to count this.', className: o && o.className });
 }
 
 /**
@@ -395,7 +407,7 @@ if (typeof window !== 'undefined') {
     BALANCE_FIELDS, UNKNOWN_TEXT, UNKNOWN_LABEL, UNKNOWN_HINT, PENDING_CLASS,
     balanceOf, isBalanceKnown, balanceNum, balanceOr,
     balanceForDisplay, balanceNumForDisplay,
-    fmtBalance, compactNumber, balanceMarkup, paintBalance,
+    fmtBalance, compactNumber, balanceMarkup, pendingMarkup, countMarkup, paintBalance,
     affordability, canAfford, shortfallMessage, balanceState,
   };
 }

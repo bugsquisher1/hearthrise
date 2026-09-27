@@ -7246,7 +7246,10 @@ export default [
 
   () => tryRunAsync('OFFLINE-CAP-1g: the boot hr_load hydrates the cap — an idle login knows its away limit', () => withCap(null, async () => {
     const R = window.HearthriseRecord, snap = snapshotG(), realFetch = window.fetch;
-    const body = { ok: true, version: Date.now(), now: new Date().toISOString(), state: { slot: 0 }, vigour: { grant_min: 780 } };
+    let body = null; const apply = R.applyRecord;   // the hr_load body the harness would stamp, plus the meter
+    R.applyRecord = (g, res) => { body = res; return null; };
+    try { stampRecordLikeLoad(window.G); } finally { R.applyRecord = apply; }
+    body.vigour = { grant_min: 780 };
     window.fetch = function (u) {
       return /hr_load/.test(String(u)) ? Promise.resolve(new Response(JSON.stringify(body), { status: 200 })) : realFetch.apply(this, arguments);
     };

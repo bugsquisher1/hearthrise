@@ -720,9 +720,8 @@
        the server will refuse their next swing, on the DURABLE surface.
        ⚠ HOISTED OUT OF THE DEATH BLOCK so a RETREAT night keeps it: that fall
          charged its rung like any other. */
-    /* THE LIVE LINE, never the receipt's settle-time snapshot: that froze for
-       the card's half hour, outlived a Rest, and was gone after a reload (§6).
-       No line running, no sentence. */
+    /* THE LIVE LINE, never the receipt's settle-time snapshot (it froze for the card's
+       half hour, outlived a Rest, and was gone after a reload; §6). No line, no sentence. */
     var recLeft = 0;
     try {
       var AC = window.HearthriseAccrual;

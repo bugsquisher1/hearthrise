@@ -158,6 +158,8 @@ export default [
       assert(r.width >= 0.9 * w, 'the primer spans ' + Math.round(r.width) + 'px of ' + Math.round(w) + 'px — it became a grid cell');
       const hit = [...panel.querySelectorAll('.card')].find((c) => { const q = c.getBoundingClientRect(); return q.width > 0 && q.left < r.right && r.left < q.right && q.top < r.bottom && r.top < q.bottom; });
       assert(!hit, 'the primer overlaps a card: ' + (hit && hit.className));
+      const d = els[0].querySelector('[data-primer-dismiss]').getBoundingClientRect();
+      assert(d.width >= 44 && d.height >= 44, 'Got it is ' + Math.round(d.width) + 'x' + Math.round(d.height) + ' — under the 44px touch target');
       els[0].querySelector('[data-primer-dismiss]').click();
       assert(!panel.querySelector('[data-primer]') && S.get(K) === '1', 'Got it did not remove the primer and set the marker');
       showTab('profile'); showTab('farming');

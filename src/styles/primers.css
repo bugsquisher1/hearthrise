@@ -33,7 +33,7 @@
   line-height: 1.45;
   color: var(--ink);
 }
-.hr-primer [data-primer-dismiss] {
+.hr-primer .btn[data-primer-dismiss] {  /* (0,3,0): beats art-direction.css `body[data-theme] .btn-sm` */
   min-height: 44px;
   min-width: 44px;
   margin-left: auto;

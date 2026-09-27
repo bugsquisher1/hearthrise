@@ -2466,7 +2466,8 @@ export default [
       assert(ui.root.classList.contains('reauth'), 'the re-prompt must render in its sheet form');
       assert(ui.root.id !== 'hr-account-gate', 'the re-prompt must not masquerade as the front-door wall');
       assert(ui.later, 'the re-prompt must be deferrable — no hard eject');
-      assert(/keep playing/i.test(ui.later.textContent), 'the defer action must say play continues: ' + ui.later.textContent);
+      assert(/not now/i.test(ui.later.textContent) && !/offline/i.test(ui.later.textContent),
+        'the defer action must defer without promising offline play: ' + ui.later.textContent);
       assert(gate.isOpen() === true, 'building a re-prompt must never close the gate');
     } finally {
       if (ui.root.parentNode) ui.root.parentNode.removeChild(ui.root);

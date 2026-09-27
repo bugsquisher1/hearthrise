@@ -3732,6 +3732,31 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
   font-variant-numeric: tabular-nums;
 }
 .hunt-vigour-btn[disabled] { opacity: .6; cursor: default; }
+/* A THUMB, NOT A CURSOR: the refill is the one gold-spending control
+   on the Fight rail, so it takes the --tap floor on both axes everywhere. */
+.hunt-vigour-btn { min-height: var(--tap); min-width: var(--tap); max-width: 100%; white-space: normal; }
+/* THE MOUNTS (src/features/vigour-mount.js). The rail is 232px, so the bar
+   takes the whole row and the label wraps under it rather than clipping. */
+#panel-combat .fsm-vigour .hunt-vigour-track { flex-basis: 100%; }
+#panel-combat .fsm-vigour .hunt-vigour-key { display: none; }
+/* The activity-bar chip: quiet while there is time left, unmissable when dry. */
+.activity-bar .ab-vigour-host { display: flex; align-items: center; flex-shrink: 0; }
+.activity-bar .ab-vigour-host[hidden] { display: none; }
+.activity-bar .ab-vigour {
+  font-size: var(--t-small); color: var(--ink-3); white-space: nowrap;
+  font-variant-numeric: tabular-nums; padding: 2px 8px; border-radius: var(--r-sm);
+}
+.activity-bar .ab-vigour b { color: var(--ink-2); font-weight: 800; }
+.activity-bar .ab-vigour.is-dry {
+  color: var(--red); border: 1px solid var(--red); font-weight: 700;
+}
+.activity-bar .ab-vigour.is-dry b { color: var(--red); }
+/* THE CHIP EARNS ITS ROOM. The combat bar already filled a phone's width, so
+   while it shows, the lifetime-kills chip (a trophy, not a decision) steps
+   aside, and the meta may clip at its own end rather than push the chip or
+   Stop off the screen. */
+.activity-bar:has(.ab-vigour) .ab-meta .ab-tkills { display: none; }
+.activity-bar:has(.ab-vigour) .ab-meta { flex-shrink: 1; min-width: 0; overflow: hidden; }
 .hunt-vigour-none, .hunt-vigour-count { font-size: var(--t-micro); color: var(--ink-3); }
 .hunt-vigour-notice { font-size: var(--t-small); color: var(--ink-2); }
 .hunt-vigour-notice.is-refused { color: var(--red); }
@@ -3906,6 +3931,10 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
    right column and sits under the bar, because at 922×423 a third column takes
    the name down to two words. The tap floor does not move. */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  /* THE VIGOUR CHIP ON A PHONE: the away chip steps aside too (the Fight rail
+     still says it), and the dry chip drops its verb. */
+  .activity-bar:has(.ab-vigour) .ab-meta .ab-away { display: none; }
+  .activity-bar .ab-vigour .ab-vigour-verb { display: none; }
   /* A LANDSCAPE PHONE IS SHORT, NOT NARROW (922x423 is the measured case), so
      the density pass buys ROWS, not width: a member stays exactly two lines,
      the Remove control keeps its column on the first of them instead of

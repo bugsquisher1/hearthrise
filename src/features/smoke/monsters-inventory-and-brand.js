@@ -7635,10 +7635,10 @@ export default [
     assert(chest <= Math.ceil(unmapped.length * 0.15),
       chest + ' of ' + unmapped.length + ' unmapped items fall back to the generic chest (cap is 15%) — widen itemGlyphKey rather than shipping a wall of chests');
 
-    /* The two glyphs this pass hand-authored, because the atlas had no row and
+    /* Every skill has a glyph: the atlas once had no row for two of them and
        `stripChromeEmoji()` was leaving an EMPTY medallion in the skills rail. */
-    ['runecrafting', 'stonemason'].forEach((k) => {
-      assert(window.HR && window.HR.has(k), 'the hand-authored ' + k + ' glyph is missing from HR_GLYPHS (src/data/glyphs-extra.js did not load)');
+    Object.keys(window.SKILLS_DEF).forEach((k) => {
+      assert(window.HR && window.HR.has(k), 'the ' + k + ' skill glyph is missing from HR_GLYPHS (src/data/glyphs.js / glyphs-extra.js)');
       const html = window.HR.medallion(k, 34);
       assert(html && /<path fill=/.test(html), k + ' resolves but draws no path');
     });

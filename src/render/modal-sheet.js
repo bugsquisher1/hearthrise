@@ -53,5 +53,15 @@
     return true;
   }
 
-  window.HearthriseSheet = { topOpen: topOpen, closeTop: closeTop };
+  /* Layers the census still counts (tests/modal-primitive-census.baseline.json: 6) plus the
+     allowlisted full-screen page. Every sheet on the primitive is found by `.hr-scrim`.
+     RULE: pointer-events:none reads as closed (the Hearthfind fade, hearthfind.js:314-316). */
+  var NOT_YET_SHEETS = '.modal, .qm-overlay, .aep-overlay, .hr-gate, #hr-evicted-gate, .hr-room-scrim, #rb-overlay';
+  function anyOpen(except) {
+    var els = document.querySelectorAll('.hr-scrim, ' + NOT_YET_SHEETS);
+    for (var i = 0; i < els.length; i++) if (els[i] !== except && isOpen(els[i])) return true;
+    return false;
+  }
+
+  window.HearthriseSheet = { topOpen: topOpen, closeTop: closeTop, anyOpen: anyOpen, __notYetSheets: NOT_YET_SHEETS };
 })();

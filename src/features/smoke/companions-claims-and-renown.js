@@ -997,6 +997,98 @@ export default [
     }
   }),
 
+  /* ── regression: MODAL-BLOCK-2 — the rank-up card and the daily sheet wait for what is PAINTED ──
+     Two hand lists judged "node exists" or a subset of surfaces: the card drew over the KO sheet,
+     every `.modal`, the recipe book and the name modal. Both now ask HearthriseSheet.anyOpen. */
+  () => tryRun('MODAL-BLOCK-2: the rank-up card and the daily sheet wait for every painted modal, and a closed one never parks them', () => {
+    const R = window.HearthriseRenown, D = window.HearthriseDaily, S = window.HearthriseSheet;
+    const A = window.HearthriseAccrual, DS = window.HearthriseDeathSheet, G = window.G;
+    const snap = snapshotG(), srvBefore = R.serverRenownHigh(), wasOn = A.isServerAccrualEnabled();
+    const byId = (id) => document.getElementById(id);
+    const both = () => [R._anotherModalUp(), D._anotherModalUp()];
+    const parked = [...document.querySelectorAll('.ftue-root, .hr-scrim, .modal.show, #rb-overlay')]
+      .filter((n) => n.matches('.ftue-root') || getComputedStyle(n).display !== 'none')
+      .map((n) => [n, n.parentNode, n.nextSibling]);
+    parked.forEach(([n]) => n.remove());
+    const plant = (cls, id, css) => { const n = document.createElement('div'); if (cls) n.className = cls; if (id) n.id = id;
+      if (css) n.style.cssText = css; document.body.appendChild(n); return n; };
+    const koOff = () => { DS.__resetForTest(); A.clearFall(); A.applyEnvelopeState(G, { state: { recovering_until: null } }); };
+    let termsBefore = null, pollWas = null, plants = [];
+    try {
+      assert(!both()[0] && !both()[1], 'the fixture needs a quiet screen: ' + both());
+      A.setServerAccrualEnabled(true);
+      const koAtt = () => { A.clearFall(); DS.__resetForTest(); A.noteFall(Date.now()); DS.show(null, null); };
+      const cases = [
+        ['KO sheet (attended)', koAtt, koOff, () => byId('hr-death-scrim')],
+        ['KO sheet (away)', () => A.applyEnvelopeState(G, { state: { accrued_to: new Date().toISOString(),
+          recovering_until: new Date(Date.now() + 27 * 60000).toISOString() } }), koOff, () => byId('hr-death-scrim')],
+        ['More menu (.modal)', () => byId('more-modal').classList.add('show'), () => byId('more-modal').classList.remove('show'), () => byId('more-modal')],
+        ['recipe book', () => window.HearthriseRecipeBook.open(), () => window.HearthriseRecipeBook.close(), () => byId('rb-overlay')],
+        ['welcome-back', () => { G.lastSeen = Date.now() - 8 * 3600000; G.lastWelcome = 0; window.__maybeShowWelcome(); },
+          () => document.querySelector('#welcome-overlay .wb-claim').click(), () => byId('welcome-overlay')],
+        ['achievements', () => window.openAchievements(), () => document.querySelector('#ach-overlay [data-hr-dismiss]').click(), () => byId('ach-overlay')],
+        ['acquisition tip', () => window.showAcquisitionTip('x'), () => window.hideAcquisitionTip(), () => byId('acq-overlay')],
+        ['name modal (plant)', () => plants.push(plant('hr-id-scrim hr-scrim')), () => plants.pop().remove(), () => true],
+        ['post-signup sheet (plant)', () => plants.push(plant('hr-scrim', 'hr-post-signup-modal')), () => plants.pop().remove(), () => true],
+      ];
+      const bad = [];
+      for (const [name, open, close, node] of cases) {
+        open();
+        const up = both();
+        if (!up[0]) bad.push(name + ': the rank-up would draw over it');
+        if (!up[1]) bad.push(name + ': the daily sheet would draw over it');
+        close();
+        const n = node();
+        if (!n || (n !== true && !n.isConnected)) bad.push(name + ': fixture — the owner no longer keeps the node');
+        const down = both();
+        if (down[0] || down[1]) bad.push(name + ': closed, yet it still parks ' + (down[0] ? 'the rank-up ' : '') + (down[1] ? 'the daily' : ''));
+      }
+      assert(!bad.length, bad.join(' | '));
+
+      assert(typeof R.__tick === 'function' && typeof S.anyOpen === 'function', 'the HearthriseRenown.__tick / HearthriseSheet.anyOpen seam is missing');
+      termsBefore = zeroRenownTerms(G);
+      G.renown = { claimed: [], seenRank: 1 };
+      R.__resetClaimState();
+      R.noteServerRenown({ ok: true, renown_high: 900, progress: [], progress_truncated: false });
+      pollWas = R.__setPollEnabled(true);
+      koAtt(); R.__tick();
+      assert(!byId('hr-rn-cele') && G.renown.seenRank === 1, 'a rank-up drew over the KO sheet');
+      koOff(); R.__tick();
+      assert(byId('hr-rn-cele') && G.renown.seenRank === 2, 'the rank-up never fired once the KO sheet closed; seenRank ' + G.renown.seenRank);
+      byId('hr-rn-cele').remove();
+
+      G.dailyReward = { lastClaimDay: 0 }; D.open();
+      assert(byId('hr-dl-modal'), 'fixture: the daily sheet did not open');
+      assert(D._anotherModalUp() === false, 'the daily auto-open waits on its OWN sheet — a deadlock');
+      assert(R._anotherModalUp() === true, 'the rank-up would draw over the daily sheet');
+      byId('hr-dl-modal').remove();
+
+      for (const sel of S.__notYetSheets.split(',').map((s) => s.trim())) {
+        const m = sel.match(/^([.#])([\w-]+)$/);
+        const n = m[1] === '#' ? plant(null, m[2], 'position:fixed;top:0;left:0;right:0;bottom:0;display:block')
+          : plant(m[2], null, 'position:fixed;top:0;left:0;right:0;bottom:0;display:block');
+        try { assert(S.anyOpen() === true, 'anyOpen missed a painted ' + sel); } finally { n.remove(); }
+      }
+      for (const css of ['display:none', 'pointer-events:none']) {
+        const n = plant('hr-scrim', null, css);
+        try { assert(S.anyOpen() === false, 'a .hr-scrim with ' + css + ' must read as closed'); } finally { n.remove(); }
+      }
+    } finally {
+      try { const c = byId('hr-rn-cele'); if (c) c.remove(); koOff(); } catch (e) {}
+      A.setServerAccrualEnabled(!!wasOn);
+      ['welcome-overlay', 'ach-overlay', 'acq-overlay', 'more-modal'].forEach((id) => { const n = byId(id); if (n) n.classList.remove('show'); });
+      try { window.HearthriseRecipeBook.close(); } catch (e) {}
+      plants.forEach((n) => n.remove());
+      const dl = byId('hr-dl-modal'); if (dl) dl.remove();
+      if (pollWas !== null) R.__setPollEnabled(pollWas);
+      R.__resetClaimState();
+      if (srvBefore !== null) R.noteServerRenown({ renown_high: srvBefore });
+      if (termsBefore) restoreRenownTerms(G, termsBefore);
+      restoreG(snap);
+      parked.reverse().forEach(([n, parent, next]) => { try { parent.insertBefore(n, next); } catch (e) { document.body.appendChild(n); } });
+    }
+  }),
+
   /* ── regression: THE RENOWN FIGURE LIED EVERYWHERE BUT THE HEADLINE ──
      MEASURED (QA account, 2026-09-13): client 1193, `player_state.renown_high`
      1058. `renown_high` has been PROJECTED top-level on hr_state_of since

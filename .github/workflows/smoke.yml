@@ -2585,6 +2585,14 @@ jobs:
         run: |
           node tests/codex-claims.mjs
           node tests/codex-claims.mjs --selftest
+      # THE AWAY LIMIT — the client may promise only the hours hr_offline_cap_ms
+      # pays (renown/property hours were retired). Client + SQL text, milliseconds.
+      # --selftest plants eight defects (M1-M8) and one exact renown match.
+      - name: Offline cap honesty - no away hours the server does not pay
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/offline-cap-honesty.mjs
+          node tests/offline-cap-honesty.mjs --selftest
 
       # THE PLOT-TIER PRICE — the client and the server may never disagree.
       # b510 re-priced the farm plot tier in GOLD behind a farming level after

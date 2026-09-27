@@ -449,7 +449,7 @@ async function selftest() {
     ['M3 a digit', 'CODEX-4', (w) => { const e = byId(w, 'gems'); e.text = e.text.replace('extra hero slots', '4 extra hero slots'); }],
     ['M4 "twelve"', 'CODEX-4', (w) => { const e = byId(w, 'away-time'); e.text = e.text.replace('up to your away limit', 'for up to twelve hours'); }],
     ['M5 a sentence with no claim', 'CODEX-6', (w) => { const e = byId(w, 'your-hero'); e.text += ' It is kept safe at all times.'; }],
-    ['M6 a static import of data/codex.js', 'CODEX-9', (w) => { w.src['src/main.js'] = "import { CODEX_ENTRIES } from './data/codex.js?v=555';\n" + w.src['src/main.js']; }],
+    ['M6 a static import of data/codex.js', 'CODEX-9', (w) => { w.src['src/main.js'] = "import { CODEX_ENTRIES } from './data/codex.js" + '?' + "v=555';\n" + w.src['src/main.js']; }],
     ['M7 a fake opener', 'CODEX-5', (w) => { byId(w, 'charms').door = { opener: 'HearthriseNoSuchThing.open' }; }],
     ['M8 a luckyRowsExist bind (no predicate ships)', 'CODEX-6', (w) => { byId(w, 'renown').claims.push({ s: 0, bind: 'luckyRowsExist' }); }],
     ['M9 "double" outside combat-level', 'CODEX-4', (w) => { const e = byId(w, 'charms'); e.text = e.text.replace('a little more often', 'double as often'); }],

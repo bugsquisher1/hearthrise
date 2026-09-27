@@ -1640,9 +1640,12 @@ export default [
        NAMED census of the surviving row:
          · Achievements + Bestiary — injectProfileButtons(), src/legacy.js
          · Lifetime Stats          — src/render/lifetime-stats.js
+         · Codex                   — injectProfileButtons(); its open() awaits a
+           dynamic import, so it is clicked through by CODEX-1 (which awaits and
+           closes it), not by this synchronous loop.
        Both directions bite: a missing entry is a lost button, an unexpected entry
        is a button added without being clicked-through here. */
-    const EXPECT_FEATS = ['achievements', 'bestiary', 'lifetime stats'];
+    const EXPECT_FEATS = ['achievements', 'bestiary', 'lifetime stats', 'codex'];
     const labels = [...btns].map((b) => (b.textContent || '').trim().toLowerCase());
     const missing = EXPECT_FEATS.filter((n) => !labels.some((l) => l.includes(n)));
     assert(missing.length === 0, 'profile feat button(s) missing from the row: ' + missing.join(', ') + ' (present: ' + labels.join(' | ') + ')');
@@ -1650,6 +1653,7 @@ export default [
     assert(extra.length === 0, 'unexpected profile feat button(s) not in the census: ' + extra.join(' | '));
     try {
       for (const b of btns) {
+        if (/codex/i.test(b.textContent || '')) continue;
         try { b.click(); } catch (e) { throw new Error(`feat button "${b.textContent.trim()}" threw: ${e.message}`); }
       }
     } finally {

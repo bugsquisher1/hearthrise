@@ -4828,6 +4828,27 @@ export default [
     ];
   })(),
 
+  // ── regression suite — BOTD-ROW-1: THE BOSS ROWS SAY WHAT THE ENGINE PAYS ──
+  // The rows read 'bonus drops & XP while featured' and the cards '+25% combat
+  // XP', but the featured bonus scales drop CHANCE and KILL XP only (hit XP is
+  // untouched), and on an overlap day the daily boss pays the WEEKLY bonus.
+  () => tryRun('BOTD-ROW-1: the Boss of the Day rows and cards state killBonuses: drop odds and kill XP', () => {
+    const B = window.HearthriseBossOfDay, CS = window.HearthriseCombatScreens, lvl = window.getCombatLevel;
+    assert(B && typeof B.killBonuses === 'function' && CS && typeof CS._destinations === 'function', 'the boss rows are not published');
+    try {
+      window.getCombatLevel = () => 999;
+      const rows = CS._destinations();
+      for (const [kick, id] of [['Boss of the Day', B.featuredId()], ['Weekly Boss', B.weeklyId()]]) {
+        const row = rows.find((d) => d.kick === kick), b = B.killBonuses(id);
+        assert(row && row.meta === `drop odds ×${b.dropMult} · kill XP ×${b.xpMult} · away too`, kick + ' row is not killBonuses: ' + (row && row.meta));
+        assert(!/combat XP|Loot ×/.test(row.meta), kick + ' row overclaims: ' + row.meta);
+      }
+      B.render();
+      const card = document.querySelector('.botd-bonus');
+      assert(card && /kill XP/.test(card.textContent) && !/combat XP/.test(card.textContent), 'the Boss of the Day card overclaims: ' + (card && card.textContent));
+    } finally { window.getCombatLevel = lvl; }
+  }),
+
   // THE STOP SENTENCE never promises a stop the server cannot deliver.
   // This game has NO bag capacity, so the bag_full rule cannot fire; the field
   // is accepted and stored for the day a cap exists, and until then the panel

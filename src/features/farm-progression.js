@@ -122,6 +122,30 @@
     var n = window.G ? Number(window.G.gold) : 0;
     return (isFinite(n) && n > 0) ? Math.floor(n) : 0;
   }
+  /* The ONE plot-tier header (farm screen + House → Plot). It names the tier
+     from the SERVER mirror only: before the first envelope the tier is
+     unknown, so it shows the pending glyph rather than a named tier 1 (§6). */
+  function esc(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(m){
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+    });
+  }
+  function tierOf(lv){
+    var L = window.HearthriseLore;
+    return lv !== null && L && typeof L.plot === 'function' ? window.HearthriseLore.plot(lv) : null;
+  }
+  function tierHeadHtml(){
+    var lv = window.HearthriseFarm.getServerPlotLevel();
+    var t = tierOf(lv);
+    if(lv === null) return '<b>Farm Plot · Lv ' + ((window.HearthriseBalance && window.HearthriseBalance.UNKNOWN_TEXT) || '—') + '/' + MAX_LEVEL + '</b>';
+    if(!t) return '<b>Farm Plot · Lv ' + lv + '/' + MAX_LEVEL + '</b>';
+    return '<b>' + esc(t.name) + ' · Plot Lv ' + lv + '/' + MAX_LEVEL + '</b>';
+  }
+  function tierLoreHtml(){
+    var t = tierOf(window.HearthriseFarm.getServerPlotLevel());
+    return t && t.line ? '<span class="hh-almanac-line">' + esc(t.line) + '</span>' : '';
+  }
+
   /** {level, gold, deeds, farming} for the next tier, or null at max. */
   function getUpgradePrice(){ return core().plotUpgradePrice(getPlotLevel()); }
   /** The whole answer the card renders and upgradePlot() acts on. */
@@ -281,6 +305,8 @@
   window.HearthriseFarm = {
     getPlotLevel: getPlotLevel,
     getServerPlotLevel: getServerPlotLevel,
+    tierHeadHtml: tierHeadHtml,
+    tierLoreHtml: tierLoreHtml,
     requiredPlotLevel: requiredPlotLevel,
     getPlotUnlockedCrops: getPlotUnlockedCrops,
     canPlantCrop: canPlantCrop,

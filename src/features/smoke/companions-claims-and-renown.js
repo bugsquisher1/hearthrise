@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 43 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, errorLog, stampBalanceLikeLoad, stampRecordLikeLoad, predZero, snapshotG, drain, stubSignedIn, restoreG, zeroRenownTerms, restoreRenownTerms, on, withClaimServer, goldOf } from './_harness.js?v=558';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, errorLog, stampBalanceLikeLoad, stampRecordLikeLoad, predZero, snapshotG, drain, stubSignedIn, restoreG, zeroRenownTerms, restoreRenownTerms, on, withClaimServer, goldOf, withServerBacked, hrCharmDriver } from './_harness.js?v=558';
 
 /* LEDGER OF FIRSTS — the collection-log rungs read the SERVER mirrors, which
    are `_` scratch outside snapshotG. Each test saves and restores them by
@@ -613,6 +613,94 @@ export default [
     }
   }),
 
+  /* LEDGER-5 — an unknown server count is PENDING, never 0 (CLAUDE.md §6). The
+     numbers ride only settle(), so the idle and away arms go through it. */
+  () => tryRunAsync('LEDGER-5: an unknown count renders pending, never 0; the settle turns it into the number', async () => {
+    const C = window.HearthriseCollection, A = window.HearthriseAccrual;
+    if (!C || typeof C.tileLine !== 'function' || !A || !window.MONSTERS) return skip('HearthriseCollection not loaded');
+    const snap = snapshotG(); const mirrors = saveMirrors(); const rig = hrCharmDriver(); const realFetch = window.fetch;
+    const eight = {}; Object.keys(window.MONSTERS).slice(0, 8).forEach((m) => { eight[m] = 1; });
+    const bestiary = { kills_by_monster: eight, kills_by_class: {} };
+    const line = (id) => { const e = document.querySelector('#hr-cl-modal [data-cl-next="' + id + '"]'); return e ? e.textContent || '' : null; };
+    const unknown = () => { delete window.G._bestiaryTrophies; delete window.G._collectionServer; delete window.G._collectionServerClaimed; window.G.collectionLog = { claimed: [] }; };
+    const resolved = (arm) => {
+      assert(/Novice Hunter: 8\/10 monsters/.test(line('hunter10') || ''), arm + ': monsters line reads ' + line('hunter10'));
+      assert(/Magpie: 21\/25 combat drops/.test(line('collect25') || ''), arm + ': items line reads ' + line('collect25'));
+      assert(!document.querySelector('#hr-cl-modal .bal-pending'), arm + ': a pending mark survived the settle');
+      assert(C.tileLine(window.G).text === 'Next: Magpie 21/25', arm + ': tile reads ' + JSON.stringify(C.tileLine(window.G)));
+    };
+    try {
+      // UNKNOWN: no mirror at all.
+      unknown(); C.open();
+      const rows = [...document.querySelectorAll('#hr-cl-modal [data-cl-next]')];
+      assert(rows.map((r) => r.getAttribute('data-cl-next')).join() === 'hunter10,collect25', 'next rungs: ' + rows.map((r) => r.getAttribute('data-cl-next')));
+      rows.forEach((r) => {
+        assert(!/(^|\D)0\/\d/.test(r.textContent || ''), 'an unknown count rendered as 0: ' + r.textContent);
+        assert(r.querySelector('.bal-pending'), 'no pending mark on ' + r.getAttribute('data-cl-next'));
+      });
+      const tl = C.tileLine(window.G);
+      assert(tl && tl.pending === true && !/\b0\//.test(tl.text), 'tile: ' + JSON.stringify(tl));
+      C.noteServerClaims([{ kind: 'collection', key: 'hunter10', period: '', state: 'claimed' }]); C.open();
+      assert(line('hunter25') !== null && document.querySelector('#hr-cl-modal [data-cl-next="hunter25"] .bal-pending'), 'a claimed rung was named next: ' + line('hunter10'));
+      // ATTENDED/IDLE: the accrued:false reply a reloading player gets; the OPEN log resolves in place.
+      unknown(); C.open();
+      const idle = await rig.drive(bestiary, { collection: { found: 21 } });
+      assert(idle && idle.outcome === 'nothing', 'idle settle: ' + JSON.stringify(idle));
+      resolved('idle, same open modal');
+      C.open(); resolved('idle, re-opened');
+      // AWAY: an accrued:true envelope through settle().
+      unknown(); rig.restore();
+      A.configureAccrual({ url: 'https://proj.supabase.co', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
+      await withServerBacked({ extra: { accrued: true, away: {}, bestiary, collection: { found: 21 } } }, async () => {
+        const away = await A.requestAccrual({ force: true });
+        assert(away && away.outcome === 'accrued', 'away settle: ' + JSON.stringify(away && away.outcome));
+      });
+      C.open(); resolved('away');
+      // REFUSED: a 503 writes no mirror; the line stays pending.
+      unknown(); A.resetAccrualGate();
+      window.fetch = (u, init) => (/hr-accrue/.test(String(u)) ? Promise.resolve(new Response('{"error":"down"}', { status: 503 })) : realFetch.call(window, u, init));
+      const down = await A.requestAccrual({ force: true });
+      assert(down && down.outcome === 'unavailable', 'refused settle: ' + JSON.stringify(down && down.outcome));
+      C.open();
+      assert(document.querySelector('#hr-cl-modal [data-cl-next="hunter10"] .bal-pending') && !window.G._bestiaryTrophies && !window.G._collectionServer, 'a refused settle resolved the count');
+    } finally {
+      window.fetch = realFetch; rig.restore();
+      const m = document.getElementById('hr-cl-modal'); if (m) m.remove();
+      restoreG(snap); try { A.__resetAwayReceipt(); } catch (e) {}
+      restoreMirrors(mirrors);
+    }
+  }),
+
+  () => tryRunAsync('LEDGER-6: the boot hr_load feeds the server claim rows', async () => {
+    const R = window.HearthriseRecord, C = window.HearthriseCollection;
+    if (!R || typeof R.beginRecordLoad !== 'function' || !C || !window.MONSTERS || !window.HearthriseProperty) return skip('record.js not loaded');
+    const realFetch = window.fetch, realG = window.G, P = window.HearthriseProperty;
+    const prevProp = P.__resetPropertyRecord();   // the fixture's complete progress statement would observe tier 0
+    try {
+      R.resetRecord();
+      R.configureRecord({ url: 'https://proj.supabase.co/', apiKey: 'anon', authToken: () => 'jwt', slot: 0 });
+      window.G = {};
+      const now = new Date().toISOString();
+      window.fetch = function (u) {
+        if (!/hr_load/.test(String(u))) return realFetch.apply(this, arguments);
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, version: Date.now(), now,
+          state: { slot: 0, gold: 1, gems: 0, accrued_to: now },
+          progress: [{ kind: 'collection', key: 'hunter10', period: '', state: 'claimed' }], progress_truncated: false }), { status: 200 }));
+      };
+      const out = await R.beginRecordLoad();
+      assert(out && out.outcome === 'loaded', 'boot load: ' + JSON.stringify(out));
+      assert(Array.isArray(window.G._collectionServerClaimed) && window.G._collectionServerClaimed.includes('hunter10'),
+        'the boot load dropped the server claim rows: ' + JSON.stringify(window.G._collectionServerClaimed));
+      seedServerMonsters(Object.keys(window.MONSTERS).slice(0, 30));
+      window.G.collectionLog = { claimed: [] };
+      const cl = C.claimable(window.G).map((m) => m.id);
+      assert(!cl.includes('hunter10') && cl.includes('hunter25'), 'after an idle boot the log offered ' + JSON.stringify(cl));
+    } finally {
+      window.fetch = realFetch; window.G = realG;
+      R.resetRecord(); R.configureRecord(null); P.__resetPropertyRecord(prevProp);
+    }
+  }),
+
   () => tryRunAsync('server-credited (Tier-1 renown): under arm a rank claim PROCEEDS, fires hr_claim_rank WITH the slot, and does not double-pay locally', async () => {
     // 2026-08-22: hr_claim_rank reads the SERVER-DERIVED renown score, ratchets a
     // SERVER HIGH-WATER, and CREDITS the server-owned gold+gems, once-guarded. The
@@ -994,6 +1082,98 @@ export default [
       if (srvBefore !== null) R.noteServerRenown({ renown_high: srvBefore });
       restoreRenownTerms(G, termsBefore);
       restoreG(snap);
+    }
+  }),
+
+  /* ── regression: MODAL-BLOCK-2 — the rank-up card and the daily sheet wait for what is PAINTED ──
+     Two hand lists judged "node exists" or a subset of surfaces: the card drew over the KO sheet,
+     every `.modal`, the recipe book and the name modal. Both now ask HearthriseSheet.anyOpen. */
+  () => tryRun('MODAL-BLOCK-2: the rank-up card and the daily sheet wait for every painted modal, and a closed one never parks them', () => {
+    const R = window.HearthriseRenown, D = window.HearthriseDaily, S = window.HearthriseSheet;
+    const A = window.HearthriseAccrual, DS = window.HearthriseDeathSheet, G = window.G;
+    const snap = snapshotG(), srvBefore = R.serverRenownHigh(), wasOn = A.isServerAccrualEnabled();
+    const byId = (id) => document.getElementById(id);
+    const both = () => [R._anotherModalUp(), D._anotherModalUp()];
+    const parked = [...document.querySelectorAll('.ftue-root, .hr-scrim, .modal.show, #rb-overlay')]
+      .filter((n) => n.matches('.ftue-root') || getComputedStyle(n).display !== 'none')
+      .map((n) => [n, n.parentNode, n.nextSibling]);
+    parked.forEach(([n]) => n.remove());
+    const plant = (cls, id, css) => { const n = document.createElement('div'); if (cls) n.className = cls; if (id) n.id = id;
+      if (css) n.style.cssText = css; document.body.appendChild(n); return n; };
+    const koOff = () => { DS.__resetForTest(); A.clearFall(); A.applyEnvelopeState(G, { state: { recovering_until: null } }); };
+    let termsBefore = null, pollWas = null, plants = [];
+    try {
+      assert(!both()[0] && !both()[1], 'the fixture needs a quiet screen: ' + both());
+      A.setServerAccrualEnabled(true);
+      const koAtt = () => { A.clearFall(); DS.__resetForTest(); A.noteFall(Date.now()); DS.show(null, null); };
+      const cases = [
+        ['KO sheet (attended)', koAtt, koOff, () => byId('hr-death-scrim')],
+        ['KO sheet (away)', () => A.applyEnvelopeState(G, { state: { accrued_to: new Date().toISOString(),
+          recovering_until: new Date(Date.now() + 27 * 60000).toISOString() } }), koOff, () => byId('hr-death-scrim')],
+        ['More menu (.modal)', () => byId('more-modal').classList.add('show'), () => byId('more-modal').classList.remove('show'), () => byId('more-modal')],
+        ['recipe book', () => window.HearthriseRecipeBook.open(), () => window.HearthriseRecipeBook.close(), () => byId('rb-overlay')],
+        ['welcome-back', () => { G.lastSeen = Date.now() - 8 * 3600000; G.lastWelcome = 0; window.__maybeShowWelcome(); },
+          () => document.querySelector('#welcome-overlay .wb-claim').click(), () => byId('welcome-overlay')],
+        ['achievements', () => window.openAchievements(), () => document.querySelector('#ach-overlay [data-hr-dismiss]').click(), () => byId('ach-overlay')],
+        ['acquisition tip', () => window.showAcquisitionTip('x'), () => window.hideAcquisitionTip(), () => byId('acq-overlay')],
+        ['name modal (plant)', () => plants.push(plant('hr-id-scrim hr-scrim')), () => plants.pop().remove(), () => true],
+        ['post-signup sheet (plant)', () => plants.push(plant('hr-scrim', 'hr-post-signup-modal')), () => plants.pop().remove(), () => true],
+      ];
+      const bad = [];
+      for (const [name, open, close, node] of cases) {
+        open();
+        const up = both();
+        if (!up[0]) bad.push(name + ': the rank-up would draw over it');
+        if (!up[1]) bad.push(name + ': the daily sheet would draw over it');
+        close();
+        const n = node();
+        if (!n || (n !== true && !n.isConnected)) bad.push(name + ': fixture — the owner no longer keeps the node');
+        const down = both();
+        if (down[0] || down[1]) bad.push(name + ': closed, yet it still parks ' + (down[0] ? 'the rank-up ' : '') + (down[1] ? 'the daily' : ''));
+      }
+      assert(!bad.length, bad.join(' | '));
+
+      assert(typeof R.__tick === 'function' && typeof S.anyOpen === 'function', 'the HearthriseRenown.__tick / HearthriseSheet.anyOpen seam is missing');
+      termsBefore = zeroRenownTerms(G);
+      G.renown = { claimed: [], seenRank: 1 };
+      R.__resetClaimState();
+      R.noteServerRenown({ ok: true, renown_high: 900, progress: [], progress_truncated: false });
+      pollWas = R.__setPollEnabled(true);
+      koAtt(); R.__tick();
+      assert(!byId('hr-rn-cele') && G.renown.seenRank === 1, 'a rank-up drew over the KO sheet');
+      koOff(); R.__tick();
+      assert(byId('hr-rn-cele') && G.renown.seenRank === 2, 'the rank-up never fired once the KO sheet closed; seenRank ' + G.renown.seenRank);
+      byId('hr-rn-cele').remove();
+
+      G.dailyReward = { lastClaimDay: 0 }; D.open();
+      assert(byId('hr-dl-modal'), 'fixture: the daily sheet did not open');
+      assert(D._anotherModalUp() === false, 'the daily auto-open waits on its OWN sheet — a deadlock');
+      assert(R._anotherModalUp() === true, 'the rank-up would draw over the daily sheet');
+      byId('hr-dl-modal').remove();
+
+      for (const sel of S.__notYetSheets.split(',').map((s) => s.trim())) {
+        const m = sel.match(/^([.#])([\w-]+)$/);
+        const n = m[1] === '#' ? plant(null, m[2], 'position:fixed;top:0;left:0;right:0;bottom:0;display:block')
+          : plant(m[2], null, 'position:fixed;top:0;left:0;right:0;bottom:0;display:block');
+        try { assert(S.anyOpen() === true, 'anyOpen missed a painted ' + sel); } finally { n.remove(); }
+      }
+      for (const css of ['display:none', 'pointer-events:none']) {
+        const n = plant('hr-scrim', null, css);
+        try { assert(S.anyOpen() === false, 'a .hr-scrim with ' + css + ' must read as closed'); } finally { n.remove(); }
+      }
+    } finally {
+      try { const c = byId('hr-rn-cele'); if (c) c.remove(); koOff(); } catch (e) {}
+      A.setServerAccrualEnabled(!!wasOn);
+      ['welcome-overlay', 'ach-overlay', 'acq-overlay', 'more-modal'].forEach((id) => { const n = byId(id); if (n) n.classList.remove('show'); });
+      try { window.HearthriseRecipeBook.close(); } catch (e) {}
+      plants.forEach((n) => n.remove());
+      const dl = byId('hr-dl-modal'); if (dl) dl.remove();
+      if (pollWas !== null) R.__setPollEnabled(pollWas);
+      R.__resetClaimState();
+      if (srvBefore !== null) R.noteServerRenown({ renown_high: srvBefore });
+      if (termsBefore) restoreRenownTerms(G, termsBefore);
+      restoreG(snap);
+      parked.reverse().forEach(([n, parent, next]) => { try { parent.insertBefore(n, next); } catch (e) { document.body.appendChild(n); } });
     }
   }),
 

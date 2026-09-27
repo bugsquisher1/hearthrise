@@ -117,12 +117,15 @@
      Reads window.HearthriseCharms, which reads `G._bestiaryCharms` (the server
      block, scratch, `_`-prefixed) and NEVER `G.bestiary` — that is the
      locally-written residue field, and gating a capability on it is the
-     residue-ahead bug class. No counters mirrored yet ⇒ one honest line saying
-     so, never a rank. */
+     residue-ahead bug class. No counters mirrored yet ⇒ a pending line, never "No charms". */
   function paintCharmStrip(C) {
     var strip = document.getElementById('best-charms');
     if (!strip) return;
     if (!C) { strip.innerHTML = ''; return; }
+    if (typeof C.countersKnown === 'function' && !C.countersKnown()) {
+      strip.innerHTML = '<div class="muted charm-pending" data-charm-pending="1">Charm kills not counted yet <span class="bal-pending" aria-label="Not counted yet" title="Waiting for the realm to count this.">—</span></div>';
+      return;
+    }
     /* The class list, its order and its display names are DERIVED from the
        taxonomy + roster by C.charmClasses() — not listed here. A hardcoded
        eleven-string list in a renderer is a third copy of the taxonomy and the

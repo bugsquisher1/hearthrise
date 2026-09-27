@@ -825,12 +825,13 @@ function destinations() {
   // ── Boss of the Day / Weekly Boss ──────────────────────────────────────
   const B = window.HearthriseBossOfDay;
   if (B) {
+    const kb = (id) => { const b = B.killBonuses(id); return `drop odds ×${b.dropMult} · kill XP ×${b.xpMult} · away too`; };
     const did = B.featuredId && B.featuredId();
     const dm = did && MONSTERS[did];
     if (dm) {
       out.push({
         kick: 'Boss of the Day', art: did, name: dm.name,
-        meta: combatLevel() < reqLevelFor(dm) ? fill('war.locked', { have: combatLevel(), need: reqLevelFor(dm) }) : 'bonus drops & XP while featured',
+        meta: combatLevel() < reqLevelFor(dm) ? fill('war.locked', { have: combatLevel(), need: reqLevelFor(dm) }) : kb(did),
         timer: 'new in ' + fmtCountdown(B.msUntilRotate ? B.msUntilRotate() : 0),
         verb: 'Fight ▸', go: 'botd',
         locked: combatLevel() < reqLevelFor(dm) ? `Combat Lv ${reqLevelFor(dm)}` : null,
@@ -841,7 +842,7 @@ function destinations() {
     if (wm) {
       out.push({
         kick: 'Weekly Boss', art: wid, name: wm.name,
-        meta: combatLevel() < reqLevelFor(wm) ? fill('war.locked', { have: combatLevel(), need: reqLevelFor(wm) }) : 'bonus drops & XP this week',
+        meta: combatLevel() < reqLevelFor(wm) ? fill('war.locked', { have: combatLevel(), need: reqLevelFor(wm) }) : kb(wid),
         timer: 'resets in ' + fmtCountdown(B.msUntilWeeklyRotate ? B.msUntilWeeklyRotate() : 0),
         verb: 'Fight ▸', go: 'weekly',
         locked: combatLevel() < reqLevelFor(wm) ? `Combat Lv ${reqLevelFor(wm)}` : null,
@@ -1621,6 +1622,7 @@ function renderFight() {
     const wi = typeof window.getWeaknessInfo === 'function' ? window.getWeaknessInfo(m, eq) : null;
     const charm = (wi && CH && typeof CH.panelLine === 'function') ? CH.panelLine(wi) : '';
     if (charm) txt += ' · ' + charm;
+    else if (CH && typeof CH.countersKnown === 'function' && !CH.countersKnown()) txt += ' · charm not counted yet';
     if (weak.textContent !== txt) weak.textContent = txt;
   }
 

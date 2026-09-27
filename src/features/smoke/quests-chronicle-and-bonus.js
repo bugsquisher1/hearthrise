@@ -2742,4 +2742,26 @@ export default [
       assert(rows.indexOf(k) === -1, 'EVENT_COUNTER_PROJECTION maps onto the shared stats.' + k);
     });
   }),
+  /* QUEST-PENDING — the strip draws the pending dash, never "0 / N", while
+     neither hr_goal_state nor a measured baseline has spoken (CLAUDE.md §6). */
+  () => tryRun('QUEST-PENDING: an unmeasured quest reads pending on the strip; the baseline turns it into a number', () => {
+    const A = window.HearthriseAccrual;
+    if (!A || typeof window.renderQuestStrip !== 'function' || !window.__hrSyncServerGoals) return skip('no quest strip');
+    const snap = snapshotG(); const knownWas = window.G._eventCountersKnown;
+    const prog = () => { window.renderQuestStrip(); const el = document.querySelector('#global-quests-strip .gq-quest .gq-prog'); return el || { textContent: '', querySelector: () => null }; };
+    try {
+      window.__hrSyncServerGoals.reset();
+      window.getGoalsForToday();
+      window.G.stats = Object.assign({}, window.G.stats); delete window.G.stats.planted; delete window.G._eventCountersKnown;
+      window.G.dailyGoals = { dayKey: window.G.dailyGoals.dayKey, picks: ['plant'], startValues: {}, claimed: {} };
+      let p = prog();
+      assert(p.querySelector('.bal-pending') && !/\b0 \/ \d/.test(p.textContent), 'an unmeasured quest rendered ' + p.textContent);
+      A.reconcileEventCounters(window.G, { progress_truncated: false, progress: [{ kind: 'stat', key: 'ev:planted', period: '', value: 40, state: 'active' }] });
+      p = prog();
+      assert(!p.querySelector('.bal-pending') && /^0 \/ \d+$/.test(p.textContent.trim()), 'a measured quest rendered ' + p.textContent);
+    } finally {
+      if (knownWas === undefined) delete window.G._eventCountersKnown; else window.G._eventCountersKnown = knownWas;
+      restoreG(snap); try { window.renderQuestStrip(); } catch (e) {}
+    }
+  }),
 ];

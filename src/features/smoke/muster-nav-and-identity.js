@@ -2471,4 +2471,20 @@ export default [
     assert(document.querySelector('#more-modal #more-codex'), 'the More sheet has no Codex button');
     assert(document.querySelector('#tb-codex, .feat-buttons [onclick*="HearthriseCodex"]'), 'the profile toolbar has no Codex button');
   }),
+  /* STREAK-PENDING — before the server states a streak the flame reads the
+     pending dash, never the static "1" or a 0 (CLAUDE.md §6). */
+  () => tryRun('STREAK-PENDING: the topbar flame reads pending until the server states a streak', () => {
+    const SC = window.HearthriseStreakChip, el = document.getElementById('top-streak-count'), G = window.G;
+    if (!SC || typeof SC.paint !== 'function' || !el) return skip('no streak chip');
+    const had = Object.prototype.hasOwnProperty.call(G, '_serverStreak'), was = G._serverStreak;
+    try {
+      delete G._serverStreak; SC.paint(G);
+      assert(el.textContent === '—' && el.classList.contains('bal-pending'), 'unknown streak read "' + el.textContent + '"');
+      G._serverStreak = { days: 3, dayKey: '2026-09-14', at: Date.now() }; SC.paint(G);
+      assert(el.textContent === '3' && !el.classList.contains('bal-pending') && el.parentElement.classList.contains('hot'), 'known streak read "' + el.textContent + '"');
+    } finally {
+      if (had) G._serverStreak = was; else delete G._serverStreak;
+      try { SC.paint(G); } catch (e) {}
+    }
+  }),
 ];

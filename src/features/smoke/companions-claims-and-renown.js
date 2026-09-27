@@ -635,8 +635,8 @@ export default [
       const rows = [...document.querySelectorAll('#hr-cl-modal [data-cl-next]')];
       assert(rows.map((r) => r.getAttribute('data-cl-next')).join() === 'hunter10,collect25', 'next rungs: ' + rows.map((r) => r.getAttribute('data-cl-next')));
       rows.forEach((r) => {
-        assert(r.querySelector('.bal-pending'), 'no pending mark on ' + r.getAttribute('data-cl-next'));
         assert(!/(^|\D)0\/\d/.test(r.textContent || ''), 'an unknown count rendered as 0: ' + r.textContent);
+        assert(r.querySelector('.bal-pending'), 'no pending mark on ' + r.getAttribute('data-cl-next'));
       });
       const tl = C.tileLine(window.G);
       assert(tl && tl.pending === true && !/\b0\//.test(tl.text), 'tile: ' + JSON.stringify(tl));

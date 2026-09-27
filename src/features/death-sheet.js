@@ -1043,10 +1043,12 @@
     var s = document.createElement('style');
     s.id = STYLE_ID;
     s.textContent = [
-      '#' + ROOT_ID + '{position:fixed;inset:0;z-index:100000;display:none;align-items:center;',
-      '  justify-content:center;padding:16px;background:rgba(0,0,0,.72);backdrop-filter:blur(3px)}',
+      /* Position, inset, gutter and the height cap: `.hr-scrim`/`.hr-sheet`
+         (art-direction.css). Only the open contract and the skin live here. */
+      '#' + ROOT_ID + '{z-index:100000;display:none;align-items:center;',
+      '  justify-content:center;background:rgba(0,0,0,.72);backdrop-filter:blur(3px)}',
       '#' + ROOT_ID + '.show{display:flex}',
-      '.hr-death{width:100%;max-width:440px;max-height:92vh;overflow:auto;border-radius:14px;',
+      '.hr-death{width:100%;max-width:440px;border-radius:14px;',
       '  background:var(--surface-2,#221b14);border:1px solid var(--line,rgba(255,255,255,.12));',
       '  box-shadow:0 24px 60px -20px rgba(0,0,0,.9);padding:20px}',
       '.hr-death-top{display:flex;gap:11px;align-items:center;margin-bottom:4px}',
@@ -1082,19 +1084,14 @@
       '.hr-death-shop{display:block;background:none;border:0;padding:0;margin-top:8px;font:inherit;text-align:left;',
       '  font-size:calc(14.5px * var(--ui-scale,1));color:var(--gold-2,#c9a24a);',
       '  text-decoration:underline;cursor:pointer}',
-      /* STICKY, not merely last. On a 922x423 landscape phone the sheet is
-         taller than the viewport and the two actions sat below the fold —
-         measured, and it is the one part of this sheet that must never be
-         hidden, because it is the whole "and now do this" half of the design.
-         Sticky keeps them pinned to the sheet's bottom edge while the receipt
-         above scrolls; the negative margins + padding make the bar span the
-         sheet's full width so the scrolled content passes behind an opaque
-         strip rather than through the buttons. */
-      '.hr-death-acts{position:sticky;bottom:-20px;z-index:1;display:flex;gap:8px;flex-wrap:wrap;',
-      '  margin:16px -20px -20px;padding:12px 20px 20px;background:var(--surface-2,#221b14)}',
+      /* THE FOOT, not merely last. On a 922x423 landscape phone the sheet is
+         taller than the viewport and the two actions sat below the fold. They
+         are the whole "and now do this" half of the design, so they live in the
+         sheet's foot, which never shrinks: only the receipt above scrolls. */
+      '.hr-death-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}',
       '.hr-death-acts .btn{flex:1 1 auto;min-height:40px}',
       '.hr-death-acts .btn[disabled]{opacity:.5;cursor:not-allowed}',
-      /* THE REFUSAL LINE. Lives INSIDE the sticky action bar so it can never be
+      /* THE REFUSAL LINE. Lives INSIDE the action foot so it can never be
          scrolled away from the button that produced it. Full-width so it reads
          as a sentence about the sheet, not a caption on one button. */
       '.hr-death-note{flex:1 0 100%;margin:0 0 2px;font-size:calc(14.5px * var(--ui-scale,1));',
@@ -1108,7 +1105,7 @@
       '  .hr-death-lead{margin:6px 0 10px}',
       '  .hr-death-row{padding:6px 10px}',
       '  .hr-death-tip{margin-top:10px;padding:9px 11px}',
-      '  .hr-death-acts{bottom:-14px;margin:12px -14px -14px;padding:10px 14px 14px}}'
+      '  .hr-death-acts{margin-top:12px}}'
     ].join('');
     document.head.appendChild(s);
   }
@@ -1156,6 +1153,7 @@
     if (!root) {
       root = document.createElement('div');
       root.id = ROOT_ID;
+      root.className = 'hr-scrim';
       root.setAttribute('role', 'dialog');
       root.setAttribute('aria-modal', 'true');
       root.addEventListener('click', function (e) { if (e.target === root) close(); });
@@ -1169,11 +1167,12 @@
     }).join('');
 
     root.innerHTML =
-      '<div class="hr-death" onclick="event.stopPropagation()">' +
-        '<div class="hr-death-top">' +
+      '<div class="hr-death hr-sheet" onclick="event.stopPropagation()">' +
+        '<div class="hr-death-top hr-sheet-head">' +
           '<div class="hr-death-mark">' + gly('uiSkull', 21, 'var(--red,#a04830)') + '</div>' +
           '<h2>' + esc(model.title) + '</h2>' +
         '</div>' +
+        '<div class="hr-sheet-body">' +
         '<p class="hr-death-lead">' + esc(model.lead) + '</p>' +
         '<div class="hr-death-rows">' + rows + '</div>' +
         '<div class="hr-death-tip" data-tip="' + esc(model.tipKey) + '">' +
@@ -1183,8 +1182,8 @@
           /* Same class as the shop link — one affordance in this slot, so the
              two never look like different kinds of thing. */
           (model.enableAutoEat ? '<button class="hr-death-shop" data-act="autoeat">Turn Auto-Eat back on</button>' : '') +
-        '</div>' +
-        '<div class="hr-death-acts">' +
+        '</div></div>' +
+        '<div class="hr-death-acts hr-sheet-foot">' +
           '<p class="hr-death-note" data-note role="status" aria-live="polite"></p>' +
           model.actions.map(function (a) {
             /* data-label carries the ORIGINAL wording so an in-flight button can

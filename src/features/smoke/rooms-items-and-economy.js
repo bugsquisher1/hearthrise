@@ -1059,7 +1059,7 @@ export default [
         'a held turn-in must show the server value (3), got ' + JSON.stringify(G._bountyServer));
     } finally {
       window.HearthriseGoalClaim = saved.gc;
-      G.bountyHunter = saved.bh;
+      G.bountyHunter = saved.bh; delete G._bountyServer;
     }
   }),
   /* ── SETTLED KILLS REACH THE BAR (found by playing) ────────────────────────

@@ -411,7 +411,7 @@ export function bountyRig(opts) {
     async figures() {
       const out = { set: new Set(), claim: false, badge: false, pill: '', chip: '', wt: '' };
       const add = (s) => { const m = /(\d+|—)\s*\/\s*(\d+)/.exec(String(s || '')); if (m) out.set.add(m[1]); return String(s || ''); };
-      window.renderBountyTab();
+      this.combatTab(false); window.renderBountyTab();
       const bb = document.querySelector('#bounty-board-body');
       add(bb && bb.querySelector('.bb-prog-t') && bb.querySelector('.bb-prog-t').textContent);
       out.claim = /hrTurnInBounty\(\)/.test(bb ? bb.innerHTML : '');

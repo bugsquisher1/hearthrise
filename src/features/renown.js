@@ -840,7 +840,7 @@
       '.hr-rn-info{flex:1;min-width:0}',
       '.hr-rn-nm{font-weight:700;font-size:calc(16px * var(--ui-scale, 1));color:var(--ink,#e9e2cf)}',
       '.hr-rn-unlock{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3,#a5896a);margin-top:1px}',
-      '.hr-rn-lore{font-size:calc(14px * var(--ui-scale, 1));color:var(--ink-2);font-style:italic;line-height:1.45;margin-top:4px}',
+      '.hr-rn-lore{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-2);font-style:italic;line-height:1.45;margin-top:4px}',
       '.hr-rn-req{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3,#a5896a);white-space:nowrap}',
       '.hr-rn-claim{border:none;border-radius:8px;padding:7px 12px;font-weight:800;font-size:calc(14.5px * var(--ui-scale, 1));cursor:pointer;background:linear-gradient(180deg,var(--gold,#f0b860),var(--gold-2,#d99c40));color:var(--bg-0,#20160a);white-space:nowrap;flex:0 0 auto}',
       '.hr-rn-claim:active{transform:translateY(1px)}',

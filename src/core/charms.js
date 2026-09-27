@@ -53,8 +53,8 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random, no clock.
 // ════════════════════════════════════════════════════════════════════════
 
-import { CHARM_RANKS, MAX_CHARM_DROP_MULT, MAX_CHARM_DAMAGE_MULT } from '../data/bestiary-charms.js?v=557';
-import { classOfMonster } from './bane.js?v=557';
+import { CHARM_RANKS, MAX_CHARM_DROP_MULT, MAX_CHARM_DAMAGE_MULT } from '../data/bestiary-charms.js?v=558';
+import { classOfMonster } from './bane.js?v=558';
 
 /**
  * Fold `{monsterId: kills}` into `{class: kills}`.

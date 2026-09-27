@@ -1,0 +1,32 @@
+/* ==========================================================================
+ * src/styles/codex.css — the Hearth Codex (src/features/codex.js).
+ *
+ * Layout only. The modal itself is the shared .modal/.modal-card (90vh, its own
+ * scroll, closed by Escape and closeAllModals), so there is no max-height and
+ * no media query here. Colours are tokens; nothing is !important.
+ * ========================================================================== */
+#codex-modal .codex-group {
+  margin: var(--gap) 0 calc(var(--gap) / 2);
+  font-family: var(--f-display);
+  color: var(--ink-2);
+}
+#codex-modal .codex-entry {
+  border-top: 1px solid var(--line);
+  padding: calc(var(--gap) / 2) 0;
+}
+#codex-modal .codex-entry > summary {
+  min-height: var(--tap);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 700;
+}
+#codex-modal .codex-entry > p {
+  margin: 0 0 var(--gap);
+  line-height: 1.5;
+}
+/* The door is a real touch target: a later .btn rule out-ranks
+   the plain .tap floor (measured 36px), so it is restated here. */
+#codex-modal .codex-door {
+  min-height: var(--tap);
+}

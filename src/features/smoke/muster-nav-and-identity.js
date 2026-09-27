@@ -2454,4 +2454,21 @@ export default [
     } finally { unstub(); }
     assert(W.seen() === wasWelcomed, 'the stub left this browser\'s welcome flag somewhere it did not find it');
   }),
+
+  /* CODEX-1 — the Hearth Codex (src/features/codex.js). The copy is bound to the
+     engine by tests/codex-claims.mjs; this proves the three doors reach it. */
+  () => tryRunAsync('CODEX-1: the Hearth Codex opens on an entry with a door, closes, and every door to it exists', async () => {
+    const C = window.HearthriseCodex;
+    assert(C && typeof C.open === 'function', 'window.HearthriseCodex is missing — the glossary has no way in');
+    try {
+      await C.open('knocked-out');
+      assert(document.querySelector('#codex-modal.show'), 'open() did not show #codex-modal');
+      const d = document.getElementById('cx-knocked-out');
+      assert(d && d.open && /first fall of each day/.test(d.textContent), 'open(id) did not open that entry');
+      assert(d.querySelector('button.codex-door'), 'the entry has no door');
+    } finally { C.close(); }
+    assert(!document.querySelector('#codex-modal.show'), 'close() left the Codex up');
+    assert(document.querySelector('#more-modal #more-codex'), 'the More sheet has no Codex button');
+    assert(document.querySelector('#tb-codex, .feat-buttons [onclick*="HearthriseCodex"]'), 'the profile toolbar has no Codex button');
+  }),
 ];

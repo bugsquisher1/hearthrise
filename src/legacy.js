@@ -14406,7 +14406,7 @@ function injectProfileButtons(){
   row.className = 'feat-buttons';
   row.style.cssText = 'display:flex;gap:8px;margin:8px 0;grid-column:1 / -1';
   row.innerHTML = '<button class="btn" onclick="openAchievements()">'+_hrGly('uiTrophy',14)+' Achievements</button>'+
-                  '<button class="btn" onclick="openBestiary()">'+_hrGly('uiBook',14)+' Bestiary</button>';
+                  '<button class="btn" onclick="openBestiary()">'+_hrGly('uiBook',14)+' Bestiary</button><button class="btn" onclick="window.HearthriseCodex&&HearthriseCodex.open()">'+_hrGly('uiScroll',14)+' Codex</button>';
   panel.insertBefore(row, panel.firstChild);
 }
 
@@ -15582,7 +15582,7 @@ function buildProfileToolbar(){
     '<button class="tb-btn" id="tb-objectives">'+_hrGly('uiScroll',14)+' Objectives'+(pendingObj>0?' <span class="tb-badge">'+pendingObj+'</span>':'')+'</button>'+
     '<button class="tb-btn" onclick="openAchievements()">'+_hrGly('uiTrophy',14)+' Achievements</button>'+
     '<button class="tb-btn" onclick="openBestiary()">'+_hrGly('uiBook',14)+' Bestiary</button>'+
-    '<button class="tb-btn" onclick="openLifetimeStats && openLifetimeStats()">'+_hrGly('uiTrend',14)+' Lifetime</button>';
+    '<button class="tb-btn" onclick="openLifetimeStats && openLifetimeStats()">'+_hrGly('uiTrend',14)+' Lifetime</button><button class="tb-btn" id="tb-codex" onclick="window.HearthriseCodex&&HearthriseCodex.open()">'+_hrGly('uiScroll',14)+' Codex</button>';
   panel.insertBefore(bar, panel.firstChild);
   document.getElementById('tb-objectives').addEventListener('click', openObjectivesPopout);
   /* Suppress old feat-buttons row since toolbar replaces it */

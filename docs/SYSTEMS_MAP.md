@@ -282,6 +282,7 @@ reachability guard — wire it into a drop table, recipe, or shop.
 | Safe id renames / removals | `window.ITEM_ALIAS` + `remapItemIds` (legacy.js:728) | migrate saves manually |
 | Save schema migrations | `src/save-migrations.js` (`MIGRATIONS` + `CURRENT_SCHEMA_VERSION`) | hand-patch old saves |
 | Item → source / used-in | `src/features/item-index.js` | write reverse lookups |
+| Player glossary (Hearth Codex) | `src/data/codex.js` rows, each sentence bound to a predicate in `tests/codex-claims.mjs` | write help copy that can drift from the engine |
 
 ---
 

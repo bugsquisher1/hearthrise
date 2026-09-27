@@ -638,7 +638,9 @@
       + '<div class="ss-row"><div class="ss-label">Replay tutorial</div>'
       +   '<button class="btn btn-sm" id="set-replay-tutorial">Show again</button></div>'
       + '<div class="ss-row"><div class="ss-label">Show screen tips again</div>'
-      +   '<button class="btn btn-sm" id="set-replay-primers">Show again</button></div>';
+      +   '<button class="btn btn-sm" id="set-replay-primers">Show again</button></div>'
+      + '<div class="ss-row"><div class="ss-label">Hearth Codex — what everything means</div>'
+      +   '<button class="btn btn-sm" id="set-open-codex">Open</button></div>';
   }
 
   // ── Chat & Privacy ─────────────────────────────────────────
@@ -1241,6 +1243,13 @@
       }
       SP.reset();
       if(typeof window.notify === 'function') window.notify('Screen tips will show again the next time you open each screen.', 'info');
+    });
+
+    var cx = root.querySelector('#set-open-codex');
+    if(cx) cx.addEventListener('click', function(){
+      var m = document.getElementById('settings-modal');
+      if(m) m.classList.remove('show');
+      if(window.HearthriseCodex) window.HearthriseCodex.open();
     });
 
     // Block list

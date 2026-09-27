@@ -5376,6 +5376,53 @@ export default [
       'a switch must keep its own sentence, got ' + A.receiptSentence(sw, { spanLabel: () => '1m' }));
   }),
 
+  () => tryRun('RECEIPT-ITEMS-1: a receipt counts the units that entered the bag, never the net of a signed map', () => {
+    /* THE REGRESSION: the server's receipt map is SIGNED (inputs negative), and
+       summaryFromAway netted it, so a cook said "+0 items" and a smith "+-900". */
+    const A = window.HearthriseAccrual, M = window.HearthriseActivity;
+    const COOK_MAX = { shrimp: -937, cooked_shrimp: 937 };
+    const COOK_BURN = { shrimp: -937, cooked_shrimp: 864, burnt_food: 73 };
+    const SMITH = { bronze_bar: -900, normal_plank: -900, bronze_axe: 900 };
+    const COMBAT = { goblin_ear: 102, bones: 211, cooked_shrimp: -103, goblin_seal: 2, bronze_sword: 11 };
+    const span = { spanLabel: () => '4m' }, H8 = 8 * 3600000;
+    const switchOf = (xp, items) => {
+      const s = A.summaryFromAway(M.awayFromCollected({ ms: 240000, xp, items, levelUps: [] }), { version: 1 });
+      s.source = 'switch'; return s;
+    };
+    const eq = (got, want, what) => assert(got === want, what + ': got ' + JSON.stringify(got));
+    eq(A.receiptSentence(switchOf({ cooking: 10307 }, COOK_MAX), span),
+      'Collected 4m — +0 gold, +10307 XP, +937 items', '(a) switch');
+    eq(A.receiptSentence(A.summaryFromAway({ grantMs: 90000, xp: { cooking: 10307 }, items: COOK_MAX }, { version: 1 })),
+      'Synced — +937 items, +10307 XP', '(b) sync');
+    eq(A.receiptSentence(A.summaryFromAway({ grantMs: H8, xp: { cooking: 10307 }, items: COOK_MAX }, { version: 2 })),
+      '⏰ Away 8h — the server credited +937 items, +10307 XP, +0 gold', '(c) away');
+    const smithSw = switchOf({ smithing: 13500 }, SMITH);
+    eq(smithSw.gainedItems, 900, '(d) smith gainedItems');
+    eq(A.receiptSentence(smithSw, span), 'Collected 4m — +0 gold, +13500 XP, +900 items', '(d) smith switch');
+    const smithAway = A.summaryFromAway({ grantMs: H8, xp: { smithing: 13500 }, items: SMITH }, { version: 2 });
+    assert(A.receiptSentence(smithAway).indexOf('+-') === -1, '(d) away sentence printed a negative count');
+    assert(String(window.HearthriseHome.__awayCardHtml(smithAway)).indexOf('+-') === -1, '(d) away card printed a negative count');
+    eq(A.summaryFromAway({ grantMs: H8, items: COMBAT, xp: { attack: 500 } }).gainedItems, 326, '(e) combat');
+    eq(A.summaryFromAway({ grantMs: H8, items: { normal_log: 750 }, xp: {} }).gainedItems, 750, '(f) gather control');
+    // (g) one sign convention: the text helper and the inventory reconcile agree on what was used.
+    [[SMITH, ['bronze_bar', 'normal_plank']], [COOK_MAX, ['shrimp']]].forEach(([map, want]) => {
+      eq(JSON.stringify([...A.consumedKeysOf({ away: { items: map } })].sort()), JSON.stringify(want), '(g) consumedKeysOf');
+      eq(JSON.stringify([...A.itemMovesOf(map).usedIds].sort()), JSON.stringify(want), '(g) itemMovesOf.usedIds');
+    });
+    eq(A.receiptSentence(A.summaryFromAway({ grantMs: 90000, xp: {}, items: COOK_MAX }, {})),
+      'Synced — +937 items', '(h) a debit-heavy sync must not be silent');
+    try {
+      const G = {};
+      const r = A.reconcileAwayReceipt(G, { state: { last_away_receipt: { grantMs: H8, awayMs: H8,
+        at: Date.now() - 60000, gold: 0, xp: { smithing: 13500 }, items: SMITH, kills: 0 } } });
+      assert(r && r.gainedItems === 900 && G.lastOfflineSummary.gainedItems === 900 && r.restored === true,
+        '(i) restored receipt: got ' + JSON.stringify(r && r.gainedItems));
+    } finally { A.__resetAwayReceipt(); }
+    const g = A.itemMovesOf(COOK_BURN).gained;
+    assert(g >= 864 && g !== 0, '(j) burn map gained ' + g);
+    assert(String(A.receiptSentence(switchOf({ cooking: 9723 }, COOK_BURN), span)).indexOf('+-') === -1, '(j) sentence');
+  }),
+
   () => tryRun('SYNC-5: an away receipt says WHY it stopped and that you got back up', () => {
     /* THE REGRESSION. b515 deleted the local `processOffline`, and with it the
        b345 stop toast and the Recovery rev. 2 fall toast; `receiptSentence`,

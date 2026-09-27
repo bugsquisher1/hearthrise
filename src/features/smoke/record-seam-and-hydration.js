@@ -7622,6 +7622,101 @@ export default [
   }),
 
   /* ══════════════════════════════════════════════════════════════════════
+     regression suite — THE KILL GOLD THAT NEVER LEFT THE HEADER (live P1, 2026-09-25)
+
+     QA slot 0, ~21:09-21:16 UTC. After a kill the header said 11,259 for 4+
+     minutes, across two shop buys, while the server held 11,257:
+     balanceForDisplay {value:11259, predicted:2}. A gold verb never moves
+     accrued_to, so each shop envelope restated a watermark from before the kill
+     and the coverage rule could not retire it; the only other exit was fifteen
+     minutes AND an envelope. Now predict.js's deadline (210 s) applies at
+     every read, and record.js arms ONE repaint for just past it, because nothing
+     else repaints a header nobody touches.
+     MUTATION: drop the armExpiryRepaint call from hrPredictBalance → RED here.
+     ══════════════════════════════════════════════════════════════════════ */
+  () => tryRunAsync('stale-gold regression: an expired kill prediction leaves the header on its own (attended)', async () => {
+    const G = window.G;
+    const R = window.HearthriseRecord;
+    const P = window.HearthrisePredict;
+    const B = window.HearthriseBalance;
+    assert(R && typeof R.armedAt === 'function' && typeof R.__fireExpiryRepaint === 'function',
+      'src/net/record.js publishes no armedAt/__fireExpiryRepaint — the expiry repaint does not exist, so '
+      + 'a prediction past its deadline stays on the header until something unrelated repaints it');
+    const cell = document.getElementById('top-gold');
+    assert(cell, 'there is no #top-gold in the page — the surface this guard watches is gone');
+    const shown = () => {
+      const t = String(cell.textContent || '').replace(/[,\s]/g, '');
+      return /^\d+$/.test(t) ? Number(t) : null;
+    };
+    const snap = snapshotG();
+    try {
+      predZero();
+      G.gold = 11557; G.gems = 5;
+      stampBalanceLikeLoad(G);
+      /* THE KILL, through the production wrapper (onLoot's own call). */
+      window.hrPredictBalance('gold', 2);
+      assert(R.armedAt() > Date.now(),
+        'a prediction armed no expiry repaint (armedAt=' + R.armedAt() + ') — nothing will take it off the header');
+      /* Two shop buys whose watermark is from before the kill: both keep it. */
+      const stale = new Date(Date.now() - 300000).toISOString();
+      for (const gold of [11407, 11257]) {
+        const v = Math.max(((G._record && Number(G._record.version)) || 0) + 1, Date.now());
+        R.applyRecord(G, { ok: true, version: v, now: new Date().toISOString(), state: { gold, gems: 5, accrued_to: stale } });
+      }
+      assert(shown() === 11259,
+        'CONTROL: a young kill did not survive two stale-watermark buys (header ' + JSON.stringify(cell.textContent)
+        + ', want 11259) — the no-rewind rule broke, or the fixture never reached the surface');
+      /* THE CLOCK RUNS OUT with nothing happening: age the entry past the deadline. */
+      const bag = G[P.PRED_KEY];
+      for (const e of bag.gold.q) e.at -= (P.MAX_PREDICTION_AGE_MS + 1000);
+      assert(shown() === 11259, 'CONTROL: something repainted the header before the armed timer fired');
+      R.__fireExpiryRepaint();
+      const truth = B.balanceOf(G, 'gold').value;
+      assert(truth === 11257, 'CONTROL: the server-of-record gold is ' + truth + ', not 11257');
+      assert(shown() === truth,
+        'THE BROWSER SAYS ' + JSON.stringify(cell.textContent) + ' AND THE REALM SAYS ' + truth + '. A kill '
+        + 'prediction past MAX_PREDICTION_AGE_MS is still on the header after the armed repaint (§6).');
+    } finally {
+      predZero();
+      restoreGAndRecord(snap);
+      try { window.updateTopbar(); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('stale-gold regression: a caught-up away receipt retires every prediction (away)', () => {
+    const G = window.G;
+    const P = window.HearthrisePredict;
+    const B = window.HearthriseBalance;
+    const cell = document.getElementById('top-gold');
+    assert(cell, 'there is no #top-gold in the page');
+    const snap = snapshotG();
+    try {
+      predZero();
+      G.gold = 500; G.gems = 5;
+      stampBalanceLikeLoad(G);
+      window.hrPredictBalance('gold', 3);
+      assert(P.hasPredictions(G), 'CONTROL: the kill prediction did not land');
+      applyAwayEnvelope({ grantMs: 60000, awayMs: 60000, paidMs: 30000, kills: 1, gold: 3, xp: {}, items: {},
+        died: true, diedTo: 'slime', deaths: 1, recoverMs: 0, recoverRemainingMs: 30000, recoverLadder: [0] },
+      { state: { gold: 503, gems: 5, accrued_to: new Date().toISOString(),
+        recovering_until: new Date(Date.now() + 30000).toISOString() } });
+      assert(!P.hasPredictions(G),
+        'a caught-up away envelope (accrued_to = server now) left a prediction standing: '
+        + JSON.stringify(P.predictionState(G)));
+      const t = String(cell.textContent || '').replace(/[,\s]/g, '');
+      assert(Number(t) === B.balanceOf(G, 'gold').value,
+        'the header says ' + JSON.stringify(cell.textContent) + ' after the away receipt; the realm says '
+        + B.balanceOf(G, 'gold').value);
+    } finally {
+      try { window.HearthriseAccrual.__resetAwayReceipt(); } catch (e) {}
+      try { window.HearthriseDeathSheet.__resetForTest(); } catch (e) {}
+      predZero();
+      restoreGAndRecord(snap);
+      try { window.updateTopbar(); } catch (e) {}
+    }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════
      regression suite — THE CLAIM THE SERVER PAID AND THE CLIENT NEVER HEARD
      (live P1, hearthrise.net)
 

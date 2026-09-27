@@ -525,6 +525,92 @@ export async function predictDisplayGuard() {
   }
 
   /* ══════════════════════════════════════════════════════════════════════
+     H. THE DEADLINE (b556) — the live b555 incident: header gold 11,259 against a
+        server 11,257 for 4+ minutes after a kill, across two shop buys. A gold
+        verb never moves accrued_to, so its envelope restates an old watermark and
+        the coverage rule cannot retire a kill made after it; before b556 nothing
+        else could either, short of fifteen minutes AND an envelope.
+     ══════════════════════════════════════════════════════════════════════ */
+  {
+    const D = predict.MAX_PREDICTION_AGE_MS;
+    const STALE = 300_000;   // every gold-verb envelope below maps to before the kill
+    /* PD-TTL-1a, the CONTROL: a young kill survives a stale-watermark envelope
+       (b455's no-rewind rule still holds inside the deadline). */
+    const T1 = {};
+    record.applyRecord(T1, envelope(70, { attack: 100 }, 11557, 0, STALE));
+    predict.predictBalance(T1, 'gold', 2, Date.now() - 60_000);
+    record.applyRecord(T1, envelope(71, { attack: 100 }, 11407, 0, STALE));
+    ok(balance.balanceForDisplay(T1, 'gold').value === 11409,
+      'PD-TTL-1a: a 60 s-old kill did not survive a stale-watermark envelope (got '
+      + balance.balanceForDisplay(T1, 'gold').value + ', want 11409) — the deadline is deleting live predictions.');
+
+    /* PD-TTL-1b, THE INCIDENT: the kill is past the deadline, two shop buys land. */
+    const T2 = {};
+    record.applyRecord(T2, envelope(72, { attack: 100 }, 11557, 0, STALE));
+    predict.predictBalance(T2, 'gold', 2, Date.now() - 240_000);
+    record.applyRecord(T2, envelope(73, { attack: 100 }, 11407, 0, STALE));
+    record.applyRecord(T2, envelope(74, { attack: 100 }, 11257, 0, STALE));
+    const b1 = balance.balanceForDisplay(T2, 'gold');
+    ok(b1.value === 11257 && b1.predicted === 0,
+      'PD-TTL-1b: THE LIVE b555 HEADER — a kill past the deadline is still on the display after two '
+      + 'gold-verb envelopes (got ' + b1.value + ' predicted ' + b1.predicted + ', want 11257 / 0).');
+
+    /* PD-TTL-2, NO ENVELOPE AT ALL: the deadline holds at read time. */
+    const T3 = {};
+    record.applyRecord(T3, envelope(75, { woodcutting: 500 }, 1000, 0, STALE));
+    predict.predictXp(T3, 'woodcutting', 30, Date.now() - 211_000);
+    predict.predictBalance(T3, 'gold', 5, Date.now() - 211_000);
+    ok(skillRec.skillXpForDisplay(T3, 'woodcutting').value === 500
+      && balance.balanceForDisplay(T3, 'gold').value === 1000,
+      'PD-TTL-2: with no envelope, a prediction past the deadline is still displayed (xp '
+      + skillRec.skillXpForDisplay(T3, 'woodcutting').value + ', gold '
+      + balance.balanceForDisplay(T3, 'gold').value + '). A stalled settle must not freeze optimism.');
+    const T4 = {};
+    record.applyRecord(T4, envelope(76, { woodcutting: 500 }, 1000, 0, STALE));
+    predict.predictXp(T4, 'woodcutting', 30, Date.now() - 150_000);
+    predict.predictBalance(T4, 'gold', 5, Date.now() - 150_000);
+    ok(skillRec.skillXpForDisplay(T4, 'woodcutting').value === 530
+      && balance.balanceForDisplay(T4, 'gold').value === 1005,
+      'PD-TTL-2 CONTROL: a 150 s-old prediction was dropped with no envelope — inside the deadline it must show.');
+
+    /* PD-TTL-3, CREDIT-TAGGED XP AND THE FORGIVEN AMOUNT. */
+    const T5 = {};
+    record.applyRecord(T5, envelope(77, { attack: 1000 }, 0, 0, 0));
+    predict.predictXp(T5, 'attack', 10, Date.now() - 215_000, { credited: true });
+    predict.predictXp(T5, 'attack', 6, Date.now() - 5_000, { credited: true });
+    ok(skillRec.skillXpForDisplay(T5, 'attack').value === 1006,
+      'PD-TTL-3: a credit-tagged entry past the deadline is still displayed (got '
+      + skillRec.skillXpForDisplay(T5, 'attack').value + ', want 1006).');
+    record.applyRecord(T5, envelope(78, { attack: 1010 }, 0, 0, 0));
+    ok(skillRec.skillXpForDisplay(T5, 'attack').value === 1016,
+      'PD-TTL-3/FORGIVEN: the late credit for the expired 10 ate the newer 6 (got '
+      + skillRec.skillXpForDisplay(T5, 'attack').value + ', want 1016). It must pay the forgiven amount first.');
+
+    /* PD-TTL-4, THE AWAY PATH: a caught-up away envelope (a death on the away
+       clock) retires every entry by coverage; a kill after it survives. */
+    const T6 = {};
+    record.applyRecord(T6, envelope(79, { attack: 100 }, 500, 0, 0));
+    predict.predictBalance(T6, 'gold', 3, Date.now() - 5_000);
+    predict.predictXp(T6, 'attack', 4, Date.now() - 5_000);
+    const away = envelope(80, { attack: 104 }, 503, 0, 0);
+    away.accrued = true;
+    away.away = { death: true, recovering_until: new Date(Date.now() + 60_000).toISOString() };
+    record.applyRecord(T6, away);
+    ok(!predict.hasPredictions(T6),
+      'PD-TTL-4: a caught-up away envelope did not retire every prediction by coverage.');
+    predict.predictBalance(T6, 'gold', 2, Date.now() + 1);
+    ok(balance.balanceForDisplay(T6, 'gold').value === 505,
+      'PD-TTL-4: a kill predicted after the away envelope did not survive (got '
+      + balance.balanceForDisplay(T6, 'gold').value + ', want 505).');
+
+    /* PD-TTL-5, THE CONSTANT: two settle windows plus the flush, never three. */
+    const S = accrue.SETTLE_INTERVAL_MS;
+    ok(2 * S + 15_000 <= D && D <= 3 * S,
+      'PD-TTL-5: MAX_PREDICTION_AGE_MS=' + D + ' is outside [2×SETTLE_INTERVAL_MS+15s, 3×SETTLE_INTERVAL_MS] = ['
+      + (2 * S + 15_000) + ', ' + 3 * S + '].');
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
      F. RETIRED IN b515 — THERE IS NO DORMANT DISPLAY.
      ══════════════════════════════════════════════════════════════════════
      This section asserted the pre-b455 answers with the master accrual switch
@@ -554,6 +640,9 @@ export async function predictDisplayGuard() {
     + 'is monotone across a stale-watermark envelope, a "nothing" settle, a partial credit, an '
     + 'over-advance and a downward correction');
   notes.push('authority (skillXpOf / balanceOf / canAfford) is blind to every prediction');
+  notes.push('the deadline (b556): past MAX_PREDICTION_AGE_MS a prediction leaves the display at the '
+    + 'next read, envelope or not — the live b555 11,259/11,257 header is closed, and a late credit '
+    + 'pays the forgiven amount before the newer entries');
   return { problems: problems.slice(), notes: notes.slice() };
 }
 

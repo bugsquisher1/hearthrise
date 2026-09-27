@@ -2838,13 +2838,13 @@ function getPreferredSlot(def){
    credit does not move. See predict.js `reconcileCreditedXp` — without the tag
    the credited xp is counted twice and then snaps away (the b491 live defect). */
 function hrPredictXp(sk,gain,credited){
-  var P=window.HearthrisePredict;
-  if(!P||typeof P.predictXp!=='function') return 0;
+  var P=window.HearthrisePredict,R=window.HearthriseRecord; if(!P||typeof P.predictXp!=='function') return 0;
+  try{ if(R&&typeof R.armExpiryRepaint==='function') R.armExpiryRepaint(); }catch(e){}
   try{ return P.predictXp(G,sk,gain,undefined,credited?{credited:true}:undefined); }catch(e){ return 0; }
 }
 function hrPredictBalance(field,delta){
-  var P=window.HearthrisePredict;
-  if(!P||typeof P.predictBalance!=='function') return 0;
+  var P=window.HearthrisePredict,R=window.HearthriseRecord; if(!P||typeof P.predictBalance!=='function') return 0;
+  try{ if(R&&typeof R.armExpiryRepaint==='function') R.armExpiryRepaint(); }catch(e){}
   try{ return P.predictBalance(G,field,delta); }catch(e){ return 0; }
 }
 /** The DISPLAY answer for one skill: {known,value}. Server truth + prediction,

@@ -118,7 +118,7 @@ import { isDungeonSettleArmed } from './dungeon-scrip-record.js?v=555';
    field, so it is also the one place that can honestly retire a prediction: the
    number it is about to stamp already contains whatever the client predicted.
    predict.js imports nothing, so there is no cycle. */
-import { coverageBoundary, retirePredictions, reconcileCreditedXp, resetPredictions } from './predict.js?v=555';
+import { coverageBoundary, retirePredictions, reconcileCreditedXp, resetPredictions, MAX_PREDICTION_AGE_MS } from './predict.js?v=555';
 
 /* THE SAME SWITCH AS b337/b338, DELIBERATELY — and since b515 that switch is
    RETIRED, so this is a constant. A separate switch would have created a state
@@ -1048,7 +1048,7 @@ export function applyRecord(G, res) {
        Disjoint from the pass below by construction (`credit`-tagged buckets are
        exempt there), so the two can never retire the same xp twice. */
     const credited = written.indexOf('skills') >= 0
-      ? reconcileCreditedXp(G, prevStated, dec.fields.skills) : null;
+      ? reconcileCreditedXp(G, prevStated, dec.fields.skills, nowMs) : null;
     const cover = coverageBoundary(res, nowMs);
     retired = retirePredictions(G, written, cover.at, nowMs);
     if (retired) { retired.coverage = cover; retired.credited = credited; }
@@ -1076,6 +1076,39 @@ function repaintHeader() {
     if (typeof window.updateTopbar === 'function') window.updateTopbar();
   } catch (e) {}
 }
+
+/* ── AND THE HEADER FOLLOWS THE DEADLINE ───────────────────────────────────
+   predict.js drops a prediction at MAX_PREDICTION_AGE_MS on the next READ, but
+   nothing reads while nothing happens: updateTopbar runs on actions and inside
+   applyRecord, so a stalled settle left the live header at 11,259 against a
+   server 11,257 for 4+ minutes. Each prediction re-arms ONE timer for just past
+   its deadline; when it fires, the header and the visible skill surface re-read,
+   and the read is what expires the entry. One timer, never a pile. */
+let expiryTimer = null;
+let expiryArmedAt = 0;
+function expiryRepaint() {
+  expiryTimer = null;
+  expiryArmedAt = 0;
+  repaintHeader();
+  try {
+    if (typeof window.isSkillsVisible === 'function' && window.isSkillsVisible()) {
+      if (typeof window.renderSkillsList === 'function') window.renderSkillsList();
+      const g = window.G;
+      if (g && g.activeSkill && typeof window.renderSkillDetail === 'function') window.renderSkillDetail(g.activeSkill);
+    }
+  } catch (e) {}
+}
+export function armExpiryRepaint() {
+  if (typeof window === 'undefined') return 0;
+  try {
+    if (expiryTimer) clearTimeout(expiryTimer);
+    expiryArmedAt = Date.now() + MAX_PREDICTION_AGE_MS + 250;
+    expiryTimer = setTimeout(expiryRepaint, MAX_PREDICTION_AGE_MS + 250);
+  } catch (e) {}
+  return expiryArmedAt;
+}
+/** When the armed repaint fires (client ms), or 0. For the suite. */
+export function armedAt() { return expiryArmedAt; }
 
 /** A defensive copy for the last-known-good cache. Scalars pass through; a map
  *  is shallow-copied one level (every record map in this game is `{key: number}`
@@ -1935,6 +1968,7 @@ if (typeof window !== 'undefined') {
     RESTED_RECORD_ARM_ENABLED, isRestedRecordArmed, __setRestedRecordArm,
     stripServerOfRecord, forgetServerOfRecord,
     decodeRecord, applyRecord, recordValue, recordLastKnown,
+    armExpiryRepaint, armedAt, __fireExpiryRepaint: expiryRepaint,
     configureRecord, getRecordConfig, recordEndpoint,
     buildLoadRequest, classifyLoadResponse,
     requestRecord, beginRecordLoad, getRecordState, resetRecord,

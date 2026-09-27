@@ -80,11 +80,11 @@
 // move the number, and those are bounded by one window.
 //
 // ── THE BOUNDS (nothing here may grow without limit) ────────────────────────
-//   · MAX_PREDICTION_AGE_MS  a prediction older than this is retired by the next
-//     envelope whatever the coverage says. This is the belt to the coverage
-//     rule's brace: an envelope with an unreadable watermark cannot be allowed to
-//     leave optimism standing forever, or a broken server field becomes a
-//     permanently inflated display.
+//   · MAX_PREDICTION_AGE_MS  THE deadline. A prediction older than this is gone —
+//     at the next READ and at the next envelope, whatever the coverage says and
+//     whether or not any envelope ever arrives. In a healthy loop the coverage
+//     rule retires every entry in ~95 s, so it never fires; past a stalled
+//     pipeline, CLAUDE.md §6 (Tyler, 2026-09-14) outranks the no-rewind rule.
 //   · COALESCE_MS  consecutive predictions for the same key inside this window
 //     fold into one entry, so a 600 ms combat swing does not build a 150-entry
 //     queue per settle window.
@@ -122,12 +122,12 @@ export const PREDICTED_BALANCE_FIELDS = Object.freeze(['gold', 'gems']);
  *  far finer than the coverage boundary's own precision. */
 export const COALESCE_MS = 1000;
 
-/** The absolute age bound. A prediction older than this is retired by the next
- *  envelope REGARDLESS of what its watermark says — the belt to the coverage
- *  brace. Generous (fifteen minutes is ten settle windows) so it never fires in
- *  normal play, and finite so a server that stops stating `accrued_to` degrades
- *  to a stale display rather than to an unboundedly inflated one. */
-export const MAX_PREDICTION_AGE_MS = 15 * 60 * 1000;
+/** THE DEADLINE. Two settle windows (accrue.js SETTLE_INTERVAL_MS, 90 s)
+ *  plus 30 s for the credit flush and the round trip. Checked on every read
+ *  (`expireHead`) and every envelope, so a stalled settle cannot leave the header
+ *  showing gold the server does not hold (live 2026-09-25: 11,259 vs 11,257 for 4+ min).
+ *  Fifteen minutes, the old value, was only ever checked inside an envelope. */
+export const MAX_PREDICTION_AGE_MS = 210000;
 
 /** Hard caps. Reached only by a bug feeding garbage, and the drop is from the
  *  OLDEST end — the same end the coverage rule retires first, so the cost is the
@@ -212,6 +212,38 @@ function push(bucket, delta, at0) {
   return bucket.total;
 }
 
+/** THE DEADLINE, APPLIED. Drops head entries at or past MAX_PREDICTION_AGE_MS,
+ *  MUTATING the queue so `total` stays a running O(1) sum (a skip that only read
+ *  past them would re-sum up to MAX_ENTRIES on getLevel's render path). A
+ *  credit-tagged bucket records what it dropped as `forgiven`: that credit may
+ *  still land, and `reconcileCreditedXp` must spend it on the forgiven amount
+ *  before it eats the newer entries (else the display reads low). */
+function expireHead(bucket, now) {
+  if (!isBucket(bucket)) return 0;
+  const floor = now - MAX_PREDICTION_AGE_MS;
+  let dropped = 0;
+  while (bucket.q.length && bucket.q[0].at <= floor) {
+    const gone = bucket.q.shift();
+    bucket.total -= gone.d;
+    dropped += gone.d;
+  }
+  if (!bucket.q.length) bucket.total = 0;
+  if (bucket.credit && dropped > 0) {
+    const n = forgivenLive(bucket, now) ? bucket.forgiven.n + dropped : dropped;
+    bucket.forgiven = { n, at: now };
+  }
+  return dropped;
+}
+
+/** The forgiven amount is itself bounded by the deadline: a credit that has not
+ *  landed one deadline after its entry expired is not coming. */
+function forgivenLive(bucket, now) {
+  const f = bucket && bucket.forgiven;
+  return !!(f && f.n > 0 && (now - f.at) <= MAX_PREDICTION_AGE_MS);
+}
+
+function nowOf(nowMs) { return Number.isFinite(Number(nowMs)) ? Number(nowMs) : Date.now(); }
+
 /* ══════════════════════════════════════════════════════════════════════════
    SKILL XP
    ══════════════════════════════════════════════════════════════════════════ */
@@ -267,23 +299,26 @@ export function predictXp(G, skillId, delta, at, opts) {
 /** The predicted delta for one skill. O(1). 0 when there is none — a prediction
  *  is a DELTA, so 0 is the honest identity here, unlike a balance where 0 is a
  *  claim. */
-export function predictedXp(G, skillId) {
+export function predictedXp(G, skillId, nowMs) {
   const bag = predictionBag(G, false);
   if (!bag) return 0;
   const b = bag.xp[String(skillId == null ? '' : skillId)];
   if (!isBucket(b)) return 0;
+  expireHead(b, nowOf(nowMs));
   return Number.isFinite(b.total) ? b.total : 0;
 }
 
 /** The whole predicted map — for the rollups (total level, combat level) that
  *  need every skill at once, and for the diagnostic. */
-export function predictedXpMap(G) {
+export function predictedXpMap(G, nowMs) {
   const bag = predictionBag(G, false);
   if (!bag) return {};
+  const now = nowOf(nowMs);
   const out = {};
   for (const k in bag.xp) {
     if (!Object.prototype.hasOwnProperty.call(bag.xp, k)) continue;
     const b = bag.xp[k];
+    expireHead(b, now);
     if (isBucket(b) && Number.isFinite(b.total) && b.total !== 0) out[k] = b.total;
   }
   return out;
@@ -308,11 +343,12 @@ export function predictBalance(G, field, delta, at) {
   return total;
 }
 
-export function predictedBalance(G, field) {
+export function predictedBalance(G, field, nowMs) {
   const f = String(field == null ? '' : field);
   if (PREDICTED_BALANCE_FIELDS.indexOf(f) === -1) return 0;
   const bag = predictionBag(G, false);
   if (!bag || !isBucket(bag[f])) return 0;
+  expireHead(bag[f], nowOf(nowMs));
   return Number.isFinite(bag[f].total) ? bag[f].total : 0;
 }
 
@@ -434,7 +470,7 @@ function consumeBucket(bucket, amount) {
  *                   pending fold-back) must not be able to move this diff.
  * @param nextSkills the map this envelope states.
  */
-export function reconcileCreditedXp(G, prevSkills, nextSkills) {
+export function reconcileCreditedXp(G, prevSkills, nextSkills, nowMs) {
   const out = { retired: 0, skills: {} };
   const bag = predictionBag(G, false);
   if (!bag) return out;
@@ -445,6 +481,7 @@ export function reconcileCreditedXp(G, prevSkills, nextSkills) {
      is optimistic for exactly one settle. That is the safe direction (the other
      one deletes progress the player watched happen). */
   if (!next || !prev) return out;
+  const now = nowOf(nowMs);
   for (const k in bag.xp) {
     if (!Object.prototype.hasOwnProperty.call(bag.xp, k)) continue;
     const b = bag.xp[k];
@@ -452,11 +489,21 @@ export function reconcileCreditedXp(G, prevSkills, nextSkills) {
     const n = Number(next[k]);
     const p = Number(prev[k]);
     if (!Number.isFinite(n) || !Number.isFinite(p)) continue;   // the envelope said nothing
-    const advance = n - p;
+    let advance = n - p;
     if (!(advance > 0)) continue;
-    const took = consumeBucket(b, advance);
+    /* A LATE CREDIT FOR AN EXPIRED ENTRY PAYS THE FORGIVEN AMOUNT FIRST.
+       The deadline already took that xp off the display; letting its credit also
+       consume the newer entries would count it off twice and read low. */
+    expireHead(b, now);
+    if (forgivenLive(b, now)) {
+      const f = Math.min(b.forgiven.n, advance);
+      b.forgiven.n -= f;
+      advance -= f;
+      if (!(b.forgiven.n > 0)) delete b.forgiven;
+    }
+    const took = advance > 0 ? consumeBucket(b, advance) : 0;
     if (took > 0) { out.retired += took; out.skills[k] = took; }
-    if (!b.q.length) delete bag.xp[k];     // an empty bucket is a leak with a name
+    if (!b.q.length && !forgivenLive(b, now)) delete bag.xp[k];   // an empty bucket is a leak with a name
   }
   return out;
 }
@@ -493,6 +540,16 @@ export function retirePredictions(G, fields, coveredUntil, nowMs) {
   const now = Number.isFinite(Number(nowMs)) ? Number(nowMs) : Date.now();
   const boundary = Number.isFinite(Number(coveredUntil)) ? Number(coveredUntil) : now;
   const ageFloor = now - MAX_PREDICTION_AGE_MS;
+  /* THE DEADLINE FIRST, OVER EVERY BUCKET — not only the fields this
+     envelope wrote. A gold-verb envelope restates an old watermark, so the
+     coverage pass below cannot retire a kill made after it; the deadline can. */
+  for (const k in bag.xp) {
+    if (!Object.prototype.hasOwnProperty.call(bag.xp, k)) continue;
+    if (!isBucket(bag.xp[k])) { delete bag.xp[k]; continue; }
+    expireHead(bag.xp[k], now);
+    if (!bag.xp[k].q.length && !forgivenLive(bag.xp[k], now)) delete bag.xp[k];
+  }
+  for (const f of PREDICTED_BALANCE_FIELDS) expireHead(bag[f], now);
   for (const f of fields) {
     const bucket = CLEARS[f];
     if (!bucket) continue;
@@ -510,7 +567,7 @@ export function retirePredictions(G, fields, coveredUntil, nowMs) {
            an unboundedly inflated one. */
         const bound = bag.xp[k].credit ? -Infinity : boundary;
         n += retireBucket(bag.xp[k], bound, ageFloor);
-        if (!bag.xp[k].q.length) delete bag.xp[k];   // an empty bucket is a leak with a name
+        if (!bag.xp[k].q.length && !forgivenLive(bag.xp[k], now)) delete bag.xp[k];   // an empty bucket is a leak with a name
       }
       if (n) { out.xp = n; out.retired.push(f); }
     } else if (isBucket(bag[bucket])) {
@@ -541,11 +598,12 @@ export function resetPredictions(G) {
 
 /** Is anything predicted at all? O(#skills). Used by the display path to take the
  *  byte-for-byte-unchanged branch when there is nothing to add. */
-export function hasPredictions(G) {
+export function hasPredictions(G, nowMs) {
   const bag = predictionBag(G, false);
   if (!bag) return false;
-  for (const f of PREDICTED_BALANCE_FIELDS) if (isBucket(bag[f]) && bag[f].total) return true;
-  for (const k in bag.xp) if (isBucket(bag.xp[k]) && bag.xp[k].total) return true;
+  const now = nowOf(nowMs);
+  for (const f of PREDICTED_BALANCE_FIELDS) { expireHead(bag[f], now); if (isBucket(bag[f]) && bag[f].total) return true; }
+  for (const k in bag.xp) { expireHead(bag.xp[k], now); if (isBucket(bag.xp[k]) && bag.xp[k].total) return true; }
   return false;
 }
 

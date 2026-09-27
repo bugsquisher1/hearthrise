@@ -414,12 +414,12 @@
   function openQuartermaster(){
     var old = document.getElementById('quartermaster-overlay'); if(old) old.remove();
     var ov = document.createElement('div');
-    ov.className = 'qm-overlay'; ov.id = 'quartermaster-overlay';
-    ov.innerHTML = '<div class="qm-modal quartermaster-modal" style="max-width:540px;position:relative">' +
-      '<button class="qm-close" aria-label="Close">✕</button>' +
+    ov.className = 'qm-overlay hr-scrim'; ov.id = 'quartermaster-overlay';
+    ov.innerHTML = '<div class="qm-modal quartermaster-modal hr-sheet" style="max-width:540px;position:relative">' +
+      '<div class="hr-sheet-head"><button class="qm-close" aria-label="Close" data-hr-dismiss>✕</button>' +
       '<h3 style="margin:0 0 4px">Quartermaster</h3>' +
-      '<div class="qm-scrip-line" id="qm-scrip-line"></div>' +
-      '<div id="quartermaster-body"></div></div>';
+      '<div class="qm-scrip-line" id="qm-scrip-line"></div></div>' +
+      '<div id="quartermaster-body" class="hr-sheet-body"></div></div>';
     document.body.appendChild(ov);
     ov.querySelector('.qm-close').addEventListener('click', function(){ ov.remove(); });
     ov.addEventListener('click', function(e){ if(e.target === ov) ov.remove(); });
@@ -815,9 +815,15 @@
     if(document.getElementById('dgn-run-overlay')) return;
     var ov = document.createElement('div');
     ov.id = 'dgn-run-overlay';
-    ov.className = 'dgn-run-overlay';
-    ov.innerHTML = '<div class="drm-modal" id="drm-modal"></div>';
+    ov.className = 'dgn-run-overlay hr-scrim';
+    ov.innerHTML = '<div class="drm-modal hr-sheet" id="drm-modal"></div>';
     document.body.appendChild(ov);
+  }
+
+  /* The card is an .hr-sheet: the head and the foot stay on screen, the body scrolls. */
+  function sheetHtml(head, body, foot){
+    return '<div class="hr-sheet-head">' + head + '</div><div class="hr-sheet-body">' + body + '</div>'
+      + (foot ? '<div class="hr-sheet-foot">' + foot + '</div>' : '');
   }
 
   function closeRunModal(){
@@ -869,9 +875,10 @@
       return '<div class="drm-reward-row"><span>' + window.itemFallbackIcon(a.id, 22, item) + '</span> +' + a.qty + ' ' + (item?item.n:a.id) + '</div>';
     }).join('') || '<div class="drm-empty">No drops this time.</div>';
 
-    modal.innerHTML =
-      '<button class="drm-close">✕</button>' +
-      '<h2 class="drm-title">' + dgnGlyph(runState.id, d) + ' ' + d.name + '</h2>' +
+    // The summary's ✕ is non-committing (the settle already left); mid-run it abandons, so no dismiss there.
+    modal.innerHTML = sheetHtml(
+      '<button class="drm-close" data-hr-dismiss>✕</button>' +
+      '<h2 class="drm-title">' + dgnGlyph(runState.id, d) + ' ' + d.name + '</h2>',
       '<div class="drm-summary">' +
         '<div class="drm-score ' + (pct >= 1 ? 'perfect' : pct >= 0.5 ? 'partial' : 'fail') + '">' +
           (pct >= 1 ? 'PERFECT' : pct >= 0.5 ? 'CLEARED' : 'FAILED') +
@@ -881,8 +888,8 @@
       '</div>' +
       '<div class="drm-rewards">' +
         '<h4>Spoils</h4><div id="drm-spoils">' + rewardHtml + '</div>' +
-      '</div>' +
-      '<button class="drm-btn drm-btn-primary" id="drm-finish">Claim</button>';
+      '</div>',
+      '<button class="drm-btn drm-btn-primary" id="drm-finish">Claim</button>');
     modal.querySelector('.drm-close').addEventListener('click', closeRunModal);
     modal.querySelector('#drm-finish').addEventListener('click', function(){
       closeRunModal();
@@ -959,7 +966,7 @@
       '</div>';
     }
 
-    modal.innerHTML =
+    modal.innerHTML = sheetHtml(
       '<button class="drm-close">✕</button>' +
       '<div class="drm-progress-dots">' + dotsHtml + '</div>' +
       '<div class="drm-phase-head">' +
@@ -968,8 +975,8 @@
           '<h3>Phase ' + (runState.phaseIdx+1) + ' of ' + runState.phases.length + ' — ' + phase.label + '</h3>' +
           '<div class="drm-phase-desc">' + phase.desc + '</div>' +
         '</div>' +
-      '</div>' +
-      bodyHtml;
+      '</div>',
+      bodyHtml);
 
     modal.querySelector('.drm-close').addEventListener('click', closeRunModal);
 

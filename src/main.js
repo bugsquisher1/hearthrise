@@ -377,6 +377,7 @@ import './net/dungeon-settle.js?v=558';
 // It reaches for the backend through `window` at call time, so no Supabase
 // build is a hard dependency.
 import './net/market-history.js?v=558';
+import './net/market-prices.js?v=558';
 import './net/auth.js?v=558';
 import './net/supabase-bootstrap.js?v=558';
 // b492 — "Connecting your character…". AFTER auth.js (it asks HearthriseAuth

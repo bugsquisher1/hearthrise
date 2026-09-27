@@ -288,8 +288,7 @@
 .skill-tile .icon-fallback,
 .mp-loot-grid .icon-fallback,
 .mk-icon .icon-fallback,
-.bm-icon .icon-fallback,
-.mm-icon .icon-fallback {
+.bm-icon .icon-fallback {
   width: 100%; height: 100%;
   max-width: none; max-height: none;
 }
@@ -2116,15 +2115,6 @@ body.in-combat #combat-area {
 }
 .mk-stats .mk-stat b { color: var(--ink-2); font-weight: 700; }
 .mk-stats .mk-stat.muted { color: rgba(138,146,160,.7); font-style: italic; }
-.mk-delta {
-  font-family: monospace;
-  font-weight: 700;
-  padding: 1px 6px;
-  border-radius: 3px;
-}
-.mk-delta.fair { color: var(--ink-3); background: rgba(255,255,255,.06); }
-.mk-delta.high { color: #ff8c8c; background: rgba(227,97,97,.15); }   /* over-priced */
-.mk-delta.low  { color: #7f9a4f; background: rgba(127,154,79,.15); }   /* bargain */
 
 /* ─── Market: your trade ledger (b361) ───
    TOKENS ONLY, and deliberately almost no new surface: the rows reuse
@@ -2173,58 +2163,11 @@ body.in-combat #combat-area {
    colours anyway. No rule here, deliberately: the amount reuses `.mk-qty`
    unmodified, so this block added no theme-fragile CSS at all. */
 
-/* ─── Market: top-movers analytics block ─── */
-.mk-movers {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 8px;
-}
-.mk-mover {
-  display: grid;
-  grid-template-columns: 36px 1fr;
-  gap: 8px;
-  padding: 8px 10px;
-  background: rgba(0,0,0,.3);
-  border: 1px solid rgba(255,255,255,.06);
-  border-radius: 8px;
-  cursor: pointer;
-  text-align: left;
-  font: inherit;
-  color: var(--ink);
-  align-items: center;
-  transition: background 120ms ease, border-color 120ms ease;
-}
-.mk-mover:hover {
-  background: rgba(243,209,129,.08);
-  border-color: rgba(243,209,129,.3);
-}
-.mk-mover .mm-icon {
-  width: 36px; height: 36px;
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(0,0,0,.4);
-  border-radius: 6px;
-  font-size:calc(26px * var(--ui-scale, 1));
-  grid-row: span 2;
-}
-.mk-mover .mm-icon img { width: 100%; height: 100%; object-fit: contain; }
-.mk-mover .mm-name {
-  font-weight: 700;
-  font-size:calc(14.5px * var(--ui-scale, 1));
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  color: var(--ink);
-}
-.mk-mover .mm-stats {
-  font-family: monospace;
-  font-size:calc(14.5px * var(--ui-scale, 1));
-  color: var(--ink-3);
-}
-
 /* Mobile tweaks for market */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   .mk-toolbar { flex-direction: column; align-items: stretch; }
   .mk-toolbar #mk-sort { min-width: 0; width: 100%; }
   .mk-stats { font-size:calc(14.5px * var(--ui-scale, 1)); gap: 6px; }
-  .mk-movers { grid-template-columns: 1fr 1fr; }
   /* P3: clear button stacks full-width under the search input at phone width */
   .mk-toolbar #mk-clear-q { width: 100%; height: 44px; }
   /* P3: buy quick-qty chips grow to fill the row */

@@ -968,9 +968,10 @@ both — they are the reason the file was re-derived rather than patched:
 * `market_sales` is append-only and **participants-only**. Revision 1 made it world-readable so the
   7-day price chart (`src/market.js:118 getStats7d`) could read real market data — but the table
   carries `seller_user_id` and `buyer_user_id`, so that published every player's auth UUID and
-  complete trade history to anyone holding the anon key (review S17). The chart now reads
-  `market_price_history`, a names-free view (item, qty, gross, unit price, timestamp; 30-day
-  window) that runs as its owner. Real shared market data, zero identities.
+  complete trade history to anyone holding the anon key (review S17). `market_price_history` is
+  the names-free replacement (item, qty, gross, unit price, timestamp; 30-day window, runs as its
+  owner), but NO client reader exists yet: the browser-local 7-day chart was deleted (b559) and a
+  server projection for 7-day stats is a separate lane-C item.
 * **Lock order is stated once and obeyed everywhere:** the listing row first, then both
   `player_state` rows in ascending `user_id`. Revision 1 locked buyer-then-seller in call order,
   which deadlocks the instant two players buy from each other simultaneously (review S16).

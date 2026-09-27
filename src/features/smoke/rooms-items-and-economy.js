@@ -3388,7 +3388,7 @@ export default [
       window.__mktXss = 0;
       // sellerId must NOT start with 'npc-' — those are filtered as seeds.
       localStorage.setItem(KEY, JSON.stringify([{
-        id: 'XSS-TEST', sellerId: 'user-hostile-xss', sellerName: evil,
+        id: '99999999-8888-4777-8666-555555555555', sellerId: 'user-hostile-xss', sellerName: evil,
         itemId: 'normal_log', qty: 1, askEach: 5, postedAt: Date.now(),
       }]));
       window.showTab('market');

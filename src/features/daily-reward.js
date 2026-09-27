@@ -605,7 +605,10 @@
        whose page state depends on whether a claim happened to be waiting. A
        test re-deriving the UTC key itself would be a second clock read that can
        disagree with this one; there is only ever one. */
-    _todayKey: todayKey
+    _todayKey: todayKey,
+    /* Read/write park switch for the suite (see `autoBoot`), the same shape as
+       HearthriseRenown.__setPollEnabled. Never called by the game. */
+    __setAutoOpenEnabled: function (on) { var was = autoOpenEnabled; autoOpenEnabled = !!on; return was; }
   };
 
   // Gentle once-per-day auto-popup: wait for G, then only show when no other
@@ -621,6 +624,10 @@
   function anotherModalUp() {
     return !!document.querySelector(BLOCKING_OVERLAYS);
   }
+  /* The in-page suite parks the auto-open for its run: with the blockers read as
+     OPEN state, a sheet waiting for a quiet moment would land on whichever test
+     next waits past 1.2 s. Tests about the sheet call open() directly. */
+  var autoOpenEnabled = true;
   /* b462 — under the arm the "shown today" marker arrives with the residue
      (client_state), hydrated once per session at hr_load. Deciding before it
      lands re-opens the sheet on every reload. Wait for hydration (bounded —
@@ -642,7 +649,7 @@
     // clears. (The old 20-try cap force-opened this OVER the FTUE tour when
     // a new player took ~25s reading it.) The Home card remains the
     // fallback claim path if no quiet moment ever comes this session.
-    if (anotherModalUp()) { setTimeout(function () { autoBoot(tries + 1); }, 1200); return; }
+    if (!autoOpenEnabled || anotherModalUp()) { setTimeout(function () { autoBoot(tries + 1); }, 1200); return; }
     open();
   }
   // b224: behind the account wall. autoBoot() would otherwise poll for

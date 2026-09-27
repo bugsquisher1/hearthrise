@@ -563,6 +563,7 @@ export default [
       mfReach(document.querySelector('#hr-bug-modal [type=submit]'), 'the bug report\'s Send');
       mfEsc();
       assert(document.getElementById('hr-bug-modal'), 'Escape threw away the typed bug report');
+      document.getElementById('hr-bug-modal').remove();   // it sits above the veil; the veil is measured alone
       const find = HF.findOn({ version: 9, state: {}, hearthfind: { item: 'emberheart', source_kind: 'monster', source_id: 'dragon', one_in: 26000, nth_today: 1, at: '2026-09-08T12:00:00Z' } });
       const veil = HF.showReveal(find, G);
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));

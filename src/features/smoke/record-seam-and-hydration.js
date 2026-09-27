@@ -603,6 +603,18 @@ export default [
       'the pending accessible label survived the balance arriving, so the cell now lies to a screen reader');
   }),
 
+  /* BAL-PENDING-SAME — balanceMarkup's pending span is byte-identical to the
+     literal it was before countMarkup shared it; a count never says "Balance". */
+  () => tryRun('BAL-PENDING-SAME: the balance dash is unchanged and a count dash never names the balance', () => {
+    const B = window.HearthriseBalance;
+    assert(B && typeof B.balanceMarkup === 'function', 'balance.js did not load');
+    assert(B.balanceMarkup({}, 'gold') === '<span class="bal-pending" role="status" aria-label="Balance not loaded yet" title="Waiting for the server — your balance will appear in a moment.">—</span>',
+      'the unknown-balance markup moved: ' + B.balanceMarkup({}, 'gold'));
+    assert(typeof B.countMarkup === 'function' && /Not counted yet/.test(B.countMarkup(null)) && !/Balance not loaded yet|role=/.test(B.countMarkup(null)),
+      'countMarkup(null) must say "Not counted yet" with no live region: ' + (B.countMarkup && B.countMarkup(null)));
+    assert(B.countMarkup(1234) === (1234).toLocaleString(), 'a known count grew an element: ' + B.countMarkup(1234));
+  }),
+
   /* ══════════════════════════════════════════════════════════════════════════
      B353-3c — THE GOLD-VERB ENVELOPE RE-STAMPS THE RECORD (the fourth caller).
      ══════════════════════════════════════════════════════════════════════════
@@ -627,6 +639,7 @@ export default [
      MUTATION-PROVED RED by deleting the `applyRecord(G, env)` line at the tail of
      `applyGoldEnvelope` (src/net/gold.js): the watermark stays at the OLD value
      and the first assertion below goes red. */
+
   () => tryRun('B353-3c: a gold-verb envelope re-stamps the record (the fourth applyRecord caller — b395)', () => {
     const R = window.HearthriseRecord;
     const Gd = window.HearthriseGold;

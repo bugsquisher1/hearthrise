@@ -2056,7 +2056,7 @@ export default [
       assert(C.noteEnvelope({ ok: true }).reason === 'no_key' && C.rankOfClass('vermin') === 0 && C.badgeHtml('vermin') === '', 'an envelope with no bestiary block produced a rank — the fail-safe must be "not studied", never a charm the server does not believe in');
       G.bestiary = { rat: { kills: 9 }, void_mote: { kills: 2 } };
       window.openBestiary();
-      assert(!/charm-chip/.test(chips()) && /charm-empty/.test(chips()) && !/charm-element/.test(listHtml()), 'the strip painted a chip or an element line with no server counters: ' + chips().slice(0, 120));
+      assert(!/charm-chip/.test(chips()) && /charm-pending/.test(chips()) && !/charm-empty/.test(chips()) && !/charm-element/.test(listHtml()), 'with no server counters the strip must read pending, never a chip, "No charms" or an element line: ' + chips().slice(0, 120));
       /* ARM 2 — THE COUNTERS ARRIVE ON THE IDLE REPLY. */
       const got = await drive({ kills_by_class: { vermin: 25, extra_dimensional: 3, not_a_class: 500, constructor: 7 } });
       assert(got && got.outcome === 'nothing' && G._bestiaryCharms && G._bestiaryCharms.killsByClass.vermin === 25, 'the idle envelope did not mirror the counters into G._bestiaryCharms: ' + JSON.stringify(G._bestiaryCharms));
@@ -2253,6 +2253,8 @@ export default [
       G.playerMaxHp = 100000; G.playerHp = G.playerMaxHp;
       delete G._bestiaryCharms;
       await rig.drive(null);
+      assert(/Weak to .* · charm not counted yet$/.test(line()), 'unknown counters read as "no charm": ' + line());
+      await rig.drive({ kills_by_class: {} });
       const plain = line();
       assert(/Weak to/.test(plain), 'CONTROL: the foe line did not render at all: ' + plain);
       assert(!/charm/i.test(plain), 'the foe line named a charm for an unstudied class: ' + plain);
@@ -2268,6 +2270,26 @@ export default [
       restoreG(snap);
       try { CS.renderFight(); } catch (e) {}
       try { window.showTab(prevTab || 'combat'); } catch (e) {}
+    }
+  }),
+
+  () => tryRunAsync('CHARM-PENDING: unknown charm counters read pending, a known empty statement reads empty, and an open Bestiary resolves in place', async () => {
+    const G = window.G; const snap = snapshotG(); const prev = G._bestiaryCharms; const rig = hrCharmDriver();
+    const strip = () => document.getElementById('best-charms') || { innerHTML: '', querySelector: () => null };
+    try {
+      delete G._bestiaryCharms; window.openBestiary();
+      assert(strip().querySelector('[data-charm-pending] .bal-pending') && !/charm-empty/.test(strip().innerHTML), 'unknown counters did not read pending: ' + strip().innerHTML.slice(0, 160));
+      await rig.drive({ kills_by_class: {}, kills_by_monster: {} });
+      window.openBestiary();
+      assert(/charm-empty/.test(strip().innerHTML) && !strip().querySelector('[data-charm-pending]'), 'a KNOWN empty statement did not read empty: ' + strip().innerHTML.slice(0, 160));
+      delete G._bestiaryCharms; window.openBestiary();
+      await rig.drive({ kills_by_class: { vermin: 25 } });
+      assert(/charm-chip/.test(strip().innerHTML) && /Vermin/.test(strip().innerHTML), 'the open Bestiary did not resolve in place: ' + strip().innerHTML.slice(0, 160));
+    } finally {
+      rig.restore();
+      if (prev === undefined) delete G._bestiaryCharms; else G._bestiaryCharms = prev;
+      restoreG(snap);
+      const ov = document.getElementById('best-overlay'); if (ov) ov.classList.remove('show');
     }
   }),
 

@@ -2588,9 +2588,9 @@ export function hrCharmFixture() {
 export function hrCharmDriver() {
   const A = window.HearthriseAccrual; const realFetch = window.fetch;
   return {
-    async drive(bestiary) {
+    async drive(bestiary, extra) {
       const env = { ok: true, accrued: false, reason: 'idle', version: 5,
-        now: new Date().toISOString(), ...(bestiary ? { bestiary } : {}) };
+        now: new Date().toISOString(), ...(bestiary ? { bestiary } : {}), ...(extra || {}) };
       window.fetch = (u, init) => (/hr-accrue/.test(String(u))
         ? Promise.resolve(new Response(JSON.stringify(env), { status: 200 }))
         : realFetch.call(window, u, init));

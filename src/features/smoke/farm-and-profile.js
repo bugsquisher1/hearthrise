@@ -2711,7 +2711,7 @@ export default [
     const shown = () => {
       window.renderDailyGoals(host);
       const el = host.querySelector('.dg-progress');
-      return { text: el ? el.textContent.trim() : null, done: !!host.querySelector('.daily-goal.done') };
+      return { text: el ? el.textContent.trim() : null, done: !!host.querySelector('.daily-goal.done'), pending: !!(el && el.querySelector('.bal-pending')) };
     };
     try {
       window.getGoalsForToday();                       // make sure a slate exists
@@ -2733,8 +2733,8 @@ export default [
       assert(window.__hrGoalBaseline(window.G.dailyGoals, goals[0]).known === false,
         'an untaken baseline must report known:false');
       let s = shown();
-      assert(s.text === '0 / ' + target,
-        'a goal with no measurable baseline must render 0 / ' + target + ', got ' + s.text);
+      assert(s.pending && !/0 \/ \d/.test(s.text),   // GOALS-PENDING: unknown is the dash, never "0 / N"
+        'a goal with no measurable baseline must render the pending dash / ' + target + ', got ' + s.text);
       assert(!s.done, 'a goal with no measurable baseline must never render as complete');
 
       /* THE ENVELOPE LANDS: a COMPLETE statement carrying the backfilled
@@ -2750,7 +2750,7 @@ export default [
       assert(window.G.dailyGoals.startValues.plant === 120,
         'the baseline was not re-taken once the counter was known, got '
         + window.G.dailyGoals.startValues.plant);
-      assert(s.text === '0 / ' + target && !s.done,
+      assert(s.text === '0 / ' + target && !s.done && !s.pending,
         'THE BUG: the backfilled lifetime count completed the daily goal — got ' + s.text
         + (s.done ? ' (rendered COMPLETE)' : ''));
 

@@ -11092,7 +11092,7 @@ window.renderBountyPanel = function(){
   /* Decision 1 (bug #5): while the server catches up, show the SERVER-CONFIRMED
      count (never the phantom local total), reconciled DOWN to server truth by the
      credit RPC's returned progress. Never below what the server has confirmed. */
-  const _confirmed = Math.max(0, Math.min(a.required, Math.floor(Number(a._serverConfirmed)||0)));
+  const _confirmed = (a._serverConfirmed != null && Number.isFinite(Number(a._serverConfirmed))) ? Math.max(0, Math.min(a.required, Math.floor(Number(a._serverConfirmed)))) : (window.HearthriseBalance?.countMarkup?.(null, {label:'Not counted yet'}) ?? '—');
   const pct = Math.min(100, (cur/a.required)*100);
   const _curLabel = _confirming
     ? `${_confirmed}/${a.required} confirmed · Verifying your kills…`
@@ -11437,7 +11437,7 @@ function refreshActivityBar(){
         const _cur = (typeof bountyShownProgress==='function') ? bountyShownProgress(_ab) : Math.min(_ab.progress||0,_ab.required);
         const _abConfirming = !!(_ab._confirming || _ab._syncNoticed)
           && ((typeof bountyAttemptProgress==='function'?bountyAttemptProgress(_ab):(_ab.progress||0)) >= _ab.required);
-        const _abConfirmed = Math.max(0, Math.min(_ab.required, Math.floor(Number(_ab._serverConfirmed)||0)));
+        const _abConfirmed = (_ab._serverConfirmed != null && Number.isFinite(Number(_ab._serverConfirmed))) ? Math.max(0, Math.min(_ab.required, Math.floor(Number(_ab._serverConfirmed)))) : (window.HearthriseBalance?.countMarkup?.(null, {label:'Not counted yet'}) ?? '—');
         bountyChip = _abConfirming
           ? '<span class="ab-bounty confirming">Bounty <b>'+_abConfirmed+'/'+_ab.required+' confirmed</b></span>'
           : '<span class="ab-bounty">Bounty <b>'+_cur+'/'+_ab.required+'</b></span>';
@@ -13890,9 +13890,8 @@ function renderDailyGoals(host){
   var goals = getGoalsForToday();
   host.innerHTML = '<div class="card"><div class="card-head"><div class="card-title">Daily Goals</div><span class="card-sub">Resets at UTC midnight</span></div><div class="card-body"><div class="daily-goals">' +
     goals.map(function(g){
-      /* 0 while the baseline is unknown — NOT `readSource - 0`, which is how a
-         freshly-mirrored lifetime counter rendered "Complete!" on the first
-         boot after the backfill. */
+      /* 0 while the baseline is unknown (never `readSource - 0`: the backfill's
+         instant "Complete!"); the chip then draws the pending dash, never 0. */
       var current = goalProgressFrom(G.dailyGoals, g);
       var done = current >= g.target;
       return '<div class="daily-goal'+(done?' done':'')+'">'+
@@ -13900,7 +13899,7 @@ function renderDailyGoals(host){
         '<span class="dg-emoji">'+((window.HR && window.HR.icon)
           ? (window.HR.icon(g.glyph||'uiTarget', 20, 'currentColor') || '') : '')+'</span>'+
         '<div class="dg-text"><b>'+g.name+'</b><span>'+(done?'Complete!':'Resets in ' + hoursTillUTCMidnight() + 'h')+'</span></div>'+
-        '<span class="dg-progress">'+Math.min(current,g.target)+' / '+g.target+'</span>'+
+        '<span class="dg-progress">'+(goalBaselineOf(G.dailyGoals, g).known ? Math.min(current,g.target) : (window.HearthriseBalance?.countMarkup?.(null, {label:'Not counted yet'}) ?? '—'))+' / '+g.target+'</span>'+
       '</div>';
     }).join('') + '</div></div></div>';
 }
@@ -18248,6 +18247,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
     if(typeof window.__hrGoalBaseline === 'function') return window.__hrGoalBaseline(stateObj, goal);
     return {known: true, value: (stateObj && stateObj.startValues && stateObj.startValues[goal.id]) || 0};
   }
+  function shownOr(g, isWeekly, d){ return (!srvGoal(g, isWeekly) && !baselineOf(g, isWeekly).known) ? (window.HearthriseBalance?.countMarkup?.(null, {label:'Not counted yet'}) ?? '—') : d.shown; }
   function getProgress(goal, isWeekly){
     var sg = srvGoal(goal, isWeekly);
     if(sg) return sg.have;
@@ -18653,9 +18653,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
          "ready to claim" (server-confirmed COMPLETE only, never CONFIRMING). */
       var prefix = claimed ? '✓ '
         : (complete ? (((window.HR && window.HR.icon) ? (window.HR.icon('uiGift', 13, '--gold') || '') : '') + ' ') : '');
-      var progText = confirming
-        ? (d.shown + ' / ' + g.target + ' · Confirming…')
-        : (d.shown + ' / ' + g.target);
+      var progText = shownOr(g, false, d) + ' / ' + g.target + (confirming ? ' · Confirming…' : '');
       return '<span class="gq-quest '+(complete?'done':'')+(confirming?' confirming':'')+'">'
         +'<span class="gq-icon">'+goalGlyphHTML(g, 15)+'</span>'
         +'<span class="gq-name">'+prefix+g.name+'</span>'
@@ -18805,7 +18803,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
         if(confirming) rowClass += ' confirming';
         var progText = confirming
           ? (g.target + ' / ' + g.target + ' · Confirming…')
-          : (d.shown + ' / ' + g.target + ' (' + pct.toFixed(0) + '%)');
+          : (shownOr(g, isWeekly, d) + ' / ' + g.target + ' (' + pct.toFixed(0) + '%)');
         return '<div class="qm-quest '+rowClass+'"'
           +(goBtn ? ' data-goto="'+g.id+'" data-weekly="'+(isWeekly?1:0)+'"' : '')+'>'
           +'<div class="qm-q-icon">'+goalGlyphHTML(g, 26, '--gold-2')+'</div>'

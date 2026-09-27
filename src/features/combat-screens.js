@@ -1622,6 +1622,7 @@ function renderFight() {
     const wi = typeof window.getWeaknessInfo === 'function' ? window.getWeaknessInfo(m, eq) : null;
     const charm = (wi && CH && typeof CH.panelLine === 'function') ? CH.panelLine(wi) : '';
     if (charm) txt += ' · ' + charm;
+    else if (CH && typeof CH.countersKnown === 'function' && !CH.countersKnown()) txt += ' · charm not counted yet';
     if (weak.textContent !== txt) weak.textContent = txt;
   }
 

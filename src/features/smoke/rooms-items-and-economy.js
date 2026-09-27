@@ -3042,6 +3042,24 @@ export default [
     } finally { window.getCombatLevel = lvl; restoreG(snap); }
   }),
 
+  /* ── regression suite — DGN-TRUTH-1: THE SCAVENGER SPOILS ARE THE SERVER'S ──
+     Armed, the Scavenger summary listed the run's own Math.random rolls as "Loot
+     brought home" while hr_dungeon_settle rolled the real chest. It renders the
+     settle verdict now, and "Settling with the server…" until one lands.
+     MUTATION: render `awarded` on the armed branch → RED. */
+  () => tryRun('DGN-TRUTH-1: armed, the Scavenger summary shows the server settle, never the client rolls', () => {
+    assert(typeof window.scavengerSummaryHtml === 'function', 'dungeon-scavenger.js must expose scavengerSummaryHtml');
+    const I = window.ITEMS || {}, name = (id) => (I[id] && I[id].n) || id;
+    const o = { armed: true, victory: true, takenPct: 80, bossName: 'Bone Lord', awarded: [{ id: 'big_bones', qty: 5 }] };
+    const html = window.scavengerSummaryHtml(Object.assign({}, o, { verdict: { outcome: 'settled', body: { settled: { items: { bone_key: 2 }, scrip: 9 } } } }));
+    assert(html.includes(name('bone_key')) && html.includes('+2') && html.includes('9 Dungeon Scrip'),
+      'the armed summary must render the settled chest and scrip (got ' + html + ')');
+    assert(!html.includes(name('big_bones')), 'THE BUG: the armed summary listed a client roll the server never paid');
+    const pending = window.scavengerSummaryHtml(Object.assign({}, o, { verdict: null }));
+    assert(pending.includes('Settling with the server') && !pending.includes(name('big_bones')),
+      'before the verdict the armed summary must say it is settling, and name no client roll (got ' + pending + ')');
+  }),
+
   /* -- regression suite -- DGN-KEY-1: THE ENTRY-KEY COUNT IS THE SERVER'S ------
      REPORTED LIVE 2026-09-13, Tyler's own character: the Goblin Warcamp card
      read "Entry: 1x Goblin Seal (have 2)" and every run button toasted "The server

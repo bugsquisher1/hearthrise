@@ -409,6 +409,38 @@
     }, 1400);
   }
 
+  function _scvArmed(){
+    return !!(window.HearthriseDungeonScrip
+      && typeof window.HearthriseDungeonScrip.isDungeonSettleArmed === 'function'
+      && window.HearthriseDungeonScrip.isDungeonSettleArmed());
+  }
+
+  /* Armed, the spoils are the SERVER's settle (dungeonSettleRowHtml), never the
+     run's own Math.random rolls — those are a dormant-only mint. */
+  function scavengerSummaryHtml(o){
+    var awarded = o.awarded || [];
+    var head = '<h2 class="scv-summary-title ' + (o.victory ? 'win' : 'lose') + '">' + (o.victory ? _scvGly('uiTrophy', 20, '--gold-2') + ' VICTORY' : _scvGly('uiSkull', 20, '--red') + ' DEFEATED') + '</h2>';
+    var note = '<div class="scv-summary-note">Gear and food assembled in the dungeon were left behind.</div>';
+    if(o.armed){
+      return '<div class="scv-summary">' + head +
+        '<div class="scv-summary-sub">You took down ' + Math.round(o.takenPct) + '% of the boss\'s HP — Dungeon Scrip grows with it; the chest is rolled by the realm.</div>' +
+        note +
+        '<div class="scv-rewards-block"><h4>Loot brought home</h4><div id="scv-spoils">' + window.dungeonSettleRowHtml(o.verdict || null) + '</div></div>' +
+      '</div>';
+    }
+    var lootRolls = o.lootRolls || 0;
+    var rewardHtml = awarded.length ? awarded.map(function(a){
+      var item = window.ITEMS && window.ITEMS[a.id];
+      return '<div class="scv-reward-row">' + window.itemFallbackIcon(a.id, 18, item) + ' +' + a.qty + ' <b>' + (item?item.n:a.id) + '</b></div>';
+    }).join('') : '<div class="scv-empty">No rolls earned. Try a different loadout.</div>';
+    return '<div class="scv-summary">' + head +
+        '<div class="scv-summary-sub">' + lootRolls + ' loot roll' + (lootRolls===1?'':'s') + ' earned (' + o.takenPct.toFixed(0) + '% boss HP)</div>' +
+        note +
+        '<div class="scv-rewards-block"><h4>Loot brought home</h4>' + rewardHtml + '</div>' +
+      '</div>';
+  }
+  window.scavengerSummaryHtml = scavengerSummaryHtml;
+
   function startBoss(){
     if(run.taskTimer){ clearInterval(run.taskTimer); run.taskTimer = null; }
     var loadout = buildLoadout(run.inv);
@@ -448,6 +480,9 @@
       if(!modal) return;
       var foePct = (bossHp / bossMaxHp * 100);
       var youPct = (playerHp / playerMaxHp * 100);
+      var rollsHtml = _scvArmed()
+        ? '<div class="scv-rolls"><h4>Boss HP taken: ' + Math.round((1 - bossHp / bossMaxHp) * 100) + '%</h4></div>'
+        : null;
       var rewardList = awarded.length ? awarded.map(function(a){
         var item = window.ITEMS && window.ITEMS[a.id];
         return '<span class="scv-roll-row">' + window.itemFallbackIcon(a.id, 18, item) + ' +' + a.qty + ' ' + (item?item.n:a.id) + '</span>';
@@ -477,7 +512,7 @@
             '<div class="scv-load-row"><span>HEAL</span><b>' + loadout.healPerHit.toFixed(1) + '/hit</b></div>' +
             '<div class="scv-load-row"><span>KIT</span><b>' + loadout.axeQuality + '</b></div>' +
           '</div>' +
-          '<div class="scv-rolls"><h4>Loot rolls (' + lootRolls + ' / 10)</h4>' + rewardList + '</div>' +
+          (rollsHtml || '<div class="scv-rolls"><h4>Loot rolls (' + lootRolls + ' / 10)</h4>' + rewardList + '</div>') +
         '</div>');
       modal.querySelector('.scv-close').addEventListener('click', close);
     }
@@ -522,9 +557,9 @@
 
     function showResult(victory){
       var modal = document.getElementById('scv-modal');
-      var _armed = !!(window.HearthriseDungeonScrip
-        && typeof window.HearthriseDungeonScrip.isDungeonSettleArmed === 'function'
-        && window.HearthriseDungeonScrip.isDungeonSettleArmed());
+      var _armed = _scvArmed();
+      var settleV = null;
+      var takenPct = (1 - bossHp/bossMaxHp)*100;
       var quality = Math.max(0.1, 1 - bossHp / bossMaxHp);
       if(_armed){
         /* ARMED: loot + scrip are SERVER-OWNED (docs/design/dungeon-settlement.md
@@ -537,6 +572,9 @@
         var DS = window.HearthriseDungeonSettle;
         if(DS && typeof DS.sendDungeonSettle === 'function'){
           DS.sendDungeonSettle({ id: run.dungeonId, mode: 'scavenger', quality: quality }).then(function(v){
+            settleV = v;
+            var spoils = document.getElementById('scv-spoils');
+            if(spoils && v && (v.outcome === 'settled' || v.outcome === 'replayed' || v.outcome === 'refused')) spoils.innerHTML = window.dungeonSettleRowHtml(v);
             if(v && (v.outcome === 'settled' || v.outcome === 'replayed') && v.body
                && typeof DS.reconcileFromEnvelope === 'function'){
               DS.reconcileFromEnvelope(window.G, v.body);
@@ -567,19 +605,10 @@
       // A scavenger run costs a QUARTER of the dungeon's re-entry window, not the
       // whole one — the reward for putting in the time. That number is the SERVER's
       // (hr_dungeon_cooldown_modes(), scavenger divisor 4); the client only reads it.
-      var rewardHtml = awarded.length ? awarded.map(function(a){
-        var item = window.ITEMS && window.ITEMS[a.id];
-        return '<div class="scv-reward-row">' + window.itemFallbackIcon(a.id, 18, item) + ' +' + a.qty + ' <b>' + (item?item.n:a.id) + '</b></div>';
-      }).join('') : '<div class="scv-empty">No rolls earned. Try a different loadout.</div>';
       // The summary's ✕ is non-committing (the settle already left); mid-run it abandons, so no dismiss there.
       modal.innerHTML = scvSheet(
         '<button class="scv-close" data-hr-dismiss>✕</button>',
-        '<div class="scv-summary">' +
-          '<h2 class="scv-summary-title ' + (victory ? 'win' : 'lose') + '">' + (victory ? _scvGly('uiTrophy', 20, '--gold-2') + ' VICTORY' : _scvGly('uiSkull', 20, '--red') + ' DEFEATED') + '</h2>' +
-          '<div class="scv-summary-sub">' + lootRolls + ' loot roll' + (lootRolls===1?'':'s') + ' earned (' + ((1 - bossHp/bossMaxHp)*100).toFixed(0) + '% boss HP)</div>' +
-          '<div class="scv-summary-note">Gear and food assembled in the dungeon were left behind.</div>' +
-          '<div class="scv-rewards-block"><h4>Loot brought home</h4>' + rewardHtml + '</div>' +
-        '</div>',
+        scavengerSummaryHtml({ armed: _armed, victory: victory, takenPct: takenPct, bossName: run.config.bossName, verdict: null, awarded: awarded, lootRolls: lootRolls }),
         '<button class="scv-finish">Claim</button>');
       modal.querySelector('.scv-close').addEventListener('click', close);
       modal.querySelector('.scv-finish').addEventListener('click', function(){
@@ -587,7 +616,9 @@
         if(typeof window.renderDungeons === 'function') window.renderDungeons();
         if(typeof window.renderInvFancy === 'function') window.renderInvFancy();
         if(typeof window.updateTopbar === 'function') window.updateTopbar();
-        if(typeof window.notify === 'function') window.notify((victory?'Cleared ':'Survived ') + run.config.bossName + ': ' + awarded.length + ' rewards', victory ? 'levelup' : 'kill');
+        if(typeof window.notify !== 'function') return;
+        if(!_armed) window.notify((victory?'Cleared ':'Survived ') + run.config.bossName + ': ' + awarded.length + ' rewards', victory ? 'levelup' : 'kill');
+        else if(settleV && (settleV.outcome === 'settled' || settleV.outcome === 'replayed')) window.notify((victory?'Cleared ':'Survived ') + run.config.bossName, victory ? 'levelup' : 'kill');
       });
     }
   }

@@ -4051,9 +4051,6 @@ function getBountyHunterLevel(){
 function getUnlockedBountyTier(){
   return window.HearthriseCore.bounty.unlockedTier(getCombatLevel());
 }
-function getUnlockedBountyTypes(){
-  return window.HearthriseCore.bounty.unlockedTypes(getBountyHunterLevel());
-}
 function getPlayerWeaponTypes(){
   return window.HearthriseCore.bounty.ownedWeaponTypes(G.inventory, equipmentMapG(), ITEMS);
 }
@@ -10760,29 +10757,6 @@ window.getUnlockedBountyTier = function getUnlockedBountyTier(){
   return 1;
 };
 
-/* getUnlockedBountyTypes — full unlock ladder per spec */
-window.getUnlockedBountyTypes = function getUnlockedBountyTypes(){
-  const lv = getBountyHunterLevel();
-  const t = ['cull'];                       /* 1  Cull */
-  if(lv >= 5)  t.push('proof');             /* 5  Proof */
-  if(lv >= 10) t.push('weapon');            /* 10 Weapon */
-  if(lv >= 15) t.push('streak');            /* 15 Streak */
-  if(lv >= 30) t.push('boss');              /* 30 Boss */
-  if(lv >= 40) t.push('chain');             /* 40 Chain */
-  /* Difficulty / utility unlocks are tracked separately (see getBountyDifficultyUnlocks below) */
-  return t;
-};
-
-/* New: difficulty + utility unlocks — what UI/board generation can use */
-window.getBountyDifficultyUnlocks = function(){
-  const lv = getBountyHunterLevel();
-  return {
-    hard:        lv >= 50,
-    elite:       lv >= 75,
-    autoBounty2: lv >= 60,   /* upgrade beyond the existing autoBounty I */
-  };
-};
-
 /* ── THE completeBounty WRAPPER IS GONE (b503), AND MUST NOT COME BACK ───────
    It existed to do one thing: `G.skills.bountyHunter = Math.max(G.skills
    .bountyHunter || 0, G.bountyHunter.xp)` after every turn-in, plus a duplicate
@@ -11065,25 +11039,7 @@ function renderBountyTab(){
        bounty card's own header immediately below it — the same three numbers
        three times inside 200 vertical pixels. */
     const kpiRow = '';
-    /* Build an unlock summary so player sees what's coming */
-    const types = (typeof getUnlockedBountyTypes === 'function') ? getUnlockedBountyTypes() : ['cull'];
-    const diff = (typeof getBountyDifficultyUnlocks === 'function') ? getBountyDifficultyUnlocks() : {};
-    const unlocks = [
-      {lv:1,  label:'Cull',           on:types.includes('cull')},
-      {lv:5,  label:'Proof',          on:types.includes('proof')},
-      {lv:10, label:'Weapon',         on:types.includes('weapon')},
-      {lv:15, label:'Streak',         on:types.includes('streak')},
-      {lv:20, label:'Tier 2 Board',   on:lv>=20},
-      {lv:30, label:'Boss',           on:types.includes('boss')},
-      {lv:40, label:'Chain',          on:types.includes('chain')},
-      {lv:50, label:'Hard',           on:!!diff.hard},
-      {lv:60, label:'Auto-Bounty II', on:!!diff.autoBounty2},
-      {lv:75, label:'Elite',          on:!!diff.elite},
-    ];
-    const unlockHtml = `<div class="bh-unlocks-h">Unlocks</div>
-      <div class="bh-unlocks">
-      ${unlocks.map(u=>`<span class="bh-unlock${u.on?' is-on':''}"><em>${u.lv}</em>${u.label}</span>`).join('')}
-      </div>`;
+    const unlockHtml = window.HearthriseSignposts ? window.HearthriseSignposts.bountyStripHtml({level:lv, clientMayPay:bountyClientMayPay(), bounty:window.HearthriseCore.bounty}) : '';
     /* Pull ChatGPT's renderBountyPanel HTML */
     const boardHtml = (typeof renderBountyPanel === 'function') ? renderBountyPanel() : '<div class="empty">Bounty system not ready.</div>';
     board.innerHTML = kpiRow + boardHtml + unlockHtml;
@@ -14658,46 +14614,6 @@ function artisanIntervalMs(skillId, r){
   return Math.max(500, Math.floor(window.pacedActionMs(r.ms) * (1 - speed)));
 }
 
-window.doArtisanAction = function(skillId, recipeId){
-  var recipes = window.ARTISAN_RECIPES[skillId];
-  var r = recipes && recipes.find(function(x){return x.id===recipeId;});
-  if(!r) return;
-  /* Out of input or secondary? Stop. */
-  if(!(G.inventory[r.input] > 0)){ window._stopArtisan(); return; }
-  if(r.secondary){
-    var oot = false;
-    Object.entries(r.secondary).forEach(function(kv){ if((G.inventory[kv[0]]||0) < kv[1]) oot = true; });
-    if(oot){ window._stopArtisan(); if(typeof notify==='function') notify('Out of secondary materials','kill'); return; }
-  }
-  /* Consume */
-  if(typeof removeItem==='function') removeItem(r.input, 1);
-  if(r.secondary) Object.entries(r.secondary).forEach(function(kv){ removeItem(kv[0], kv[1]); });
-  /* Produce */
-  if(r.output && typeof addItem==='function') addItem(r.output, 1);
-  /* XP */
-  if(typeof addXp==='function') addXp(skillId, r.xp);
-  /* Counters */
-  if(skillId==='cooking'){
-    G.stats.cooked = (G.stats.cooked||0) + 1;
-    if(typeof updateDaily==='function') updateDaily('cooked', 1);
-    // b217: onboarding chain routes new players through cooking BEFORE combat
-    // (the "Cook 5 dishes" prep quest), so mirror the counter into updateQuest.
-    if(typeof updateQuest==='function') updateQuest('cooked', 1);
-  }
-  if(skillId==='smithing'){
-    G.stats.refined = (G.stats.refined||0) + 1;
-    G.stats.smithed = (G.stats.smithed||0) + 1;
-    if(typeof updateDaily==='function') updateDaily('smithed', 1);
-  }
-  if(skillId==='crafting'){
-    G.stats.refined = (G.stats.refined||0) + 1;
-    G.stats.crafted = (G.stats.crafted||0) + 1;
-    if(typeof updateDaily==='function') updateDaily('crafted', 1);
-  }
-  if(typeof renderSkillDetail==='function') renderSkillDetail(skillId);
-  if(typeof updateTopbar==='function') updateTopbar();
-};
-
 /* Hook into existing stopSkill so we also clear artisan intervals */
 window._stopArtisan = function(){
   if(window._artisanInterval){ clearInterval(window._artisanInterval); window._artisanInterval=null; }
@@ -15069,13 +14985,7 @@ window.doArtisanAction = function(skillId, recipeId, opts){
        tile and the topbar card all kept claiming work was happening. Stop the
        WHOLE activity honestly and say why, naming the missing ingredient. */
     if(typeof window.stopSkill==='function') window.stopSkill(); else if(window._stopArtisan) window._stopArtisan();
-    if(typeof notify==='function'){
-      if(res.reason === 'gate') notify('Recipe locked — '+skillId+' stopped','kill');
-      else {
-        var missing = res.missing ? ((ITEMS[res.missing] && ITEMS[res.missing].n) || res.missing) : 'materials';
-        notify('Out of '+missing+' — '+skillId+' stopped','kill');
-      }
-    }
+    if(typeof notify==='function') notify(window.HearthriseSignposts.stallLine(skillId,res),'kill');
     return;
   }
 

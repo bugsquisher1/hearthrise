@@ -44,6 +44,8 @@
 import { MONSTERS } from '../data/monsters.js?v=555';
 import { ITEMS } from '../data/items.js?v=555';
 import * as ST from './session-tally.js?v=555';
+import { fill } from './signposts.js?v=555';
+import { SIGNPOSTS } from '../data/signposts.js?v=555';
 
 /* ── small shared helpers ────────────────────────────────────────────────*/
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
@@ -828,7 +830,7 @@ function destinations() {
     if (dm) {
       out.push({
         kick: 'Boss of the Day', art: did, name: dm.name,
-        meta: 'bonus drops & XP while featured',
+        meta: combatLevel() < reqLevelFor(dm) ? fill('war.locked', { have: combatLevel(), need: reqLevelFor(dm) }) : 'bonus drops & XP while featured',
         timer: 'new in ' + fmtCountdown(B.msUntilRotate ? B.msUntilRotate() : 0),
         verb: 'Fight ▸', go: 'botd',
         locked: combatLevel() < reqLevelFor(dm) ? `Combat Lv ${reqLevelFor(dm)}` : null,
@@ -839,7 +841,7 @@ function destinations() {
     if (wm) {
       out.push({
         kick: 'Weekly Boss', art: wid, name: wm.name,
-        meta: 'bonus drops & XP this week',
+        meta: combatLevel() < reqLevelFor(wm) ? fill('war.locked', { have: combatLevel(), need: reqLevelFor(wm) }) : 'bonus drops & XP this week',
         timer: 'resets in ' + fmtCountdown(B.msUntilWeeklyRotate ? B.msUntilWeeklyRotate() : 0),
         verb: 'Fight ▸', go: 'weekly',
         locked: combatLevel() < reqLevelFor(wm) ? `Combat Lv ${reqLevelFor(wm)}` : null,
@@ -858,7 +860,7 @@ function destinations() {
     out.push({
       kick: 'Dungeon', glyph: 'uiCastle',
       name: open.length ? D[open[0]].name : (next ? D[next].name : 'Dungeons'),
-      meta: open.length ? `${open.length} ready to run` : (next ? `unlocks at Combat Lv ${D[next].reqLv}` : 'keys and cooldowns'),
+      meta: open.length ? `${open.length} ready to run` : (next ? fill('war.locked', { have: lv, need: D[next].reqLv }) : 'keys and cooldowns'),
       verb: 'Enter ▸', go: 'tab', tab: 'dungeons',
       counter: open.length ? String(open.length) : null,
       /* b371 (F25) — THE CARD ALREADY SAID "unlocks at Combat Lv 25" AND OFFERED
@@ -895,7 +897,7 @@ function destinations() {
       name: (boss && (boss.name || boss.n)) || 'Weekly Hunt',
       meta: clanShut ? 'a weekly boss no one downs alone' : 'strike with your clan',
       verb: 'Join ▸', go: 'tab', tab: 'clan',
-      locked: clanShut ? 'Opens in Open Beta 1' : null,
+      locked: clanShut ? SIGNPOSTS.labels['war.clanClosed'] : null,
     });
   }
 

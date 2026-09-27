@@ -2935,4 +2935,32 @@ export default [
     assert(!document.getElementById('btn-save'), 'desktop #btn-save is back');
     assert(!document.getElementById('btn-save-mobile'), 'mobile #btn-save-mobile is back');
   }),
+
+  /* SIGNPOST-1: a dead end names its cause and its door, from the server bag. */
+  () => tryRun('SIGNPOST-1: a stalled bench and an empty bag say why and where next', () => {
+    const SP = window.HearthriseSignposts;
+    assert(SP, 'window.HearthriseSignposts is not published');
+    const out = SP.stallLine('cooking', { reason: 'inputs', missing: 'shrimp' });
+    assert(/Out of Raw Shrimp/.test(out) && /Cooking stopped/.test(out) && /Fishing/.test(out), 'stall line: ' + out);
+    assert(/recipe scroll/.test(SP.stallLine('cooking', { reason: 'gate' })), 'a gate stall must name the unread scroll');
+    assert(SP.bagEmptyKey({ catId: 'weapons', heldInCat: 2 }) === 'bag.hidden', 'a filtered bag must not claim the items are gone');
+    assert(SP.bagEmptyKey({ catId: 'weapons', heldInCat: 0 }) === 'bag.weapons', 'an empty class must use its own line');
+    assert(SP.door('bag.seeds').tab === 'shops', 'the seeds door must open Shops');
+    assert(/Auto-Eat/.test(SP.fill('bag.food')), 'the food line must name Auto-Eat');
+  }),
+
+  /* SIGNPOST-2: the Bounty strip lists only what the generator can post. */
+  () => tryRun('SIGNPOST-2: the Bounty strip follows the generator, not a second ladder', () => {
+    const SP = window.HearthriseSignposts, B = window.HearthriseCore && window.HearthriseCore.bounty;
+    assert(SP && B, 'signposts or core bounty missing');
+    const at = (level, clientMayPay, bounty) => SP.bountyStripHtml({ level, clientMayPay, bounty: bounty || B });
+    const one = at(1, false);
+    assert(/Cull/.test(one) && /Proof/.test(one), 'level 1 strip: ' + one);
+    assert(!/Elite|Auto-Bounty II|Tier 2 Board/.test(one), 'the strip promises an unlock that does not exist: ' + one);
+    assert(/is-on"><em>15<\/em>Hard/.test(at(15, false)), 'Hard must light at Bounty Hunter 15');
+    assert(!/is-on"><em>15<\/em>Hard/.test(at(14, false)), 'Hard must stay dark at 14');
+    assert(!/not on the board/.test(at(1, true)), 'a paying client has no not-posted line');
+    const stub = Object.assign({}, B, { isOfferableType: (t, c) => t === 'proof' || B.isOfferableType(t, c) });
+    assert(!/Proof/.test(at(1, false, stub)) && /Weapon/.test(at(1, false, stub)), 'the strip ignores isOfferableType');
+  }),
 ];

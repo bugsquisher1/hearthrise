@@ -214,7 +214,15 @@ function renderInvFancy(){
                           + '<span class="inv-nm">'+(makes || d.n || id)+'</span></div>';
                       }).join('');
                 })()
-              : '<div style="grid-column:1/-1;text-align:center;color:var(--ink-3);padding:20px;font-size:calc(14.5px * var(--ui-scale, 1))">No items in this category</div>') :
+              : (function(){
+                  var SP = window.HearthriseSignposts;
+                  var held = entries.filter(function(kv){ return ITEMS[kv[0]] && cat.test(ITEMS[kv[0]]); }).length;
+                  var key = SP ? SP.bagEmptyKey({catId: cat.id, heldInCat: held}) : '';
+                  var btn = key === 'bag.hidden'
+                    ? '<button class="btn btn-sm" onclick="window.HearthriseLootFilter&&window.HearthriseLootFilter.clear();window._invSearchClear()">Clear</button>'
+                    : (SP ? SP.doorHtml(SP.door(key)) : '');
+                  return '<div style="grid-column:1/-1;text-align:center;color:var(--ink-3);padding:20px;font-size:calc(14.5px * var(--ui-scale, 1))"><div>'+(SP ? SP.fill(key) : '')+'</div>'+(btn ? '<p>'+btn+'</p>' : '')+'</div>';
+                })()) :
             /* b216: pad the grid with EMPTY SLOTS so the bag reads as a real
                inventory rather than a handful of tiles above a black void.
                A uniform filled grid is what makes a bag scannable — you learn

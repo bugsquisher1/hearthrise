@@ -1058,9 +1058,11 @@ export default [
       const txt = modal.textContent;
       assert(C.entries().length === 0,
         'a fresh account derives nothing, got: ' + C.entries().map((e) => e.id).join(', '));
-      assert(txt.indexOf('No milestones recorded yet') >= 0, 'the header must state the empty case');
+      const SP = window.HearthriseSignposts;
+      const none = SP && SP.fill('chronicle.milestonesNone'), recent = SP && SP.fill('chronicle.recentEmpty');
+      assert(none && txt.indexOf(none) >= 0, 'the header must state the empty case');
       assert(txt.indexOf('Nothing recorded yet') >= 0, 'the Milestones section needs an empty state');
-      assert(txt.indexOf('No notifications yet this session') >= 0, 'the Recent section needs an empty state');
+      assert(recent && txt.indexOf(recent) >= 0, 'the Recent section needs an empty state');
       assert(!/coming soon|coming in|not yet available|todo/i.test(txt),
         'an empty state describes the state, never the roadmap');
       assert(txt.indexOf('Before the Chronicle') < 0,

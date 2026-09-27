@@ -605,7 +605,7 @@ function openSeedPicker(i){
   const allOwned = Object.entries(CROPS).filter(([,c])=>haveSeed(c));
   const plantable = allOwned.filter(([id])=>canPlant(id));
   const lockedByPlot = allOwned.filter(([id])=>!canPlant(id));
-  if(!plantable.length && !lockedByPlot.length){notify('No usable seeds. Visit the shop.','kill');return;}
+  if(!plantable.length && !lockedByPlot.length){notify(window.HearthriseSignposts.fill(Object.values(CROPS).some((c)=>heldByServer(c.seed)>0)?'farm.seedsAboveLevel':'farm.noSeeds'),'kill');return;}
   const m=document.getElementById('settings-modal');
   const plantBtn = ([id,c])=>`<button class="shop-row" style="width:100%;cursor:pointer" onclick="plantCrop(${i},'${id}');document.getElementById('settings-modal').classList.remove('show')"><span class="si">${itemArt(c.prod)}</span><div class="info"><b>${c.name}</b><span>${c.hours}h · ${c.yield[0]}-${c.yield[1]} yield${c.regrows?` · perennial (regrows ×${c.regrowLimit||'∞'})`:''}</span></div><span class="price">x${heldByServer(c.seed)}</span></button>`;
   /* A locked row NAMES the tier it needs (and the one you have) — "upgrade the

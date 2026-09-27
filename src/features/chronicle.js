@@ -544,7 +544,7 @@
 
     sectionLabel(host, 'This session');
     if (!recentRing.length) {
-      note(host, 'No notifications yet this session.', 'hr-ch-empty');
+      note(host, window.HearthriseSignposts ? window.HearthriseSignposts.fill('chronicle.recentEmpty') : '', 'hr-ch-empty');
     } else {
       var rec = recentRing.slice().reverse();
       for (var i = 0; i < rec.length; i++) {
@@ -603,7 +603,7 @@
     var hn = document.createElement('div'); hn.className = 'hr-ch-hn'; hn.textContent = 'What you have done';
     var sb = document.createElement('div'); sb.className = 'hr-ch-sub';
     sb.textContent = total === 0
-      ? 'No milestones recorded yet'
+      ? (window.HearthriseSignposts ? window.HearthriseSignposts.fill('chronicle.milestonesNone') : '')
       : (total + ' milestone' + (total === 1 ? '' : 's') + ' recorded');
     top.appendChild(eb); top.appendChild(hn); top.appendChild(sb);
 

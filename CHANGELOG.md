@@ -4,6 +4,26 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 556 — 2026-09-27 (Seven new things to find)
+
+**Lucky Finds.** Twenty-six hunting spots across every tier now hide one very rare named drop. The realm rolls it; when one lands, you'll know.
+
+**Timberline.** Five new woodcutting stands at levels 22, 38, 52, 68 and 82, so there is always a next tree to reach for.
+
+**Deep Waters.** Four new fishing spots (levels 47, 61, 71 and 83) and two deep mining veins (67 and 82). Cooked swordfish, frostfin, shark and moonfish now heal more: 32, 38, 44 and 50.
+
+**Field Salvage.** Monsters across all six tiers can now drop a piece of their tier's armour.
+
+**The Journeyman's Road.** When the five starter quests end, six more pick up: smith, craft, cook, gather, hunt and farm. Each pays gold, and most hand you the tool or key for the next step: an iron pickaxe, an iron axe, an oak rod, the Crypt of Bones key, potato seeds. If you have already done the work, the step is ready to claim.
+
+**Ledger of Firsts.** The collection log grows from 4 reward rungs to 11.
+
+**The Provisioner's counter** now sells cooked lobster, five for 2,000 gold. Iron arrows have left the equipment shop.
+
+**Parties list their members.** The party screen now loads its roster instead of saying it could not.
+
+**Fixes.** The gold in the top bar no longer stays a few coins ahead of your real balance after a knockout. The knocked-out sheet tells the same story after a reload and no longer reads today's bag as if it were the bag you fell with. On phones, the War Table's monster tiles no longer cut off their weapon and HP line.
+
 ## v0.9.2-beta build 555 — 2026-09-26 (Every item has a story)
 
 **Every item has a line.** All 538 items in the game now carry a short "what is it" line in their details: 119 of them had none before. Ores, fish, seeds, charms and trophies all say what they are and where they come from.

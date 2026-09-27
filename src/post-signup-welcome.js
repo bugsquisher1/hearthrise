@@ -23,23 +23,26 @@
     if (document.getElementById('hr-post-signup-modal')) return;
     const overlay = document.createElement('div');
     overlay.id = 'hr-post-signup-modal';
+    overlay.className = 'hr-scrim';   // position, inset, gutter and the height cap: art-direction.css
     overlay.style.cssText = ''
-      + 'position:fixed;inset:0;background:rgba(40,25,12,.55);'
-      + 'z-index:99996;display:flex;align-items:center;justify-content:center;padding:20px;';
+      + 'background:rgba(40,25,12,.55);'
+      + 'z-index:99996;display:flex;align-items:center;justify-content:center;';
     overlay.innerHTML = ''
-      + '<div style="background:linear-gradient(180deg,#fff8e2,#f4e4bc);'
+      + '<div class="hr-sheet" style="text-align:center;background:linear-gradient(180deg,#fff8e2,#f4e4bc);'
       + 'border:2px solid #b8893e;border-radius:8px;padding:24px;'
       + 'max-width:440px;width:100%;color:#3d2817;'
       + "font-family:'Quicksand',system-ui,sans-serif;"
       + 'box-shadow:0 8px 24px rgba(60,40,16,.4)">'
-      +   '<div style="text-align:center">'
+      +   '<div class="hr-sheet-head">'
       +     "<div style=\"font-family:'Cinzel',serif;font-size:calc(14.5px * var(--ui-scale, 1));letter-spacing:.22em;color:#7a4623;margin-bottom:6px;text-transform:uppercase\">Welcome, traveler</div>"
       +     "<h2 style=\"font-family:'Cinzel',serif;color:#5c2d08;font-size:calc(25px * var(--ui-scale, 1));letter-spacing:.04em;margin:0 0 14px\">"
       +       (displayName ? esc(displayName) : 'Adventurer')
       +     '</h2>'
+      +   '</div><div class="hr-sheet-body">'
       +     '<p style="margin:0 0 12px;font-size:calc(16px * var(--ui-scale, 1));line-height:1.55">Your save is now syncing to the cloud — pick up on any device any time.</p>'
       +     '<p style="margin:0 0 18px;font-size:calc(16px * var(--ui-scale, 1));line-height:1.55"><b>First step:</b> head to <b>Activities</b> and start training a skill. Every action earns XP, even while you\'re away.</p>'
-      +     '<div style="display:flex;gap:8px;justify-content:center">'
+      +   '</div>'
+      +     '<div class="hr-sheet-foot" style="display:flex;gap:8px;justify-content:center">'
       +       '<button id="hr-psw-go" style="'
       +         'background:linear-gradient(180deg,#d44a3a,#8b2a1f);color:#fff8e2;'
       +         'border:2px solid #5a1208;border-radius:4px;'
@@ -48,7 +51,7 @@
       +         'box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 2px 4px rgba(60,40,16,.3)">'
       +         'Train your first skill →'
       +       '</button>'
-      +       '<button id="hr-psw-close" style="'
+      +       '<button id="hr-psw-close" data-hr-dismiss style="'
       +         'background:rgba(255,247,224,.7);color:#3d2817;'
       +         'border:1px solid #b8893e;border-radius:4px;'
       +         "font-family:'Cinzel',serif;font-size:calc(14.5px * var(--ui-scale, 1));letter-spacing:.12em;text-transform:uppercase;"
@@ -56,7 +59,6 @@
       +         'Look around first'
       +       '</button>'
       +     '</div>'
-      +   '</div>'
       + '</div>';
     function close(){ overlay.remove(); }
     overlay.addEventListener('click', e => { if (e.target === overlay) close(); });

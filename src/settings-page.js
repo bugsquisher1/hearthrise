@@ -11,7 +11,6 @@
 //   • Chat & Privacy — profanity filter, timestamps, mention sound,
 //                      whisper permission, block list
 //   • Account        — display name, sign in/out, cloud sync
-//   • Data           — save now, export, import, backups, reset
 //
 // Implementation:
 //   • Overrides window.openSettings.
@@ -37,12 +36,6 @@
     var D = window.HearthriseDialog;
     if(D && D.confirm) return D.confirm(opts);
     return Promise.resolve(false);
-  }
-  function say(opts){
-    var D = window.HearthriseDialog;
-    if(D && D.alert) return D.alert(opts);
-    if(typeof window.notify === 'function') window.notify(String(opts && (opts.body||opts.title) || ''), 'kill');
-    return Promise.resolve();
   }
 
   // ══════════════════════════════════════════════════════════════════════
@@ -335,22 +328,14 @@
           var meta = { display_name: displayName };
           if(invite) meta.invite_code = invite;
           await auth.signUp(email, password, meta);
-          // Stash the display name for post-signin pickup. The invite is no
+          // The invite is no
           // longer stashed: it was consumed at account creation, and the
           // post-hoc claim_beta_invite RPC it used to feed has been revoked from
           // `authenticated` — it burned an unused code for whoever called it and
           // granted the caller nothing.
           try {
             localStorage.removeItem('hearthrise:pending-invite');
-            localStorage.setItem('hearthrise:pending-name', displayName);
           } catch(e){}
-          // Set the in-game player name immediately so the offline guest
-          // session reflects the chosen name even before email confirm.
-          if(window.G){
-            window.G.playerName = displayName;
-            if(typeof window.saveLocal === 'function') window.saveLocal();
-            if(typeof window.refreshAll === 'function') window.refreshAll();   // b334: window.render has never existed
-          }
           status.style.color = '#7f9a4f';
           status.textContent = '✓ Check your inbox for a confirmation email.';
           setTimeout(function(){ close(); if(typeof window.renderSettings === 'function') window.renderSettings(); }, 2200);
@@ -358,13 +343,6 @@
           await auth.signIn(email, password);
           // No invite claim on sign-in any more — see claimPendingInvite().
           claimPendingInvite();
-          var pendingName = null;
-          try { pendingName = localStorage.getItem('hearthrise:pending-name'); } catch(e){}
-          if(pendingName && window.G){
-            window.G.playerName = pendingName;
-            if(typeof window.saveLocal === 'function') window.saveLocal();
-            try { localStorage.removeItem('hearthrise:pending-name'); } catch(e){}
-          }
           status.style.color = '#7f9a4f';
           status.textContent = '✓ Signed in. Syncing your save…';
           setTimeout(function(){ close(); if(typeof window.renderSettings === 'function') window.renderSettings(); }, 800);
@@ -669,7 +647,6 @@
   // ── Account ────────────────────────────────────────────────
   function accountHtml(){
     var G = window.G;
-    var acct = G.account;
     var nameInput = ''
       + '<div class="ss-row"><div class="ss-label">Display name</div>'
       +   '<div style="display:flex;gap:8px">'
@@ -677,7 +654,6 @@
       +     '<button class="btn btn-sm" id="set-name-save">Save</button>'
       +   '</div>'
       + '</div>';
-    // Live cloud session takes precedence over the legacy guest-account record.
     var liveSession = (window.HearthriseAuth && window.HearthriseAuth.getSession && window.HearthriseAuth.getSession()) || null;
     var auth;
     if (liveSession && liveSession.user) {
@@ -698,13 +674,6 @@
         +   '<div class="ss-card-title">' + esc(liveSession.user.email || 'Signed in') + '</div>'
         +   '<div class="ss-card-meta"' + metaStyle + '>' + esc(meta) + '</div>'
         +   '<button class="btn btn-sm btn-danger" id="set-cloud-signout" style="margin-top:8px">Sign out</button>'
-        + '</div>';
-    } else if (acct) {
-      auth = ''
-        + '<div class="ss-card">'
-        +   '<div class="ss-card-title">' + esc(acct.displayName || 'Account') + '</div>'
-        +   '<div class="ss-card-meta">Signed in via ' + esc(acct.provider || 'guest') + '</div>'
-        +   '<button class="btn btn-sm btn-danger" id="set-sign-out">Sign out</button>'
         + '</div>';
     } else {
       // Cloud configured? Show real email/pw flow. Otherwise show offline-only message.
@@ -751,7 +720,8 @@
     var sbConfig = (window.HearthriseSupabase && window.HearthriseSupabase.getConfig())
       || { url: '', anonKey: '' };
     var hasCloud = !!sbConfig.url && !!sbConfig.anonKey;
-    var showCloudSetup = (typeof location !== 'undefined' && /[?&]cloudConfig=1/.test(location.search));
+    var showCloudSetup = (typeof location !== 'undefined' && /[?&]cloudConfig=1/.test(location.search))
+      && !(window.HearthriseGate && window.HearthriseGate.isPlayerOrigin && window.HearthriseGate.isPlayerOrigin(location.hostname));
     var cloudSetup = !showCloudSetup ? '' : ''
       + '<div class="ss-card" style="display:block">'
       +   '<div class="ss-card-title">Cloud setup (developer)</div>'
@@ -799,64 +769,6 @@
       + '<div class="ss-hint" id="set-cloud-verify-out" style="white-space:pre-line"></div>'
       + beta
       + cloudSetup;
-  }
-
-  // ── Data ───────────────────────────────────────────────────
-  function dataHtml(){
-    var backups = [];
-    try {
-      for(var i=0; i<localStorage.length; i++){
-        var k = localStorage.key(i);
-        if(k && k.indexOf('hearthrise:save-backup:') === 0){
-          backups.push(k);
-        }
-      }
-    } catch(e){}
-    backups.sort();
-    return ''
-      + '<div class="ss-row"><div class="ss-label">Save now</div>'
-      +   '<button class="btn btn-sm" id="set-save-now">Save</button>'
-      + '</div>'
-      + '<div class="ss-row"><div class="ss-label">Export save</div>'
-      +   '<button class="btn btn-sm" id="set-export">Download JSON</button>'
-      + '</div>'
-      + '<div class="ss-row"><div class="ss-label">Import save</div>'
-      +   '<button class="btn btn-sm" id="set-import">From file…</button>'
-      + '</div>'
-      + '<div class="ss-row"><div class="ss-label">Save backups</div>'
-      +   '<div class="ss-meta">' + (backups.length ? backups.length + ' available' : 'none') + '</div>'
-      + '</div>'
-      + (backups.length
-          ? '<div class="ss-backup-list">'
-              + backups.map(function(k){
-                  var ver = k.replace('hearthrise:save-backup:', '');
-                  // Try to peek at the backup's metadata so the player
-                  // sees something useful (last seen, slot, character)
-                  // instead of just a version number.
-                  var meta = '';
-                  try {
-                    var raw = localStorage.getItem(k);
-                    if(raw){
-                      var parsed = JSON.parse(raw);
-                      var lastSeen = parsed && parsed.lastSeen
-                        ? new Date(parsed.lastSeen).toLocaleString()
-                        : 'unknown';
-                      var name = (parsed && parsed.playerName) || 'Adventurer';
-                      meta = ' · ' + esc(name) + ' · last seen ' + esc(lastSeen);
-                    }
-                  } catch(e){}
-                  return '<div class="ss-backup-row">'
-                       +   '<span><b>' + esc(ver) + '</b><small style="color:#8a92a0">' + meta + '</small></span>'
-                       +   '<button class="btn btn-sm" data-restore="' + esc(k) + '">Restore</button>'
-                       + '</div>';
-                }).join('')
-            + '<div class="ss-hint">Restoring a backup overwrites your current save and reloads the game. The current save is NOT auto-backed up before the swap — export it first if you want a safety net.</div>'
-            + '</div>'
-          : '<div class="ss-hint">No automatic backups yet. Backups are created the first time the save schema migrates, so you\'ll see them after the next major game update.</div>')
-      + '<div class="ss-row danger"><div class="ss-label">Reset character</div>'
-      +   '<button class="btn btn-sm btn-danger" id="set-reset">Erase + reload</button>'
-      + '</div>'
-      + '<div class="ss-hint">Reset clears the active character\'s save. Other character slots are unaffected.</div>';
   }
 
   // ── Helpers ────────────────────────────────────────────────
@@ -1033,27 +945,6 @@
         });
         return;
       }
-      var fallback = raw.trim().slice(0, 20);
-      if(!fallback) return;
-      window.G.playerName = fallback;
-      if(typeof window.updateTopbar === 'function') window.updateTopbar();
-      if(typeof window.saveLocal === 'function') window.saveLocal();
-      if(typeof window.notify === 'function') window.notify('Display name saved.', 'info');
-    });
-    var signOut = root.querySelector('#set-sign-out');
-    if(signOut) signOut.addEventListener('click', function(){
-      if(window.NetClient && typeof window.NetClient.signOut === 'function'){
-        window.NetClient.signOut();
-        window.openSettings();
-      }
-    });
-    root.querySelectorAll('[data-signin]').forEach(function(b){
-      b.addEventListener('click', function(){
-        var p = b.getAttribute('data-signin');
-        if(window.NetClient && typeof window.NetClient.signIn === 'function'){
-          window.NetClient.signIn(p).then(function(){ window.openSettings(); });
-        }
-      });
     });
     var vout = root.querySelector('#set-cloud-verify-out');
     var cloud = root.querySelector('#set-cloud-sync');
@@ -1118,20 +1009,10 @@
     });
 
     // ── Live cloud auth (email/password via Supabase) ──
-    function openAuthFlow(mode){
-      // The auth modal already exists in src/net/auth.js. We trigger it by
-      // dispatching a synthetic click on any "Sign in" button on the page,
-      // or fall back to a direct call if HearthriseAuth exposes one.
-      var existing = document.querySelector('button[data-hr-auth-trigger]');
-      if(existing){ existing.click(); return; }
-      // Build a one-off button that auth.js will patch on next renderAuthUi tick,
-      // OR call signIn/signUp directly via a tiny inline modal we render here.
-      showInlineAuthModal(mode);
-    }
     var btnSignIn = root.querySelector('#set-cloud-signin');
-    if(btnSignIn) btnSignIn.addEventListener('click', function(){ openAuthFlow('signin'); });
+    if(btnSignIn) btnSignIn.addEventListener('click', function(){ showInlineAuthModal('signin'); });
     var btnSignUp = root.querySelector('#set-cloud-signup');
-    if(btnSignUp) btnSignUp.addEventListener('click', function(){ openAuthFlow('signup'); });
+    if(btnSignUp) btnSignUp.addEventListener('click', function(){ showInlineAuthModal('signup'); });
     var btnCloudOut = root.querySelector('#set-cloud-signout');
     if(btnCloudOut) btnCloudOut.addEventListener('click', async function(){
       var ok = await ask({ title:'Sign out of your cloud account?',
@@ -1258,55 +1139,6 @@
     // Block list
     var bl = root.querySelector('#set-show-blocklist');
     if(bl) bl.addEventListener('click', function(){ showBlockList(); });
-
-    // Data controls
-    var sn = root.querySelector('#set-save-now');
-    if(sn) sn.addEventListener('click', function(){
-      if(typeof window.saveLocal === 'function') window.saveLocal();
-      if(typeof window.notify === 'function') window.notify('Saved.', 'info');
-    });
-    var ex = root.querySelector('#set-export');
-    if(ex) ex.addEventListener('click', exportSave);
-    var im = root.querySelector('#set-import');
-    if(im) im.addEventListener('click', importSave);
-    var rs = root.querySelector('#set-reset');
-    if(rs) rs.addEventListener('click', function(){
-      ask({ title:'Erase this character\'s save?',
-        body:'The active character\'s save is deleted and the game reloads. Other character slots are NOT affected.',
-        confirmLabel:'Erase', danger:true }).then(function(ok){
-        if(!ok) return;
-        try {
-          var SAVE_KEY = 'hearthbound-save-v2';
-          localStorage.removeItem(SAVE_KEY);
-        } catch(e){}
-        location.reload();
-      });
-    });
-    root.querySelectorAll('[data-restore]').forEach(function(b){
-      b.addEventListener('click', async function(){
-        var key = b.getAttribute('data-restore');
-        var ver = key.replace('hearthrise:save-backup:', '');
-        var ok = await ask({ title:'Restore from backup ' + ver + '?',
-          body:'This overwrites your current save and reloads the game.\n\nA snapshot of your CURRENT save is auto-created at "hearthrise:save-backup:pre-restore" so you can roll back.',
-          confirmLabel:'Restore', danger:true });
-        if(!ok) return;
-        // Auto-snapshot the current save first so the restore is reversible.
-        try {
-          var SAVE_KEY = 'hearthbound-save-v2';
-          var current = localStorage.getItem(SAVE_KEY);
-          if(current) localStorage.setItem('hearthrise:save-backup:pre-restore', current);
-        } catch(e){
-          var anyway = await ask({ title:'Restore without a rollback point?',
-            body:'Couldn\'t auto-snapshot your current save (' + e.message + '). Restoring now cannot be undone.',
-            confirmLabel:'Restore anyway', danger:true });
-          if(!anyway) return;
-        }
-        if(typeof window.restoreSaveBackup === 'function'){
-          window.restoreSaveBackup(key);
-          location.reload();
-        }
-      });
-    });
   }
 
   // ── Block list modal ───────────────────────────────────────
@@ -1348,54 +1180,6 @@
     });
   }
 
-  // ── Export / import ────────────────────────────────────────
-  function exportSave(){
-    try {
-      var SAVE_KEY = 'hearthbound-save-v2';
-      var raw = localStorage.getItem(SAVE_KEY) || '{}';
-      var blob = new Blob([raw], { type: 'application/json' });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url;
-      a.download = 'hearthrise-save-' + new Date().toISOString().slice(0,10) + '.json';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
-    } catch(e){
-      if(typeof window.notify === 'function') window.notify('Export failed: ' + e.message, 'kill');
-    }
-  }
-  function importSave(){
-    var input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'application/json';
-    input.addEventListener('change', function(){
-      var f = input.files && input.files[0];
-      if(!f) return;
-      var reader = new FileReader();
-      reader.onload = async function(){
-        try {
-          var parsed = JSON.parse(reader.result);
-          if(typeof parsed !== 'object') throw new Error('Not a save file.');
-          var ok = await ask({ title:'Replace your save with the imported one?',
-            body:'This cannot be undone unless you have a backup.',
-            confirmLabel:'Import', danger:true });
-          if(!ok) return;
-          /* b372: an imported file may have been exported from a DIFFERENT hero
-             slot, and loadLocal now parks a save stamped for another slot. This
-             is an explicit, confirmed player action, so the blob is un-stamped
-             and claimed by whichever character it is being imported into. */
-          try { delete parsed._saveSlot; } catch(e){}
-          localStorage.setItem('hearthbound-save-v2', JSON.stringify(parsed));
-          location.reload();
-        } catch(e){
-          say({ title:'Import failed', body: String(e.message || e) });
-        }
-      };
-      reader.readAsText(f);
-    });
-    input.click();
-  }
-
   // ── The big one — replace openSettings ─────────────────────
   function openSettings(){
     ensureSettings();
@@ -1414,7 +1198,6 @@
       +   renderSection(false, 'Gameplay',       gameplayHtml())
       +   renderSection(false, 'Chat & Privacy', chatHtml())
       +   renderSection(false, 'Account',         accountHtml())
-      +   renderSection(false, 'Data',            dataHtml())
       + '</div>';
     bindControls(body);
     m.classList.add('show');
@@ -1434,5 +1217,5 @@
      rendering. */
   window.HearthriseSettingsPage = { _autoEatHint: autoEatHint };
 
-  console.log('[settings] page rebuilt — 6 sections active');
+  console.log('[settings] page rebuilt — 5 sections active');
 })();

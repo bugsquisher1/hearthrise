@@ -246,29 +246,6 @@
       G.playerHp = G.playerMaxHp || 10;
       refreshUI();
     },
-    saveNow: function(){
-      if(typeof window.saveLocal === 'function'){
-        window.saveLocal();
-        notify('Saved');
-      }
-    },
-    resetSave: function(){
-      /* b373: in-game modal, not window.confirm — the native one blocks the
-         renderer main thread (see src/utils/dialog.js). Dev tool or not, a
-         native call site here is one the next author copies into a player
-         surface. */
-      var D = window.HearthriseDialog;
-      var ask = (D && D.confirm)
-        ? D.confirm({ title:'Wipe save and reload?', body:'The local save is deleted and the page reloads.',
-                      confirmLabel:'Wipe', danger:true })
-        : Promise.resolve(false);
-      return ask.then(function(ok){
-        if(!ok) return;
-        localStorage.removeItem('hearthbound-save-v2');
-        localStorage.removeItem('idle-game-v1');
-        location.reload();
-      });
-    },
     dumpState: function(){
       var snap = JSON.stringify(G, null, 2);
       navigator.clipboard.writeText(snap).then(function(){
@@ -372,9 +349,7 @@
       <div class="ap-section">
         <h4>Save / State</h4>
         <div class="ap-row">
-          <button class="ap-btn" data-act="save">Save Now</button>
           <button class="ap-btn" data-act="dump">Dump State</button>
-          <button class="ap-btn danger" data-act="reset">Reset Save</button>
         </div>
       </div>
 
@@ -414,9 +389,7 @@
         else if(act === 'god-off') Admin.godMode(false);
         else if(act === 'heal') Admin.healFull();
         else if(act === 'apply-buff') Admin.applyBuff(panel.querySelector('#ap-buff').value, panel.querySelector('#ap-buff-mag').value, +panel.querySelector('#ap-buff-dur').value*1000);
-        else if(act === 'save') Admin.saveNow();
         else if(act === 'dump') Admin.dumpState();
-        else if(act === 'reset') Admin.resetSave();
         else if(act === 'audit-loot') runAudit('loot');
         else if(act === 'audit-recipes') runAudit('recipes');
         else if(act === 'market-seed'){

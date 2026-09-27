@@ -58,13 +58,6 @@ export const COMBAT = {
   DAMAGE_RANGE_MAX: 1,
 };
 
-export const SAVE = {
-  /** localStorage key for the active character's save. */
-  KEY: 'hearthbound-save-v2',
-  /** Number of legacy migration backups to retain. */
-  BACKUP_RETENTION: 3,
-};
-
 export const FTUE = {
   /** Total session XP under which a player counts as "new" for the FTUE. */
   NEW_PLAYER_XP_THRESHOLD: 100,
@@ -73,7 +66,7 @@ export const FTUE = {
 };
 
 // ── Aggregate view for devtools ──────────────────────────────
-export const CONFIG = { MARKET, CHAT, OFFLINE, COMBAT, SAVE, FTUE };
+export const CONFIG = { MARKET, CHAT, OFFLINE, COMBAT, FTUE };
 
 // Classic-script bridge
 if (typeof window !== 'undefined') {

@@ -35,18 +35,11 @@
 //   - Every migration runs inside a try/catch. A failure logs to
 //     captureException() (if observability.js is loaded) and the
 //     save is rolled back to a backup snapshot taken before the run.
-//   - A backup of the pre-migration save is written to
-//     `hearthrise:save-backup:v<n>` so we can recover bad migrations.
-//
-// Test from devtools:
-//   window.dumpSaveBackups()  // see snapshot history
-//   window.restoreSaveBackup('hearthrise:save-backup:v2')
 // ============================================================
 
 (function(){
   'use strict';
 
-  var SAVE_KEY = 'hearthbound-save-v2';      // localStorage key (matches legacy.js)
   var CURRENT_SCHEMA_VERSION = 13;            // ← bump this when you add a migration
 
   // ── Migration registry ─────────────────────────────────────
@@ -499,54 +492,6 @@
     // },
   ];
 
-  // ── Backup helpers ──────────────────────────────────────────
-  function backupKey(version){ return 'hearthrise:save-backup:v' + version; }
-  function snapshotBackup(version, raw){
-    try { localStorage.setItem(backupKey(version), raw); } catch(e){}
-    pruneOldBackups();
-  }
-  function pruneOldBackups(){
-    // Keep only the 3 most recent backups so we don't fill localStorage
-    try {
-      var keys = [];
-      for(var i=0; i<localStorage.length; i++){
-        var k = localStorage.key(i);
-        if(k && k.indexOf('hearthrise:save-backup:') === 0) keys.push(k);
-      }
-      if(keys.length > 3){
-        keys.sort();
-        while(keys.length > 3){ localStorage.removeItem(keys.shift()); }
-      }
-    } catch(e){}
-  }
-
-  window.dumpSaveBackups = function(){
-    var out = {};
-    try {
-      for(var i=0; i<localStorage.length; i++){
-        var k = localStorage.key(i);
-        if(k && k.indexOf('hearthrise:save-backup:') === 0){
-          try { out[k] = JSON.parse(localStorage.getItem(k)); }
-          catch(e){ out[k] = '<unparseable>'; }
-        }
-      }
-    } catch(e){}
-    console.log('[migrations] backup snapshots:', out);
-    return out;
-  };
-  window.restoreSaveBackup = function(key){
-    var raw = localStorage.getItem(key);
-    if(!raw){ console.warn('[migrations] no backup at', key); return false; }
-    /* b372: backups predate — and can outlive — a hero-slot switch, and
-       loadLocal parks a save stamped for a slot other than the active one. A
-       restore is an explicit, confirmed player action, so drop the stamp and let
-       the character being restored INTO claim these bytes on its first save. */
-    try { var b = JSON.parse(raw); if(b && typeof b === 'object' && '_saveSlot' in b){ delete b._saveSlot; raw = JSON.stringify(b); } } catch(e){}
-    localStorage.setItem(SAVE_KEY, raw);
-    console.log('[migrations] restored', key, '— reload the page to apply.');
-    return true;
-  };
-
   // ── Core: applyMigrations ───────────────────────────────────
   // Takes a parsed save object; returns the migrated object.
   // Migrations mutate in-place. If a migration throws, we roll back
@@ -560,11 +505,9 @@
       return save;
     }
 
-    // Snapshot the original raw save before we mutate anything,
-    // keyed by the version we're upgrading FROM.
+    // Snapshot the original raw save before we mutate anything.
     var originalRaw;
     try { originalRaw = JSON.stringify(save); } catch(e){ originalRaw = null; }
-    if(originalRaw) snapshotBackup(startVersion, originalRaw);
 
     var v = startVersion;
     var ranNames = [];

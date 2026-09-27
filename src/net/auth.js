@@ -931,7 +931,6 @@ export async function signOut() {
   // same-owner sign-in un-parks it, so unsynced offline progress survives) and
   // stop uploads so nothing can be written after the session ends.
   try { holdSnapshots(); } catch (e) {}
-  try { if (typeof window.parkLocalSave === 'function') window.parkLocalSave('signout'); } catch (e) {}
   /* b339 — character.js has documented `resetCharacterIntent()` as "the thing
      auth.js calls on sign-out" since b338, and grep found NO caller anywhere in
      src/. The latch key now carries the live user id, so a stale latch can no

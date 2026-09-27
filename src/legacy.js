@@ -2543,8 +2543,6 @@ const NetClient=(()=>{
       return new Promise(res=>setTimeout(()=>res(this._route(path,opts)),120));
     },
     _route(path,opts){
-      if(path==='/auth/signin')return {ok:true,user:{id:'me',displayName:G.playerName,token:'mock-'+Math.random().toString(36).slice(2,8),provider:opts.body?.provider||'guest'}};
-      if(path==='/save/sync')return {ok:true,syncedAt:Date.now()};
       if(path.startsWith('/leaderboard')){
         const mode=new URL('http://x'+path).searchParams.get('mode')||'total';
         const me={id:'me',displayName:G.playerName+' (You)',total:getTotalLevel(),combat:getCombatLevel(),gold:balOr('gold',0),you:true};
@@ -2564,9 +2562,6 @@ const NetClient=(()=>{
 
   return {
     online:isOnline,
-    async signIn(provider){const r=await call('/auth/signin',{method:'POST',body:{provider}});if(r.ok){G.account=r.user;saveLocal();updateNetStatus();}return r;},
-    signOut(){G.account=null;saveLocal();updateNetStatus();},
-    async cloudSync(){const r=await call('/save/sync',{method:'POST',body:{state:G}});if(r.ok)G.cloudSyncedAt=r.syncedAt;return r;},
     async leaderboard(mode='total'){return call('/leaderboard?mode='+encodeURIComponent(mode));},
     async clans(){return call('/clan/list');},
     async iapValidate(sku,receipt){return call('/iap/validate',{method:'POST',body:{sku,receipt}});},
@@ -9330,82 +9325,6 @@ window.buyTrait=buyTrait;
 try{ window.applyTraitUnlock=applyTraitUnlock; window.traitBuyToast=traitBuyToast; }catch(_){}
 
 /* ────────────────────────────────────────────────
-   SETTINGS modal
-   ──────────────────────────────────────────────── */
-function openSettings(){
-  const m=document.getElementById('settings-modal');
-  m.querySelector('.modal-title').textContent='Settings';
-  document.getElementById('settings-body').innerHTML=`
-    <div class="muted tiny" style="text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Account</div>
-    ${G.account?
-      `<div class="activity-card"><div class="ac-icon">${_hrGly('navProfile',26)}</div><div style="flex:1"><b>${escapeHtml(G.account.displayName)}</b><span>Provider: ${G.account.provider}</span></div><button class="btn btn-sm btn-danger" onclick="NetClient.signOut();openSettings()">Sign out</button></div>`:
-      `<div class="kpi-row" style="margin-bottom:14px">
-        <button class="btn tap" onclick="NetClient.signIn('steam').then(()=>openSettings())">Sign in (Steam)</button>
-        <button class="btn tap" onclick="NetClient.signIn('apple').then(()=>openSettings())">Sign in (Apple)</button>
-        <button class="btn tap" onclick="NetClient.signIn('google').then(()=>openSettings())">Sign in (Google)</button>
-        <button class="btn tap" onclick="NetClient.signIn('guest').then(()=>openSettings())">Continue as guest</button>
-      </div>`}
-
-    <div class="muted tiny" style="text-transform:uppercase;letter-spacing:.08em;margin:14px 0 6px">Display name</div>
-    <div class="row" style="gap:8px"><input type="text" value="${escapeHtml(G.playerName)}" id="set-name" style="flex:1;background:rgba(255,255,255,.04);border:1px solid var(--line-soft);border-radius:8px;padding:8px 10px"><button class="btn" onclick="G.playerName=document.getElementById('set-name').value||'Adventurer';updateTopbar();notify('Name updated','info')">Save</button></div>
-
-    <div class="muted tiny" style="text-transform:uppercase;letter-spacing:.08em;margin:14px 0 6px">Game</div>
-    <label class="row tap" style="gap:8px;padding:6px 0"><input type="checkbox" ${G.settings.sfx?'checked':''} onchange="G.settings.sfx=this.checked;saveLocal()"> Sound effects</label>
-    <label class="row tap" style="gap:8px;padding:6px 0"><input type="checkbox" ${G.settings.reduceFx?'checked':''} onchange="G.settings.reduceFx=this.checked;saveLocal();document.documentElement.style.setProperty('--reduce-fx',this.checked?'1':'0')"> Reduce visual effects</label>
-    <label class="row tap" style="gap:8px;padding:6px 0"><input type="checkbox" ${G.settings.leftHand?'checked':''} onchange="G.settings.leftHand=this.checked;saveLocal()"> Left-handed mode (mobile)</label>
-
-    <div class="muted tiny" style="text-transform:uppercase;letter-spacing:.08em;margin:14px 0 6px">Save data</div>
-    <div class="kpi-row">
-      <button class="btn tap" onclick="saveLocal();notify('Saved','info')">Save now</button>
-      <button class="btn tap" onclick="cloudSync()">Cloud sync</button>
-      <button class="btn tap" onclick="exportSave()">Export</button>
-      <button class="btn tap btn-danger" onclick="eraseSaveAsk()">Reset</button>
-    </div>
-    <div class="muted tiny" style="margin-top:8px">Last cloud sync: ${G.cloudSyncedAt?new Date(G.cloudSyncedAt).toLocaleString():'never'}.</div>
-
-    <div class="muted tiny" style="text-transform:uppercase;letter-spacing:.08em;margin:14px 0 6px">Shortcuts</div>
-    <div class="muted tiny">1-8: tabs · S: save · Esc: close modals · Arrow keys: nav focus</div>`;
-  m.classList.add('show');
-}
-async function cloudSync(){
-  if(!G.account){notify('Sign in first','kill');return;}
-  const r=await NetClient.cloudSync();
-  notify(r.ok?'Cloud saved':'Cloud save failed','info');
-  openSettings();
-}
-/* b373: the destructive settings action, out of an inline `confirm()` in an
-   onclick and into the shared modal. Named so the markup carries a verb rather
-   than a statement, and so the erase can be tested without a dialog stub. */
-function eraseSaveAsk(){
-  return askConfirm({
-    title:'Erase this save?',
-    body:'This character\'s local save is deleted and the game reloads. Other character slots are not affected.',
-    confirmLabel:'Erase', danger:true,
-  }).then(function(ok){
-    if(!ok) return false;
-    if(window.HearthriseStorage){window.HearthriseStorage.remove(SAVE_KEY);}
-    else{localStorage.removeItem(SAVE_KEY);}
-    location.reload();
-    return true;
-  });
-}
-window.eraseSaveAsk=eraseSaveAsk;
-function exportSave(){
-  const data=btoa(unescape(encodeURIComponent(JSON.stringify(G))));
-  /* b373: the clipboard fallback used `prompt()` purely as a text box you can
-     select from. The modal does that better (readonly, focused, selected) and
-     without blocking the renderer for as long as the player takes to copy. */
-  try{navigator.clipboard?.writeText(data);notify('Save exported to clipboard','info');}
-  catch(e){
-    askPrompt({
-      title:'Copy your save',
-      body:'Select all and copy. Keep it somewhere safe — this is your whole character.',
-      value:data, readOnly:true, confirmLabel:'Done', cancelLabel:'Close',
-    });
-  }
-}
-
-/* ────────────────────────────────────────────────
    helpers
    ──────────────────────────────────────────────── */
 function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
@@ -9431,14 +9350,14 @@ function bindEvents(){
   document.getElementById('combat-stop').addEventListener('click',stopCombat);
   /* topbar buttons */
   /* b227: manual save button removed — online realm, autosave + sync own persistence */
-  document.getElementById('btn-settings').addEventListener('click',openSettings);
-  document.getElementById('btn-settings-mobile')?.addEventListener('click',()=>{document.getElementById('more-modal').classList.remove('show');openSettings();});
+  document.getElementById('btn-settings').addEventListener('click',()=>window.openSettings&&window.openSettings());
+  document.getElementById('btn-settings-mobile')?.addEventListener('click',()=>{document.getElementById('more-modal').classList.remove('show');window.openSettings&&window.openSettings();});
   /* b316: the rail's Settings footer action. Settings is a MODAL, so this is
      NOT a data-tab nav-btn (showTab would blank the panel) — it opens the
      settings modal directly. window.openSettings is the settings-page.js
-     rebuild; fall back to the legacy modal if it hasn't loaded. This is the
+     rebuild; a missing one is a no-op, never a throw. This is the
      only Settings door that exists in the landscape-phone left-rail layout. */
-  ['btn-settings-rail','btn-settings-rail-m'].forEach(id=>document.getElementById(id)?.addEventListener('click',()=>(window.openSettings||openSettings)()));
+  ['btn-settings-rail','btn-settings-rail-m'].forEach(id=>document.getElementById(id)?.addEventListener('click',()=>window.openSettings&&window.openSettings()));
   document.getElementById('combat-gear-btn').addEventListener('click',()=>showTab('inventory'));
   /* b230: the topbar gem counter means "I want gems" — it opens the Premium
      Shop toggle directly, not the shop's front door. */
@@ -9452,7 +9371,6 @@ function bindEvents(){
     if(e.target.matches('input,textarea,select'))return;
     const map={'1':'profile','2':'combat','3':'skills','4':'inventory','5':'farming','6':'house','7':'social','8':'shops'};
     if(map[e.key]){showTab(map[e.key]);e.preventDefault();}
-    if(e.key.toLowerCase()==='s'){saveLocal();notify('Saved','info');}
   });
   /* online/offline events */
   window.addEventListener('online',updateNetStatus);

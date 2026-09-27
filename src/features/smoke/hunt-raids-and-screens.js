@@ -4465,6 +4465,15 @@ export default [
       return {
         calls, host, paint,
         text: () => ((host.querySelector('.hunt-vigour-block') || {}).textContent || ''),
+        /* The block's text WITHOUT the renewal clock — the one element allowed a
+           number that is not a meter field (its provenance is asserted apart). */
+        meterText: () => {
+          const b = host.querySelector('.hunt-vigour-block');
+          if (!b) return '';
+          const c = b.cloneNode(true);
+          c.querySelectorAll('.hunt-vigour-clock').forEach((n) => n.remove());
+          return c.textContent;
+        },
         rpcs: () => calls.filter((c) => c.url.indexOf('/rpc/hr_vigour_refill') !== -1),
         click: async () => {
           const b = host.querySelector('[data-vigour-refill]');
@@ -4583,10 +4592,14 @@ export default [
         const r = rig(world);
         try { await r.paint();
           const allowed = numbersOf(world.meter);
-          const seen = numbersIn(r.text());
+          const seen = numbersIn(r.meterText());
           assert(seen.length >= 5, 'the bar printed too few numbers to judge: ' + r.text());
           seen.forEach((n) => assert(allowed.has(n), 'the bar printed ' + n + ', which the server never sent: ' + r.text()));
-          assert(/Tired — hunts pay ×0\.25/.test(r.text()), 'the dry state does not quote the server\'s dry_mult: ' + r.text());
+          const clocks = r.host.querySelectorAll('.hunt-vigour-clock');
+          const [, y, mo, d] = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(world.meter.day_key).map(Number);
+          assert(clocks.length === 1 && Number(clocks[0].dataset.renewAt) === Date.UTC(y, mo - 1, d) + 86400000,
+            'the renewal clock is not the server\'s day_key + one day: ' + [...clocks].map((c) => c.dataset.renewAt).join(','));
+          assert(/Out of Vigour — hunts pay ×0\.25 until midnight UTC/.test(r.text()), 'the dry state does not quote the server\'s dry_mult: ' + r.text());
           const m2 = Object.assign(METER(), { spent_min: 222, budget_min: 1400, grant_min: 1280, refills: 2,
             refills_left: 3, next_refill_gold: 23456, level: 88 });
           window.HearthriseAccrual.hydrateHunt(window.G, { vigour: m2 });
@@ -4595,12 +4608,59 @@ export default [
           assert(/222 \/ 1,400 min today/.test(t2) && /1,280 free/.test(t2), 'the DOM did not follow the mutated meter: ' + t2);
           assert(/23,456 gold/.test(t2) && /2 of 5/.test(t2), 'the price did not follow the mutated next_refill_gold: ' + t2);
           assert(!/7,777/.test(t2), 'the old price outlived the envelope that replaced it');
-          assert(!/Tired/.test(t2), 'the dry line outlived the server\'s remaining_min');
-          numbersIn(t2).forEach((n) => assert(numbersOf(m2).has(n), 'after the mutation the bar printed ' + n));
+          assert(!/Out of Vigour/.test(t2), 'the dry line outlived the server\'s remaining_min');
+          numbersIn(r.meterText()).forEach((n) => assert(numbersOf(m2).has(n), 'after the mutation the bar printed ' + n));
           await r.click();
           const cat = r.calls.filter((c) => c.url.indexOf('hr_vigour_prices') !== -1);
           assert(cat.length === 0, 'the client queried the dropped hr_vigour_prices catalogue ' + cat.length + ' time(s)');
         } finally { r.restore(); }
+      }),
+
+      // ── regression suite — THE RENEWAL CLOCK IS THE SERVER'S DAY ──────────
+      // The dry line said 'until the day turns (UTC)' — 7 pm in Chicago, never
+      // said. The clock is day_key + one day, never the browser's date: before
+      // the next envelope it says the day turned instead of counting to the NEXT
+      // midnight. MUTATION: atMs from Date.now(), or no stale branch → RED.
+      () => tryRun('VIGOUR-CLOCK-1: the renewal clock is day_key + one day, and stale once that has passed', () => {
+        const R = window.vigourRenewText;
+        assert(typeof R === 'function', 'hunt-panel.js must expose window.vigourRenewText');
+        const a = R('2026-9-27', Date.UTC(2026, 8, 27, 20, 48));
+        assert(a && a.atMs === Date.UTC(2026, 8, 28) && a.left === '3h 12m' && a.stale === false && !!a.local,
+          'the clock is not midnight UTC after day_key: ' + JSON.stringify(a));
+        const b = R('2026-9-26', Date.UTC(2026, 8, 27, 0, 5));
+        assert(b && b.stale === true && b.left === null, 'a passed renewal must read stale with no countdown: ' + JSON.stringify(b));
+        assert(R('nope', Date.now()) === null, 'a day_key that does not parse must give no clock');
+      }),
+
+      () => tryRunAsync('VIGOUR-CLOCK-2: the dry line names midnight UTC, follows day_key, and offers no sold-out refill', async () => {
+        const B = window.HearthriseCore.botd, key = B.utcDayKey(Date.now());
+        const dry = (k) => Object.assign(METER(), { day_key: k, spent_min: 1100, remaining_min: 0,
+          refills: 5, refills_left: 0, next_refill_gold: null, level: null });
+        const r = rig({ meter: dry(key), refill: () => ({ json: { ok: false, error: 'vigour_daily_cap' } }) });
+        const at = () => Number((r.host.querySelector('.hunt-vigour-clock') || { dataset: {} }).dataset.renewAt);
+        try { await r.paint();
+          const t = r.text(), at0 = at();
+          assert(/until midnight UTC/.test(t) && !/buy a refill/.test(t), 'the sold-out dry line is wrong: ' + t);
+          window.HearthriseAccrual.hydrateHunt(window.G, { vigour: dry(B.utcDayKey(Date.now() + 86400000)) });
+          await r.paint();
+          assert(at() - at0 === 86400000, 'data-renew-at did not move one day with day_key: ' + at0 + ' -> ' + at());
+          const chip = window.vigourChipHtml(dry(key), null);
+          assert(/Out of Vigour/.test(chip) && !/Refills are on the Fight screen/.test(chip), 'the chip offers a refill that is not for sale: ' + chip);
+        } finally { r.restore(); }
+      }),
+
+      () => tryRunAsync('CODEX-VIGOUR-1: the dry line\'s "What is Vigour?" opens the Codex at Vigour', async () => {
+        const r = rig({ meter: Object.assign(METER(), { spent_min: 1100, remaining_min: 0 }),
+          refill: () => ({ json: { ok: false, error: 'rate_limited' } }) });
+        try { await r.paint();
+          const b = r.host.querySelector('[data-codex="vigour"]');
+          assert(b, 'the dry line has no "What is Vigour?" button: ' + r.text());
+          b.click();
+          await import('../../data/codex.js?v=558');
+          for (let i = 0; i < 10 && !document.querySelector('#codex-modal.show'); i++) await drain();
+          assert(document.querySelector('#codex-modal.show'), 'the Codex did not open');
+          assert(document.querySelector('#cx-vigour[open]'), 'the Codex did not open at the Vigour entry');
+        } finally { if (window.HearthriseCodex) window.HearthriseCodex.close(); r.restore(); }
       }),
 
       // ── regression suite — THE VIGOUR BAR WAS BUILT AND NEVER MOUNTED ──────

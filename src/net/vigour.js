@@ -87,7 +87,7 @@
   var SENTENCES = {
     missing_idem:     'That request was incomplete — nothing was spent.',
     refill_unpriced:  'Refills are not on sale yet — nothing was spent.',
-    vigour_daily_cap: 'No more refills today. They come back when the day turns (UTC).',
+    vigour_daily_cap: 'No more refills today. They come back at midnight UTC.',
     no_character:     'Your character is still loading — try again in a moment.',
     bad_slot:         'Something was wrong with that request — nothing was spent.',
     intent_mismatch:  'That went out twice — try again in a moment.',

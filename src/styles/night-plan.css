@@ -15,9 +15,7 @@
   color: var(--ink-2);
 }
 .np-door-row { display: flex; flex-wrap: wrap; gap: 6px; }
-.np-door { white-space: nowrap; }
-
-@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
-  .np-door-row { gap: 4px; }
-  .np-door { white-space: normal; }
-}
+.np-door { max-width: 100%; white-space: normal; text-align: left; }
+/* On the welcome card the doors ride a row's value cell; they take a full line. */
+.wb-row:has(> b > .np-doors) { flex-wrap: wrap; }
+.wb-row > b:has(> .np-doors) { flex: 1 0 100%; font-weight: inherit; }

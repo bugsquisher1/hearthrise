@@ -11719,9 +11719,9 @@ setInterval(function(){ refreshActivityBar(); try{ tickPlayMs(); }catch(e){} }, 
    occluded tab's timers to 1/s and, after five minutes hidden, 1/MINUTE. Same
    defect the b373 note above this file describes for woodcutting, arriving
    through a different door.
-   `hearthrise:fall` is dispatched synchronously from applyEnvelopeState on
-   every envelope (src/net/accrue.js), so the fact and its repaint travel
-   together and neither is subject to a timer. One link, no new wrapper. */
+   `hearthrise:fall` is dispatched at the tail of every envelope apply
+   (src/net/accrue.js holdFallAnnounce, record.js 'fall-announce'), so the fact
+   and its repaint travel together and neither is subject to a timer. */
 try{
   window.addEventListener('hearthrise:fall', function(){
     try{ refreshActivityBar(); }catch(e){}
@@ -13541,24 +13541,10 @@ function maybeShowWelcome(opts){
             _fix = 'You had nothing to eat. A stocked bag would have turned that recovery into '
                  + 'fighting — about ' + _upTxt + ' tonight\'s loot.';
           } else if(_hadFood === true && !_aeOn){
-            /* NAME THE BAG. The player who is carrying the answer and has the
-               switch off is the one this sentence exists for. */
-            var _fq = 0, _fn = '';
-            try{
-              var _best = null;
-              for(var _id in (G.inventory||{})){
-                if(!Object.prototype.hasOwnProperty.call(G.inventory, _id)) continue;
-                var _it = ITEMS[_id];
-                if(!_it || !(G.inventory[_id] > 0)) continue;
-                if(!(_it.heals > 0) || _it.foodClass === 'buff') continue;
-                if(!_best || (_it.heals||0) > (_best.h||0)) _best = {q:G.inventory[_id], n:_it.n||_id, h:_it.heals||0};
-              }
-              if(_best){ _fq = _best.q; _fn = _best.n; }
-            }catch(e){}
-            _fix = _fq > 0
-              ? 'You were carrying ' + _fq + ' ' + _fn + ' and Auto-Eat was switched off. '
-                + 'Switched on, that bag was worth about ' + _upTxt + ' tonight\'s loot.'
-              : 'Auto-Eat was switched off. Switched on, your provisions were worth about '
+            /* NO QUANTITY. The receipt states the bag held food, not how much;
+               today's bag is a different instant (food bought since would be
+               quoted as the night's), so the sentence names no count. */
+            _fix = 'Auto-Eat was switched off. Switched on, your provisions were worth about '
                 + _upTxt + ' tonight\'s loot.';
           } else if(_ateAll){
             _fix = 'You ate every provision you had and still fell. Cook a tier up, or take a '

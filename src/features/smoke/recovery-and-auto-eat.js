@@ -8,6 +8,80 @@
 // ══════════════════════════════════════════════════════════════════════
 import { pass, fail, tryRun, tryRunAsync, assert, skip, snapshotG, drain, restoreG, stubSignedIn, on, snapshot, closeOverlays } from './_harness.js?v=555';
 
+/* ══ THE KO-SHEET FIXTURE (KO-*) — one self-consistent fall, both doors ═══════
+   RUNG is the ladder's own price of the third fall today; the receipt's `at`
+   is 30 s ago and the line ends one RUNG later, so the record is PAIRED with the
+   knockout. `door2` is the accrue envelope (A.applyEnvelope), `door1` the boot
+   hr_load through R.requestRecord — never applyRecord, which skips the steps.
+   `reload()` is a fresh page: every module mirror and the NO_SYNC scratch go.
+   Runs on the live G (legacy's binding is the one activity-resume writes), and
+   `done()` restores it, the transport, the switch and the sheet together. */
+const koFix = () => {
+  const A = window.HearthriseAccrual, D = window.HearthriseDeathSheet, R = window.HearthriseRecord;
+  const AW = window.HearthriseCore && window.HearthriseCore.away, G = window.G;
+  assert(A && D && R && AW && typeof A.applyEnvelope === 'function', 'the KO seams are not wired');
+  const RUNG = AW.recoveryFor({ deathsTodayBefore: 2, deathsLifetimeBefore: 8 });
+  assert(RUNG > 60000, 'the fixture rung is ' + RUNG + 'ms, too short to be a running line');
+  const AT = Date.now() - 30000, UNTIL = AT + RUNG, iso = (t) => new Date(t).toISOString();
+  const snap = snapshotG(), realFetch = window.fetch, realAuto = window.HearthriseAuto;
+  const realGC = window.HearthriseGoalClaim, wasOn = A.isServerAccrualEnabled();
+  const keep = { log: G.combatLog, kills: G.combatKillsThisFoe, consec: G.consecFalls, off: G.lastOfflineSummary };
+  let ver = 1000;
+  const receipt = (o) => Object.assign({ grantMs: 60000, awayMs: 60000, paidMs: 30000, at: AT, gold: 0,
+    xp: {}, items: {}, kills: 7, crits: 0, burnt: 0, stoppedBy: null, stoppedById: null, stoppedSkill: null,
+    stoppedPerHour: 0, died: true, diedTo: 'slime', deaths: 1, recoverMs: RUNG, recoverLadder: [RUNG],
+    foodEaten: 2, autoEat: { enabled: true, pct: 25, hadFood: true }, blessed: false, featuredMs: 0 }, o);
+  const state = (o) => Object.assign({ slot: 0, accrued_to: iso(Date.now()), active_kind: 'combat',
+    active_id: 'slime', hp: 8, max_hp: 20, recovering_until: iso(UNTIL), consec_falls: 1, deaths_today: 3,
+    deaths_lifetime: 9, last_away_receipt: receipt() }, o);
+  const autoOn = (on) => { window.HearthriseAuto = Object.assign({}, realAuto,
+    { getEat: () => Object.assign({}, realAuto.getEat(), { enabled: on }) }); };
+  const quiet = () => { try { window.stopCombat(); window.stopSkill(); } catch (e) {}
+    try { window.HearthriseActivity.setConfirmedActivity(null); } catch (e) {} };
+  const reload = (bag) => {
+    window.fetch = realFetch; D.__resetForTest(); A.clearFall(); A.__resetAwayReceipt(); A.__resetServerHp();
+    R.resetRecord(); quiet();
+    Object.assign(G, { inventory: Object.assign({}, bag), combatLog: [], combatKillsThisFoe: 0,
+      lastOfflineSummary: null, playerHp: 20, playerMaxHp: 20 });
+    delete G.consecFalls;
+  };
+  const door2 = (st, inv) => A.applyEnvelope(G, { ok: true, accrued: true, version: ++ver, now: iso(Date.now()),
+    state: st, skills: {}, inventory: inv || {}, away: receipt() });
+  const door1 = async (st, inv) => {
+    window.fetch = function (u) {
+      if (!/hr_load/.test(String(u))) return realFetch.apply(this, arguments);
+      return Promise.resolve(new Response(JSON.stringify({ ok: true, version: ++ver, now: iso(Date.now()),
+        state: st, skills: {}, inventory: inv || {} }), { status: 200 }));
+    };
+    R.configureRecord({ url: 'https://proj.supabase.co/', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
+    const v = await R.requestRecord();
+    assert(v.outcome === 'loaded', 'the boot read did not load: ' + JSON.stringify(v));
+  };
+  const sheet = () => {
+    const el = document.getElementById('hr-death-scrim');
+    if (!el || !el.classList.contains('show')) return null;
+    const tx = (n) => (n ? n.textContent : null), tip = el.querySelector('.hr-death-tip');
+    return { title: tx(el.querySelector('h2')), lead: tx(el.querySelector('.hr-death-lead')).replace(/\d/g, ''),
+      rows: Array.from(el.querySelectorAll('.hr-death-row')).map((r) => ({ k: r.getAttribute('data-row'),
+        t: tx(r.querySelector('.hr-death-t')), v: tx(r.querySelector('b')) || '' })),
+      tipKey: tip ? tip.getAttribute('data-tip') : null, tip: tx(tip), note: tx(el.querySelector('[data-note]')),
+      acts: Array.from(el.querySelectorAll('.hr-death-acts button')).map((b) => [b.textContent, b.disabled]) };
+  };
+  const row = (sh, k) => (sh && sh.rows.filter((r) => r.k === k)[0]) || null;
+  const done = () => {
+    window.fetch = realFetch; window.HearthriseAuto = realAuto; window.HearthriseGoalClaim = realGC;
+    try { R.resetRecord(); R.configureRecord(null); } catch (e) {}
+    try { D.__resetForTest(); A.clearFall(); A.__resetAwayReceipt(); A.setServerAccrualEnabled(wasOn); } catch (e) {}
+    quiet();
+    Object.assign(G, { combatLog: keep.log, combatKillsThisFoe: keep.kills, lastOfflineSummary: keep.off });
+    if (keep.consec === undefined) delete G.consecFalls; else G.consecFalls = keep.consec;
+    restoreG(snap);
+    try { D.__resetForTest(); } catch (e) {}
+  };
+  A.setServerAccrualEnabled(true); autoOn(true); reload({});
+  return { A, D, R, G, RUNG, AT, UNTIL, iso, receipt, state, autoOn, reload, door1, door2, sheet, row, done };
+};
+
 export default [
 
   /* ══════════════════════════════════════════════════════════════════════════
@@ -604,7 +678,7 @@ export default [
        refusal was silent. So the PRICE is asserted where it is honest (a bag
        with food) and the DISABLED wording where it is not. */
     const downFed = D.describeDeath(Object.assign({}, base, {
-      recoveringUntilMs: 1000000 + 107000, foodQty: 4, foodName: 'Cooked Shrimp' }));
+      recoveringUntilMs: 1000000 + 107000, foodQty: 4, restFood: 4, foodName: 'Cooked Shrimp' }));
     assert(downFed.actions[0].label === 'Rest at the Hearth — eat 6 health' && !downFed.actions[0].disabled,
       'the Rest action does not price itself in health, so the player cannot tell whether their bag '
       + 'covers it: ' + downFed.actions[0].label);
@@ -2444,5 +2518,193 @@ export default [
       if (typeof window.stopSkill === 'function') try { window.stopSkill(); } catch {}
       restoreG(snap);
     }
+  }),
+  /* ══ KO-* — THE KNOCKED-OUT SHEET TELLS ONE STORY (CLAUDE.md §6) ════════════
+     MEASURED LIVE: 'Slain by Slime · 3 kills first' became 'Slain in battle · no
+     kills' on a reload, and the tip read today's bag instead of the bag at the
+     fall. ROOT CAUSE: the sheet read the event from client scratch and state as
+     it is NOW, and was announced partway through the apply on both doors.
+     Mutations proven in the commit messages (M1-M9). */
+  () => tryRunAsync('KO-RELOAD-1 (attended): the sheet reads the same before and after a reload', async () => {
+    const F = koFix();
+    try {
+      Object.assign(F.G, { activeMonster: 'slime', combatKillsThisFoe: 3, inventory: { cooked_shrimp: 5 },
+        combatLog: ['Auto-ate Cooked Shrimp (+8)', 'You eat Cooked Shrimp.'] });
+      F.A.noteFall(Date.now());
+      F.D.show({}, { streakBroken: false, recoverMs: F.RUNG, resumeHp: 8, deathsToday: 3, retreat: false });
+      F.door2(F.state(), { cooked_shrimp: 5 });
+      const a = F.sheet();
+      F.reload({ cooked_shrimp: 5 });
+      await F.door1(F.state(), { cooked_shrimp: 5 });
+      const b = F.sheet();
+      assert(a && b && JSON.stringify(a) === JSON.stringify(b),
+        'the reload rewrote the sheet:\n  before ' + JSON.stringify(a) + '\n  after  ' + JSON.stringify(b));
+      assert(F.row(b, 'killed-by').t === 'Slain by Slime', 'the killer is not the record\'s: ' + JSON.stringify(b.rows[0]));
+      assert(!b.rows.some((r) => /kill/.test(r.v)), 'a kill count nobody stated: ' + JSON.stringify(b.rows));
+      assert(b.tipKey === 'outmatched' && !/carrying \d+ x/.test(b.tip || ''), 'tip ' + b.tipKey + ': ' + b.tip);
+    } finally { F.done(); }
+  }),
+
+  () => tryRunAsync('KO-RELOAD-1 (away): the envelope-raised sheet equals the reloaded one, Rest priced', async () => {
+    const F = koFix();
+    try {
+      F.door2(F.state(), { cooked_shrimp: 5 });
+      const a = F.sheet();
+      F.reload({ cooked_shrimp: 5 });
+      await F.door1(F.state(), { cooked_shrimp: 5 });
+      const b = F.sheet();
+      assert(a && b && JSON.stringify(a) === JSON.stringify(b),
+        'the two doors disagree:\n  door 2 ' + JSON.stringify(a) + '\n  door 1 ' + JSON.stringify(b));
+      assert(b.acts.some((x) => x[0] === 'Rest at the Hearth — eat 12 health' && !x[1]),
+        'Rest is not offered for the 12 missing health: ' + JSON.stringify(b.acts));
+    } finally { F.done(); }
+  }),
+
+  () => tryRun('KO-DOOR-ORDER-1: the accrue door raises the sheet AFTER hp and the bag land', () => {
+    const F = koFix();
+    let a = null;
+    /* THE SHEET AS FIRST RAISED, not after a later redraw repaired it: the
+       sheet's own listener runs first, so this reads what the player saw. */
+    const first = () => { if (!a) a = F.sheet(); };
+    window.addEventListener('hearthrise:fall', first);
+    try {
+      F.door2(F.state(), { cooked_shrimp: 5 });
+      assert(a && a.acts.some((x) => /^Rest at the Hearth/.test(x[0]) && !x[1]),
+        'the raised sheet offers no enabled Rest with 5 shrimp and 12 health missing: ' + JSON.stringify(a && a.acts));
+      assert(!/no cooked food left/.test(a.note || ''), 'the sheet says the bag is empty: ' + a.note);
+    } finally { window.removeEventListener('hearthrise:fall', first); F.done(); }
+  }),
+
+  () => tryRunAsync('KO-FOOD-AT-FALL-1: the tip is the bag AT the fall; Rest follows the bag NOW', async () => {
+    const F = koFix();
+    try {
+      /* (i) the engine ate nothing from an EMPTY bag, then the player buys food. */
+      const st = F.state({ last_away_receipt: F.receipt({ foodEaten: 0, autoEat: { enabled: true, pct: 25, hadFood: false } }) });
+      await F.door1(st, {});
+      const a = F.sheet();
+      assert(a && a.tipKey === 'auto-eat-idle' && a.acts.some((x) => /No food to rest with/.test(x[0]) && x[1]),
+        '(i) the empty-bag boot: ' + JSON.stringify(a));
+      F.door2(st, { cooked_shrimp: 5 });
+      const b = F.sheet();
+      assert(b.acts.some((x) => /^Rest at the Hearth/.test(x[0]) && !x[1]) && !F.row(b, 'no-food'),
+        '(i) the purchase landed and the sheet did not redraw: ' + JSON.stringify(b));
+      assert(b.tipKey === 'auto-eat-idle' && !/carrying \d+ x/.test(b.tip || ''), '(i) tip moved: ' + b.tipKey + ' ' + b.tip);
+      F.reload({ cooked_shrimp: 5 });
+      await F.door1(st, { cooked_shrimp: 5 });
+      assert(JSON.stringify(F.sheet()) === JSON.stringify(b), '(i) the reload rewrote it: ' + JSON.stringify(F.sheet()));
+      /* (ii) food held, nothing auto-eaten: a manual Eat is not counted, so no tip. */
+      const st2 = F.state({ last_away_receipt: F.receipt({ foodEaten: 0 }) });
+      F.reload({ cooked_shrimp: 5 });
+      await F.door1(st2, { cooked_shrimp: 5 });
+      const c = F.sheet();
+      F.reload({});
+      await F.door1(st2, {});
+      const d = F.sheet();
+      assert(c.tipKey === d.tipKey && !/carrying \d+ x/.test((c.tip || '') + (d.tip || '')),
+        '(ii) the tip followed the bag: ' + c.tipKey + ' → ' + d.tipKey + ' ' + c.tip);
+    } finally { F.done(); }
+  }),
+
+  () => tryRunAsync('KO-FED-3-BOOT: a fed third fall the engine did not end is not a retreat', async () => {
+    const F = koFix();
+    try {
+      await F.door1(F.state({ consec_falls: 3 }), { cooked_shrimp: 5 });
+      const a = F.sheet();
+      assert(a && !/You pulled back|empty bag/.test(JSON.stringify(a)), 'a fed run was retreated: ' + JSON.stringify(a));
+      assert(F.row(a, 'resume').v === 'automatic', 'the resume row: ' + JSON.stringify(F.row(a, 'resume')));
+    } finally { F.done(); }
+  }),
+
+  () => tryRunAsync('KO-FED-3-GATHER: fishing while knocked out is not a retreat, record or no record', async () => {
+    const F = koFix();
+    try {
+      await F.door1(F.state({ consec_falls: 3, active_kind: 'gather', active_id: 'shrimp_s', last_away_receipt: null }),
+        { cooked_shrimp: 5 });
+      const a = F.sheet();
+      assert(F.G.activeSkill, 'the boot did not resume the gather run, so this proves nothing');
+      assert(a && !/You pulled back/.test(JSON.stringify(a)), 'a live gather run read as a retreat: ' + JSON.stringify(a));
+    } finally { F.done(); }
+  }),
+
+  () => tryRunAsync('RETREAT-PAIRED: a record that says the engine retreated is still believed', async () => {
+    const F = koFix();
+    try {
+      await F.door1(F.state({ consec_falls: 3, active_kind: 'idle', active_id: null,
+        last_away_receipt: F.receipt({ stoppedBy: 'retreat' }) }), { cooked_shrimp: 5 });
+      assert(/You pulled back/.test(JSON.stringify(F.sheet())), 'the retreat was dropped: ' + JSON.stringify(F.sheet()));
+    } finally { F.done(); }
+  }),
+
+  () => tryRunAsync('KO-MIDNIGHT: a knockout across 00:00 UTC keeps the cost it was charged', async () => {
+    const F = koFix();
+    try {
+      await F.door1(F.state({ deaths_today: 0 }), { cooked_shrimp: 5 });
+      const want = 'Knocked out for ' + Math.round(F.RUNG / 60000) + 'm — nothing earns while you recover';
+      const r = F.row(F.sheet(), 'run-stopped');
+      assert(r && r.t === want, 'paired: ' + JSON.stringify(r) + ' — wanted "' + want + '"');
+      F.reload({ cooked_shrimp: 5 });
+      await F.door1(F.state({ deaths_today: 0, last_away_receipt: null }), { cooked_shrimp: 5 });
+      assert(!/First fall of the day/.test(JSON.stringify(F.sheet())),
+        'unpaired: "First fall of the day" under a running countdown: ' + JSON.stringify(F.sheet()));
+    } finally { F.done(); }
+  }),
+
+  () => tryRun('KO-ANSWERTAP-1: a refused tap keeps the open sheet\'s own engine facts', () => {
+    const F = koFix();
+    try {
+      F.A.noteFall(Date.now());
+      F.D.show({}, { streakBroken: true, recoverMs: 0, resumeHp: 8 });
+      assert(F.row(F.sheet(), 'streak'), 'the fixture sheet has no streak row');
+      F.D.answerTap('Knocked out');
+      assert(F.row(F.sheet(), 'streak'), 'the tap redrew the sheet without its engine info: ' + JSON.stringify(F.sheet()));
+    } finally { F.done(); }
+  }),
+
+  () => tryRunAsync('KO-REST-INFLIGHT: an envelope during a Rest does not re-arm the button', async () => {
+    const F = koFix();
+    try {
+      await F.door1(F.state(), { cooked_shrimp: 5 });
+      window.HearthriseGoalClaim = Object.assign({}, window.HearthriseGoalClaim, { rest: () => new Promise(() => {}) });
+      document.querySelector('#hr-death-scrim [data-act="rest"]').click();
+      F.door2(F.state({ hp: 10 }), {});
+      const b = document.querySelector('#hr-death-scrim [data-act="rest"]');
+      assert(b && b.disabled && b.textContent === 'Resting…', 'the redraw re-armed Rest: ' + (b && b.outerHTML));
+    } finally { F.done(); }
+  }),
+
+  () => tryRun('WELCOME-AE-OFF-1: the auto-eat-off line never quotes today\'s bag as the night\'s', () => {
+    const F = koFix();
+    try {
+      const off = { hrs: 8, awayMs: 8 * 3600000, gainedXp: 10, gainedItems: 0, gainedGold: 0, gainedKills: 3,
+        at: Date.now(), died: true, diedTo: 'slime', deaths: 4, recoverMs: 2 * 3600000, foodEaten: 0,
+        recoverLadder: [0, 120000, 240000, 120000], autoEat: { enabled: false, pct: 25, hadFood: true } };
+      const read = (bag) => {
+        Object.assign(F.G, { inventory: bag, lastOfflineSummary: Object.assign({}, off) });
+        window.__maybeShowWelcome({ again: true });
+        return document.getElementById('welcome-rows').textContent;
+      };
+      const t1 = read({ cooked_shrimp: 5 }), t2 = read({ cooked_shrimp: 12 });
+      assert(/Auto-Eat was switched off/.test(t1), 'the fixture never reached the auto-eat-off line: ' + t1);
+      assert(t1 === t2 && !/You were carrying \d+/.test(t1), 'the line reads the bag now: ' + t1 + ' | ' + t2);
+    } finally {
+      const ov = document.getElementById('welcome-overlay');
+      if (ov) ov.classList.remove('show');
+      F.done();
+    }
+  }),
+
+  () => tryRun('HOME-KO-CLOCK-1: the Home card\'s recovery clock is the live server line', () => {
+    const F = koFix();
+    const H = window.HearthriseHome;
+    try {
+      const rec = { hrs: 1, awayMs: 3600000, at: Date.now(), died: true, diedTo: 'slime', deaths: 1,
+        recoverMs: 12 * 60000, recoverRemainingMs: 12 * 60000, recoverLadder: [12 * 60000], stoppedBy: null };
+      F.A.applyEnvelopeState(F.G, { state: { recovering_until: null } });
+      assert(!/Still recovering/.test(H.__awayCardHtml(rec)), 'a Rest cleared the line and the card still counts it down');
+      F.door2(F.state(), {});
+      const restored = Object.assign({}, rec, { restored: true });
+      delete restored.recoverRemainingMs;
+      assert(/Still recovering/.test(H.__awayCardHtml(restored)), 'the server line runs and the card says nothing');
+    } finally { F.done(); }
   }),
 ];

@@ -5472,7 +5472,7 @@ export default [
     /* Knocked out, hurt, and CARRYING food — so the button is offered. */
     const moment = { monsterName: 'Grey Wolf', maxHp: 30, resumeHp: 12, deathsToday: 2,
       recoveryMs: 120000, recoveringUntilMs: Date.now() + 180000, nowMs: Date.now(),
-      missingHp: 7, foodQty: 4, foodName: 'Cooked Shrimp', ateThisFight: 0 };
+      missingHp: 7, foodQty: 4, restFood: 4, foodName: 'Cooked Shrimp', ateThisFight: 0 };
     try {
       const model = D.describeDeath(moment);
       const rest = model.actions.filter((a) => a.k === 'rest')[0];
@@ -5507,7 +5507,7 @@ export default [
       } finally { AC.clearFall = savedClear; }
 
       // (3) NO FOOD AT ALL: the button cannot lie
-      const dryMoment = Object.assign({}, moment, { foodQty: 0 });
+      const dryMoment = Object.assign({}, moment, { foodQty: 0, restFood: 0 });
       const dry = D.describeDeath(dryMoment);
       const dryRest = dry.actions.filter((a) => a.k === 'rest')[0];
       assert(dryRest && dryRest.disabled && /no food/i.test(dryRest.label),

@@ -720,7 +720,14 @@
        the server will refuse their next swing, on the DURABLE surface.
        ⚠ HOISTED OUT OF THE DEATH BLOCK so a RETREAT night keeps it: that fall
          charged its rung like any other. */
-    var recLeft = Math.max(0, Number(off.recoverRemainingMs) || 0);
+    /* THE LIVE LINE, never the receipt's settle-time snapshot: that froze for
+       the card's half hour, outlived a Rest, and was gone after a reload (§6).
+       No line running, no sentence. */
+    var recLeft = 0;
+    try {
+      var AC = window.HearthriseAccrual;
+      recLeft = Math.max(0, ((AC && typeof AC.recoveringUntilMs === 'function') ? AC.recoveringUntilMs() : 0) - Date.now());
+    } catch (e) { recLeft = 0; }
     if (recLeft > 0 && (retreat || (death && Math.max(0, Number(off.deaths) || 0) >= 1
                                     && off.stoppedBy !== 'death'))) {
       /* ⚠ ONE AUTHOR FOR THIS SENTENCE - the death sheet prints the same clock

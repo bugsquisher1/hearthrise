@@ -1410,6 +1410,33 @@ export default [
     }
   }),
 
+  () => tryRun('MODAL-BACKDROP-1: a .modal built after boot closes on its backdrop, and the block list never duplicates', () => {
+    // The backdrop listener bound only to boot-time .modal nodes, so buy-back and
+    // the block list ignored a backdrop click; the block list's Escape left a
+    // hidden #blocklist-modal that the next open duplicated.
+    const savedBuyback = window.G.buyback;
+    const backdrop = (el) => el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const manage = () => { window.openSettings(); document.querySelector('#settings-body #set-show-blocklist').click(); };
+    try {
+      window.G.buyback = [];
+      window.openBuyback();
+      const bb = document.getElementById('bb-modal');
+      backdrop(bb);
+      assert(!bb.classList.contains('show'), 'a backdrop click did not close the buy-back sheet');
+      manage();
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      manage();
+      const n = document.querySelectorAll('#blocklist-modal').length;
+      assert(n === 1, 'the block list re-opened as ' + n + ' #blocklist-modal nodes');
+      backdrop(document.getElementById('blocklist-modal'));
+      assert(!document.querySelector('#blocklist-modal.show'), 'a backdrop click did not close the block list');
+    } finally {
+      window.G.buyback = savedBuyback;
+      document.querySelectorAll('#blocklist-modal').forEach((el) => el.remove());
+      window.closeAllModals();
+    }
+  }),
+
   // ── b126 regression suite: every bug we fixed in b119–b125 ──
   // Each test guards against a specific historical regression. If
   // any of these fail we're shipping a bug we already paid for once.

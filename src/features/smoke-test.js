@@ -166,6 +166,11 @@ export async function runSmokeTest(opts = {}) {
   const _Rn = window.HearthriseRenown;
   let _rnPollWasOn = true;
   try { if (_Rn && typeof _Rn.__setPollEnabled === 'function') _rnPollWasOn = _Rn.__setPollEnabled(false); } catch (e) {}
+  /* Same class, the once-a-day sheet: its auto-open waits for NO open overlay,
+     and between tests there is none, so it would land on the next test that waits. */
+  const _Dl = window.HearthriseDaily;
+  let _dlAutoWasOn = true;
+  try { if (_Dl && typeof _Dl.__setAutoOpenEnabled === 'function') _dlAutoWasOn = _Dl.__setAutoOpenEnabled(false); } catch (e) {}
   const _Prop = window.HearthriseProperty;
   let _propParked = null;
   try {
@@ -222,6 +227,7 @@ export async function runSmokeTest(opts = {}) {
     try { if (_Comp && typeof _Comp.__clearGrantBlocks === 'function') _Comp.__clearGrantBlocks(); } catch (e) {}
     try { if (_Rn && typeof _Rn.__setPollEnabled === 'function') _Rn.__setPollEnabled(_rnPollWasOn); } catch (e) {}
     try { if (_SP && typeof _SP._park === 'function') _SP._park(_primersWereParked); } catch (e) {}
+    try { if (_Dl && typeof _Dl.__setAutoOpenEnabled === 'function') _Dl.__setAutoOpenEnabled(_dlAutoWasOn); } catch (e) {}
     try {
       /* THE RECEIPT, not the pair: __resetPropertyRecord round-trips the
          exact/floor provenance too, so a live session whose record was only a

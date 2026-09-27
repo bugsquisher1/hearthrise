@@ -544,6 +544,39 @@ export default [
     }
   }),
 
+  /* -- regression suite -- MODAL-FIT-2: overflowing Quartermaster and bug report keep their
+     controls on screen; Escape closes the Quartermaster and the Hearthfind veil (whose
+     fading-out node must read as closed) but never the bug form, which keeps typed text. */
+  () => tryRunAsync('MODAL-FIT-2: Quartermaster, bug report and Hearthfind veil fit; Escape spares only the bug form', async () => {
+    const unpark = mfClear(), HF = window.HearthriseHearthfind;
+    try {
+      window.openQuartermaster();
+      const qm = document.getElementById('quartermaster-overlay'), qb = document.getElementById('quartermaster-body');
+      qb.innerHTML = '<div class="qm-row">Row</div>'.repeat(200);
+      mfReach(qm.querySelector('.qm-close'), 'the Quartermaster close');
+      mfInView(qm.querySelector('.quartermaster-modal'), 'the Quartermaster card');
+      assert(qb.scrollHeight > qb.clientHeight, 'the Quartermaster rows are not a scroll region');
+      mfEsc();
+      assert(!document.getElementById('quartermaster-overlay'), 'Escape did not close the Quartermaster');
+      window.HearthriseBugReport.open();
+      document.querySelector('#hr-bug-modal textarea').rows = 400;
+      mfReach(document.querySelector('#hr-bug-modal [type=submit]'), 'the bug report\'s Send');
+      mfEsc();
+      assert(document.getElementById('hr-bug-modal'), 'Escape threw away the typed bug report');
+      document.getElementById('hr-bug-modal').remove();   // it sits above the veil; the veil is measured alone
+      const find = HF.findOn({ version: 9, state: {}, hearthfind: { item: 'emberheart', source_kind: 'monster', source_id: 'dragon', one_in: 26000, nth_today: 1, at: '2026-09-08T12:00:00Z' } });
+      const veil = HF.showReveal(find, G);
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      mfReach(veil.querySelector('[data-hf=close]'), 'the Hearthfind Close');
+      mfEsc();
+      assert(!veil.classList.contains('in') && window.HearthriseSheet.topOpen() !== veil, 'Escape left the veil open, or its fade-out still reads as open');
+    } finally {
+      ['quartermaster-overlay', 'hr-bug-modal', 'hr-hf-veil'].forEach((id) => { const e = document.getElementById(id); if (e) e.remove(); });
+      if (HF) HF.dismissReveal();
+      unpark();
+    }
+  }),
+
   /* -- regression suite -- RESIDUE-PURGE: THE SERVER'S COPY WINS, FIELD BY FIELD
      Nine residue fields were SECOND COPIES of values hr_state_of already
      projects, and each had been measured saying something the server denied: the

@@ -308,10 +308,12 @@
          (999999), the session-moved veil and the boot veil (100000/99999/99998).
          The rarest moment in the game outranks a shop; it does not outrank
          "your session moved to another tab". */
-      '.hr-hf-veil{position:fixed;inset:0;z-index:99990;display:flex;align-items:center;',
-      'justify-content:center;background:rgba(0,0,0,.72);opacity:0;',
+      /* Position, inset and the height cap are .hr-scrim/.hr-sheet. The fading-out
+         veil takes no pointer, so Escape's open test reads it as closed. */
+      '.hr-hf-veil{z-index:99990;display:flex;align-items:center;',
+      'justify-content:center;background:rgba(0,0,0,.72);opacity:0;pointer-events:none;',
       'transition:opacity 400ms ease}',
-      '.hr-hf-veil.in{opacity:1}',
+      '.hr-hf-veil.in{opacity:1;pointer-events:auto}',
       '.hr-hf-card{position:relative;max-width:min(92vw,420px);padding:26px 22px 18px;',
       /* AN OPAQUE BASE, THEN THE TOKEN GLOW. `--panel` is semi-transparent in
          this theme, and the reveal lands over the hero banner: at 1440×900 the
@@ -445,20 +447,22 @@
     openVeil = null;
     var L = revealLines(find, G);
     var v = document.createElement('div');
-    v.className = 'hr-hf-veil';
+    v.className = 'hr-hf-veil hr-scrim';
     v.id = 'hr-hf-veil';
     v.setAttribute('role', 'dialog');
     v.setAttribute('aria-label', 'A Hearthfind');
     v.innerHTML = '<div class="hr-hf-bloom"></div>'
-      + '<div class="hr-hf-card rr-frame rr-unique">'
-      + '<div class="hr-hf-eyebrow">' + esc(L.headline) + '</div>'
+      + '<div class="hr-hf-card hr-sheet rr-frame rr-unique">'
+      + '<div class="hr-hf-eyebrow hr-sheet-head">' + esc(L.headline) + '</div>'
+      + '<div class="hr-sheet-body">'
       + '<div class="hr-hf-plate">' + art(find.item, 64) + '</div>'
       + '<div class="hr-hf-name">' + esc(L.name) + '</div>'
       + '<div class="hr-hf-odds">' + esc(L.odds) + '</div>'
       + (L.meta ? '<div class="hr-hf-meta">' + esc(L.meta) + '</div>' : '')
-      + '<div class="hr-hf-acts">'
+      + '</div>'
+      + '<div class="hr-hf-acts hr-sheet-foot">'
       + '<button class="hr-hf-btn" data-hf="copy">Copy card</button>'
-      + '<button class="hr-hf-btn" data-hf="close">Close</button>'
+      + '<button class="hr-hf-btn" data-hf="close" data-hr-dismiss>Close</button>'
       + '</div></div>';
     document.body.appendChild(v);
     openVeil = v;
@@ -475,9 +479,7 @@
       if (b && b.getAttribute('data-hf') === 'copy') { copyCard(find); return; }
       if (b || e.target === v) dismissReveal();
     });
-    document.addEventListener('keydown', function onKey(e) {
-      if (e.key === 'Escape' && openVeil === v) { dismissReveal(); document.removeEventListener('keydown', onKey); }
-    });
+    // Escape presses Close through HearthriseSheet.closeTop (data-hr-dismiss).
     playSound();
     return v;
   }

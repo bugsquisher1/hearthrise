@@ -177,6 +177,95 @@ export const CTAS = [
   },
 ];
 
+/* THE DECLARED SHEETS — the modal half of this guard. Measured live at
+   1384x771: the welcome-back card grew past the screen, centred itself off both
+   edges of a page that cannot scroll, and its Continue was unreachable. A sheet
+   is only reachable if it fits, its head is on screen (below the desktop-mode
+   banner when it is up), its primary action is visible WITHOUT scrolling, and
+   Escape does what the owner says it does.
+     id       — what fails in the output
+     open     — an async function BODY evaluated in the page; it opens the sheet
+                with LONG fixture content, because a short sheet always fits
+     sheet    — the card; head — its first line; primary — the action
+     closed   — a function body returning true once Escape has closed it
+     cleanup  — a function body that puts the page back, whatever happened
+   KILL_OVERLAYS runs BEFORE `open`, never between open and measure. */
+const WHATS_NEW_FIXTURE = '"## v0.9.2-beta build 555 — 2026-09-26 (A deliberately long release title that has to wrap inside the card header)\\n\\n"'
+  + ' + Array.from({ length: 80 }, (_, n) => "* line " + n).join("\\n")';
+export const MODALS = [
+  {
+    id: 'modal/welcome-back',
+    why: 'the away receipt — its Continue is the only way on after a night away',
+    open: 'const G = window.G; G.lastOfflineSummary = { hrs: 8, awayMs: 8 * 3600e3, gainedXp: 51424, gainedItems: 6428,'
+      + ' gainedGold: 1200, gainedKills: 310, burnt: 0, combat: null, capped: false, blessed: false, buffsPaused: false,'
+      + ' crits: 12, died: true, diedAfterMs: 3 * 3600e3, diedTo: "goblin", featuredMs: 0, featuredDropMult: 1, rateMult: 1, at: Date.now() };'
+      + ' G.lastSeen = Date.now() - 8 * 3600e3; G.lastWelcome = 0; window.__maybeShowWelcome();'
+      + ' const ov = document.getElementById("welcome-overlay"); ov.style.removeProperty("display");'
+      + ' const rows = document.getElementById("welcome-rows");'
+      + ' for (let i = 0; i < 300 && rows.scrollHeight <= 1.5 * innerHeight; i++) rows.appendChild(rows.querySelector(".wb-row").cloneNode(true));',
+    sheet: '#welcome-overlay .welcome-modal',
+    head: '#welcome-overlay h2',
+    primary: '#welcome-overlay .wb-claim',
+    closed: 'return !document.getElementById("welcome-overlay").classList.contains("show");',
+    cleanup: 'const ov = document.getElementById("welcome-overlay"); if (ov) ov.classList.remove("show");',
+  },
+  {
+    id: 'modal/whats-new',
+    why: 'the release notes — "Got it" is the only control on the card',
+    /* The daily/name scrims make What's New defer while they EXIST, hidden or not. */
+    open: 'document.querySelectorAll(".hr-dl-scrim,.hr-id-scrim,.ftue-root").forEach((e) => e.remove());'
+      + ' const md = ' + WHATS_NEW_FIXTURE + '; const rf = window.fetch;'
+      + ' window.fetch = (u, ...a) => (/^CHANGELOG\\.md/.test(String(u)) ? Promise.resolve(new Response(md)) : rf(u, ...a));'
+      + ' try { window.HearthriseWelcome.force();'
+      + ' for (let i = 0; i < 60 && !document.getElementById("hr-welcome-modal"); i++) await new Promise((r) => setTimeout(r, 50)); }'
+      + ' finally { window.fetch = rf; }',
+    sheet: '#hr-welcome-modal > div',
+    head: '#hr-welcome-modal h2',
+    primary: '#hr-welcome-ok',
+    closed: 'return !document.getElementById("hr-welcome-modal");',
+    cleanup: 'const w = document.getElementById("hr-welcome-modal"); if (w) w.remove();',
+  },
+  {
+    id: 'modal/confirm-long',
+    why: 'the one way the game asks a question — its answer row must never leave the screen',
+    open: 'window.HearthriseDialog.confirm({ title: "Long", body: Array(Math.ceil(innerHeight / 10)).fill("line").join("\\n") });',
+    sheet: '.qm-overlay .hr-confirm',
+    head: '.hr-confirm h3',
+    primary: '.hr-confirm [data-hrc=yes]',
+    closed: 'return !document.querySelector(".hr-confirm");',
+    cleanup: 'const no = document.querySelector(".hr-confirm [data-hrc=no]"); if (no) no.click();',
+  },
+];
+
+/* The size the welcome-back defect was measured at, live. Sheets only — the CTA
+   passes above already cover the laptop panels on either side of it. */
+export const MODAL_PASSES = [
+  { w: 1384, h: 771, sheetsOnly: true },
+];
+
+/* Serialised into the browser: opens one sheet and reads its geometry. */
+async function SHEET_PROBE(spec) {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  try { await (new Function('return (async () => {' + spec.open + '})()'))(); }
+  catch (e) { return { threw: 'open: ' + String(e && e.message || e).slice(0, 120) }; }
+  let sheet = null;
+  for (let i = 0; i < 40 && !sheet; i++) {
+    const s = document.querySelector(spec.sheet);
+    if (s && s.getClientRects().length && getComputedStyle(s).visibility !== 'hidden') sheet = s;
+    else await sleep(50);
+  }
+  if (!sheet) return { missing: true };
+  await sleep(400);   // the fade-in, so opacity and geometry are final
+  const b = sheet.getBoundingClientRect(), head = document.querySelector(spec.head);
+  const dm = document.body.getAttribute('data-hr-desktop-mode') === '1';
+  return {
+    top: Math.round(b.top), bottom: Math.round(b.bottom), left: Math.round(b.left), right: Math.round(b.right),
+    headTop: head ? Math.round(head.getBoundingClientRect().top) : null,
+    banner: dm ? Math.round(parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hr-dm-banner-h')) || 0) : 0,
+    vw: innerWidth, vh: innerHeight,
+  };
+}
+
 // ── the page-side probe ─────────────────────────────────────────────────────
 // Serialised into the browser. Kept self-contained (no closures over Node).
 function PROBE(spec) {
@@ -718,7 +807,7 @@ export const PLANT_FAILED = 'PLANT_FAILED';
 
 export async function reachabilityGuard(browser, url, opts = {}) {
   const problems = [];
-  const viewports = opts.viewports || [...VIEWPORTS, ...BANNER_PASSES];
+  const viewports = opts.viewports || [...VIEWPORTS, ...BANNER_PASSES, ...MODAL_PASSES];
 
   for (const vp of viewports) {
     const ctx = await browser.newContext({
@@ -801,7 +890,7 @@ export async function reachabilityGuard(browser, url, opts = {}) {
       }
       await page.waitForTimeout(200);
 
-      for (const spec of CTAS) {
+      for (const spec of vp.sheetsOnly ? [] : CTAS) {
         if (opts.only && !opts.only.includes(spec.id)) continue;
         /* End any fight a previous spec started BEFORE opening the next screen,
            so this spec's screen is not measured under a live combat tick. */
@@ -850,6 +939,43 @@ export async function reachabilityGuard(browser, url, opts = {}) {
         if (!r.hittable) {
           problems.push(`${at}: COVERED — a click at the centre of ${r.el} (y ${r.top}..${r.bottom}) `
             + `lands on ${r.blocker}. ${spec.why}` + describe(r.state));
+        }
+      }
+      for (const spec of MODALS) {
+        if (opts.only && !opts.only.includes(spec.id)) continue;
+        const at = `${vp.w}x${vp.h}${vp.banner ? '+banner' : ''} ${spec.id}`;
+        await page.evaluate(QUIESCE).catch(() => {});
+        await page.evaluate((keepBanner) => {
+          try { window.__hrKillOverlays && window.__hrKillOverlays(); } catch (e) {}
+          if (keepBanner) {
+            try { window.__hrDesktopModeShowBanner && window.__hrDesktopModeShowBanner(); } catch (e) {}
+          }
+        }, !!vp.banner);
+        try {
+          const g = await page.evaluate(SHEET_PROBE, spec).catch((e) => ({ threw: String(e && e.message || e).slice(0, 120) }));
+          if (g.threw) { problems.push(`${at}: sheet probe threw — ${g.threw}`); continue; }
+          if (g.missing) { problems.push(`${at}: the sheet never opened (${spec.sheet})`); continue; }
+          if (g.top < g.banner - 1 || g.bottom > g.vh + 1 || g.left < -1 || g.right > g.vw + 1) {
+            problems.push(`${at}: the SHEET does not fit — y ${g.top}..${g.bottom} in a ${g.vh}px viewport`
+              + (g.banner ? ` under a ${g.banner}px banner` : '') + `, x ${g.left}..${g.right} in ${g.vw}. ${spec.why}`);
+          }
+          if (g.headTop === null || g.headTop < g.banner - 1) {
+            problems.push(`${at}: the sheet's HEAD is off the top (${spec.head} at y ${g.headTop}`
+              + (g.banner ? `, banner ${g.banner}px` : '') + `). ${spec.why}`);
+          }
+          const r = await page.evaluate(PROBE, { id: spec.id, open: [], sel: spec.primary, noScroll: true })
+            .catch((e) => ({ threw: String(e && e.message || e).slice(0, 120) }));
+          if (r.threw) problems.push(`${at}: primary probe threw — ${r.threw}`);
+          else if (r.missing) problems.push(`${at}: the primary action does not exist or is not laid out (${spec.primary})`);
+          else if (!r.inView) problems.push(`${at}: the primary action is BELOW THE FOLD — ${r.el} at y ${r.top}..${r.bottom} `
+            + `in a ${r.vh}px viewport; a sheet's action must be visible without scrolling. ${spec.why}`);
+          else if (!r.hittable) problems.push(`${at}: the primary action is COVERED — a click on ${r.el} lands on ${r.blocker}. ${spec.why}`);
+          await page.keyboard.press('Escape');
+          await page.waitForTimeout(150);
+          const closed = await page.evaluate((src) => { try { return !!(new Function(src))(); } catch (e) { return false; } }, spec.closed);
+          if (!closed) problems.push(`${at}: Escape did not close the sheet. ${spec.why}`);
+        } finally {
+          await page.evaluate((src) => { try { (new Function(src))(); } catch (e) {} }, spec.cleanup).catch(() => {});
         }
       }
       /* LAST, so the mutation's own screen is still the one on show and the
@@ -1062,6 +1188,36 @@ const MUTATIONS = [
     expect: ['combat/FIGHT'],
   },
   {
+    /* The welcome-back defect as it shipped: no height cap on the sheet, so a
+       long receipt centres itself off both edges and Continue leaves the screen. */
+    name: 'M7 — take the sheet\'s height cap away (the welcome-back card as measured live: taller than the screen, nothing scrolls)',
+    css: '.hr-sheet{max-height:none !important}',
+    verify: 'var s=document.querySelector("#welcome-overlay .welcome-modal");'
+      + 'if(!s)return "the welcome card was never built";'
+      + 'var m=getComputedStyle(s).maxHeight;return m==="none"?null:"max-height computed "+m+", the cap is still on";',
+    viewports: [{ w: 1384, h: 771 }],
+    expect: ['modal/welcome-back'],
+  },
+  {
+    /* The Escape half: with the seam gone the welcome card and What's New are
+       again closable only by a click on a strip of backdrop. */
+    name: 'M8 — cut the one Escape seam (HearthriseSheet.closeTop answers false and closes nothing)',
+    js: 'window.HearthriseSheet.closeTop = function () { return false; };',
+    verify: 'return window.HearthriseSheet.closeTop() === false ? null : "closeTop was not replaced";',
+    viewports: [{ w: 1440, h: 900 }],
+    expect: ['modal/whats-new'],
+  },
+  {
+    /* The banner is fixed at top:0 over everything; without the release a
+       sheet's head sits under it. */
+    name: 'M9 — drop the scrim\'s banner release (the sheet head under the desktop-mode banner)',
+    css: 'body[data-hr-desktop-mode] .hr-scrim{top:0 !important}',
+    verify: 'var o=document.getElementById("welcome-overlay");if(!o)return "the welcome overlay was never built";'
+      + 'var t=getComputedStyle(o).top;return t==="0px"?null:"the scrim top computed "+t;',
+    viewports: [{ w: 922, h: 423, banner: true }],
+    expect: ['modal/welcome-back'],
+  },
+  {
     name: 'M3 — drop a fixed bar over the bottom of the screen (proves the HIT TEST is live, not just the box maths)',
     css: 'body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:140px;'
        + 'background:rgba(0,0,0,.5);z-index:2147483000;pointer-events:auto}',
@@ -1115,7 +1271,9 @@ if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}`
       console.log(`Reachability guard — every declared CTA is on screen and hit-testable at `
         + VIEWPORTS.map((v) => `${v.w}x${v.h}`).join(', ')
         + ', and at ' + BANNER_PASSES.map((v) => `${v.w}x${v.h}+banner`).join(', ')
-        + ' with the desktop-mode banner up.');
+        + ' with the desktop-mode banner up; every declared sheet ('
+        + MODALS.map((m) => m.id.replace('modal/', '')).join(', ') + ') fits, keeps its action on screen and closes on Escape, '
+        + 'there and at ' + MODAL_PASSES.map((v) => `${v.w}x${v.h}`).join(', ') + '.');
     }
   }
   await browser.close();

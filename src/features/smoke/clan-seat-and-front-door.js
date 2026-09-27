@@ -3525,6 +3525,34 @@ export default [
       });
   }),
 
+  () => tryRun('MODAL-BLOCK-1: a built-but-closed overlay never parks the daily sheet or the rank-up', () => {
+    // Once the welcome-back, acquisition tip or achievements node had been
+    // BUILT, an existence selector read it as "up" for the rest of the session
+    // and the daily sheet never auto-opened. The blocker is the OPEN state.
+    const guards = { daily: window.HearthriseDaily._anotherModalUp, renown: window.HearthriseRenown._anotherModalUp };
+    // A sheet an earlier test left OPEN is a real blocker; park it so this reads only the closed nodes.
+    const parked = [...document.querySelectorAll(window.HearthriseDaily._blockingOverlays() + ',.hr-dl-scrim,.hr-cl-scrim')]
+      .map((n) => [n, n.parentNode, n.nextSibling]);
+    parked.forEach(([n]) => n.remove());
+    const nodes = ['welcome-overlay', 'acq-overlay', 'ach-overlay'].map((cls) => {
+      const n = document.createElement('div');
+      n.className = cls;
+      document.body.appendChild(n);
+      return n;
+    });
+    try {
+      Object.keys(guards).forEach((k) => {
+        assert(guards[k]() === false, k + ' is parked by a closed overlay: '
+          + nodes.filter((n) => n.matches(window.HearthriseDaily._blockingOverlays())).map((n) => n.className).join(','));
+      });
+      nodes[2].classList.add('show');
+      Object.keys(guards).forEach((k) => assert(guards[k]() === true, k + ' ignored an OPEN achievements overlay'));
+    } finally {
+      nodes.forEach((n) => n.remove());
+      parked.reverse().forEach(([n, parent, next]) => parent.insertBefore(n, next));
+    }
+  }),
+
   () => tryRun('b226: a transient null auth event must not evict the cached session', () => {
     assert(typeof decideSessionEvent === 'function', 'auth.js no longer exports the session-event rule');
     const live = { access_token: 'a', user: { id: 'u' } };

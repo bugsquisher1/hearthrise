@@ -428,9 +428,9 @@
     var s = document.createElement('style');
     s.id = 'hr-ch-css';
     s.textContent = [
-      '.hr-ch-scrim{position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:18px}',
-      '.hr-ch-wrap{position:relative;background:var(--bg-1,#1f1a14);border:1px solid var(--line-strong,#b8893e);border-radius:var(--r-lg,5px);width:100%;max-width:560px;max-height:86vh;overflow-y:auto;color:var(--ink,#f4e4bc);box-shadow:0 18px 50px -12px rgba(0,0,0,.72);font-family:var(--f-ui,system-ui,sans-serif);font-size:16px}',
-      '.hr-ch-top{position:sticky;top:0;z-index:2;padding:16px 46px 13px 18px;background:var(--bg-1,#1f1a14);border-bottom:1px solid var(--line,rgba(184,137,62,.3))}',
+      '.hr-ch-scrim{z-index:100000;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center}',
+      '.hr-ch-wrap{position:relative;background:var(--bg-1,#1f1a14);border:1px solid var(--line-strong,#b8893e);border-radius:var(--r-lg,5px);width:100%;max-width:560px;color:var(--ink,#f4e4bc);box-shadow:0 18px 50px -12px rgba(0,0,0,.72);font-family:var(--f-ui,system-ui,sans-serif);font-size:16px}',
+      '.hr-ch-top{padding:16px 46px 13px 18px;background:var(--bg-1,#1f1a14);border-bottom:1px solid var(--line,rgba(184,137,62,.3))}',
       '.hr-ch-eyebrow{font-family:var(--f-label,var(--f-ui,sans-serif));font-size:14.5px;letter-spacing:.1em;color:var(--ink-3,#8a7656)}',
       '.hr-ch-hn{font-family:var(--f-display,serif);font-size:21.5px;font-weight:600;color:var(--gold,#c9a24a);line-height:1.2;margin-top:2px}',
       '.hr-ch-sub{font-size:14.5px;color:var(--ink-2,#c8b088);margin-top:3px}',
@@ -587,18 +587,18 @@
     var total = c ? c.entries.length : 0;
 
     var scrim = document.createElement('div');
-    scrim.className = 'hr-ch-scrim';
+    scrim.className = 'hr-ch-scrim hr-scrim';   // layout: art-direction.css
     scrim.id = 'hr-ch-modal';
 
     var wrap = document.createElement('div');
-    wrap.className = 'hr-ch-wrap';
+    wrap.className = 'hr-ch-wrap hr-sheet';
     wrap.setAttribute('role', 'dialog');
     wrap.setAttribute('aria-modal', 'true');
     wrap.setAttribute('aria-label', 'Chronicle');
     wrap.tabIndex = -1;
 
     var top = document.createElement('div');
-    top.className = 'hr-ch-top';
+    top.className = 'hr-ch-top hr-sheet-head';
     var eb = document.createElement('div'); eb.className = 'hr-ch-eyebrow'; eb.textContent = 'Chronicle';
     var hn = document.createElement('div'); hn.className = 'hr-ch-hn'; hn.textContent = 'What you have done';
     var sb = document.createElement('div'); sb.className = 'hr-ch-sub';
@@ -614,9 +614,11 @@
       '<path stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M4 4l8 8M12 4l-8 8"/></svg>';
     x.addEventListener('click', close);
 
+    var body = document.createElement('div'); body.className = 'hr-sheet-body';
     wrap.appendChild(top);
     wrap.appendChild(x);
-    renderBody(wrap);
+    renderBody(body);
+    wrap.appendChild(body);
     scrim.appendChild(wrap);
     scrim.addEventListener('click', function (e) { if (e.target === scrim) close(); });
     document.body.appendChild(scrim);

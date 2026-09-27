@@ -788,14 +788,14 @@ body.in-combat #combat-area {
 
 /* ---------- Combat preview modal (zone-modal) ------------------- */
 
+/* Position, gutter and height cap are the .hr-scrim/.hr-sheet primitive's
+   (art-direction.css); the header and footer stay put, the middle scrolls. */
 .mob-preview-overlay {
-  position: fixed; inset: 0;
   background: rgba(0,0,0,.78);
   backdrop-filter: blur(4px);
   z-index: 99998;
   display: none;
   align-items: center; justify-content: center;
-  padding: 24px;
   animation: mp-fade .15s ease-out;
 }
 .mob-preview-overlay.open { display: flex; }
@@ -804,7 +804,7 @@ body.in-combat #combat-area {
 .mp-modal {
   background: linear-gradient(180deg,#201b15,#110e0a);
   border: 1px solid rgba(243,209,129,.3); border-radius: 12px;
-  width: min(820px, 100%); max-height: 92vh; overflow-y: auto;
+  width: min(820px, 100%);
   box-shadow: 0 24px 80px rgba(0,0,0,.6), 0 0 80px rgba(243,209,129,.08);
   position: relative;
   padding: 24px 28px 20px;
@@ -1309,7 +1309,6 @@ body.in-combat #combat-area {
 .qm-row .qm-icon { flex:0 0 auto; width:26px; height:26px; display:inline-flex; align-items:center; justify-content:center; }
 .qm-row .qm-name { flex:1; font-size:calc(14.5px * var(--ui-scale,1)); color:var(--ink); }
 .qm-row .qm-cost { font-size:calc(14.5px * var(--ui-scale,1)); color:var(--gold-2); font-variant-numeric:tabular-nums; white-space:nowrap; }
-.quartermaster-modal { max-height:80vh; overflow-y:auto; }
 /* Wave 5c: armour set-bonus line in the Equipment stats panel */
 .eqb-set { margin: 8px 0; padding: 7px 11px; border-radius: var(--r-lg,5px);
   background: rgba(201,162,74,.12); border: 1px solid var(--gold-2);
@@ -1382,14 +1381,12 @@ body.in-combat #combat-area {
 /* ============================================================
    Manual run modal — interactive 3-phase mini-game (zone-modal)
    ============================================================ */
-.dgn-run-overlay {
-  position: fixed; inset: 0;
+.dgn-run-overlay {   /* position, inset, gutter and the height cap: .hr-scrim/.hr-sheet */
   background: rgba(0,0,0,.85);
   backdrop-filter: blur(6px);
   z-index: 99999;
   display: none;
   align-items: center; justify-content: center;
-  padding: 24px;
 }
 .dgn-run-overlay.open { display: flex; }
 .drm-modal {
@@ -1397,8 +1394,6 @@ body.in-combat #combat-area {
   border: 1px solid rgba(243,209,129,.3);
   border-radius: 12px;
   width: min(680px, 100%);
-  max-height: 92vh;
-  overflow-y: auto;
   padding: 24px 28px;
   position: relative;
   box-shadow: 0 24px 80px rgba(0,0,0,.7);
@@ -1648,14 +1643,12 @@ body.in-combat #combat-area {
 /* ============================================================
    Scavenger dungeon run modal (zone-modal)
    ============================================================ */
-.scv-overlay {
-  position: fixed; inset: 0;
+.scv-overlay {   /* position, inset, gutter and the height cap: .hr-scrim/.hr-sheet */
   background: rgba(0,0,0,.85);
   backdrop-filter: blur(6px);
   z-index: 99999;
   display: none;
   align-items: center; justify-content: center;
-  padding: 24px;
 }
 .scv-overlay.open { display: flex; }
 .scv-modal {
@@ -1663,8 +1656,6 @@ body.in-combat #combat-area {
   border: 1px solid rgba(243,209,129,.3);
   border-radius: 12px;
   width: min(820px, 100%);
-  max-height: 92vh;
-  overflow-y: auto;
   padding: 22px 26px;
   position: relative;
   box-shadow: 0 24px 80px rgba(0,0,0,.7);
@@ -1809,14 +1800,14 @@ body.in-combat #combat-area {
 /* ============================================================
    Character-select drawer (multi-character)
    ============================================================ */
+/* Position, gutter and height cap come from the .hr-scrim/.hr-sheet primitive
+   (art-direction.css); only the skin and the open contract live here. */
 .char-select-overlay {
-  position: fixed; inset: 0;
   background: rgba(0,0,0,.78);
   backdrop-filter: blur(4px);
   z-index: 99998;
   display: none;
   align-items: center; justify-content: center;
-  padding: 24px;
 }
 .char-select-overlay.open { display: flex; }
 .cs-modal {
@@ -1824,7 +1815,6 @@ body.in-combat #combat-area {
   border: 1px solid rgba(243,209,129,.3);
   border-radius: 12px;
   width: min(560px, 100%);
-  max-height: 92vh; overflow-y: auto;
   padding: 22px 26px;
   position: relative;
   box-shadow: 0 24px 80px rgba(0,0,0,.7);
@@ -1834,8 +1824,7 @@ body.in-combat #combat-area {
    and a half rows are above the fold. Tightening the bands buys a whole extra
    row without touching the desktop layout. */
 @media (max-height: 540px) {
-  .char-select-overlay { padding: 12px; }
-  .cs-modal { padding: 14px 16px; max-height: 96vh; }
+  .cs-modal { padding: 14px 16px; }
   .cs-modal h2 { font-size: calc(20px * var(--ui-scale, 1)); }
   .cs-sub { margin: 0 0 9px; }
   .cs-slots { gap: 6px; }
@@ -2568,6 +2557,7 @@ body.in-combat #combat-area {
 
 /* Summary screen */
 .scv-summary { text-align: center; padding: 16px 0; }
+.scv-modal > .hr-sheet-foot { text-align: center; padding-top: 12px; }
 .scv-summary-title {
   font-family: var(--f-display); font-size:calc(33px * var(--ui-scale, 1));
   letter-spacing: .12em; margin: 0 0 8px;
@@ -2627,7 +2617,7 @@ body.in-combat #combat-area {
 /* ===== <= 768px : tablet/landscape phone ===== */
 @media (max-width: 768px) {
   /* Combat preview modal — already has 600px rule, tighten further */
-  .mp-modal { max-width: calc(100vw - 24px); padding: 18px; }
+  .mp-modal { padding: 18px; }
   .mp-foe-name { font-size:calc(21.5px * var(--ui-scale, 1)); }
 
   /* Combat layout: collapse arena to single column */
@@ -2716,16 +2706,16 @@ body.in-combat #combat-area {
   .dgn-run-buttons { width: 100%; }
   .dgn-run, .dgn-run-manual, .dgn-run-auto { flex: 1; padding: 10px 8px; font-size:calc(14.5px * var(--ui-scale, 1)); }
 
-  /* Dungeon run modal — full-screen on phone */
-  .dgn-run-overlay { padding: 0 !important; }
+  /* Dungeon run modal — full-screen on phone, clear of the notch; the scrim
+     already starts below the desktop-mode banner, so 100% is what is left. */
+  .dgn-run-overlay, .scv-overlay {
+    padding: var(--safe-t) var(--safe-r) var(--safe-b) var(--safe-l) !important;
+  }
   .drm-modal {
     width: 100% !important;
-    max-height: 100vh !important;
     border-radius: 0 !important;
     padding: 18px 16px !important;
-    /* b553: minus the desktop-mode banner, which is fixed above this overlay at
-       a higher z-index; unset (0px) for every player who does not see it. */
-    height: calc(100vh - var(--hr-dm-banner-h, 0px));
+    height: 100%;
   }
   .drm-foe { font-size:calc(56px * var(--ui-scale, 1)); }
   .drm-gather-board { height: 220px; }
@@ -2733,11 +2723,9 @@ body.in-combat #combat-area {
 
   /* P2: Scavenger run modal — full-screen on phone (24+26px padding wasted
      ~27% of a 375px viewport) */
-  .scv-overlay { padding: 0 !important; }
   .scv-modal {
     width: 100% !important;
-    max-height: 100vh !important;
-    height: calc(100vh - var(--hr-dm-banner-h, 0px));   /* b553, as .drm-modal above */
+    height: 100%;   /* as .drm-modal above */
     border-radius: 0 !important;
     padding: 18px 16px !important;
   }

@@ -8331,17 +8331,17 @@ function openEnchantPicker(preselectId){
   const ov=document.getElementById('enchant-overlay')||(function(){
     const el=document.createElement('div');
     el.id='enchant-overlay';
-    el.className='inv-detail';
+    el.className='inv-detail hr-scrim';
     el.addEventListener('click',e=>{ if(e.target===el)closeEnchantPicker(); });
     document.body.appendChild(el);
     return el;
   })();
-  ov.innerHTML=`<div class="inv-detail-card" style="max-width:360px">`
-    +`<div class="inv-detail-head"><b>Enchant Weapon</b>`
-    +`<button class="btn ghost" onclick="closeEnchantPicker()" aria-label="Close">✕</button></div>`
-    +`<div class="muted tiny" style="margin:6px 0 8px">Bind an element rune to <b>${wit.n}</b>${cur?` — currently <b style="color:var(--accent)">${cur}</b>`:''}. `
+  ov.innerHTML=`<div class="inv-detail-card hr-sheet" style="max-width:360px">`
+    +`<div class="inv-detail-head hr-sheet-head"><b>Enchant Weapon</b>`
+    +`<button class="btn ghost" onclick="closeEnchantPicker()" aria-label="Close" data-hr-dismiss>✕</button></div>`
+    +`<div class="hr-sheet-body"><div class="muted tiny" style="margin:6px 0 8px">Bind an element rune to <b>${wit.n}</b>${cur?` — currently <b style="color:var(--accent)">${cur}</b>`:''}. `
     +`A match pays +15% damage against foes weak to that element; a mismatch is harmless.</div>`
-    +rows
+    +rows+`</div>`
     +`</div>`;
   ov.classList.add('show');
   if(preselectId){ try{ const hot=ov.querySelector(`.enchant-rune-opt[data-rune="${preselectId}"]`); if(hot&&hot.scrollIntoView)hot.scrollIntoView({block:'nearest'}); }catch(e){} }
@@ -9449,9 +9449,9 @@ function bindEvents(){
   /* b230: the topbar gem counter means "I want gems" — it opens the Premium
      Shop toggle directly, not the shop's front door. */
   document.getElementById('top-gem-btn').addEventListener('click',()=>showTab('premium'));
-  /* modals close */
+  /* modals close; the backdrop is DELEGATED so a .modal built after boot (buy-back, block list) closes too */
   document.querySelectorAll('[data-close-modal]').forEach(b=>b.addEventListener('click',()=>document.getElementById(b.dataset.closeModal).classList.remove('show')));
-  document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('show');}));
+  document.addEventListener('click',e=>{if(e.target.classList&&e.target.classList.contains('modal'))e.target.classList.remove('show');});
   /* keyboard shortcuts */
   document.addEventListener('keydown',e=>{
     if(e.key==='Escape')return; // Escape is the one seam by closeAllModals, never a hotkey
@@ -10121,7 +10121,7 @@ function openInvDetail(id){
   const d = document.getElementById('inv-detail-overlay') || (function(){
     const el = document.createElement('div');
     el.id = 'inv-detail-overlay';
-    el.className = 'inv-detail';
+    el.className = 'inv-detail hr-scrim';
     /* b372: route the backdrop tap through closeInvDetail() rather than
        stripping the class here, so the one close path also clears the z-index
        lift and _invDetailId. Two closes that do different amounts of cleanup
@@ -10308,21 +10308,21 @@ function openInvDetail(id){
      The close mark and the three coin emoji in the same card go with it: same
      rule, same card, and `uiClose` / `HR.amount('gold', …)` already exist. */
   const closeGlyph = (window.HR && window.HR.icon) ? (window.HR.icon('uiClose', 14, 'currentColor') || '') : '';
-  d.innerHTML = `<div class="inv-detail-card">
-    <div class="inv-detail-close" onclick="closeInvDetail()" role="button" aria-label="Close">${closeGlyph || '&times;'}</div>
-    <div class="inv-detail-head">
+  d.innerHTML = `<div class="inv-detail-card hr-sheet">
+    <div class="inv-detail-close" onclick="closeInvDetail()" role="button" aria-label="Close" data-hr-dismiss>${closeGlyph || '&times;'}</div>
+    <div class="inv-detail-head hr-sheet-head">
       <div class="inv-detail-icon">${itemArt(id, 48)}</div>
       <div>
         <div class="inv-detail-name">${it.n}</div>
         <div class="inv-detail-meta">${cat}${it.slot?' · '+it.slot:''}${it.weaponType?' · '+it.weaponType:''}${_itemTier(id)?' · T'+_itemTier(id):''}</div>
       </div>
     </div>
-    ${descHtml}
+    <div class="hr-sheet-body">${descHtml}
     <div class="inv-detail-stats">${stats.join('')}</div>
     ${infoBlock}
     ${foodNote}
-    ${enchantNote}
-    <div class="inv-detail-actions">${acts.join('')}</div>
+    ${enchantNote}</div>
+    <div class="inv-detail-actions hr-sheet-foot">${acts.join('')}</div>
   </div>`;
   d.classList.add('show');
 }
@@ -11880,8 +11880,8 @@ console.log('Activity bar: loaded');
     if(document.getElementById('mob-preview')) return;
     var ov = document.createElement('div');
     ov.id = 'mob-preview';
-    ov.className = 'mob-preview-overlay';
-    ov.innerHTML = '<div class="mp-modal" id="mp-modal"></div>';
+    ov.className = 'mob-preview-overlay hr-scrim';
+    ov.innerHTML = '<div class="mp-modal hr-sheet" id="mp-modal"></div>';
     ov.addEventListener('click', function(e){ if(e.target === ov) closePreview(); });
     document.body.appendChild(ov);
   }
@@ -12160,15 +12160,15 @@ console.log('Activity bar: loaded');
     var foodName = foodId && window.ITEMS[foodId] ? window.ITEMS[foodId].n : 'No food';
 
     modal.innerHTML = `
-      <button class="mp-close" aria-label="Close">✕</button>
-      <div class="mp-header">
+      <button class="mp-close" aria-label="Close" data-hr-dismiss>✕</button>
+      <div class="mp-header hr-sheet-head">
         <div class="mp-portrait">${getMonsterIcon(monsterId)}</div>
         <div class="mp-title">
           <h2>${m.name}</h2>
           <div class="mp-sub">${m.family||'monster'} · Tier ${m.tier||1}</div>
         </div>
       </div>
-
+      <div class="hr-sheet-body">
       <div class="mp-stats-row">
         <div class="mp-stat-card">
           <div class="mp-stat-label">HP</div>
@@ -12222,8 +12222,8 @@ console.log('Activity bar: loaded');
         <h4>Loot Table (${(m.drops||[]).length})</h4>
         <div class="mp-loot-grid">${(m.drops||[]).map(lootRowHtml).join('') || '<div class="mp-empty">No drops.</div>'}</div>
       </div>
-
-      <div class="mp-footer">
+      </div>
+      <div class="mp-footer hr-sheet-foot">
         <div class="mp-food">
           <div class="mp-food-icon">${foodIcon}</div>
           <div class="mp-food-info">
@@ -12895,12 +12895,12 @@ function buildOverlay(){
   if(document.getElementById('acq-overlay')) return;
   var ov = document.createElement('div');
   ov.id = 'acq-overlay';
-  ov.className = 'acq-overlay';
-  ov.innerHTML = '<div class="acq-modal" onclick="event.stopPropagation()">' +
-    '<h3 id="acq-title">How to get this</h3>' +
-    '<p id="acq-desc"></p>' +
-    '<div class="acq-paths" id="acq-paths"></div>' +
-    '<button class="acq-close" onclick="hideAcquisitionTip()">Close</button>' +
+  ov.className = 'acq-overlay hr-scrim';
+  ov.innerHTML = '<div class="acq-modal hr-sheet" onclick="event.stopPropagation()">' +
+    '<h3 id="acq-title" class="hr-sheet-head">How to get this</h3>' +
+    '<p id="acq-desc" class="hr-sheet-head"></p>' +
+    '<div class="acq-paths hr-sheet-body" id="acq-paths"></div>' +
+    '<button class="acq-close hr-sheet-foot" data-hr-dismiss onclick="hideAcquisitionTip()">Close</button>' +
     '</div>';
   ov.addEventListener('click', hideAcquisitionTip);
   document.body.appendChild(ov);

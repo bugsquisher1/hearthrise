@@ -316,10 +316,12 @@
   // ---- Quantity slider modal ----------------------------------
   var slider = document.createElement('div');
   slider.id = 'qty-slider-overlay';
-  slider.style.cssText = 'display:none;position:fixed;inset:0;z-index:99990;background:rgba(0,0,0,.7);align-items:center;justify-content:center;';
-  slider.innerHTML = '<div class="qs-modal">' +
+  slider.className = 'hr-scrim';   // position, inset, gutter and the height cap: art-direction.css
+  slider.style.cssText = 'display:none;z-index:99990;background:rgba(0,0,0,.7);align-items:center;justify-content:center;';
+  slider.innerHTML = '<div class="qs-modal hr-sheet">' +
     '<button class="qs-close" aria-label="Close">✕</button>' +
-    '<div class="qs-title" id="qs-title">Item</div>' +
+    '<div class="qs-title hr-sheet-head" id="qs-title">Item</div>' +
+    '<div class="hr-sheet-body">' +
     '<div class="qs-icon" id="qs-icon"></div>' +
     '<div class="qs-row">' +
       '<input type="range" id="qs-range" min="1" max="100" value="1">' +
@@ -333,8 +335,9 @@
       '<button class="qs-q" data-fixed="100">100</button>' +
     '</div>' +
     '<div class="qs-summary" id="qs-summary"></div>' +
-    '<div class="qs-actions">' +
-      '<button class="qs-btn qs-btn-secondary" id="qs-cancel">Cancel</button>' +
+    '</div>' +
+    '<div class="qs-actions hr-sheet-foot">' +
+      '<button class="qs-btn qs-btn-secondary" id="qs-cancel" data-hr-dismiss>Cancel</button>' +
       '<button class="qs-btn qs-btn-action" id="qs-action" style="display:none"></button>' +
       '<button class="qs-btn qs-btn-primary" id="qs-sell">Sell</button>' +
     '</div>' +

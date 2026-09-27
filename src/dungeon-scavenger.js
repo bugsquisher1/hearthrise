@@ -199,9 +199,15 @@
     if(document.getElementById('scv-overlay')) return;
     var ov = document.createElement('div');
     ov.id = 'scv-overlay';
-    ov.className = 'scv-overlay';
-    ov.innerHTML = '<div class="scv-modal" id="scv-modal"></div>';
+    ov.className = 'scv-overlay hr-scrim';
+    ov.innerHTML = '<div class="scv-modal hr-sheet" id="scv-modal"></div>';
     document.body.appendChild(ov);
+  }
+
+  /* The card is an .hr-sheet: the head and the foot stay on screen, the body scrolls. */
+  function scvSheet(head, body, foot){
+    return '<div class="hr-sheet-head">' + head + '</div><div class="hr-sheet-body">' + body + '</div>'
+      + (foot ? '<div class="hr-sheet-foot">' + foot + '</div>' : '');
   }
 
   function close(){
@@ -277,15 +283,15 @@
     var bossHtml = '<button class="scv-boss-now" data-boss="1">Engage boss now (' + run.config.bossName + ')</button>';
     var hintHtml = '<div class="scv-lobby-hint">Repeat tasks for better tier rolls. The clock keeps ticking — leave enough time to fight ' + run.config.bossName + '.</div>';
 
-    modal.innerHTML =
+    modal.innerHTML = scvSheet(
       '<button class="scv-close">✕</button>' +
       statusBarHtml() +
       '<div class="scv-lobby-head">' +
         '<h3>Prep your run — ' + run.config.bossName + '</h3>' +
         hintHtml +
-      '</div>' +
-      groupsHtml +
-      '<div class="scv-room-actions">' + bossHtml + '</div>';
+      '</div>',
+      groupsHtml,
+      '<div class="scv-room-actions">' + bossHtml + '</div>');
 
     modal.querySelector('.scv-close').addEventListener('click', close);
     modal.querySelectorAll('button.scv-opt[data-opt]').forEach(function(b){
@@ -308,7 +314,7 @@
     var startedAt = Date.now();
     var durationMs = opt.durationS * 1000;
 
-    modal.innerHTML =
+    modal.innerHTML = scvSheet(
       '<button class="scv-close">✕</button>' +
       statusBarHtml() +
       '<div class="scv-room-head">' +
@@ -317,11 +323,11 @@
           '<h3>' + opt.label + '</h3>' +
           '<div class="scv-room-desc">' + opt.hint + '</div>' +
         '</div>' +
-      '</div>' +
+      '</div>',
       '<div class="scv-task">' +
         '<div class="scv-task-bar"><i id="scv-task-fill" style="width:0%"></i></div>' +
         '<div class="scv-task-text" id="scv-task-text">Working…</div>' +
-      '</div>';
+      '</div>');
     modal.querySelector('.scv-close').addEventListener('click', close);
 
     if(run.taskTimer) clearInterval(run.taskTimer);
@@ -384,16 +390,16 @@
       fish:'Fish', food:'Cooked meal', herb:'Healing herb',
       blessing_dmg:'Might blessing', blessing_def:'Ward blessing',
     })[opt.produces] || opt.produces;
-    modal.innerHTML =
+    modal.innerHTML = scvSheet(
       '<button class="scv-close">✕</button>' +
-      statusBarHtml() +
+      statusBarHtml(),
       '<div class="scv-result scv-tier-' + tier + '">' +
         '<div class="scv-result-icon">' + _scvGly(opt.glyph, 30, '--gold-2') + '</div>' +
         '<div class="scv-result-text">' +
           '<div>You crafted</div>' +
           '<h2>' + name + ' <span class="scv-tier-tag">T' + tier + '</span></h2>' +
         '</div>' +
-      '</div>';
+      '</div>');
     modal.querySelector('.scv-close').addEventListener('click', close);
     setTimeout(function(){
       // Free-form lobby: just go back to the task list. Player can pick
@@ -446,8 +452,8 @@
         var item = window.ITEMS && window.ITEMS[a.id];
         return '<span class="scv-roll-row">' + window.itemFallbackIcon(a.id, 18, item) + ' +' + a.qty + ' ' + (item?item.n:a.id) + '</span>';
       }).join('') : '<span class="scv-roll-empty">no rolls yet</span>';
-      modal.innerHTML =
-        '<button class="scv-close">✕</button>' +
+      modal.innerHTML = scvSheet(
+        '<button class="scv-close">✕</button>',
         '<div class="scv-boss">' +
           '<div class="scv-boss-vs">' +
             '<div class="scv-fighter scv-foe">' +
@@ -472,7 +478,7 @@
             '<div class="scv-load-row"><span>KIT</span><b>' + loadout.axeQuality + '</b></div>' +
           '</div>' +
           '<div class="scv-rolls"><h4>Loot rolls (' + lootRolls + ' / 10)</h4>' + rewardList + '</div>' +
-        '</div>';
+        '</div>');
       modal.querySelector('.scv-close').addEventListener('click', close);
     }
 
@@ -565,15 +571,16 @@
         var item = window.ITEMS && window.ITEMS[a.id];
         return '<div class="scv-reward-row">' + window.itemFallbackIcon(a.id, 18, item) + ' +' + a.qty + ' <b>' + (item?item.n:a.id) + '</b></div>';
       }).join('') : '<div class="scv-empty">No rolls earned. Try a different loadout.</div>';
-      modal.innerHTML =
-        '<button class="scv-close">✕</button>' +
+      // The summary's ✕ is non-committing (the settle already left); mid-run it abandons, so no dismiss there.
+      modal.innerHTML = scvSheet(
+        '<button class="scv-close" data-hr-dismiss>✕</button>',
         '<div class="scv-summary">' +
           '<h2 class="scv-summary-title ' + (victory ? 'win' : 'lose') + '">' + (victory ? _scvGly('uiTrophy', 20, '--gold-2') + ' VICTORY' : _scvGly('uiSkull', 20, '--red') + ' DEFEATED') + '</h2>' +
           '<div class="scv-summary-sub">' + lootRolls + ' loot roll' + (lootRolls===1?'':'s') + ' earned (' + ((1 - bossHp/bossMaxHp)*100).toFixed(0) + '% boss HP)</div>' +
           '<div class="scv-summary-note">Gear and food assembled in the dungeon were left behind.</div>' +
           '<div class="scv-rewards-block"><h4>Loot brought home</h4>' + rewardHtml + '</div>' +
-          '<button class="scv-finish">Claim</button>' +
-        '</div>';
+        '</div>',
+        '<button class="scv-finish">Claim</button>');
       modal.querySelector('.scv-close').addEventListener('click', close);
       modal.querySelector('.scv-finish').addEventListener('click', function(){
         close();

@@ -199,6 +199,8 @@
     "node tests/css-literal-ratchet.mjs --selftest": "client-guards",
     "node tests/breakpoint-guard.mjs --report": "client-guards",
     "node tests/breakpoint-guard.mjs --selftest": "client-guards",
+    "node tests/modal-primitive-census.mjs --report": "client-guards",
+    "node tests/modal-primitive-census.mjs --selftest": "client-guards",
     "node tests/token-single-source.mjs --report": "client-guards",
     "node tests/token-single-source.mjs --selftest": "client-guards",
     "node tests/screen-primers.mjs": "client-guards",

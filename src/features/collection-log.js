@@ -438,9 +438,9 @@
     var s = document.createElement('style');
     s.id = 'hr-cl-css';
     s.textContent = [
-      '.hr-cl-scrim{position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:16px}',
-      '.hr-cl-wrap{background:var(--bg-1,#1a1f2e);border:1px solid var(--line,#b8893e);border-radius:14px;width:100%;max-width:520px;max-height:88vh;overflow:auto;color:var(--ink,#e9e2cf);box-shadow:0 18px 50px -12px rgba(0,0,0,.7);font-family:var(--f-ui,system-ui,sans-serif)}',
-      '.hr-cl-top{padding:16px 18px 12px;position:sticky;top:0;background:var(--bg-1,#1a1f2e);border-bottom:1px solid var(--line-soft,rgba(122,94,58,.2));z-index:2}',
+      '.hr-cl-scrim{z-index:100000;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center}',
+      '.hr-cl-wrap{background:var(--bg-1,#1a1f2e);border:1px solid var(--line,#b8893e);border-radius:14px;width:100%;max-width:520px;color:var(--ink,#e9e2cf);box-shadow:0 18px 50px -12px rgba(0,0,0,.7);font-family:var(--f-ui,system-ui,sans-serif)}',
+      '.hr-cl-top{padding:16px 18px 12px;position:relative;background:var(--bg-1,#1a1f2e);border-bottom:1px solid var(--line-soft,rgba(122,94,58,.2))}',
       '.hr-cl-hn{font-family:var(--f-display,serif);font-size:calc(21px * var(--ui-scale, 1));font-weight:800;color:var(--gold,#e0a64a)}',
       '.hr-cl-eyebrow{font-size:calc(14.5px * var(--ui-scale, 1));letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3,#a5896a)}',
       '.hr-cl-x{position:absolute;top:12px;right:14px;background:var(--bg-0,#0f1320);border:1px solid var(--line-soft,rgba(122,94,58,.25));color:var(--ink-2,#cbb890);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:calc(16px * var(--ui-scale, 1))}',
@@ -640,22 +640,22 @@
     }).join('');
 
     var scrim = document.createElement('div');
-    scrim.className = 'hr-cl-scrim'; scrim.id = 'hr-cl-modal';
+    scrim.className = 'hr-cl-scrim hr-scrim'; scrim.id = 'hr-cl-modal';   // layout: art-direction.css
     scrim.innerHTML =
-      '<div class="hr-cl-wrap">' +
-        '<div class="hr-cl-top">' +
-          '<button class="hr-cl-x" data-cl-close="1">✕</button>' +
+      '<div class="hr-cl-wrap hr-sheet">' +
+        '<div class="hr-cl-top hr-sheet-head">' +
+          '<button class="hr-cl-x" data-cl-close="1" data-hr-dismiss>✕</button>' +
           '<div class="hr-cl-eyebrow">Collection Log</div>' +
           '<div class="hr-cl-hn">' + Math.round(st.overall * 100) + '% Complete</div>' +
           '<div class="hr-cl-bar"><i style="width:' + Math.round(st.overall * 100) + '%"></i></div>' +
           '<div class="hr-cl-eyebrow">Bestiary ' + st.mon.found + '/' + st.mon.total + ' · Items ' + st.item.found + '/' + st.item.total + '</div>' +
         '</div>' +
-        msHtml +
+        '<div class="hr-sheet-body">' + msHtml +
         '<div class="hr-cl-tabs">' +
           '<div class="hr-cl-tab' + (activeTab === 'bestiary' ? ' on' : '') + '" data-cl-tab="bestiary">Bestiary</div>' +
           '<div class="hr-cl-tab' + (activeTab === 'items' ? ' on' : '') + '" data-cl-tab="items">Items</div>' +
         '</div>' +
-        '<div id="hr-cl-body">' + renderBody(G) + '</div>' +
+        '<div id="hr-cl-body">' + renderBody(G) + '</div></div>' +
       '</div>';
     scrim.addEventListener('click', function (e) {
       var t = e.target;

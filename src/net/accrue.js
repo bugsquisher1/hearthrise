@@ -6326,10 +6326,11 @@ export function showReplacementSheet(loss, G, res, onConfirm) {
   const l = loss || { gold: 0, skillXp: 0, items: 0 };
   const el = document.createElement('div');
   el.id = ACCRUE_REPLACE_SHEET_ID;
-  el.setAttribute('role', 'dialog');
-  el.style.cssText = [
-    'position:fixed', 'left:50%', 'top:50%', 'transform:translate(-50%,-50%)',
-    'z-index:2147483646', 'max-width:460px', 'width:calc(100% - 24px)',
+  el.className = 'hr-scrim';   // layout: art-direction.css; no backdrop close on a consent sheet
+  el.style.cssText = 'z-index:2147483646;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6)';
+  el.innerHTML = '<div class="hr-sheet" role="dialog"></div>';
+  el.firstChild.style.cssText = [
+    'max-width:460px', 'width:100%',
     'background:rgba(9,12,17,.98)', 'color:#f2e9d8', 'border:1px solid #d9a441',
     'border-radius:12px', 'padding:18px 20px', 'box-sizing:border-box',
     /* b353: 15px, not 14px. The suite's legibility floor is 14.5px and both of
@@ -6338,9 +6339,9 @@ export function showReplacementSheet(loss, G, res, onConfirm) {
     'font:400 15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif',
     'box-shadow:0 10px 40px rgba(0,0,0,.65)',
   ].join(';');
-  el.innerHTML =
-    '<div style="font:700 16px/1.3 system-ui,sans-serif;margin-bottom:8px">⚠️ This will replace your local progress</div>'
-    + '<p style="margin:0 0 8px">Away time is now credited by the progress server, and the server keeps '
+  el.firstChild.innerHTML =
+    '<div class="hr-sheet-head" style="font:700 16px/1.3 system-ui,sans-serif;margin-bottom:8px">⚠️ This will replace your local progress</div>'
+    + '<div class="hr-sheet-body"><p style="margin:0 0 8px">Away time is now credited by the progress server, and the server keeps '
     + 'its own copy of your character. Applying it <strong>replaces what is saved on this device</strong> — '
     + 'the two are not merged.</p>'
     + '<p style="margin:0 0 8px">Compared with the server\'s character, this device is currently ahead by '
@@ -6348,10 +6349,10 @@ export function showReplacementSheet(loss, G, res, onConfirm) {
     + ' skill XP</strong> and <strong>' + num(l.items) + ' item(s)</strong>. '
     + 'That difference will be <strong>permanently gone</strong>.</p>'
     + '<p style="margin:0 0 12px;opacity:.75">If this is not what you expected, choose “Keep my local save”. '
-    + 'Nothing is credited until you decide, and you can ask again at any time.</p>'
-    + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    + 'Nothing is credited until you decide, and you can ask again at any time.</p></div>'
+    + '<div class="hr-sheet-foot" style="display:flex;gap:8px;flex-wrap:wrap">'
     + '<button id="hr-accrue-replace" style="flex:1;min-width:180px;font:600 15px/1 system-ui,sans-serif;background:#d9a441;color:#1a130a;border:0;border-radius:8px;padding:11px 16px;cursor:pointer">Use the server’s character</button>'
-    + '<button id="hr-accrue-keep" style="font:500 15px/1 system-ui,sans-serif;background:transparent;color:#c9c2b4;border:1px solid #3a4154;border-radius:8px;padding:11px 14px;cursor:pointer">Keep my local save</button>'
+    + '<button id="hr-accrue-keep" data-hr-dismiss style="font:500 15px/1 system-ui,sans-serif;background:transparent;color:#c9c2b4;border:1px solid #3a4154;border-radius:8px;padding:11px 14px;cursor:pointer">Keep my local save</button>'
     + '</div>';
   document.body.appendChild(el);
   const go = el.querySelector('#hr-accrue-replace');

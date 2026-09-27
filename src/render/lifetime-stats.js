@@ -57,7 +57,7 @@
     var m = document.getElementById('lifetime-stats') || (function () {
       var el = document.createElement('div');
       el.id = 'lifetime-stats';
-      el.className = 'stats-modal';
+      el.className = 'stats-modal hr-scrim';   // layout: art-direction.css
       el.addEventListener('click', function (e) { if (e.target === el) el.classList.remove('show'); });
       document.body.appendChild(el);
       return el;
@@ -87,14 +87,14 @@
     var families = Object.entries(s.killsByFamily || {}).sort(function (a, b) { return b[1] - a[1]; });
     var tiers = Object.entries(s.killsByTier || {}).filter(function (e) { return e[1] > 0; }).sort(function (a, b) { return +a[0] - +b[0]; });
 
-    m.innerHTML = '<div class="stats-card">' +
-      '<div class="stats-close" onclick="document.getElementById(\'lifetime-stats\').classList.remove(\'show\')">✕</div>' +
-      '<div class="stats-head">' +
+    m.innerHTML = '<div class="stats-card hr-sheet">' +
+      '<div class="stats-close" data-hr-dismiss onclick="document.getElementById(\'lifetime-stats\').classList.remove(\'show\')">✕</div>' +
+      '<div class="stats-head hr-sheet-head">' +
         '<div class="stats-title">' + _lsGly('uiTrend', 15) + ' Lifetime Stats</div>' +
         '<div class="muted tiny">Save first seen ' + new Date(s.firstSeen || Date.now()).toLocaleDateString() + '</div>' +
       '</div>' +
 
-      '<div class="stats-grid">' +
+      '<div class="hr-sheet-body"><div class="stats-grid">' +
         tile(cl, 'Combat Level') +
         tile(tl, 'Total Level') +
         tile(totalXp.toLocaleString(), 'Total XP') +
@@ -162,7 +162,7 @@
           row('Buried bones', (s.buriedBones || 0).toLocaleString()) +
           row('Buffs consumed', (s.buffsConsumed || 0).toLocaleString()) +
         '</div>' +
-      '</div>' +
+      '</div></div>' +
     '</div>';
     m.classList.add('show');
   }

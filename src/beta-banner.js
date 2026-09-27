@@ -77,11 +77,13 @@
     if(document.getElementById('beta-banner-overlay')) return;
     var overlay = document.createElement('div');
     overlay.id = 'beta-banner-overlay';
+    overlay.className = 'hr-scrim';   // position, inset, gutter and the height cap: art-direction.css
     overlay.style.cssText =
-      'position:fixed;inset:0;background:rgba(8,5,3,.78);z-index:99990;'+
-      'display:flex;align-items:center;justify-content:center;padding:20px;'+
+      'background:rgba(8,5,3,.78);z-index:99990;'+
+      'display:flex;align-items:center;justify-content:center;'+
       'opacity:0;transition:opacity .25s ease';
     var card = document.createElement('div');
+    card.className = 'hr-sheet';
     /* b219: was a hardcoded cream card (#fdf3d8 on #2a1a08) left over from the
        retired cozy-light theme, so the first thing a new player saw under
        Hearthlight was a bright parchment rectangle in an otherwise dark game.
@@ -98,12 +100,13 @@
        the ladybug was also just wrong. Plain words + the game's own line-art
        glyph carry it instead. */
     card.innerHTML =
-      '<h2 style="margin:0 0 10px;font-size:var(--t-h2,22px);font-family:var(--f-display,inherit);color:var(--gold-2,#f3d181)">Welcome to Hearthrise</h2>'+
+      '<h2 class="hr-sheet-head" style="margin:0 0 10px;font-size:var(--t-h2,22px);font-family:var(--f-display,inherit);color:var(--gold-2,#f3d181)">Welcome to Hearthrise</h2>'+
       /* b46x — OPEN BETA. This card is shown to a player who has ALREADY made
          an account (it boots behind the gate), so it carries the half of the
          open-beta line that still applies to them: it is rough, tell us. The
          "make an account and play" half belongs on the account wall, where
          there is an account to make. */
+      '<div class="hr-sheet-body">'+
       '<p style="margin:0 0 12px;font-size:var(--t-small,14px)"><b>Hearthrise is in open beta.</b> It\'s rough in places — things will break, balance will change, and your save may need to be reset between major updates. Tell us in Discord; your feedback shapes the game.</p>'+
       '<ul style="margin:0 0 14px;padding-left:18px;font-size:var(--t-small,14px)">'+
       '  <li>Found a bug? Use the <b>Report</b> button in the bottom-right corner — it goes straight to the dev Discord.</li>'+
@@ -113,19 +116,15 @@
          without an account, which is no longer the product. Accounts are
          required; the local save is the offline cache underneath one. */
       '  <li>Your account keeps your progress safe — it syncs to the realm and follows you to every device you play on.</li>'+
-      '</ul>'+
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">'+
+      '</ul></div>'+
+      '<div class="hr-sheet-foot" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">'+
       '  <a class="btn" target="_blank" rel="noopener" href="'+DISCORD_INVITE+'" style="background:transparent;color:var(--ink-2,#c4b79e);border:1px solid var(--line,rgba(201,162,74,.3));padding:8px 14px;border-radius:var(--r,3px);font-weight:700;text-decoration:none;font-size:var(--t-small,13px)">Join the Discord</a>'+
-      '  <button class="btn btn-primary" onclick="window._ackBetaBanner()" style="background:var(--gold,#c9a24a);color:#221803;border:1px solid var(--gold-2,#e3c77e);padding:8px 14px;border-radius:var(--r,3px);font-weight:700;font-size:var(--t-small,13px);cursor:pointer">I understand — let me play</button>'+
+      '  <button class="btn btn-primary" data-hr-dismiss onclick="window._ackBetaBanner()" style="background:var(--gold,#c9a24a);color:#221803;border:1px solid var(--gold-2,#e3c77e);padding:8px 14px;border-radius:var(--r,3px);font-weight:700;font-size:var(--t-small,13px);cursor:pointer">I understand — let me play</button>'+
       '</div>';
     overlay.appendChild(card);
     document.body.appendChild(overlay);
     requestAnimationFrame(function(){ overlay.style.opacity = '1'; overlay.classList.add('show'); });
-    // Esc dismisses
-    var keyHandler = function(e){
-      if(e.key === 'Escape'){ ack(); document.removeEventListener('keydown', keyHandler); }
-    };
-    document.addEventListener('keydown', keyHandler);
+    // Escape acknowledges through HearthriseSheet.closeTop (data-hr-dismiss), as before.
   }
 
   function ftueWillFire(){

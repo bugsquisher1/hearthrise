@@ -627,19 +627,26 @@ function openModal() {
   if (document.getElementById('hr-bug-modal')) return;
   const overlay = document.createElement('div');
   overlay.id = 'hr-bug-modal';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+  /* Position, inset, gutter and the height cap: .hr-scrim/.hr-sheet. No data-hr-dismiss:
+     Escape is a no-op here (legacy.js returns early while this node exists), so typed text survives. */
+  overlay.className = 'hr-scrim';
+  overlay.style.cssText = 'background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:center;justify-content:center';
   overlay.innerHTML = `
-    <form style="background:linear-gradient(180deg,#262019,#16120d);border:1px solid rgba(201,162,74,.55);border-radius:5px;padding:18px;max-width:440px;width:100%;display:flex;flex-direction:column;gap:10px;color:#ece1cc;font-family:var(--f-ui,system-ui),sans-serif">
-      <h3 style="margin:0;color:#f3d181">Report a bug</h3>
+    <form class="hr-sheet" style="background:linear-gradient(180deg,#262019,#16120d);border:1px solid rgba(201,162,74,.55);border-radius:5px;padding:18px;max-width:440px;width:100%;display:flex;flex-direction:column;gap:10px;color:#ece1cc;font-family:var(--f-ui,system-ui),sans-serif">
+      <h3 class="hr-sheet-head" style="margin:0;color:#f3d181">Report a bug</h3>
+      <div class="hr-sheet-body" style="display:flex;flex-direction:column;gap:10px">
       <p style="margin:0;font-size:calc(14.5px * var(--ui-scale, 1));color:#9aa3b0">Thanks for testing! We'll auto-attach your build version, current tab, and recent errors. Don't include passwords or anything private.</p>
       <input name="summary" placeholder="One-line summary (e.g. 'inventory empty after combat')" required maxlength="120" style="padding:8px 12px;background:rgba(0,0,0,.34);border:1px solid rgba(236,225,204,.10);color:#ece1cc;border-radius:2px;font-size:calc(14.5px * var(--ui-scale, 1))" />
       <textarea name="description" placeholder="What happened? What did you expect? Steps to reproduce?" rows="5" style="padding:8px 12px;background:rgba(0,0,0,.34);border:1px solid rgba(236,225,204,.10);color:#ece1cc;border-radius:2px;font-size:calc(14.5px * var(--ui-scale, 1));resize:vertical;font-family:inherit"></textarea>
+      </div>
+      <div class="hr-sheet-foot" style="display:flex;flex-direction:column;gap:10px">
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button type="submit" style="flex:1;min-width:120px;padding:8px;background:linear-gradient(180deg,#d9b361,#a67c28);color:#221803;border:1px solid #e6cd93;border-radius:3px;font-weight:700;cursor:pointer">Send report</button>
         <button type="button" data-act="copy" title="Copy report to clipboard so you can paste into Discord/email/etc" style="padding:8px 12px;background:rgba(255,236,200,.06);color:#c4b79e;border:1px solid rgba(236,225,204,.12);border-radius:3px;cursor:pointer;font-weight:600">Copy</button>
         <button type="button" data-act="cancel" style="padding:8px 14px;background:transparent;color:#8f7d63;border:1px solid rgba(236,225,204,.1);border-radius:3px;cursor:pointer">Cancel</button>
       </div>
       <div data-status style="font-size:calc(14.5px * var(--ui-scale, 1));color:#9aa3b0;min-height:14px;text-align:center"></div>
+      </div>
     </form>
   `;
   const form = overlay.querySelector('form');

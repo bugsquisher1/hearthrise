@@ -380,13 +380,6 @@ body[data-hr-desktop-mode] #panel-skills .layout-2col-b {
 body[data-hr-desktop-mode] #chat-dock.full {
   max-height: calc(100vh - 100px - var(--hr-dm-banner-h, 0px));
 }
-/* The run modals are `position:fixed; inset:0` at z-index 99999 and the banner
-   is at the maximum, so a dungeon or scavenger run opened with the banner up
-   lost its top 88px — the header and the way out of the run. */
-body[data-hr-desktop-mode] .dgn-run-overlay,
-body[data-hr-desktop-mode] .scv-overlay {
-  top: var(--hr-dm-banner-h, 0px);
-}
 
 body[data-theme] .topbar {
   background: linear-gradient(180deg, #1c1811, #131009);

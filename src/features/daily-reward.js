@@ -379,7 +379,8 @@
     var s = document.createElement('style');
     s.id = 'hr-daily-css';
     s.textContent = [
-      '.hr-dl-scrim{position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:18px}',
+      /* Position, inset, gutter and the height cap: `.hr-scrim`/`.hr-sheet` (art-direction.css). */
+      '.hr-dl-scrim{z-index:99997;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center}',
       '.hr-dl-box{background:var(--bg-1,#1a1f2e);border:2px solid var(--gold,#e0a64a);border-radius:16px;max-width:420px;width:100%;padding:22px;color:var(--ink,#e9e2cf);text-align:center;box-shadow:0 0 55px -12px color-mix(in srgb,var(--gold,#e0a64a) 50%,transparent);font-family:var(--f-ui,system-ui,sans-serif)}',
       '.hr-dl-eyebrow{font-size:calc(14.5px * var(--ui-scale, 1));letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3,#a5896a)}',
       '.hr-dl-h{font-family:var(--f-display,serif);font-size:calc(25px * var(--ui-scale, 1));font-weight:800;color:var(--gold,#e0a64a);margin:4px 0 12px}',
@@ -438,13 +439,14 @@
       return '<div class="' + cls + '">D' + d + '<b>' + val + '</b></div>';
     }).join('');
     var scrim = document.createElement('div');
-    scrim.className = 'hr-dl-scrim'; scrim.id = 'hr-dl-modal';
+    scrim.className = 'hr-dl-scrim hr-scrim'; scrim.id = 'hr-dl-modal';
     scrim.setAttribute('role', 'dialog');
     scrim.setAttribute('aria-modal', 'true');
     scrim.setAttribute('aria-label', 'Daily reward');
     scrim.innerHTML =
-      '<div class="hr-dl-box">' +
-        '<button class="hr-dl-close" data-dl-close="1" aria-label="Close" title="Close">&times;</button>' +
+      '<div class="hr-dl-box hr-sheet">' +
+        '<button class="hr-dl-close" data-dl-close="1" data-hr-dismiss aria-label="Close" title="Close">&times;</button>' +
+        '<div class="hr-sheet-head">' +
         /* ── b499 (Designer ruling, THE STREAK LABEL COLLISION) ───────────────
            THE WORD "STREAK" IS GONE FROM THIS SHEET, DELIBERATELY, AND IT MAY
            NOT COME BACK. b498 made the sheet read the right NUMBER; it left the
@@ -467,12 +469,12 @@
              above is built from the same constant. */
         '<div class="hr-dl-eyebrow">Daily reward · Day ' + day + ' of ' + R.DAILY_LOGIN_CYCLE_DAYS
           + (wk ? ' · week ' + (wk + 1) : '') + '</div>' +
-        '<div class="hr-dl-h">' + (streakCount(G) > 1 ? 'Welcome back!' : 'Your daily reward') + '</div>' +
-        '<div class="hr-dl-week">' + week + '</div>' +
-        (claimable
+        '<div class="hr-dl-h">' + (streakCount(G) > 1 ? 'Welcome back!' : 'Your daily reward') + '</div></div>' +
+        '<div class="hr-sheet-body"><div class="hr-dl-week">' + week + '</div></div>' +
+        '<div class="hr-sheet-foot">' + (claimable
           ? '<button class="hr-dl-claim" data-dl-claim="1">Claim Day ' + day + ' · ' + rewardText(rewardFor(G)) + '</button>'
           : '<div class="hr-dl-eyebrow">Come back tomorrow for Day ' + ((day % 7) + 1) + '</div>') +
-        '<div class="hr-dl-hint">Click anywhere to close — your reward stays on the Home screen.</div>' +
+        '<div class="hr-dl-hint">Click anywhere to close — your reward stays on the Home screen.</div></div>' +
       '</div>';
     /* ══════════════════════════════════════════════════════════════════════
        b345 — EVERY CLICK THIS SHEET INTERCEPTS NOW PRODUCES A VISIBLE RESULT.
@@ -603,7 +605,10 @@
        whose page state depends on whether a claim happened to be waiting. A
        test re-deriving the UTC key itself would be a second clock read that can
        disagree with this one; there is only ever one. */
-    _todayKey: todayKey
+    _todayKey: todayKey,
+    /* Read/write park switch for the suite (see `autoBoot`), the same shape as
+       HearthriseRenown.__setPollEnabled. Never called by the game. */
+    __setAutoOpenEnabled: function (on) { var was = autoOpenEnabled; autoOpenEnabled = !!on; return was; }
   };
 
   // Gentle once-per-day auto-popup: wait for G, then only show when no other
@@ -615,10 +620,14 @@
   // them; this one had been quietly exempt since b169.
   var BLOCKING_OVERLAYS = '.ftue-root,.hr-rn-scrim,.hr-id-scrim,.hr-gate,#hr-account-gate,' +
     '#hr-welcome-modal,#hr-post-signup-modal,.beta-overlay,' +
-    '[class*="welcome-overlay"],.acq-overlay,.ach-overlay';
+    '#welcome-overlay.show,.acq-overlay.show,.ach-overlay.show';   // OPEN state: these nodes outlive their close
   function anotherModalUp() {
     return !!document.querySelector(BLOCKING_OVERLAYS);
   }
+  /* The in-page suite parks the auto-open for its run: with the blockers read as
+     OPEN state, a sheet waiting for a quiet moment would land on whichever test
+     next waits past 1.2 s. Tests about the sheet call open() directly. */
+  var autoOpenEnabled = true;
   /* b462 — under the arm the "shown today" marker arrives with the residue
      (client_state), hydrated once per session at hr_load. Deciding before it
      lands re-opens the sheet on every reload. Wait for hydration (bounded —
@@ -640,7 +649,7 @@
     // clears. (The old 20-try cap force-opened this OVER the FTUE tour when
     // a new player took ~25s reading it.) The Home card remains the
     // fallback claim path if no quiet moment ever comes this session.
-    if (anotherModalUp()) { setTimeout(function () { autoBoot(tries + 1); }, 1200); return; }
+    if (!autoOpenEnabled || anotherModalUp()) { setTimeout(function () { autoBoot(tries + 1); }, 1200); return; }
     open();
   }
   // b224: behind the account wall. autoBoot() would otherwise poll for

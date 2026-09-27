@@ -227,8 +227,8 @@
       return;
     }
     var overlay = document.createElement('div');
-    overlay.className = 'hr-auth-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+    overlay.className = 'hr-auth-overlay hr-scrim';   // position, inset, gutter and the height cap: art-direction.css
+    overlay.style.cssText = 'background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:center;justify-content:center';
     /* OPEN BETA. The code is no longer required and no longer leads the form —
        it is collapsed behind a link, exactly as on the account wall
        (src/net/account-gate.js), so the two signup surfaces teach a visitor the
@@ -242,8 +242,9 @@
       ? '<input type="text" name="displayName" placeholder="Your name (in-game + leaderboards)" required maxlength="20" style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:calc(14.5px * var(--ui-scale, 1))" />'
       : '';
     overlay.innerHTML = ''
-      + '<form style="background:#1a1f2e;border:2px solid #f3d181;border-radius:8px;padding:20px;max-width:380px;width:100%;display:flex;flex-direction:column;gap:10px;color:#dfe9ee;font-family:system-ui,sans-serif">'
-      +   '<h3 style="margin:0;color:#f3d181">' + (isSignUp ? 'Create your Hearthrise account' : 'Sign in to Hearthrise') + '</h3>'
+      + '<form class="hr-sheet" style="background:#1a1f2e;border:2px solid #f3d181;border-radius:8px;padding:20px;max-width:380px;width:100%;display:flex;flex-direction:column;gap:10px;color:#dfe9ee;font-family:system-ui,sans-serif">'
+      +   '<h3 class="hr-sheet-head" style="margin:0;color:#f3d181">' + (isSignUp ? 'Create your Hearthrise account' : 'Sign in to Hearthrise') + '</h3>'
+      +   '<div class="hr-sheet-body" style="display:flex;flex-direction:column;gap:10px">'
       +   '<p style="margin:0;font-size:calc(14.5px * var(--ui-scale, 1));color:#9aa3b0">' + (isSignUp
               ? 'Hearthrise is in open beta — make an account and play. It\'s rough in places; tell us in Discord. Your local progress will move to the cloud automatically.'
               : 'Sync your save, join clans, climb leaderboards.') + '</p>'
@@ -251,6 +252,7 @@
       +   '<input type="email" name="email" placeholder="Email" required style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:calc(14.5px * var(--ui-scale, 1))" />'
       +   '<input type="password" name="password" placeholder="Password (8+ characters)" required minlength="8" style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:calc(14.5px * var(--ui-scale, 1))" />'
       +   inviteRow
+      +   '</div><div class="hr-sheet-foot" style="display:flex;flex-direction:column;gap:10px">'
       +   '<div style="display:flex;gap:8px;margin-top:4px">'
       +     '<button type="submit" data-act="primary" style="flex:1;padding:9px;background:#f3d181;color:#0f1320;border:none;border-radius:4px;font-weight:700;cursor:pointer">'
       +       (isSignUp ? 'Create account' : 'Sign in')
@@ -259,8 +261,9 @@
       +   '<button type="button" data-act="toggle" style="padding:6px;background:transparent;color:#9aa3b0;border:none;cursor:pointer;font-size:calc(14.5px * var(--ui-scale, 1));text-decoration:underline">'
       +     (isSignUp ? 'Already have an account? Sign in' : 'New here? Create an account')
       +   '</button>'
-      +   '<button type="button" data-act="cancel" style="padding:6px;background:transparent;color:#9aa3b0;border:1px solid #2a3142;border-radius:4px;cursor:pointer;font-size:calc(14.5px * var(--ui-scale, 1))">Cancel · Continue offline</button>'
+      +   '<button type="button" data-act="cancel" data-hr-dismiss style="padding:6px;background:transparent;color:#9aa3b0;border:1px solid #2a3142;border-radius:4px;cursor:pointer;font-size:calc(14.5px * var(--ui-scale, 1))">Cancel · Continue offline</button>'
       +   '<div data-status style="font-size:calc(14.5px * var(--ui-scale, 1));color:#e88a8a;min-height:14px;text-align:center"></div>'
+      +   '</div>'
       + '</form>';
     var form = overlay.querySelector('form');
     var status = overlay.querySelector('[data-status]');

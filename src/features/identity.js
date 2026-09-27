@@ -1042,8 +1042,9 @@
     var s = document.createElement('style');
     s.id = STYLE_ID;
     s.textContent = [
-      '.hr-id-scrim{position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,.78);',
-      '  backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:18px}',
+      /* Position, inset, gutter and the height cap: `.hr-scrim`/`.hr-sheet` (art-direction.css). */
+      '.hr-id-scrim{z-index:100001;background:rgba(0,0,0,.78);',
+      '  backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center}',
       '.hr-id-wrap{background:var(--surface-2,#221b14);border:1px solid var(--line,rgba(255,255,255,.12));',
       '  border-radius:14px;max-width:460px;width:100%;padding:22px;',
       '  box-shadow:0 24px 60px -20px rgba(0,0,0,.9)}',
@@ -1096,7 +1097,9 @@
          modal. The grid is auto-fill so it stays square and reflows on a phone
          instead of overflowing a fixed column count. */
       '.hr-id-wrap-wide{max-width:560px}',
-      '.hr-id-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:10px;margin:4px 0 2px}',
+      /* Padding, not margin: the grid scrolls inside the sheet body, whose
+         overflow would clip the 4px focus ring on the edge tiles. */
+      '.hr-id-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:10px;padding:4px}',
       '.hr-id-tile{position:relative;padding:0;overflow:hidden;cursor:pointer;aspect-ratio:1/1;',
       '  border:1px solid var(--line,rgba(255,255,255,.14));background:rgba(0,0,0,.28);border-radius:10px;',
       '  transition:box-shadow .15s ease,border-color .15s ease}',
@@ -1131,13 +1134,17 @@
 
     var renaming = !!rec.name && !opts.taken;
     var scrim = document.createElement('div');
-    scrim.className = 'hr-id-scrim';
+    scrim.className = 'hr-id-scrim hr-scrim';
     var wrap = document.createElement('div');
-    wrap.className = 'hr-id-wrap';
+    wrap.className = 'hr-id-wrap hr-sheet';
 
     var h = document.createElement('h3');
+    h.className = 'hr-sheet-head';
     h.textContent = renaming ? 'Change your name' : 'Choose your name';
     wrap.appendChild(h);
+    var mid = document.createElement('div');
+    mid.className = 'hr-sheet-body';
+    wrap.appendChild(mid);
 
     var lead = document.createElement('p');
     lead.className = 'hr-id-lead';
@@ -1151,7 +1158,7 @@
       lead.textContent = 'This is how the realm will know you — in chat, on the market and on ' +
         'the leaderboards. No two adventurers can share a name.';
     }
-    wrap.appendChild(lead);
+    mid.appendChild(lead);
 
     var field = document.createElement('div');
     field.className = 'hr-id-field';
@@ -1164,22 +1171,22 @@
     input.value = opts.taken ? '' : (rec.name || (window.G && window.G.playerName) || '');
     if (input.value === 'Adventurer') input.value = '';
     field.appendChild(input);
-    wrap.appendChild(field);
+    mid.appendChild(field);
 
     var note = document.createElement('div');
     note.className = 'hr-id-note';
     note.setAttribute('data-tone', 'muted');
-    wrap.appendChild(note);
+    mid.appendChild(note);
 
     var rules = document.createElement('div');
     rules.className = 'hr-id-rules';
     rules.textContent = MIN_LEN + '–' + MAX_LEN + ' characters. Letters, numbers, spaces and ' +
       '_ ’ . - are allowed. Capitalisation is yours to choose, but it does not make a ' +
       'name different: Sir_Bob and sir bob are the same name.';
-    wrap.appendChild(rules);
+    mid.appendChild(rules);
 
     var row = document.createElement('div');
-    row.className = 'hr-id-row';
+    row.className = 'hr-id-row hr-sheet-foot';
     var confirm = document.createElement('button');
     confirm.className = 'btn btn-primary btn-sm';
     confirm.type = 'button';
@@ -1318,20 +1325,24 @@
     closeModal();
 
     var scrim = document.createElement('div');
-    scrim.className = 'hr-id-scrim';
+    scrim.className = 'hr-id-scrim hr-scrim';
     var wrap = document.createElement('div');
-    wrap.className = 'hr-id-wrap hr-id-wrap-wide';
+    wrap.className = 'hr-id-wrap hr-id-wrap-wide hr-sheet';
 
     var h = document.createElement('h3');
+    h.className = 'hr-sheet-head';
     h.textContent = 'Choose your portrait';
     wrap.appendChild(h);
+    var mid = document.createElement('div');
+    mid.className = 'hr-sheet-body';
+    wrap.appendChild(mid);
 
     var lead = document.createElement('p');
     lead.className = 'hr-id-lead';
     lead.textContent = isSignedIn()
       ? 'Pick a face for your adventurer — it follows you to every device. Or upload your own.'
       : 'Pick a face for your adventurer, or upload your own. Sign in to carry it across devices.';
-    wrap.appendChild(lead);
+    mid.appendChild(lead);
 
     var grid = document.createElement('div');
     grid.className = 'hr-id-grid';
@@ -1353,15 +1364,15 @@
       tile.addEventListener('click', function () { choosePrefab(p.id, scrim); });
       grid.appendChild(tile);
     });
-    wrap.appendChild(grid);
+    mid.appendChild(grid);
 
     var note = document.createElement('div');
     note.className = 'hr-id-note';
     note.setAttribute('data-tone', 'muted');
-    wrap.appendChild(note);
+    mid.appendChild(note);
 
     var foot = document.createElement('div');
-    foot.className = 'hr-id-pick-foot';
+    foot.className = 'hr-id-pick-foot hr-sheet-foot';
     var upload = document.createElement('button');
     upload.type = 'button';
     upload.className = 'btn btn-sm';
@@ -1375,6 +1386,7 @@
     cancel.type = 'button';
     cancel.className = 'btn btn-sm';
     cancel.textContent = 'Cancel';
+    cancel.setAttribute('data-hr-dismiss', '');
     cancel.addEventListener('click', function () { closeModal(); });
     foot.appendChild(cancel);
     wrap.appendChild(foot);

@@ -364,8 +364,8 @@ function captureScreenshot(timeoutMs = CAPTURE_TIMEOUT_MS, opts) {
 // fallback that fires when the local file is unreachable hands the whole fix
 // back to anyone who can make it unreachable.
 const VENDOR_SCRIPTS = {
-  htmlToImage: 'src/vendor/html-to-image-1.11.13.umd.js?v=557',
-  html2canvas: 'src/vendor/html2canvas-1.4.1.min.js?v=557',
+  htmlToImage: 'src/vendor/html-to-image-1.11.13.umd.js?v=558',
+  html2canvas: 'src/vendor/html2canvas-1.4.1.min.js?v=558',
 };
 const _vendorLoads = {};
 function loadVendor(globalName) {
@@ -610,15 +610,12 @@ function renderButton() {
   if (document.getElementById('hr-bug-btn')) return;
   const btn = document.createElement('button');
   btn.id = 'hr-bug-btn';
-  btn.className = 'btn btn-sm';
   btn.title = 'Report a bug';
   /* b213 (phase 2): line-art bug glyph instead of the emoji */
   btn.innerHTML = '<svg viewBox="0 0 24 24" style="width:15px;height:15px;display:block" aria-hidden="true">'
     + '<path fill="currentColor" d="M12 4a4 4 0 0 1 4 4v1h2l2-2 1.4 1.4L19 10.8V12h3v2h-3v1.2l2.4 2.4L20 19l-2-2h-1.3A5 5 0 0 1 13 20.9V12h-2v8.9A5 5 0 0 1 7.3 17H6l-2 2-1.4-1.4L5 15.2V14H2v-2h3v-1.2L2.6 8.4 4 7l2 2h2V8a4 4 0 0 1 4-4z"/></svg>';
-  btn.title = 'Report a bug';
-  // Position above the chat dock so they don't overlap.
-  // Chat lives at right:12px;bottom:12px, so we sit on top of it.
-  btn.style.cssText = 'position:fixed;right:12px;bottom:62px;z-index:9998;padding:6px 9px;background:rgba(26,21,15,.9);color:#c4b79e;border:1px solid rgba(201,162,74,.28);border-radius:3px;font-size:calc(14.5px * var(--ui-scale, 1));cursor:pointer;backdrop-filter:blur(4px);line-height:1';
+  // Placement and skin: #hr-bug-btn in theme-cozy.css (desktop above the chat
+  // pill; on a landscape phone, the nav rail's foot).
   btn.addEventListener('click', openModal);
   document.body.appendChild(btn);
 }

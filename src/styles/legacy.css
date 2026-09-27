@@ -701,7 +701,7 @@ img,svg{display:block;max-width:100%}
      the meaning; button title/aria stay intact for a11y. */
   #hr-quests-btn .hr-q-lbl{display:none}
 
-  .panel{padding:8px;padding-bottom:calc(72px + var(--safe-b))}
+  .panel{padding:var(--hr-panel-pad-t) 8px 8px;padding-bottom:calc(72px + var(--safe-b))}
   .panel.active{grid-template-columns:1fr !important;grid-template-rows:auto !important;overflow-y:auto;display:block}
   .card{margin-bottom:8px;max-height:none;overflow:visible}
   .card-body{overflow:visible}

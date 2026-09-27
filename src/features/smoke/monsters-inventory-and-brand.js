@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 183 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot, closeOverlays, phoneFrame } from './_harness.js?v=557';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot, closeOverlays, phoneFrame } from './_harness.js?v=558';
 
 /* SALVAGE-1's regression pin: the goblin drop panel as a player reads it (the
    text of each row, not the markup, so an icon path or cache bump cannot move
@@ -5102,7 +5102,7 @@ export default [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=557')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=558')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -5374,6 +5374,53 @@ export default [
     const sw = { source: 'switch', awayMs: 90000, gainedItems: 1, gainedXp: 2, gainedGold: 3 };
     assert(A.receiptSentence(sw, { spanLabel: () => '1m' }) === 'Collected 1m — +3 gold, +2 XP, +1 items',
       'a switch must keep its own sentence, got ' + A.receiptSentence(sw, { spanLabel: () => '1m' }));
+  }),
+
+  () => tryRun('RECEIPT-ITEMS-1: a receipt counts the units that entered the bag, never the net of a signed map', () => {
+    /* THE REGRESSION: the server's receipt map is SIGNED (inputs negative), and
+       summaryFromAway netted it, so a cook said "+0 items" and a smith "+-900". */
+    const A = window.HearthriseAccrual, M = window.HearthriseActivity;
+    const COOK_MAX = { shrimp: -937, cooked_shrimp: 937 };
+    const COOK_BURN = { shrimp: -937, cooked_shrimp: 864, burnt_food: 73 };
+    const SMITH = { bronze_bar: -900, normal_plank: -900, bronze_axe: 900 };
+    const COMBAT = { goblin_ear: 102, bones: 211, cooked_shrimp: -103, goblin_seal: 2, bronze_sword: 11 };
+    const span = { spanLabel: () => '4m' }, H8 = 8 * 3600000;
+    const switchOf = (xp, items) => {
+      const s = A.summaryFromAway(M.awayFromCollected({ ms: 240000, xp, items, levelUps: [] }), { version: 1 });
+      s.source = 'switch'; return s;
+    };
+    const eq = (got, want, what) => assert(got === want, what + ': got ' + JSON.stringify(got));
+    eq(A.receiptSentence(switchOf({ cooking: 10307 }, COOK_MAX), span),
+      'Collected 4m — +0 gold, +10307 XP, +937 items', '(a) switch');
+    eq(A.receiptSentence(A.summaryFromAway({ grantMs: 90000, xp: { cooking: 10307 }, items: COOK_MAX }, { version: 1 })),
+      'Synced — +937 items, +10307 XP', '(b) sync');
+    eq(A.receiptSentence(A.summaryFromAway({ grantMs: H8, xp: { cooking: 10307 }, items: COOK_MAX }, { version: 2 })),
+      '⏰ Away 8h — the server credited +937 items, +10307 XP, +0 gold', '(c) away');
+    const smithSw = switchOf({ smithing: 13500 }, SMITH);
+    eq(smithSw.gainedItems, 900, '(d) smith gainedItems');
+    eq(A.receiptSentence(smithSw, span), 'Collected 4m — +0 gold, +13500 XP, +900 items', '(d) smith switch');
+    const smithAway = A.summaryFromAway({ grantMs: H8, xp: { smithing: 13500 }, items: SMITH }, { version: 2 });
+    assert(A.receiptSentence(smithAway).indexOf('+-') === -1, '(d) away sentence printed a negative count');
+    assert(String(window.HearthriseHome.__awayCardHtml(smithAway)).indexOf('+-') === -1, '(d) away card printed a negative count');
+    eq(A.summaryFromAway({ grantMs: H8, items: COMBAT, xp: { attack: 500 } }).gainedItems, 326, '(e) combat');
+    eq(A.summaryFromAway({ grantMs: H8, items: { normal_log: 750 }, xp: {} }).gainedItems, 750, '(f) gather control');
+    // (g) one sign convention: the text helper and the inventory reconcile agree on what was used.
+    [[SMITH, ['bronze_bar', 'normal_plank']], [COOK_MAX, ['shrimp']]].forEach(([map, want]) => {
+      eq(JSON.stringify([...A.consumedKeysOf({ away: { items: map } })].sort()), JSON.stringify(want), '(g) consumedKeysOf');
+      eq(JSON.stringify([...A.itemMovesOf(map).usedIds].sort()), JSON.stringify(want), '(g) itemMovesOf.usedIds');
+    });
+    eq(A.receiptSentence(A.summaryFromAway({ grantMs: 90000, xp: {}, items: COOK_MAX }, {})),
+      'Synced — +937 items', '(h) a debit-heavy sync must not be silent');
+    try {
+      const G = {};
+      const r = A.reconcileAwayReceipt(G, { state: { last_away_receipt: { grantMs: H8, awayMs: H8,
+        at: Date.now() - 60000, gold: 0, xp: { smithing: 13500 }, items: SMITH, kills: 0 } } });
+      assert(r && r.gainedItems === 900 && G.lastOfflineSummary.gainedItems === 900 && r.restored === true,
+        '(i) restored receipt: got ' + JSON.stringify(r && r.gainedItems));
+    } finally { A.__resetAwayReceipt(); }
+    const g = A.itemMovesOf(COOK_BURN).gained;
+    assert(g >= 864 && g !== 0, '(j) burn map gained ' + g);
+    assert(String(A.receiptSentence(switchOf({ cooking: 9723 }, COOK_BURN), span)).indexOf('+-') === -1, '(j) sentence');
   }),
 
   () => tryRun('SYNC-5: an away receipt says WHY it stopped and that you got back up', () => {
@@ -7091,7 +7138,7 @@ export default [
        fought a Dark Wizard the server settled from 6 straight into death #8).
        The rest of this test is UNCHANGED: away still owns hp mid-fight, and a
        heal still applies. */
-    const A = await import('../../net/accrue.js?v=557');
+    const A = await import('../../net/accrue.js?v=558');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 2, 'an IDLE client refused the server\'s hp (kept ' + G1.playerHp
@@ -7116,7 +7163,7 @@ export default [
        raised hp freely (next >= cur), so the live fight snapped to full and the
        player never took damage. A non-away envelope during a live fight must
        PRESERVE the client's combat hp; an away-return envelope still applies. */
-    const A = await import('../../net/accrue.js?v=557');
+    const A = await import('../../net/accrue.js?v=558');
 
     // Live sync: activeMonster set, NO away block, server hp full, client hp low.
     const G = { playerHp: 4, playerMaxHp: 10, activeMonster: 'goblin' };
@@ -7143,7 +7190,7 @@ export default [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../../net/accrue.js?v=557');
+    const A = await import('../../net/accrue.js?v=558');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);
@@ -7336,7 +7383,7 @@ export default [
        teaches the next author to delete the explanation. */
     const FILES = ['src/net/auth.js', 'src/net/supabase-chat-backend.js', 'src/bug-report.js'];
     for (const f of FILES) {
-      const raw = await (await fetch(f + '?v=557')).text();
+      const raw = await (await fetch(f + '?v=558')).text();
       assert(raw.length > 1000, 'could not read ' + f + ' to guard it — the guard is checking nothing');
       const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
       /* Any remote fetch of EXECUTABLE code: a dynamic import, or a <script>
@@ -7386,7 +7433,7 @@ export default [
        PREREQUISITE for integrity, not a substitute, so the code looked careful
        while verifying nothing. A compromise there is arbitrary JS in every
        player's page beside their session token. */
-    const raw = await (await fetch('src/observability.js?v=557')).text();
+    const raw = await (await fetch('src/observability.js?v=558')).text();
     assert(raw.length > 1000, 'could not read src/observability.js to guard it');
     const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
 
@@ -7490,7 +7537,7 @@ export default [
        pendingArt() names TODAY: the set is read live from monster-art.js, so
        the moment the batch ships and SHIPPED grows, the exemption evaporates
        and a leftover emoji fails again on its own — staleness by construction. */
-    const _art = await import('../../data/monster-art.js?v=557');
+    const _art = await import('../../data/monster-art.js?v=558');
     const _pendingIcons = new Set(
       _art.pendingArt().map((p) => ((window.MONSTERS || {})[p.id] || {}).icon).filter(Boolean)
         .map((s) => String(s).trim()));

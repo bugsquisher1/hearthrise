@@ -393,6 +393,18 @@ body[data-theme="classic"] {
  * so the rail sits above the panel, and explicit layout boundaries
  * so the topbar doesn't bleed behind the rail.
  * ============================================================ */
+/* Bug-report FAB (built by src/bug-report.js). Desktop: stacked above the chat
+   pill at right:12/bottom:62. The landscape rail block below re-seats it. */
+#hr-bug-btn {
+  position: fixed; right: 12px; bottom: 62px; z-index: 9998;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 6px 9px; line-height: 1; cursor: pointer;
+  background: var(--bg-2); color: var(--ink-2);
+  border: 1px solid var(--line); border-radius: 3px;
+  font-size: calc(14.5px * var(--ui-scale, 1));
+  backdrop-filter: blur(4px);
+}
+
 @media (max-height: 540px) and (orientation: landscape) and (max-width: 1024px) {
   /* Side rail LAYOUT — applies on EVERY theme.
    * Bug (Tyler, landscape): this was scoped to body[data-theme="cozy-light"],
@@ -420,7 +432,8 @@ body[data-theme="classic"] {
        was physically sliced mid-word ("HARACT"). One token now drives the rail
        width and everything offset by it, so they can never drift apart. */
     width: calc(var(--rail-w, 64px) + var(--safe-l, 0px)) !important;
-    height: calc(100vh - var(--hr-dm-banner-h, 0px)) !important;
+    /* …and ends above the bug-report foot (#hr-bug-btn below), which owns that box. */
+    height: calc(100vh - var(--hr-dm-banner-h, 0px) - var(--hr-rail-foot-h) - var(--safe-b, 0px)) !important;
     flex-direction: column !important;
     justify-content: flex-start !important;
     align-items: stretch !important;
@@ -569,7 +582,7 @@ body[data-theme="classic"] {
      * max(12px, safe-r - 36px): 0 → 12px (desktop/Android no-op); 59px → 23px
      * (clears the rounded corner, reclaims ~48px of the old 71px right margin).
      * Left keeps 12px — the .app padding already cleared the rail. */
-    padding: 8px max(12px, calc(var(--safe-r, 0px) - 36px)) max(10px, var(--safe-b, 0px)) 12px !important;
+    padding: var(--hr-panel-pad-t) max(12px, calc(var(--safe-r, 0px) - 36px)) max(10px, var(--safe-b, 0px)) 12px !important;
   }
   /* b317 bottom-reserve reclaim. In this landscape RAIL layout the nav is the
    * LEFT rail, so there is NO bottom nav bar — but #panel-combat.active (1,1,0,
@@ -599,22 +612,28 @@ body[data-theme="classic"] {
     padding: 4px !important;
   }
 
-  /* Bug-report FAB. It lives at right:12/bottom:62 (inline) so it can stack
-   * ABOVE the chat pill on desktop — but in the rail layout the chat pill is
-   * hidden, and on a 430px screen a bottom-RIGHT FAB lands squarely on the
-   * right-aligned primary CTAs (it was covering the quest "Go farm" button in
-   * Tyler's landscape shot). Tuck it into the bottom-LEFT corner against the
-   * rail, where the gameplay panels carry labels/text rather than action
-   * buttons, and quiet it down so it reads as utility chrome, not a CTA.
-   * (toasts.js measures this element at runtime and keeps the toast column
-   * clear of wherever it ends up, so moving it stays safe.) */
+  /* Bug-report FAB = the rail's FOOT. b317 tucked it into the content column's
+   * bottom-left corner, which is the first 36px of every panel (it sat on
+   * LOADOUT, the first bag tile, the first node column). Persistent chrome
+   * reserves its own box: the rail is shortened by --hr-rail-foot-h above and
+   * the FAB fills exactly that box, so it covers neither content nor a rail
+   * destination. `right: auto` stays literal (b317 CSSOM assertion). */
   #hr-bug-btn {
-    left: calc(var(--rail-w, 64px) + var(--safe-l, 0px) + 6px) !important;
-    right: auto !important;
-    bottom: max(6px, var(--safe-b, 0px)) !important;
-    padding: 5px 7px !important;
-    opacity: .7;
-    z-index: 90 !important;
+    left: 0;
+    right: auto;
+    bottom: 0;
+    width: calc(var(--rail-w) + var(--safe-l, 0px));
+    height: calc(var(--hr-rail-foot-h) + var(--safe-b, 0px));
+    padding: 0 0 var(--safe-b, 0px) var(--safe-l, 0px);
+    border: 0;
+    border-top: 1px solid var(--line);
+    border-right: 2px solid var(--rail-edge, var(--line-strong));
+    border-radius: 0;
+    background: var(--bg-0);
+    color: var(--ink-3);
+    opacity: 1;
+    z-index: 101;
+    backdrop-filter: none;
   }
   #hr-bug-btn:hover, #hr-bug-btn:focus-visible { opacity: 1; }
 
@@ -675,7 +694,7 @@ body[data-theme="classic"] {
   /* Sub-tab strips — slimmer */
   .cmb-mob-tabs, .inv-mob-tabs, .act-mob-strip {
     padding: 3px 4px !important;
-    margin: -8px -8px 4px !important;
+    margin: calc(-1 * var(--hr-panel-pad-t)) -8px 4px !important;
   }
   /* b285 (player's-eye QA): these sub-tab strips are the PRIMARY in-screen
      navigation (Foes/Arena/Style, Wood/Mine/Fish, Bag/Equip) and were 32px — too
@@ -716,7 +735,7 @@ body[data-theme="classic"] {
    * phantom for a nav that is a LEFT rail here). Kept in lockstep with the boosted
    * body[data-theme] rule above so whichever wins yields the same fitted padding. */
   .panel.active {
-    padding: 8px 12px max(10px, var(--safe-b, 0px)) !important;
+    padding: var(--hr-panel-pad-t) 12px max(10px, var(--safe-b, 0px)) !important;
   }
   .card { margin-bottom: 4px !important; padding: 6px 8px !important; }
   .card-head, .card-body { padding: 4px 8px !important; }
@@ -828,6 +847,13 @@ body[data-theme="classic"] {
     scrollbar-width: none;
   }
   .act-mob-strip::-webkit-scrollbar { display: none; }
+  /* The stuck strip sits flush with the scroller's top (not 8px down with
+     content showing through above it), and every scrollIntoView on the detail
+     lands its header under the strip, not behind it. --hr-sticky-h is published
+     by activities-mobile-tabs.js. Margin on the target, never scroll-padding on
+     the panel: that jolts the panel on every strip-button scroll. */
+  .act-mob-strip { top: calc(-1 * var(--hr-panel-pad-t)); }
+  #panel-skills #skill-detail { scroll-margin-top: var(--hr-sticky-h, 0px); }
   .act-mob-strip .ams-btn {
     flex: 0 0 auto;
     display: flex; flex-direction: column; align-items: center; gap: 2px;
@@ -2961,6 +2987,9 @@ body[data-theme="hearthlight"] .cmb-mob-tabs .cmt-btn.active {
     background: linear-gradient(180deg, var(--bg-1), var(--bg-0)) !important;
     border-right: 1px solid var(--line-strong) !important;
   }
+  /* The foot continues the rail: its 1px edge, and --bg-0 is where the rail's
+     gradient ends. */
+  body[data-theme="hearthlight"] #hr-bug-btn { border-right: 1px solid var(--line-strong); }
   body[data-theme="hearthlight"] .bn-btn,
   body[data-theme="hearthlight"] .bottom-nav button {
     color: var(--ink-2) !important;

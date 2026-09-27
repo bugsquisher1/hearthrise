@@ -1353,6 +1353,20 @@ export function consumedKeysOf(res) {
   return out;
 }
 
+/* Reads the server's SIGNED receipt item map: `gained` = units that entered
+   the bag (positives only; inputs are negatives), `usedIds` = consumed ids,
+   the same predicate as consumedKeysOf. Receipt text counts `gained`. */
+export function itemMovesOf(items) {
+  const out = { gained: 0, usedIds: new Set() };
+  if (!items || typeof items !== 'object' || Array.isArray(items)) return out;
+  for (const k of Object.keys(items)) {
+    const n = Number(items[k]);
+    if (!Number.isFinite(n) || n === 0) continue;
+    if (n < 0) out.usedIds.add(k); else out.gained += n;
+  }
+  return out;
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
    PHASE 2 (b366) — THE FLIP TO ABSOLUTE. live-settlement.md §5.3, §8.
 
@@ -2318,14 +2332,14 @@ export function startFlipDriftReporter(intervalMs) {
    imports nothing, so there is no cycle to dodge — and a direct import has no
    "unregistered, therefore silently inert" failure mode, which for a correction
    that prevents an item dupe is the whole ballgame. */
-import * as itemLedger from './item-ledger.js?v=557';
+import * as itemLedger from './item-ledger.js?v=558';
 
 /* THE SERVER-OWNED-ITEM PREDICATE (server-authority inventory-flip, Step 2).
    A pure data-derived leaf like item-ledger.js — no cycle to dodge, so a direct
    import. It answers "may the absolute envelope OWN this id?"; a false id is one
    a live, un-modeled path writes (cooked food, crop, dungeon reward, companion
    proc) and the absolute branch below leaves the client's copy of it intact. */
-import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED, INVENTORY_ARM_STAGE, inventoryArmStaged } from '../data/item-authority.js?v=557';
+import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED, INVENTORY_ARM_STAGE, inventoryArmStaged } from '../data/item-authority.js?v=558';
 
 /* THE SERVER-ACCRUED-SKILL PREDICATE (P0 — client-only skills must not be
    dragged DOWN by the absolute reconcile). Same shape and same reasoning as
@@ -2334,15 +2348,15 @@ import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlock
    cooking, or any skill with no server accrual path — follows Math.max below
    (can only rise) instead of the absolute assign, so the server's FROZEN xp for
    an un-modeled skill can never reduce the client's real progress. */
-import { serverAccruedSkill } from '../data/skill-authority.js?v=557';
+import { serverAccruedSkill } from '../data/skill-authority.js?v=558';
 /* THE START KIT — the fresh-G bag hint the first envelope discards (see the
    START_INVENTORY block in reconcileInventory). The SAME frozen source the
    server's hr_start_kit catalogue is generated from, so there is no second copy
    of the numbers here either. */
-import { START_INVENTORY } from '../data/start-kit.js?v=557';
+import { START_INVENTORY } from '../data/start-kit.js?v=558';
 /* The cache-buster, so a soak row says WHICH build produced it (a +24 h window
    spans a release). A frozen constant leaf — no cycle, no DOM. */
-import { BUILD } from '../build-info.js?v=557';
+import { BUILD } from '../build-info.js?v=558';
 
 /* WHAT THE CLIENT HAS SPENT AND THE SERVER HAS NOT AGREED TO YET (LIVE P0,
    "food eaten in combat gets restocked"). Another pure leaf that imports
@@ -2360,24 +2374,24 @@ import { BUILD } from '../build-info.js?v=557';
    because the XP buffer is ADDITIVE and drains on the flush's own receipt,
    while this is SUBTRACTIVE and drains on the server's figure moving — one file
    holding both rules would have to state which one it was obeying per call. */
-import * as pendingConsume from './pending-consume.js?v=557';
+import * as pendingConsume from './pending-consume.js?v=558';
 /* The style catalogue's DEFAULTS — the same object the picker, the XP router and
    the server-side accrual engine all read (src/core/styles.js). Imported rather
    than restated so `reconcileCombatStyle`'s back-fill filter can never disagree
    with what `resolveStyle` treats as "unchosen"; two copies of that fact is the
    b222 shape this repo has already paid for once. */
-import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=557';
+import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=558';
 /* b492 — the property/worker rung OBSERVER. A static import rather than a window
    hop so the observation is exercised in Node by the suite exactly as it runs in
    the browser; property-record.js imports NOTHING, so there is no cycle. */
-import { notePropertyUnlocks, pickBankRung, isCompleteProgressStatement } from './property-record.js?v=557';
+import { notePropertyUnlocks, pickBankRung, isCompleteProgressStatement } from './property-record.js?v=558';
 /* b313 rev.2 — the companion XP CURVE, for the level-up detector below. The
    pure core copy (src/core/companion-perk.js), not the feature module's twin:
    companions.js imports the event bus and reaches for window, and this file is
    driven headlessly by the suite. The two curves are pinned equal to each other
    by tests/perk-channel.mjs, so reading the level here can never disagree with
    the level the doll and getCompanionBonus read. */
-import { companionLevelFromXp } from '../core/companion-perk.js?v=557';
+import { companionLevelFromXp } from '../core/companion-perk.js?v=558';
 
 /* ── THE HIRED CREW, RECONCILED FROM THE ENVELOPE (worker-settlement slice) ──
    `hr_state_of` projects the server-owned crew (player_workers — no client write
@@ -5237,8 +5251,7 @@ export function reconcileAwayReceipt(G, res) {
 export function summaryFromAway(away, res) {
   const a = away || {};
   const ms = Number(a.grantMs) || 0;
-  const items = a.items && typeof a.items === 'object'
-    ? Object.keys(a.items).reduce((s, k) => s + (Number(a.items[k]) || 0), 0) : 0;
+  const items = itemMovesOf(a.items).gained;
   const xp = a.xp && typeof a.xp === 'object'
     ? Object.keys(a.xp).reduce((s, k) => s + (Number(a.xp[k]) || 0), 0) : (Number(a.xp) || 0);
   return {
@@ -6471,7 +6484,7 @@ if (typeof window !== 'undefined') {
     __resetServerArmPermission,
     envelopeBaselineComplete, noteBaselineComplete, isBaselineCompleteSeen, __resetBaselineComplete,
     serverOwnedItem, serverConsumedItem, serverAccruedSkill, markEquipAuthorityLive,
-    equippedCount, unaccountedEquipped, consumedKeysOf,
+    equippedCount, unaccountedEquipped, consumedKeysOf, itemMovesOf,
     /* "How many does the SERVER say I hold?" — null while unstated. Read by any
        surface that gates a server-owned spend (dungeon entry keys today); never
        use `G.inventory` for that, it is a display bag with a ratchet. */

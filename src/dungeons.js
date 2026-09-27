@@ -711,12 +711,14 @@
                 var mMode = manualMode(id);
                 var mCheck = hasManual ? canRun(id, mMode) : { ok: false, reason: check.reason };
                 var autoBtn = check.ok
-                  ? '<button class="dgn-run dgn-run-auto" data-dgn="' + id + '" title="Quick auto-run, base rewards · uses the full ' + d.cooldownH + 'h cooldown">Auto-Run</button>'
+                  ? '<button class="dgn-run dgn-run-auto" data-dgn="' + id + '" title="Auto-run · full Dungeon Scrip; the chest is rolled by the realm · then the dungeon rests ' + d.cooldownH + 'h">Auto-Run</button>'
                   : '<button class="dgn-run" disabled title="' + check.reason + '">' + check.reason + '</button>';
                 var mName = mMode === 'scavenger' ? 'Scavenger' : 'Manual';
                 var manualBtn = !hasManual ? ''
                   : mCheck.ok
-                    ? '<button class="dgn-run dgn-run-manual" data-dgn-manual="' + id + '" title="' + mName + ' run · loot scales with boss HP taken down">Manual Run</button>'
+                    ? '<button class="dgn-run dgn-run-manual" data-dgn-manual="' + id + '" title="' + (mMode === 'scavenger'
+                      ? 'Scavenger run · you play it by hand; Dungeon Scrip grows with the boss HP you take down; the chest is rolled by the realm'
+                      : 'Manual run · you play every phase by hand; Dungeon Scrip grows with the phases you clear; the chest is rolled by the realm') + '">Manual Run</button>'
                     : (mCheck.reason === check.reason ? ''
                       /* Same width as the disabled Auto-Run label the card already
                          renders — the mode name replaces "On cooldown", it is not
@@ -840,7 +842,7 @@
     var d = DUNGEONS[runState.dungeonId];
     var total = runState.phaseResults.length;
     var won = runState.phaseResults.filter(function(r){return r.passed;}).length;
-    // Reward multiplier based on how many phases passed.
+    // Dormant loot multiplier from how many phases passed.
     // All passed = 2.0x + +20% bop chance. Half = 1.0x + 0%. None = 0.4x.
     var pct = won / total;
     var mult = 0.4 + pct * 1.6;
@@ -884,7 +886,7 @@
           (pct >= 1 ? 'PERFECT' : pct >= 0.5 ? 'CLEARED' : 'FAILED') +
           '<span>' + won + ' / ' + total + ' phases</span>' +
         '</div>' +
-        '<div class="drm-mult">Reward multiplier: <b>' + mult.toFixed(1) + 'x</b></div>' +
+        '<div class="drm-mult">Dungeon Scrip is paid for the phases you clear; the chest is rolled by the realm.</div>' +
       '</div>' +
       '<div class="drm-rewards">' +
         '<h4>Spoils</h4><div id="drm-spoils">' + rewardHtml + '</div>' +

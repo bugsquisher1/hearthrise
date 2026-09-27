@@ -92,6 +92,12 @@
     return c.killBonusesFor(id, nowMs(), window.MONSTERS || {});
   }
 
+  /* What the engine pays: drop CHANCE (capped, guaranteed rows untouched) and
+     KILL XP only — hit XP is not scaled (combat-sim.js hitXpRoute). */
+  function bonusLine(b, when) {
+    return '+' + Math.round((b.dropMult - 1) * 100) + '% drop odds · +' + Math.round((b.xpMult - 1) * 100) + '% kill XP ' + when;
+  }
+
   function msUntilRotate() { var c = CB(); return c ? c.msUntilDailyRotate(nowMs()) : 0; }
 
   function fmtCountdown(ms) {
@@ -200,8 +206,7 @@
         '<div class="botd-main">' +
           '<div class="botd-name">' + esc(m.name) + '</div>' +
           '<div class="botd-sub">' + esc(m.family || 'Monster') + ' · weak to ' + esc(weak) + '</div>' +
-          '<div class="botd-bonus">+' + Math.round((dailyBonus().dropMult - 1) * 100) + '% drops · +' +
-             Math.round((dailyBonus().xpMult - 1) * 100) + '% combat XP while featured</div>' +
+          '<div class="botd-bonus">' + bonusLine(killBonuses(id), 'while featured') + '</div>' +
         '</div>' +
       '</div>' +
       awayLine() +
@@ -301,8 +306,7 @@
         '<div class="botd-main">' +
           '<div class="botd-name">' + esc(m.name) + '</div>' +
           '<div class="botd-sub">' + esc(m.family || 'Monster') + ' · weak to ' + esc(weak) + '</div>' +
-          '<div class="botd-bonus">+' + Math.round((weeklyBonus().dropMult - 1) * 100) + '% drops · +' +
-             Math.round((weeklyBonus().xpMult - 1) * 100) + '% combat XP this week</div>' +
+          '<div class="botd-bonus">' + bonusLine(killBonuses(id), 'this week') + '</div>' +
         '</div>' +
       '</div>' +
       awayLine() +

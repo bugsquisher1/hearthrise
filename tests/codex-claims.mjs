@@ -75,6 +75,9 @@ function chainEndBody(order, fn) {
   return body;
 }
 const stripSqlComments = (s) => s.replace(/--[^\n]*/g, '');
+const sqlCode = (s) => stripSqlComments(s).replace(/\s+/g, ' ');
+const stripJs = (s) => String(s || '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"\\])\/\/[^\n]*/g, '$1');
+const jsLiterals = (s) => stripJs(s).match(/'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|`(?:[^`\\]|\\.)*`/g) || [];
 
 export async function loadWorld() {
   const order = JSON.parse(read('tests/schema-apply-order.json')).order;
@@ -85,6 +88,8 @@ export async function loadWorld() {
   const codex = await imp('src/data/codex.js');
   return {
     away: { ...(await imp('src/core/away.js')) },
+    hunt: { ...(await imp('src/core/hunt.js')) },
+    botd: { ...(await imp('src/core/botd.js')) },
     xp: { ...(await imp('src/core/xp.js')) },
     combat: { ...(await imp('src/core/combat.js')) },
     bounty: { ...(await imp('src/core/bounty.js')) },
@@ -334,6 +339,111 @@ export const BINDS = {
       need(S[0].drop === 1 && S.slice(1).every((r, i) => r.drop > 1 && r.drop > S[i].drop), 'later trophy stages no longer raise loot step by step'),
       need(w.packNames.includes('vendor/core/trophies.js'), 'trophies left the server engine — no longer "watching or away"'));
   },
+  vigourBudget: (w) => {
+    const v = w.fnBody('hr_vigour_of'), k = w.fnBody('hr_utc_day_key');
+    if (!v || !k) return 'hr_vigour_of or hr_utc_day_key has no definition in the apply order';
+    const c = sqlCode(v.text);
+    return all(
+      need(w.hunt.VIGOUR_FLOOR_MIN > 0, 'VIGOUR_FLOOR_MIN is no longer positive — there is no daily allowance'),
+      need(c.includes('v_day text := public.hr_utc_day_key(now())') && c.includes('period_key = v_day'),
+        'hr_vigour_of (' + v.file + ') no longer keys the day on hr_utc_day_key(now())'),
+      need(sqlCode(k.text).toLowerCase().includes("at time zone 'utc'"), 'hr_utc_day_key no longer turns at midnight UTC'));
+  },
+  vigourDryAway: (w) => {
+    const H = w.hunt, a = stripJs(w.accrualJs);
+    const sp = H.vigourSplit({ spentMin: 60, budgetMin: 60, windowMs: 3600000 });
+    return all(
+      need(H.VIGOUR_DRY_MULT > 0 && H.VIGOUR_DRY_MULT < 1, 'VIGOUR_DRY_MULT is ' + H.VIGOUR_DRY_MULT + ' — not "a small share"'),
+      need(sp.dryMs === 3600000 && sp.fullMs === 0, 'past the budget a window is no longer all dry'),
+      need(a.includes('dropMult: (w.dropMult || 1) * vigMult') && a.includes('Math.floor(raw * vigMult)')
+        && a.includes('Math.floor(Math.floor(state.gold || 0) * vigMult)'),
+        'the away settle no longer folds vigMult into drop chance, experience and gold'));
+  },
+  vigourScope: (w) => {
+    const a = stripJs(w.accrualJs);
+    const at = a.indexOf('const accruer = KIND_ACCRUERS[inp.activeKind];');
+    const uses = [...a.matchAll(/vigMult|vigourMult\(|vigourCharge\(/g)].map((m) => m.index);
+    const body = (name) => { const i = a.indexOf('function ' + name + '('); const j = a.indexOf('\nfunction ', i + 1); return i < 0 ? null : a.slice(i, j < 0 ? undefined : j); };
+    const g = body('accrueGather'), r = body('accrueArtisan');
+    const refill = w.fnBody('hr_vigour_refill__ungated');
+    return all(
+      need(at > 0 && uses.length > 0 && uses.every((i) => i > at), 'Vigour is read outside the combat branch of the settle'),
+      need(g && r && !/vig/i.test(g) && !/vig/i.test(r), 'gathering or artisan accrual now reads Vigour'),
+      need(refill && sqlCode(refill.text).includes('insufficient_gold'), 'the refill is no longer paid in gold'),
+      need(/getElementById\('fs-manage'\)/.test(w.src['src/features/vigour-mount.js'] || ''), 'the refill is no longer mounted on the Fight screen'));
+  },
+  dungeonKeys: (w) => {
+    const D = Object.values(w.dungeons.DUNGEONS);
+    const cat = w.mig('2026-09-10-dungeon-catalogue.generated.sql');
+    const rows = [...cat.matchAll(/\('([a-z_]+)', '(?:dungeon|raid|worldboss)', \d+, \d+, '([a-z_]*)', \d+\)/g)];
+    const settle = w.fnBody('hr_dungeon_settle');
+    const c = settle ? sqlCode(settle.text) : '';
+    const js = stripJs(w.src['src/dungeons.js'] || '');
+    const i = js.indexOf('function startManualRun'), g = js.indexOf('if(!_dsArmed()){', i);
+    return all(
+      need(D.every((d) => d.cost && d.cost.key && w.items[d.cost.key]), 'a dungeon door no longer names a real key item'),
+      need(rows.length === D.length && rows.every((m) => m[2]), 'a server catalogue row has no cost_key'),
+      need(c.includes('v_key := v_dun.cost_key') && c.includes('set qty = v_have - 1'), 'the server settle no longer spends the key from the bag'),
+      need(i > 0 && g > i && !js.slice(i, g).includes('removeItem(d.cost.key') && js.slice(g, g + 1200).includes('removeItem(d.cost.key, 1)'),
+        'startManualRun spends the key outside the dormant branch — armed, the key would be spent twice'));
+  },
+  dungeonChest: (w) => {
+    const b = w.fnBody('hr_dungeon_settle');
+    if (!b) return 'hr_dungeon_settle has no definition in the apply order';
+    const c = sqlCode(b.text);
+    const cat = w.mig('2026-09-10-dungeon-catalogue.generated.sql');
+    const loot = [...cat.matchAll(/\('[a-z_]+', \d+, '([a-z0-9_]+)', \d+, \d+, ([\d.]+), (?:true|false)\)/g)].map((m) => ({ id: m[1], ch: +m[2] }));
+    const lies = ['src/dungeons.js', 'src/dungeon-scavenger.js'].flatMap((f) => jsLiterals(w.src[f]).filter((l) => /Reward multiplier|scales with boss HP|base rewards/i.test(l)));
+    return all(
+      need((c.match(/p_quality/g) || []).length === 1 && c.includes('v_q := least(greatest(coalesce(p_quality, 1), 0), 1)'),
+        'the client quality reaches hr_dungeon_settle beyond the one clamped scrip line'),
+      need(c.includes('from public.hr_dungeon_loot') && c.includes('hr_seed('), 'the chest is no longer rolled from the server loot table with the server seed'),
+      need(cat.includes('_blueprint_') && cat.includes('farm_deed') && loot.some((r) => r.ch <= 0.1 && w.items[r.id] && w.items[r.id].slot),
+        'a dungeon chest no longer holds room blueprints, rare boss gear and Farmer\'s Deeds'),
+      need(!lies.length, 'a dungeon screen promises a reward scaling the server does not pay: ' + lies.join(', ')));
+  },
+  dungeonRest: (w) => {
+    const cat = w.mig('2026-09-10-dungeon-catalogue.generated.sql');
+    const cd = [...cat.matchAll(/\('[a-z_]+', '(?:dungeon|raid|worldboss)', \d+, (\d+), '[a-z_]*', \d+\)/g)].map((m) => +m[1]);
+    const modes = w.fnBody('hr_dungeon_cooldown_modes');
+    const div = (k) => { const m = modes && new RegExp("'" + k + "', (\\d+)").exec(sqlCode(modes.text)); return m ? +m[1] : 0; };
+    return all(
+      need(cd.length > 0 && cd.every((s) => s > 0), 'a dungeon no longer rests after a run'),
+      need(w.order.includes('2026-09-12-dungeon-cooldown.sql'), 'the dungeon cooldown left the apply order'),
+      need(['auto', 'manual', 'scavenger'].every((k) => div(k) > 0), 'a run mode no longer rests the dungeon'));
+  },
+  botdPools: (w) => {
+    const B = w.botd, M = w.monsters;
+    const t0 = Date.UTC(2026, 8, 27);
+    const days = Array.from({ length: 14 }, (_, i) => B.botdFor(t0 + i * 86400000, M));
+    return all(
+      need(B.DAILY_POOL.every((id) => id in M) && B.WEEKLY_POOL.every((id) => id in M), 'a Boss of the Day pool names a monster that does not exist'),
+      need(w.packNames.includes('vendor/core/botd.js'), 'the Boss of the Day left the server engine'),
+      need(days.every((f) => f.dailyId && f.weeklyId), 'a day in the next fortnight has no daily or no weekly boss'));
+  },
+  botdBonus: (w) => {
+    const { DAILY_BONUS: D, WEEKLY_BONUS: W } = w.botd;
+    return all(
+      need(D.dropMult > 1 && D.xpMult > 1 && W.dropMult > D.dropMult && W.xpMult > D.xpMult, 'the featured bonuses no longer lift drops and kill XP, weekly most'),
+      need(w.away.AWAY_SCOPE.botd === true, 'the featured bonus no longer pays away'),
+      need(w.combatSimJs.includes('killXpRoute(ctx.style, m.xp, feat.xpMult)') && w.combatSimJs.includes('hitXpRoute(ctx.style, pDmg)'),
+        'the featured XP bonus no longer scales kill XP alone — "for each kill" is wrong'),
+      need(w.accrualJs.includes('lootCtx.botd = {'), 'the attended top-up no longer applies the featured bonus'),
+      need(/import\s*\{[^}]*\bWEEKLY_BONUS\b[^}]*\}\s*from\s*'\.\/botd\.js/.test(w.src['src/core/combat-xp-cap.js'] || ''), 'the live XP credit no longer allows the weekly bonus'));
+  },
+  luckyRows: (w) => {
+    const rows = [];
+    for (const m of Object.values(w.monsters)) JSON.stringify(m, (k, v) => { if (v && v.lucky === true) rows.push(v); return v; });
+    return all(
+      need(rows.length > 0 && rows.every((r) => r.ch < 0.005), 'a lucky row is no longer a once-in-a-long-while chance'),
+      need(rows.every((r) => w.items[r.id] && w.items[r.id].slot), 'a lucky find is no longer a piece of gear'),
+      need(w.packNames.includes('vendor/data/monsters.js'), 'the monster table left the server engine'));
+  },
+  luckySilence: (w) => {
+    const c = stripJs(w.src['src/features/lucky-finds.js'] || '');
+    return need(/HearthriseCombatSim/.test(c) && /fx\.addItem\s*=\s*function\s*\(id\)\s*\{\s*if\s*\(isRevealed\(id\)\)\s*return;/.test(c) && c.includes("'rare_drop'"),
+      'lucky-finds.js no longer silences the client\'s own dice on COMBAT_FX, or no longer reveals from the server\'s rare_drop');
+  },
   hearthfind: (w) => {
     const t = w.mig('2026-09-13-world-finds-projection.sql');
     const hf = w.src['src/features/hearthfind.js'] || '';
@@ -433,7 +543,7 @@ async function run() {
 
 async function selftest() {
   const base = await loadWorld();
-  const clone = () => ({ ...base, away: { ...base.away }, src: { ...base.src },
+  const clone = () => ({ ...base, away: { ...base.away }, hunt: { ...base.hunt }, botd: { ...base.botd }, src: { ...base.src },
     entries: base.entries.map((e) => ({ ...e, claims: e.claims.map((c) => ({ ...c })) })) });
   const byId = (w, id) => w.entries.find((e) => e.id === id);
   let bad = 0;
@@ -454,6 +564,9 @@ async function selftest() {
     ['M8 a luckyRowsExist bind (no predicate ships)', 'CODEX-6', (w) => { byId(w, 'renown').claims.push({ s: 0, bind: 'luckyRowsExist' }); }],
     ['M9 "double" outside combat-level', 'CODEX-4', (w) => { const e = byId(w, 'charms'); e.text = e.text.replace('a little more often', 'double as often'); }],
     ['M10 codex feature reads G', 'CODEX-10', (w) => { w.src['src/features/codex.js'] += '\nconst x = G.gold;'; }],
+    ['M11 VIGOUR_DRY_MULT = 1', 'CODEX-6', (w) => { w.hunt.VIGOUR_DRY_MULT = 1; }, 'vigourDryAway'],
+    ['M12 plant a "Reward multiplier" label', 'CODEX-6', (w) => { w.src['src/dungeons.js'] = "var _m = 'Reward multiplier: ';\n" + w.src['src/dungeons.js']; }, 'dungeonChest'],
+    ['M13 hit XP scaled by the featured bonus', 'CODEX-6', (w) => { w.combatSimJs = w.combatSimJs.replace('hitXpRoute(ctx.style, pDmg)', 'hitXpRoute(ctx.style, pDmg * feat.xpMult)'); }, 'botdBonus'],
   ];
   for (const [label, want, mutate, bindName] of arms) {
     const w = clone();

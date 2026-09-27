@@ -13554,7 +13554,7 @@ function maybeShowWelcome(opts){
   var _hfBand = '';
   try {
     if (window.HearthriseHearthfind && typeof window.HearthriseHearthfind.claimAwayBand === 'function') {
-      _hfBand = window.HearthriseHearthfind.claimAwayBand() || '';
+      _hfBand = (window.HearthriseHearthfind.claimAwayBand() || '') + ((window.HearthriseLuckyFinds && window.HearthriseLuckyFinds.claimAwayBand && window.HearthriseLuckyFinds.claimAwayBand()) || '');
     }
   } catch (e) { _hfBand = ''; }
   document.getElementById('welcome-rows').innerHTML = _hfBand + rows.map(function(r){

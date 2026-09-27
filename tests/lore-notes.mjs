@@ -4,7 +4,7 @@
 //                        ROOM RUNG AND FARM PLOT TIER
 //
 //   node tests/lore-notes.mjs             gate
-//   node tests/lore-notes.mjs --selftest  mutation proof (clean arm + 12 plants)
+//   node tests/lore-notes.mjs --selftest  mutation proof (clean arm + 15 plants)
 //
 // src/data/lore-notes.js is client-only display text. The Stable card, the
 // renown ladder, the rank-up card and the Trophy Room render it as RAW HTML,
@@ -12,6 +12,8 @@
 // injection guard for those lines, not a style rule — keep it. LORE-6 keeps
 // the lines lore rather than stats: no word from the UI's own bonus labels.
 // LORE-7 keeps the file off the hr-accrue edge payload (class A).
+// LORE-10/15: src/data/lucky-rumours.js keys every {lucky:true} drop, and no
+// rumour names its monster's own weakness (any element, for a hiddenElement).
 // src/data/homestead-lore.js joins all of the above. LORE-11..13 tie it to
 // the engine (ROOM_PERKS rungs, PLOT_TIERS unlocks); LORE-14 is the census:
 // one tier builder, reading the SERVER plot tier (CLAUDE.md §6).
@@ -38,6 +40,13 @@ export function labelValues(srcText, decl) {
   return [...body.matchAll(/:\s*'([^']+)'/g)].map((m) => m[1]);
 }
 
+/* The FIELDNOTES-1 element synonyms (smoke/quests-chronicle-and-bonus.js). */
+const SYN = {
+  ember: /\b(ember\w*|fire\w*|flame\w*|burn\w*|blaz\w*|scorch\w*|smoulder\w*|heat|torch\w*|kindl\w*|candle\w*|lantern\w*)\b/i,
+  frost: /\b(frost\w*|ice|icy|cold\w*|freez\w*|snow\w*|chill\w*|winter\w*|rime)\b/i,
+  poison: /\b(poison\w*|venom\w*|toxi\w*|blight\w*)\b/i,
+};
+
 const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
 const sameSet = (a, b) => a.length === b.length && a.every((k) => b.includes(k));
 
@@ -54,11 +63,18 @@ export function check(d) {
   keysEq('LORE-1', 'COMPANION_NOTES', Object.keys(d.companionNotes), d.companionIds);
   keysEq('LORE-2', 'RANK_LORE', Object.keys(d.rankLore), d.rankIds);
   keysEq('LORE-3', 'TROPHY_LORE', Object.keys(d.trophyLore), d.stageIds);
+  keysEq('LORE-10', 'LUCKY_RUMOURS', Object.keys(d.luckyRumours), d.luckyDrops.map((r) => r.id));
+  for (const r of d.luckyDrops) {
+    const s = String(d.luckyRumours[r.id] || '');
+    const els = r.hiddenElement ? Object.keys(SYN) : (SYN[r.elementWeak] ? [r.elementWeak] : []);
+    for (const el of els) if (SYN[el].test(s)) add('LORE-15', `rumour ${r.id} names the ${el} element of ${r.mid}`);
+  }
 
   const lines = [
     ...Object.entries(d.companionNotes).map(([k, v]) => [`companion ${k}`, v]),
     ...Object.entries(d.rankLore).map(([k, v]) => [`rank ${k}`, v]),
     ...Object.entries(d.trophyLore).map(([k, v]) => [`trophy ${k}`, v]),
+    ...Object.entries(d.luckyRumours).map(([k, v]) => [`rumour ${k}`, v]),
     ...Object.entries(d.roomRungLore).map(([k, v]) => [`room ${k}`, v]),
     ...Object.entries(d.plotLore).map(([k, v]) => [`plot ${k}`, v]),
   ];
@@ -77,7 +93,7 @@ export function check(d) {
     for (const [w, re] of vocab) if (re.test(s)) add('LORE-6', `${where} uses the stat word "${w}"`);
   }
   for (const f of d.packedFiles) {
-    if (/lore-notes|homestead-lore/.test(String(f.origin || '')) || /lore-notes|homestead-lore/.test(String(f.content || ''))) {
+    if (/lore-notes|lucky-rumours|homestead-lore/.test(String(f.origin || '')) || /lore-notes|lucky-rumours|homestead-lore/.test(String(f.content || ''))) {
       add('LORE-7', `hr-accrue packs ${f.origin || f.name}, which names a lore file — it must stay client-only`);
     }
   }
@@ -148,6 +164,10 @@ async function loadReal() {
   const { RENOWN_RANK_REWARDS } = await import('../src/data/renown-ranks.js');
   const { TROPHY_STAGES } = await import('../src/data/bestiary.js');
   const { MONSTER_NOTES } = await import('../src/data/monster-notes.js');
+  const { LUCKY_RUMOURS } = await import('../src/data/lucky-rumours.js');
+  const { MONSTERS } = await import('../src/data/monsters.js');
+  const luckyDrops = Object.entries(MONSTERS).flatMap(([mid, m]) => (m.drops || [])
+    .filter((r) => r && r.lucky).map((r) => ({ id: r.id, mid, elementWeak: m.elementWeak, hiddenElement: !!m.hiddenElement })));
   const { ITEM_DESC } = await import('../src/data/item-descriptions.js');
   const { pack } = await import('../tools/pack-edge.mjs');
   const packed = await pack('hr-accrue');
@@ -183,6 +203,7 @@ async function loadReal() {
     companionIds: Object.keys(COMPANIONS),
     rankIds: ['peasant', ...Object.keys(RENOWN_RANK_REWARDS)],
     stageIds: TROPHY_STAGES.map((r) => r.id),
+    luckyRumours: LUCKY_RUMOURS, luckyDrops,
     foreignLines: [...Object.values(MONSTER_NOTES), ...Object.values(ITEM_DESC),
       ...[...between(homestead, 'var ROOM_META = {', 'var KEY_LABEL').matchAll(/flavour:\s*'([^']*)'/g)].map((m) => m[1])],
     vocab, packedFiles: packed.files,
@@ -193,18 +214,19 @@ async function run() {
   const d = await loadReal();
   const problems = check(d);
   const n = Object.keys(d.companionNotes).length + Object.keys(d.rankLore).length
-    + Object.keys(d.trophyLore).length + Object.keys(d.roomRungLore).length + Object.keys(d.plotLore).length;
+    + Object.keys(d.trophyLore).length + Object.keys(d.luckyRumours).length
+    + Object.keys(d.roomRungLore).length + Object.keys(d.plotLore).length;
   if (problems.length) {
     console.error(`  ✗ lore-notes: ${problems.length} problem(s)`);
     for (const p of problems) console.error(`      ${p.id}  ${p.msg}`);
     return 1;
   }
-  console.log(`✓ lore-notes: ${n} lines — companions, ranks, trophy stages, room rungs and plot tiers covered, `
+  console.log(`✓ lore-notes: ${n} lines — companions, ranks, trophy stages, lucky finds, room rungs and plot tiers covered, `
     + `${d.vocab.length} stat words absent, not in the ${d.packedFiles.length}-file edge payload`);
   return 0;
 }
 
-/* ── MUTATION PROOF (CLAUDE.md §4): a clean arm, then twelve plants, each of
+/* ── MUTATION PROOF (CLAUDE.md §4): a clean arm, then fifteen plants, each of
    which must be caught by its OWN LORE id. */
 function fixture() {
   const L = (s) => s.padEnd(110, ' and the valley remembers it well');
@@ -213,6 +235,9 @@ function fixture() {
     rankLore: { peasant: L('You own a bedroll'), serf: L('The steward knows your name') },
     trophyLore: { quarry: L('The first trophy goes up'), stalker: L('It knows you now') },
     companionIds: ['fox', 'owl'], rankIds: ['peasant', 'serf'], stageIds: ['quarry', 'stalker'],
+    luckyRumours: { yew_bow: L('Drakes nest in the old groves'), fang_studs: L('Bats roost where trackers camped') },
+    luckyDrops: [{ id: 'yew_bow', mid: 'drake', elementWeak: 'poison', hiddenElement: false },
+      { id: 'fang_studs', mid: 'giant_bat', elementWeak: 'frost', hiddenElement: false }],
     foreignLines: ['A goblin measures a raid by what it carries home'],
     vocab: ['all xp', 'gather', 'speed', 'xp'],
     packedFiles: [{ name: 'index.ts', origin: 'supabase/functions/hr-accrue/index.ts', content: 'x' }],
@@ -247,6 +272,13 @@ function selftest() {
     ['pack src/data/lore-notes.js', 'LORE-7', (f) => {
       f.packedFiles.push({ name: '_shared/lore-notes.js', origin: 'src/data/lore-notes.js', content: '' });
     }],
+    ['drop the yew_bow rumour', 'LORE-10', (f) => { delete f.luckyRumours.yew_bow; }],
+    ['put frost into giant_bat\'s rumour', 'LORE-15', (f) => {
+      f.luckyRumours.fang_studs = f.luckyRumours.fang_studs.replace('Bats roost', 'Bats roost in frost');
+    }],
+    ['pack src/data/lucky-rumours.js', 'LORE-7', (f) => {
+      f.packedFiles.push({ name: '_shared/lucky-rumours.js', origin: 'src/data/lucky-rumours.js', content: '' });
+    }],
     ['drop a rung key', 'LORE-11', (f) => { delete f.roomRungLore['kitchen.2']; }],
     ['name a tier Hearthstone', 'LORE-12', (f) => { f.plotNames[2] = 'Hearthstone'; }],
     ['tier-2 line without wheat', 'LORE-13', (f) => { f.plotLore[2] = f.plotLore[2].replace('wheat', 'barley'); }],
@@ -262,7 +294,7 @@ function selftest() {
     const ids = new Set(check(f).map((p) => p.id));
     say(ids.has(want), `${label} → ${want}${ids.has(want) ? '' : ' (got ' + [...ids] + ')'}`);
   }
-  console.log(bad ? `✗ lore-notes --selftest: ${bad} arm(s) wrong` : '✓ lore-notes --selftest: clean arm green, 12/12 plants caught');
+  console.log(bad ? `✗ lore-notes --selftest: ${bad} arm(s) wrong` : `✓ lore-notes --selftest: clean arm green, ${arms.length}/${arms.length} plants caught`);
   return bad ? 1 : 0;
 }
 

@@ -57,6 +57,9 @@ const STEPS = [
   // job (tests/guards-unregistered.json).
   ['node', ['tests/ledger-rollup.mjs']],
   ['node', ['tests/ledger-rollup.mjs', '--mutate']],
+  // Shipped copy promises no retired capability (local save, offline mode, save files). ~600 ms.
+  ['node', ['tests/retired-capability-copy.mjs']],
+  ['node', ['tests/retired-capability-copy.mjs', '--selftest']],
   ['node', ['tests/ci-shape.mjs']],
   ['node', ['tests/guard-hygiene.mjs']],
   // Suite isolation. ONLY the mutation proof is run here: the plain run is RED on

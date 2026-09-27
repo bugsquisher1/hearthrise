@@ -141,9 +141,9 @@
     if (mode !== next) {
       mode = next;
       if (next === 'offline') {
-        show('🔌 You\'re offline — your save is local until reconnected', 'rgba(232,138,138,.95)');
+        show('🔌 You\'re offline — your activity keeps running on the realm; reconnect to act.', 'rgba(232,138,138,.95)');
       } else if (next === 'degraded') {
-        show('☁️ Cloud is slow — playing in local mode', 'rgba(232,200,120,.95)');
+        show('☁️ The realm is slow — actions may take a moment.', 'rgba(232,200,120,.95)');
       } else {
         show('✓ Back online', 'rgba(127,154,79,.95)');
         setTimeout(hide, 1800);

@@ -315,7 +315,7 @@
     return flushCurrentCharacter(o.timeoutMs || SWITCH_FLUSH_TIMEOUT_MS).then(function(res){
       if(res === 'timeout' || res === 'error'){
         notifySafe('Couldn’t switch characters — the server isn’t responding. '
-          + 'Your progress is saved on this device. Try again in a moment.', 'kill');
+          + 'Nothing was changed. Try again in a moment.', 'kill');
         return { ok:false, reason:'flush-' + res };
       }
       /* b372 — ARM BEFORE THE POINTER MOVES. Everything the outgoing character

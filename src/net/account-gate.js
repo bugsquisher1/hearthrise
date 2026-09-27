@@ -59,8 +59,8 @@
   var PLAYER_HOSTS = ['hearthrise.net', 'www.hearthrise.net', 'bugsquisher1.github.io'];
 
   var SESSION_KEY = 'hearthrise:supabaseSession';
-  var SAVE_KEY    = 'hearthbound-save-v2';
   var WALL_ID     = 'hr-account-gate';
+  var SIGNED_OUT_COPY = 'Signed out — nothing you do now is saved. Sign back in to keep playing.';
   var STYLE_ID    = 'hr-account-gate-style';
 
   // ════════════════════════════════════════════════════════════
@@ -163,14 +163,6 @@
     var raw = readRaw(SESSION_KEY);
     if (!raw) return null;
     try { return JSON.parse(raw); } catch (e) { return null; }
-  }
-  function hasLocalSave() {
-    var raw = readRaw(SAVE_KEY);
-    if (!raw || raw.length < 40) return false;
-    try {
-      var d = JSON.parse(raw);
-      return !!(d && typeof d === 'object' && d.skills);
-    } catch (e) { return false; }
   }
 
   var verdict = decide({ harness: isHarnessContext(window), session: readCachedSession() });
@@ -620,7 +612,7 @@
 
     var later = null;
     if (reauth) {
-      later = el('button', 'hr-gate-later', 'Keep playing offline for now');
+      later = el('button', 'hr-gate-later', 'Not now');
       later.type = 'button';
       form.appendChild(later);
     }
@@ -697,18 +689,9 @@
     paintMode();
 
     if (!reauth) {
-      // The one promise a returning beta player needs to read before they type
-      // anything: their save is being carried in, not replaced.
       while (foot.firstChild) foot.removeChild(foot.firstChild);
-      if (hasLocalSave()) {
-        var b = el('b', null, 'Played the beta on this device?');
-        foot.appendChild(b);
-        foot.appendChild(document.createTextNode(
-          ' Sign in and the save already on this browser is carried into your account. Nothing is erased.'));
-      } else {
-        foot.textContent = 'Everything is saved to the cloud, so you can play on any ' +
-          'device and pick up right where you left off.';
-      }
+      foot.textContent = 'Everything is saved to the cloud, so you can play on any ' +
+        'device and pick up right where you left off.';
       // b225 (Coordinator ruling): the bug-report button lives BEHIND the wall,
       // so a player who cannot sign in must still have a way to reach us.
       var help = el('div', 'hr-gate-help');
@@ -1345,7 +1328,7 @@
              the server owns every progression number and nothing accrues while
              signed out. Promising a sync that will not happen is how a player
              discovers the truth by losing an evening. */
-          window.notify('Signed out — nothing you do now is saved. Sign back in to keep playing.', 'info');
+          window.notify(SIGNED_OUT_COPY, 'info');
         }
       } catch (e) {}
     });
@@ -1475,7 +1458,7 @@
     whenOpen: whenOpen,
     whenSignedIn: whenSignedIn,
     promptReauth: promptReauth,
-    hasLocalSave: hasLocalSave,
+    SIGNED_OUT_COPY: SIGNED_OUT_COPY,
     // pure, for the guard tests
     decide: decide,
     isPlayerOrigin: isPlayerOrigin,

@@ -2279,6 +2279,28 @@ export default [
       + 'that, and removing the meaning is the paternalism the ruling rejects: "' + zero + '"');
   }),
 
+  /* SETTINGS-RETIRED-1 — Settings offers nothing the cutover retired, even with a
+     pre-wipe backup key on the device. MUTATION: re-add the 'Data' renderSection -> red. */
+  () => tryRun('SETTINGS-RETIRED-1: Settings offers no save/export/import/backup/erase, even with backup keys present', () => {
+    const BK = 'hearthrise:save-backup:v9', SK = 'hearthbound-save-v2';
+    const m = document.getElementById('settings-modal');
+    try {
+      localStorage.setItem(BK, JSON.stringify({ playerName: 'Wiped', lastSeen: Date.now() }));
+      localStorage.setItem(SK, '{}');
+      window.openSettings();
+      const body = document.getElementById('settings-body');
+      const heads = [...body.querySelectorAll('summary')].map((s) => s.textContent.trim());
+      assert(!heads.includes('Data'), 'Settings still renders a Data section: ' + heads.join(' | '));
+      const left = ['#set-save-now', '#set-export', '#set-import', '#set-reset', '[data-restore]'].filter((q) => body.querySelector(q));
+      assert(!left.length, 'retired controls still render: ' + left.join(', '));
+      const hit = body.textContent.match(/local save|on this device|offline|export|import|backup|erase/i);
+      assert(!hit, 'Settings still promises a retired capability: "' + (hit && hit[0]) + '"');
+    } finally {
+      try { localStorage.removeItem(BK); localStorage.removeItem(SK); } catch (e) {}
+      if (m) m.classList.remove('show');
+    }
+  }),
+
   // b133: HearthriseDropLog API + recordKill mutation
   () => tryRun('b133: HearthriseDropLog API + recordKill', () => {
     assert(window.HearthriseDropLog, 'HearthriseDropLog missing');

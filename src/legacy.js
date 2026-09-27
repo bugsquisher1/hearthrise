@@ -1170,7 +1170,8 @@ function loadLocal(){
      read here would seed G with a stale rival copy that the empty-bag hydrate
      cannot fully overwrite (it only writes the fields the server bag HAS) — the
      exact stale-state loop from the live cutover. So: drop any leftover blob,
-     and forget the factory literals.
+     purge the retired backup/slot prefixes (unread bytes that hold other
+     accounts' pre-wipe characters), and forget the factory literals.
 
      b515 DELETED the ~120-line blob read below this point (the v1 migration, the
      park/unpark policy, the foreign-slot park, the strip, Object.assign into G,
@@ -1192,6 +1193,7 @@ function loadLocal(){
      UNKNOWN means unknown, the display ladder cannot resurrect a default, and
      src/features/boot-hydration.js holds the veil until a verdict lands. */
   try{ _removeSave(SAVE_KEY); }catch(e){}
+  try{ const RETIRED_PREFIXES=['hearthrise:save-backup:','hearthrise:char:']; for(let i=localStorage.length-1;i>=0;i--){ const k=localStorage.key(i); if(k&&RETIRED_PREFIXES.some(p=>k.indexOf(p)===0)) localStorage.removeItem(k); } }catch(e){}
   try{ if(window.HearthriseRecord) window.HearthriseRecord.forgetServerOfRecord(G); }catch(e){}
 }
 /* ════════════════════════════════════════════════════════════════

@@ -2330,6 +2330,18 @@ jobs:
           node tests/parse-check.mjs
           node tests/parse-check.mjs --selftest
 
+      # RETIRED CAPABILITIES STAY RETIRED (2026-09-27). The cutover retired the blob,
+      # guest play, offline play and save files; Settings kept offering all four. A
+      # phrase-level scan of shipped copy (comments out, strings in, split literals
+      # joined) plus a census of the retired storage keys. --selftest: every rule
+      # injected goes red, comments/console/negative controls stay green, a stale
+      # ALLOW entry goes red. No browser, under a second.
+      - name: Retired capability copy - no sentence promises a local save
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/retired-capability-copy.mjs --selftest
+          node tests/retired-capability-copy.mjs
+
       # THE BESTIARY TROPHY LADDER (docs/design/BESTIARY_LADDER.md). Two things
       # it refuses. (1) src/data/bestiary.js is DERIVED -- buildBestiary(MONSTERS)
       # runs at module load -- so a monster added to the roster gets its ladder

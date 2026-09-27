@@ -1152,8 +1152,7 @@
       lead.textContent = 'Someone claimed ' + opts.taken + ' first. Pick another name — ' +
         'this one will be yours alone.';
     } else if (!isSignedIn()) {
-      lead.textContent = 'You are playing offline, so this name is yours on this device only. ' +
-        'Sign in to claim a name nobody else in the realm can use.';
+      lead.textContent = 'Sign in to claim a name nobody else in the realm can use.';
     } else {
       lead.textContent = 'This is how the realm will know you — in chat, on the market and on ' +
         'the leaderboards. No two adventurers can share a name.';
@@ -1220,7 +1219,7 @@
       confirm.disabled = !v.ok;
       if (timer) { clearTimeout(timer); timer = null; }
       if (!v.ok) { say(raw ? v.message : '', 'bad'); return; }
-      if (!isSignedIn()) { say('Local name — offline play', 'muted'); return; }
+      if (!isSignedIn()) { say('Name not claimed', 'muted'); return; }
       say('Checking…', 'muted');
       var mine = ++seq;
       timer = setTimeout(function () {
@@ -1253,7 +1252,7 @@
           closeModal();
           toast(isSignedIn()
             ? 'Name set to ' + d.name + '. It will be reserved as soon as the realm’s registry is reachable.'
-            : 'Name set to ' + d.name + ' on this device. Sign in to claim it for good.', 'info');
+            : 'Name set to ' + d.name + '. Sign in to claim a name nobody else in the realm can use.', 'info');
           return;
         }
         say(d.message || 'That name could not be claimed', 'bad');
@@ -1523,8 +1522,8 @@
     var badge = document.createElement('span');
     badge.className = 'hr-id-badge';
     if (st === 'confirmed') { badge.textContent = 'Unique name'; badge.setAttribute('data-tone', 'ok'); }
-    else if (st === 'provisional') badge.textContent = isSignedIn() ? 'Reserving…' : 'This device only';
-    else badge.textContent = isSignedIn() ? 'Name not claimed' : 'Offline name';
+    else if (st === 'provisional') badge.textContent = isSignedIn() ? 'Reserving…' : 'Name not claimed';
+    else badge.textContent = 'Name not claimed';
     bar.appendChild(badge);
 
     var link = document.createElement('button');

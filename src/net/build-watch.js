@@ -510,13 +510,13 @@ export function escalateIntoAuthSheet(build) {
   block.style.cssText = 'margin:0 0 12px;padding:10px 12px;border-radius:8px;'
     + 'background:rgba(217,164,65,.12);border:1px solid rgba(217,164,65,.45)';
   /* The truth, and only the truth: reloading is what restores saving, and until
-     it happens the progress exists on this device alone. We do NOT promise a
+     it happens nothing done in this tab reaches the realm. We do NOT promise a
      save first — in this state the save is the thing that is failing. */
   block.innerHTML =
     '<div style="font-weight:700;margin-bottom:4px">This tab is running an old version (b'
     + state.running + '; b' + (Number(build) || 0) + ' is live)</div>'
-    + '<p style="margin:0 0 9px">Reloading is what restores saving. Until you do, everything you have '
-    + 'done stays <strong>on this device only</strong>.</p>'
+    + '<p style="margin:0 0 9px">Reloading is what restores saving. Until you do, nothing you do here '
+    + 'reaches the realm.</p>'
     + '<button type="button" id="hr-authexp-reload" style="width:100%;font:600 14px/1 system-ui,sans-serif;'
     + 'background:var(--gold,#d9a441);color:#1a130a;border:0;border-radius:8px;padding:10px 14px;cursor:pointer">'
     + 'Reload to the current version</button>';

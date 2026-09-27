@@ -5901,7 +5901,8 @@ export default [
       const el = A.showAuthExpiredGate({ streak: 6 });
       assert(el && document.getElementById('hr-auth-expired-gate'), 'the sheet did not render');
       const txt = el.textContent;
-      assert(/this device only/i.test(txt), 'it must say where the progress actually is: ' + txt);
+      assert(/reaches the realm/i.test(txt) && !/on this device|this device only/i.test(txt),
+        'it must say nothing reaches the realm, never that progress is on this device: ' + txt);
       assert(/expired/i.test(txt), 'it must say the sign-in expired');
       assert(el.querySelector('#hr-authexp-signin'), 'it must offer the control that fixes it');
       // Idempotent: six blocked requests must not stack six sheets.
@@ -6447,11 +6448,11 @@ export default [
       assert(block, 'the sheet carries no build-staleness block — the player is told to re-sign-in but not to reload');
       const t = block.textContent.toLowerCase();
       // The copy must tell the TRUTH about this state: reloading is what
-      // restores saving, and until then the only copy is local. We can NOT
-      // promise a save first — in this state the save is what is failing.
+      // restores saving, and until then nothing done here reaches the realm.
+      // MUTATION: restore the 'stays on this device only' sentence -> red.
       assert(/reload/.test(t), 'the escalation never says to reload');
-      assert(/this device only|on this device/.test(t),
-        'the escalation does not tell the player their progress is local-only until they reload');
+      assert(/not reaching|isn't reaching|does not reach|nothing .* reaches/.test(t) && !/on this device|this device only/.test(t),
+        'the escalation must say nothing reaches the realm until reload, never that progress is on this device');
       assert(!/saved to the cloud|progress is safe|we have saved/.test(t),
         'the escalation claims the progress is safely saved — it is not, that is the entire failure');
       assert(reloads === 0, 'escalation reloaded the page on its own — in THIS state that can destroy the only copy');
@@ -6483,6 +6484,22 @@ export default [
       W.__setReloadHook(null);
       W.__setAuthDeadProbe(null);
       W.__setState(before);
+    }
+  }),
+
+  /* NET-BANNER-1 — the offline banner tells the truth: the activity keeps running
+     on the realm; nothing is local. MUTATION: restore 'your save is local' -> red. */
+  () => tryRun('NET-BANNER-1: the offline banner says the activity keeps running, never that the save is local', () => {
+    const NS = window.HearthriseNetStatus;
+    assert(NS && typeof NS.setMode === 'function', 'HearthriseNetStatus.setMode is gone');
+    try {
+      NS.setMode('ok'); NS.setMode('offline');
+      const t = (document.getElementById('hr-net-banner') || {}).textContent || '';
+      assert(/keeps running|reconnect/i.test(t), 'the offline banner no longer says what still happens: "' + t + '"');
+      assert(!/save is local|local mode/i.test(t), 'the offline banner promises a local save: "' + t + '"');
+    } finally {
+      NS.setMode('ok');
+      const b = document.getElementById('hr-net-banner'); if (b) b.style.opacity = '0';
     }
   }),
 

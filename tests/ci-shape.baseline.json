@@ -157,6 +157,8 @@
     "node tests/ci-shape.mjs": "client-guards",
     "node tests/parse-check.mjs": "client-guards",
     "node tests/parse-check.mjs --selftest": "client-guards",
+    "node tests/retired-capability-copy.mjs --selftest": "client-guards",
+    "node tests/retired-capability-copy.mjs": "client-guards",
     "node tests/bestiary-ladder.mjs --selftest": "client-guards",
     "node tests/bestiary-ladder.mjs": "client-guards",
     "node tests/hunt-stance-stop.mjs --selftest": "client-guards",

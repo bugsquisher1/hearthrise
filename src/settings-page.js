@@ -239,8 +239,8 @@
       +   '<h3 class="hr-sheet-head" style="margin:0;color:#f3d181">' + (isSignUp ? 'Create your Hearthrise account' : 'Sign in to Hearthrise') + '</h3>'
       +   '<div class="hr-sheet-body" style="display:flex;flex-direction:column;gap:10px">'
       +   '<p style="margin:0;font-size:calc(14.5px * var(--ui-scale, 1));color:#9aa3b0">' + (isSignUp
-              ? 'Hearthrise is in open beta — make an account and play. It\'s rough in places; tell us in Discord. Your local progress will move to the cloud automatically.'
-              : 'Sync your save, join clans, climb leaderboards.') + '</p>'
+              ? 'Hearthrise is in open beta — make an account and play. It\'s rough in places; tell us in Discord.'
+              : 'Join the realm: clans, chat, market and leaderboards.') + '</p>'
       +   nameRow
       +   '<input type="email" name="email" placeholder="Email" required style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:calc(14.5px * var(--ui-scale, 1))" />'
       +   '<input type="password" name="password" placeholder="Password (8+ characters)" required minlength="8" style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:calc(14.5px * var(--ui-scale, 1))" />'
@@ -254,7 +254,7 @@
       +   '<button type="button" data-act="toggle" style="padding:6px;background:transparent;color:#9aa3b0;border:none;cursor:pointer;font-size:calc(14.5px * var(--ui-scale, 1));text-decoration:underline">'
       +     (isSignUp ? 'Already have an account? Sign in' : 'New here? Create an account')
       +   '</button>'
-      +   '<button type="button" data-act="cancel" data-hr-dismiss style="padding:6px;background:transparent;color:#9aa3b0;border:1px solid #2a3142;border-radius:4px;cursor:pointer;font-size:calc(14.5px * var(--ui-scale, 1))">Cancel · Continue offline</button>'
+      +   '<button type="button" data-act="cancel" data-hr-dismiss style="padding:6px;background:transparent;color:#9aa3b0;border:1px solid #2a3142;border-radius:4px;cursor:pointer;font-size:calc(14.5px * var(--ui-scale, 1))">Cancel</button>'
       +   '<div data-status style="font-size:calc(14.5px * var(--ui-scale, 1));color:#e88a8a;min-height:14px;text-align:center"></div>'
       +   '</div>'
       + '</form>';
@@ -344,7 +344,7 @@
           // No invite claim on sign-in any more — see claimPendingInvite().
           claimPendingInvite();
           status.style.color = '#7f9a4f';
-          status.textContent = '✓ Signed in. Syncing your save…';
+          status.textContent = '✓ Signed in. Loading your character…';
           setTimeout(function(){ close(); if(typeof window.renderSettings === 'function') window.renderSettings(); }, 800);
         }
       } catch(err){
@@ -684,9 +684,9 @@
              account wall is what a signed-out player meets at the front door.
              The old hint ("Don't want an account? You can keep playing
              offline") invited exactly the mode the product no longer has, so
-             it is gone; the honest reassurance about the local save stays. */
+             it is gone; the sentence is the account wall's own SIGNED_OUT_COPY. */
           +   '<div class="ss-card-title">Signed out</div>'
-          +   '<div class="ss-card-meta">Sign back in to resume syncing, chat, clans and the leaderboards. Your progress is safe on this device in the meantime.</div>'
+          +   '<div class="ss-card-meta">' + esc((window.HearthriseGate && window.HearthriseGate.SIGNED_OUT_COPY) || '') + '</div>'
           +   '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">'
           +     '<button class="btn btn-sm btn-primary" id="set-cloud-signin">Sign in</button>'
           +     '<button class="btn btn-sm" id="set-cloud-signup">Create account</button>'
@@ -694,7 +694,7 @@
           + '</div>')
         : ('<div class="ss-card">'
           +   '<div class="ss-card-title">No realm connected</div>'
-          +   '<div class="ss-card-meta">This build has no sign-in service configured, so cloud features are unavailable. Your save lives on this device.</div>'
+          +   '<div class="ss-card-meta">This build has no realm configured, so nothing can be played or saved.</div>'
           + '</div>');
     }
     // Cloud sync status copy. Three states:
@@ -710,7 +710,7 @@
     } else if (liveSession && liveSession.user) {
       cloudMeta = 'Auto-syncing every 60s — waiting for first round-trip.';
     } else {
-      cloudMeta = 'Offline. Sign in above to enable cloud sync.';
+      cloudMeta = 'Not signed in — nothing is being saved.';
     }
 
     // ── Cloud setup (Supabase credentials) ──
@@ -973,7 +973,7 @@
         if(window.HearthriseSync && window.HearthriseSync.checkConcurrentDevice){
           var dev = await window.HearthriseSync.checkConcurrentDevice();
           devLine = dev && dev.concurrent
-            ? '\nWARNING: this account is ALSO active on another device — close it to avoid save conflicts.'
+            ? '\nWARNING: this account is also active on another device — the realm keeps one session, the other tab pauses.'
             : '\n✓ Only this device is active on your account.';
         }
       } catch(e){}
@@ -1016,15 +1016,15 @@
     var btnCloudOut = root.querySelector('#set-cloud-signout');
     if(btnCloudOut) btnCloudOut.addEventListener('click', async function(){
       var ok = await ask({ title:'Sign out of your cloud account?',
-        body:'Your save stays on this device — sign back in any time to resume cloud sync.',
+        body:'Signing out stops play here. Your running activity stays on the realm; nothing new is saved until you sign back in.',
         confirmLabel:'Sign out', danger:true });
       if(!ok) return;
       try {
         if(window.HearthriseAuth && window.HearthriseAuth.signOut){ await window.HearthriseAuth.signOut(); }
         if(typeof window.notify === 'function') window.notify('Signed out.', 'info');
         if(typeof window.renderSettings === 'function') window.renderSettings();
-        /* b318: signing out PARKS the local save (see auth.js signOut), so this
-           page is now running a character it can no longer persist. Reload so the
+        /* b318: once signed out, this
+           page is running a character it can no longer persist. Reload so the
            account wall re-engages on a clean state — otherwise the player keeps
            playing a session whose progress is deliberately no longer written. */
         setTimeout(function(){ try{ location.reload(); }catch(e){} }, 700);
@@ -1074,7 +1074,7 @@
     var sbDisconnect = root.querySelector('#set-sb-disconnect');
     if(sbDisconnect) sbDisconnect.addEventListener('click', function(){
       ask({ title:'Disconnect from cloud?',
-        body:'Your save will stay on this device, but cloud sync, leaderboards and live chat will stop.',
+        body:'This build will stop talking to the realm: no play, no saving, no chat until you reconnect.',
         confirmLabel:'Disconnect', danger:true }).then(function(ok){
         if(!ok) return;
         if(window.HearthriseSupabase) window.HearthriseSupabase.reset();

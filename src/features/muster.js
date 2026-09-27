@@ -1583,8 +1583,7 @@
       } else {
         foot = '<div class="hr-mu-row"><button class="btn btn-primary btn-sm" data-mu="join">Join the muster</button>' +
           '<button class="btn btn-sm" data-mu="events">Open Events</button></div>';
-        body += (isSignedIn() ? '' : '<div class="tiny muted" style="margin-top:8px">Playing offline — you can still muster ' +
-            'solo and take the base chest. Sign in for the realm’s shared goal and the Rally Seal.</div>');
+        body += (isSignedIn() ? '' : '<div class="tiny muted" style="margin-top:8px">Sign in for the realm’s shared goal and the Rally Seal.</div>');
       }
     } else {
       body = '<h3>The Rally</h3>' +

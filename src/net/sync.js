@@ -1301,7 +1301,7 @@ export async function verifyCloudSave(opts) {
   const out = { ok: false, error: null, offline: false, signedIn: false,
     realm: null, residue: null, lines: [] };
   try {
-    if (!config?.snapshotEndpoint) { out.error = 'Cloud is not configured (offline mode).'; return out; }
+    if (!config?.snapshotEndpoint) { out.error = 'This build has no realm configured.'; return out; }
     if (!navigator.onLine) { out.offline = true; out.error = 'You are offline — connect to check your save.'; return out; }
     const userId = config.userId ? (typeof config.userId === 'function' ? config.userId() : config.userId) : null;
     if (!userId) { out.error = 'Not signed in — cloud save needs an account.'; return out; }

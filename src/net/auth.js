@@ -168,7 +168,7 @@ export function syncFailureMessage(reason, downMs) {
   if (reason === 'auth-expired' || (reason === 'auth' && Number(downMs) >= ESCALATE_AFTER_MS)) {
     return '🔒 Your sign-in has expired — nothing is reaching the cloud. Sign in again to save your progress.';
   }
-  return '⚠️ Reconnecting… your progress is saved locally.';
+  return '⚠️ Reconnecting… actions are not reaching the realm yet.';
 }
 
 /**
@@ -1042,7 +1042,7 @@ function showAuthModal() {
     <form class="hr-sheet" style="background:#1a1f2e;border:2px solid #f3d181;border-radius:8px;padding:20px;max-width:380px;width:100%;display:flex;flex-direction:column;gap:10px;color:#dfe9ee;font-family:system-ui,sans-serif">
       <h3 class="hr-sheet-head" style="margin:0;color:#f3d181">Sign in to Hearthrise</h3>
       <div class="hr-sheet-body" style="display:flex;flex-direction:column;gap:10px">
-      <p style="margin:0;font-size:calc(14.5px * var(--ui-scale, 1));color:#9aa3b0">Sync your save across devices, join clans, climb leaderboards.</p>
+      <p style="margin:0;font-size:calc(14.5px * var(--ui-scale, 1));color:#9aa3b0">Join the realm: clans, chat, market and leaderboards.</p>
       <input type="email" name="email" placeholder="Email" required style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:calc(14.5px * var(--ui-scale, 1))" />
       <input type="password" name="password" placeholder="Password" required style="padding:8px 12px;background:#0f1320;border:1px solid #2a3142;color:#dfe9ee;border-radius:4px;font-size:calc(14.5px * var(--ui-scale, 1))" />
       </div>
@@ -1119,9 +1119,9 @@ export function showAuthExpiredGate(info) {
   ].join(';');
   el.innerHTML =
     '<div style="font:700 16px/1.3 system-ui,sans-serif;margin-bottom:6px">🔒 Your sign-in expired</div>' +
-    '<p style="margin:0 0 6px">Hearthrise has stopped saving to the cloud. Everything since then is stored '
-    + '<strong>on this device only</strong> — clearing your browser data would lose it.</p>' +
-    '<p style="margin:0 0 12px;opacity:.75">Sign in again and your progress uploads straight away.</p>' +
+    '<p style="margin:0 0 6px">Nothing you do here reaches the realm until you sign in again. '
+    + 'Your running activity keeps going on the realm.</p>' +
+    '<p style="margin:0 0 12px;opacity:.75">Sign in again to pick up where the realm has you.</p>' +
     '<div style="display:flex;gap:8px">' +
     '<button id="hr-authexp-signin" style="flex:1;font:600 15px/1 system-ui,sans-serif;background:#d9a441;color:#1a130a;border:0;border-radius:8px;padding:11px 16px;cursor:pointer">Sign in again</button>' +
     '<button id="hr-authexp-later" style="font:500 14px/1 system-ui,sans-serif;background:transparent;color:#c9c2b4;border:1px solid #3a4154;border-radius:8px;padding:11px 14px;cursor:pointer">Not now</button>' +

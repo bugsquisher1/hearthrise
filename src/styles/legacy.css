@@ -3052,6 +3052,7 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 .stable-card .sc-lvl{position:absolute;top:8px;right:8px;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink);font-weight:700;background:rgba(0,0,0,.4);padding:3px 8px;border-radius:10px}
 .stable-card .sc-bar{height:5px;background:rgba(0,0,0,.4);border-radius:3px;overflow:hidden;margin-top:2px}
 .stable-card .sc-bar i{display:block;height:100%;background:linear-gradient(90deg,#7f9a4f,#7f9a4f);transition:width .3s}
+.stable-card .sc-lore{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);font-style:italic;line-height:1.4}
 .stable-card .sc-bonuses{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-2);line-height:1.5}
 .stable-card .sc-bonuses b{color:var(--gold-2)}
 .stable-card .sc-equip{

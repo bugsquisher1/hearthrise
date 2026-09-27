@@ -2550,11 +2550,15 @@ jobs:
       # is not one of the 19 files hr-accrue vendors), so no database or
       # credentials — milliseconds. --selftest plants the nine defect classes
       # the brief names, each caught by its own named FLV assertion.
+      # lore-notes.mjs rides the same step: one lore line per companion, rank
+      # and trophy stage, charset-guarded (the lines render as raw HTML).
       - name: Item flavour coverage - every item has a line
         if: ${{ !cancelled() }}
         run: |
           node tests/item-flavour-coverage.mjs
           node tests/item-flavour-coverage.mjs --selftest
+          node tests/lore-notes.mjs
+          node tests/lore-notes.mjs --selftest
 
       # SKILL GUIDE COVERAGE — every skill says what it is for, and every
       # "Next:" it promises is one the server will honour (no scroll-gated

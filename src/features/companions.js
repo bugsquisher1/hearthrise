@@ -14,6 +14,7 @@
 // network adapter can ship companion changes to the backend.
 
 import { COMPANIONS } from '../data/companions.js?v=557';
+import { companionLore } from '../data/lore-notes.js?v=557';
 import { emit } from '../net/events.js?v=557';
 /* THE SERVER-OF-RECORD ARM SWITCH for companion XP — ARMED. The accrual
    engine is the sole writer (a `stat companion_xp:<id>` op priced at
@@ -951,6 +952,7 @@ function renderStable() {
       const display = isPercent(k) ? `+${(v * 100).toFixed(0)}%` : `+${v}`;
       return `<span><b>${display}</b> ${labelMap[k] || k}</span>`;
     }).join(' &nbsp;·&nbsp; ');
+    const lore = companionLore(id);
 
     return `<div class="stable-card ${equipped ? 'equipped' : ''} ${owned ? '' : 'locked'}">
       <span class="sc-lvl">Lv ${lv}</span>
@@ -961,6 +963,7 @@ function renderStable() {
           <div class="sc-role" style="color:${roleColor[def.role] || '#9aa3b0'}">${def.role}</div>
         </div>
       </div>
+      ${lore ? `<div class="sc-lore">${lore}</div>` : ''}
       <div class="sc-bonuses">${bonuses}</div>
       ${owned ? `
         <div class="sc-bar"><i style="width:${pct.toFixed(1)}%"></i></div>

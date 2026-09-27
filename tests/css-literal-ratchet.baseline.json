@@ -1,6 +1,6 @@
 {
   "method": "comments stripped; declaration VALUES only; quoted strings dropped; custom properties in :root / html[data-theme…] / body[data-theme…] blocks exempt; literal = hex(3/4/6/8) | rgb|rgba|hsl|hsla|hwb|lab|lch|oklab|oklch|color( | one of 149 CSS named colours as a whole token (transparent/currentColor/inherit excluded); !important = raw occurrences; js table = hex inside string literals in src/**/*.js",
-  "measured": "2026-09-14",
+  "measured": "2026-09-27",
   "note": "Ceilings, not targets. Counts may only fall. Regenerate with `node tests/css-literal-ratchet.mjs --write` when they do — never to make a red build green.",
   "css": {
     "art-direction.css": {
@@ -9,7 +9,7 @@
     },
     "audit-overrides.css": {
       "literals": 531,
-      "important": 159
+      "important": 156
     },
     "board-and-shop.css": {
       "literals": 52,
@@ -17,6 +17,10 @@
     },
     "clan-seat.css": {
       "literals": 22,
+      "important": 0
+    },
+    "codex.css": {
+      "literals": 0,
       "important": 0
     },
     "combat-hud.css": {
@@ -35,9 +39,13 @@
       "literals": 837,
       "important": 171
     },
+    "primers.css": {
+      "literals": 0,
+      "important": 0
+    },
     "theme-cozy.css": {
       "literals": 171,
-      "important": 589
+      "important": 584
     },
     "tokens.css": {
       "literals": 0,
@@ -52,10 +60,7 @@
       "literals": 8
     },
     "src/bug-report.js": {
-      "literals": 21
-    },
-    "src/desktop-mode-detector.js": {
-      "literals": 3
+      "literals": 20
     },
     "src/dungeons.js": {
       "literals": 1
@@ -88,7 +93,7 @@
       "literals": 19
     },
     "src/features/death-sheet.js": {
-      "literals": 15
+      "literals": 14
     },
     "src/features/home-dashboard.js": {
       "literals": 13

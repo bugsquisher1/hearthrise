@@ -279,7 +279,53 @@ async function SHEET_PROBE(spec) {
 const WAIT_SCROLL = 'const rf = () => Promise.race([new Promise((r) => requestAnimationFrame(r)), new Promise((r) => setTimeout(r, 120))]);'
   + ' const settle = async (el) => { let last = -1, same = 0; const end = Date.now() + 2500;'
   + ' while (Date.now() < end) { await rf(); if (el.scrollTop === last) { if (++same >= 3) return; } else { same = 0; last = el.scrollTop; } } };';
+/* Fixed layers that may legitimately overlap the content column, each with its
+   reason. DATA, not a silent filter: anything fixed and not listed is red. */
+const CHROME_ALLOW = [
+  { sel: '#hr-net-banner', why: 'network-status.js: a top:8px band over the header, transient, never reaches a panel' },
+  { sel: '#hr-desktopmode-banner', why: 'reserves its own height via --hr-dm-banner-h (desktop-mode-detector.js)' },
+  { sel: '#hr-build-update', why: 'build-watch.js: the transient new-build card' },
+  { sel: '#smoke-test-btn', why: 'admin-only test launcher' },
+  { sel: '#admin-toggle', why: 'admin-only' },
+];
+/* The dry Vigour meter (b557's `remaining_min 0` fixture): the Vigour block is
+   at its tallest and pushes LOADOUT to the foot of the Fight rail. */
+const DRY_VIGOUR = 'window.HearthriseAccrual.hydrateHunt(window.G, { vigour: { day_key: "2026-9-25", grant_min: 720,'
+  + ' refills: 0, refills_max: 5, refill_min: 120, refills_left: 5, next_refill_gold: 6917, level: 12, bought_min: 0,'
+  + ' budget_min: 720, ceiling_min: 1320, spent_min: 1237, remaining_min: 0, dry_mult: 0.25 } });'
+  + ' window.HearthriseVigourMount.paint();';
 export const CHROME = [
+  {
+    id: 'chrome/NO-FIXED-OVER-CONTENT',
+    why: 'persistent chrome reserves its own box; the phone bug FAB sat on LOADOUT, the first bag tile and the first node column',
+    /* Phone only, on purpose: on desktop the FAB's own foot in `.sidebar` would
+       break nav/RAIL-LAST-ITEM's fit-without-scrolling at 1366x768 — its
+       placement there is a separate design handoff. The FAB is fixed and
+       screen-independent, so three screens, not sixteen. */
+    viewports: ['922x423', '922x423+banner'],
+    screens: [
+      { open: ['tab:combat', 'monster', 'fight'], prep: DRY_VIGOUR },
+      { open: ['tab:skills'] },
+      { open: ['tab:inventory'] },
+    ],
+    check: 'const allow = ' + JSON.stringify(CHROME_ALLOW.map((a) => a.sel)) + ';'
+      + ' const panel = document.querySelector(".panel.active"); if (!panel) return "no .panel.active on this screen";'
+      + ' const P = panel.getBoundingClientRect(), bad = [];'
+      + ' const nm = (e) => (e.id ? "#" + e.id : e.tagName.toLowerCase() + (typeof e.className === "string" && e.className ? "." + e.className.trim().split(/\\s+/)[0] : ""));'
+      + ' for (const e of document.querySelectorAll("body *")) {'
+      + ' const cs = getComputedStyle(e); if (cs.position !== "fixed" || cs.pointerEvents === "none") continue;'
+      + ' if (cs.display === "none" || cs.visibility === "hidden" || +cs.opacity < 0.05) continue;'
+      + ' if (panel.contains(e) || allow.some((s) => e.matches(s) || e.closest(s))) continue;'
+      + ' const r = e.getBoundingClientRect(); if (r.width <= 1 || r.height <= 1) continue;'
+      + ' const a = Math.max(0, Math.min(r.right, P.right) - Math.max(r.left, P.left)) * Math.max(0, Math.min(r.bottom, P.bottom) - Math.max(r.top, P.top));'
+      + ' if (a >= 1) bad.push(nm(e) + " " + Math.round(r.width) + "x" + Math.round(r.height) + " @ (" + Math.round(r.left) + "," + Math.round(r.top) + ") over #" + panel.id + " (" + Math.round(a) + "px\\u00b2)"); }'
+      + ' const fab = document.getElementById("hr-bug-btn"), rail = document.querySelector(".bottom-nav");'
+      + ' if (fab && rail && rail.getClientRects().length) { const f = fab.getBoundingClientRect(), rr = rail.getBoundingClientRect();'
+      + ' if (f.left < -1 || f.right > rr.right + 1) bad.push("#hr-bug-btn x " + Math.round(f.left) + ".." + Math.round(f.right) + " is not inside the rail (0.." + Math.round(rr.right) + ")");'
+      + ' if (f.height < 44) bad.push("#hr-bug-btn is " + Math.round(f.height) + "px tall, under the 44px tap floor");'
+      + ' if (f.left < rr.right - 1 && f.top < rr.bottom - 1) bad.push("#hr-bug-btn (top " + Math.round(f.top) + ") overlaps the rail (bottom " + Math.round(rr.bottom) + ")"); }'
+      + ' return bad.length ? bad.join("; ") : null;',
+  },
   {
     id: 'skills/HEADER-CLEAR-OF-STRIP',
     why: 'every skill jump on a phone hid the skill name, level and XP-to-next under the sticky WOOD/MINE/FISH strip',
@@ -1329,6 +1375,18 @@ const MUTATIONS = [
     expect: ['modal/welcome-back'],
   },
   {
+    /* b317's tuck verbatim: the FAB in the content column's bottom-left corner
+       and the rail back at full height, so nothing reserves the FAB's box. */
+    name: 'M-FAB — put the bug FAB back in the content column (b317 tuck: 30x43 over LOADOUT)',
+    css: '#hr-bug-btn{left:calc(var(--rail-w,64px) + var(--safe-l,0px) + 6px)!important;right:auto!important;'
+       + 'bottom:6px!important;width:auto!important;height:auto!important;padding:5px 7px!important}'
+       + 'body[data-theme] .bottom-nav{height:calc(100vh - var(--hr-dm-banner-h,0px))!important}',
+    verify: 'var b=document.getElementById("hr-bug-btn");if(!b)return "#hr-bug-btn is not in the page";'
+      + 'var l=getComputedStyle(b).left;return l==="70px"?null:"#hr-bug-btn left computed "+l+", not 70px";',
+    viewports: [{ w: 922, h: 423 }],
+    expect: ['chrome/NO-FIXED-OVER-CONTENT'],
+  },
+  {
     /* The Skills strip as it shipped through b558: no scroll-margin on the
        detail and the strip stuck 8px down, so every skill jump lands the
        header at the scroller top, under the strip. */
@@ -1407,7 +1465,8 @@ if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}`
         + ', and at ' + BANNER_PASSES.map((v) => `${v.w}x${v.h}+banner`).join(', ')
         + ' with the desktop-mode banner up; every declared sheet ('
         + MODALS.map((m) => m.id.replace('modal/', '')).join(', ') + ') fits, keeps its action on screen and closes on Escape, '
-        + 'there and at ' + MODAL_PASSES.map((v) => `${v.w}x${v.h}`).join(', ') + '.');
+        + 'there and at ' + MODAL_PASSES.map((v) => `${v.w}x${v.h}`).join(', ') + '; declared chrome ('
+        + CHROME.map((c) => c.id).join(', ') + ') reserves its own box.');
     }
   }
   await browser.close();

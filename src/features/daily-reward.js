@@ -379,7 +379,8 @@
     var s = document.createElement('style');
     s.id = 'hr-daily-css';
     s.textContent = [
-      '.hr-dl-scrim{position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:18px}',
+      /* Position, inset, gutter and the height cap: `.hr-scrim`/`.hr-sheet` (art-direction.css). */
+      '.hr-dl-scrim{z-index:99997;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center}',
       '.hr-dl-box{background:var(--bg-1,#1a1f2e);border:2px solid var(--gold,#e0a64a);border-radius:16px;max-width:420px;width:100%;padding:22px;color:var(--ink,#e9e2cf);text-align:center;box-shadow:0 0 55px -12px color-mix(in srgb,var(--gold,#e0a64a) 50%,transparent);font-family:var(--f-ui,system-ui,sans-serif)}',
       '.hr-dl-eyebrow{font-size:calc(14.5px * var(--ui-scale, 1));letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3,#a5896a)}',
       '.hr-dl-h{font-family:var(--f-display,serif);font-size:calc(25px * var(--ui-scale, 1));font-weight:800;color:var(--gold,#e0a64a);margin:4px 0 12px}',
@@ -438,13 +439,14 @@
       return '<div class="' + cls + '">D' + d + '<b>' + val + '</b></div>';
     }).join('');
     var scrim = document.createElement('div');
-    scrim.className = 'hr-dl-scrim'; scrim.id = 'hr-dl-modal';
+    scrim.className = 'hr-dl-scrim hr-scrim'; scrim.id = 'hr-dl-modal';
     scrim.setAttribute('role', 'dialog');
     scrim.setAttribute('aria-modal', 'true');
     scrim.setAttribute('aria-label', 'Daily reward');
     scrim.innerHTML =
-      '<div class="hr-dl-box">' +
-        '<button class="hr-dl-close" data-dl-close="1" aria-label="Close" title="Close">&times;</button>' +
+      '<div class="hr-dl-box hr-sheet">' +
+        '<button class="hr-dl-close" data-dl-close="1" data-hr-dismiss aria-label="Close" title="Close">&times;</button>' +
+        '<div class="hr-sheet-head">' +
         /* ── b499 (Designer ruling, THE STREAK LABEL COLLISION) ───────────────
            THE WORD "STREAK" IS GONE FROM THIS SHEET, DELIBERATELY, AND IT MAY
            NOT COME BACK. b498 made the sheet read the right NUMBER; it left the
@@ -467,12 +469,12 @@
              above is built from the same constant. */
         '<div class="hr-dl-eyebrow">Daily reward · Day ' + day + ' of ' + R.DAILY_LOGIN_CYCLE_DAYS
           + (wk ? ' · week ' + (wk + 1) : '') + '</div>' +
-        '<div class="hr-dl-h">' + (streakCount(G) > 1 ? 'Welcome back!' : 'Your daily reward') + '</div>' +
-        '<div class="hr-dl-week">' + week + '</div>' +
-        (claimable
+        '<div class="hr-dl-h">' + (streakCount(G) > 1 ? 'Welcome back!' : 'Your daily reward') + '</div></div>' +
+        '<div class="hr-sheet-body"><div class="hr-dl-week">' + week + '</div></div>' +
+        '<div class="hr-sheet-foot">' + (claimable
           ? '<button class="hr-dl-claim" data-dl-claim="1">Claim Day ' + day + ' · ' + rewardText(rewardFor(G)) + '</button>'
           : '<div class="hr-dl-eyebrow">Come back tomorrow for Day ' + ((day % 7) + 1) + '</div>') +
-        '<div class="hr-dl-hint">Click anywhere to close — your reward stays on the Home screen.</div>' +
+        '<div class="hr-dl-hint">Click anywhere to close — your reward stays on the Home screen.</div></div>' +
       '</div>';
     /* ══════════════════════════════════════════════════════════════════════
        b345 — EVERY CLICK THIS SHEET INTERCEPTS NOW PRODUCES A VISIBLE RESULT.

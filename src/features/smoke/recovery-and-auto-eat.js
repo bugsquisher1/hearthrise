@@ -1209,6 +1209,43 @@ export default [
     }
   }),
 
+  () => tryRun('RECOVER-22: on a short screen the KO sheet keeps its head and its actions on screen '
+    + 'at scroll 0 — the attended fall AND the reload into a knockout', () => {
+    /* The receipt scrolls; the title and the "now do this" row never do. The
+       scrim is shortened to a 300 px band so the sheet must overflow. */
+    const A = window.HearthriseAccrual;
+    const D = window.HearthriseDeathSheet;
+    if (!A || typeof A.applyEnvelopeState !== 'function' || !D || typeof D.show !== 'function') {
+      skip('the recovery seam is not wired'); return;
+    }
+    const wasOn = A.isServerAccrualEnabled();
+    const check = (path) => {
+      const scrim = document.getElementById('hr-death-scrim');
+      assert(scrim && scrim.classList.contains('show'), path + ': the sheet did not open');
+      scrim.style.bottom = Math.max(0, window.innerHeight - 300) + 'px';
+      ['.hr-death-top h2', '.hr-death-acts .btn'].forEach((sel) => {
+        const el = scrim.querySelector(sel), r = el.getBoundingClientRect();
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        assert(hit && el.contains(hit), path + ': "' + el.textContent.slice(0, 40) + '" is off screen or '
+          + 'covered at scroll 0 (hit ' + (hit && hit.className) + ', bottom ' + Math.round(r.bottom) + ')');
+      });
+    };
+    try {
+      A.setServerAccrualEnabled(true);
+      A.clearFall(); D.__resetForTest();
+      A.noteFall(Date.now()); D.show(null, null);
+      check('attended fall');
+      D.__resetForTest(); A.clearFall();
+      A.applyEnvelopeState(window.G, { state: { accrued_to: new Date().toISOString(),
+        recovering_until: new Date(Date.now() + 27 * 60000).toISOString() } });
+      check('reload into a knockout');
+    } finally {
+      try { document.getElementById('hr-death-scrim').style.bottom = ''; } catch (e) {}
+      try { D.__resetForTest(); A.clearFall(); A.applyEnvelopeState(window.G, { state: { recovering_until: null } }); } catch (e) {}
+      A.setServerAccrualEnabled(!!wasOn);
+    }
+  }),
+
   () => tryRun('RECOVER-12: a server-stated knockout stops the SWING BAR and says so — the fight '
     + 'never freezes silently, and it resumes on its own', () => {
     /* ══ THE P0 TYLER PLAYED ON b510 (2026-09-06) ════════════════════════

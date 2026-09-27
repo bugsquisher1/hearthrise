@@ -192,6 +192,8 @@
     "node tests/skill-guide-coverage.mjs --selftest": "client-guards",
     "node tests/codex-claims.mjs": "client-guards",
     "node tests/codex-claims.mjs --selftest": "client-guards",
+    "node tests/offline-cap-honesty.mjs": "client-guards",
+    "node tests/offline-cap-honesty.mjs --selftest": "client-guards",
     "node tests/plot-tier-parity.mjs": "client-guards",
     "node tests/plot-tier-parity.mjs --selftest": "client-guards",
     "node tests/plot-tier-parity.mjs --mutate": "client-guards",

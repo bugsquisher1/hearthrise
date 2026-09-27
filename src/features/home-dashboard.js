@@ -862,6 +862,9 @@
        reuses the dashboard's own `.hd-cta` (tokens only, no new colour) and
        routes through the same delegated `data-hd` handler every other Home
        button uses. */
+    var NP = window.HearthriseNightPlan;
+    var nightDoors = (NP && window.G && (Number(off.deaths) >= 2 || off.stoppedBy === 'retreat'))
+      ? NP.doorsHtml(NP.ctxNow(window.G)) : '';
     var ctaHtml = quiet
       ? '<button class="hd-cta hd-away-cta" data-hd="trainskill">Train a skill</button>'
       : '';
@@ -888,7 +891,7 @@
             srcHtml +
           '</div>' +
         '</div>' +
-        '<div class="hd-away-notes">' + noteHtml + ctaHtml + '</div>' +
+        '<div class="hd-away-notes">' + noteHtml + nightDoors + ctaHtml + '</div>' +
       '</div></div>';
   }
 

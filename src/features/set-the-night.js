@@ -94,6 +94,48 @@
     } catch (e) { return null; }
   }
 
+  /* THE CLONE THE ENGINE PRICES, SEEDED THE WAY THE SERVER SEEDS IT. resolveDeath
+     prices the Recovery ladder off deathsTodayBefore/deathsLifetimeBefore PLUS
+     stats.deaths (the window-local tally); on the client stats.deaths is a
+     residue lifetime tally, so it is zeroed and the two server counters are
+     stated (accrual.js seeds deaths_today / deaths_lifetime). Measured before:
+     128m knocked out where the server charges 2m. Pure; null when G will not clone. */
+  function cloneForForecast(G, server) {
+    var c = cloneState(G);
+    if (!c) return null;
+    var s = server || {};
+    c.stats = Object.assign({}, c.stats, { deaths: 0 });
+    c.deathsTodayBefore = s.deathsToday;
+    c.deathsLifetimeBefore = s.deathsLifetime;
+    c.recoveringUntilMs = s.recoveringUntilMs;
+    if (typeof s.consecFalls === 'number') c.consecFalls = s.consecFalls;
+    else delete c.consecFalls;
+    return c;
+  }
+  function accrual() { return window.HearthriseAccrual || null; }
+  function serverCounts(G) {
+    var AC = accrual() || {};
+    var call = function (fn) { try { return typeof AC[fn] === 'function' ? AC[fn]() : 0; } catch (e) { return 0; } };
+    return { deathsToday: call('deathsToday'), deathsLifetime: call('deathsLifetime'),
+      recoveringUntilMs: call('recoveringUntilMs'), consecFalls: G.consecFalls };
+  }
+  /* A hunt order the clone does not model (a non-default stance or any stop
+     rule) makes every count unsayable: the server may stop where the clone fights on. */
+  function noHuntOrders(G) {
+    var h = G._hunt;
+    if (!h) return true;
+    var stop = h.stop;
+    return (h.stance == null || h.stance === 'steady')
+      && (stop == null || (typeof stop === 'object' && !Object.keys(stop).length));
+  }
+  /* Owned AND the server's own switch is off; undefined (never projected) is not off. */
+  function autoEatOff(G) {
+    try {
+      var AE = core().autoEat, AC = accrual();
+      return AE.autoEatTier(G.traits || {}) > 0 && AC.serverAutoEatSettings().enabled === false;
+    } catch (e) { return false; }
+  }
+
   /* Does the accrual engine settle this activity? THE SAME predicate the
      Home banking row uses (`serverAccruedSkill`), so the two lines on one
      card cannot disagree about whether tonight pays. Fails toward "no". */
@@ -183,7 +225,7 @@
     if (!C || !C.combatSim || typeof C.combatSim.simulateSpan !== 'function') return null;
     var CS = window.HearthriseCombatSim;
     if (!CS || typeof CS.ctx !== 'function') return null;
-    var clone = cloneState(G);
+    var clone = cloneForForecast(G, serverCounts(G));
     if (!clone) return null;
 
     var ctx;
@@ -246,6 +288,14 @@
       horizonMs: HORIZON_MS,
       allNight: !died,
       kills: Math.max(0, Number(out.kills) || 0),
+      deaths: Math.max(0, Number(out.deaths) || 0),
+      downMs: Math.max(0, Number(out.recoverMs) || 0),
+      stoppedBy: out.stoppedBy || null,
+      retreatMs: out.retreatMs == null ? null : Number(out.retreatMs),
+      retreatFalls: Math.max(0, Number(out.retreatFalls) || 0),
+      foodEaten: Math.max(0, Number(out.foodEaten) || 0),
+      autoEatOff: autoEatOff(G),
+      numeric: typeof G.consecFalls === 'number' && noHuntOrders(G),
       foodQty: food.qty,
       foodId: food.id,
       foodName: food.id ? itemName(food.id) : null,
@@ -344,21 +394,70 @@
     return null;
   }
 
+  // ── THE MEMO (P2): the engine runs on a server stamp, never on a timer ─
+  /* The last forecast, recomputed only when the key moved AND 30 s have passed.
+     The key opens with the server's bag stamp (G._bagFromServerAt), so a poll
+     that asks between envelopes gets the stored answer; an auto-eat meal no
+     longer re-runs eight hours of ticks (P9). Module-local, never on G. */
+  var MEMO_MS = 30000;
+  var last = null;
+  function memoKey(G) {
+    var A = window.HearthriseAuto || {}, AC = accrual() || {};
+    var call = function (o, fn) { try { return typeof o[fn] === 'function' ? o[fn]() : null; } catch (e) { return null; } };
+    return JSON.stringify([G._bagFromServerAt, G.activeMonster, Math.floor(Date.now() / 3600000),
+      JSON.stringify(G.equipment || null), call(A, 'eatEnabled'), call(A, 'eatFoodId'), call(A, 'eatThreshold'),
+      G.consecFalls, call(AC, 'deathsToday'), call(AC, 'deathsLifetime'),
+      (Number(call(AC, 'recoveringUntilMs')) || 0) > Date.now(), JSON.stringify(G._hunt || null),
+      G.activeSkill || null, G.skillTargetId || null]);
+  }
+  /* A stored forecast about ANOTHER activity is never shown for this one. */
+  function sameActivity(G, f) {
+    return !!f && (G.activeMonster ? (f.kind === 'combat' && f.target === G.activeMonster)
+      : (f.kind !== 'combat' && f.target === G.skillTargetId));
+  }
+  function peek(G) {
+    G = G || window.G;
+    if (!G || !last || !bagIsServerStated(G)) return null;
+    return sameActivity(G, last.f) ? last.f : null;
+  }
+  function memo(G) {
+    G = G || window.G;
+    if (!G || typeof G !== 'object' || !bagIsServerStated(G)) return null;
+    if (!G.activeMonster && !G.activeSkill) return null;
+    var key = memoKey(G);
+    if (last && (last.key === key || Date.now() - last.at < MEMO_MS)) return peek(G);
+    last = { key: key, at: Date.now(), f: forecast(G) };
+    return last.f;
+  }
+
   // ── THE SENTENCE ──────────────────────────────────────────────────────
+  /* The copy lives in src/data/signposts.js (night.*); this file is a classic
+     script, so it reads window.HearthriseSignposts at call time and says
+     nothing when it is absent. */
+  function fillLine(key, vars) {
+    var SP = window.HearthriseSignposts;
+    if (!SP || typeof SP.fill !== 'function' || !SP.SIGNPOSTS) return null;
+    return SP.fill(key, vars) || null;
+  }
+  function combatKey(f) {
+    var deaths = Number(f.deaths) || 0, eaten = Number(f.foodEaten) || 0;
+    if (!f.numeric && (deaths >= 1 || f.stoppedBy === 'retreat')) return 'night.fallsUncounted';
+    if (f.stoppedBy === 'retreat') return 'night.retreat';
+    if (deaths === 0) return eaten > 0 ? 'night.fed' : 'night.hold';
+    if (deaths === 1) return 'night.fallsOnce';
+    if (eaten > 0) return 'night.fallsFed';
+    if (!(f.foodQty > 0)) return 'night.fallsHungry';
+    if (f.autoEatOff) return 'night.fallsOff';
+    return 'night.fallsUncounted';
+  }
   function sentence(f) {
     if (!f) return null;
     if (f.kind === 'combat') {
-      var bag = f.foodQty > 0 && f.foodName
-        ? ('your ' + countOf(f.foodQty, f.foodName))
-        : null;
-      if (f.allNight) {
-        return bag
-          ? ('Tonight: ' + bag + ' carry you through the night against ' + f.targetName + '.')
-          : ('Tonight: you hold out through the night against ' + f.targetName + '.');
-      }
-      return 'Tonight: ' + (bag ? bag + ' carry you' : 'with nothing to eat you last')
-        + ' about ' + fmtSpan(f.spanMs) + ' against ' + f.targetName
-        + '; then you fall and the night ends in recovery.';
+      return fillLine(combatKey(f), {
+        food: f.foodQty > 0 && f.foodName ? countOf(f.foodQty, f.foodName) : null,
+        foe: f.targetName, falls: f.stoppedBy === 'retreat' ? f.retreatFalls : f.deaths,
+        down: fmtSpan(f.downMs), span: fmtSpan(f.retreatMs),
+      });
     }
     if (!f.banks) return 'Tonight: ' + f.skillName + ' only earns while you are here.';
     if (f.kind === 'gather') return 'Tonight: ' + f.targetName + ' runs all night.';
@@ -413,6 +512,13 @@
        before the forecast is a different absence. */
     if (s.at && r.at && s.at < r.at) return null;
 
+    /* A night spent more on the floor than fighting leads with the fix. Not
+       foodEaten: the summary does not carry it (P6d). */
+    var ae = (s.autoEat && typeof s.autoEat === 'object') ? s.autoEat : {};
+    if ((Number(s.deaths) || 0) >= 2 && (Number(s.recoverMs) || 0) > paid) {
+      if (ae.hadFood === false) return fillLine('night.morningFloor', {});
+      if (ae.enabled === true && ae.hadFood === true) return fillLine('night.morningOutmatched', {});
+    }
     var predicted = Math.max(0, Number(r.spanMs) || 0);
     var verdict;
     if (predicted <= 0) verdict = 'the night paid anyway.';
@@ -438,7 +544,7 @@
      literals — the tone rides on `--gold` / `--ink-3`, which is the same
      ladder the banking row beside it uses. */
   function strip(G) {
-    var f = forecast(G || window.G);
+    var f = memo(G || window.G);
     if (!f) return '';
     var txt = sentence(f);
     if (!txt) return '';
@@ -473,7 +579,7 @@
      the keepalive save already rides, and it is display state, so there is
      no ordering hazard with the settle. */
   function captureOnLeave() {
-    try { var f = forecast(window.G); if (f) remember(f); } catch (e) {}
+    try { var f = memo(window.G); if (f) remember(f); } catch (e) {}
   }
   if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
     window.addEventListener('pagehide', captureOnLeave);
@@ -485,6 +591,10 @@
   window.HearthriseSetTheNight = {
     HORIZON_MS: HORIZON_MS,
     forecast: forecast,
+    cloneForForecast: cloneForForecast,
+    memo: memo,
+    peek: peek,
+    _resetMemo: function () { last = null; },
     sentence: sentence,
     strip: strip,
     remember: remember,

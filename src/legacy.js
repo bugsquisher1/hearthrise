@@ -11459,28 +11459,12 @@ function refreshActivityBar(){
             : '<span class="ab-xp">'+_lbl+' <b>'+_lv+'</b> · '+_to.toLocaleString()+' to go</span>';
         }
       }
-      /* ── b343: THE AWAY CHIP SAYS WHAT ACTUALLY ENDS THE NIGHT ────────────
-         b342 put a "Field Licence 41 / 100 · no away pay yet" pair here, and
-         the gate behind it is gone (see processOffline). What is NOT gone is
-         the reason that chip existed: this bar is the one readout on screen
-         for every second of every fight, and the question a player asks at it
-         is "can I leave this running?".
-
-         So the chip still answers, from the thing that is now the real limit —
-         auto-eat plus a stocked food slot. Nobody eats for you without the
-         trait (auto-actions.js), so an unequipped fight is over in about a
-         minute whether or not anyone is watching. Saying "pays away" flatly to
-         that player would be the same false promise b342 was filed against,
-         with the licence merely swapped out.
-
-         ONE predicate, shared with the monster preview's Away line
-         (`awayFightSustains`), so the two surfaces cannot drift. */
+      /* THE AWAY CHIP answers "can I leave this running?" from the Night Plan's
+         stored forecast (night-plan.js chipHtml): pays away, you fall, or no
+         food; a pending mark until the server has stated the bag. It never computes. */
       const licChip = '<span class="ab-tkills">Lifetime <b>'+totalKills.toLocaleString()+'</b></span>';
-      const awayChip = awayFightSustains()
-        ? '<span class="ab-xph ab-away" title="Auto-Eat and a stocked food slot keep this fight '
-          +'running while you are away, at the base rate.">pays away</span>'
-        : '<span class="ab-xph ab-away" title="A fight carries on while you are away, but it ends '
-          +'when you fall — nobody eats for you without Auto-Eat.">away: until you fall</span>';
+      const _NP = window.HearthriseNightPlan, _STN = window.HearthriseSetTheNight;
+      const awayChip = (_NP && _STN) ? _NP.chipHtml(_STN.peek(G)) : '';
       metaEl.innerHTML = ''
         + '<span class="ab-kills">'+_hrGly('uiSword',13)+' <b>'+kills.toLocaleString()+'</b> this fight</span>'
         + xpChip
@@ -13496,7 +13480,7 @@ function maybeShowWelcome(opts){
             _fix = 'Food would have turned that recovery time into fighting — about '
                  + _upTxt + ' the loot.';
           }
-          rows.push({g:'uiFood', t: _fix, v: ''});
+          rows.push({g:'uiFood', t: _fix, v: (window.HearthriseNightPlan && HearthriseNightPlan.doorsHtml(HearthriseNightPlan.ctxNow(G))) || ''});
         }
       }
       /* ── THE COST, ON ONE LINE ────────────────────────────────────────────

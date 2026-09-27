@@ -471,6 +471,7 @@ import { setupRecipeBook } from './features/recipe-book.js?v=558';
 import { setupItemIndex } from './features/item-index.js?v=558';
 import { setupCodex } from './features/codex.js?v=558';
 import { setupSignposts } from './features/signposts.js?v=558';
+import { setupNightPlan } from './features/night-plan.js?v=558';
 // Pack 1: one "what is this screen for?" note per screen, first visit only.
 import { setupScreenPrimers } from './features/screen-primers.js?v=558';
 
@@ -528,6 +529,7 @@ function tryBootFeatures() {
   boot('recipe-book', setupRecipeBook);
   boot('item-index', setupItemIndex);
   boot('signposts', setupSignposts);
+  boot('night-plan', setupNightPlan);
   boot('screen-primers', setupScreenPrimers);
   boot('codex', setupCodex);
   /* b228: setupCompanions() wraps window.getBonus, and it is the LAST wrapper

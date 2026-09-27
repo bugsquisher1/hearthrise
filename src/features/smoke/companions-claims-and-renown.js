@@ -673,8 +673,9 @@ export default [
 
   () => tryRunAsync('LEDGER-6: the boot hr_load feeds the server claim rows', async () => {
     const R = window.HearthriseRecord, C = window.HearthriseCollection;
-    if (!R || typeof R.beginRecordLoad !== 'function' || !C || !window.MONSTERS) return skip('record.js not loaded');
-    const realFetch = window.fetch, realG = window.G;
+    if (!R || typeof R.beginRecordLoad !== 'function' || !C || !window.MONSTERS || !window.HearthriseProperty) return skip('record.js not loaded');
+    const realFetch = window.fetch, realG = window.G, P = window.HearthriseProperty;
+    const prevProp = P.__resetPropertyRecord();   // the fixture's complete progress statement would observe tier 0
     try {
       R.resetRecord();
       R.configureRecord({ url: 'https://proj.supabase.co/', apiKey: 'anon', authToken: () => 'jwt', slot: 0 });
@@ -696,7 +697,7 @@ export default [
       assert(!cl.includes('hunter10') && cl.includes('hunter25'), 'after an idle boot the log offered ' + JSON.stringify(cl));
     } finally {
       window.fetch = realFetch; window.G = realG;
-      R.resetRecord(); R.configureRecord(null);
+      R.resetRecord(); R.configureRecord(null); P.__resetPropertyRecord(prevProp);
     }
   }),
 

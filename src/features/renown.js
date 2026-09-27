@@ -806,9 +806,9 @@
     var s = document.createElement('style');
     s.id = 'hr-rn-css';
     s.textContent = [
-      '.hr-rn-scrim{position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:18px}',
-      '.hr-rn-wrap{background:var(--bg-1,#1a1f2e);border:1px solid var(--line,#b8893e);border-radius:14px;width:100%;max-width:460px;max-height:88vh;overflow:auto;color:var(--ink,#e9e2cf);box-shadow:0 18px 50px -12px rgba(0,0,0,.7);font-family:var(--f-ui,system-ui,sans-serif)}',
-      '.hr-rn-top{padding:18px 18px 14px;background:radial-gradient(120% 90% at 50% 0,color-mix(in srgb,var(--gold,#e0a64a) 22%,transparent),transparent);border-bottom:1px solid var(--line-soft,rgba(122,94,58,.2));text-align:center;position:sticky;top:0;backdrop-filter:blur(6px)}',
+      '.hr-rn-scrim{z-index:100000;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center}',
+      '.hr-rn-wrap{background:var(--bg-1,#1a1f2e);border:1px solid var(--line,#b8893e);border-radius:14px;width:100%;max-width:460px;color:var(--ink,#e9e2cf);box-shadow:0 18px 50px -12px rgba(0,0,0,.7);font-family:var(--f-ui,system-ui,sans-serif)}',
+      '.hr-rn-top{padding:18px 18px 14px;background:radial-gradient(120% 90% at 50% 0,color-mix(in srgb,var(--gold,#e0a64a) 22%,transparent),transparent);border-bottom:1px solid var(--line-soft,rgba(122,94,58,.2));text-align:center;position:relative}',
       '.hr-rn-eyebrow{font-size:calc(14.5px * var(--ui-scale, 1));letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3,#a5896a)}',
       '.hr-rn-cur{font-family:var(--f-display,serif);font-size:calc(27px * var(--ui-scale, 1));font-weight:800;color:var(--gold,#e0a64a);line-height:1.1;margin:3px 0 2px}',
       '.hr-rn-sub{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-2,#cbb890)}',
@@ -966,12 +966,12 @@
       '<div class="hr-rn-today">+' + fmt(gain) + ' Renown today</div>';
 
     var scrim = document.createElement('div');
-    scrim.className = 'hr-rn-scrim';
+    scrim.className = 'hr-rn-scrim hr-scrim';   // layout: art-direction.css
     scrim.id = 'hr-rn-modal';
     scrim.innerHTML =
-      '<div class="hr-rn-wrap">' +
-        '<button class="hr-rn-x" data-close="1">✕</button>' +
-        '<div class="hr-rn-top">' +
+      '<div class="hr-rn-wrap hr-sheet">' +
+        '<div class="hr-rn-top hr-sheet-head">' +
+          '<button class="hr-rn-x" data-close="1" data-hr-dismiss>✕</button>' +
           '<div class="hr-rn-eyebrow">Rise to the Throne · Renown</div>' +
           '<div class="hr-rn-cur">' + st.rank.name + '</div>' +
           '<div class="hr-rn-sub">' + fmt(st.renown) + ' Renown</div>' +
@@ -979,7 +979,7 @@
           '<div class="hr-rn-next">' + nextLine + '</div>' +
           todayLine +
         '</div>' +
-        '<div class="hr-rn-list">' + rows + '</div>' +
+        '<div class="hr-sheet-body"><div class="hr-rn-list">' + rows + '</div>' +
         '<div class="hr-rn-howh">How renown is earned</div>' +
         '<div class="hr-rn-howsub">Renown is your whole account, added up. ' +
           'Nothing is spent and nothing is lost — every rank you reach is yours ' +
@@ -990,7 +990,7 @@
           /* b499 — "login streak" belonged to the daily reward; this is the play
              streak. Same ruling as WEIGHT_LABELS.streakBest above. */
           'your run of days played keep adding — so the climb shifts from <i>how much ' +
-          'you played</i> to <i>what you have done</i>.</div>' +
+          'you played</i> to <i>what you have done</i>.</div></div>' +
       '</div>';
     scrim.addEventListener('click', function (e) {
       if (e.target === scrim || e.target.getAttribute('data-close')) { closeModal(); return; }
@@ -1013,7 +1013,7 @@
     ensureStyle();
     var claimable = hasReward(rank);
     var scrim = document.createElement('div');
-    scrim.className = 'hr-rn-scrim';
+    scrim.className = 'hr-rn-scrim hr-scrim';
     scrim.id = 'hr-rn-cele';
     scrim.innerHTML =
       '<div class="hr-rn-cele">' +
@@ -1031,7 +1031,7 @@
         '<div class="hr-rn-unlock" style="font-size:calc(14.5px * var(--ui-scale, 1));margin-bottom:16px">' + rank.unlock + '</div>' +
         (claimable
           ? '<button class="hr-rn-claim" data-cele-claim="' + rank.id + '" style="padding:10px 20px;font-size:calc(16px * var(--ui-scale, 1))">Claim ' + rewardText(rank.reward) + '</button>'
-          : '<button class="hr-rn-claim" data-cele-close="1" style="padding:10px 20px;font-size:calc(16px * var(--ui-scale, 1))">Onward →</button>') +
+          : '<button class="hr-rn-claim" data-cele-close="1" data-hr-dismiss style="padding:10px 20px;font-size:calc(16px * var(--ui-scale, 1))">Onward →</button>') +
       '</div>';
     scrim.addEventListener('click', function (e) {
       var id = e.target.getAttribute('data-cele-claim');

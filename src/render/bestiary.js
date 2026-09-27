@@ -40,8 +40,8 @@
 
     var ov = document.getElementById('best-overlay');
     if (!ov) {
-      ov = document.createElement('div'); ov.id = 'best-overlay'; ov.className = 'ach-overlay';
-      ov.innerHTML = '<div class="ach-modal" onclick="event.stopPropagation()"><h2>Bestiary</h2><div id="best-charms" class="charm-strip"></div><div id="best-list" class="bestiary-list"></div><button class="btn" onclick="document.getElementById(\'best-overlay\').classList.remove(\'show\')" style="margin-top:12px;width:100%">Close</button></div>';
+      ov = document.createElement('div'); ov.id = 'best-overlay'; ov.className = 'ach-overlay hr-scrim';
+      ov.innerHTML = '<div class="ach-modal hr-sheet" onclick="event.stopPropagation()"><h2 class="hr-sheet-head">Bestiary</h2><div class="hr-sheet-body"><div id="best-charms" class="charm-strip"></div><div id="best-list" class="bestiary-list"></div></div><button class="btn hr-sheet-foot" data-hr-dismiss onclick="document.getElementById(\'best-overlay\').classList.remove(\'show\')" style="margin-top:12px;width:100%">Close</button></div>';
       ov.addEventListener('click', function (e) { if (e.target === ov) ov.classList.remove('show'); });
       document.body.appendChild(ov);
     }

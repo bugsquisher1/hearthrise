@@ -5,8 +5,8 @@
 //
 // THE CLAIM UNDER TEST: the accrual engine credits the EQUIPPED companion a
 // `stat companion_xp:<id>` op for its role-matched actions over a settled
-// window — the same per-action rule src/features/companions.js `awardXpForRole`
-// would have run live — drawing no rng, clamped to the cap, and paying the
+// window — the per-action rule src/core/companion-xp.js `companionActionXp`
+// defines (the only definition; the client no longer restates it) — drawing no rng, clamped to the cap, and paying the
 // IDENTICAL total whether the span was settled attended or replayed away
 // (AWAY-1). The projection that prices the levelled passive bonus reads that
 // exact stat row (2026-08-20-companion-model.sql hr_perks_of) and hr_state_of
@@ -25,9 +25,9 @@
 // more — they are the negative control that proves the op comes from the arm
 // and not from somewhere else in the delta.
 //
-// The engine runs for real (computeAccrual over the live catalogue); the client
-// per-action matrix is restated and PINNED here because companions.js reaches
-// for window and cannot be imported.
+// The engine runs for real (computeAccrual over the live catalogue); the
+// per-action matrix is restated and PINNED here so a change to
+// companionActionXp is a deliberate, reviewed edit.
 //
 // Run: node tests/companion-xp.mjs   (exit 0 = green)
 // Also invoked as a preflight by tests/run-smoke.mjs.
@@ -115,9 +115,8 @@ export function companionXpGuard() {
     'companion-xp: COMPANION_XP_SERVER_BACKED is not true — companion XP has NO writer at all '
     + '(the client half has been gated off since b515), so every pet is frozen at level 1');
 
-  // ── 2. THE PER-ACTION MATRIX MATCHES companions.js awardXpForRole ────────
-  // Restated from src/features/companions.js (which cannot be imported): a
-  // dedicated pet earns 1, a utility/hybrid pet 0.5, a mismatched pet 0.
+  // ── 2. THE PER-ACTION MATRIX IS companionActionXp ─────────────────────────
+  // A dedicated pet earns 1, a utility/hybrid pet 0.5, a mismatched pet 0.
   const MATRIX = [
     ['combat', 'combat-kill', 1], ['combat', 'gather', 0], ['combat', 'artisan', 0],
     ['gather', 'gather', 1], ['gather', 'combat-kill', 0], ['gather', 'artisan', 0],
@@ -127,7 +126,7 @@ export function companionXpGuard() {
   ];
   for (const [role, act, want] of MATRIX) {
     ok(companionActionXp(role, act) === want,
-      `companion-xp: companionActionXp(${role}, ${act}) = ${companionActionXp(role, act)}, expected ${want} — drifted from awardXpForRole`);
+      `companion-xp: companionActionXp(${role}, ${act}) = ${companionActionXp(role, act)}, expected ${want} — the per-action matrix drifted`);
   }
   ok(companionActionXp(null, 'combat-kill') === 0 && companionActionXp('combat', null) === 0,
     'companion-xp: a null role or activity must earn 0, never throw');
@@ -342,7 +341,7 @@ export function companionXpGuard() {
   if (!problems.length) {
     console.log(`Companion XP writer ARMED — both-path totals identical (combat ${bpCombat}, `
       + `gather ${bpGather}, artisan ${bpArtisan} xp attended == away).`);
-    console.log(`Companion XP writer — per-action matrix matches awardXpForRole; combat op is exactly `
+    console.log(`Companion XP writer — per-action matrix pinned; combat op is exactly `
       + `per-kill (${wolfOn.summary.kills} kills → ${compOp(wolfOn).add} xp), gather/artisan per produce; `
       + `byte-identical away vs live; clamps to the L30 cap (${COMPANION_XP_CAP}); the disarmed negative control emits nothing.`);
   }

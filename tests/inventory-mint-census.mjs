@@ -81,7 +81,6 @@ const FILES = [
   'src/features/renown.js',
   'src/features/workers.js',
   'src/features/farm-progression.js',
-  'src/features/companions.js',
   // ── 2026-09-02: THE DUNGEON REWARD ECONOMY, previously unscanned. This
   //    omission is the whole reason scrip/keys minted client-side, unseen, and
   //    vanished on reload once BLOB_RETIRED went live. Both files mint via
@@ -162,14 +161,6 @@ const BASELINE = {
   'src/features/renown.js': ['rw.item'],
   'src/features/workers.js': ['act.prod'],
   'src/features/farm-progression.js': ["'farm_deed'", 'id'],
-  // companions.js writes G.inventory directly (no addItem): doubleDrop mints an
-  // extra OWNABLE combat/gather drop (inv:ctx.lastDrop.id — the ~2-3% ACCEPTED
-  // RESIDUAL the flip drops; bounded, non-forgeable, cannot be excluded without
-  // gutting the ownable set), doubleYield mints a crop (inv:ctx.cropId — EXCLUDED,
-  // safe under the flip's DELETE, but see the blob-retire note in
-  // BLOB_RETIRE_UNSAFE_LANES: an un-settled proc bonus is a bounded reload-loss),
-  // and refundIngredients restores cook inputs (inv:k — excluded, same).
-  'src/features/companions.js': ['inv:ctx.cropId', 'inv:ctx.lastDrop.id', 'inv:k'],
   // ── THE DUNGEON REWARD ECONOMY (blob-retire-unsafe; see BLOB_RETIRE_UNSAFE_LANES).
   //    'dungeon_scrip' = awardDungeonScrip; roll.id/inv:roll.id = awardLoot (run
   //    loot); id/inv:id = buyFromQuartermaster (keys/blueprints/weapons for scrip).

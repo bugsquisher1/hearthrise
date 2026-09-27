@@ -78,7 +78,8 @@
        yield_cooking / yield_smithing / craftSave
                      output procs, already inside the 4/8% grammar and an order
                      of magnitude below any cap
-       storage, dropRate, damage, monsterRespawn, crit, rareDrop
+       crit, damage  read by core combat through bonus(), not governed here
+       rareDrop, hpRegen, storage, dropRate, monsterRespawn
                      ghost keys with no reader (§1.7) */
 
   function governed(key) { return GOVERNED[key] === 1; }

@@ -117,9 +117,9 @@ import {
   applyEnvelopeState, describeReplacement, isReplacementAcknowledged,
   showReplacementSheet, registerPredictionSeam, isReconcilePending,
   classifyFrame, commitFrame, resetFrameGate, getAppliedFrame, noteFrameDrop,   // the frame gate, §7.1
-} from './accrue.js?v=557';
-import { SHOP_OFFERS } from '../data/shops.js?v=557';
-import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=557';
+} from './accrue.js?v=558';
+import { SHOP_OFFERS } from '../data/shops.js?v=558';
+import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=558';
 
 export const SHOP_BUY_VERB = 'shop_buy';
 export const VENDOR_SELL_VERB = 'vendor_sell';

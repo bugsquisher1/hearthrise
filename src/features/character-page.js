@@ -20,16 +20,16 @@
 // Imports: SKILLS_DEF, action tables
 // Exports: setupCharacterPage()
 
-import { SKILLS_DEF } from '../data/skills.js?v=557';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=557';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=557';
-import { SKILL_GUIDE } from '../data/skill-guide.js?v=557';
+import { SKILLS_DEF } from '../data/skills.js?v=558';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=558';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=558';
+import { SKILL_GUIDE } from '../data/skill-guide.js?v=558';
 /* The UNKNOWN-balance accessor. This screen prints the purse, so it is one of
    the surfaces that must render a pending balance rather than a number. */
-import { balanceMarkup } from '../net/balance.js?v=557';
+import { balanceMarkup } from '../net/balance.js?v=558';
 
 /* b431 — skill-xp READ accessor (src/net/skill-record.js), DORMANT no-op today;
-   the ESM analogue of the b429 legacy skillXp() sweep. See activities-grid.js. */
+   the ESM analogue of the b429 legacy skillXp() sweep. */
 function srXpOf(G, id) {
   const SR = window.HearthriseSkillRecord;
   if (SR && typeof SR.skillXpForDisplayOr === 'function') return SR.skillXpForDisplayOr(G, id, 0);
@@ -110,14 +110,6 @@ function getEquipmentBonusFor(style) {
     else if (style === 'magic') { s.str += it.magicStrB || 0; s.atk += it.magicAtkB || 0; }
     s.def += it.defB || 0;
     s.crit += it.critB || 0;
-  }
-  if (typeof window.getCompanionBonus === 'function') {
-    const cb = window.getCompanionBonus();
-    if (style === 'melee') { s.str += cb.strB || 0; s.atk += cb.atkB || 0; }
-    if (style === 'ranged') { s.str += cb.rangeStrB || 0; s.atk += cb.rangeAtkB || 0; }
-    if (style === 'magic') { s.str += cb.magicStrB || 0; s.atk += cb.magicAtkB || 0; }
-    s.def += cb.defB || 0;
-    s.crit += cb.crit || 0;
   }
   return s;
 }
@@ -576,7 +568,7 @@ export function setupCharacterPage() {
   // b232 (Tyler): the Character screen is now an OVERVIEW (grid + account), and
   // the activities live back under Adventure on their own #panel-skills screen.
   // So showTab('skills') NO LONGER aliases to Character — it lands on the real
-  // Skills/activity panel (base showTab handles it, activities-grid auto-opens
+  // Skills/activity panel (base showTab handles it, legacy.js block 27 auto-opens
   // the first skill). Every deep link (quest-nav, Home "cook", openSkillDetail,
   // FTUE) funnels through showTab('skills') and keeps working, now arriving at
   // the activity screen where training happens.

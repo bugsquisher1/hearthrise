@@ -39,37 +39,31 @@
 // this module reports for the security review, never a data-loss bug.
 //
 // ── COMPANION / PET PROCS ───────────────────────────────────────────────────
-// The proc handler (src/features/companions.js) adds EXTRA QUANTITY to items it
-// does not own an id for: `doubleYield` mints a CROP (already excluded → safe),
-// `refundIngredients` restores a cook recipe's inputs (the server never modelled
-// the cook, so its figure still counts them → the absolute replace over-credits
-// rather than deletes → safe), and `doubleDrop` mints one extra of a combat/
-// gather drop. That last one is OWNABLE, so an absolute replace drops the ~2-3%
-// proc bonus copy. It is bounded, non-forgeable, and cannot be excluded without
-// emptying the ownable set of all drops — so it is a FLAGGED residual, not a new
-// excluded id. See docs/CONFLICTS handoff.
+// None on the client: a companion pays only its passive keys
+// (src/core/companion-perk.js), so no companion path mints inventory and there
+// is no proc residual for the absolute replace to drop.
 //
 // PURE ESM. No DOM required to import. `window.DUNGEONS` is read lazily and only
 // when present, so this loads and answers in Node and before the legacy IIFE.
 // ============================================================================
 
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=557';
-import { ARTISAN_RECIPES } from './recipes.js?v=557';
-import { MONSTERS } from './monsters.js?v=557';
-import { BOSSES } from './bosses.js?v=557';
-import { ITEMS } from './items.js?v=557';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=558';
+import { ARTISAN_RECIPES } from './recipes.js?v=558';
+import { MONSTERS } from './monsters.js?v=558';
+import { BOSSES } from './bosses.js?v=558';
+import { ITEMS } from './items.js?v=558';
 /* THE GRANT UNIVERSE, WIDENED (security C3). `unclassifiedGrantIds()` used to
    walk only the four ENGINE grant sources, so an id a shop, the Quartermaster, a
    goal reward or a raid chest is the ONLY source of could sit in limbo — neither
    ownable nor excluded — and nothing failed. Every one of these tables is ESM
    data, so the completeness check can simply read them. */
-import { QM_STOCK } from './dungeons.js?v=557';
-import { SHOP_OFFERS } from './shops.js?v=557';
-import { QUEST_REWARDS, DAILY_TASK_REWARDS } from './goal-catalogue.js?v=557';
-import { RAID_BOSSES } from './raid-bosses.js?v=557';
+import { QM_STOCK } from './dungeons.js?v=558';
+import { SHOP_OFFERS } from './shops.js?v=558';
+import { QUEST_REWARDS, DAILY_TASK_REWARDS } from './goal-catalogue.js?v=558';
+import { RAID_BOSSES } from './raid-bosses.js?v=558';
 /* The BURN, from the one module that names it — src/core/artisan.js is the same
    dual-runtime code the edge cooks with, so there is no second copy of the id. */
-import { BURNT_ITEM } from '../core/artisan.js?v=557';
+import { BURNT_ITEM } from '../core/artisan.js?v=558';
 
 /* ── ARTISAN LANE CLASSIFICATION — THE FAIL-CLOSED SEAM ─────────────────────
    The audit's rule is "payable = ARTISAN_RECIPES minus cooking". A NEW artisan

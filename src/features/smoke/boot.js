@@ -6,8 +6,8 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 31 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, withFarmServer, snapshotG, restoreG, restoreGAndRecord, on, overlayResidue, captureShellLocks, residueProbe } from './_harness.js?v=557';
-import { SCREEN_PRIMERS } from '../../data/screen-primers.js?v=557';
+import { pass, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, withFarmServer, snapshotG, restoreG, restoreGAndRecord, on, overlayResidue, captureShellLocks, residueProbe } from './_harness.js?v=558';
+import { SCREEN_PRIMERS } from '../../data/screen-primers.js?v=558';
 
 /* The primer markers on this device, so a PRIMER test can put them back exactly. */
 const primerSnap = (S) => S.keys().filter((k) => k.indexOf('hearthrise:primer:') === 0).map((k) => [k, S.get(k)]);
@@ -130,12 +130,13 @@ export default [
        welcome modal (a779c9cf, Set the Night, FEATURE_SLATE.md §3). The site is
        gone, so a tap for it would be a tap on nothing. This list is the census of
        SURVIVING migrated sites: a name here that the registry does not report is
-       still a dropped trigger, which is the property this test exists to hold. */
+       still a dropped trigger, which is the property this test exists to hold.
+       'activities-autoopen' left with the deleted activities-grid.js twin; 'auto-open-activity' is the surviving site. */
     const EXPECTED = [
       'inv-new', 'bounty-tab', 'combat-style-selector', 'character-render', 'panel-extras',
       'clan-activity', 'inv-fancy', 'inv-dragdrop', 'auto-open-activity',
       'character-rebuild', 'dungeons-render', 'nav-consol-bootall', 'obs-tabchange',
-      'character-page', 'activities-autoopen', 'stable-render', 'combat-tier-chips',
+      'character-page', 'stable-render', 'combat-tier-chips',
       'combat-screens-nav', 'identity-decorate', 'home-dashboard', 'ui-overlap',
       'muster-events', 'lifetime-stats-place', 'screen-primers',
     ];

@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 131 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays } from './_harness.js?v=557';
+import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays } from './_harness.js?v=558';
 
 /* DEEPWATERS fixture (content pack 8). Bonus-free and gear-free — getBonus and
    the rested quantum pinned to 0 and an EMPTY equipment stat block (Timberline
@@ -17,7 +17,7 @@ import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, 
 function dwBench(skill, lv, nodeId, fn) {
   const G = window.G, C = window.HearthriseCore, snap = snapshotG();
   const real = { getBonus: window.getBonus, restedQuantum: window.restedQuantum, getEquipmentStats: window.getEquipmentStats, pred: G._pred ? JSON.parse(JSON.stringify(G._pred)) : undefined };
-  const setLv = (n) => { G.skills = Object.assign({}, G.skills, { [skill]: window.xpForLevel(n) }); };
+  const setLv = (n) => { G.skills = Object.assign({}, G.skills, { [skill]: window.xpForLevel(n) }); stampRecordLikeLoad(G); };
   /* The DISPLAY read: server truth + prediction, so an armed skills record
      (addXp predicts rather than writing G.skills) measures the same delta. */
   const xpView = () => {
@@ -32,7 +32,7 @@ function dwBench(skill, lv, nodeId, fn) {
     fn(G, { setLv, xpView });
   } finally {
     window.getBonus = real.getBonus; window.restedQuantum = real.restedQuantum; window.getEquipmentStats = real.getEquipmentStats;
-    G._pred = real.pred; restoreG(snap);
+    G._pred = real.pred; restoreGAndRecord(snap);
   }
 }
 
@@ -3169,18 +3169,95 @@ export default [
          it locks by class, an at-lock "Level N" label and a notify() click. */
       const head = (html) => html.slice(0, html.indexOf('>') + 1);
       G.activeSkill = null; G.skillTargetId = null;
-      G.skills = Object.assign({}, G.skills, { woodcutting: window.xpForLevel(node.req - 1) });
+      G.skills = Object.assign({}, G.skills, { woodcutting: window.xpForLevel(node.req - 1) }); stampRecordLikeLoad(window.G);
       const below = AG.__tileForGather(node, 'woodcutting');
       assert(/class="act-tile[^"]*\blocked\b/.test(head(below)), 'at Woodcutting 51 the Maple Grove tile must carry the `locked` class: ' + head(below));
       assert(/class="at-lock"[^>]*>[\s\S]*Level 52/.test(below), 'the locked tile must name the level it needs (Level 52)');
       assert(/onclick="notify\(/.test(head(below)) && below.indexOf('hrActivityTileClick') < 0,
         'at Woodcutting 51 the click must only toast the requirement and never reach hrActivityTileClick: ' + head(below));
-      G.skills = Object.assign({}, G.skills, { woodcutting: window.xpForLevel(node.req) });
+      G.skills = Object.assign({}, G.skills, { woodcutting: window.xpForLevel(node.req) }); stampRecordLikeLoad(window.G);
       const live = AG.__tileForGather(node, 'woodcutting');
       assert(!/class="act-tile[^"]*\blocked\b/.test(head(live)) && live.indexOf('at-lock') < 0, 'at Woodcutting 52 the Maple Grove tile must be LIVE: ' + head(live));
       assert(head(live).indexOf("onclick=\"hrActivityTileClick('woodcutting','maple_grove',8200)\"") >= 0,
         'at Woodcutting 52 the click must start the stand: ' + head(live));
-    } finally { restoreG(snap); }
+    } finally { restoreGAndRecord(snap); }
+  }),
+
+  () => tryRunAsync('TILE-ONE-PAINTER: every gather stand the Skills screen PAINTS names its yield, the published tile seam is the builder that painted it, and the light update keeps the two equal', async () => {
+    const snap = snapshotG();
+    const G = window.G, I = window.ITEMS || {};
+    const prevTab = window.activeTab;
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const norm = (el) => el.textContent.replace(/\s+/g, ' ').trim();
+    const detach = (html) => { const d = document.createElement('div'); d.innerHTML = html; return d.firstElementChild; };
+    const lanes = [['woodcutting', window.TREES || []], ['mining', window.ROCKS || []], ['fishing', window.FISH_SPOTS || []]];
+    try {
+      G.activeSkill = null; G.skillTargetId = null;
+      G.skills = Object.assign({}, G.skills, { woodcutting: window.xpForLevel(99), mining: window.xpForLevel(99), fishing: window.xpForLevel(99) });
+      const stock = { rune_axe: 1, steel_pickaxe: 1, maple_rod: 1 };
+      lanes.forEach(([, rows]) => rows.forEach((r) => { stock[r.prod] = 5; }));
+      G.inventory = Object.assign({}, G.inventory, stock);
+      stampRecordLikeLoad(G);
+      for (const [skill, rows] of lanes) {
+        assert(rows.length > 0, skill + ' has no stands to grade');
+        window._actLastRender = { skillId: null, activeKey: null };
+        window.openSkillDetail(skill);
+        await wait(80);
+        const tiles = [...document.querySelectorAll('#skill-detail .act-tile')];
+        assert(tiles.length === rows.length, skill + ' painted ' + tiles.length + ' tiles for ' + rows.length + ' stands');
+        const find = (row) => [...document.querySelectorAll('#skill-detail .act-tile')].find((t) => t.getAttribute('data-prod') === row.prod && norm(t.querySelector('.at-name')) === row.name);
+        for (const row of rows) {
+          const tile = find(row);
+          assert(tile, 'the ' + row.name + ' tile did not paint on ' + skill);
+          const y = tile.querySelector('.at-yield');
+          assert(y && norm(y) === 'Yields ' + I[row.prod].n, 'the painted ' + row.name + ' tile does not name its yield ' + I[row.prod].n + ': "' + norm(tile) + '"');
+          const seam = detach(window.HearthriseActivitiesGrid.__tileForGather(row, skill));
+          assert(norm(tile) === norm(seam) && tile.querySelector('.at-tool'),
+            'the published tile seam is not the builder that painted ' + row.name + ': painted "' + norm(tile) + '" vs seam "' + norm(seam) + '"');
+          G.inventory[row.prod] += 1;
+          window.renderSkillDetail(skill);
+          const fresh = detach(window.HearthriseActivitiesGrid.__tileForGather(row, skill)).querySelector('.at-qty');
+          const q = (find(row) || tile).querySelector('.at-qty');
+          assert(q && fresh && norm(q) === norm(fresh), 'the light update repainted ' + row.name + ' as "' + (q && norm(q)) + '", first paint says "' + (fresh && norm(fresh)) + '"');
+        }
+      }
+    } finally {
+      restoreGAndRecord(snap);
+      window._actLastRender = { skillId: null, activeKey: null }; window.__viewedSkillId = null;
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRunAsync('TILE-GATE-KEY: a stand painted LOCKED while the realm had not confirmed the level unlocks on the next render once the gate level lands', async () => {
+    const snap = snapshotG();
+    const G = window.G;
+    const prevTab = window.activeTab;
+    const realGate = window.hrGateLevel;
+    const node = (window.TREES || []).find((t) => t.id === 'maple_grove');
+    const tileOf = () => [...document.querySelectorAll('#skill-detail .act-tile')].find((t) => (t.querySelector('.at-name') || {}).textContent === node.name);
+    try {
+      assert(node && node.req === 52 && typeof realGate === 'function', 'maple_grove must be the Woodcutting 52 stand and hrGateLevel must be wired');
+      G.activeSkill = null; G.skillTargetId = null;
+      G.skills = Object.assign({}, G.skills, { woodcutting: window.xpForLevel(52) });
+      stampRecordLikeLoad(G);
+      window.hrGateLevel = (sk) => (sk === 'woodcutting' ? 51 : realGate(sk));
+      window._actLastRender = { skillId: null, activeKey: null };
+      window.openSkillDetail('woodcutting');
+      await new Promise((r) => setTimeout(r, 80));
+      const locked = tileOf();
+      assert(locked && locked.classList.contains('locked') && /Level 52/.test((locked.querySelector('.at-lock') || {}).textContent), 'at gate level 51 the Maple Grove tile must paint LOCKED at Level 52');
+      assert(/hrLevelGateText/.test(locked.getAttribute('onclick')), 'the locked click must toast through hrLevelGateText (pending level), got ' + locked.getAttribute('onclick'));
+      window.hrGateLevel = (sk) => (sk === 'woodcutting' ? 52 : realGate(sk));
+      window.renderSkillDetail('woodcutting');
+      await new Promise((r) => setTimeout(r, 20));
+      const live = tileOf();
+      assert(live && !live.classList.contains('locked') && live.querySelector('.at-prog'), 'the realm confirmed Woodcutting 52 and the Maple Grove tile is still locked');
+    } finally {
+      window.hrGateLevel = realGate;
+      restoreGAndRecord(snap);
+      window._actLastRender = { skillId: null, activeKey: null }; window.__viewedSkillId = null;
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
   }),
 
   () => tryRun('TIMBERLINE-3: one real chop at the Maple Grove at Woodcutting 52 banks exactly 2 Maple Logs and floor(78 × 0.39) = 30 XP', () => {
@@ -4733,7 +4810,7 @@ export default [
   // restated its own copy on every declaration is how a stale client value ends
   // up overwriting a server one.
   () => tryRunAsync('hunt panel: set_activity carries stance/stop only when named', async () => {
-    const mod = await import('../../net/activity.js?v=557');
+    const mod = await import('../../net/activity.js?v=558');
     const bodyOf = (o) => JSON.parse(mod.buildActivityRequest(
       Object.assign({ kind: 'combat', id: 'goblin', intentId: 'k' }, o)).init.body);
     const bare = bodyOf({});

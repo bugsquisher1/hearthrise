@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 116 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withClientOwnedSlots, awaySpan, tryRunRestampingBalance, xpOf, xpMap, predZero, goldOf, snapshotG, onFeet, drain, withResidueWire, seedPlayStreak, residuePurgeSnap, residuePurgeRestore, restoreG, restoreGAndRecord, autoEatMirrorReady, autoEatMirrorFixture, on, snapshot, decideRestore } from './_harness.js?v=557';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withClientOwnedSlots, awaySpan, tryRunRestampingBalance, xpOf, xpMap, predZero, goldOf, snapshotG, onFeet, drain, withResidueWire, seedPlayStreak, residuePurgeSnap, residuePurgeRestore, restoreG, restoreGAndRecord, autoEatMirrorReady, autoEatMirrorFixture, on, snapshot, decideRestore } from './_harness.js?v=558';
 
 /* MODAL-FIT-1's probes. `mfClear` parks every layer that can sit above a sheet
    (scrims DETACHED, so no "another modal is up" check defers; toasts hidden) and
@@ -1770,29 +1770,20 @@ export default [
 
   () => tryRun('b269: pet session-impact tracker counts real contributions + surfaces the chip/modal', () => {
     const PS = window.HearthrisePetSession;
-    assert(PS && typeof PS.recordProc === 'function' && typeof PS.recordXp === 'function',
+    assert(PS && typeof PS.recordXp === 'function',
       'HearthrisePetSession seam missing — the tracker was not built');
     const G = window.G;
     const snap = G.companions ? JSON.parse(JSON.stringify(G.companions)) : null;
     try {
-      // Equip a pet whose bonus we know: the Fox (allXP + a gold proc).
+      // Equip a pet whose paid bonus we know: the Fox (allXP).
       G.companions = G.companions || { ownedIds: ['fox'], xp: {}, equipped: null };
       if (G.companions.ownedIds.indexOf('fox') < 0) G.companions.ownedIds.push('fox');
       G.companions.xp = G.companions.xp || {};
       G.companions.equipped = 'fox';
       PS._reset();
 
-      // A proc pays a concrete amount — the tracker must record exactly it.
-      PS.recordProc('extraGold', 5, {});
       let a = PS.get();
       assert(a && a.petId === 'fox', 'accumulator must key on the equipped pet');
-      assert(a.gold === 5, 'gold proc must add its real amount, got ' + a.gold);
-      assert(a.procs === 1, 'proc count must increment, got ' + a.procs);
-
-      // A doubled drop records the item and its quantity.
-      PS.recordProc('doubleDrop', 0, { lastDrop: { id: 'copper_ore', qty: 2 } });
-      a = PS.get();
-      assert(a.drops === 2 && a.dropItems.copper_ore === 2, 'doubled drop must record item+qty');
 
       // XP attribution is the pet's real marginal allXP after the budget.
       const before = a.xp;
@@ -1812,8 +1803,9 @@ export default [
         assert(scrim, 'clicking the chip must open a RoomModal-style panel');
         const txt = scrim.textContent;
         assert(/Fox/.test(txt), 'the modal must be titled by the pet name');
-        assert(/Bonus XP granted/.test(txt) && /Gold contributed/.test(txt),
-          'the modal must show the real contribution breakdown');
+        assert(/Bonus XP granted/.test(txt), 'the modal must show the XP the pet really added');
+        assert(!/Procs fired|Extra drops|Gold contributed|Doubled by/.test(txt),
+          'the modal must show no proc rows — no companion proc is paid');
         window.HearthriseRoomModal.close();
       }
     } finally {

@@ -91,7 +91,7 @@ async function loadReal() {
   const packed = await pack('hr-accrue');
   const read = (p) => readFileSync(join(ROOT, p), 'utf8');
   const vocab = [...new Set([
-    ...labelValues(read('src/features/companions.js'), 'const labelMap = {'),
+    ...labelValues(read('src/render/companion-lines.js'), 'export const COMPANION_LABELS = {'),
     ...labelValues(read('src/features/homestead.js'), 'var KEY_LABEL = {'),
     ...EXTRA_VOCAB,
   ].map((w) => w.toLowerCase()))];

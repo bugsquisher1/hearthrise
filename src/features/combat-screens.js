@@ -41,11 +41,11 @@
 // "long fight — pays on the kill" rather than quoting a number.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from '../data/monsters.js?v=557';
-import { ITEMS } from '../data/items.js?v=557';
-import * as ST from './session-tally.js?v=557';
-import { fill } from './signposts.js?v=557';
-import { SIGNPOSTS } from '../data/signposts.js?v=557';
+import { MONSTERS } from '../data/monsters.js?v=558';
+import { ITEMS } from '../data/items.js?v=558';
+import * as ST from './session-tally.js?v=558';
+import { fill } from './signposts.js?v=558';
+import { SIGNPOSTS } from '../data/signposts.js?v=558';
 
 /* ── small shared helpers ────────────────────────────────────────────────*/
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (

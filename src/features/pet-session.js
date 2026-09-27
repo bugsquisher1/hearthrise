@@ -2,7 +2,9 @@
 // src/features/pet-session.js — THE PET'S SESSION IMPACT (b269)
 //
 // Tyler: "Show the equipped pet beside the avatar; click it to see what the
-// pet actually did THIS session — bonus XP, gold, drops, procs."
+// pet actually did THIS session — bonus XP, gold, drops, procs." A pet pays
+// only its passive keys (src/core/companion-perk.js); the one of those a
+// session can measure on the client is the bonus XP, so that is what shows.
 //
 // Two honesty rules from the FINAL DIRECTIVE shape every line here:
 //   1. No fake numbers. Every figure in the breakdown is a REAL delta measured
@@ -29,14 +31,6 @@
       petId: petId,
       startedAt: Date.now(),
       xp: 0,          // bonus XP the pet's allXP added (marginal, post-budget)
-      gold: 0,        // gold minted by gold/extraGold procs
-      drops: 0,       // extra items handed over by doubleDrop / doubleYield
-      dropItems: {},  // itemId -> extra qty (so the modal can name them)
-      meals: 0,       // refundIngredients procs (a free meal each)
-      rares: 0,       // guaranteedRare procs
-      instants: 0,    // instant-action procs
-      fireProcs: 0,   // fireDot combat procs
-      procs: 0,       // total procs of any kind
     };
   }
 
@@ -85,51 +79,11 @@
     if (m > 0) a.xp += base * m;
   }
 
-  // ── Proc attribution ──────────────────────────────────────────────────────
-  // Called from companions.js rollProc(), once per proc, with the concrete
-  // amount and the same ctx the effect consumed — so the numbers here are the
-  // numbers the game actually paid out.
-  function recordProc(effect, amount, ctx) {
-    var a = ensureAcc();
-    if (!a) return;
-    ctx = ctx || {};
-    switch (effect) {
-      case 'gold':
-      case 'extraGold':
-        a.gold += Number(amount) || 0;
-        break;
-      case 'doubleDrop': {
-        var d = ctx.lastDrop || {};
-        var q = Number(d.qty) || 1;
-        if (d.id) a.dropItems[d.id] = (a.dropItems[d.id] || 0) + q;
-        a.drops += q;
-        break;
-      }
-      case 'doubleYield': {
-        var q2 = Number(ctx.qty) || 1;
-        if (ctx.cropId) a.dropItems[ctx.cropId] = (a.dropItems[ctx.cropId] || 0) + q2;
-        a.drops += q2;
-        break;
-      }
-      case 'refundIngredients': a.meals += 1; break;
-      case 'guaranteedRare':    a.rares += 1; break;
-      case 'instant':           a.instants += 1; break;
-      case 'fireDot':           a.fireProcs += 1; break;
-      default: break;
-    }
-    a.procs += 1;
-  }
-
   // ── formatting helpers ────────────────────────────────────────────────────
   function nfmt(n) {
     n = Math.round(Number(n) || 0);
     return n.toLocaleString();
   }
-  function itemLabel(id) {
-    var it = window.ITEMS && window.ITEMS[id];
-    return (it && (it.name || it.n)) || id;
-  }
-
   // ── the modal (HearthriseRoomModal-style) ─────────────────────────────────
   function buildModal() {
     var id = equippedId();
@@ -157,35 +111,15 @@
       foot: (def.role || '') + ' companion',
     });
 
-    // The contribution rows — only what actually happened. A genuine zero is
-    // real (the pet has done nothing yet) so the four headline lines always
-    // show; the proc breakdown lines appear only once they have fired.
-    var rows = [];
-    rows.push({ name: 'Bonus XP granted', right: valTag('+' + nfmt(a.xp)) });
-    rows.push({ name: 'Gold contributed', right: valTag('+' + nfmt(a.gold)) });
-    rows.push({ name: 'Extra drops', right: valTag('+' + nfmt(a.drops)) });
-    rows.push({ name: 'Procs fired', right: valTag(nfmt(a.procs)) });
-    if (a.meals)     rows.push({ name: 'Free meals (ingredients refunded)', right: valTag(nfmt(a.meals)) });
-    if (a.rares)     rows.push({ name: 'Guaranteed rare drops', right: valTag(nfmt(a.rares)) });
-    if (a.instants)  rows.push({ name: 'Instant gathers', right: valTag(nfmt(a.instants)) });
-    if (a.fireProcs) rows.push({ name: 'Fire-breath hits', right: valTag(nfmt(a.fireProcs)) });
-
+    // A genuine zero is real (the pet has done nothing yet), so the row always shows.
+    var rows = [{ name: 'Bonus XP granted', right: valTag('+' + nfmt(a.xp)) }];
     sections.push({ kind: 'rows', title: 'This session', rows: rows });
-
-    // Name the extra items the pet doubled, if any.
-    var dropKeys = Object.keys(a.dropItems);
-    if (dropKeys.length) {
-      var list = dropKeys.map(function (k) {
-        return '<span class="hr-cs-qty is-full">+' + nfmt(a.dropItems[k]) + ' ' + esc(itemLabel(k)) + '</span>';
-      }).join(' &middot; ');
-      sections.push({ kind: 'note', html: '<b>Doubled by ' + esc(def.n) + ':</b><br>' + list });
-    }
 
     var mins = Math.max(1, Math.round((Date.now() - a.startedAt) / 60000));
     sections.push({
       kind: 'note',
       html: 'Tracked since this session began (about ' + mins + ' min ago). '
-        + 'Every figure is measured when the bonus fires — nothing here is estimated.',
+        + 'The XP figure is the share of each grant the pet\'s All XP bonus added.',
     });
 
     return {
@@ -198,11 +132,6 @@
   }
 
   function valTag(t) { return '<span class="hr-cs-val">' + t + '</span>'; }
-  function esc(s) {
-    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
-    });
-  }
   function iconHtml(id, px) {
     return (typeof window.companionIconHtml === 'function') ? window.companionIconHtml(id, px) : '';
   }
@@ -297,7 +226,6 @@
   window.HearthrisePetSession = {
     get: get,
     recordXp: recordXp,
-    recordProc: recordProc,
     openModal: openModal,
     injectChip: injectChip,
     buildModal: buildModal,

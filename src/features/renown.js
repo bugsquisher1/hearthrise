@@ -159,7 +159,7 @@
   }
 
   /* b431 — skill-xp READ accessor (src/net/skill-record.js), DORMANT no-op today;
-     the ESM analogue of the b429 legacy skillXp() sweep. See activities-grid.js. */
+     the ESM analogue of the b429 legacy skillXp() sweep. */
   function srXpOf(G, id) {
     var SR = window.HearthriseSkillRecord;
     return (SR && typeof SR.skillXpOr === 'function')
@@ -1063,10 +1063,10 @@
   // Don't stack the rank-up celebration onto other popups (login gauntlet:
   // beta / welcome-back / daily / FTUE / collection). pollRankUp only advances
   // when it fires, so deferring just waits for the screen to clear.
+  // "Up" is what is PAINTED (HearthriseSheet.anyOpen), never a hand list of how
+  // each overlay closes; the FTUE root is pointer-events:none, so it is named here.
   function anotherModalUp() {
-    return !!document.querySelector(
-      '.ftue-root,#hr-welcome-modal,.beta-overlay,#welcome-overlay.show,.hr-dl-scrim,.hr-cl-scrim,.acq-overlay.show,.ach-overlay.show'
-    );
+    return !!document.querySelector('.ftue-root') || window.HearthriseSheet.anyOpen();
   }
   /* ── THE WATCHER CAN BE PARKED (suite isolation) ──────────────────────────
      `celebrate()` builds a FULL-SCREEN scrim that closes only on a click, and
@@ -1083,8 +1083,9 @@
     if (!pollEnabled) return;
     if (!window.G) return;
     if (document.getElementById('hr-rn-cele') || document.getElementById('hr-rn-modal')) return; // ours already open
-    if (anotherModalUp()) return;                       // wait for the screen to clear
     try {
+      // Inside the try: a missing seam throws, fails CLOSED for this tick, retries next.
+      if (anotherModalUp()) return;                     // wait for the screen to clear
       var reached = pollRankUp(window.G);
       // Celebrate one at a time; if multiple, queue by re-checking next tick.
       if (reached && reached.length) celebrate(reached[0]);
@@ -1128,6 +1129,7 @@
     openLadder: openLadder,
     celebrate: celebrate,
     _anotherModalUp: function () { return anotherModalUp(); },
+    __tick: function () { tick(); },
     /* Read/write park switch for the suite (see `tick`). Never called by the
        game: the watcher is on for every real player, always. */
     __setPollEnabled: function (on) { var was = pollEnabled; pollEnabled = !!on; return was; }

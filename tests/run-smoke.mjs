@@ -2193,7 +2193,7 @@ const run = async () => {
     /* ── The companion XP writer guard (dormant server-of-record) ────────────
        The WRITE half of the companion channel: the accrual engine credits the
        equipped pet a `stat companion_xp:<id>` op for its role-matched actions
-       (per kill / per gather-yield / per produce — the awardXpForRole basis),
+       (per kill / per gather-yield / per produce — the companionActionXp basis),
        draw-free so away == live, clamped to the L30 cap, and INERT while the arm
        switch is dormant. The projection (hr_perks_of) already reads that row. */
     const companionXpProblems = companionXpGuard();

@@ -2770,10 +2770,9 @@ function ensureStarterCombatKit(){
    comments now live in that file — one implementation, which is what lets a
    Deno Edge Function resolve an offline kill exactly the way the client does.
 
-   The window.* hops are kept deliberately: getEquipmentStats and
-   getArmorSetBonus are WRAPPED by feature modules (companions.js:501,
-   legacy.js:12565), and calling core directly would silently escape those
-   wrappers. Delegation must not change who is in the chain. ── */
+   The window.* hops are kept deliberately: getArmorSetBonus is WRAPPED by
+   the clan seat, and calling core directly would silently escape that
+   wrapper. Delegation must not change who is in the chain. ── */
 function getPlayerCombatRolls(m,eq=getEquipmentStats()){
   const C=window.HearthriseCore;
   const _set=(typeof getArmorSetBonus==='function')?getArmorSetBonus():null;
@@ -3534,10 +3533,6 @@ function activeBonusKeys(){
   return keys;
 }
 window.HearthriseBlessingNote = blessingNote;
-/* b226 shipped this name and activities-grid.js calls it; it renders the same
-   kind of thing (the live modifier beside the XP), so the name survives the
-   rework rather than churning a caller for no gain. */
-window.HearthrisePresenceNote = blessingNote;
 /* b226 named this global; b227 gave it the blessing gate; b229 narrowed the
    gate to "the session is online". The name survives the narrowing rather than
    churning every caller — what it answers is still "is the player here?", only
@@ -6435,9 +6430,8 @@ function combatSimCtx(){
     items:ITEMS,
     bonus:C.bonus,
     style:(typeof window.getActiveCombatStyle==='function')?window.getActiveCombatStyle():null,
-    /* Through the window.* helpers, not straight to core: getEquipmentStats
-       and getArmorSetBonus are WRAPPED by companions.js and the clan seat, and
-       calling core directly would silently drop those links. */
+    /* Through the window.* helpers, not straight to core: getArmorSetBonus
+       is WRAPPED by the clan seat, and calling core directly would drop it. */
     playerRolls:function(m){ eq=getEquipmentStats(); return getPlayerCombatRolls(m,eq); },
     monsterRolls:function(m){ return getMonsterCombatRolls(m,eqOf()); },
     weakness:function(m){ return getWeaknessInfo(m,eqOf()); },
@@ -15858,8 +15852,7 @@ function patchSkillsList(){
              the level set at 14px bold above the skill's own name at 10px
              grey, so the stat outweighed the subject across sixteen tiles,
              each carrying ~60px of dead space. Now a row with the hierarchy
-             the right way up. Kept in sync with the identical tile in
-             src/features/activities-grid.js. */
+             the right way up. */
           +'<span class="st-ic">'+iconHtml+'</span>'
           +'<span class="st-body">'
             +'<span class="snm">'+s.name+'</span>'
@@ -15894,10 +15887,10 @@ window.hrToolLineHtml = function(skillId){
 };
 
 function tileForGather(action, skillId){
-  var lv = getLevel(skillId);
   var unlocked = (window.hrGateLevel?window.hrGateLevel(skillId):1) >= action.req;
   var active = G.activeSkill===skillId && G.skillTargetId===action.id;
   var qty = (G.inventory && G.inventory[action.prod]) || 0;
+  var prodName = (ITEMS[action.prod] && ITEMS[action.prod].n) || action.prod;
   /* b226: the tile is a price tag — it must state the PACED duration, tool
      speed included, because that is what startSkill() will actually set.
      ── b345: AND IT MUST NOT COMPUTE THAT PRICE ITSELF ────────────────────
@@ -15923,8 +15916,7 @@ function tileForGather(action, skillId){
   var skillName = (window.SKILLS_DEF && window.SKILLS_DEF[skillId] && window.SKILLS_DEF[skillId].name) || skillId;
   var click = unlocked   /* ONE handler both ways: the toggle resolves at the CLICK against the live pointer (src/render/activity-tile.js), never baked here; `active` below is paint only */
     ? "hrActivityTileClick('"+skillId+"','"+action.id+"',"+action.ms+")"
-    : "notify('Requires "+skillName+" Lv "+action.req+"','kill')";
-  var qtyClass = qty>0 ? 'at-qty' : 'at-qty muted';
+    : "notify((window.hrLevelGateText?window.hrLevelGateText('"+skillId+"',"+action.req+",'Requires "+skillName+" Lv "+action.req+"'):'Requires "+skillName+" Lv "+action.req+"'),'kill')";
   return '<div class="act-tile '+(unlocked?'':'locked')+' '+(active?'active':'')+'" '
     +'data-prod="'+action.prod+'" '
     +'onclick="'+click+'" '
@@ -15936,6 +15928,7 @@ function tileForGather(action, skillId){
     +'<div class="at-icon">'+HearthriseIcons.actIconHtml(action.prod, skillId)+'</div>'
     +'<div class="at-name">'+(action.name||action.id)+'</div>'
     +'<div class="at-meta">'+xpPer+' XP · '+fmtSec(ms)+'</div>'
+    +'<div class="at-yield">Yields '+prodName+'</div>'
     +(unlocked ? toolLine : '')
     +(qty>0 ? '<div class="at-qty">'+fmtQty(qty)+'</div>' : '')
     +(unlocked ? '' : '<div class="at-lock">'+lockGlyph()+'Level '+action.req+'</div>')
@@ -15954,9 +15947,7 @@ function tileForGather(action, skillId){
    Defence 30 to put on. A player training Smithing on a mule build could forge
    a full set they cannot wear and only find out at the equip screen.
 
-   Shared by the legacy tile builder and its ESM twin in
-   features/activities-grid.js, so the two renderers cannot drift — the same
-   arrangement hrToolLineHtml/burnRiskLine already use. Reads gearWieldReq, the
+   Reads gearWieldReq, the
    authority equipItem() enforces, so it is right for the hand-authored pieces
    whose gate is derived from `tier` rather than authored on the item. */
 window.hrWearLineHtml = function(outputId){
@@ -15989,7 +15980,6 @@ window.hrArtisanGateClick = function(skillId, recipeId){
 };
 
 function tileForArtisan(recipe, skillId){
-  var lv = getLevel(skillId);
   var active = (G.activeSkill === skillId && G.skillTargetId === recipe.id) || G.activeArtisanRecipe === recipe.id; /* b226: startArtisan never writes activeArtisanRecipe */
   /* Wave 1 (audit fix): a tile is "unlocked" only when EVERY gate passes, and it
      shows a persistent lock naming the FIRST failing one rather than dying
@@ -16002,7 +15992,6 @@ function tileForArtisan(recipe, skillId){
   if(!levelOk){ lockLabel = 'Level ' + recipe.req; }
   else if(!scrollOk){ lockLabel = 'Recipe scroll'; benchLock = true; }
   var outId = recipe.output;
-  var outDef = ITEMS[outId];
   var qty = (G.inventory && G.inventory[outId]) || 0;
   var skillName2 = (window.SKILLS_DEF && window.SKILLS_DEF[skillId] && window.SKILLS_DEF[skillId].name) || skillId;
   var click = unlocked                                                    /* start-vs-stop resolves at the CLICK against the live pointer (src/render/activity-tile.js), never baked here; `active` below is paint only. The LOCKED arm is already click-time truth: hrArtisanGateClick re-reads level and scroll and forwards to the start when they pass. */
@@ -16012,16 +16001,12 @@ function tileForArtisan(recipe, skillId){
   /* b237 (tester): show how many of each input you OWN on the tile (e.g. sawing
      planks → watch your log count fall), red when short of one action. data-have/
      data-need let the live refresh below update it as stock is consumed. */
-  /* b372: the input name links to that item's flyout — kept identical to the
-     ESM twin in features/activities-grid.js, which is the copy that actually
-     paints on most boots. Two renderers, one behaviour. */
   var inputsLine = Object.entries(inputs).map(function(kv){
     var d = ITEMS[kv[0]]; var nm = d?d.n.split(' ')[0]:kv[0];
     var have = (G.inventory && G.inventory[kv[0]]) || 0;
     var nmHtml = (typeof window.hrInspectSpan==='function') ? window.hrInspectSpan(kv[0], nm, 'at-in-nm') : nm;
     return (kv[1]>1?kv[1]+'× ':'')+nmHtml+' <span class="at-have'+(have<kv[1]?' low':'')+'" data-have="'+kv[0]+'" data-need="'+kv[1]+'">'+fmtQty(have)+'</span>';
   }).join(' + ');
-  var qtyClass = qty>0 ? 'at-qty' : 'at-qty muted';
   /* b345: the artisan tile carried the SAME two lies as the gather tile, plus
      one of its own — it printed `pacedActionMs(recipe.ms)` with no speed perk
      applied at all, so a cook with +15% cookSpeed was quoted the unbuffed
@@ -16044,7 +16029,7 @@ function tileForArtisan(recipe, skillId){
     +'title="'+tileTitle.replace(/"/g,'&quot;')+'">'
     +'<div class="at-icon">'+HearthriseIcons.actIconHtml(outId, skillId)+'</div>'
     +'<div class="at-name">'+(recipe.name||recipe.id)+'</div>'
-    /* Cross-skill lane honesty (kept identical to the ESM twin's xpSkillLabel):
+    /* Cross-skill lane honesty:
        a quarry rung on the Stonemason page pays MINING XP by design — say so. */
     +'<div class="at-meta">'+xpPer+' '+(recipe.xpSkill && recipe.xpSkill!==skillId
         ? (((window.SKILLS_DEF||{})[recipe.xpSkill]||{}).name || (recipe.xpSkill.charAt(0).toUpperCase()+recipe.xpSkill.slice(1)))+' '
@@ -16059,6 +16044,7 @@ function tileForArtisan(recipe, skillId){
     +(unlocked ? '<div class="at-prog"><div class="at-prog-fill"></div></div>' : '')
     +'</div>';
 }
+window.HearthriseActivitiesGrid = {__tileForGather: tileForGather, __tileForArtisan: tileForArtisan};
 
 /* ══════════════════════════════════════════════════════════════════════
    b220 — ARTISAN CATEGORY STRIP (crafting-cooking-taxonomy §6)
@@ -16081,9 +16067,6 @@ function tileForArtisan(recipe, skillId){
    _tdPane / _invFilter): the panel is rebuilt from scratch by activity-driven
    re-renders, so a category held only in the DOM would snap back to the
    default every few seconds — the b218 doll bug, one screen over.
-
-   This object is also what src/features/activities-grid.js (the ESM twin of
-   this renderer) uses, so the two cannot drift.
    ══════════════════════════════════════════════════════════════════════ */
 window._artisanCat = window._artisanCat || {};
 
@@ -16211,7 +16194,7 @@ function lightUpdate(skillId){
     var prodId = tile.getAttribute('data-prod');
     if(qe && prodId && G.inventory){
       var q = G.inventory[prodId] || 0;
-      qe.textContent = 'Qty: ' + fmtQty(q);
+      qe.textContent = fmtQty(q);
       if(q===0) qe.classList.add('muted'); else qe.classList.remove('muted');
     }
   });
@@ -16260,7 +16243,7 @@ function patchSkillDetail(){
        whether to repaint it has to carry that fact. One extra getBonus() per
        render (measured below 0.01ms; the key already calls one for cooking). */
     var catXp = (typeof getBonus==='function') ? getBonus('allXP') : 0;
-    var activeKey = (G.activeSkill||'')+'|'+(G.skillTargetId||'')+'|'+(G.activeArtisanRecipe||'')+'|'+(catSel||'')+'|'+catLv+'|'+catBurn+'|'+catXp;
+    var activeKey = (G.activeSkill||'')+'|'+(G.skillTargetId||'')+'|'+(G.activeArtisanRecipe||'')+'|'+(catSel||'')+'|'+catLv+'|'+catBurn+'|'+catXp+'|'+(window.hrGateLevel?window.hrGateLevel(id):'');
     var detailEl = document.getElementById('skill-detail');
     var alreadyRendered = detailEl && detailEl.querySelector('.act-grid');
     if(alreadyRendered && window._actLastRender.skillId===id && window._actLastRender.activeKey===activeKey){
@@ -16290,25 +16273,20 @@ function patchSkillDetail(){
       return;
     }
     var tiles = '';
-    var count = 0;
     var cats = '';
 
     if(id==='woodcutting'){
       tiles = TREES.map(function(a){return tileForGather(a, id);}).join('');
-      count = TREES.length;
     } else if(id==='mining'){
       tiles = ROCKS.map(function(a){return tileForGather(a, id);}).join('');
-      count = ROCKS.length;
     } else if(id==='fishing'){
       tiles = FISH_SPOTS.map(function(a){return tileForGather(a, id);}).join('');
-      count = FISH_SPOTS.length;
     } else if(id==='farming'){
       tiles = '<div class="act-tile" onclick="showTab(\'farming\')" style="grid-column:1/-1">'
         +'<div class="at-name">Open the Farm tab</div>'
         +'<div class="at-meta">Plant and harvest crops on your plots.</div>'
         +'<div class="at-icon"><span class="at-emoji">'+skillIconHTML('farming',34)+'</span></div>'
         +'</div>';
-      count = 1;
     } else if(window.ARTISAN_RECIPES && window.ARTISAN_RECIPES[id]){
       /* b220: filtered to the selected category (all of them when the skill
          has no taxonomy, e.g. prayer). recipesFor() falls back to the full
@@ -16324,16 +16302,12 @@ function patchSkillDetail(){
         cats += '<div class="muted tiny" style="margin:2px 0 8px">Bind essences into runes, then enchant your weapon (Combat) for +15% vs element-weak foes.</div>';
       }
       tiles = recipes.map(function(r){return tileForArtisan(r, id);}).join('');
-      count = recipes.length;
     } else {
       tiles = '<div class="act-tile" style="grid-column:1/-1"><div class="at-name">No activities</div><div class="at-meta">This skill has no available activities.</div></div>';
-      count = 1;
     }
 
     /* b215: size by readable minimum width, not a hand-tuned column count.
-       (Mirrors src/features/activities-grid.js — this legacy copy is the one
-       that actually renders, since it runs first and the ESM version bails on
-       `alreadyRendered`.) The old table capped at "more than 15 → 6 columns",
+       The old table capped at "more than 15 → 6 columns",
        which squeezed smithing's 81 recipes into 93px tiles with the names
        clipped to "FORGE". */
     var grid = '<div class="act-grid" style="grid-template-columns:repeat(auto-fit,minmax(186px,1fr))">'+tiles+'</div>';
@@ -16836,59 +16810,6 @@ function ensureCompanionState(){
      own column. */
 }
 
-// Bonus helper — scaled by level.
-// b228: the key skeleton follows data/companions.js's corrected names (allXP /
-// goldFind / prayerSpeed replace the misspelled xpB / goldBonus / prayerXp).
-window.getCompanionBonus = function(){
-  ensureCompanionState();
-  var b = {strB:0, atkB:0, defB:0, crit:0, allXP:0, gatherSpeed:0, farmYield:0,
-           cookSpeed:0, smithSpeed:0, craftSpeed:0, prayerSpeed:0,
-           rareDrop:0, goldFind:0, hpRegen:0};
-  var eq = G.companions && G.companions.equipped;
-  if(!eq) return b;
-  var def = window.COMPANIONS[eq];
-  if(!def) return b;
-  var xp = (G.companions.xp && G.companions.xp[eq]) || 0;
-  var lv = window.companionLevelFromXp(xp);
-  var scale = 1 + (lv - 1) * 0.05; // +5% per level above 1; lv30 = +145% bonus magnitude
-  Object.entries(def.bonus || {}).forEach(function(kv){
-    b[kv[0]] = (b[kv[0]] || 0) + (kv[1] * scale);
-  });
-  return b;
-};
-
-/* ── b228 P0 — THE COMPANION DOUBLE-COUNT, REMOVED ────────────────────────
-   A getBonus wrapper adding `getCompanionBonus()[key]` lived HERE *and* in
-   features/companions.js setupCompanions(). Both installed at boot, both
-   called the same (module) getCompanionBonus, and the chain therefore added
-   every pet's bonus TWICE. Measured before the fix, in the harness: a Forge
-   Imp declaring smithSpeed .10 moved getBonus('smithSpeed') by 0.20 — a
-   level-30 Forge Imp was worth +49% smithing, not the +24.5% the census
-   budgeted, and no screen anywhere said so.
-
-   It could not be found by reading either file: each wrapper is correct on its
-   own. It is exactly the failure mode the power budget exists to make
-   impossible, so it is fixed inside the rebase and pinned by a regression test
-   that asserts the delta equals the companion's bonus EXACTLY ONCE.
-
-   features/companions.js keeps the hook (it owns the data and the level
-   curve); this copy is deleted. */
-
-// Hook into getEquipmentStats() if it exists, so combat/character pages see companion stat bonuses
-(function(){
-  if(typeof window.getEquipmentStats !== 'function') return;
-  var orig = window.getEquipmentStats;
-  window.getEquipmentStats = function(){
-    var s = orig.apply(this, arguments) || {};
-    var cb = window.getCompanionBonus();
-    ['strB','atkB','defB','rangeStrB','rangeAtkB','magicStrB','magicAtkB'].forEach(function(k){
-      if(typeof cb[k] === 'number') s[k] = (s[k]||0) + cb[k];
-    });
-    if(typeof cb.crit === 'number') s.critB = (s.critB||0) + cb.crit;
-    return s;
-  };
-})();
-
 // Award XP to the equipped companion. b228: the cap is DERIVED from the curve
 // (companionXpToReach(30)) — the old flat 50,000 stopped every pet at level 14
 // on a bar the Stable draws as "/ 30".
@@ -16942,34 +16863,6 @@ ensureCompanionState();
 console.log('[Companions A: logic] loaded — table owned by data/companions.js ('
   + Object.keys(window.COMPANIONS || {}).length + ' seen at this point)');
 })();
-
-/* ── b342 P0 — THE COMPANION PROC HOOKS, REMOVED ──────────────────────────
-   Block 31 (companions-hooks) lived here. b228 above deleted the duplicated
-   getBonus wrapper and left this standing; it is the SAME defect one layer up.
-   `rollProc` and `awardXpForRole` existed HERE and in features/companions.js,
-   and BOTH files wrapped window.killMonster, window.combatTick and
-   window.addItem. Each wrapper calls the next, so one trigger ran TWO proc
-   rolls and TWO XP awards.
-
-   MEASURED in the real client, headless, before the fix (proc chance forced
-   to 1 and the payout marked, so it could not be confused with a kill reward):
-     one killMonster()    -> proc applied 2x, 2 toasts, pet XP +1.0 (want 0.5)
-     one combatTick()     -> proc applied 2x, 2 toasts
-     one addItem() gather -> proc applied 2x, 2 toasts
-     one addItem() cook   -> proc applied 2x, 2 toasts, pet XP +1.0 (want 0.5)
-   So a Raccoon advertising "20% on kill" really fired at 1-0.8^2 = 36%, and
-   every proc pet in the game paid roughly double its declared rate against a
-   power budget that had never been told. This block also ran a 250ms interval
-   that fired a THIRD gather proc each time G.skillProgress crossed 0.99.
-
-   It cannot be found by reading either file — each wrapper is correct on its
-   own — so it is pinned by a behavioural regression test:
-   'b342 P0: a companion proc applies EXACTLY ONCE per trigger'.
-
-   features/companions.js keeps the hooks. It owns the data, the level curve,
-   the seeded drop roll and the HearthrisePetSession attribution this copy
-   never reported to (which is why the pet-impact panel was under-reporting by
-   exactly half). Do not reintroduce a second set. */
 
 // ===== block 32: companions-ui-js — REMOVED (bug-duty, Stable single-owner) =====
 /* The Stable nav button, #panel-stable, renderStable and the profile-card /
@@ -17098,14 +16991,6 @@ function getEquipmentBonusFor(style){
     s.def += it.defB||0;
     s.crit += it.critB||0;
   });
-  /* Add companion bonuses */
-  if(typeof getCompanionBonus === 'function'){
-    var cb = getCompanionBonus();
-    if(style === 'melee'){ s.str += cb.strB||0; s.atk += cb.atkB||0; }
-    if(style === 'ranged'){ s.str += cb.rangeStrB||0; s.atk += cb.rangeAtkB||0; }
-    if(style === 'magic'){ s.str += cb.magicStrB||0; s.atk += cb.magicAtkB||0; }
-    s.def += cb.defB||0; s.crit += cb.crit||0;
-  }
   return s;
 }
 
@@ -17459,15 +17344,7 @@ window._buyCompanion = function(id, price){
      hr_perks_of PROJECTS the equipped companion's PASSIVE bonus, priced at accrual
      by src/core/companion-perk.js. So the passive bonus is honoured by the SERVER
      whether or not gold is armed, and the purchase is safe to arm.
-
-     ⚠ WHAT IS STILL CLIENT-ONLY, AND WHY IT DOES NOT REOPEN THE HAZARD: the
-     companion PROCS (gold/extraGold, e.g. the raccoon's +5g/kill) remain a live
-     client-authored grant, and rollProc() in features/companions.js KEEPS its own
-     clientMayWriteRecordField('gold') defer — an armed proc no-ops there, not here.
-     Procs are a bonus on top of a bought pet, not the thing bought; a pet with its
-     passive honoured is not "pay gold, get nothing" just because one RNG proc is
-     deferred until the RNG-seam follow-up. So the PURCHASE arms now; the PROC stays
-     gated at its own site. */
+ */
   if(!balCanAfford(price,'gold')){ if(typeof notify==='function') notify(balShortfall(price,'gold'),'kill'); return; }
   if(G.companions && G.companions.ownedIds.indexOf(id) >= 0){ if(typeof notify==='function') notify('Already owned','info'); return; }
   var _ck=(typeof goldIntentKey==='function')?goldIntentKey():null;

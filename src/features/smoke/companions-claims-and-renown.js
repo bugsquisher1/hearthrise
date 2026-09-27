@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 43 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, predZero, snapshotG, drain, stubSignedIn, restoreG, zeroRenownTerms, restoreRenownTerms, on, withClaimServer, goldOf, withServerBacked, hrCharmDriver } from './_harness.js?v=557';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, errorLog, stampBalanceLikeLoad, stampRecordLikeLoad, predZero, snapshotG, drain, stubSignedIn, restoreG, zeroRenownTerms, restoreRenownTerms, on, withClaimServer, goldOf, withServerBacked, hrCharmDriver } from './_harness.js?v=558';
 
 /* LEDGER OF FIRSTS — the collection-log rungs read the SERVER mirrors, which
    are `_` scratch outside snapshotG. Each test saves and restores them by
@@ -1082,6 +1082,98 @@ export default [
       if (srvBefore !== null) R.noteServerRenown({ renown_high: srvBefore });
       restoreRenownTerms(G, termsBefore);
       restoreG(snap);
+    }
+  }),
+
+  /* ── regression: MODAL-BLOCK-2 — the rank-up card and the daily sheet wait for what is PAINTED ──
+     Two hand lists judged "node exists" or a subset of surfaces: the card drew over the KO sheet,
+     every `.modal`, the recipe book and the name modal. Both now ask HearthriseSheet.anyOpen. */
+  () => tryRun('MODAL-BLOCK-2: the rank-up card and the daily sheet wait for every painted modal, and a closed one never parks them', () => {
+    const R = window.HearthriseRenown, D = window.HearthriseDaily, S = window.HearthriseSheet;
+    const A = window.HearthriseAccrual, DS = window.HearthriseDeathSheet, G = window.G;
+    const snap = snapshotG(), srvBefore = R.serverRenownHigh(), wasOn = A.isServerAccrualEnabled();
+    const byId = (id) => document.getElementById(id);
+    const both = () => [R._anotherModalUp(), D._anotherModalUp()];
+    const parked = [...document.querySelectorAll('.ftue-root, .hr-scrim, .modal.show, #rb-overlay')]
+      .filter((n) => n.matches('.ftue-root') || getComputedStyle(n).display !== 'none')
+      .map((n) => [n, n.parentNode, n.nextSibling]);
+    parked.forEach(([n]) => n.remove());
+    const plant = (cls, id, css) => { const n = document.createElement('div'); if (cls) n.className = cls; if (id) n.id = id;
+      if (css) n.style.cssText = css; document.body.appendChild(n); return n; };
+    const koOff = () => { DS.__resetForTest(); A.clearFall(); A.applyEnvelopeState(G, { state: { recovering_until: null } }); };
+    let termsBefore = null, pollWas = null, plants = [];
+    try {
+      assert(!both()[0] && !both()[1], 'the fixture needs a quiet screen: ' + both());
+      A.setServerAccrualEnabled(true);
+      const koAtt = () => { A.clearFall(); DS.__resetForTest(); A.noteFall(Date.now()); DS.show(null, null); };
+      const cases = [
+        ['KO sheet (attended)', koAtt, koOff, () => byId('hr-death-scrim')],
+        ['KO sheet (away)', () => A.applyEnvelopeState(G, { state: { accrued_to: new Date().toISOString(),
+          recovering_until: new Date(Date.now() + 27 * 60000).toISOString() } }), koOff, () => byId('hr-death-scrim')],
+        ['More menu (.modal)', () => byId('more-modal').classList.add('show'), () => byId('more-modal').classList.remove('show'), () => byId('more-modal')],
+        ['recipe book', () => window.HearthriseRecipeBook.open(), () => window.HearthriseRecipeBook.close(), () => byId('rb-overlay')],
+        ['welcome-back', () => { G.lastSeen = Date.now() - 8 * 3600000; G.lastWelcome = 0; window.__maybeShowWelcome(); },
+          () => document.querySelector('#welcome-overlay .wb-claim').click(), () => byId('welcome-overlay')],
+        ['achievements', () => window.openAchievements(), () => document.querySelector('#ach-overlay [data-hr-dismiss]').click(), () => byId('ach-overlay')],
+        ['acquisition tip', () => window.showAcquisitionTip('x'), () => window.hideAcquisitionTip(), () => byId('acq-overlay')],
+        ['name modal (plant)', () => plants.push(plant('hr-id-scrim hr-scrim')), () => plants.pop().remove(), () => true],
+        ['post-signup sheet (plant)', () => plants.push(plant('hr-scrim', 'hr-post-signup-modal')), () => plants.pop().remove(), () => true],
+      ];
+      const bad = [];
+      for (const [name, open, close, node] of cases) {
+        open();
+        const up = both();
+        if (!up[0]) bad.push(name + ': the rank-up would draw over it');
+        if (!up[1]) bad.push(name + ': the daily sheet would draw over it');
+        close();
+        const n = node();
+        if (!n || (n !== true && !n.isConnected)) bad.push(name + ': fixture — the owner no longer keeps the node');
+        const down = both();
+        if (down[0] || down[1]) bad.push(name + ': closed, yet it still parks ' + (down[0] ? 'the rank-up ' : '') + (down[1] ? 'the daily' : ''));
+      }
+      assert(!bad.length, bad.join(' | '));
+
+      assert(typeof R.__tick === 'function' && typeof S.anyOpen === 'function', 'the HearthriseRenown.__tick / HearthriseSheet.anyOpen seam is missing');
+      termsBefore = zeroRenownTerms(G);
+      G.renown = { claimed: [], seenRank: 1 };
+      R.__resetClaimState();
+      R.noteServerRenown({ ok: true, renown_high: 900, progress: [], progress_truncated: false });
+      pollWas = R.__setPollEnabled(true);
+      koAtt(); R.__tick();
+      assert(!byId('hr-rn-cele') && G.renown.seenRank === 1, 'a rank-up drew over the KO sheet');
+      koOff(); R.__tick();
+      assert(byId('hr-rn-cele') && G.renown.seenRank === 2, 'the rank-up never fired once the KO sheet closed; seenRank ' + G.renown.seenRank);
+      byId('hr-rn-cele').remove();
+
+      G.dailyReward = { lastClaimDay: 0 }; D.open();
+      assert(byId('hr-dl-modal'), 'fixture: the daily sheet did not open');
+      assert(D._anotherModalUp() === false, 'the daily auto-open waits on its OWN sheet — a deadlock');
+      assert(R._anotherModalUp() === true, 'the rank-up would draw over the daily sheet');
+      byId('hr-dl-modal').remove();
+
+      for (const sel of S.__notYetSheets.split(',').map((s) => s.trim())) {
+        const m = sel.match(/^([.#])([\w-]+)$/);
+        const n = m[1] === '#' ? plant(null, m[2], 'position:fixed;top:0;left:0;right:0;bottom:0;display:block')
+          : plant(m[2], null, 'position:fixed;top:0;left:0;right:0;bottom:0;display:block');
+        try { assert(S.anyOpen() === true, 'anyOpen missed a painted ' + sel); } finally { n.remove(); }
+      }
+      for (const css of ['display:none', 'pointer-events:none']) {
+        const n = plant('hr-scrim', null, css);
+        try { assert(S.anyOpen() === false, 'a .hr-scrim with ' + css + ' must read as closed'); } finally { n.remove(); }
+      }
+    } finally {
+      try { const c = byId('hr-rn-cele'); if (c) c.remove(); koOff(); } catch (e) {}
+      A.setServerAccrualEnabled(!!wasOn);
+      ['welcome-overlay', 'ach-overlay', 'acq-overlay', 'more-modal'].forEach((id) => { const n = byId(id); if (n) n.classList.remove('show'); });
+      try { window.HearthriseRecipeBook.close(); } catch (e) {}
+      plants.forEach((n) => n.remove());
+      const dl = byId('hr-dl-modal'); if (dl) dl.remove();
+      if (pollWas !== null) R.__setPollEnabled(pollWas);
+      R.__resetClaimState();
+      if (srvBefore !== null) R.noteServerRenown({ renown_high: srvBefore });
+      if (termsBefore) restoreRenownTerms(G, termsBefore);
+      restoreG(snap);
+      parked.reverse().forEach(([n, parent, next]) => { try { parent.insertBefore(n, next); } catch (e) { document.body.appendChild(n); } });
     }
   }),
 
@@ -2861,10 +2953,8 @@ export default [
     assert(window.speedClamp(undefined) === 1 && window.speedClamp(NaN) === 1, 'garbage must be identity, not NaN');
 
     // (b) Every site that spends a speed key goes through it. A single
-    //     un-routed `(1 - speed)` is a hole the fuse cannot see — and this
-    //     codebase keeps TWO copies of the activity renderers
-    //     (features/activities-grid.js overrides legacy.js's at boot), so
-    //     "patch both or you patch neither" is checked, not assumed.
+    //     un-routed `(1 - speed)` is a hole the fuse cannot see, so every
+    //     live interval site is checked, not assumed.
     //     Read off the live function bodies rather than a source blob, so this
     //     cannot quietly become a no-op the way a missing global would.
     [['startArtisan', window.startArtisan],
@@ -3130,6 +3220,158 @@ export default [
     } finally { T.claimsKnown = ck; RR.roomRung = rung; }
   }),
 
+  /* COMP-PAYS-1 — a companion does on the client exactly what the engine pays.
+     src/core/companion-perk.js is the one definition (COMPANION_KEYS, priced by
+     companionKeyBonus); the engine pays no proc, no combat stat, no rareDrop and
+     no hpRegen. Every proc pet is driven through the real kill / combat-hit /
+     gather / cook seams with its proc forced to chance 1, pet ON against pet OFF
+     from the same seed: nothing observable may differ, the stream included. The
+     literals below are pinned on purpose — a helper cannot vouch for itself. */
+  () => tryRun('COMP-PAYS-1: a companion does on the client exactly what the engine pays — no proc, no combat stat, no error, no promise', () => {
+    const G = window.G, C = window.HearthriseCore, E = window.HearthriseWorldEvents;
+    const CO = window.HearthriseCompanions, PS = window.HearthrisePetSession, COMP = window.COMPANIONS;
+    if (!G || !C || !E || !CO || !COMP || typeof window.killMonster !== 'function'
+        || typeof window.combatTick !== 'function' || typeof window.addItem !== 'function') {
+      skip('companion / combat seams absent'); return;
+    }
+    const PAID = ['allXP', 'goldFind', 'gatherSpeed', 'cookSpeed', 'smithSpeed', 'craftSpeed', 'prayerSpeed', 'farmYield'];
+    const snap = snapshotG();
+    const base = JSON.stringify(snap);
+    const savedGC = window.HearthriseGoalClaim, savedNotify = window.notify;
+    const savedPending = G._killCreditPending;
+    const savedProcs = {};
+    const wasParked = CO.__parkGrants(true);
+    const prevPane = window._tdPane;
+    try {
+      window.HearthriseGoalClaim = Object.assign({}, savedGC, { isSignedIn: () => false });
+      E._force({ daily: E.QUIET, weekly: E.QUIET });
+      const procIds = Object.keys(COMP).filter((id) => COMP[id].proc);
+      assert(procIds.length >= 10, 'FIXTURE: the catalogue must carry proc pets, found ' + procIds.length);
+      procIds.forEach((id) => {
+        savedProcs[id] = COMP[id].proc;
+        COMP[id].proc = Object.assign(JSON.parse(JSON.stringify(COMP[id].proc)), { chance: 1 });
+      });
+      const fresh = (id, equipped, xp) => {
+        restoreG(JSON.parse(base));
+        G.buffs = []; G._killCreditPending = {};
+        G.companions = { ownedIds: [id], xp: { [id]: xp || 0 }, equipped: equipped ? id : null };
+      };
+
+      // ── the drives: every trigger, pet ON vs pet OFF, same seed ──────────
+      const drive = (id, on) => {
+        fresh(id, on);
+        const label = COMP[id].proc.label;
+        let toasts = 0, threw = 0;
+        window.notify = function (msg) { if (String(msg).indexOf(label) >= 0) toasts++; };
+        const err0 = errorLog.length, gold0 = goldOf(), inv0 = JSON.stringify(G.inventory || {});
+        C.reseed(0xC0A11);
+        G.activeMonster = 'goblin'; G.monsterHp = G.monsterMaxHp = 999999;
+        G.playerHp = G.playerMaxHp = 999999; G.skillProgress = 0;
+        try { window.combatTick(); } catch (e) { threw++; }
+        try { window.killMonster(window.MONSTERS.goblin); } catch (e) { threw++; }
+        const monsterHp = G.monsterHp;
+        G.activeMonster = null; G.activeArtisanRecipe = null; G.activeSkill = 'mining';
+        try { window.addItem('copper_ore', 1); } catch (e) { threw++; }
+        const skillProgress = G.skillProgress;
+        G.activeSkill = null; G.activeArtisanRecipe = 'wheat_bread';
+        try { window.addItem('wheat_bread', 1); } catch (e) { threw++; }
+        window.notify = savedNotify;
+        return { toasts, threw, errors: errorLog.length - err0, skillProgress, monsterHp,
+          rare: G._companionRareNext, gold: goldOf() - gold0,
+          inv: JSON.stringify(G.inventory || {}) !== inv0 ? JSON.stringify(G.inventory) : 'same',
+          stream: C.rng.next() };
+      };
+      procIds.forEach((id) => {
+        const on = drive(id, true), off = drive(id, false);
+        assert(on.toasts === 0 && off.toasts === 0, id + ': the proc "' + COMP[id].proc.label + '" was announced ' + on.toasts + 'x — no companion proc is paid');
+        assert(on.threw === 0 && on.errors === 0, id + ': a companion drive threw (' + on.threw + ' thrown, ' + on.errors + ' logged)');
+        assert(on.skillProgress === 0 && off.skillProgress === 0, id + ': a gathered item moved G.skillProgress to ' + on.skillProgress + ' / ' + off.skillProgress + ' — no instant proc is paid');
+        assert(on.rare === undefined, id + ': G._companionRareNext was set — nothing reads it and the engine pays no rare');
+        ['skillProgress', 'monsterHp', 'gold', 'inv', 'stream', 'threw', 'errors'].forEach((k) => {
+          assert(on[k] === off[k], id + ': pet ON vs OFF differ on ' + k + ' (' + on[k] + ' vs ' + off[k] + ')');
+        });
+      });
+      // harvest: no live seam fires a harvest proc, and none may exist.
+      assert(PS && PS.get && !('procs' in (PS.get() || {})), 'the pet session still tallies procs');
+
+      // ── combat stats: the engine pays none, so the client applies none ─────
+      ['fox', 'wolf_pup', 'badger', 'whelp', 'scorpion', 'tortoise', 'dragonling'].forEach((id) => {
+        const read = (on) => {
+          fresh(id, on, window.companionXpToReach(30));
+          const eq = window.getEquipmentStats();
+          const pr = window.getPlayerCombatRolls(window.MONSTERS.goblin);
+          const mr = window.getMonsterCombatRolls(window.MONSTERS.goblin);
+          return { eq: JSON.stringify(eq), crit: pr.critChance, maxHit: pr.maxHit, acc: mr.accuracy, bonusCrit: window.getBonus('crit') };
+        };
+        const on = read(true), off = read(false);
+        Object.keys(on).forEach((k) => assert(on[k] === off[k], id + ': ' + k + ' moves with the pet (' + on[k] + ' vs ' + off[k] + ') — the engine pays no companion combat stat'));
+      });
+
+      // ── getBonus: exactly the paid keys, at L1 and L30 ─────────────────────
+      const xp30 = window.companionXpToReach(30);
+      Object.keys(COMP).forEach((id) => Object.keys(COMP[id].bonus || {}).forEach((k) => {
+        const delta = (xp) => { fresh(id, true, xp); const v = window.getBonus(k); fresh(id, false, xp); return v - window.getBonus(k); };
+        const b = COMP[id].bonus[k], paid = PAID.indexOf(k) >= 0;
+        const want0 = paid ? b : 0;
+        const want30 = !paid ? 0 : (k === 'farmYield' ? 1 : b * 2.45);
+        const d0 = delta(0), d30 = delta(xp30);
+        assert(Math.abs(d0 - want0) < 1e-9, id + '.' + k + ' at L1 moved getBonus by ' + d0 + ', want ' + want0);
+        assert(Math.abs(d30 - want30) < 1e-9, id + '.' + k + ' at L30 moved getBonus by ' + d30 + ', want ' + want30);
+      }));
+
+      // ── render: the Stable, the doll and the pet modal promise only that ──
+      const labels = procIds.map((id) => savedProcs[id].label);
+      if (document.getElementById('stable-body')) {
+        restoreG(JSON.parse(base));
+        G.companions = { ownedIds: Object.keys(COMP), xp: {}, equipped: 'fox' };
+        window.renderStable();
+        const cards = [...document.querySelectorAll('#stable-body .stable-card')];
+        assert(cards.length === Object.keys(COMP).length, 'Stable rendered ' + cards.length + ' cards');
+        cards.forEach((card, i) => {
+          const id = Object.keys(COMP)[i];
+          const txt = card.textContent;
+          labels.forEach((l) => assert(txt.indexOf(l) < 0, id + ': the Stable card still promises "' + l + '"'));
+          assert(txt.indexOf('% on') < 0, id + ': the Stable card still shows a proc rate');
+          const lines = CO.paidLines(id, 0);
+          const want = lines.length ? lines.map((l) => l.text + ' ' + l.label).join('  ·  ') : 'No stat bonus yet';
+          const got = card.querySelector('.sc-bonuses').textContent.trim();
+          assert(got === want, id + ': the Stable shows "' + got + '", the engine pays "' + want + '"');
+        });
+      }
+      if (typeof window.buildTibiaDoll === 'function') {
+        ['whelp', 'sparrow', 'fox'].forEach((id) => {
+          fresh(id, true);
+          window._tdPane = 'pet';
+          const doll = window.buildTibiaDoll();
+          const info = doll && doll.querySelector('.td-companion-info');
+          assert(info, id + ': the doll has no companion pane');
+          assert(!info.querySelector('.td-comp-proc'), id + ': the doll still renders a proc line');
+          const got = [...info.querySelectorAll('.td-comp-bonus')].map((el) => el.textContent.replace(/^\S+\s/, ''));
+          const want = CO.paidLines(id, 0).map((l) => l.label);
+          assert(JSON.stringify(got) === JSON.stringify(want), id + ': the doll shows ' + JSON.stringify(got) + ', the engine pays ' + JSON.stringify(want));
+        });
+      }
+      if (PS && typeof PS.openModal === 'function' && window.HearthriseRoomModal) {
+        fresh('fox', true);
+        PS._reset(); PS.openModal();
+        const scrim = document.querySelector('.hr-room-scrim');
+        const txt = scrim ? scrim.textContent : '';
+        window.HearthriseRoomModal.close();
+        assert(scrim && /Bonus XP granted/.test(txt), 'the pet modal did not open');
+        ['Procs fired', 'Extra drops', 'Gold contributed', 'Doubled by'].forEach((w) =>
+          assert(txt.indexOf(w) < 0, 'the pet modal still reports "' + w + '"'));
+      }
+    } finally {
+      Object.keys(savedProcs).forEach((id) => { COMP[id].proc = savedProcs[id]; });
+      window.HearthriseGoalClaim = savedGC; window.notify = savedNotify;
+      E._force(null); CO.__parkGrants(wasParked);
+      window._tdPane = prevPane;
+      restoreG(snap); G._killCreditPending = savedPending;
+      if (PS && PS._reset) PS._reset();
+      try { window.renderStable(); } catch (e) {}
+    }
+  }),
+
   () => tryRun('b227: every room opens a themed modal through the shared seam', () => {
     const H = window.HearthriseHomestead;
     if (!H || typeof H.modalDescriptor !== 'function' || !window.HearthriseRoomModal) return;
@@ -3341,14 +3583,12 @@ export default [
         || typeof window.getCompanionBonus !== 'function'
         || !window.COMPANIONS) { skip('no companion api'); return; }
 
-    // A pet with a real passive, from the catalogue so a rename cannot quietly
-    // turn this into an assertion about nothing.
-    const id = Object.keys(window.COMPANIONS).find((k) => {
-      const b = window.COMPANIONS[k] && window.COMPANIONS[k].bonus;
-      return b && Object.keys(b).some((key) => Number(b[key]) > 0);
-    });
-    if (!id) { skip('no companion carries a positive bonus'); return; }
-    const bonusKey = Object.keys(window.COMPANIONS[id].bonus).find((k) => Number(window.COMPANIONS[id].bonus[k]) > 0);
+    // A pet with a real, level-scaled PAID passive (farmYield is flat), from the
+    // catalogue so a rename cannot quietly turn this into an assertion about nothing.
+    const scaledKeys = (k) => Object.keys(CO.paidBonus(k, 0)).filter((key) => key !== 'farmYield');
+    const id = Object.keys(window.COMPANIONS).find((k) => scaledKeys(k).length > 0);
+    if (!id) { skip('no companion carries a positive paid bonus'); return; }
+    const bonusKey = scaledKeys(id)[0];
 
     const snap = snapshotG();
     try {

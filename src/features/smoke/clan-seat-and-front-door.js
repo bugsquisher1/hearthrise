@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 72 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withFarmServer, withClaimServer, xpOf, predZero, xpZero, goldOf, snapshotG, restoreG, restoreGAndRecord, TYPE_FLOOR, typeHandoffOwner, typeTokenPx, TYPE_OWNED_SHEETS, on, snapshot, decideRestore, decideSessionEvent, stubSignedIn, drain } from './_harness.js?v=557';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withFarmServer, withClaimServer, xpOf, predZero, xpZero, goldOf, snapshotG, restoreG, restoreGAndRecord, TYPE_FLOOR, typeHandoffOwner, typeTokenPx, TYPE_OWNED_SHEETS, on, snapshot, decideRestore, decideSessionEvent, stubSignedIn, drain } from './_harness.js?v=558';
 
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -3498,57 +3498,33 @@ export default [
   () => tryRun('b226: the daily reward joins the modal queue instead of landing on top of it', () => {
     // Found by walking the real post-login sequence in a browser: with the name
     // modal open, the once-a-day sheet opened straight on top of it 1.0s later.
-    // Every other first-run flow already named `.hr-id-scrim`; this one did not,
-    // so the "fixed precedence" the b221/b223/b224 work claims was never total.
     const D = window.HearthriseDaily;
-    assert(D && typeof D._blockingOverlays === 'function', 'the daily-reward precedence guard is not exposed');
-    const sel = D._blockingOverlays();
-    ['.hr-id-scrim', '#hr-post-signup-modal', '#hr-welcome-modal', '.ftue-root'].forEach((s) => {
-      assert(sel.indexOf(s) !== -1, 'the daily sheet would stack on ' + s + ': ' + sel);
-    });
-    assert(sel.indexOf('.hr-dl-scrim') === -1, 'the sheet must not block on its OWN overlay — that is a deadlock');
-    // Both directions, or the pair is only half-exclusive: before b226 the name
-    // modal opened on TOP of an already-open daily sheet a second later.
+    assert(D && typeof D._anotherModalUp === 'function', 'the daily-reward precedence guard is not exposed');
+    // Both directions, or the pair is only half-exclusive.
     const I = window.HearthriseIdentity;
     assert(I._FRONT_DOOR.indexOf('.hr-dl-scrim') !== -1,
       'the name modal would still stack on the daily sheet: ' + I._FRONT_DOOR);
     assert(I._FRONT_DOOR.indexOf('.ftue-root') !== -1, 'the b224 FTUE guard must survive');
-    // And the live predicate agrees with the selector, for each of them.
-    [['div', 'hr-id-scrim', null], ['div', null, 'hr-post-signup-modal'], ['div', null, 'hr-welcome-modal']]
-      .forEach(([tag, cls, id]) => {
-        const n = document.createElement(tag);
-        if (cls) n.className = cls;
+    // The live predicate, for each surface as the game builds it.
+    [['hr-id-scrim hr-scrim', null], ['hr-scrim', 'hr-post-signup-modal'], ['hr-scrim', 'hr-welcome-modal'], ['ftue-root', null]]
+      .forEach(([cls, id]) => {
+        const n = document.createElement('div');
+        n.className = cls;
         if (id) n.id = id;
         document.body.appendChild(n);
-        try { assert(D._anotherModalUp() === true, 'the live guard ignored ' + (cls || id)); }
+        try { assert(D._anotherModalUp() === true, 'the live guard ignored ' + (id || cls)); }
         finally { n.remove(); }
       });
-  }),
-
-  () => tryRun('MODAL-BLOCK-1: a built-but-closed overlay never parks the daily sheet or the rank-up', () => {
-    // Once the welcome-back, acquisition tip or achievements node had been
-    // BUILT, an existence selector read it as "up" for the rest of the session
-    // and the daily sheet never auto-opened. The blocker is the OPEN state.
-    const guards = { daily: window.HearthriseDaily._anotherModalUp, renown: window.HearthriseRenown._anotherModalUp };
-    // A sheet an earlier test left OPEN is a real blocker; park it so this reads only the closed nodes.
-    const parked = [...document.querySelectorAll(window.HearthriseDaily._blockingOverlays() + ',.hr-dl-scrim,.hr-cl-scrim')]
-      .map((n) => [n, n.parentNode, n.nextSibling]);
+    const snap = snapshotG(), parked = [...document.querySelectorAll('.ftue-root, .hr-scrim, .modal.show')]
+      .filter((n) => getComputedStyle(n).display !== 'none').map((n) => [n, n.parentNode, n.nextSibling]);
     parked.forEach(([n]) => n.remove());
-    const nodes = ['welcome-overlay', 'acq-overlay', 'ach-overlay'].map((cls) => {
-      const n = document.createElement('div');
-      n.className = cls;
-      document.body.appendChild(n);
-      return n;
-    });
     try {
-      Object.keys(guards).forEach((k) => {
-        assert(guards[k]() === false, k + ' is parked by a closed overlay: '
-          + nodes.filter((n) => n.matches(window.HearthriseDaily._blockingOverlays())).map((n) => n.className).join(','));
-      });
-      nodes[2].classList.add('show');
-      Object.keys(guards).forEach((k) => assert(guards[k]() === true, k + ' ignored an OPEN achievements overlay'));
+      window.G.dailyReward = { lastClaimDay: 0 }; D.open();
+      assert(document.getElementById('hr-dl-modal'), 'fixture: the daily sheet did not open');
+      assert(D._anotherModalUp() === false, 'the sheet must not block on its OWN overlay — that is a deadlock');
     } finally {
-      nodes.forEach((n) => n.remove());
+      const dl = document.getElementById('hr-dl-modal'); if (dl) dl.remove();
+      restoreG(snap);
       parked.reverse().forEach(([n, parent, next]) => parent.insertBefore(n, next));
     }
   }),

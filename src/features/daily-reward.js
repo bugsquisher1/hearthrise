@@ -596,7 +596,6 @@
     cycleDay: cycleDay,
     open: open,
     ensureState: ensureState,
-    _blockingOverlays: function () { return BLOCKING_OVERLAYS; },
     _anotherModalUp: function () { return anotherModalUp(); },
     /* THE MODULE'S OWN READING OF "WHAT DAY IS IT", exposed so a test can pin
        `lastClaimDay` to it and be deterministic on EVERY date. autoBoot()'s one
@@ -611,18 +610,13 @@
     __setAutoOpenEnabled: function (on) { var was = autoOpenEnabled; autoOpenEnabled = !!on; return was; }
   };
 
-  // Gentle once-per-day auto-popup: wait for G, then only show when no other
-  // modal/overlay is already up (never stack on welcome-back/beta/FTUE/rank-up).
-  // b226: `.hr-id-scrim` (the name modal) and `#hr-post-signup-modal` were
-  // MISSING from this list, so the once-a-day sheet landed straight on top of
-  // both — found by walking the real post-login sequence in a browser, not by
-  // reading the code. Every other first-run flow in the build already names
-  // them; this one had been quietly exempt since b169.
-  var BLOCKING_OVERLAYS = '.ftue-root,.hr-rn-scrim,.hr-id-scrim,.hr-gate,#hr-account-gate,' +
-    '#hr-welcome-modal,#hr-post-signup-modal,.beta-overlay,' +
-    '#welcome-overlay.show,.acq-overlay.show,.ach-overlay.show';   // OPEN state: these nodes outlive their close
+  // Gentle once-per-day auto-popup: wait for G, then only show when nothing else
+  // is PAINTED (HearthriseSheet.anyOpen judges display, not how an owner closes).
+  // Its own sheet never counts, and a missing seam reads as busy: the Home card
+  // stays the claim path. The FTUE root is pointer-events:none, so it is named.
   function anotherModalUp() {
-    return !!document.querySelector(BLOCKING_OVERLAYS);
+    if (document.querySelector('.ftue-root')) return true;
+    try { return window.HearthriseSheet.anyOpen(document.getElementById('hr-dl-modal')); } catch (e) { return true; }
   }
   /* The in-page suite parks the auto-open for its run: with the blockers read as
      OPEN state, a sheet waiting for a quiet moment would land on whichever test

@@ -224,6 +224,9 @@ async function rpc(cfg, session, name, body) {
   return { missing: false, status: res.status, ok: res.ok, json: json };
 }
 
+/** One listings read returns at most this many rows; a full page means "truncated". */
+export const FETCH_LIMIT = 500;
+
 function rowToListing(row) {
   return {
     id: row.id,
@@ -233,6 +236,7 @@ function rowToListing(row) {
     qty: row.qty,
     askEach: row.ask_each,
     postedAt: new Date(row.posted_at).getTime(),
+    expiresAt: new Date(row.expires_at).getTime(),
   };
 }
 
@@ -252,12 +256,13 @@ function rowToOffer(row) {
 const SupabaseMarketBackend = {
   async fetchListings() {
     const cfg = getCfg();
-    if (!cfg) return [];
+    // An unanswered read THROWS: [] would render as "nobody is selling anything".
+    if (!cfg) throw new Error('market not configured');
     const session = currentSession();
-    const res = await fetch(cfg.url + '/rest/v1/market_listings?order=posted_at.desc&limit=500', {
+    const res = await fetch(cfg.url + '/rest/v1/market_listings?order=posted_at.desc&limit=' + FETCH_LIMIT, {
       headers: reqHeaders(cfg, session),
     });
-    if (!res.ok) return [];
+    if (!res.ok) throw new Error('listings read ' + res.status);
     const rows = await res.json();
     return rows.map(rowToListing);
   },
@@ -550,6 +555,7 @@ const SupabaseMarketBackend = {
 
   // Test seams: the capability key, so the regression suite names the same
   // string this file does rather than a copy of it.
+  FETCH_LIMIT,
   _CAPABILITY: MARKET_V2,
   _authority: marketAuthority,
 };

@@ -8300,6 +8300,37 @@ export default [
     }
   }),
 
+  () => tryRunAsync('MP-R2: the tooltip and Open listings never say a number the market has not read', async () => {
+    const MP = window.HearthriseMarketPrices;
+    assert(MP && typeof MP.__setListingsState === 'function', 'src/net/market-prices.js did not load');
+    const KEY = 'hearthrise:market:listings', saved = localStorage.getItem(KEY), was = MP.getListingsState();
+    const one = JSON.stringify([{ id: '11111111-2222-4333-8444-555555555555', sellerId: 'someone-else',
+      sellerName: 'Someone Else', itemId: 'normal_log', qty: 1, askEach: 9, postedAt: Date.now() }]);
+    const tile = Object.assign(document.createElement('div'), { className: 'invc-tile' });
+    tile.setAttribute('data-item-id', 'normal_log'); document.body.appendChild(tile);
+    const line = (state, listings) => {
+      localStorage.setItem(KEY, listings); MP.__setListingsState(state);
+      tile.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+      const b = [...document.querySelectorAll('#item-tooltip b')].find((e) => e.textContent === 'On the market');
+      return b ? b.nextElementSibling : null;
+    };
+    try {
+      let el = line({ status: 'unknown' }, one);
+      assert(el && el.querySelector('[role="status"]') && !/g/.test(el.textContent), 'unknown market rendered a claim: ' + (el && el.textContent));
+      assert(line({ status: 'ok', at: Date.now() }, one).textContent === 'from 9g · 1 listed', 'a read market must say what is listed');
+      assert(line({ status: 'ok', at: Date.now() }, '[]').textContent === 'None listed', 'an empty read market must say None listed');
+      el = line({ status: 'error' }, one);
+      assert(el.querySelector('[role="status"]'), 'a failed read rendered ' + el.textContent);
+      MP.__setListingsState({ status: 'unknown' }); window.renderMarket();
+      const h = [...document.querySelectorAll('#market-root h3')].find((e) => /^Open listings/.test(e.textContent));
+      assert(h && h.querySelector('[role="status"]') && !/No open listings/.test(document.getElementById('market-root').textContent),
+        'an unread market claimed a count or emptiness: ' + (h && h.textContent));
+    } finally {
+      tile.remove(); MP.__setListingsState(was);
+      if (saved === null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, saved);
+    }
+  }),
+
   () => tryRunAsync('B355-4: the client-authored buy-offer sub-market is INERT under the seam (Security M5/M6)', async () => {
     const A = window.HearthriseAccrual;
     const M = window.HearthriseMarket;

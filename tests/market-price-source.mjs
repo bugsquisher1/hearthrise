@@ -17,6 +17,9 @@
 //         localStorage.removeItem( line in src/market.js; none of the retired
 //         series' identifiers appears anywhere in shipped code.
 //   MP-3  none of the retired phrases appears in shipped code.
+//   MP-4  non-vacuity: src/net/market-prices.js exists and is imported from
+//         src/main.js with ?v=, and src/item-ux.js carries both the
+//         "On the market" row and its HearthriseMarketPrices reader.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
@@ -111,6 +114,11 @@ export function check(files) {
       for (let idx = noC.indexOf(ph); idx >= 0; idx = noC.indexOf(ph, idx + 1)) problems.push(`MP-3 ${p}:${lineOf(noC, idx)} "${ph}"`);
     }
   }
+  if (!files['src/net/market-prices.js']) problems.push('MP-4 src/net/market-prices.js is missing — the server-sourced reader is gone');
+  if (!/import\s+'\.\/net\/market-prices\.js\?v=\d+'/.test(strip(files['src/main.js'] || '').noC)) problems.push('MP-4 src/main.js does not import ./net/market-prices.js?v=');
+  const ux = strip(files['src/item-ux.js'] || '');
+  if (ux.noC.indexOf('On the market') < 0) problems.push('MP-4 src/item-ux.js has no "On the market" row');
+  if (!/\bHearthriseMarketPrices\b/.test(ux.noCS)) problems.push('MP-4 src/item-ux.js no longer reads HearthriseMarketPrices');
   if (keyHits > 1) problems.push(`MP-2 the retired price-history key appears ${keyHits}× in shipped src (at most 1: the purge)`);
   if (Object.keys(files).length < 50) problems.push(`only ${Object.keys(files).length} src files scanned — the guard is checking nothing`);
   return problems;
@@ -124,6 +132,8 @@ function selftest() {
     ['setItem of the history key', { 'src/market.js': (s) => s + "\nlocalStorage.setItem('" + HISTORY_KEY + "', '{}');\n" }, 'MP-2'],
     ['a retired identifier', { 'src/item-ux.js': (s) => s + '\nwindow.getMarketAvgPrice && 0;\n' }, 'MP-2'],
     ['a "7d avg" phrase in item-ux.js', { 'src/item-ux.js': (s) => s + "\nvar __y = '7d avg ' + x;\n" }, 'MP-3'],
+    ['the HearthriseMarketPrices reader removed from item-ux.js', { 'src/item-ux.js': (s) => s.replace(/HearthriseMarketPrices/g, 'HearthriseMarketPricez') }, 'MP-4'],
+    ['the market-prices import deleted from main.js', { 'src/main.js': (s) => s.replace(/import '\.\/net\/market-prices\.js\?v=\d+';/, '') }, 'MP-4'],
     ['comment-only and string-only Math.random', { 'src/market.js': (s) => s + "\n// Math.random\nvar __z = 'Math.random';\n" }, null],
   ];
   let bad = 0;
@@ -148,6 +158,6 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
       console.error(`✗ market-price-source: ${problems.length} problem(s) — the browser authors a market price statistic`);
       process.exit(1);
     }
-    console.log('✓ market-price-source: no client-authored price statistic in shipped src (MP-1..MP-3)');
+    console.log('✓ market-price-source: no client-authored price statistic in shipped src (MP-1..MP-4)');
   }
 }

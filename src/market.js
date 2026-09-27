@@ -201,6 +201,19 @@
   var refreshTimer = null;
   function backendActive(){ return !!(backend && liveSession()); }
 
+  /* THE MARKET'S OWN WORD ON WHAT IS LISTED: every read reports ok/error to the
+     prices module, and until one succeeds the panel shows the pending mark. */
+  function noteRead(status, n){
+    var MP = window.HearthriseMarketPrices;
+    if(MP) MP.noteListingsRead(status, n, (backend && backend.FETCH_LIMIT) || 500);
+  }
+  function listingsKnown(){
+    var MP = window.HearthriseMarketPrices;
+    return !!(MP && MP.getListingsState().status === 'ok');
+  }
+  function pendingMark(){
+    return '<span class="bal-pending" role="status">' + window.balUnknownText() + '</span>';
+  }
   function refreshFromBackend(){
     if(!backendActive()) return Promise.resolve(false);
     return backend.fetchListings().then(function(rows){
@@ -210,11 +223,12 @@
         return l.id && String(l.id).indexOf('L') === 0 && l.sellerId === currentSellerId();
       });
       saveListings(rows.concat(mine));
+      noteRead('ok', rows.length);
       /* #market-root ALWAYS exists (static markup), so it cannot stand in for
          "the market is on screen"; only the panel's active state means that. */
       rerenderMarketIfOpen();
       return true;
-    }).catch(function(){ return false; });
+    }).catch(function(){ noteRead('error'); rerenderMarketIfOpen(); return false; });
   }
   function scheduleRefresh(){
     if(refreshTimer) return;
@@ -977,6 +991,9 @@
        A renderer owns a container, not a panel. */
     var panel = document.getElementById('market-root') || document.getElementById('panel-market');
     if(!panel) return;
+    var MP = window.HearthriseMarketPrices;
+    if(MP){ try{ MP.refreshListingsIfStale(); }catch(e){} }
+    var known = listingsKnown();
     var list = loadListings();
     expireOld(list);
     saveListings(list);
@@ -1017,7 +1034,13 @@
         ? '<img src="' + window._itemPath[l.itemId] + '" alt="">'
         : '<span>' + icon + '</span>';
       var total = l.askEach * l.qty;
-      var ttlH = ((LISTING_TTL_MS - (Date.now() - l.postedAt))/3600000).toFixed(1);
+      // Time left is the SERVER's expires_at; an own row still in flight has none yet.
+      var ttl = '';
+      if(ownsIt && !isServerListingId(l.id)) ttl = ' · sending…';
+      else if(Number.isFinite(l.expiresAt)){
+        var hLeft = (l.expiresAt - Date.now()) / 3600000;
+        ttl = ' · ' + (hLeft > 0 ? hLeft.toFixed(1) + 'h left' : 'expiring');
+      }
       var actionBtn = ownsIt
         ? '<button class="mk-cancel" data-cancel="' + l.id + '">Cancel</button>'
         : '<button class="mk-buy" data-buy="' + l.id + '" data-item="' + l.itemId + '" data-each="' + l.askEach + '">Buy…</button>';
@@ -1025,7 +1048,7 @@
         '<div class="mk-icon">' + iconHtml + '</div>' +
         '<div class="mk-info">' +
           '<div class="mk-name">' + (item ? item.n : l.itemId) + '<span class="mk-qty">×' + l.qty + '</span></div>' +
-          '<div class="mk-meta">' + l.askEach.toLocaleString() + 'g each · seller: <b>' + escapeAttr(l.sellerName) + '</b> · ' + ttlH + 'h left</div>' +
+          '<div class="mk-meta">' + l.askEach.toLocaleString() + 'g each · seller: <b>' + escapeAttr(l.sellerName) + '</b>' + ttl + '</div>' +
         '</div>' +
         '<div class="mk-action">' + actionBtn + '</div>' +
       '</div>';
@@ -1079,13 +1102,14 @@
     var mineBlock = '<div class="mk-block"><h3>Your listings (' + mine.length + ' / ' + listingLimit() + ')</h3>' +
       (mine.length ? mine.map(function(l){ return listingRow(l, true); }).join('') : '<div class="mk-empty">You haven\'t listed anything yet.</div>') +
     '</div>';
+    var othersCount = known ? '(' + others.length + ')' : pendingMark();
     var othersHeader = ui.q
-      ? 'Open listings — matching "' + escapeAttr(ui.q) + '" (' + others.length + ')'
-      : 'Open listings (' + others.length + ')';
+      ? 'Open listings — matching "' + escapeAttr(ui.q) + '" ' + othersCount
+      : 'Open listings ' + othersCount;
     var othersBlock = '<div class="mk-block"><h3>' + othersHeader + '</h3>' +
       (others.length
         ? others.map(function(l){ return listingRow(l, false); }).join('')
-        : '<div class="mk-empty">' + (ui.q
+        : '<div class="mk-empty">' + (!known ? pendingMark() : ui.q
             ? 'Nothing matches "' + escapeAttr(ui.q) + '" — try a different search.'
             : 'No open listings right now. List something above and be first to market.') + '</div>') +
     '</div>';
@@ -1273,7 +1297,7 @@
       +   '<div class="bm-body">'
       +     '<div class="bm-stat-row">'
       +       '<div class="bm-stat"><div class="bm-lbl">PRICE EACH</div><div class="bm-val">' + atPrice.toLocaleString() + 'g</div></div>'
-      +       '<div class="bm-stat"><div class="bm-lbl">AVAILABLE AT THIS PRICE</div><div class="bm-val">' + available.toLocaleString() + '</div></div>'
+      +       '<div class="bm-stat"><div class="bm-lbl">AVAILABLE AT THIS PRICE</div><div class="bm-val">' + (listingsKnown() ? available.toLocaleString() : pendingMark()) + '</div></div>'
       /* The buyer's own purse, on the sheet where they commit gold. A pending
          balance renders as the dash — "0g" here would be a claim, and on this
          particular sheet a badly wrong one. */

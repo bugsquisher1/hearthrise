@@ -244,6 +244,13 @@
       } else {
         // BoP and not in NPC shop: show neither vendor lines (untradeable).
       }
+      // What is listed right now, as the market last said it — pending until read.
+      if(!item.bop){
+        var MP = window.HearthriseMarketPrices, MK = window.HearthriseMarket, mLine = null;
+        if(MP && MK){ try{ MP.refreshListingsIfStale(); mLine = MP.marketLine(MP.getListingsState(), MP.listingFacts(MK.list(), itemId)); }catch(e){} }
+        var pend = '<span class="bal-pending" role="status">' + (typeof window.balUnknownText === 'function' ? window.balUnknownText() : '—') + '</span>';
+        marketBlock += '<div class="ttl-row-2"><span>' + _iuGly('uiTrend',13) + '</span><b>On the market</b><i>' + (mLine || pend) + '</i></div>';
+      }
     }
     marketBlock += '</div>';
 

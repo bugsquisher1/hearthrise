@@ -2740,6 +2740,8 @@ jobs:
         run: |
           node tests/market-price-source.mjs --selftest
           node tests/market-price-source.mjs
+          node tests/market-prices.mjs --mutate
+          node tests/market-prices.mjs
 
       # NO CLIENT FARM MINT (cleanup slice 4, b514): plantCrop / waterPlot /
       # waterAllPlots / harvestPlot / upgradePlot may only SEND AN INTENT. Their

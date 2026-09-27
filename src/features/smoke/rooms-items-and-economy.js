@@ -3735,4 +3735,49 @@ export default [
       check('after a refused buy', applied);
     } finally { restoreGAndRecord(snap); try { window.renderShop(); } catch (e) {} }
   }),
+
+  () => tryRun('HOMELORE-1: every room rung carries its Almanac line; the owned rung shows it in the sheet', () => {
+    const H = window.HearthriseHomestead, L = window.HearthriseLore, RR = window.HearthriseRooms;
+    assert(H && L && typeof L.room === 'function' && RR && typeof RR.roomRung === 'function', 'homestead / lore / rooms seam absent');
+    Object.keys(window.ROOMS || {}).forEach((id) => {
+      H.roomDescriptor(id).ladder.forEach((row, i) => {
+        assert(row.line && row.line === L.room(id, i + 1), id + ' rung ' + (i + 1) + ' line: ' + row.line);
+      });
+    });
+    const rung = RR.roomRung;
+    const html = () => H.modalDescriptor('kitchen').sections.map((s) => (s.html || '') + (s.rows || []).map((r) => r.effect || '').join('')).join('');
+    try {
+      RR.roomRung = (g, id) => (id === 'kitchen' ? 2 : rung(g, id));
+      assert(H.roomDescriptor('kitchen').currentLine === L.room('kitchen', 2), 'kitchen 2: currentLine must be rung 2 lore');
+      assert(html().includes(L.room('kitchen', 2)) && html().includes(L.room('kitchen', 5)), 'the sheet must carry the rung 2 and rung 5 lines');
+      RR.roomRung = (g, id) => (id === 'kitchen' ? 0 : rung(g, id));
+      assert(H.roomDescriptor('kitchen').currentLine === null, 'unbuilt kitchen: currentLine must be null');
+    } finally { RR.roomRung = rung; }
+  }),
+
+  () => tryRun('FARMLORE-1: a crop guide row says what the crop is and what it is for, escaped', () => {
+    const L = window.HearthriseLore, esc = window.escapeHtml;
+    assert(typeof window.cropGuideRowHtml === 'function' && typeof esc === 'function' && typeof window.itemDesc === 'function', 'crop guide seam absent');
+    const desc = window.itemDesc('carrot'), row = window.cropGuideRowHtml('carrot');
+    assert(desc.includes("'") && row.includes(esc(desc)), 'the carrot row must carry its escaped Almanac line: ' + row);
+    const used = typeof window.itemUsedInLine === 'function' ? window.itemUsedInLine('carrot') : '';
+    assert(row.includes('Used in:') === !!used && (!used || row.includes(esc(used))), 'Used in must appear exactly when the index has uses: ' + row);
+    assert(L && typeof L.plot === 'function' && L.plot(1).name === 'The Turnip Patch' && L.plot(6) === null, 'plot tier names must key 1..5');
+  }),
+
+  () => tryRun('FARMLORE-2: the plot tier name reads the SERVER tier; unknown shows the pending glyph, never a named tier', () => {
+    const F = window.HearthriseFarm, L = window.HearthriseLore, B = window.HearthriseBalance;
+    assert(F && typeof F.tierHeadHtml === 'function' && typeof F.tierLoreHtml === 'function' && L && B, 'farm tier builder absent');
+    const sv = F.getServerPlotLevel, names = [1, 2, 3, 4, 5].map((n) => L.plot(n).name);
+    try {
+      F.getServerPlotLevel = () => null;
+      const head = F.tierHeadHtml();
+      assert(head.includes(B.UNKNOWN_TEXT) && names.every((n) => !head.includes(n)) && F.tierLoreHtml() === '', 'unknown tier must be pending: ' + head);
+      window.renderFarm();
+      const status = document.querySelector('#farm-panel .farm-status');
+      assert(status && status.innerHTML.includes(head), 'the farm header must render the builder output');
+      F.getServerPlotLevel = () => 3;
+      assert(/The Market Rows · Plot Lv 3\/5/.test(F.tierHeadHtml()) && F.tierLoreHtml().includes(L.plot(3).line), 'tier 3: ' + F.tierHeadHtml());
+    } finally { F.getServerPlotLevel = sv; window.renderFarm(); }
+  }),
 ];

@@ -2058,7 +2058,7 @@ export default [
       assert(grid, 'the Account stat grid did not render on the Hero sub-tab');
       const cells = [...grid.querySelectorAll('.cr-acct-cell')];
       assert(cells.length >= 9, 'expected the full Account panel (CL, TL, XP, Quests, Achievements, Bounties, Collections, Renown, Days running), got ' + cells.length);
-      const byLabel = (needle) => cells.find((c) => (c.querySelector('span').textContent || '').toLowerCase().indexOf(needle) === 0);
+      const byLabel = (needle) => cells.find((c) => (c.querySelector(':scope > span').textContent || '').toLowerCase().indexOf(needle) === 0);
       const cl = byLabel('combat'); const tl = byLabel('total');
       assert(cl && cl.querySelector('b').textContent === String(window.getCombatLevel()),
         'Combat Lv cell must equal getCombatLevel()');

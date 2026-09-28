@@ -1145,14 +1145,6 @@ img,svg{display:block;max-width:100%}
 .stats-row .lbl{color:var(--ink-2)}
 .stats-row .val{color:var(--ink);font-weight:700}
 .stats-close{position:absolute;top:14px;right:16px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.05);border:1px solid var(--line-soft);display:flex;align-items:center;justify-content:center;color:var(--ink-2);font-size:calc(17px * var(--ui-scale, 1));cursor:pointer}
-.stats-btn-trigger{
-  position:absolute;top:12px;right:12px;
-  padding:5px 10px;border-radius:99px;
-  background:rgba(255,255,255,.05);border:1px solid var(--line-soft);
-  font-size:calc(14.5px * var(--ui-scale, 1));font-weight:700;letter-spacing:.06em;text-transform:uppercase;
-  color:var(--ink-2);cursor:pointer;
-}
-.stats-btn-trigger:hover{color:var(--gold-2);border-color:var(--gold-2)}
 
 /* ===== block 7: style-7 ===== */
 .combat-style-block{margin:10px 0;padding:10px 12px;background:rgba(229,189,108,.08);
@@ -3388,21 +3380,7 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 #panel-profile #dash-skills,
 #panel-profile #dash-homestead,
 #panel-profile #active-effects-card{grid-column:2}
-/* LIFETIME STATS button — keep inside daily-goals card, not page-floating */
-.stats-btn-trigger{
-  position:relative !important;
-  top:auto !important;
-  left:auto !important;
-  margin-left:auto;
-}
-/* If the button's parent is daily-goals-host, anchor it to its top-right corner */
 #daily-goals-host{position:relative}
-#daily-goals-host .stats-btn-trigger{
-  position:absolute !important;
-  top:8px !important;
-  right:10px !important;
-  left:auto !important;
-}
 /* Prevent the feat-buttons row + placeholder cards from overlapping */
 #panel-profile .feat-buttons{grid-column:1/-1}
 

@@ -32,16 +32,6 @@
 // `containerSelector` lets us scope checks to a specific tab/panel
 // (e.g. "#panel-profile") so we only fire when that tab is active.
 export const NO_OVERLAP_PAIRS = [
-  // Lifetime Stats button is absolutely positioned at top-right of
-  // #panel-profile, which puts it physically on top of the Active
-  // Effects card. Even when text isn't *currently* visible behind it,
-  // any future card-sub or card-title text that flows into the top-right
-  // will be obscured. Treat this as an architectural overlap bug.
-  ['#panel-profile.active', '.stats-btn-trigger', '#active-effects-card',
-   'Lifetime Stats button is positioned on top of the Active Effects card'],
-  ['#panel-profile.active', '.stats-btn-trigger', '#dash-active',
-   'Lifetime Stats button is positioned on top of the Current Activity card'],
-
   // Bottom-left dev affordances should each have their own column.
   [null, '#admin-toggle', '#smoke-test-btn',
    'Admin toggle covers smoke-test button'],

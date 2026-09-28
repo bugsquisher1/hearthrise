@@ -14,8 +14,14 @@
 // verdict into `hr_tick_cron_log.detail.edge` and states the invariant as
 // `hr_tick_stall_status()`. This guard proves both on the PGlite chain replay:
 //
-//   P-IDEM  the file re-applies byte-identically (its §6 self-check passes a
-//           second time; the schema inventory and the four bodies are unchanged)
+//   P-IDEM  the file that defines the four bodies AT CHAIN END re-applies
+//           byte-identically (its self-check passes a second time; the schema
+//           inventory and the four bodies are unchanged). Since 2026-09-28 that
+//           is 2026-09-28-tick-harvest-off-rpc-surface.sql for the note, the
+//           summary and the harvest (the latter two now in the non-exposed
+//           schema hr_ops, T-5 Q-1) and the observability file for the stall
+//           status. Re-applying the SUPERSEDED observability file would put the
+//           public bridge back and test that instead of the chain end.
 //   G1      a planted HEALTHY two hours reads ok
 //   G2      a planted STALL — rostered fires every 10 s, zero shadow rows —
 //           reads stalled, and names the edge's reason in the bucket
@@ -41,8 +47,11 @@ import { join } from 'node:path';
 import { bootReplay, inventory, ROOT } from './schema-replay.mjs';
 
 const SELFTEST = process.argv.includes('--selftest');
-const MIG = '2026-09-28-world-tick-stall-observability.sql';
-const MIG_SQL = (await readFile(join(ROOT, 'supabase', 'migrations', MIG), 'utf8')).replace(/\r\n/g, '\n');
+const MIG = '2026-09-28-tick-harvest-off-rpc-surface.sql';
+const OBS = '2026-09-28-world-tick-stall-observability.sql';
+const read = async (f) => (await readFile(join(ROOT, 'supabase', 'migrations', f), 'utf8')).replace(/\r\n/g, '\n');
+const MIG_SQL = await read(MIG);
+const OBS_SQL = await read(OBS);
 const U = '00000000-0000-4000-8000-00000000f929';
 
 let db;
@@ -54,19 +63,26 @@ try {
 }
 const one = async (sql, p) => (await db.query(sql, p)).rows[0];
 
-/** One `create or replace function public.<name>(` statement, verbatim from the file. */
+/** Where each body lives at chain end, and the file that defines it last. */
+const FNS = {
+  hr_tick_edge_summary: ['hr_ops', MIG_SQL, MIG],
+  hr_tick_edge_harvest: ['hr_ops', MIG_SQL, MIG],
+  hr_tick_cron_note: ['public', MIG_SQL, MIG],
+  hr_tick_stall_status: ['public', OBS_SQL, OBS],
+};
+/** One `create or replace function <schema>.<name>(` statement, verbatim from its chain-end file. */
 function fnSource(name) {
-  const start = MIG_SQL.indexOf(`create or replace function public.${name}(`);
-  const end = MIG_SQL.indexOf('end $$;', start);
-  if (start < 0 || end < 0) throw new Error(`${MIG} no longer defines public.${name}`);
-  return MIG_SQL.slice(start, end + 'end $$;'.length);
+  const [schema, sql, file] = FNS[name];
+  const start = sql.indexOf(`create or replace function ${schema}.${name}(`);
+  const end = sql.indexOf('end $$;', start);
+  if (start < 0 || end < 0) throw new Error(`${file} no longer defines ${schema}.${name}`);
+  return sql.slice(start, end + 'end $$;'.length);
 }
-const FNS = ['hr_tick_edge_summary', 'hr_tick_edge_harvest', 'hr_tick_cron_note', 'hr_tick_stall_status'];
 const bodies = async () => (await db.query(
-  `select p.proname, md5(pg_get_functiondef(p.oid)) as h from pg_proc p
+  `select n.nspname || '.' || p.proname as f, md5(pg_get_functiondef(p.oid)) as h from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
-   where n.nspname = 'public' and p.proname = any($1::text[]) order by 1`, [FNS])).rows
-  .map((r) => `${r.proname}:${r.h}`).join(',');
+   where n.nspname in ('public', 'hr_ops') and p.proname = any($1::text[]) order by 1`, [Object.keys(FNS)])).rows
+  .map((r) => `${r.f}:${r.h}`).join(',');
 
 // ── THE PLANTED HISTORIES ───────────────────────────────────────────────────
 await db.exec(`insert into auth.users (id) values ('${U}') on conflict do nothing;`);

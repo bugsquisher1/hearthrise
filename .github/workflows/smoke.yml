@@ -2371,6 +2371,26 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/run-ci-local.mjs --selftest
 
+      # THE BOARD'S GENERATED BLOCK MUST NEVER BE A SILENT NO-OP (2026-09-28).
+      # tools/board-from-git.mjs rewrites the STATUS table above the `_Last
+      # updated:` line in docs/planning/PRIORITY_BOARD.md (CLAUDE.md §8: the
+      # status section is GENERATED, never typed). The original replace regex
+      # hardcoded a `\n\n` tail on the END GENERATED marker, so a CRLF board
+      # (the file is edited on Windows as often as Linux) never matched --
+      # `--write` printed "board status section written" and left the file
+      # byte-identical, so the stamp went stale while the tool kept reporting
+      # success. Fixed to detect the file's own EOL, match `\r?\n(?:\r?\n)?`,
+      # emit the block in that EOL, and exit non-zero on --write if neither the
+      # marker nor the `_Last updated:` fallback anchor matched. --selftest
+      # plants a CRLF board and an LF board with a stale 2026-09-08 stamp,
+      # requires the fixed logic to update and EOL-preserve both, and requires
+      # the OLD hardcoded-`\n\n` regex to MISS the CRLF plant (the mutation
+      # proof that this selftest exercises the real bug). No database, no
+      # browser, sub-second.
+      - name: Board-from-git - CRLF-safe generated block, never a silent no-op
+        if: ${{ !cancelled() }}
+        run: node tools/board-from-git.mjs --selftest
+
       # DOES EVERY SHIPPED SCRIPT STILL PARSE? It runs FIRST-ish and it is the
       # cheapest question in the matrix: a file that does not parse does not
       # run, so every guard below it that imports one would be red for a reason

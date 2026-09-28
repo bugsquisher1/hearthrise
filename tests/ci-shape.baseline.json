@@ -164,6 +164,7 @@
     "node tests/ci-shape.mjs --selftest": "client-guards",
     "node tests/ci-shape.mjs": "client-guards",
     "node tests/run-ci-local.mjs --selftest": "client-guards",
+    "node tools/board-from-git.mjs --selftest": "client-guards",
     "node tests/parse-check.mjs": "client-guards",
     "node tests/parse-check.mjs --selftest": "client-guards",
     "node tests/retired-capability-copy.mjs --selftest": "client-guards",

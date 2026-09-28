@@ -48,6 +48,7 @@
 // ============================================================
 
 import { agoText } from '../net/sync.js?v=559';
+import { TOWN_POLL_MS } from '../net/town.js?v=559';
 
 const STYLE_ID = 'town-panel-css';
 
@@ -148,6 +149,19 @@ export function crierLine(c) {
   return who + ' found ' + item + (src ? ' from ' + src : '') + odds;
 }
 
+/* crierLine as html: each piece escaped on its own, the item a tap target for
+   the item flyout. */
+function crierSaid(c) {
+  const HF = w().HearthriseHearthfind;
+  const item = (HF && typeof HF.itemName === 'function') ? HF.itemName(c.itemId) : String(c.itemId || '');
+  const src = (HF && typeof HF.sourceName === 'function') ? HF.sourceName(c.sourceKind, c.sourceId) : String(c.sourceId || '');
+  const who = c.name || 'An adventurer';
+  const odds = (c.oneIn && c.oneIn > 1) ? ' (1 in ' + c.oneIn.toLocaleString() + ')' : '';
+  const attrs = typeof w().hrInspectAttrs === 'function' ? w().hrInspectAttrs(c.itemId) : '';
+  return esc(who) + ' found ' + '<span class="tc-find"' + attrs + '>' + esc(item) + '</span>'
+    + (src ? ' from ' + esc(src) : '') + esc(odds);
+}
+
 /**
  * The level band as words. The server sends a DECADE FLOOR off the total level
  * (40 means "somewhere in the forties") — deliberately coarse, so a peer's exact
@@ -174,6 +188,93 @@ function rosterOrder(peers) {
     const bs = Number.isFinite(Number(b.seenAgoS)) ? Number(b.seenAgoS) : 1e9;
     return as - bs;
   }).slice(0, MAX_NAMES);
+}
+
+/* A view is only worth quoting while it is at most two polls old; an older one
+   names people who may long since have moved on. */
+function fresh(view, nowMs) {
+  return !!view && view.status === 'ok' && Math.abs(Number(nowMs) - Number(view.at)) <= 2 * TOWN_POLL_MS;
+}
+
+function canonOf(name) {
+  const I = w().HearthriseIdentity;
+  return (I && typeof I.canon === 'function') ? I.canon(String(name)) : String(name).toLowerCase().trim();
+}
+
+const GATHER_POOLS = [['TREES', 'woodcutting'], ['ROCKS', 'mining'], ['FISH_SPOTS', 'fishing']];
+
+function inPool(pool, id) {
+  if (!pool) return false;
+  return Array.isArray(pool) ? pool.some((n) => n && n.id === id) : Object.prototype.hasOwnProperty.call(pool, id);
+}
+
+/** The skill a peer is training, from the same catalogues activityName reads. */
+function peerSkill(p) {
+  if (!p.activityId) return null;
+  if (p.kind === 'gather') {
+    const hit = GATHER_POOLS.find(([g]) => inPool(w()[g], p.activityId));
+    return hit ? hit[1] : null;
+  }
+  if (p.kind === 'artisan') {
+    const book = w().ARTISAN_RECIPES || {};
+    return Object.keys(book).find((k) => Array.isArray(book[k]) && book[k].some((r) => r && r.id === p.activityId)) || null;
+  }
+  return null;
+}
+
+/**
+ * Who else is doing what I am doing, from a FRESH view only. `mine` is
+ * `{kind:'combat'|'skill', id}`. Yourself and any name the view carries twice
+ * (two heroes that canonicalise alike) are left out rather than guessed at.
+ */
+export function companyOf(view, mine, youName, nowMs) {
+  if (!fresh(view, nowMs) || !youName || !mine || !mine.id || !Array.isArray(view.peers)) return [];
+  const seen = new Map();
+  for (const p of view.peers) if (p && p.name) { const c = canonOf(p.name); seen.set(c, (seen.get(c) || 0) + 1); }
+  const you = canonOf(youName);
+  const match = (p) => (mine.kind === 'combat'
+    ? p.kind === 'combat' && p.activityId === mine.id
+    : mine.kind === 'skill' && peerSkill(p) === mine.id);
+  return view.peers
+    .filter((p) => p && p.name && p.activityId && match(p) && canonOf(p.name) !== you && seen.get(canonOf(p.name)) === 1)
+    .sort((a, b) => {
+      if (!!a.away !== !!b.away) return a.away ? 1 : -1;
+      const as = Number.isFinite(Number(a.seenAgoS)) ? Number(a.seenAgoS) : 1e9;
+      const bs = Number.isFinite(Number(b.seenAgoS)) ? Number(b.seenAgoS) : 1e9;
+      return as - bs;
+    })
+    .map((p) => ({ name: p.name, away: !!p.away }));
+}
+
+/** The company line for Home's Right now card, or ''. */
+export function companyHtml(view, mine, youName, nowMs) {
+  const folk = companyOf(view, mine, youName, nowMs);
+  if (!folk.length) return '';
+  const W = w();
+  const what = mine.kind === 'combat'
+    ? 'Also hunting ' + (((W.MONSTERS || {})[mine.id] || {}).name || mine.id)
+    : 'Also training ' + (((W.SKILLS_DEF || {})[mine.id] || {}).name || mine.id);
+  const nm = folk.map((p) => esc(p.name) + (p.away ? ' (away)' : ''));
+  const k = folk.length - 2;
+  /* A capped view cannot say how many more there are, only that there are. */
+  const capped = view.here !== null && view.shown !== null && view.here > view.shown;
+  const names = nm.length === 1 ? nm[0] : nm.length === 2 ? nm[0] + ' and ' + nm[1]
+    : nm[0] + ', ' + nm[1] + ' and ' + k + (capped ? '+' : '') + ' more';
+  return '<div class="tc-company">' + esc(what) + ': ' + names + '</div>';
+}
+
+/**
+ * One named peer's doing, as plain text (the caller escapes it), or ''. Only a
+ * fresh view and exactly one peer by that name.
+ */
+export function doingOf(view, name, canonFn, nowMs) {
+  if (!fresh(view, nowMs) || !name || typeof canonFn !== 'function' || !Array.isArray(view.peers)) return '';
+  const c = canonFn(name);
+  const hits = view.peers.filter((p) => p && p.name && canonFn(p.name) === c);
+  if (hits.length !== 1) return '';
+  const p = hits[0];
+  const act = (p.kind === 'combat' || p.kind === 'gather' || p.kind === 'artisan') ? activityName(p.kind, p.activityId, p.label) : '';
+  return groupLabel(p.kind, p.label) + (act ? ' · ' + act : '') + (p.away ? ' · away' : '');
 }
 
 /**
@@ -229,7 +330,7 @@ export function townPanelHtml(view, nowMs, place) {
     h += '<div class="tc-crier"><div class="tc-crier-h">The Crier</div>' + crier.map((c) => {
       const when = agoOf(c.foundAgoS, now);
       return '<div class="tc-line"><span class="tc-when">' + esc(when) + '</span>'
-        + '<span class="tc-said">' + esc(crierLine(c)) + '</span></div>';
+        + '<span class="tc-said">' + crierSaid(c) + '</span></div>';
     }).join('') + '</div>';
   }
 
@@ -284,6 +385,8 @@ function css() {
     R + '.tc-line{display:flex;gap:9px;align-items:baseline;font-size:calc(14.5px * var(--ui-scale, 1));min-width:0}',
     R + '.tc-when{color:var(--ink-3) !important;white-space:nowrap;font-variant-numeric:tabular-nums}',
     R + '.tc-said{color:var(--ink-2) !important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+    R + '.tc-company{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3) !important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+    R + '.tc-find{cursor:pointer;text-decoration:underline dotted;text-decoration-color:var(--gold-2)}',
     /* THE LANDSCAPE PHONE. The hearth band collapses to a 56px strip there, so
        the Common cannot ride inside it and has to hold its own row (the Art
        Director's handoff). Two columns still fit at 922px and are what keeps
@@ -326,7 +429,7 @@ export function ensureTownStyle() {
  */
 export function setupTownPanel() {
   if (typeof window === 'undefined') return;
-  window.HearthriseTownPanel = { townPanelHtml, ensureTownStyle, groupPeers, groupLabel, activityName, crierLine, bandText, MAX_NAMES, CRIER_SHOWN };
+  window.HearthriseTownPanel = { townPanelHtml, ensureTownStyle, groupPeers, groupLabel, activityName, crierLine, bandText, companyOf, companyHtml, doingOf, MAX_NAMES, CRIER_SHOWN };
   if (typeof document === 'undefined') return;
   document.addEventListener('click', (e) => {
     const el = e.target && e.target.closest && e.target.closest('[data-town-quiet]');

@@ -451,6 +451,35 @@ export const BINDS = {
       need(w.order.includes('2026-09-13-world-finds-projection.sql') && /when coalesce\(q\.presence_quiet, false\) then null/.test(t), 'a quiet finder is named again'),
       need(/data-hf="copy"/.test(hf) && /function chatLine/.test(hf), 'the Hearthfind chat line or its copy control is gone'));
   },
+  commonShowsActivity: (w) => {
+    const t = w.fnBody('hr_town_of__ungated'), c = t ? sqlCode(t.text) : '';
+    const tp = w.src['src/render/town-panel.js'] || '';
+    return all(
+      need(c.includes("interval '90 seconds'") && c.includes("interval '15 minutes'"), 'hr_town_of no longer keeps a stepped-away hero for a while'),
+      need(tp.includes('activityName(') && tp.includes('is-away'), 'the Common no longer names what a peer is doing, or no longer dims the away'),
+      need(/townPanelHtml\(G\._town/.test(w.src['src/features/home-dashboard.js'] || ''), 'Home no longer draws the Common'));
+  },
+  commonQuietHidesYou: (w) => {
+    const r = w.fnBody('hr_town_refresh'), q = w.fnBody('hr_set_presence_quiet__ungated');
+    const rc = r ? sqlCode(r.text) : '', qc = q ? sqlCode(q.text) : '';
+    return all(
+      need(rc.includes('not coalesce(ps.presence_quiet, false)') && rc.includes('q.presence_quiet'), 'hr_town_refresh no longer leaves a quiet hero off the Common'),
+      need(qc.includes('v_pruned := found'), 'going quiet no longer prunes you from the Common'),
+      need((w.src['src/render/town-panel.js'] || '').includes('data-town-quiet'), 'the Go quiet control is gone'));
+  },
+  partyInviteByName: (w) => {
+    const b = w.fnBody('hr_party_invite');
+    return all(
+      need(b && /\bp_name\b/.test(stripSqlComments(b.text)), 'hr_party_invite no longer invites by name'),
+      need(/p_name:\s*String\(name/.test(w.src['src/net/party.js'] || ''), 'the client no longer sends the invitee by name'));
+  },
+  partyHuntNotCalled: (w) => {
+    const hit = Object.keys(w.src).filter((f) => /hr_party_hunt_(start|stop)/.test(stripJs(w.src[f])));
+    const pp = w.src['src/render/party-panel.js'] || '';
+    return all(
+      need(!hit.length, 'a party hunt verb is called from ' + hit.join(', ')),
+      need(pp.includes('Hunting together arrives in a later build.') && pp.includes('party-hp-fill'), 'the Party screen no longer says hunting together is later, or no longer shows how members fare'));
+  },
 };
 
 // ── THE CHECK ─────────────────────────────────────────────────────────────
@@ -567,6 +596,8 @@ async function selftest() {
     ['M11 VIGOUR_DRY_MULT = 1', 'CODEX-6', (w) => { w.hunt.VIGOUR_DRY_MULT = 1; }, 'vigourDryAway'],
     ['M12 plant a "Reward multiplier" label', 'CODEX-6', (w) => { w.src['src/dungeons.js'] = "var _m = 'Reward multiplier: ';\n" + w.src['src/dungeons.js']; }, 'dungeonChest'],
     ['M13 hit XP scaled by the featured bonus', 'CODEX-6', (w) => { w.combatSimJs = w.combatSimJs.replace('hitXpRoute(ctx.style, pDmg)', 'hitXpRoute(ctx.style, pDmg * feat.xpMult)'); }, 'botdBonus'],
+    ['M14 hr_town_refresh lists quiet heroes', 'CODEX-6', (w) => { const fb = w.fnBody; w.fnBody = (fn) => { const b = fb(fn); return fn === 'hr_town_refresh' && b ? { ...b, text: b.text.replace('not coalesce(ps.presence_quiet, false)', 'true') } : b; }; }, 'commonQuietHidesYou'],
+    ['M15 the Party screen calls a hunt verb', 'CODEX-6', (w) => { w.src['src/render/party-panel.js'] += "\nrpcPost('hr_party_hunt_start', {});"; }, 'partyHuntNotCalled'],
   ];
   for (const [label, want, mutate, bindName] of arms) {
     const w = clone();

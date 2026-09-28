@@ -3834,6 +3834,10 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 .party-m-line { grid-area: line; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; min-width: 0; }
 .party-m-name { font-size: var(--t-lead); color: var(--ink); }
 .party-m-you { font-size: var(--t-micro); color: var(--ink-3); letter-spacing: .06em; }
+.party-m-doing {
+  flex-basis: 100%; font-size: var(--t-small); color: var(--ink-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .party-m-lvl {
   grid-area: lvl; text-align: right; font-size: var(--t-small); color: var(--ink-2);
   font-variant-numeric: tabular-nums;

@@ -1315,7 +1315,7 @@ export default [
     assert(bad.length === 0, 'THE DEEDS-POLISH BUG: ' + bad.join('; '));
   }),
 
-  /* ── regression suite — SHEET-HEAD-STICKY (b559 gate 3, b560 pass 1 finding 3):
+  /* ── regression suite — SHEET-HEAD-STICKY (visual gate finding):
      scrolling the Codex / Settings / Lifetime Stats body carried the title and
      Close off screen. Each sheet, as painted, padded so it must scroll, then
      scrolled 2000 in 1280x800 and 922x423 frames: title and Close stay whole,
@@ -1340,7 +1340,7 @@ export default [
     assert(bad.length === 0, 'THE SCROLLED-AWAY HEAD: ' + bad.join('; '));
   }),
 
-  /* ── regression suite — NIGHT-PLAN-PENDING-COPY (b560 pass 1): with the away
+  /* ── regression suite — NIGHT-PLAN-PENDING-COPY (visual gate finding): with the away
      limit unknown the Right-now row read "up to —". Pending gets its own
      sentence (no number, no dash mid-sentence); a known cap keeps "up to 12h". */
   () => tryRun('NIGHT-PLAN-PENDING-COPY: a pending away limit reads as pending, a known one still names its hours', () => {

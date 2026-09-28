@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 183 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { CHARM_CLASS_LORE } from '../../data/charm-lore.js?v=558';
+import { CHARM_CLASS_LORE, CHARM_RANK_LORE } from '../../data/charm-lore.js?v=558';
 import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot, closeOverlays, phoneFrame } from './_harness.js?v=558';
 
 /* SALVAGE-1's regression pin: the goblin drop panel as a player reads it (the
@@ -9034,6 +9034,17 @@ export default [
     assert(x.includes(esc(CHARM_CLASS_LORE.extra_dimensional)), 'extra_dimensional 0→1 lacks its lore');
     assert(x.includes('what they are weak to'), 'extra_dimensional 0→1 lacks the reveal line');
     assert(!/undefined/.test(u + x), 'the moment printed undefined');
+  }),
+  () => tryRun('HLEDGER-6: the moment sets the rank lore and the class lore in two blocks, never one run', () => {
+    const HL = window.HearthriseHuntersLedger;
+    if (!HL) { skip('seam absent'); return; }
+    const box = document.createElement('div');
+    box.innerHTML = HL.momentHtml([{ cls: 'undead', from: 1, rank: 2 }], { undead: 100 });
+    const blockOf = (t) => [...box.querySelectorAll('p, div')].find((e) => e.textContent.includes(t));
+    const rank = blockOf(CHARM_RANK_LORE.marked), cls = blockOf(CHARM_CLASS_LORE.undead);
+    assert(rank && cls && rank !== cls, 'the rank lore and the class lore share one block');
+    const run = CHARM_RANK_LORE.marked.split(' ').pop() + ' ' + CHARM_CLASS_LORE.undead.split(' ')[0];
+    assert(!box.textContent.includes(run), 'the sheet reads "' + run + '"');
   }),
   () => tryRun('HLEDGER-4: the Home card is pending while unknown, never 0, and absent when empty', () => {
     const HL = window.HearthriseHuntersLedger;

@@ -210,8 +210,8 @@ export function momentHtml(ups, classes) {
       : 'This is the last charm there is.';
     return '<section class="hl-moment-block">'
       + '<h3 class="hl-moment-title">' + esc(label + ' · ' + rankName(row)) + '</h3>'
-      + '<p class="hl-moment-lore"><i>' + esc(CHARM_RANK_LORE[row && row.id] || '') + '</i> '
-      + esc(CHARM_CLASS_LORE[u.cls] || '') + '</p>'
+      + '<p class="hl-moment-lore"><i>' + esc(CHARM_RANK_LORE[row && row.id] || '') + '</i></p>'
+      + '<p class="hl-moment-lore">' + esc(CHARM_CLASS_LORE[u.cls] || '') + '</p>'
       + effectLines(label, u.from, u.rank).map((t) => '<p class="hl-moment-effect">' + esc(t) + '</p>').join('')
       + '<p class="hl-moment-next">' + esc(next) + '</p>'
       + '</section>';

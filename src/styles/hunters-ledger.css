@@ -1,0 +1,72 @@
+/* src/styles/hunters-ledger.css — the Hunter's Ledger (src/features/hunters-ledger.js):
+ * Home's charm and trophy rows, the Fight rail's 'Charm & trophy' lines and the
+ * 'A charm is earned' sheet. Layout of the sheet is .hr-scrim/.hr-sheet
+ * (art-direction.css); z matches .ach-overlay. Tokens only. */
+.hl-rows { display: flex; flex-direction: column; gap: 10px; padding: 10px 4px; }
+.hl-row .hd-cta { min-height: var(--tap); }
+
+.hl-rail { display: flex; flex-direction: column; gap: 3px; }
+.hl-rail-line {
+  margin: 0;
+  font-size: var(--t-micro);
+  line-height: 1.35;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.hl-scrim {
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--bg-0) 78%, transparent);
+}
+.hl-sheet {
+  width: 100%;
+  max-width: 460px;
+  box-sizing: border-box;
+  padding: 18px 20px;
+  gap: 10px;
+  background: var(--bg-1);
+  border: 2px solid var(--gold);
+  border-radius: var(--r-lg);
+  color: var(--ink);
+  font-family: var(--f-ui);
+}
+.hl-eyebrow {
+  font-size: var(--t-small);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.hl-moment-h {
+  margin: 2px 0 0;
+  font-family: var(--f-display);
+  font-size: var(--t-h2);
+  color: var(--gold);
+}
+.hl-moment-block { padding: 10px 0; border-top: 1px solid var(--line-soft); }
+.hl-moment-block:first-child { border-top: 0; padding-top: 0; }
+.hl-moment-title {
+  margin: 0 0 4px;
+  font-family: var(--f-display);
+  font-size: var(--t-h3);
+  color: var(--gold-2);
+}
+.hl-moment-lore { margin: 0 0 6px; font-size: var(--t-body); line-height: 1.45; color: var(--ink); }
+.hl-moment-effect,
+.hl-moment-next { margin: 0 0 4px; font-size: var(--t-small); line-height: 1.4; color: var(--ink-2); }
+.hl-moment-next { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.hl-moment-foot { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.hl-btn {
+  min-height: var(--tap);
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.hl-btn-primary { border-color: var(--gold); background: var(--gold); color: var(--bg-0); }

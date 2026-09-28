@@ -6,6 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 183 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
+import { CHARM_CLASS_LORE } from '../../data/charm-lore.js?v=558';
 import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot, closeOverlays, phoneFrame } from './_harness.js?v=558';
 
 /* SALVAGE-1's regression pin: the goblin drop panel as a player reads it (the
@@ -8997,5 +8998,65 @@ export default [
       C.randomSeed();
       restore();
     }
+  }),
+
+  /* ══════════════════════════════════════════════════════════════════════
+     THE HUNTER'S LEDGER (content b4 pack 3) — every input is passed in; no G seed.
+     HLEDGER-5's slot arm is the pack's G.name bug: a record keyed on a constant
+     'who' replays slot A's ranks as rank-ups on slot B after a switch.
+     ══════════════════════════════════════════════════════════════════════ */
+  () => tryRun('HLEDGER-1: the nearest charm names the kills to the next rung, singular at one', () => {
+    const HL = window.HearthriseHuntersLedger;
+    if (!HL) { skip('seam absent'); return; }
+    assert(HL.charmRow({ undead: 88 }).sub === '12 kills to Marked', 'undead 88: ' + HL.charmRow({ undead: 88 }).sub);
+    assert(/the last charm there is/.test(HL.charmRow({ undead: 2000 }).sub), 'undead 2000 is not the last charm');
+    const r = HL.charmRow({ undead: 120, vermin: 24 });
+    assert(r.cls === 'vermin' && r.sub === '1 kill to Studied', 'nearest of undead 120 / vermin 24: ' + JSON.stringify(r));
+  }),
+  () => tryRun('HLEDGER-2: rank-ups are rises only, in bane order, keyed extra_dimensional', () => {
+    const HL = window.HearthriseHuntersLedger;
+    if (!HL) { skip('seam absent'); return; }
+    assert(HL.rankUpsBetween(null, { undead: 2 }).length === 0, 'no record must mean no rank-up');
+    const up = HL.rankUpsBetween({ undead: 1 }, { undead: 2 });
+    assert(JSON.stringify(up) === JSON.stringify([{ cls: 'undead', from: 1, rank: 2 }]), 'undead 1→2: ' + JSON.stringify(up));
+    assert(HL.rankUpsBetween({ undead: 3 }, { undead: 1 }).length === 0, 'a decrease was returned as a rank-up');
+    assert(HL.rankUpsBetween({}, { extra_dimensional: 1 })[0].cls === 'extra_dimensional', 'extra_dimensional rank-up lost');
+  }),
+  () => tryRun('HLEDGER-3: the moment carries the class lore and effects derived from the ladder', () => {
+    const HL = window.HearthriseHuntersLedger;
+    if (!HL) { skip('seam absent'); return; }
+    const esc = (t) => t.replace(/'/g, '&#39;');
+    const u = HL.momentHtml([{ cls: 'undead', from: 1, rank: 2 }], { undead: 100 });
+    assert(u.includes(esc(CHARM_CLASS_LORE.undead)), 'undead 1→2 lacks the undead lore');
+    assert(u.includes('a little more often, watching or away'), 'undead 1→2 lacks the drop line');
+    assert(CHARM_CLASS_LORE.extra_dimensional, 'CHARM_CLASS_LORE.extra_dimensional is empty');
+    const x = HL.momentHtml([{ cls: 'extra_dimensional', from: 0, rank: 1 }], { extra_dimensional: 25 });
+    assert(x.includes(esc(CHARM_CLASS_LORE.extra_dimensional)), 'extra_dimensional 0→1 lacks its lore');
+    assert(x.includes('what they are weak to'), 'extra_dimensional 0→1 lacks the reveal line');
+    assert(!/undefined/.test(u + x), 'the moment printed undefined');
+  }),
+  () => tryRun('HLEDGER-4: the Home card is pending while unknown, never 0, and absent when empty', () => {
+    const HL = window.HearthriseHuntersLedger;
+    if (!HL) { skip('seam absent'); return; }
+    const unk = HL.cardHtml(null);
+    assert(unk.includes('bal-pending'), 'unknown card has no pending mark');
+    assert(!/\b0 kills?\b/.test(unk), 'unknown card printed 0 kills');
+    assert(HL.cardHtml({ known: true, classes: {}, monsters: {}, readyId: null }) === '', 'known-empty card is not blank');
+  }),
+  () => tryRun('HLEDGER-5: the charm watcher seeds, waits, opens once, parks, and keys on uid:slot', () => {
+    const HL = window.HearthriseHuntersLedger;
+    if (!HL) { skip('seam absent'); return; }
+    const mem = {}; let sets = 0, opens = 0;
+    const store = { getJSON: (k, d) => (k in mem ? JSON.parse(mem[k]) : d), setJSON: (k, v) => { sets++; mem[k] = JSON.stringify(v); } };
+    const d = (o) => Object.assign({ parked: false, known: true, uid: 'u1', slot: 0, ranks: { undead: 1 }, store,
+      busy: () => false, open: () => { opens++; } }, o);
+    assert(HL.tick(d({})) === 'seeded' && opens === 0, 'first sight must seed silently');
+    const before = mem['hearthrise:charm-seen'];
+    assert(HL.tick(d({ ranks: { undead: 2 }, busy: () => true })) === 'waiting' && mem['hearthrise:charm-seen'] === before, 'busy must wait untouched');
+    assert(HL.tick(d({ ranks: { undead: 2 } })) === 'opened' && opens === 1, 'a rise must open once');
+    assert(JSON.parse(mem['hearthrise:charm-seen'])['u1:0'].undead === 2, 'the record was not updated');
+    const s0 = sets;
+    assert(HL.tick(d({ parked: true, ranks: { undead: 3 } })) === 'parked' && sets === s0, 'a parked watcher wrote');
+    assert(HL.tick(d({ slot: 1, ranks: { undead: 3, vermin: 2 } })) === 'seeded' && opens === 1, 'slot switch replayed another slot\'s ranks');
   }),
 ];

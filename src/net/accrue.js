@@ -2392,6 +2392,7 @@ import { notePropertyUnlocks, pickBankRung, isCompleteProgressStatement } from '
    by tests/perk-channel.mjs, so reading the level here can never disagree with
    the level the doll and getCompanionBonus read. */
 import { companionLevelFromXp } from '../core/companion-perk.js?v=558';
+import { capHoursFromVigour } from './offline-cap.js?v=558';
 
 /* ── THE HIRED CREW, RECONCILED FROM THE ENVELOPE (worker-settlement slice) ──
    `hr_state_of` projects the server-owned crew (player_workers — no client write
@@ -3767,14 +3768,10 @@ function applyEnvelopeStateBody(G, res, ownKey) {
     if (w && w.HearthriseLuckyFinds && typeof w.HearthriseLuckyFinds.noteEnvelope === 'function') {
       w.HearthriseLuckyFinds.noteEnvelope(res);
     }
-    /* THE ACTIVE BOUNTY'S SERVER PROGRESS (2026-09-09). hr_state_of projects
-       `state.bounty.progress` = hr_bounty_kills(target) - baseline, i.e. the
-       number hr_claim_bounty judges the turn-in by, INCLUDING the settled/away
-       kills the client's attended counter cannot see. Settle and switch only —
-       NOT the boot hr_load (record.js never calls here). Guarded: a display
-       adopter must never throw into an envelope apply; no key reads as absent. */
-    if (w && typeof w.hrNoteServerBounty === 'function') w.hrNoteServerBounty(res);
   } catch (e) {}
+  /* The contract's server figure: settle, switch, gold, death; the idle boot is
+     record.js hydrationStep('bounty'). Its own try, so a throw above cannot skip it. */
+  try { const w = (typeof window !== 'undefined') ? window : null; if (w && typeof w.hrNoteServerBounty === 'function') w.hrNoteServerBounty(res); } catch (e) {}
   written.absolute = absolute;
 
   /* THE PRICED WINDOW, OBSERVED - same KEY-PRESENCE rule; `accrued_to` answers
@@ -6529,7 +6526,7 @@ if (typeof window !== 'undefined') {
     /* …to the character that EARNED it and nobody else (QA-DEFER-ID). The
        switch path and the sign-out path call these; nothing else may. */
     accrualIdentity, sameAccrualIdentity, clearCombatXpDeferral, resetAccrualIdentity,
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
+    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, capHoursFromVigour, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt,
     fallRecord, announceFall,

@@ -89,13 +89,13 @@ const CONSUMERS = new Map([
   ['src/features/homestead.js', {
     kind: 'OWNER',
     why: 'defines the API. getTier() is the ONE read; canBuildRoom/roomAllowed/nextTier/'
-       + 'maxPlots/workerSlots/offlineBonusHours/isCastle all derive from it.',
+       + 'maxPlots/workerSlots/isCastle all derive from it.',
   }],
   ['src/legacy.js', {
     kind: 'CAPABILITY',
     why: 'roomRungGate (the gate upgradeRoom enforces with) and buildPlot\'s plot cap ask '
        + 'HH.canBuildRoom/HH.getTier/HH.maxPlots; clientPerkState publishes HH.getTier() as '
-       + '`propertyTier` for the castle capstone; offline cap adds HH.offlineBonusHours(). '
+       + '`propertyTier` for the castle capstone. '
        + 'All routed through getTier() — none reads the residue.',
   }],
   /* 2026-09-14: the farm left the monolith for the screens layer (task #129).

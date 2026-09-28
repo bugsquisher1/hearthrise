@@ -1211,8 +1211,7 @@ function loadLocal(){
    the cap applies to a SINGLE ABSENCE. You earn offline progress for up to
    `offlineCapHours()` of the time since you were last here; signing in resets
    the timer, so the next absence starts fresh. No shared daily bucket, no
-   "0h left" dead state. Premium/perks raise your personal per-absence cap
-   ("earn longer while away"), which keeps those perks meaningful.
+   "0h left" dead state. The cap itself is the server's (hr_offline_cap_ms).
 
    ── STILL WATERMARKED (the b214 double-pay guard is unchanged) ──
    `G.offlineBudget.at` is the instant already accounted for. It advances to
@@ -1222,76 +1221,16 @@ function loadLocal(){
    legacy `usedMs`/`dayKey` fields are now ignored (tolerated on old saves).
    ════════════════════════════════════════════════════════════════ */
 function offlineCapHours(){
-  /* 12h for EVERY account. No entitlement raises the base — the Offline+
-     product that used to (and the +25% on Hearth Hall) were removed in b505:
-     an away-accrual boost sold for cash is pay-to-win on a ranked economy, and
-     the server floors offline at 12h regardless of what the client believes.
-     Earned perks (renown / property / clan) still extend it; those are played
-     for, not bought. */
-  let cap=12;
-  if(window.HearthriseRenown && typeof window.HearthriseRenown.getPerks==='function'){
-    try{ cap += (window.HearthriseRenown.getPerks(G).offlineHours||0); }catch(e){}
-  }
-  /* b201 (SYS-1): property tier grants bonus offline hours (farmstead +1 … castle +4) */
-  if(window.HearthriseHomestead){
-    try{ cap += (window.HearthriseHomestead.offlineBonusHours()||0); }catch(e){}
-  }
-  /* b206 (SYS-9): clan perks grant offline hours (clan Lv4 +1h, Lv7 +2h) */
-  if(window.HearthriseClans){
-    try{ cap += (window.HearthriseClans.offlineBonusHours()||0); }catch(e){}
-  }
-  return cap;
+  /* The server's cap or null: hr_vigour_of.grant_min is hr_offline_cap_ms in minutes (clan included). */
+  var A=window.HearthriseAccrual;
+  try{ return (A&&typeof A.capHoursFromVigour==='function')?A.capHoursFromVigour(G._vigour):null; }catch(e){ return null; }
 }
 function utcDayKey(now){
   const d=new Date(typeof now==='number'?now:Date.now());
   return d.getUTCFullYear()*10000+(d.getUTCMonth()+1)*100+d.getUTCDate();
 }
-function ensureOfflineBudget(now){
-  now=(typeof now==='number'&&isFinite(now))?now:Date.now();
-  let b=G.offlineBudget;
-  if(!b||typeof b!=='object'){
-    /* Seed the watermark from `lastSeen` so a returning player is credited for
-       the absence they actually had. (Legacy usedMs/dayKey are no longer used.) */
-    b=G.offlineBudget={at:(typeof G.lastSeen==='number'?G.lastSeen:now)};
-  }
-  if(typeof b.at!=='number'||!isFinite(b.at)||b.at>now) b.at=now;
-  return b;
-}
-/* b307: credit ONE absence, capped per-absence. Returns the milliseconds of
-   progress to simulate: min(time since last here, the per-absence cap). Advances
-   the watermark to `now` (this IS "signing in resets the timer"); the next
-   absence is measured from here. No daily bucket. */
-function claimOfflineMs(now,active,minMs){
-  now=(typeof now==='number'&&isFinite(now))?now:Date.now();
-  const b=ensureOfflineBudget(now);
-  /* b261 — CRITICAL: while the tab is HIDDEN, do NOT advance the watermark or
-     grant. The whole point is to let a background gap ACCUMULATE so it is credited
-     once on return. Android throttles (not freezes) background timers to ~1/min,
-     so the 4s watchdog and 90s autosave keep firing while backgrounded; if each
-     advanced b.at here it would slice a real absence into sub-threshold (~60s)
-     pieces that each grant 0 → a multi-minute AFK credits ZERO (paione). Leaving
-     b.at alone while hidden means the first VISIBLE call after return sees the
-     full elapsed span. */
-  if(typeof document!=='undefined' && document.hidden) return 0;
-  const elapsed=Math.max(0,now-b.at);
-  b.at=now;
-  /* Below the threshold nothing is simulated, so nothing may be charged —
-     but the watermark still moves, because the wall-clock did. */
-  if(!active||elapsed<(minMs||0)) return 0;
-  const capMs=offlineCapHours()*3600000;
-  return Math.min(elapsed,capMs);   // PER-ABSENCE cap — no daily accumulation
-}
-/* b307: the per-absence cap in ms (what "your offline max" means now). Kept for
-   any legacy caller + the offline summary; the old daily-remaining meaning is
-   gone because there is no longer a daily bucket. */
-function offlineBudgetRemainingMs(){
-  return offlineCapHours()*3600000;
-}
 window.utcDayKey=utcDayKey;
 window.offlineCapHours=offlineCapHours;
-window.ensureOfflineBudget=ensureOfflineBudget;
-window.claimOfflineMs=claimOfflineMs;
-window.offlineBudgetRemainingMs=offlineBudgetRemainingMs;
 
 /* b227 — the interval the offline replay divides elapsed time by.
    Deliberately NOT `G.skillMs`: that value was frozen when the activity
@@ -2362,11 +2301,10 @@ function maybeIdleAwayReceipt(now,watermark){
   const _anchor=(typeof watermark==='number'&&isFinite(watermark))?watermark:null;
   if(_anchor!==null && typeof G._idleReceiptAnchor==='number'
      && Math.abs(_anchor-G._idleReceiptAnchor)<60000) return null;
-  const cap=(typeof offlineCapHours==='function')?offlineCapHours():12;
   const hrs=+(absMs/3600000).toFixed(1);
   G.lastOfflineSummary={
     hrs, awayMs:absMs, gainedItems:0, gainedXp:0, gainedGold:0, gainedKills:0,
-    burnt:0, combat:null, budgetHrs:cap, capped:absMs>=(cap*3600000-50000),
+    burnt:0, combat:null, budgetHrs:offlineCapHours(), capped:false,
     at:Date.now(), blessed:false, buffsPaused:false, buffPaidMs:0, buffsExpired:[],
     crits:0, died:false, diedAfterMs:0, diedTo:null, featuredMs:0, featuredDropMult:1,
     rateMult:1, idle:true,
@@ -3911,21 +3849,9 @@ function ensureBountyState(){
   if(G.bountyHunter.active){
     const _a=G.bountyHunter.active;
     delete _a._confirming; delete _a._syncNoticed;
-    /* bug #5 ROOT — the credit cadence + hold-retry are TRANSIENT too. In a
-       browser setTimeout returns a NUMBER, so a persisted `_retryTimer` would
-       survive a reload and make hrScheduleBountyRetry believe a (dead) timer is
-       already running → the cap-catch-up retry never re-arms.
-       ⚠ BOOT-ONCE, NOT EVERY ENSURE. ensureBountyState() runs on EVERY kill
-       (handleBountyKill calls it first), so stripping these here unconditionally
-       WIPED the 15s cadence watermark (_creditAt) on every kill → the throttle
-       never held and every below-target kill fired a credit RPC (caught by the
-       "credit ONCE per cadence window; got 3" regression). These are harmless to
-       carry within a live session (a stale _retryTimer only matters across a
-       RELOAD), so clear them only on the first ensure of the session (boot),
-       which is exactly when a persisted stale timer would be present. */
+    /* In-flight scratch never survives a reload: BOUNTY_TRANSIENT_KEYS is
+       stripped at both residue seams (src/net/client-state.js). */
     if(_firstEnsure){
-      delete _a._retryTimer; delete _a._creditAt; delete _a._confirmed; delete _a._serverConfirmed;
-      delete _a._awaitingServerClaim;   // transient too: re-derived from the envelope
       /* ── THE RESCUE (2026-08-31) ─────────────────────────────────────────
          A save written before the BOUNTY_TURN_IN filter can still hold an
          ACTIVE contract of a type nothing can settle — that is the live bug:
@@ -4213,7 +4139,7 @@ function hrAdoptAcceptedBounty(res,accepted){
       out.changed.push(k+' '+act.rewards[k]+'->'+v);act.rewards[k]=v;
     }
   });
-  act._serverContract=true;
+  act._serverContract=true;hrNoteBountyProgress({bounty_id:res.bounty_id,target:res.target,progress:0});
   out.adopted=true;
   /* Repaint only when something MOVED — an accept that agreed (the common case,
      and every case once the board is drawn post-deploy) must not churn the DOM.
@@ -4419,11 +4345,8 @@ function hrBountyCadenceCredit(b){
     const p=_GC.creditKills(b.target,observed);
     Promise.resolve(p).then(function(cr){
       if(!G.bountyHunter || G.bountyHunter.active!==b) return;
-      /* Keep the "confirmed" read fresh for the bar; do not touch b.progress
-         (the local observed count) — the display shows min(observed,required). */
-      if(cr && cr.ok && typeof cr.progress==='number'){
-        b._serverConfirmed=Math.max(0,Math.min(b.required,cr.progress|0));
-      }
+      /* The server's figure goes to the one mirror; b.progress stays the local count. */
+      if(cr&&cr.ok&&typeof cr.progress==='number') hrNoteBountyProgress({bounty_id:b.id,target:b.target,progress:cr.progress});
     }).catch(function(){});
   }catch(e){}
 }
@@ -4677,7 +4600,7 @@ function completeBounty(){
     Promise.resolve(_creditP).then(function(cr){
       if(!G.bountyHunter || G.bountyHunter.active!==b){ b._confirming=false; return null; }
       /* Decision 1: the confirmed count is the server's, never the local phantom. */
-      if(cr && cr.ok && typeof cr.progress==='number'){ b._serverConfirmed = Math.max(0, Math.min(b.required, cr.progress|0)); }
+      if(cr && cr.ok && typeof cr.progress==='number') hrNoteBountyProgress({bounty_id:b.id,target:b.target,progress:cr.progress});
       return _GC.claimBounty();
     }).then(function(res){
       b._confirming=false;
@@ -5015,9 +4938,9 @@ function renderBountyPanel(){
   if(active){
     const m=MONSTERS[active.target];
     // One reader for text, bar AND Claim gate — the count hr_claim_bounty honours.
-    const current=bountyShownProgress(active);
-    const pct=Math.min(100,(current/active.required)*100);
-    const _claimable=current>=active.required && !active._confirming;
+    const v=hrBountyView(active);
+    const pct=v.known?Math.min(100,(v.progress/active.required)*100):0;
+    const _claimable=v.claimable;
     const _claimBtn=_claimable
       ? `<button class="btn btn-sm btn-primary" onclick="hrTurnInBounty()">Claim reward</button>`
       : `<button class="btn btn-sm btn-primary" onclick="fightBountyTarget('${active.target}')">${G.activeMonster===active.target?'Go to fight':'Fight target'}</button>`;
@@ -5551,20 +5474,8 @@ function generateDailyTasks(notice=true){
   G.daily.lastReset=today;
   // Deterministic shuffle of pool by date seed
   const indexes=dailyTaskIndexes(today);
-  /* b228 (bonus-rebase.md §5.3): the King's rank stops paying +1% XP and
-     starts paying a DAILY TASK SLOT. `dailyTasks` has been declared in
-     renown.getPerks() since renown shipped and nothing ever granted or read
-     it; this is the reader. Access, not throughput — outside the power budget
-     (§2.5), felt every single day, and it can never compound.
-     Bounded by the pool so a future perk can never ask for more tasks than
-     exist to hand out. */
-  var extraTasks=0;
-  try{
-    if(window.HearthriseRenown && typeof window.HearthriseRenown.getPerks==='function'){
-      extraTasks=Math.max(0, window.HearthriseRenown.getPerks(G).dailyTasks|0);
-    }
-  }catch(e){}
-  const taskCount=Math.min(DAILY_TASK_POOL.length, 3+extraTasks);
+  /* Three tasks: the server's daily task set offers no more (not_offered). */
+  const taskCount=Math.min(DAILY_TASK_POOL.length, 3);
   /* b45x (P0) — ELIGIBILITY. `indexes` is the raw date-seeded order; the offered
      SET skips a task whose bench the player has not built and takes the next one
      down the same order. The rule and the algorithm live in
@@ -11001,17 +10912,11 @@ window.renderBountyPanel = function(){
   const a = bh && bh.active;
   if(!a) return '';
   const m = MONSTERS[a.target];
-  const cur = bountyShownProgress(a);
-  const _confirming = !!(a._confirming || a._syncNoticed) && bountyAttemptProgress(a) >= a.required;
-  /* Decision 1 (bug #5): while the server catches up, show the SERVER-CONFIRMED
-     count (never the phantom local total), reconciled DOWN to server truth by the
-     credit RPC's returned progress. Never below what the server has confirmed. */
-  const _confirmed = (a._serverConfirmed != null && Number.isFinite(Number(a._serverConfirmed))) ? Math.max(0, Math.min(a.required, Math.floor(Number(a._serverConfirmed)))) : (window.HearthriseBalance?.countMarkup?.(null, {label:'Not counted yet'}) ?? '—');
-  const pct = Math.min(100, (cur/a.required)*100);
-  const _curLabel = _confirming
-    ? `${_confirmed}/${a.required} confirmed · Verifying your kills…`
-    : `${cur}/${a.required}`;
-  return `<div class="bounty-card${_confirming?' confirming':''}" style="margin-bottom:8px">
+  const v = hrBountyView(a);   // the server's figure or '—', never the local count
+  const _mark = v.known ? v.mark : (window.HearthriseBalance?.countMarkup?.(null, {label:'Not counted yet'}) ?? '—');
+  const pct = v.known ? Math.min(100, (v.progress/a.required)*100) : 0;
+  const _curLabel = v.confirming ? `${_mark}/${a.required} · Verifying your kills…` : `${_mark}/${a.required}`;
+  return `<div class="bounty-card${v.confirming?' confirming':''}" style="margin-bottom:8px">
     <div class="row between">
       <div class="bounty-title">Active bounty: ${m?.name||'?'}</div>
       <button class="btn btn-sm" onclick="showTab('bounty')">View Board</button>
@@ -11348,13 +11253,11 @@ function refreshActivityBar(){
       let bountyChip = '';
       const _ab = G.bountyHunter && G.bountyHunter.active;
       if(_ab && _ab.target === G.activeMonster){
-        const _cur = (typeof bountyShownProgress==='function') ? bountyShownProgress(_ab) : Math.min(_ab.progress||0,_ab.required);
-        const _abConfirming = !!(_ab._confirming || _ab._syncNoticed)
-          && ((typeof bountyAttemptProgress==='function'?bountyAttemptProgress(_ab):(_ab.progress||0)) >= _ab.required);
-        const _abConfirmed = (_ab._serverConfirmed != null && Number.isFinite(Number(_ab._serverConfirmed))) ? Math.max(0, Math.min(_ab.required, Math.floor(Number(_ab._serverConfirmed)))) : (window.HearthriseBalance?.countMarkup?.(null, {label:'Not counted yet'}) ?? '—');
-        bountyChip = _abConfirming
-          ? '<span class="ab-bounty confirming">Bounty <b>'+_abConfirmed+'/'+_ab.required+' confirmed</b></span>'
-          : '<span class="ab-bounty">Bounty <b>'+_cur+'/'+_ab.required+'</b></span>';
+        const v = hrBountyView(_ab);
+        const _mark = v.known ? v.mark : (window.HearthriseBalance?.countMarkup?.(null, {label:'Not counted yet'}) ?? '—');
+        bountyChip = v.confirming
+          ? '<span class="ab-bounty confirming">Bounty <b>'+_mark+'/'+_ab.required+' · verifying</b></span>'
+          : '<span class="ab-bounty">Bounty <b>'+_mark+'/'+_ab.required+'</b></span>';
       }
       /* b266 (tester): show the combat SKILL you're training + XP to the next
          level, right in the always-visible bar — "can I see Strength XP til level
@@ -12007,7 +11910,7 @@ console.log('Activity bar: loaded');
              recMin+' minutes, then double each time). Nothing is earned while you are down. '+
              'Auto-Eat keeps the fight running instead.';
     }
-    var capMs = (typeof offlineCapHours === 'function') ? offlineCapHours()*3600000 : 12*3600000;
+    var capH = offlineCapHours(), capMs = capH==null ? Infinity : capH*3600000;
     var foodMs = est.survivalSeconds * 1000;
     var bound = Math.min(capMs, foodMs);
     var name = (window.ITEMS && window.ITEMS[foodId] && window.ITEMS[foodId].n) || foodId;
@@ -12025,10 +11928,11 @@ console.log('Activity bar: loaded');
         fmtNum(G.inventory[foodId])+' '+name+", then you'll be knocked out — and each fall "+
         'costs longer than the last ('+recMin+' minutes, then double). Cook more before you go.';
     }
+    if(capH==null) return '<b>Away:</b> on '+fmtNum(G.inventory[foodId])+' '+name+' until your away limit.';
     return '<b>Away:</b> about <b>'+fmtRunTime(bound/1000)+'</b>, '+
       (foodMs <= capMs
         ? 'on '+fmtNum(G.inventory[foodId])+' '+name+'.'
-        : 'your '+offlineCapHours()+'h offline max, not your food.');
+        : 'your '+capH+'h away limit, not your food.');
   }
 
   function renderPreview(monsterId){
@@ -13995,8 +13899,7 @@ function paintNavBadges(){
   }
   if(typeof G !== 'object' || !G) return;
   // Bounty ready
-  var bRdy = !!(G.bountyHunter && G.bountyHunter.active &&
-    G.bountyHunter.active.progress >= G.bountyHunter.active.required);
+  var bRdy = !!(window.hrBountyView && G.bountyHunter && G.bountyHunter.active && window.hrBountyView(G.bountyHunter.active).claimable);
   setBadge('bounty', bRdy);
   // Farm plot ready
   var fRdy = (G.farmPlots||[]).some(function(p){return p && p.state==='ready';});
@@ -16996,7 +16899,7 @@ function buildSlotsCard(){
     + '</div>'
     + '<div class="cr-paywall-hint">'
       + '<span>'+_hrGly('gems',14,'--gem')+'</span>'
-      + '<div><b>Hearth Hall Premium:</b> 3 character slots, +25% offline progress, exclusive cosmetics, monthly chests.</div>'
+      + '<div><b>Hearth Hall Premium:</b> 3 character slots and exclusive cosmetics.</div>'
       + '<button onclick="window.showTab && showTab(\'shop\')">Learn more</button>'
     + '</div>'
   + '</div>';

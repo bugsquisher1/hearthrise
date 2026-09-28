@@ -4056,7 +4056,7 @@ export default [
     /* THE MEASURED BUG (LIVE b544, hearthrise.net, QA account, 2026-09-13 20:5x
        UTC, a genuine ~12 h return with fishing active): the "What's new" sheet
        showed first, and behind it the "Welcome back, adventurer" modal carried
-       only Played / Total kills lifetime / Gold in pocket — no Time away, no XP
+       only Played / Monsters slain, all time / Gold in pocket — no Time away, no XP
        earned — while the Home card underneath read "12h away — +51,424 XP ·
        +6,428 items". At +58 s `awaySettleDone()` was true and
        `G.lastOfflineSummary.awayMs` was 43,200,000 with the gains on it: the
@@ -4131,7 +4131,7 @@ export default [
       window.__presentWelcomeWhenSettled();
       assert(shown(), 'nothing was on the wire and the player was greeted with silence');
       const b0 = rowText();
-      assert(/Total kills lifetime/.test(b0), 'the stats-only greeting is empty: ' + b0);
+      assert(/Monsters slain, all time/.test(b0), 'the stats-only greeting is empty: ' + b0);
       assert(!/Time away|XP earned/.test(b0), 'a modal with no receipt reported an absence: ' + b0);
       G.lastSeen = Date.now();                               // saveLocal() beat the stamp forward
       G.lastOfflineSummary = receipt(); AC.__resetAwaySettleLatch(true);

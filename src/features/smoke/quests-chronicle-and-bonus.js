@@ -7,6 +7,7 @@
 // the monolith by tools/split-smoke-suite.mjs — 67 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
 import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, xpOf, predZero, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, zeroRenownTerms, restoreRenownTerms, on, snapshot, closeOverlays, hrCharmDriver } from './_harness.js?v=559';
+import { THIS_WEEK, THIS_WEEK_QUIET } from '../../data/this-week.js?v=559';
 
 export default [
 
@@ -2057,8 +2058,8 @@ export default [
       const grid = document.querySelector('#char-hero .cr-acct-grid');
       assert(grid, 'the Account stat grid did not render on the Hero sub-tab');
       const cells = [...grid.querySelectorAll('.cr-acct-cell')];
-      assert(cells.length >= 9, 'expected the full Account panel (CL, TL, XP, Quests, Achievements, Bounties, Collections, Renown, Time), got ' + cells.length);
-      const byLabel = (needle) => cells.find((c) => (c.querySelector('span').textContent || '').toLowerCase().indexOf(needle) === 0);
+      assert(cells.length >= 9, 'expected the full Account panel (CL, TL, XP, Quests, Achievements, Bounties, Collections, Renown, Days running), got ' + cells.length);
+      const byLabel = (needle) => cells.find((c) => (c.querySelector(':scope > span').textContent || '').toLowerCase().indexOf(needle) === 0);
       const cl = byLabel('combat'); const tl = byLabel('total');
       assert(cl && cl.querySelector('b').textContent === String(window.getCombatLevel()),
         'Combat Lv cell must equal getCombatLevel()');
@@ -2067,19 +2068,17 @@ export default [
       const ach = byLabel('achievements');
       assert(ach && ach.querySelector('b').textContent.indexOf('/ ' + (window.ACHIEVEMENTS || []).length) >= 0,
         'Achievements cell must count against the real ACHIEVEMENTS catalogue');
-      // Time Played is behind a reveal until clicked — never a faked "0h".
-      const time = byLabel('time');
-      assert(time, 'a Time played cell must exist (its counter is built, not omitted)');
+      assert(byLabel('days running'), 'a Days running cell must exist (the server play streak)');
+      assert(!byLabel('time played'), 'the device-timed Time played cell is back');
+      ['quests', 'bounties'].forEach((k) => { const c = byLabel(k);
+        assert(c && (/\d/.test(c.querySelector('b').textContent) || c.querySelector('.bal-pending')),
+          k + ' cell must be the realm\'s figure or the pending dash, got ' + (c && c.innerHTML)); });
     } finally { window._charPane = prevPane; window.showTab('profile'); }
   }),
 
-  () => tryRun('b229: Time Played counter is real (G.stats.playMs, presence-gated, not faked)', () => {
-    assert(typeof window.HearthrisePlayTime === 'object' && typeof window.HearthrisePlayTime.ms === 'function',
-      'window.HearthrisePlayTime.ms() seam missing — the counter was not built');
-    assert(window.G && window.G.stats && typeof window.G.stats.playMs === 'number',
-      'G.stats.playMs must exist as a real accumulator field');
-    assert(window.HearthrisePlayTime.ms() === (window.G.stats.playMs || 0),
-      'HearthrisePlayTime.ms() must read the live accumulator, not a copy');
+  () => tryRun('b229: the device-timed Time Played counter is gone (no seam, no tick)', () => {
+    assert(!('HearthrisePlayTime' in window) && !('tickPlayMs' in window),
+      'a device play-time counter is published again; play is counted by the realm (Days running)');
   }),
 
   () => tryRun('b229: the fake "Your Heroes" paywall mockup is gone from the Character screen', () => {
@@ -2709,6 +2708,64 @@ export default [
     ['gathered', 'cooked', 'smithed', 'crafted', 'kills'].forEach((k) => {
       assert(rows.indexOf(k) === -1, 'EVENT_COUNTER_PROJECTION maps onto the shared stats.' + k);
     });
+  }),
+  /* WEEK-A..D — Home's "Your week" card and the hearth band's realm cells read
+     the server's goal-state cache only; unknown is the pending dash (§6). */
+  () => tryRun('WEEK-A: an unknown week and unknown realm cells render the pending dash, never 0', () => {
+    const TW = window.HearthriseThisWeek;
+    if (!TW) return skip('no this-week module');
+    const v = TW.view(null);
+    assert(v.known === false, 'view(null) must be unknown');
+    const html = TW.cardHtml(v);
+    assert(/bal-pending/.test(html), 'the unknown card has no pending dash');
+    assert(!/[0-9]/.test(html.replace(/<[^>]*>/g, '')), 'the unknown card prints a digit: ' + html);
+    const cells = TW.todayCells(null);
+    assert(cells.length === 2 && cells.every((c) => /bal-pending/.test(c.html)), 'an unknown realm cell is not pending');
+  }),
+  () => tryRun('WEEK-B: the card leads with the week the server counted, and QUIET when nothing leads', () => {
+    const TW = window.HearthriseThisWeek;
+    if (!TW) return skip('no this-week module');
+    const m = { 'w:wk_logs': { have: 180, target: 250 }, 'w:wk_kills': { have: 30, target: 100 },
+      'd:kill_any': { have: 12, target: 10 }, 'd:gold_500': { have: 1520, target: 500 } };
+    const v = TW.view(m);
+    assert(v.lead === THIS_WEEK.find((r) => r.goal === 'wk_logs').lead, 'lead: ' + v.lead);
+    assert(v.rows.map((r) => r.goal).join() === 'wk_logs,wk_kills', 'rows: ' + v.rows.map((r) => r.goal));
+    const c = TW.todayCells(m);
+    assert(c[0].html === (12).toLocaleString() && c[1].html === (1520).toLocaleString(), 'cells: ' + JSON.stringify(c));
+    assert(TW.view({ 'w:wk_rare': { have: 1, target: 5 } }).lead === THIS_WEEK_QUIET, 'a 20% week must read QUIET');
+  }),
+  () => tryRun('WEEK-C: the hearth band shows the realm\'s Kills today, pending when unknown, and no residue Harvest', () => {
+    const H = window.HearthriseHome, was = window.HearthriseGoalState;
+    if (!H || typeof window.showTab !== 'function') return skip('no Home');
+    const leds = () => Array.from(document.querySelectorAll('#panel-profile .hd-ledger .hd-led'));
+    const cell = () => leds().find((n) => /Kills today/.test(n.textContent)) || null;
+    try {
+      window.HearthriseGoalState = { peek: () => null };
+      window.showTab('profile'); H.render();
+      assert(cell() && cell().querySelector('.bal-pending'), 'an unknown Kills today must be the pending dash');
+      assert(!leds().some((n) => /Harvest/.test(n.textContent)), 'the residue Harvest cell is back');
+      window.HearthriseGoalState = { peek: () => ({ 'd:kill_any': { have: 12, target: 10 } }) };
+      H.render();
+      assert(cell().querySelector('b').textContent === (12).toLocaleString(), 'Kills today: ' + cell().textContent);
+    } finally { window.HearthriseGoalState = was; try { H.render(); } catch (e) {} }
+  }),
+  () => tryRunAsync('WEEK-D: the goal-state cache is deep-frozen and peek() expires at 120 s', async () => {
+    const S = window.__hrSyncServerGoals, GS = window.HearthriseGoalState;
+    if (!S || !GS) return skip('no goal-state seam');
+    const may = window.clientMayWriteRecordField, gc = window.HearthriseGoalClaim, now = Date.now;
+    try {
+      window.clientMayWriteRecordField = (f) => f !== 'gold' && f !== 'gems';
+      window.HearthriseGoalClaim = { isSignedIn: () => true, goalState: () => Promise.resolve({ ok: true, goals: [
+        { goal_id: 'wk_logs', weekly: true, target: 250, have: 180, complete: false, claimed: false }] }) };
+      S.reset();
+      await new Promise((r) => S((fresh) => r(fresh)));
+      const m = GS.peek();
+      assert(m && Object.isFrozen(m) && Object.isFrozen(m['w:wk_logs']), 'the cache or its entry is not frozen');
+      const t = now.call(Date); Date.now = () => t + 121000;
+      assert(GS.peek() === null, 'a 121 s old cache must read unknown');
+      Date.now = now; S.reset();
+      assert(GS.peek() === null, 'a reset cache must read unknown');
+    } finally { Date.now = now; window.clientMayWriteRecordField = may; window.HearthriseGoalClaim = gc; S.reset(); }
   }),
   /* QUEST-PENDING — the strip draws the pending dash, never "0 / N", while
      neither hr_goal_state nor a measured baseline has spoken (CLAUDE.md §6). */

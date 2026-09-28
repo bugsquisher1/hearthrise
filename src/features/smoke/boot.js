@@ -138,7 +138,7 @@ export default [
       'character-rebuild', 'dungeons-render', 'nav-consol-bootall', 'obs-tabchange',
       'character-page', 'stable-render', 'combat-tier-chips',
       'combat-screens-nav', 'identity-decorate', 'home-dashboard', 'ui-overlap',
-      'muster-events', 'lifetime-stats-place', 'screen-primers',
+      'muster-events', 'screen-primers',
     ];
     const missing = EXPECTED.filter((n) => !names.includes(n));
     assert(missing.length === 0, 'showTab taps never registered (trigger dropped in migration): ' + missing.join(', '));

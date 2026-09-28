@@ -725,10 +725,10 @@ let G={
   daily:{lastReset:null,tasks:[]},
   collection:{},
   quests:[],
-  /* b229: playMs is the Time Played accumulator surfaced on the Hero screen —
-     a presence-gated counter (see tickPlayMs). Fresh saves start at 0; existing
-     saves backfill nothing (an honest zero, never a faked figure). */
-  stats:{kills:0,gathered:0,harvested:0,rareDrops:0,playMs:0},
+  /* The goal engine's device counters. The lifetime figures a player reads are
+     the realm's (src/features/lifetime-tally.js); nothing here is shown as one,
+     and nothing times play on the device. */
+  stats:{kills:0,gathered:0,harvested:0,rareDrops:0},
   /* Bounty Marks are a TOP-LEVEL scalar currency (like gold/gems) — the record
      framework strip keys on a top-level field, so this is the single client home.
      They used to live nested at bountyHunter.marks; ensureBountyState() migrates a
@@ -3359,26 +3359,6 @@ function withOfflineReplay(fn){
   finally{ _offlineReplay = Math.max(0, _offlineReplay - 1); }
 }
 function blessingsApply(){ return !inOfflineReplay() && sessionOnline(); }
-
-/* b229 — Time Played (Hero screen Account panel). A presence-gated accumulator,
-   NOT a new interval: it is ticked from the existing 10fps activity-bar loop and
-   measures the REAL wall-clock delta between ticks, banking it only while the
-   session is online (the same gate blessings use). Capping the per-tick delta
-   means a slept/backgrounded machine that fires one giant catch-up tick on wake
-   never counts that gap as play, and an offline stretch is excluded outright —
-   so the figure is honest time in the game, never idle time or a fabrication. */
-let _lastPlayTick = Date.now();
-function tickPlayMs(){
-  const now = Date.now();
-  const dt = now - _lastPlayTick;
-  _lastPlayTick = now;
-  if(dt <= 0 || dt > 4000) return;                 // a sleep/resume gap — don't bank it
-  if(!blessingsApply()) return;                    // offline / replay — base rate, no clock
-  if(typeof G !== 'object' || !G) return;
-  if(!G.stats) G.stats = {kills:0,gathered:0,harvested:0,rareDrops:0,playMs:0};
-  G.stats.playMs = (G.stats.playMs||0) + dt;
-}
-window.HearthrisePlayTime = { ms: function(){ return (typeof G==='object' && G && G.stats && G.stats.playMs) || 0; } };
 
 /* b229: a connectivity flip changes what the current action is worth, so the
    running loop re-derives its interval the moment it happens instead of on the
@@ -11242,10 +11222,9 @@ function refreshActivityBar(){
     if(nameEl) nameEl.textContent = `Fighting ${m?.name||'?'}`;
     if(metaEl){
       // Show kill count for the current foe (resets when the player picks a
-      // new monster) + total session kills. The arena vs panel already shows
+      // new monster) + the realm's lifetime count. The arena vs panel shows
       // player HP, so the activity bar carries the more interesting numbers.
       const kills = (G.combatKillsThisFoe||0);
-      const totalKills = (G.stats?.kills||0);
       /* b262 (paione): the bounty task progress lived in a card that fell below
          the fold of the short landscape combat view, so "how many kills left for
          my task" wasn't visible. Surface it in the always-on activity bar when
@@ -11279,7 +11258,7 @@ function refreshActivityBar(){
       /* THE AWAY CHIP answers "can I leave this running?" from the Night Plan's
          stored forecast (night-plan.js chipHtml): pays away, you fall, or no
          food; a pending mark until the server has stated the bag. It never computes. */
-      const licChip = '<span class="ab-tkills">Lifetime <b>'+totalKills.toLocaleString()+'</b></span>';
+      const licChip = '<span class="ab-tkills">Lifetime <b>'+(window.HearthriseLifetime ? window.HearthriseLifetime.markup('kills') : '—')+'</b></span>';
       const _NP = window.HearthriseNightPlan, _STN = window.HearthriseSetTheNight;
       const awayChip = (_NP && _STN) ? _NP.chipHtml(_STN.peek(G)) : '';
       metaEl.innerHTML = ''
@@ -11449,9 +11428,9 @@ if(typeof _origStartCombatAB === 'function'){
   window.startCombat = function(){ G._combatTickStart = Date.now(); const r = _origStartCombatAB.apply(this, arguments); refreshActivityBar(); return r; };
 }
 
-/* Drive the bar at 10fps — and bank Time Played off the same tick (b229), so
-   the counter rides an existing loop rather than adding a wall-clock of its own. */
-setInterval(function(){ refreshActivityBar(); try{ tickPlayMs(); }catch(e){} }, 100);
+/* Drive the bar at 10fps. It is the only wall-clock loop the bar has; the
+   lifetime figures on it are the realm's, so the tick counts nothing itself. */
+setInterval(function(){ refreshActivityBar(); }, 100);
 
 /* ── THE KNOCKOUT REACHES THE BAR ON THE ENVELOPE, NOT ON THE POLL ──────────
    MEASURED LIVE on b513: the server had the character recovering with 16:47 to
@@ -13367,7 +13346,7 @@ function maybeShowWelcome(opts){
      play-streak surface says PLAYED / RUNNING and never "daily". */
   var _playDays = window.HearthriseStreakChip ? window.HearthriseStreakChip.days(G) : 0;
   if(_playDays > 0) rows.push({g:'uiFlame', t: 'Played', v: _playDays + ' day' + (_playDays===1?'':'s') + ' running'});
-  rows.push({g:'uiTarget', t: 'Total kills lifetime', v: (G.stats?.kills||0).toLocaleString()});
+  rows.push({g:'uiTarget', t: 'Monsters slain, all time', v: (window.HearthriseLifetime ? window.HearthriseLifetime.markup('kills') : '—')});
   rows.push({g:'gold', t: 'Gold in pocket', v: balText('gold')});
   /* b342: the "bad" tone is now an EXPLICIT flag. It used to key off `r.g`
      (has-a-glyph), which was equivalent only while the death row was the only
@@ -17980,12 +17959,11 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
   };
 
   // ── Helpers to compute progress ──
-  /* ── b461 — THE SERVER IS THE DISPLAY TRUTH FOR THESE GOALS UNDER ARM ──
+  /* ── THE SERVER IS THE DISPLAY TRUTH FOR THESE GOALS UNDER ARM ──
      hr_claim_goal verifies completion from the SERVER's period counters, so a
      modal that decides "Claim" from local stats would show a button the server
-     refuses — the same dead button in a different hat (the counters for
-     chopped/mined/fished/levelups only start at this deploy, so local 25/25
-     vs server 0/25 is the day-one shape). hr_goal_state projects every
+     refuses — the same dead button in a different hat (local 25/25 against
+     server 0/25). hr_goal_state projects every
      catalogued goal {have, complete, claimed} for the current day/ISO-week;
      under arm the readers below prefer it and fall back to the local stats
      when it has not arrived (offline, pre-arm, or a transport failure — the
@@ -18014,12 +17992,12 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
         var m = {};
         res.goals.forEach(function(g){
           if(!g || !g.goal_id) return;
-          m[(g.weekly ? 'w:' : 'd:') + g.goal_id] = {
+          m[(g.weekly ? 'w:' : 'd:') + g.goal_id] = Object.freeze({
             have: Math.max(0, Number(g.have) || 0), target: Number(g.target) || 0,
             complete: !!g.complete, claimed: !!g.claimed
-          };
+          });
         });
-        _srvGoals = m; _srvGoalsAt = Date.now();
+        _srvGoals = Object.freeze(m); _srvGoalsAt = Date.now();
         if(typeof done === 'function') done(true);
       } else if(typeof done === 'function') done(false);
     }).catch(function(){ _srvGoalsInflight = false; if(typeof done === 'function') done(false); });
@@ -18030,6 +18008,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
   }
   window.__hrSyncServerGoals = syncServerGoals;   // test seam + manual refresh
   window.__hrSyncServerGoals.reset = function(){ _srvGoals = null; _srvGoalsAt = 0; _srvGoalsInflight = false; };
+  window.HearthriseGoalState = { peek: function(){ return goalsArmed() && _srvGoals && (Date.now() - _srvGoalsAt) < 120000 ? _srvGoals : null; } };
 
   /* ── THE ONE READER OF startValues IN THIS IIFE ────────────────────────────
      Delegates to block 16's goalBaselineOf (exported on window because this is

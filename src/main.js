@@ -265,6 +265,7 @@ import './net/record.js?v=559';
 // It is NOT behind the kill switch: it is a read shape, correct in both
 // positions, and today it answers exactly what the raw read answered.
 import './net/balance.js?v=559';
+import './features/lifetime-tally.js?v=559';
 // b429 — the READ side of server-owned SKILL XP, the analogue of balance.js for
 // the `skills` record entry (shipped DORMANT in record.js behind
 // SKILLS_RECORD_ARM_ENABLED). A no-op today: `skills` is not on the active
@@ -458,6 +459,7 @@ import { setupTownPanel } from './render/town-panel.js?v=559';
    every move is an intent, and the paint comes from the envelope that follows. */
 import './net/bank-sync.js?v=559';
 import { setupBankPanel } from './render/bank-panel.js?v=559';
+import './features/this-week.js?v=559';
 /* b535 - THE SUITE IS NOT PART OF THE GAME. This line used to pull
    features/smoke-test.js in STATICALLY: a 3.75 MB test suite, 36% of the
    10.28 MB of JavaScript a cold boot delivered, paid by every player before the

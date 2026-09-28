@@ -2668,6 +2668,10 @@ jobs:
         run: |
           node tests/quest-reward-parity.mjs
           node tests/quest-reward-parity.mjs --selftest
+          # This Week: Home's weekly card names exactly the server's weekly goal
+          # ids and reads only the goal-state cache (tests/this-week.mjs).
+          node tests/this-week.mjs
+          node tests/this-week.mjs --selftest
 
       # ITEM FLAVOUR COVERAGE — every catalogued item has a "what is it" line.
       # Content pack 4 closed 419/538 to 538/538 in the base ITEM_DESC literal;
@@ -2686,6 +2690,8 @@ jobs:
           node tests/item-flavour-coverage.mjs --selftest
           node tests/lore-notes.mjs
           node tests/lore-notes.mjs --selftest
+          node tests/lifetime-tally.mjs
+          node tests/lifetime-tally.mjs --selftest
           node tests/companion-pays-parity.mjs
           node tests/companion-pays-parity.mjs --selftest
           node tests/companion-promise-parity.mjs

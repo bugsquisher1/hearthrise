@@ -209,21 +209,21 @@ const MUTATIONS = {
     file: FN('intents.js'),
     why: 'C4 — the registry names a bucket the database does not have; if nothing READS the '
        + 'registry this is invisible',
-    find: "  shop_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: false }),",
-    repl: "  shop_buy: Object.freeze({ bucket: 'shoppe', needsKey: true, collectsFirst: false }),",
+    find: "  shop_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),",
+    repl: "  shop_buy: Object.freeze({ bucket: 'shoppe', needsKey: true, collectsFirst: true }),",
   },
   registry_needs_key_false: {
     file: FN('intents.js'),
     why: 'C4 — the registry says a value transfer needs no idempotency key',
-    find: "  vendor_sell: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: false }),",
-    repl: "  vendor_sell: Object.freeze({ bucket: 'shop', needsKey: false, collectsFirst: false }),",
+    find: "  vendor_sell: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),",
+    repl: "  vendor_sell: Object.freeze({ bucket: 'shop', needsKey: false, collectsFirst: true }),",
   },
-  registry_collects_first_true: {
+  registry_collects_first_false: {
     file: FN('intents.js'),
-    why: 'C4 — the registry says this verb collects before it acts and no collect is implemented; '
-       + 'the read must FAIL CLOSED rather than proceed',
-    find: "  shop_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: false }),",
-    repl: "  shop_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),",
+    why: 'F1 (2026-09-28) — shop_buy stops settling the open window first, so a purchase at return '
+       + 'is priced over the whole absence at the state it created',
+    find: "  shop_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),",
+    repl: "  shop_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: false }),",
   },
   gate_literal_bucket: {
     file: FN('spend.js'),
@@ -702,15 +702,18 @@ async function run(mutate) {
       `G3: the ledger does not record the unit price the server charged (${JSON.stringify(rows[0].meta)})`);
   }
 
-  // ── G4. ⚠ A PURCHASE DOES NOT CONFISCATE THE NIGHT ───────────────────────
-  // The invariant `collectsFirst: false` rests on. hr_apply stamps
-  // `accrued_to = now()` on any delta carrying activity/equip/accrued_to; a gold
-  // verb carries none, so an unpaid window survives a shopping trip untouched.
+  // ── G4. ⚠ A PURCHASE PAYS THE NIGHT FIRST, AND NEVER CONFISCATES IT ────────
+  // Until 2026-09-28 this asserted the unpaid window SURVIVED a purchase
+  // untouched — the invariant `collectsFirst: false` rested on. Security F1
+  // (settle-before-mutate) replaced it: the window is SETTLED at the pre-purchase
+  // state first (a purchase adds a priceable input), and the pointer survives.
+  // Confiscation is still the failure this group exists for: a moved watermark
+  // must come with a receipt, never without one.
   {
     await clearGate();
     await db.query(
       `update public.player_state
-          set active_kind = 'combat', active_id = 'goblin',
+          set active_kind = 'combat', active_id = 'goblin', max_hp = 900, hp = 900,
               accrued_to = now() - interval '3 hours', active_since = now() - interval '3 hours'
         where user_id = $1 and slot = 0`, [UID]);
     const before = await state(db, UID);
@@ -718,10 +721,13 @@ async function run(mutate) {
     const r = await doBuy({ intentId: uuid(), offer: OFFER, qty: 1 });
     ok(r.body.ok === true, `G4-CONTROL: the purchase failed: ${JSON.stringify(r.body).slice(0, 200)}`);
     const after = await state(db, UID);
-    ok(new Date(after.accrued_to).getTime() === new Date(before.accrued_to).getTime(),
-      'G4: BUYING A SWORD CONFISCATED THREE HOURS OF UNPAID COMBAT. hr_apply stamps accrued_to on '
-      + 'any delta carrying activity/equip/accrued_to; a gold verb must carry none of them, which '
-      + 'is what makes collectsFirst:false correct rather than convenient.');
+    const moved = new Date(after.accrued_to).getTime() - new Date(before.accrued_to).getTime();
+    ok(r.body.collected && Number(r.body.collected.kills) > 0 && moved > 2.9 * 3600e3,
+      `G4: a purchase over a 3 h combat window moved accrued_to by ${moved} ms with `
+      + `collected=${JSON.stringify(r.body.collected).slice(0, 160)}. The night must be SETTLED at the `
+      + 'pre-purchase state and receipted — a watermark that moves without a receipt is the '
+      + 'confiscation this group exists for, and one that does not move leaves the night to be '
+      + 'priced at the state the purchase created.');
     ok(after.active_kind === before.active_kind && after.active_id === before.active_id,
       `G4: the purchase moved the activity pointer (${before.active_id} → ${after.active_id})`);
     ok(new Date(after.active_since).getTime() === new Date(before.active_since).getTime(),
@@ -730,8 +736,9 @@ async function run(mutate) {
     const sr = await doSell({ intentId: uuid(), item: 'iron_sword', qty: 1 });
     ok(sr.body.ok === true, `G4-CONTROL: the sale failed: ${JSON.stringify(sr.body).slice(0, 200)}`);
     const after2 = await state(db, UID);
-    ok(new Date(after2.accrued_to).getTime() === new Date(before.accrued_to).getTime(),
-      'G4: SELLING confiscated the unpaid window');
+    ok(new Date(after2.accrued_to).getTime() === new Date(after.accrued_to).getTime()
+       && sr.body.collected === null,
+      'G4: a sale seconds after a settle moved the watermark — a sub-minute window must not write');
 
     /* AND THE RULE IS A FUNCTION, NOT A HABIT. Every stamping key, refused for a
        non-collecting verb; and the ONE that collects is exempt. */
@@ -739,10 +746,11 @@ async function run(mutate) {
       const bad = { gold: -1, [k]: 'x', journal: { kind: 'shop', intent: 'probe' } };
       const g = it.guardStampKeys('shop_buy', bad);
       ok(g && g.error === 'delta_would_stamp' && g.keys.includes(k),
-        `G4: guardStampKeys let a non-collecting verb propose a delta carrying '${k}' — that key `
-        + 'closes the accrual window, so every caller would silently lose their elapsed time');
+        `G4: guardStampKeys let a non-switch verb propose a delta carrying '${k}' — that key `
+        + 'closes the accrual window, so every caller would silently lose the remainder its settle '
+        + 'deferred');
       ok(it.guardStampKeys('set_activity', bad) === null,
-        `G4-CONTROL: guardStampKeys refused '${k}' for set_activity, which DOES collect first — the `
+        `G4-CONTROL: guardStampKeys refused '${k}' for set_activity, a SWITCH — the `
         + 'rule would then block the one verb it was written around');
     }
     ok(it.guardStampKeys('shop_buy', { gold: -1 }) === null,
@@ -1165,15 +1173,15 @@ async function run(mutate) {
     ok(it.requiresKey('shop_buy') && it.requiresKey('vendor_sell'),
       'G13: a VALUE TRANSFER is registered as not needing an idempotency key');
 
-    /* `collectsFirst` is READ, and it FAILS CLOSED. Under the mutation that
-       flips it to true, this call must be refused rather than proceeding. */
-    ok(it.collectsFirst('shop_buy') === false,
-      'G13-CONTROL: the registry says shop_buy collects first, so every purchase in this run took '
-      + 'the refusal path and the happy-path groups above measured nothing');
+    /* `collectsFirst` is READ. Since 2026-09-28 (Security F1) both gold verbs
+       SETTLE the open window before they act (G4 measures it). */
+    ok(it.collectsFirst('shop_buy') === true && it.collectsFirst('vendor_sell') === true,
+      'G13: the registry says a gold verb does not settle first — a purchase at return is then '
+      + 'priced over the whole absence at the state it created (Security F1)');
 
-    /* THE FAIL-CLOSED READ, PROVEN DIRECTLY. `set_activity` is the one verb whose
-       registry row says collectsFirst — and it implements its own collect, so it
-       never comes through here. Driving the shared runner WITH that verb is the
+    /* THE FAIL-CLOSED READ, PROVEN DIRECTLY. `set_activity` is a SWITCH — its
+       own commit stamps accrued_to, so it implements its own collect-then-switch
+       and must never come through the shared runner's settle. Driving the shared runner WITH that verb is the
        cheapest honest way to show what happens when a registry row and an
        implementation disagree: a refusal, before the apply, with the window
        intact. The alternative — inferring it from a mutation that flips the
@@ -1205,9 +1213,11 @@ async function run(mutate) {
     ok(/rateBucketFor\(/.test(src),
       'G13: spend.js gates without ever calling rateBucketFor — the value it passes came from '
       + 'somewhere other than the registry');
-    ok(/collectsFirst\(/.test(src) && /requiresKey\(/.test(src),
-      'G13: spend.js never reads collectsFirst/requiresKey — those columns are decoration, and '
-      + 'intent #4 could declare anything with every guard still green');
+    /* `collectsFirst` is read through settle-first.js (2026-09-28), the one
+       implementation of settle-before-mutate; spend.js must reach it. */
+    ok(/settleBeforeMutate\(/.test(src) && /requiresKey\(/.test(src),
+      'G13: spend.js never reaches settleBeforeMutate/requiresKey — those columns are decoration, '
+      + 'and intent #4 could declare anything with every guard still green');
   }
 
   // ── G14. THE ERROR TAXONOMY AGREES WITH THE WIRE ────────────────────────

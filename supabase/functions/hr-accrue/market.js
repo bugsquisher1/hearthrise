@@ -57,6 +57,7 @@
 import { INTENT_ERRORS } from './intents.js';
 import { CATALOGUE_ID_RE, UUID_RE, MAX_QTY, MAX_ASK } from './request.js';
 import { gateAndRead, refusalBody, shapeRefusal } from './spend.js';
+import { settleBeforeMutate } from './settle-first.js';
 
 /** The verbs' own names — returned in every body, success and refusal alike, so
     one client dispatcher can route a response without remembering what it
@@ -75,7 +76,8 @@ export const MARKET_VERBS = Object.freeze([LIST_VERB, CANCEL_VERB, BUY_VERB]);
    architecture takes, so a reviewer comparing these three against hr_apply's
    call site is comparing like with like.
 
-   `$3::bigint` is `env.version` — the version THIS call read. Each function
+   `$3::bigint` is the version THIS call read, or the one its settle left
+   (settle-first.js). Each function
    refuses a stale one and RELEASES the key on that answer (b346 C1), which is
    the whole of our concurrency control. `$4::uuid` is the CLIENT's key: a
    listing is a tap, and the client is the only party that knows which retry is
@@ -155,12 +157,22 @@ async function runMarketIntent(o) {
          cannot spend a real player's rate budget by looping on garbage. */
   const read = await gateAndRead({ exec, user, slot, verb });
   if (read.refusal) return read.refusal;
-  const env = read.env;
 
-  /* (2) THE COMMIT. Nothing between the read and the statement computes
-         anything: `env.version` goes straight back out, and every other bind is
-         a NAME or a COUNT that arrived in the request. */
-  const [row] = await exec(sql, args(user, slot, env.version, intentId));
+  /* (1b) ⚠ SETTLE BEFORE THE TRADE (Security F1, 2026-09-28). A buy or a
+         cancel puts goods in the bag and a list takes them out; a gathering
+         tool is priced FROM THE BAG. The open window is settled at the state it
+         was earned in, then the goods move. */
+  const settled = await settleBeforeMutate({
+    exec, user, slot, verb, env: read.env, nowMs: read.nowMs, capMs: read.capMs,
+    partyOwnsWindow: o.partyOwnsWindow === true,
+  });
+  if (!settled.proceed) return settled.refusal;
+  const collected = settled.collected;
+
+  /* (2) THE COMMIT. Nothing between the settle and the statement computes
+         anything: the settle's version goes straight back out, and every other
+         bind is a NAME or a COUNT that arrived in the request. */
+  const [row] = await exec(sql, args(user, slot, settled.version, intentId));
   const res = (row && row.res) || null;
   if (!res || res.ok !== true) {
     /* NOTHING WAS APPLIED. Each function's protected block rolls back in full —
@@ -174,7 +186,9 @@ async function runMarketIntent(o) {
       status: 409,
       body: await refusalBody({
         exec, user, slot, verb,
-        refusal: { error: (res && res.error) || 'market_failed', stage: 'market', detail: res ?? null },
+        refusal: {
+          error: (res && res.error) || 'market_failed', stage: 'market', detail: res ?? null, collected,
+        },
         fallback: null,
       }),
     };
@@ -205,6 +219,7 @@ async function runMarketIntent(o) {
       ok: true,
       verb,
       receipt: (res.replayed === true || !res[field]) ? null : res[field],
+      collected,
       ...(res.replayed === true ? { replayed: true } : {}),
     },
   };

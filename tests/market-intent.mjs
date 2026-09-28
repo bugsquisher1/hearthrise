@@ -112,15 +112,15 @@ const MUTATIONS = {
     why: 'a market verb names a rate bucket the database does not have. hr_rate_gate fails closed '
        + 'on an unknown bucket, so this is a verb that 429s on its first call forever — invisible '
        + 'unless something READS the registry',
-    find: "  market_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: false }),",
-    repl: "  market_buy: Object.freeze({ bucket: 'bazaar', needsKey: true, collectsFirst: false }),",
+    find: "  market_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),",
+    repl: "  market_buy: Object.freeze({ bucket: 'bazaar', needsKey: true, collectsFirst: true }),",
   },
   registry_needs_key_false: {
     file: FN('intents.js'),
     why: 'the registry says a cross-player transfer needs no idempotency key, so a retried purchase '
        + 'is a second purchase',
-    find: "  market_list: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: false }),",
-    repl: "  market_list: Object.freeze({ bucket: 'shop', needsKey: false, collectsFirst: false }),",
+    find: "  market_list: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),",
+    repl: "  market_list: Object.freeze({ bucket: 'shop', needsKey: false, collectsFirst: true }),",
   },
   // ── THE RECEIPT IS THE SERVER'S ────────────────────────────────────────
   receipt_on_replay: {
@@ -400,9 +400,12 @@ async function run(mutate) {
       ok(it.requiresKey(v) === true,
         `M-REG: ${v} does not require an idempotency key. A cross-player transfer whose retry is a `
         + 'second transfer is the one failure idempotency exists for');
-      ok(it.collectsFirst(v) === false,
-        `M-REG: ${v} claims to collect first. These verbs propose no delta and never touch `
-        + 'accrued_to, so a collect would cost a round trip and buy nothing');
+      /* SETTLE BEFORE THE TRADE (Security F1, 2026-09-28): goods moving in or
+         out of the bag change a priceable input (a tool is priced from the bag),
+         so all three settle the open window first — and none is a switch. */
+      ok(it.collectsFirst(v) === true && it.closesWindow(v) === false,
+        `M-REG: ${v} does not settle the open window before it moves goods — a pickaxe bought at `
+        + 'return would price the whole absence (tests/absence-priced-at-return.mjs R1/R3)');
     }
     /* THE BUCKET IS READ, AND IT IS ONE THE DATABASE HAS. An unknown bucket
        fails closed in hr_rate_gate, so a wrong row here is a verb that 429s

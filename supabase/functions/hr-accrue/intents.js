@@ -377,62 +377,88 @@
  *  needsKey    — whether the caller must supply an idempotency key. `accrue`
  *                does not: its key is derived, because an accrual is the same
  *                operation no matter who asks or how often (index.ts §Idempotency).
- *  collectsFirst — whether rule 3 applies.
+ *  collectsFirst — whether rule 3 applies: the open accrual window is settled
+ *                at the CURRENT state before this verb commits. Two classes
+ *                read it, split by `closesWindow()` below — a SWITCH (its own
+ *                commit stamps `accrued_to`) and a SETTLE-BEFORE-MUTATE verb
+ *                (its commit changes a priceable input and leaves the pointer
+ *                and the watermark alone). See the block that follows.
+ *
+ *  ── SETTLE-BEFORE-MUTATE (Security F1, 2026-09-28) ───────────────────────
+ *  docs/planning/SEC_ABSENCE_PRICED_AT_RETURN_2026-09-28.md. The return settle
+ *  prices the whole open window `[accrued_to, now)` with the character AS IT IS
+ *  AT THE REQUEST, and until this ruling nothing forced that settle to run
+ *  before a verb that adds a priceable input. Measured in production: a
+ *  pickaxe claimed at 00:58 paid +13.5 % ore over a 7.25 h night that was
+ *  mined without it; a Hunter's Feast eaten at return paid +5 % drops over
+ *  the whole absence and then ran its full 15 minutes anyway — a pure mint.
+ *
+ *  So every verb that can add or change a priceable input — a tool in the bag,
+ *  a buff, a perk rung, food/ammo/materials the simulation drains — now closes
+ *  the window at the OLD state first, exactly as equip / enchant / set_activity
+ *  already did. "State now" then equals "state at accrued_to" for every window
+ *  the accrue verb ever prices, which is the world tick's per-window contract
+ *  reached without a stored snapshot (the verdict's §3.1).
+ *
+ *  The rows below that said `collectsFirst: false` argued, correctly, that
+ *  their commits do not STAMP `accrued_to` and so confiscate nothing. That was
+ *  the only failure mode the column was written against. The other one — the
+ *  window being priced at the state the commit CREATED — is what this ruling
+ *  closes. The b351 objection for the shop verbs (a settle-time skill change
+ *  under a purchase) is answered by the client reconciling to the envelope:
+ *  every body carries `hr_state_of` AFTER the settle and the commit, and the
+ *  receipt of the settle rides along as `collected`.
+ *
+ *  THE SETTLE IS NOT A SWITCH'S COLLECT. The pointer survives a purchase, so the
+ *  window has a successor: the settle defers its sub-action remainder and keeps
+ *  the ACCRUE_MIN_MS floor (the `accrue` verb's semantics), where a switch's
+ *  collect stamps `now()` because the pointer is about to be replaced. A
+ *  sub-minute window is therefore never written by a settle-before-mutate verb;
+ *  what it can leave at the new state is < 60 s, below the 180 s
+ *  `settle_first` residue F2 accepts. ./settle-first.js is the one
+ *  implementation; set-activity.js `collectCurrentWindow` is the one engine
+ *  call behind both.
  */
 export const INTENT_REGISTRY = Object.freeze({
   accrue: Object.freeze({ bucket: 'accrue', needsKey: false, collectsFirst: false }),
   set_activity: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: true }),
   /* ── THE GOLD VERBS (b351) ────────────────────────────────────────────────
-     `collectsFirst: false`, and it is a RULING rather than an omission. Rule 3
-     applies to an intent that CLOSES THE ACCRUAL WINDOW, and hr_apply closes it
-     on exactly three delta keys — `activity`, `equip`, and an explicit
-     `accrued_to`. A gold spend carries none of them, so the elapsed window
-     survives the purchase untouched and there is nothing to confiscate.
-
-     That is a property of the DELTA, not of the verb, so it is not left as a
-     comment: `guardStampKeys()` below re-checks it against the delta each verb
-     actually built, and the verb refuses itself if the two ever disagree.
-     Someone who later adds `equip` to a shop_buy delta (buy-and-wield in one
-     tap is an obvious feature request) gets a loud refusal instead of a silent
-     confiscation.
+     `collectsFirst: TRUE` since 2026-09-28 — SETTLE-BEFORE-MUTATE above. The
+     b351 ruling (`false`) was right that a gold spend stamps nothing, so there
+     is nothing to confiscate; what it missed is that a purchase ADDS A
+     PRICEABLE INPUT (food, ammo, seeds, a weapon in the bag), and `vendor_sell`
+     removes one — selling a tool at return must not under-pay the night it was
+     used for. The delta itself still must not stamp: `guardStampKeys()` below
+     refuses a stamping key on any verb that is not a SWITCH, so buy-and-wield in
+     one tap is a loud refusal, never a confiscated remainder.
 
      ONE bucket for both, not two. They are one surface — the NPC shop — and a
      player who is spamming it should exhaust one budget, not two. The cost is
      stated rather than discovered: a client selling forty stacks in a loop can
      rate-limit its own next purchase. Batch the sell; do not widen the gate. */
-  shop_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: false }),
-  vendor_sell: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: false }),
-  /* b349 — THE FIRST GRANT INTENT. `collectsFirst: false`, and that is a
-     DERIVED fact rather than a preference: hr_apply stamps `accrued_to = now()`
-     on a delta carrying `equip` or `activity` and on nothing else
-     (apply-engine.sql §S5). A claim's delta carries gold, gems, progress,
-     progress_claim and journal, so it does NOT close the window and there is
-     nothing to confiscate — collecting first would cost a round trip and buy
-     nothing.
-
-     ⚠ THAT IS AN INVARIANT ABOUT A DELTA, NOT A STATEMENT ABOUT A VERB, so it
-       is checked at RUNTIME by `deltaClosesWindow` / `guardStampKeys` below
-       rather than asserted here in prose. The day someone adds `equip` to a
-       claim's delta — a "claim this and equip it" reward, which is an obvious
-       thing to want — this row silently becomes a confiscation. The runtime
-       check turns that into a refusal (`would_confiscate`) instead. */
-  claim_reward: Object.freeze({ bucket: 'claim', needsKey: true, collectsFirst: false }),
+  shop_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),
+  vendor_sell: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),
+  /* b349 — THE FIRST GRANT INTENT. `collectsFirst: TRUE` since 2026-09-28
+     (SETTLE-BEFORE-MUTATE above). The b349 derivation — a claim's delta stamps
+     nothing, so nothing is confiscated — still holds and is still checked at
+     runtime (`deltaClosesWindow` / `guardStampKeys`). It is no longer the whole
+     question: a claim GRANTS, and today's only priced claimable (daily:login,
+     gold + gems) is not a priceable input, but the quest/goal claims waiting in
+     the registry grant tools (road_forge → iron_pickaxe, the production case).
+     The row is set for the verb, not for today's catalogue. */
+  claim_reward: Object.freeze({ bucket: 'claim', needsKey: true, collectsFirst: true }),
   /* b354 — THE UNLOCK PURCHASE. The `shop` bucket, with shop_buy and
      vendor_sell, because it is the same surface: a player spamming the shop
      should exhaust ONE budget, not three. A new bucket would also need a new
      arm in hr_rate_gate, i.e. another link on that derivation chain, for a verb
      that a player uses 45 times in the lifetime of a character.
 
-     `collectsFirst: false`, and it is DERIVED rather than preferred: hr_apply
-     stamps `accrued_to = now()` on a delta carrying `equip` or `activity`, and
-     this verb PROPOSES NO DELTA AT ALL — its commit point is hr_unlock_buy,
-     which writes gold, one progress row and one ledger row and never touches
-     accrued_to. So the window survives the purchase and there is nothing to
-     confiscate. That is an invariant about a FUNCTION rather than about a
-     delta, so `guardStampKeys` cannot grade it; it is asserted where it lives,
-     in 2026-08-16-unlock-buy.sql §6(b), by measuring accrued_to across a real
-     purchase. */
-  unlock_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: false }),
+     `collectsFirst: TRUE` since 2026-09-28 (SETTLE-BEFORE-MUTATE above): a
+     rung is a PERMANENT PERK (`hr_perks_of`, read by the settle), so buying it
+     at return would price the whole absence at the new rung. hr_unlock_buy
+     still touches accrued_to nowhere (2026-08-16-unlock-buy.sql §6(b)), which
+     is what lets the settle run as its own apply before it. */
+  unlock_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),
   /* ── b355 — THE MARKET VERBS. THE FIRST CROSS-PLAYER TRANSFER. ────────────
      `bucket: 'shop'`, and it is a RULING with a cost, so it is argued:
 
@@ -452,22 +478,20 @@ export const INTENT_REGISTRY = Object.freeze({
          the market can rate-limit their own next NPC purchase. Batch the
          gesture; do not widen the gate.
 
-     `collectsFirst: false`, and it is DERIVED, not preferred: hr_apply stamps
-     `accrued_to = now()` on a delta carrying `equip` or `activity`, and these
-     three verbs PROPOSE NO DELTA AT ALL — their commit points are
-     hr_market_list / hr_market_cancel / hr_market_buy, which write inventory,
-     gold, the escrow and the journal, and bump `version`, and touch
-     `accrued_to` nowhere. So the unpaid accrual window survives a trade and
-     there is nothing to confiscate. `guardStampKeys` cannot grade an invariant
-     about a FUNCTION (the unlock_buy situation exactly); it is asserted where
-     it lives, in 2026-08-17-market-v2.sql §11, and re-asserted behaviourally by
-     tests/market-v2.mjs. */
-  market_list: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: false }),
-  market_cancel: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: false }),
-  market_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: false }),
+     `collectsFirst: TRUE` since 2026-09-28 (SETTLE-BEFORE-MUTATE above). A buy
+     or a cancel puts goods in the bag — a tool is priced from the BAG — and the
+     verdict's worst case is exactly this surface: one Dawnsteel pickaxe relisted
+     between a player's own slots (hr_market_buy refuses a self-buy only when
+     user AND slot match), each slot buying it back at return and settling its
+     night at +75 %. A list removes goods, and must not under-pay the night they
+     were used for. The three RPCs still touch `accrued_to` nowhere
+     (2026-08-17-market-v2.sql §11), so the settle is its own apply first. */
+  market_list: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),
+  market_cancel: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),
+  market_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),
   /* ── b366 — THE EQUIP VERB. THE FIRST VERB THAT MUST COLLECT SINCE #2. ────
-     `collectsFirst: TRUE`, and it is the ONE row in this registry where that is
-     true besides `set_activity`. It is DERIVED, not chosen:
+     `collectsFirst: TRUE`, and it was the first SWITCH (see SWITCH_VERBS)
+     besides `set_activity`. It is DERIVED, not chosen:
      `STAMPING_DELTA_KEYS` is `['equip','activity']` — hr_apply stamps
      `accrued_to = now()` on an `equip` delta, exactly as it does on an
      `activity` one — so an equip that did NOT collect first would silently
@@ -511,14 +535,13 @@ export const INTENT_REGISTRY = Object.freeze({
      character's own loadout/pointer), one budget. */
   enchant: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: true }),
   /* ── MANUAL FOOD CONSUMPTION (2026-08-25, Paione P0) ──────────────────────
-     `collectsFirst: FALSE`, and it is DERIVED, not preferred: hr_apply stamps
-     `accrued_to = now()` only on a delta carrying `equip`, `activity` or
-     `enchant` (STAMPING_DELTA_KEYS). An eat's delta carries `items` (a signed
-     debit) and `hp` (an absolute) — neither closes the accrual window — so
-     collecting first would cost a round trip and buy nothing. `guardStampKeys`
-     re-checks that against the delta eat.js actually builds, so the day someone
-     adds an `equip` key to an eat (a "drink this and wield that" gimmick) it is
-     a loud `delta_would_stamp` refusal rather than a silent confiscation.
+     `collectsFirst: TRUE` since 2026-09-28, and this row is the verdict's
+     headline: a buff eaten at return was paid over the WHOLE absence (the
+     segment stores no start, buff-segments.sql:17-19) and then ran its full
+     duration anyway. Settling first prices the night unbuffed, and the eat's
+     `hp` — an ABSOLUTE — is computed from the envelope the settle returned, so
+     it cannot overwrite the settle's own hp. The delta still must not stamp
+     (`guardStampKeys`).
 
      `bucket: 'activity'`, shared with set_activity / equip / enchant — the
      character's own state is one surface and a player spamming it should
@@ -529,7 +552,7 @@ export const INTENT_REGISTRY = Object.freeze({
      in hr_rate_gate — a `create or replace` the market-v2 file deliberately
      froze — so a registry row naming an unknown bucket is a verb that 429s
      forever, not a wider budget. Reuse, do not widen. */
-  eat: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: false }),
+  eat: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: true }),
   /* ── THE DUNGEON SETTLE VERB (dungeon-settlement.md §2) ───────────────────
      `bucket: 'claim'`, and it is a RULING with a cost, argued like the market's:
      a dungeon run's rewards are a REWARD CLAIM, and hr_rate_gate's bucket list is
@@ -541,15 +564,10 @@ export const INTENT_REGISTRY = Object.freeze({
      RPC spends for itself (hr_rate_ok 'apply', 240/min), so the Edge gate is the
      binding one and this adds no reachable write rate. Reuse, do not widen.
 
-     `collectsFirst: false`, and it is DERIVED, not preferred: hr_apply stamps
-     `accrued_to = now()` on a delta carrying `equip`/`activity`/`enchant`, and
-     this verb PROPOSES NO hr_apply DELTA AT ALL — its commit point is
-     hr_dungeon_settle, which writes scrip/inventory/version and a ledger row and
-     touches accrued_to NOWHERE. So the unpaid accrual window survives a run.
-     `guardStampKeys` cannot grade an invariant about a FUNCTION (the unlock_buy
-     situation exactly); it is asserted where it lives — the settle RPC does not
-     touch accrued_to, and dungeon-settlement.md §2 records the rule. */
-  dungeon_settle: Object.freeze({ bucket: 'claim', needsKey: true, collectsFirst: false }),
+     `collectsFirst: TRUE` since 2026-09-28 (SETTLE-BEFORE-MUTATE above): a run
+     grants loot into the bag, and loot includes tools and food. hr_dungeon_settle
+     still touches accrued_to nowhere (dungeon-settlement.md §2). */
+  dungeon_settle: Object.freeze({ bucket: 'claim', needsKey: true, collectsFirst: true }),
   /* ── THE QUARTERMASTER BUY VERB (dungeon-settlement.md §4, increment 3) ─────
      `bucket: 'shop'`, shared with unlock_buy: it IS a shop purchase (scrip out,
      an item in), and hr_rate_gate already has a `shop` arm — so this reuses an
@@ -558,12 +576,10 @@ export const INTENT_REGISTRY = Object.freeze({
      hr_rate_ok('apply', 240/min) fuse, so the Edge gate is the binding one and
      this adds no reachable write rate. Reuse, do not widen.
 
-     `collectsFirst: false`, DERIVED not preferred: hr_apply stamps accrued_to on
-     a delta carrying equip/activity/enchant, and this verb PROPOSES NO hr_apply
-     DELTA — its commit point is hr_quartermaster_buy, which debits scrip, credits
-     the item, bumps version and journals, and touches accrued_to NOWHERE. So a
-     purchase never confiscates the unpaid accrual window (the b372 rule). */
-  quartermaster_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: false }),
+     `collectsFirst: TRUE` since 2026-09-28 (SETTLE-BEFORE-MUTATE above): it
+     credits an item into the bag. hr_quartermaster_buy still touches accrued_to
+     nowhere, so the settle is its own apply first. */
+  quartermaster_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),
   /* ── THE TROPHY CLAIM VERB (docs/design/BESTIARY_LADDER.md §4) ─────────────
      `bucket: 'claim'`, shared with claim_reward and dungeon_settle, and it is
      the same RULING those two made for the same reason: hr_rate_gate's bucket
@@ -575,7 +591,10 @@ export const INTENT_REGISTRY = Object.freeze({
      tighter than the fuse the RPC spends for itself, so the Edge gate is the
      binding one and this adds no reachable write rate.
 
-     `collectsFirst: false`, DERIVED and not preferred: hr_apply stamps
+     `collectsFirst: false`, and it survives the 2026-09-28 SETTLE-BEFORE-MUTATE
+     sweep: a trophy row is not an engine input (the trophy index is derived from
+     `bestiaryKills`, the kill counters, not from claims — accrual.js
+     trophyIndex). And hr_apply stamps
      `accrued_to = now()` on a delta carrying equip/activity/enchant, and this
      verb PROPOSES NO hr_apply DELTA AT ALL — its commit point is
      hr_trophy_claim, which writes one progress row and one ledger row and
@@ -616,8 +635,37 @@ export function rateBucketFor(verb) { return intentSpec(verb).bucket; }
 /** Must the caller supply an idempotency key? */
 export function requiresKey(verb) { return intentSpec(verb).needsKey === true; }
 
-/** Does rule 3 (collect before switch) apply to this verb? */
+/** Does rule 3 (settle the open window before committing) apply to this verb? */
 export function collectsFirst(verb) { return intentSpec(verb).collectsFirst === true; }
+
+/* ── THE SWITCH CLASS ───────────────────────────────────────────────────────
+   The `collectsFirst` verbs whose OWN commit stamps `accrued_to` (their deltas
+   carry a STAMPING_DELTA_KEYS key). Everything else that collects first is
+   SETTLE-BEFORE-MUTATE. Three readers, each a behaviour:
+     · collectCurrentWindow — only a switch holds the 'collect' privilege
+       (floor exemption + a `now()` watermark). A settle defers its remainder,
+       because the pointer survives and the next window exists.
+     · guardStampKeys — only a switch may propose a stamping delta. A settle verb
+       that stamped would confiscate the remainder its settle just deferred.
+     · party-fence.js — a partied SWITCH is refused `party_hunt_running`; a
+       partied settle verb proceeds WITHOUT its settle once the party channel
+       pays (hr_party_tick_settle then prices it window by window); in SHADOW
+       it is refused like a switch (party-fence.js PARTY_CHANNEL_PAYS).
+   A list and not a fourth registry column, so the mutation anchors every
+   verb's guard pins on its registry row stay one row each. */
+export const SWITCH_VERBS = Object.freeze(['set_activity', 'equip', 'enchant']);
+
+/** Does this verb's own commit close the accrual window? */
+export function closesWindow(verb) {
+  return collectsFirst(verb) && SWITCH_VERBS.includes(verb);
+}
+
+/* A switch that does not collect first IS the confiscation rule 3 exists for,
+   so the subset relation is checked once, at module load, where a typo fails
+   every import rather than one request. */
+for (const v of SWITCH_VERBS) {
+  if (!collectsFirst(v)) throw new Error(`intents: switch verb '${v}' does not collect first`);
+}
 
 /* ── WHICH DELTA KEYS CLOSE THE ACCRUAL WINDOW ──────────────────────────────
    apply-engine.sql §S5:
@@ -1337,7 +1385,10 @@ export function stampKeysIn(delta) {
 export function guardStampKeys(verb, delta) {
   const keys = stampKeysIn(delta);
   if (keys.length === 0) return null;
-  if (collectsFirst(verb)) return null;
+  /* A SWITCH only (2026-09-28). A settle-before-mutate verb collects first too,
+     but its settle DEFERS the sub-action remainder — so a stamping key on its
+     delta would confiscate exactly that remainder. */
+  if (closesWindow(verb)) return null;
   return { error: INTENT_ERRORS.DELTA_WOULD_STAMP, keys };
 }
 

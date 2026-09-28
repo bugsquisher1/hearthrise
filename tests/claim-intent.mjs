@@ -209,15 +209,15 @@ const MUTATIONS = {
     file: FN('intents.js'),
     why: 'INVARIANT 6 — the registry names a rate bucket the database does not have; if nothing '
        + 'READS the registry this is invisible',
-    find: "  claim_reward: Object.freeze({ bucket: 'claim', needsKey: true, collectsFirst: false }),",
-    repl: "  claim_reward: Object.freeze({ bucket: 'claim_typo', needsKey: true, collectsFirst: false }),",
+    find: "  claim_reward: Object.freeze({ bucket: 'claim', needsKey: true, collectsFirst: true }),",
+    repl: "  claim_reward: Object.freeze({ bucket: 'claim_typo', needsKey: true, collectsFirst: true }),",
   },
   registry_needs_key_false: {
     file: FN('intents.js'),
     why: 'INVARIANT 6 — the registry says this intent needs no idempotency key, so a keyless '
        + 'claim reaches the database',
-    find: "  claim_reward: Object.freeze({ bucket: 'claim', needsKey: true, collectsFirst: false }),",
-    repl: "  claim_reward: Object.freeze({ bucket: 'claim', needsKey: false, collectsFirst: false }),",
+    find: "  claim_reward: Object.freeze({ bucket: 'claim', needsKey: true, collectsFirst: true }),",
+    repl: "  claim_reward: Object.freeze({ bucket: 'claim', needsKey: false, collectsFirst: true }),",
   },
   gate_literal_bucket: {
     file: FN('claim-reward.js'),
@@ -292,7 +292,7 @@ const MUTATIONS = {
   stamping_keys_empty: {
     file: FN('intents.js'),
     why: 'the list of delta keys that close the accrual window is emptied, so the fail-closed '
-       + 'check that keeps `collectsFirst:false` honest can never fire',
+       + 'check that keeps a claim\'s delta from stamping accrued_to can never fire',
     /* ⚠ THE LIST GREW AND THE ANCHOR DID NOT. b379 (b6e9a2bd, 2026-08-17) added
        'enchant' — an enchant stamps accrued_to for the same reason an equip
        does — and this mutation went on naming the two-element form, so from that
@@ -822,10 +822,11 @@ async function run(mutate) {
       `C4: version ${before.version} -> ${st.version}, expected exactly one bump`);
     firstVersion = Number(st.version);
 
-    // ⚠ THE WINDOW IS NOT CLOSED. hr_apply stamps accrued_to only on `equip` or
-    //   `activity`; a claim carries neither, which is exactly why the registry
-    //   says collectsFirst:false. If this ever fires, a claim has started eating
-    //   the player's unpaid absence.
+    // ⚠ THE WINDOW IS NOT CLOSED BY THE CLAIM. hr_apply stamps accrued_to only
+    //   on a switch's keys; a claim carries none. (It SETTLES first since
+    //   2026-09-28, but this fixture has nothing to settle, so the watermark and
+    //   the single version bump are the claim's alone.) If this ever fires, a
+    //   claim has started eating the player's unpaid absence.
     ok(String(st.accrued_to) === String(before.accrued_to),
       `C4: a claim moved accrued_to (${before.accrued_to} -> ${st.accrued_to}) — it closed the `
       + 'accrual window and the elapsed absence was CONFISCATED. Either the delta gained a '
@@ -1182,13 +1183,15 @@ async function run(mutate) {
   }
 
   // ── C13. THE WINDOW-CLOSING CHECK IS ARMED ──────────────────────────────
-  // `collectsFirst:false` is only correct while the delta cannot stamp
-  // accrued_to. That is a fact about a DELTA, so it is checked rather than
-  // asserted — and the list it checks against has to be read.
+  // A claim SETTLES the open window first (Security F1, 2026-09-28 — measured
+  // in tests/absence-priced-at-return.mjs R1c) and is not a SWITCH, so its
+  // delta must never stamp accrued_to: the settle defers its remainder and a
+  // stamp would confiscate it. That is a fact about a DELTA, so it is checked
+  // rather than asserted — and the list it checks against has to be read.
   {
-    ok(it.collectsFirst('claim_reward') === false,
-      'C13: the registry says a claim collects first — it carries no window-closing key, so that '
-      + 'would be a round trip that buys nothing');
+    ok(it.collectsFirst('claim_reward') === true && it.closesWindow('claim_reward') === false,
+      'C13: claim_reward is not a settle-before-mutate verb — a claim that grants a tool at return '
+      + 'would price the whole absence with it');
     ok(it.deltaClosesWindow({ activity: { kind: 'idle' } }) === true,
       'C13: deltaClosesWindow does not recognise `activity` — the fail-closed check can never fire');
     ok(it.deltaClosesWindow({ equip: {} }) === true,

@@ -75,10 +75,12 @@ export function contractGuard() {
   ok(!!row, 'C0: there is no INTENT_REGISTRY row for `eat` — intentSpec would throw and index.ts 500');
   ok(row && row.needsKey === true, 'C0: eat does not require an idempotency key — a replayed debit could double');
   ok(requiresKey(VERB) === true, 'C0: requiresKey(eat) is not true');
-  /* DERIVED, not preferred: an eat delta carries items+hp, neither a stamping
-     key, so it must NOT collect first (that would cost a round trip for nothing)
-     — and guardStampKeys must AGREE against the delta the verb actually builds. */
-  ok(collectsFirst(VERB) === false, 'C0: eat collectsFirst is not false');
+  /* SETTLE BEFORE THE EAT (Security F1, 2026-09-28): a buff eaten at return was
+     paid over the whole absence, so eat settles the open window first. Its delta
+     still carries no stamping key — eat is not a switch — and guardStampKeys
+     must AGREE against the delta the verb actually builds.
+     tests/absence-priced-at-return.mjs R2 measures the settle itself. */
+  ok(collectsFirst(VERB) === true, 'C0: eat does not settle first — a feast eaten at return is paid over the whole absence');
   const d = eatDelta({ item: 'turnip', name: 'Turnip', heals: 2, hasBuff: false }, 7);
   ok(d.items && d.items.turnip === -1, 'C1: eatDelta does not debit exactly one unit');
   ok(d.hp === 7, 'C1: eatDelta did not carry the server-computed hp');

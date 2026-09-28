@@ -85,8 +85,9 @@ export function resolveOffer(offerId) {
  * pay without delivering, or deliver without paying, would be two calls.
  *
  * NOTE THE KEYS IT DOES NOT CARRY: no `activity`, no `equip`, no `accrued_to`.
- * That is what makes `collectsFirst: false` correct rather than convenient, and
- * `guardStampKeys` re-checks it on this exact object before the apply.
+ * The verb SETTLES the open window first (intents.js SETTLE-BEFORE-MUTATE) and
+ * that settle defers its remainder, so a stamping key here would confiscate it;
+ * `guardStampKeys` re-checks this exact object before the apply.
  */
 export function buyDelta(offer, qty) {
   const items = {};
@@ -146,6 +147,7 @@ export async function runShopBuy(o) {
   /* (1)-(4) are identical for every value intent and live in ./spend.js. */
   const delta = buyDelta(offer, qty);
   return runValueIntent({
+    partyOwnsWindow: o.partyOwnsWindow === true,
     exec, user, slot, verb: VERB, intentId,
     plan: {
       delta,

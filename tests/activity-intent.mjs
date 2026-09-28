@@ -336,6 +336,20 @@ const MUTATIONS = {
     find: "  set_activity: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: true }),",
     repl: "  set_activity: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: false }),",
   },
+  settle_row_false: {
+    file: FN('intents.js'),
+    why: 'F1 — eat goes back to collectsFirst:false, so a feast eaten at return is paid over the '
+       + 'whole absence (the row is behaviourally silent here; the A19 pin sees it)',
+    find: "  eat: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: true }),",
+    repl: "  eat: Object.freeze({ bucket: 'activity', needsKey: true, collectsFirst: false }),",
+  },
+  settle_may_stamp: {
+    file: FN('intents.js'),
+    why: 'F1 — guardStampKeys lets any collecting verb stamp, so a settle verb can confiscate the '
+       + 'remainder its settle deferred',
+    find: '  if (closesWindow(verb)) return null;',
+    repl: '  if (collectsFirst(verb)) return null;',
+  },
   gate_literal_bucket: {
     file: FN('set-activity.js'),
     why: 'C4 — the rate bucket becomes a literal at the call site again. Behaviourally IDENTICAL '
@@ -1977,6 +1991,44 @@ async function run(mutate) {
       ok(/rateBucketFor\(/.test(src),
         `A19: ${f} calls hr_rate_gate but never calls rateBucketFor — the value it passes came from `
         + 'somewhere other than the registry');
+    }
+
+    /* ── SETTLE-BEFORE-MUTATE (Security F1, 2026-09-28) ────────────────────
+       The `collectsFirst` column now has TWO classes. Pinned, because a row
+       flipped back to `false` is behaviourally silent here (the window is not
+       confiscated, it is priced at the state the verb creates — the mint
+       tests/absence-priced-at-return.mjs measures) and only the pin sees it. */
+    const SETTLE = ['claim_reward', 'dungeon_settle', 'eat', 'market_buy', 'market_cancel',
+      'market_list', 'quartermaster_buy', 'shop_buy', 'unlock_buy', 'vendor_sell'];
+    const SWITCH = ['enchant', 'equip', 'set_activity'];
+    const collecting = Object.keys(it.INTENT_REGISTRY).filter((v) => it.collectsFirst(v)).sort();
+    ok(collecting.join(',') === [...SETTLE, ...SWITCH].sort().join(','),
+      `A19: the collectsFirst rows are [${collecting}] — expected the three switches plus every verb `
+      + `that adds or changes a priceable input [${SETTLE}]. A settle-before-mutate row flipped to `
+      + 'false prices the whole open absence at the state that verb just created.');
+    ok([...it.SWITCH_VERBS].sort().join(',') === SWITCH.join(','),
+      `A19: SWITCH_VERBS is [${it.SWITCH_VERBS}] — only a verb whose own commit stamps accrued_to `
+      + 'may hold the collect privilege');
+    for (const v of SWITCH) {
+      ok(it.closesWindow(v) === true, `A19: ${v} is not classed as a switch`);
+      ok(it.guardStampKeys(v, { equip: {} }) === null, `A19: a switch (${v}) may not propose a stamping delta`);
+    }
+    for (const v of SETTLE) {
+      ok(it.closesWindow(v) === false, `A19: settle verb ${v} is classed as a switch — it would stamp now()`);
+      ok(it.guardStampKeys(v, { equip: {} }) !== null,
+        `A19: settle verb ${v} may propose a stamping delta — it would confiscate the remainder its `
+        + 'settle just deferred');
+    }
+    /* SOURCE: every module that implements a settle verb READS the one helper,
+       and none still carries the fail-closed COLLECT_REQUIRED stub it replaced. */
+    for (const f of ['spend.js', 'eat.js', 'claim-reward.js', 'market.js', 'unlock-buy.js',
+      'quartermaster-buy.js', 'dungeon-settle.js']) {
+      const src = (await readFile(join(fnDir, f), 'utf8'))
+        .replace(/\r\n/g, '\n').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+      ok(/settleBeforeMutate\(/.test(src),
+        `A19: ${f} implements a collectsFirst verb and never calls settleBeforeMutate`);
+      ok(!/COLLECT_REQUIRED/.test(src),
+        `A19: ${f} still carries the COLLECT_REQUIRED stub — the settle it stood in for is not wired`);
     }
   }
 

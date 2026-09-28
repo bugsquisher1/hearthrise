@@ -40,7 +40,8 @@
 // PURE ESM. No I/O, no Deno, no globals.
 // ============================================================================
 
-import { INTENT_ERRORS, collectsFirst } from './intents.js';
+import { INTENT_ERRORS } from './intents.js';
+import { settleBeforeMutate } from './settle-first.js';
 import { gateAndRead, refusalBody, shapeRefusal } from './spend.js';
 
 /** The verb's own name — returned in every body so one client dispatcher can
@@ -95,24 +96,19 @@ export async function runDungeonSettle(o) {
          unknown one fails closed in the database. */
   const read = await gateAndRead({ exec, user, slot, verb: VERB });
   if (read.refusal) return read.refusal;
-  const env = read.env;
 
-  /* (2) RULE 3, THE HALF THAT APPLIES. The registry says whether this verb
-         collects before it acts, read here rather than assumed, fail-closed. The
-         OTHER half has nothing to grade: this verb builds no hr_apply delta, so
+  /* (2) RULE 3, THE HALF THAT APPLIES: SETTLE BEFORE THE LOOT LANDS (Security
+         F1, 2026-09-28) — settle-first.js reads the registry, and a refused
+         settle refuses the run's settlement. The OTHER half has nothing to grade: this verb builds no hr_apply delta, so
          there is no key it could carry that would stamp accrued_to. That property
          is asserted where it lives — hr_dungeon_settle touches accrued_to nowhere
          (dungeon-settlement.md §2). */
-  if (collectsFirst(VERB)) {
-    return {
-      status: 409,
-      body: await refusalBody({
-        exec, user, slot, verb: VERB,
-        refusal: { error: INTENT_ERRORS.COLLECT_REQUIRED, stage: 'collect' },
-        fallback: env,
-      }),
-    };
-  }
+  const settled = await settleBeforeMutate({
+    exec, user, slot, verb: VERB, env: read.env, nowMs: read.nowMs, capMs: read.capMs,
+    partyOwnsWindow: o.partyOwnsWindow === true,
+  });
+  if (!settled.proceed) return settled.refusal;
+  const collected = settled.collected;
 
   /* (3) THE COMMIT. `env.version` is the version THIS call read; hr_dungeon_settle
          refuses a stale one, which is the whole of our concurrency control. The
@@ -120,7 +116,7 @@ export async function runDungeonSettle(o) {
          that knows which retry is which. `quality` may be null (the server
          coalesces null to a full clear and clamps whatever survives to [0,1]). */
   const [row] = await exec(SETTLE_SQL, [
-    user, slot, env.version, intentId, dungeon.id, dungeon.mode,
+    user, slot, settled.version, intentId, dungeon.id, dungeon.mode,
     dungeon.quality === null || dungeon.quality === undefined ? null : dungeon.quality,
   ]);
   const res = (row && row.res) || null;
@@ -133,7 +129,9 @@ export async function runDungeonSettle(o) {
       status: 409,
       body: await refusalBody({
         exec, user, slot, verb: VERB,
-        refusal: { error: (res && res.error) || 'dungeon_settle_failed', stage: 'settle', detail: res ?? null },
+        refusal: {
+          error: (res && res.error) || 'dungeon_settle_failed', stage: 'settle', detail: res ?? null, collected,
+        },
         fallback: null,
       }),
     };
@@ -155,6 +153,7 @@ export async function runDungeonSettle(o) {
       ok: true,
       verb: VERB,
       settled: res.replayed === true ? null : (res.settled ?? null),
+      collected,
       ...(res.replayed === true ? { replayed: true } : {}),
     },
   };

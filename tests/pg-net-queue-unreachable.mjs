@@ -264,7 +264,12 @@ const lineOf = (text, idx) => text.slice(0, idx).split('\n').length;
 // body and is followed in straight-line code by an unconditional `raise
 // exception`, so it is always rolled back. Anything the reader cannot follow
 // in a straight line fails closed, i.e. stays a finding.
-const DISCARD_BLOCKERS = /\b(?:begin|end|if|loop|case|when|return|exit|continue|commit|rollback|elsif|while|for|foreach)\b/i;
+const DISCARD_BLOCKERS = /\b(?:begin|end|if|loop|case|when|return|exit|continue|commit|rollback|elsif|while|for|foreach|call)\b/i;
+// Security review 2026-09-28: a quoting form the literal blanker below does not
+// model (a dollar quote, an E'' escape, a quoted identifier, a comment) can
+// hide the raise inside text, so any of them between the grant and the raise
+// fails closed. `call` above: a procedure can COMMIT the grant before the raise.
+const DISCARD_OPAQUE = /\$|\\|"|--|\/\*/;
 export function discardedGrant(text, spans, at) {
   const span = spans.filter((s) => s.body <= at && at < s.end).sort((x, y) => y.body - x.body)[0];
   if (!span) return false;
@@ -278,6 +283,7 @@ export function discardedGrant(text, spans, at) {
     if (to < 0) return false;                       // the body ends without a raise
     const st = seg.slice(from + 1, to);
     if (/^\s*raise\s+exception\b/i.test(st)) {
+      if (DISCARD_OPAQUE.test(raw.slice(0, to))) return false;
       // SQLSTATE class 00 is "successful completion" — not an exit worth trusting.
       return !/\b(?:errcode|sqlstate)\b\s*=?\s*'\s*00/i.test(raw.slice(from + 1, to));
     }
@@ -912,6 +918,33 @@ const PLANTS = [
     name: 'sink-grant-top-level-raise-later', arm: 'Q-5',
     what: 'a top-level grant on hr_ops with a raise in a LATER do-block — not the same statement list',
     patch: (s) => `${s}\ngrant usage on schema hr_ops to anon;\ndo $g$ begin raise exception 'x'; end $g$;\n`,
+  },
+  // Security review 2026-09-28: the raise must be CODE, not text the literal
+  // blanker does not know about, and nothing between may leave the transaction.
+  {
+    name: 'sink-grant-raise-in-line-comment', arm: 'Q-5',
+    what: 'a grant on hr_ops whose only `raise exception` sits in a `--` comment',
+    patch: (s) => `${s}\ndo $g$ begin grant usage on schema hr_ops to anon; -- ; raise exception 'x';\nend $g$;\n`,
+  },
+  {
+    name: 'sink-grant-raise-in-block-comment', arm: 'Q-5',
+    what: 'a grant on hr_ops whose only `raise exception` sits in a `/* */` comment',
+    patch: (s) => `${s}\ndo $g$ begin grant usage on schema hr_ops to anon; /* ; raise exception 'x'; */ end $g$;\n`,
+  },
+  {
+    name: 'sink-grant-raise-in-dollar-string', arm: 'Q-5',
+    what: 'a grant on hr_ops whose only `raise exception` sits in a nested dollar-quoted literal',
+    patch: (s) => `${s}\ndo $g$ begin grant usage on schema hr_ops to anon; perform $x$; raise exception 'y'; $x$; end $g$;\n`,
+  },
+  {
+    name: 'sink-grant-raise-in-e-string', arm: 'Q-5',
+    what: 'a grant on hr_ops whose only `raise exception` sits in an E\'\' literal behind a \\\' escape',
+    patch: (s) => `${s}\ndo $g$ begin grant usage on schema hr_ops to anon; perform E'\\'; raise exception x; \\''; end $g$;\n`,
+  },
+  {
+    name: 'sink-grant-call-commits', arm: 'Q-5',
+    what: 'a grant on hr_ops, then `call` of a procedure that may COMMIT, then the raise — the grant outlives it',
+    patch: (s) => `${s}\ndo $g$ begin grant usage on schema hr_ops to anon; call public.hr__commits(); raise exception 'x'; end $g$;\n`,
   },
   // ── CONTROLS: each of these MUST stay silent ──────────────────────────────
   {

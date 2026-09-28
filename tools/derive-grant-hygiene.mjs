@@ -969,22 +969,29 @@ export const PATCHES = [
   --     is the arming condition. tests/pg-net-queue-unreachable.mjs Q-5 guards
   --     the repo; this asks the CATALOGUE, so a grant typed in the dashboard, by
   --     support or by a platform migration is a finding by the next nightly run.
-  --     The roles are the six the sink was built against: PUBLIC, anon,
-  --     authenticated, service_role, hr_engine, hr_tick. A role that does not
+  --     The roles are the six the sink was built against — PUBLIC, anon,
+  --     authenticated, service_role, hr_engine, hr_tick — and the two LOGIN
+  --     roles those are reached through before SET ROLE: authenticator
+  --     (PostgREST) and hr_engine_login (the edge); both are NOINHERIT, so only
+  --     a DIRECT grant to them reads here (Security, 2026-09-28). Superusers
+  --     and pg_read_all_data (USAGE on every schema, no EXECUTE) are the owner
+  --     class and are out of scope by construction. A role that does not
   --     exist is skipped (this file must stand alone), and so is a database
   --     with no hr_ops at all: no sink, nothing to reach. prokind is NOT
   --     filtered — a procedure or an aggregate in hr_ops is reachable too.
   if exists (select 1 from pg_namespace where nspname = 'hr_ops') then
     select coalesce(jsonb_agg(x.g order by x.g), '[]'::jsonb) into v_ops_reach from (
       select 'schema:' || r.role || ':' || pv as g
-        from (values ('public'),('anon'),('authenticated'),('service_role'),('hr_engine'),('hr_tick')) r(role)
+        from (values ('public'),('anon'),('authenticated'),('service_role'),('hr_engine'),('hr_tick'),
+                     ('authenticator'),('hr_engine_login')) r(role)
         cross join unnest(array['USAGE','CREATE']) pv
        where (r.role = 'public' or exists (select 1 from pg_roles where rolname = r.role))
          and has_schema_privilege(r.role, 'hr_ops', pv)
       union all
       select p.oid::regprocedure::text || ':' || r.role
         from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-        cross join (values ('public'),('anon'),('authenticated'),('service_role'),('hr_engine'),('hr_tick')) r(role)
+        cross join (values ('public'),('anon'),('authenticated'),('service_role'),('hr_engine'),('hr_tick'),
+                     ('authenticator'),('hr_engine_login')) r(role)
        where n.nspname = 'hr_ops'
          and (r.role = 'public' or exists (select 1 from pg_roles where rolname = r.role))
          and has_function_privilege(r.role, p.oid, 'execute')) x;

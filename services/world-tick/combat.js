@@ -94,17 +94,6 @@ export function atSpan(session, fromMs) {
   if (typeof s.combatXpAccruedToOffsetMs === 'number') {
     s.combatXpAccruedToMs = fromMs + s.combatXpAccruedToOffsetMs;
   }
-  /* BUFF SEGMENTS, RELATIVE TOO. hr_apply stamps `from` and caps `until` at an
-     hour past it (F3, 2026-09-28), so a segment pinned to an absolute epoch is
-     not a row the server can write, and one without `from` starts at
-     until - 1h — outside every span, which is how C16 went blind to `buffs`. */
-  if (Array.isArray(s.buffs)) {
-    for (const b of s.buffs) {
-      if (b && typeof b.fromOffsetMs === 'number') b.from = pgTimestamptzText(fromMs + b.fromOffsetMs);
-      if (b && typeof b.untilOffsetMs === 'number') b.until = pgTimestamptzText(fromMs + b.untilOffsetMs);
-      if (b) { delete b.fromOffsetMs; delete b.untilOffsetMs; }
-    }
-  }
   delete s.activeSinceOffsetMs;
   delete s.recoveringUntilOffsetMs;
   delete s.combatXpAccruedToOffsetMs;

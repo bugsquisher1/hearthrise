@@ -18,6 +18,7 @@ import { MONSTERS } from '../data/monsters.js?v=559';
 import { ITEMS } from '../data/items.js?v=559';
 import { formatDropOdds } from '../core/drops.js?v=559';
 import { SIGNPOSTS } from '../data/signposts.js?v=559';
+import { foeFamily } from '../render/foe-family.js?v=559';
 
 function getMonsterIconHtml(id) {
   const path = window._monsterIcon?.[id];
@@ -44,7 +45,7 @@ function renderMonsterList() {
          between foes) at the end of a sentence, at different x-positions on
          every row. Flavour stays left; the numbers move into a fixed right
          column so the list can be scanned straight down. */
-      const weak = m.weaponWeak ? ` · weak to ${m.weaponWeak}` : '';
+      const meta = [foeFamily(m), m.weaponWeak ? `weak to ${m.weaponWeak}` : ''].filter(Boolean).join(' · ');
       const fighting = window.G && window.G.activeMonster === id;
       const right = fighting
         ? '<span class="mr-fighting">Fighting</span>'
@@ -62,7 +63,7 @@ function renderMonsterList() {
         <span class="mi">${getMonsterIconHtml(id)}</span>
         <div style="flex:1;min-width:0">
           <span class="mn">${m.name}${m.boss ? ' <span class="tag">Boss</span>' : ''}</span>
-          <span class="ms">${m.family}${weak}</span>
+          <span class="ms">${meta}</span>
         </div>
         ${right}
       </button>`;
@@ -398,10 +399,11 @@ const HUD = (() => {
           : '') +
         (mult > 1 ? 'The rates above already include it.' : '') },
     ];
+    const fam = foeFamily(m, 'monster');
     return {
       id: 'combat-loot', theme: 'vault',
       title: `${m.name} — what it drops`,
-      subtitle: `Tier ${m.tier || 1} &middot; ${esc(m.family || 'monster')}`,
+      subtitle: `Tier ${m.tier || 1}` + (fam ? ` &middot; ${esc(fam)}` : ''),
       sections,
     };
   }

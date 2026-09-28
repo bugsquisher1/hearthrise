@@ -45,6 +45,7 @@ import { MONSTERS } from '../data/monsters.js?v=559';
 import { ITEMS } from '../data/items.js?v=559';
 import * as ST from './session-tally.js?v=559';
 import { fill } from './signposts.js?v=559';
+import { foeFamily } from '../render/foe-family.js?v=559';
 import { SIGNPOSTS } from '../data/signposts.js?v=559';
 
 /* ── small shared helpers ────────────────────────────────────────────────*/
@@ -1563,7 +1564,8 @@ function renderFight() {
   const tsig = m.name + '|' + (m.family || '') + '|' + m.tier;
   if (title && title.dataset.sig !== tsig) {
     title.dataset.sig = tsig;
-    title.innerHTML = `<b>${esc(m.name)}</b><span>${esc(m.family || 'Monster')} · Tier ${m.tier}</span>`;
+    const fam = foeFamily(m, 'Monster');
+    title.innerHTML = `<b>${esc(m.name)}</b><span>${fam ? esc(fam) + ' · ' : ''}Tier ${m.tier}</span>`;
   }
 
   if (!live) paintPreviewStage(id, m);

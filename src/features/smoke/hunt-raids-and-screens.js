@@ -5288,6 +5288,42 @@ export default [
     ];
   })(),
 
+  // ── regression suite — FOE-NAME-1: A NAME NEVER REPEATS ITS OWN FAMILY ──
+  // The Fight head and the monster row printed "Fire Elemental Elemental · Tier
+  // 1" (visual-qa duplicate-word). The family word drops beside a name that
+  // already ends with it; a control foe still prints both.
+  () => tryRunAsync('FOE-NAME-1: a foe whose name ends with its family never prints the word twice; a control foe still prints both', async () => {
+    const G = window.G, CS = window.HearthriseCombatScreens, M = window.MONSTERS || {};
+    assert(CS && typeof CS.preview === 'function' && typeof window.renderMonsterList === 'function', 'CONTROL: the Fight screen or the monster list is unpublished');
+    const endsFam = (m) => m.family && new RegExp('(^|\\s)' + m.family + '$', 'i').test(m.name);
+    const ids = Object.keys(M).filter((id) => endsFam(M[id]));
+    const ctl = Object.keys(M).find((id) => M[id].family && !endsFam(M[id]) && !new RegExp(M[id].family, 'i').test(M[id].name));
+    assert(ids.length > 0 && ctl, 'CONTROL: the data has no name-ends-with-family foe or no control foe');
+    const words = (el) => (el ? [...el.children].map((c) => c.textContent).join(' ').replace(/\s+/g, ' ').trim() : '');
+    const read = (id) => {
+      CS.preview(id); CS.renderFight();
+      G.currentCombatTier = M[id].tier; window.renderMonsterList();
+      const row = document.querySelector('#monster-list [data-monster="' + id + '"] div');
+      return [words(document.getElementById('fs-title')), words(row)];
+    };
+    const snap = snapshotG(); const prevTab = window.activeTab; const bad = [];
+    try {
+      window.showTab('combat'); G.activeMonster = null;
+      for (const id of ids) for (const t of read(id)) {
+        const dup = t.match(/\b(\w+)\s+\1\b/i);
+        if (!t || dup) bad.push(id + ': "' + t + '"');
+      }
+      for (const t of read(ctl)) {
+        if (!t.includes(M[ctl].name) || !t.includes(M[ctl].family)) bad.push('control ' + ctl + ' lost a word: "' + t + '"');
+      }
+      assert(bad.length === 0, 'THE b561 ELEMENTAL-ELEMENTAL BUG: ' + bad.join('; '));
+    } finally {
+      restoreG(snap);
+      try { CS.setView('table'); window.renderMonsterList(); } catch (e) {}
+      try { window.showTab(prevTab || 'combat'); } catch (e) {}
+    }
+  }),
+
   // ── regression suite — BOTD-ROW-1: THE BOSS ROWS SAY WHAT THE ENGINE PAYS ──
   // The rows read 'bonus drops & XP while featured' and the cards '+25% combat
   // XP', but the featured bonus scales drop CHANCE and KILL XP only (hit XP is

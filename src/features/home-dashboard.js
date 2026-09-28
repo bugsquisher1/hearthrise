@@ -783,7 +783,7 @@
        an explanation should be. Every other case keeps it. */
     if (!quiet) {
       notes.push({ tone: 'base', icon: 'uiInfo',
-        text: 'At the base rate — blessings and food buffs pay while you play.' });
+        text: 'At the base rate — food buffs pay while you play.' });
     }
     /* b343: A MINUTE, not a millisecond. `fmtSpanShort` floors to whole
        minutes, so `featuredMs > 0` printed "0m on the Boss of the Day (+100%
@@ -1668,10 +1668,9 @@
     }
     try { var HL = window.HearthriseHuntersLedger; if (HL && typeof HL.card === 'function') html += HL.card(G); } catch (e) { /* display only */ }
 
-    // The realm — world events. They already change how fast every skill runs,
-    // but the only place they were stated was a one-line ticker pinned in the
-    // bottom-right corner behind the chat button. A modifier the player is
-    // supposed to plan around belongs where they plan.
+    // The realm — world events: the day's and the week's blessing, named and
+    // described in the realm's words. b560: no rate, yield or gold figure — the
+    // engine pays no blessing layer (CONFLICTS.md 2026-09-28).
     var WE = window.HearthriseWorldEvents;
     if (WE && WE.daily) {
       try {
@@ -1688,12 +1687,8 @@
               '<div class="s">' + esc(e.desc) + '</div></div>' +
             '<div class="when">' + when + '</div></div>';
         };
-        // b227: the blessings are session-gated, so the panel that announces
-        // them is the panel that must state the condition. A player who reads
-        // "+25% gather speed" here and then banks a night at the base rate has
-        // been misled by omission, which is still being misled. b229: the
-        // condition is being in the game, not being at the screen — and the
-        // only mid-session way to lose it is a real disconnection.
+        // b227/b229: the condition is stated where the blessing is — being in
+        // the game; the only mid-session way to lose it is a real disconnection.
         html += '<div><div class="hd-h"><h3>The realm</h3></div><div class="hd-rows">' +
           evRow(wd, 'Today') + (ww ? evRow(ww, 'This week') : '') +
           '<div class="hd-card hd-mini"><div class="mi">' + gly('uiInfo', 20, '', 'var(--ink-2)') + '</div>' +

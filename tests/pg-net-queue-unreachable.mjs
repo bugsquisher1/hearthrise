@@ -113,6 +113,19 @@
 // be abused (no drop, a different routine dropped, a drop in an EARLIER file,
 // a different overload dropped, a reading restatement, a re-create after the
 // drop) and controls proving a real later drop / clean restatement clears.
+// A clearance is a CHAIN property: when the clearing file's apply-order note
+// does not start with APPLIED, the OK line and --list say so by name (Security
+// ruling, docs/planning/SEC_TICK_HARVEST_OFF_RPC_2026-09-28.md Q4) — the
+// deployment record, not this guard, is what says production has it.
+//
+// ── Q-5 hr_ops STAYS A SINK (2026-09-28, same ruling) ──────────────────────
+// The fix for the Q-1 red moved the reader into the non-exposed schema hr_ops,
+// so hr_ops' non-exposure is now load-bearing for Q-1 and is guarded here, per
+// file and without clearance: no GRANT on hr_ops or anything in it (to anyone
+// but postgres), no default-privilege grant in it, no exposed-schema routine or
+// view calling into it outside SINK_CALLERS, no grant of a SINK_CALLER to a
+// client/engine role, hr_ops never in pgrst.db_schemas or config.toml, and no
+// `alter` of hr_ops or `set schema/owner to/rename` of a routine in it.
 //
 // `--live` is the fifth arm and the only one needing the network: it re-runs
 // the external probe above with the repo's anon key (CLAUDE.md §2: the anon key
@@ -158,6 +171,17 @@ const READ_RE = new RegExp(
   String.raw`\b(from|join|into|update|using|copy)\s+(?:only\s+)?"?net"?\s*\.\s*"?(${QUEUE_ALT})"?`, 'i');
 
 const CLIENT_ROLES = ['public', 'anon', 'authenticated', 'service_role', 'hr_engine', 'hr_tick'];
+
+// Q-5 — the non-exposed schema that HOLDS the operator-only queue readers
+// (2026-09-28-tick-harvest-off-rpc-surface.sql). Its non-exposure is what Q-1's
+// clearance of public.hr_tick_edge_harvest rests on, so it is guarded here and
+// not only by that file's apply-time h5/h6. SINK_CALLERS is the complete list of
+// exposed-schema routines allowed to call into it; each must stay unexecutable
+// by every client/engine role (hr_tick_cron_note returns void and writes a log
+// no client role can read, 2026-09-21-world-tick-cron.sql:211-216).
+const SINK = 'hr_ops';
+const SINK_CALLERS = new Set(['public.hr_tick_cron_note']);
+const SINK_REF_RE = /\b"?hr_ops"?\s*\.\s*"?[a-z0-9_]+/i;
 
 class Harness extends Error { constructor(m) { super(m); this.harness = true; } }
 
@@ -364,6 +388,82 @@ export function scan({ migrations, configToml, order }) {
       });
     }
 
+    // Q-5a — an exposed-schema routine or view that reaches INTO hr_ops. A
+    // public wrapper around an hr_ops reader is the Q-1 bridge with one hop.
+    for (const s of spans) {
+      const head = text.slice(Math.max(0, s.head - 600), s.head);
+      const m = /create\s+(?:or\s+replace\s+)?(function|procedure)\s+(?:"?([a-z0-9_]+)"?\s*\.\s*)?"?([a-z0-9_]+)"?\s*\(/i
+        .exec(head.split(/;\s*$/).pop());
+      if (!m) continue;
+      const schema = (m[2] || 'public').toLowerCase();
+      const name = `${schema}.${m[3].toLowerCase()}`;
+      const ref = SINK_REF_RE.exec(text.slice(s.body, s.end));
+      if (!ref || !EXPOSED.has(schema) || SINK_CALLERS.has(name)) continue;
+      add({
+        arm: 'Q-5', file, line: lineOf(text, s.body + ref.index), subject: name,
+        detail: `${m[1].toLowerCase()} in the exposed schema \`${schema}\` calls into \`${SINK}\` (\`${ref[0]}\`). `
+          + `${SINK} exists to keep the pg_net readers off the RPC surface; a public caller puts them back. `
+          + 'If the caller is operator-only by construction, add it to SINK_CALLERS with its ACL evidence.',
+      });
+    }
+    const sinkViewRe = /create\s+(?:or\s+replace\s+)?(?:materialized\s+)?view\s+(?:if\s+not\s+exists\s+)?(?:"?([a-z0-9_]+)"?\s*\.\s*)?"?([a-z0-9_]+)"?/ig;
+    for (let vm = sinkViewRe.exec(text); vm; vm = sinkViewRe.exec(text)) {
+      const schema = (vm[1] || 'public').toLowerCase();
+      const stop = text.indexOf(';', vm.index);
+      const stmt = text.slice(vm.index, stop === -1 ? Math.min(text.length, vm.index + 4000) : stop);
+      const ref = SINK_REF_RE.exec(stmt);
+      if (!ref || !EXPOSED.has(schema)) continue;
+      add({
+        arm: 'Q-5', file, line: lineOf(text, vm.index + ref.index), subject: `${schema}.${vm[2]}`,
+        detail: `a view in the exposed schema \`${schema}\` reads from \`${SINK}\` (\`${ref[0]}\`).`,
+      });
+    }
+    // Q-5b — any grant ON hr_ops or an object in it (the owner needs none), any
+    // default-privilege grant in it, and any grant of a SINK_CALLER to a client role.
+    const sinkGrantRe = /\bgrant\b[^;]{0,600}?\bon\b([^;]{0,600}?)\bto\b([^;]{0,300})/ig;
+    for (let gm = sinkGrantRe.exec(text); gm; gm = sinkGrantRe.exec(text)) {
+      const on = gm[1].toLowerCase();
+      const to = gm[2].toLowerCase();
+      const onSink = /\b"?hr_ops"?\b/.test(on);
+      const onCaller = [...SINK_CALLERS].some((c) => new RegExp(String.raw`\bfunction\s+(?:"?public"?\s*\.\s*)?"?${c.split('.')[1]}"?\b`).test(on));
+      const roles = CLIENT_ROLES.filter((r) => new RegExp(String.raw`\b${r}\b`).test(to));
+      const grantees = to.replace(/\bwith\s+grant\s+option\b|\bgranted\s+by\b.*$/g, '').replace(/['"\s]/g, '');
+      if (!(onSink && grantees !== 'postgres') && !(onCaller && roles.length)) continue;
+      add({
+        arm: 'Q-5', file, line: lineOf(text, gm.index), subject: gm[0].replace(/\s+/g, ' ').slice(0, 160),
+        detail: onSink
+          ? `grants on \`${SINK}\`. Nothing but its owner may use, execute or create in it: its routines read a table PUBLIC can read.`
+          : `grants a routine that calls into \`${SINK}\` to [${roles.join(', ')}] — the Q-1 bridge, one hop removed.`,
+      });
+    }
+    const sinkDefRe = /\balter\s+default\s+privileges\b[^;]{0,300}?\bin\s+schema\b[^;]{0,200}?\bhr_ops\b[^;]{0,300}?\bgrant\b[^;]{0,300}/ig;
+    for (let dm = sinkDefRe.exec(text); dm; dm = sinkDefRe.exec(text)) {
+      add({
+        arm: 'Q-5', file, line: lineOf(text, dm.index), subject: dm[0].replace(/\s+/g, ' ').slice(0, 160),
+        detail: `a default-privilege GRANT in \`${SINK}\` hands every future routine there to its grantee.`,
+      });
+    }
+    // Q-5c — hr_ops joining PostgREST's exposed list (assignment spellings only:
+    // the migration's own h6 NAMES the setting in a pattern and is not one).
+    const sinkPgrstRe = /(?:\bpgrst\s*\.\s*db_schemas\s*(?:=|\bto\b)\s*|'pgrst\.db_schemas'\s*,\s*|\bPGRST_DB_SCHEMAS\s*=\s*)'?([^';\n]{0,300})/ig;
+    for (let pm = sinkPgrstRe.exec(text); pm; pm = sinkPgrstRe.exec(text)) {
+      if (!/\bhr_ops\b/i.test(pm[1])) continue;
+      add({
+        arm: 'Q-5', file, line: lineOf(text, pm.index), subject: pm[0].replace(/\s+/g, ' ').slice(0, 160),
+        detail: `adds \`${SINK}\` to PostgREST's exposed schemas — every pg_net reader in it becomes an RPC.`,
+      });
+    }
+    // Q-5d — moving or re-owning what is in hr_ops, or hr_ops itself. Not
+    // understood, so never allowed: `set schema public` is a create in public
+    // that no create regex sees.
+    const sinkAlterRe = /\balter\s+(?:(?:function|procedure|routine)\s+"?hr_ops"?\s*\.[^;]{0,400}?\b(?:set\s+schema|owner\s+to|rename)\b|schema\s+"?hr_ops"?\b[^;]{0,200})/ig;
+    for (let am = sinkAlterRe.exec(text); am; am = sinkAlterRe.exec(text)) {
+      add({
+        arm: 'Q-5', file, line: lineOf(text, am.index), subject: am[0].replace(/\s+/g, ' ').slice(0, 160),
+        detail: `alters \`${SINK}\` or moves/re-owns a routine in it. Restate the routine where it must live instead.`,
+      });
+    }
+
     // Q-2 — a grant of our own on a queue table.
     const grantRe = new RegExp(
       String.raw`\bgrant\b[^;]{0,600}?\bon\b[^;]{0,600}?(?:"?net"?\s*\.\s*"?(?:${QUEUE_ALT})"?|all\s+tables\s+in\s+schema\s+"?net"?)[^;]{0,600}?\bto\b([^;]{0,300})`,
@@ -418,6 +518,13 @@ export function scan({ migrations, configToml, order }) {
   // Q-3 (config.toml half) — the deploy-time spelling of the same setting.
   const apiSchemas = /^\s*schemas\s*=\s*\[([^\]]*)\]/im.exec(configToml || '');
   if (apiSchemas) {
+    if (/["']hr_ops["']/.test(apiSchemas[1].toLowerCase())) {
+      add({
+        arm: 'Q-5', file: 'supabase/config.toml', line: lineOf(configToml, apiSchemas.index),
+        subject: apiSchemas[0].trim(),
+        detail: `exposes \`${SINK}\` to PostgREST at deploy time — every pg_net reader in it becomes an RPC.`,
+      });
+    }
     const names = apiSchemas[1].toLowerCase();
     looked.push({ file: 'supabase/config.toml', kind: 'exposure', subject: apiSchemas[0].trim(), exposed: true, read: /\bnet\b/.test(names) });
     if (/["']net["']/.test(names)) {
@@ -465,14 +572,16 @@ async function sources() {
   let configToml = '';
   try { configToml = await readFile(CONFIG_TOML, 'utf8'); } catch { configToml = ''; }
   let order;
+  let notes;
   try {
     const j = JSON.parse(await readFile(APPLY_ORDER, 'utf8'));
     order = [...(j.pre_schema || []), ...(j.order || [])];
+    notes = j._order_notes || {};
   } catch (e) {
     throw new Harness(`cannot read the apply order ${APPLY_ORDER}: ${e.message}`);
   }
   if (!order.length) throw new Harness(`${APPLY_ORDER} names no files — Q-1 cannot be judged at chain end`);
-  return { migrations, configToml, order };
+  return { migrations, configToml, order, notes };
 }
 
 // ── --live: the external probe, anon key only ───────────────────────────────
@@ -694,7 +803,69 @@ const PLANTS = [
     set: (m, o) => ({ migrations: new Map([...withTarget(m, BRIDGE),
       [LATE, 'drop function if exists public.hr_tick_queue_peek();\n']]), order: o }),
   },
+  // ── Q-5 (2026-09-28): hr_ops, the home of the moved harvest, stays a sink ─
+  {
+    name: 'sink-usage-grant', arm: 'Q-5',
+    what: '`grant usage on schema hr_ops to authenticated`',
+    patch: (s) => `${s}\ngrant usage on schema hr_ops to authenticated;\n`,
+  },
+  {
+    name: 'sink-all-functions-grant', arm: 'Q-5',
+    what: '`grant execute on all functions in schema hr_ops to anon`',
+    patch: (s) => `${s}\ngrant execute on all functions in schema hr_ops to anon;\n`,
+  },
+  {
+    name: 'sink-dynamic-grant', arm: 'Q-5',
+    what: 'a dynamic `execute \'grant execute on function hr_ops.… to service_role\'`',
+    patch: (s) => `${s}\ndo $g$ begin execute 'grant execute on function hr_ops.hr_tick_edge_harvest() to service_role'; end $g$;\n`,
+  },
+  {
+    name: 'sink-default-privileges', arm: 'Q-5',
+    what: '`alter default privileges … in schema hr_ops grant execute on functions to authenticated`',
+    patch: (s) => `${s}\nalter default privileges for role postgres in schema hr_ops grant execute on functions to authenticated;\n`,
+  },
+  {
+    name: 'sink-pgrst-exposed', arm: 'Q-5',
+    what: '`alter role authenticator set pgrst.db_schemas = \'public, graphql_public, hr_ops\'`',
+    patch: (s) => `${s}\nalter role authenticator set pgrst.db_schemas = 'public, graphql_public, hr_ops';\n`,
+  },
+  {
+    name: 'sink-config-exposed', arm: 'Q-5', config: true,
+    what: '`hr_ops` added to the exposed schemas in supabase/config.toml',
+    patch: (s) => `${s}\n[api]\nschemas = ["public", "graphql_public", "hr_ops"]\n`,
+  },
+  {
+    name: 'sink-public-wrapper', arm: 'Q-5',
+    what: 'a public definer function that returns hr_ops.hr_tick_edge_harvest() — Q-1 with one hop',
+    patch: (s) => `${s}\ncreate or replace function public.hr_tick_peek() returns jsonb language sql security definer as $w$ select hr_ops.hr_tick_edge_harvest() $w$;\n`,
+  },
+  {
+    name: 'sink-public-view', arm: 'Q-5',
+    what: 'a public view selecting an hr_ops routine',
+    patch: (s) => `${s}\ncreate or replace view public.hr_tick_peek_v as select hr_ops.hr_tick_edge_harvest() as h;\n`,
+  },
+  {
+    name: 'sink-caller-granted', arm: 'Q-5',
+    what: '`grant execute on function public.hr_tick_cron_note(…) to authenticated` — the allowlisted caller handed out',
+    patch: (s) => `${s}\ngrant execute on function public.hr_tick_cron_note(text, int, int, int, jsonb) to authenticated;\n`,
+  },
+  {
+    name: 'sink-set-schema', arm: 'Q-5',
+    what: '`alter function hr_ops.hr_tick_edge_harvest() set schema public` — a create in public no regex sees',
+    patch: (s) => `${s}\nalter function hr_ops.hr_tick_edge_harvest() set schema public;\n`,
+  },
   // ── CONTROLS: each of these MUST stay silent ──────────────────────────────
+  {
+    name: 'sink-revoke', control: true,
+    what: 'revokes on hr_ops and an hr_ops routine calling another — the lane\'s own shape',
+    patch: (s) => `${s}\nrevoke all on schema hr_ops from public;\nrevoke execute on function public.hr_tick_cron_note(text, int, int, int, jsonb) from anon, authenticated;\n`
+      + 'create or replace function hr_ops.hr_x() returns jsonb language sql as $x$ select hr_ops.hr_tick_edge_harvest() $x$;\n',
+  },
+  {
+    name: 'sink-pgrst-assertion', control: true,
+    what: 'an assertion that NAMES pgrst.db_schemas and hr_ops in a pattern (the h6 shape)',
+    patch: (s) => `${s}\ndo $a$ begin if exists (select 1 from pg_db_role_setting s, unnest(s.setconfig) c where c ilike 'pgrst.db_schemas=%' and c ~* 'hr_ops') then raise exception 'x'; end if; end $a$;\n`,
+  },
   {
     name: 'chain-later-drop', control: true,
     what: 'a bridge DROPPED by a later file in the apply order — gone at chain end',
@@ -811,6 +982,11 @@ async function main() {
 
   const src = await sources();
   const { findings, looked, superseded } = scan(src);
+  // A clearance is a property of the CHAIN. Whether production has it is the
+  // apply-order note's to say (APPLIED …, witnessed by apply-order-honesty and
+  // live-hash-drift), and the OK line must not claim more than the chain.
+  const staged = (f) => !/^(?:APPLIED|LIVE)\b/.test((src.notes || {})[f.by.file] || '');
+  const pending = superseded.filter(staged);
 
   if (argv.includes('--list')) {
     console.log(`migrations scanned: ${src.migrations.size}   statements examined: ${looked.length}\n`);
@@ -820,7 +996,8 @@ async function main() {
     }
     for (const f of superseded) {
       console.log(`superseded   [Q-1] ${f.file}:${f.line}  ${f.subject} — cleared at chain end by the `
-        + `${f.by.kind === 'drop' ? 'drop' : 'clean restatement'} in ${f.by.file}`);
+        + `${f.by.kind === 'drop' ? 'drop' : 'clean restatement'} in ${f.by.file}`
+        + `${staged(f) ? ' (STAGED, NOT APPLIED — production still holds the earlier body)' : ' (APPLIED)'}`);
     }
     console.log('');
   }
@@ -840,7 +1017,10 @@ async function main() {
   const views = looked.filter((l) => l.kind === 'view').length;
   console.log(`pg-net-queue-unreachable: OK — ${src.migrations.size} migrations, ${routines} routine bodies, `
     + `${views} views, no exposed-schema read of net.http_request_queue/_http_response at chain end `
-    + `(${superseded.length} earlier bridge finding(s) superseded by a later drop/restatement), `
+    + `(${superseded.length} earlier bridge finding(s) superseded by a later drop/restatement`
+    + `${pending.length ? `; ${pending.length} of them by a STAGED file not yet applied — production holds `
+      + `${[...new Set(pending.map((f) => f.subject))].join(', ')} until the Coordinator applies `
+      + `${[...new Set(pending.map((f) => f.by.file))].join(', ')}` : ''}), `
     + 'no added grant, no `net` in PostgREST\'s schema list, no queue table published');
 }
 

@@ -7826,6 +7826,90 @@ export default [
     } finally { restoreG(snap); }
   }),
 
+  /* INV-LABEL-1 (visual passes 5-6): in fallback fonts the equipment doll's slot
+     names broke mid-word ("Weapo n", "Neckla ce", "Offhan d"). A slot name takes
+     no more lines than it has words, and is never clipped. Measured in the live
+     page and in a 1280x800 frame, whose web fonts have not loaded yet. */
+  () => tryRun('INV-LABEL-1: every visible inventory slot label keeps whole words and is never clipped at 1280x800', () => {
+    const prevTab = window.activeTab, bad = [];
+    const check = (root, at) => {
+      const labels = [...root.querySelectorAll('#panel-inventory .td-slot-lbl, #panel-inventory .inv-slot small')]
+        .filter((e) => e.getClientRects().length && e.textContent.trim());
+      for (const e of labels) {
+        const rng = e.ownerDocument.createRange(); rng.selectNodeContents(e);
+        const lines = new Set([...rng.getClientRects()].map((r) => Math.round(r.top))).size;
+        const words = e.textContent.trim().split(/\s+/).length;
+        if (lines > words) bad.push(at + ': "' + e.textContent.trim() + '" on ' + lines + ' lines');
+        if (e.scrollWidth > e.clientWidth + 1) bad.push(at + ': "' + e.textContent.trim() + '" clipped (' + e.scrollWidth + ' > ' + e.clientWidth + ')');
+      }
+      return labels.length;
+    };
+    try {
+      window.showTab('inventory');
+      check(document, 'live');
+      const cls = document.body.className;
+      const n = phoneFrame(1280, 800, document.getElementById('app').outerHTML, (doc) => { doc.body.className = cls; return check(doc, '1280x800'); });
+      assert(n > 0, 'the 1280x800 inventory drew no slot labels to measure');
+    } finally { try { window.showTab(prevTab || 'profile'); } catch (e) {} }
+    assert(bad.length === 0, 'THE VG5 SLOT-LABEL BUG: ' + bad.join('; '));
+  }),
+
+  /* TOAST-SHEET-1 (visual pass 5): at 922x423 the login blessing toast drew over
+     the Spoils sheet's Done. While a sheet is open the toast column moves to the
+     band under the header; closed, it is back in its corner. The persistent hidden
+     scrims ride along in the closed frame, so a selector that matches a hidden
+     sheet goes red too. */
+  () => tryRunAsync('TOAST-SHEET-1: an open sheet\'s Close and foot buttons are never under a toast, and the toast returns to its corner', async () => {
+    const T = window.HearthriseToasts, C = window.HearthriseCodex;
+    if (!T || !C) { skip('the toast queue or the Codex is absent'); return; }
+    const bad = [];
+    const foot = '<div id="dgn-run-overlay" class="dgn-run-overlay hr-scrim open"><div class="drm-modal hr-sheet" id="drm-modal">'
+      + '<div class="hr-sheet-head"><button class="drm-close" data-hr-dismiss>✕</button><h2 class="drm-title">Goblin Warcamp</h2></div>'
+      + '<div class="hr-sheet-body">' + '<p>Rewards settled.</p>'.repeat(12) + '</div>'
+      + '<div class="hr-sheet-foot"><button class="drm-btn drm-btn-primary" id="drm-finish">Done</button></div></div></div>';
+    try {
+      T.clear();
+      await C.open();
+      const codex = document.getElementById('codex-modal');
+      assert(codex && codex.classList.contains('show'), 'the Codex did not open');
+      window.notify('Today’s blessing: The Open Coffers — a day for trade and treasure', 'info');
+      const notifs = document.getElementById('notifs');
+      assert(notifs && notifs.children.length, 'window.notify drew no toast');
+      const hidden = ['qty-slider-overlay', 'char-select-overlay'].map((id) => document.getElementById(id)).filter(Boolean).map((e) => e.outerHTML).join('');
+      const R = (e) => e.getBoundingClientRect(), box = (r) => '[' + [r.left, r.top, r.right, r.bottom].map(Math.round) + ']';
+      const rest = (doc, w, h) => {   // the column where toasts.js rests it at this size
+        const off = T.computeOffsets(w, h, []), n = doc.getElementById('notifs');
+        n.style.bottom = off.bottom + 'px'; n.style.right = off.right + 'px';
+        for (const c of n.children) c.style.animation = c.style.transition = 'none';
+        return off;
+      };
+      const hit = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+      for (const [w, h] of [[1280, 800], [922, 423]]) {
+        for (const [name, sheet, sel] of [['Codex', codex.outerHTML, '#codex-modal .modal-head .btn'], ['Spoils', foot, '#drm-finish, .drm-close']]) {
+          phoneFrame(w, h, sheet + notifs.outerHTML, (doc) => {
+            rest(doc, w, h);
+            const at = w + 'x' + h + ' ' + name + ': ', btns = [...doc.querySelectorAll(sel)];
+            if (!btns.length) bad.push(at + 'no button');
+            for (const btn of btns) {
+              const b = R(btn), toasts = [...doc.getElementById('notifs').children].map(R);
+              for (const t of toasts) if (hit(t, b)) bad.push(at + 'toast ' + box(t) + ' over ' + btn.textContent + ' ' + box(b));
+              const top = doc.elementFromPoint((b.left + b.right) / 2, (b.top + b.bottom) / 2);
+              if (!top || !btn.contains(top)) bad.push(at + 'the hit-test at ' + btn.textContent + ' gives ' + (top ? top.tagName + '.' + top.className : 'nothing'));
+            }
+          });
+        }
+        phoneFrame(w, h, hidden + codex.outerHTML.replace(/\bmodal show\b/, 'modal') + notifs.outerHTML, (doc) => {
+          const off = rest(doc, w, h), t = R(doc.getElementById('notifs').firstElementChild);
+          if (Math.abs(h - off.bottom - t.bottom) > 1 || Math.abs(w - off.right - t.right) > 1) bad.push(w + 'x' + h + ' closed: the toast ' + box(t) + ' left its corner');
+        });
+      }
+    } finally {
+      try { C.close(); } catch (e) {}
+      try { T.clear(); } catch (e) {}
+    }
+    assert(bad.length === 0, 'THE VG5 TOAST-OVER-SHEET BUG: ' + bad.join('; '));
+  }),
+
   /* #32, live: "inventory is missing the tool tab. only place to find the tools
      is the all tab." Fixed in b479 by adding a Tools row to both filter strips —
      but that fix shipped WITHOUT a test, so nothing stopped it regressing. This

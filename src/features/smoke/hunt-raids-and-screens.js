@@ -5232,6 +5232,37 @@ export default [
             assert(bad.length === 0, 'THE VG7 FIGHT-LOGROW BUG: ' + bad.join('; '));
           }),
 
+          // ── regression suite — FIGHT-PHONE-DENSITY-5 (visual gate 8, defect 1) ──
+          // The bug button and the chat pill sat over the log's right 8–22px at
+          // 1280x800, so a long line ran under them. The measured box is where log
+          // text can paint: the padding box, since a scrolled line paints there.
+          () => tryRunAsync('FIGHT-PHONE-DENSITY-5: no fixed FAB covers the combat log\'s text box at 1280x800 or 922x423', async () => {
+            const bad = [];
+            await fight(METER(), async (m) => withStockedFight(() => {
+              m.paint();
+              window.HearthriseCombatHud.refresh();
+              const fabs = ['hr-bug-btn', 'chat-dock'].map((id) => document.getElementById(id)).filter(Boolean);
+              assert(fabs.length === 2, 'the test needs both FABs on the page');
+              const body = document.getElementById('app').outerHTML + fabs.map((e) => e.outerHTML).join(''), cls = document.body.className;
+              for (const [w, h] of [[922, 423], [1280, 800]]) phoneFrame(w, h, body, (doc) => {
+                doc.body.className = cls;
+                const row = doc.querySelector('#panel-combat .fs-logrow'), log = row && row.querySelector('.combat-log');
+                if (!log) { bad.push(w + 'x' + h + ': the log is missing'); return; }
+                if (doc.defaultView.getComputedStyle(row).display === 'none') return;
+                const b = log.getBoundingClientRect(), L = b.left + log.clientLeft, T = b.top + log.clientTop;
+                const text = { left: L, top: T, right: L + log.clientWidth, bottom: T + log.clientHeight };
+                for (const id of ['hr-bug-btn', 'chat-dock']) {
+                  const f = doc.getElementById(id).getBoundingClientRect();
+                  if (f.width && f.height && f.left < text.right && f.right > text.left && f.top < text.bottom && f.bottom > text.top) {
+                    bad.push(w + 'x' + h + ': #' + id + ' [' + [f.left, f.top, f.right, f.bottom].map(Math.round) + '] over the log text ['
+                      + [text.left, text.top, text.right, text.bottom].map(Math.round) + ']');
+                  }
+                }
+              });
+            }));
+            assert(bad.length === 0, 'THE VG8 FAB-OVER-LOG BUG: ' + bad.join('; '));
+          }),
+
           // ── regression suite — FIGHT-METRICS-COPY-1 (visual gate 7, defect 2) ──
           // A non-finite survival forecast printed "measuring… · you last —": a
           // dash inside a sentence. Not measurable yet is said in words.

@@ -17858,6 +17858,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
   var _srvGoals = null;        // { 'd:<id>' | 'w:<id>' : {have, target, complete, claimed} }
   var _srvGoalsAt = 0;
   var _srvGoalsInflight = false;
+  var _srvGoalsForce = false;  // re-read on the next sync WITHOUT dropping the known state
   function goalsArmed(){
     return typeof window.clientMayWriteRecordField === 'function'
       && !window.clientMayWriteRecordField('gold');
@@ -17868,7 +17869,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
       if(typeof done === 'function') done(false); return;
     }
     var age = Date.now() - _srvGoalsAt;
-    if(_srvGoalsInflight || (typeof maxAgeMs === 'number' && _srvGoals && age < maxAgeMs)){
+    if(_srvGoalsInflight || (!_srvGoalsForce && typeof maxAgeMs === 'number' && _srvGoals && age < maxAgeMs)){
       if(typeof done === 'function') done(false); return;
     }
     _srvGoalsInflight = true;
@@ -17883,18 +17884,23 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
             complete: !!g.complete, claimed: !!g.claimed
           });
         });
-        _srvGoals = Object.freeze(m); _srvGoalsAt = Date.now();
+        _srvGoals = Object.freeze(m); _srvGoalsAt = Date.now(); _srvGoalsForce = false;
         if(typeof done === 'function') done(true);
       } else if(typeof done === 'function') done(false);
     }).catch(function(){ _srvGoalsInflight = false; if(typeof done === 'function') done(false); });
   }
+  /* THE SERVER'S ROW FOR ONE GOAL, or null when its state is UNKNOWN — not
+     answered yet, older than the peek window (stale), or the goal absent from
+     the answer. Every claimability reader goes through goalClaimable() below,
+     which reads ONLY this. */
+  var SRV_GOALS_FRESH_MS = 120000;
   function srvGoal(goal, isWeekly){
-    if(!_srvGoals || !goalsArmed()) return null;
+    if(!_srvGoals || !goalsArmed() || (Date.now() - _srvGoalsAt) >= SRV_GOALS_FRESH_MS) return null;
     return _srvGoals[(isWeekly ? 'w:' : 'd:') + goal.id] || null;
   }
   window.__hrSyncServerGoals = syncServerGoals;   // test seam + manual refresh
-  window.__hrSyncServerGoals.reset = function(){ _srvGoals = null; _srvGoalsAt = 0; _srvGoalsInflight = false; };
-  window.HearthriseGoalState = { peek: function(){ return goalsArmed() && _srvGoals && (Date.now() - _srvGoalsAt) < 120000 ? _srvGoals : null; } };
+  window.__hrSyncServerGoals.reset = function(){ _srvGoals = null; _srvGoalsAt = 0; _srvGoalsInflight = false; _srvGoalsForce = false; };
+  window.HearthriseGoalState = { peek: function(){ return goalsArmed() && _srvGoals && (Date.now() - _srvGoalsAt) < SRV_GOALS_FRESH_MS ? _srvGoals : null; } };
 
   /* ── THE ONE READER OF startValues IN THIS IIFE ────────────────────────────
      Delegates to block 16's goalBaselineOf (exported on window because this is
@@ -17910,12 +17916,14 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
     if(typeof window.__hrGoalBaseline === 'function') return window.__hrGoalBaseline(stateObj, goal);
     return {known: true, value: (stateObj && stateObj.startValues && stateObj.startValues[goal.id]) || 0};
   }
-  function shownOr(g, isWeekly, d){ return (!srvGoal(g, isWeekly) && !baselineOf(g, isWeekly).known) ? (window.HearthriseBalance?.countMarkup?.(null, {label:'Not counted yet'}) ?? '—') : d.shown; }
+  /* A goal whose server state is unknown shows the pending dash, never 0 and
+     never the local count (the local count drives the BAR only). */
+  function shownOr(g, isWeekly, d){ return srvGoal(g, isWeekly) ? d.shown : (window.HearthriseBalance?.countMarkup?.(null, {label:'Not counted yet'}) ?? '—'); }
+  /* The SERVER's confirmed count, or 0 while it is unknown — never a local
+     count, so nothing graded on it can run ahead of hr_claim_goal. */
   function getProgress(goal, isWeekly){
     var sg = srvGoal(goal, isWeekly);
-    if(sg) return sg.have;
-    var b = baselineOf(goal, isWeekly);
-    return b.known ? Math.max(0, src(goal.source) - b.value) : 0;
+    return sg ? sg.have : 0;
   }
   function isClaimed(goal, isWeekly){
     var stateObj = isWeekly ? G.weeklyGoals : G.dailyGoals;
@@ -17923,26 +17931,30 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
     var sg = srvGoal(goal, isWeekly);
     return local || !!(sg && sg.claimed);
   }
+  /* ── CLAIM-FROM-SERVER: THE ONE CLAIMABILITY PREDICATE ────────────────────
+     hr_claim_goal grades the SERVER's period counter, so a Claim offered from
+     anything else is a button the server refuses (`incomplete`) or re-pays
+     (`already_claimed`) — the 2026-09-28 vitals signal. A goal is complete
+     ONLY when the server's fresh row says confirmed >= target; it is
+     claimable only when that row (and the local post-verdict flag) also say
+     unclaimed (both the server's verdict AND its count against its own target
+     must agree, so neither alone can offer a refused claim). Unknown state (unanswered, stale, absent — b487's
+     `unknown_goal` included) fails CLOSED. The local counters (G.stats.*,
+     startValues deltas) drive the progress bar and nothing else. The modal
+     row, the strip chip, the badge, the counts, the claim handler and the
+     retry driver all read this; there is no second grader. */
   function isComplete(goal, isWeekly){
     var sg = srvGoal(goal, isWeekly);
-    if(sg) return sg.complete;
-    /* ── b487: NO CLAIM BUTTON THE SERVER WOULD REFUSE BY NAME ──────────────
-       `_srvGoals` is built from hr_goal_state, which returns EVERY catalogued
-       goal. So once it has answered and the payout is armed, a goal MISSING
-       from it is one hr_claim_goal answers `unknown_goal` — a button that can
-       only ever fail. Offering it is the dead-button defect b461 removed,
-       reintroduced through the fall-through: `wk_bury` (13 weeks in 52) hit
-       exactly this, and any future authored-but-uncatalogued goal would too.
-       Fail CLOSED on knowledge, never on absence: with no server answer, or
-       while the payout is client-side, the local reading still decides — a
-       signed-out or pre-arm player keeps claiming exactly as before. */
-    if(goalsArmed() && _srvGoals) return false;
-    return getProgress(goal, isWeekly) >= goal.target;
+    var t = sg && (sg.target > 0 ? sg.target : goal.target);
+    return !!sg && sg.complete === true && t > 0 && sg.have >= t;
+  }
+  function goalClaimable(goal, isWeekly){
+    return isComplete(goal, isWeekly) && !isClaimed(goal, isWeekly);
   }
 
   /* ── R1/R5 — THE MONOTONIC PREDICTED-vs-CONFIRMED DISPLAY SEAM ──────────────
-     getProgress() returns the CONFIRMED value (the server's own count when
-     armed, the local count when dormant). localProgress() is always the LOCAL
+     getProgress() returns the CONFIRMED value (the server's own count; 0 and
+     phase PENDING while that is unknown). localProgress() is always the LOCAL
      OPTIMISTIC count — what the player just did this session, before the ~90s
      span-sim has reported it. The display shows max(shownLastFrame, confirmed,
      min(predicted, goal)) so a number, once on screen, only ever climbs; when
@@ -17990,6 +18002,12 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
           return { shown: shown, phase: phase, canClaim: confirmed >= goal.target };
         })();
     _goalShown[k] = st.shown;
+    /* The phase and the claim come from the ONE predicate, never from the
+       display maths: unknown server state is PENDING (dash, disabled Claim). */
+    var phase = isComplete(goal, isWeekly) ? 'complete'
+      : !srvGoal(goal, isWeekly) ? 'pending'
+      : (st.phase === 'complete' ? 'confirming' : st.phase);
+    st = { shown: st.shown, phase: phase, canClaim: goalClaimable(goal, isWeekly), confirmed: confirmed, goal: goal.target };
     /* SERVER-GATED CELEBRATION: exactly one completion toast, fired the frame the
        SERVER confirms the goal (phase COMPLETE) — never at predicted>=goal
        (that is CONFIRMING, silent). Latched per period so it cannot repeat. */
@@ -18021,12 +18039,12 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
       daily.forEach(function(g){
         if(isClaimed(g, false)) return;
         out.active++;
-        if(isComplete(g, false)) out.claimable++;
+        if(goalClaimable(g, false)) out.claimable++;
       });
       weekly.forEach(function(g){
         if(isClaimed(g, true)) return;
         out.active++;
-        if(isComplete(g, true)) out.claimable++;
+        if(goalClaimable(g, true)) out.claimable++;
       });
     } catch(e){}
     return out;
@@ -18145,8 +18163,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
        three picks, which is exactly the set a player may claim. */
     var goal = goalById(goalId, isWeekly);
     if(!goal) return;
-    if(!isComplete(goal, isWeekly)) return;
-    if(isClaimed(goal, isWeekly)) return;
+    if(!goalClaimable(goal, isWeekly)) return;
     var reward = rewardFor(goalId, isWeekly);
     /* ── b461: THE SERVER-CLAIMED PATH (replaces the b411 silent defer) ──────
        Under the arm this branch used to bare-`return` — every Claim button in
@@ -18232,11 +18249,14 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
           if(why !== 'network'){ try{ console.warn('[Quests] claim refused:', why, goalId); }catch(e){} }
           if(typeof window.notify === 'function') notify(msg, 'kill');
         }
+        /* Re-read the server's goal state after any verdict — a claim changed
+           it. A server REFUSAL proves our picture stale, so it is dropped (the
+           rows go pending) rather than left offering the same refused Claim;
+           a network failure proves nothing and keeps it. */
+        if(res && !res.ok && res.error && res.error !== 'already_claimed' && res.error !== 'network') _srvGoalsAt = 0;
+        _srvGoalsForce = true;
         renderModal();
         renderStrip();
-        /* Re-read the server's goal state after any verdict — a claim changed
-           it, and a refusal means our picture of it was stale. */
-        _srvGoalsAt = 0;
         syncServerGoals(function(fresh){ if(fresh){ renderModal(); renderStrip(); } });
       });
       return;
@@ -18317,7 +18337,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
          same ✓ the modal's "Claimed" pill uses). The gilt gift glyph means
          "ready to claim" (server-confirmed COMPLETE only, never CONFIRMING). */
       var prefix = claimed ? '✓ '
-        : (complete ? (((window.HR && window.HR.icon) ? (window.HR.icon('uiGift', 13, '--gold') || '') : '') + ' ') : '');
+        : (d.canClaim ? (((window.HR && window.HR.icon) ? (window.HR.icon('uiGift', 13, '--gold') || '') : '') + ' ') : '');
       var progText = shownOr(g, false, d) + ' / ' + g.target + (confirming ? ' · Confirming…' : '');
       return '<span class="gq-quest '+(complete?'done':'')+(confirming?' confirming':'')+'">'
         +'<span class="gq-icon">'+goalGlyphHTML(g, 15)+'</span>'
@@ -18411,8 +18431,8 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
     });
     var dailyGoals = (typeof window.getGoalsForToday === 'function') ? window.getGoalsForToday() : [];
     var weeklyGoals = (typeof window.getWeeklyGoals === 'function') ? window.getWeeklyGoals() : [];
-    var dCount = dailyGoals.filter(function(g){return isComplete(g,false) && !isClaimed(g,false);}).length;
-    var wCount = weeklyGoals.filter(function(g){return isComplete(g,true) && !isClaimed(g,true);}).length;
+    var dCount = dailyGoals.filter(function(g){return goalClaimable(g,false);}).length;
+    var wCount = weeklyGoals.filter(function(g){return goalClaimable(g,true);}).length;
     var dailyCountEl = overlay.querySelector('[data-count="daily"]');
     var weeklyCountEl = overlay.querySelector('[data-count="weekly"]');
     /* The count pill carries its own gilt plate in CSS, so emptying its TEXT
@@ -18440,7 +18460,8 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
         var claimed = isClaimed(g, isWeekly);
         var complete = d.phase === 'complete';
         var confirming = d.phase === 'confirming';
-        var done = complete || confirming;      // bar-full states
+        var pendingFull = d.phase === 'pending' && d.shown >= g.target;
+        var done = complete || confirming || pendingFull;      // bar-full states
         var pct = Math.min(100, (d.shown/g.target)*100);
         var reward = rewardFor(g.id, isWeekly);
         var rewardHtml = '<div class="qm-q-reward"><div class="qm-r-label">Reward</div><div class="qm-r-val">'+rewardSummaryHTML(reward)+'</div></div>';
@@ -18450,7 +18471,10 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
            hasn't caught up (phase CONFIRMING) the row shows a non-alarming
            "Confirming…" chip and NO claim button — R1's two-value contract. */
         if(claimed) claimBtn = '<span class="qm-q-claimed">✓ Claimed</span>';
-        else if(complete) claimBtn = '<button class="qm-q-claim" data-hr-settle-latch data-qid="'+g.id+'" data-weekly="'+(isWeekly?1:0)+'">Claim</button>';
+        else if(d.canClaim) claimBtn = '<button class="qm-q-claim" data-hr-settle-latch data-qid="'+g.id+'" data-weekly="'+(isWeekly?1:0)+'">Claim</button>';
+        /* Server state unknown and the local bar full: the F2 latch's pending
+           Claim — disabled, marked, and not the settle latch's to lift. */
+        else if(pendingFull) claimBtn = '<button class="qm-q-claim" disabled aria-busy="true" data-hr-goal-pending data-qid="'+g.id+'" data-weekly="'+(isWeekly?1:0)+'">Claim</button>';
         else if(confirming) claimBtn = '<span class="qm-q-confirming">Confirming…</span>';
         /* b227 (audit finding #2) — "take me to the area the quest is asking
            me to complete". Until now this modal was a dead end: it told you to
@@ -18464,11 +18488,11 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
           ? '<button class="qm-q-go" data-goto="'+g.id+'" data-weekly="'+(isWeekly?1:0)+'"'
             +' title="'+esc(goDest.label)+'">'+esc(goDest.verb)+'</button>'
           : '';
-        var rowClass = complete && !claimed ? 'claimable' : (done ? 'done' : '');
+        var rowClass = d.canClaim ? 'claimable' : (done ? 'done' : '');
         if(confirming) rowClass += ' confirming';
         var progText = confirming
           ? (g.target + ' / ' + g.target + ' · Confirming…')
-          : (shownOr(g, isWeekly, d) + ' / ' + g.target + ' (' + pct.toFixed(0) + '%)');
+          : (shownOr(g, isWeekly, d) + ' / ' + g.target + (d.phase === 'pending' ? '' : ' (' + pct.toFixed(0) + '%)'));
         return '<div class="qm-quest '+rowClass+'"'
           +(goBtn ? ' data-goto="'+g.id+'" data-weekly="'+(isWeekly?1:0)+'"' : '')+'>'
           +'<div class="qm-q-icon">'+goalGlyphHTML(g, 26, '--gold-2')+'</div>'
@@ -18489,7 +18513,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
     var totalQ = goals.length;
     var inProgress = goals.filter(function(g){return getProgress(g,isWeekly) > 0 && !isComplete(g,isWeekly);}).length;
     var completed = goals.filter(function(g){return isComplete(g,isWeekly);}).length;
-    var claimable = goals.filter(function(g){return isComplete(g,isWeekly) && !isClaimed(g,isWeekly);}).length;
+    var claimable = goals.filter(function(g){return goalClaimable(g,isWeekly);}).length;
     var summary = overlay.querySelector('#qm-summary');
     if(summary){
       summary.innerHTML =
@@ -18530,11 +18554,11 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
       var goal = goalById(e.goalId, e.isWeekly);
       if(!goal){ delete R[fk]; return; }
       if(isClaimed(goal, e.isWeekly)){ delete R[fk]; return; }
-      _srvGoalsAt = 0;   // force a fresh read of the server's count
+      _srvGoalsForce = true;   // a fresh read of the server's count; the known state stays
       syncServerGoals(function(){
         if(!R[fk]) return;                                  // cleared meanwhile
         if(isClaimed(goal, e.isWeekly)){ delete R[fk]; return; }
-        if(isComplete(goal, e.isWeekly)){
+        if(goalClaimable(goal, e.isWeekly)){
           delete R[fk];
           if(typeof window.claimQuestReward === 'function') window.claimQuestReward(e.goalId, e.isWeekly);
         }

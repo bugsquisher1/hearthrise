@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 67 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, xpOf, predZero, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, zeroRenownTerms, restoreRenownTerms, on, snapshot, closeOverlays, hrCharmDriver, phoneFrame } from './_harness.js?v=559';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, xpOf, predZero, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, zeroRenownTerms, restoreRenownTerms, on, snapshot, closeOverlays, hrCharmDriver, phoneFrame, feedServerGoals, goalRow } from './_harness.js?v=559';
 import { THIS_WEEK, THIS_WEEK_QUIET } from '../../data/this-week.js?v=559';
 
 export default [
@@ -2819,11 +2819,12 @@ export default [
   }),
   /* QUEST-PENDING — the strip draws the pending dash, never "0 / N", while
      neither hr_goal_state nor a measured baseline has spoken (CLAUDE.md §6). */
-  () => tryRun('QUEST-PENDING: an unmeasured quest reads pending on the strip; the baseline turns it into a number', () => {
+  () => tryRunAsync('QUEST-PENDING: an unmeasured quest reads pending on the strip; the server goal state turns it into a number', async () => {
     const A = window.HearthriseAccrual;
     if (!A || typeof window.renderQuestStrip !== 'function' || !window.__hrSyncServerGoals) return skip('no quest strip');
     const snap = snapshotG(); const knownWas = window.G._eventCountersKnown;
     const prog = () => { window.renderQuestStrip(); const el = document.querySelector('#global-quests-strip .gq-quest .gq-prog'); return el || { textContent: '', querySelector: () => null }; };
+    let unfeed = null;
     try {
       window.__hrSyncServerGoals.reset();
       window.getGoalsForToday();
@@ -2833,8 +2834,12 @@ export default [
       assert(p.querySelector('.bal-pending') && !/\b0 \/ \d/.test(p.textContent), 'an unmeasured quest rendered ' + p.textContent);
       A.reconcileEventCounters(window.G, { progress_truncated: false, progress: [{ kind: 'stat', key: 'ev:planted', period: '', value: 40, state: 'active' }] });
       p = prog();
-      assert(!p.querySelector('.bal-pending') && /^0 \/ \d+$/.test(p.textContent.trim()), 'a measured quest rendered ' + p.textContent);
+      assert(p.querySelector('.bal-pending'), 'a local baseline alone is not the server count (CLAIM-FROM-SERVER): ' + p.textContent);
+      unfeed = await feedServerGoals([goalRow('plant', 0, (window.getGoalsForToday()[0] || {}).target || 1)]);
+      p = prog();
+      assert(!p.querySelector('.bal-pending') && /^0 \/ \d+$/.test(p.textContent.trim()), 'a server-counted quest rendered ' + p.textContent);
     } finally {
+      if (unfeed) unfeed();
       if (knownWas === undefined) delete window.G._eventCountersKnown; else window.G._eventCountersKnown = knownWas;
       restoreG(snap); try { window.renderQuestStrip(); } catch (e) {}
     }

@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 43 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, errorLog, stampBalanceLikeLoad, stampRecordLikeLoad, predZero, snapshotG, drain, stubSignedIn, restoreG, zeroRenownTerms, restoreRenownTerms, on, withClaimServer, goldOf, withServerBacked, hrCharmDriver } from './_harness.js?v=559';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, errorLog, stampBalanceLikeLoad, stampRecordLikeLoad, predZero, snapshotG, drain, stubSignedIn, restoreG, zeroRenownTerms, restoreRenownTerms, on, withClaimServer, goldOf, withServerBacked, hrCharmDriver, feedServerGoals, goalRow } from './_harness.js?v=559';
 
 /* LEDGER OF FIRSTS — the collection-log rungs read the SERVER mirrors, which
    are `_` scratch outside snapshotG. Each test saves and restores them by
@@ -21,6 +21,35 @@ const saveMirrors = () => {
 const restoreMirrors = (saved) => {
   const G = window.G; if (!G || !saved) return;
   for (const k of MIRROR_KEYS) { if (saved[k]) G[k] = saved[k].v; else delete G[k]; }
+};
+/* CLAIM-FROM-SERVER rig: an armed, signed-in goal claim whose LOCAL counters
+   read kill_any 10/10 and whose SERVER goal state is `rows` (null = never
+   answered). `rig.open(rows?)` re-feeds the server seam and returns the row. */
+const withGoalServer = async (rows, fn) => {
+  const snap = snapshotG(), may = window.clientMayWriteRecordField, GC = window.HearthriseGoalClaim, note = window.notify;
+  const calls = [];
+  let unfeed = null;
+  const feed = async (r) => {
+    if (unfeed) unfeed(); unfeed = null; window.__hrSyncServerGoals.reset(); window.__hrGoalDisplay.reset();
+    if (r) unfeed = await feedServerGoals(r);
+  };
+  try {
+    window.clientMayWriteRecordField = (f) => f !== 'gold'; window.notify = () => {};
+    window.getGoalsForToday();
+    window.G.stats.kills = 10;
+    window.G.dailyGoals = { dayKey: window.G.dailyGoals.dayKey, picks: ['kill_any'], startValues: { kill_any: 0 }, claimed: {} };
+    window._goalClaimsInFlight = {};
+    window.HearthriseGoalClaim = { isSignedIn: () => true, claimGoal: (id) => { calls.push(id); return new Promise(() => {}); } };
+    await feed(rows);
+    await fn(calls, { open: async (r) => { if (r) await feed(r); window.openQuestsModal();
+      (document.querySelector('#quests-modal-overlay .qm-tab[data-tab="daily"]') || { click() {} }).click();
+      await new Promise((res) => setTimeout(res, 0));   // the modal's own sync repaint lands first
+      return document.querySelector('#quests-modal-overlay .qm-quest'); } });
+  } finally {
+    window.closeQuestsModal(); if (unfeed) unfeed(); window.__hrSyncServerGoals.reset(); window.__hrGoalDisplay.reset();
+    window.clientMayWriteRecordField = may; window.HearthriseGoalClaim = GC; window.notify = note;
+    window._goalClaimsInFlight = {}; restoreG(snap);
+  }
 };
 /* The hr_bestiary_of mirror the settle writes, seeded directly: `ids` killed once. */
 const seedServerMonsters = (ids) => {
@@ -2274,6 +2303,7 @@ export default [
       window.G.stats.kills = 99;
       window.G.dailyGoals = { dayKey, picks: ['kill_more'], startValues: { kill_more: 0 }, claimed: {} };
       window.G._goalClaimsInFlight = null; window._goalClaimsInFlight = {};
+      await feedServerGoals([goalRow('kill_more', 30, 30)]);   // claimable = the SERVER says so
 
       // 1 — ok:true → RPC fired with the id, claimed marked, toast shown, no local gold
       window.HearthriseGoalClaim = { isSignedIn: () => true,
@@ -2308,7 +2338,8 @@ export default [
       assert(!window.G.dailyGoals.claimed.kill_more, 'a refused claim must stay claimable');
       assert(toasts.length > 0, 'a refusal must be surfaced, never silent');
 
-      // 4 — no transport → honest toast, no crash
+      // 4 — no transport → honest toast, no crash (the refusal above dropped the stale state)
+      await feedServerGoals([goalRow('kill_more', 30, 30)]);
       toasts.length = 0;
       window.HearthriseGoalClaim = null;
       window.claimQuestReward('kill_more', false);
@@ -2358,6 +2389,40 @@ export default [
       if (window.__hrGoalDisplay) window.__hrGoalDisplay.reset();
       restoreG(snap);
     }
+  }),
+
+  /* -- regression suite -- CLAIM-FROM-SERVER: A CLAIM IS OFFERED ONLY FROM THE SERVER'S GOAL STATE.
+     vitals 2026-09-28: hr_claim_* refused `incomplete` because the modal graded
+     local counters (G.stats.kills - startValues) when hr_goal_state had not
+     answered. THE QA SEAM for a claimable goal: stub HearthriseGoalClaim.goalState
+     and run window.__hrSyncServerGoals — local counters can no longer do it. */
+  () => tryRunAsync('CLAIM-FROM-SERVER-1: local 10/10 against server 7/10 offers no Claim and fires nothing; server 10/10 enables it', async () => {
+    await withGoalServer([goalRow('kill_any', 7, 10)], async (calls, rig) => {
+      let row = await rig.open();
+      assert(row && !row.classList.contains('claimable'), 'THE BUG: local 10/10 made the row claimable against server 7/10');
+      assert(!row.querySelector('.qm-q-claim:not([disabled])'), 'no enabled Claim on a server-incomplete goal');
+      assert(window.questBadgeState().claimable === 0, 'the badge counts server-claimable goals only');
+      window.claimQuestReward('kill_any', false);
+      assert(calls.length === 0, 'the claim handler must not call the transport (calls=' + calls.length + ')');
+      row = await rig.open([goalRow('kill_any', 10, 10)]);
+      const btn = row && row.querySelector('.qm-q-claim:not([disabled])');
+      assert(btn && row.classList.contains('claimable'), 'server 10/10 → the Claim control enables');
+      btn.click();
+      assert(calls.length === 1 && calls[0] === 'kill_any', 'Claim fires the transport exactly once (calls=' + calls.length + ')');
+    });
+  }),
+
+  () => tryRunAsync('CLAIM-FROM-SERVER-2: server goal state ABSENT → progress is the pending dash and Claim is disabled', async () => {
+    await withGoalServer(null, async (calls, rig) => {
+      const row = await rig.open();
+      const prog = row && row.querySelector('.qm-q-progtext');
+      assert(prog && prog.textContent.trim().startsWith('—') && !/\b10 \/ 10\b/.test(prog.textContent), 'unknown state shows the dash, got: ' + (prog && prog.textContent));
+      assert(!row.querySelector('.qm-q-claim:not([disabled])') && !row.classList.contains('claimable'), 'unknown state: Claim disabled');
+      const chip = (window.renderQuestStrip(), document.querySelector('#global-quests-strip .gq-prog'));
+      assert(!chip || chip.textContent.trim().startsWith('—'), 'the strip chip shows the dash too, got: ' + (chip && chip.textContent));
+      window.claimQuestReward('kill_any', false);
+      assert(calls.length === 0 && window.questBadgeState().claimable === 0, 'nothing claims from unknown state');
+    });
   }),
 
   () => tryRunAsync('R1-MONO (ruling R1): the predicted display is MONOTONIC — a server reconcile DOWN never decrements the shown count', async () => {

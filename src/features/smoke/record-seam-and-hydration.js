@@ -7936,10 +7936,13 @@ export default [
           }), { status: 200 }));
         }
         if (/rpc\/hr_goal_state/.test(s)) {
-          return Promise.resolve(new Response(JSON.stringify({ ok: true, goals: [] }), { status: 200 }));
+          return Promise.resolve(new Response(JSON.stringify({ ok: true, goals: [
+            { goal_id: 'level_up', weekly: false, target: 1, have: 1, complete: true, claimed: false }] }), { status: 200 }));
         }
         return realFetch.apply(this, arguments);
       };
+      /* Claimable ONLY because hr_goal_state says so (CLAIM-FROM-SERVER). */
+      await new Promise((r) => window.__hrSyncServerGoals(r));
 
       window.claimQuestReward('level_up', false);
       await drain(); await drain();

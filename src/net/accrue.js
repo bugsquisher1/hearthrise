@@ -5254,6 +5254,18 @@ export function reconcileAwayReceipt(G, res) {
   return summary;
 }
 
+/** One sign of a server-signed map, floored and made positive; null when the
+ *  receipt carried no map, {} when it carried one with nothing of that sign. */
+function signedMapOf(m, sign) {
+  if (!m || typeof m !== 'object' || Array.isArray(m)) return null;
+  const out = {};
+  for (const k of Object.keys(m)) {
+    const n = Number(m[k]) * sign;
+    if (Number.isFinite(n) && n > 0) out[k] = sign > 0 ? Math.floor(n) : -Math.floor(-n);
+  }
+  return out;
+}
+
 /** The away receipt, translated into the shape lastOfflineSummary renderers read. */
 export function summaryFromAway(away, res) {
   const a = away || {};
@@ -5266,6 +5278,11 @@ export function summaryFromAway(away, res) {
     awayMs: ms,
     gainedItems: items,
     gainedXp: xp,
+    /* THE LEDGER'S ROWS, per id and per skill, exactly as the server signed
+       them. Read only by src/render/away-ledger.js; nothing credits from them. */
+    itemsIn: signedMapOf(a.items, 1),
+    itemsUsed: signedMapOf(a.items, -1),
+    xpBySkill: signedMapOf(a.xp, 1),
     gainedGold: Number(a.gold) || 0,
     gainedKills: Number(a.kills) || 0,
     /* ── WHY THE RUN STOPPED, AND ON WHAT (b515, QA) ────────────────────────

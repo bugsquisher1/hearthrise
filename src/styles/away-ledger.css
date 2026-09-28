@@ -1,0 +1,44 @@
+/* ============================================================
+   src/styles/away-ledger.css — the Morning Ledger (Home, away card)
+
+   Rows under the away totals: a quiet heading, then wrapping chips. Tokens
+   only, from tokens.css. Scoped under #hd-root so the dashboard's own ink
+   rules cannot out-rank it. The chip count is capped in away-ledger.js, one
+   number on every viewport; nothing here hides a chip.
+   ============================================================ */
+#hd-root .hd-away-ledger {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+#hd-root .hd-al-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+  min-width: 0;
+  font-size: calc(14.5px * var(--ui-scale, 1));
+  line-height: 1.3;
+}
+#hd-root .hd-al-h {
+  flex: 0 0 auto;
+  margin-right: 2px;
+  color: var(--ink-3);
+  font-weight: 700;
+}
+#hd-root .hd-al-chip {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: 1px 8px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-sm);
+  color: var(--ink-2);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+#hd-root .hd-al-more {
+  min-width: 0;
+  color: var(--ink-3);
+}

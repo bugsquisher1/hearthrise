@@ -40,7 +40,10 @@
 -- RESTATEMENT-DEBT-ACK: hr_apply and hr_state_of are live-hash-tracked bodies
 --   that are patched programmatically. Both anchors are asserted EXACTLY ONCE,
 --   and each is the text of one key in one jsonb_build_object — the smallest
---   region this file can account for line by line.
+--   region this file can account for line by line. The projection anchor is the
+--   `until` key and NOT its `scale` / `remaining_ms` neighbours: tests/buff-queue.mjs
+--   plants mutations on those two lines, and a file anchored on them would refuse
+--   to install under the mutation instead of letting the guard see it.
 -- ⚠ AFTER APPLYING: re-seed `node tests/live-hash-drift.mjs --live --write`, whys
 --   from `--codediff` (Coordinator).
 -- ════════════════════════════════════════════════════════════════════════
@@ -51,8 +54,7 @@ declare
   v_apply text; v_state text; v_n int;
   c_a constant text := $anc$        'until', to_jsonb(v_buff_until),
         'scale', to_jsonb(v_buff_scale)));$anc$;
-  c_s constant text := $anc$               'scale', coalesce((e.v->>'scale')::numeric, 1),
-               'remaining_ms', greatest(0, floor($anc$;
+  c_s constant text := $anc$               'until', e.v->>'until',$anc$;
 begin
   v_apply := replace(pg_get_functiondef(
     'public.hr_apply(uuid,int,bigint,uuid,jsonb)'::regprocedure), chr(13), '');
@@ -116,15 +118,13 @@ begin
   if strpos(v_def, $q$'from', e.v->>'from'$q$) > 0 then
     raise notice 'hr_state_of already projects a buff segment start — patch skipped'; return; end if;
   v_def := replace(v_def,
-    $anc$               'scale', coalesce((e.v->>'scale')::numeric, 1),
-               'remaining_ms', greatest(0, floor($anc$,
-    $anc$               'scale', coalesce((e.v->>'scale')::numeric, 1),
+    $anc$               'until', e.v->>'until',$anc$,
+    $anc$               'until', e.v->>'until',
                -- THE SEGMENT'S START (2026-09-28-buff-segment-from.sql). The
                -- engine does not pay a segment before it; null on a row written
                -- before the key existed (the engine then assumes the earliest
                -- start the one-hour ceiling allows).
-               'from', e.v->>'from',
-               'remaining_ms', greatest(0, floor($anc$);
+               'from', e.v->>'from',$anc$);
   execute v_def;
   raise notice 'hr_state_of patched: buff segments project their start';
 end $mig$;

@@ -373,6 +373,20 @@ jobs:
           node tests/schema-drift.mjs --mutate
           node tests/schema-drift.mjs --live-selftest
 
+      # THE ABSENCE IS PRICED AT THE STATE THAT EXISTED DURING IT (Security F2/F3,
+      # 2026-09-28, docs/planning/SEC_ABSENCE_PRICED_AT_RETURN_2026-09-28.md).
+      # R5: a client-direct RPC (and a non-stamping hr_apply) on a 7.25 h-stale row
+      # is refused settle_first and writes nothing; the same claim pays once the
+      # window is settled. R4: in the world-tick harness a mid-absence tool swap
+      # prices each window at its own state and the split settle equals the tick
+      # fold. S1: both migrations re-apply byte-identically. --selftest plants a
+      # 12 h threshold and a tick that skips the version re-seed; both must go RED.
+      - name: Settle before mutate — an unpaid window refuses a priced-input write
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/settle-before-mutate.mjs
+          node tests/settle-before-mutate.mjs --selftest
+
       # UTC MIDNIGHT REPLAY MOVED TO ITS OWN JOB 2026-09-19 (b550). Measured on
       # the GitHub run for ab7572e7 (branch next): this step alone cost 411 s,
       # and the family's steps up to and including it (752 s) plus buff-queue

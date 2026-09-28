@@ -2261,9 +2261,16 @@ jobs:
   # green runs and the cancelled one touched only smoke.yml, ci-shape.baseline
   # .json and a lane-done.mjs comment. Budget = measured (258 s) x2 = 8.6 min,
   # rounded up to 9.
+  #
+  # RE-MEASURED 2026-09-28 on the GitHub run for b88604e9 (set/b559): the
+  # family had outgrown 9 min — CANCELLED at 9m14s on step 59 of 125 (the
+  # set registered market-price-source, offline-cap-honesty, retired-
+  # capability-copy and bounty-view here), no failing assertion. The same
+  # job takes 11.1 min locally (run-ci-local --job client-guards). Budget =
+  # measured ~12 min x2 = 24; re-measure on the next green run.
   client-guards:
     runs-on: ubuntu-latest
-    timeout-minutes: 9
+    timeout-minutes: 24
 
     steps:
       - uses: actions/checkout@v4

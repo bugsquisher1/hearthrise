@@ -48,6 +48,10 @@
 //   T-R1  one refused character does not cost the other 199 their window
 //         (§7 item 7) — and hr_apply is never reached on any of those paths
 //   T-BB1 the body is BOUNDED before it is parsed (§7 item 8)
+//   T-X1  THE BESTIARY READ (tick.js (4b), 2026-09-28): made once per priced
+//         window with the roster row's selectors and the collect path's own
+//         BESTIARY_SQL, hr_engine-only in the chain, degrades on 42883 ONLY,
+//         never made below the flush line, and shadow still pays nothing
 //
 // ── --selftest: FOUR MUTATIONS, EACH MUST GO RED ───────────────────────────
 // A guard that has never been red is not a guard (CLAUDE.md §4). Each mutation
@@ -63,13 +67,15 @@
 //   M5 chain the next window on the BODY's accrued_to instead of the fence's
 //      watermark (the M-1 stall, reproduced through the entry)
 //   M6 abort the whole batch on the first refused character
+//   M12 swallow EVERY error on the bestiary read (not just 42883)
+//   M13 drop the bestiary read (the N4 gap, reproduced through the entry)
 //
 // Usage:
 //   node tests/edge-tick-gate.mjs
 //   node tests/edge-tick-gate.mjs --selftest
 // ════════════════════════════════════════════════════════════════════════════
 
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { createHash, createHmac } from 'node:crypto';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -84,6 +90,8 @@ import {
   MIN_SECRET_LEN, MAX_ROSTER, MAX_BODY_BYTES,
   CADENCE_MS_MIN, CADENCE_MS_MAX, FLUSH_MS_MIN, FLUSH_MS_MAX,
 } from '../supabase/functions/hr-accrue/tick.js';
+/* The collect path's statement — T-X1b requires the tick to issue these bytes. */
+import { BESTIARY_SQL } from '../supabase/functions/hr-accrue/set-activity.js';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const SELFTEST = process.argv.slice(2).includes('--selftest');
@@ -181,6 +189,9 @@ function fakeDb(cfg) {
        is more permissive than the door it stands in for is not a test. */
     shadowMarkMs: null,
     version: 7, activeKind: 'gather', known: new Set([UID]),
+    /* hr_bestiary_of's answer (tick.js (4b)); `bestiaryError` makes the read
+       throw with that SQLSTATE instead. */
+    bestiary: { goblin: 2000 }, bestiaryError: null,
   }, cfg || {});
   /* `case when shadow then greatest(accrued_to, shadow_accrued_to) else
      accrued_to end` — the fence's step (6) expression, verbatim. */
@@ -223,6 +234,17 @@ function fakeDb(cfg) {
       return [{ perks: o.known.has(params[0])
         ? { ok: true, rooms: {}, plots: {}, propertyTier: 0, unlockedRecipes: {}, renownAllXp: 0 }
         : { ok: false, error: 'no_character' } }];
+    }
+    /* THE BESTIARY COUNTERS (tick.js (4b), 2026-09-28) — the collect path's
+       BESTIARY_SQL, aggregated in SQL: one row, `kills` a jsonb object; `{}`
+       for a character who has killed nothing. */
+    if (text.includes('hr_bestiary_of')) {
+      if (o.bestiaryError !== null) {
+        const e = new Error('hr_bestiary_of: planted failure');
+        if (o.bestiaryError) e.code = o.bestiaryError;
+        throw e;
+      }
+      return [{ kills: o.known.has(params[0]) ? Object.assign({}, o.bestiary) : {} }];
     }
     if (text.includes('hr_tick_settle')) {
       const [holder, user, slot, channel, version, wFrom, wTo, key, delta] = params;
@@ -773,6 +795,54 @@ async function runArms(mod) {
       JSON.stringify(outT.body));
   }
 
+  // ── T-X1 — THE BESTIARY READ (Security N4, 2026-09-28) ───────────────────
+  group('T-X1  the tick reads hr_bestiary_of as the accrue path does');
+  {
+    const fire = async (cfg) => {
+      const db = fakeDb(Object.assign({ shadow: true }, cfg || {}));
+      const out = await runTick({ exec: db.exec, body: { op: 'tick', roster: [rosterRow(UID)] } });
+      return { db, out, reads: db.calls.filter((c) => c.text.includes('hr_bestiary_of')) };
+    };
+    const a = await fire();
+    ok(a.reads.length === 1 && a.reads[0].params[0] === UID && a.reads[0].params[1] === 0,
+      'T-X1a — one read per priced window, bound to the roster row\'s selectors',
+      JSON.stringify(a.reads.map((c) => c.params)));
+    ok(a.reads.length === 1 && a.reads[0].text === BESTIARY_SQL,
+      'T-X1b — the statement IS set-activity.js BESTIARY_SQL, the collect path\'s own bytes');
+    {
+      const mig = join(ROOT, 'supabase', 'migrations');
+      const def = await readFile(join(mig, '2026-08-20-bestiary.sql'), 'utf8');
+      const granted = /grant execute on function public\.hr_bestiary_of\(uuid, int\) to hr_engine;/.test(def);
+      const revoked = /revoke execute on function public\.hr_bestiary_of\(uuid, int\)\s+from public, anon, authenticated, service_role;/.test(def);
+      const leaks = [];
+      for (const f of (await readdir(mig)).filter((x) => x.endsWith('.sql'))) {
+        const sql = await readFile(join(mig, f), 'utf8');
+        if (/grant\s+execute\s+on\s+function\s+public\.hr_bestiary_of[^;]*\bto\s+(?!hr_engine\b)/i.test(sql)) leaks.push(f);
+      }
+      ok(granted && revoked && leaks.length === 0,
+        'T-X1c — hr_bestiary_of is hr_engine-only: granted to the engine, revoked from every client role, '
+        + 'and no migration grants it wider', `granted=${granted} revoked=${revoked} leaks=${leaks.join(',')}`);
+    }
+    const d = await fire({ bestiaryError: '42883' });
+    ok(d.out.body.shadowed === 1 && d.db.settles.length === 1,
+      'T-X1d — 42883 (no such function) degrades to "no counters" and the window is still priced',
+      JSON.stringify(d.out.body));
+    for (const code of ['42501', '57014', '']) {
+      const e = await fire({ bestiaryError: code });
+      ok(e.out.body.shadowed === 0 && e.out.body.refused === 1 && e.db.settles.length === 0,
+        `T-X1e — ${code ? 'SQLSTATE ' + code : 'a codeless error'} is NOT swallowed: the character is refused, nothing settles`,
+        JSON.stringify(e.out.body));
+    }
+    ok(a.out.body.shadowed === 1 && a.out.body.processed === 0 && a.db.cfg.markMs === NOW_MS - 120000
+      && a.db.cfg.version === 7 && !a.db.calls.some((c) => c.text.includes('hr_apply')),
+      'T-X1f — with counters answered, SHADOW still pays nothing: no hr_apply, watermark and version unchanged',
+      JSON.stringify(a.out.body));
+    const b = await fire({ markMs: NOW_MS - 1000 });
+    ok(b.out.body.skipped === 1 && b.reads.length === 0,
+      'T-X1g — below the flush line the read is never made (only a priced window costs it)',
+      JSON.stringify(b.out.body));
+  }
+
   // ── T-BB1 — THE BODY IS BOUNDED BEFORE IT IS PARSED ─────────────────────
   group('T-BB1  the request body is capped');
   {
@@ -1061,7 +1131,9 @@ const MUTATIONS = [
         return out;
       },
     }),
-    mustFail: ['T-S1'],
+    /* T-X1f too: shadow must still pay nothing with the bestiary read in the
+       path, and an arm that stayed green under a paying shadow would not say so. */
+    mustFail: ['T-S1', 'T-X1f'],
   },
   {
     /* M-1 ITSELF, reproduced through the entry. The mutant believes the body:
@@ -1160,6 +1232,34 @@ const MUTATIONS = [
       },
     }),
     mustFail: ['T-R1'],
+  },
+  {
+    /* The degrade rule widened: a tick that treats a permission error, a
+       timeout, anything, as "no counters" prices a studied class at zero and
+       reports the window as healthy — a swallowed error is a guard's pass. */
+    id: 'M12', what: 'swallow every error on the bestiary read, not just 42883',
+    patch: (m) => Object.assign({}, m, {
+      runTick: async (o) => REAL.runTick(Object.assign({}, o, {
+        exec: async (text, params) => {
+          if (!text.includes('hr_bestiary_of')) return o.exec(text, params);
+          try { return await o.exec(text, params); } catch { return [{ kills: null }]; }
+        },
+      })),
+    }),
+    mustFail: ['T-X1e'],
+  },
+  {
+    /* N4 ITSELF: the read is not made and the combat session prices with no
+       charm and no trophy. Answered without reaching the database, which is
+       exactly what an entry that never issued the statement looks like. */
+    id: 'M13', what: 'drop the bestiary read',
+    patch: (m) => Object.assign({}, m, {
+      runTick: async (o) => REAL.runTick(Object.assign({}, o, {
+        exec: async (text, params) => (text.includes('hr_bestiary_of')
+          ? [{ kills: null }] : o.exec(text, params)),
+      })),
+    }),
+    mustFail: ['T-X1a'],
   },
 ];
 

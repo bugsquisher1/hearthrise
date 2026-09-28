@@ -845,8 +845,11 @@
        Keyed on the STATED stop (which covers death too, for the same
        reason), never on the numbers. */
     if (off.capped && !off.stoppedBy) {
+      /* The number only when the credited span IS the server's cap. */
+      var capH = awayCapHours();
+      var atCap = capH != null && isFinite(off.awayMs) && Math.abs(off.awayMs - capH * 3600000) < 60000;
       notes.push({ tone: 'held', icon: 'uiClock',
-        text: 'Capped at your ' + (off.budgetHrs || 12) + 'h away max — upgrades raise this.' });
+        text: atCap ? 'Capped at your ' + capH + 'h away limit.' : 'Capped at your away limit.' });
     }
 
     var noteHtml = notes.map(function (n) {
@@ -905,12 +908,12 @@
          claim a skill banks that the engine will not pay (cooking/farming are
          false there, which is the truth home-dashboard must tell — see b388);
        • idle banks nothing.
-     The cap is offlineCapHours() (12h base for everyone, more with perks/property/clan),
-     so the number shown is the player's actual personal ceiling, not a constant. */
+     The cap is the server's (offlineCapHours), or null until it is known. */
   function awayCapHours() {
-    try { if (typeof window.offlineCapHours === 'function') return window.offlineCapHours() | 0; } catch (e) {}
-    return 12;
+    try { if (typeof window.offlineCapHours === 'function') return window.offlineCapHours(); } catch (e) {}
+    return null;
   }
+  var CAP_PENDING = '<span class="bal-pending" role="status" title="Waiting for the server">—</span>';
   function activityBanks(G) {
     if (G.activeMonster) return true;               // combat always banks
     var sk = G.activeSkill;
@@ -925,11 +928,12 @@
   }
   function awayBankingRow(G) {
     var cap = awayCapHours();
+    var capTxt = cap == null ? CAP_PENDING : cap + 'h';
     var running = !!(G.activeMonster || G.activeSkill);
     if (running && activityBanks(G)) {
       return '<div class="hd-card hd-mini hd-bank is-on"><div class="mi">' +
         gly('uiIdle', 20, '', 'var(--green)') + '</div>' +
-        '<div class="hd-bank-txt">Banking offline — <b>up to ' + cap + 'h</b> while you are away.</div></div>';
+        '<div class="hd-bank-txt">Banking offline — <b>up to ' + capTxt + '</b> while you are away.</div></div>';
     }
     var why = running
       ? 'This activity only earns while you are here.'
@@ -937,7 +941,7 @@
     return '<div class="hd-card hd-mini hd-bank is-off"><div class="mi">' +
       gly('uiIdle', 20, '', 'var(--ink-3)') + '</div>' +
       '<div class="hd-bank-txt">' + why +
-      ' Fighting, gathering or crafting banks up to ' + cap + 'h offline.</div></div>';
+      ' Fighting, gathering or crafting banks up to ' + capTxt + ' offline.</div></div>';
   }
 
   /* b227 — this used to be a private regex table that only ever saw a task's
@@ -1517,8 +1521,6 @@
       grants.push((HS.maxPlots ? HS.maxPlots() : hsDef.plots) + ' farm plots');
       var ws = HS.workerSlots ? HS.workerSlots() : hsDef.workers;
       grants.push(ws ? (ws + ' worker' + (ws === 1 ? '' : 's')) : 'no hired hands');
-      var oh = hsDef.offlineHours || 0;
-      grants.push(oh ? ('+' + oh + 'h offline cap') : 'base offline cap');
       html += '<div class="hd-card hd-mile is-title" data-hd="house" style="cursor:pointer;padding-left:0">' +
         '<div class="hd-mile-badge">' + gly(HOLDING_GLYPH[hsDef.id] || 'uiHome', 22, '', '#e6d6b4') + '</div>' +
         '<div class="hd-mile-body">' +

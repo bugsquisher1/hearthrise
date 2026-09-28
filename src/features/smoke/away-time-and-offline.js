@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 116 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withClientOwnedSlots, awaySpan, tryRunRestampingBalance, xpOf, xpMap, predZero, goldOf, snapshotG, onFeet, drain, withResidueWire, seedPlayStreak, residuePurgeSnap, residuePurgeRestore, restoreG, restoreGAndRecord, autoEatMirrorReady, autoEatMirrorFixture, on, snapshot, decideRestore } from './_harness.js?v=558';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withClientOwnedSlots, awaySpan, tryRunRestampingBalance, xpOf, xpMap, predZero, goldOf, snapshotG, onFeet, drain, withResidueWire, seedPlayStreak, residuePurgeSnap, residuePurgeRestore, restoreG, restoreGAndRecord, autoEatMirrorReady, autoEatMirrorFixture, withCap, withStockedFight, on, snapshot, decideRestore } from './_harness.js?v=558';
 
 /* MODAL-FIT-1's probes. `mfClear` parks every layer that can sit above a sheet
    (scrims DETACHED, so no "another modal is up" check defers; toasts hidden) and
@@ -3873,10 +3873,9 @@ export default [
   () => tryRun('OFFLINE-CLARITY 2: the Right-now banking row states the cap and whether the activity banks', () => {
     const H = window.HearthriseHome;
     assert(H && typeof H.__awayBankingRow === 'function', 'the banking-row seam must exist');
-    const cap = (typeof window.offlineCapHours === 'function') ? window.offlineCapHours() | 0 : 12;
-    // Combat always banks.
-    const inCombat = H.__awayBankingRow({ activeMonster: 'slime', activeSkill: null });
-    assert(/Banking offline/.test(inCombat) && new RegExp('up to ' + cap + 'h').test(inCombat),
+    // The cap is the SERVER's (grant_min 780 → 13h), never offlineCapHours() compared with itself.
+    const inCombat = withCap(780, () => H.__awayBankingRow({ activeMonster: 'slime', activeSkill: null }));
+    assert(/Banking offline/.test(inCombat) && /up to 13h/.test(inCombat),
       'combat must read as banking, with the real cap: ' + inCombat);
     // A gather skill banks (serverAccruedSkill true).
     const woodcut = H.__awayBankingRow({ activeMonster: null, activeSkill: 'woodcutting' });
@@ -3887,8 +3886,8 @@ export default [
     assert(/Banking offline/.test(cooking),
       'cooking must be shown as banking under the armed settlement: ' + cooking);
     // Idle: nothing banks, but the cap + what DOES bank is still surfaced proactively.
-    const idle = H.__awayBankingRow({ activeMonster: null, activeSkill: null });
-    assert(/Nothing is banking/.test(idle) && new RegExp('up to ' + cap + 'h').test(idle),
+    const idle = withCap(780, () => H.__awayBankingRow({ activeMonster: null, activeSkill: null }));
+    assert(/Nothing is banking/.test(idle) && /up to 13h/.test(idle),
       'an idle camp must proactively state the cap and what banks: ' + idle);
   }),
 
@@ -7164,5 +7163,111 @@ export default [
     const old = card([{ skill: 'mining', to: 12 }]);
     assert(/Mining reached 12/.test(old) && !/undefined|NaN/.test(old), 'a receipt entry with no `from` must read "reached": ' + old);
     assert(!/Levels while you were away/.test(card([{ skill: 'not_a_skill', from: 1, to: 2 }])), 'an unknown skill id prints nothing');
+  }),
+
+  /* ── OFFLINE-CAP (CLAUDE.md §6): the away limit is the server's hr_offline_cap_ms,
+     read as hr_vigour_of.grant_min. No client perk sum, no guessed 12, no promise. */
+  () => tryRun('OFFLINE-CAP-1a: offlineCapHours reads the server grant, never a perk sum', () => {
+    const R = window.HearthriseRenown, gp = R.getPerks;
+    R.getPerks = () => ({ allXP: 0, offlineHours: 12, bankSlots: 0, marketSlots: 0, dailyTasks: 0, dropRate: 0 });
+    try {
+      const at = (min) => withCap(min, () => window.offlineCapHours());
+      assert(at(720) === 12, 'grant_min 720 must read 12h whatever the client perks say, got ' + at(720));
+      assert(at(900) === 15, 'grant_min 900 (clan 7) must read 15h, got ' + at(900));
+      assert(at(null) === null, 'an unknown meter must read null, never a guessed cap, got ' + at(null));
+    } finally { R.getPerks = gp; }
+  }),
+
+  () => tryRun('OFFLINE-CAP-1b: the banking row prints the server cap, or the pending mark when unknown', () => {
+    const H = window.HearthriseHome;
+    const row = (min) => withCap(min, () => String(H.__awayBankingRow({ activeMonster: 'slime' })));
+    const known = row(900).replace(/<[^>]*>/g, ' ');
+    assert(/up to 15h/.test(known), 'the row must print the server cap (15h): ' + known);
+    const unknown = row(null);
+    assert(/bal-pending/.test(unknown), 'an unknown cap must render the pending mark: ' + unknown);
+    assert(!/\b0h\b|12h|null|NaN/.test(unknown.replace(/<[^>]*>/g, ' ')), 'an unknown cap printed a number: ' + unknown);
+  }),
+
+  () => tryRun('OFFLINE-CAP-1c: no House, Home or renown surface promises away hours the server does not pay', () => withCap(720, () => {
+    const HH = window.HearthriseHomestead, R = window.HearthriseRenown, bad = /offline (cap|max)|\+\d+h offline/i;
+    HH.renderCard();
+    const card = (document.getElementById('hh-property-card') || {}).textContent || '';
+    assert(card.length > 0 && !bad.test(card), 'the House card promises away hours: ' + card.replace(/\s+/g, ' '));
+    window.showTab('profile'); window.HearthriseHome.render();
+    const home = ((document.getElementById('hd-root') || {}).textContent || '').replace(/\s+/g, ' ');
+    assert(home.length > 0 && !bad.test(home), 'Home promises away hours: ' + home.slice(0, 600));
+    const copy = R.RANKS.map((r) => r.unlock).concat(HH.TIERS.map((t) => t.desc));
+    copy.forEach((s) => assert(!/\d+\s*h(our)?s?\s*(offline|away)|offline progress/i.test(s), 'a ladder line promises away hours: ' + s));
+    const castle = HH.TIERS[HH.TIERS.length - 1].desc;
+    assert(/\+2% all XP/.test(castle), 'the Castle must state what CAPSTONE_PERKS pays (+2%): ' + castle);
+  })),
+
+  () => tryRun('OFFLINE-CAP-1d: the receipt prints the cap only when the credited span IS the cap, and sells no upgrade', () => {
+    const H = window.HearthriseHome;
+    const card = (min, h) => withCap(min, () => String(H.__awayCardHtml({ hrs: h, awayMs: h * 3600000,
+      gainedXp: 900, capped: true, stoppedBy: null })).replace(/<[^>]*>/g, ' '));
+    const full = card(900, 15);
+    assert(/Capped at your 15h away limit/.test(full) && !/upgrades raise/.test(full), 'a full-cap night: ' + full);
+    const bound = card(900, 8);
+    assert(/Capped at your away limit\./.test(bound) && !/\d+h away (limit|max)/.test(bound), 'a span below the cap: ' + bound);
+    const unknown = card(null, 15);
+    assert(/away limit/.test(unknown) && !/\d+h away (limit|max)/.test(unknown), 'an unknown cap printed a number: ' + unknown);
+  }),
+
+  () => tryRun('OFFLINE-CAP-1e: an idle night is never "capped" — nothing was paid and the server stated no cap', () => withCap(720, () => {
+    const now = Date.now();
+    delete window.G.lastOfflineSummary;
+    const rec = window.maybeIdleAwayReceipt(now, now - 20 * 3600000 - 7777);
+    assert(rec && rec.idle === true, 'a 20h idle absence wrote no receipt');
+    assert(rec.capped === false, 'an idle receipt claims the cap bound a night that paid nothing: ' + JSON.stringify(rec));
+    const html = String(window.HearthriseHome.__awayCardHtml(rec));
+    assert(!/Capped at/.test(html), 'the idle card blames the away limit: ' + html);
+  })),
+
+  () => tryRun('OFFLINE-CAP-1f: the fight surfaces print the server cap or "away limit" — never 0h, null or NaN', () => withStockedFight(() => {
+    const HUD = window.HearthriseCombatHud;
+    const read = (min) => withCap(min, () => {
+      assert(HUD.openStats(), 'the stats modal did not open');
+      const st = (document.querySelector('.hr-room-scrim') || {}).textContent || '';
+      HUD.close();
+      window.openMobPreview('slime');
+      const line = (document.querySelector('#mp-modal .mp-away-line') || {}).textContent || '';
+      const ov = document.getElementById('mob-preview'); if (ov) ov.classList.remove('open');
+      assert(/You keep fighting/.test(st) && line, 'the stocked fixture is not a sustained fight: ' + st.slice(-300));
+      return (st.slice(st.indexOf('While you are away')) + ' | ' + line).replace(/\s+/g, ' ');
+    });
+    const unknown = read(null);
+    assert(/away limit/.test(unknown) && !/\b0s\b|\b0h\b|null|NaN|offline max/.test(unknown), 'unknown cap: ' + unknown);
+    const known = read(720);
+    assert(/12h/.test(known) && !/offline max/.test(known), 'a known 12h cap: ' + known);
+  })),
+
+  () => tryRunAsync('OFFLINE-CAP-1g: the boot hr_load hydrates the cap — an idle login knows its away limit', () => withCap(null, async () => {
+    const R = window.HearthriseRecord, snap = snapshotG(), realFetch = window.fetch;
+    let body = null; const apply = R.applyRecord;   // the hr_load body the harness would stamp, plus the meter
+    R.applyRecord = (g, res) => { body = res; return null; };
+    try { stampRecordLikeLoad(window.G); } finally { R.applyRecord = apply; }
+    body.vigour = { grant_min: 780 };
+    window.fetch = function (u) {
+      return /hr_load/.test(String(u)) ? Promise.resolve(new Response(JSON.stringify(body), { status: 200 })) : realFetch.apply(this, arguments);
+    };
+    try {
+      R.resetRecord();
+      R.configureRecord({ url: 'https://proj.supabase.co/', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
+      const v = await R.requestRecord();
+      assert(v && v.outcome === 'loaded', 'the boot read did not load: ' + JSON.stringify(v));
+      assert(window.offlineCapHours() === 13, 'a boot carrying grant_min 780 must know 13h with no accrue envelope, got ' + window.offlineCapHours());
+    } finally { window.fetch = realFetch; try { R.resetRecord(); R.configureRecord(null); } catch (e) {} restoreGAndRecord(snap); }
+  })),
+
+  () => tryRun('OFFLINE-CAP-1h: no client renown perk raises a server limit (12 listings, 3 daily tasks)', () => {
+    const R = window.HearthriseRenown, gp = R.getPerks, snap = snapshotG(), M = window.HearthriseMarket;
+    R.getPerks = () => ({ allXP: 0, bankSlots: 0, dropRate: 0, marketSlots: 1, dailyTasks: 1 });
+    try {
+      assert(M.listingLimit() === M.PER_CHAR_LIMIT, 'hr_market_config.max_listings is 12; the client offers ' + M.listingLimit());
+      delete window.G.daily;
+      window.generateDailyTasks(false);
+      assert(window.G.daily.tasks.length === 3, 'the server offers 3 daily tasks; the client dealt ' + window.G.daily.tasks.length);
+    } finally { R.getPerks = gp; restoreG(snap); }
   }),
 ];

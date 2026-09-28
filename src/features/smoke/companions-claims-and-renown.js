@@ -1258,27 +1258,27 @@ export default [
     let termsBefore = null;
     try {
       termsBefore = zeroRenownTerms(G);
-      G.renownHigh = 2500;                          // the prediction says Knight
-      G.renown = { claimed: [], seenRank: 2 };
+      G.renownHigh = 5000;                          // the prediction says Baron
+      G.renown = { claimed: [], seenRank: 3 };
       if (R.__resetClaimState) R.__resetClaimState();
-      R.noteServerRenown({ ok: true, renown_high: 1058, progress: [], progress_truncated: false });
-      assert(R.rankIndexFor(R.effective(G)) === 3 && R.rankIndexFor(R.counted(G)) === 2,
-        'fixture: a Knight prediction against a Squire count');
+      R.noteServerRenown({ ok: true, renown_high: 2200, progress: [], progress_truncated: false });
+      assert(R.rankIndexFor(R.effective(G)) === 4 && R.rankIndexFor(R.counted(G)) === 3,
+        'fixture: a Baron prediction against a Knight count');
       const perksShort = R.getPerks(G);
       assert(R.pollRankUp(G).length === 0, 'and no rank-up card fires on the prediction');
 
       /* ⚠ THE CLAIM BUTTON IS THE DELIBERATE EXCEPTION (RANK-CLAIM-1): the click
          is what advances the server's high-water, so the row stays offered on
          the prediction and the SERVER decides it. */
-      assert(R.getClaimable(G).some((r) => r.id === 'knight'),
-        'the Knight row stays OFFERED — the click is the only thing that moves the realm\'s count');
+      assert(R.getClaimable(G).some((r) => r.id === 'baron'),
+        'the Baron row stays OFFERED — the click is the only thing that moves the realm\'s count');
 
       /* THE REALM CATCHES UP — only now does the perk exist. */
-      R.noteServerRenown({ ok: true, renown_high: 2200, progress: [], progress_truncated: false });
+      R.noteServerRenown({ ok: true, renown_high: 4500, progress: [], progress_truncated: false });
       const perksFull = R.getPerks(G);
-      assert(perksFull.offlineHours > perksShort.offlineHours,
-        'THE BUG: Knight\'s +1 offline hour must arrive with the realm\'s count, not with the '
-        + 'prediction; got ' + perksShort.offlineHours + ' → ' + perksFull.offlineHours);
+      assert(perksFull.allXP > perksShort.allXP,
+        'THE BUG: Baron\'s +1% XP must arrive with the realm\'s count, not with the '
+        + 'prediction; got ' + perksShort.allXP + ' → ' + perksFull.allXP);
     } finally {
       if (R.__resetClaimState) R.__resetClaimState();
       if (srvBefore !== null) R.noteServerRenown({ renown_high: srvBefore });

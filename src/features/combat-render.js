@@ -204,17 +204,21 @@ function awayRow(m, f) {
     return { name: 'Before your first fall', meta: SIGNPOSTS.lines['night.statsFall'].text,
       right: `<span class="hr-cs-amt">≈${num(f.survivalKills || 0)} kills</span>` };
   }
+  const capH = typeof window.offlineCapHours === 'function' ? window.offlineCapHours() : null;
+  if (capH == null) {
+    return { name: 'You keep fighting', meta: 'until your away limit — waiting for the server',
+      right: '<span class="bal-pending" role="status" title="Waiting for the server">—</span>' };
+  }
   /* The count is the server's bag or nothing (§6): a pending mark before the first envelope. */
   const AC = window.HearthriseAccrual;
   const held = AC && typeof AC.bagHydrated === 'function' && AC.bagHydrated(G)
     ? num(G.inventory[foodId]) : ((window.HearthriseBalance || {}).UNKNOWN_TEXT || '');
-  const capH = typeof window.offlineCapHours === 'function' ? window.offlineCapHours() : 12;
   const foodS = f.survivalSeconds;
   const bound = Math.min(capH * 3600, foodS);
   return { name: 'You keep fighting for', right: `<span class="hr-cs-amt">${fmtRun(bound)}</span>`,
     meta: foodS <= capH * 3600
       ? `on ${held} ${esc((window.ITEMS[foodId] || {}).n || foodId)}`
-      : `your ${capH}h offline max, not your food` };
+      : `your ${capH}h away limit, not your food` };
 }
 
 /* "75s" / "18m" / "4h 20m". Local because the survival span is the only

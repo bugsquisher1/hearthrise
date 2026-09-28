@@ -2606,5 +2606,29 @@ export function hrCharmDriver() {
 }
 
 
+/* THE SERVER'S AWAY LIMIT, set the way an envelope sets it: hr_vigour_of.grant_min
+   through hydrateHunt; null deletes it (unknown). Restores what it touched, sync or async. */
+const CAP_KEYS = ['_vigour', 'lastOfflineSummary', '_idleReceiptAnchor'];
+export const withCap = (min, fn) => {
+  const G = window.G, saved = {};
+  for (const k of CAP_KEYS) saved[k] = Object.prototype.hasOwnProperty.call(G, k) ? G[k] : SNAP_ABSENT;
+  const back = () => { for (const k of CAP_KEYS) { if (saved[k] === SNAP_ABSENT) delete G[k]; else G[k] = saved[k]; } };
+  if (min == null) delete G._vigour; else window.HearthriseAccrual.hydrateHunt(G, { vigour: { grant_min: min } });
+  let out;
+  try { out = fn(); } catch (e) { back(); throw e; }
+  if (out && typeof out.then === 'function') return out.finally(back);
+  back(); return out;
+};
+/* A fight the night can carry: Auto-Eat, a stocked slot, a foe on the board. */
+export const withStockedFight = (fn) => {
+  const G = window.G, snap = snapshotG(), has = window.hasTrait, food = window.autoEatFoodId;
+  try {
+    window.hasTrait = function (id) { return id === 'auto_eat' || has.apply(this, arguments); };
+    window.autoEatFoodId = () => 'cooked_shrimp';
+    G.activeMonster = 'slime'; G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 100000 });
+    return fn();
+  } finally { window.hasTrait = has; window.autoEatFoodId = food; restoreG(snap); }
+};
+
 /* Re-exported for the domain modules: one seam, not four. */
 export { on, snapshot, findUiOverlaps, watchUiOverlaps, decideRestore, decideSessionEvent, decideLocalOwnership, CHARM_RANKS };

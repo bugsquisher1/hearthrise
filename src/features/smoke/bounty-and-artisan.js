@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 64 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, awayGatherSpan, tryRunRestampingBalance, xpOf, xpZero, goldOf, snapshotG, setAway, restoreG, restoreGAndRecord, on } from './_harness.js?v=558';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, awayGatherSpan, tryRunRestampingBalance, xpOf, xpZero, goldOf, snapshotG, setAway, restoreG, restoreGAndRecord, withCap, on } from './_harness.js?v=558';
 
 export default [
 
@@ -2621,7 +2621,7 @@ export default [
     } finally { E._force(null); restoreG(snap); }
   }),
 
-  () => tryRun('b307: the offline cap is PER-ABSENCE — each trip caps on its own, no daily bucket', () => {
+  () => tryRun('b307: the offline cap is PER-ABSENCE — each trip caps on its own, no daily bucket', () => withCap(720, () => {
     // b307 replaces b226's daily bucket (which pinned every save to its cap and
     // killed offline for the rest of the day — paione's report). The cap now
     // applies to a SINGLE absence; signing in resets the timer.
@@ -2679,9 +2679,9 @@ export default [
       if(hidden) Object.defineProperty(document, 'hidden', hidden); else { try{ delete document.hidden; }catch(e){} }
       restoreG(snap);
     }
-  }),
+  })),
 
-  () => tryRun('b226/b505: the offline cap is EARNED — no entitlement may raise it', () => {
+  () => tryRun('b226/b505: the offline cap is EARNED — no entitlement may raise it', () => withCap(720, () => {
     /* This test used to assert the opposite: that the Offline+ entitlement added
        4h to the cap. b505 removed that product (Tyler: "kill ... both offline
        boosts") — an away-accrual boost sold for cash is pay-to-win on a shared,
@@ -2693,15 +2693,15 @@ export default [
     try {
       G.entitlements = {};
       const base = window.offlineCapHours();
-      assert(base >= 12, 'the base offline cap is 12h, got ' + base);
+      assert(base === 12, 'the server stated 12h (grant_min 720), got ' + base);
       const flags = { offlinePlus: true, noAds: true, hearthHall: true };
       (window.IAP_CATALOG || []).forEach((prod) => { if (prod.ent) flags[prod.ent] = true; });
       G.entitlements = flags;
       assert(window.offlineCapHours() === base,
         'an entitlement moved the offline cap from ' + base + 'h to ' + window.offlineCapHours()
-        + 'h — away-time is not for sale; only renown/property/clan perks extend it');
+        + 'h — away-time is not for sale; the cap is the server\'s');
     } finally { restoreG(snap); }
-  }),
+  })),
 
   () => tryRun('b226: the vendor pays VENDOR_RAW_RATE for raws and full value for the rest', () => {
     const ITEMS = window.ITEMS;

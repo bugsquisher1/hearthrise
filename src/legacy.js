@@ -1209,8 +1209,7 @@ function loadLocal(){
    the cap applies to a SINGLE ABSENCE. You earn offline progress for up to
    `offlineCapHours()` of the time since you were last here; signing in resets
    the timer, so the next absence starts fresh. No shared daily bucket, no
-   "0h left" dead state. Premium/perks raise your personal per-absence cap
-   ("earn longer while away"), which keeps those perks meaningful.
+   "0h left" dead state. The cap itself is the server's (hr_offline_cap_ms).
 
    ── STILL WATERMARKED (the b214 double-pay guard is unchanged) ──
    `G.offlineBudget.at` is the instant already accounted for. It advances to
@@ -1220,25 +1219,9 @@ function loadLocal(){
    legacy `usedMs`/`dayKey` fields are now ignored (tolerated on old saves).
    ════════════════════════════════════════════════════════════════ */
 function offlineCapHours(){
-  /* 12h for EVERY account. No entitlement raises the base — the Offline+
-     product that used to (and the +25% on Hearth Hall) were removed in b505:
-     an away-accrual boost sold for cash is pay-to-win on a ranked economy, and
-     the server floors offline at 12h regardless of what the client believes.
-     Earned perks (renown / property / clan) still extend it; those are played
-     for, not bought. */
-  let cap=12;
-  if(window.HearthriseRenown && typeof window.HearthriseRenown.getPerks==='function'){
-    try{ cap += (window.HearthriseRenown.getPerks(G).offlineHours||0); }catch(e){}
-  }
-  /* b201 (SYS-1): property tier grants bonus offline hours (farmstead +1 … castle +4) */
-  if(window.HearthriseHomestead){
-    try{ cap += (window.HearthriseHomestead.offlineBonusHours()||0); }catch(e){}
-  }
-  /* b206 (SYS-9): clan perks grant offline hours (clan Lv4 +1h, Lv7 +2h) */
-  if(window.HearthriseClans){
-    try{ cap += (window.HearthriseClans.offlineBonusHours()||0); }catch(e){}
-  }
-  return cap;
+  /* The server's cap or null: hr_vigour_of.grant_min is hr_offline_cap_ms in minutes (clan included). */
+  var A=window.HearthriseAccrual;
+  try{ return (A&&typeof A.capHoursFromVigour==='function')?A.capHoursFromVigour(G._vigour):null; }catch(e){ return null; }
 }
 function utcDayKey(now){
   const d=new Date(typeof now==='number'?now:Date.now());
@@ -2360,11 +2343,10 @@ function maybeIdleAwayReceipt(now,watermark){
   const _anchor=(typeof watermark==='number'&&isFinite(watermark))?watermark:null;
   if(_anchor!==null && typeof G._idleReceiptAnchor==='number'
      && Math.abs(_anchor-G._idleReceiptAnchor)<60000) return null;
-  const cap=(typeof offlineCapHours==='function')?offlineCapHours():12;
   const hrs=+(absMs/3600000).toFixed(1);
   G.lastOfflineSummary={
     hrs, awayMs:absMs, gainedItems:0, gainedXp:0, gainedGold:0, gainedKills:0,
-    burnt:0, combat:null, budgetHrs:cap, capped:absMs>=(cap*3600000-50000),
+    burnt:0, combat:null, budgetHrs:offlineCapHours(), capped:false,
     at:Date.now(), blessed:false, buffsPaused:false, buffPaidMs:0, buffsExpired:[],
     crits:0, died:false, diedAfterMs:0, diedTo:null, featuredMs:0, featuredDropMult:1,
     rateMult:1, idle:true,
@@ -5554,20 +5536,8 @@ function generateDailyTasks(notice=true){
   G.daily.lastReset=today;
   // Deterministic shuffle of pool by date seed
   const indexes=dailyTaskIndexes(today);
-  /* b228 (bonus-rebase.md §5.3): the King's rank stops paying +1% XP and
-     starts paying a DAILY TASK SLOT. `dailyTasks` has been declared in
-     renown.getPerks() since renown shipped and nothing ever granted or read
-     it; this is the reader. Access, not throughput — outside the power budget
-     (§2.5), felt every single day, and it can never compound.
-     Bounded by the pool so a future perk can never ask for more tasks than
-     exist to hand out. */
-  var extraTasks=0;
-  try{
-    if(window.HearthriseRenown && typeof window.HearthriseRenown.getPerks==='function'){
-      extraTasks=Math.max(0, window.HearthriseRenown.getPerks(G).dailyTasks|0);
-    }
-  }catch(e){}
-  const taskCount=Math.min(DAILY_TASK_POOL.length, 3+extraTasks);
+  /* Three tasks: the server's daily task set offers no more (not_offered). */
+  const taskCount=Math.min(DAILY_TASK_POOL.length, 3);
   /* b45x (P0) — ELIGIBILITY. `indexes` is the raw date-seeded order; the offered
      SET skips a task whose bench the player has not built and takes the next one
      down the same order. The rule and the algorithm live in
@@ -12087,7 +12057,7 @@ console.log('Activity bar: loaded');
              recMin+' minutes, then double each time). Nothing is earned while you are down. '+
              'Auto-Eat keeps the fight running instead.';
     }
-    var capMs = (typeof offlineCapHours === 'function') ? offlineCapHours()*3600000 : 12*3600000;
+    var capH = offlineCapHours(), capMs = capH==null ? Infinity : capH*3600000;
     var foodMs = est.survivalSeconds * 1000;
     var bound = Math.min(capMs, foodMs);
     var name = (window.ITEMS && window.ITEMS[foodId] && window.ITEMS[foodId].n) || foodId;
@@ -12105,10 +12075,11 @@ console.log('Activity bar: loaded');
         fmtNum(G.inventory[foodId])+' '+name+", then you'll be knocked out — and each fall "+
         'costs longer than the last ('+recMin+' minutes, then double). Cook more before you go.';
     }
+    if(capH==null) return '<b>Away:</b> on '+fmtNum(G.inventory[foodId])+' '+name+' until your away limit.';
     return '<b>Away:</b> about <b>'+fmtRunTime(bound/1000)+'</b>, '+
       (foodMs <= capMs
         ? 'on '+fmtNum(G.inventory[foodId])+' '+name+'.'
-        : 'your '+offlineCapHours()+'h offline max, not your food.');
+        : 'your '+capH+'h away limit, not your food.');
   }
 
   function renderPreview(monsterId){
@@ -17076,7 +17047,7 @@ function buildSlotsCard(){
     + '</div>'
     + '<div class="cr-paywall-hint">'
       + '<span>'+_hrGly('gems',14,'--gem')+'</span>'
-      + '<div><b>Hearth Hall Premium:</b> 3 character slots, +25% offline progress, exclusive cosmetics, monthly chests.</div>'
+      + '<div><b>Hearth Hall Premium:</b> 3 character slots and exclusive cosmetics.</div>'
       + '<button onclick="window.showTab && showTab(\'shop\')">Learn more</button>'
     + '</div>'
   + '</div>';

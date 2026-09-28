@@ -43,16 +43,19 @@ function goThrough(door) {
 function build(groups, entries) {
   const modal = el('div', 'modal');
   modal.id = MODAL_ID;
-  const card = el('div', 'modal-card');
-  const head = el('div', 'modal-head');
+  // .hr-sheet: the head (title + Close) stays pinned and only the body scrolls.
+  const card = el('div', 'modal-card hr-sheet');
+  const head = el('div', 'modal-head hr-sheet-head');
   head.appendChild(el('div', 'modal-title', 'Hearth Codex'));
   const shut = el('button', 'btn btn-sm', 'Close');
   shut.type = 'button';
   shut.addEventListener('click', close);
   head.appendChild(shut);
   card.appendChild(head);
+  const body = el('div', 'hr-sheet-body');
+  card.appendChild(body);
   for (const g of groups) {
-    card.appendChild(el('h3', 'codex-group', g.label));
+    body.appendChild(el('h3', 'codex-group', g.label));
     for (const e of entries.filter((x) => x.group === g.id)) {
       const d = el('details', 'codex-entry');
       d.id = 'cx-' + e.id;
@@ -64,7 +67,7 @@ function build(groups, entries) {
         b.addEventListener('click', () => goThrough(e.door));
         d.appendChild(b);
       }
-      card.appendChild(d);
+      body.appendChild(d);
     }
   }
   modal.appendChild(card);

@@ -38,7 +38,7 @@
 // ============================================================================
 
 import {
-  resolveActiveSlot, accrueEndpoint, MAX_SLOT,
+  resolveActiveSlot, accrueEndpoint, MAX_SLOT, applyCollectedReceipt,
 } from './accrue.js?v=559';
 import { isDungeonSettleArmed, reconcileScrip } from './dungeon-scrip-record.js?v=559';
 
@@ -226,6 +226,8 @@ export function reconcileFromEnvelope(G, body) {
   const env = envelopeOf(body);
   if (!env) return null;
   const scrip = reconcileScrip(G, env.state);
+  /* The window the settle collected first (F1) → the welcome card, once per window. */
+  if (body.replayed !== true) applyCollectedReceipt(G, body, env, 'collect');
   let items = null;
   if (body.replayed !== true && env.settled && env.settled.items && typeof env.settled.items === 'object') {
     items = env.settled.items;
@@ -340,6 +342,7 @@ export function reconcileQuartermasterFromEnvelope(G, body) {
   const env = envelopeOf(body);
   if (!env) return null;
   const scrip = reconcileScrip(G, env.state);
+  if (body.replayed !== true) applyCollectedReceipt(G, body, env, 'collect');
   let item = null;
   if (body.replayed !== true && body.bought && typeof body.bought === 'object' && body.bought.item) {
     item = String(body.bought.item);

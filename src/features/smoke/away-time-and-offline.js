@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 116 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withClientOwnedSlots, awaySpan, tryRunRestampingBalance, xpOf, xpMap, predZero, goldOf, snapshotG, onFeet, drain, withResidueWire, seedPlayStreak, residuePurgeSnap, residuePurgeRestore, restoreG, restoreGAndRecord, autoEatMirrorReady, autoEatMirrorFixture, withCap, withStockedFight, on, snapshot, decideRestore } from './_harness.js?v=559';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withClientOwnedSlots, awaySpan, tryRunRestampingBalance, xpOf, xpMap, predZero, goldOf, snapshotG, onFeet, drain, withResidueWire, seedPlayStreak, residuePurgeSnap, residuePurgeRestore, restoreG, restoreGAndRecord, autoEatMirrorReady, autoEatMirrorFixture, withCap, withStockedFight, on, snapshot, decideRestore, freshFrameGate } from './_harness.js?v=559';
 
 /* MODAL-FIT-1's probes. `mfClear` parks every layer that can sit above a sheet
    (scrims DETACHED, so no "another modal is up" check defers; toasts hidden) and
@@ -7169,13 +7169,14 @@ export default [
     } finally { R.getPerks = gp; }
   }),
 
-  () => tryRun('OFFLINE-CAP-1b: the banking row prints the server cap, or the pending mark when unknown', () => {
+  () => tryRun('OFFLINE-CAP-1b: the banking row prints the server cap, or the pending sentence when unknown', () => {
     const H = window.HearthriseHome;
     const row = (min) => withCap(min, () => String(H.__awayBankingRow({ activeMonster: 'slime' })));
     const known = row(900).replace(/<[^>]*>/g, ' ');
     assert(/up to 15h/.test(known), 'the row must print the server cap (15h): ' + known);
     const unknown = row(null);
-    assert(/bal-pending/.test(unknown), 'an unknown cap must render the pending mark: ' + unknown);
+    // NIGHT-PLAN-PENDING-COPY: pending is its own sentence, not a dash mid-sentence.
+    assert(/the limit is being confirmed/.test(unknown), 'an unknown cap must read as pending: ' + unknown);
     assert(!/\b0h\b|12h|null|NaN/.test(unknown.replace(/<[^>]*>/g, ' ')), 'an unknown cap printed a number: ' + unknown);
   }),
 
@@ -7260,5 +7261,42 @@ export default [
       window.generateDailyTasks(false);
       assert(window.G.daily.tasks.length === 3, 'the server offers 3 daily tasks; the client dealt ' + window.G.daily.tasks.length);
     } finally { R.getPerks = gp; restoreG(snap); }
+  }),
+
+  /* SETTLE-BEFORE-MUTATE F1 (Security review 2026-09-28): every value verb settles the open window first and
+     returns its `collected` receipt; only a switch's reached the welcome card. Each figure is the receipt's own. */
+  () => tryRun('WELCOME-COLLECTED-1: a buy that settled first shows the welcome card for its window, once', () => {
+    const A = window.HearthriseAccrual, Gd = window.HearthriseGold, M = window.HearthriseActivity, w = window.__presentWelcome;
+    const T = Date.now(), g = {}, shown = [];
+    const collected = { ms: 3 * 3600000, gold: 417, kills: 0, xp: { woodcutting: 2310 }, items: { normal_log: 231 }, windowFrom: T - 3 * 3600000, windowTo: T };
+    const env = (verb, version) => ({ ok: true, verb, version, now: new Date(T).toISOString(), state: { slot: 0 }, skills: {}, inventory: {}, collected });
+    window.__presentWelcome = () => shown.push(1);
+    try {
+      A.__resetAwayReceipt(); freshFrameGate();
+      Gd.applyGoldEnvelope(g, env('shop_buy', 1), Gd.newIntentKey());
+      const card = A.getLastAwayReceipt() ? String(window.HearthriseHome.__awayCardHtml(A.getLastAwayReceipt())) : '';
+      assert(shown.length === 1 && /417/.test(card) && /2,?310/.test(card) && /231/.test(card),
+        'the buy\'s `collected` drew no welcome card (presented ' + shown.length + '): ' + card.slice(0, 160));
+      const sw = M.applyIntentEnvelope(g, env('set_activity', 2));
+      assert(sw && !sw.summary && g.lastOfflineSummary === A.getLastAwayReceipt() && shown.length === 1,
+        'a switch carrying the SAME window presented its receipt a second time');
+    } finally { window.__presentWelcome = w; A.__resetAwayReceipt(); freshFrameGate(); }
+  }),
+
+  () => tryRun('WELCOME-COLLECTED-2: the return settle still shows the card; a later eat receipt for a new window shows a second', () => {
+    const A = window.HearthriseAccrual, M = window.HearthriseActivity, w = window.__presentWelcome, H = window.HearthriseHome;
+    const T = Date.now(), H2 = 2 * 3600000, g = {}, shown = [];
+    const env = (version, extra) => Object.assign({ ok: true, accrued: true, version, now: new Date(T).toISOString(), state: { slot: 0 }, skills: {}, inventory: {} }, extra);
+    window.__presentWelcome = () => shown.push(1);
+    try {
+      A.__resetAwayReceipt(); freshFrameGate();
+      A.applyEnvelope(g, env(1, { away: { grantMs: 4 * H2, gold: 1234, xp: { mining: 900 }, items: { copper_ore: 90 }, windowFrom: T - 6 * H2, windowTo: T - 2 * H2 } }));
+      const night = A.getLastAwayReceipt();
+      assert(night && /1,?234/.test(String(H.__awayCardHtml(night))), 'the return settle no longer draws the welcome card');
+      M.applyIntentEnvelope(g, env(2, { verb: 'eat', collected: { ms: H2, gold: 88, kills: 0, xp: { fishing: 640 }, items: { raw_shrimp: 64 }, windowFrom: T - H2, windowTo: T } }));
+      const card = String(H.__awayCardHtml(A.getLastAwayReceipt()));
+      assert(A.getLastAwayReceipt() !== night && shown.length === 1 && /88/.test(card) && /640/.test(card),
+        'the eat\'s `collected` for a NEW window drew no second card (presented ' + shown.length + '): ' + card.slice(0, 160));
+    } finally { window.__presentWelcome = w; A.__resetAwayReceipt(); freshFrameGate(); }
   }),
 ];

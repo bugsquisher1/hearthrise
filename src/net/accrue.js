@@ -5169,6 +5169,8 @@ function applyAcceptedEnvelope(G, res) {
      the second is the news. It is display state, not progression (§6), so it is
      not persisted; the boot seed below is what restates it after a reload. */
   if (classifyReceipt(G.lastOfflineSummary) === 'away') lastAwayReceipt = G.lastOfflineSummary;
+  /* …and names its window, so a verb's `collected` for the SAME hours presents nothing twice. */
+  claimReceiptWindow(G.lastOfflineSummary);
 
   /* The server owns `accrued_to`. Parking it here is what makes it visible to
      the countdown UI and to a bug report; nothing reads it as authority. */
@@ -5621,7 +5623,108 @@ export function getLastAwayReceipt() { return lastAwayReceipt; }
 
 /** TEST SEAM ONLY. An away fixture landed by one test would otherwise stay on
     the Home screen for the next thirty minutes of the suite. */
-export function __resetAwayReceipt() { lastAwayReceipt = null; lastFall = null; }
+export function __resetAwayReceipt() { lastAwayReceipt = null; lastFall = null; shownWindows.clear(); }
+
+/**
+ * THE RECEIPT, OR NULL. Null both when the server sent none and when it sent
+ * one that paid nothing — a zero receipt rendered is a welcome-back card that
+ * says "+0 gold" over the real one, which is the mirror image of the bug this
+ * whole path exists to avoid.
+ */
+export function collectedOf(body) {
+  const c = body && typeof body === 'object' ? body.collected : null;
+  if (!c || typeof c !== 'object') return null;
+  const sum = (v) => (v && typeof v === 'object'
+    ? Object.keys(v).reduce((s, k) => s + (Number(v[k]) || 0), 0) : (Number(v) || 0));
+  const paid = (Number(c.gold) || 0) + (Number(c.kills) || 0) + sum(c.xp) + sum(c.items)
+    + (Array.isArray(c.levelUps) ? c.levelUps.length : 0);
+  if (paid <= 0 && !(Number(c.ms) > 0)) return null;
+  return c;
+}
+
+/** `collected` → the `away` shape `summaryFromAway` already reads. ONE
+ *  translation, so the away card and the switch receipt cannot describe the
+ *  same kind of payment differently. */
+export function awayFromCollected(collected) {
+  const c = collected || {};
+  return {
+    grantMs: Number(c.ms) || 0,
+    capped: !!c.capped,
+    kills: Number(c.kills) || 0,
+    crits: Number(c.crits) || 0,
+    died: !!c.died,
+    /* Ruling 2b (2026-08-31): WHAT killed them, and the auto-eat state the
+       engine ran that span with, so `receiptDeathCause` can name the reason on
+       a switch receipt too. Both are self-configuring — a server that does not
+       state them leaves them undefined and the sentence simply omits the
+       clause, which is the same rule `windowFrom`/`windowTo` follow above. */
+    diedTo: c.diedTo || null,
+    paidMs: Number(c.paidMs) || 0,
+    autoEat: (c.autoEat && typeof c.autoEat === 'object') ? c.autoEat : null,
+    gold: Number(c.gold) || 0,
+    xp: c.xp,
+    items: c.items,
+    levelUps: Array.isArray(c.levelUps) ? c.levelUps : [],
+    blessed: !!c.blessed,
+    buffsPaused: !!c.buffsPaused,
+    /* Ruling 2: WHICH hours the collect settled. Carried rather than
+       derived — with the credited window anchored to when the player LEFT, a
+       capped window no longer ends at `now`, so subtracting the span off the
+       clock names the wrong hours (and, through the Boss of the Day, the wrong
+       multiplier). Absent on an older server: left undefined rather than
+       guessed, because a guess here is a renderer quoting a bonus nobody paid. */
+    unpaidMs: Number(c.unpaidMs) || 0,
+    windowFrom: Number(c.windowFrom) || null,
+    windowTo: Number(c.windowTo) || null,
+  };
+}
+
+/* ── ANY VERB'S `collected` → THE WELCOME CARD, ONCE PER WINDOW (2026-09-28) ──
+   Since settle-before-mutate F1 every value verb (buy, sell, eat, claim, list,
+   dungeon settle) settles the open window FIRST and returns its `collected`
+   receipt, exactly as a switch does. Only the switch applier read it, so a
+   player who came back and tapped Buy got paid and never saw the card for the
+   night. Every applier now hands its body here: ONE translator
+   (`awayFromCollected` → `summaryFromAway`), ONE classifier (`classifyReceipt`),
+   the SAME holders the boot settle writes. Display only — every figure is the
+   receipt's own; nothing here credits, sums or predicts.
+
+   ONCE PER WINDOW: a window is named by the server's own `windowFrom/windowTo`,
+   and the second envelope naming a window already presented (a switch after a
+   buy, a retransmit) presents nothing. A receipt with no stated window is not
+   deduped — an identity is never invented for it. */
+const shownWindows = new Set();
+function receiptWindowKey(s) {
+  return (s && s.windowFrom && s.windowTo) ? s.windowFrom + ':' + s.windowTo : null;
+}
+/** True the FIRST time a window is seen (or when it names none). */
+function claimReceiptWindow(s) {
+  const key = receiptWindowKey(s);
+  if (!key) return true;
+  if (shownWindows.has(key)) return false;
+  if (shownWindows.size >= 64) shownWindows.delete(shownWindows.values().next().value);
+  shownWindows.add(key);
+  return true;
+}
+
+/** `source` is 'switch' for set_activity, 'collect' for every other verb.
+ *  Returns the summary it presented, or null (no receipt, or a window already shown). */
+export function applyCollectedReceipt(G, body, res, source) {
+  const c = collectedOf(body);
+  if (!c || !G || typeof G !== 'object') return null;
+  const s = summaryFromAway(awayFromCollected(c), res);
+  if (!claimReceiptWindow(s)) return null;
+  s.source = source === 'switch' ? 'switch' : 'collect';
+  G.lastOfflineSummary = s;
+  /* The boot settle's rule, not a second one: only an AWAY-classified receipt
+     holds the Home card and presents the welcome modal (whose own gate decides
+     whether a second absence re-opens it). A short attended window is a sync. */
+  if (classifyReceipt(s) === 'away') {
+    lastAwayReceipt = s;
+    try { if (typeof window !== 'undefined' && typeof window.__presentWelcome === 'function') window.__presentWelcome(); } catch (e) {}
+  }
+  return s;
+}
 
 /**
  * 'switch' | 'sync' | 'away' — the three genuinely different events that share
@@ -6537,7 +6640,7 @@ if (typeof window !== 'undefined') {
     accrualIdentity, sameAccrualIdentity, clearCombatXpDeferral, resetAccrualIdentity,
     requestAccrual, awaitSettleRaceClear, bootSettlePending, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, capHoursFromVigour, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
-    getLastAwayReceipt, __resetAwayReceipt,
+    getLastAwayReceipt, __resetAwayReceipt, collectedOf, awayFromCollected, applyCollectedReceipt,
     fallRecord, announceFall,
     receiptStopClause, receiptRecoveryClause,
     noteVisibility, visibleSince, receiptAttended,

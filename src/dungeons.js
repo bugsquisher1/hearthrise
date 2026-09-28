@@ -693,8 +693,13 @@
           var ki = window.ITEMS && window.ITEMS[d.cost.key];
           /* THE SERVER'S COUNT, not the display bag's — see keyHeld(). The card
              used to print `G.inventory[key]`, which is how it came to say
-             "(have 2)" about a key the server had no row for. */
-          var owned = keyHeld(d.cost.key);
+             "(have 2)" about a key the server had no row for. The LABEL reads the
+             stated bag only (§6, visual pass 5): an unstated bag is the pending
+             dash, the same as Home's "Bone Key held: —", never keyHeld()'s
+             fail-open display-bag fallback, which is for the gate alone. */
+          var A = window.HearthriseAccrual, BAL = window.HearthriseBalance;
+          var srvKeys = (A && typeof A.serverItemCount === 'function') ? A.serverItemCount(window.G, d.cost.key) : null;
+          var owned = (BAL && typeof BAL.countMarkup === 'function') ? BAL.countMarkup(srvKeys) : (srvKeys == null ? '—' : srvKeys);
           /* b372 — THE HARDEST REQUIREMENT IN THE GAME TO ANSWER. A dungeon key
              cannot be gathered or crafted; it drops, or it is bought from the
              Quartermaster for scrip, and this line named it and stopped. The

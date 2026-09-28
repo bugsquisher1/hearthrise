@@ -3056,6 +3056,39 @@ export default [
     }
   }),
 
+  /* DGN-KEY-SERVER-1 (regression, visual pass 5 on b560): with no server bag stated
+     the Crypt card printed "Bone Key (have 3)" from the display bag while Home's
+     Come back for printed "Bone Key held: —". §6: an entry-key count is the
+     SERVER's, and an unstated one is the pending dash, never a client number.
+     MUTATION: print keyHeld() (gateItemCount) on the card again and (a) goes red. */
+  () => tryRun('DGN-KEY-SERVER-1: the dungeon card prints the server key count, a pending dash when unstated', () => {
+    const A = window.HearthriseAccrual, id = 'crypt_of_bones', d = window.DUNGEONS && window.DUNGEONS[id];
+    if (!A || !d || !document.getElementById('panel-dungeons') || typeof window.renderDungeons !== 'function') return;
+    const G = window.G, snap = snapshotG(), lvl = window.getCombatLevel, bagWas = G._serverBag;
+    const card = () => {
+      window.renderDungeons();
+      const c = [...document.querySelectorAll('#panel-dungeons .dgn-card')]
+        .find((e) => (e.querySelector('.dgn-name') || {}).textContent === d.name);
+      return { cost: c ? c.querySelector('.dgn-cost').innerHTML : '', auto: !!(c && c.querySelector('.dgn-run-auto:not([disabled])')) };
+    };
+    try {
+      window.getCombatLevel = () => 99;
+      Object.assign(G, { inventory: Object.assign({}, G.inventory, { bone_key: 3 }), _dungeonCooldowns: {} });
+      delete G._serverBag;
+      const silent = card();   // (a) unstated: the dash, and the gate stays open on silence
+      assert(/bal-pending/.test(silent.cost) && !/have 3/.test(silent.cost) && silent.auto,
+        'THE BUG: an unstated bag printed the display bag\'s count: ' + JSON.stringify(silent));
+      A.applyEnvelopeState(G, { state: {}, inventory: { bone_key: 2 } });
+      const stated = card();   // (b) stated: the server's number, and the gate agrees
+      assert(/\(have 2\)/.test(stated.cost) && !/bal-pending/.test(stated.cost) && stated.auto,
+        'a stated bag must print the server count: ' + JSON.stringify(stated));
+    } finally {
+      window.getCombatLevel = lvl;
+      if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
+      restoreG(snap);
+    }
+  }),
+
   /* ── regression suite — DGN-COOLDOWN-1: THE RE-ENTRY WINDOW IS THE SERVER'S ──
      Three lies, one seam. canRun() computed the cooldown from a client clock
      (`G.dungeons.lastRun`) the ARMED path had stopped stamping, so every card read

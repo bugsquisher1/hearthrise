@@ -3633,4 +3633,57 @@ export default [
         'FAIL-CLOSED: a lean envelope with no companions key wiped the roster — absence is not a claim');
     } finally { restoreG(snap); }
   }),
+
+  /* ══ regression suite — THE CLAIM THAT SAID "FAILED" WHILE THE NIGHT SETTLED ═══
+     2026-09-28-settle-before-mutate.sql refuses the twelve client-direct value
+     RPCs `settle_first` (window >180 s unsettled) or `party_hunt_running`, writing
+     nothing. Only the combat-XP flush knew the code; a Depot move, a harvest, a
+     claim or a trait buy showed a generic error until the next ~90 s settle.
+     src/net/settle-first.js is the ONE handler: wait for the server's settle,
+     re-send the SAME body once, then say the realm's words. These drive the REAL
+     transports with a stubbed fetch. MUTATION: return `first` unconditionally in
+     withSettleFirstRetry → SETTLE-FIRST-1/2 RED; drop the latch sweep → -3 RED. */
+  () => tryRunAsync('SETTLE-FIRST-1: a settle_first Depot move waits for the settle, re-sends the SAME key once, succeeds', async () => {
+    const SF = window.HearthriseSettleFirst, B = window.HearthriseBankSync, realFetch = window.fetch;
+    assert(SF && B && typeof B.bankMove === 'function', 'src/net/settle-first.js or bank-sync.js did not load');
+    const bodies = []; let cleared = 0;
+    SF.__setClear(async (code) => { assert(code === 'settle_first', 'the clear was asked for ' + code); cleared++; });
+    window.fetch = (u, init) => { bodies.push(init.body); return Promise.resolve(new Response(JSON.stringify(cleared
+      ? { ok: true, item: 'logs', qty: 1 } : { ok: false, error: 'settle_first', unsettled_ms: 200000, threshold_ms: 180000, slot: 0 }), { status: 200 })); };
+    try {
+      const res = await B.bankMove('logs', 1, 'deposit', { url: 'https://probe.supabase.co', anonKey: 'anon', jwt: 'jwt', slot: 0 });
+      assert(res.ok === true, 'the retry after the settle did not land: ' + JSON.stringify(res));
+      assert(bodies.length === 2 && bodies[0] === bodies[1] && cleared === 1,
+        'expected ONE settle then ONE identical re-send; sent ' + bodies.length + ', cleared ' + cleared);
+    } finally { window.fetch = realFetch; SF.__setClear(null); }
+  }),
+  () => tryRunAsync('SETTLE-FIRST-2: party_hunt_running says the party words after exactly ONE retry — no storm', async () => {
+    const SF = window.HearthriseSettleFirst, FS = window.HearthriseFarmSync, realFetch = window.fetch;
+    assert(SF && FS && typeof FS.farmHarvest === 'function', 'src/net/settle-first.js or farm-sync.js did not load');
+    let sent = 0;
+    SF.__setClear(async () => {});
+    window.fetch = () => { sent++; return Promise.resolve(new Response(JSON.stringify({ ok: false, error: 'party_hunt_running' }), { status: 200 })); };
+    try {
+      const res = await FS.farmHarvest(0, { url: 'https://probe.supabase.co', anonKey: 'anon', jwt: 'jwt', slot: 0 });
+      assert(sent === 2, 'a party refusal was sent ' + sent + ' times — one retry, never a loop');
+      assert(SF.settleRefusalText(res) === 'Your party hunt is still running',
+        'the refusal did not read in the realm\'s words: ' + JSON.stringify(res));
+    } finally { window.fetch = realFetch; SF.__setClear(null); }
+  }),
+  () => tryRunAsync('SETTLE-FIRST-3: a claim control is latched until the boot settle answers, then released', async () => {
+    const SF = window.HearthriseSettleFirst, A = window.HearthriseAccrual, drv = hrCharmDriver();
+    assert(SF && typeof A.bootSettlePending === 'function', 'the boot-settle latch seams are gone');
+    const was = A.awaySettleDone(), box = document.createElement('div');
+    box.innerHTML = '<button data-hr-settle-latch>Claim</button>';
+    document.body.appendChild(box);
+    const btn = box.firstChild; let taps = 0; btn.addEventListener('click', () => { taps++; });
+    try {
+      A.__resetAwaySettleLatch(false);
+      A.configureAccrual({ url: 'https://proj.supabase.co', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
+      assert(SF.sweepSettleLatch() && btn.disabled && btn.hasAttribute('data-hr-latched'), 'the latch did not hold before the boot settle');
+      btn.dispatchEvent(new MouseEvent('click', { bubbles: true })); assert(taps === 0, 'a latched control answered a tap');
+      await drv.drive(null); await Promise.resolve(); await Promise.resolve();
+      assert(A.awaySettleDone() && !btn.disabled && !btn.hasAttribute('data-hr-latched'), 'the boot settle answered and the control stayed latched');
+    } finally { drv.restore(); A.__resetAwaySettleLatch(was); box.remove(); }
+  }),
 ];

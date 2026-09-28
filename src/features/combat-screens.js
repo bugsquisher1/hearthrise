@@ -1381,8 +1381,6 @@ function renderMetrics(m, f) {
       parts.push('measuring…');
     }
   }
-  /* A forecast that is not finite yet is said in words: never a dash inside
-     a sentence (visual gate 7). */
   if (f && !isFinite(f.survivalSeconds)) {
     parts.push('survival still measuring');
   } else if (f) {

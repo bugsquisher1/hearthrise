@@ -643,7 +643,10 @@
     network:          'Could not reach the server — try again in a moment'
   };
   function joinErrorText(e)   { return JOIN_ERRORS[e]   || 'The server refused that join'; }
-  function claimErrorText(e)  { return CLAIM_ERRORS[e]  || 'The server refused that claim'; }
+  function claimErrorText(e)  {
+    var SF = window.HearthriseSettleFirst, sf = SF && SF.settleRefusalText && SF.settleRefusalText({ error: e });
+    return sf || CLAIM_ERRORS[e] || 'The server refused that claim';
+  }
   function pledgeErrorText(e) { return PLEDGE_ERRORS[e] || 'The server refused that answer'; }
 
   // ── Reducers: pure, no fetch, no DOM. These carry the whole server contract
@@ -1007,7 +1010,9 @@
     if (st.server && isSignedIn() && !rpcMissing('world_event_claim')) {
       await flush();
       var r;
-      try { r = await rpc('world_event_claim', { p_day_key: st.dayKey, p_slot: activeSlot() }); }
+      var SF = window.HearthriseSettleFirst, claimBody = { p_day_key: st.dayKey, p_slot: activeSlot() };
+      var send = function () { return rpc('world_event_claim', claimBody); };
+      try { r = await ((SF && SF.withSettleFirstRetry) ? SF.withSettleFirstRetry(send) : send()); }
       catch (e) { toast(claimErrorText('network'), 'kill'); return false; }
       var d = reduceClaim(r.status, r.json);
       noteRpc('world_event_claim', d.action !== 'unsupported');
@@ -1590,7 +1595,7 @@
         '<div class="tiny muted">Twice a day the realm calls a muster. Join one per day, play as you '
         + 'normally would, and take a chest when it closes.</div>' + slotsHtml(slots);
       if (s.state === 'reward') {
-        foot = '<div class="hr-mu-row"><button class="btn btn-primary btn-sm" data-mu="claim">Claim your chest</button></div>';
+        foot = '<div class="hr-mu-row"><button class="btn btn-primary btn-sm" data-hr-settle-latch data-mu="claim">Claim your chest</button></div>';
       }
     }
     scrim(body, foot + '<div class="hr-mu-row"><button class="btn btn-sm" data-close="1" data-hr-dismiss>Close</button></div>',
@@ -1787,7 +1792,7 @@
     } else if (live && !(st.dayKey === live.dayKey && st.eventKey)) {
       cta = '<button class="btn btn-primary btn-sm" data-mu="join">Join the muster</button>';
     }
-    if (s.state === 'reward') cta = '<button class="btn btn-primary btn-sm" data-mu="claim">Claim your chest</button>';
+    if (s.state === 'reward') cta = '<button class="btn btn-primary btn-sm" data-hr-settle-latch data-mu="claim">Claim your chest</button>';
 
     host.innerHTML =
       '<div class="ev-eyebrow">The muster</div>' +

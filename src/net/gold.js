@@ -119,6 +119,7 @@ import {
   classifyFrame, commitFrame, resetFrameGate, getAppliedFrame, noteFrameDrop,   // the frame gate, §7.1
 } from './accrue.js?v=559';
 import { SHOP_OFFERS } from '../data/shops.js?v=559';
+import { withSettleFirstRetry } from './settle-first.js?v=559';
 import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=559';
 
 export const SHOP_BUY_VERB = 'shop_buy';
@@ -1146,11 +1147,19 @@ export function isTraitOwnedOutcome(outcome) {
  *
  * ONE ATTEMPT, NO AUTOMATIC RETRY — the rule sendGoldIntent states: an
  * unanswered value transfer is the one case where a client must not decide
- * anything on its own.
+ * anything on its own. The single exception is an ANSWERED `settle_first` /
+ * `party_hunt_running`, which wrote nothing and releases the key: that is
+ * re-sent once, after the server's settle (src/net/settle-first.js).
  *
  * @returns {Promise<{outcome,reason,trait,key,owned,marks,gold,name,body}>}
  */
-export async function buyTrait(traitId, key) {
+export function buyTrait(traitId, key) {
+  /* Settle-gated (2026-09-28-settle-before-mutate.sql): the ONE shared handler
+     waits for the server's settle and re-sends this same key once. */
+  return withSettleFirstRetry(() => buyTraitOnce(traitId, key));
+}
+
+async function buyTraitOnce(traitId, key) {
   const id = String(traitId == null ? '' : traitId);
   const done = (v) => {
     last = { outcome: v.outcome, verb: TRAIT_BUY_RPC, reason: v.reason || null,

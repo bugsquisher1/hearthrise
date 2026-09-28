@@ -348,6 +348,8 @@
     try { if (typeof window.saveLocal === 'function') window.saveLocal(); } catch (e) {}
   }
   function msRefusalMessage(res, m) {
+    var SF = window.HearthriseSettleFirst, sf = SF && SF.settleRefusalText && SF.settleRefusalText(res);
+    if (sf) return sf + ' — ' + m.label + ' is safe and still claimable.';
     var why = (res && res.error) || 'network';
     if (why === 'incomplete') {
       var have = Math.max(0, Math.floor(Number(res && res.have) || 0));
@@ -643,7 +645,7 @@
             fmt(sh.goal) + ' ' + sh.domain + ' — this unlocks itself as it catches up.</div>'
         : '';
       return '<div class="hr-cl-ms"><div class="hr-cl-msb"><b>' + m.label + '</b> — ' + rw.join(' ') +
-        shLine + '</div><button class="hr-cl-claim" data-cl-claim="' + m.id + '">Claim</button></div>';
+        shLine + '</div><button class="hr-cl-claim" data-hr-settle-latch data-cl-claim="' + m.id + '">Claim</button></div>';
     }).join('');
     /* THE NEXT RUNG, per domain, from the SERVER's count — what the player is
        chasing, with its reward. Never a button: it is not earned. */

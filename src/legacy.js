@@ -9090,6 +9090,8 @@ const TRAIT_BUY_TOASTS={
   no_token:'Sign in to unlock upgrades'
 };
 function traitBuyToast(res){
+  const _sf=window.HearthriseSettleFirst&&window.HearthriseSettleFirst.settleRefusalText(res);
+  if(_sf) return _sf;
   const reason=String((res&&res.reason)||'');
   /* `requires:<id>` carries the id in its NAME, so it is rendered from the
      authored table rather than from a second copy of the ladder. */
@@ -18219,7 +18221,9 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
              plain answer; anything unrecognised says the one true thing (we
              couldn't pay it, your progress is safe) and keeps the code in the
              console for us. */
-          var msg = why === 'incomplete' ? 'The server hasn’t counted enough progress yet — give it a few seconds and try again'
+          var _sf = window.HearthriseSettleFirst && window.HearthriseSettleFirst.settleRefusalText(res);
+          var msg = _sf ? _sf
+                  : why === 'incomplete' ? 'The server hasn’t counted enough progress yet — give it a few seconds and try again'
                   : why === 'unknown_goal' ? 'This quest can’t be claimed yet — it has been reported'
                   : why === 'rpc_missing' ? 'Claiming is being upgraded — try again in a few minutes'
                   : why === 'reward_unavailable' ? 'This quest’s reward is being re-authored — nothing was spent, and we’ll make it good'
@@ -18446,7 +18450,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
            hasn't caught up (phase CONFIRMING) the row shows a non-alarming
            "Confirming…" chip and NO claim button — R1's two-value contract. */
         if(claimed) claimBtn = '<span class="qm-q-claimed">✓ Claimed</span>';
-        else if(complete) claimBtn = '<button class="qm-q-claim" data-qid="'+g.id+'" data-weekly="'+(isWeekly?1:0)+'">Claim</button>';
+        else if(complete) claimBtn = '<button class="qm-q-claim" data-hr-settle-latch data-qid="'+g.id+'" data-weekly="'+(isWeekly?1:0)+'">Claim</button>';
         else if(confirming) claimBtn = '<span class="qm-q-confirming">Confirming…</span>';
         /* b227 (audit finding #2) — "take me to the area the quest is asking
            me to complete". Until now this modal was a dead end: it told you to

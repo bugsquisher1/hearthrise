@@ -123,7 +123,7 @@ export function depotCapacityLine(view) {
 function rowHtml(r, dir, busy) {
   const qtys = [1, 10, r.qty].filter((q, i, a) => q > 0 && a.indexOf(q) === i);
   const label = dir === 'deposit' ? 'Store' : 'Take';
-  const btns = qtys.map((q) => '<button class="bp-move" ' + (busy ? 'disabled ' : '')
+  const btns = qtys.map((q) => '<button class="bp-move" data-hr-settle-latch ' + (busy ? 'disabled ' : '')
     + 'data-bank-move="' + dir + '" data-bank-item="' + esc(r.id) + '" data-bank-qty="' + q + '">'
     + (q === r.qty && r.qty > 1 ? 'All' : String(q)) + '</button>').join('');
   return '<div class="bp-row"><span class="bp-ico">' + itemIcon(r.id, 22) + '</span>'

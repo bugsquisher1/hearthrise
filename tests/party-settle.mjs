@@ -759,6 +759,38 @@ try {
         + 'asserted here, and the pre-arm evidence before this deploy measures a different '
         + 'quantity and cannot be folded in');
     }
+
+    /* ── E9: A MICROSECOND MARK (2026-09-28, the shadow stall after a re-point) ─
+       `hr_party_hunt_start` stamps `active_since = v_at` from now(), and on
+       production now() carries microseconds; PGlite's clock does not, which is
+       why no replay saw this. The driver plans in ms, so a start bound as
+       `new Date(markMs).toISOString()` is "before" a `.123456` mark and the
+       fence refuses every window `party_window_already_settled`, for ever.
+       tests/world-tick-stall-after-repoint.mjs is the solo half. */
+    {
+      /* Stamped IN SQL: a JS Date round trip would drop the very digits under test. */
+      await q("update public.party_hunt set accrued_to = date_trunc('second', now())"
+        + " - interval '300 seconds' + interval '123457 microseconds' where id = $1", [hunt]);
+      await q('update public.player_state ps set accrued_to = h.accrued_to from public.party_hunt h'
+        + ' where h.id = $2 and ps.user_id = any($1::uuid[]) and ps.slot = 0', [U, hunt]);
+      await q('update public.party_tick_lease set shadow_accrued_to = null, shadow_state = null where party_id = $1', [party]);
+      const micro = (await one(
+        "select (extract(microseconds from accrued_to)::bigint % 1000) as us from public.party_hunt where id = $1", [hunt])).us;
+      let sent = null;
+      const out9 = await asRole('hr_engine', () => settleParty(exec, HOLDER, unit,
+        { cadenceMs: 10000, flushMs: 90000 },
+        { settle: engine,
+          sessionFromRoster: (row, env) => ({
+            userId: row.user_id, slot: row.slot, version: env.version,
+            accruedToText: row.mark_text, accruedToMs: Date.parse(row.accrued_to),
+          }),
+          fence: async (ex, a) => { sent = a; return (await import('../supabase/functions/hr-accrue/tick-party.js')).partyFence(ex, a); } }));
+      judge('E9', Number(micro) === 457 && out9?.outcome === 'shadowed',
+        'a party mark with microseconds (.…457 µs past the ms) settles: the window starts at the '
+        + `fence's own rendering of it (${sent?.windowFrom}), so the CAS is untouched and passes`,
+        `the party stalled on a microsecond mark (sub-ms ${micro} µs): the driver answered `
+        + `${JSON.stringify(out9)} for a window from ${sent?.windowFrom}`);
+    }
   }
 
   // ══ O  THE APPLY-ORDER INTERIM, IN BOTH DIRECTIONS (Security, S2 review) ══

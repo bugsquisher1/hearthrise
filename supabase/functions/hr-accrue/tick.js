@@ -88,7 +88,7 @@ import {
    `shadowStateOf` serialises the engine's own output state; `applyShadowState`
    lays it back over a session read from `hr_state_of`. Neither computes a
    delta and neither is authority. */
-import { shadowStateOf, applyShadowState, SHADOW_STATE_V } from './tick-contract.js';
+import { shadowStateOf, applyShadowState, SHADOW_STATE_V, fenceWindowFrom } from './tick-contract.js';
 /* THE PARTY UNIT (M8 S2). A party is a ROSTER UNIT, not a new engine and not a
    new channel: `settleParty` runs the SAME `settleCombatSession` this file runs
    for a solo character, once per member, and emits ONE `hr_party_tick_settle`
@@ -953,7 +953,10 @@ async function tickOne(exec, holder, sel, body) {
     slot: sel.slot,
     channel,                         // the character's own, as the probe used
     version: a.p_version,
-    windowFrom: a.p_window_from,
+    /* The fence's own spelling when the window starts at its mark: a switch
+       stamps the mark from a microsecond now(), and the planned ms start is
+       then "before" it (tick-contract.js fenceWindowFrom). */
+    windowFrom: fenceWindowFrom(a.p_window_from, markMs, probe.markText),
     windowTo: a.p_window_to,
     intentId: a.p_intent_id,
     delta: JSON.stringify(a.p_delta),

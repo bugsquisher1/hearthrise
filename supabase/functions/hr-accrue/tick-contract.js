@@ -452,3 +452,26 @@ export function applyShadowState(session, state) {
   };
   return s;
 }
+
+/* ── THE WINDOW STARTS AT THE FENCE'S MARK, SPELLED AS THE FENCE SPELLED IT ──
+   (2026-09-28, the shadow stall after a re-point.) The drivers plan every
+   window in integer MILLISECONDS — `markMs = Date.parse(<fence mark>)` — and
+   bind its start as `new Date(markMs).toISOString()`. The fence compares
+   `p_window_from < v_mark` in MICROSECONDS. The two agree only while the mark
+   has no digits past the millisecond, which is true of every mark a settle
+   writes (`accrued_to` is the engine's own `toISOString()`) and FALSE of the
+   one an activity switch writes: hr_apply closes the window with `now()`.
+   Measured on production: 21.9 h (combat) and 14.7 h (gather) of
+   `window_already_settled` on every fire after a `set_activity`, ending only at
+   the next real accrue. tests/world-tick-stall-after-repoint.mjs.
+
+   So a window that starts AT the mark is bound with the fence's own rendering
+   of it — the same string the seed label already uses (T-2) — and the CAS is
+   untouched: it still refuses anything that starts one microsecond early.
+   Any other start is passed through as planned. `markMs` is re-checked against
+   the text so a stale or foreign string can never widen a window. */
+export function fenceWindowFrom(windowFromIso, markMs, markText) {
+  if (typeof markText !== 'string' || markText.length === 0) return windowFromIso;
+  if (Date.parse(windowFromIso) !== markMs || Date.parse(markText) !== markMs) return windowFromIso;
+  return markText;
+}

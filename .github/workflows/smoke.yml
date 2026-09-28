@@ -1409,6 +1409,20 @@ jobs:
           node tests/world-tick-hydration.mjs
           node tests/world-tick-hydration.mjs --mutate
 
+      # THE SHADOW STALL AFTER A RE-POINT (2026-09-28). Production ran 21.9 h
+      # (combat) and 14.7 h (gather) of `window_already_settled` on every fire
+      # after a set_activity: the switch stamps the mark from a MICROSECOND
+      # now(), the drivers bind a MILLISECOND window start, and the fence's CAS
+      # refuses it for ever. PGlite's clock is ms-resolution, so no replay saw
+      # it; this guard drives the shipped runSetActivity + runTick and restores
+      # the µs a production clock carries. --mutate reverts the fix in a temp
+      # copy of the function directory and requires R-G-a/R-C-a to go red.
+      - name: World tick — resumes within one cadence after a re-point
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-stall-after-repoint.mjs
+          node tests/world-tick-stall-after-repoint.mjs --mutate
+
       # EC-3d, the control, carries its own proof since 2026-09-22. It shipped
       # asserting the literal `+00:00` on the accrue path's rendering, which is
       # the replay session's TimeZone talking — PGlite takes that GUC from the

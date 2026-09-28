@@ -1369,7 +1369,9 @@ function renderMetrics(m, f) {
     if (mt && mt.rateReady) {
       parts.push(`<b>${mt.xpPerMin.toFixed(0)}</b> XP/min`);
       if (mt.gold > 0) parts.push(`<b>${mt.goldPerMin.toFixed(0)}</b> gold/min`);
-      parts.push(`<b>${num(mt.kills)}</b> kills this fight`);
+      /* "this fight" is a gloss, not a figure: its own span so the phone
+         size can drop it and keep the strip on one line (visual gate 4). */
+      parts.push(`<b>${num(mt.kills)}</b> kills<span class="fs-met-gloss"> this fight</span>`);
     } else if (mt && mt.kills === 0 && mt.elapsedS >= 45) {
       /* THE REFUSAL (spec §6): a fight whose first kill has not landed inside
          the measuring window is a fight that has paid nothing yet, and we will

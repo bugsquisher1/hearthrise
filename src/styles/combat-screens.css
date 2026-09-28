@@ -1583,6 +1583,39 @@ body.in-combat #panel-combat .fs-style .combat-style-block .csb-btn small {
   #panel-combat .arena-vs.fs-stage { max-height: none; }
 }
 
+/* THE CARD HOLDS ITS LAST TWO ROWS AT THE PHONE SIZE (visual gate 4).
+ * Measured at 922x423 with a stated Vigour meter: card [244,106,916,393], the
+ * metrics strip at y 390..407 and the session line at 408..427 — drawn under
+ * the card's border, the second past the screen. The ruling: a row carrying a
+ * measurement is never hidden, prose may be, and paddings pay before anything
+ * goes. So the card's own 10px gutters drop to 2px (16px back), and the
+ * session line hides ONLY while it is the idle sentence; the moment a settle
+ * lands it is numbers again and it shows, inside the room the gutters gave. */
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  /* `!important` because theme-cozy.css sets `.card { padding: 10px
+   * !important; margin-bottom: 12px !important }` in this same query, and no
+   * selector outranks an important declaration. The 12px margin was the
+   * space between the card's border and the screen's foot. */
+  #panel-combat[data-combat-view="fight"] .combat-arena {
+    padding: 2px 4px !important; margin-bottom: 0 !important;
+  }
+  #panel-combat .arena-vs.fs-stage { padding: 0 6px; }
+  /* ONE LINE, ALWAYS: the gloss goes before any figure does. Measured with the
+   * widest live string ("12,345 XP/min · 45,678 gold/min · 1,234 kills this
+   * fight · you last ≈12,345 kills · 59m 59s") the fallback face needs 707px
+   * against a 630px strip; the gloss and the side gutters above buy it back.
+   * The ellipsis is a net, not the layout. */
+  #panel-combat .fs-metrics:not(.fs-session) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #panel-combat .fs-metrics .fs-met-gloss { display: none; }
+  /* The level badge rides the portrait row, beside the 44px plate, instead of
+   * taking a row of its own: row 1 is 44px tall with ~120px free either side
+   * of the plate, and the badge is still the plate's own, on its outer edge. */
+  #panel-combat .arena-vs.fs-stage .fs-lv { grid-row: 1; align-self: end; }
+  #panel-combat .arena-vs.fs-stage .arena-side.player .fs-lv { justify-self: start; }
+  #panel-combat .arena-vs.fs-stage .arena-side.foe .fs-lv { justify-self: end; }
+  #panel-combat .fs-metrics.fs-session:has(> .fs-sess-idle) { display: none; }
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
  * THE TALLY SHEDS ITS TAIL WHEN THE STRIP IS TOO NARROW TO HOLD IT HONESTLY,
  * AND THIS IS A WIDTH RULE ON PURPOSE.

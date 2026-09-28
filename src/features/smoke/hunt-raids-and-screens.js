@@ -5062,7 +5062,8 @@ export default [
                         btns.forEach((e) => { if (e.scrollWidth > e.clientWidth + 1) bad.push(at + '"' + e.textContent.trim() + '" runs out of its button (' + e.scrollWidth + ' > ' + e.clientWidth + ')'); });
                         // (2) THE FOOD ROW, THE METRICS LINE AND THE SESSION LINE are three rows.
                         const rows = [['food row', q('#arena-act-player')], ['metrics line', q('#fs-metrics')], ['session line', q('#fs-session')]];
-                        rows.forEach(([n, e]) => { if (!e || R(e).height < 1) bad.push(at + 'the ' + n + ' is not drawn'); });
+                        // The idle session sentence is prose and may be hidden at this size (VG4 ruling); numbers may not.
+                        rows.forEach(([n, e]) => { if (!e || (R(e).height < 1 && !(e.id === 'fs-session' && e.querySelector('.fs-sess-idle')))) bad.push(at + 'the ' + n + ' is not drawn'); });
                         for (let i = 0; i < rows.length; i++) for (let j = i + 1; j < rows.length; j++) {
                           if (!rows[i][1] || !rows[j][1]) continue;
                           const a = R(rows[i][1]), c = R(rows[j][1]);
@@ -5086,6 +5087,33 @@ export default [
               }
             } finally { LT.__swapView(parked); }
             assert(bad.length === 0, 'THE b560 FIGHT-PHONE-DENSITY BUG: ' + bad.join('; '));
+          }),
+
+          // ── regression suite — FIGHT-PHONE-DENSITY-2 (visual gate 4, defect 2) ──
+          // At 922x423 the metrics line and the session sentence drew 17px and
+          // 34px BELOW the arena card, the second past the screen. The ruling: a
+          // row carrying a measurement is never hidden, prose may be, and every
+          // row lies inside the card and the viewport. 1280x800 must hold too.
+          () => tryRunAsync('FIGHT-PHONE-DENSITY-2: the metrics line (and the session line, if drawn) lie inside the arena card and the screen at 922x423 and 1280x800', async () => {
+            const bad = [];
+            await fight(METER(), async (m) => {
+              m.paint();
+              const app = document.getElementById('app'), cls = document.body.className;
+              for (const [w, h] of [[922, 423], [1280, 800]]) phoneFrame(w, h, app.outerHTML, (doc) => {
+                doc.body.className = cls;
+                const card = doc.querySelector('#panel-combat .combat-arena'), met = doc.getElementById('fs-metrics');
+                if (!card || !met) { bad.push(w + 'x' + h + ': the arena card or the metrics line is missing'); return; }
+                if (!/you last/.test(met.textContent)) bad.push(w + 'x' + h + ': the metrics line lost its measurement: "' + met.textContent.trim() + '"');
+                const c = card.getBoundingClientRect();
+                for (const e of [met, doc.getElementById('fs-session')]) {
+                  const r = e && e.getBoundingClientRect();
+                  if (!r || (r.width < 1 && r.height < 1)) { if (e === met) bad.push(w + 'x' + h + ': the metrics line is not drawn'); continue; }
+                  if (r.top < c.top - 0.5 || r.bottom > c.bottom + 0.5 || r.left < c.left - 0.5 || r.right > c.right + 0.5 || r.bottom > h)
+                    bad.push(w + 'x' + h + ': #' + e.id + ' [' + [r.left, r.top, r.right, r.bottom].map(Math.round) + '] leaves the card [' + [c.left, c.top, c.right, c.bottom].map(Math.round) + '] or the screen');
+                }
+              });
+            });
+            assert(bad.length === 0, 'THE VG4 FIGHT-CARD-ROWS BUG: ' + bad.join('; '));
           }),
         ];
       })(),

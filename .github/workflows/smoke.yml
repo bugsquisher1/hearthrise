@@ -2149,6 +2149,19 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/activity-intent.mjs --selftest
 
+      # SETTLE BEFORE MUTATE (Security F1, 2026-09-28). Every edge verb that adds
+      # or changes a priceable input settles the open window at the OLD state
+      # first. Measured orders, not markers: a pickaxe bought at return vs
+      # accrue-first at production shape (R1), a claim that settles (R1c), a
+      # feast eaten at return (R2), the cross-slot self-market loop (R3), the
+      # sub-minute no-write, the deferred remainder, the receipt on success and
+      # refusal, and the party fence's second class. --mutate plants five.
+      - name: Settle before mutate — the absence is priced at the state it was earned in
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/absence-priced-at-return.mjs
+          node tests/absence-priced-at-return.mjs --mutate
+
       # THE GRANT INTENT (b349). The first intent that MOVES MONEY, so the
       # invariants are about payment: a claim lands exactly once, the price and
       # the period and the streak are all the server's, a replay receipts

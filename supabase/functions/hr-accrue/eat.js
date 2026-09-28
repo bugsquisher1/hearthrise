@@ -80,6 +80,7 @@
 import { INTENT_ERRORS, intentNameOf, catalogueGet, requiresKey, guardStampKeys } from './intents.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { gateAndRead, applyDelta, refusalBody } from './spend.js';
+import { settleBeforeMutate } from './settle-first.js';
 
 /** The verb's own name. */
 export const VERB = 'eat';
@@ -248,7 +249,20 @@ export async function runEat(o) {
      read — never the client. */
   const read = await gateAndRead({ exec, user, slot, verb: VERB });
   if (read.refusal) return read.refusal;
-  const env = read.env;
+
+  /* (1b) ⚠ SETTLE BEFORE THE EAT (Security F1, 2026-09-28). A buff eaten at
+     return was paid over the whole absence — the segment stores no start — and
+     then still ran its full duration. The open window is priced at the state
+     BEFORE the food, then the food lands. And the hp below is an ABSOLUTE, so
+     it is read from the envelope the SETTLE returned: the night's damage and
+     auto-eat heals are in it, and a pre-settle hp would overwrite them. */
+  const settled = await settleBeforeMutate({
+    exec, user, slot, verb: VERB, env: read.env, nowMs: read.nowMs, capMs: read.capMs,
+    partyOwnsWindow: o.partyOwnsWindow === true,
+  });
+  if (!settled.proceed) return settled.refusal;
+  const env = settled.env;
+  const collected = settled.collected;
   const st = env.state || {};
   const serverHp = Number(st.hp) || 0;
   const maxHp = Number(st.max_hp) || 0;
@@ -279,8 +293,8 @@ export async function runEat(o) {
     : serverHp;
   const delta = eatDelta(food, newHp, auto);
 
-  /* (2b) RULE 3's DELTA HALF. eat does not collect first, so its delta must not
-     carry a stamping key. It carries `items`/`hp`/`journal` and never will
+  /* (2b) RULE 3's DELTA HALF. eat SETTLES first, and a settle defers its
+     sub-action remainder, so its delta must not carry a stamping key. It carries `items`/`hp`/`journal` and never will
      carry one — but the check runs on the delta actually built, so a future
      "eat-and-equip" gimmick is a refusal, not a silent confiscation. */
   const stamp = guardStampKeys(VERB, delta);
@@ -289,16 +303,16 @@ export async function runEat(o) {
       status: 409,
       body: await refusalBody({
         exec, user, slot, verb: VERB,
-        refusal: { error: stamp.error, stage: 'plan', detail: { keys: stamp.keys } },
+        refusal: { error: stamp.error, stage: 'plan', detail: { keys: stamp.keys }, collected },
         fallback: env,
       }),
     };
   }
 
-  /* (3) THE APPLY. `env.version` is what this call read; hr_apply refuses a
+  /* (3) THE APPLY. `settled.version` is what the settle left; hr_apply refuses a
      stale one (concurrency control) and debits under the row lock, refusing
      `insufficient_item` if the player has no copy. The key is the CLIENT's. */
-  let res = await applyDelta({ exec, user, slot, version: env.version, intentId, delta });
+  let res = await applyDelta({ exec, user, slot, version: settled.version, intentId, delta });
 
   /* ── (3b) THE HEAL MUST LAND EVEN WHEN THE BUFF CANNOT (Security F5, P1) ───
      `buff_at_max` — the 60-minute ceiling, or `why:'segment_budget'` at eight live
@@ -315,7 +329,7 @@ export async function runEat(o) {
          first attempt wrote nothing, and the intent NAME is unchanged (`eat:<item>`),
          so hr_apply neither answers `intent_mismatch` nor double-debits. Exactly one
          serving leaves the bag whichever attempt lands.
-       · the same `env.version` — the refusal rolled back, so nothing bumped it.
+       · the same `settled.version` — the refusal rolled back, so nothing bumped it.
        · `eatDelta(food, newHp, true)` builds the retry, i.e. the AUTO shape: no
          `buff_apply` AND no `meta.buff`, because a journal row must not claim a buff
          the character did not get.
@@ -332,7 +346,7 @@ export async function runEat(o) {
       && food.heals > 0 && delta.buff_apply !== undefined) {
     buffSkipped = 'at_max';
     res = await applyDelta({
-      exec, user, slot, version: env.version, intentId, delta: eatDelta(food, newHp, true),
+      exec, user, slot, version: settled.version, intentId, delta: eatDelta(food, newHp, true),
     });
   }
 
@@ -341,7 +355,9 @@ export async function runEat(o) {
       status: 409,
       body: await refusalBody({
         exec, user, slot, verb: VERB,
-        refusal: { error: (res && res.error) || 'apply_failed', stage: 'apply', detail: res ?? null },
+        refusal: {
+          error: (res && res.error) || 'apply_failed', stage: 'apply', detail: res ?? null, collected,
+        },
         fallback: null,
       }),
     };
@@ -371,6 +387,8 @@ export async function runEat(o) {
       /* TOP-LEVEL TOO, because a replay returns a null receipt and the client still
          has to know the buff it predicted is not there. */
       ...(buffSkipped ? { buff_skipped: buffSkipped } : {}),
+      /* The settle's receipt: the window paid BEFORE the food, by this call. */
+      collected,
       ...(res.replayed === true ? { replayed: true } : {}),
     },
   };

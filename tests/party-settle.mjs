@@ -456,7 +456,8 @@ try {
   {
     const accrue = await partyIntentFence({ exec, user: U[0], slot: 0, verb: 'accrue' });
     const equip = await partyIntentFence({ exec, user: U[0], slot: 0, verb: 'equip' });
-    const read = await partyIntentFence({ exec, user: U[0], slot: 0, verb: 'market_buy' });
+    const shop = await partyIntentFence({ exec, user: U[0], slot: 0, verb: 'market_buy' });
+    const read = await partyIntentFence({ exec, user: U[0], slot: 0, verb: 'trophy_claim' });
     judge('F1', accrue?.body?.error === 'party_settle_required' && accrue.status === 409,
       'a partied character\'s own `accrue` — including the ~90 s attended cadence — is refused '
       + 'party_settle_required: the party owns [party_hunt.accrued_to, now] and there is '
@@ -464,11 +465,20 @@ try {
       + 'accrue refused no hr_kill_credit_log row is written for a party member at all',
       `accrue answered ${JSON.stringify(accrue)}`);
     judge('F2', equip?.body?.error === 'party_hunt_running' && equip.status === 409,
-      'every collectsFirst verb is refused party_hunt_running — each stamps a STAMP_KEYS key or '
-      + 'changes an input the shared window is priced from, and a refusal one player can SEE '
-      + 'beats an approximation four players share',
+      'every SWITCH verb is refused party_hunt_running — each stamps a STAMP_KEYS key, i.e. moves '
+      + 'the member\'s watermark into the party window, and a refusal one player can SEE beats an '
+      + 'approximation four players share',
       `equip answered ${JSON.stringify(equip)}`);
-    judge('F3', read === null && partyRefusalFor('market_buy') === null,
+    /* F2b (2026-09-28, Security F1 — the fence's second class). A settle-before-
+       mutate verb proceeds WITHOUT its settle: the party prices its own window
+       per window, so a purchase mid-hunt cannot re-price time already priced,
+       and refusing would close the shop for the length of every hunt. */
+    judge('F2b', shop && shop.partyOwnsWindow === true && !shop.status
+      && partyRefusalFor('market_buy') === 'party_owns_window',
+      'a partied settle-before-mutate verb (market_buy) proceeds and skips its settle '
+      + '(`partyOwnsWindow`) — it is neither refused nor allowed to move the party\'s watermark',
+      `market_buy answered ${JSON.stringify(shop)}`);
+    judge('F3', read === null && partyRefusalFor('trophy_claim') === null,
       'a verb that collects nothing is untouched — the fence costs a read only for a verb it '
       + 'could actually refuse',
       `a non-collecting verb answered ${JSON.stringify(read)}`);

@@ -50,13 +50,14 @@ permissions:
 # and the second time this workflow has raised that number rather than the
 # question underneath it.
 #
-# The steps are now partitioned by what they NEED, into EIGHT jobs that run in
+# The steps are now partitioned by what they NEED, into NINE jobs that run in
 # parallel, so the wall clock is the slowest family rather than the sum:
 #
 #   job                  needs                      MEASURED   timeout (= x2)
 #   in-page              a real Chromium            ~15.5 min * 30
 #   economy-selftests    an applied migration chain  15.8 min  32
-#   db-replay            an applied migration chain   7.75 min 16 [1]
+#   db-replay            an applied migration chain   5.8 min  16 [1][5]
+#   db-replay-4          an applied migration chain   6.9 min  16 [5]
 #   db-replay-2          an applied migration chain  10.8 min  19 [1][4]
 #   db-replay-3          an applied migration chain   9.5 min  19 [4]
 #   utc-midnight-replay  an applied migration chain   6.85 min 14 [2]
@@ -104,6 +105,19 @@ permissions:
 #     Split at the family boundary (see db-replay-2's own header for the exact
 #     step assignment); both halves stay on the SAME 19-min timeout as
 #     before — the split buys headroom, not a bigger ceiling.
+# [5] db-replay SPLIT IN TWO AGAIN 2026-09-28 (CI-SPLIT-4): runs 36435388338
+#     (next@d996c262) and 36435597419 (next@ef3cb6d1) were CANCELLED at
+#     db-replay's own 16-min timeout (964 s, 989 s). The "7.75 min" line was
+#     stale: the green run 36431546863 (next@926bbef2, job 108958707424) took
+#     722 s (12 min), and the cancelled runs were every step uniformly ~35%
+#     slower (runner variance, not a new slow step) — a 12-min job on a 16-min
+#     timeout has no room for that. Rejections journal, Buff queue and
+#     Client-state retired fields moved to db-replay-4. Both halves measured
+#     from job 108958707424's own step times: db-replay = verify 44 + Schema
+#     drift 126 + Settle before mutate 19 + Ledger rollup 41 + Catalogue 32 +
+#     Live-hash 39 + Apply-order 1 + Retreat 21 + readonly-rpc 25 = 348 s
+#     (5.8 min); db-replay-4 = verify 44 + Rejections 113 + Buff queue 178 +
+#     Client-state 67 = 402 s, + ~11 s setup = 6.9 min. Both keep 16 min.
 #
 # RE-MEASURED 2026-09-07 after merging main, which brought SIXTEEN steps this
 # branch forked before (guard-hygiene, window-globals, no-client-farm-mint,
@@ -294,8 +308,9 @@ jobs:
   # ── db-replay ── DOES THE REPO STILL REBUILD THE DATABASE, AND DOES IT MATCH
   # WHAT PRODUCTION RUNS? The rebuild/drift/ledger/apply-execution half of the
   # family: schema drift, ledger rollup, catalogue literal drift, live-hash
-  # drift, apply-order honesty, retreat apply and rejections journal, plus buff
-  # queue. They share one PGlite chain snapshot (tests/pglite-template.mjs),
+  # drift, apply-order honesty, retreat apply and read-only client RPCs
+  # (rejections journal, buff queue and client-state retired fields moved to
+  # db-replay-4 2026-09-28, note [5] above `jobs:`). They share one PGlite chain snapshot (tests/pglite-template.mjs),
   # which is why the cache's own verification step is the FIRST thing in this
   # job: if the snapshot mechanism is not sound, nothing measured after it in
   # this job means anything.
@@ -303,6 +318,8 @@ jobs:
   # SPLIT FROM db-replay-2 2026-09-20 (see the note above `jobs:` for the full
   # measurement). This half MEASURED 465 s (7.75 min) on the GitHub run for
   # 7b509de8 (branch next). Budget = measured x2 = 15.5 min, rounded up to 16.
+  # RE-MEASURED 2026-09-28 after the db-replay-4 split: 348 s (5.8 min) of
+  # steps on job 108958707424; the 16-min timeout is unchanged.
   db-replay:
     runs-on: ubuntu-latest
     timeout-minutes: 16
@@ -532,6 +549,72 @@ jobs:
           node tests/retreat-apply.mjs
           node tests/retreat-apply.mjs --selftest
 
+      # MOVED HERE FROM db-replay-2, 2026-09-26 CI REBALANCE: run 36219670449
+      # (next@94767e81) was CANCELLED at db-replay-2's own 19-min timeout
+      # (ran 19.3 min) with three prior runs at 18.5/16.2/14.7 min, while this
+      # job finished ~9.9 min against its 16-min budget. Same PGlite chain
+      # replay this job already pays for; no other job installs anything this
+      # step needs. Measured locally: 31.3 s base + 2.4 s --selftest + 34.0 s
+      # --mutate = ~68 s, moving load from the tighter job to the one with
+      # headroom without raising either budget.
+      #
+      # A CLIENT RPC DECLARED STABLE/IMMUTABLE RUNS READ ONLY UNDER POSTGREST
+      # (2026-09-26, live b553: hr_party_view wrote the rate bucket and every
+      # roster read answered 405/25006). Calls the whole class read-only.
+      - name: Client RPCs declared read-only really are (PostgREST read-only transaction)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/readonly-rpc.mjs
+          node tests/readonly-rpc.mjs --selftest
+          node tests/readonly-rpc.mjs --mutate
+
+  # ── db-replay-4 ── SPLIT OUT OF db-replay 2026-09-28 (CI-SPLIT-4, see note
+  # [5] above `jobs:`). Runs 36435388338 (next@d996c262) and 36435597419
+  # (next@ef3cb6d1) were CANCELLED at db-replay's own 16-min timeout (964 s,
+  # 989 s) with every step uniformly ~35% slower than the green run
+  # 36431546863 (722 s): runner variance on a job with no headroom, not one
+  # guard regressing. This half takes the three heaviest chain-driving guards
+  # — Rejections journal, Buff queue, Client-state retired fields — byte for
+  # byte; none of them imports the capstone chain that poisons pglite
+  # re-instantiation, so none has to stay behind a predecessor in db-replay.
+  # PGlite snapshot cache verification runs again, FIRST, as its own
+  # independent step (CI-SHAPE-4 — no guard command may run in two jobs,
+  # and that includes the cache verify).
+  #
+  # MEASURED from job 108958707424's own step times: verify 44 s + Rejections
+  # journal 113 s + Buff queue 178 s + Client-state 67 s = 402 s, plus ~11 s
+  # of checkout/setup-node/install = 413 s (6.9 min) — ~9.3 min on the slow
+  # runners that cancelled db-replay. Timeout left at db-replay's 16: the split buys
+  # headroom, not a bigger ceiling.
+  db-replay-4:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      # THE SNAPSHOT CACHE'S OWN PROOF, AGAIN. This job shares no PGlite
+      # snapshot with db-replay — each job is a fresh runner — so the same
+      # proof that stopped every guard below from reading a stale rebuild
+      # (build, restore, and again with the cache switched off; two planted
+      # corruptions, both refused) runs here too, FIRST, for the same reason
+      # it runs first in db-replay: nothing measured after it means anything
+      # if it is red.
+      - name: PGlite snapshot cache - restored == replayed, corruption refused
+        if: ${{ !cancelled() }}
+        run: node tests/pglite-template.mjs --verify --for=db-replay-4
+
       # DOES A REFUSAL LEAVE A TRACE, WITH ITS VERB, AND CHANGE NOTHING?
       # 2026-09-11: Paione needed 4-8 taps to equip a staff and stop-combat
       # snapped back into the fight — version_conflict refusals during a fight.
@@ -659,25 +742,6 @@ jobs:
         run: |
           node tests/client-state-retired-fields.mjs
           node tests/client-state-retired-fields.mjs --selftest
-
-      # MOVED HERE FROM db-replay-2, 2026-09-26 CI REBALANCE: run 36219670449
-      # (next@94767e81) was CANCELLED at db-replay-2's own 19-min timeout
-      # (ran 19.3 min) with three prior runs at 18.5/16.2/14.7 min, while this
-      # job finished ~9.9 min against its 16-min budget. Same PGlite chain
-      # replay this job already pays for; no other job installs anything this
-      # step needs. Measured locally: 31.3 s base + 2.4 s --selftest + 34.0 s
-      # --mutate = ~68 s, moving load from the tighter job to the one with
-      # headroom without raising either budget.
-      #
-      # A CLIENT RPC DECLARED STABLE/IMMUTABLE RUNS READ ONLY UNDER POSTGREST
-      # (2026-09-26, live b553: hr_party_view wrote the rate bucket and every
-      # roster read answered 405/25006). Calls the whole class read-only.
-      - name: Client RPCs declared read-only really are (PostgREST read-only transaction)
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/readonly-rpc.mjs
-          node tests/readonly-rpc.mjs --selftest
-          node tests/readonly-rpc.mjs --mutate
 
   # ── db-replay-2 ── THE SECOND HALF OF db-replay, SPLIT OUT 2026-09-20. Same
   # inputs (an applied migration chain), same reason for the split as

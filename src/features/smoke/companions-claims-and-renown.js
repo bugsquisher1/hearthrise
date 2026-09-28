@@ -3798,4 +3798,32 @@ export default [
       assert(A.awaySettleDone() && !btn.disabled && !btn.hasAttribute('data-hr-latched'), 'the boot settle answered and the control stayed latched');
     } finally { drv.restore(); A.__resetAwaySettleLatch(was); box.remove(); }
   }),
+  () => tryRun('COMPANY-1: company, a party member\'s doing and a Crier find come only from a fresh realm view', () => {
+    const TP = window.HearthriseTownPanel, T = window.HearthriseTown, I = window.HearthriseIdentity;
+    assert(TP && typeof TP.companyOf === 'function' && typeof TP.doingOf === 'function' && typeof window.partyPanelHtml === 'function',
+      'the company seams (companyOf, doingOf, partyPanelHtml) are not published');
+    const now = Date.parse('2026-09-28T12:00:00Z'), [mon, mon2] = Object.keys(window.MONSTERS);
+    const peer = (name, id, away) => ({ name, activity_kind: 'combat', activity_id: id, seen_ago_s: 5, away });
+    const body = (crierName) => ({ ok: true, now: new Date(now).toISOString(), here: 3, shown: 3,
+      peers: [peer('Paione', mon, false), peer('Me', mon, false), peer('Kd', mon2, true)],
+      crier: [{ name: crierName, item_id: 'emberheart', source_kind: 'monster', source_id: 'dragon', one_in: 15000, found_ago_s: 60 }] });
+    const v = T.normalizeTown(body('Paione')), mine = { kind: 'combat', id: mon };
+    const names = (x) => JSON.stringify(x.map((p) => p.name));
+    assert(names(TP.companyOf(v, mine, 'Me', now)) === '["Paione"]', 'company was ' + names(TP.companyOf(v, mine, 'Me', now)));
+    assert(!TP.companyOf(v, mine, null, now).length && !TP.companyOf({ status: 'off' }, mine, 'Me', now).length
+      && !TP.companyOf({ ...v, at: now - 3 * T.TOWN_POLL_MS }, mine, 'Me', now).length, 'company came from no name, an off view or a stale view');
+    const party = { known: true, partyId: 'P1', role: 'member', members: ['Paione', null, 'Me'].map((name) => ({ name, combat_level: 5, hp: 10, hp_max: 10 })) };
+    const rows = (town) => {
+      const box = document.createElement('div');
+      box.innerHTML = window.partyPanelHtml(party, { nowMs: now, town, canon: I.canon, you: 'Me' });
+      return [...box.querySelectorAll('.party-member')].map((li) => { const d = li.querySelector('.party-m-doing'); return d ? d.textContent : ''; });
+    };
+    const live = rows(v);
+    assert(live[0].includes(window.MONSTERS[mon].name) && live[1] === '' && live[2] === '',
+      'party doing rows were ' + JSON.stringify(live));
+    assert(rows({ ...v, at: now - 3 * T.TOWN_POLL_MS }).every((d) => d === ''), 'a stale realm view still named a party member\'s doing');
+    assert(TP.townPanelHtml(v, now).includes('data-inspect-item="emberheart"'), 'the Crier find is not a tap target for the item flyout');
+    const bad = TP.townPanelHtml(T.normalizeTown(body('<b>x')), now);
+    assert(bad.includes('&lt;b&gt;x') && !bad.includes('<b>x'), 'a crier name rendered as markup');
+  }),
 ];

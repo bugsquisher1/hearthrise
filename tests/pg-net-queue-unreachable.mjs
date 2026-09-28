@@ -126,6 +126,16 @@
 // view calling into it outside SINK_CALLERS, no grant of a SINK_CALLER to a
 // client/engine role, hr_ops never in pgrst.db_schemas or config.toml, and no
 // `alter` of hr_ops or `set schema/owner to/rename` of a routine in it.
+// ONE shape of grant is not a finding (2026-09-28, lane c-grant-hygiene-hr-ops):
+// a grant that is PROVABLY DISCARDED — inside a PL/pgSQL body and followed, in
+// straight-line code (no begin/end/if/loop/case/when/return/exit/continue/
+// commit/rollback between them, string literals blanked first), by an
+// unconditional `raise exception`. Execution cannot pass that raise, and every
+// exception rolls back to a savepoint taken before the grant (the enclosing
+// block's, or the whole apply), so the grant never outlives the statement list.
+// It is the section-4 control shape — the detector's hr_ops check proven to
+// bite — and --selftest plants the near-misses (no raise, a conditional raise,
+// a raise hidden in a string) to prove the exemption is that narrow.
 //
 // `--live` is the fifth arm and the only one needing the network: it re-runs
 // the external probe above with the repo's anon key (CLAUDE.md §2: the anon key
@@ -249,6 +259,39 @@ export function walk(src) {
 }
 
 const lineOf = (text, idx) => text.slice(0, idx).split('\n').length;
+
+// Q-5's one exemption (see the header): the grant at `at` sits in a PL/pgSQL
+// body and is followed in straight-line code by an unconditional `raise
+// exception`, so it is always rolled back. Anything the reader cannot follow
+// in a straight line fails closed, i.e. stays a finding.
+const DISCARD_BLOCKERS = /\b(?:begin|end|if|loop|case|when|return|exit|continue|commit|rollback|elsif|while|for|foreach|call)\b/i;
+// Security review 2026-09-28: a quoting form the literal blanker below does not
+// model (a dollar quote, an E'' escape, a quoted identifier, a comment) can
+// hide the raise inside text, so any of them between the grant and the raise
+// fails closed. `call` above: a procedure can COMMIT the grant before the raise.
+const DISCARD_OPAQUE = /\$|\\|"|--|\/\*/;
+export function discardedGrant(text, spans, at) {
+  const span = spans.filter((s) => s.body <= at && at < s.end).sort((x, y) => y.body - x.body)[0];
+  if (!span) return false;
+  const raw = text.slice(at, span.end);
+  // Literals blanked to spaces (same length), so a `;` or a keyword in a string
+  // neither ends a statement nor counts as code.
+  const seg = raw.replace(/'(?:[^']|'')*'/g, (m) => `'${' '.repeat(m.length - 2)}'`);
+  let from = seg.indexOf(';');
+  while (from >= 0) {
+    const to = seg.indexOf(';', from + 1);
+    if (to < 0) return false;                       // the body ends without a raise
+    const st = seg.slice(from + 1, to);
+    if (/^\s*raise\s+exception\b/i.test(st)) {
+      if (DISCARD_OPAQUE.test(raw.slice(0, to))) return false;
+      // SQLSTATE class 00 is "successful completion" — not an exit worth trusting.
+      return !/\b(?:errcode|sqlstate)\b\s*=?\s*'\s*00/i.test(raw.slice(from + 1, to));
+    }
+    if (DISCARD_BLOCKERS.test(st)) return false;
+    from = to;
+  }
+  return false;
+}
 
 // ── routine identity, for the chain-end judgement of Q-1 ────────────────────
 // The text between the `(` at `open` and its matching `)`, or null.
@@ -429,6 +472,7 @@ export function scan({ migrations, configToml, order }) {
       const roles = CLIENT_ROLES.filter((r) => new RegExp(String.raw`\b${r}\b`).test(to));
       const grantees = to.replace(/\bwith\s+grant\s+option\b|\bgranted\s+by\b.*$/g, '').replace(/['"\s]/g, '');
       if (!(onSink && grantees !== 'postgres') && !(onCaller && roles.length)) continue;
+      if (onSink && !onCaller && discardedGrant(text, spans, gm.index)) continue;
       add({
         arm: 'Q-5', file, line: lineOf(text, gm.index), subject: gm[0].replace(/\s+/g, ' ').slice(0, 160),
         detail: onSink
@@ -854,7 +898,60 @@ const PLANTS = [
     what: '`alter function hr_ops.hr_tick_edge_harvest() set schema public` — a create in public no regex sees',
     patch: (s) => `${s}\nalter function hr_ops.hr_tick_edge_harvest() set schema public;\n`,
   },
+  // ── Q-5's discarded-grant exemption, near-misses: each MUST be caught ────
+  {
+    name: 'sink-grant-block-completes', arm: 'Q-5',
+    what: 'a grant on hr_ops in a subtransaction that completes normally (handler, no raise) — it survives',
+    patch: (s) => `${s}\ndo $g$ begin begin grant usage on schema hr_ops to authenticated; perform 1; exception when others then null; end; end $g$;\n`,
+  },
+  {
+    name: 'sink-grant-conditional-raise', arm: 'Q-5',
+    what: 'a grant on hr_ops followed by a raise that only fires `if false`',
+    patch: (s) => `${s}\ndo $g$ begin grant usage on schema hr_ops to anon; if false then raise exception 'x'; end if; end $g$;\n`,
+  },
+  {
+    name: 'sink-grant-raise-in-string', arm: 'Q-5',
+    what: 'a grant on hr_ops whose only `raise exception` is inside a string literal',
+    patch: (s) => `${s}\ndo $g$ begin grant usage on schema hr_ops to anon; perform 'x; raise exception y'; end $g$;\n`,
+  },
+  {
+    name: 'sink-grant-top-level-raise-later', arm: 'Q-5',
+    what: 'a top-level grant on hr_ops with a raise in a LATER do-block — not the same statement list',
+    patch: (s) => `${s}\ngrant usage on schema hr_ops to anon;\ndo $g$ begin raise exception 'x'; end $g$;\n`,
+  },
+  // Security review 2026-09-28: the raise must be CODE, not text the literal
+  // blanker does not know about, and nothing between may leave the transaction.
+  {
+    name: 'sink-grant-raise-in-line-comment', arm: 'Q-5',
+    what: 'a grant on hr_ops whose only `raise exception` sits in a `--` comment',
+    patch: (s) => `${s}\ndo $g$ begin grant usage on schema hr_ops to anon; -- ; raise exception 'x';\nend $g$;\n`,
+  },
+  {
+    name: 'sink-grant-raise-in-block-comment', arm: 'Q-5',
+    what: 'a grant on hr_ops whose only `raise exception` sits in a `/* */` comment',
+    patch: (s) => `${s}\ndo $g$ begin grant usage on schema hr_ops to anon; /* ; raise exception 'x'; */ end $g$;\n`,
+  },
+  {
+    name: 'sink-grant-raise-in-dollar-string', arm: 'Q-5',
+    what: 'a grant on hr_ops whose only `raise exception` sits in a nested dollar-quoted literal',
+    patch: (s) => `${s}\ndo $g$ begin grant usage on schema hr_ops to anon; perform $x$; raise exception 'y'; $x$; end $g$;\n`,
+  },
+  {
+    name: 'sink-grant-raise-in-e-string', arm: 'Q-5',
+    what: 'a grant on hr_ops whose only `raise exception` sits in an E\'\' literal behind a \\\' escape',
+    patch: (s) => `${s}\ndo $g$ begin grant usage on schema hr_ops to anon; perform E'\\'; raise exception x; \\''; end $g$;\n`,
+  },
+  {
+    name: 'sink-grant-call-commits', arm: 'Q-5',
+    what: 'a grant on hr_ops, then `call` of a procedure that may COMMIT, then the raise — the grant outlives it',
+    patch: (s) => `${s}\ndo $g$ begin grant usage on schema hr_ops to anon; call public.hr__commits(); raise exception 'x'; end $g$;\n`,
+  },
   // ── CONTROLS: each of these MUST stay silent ──────────────────────────────
+  {
+    name: 'sink-grant-discarded-probe', control: true,
+    what: 'the section-4 control shape: grant, probe, unconditional raise, all in one discarded block',
+    patch: (s) => `${s}\ndo $g$ declare m text; begin begin grant usage on schema hr_ops to authenticated; perform 1; raise exception using errcode = 'HR853', message = 'x'; exception when others then m := sqlerrm; end; end $g$;\n`,
+  },
   {
     name: 'sink-revoke', control: true,
     what: 'revokes on hr_ops and an hr_ops routine calling another — the lane\'s own shape',

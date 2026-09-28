@@ -54,7 +54,8 @@
 /* 25 seconds — the study's number, and the floor the heartbeat bucket wants
    (6/min). Slow enough that a hundred idle Home tabs are one cached view read
    each, fast enough that somebody joining a node appears while you are still
-   looking. Polling stops dead when Home is not visible or the tab is hidden. */
+   looking. Polling stops dead when neither Home nor the Party screen is
+   visible, or the tab is hidden. */
 export const TOWN_POLL_MS = 25000;
 
 const TOWN_RPC = 'hr_town_of';
@@ -382,12 +383,14 @@ function resumeForTest() {
   return pauseDepth;
 }
 
-/** Home visible AND the tab in front. Either falsy ⇒ no read goes out. */
+/** Home or Party visible AND the tab in front. Either falsy ⇒ no read goes out. */
 function shouldPoll() {
   const d = (typeof document !== 'undefined') ? document : null;
   if (!d || d.hidden) return false;
-  const panel = d.getElementById('panel-profile');
-  return !!(panel && panel.classList.contains('active'));
+  return ['panel-profile', 'panel-party'].some((id) => {
+    const panel = d.getElementById(id);
+    return !!(panel && panel.classList.contains('active'));
+  });
 }
 
 function tick() {

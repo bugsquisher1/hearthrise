@@ -956,7 +956,7 @@
       return '<div class="hd-card hd-mini hd-bank is-on"><div class="mi">' +
         gly('uiIdle', 20, '', 'var(--green)') + '</div>' +
         '<div class="hd-bank-txt">' + (cap == null
-          ? 'Banking offline while you are away — the limit is being confirmed.'
+          ? 'Banking offline while you are away. The limit is being confirmed.'
           : 'Banking offline — <b>up to ' + capTxt + '</b> while you are away.') + '</div></div>';
     }
     var why = running

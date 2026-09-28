@@ -35,7 +35,8 @@
 //   layout()           → recompute clearance (call after moving chrome)
 //   register(selector) → add a bottom-right obstacle to avoid
 //   clear()            → drop everything (tests)
-//   state()            → { visible, pending, dropped } (tests)
+//   state()            → { visible, pending, dropped, held } (tests)
+//   sheetOpen()        → true while a modal sheet is up (toasts are held)
 //
 // Loaded as a classic script AFTER legacy.js; `notify()` in legacy.js
 // delegates here when present and falls back to its own minimal render
@@ -96,6 +97,37 @@
   var pending = [];   // [{ key, type, text, queuedAt }]
   var dropped = 0;    // queue overflow counter (surfaced in state(), for tests)
   var paused  = false;
+  var held    = [];   // [{ type, text }] pushed while a sheet was open
+  var MAX_HELD = 5;   // newest kept
+
+  // A sheet is the announcement: while one is open toasts wait, and replay in
+  // the corner when the last one closes. Toggled scrims stay in the DOM, so
+  // they count only with .open/.show. A match must also render and take input:
+  // a closed .inv-detail scrim stays laid out at opacity 0, pointer-events none.
+  var SHEET_SEL = '.modal.show, .stats-modal.show, .hr-scrim:is(.open, .show), .hr-scrim:not(.welcome-overlay, '
+    + '.char-select-overlay, .dgn-run-overlay, .scv-overlay, .mob-preview-overlay, .acq-overlay, .ach-overlay, '
+    + '[hidden], [style*="display: none"])';
+  function sheetOpen() {
+    var els = document.querySelectorAll(SHEET_SEL);
+    for (var i = 0; i < els.length; i++) {
+      if (els[i].getClientRects().length && getComputedStyle(els[i]).pointerEvents !== 'none') return true;
+    }
+    return false;
+  }
+  var watcher = null, flushFrame = 0;
+  function watchClose() {
+    if (watcher || typeof MutationObserver !== 'function') return;
+    watcher = new MutationObserver(function () {
+      if (flushFrame) return;
+      flushFrame = requestAnimationFrame(function () { flushFrame = 0; if (!sheetOpen()) flushHeld(); });
+    });
+    watcher.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'style', 'hidden'] });
+  }
+  function flushHeld() {
+    if (watcher) { watcher.disconnect(); watcher = null; }
+    var q = held; held = [];
+    q.forEach(function (h) { deliver(h.text, h.type); });
+  }
 
   function container() { return document.getElementById('notifs'); }
 
@@ -325,7 +357,6 @@
     if (!el) return;
     var t = type || 'info';
     var msg = clean(text);
-    var key = t + ' ' + msg;
 
     // b228 — the Chronicle's "Recent" feed. This is the ONE choke-point every
     // toast passes through, and the hook sits deliberately ABOVE the
@@ -335,6 +366,17 @@
     // log never gets to break a notification.
     try { if (window.HearthriseChronicle) window.HearthriseChronicle.recordToast(msg, t); } catch (e) {}
 
+    if (sheetOpen()) {
+      held.push({ type: t, text: msg });
+      while (held.length > MAX_HELD) { held.shift(); dropped++; }
+      watchClose();
+      return;
+    }
+    deliver(msg, t);
+  }
+
+  function deliver(msg, t) {
+    var key = t + ' ' + msg;
     // Identical message already up → count it instead of stealing a slot.
     var same = find(key);
     if (same) { bump(same); return; }
@@ -357,6 +399,8 @@
     });
     visible.length = 0;
     pending.length = 0;
+    held.length = 0;
+    if (watcher) { watcher.disconnect(); watcher = null; }
     dropped = 0;
     paused = false;
   }
@@ -392,11 +436,13 @@
     register: register,
     clear: clear,
     relayout: relayoutSoon,
+    sheetOpen: sheetOpen,
     state: function () {
       return {
         visible: visible.length,
         pending: pending.length,
         dropped: dropped,
+        held: held.length,
         paused: paused,
         counts: visible.map(function (t) { return t.count; }),
       };

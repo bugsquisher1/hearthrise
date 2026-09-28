@@ -2626,15 +2626,3 @@ body[data-hr-desktop-mode] .hr-scrim { top: var(--hr-dm-banner-h, 0px); }
    lives here, not inline, so this can. */
 #hr-net-banner { z-index: 99997; }
 body:has(.modal.show, .stats-modal.show, .hr-scrim) #hr-net-banner { z-index: 1; }
-/* THE TOASTS LEAVE AN OPEN SHEET'S FOOT (visual gate 5). Bottom-right, the login
-   blessing sat on the Spoils sheet's Done at 922x423. While a sheet is up the column
-   takes the band under the header, centred clear of the head's Close, and is back in
-   its corner when the sheet closes. Toggled sheets stay in the DOM and hide by losing
-   .open/.show, so they count only with it. */
-body:has(.modal.show, .stats-modal.show, .hr-scrim:is(.open, .show), .hr-scrim:not(.welcome-overlay,
-  .char-select-overlay, .dgn-run-overlay, .scv-overlay, .mob-preview-overlay, .acq-overlay, .ach-overlay,
-  [hidden], [style*="display: none"])) #notifs {
-  top: calc(var(--top-h) + 8px);
-  left: 50%;
-  translate: -50% 0;
-}

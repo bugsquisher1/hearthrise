@@ -7854,60 +7854,52 @@ export default [
     assert(bad.length === 0, 'THE VG5 SLOT-LABEL BUG: ' + bad.join('; '));
   }),
 
-  /* TOAST-SHEET-1 (visual pass 5): at 922x423 the login blessing toast drew over
-     the Spoils sheet's Done. While a sheet is open the toast column moves to the
-     band under the header; closed, it is back in its corner. The persistent hidden
-     scrims ride along in the closed frame, so a selector that matches a hidden
-     sheet goes red too. */
-  () => tryRunAsync('TOAST-SHEET-1: an open sheet\'s Close and foot buttons are never under a toast, and the toast returns to its corner', async () => {
+  /* TOAST-SHEET-1 (visual passes 5, 9): a toast over an open sheet covered its
+     Done, then (moved to the band under the header) the Codex title. The sheet
+     is the announcement: toasts are held while one is open, the newest 5 kept,
+     and replay in the bottom-right corner when it closes. */
+  () => tryRunAsync('TOAST-SHEET-1: toasts are held while a sheet is open and replay in the corner when it closes', async () => {
     const T = window.HearthriseToasts, C = window.HearthriseCodex;
     if (!T || !C) { skip('the toast queue or the Codex is absent'); return; }
+    const notifs = document.getElementById('notifs');
+    const frames = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const texts = () => [...notifs.querySelectorAll('.notif-text')].map((e) => e.textContent);
     const bad = [];
-    const foot = '<div id="dgn-run-overlay" class="dgn-run-overlay hr-scrim open"><div class="drm-modal hr-sheet" id="drm-modal">'
-      + '<div class="hr-sheet-head"><button class="drm-close" data-hr-dismiss>✕</button><h2 class="drm-title">Goblin Warcamp</h2></div>'
-      + '<div class="hr-sheet-body">' + '<p>Rewards settled.</p>'.repeat(12) + '</div>'
-      + '<div class="hr-sheet-foot"><button class="drm-btn drm-btn-primary" id="drm-finish">Done</button></div></div></div>';
     try {
       T.clear();
       await C.open();
-      const codex = document.getElementById('codex-modal');
-      assert(codex && codex.classList.contains('show'), 'the Codex did not open');
-      window.notify('Today’s blessing: The Open Coffers — a day for trade and treasure', 'info');
-      const notifs = document.getElementById('notifs');
-      assert(notifs && notifs.children.length, 'window.notify drew no toast');
-      const hidden = ['qty-slider-overlay', 'char-select-overlay'].map((id) => document.getElementById(id)).filter(Boolean).map((e) => e.outerHTML).join('');
-      const R = (e) => e.getBoundingClientRect(), box = (r) => '[' + [r.left, r.top, r.right, r.bottom].map(Math.round) + ']';
-      const rest = (doc, w, h) => {   // the column where toasts.js rests it at this size
-        const off = T.computeOffsets(w, h, []), n = doc.getElementById('notifs');
-        n.style.bottom = off.bottom + 'px'; n.style.right = off.right + 'px';
-        for (const c of n.children) c.style.animation = c.style.transition = 'none';
-        return off;
-      };
-      const hit = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+      assert(typeof T.sheetOpen === 'function' && T.sheetOpen(), 'the Codex is open but the toast queue does not see a sheet');
+      window.notify('held one', 'info');
+      assert(notifs.children.length === 0, 'a toast drew over the open Codex: ' + JSON.stringify(texts()));
+      assert(T.state().held === 1, 'the held queue is ' + T.state().held + ', not 1');
+      C.close();
+      await frames();
+      assert(texts().includes('held one'), 'the held toast did not replay when the Codex closed: ' + JSON.stringify(texts()));
       for (const [w, h] of [[1280, 800], [922, 423]]) {
-        for (const [name, sheet, sel] of [['Codex', codex.outerHTML, '#codex-modal .modal-head .btn'], ['Spoils', foot, '#drm-finish, .drm-close']]) {
-          phoneFrame(w, h, sheet + notifs.outerHTML, (doc) => {
-            rest(doc, w, h);
-            const at = w + 'x' + h + ' ' + name + ': ', btns = [...doc.querySelectorAll(sel)];
-            if (!btns.length) bad.push(at + 'no button');
-            for (const btn of btns) {
-              const b = R(btn), toasts = [...doc.getElementById('notifs').children].map(R);
-              for (const t of toasts) if (hit(t, b)) bad.push(at + 'toast ' + box(t) + ' over ' + btn.textContent + ' ' + box(b));
-              const top = doc.elementFromPoint((b.left + b.right) / 2, (b.top + b.bottom) / 2);
-              if (!top || !btn.contains(top)) bad.push(at + 'the hit-test at ' + btn.textContent + ' gives ' + (top ? top.tagName + '.' + top.className : 'nothing'));
-            }
-          });
-        }
-        phoneFrame(w, h, hidden + codex.outerHTML.replace(/\bmodal show\b/, 'modal') + notifs.outerHTML, (doc) => {
-          const off = rest(doc, w, h), t = R(doc.getElementById('notifs').firstElementChild);
-          if (Math.abs(h - off.bottom - t.bottom) > 1 || Math.abs(w - off.right - t.right) > 1) bad.push(w + 'x' + h + ' closed: the toast ' + box(t) + ' left its corner');
+        phoneFrame(w, h, notifs.outerHTML, (doc) => {
+          const off = T.computeOffsets(w, h, []), n = doc.getElementById('notifs');
+          n.style.bottom = off.bottom + 'px'; n.style.right = off.right + 'px';
+          const r = n.firstElementChild.getBoundingClientRect();
+          if (r.left < w / 2 || r.top < h / 2) bad.push(w + 'x' + h + ': the replayed toast [' + [r.left, r.top, r.right, r.bottom].map(Math.round) + '] is not bottom-right');
         });
       }
+      T.clear();
+      window.notify('shown now', 'info');
+      assert(texts().includes('shown now'), 'with no sheet open a toast did not show at once');
+      T.clear();
+      await C.open();
+      for (let k = 1; k <= 7; k++) window.notify('burst ' + k, 'info');
+      assert(notifs.children.length === 0 && T.state().held === 5, 'held ' + T.state().held + ' of 7 (want the newest 5), ' + notifs.children.length + ' drawn');
+      C.close();
+      await frames();
+      const st = T.state(), shown = texts();
+      assert(st.visible + st.pending === 5 && shown[0] === 'burst 3' && !shown.includes('burst 2'),
+        'after close: ' + JSON.stringify(shown) + ' + ' + st.pending + ' pending (want burst 3..7 in order)');
     } finally {
       try { C.close(); } catch (e) {}
       try { T.clear(); } catch (e) {}
     }
-    assert(bad.length === 0, 'THE VG5 TOAST-OVER-SHEET BUG: ' + bad.join('; '));
+    assert(bad.length === 0, 'THE VG9 TOAST-OVER-SHEET BUG: ' + bad.join('; '));
   }),
 
   /* #32, live: "inventory is missing the tool tab. only place to find the tools

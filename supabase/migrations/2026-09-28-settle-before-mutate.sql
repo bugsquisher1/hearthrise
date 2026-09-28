@@ -54,8 +54,8 @@
 --   engine          hr_unlock_buy, hr_market_buy, hr_market_cancel,
 --                   hr_quartermaster_buy, hr_dungeon_settle
 -- A refused client-direct call answers the refusal body through
--- hr_note_rejection (journalled in hr_rejections like every gated refusal, §3.4)
--- and writes nothing to the character: no inventory, gold, progress, ledger,
+-- hr_settle_first_noted -> hr_note_rejection (journalled in hr_rejections like
+-- every gated refusal, §3.4) and writes nothing to the character: no inventory, gold, progress, ledger,
 -- version or watermark. The gated wrappers refuse BEFORE hr_rpc_gate, so a
 -- refused call does not spend the player's rate budget either.
 -- hr_apply: a delta that does NOT carry accrued_to / activity / equip / enchant
@@ -135,7 +135,7 @@ begin
   loop
     if to_regprocedure(r.sig) is null then raise exception '% is missing', r.sig; end if;
     v_def := replace(pg_get_functiondef(r.sig::regprocedure), chr(13), '');
-    if strpos(v_def, 'hr_settle_first_of(') > 0 then continue; end if;
+    if strpos(v_def, 'SETTLE-BEFORE-MUTATE') > 0 then continue; end if;
     v_n := (length(v_def) - length(replace(v_def, E'\nbegin\n', ''))) / length(E'\nbegin\n');
     if v_n <> 1 then raise exception '%: the top-level begin appears % time(s), expected 1', r.sig, v_n; end if;
     if strpos(v_def, 'p_slot') = 0 then raise exception '%: no p_slot to settle-check', r.sig; end if;
@@ -188,8 +188,27 @@ begin
   end if;
 end $fn$;
 
+-- The client-direct form: the same answer, journalled once through the ONE
+-- recorder every gated refusal uses. It is a helper rather than a second
+-- hr_note_rejection call in each wrapper because a wrapper carries exactly one
+-- seam (tests/rejections-journal.mjs P6: zero means a restatement ate the
+-- journalling, two means a refusal can be counted twice).
+create or replace function public.hr_settle_first_noted(p_verb text, p_user uuid, p_slot int)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_catalog
+as $fn$
+declare v jsonb := public.hr_settle_first_of(p_user, p_slot);
+begin
+  if v is null then return null; end if;
+  return public.hr_note_rejection(p_verb, p_slot, v);
+end $fn$;
+
 revoke all on function public.hr_settle_first_of(uuid, int) from public, anon, authenticated, service_role;
 revoke all on function public.hr_require_settled(uuid, int) from public, anon, authenticated, service_role;
+revoke all on function public.hr_settle_first_noted(text, uuid, int)
+  from public, anon, authenticated, service_role;
 
 -- ── 2. THE PRELUDE, FIRST STATEMENT OF EVERY WIRED RPC ─────────────────────
 do $mig$
@@ -220,22 +239,23 @@ begin
     ) as t(sig, who, verb)
   loop
     v_def := replace(pg_get_functiondef(r.sig::regprocedure), chr(13), '');
-    if strpos(v_def, 'hr_settle_first_of(') > 0 then
+    if strpos(v_def, 'SETTLE-BEFORE-MUTATE') > 0 then
       raise notice '% already settles first — patch skipped', r.sig; continue; end if;
     v_pre := format($pre$
 begin
   -- SETTLE-BEFORE-MUTATE (2026-09-28-settle-before-mutate.sql, Security F2). An
   -- unpaid window is priced at the state that existed during it, so nothing that
   -- moves a priced input lands while one is open. Refuses before anything else
-  -- and writes nothing to the character.
-  if public.hr_settle_first_of(%1$s, p_slot) is not null then
-    return %2$s;
-  end if;
-$pre$, r.who,
+  -- and writes nothing to the character. (A nested block, not an exception
+  -- block: no subtransaction on the accepted path.)
+  declare v_settle jsonb := %1$s;
+  begin
+    if v_settle is not null then return v_settle; end if;
+  end;
+$pre$,
       case when r.verb is null
            then format('public.hr_settle_first_of(%s, p_slot)', r.who)
-           else format('public.hr_note_rejection(%L, p_slot, public.hr_settle_first_of(%s, p_slot))',
-                       r.verb, r.who) end);
+           else format('public.hr_settle_first_noted(%L, %s, p_slot)', r.verb, r.who) end);
     v_def := replace(v_def, E'\nbegin\n', v_pre);
     execute v_def;
   end loop;
@@ -311,7 +331,8 @@ begin
   perform public.hr_assert_grant_hygiene(true);
   for r in select unnest(array['anon', 'authenticated']) as role loop
     if has_function_privilege(r.role, 'public.hr_settle_first_of(uuid,int)', 'execute')
-       or has_function_privilege(r.role, 'public.hr_require_settled(uuid,int)', 'execute') then
+       or has_function_privilege(r.role, 'public.hr_require_settled(uuid,int)', 'execute')
+       or has_function_privilege(r.role, 'public.hr_settle_first_noted(text,uuid,int)', 'execute') then
       raise exception 'settle-before-mutate self-check (e): % can execute the settle gate', r.role; end if;
   end loop;
   -- Every wired body carries the prelude as its first statement.

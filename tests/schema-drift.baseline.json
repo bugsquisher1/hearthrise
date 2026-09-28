@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-09-28",
- "digest": "665d24f7a5a289e3c3c5d05facce8d19529335450baea25e2d0b60b489b18360",
+ "digest": "0b83885652717c05fc585c8f631e52e698bea68cef116c86e1d1640c1bda15d7",
  "counts": {
   "relations": 136,
-  "functions": 338,
+  "functions": 339,
   "policies": 95,
   "indexes": 196,
   "triggers": 20,
@@ -436,6 +436,7 @@
    "hr_set_style(p_family text, p_key text, p_slot integer, p_idem uuid)",
    "hr_set_style__ungated(p_family text, p_key text, p_slot integer, p_idem uuid)",
    "hr_settings_touch()",
+   "hr_settle_first_noted(p_verb text, p_user uuid, p_slot integer)",
    "hr_settle_first_of(p_user uuid, p_slot integer)",
    "hr_shard_of(p_user uuid)",
    "hr_signup_gate(event jsonb)",

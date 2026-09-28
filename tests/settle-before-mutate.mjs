@@ -140,6 +140,14 @@ async function r5(db) {
     ok(row.r && row.r.error === 'settle_first',
       `R5 hr_apply with a non-stamping ${what} on the stale row answered ${JSON.stringify(row.r).slice(0, 160)}`);
   }
+  const noted = Number((await db.query(
+    "select coalesce(sum(n), 0)::int n from hr_rejections where user_id = $1 and code = 'settle_first'",
+    [UID])).rows[0].n);
+  /* Journalled exactly once each: the client-direct refusals through
+     hr_settle_first_noted, the two hr_apply refusals by hr_apply's own recorder. */
+  ok(noted === 1 + others.length + 2,
+    `R5 hr_rejections holds ${noted} settle_first refusal(s) for the ${1 + others.length + 2} refused calls — `
+    + 'a refusal nobody records is one the vitals cannot see (CLAUDE.md §3.4), one recorded twice inflates them');
   const after = await snapshot(db);
   for (const k of Object.keys(before)) {
     ok(before[k] === after[k], `R5 a refused call WROTE the character (${k}): ${before[k]} -> ${after[k]}`);
@@ -157,6 +165,7 @@ async function r5(db) {
 const TOUCHED = [
   'public.hr_apply(uuid,int,bigint,uuid,jsonb)', 'public.hr_state_of(uuid,int)',
   'public.hr_settle_first_of(uuid,int)', 'public.hr_require_settled(uuid,int)',
+  'public.hr_settle_first_noted(text,uuid,int)',
   'public.hr_claim_quest(text,int)', 'public.hr_claim_goal(text,boolean,int,uuid)',
   'public.hr_claim_daily(text,int)', 'public.hr_claim_milestone(text,int)', 'public.hr_claim_rank(text,int)',
   'public.hr_credit_kills(int,text,bigint,text)', 'public.hr_trait_buy(text,int,uuid)',

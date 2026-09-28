@@ -272,6 +272,13 @@ const BLIND = {
   [MIG_SCALE]: ["  -- ── (a) THE TEXT, AND THE PREDECESSORS ────────────────────────────────────",
     ['  return;  -- §3 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)',
       '  -- ── (a) THE TEXT, AND THE PREDECESSORS ────────────────────────────────────'].join('\n')],
+  /* The segment-start file's §3 (Security F3, 2026-09-28). It DRIVES buff_apply
+     and asserts where each segment starts, so a mutation to the tail rule
+     (second_helping_restarts) makes it raise at apply time — a tick for the
+     migration, not for this guard. Blinded at its first assertion. */
+  [HR_APPLY_LAST]: ['  -- (d0) THE TEXT. Both patches present; the grant posture unchanged.',
+    ['  return;  -- §3 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)',
+      '  -- (d0) THE TEXT. Both patches present; the grant posture unchanged.'].join('\n')],
   [MIG_DENY]: ["  v_def := pg_get_functiondef('public.hr_put_client_state__ungated(int,jsonb,uuid)'::regprocedure);",
     '  return;  -- §2 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)\n'
     + "  v_def := pg_get_functiondef('public.hr_put_client_state__ungated(int,jsonb,uuid)'::regprocedure);"],

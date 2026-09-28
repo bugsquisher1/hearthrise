@@ -1375,11 +1375,9 @@ export default [
     }
     check('hearthScale magnitude', 'x', CS.hearthScale(10).magnitude - 1);
 
-    // 5 — both blessing pools
+    // 5 — both blessing pools: b560, they carry no magnitude at all (BLESSING-HONESTY)
     const E = window.HearthriseWorldEvents;
-    E.DAILY.concat(E.WEEKLY).forEach((ev) => {
-      Object.keys(ev.bonus).forEach((k) => check('blessing ' + ev.id, k, ev.bonus[k]));
-    });
+    E.DAILY.concat(E.WEEKLY).forEach((ev) => assert(ev.bonus === undefined, 'blessing ' + ev.id + ' carries a bonus table'));
 
     // 6 — the muster aura
     check('muster', 'allXP', window.HearthriseMuster.LIVE_XP_AURA);
@@ -1488,8 +1486,8 @@ export default [
 
   () => tryRun('b228 CEREMONY: the temporary budget is ≤15%, and the absolute peak is 30%', () => {
     /* "The realm can never hand you more than you have earned." The maximal
-       conjunction — the right weekly, the right daily, a Last Call feast, the
-       muster aura and a draught in hand — is deliberately ABOVE the clamp, so
+       conjunction — a Last Call feast and a Pumpkin Pie in hand (b560: the
+       blessings pay nothing, so they are out of it) — is deliberately ABOVE the clamp, so
        the ceiling is a thing players can reach and chase rather than a bound
        nothing ever touches. */
     const PB = window.HearthrisePowerBudget;
@@ -1505,8 +1503,8 @@ export default [
                     feast_until: new Date(Date.now() + 10 * 60000).toISOString() }, 'test-hold');
       E._force({ daily: E.DAILY.find((d) => d.id === 'scholars_day'),
                  weekly: E.WEEKLY.find((w) => w.id === 'grand_fair') });
-      // A tier-5 draught on top.
-      window.G.buffs = [{ type: 'all_xp', magnitude: 5, remainingMs: 600000 }];
+      // A Pumpkin Pie (+10% all XP, legacy.js ITEMS) on top of Last Call's +8%.
+      window.G.buffs = [{ type: 'all_xp', magnitude: 10, remainingMs: 600000 }];
 
       const raw = PB.rawFor('allXP');
       const paid = window.getBonus('allXP');

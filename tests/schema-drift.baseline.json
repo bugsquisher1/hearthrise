@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-09-28",
- "digest": "36cf7b080ea528e5a2596e6599eb3a34359b7cda480acfa63889430e8642a2da",
+ "digest": "cdf331ef4454436e056c20b2280523805ee49a7ad3a32fc16ba9c8b51b4922a7",
  "counts": {
   "relations": 136,
-  "functions": 339,
+  "functions": 337,
   "policies": 95,
   "indexes": 196,
   "triggers": 20,
@@ -445,8 +445,6 @@
    "hr_tick_cron_note(p_outcome text, p_ms integer, p_rostered integer, p_eff integer, p_detail jsonb)",
    "hr_tick_cron_run()",
    "hr_tick_crypto_schema()",
-   "hr_tick_edge_harvest()",
-   "hr_tick_edge_summary(p_body text)",
    "hr_tick_roster(p_kinds text[], p_shard integer, p_limit integer, p_holder text, p_lease_ms integer, p_after_accrued timestamp with time zone, p_after_user uuid, p_after_slot integer)",
    "hr_tick_settle(p_holder text, p_user uuid, p_slot integer, p_channel text, p_version bigint, p_window_from timestamp with time zone, p_window_to timestamp with time zone, p_intent_id uuid, p_delta jsonb, p_shadow_state jsonb)",
    "hr_tick_shadow_prune(p_limit integer)",

@@ -375,6 +375,13 @@
      The always-on readout's one-glance answer to "is this hunt paying in
      full?". Same switch as the block; the two numbers are the server's own
      `remaining_min` and `dry_mult`, printed as sent. PURE, like the builder. */
+  /* THE CHIP'S SHORT FORM (FIGHT-PHONE-DENSITY): on a phone the word gives way to
+     this glyph so the bar keeps every chip a player acts on. Hidden until then;
+     '' when the atlas has no match, so the word is never replaced by nothing. */
+  function chipGlyph() {
+    var svg = (window.HR && typeof window.HR.icon === 'function') ? window.HR.icon('uiHourglass', 13, 'currentColor') : '';
+    return svg ? '<span class="ab-vigour-glyph" aria-hidden="true">' + svg + '</span>' : '';
+  }
   function vigourChipHtml(v, refill) {
     if (!vigourOn(v, refill)) return '';
     var clock = vigourClock(v);
@@ -383,12 +390,12 @@
       var when = !clock ? '' : clock.stale ? ' (the day has turned; fresh Vigour arrives with the next settle)'
         : clock.local ? ' (' + clock.local + ' your time, ' + clock.left + ' from now)' : '';
       return '<span class="ab-vigour is-dry" title="' + esc('Out of Vigour — hunts pay ' + rate + ' until midnight UTC' + when
-        + '. Gathering still pays in full.' + (vigourForSale(v) ? ' Refills are on the Fight screen.' : '')) + '">Out of Vigour'
+        + '. Gathering still pays in full.' + (vigourForSale(v) ? ' Refills are on the Fight screen.' : '')) + '">' + chipGlyph() + 'Out<span class="ab-vigour-word"> of Vigour</span>'
         + (fin(v.dry_mult) ? ' · <span class="ab-vigour-verb">pays </span><b>×' + esc(v.dry_mult) + '</b>' : '') + '</span>';
     }
     if (!fin(v.remaining_min)) return '';
     var renews = clock && !clock.stale && clock.local ? ' (' + clock.local + ' your time)' : '';
-    return '<span class="ab-vigour" title="' + esc('Hunting time left today at the full rate. It renews at midnight UTC' + renews + '.') + '">Vigour <b>'
+    return '<span class="ab-vigour" title="' + esc('Hunting time left today at the full rate. It renews at midnight UTC' + renews + '.') + '">' + chipGlyph() + '<span class="ab-vigour-word">Vigour </span><b>'
       + esc(num(v.remaining_min)) + '</b> min</span>';
   }
 

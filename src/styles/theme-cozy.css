@@ -1105,8 +1105,8 @@ body[data-theme="classic"] {
     gap: 4px !important;
   }
   #panel-combat .csb-btn {
-    min-height: 48px !important;
-    padding: 6px 4px !important;
+    min-height: var(--tap) !important;
+    padding: 2px 4px !important;
     font-size:calc(14.5px * var(--ui-scale, 1)) !important;
   }
   /* b348 — THE XP ROUTE IS NOT DECORATION, SO IT IS NOT HIDDEN.

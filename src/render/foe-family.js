@@ -1,7 +1,7 @@
 // ============================================================
 // src/render/foe-family.js — the family word printed beside a foe's name.
 //
-// The ruling (b561): a name never repeats its own family. "Fire Elemental" is
+// The ruling: a name never repeats its own family. "Fire Elemental" is
 // already an Elemental, so its meta line reads "Tier 1", not "Elemental ·
 // Tier 1". The data keeps the family (the Bestiary and charms group by it);
 // only the words beside the name drop it.

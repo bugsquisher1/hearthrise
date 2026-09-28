@@ -1213,14 +1213,14 @@ export default [
     }
   }),
 
-  // 3rd render-layer extraction: the Achievements presentation (unlock toast +
-  // full modal) moved out of legacy.js to src/render/achievements.js. Pure
-  // refactor — both fns must stay on window: showAchToast (checkAchievements
-  // calls it by bare global on unlock) and openAchievements (inline onclick in
-  // the achievements button row + profile toolbar). Read-only surface.
+  // The Achievements presentation (unlock toast + sheet) lives in
+  // src/render/achievements.js. Both fns must stay on window: showAchToast (the
+  // deeds watcher opens it on a crossing) and openAchievements (inline onclick in
+  // the achievements button row + profile toolbar). Read-only surface: the
+  // grades come from HearthriseDeeds, never a record in G.
   () => tryRun('render: achievements toast + modal (extracted surface)', () => {
     assert(typeof window.showAchToast === 'function',
-      'showAchToast must stay on window (checkAchievements calls it on unlock)');
+      'showAchToast must stay on window (the deeds watcher calls it on a crossing)');
     assert(typeof window.openAchievements === 'function',
       'openAchievements must stay on window (invoked by inline onclick handlers)');
     // Toast: paints from the def it is handed, appends to body, auto-removes.
@@ -1231,10 +1231,9 @@ export default [
     const toast = toasts[toasts.length - 1];
     assert(toast.innerHTML.indexOf('Smoke Test Trophy') >= 0, 'toast did not render the achievement name');
     toast.remove(); // don't leave it lingering for the 4.2s timer
-    // Modal: reads window.ACHIEVEMENTS + G.achievements and paints a sorted list.
+    // Sheet: reads the deeds catalogue and paints one row per deed, headings apart.
     assert(Array.isArray(window.ACHIEVEMENTS) && window.ACHIEVEMENTS.length > 0,
       'ACHIEVEMENTS catalogue must be published for the modal to read');
-    const snap = JSON.stringify(window.G.achievements || {});
     window.openAchievements();
     const ov = document.getElementById('ach-overlay');
     assert(ov, 'ach-overlay element not created');
@@ -1243,7 +1242,43 @@ export default [
     assert(list && list.querySelectorAll('.ach-row').length === window.ACHIEVEMENTS.length,
       'modal must render one .ach-row per catalogue entry');
     ov.classList.remove('show');
-    window.G.achievements = JSON.parse(snap);
+  }),
+
+  () => tryRun('DEEDS-A: a deed is graded on the reader it is handed, and unknown is the pending dash', () => {
+    const D = window.HearthriseDeeds, row = (id) => D.rows.find((r) => r.id === id);
+    const R = (o) => Object.assign({ tally: () => null, skillLevel: () => null, skillIds: () => ['attack', 'mining'],
+      roomsOf: () => null, roomIds: () => ['kitchen', 'forge', 'library'], monsterKnown: () => false,
+      monsterKills: () => 0, monsterName: () => 'Green Dragon' }, o);
+    const unk = D.progressOf(row('kill_1000'), R());
+    assert(!unk.known && !unk.done && /bal-pending/.test(unk.html), 'unknown must be the pending dash, got ' + unk.html);
+    const at = (n) => D.progressOf(row('kill_1000'), R({ tally: (k) => (k === 'kills' ? n : null) }));
+    assert(!at(999).done && at(999).html === (999).toLocaleString() + ' / ' + (1000).toLocaleString(), '999 of 1000 is not done: ' + at(999).html);
+    assert(at(1000).done && at(1000).html === 'Earned', '1000 of 1000 must be Earned');
+    const all = D.progressOf(row('house_all'), R({ roomsOf: () => ({ known: true, map: { kitchen: 1, forge: 2 } }) }));
+    assert(all.target === 3 && all.have === 2 && !all.done, 'house_all must target roomIds().length: ' + JSON.stringify(all));
+    const hi = D.progressOf(row('lv25_any'), R({ skillLevel: (id) => (id === 'attack' ? 30 : null) }));
+    assert(!hi.known, 'skill:highest must be unknown while any skill is unknown');
+    const dr = D.progressOf(row('dragon_slayer'), R());
+    assert(!dr.known && /bal-pending/.test(dr.html), 'the dragon must be pending (not 0) while the counts are unknown');
+    assert(D.progressOf(row('dragon_slayer'), R({ monsterKnown: () => true, monsterKills: () => 1 })).done, 'a known kill is done');
+  }),
+
+  () => tryRun('DEEDS-B: the deed watcher seeds per deed, waits while busy, and toasts once per batch', () => {
+    const D = window.HearthriseDeeds, box = {}, calls = [], KEY = 'hearthrise:deeds-seen';
+    const store = { getJSON: (k, d) => (k in box ? JSON.parse(box[k]) : d), setJSON: (k, v) => { box[k] = JSON.stringify(v); } };
+    const T = (states, o) => D.tick(Object.assign({ parked: false, uid: 'u1', slot: 0, states, store,
+      busy: () => false, open: (ids) => calls.push(ids) }, o));
+    assert(T({ a: 'done', b: 'open', c: 'unknown', d: 'open' }) === 'seeded' && !calls.length, 'first sight must seed silently');
+    const up = { a: 'done', b: 'done', c: 'unknown', d: 'done' }, before = JSON.stringify(box);
+    assert(T(up, { busy: () => true }) === 'waiting' && JSON.stringify(box) === before, 'busy must leave the store untouched');
+    assert(T(up) === 'opened' && calls.length === 1 && calls[0].join() === 'b,d', 'a batch of 2 must be 1 call: ' + JSON.stringify(calls));
+    const late = Object.assign({}, up, { c: 'done' });
+    assert(T(late) === 'seeded' && calls.length === 1, 'a deed known late and already done must seed silently');
+    assert(T(late) === 'quiet', 'nothing new must be quiet');
+    const parkedBefore = JSON.stringify(box);
+    assert(T(late, { parked: true }) === 'parked' && JSON.stringify(box) === parkedBefore, 'parked must write nothing');
+    assert(T(late, { slot: 1 }) === 'seeded' && calls.length === 1 && JSON.parse(box[KEY])['u1:1'].a === 1,
+      'slot 1 must seed its own record');
   }),
 
   () => tryRun('render: bestiary modal (extracted surface)', () => {

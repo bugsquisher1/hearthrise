@@ -2066,6 +2066,14 @@ export default [
       const ach = byLabel('achievements');
       assert(ach && ach.querySelector('b').textContent.indexOf('/ ' + (window.ACHIEVEMENTS || []).length) >= 0,
         'Achievements cell must count against the real ACHIEVEMENTS catalogue');
+      /* Deeds are graded on the realm's counts: with the tally unstated, the
+         done-count is the pending dash, never a client-kept 0. */
+      const was = window.HearthriseLifetime.__swapView(null);
+      try {
+        window.renderCharacter();
+        const pend = [...document.querySelectorAll('#char-hero .cr-acct-cell')].find((c) => /^achievements/i.test(c.querySelector(':scope > span').textContent));
+        assert(pend && pend.querySelector('.bal-pending'), 'Achievements must be the pending dash while the tally is unknown, got ' + (pend && pend.innerHTML));
+      } finally { window.HearthriseLifetime.__swapView(was); }
       assert(byLabel('days running'), 'a Days running cell must exist (the server play streak)');
       assert(!byLabel('time played'), 'the device-timed Time played cell is back');
       ['quests', 'bounties'].forEach((k) => { const c = byLabel(k);

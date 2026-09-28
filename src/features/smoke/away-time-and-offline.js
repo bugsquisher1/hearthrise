@@ -386,14 +386,15 @@ export default [
         'welcome-v2 is back, and with it a second surface that can disagree with the reward sheet '
         + 'about what a "streak" is. See NIGHT-4.');
 
-      // ── 5. THE ACHIEVEMENTS that read streak.count must not say "login". ───
-      const ACH = window.ACHIEVEMENTS || (window.__LEGACY_INLINE || {}).ACHIEVEMENTS || [];
-      const playAch = ACH.filter((a) => a && a.src === 'streak.count');
-      assert(playAch.length >= 2, 'CONTROL: the play-streak achievements must still exist, got ' + playAch.length);
-      playAch.forEach((a) => {
-        assert(!/login/i.test(a.desc || ''),
-          'achievement "' + a.id + '" counts the PLAY streak but its description says "login streak", '
-          + 'which points the player at the reward cycle instead: ' + JSON.stringify(a.desc));
+      /* ── 5. NO DEED grades on a streak, and none says "login". The play
+         streak is the current run and resets on a missed day, so a deed that had
+         toasted would be taken back; the streak deeds are retired (tests/deeds.mjs
+         DEED-3), and no deed may point the player at the reward cycle. */
+      const ACH = window.ACHIEVEMENTS || [];
+      assert(ACH.length === 30, 'CONTROL: the thirty deeds must be published, got ' + ACH.length);
+      ACH.forEach((a) => {
+        assert(!/streak/.test(String(a.source)), 'deed "' + a.id + '" grades on a streak, which resets: ' + a.source);
+        assert(!/login/i.test(a.desc || ''), 'deed "' + a.id + '" says "login": ' + JSON.stringify(a.desc));
       });
 
       /* ── 6. RENOWN'S OWN LABEL for the same quantity. `streakBest` reads

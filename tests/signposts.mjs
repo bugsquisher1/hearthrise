@@ -12,10 +12,15 @@
 //   SIGN-3  lines 30-200 chars, labels 3-40; no digits, emoji or < > &
 //   SIGN-4  every CATEGORIES id but recipes has bag.<id>, plus bag.hidden
 //   SIGN-5  a line's {placeholders} equal its declared vars
-//   SIGN-7  the hr-accrue edge pack carries no signposts file, and no
-//           src/core or src/data module imports one
+//   SIGN-7  the hr-accrue edge pack carries no signposts or know-your-foe
+//           file, and no src/core or src/data module imports one
 //   SIGN-8  RETIRED COPY: no string literal in src/ (not smoke) says the
-//           Recovery rev.1 night ("the fight ends", "until you fall")
+//           Recovery rev.1 night ("the fight ends", "until you fall"), or the
+//           armour/Defence advice the accuracy floor no longer pays
+//   SIGN-9  KNOW YOUR FOE: every WEAPON_AXES member has a WEAPON_TYPES label;
+//           CHARM_RANKS[0].reveal, so nextOfClass().remaining is the distance
+//           to the element reveal; every foe.* line key is a literal in
+//           src/features/know-your-foe.js
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -42,7 +47,13 @@ async function world() {
   const sources = {};
   for (const p of walk(join(ROOT, 'src'))) sources[rel(p)] = readFileSync(p, 'utf8');
   const packed = await pack('hr-accrue');
+  const { WEAPON_TYPES } = await import('../src/core/combat.js');
+  const { WEAPON_AXES } = await import('../src/data/monster-classes.js');
+  const { CHARM_RANKS } = await import('../src/data/bestiary-charms.js');
   return {
+    weaponTypes: { ...WEAPON_TYPES },
+    weaponAxes: [...WEAPON_AXES],
+    firstRankReveals: !!(CHARM_RANKS[0] && CHARM_RANKS[0].reveal === true),
     lines: JSON.parse(JSON.stringify(SIGNPOSTS.lines)),
     labels: { ...SIGNPOSTS.labels },
     categoryIds: [...catBlock.matchAll(/\{id:'(\w+)'/g)].map((m) => m[1]),
@@ -53,7 +64,7 @@ async function world() {
   };
 }
 
-const RETIRED = /fight ends|night ends in recovery|until you fall|nobody eats for you/i;
+const RETIRED = /fight ends|night ends in recovery|until you fall|nobody eats for you|upgrade your armou?r|train defen[cs]e/i;
 const REGEX_PREV = /[(,=:[!&|?{};+\-*%<>~^]|^$|\breturn$|\btypeof$/;
 
 /** Every string literal in a JS source (template text included, `${}` holes
@@ -137,14 +148,20 @@ export function check(w) {
   }
   if (!w.categoryIds.length) fail('SIGN-4', 'no CATEGORIES ids parsed from src/screens/inventory.js');
   if (w.packOrigins.length < 10) fail('SIGN-7', `the hr-accrue pack lists ${w.packOrigins.length} files; the pack did not run`);
-  for (const o of w.packOrigins) if (/signposts/.test(o)) fail('SIGN-7', `the edge pack carries ${o}`);
+  for (const o of w.packOrigins) if (/signposts|know-your-foe/.test(o)) fail('SIGN-7', `the edge pack carries ${o}`);
   for (const [p, t] of Object.entries(w.sources)) {
     if (!/^src\/(core|data)\//.test(p)) continue;
-    for (const m of t.matchAll(SPEC_RE)) if (/signposts/.test(m[1])) fail('SIGN-7', `${p} imports ${m[1]}`);
+    for (const m of t.matchAll(SPEC_RE)) if (/signposts|know-your-foe/.test(m[1])) fail('SIGN-7', `${p} imports ${m[1]}`);
   }
   for (const [p, t] of Object.entries(w.sources)) {
     if (p.startsWith('src/features/smoke') || p === 'src/features/smoke-test.js') continue;
-    for (const l of stringLiterals(t)) if (RETIRED.test(l.text)) fail('SIGN-8', `${p}:${l.line} says the retired rev.1 night: ${JSON.stringify(l.text.slice(0, 80))}`);
+    for (const l of stringLiterals(t)) if (RETIRED.test(l.text)) fail('SIGN-8', `${p}:${l.line} says retired copy: ${JSON.stringify(l.text.slice(0, 80))}`);
+  }
+  for (const a of w.weaponAxes) if (!w.weaponTypes[a]) fail('SIGN-9', `weapon axis '${a}' has no WEAPON_TYPES label`);
+  if (!w.firstRankReveals) fail('SIGN-9', 'CHARM_RANKS[0].reveal is not true: nextOfClass().remaining is no longer the distance to the reveal');
+  const foeSrc = w.sources['src/features/know-your-foe.js'] || '';
+  for (const key of Object.keys(w.lines).filter((k) => k.startsWith('foe.'))) {
+    if (!["'", '"', '`'].some((q) => foeSrc.includes(q + key + q))) fail('SIGN-9', `${key} is not a literal in src/features/know-your-foe.js`);
   }
   return fails;
 }
@@ -158,6 +175,11 @@ const MUTATIONS = {
   coreImport: ['SIGN-7', (w) => { w.sources['src/core/zz-planted.js'] = "import { SIGNPOSTS } from '../data/signposts.js';\n"; }],
   packCarries: ['SIGN-7', (w) => { w.packOrigins.push('src/data/signposts.js'); }],
   retiredCopy: ['SIGN-8', (w) => { w.sources['src/features/zz-planted.js'] = "// the fight ends\nconst t = 'away: until you fall';\n"; }],
+  armourAdvice: ['SIGN-8', (w) => { w.sources['src/features/zz-planted.js'] = "const t = 'Train Defence and upgrade your armour.';\n"; }],
+  foeCoreImport: ['SIGN-7', (w) => { w.sources['src/data/zz-planted.js'] = "import { facts } from '../features/know-your-foe.js';\n"; }],
+  axisUnlabelled: ['SIGN-9', (w) => { delete w.weaponTypes.hammer; }],
+  firstRankHidden: ['SIGN-9', (w) => { w.firstRankReveals = false; }],
+  foeKeyNotLiteral: ['SIGN-9', (w) => { w.sources['src/features/know-your-foe.js'] = w.sources['src/features/know-your-foe.js'].split("'foe.elementHidden'").join("'foe.' + 'elementHidden'"); }],
   nightKeyUnused: ['SIGN-1', (w) => { for (const p of Object.keys(w.sources)) w.sources[p] = w.sources[p].split("'night.retreat'").join("'zz'"); }],
 };
 
@@ -186,7 +208,7 @@ async function main() {
   }
   const fails = check(w);
   for (const f of fails) console.log('  FAIL  ' + f);
-  console.log(fails.length ? `signposts: ${fails.length} failure(s)` : `signposts: ${Object.keys(w.lines).length} lines, ${Object.keys(w.labels).length} labels, SIGN-1..5,7,8 green`);
+  console.log(fails.length ? `signposts: ${fails.length} failure(s)` : `signposts: ${Object.keys(w.lines).length} lines, ${Object.keys(w.labels).length} labels, SIGN-1..5,7,8,9 green`);
   process.exit(fails.length ? 1 : 0);
 }
 

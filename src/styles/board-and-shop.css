@@ -236,6 +236,10 @@ body[data-theme] #panel-bounty .bb-weak {
   margin: 0;
   font-size: var(--t-micro); color: var(--bb-ink-3) !important;
 }
+body[data-theme] #panel-bounty .bb-note {
+  margin: 4px 0 0;
+  font-size: var(--t-micro); font-style: italic; color: var(--bb-ink-3);
+}
 /* The pay line is ruled off, the way a clerk would rule a form. */
 body[data-theme] #panel-bounty .bb-pay {
   margin-top: auto; padding-top: 9px;

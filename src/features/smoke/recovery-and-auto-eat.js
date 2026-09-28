@@ -7,6 +7,7 @@
 // the monolith by tools/split-smoke-suite.mjs — 30 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
 import { pass, fail, tryRun, tryRunAsync, assert, skip, snapshotG, drain, restoreG, stubSignedIn, on, snapshot, closeOverlays } from './_harness.js?v=559';
+import { MONSTER_NOTES } from '../../data/monster-notes.js?v=559';
 
 /* ══ THE KO-SHEET FIXTURE (KO-*) — one self-consistent fall, both doors ═══════
    RUNG is the ladder's own price of the third fall today; the receipt's `at`
@@ -2811,6 +2812,48 @@ export default [
       { deathsToday: 0, deathsLifetime: 30, recoveringUntilMs: 0, consecFalls: 0 });
     const d = window.HearthriseCore.combatSim.resolveDeath(clone, { items: window.ITEMS });
     assert(d.recoverMs === 0, 'the day\'s first fall was charged ' + d.recoverMs + 'ms off the residue tally');
+  }),
+
+  () => tryRun('FOE-A: the weak line is the engine match, over a KNOWN record, never bare hands', () => {
+    const F = window.HearthriseFoe;
+    const f = (eq, known) => F.facts('goblin', { eq, known, charms: null });
+    const off = f({ weaponType: 'hammer', element: null }, true);
+    assert(off && off.note === MONSTER_NOTES.goblin && /weak to 1H Sword/.test(off.weakLine), 'the goblin facts: ' + JSON.stringify(off));
+    assert(/already/.test(f({ weaponType: 'sword' }, true).weakLine), 'a held sword did not say already');
+    assert(!/already/.test(f({ weaponType: 'sword' }, false).weakLine), 'an unknown record said already');
+    assert(!/already/.test(f({ weaponType: 'neutral' }, true).weakLine), 'bare hands said already');
+  }),
+
+  () => tryRun('FOE-B: the element waits behind the curtain, and the outmatched tip names the weapon', () => {
+    const F = window.HearthriseFoe, D = window.HearthriseDeathSheet;
+    const stub = (o) => Object.assign({ countersKnown: () => true, classOfMonsterId: () => 'humanoid', revealsElement: () => false,
+      nextOfClass: () => ({ remaining: 7 }), classLabel: () => 'Humanoid' }, o);
+    const f = (charms, eq, known) => F.facts('goblin', { eq: eq || { weaponType: 'hammer', element: null }, known: !!known, charms });
+    const hid = f(stub()).elementLine;
+    assert(/7 more Humanoid/.test(hid) && !/\b(poison\w*|venom\w*|toxi\w*|blight\w*)\b/i.test(hid), 'the hidden line: ' + hid);
+    assert(/poison rune/.test(f(stub({ revealsElement: () => true })).elementLine), 'a studied kind was not told poison');
+    assert(/already carries the poison/.test(f(stub({ revealsElement: () => true }), { weaponType: 'hammer', element: 'poison' }, true).elementLine), 'no elementHeld');
+    assert(f(stub({ countersKnown: () => false })).elementLine === '', 'unknown counters printed a line');
+    const m = D.describeDeath({ ateThisFight: 2, foodQty: 0, monsterName: 'Goblin', foe: f(null) });
+    assert(m.tipKey === 'outmatched' && /1H Sword/.test(m.tip) && !/armou?r|Defence/.test(m.tip), 'the tip: ' + m.tipKey + ' ' + m.tip);
+  }),
+
+  () => tryRun('FOE-C: Field notes closes the sheet and opens the Bestiary in front, and never hides Rest', () => {
+    const F = window.HearthriseFoe, D = window.HearthriseDeathSheet;
+    const base = D.describeDeath({ ateThisFight: 2, foodQty: 0, monsterName: 'Goblin',
+      foe: F.facts('goblin', { eq: { weaponType: 'hammer' }, known: true, charms: null }) });
+    try {
+      D._render(Object.assign({}, base, { actions: [{ k: 'rest', label: 'Rest at the Hearth', disabled: false }] }), { monsterId: 'goblin' });
+      assert(!document.querySelector('#hr-death-scrim [data-act="notes"]'), 'the door showed beside an enabled Rest');
+      D._render(Object.assign({}, base, { actions: [] }), { monsterId: 'goblin' });
+      document.querySelector('#hr-death-scrim [data-act="notes"]').click();
+      assert(!document.getElementById('hr-death-scrim').classList.contains('show'), 'the sheet stayed over the Bestiary');
+      const ov = document.getElementById('best-overlay');
+      assert(ov && ov.classList.contains('show'), 'the Bestiary did not open');
+    } finally {
+      const ov = document.getElementById('best-overlay'); if (ov) ov.classList.remove('show');
+      D.__resetForTest();
+    }
   }),
 
   () => tryRun('NIGHT-PLAN-6: the away chip is pending until the forecast exists', () => {

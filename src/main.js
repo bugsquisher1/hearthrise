@@ -479,6 +479,7 @@ import { setupRecipeBook } from './features/recipe-book.js?v=559';
 import { setupItemIndex } from './features/item-index.js?v=559';
 import { setupCodex } from './features/codex.js?v=559';
 import { setupSignposts } from './features/signposts.js?v=559';
+import { setupKnowYourFoe } from './features/know-your-foe.js?v=559';
 import { setupNightPlan } from './features/night-plan.js?v=559';
 // Pack 1: one "what is this screen for?" note per screen, first visit only.
 import { setupScreenPrimers } from './features/screen-primers.js?v=559';
@@ -539,6 +540,7 @@ function tryBootFeatures() {
   boot('recipe-book', setupRecipeBook);
   boot('item-index', setupItemIndex);
   boot('signposts', setupSignposts);
+  boot('know-your-foe', setupKnowYourFoe);
   boot('night-plan', setupNightPlan);
   boot('screen-primers', setupScreenPrimers);
   boot('codex', setupCodex);

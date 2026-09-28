@@ -1664,7 +1664,7 @@
       };
       html += '<div class="hd-card hd-mini"><div class="mi">' +
         (G.activeMonster ? gly('navCombat', 20, '', 'var(--red)') : gly(G.activeSkill || 'smithing', 20, '', 'var(--green)')) + '</div>' +
-        '<div><b>' + esc(activeName) + '</b><div style="font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3)">' + (G.activeMonster ? 'In combat' : 'Training') + '</div>' + companyLine() + '</div>' +
+        '<div style="min-width:0"><b>' + esc(activeName) + '</b><div style="font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3)">' + (G.activeMonster ? 'In combat' : 'Training') + '</div>' + companyLine() + '</div>' +
         '<button class="hd-cta ghost go" data-hd="active">Open</button></div>';
     } else if (resume) {
       html += '<div class="hd-card hd-mini"><div class="mi">' + gly(resume.skill || resume.id, 20, '', 'var(--ink-2)') + '</div>' +

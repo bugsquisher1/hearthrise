@@ -88,6 +88,32 @@
 //        add table net.…`, no `add tables in schema net`, and no
 //        `create publication … for all tables`, which would sweep `net` in.
 //
+// ── Q-1 IS JUDGED AT CHAIN END (2026-09-28, GitHub run 36385797281) ───────
+// Until 2026-09-28 Q-1 judged each migration file's TEXT: a bridge created in
+// one file stayed a finding forever, even after a later file dropped it. That
+// is not the question this guard exists to answer — "is a bridge reachable on
+// the database the chain builds?" — and it left no honest way out once a
+// bridge had been APPLIED (2026-09-28-world-tick-stall-observability.sql's
+// public.hr_tick_edge_harvest): the applied file's bytes are the record and are
+// never rewritten, so the only fix is a later file, and a per-file Q-1 stays red
+// through it. Q-1 now replays the routine's history in the APPLY ORDER
+// (tests/schema-apply-order.json: pre_schema, then order; within a file, text
+// order). A Q-1 finding stands unless, AFTER it, the same routine is
+//   · dropped — `drop function|procedure|routine [if exists] schema.name`,
+//     with no argument list or one whose types match the reading create's
+//     input types (a different overload does not clear it), or
+//   · restated by `create or replace` with the SAME parameter list and a body
+//     that no longer reads a queue table,
+// and no reading create of it follows that. Everything else FAILS CLOSED:
+// a file absent from the apply order (excluded, or unlisted) can neither clear
+// a finding nor have its own findings cleared; `alter function … set schema /
+// rename`, `drop schema … cascade` and a type spelled two different ways are
+// not understood and so never clear anything. Q-1b..Q-4 are unchanged and still
+// judged per file. --selftest carries plants for each way the clearance could
+// be abused (no drop, a different routine dropped, a drop in an EARLIER file,
+// a different overload dropped, a reading restatement, a re-create after the
+// drop) and controls proving a real later drop / clean restatement clears.
+//
 // `--live` is the fifth arm and the only one needing the network: it re-runs
 // the external probe above with the repo's anon key (CLAUDE.md §2: the anon key
 // is the only key in the repo) and fails if `net` has joined the exposed list.
@@ -112,6 +138,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
 const MIG_DIR = path.join(ROOT, 'supabase', 'migrations');
 const CONFIG_TOML = path.join(ROOT, 'supabase', 'config.toml');
+const APPLY_ORDER = path.join(ROOT, 'tests', 'schema-apply-order.json');
 const PROJECT_URL = 'https://nezapsylztqbbwuwembx.supabase.co';
 const argv = process.argv.slice(2);
 
@@ -199,18 +226,109 @@ export function walk(src) {
 
 const lineOf = (text, idx) => text.slice(0, idx).split('\n').length;
 
+// ── routine identity, for the chain-end judgement of Q-1 ────────────────────
+// The text between the `(` at `open` and its matching `)`, or null.
+function parenBody(text, open) {
+  let depth = 0;
+  for (let i = open; i < text.length; i++) {
+    if (text[i] === '(') depth++;
+    else if (text[i] === ')') { depth--; if (!depth) return text.slice(open + 1, i); }
+  }
+  return null;
+}
+function splitTop(s) {
+  const out = [];
+  let depth = 0; let cur = '';
+  for (const c of s) {
+    if (c === '(') depth++;
+    if (c === ')') depth--;
+    if (c === ',' && !depth) { out.push(cur); cur = ''; continue; }
+    cur += c;
+  }
+  if (cur.trim()) out.push(cur);
+  return out;
+}
+const normType = (s) => s.toLowerCase().replace(/"/g, '').replace(/\s+/g, ' ').trim()
+  .replace(/\s*\(\s*/g, '(').replace(/\s*\)/g, ')')
+  .replace(/\b(?:integer|int4)\b/g, 'int').replace(/\bint8\b/g, 'bigint').replace(/\bbool\b/g, 'boolean')
+  .replace(/\btimestamp with time zone\b/g, 'timestamptz');
+// One parameter as the catalogue sees it: mode, name and type, default removed.
+function params(raw) {
+  if (raw == null) return null;
+  return splitTop(raw).map((p) => {
+    const t = normType(p.replace(/\s(?:default\b|=)[\s\S]*$/i, ''));
+    const mode = /^(in|out|inout|variadic)\s/.exec(t)?.[1] || 'in';
+    return { mode, text: t.replace(/^(?:in|out|inout|variadic)\s+/, '') };
+  });
+}
+const inputs = (ps) => ps.filter((p) => p.mode !== 'out');
+// Does a drop's argument list name this create's signature? Same count, and
+// each drop argument is the create parameter or its trailing type.
+function dropMatches(createPs, dropArgs) {
+  if (dropArgs === null) return true;                     // `drop function s.f;` — the only one
+  const ins = inputs(createPs); const ds = inputs(dropArgs);
+  return ins.length === ds.length
+    && ins.every((p, i) => p.text === ds[i].text || p.text.endsWith(` ${ds[i].text}`));
+}
+const sameParams = (a, b) => a.length === b.length
+  && a.every((p, i) => p.mode === b[i].mode && p.text === b[i].text);
+
+const CREATE_RE = /create\s+(?:or\s+replace\s+)?(function|procedure)\s+(?:"?([a-z0-9_]+)"?\s*\.\s*)?"?([a-z0-9_]+)"?\s*\(/ig;
+const DROP_RE = /\bdrop\s+(?:function|procedure|routine)\s+(?:if\s+exists\s+)?([^;]*)/ig;
+
 // ── the scan ────────────────────────────────────────────────────────────────
-export function scan({ migrations, configToml }) {
+// `order` is the apply order (file names). Without it nothing is ever cleared
+// and Q-1 is the old per-file judgement — the fail-closed direction.
+export function scan({ migrations, configToml, order }) {
   const findings = [];
   const looked = [];
   const add = (f) => findings.push(f);
+  const pos = new Map((order || []).map((f, i) => [f, i]));
+  // Per routine (schema.name), every create and drop at a known position.
+  const history = new Map();
+  const note = (name, ev) => { if (!history.has(name)) history.set(name, []); history.get(name).push(ev); };
 
   for (const [file, src] of migrations) {
     const { text, spans } = walk(src);
+    const p = pos.has(file) ? pos.get(file) : null;
+
+    // Q-1 history — each create STATEMENT in an exposed schema and its body (the
+    // outermost dollar span after its parameter list), and each drop.
+    if (p !== null) {
+      for (let cm = CREATE_RE.exec(text); cm; cm = CREATE_RE.exec(text)) {
+        const schema = (cm[2] || 'public').toLowerCase();
+        if (!EXPOSED.has(schema)) continue;
+        const open = cm.index + cm[0].length - 1;
+        const raw = parenBody(text, open);
+        const after = open + (raw == null ? 0 : raw.length + 2);
+        const body = spans.filter((s) => s.head >= after)
+          .reduce((a, s) => (!a || s.head < a.head || (s.head === a.head && s.end > a.end) ? s : a), null);
+        if (!body || raw == null) continue;
+        // The body must BELONG to this statement: no `;` between the `)` and `$`.
+        if (text.slice(after, body.head).includes(';')) continue;
+        note(`${schema}.${cm[3].toLowerCase()}`, {
+          kind: READ_RE.test(text.slice(body.body, body.end)) ? 'read' : 'clean',
+          at: [p, cm.index], params: params(raw), file,
+        });
+      }
+      for (let dm = DROP_RE.exec(text); dm; dm = DROP_RE.exec(text)) {
+        const list = dm[1].replace(/\b(?:cascade|restrict)\b\s*$/i, '');
+        for (const item of splitTop(list)) {
+          const im = /^\s*(?:"?([a-z0-9_]+)"?\s*\.\s*)?"?([a-z0-9_]+)"?\s*(\()?/i.exec(item);
+          if (!im) continue;
+          const schema = (im[1] || 'public').toLowerCase();
+          const rawArgs = im[3] ? parenBody(item, im.index + im[0].length - 1) : null;
+          if (im[3] && rawArgs == null) continue;   // an argument list we cannot read clears nothing
+          const args = im[3] ? params(rawArgs) : null;
+          note(`${schema}.${im[2].toLowerCase()}`, { kind: 'drop', at: [p, dm.index], args, file });
+        }
+      }
+    }
 
     // Q-1 — a routine body in an exposed schema that READS a queue table.
     for (const s of spans) {
-      const head = text.slice(Math.max(0, s.head - 600), s.head);
+      const headStart = Math.max(0, s.head - 600);
+      const head = text.slice(headStart, s.head);
       const m = /create\s+(?:or\s+replace\s+)?(function|procedure)\s+(?:"?([a-z0-9_]+)"?\s*\.\s*)?"?([a-z0-9_]+)"?\s*\(/i
         .exec(head.split(/;\s*$/).pop());
       if (!m) continue;                      // a `do $$ … $$` block is not a routine
@@ -222,6 +340,8 @@ export function scan({ migrations, configToml }) {
       if (!hit || !EXPOSED.has(schema)) continue;
       add({
         arm: 'Q-1', file, line: lineOf(text, s.body + hit.index), subject: name,
+        q1: { at: p === null ? null : [p, s.head],
+              params: params(parenBody(text, headStart + m.index + m[0].length - 1)) },
         detail: `${m[1].toLowerCase()} in the PostgREST-exposed schema \`${schema}\` reads `
           + `net.${hit[2]} (\`${hit[0].replace(/\s+/g, ' ')}\`). PUBLIC holds SELECT on that table, so this `
           + 'routine is a bridge from every browser to the tick bearer.',
@@ -310,7 +430,25 @@ export function scan({ migrations, configToml }) {
     }
   }
 
-  return { findings, looked };
+  // Q-1 at chain end: a finding stands unless a LATER event (apply order, then
+  // text order) drops or cleanly restates the same routine and no reading
+  // create of it follows. A finding at an unknown position is never cleared.
+  const later = (a, b) => a[0] > b[0] || (a[0] === b[0] && a[1] > b[1]);
+  const superseded = [];
+  const live = findings.filter((f) => {
+    if (f.arm !== 'Q-1' || !f.q1.at || !f.q1.params) return true;
+    const evs = (history.get(f.subject) || []).filter((e) => later(e.at, f.q1.at))
+      .sort((a, b) => (later(a.at, b.at) ? 1 : -1));
+    let cleared = null;
+    for (const e of evs) {
+      if (e.kind === 'drop' && dropMatches(f.q1.params, e.args)) cleared = e;
+      else if (e.params && sameParams(e.params, f.q1.params)) cleared = e.kind === 'clean' ? e : null;
+    }
+    if (cleared) superseded.push({ ...f, by: cleared });
+    return !cleared;
+  });
+
+  return { findings: live, looked, superseded };
 }
 
 // ── sources ─────────────────────────────────────────────────────────────────
@@ -326,7 +464,15 @@ async function sources() {
   for (const f of names) migrations.set(f, await readFile(path.join(MIG_DIR, f), 'utf8'));
   let configToml = '';
   try { configToml = await readFile(CONFIG_TOML, 'utf8'); } catch { configToml = ''; }
-  return { migrations, configToml };
+  let order;
+  try {
+    const j = JSON.parse(await readFile(APPLY_ORDER, 'utf8'));
+    order = [...(j.pre_schema || []), ...(j.order || [])];
+  } catch (e) {
+    throw new Harness(`cannot read the apply order ${APPLY_ORDER}: ${e.message}`);
+  }
+  if (!order.length) throw new Harness(`${APPLY_ORDER} names no files — Q-1 cannot be judged at chain end`);
+  return { migrations, configToml, order };
 }
 
 // ── --live: the external probe, anon key only ───────────────────────────────
@@ -392,6 +538,19 @@ async function live() {
 
 // ── --selftest ──────────────────────────────────────────────────────────────
 const TARGET = '2026-09-21-world-tick-cron.sql';
+
+const LATE = '9999-12-31-selftest-late.sql';
+const EARLY = '0000-01-01-selftest-early.sql';
+const BRIDGE = '\ncreate or replace function public.hr_tick_queue_peek()\nreturns setof record language sql security definer as $peek$\n  select id, headers from net.http_request_queue order by id desc limit 10\n$peek$;\n';
+const withTarget = (m, add) => new Map(m).set(TARGET, m.get(TARGET) + add);
+/** Add `name` to the migrations and to the apply order — after TARGET if `before` is false. */
+function withFile(m, o, name, src, before = false) {
+  const order = [...o];
+  const at = order.indexOf(TARGET);
+  if (at < 0) throw new Harness(`${TARGET} is not in the apply order — the plant anchor has moved`);
+  if (before) order.splice(at, 0, name); else order.push(name);
+  return { migrations: new Map(m).set(name, src), order };
+}
 
 const PLANTS = [
   {
@@ -486,7 +645,68 @@ const PLANTS = [
     what: '`add tables in schema net` — the whole schema in one statement',
     patch: (s) => `${s}\nalter publication supabase_realtime add tables in schema net;\n`,
   },
+  // ── Q-1 AT CHAIN END (2026-09-28): the clearance must not be a way out ────
+  //    `set` plants edit several files and the apply order. LATE is a new file
+  //    appended to the order; EARLY is one inserted just before TARGET.
+  {
+    name: 'chain-bridge-no-later-drop', arm: 'Q-1',
+    what: 'a bridge, and a LATER file that touches other routines but never drops it',
+    set: (m, o) => withFile(withTarget(m, BRIDGE), o, LATE,
+      'create or replace function public.hr_other() returns int language sql as $z$ select 1 $z$;\n'),
+  },
+  {
+    name: 'chain-drop-different-routine', arm: 'Q-1',
+    what: 'a bridge, and a LATER `drop function` of a DIFFERENT routine',
+    set: (m, o) => withFile(withTarget(m, BRIDGE), o, LATE,
+      'drop function if exists public.hr_tick_queue_peek2();\ndrop function if exists public.hr_tick_queue();\n'),
+  },
+  {
+    name: 'chain-drop-in-earlier-file', arm: 'Q-1',
+    what: 'the right drop, in a file that APPLIES BEFORE the bridge — the wrong order',
+    set: (m, o) => withFile(withTarget(m, BRIDGE), o, EARLY,
+      'drop function if exists public.hr_tick_queue_peek();\n', true),
+  },
+  {
+    name: 'chain-drop-before-create-same-file', arm: 'Q-1',
+    what: 'the right drop, earlier IN THE SAME FILE than the create',
+    set: (m, o) => ({ migrations: withTarget(m, `\ndrop function if exists public.hr_tick_queue_peek();\n${BRIDGE}`), order: o }),
+  },
+  {
+    name: 'chain-drop-other-overload', arm: 'Q-1',
+    what: 'a LATER drop of the same name with a DIFFERENT argument list — another overload',
+    set: (m, o) => withFile(withTarget(m, BRIDGE), o, LATE,
+      'drop function if exists public.hr_tick_queue_peek(text);\n'),
+  },
+  {
+    name: 'chain-restated-still-reading', arm: 'Q-1',
+    what: 'a LATER `create or replace` of the bridge that still reads the queue',
+    set: (m, o) => withFile(withTarget(m, BRIDGE), o, LATE, BRIDGE),
+  },
+  {
+    name: 'chain-recreated-after-drop', arm: 'Q-1',
+    what: 'a LATER drop, then the bridge created AGAIN after it',
+    set: (m, o) => withFile(withTarget(m, BRIDGE), o, LATE,
+      `drop function if exists public.hr_tick_queue_peek();\n${BRIDGE}`),
+  },
+  {
+    name: 'chain-drop-in-unordered-file', arm: 'Q-1',
+    what: 'the right drop, in a file the apply order does not list — it may never run',
+    set: (m, o) => ({ migrations: new Map([...withTarget(m, BRIDGE),
+      [LATE, 'drop function if exists public.hr_tick_queue_peek();\n']]), order: o }),
+  },
   // ── CONTROLS: each of these MUST stay silent ──────────────────────────────
+  {
+    name: 'chain-later-drop', control: true,
+    what: 'a bridge DROPPED by a later file in the apply order — gone at chain end',
+    set: (m, o) => withFile(withTarget(m, BRIDGE), o, LATE,
+      'drop function if exists public.hr_tick_queue_peek() cascade;\n'),
+  },
+  {
+    name: 'chain-later-clean-restatement', control: true,
+    what: 'a bridge RESTATED by a later file with a body that no longer reads the queue',
+    set: (m, o) => withFile(withTarget(m, BRIDGE), o, LATE,
+      'create or replace function public.hr_tick_queue_peek()\nreturns setof record language sql security definer as $peek$\n  select 1, null::jsonb where false\n$peek$;\n'),
+  },
   {
     name: 'privilege-assertion', control: true,
     what: 'a public definer function ASSERTING on the queue privilege — the in-DB half of this guard',
@@ -541,8 +761,11 @@ async function selftest() {
   let failed = 0;
   for (const p of PLANTS) {
     let input;
-    if (p.config) {
-      input = { migrations: base.migrations, configToml: p.patch(base.configToml) };
+    if (p.set) {
+      if (base.migrations.get(TARGET) === undefined) throw new Harness(`${TARGET} is not in supabase/migrations/ — the plant anchor has moved`);
+      input = { ...p.set(base.migrations, base.order), configToml: base.configToml };
+    } else if (p.config) {
+      input = { migrations: base.migrations, configToml: p.patch(base.configToml), order: base.order };
       if (input.configToml === base.configToml) { console.error(`HARNESS  ${p.name}: the plant changed nothing`); process.exit(2); }
     } else {
       const before = base.migrations.get(TARGET);
@@ -551,7 +774,7 @@ async function selftest() {
       if (after === before) { console.error(`HARNESS  ${p.name}: the plant changed nothing`); process.exit(2); }
       const migrations = new Map(base.migrations);
       migrations.set(TARGET, after);
-      input = { migrations, configToml: base.configToml };
+      input = { migrations, configToml: base.configToml, order: base.order };
     }
     const { findings } = scan(input);
     if (p.control) {
@@ -587,13 +810,17 @@ async function main() {
   if (argv.includes('--live')) { await live(); return; }
 
   const src = await sources();
-  const { findings, looked } = scan(src);
+  const { findings, looked, superseded } = scan(src);
 
   if (argv.includes('--list')) {
     console.log(`migrations scanned: ${src.migrations.size}   statements examined: ${looked.length}\n`);
     for (const l of looked) {
       const tag = l.read ? (l.exposed ? 'FINDING ' : 'not-exposed') : 'clean   ';
       console.log(`${tag.padEnd(12)} [${l.kind}] ${l.file}  ${l.subject}`);
+    }
+    for (const f of superseded) {
+      console.log(`superseded   [Q-1] ${f.file}:${f.line}  ${f.subject} — cleared at chain end by the `
+        + `${f.by.kind === 'drop' ? 'drop' : 'clean restatement'} in ${f.by.file}`);
     }
     console.log('');
   }
@@ -612,7 +839,8 @@ async function main() {
   const routines = looked.filter((l) => l.kind === 'routine').length;
   const views = looked.filter((l) => l.kind === 'view').length;
   console.log(`pg-net-queue-unreachable: OK — ${src.migrations.size} migrations, ${routines} routine bodies, `
-    + `${views} views, no exposed-schema read of net.http_request_queue/_http_response, `
+    + `${views} views, no exposed-schema read of net.http_request_queue/_http_response at chain end `
+    + `(${superseded.length} earlier bridge finding(s) superseded by a later drop/restatement), `
     + 'no added grant, no `net` in PostgREST\'s schema list, no queue table published');
 }
 

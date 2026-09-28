@@ -2977,9 +2977,9 @@ export default [
       G.activeMonster = 'goblin'; G.monsterHp = 10; G.monsterMaxHp = 15; G.playerHp = 50; G.playerMaxHp = 50;
       let b = chip();
       assert(b && b.querySelector('.bal-pending') && !/\b0\/\d+ confirmed/.test(b.textContent), 'the confirming chip read ' + (b && b.textContent));
-      G.bountyHunter.active._serverConfirmed = 7;
+      window.hrNoteServerBounty({ bounty: { bounty_id: 'pend_cull', target: 'goblin', required: 20, progress: 7 } });   // the one server-mirrored view
       b = chip();
-      assert(b && !b.querySelector('.bal-pending') && /^7\/20 confirmed/.test(b.textContent), 'the answered chip read ' + (b && b.textContent));
-    } finally { restoreG(snap); try { window.refreshActivityBar(); } catch (e) {} }
+      assert(b && !b.querySelector('.bal-pending') && /^7\/20 · verifying/.test(b.textContent), 'the answered chip read ' + (b && b.textContent));
+    } finally { restoreG(snap); delete window.G._bountyServer; try { window.refreshActivityBar(); } catch (e) {} }
   }),
 ];

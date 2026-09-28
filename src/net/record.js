@@ -1671,6 +1671,8 @@ function settle(verdict) {
        bag stays null, which canProceedArmed treats as "not loaded yet"
        (fail-closed). */
     hydrationStep('client-state', () => applyClientState(verdict.body, G));
+    // The contract's server figure (top-level `bounty`, hr_state_of) on an idle boot too.
+    hydrationStep('bounty', () => { if (typeof window !== 'undefined' && typeof window.hrNoteServerBounty === 'function') window.hrNoteServerBounty(verdict.body); });
     /* ── ADOPT THE SERVER'S HP AT BOOT (b511) ───────────────────────────────────
        FOURTH INSTANCE OF THE IDLE-BOOT HYDRATION CLASS (b467 inventory, b477
        crew, SA-016 hero slots, now hp). hp lived ONLY in accrue.js's

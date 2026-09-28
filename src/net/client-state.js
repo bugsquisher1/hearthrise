@@ -106,6 +106,13 @@ export function __setClientStateArm(v) {
    capstone.js imports RESIDUE_FIELDS from here (it already depends on this
    module), so there is one list and no cycle. The server enforces the same
    boundary independently (hr_put_client_state deny-list) — defense in depth. */
+/* The contract's in-flight scratch: stripped from `bountyHunter.active` at BOTH
+   residue seams (here on the way in, capstone.js buildResiduePatch on the way
+   out). A saved `_confirming` wedged the turn-in shut and a saved `_retryTimer`
+   disarmed the retry; the server figure lives in G._bountyServer, never here.
+   `_serverContract` and `_acceptError` ride on purpose (legacy.js accept path). */
+export const BOUNTY_TRANSIENT_KEYS = Object.freeze(['_confirming', '_syncNoticed', '_retryTimer', '_creditAt', '_confirmed', '_awaitingServerClaim', '_serverConfirmed']);
+
 export const RESIDUE_FIELDS = Object.freeze([
   'bountyHunter',   // client-only board + contract state (completed/board/rerolls/warrants). WHOLLY
                     // residue: marks are the record's top-level G.marks and BH xp is a server SKILL,
@@ -748,6 +755,10 @@ export function hydrateInto(G, cs) {
          `marks` is: a legacy blob, or a forged bag, must never put a second copy
          of a server number into G where a read site might prefer it. */
       delete merged.xp;
+      if (merged.active && typeof merged.active === 'object' && !Array.isArray(merged.active)) {
+        merged.active = { ...merged.active };
+        for (const k of BOUNTY_TRANSIENT_KEYS) delete merged.active[k];
+      }
       G[f] = merged;
       continue;
     }

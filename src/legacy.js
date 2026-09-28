@@ -3896,21 +3896,9 @@ function ensureBountyState(){
   if(G.bountyHunter.active){
     const _a=G.bountyHunter.active;
     delete _a._confirming; delete _a._syncNoticed;
-    /* bug #5 ROOT — the credit cadence + hold-retry are TRANSIENT too. In a
-       browser setTimeout returns a NUMBER, so a persisted `_retryTimer` would
-       survive a reload and make hrScheduleBountyRetry believe a (dead) timer is
-       already running → the cap-catch-up retry never re-arms.
-       ⚠ BOOT-ONCE, NOT EVERY ENSURE. ensureBountyState() runs on EVERY kill
-       (handleBountyKill calls it first), so stripping these here unconditionally
-       WIPED the 15s cadence watermark (_creditAt) on every kill → the throttle
-       never held and every below-target kill fired a credit RPC (caught by the
-       "credit ONCE per cadence window; got 3" regression). These are harmless to
-       carry within a live session (a stale _retryTimer only matters across a
-       RELOAD), so clear them only on the first ensure of the session (boot),
-       which is exactly when a persisted stale timer would be present. */
+    /* In-flight scratch never survives a reload: BOUNTY_TRANSIENT_KEYS is
+       stripped at both residue seams (src/net/client-state.js). */
     if(_firstEnsure){
-      delete _a._retryTimer; delete _a._creditAt; delete _a._confirmed; delete _a._serverConfirmed;
-      delete _a._awaitingServerClaim;   // transient too: re-derived from the envelope
       /* ── THE RESCUE (2026-08-31) ─────────────────────────────────────────
          A save written before the BOUNTY_TURN_IN filter can still hold an
          ACTIVE contract of a type nothing can settle — that is the live bug:
@@ -4198,7 +4186,7 @@ function hrAdoptAcceptedBounty(res,accepted){
       out.changed.push(k+' '+act.rewards[k]+'->'+v);act.rewards[k]=v;
     }
   });
-  act._serverContract=true;
+  act._serverContract=true;hrNoteBountyProgress({bounty_id:res.bounty_id,target:res.target,progress:0});
   out.adopted=true;
   /* Repaint only when something MOVED — an accept that agreed (the common case,
      and every case once the board is drawn post-deploy) must not churn the DOM.
@@ -4404,11 +4392,8 @@ function hrBountyCadenceCredit(b){
     const p=_GC.creditKills(b.target,observed);
     Promise.resolve(p).then(function(cr){
       if(!G.bountyHunter || G.bountyHunter.active!==b) return;
-      /* Keep the "confirmed" read fresh for the bar; do not touch b.progress
-         (the local observed count) — the display shows min(observed,required). */
-      if(cr && cr.ok && typeof cr.progress==='number'){
-        b._serverConfirmed=Math.max(0,Math.min(b.required,cr.progress|0));
-      }
+      /* The server's figure goes to the one mirror; b.progress stays the local count. */
+      if(cr&&cr.ok&&typeof cr.progress==='number') hrNoteBountyProgress({bounty_id:b.id,target:b.target,progress:cr.progress});
     }).catch(function(){});
   }catch(e){}
 }
@@ -4662,7 +4647,7 @@ function completeBounty(){
     Promise.resolve(_creditP).then(function(cr){
       if(!G.bountyHunter || G.bountyHunter.active!==b){ b._confirming=false; return null; }
       /* Decision 1: the confirmed count is the server's, never the local phantom. */
-      if(cr && cr.ok && typeof cr.progress==='number'){ b._serverConfirmed = Math.max(0, Math.min(b.required, cr.progress|0)); }
+      if(cr && cr.ok && typeof cr.progress==='number') hrNoteBountyProgress({bounty_id:b.id,target:b.target,progress:cr.progress});
       return _GC.claimBounty();
     }).then(function(res){
       b._confirming=false;
@@ -5000,9 +4985,9 @@ function renderBountyPanel(){
   if(active){
     const m=MONSTERS[active.target];
     // One reader for text, bar AND Claim gate — the count hr_claim_bounty honours.
-    const current=bountyShownProgress(active);
-    const pct=Math.min(100,(current/active.required)*100);
-    const _claimable=current>=active.required && !active._confirming;
+    const v=hrBountyView(active);
+    const pct=v.known?Math.min(100,(v.progress/active.required)*100):0;
+    const _claimable=v.claimable;
     const _claimBtn=_claimable
       ? `<button class="btn btn-sm btn-primary" onclick="hrTurnInBounty()">Claim reward</button>`
       : `<button class="btn btn-sm btn-primary" onclick="fightBountyTarget('${active.target}')">${G.activeMonster===active.target?'Go to fight':'Fight target'}</button>`;
@@ -11051,17 +11036,11 @@ window.renderBountyPanel = function(){
   const a = bh && bh.active;
   if(!a) return '';
   const m = MONSTERS[a.target];
-  const cur = bountyShownProgress(a);
-  const _confirming = !!(a._confirming || a._syncNoticed) && bountyAttemptProgress(a) >= a.required;
-  /* Decision 1 (bug #5): while the server catches up, show the SERVER-CONFIRMED
-     count (never the phantom local total), reconciled DOWN to server truth by the
-     credit RPC's returned progress. Never below what the server has confirmed. */
-  const _confirmed = (a._serverConfirmed != null && Number.isFinite(Number(a._serverConfirmed))) ? Math.max(0, Math.min(a.required, Math.floor(Number(a._serverConfirmed)))) : (window.HearthriseBalance?.countMarkup?.(null, {label:'Not counted yet'}) ?? '—');
-  const pct = Math.min(100, (cur/a.required)*100);
-  const _curLabel = _confirming
-    ? `${_confirmed}/${a.required} confirmed · Verifying your kills…`
-    : `${cur}/${a.required}`;
-  return `<div class="bounty-card${_confirming?' confirming':''}" style="margin-bottom:8px">
+  const v = hrBountyView(a);   // the server's figure or '—', never the local count
+  const _mark = v.known ? v.mark : (window.HearthriseBalance?.countMarkup?.(null, {label:'Not counted yet'}) ?? '—');
+  const pct = v.known ? Math.min(100, (v.progress/a.required)*100) : 0;
+  const _curLabel = v.confirming ? `${_mark}/${a.required} · Verifying your kills…` : `${_mark}/${a.required}`;
+  return `<div class="bounty-card${v.confirming?' confirming':''}" style="margin-bottom:8px">
     <div class="row between">
       <div class="bounty-title">Active bounty: ${m?.name||'?'}</div>
       <button class="btn btn-sm" onclick="showTab('bounty')">View Board</button>
@@ -11398,13 +11377,11 @@ function refreshActivityBar(){
       let bountyChip = '';
       const _ab = G.bountyHunter && G.bountyHunter.active;
       if(_ab && _ab.target === G.activeMonster){
-        const _cur = (typeof bountyShownProgress==='function') ? bountyShownProgress(_ab) : Math.min(_ab.progress||0,_ab.required);
-        const _abConfirming = !!(_ab._confirming || _ab._syncNoticed)
-          && ((typeof bountyAttemptProgress==='function'?bountyAttemptProgress(_ab):(_ab.progress||0)) >= _ab.required);
-        const _abConfirmed = (_ab._serverConfirmed != null && Number.isFinite(Number(_ab._serverConfirmed))) ? Math.max(0, Math.min(_ab.required, Math.floor(Number(_ab._serverConfirmed)))) : (window.HearthriseBalance?.countMarkup?.(null, {label:'Not counted yet'}) ?? '—');
-        bountyChip = _abConfirming
-          ? '<span class="ab-bounty confirming">Bounty <b>'+_abConfirmed+'/'+_ab.required+' confirmed</b></span>'
-          : '<span class="ab-bounty">Bounty <b>'+_cur+'/'+_ab.required+'</b></span>';
+        const v = hrBountyView(_ab);
+        const _mark = v.known ? v.mark : (window.HearthriseBalance?.countMarkup?.(null, {label:'Not counted yet'}) ?? '—');
+        bountyChip = v.confirming
+          ? '<span class="ab-bounty confirming">Bounty <b>'+_mark+'/'+_ab.required+' · verifying</b></span>'
+          : '<span class="ab-bounty">Bounty <b>'+_mark+'/'+_ab.required+'</b></span>';
       }
       /* b266 (tester): show the combat SKILL you're training + XP to the next
          level, right in the always-visible bar — "can I see Strength XP til level
@@ -14046,8 +14023,7 @@ function paintNavBadges(){
   }
   if(typeof G !== 'object' || !G) return;
   // Bounty ready
-  var bRdy = !!(G.bountyHunter && G.bountyHunter.active &&
-    G.bountyHunter.active.progress >= G.bountyHunter.active.required);
+  var bRdy = !!(window.hrBountyView && G.bountyHunter && G.bountyHunter.active && window.hrBountyView(G.bountyHunter.active).claimable);
   setBadge('bounty', bRdy);
   // Farm plot ready
   var fRdy = (G.farmPlots||[]).some(function(p){return p && p.state==='ready';});

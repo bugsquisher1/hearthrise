@@ -213,6 +213,8 @@
     "node tests/dead-exports.mjs": "client-guards",
     "node tests/no-new-prediction.mjs": "client-guards",
     "node tests/no-new-prediction.mjs --selftest": "client-guards",
+    "node tests/bounty-view.mjs": "client-guards",
+    "node tests/bounty-view.mjs --selftest": "client-guards",
     "node tests/dead-css.mjs --selftest": "client-guards",
     "node tests/dead-css.mjs": "client-guards",
     "node tests/market-price-source.mjs --selftest": "client-guards",

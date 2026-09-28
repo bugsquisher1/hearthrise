@@ -384,7 +384,7 @@ export function bountyRig(opts) {
   const G = window.G, o = opts || {};
   const savedBh = JSON.parse(JSON.stringify(G.bountyHunter || {}));
   const savedGC = window.HearthriseGoalClaim;
-  const calls = [];
+  const calls = [], saved = {};
   window.HearthriseGoalClaim = Object.assign({}, savedGC, {
     isSignedIn: () => true,
     creditKills: (t, c) => { calls.push({ fn: 'credit', claimed: c }); return Promise.resolve(o.credit || { ok: false, error: 'held' }); },
@@ -394,18 +394,70 @@ export function bountyRig(opts) {
   return {
     calls, target,
     armed: typeof window.clientMayWriteRecordField === 'function' && window.clientMayWriteRecordField('gold') === false,
-    set(b) { if (window.ensureBountyState) window.ensureBountyState(); G.bountyHunter.active = b; return b; },
-    // hr_state_of's shape: the contract plus greatest(0, kills - baseline).
+    set(b) { if (window.ensureBountyState) window.ensureBountyState(); delete G._bountyServer; G.bountyHunter.active = b; return b; },
+    // hr_state_of's shape (TOP-LEVEL, as hr_load and the envelope carry it).
     envelope(id, progress) {
       const a = G.bountyHunter.active || {};
-      return { state: { bounty: { bounty_id: id, target, required: a.required, baseline: 100,
-        kills_now: 100 + progress, progress } } };
+      return { bounty: { bounty_id: id, target, required: a.required, baseline: 100,
+        kills_now: 100 + progress, progress } };
+    },
+    fight(t) { if (!('mon' in saved)) saved.mon = G.activeMonster; G.activeMonster = t; },
+    combatTab(on) {
+      const p = document.getElementById('panel-combat');
+      if (p && !('tab' in saved)) saved.tab = p.classList.contains('active');
+      if (p) p.classList.toggle('active', !!on);
+    },
+    /* Every surface that prints the contract figure, parsed: {set, claim, badge, pill, chip}. */
+    async figures() {
+      const out = { set: new Set(), claim: false, badge: false, pill: '', chip: '', wt: '' };
+      const add = (s) => { const m = /(\d+|—)\s*\/\s*(\d+)/.exec(String(s || '')); if (m) out.set.add(m[1]); return String(s || ''); };
+      this.combatTab(false); window.renderBountyTab();
+      const bb = document.querySelector('#bounty-board-body');
+      add(bb && bb.querySelector('.bb-prog-t') && bb.querySelector('.bb-prog-t').textContent);
+      out.claim = /hrTurnInBounty\(\)/.test(bb ? bb.innerHTML : '');
+      this.combatTab(true);
+      out.pill = add(String(window.renderBountyPanel() || '').replace(/<[^>]*>/g, ' '));
+      const d = window.HearthriseCombatScreens._destinations()[0];
+      out.wt = add(d.meta) + ' ' + add(d.counter);
+      this.fight(target); window.refreshActivityBar();
+      const chip = document.querySelector('#ab-meta .ab-bounty b');
+      out.chip = add(chip && chip.textContent);
+      window.updateTopbar(); await new Promise((r) => setTimeout(r, 0));
+      out.badge = !!document.querySelector('.nav-btn[data-tab=bounty] .nav-badge:not(.hide)');
+      return out;
+    },
+    /* A RELOAD'S IDLE BOOT (retreatReload's shape): a fresh G holding only this
+       contract, hr_load stubbed to answer with a top-level `bounty`, the real
+       requestRecord. Returns the verdict and what the fresh G ended up holding. */
+    async boot(bounty) {
+      const R = window.HearthriseRecord, realFetch = window.fetch, act = G.bountyHunter.active;
+      window.G = { inventory: {}, offlineBudget: {}, playerHp: 5, playerMaxHp: 13, activeMonster: null,
+        skills: {}, stats: {}, combatLog: [], bountyHunter: { active: act, board: [] } };
+      window.fetch = function (u) {
+        if (!/hr_load/.test(String(u))) return realFetch.apply(this, arguments);
+        const now = new Date().toISOString();
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, version: 9, now, skills: {}, inventory: {}, bounty,
+          state: { slot: 0, accrued_to: now, hp: 5, max_hp: 13, active_kind: 'idle' } }), { status: 200 }));
+      };
+      try {
+        R.resetRecord();
+        R.configureRecord({ url: 'https://proj.supabase.co/', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
+        const v = await R.requestRecord();
+        return { v, mirror: window.G._bountyServer || null, view: window.hrBountyView(act) };
+      } finally {
+        window.fetch = realFetch;
+        try { R.resetRecord(); R.configureRecord(null); } catch (e) {}
+        window.G = G;
+      }
     },
     restore() {
       window.HearthriseGoalClaim = savedGC;
       const ab = G.bountyHunter && G.bountyHunter.active;
       if (ab && window.hrClearBountyRetry) { try { window.hrClearBountyRetry(ab); } catch (e) {} }
-      G.bountyHunter = savedBh;
+      if ('mon' in saved) G.activeMonster = saved.mon;
+      const p = document.getElementById('panel-combat');
+      if (p && 'tab' in saved) p.classList.toggle('active', saved.tab);
+      G.bountyHunter = savedBh; delete G._bountyServer;
     },
   };
 }

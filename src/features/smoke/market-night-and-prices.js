@@ -3459,6 +3459,8 @@ export default [
     const prevTab = window.activeTab;
     const realHasTrait = window.hasTrait;
     const AC = window.HearthriseAccrual, STN = window.HearthriseSetTheNight, NP = window.HearthriseNightPlan;
+    const LT = window.HearthriseLifetime;
+    let parkedLifetime;
     const was = { t: AC.deathsToday(), l: AC.deathsLifetime(), c: G.consecFalls };
     try {
       window.showTab('combat');
@@ -3466,7 +3468,9 @@ export default [
          then pays away / you fall / no food. Never the rev.1 wording. */
       nightWorld({ foe: 'slime', inventory: {} });
       AC.reconcileFall(G, { state: { consec_falls: 0, deaths_today: 0, deaths_lifetime: 0 } });
-      G.stats = Object.assign({}, G.stats, { kills: 41 });
+      /* LIFETIME is the REALM's stat row (lifetime-tally.js), never a client tally:
+         pending dash until the server states it, then exactly its number. */
+      parkedLifetime = LT.__swapView(null);
       STN._resetMemo();
       window.refreshActivityBar();
       const meta = document.getElementById('ab-meta');
@@ -3474,7 +3478,13 @@ export default [
       let bar = meta.textContent.replace(/\s+/g, ' ');
       assert(meta.querySelector('.ab-away.' + window.HearthriseBalance.PENDING_CLASS) && !/pays away|you fall/i.test(bar),
         'the chip spoke before the forecast existed: ' + bar);
-      assert(/Lifetime/.test(bar) && /41/.test(bar), 'the lifetime kill total is gone: ' + bar);
+      const tk = () => meta.querySelector('.ab-tkills');
+      assert(tk() && /Lifetime/.test(tk().textContent) && tk().querySelector('.' + window.HearthriseBalance.PENDING_CLASS) && !/\d/.test(tk().textContent),
+        'an unstated lifetime kill total must be the pending dash, never a number: ' + bar);
+      LT.noteEnvelope({ version: 1, progress_truncated: false, progress: [{ kind: 'stat', key: 'kills', value: 4812, period: '' }], state: {} });
+      window.refreshActivityBar();
+      bar = meta.textContent.replace(/\s+/g, ' ');
+      assert(/Lifetime/.test(tk().textContent) && tk().textContent.indexOf((4812).toLocaleString()) >= 0, 'the lifetime kill total is gone: ' + bar);
       assert(!/licen[cs]e/i.test(bar), 'the retired permit copy is back on the activity bar: ' + bar);
       const hungry = STN.memo(G);
       window.refreshActivityBar();
@@ -3539,6 +3549,7 @@ export default [
     } finally {
       window.hasTrait = realHasTrait;
       AC.reconcileFall(G, { state: { consec_falls: was.c == null ? 0 : was.c, deaths_today: was.t, deaths_lifetime: was.l } });
+      if (parkedLifetime !== undefined) LT.__swapView(parkedLifetime);
       restoreG(snap);
       try { STN._resetMemo(); window.refreshActivityBar(); } catch (e) {}
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
@@ -4056,7 +4067,7 @@ export default [
     /* THE MEASURED BUG (LIVE b544, hearthrise.net, QA account, 2026-09-13 20:5x
        UTC, a genuine ~12 h return with fishing active): the "What's new" sheet
        showed first, and behind it the "Welcome back, adventurer" modal carried
-       only Played / Total kills lifetime / Gold in pocket — no Time away, no XP
+       only Played / Monsters slain, all time / Gold in pocket — no Time away, no XP
        earned — while the Home card underneath read "12h away — +51,424 XP ·
        +6,428 items". At +58 s `awaySettleDone()` was true and
        `G.lastOfflineSummary.awayMs` was 43,200,000 with the gains on it: the
@@ -4131,7 +4142,7 @@ export default [
       window.__presentWelcomeWhenSettled();
       assert(shown(), 'nothing was on the wire and the player was greeted with silence');
       const b0 = rowText();
-      assert(/Total kills lifetime/.test(b0), 'the stats-only greeting is empty: ' + b0);
+      assert(/Monsters slain, all time/.test(b0), 'the stats-only greeting is empty: ' + b0);
       assert(!/Time away|XP earned/.test(b0), 'a modal with no receipt reported an absence: ' + b0);
       G.lastSeen = Date.now();                               // saveLocal() beat the stamp forward
       G.lastOfflineSummary = receipt(); AC.__resetAwaySettleLatch(true);

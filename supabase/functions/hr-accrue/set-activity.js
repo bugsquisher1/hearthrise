@@ -349,7 +349,7 @@ const SEED_SQL_NO_PERKS = `
    back rows, not a cursor; `coalesce` because jsonb_object_agg over zero rows is
    NULL and the engine's "no counters" and "no such function" must stay
    distinguishable. */
-const BESTIARY_SQL = `
+export const BESTIARY_SQL = `
   select coalesce(jsonb_object_agg(monster_id, kills), '{}'::jsonb) as kills
     from public.hr_bestiary_of($1::uuid, $2::int)`;
 
@@ -800,10 +800,24 @@ async function forceCloseWindow(o) {
  *   there is exactly one ladder in this payload rather than two implementations
  *   of one policy.
  *
- * @returns { outcome: 'paid'|'nothing'|'refused', version, error?, detail?, receipt? }
+ * ⚠ TWO CALLERS, ONE ENGINE CALL (2026-09-28, Security F1). A SWITCH
+ *   (set_activity / equip / enchant) replaces the pointer, so its collect holds
+ *   the 'collect' privilege. A SETTLE-BEFORE-MUTATE verb (./settle-first.js)
+ *   passes `pointerSurvives: true`: the pointer outlives the purchase, so the
+ *   window has a successor and the settle runs with the `accrue` verb's
+ *   semantics — ACCRUE_MIN_MS floor on, sub-action remainder DEFERRED. Only the
+ *   runtime token differs (see `callerAuthority` below); the literal is shared,
+ *   so A14 still compares ONE literal against index.ts.
+ *
+ * @param o.pointerSurvives  true ⇒ settle, false/absent ⇒ a switch's collect
+ * @returns { outcome: 'paid'|'nothing'|'refused', version, error?, detail?,
+ *            receipt?, env? } — `env` is the post-collect `hr_state_of`
+ *            envelope when the collect PAID, so a caller that computes an
+ *            ABSOLUTE from state (eat's hp) computes it after the settle.
  */
 export async function collectCurrentWindow(o) {
   const { exec, user, slot, env, st, nowMs, capMs } = o;
+  const pointerSurvives = o.pointerSurvives === true;
 
   const accruedToMs = st.accrued_to ? new Date(st.accrued_to).getTime() : nowMs;
 
@@ -834,6 +848,15 @@ export async function collectCurrentWindow(o) {
      and the thing it buys back is the player's output. Only a genuinely EMPTY
      span is still free. */
   if (nowMs - accruedToMs <= 0) {
+    return { outcome: 'nothing', version: env.version, reason: 'below_min_span' };
+  }
+  /* THE SETTLE'S CHEAP EXIT — the one the switch lost in b531, and it is right
+     HERE because the settle keeps the floor: a window shorter than
+     ACCRUE_MIN_MS from `accrued_to` is shorter than the grant the engine would
+     price, so computeAccrual would answer TOO_SOON. Answering it without the
+     seed and bestiary reads keeps a shop tap during attended play at the cost
+     it had before this ruling. Nothing is written; the window stays open. */
+  if (pointerSurvives && nowMs - accruedToMs < ACCRUE_MIN_MS) {
     return { outcome: 'nothing', version: env.version, reason: 'below_min_span' };
   }
 
@@ -1001,8 +1024,15 @@ export async function collectCurrentWindow(o) {
        floor exemption plus the now() stamp — and accrualCaller now honours it
        only when this token is present. It is an imported object identity, so no
        request body can carry it: a body-borne `caller:'collect'` anywhere in
-       this bundle reads as 'accrue'. See CALLER_AUTHORITY. */
-    callerAuthority: CALLER_AUTHORITY,
+       this bundle reads as 'accrue'. See CALLER_AUTHORITY.
+
+       ⚠ WITHHELD FOR A SETTLE (2026-09-28). accrualCaller reads a 'collect'
+         without the token as 'accrue' — the documented fail-safe, and exactly
+         the semantics a settle-before-mutate verb needs: the pointer survives,
+         so the floor stays on and the sub-action remainder is deferred rather
+         than stamped away on every purchase. The token is the privilege; a
+         purchase does not get it. */
+    callerAuthority: pointerSurvives ? null : CALLER_AUTHORITY,
   });
 
   if (!out.accrued) {
@@ -1065,6 +1095,9 @@ export async function collectCurrentWindow(o) {
   return {
     outcome: 'paid',
     version: res.version ?? env.version,
+    /* The envelope AFTER the collect. A replay's envelope is current too
+       (hr_apply answers a replay with the live state). */
+    env: res.ok === true && res.state ? res : null,
     receipt: res.replayed === true ? null : {
       ms: out.grantMs, capped: out.capped, kills: out.summary.kills,
       gold: out.summary.gold, xp: out.summary.xp, items: out.summary.items,

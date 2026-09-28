@@ -783,7 +783,7 @@
        an explanation should be. Every other case keeps it. */
     if (!quiet) {
       notes.push({ tone: 'base', icon: 'uiInfo',
-        text: 'At the base rate — blessings and food buffs pay while you play.' });
+        text: 'At the base rate — food buffs pay while you play.' });
     }
     /* b343: A MINUTE, not a millisecond. `fmtSpanShort` floors to whole
        minutes, so `featuredMs > 0` printed "0m on the Boss of the Day (+100%
@@ -1259,17 +1259,24 @@
       }
     } catch (e) {}
 
-    /* b341: this read `today.xp`, falling back to `today.totalXp`. getTodayDelta()
-       returns NEITHER — the field is `xpGained` (profile-launchpad.js) — so the
-       tile printed a hardcoded 0 for every player forever, while the Kills tile
-       beside it read `today.kills`, which does exist. The visible symptom was the
-       ledger contradicting itself: "0 XP TODAY" sitting directly above a
-       welcome-back card reading "+15,000 XP". Away XP was never the problem; it
-       lands in G.skills and getTodayDelta counts it correctly. */
+    /* getTodayDelta() names the field `xpGained` (profile-launchpad.js). */
     var xp = today && (today.xpGained != null ? today.xpGained
       : (today.xp != null ? today.xp : today.totalXp));
-    var kills = today && (today.kills != null ? today.kills : (G.stats && G.stats.kills));
-    var harvest = today && (today.harvested != null ? today.harvested : today.gathered);
+    /* XP today is still a device baseline (a local-midnight snapshot); it shows
+       the pending dash until the balance is known. The two realm cells are the
+       server's UTC-day counters (HearthriseThisWeek), pending when unknown. */
+    var pend = function () { var HB = window.HearthriseBalance; return HB ? HB.countMarkup(null) : '<span class="bal-pending">—</span>'; };
+    var xpLed = '<div class="hd-led"><b>' + ((!today || (typeof window.balKnown === 'function' && !window.balKnown('gold')))
+      ? pend() : num(xp)) + '</b><span>XP today</span></div>';
+    function realmLeds() {
+      var TW = window.HearthriseThisWeek;
+      var cells = (TW && typeof TW.todayCells === 'function') ? TW.todayCells(TW.live())
+        : [{ label: 'Kills today' }, { label: 'Gold earned' }];
+      return cells.map(function (c) {
+        return '<div class="hd-led" title="' + esc(c.title || 'Since midnight UTC, as the realm counts it') + '"><b>' +
+          (c.html || pend()) + '</b><span>' + esc(c.label) + '</span></div>';
+      }).join('');
+    }
 
     /* b374 — the hearth band is now the PAINTED holding, not a flat-vector
        silhouette. It shares the login's dawn plate (assets/brand/
@@ -1322,18 +1329,12 @@
            what to do about it. */
         : 'Offline · reconnect to keep playing') + '</div>';
     html += '</div></div>';
-    html += '<div class="hd-ledger">' +
-      '<div class="hd-led"><b>' + (xp != null ? num(xp) : '0') + '</b><span>XP today</span></div>' +
-      '<div class="hd-led"><b>' + (kills != null ? num(kills) : '0') + '</b><span>Kills</span></div>' +
-      '<div class="hd-led"><b>' + (harvest != null ? num(harvest) : '0') + '</b><span>Harvest</span></div>' +
+    html += '<div class="hd-ledger">' + xpLed + realmLeds() +
       '</div>';
     html += '</div></div>';
     // Mobile-only copy of the daily ledger (in-band .hd-ledger is hidden on
-    // phones by the media query above); keeps XP/Kills/Harvest visible.
-    html += '<div class="hd-ledger-m">' +
-      '<div class="hd-led"><b>' + (xp != null ? num(xp) : '0') + '</b><span>XP today</span></div>' +
-      '<div class="hd-led"><b>' + (kills != null ? num(kills) : '0') + '</b><span>Kills</span></div>' +
-      '<div class="hd-led"><b>' + (harvest != null ? num(harvest) : '0') + '</b><span>Harvest</span></div>' +
+    // phones by the media query above); keeps the same three cells visible.
+    html += '<div class="hd-ledger-m">' + xpLed + realmLeds() +
       '</div>';
 
     // ── grid ──
@@ -1665,12 +1666,12 @@
           '</div></div>';
       } catch (e) { /* renown optional */ }
     }
+    try { var ST = window.HearthriseStandings; if (ST && typeof ST.card === 'function') html += ST.card(G); } catch (e) { /* display only */ }
     try { var HL = window.HearthriseHuntersLedger; if (HL && typeof HL.card === 'function') html += HL.card(G); } catch (e) { /* display only */ }
 
-    // The realm — world events. They already change how fast every skill runs,
-    // but the only place they were stated was a one-line ticker pinned in the
-    // bottom-right corner behind the chat button. A modifier the player is
-    // supposed to plan around belongs where they plan.
+    // The realm — world events: the day's and the week's blessing, named and
+    // described in the realm's words. b560: no rate, yield or gold figure — the
+    // engine pays no blessing layer (CONFLICTS.md 2026-09-28).
     var WE = window.HearthriseWorldEvents;
     if (WE && WE.daily) {
       try {
@@ -1687,12 +1688,8 @@
               '<div class="s">' + esc(e.desc) + '</div></div>' +
             '<div class="when">' + when + '</div></div>';
         };
-        // b227: the blessings are session-gated, so the panel that announces
-        // them is the panel that must state the condition. A player who reads
-        // "+25% gather speed" here and then banks a night at the base rate has
-        // been misled by omission, which is still being misled. b229: the
-        // condition is being in the game, not being at the screen — and the
-        // only mid-session way to lose it is a real disconnection.
+        // b227/b229: the condition is stated where the blessing is — being in
+        // the game; the only mid-session way to lose it is a real disconnection.
         html += '<div><div class="hd-h"><h3>The realm</h3></div><div class="hd-rows">' +
           evRow(wd, 'Today') + (ww ? evRow(ww, 'This week') : '') +
           '<div class="hd-card hd-mini"><div class="mi">' + gly('uiInfo', 20, '', 'var(--ink-2)') + '</div>' +
@@ -1704,6 +1701,7 @@
       } catch (e) { /* world events optional */ }
     }
 
+    try { var TW2 = window.HearthriseThisWeek; if (TW2 && typeof TW2.card === 'function') html += TW2.card(); } catch (e) { /* display only */ }
     // Upkeep — buffs + collection progress. Two one-line facts, not two cards.
     /* THE BUFF LADDER — the only VISIBLE buff surface (the Active Effects card
        `__renderBuffsSection` draws into is display:none on Home), so each row states

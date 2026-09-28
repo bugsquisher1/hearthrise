@@ -26,7 +26,7 @@ import { ARTISAN_RECIPES } from '../data/recipes.js?v=559';
 import { SKILL_GUIDE } from '../data/skill-guide.js?v=559';
 /* The UNKNOWN-balance accessor. This screen prints the purse, so it is one of
    the surfaces that must render a pending balance rather than a number. */
-import { balanceMarkup, UNKNOWN_TEXT } from '../net/balance.js?v=559';
+import { balanceMarkup, countMarkup, UNKNOWN_TEXT } from '../net/balance.js?v=559';
 import { heroClass } from '../render/skill-guide.js?v=559';
 
 /* b431 — skill-xp READ accessor (src/net/skill-record.js), DORMANT no-op today;
@@ -153,15 +153,9 @@ const fmt = (n) => {
   return Math.floor(n || 0).toLocaleString();
 };
 
-/* Time played reads as "3h 24m" — the OSRS figure, our own words. */
-function fmtDuration(ms) {
-  const s = Math.floor((ms || 0) / 1000);
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  if (h >= 1) return h + 'h ' + m + 'm';
-  if (m >= 1) return m + 'm';
-  return s + 's';
-}
+/* The realm's lifetime counts (src/features/lifetime-tally.js): the figure, a
+   floor with '+', or the pending dash — never a client-kept 0. */
+const lifetime = (key) => (window.HearthriseLifetime ? window.HearthriseLifetime.markup(key, fmt) : countMarkup(null));
 
 /* b226 — the Founder's mark (pacing-overhaul §9.3). A title, set in the
    display face, on the account of anyone who was playing before the retune.
@@ -188,7 +182,6 @@ function buildHeroCard() {
   const tl = typeof window.getTotalLevel === 'function' ? window.getTotalLevel() : '?';
   /* This card keeps its own `fmt` (K at 1,000); only the UNKNOWN case changes. */
   const goldCell = balanceMarkup(G, 'gold', { format: fmt });
-  const kills = G.stats?.kills || 0;
   // b127: actual fields are G.playerHp / G.playerMaxHp.
   const hp = (typeof G.playerHp === 'number') ? G.playerHp
            : (typeof G.hp === 'number') ? G.hp : '—';
@@ -221,25 +214,28 @@ function buildHeroCard() {
       <div class="cr-hero-stat"><b>${cl}</b><span>Combat Lv</span></div>
       <div class="cr-hero-stat"><b>${tl}</b><span>Total Lv</span></div>
       <div class="cr-hero-stat"><b>${goldCell}</b><span>Gold</span></div>
-      <div class="cr-hero-stat"><b>${fmt(kills)}</b><span>Kills</span></div>
+      <div class="cr-hero-stat"><b>${lifetime('kills')}</b><span>Kills</span></div>
     </div>
   </div>`;
 }
 
-/* The OSRS-our-own Account panel. Every cell is a REAL source (spec §5). Total
-   XP and Time Played sit behind a "click to reveal" the way OSRS hides its
-   precise figures — the reveal state is a session field so it survives the 2s
-   auto-refresh. Time Played reads the b229 G.stats.playMs accumulator. */
+/* The OSRS-our-own Account panel. Total XP sits behind a "click to reveal" the
+   way OSRS hides its precise figures — the reveal state is a session field so it
+   survives the 2s auto-refresh. Quests and Bounties are the realm's lifetime
+   counts, Achievements the deeds the realm's counts have met, and Days running
+   is the server's play streak, each a pending dash until stated; Collections is
+   still read from the client's own record. The foot row is the Lifetime Stats door. */
 function buildAccountStatGrid() {
   const G = window.G || {};
   const clv = typeof window.getCombatLevel === 'function' ? window.getCombatLevel() : '?';
   const tlv = typeof window.getTotalLevel === 'function' ? window.getTotalLevel() : '?';
   const totalXp = Object.keys(G.skills || {}).reduce((a, id) => a + srXpOf(G, id), 0);
-  const quests = Array.isArray(G.quests) ? G.quests : [];
-  const qDone = quests.filter((q) => q && q.done).length;
+  const LT = window.HearthriseLifetime;
+  const q = LT ? LT.quests() : null;
+  const questCell = q ? `${fmt(q.n)}${q.exact ? '' : '+'} / ${q.of}` : countMarkup(null);
   const ach = Array.isArray(window.ACHIEVEMENTS) ? window.ACHIEVEMENTS : [];
-  const achDone = Object.values(G.achievements || {}).filter((e) => e && e.unlocked).length;
-  const bounties = (G.bountyHunter && G.bountyHunter.completed) || 0;
+  const D = window.HearthriseDeeds;
+  const achN = D ? D.doneCount(D.readers()) : null;
   let colPct = '0%';
   try {
     if (window.HearthriseCollection && window.HearthriseCollection.getStats) {
@@ -251,29 +247,28 @@ function buildAccountStatGrid() {
     const rn = window.HearthriseRenown && window.HearthriseRenown.getState(G);
     if (rn && rn.rank) rank = rn.rank.name;
   } catch (e) { /* renown optional */ }
-  const playMs = (G.stats && G.stats.playMs) || 0;
-  const reveal = window._charReveal || (window._charReveal = { xp: false, time: false });
+  const A = window.HearthriseAccrual, SC = window.HearthriseStreakChip;
+  const days = (A && typeof A.playStreakKnown === 'function' && A.playStreakKnown(G) && SC) ? fmt(SC.days(G)) : countMarkup(null);
+  const reveal = window._charReveal || (window._charReveal = { xp: false });
 
   const cell = (val, label) => `<div class="cr-acct-cell"><b>${val}</b><span>${label}</span></div>`;
   const xpCell = reveal.xp
     ? `<div class="cr-acct-cell reveal" data-reveal="xp"><b>${fmt(totalXp)}</b><span>Total XP</span></div>`
     : `<div class="cr-acct-cell reveal" data-reveal="xp"><b>••••</b><span>Total XP · reveal</span></div>`;
-  const timeCell = reveal.time
-    ? `<div class="cr-acct-cell reveal" data-reveal="time"><b>${fmtDuration(playMs)}</b><span>Time played</span></div>`
-    : `<div class="cr-acct-cell reveal" data-reveal="time"><b>••••</b><span>Time played · reveal</span></div>`;
 
   return `<div class="cr-card cr-acct"><div class="cr-section-title">${crGlyph('uiShield')}Account</div>
     <div class="cr-acct-grid">
       ${cell(clv, 'Combat Lv')}
       ${cell(tlv, 'Total Lv')}
       ${xpCell}
-      ${cell(qDone + ' / ' + quests.length, 'Quests')}
-      ${cell(achDone + ' / ' + ach.length, 'Achievements')}
-      ${cell(fmt(bounties), 'Bounties')}
+      ${cell(questCell, 'Quests')}
+      ${cell((achN === null ? countMarkup(null) : fmt(achN)) + ' / ' + ach.length, 'Achievements')}
+      ${cell(lifetime('bounty_turnins'), 'Bounties')}
       ${cell(colPct, 'Collections')}
       ${cell(esc(rank), 'Renown')}
-      ${timeCell}
-    </div></div>`;
+      ${cell(days, 'Days running')}
+    </div>
+    <div class="cr-acct-foot"><button class="btn" type="button" onclick="window.openLifetimeStats&&window.openLifetimeStats()">${crGlyph('uiTrend')}Lifetime Stats</button></div></div>`;
 }
 
 function buildCombatCard() {
@@ -435,7 +430,7 @@ function refreshSkillsPane() {
   if (acct) acct.querySelectorAll('[data-reveal]').forEach((el) => {
     el.onclick = function () {
       const k = el.getAttribute('data-reveal');
-      const r = window._charReveal || (window._charReveal = { xp: false, time: false });
+      const r = window._charReveal || (window._charReveal = { xp: false });
       r[k] = true;
       refreshSkillsPane();
     };
@@ -484,7 +479,7 @@ function refreshHeroPane() {
   host.querySelectorAll('[data-reveal]').forEach((el) => {
     el.onclick = function () {
       const k = el.getAttribute('data-reveal');
-      const r = window._charReveal || (window._charReveal = { xp: false, time: false });
+      const r = window._charReveal || (window._charReveal = { xp: false });
       r[k] = true;
       refreshHeroPane();
     };
@@ -672,10 +667,12 @@ function ensureCharStyle() {
     R + '.cr-acct-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}',
     R + '.cr-acct-cell{background:rgba(0,0,0,.28);border:1px solid var(--line);border-radius:8px;padding:12px 10px;text-align:center}',
     R + '.cr-acct-cell b{display:block;font-size:calc(23px * var(--ui-scale, 1));color:var(--gold-2);font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}',
-    R + '.cr-acct-cell span{display:block;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;margin-top:6px}',
+    R + '.cr-acct-cell > span{display:block;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;margin-top:6px}',
     R + '.cr-acct-cell.reveal{cursor:pointer;transition:border-color .12s}',
     R + '.cr-acct-cell.reveal:hover{border-color:var(--gold-2)}',
     '@media (max-width:640px){' + R + '.cr-acct-grid{grid-template-columns:repeat(2,1fr)}}',
+    R + '.cr-acct-foot{display:flex;justify-content:flex-end;margin-top:10px}',
+    R + '.cr-acct-foot .btn{min-height:44px;display:inline-flex;align-items:center;gap:6px}',
     // Equipment sub-tab
     R + '#char-equip{display:flex;flex-direction:column;gap:12px;align-items:center}',
     // 520px was the width of the OLD four-column doll's pane. The doll is a

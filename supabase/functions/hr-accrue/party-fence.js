@@ -31,14 +31,30 @@
 //       members rather than contended — and the emptiness of §16.6's attended
 //       bucket is itself the assertion that the fence is live (§18-SEC.2, 8c).
 //
-//   every `collectsFirst: true` verb                 → `party_hunt_running`
-//       set_activity, equip, enchant, and the shop and buff verbs that collect.
-//       Each either stamps a `STAMP_KEYS` key or changes an input the shared
-//       window is priced from. Suppressing the collect instead would leave an
-//       approximation four players share; a refusal one player can SEE is
-//       strictly better, and §18.1 names the cost rather than discovering it.
-//       Auto-eat still fires inside the simulation, so nothing a hunt actually
-//       needs is behind the refusal.
+//   every SWITCH verb (intents.js SWITCH_VERBS)      → `party_hunt_running`
+//       set_activity, equip, enchant. Each stamps a `STAMP_KEYS` key, i.e. moves
+//       the member's watermark into the party's window. Suppressing the collect
+//       instead would leave an approximation four players share; a refusal one
+//       player can SEE is strictly better, and §18.1 names the cost rather than
+//       discovering it. Auto-eat still fires inside the simulation, so nothing a
+//       hunt actually needs is behind the refusal.
+//
+//   every other `collectsFirst` verb                 → proceeds, WITHOUT its settle
+//       (2026-09-28, Security F1, the verdict's "second class"). The shop,
+//       market, claim and eat verbs SETTLE BEFORE THEY MUTATE. For a partied
+//       member the settle is exactly the watermark move this fence exists to
+//       stop, and it is also unnecessary: `hr_party_tick_settle` prices the
+//       party window by window, at the state that existed during each one, so a
+//       purchase mid-hunt cannot re-price time already priced. Refusing them
+//       instead would close the shop for the length of every party hunt. The
+//       fence answers `{ partyOwnsWindow: true }` and settle-first.js skips.
+//       ⚠ ONLY ONCE THE PARTY CHANNEL PAYS (`PARTY_CHANNEL_PAYS`, Security
+//         review of F1, 2026-09-28). In SHADOW hr_party_tick_settle moves no
+//         member watermark: the hunt window is paid AFTER the stop by the
+//         member's own settle, at the state that exists then — so a feast
+//         eaten or a rung bought mid-hunt with the settle skipped is priced
+//         over the whole hunt, the exact mint F1 closes. Until S5 arms the
+//         channel these verbs are refused `party_hunt_running`, like a switch.
 //
 //   everything else (reads, bug reports, cosmetics)  → unaffected.
 //
@@ -69,7 +85,7 @@
 // PURE ESM, Node + Deno. No `?v=` (not under src/**).
 // ============================================================================
 
-import { collectsFirst } from './intents.js';
+import { collectsFirst, closesWindow } from './intents.js';
 
 /** The verb whose refusal is its own, because the party already owns the
     window it would price (§18.2.3 invariant 8, first door). */
@@ -79,17 +95,26 @@ export const ACCRUE_VERB = 'accrue';
     malformed requests, and `intents.js`'s taxonomy is what decides that. */
 export const PARTY_SETTLE_REQUIRED = 'party_settle_required';
 export const PARTY_HUNT_RUNNING = 'party_hunt_running';
+/** Not a refusal: a settle-before-mutate verb proceeds and skips its settle. */
+export const PARTY_OWNS_WINDOW = 'party_owns_window';
 
-/** Which code a verb is refused with. Exported so a guard asserts the mapping
+/** Does hr_party_tick_settle PAY (move member watermarks) yet? `false` while the
+    party channel is in SHADOW. Armed with the channel at S5, never before: a
+    skip while nothing prices the hunt window per window re-opens F1. */
+export const PARTY_CHANNEL_PAYS = false;
+
+/** Which answer a partied verb gets. Exported so a guard asserts the mapping
     against ONE definition rather than against a copy of it. */
 export function partyRefusalFor(verb) {
   if (verb === ACCRUE_VERB) return PARTY_SETTLE_REQUIRED;
-  return collectsFirst(verb) ? PARTY_HUNT_RUNNING : null;
+  if (closesWindow(verb)) return PARTY_HUNT_RUNNING;
+  return collectsFirst(verb) ? PARTY_OWNS_WINDOW : null;
 }
 
 /**
- * The fence. Returns `null` when the verb may proceed, or the refusal body the
- * caller should answer with.
+ * The fence. Returns `null` when the verb may proceed, `{ partyOwnsWindow: true }`
+ * when a settle-before-mutate verb may proceed but must not settle (only
+ * while PARTY_CHANNEL_PAYS), or the refusal `{ status, body }` the caller should answer with.
  *
  * ⚠ THE PREDICATE IS ONLY CONSULTED FOR A VERB THAT WOULD BE REFUSED. A read,
  *   a bug report or a cosmetic pays no round trip for a fence that could not
@@ -100,20 +125,34 @@ export async function partyIntentFence(o) {
   const code = partyRefusalFor(o && o.verb);
   if (code === null) return null;
   let partied;
+  let absent = false;
   try {
     const [row] = await o.exec(
       'select public.hr_partied($1::uuid, $2::int) as partied',
       [o.user, o.slot]);
     partied = row ? row.partied === true : null;
-  } catch {
+  } catch (e) {
     partied = null;                                   // fails closed, below
+    absent = String((e && e.code) ?? '') === '42883';
   }
   if (partied === false) return null;
+  /* A SETTLE verb on a database WITHOUT hr_partied (42883 — the pre-S2
+     interim) proceeds with its settle: no party can exist there, so nobody's
+     window is owned by one, and refusing would close the shop for a
+     measurement gap. ONLY 42883: any other failure is unknown, and a settle on
+     a guess would move a partied member's watermark — that fails closed below,
+     like every other class. */
+  if (partied === null && absent && code === PARTY_OWNS_WINDOW) return null;
   if (partied === null) {
     /* THE PREDICATE COULD NOT BE READ. Refuse, and refuse with the code the
        client already retries once on — never wave through, because the cost of
        the two mistakes is not symmetric. */
     return { status: 409, body: { ok: false, error: PARTY_SETTLE_REQUIRED, retry_ms: 2000 } };
+  }
+  if (code === PARTY_OWNS_WINDOW) {
+    return PARTY_CHANNEL_PAYS
+      ? { partyOwnsWindow: true }
+      : { status: 409, body: { ok: false, error: PARTY_HUNT_RUNNING } };
   }
   return code === PARTY_SETTLE_REQUIRED
     ? { status: 409, body: { ok: false, error: code, retry_ms: 2000 } }

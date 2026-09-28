@@ -1452,11 +1452,19 @@ jobs:
       # runTick for a Library-5 character and requires its shadow XP to equal
       # the accrue path's over the same window, seed and perks. --mutate
       # removes the read in a temp copy and requires P3 red.
-      - name: World tick — a tick window prices the perks an accrue prices
+      # THE BESTIARY (2026-09-28, Security N4). hr_bestiary_of is not an
+      # envelope field either, so every combat window priced with no charm and
+      # no trophy. tick.js (4b) makes the collect path's BESTIARY_SQL read; this
+      # fires twelve 20,000-kill goblin fighters and requires each shadow delta
+      # to equal the accrue path's. --mutate plants "read dropped" and "wrong
+      # fold" in temp copies and requires B3 red for each.
+      - name: World tick — a tick window prices the perks and bestiary an accrue prices
         if: ${{ !cancelled() }}
         run: |
           node tests/world-tick-perks-parity.mjs
           node tests/world-tick-perks-parity.mjs --mutate
+          node tests/world-tick-bestiary-parity.mjs
+          node tests/world-tick-bestiary-parity.mjs --mutate
 
       - name: World tick — a stall is red from the database alone
         if: ${{ !cancelled() }}
@@ -2204,6 +2212,19 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/activity-intent.mjs --selftest
 
+      # SETTLE BEFORE MUTATE (Security F1, 2026-09-28). Every edge verb that adds
+      # or changes a priceable input settles the open window at the OLD state
+      # first. Measured orders, not markers: a pickaxe bought at return vs
+      # accrue-first at production shape (R1), a claim that settles (R1c), a
+      # feast eaten at return (R2), the cross-slot self-market loop (R3), the
+      # sub-minute no-write, the deferred remainder, the receipt on success and
+      # refusal, and the party fence's second class. --mutate plants five.
+      - name: Settle before mutate — the absence is priced at the state it was earned in
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/absence-priced-at-return.mjs
+          node tests/absence-priced-at-return.mjs --mutate
+
       # THE GRANT INTENT (b349). The first intent that MOVES MONEY, so the
       # invariants are about payment: a claim lands exactly once, the price and
       # the period and the streak are all the server's, a replay receipts
@@ -2322,7 +2343,8 @@ jobs:
   # set registered market-price-source, offline-cap-honesty, retired-
   # capability-copy and bounty-view here), no failing assertion. The same
   # job takes 11.1 min locally (run-ci-local --job client-guards). Budget =
-  # measured ~12 min x2 = 24; re-measure on the next green run.
+  # measured ~12 min x2 = 24; re-measure on the next green run. The
+  # run-ci-local --selftest step (2026-09-28) adds under 1 s; budget unchanged.
   client-guards:
     runs-on: ubuntu-latest
     timeout-minutes: 24
@@ -2360,6 +2382,37 @@ jobs:
           node tests/ci-shape.mjs --selftest
           node tests/ci-shape.mjs
 
+      # LOCAL SOFT == CI SOFT. run-ci-local prints a `continue-on-error` step as
+      # REPORT and never fails on it, so a soft flag on the wrong step makes the
+      # local half WEAKER than this file (2026-09-27: the test-file ratchet was
+      # red here and read as REPORT locally). Asserts the soft set equals the
+      # steps carrying the key, plants a stray key on every step of a copy, and
+      # proves two broken parsers are caught. Sub-second; the plain run of this
+      # file is the --list that ci-shape above already spawns.
+      - name: CI-local soft parity - continue-on-error lands on its own step only
+        if: ${{ !cancelled() }}
+        run: node tests/run-ci-local.mjs --selftest
+
+      # THE BOARD'S GENERATED BLOCK MUST NEVER BE A SILENT NO-OP (2026-09-28).
+      # tools/board-from-git.mjs rewrites the STATUS table above the `_Last
+      # updated:` line in docs/planning/PRIORITY_BOARD.md (CLAUDE.md §8: the
+      # status section is GENERATED, never typed). The original replace regex
+      # hardcoded a `\n\n` tail on the END GENERATED marker, so a CRLF board
+      # (the file is edited on Windows as often as Linux) never matched --
+      # `--write` printed "board status section written" and left the file
+      # byte-identical, so the stamp went stale while the tool kept reporting
+      # success. Fixed to detect the file's own EOL, match `\r?\n(?:\r?\n)?`,
+      # emit the block in that EOL, and exit non-zero on --write if neither the
+      # marker nor the `_Last updated:` fallback anchor matched. --selftest
+      # plants a CRLF board and an LF board with a stale 2026-09-08 stamp,
+      # requires the fixed logic to update and EOL-preserve both, and requires
+      # the OLD hardcoded-`\n\n` regex to MISS the CRLF plant (the mutation
+      # proof that this selftest exercises the real bug). No database, no
+      # browser, sub-second.
+      - name: Board-from-git - CRLF-safe generated block, never a silent no-op
+        if: ${{ !cancelled() }}
+        run: node tools/board-from-git.mjs --selftest
+
       # DOES EVERY SHIPPED SCRIPT STILL PARSE? It runs FIRST-ish and it is the
       # cheapest question in the matrix: a file that does not parse does not
       # run, so every guard below it that imports one would be red for a reason
@@ -2391,6 +2444,18 @@ jobs:
         run: |
           node tests/parse-check.mjs
           node tests/parse-check.mjs --selftest
+
+      # THE WORLD-TICK STALL RULE IN vitals.mjs (2026-09-28). The management
+      # endpoint's read-only role cannot execute hr_tick_stall_status() (42501),
+      # so tools/vitals.mjs restates "rostered >= 1 and shadow rows/h < 30 for
+      # 2 h => STALL" in JS over hr_tick_cron_log + hr_tick_shadow. --selftest
+      # feeds fixture rows (no DB, no token) through the rule and the day
+      # roll-up and plants nine mutants (a < 300 threshold, one hour, roster
+      # ignored, ...), each required to turn an assertion red. Sub-second.
+      # The plain run reads production and is the Coordinator's, not CI's.
+      - name: Vitals world-tick - the STALL restatement matches the function's rule
+        if: ${{ !cancelled() }}
+        run: node tools/vitals.mjs --selftest
 
       # RETIRED CAPABILITIES STAY RETIRED (2026-09-27). The cutover retired the blob,
       # guest play, offline play and save files; Settings kept offering all four. A
@@ -2617,6 +2682,10 @@ jobs:
         run: |
           node tests/quest-reward-parity.mjs
           node tests/quest-reward-parity.mjs --selftest
+          # This Week: Home's weekly card names exactly the server's weekly goal
+          # ids and reads only the goal-state cache (tests/this-week.mjs).
+          node tests/this-week.mjs
+          node tests/this-week.mjs --selftest
 
       # ITEM FLAVOUR COVERAGE — every catalogued item has a "what is it" line.
       # Content pack 4 closed 419/538 to 538/538 in the base ITEM_DESC literal;
@@ -2635,6 +2704,8 @@ jobs:
           node tests/item-flavour-coverage.mjs --selftest
           node tests/lore-notes.mjs
           node tests/lore-notes.mjs --selftest
+          node tests/lifetime-tally.mjs
+          node tests/lifetime-tally.mjs --selftest
           node tests/companion-pays-parity.mjs
           node tests/companion-pays-parity.mjs --selftest
           node tests/companion-promise-parity.mjs
@@ -2644,11 +2715,14 @@ jobs:
       # "Next:" it promises is one the server will honour (no scroll-gated
       # recipe, plot tier named). Client-only; SKG-12 keeps both files out of
       # hr-accrue. --selftest plants one defect per SKG id.
+      # tests/standings.mjs rides here: one unique crown per skill board, client-only (STAND-1..4).
       - name: Skill guide coverage - every skill has a line and an honest ladder
         if: ${{ !cancelled() }}
         run: |
           node tests/skill-guide-coverage.mjs
           node tests/skill-guide-coverage.mjs --selftest
+          node tests/standings.mjs
+          node tests/standings.mjs --selftest
       # THE HEARTH CODEX — every glossary sentence is bound to the engine or the
       # SQL authority. Client-only (src/data/codex.js is outside the hr-accrue
       # pack, CODEX-8), so milliseconds. --selftest plants ten defects (a slowed
@@ -2659,6 +2733,8 @@ jobs:
         run: |
           node tests/codex-claims.mjs
           node tests/codex-claims.mjs --selftest
+          node tests/deeds.mjs
+          node tests/deeds.mjs --selftest
       # THE AWAY LIMIT — the client may promise only the hours hr_offline_cap_ms
       # pays (renown/property hours were retired). Client + SQL text, milliseconds.
       # --selftest plants eight defects (M1-M8) and one exact renown match.
@@ -2667,6 +2743,17 @@ jobs:
         run: |
           node tests/offline-cap-honesty.mjs
           node tests/offline-cap-honesty.mjs --selftest
+
+      # BLESSINGS PROMISE NOTHING THE REALM DOES NOT PAY (b560, CONFLICTS 2026-09-28).
+      # hr-accrue's bonusFor has no blessing layer, so no getBonus layer, pool
+      # magnitude, calendar-amount reader or "blessing pays/speeds" sentence may
+      # ship in client code. --selftest: eleven plants RED, comments and five
+      # negative controls GREEN, a missing world-events.js reported.
+      - name: Blessing promise honesty - no blessing effect the server does not pay
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/blessing-promise-honesty.mjs
+          node tests/blessing-promise-honesty.mjs --selftest
 
       # THE PLOT-TIER PRICE — the client and the server may never disagree.
       # b510 re-priced the farm plot tier in GOLD behind a farming level after

@@ -238,12 +238,10 @@ function invSellSelected(){
    Two safety nets around the vendor so an accidental tap never loses a thing:
    • Lock an item and it cannot be sold until you unlock it (a padlock in the
      flyout; every sell path checks isItemLocked first).
-   • Every vendor sale is recorded; the last 15 are buyable BACK at the exact
-     price you got, from the Buy-Back window — an undo for the vendor.
-   Both live on G (saved), so they survive a reload. Vendor gold is client-side
-   in this game (the market is the server-authoritative economy), so this needs
-   no server round-trip and cannot mint value — you only ever buy back what you
-   sold, at what you sold it for. ═══════════════════════════════════════════ */
+   • Every vendor sale is noted in G.buyback (client residue, never shown). The
+     buy-back itself is CLOSED: gold is server-armed and there is no server
+     verb (gold-sites BUYBACK_LEDGER), so repurchase() fails closed and the
+     Buy-Back window says so (2026-09-28). ═════════════════════════════════ */
 function isItemLocked(id){ return !!(G.lockedItems && G.lockedItems[id]); }
 function toggleItemLock(id){
   G.lockedItems = G.lockedItems || {};
@@ -282,7 +280,7 @@ function repurchase(idx){
      armed balance is a mint, and buy-back has no server verb yet (BUYBACK_LEDGER).
      The gate is a no-op today; it becomes the guard the moment gold flips. */
   if(typeof window.clientMayWriteRecordField==='function' && !window.clientMayWriteRecordField('gold')){
-    if(typeof notify==='function')notify('Buy-back is unavailable right now — try the shop','kill');
+    if(typeof notify==='function')notify('The realm keeps no buy-back counter yet','kill');
     return;
   }
   if(!balCanAfford(cost,'gold')){ notify(balKnown('gold')?'Not enough gold to buy it back':balShortfall(cost,'gold'),'kill'); return; }

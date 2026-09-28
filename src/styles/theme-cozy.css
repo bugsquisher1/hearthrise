@@ -1495,8 +1495,7 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
 
 /* All four profile-bottom buttons (ACHIEVEMENTS / BESTIARY /
    LIFETIME STATS / LAST SESSION SUMMARY) — force EXACTLY the same
-   height + padding + box-sizing so they line up perfectly. Uses
-   .feat-buttons descendant + .stats-btn-trigger as a catch-all. */
+   height + padding + box-sizing so they line up perfectly. */
 
 /* The feat-buttons row gets consistent gap */
 
@@ -2374,7 +2373,6 @@ body[data-theme="hearthlight"] .kpi,
 body[data-theme="hearthlight"] .tile,
 body[data-theme="hearthlight"] .cr-hero-stat,
 body[data-theme="hearthlight"] .invc-hero-stat,
-body[data-theme="hearthlight"] .stats-btn-trigger,
 body[data-theme="hearthlight"] .feat-buttons .btn,
 body[data-theme="hearthlight"] .feat-buttons button { color: var(--ink) !important; }
 /* Stat readouts are recessed slates, not raised buttons — they aren't

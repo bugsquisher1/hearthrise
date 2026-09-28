@@ -725,10 +725,10 @@ let G={
   daily:{lastReset:null,tasks:[]},
   collection:{},
   quests:[],
-  /* b229: playMs is the Time Played accumulator surfaced on the Hero screen —
-     a presence-gated counter (see tickPlayMs). Fresh saves start at 0; existing
-     saves backfill nothing (an honest zero, never a faked figure). */
-  stats:{kills:0,gathered:0,harvested:0,rareDrops:0,playMs:0},
+  /* The goal engine's device counters. The lifetime figures a player reads are
+     the realm's (src/features/lifetime-tally.js); nothing here is shown as one,
+     and nothing times play on the device. */
+  stats:{kills:0,gathered:0,harvested:0,rareDrops:0},
   /* Bounty Marks are a TOP-LEVEL scalar currency (like gold/gems) — the record
      framework strip keys on a top-level field, so this is the single client home.
      They used to live nested at bountyHunter.marks; ensureBountyState() migrates a
@@ -3360,26 +3360,6 @@ function withOfflineReplay(fn){
 }
 function blessingsApply(){ return !inOfflineReplay() && sessionOnline(); }
 
-/* b229 — Time Played (Hero screen Account panel). A presence-gated accumulator,
-   NOT a new interval: it is ticked from the existing 10fps activity-bar loop and
-   measures the REAL wall-clock delta between ticks, banking it only while the
-   session is online (the same gate blessings use). Capping the per-tick delta
-   means a slept/backgrounded machine that fires one giant catch-up tick on wake
-   never counts that gap as play, and an offline stretch is excluded outright —
-   so the figure is honest time in the game, never idle time or a fabrication. */
-let _lastPlayTick = Date.now();
-function tickPlayMs(){
-  const now = Date.now();
-  const dt = now - _lastPlayTick;
-  _lastPlayTick = now;
-  if(dt <= 0 || dt > 4000) return;                 // a sleep/resume gap — don't bank it
-  if(!blessingsApply()) return;                    // offline / replay — base rate, no clock
-  if(typeof G !== 'object' || !G) return;
-  if(!G.stats) G.stats = {kills:0,gathered:0,harvested:0,rareDrops:0,playMs:0};
-  G.stats.playMs = (G.stats.playMs||0) + dt;
-}
-window.HearthrisePlayTime = { ms: function(){ return (typeof G==='object' && G && G.stats && G.stats.playMs) || 0; } };
-
 /* b229: a connectivity flip changes what the current action is worth, so the
    running loop re-derives its interval the moment it happens instead of on the
    next swing, and every surface that states the rule re-reads it in the same
@@ -3404,14 +3384,10 @@ try{
   });
 }catch(e){}
 
-/* The honest hint, rendered beside the XP of whatever is running. A bonus the
-   player cannot see is a bonus that does not change behaviour — and a bonus
-   that is silently OFF is worse than one that never existed. It names the
-   blessing that actually touches THIS activity (a "+30% smithing" note beside
-   a woodcutting bar is a lie by adjacency), says plainly that it is alive while
-   you are in the game, and dims to "— reconnecting" if the session genuinely
-   drops. b229: there is no "— idle" state any more; a backgrounded tab is not
-   a lapse, so the note must not imply one. */
+/* b560: the note beside the running activity used to name the day's blessing
+   and its effect ("+4% gather speed · while online"). The engine pays no
+   blessing layer, so that was a promise the realm never kept (CONFLICTS.md
+   2026-09-28) and it is gone; what remains is the power-budget ceiling. */
 /* b228 — THE CEILING IS SURFACED, NEVER SILENT (bonus-rebase.md §3.2).
    The temporary budget is reachable only at a full conjunction — the right
    weekly, the right daily, a Last Call feast and a draught in hand — and that
@@ -3423,18 +3399,11 @@ function blessingLimitNote(){
   if(!PB || typeof PB.atLimit !== 'function') return '';
   let hit = false;
   try{ hit = activeBonusKeys().some(function(k){ return PB.atLimit(k); }); }catch(e){ return ''; }
-  return hit ? ' · <b style="color:var(--gold-2)">the realm\'s blessing is at its limit</b>' : '';
+  return hit ? ' · <b style="color:var(--gold-2)">the boost budget is at its limit</b>' : '';
 }
 function blessingNote(){
   if(!(G && (G.activeSkill||G.activeMonster||G.activeArtisanRecipe))) return '';
-  const WE = window.HearthriseWorldEvents;
-  if(!WE || typeof WE.summaryFor !== 'function') return '';
-  let hit = null;
-  try{ hit = WE.summaryFor(activeBonusKeys()); }catch(e){ return ''; }
-  if(!hit) return blessingLimitNote();
-  return (blessingsApply()
-    ? ` · <b style="color:var(--gold-2)">${hit.name}</b> <span style="opacity:.75">${hit.effect} · while online</span>`
-    : ` · <span style="opacity:.55">${hit.name} ${hit.effect} — reconnecting</span>`) + blessingLimitNote();
+  return blessingLimitNote();
 }
 window.HearthriseBlessingLimitNote = blessingLimitNote;
 /* Every skill `combatXP` pays. b228: the ONE list — addXp() reads it too, and
@@ -4957,7 +4926,7 @@ function renderBountyPanel(){
         </span>
       </header>
       <p class="bb-task">${bountyLabel(active)}</p>
-      <p class="bb-weak">Weak to ${WEAPON_TYPES[m?.weaponWeak]||'—'}${_hrDropBonusNote(m)}</p>
+      <p class="bb-weak">Weak to ${WEAPON_TYPES[m?.weaponWeak]||'—'}${_hrDropBonusNote(m)}${window.HearthriseFoe?window.HearthriseFoe.elementSuffix(active.target):''}</p>${window.HearthriseFoe?window.HearthriseFoe.noticeHtml(active.target):''}
       <div class="bb-prog"><span class="bb-prog-t">${bountyProgressText(active)}</span><span class="bb-bar"><i style="width:${pct}%"></i></span></div>
       <div class="bb-pay">${_gp(active.rewards.gold)}<span>${active.rewards.marks} Marks</span><span>${active.rewards.xp} BH XP</span></div>
       <div class="bb-foot">${_claimBtn}<button class="btn btn-sm btn-danger" onclick="abandonBounty()">Abandon</button></div>
@@ -4978,7 +4947,7 @@ function renderBountyPanel(){
           </span>
         </header>
         <p class="bb-task">${bountyLabel(b)}</p>
-        <p class="bb-weak">Weak to ${WEAPON_TYPES[m?.weaponWeak]||'—'}${_hrDropBonusNote(m)}</p>
+        <p class="bb-weak">Weak to ${WEAPON_TYPES[m?.weaponWeak]||'—'}${_hrDropBonusNote(m)}${window.HearthriseFoe?window.HearthriseFoe.elementSuffix(b.target):''}</p>
         <div class="bb-pay">${_gp(b.rewards.gold)}<span>${b.rewards.marks} Marks</span><span>${b.rewards.xp} BH XP</span></div>
         <div class="bb-foot"><button class="btn btn-sm btn-primary" onclick="acceptBounty(${i})">Accept</button></div>
       </article>`;
@@ -8930,7 +8899,7 @@ async function renderSocial(){
       return !!(C&&typeof C.clanLaunched==='function'&&!C.clanLaunched()); }catch(e){ return false; }
   })();
   cl.innerHTML=
-    `<div class="friend-row is-empty">No friends yet — add the players you meet on the boards above.</div>`+
+    `<div class="friend-row is-empty">No friends list yet. The boards above show who is climbing beside you, and the Common on Home shows who is out and about.</div>`+
     `<div class="soc-signpost">`+
       `<div class="soc-signpost-txt">`+
         (inClan
@@ -11242,10 +11211,9 @@ function refreshActivityBar(){
     if(nameEl) nameEl.textContent = `Fighting ${m?.name||'?'}`;
     if(metaEl){
       // Show kill count for the current foe (resets when the player picks a
-      // new monster) + total session kills. The arena vs panel already shows
+      // new monster) + the realm's lifetime count. The arena vs panel shows
       // player HP, so the activity bar carries the more interesting numbers.
       const kills = (G.combatKillsThisFoe||0);
-      const totalKills = (G.stats?.kills||0);
       /* b262 (paione): the bounty task progress lived in a card that fell below
          the fold of the short landscape combat view, so "how many kills left for
          my task" wasn't visible. Surface it in the always-on activity bar when
@@ -11279,7 +11247,7 @@ function refreshActivityBar(){
       /* THE AWAY CHIP answers "can I leave this running?" from the Night Plan's
          stored forecast (night-plan.js chipHtml): pays away, you fall, or no
          food; a pending mark until the server has stated the bag. It never computes. */
-      const licChip = '<span class="ab-tkills">Lifetime <b>'+totalKills.toLocaleString()+'</b></span>';
+      const licChip = '<span class="ab-tkills">Lifetime <b>'+(window.HearthriseLifetime ? window.HearthriseLifetime.markup('kills') : '—')+'</b></span>';
       const _NP = window.HearthriseNightPlan, _STN = window.HearthriseSetTheNight;
       const awayChip = (_NP && _STN) ? _NP.chipHtml(_STN.peek(G)) : '';
       metaEl.innerHTML = ''
@@ -11303,11 +11271,11 @@ function refreshActivityBar(){
     const xph = _activityXpHr();
     if(metaEl){
       const lv = (typeof getLevel==='function') ? getLevel(G.activeSkill) : 0;
-      /* b326: when a blessing or buff is lifting this activity, state the rate
+      /* b326: when a buff is lifting this activity, state the rate
          an ABSENCE would pay right beside it. Same calculator, `away:true`. */
       const awayXph = _activityAwayXpHr(xph);
       metaEl.innerHTML = `<span class="ab-lv">Lv <b>${lv}</b></span>${xph?`<span class="ab-xph"><b>${xph.toLocaleString()}</b> xp/hr</span>`:''}`
-        + (awayXph?`<span class="ab-xph ab-away" title="Blessings and food buffs pay while you play. An absence is paid at the base rate."><b>${awayXph.toLocaleString()}</b> away</span>`:'');
+        + (awayXph?`<span class="ab-xph ab-away" title="Food buffs pay while you play. An absence is paid at the base rate."><b>${awayXph.toLocaleString()}</b> away</span>`:'');
     }
     if(stopBtn) stopBtn.style.display = '';
     refreshPanelProgress();
@@ -11449,9 +11417,9 @@ if(typeof _origStartCombatAB === 'function'){
   window.startCombat = function(){ G._combatTickStart = Date.now(); const r = _origStartCombatAB.apply(this, arguments); refreshActivityBar(); return r; };
 }
 
-/* Drive the bar at 10fps — and bank Time Played off the same tick (b229), so
-   the counter rides an existing loop rather than adding a wall-clock of its own. */
-setInterval(function(){ refreshActivityBar(); try{ tickPlayMs(); }catch(e){} }, 100);
+/* Drive the bar at 10fps. It is the only wall-clock loop the bar has; the
+   lifetime figures on it are the realm's, so the tick counts nothing itself. */
+setInterval(function(){ refreshActivityBar(); }, 100);
 
 /* ── THE KNOCKOUT REACHES THE BAR ON THE ENVELOPE, NOT ON THE POLL ──────────
    MEASURED LIVE on b513: the server had the character recovering with 16:47 to
@@ -13367,7 +13335,7 @@ function maybeShowWelcome(opts){
      play-streak surface says PLAYED / RUNNING and never "daily". */
   var _playDays = window.HearthriseStreakChip ? window.HearthriseStreakChip.days(G) : 0;
   if(_playDays > 0) rows.push({g:'uiFlame', t: 'Played', v: _playDays + ' day' + (_playDays===1?'':'s') + ' running'});
-  rows.push({g:'uiTarget', t: 'Total kills lifetime', v: (G.stats?.kills||0).toLocaleString()});
+  rows.push({g:'uiTarget', t: 'Monsters slain, all time', v: (window.HearthriseLifetime ? window.HearthriseLifetime.markup('kills') : '—')});
   rows.push({g:'gold', t: 'Gold in pocket', v: balText('gold')});
   /* b342: the "bad" tone is now an EXPLICIT flag. It used to key off `r.g`
      (has-a-glyph), which was equivalent only while the death row was the only
@@ -13974,112 +13942,10 @@ console.log('UI overhaul loaded');
 (function(){
 "use strict";
 
-/* =========================================================
-   1. ACHIEVEMENTS
-   ========================================================= */
-/* `glyph` is an ATLAS KEY (src/data/glyphs.js). Every row here carried a raw
-   `icon:'⚔️'` and two renderers (the achievements list and the unlock TOAST)
-   printed it straight into an icon slot — twenty-nine system pictographs in a
-   grid, which is the most obviously-generated screen a player can be shown.
-   The ladders are drawn as ONE family climbing in rank, which the emoji set
-   could not express: kills go sword → skull → shield → trophy → crown, gold
-   goes coin → coin-stack → gem → bank, levels go xp → star → medal → crown. */
-var ACHIEVEMENTS = [
-  {id:'first_kill',  name:'First Blood',         desc:'Defeat 1 monster',           glyph:'uiSword',     target:1,    src:'stats.kills'},
-  {id:'kill_50',     name:'Slayer',              desc:'Defeat 50 monsters',         glyph:'uiSkull',     target:50,   src:'stats.kills'},
-  {id:'kill_250',    name:'Champion',            desc:'Defeat 250 monsters',        glyph:'uiShield',    target:250,  src:'stats.kills'},
-  {id:'kill_1000',   name:'Hero of the Realm',   desc:'Defeat 1,000 monsters',      glyph:'uiTrophy',    target:1000, src:'stats.kills'},
-  {id:'kill_5000',   name:'Legendary',           desc:'Defeat 5,000 monsters',      glyph:'uiCrown',     target:5000, src:'stats.kills'},
-  {id:'gold_1k',     name:'First Pouch',         desc:'Earn 1,000 gold lifetime',   glyph:'gold',        target:1000, src:'stats.totalGoldEarned'},
-  {id:'gold_10k',    name:'Wealthy',             desc:'Earn 10,000 gold lifetime',  glyph:'uiCoinStack', target:10000,src:'stats.totalGoldEarned'},
-  {id:'gold_100k',   name:'Tycoon',              desc:'Earn 100,000 gold lifetime', glyph:'gems',        target:100000,src:'stats.totalGoldEarned'},
-  {id:'gold_1m',     name:'Millionaire',         desc:'Earn 1,000,000 gold',        glyph:'bank',        target:1000000,src:'stats.totalGoldEarned'},
-  {id:'lv25_any',    name:'Apprentice',          desc:'Reach Lv 25 in any skill',   glyph:'uiXp',        target:25,   src:'highest_skill'},
-  {id:'lv50_any',    name:'Master',              desc:'Reach Lv 50 in any skill',   glyph:'uiStar',      target:50,   src:'highest_skill'},
-  {id:'lv75_any',    name:'Grandmaster',         desc:'Reach Lv 75 in any skill',   glyph:'uiMedal',     target:75,   src:'highest_skill'},
-  {id:'lv99_any',    name:'99 Club',             desc:'Reach Lv 99 in any skill',   glyph:'uiCrown',     target:99,   src:'highest_skill'},
-  {id:'all_25',      name:'Well-Rounded',        desc:'All combat skills to Lv 25', glyph:'uiTarget',    target:25,   src:'min_combat_skill'},
-  {id:'all_50',      name:'Combat Master',       desc:'All combat skills to Lv 50', glyph:'navCombat',   target:50,   src:'min_combat_skill'},
-  {id:'wood_500',    name:'Lumberjack',          desc:'Chop 500 logs',              glyph:'woodcutting', target:500,  src:'stats.chopped'},
-  {id:'mine_500',    name:'Quarryman',           desc:'Mine 500 ores',              glyph:'mining',      target:500,  src:'stats.mined'},
-  {id:'fish_500',    name:'Angler',              desc:'Catch 500 fish',             glyph:'fishing',     target:500,  src:'stats.fished'},
-  {id:'cook_100',    name:'Chef',                desc:'Cook 100 meals',             glyph:'cooking',     target:100,  src:'stats.cooked'},
-  {id:'plant_100',   name:'Green Thumb',         desc:'Harvest 100 crops',          glyph:'farming',     target:100,  src:'stats.harvested'},
-  {id:'house_lv1',   name:'Homebody',            desc:'Build any house room',       glyph:'uiHome',      target:1,    src:'stats.roomsBuilt'},
-  {id:'house_all',   name:'Estate Owner',        desc:'Build all 6 house rooms',    glyph:'uiCastle',    target:6,    src:'stats.roomsBuilt'},
-  {id:'bounty_1',    name:'Bounty Hunter',       desc:'Complete your first bounty', glyph:'navBounty',   target:1,    src:'bountyHunter.completed'},
-  {id:'bounty_50',   name:'Wanted Poster',       desc:'Complete 50 bounties',       glyph:'uiScroll',    target:50,   src:'bountyHunter.completed'},
-  {id:'rare_drop',   name:'Lucky',               desc:'Get any rare drop',          glyph:'uiSpark',     target:1,    src:'stats.rareDrops'},
-  {id:'rare_25',     name:'Loot Goblin',         desc:'Get 25 rare drops',          glyph:'uiChest',     target:25,   src:'stats.rareDrops'},
-  {id:'food_100',    name:'Well-Fed',            desc:'Eat 100 buff foods',         glyph:'uiFood',      target:100,  src:'stats.buffsConsumed'},
-  /* b499 — these two count `streak.count`, the PLAY streak (days settled), NOT
-     the daily-reward claim streak. "login streak" named the reward's quantity
-     and pointed the player at the wrong number to chase. */
-  {id:'streak_7',    name:'Week Warrior',        desc:'Play 7 days in a row',       glyph:'uiFlame',     target:7,    src:'streak.count'},
-  {id:'streak_30',   name:'Devoted',             desc:'Play 30 days in a row',      glyph:'uiFire',      target:30,   src:'streak.count'},
-  {id:'dragon_slayer',name:'Dragon Slayer',      desc:'Defeat the dragon',          glyph:'uiSkull',     target:1,    src:'bestiary.dragon.kills'},
-];
-/* ONE resolver for achievement art, so the list and the toast can never
-   disagree and neither can reach a character. */
-window.achievementGlyphHTML = function(a, px){
-  var key = (a && a.glyph) || 'uiTrophy';
-  return (window.HR && window.HR.icon) ? (window.HR.icon(key, px || 22, '--gold-2') || '') : '';
-};
-/* b229: this array is IIFE-scoped, but the Hero screen's Account panel needs
-   ACHIEVEMENTS.length to print "X / total". Publish it read-only (the per-player
-   UNLOCK state stays in G.achievements) so the panel counts against the real
-   catalogue rather than a hand-copied number. */
-window.ACHIEVEMENTS = ACHIEVEMENTS;
-
-function readPath(path){
-  if(typeof G !== 'object' || !G) return 0;
-  if(path === '_dailyGoldDelta'){
-    /* b292: delegate to the single income definition (see _dailyGoldDelta). */
-    return (typeof window._dailyGoldDelta === 'function')
-      ? window._dailyGoldDelta()
-      : Math.max(0, balOr('gold', 0) - ((G.dailyGoldStart||{}).gold||0));
-  }
-  if(path === 'highest_skill'){
-    if(typeof getLevel !== 'function') return 1;
-    var max = 0;
-    Object.keys(G.skills||{}).forEach(function(k){ var l = getLevel(k); if(l > max) max = l; });
-    return max;
-  }
-  if(path === 'min_combat_skill'){
-    if(typeof getLevel !== 'function') return 1;
-    var combat = ['attack','strength','defense','hitpoints'];
-    var min = Infinity;
-    combat.forEach(function(k){ var l = getLevel(k); if(l < min) min = l; });
-    return min;
-  }
-  /* Week Warrior / Devoted count the PLAY streak, which is the SERVER's
-     `streak_days` — an achievement must not unlock on a counter the realm never
-     agreed with (CLAUDE.md §6). See src/render/streak-chip.js. */
-  if(path === 'streak.count' && window.HearthriseStreakChip) return window.HearthriseStreakChip.days(G);
-  var parts = path.split('.'); var cur = G;
-  for(var i = 0; i < parts.length; i++){ if(cur == null) return 0; cur = cur[parts[i]]; }
-  return cur || 0;
-}
-
-function checkAchievements(){
-  if(typeof G !== 'object' || !G) return;
-  G.achievements = G.achievements || {};
-  ACHIEVEMENTS.forEach(function(a){
-    var entry = G.achievements[a.id] || (G.achievements[a.id] = {progress:0, unlocked:false});
-    var cur = readPath(a.src);
-    entry.progress = cur;
-    if(!entry.unlocked && cur >= a.target){
-      entry.unlocked = true;
-      entry.unlockedAt = Date.now();
-      showAchToast(a);
-    }
-  });
-}
-/* showAchToast + openAchievements EXTRACTED to src/render/achievements.js
-   (3rd render-layer strangler-fig, task #129). Both are re-exported onto
-   window there; checkAchievements above calls window.showAchToast on unlock,
-   and the inline onclick="openAchievements()" toolbar handlers resolve to the
-   window global. See docs/design/render-extraction-pattern.md. */
+/* 1. ACHIEVEMENTS moved out whole: the catalogue is src/data/deeds.js, the
+   grading and the unlock watcher src/features/deeds.js (on the realm's counts,
+   never a G record), the toast, the sheet and the glyph resolver
+   src/render/achievements.js. */
 
 /* =========================================================
    2. LEVEL-UP CELEBRATION (wraps addXp)
@@ -14204,14 +14070,9 @@ function injectProfileButtons(){
   panel.insertBefore(row, panel.firstChild);
 }
 
-/* Periodic achievement check (covers passive triggers like gold milestones) */
-setInterval(checkAchievements, 6000);
-setTimeout(checkAchievements, 1500);
 setTimeout(injectProfileButtons, 600);
 setTimeout(function(){ if(typeof syncClanActivity==='function') syncClanActivity(); }, 600);
 
-/* Expose */
-window.checkAchievements = checkAchievements;
 console.log('5 retention features loaded');
 })();
 
@@ -17980,12 +17841,11 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
   };
 
   // ── Helpers to compute progress ──
-  /* ── b461 — THE SERVER IS THE DISPLAY TRUTH FOR THESE GOALS UNDER ARM ──
+  /* ── THE SERVER IS THE DISPLAY TRUTH FOR THESE GOALS UNDER ARM ──
      hr_claim_goal verifies completion from the SERVER's period counters, so a
      modal that decides "Claim" from local stats would show a button the server
-     refuses — the same dead button in a different hat (the counters for
-     chopped/mined/fished/levelups only start at this deploy, so local 25/25
-     vs server 0/25 is the day-one shape). hr_goal_state projects every
+     refuses — the same dead button in a different hat (local 25/25 against
+     server 0/25). hr_goal_state projects every
      catalogued goal {have, complete, claimed} for the current day/ISO-week;
      under arm the readers below prefer it and fall back to the local stats
      when it has not arrived (offline, pre-arm, or a transport failure — the
@@ -18014,12 +17874,12 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
         var m = {};
         res.goals.forEach(function(g){
           if(!g || !g.goal_id) return;
-          m[(g.weekly ? 'w:' : 'd:') + g.goal_id] = {
+          m[(g.weekly ? 'w:' : 'd:') + g.goal_id] = Object.freeze({
             have: Math.max(0, Number(g.have) || 0), target: Number(g.target) || 0,
             complete: !!g.complete, claimed: !!g.claimed
-          };
+          });
         });
-        _srvGoals = m; _srvGoalsAt = Date.now();
+        _srvGoals = Object.freeze(m); _srvGoalsAt = Date.now();
         if(typeof done === 'function') done(true);
       } else if(typeof done === 'function') done(false);
     }).catch(function(){ _srvGoalsInflight = false; if(typeof done === 'function') done(false); });
@@ -18030,6 +17890,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
   }
   window.__hrSyncServerGoals = syncServerGoals;   // test seam + manual refresh
   window.__hrSyncServerGoals.reset = function(){ _srvGoals = null; _srvGoalsAt = 0; _srvGoalsInflight = false; };
+  window.HearthriseGoalState = { peek: function(){ return goalsArmed() && _srvGoals && (Date.now() - _srvGoalsAt) < 120000 ? _srvGoals : null; } };
 
   /* ── THE ONE READER OF startValues IN THIS IIFE ────────────────────────────
      Delegates to block 16's goalBaselineOf (exported on window because this is

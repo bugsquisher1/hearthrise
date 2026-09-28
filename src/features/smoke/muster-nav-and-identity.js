@@ -2344,8 +2344,40 @@ export default [
     // Rank 1 earns a cosmetic title. It is honest because the rank behind it
     // came from the server, and it is the ONLY thing ranking grants.
     assert(LB._crownFor('renown') === 'the Throne', 'the flagship crown');
-    assert(LB._crownFor('skill:mining') === 'Grandmaster Mining', 'per-skill crowns are named');
+    assert(LB._crownFor('skill:mining') === 'the Veinfinder', 'per-skill crowns are named');
     assert(html.indexOf('the Throne') >= 0, 'rank 1 wears its title on the board');
+  }),
+
+  // THE STANDINGS: Home's sentence and the Social note read one server answer;
+  // a rival's name is escaped, and each case picks its own line.
+  () => tryRun('STAND-A: the standing sentence reads one server answer', () => {
+    const ST = window.HearthriseStandings;
+    const near = [{ rank: 6, name: 'Bran<b>', score: 412 }, { rank: 7, name: 'Me', score: 400 }];
+    const a = ST.standingLine('total_level', { rank: 7, total: 38, top: [], near });
+    assert(a && a.key === 'standing.chase' && a.text.indexOf('12 levels behind Bran<b>') >= 0, 'chase line, got ' + JSON.stringify(a));
+    const html = ST.cardHtml({ rows: [{ boardId: 'total_level', ans: { rank: 7, total: 38, top: [], near, available: true } }], refreshedAt: null });
+    assert(html.indexOf('Bran&lt;b&gt;') >= 0 && html.indexOf('Bran<b>') < 0, 'the rival name must be escaped');
+    const one = (s1, s2) => ST.standingLine('skill:mining', { rank: 1, total: 2, top: [{ rank: 1, name: 'Me', score: s1 }], near: [{ rank: 2, name: 'Cyn', score: s2 }] });
+    const c = one(5000, 1860);
+    assert(c.key === 'standing.crown' && c.text.indexOf('the Veinfinder') >= 0, 'rank 1 wears the crown, got ' + c.text);
+    assert(c.text.indexOf((3140).toLocaleString() + ' xp clear of') >= 0, 'rank 1 names its lead, got ' + c.text);
+    assert(one(900, 900).key === 'standing.level', 'equal scores read as dead level');
+    assert(ST.standingLine('skill:mining', { rank: null, total: 2, top: [], near: [] }).key === 'standing.unranked', 'rank null is unranked');
+    const alone = ST.standingLine('skill:mining', { rank: 1, total: 1, top: [{ rank: 1, name: 'Me', score: 9 }], near: [] });
+    assert(alone.key === 'standing.crownAlone', 'a lone rank 1 holds the crown alone');
+    assert(ST.standingLine('wealth', { rank: 2, total: 3, top: [], near: [] }) === null, 'no sentence for boards without units');
+  }),
+
+  () => tryRun('STAND-B: crowns, eligibility and the pending card', () => {
+    const LB = window.HearthriseLeaderboards, ST = window.HearthriseStandings;
+    assert(LB._crownFor('skill:mining') === 'the Veinfinder' && LB._crownFor('wealth') === 'the Magnate', 'crowns');
+    assert(ST.eligible({ signedIn: true, slot: 1, online: true }) === false, 'slot 1 is not on the boards');
+    assert(ST.eligible({ signedIn: false, slot: 0, online: true }) === false, 'signed out is not eligible');
+    assert(ST.eligible({ signedIn: true, slot: 0, online: true }) === true, 'slot 0 signed in is eligible');
+    const div = document.createElement('div');
+    div.innerHTML = ST.cardHtml(null);
+    assert(div.textContent.indexOf('Reading the boards') >= 0 && !/\d/.test(div.textContent), 'pending card, no number: ' + div.textContent);
+    assert(!/claim|grant|reward|payout|token/i.test(Object.keys(ST).join(' ')), 'the standings API grants nothing');
   }),
 
   // b217 art rules: no emoji anywhere in the board, in any state, including the
@@ -2376,7 +2408,7 @@ export default [
     // Every state says something true; none of them is blank.
     assert(LB._boardHtml('renown', states.empty).indexOf('No one has ranked') >= 0, 'the empty state must speak');
     assert(LB._boardHtml('renown', states.anon).indexOf('Sign in') >= 0 ||
-           LB._boardHtml('renown', states.anon).indexOf('not ranked') >= 0,
+           LB._boardHtml('renown', states.anon).indexOf('no place on the') >= 0,
       'an anonymous board must point at the action that puts you on it');
   }),
 

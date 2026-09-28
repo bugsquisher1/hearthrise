@@ -4,6 +4,10 @@
 //   node tools/vitals.mjs            # last 7 days, per day
 //   node tools/vitals.mjs --refusals # why calls were REFUSED, by code and verb, plus
 //                                    # the deny-list codes per (user, slot)
+//   node tools/vitals.mjs --world-tick # the tick's fire log per hour (24 h) and the
+//                                    # shadow journal per day (7 d), with the STALL rule
+//   node tools/vitals.mjs --selftest # the world-tick aggregation and STALL rule on
+//                                    # fixture rows, mutation-proved; no token, no DB
 //
 // Runs ONE fixed SELECT over public.player_ledger through the same management
 // endpoint tools/apply-migration.mjs uses (token from ~/.supabase-token, read
@@ -39,7 +43,8 @@ import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-const token = readFileSync(join(homedir(), '.supabase-token'), 'utf8').trim();
+// Read lazily, on the first query, so --selftest runs with no token at all.
+let token = null;
 const URL_Q = 'https://api.supabase.com/v1/projects/nezapsylztqbbwuwembx/database/query';
 
 const QUERY = `
@@ -169,20 +174,146 @@ select x.day, x.code, x.severity,
   from x
  order by x.day desc, x.n desc, x.code, who`;
 
+// ── THE WORLD TICK (2026-09-28) ─────────────────────────────────────────────
+// 2026-09-28-world-tick-stall-observability.sql (applied 05:34 UTC) makes every
+// posted fire write detail.edge into hr_tick_cron_log: the SUM over the tick's
+// own pg_net responses since the previous fire of {responses, non_tick,
+// timed_out, settled, shadowed, skipped, refused, below_flush}, plus last_id,
+// last_status and ONE top_reason/top_n (the largest skip/refuse reason other
+// than below_flush, which is the benign reason on 8 of every 9 fires). A
+// harvest that threw leaves edge = {harvest_error: sqlstate} instead.
+//
+// WHY THE STALL IS COMPUTED HERE AND NOT CALLED: the management endpoint runs as
+// supabase_read_only_user, which CAN read hr_tick_cron_log (measured 2026-09-28;
+// hr_tick_shadow is assumed, not measured: if it cannot, the read fails loudly
+// with exit 1) but CANNOT execute hr_tick_stall_status() (owner-only, 42501). So the rule is
+// restated in JS below and fed from the same two tables, bucketed exactly as
+// the function buckets them: whole hours ENDING NOW, [now-(i+1)h, now-ih).
+// tests/world-tick-stall-guard.mjs is the guard over the function; --selftest
+// here is the guard over this restatement of it.
+//
+// NO BACKTICKS IN THIS STRING (see REFUSALS). No "update"/"delete"/"do" etc.
+// either, not even in a comment: selectOnly() reads the words, not the grammar.
+const edgeNum = (k) => `coalesce(sum(case when (e ->> '${k}') ~ '^[0-9]{1,12}$' then (e ->> '${k}')::bigint end), 0) as ${k}`;
+const WORLD_TICK = `
+with lg as (
+  select ceil(extract(epoch from (now() - l.at)) / 3600)::int - 1 as i,
+         l.outcome, l.rostered, l.detail -> 'edge' as e
+    from public.hr_tick_cron_log l
+   where l.at >= now() - interval '168 hours' and l.at < now()),
+f as (
+  select i, count(*) as fires,
+         count(*) filter (where outcome = 'posted' and rostered >= 1) as rost_fires,
+         coalesce(max(rostered), 0) as rostered,
+         count(*) filter (where jsonb_typeof(e) = 'object') as harvested,
+         ${['responses', 'settled', 'shadowed', 'skipped', 'refused', 'below_flush', 'timed_out', 'non_tick'].map(edgeNum).join(',\n         ')}
+    from lg group by i),
+rs as (
+  select i, left(e ->> 'top_reason', 64) as reason,
+         sum(case when (e ->> 'top_n') ~ '^[0-9]{1,12}$' then (e ->> 'top_n')::bigint else 0 end) as n
+    from lg where (e ->> 'top_reason') is not null group by 1, 2
+  union all
+  select i, 'harvest_error:' || left(e ->> 'harvest_error', 16), count(*)
+    from lg where (e ->> 'harvest_error') is not null group by 1, 2),
+rt as (
+  select i, string_agg(reason || '=' || n::text, ' ' order by n desc, reason) as reasons
+    from (select rs.*, row_number() over (partition by i order by n desc, reason) as rn from rs) z
+   where rn <= 3 group by i),
+sh as (
+  select ceil(extract(epoch from (now() - s.at)) / 3600)::int - 1 as i, count(*) as shadow_rows
+    from public.hr_tick_shadow s
+   where s.at >= now() - interval '168 hours' and s.at < now() group by 1)
+select g.i,
+       to_char((now() - make_interval(hours => g.i + 1)) at time zone 'UTC', 'MM-DD HH24:MI') as from_utc,
+       ((now() - make_interval(hours => g.i + 1)) at time zone 'UTC')::date::text as day,
+       coalesce(f.fires, 0) fires, coalesce(f.rost_fires, 0) rost_fires, coalesce(f.rostered, 0) rostered,
+       coalesce(sh.shadow_rows, 0) shadow_rows, coalesce(f.harvested, 0) harvested,
+       coalesce(f.responses, 0) responses, coalesce(f.settled, 0) settled, coalesce(f.shadowed, 0) shadowed,
+       coalesce(f.skipped, 0) skipped, coalesce(f.refused, 0) refused, coalesce(f.below_flush, 0) below_flush,
+       coalesce(f.timed_out, 0) timed_out, coalesce(f.non_tick, 0) non_tick,
+       coalesce(rt.reasons, '-') as reasons
+  from generate_series(0, 167) g(i)
+  left join f on f.i = g.i left join sh on sh.i = g.i left join rt on rt.i = g.i
+ order by g.i`;
+
+// The mode decides whether the rule judges at all (armed: shadow rows are zero
+// by design). hr_tick_config is read separately so that a read-only role that
+// cannot see it costs the mode, never the table: the verdict then says "mode
+// unread" and judges as if in shadow.
+const WORLD_TICK_MODE = `
+select case when not coalesce(c.enabled, false) then 'off'
+            when coalesce(c.shadow, false) then 'shadow' else 'armed' end as mode
+  from public.hr_tick_config c where c.id`;
+
+// ── STALL RULE BEGIN ─────────────────────────────────────────────────────────
+// Everything between BEGIN and END is pure and self-contained: --selftest lifts
+// this exact text out of the file, plants one defect at a time and requires the
+// fixtures to go red. Keep it free of references to anything outside it.
+//
+// hr_tick_stall_status(now(), 2, 30), restated: STALLED when the tick is in
+// SHADOW mode and EVERY one of the last `hours` whole-hour buckets had >= 1
+// posted fire with rostered >= 1 AND fewer than `minRowsPerHour` hr_tick_shadow
+// rows. A bucket with no rostered fire means nobody was there to tick: the
+// function reads that as ok; this says NO VERDICT, because it is not a green.
+// buckets[0] is the hour ending now, as the function orders them.
+function tickStallVerdict(buckets, mode, rule) {
+  const win = buckets.slice(0, rule.hours);
+  if (win.length < rule.hours) return { verdict: 'NO VERDICT', why: `under ${rule.hours} h of history` };
+  if (mode === 'armed' || mode === 'off') {
+    return { verdict: 'NOT JUDGED', why: `tick is ${mode}; shadow rows are zero by design` };
+  }
+  if (win.some((b) => Number(b.rost_fires) < 1)) {
+    return { verdict: 'NO VERDICT', why: 'an hour with nothing rostered' };
+  }
+  const stalled = win.every((b) => Number(b.shadow_rows) < rule.minRowsPerHour);
+  return stalled
+    ? { verdict: 'STALL', why: `${rule.hours} h rostered with < ${rule.minRowsPerHour} shadow rows/h` }
+    : { verdict: 'OK', why: `an hour with >= ${rule.minRowsPerHour} shadow rows` };
+}
+// Per UTC day (of each bucket's start): shadow rows/h over the buckets that day
+// holds, and how many 2 h windows STARTING in that day the rule calls STALL
+// (history is judged as if in shadow mode throughout: the mode is not logged).
+function tickDayRollup(buckets, rule, verdict) {
+  const days = new Map();
+  buckets.forEach((b, i) => {
+    const d = days.get(b.day) || { day: b.day, hours: 0, shadow_rows: 0, rost_fires: 0, refused: 0,
+      stall_windows: 0, judged_windows: 0 };
+    d.hours += 1;
+    d.shadow_rows += Number(b.shadow_rows);
+    d.rost_fires += Number(b.rost_fires);
+    d.refused += Number(b.refused);
+    const v = verdict(buckets.slice(i, i + rule.hours), 'shadow', rule).verdict;
+    if (v === 'STALL' || v === 'OK') d.judged_windows += 1;
+    if (v === 'STALL') d.stall_windows += 1;
+    days.set(b.day, d);
+  });
+  return [...days.values()].map((d) => ({ ...d,
+    rows_per_h: d.hours ? Math.round((d.shadow_rows / d.hours) * 10) / 10 : 0,
+    stall: d.stall_windows > 0 ? 'STALL' : (d.judged_windows ? 'ok' : 'no verdict') }));
+}
+// ── STALL RULE END ───────────────────────────────────────────────────────────
+const STALL_RULE = { hours: 2, minRowsPerHour: 30 };
+const STALL_RULE_TEXT = `STALL = tick in SHADOW mode and EACH of the last ${STALL_RULE.hours} whole hours ending now had`
+  + ` >= 1 posted fire with rostered >= 1 AND < ${STALL_RULE.minRowsPerHour} hr_tick_shadow rows`
+  + ' (hr_tick_stall_status(now(), 2, 30), restated; an hour with no rostered fire = NO VERDICT).';
+
 const refusalsMode = process.argv.includes('--refusals');
-const chosen = refusalsMode ? REFUSALS : QUERY;
+const worldTickMode = process.argv.includes('--world-tick');
+const selftestMode = process.argv.includes('--selftest');
+const chosen = refusalsMode ? REFUSALS : worldTickMode ? WORLD_TICK : QUERY;
 
 // The secret guard is the contract (CLAUDE.md s2): EVERY query this tool can
 // send is checked, not just the one the flag selected. A second query added
 // later must not be able to ride in unchecked behind the first one's clearance.
 const selectOnly = (sql) => !/\b(insert|update|delete|create|alter|drop|grant|revoke|truncate|call|do)\b/i.test(sql);
-for (const sql of [chosen, ...(refusalsMode ? [REFUSAL_TABS] : [])]) {
+for (const sql of [QUERY, REFUSALS, REFUSAL_TABS, WORLD_TICK, WORLD_TICK_MODE]) {
   if (!selectOnly(sql)) {
     console.error('vitals: refusing — query is not SELECT-only'); process.exitCode = 2; throw new Error('not select-only');
   }
 }
 
-const ask = async (sql) => {
+const ask = async (sql, { soft = false } = {}) => {
+  if (token === null) token = readFileSync(join(homedir(), '.supabase-token'), 'utf8').trim();
   const res = await fetch(URL_Q, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -190,58 +321,199 @@ const ask = async (sql) => {
   });
   const body = await res.text();
   if (!res.ok) {
-    console.error(`vitals: HTTP ${res.status}: ${body.slice(0, 400)}`); process.exitCode = 1;
+    console.error(`vitals: HTTP ${res.status}: ${body.slice(0, 400)}`);
+    if (!soft) process.exitCode = 1;
     throw new Error('query failed');
   }
   return JSON.parse(body);
 };
 
-const rows = await ask(chosen);
+const readTickMode = async () => {
+  try { return (await ask(WORLD_TICK_MODE, { soft: true }))[0]?.mode || 'unread'; } catch { return 'unread'; }
+};
+const verdictLine = (v, mode) => `${v.verdict} — ${v.why}${mode === 'unread' ? ' (mode unread; judged as if shadow)' : ''}`;
 
-if (refusalsMode) {
-  const rc = ['day', 'code', 'severity', 'n', 'characters', 'verbs', 'whys'];
-  const w = { day: 10, code: 22, severity: 9, n: 6, characters: 11, verbs: 0, whys: 0 };
-  console.log('refusals — hr_rejections, the last two UTC DAY BUCKETS (not a rolling 24h: the table');
-  console.log('is a per-(user, slot, day, code) aggregate). rate_limited is sampled; the rest exact.');
-  console.log('verbs = which gesture was refused (server-supplied for the buff family, bad_zone and');
-  console.log('forbidden_field). whys = the code broken down by its reason, and it SUMS TO n: on');
-  console.log('buff_at_max, segment_budget is the 9th-segment cost fuse and (none) is the 60-minute');
-  console.log('duration cap. A dash means the code carries no why. Needs');
-  console.log('2026-09-13-rejections-verb-map-2.sql applied; before that whys reads "-" everywhere.\n');
-  console.log(rc.map((c) => (w[c] ? String(c).padStart(w[c]) : `  ${c}`)).join(' '));
-  for (const row of rows) {
-    console.log(rc.map((c) => (w[c] ? String(row[c] ?? '').padStart(w[c]) : `  ${String(row[c] ?? '')}`)).join(' '));
-  }
-  if (!rows.length) console.log('  (no refusals recorded in the last two day buckets)');
+function printWorldTick(buckets, mode) {
+  const hc = ['from_utc', 'fires', 'rost_fires', 'rostered', 'shadow_rows', 'settled', 'shadowed', 'skipped',
+    'refused', 'below_flush', 'timed_out', 'non_tick', 'harvested', 'reasons'];
+  const hw = { from_utc: 11, fires: 5, rost_fires: 10, rostered: 8, shadow_rows: 11, settled: 7, shadowed: 8,
+    skipped: 7, refused: 7, below_flush: 11, timed_out: 9, non_tick: 8, harvested: 9 };
+  const line = (row) => hc.map((c) => (hw[c] ? String(row[c] ?? '').padStart(hw[c]) : `  ${String(row[c] ?? '')}`)).join(' ');
+  console.log('world tick — hr_tick_cron_log per whole hour ENDING NOW (from_utc = the hour\'s start), last 24 h.');
+  console.log('fires = log rows; rost_fires = posted fires with rostered >= 1 (the rule\'s input); rostered = max;');
+  console.log('shadow_rows = hr_tick_shadow rows in the hour. settled..non_tick are sums of detail.edge, which');
+  console.log('lags one fire and exists only since 2026-09-28 05:34 UTC (harvested = fires carrying it).');
+  console.log('reasons = the harvest\'s per-fire top_reason (below_flush excluded by design), summed top_n, top 3;');
+  console.log('harvest_error:<sqlstate> = fires whose harvest threw.\n');
+  console.log(hc.map((c) => (hw[c] ? c.padStart(hw[c]) : `  ${c}`)).join(' '));
+  for (const row of buckets.slice(0, 24)) console.log(line(row));
 
-  // THE DENY-LIST CODES, PER TAB. See the header on REFUSAL_TABS: summed, these
-  // two codes read as a server refusing everybody; per (user, slot) they read as
-  // the handful of browser windows they actually are.
-  const tabs = await ask(REFUSAL_TABS);
-  const tc = ['day', 'code', 'severity', 'who', 'slot', 'n', 'last_utc', 'verb', 'whys'];
-  const tw = { day: 10, code: 16, severity: 9, who: 10, slot: 5, n: 7, last_utc: 9 };
-  console.log('\ndeny-list refusals PER (user, slot) — one tab prints as one tab. forbidden_field is');
-  console.log('a whole-patch refusal on an AUTHORITY key; retired_field is a key STRIPPED from an');
-  console.log('otherwise honest patch (2026-09-23-client-state-retired-fields.sql; no rows before it');
-  console.log('is applied). whys names WHICH key, which is what says which build the tab is running.');
-  console.log(tc.map((c) => (tw[c] ? String(c).padStart(tw[c]) : `  ${c}`)).join(' '));
-  for (const row of tabs) {
-    console.log(tc.map((c) => (tw[c] ? String(row[c] ?? '').padStart(tw[c]) : `  ${String(row[c] ?? '')}`)).join(' '));
+  const days = tickDayRollup(buckets, STALL_RULE, tickStallVerdict);
+  const dc = ['day', 'hours', 'shadow_rows', 'rows_per_h', 'rost_fires', 'refused', 'stall_windows', 'stall'];
+  const dw = { day: 10, hours: 5, shadow_rows: 11, rows_per_h: 10, rost_fires: 10, refused: 8, stall_windows: 13 };
+  console.log('\nshadow journal per UTC day (of each hour\'s start), 7 days. rows_per_h = shadow_rows / hours;');
+  console.log('stall_windows = 2 h windows starting that day the rule calls STALL (judged as if in shadow mode');
+  console.log('throughout — the mode is not logged per hour). The partial first and last days hold fewer hours.');
+  console.log(dc.map((c) => (dw[c] ? c.padStart(dw[c]) : `  ${c}`)).join(' '));
+  for (const d of days) console.log(dc.map((c) => (dw[c] ? String(d[c]).padStart(dw[c]) : `  ${d[c]}`)).join(' '));
+
+  console.log(`\nrule: ${STALL_RULE_TEXT}`);
+  console.log(`mode: ${mode}`);
+  console.log(`STALL: ${verdictLine(tickStallVerdict(buckets, mode, STALL_RULE), mode)}`);
+}
+
+// ── --selftest ───────────────────────────────────────────────────────────────
+// Fixture rows shaped exactly like WORLD_TICK's output go through the rule and
+// the day roll-up, lifted from THIS file's text; then each mutant re-lifts the
+// text with one line broken and must turn at least one assertion red. The first
+// lift is unmutated: it is the positive control that the lift itself works.
+async function selftest() {
+  const { readFileSync: rf } = await import('node:fs');
+  const { fileURLToPath } = await import('node:url');
+  const SRC = rf(fileURLToPath(import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const a = SRC.indexOf('// ── STALL RULE BEGIN');
+  const b = SRC.indexOf('// ── STALL RULE END');
+  if (a < 0 || b < 0) { console.error('vitals --selftest: the STALL RULE markers are gone'); return 2; }
+  const RULE_SRC = SRC.slice(a, b);
+  const lift = (src) => new Function(`${src}\nreturn { tickStallVerdict, tickDayRollup };`)();
+
+  const hour = (o) => ({ day: '2026-09-28', fires: 360, rost_fires: 360, rostered: 1, shadow_rows: 0, refused: 0, ...o });
+  const checks = (L) => {
+    const V = (bs, mode = 'shadow') => L.tickStallVerdict(bs, mode, STALL_RULE).verdict;
+    const out = [];
+    const t = (id, got, want) => out.push({ id, ok: got === want, got, want });
+    t('S1 2 h rostered 1, 0 rows/h -> STALL', V([hour({}), hour({})]), 'STALL');
+    t('S2 29 + 29 rows/h -> STALL', V([hour({ shadow_rows: 29 }), hour({ shadow_rows: 29 })]), 'STALL');
+    t('S3 31 + 31 rows/h -> OK', V([hour({ shadow_rows: 31 }), hour({ shadow_rows: 31 })]), 'OK');
+    t('S4 30 + 30 rows/h -> OK (the threshold is < 30)', V([hour({ shadow_rows: 30 }), hour({ shadow_rows: 30 })]), 'OK');
+    t('S5 29 then 31 -> OK (one healthy hour of two)', V([hour({ shadow_rows: 29 }), hour({ shadow_rows: 31 })]), 'OK');
+    t('S6 rostered 0 both hours -> NO VERDICT',
+      V([hour({ rost_fires: 0, rostered: 0 }), hour({ rost_fires: 0, rostered: 0 })]), 'NO VERDICT');
+    t('S7 rostered 0 in one hour -> NO VERDICT, never STALL',
+      V([hour({ rost_fires: 0, rostered: 0 }), hour({})]), 'NO VERDICT');
+    t('S8 only the last 2 h count: a healthy 3rd hour back does not clear a stall',
+      V([hour({}), hour({}), hour({ shadow_rows: 500 })]), 'STALL');
+    t('S9 a stalled last hour after a healthy one -> OK', V([hour({}), hour({ shadow_rows: 40 })]), 'OK');
+    t('S10 armed -> NOT JUDGED', V([hour({}), hour({})], 'armed'), 'NOT JUDGED');
+    t('S11 one hour of history -> NO VERDICT', V([hour({})]), 'NO VERDICT');
+    // A day of 24 hours: healthy (40/h) except a 3-hour stall at i = 5..7 -> 2 stalled windows.
+    const day = Array.from({ length: 24 }, (_, i) => hour({ shadow_rows: i >= 5 && i <= 7 ? 0 : 40, refused: i >= 5 && i <= 7 ? 360 : 0 }));
+    const r = L.tickDayRollup(day, STALL_RULE, L.tickStallVerdict)[0] || {};
+    t('D1 a 3 h stall inside a day = 2 stalled windows', r.stall_windows, 2);
+    t('D2 that day reads STALL', r.stall, 'STALL');
+    t('D3 rows/h = 840 / 24 = 35', r.rows_per_h, 35);
+    t('D4 refused sums across the day', r.refused, 1080);
+    const healthy = L.tickDayRollup(Array.from({ length: 24 }, () => hour({ shadow_rows: 31 })), STALL_RULE, L.tickStallVerdict)[0] || {};
+    t('D5 a day at 31 rows/h reads ok', healthy.stall, 'ok');
+    const quiet = L.tickDayRollup(Array.from({ length: 24 }, () => hour({ rost_fires: 0, rostered: 0 })), STALL_RULE, L.tickStallVerdict)[0] || {};
+    t('D6 a day with nothing rostered reads no verdict', quiet.stall, 'no verdict');
+    return out;
+  };
+
+  console.log('\nvitals --selftest: the world-tick STALL rule and day roll-up, on fixture rows (no DB, no token)');
+  let real;
+  try { real = checks(lift(RULE_SRC)); } catch (e) { console.log(`  ✗ the unmutated lift threw: ${e.message}`); return 1; }
+  for (const c of real) console.log(`  ${c.ok ? '✓' : '✗'} ${c.id}${c.ok ? '' : ` — got ${c.got}, want ${c.want}`}`);
+  const realRed = real.filter((c) => !c.ok).length;
+
+  const MUTANTS = [
+    { name: 'threshold300', find: 'Number(b.shadow_rows) < rule.minRowsPerHour', repl: 'Number(b.shadow_rows) < 300' },
+    { name: 'thresholdInclusive', find: 'Number(b.shadow_rows) < rule.minRowsPerHour', repl: 'Number(b.shadow_rows) <= rule.minRowsPerHour' },
+    { name: 'oneHourIsEnough', find: 'buckets.slice(0, rule.hours)', repl: 'buckets.slice(0, 1)' },
+    { name: 'wholeHistory', find: 'buckets.slice(0, rule.hours)', repl: 'buckets.slice(0)' },
+    { name: 'rosterIgnored', find: 'win.some((b) => Number(b.rost_fires) < 1)', repl: 'false' },
+    { name: 'anyHourStalls', find: 'win.every((b) => Number(b.shadow_rows)', repl: 'win.some((b) => Number(b.shadow_rows)' },
+    { name: 'armedJudged', find: "mode === 'armed' || mode === 'off'", repl: "mode === 'off'" },
+    { name: 'dayWindowOne', find: 'buckets.slice(i, i + rule.hours)', repl: 'buckets.slice(i, i + 1)' },
+    { name: 'dayRowsPerFire', find: 'd.shadow_rows / d.hours', repl: 'd.shadow_rows / d.rost_fires' },
+  ];
+  let missed = 0;
+  for (const m of MUTANTS) {
+    if (!RULE_SRC.includes(m.find)) { console.error(`vitals --selftest: mutant ${m.name} cannot be planted — its anchor is gone`); return 2; }
+    let red;
+    try { red = checks(lift(RULE_SRC.replace(m.find, m.repl))).filter((c) => !c.ok).map((c) => c.id.split(' ')[0]); } catch (e) { red = [`threw: ${e.message}`]; }
+    if (red.length) console.log(`  CAUGHT ${m.name} by ${red.join(', ')}`);
+    else { missed += 1; console.log(`  MISSED ${m.name}: every assertion stayed green`); }
   }
-  if (!tabs.length) console.log('  (no deny-list refusals in the last two day buckets)');
-  // NO process.exit() HERE. fetch() leaves a keep-alive socket on the loop, and
-  // tearing the process down under it aborts libuv on Windows ("Assertion
-  // failed: !(handle->flags & UV_HANDLE_CLOSING)") with exit 127 AFTER the
-  // correct output has already been printed - i.e. a read-only ops tool that
-  // looks broken to anyone who checks its exit code, and looks fine to anyone
-  // who only reads the table. Fall off the end instead.
+  if (realRed || missed) {
+    console.log(`\nvitals --selftest: RED — ${realRed} assertion(s) red on the real rule, ${missed} mutant(s) survived`);
+    return 1;
+  }
+  console.log(`\nvitals --selftest: green — ${real.length} assertions on the real rule, all ${MUTANTS.length} mutants caught.`);
+  return 0;
+}
+
+if (selftestMode) {
+  process.exitCode = await selftest();
+} else if (worldTickMode) {
+  const buckets = await ask(WORLD_TICK);
+  printWorldTick(buckets, await readTickMode());
 } else {
-  const cols = ['day','plants','waters','harvests','fights','deaths','gathers','crafts','workers','buys','rooms','claims','pets_xp','pet_xp','listings','sales','refused','users'];
-  console.log(cols.map((c) => String(c).padStart(c === 'day' ? 10 : 8)).join(' '));
-  for (const row of rows) console.log(cols.map((c) => String(row[c] ?? '').padStart(c === 'day' ? 10 : 8)).join(' '));
-  // pets_xp joins the zero-watch: it is the column S-PX-2 exists for, and a
-  // feature at zero for two days is a P1 by definition (CLAUDE.md §3.4). pet_xp
-  // is the running total and does not fall back to zero, so it is not watched.
-  const zeroTwoDays = ['plants','fights','gathers','buys','claims','pets_xp'].filter((c) => rows.slice(0, 2).every((row) => Number(row[c]) === 0));
-  if (rows.length >= 2 && zeroTwoDays.length) console.log(`\nP1 by definition — zero for two days: ${zeroTwoDays.join(', ')}`);
+  const rows = await ask(chosen);
+
+
+  if (refusalsMode) {
+    const rc = ['day', 'code', 'severity', 'n', 'characters', 'verbs', 'whys'];
+    const w = { day: 10, code: 22, severity: 9, n: 6, characters: 11, verbs: 0, whys: 0 };
+    console.log('refusals — hr_rejections, the last two UTC DAY BUCKETS (not a rolling 24h: the table');
+    console.log('is a per-(user, slot, day, code) aggregate). rate_limited is sampled; the rest exact.');
+    console.log('verbs = which gesture was refused (server-supplied for the buff family, bad_zone and');
+    console.log('forbidden_field). whys = the code broken down by its reason, and it SUMS TO n: on');
+    console.log('buff_at_max, segment_budget is the 9th-segment cost fuse and (none) is the 60-minute');
+    console.log('duration cap. A dash means the code carries no why. Needs');
+    console.log('2026-09-13-rejections-verb-map-2.sql applied; before that whys reads "-" everywhere.\n');
+    console.log(rc.map((c) => (w[c] ? String(c).padStart(w[c]) : `  ${c}`)).join(' '));
+    for (const row of rows) {
+      console.log(rc.map((c) => (w[c] ? String(row[c] ?? '').padStart(w[c]) : `  ${String(row[c] ?? '')}`)).join(' '));
+    }
+    if (!rows.length) console.log('  (no refusals recorded in the last two day buckets)');
+
+    // THE DENY-LIST CODES, PER TAB. See the header on REFUSAL_TABS: summed, these
+    // two codes read as a server refusing everybody; per (user, slot) they read as
+    // the handful of browser windows they actually are.
+    const tabs = await ask(REFUSAL_TABS);
+    const tc = ['day', 'code', 'severity', 'who', 'slot', 'n', 'last_utc', 'verb', 'whys'];
+    const tw = { day: 10, code: 16, severity: 9, who: 10, slot: 5, n: 7, last_utc: 9 };
+    console.log('\ndeny-list refusals PER (user, slot) — one tab prints as one tab. forbidden_field is');
+    console.log('a whole-patch refusal on an AUTHORITY key; retired_field is a key STRIPPED from an');
+    console.log('otherwise honest patch (2026-09-23-client-state-retired-fields.sql; no rows before it');
+    console.log('is applied). whys names WHICH key, which is what says which build the tab is running.');
+    console.log(tc.map((c) => (tw[c] ? String(c).padStart(tw[c]) : `  ${c}`)).join(' '));
+    for (const row of tabs) {
+      console.log(tc.map((c) => (tw[c] ? String(row[c] ?? '').padStart(tw[c]) : `  ${String(row[c] ?? '')}`)).join(' '));
+    }
+    if (!tabs.length) console.log('  (no deny-list refusals in the last two day buckets)');
+    // NO process.exit() HERE. fetch() leaves a keep-alive socket on the loop, and
+    // tearing the process down under it aborts libuv on Windows ("Assertion
+    // failed: !(handle->flags & UV_HANDLE_CLOSING)") with exit 127 AFTER the
+    // correct output has already been printed - i.e. a read-only ops tool that
+    // looks broken to anyone who checks its exit code, and looks fine to anyone
+    // who only reads the table. Fall off the end instead.
+  } else {
+    const cols = ['day','plants','waters','harvests','fights','deaths','gathers','crafts','workers','buys','rooms','claims','pets_xp','pet_xp','listings','sales','refused','users'];
+    console.log(cols.map((c) => String(c).padStart(c === 'day' ? 10 : 8)).join(' '));
+    for (const row of rows) console.log(cols.map((c) => String(row[c] ?? '').padStart(c === 'day' ? 10 : 8)).join(' '));
+    // pets_xp joins the zero-watch: it is the column S-PX-2 exists for, and a
+    // feature at zero for two days is a P1 by definition (CLAUDE.md §3.4). pet_xp
+    // is the running total and does not fall back to zero, so it is not watched.
+    const zeroTwoDays = ['plants','fights','gathers','buys','claims','pets_xp'].filter((c) => rows.slice(0, 2).every((row) => Number(row[c]) === 0));
+    if (rows.length >= 2 && zeroTwoDays.length) console.log(`\nP1 by definition — zero for two days: ${zeroTwoDays.join(', ')}`);
+  }
+
+  // THE ONE-LINE WORLD-TICK SUMMARY rides every default run, because the
+  // 2026-09-26/27 stall sat 21.9 h behind green vitals: nobody runs a flag they
+  // do not already suspect. --world-tick has the hours behind it.
+  if (!refusalsMode) {
+    try {
+      const buckets = await ask(WORLD_TICK);
+      const mode = await readTickMode();
+      const [h0 = {}, h1 = {}] = buckets;
+      console.log(`\nworld tick, last 2 h (newest first): shadow rows ${h0.shadow_rows}/${h1.shadow_rows}, `
+        + `rostered fires ${h0.rost_fires}/${h1.rost_fires}, edge refused ${h0.refused}/${h1.refused}, `
+        + `top reason ${h0.reasons} | STALL rule: ${verdictLine(tickStallVerdict(buckets, mode, STALL_RULE), mode)}`
+        + ' | --world-tick for the hours');
+    } catch (e) {
+      console.log(`\nworld tick: UNREAD — ${e.message} (the exit code says so)`);
+    }
+  }
 }

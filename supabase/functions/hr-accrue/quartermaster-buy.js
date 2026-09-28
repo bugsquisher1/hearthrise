@@ -35,7 +35,8 @@
 // PURE ESM. No I/O, no Deno, no globals.
 // ============================================================================
 
-import { INTENT_ERRORS, collectsFirst } from './intents.js';
+import { INTENT_ERRORS } from './intents.js';
+import { settleBeforeMutate } from './settle-first.js';
 import { gateAndRead, refusalBody, shapeRefusal } from './spend.js';
 
 /** The verb's own name — returned in every body so one client dispatcher can
@@ -90,30 +91,25 @@ export async function runQuartermasterBuy(o) {
          unknown one fails closed in the database. */
   const read = await gateAndRead({ exec, user, slot, verb: VERB });
   if (read.refusal) return read.refusal;
-  const env = read.env;
 
-  /* (2) RULE 3, THE HALF THAT APPLIES. The registry says whether this verb
-         collects before it acts, read here rather than assumed, fail-closed. The
-         OTHER half has nothing to grade: this verb builds no hr_apply delta, so
+  /* (2) RULE 3, THE HALF THAT APPLIES: SETTLE BEFORE THE ITEM LANDS (Security
+         F1, 2026-09-28) — settle-first.js reads the registry, and a refused
+         settle refuses the buy. The OTHER half has nothing to grade: this verb builds no hr_apply delta, so
          there is no key it could carry that would stamp accrued_to. That property
          is asserted where it lives — hr_quartermaster_buy touches accrued_to
          nowhere (dungeon-settlement.md §4). */
-  if (collectsFirst(VERB)) {
-    return {
-      status: 409,
-      body: await refusalBody({
-        exec, user, slot, verb: VERB,
-        refusal: { error: INTENT_ERRORS.COLLECT_REQUIRED, stage: 'collect' },
-        fallback: env,
-      }),
-    };
-  }
+  const settled = await settleBeforeMutate({
+    exec, user, slot, verb: VERB, env: read.env, nowMs: read.nowMs, capMs: read.capMs,
+    partyOwnsWindow: o.partyOwnsWindow === true,
+  });
+  if (!settled.proceed) return settled.refusal;
+  const collected = settled.collected;
 
   /* (3) THE COMMIT. `env.version` is the version THIS call read; the RPC refuses a
          stale one, which is the whole of our concurrency control. The key is the
          CLIENT's — a purchase is a tap, and the client is the only party that
          knows which retry is which. */
-  const [row] = await exec(BUY_SQL, [user, slot, env.version, intentId, offerId]);
+  const [row] = await exec(BUY_SQL, [user, slot, settled.version, intentId, offerId]);
   const res = (row && row.res) || null;
   if (!res || res.ok !== true) {
     /* NOTHING WAS APPLIED — hr_quartermaster_buy's protected block rolls back in
@@ -125,7 +121,9 @@ export async function runQuartermasterBuy(o) {
       status: 409,
       body: await refusalBody({
         exec, user, slot, verb: VERB,
-        refusal: { error: (res && res.error) || 'quartermaster_buy_failed', stage: 'buy', detail: res ?? null },
+        refusal: {
+          error: (res && res.error) || 'quartermaster_buy_failed', stage: 'buy', detail: res ?? null, collected,
+        },
         fallback: null,
       }),
     };
@@ -147,6 +145,7 @@ export async function runQuartermasterBuy(o) {
       ok: true,
       verb: VERB,
       bought: res.replayed === true ? null : (res.bought ?? null),
+      collected,
       ...(res.replayed === true ? { replayed: true } : {}),
     },
   };

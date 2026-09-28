@@ -28,7 +28,7 @@
 //
 // Ranks are never computed here. A client-computed rank is a client-computed
 // claim, and the cosmetic titles this file draws (rank 1 on a board is "the
-// Throne", "Grandmaster Miner", …) are honest precisely because the rank behind
+// Throne", "the Veinfinder", …) are honest precisely because the rank behind
 // them came from the server.
 //
 // ── CLIENT-FIRST COMPATIBILITY ──────────────────────────────
@@ -115,6 +115,9 @@
      cached "unavailable" that outlived a deploy is how a board stays hidden
      after it is fixed. */
   var UNAVAILABLE = Object.create(null);
+  // The newest ACCEPTED RPC answer per uid|board, so Home and Social read the
+  // same one. The degraded reader derives its rank in the browser and never writes it.
+  var LAST = Object.create(null);
   function markAvailability(id, isAvailable) {
     var was = !!UNAVAILABLE[id];
     if (isAvailable) delete UNAVAILABLE[id]; else UNAVAILABLE[id] = true;
@@ -326,15 +329,18 @@
   }
 
   // ── Fetch one board ─────────────────────────────────────────
-  async function fetchBoard(boardId) {
+  async function fetchBoard(boardId, limit) {
     if (!online()) return { action: 'offline' };
     if (!BOARDS[boardId]) return { action: 'fail', error: 'unknown_board' };
 
     if (capability() !== 'legacy') {
       var r;
-      try { r = await rpc('hr_leaderboard', { p_board: boardId, p_limit: TOP_N, p_span: SPAN }); }
+      var lastKey = (myId() || '') + '|' + boardId;
+      var lim = Math.max(1, Math.min(TOP_N, +limit || TOP_N));
+      try { r = await rpc('hr_leaderboard', { p_board: boardId, p_limit: lim, p_span: SPAN }); }
       catch (e) { return { action: 'fail', error: 'network' }; }
       var d = reduceBoard(r.status, r.json);
+      if (d.action === 'accept') LAST[lastKey] = { res: d, at: Date.now() };
       noteRpc(d.action !== 'unsupported');
       if (d.action !== 'unsupported') return d;
       // fall through to the degraded reader
@@ -390,6 +396,9 @@
   function crownFor(boardId) {
     var b = BOARDS[boardId];
     if (!b || !b.crown) return '';
+    var ST = window.HearthriseStandings;
+    var named = (b.skill && ST && typeof ST.crownFor === 'function') ? ST.crownFor(boardId) : null;
+    if (named) return named;
     return b.skill ? (b.crown + ' ' + b.label) : b.crown;
   }
   function agoText(iso) {
@@ -513,13 +522,18 @@
           return rowHtml(boardId, r, meId, view.rank != null && r.rank === view.rank);
         }).join('');
     }
+    var ST = window.HearthriseStandings;
     if (view.rank != null) {
+      var HP = window.HearthriseProfile;
+      var slot = (HP && typeof HP.activeSlot === 'function') ? HP.activeSlot() : null;
+      var line = (ST && ST.eligible({ signedIn: signedIn(), slot: slot, online: true }))
+        ? ST.standingLine(boardId, { rank: view.rank, total: view.total, top: view.top, near: view.block, available: true }) : null;
       html += '<div class="lb-note">You are <b style="color:var(--gold-2)">#' + fmt(view.rank) + '</b> of ' +
-        fmt(view.total) + ' ranked.</div>';
+        fmt(view.total) + ' ranked.' + (line ? ' ' + esc(line.text) : '') + '</div>';
     } else if (!signedIn()) {
       html += '<div class="lb-note">Sign in to take your place on the board.</div>';
     } else if (view.top.length) {
-      html += '<div class="lb-note">You are not ranked here yet — play, and your next cloud save puts you on it.</div>';
+      html += '<div class="lb-note">' + esc(ST && ST.unrankedText ? ST.unrankedText(boardId) : 'You have no place on this board yet.') + '</div>';
     }
     return html;
   }
@@ -698,6 +712,9 @@
     selectCategory: selectCategory, selectBoard: selectBoard,
     current: function () { return { cat: curCat, board: curBoard }; },
     capability: capability,
+    crownFor: crownFor,
+    agoText: agoText,
+    lastBoard: function (id) { return LAST[(myId() || '') + '|' + id] || null; },
     // Server-contract + layout seams — pure, no I/O. For the regression suite.
     _reduceBoard: reduceBoard,
     _buildView: buildView,

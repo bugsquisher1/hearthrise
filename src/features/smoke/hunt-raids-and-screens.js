@@ -1138,30 +1138,24 @@ export default [
     window.G.companions = JSON.parse(snap);
   }),
 
-  // Render-layer extraction guard: the Lifetime Stats modal moved out of
-  // legacy.js into src/render/lifetime-stats.js (first strangler-fig render
-  // extraction, 2026-08-18). This asserts the extracted surface still exposes
-  // its entry point, renders identically (every section header + a couple of
-  // derived numbers read off G.stats), and that its wired ESC handler closes
-  // it. Behavior-identical is the contract for a pure refactor.
+  // The Lifetime Stats sheet (src/render/lifetime-stats.js) prints only the
+  // realm's counts: every value cell is a figure or the pending dash, never a
+  // client-kept number, and its wired ESC handler closes it.
   () => tryRun('render: lifetime stats modal (extracted surface)', () => {
     assert(typeof window.openLifetimeStats === 'function',
       'openLifetimeStats must stay on window (invoked by inline onclick handlers)');
-    const s = window.G.stats = window.G.stats || {};
-    const snap = JSON.stringify(s);
-    s.kills = 4242; s.deaths = 7;
     window.openLifetimeStats();
     const modal = document.getElementById('lifetime-stats');
     assert(modal, 'lifetime-stats modal element not created');
     assert(modal.classList.contains('show'), 'lifetime-stats modal did not open (missing .show)');
     const html = modal.innerHTML;
-    ['Lifetime Stats', 'Combat', 'Economy', 'Bounty Hunter', 'Production']
+    ['Lifetime Stats', 'Fighting', 'Gathering', 'At the bench', 'Purse']
       .forEach(h => assert(html.indexOf(h) >= 0, 'lifetime stats missing section: ' + h));
-    assert(html.indexOf((4242).toLocaleString()) >= 0, 'lifetime stats did not render kills off G.stats');
-    // The wired ESC handler must close it (moved with the surface).
+    const bad = [...modal.querySelectorAll('.stats-row .val, .stat-tile b')]
+      .filter((el) => !el.querySelector('.bal-pending') && !el.classList.contains('bal-pending') && !/\d/.test(el.textContent));
+    assert(bad.length === 0, 'a value cell is neither a figure nor the pending dash: ' + bad.map((el) => el.textContent).join(' | '));
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     assert(!modal.classList.contains('show'), 'ESC did not close the lifetime-stats modal');
-    window.G.stats = JSON.parse(snap);
   }),
 
   // render-layer extraction: the Profile "Objectives" popout moved out of
@@ -1219,14 +1213,14 @@ export default [
     }
   }),
 
-  // 3rd render-layer extraction: the Achievements presentation (unlock toast +
-  // full modal) moved out of legacy.js to src/render/achievements.js. Pure
-  // refactor — both fns must stay on window: showAchToast (checkAchievements
-  // calls it by bare global on unlock) and openAchievements (inline onclick in
-  // the achievements button row + profile toolbar). Read-only surface.
+  // The Achievements presentation (unlock toast + sheet) lives in
+  // src/render/achievements.js. Both fns must stay on window: showAchToast (the
+  // deeds watcher opens it on a crossing) and openAchievements (inline onclick in
+  // the achievements button row + profile toolbar). Read-only surface: the
+  // grades come from HearthriseDeeds, never a record in G.
   () => tryRun('render: achievements toast + modal (extracted surface)', () => {
     assert(typeof window.showAchToast === 'function',
-      'showAchToast must stay on window (checkAchievements calls it on unlock)');
+      'showAchToast must stay on window (the deeds watcher calls it on a crossing)');
     assert(typeof window.openAchievements === 'function',
       'openAchievements must stay on window (invoked by inline onclick handlers)');
     // Toast: paints from the def it is handed, appends to body, auto-removes.
@@ -1237,10 +1231,9 @@ export default [
     const toast = toasts[toasts.length - 1];
     assert(toast.innerHTML.indexOf('Smoke Test Trophy') >= 0, 'toast did not render the achievement name');
     toast.remove(); // don't leave it lingering for the 4.2s timer
-    // Modal: reads window.ACHIEVEMENTS + G.achievements and paints a sorted list.
+    // Sheet: reads the deeds catalogue and paints one row per deed, headings apart.
     assert(Array.isArray(window.ACHIEVEMENTS) && window.ACHIEVEMENTS.length > 0,
       'ACHIEVEMENTS catalogue must be published for the modal to read');
-    const snap = JSON.stringify(window.G.achievements || {});
     window.openAchievements();
     const ov = document.getElementById('ach-overlay');
     assert(ov, 'ach-overlay element not created');
@@ -1249,7 +1242,43 @@ export default [
     assert(list && list.querySelectorAll('.ach-row').length === window.ACHIEVEMENTS.length,
       'modal must render one .ach-row per catalogue entry');
     ov.classList.remove('show');
-    window.G.achievements = JSON.parse(snap);
+  }),
+
+  () => tryRun('DEEDS-A: a deed is graded on the reader it is handed, and unknown is the pending dash', () => {
+    const D = window.HearthriseDeeds, row = (id) => D.rows.find((r) => r.id === id);
+    const R = (o) => Object.assign({ tally: () => null, skillLevel: () => null, skillIds: () => ['attack', 'mining'],
+      roomsOf: () => null, roomIds: () => ['kitchen', 'forge', 'library'], monsterKnown: () => false,
+      monsterKills: () => 0, monsterName: () => 'Green Dragon' }, o);
+    const unk = D.progressOf(row('kill_1000'), R());
+    assert(!unk.known && !unk.done && /bal-pending/.test(unk.html), 'unknown must be the pending dash, got ' + unk.html);
+    const at = (n) => D.progressOf(row('kill_1000'), R({ tally: (k) => (k === 'kills' ? n : null) }));
+    assert(!at(999).done && at(999).html === (999).toLocaleString() + ' / ' + (1000).toLocaleString(), '999 of 1000 is not done: ' + at(999).html);
+    assert(at(1000).done && at(1000).html === 'Earned', '1000 of 1000 must be Earned');
+    const all = D.progressOf(row('house_all'), R({ roomsOf: () => ({ known: true, map: { kitchen: 1, forge: 2 } }) }));
+    assert(all.target === 3 && all.have === 2 && !all.done, 'house_all must target roomIds().length: ' + JSON.stringify(all));
+    const hi = D.progressOf(row('lv25_any'), R({ skillLevel: (id) => (id === 'attack' ? 30 : null) }));
+    assert(!hi.known, 'skill:highest must be unknown while any skill is unknown');
+    const dr = D.progressOf(row('dragon_slayer'), R());
+    assert(!dr.known && /bal-pending/.test(dr.html), 'the dragon must be pending (not 0) while the counts are unknown');
+    assert(D.progressOf(row('dragon_slayer'), R({ monsterKnown: () => true, monsterKills: () => 1 })).done, 'a known kill is done');
+  }),
+
+  () => tryRun('DEEDS-B: the deed watcher seeds per deed, waits while busy, and toasts once per batch', () => {
+    const D = window.HearthriseDeeds, box = {}, calls = [], KEY = 'hearthrise:deeds-seen';
+    const store = { getJSON: (k, d) => (k in box ? JSON.parse(box[k]) : d), setJSON: (k, v) => { box[k] = JSON.stringify(v); } };
+    const T = (states, o) => D.tick(Object.assign({ parked: false, uid: 'u1', slot: 0, states, store,
+      busy: () => false, open: (ids) => calls.push(ids) }, o));
+    assert(T({ a: 'done', b: 'open', c: 'unknown', d: 'open' }) === 'seeded' && !calls.length, 'first sight must seed silently');
+    const up = { a: 'done', b: 'done', c: 'unknown', d: 'done' }, before = JSON.stringify(box);
+    assert(T(up, { busy: () => true }) === 'waiting' && JSON.stringify(box) === before, 'busy must leave the store untouched');
+    assert(T(up) === 'opened' && calls.length === 1 && calls[0].join() === 'b,d', 'a batch of 2 must be 1 call: ' + JSON.stringify(calls));
+    const late = Object.assign({}, up, { c: 'done' });
+    assert(T(late) === 'seeded' && calls.length === 1, 'a deed known late and already done must seed silently');
+    assert(T(late) === 'quiet', 'nothing new must be quiet');
+    const parkedBefore = JSON.stringify(box);
+    assert(T(late, { parked: true }) === 'parked' && JSON.stringify(box) === parkedBefore, 'parked must write nothing');
+    assert(T(late, { slot: 1 }) === 'seeded' && calls.length === 1 && JSON.parse(box[KEY])['u1:1'].a === 1,
+      'slot 1 must seed its own record');
   }),
 
   () => tryRun('render: bestiary modal (extracted surface)', () => {
@@ -1371,42 +1400,33 @@ export default [
   }),
 
   // 10th render-layer extraction: the vendor Buy Back modal moved out of
-  // legacy.js to src/render/buyback.js. Pure refactor — openBuyback + renderBuyback
-  // must stay on window (shop.js inline onclick="openBuyback()" and repurchase()'s
-  // bare renderBuyback() call both resolve to the globals). Read-only paint of the
-  // G.buyback journal; the gold/inventory mutation stays in repurchase() in legacy.
+  // legacy.js to src/render/buyback.js. openBuyback + renderBuyback must stay on
+  // window (repurchase() and repaintBalanceSurfaces() call renderBuyback bare).
   () => tryRun('render: buy back modal (extracted surface)', () => {
-    assert(typeof window.openBuyback === 'function',
-      'openBuyback must stay on window (shop.js inline onclick="openBuyback()")');
-    assert(typeof window.renderBuyback === 'function',
-      'renderBuyback must stay on window (repurchase() calls it after a buy-back)');
-    const savedBuyback = window.G.buyback;
+    assert(typeof window.openBuyback === 'function', 'openBuyback must stay on window');
+    assert(typeof window.renderBuyback === 'function', 'renderBuyback must stay on window');
+    window.openBuyback();
+    const m = document.getElementById('bb-modal');
+    assert(m && m.classList.contains('show'), 'buy-back modal did not open (missing .show)');
+    m.classList.remove('show');
+  }),
+
+  () => tryRun('BUYBACK-FAIL-CLOSED-1: Buy Back offers no enabled buy control while the server has no buy-back verb', () => {
+    // Every repurchase() tap failed closed under armed gold while the sheet painted
+    // enabled 'Buy back · N gp' buttons and the More sheet carried a door to it.
+    const sites = window.HearthriseGoldSites;
+    assert(sites && !sites.isWiredSite('src/screens/shop-counter.js#repurchase'),
+      'repurchase is wired now — reopen the counter from the server list and retire this test');
     try {
-      // Empty journal → the empty-state copy.
-      window.G.buyback = [];
       window.openBuyback();
-      const m = document.getElementById('bb-modal');
-      assert(m, 'bb-modal was not created by openBuyback');
-      assert(m.classList.contains('show'), 'buy-back modal did not open (missing .show)');
-      let body = document.getElementById('bb-modal-body');
-      assert(body && body.innerHTML.indexOf('Nothing to buy back') >= 0,
-        'empty buy-back journal did not render its empty state');
-      // A journalled sale → one .bb-row with a repurchase() Buy Back control.
-      const anyId = Object.keys(window.ITEMS || {})[0];
-      assert(anyId, 'ITEMS empty — cannot seed a buy-back row');
-      window.G.buyback = [{ id: anyId, qty: 2, unit: 5 }];
-      window.renderBuyback();
-      body = document.getElementById('bb-modal-body');
-      const rows = body.querySelectorAll('.bb-row');
-      assert(rows.length === 1, 'expected exactly one buy-back row, got ' + rows.length);
-      const btn = rows[0].querySelector('button');
-      assert(btn && btn.getAttribute('onclick').indexOf('repurchase(0)') >= 0,
-        'buy-back row is missing its repurchase(0) control');
-      // Close control removes .show.
-      m.classList.remove('show');
-      assert(!m.classList.contains('show'), 'buy-back modal did not close');
+      const body = document.getElementById('bb-modal-body');
+      assert(/The realm keeps no buy-back counter yet/.test(body.textContent), 'the closed reason is missing');
+      const live = [...body.querySelectorAll('button')].filter((b) => !b.disabled);
+      assert(live.length === 0, live.length + ' enabled buy-back control(s) rendered');
+      const door = [...document.querySelectorAll('#more-modal button')].filter((b) => /buy\s*back/i.test(b.textContent) && !b.disabled);
+      assert(door.length === 0, 'the More sheet still opens the buy-back counter');
     } finally {
-      window.G.buyback = savedBuyback;
+      window.closeAllModals();
     }
   }),
 
@@ -1659,20 +1679,20 @@ export default [
 
   () => tryRun('clicks: profile feat-buttons (achievements/bestiary/etc)', () => {
     window.showTab('profile');
-    const btns = document.querySelectorAll('#panel-profile .feat-buttons button, #panel-profile .feat-buttons .stats-btn-trigger');
+    const btns = document.querySelectorAll('#panel-profile .feat-buttons button');
     /* This was a bare `>= 4`, which silently encoded a FOURTH button that
        no longer exists: welcome-v2's "Last Session Summary" (retired in a779c9cf,
        Set the Night, FEATURE_SLATE.md §3). A count threshold cannot tell "the row
        shrank by ruling" from "a button was dropped by accident", so it is now the
        NAMED census of the surviving row:
          · Achievements + Bestiary — injectProfileButtons(), src/legacy.js
-         · Lifetime Stats          — src/render/lifetime-stats.js
+         (Lifetime Stats' doors are the Hero tab foot row and the More sheet.)
          · Codex                   — injectProfileButtons(); its open() awaits a
            dynamic import, so it is clicked through by CODEX-1 (which awaits and
            closes it), not by this synchronous loop.
        Both directions bite: a missing entry is a lost button, an unexpected entry
        is a button added without being clicked-through here. */
-    const EXPECT_FEATS = ['achievements', 'bestiary', 'lifetime stats', 'codex'];
+    const EXPECT_FEATS = ['achievements', 'bestiary', 'codex'];
     const labels = [...btns].map((b) => (b.textContent || '').trim().toLowerCase());
     const missing = EXPECT_FEATS.filter((n) => !labels.some((l) => l.includes(n)));
     assert(missing.length === 0, 'profile feat button(s) missing from the row: ' + missing.join(', ') + ' (present: ' + labels.join(' | ') + ')');

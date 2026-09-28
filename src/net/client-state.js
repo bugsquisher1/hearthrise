@@ -12,7 +12,7 @@
 //
 // THE RESIDUE (the fields this store carries):
 //   · bountyHunter (MINUS marks and xp — both are server-owned)
-//   · stats            (kills/gathered/harvested/rareDrops/playMs — counters)
+//   · stats            (kills/gathered/harvested/rareDrops — goal counters)
 //   · chronicle        (the permanent achievement log)
 //   · activeStyle      (which loadout is active — a pref)
 //   … plus the self-only tail (settings, houseTheme, daily, collection, quests,
@@ -117,9 +117,9 @@ export const RESIDUE_FIELDS = Object.freeze([
   'bountyHunter',   // client-only board + contract state (completed/board/rerolls/warrants). WHOLLY
                     // residue: marks are the record's top-level G.marks and BH xp is a server SKILL,
                     // and hydrateInto + buildResiduePatch DROP both keys, so the bag shadows neither
-  'stats',          // client-only counters (kills/gathered/harvested/rareDrops/playMs). The envelope
-                    // projects no lifetime totals — the per-monster kills are hr_bestiary_of's — so
-                    // there is nothing here to prefer
+  'stats',          // the goal engine's device counters (kills/gathered/harvested/rareDrops). The envelope
+                    // DOES project the lifetime stat rows; screens read them through HearthriseLifetime
+                    // (src/features/lifetime-tally.js), never this bag
   'chronicle',      // client-only log: rank-ups, 99s, first kills. Nothing reads it for a gate;
                     // capped at 500 entries by chronicle.js compaction
   'activeStyle',    // client-only preference: which saved loadout is active (the gear is the record's)
@@ -255,8 +255,6 @@ export const RESIDUE_FIELDS = Object.freeze([
   'lootFilter',
   'autoActions',    // auto-eat food pick / auto-replant prefs (the auto-eat TRIGGER itself is server: hr_set_auto_eat)
   'lastWelcome',    // client-only marker: which build's welcome/changelog sheet has been SHOWN
-  'achievements',   // client-only progress: {id:{progress,unlocked}}. Derived from counters the client holds;
-                    // re-deriving on every boot re-toasts every unlock, which is the only thing it can get wrong
   /* ⚠ `dungeons` ({ lastRun:{id:ms} }) was the seventeenth name here and is DELETED,
      not re-homed. It was a CLIENT-CLOCK cooldown stamp, and the server now owns the
      re-entry window: hr_dungeon_settle refuses inside it and hr_state_of projects

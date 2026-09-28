@@ -386,14 +386,15 @@ export default [
         'welcome-v2 is back, and with it a second surface that can disagree with the reward sheet '
         + 'about what a "streak" is. See NIGHT-4.');
 
-      // ── 5. THE ACHIEVEMENTS that read streak.count must not say "login". ───
-      const ACH = window.ACHIEVEMENTS || (window.__LEGACY_INLINE || {}).ACHIEVEMENTS || [];
-      const playAch = ACH.filter((a) => a && a.src === 'streak.count');
-      assert(playAch.length >= 2, 'CONTROL: the play-streak achievements must still exist, got ' + playAch.length);
-      playAch.forEach((a) => {
-        assert(!/login/i.test(a.desc || ''),
-          'achievement "' + a.id + '" counts the PLAY streak but its description says "login streak", '
-          + 'which points the player at the reward cycle instead: ' + JSON.stringify(a.desc));
+      /* ── 5. NO DEED grades on a streak, and none says "login". The play
+         streak is the current run and resets on a missed day, so a deed that had
+         toasted would be taken back; the streak deeds are retired (tests/deeds.mjs
+         DEED-3), and no deed may point the player at the reward cycle. */
+      const ACH = window.ACHIEVEMENTS || [];
+      assert(ACH.length === 30, 'CONTROL: the thirty deeds must be published, got ' + ACH.length);
+      ACH.forEach((a) => {
+        assert(!/streak/.test(String(a.source)), 'deed "' + a.id + '" grades on a streak, which resets: ' + a.source);
+        assert(!/login/i.test(a.desc || ''), 'deed "' + a.id + '" says "login": ' + JSON.stringify(a.desc));
       });
 
       /* ── 6. RENOWN'S OWN LABEL for the same quantity. `streakBest` reads
@@ -413,23 +414,21 @@ export default [
           'renown WEIGHT_LABELS.streakBest must name what it counts, got: ' + JSON.stringify(lbl));
       }
 
-      /* ── 7. THE THIRD STREAK. Lifetime Stats carries a KILL streak, and an
-         unqualified "Current streak" on a stats screen is read against the
-         topbar flame. Every streak in the game must be qualified by what it
-         counts — that is the whole rule, applied to the surface that has no
-         daily/claim involvement at all. */
+      /* ── 7. NO STREAK ON LIFETIME STATS. The kill streak was a client-kept
+         count, and any streak on a stats screen is read against the topbar
+         flame. The sheet shows only the realm's lifetime counts, so it names
+         no streak at all. */
       assert(typeof window.openLifetimeStats === 'function',
         'openLifetimeStats must be on window (it is the only door to the Lifetime Stats copy)');
       window.openLifetimeStats();
       const ls = document.getElementById('lifetime-stats');
       assert(!!ls, 'the Lifetime Stats modal must build');
       const lsText = ls.textContent || '';
-      assert(/kill streak/i.test(lsText),
-        'CONTROL: Lifetime Stats must actually be rendering a kill-streak row');
-      assert(!/(^|[^a-z])Current streak([^a-z]|$)/i.test(lsText),
-        'Lifetime Stats renders a bare "Current streak" — qualify it ("Current kill streak"). '
-        + 'Three quantities in this game are called a streak; an unqualified one on a stats screen '
-        + 'is read against the topbar flame, which counts something else.');
+      assert(/Monsters slain/.test(lsText),
+        'CONTROL: Lifetime Stats must actually be rendering its Monsters slain row');
+      assert(!/streak/i.test(lsText),
+        'Lifetime Stats names a streak — it shows the realm\'s lifetime counts only, and a streak '
+        + 'there is read against the topbar flame, which counts something else.');
       ls.classList.remove('show');
     } finally {
       const el = document.getElementById('hr-dl-modal'); if (el) el.remove();
@@ -2510,7 +2509,7 @@ export default [
        missing" must never be the default for something new. */
     assert(A.channelApplies('a_channel_invented_next_year', { away: true }) === true,
       'an unknown bonus channel must default to APPLYING away, not to silently vanishing');
-    if (E && typeof E.summaryFor === 'function') { /* pool wiring covered by the b227 suite */ }
+    assert(E && E.isActive() === true, 'the calendar must agree with the latch outside a replay');
   }),
 
   () => tryRun('AWAY-7: away kills feed the drop log, dailies, quests and rollKillDeed; an away death increments stats.deaths', () => {
@@ -3757,7 +3756,7 @@ export default [
       /* Item 1 — the duration is the REAL span, not the 0.1h-rounded number,
          and the rate statement is unconditional. */
       assert(/8h 12m away/.test(txt), 'the band must print the real span ("8h 12m"), got: ' + txt);
-      assert(/base rate/i.test(txt) && /blessings and food buffs pay while you play/i.test(txt),
+      assert(/base rate/i.test(txt) && /food buffs pay while you play/i.test(txt),
         'the band must state that the absence paid the base rate: ' + txt);
       /* Item 2 — away combat reports its crits. */
       assert(/142 kills/.test(txt) && /21 crits/.test(txt),
@@ -3768,7 +3767,7 @@ export default [
       assert(/\+50% drops/.test(txt), 'the band must quote the multiplier the payload carried: ' + txt);
       /* Item 3 — a held buff is reported as paused, not as paid. */
       assert(/paused/i.test(txt), 'the band must say the held buffs were paused: ' + txt);
-      assert(!/blessing.*applied|blessed/i.test(txt.replace(/blessings and food buffs pay while you play/i, '')),
+      assert(!/blessing.*applied|blessed/i.test(txt.replace(/food buffs pay while you play/i, '')),
         'the band must never claim a blessing was applied: ' + txt);
 
       /* The other direction. A quiet night: no combat, no buffs held, no

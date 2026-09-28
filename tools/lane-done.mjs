@@ -58,6 +58,11 @@ const STEPS = [
   // job (tests/guards-unregistered.json).
   ['node', ['tests/ledger-rollup.mjs']],
   ['node', ['tests/ledger-rollup.mjs', '--mutate']],
+  // SETTLE BEFORE MUTATE (Security F1, 2026-09-28): every edge verb that adds a
+  // priceable input settles the open window at the OLD state first — a pickaxe
+  // or a feast at return must not re-price the absence. One chain replay, ~5 s
+  // warm. Its CI home, with the --mutate arm, is the economy-selftests job.
+  ['node', ['tests/absence-priced-at-return.mjs']],
   // Shipped copy promises no retired capability (local save, offline mode, save files). ~600 ms.
   ['node', ['tests/retired-capability-copy.mjs']],
   ['node', ['tests/retired-capability-copy.mjs', '--selftest']],

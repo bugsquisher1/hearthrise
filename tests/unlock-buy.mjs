@@ -231,14 +231,14 @@ const MUTATIONS = {
     file: FN('intents.js'),
     why: 'C4 — the registry names a rate bucket the database does not have; if nothing READS the '
        + 'registry this is invisible',
-    find: "  unlock_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: false }),",
-    repl: "  unlock_buy: Object.freeze({ bucket: 'shoppe', needsKey: true, collectsFirst: false }),",
+    find: "  unlock_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),",
+    repl: "  unlock_buy: Object.freeze({ bucket: 'shoppe', needsKey: true, collectsFirst: true }),",
   },
   registry_needs_key_false: {
     file: FN('intents.js'),
     why: 'C4 — the registry says a permanent purchase needs no idempotency key',
-    find: "  unlock_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: false }),",
-    repl: "  unlock_buy: Object.freeze({ bucket: 'shop', needsKey: false, collectsFirst: false }),",
+    find: "  unlock_buy: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),",
+    repl: "  unlock_buy: Object.freeze({ bucket: 'shop', needsKey: false, collectsFirst: true }),",
   },
   receipt_on_replay: {
     file: FN('unlock-buy.js'),
@@ -912,7 +912,9 @@ async function run(mutate) {
     ok(/gateAndRead\(/.test(src),
       'U11: the verb no longer uses spend.js gateAndRead — the rate gate, the bucket lookup and '
       + 'the envelope-carrying refusal would then be four implementations instead of one');
-    ok(/collectsFirst\(/.test(src),
+    /* The column is read through settle-first.js, the one implementation of
+       settle-before-mutate (2026-09-28); the verb must reach it. */
+    ok(/settleBeforeMutate\(/.test(src),
       'U11: the registry column collectsFirst has no reader in this verb — a rule nothing reads '
       + 'is not a rule (C4)');
   } catch (e) { if (!(e instanceof Red)) throw e; }
@@ -927,9 +929,11 @@ async function run(mutate) {
       + 'one budget, and an unknown bucket fails closed as a 429');
     ok(it.requiresKey('unlock_buy') === true,
       'U12: a permanent purchase without a required idempotency key retries into a double charge');
-    ok(it.collectsFirst('unlock_buy') === false,
-      'U12: unlock_buy claims to collect first and implements no collect — the read FAILS CLOSED, '
-      + 'so this would refuse every purchase in the game');
+    /* A rung is a permanent perk the settle reads (hr_perks_of), so the open
+       window is settled at the OLD rung first (Security F1, 2026-09-28). */
+    ok(it.collectsFirst('unlock_buy') === true && it.closesWindow('unlock_buy') === false,
+      'U12: unlock_buy does not settle first — a rung bought at return would price the whole '
+      + 'absence at the new perk');
     const parsed = req.parseIntent({ verb: 'unlock_buy', slot: 0, intentId: uuid(), offer: 'room.kitchen.1' });
     ok(parsed && parsed.verb === 'unlock_buy' && parsed.offer === 'room.kitchen.1',
       `U12: the parser did not carry the verb and offer through: ${JSON.stringify(parsed)}`);

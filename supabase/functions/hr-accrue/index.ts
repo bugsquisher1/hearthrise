@@ -382,9 +382,15 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
        ONE call site, not eight — see supabase/functions/hr-accrue/party-fence
        .js for why, and for why it fails closed. It costs a read only for a verb
        it could actually refuse. */
+    /* A SETTLE-BEFORE-MUTATE verb on a partied character is not refused: it
+       proceeds WITHOUT its settle, because the party already prices that window
+       (party-fence.js, "the second class"). The flag is the fence's answer,
+       never a request field. */
+    let partyOwnsWindow = false;
     {
-      const refusal = await partyIntentFence({ exec, user, slot, verb: intent.verb });
-      if (refusal) return json(refusal.body, refusal.status);
+      const fence = await partyIntentFence({ exec, user, slot, verb: intent.verb });
+      if (fence && fence.partyOwnsWindow === true) partyOwnsWindow = true;
+      else if (fence) return json(fence.body, fence.status);
     }
 
     /* ── VERB DISPATCH ─────────────────────────────────────────────────────
@@ -450,6 +456,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     if (intent.verb === 'eat') {
       const out = await runEat({
         exec,
+        partyOwnsWindow,
         user,                       // the VERIFIED subject, never a body field
         slot,
         intentId: intent.intentId,
@@ -474,6 +481,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     if (intent.verb === 'shop_buy') {
       const out = await runShopBuy({
         exec,
+        partyOwnsWindow,
         user,
         slot,
         intentId: intent.intentId,
@@ -486,6 +494,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     if (intent.verb === 'vendor_sell') {
       const out = await runVendorSell({
         exec,
+        partyOwnsWindow,
         user,
         slot,
         intentId: intent.intentId,
@@ -503,6 +512,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     if (intent.verb === 'claim_reward') {
       const out = await runClaimReward({
         exec,
+        partyOwnsWindow,
         user,                       // the VERIFIED subject, never a body field
         slot,
         intentId: intent.intentId,
@@ -520,6 +530,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     if (intent.verb === 'unlock_buy') {
       const out = await runUnlockBuy({
         exec,
+        partyOwnsWindow,
         user,                       // the VERIFIED subject, never a body field
         slot,
         intentId: intent.intentId,
@@ -539,6 +550,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     if (intent.verb === 'dungeon_settle') {
       const out = await runDungeonSettle({
         exec,
+        partyOwnsWindow,
         user,                       // the VERIFIED subject, never a body field
         slot,
         intentId: intent.intentId,
@@ -557,6 +569,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     if (intent.verb === 'quartermaster_buy') {
       const out = await runQuartermasterBuy({
         exec,
+        partyOwnsWindow,
         user,                       // the VERIFIED subject, never a body field
         slot,
         intentId: intent.intentId,
@@ -603,6 +616,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     if (intent.verb === 'market_list') {
       const out = await runMarketList({
         exec,
+        partyOwnsWindow,
         user,                       // the VERIFIED subject, never a body field
         slot,
         intentId: intent.intentId,
@@ -616,6 +630,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     if (intent.verb === 'market_cancel') {
       const out = await runMarketCancel({
         exec,
+        partyOwnsWindow,
         user,
         slot,
         intentId: intent.intentId,
@@ -627,6 +642,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     if (intent.verb === 'market_buy') {
       const out = await runMarketBuy({
         exec,
+        partyOwnsWindow,
         user,
         slot,
         intentId: intent.intentId,

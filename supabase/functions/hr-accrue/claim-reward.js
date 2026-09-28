@@ -67,16 +67,14 @@
 //    `src/data/rewards.js`, which is vendored into this payload and imported by
 //    the browser from the same file.
 //
-// 2. IT DOES **NOT** COLLECT FIRST, AND THAT IS DERIVED RATHER THAN CHOSEN.
-//    `hr_apply` stamps `accrued_to = now()` on a delta carrying `equip` or
-//    `activity`, and on nothing else (apply-engine §S5). A claim's delta carries
-//    gold, gems, progress, progress_claim and journal — so no unpaid window is
-//    closed and there is nothing to confiscate. Collecting first would cost a
-//    round trip and buy nothing.
-//    ⚠ That is a fact about a DELTA, so it is CHECKED AT RUNTIME
-//      (`deltaClosesWindow`) rather than asserted in prose. The day a reward
-//      wants to equip what it grants, this intent refuses (`would_confiscate`)
-//      instead of silently eating somebody's night.
+// 2. IT SETTLES FIRST (2026-09-28, Security F1) — AND ITS DELTA NEVER STAMPS.
+//    Until then this said "it does not collect first", derived from the fact
+//    that a claim's delta stamps nothing and so confiscates nothing. That fact
+//    still holds and is still CHECKED AT RUNTIME (`deltaClosesWindow`, refused
+//    `would_confiscate`). What it missed: a claim can GRANT A PRICEABLE INPUT
+//    (a tool), and the next settle priced the whole absence with it. So the
+//    open window is settled at the old state (settle-first.js) before the
+//    grant's apply. See intents.js SETTLE-BEFORE-MUTATE.
 //
 // 3. A REJECTED INTENT IS RETRIED WITH A NEW KEY. Inherited verbatim; the
 //    contract's §"A REJECTED INTENT IS RETRIED WITH A NEW KEY" governs. Note
@@ -175,10 +173,11 @@
 // ============================================================================
 
 import {
-  intentSpec, requiresKey, rateBucketFor, collectsFirst,
+  intentSpec, requiresKey, rateBucketFor, closesWindow,
   claimIntentNameFor, deltaClosesWindow, INTENT_ERRORS,
 } from './intents.js';
 import { refusalBody } from './envelope.js';
+import { settleBeforeMutate } from './settle-first.js';
 import {
   CLAIMABLES, claimableFor, claimableId, priceDailyLogin, deriveLoginStreak,
 } from '../../../src/data/rewards.js';
@@ -486,6 +485,7 @@ const READ_SQL = `
          case when g.allowed then public.hr_state_of($1::uuid, $2::int) end   as state,
          case when g.allowed
               then public.hr_claim_lookup($1::uuid, $2::int, $4::text, $5::text) end as lookup,
+         case when g.allowed then public.hr_offline_cap_ms($1::uuid, $2::int) end as cap_ms,
          now()                                                               as now
     from g`;
 
@@ -595,10 +595,10 @@ export async function runClaimReward(o) {
     };
   }
 
-  /* (3) THE DELTA, and the fail-closed window check. See intents.js's
-         registry row: `collectsFirst:false` is only correct while the delta
-         cannot stamp `accrued_to`. Checked rather than trusted, because the
-         failure it guards is silent — an unpaid night, no error anywhere. */
+  /* (3) THE DELTA, and the fail-closed window check. A claim is not a SWITCH
+         (intents.js SWITCH_VERBS), so its delta must never stamp `accrued_to`:
+         the settle below defers its remainder, and a stamp would confiscate it.
+         Checked rather than trusted, because the failure it guards is silent. */
   /* `gate.period`, NOT `lookup.today`. The gate is what decided which period was
      checked for a foreign row, and it is the only thing that knows a
      non-periodic claimable is filed under ''. Handing claimDelta `lookup.today`
@@ -606,7 +606,7 @@ export async function runClaimReward(o) {
   const delta = claimDelta({
     kind: v.kind, key: v.key, spec: v.spec, period: gate.period, priced,
   });
-  if (deltaClosesWindow(delta) && !collectsFirst(VERB)) {
+  if (deltaClosesWindow(delta) && !closesWindow(VERB)) {
     return {
       status: 409,
       body: await refusalBody({
@@ -614,8 +614,8 @@ export async function runClaimReward(o) {
         refusal: {
           error: INTENT_ERRORS.WOULD_CONFISCATE, stage: 'claim',
           detail: {
-            why: 'this delta would stamp accrued_to on a verb that does not collect first, '
-               + 'discarding the elapsed window',
+            why: 'this delta would stamp accrued_to on a verb that is not a switch, '
+               + 'discarding the window its settle deferred',
             spec: intentSpec(VERB),
           },
         },
@@ -624,9 +624,22 @@ export async function runClaimReward(o) {
     };
   }
 
-  /* (4) APPLY. The single writer. The version is the one just read — a claim
-         does not collect, so nothing has bumped it in between. */
-  const [applied] = await exec(APPLY_SQL, [user, slot, env.version, intentId, JSON.stringify(delta)]);
+  /* (3b) ⚠ SETTLE BEFORE THE GRANT (Security F1, 2026-09-28). A claim can put
+         a priceable input in the bag (road_forge → iron_pickaxe), and the next
+         settle would price the whole absence with it. AFTER pricing, so a claim
+         refused on the catalogue or the period costs no settle; BEFORE the
+         apply, which then runs at the version the settle left. Pricing reads
+         the claim history (`lookup`), which a settle never writes. */
+  const settled = await settleBeforeMutate({
+    exec, user, slot, verb: VERB, env,
+    nowMs: new Date(read.now).getTime(), capMs: Number(read.cap_ms) || 0,
+    partyOwnsWindow: o.partyOwnsWindow === true,
+  });
+  if (!settled.proceed) return settled.refusal;
+  const collected = settled.collected;
+
+  /* (4) APPLY. The single writer, at the version the settle left. */
+  const [applied] = await exec(APPLY_SQL, [user, slot, settled.version, intentId, JSON.stringify(delta)]);
   const res = applied && applied.res;
 
   if (!res || res.ok !== true) {
@@ -639,7 +652,10 @@ export async function runClaimReward(o) {
       status: 409,
       body: await refusalBody({
         exec, verb: VERB, user, slot,
-        refusal: { error: res && res.error ? res.error : 'apply_failed', stage: 'claim', detail: res ?? null },
+        refusal: {
+          error: res && res.error ? res.error : 'apply_failed', stage: 'claim', detail: res ?? null,
+          collected,
+        },
         fallback: null,
       }),
     };
@@ -664,6 +680,8 @@ export async function runClaimReward(o) {
         gems: priced.gems || 0,
         ...(priced.meta || {}),
       },
+      /* The settle's receipt: the window paid BEFORE the grant, by this call. */
+      collected,
       ...(res.replayed === true ? { replayed: true } : {}),
     },
   };

@@ -143,20 +143,6 @@
   display: none !important;
 }
 #panel-profile .prof-toolbar { display: none !important; }
-/* Lifetime Stats button — now lives inside the .feat-buttons row at the top
-   of the Profile panel (alongside Achievements / Bestiary). NOT absolutely
-   positioned anymore — see the UI overlap detector violation that flagged
-   this in May 2026. */
-#panel-profile .stats-btn-trigger {
-  position: static !important;
-  height: auto !important; width: auto !important;
-  padding: 6px 12px !important; font-size:calc(14.5px * var(--ui-scale, 1)) !important;
-  letter-spacing: .04em; border-radius: 6px;
-  background: rgba(243,209,129,.14);
-  border: 1px solid rgba(243,209,129,.35);
-  color: var(--gold-2); cursor: pointer;
-}
-#panel-profile .stats-btn-trigger:hover { background: rgba(243,209,129,.22); }
 
 /* ─── Profile dashboard polish ───
    Discovered during the May usability bug bash:
@@ -205,15 +191,11 @@
   justify-content: flex-start !important;
   margin: 12px 0 !important;
 }
-#panel-profile .feat-buttons .btn,
-#panel-profile .feat-buttons .stats-btn-trigger {
+#panel-profile .feat-buttons .btn {
   flex: 0 1 auto;
   font-size:calc(14.5px * var(--ui-scale, 1)) !important;
   padding: 8px 14px !important;
-  /* Override legacy.css's `.stats-btn-trigger { margin-left: auto }`
-     which was pushing the Lifetime Stats button to the far right of
-     the flex row, leaving a giant gap. Now sits flush with the
-     other feat-buttons. */
+  /* Every button in the row sits flush; none pushes itself right. */
   margin-left: 0 !important;
 }
 /* Make the Active Effects card feel intentional even when empty —

@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-28",
- "replay_ms": 21129,
+ "replay_ms": 19817,
  "counts": {
-  "tracked_names": 60,
-  "entries": 57
+  "tracked_names": 61,
+  "entries": 58
  },
  "functions": [
   {
@@ -1144,6 +1144,30 @@
    "replay": {
     "md5": "1a9bfb987e8c7659638b1b57bc15c827",
     "norm_len": 31560,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_tick_cron_note(p_outcome text, p_ms integer, p_rostered integer, p_eff integer, p_detail jsonb)",
+   "name": "hr_tick_cron_note",
+   "tracked_by": [
+    "chain"
+   ],
+   "touched_by": [
+    "2026-09-21-world-tick-cron.sql",
+    "2026-09-28-tick-harvest-off-rpc-surface.sql",
+    "2026-09-28-world-tick-stall-observability.sql"
+   ],
+   "live": {
+    "md5": "af9bfb288f533db72fba4e5142a9bfbf",
+    "norm_len": 987,
+    "measured": "2026-09-28",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "af9bfb288f533db72fba4e5142a9bfbf",
+    "norm_len": 987,
     "source": "computed-from-replay"
    },
    "agree": true

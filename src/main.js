@@ -265,6 +265,7 @@ import './net/record.js?v=559';
 // It is NOT behind the kill switch: it is a read shape, correct in both
 // positions, and today it answers exactly what the raw read answered.
 import './net/balance.js?v=559';
+import './features/lifetime-tally.js?v=559';
 // b429 — the READ side of server-owned SKILL XP, the analogue of balance.js for
 // the `skills` record entry (shipped DORMANT in record.js behind
 // SKILLS_RECORD_ARM_ENABLED). A no-op today: `skills` is not on the active
@@ -451,6 +452,7 @@ import { setupBestiaryTrophies } from './render/bestiary-trophies.js?v=559';
    not rendered (see the fail-safe block in src/net/town.js). */
 import { startTownChannel } from './net/town.js?v=559';
 import { setupTownPanel } from './render/town-panel.js?v=559';
+import { setupStandings } from './features/standings.js?v=559';
 /* THE DEPOT (the bank store's client half). The server verb hr_bank_move and the
    `res.bank` projection have been installed and dormant since b438 with NOTHING
    able to call them; net/bank-sync.js is the transport and render/bank-panel.js
@@ -458,6 +460,7 @@ import { setupTownPanel } from './render/town-panel.js?v=559';
    every move is an intent, and the paint comes from the envelope that follows. */
 import './net/bank-sync.js?v=559';
 import { setupBankPanel } from './render/bank-panel.js?v=559';
+import './features/this-week.js?v=559';
 /* b535 - THE SUITE IS NOT PART OF THE GAME. This line used to pull
    features/smoke-test.js in STATICALLY: a 3.75 MB test suite, 36% of the
    10.28 MB of JavaScript a cold boot delivered, paid by every player before the
@@ -472,10 +475,12 @@ import { setupCombatRender } from './features/combat-render.js?v=559';
 import { setupCombatScreens } from './features/combat-screens.js?v=559';
 import { setupVigourMount } from './features/vigour-mount.js?v=559';
 import { setupHuntersLedger } from './features/hunters-ledger.js?v=559';
+import { setupDeeds } from './features/deeds.js?v=559';
 import { setupRecipeBook } from './features/recipe-book.js?v=559';
 import { setupItemIndex } from './features/item-index.js?v=559';
 import { setupCodex } from './features/codex.js?v=559';
 import { setupSignposts } from './features/signposts.js?v=559';
+import { setupKnowYourFoe } from './features/know-your-foe.js?v=559';
 import { setupNightPlan } from './features/night-plan.js?v=559';
 // Pack 1: one "what is this screen for?" note per screen, first visit only.
 import { setupScreenPrimers } from './features/screen-primers.js?v=559';
@@ -532,9 +537,12 @@ function tryBootFeatures() {
   /* AFTER combat-screens, which builds the Fight rail the Vigour block heads. */
   boot('vigour-mount', setupVigourMount);
   boot('hunters-ledger', setupHuntersLedger);
+  boot('deeds', setupDeeds);
+  boot('standings', setupStandings);
   boot('recipe-book', setupRecipeBook);
   boot('item-index', setupItemIndex);
   boot('signposts', setupSignposts);
+  boot('know-your-foe', setupKnowYourFoe);
   boot('night-plan', setupNightPlan);
   boot('screen-primers', setupScreenPrimers);
   boot('codex', setupCodex);

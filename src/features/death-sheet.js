@@ -200,9 +200,12 @@
         'Shrimp at the Local Shop — even a Shrimp buys you another few swings — and press Eat ' +
         'when your health runs low.';
     },
+    /* The foe's own weakness (know-your-foe.js, off the engine's
+       weaknessInfo) when readMoment could state it; armour advice is retired
+       because monster accuracy sits at its floor from matched mid-tier gear. */
     outmatched: function (d) {
-      return 'You ate everything you had and still fell. ' + d.monsterName +
-        ' out-damages you: train Defence, upgrade your armour, or take a softer target first.';
+      return (d.foe && d.foe.outmatchedTip) || ('You ate as you fought and still fell. ' + d.monsterName +
+        ' out-fights you as you stand: carry better food, or take a softer target first.');
     }
   };
 
@@ -491,7 +494,9 @@
     rows.push({
       g: 'uiSkull', tone: 'bad', k: 'killed-by',
       t: monsterName ? 'Slain by ' + monsterName : 'Slain in battle',
-      v: !killsStated ? '' : (kills > 0 ? (kills + (kills === 1 ? ' kill' : ' kills') + ' first') : 'no kills')
+      /* An UNKNOWN killer states no count either: "no kills" against nobody is
+         a figure the realm never gave, so the row says only what happened. */
+      v: (!killsStated || !monsterName) ? '' : (kills > 0 ? (kills + (kills === 1 ? ' kill' : ' kills') + ' first') : 'no kills')
     });
     /* THE REASSURING HALF, and it is not filler. A new player's first
        assumption on death in an RPG is that they were just robbed. Hearthrise
@@ -661,9 +666,12 @@
       recoverMsLeft: recoverLeft,
       deaths: deaths,
       rows: rows,
+      /* Absent, never `null`, when no foe was read: the model carries no
+         placeholder for a killer nobody named (b373). */
+      foe: d.foe || undefined,
       tipKey: tipKey,
       tip: tipKey && TIPS[tipKey](
-        { foodQty: foodQty, foodName: foodName, monsterName: monsterName || 'That foe',
+        { foodQty: foodQty, foodName: foodName, monsterName: monsterName || 'That foe', foe: d.foe || null,
           autoEatOwned: !!d.autoEatOwned,
           // b497: the live-combat SWITCH, distinct from ownership. See the
           // branch note above TIPS.
@@ -912,6 +920,8 @@
     return {
       monsterId: id,
       monsterName: (m && m.name) || '',
+      /* Computed here, not in describeDeath, which stays pure. */
+      foe: (function () { try { return (window.HearthriseFoe && id) ? window.HearthriseFoe.facts(id) : null; } catch (e) { return null; } })(),
       killsThisFoe: ev ? null : (G.combatKillsThisFoe || 0),
       /* The tip's facts: at the fall when settled, the live bag while pending. */
       foodQty: ev ? ev.foodQty : (food ? food.qty : 0),
@@ -1164,6 +1174,10 @@
          taller than the viewport and the two actions sat below the fold. They
          are the whole "and now do this" half of the design, so they live in the
          sheet's foot, which never shrinks: only the receipt above scrolls. */
+      '.hr-death-foe{margin:12px 0 0;padding:10px 12px;border-radius:10px;border:1px solid var(--line);',
+      '  font-size:calc(14.5px * var(--ui-scale,1));color:var(--ink-2);line-height:1.5}',
+      '.hr-death-foe b{display:block}.hr-death-foe p{margin:4px 0 0}',
+      '.hr-death-notes{min-height:44px;margin-top:8px}',
       '.hr-death-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}',
       '.hr-death-acts .btn{flex:1 1 auto;min-height:40px}',
       '.hr-death-acts .btn[disabled]{opacity:.5;cursor:not-allowed}',
@@ -1236,6 +1250,7 @@
       document.body.appendChild(root);
     }
 
+    var restOffered = model.actions.some(function (a) { return a.k === 'rest' && !a.disabled; });
     var rows = model.rows.map(function (r) {
       return '<div class="hr-death-row" data-tone="' + r.tone + '" data-row="' + r.k + '">' +
         '<span>' + gly(r.g, 17, r.tone === 'bad' ? 'var(--red,#a04830)' : 'var(--gold-2)') + '</span>' +
@@ -1262,6 +1277,9 @@
              two never look like different kinds of thing. */
           (model.enableAutoEat ? '<button class="hr-death-shop" data-act="autoeat">Turn Auto-Eat back on</button>' : '') +
         '</div>') +
+        /* No Field notes door while Rest is offered: Rest lives only on this
+           sheet, and the door closes it. */
+        (model.foe && window.HearthriseFoe ? window.HearthriseFoe.aboutHtml(model.foe, { door: !restOffered }) : '') +
         '</div>' +
         '<div class="hr-death-acts hr-sheet-foot">' +
           '<p class="hr-death-note" data-note role="status" aria-live="polite"></p>' +
@@ -1455,6 +1473,8 @@
        is a navigation and closes immediately, exactly as before. */
     if (kind !== 'rest') close();
     try {
+      /* After close(): the Bestiary overlay sits below this scrim. */
+      if (kind === 'notes') { if (typeof window.openBestiary === 'function') window.openBestiary(); return; }
       if (kind === 'again' && moment && moment.monsterId && typeof window.startCombat === 'function') {
         window.startCombat(moment.monsterId);
         return;

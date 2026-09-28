@@ -276,7 +276,6 @@ export default [
          defect. The rest of the suite already says QUIET when it needs a known
          baseline; this one never adopted it. */
       E._force({ daily: E.QUIET, weekly: E.QUIET });
-      assert(E.liveBonusFor('goldFind') === 0, 'the calendar must be quiet for the baseline');
 
       // The pure helper, first.
       assert(window.applyGoldFind(1000) === 1000, 'with no goldFind, gold must be untouched');
@@ -307,31 +306,18 @@ export default [
       assert(typeof window.processOfflineCombat === 'undefined',
         'processOfflineCombat is back — a second combat loop is exactly what the away ruling deleted');
 
-      /* …and the thing the red above accidentally proved, now asserted on
-         purpose: a gold-find BLESSING is a real gold-find contributor. The
-         calendar wraps getBonus, so this only works through the live chain —
-         hence no stub here, and the stub is restored first. */
+      /* b560 INVERTED this: the Open Coffers is a name, not a gold-find
+         contributor — hr-accrue's bonusFor has no blessing layer, so a client
+         that multiplied the drop would predict gold the server never pays
+         (BLESSING-HONESTY). Online or not, the calendar must move nothing. */
       window.getBonus = origBonus;
       const OPEN = E.DAILY.find((d) => d.id === 'open_coffers');
-      assert(OPEN && OPEN.bonus.goldFind > 0, 'the Open Coffers must still be a gold-find blessing');
+      assert(OPEN && OPEN.bonus === undefined, 'the Open Coffers must carry no gold-find table');
       E._force({ daily: E.QUIET, weekly: E.QUIET });
       const quietMult = window.goldFindMult(), quietGold = window.applyGoldFind(10000);
       E._force({ daily: OPEN, weekly: E.QUIET });
-      const blessMult = window.goldFindMult(), blessGold = window.applyGoldFind(10000);
-      // Stated as a DELTA, not an absolute, so a permanent contributor left in
-      // the save by an earlier test cannot make this pass or fail by accident.
-      if (E.isActive()) {
-        assert(Math.abs((blessMult - quietMult) - OPEN.bonus.goldFind) < 1e-9,
-          'the Open Coffers must move gold find by exactly ' + OPEN.bonus.goldFind
-          + ', moved ' + (blessMult - quietMult));
-        assert(blessGold === Math.floor(10000 * blessMult) && blessGold > quietGold,
-          'the blessing reached getBonus but not the gold drop — ' + quietGold + ' → ' + blessGold);
-      } else {
-        // Presence says we are not online: then the calendar must pay NOTHING,
-        // which is the other half of the same contract, never "no assertion".
-        assert(blessMult === quietMult && blessGold === quietGold,
-          'an unblessed session must not receive the calendar gold find');
-      }
+      assert(window.goldFindMult() === quietMult && window.applyGoldFind(10000) === quietGold,
+        'the Open Coffers moved gold find ' + quietMult + ' → ' + window.goldFindMult() + ' — the server pays no blessing');
     } finally {
       E._force(null);
       window.getBonus = origBonus;

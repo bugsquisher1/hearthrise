@@ -35,8 +35,9 @@
 // ============================================================================
 
 import {
-  INTENT_ERRORS, rateBucketFor, requiresKey, collectsFirst, guardStampKeys,
+  INTENT_ERRORS, rateBucketFor, requiresKey, guardStampKeys,
 } from './intents.js';
+import { settleBeforeMutate } from './settle-first.js';
 
 /* ── THE OPENING STATEMENT ──────────────────────────────────────────────────
    THE GATE IS FIRST AND THE READ IS CONDITIONAL ON IT (review D3). `case when`
@@ -50,13 +51,17 @@ import {
      literal (review C4). An unknown bucket fails closed inside hr_rate_gate, so
      a wrong registry row is a 429 rather than a brand-new unlimited namespace.
 
-   NOTE it does NOT read `hr_offline_cap_ms`. set-activity.js needs the cap
-   because it simulates a window; a spend does not simulate anything, and a
-   statement whose result nobody reads is a round trip nobody needs. */
+   IT READS `hr_offline_cap_ms` (2026-09-28). Every verb that settles before it
+   mutates (settle-first.js) simulates the open window, and the cap bounds that
+   simulation exactly as it bounds set-activity.js's collect. One statement,
+   gated like the state read; the one verb here that does not settle
+   (trophy_claim) pays one function call it does not read, which is cheaper
+   than a second statement shape at the gate. */
 const READ_SQL = `
   with g as (select public.hr_rate_gate($1::uuid, $2::int, $3::text) as allowed)
   select g.allowed                                                         as allowed,
          case when g.allowed then public.hr_state_of($1::uuid, $2::int) end as state,
+         case when g.allowed then public.hr_offline_cap_ms($1::uuid, $2::int) end as cap_ms,
          now()                                                             as now
     from g`;
 
@@ -100,7 +105,7 @@ const APPLY_SQL = `
 /**
  * Spend the rate budget and read the state envelope.
  *
- * @returns { refusal: {status, body} } | { env, nowMs }
+ * @returns { refusal: {status, body} } | { env, nowMs, capMs }
  */
 export async function gateAndRead(o) {
   const { exec, user, slot, verb } = o;
@@ -117,7 +122,7 @@ export async function gateAndRead(o) {
       },
     };
   }
-  return { env, nowMs: new Date(read.now).getTime() };
+  return { env, nowMs: new Date(read.now).getTime(), capMs: Number(read.cap_ms) || 0 };
 }
 
 /** The single apply. Returns hr_apply's own answer verbatim, or null. */
@@ -175,27 +180,17 @@ export async function runValueIntent(o) {
   /* (1) GATE + READ. */
   const read = await gateAndRead({ exec, user, slot, verb });
   if (read.refusal) return read.refusal;
-  const env = read.env;
+  let env = read.env;
 
   /* (2) ⚠ RULE 3, BOTH HALVES.
-         (a) The registry says whether this verb collects before it acts. It is
-             READ here — a registry column nothing reads is decoration (C4) —
-             and an unimplemented collect FAILS CLOSED. Refusing costs the
-             player one tap; proceeding costs them a night.
-         (b) The delta itself must not carry a key that closes the accrual
-             window. This is the check that survives a well-meaning feature:
-             adding `equip` to a purchase so the sword is also wielded would
-             otherwise confiscate every buyer's unpaid window, silently. */
-  if (collectsFirst(verb)) {
-    return {
-      status: 409,
-      body: await refusalBody({
-        exec, user, slot, verb,
-        refusal: { error: INTENT_ERRORS.COLLECT_REQUIRED, stage: 'collect' },
-        fallback: env,
-      }),
-    };
-  }
+         (b) FIRST, because it is free: the delta itself must not carry a key
+             that closes the accrual window. This is the check that survives a
+             well-meaning feature: adding `equip` to a purchase so the sword is
+             also wielded would confiscate the remainder the settle defers.
+         (a) The registry says whether this verb settles the open window
+             before it acts (settle-first.js reads it; a column nothing reads is
+             decoration, C4). A refused settle refuses the verb: a tap, never a
+             night. */
   const stamp = guardStampKeys(verb, plan.delta);
   if (stamp) {
     return {
@@ -207,13 +202,21 @@ export async function runValueIntent(o) {
       }),
     };
   }
+  const settled = await settleBeforeMutate({
+    exec, user, slot, verb, env, nowMs: read.nowMs, capMs: read.capMs,
+    partyOwnsWindow: o.partyOwnsWindow === true,
+  });
+  if (!settled.proceed) return settled.refusal;
+  env = settled.env;
+  const collected = settled.collected;
 
-  /* (3) THE APPLY. `env.version` is the version THIS call read; hr_apply
-         refuses a stale one, which is the whole of our concurrency control
-         (contract rule 7). The key is the CLIENT's — a purchase is a tap, and
-         the client is the only party that knows which retry is which. */
+  /* (3) THE APPLY, at the version the SETTLE left behind (it bumped it if it
+         paid); hr_apply refuses a stale one, which is the whole of our
+         concurrency control (contract rule 7). The key is the CLIENT's — a
+         purchase is a tap, and the client is the only party that knows which
+         retry is which. */
   const res = await applyDelta({
-    exec, user, slot, version: env.version, intentId, delta: plan.delta,
+    exec, user, slot, version: settled.version, intentId, delta: plan.delta,
   });
   if (!res || res.ok !== true) {
     /* NOTHING WAS APPLIED. hr_apply's protected block rolls back in full, so
@@ -225,7 +228,11 @@ export async function runValueIntent(o) {
       status: 409,
       body: await refusalBody({
         exec, user, slot, verb,
-        refusal: { error: (res && res.error) || 'apply_failed', stage: 'apply', detail: res ?? null },
+        refusal: {
+          error: (res && res.error) || 'apply_failed', stage: 'apply', detail: res ?? null,
+          /* The SETTLE is its own apply and stays paid (rule 4). */
+          collected,
+        },
         fallback: null,
       }),
     };
@@ -251,6 +258,9 @@ export async function runValueIntent(o) {
       ok: true,
       verb,
       receipt: res.replayed === true ? null : plan.receipt,
+      /* The settle's receipt — THIS invocation's, so present on a replayed
+         purchase whose settle genuinely paid (set_activity's C5 rule). */
+      collected,
       ...(res.replayed === true ? { replayed: true } : {}),
     },
   };

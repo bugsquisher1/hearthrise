@@ -4131,7 +4131,7 @@ export default [
       window.__presentWelcomeWhenSettled();
       assert(shown(), 'nothing was on the wire and the player was greeted with silence');
       const b0 = rowText();
-      assert(/Total kills lifetime/.test(b0), 'the stats-only greeting is empty: ' + b0);
+      assert(/Monsters slain, all time/.test(b0), 'the stats-only greeting is empty: ' + b0);
       assert(!/Time away|XP earned/.test(b0), 'a modal with no receipt reported an absence: ' + b0);
       G.lastSeen = Date.now();                               // saveLocal() beat the stamp forward
       G.lastOfflineSummary = receipt(); AC.__resetAwaySettleLatch(true);

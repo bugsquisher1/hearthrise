@@ -2057,7 +2057,7 @@ export default [
       const grid = document.querySelector('#char-hero .cr-acct-grid');
       assert(grid, 'the Account stat grid did not render on the Hero sub-tab');
       const cells = [...grid.querySelectorAll('.cr-acct-cell')];
-      assert(cells.length >= 9, 'expected the full Account panel (CL, TL, XP, Quests, Achievements, Bounties, Collections, Renown, Time), got ' + cells.length);
+      assert(cells.length >= 9, 'expected the full Account panel (CL, TL, XP, Quests, Achievements, Bounties, Collections, Renown, Days running), got ' + cells.length);
       const byLabel = (needle) => cells.find((c) => (c.querySelector('span').textContent || '').toLowerCase().indexOf(needle) === 0);
       const cl = byLabel('combat'); const tl = byLabel('total');
       assert(cl && cl.querySelector('b').textContent === String(window.getCombatLevel()),
@@ -2067,19 +2067,17 @@ export default [
       const ach = byLabel('achievements');
       assert(ach && ach.querySelector('b').textContent.indexOf('/ ' + (window.ACHIEVEMENTS || []).length) >= 0,
         'Achievements cell must count against the real ACHIEVEMENTS catalogue');
-      // Time Played is behind a reveal until clicked — never a faked "0h".
-      const time = byLabel('time');
-      assert(time, 'a Time played cell must exist (its counter is built, not omitted)');
+      assert(byLabel('days running'), 'a Days running cell must exist (the server play streak)');
+      assert(!byLabel('time played'), 'the device-timed Time played cell is back');
+      ['quests', 'bounties'].forEach((k) => { const c = byLabel(k);
+        assert(c && (/\d/.test(c.querySelector('b').textContent) || c.querySelector('.bal-pending')),
+          k + ' cell must be the realm\'s figure or the pending dash, got ' + (c && c.innerHTML)); });
     } finally { window._charPane = prevPane; window.showTab('profile'); }
   }),
 
-  () => tryRun('b229: Time Played counter is real (G.stats.playMs, presence-gated, not faked)', () => {
-    assert(typeof window.HearthrisePlayTime === 'object' && typeof window.HearthrisePlayTime.ms === 'function',
-      'window.HearthrisePlayTime.ms() seam missing — the counter was not built');
-    assert(window.G && window.G.stats && typeof window.G.stats.playMs === 'number',
-      'G.stats.playMs must exist as a real accumulator field');
-    assert(window.HearthrisePlayTime.ms() === (window.G.stats.playMs || 0),
-      'HearthrisePlayTime.ms() must read the live accumulator, not a copy');
+  () => tryRun('b229: the device-timed Time Played counter is gone (no seam, no tick)', () => {
+    assert(!('HearthrisePlayTime' in window) && !('tickPlayMs' in window),
+      'a device play-time counter is published again; play is counted by the realm (Days running)');
   }),
 
   () => tryRun('b229: the fake "Your Heroes" paywall mockup is gone from the Character screen', () => {

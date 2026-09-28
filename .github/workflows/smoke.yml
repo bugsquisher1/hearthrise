@@ -2678,6 +2678,8 @@ jobs:
           node tests/item-flavour-coverage.mjs --selftest
           node tests/lore-notes.mjs
           node tests/lore-notes.mjs --selftest
+          node tests/lifetime-tally.mjs
+          node tests/lifetime-tally.mjs --selftest
           node tests/companion-pays-parity.mjs
           node tests/companion-pays-parity.mjs --selftest
           node tests/companion-promise-parity.mjs

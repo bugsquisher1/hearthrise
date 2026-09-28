@@ -1138,30 +1138,24 @@ export default [
     window.G.companions = JSON.parse(snap);
   }),
 
-  // Render-layer extraction guard: the Lifetime Stats modal moved out of
-  // legacy.js into src/render/lifetime-stats.js (first strangler-fig render
-  // extraction, 2026-08-18). This asserts the extracted surface still exposes
-  // its entry point, renders identically (every section header + a couple of
-  // derived numbers read off G.stats), and that its wired ESC handler closes
-  // it. Behavior-identical is the contract for a pure refactor.
+  // The Lifetime Stats sheet (src/render/lifetime-stats.js) prints only the
+  // realm's counts: every value cell is a figure or the pending dash, never a
+  // client-kept number, and its wired ESC handler closes it.
   () => tryRun('render: lifetime stats modal (extracted surface)', () => {
     assert(typeof window.openLifetimeStats === 'function',
       'openLifetimeStats must stay on window (invoked by inline onclick handlers)');
-    const s = window.G.stats = window.G.stats || {};
-    const snap = JSON.stringify(s);
-    s.kills = 4242; s.deaths = 7;
     window.openLifetimeStats();
     const modal = document.getElementById('lifetime-stats');
     assert(modal, 'lifetime-stats modal element not created');
     assert(modal.classList.contains('show'), 'lifetime-stats modal did not open (missing .show)');
     const html = modal.innerHTML;
-    ['Lifetime Stats', 'Combat', 'Economy', 'Bounty Hunter', 'Production']
+    ['Lifetime Stats', 'Fighting', 'Gathering', 'At the bench', 'Purse']
       .forEach(h => assert(html.indexOf(h) >= 0, 'lifetime stats missing section: ' + h));
-    assert(html.indexOf((4242).toLocaleString()) >= 0, 'lifetime stats did not render kills off G.stats');
-    // The wired ESC handler must close it (moved with the surface).
+    const bad = [...modal.querySelectorAll('.stats-row .val, .stat-tile b')]
+      .filter((el) => !el.querySelector('.bal-pending') && !el.classList.contains('bal-pending') && !/\d/.test(el.textContent));
+    assert(bad.length === 0, 'a value cell is neither a figure nor the pending dash: ' + bad.map((el) => el.textContent).join(' | '));
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     assert(!modal.classList.contains('show'), 'ESC did not close the lifetime-stats modal');
-    window.G.stats = JSON.parse(snap);
   }),
 
   // render-layer extraction: the Profile "Objectives" popout moved out of
@@ -1659,20 +1653,20 @@ export default [
 
   () => tryRun('clicks: profile feat-buttons (achievements/bestiary/etc)', () => {
     window.showTab('profile');
-    const btns = document.querySelectorAll('#panel-profile .feat-buttons button, #panel-profile .feat-buttons .stats-btn-trigger');
+    const btns = document.querySelectorAll('#panel-profile .feat-buttons button');
     /* This was a bare `>= 4`, which silently encoded a FOURTH button that
        no longer exists: welcome-v2's "Last Session Summary" (retired in a779c9cf,
        Set the Night, FEATURE_SLATE.md §3). A count threshold cannot tell "the row
        shrank by ruling" from "a button was dropped by accident", so it is now the
        NAMED census of the surviving row:
          · Achievements + Bestiary — injectProfileButtons(), src/legacy.js
-         · Lifetime Stats          — src/render/lifetime-stats.js
+         (Lifetime Stats' doors are the Hero tab foot row and the More sheet.)
          · Codex                   — injectProfileButtons(); its open() awaits a
            dynamic import, so it is clicked through by CODEX-1 (which awaits and
            closes it), not by this synchronous loop.
        Both directions bite: a missing entry is a lost button, an unexpected entry
        is a button added without being clicked-through here. */
-    const EXPECT_FEATS = ['achievements', 'bestiary', 'lifetime stats', 'codex'];
+    const EXPECT_FEATS = ['achievements', 'bestiary', 'codex'];
     const labels = [...btns].map((b) => (b.textContent || '').trim().toLowerCase());
     const missing = EXPECT_FEATS.filter((n) => !labels.some((l) => l.includes(n)));
     assert(missing.length === 0, 'profile feat button(s) missing from the row: ' + missing.join(', ') + ' (present: ' + labels.join(' | ') + ')');

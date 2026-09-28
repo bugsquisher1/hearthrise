@@ -413,23 +413,21 @@ export default [
           'renown WEIGHT_LABELS.streakBest must name what it counts, got: ' + JSON.stringify(lbl));
       }
 
-      /* ── 7. THE THIRD STREAK. Lifetime Stats carries a KILL streak, and an
-         unqualified "Current streak" on a stats screen is read against the
-         topbar flame. Every streak in the game must be qualified by what it
-         counts — that is the whole rule, applied to the surface that has no
-         daily/claim involvement at all. */
+      /* ── 7. NO STREAK ON LIFETIME STATS. The kill streak was a client-kept
+         count, and any streak on a stats screen is read against the topbar
+         flame. The sheet shows only the realm's lifetime counts, so it names
+         no streak at all. */
       assert(typeof window.openLifetimeStats === 'function',
         'openLifetimeStats must be on window (it is the only door to the Lifetime Stats copy)');
       window.openLifetimeStats();
       const ls = document.getElementById('lifetime-stats');
       assert(!!ls, 'the Lifetime Stats modal must build');
       const lsText = ls.textContent || '';
-      assert(/kill streak/i.test(lsText),
-        'CONTROL: Lifetime Stats must actually be rendering a kill-streak row');
-      assert(!/(^|[^a-z])Current streak([^a-z]|$)/i.test(lsText),
-        'Lifetime Stats renders a bare "Current streak" — qualify it ("Current kill streak"). '
-        + 'Three quantities in this game are called a streak; an unqualified one on a stats screen '
-        + 'is read against the topbar flame, which counts something else.');
+      assert(/Monsters slain/.test(lsText),
+        'CONTROL: Lifetime Stats must actually be rendering its Monsters slain row');
+      assert(!/streak/i.test(lsText),
+        'Lifetime Stats names a streak — it shows the realm\'s lifetime counts only, and a streak '
+        + 'there is read against the topbar flame, which counts something else.');
       ls.classList.remove('show');
     } finally {
       const el = document.getElementById('hr-dl-modal'); if (el) el.remove();

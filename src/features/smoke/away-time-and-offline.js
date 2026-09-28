@@ -7176,8 +7176,10 @@ export default [
     assert(/up to 15h/.test(known), 'the row must print the server cap (15h): ' + known);
     const unknown = row(null);
     // NIGHT-PLAN-PENDING-COPY: pending is its own sentence, not a dash mid-sentence.
-    assert(/the limit is being confirmed/.test(unknown), 'an unknown cap must read as pending: ' + unknown);
-    assert(!/\b0h\b|12h|null|NaN/.test(unknown.replace(/<[^>]*>/g, ' ')), 'an unknown cap printed a number: ' + unknown);
+    assert(/the limit is being confirmed/i.test(unknown), 'an unknown cap must read as pending: ' + unknown);
+    const unknownText = unknown.replace(/<[^>]*>/g, ' ');
+    assert(!/\b0h\b|12h|null|NaN/.test(unknownText), 'an unknown cap printed a number: ' + unknown);
+    assert(!/[—–]/.test(unknownText), 'an unknown cap reads as a dash mid-sentence: ' + unknownText);
   }),
 
   () => tryRun('OFFLINE-CAP-1c: no House, Home or renown surface promises away hours the server does not pay', () => withCap(720, () => {

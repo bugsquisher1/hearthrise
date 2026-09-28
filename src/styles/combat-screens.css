@@ -1219,6 +1219,12 @@ body.in-combat #panel-combat .fs-style .combat-style-block .csb-btn small {
  * so the row does not exist until the fight does — and the stage, which grows,
  * takes the room. */
 #panel-combat[data-fight-state="preview"] .fs-logrow { display: none; }
+/* THE CARD HOLDS THE LOG (visual gate 7). The stage's `max-height: 100%` is the
+ * whole card, so once the fight began the log row, at its 96px floor, drew
+ * below the card's border (1280x800: 775..871 against a card ending at 790).
+ * While the log is drawn the stage's cap leaves it that floor, and the plate,
+ * row 1's elastic track, gives the difference back. */
+#panel-combat[data-combat-view="fight"]:not([data-fight-state="preview"]) .arena-vs.fs-stage { max-height: calc(100% - 96px); }
 /* The log-row loot rail is gone — the management rail's DROPS block carries the
  * same ledger, in a container that also exists before the fight. */
 
@@ -1621,6 +1627,11 @@ body.in-combat #panel-combat .fs-style .combat-style-block .csb-btn small {
   #panel-combat .arena-vs.fs-stage .arena-side.player .fs-lv { justify-self: start; }
   #panel-combat .arena-vs.fs-stage .arena-side.foe .fs-lv { justify-self: end; }
   #panel-combat .fs-metrics.fs-session:has(> .fs-sess-idle) { display: none; }
+  /* The inline log is prose the History door ("Log") opens in full, so at
+   * the phone size it goes before any measured row does, and the stage keeps
+   * the room it left (visual gate 7). */
+  #panel-combat[data-combat-view="fight"] .fs-logrow { display: none; }
+  #panel-combat[data-combat-view="fight"]:not([data-fight-state="preview"]) .arena-vs.fs-stage { max-height: none; }
   /* VG5 — the bar fits the card's 650px: "History" reads "Log", the chips lose
    * tracking, the picker stacks its two runs and Eat's meta breaks between
    * clauses. theme-cozy's important `.btn-sm` padding skips this bar by a

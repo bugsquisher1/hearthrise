@@ -1381,7 +1381,9 @@ function renderMetrics(m, f) {
       parts.push('measuring…');
     }
   }
-  if (f) {
+  if (f && !isFinite(f.survivalSeconds)) {
+    parts.push('survival still measuring');
+  } else if (f) {
     parts.push(f.survivesAnHour
       ? `you last <b>${fmtRun(f.survivalSeconds)}</b>`
       : `you last <b>≈${num(f.survivalKills)} kills</b> · ${fmtRun(f.survivalSeconds)}`);

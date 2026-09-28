@@ -53,8 +53,9 @@
 //    collect before it switches, or the elapsed window is CONFISCATED), so a
 //    successful switch returns a `collected` receipt with real gold, XP, items
 //    and level-ups. Discard it and those numbers appear out of nowhere at the
-//    next hr_load. It goes through `applyEnvelopeState` + `summaryFromAway` —
-//    the SAME two functions the away card is built on — and lands in
+//    next hr_load. It goes through `applyEnvelopeState` + accrue.js
+//    `applyCollectedReceipt` — the SAME translator the away card is built on,
+//    and the seam EVERY verb's `collected` feeds, once per window — and lands in
 //    `G.lastOfflineSummary`, which every welcome-back surface already reads.
 //    There is no second renderer.
 //
@@ -75,12 +76,15 @@
 
 import {
   isServerAccrualEnabled, resolveActiveSlot, accrueEndpoint, MAX_SLOT,
-  applyEnvelopeState, holdFallAnnounce, summaryFromAway, describeReplacement,
+  applyEnvelopeState, holdFallAnnounce, describeReplacement,
   isReplacementAcknowledged, showReplacementSheet, beginServerAccrual,
   isReconcilePending, isAccrualFailure, awaitSettleRaceClear, flushAttendedCredits,
   /* THE FRAME GATE (WORLD_TICK_DESIGN.md §7.1), imported — this module is the
      THIRD applier of a server envelope and it had no monotonic rule at all. */
   classifyFrame, commitFrame, noteFrameDrop, clearFrameDrops,
+  /* THE RECEIPT READERS and the once-per-window seam every verb's `collected`
+     feeds (2026-09-28) — they live beside the away holder they write. */
+  collectedOf, awayFromCollected, applyCollectedReceipt,
 } from './accrue.js?v=559';
 /* THE PAYABLE-BENCH PREDICATE, read — never restated. `benchPayable` lives in
    src/core/artisan-sim.js and is the SAME function the accrual engine's
@@ -478,60 +482,6 @@ export function fightOf(body) {
   return { monster, hp, kills: (Number.isFinite(kills) && kills >= 0) ? Math.floor(kills) : 0 };
 }
 
-/**
- * THE RECEIPT, OR NULL. Null both when the server sent none and when it sent
- * one that paid nothing — a zero receipt rendered is a welcome-back card that
- * says "+0 gold" over the real one, which is the mirror image of the bug this
- * whole path exists to avoid.
- */
-export function collectedOf(body) {
-  const c = body && typeof body === 'object' ? body.collected : null;
-  if (!c || typeof c !== 'object') return null;
-  const sum = (v) => (v && typeof v === 'object'
-    ? Object.keys(v).reduce((s, k) => s + (Number(v[k]) || 0), 0) : (Number(v) || 0));
-  const paid = (Number(c.gold) || 0) + (Number(c.kills) || 0) + sum(c.xp) + sum(c.items)
-    + (Array.isArray(c.levelUps) ? c.levelUps.length : 0);
-  if (paid <= 0 && !(Number(c.ms) > 0)) return null;
-  return c;
-}
-
-/** `collected` → the `away` shape `summaryFromAway` already reads. ONE
- *  translation, so the away card and the switch receipt cannot describe the
- *  same kind of payment differently. */
-export function awayFromCollected(collected) {
-  const c = collected || {};
-  return {
-    grantMs: Number(c.ms) || 0,
-    capped: !!c.capped,
-    kills: Number(c.kills) || 0,
-    crits: Number(c.crits) || 0,
-    died: !!c.died,
-    /* Ruling 2b (2026-08-31): WHAT killed them, and the auto-eat state the
-       engine ran that span with, so `receiptDeathCause` can name the reason on
-       a switch receipt too. Both are self-configuring — a server that does not
-       state them leaves them undefined and the sentence simply omits the
-       clause, which is the same rule `windowFrom`/`windowTo` follow above. */
-    diedTo: c.diedTo || null,
-    paidMs: Number(c.paidMs) || 0,
-    autoEat: (c.autoEat && typeof c.autoEat === 'object') ? c.autoEat : null,
-    gold: Number(c.gold) || 0,
-    xp: c.xp,
-    items: c.items,
-    levelUps: Array.isArray(c.levelUps) ? c.levelUps : [],
-    blessed: !!c.blessed,
-    buffsPaused: !!c.buffsPaused,
-    /* Ruling 2 (b352): WHICH hours the collect settled. Carried rather than
-       derived — with the credited window anchored to when the player LEFT, a
-       capped window no longer ends at `now`, so subtracting the span off the
-       clock names the wrong hours (and, through the Boss of the Day, the wrong
-       multiplier). Absent on a pre-b352 server: left undefined rather than
-       guessed, because a guess here is a renderer quoting a bonus nobody paid. */
-    unpaidMs: Number(c.unpaidMs) || 0,
-    windowFrom: Number(c.windowFrom) || null,
-    windowTo: Number(c.windowTo) || null,
-  };
-}
-
 export function classifyActivityResponse(status, body) {
   const b = (body && typeof body === 'object') ? body : null;
   if (status === 200) {
@@ -877,27 +827,22 @@ function applyAcceptedIntentEnvelope(G, body, env, duplicate) {
      version, making the frame fresh), so this costs a live player nothing; it
      is here so a RETRANSMIT of a frame that did collect cannot pay twice. */
   const collected = duplicate ? null : collectedOf(body);
-  if (collected) {
-    /* THE ONE THAT WOULD BITE. Through the away card's own translator, into the
-       field every welcome-back surface already reads, so the player is told
-       what they were just paid instead of finding it at the next hr_load. */
-    const s = summaryFromAway(awayFromCollected(collected), env);
-    /* STATED, not inferred: this receipt is for a SWITCH, not for an absence.
-       `summaryFromAway` sets serverAuthoritative; the surfaces that print "while
-       you were away" can key off this to say something truer, and a bug report
-       can tell the two apart. */
-    s.source = 'switch';
+  /* THE ONE THAT WOULD BITE — through the ONE seam every verb's `collected`
+     feeds (accrue.js applyCollectedReceipt: the away card's own translator and
+     classifier, once per window). A switch keeps `source:'switch'`; an equip,
+     enchant or eat that collected first is a 'collect', which the classifier
+     reads by its span like the boot settle. */
+  const source = (body && typeof body.verb === 'string' && body.verb !== ACTIVITY_VERB) ? 'collect' : 'switch';
+  const s = collected ? applyCollectedReceipt(G, body, env, source) : null;
+  if (s) {
     s.activity = activityOf(body);
-    G.lastOfflineSummary = s;
     written.summary = true;
-    /* THE RECEIPT THIS ENVELOPE PAID FOR, by identity — accrue.js's applyEnvelope
-       carries the same field for the same reason. legacy.js's applyServerEnvelope
-       credits away kills from THIS object and never from `G.lastOfflineSummary`,
-       because a switch that collected nothing leaves the ambient holder carrying
-       whatever seeded it — which after a reload is the RESTORED receipt for a
-       night already paid, and crediting that re-feeds `updateDaily('kill_any')`
-       into the Muster's shared world-event meter on every switch. */
-    written.paidReceipt = s;
+    /* THE RECEIPT THIS ENVELOPE PAID FOR, by identity — and only a SWITCH's, as
+       before: legacy.js's applyServerEnvelope credits away kills from THIS
+       object and never from `G.lastOfflineSummary`, and a switch classifies
+       'switch', which credits nothing. A 'collect' receipt is a sentence; the
+       kills it names were never this seam's to replay into the Muster. */
+    if (source === 'switch') written.paidReceipt = s;
     written.collected = collected;
   }
 

@@ -15,7 +15,7 @@
 //   3  clans.js        clan level perks
 //   4  clan-seat-ui.js the castle: buildings + the feast
 //   5  muster.js       the live rally aura
-//   6  world-events.js the daily/weekly blessing
+//   6  world-events.js (b560: withdrawn — the engine pays no blessing layer)
 //
 // Until b228 the only fuse in the game lived at layer 4 and reduced ONLY layer
 // 4's own contribution. Layers 5 and 6 — plus companions and buffs below it —
@@ -91,11 +91,6 @@
     if (!U || typeof U.feastBonus !== 'function') return 0;
     return Number(U.feastBonus(key)) || 0;
   }
-  function blessingPart(key) {
-    var W = window.HearthriseWorldEvents;
-    if (!W || typeof W.liveBonusFor !== 'function') return 0;
-    return Number(W.liveBonusFor(key)) || 0;
-  }
   function musterPart(key) {
     var M = window.HearthriseMuster;
     if (!M || typeof M.liveAura !== 'function') return 0;
@@ -113,7 +108,6 @@
   function temporaryFor(key) {
     var t = 0;
     try { t += feastPart(key); } catch (e) {}
-    try { t += blessingPart(key); } catch (e) {}
     try { t += musterPart(key); } catch (e) {}
     try { t += buffPart(key); } catch (e) {}
     return t;
@@ -145,7 +139,7 @@
   }
 
   /* Is the budget currently binding on this key? The panel that says "the
-     realm's blessing is at its limit" reads this — a ceiling players chase is
+     boost budget is at its limit" reads this — a ceiling players chase is
      a feature, and a ceiling silently applied is a bug. */
   function atLimit(key) {
     if (!governed(key) || typeof window.getBonus !== 'function') return false;

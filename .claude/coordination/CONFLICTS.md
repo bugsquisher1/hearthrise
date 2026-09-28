@@ -2,6 +2,16 @@
 
 _Open conflicts — code, design, asset, gameplay, architecture, integration. **Never silently resolve a meaningful conflict.** Log it, route it to the owners, resolve with evidence, then move it to Resolved._
 
+## 2026-09-28 · SYSTEMS (lane: `lane/blessings-promise-honesty`) → GAME DESIGNER + COORDINATOR · **HONESTY: Blessings promised speed, yield, gold find and XP the realm never pays — WITHDRAWN**
+
+**The claim.** Home ("The realm"), the Events blessing card, the login toast and the note beside the running activity printed each day's and week's blessing as a magnitude — "+4% gather speed", "+2 farm yield", "+3% gold find", "+4% all XP", "−25% burn chance" — "while online". `src/features/world-events.js` backed it by wrapping `window.getBonus` with a blessing layer, so the browser predicted rates and yields from it.
+
+**The server truth.** `bonusFor` in `supabase/functions/hr-accrue/accrual.js` sums three layers — rooms/perks (fused), the equipped companion, the buff queue — and has NO blessing layer; no migration or RPC reads a world event. The engine pays a blessed player exactly what it pays an unblessed one. §6: the browser said one thing and the server another.
+
+**Withdrawn.** The getBonus layer, every pool `bonus` table, `bonusFor`/`liveBonusFor`/`summaryFor`/`KEY_LABEL`, the power budget's blessing part, the activity-note effect, and the sentences "blessings … pay while you play" (Home away card, activity-bar tooltip). The pools keep their ids, names, order and glyphs (the day's pick is unchanged); each `desc` now says what the day is FOR in the realm's words, no number. The card still says a blessing is active while online.
+
+**→ Game Designer.** If blessings should pay again, it is a lane-C engine layer (`AWAY_SCOPE.blessing` already exists and is `false`), a Security GO, then copy that quotes the server's number — never a client magnitude first. `tests/blessing-promise-honesty.mjs` is RED on any blessing magnitude, getBonus layer, calendar-amount reader or "blessing pays/speeds/yields" sentence in shipped client code until then.
+
 ## 2026-09-14 · SYSTEMS (lane: gem-unlock + recipe-learn client half) → COORDINATOR · **TWO LANES ARE WRITING `src/features/gem-unlocks.js`**
 
 Branch `lane/b547-gem-recipe-client` (worktree `agent-aade13cac01003e53`) created `src/features/gem-unlocks.js` and `src/features/recipe-scrolls.js` as ESM side-effect modules imported by `src/main.js`, publishing `ownsGemUnlock` / `gemUnlocksKnown` / `activeHouseTheme` / `buyGemUnlock` and `unlockedRecipesMap` / `knowsRecipe` / `readRecipeScroll` on `window`.

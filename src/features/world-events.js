@@ -6,120 +6,47 @@
 // hash of the date string → index into the pool). Two clients on opposite
 // sides of the world compute the same event.
 //
-// ── b227: THE CALENDAR *IS* THE ONLINE BONUS ──
-// b226 paid a flat ×1.12 XP for being at the screen. Tyler replaced it:
-// "if you're offline the event doesn't apply to you... you only get that
-// stuff WHILE online. One week it may be 12% exp, another week it may be
-// +10% gold find." So the flat multiplier is gone and these blessings are
-// SESSION-GATED.
-//
-// ── b229: THE GATE IS BEING ONLINE, NOT PAYING ATTENTION ──
-// b227's first cut also demanded a visible tab and recent input, which made
-// the shipped copy say "this tab open". Tyler: "Reword this, that's
-// confusing. The tab shouldn't need to be open, they just need to be
-// online." So the gate is now: the game is OPEN and CONNECTED. A
-// backgrounded tab with an activity running is blessed; an untouched screen
-// is blessed. Only a CLOSED game — the offline catch-up — earns the steady
-// base rate, and that boundary is held by legacy.js's replay latch, not by
-// any "are they looking?" heuristic.
-//
-// That makes the online advantage a thing with a SHAPE: a Grand Fair week is
-// worth +12% XP to everyone, a King's Bounty week is worth +10% gold find to
-// whoever is killing things, and a week whose blessing misses your skill is
-// worth nothing — which is a reason to check the calendar rather than a
-// constant nobody could feel.
-//
-// Events grant bonuses through the keys getBonus() already consumes. EVERY
-// key in the pools below has a live consumer — see the audit table above the
-// pools. Adding a key nothing reads would be a promise the game never keeps.
+// ── b560: THE CALENDAR PROMISES NOTHING THE REALM DOES NOT PAY ──
+// b227 made the calendar the online advantage: each entry carried a `bonus`
+// table and this file wrapped window.getBonus to add it in while the player was
+// online. The engine never had that layer — hr-accrue's bonusFor sums rooms/
+// perks, the companion and the buff queue, and nothing else — so Home, Events,
+// the login toast and the activity note promised speed, yield, gold find and
+// XP the server never paid (CLAUDE.md §6). The layer, the magnitudes and every
+// sentence naming them are withdrawn (CONFLICTS.md 2026-09-28). A blessing is
+// now the realm's mood for the day and the week: a name, a glyph and a line
+// saying what it is for, with no number, until a server layer exists to pay
+// one. tests/blessing-promise-honesty.mjs keeps it that way.
 //
 // UI: the blessing card in the Events panel (Home hosts it only as a
-// fallback) + a login toast + the live note beside the running activity.
-// Daily events rotate at UTC midnight; weekly at the UTC week index (same
-// weekly key scheme as the quest system).
+// fallback) + a login toast. Daily events rotate at UTC midnight; weekly at
+// the UTC week index (same weekly key scheme as the quest system).
 // ============================================================
 (function () {
   'use strict';
 
-  // ── The wired-key audit (b227). A pool entry may only use a key that some
-  // system actually reads; the smoke suite asserts each of these moves
-  // something, so a future addition cannot quietly become a ghost.
-  //
-  //   allXP        → addXp()                       (legacy.js)
-  //   combatXP     → addXp(), combat skills         (legacy.js)
-  //   gatherSpeed  → activityIntervalMs()           (legacy.js)
-  //   cookSpeed    → activityIntervalMs()           (legacy.js, artisan)
-  //   smithSpeed   → activityIntervalMs()           (legacy.js, artisan)
-  //   craftSpeed   → activityIntervalMs()           (legacy.js, artisan)
-  //   prayerSpeed  → activityIntervalMs()           (legacy.js, artisan)
-  //   farmYield    → harvestPlot()                  (legacy.js)
-  //   goldFind     → applyGoldFind()                (legacy.js, wired b222)
-  //   noBurn       → cookBurnChance()               (legacy.js, wired b225)
-  //
-  // DELIBERATELY ABSENT: `rareDrop`. It exists on pets and equipment as an
-  // ITEM stat (getEquipmentStats().rareDrop), but nothing reads
-  // getBonus('rareDrop') — a rare-drop blessing would render a promise the
-  // engine cannot pay. It becomes poolable the day a drop-roll seam reads it.
-  // Also absent: `restedXp` (potency is 0 until the Tavern ships) and
-  // `raidPower` (raids are join-gated live content, which this rework leaves
-  // untouched by design).
-  //
-  // MAGNITUDES — b228, the bonus rebase (docs/design/bonus-rebase.md §3.2).
-  //
-  // Every percentage here came down roughly 4×, and NOT to the 2% grammar the
-  // permanent sources use. That difference is deliberate and it is the whole
-  // argument for where blessings sit in the hierarchy:
-  //
-  //   A blessing is discounted TWICE already — it is temporary, and it is
-  //   presence-gated to roughly the 2.5 active hours of a 14.5-hour effective
-  //   day. The Grand Fair at +4% allXP is worth 4% × (2.5/14.5) = 0.69% of the
-  //   week. The Great Library at +5% allXP, permanent, is worth 5.00% of every
-  //   week forever — SEVEN TIMES as much. So a blessing may carry a bigger
-  //   headline than the thing you paid 300,000 gold and two Keystones for and
-  //   still be worth a seventh of it, and that is the correct shape: the
-  //   calendar is a reason to look, the Library is a reason to build.
-  //
-  //   Cutting them to 2% instead would take the calendar's expected value to
-  //   +0.3% on the day, which is not a small bonus but an absent one — and
-  //   b227 shipped the calendar as the ENTIRE online-pays mechanic.
-  //
-  // Flat-unit and reliability grants are outside the percent grammar and do
-  // NOT move: `farmYield` is a count of crops, `noBurn` is the removal of a
-  // failure state and cannot stack into a faucet (burn-proof is burn-proof).
-
+  // The pool ORDER and LENGTH are load-bearing: the day's pick is
+  // hash % length, and the fairness census in the smoke suite measures it.
   var DAILY = [
-    { id: 'gather_surge',  name: 'Gathering Surge',   desc: '+4% gather speed',                bonus: { gatherSpeed: 0.04 } },
-    { id: 'forge_fires',   name: 'Forge Fires',       desc: '+4% smithing & crafting speed',   bonus: { smithSpeed: 0.04, craftSpeed: 0.04 } },
-    { id: 'harvest_fest',  name: 'Harvest Festival',  desc: '+2 farm yield',                   bonus: { farmYield: 2 } },
-    { id: 'scholars_day',  name: "Scholar's Day",     desc: '+3% all XP',                      bonus: { allXP: 0.03 } },
-    { id: 'hunters_moon',  name: "Hunter's Moon",     desc: '+3% combat XP',                   bonus: { combatXP: 0.03 } },
-    { id: 'feast_day',     name: 'Feast Day',         desc: '+4% cooking speed',               bonus: { cookSpeed: 0.04 } },
-    { id: 'quiet_vigil',   name: 'Quiet Vigil',       desc: '+4% prayer speed',                bonus: { prayerSpeed: 0.04 } },
-    // b227 — the two families the daily pool never covered.
-    { id: 'open_coffers',  name: 'The Open Coffers',  desc: '+3% gold find',                   bonus: { goldFind: 0.03 } },
-    { id: 'steady_fire',   name: 'The Steady Fire',   desc: '−25% burn chance · +2% cooking speed', bonus: { noBurn: 0.25, cookSpeed: 0.02 } }
+    { id: 'gather_surge',  name: 'Gathering Surge',   desc: 'a day for axes, picks and nets' },
+    { id: 'forge_fires',   name: 'Forge Fires',       desc: 'a day for the forge and the bench' },
+    { id: 'harvest_fest',  name: 'Harvest Festival',  desc: 'a day for the fields' },
+    { id: 'scholars_day',  name: "Scholar's Day",     desc: 'a day for study and practice' },
+    { id: 'hunters_moon',  name: "Hunter's Moon",     desc: 'a night for the hunt' },
+    { id: 'feast_day',     name: 'Feast Day',         desc: 'a day for the kitchen' },
+    { id: 'quiet_vigil',   name: 'Quiet Vigil',       desc: 'a day for prayer' },
+    { id: 'open_coffers',  name: 'The Open Coffers',  desc: 'a day for trade and treasure' },
+    { id: 'steady_fire',   name: 'The Steady Fire',   desc: 'a day for patient cooking' }
   ];
 
   var WEEKLY = [
-    // A weekly is worth "about a whole Library, for a week you are present."
-    { id: 'grand_fair',   name: 'The Grand Fair',   desc: '+4% all XP',                    bonus: { allXP: 0.04 } },
-    { id: 'kings_bounty', name: "The King's Bounty", desc: '+4% gold find',                bonus: { goldFind: 0.04 } },
-    { id: 'deep_veins',   name: 'Deep Veins',       desc: '+6% gather speed',              bonus: { gatherSpeed: 0.06 } },
-    { id: 'war_drums',    name: 'War Drums',        desc: '+4% combat XP',                 bonus: { combatXP: 0.04 } },
-    { id: 'guild_works',  name: 'Guild Works',      desc: '+6% artisan speed',             bonus: { cookSpeed: 0.06, smithSpeed: 0.06, craftSpeed: 0.06 } },
-    { id: 'long_harvest', name: 'The Long Harvest', desc: '+1 farm yield · +4% gather speed', bonus: { farmYield: 1, gatherSpeed: 0.04 } }
+    { id: 'grand_fair',   name: 'The Grand Fair',   desc: 'a week of fairs across the realm' },
+    { id: 'kings_bounty', name: "The King's Bounty", desc: 'a week under the crown’s banner' },
+    { id: 'deep_veins',   name: 'Deep Veins',       desc: 'a week for the mines and the woods' },
+    { id: 'war_drums',    name: 'War Drums',        desc: 'a week of drums on the border' },
+    { id: 'guild_works',  name: 'Guild Works',      desc: 'a week for the guild halls' },
+    { id: 'long_harvest', name: 'The Long Harvest', desc: 'a week for the long harvest' }
   ];
-
-  // How each key reads in a sentence. One map, so the activity note, the
-  // blessing card and any future surface all name a bonus the same way.
-  var KEY_LABEL = {
-    allXP: 'all XP', combatXP: 'combat XP', gatherSpeed: 'gather speed',
-    cookSpeed: 'cooking speed', smithSpeed: 'smithing speed',
-    craftSpeed: 'crafting speed', prayerSpeed: 'prayer speed',
-    farmYield: 'farm yield', goldFind: 'gold find', noBurn: 'burn chance'
-  };
-  // Flat-value keys print as "+2 farm yield"; the rest as "+25%".
-  var FLAT_KEYS = { farmYield: 1 };
 
   // FNV-1a — tiny, deterministic, good enough spread for pool picks.
   //
@@ -166,77 +93,17 @@
   }
   // A blessing-shaped object that grants nothing — the "no calendar" control
   // every gate test needs, so an assertion never depends on today's date.
-  var QUIET = { id: 'quiet_season', name: 'A Quiet Season', desc: 'no blessing', bonus: {} };
+  var QUIET = { id: 'quiet_season', name: 'A Quiet Season', desc: 'no blessing' };
 
   // ── THE GATE ──────────────────────────────────────────────────────────────
-  // The single question "is the calendar paying right now?". It defers to
-  // legacy.js's session layer, which owns both halves of the answer: we are
-  // not inside an offline replay AND the session is online. If that layer is
-  // missing we answer NO — this module wraps getBonus for the whole game, and
-  // the failure mode of a silent extra +25% paid to a catch-up is far worse
-  // than the failure mode of a missing one. (Note the asymmetry with
-  // sessionOnline() itself, which fails OPEN: there, "no disconnection signal"
-  // genuinely means online. Here, "no gate at all" means the replay latch is
-  // missing too, which is the dangerous direction.)
+  // "Is the day's blessing active for this player?" — the line the card prints.
+  // It pays nothing (see the header); it defers to legacy.js's session layer
+  // (not inside an offline replay AND online), and answers NO when that layer
+  // is missing.
   function blessingActive() {
     var P = window.HearthrisePresence;
     if (!P || typeof P.blessingsApply !== 'function') return false;
     try { return !!P.blessingsApply(); } catch (e) { return false; }
-  }
-
-  // What the calendar OFFERS for a key — the raw pool value, ungated. This is
-  // what the UI reads to describe the day; it is never what the engine pays.
-  /* b349 — the lookups are OWN-PROPERTY GUARDED, and that is a bug fix rather
-     than hygiene. `ev.bonus` is an ordinary object literal, so
-     `ev.bonus['constructor']` is the Object constructor: truthy, and
-     `t += Object` turns getBonus's answer into a STRING for the rest of the
-     session — every multiplier downstream then reads NaN. Measured through the
-     real seven-layer chain by src/features/smoke-test.js B349-5, which is where
-     it surfaced. Security's C6 in a new costume; the matching guard at layer 0
-     is `own()` in src/core/perks.js. No real key changes value: every blessing
-     magnitude is a number. */
-  function bonusFor(key) {
-    var t = 0;
-    var d = daily(), w = weekly();
-    if (d && typeof d.bonus[key] === 'number') t += d.bonus[key];
-    if (w && typeof w.bonus[key] === 'number') t += w.bonus[key];
-    return t;
-  }
-  // What the calendar actually PAYS for a key, right now. This is the only
-  // one getBonus consults.
-  function liveBonusFor(key) {
-    return blessingActive() ? bonusFor(key) : 0;
-  }
-
-  // The blessing that touches a given set of keys, described in words — used
-  // by the live activity note so a "+30% smithing" hint can never appear
-  // beside a woodcutting bar. Prefers the daily (it is the one that changes
-  // most often, so it is the one worth pointing at); falls back to the weekly.
-  function describe(ev, keys) {
-    if (!ev) return null;
-    for (var i = 0; i < keys.length; i++) {
-      var k = keys[i];
-      var v = ev.bonus[k];
-      if (!v) continue;
-      var label = KEY_LABEL[k] || k;
-      var amount = FLAT_KEYS[k] ? ('+' + v) : ((k === 'noBurn' ? '−' : '+') + Math.round(v * 100) + '%');
-      return { id: ev.id, name: ev.name, key: k, value: v, effect: amount + ' ' + label };
-    }
-    return null;
-  }
-  function summaryFor(keys) {
-    if (!keys || !keys.length) return null;
-    return describe(daily(), keys) || describe(weekly(), keys);
-  }
-
-  // ── wire into getBonus (thin additive layer; every system inherits it) ──
-  var origGetBonus = window.getBonus;
-  if (typeof origGetBonus === 'function') {
-    window.getBonus = function (key) {
-      var t = origGetBonus.apply(this, arguments);
-      try { t += liveBonusFor(key); } catch (e) {}
-      return t;
-    };
   }
 
   // ── UI: the Blessing card + login toast ──
@@ -278,8 +145,7 @@
       (onEvents ? '' : '<span class="tiny" style="text-transform:uppercase;letter-spacing:.08em;font-weight:800;color:var(--gold-2)">World events</span>') +
       pill(d, 'today', true) + pill(w, 'this week', false) +
       '</div>' +
-      // b227: the condition, stated plainly and in the same place as the
-      // bonus. b229: reworded to the rule as it now actually is — being in
+      // b227: the condition, stated plainly. b229: reworded to the rule as it now actually is — being in
       // the game, not being at the screen. The dim branch is no longer an
       // "idle" scold; the only way to lose the blessing mid-session is to
       // genuinely lose the connection, so that is what it says.
@@ -295,8 +161,7 @@
   // it was a line of text that re-injected itself every five seconds, could not
   // be interacted with, and taught the player that the words "world event" mean
   // "a line of text". Home falls back to hosting it only while the Events panel
-  // does not exist yet (early boot, or muster.js failing to load) — a bonus the
-  // player is already receiving must never become invisible.
+  // does not exist yet (early boot, or muster.js failing to load).
   function bannerHost() {
     return document.getElementById('hr-ev-blessing') || document.getElementById('panel-profile');
   }
@@ -330,7 +195,7 @@
         localStorage.setItem(seenKey, today);
         // Toasts render with textContent, so a glyph here can only ever be a
         // raw emoji character. Say it in words instead.
-        if (window.notify) notify('Today’s blessing: ' + d.name + ' — ' + d.desc + ', while online', 'info');
+        if (window.notify) notify('Today’s blessing: ' + d.name + ' — ' + d.desc, 'info');
       }
     } catch (e) {}
   }
@@ -343,11 +208,7 @@
   window.HearthriseWorldEvents = {
     DAILY: DAILY, WEEKLY: WEEKLY,
     daily: daily, weekly: weekly,
-    bonusFor: bonusFor,               // what the calendar OFFERS (ungated)
-    liveBonusFor: liveBonusFor,       // what it PAYS right now (gated)
     isActive: blessingActive,
-    summaryFor: summaryFor,
-    KEY_LABEL: KEY_LABEL,
     EVENT_GLYPH: EVENT_GLYPH,
     utcDayKey: utcDayKey, utcWeekKey: utcWeekKey,
     renderBlessing: injectBanner,

@@ -3384,14 +3384,10 @@ try{
   });
 }catch(e){}
 
-/* The honest hint, rendered beside the XP of whatever is running. A bonus the
-   player cannot see is a bonus that does not change behaviour — and a bonus
-   that is silently OFF is worse than one that never existed. It names the
-   blessing that actually touches THIS activity (a "+30% smithing" note beside
-   a woodcutting bar is a lie by adjacency), says plainly that it is alive while
-   you are in the game, and dims to "— reconnecting" if the session genuinely
-   drops. b229: there is no "— idle" state any more; a backgrounded tab is not
-   a lapse, so the note must not imply one. */
+/* b560: the note beside the running activity used to name the day's blessing
+   and its effect ("+4% gather speed · while online"). The engine pays no
+   blessing layer, so that was a promise the realm never kept (CONFLICTS.md
+   2026-09-28) and it is gone; what remains is the power-budget ceiling. */
 /* b228 — THE CEILING IS SURFACED, NEVER SILENT (bonus-rebase.md §3.2).
    The temporary budget is reachable only at a full conjunction — the right
    weekly, the right daily, a Last Call feast and a draught in hand — and that
@@ -3403,18 +3399,11 @@ function blessingLimitNote(){
   if(!PB || typeof PB.atLimit !== 'function') return '';
   let hit = false;
   try{ hit = activeBonusKeys().some(function(k){ return PB.atLimit(k); }); }catch(e){ return ''; }
-  return hit ? ' · <b style="color:var(--gold-2)">the realm\'s blessing is at its limit</b>' : '';
+  return hit ? ' · <b style="color:var(--gold-2)">the boost budget is at its limit</b>' : '';
 }
 function blessingNote(){
   if(!(G && (G.activeSkill||G.activeMonster||G.activeArtisanRecipe))) return '';
-  const WE = window.HearthriseWorldEvents;
-  if(!WE || typeof WE.summaryFor !== 'function') return '';
-  let hit = null;
-  try{ hit = WE.summaryFor(activeBonusKeys()); }catch(e){ return ''; }
-  if(!hit) return blessingLimitNote();
-  return (blessingsApply()
-    ? ` · <b style="color:var(--gold-2)">${hit.name}</b> <span style="opacity:.75">${hit.effect} · while online</span>`
-    : ` · <span style="opacity:.55">${hit.name} ${hit.effect} — reconnecting</span>`) + blessingLimitNote();
+  return blessingLimitNote();
 }
 window.HearthriseBlessingLimitNote = blessingLimitNote;
 /* Every skill `combatXP` pays. b228: the ONE list — addXp() reads it too, and
@@ -11282,11 +11271,11 @@ function refreshActivityBar(){
     const xph = _activityXpHr();
     if(metaEl){
       const lv = (typeof getLevel==='function') ? getLevel(G.activeSkill) : 0;
-      /* b326: when a blessing or buff is lifting this activity, state the rate
+      /* b326: when a buff is lifting this activity, state the rate
          an ABSENCE would pay right beside it. Same calculator, `away:true`. */
       const awayXph = _activityAwayXpHr(xph);
       metaEl.innerHTML = `<span class="ab-lv">Lv <b>${lv}</b></span>${xph?`<span class="ab-xph"><b>${xph.toLocaleString()}</b> xp/hr</span>`:''}`
-        + (awayXph?`<span class="ab-xph ab-away" title="Blessings and food buffs pay while you play. An absence is paid at the base rate."><b>${awayXph.toLocaleString()}</b> away</span>`:'');
+        + (awayXph?`<span class="ab-xph ab-away" title="Food buffs pay while you play. An absence is paid at the base rate."><b>${awayXph.toLocaleString()}</b> away</span>`:'');
     }
     if(stopBtn) stopBtn.style.display = '';
     refreshPanelProgress();

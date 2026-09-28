@@ -6,6 +6,7 @@
 //   node tests/run-ci-local.mjs --all      …plus the in-page suite, i.e. the
 //                                          whole workflow, exactly as CI runs it
 //   node tests/run-ci-local.mjs --list     print the derived command list, run nothing
+//   node tests/run-ci-local.mjs --selftest soft steps == continue-on-error steps, mutation-proved
 //
 // ── WHY THIS EXISTS (P0 PROCESS FAILURE, proven 2026-09-04) ─────────────────
 // .github/workflows/smoke.yml runs ONE step that anybody ran locally — the
@@ -195,6 +196,100 @@ function applyKey(step, s) {
   }
 }
 
+// ── --selftest: continue-on-error PARITY (2026-09-28) ─────────────────────
+// A step marked soft here prints REPORT and never fails the local run, so a
+// soft flag on the wrong step makes this file WEAKER than CI — the one
+// direction its contract forbids. On 2026-09-27 client-guards went red on the
+// test-file ratchet while a local run was read as reporting it soft; the
+// parser was measured correct on every smoke.yml revision since 09-20, and
+// this proof keeps it that way. The truth side is a line scan that shares no
+// code with parseWorkflow: each `continue-on-error: true` line belongs to the
+// nearest step opener (`- ` at indent 6) above it, in the nearest job above that.
+export function softTruth(text) {
+  const lines = text.split('\r\n').join('\n').split('\n');
+  const at = lines.findIndex((l) => /^jobs:\s*$/.test(l));
+  const out = [];
+  let job = null;
+  let stepAt = -1;
+  for (let i = at + 1; i < lines.length; i++) {
+    const l = lines[i];
+    if (/^\S/.test(l)) break;
+    if (/^ {2}[A-Za-z0-9_-]+:\s*$/.test(l)) { job = l.trim().slice(0, -1); stepAt = -1; continue; }
+    if (/^ {6}- /.test(l)) { stepAt = i; continue; }
+    if (/^ {4}\S/.test(l)) { stepAt = -1; continue; }
+    if (stepAt < 0 || !/^ {6,8}(- )?continue-on-error:\s*(true|'true'|"true")\s*$/.test(l)) continue;
+    let name = null;
+    for (let j = stepAt; j < lines.length && (j === stepAt || !/^ {0,6}\S/.test(lines[j])); j++) {
+      const m = /^ {6}(?:- | {2})name:\s*(.*)$/.exec(lines[j]);
+      if (m) { name = m[1].trim().replace(/^['"]|['"]$/g, ''); break; }
+    }
+    out.push(`${job} :: ${name}`);
+  }
+  return [...new Set(out)].sort();
+}
+
+/** The soft steps as the parser reads them; every step the PLAN runs must carry
+    the same flag, or the runner and the parser disagree about the verdict. */
+export function softParsed(jobs) {
+  const flat = flatSteps(jobs);
+  const soft = flat.filter((s) => s.soft).map((s) => `${s.job} :: ${s.name}`).sort();
+  const bad = buildPlan(jobs, { all: true }).filter((p) => !p.skipped
+    && !!p.soft !== flat.some((s) => s.soft && s.job === p.job && s.name === p.name));
+  return bad.length ? ['PLAN-DISAGREES', ...soft] : soft;
+}
+
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+/** Every step whose line range could take a planted key: [openerLine, lastLine]. */
+function stepRanges(lines) {
+  const at = lines.findIndex((l) => /^jobs:\s*$/.test(l));
+  const r = [];
+  let cur = null;
+  for (let i = at + 1; i < lines.length; i++) {
+    const l = lines[i];
+    if (/^\S/.test(l)) break;
+    if (/^ {6}- /.test(l)) { cur = [i, i]; r.push(cur); continue; }
+    if (/^ {0,5}\S/.test(l)) { cur = null; continue; }
+    if (cur && /\S/.test(l)) cur[1] = i;
+  }
+  return r;
+}
+
+export function selftest(text, parse = parseWorkflow) {
+  const text0 = text.split('\r\n').join('\n');
+  const fails = [];
+  const truth = softTruth(text0);
+  const got = softParsed(parse(text0));
+  console.log(`  real smoke.yml: ${truth.length} step(s) carry continue-on-error: true; `
+    + `${got.length} parsed soft`);
+  for (const t of truth) console.log(`    yml  ${t}`);
+  for (const g of got) console.log(`    soft ${g}`);
+  if (!truth.length) fails.push('the truth scan found no continue-on-error line — the scan is broken');
+  if (!same(truth, got)) fails.push(`PARITY: yml ${JSON.stringify(truth)} != parsed ${JSON.stringify(got)}`);
+
+  /* MUTATION: plant a stray `continue-on-error: true` on EVERY step of a copy,
+     one at a time, both as the step's first key (under `- name:`) and as its
+     LAST line (after a block `run: |` body — where carry-over would hide). Each
+     plant must add exactly that step to the soft set and nothing else. */
+  const lines = text0.split('\n');
+  let planted = 0;
+  for (const [open, last] of stepRanges(lines)) {
+    for (const where of [open + 1, last + 1]) {
+      const copy = [...lines.slice(0, where), '        continue-on-error: true', ...lines.slice(where)];
+      const t = copy.join('\n');
+      const want = softTruth(t);
+      const have = softParsed(parse(t));
+      planted++;
+      if (!same(want, have)) {
+        fails.push(`MUTANT line ${where + 1}: yml ${JSON.stringify(want)} != parsed ${JSON.stringify(have)}`);
+        if (fails.length > 5) return fails;
+      }
+    }
+  }
+  console.log(`  mutation: ${planted} stray continue-on-error plants, each attributed to its own step only`);
+  return fails;
+}
+
 // ── the runner ───────────────────────────────────────────────────────────
 // `node …` is spawned on THIS interpreter (so the local Node version is the one
 // under test) and `bash …` on bash; anything else goes through the platform
@@ -233,6 +328,33 @@ async function main() {
   const argv = process.argv.slice(2);
   const ALL = argv.includes('--all');
   const LIST = argv.includes('--list');
+  if (argv.includes('--selftest')) {
+    const wf = await readFile(WORKFLOW, 'utf8');
+    console.log('run-ci-local --selftest: soft (continue-on-error) steps must equal the yml\'s, exactly');
+    const fails = selftest(wf);
+    /* NON-VACUITY: the same checks against two broken parsers — the flag carried
+       onto every later step, and the flag landing on the NEXT step — must fail. */
+    const mutants = {
+      'carried-across-steps': (t) => parseWorkflow(t).map((j) => {
+        let on = false;
+        return { ...j, steps: j.steps.map((s) => ({ ...s, soft: (on = on || s.soft) })) };
+      }),
+      'attributed-to-next-step': (t) => parseWorkflow(t).map((j) => ({
+        ...j, steps: j.steps.map((s, i) => ({ ...s, soft: i > 0 && j.steps[i - 1].soft })),
+      })),
+    };
+    for (const [id, p] of Object.entries(mutants)) {
+      const quiet = console.log; console.log = () => {};
+      let caught;
+      try { caught = selftest(wf, p).length > 0; } finally { console.log = quiet; }
+      console.log(`  ${caught ? 'ok  ' : 'MISS'} parser mutant ${id} — ${caught ? 'caught' : 'NOT caught'}`);
+      if (!caught) fails.push(`parser mutant ${id} was not caught — the proof is vacuous`);
+    }
+    for (const f of fails) console.log('  RED  ' + f);
+    console.log(fails.length ? `run-ci-local --selftest FAILED (${fails.length})` : 'run-ci-local --selftest PASSED');
+    process.exitCode = fails.length ? 1 : 0;
+    return;
+  }
   const jobArgIdx = argv.indexOf('--job');
   const JOB = jobArgIdx >= 0 ? argv[jobArgIdx + 1] : null;
   if (jobArgIdx >= 0 && !JOB) {

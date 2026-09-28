@@ -164,6 +164,11 @@
       "reason": "Its plain run is not a gate and cannot be one: `node tests/visual-qa.mjs` launches Playwright, drives every screen and WRITES the screenshot set to docs/reports/visual-qa/ for a human (Art Director) to read — it reports rather than exiting non-zero on a look. The gating half is tests/visual-qa-gate.mjs, whose plain run IS registered in the same step. The --selftest arm here is the one thing in this file that can be red, which is why it is what CI runs.",
       "owner": "art-director",
       "disposition": "reporter-not-a-gate"
+    },
+    "run-ci-local.mjs": {
+      "reason": "Its plain run IS the whole CI matrix run locally (every guard in every job, minutes of PGlite replays) — registering it inside one CI job would run CI inside CI. Its read-only half, `--list`, is spawned and checked by tests/ci-shape.mjs (CI-SHAPE-8), whose plain run is registered. And the --selftest's FIRST arm is the clean control: the real smoke.yml's soft set must equal its continue-on-error steps before any mutation is planted, so a parser that throws or reads nothing is red, not 'all caught'.",
+      "owner": "reliability-engineer",
+      "disposition": "runner-plain-run-is-the-matrix"
     }
   }
 }

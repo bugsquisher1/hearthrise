@@ -2308,7 +2308,8 @@ jobs:
   # set registered market-price-source, offline-cap-honesty, retired-
   # capability-copy and bounty-view here), no failing assertion. The same
   # job takes 11.1 min locally (run-ci-local --job client-guards). Budget =
-  # measured ~12 min x2 = 24; re-measure on the next green run.
+  # measured ~12 min x2 = 24; re-measure on the next green run. The
+  # run-ci-local --selftest step (2026-09-28) adds under 1 s; budget unchanged.
   client-guards:
     runs-on: ubuntu-latest
     timeout-minutes: 24
@@ -2345,6 +2346,17 @@ jobs:
         run: |
           node tests/ci-shape.mjs --selftest
           node tests/ci-shape.mjs
+
+      # LOCAL SOFT == CI SOFT. run-ci-local prints a `continue-on-error` step as
+      # REPORT and never fails on it, so a soft flag on the wrong step makes the
+      # local half WEAKER than this file (2026-09-27: the test-file ratchet was
+      # red here and read as REPORT locally). Asserts the soft set equals the
+      # steps carrying the key, plants a stray key on every step of a copy, and
+      # proves two broken parsers are caught. Sub-second; the plain run of this
+      # file is the --list that ci-shape above already spawns.
+      - name: CI-local soft parity - continue-on-error lands on its own step only
+        if: ${{ !cancelled() }}
+        run: node tests/run-ci-local.mjs --selftest
 
       # DOES EVERY SHIPPED SCRIPT STILL PARSE? It runs FIRST-ish and it is the
       # cheapest question in the matrix: a file that does not parse does not

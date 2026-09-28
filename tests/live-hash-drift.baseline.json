@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-28",
- "replay_ms": 22422,
+ "replay_ms": 27460,
  "counts": {
   "tracked_names": 77,
   "entries": 74
@@ -181,17 +181,18 @@
     "2026-09-22-trophy-claim.sql",
     "2026-09-23-m8-parties-s2-3-engine-allowlist.sql",
     "2026-09-23-world-tick-shadow-state-chain.sql",
+    "2026-09-28-grant-hygiene-hr-ops.sql",
     "2026-09-28-settle-before-mutate.sql"
    ],
    "live": {
-    "md5": "1437ce5480ce6229ac007c67546a038c",
-    "norm_len": 38966,
+    "md5": "61522297faa2902a91edb632184687a5",
+    "norm_len": 41416,
     "measured": "2026-09-28",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "1437ce5480ce6229ac007c67546a038c",
-    "norm_len": 38966,
+    "md5": "61522297faa2902a91edb632184687a5",
+    "norm_len": 41416,
     "source": "computed-from-replay"
    },
    "agree": true

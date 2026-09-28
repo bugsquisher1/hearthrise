@@ -379,6 +379,9 @@
  * printed straight across the boots and WHAT IT DROPS across the food line. A
  * rail that runs out of room must SCROLL, not overlap itself. */
 #panel-combat .fsm-block { display: flex; flex-direction: column; gap: 5px; flex: 0 0 auto; }
+/* `display: flex` above beats the [hidden] attribute: a hidden rail block (the
+ * Vigour block with no priced meter) must take no room, header included. */
+#panel-combat .fsm-block[hidden] { display: none; }
 #panel-combat .fsm-block-grow { flex: 1 1 auto; min-height: 74px; }
 #panel-combat .fsm-head {
   display: flex; align-items: baseline; gap: 6px;

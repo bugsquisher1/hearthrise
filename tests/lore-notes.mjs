@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
 // tests/lore-notes.mjs — ONE LORE LINE PER COMPANION, RANK, TROPHY STAGE,
-//                        ROOM RUNG, FARM PLOT TIER, CHARM CLASS, CHARM RANK
-//                        AND LUCKY FIND
+//                        ROOM RUNG, FARM PLOT TIER, CHARM CLASS, CHARM RANK,
+//                        LUCKY FIND AND DUNGEON CLEAR
 //
 //   node tests/lore-notes.mjs             gate
-//   node tests/lore-notes.mjs --selftest  mutation proof (clean arm + 18 plants)
+//   node tests/lore-notes.mjs --selftest  mutation proof (clean arm + 20 plants)
 //
 // src/data/lore-notes.js is client-only display text. The Stable card, the
 // renown ladder, the rank-up card and the Trophy Room render it as RAW HTML,
@@ -20,6 +20,8 @@
 // one tier builder, reading the SERVER plot tier (CLAUDE.md §6).
 // src/data/charm-lore.js joins too: LORE-8 keys the class lines by the bane
 // taxonomy (extra_dimensional), LORE-9 the rank lines by CHARM_RANKS ids.
+// src/data/dungeon-lore.js: LORE-16 keys the Spoils sheet's clear line by
+// DUNGEONS id (src/render/spoils-sheet.js is its only importer).
 // Every lore map is one row of the SETS table: {id, name, tag, map, wantKeys,
 // band}. A new lore file is a new row, and it joins LORE-4/5/6 by being one.
 //
@@ -46,7 +48,7 @@ export function labelValues(srcText, decl) {
 }
 
 /* LORE-7: a packed origin or content naming any lore file fails. */
-const LORE_FILE = /lore-notes|lucky-rumours|homestead-lore|charm-lore/;
+const LORE_FILE = /lore-notes|lucky-rumours|homestead-lore|charm-lore|dungeon-lore/;
 const BAND = [100, 140];
 
 /* The FIELDNOTES-1 element synonyms (smoke/quests-chronicle-and-bonus.js). */
@@ -71,6 +73,7 @@ export function buildSets(m) {
       wantKeys: Array.from({ length: m.maxPlot }, (_, i) => String(i + 1)), band: BAND },
     { id: 'LORE-8', name: 'CHARM_CLASS_LORE', tag: 'charm class', map: m.charmClassLore, wantKeys: m.charmClassKeys, band: BAND },
     { id: 'LORE-9', name: 'CHARM_RANK_LORE', tag: 'charm rank', map: m.charmRankLore, wantKeys: m.charmRankIds, band: BAND },
+    { id: 'LORE-16', name: 'DUNGEON_CLEAR_LORE', tag: 'dungeon', map: m.dungeonLore, wantKeys: m.dungeonIds, band: BAND },
   ];
 }
 
@@ -177,6 +180,10 @@ async function loadReal() {
   let charm;
   try { charm = await import('../src/data/charm-lore.js'); }
   catch (e) { charm = { CHARM_CLASS_LORE: {}, CHARM_RANK_LORE: {} }; }
+  let dungeon;
+  try { dungeon = await import('../src/data/dungeon-lore.js'); }
+  catch (e) { dungeon = { DUNGEON_CLEAR_LORE: {} }; }
+  const { DUNGEONS } = await import('../src/data/dungeons.js');
   const { LUCKY_RUMOURS } = await import('../src/data/lucky-rumours.js');
   const { MONSTERS } = await import('../src/data/monsters.js');
   const luckyDrops = Object.entries(MONSTERS).flatMap(([mid, m]) => (m.drops || [])
@@ -222,6 +229,7 @@ async function loadReal() {
       /* The bane taxonomy is an ARRAY; the counters key on it, not on monster-classes.js. */
       charmClassLore: charm.CHARM_CLASS_LORE, charmClassKeys: [...MONSTER_CLASSES],
       charmRankLore: charm.CHARM_RANK_LORE, charmRankIds: CHARM_RANKS.map((r) => r.id),
+      dungeonLore: dungeon.DUNGEON_CLEAR_LORE, dungeonIds: Object.keys(DUNGEONS),
     }),
     luckyDrops, plotNames: home.PLOT_TIER_NAMES,
     maxPlot: MAX_PLOT_LEVEL, plotUnlocks: Object.fromEntries(PLOT_TIERS.map((t, n) => [String(n), t ? t.unlocks : []])),
@@ -252,7 +260,7 @@ async function run() {
   return 0;
 }
 
-/* ── MUTATION PROOF (CLAUDE.md §4): a clean arm, then eighteen plants, each of
+/* ── MUTATION PROOF (CLAUDE.md §4): a clean arm, then twenty plants, each of
    which must be caught by its OWN LORE id. */
 function fixture() {
   const L = (s) => s.padEnd(110, ' and the valley remembers it well');
@@ -271,6 +279,8 @@ function fixture() {
     charmClassKeys: ['undead', 'extra_dimensional'],
     charmRankLore: { studied: L('Your notes fill a page'), marked: L('They know your scent') },
     charmRankIds: ['studied', 'marked'],
+    dungeonLore: { crypt_of_bones: L('The crypt is quiet now'), goblin_warcamp: L('The warcamp scatters into the hills') },
+    dungeonIds: ['crypt_of_bones', 'goblin_warcamp'],
   };
   const sets = buildSets(m);
   const set = (id) => sets.find((s) => s.id === id).map;
@@ -331,6 +341,10 @@ function selftest() {
     }],
     ['pack src/data/charm-lore.js', 'LORE-7', (f) => {
       f.packedFiles.push({ name: '_shared/charm-lore.js', origin: 'src/data/charm-lore.js', content: '' });
+    }],
+    ['drop a dungeon line', 'LORE-16', (f) => { delete f.set('LORE-16').goblin_warcamp; }],
+    ['pack src/data/dungeon-lore.js', 'LORE-7', (f) => {
+      f.packedFiles.push({ name: '_shared/dungeon-lore.js', origin: 'src/data/dungeon-lore.js', content: '' });
     }],
   ];
   for (const [label, want, mutate] of arms) {

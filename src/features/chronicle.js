@@ -91,7 +91,8 @@
     property: { label: 'Homestead',  glyph: 'home' },
     castle:   { label: 'Clan seat',  glyph: 'castle' },
     hunt:     { label: 'The Hunt',   glyph: 'trophy' },
-    name:     { label: 'Name',       glyph: 'banner' }
+    name:     { label: 'Name',       glyph: 'banner' },
+    dungeon:  { label: 'Dungeons',   glyph: 'skull' }
   };
 
   // ── State ─────────────────────────────────────────────────

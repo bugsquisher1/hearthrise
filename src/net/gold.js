@@ -117,6 +117,7 @@ import {
   applyEnvelopeState, describeReplacement, isReplacementAcknowledged,
   showReplacementSheet, registerPredictionSeam, isReconcilePending,
   classifyFrame, commitFrame, resetFrameGate, getAppliedFrame, noteFrameDrop,   // the frame gate, §7.1
+  applyCollectedReceipt,   // a verb that settled first hands its `collected` to the welcome card
 } from './accrue.js?v=559';
 import { SHOP_OFFERS } from '../data/shops.js?v=559';
 import { withSettleFirstRetry } from './settle-first.js?v=559';
@@ -653,6 +654,10 @@ export function applyGoldEnvelope(G, body, ownKey) {
   written.retired = (written.predictions && written.predictions.retired) || 0;
   written.carried = (written.predictions && written.predictions.carried) || { gold: 0, gems: 0 };
   written.receipt = receiptOf(body);
+  /* SETTLE-BEFORE-MUTATE (F1): a buy/sell/claim/market answer carries the
+     receipt for the window it settled first. Same seam as the switch and the
+     boot settle, once per window; the card is display and credits nothing. */
+  written.summary = !!applyCollectedReceipt(G, body, env, 'collect');
   G._serverAccrual = {
     version: env.version,
     accruedTo: env.state.accrued_to || null,

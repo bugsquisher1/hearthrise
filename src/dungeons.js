@@ -435,7 +435,7 @@
 
   function renderQuartermaster(){
     var line = document.getElementById('qm-scrip-line');
-    if(line) line.innerHTML = 'You have <b>' + scripMarkup(scripHeld()) + ' Dungeon Scrip</b> — earned by clearing dungeons.';
+    if(line) line.innerHTML = 'You have <b>' + scripMarkup(scripHeld()) + ' Dungeon Scrip</b>, earned by clearing dungeons.';
     var body = document.getElementById('quartermaster-body');
     if(!body) return;
     var groups = [

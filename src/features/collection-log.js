@@ -653,7 +653,7 @@
     msHtml += nextRungs(G).map(function (r) {
       var have = r.known ? fmt(r.have) : ((HB && HB.countMarkup) ? HB.countMarkup(null, { label: 'Not counted yet' }) : '—');
       return '<div class="hr-cl-next" data-cl-next="' + r.m.id + '"><div class="hr-cl-msb"><b>' + r.m.label + ': ' +
-        have + '/' + fmt(r.goal) + ' ' + domainNoun(r.m.domain) + '</b> — ' + msRewardText(r.m.reward) + '</div></div>';
+        have + '/' + fmt(r.goal) + ' ' + domainNoun(r.m.domain) + '</b> · ' + msRewardText(r.m.reward) + '</div></div>';
     }).join('');
 
     var scrim = document.createElement('div');

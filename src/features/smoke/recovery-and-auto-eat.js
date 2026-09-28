@@ -2863,4 +2863,17 @@ export default [
     const chip = NP.chipHtml({ kind: 'combat', numeric: true, deaths: 3, stoppedBy: 'retreat', retreatFalls: 3, retreatMs: 600000, foodQty: 0, foodEaten: 0, targetName: 'Slime' });
     assert(/away: no food/.test(chip), 'a hungry retreat chip is wrong: ' + chip);
   }),
+
+  /* AB-AWAY-PENDING-1 (regression, board P3): the pending chip was a bare dash with
+     no visible word. It still says only that the realm has not answered. */
+  () => tryRun('AB-AWAY-PENDING-1: the pending away chip says "counting", the stated one never does', () => {
+    const NP = window.HearthriseNightPlan, B = window.HearthriseBalance;
+    const text = (html) => { const d = document.createElement('div'); d.innerHTML = html; return d.firstElementChild; };
+    const pend = text(NP.chipHtml(null)), said = pend.textContent;
+    assert(pend.classList.contains(B.PENDING_CLASS) && /counting/.test(said) && (said.indexOf('—') < 0 || /\w/.test(said.replace('—', ''))),
+      'the pending chip is an unlabeled dash: ' + pend.outerHTML);
+    const fed = text(NP.chipHtml({ kind: 'combat', numeric: true, deaths: 0, foodQty: 9, foodEaten: 0, targetName: 'Slime' }));
+    assert(!fed.classList.contains(B.PENDING_CLASS) && /pays away/.test(fed.textContent) && !/counting|—/.test(fed.textContent),
+      'the stated chip kept the pending word: ' + fed.outerHTML);
+  }),
 ];

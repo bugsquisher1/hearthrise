@@ -58,7 +58,7 @@ function chipHtml(f) {
   const B = window.HearthriseBalance || {};
   const span = (cls, title, text) => `<span class="ab-xph ab-away${cls}"${title}>${esc(text)}</span>`;
   if (!f) {
-    return span(' ' + (B.PENDING_CLASS || ''), ` aria-label="${esc(label('night.chipPending'))}"`, B.UNKNOWN_TEXT || '');
+    return span(' ' + (B.PENDING_CLASS || ''), ` aria-label="${esc(label('night.chipPending'))}"`, label('night.chipCounting'));
   }
   const S = STN();
   const said = (S && S.sentence(f)) || '';

@@ -76,6 +76,7 @@ export const SIGNPOSTS = Object.freeze({
     'night.chipDown': 'away: you fall',
     'night.chipNoFoodLabel': 'away: no food',
     'night.chipPending': 'Tonight is not forecast yet',
+    'night.chipCounting': 'away: counting…',
     'foe.heading': 'Know your foe',
     'foe.notes': 'Field notes',
   }),

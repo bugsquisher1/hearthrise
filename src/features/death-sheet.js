@@ -494,7 +494,9 @@
     rows.push({
       g: 'uiSkull', tone: 'bad', k: 'killed-by',
       t: monsterName ? 'Slain by ' + monsterName : 'Slain in battle',
-      v: !killsStated ? '' : (kills > 0 ? (kills + (kills === 1 ? ' kill' : ' kills') + ' first') : 'no kills')
+      /* An UNKNOWN killer states no count either: "no kills" against nobody is
+         a figure the realm never gave, so the row says only what happened. */
+      v: (!killsStated || !monsterName) ? '' : (kills > 0 ? (kills + (kills === 1 ? ' kill' : ' kills') + ' first') : 'no kills')
     });
     /* THE REASSURING HALF, and it is not filler. A new player's first
        assumption on death in an RPG is that they were just robbed. Hearthrise
@@ -664,7 +666,9 @@
       recoverMsLeft: recoverLeft,
       deaths: deaths,
       rows: rows,
-      foe: d.foe || null,
+      /* Absent, never `null`, when no foe was read: the model carries no
+         placeholder for a killer nobody named (b373). */
+      foe: d.foe || undefined,
       tipKey: tipKey,
       tip: tipKey && TIPS[tipKey](
         { foodQty: foodQty, foodName: foodName, monsterName: monsterName || 'That foe', foe: d.foe || null,

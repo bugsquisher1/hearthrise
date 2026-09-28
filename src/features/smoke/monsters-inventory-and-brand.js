@@ -7072,6 +7072,9 @@ export default [
     assert(typeof m.title === 'string' && m.title.length > 0, 'no title without a monster name');
     assert(m.actions.length === 2 && m.actions[0].primary, 'the two doors are not both present');
     assert(!/undefined|NaN|null/.test(JSON.stringify(m)), 'the sheet leaked a placeholder value: ' + JSON.stringify(m));
+    /* Nobody named the killer, so nobody stated a count against it either. */
+    const killed = m.rows.find((r) => r.k === 'killed-by');
+    assert(killed && killed.v === '', 'the unknown killer carried a kills figure: ' + JSON.stringify(killed));
   }),
 
   () => tryRun('b373/rev.2: RESPAWN COSTS NO PROGRESS — the sim stands you up at 40% and names its killer', () => {

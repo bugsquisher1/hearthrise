@@ -2701,11 +2701,14 @@ jobs:
       # "Next:" it promises is one the server will honour (no scroll-gated
       # recipe, plot tier named). Client-only; SKG-12 keeps both files out of
       # hr-accrue. --selftest plants one defect per SKG id.
+      # tests/standings.mjs rides here: one unique crown per skill board, client-only (STAND-1..4).
       - name: Skill guide coverage - every skill has a line and an honest ladder
         if: ${{ !cancelled() }}
         run: |
           node tests/skill-guide-coverage.mjs
           node tests/skill-guide-coverage.mjs --selftest
+          node tests/standings.mjs
+          node tests/standings.mjs --selftest
       # THE HEARTH CODEX — every glossary sentence is bound to the engine or the
       # SQL authority. Client-only (src/data/codex.js is outside the hr-accrue
       # pack, CODEX-8), so milliseconds. --selftest plants ten defects (a slowed

@@ -209,6 +209,8 @@
     "node tests/companion-promise-parity.mjs --selftest": "client-guards",
     "node tests/skill-guide-coverage.mjs": "client-guards",
     "node tests/skill-guide-coverage.mjs --selftest": "client-guards",
+    "node tests/standings.mjs": "client-guards",
+    "node tests/standings.mjs --selftest": "client-guards",
     "node tests/codex-claims.mjs": "client-guards",
     "node tests/codex-claims.mjs --selftest": "client-guards",
     "node tests/offline-cap-honesty.mjs": "client-guards",

@@ -213,6 +213,8 @@
     "node tests/standings.mjs --selftest": "client-guards",
     "node tests/codex-claims.mjs": "client-guards",
     "node tests/codex-claims.mjs --selftest": "client-guards",
+    "node tests/deeds.mjs": "client-guards",
+    "node tests/deeds.mjs --selftest": "client-guards",
     "node tests/offline-cap-honesty.mjs": "client-guards",
     "node tests/offline-cap-honesty.mjs --selftest": "client-guards",
     "node tests/blessing-promise-honesty.mjs": "client-guards",

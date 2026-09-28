@@ -172,6 +172,12 @@ export function indexForCombat() {
   return null;
 }
 
+/** Has the SERVER stated the per-monster kill counts at all? killsOfMonster
+ *  answers 0 for "no mirror", so a grade that must tell 0 from unknown (the
+ *  Dragon Slayer deed) gates on this — never on the charm mirror's
+ *  countersKnown(), which is a different envelope key. */
+export function countsKnown() { return mirror() !== null; }
+
 /** Lifetime kills against one monster, per the SERVER. 0 when unknown. */
 export function killsOfMonster(id) {
   const b = mirror();
@@ -435,6 +441,7 @@ export function setupBestiaryTrophies() {
     noteEnvelope,
     indexForCombat,
     killsOfMonster,
+    countsKnown,
     stageOfMonster,
     nextOfMonster,
     isClaimed,

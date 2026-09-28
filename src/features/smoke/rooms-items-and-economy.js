@@ -2573,7 +2573,6 @@ export default [
       const DAY = 'test-day-key';
       // --- DEVICE A: a played account ---
       G.bestiary = { slime: { kills: 42 } };
-      G.achievements = { first_kill: { unlocked: true } };
       G.quests = [{ id: 'q1', progress: 7, done: false }];
       G.daily = { lastReset: DAY, tasks: [{ id: 'd1', progress: 3 }] };
       G.streak = { days: 5, lastClaimDayKey: DAY };      // daily reward ALREADY claimed
@@ -2584,13 +2583,12 @@ export default [
       const cloud = JSON.parse(JSON.stringify(ev.snapshot(G)));   // what reaches the server
 
       // --- DEVICE B: a fresh install signs in ---
-      ['bestiary', 'achievements', 'quests', 'daily', 'streak', 'collection', 'traits', 'homestead']
+      ['bestiary', 'quests', 'daily', 'streak', 'collection', 'traits', 'homestead']
         .forEach((k) => { delete G[k]; });
       Object.assign(G, cloud);                            // the real restore path (auth.js)
 
       // (a) progress survived
       assert(G.bestiary && G.bestiary.slime.kills === 42, 'Bestiary must survive the restore');
-      assert(G.achievements && G.achievements.first_kill.unlocked, 'Achievements must survive');
       assert(G.quests && G.quests[0].progress === 7, 'Quest progress must survive');
       assert(G.collection && G.collection.bones === 12, 'Collection log must survive');
       assert(G.traits && G.traits.autoEat === true, 'Purchased traits must survive (paid with gold)');
@@ -2619,7 +2617,7 @@ export default [
     // Everything a second device must not lose or be re-granted.
     /* `wieldGrandfather` left this list with the field itself — a client-held gear
        permission the realm never had; nothing crosses devices by its absence. */
-    ['bestiary', 'achievements', 'quests', 'daily', 'collection', 'traits',
+    ['bestiary', 'quests', 'daily', 'collection', 'traits',
       'streak', 'lockedItems', 'offlineBudget', 'homestead', 'v']
       .forEach((k) => {
         if (G[k] === undefined) return;                 // field not present in this save

@@ -2719,6 +2719,8 @@ jobs:
         run: |
           node tests/codex-claims.mjs
           node tests/codex-claims.mjs --selftest
+          node tests/deeds.mjs
+          node tests/deeds.mjs --selftest
       # THE AWAY LIMIT — the client may promise only the hours hr_offline_cap_ms
       # pays (renown/property hours were retired). Client + SQL text, milliseconds.
       # --selftest plants eight defects (M1-M8) and one exact renown match.

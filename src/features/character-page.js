@@ -222,9 +222,9 @@ function buildHeroCard() {
 /* The OSRS-our-own Account panel. Total XP sits behind a "click to reveal" the
    way OSRS hides its precise figures — the reveal state is a session field so it
    survives the 2s auto-refresh. Quests and Bounties are the realm's lifetime
-   counts and Days running is the server's play streak, each a pending dash until
-   stated; Achievements and Collections are still read from the client's own
-   record. The foot row is the Lifetime Stats door. */
+   counts, Achievements the deeds the realm's counts have met, and Days running
+   is the server's play streak, each a pending dash until stated; Collections is
+   still read from the client's own record. The foot row is the Lifetime Stats door. */
 function buildAccountStatGrid() {
   const G = window.G || {};
   const clv = typeof window.getCombatLevel === 'function' ? window.getCombatLevel() : '?';
@@ -234,7 +234,8 @@ function buildAccountStatGrid() {
   const q = LT ? LT.quests() : null;
   const questCell = q ? `${fmt(q.n)}${q.exact ? '' : '+'} / ${q.of}` : countMarkup(null);
   const ach = Array.isArray(window.ACHIEVEMENTS) ? window.ACHIEVEMENTS : [];
-  const achDone = Object.values(G.achievements || {}).filter((e) => e && e.unlocked).length;
+  const D = window.HearthriseDeeds;
+  const achN = D ? D.doneCount(D.readers()) : null;
   let colPct = '0%';
   try {
     if (window.HearthriseCollection && window.HearthriseCollection.getStats) {
@@ -261,7 +262,7 @@ function buildAccountStatGrid() {
       ${cell(tlv, 'Total Lv')}
       ${xpCell}
       ${cell(questCell, 'Quests')}
-      ${cell(achDone + ' / ' + ach.length, 'Achievements')}
+      ${cell((achN === null ? countMarkup(null) : fmt(achN)) + ' / ' + ach.length, 'Achievements')}
       ${cell(lifetime('bounty_turnins'), 'Bounties')}
       ${cell(colPct, 'Collections')}
       ${cell(esc(rank), 'Renown')}
@@ -666,7 +667,7 @@ function ensureCharStyle() {
     R + '.cr-acct-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}',
     R + '.cr-acct-cell{background:rgba(0,0,0,.28);border:1px solid var(--line);border-radius:8px;padding:12px 10px;text-align:center}',
     R + '.cr-acct-cell b{display:block;font-size:calc(23px * var(--ui-scale, 1));color:var(--gold-2);font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}',
-    R + '.cr-acct-cell span{display:block;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;margin-top:6px}',
+    R + '.cr-acct-cell > span{display:block;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;margin-top:6px}',
     R + '.cr-acct-cell.reveal{cursor:pointer;transition:border-color .12s}',
     R + '.cr-acct-cell.reveal:hover{border-color:var(--gold-2)}',
     '@media (max-width:640px){' + R + '.cr-acct-grid{grid-template-columns:repeat(2,1fr)}}',

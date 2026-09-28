@@ -342,8 +342,12 @@ function selftest() {
   return bad ? 1 : 0;
 }
 
-const main = process.argv.includes('--selftest') ? async () => selftest() : run;
-main().then((code) => process.exit(code), (e) => {
-  console.error(`  ✗ lore-notes harness error: ${e && e.stack || e}`);
-  process.exit(2);
-});
+/* Run only as the entry point: tests/deeds.mjs imports labelValues, and an
+   unguarded main would run THIS gate and process.exit before the importer's own. */
+if (/(^|[\\/])lore-notes\.mjs$/.test(process.argv[1] || '')) {
+  const main = process.argv.includes('--selftest') ? async () => selftest() : run;
+  main().then((code) => process.exit(code), (e) => {
+    console.error(`  ✗ lore-notes harness error: ${e && e.stack || e}`);
+    process.exit(2);
+  });
+}

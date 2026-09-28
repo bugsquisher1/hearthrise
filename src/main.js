@@ -475,6 +475,7 @@ import { setupCombatRender } from './features/combat-render.js?v=559';
 import { setupCombatScreens } from './features/combat-screens.js?v=559';
 import { setupVigourMount } from './features/vigour-mount.js?v=559';
 import { setupHuntersLedger } from './features/hunters-ledger.js?v=559';
+import { setupDeeds } from './features/deeds.js?v=559';
 import { setupRecipeBook } from './features/recipe-book.js?v=559';
 import { setupItemIndex } from './features/item-index.js?v=559';
 import { setupCodex } from './features/codex.js?v=559';
@@ -536,6 +537,7 @@ function tryBootFeatures() {
   /* AFTER combat-screens, which builds the Fight rail the Vigour block heads. */
   boot('vigour-mount', setupVigourMount);
   boot('hunters-ledger', setupHuntersLedger);
+  boot('deeds', setupDeeds);
   boot('standings', setupStandings);
   boot('recipe-book', setupRecipeBook);
   boot('item-index', setupItemIndex);

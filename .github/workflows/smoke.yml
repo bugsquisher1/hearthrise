@@ -2423,6 +2423,18 @@ jobs:
           node tests/parse-check.mjs
           node tests/parse-check.mjs --selftest
 
+      # THE WORLD-TICK STALL RULE IN vitals.mjs (2026-09-28). The management
+      # endpoint's read-only role cannot execute hr_tick_stall_status() (42501),
+      # so tools/vitals.mjs restates "rostered >= 1 and shadow rows/h < 30 for
+      # 2 h => STALL" in JS over hr_tick_cron_log + hr_tick_shadow. --selftest
+      # feeds fixture rows (no DB, no token) through the rule and the day
+      # roll-up and plants nine mutants (a < 300 threshold, one hour, roster
+      # ignored, ...), each required to turn an assertion red. Sub-second.
+      # The plain run reads production and is the Coordinator's, not CI's.
+      - name: Vitals world-tick - the STALL restatement matches the function's rule
+        if: ${{ !cancelled() }}
+        run: node tools/vitals.mjs --selftest
+
       # RETIRED CAPABILITIES STAY RETIRED (2026-09-27). The cutover retired the blob,
       # guest play, offline play and save files; Settings kept offering all four. A
       # phrase-level scan of shipped copy (comments out, strings in, split literals

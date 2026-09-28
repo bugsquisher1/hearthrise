@@ -402,7 +402,7 @@
         {
           "type": "damage",
           "magnitude": 25,
-          "until": "2027-01-01T00:00:00.000Z"
+          "fromOffsetMs": -300000, "untilOffsetMs": 3000000
         }
       ],
       "driftBand": null,

@@ -526,6 +526,8 @@
      sentence to the player (b465) — and every one of these says the load-bearing
      thing: nothing was lost, the rank is still yours to claim. */
   function refusalMessage(res, rank) {
+    var SF = window.HearthriseSettleFirst, sf = SF && SF.settleRefusalText && SF.settleRefusalText(res);
+    if (sf) return sf + ' — ' + rank.name + ' is safe and still claimable.';
     var why = (res && res.error) || 'network';
     if (why === 'not_reached') {
       var high = Math.max(0, Math.floor(Number(res && res.renown_high) || 0));
@@ -926,7 +928,7 @@
       var medal = reached ? (i === curIdx ? '★' : '✓') : _rnGly('uiLock', 13);
       var right;
       if (claimableIds.indexOf(rank.id) >= 0) {
-        right = '<button class="hr-rn-claim" data-claim="' + rank.id + '">Claim</button>';
+        right = '<button class="hr-rn-claim" data-hr-settle-latch data-claim="' + rank.id + '">Claim</button>';
       } else if (reached && hasReward(rank)) {
         right = '<span class="hr-rn-done">✓</span>';
       } else {

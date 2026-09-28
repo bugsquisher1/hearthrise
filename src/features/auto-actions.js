@@ -330,7 +330,14 @@
       /* THE WINDOW IS STILL UNPAID (or the bucket is full). The transport already
          settled + retried three times; give the settle loop a full cycle and try
          again rather than dropping the player's choice on the floor. */
-      if(why === 'collect_first' || why === 'rate_limited'){
+      /* `settle_first` already had its one settle-and-retry in the shared
+         handler (src/net/settle-first.js); the choice waits for the next cycle
+         like collect_first. A party hunt clears only when it stops: say so. */
+      if(why === 'party_hunt_running'){
+        var SF = window.HearthriseSettleFirst;
+        if(SF && typeof window.notify === 'function') window.notify(SF.settleRefusalText(res), 'info');
+      }
+      if(why === 'collect_first' || why === 'rate_limited' || why === 'settle_first'){
         var again = _syncPending || {};
         if(sending.enabled) again.enabled = true;
         if(sending.pct)     again.pct     = true;

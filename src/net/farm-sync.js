@@ -42,6 +42,7 @@
 // ============================================================================
 
 import { isFarmServerArmed } from '../data/item-authority.js?v=559';
+import { withSettleFirstRetry } from './settle-first.js?v=559';
 
 export { isFarmServerArmed };
 
@@ -178,13 +179,16 @@ export function farmWater(plotIdx, opts) {
     p_idem: o.idem || newFarmIdem(),
   }, o);
 }
+/* hr_farm_harvest is settle-gated (2026-09-28-settle-before-mutate.sql): the ONE
+   shared handler waits for the server's settle and re-sends this same body once. */
 export function farmHarvest(plotIdx, opts) {
   const o = opts || {};
-  return callFarmRpc('hr_farm_harvest', {
+  const body = {
     p_slot: (o.slot !== undefined && o.slot !== null) ? (o.slot | 0) : activeSlot(),
     p_plot_idx: plotIdx | 0,
     p_idem: o.idem || newFarmIdem(),
-  }, o);
+  };
+  return withSettleFirstRetry(() => callFarmRpc('hr_farm_harvest', body, o));
 }
 export function farmUpgradePlot(opts) {
   const o = opts || {};

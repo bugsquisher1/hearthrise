@@ -192,7 +192,24 @@
   var CALL_TIMEOUT_MS = 15000;
   var callTimeoutMs = CALL_TIMEOUT_MS;
 
-  async function call(name, body) {
+  /* THE SETTLE-FIRST ROUTE (2026-09-28-settle-before-mutate.sql). The seven
+     verbs of this transport that the server now refuses `settle_first` /
+     `party_hunt_running` go through the ONE shared handler
+     (src/net/settle-first.js): wait for the server's settle, re-send the SAME
+     body (same key) once. Absent the module, the call goes out once, as before. */
+  var SETTLE_GATED = {
+    hr_claim_daily: 1, hr_claim_quest: 1, hr_claim_goal: 1, hr_claim_milestone: 1,
+    hr_claim_rank: 1, hr_credit_kills: 1, hr_set_auto_eat: 1
+  };
+  function call(name, body) {
+    var SF = window.HearthriseSettleFirst;
+    if (SETTLE_GATED[name] && SF && typeof SF.withSettleFirstRetry === 'function') {
+      return SF.withSettleFirstRetry(function () { return callOnce(name, body); });
+    }
+    return callOnce(name, body);
+  }
+
+  async function callOnce(name, body) {
     var R = window.HearthriseRpc;
     if (R && typeof R.mayCall === 'function' && !R.mayCall(name, isSignedIn())) {
       return { ok: false, error: 'not_signed_in', refused: true };

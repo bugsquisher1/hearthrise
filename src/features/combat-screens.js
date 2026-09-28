@@ -908,12 +908,12 @@ function destinations() {
   // ── World event ────────────────────────────────────────────────────────
   const W = window.HearthriseWorldEvents;
   if (W) {
-    let sum = null;
-    try { sum = W.summaryFor && W.summaryFor(W.daily && W.daily()); } catch (e) { sum = null; }
+    let day = null;
+    try { day = W.daily && W.daily(); } catch (e) { day = null; }
     out.push({
       kick: 'World Event', glyph: 'uiStar',
-      name: (sum && (sum.title || sum.name)) || 'Today\'s blessing',
-      meta: (sum && sum.text) || 'a rotating bonus, every day',
+      name: (day && day.name) || 'Today\'s blessing',
+      meta: (day && day.desc) || 'a new blessing every day',
       verb: 'Events ▸', go: 'tab', tab: 'events',
     });
   }

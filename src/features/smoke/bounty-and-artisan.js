@@ -2163,6 +2163,30 @@ export default [
     }
   }),
 
+  /* -- regression suite -- BLESSING-HONESTY (CONFLICTS.md 2026-09-28): hr-accrue's bonusFor
+     has no blessing layer, so the calendar may not move getBonus and Home / the Events card may
+     print no rate, yield or gold-find promise. Red on the b227 layer and its "+3% gold find" copy. */
+  () => tryRun('BLESSING-HONESTY: an active blessing promises no rate, yield or gold find', () => {
+    const E = window.HearthriseWorldEvents, H = window.HearthriseHome;
+    const PROMISE = /\d+\s*%|\bspeed\b|\byield\b|gold find|\bXP\b|pay while/i;
+    const pick = { daily: E.DAILY.find((d) => d.id === 'open_coffers'), weekly: E.WEEKLY.find((w) => w.id === 'deep_veins') };
+    const keys = ['gatherSpeed', 'goldFind', 'farmYield', 'allXP', 'cookSpeed'];
+    try {
+      E._force({ daily: E.QUIET, weekly: E.QUIET });
+      const quiet = keys.map((k) => window.getBonus(k));
+      E._force(pick);
+      assert(E.isActive(), 'the blessing must be active for this test to mean anything');
+      assert(keys.every((k, i) => window.getBonus(k) === quiet[i]), 'getBonus moved with the calendar: ' + keys.map(window.getBonus));
+      const card = (document.getElementById('hr-worldevents') || {}).textContent || '';
+      assert(card.indexOf(pick.daily.name) >= 0 && !PROMISE.test(card), 'Events card promises: ' + card);
+      if (H && H.render) H.render();
+      const h3 = [...document.querySelectorAll('#panel-profile h3')].find((x) => x.textContent === 'The realm');
+      const realm = h3 ? h3.parentNode.parentNode.textContent : '';
+      assert(realm.indexOf(pick.weekly.name) >= 0 && !PROMISE.test(realm), 'Home "The realm" promises: ' + realm);
+      E.DAILY.concat(E.WEEKLY).forEach((ev) => assert(!ev.bonus && !PROMISE.test(ev.desc), ev.id + ' promises: ' + ev.desc));
+    } finally { E._force(null); }
+  }),
+
   () => tryRun('b229: a genuine mid-session disconnect dims the blessing honestly', () => {
     const G = window.G;
     const P = window.HearthrisePresence;
@@ -2173,28 +2197,28 @@ export default [
     const snap = snapshotG();
     try {
       G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
-      E._force({
-        daily: { id: 'test_surge', name: 'Test Surge', desc: '+25% gather speed', bonus: { gatherSpeed: 0.25 } },
-        weekly: E.QUIET,
-      });
-      const liveNote = window.HearthriseBlessingNote();
-      assert(liveNote.indexOf('reconnecting') < 0, 'a connected session must not claim to be reconnecting');
+      /* The blessing pays nothing (BLESSING-HONESTY), so the CARD is the
+         surface that states the condition; the activity note no longer names it. */
+      E._force({ daily: E.DAILY[0], weekly: E.QUIET });
+      const cardText = () => { E.renderBlessing(); return (document.getElementById('hr-worldevents') || {}).textContent || ''; };
+      const liveCard = cardText();
+      assert(liveCard.indexOf('Reconnecting') < 0, 'a connected session must not claim to be reconnecting');
 
       NS.setMode('offline');
       assert(P.isOnline() === false, 'the gate must read the oracle, not guess');
       assert(P.blessingsApply() === false, 'a dropped session is not blessed');
-      assert(E.liveBonusFor('gatherSpeed') === 0, 'and pays nothing');
-      const dim = window.HearthriseBlessingNote();
-      assert(dim.indexOf('reconnecting') >= 0, 'the note must say reconnecting, got: ' + dim);
+      assert(E.isActive() === false, 'and the card must agree');
+      const dim = cardText();
+      assert(dim.indexOf('Reconnecting') >= 0, 'the card must say reconnecting, got: ' + dim);
       assert(dim.indexOf('idle') < 0, 'and must never resurrect the retired idle state, got: ' + dim);
 
       NS.setMode('ok');
       assert(P.blessingsApply() === true, 'reconnecting restores the blessing');
-      assert(E.liveBonusFor('gatherSpeed') === 0.25, 'in full');
+      assert(E.isActive() === true, 'on the card too');
     } finally { E._force(null); NS.setMode('ok'); restoreG(snap); }
   }),
 
-  () => tryRun('b227: AWAY output is byte-identical with and without an active blessing', () => {
+  () => tryRun('b227/b560: span output is byte-identical with and without an active blessing, away AND online', () => {
     if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
     // THE test this rework exists for, and b229 left its assertions ALONE —
     // only the retired input-clock seam was dropped from the setup. The latch,
@@ -2253,16 +2277,8 @@ export default [
       E._force({ daily: E.QUIET, weekly: E.QUIET });
       const quiet = runNight();
       E._force({ daily: LOUD, weekly: LOUD });
-      /* `bonusFor` is the calendar's RAW offer, read before the power budget's
-         end-of-chain clamp — which is why this assertion is made here and not
-         through getBonus. b228 added that clamp, and it must never become the
-         reason the two nights come out equal: what holds the offline boundary
-         is the REPLAY LATCH, and a clamp doing the latch's job by accident
-         would be an untested boundary wearing a passing test.
-         So the claim is split in two, explicitly. */
-      assert(E.bonusFor('allXP') === 1.0, 'the loud blessing must actually be on the calendar');
-      const clamped = window.HearthrisePowerBudget.applyBudget('allXP', 1.0);
-      assert(clamped > 0, 'and it must still reach the player ONLINE — clamped, never erased (' + clamped + ')');
+      /* Nothing reads a calendar `bonus` table any more (BLESSING-HONESTY);
+         LOUD still carries one so a reader that came back would show up here. */
       const loud = runNight();
       E._force(null);
 
@@ -2274,12 +2290,10 @@ export default [
       assert(loud.ms === quiet.ms,
         'the away action interval must not move with the blessing (' + quiet.ms + ' vs ' + loud.ms + ')');
 
-      /* THE CONTROL, AND IT IS NEW. Every assertion above is also satisfied by a
-         blessing layer that pays NOBODY — which is a different bug and would
-         have shipped silently. The identical span run OUTSIDE the latch must
-         come out DIFFERENT, or the three equalities prove nothing.
-         MUTATION: make `blessingsApply()` return false unconditionally → the
-         three above still pass and this one goes red. */
+      /* THE CONTROL, INVERTED (BLESSING-HONESTY). The engine pays no blessing layer, so the
+         identical span run OUTSIDE the latch must come out the SAME as well: a
+         client that paid the calendar online would predict what hr-accrue
+         never pays (CLAUDE.md §6, CONFLICTS.md 2026-09-28). */
       E._force({ daily: LOUD, weekly: LOUD });
       const online = awayGatherSpan({
         targetId: 'normal_tree', spanMs: 3 * 3600000, fromMs: anchor - 3 * 3600000,
@@ -2287,11 +2301,9 @@ export default [
         ctx: { bonus: window.getBonus, away: false },
       });
       E._force(null);
-      assert((online.paid.xp.woodcutting || 0) !== quiet.xp || (online.out.gathered || 0) !== quiet.items,
-        'CONTROL FAILED: the loud blessing changed NOTHING even outside the replay latch ('
-        + JSON.stringify({ xp: online.paid.xp.woodcutting, items: online.out.gathered })
-        + ' vs quiet ' + JSON.stringify({ xp: quiet.xp, items: quiet.items }) + '). The three equalities '
-        + 'above are then satisfied by a blessing layer that pays nobody, which is a different bug.');
+      assert((online.paid.xp.woodcutting || 0) === quiet.xp && (online.out.gathered || 0) === quiet.items,
+        'the calendar moved an ONLINE span (' + JSON.stringify({ xp: online.paid.xp.woodcutting, items: online.out.gathered })
+        + ' vs quiet ' + JSON.stringify({ xp: quiet.xp, items: quiet.items }) + ') — the server pays no blessing');
 
       /* AND THE RECEIPT STATES IT, in data, rather than leaving a renderer to
          infer it — AWAY-24's rule, asserted here on the span's own payload. */
@@ -2323,9 +2335,6 @@ export default [
         assert(P.inOfflineReplay() === true, 'the latch must be closed');
         assert(P.blessingsApply() === false, '…and the blessing must be off anyway');
         assert(E.isActive() === false, 'the world-events layer must agree');
-        Object.keys(Object.assign({}, E.daily().bonus, E.weekly().bonus)).forEach((k) => {
-          assert(E.liveBonusFor(k) === 0, 'no ' + k + ' may be paid inside a replay');
-        });
       });
       assert(P.blessingsApply() === true, 'and it must be restored afterwards');
       // Nested (offline combat inside processOffline) must not clear it early.
@@ -2339,7 +2348,7 @@ export default [
     } finally { restoreG(snap); }
   }),
 
-  () => tryRun('b227/b229: a SPEED blessing gates too — the interval follows the session, online and offline', () => {
+  () => tryRun('b227/b229/b560: a SPEED blessing moves no interval — online, offline or in a replay', () => {
     // The XP side of a blessing gates itself because addXp reads getBonus live.
     // The speed side is baked into G.skillMs at startSkill, so without a
     // re-derivation a disconnected player would keep blessed speed and — worse
@@ -2362,48 +2371,32 @@ export default [
          differ and this assertion would be measuring the wrong thing. */
       G.buffs = [];
       G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
-      // Pin a gather-speed blessing whatever today's calendar happens to be,
-      // so this test asserts the MECHANISM rather than the date.
+      /* The engine pays no blessing layer, so a speed blessing may not
+         move the interval ONLINE either — the old "swings faster" assertion was
+         the client predicting a rate hr-accrue never pays (BLESSING-HONESTY). */
+      E._force({ daily: E.QUIET, weekly: E.QUIET });
+      const baseMs = window.activityIntervalMs();
       E._force({
-        daily: { id: 'test_gather', name: 'Test Surge', desc: '+25% gather speed', bonus: { gatherSpeed: 0.25 } },
+        daily: { id: 'test_gather', name: 'Test Surge', desc: 'test', bonus: { gatherSpeed: 0.25 } },
         weekly: E.QUIET,
       });
-      const blessedMs = window.activityIntervalMs();
+      assert(window.activityIntervalMs() === baseMs,
+        'a speed blessing must not move the online interval (' + window.activityIntervalMs() + ' vs ' + baseMs + ')');
       NS.setMode('offline');
-      const baseMs = window.activityIntervalMs();
+      assert(window.activityIntervalMs() === baseMs, 'nor a disconnected one');
       NS.setMode('ok');
-      assert(blessedMs < baseMs,
-        'an online player must swing faster under a gather blessing (' + blessedMs + ' vs ' + baseMs + ')');
-
-      // Inside a replay the blessing is off even though the session is online.
       P._withOfflineReplay(() => {
         assert(window.activityIntervalMs() === baseMs,
-          'the offline replay must re-derive the BASE interval, got ' + window.activityIntervalMs());
+          'the offline replay must derive the BASE interval, got ' + window.activityIntervalMs());
       });
 
-      // And the live loop actually re-times: start blessed, drop, act.
+      // And the live loop arms and keeps the base interval across a connectivity flip.
       window.startSkill('woodcutting', 'normal_tree', window.TREES.find((t) => t.id === 'normal_tree').ms);
-      assert(G.skillMs === blessedMs, 'starting while blessed must arm the blessed interval');
+      assert(G.skillMs === baseMs, 'starting under a blessing must arm the base interval, got ' + G.skillMs);
       NS.setMode('offline');
-      window.doSkillAction(false);
-      assert(G.skillMs === baseMs,
-        'dropping the connection must re-time the running loop to the base interval, got ' + G.skillMs);
+      assert(G.skillMs === baseMs, 'a disconnect must leave it at the base interval, got ' + G.skillMs);
       NS.setMode('ok');
-      window.doSkillAction(false);
-      assert(G.skillMs === blessedMs, 'reconnecting must re-time it up again, got ' + G.skillMs);
-
-      // b229: a connectivity FLIP retimes IMMEDIATELY — no action required.
-      // The oracle announces the change (hearthrise:netmode) after settling its
-      // own state, so the hook can never read a stale mode; a raw window
-      // 'offline' listener in legacy.js would, because legacy.js loads first.
-      window.startSkill('woodcutting', 'normal_tree', window.TREES.find((t) => t.id === 'normal_tree').ms);
-      assert(G.skillMs === blessedMs, 'precondition: the loop is running blessed');
-      NS.setMode('offline');
-      assert(G.skillMs === baseMs,
-        'a disconnect must retime the running loop on the flip alone, got ' + G.skillMs);
-      NS.setMode('ok');
-      assert(G.skillMs === blessedMs,
-        'and reconnecting must retime it back on the flip alone, got ' + G.skillMs);
+      assert(G.skillMs === baseMs, 'and so must reconnecting, got ' + G.skillMs);
     } finally {
       E._force(null);
       NS.setMode('ok');
@@ -2412,7 +2405,7 @@ export default [
     }
   }),
 
-  () => tryRun('b227: every key in the blessing pools has a living consumer (no ghost promises)', () => {
+  () => tryRun('b227/b560: the blessing pools carry no key, and every getBonus family has a living consumer', () => {
     // A pool entry naming a key nothing reads is a promise the engine cannot
     // pay — the exact defect goldFind and noBurn were before b222/b225. Each
     // key below is asserted to MOVE something, by driving the real seam.
@@ -2421,12 +2414,11 @@ export default [
     const snap = snapshotG();
     const realGetBonus = window.getBonus;
     try {
-      const keys = new Set();
-      E.DAILY.concat(E.WEEKLY).forEach((ev) => Object.keys(ev.bonus).forEach((k) => keys.add(k)));
-      assert(keys.size >= 8, 'the pools must span a real spread of boost families, got ' + keys.size);
-      // Every family Tyler asked for, by name.
-      ['allXP', 'goldFind', 'gatherSpeed', 'smithSpeed', 'craftSpeed', 'cookSpeed', 'noBurn', 'combatXP', 'farmYield']
-        .forEach((k) => assert(keys.has(k), 'the pool must contain a ' + k + ' blessing'));
+      /* The pools carry NO key at all — the engine pays no blessing layer
+         (BLESSING-HONESTY). The consumer seams below are still every getBonus
+         family's contract, so they are driven from a fixed list. */
+      E.DAILY.concat(E.WEEKLY).forEach((ev) => assert(ev.bonus === undefined, ev.id + ' carries a bonus table'));
+      const keys = new Set(['allXP', 'goldFind', 'gatherSpeed', 'smithSpeed', 'craftSpeed', 'cookSpeed', 'noBurn', 'combatXP', 'farmYield']);
 
       // Drive each key through its real consumer with a stubbed getBonus.
       const withKey = (key, val, fn) => {
@@ -2480,7 +2472,7 @@ export default [
       assert(withKey('farmYield', 2, () => Math.floor(window.getBonus('farmYield'))) === 2,
         'farmYield must be readable as the flat bonus harvestPlot adds');
 
-      // And nothing in the pools names a key with no consumer.
+      // And nothing in the list names a key with no consumer.
       const WIRED = new Set(['allXP', 'combatXP', 'gatherSpeed', 'cookSpeed', 'smithSpeed',
         'craftSpeed', 'prayerSpeed', 'farmYield', 'goldFind', 'noBurn']);
       keys.forEach((k) => assert(WIRED.has(k),
@@ -2500,7 +2492,7 @@ export default [
     });
   }),
 
-  () => tryRun('b227: the live blessing note names only a blessing that touches THIS activity', () => {
+  () => tryRun('b227/b560: activity keys are scoped to what runs, and the note names no blessing effect', () => {
     const G = window.G;
     const P = window.HearthrisePresence;
     const E = window.HearthriseWorldEvents;
@@ -2519,29 +2511,24 @@ export default [
         'a cooking session must consider cookSpeed and noBurn');
       assert(ckKeys.indexOf('gatherSpeed') < 0, 'and not gather speed');
 
-      // The note itself: live while the session is online, dimmed to
-      // "reconnecting" only when it genuinely drops. b229 retired "— idle".
+      /* The note names NO blessing and NO effect, online or not — the
+         engine pays no blessing layer (BLESSING-HONESTY). What it may still say
+         is the power budget's ceiling. */
       G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
-      const hit = E.summaryFor(P.activeBonusKeys());
+      E._force({ daily: E.DAILY[0], weekly: E.WEEKLY[0] });
       const live = window.HearthriseBlessingNote();
       NS.setMode('offline');
       const dim = window.HearthriseBlessingNote();
       NS.setMode('ok');
-      if (hit) {
-        assert(live.indexOf(hit.name) >= 0 && live.indexOf("while online") >= 0,
-          'the live note must name the blessing and state the condition, got: ' + live);
-        assert(dim.indexOf('reconnecting') >= 0, 'the dropped note must say reconnecting, got: ' + dim);
-        assert(live.indexOf('idle') < 0 && dim.indexOf('idle') < 0,
-          'neither state may resurrect the retired "idle" scold');
-        assert(live.indexOf('tab') < 0 && dim.indexOf('tab') < 0,
-          'and neither may mention a tab — Tyler: "the tab shouldn\'t need to be open"');
-        assert(live.indexOf('+12%') < 0 || hit.effect.indexOf('12%') >= 0,
-          'the note must never resurrect the retired flat +12% presence hint');
-      }
+      E._force(null);
+      [live, dim].forEach((n) => {
+        assert(n.indexOf(E.DAILY[0].name) < 0 && n.indexOf(E.WEEKLY[0].name) < 0 && !/\d+%|while online/.test(n),
+          'the activity note must not name a blessing or its effect, got: ' + n);
+      });
       // No activity → no note at all.
       G.activeSkill = null; G.activeMonster = null; G.activeArtisanRecipe = null;
       assert(window.HearthriseBlessingNote() === '', 'no activity running means no note');
-    } finally { NS.setMode('ok'); restoreG(snap); }
+    } finally { E._force(null); NS.setMode('ok'); restoreG(snap); }
   }),
 
   () => tryRun('b229: every surface states the same rule — while online, not while focused', () => {
@@ -2556,10 +2543,7 @@ export default [
     const snap = snapshotG();
     try {
       G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
-      E._force({
-        daily: { id: 'test_surge', name: 'Test Surge', desc: '+25% gather speed', bonus: { gatherSpeed: 0.25 } },
-        weekly: E.QUIET,
-      });
+      E._force({ daily: E.DAILY[0], weekly: E.QUIET });
 
       // 1 — the Events-panel blessing card (rendered wherever it is hosted).
       E.renderBlessing();
@@ -2581,9 +2565,8 @@ export default [
           'Home\'s "The realm" must state the same rule, got a panel without it');
       }
 
-      // 3 — the live activity note.
+      // 3 — the live activity note: its blessing clause is withdrawn (BLESSING-HONESTY).
       const note = window.HearthriseBlessingNote();
-      assert(note.indexOf('while online') >= 0, 'the activity note must state the same rule, got: ' + note);
 
       /* 4 — THE WELCOME-BACK SURFACE. b515 — THE SENTENCE MOVED SURFACES, and
          the rule did not. It used to be captured off the TOAST processOffline
@@ -2607,7 +2590,7 @@ export default [
       assert(/base rate/i.test(awayCardTxt),
         'the welcome-back card must name the base rate, got: ' + awayCardTxt);
       assert(/while you play|while you are online|while online/i.test(awayCardTxt),
-        'the card states the rate but not the RULE — the player is left to guess when a blessing pays: '
+        'the card states the rate but not the RULE — the player is left to guess what pays while they play: '
         + awayCardTxt);
 
       // …and none of the blessing copy may say "tab", or scold an "idle"

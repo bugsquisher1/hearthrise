@@ -3137,6 +3137,37 @@ export default [
     }
   }),
 
+  /* DGN-SCRIP-PENDING-2 (regression, visual pass 8): the Quartermaster line put its
+     own em-dash beside the pending one. The pending dash is the line's only dash. */
+  () => tryRun('DGN-SCRIP-PENDING-2: the Quartermaster line has one dash, the pending one, or none', () => {
+    const Rec = window.HearthriseRecord, R = window.HearthriseDungeonScrip;
+    if (!Rec || !R || typeof window.openQuartermaster !== 'function') return;
+    const G = window.G, snap = snapshotG(), scripWas = G.dungeonScrip,
+      recWas = G._record === undefined ? undefined : JSON.parse(JSON.stringify(G._record));
+    const read = () => {
+      window.openQuartermaster();
+      const el = document.getElementById('qm-scrip-line');
+      const out = { text: el ? el.textContent : '', pend: el ? [...el.querySelectorAll('.bal-pending')].map((p) => p.textContent).join('') : '' };
+      const ov = document.getElementById('quartermaster-overlay'); if (ov) ov.remove();
+      return out;
+    };
+    try {
+      R.__setDungeonSettleArm(true);
+      delete G.dungeonScrip;
+      const silent = read();
+      assert(silent.text.split('—').length === 2 && silent.pend === '—', 'unstated: the pending dash must be the only dash: ' + JSON.stringify(silent));
+      const version = Math.max(((G._record && Number(G._record.version)) || 0) + 1, Date.now());
+      Rec.applyRecord(G, { ok: true, version, now: new Date(version).toISOString(), state: { dungeon_scrip: 37 } });
+      const stated = read();
+      assert(/37/.test(stated.text) && stated.text.indexOf('—') < 0, 'stated: no dash at all: ' + JSON.stringify(stated));
+    } finally {
+      R.__setDungeonSettleArm(null);
+      restoreG(snap);
+      if (scripWas === undefined) delete G.dungeonScrip; else G.dungeonScrip = scripWas;
+      if (recWas === undefined) delete G._record; else G._record = recWas;
+    }
+  }),
+
   /* ── regression suite — DGN-COOLDOWN-1: THE RE-ENTRY WINDOW IS THE SERVER'S ──
      Three lies, one seam. canRun() computed the cooldown from a client clock
      (`G.dungeons.lastRun`) the ARMED path had stopped stamping, so every card read

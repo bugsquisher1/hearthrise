@@ -206,7 +206,7 @@ function awayRow(m, f) {
   }
   const capH = typeof window.offlineCapHours === 'function' ? window.offlineCapHours() : null;
   if (capH == null) {
-    return { name: 'You keep fighting', meta: 'until your away limit — waiting for the server',
+    return { name: 'You keep fighting', meta: 'until your away limit, which the realm has not named yet',
       right: '<span class="bal-pending" role="status" title="Waiting for the server">—</span>' };
   }
   /* The count is the server's bag or nothing (§6): a pending mark before the first envelope. */

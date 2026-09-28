@@ -1048,6 +1048,23 @@ export const feedServerGoals = async (rows) => {
   return () => { if (window.HearthriseGoalClaim === fed) window.HearthriseGoalClaim = base; window.__hrSyncServerGoals.reset(); };
 };
 
+/* THE SERVER QUEST-COUNTER SEAM (CLAIM-FROM-SERVER-3/-4, 2026-09-28). A quest
+   step's count and its claim come ONLY from the server's lifetime ev:<type>
+   projection (legacy.js hrQuestServerCount / questClaimable); q.progress and
+   G.stats.* written by hand move the bar and nothing else. So the one way a
+   test or a QA pass states "harvest is 4/6 on the server" is to FEED a complete
+   progress statement through the real reader (accrue.js
+   reconcileEventCounters): `counts` is {'ev:harvest': 4, ...}; null states
+   "never answered" (unknown). Returns restore(), which puts G.stats and the
+   known flag back exactly as they were. */
+export const feedServerQuests = (counts) => {
+  const G = window.G, stats = Object.assign({}, G.stats), known = G._eventCountersKnown;
+  delete G._eventCountersKnown;
+  if (counts) window.HearthriseAccrual.reconcileEventCounters(G, { progress_truncated: false,
+    progress: Object.keys(counts).map((key) => ({ kind: 'stat', period: '', key, value: counts[key] })) });
+  return () => { G.stats = stats; if (known) G._eventCountersKnown = known; else delete G._eventCountersKnown; };
+};
+
 /* -- withClaimServer - A CLAIM IS A ROUND TRIP, AND THE REWARD IS NOT LOCAL --
    Every period reward in the game — a Collection milestone, a Renown rank, a
    daily login, a quest — pays in gold / gems / skill XP / items, and every one

@@ -5184,7 +5184,7 @@ function ensureRetentionState(){
      for adding one.
 
      WHY REFRESHING `goal` CANNOT DOUBLE-PAY. `done` is preserved untouched, and
-     completeQuest is only ever reached from `if(q.progress>=q.goal)` on a row
+     completeQuest is only ever reached from `if(questComplete(q))` on a row
      with `done` false — i.e. a row that has never been paid. Lowering a goal
      under an unfinished quest completes it on the next tick, which is the
      ruling's intent; raising one leaves it unfinished with an honest bar.
@@ -5555,12 +5555,12 @@ function updateQuest(type,amt=1,meta={}){
          and it is why the hundred-kill counter can never disagree with
          `stats.kills` by a kill. */
       q.progress=Math.min(q.goal,mirroredQuestValue(q.mirror));
-    } else {
-      if(q.type!==type)return;
-      if(q.target&&meta.target!==q.target)return;
+    } else if(q.type===type && !(q.target&&meta.target!==q.target)){
       q.progress=Math.min(q.goal,(q.progress||0)+amt);
     }
-    if(q.progress>=q.goal) completeQuest(q);
+    /* CLAIM-FROM-SERVER: the step completes on the SERVER's count, never on
+       q.progress (the local bar) — see questClaimable. */
+    if(questComplete(q)) completeQuest(q);
   });
   /* A done-but-unpaid quest is recovered here rather than at boot: the sweep is
      self-draining and throttled, and updateQuest is the one place a player is
@@ -5619,18 +5619,52 @@ function hrApplyQuestClaimGrant(res){
   return applied;
 }
 window.hrApplyQuestClaimGrant=hrApplyQuestClaimGrant;
+/* ══ CLAIM-FROM-SERVER (quests): THE ONE PREDICATE ═════════════════════════
+   hr_claim_quest grades the server's LIFETIME `ev:<type>` counter and answers
+   `incomplete` below the goal — the 2026-09-28 vitals signal (gatherer,
+   first_cook and first_blood counted local events, so q.progress ran ahead of
+   the server and completeQuest fired a claim it refused). A step's count is
+   the server's projection of that counter (accrue.js EVENT_COUNTER_PROJECTION
+   → G.stats.<leaf>), and only once a COMPLETE progress statement has landed
+   this session (G._eventCountersKnown); before that, or for a type with no
+   projection row, it is UNKNOWN (null): the pending dash, nothing completes,
+   nothing claims. q.progress stays the local BAR and grades nothing.
+   updateQuest (completion), completeQuest (the fire), the recovery sweep and
+   the Home chain cards all read these; there is no second grader. */
+function hrQuestServerCount(q){
+  if(!q||!q.type||q.target||!(typeof G==='object'&&G&&G._eventCountersKnown))return null;
+  const A=window.HearthriseAccrual, rows=A&&A.EVENT_COUNTER_PROJECTION;
+  if(!Array.isArray(rows))return null;
+  for(let i=0;i<rows.length;i++){
+    if(rows[i]&&rows[i].key==='ev:'+q.type){
+      const n=Number(G.stats&&G.stats[rows[i].stat]);
+      return (isFinite(n)&&n>0)?Math.floor(n):0;
+    }
+  }
+  return null;
+}
+function questComplete(q){ const n=hrQuestServerCount(q); return n!==null&&q.goal>0&&n>=q.goal; }
+function questServerPays(q){ const r=(q&&q.reward)||{}; return (r.gold||0)>0||hrQuestItemsAreServerCredited(q&&q.id); }
+function questClaimable(q){ return !!q&&!q.claimed&&questServerPays(q)&&questComplete(q); }
+window.hrQuestServerCount=hrQuestServerCount;
+window.questClaimable=questClaimable;
 /* FIRE ONE CLAIM AND REMEMBER THE ANSWER.
    `q.claimed` is the memory: G.quests is a RESIDUE field, so the flag survives a
    reload and the sweep below can tell "the server paid this" from "we set
    done:true and the call never landed". Both ok and already_claimed set it —
    already_claimed IS the server confirming it paid. Any other outcome leaves it
    unset so the sweep retries; the server once-guard makes that free. */
+/* One claim in flight per quest id: completeQuest and the sweep can meet on
+   the same tick, and a second call would only earn a refusal. */
+const _questClaimsInFlight={};
 function hrFireQuestClaim(q){
   const GC=window.HearthriseGoalClaim;
-  if(!(GC&&typeof GC.claimQuest==='function'))return null;
+  if(!(GC&&typeof GC.claimQuest==='function')||_questClaimsInFlight[q.id])return null;
   let p=null;
   try{ p=GC.claimQuest(q.id); }catch(e){ return null; }
   if(!p||typeof p.then!=='function')return null;
+  _questClaimsInFlight[q.id]=true;
+  p.then(function(){ delete _questClaimsInFlight[q.id]; },function(){ delete _questClaimsInFlight[q.id]; });
   return p.then(function(res){
     if(res&&res.ok===true){
       q.claimed=true;
@@ -5653,7 +5687,8 @@ function hrFireQuestClaim(q){
    already true of the gold; adding an item made it worse, and "worse" is not an
    acceptable direction for a fix.
 
-   The sweep re-fires any quest that is done, unconfirmed and server-payable.
+   The sweep re-fires any quest that is done and questClaimable (unconfirmed,
+   server-payable, and complete on the server's own count).
    It is idempotent by the server's once-guard, self-draining (a confirmed quest
    sets `claimed` and is never scanned again), throttled to once a minute so a
    persistently offline session cannot spin, and it needs no boot hook: it rides
@@ -5663,11 +5698,7 @@ function hrSweepUnclaimedQuests(){
   if(!Array.isArray(G.quests))return 0;
   const GC=window.HearthriseGoalClaim;
   if(!(GC&&typeof GC.claimQuest==='function'&&typeof GC.isSignedIn==='function'&&GC.isSignedIn()))return 0;
-  const pending=G.quests.filter(function(q){
-    if(!q||!q.done||q.claimed)return false;
-    const r=q.reward||{};
-    return (r.gold||0)>0||hrQuestItemsAreServerCredited(q.id);
-  });
+  const pending=G.quests.filter(function(q){ return q&&q.done&&questClaimable(q); });
   if(!pending.length)return 0;
   const now=Date.now();
   if(hrSweepUnclaimedQuests._at && (now-hrSweepUnclaimedQuests._at)<60000)return 0;
@@ -5706,7 +5737,7 @@ function completeQuest(q){
      client-minted fallback survives only for a quest the server catalogue does
      not know — a state tests/quest-reward-parity.mjs makes unreachable. */
   const serverItems=hrQuestItemsAreServerCredited(q.id);
-  if((goldReward>0||serverItems) && window.HearthriseGoalClaim
+  if(questClaimable(q) && window.HearthriseGoalClaim
      && typeof window.HearthriseGoalClaim.claimQuest==='function'){
     hrFireQuestClaim(q);
   }
@@ -7237,11 +7268,18 @@ function renderProfile(){
   /* objectives */
   const all=[...(G.daily?.tasks||[]),...(G.quests||[])];
   const open=all.filter(q=>!q.done),done=all.filter(q=>q.done);
+  /* A quest step's number is the server's count (CLAIM-FROM-SERVER), the
+     pending dash while unknown; daily tasks keep their own count. */
+  const objCount=q=>{
+    if(!(G.quests||[]).includes(q))return Math.min(q.progress||0,q.goal);
+    const n=hrQuestServerCount(q);
+    return n===null?(window.HearthriseBalance?.countMarkup?.(null,{label:'Not counted yet'})??'—'):Math.min(n,q.goal);
+  };
   document.getElementById('dash-obj-sub').textContent=`${done.length}/${all.length} done`;
   /* b215: Season Pass card removed along with the pass itself. */
   document.getElementById('dash-objectives-body').innerHTML=`
     <div class="objective-list">
-      ${open.slice(0,6).map(q=>`<div class="obj"><span>${_hrGly('uiScroll',13)} ${q.label}</span><b>${Math.min(q.progress||0,q.goal)}/${q.goal}</b></div>`).join('')}
+      ${open.slice(0,6).map(q=>`<div class="obj"><span>${_hrGly('uiScroll',13)} ${q.label}</span><b>${objCount(q)}/${q.goal}</b></div>`).join('')}
       ${done.slice(0,3).map(q=>`<div class="obj done"><span>${_hrGly('uiCheck',13)} ${q.label}</span><b>Done</b></div>`).join('')}
     </div>`;
 

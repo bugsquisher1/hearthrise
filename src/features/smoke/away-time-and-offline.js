@@ -3841,6 +3841,61 @@ export default [
     assert(!/Earned while/.test(quiet), 'a quiet night must not attribute any activity: ' + quiet);
   }),
 
+  /* THE MORNING LEDGER — the away receipt, itemised. The per-item and per-skill
+     maps the server signed must survive every receipt path into the summary. */
+  () => tryRun('LEDGER-1: every receipt path keeps the server\'s per-item and per-skill maps; a map-less receipt keeps none', () => {
+    const A = window.HearthriseAccrual;
+    const p = { grantMs: 3600000, awayMs: 3600000, items: { oak_log: 412, shrimp: -20, copper_ore: 0 }, xp: { woodcutting: 18240 } };
+    try {
+      A.__resetAwayReceipt();
+      const paths = {
+        live: A.summaryFromAway(p, { version: 1 }),
+        restored: A.reconcileAwayReceipt({}, { state: { last_away_receipt: Object.assign({ at: Date.now() - 3600000 }, p) } }),
+        collected: A.summaryFromAway(A.awayFromCollected({ ms: 3600000, items: p.items, xp: p.xp }), {}),
+      };
+      for (const k of Object.keys(paths)) {
+        const s = paths[k] || {};
+        assert(s.itemsIn && s.itemsIn.oak_log === 412 && s.itemsUsed && s.itemsUsed.shrimp === 20,
+          k + ': the per-item maps were not kept: ' + JSON.stringify([s.itemsIn, s.itemsUsed]));
+        assert(!('copper_ore' in s.itemsIn) && !('copper_ore' in s.itemsUsed), k + ': a zero movement made a row');
+        assert(s.xpBySkill && s.xpBySkill.woodcutting === 18240, k + ': the per-skill map was not kept: ' + JSON.stringify(s.xpBySkill));
+        assert(s.gainedItems === 412 && s.gainedXp === 18240, k + ': the totals moved: ' + s.gainedItems + ' / ' + s.gainedXp);
+      }
+      const bare = A.summaryFromAway({ grantMs: 3600000, gold: 5 }, {});
+      assert(bare.itemsIn === null && bare.itemsUsed === null && bare.xpBySkill === null,
+        'a receipt with no maps invented one: ' + JSON.stringify([bare.itemsIn, bare.itemsUsed, bare.xpBySkill]));
+    } finally { A.__resetAwayReceipt(); }
+  }),
+
+  () => tryRun('LEDGER-2: Home names what the night brought home, keeps it through a 90 s settle, and draws nothing the server did not write', () => {
+    const A = window.HearthriseAccrual, H = window.HearthriseHome, L = window.HearthriseAwayLedger;
+    const prevTab = window.activeTab, prevOff = window.G.lastOfflineSummary, w = window.__presentWelcome, T = Date.now();
+    const env = (version, away) => ({ ok: true, accrued: true, version, now: new Date(T).toISOString(), state: { slot: 0 }, skills: {}, inventory: {}, away });
+    const ledger = () => { const el = document.querySelector('#hd-root .hd-away-ledger'); return el ? el.textContent.replace(/\s+/g, ' ') : ''; };
+    window.__presentWelcome = () => {};
+    try {
+      A.__resetAwayReceipt(); freshFrameGate(); window.G.lastOfflineSummary = null; window.showTab('profile');
+      A.applyEnvelope({}, env(1, { grantMs: 28800000, awayMs: 28800000, capped: true, unpaidMs: 12000000,
+        items: { oak_log: 412, shrimp: -20 }, xp: { woodcutting: 18240 }, windowFrom: T - 28800000, windowTo: T }));
+      H.render();
+      const away = ledger(), card = (document.querySelector('#hd-root .hd-awayband') || {}).textContent || '';
+      assert(away.includes('412 Oak Log') && /Woodcutting \+18,?240 XP/.test(away) && away.includes('20 Raw Shrimp'),
+        'the away ledger did not itemise the night: ' + away);
+      assert(card.includes('3h 20m of your absence went unpaid'), 'the capped note did not state the unpaid span: ' + card);
+      A.applyEnvelope({}, env(2, { grantMs: 90000, awayMs: 90000, items: { copper_ore: 7 }, xp: { mining: 30 }, windowFrom: T - 90000, windowTo: T }));
+      H.render();
+      const attended = ledger();
+      assert(attended.includes('412 Oak Log') && !attended.includes('Copper Ore'), 'a 90 s settle replaced the night\'s ledger: ' + attended);
+      assert(L.html({ hrs: 8, awayMs: 28800000, gainedItems: 412, itemsIn: { oak_log: 412 }, at: Date.now() }) === '',
+        'a receipt the server did not write drew a ledger');
+      const raw = L.html({ serverAuthoritative: true, gainedItems: 64, itemsIn: { raw_shrimp: 64 }, at: Date.now() });
+      assert(!raw.includes('raw_shrimp'), 'the ledger printed a raw id: ' + raw);
+    } finally {
+      window.__presentWelcome = w; window.G.lastOfflineSummary = prevOff; A.__resetAwayReceipt(); freshFrameGate();
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
   /* COOKING REAL-FIX — cooking BANKS now: the settlement arm is on (both twins),
      so the accrual engine settles cooking away time and the row must say so (the
      b388 honesty rule, in the paying direction). */
@@ -7176,8 +7231,10 @@ export default [
     assert(/up to 15h/.test(known), 'the row must print the server cap (15h): ' + known);
     const unknown = row(null);
     // NIGHT-PLAN-PENDING-COPY: pending is its own sentence, not a dash mid-sentence.
-    assert(/the limit is being confirmed/.test(unknown), 'an unknown cap must read as pending: ' + unknown);
-    assert(!/\b0h\b|12h|null|NaN/.test(unknown.replace(/<[^>]*>/g, ' ')), 'an unknown cap printed a number: ' + unknown);
+    assert(/the limit is being confirmed/i.test(unknown), 'an unknown cap must read as pending: ' + unknown);
+    const unknownText = unknown.replace(/<[^>]*>/g, ' ');
+    assert(!/\b0h\b|12h|null|NaN/.test(unknownText), 'an unknown cap printed a number: ' + unknown);
+    assert(!/[—–]/.test(unknownText), 'an unknown cap reads as a dash mid-sentence: ' + unknownText);
   }),
 
   () => tryRun('OFFLINE-CAP-1c: no House, Home or renown surface promises away hours the server does not pay', () => withCap(720, () => {

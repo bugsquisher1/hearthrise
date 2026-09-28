@@ -190,6 +190,7 @@
        [data-room-theme] values that sheet's component reads; it deliberately
        restyles none of that component. -->
   <link rel="stylesheet" href="src/styles/homestead-rooms.css?v=559">
+  <link rel="stylesheet" href="src/styles/away-ledger.css?v=559">
   <!-- b365: THE WAR TABLE and THE FIGHT. Loads after combat-hud.css because it
        replaces the three-card combat grid those sheets were written against —
        it is the newest statement about #panel-combat and must be the last one.
@@ -1209,6 +1210,7 @@
        (task #129 Phase 3.5). Re-exports window.renderBuyback + window.openBuyback;
        paints the closed counter (no server buy-back verb yet). -->
   <script src="src/render/buyback.js?v=559"></script>
+  <script src="src/render/away-ledger.js?v=559"></script>
   <!-- b154: rebuilt Home dashboard (revamp) — loads AFTER legacy.js so
        window.showTab / getTotalLevel / MONSTERS exist when it wraps them -->
   <script src="src/features/home-dashboard.js?v=559"></script>

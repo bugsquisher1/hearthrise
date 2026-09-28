@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 131 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays, phoneFrame } from './_harness.js?v=559';
+import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays, phoneFrame } from './_harness.js?v=559';
 
 /* DEEPWATERS fixture (content pack 8). Bonus-free and gear-free — getBonus and
    the rested quantum pinned to 0 and an EMPTY equipment stat block (Timberline
@@ -1344,18 +1344,17 @@ export default [
      limit unknown the Right-now row read "up to —". Pending gets its own
      sentence (no number, no dash mid-sentence); a known cap keeps "up to 12h". */
   () => tryRun('NIGHT-PLAN-PENDING-COPY: a pending away limit reads as pending, a known one still names its hours', () => {
-    const H = window.HearthriseHome, prev = window.offlineCapHours;
+    const H = window.HearthriseHome;
     assert(H && typeof H.__awayBankingRow === 'function', 'the Right-now banking row seam is missing');
-    try {
-      for (const G of [{ activeMonster: 'goblin' }, {}]) {
-        window.offlineCapHours = () => null;
-        const pend = H.__awayBankingRow(G).replace(/<[^>]+>/g, '');
-        assert(/the limit is being confirmed/.test(pend) && !/up to\s*—/.test(pend) && !/\d/.test(pend), 'pending cap copy reads: ' + pend);
-        window.offlineCapHours = () => 12;
-        const known = H.__awayBankingRow(G).replace(/<[^>]+>/g, '');
-        assert(/up to 12h/.test(known) && !/being confirmed/.test(known), 'known cap copy reads: ' + known);
-      }
-    } finally { window.offlineCapHours = prev; }
+    const text = (G) => String(H.__awayBankingRow(G)).replace(/<[^>]+>/g, '');
+    for (const G of [{}, { activeMonster: 'slime' }]) {
+      const pend = withCap(null, () => text(G));
+      assert(/the limit is being confirmed/i.test(pend), 'pending cap copy must read as pending: ' + pend);
+      assert(!/[—–]| - /.test(pend), 'pending cap copy has a dash mid-sentence: ' + pend);
+      assert(!/\b\d+h\b/.test(pend), 'pending cap copy printed hours: ' + pend);
+    }
+    const known = withCap(900, () => text({ activeMonster: 'slime' }));
+    assert(/up to 15h/.test(known) && !/being confirmed/.test(known), 'known cap copy reads: ' + known);
   }),
 
   () => tryRun('DEEDS-A: a deed is graded on the reader it is handed, and unknown is the pending dash', () => {

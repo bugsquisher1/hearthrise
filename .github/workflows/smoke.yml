@@ -3169,6 +3169,18 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/signposts.mjs
 
+      # Settle-before-mutate, client half (SEC_SETTLE_BEFORE_MUTATE_F2F3 row 1b):
+      # every client-direct sender of the twelve settle-gated RPCs goes through
+      # src/net/settle-first.js, and every claim/shop surface carries the
+      # boot-settle latch. --selftest plants eleven defects + one silent control.
+      - name: Settle-first callers - mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/settle-first-callers.mjs --selftest
+
+      - name: Settle-first callers - base run
+        if: ${{ !cancelled() }}
+        run: node tests/settle-first-callers.mjs
+
       - name: Guard hygiene — no orphans, no vacuous selftests
         if: ${{ !cancelled() }}
         run: node tests/guard-hygiene.mjs --selftest

@@ -601,7 +601,7 @@
     var val = Math.max(0, Math.min(1, Number(d.autoEatPct) || 0));
     if(val > maxT) maxT = val;
     return '<div class="ss-row"><div class="ss-label">Auto-eat</div>'
-      +      '<label class="ss-toggle"><input type="checkbox" data-autoeat="enabled"'
+      +      '<label class="ss-toggle"><input type="checkbox" data-hr-settle-latch data-autoeat="enabled"'
       +        (on ? ' checked' : '') + ' />'
       +        '<span class="ss-toggle-track"><span class="ss-toggle-knob"></span></span></label>'
       +    '</div>'

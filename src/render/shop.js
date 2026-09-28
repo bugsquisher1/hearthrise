@@ -335,7 +335,7 @@
     const _traitRows=Object.entries(TRAITS).map(([id,t])=>{
       const owned=hasTrait(id);const can=t.currency==='marks'?(window.HearthriseMarks?window.HearthriseMarks.canAffordMarks(G,t.cost):((G.marks||0)>=t.cost)):balCanAfford(t.cost,'gold');
       const art=(window.HR&&window.HR.icon)?window.HR.icon(t.glyph,30,'currentColor'):'';
-      return `<div class="shop-row"><span class="si">${art}</span><div class="info"><b>${t.name}</b><span>${t.desc}</span></div>${owned?'<button class="btn btn-sm" disabled>Unlocked</button>':`<span class="price">${t.currency==='marks'?t.cost+' Marks':_gp(t.cost)}</span><button class="btn btn-sm ${can?'btn-primary':''}" ${can?'':'disabled'} onclick="buyTrait('${id}')">Buy</button>`}</div>`;
+      return `<div class="shop-row"><span class="si">${art}</span><div class="info"><b>${t.name}</b><span>${t.desc}</span></div>${owned?'<button class="btn btn-sm" disabled>Unlocked</button>':`<span class="price">${t.currency==='marks'?t.cost+' Marks':_gp(t.cost)}</span><button class="btn btn-sm ${can?'btn-primary':''}" ${can?'':'disabled'} data-hr-settle-latch onclick="buyTrait('${id}')">Buy</button>`}</div>`;
     }).join('');
     /* b221: the scene and the offers are ONE object — the counter's top surface
        runs out of the picture and under the wares. Assign once; the old code

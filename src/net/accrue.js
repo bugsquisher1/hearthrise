@@ -530,6 +530,10 @@ let inFlight = null;
 let awaySettleClosed = false;
 export function awaySettleDone() { return awaySettleClosed; }             // has this session's absence been paid?
 export function __resetAwaySettleLatch(v) { awaySettleClosed = !!v; }     // test seam: (true) = "the boot settle already landed"
+/* IS THE BOOT SETTLE STILL OWED? Only on the server path (a config and a token):
+   signed out or unconfigured there is no settle coming and nothing to refuse, so
+   the claim/shop latch (settle-first.js) stays open. */
+export function bootSettlePending() { return !!config && !!tokenOf() && !awaySettleClosed; }
 
 /* IS A SETTLE ON THE WIRE? "Unpaid" and "still coming" differ — one that never STARTED may never answer — and a waiting surface needs both (WELCOME_GATE). */
 export function settleInFlight() { return !!inFlight; }
@@ -1032,7 +1036,11 @@ function settle(verdict, now) {
   /* The latch closes on the two verdicts that mean `accrued_to` is now: a window
      was paid, or there was none. Any other outcome leaves an away window OPEN, so
      the credit stays suppressed. Never re-opened by a later failure. */
-  if (verdict.outcome === 'accrued' || verdict.outcome === 'nothing') awaySettleClosed = true;
+  if ((verdict.outcome === 'accrued' || verdict.outcome === 'nothing') && !awaySettleClosed) {
+    awaySettleClosed = true;
+    /* The claim/shop latch (settle-first.js) lifts on this, once per page life. */
+    try { if (typeof window !== 'undefined') window.dispatchEvent(new Event('hr:boot-settled')); } catch (e) {}
+  }
   let applied = false;
   if (verdict.outcome === 'accrued') {
     fire('onApplied', verdict.body);
@@ -6527,7 +6535,7 @@ if (typeof window !== 'undefined') {
     /* …to the character that EARNED it and nobody else (QA-DEFER-ID). The
        switch path and the sign-out path call these; nothing else may. */
     accrualIdentity, sameAccrualIdentity, clearCombatXpDeferral, resetAccrualIdentity,
-    requestAccrual, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, capHoursFromVigour, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
+    requestAccrual, awaitSettleRaceClear, bootSettlePending, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, capHoursFromVigour, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt,
     fallRecord, announceFall,

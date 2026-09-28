@@ -46,6 +46,7 @@
 // ============================================================================
 
 import { BANK_NON_ITEM_KEYS } from './accrue.js?v=559';
+import { withSettleFirstRetry, settleRefusalText } from './settle-first.js?v=559';
 
 export { BANK_NON_ITEM_KEYS };
 
@@ -128,6 +129,12 @@ export async function bankMove(item, qty, dir, opts) {
   if (!f) return { ok: false, error: 'no_fetch' };
   const slot = (o.slot !== undefined && o.slot !== null) ? (o.slot | 0) : activeSlot();
   const body = bankMoveBody(slot, item, qty, dir, o.idem || newBankIdem());
+  /* Settle-gated (2026-09-28-settle-before-mutate.sql): the ONE shared handler
+     waits for the server's settle and re-sends this same body once. */
+  return withSettleFirstRetry(() => postBankMove(f, cfg, body));
+}
+
+async function postBankMove(f, cfg, body) {
   try {
     const resp = await f(cfg.url + '/rest/v1/rpc/' + RPC, {
       method: 'POST',
@@ -228,6 +235,8 @@ export function bankMoveRefusalText(res, ctx) {
   const name = c.itemName || 'That item';
   const code = (res && res.error) || 'unknown';
   const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
+  const settling = settleRefusalText(res);
+  if (settling) return settling + '.';
   switch (code) {
     case 'transport':
     case 'network':

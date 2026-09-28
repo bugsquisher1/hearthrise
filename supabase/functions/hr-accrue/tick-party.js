@@ -70,6 +70,10 @@ import {
   settleCombatSession,
 } from './tick-combat.js';
 import { shadowStateOf, applyShadowState, SHADOW_STATE_V, fenceWindowFrom } from './tick-contract.js';
+/* THE PERK AND BESTIARY READS — tick.js's own two functions, imported, never a
+   second copy (AWAY-12, Security N4b). Made once per member, bound to that
+   member's (user, slot), and handed to that member's session. */
+import { readTickPerks, readTickBestiary } from './tick-reads.js';
 /* THE SPLIT, AND IT IS S3's FILE, IMPORTED — never re-implemented here. One
    pure function, dual-runtime, the same code in the live tick and the away
    replay (`AWAY-12`). Nothing in this file names a share, a weight or a
@@ -290,6 +294,17 @@ export async function settleParty(exec, holder, unit, body, deps) {
     if (st.active_kind !== PARTY_CHANNEL) {
       return { outcome: 'skipped', reason: 'member_channel_moved' };
     }
+    /* THE TWO INPUTS THE ENVELOPE CANNOT CARRY (Security N4b, 2026-09-28).
+       `hr_perks_of` and `hr_bestiary_of`, through the SAME ./tick-reads.js
+       functions tick.js (1b)/(4b) calls, with THIS member's (user, slot) — so
+       a partied member is priced with the perk stack and the charm/trophy
+       counters a solo window over the same state would be. Until today neither
+       was made here and every member priced at zero perks and no charm. Both
+       sit after the party's flush line (only a priced window costs them) and
+       degrade only on 42883; anything else propagates and the whole party is
+       refused by runTick, never priced half-blind. */
+    const perks = await readTickPerks(exec, m.userId, m.slot);
+    const bestiaryKills = await readTickBestiary(exec, m.userId, m.slot);
     const session0 = sessionOf({
       user_id: m.userId,
       slot: m.slot,
@@ -305,6 +320,10 @@ export async function settleParty(exec, holder, unit, body, deps) {
          be spelled at all (Security T-2/S-8). */
       mark_text: probe.markText,
       version: env.version,
+      /* THIS member's reads, above — combat's `sessionFromRoster` takes both
+         off the row exactly as it does for tick.js's solo row. */
+      perks,
+      bestiary_kills: bestiaryKills,
       cap_ms: row.cap_ms,
     }, env);
 

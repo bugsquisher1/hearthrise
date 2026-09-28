@@ -737,7 +737,7 @@ body[data-theme="classic"] {
   .panel.active {
     padding: var(--hr-panel-pad-t) 12px max(10px, var(--safe-b, 0px)) !important;
   }
-  .card { margin-bottom: 4px !important; padding: 6px 8px !important; }
+  .card:not(:where(#panel-combat[data-combat-view="fight"] .combat-arena)) { margin-bottom: 4px !important; padding: 6px 8px !important; }
   .card-head, .card-body { padding: 4px 8px !important; }
 
   /* Combat picker monsters — denser rows so more fit on the short screen */
@@ -1056,7 +1056,7 @@ body[data-theme="classic"] {
   .panel.active {
     padding: 8px 8px calc(60px + var(--safe-b, 0px) + 8px) !important;
   }
-  .card,
+  .card:not(:where(#panel-combat[data-combat-view="fight"] .combat-arena)),
   .activity-card,
   .skill-tile,
   .iap-card {
@@ -1321,7 +1321,7 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
     padding-left: 12px !important;
     padding-right: 12px !important;
   }
-  .card {
+  .card:not(:where(#panel-combat[data-combat-view="fight"] .combat-arena)) {
     margin-bottom: 12px !important;
   }
   /* Bestiary / Achievements / similar grid items */

@@ -1592,13 +1592,11 @@ body.in-combat #panel-combat .fs-style .combat-style-block .csb-btn small {
  * session line hides ONLY while it is the idle sentence; the moment a settle
  * lands it is numbers again and it shows, inside the room the gutters gave. */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
-  /* `!important` because theme-cozy.css sets `.card { padding: 10px
-   * !important; margin-bottom: 12px !important }` in this same query, and no
-   * selector outranks an important declaration. The 12px margin was the
+  /* theme-cozy.css's three phone `.card` density rules carry important
+   * padding and margin, so they skip this card by a zero-specificity
+   * `:not(:where(…))` and this plain rule sets it. The 12px margin was the
    * space between the card's border and the screen's foot. */
-  #panel-combat[data-combat-view="fight"] .combat-arena {
-    padding: 2px 4px !important; margin-bottom: 0 !important;
-  }
+  #panel-combat[data-combat-view="fight"] .combat-arena { padding: 2px 4px; margin-bottom: 0; }
   #panel-combat .arena-vs.fs-stage { padding: 0 6px; }
   /* ONE LINE, ALWAYS: the gloss goes before any figure does. Measured with the
    * widest live string ("12,345 XP/min · 45,678 gold/min · 1,234 kills this

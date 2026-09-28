@@ -667,7 +667,7 @@ function ensureCharStyle() {
     R + '.cr-acct-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}',
     R + '.cr-acct-cell{background:rgba(0,0,0,.28);border:1px solid var(--line);border-radius:8px;padding:12px 10px;text-align:center}',
     R + '.cr-acct-cell b{display:block;font-size:calc(23px * var(--ui-scale, 1));color:var(--gold-2);font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}',
-    R + '.cr-acct-cell span{display:block;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;margin-top:6px}',
+    R + '.cr-acct-cell > span{display:block;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;margin-top:6px}',
     R + '.cr-acct-cell.reveal{cursor:pointer;transition:border-color .12s}',
     R + '.cr-acct-cell.reveal:hover{border-color:var(--gold-2)}',
     '@media (max-width:640px){' + R + '.cr-acct-grid{grid-template-columns:repeat(2,1fr)}}',

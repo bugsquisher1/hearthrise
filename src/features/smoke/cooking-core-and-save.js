@@ -4756,7 +4756,8 @@ export default [
       G.bountyHunter.active = { id:'t', type:'cull', target:'goblin', tier:1, difficulty:'easy', progress:3, required:10, rewards:{gold:1,marks:1,xp:1} };
       G.activeMonster = 'goblin'; G.monsterHp = 10; G.monsterMaxHp = 15; G.playerHp = 50; G.playerMaxHp = 50;
       window.refreshActivityBar();
-      assert(/—\/10/.test(document.getElementById('ab-meta').innerHTML), 'before the server names it the chip reads —/10');
+      const b0 = document.querySelector('#ab-meta .ab-bounty b');   // the pending dash (bal-pending), never a local 3
+      assert(b0 && b0.querySelector('.bal-pending') && /^—\/10$/.test(b0.textContent), 'before the server names it the chip reads —/10 as the pending dash, got: ' + (b0 && b0.innerHTML));
       window.hrNoteServerBounty({ bounty: { bounty_id: 't', target: 'goblin', required: 10, progress: 3 } });
       window.refreshActivityBar();
       const html = document.getElementById('ab-meta').innerHTML;

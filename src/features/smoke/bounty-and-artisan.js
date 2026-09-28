@@ -2179,8 +2179,13 @@ export default [
       assert(keys.every((k, i) => window.getBonus(k) === quiet[i]), 'getBonus moved with the calendar: ' + keys.map(window.getBonus));
       const card = (document.getElementById('hr-worldevents') || {}).textContent || '';
       assert(card.indexOf(pick.daily.name) >= 0 && !PROMISE.test(card), 'Events card promises: ' + card);
+      /* render() is a no-op off the Home tab, and an earlier test may have left another tab up:
+         then this read the card the REAL calendar drew (red on the set when today's picks were
+         The Open Coffers / The Grand Fair). Put Home up so the card is drawn from the pin. */
+      window.showTab('profile');
+      assert(document.getElementById('panel-profile').classList.contains('active'), 'Home must be the active tab to be read');
       if (H && H.render) H.render();
-      const h3 = [...document.querySelectorAll('#panel-profile h3')].find((x) => x.textContent === 'The realm');
+      const h3 =[...document.querySelectorAll('#panel-profile h3')].find((x) => x.textContent === 'The realm');
       const realm = h3 ? h3.parentNode.parentNode.textContent : '';
       assert(realm.indexOf(pick.weekly.name) >= 0 && !PROMISE.test(realm), 'Home "The realm" promises: ' + realm);
       E.DAILY.concat(E.WEEKLY).forEach((ev) => assert(!ev.bonus && !PROMISE.test(ev.desc), ev.id + ' promises: ' + ev.desc));

@@ -34,6 +34,7 @@
 // ============================================================
 
 import { chromium } from 'playwright';
+import { launchOptions } from './_chrome.mjs';
 import { createServer } from 'node:http';
 import { readFile, stat, mkdir, writeFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
@@ -497,7 +498,7 @@ async function walk() {
   const { server, port } = EXTERNAL_URL ? { server: null, port: 0 } : await serve();
   const url = EXTERNAL_URL || `http://127.0.0.1:${port}/index.html`;
   await mkdir(OUT, { recursive: true });
-  const browser = await chromium.launch();
+  const browser = await chromium.launch(launchOptions());
   const findings = [];
 
   for (const vp of VIEWPORTS) {
@@ -564,7 +565,7 @@ async function selftest() {
   const fails = [];
   const { server, port } = EXTERNAL_URL ? { server: null, port: 0 } : await serve();
   const url = EXTERNAL_URL || `http://127.0.0.1:${port}/index.html`;
-  const browser = await chromium.launch();
+  const browser = await chromium.launch(launchOptions());
   try {
     const { page, fonts } = await bootPage(browser, url, VIEWPORTS[0]);
     const ARG = { label: 'combat', fontsMissing: fonts.missing, fontStatus: fonts.after.status };

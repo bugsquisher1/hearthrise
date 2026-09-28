@@ -41,6 +41,7 @@
 // ============================================================
 
 import { chromium } from 'playwright';
+import { launchOptions } from './_chrome.mjs';
 import { runAll as coreGuards } from './core-purity.mjs';
 import { runAll as accrualGuards } from './accrual-engine.mjs';
 import { autoEatAuthorityGuard } from './auto-eat-authority.mjs';
@@ -2080,7 +2081,7 @@ const run = async () => {
   let server = null, url = EXTERNAL_URL;
   if (!url) { const s = await serve(); server = s.server; url = `http://127.0.0.1:${s.port}/`; }
 
-  const browser = await chromium.launch({ headless: !HEADED, ...(process.env.HR_CHROME ? { executablePath: process.env.HR_CHROME } : {}) });
+  const browser = await chromium.launch(launchOptions({ headless: !HEADED }));
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 
   // Console errors and page crashes are signal too — a suite can pass while the

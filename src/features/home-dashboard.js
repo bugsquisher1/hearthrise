@@ -1652,9 +1652,19 @@
     // question an idle game has to answer on sight.
     html += '<div><div class="hd-h"><h3>Right now</h3></div>';
     if (activeName) {
+      /* Who else is doing the same thing, from the realm view; '' paints nothing. */
+      var companyLine = function () {
+        try {
+          var I = window.HearthriseIdentity, TPc = window.HearthriseTownPanel;
+          var youName = (I && I.isUniqueName && I.isUniqueName()) ? I.displayName() : null;
+          var c = TPc.companyHtml(G._town, G.activeMonster ? { kind: 'combat', id: G.activeMonster } : { kind: 'skill', id: G.activeSkill }, youName, Date.now());
+          if (c) TPc.ensureTownStyle();
+          return c || '';
+        } catch (e) { return ''; }
+      };
       html += '<div class="hd-card hd-mini"><div class="mi">' +
         (G.activeMonster ? gly('navCombat', 20, '', 'var(--red)') : gly(G.activeSkill || 'smithing', 20, '', 'var(--green)')) + '</div>' +
-        '<div><b>' + esc(activeName) + '</b><div style="font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3)">' + (G.activeMonster ? 'In combat' : 'Training') + '</div></div>' +
+        '<div><b>' + esc(activeName) + '</b><div style="font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3)">' + (G.activeMonster ? 'In combat' : 'Training') + '</div>' + companyLine() + '</div>' +
         '<button class="hd-cta ghost go" data-hd="active">Open</button></div>';
     } else if (resume) {
       html += '<div class="hd-card hd-mini"><div class="mi">' + gly(resume.skill || resume.id, 20, '', 'var(--ink-2)') + '</div>' +

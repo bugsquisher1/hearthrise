@@ -95,6 +95,9 @@
       + (recovering ? ' is-recovering' : '')
       + (isYou ? ' is-you' : '');
     var tag = recovering ? '<span class="party-m-tag">Recovering</span>' : '';
+    /* The raw server name only: the 'Adventurer' fallback is nobody's name. */
+    var doingText = (!isYou && m && m.name && opts.doing) ? opts.doing(m.name) : '';
+    var doing = doingText ? '<span class="party-m-doing">' + esc(doingText) + '</span>' : '';
     var you = isYou ? '<span class="party-m-you">you</span>' : '';
     var remove = (opts.role === 'leader' && !isYou)
       ? ('<button type="button" class="party-m-kick" data-party-act="kick" data-party-name="'
@@ -108,7 +111,7 @@
        the line, so "who is hurt" is one saccade instead of a scan. */
     return '<li class="' + cls + '">'
       + '<div class="party-m-line">'
-      +   '<span class="party-m-name">' + esc(name) + '</span>' + you + tag
+      +   '<span class="party-m-name">' + esc(name) + '</span>' + you + tag + doing
       + '</div>'
       + '<span class="party-m-lvl">Lv ' + num(m && m.combat_level) + '</span>'
       + '<div class="party-hp">'
@@ -165,9 +168,9 @@
 
   /* ── THE WHOLE SCREEN ────────────────────────────────────────────────────
      view: the projection src/net/party.js parks in G._party, unchanged.
-     opts: { nowMs, you, canon, asking, draft } — the wall clock, who I am (for
-     the `you` marker only), the two-step confirm's position and the unsent
-     invite draft. None of them is a game value and none of them is persisted. */
+     opts: { nowMs, you, canon, asking, draft, town } — the wall clock, who I
+     am (for the `you` marker only), the two-step confirm's position, the unsent
+     invite draft and the realm view each member's doing is read from. None of them is a game value and none of them is persisted. */
   function partyPanelHtml(view, opts) {
     var v = view || {};
     var o = opts || {};
@@ -177,7 +180,11 @@
     var rowOpts = {
       nowMs: nowMs, role: v.role,
       canon: o.canon,
-      youCanon: (o.canon && o.you) ? o.canon(o.you) : null
+      youCanon: (o.canon && o.you) ? o.canon(o.you) : null,
+      doing: function (n) {
+        var TP = window.HearthriseTownPanel;
+        return (n && o.town && o.canon && TP && TP.doingOf) ? TP.doingOf(o.town, n, o.canon, nowMs) : '';
+      }
     };
 
     var notice = v.notice
@@ -263,7 +270,8 @@
       you: (I && typeof I.displayName === 'function') ? I.displayName() : null,
       canon: (I && typeof I.canon === 'function') ? I.canon : null,
       asking: asking,
-      draft: draft
+      draft: draft,
+      town: window.G && window.G._town
     });
     return el;
   }
@@ -316,7 +324,16 @@
       window.HearthriseShowTab.wrapShowTab('party-panel', function (tab) {
         var P = window.HearthriseParty;
         if (!P) return;
-        if (tab === 'party') { asking = false; renderParty(); P.setVisible(true); }
+        if (tab === 'party') {
+          asking = false; renderParty(); P.setVisible(true);
+          var T = window.HearthriseTown;
+          if (T && typeof T.refreshTown === 'function') {
+            T.refreshTown().then(function () {
+              var pp = document.getElementById('panel-party');
+              if (pp && pp.classList.contains('active')) renderParty();
+            }).catch(function () {});
+          }
+        }
         else P.setVisible(false);
       });
     }

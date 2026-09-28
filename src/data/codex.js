@@ -33,6 +33,7 @@ export const CODEX_GROUPS = f([
   f({ id: 'home', label: 'Home and hands' }),
   f({ id: 'coin', label: 'Coin' }),
   f({ id: 'records', label: 'Records' }),
+  f({ id: 'realm', label: 'The realm' }),
 ]);
 
 export const CODEX_ENTRIES = f([
@@ -136,4 +137,12 @@ export const CODEX_ENTRIES = f([
     'A few hunting spots hide a lucky find, a named piece of gear that turns up only once in a very long while. The realm rolls it on every kill at that spot, watching or away, and never with the dice in your own browser.',
     { opener: 'openBestiary' },
     [[0, 'luckyRows'], [1, 'luckySilence']]),
+  entry('the-common', 'realm', 'The Common',
+    "The Common on Home shows who else is about in the realm and what each of them is doing, and a hero who has only just stepped away still shows for a little while, only dimmer. Press Go quiet and the hero you are playing, finds and all, is left off everyone else's Common until you rejoin.",
+    { tab: 'profile' },
+    [[0, 'commonShowsActivity'], [1, 'commonQuietHidesYou']]),
+  entry('parties', 'realm', 'Parties',
+    'A party is a small band you form on the Party screen, inviting adventurers by their name. Today a party shows who is in it and how each of them is faring, and hunting together arrives in a later build.',
+    { tab: 'party' },
+    [[0, 'partyInviteByName'], [1, 'partyHuntNotCalled']]),
 ]);

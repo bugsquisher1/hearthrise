@@ -2510,7 +2510,7 @@ export default [
        missing" must never be the default for something new. */
     assert(A.channelApplies('a_channel_invented_next_year', { away: true }) === true,
       'an unknown bonus channel must default to APPLYING away, not to silently vanishing');
-    if (E && typeof E.summaryFor === 'function') { /* pool wiring covered by the b227 suite */ }
+    assert(E && E.isActive() === true, 'the calendar must agree with the latch outside a replay');
   }),
 
   () => tryRun('AWAY-7: away kills feed the drop log, dailies, quests and rollKillDeed; an away death increments stats.deaths', () => {
@@ -3757,7 +3757,7 @@ export default [
       /* Item 1 — the duration is the REAL span, not the 0.1h-rounded number,
          and the rate statement is unconditional. */
       assert(/8h 12m away/.test(txt), 'the band must print the real span ("8h 12m"), got: ' + txt);
-      assert(/base rate/i.test(txt) && /blessings and food buffs pay while you play/i.test(txt),
+      assert(/base rate/i.test(txt) && /food buffs pay while you play/i.test(txt),
         'the band must state that the absence paid the base rate: ' + txt);
       /* Item 2 — away combat reports its crits. */
       assert(/142 kills/.test(txt) && /21 crits/.test(txt),
@@ -3768,7 +3768,7 @@ export default [
       assert(/\+50% drops/.test(txt), 'the band must quote the multiplier the payload carried: ' + txt);
       /* Item 3 — a held buff is reported as paused, not as paid. */
       assert(/paused/i.test(txt), 'the band must say the held buffs were paused: ' + txt);
-      assert(!/blessing.*applied|blessed/i.test(txt.replace(/blessings and food buffs pay while you play/i, '')),
+      assert(!/blessing.*applied|blessed/i.test(txt.replace(/food buffs pay while you play/i, '')),
         'the band must never claim a blessing was applied: ' + txt);
 
       /* The other direction. A quiet night: no combat, no buffs held, no

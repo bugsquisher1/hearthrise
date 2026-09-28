@@ -284,33 +284,17 @@ export default [
       stampRecordLikeLoad(G);
       if (smith) assert(window.burnRiskLine(smith, 'smithing') === '', 'smithing must never show a burn risk');
 
-      /* …and the calendar's own claim, asserted rather than left as an ambient
-         accident: The Steady Fire must actually LOWER the number on the tile. */
+      /* b560 inverted the calendar's claim: The Steady Fire is a name and a
+         line of copy, and the engine pays no blessing layer — so it must NOT
+         move the number on the tile, online or not (BLESSING-HONESTY). */
       const STEADY = E.DAILY.find((d) => d.id === 'steady_fire');
-      assert(STEADY && STEADY.bonus.noBurn > 0, 'The Steady Fire must still be a burn-chance blessing');
+      assert(STEADY && STEADY.bonus === undefined, 'The Steady Fire must carry no burn-chance table');
       G.rooms = {};
       stampRecordLikeLoad(G);
       const plain = window.cookBurnChance(cook);
       E._force({ daily: STEADY, weekly: E.QUIET });
-      const eased = window.cookBurnChance(cook);
-      if (E.isActive()) {
-        /* The curve is SUBTRACTIVE (burn% = BASE − noBurn − relief, clamped),
-           so the blessing removes exactly its own points. Stated against that
-           arithmetic rather than a pinned percentage, so a retune of BASE or of
-           the blessing moves the expectation with it instead of rotting.
-           NOTE for the Designer: at BASE 25% and blessing 25% this lands on
-           ZERO — a free daily blessing hands a camper the burn-proofing that is
-           the Kitchen ladder's L3 reward. Filed in DISCOVERIES.md, not fixed
-           here: it is a balance call, not a bug in this seam. */
-        assert(eased === Math.max(0, plain - STEADY.bonus.noBurn),
-          'The Steady Fire must remove exactly ' + STEADY.bonus.noBurn
-          + ' from the burn curve, ' + plain + ' → ' + eased);
-        assert(eased < plain, 'The Steady Fire must ease the open fire');
-        assert(window.burnRiskLine(cook, 'cooking') === '',
-          'a burn-proof camp must show no risk line, got: ' + window.burnRiskLine(cook, 'cooking'));
-      } else {
-        assert(eased === plain, 'an unblessed session must not receive the calendar burn easing');
-      }
+      assert(window.cookBurnChance(cook) === plain,
+        'The Steady Fire moved the burn curve ' + plain + ' → ' + window.cookBurnChance(cook) + ' — the server pays no blessing');
     } finally {
       if (E) E._force(null);
       G.rooms = saved.rooms; G.skills = saved.skills;
@@ -1151,7 +1135,7 @@ export default [
     }
   }),
 
-  () => tryRun('b229: the blessing rides INSIDE getBonus and switches with CONNECTIVITY', () => {
+  () => tryRun('b229/b560: no blessing rides getBonus — loud or quiet, connected or not', () => {
     const G = window.G;
     const E = window.HearthriseWorldEvents;
     const NS = window.HearthriseNetStatus;
@@ -1160,37 +1144,20 @@ export default [
       G.rooms = {}; G.plotBuildings = []; G.restedXp = 0;
       G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
 
-      const keys = Object.keys(Object.assign({}, E.daily().bonus, E.weekly().bonus));
-      assert(keys.length > 0, "today's calendar must grant something");
-
-      const online = {}; keys.forEach((k) => { online[k] = window.getBonus(k); });
-      NS.setMode('offline');
-      const dropped = {}; keys.forEach((k) => { dropped[k] = window.getBonus(k); });
-      NS.setMode('ok');
-
-      keys.forEach((k) => {
-        assert(Math.abs((online[k] - dropped[k]) - E.bonusFor(k)) < 1e-9,
-          'getBonus("' + k + '") must rise by exactly the blessing when the session is online (' +
-          dropped[k] + ' → ' + online[k] + ', blessing ' + E.bonusFor(k) + ')');
-      });
-
-      // A SLOW cloud is not an absent player. 'degraded' (three Supabase 5xx)
-      // means our backend is struggling; charging the player for our outage
-      // would be the wrong half of the rule.
-      NS.setMode('degraded');
-      keys.forEach((k) => {
-        assert(Math.abs(window.getBonus(k) - online[k]) < 1e-9,
-          'a degraded cloud must not revoke the ' + k + ' blessing — the player never left');
+      /* b560: the blessing no longer rides getBonus AT ALL — hr-accrue's bonusFor
+         has no blessing layer (BLESSING-HONESTY). Every family must read the
+         same with the calendar loud or quiet, connected or not. */
+      const keys = ['allXP', 'combatXP', 'gatherSpeed', 'cookSpeed', 'smithSpeed', 'craftSpeed', 'farmYield', 'goldFind', 'noBurn'];
+      E._force({ daily: E.QUIET, weekly: E.QUIET });
+      const quiet = {}; keys.forEach((k) => { quiet[k] = window.getBonus(k); });
+      E._force({ daily: E.DAILY[0], weekly: E.WEEKLY[0] });
+      ['ok', 'offline', 'degraded'].forEach((mode) => {
+        NS.setMode(mode);
+        keys.forEach((k) => assert(Math.abs(window.getBonus(k) - quiet[k]) < 1e-9,
+          'getBonus("' + k + '") moved with the calendar in mode ' + mode + ' (' + quiet[k] + ' → ' + window.getBonus(k) + ')'));
       });
       NS.setMode('ok');
-
-      /* The budget still has to hold with a blessing live — the whole point of
-         putting the blessing INSIDE the additive channel is that the clamp can
-         see it. A blessing hidden outside the budget is an unbudgeted bonus.
-         b228: the bound is the absolute peak, 0.30, not the retired 0.60. */
-      assert(window.getBonus('allXP') <= window.HearthrisePowerBudget.TOTAL_CAP + 1e-9,
-        'the absolute allXP peak must hold with the blessing live, got ' + window.getBonus('allXP'));
-    } finally { NS.setMode('ok'); restoreG(snap); }
+    } finally { E._force(null); NS.setMode('ok'); restoreG(snap); }
   }),
 
   () => tryRun('b229: a hidden, unfocused, untouched tab is STILL blessed — the tab need not be open', () => {
@@ -1231,7 +1198,6 @@ export default [
       assert(P.isOnline() === true, 'a backgrounded tab is still an online session');
       assert(P.blessingsApply() === true, 'a backgrounded tab must still be blessed');
       assert(E.isActive() === true, 'the world-events layer must agree');
-      assert(E.liveBonusFor('allXP') === 0.15, 'and must still PAY the blessing, got ' + E.liveBonusFor('allXP'));
       const hiddenGrant = grant();
       const hiddenMs = window.activityIntervalMs();
       assert(hiddenGrant === visible,
@@ -1242,7 +1208,6 @@ export default [
       // The live hint must not call this player idle — there is no idle state.
       const note = window.HearthriseBlessingNote();
       assert(note.indexOf('idle') < 0, 'the note must not scold a backgrounded tab as idle, got: ' + note);
-      assert(note.indexOf('while online') >= 0, 'the note must state the real rule, got: ' + note); // Tyler's exact words
     } finally {
       E._force(null);
       if (dVis) Object.defineProperty(document, 'visibilityState', dVis); else delete document.visibilityState;

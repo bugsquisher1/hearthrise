@@ -614,9 +614,8 @@ export default [
       if (saved === undefined) delete G.companions; else G.companions = saved;
     }
   }),
-  () => tryRun('b204/b229: world events — deterministic by date, and ONLINE bonuses flow through getBonus', () => {
+  () => tryRun('b204/b229/b560: world events — deterministic by date, active while online, paying nothing', () => {
     const E = window.HearthriseWorldEvents;
-    const P = window.HearthrisePresence;
     const NS = window.HearthriseNetStatus;
     assert(E, 'HearthriseWorldEvents present');
     // determinism: same key → same event, different keys spread across the pool
@@ -624,31 +623,17 @@ export default [
     assert(a && b && a.id === b.id, 'same date key must pick the same daily event');
     const picks = new Set(['2026-1-1','2026-1-2','2026-1-3','2026-1-4','2026-1-5','2026-1-6','2026-1-7','2026-1-8'].map(k => E.daily(k).id));
     assert(picks.size >= 3, 'date keys should spread across the pool, got ' + picks.size);
-    // b227/b229: the bonus reaches getBonus only while the SESSION IS ONLINE.
-    // The b204 contract (the wrapper is wired, every pool key travels) is
-    // unchanged — what moved is that it is now conditional, so the test has to
-    // hold the condition. b229 drives that condition through the real
-    // connectivity oracle instead of the retired idle clock.
+    // b560: the blessing is active while the SESSION IS ONLINE, and it pays
+    // nothing — hr-accrue's bonusFor has no blessing layer (BLESSING-HONESTY).
     const G = window.G;
     const snap = snapshotG();
     try {
       G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
-      assert(E.isActive() === true, 'an online player must have the blessing live');
-      const d = E.daily(), w = E.weekly();
-      const keys = Object.keys(Object.assign({}, d.bonus, w.bonus));
-      keys.forEach((k) => {
-        const evPart = E.bonusFor(k);
-        assert(evPart > 0, 'bonusFor(' + k + ') should be > 0 today');
-        assert(E.liveBonusFor(k) === evPart, 'an online player must be PAID the full ' + k + ' blessing');
-        assert(window.getBonus(k) >= evPart, 'getBonus(' + k + ') should include the event bonus while online');
-      });
-      // …and stops travelling the moment the session genuinely drops.
+      assert(E.isActive() === true, 'an online player must have the blessing active');
+      assert(E.daily().bonus === undefined && E.weekly().bonus === undefined, 'no blessing may carry a bonus table');
       try {
         NS.setMode('offline');
-        assert(E.isActive() === false, 'a disconnected player must not have the blessing live');
-        keys.forEach((k) => {
-          assert(E.liveBonusFor(k) === 0, 'a disconnected player must be paid NO ' + k + ' blessing');
-        });
+        assert(E.isActive() === false, 'a disconnected player must not have the blessing active');
       } finally { NS.setMode('ok'); }
       assert(E.isActive() === true, 'and reconnecting restores it');
     } finally { restoreG(snap); }

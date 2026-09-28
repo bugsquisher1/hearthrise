@@ -1170,7 +1170,8 @@
          taller than the viewport and the two actions sat below the fold. They
          are the whole "and now do this" half of the design, so they live in the
          sheet's foot, which never shrinks: only the receipt above scrolls. */
-      '.hr-death-foe{margin:12px 0 0;padding:10px 12px;border-radius:10px;border:1px solid var(--line)}',
+      '.hr-death-foe{margin:12px 0 0;padding:10px 12px;border-radius:10px;border:1px solid var(--line);',
+      '  font-size:calc(14.5px * var(--ui-scale,1));color:var(--ink-2);line-height:1.5}',
       '.hr-death-foe b{display:block}.hr-death-foe p{margin:4px 0 0}',
       '.hr-death-notes{min-height:44px;margin-top:8px}',
       '.hr-death-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}',

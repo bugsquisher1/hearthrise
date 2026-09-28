@@ -95,12 +95,15 @@ export function __setDungeonSettleArm(v) {
 /** THE ONE READ. Every scrip display site routes through this so "where scrip
     lives" is decided in ONE place. Armed → the top-level G.dungeonScrip (the
     server's, reconciled from the envelope); dormant → the legacy inventory item,
-    byte-for-byte as today. Never throws; a missing G reads 0. */
+    byte-for-byte as today. Never throws; a missing G reads 0.
+    Armed and never stated by an envelope → null (CLAUDE.md §6: an unknown count
+    is the pending dash, never 0). A gate reading it fails closed (null < price). */
 export function scripOf(G) {
   if (!G || typeof G !== 'object') return 0;
   if (isDungeonSettleArmed()) {
+    if (G.dungeonScrip === undefined || G.dungeonScrip === null) return null;
     const v = Number(G.dungeonScrip);
-    return Number.isFinite(v) && v >= 0 ? v : 0;
+    return Number.isFinite(v) && v >= 0 ? v : null;
   }
   const inv = G.inventory && Number(G.inventory.dungeon_scrip);
   return Number.isFinite(inv) && inv >= 0 ? inv : 0;

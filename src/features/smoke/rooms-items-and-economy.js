@@ -3089,6 +3089,54 @@ export default [
     }
   }),
 
+  /* DGN-SCRIP-PENDING-1 (regression, visual pass 7 on b560): armed with no envelope
+     ever stating scrip, the Dungeons strip printed "0 Dungeon Scrip" and the
+     Quartermaster "You have 0". §6: an unstated balance is the pending dash, and
+     the Buy gate stays closed without saying 0. MUTATION: scripOf returns 0 when
+     unstated again and (a) goes red. */
+  () => tryRun('DGN-SCRIP-PENDING-1: unstated Dungeon Scrip prints the pending dash on the strip and the Quartermaster', () => {
+    const Rec = window.HearthriseRecord, R = window.HearthriseDungeonScrip;
+    if (!Rec || !R || !document.getElementById('panel-dungeons') || typeof window.renderDungeons !== 'function'
+      || typeof window.openQuartermaster !== 'function') return;
+    const G = window.G, snap = snapshotG(), scripWas = G.dungeonScrip,
+      recWas = G._record === undefined ? undefined : JSON.parse(JSON.stringify(G._record)), notify = window.notify, said = [];
+    const read = () => {
+      window.renderDungeons();
+      window.openQuartermaster();
+      const strip = (document.querySelector('#panel-dungeons .dgn-scrip-have') || {}).innerHTML || '';
+      const line = (document.getElementById('qm-scrip-line') || {}).innerHTML || '';
+      const buy = [...document.querySelectorAll('#quartermaster-body .qm-row')]
+        .find((r) => /Bone Key/.test(r.textContent));
+      const btn = buy && buy.querySelector('button');
+      const ov = document.getElementById('quartermaster-overlay'); if (ov) ov.remove();
+      return { strip, line, disabled: !!(btn && btn.disabled) };
+    };
+    try {
+      R.__setDungeonSettleArm(true);
+      window.notify = (m) => { said.push(String(m)); };
+      delete G.dungeonScrip;
+      const silent = read();   // (a) unstated: the dash everywhere, the gate closed
+      assert(/bal-pending/.test(silent.strip) && !/>0</.test(silent.strip) && /bal-pending/.test(silent.line)
+        && !/You have <b>0 /.test(silent.line), 'THE BUG: unstated scrip printed a 0: ' + JSON.stringify(silent));
+      assert(silent.disabled, 'an unstated balance must leave Buy disabled: ' + JSON.stringify(silent));
+      assert(window.buyFromQuartermaster('bone_key') === false && said.length && !said.some((m) => /\b0\b/.test(m)),
+        'a Buy on an unstated balance refuses without claiming 0: ' + JSON.stringify(said));
+      // scrip is a record field: it lands through applyRecord, the hr_load/envelope path
+      const version = Math.max(((G._record && Number(G._record.version)) || 0) + 1, Date.now());
+      Rec.applyRecord(G, { ok: true, version, now: new Date(version).toISOString(), state: { dungeon_scrip: 37 } });
+      const stated = read();   // (b) stated: the server's number, no dash
+      assert(G.dungeonScrip === 37 && />37</.test(stated.strip) && !/bal-pending/.test(stated.strip)
+        && /You have <b>37 /.test(stated.line) && !/bal-pending/.test(stated.line) && !stated.disabled,
+        'a stated balance must print the server number: ' + JSON.stringify(stated));
+    } finally {
+      window.notify = notify;
+      R.__setDungeonSettleArm(null);
+      restoreG(snap);
+      if (scripWas === undefined) delete G.dungeonScrip; else G.dungeonScrip = scripWas;
+      if (recWas === undefined) delete G._record; else G._record = recWas;
+    }
+  }),
+
   /* ── regression suite — DGN-COOLDOWN-1: THE RE-ENTRY WINDOW IS THE SERVER'S ──
      Three lies, one seam. canRun() computed the cooldown from a client clock
      (`G.dungeons.lastRun`) the ARMED path had stopped stamping, so every card read

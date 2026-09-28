@@ -134,7 +134,7 @@ async function runAll(db) {
     __setDungeonSettleArm(true);   // armed: read the server value (the rollout state)
     try {
       const G = { inventory: {} };   // a reloaded, blob-retired G — scrip is NOT in the bag
-      ok(scripOf(G) === 0, 'before reconcile a fresh reloaded G has 0 scrip (nothing minted client-side)');
+      ok(scripOf(G) === null, 'before reconcile a fresh reloaded G has UNSTATED scrip (null: nothing minted client-side, never a fake 0)');
       const applied = reconcileScrip(G, env.state);
       ok(applied === credited, `reconcileScrip applied the server value (got ${applied})`);
       ok(G.dungeonScrip === credited, `G.dungeonScrip = ${credited} after reload — NOT 0 (report #3 fixed)`);

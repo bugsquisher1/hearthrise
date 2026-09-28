@@ -1242,6 +1242,9 @@ body.in-combat #combat-area {
   background:rgba(201,162,74,.10); }
 .dgn-scrip-have { font-size:calc(14.5px * var(--ui-scale,1)); color:var(--ink); }
 .dgn-scrip-have b { color:var(--gold-2); font-variant-numeric:tabular-nums; }
+/* The Quartermaster sheet had no inner gutter (text 2px off the border); the
+   same 18px inset the .ach-modal sheets use. */
+.qm-modal.quartermaster-modal { padding: 18px; }
 .qm-scrip-line { font-size:calc(14.5px * var(--ui-scale,1)); color:var(--ink-2); margin:2px 0 12px; }
 .qm-scrip-line b { color:var(--gold-2); }
 .qm-group-label { font-family:var(--f-label,system-ui); font-size:calc(15px * var(--ui-scale,1)); color:var(--gold-2);

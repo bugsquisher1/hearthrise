@@ -359,7 +359,9 @@
   function buyFromQuartermaster(id){
     var entry = QM_STOCK.find(function(e){ return e.id === id; });
     if(!entry) return false;
-    if(scripHeld() < entry.scrip){ if(window.notify) window.notify('Not enough Dungeon Scrip', 'kill'); return false; }
+    var held = scripHeld();
+    if(held == null){ if(window.notify) window.notify('The realm has not counted your Dungeon Scrip yet', 'kill'); return false; }
+    if(held < entry.scrip){ if(window.notify) window.notify('Not enough Dungeon Scrip', 'kill'); return false; }
     /* ── SERVER-AUTHORITY ARM (dungeon-settlement.md §4, increment 3) ──────────
        Armed: the SPEND is server-owned. Send quartermaster_buy (offer 'qm.<id>')
        and reconcile the returned envelope — the server prices the offer, debits
@@ -424,9 +426,16 @@
   }
   window.buyFromQuartermaster = buyFromQuartermaster;
 
+  /* An unstated balance (scripOf → null) prints the pending dash, never 0. */
+  function scripMarkup(n){
+    var BAL = window.HearthriseBalance;
+    if(BAL && typeof BAL.countMarkup === 'function') return BAL.countMarkup(n);
+    return n == null ? '<span class="bal-pending">—</span>' : String(n);
+  }
+
   function renderQuartermaster(){
     var line = document.getElementById('qm-scrip-line');
-    if(line) line.innerHTML = 'You have <b>' + scripHeld() + ' Dungeon Scrip</b> — earned by clearing dungeons.';
+    if(line) line.innerHTML = 'You have <b>' + scripMarkup(scripHeld()) + ' Dungeon Scrip</b> — earned by clearing dungeons.';
     var body = document.getElementById('quartermaster-body');
     if(!body) return;
     var groups = [
@@ -439,7 +448,7 @@
         var e = QM_STOCK.find(function(x){ return x.id === id; });
         if(!e) return '';
         var it = window.ITEMS && window.ITEMS[id];
-        var can = scripHeld() >= e.scrip;
+        var held = scripHeld(), can = held != null && held >= e.scrip;
         /* b283 (studio-review P1): the shop was pure text — give each row an icon. */
         var ipath = window._itemPath && window._itemPath[id];
         var iconHtml = ipath ? '<img src="' + ipath + '" alt="" style="width:26px;height:26px;object-fit:contain">' : '<span>' + window.itemFallbackIcon(id, 26, it) + '</span>';
@@ -661,7 +670,7 @@
          in a game whose entire palette is gilt-on-soot. Scrip is a currency, so
          it gets the currency treatment every other balance in the game has. */
       '<span class="dgn-scrip-have">' + _gly('uiScroll', 15, '--gold-2') +
-        ' <b>' + _scrip + '</b> Dungeon Scrip</span>' +
+        ' <b>' + scripMarkup(_scrip) + '</b> Dungeon Scrip</span>' +
       '<button class="btn btn-sm dgn-qm-btn" onclick="window.openQuartermaster()">Quartermaster</button>' +
       '</div>';
     ['dungeon','raid','worldboss'].forEach(function(kind){

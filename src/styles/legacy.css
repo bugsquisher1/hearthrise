@@ -2160,23 +2160,6 @@ body[data-theme="dark"] .lane1-toggle{
 .inv-summary{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:rgba(243,209,129,.06);border:1px solid rgba(243,209,129,.25);border-radius:6px;margin-bottom:10px}
 
 /* ===== block 17: five-feat-css ===== */
-/* ─── Level-up celebration ─── */
-.lvl-celebration{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);z-index:9997;pointer-events:none;text-align:center;opacity:0}
-.lvl-celebration.show{animation:lvl-pop 2.4s ease-out forwards}
-@keyframes lvl-pop{
-  0%{transform:translate(-50%,-50%) scale(0) rotate(-15deg);opacity:0}
-  20%{transform:translate(-50%,-50%) scale(1.3) rotate(5deg);opacity:1}
-  35%{transform:translate(-50%,-50%) scale(1) rotate(0deg)}
-  80%{transform:translate(-50%,-50%) scale(1) rotate(0deg);opacity:1}
-  100%{transform:translate(-50%,-50%) scale(1.5);opacity:0}
-}
-.lvl-celebration .lc-ring{width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(243,209,129,.55) 0%,rgba(243,209,129,.10) 50%,transparent 70%);position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);animation:lc-ring-spin 2.4s linear}
-@keyframes lc-ring-spin{from{transform:translate(-50%,-50%) rotate(0)}to{transform:translate(-50%,-50%) rotate(360deg)}}
-.lvl-celebration .lc-icon{font-size:calc(72px * var(--ui-scale, 1));filter:drop-shadow(0 0 20px rgba(243,209,129,.8));position:relative;z-index:1}
-.lvl-celebration .lc-icon img{width:96px;height:96px;object-fit:contain}
-.lvl-celebration .lc-text{font-family:var(--f-display);font-size:calc(33px * var(--ui-scale, 1));color:#fff;text-shadow:2px 2px 0 #5b2618,0 0 30px rgba(243,209,129,1);font-weight:800;margin-top:8px}
-.lvl-celebration .lc-skill{font-size:calc(17px * var(--ui-scale, 1));color:var(--gold-2);text-shadow:1px 1px 0 #5b2618;letter-spacing:.18em;text-transform:uppercase;font-weight:700}
-
 /* ─── Achievement modal + toasts ─── */
 .ach-overlay{background:rgba(0,0,0,.7);z-index:9998;display:none;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
 .ach-overlay.show{display:flex}
@@ -2893,7 +2876,7 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 .hr-levelup-pop{
   pointer-events:auto;display:flex;align-items:center;gap:12px;
   padding:11px 18px;border-radius:14px;max-width:min(92vw,420px);
-  background:var(--panel, var(--panel-2));border:1px solid var(--gold-2);
+  background:var(--bg-card);border:1px solid var(--gold-2);
   box-shadow:0 6px 26px rgba(0,0,0,.35);color:var(--ink);
   animation:hrLevelUpIn .3s ease;cursor:pointer;
 }

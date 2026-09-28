@@ -1,0 +1,88 @@
+/* src/styles/climb-marks.css — the Mark banner, the companion banner and the
+ * Mastery sheet (src/render/levelup-celebration.js, fired by
+ * src/features/climb-marks.js). The banners ride the plain level banner's
+ * .hr-levelup-pop (legacy.css); the sheet's layout is .hr-scrim/.hr-sheet
+ * (art-direction.css), z and scrim as .hl-scrim. Tokens only. */
+.hr-levelup-pop.is-mark { max-width: min(92vw, 460px); align-items: flex-start; }
+.hr-levelup-pop .lu-body { min-width: 0; }
+.hr-levelup-pop .lu-kicker {
+  font-size: var(--t-micro);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+  line-height: 1.2;
+}
+.hr-levelup-pop.is-mark .lu-title,
+.hr-levelup-pop.is-pet .lu-title { color: var(--ink); overflow-wrap: anywhere; }
+.hr-levelup-pop .lu-lore {
+  margin-top: 4px;
+  font-size: var(--t-small);
+  line-height: 1.4;
+  font-style: italic;
+  color: var(--ink-2);
+}
+.hr-levelup-pop .lu-foot { margin-top: 4px; font-size: var(--t-micro); color: var(--ink-3); }
+
+.cm-mastery-scrim {
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--bg-0) 78%, transparent);
+}
+.cm-mastery {
+  width: 100%;
+  max-width: 480px;
+  box-sizing: border-box;
+  padding: 18px 20px;
+  gap: 10px;
+  background: var(--bg-1);
+  border: 2px solid var(--gold);
+  border-radius: var(--r-lg);
+  color: var(--ink);
+  font-family: var(--f-ui);
+}
+.cm-mastery-kicker {
+  font-size: var(--t-micro);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+.cm-mastery-title {
+  margin: 2px 0 0;
+  font-family: var(--f-display);
+  font-size: var(--t-h2);
+  line-height: 1.2;
+  color: var(--gold);
+  overflow-wrap: anywhere;
+}
+.cm-mastery-body { display: flex; flex-direction: column; gap: 10px; }
+.cm-mastery-lore { margin: 0; font-size: var(--t-body); line-height: 1.45; color: var(--ink); }
+.cm-mastery-mark { margin: 0; font-size: var(--t-small); line-height: 1.45; font-style: italic; color: var(--ink-2); }
+.cm-mastery-foot { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.cm-mastery-note { margin: 0; font-size: var(--t-micro); color: var(--ink-3); }
+.cm-mastery-btn {
+  min-height: var(--tap);
+  padding: 0 16px;
+  border: 1px solid var(--gold);
+  border-radius: var(--r-sm);
+  background: var(--gold);
+  color: var(--bg-0);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .cm-mastery { padding: 12px 14px; gap: 6px; }
+  .cm-mastery-title { font-size: var(--t-lead); }
+  .hr-levelup-pop .lu-lore { font-size: var(--t-micro); }
+}
+
+/* Reduce motion: the in-game switch and the system setting both still the banners. */
+:root.hr-reduce-fx .hr-levelup-pop,
+:root.hr-reduce-fx .hr-levelup-pop.leaving { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .hr-levelup-pop,
+  .hr-levelup-pop.leaving { animation: none; }
+}

@@ -13990,7 +13990,8 @@ console.log('UI overhaul loaded');
    src/render/achievements.js. */
 
 /* =========================================================
-   2. LEVEL-UP CELEBRATION (wraps addXp)
+   2. LEVEL-UP COUNTER (wraps addXp). The level moment itself fires on the
+   server's level in src/features/climb-marks.js.
    ========================================================= */
 (function(){
   var orig = window.addXp;
@@ -14003,14 +14004,10 @@ console.log('UI overhaul loaded');
     if(lvAfter > lvBefore){
       G.stats = G.stats || {};
       G.stats.levelups = (G.stats.levelups||0) + 1;
-      showLevelupCelebration(sk, lvAfter);
     }
     return r;
   };
 })();
-/* showLevelupCelebration extracted to src/render/levelup-celebration.js (b385,
-   render-layer strangler-fig #6). It is a window global; the addXp wrapper above
-   calls it by bare name, which resolves to window.showLevelupCelebration. */
 
 /* =========================================================
    3. CATCHUP REWARDS - DELETED (b516). DO NOT RE-ADD.

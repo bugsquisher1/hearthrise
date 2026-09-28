@@ -61,7 +61,7 @@ const OVERLAP_WHITELIST = new Set([
   '.dgn-run-overlay', '.drm-modal',
   '#chat-dock.full',
   // Notification toasts pop over content
-  '.notifs', '.ach-toast', '.lvl-celebration',
+  '.notifs', '.ach-toast', '.hr-levelup-pop',
 ]);
 
 // ── Geometry helpers ───────────────────────────────────────

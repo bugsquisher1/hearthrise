@@ -257,7 +257,9 @@ export function measure(root) {
   };
 }
 
-export function compare(now, base) {
+/* `band` is BAND in every real run; the selftest passes a broken one to prove
+   its own arms go MISSED when the comparator stops biting (mutation proof). */
+export function compare(now, base, band = BAND) {
   const problems = [];
   const notes = [];
   const fail = (check, message) => problems.push({ check, message });
@@ -269,15 +271,15 @@ export function compare(now, base) {
      one. */
   const banded = (check, label, n, o, why) => {
     if (!Number.isFinite(o)) { notes.push(`${label}: no baseline (${n.toFixed(2)}) — run --write`); return; }
-    const ceiling = o * BAND;
+    const ceiling = o * band;
     if (n > ceiling + EPS) {
       problems.push({ check, message: `${label} ROSE ${o.toFixed(2)} → ${n.toFixed(2)}, past the `
-        + `+${((BAND - 1) * 100).toFixed(0)}% band (ceiling ${ceiling.toFixed(2)}). ${why}` });
+        + `+${((band - 1) * 100).toFixed(0)}% band (ceiling ${ceiling.toFixed(2)}). ${why}` });
     } else if (n < o - EPS) {
       notes.push(`${label} fell ${o.toFixed(2)} → ${n.toFixed(2)} — run --write to lower the ceiling`);
     } else if (n > o + EPS) {
       notes.push(`${label} ${o.toFixed(2)} → ${n.toFixed(2)}, inside the `
-        + `+${((BAND - 1) * 100).toFixed(0)}% band (ceiling ${ceiling.toFixed(2)}) — allowed, and `
+        + `+${((band - 1) * 100).toFixed(0)}% band (ceiling ${ceiling.toFixed(2)}) — allowed, and `
         + 'the baseline does NOT move up');
     }
   };
@@ -521,6 +523,20 @@ function selftest() {
   const atRatio = (mult) => pinned({ code: mult });
   const atSeeds = (mult) => pinned({ seed: mult });
   const bend = (patch) => compare(derived({ ...real, ...patch }), base);
+  /* THE BAND IS SPENT ONCE — SIZED FROM WHERE THE CORPUS IS, not from the pin.
+     The arm used to plant a fixed +800 lines / +2 tests on today's corpus, which
+     crosses the ceiling only while the corpus sits ON its pin: at 32.97 against a
+     pinned 33.14 it stayed inside the band and reported MISSED (d2823142 and
+     3c5421ec, 2026-09-27). So the FIRST plant is the exact number of CODE lines
+     that brings `from` to the ceiling for one new test (one more line would be
+     red), and the SECOND is a 400-line scaffold for one more test on top of it —
+     which `--write` never pins upward, so it must be TF-1 wherever `from` sits. */
+  const scaffoldTwice = (from, cmp = (m) => compare(m, base)) => {
+    const tf1 = (d, t) => cmp(derived({ ...from, codeLines: from.codeLines + d, lines: from.lines + d,
+      tests: from.tests + t })).problems.some((p) => p.check === 'TF-1');
+    const first = Math.floor(base.codeLinesPerTest * BAND * (from.tests + 1) - from.codeLines);
+    return { first, spent: !tf1(first, 1) && tf1(first + 1, 1), caught: tf1(first + 400, 2) };
+  };
 
   const arms = [
     ['the cost per test is +2% — outside the band', 'TF-1', atRatio(1.02)],
@@ -531,7 +547,8 @@ function selftest() {
        measures from the same baseline and is red. This is the arm that makes
        (c) load-bearing rather than decorative. */
     ['a second 400-line scaffold, after the first already spent the band', 'TF-1',
-      { codeLines: real.codeLines + 800, lines: real.lines + 800, tests: real.tests + 2 }],
+      ((f) => ({ codeLines: real.codeLines + f + 400, lines: real.lines + f + 400, tests: real.tests + 2 }))(
+        scaffoldTwice(real).first)],
     ['the seeds per test are +2% — outside the band', 'TF-2', atSeeds(1.02)],
     /* THE COUNT IS ARITHMETIC, NOT A TASTE. The band is 1% of the CORPUS's
        seeds, so at the pinned 1,178 tests it is ~24 seeds wide: an arm written
@@ -565,6 +582,30 @@ function selftest() {
       console.log(`  MISSED   ${label} — ${check} never fired`
         + (got.problems.length ? ` (only: ${got.problems.map((p) => p.check).join(', ')})` : ' (no problem at all)'));
     }
+  }
+
+  /* ── THE SCAFFOLD ARM, PROVEN ON ITSELF. `spent` says the first plant lands
+     exactly on the ceiling (silent, and one more line is red) — otherwise the
+     second plant proves nothing about a SPENT band. The MUTATIONS break the
+     comparator the arm relies on and require the arm to go MISSED, so it is not
+     vacuous. The CONTROL moves the corpus 5% below its pin — where the old fixed
+     +800 plant went quiet — and requires the arm to stay CAUGHT. */
+  {
+    const r = scaffoldTwice(real);
+    say(r.spent, 'the first scaffold spends the band exactly — silent, one more line is TF-1',
+      `  → +${r.first} code lines for 1 test`);
+    for (const [why, band] of [['the band widened to +100%', 2], ['a ceiling that can never be reached', Infinity]]) {
+      const m = scaffoldTwice(real, (x) => compare(x, base, band));
+      say(!m.caught, `MUTATION: ${why} → the second-scaffold arm goes MISSED (it is not vacuous)`,
+        `  → ${m.caught ? 'still CAUGHT' : 'MISSED'}`);
+    }
+    const below = { ...real, codeLines: Math.round(base.codeLinesPerTest * 0.95 * real.tests) };
+    const c = scaffoldTwice(below);
+    say(c.spent && c.caught, 'CONTROL: a corpus 5% BELOW its pin — the second scaffold is still CAUGHT',
+      `  → +${c.first} then +400: ${c.caught ? 'CAUGHT' : 'MISSED'}`);
+    const old = bend({ ...below, codeLines: below.codeLines + 800, tests: below.tests + 2 });
+    say(!old.problems.some((p) => p.check === 'TF-1'),
+      '…where the OLD fixed +800/+2 plant is silent (the defect this control pins)');
   }
 
   const silent = [

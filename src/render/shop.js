@@ -342,13 +342,15 @@
        wrote innerHTML twice, which re-parsed and re-laid-out the whole list. */
     /* b311 (Tyler): vendor Buy-Back lives HERE, in the Local Shop where you sold
        to the vendor — NOT as a button on every inventory item's detail (which is
-       where it used to appear the moment you sold anything). Only shown when there
-       is something to undo. */
+       where it used to appear the moment you sold anything). Shown after a sale.
+       2026-09-28: CLOSED — no server buy-back verb exists (gold-sites
+       BUYBACK_LEDGER), so the door is disabled with its reason and the local
+       sale list (client residue) is not counted as a record. */
     const _buyback = (Array.isArray(G.buyback) && G.buyback.length)
       ? `<div class="sc-sep">Vendor buy-back</div>`
         + `<div class="shop-row"><div class="info"><b>Buy back sold items</b>`
-        + `<span>${G.buyback.length} recent sale${G.buyback.length>1?'s':''} you can undo</span></div>`
-        + `<button class="btn btn-sm btn-primary" onclick="openBuyback()">Buy Back…</button></div>`
+        + `<span>The realm keeps no buy-back counter yet</span></div>`
+        + `<button class="btn btn-sm" disabled>Buy Back</button></div>`
       : '';
     el.innerHTML=SHOP_SCENE
       +`<div class="sc-counter">${offers}`

@@ -1365,42 +1365,33 @@ export default [
   }),
 
   // 10th render-layer extraction: the vendor Buy Back modal moved out of
-  // legacy.js to src/render/buyback.js. Pure refactor — openBuyback + renderBuyback
-  // must stay on window (shop.js inline onclick="openBuyback()" and repurchase()'s
-  // bare renderBuyback() call both resolve to the globals). Read-only paint of the
-  // G.buyback journal; the gold/inventory mutation stays in repurchase() in legacy.
+  // legacy.js to src/render/buyback.js. openBuyback + renderBuyback must stay on
+  // window (repurchase() and repaintBalanceSurfaces() call renderBuyback bare).
   () => tryRun('render: buy back modal (extracted surface)', () => {
-    assert(typeof window.openBuyback === 'function',
-      'openBuyback must stay on window (shop.js inline onclick="openBuyback()")');
-    assert(typeof window.renderBuyback === 'function',
-      'renderBuyback must stay on window (repurchase() calls it after a buy-back)');
-    const savedBuyback = window.G.buyback;
+    assert(typeof window.openBuyback === 'function', 'openBuyback must stay on window');
+    assert(typeof window.renderBuyback === 'function', 'renderBuyback must stay on window');
+    window.openBuyback();
+    const m = document.getElementById('bb-modal');
+    assert(m && m.classList.contains('show'), 'buy-back modal did not open (missing .show)');
+    m.classList.remove('show');
+  }),
+
+  () => tryRun('BUYBACK-FAIL-CLOSED-1: Buy Back offers no enabled buy control while the server has no buy-back verb', () => {
+    // Every repurchase() tap failed closed under armed gold while the sheet painted
+    // enabled 'Buy back · N gp' buttons and the More sheet carried a door to it.
+    const sites = window.HearthriseGoldSites;
+    assert(sites && !sites.isWiredSite('src/screens/shop-counter.js#repurchase'),
+      'repurchase is wired now — reopen the counter from the server list and retire this test');
     try {
-      // Empty journal → the empty-state copy.
-      window.G.buyback = [];
       window.openBuyback();
-      const m = document.getElementById('bb-modal');
-      assert(m, 'bb-modal was not created by openBuyback');
-      assert(m.classList.contains('show'), 'buy-back modal did not open (missing .show)');
-      let body = document.getElementById('bb-modal-body');
-      assert(body && body.innerHTML.indexOf('Nothing to buy back') >= 0,
-        'empty buy-back journal did not render its empty state');
-      // A journalled sale → one .bb-row with a repurchase() Buy Back control.
-      const anyId = Object.keys(window.ITEMS || {})[0];
-      assert(anyId, 'ITEMS empty — cannot seed a buy-back row');
-      window.G.buyback = [{ id: anyId, qty: 2, unit: 5 }];
-      window.renderBuyback();
-      body = document.getElementById('bb-modal-body');
-      const rows = body.querySelectorAll('.bb-row');
-      assert(rows.length === 1, 'expected exactly one buy-back row, got ' + rows.length);
-      const btn = rows[0].querySelector('button');
-      assert(btn && btn.getAttribute('onclick').indexOf('repurchase(0)') >= 0,
-        'buy-back row is missing its repurchase(0) control');
-      // Close control removes .show.
-      m.classList.remove('show');
-      assert(!m.classList.contains('show'), 'buy-back modal did not close');
+      const body = document.getElementById('bb-modal-body');
+      assert(/The realm keeps no buy-back counter yet/.test(body.textContent), 'the closed reason is missing');
+      const live = [...body.querySelectorAll('button')].filter((b) => !b.disabled);
+      assert(live.length === 0, live.length + ' enabled buy-back control(s) rendered');
+      const door = [...document.querySelectorAll('#more-modal button')].filter((b) => /buy\s*back/i.test(b.textContent) && !b.disabled);
+      assert(door.length === 0, 'the More sheet still opens the buy-back counter');
     } finally {
-      window.G.buyback = savedBuyback;
+      window.closeAllModals();
     }
   }),
 

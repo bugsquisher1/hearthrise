@@ -33,6 +33,9 @@
 //           half has nowhere else to live.
 //   P-FENCE invariant 8 at the INTENT door, driven through the real
 //           `partyIntentFence` bytes the edge deploys.
+//   N       (Security N4b, 2026-09-28) a partied member's shadow delta is
+//           byte-identical to the solo tick's for the same inputs, perks and
+//           bestiary included; the pre-N4b driver is a planted control.
 //
 // ── THE MUTATION PROOF (CLAUDE.md §4) ──────────────────────────────────────
 // Six mutants, each breaking one load-bearing line and naming the arm that
@@ -62,6 +65,11 @@ import {
 import {
   parseParties, parsePartyUnit, partyIntentId, memberContribution, settleParty,
 } from '../supabase/functions/hr-accrue/tick-party.js';
+/* Group N: the solo tick and the party unit, the shipped bytes, side by side. */
+import { runTick, planSeedLabels } from '../supabase/functions/hr-accrue/tick.js';
+import {
+  settleCombatSession, sessionFromRoster as combatSessionFromRoster,
+} from '../supabase/functions/hr-accrue/tick-combat.js';
 
 const MUTATE = process.argv.slice(2).includes('--mutate');
 
@@ -860,6 +868,146 @@ try {
 }
 
 await db.close();
+
+/* ══ N  A PARTIED MEMBER IS PRICED FROM THE SOLO TICK'S INPUTS (Security N4b) ══
+   `hr_perks_of` and `hr_bestiary_of` are not envelope fields. tick.js reads both
+   for a solo character (steps (1b)/(4b)); until 2026-09-28 tick-party.js read
+   neither, so a partied hunt priced every member at zero perks and no charm —
+   an ARM blocker for the party channel (S5). This group needs no database: ONE
+   character, ONE 72 s combat window, fired once through `runTick`'s solo roster
+   and once as a one-member party unit, over an in-memory `exec` that answers
+   both fences, the projection, both reads and `hr_seed` identically. The
+   member's shadow delta, with the party's own journal key taken off, must be
+   BYTE-IDENTICAL to the solo delta (AWAY-1): same engine, same inputs.
+     N1  identical, with a +10% allXP perk stack and a nemesis-rung bestiary
+     N2  CONTROL: the perks and counters MOVE the solo window — N1 is not two
+         zero-perk windows agreeing
+     N3  CONTROL: a party driver that does not hand the two reads to the
+         session (the pre-N4b tick-party.js, planted through `settleParty`'s
+         own `sessionFromRoster` seam) is RED on the same comparison
+   PARTY_CHANNEL_PAYS is untouched: every settle here is the fence's SHADOW. */
+group('N  a partied member is priced from the solo tick\'s inputs (N4b, AWAY-1)');
+{
+  const NX = '00000000-0000-4000-8000-0000b8020201';
+  const NOW = Date.parse('2026-09-21T12:00:00.000Z');
+  const MARK = NOW - 120000;
+  const MARK_TEXT = new Date(MARK).toISOString().replace('Z', '+00:00');
+  const FLUSH = 72000;                           // 30 goblin ticks on the 2.4 s grid
+  const PERKS = { ok: true, rooms: {}, plots: {}, propertyTier: 0, unlockedRecipes: {}, renownAllXp: 0.10 };
+  const KILLS = { goblin: 20000 };
+  const seedOf = (user, ts) => {
+    let h = 2166136261;
+    for (const ch of `${user}|${ts}`) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+    return h;
+  };
+  const world = (reads) => {
+    const settles = [];
+    let solo = null;
+    let party = null;
+    const exec = async (text, params) => {
+      if (text.includes('current_database()')) return [{ holder: 'cron:guard' }];
+      if (/^select now\(\)/.test(text)) return [{ now: new Date(NOW) }];
+      if (text.includes('hr_seed')) {
+        return (params[2] || []).map((ts, i) => ({ ord: i + 1, seed: seedOf(params[0], ts) }));
+      }
+      if (text.includes('hr_state_of')) {
+        return [{ now: new Date(NOW), cap_ms: 43200000, state: { ok: true, version: 11,
+          skills: { attack: { xp: 400000 }, strength: { xp: 400000 }, defense: { xp: 400000 },
+            hitpoints: { xp: 400000 } },
+          inventory: {}, equipment: {},
+          state: { accrued_to: MARK_TEXT, active_kind: 'combat', active_id: 'goblin',
+            active_since: new Date(MARK - 1450 * 2400).toISOString(),
+            hp: 99, max_hp: 99, gold: 0 } } }];
+      }
+      if (text.includes('hr_perks_of')) return [{ perks: reads ? PERKS : null }];
+      if (text.includes('hr_bestiary_of')) return [{ kills: reads ? KILLS : {} }];
+      if (text.includes('hr_party_tick_settle')) {
+        const [, , wFrom, wTo, , mj] = params;
+        if (party === null && Date.parse(wFrom) < MARK) {
+          return [{ res: { ok: false, error: 'party_window_already_settled', accrued_to: MARK_TEXT,
+            shadow: true, shadow_state: null } }];
+        }
+        party = JSON.parse(mj);
+        settles.push({ wFrom, wTo });
+        return [{ res: { ok: true, mode: 'shadow' } }];
+      }
+      if (text.includes('hr_tick_settle')) {
+        const [, user, , , , wFrom, wTo, , delta] = params;
+        if (user === null) return [{ res: { ok: false, error: 'bad_arguments' } }];
+        if (solo === null && Date.parse(wFrom) < MARK) {
+          return [{ res: { ok: false, error: 'window_already_settled', accrued_to: MARK_TEXT, shadow: true } }];
+        }
+        solo = JSON.parse(delta);
+        settles.push({ wFrom, wTo });
+        return [{ res: { ok: true, mode: 'shadow', paid: false, window_to: wTo } }];
+      }
+      throw harness('group N: unexpected statement — ' + text.slice(0, 80));
+    };
+    return { exec, settles, solo: () => solo, party: () => party };
+  };
+  const unitRow = { party_id: '00000000-0000-4000-8000-0000b80202a1',
+    hunt_id: '00000000-0000-4000-8000-0000b80202b1', active_id: 'goblin', stance: 'steady',
+    accrued_to: new Date(MARK).toISOString(), members: [{ user_id: NX, slot: 0 }] };
+  const soloDelta = async (reads) => {
+    const w = world(reads);
+    const out = await runTick({ exec: w.exec, body: { op: 'tick', flush_ms: FLUSH, cadence_ms: 10000,
+      roster: [{ user_id: NX, slot: 0 }] } });
+    return { out: out.body, delta: w.solo() };
+  };
+  const memberDelta = (members) => {
+    if (!Array.isArray(members) || members.length !== 1) return null;
+    const d = JSON.parse(JSON.stringify(members[0].delta));
+    if (d && d.journal && d.journal.meta) delete d.journal.meta.party;
+    return d;
+  };
+  const partyDelta = async () => {
+    const w = world(true);
+    const out = await runTick({ exec: w.exec, body: { op: 'tick', flush_ms: FLUSH, cadence_ms: 10000,
+      roster: [], parties: [unitRow] } });
+    return { out: out.body, delta: memberDelta(w.party()) };
+  };
+  /* The pre-N4b driver: `settleParty`, the shipped bytes, with a
+     `sessionFromRoster` that drops the two keys tick-party.js now hands it —
+     byte-for-byte the row it built before today. `seedLadder` is tick.js's
+     partySeedLadder over the same `hr_seed` answer. */
+  const plantedDelta = async () => {
+    const w = world(true);
+    const out = await settleParty(w.exec, 'cron:guard', parsePartyUnit(unitRow),
+      { flushMs: FLUSH, cadenceMs: 10000 }, {
+        sessionFromRoster: (row, env) => {
+          const r = Object.assign({}, row);
+          delete r.perks; delete r.bestiary_kills;
+          return combatSessionFromRoster(r, env);
+        },
+        seedLadder: async (ex, m, session, fromMs, toMs, geom) => {
+          const labels = planSeedLabels(settleCombatSession, session, fromMs, toMs,
+            Object.assign({}, geom, { markText: session.accruedToText }));
+          return new Map(labels.map((x) => [x.ms, seedOf(m.userId, x.ts)]));
+        },
+      });
+    return { out, delta: memberDelta(w.party()) };
+  };
+
+  const soloA = await soloDelta(true);
+  const soloZ = await soloDelta(false);
+  const partyA = await partyDelta();
+  const planted = await plantedDelta();
+  const sa = JSON.stringify(soloA.delta);
+  const pa = JSON.stringify(partyA.delta);
+  judge('N1', soloA.delta !== null && partyA.delta !== null && sa === pa,
+    'a one-member party\'s shadow delta is BYTE-IDENTICAL to the solo tick\'s for the same character, '
+    + 'window, seeds, perk stack and bestiary — the member made both reads through ./tick-reads.js '
+    + `and the engine priced them (${sa.length} bytes, journal.meta.party aside)`,
+    `solo ${JSON.stringify(soloA.out)} ${sa.slice(0, 300)}\n      party ${JSON.stringify(partyA.out)} ${pa.slice(0, 300)}`);
+  judge('N2', soloZ.delta !== null && JSON.stringify(soloZ.delta) !== sa,
+    'CONTROL: the +10% allXP stack and the 20,000-kill bestiary MOVE the solo window, so N1 is not two '
+    + 'zero-perk windows agreeing',
+    `the reads did not move the solo delta (${JSON.stringify(soloZ.out)}) — N1 would be vacuous: ${sa.slice(0, 300)}`);
+  judge('N3', planted.delta !== null && JSON.stringify(planted.delta) !== sa,
+    'CONTROL: the pre-N4b party driver (neither read handed to the session) is RED on N1\'s comparison',
+    `the planted driver answered ${JSON.stringify(planted.out)} and ${planted.delta === null
+      ? 'settled nothing, so this control measured nothing' : 'matched the solo delta — N1 cannot see the gap'}`);
+}
 
 /* ══ STAGE 2 OF THE MUTATION PROOF — THE ONE THAT HAS TO RUN ════════════════
    Security, S2 review. Every stage-1 mutant is caught by the APPLY, which is

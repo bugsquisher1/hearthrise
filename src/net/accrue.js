@@ -4050,6 +4050,7 @@ function applyEnvelopeStateBody(G, res, ownKey) {
      reconcileEventCounters' header for the direction rule and for why
      `stats.planted` is inert until hr_farm_plant mints `ev:plant`. */
   written.eventCounters = reconcileEventCounters(G, res);
+  try { const LT = (typeof window !== 'undefined') && window.HearthriseLifetime; if (LT && typeof LT.noteEnvelope === 'function') written.lifetime = LT.noteEnvelope(res); } catch (e) {}
 
   /* b492 — THE PROPERTY RUNG IS THE SERVER'S TOO, and it rides the SAME permanent
      `progress` rows as traits (`property:<tier>`, `worker_hire`). OBSERVED here

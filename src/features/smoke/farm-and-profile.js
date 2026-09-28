@@ -7,6 +7,7 @@
 // the monolith by tools/split-smoke-suite.mjs — 86 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
 import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, withFarmServer, withCompanionRoster, findToasts, findToast, snapshotG, restoreG, on, snapshot } from './_harness.js?v=559';
+import { fold } from '../lifetime-tally.js?v=559';
 
 export default [
 
@@ -2911,5 +2912,39 @@ export default [
       assert(window.G.farmPlots[0].waterings.length === 1,
         'a server predating the projection must degrade to the single watered_at, not to an empty history');
     } finally { try { CAP.__setBlobRetired(null); } catch (e) {} restoreG(snap); }
+  }),
+
+  () => tryRun('TALLY-A: the lifetime fold keeps floors, ignores old frames and lets deaths_lifetime win', () => {
+    const stat = (key, value) => ({ kind: 'stat', key, value, period: '' });
+    const env = (version, truncated, rows, state) => ({ version, progress_truncated: truncated, progress: rows, state: state || {} });
+    const k = (v) => JSON.stringify(v.counts.kills);
+    const exact900 = { slot: 0, version: 1, counts: { kills: { n: 900, exact: true } }, quests: null };
+    const a = fold(exact900, env(2, false, [stat('kills', 400)]), []);
+    assert(k(a) === '{"n":400,"exact":true}', 'a complete statement must set kills exactly, got ' + k(a));
+    const b = fold(exact900, env(2, true, [stat('crits', 1)]), []);
+    assert(k(b) === '{"n":900,"exact":false}', 'a truncated statement without kills must keep a floor, got ' + k(b));
+    const c = fold(a, env(3, true, [stat('kills', 450)]), []);
+    assert(k(c) === '{"n":450,"exact":true}', 'a present row in a truncated statement is the full value, got ' + k(c));
+    const noState = { state: { recovering_until: null } };
+    assert(fold(a, noState, []) === a, 'an envelope with no progress must return the view by identity');
+    const d = fold(null, env(4, false, [stat('deaths', 2)], { deaths_lifetime: 3 }), []);
+    assert(d.counts.deaths.n === 3 && d.counts.deaths.exact, 'state.deaths_lifetime must beat the stat row, got ' + JSON.stringify(d.counts.deaths));
+    assert(fold(a, env(1, false, [stat('kills', 1)]), []) === a, 'an older frame must not move the view');
+  }),
+
+  () => tryRun('TALLY-B: Lifetime Stats paints the realm\'s counts, a floor, or the pending dash', () => {
+    const S = window.HearthriseLifetimeSheet;
+    assert(S && typeof S.sectionsHtml === 'function', 'HearthriseLifetimeSheet.sectionsHtml is not published');
+    const paint = (view) => { const el = document.createElement('div'); el.innerHTML = S.sectionsHtml(view, {}); return el; };
+    const unknown = paint(null);
+    const cells = [...unknown.querySelectorAll('.stats-row .val, .stat-tile b')];
+    assert(cells.length > 20 && cells.every((el) => el.querySelector('.bal-pending')),
+      'an unknown view must paint the pending dash in every value cell: ' + cells.map((el) => el.textContent).join(' | '));
+    const labels = [...unknown.querySelectorAll('.stats-row .lbl, .stat-tile span')].map((el) => el.textContent).join(' | ');
+    assert(!/Time Played|first seen|gold spent|gold earned|Forged|Buried bones|kill streak|Refined/i.test(labels), 'a client-kept row is back: ' + labels);
+    const slain = (el) => [...el.querySelectorAll('.stats-row')].find((r) => r.querySelector('.lbl').textContent === 'Monsters slain').querySelector('.val').textContent;
+    const at = (exact) => ({ counts: { kills: { n: 4812, exact } } });
+    assert(slain(paint(at(true))) === (4812).toLocaleString(), 'a known view must print 4,812, got ' + slain(paint(at(true))));
+    assert(slain(paint(at(false))) === (4812).toLocaleString() + '+', 'a floor view must print 4,812+, got ' + slain(paint(at(false))));
   }),
 ];

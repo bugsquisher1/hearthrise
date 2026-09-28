@@ -199,6 +199,8 @@
     "node tests/item-flavour-coverage.mjs --selftest": "client-guards",
     "node tests/lore-notes.mjs": "client-guards",
     "node tests/lore-notes.mjs --selftest": "client-guards",
+    "node tests/lifetime-tally.mjs": "client-guards",
+    "node tests/lifetime-tally.mjs --selftest": "client-guards",
     "node tests/companion-pays-parity.mjs": "client-guards",
     "node tests/companion-pays-parity.mjs --selftest": "client-guards",
     "node tests/companion-promise-parity.mjs": "client-guards",

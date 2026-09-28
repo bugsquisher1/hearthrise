@@ -537,15 +537,37 @@ function selftest() {
     const first = Math.floor(base.codeLinesPerTest * BAND * (from.tests + 1) - from.codeLines);
     return { first, spent: !tf1(first, 1) && tf1(first + 1, 1), caught: tf1(first + 400, 2) };
   };
+  /* EVERY OTHER PLANT IS SIZED THE SAME WAY — from the LIVE corpus and the pinned
+     ceiling, never as a fixed `+N`. A fixed +1,000 code lines / +1 test crossed
+     the ceiling at 49,614 / 1,518 (9f2b51ed) and landed 0.001 INSIDE it at
+     49,514 / 1,516 (d81f4b98, GitHub run 36410371780): the ratchet was right to
+     stay silent and the selftest was wrong to expect a catch. `pastCeiling` is
+     the count that puts `have` over `from.tests + added` tests a stated MARGIN
+     per test above `perTest × BAND` — red on any corpus by construction. */
+  const MARGIN_CODE = 0.5; // CODE lines per test above the TF-1 ceiling
+  const MARGIN_SEED = 0.02; // seeds per test above the TF-2 ceiling (~1% of the ratio)
+  const pastCeiling = (from, added, perTest, have, margin) =>
+    Math.max(1, Math.ceil((perTest * BAND + margin) * (from.tests + added) - have));
+  const scaffoldPatch = (from) => {
+    const d = pastCeiling(from, 1, base.codeLinesPerTest, from.codeLines, MARGIN_CODE);
+    return { codeLines: from.codeLines + d, lines: from.lines + d, tests: from.tests + 1 };
+  };
+  const seedFloor = Math.round(base.seedsPerTest * base.tests);
+  /* `band` is BAND in every real arm; the MUTATION below passes Infinity into
+     ONE arm to prove the verdict comes from the comparator, not from the label. */
+  const verdict = (patch, check, band = BAND) =>
+    compare(derived({ ...real, ...patch }), base, band).problems.filter((p) => p.check === check);
 
   const arms = [
     ['the cost per test is +2% — outside the band', 'TF-1', atRatio(1.02)],
-    ['1,000 CODE lines of scaffolding added for 1 new test', 'TF-1',
-      { codeLines: real.codeLines + 1000, lines: real.lines + 1000, tests: real.tests + 1 }],
+    ['a scaffold sized +0.5 CODE lines/test past the ceiling, for 1 new test', 'TF-1', scaffoldPatch(real)],
     /* THE BAND IS SPENT ONCE. A 400-line scaffold fits inside it (see the
        header) — but `--write` never pins a drift upward, so the SECOND one
        measures from the same baseline and is red. This is the arm that makes
-       (c) load-bearing rather than decorative. */
+       (c) load-bearing rather than decorative. BOUNDARY-INDEPENDENT: `first`
+       puts the corpus ON the ceiling c (floor, so ≤ c·(t+1)), and +400 for one
+       more test exceeds c·(t+2) whenever 399 > c — any corpus whose ceiling is
+       under 399 code lines per test, i.e. every corpus this guard would pass. */
     ['a second 400-line scaffold, after the first already spent the band', 'TF-1',
       ((f) => ({ codeLines: real.codeLines + f + 400, lines: real.lines + f + 400, tests: real.tests + 2 }))(
         scaffoldTwice(real).first)],
@@ -553,11 +575,14 @@ function selftest() {
     /* THE COUNT IS ARITHMETIC, NOT A TASTE. The band is 1% of the CORPUS's
        seeds, so at the pinned 1,178 tests it is ~24 seeds wide: an arm written
        as "20 seeds for one test" asserted something the band ALLOWS and passed
-       only while the anchoring bug above made it fire for the wrong reason.
-       60 is the same defect, stated at a size this band can see. */
-    ['60 new `G.x = …` seeds added for 1 new test', 'TF-2',
-      { lines: real.lines + 40, codeLines: Math.round(base.codeLinesPerTest * base.tests) + 30,
-        tests: base.tests + 1, seeds: Math.round(base.seedsPerTest * base.tests) + 60 }],
+       only while the anchoring bug above made it fire for the wrong reason. A
+       fixed 60 was the same bug one size up — silent past ~3,000 tests — so the
+       count is SIZED: +0.02 seeds/test past the ceiling (≈60 at 1,500 tests). */
+    ['new `G.x = …` seeds for 1 new test, sized past the ceiling', 'TF-2',
+      { lines: real.lines + 40,
+        codeLines: Math.round(base.codeLinesPerTest * base.tests) + Math.floor(base.codeLinesPerTest),
+        tests: base.tests + 1,
+        seeds: seedFloor + pastCeiling({ tests: base.tests }, 1, base.seedsPerTest, seedFloor, MARGIN_SEED) }],
     /* `base.tests - 1`, NOT `real.tests - 1` — the ⚠ above, which this arm was
        the one exception to. TF-3 fires on `now.tests < baseline.tests`, so a
        delta off TODAY goes quiet the moment the suite grows past the pin: at
@@ -575,7 +600,7 @@ function selftest() {
   ];
   for (const [label, check, patch] of arms) {
     const got = bend(patch);
-    const hit = got.problems.filter((p) => p.check === check);
+    const hit = verdict(patch, check);
     if (hit.length) console.log(`  CAUGHT   ${label}\n           ${check}: ${hit[0].message.split('. ')[0]}.`);
     else {
       bad++;
@@ -603,9 +628,30 @@ function selftest() {
     const c = scaffoldTwice(below);
     say(c.spent && c.caught, 'CONTROL: a corpus 5% BELOW its pin — the second scaffold is still CAUGHT',
       `  → +${c.first} then +400: ${c.caught ? 'CAUGHT' : 'MISSED'}`);
+    /* An EXPECTED-SILENT plant on a constructed corpus: (0.95·b·t + 800)/(t + 2)
+       stays under 1.01·b while 800 ≤ b·(0.06·t + 2.02), i.e. any corpus of more
+       than ~13,400 code lines — this guard's corpus is ~50,000. */
     const old = bend({ ...below, codeLines: below.codeLines + 800, tests: below.tests + 2 });
     say(!old.problems.some((p) => p.check === 'TF-1'),
       '…where the OLD fixed +800/+2 plant is silent (the defect this control pins)');
+  }
+
+  /* ── THE SIZED SCAFFOLD ARM, PROVEN ON ITSELF (run 36410371780). The CONTROL
+     builds the d81f4b98 shape on ANY corpus — the fixed +1,000/+1 plant lands
+     on the ceiling, not past it — and requires the old plant silent and the
+     sized one CAUGHT. The MUTATION hands the arm a ceiling it can never reach
+     and requires MISSED, so a green arm is the comparator's verdict. */
+  {
+    say(verdict(scaffoldPatch(real), 'TF-1', Infinity).length === 0,
+      'MUTATION: an unreachable ceiling in the sized-scaffold arm → it goes MISSED (it is not vacuous)');
+    const edge = { ...real, codeLines: Math.floor(base.codeLinesPerTest * BAND * (real.tests + 1)) - 1000 };
+    const edgeClean = compare(derived(edge), base).problems.length === 0;
+    const fixed = compare(derived({ ...edge, codeLines: edge.codeLines + 1000, lines: edge.lines + 1000,
+      tests: edge.tests + 1 }), base).problems.some((p) => p.check === 'TF-1');
+    const sized = compare(derived({ ...edge, ...scaffoldPatch(edge) }), base).problems.some((p) => p.check === 'TF-1');
+    say(edgeClean && !fixed && sized,
+      'CONTROL: a corpus where the OLD fixed +1,000/+1 plant sits ON the ceiling — it is silent, the sized plant is CAUGHT',
+      `  → clean ${edgeClean}, fixed ${fixed ? 'CAUGHT' : 'silent'}, sized ${sized ? 'CAUGHT' : 'MISSED'}`);
   }
 
   const silent = [
@@ -617,13 +663,18 @@ function selftest() {
        comment-ratio-ratchet.mjs, where it is the subject rather than a proxy. */
     ['ALLOWED: 2,000 lines of COMMENT added and zero code',
       { lines: real.lines + 2000 }],
+    /* INSIDE BY CONSTRUCTION: the real corpus is clean (asserted above), and a
+       blend of it with tests at the PINNED average cost cannot exceed the larger
+       of the two ratios — both of which sit at or under the ceiling. */
     ['ALLOWED: 100 new tests at the PINNED average cost',
       { lines: Math.floor(real.lines + 100 * real.linesPerTest),
         codeLines: Math.floor(real.codeLines + 100 * base.codeLinesPerTest),
         tests: real.tests + 100,
         seeds: Math.floor(real.seeds + 100 * base.seedsPerTest) }],
+    /* lean = at most the pinned average code, so the blend stays under the ceiling */
     ['ALLOWED: a lean new test — 40 lines, 0 seeds',
-      { lines: real.lines + 40, codeLines: real.codeLines + 25, tests: real.tests + 1 }],
+      { lines: real.lines + 40, codeLines: real.codeLines + Math.min(25, Math.floor(base.codeLinesPerTest)),
+        tests: real.tests + 1 }],
     ['ALLOWED: 500 seeds converted into gestures',
       { seeds: real.seeds - 500, gestures: real.gestures + 500 }],
   ];
@@ -712,11 +763,15 @@ function selftest() {
     say(got.notes.some((n) => n.includes('corpus is')),
       '…and it says the corpus changed shape, so --write is not forgotten');
 
-    // and the move must not become a hiding place: 400 lines added DURING it
-    const sneaky = derived({ ...moved, lines: moved.lines + 1000,
-      codeLines: moved.codeLines + 1000, tests: moved.tests + 1 });
+    // and the move must not become a hiding place: a scaffold added DURING it,
+    // SIZED past the ceiling from the moved corpus (a fixed +1,000/+1 went
+    // silent on d81f4b98 — see pastCeiling), and the same plant under an
+    // unreachable ceiling must go quiet, so the catch is the comparator's.
+    const sneaky = derived({ ...moved, ...scaffoldPatch(moved) });
     say(compare(sneaky, base).problems.some((p) => p.check === 'TF-1'),
-      'a move that also adds 1,000 code lines for 1 test is still caught');
+      'a move that also adds a past-the-ceiling scaffold for 1 test is still caught');
+    say(!compare(sneaky, base, Infinity).problems.some((p) => p.check === 'TF-1'),
+      'MUTATION: …under an unreachable ceiling the same move goes MISSED (it is not vacuous)');
   }
 
   console.log(`\n  ${bad ? `${bad} arm(s) FAILED`

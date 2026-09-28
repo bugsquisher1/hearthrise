@@ -1666,6 +1666,7 @@
           '</div></div>';
       } catch (e) { /* renown optional */ }
     }
+    try { var ST = window.HearthriseStandings; if (ST && typeof ST.card === 'function') html += ST.card(G); } catch (e) { /* display only */ }
     try { var HL = window.HearthriseHuntersLedger; if (HL && typeof HL.card === 'function') html += HL.card(G); } catch (e) { /* display only */ }
 
     // The realm — world events: the day's and the week's blessing, named and

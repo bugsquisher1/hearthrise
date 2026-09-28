@@ -8899,7 +8899,7 @@ async function renderSocial(){
       return !!(C&&typeof C.clanLaunched==='function'&&!C.clanLaunched()); }catch(e){ return false; }
   })();
   cl.innerHTML=
-    `<div class="friend-row is-empty">No friends yet — add the players you meet on the boards above.</div>`+
+    `<div class="friend-row is-empty">No friends list yet. The boards above show who is climbing beside you, and the Common on Home shows who is out and about.</div>`+
     `<div class="soc-signpost">`+
       `<div class="soc-signpost-txt">`+
         (inClan

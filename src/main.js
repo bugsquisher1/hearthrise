@@ -452,6 +452,7 @@ import { setupBestiaryTrophies } from './render/bestiary-trophies.js?v=559';
    not rendered (see the fail-safe block in src/net/town.js). */
 import { startTownChannel } from './net/town.js?v=559';
 import { setupTownPanel } from './render/town-panel.js?v=559';
+import { setupStandings } from './features/standings.js?v=559';
 /* THE DEPOT (the bank store's client half). The server verb hr_bank_move and the
    `res.bank` projection have been installed and dormant since b438 with NOTHING
    able to call them; net/bank-sync.js is the transport and render/bank-panel.js
@@ -534,6 +535,7 @@ function tryBootFeatures() {
   /* AFTER combat-screens, which builds the Fight rail the Vigour block heads. */
   boot('vigour-mount', setupVigourMount);
   boot('hunters-ledger', setupHuntersLedger);
+  boot('standings', setupStandings);
   boot('recipe-book', setupRecipeBook);
   boot('item-index', setupItemIndex);
   boot('signposts', setupSignposts);

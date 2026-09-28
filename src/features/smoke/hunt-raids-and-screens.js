@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 131 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays } from './_harness.js?v=559';
+import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays, phoneFrame } from './_harness.js?v=559';
 
 /* DEEPWATERS fixture (content pack 8). Bonus-free and gear-free — getBonus and
    the rested quantum pinned to 0 and an EMPTY equipment stat block (Timberline
@@ -4879,6 +4879,95 @@ export default [
                 'the Refill button runs out of the rail at 922x423: ' + out.left + '..' + out.right + ' vs ' + out.railLeft + '..' + out.railRight);
               assert(!out.over.length, 'text clips inside the Vigour block at 922x423: ' + out.over.join(', '));
             });
+          }),
+
+          // ── regression suite — FIGHT-PHONE-DENSITY (the visual gate) ───────────
+          // Four defects of one class, all on the Fight screen, all from its
+          // density on a landscape phone: (1) a stated Vigour meter HID the
+          // Lifetime chip everywhere and the "away: you fall" chip at 922; (2) at
+          // 922 the stage was clamped to the card, so its auto rows shrank and the
+          // metrics strip and session tally printed over each other under Eat;
+          // (3) four nowrap stance buttons in a 291px column ran their labels
+          // together ("AccurateAggressiveDefensiveControlled"); (4) at 1280 the
+          // LOADOUT totals were cut after "+0 str ·". The ruling: a chip the player
+          // acts on is never hidden to make room — chips get SHORTER, not fewer.
+          // Measured in phoneFrame at the device size (media queries evaluate
+          // against the frame) from the live #app, in both meter states, with the
+          // realm's Lifetime stated and the away chip at its widest wording.
+          () => tryRunAsync('FIGHT-PHONE-DENSITY: every combat-bar chip shows in both Vigour states, the stances keep a gap, the food row clears the session lines, the Loadout header is whole', async () => {
+            const LT = window.HearthriseLifetime, NP = window.HearthriseNightPlan;
+            assert(LT && typeof LT.__swapView === 'function' && NP && typeof NP.chipHtml === 'function',
+              'the Lifetime view seam or the Night Plan chip is not published');
+            const parked = LT.__swapView({ counts: { kills: { n: 1284905, exact: true } } });
+            const bad = [];
+            try {
+              for (const [state, meter] of [['stated', METER()], ['dry', DRY()]]) {
+                await fight(meter, async (m) => {
+                  m.paint();
+                  window.refreshActivityBar();
+                  const away = document.querySelector('#ab-meta .ab-away');
+                  assert(away, 'the activity bar drew no away chip while fighting');
+                  away.outerHTML = NP.chipHtml({ deaths: 1, foodQty: 5, foodEaten: 0 });
+                  assert(/you fall/.test(document.getElementById('ab-meta').textContent), 'the away chip is not at its widest wording');
+                  assert(/1,284,905/.test(document.getElementById('ab-meta').textContent), 'the realm Lifetime is not on the bar');
+                  const app = document.getElementById('app');
+                  assert(app && document.querySelector('#panel-combat[data-combat-view="fight"]'), 'the Fight view is not up');
+                  const html = app.outerHTML, cls = document.body.className;
+                  for (const [w, h] of [[922, 423], [1280, 800]]) {
+                    const at = state + ' @ ' + w + 'x' + h + ': ';
+                    phoneFrame(w, h, html, (doc) => {
+                      doc.body.className = cls;
+                      const R = (e) => e.getBoundingClientRect();
+                      const q = (sel) => doc.querySelector(sel);
+                      const bar = q('#activity-bar'), meta = q('#ab-meta'), stop = q('#ab-stop');
+                      assert(bar && meta && stop, 'the frame lost the activity bar');
+                      const b = R(bar), mr = R(meta), sr = R(stop);
+                      // (1) EVERY CHIP, whole, inside the bar and not clipped by the meta.
+                      for (const sel of ['.ab-vigour', '.ab-kills', '.ab-xp', '.ab-tkills', '.ab-away']) {
+                        const e = q('#activity-bar ' + sel);
+                        const r = e && R(e);
+                        if (!r || r.width < 1 || r.height < 1) { bad.push(at + sel + ' is not drawn (' + (r ? Math.round(r.width) + 'x' + Math.round(r.height) : 'absent') + ')'); continue; }
+                        if (r.left < b.left - 0.5 || r.right > b.right + 0.5) bad.push(at + sel + ' runs out of the bar: ' + Math.round(r.left) + '..' + Math.round(r.right) + ' vs ' + Math.round(b.left) + '..' + Math.round(b.right));
+                        if (meta.contains(e) && r.right > mr.right + 0.5) bad.push(at + sel + ' is clipped by the meta at ' + Math.round(mr.right) + ' (chip ends ' + Math.round(r.right) + ')');
+                      }
+                      if (sr.width < 1 || sr.right > b.right + 0.5 || sr.right > w) bad.push(at + 'Stop is pushed off the bar (' + Math.round(sr.left) + '..' + Math.round(sr.right) + ')');
+                      if (w === 922) {
+                        // (3) THE STANCES: separated by 4px on some axis, and every label inside its button.
+                        const btns = [...doc.querySelectorAll('#panel-combat .fs-style .csb-btn')];
+                        if (btns.length !== 4) bad.push(at + btns.length + ' stance buttons, want 4');
+                        const rs = btns.map(R);
+                        for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) {
+                          const a = rs[i], c = rs[j];
+                          const gx = Math.max(c.left - a.right, a.left - c.right), gy = Math.max(c.top - a.bottom, a.top - c.bottom);
+                          if (Math.max(gx, gy) < 4 - 0.01) bad.push(at + 'stances ' + i + ' and ' + j + ' touch (gap ' + Math.max(gx, gy).toFixed(1) + 'px)');
+                        }
+                        btns.forEach((e) => { if (e.scrollWidth > e.clientWidth + 1) bad.push(at + '"' + e.textContent.trim() + '" runs out of its button (' + e.scrollWidth + ' > ' + e.clientWidth + ')'); });
+                        // (2) THE FOOD ROW, THE METRICS LINE AND THE SESSION LINE are three rows.
+                        const rows = [['food row', q('#arena-act-player')], ['metrics line', q('#fs-metrics')], ['session line', q('#fs-session')]];
+                        rows.forEach(([n, e]) => { if (!e || R(e).height < 1) bad.push(at + 'the ' + n + ' is not drawn'); });
+                        for (let i = 0; i < rows.length; i++) for (let j = i + 1; j < rows.length; j++) {
+                          if (!rows[i][1] || !rows[j][1]) continue;
+                          const a = R(rows[i][1]), c = R(rows[j][1]);
+                          const ov = Math.min(a.bottom, c.bottom) - Math.max(a.top, c.top);
+                          if (ov > 0.5 && Math.min(a.right, c.right) - Math.max(a.left, c.left) > 0.5)
+                            bad.push(at + 'the ' + rows[i][0] + ' (' + Math.round(a.top) + '..' + Math.round(a.bottom) + ') overlaps the ' + rows[j][0] + ' (' + Math.round(c.top) + '..' + Math.round(c.bottom) + ')');
+                        }
+                        const eat = q('#arena-act-player'), card = q('#panel-combat .combat-arena');
+                        if (eat && card && (R(eat).bottom > R(card).bottom + 0.5 || R(eat).bottom > h)) bad.push(at + 'the food row leaves the card or the screen (' + Math.round(R(eat).bottom) + ' vs card ' + Math.round(R(card).bottom) + ')');
+                      }
+                      // (4) THE LOADOUT HEADER is whole, at both sizes.
+                      const tot = q('#fsm-totals'), head = tot && tot.parentElement, rail = q('#fs-manage');
+                      if (!tot || !head || !rail) bad.push(at + 'the Loadout header is missing');
+                      else {
+                        if (head.scrollWidth > head.clientWidth + 1) bad.push(at + 'the Loadout header is clipped (' + head.scrollWidth + ' > ' + head.clientWidth + '): "' + head.textContent.trim() + '"');
+                        if (R(tot).right > rail.getBoundingClientRect().left + rail.clientWidth + 0.5) bad.push(at + 'the Loadout totals run out of the rail');
+                      }
+                    });
+                  }
+                });
+              }
+            } finally { LT.__swapView(parked); }
+            assert(bad.length === 0, 'THE b560 FIGHT-PHONE-DENSITY BUG: ' + bad.join('; '));
           }),
         ];
       })(),

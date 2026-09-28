@@ -11247,11 +11247,13 @@ function refreshActivityBar(){
       /* THE AWAY CHIP answers "can I leave this running?" from the Night Plan's
          stored forecast (night-plan.js chipHtml): pays away, you fall, or no
          food; a pending mark until the server has stated the bag. It never computes. */
-      const licChip = '<span class="ab-tkills">Lifetime <b>'+(window.HearthriseLifetime ? window.HearthriseLifetime.markup('kills') : '—')+'</b></span>';
+      /* Each chip carries its word in a span so the phone's short form
+         (legacy.css) can drop the word and keep the glyph and the number. */
+      const licChip = '<span class="ab-tkills" title="Lifetime kills">'+_hrGly('uiTrophy',13)+'<span class="ab-chip-word">Lifetime </span><b>'+(window.HearthriseLifetime ? window.HearthriseLifetime.markup('kills') : '—')+'</b></span>';
       const _NP = window.HearthriseNightPlan, _STN = window.HearthriseSetTheNight;
       const awayChip = (_NP && _STN) ? _NP.chipHtml(_STN.peek(G)) : '';
       metaEl.innerHTML = ''
-        + '<span class="ab-kills">'+_hrGly('uiSword',13)+' <b>'+kills.toLocaleString()+'</b> this fight</span>'
+        + '<span class="ab-kills" title="Kills this fight">'+_hrGly('uiSword',13)+' <b>'+kills.toLocaleString()+'</b><span class="ab-chip-word"> this fight</span></span>'
         + xpChip
         + bountyChip
         + licChip

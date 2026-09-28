@@ -388,9 +388,16 @@
   font-family: var(--f-label, var(--f-ui)); font-size: var(--t-micro, 11px);
   font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--gold-2);
 }
+/* THE LOADOUT TOTALS TAKE THEIR OWN LINE. The rail is 232px
+ * at every desktop width, so "LOADOUT +0 atk · +0 str · +0 def" never fitted on
+ * one line: at 1280x800 the nowrap run was cut after "+0 str ·" by the rail's
+ * own overflow. The phone and 900px sheets already wrapped it; now every width
+ * does, and a long total wraps inside its line instead of leaving the rail. */
+#panel-combat .fsm-head { flex-wrap: wrap; }
 #panel-combat .fsm-head b {
-  margin-left: auto; color: var(--ink-2); letter-spacing: 0; text-transform: none;
-  font-family: var(--f-ui); font-variant-numeric: tabular-nums; white-space: nowrap;
+  flex: 1 1 100%; min-width: 0; margin-left: 0;
+  color: var(--ink-2); letter-spacing: 0; text-transform: none;
+  font-family: var(--f-ui); font-variant-numeric: tabular-nums; white-space: normal;
 }
 
 /* THE EQUIPMENT PANEL. Twelve slots in the canonical three-wide PAPER-DOLL —
@@ -1541,11 +1548,12 @@ body.in-combat #panel-combat .fs-style .combat-style-block .csb-btn small {
    * `.combat-style-block` on some paints and inside `.combat-style-buttons` on
    * others (the b366 one-frame adopt). Measured bimodal 48px/92px until the
    * outer box was told too — a row height that depends on which paint you
-   * caught is the same defect b512 fixed on the desktop row. */
+   * caught is the same defect b512 fixed on the desktop row. Both WRAP, two-up
+   * (the basis below), so either paint is the same 2x2. */
   #panel-combat .fs-style,
   #panel-combat .fs-style .combat-style-block,
-  #panel-combat .fs-style .combat-style-block .combat-style-buttons { flex-wrap: nowrap !important; }
-  #panel-combat .fs-style .combat-style-block .csb-btn { flex: 1 1 0; min-width: 0; }
+  #panel-combat .fs-style .combat-style-block .combat-style-buttons { flex-wrap: wrap !important; }
+  #panel-combat .fs-style .combat-style-block .csb-btn { flex: 1 1 calc(50% - 4px); min-width: 0; }
   /* TWO LINES, ALWAYS. The name and the route are each one word-run; letting
    * either wrap is what made this row measure 63px on one boot and 107px on the
    * next ("Atk/Str/D ef", photographed, broken mid-word through the button's
@@ -1558,6 +1566,21 @@ body.in-combat #panel-combat .fs-style .combat-style-block .csb-btn small {
   #panel-combat .fs-style .combat-style-block .csb-btn { padding: 1px 4px; }
   /* The log goes below the fold, and the rail goes with it. */
   #panel-combat .fs-logrow { padding: 0 8px 6px; min-height: 90px; }
+  /* THE FIGHT SCREEN'S PHONE DENSITY (FIGHT-PHONE-DENSITY). Four nowrap stance
+     buttons need ~370px in the wider fallback face and the player's column is
+     291px at 922x423, so one row printed "AccurateAggressiveDefensiveControlled".
+     They wrap two-up above (the 2x2 the desktop draws), at the --tap floor,
+     and the 44px row that costs is paid out of chrome, not type: the two
+     portraits drop to 44px and the tile row loses its leading.
+     The stage is NOT clamped to the card here. `max-height: 100%` made its
+     auto rows shrink below their content, so the metrics strip, the session
+     tally and the log printed over each other under the Eat button. Every row
+     now keeps its height: Eat stays inside the card, and the two strips take
+     their own rows below it, where §3.9's scroll reaches them and the log. */
+  #panel-combat .arena-vs.fs-stage .arena-side.player .arena-portrait,
+  #panel-combat .arena-vs.fs-stage .arena-side.foe .arena-portrait { width: 44px; height: 44px; }
+  #panel-combat .fs-tile { line-height: 1.15; }
+  #panel-combat .arena-vs.fs-stage { max-height: none; }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

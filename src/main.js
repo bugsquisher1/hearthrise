@@ -453,6 +453,7 @@ import { setupBestiaryTrophies } from './render/bestiary-trophies.js?v=559';
 import { startTownChannel } from './net/town.js?v=559';
 import { setupTownPanel } from './render/town-panel.js?v=559';
 import { setupStandings } from './features/standings.js?v=559';
+import { setupComeBack } from './features/come-back.js?v=559';
 /* THE DEPOT (the bank store's client half). The server verb hr_bank_move and the
    `res.bank` projection have been installed and dormant since b438 with NOTHING
    able to call them; net/bank-sync.js is the transport and render/bank-panel.js
@@ -539,6 +540,7 @@ function tryBootFeatures() {
   boot('hunters-ledger', setupHuntersLedger);
   boot('deeds', setupDeeds);
   boot('standings', setupStandings);
+  boot('come-back', setupComeBack);
   boot('recipe-book', setupRecipeBook);
   boot('item-index', setupItemIndex);
   boot('signposts', setupSignposts);

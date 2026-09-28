@@ -636,7 +636,7 @@ function buildStage(arena) {
       <button type="button" class="btn fs-stop" data-cs-act="stop">Stop</button>
       <div class="fs-act-ref">
         <div class="arena-act arena-act-foe" id="arena-act-foe"></div>
-        <button type="button" class="btn btn-sm arena-chip fs-history" data-cs-act="history">History <em id="fs-history-badge"></em></button>
+        <button type="button" class="btn btn-sm arena-chip fs-history" data-cs-act="history" aria-label="History"><span class="fs-hist-long">History</span><span class="fs-hist-short" aria-hidden="true">Log</span> <em id="fs-history-badge"></em></button>
       </div>
     </div>
     <div class="fs-metrics" id="fs-metrics"></div>

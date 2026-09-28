@@ -298,11 +298,13 @@ const HUD = (() => {
       `<button type="button" class="btn arena-eat${on ? ' btn-primary' : ' is-idle'}"` +
       `${on ? '' : ' disabled'} data-arena-act="eat" title="${esc(s.title)}">` +
       `<span class="ae-lbl">${esc(s.label)}</span>` +
-      `<span class="ae-meta">${esc(s.meta)}</span></button>`;
+      /* Each ' · ' clause is one unbreakable run, so a narrow bar breaks the
+         line between facts, never inside a food name (combat-screens.css VG5). */
+      `<span class="ae-meta">${String(s.meta).split(' · ').map((c) => `<span>${esc(c)}</span>`).join(' · ')}</span></button>`;
     if (hasAuto) {
       html +=
         `<button type="button" class="btn btn-sm arena-autoeat" data-arena-act="autoeat" ` +
-        `title="Choose which food auto-eat uses">Auto-eat: ${esc(autoName)} ▾</button>`;
+        `title="Choose which food auto-eat uses"><span class="aa-lbl">Auto-eat:</span> <span class="aa-food">${esc(autoName)} ▾</span></button>`;
     }
     mount.innerHTML = html;
   }

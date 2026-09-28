@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 131 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays, phoneFrame } from './_harness.js?v=559';
+import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays, phoneFrame, withStockedFight } from './_harness.js?v=559';
 
 /* DEEPWATERS fixture (content pack 8). Bonus-free and gear-free — getBonus and
    the rested quantum pinned to 0 and an EMPTY equipment stat block (Timberline
@@ -5169,6 +5169,37 @@ export default [
               });
             });
             assert(bad.length === 0, 'THE VG4 FIGHT-CARD-ROWS BUG: ' + bad.join('; '));
+          }),
+
+          // ── regression suite — FIGHT-PHONE-DENSITY-3 (visual gate 5, defect 1) ──
+          // With Auto-eat on, the action bar scrolled 783 > 650 at 922x423: Loot/
+          // Stats and History sat past the card and the screen, History out of
+          // reach (and past both at 1280x800). Ruling: every control in the arena
+          // card is reachable without scrolling; labels shorten before controls hide.
+          () => tryRunAsync('FIGHT-PHONE-DENSITY-3: with Auto-eat on, every action-bar button lies inside the arena card and the screen at 922x423 and 1280x800, clear of the food row', async () => {
+            const bad = [];
+            await fight(METER(), async (m) => withStockedFight(() => {
+              m.paint();
+              window.HearthriseCombatHud.refresh();
+              assert(document.querySelector('#fs-actionbar .arena-autoeat'), 'the stocked fight drew no Auto-eat control');
+              const app = document.getElementById('app'), cls = document.body.className;
+              for (const [w, h] of [[922, 423], [1280, 800]]) phoneFrame(w, h, app.outerHTML, (doc) => {
+                doc.body.className = cls;
+                const at = w + 'x' + h + ': ', R = (e) => e.getBoundingClientRect(), box = (r) => '[' + [r.left, r.top, r.right, r.bottom].map(Math.round) + ']';
+                const card = doc.querySelector('#panel-combat .combat-arena'), bar = doc.getElementById('fs-actionbar'), food = doc.getElementById('arena-act-player');
+                if (!card || !bar || !food) { bad.push(at + 'the arena card, the action bar or the food row is missing'); return; }
+                const c = R(card), f = R(food);
+                if (bar.scrollWidth > bar.clientWidth + 1) bad.push(at + 'the action bar scrolls (' + bar.scrollWidth + ' > ' + bar.clientWidth + ')');
+                const btns = [...bar.querySelectorAll('button')].filter((b) => R(b).width > 0);
+                if (!btns.some((b) => b.closest('.fs-act-ref'))) bad.push(at + 'no Loot/Stats/History button is drawn');
+                for (const b of btns) {
+                  const r = R(b), n = '"' + b.textContent.trim() + '" ' + box(r);
+                  if (r.left < c.left - 0.5 || r.right > c.right + 0.5 || r.top < c.top - 0.5 || r.bottom > c.bottom + 0.5 || r.right > w) bad.push(at + n + ' leaves the card ' + box(c) + ' or the screen');
+                  if (!food.contains(b) && Math.min(r.right, f.right) - Math.max(r.left, f.left) > 0.5 && Math.min(r.bottom, f.bottom) - Math.max(r.top, f.top) > 0.5) bad.push(at + n + ' overlaps the food row ' + box(f));
+                }
+              });
+            }));
+            assert(bad.length === 0, 'THE VG5 FIGHT-ACTIONBAR BUG: ' + bad.join('; '));
           }),
         ];
       })(),

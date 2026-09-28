@@ -459,6 +459,7 @@ import { setupTownPanel } from './render/town-panel.js?v=559';
    every move is an intent, and the paint comes from the envelope that follows. */
 import './net/bank-sync.js?v=559';
 import { setupBankPanel } from './render/bank-panel.js?v=559';
+import './features/this-week.js?v=559';
 /* b535 - THE SUITE IS NOT PART OF THE GAME. This line used to pull
    features/smoke-test.js in STATICALLY: a 3.75 MB test suite, 36% of the
    10.28 MB of JavaScript a cold boot delivered, paid by every player before the

@@ -17959,12 +17959,11 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
   };
 
   // ── Helpers to compute progress ──
-  /* ── b461 — THE SERVER IS THE DISPLAY TRUTH FOR THESE GOALS UNDER ARM ──
+  /* ── THE SERVER IS THE DISPLAY TRUTH FOR THESE GOALS UNDER ARM ──
      hr_claim_goal verifies completion from the SERVER's period counters, so a
      modal that decides "Claim" from local stats would show a button the server
-     refuses — the same dead button in a different hat (the counters for
-     chopped/mined/fished/levelups only start at this deploy, so local 25/25
-     vs server 0/25 is the day-one shape). hr_goal_state projects every
+     refuses — the same dead button in a different hat (local 25/25 against
+     server 0/25). hr_goal_state projects every
      catalogued goal {have, complete, claimed} for the current day/ISO-week;
      under arm the readers below prefer it and fall back to the local stats
      when it has not arrived (offline, pre-arm, or a transport failure — the
@@ -17993,12 +17992,12 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
         var m = {};
         res.goals.forEach(function(g){
           if(!g || !g.goal_id) return;
-          m[(g.weekly ? 'w:' : 'd:') + g.goal_id] = {
+          m[(g.weekly ? 'w:' : 'd:') + g.goal_id] = Object.freeze({
             have: Math.max(0, Number(g.have) || 0), target: Number(g.target) || 0,
             complete: !!g.complete, claimed: !!g.claimed
-          };
+          });
         });
-        _srvGoals = m; _srvGoalsAt = Date.now();
+        _srvGoals = Object.freeze(m); _srvGoalsAt = Date.now();
         if(typeof done === 'function') done(true);
       } else if(typeof done === 'function') done(false);
     }).catch(function(){ _srvGoalsInflight = false; if(typeof done === 'function') done(false); });
@@ -18009,6 +18008,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
   }
   window.__hrSyncServerGoals = syncServerGoals;   // test seam + manual refresh
   window.__hrSyncServerGoals.reset = function(){ _srvGoals = null; _srvGoalsAt = 0; _srvGoalsInflight = false; };
+  window.HearthriseGoalState = { peek: function(){ return goalsArmed() && _srvGoals && (Date.now() - _srvGoalsAt) < 120000 ? _srvGoals : null; } };
 
   /* ── THE ONE READER OF startValues IN THIS IIFE ────────────────────────────
      Delegates to block 16's goalBaselineOf (exported on window because this is

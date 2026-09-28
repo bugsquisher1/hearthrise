@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 72 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withFarmServer, withClaimServer, xpOf, predZero, xpZero, goldOf, snapshotG, restoreG, restoreGAndRecord, TYPE_FLOOR, typeHandoffOwner, typeTokenPx, TYPE_OWNED_SHEETS, on, snapshot, decideRestore, decideSessionEvent, stubSignedIn, drain } from './_harness.js?v=559';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withFarmServer, withClaimServer, xpOf, predZero, xpZero, goldOf, snapshotG, restoreG, restoreGAndRecord, TYPE_FLOOR, typeHandoffOwner, typeTokenPx, TYPE_OWNED_SHEETS, on, snapshot, decideRestore, decideSessionEvent, stubSignedIn, drain, feedServerGoals, goalRow } from './_harness.js?v=559';
 
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -2051,12 +2051,16 @@ export default [
        hitpoints, because it was never server-authored). */
     const combatBefore = hadCombat ? G.skills.combat : undefined;
     const repaint = () => window.HearthriseEvents.emit('smokeQuestRepaint', {});
+    let unfeed = null;
     try {
       window.getGoalsForToday();                 // make sure today's object exists
       const dayKey = G.dailyGoals.dayKey;
       // One known goal ("Slay 30 monsters"), baselined at the current kill count.
       G.stats.kills = 40;
       G.dailyGoals = { dayKey: dayKey, picks: ['kill_more'], startValues: { kill_more: 40 }, claimed: {} };
+      /* The number is drawn only on a KNOWN server goal state (CLAIM-FROM-SERVER);
+         the local counter then moves it between settles. */
+      unfeed = await feedServerGoals([goalRow('kill_more', 0, 30)]);
 
       repaint();
       const strip = document.getElementById('global-quests-strip');
@@ -2074,8 +2078,10 @@ export default [
       assert(prog && /7\s*\/\s*30/.test(prog.textContent),
         'the Quests modal did not follow the counter: ' + (prog ? prog.textContent : '(no quest row)'));
 
-      // A quest you cannot finish and claim is a quest that does not exist.
+      // A quest you cannot finish and claim is a quest that does not exist —
+      // and it is claimable because the SERVER counted it, not the local 70.
       G.stats.kills = 70;
+      unfeed = await feedServerGoals([goalRow('kill_more', 30, 30)]);
       repaint();
       const claim = document.querySelector('#quests-modal-overlay .qm-q-claim');
       assert(claim, 'a completed quest offered no Claim button');
@@ -2141,6 +2147,7 @@ export default [
         'the claim was not recorded, so the same reward could be taken twice');
     } finally {
       if (typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
+      if (unfeed) unfeed();
       G.stats.kills = saved.kills; G.gold = saved.gold; G.gems = saved.gems;
       if (saved.hitpoints === undefined) delete G.skills.hitpoints;
       else G.skills.hitpoints = saved.hitpoints;
@@ -2193,13 +2200,14 @@ export default [
   // every weekly startValue in every live save was captured as the broken 0, so
   // a long-time player would open the panel to three instantly-complete weeklies
   // and thousands of gold plus gems they never earned.
-  () => tryRun('b224: stale weekly baselines are re-captured once, so the fix pays no windfall', () => {
+  () => tryRunAsync('b224: stale weekly baselines are re-captured once, so the fix pays no windfall', async () => {
     const G = window.G;
     assert(typeof window.getWeeklyGoals === 'function', 'getWeeklyGoals missing');
     const saved = {
       weekly: G.weeklyGoals ? JSON.parse(JSON.stringify(G.weeklyGoals)) : null,
       kills: G.stats.kills, cooked: G.stats.cooked,
     };
+    let unfeed = null;
     try {
       G.stats.kills = 5000; G.stats.cooked = 900;
       window.getWeeklyGoals();
@@ -2220,7 +2228,10 @@ export default [
           d.id + ' kept its broken baseline — a 5,000-kill player would claim it instantly');
       });
 
-      // And the surface agrees: weekly reads 0 progress, nothing claimable.
+      // And the surface agrees: weekly reads 0 progress, nothing claimable. The
+      // server has counted 0 this week; a stale baseline would still push the
+      // LOCAL display (and, pre-CLAIM-FROM-SERVER, the Claim) to N / N.
+      unfeed = await feedServerGoals(defs.map((d) => goalRow(d.id, 0, d.target, { weekly: true })));
       window.openQuestsModal();
       const wk = document.querySelector('#quests-modal-overlay .qm-tab[data-tab="weekly"]');
       assert(wk, 'the modal has no Weekly tab');
@@ -2237,6 +2248,7 @@ export default [
       if (daily) daily.click();
     } finally {
       if (typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
+      if (unfeed) unfeed();
       G.stats.kills = saved.kills; G.stats.cooked = saved.cooked;
       G.weeklyGoals = saved.weekly;
     }

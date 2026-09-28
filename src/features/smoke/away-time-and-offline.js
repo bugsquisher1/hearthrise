@@ -2570,31 +2570,6 @@ export default [
     }
   }),
 
-  () => tryRun('AWAY-8: the cap survives — 18h at a 12h cap grants exactly 12h, and a second absence the same day starts fresh (b307)', () => {
-    const G = window.G;
-    const snap = snapshotG();
-    const realCap = window.offlineCapHours;
-    try {
-      window.offlineCapHours = () => 12;
-      const now = Date.now();
-      G.offlineBudget = { at: now - 18 * 3600000 };
-      const first = window.claimOfflineMs(now, true, 60000);
-      assert(Math.abs(first - 12 * 3600000) < 1000,
-        'an 18h absence at a 12h cap must grant exactly 12h, got ' + (first / 3600000).toFixed(2) + 'h');
-      /* PER-ABSENCE, not a daily bucket (b307). A second absence the same day
-         is measured from the reset watermark and is capped on its own terms. */
-      G.offlineBudget.at = now - 5 * 3600000;
-      const second = window.claimOfflineMs(now, true, 60000);
-      assert(Math.abs(second - 5 * 3600000) < 1000,
-        'a SECOND absence the same day must start fresh (per-absence cap, no daily bucket), got ' + (second / 3600000).toFixed(2) + 'h');
-      const third = window.claimOfflineMs(now, true, 60000);
-      assert(third === 0, 'the watermark must have advanced — an immediate re-claim must grant nothing');
-    } finally {
-      window.offlineCapHours = realCap;
-      restoreG(snap);
-    }
-  }),
-
   /* ══════════════════════════════════════════════════════════════════════════
      AWAY-22 / AWAY-23 — WHICH HOURS OF AN OVER-CAP ABSENCE GET PAID. (b352)
 

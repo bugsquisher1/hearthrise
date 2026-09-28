@@ -30,13 +30,6 @@ export const CHAT = {
   SEND_THROTTLE: 800,
 };
 
-export const OFFLINE = {
-  /** Free-tier offline progression cap (hours). */
-  CAP_HOURS_FREE: 12,
-  /** Hearth Hall Premium offline cap. */
-  CAP_HOURS_PLUS: 16,
-};
-
 export const COMBAT = {
   /** Tick interval ms during live combat. Lower = faster, more CPU. */
   TICK_MS: 2400,
@@ -60,7 +53,7 @@ export const FTUE = {
 };
 
 // ── Aggregate view for devtools ──────────────────────────────
-export const CONFIG = { CHAT, OFFLINE, COMBAT, SAVE, FTUE };
+export const CONFIG = { CHAT, COMBAT, SAVE, FTUE };
 
 // Classic-script bridge
 if (typeof window !== 'undefined') {

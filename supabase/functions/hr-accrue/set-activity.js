@@ -349,7 +349,7 @@ const SEED_SQL_NO_PERKS = `
    back rows, not a cursor; `coalesce` because jsonb_object_agg over zero rows is
    NULL and the engine's "no counters" and "no such function" must stay
    distinguishable. */
-const BESTIARY_SQL = `
+export const BESTIARY_SQL = `
   select coalesce(jsonb_object_agg(monster_id, kills), '{}'::jsonb) as kills
     from public.hr_bestiary_of($1::uuid, $2::int)`;
 

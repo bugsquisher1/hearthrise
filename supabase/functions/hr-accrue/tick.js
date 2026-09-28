@@ -95,6 +95,10 @@ import { shadowStateOf, applyShadowState, SHADOW_STATE_V, fenceWindowFrom } from
    call for the window. `AWAY-12` forbids a second combat path and there is not
    one — see supabase/functions/hr-accrue/tick-party.js. */
 import { parseParties, settleParty } from './tick-party.js';
+/* THE BESTIARY READ, ONE DEFINITION. The collect path's statement, imported
+   rather than retyped, so the tick and the collect aggregate `hr_bestiary_of`
+   with the same bytes (step (4b)). */
+import { BESTIARY_SQL } from './set-activity.js';
 
 /* ── THE DISPATCH TABLE (Security S-8, 2026-09-23) ───────────────────────────
    Until today this file imported ONE `CHANNEL` — gather's — and used it three
@@ -824,6 +828,24 @@ async function tickOne(exec, holder, sel, body) {
     return { outcome: 'skipped', reason: 'below_flush' };
   }
 
+  /* (4b) THE BESTIARY COUNTERS — `hr_bestiary_of`, the read index.ts's accrue
+         path makes in its state transaction and set-activity.js's collect makes
+         as BESTIARY_SQL (imported, not retyped). Not an envelope field, so
+         until 2026-09-28 the tick priced every combat window with NO charm and
+         NO trophy: drops and damage under-paid against accrue (Security N4).
+         Made HERE, after the flush line, so only a window that will be priced
+         costs the statement — the collect path's rule. Same degrade rule as
+         (1b): ONLY 42883 reads as "no counters"; anything else propagates.
+         tests/world-tick-bestiary-parity.mjs. */
+  let bestiaryKills = null;
+  try {
+    const [b] = await exec(BESTIARY_SQL, [sel.userId, sel.slot]);
+    const k = b && b.kills;
+    bestiaryKills = (k && typeof k === 'object' && !Array.isArray(k)) ? k : null;
+  } catch (e) {
+    if (String((e && e.code) ?? '') !== '42883') throw e;
+  }
+
   /* (5) THE SESSION. Assembled from SERVER values field by field, with the
          watermark the FENCE reported rather than `st.accrued_to` — in shadow
          the two differ, and chaining on `accrued_to` is the overlapping-window
@@ -864,6 +886,9 @@ async function tickOne(exec, holder, sel, body) {
     version: env.version,
     /* (1b)'s read. Both channels' `sessionFromRoster` take it off the row. */
     perks,
+    /* (4b)'s read. Combat's `sessionFromRoster` takes it; gather never reads
+       the bestiary. */
+    bestiary_kills: bestiaryKills,
     /* THE ABSENCE CAP, read in the same transaction as everything else —
        `hr_offline_cap_ms`, exactly as the accrue path reads it. Without it the
        engine answers `no_cap` and settles nothing, which is the safe direction

@@ -286,9 +286,12 @@ jobs:
       # `visual-qa --selftest` proves the detector in the browser (a 20px button
       # counts; the same button with a 44px ::after does not; two overlapping hit
       # boxes cannot both claim 44px; a transient toast is looked through).
+      # _chrome.mjs (b561) is the one HR_CHROME resolver for the page runners.
       - name: Presentation floor - visual QA gate (P0 / new P1 / tap-target ratchet)
         if: ${{ !cancelled() }}
         run: |
+          node tests/_chrome.mjs
+          node tests/_chrome.mjs --selftest
           node tests/visual-qa-gate.mjs --selftest
           node tests/visual-qa.mjs --selftest
           node tests/visual-qa-gate.mjs

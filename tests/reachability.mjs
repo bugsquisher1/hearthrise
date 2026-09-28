@@ -48,6 +48,7 @@ import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { launchOptions } from './_chrome.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 
@@ -1434,8 +1435,7 @@ if (import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}`
   const { chromium } = await import('playwright');
   const mutate = process.argv.includes('--mutate');
   const { server, port } = await serve();
-  const browser = await chromium.launch({
-    ...(process.env.HR_CHROME ? { executablePath: process.env.HR_CHROME } : {}) });
+  const browser = await chromium.launch(launchOptions());
   const url = `http://127.0.0.1:${port}/index.html`;
   if (mutate) {
     let escaped = 0;

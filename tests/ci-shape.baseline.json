@@ -8,6 +8,8 @@
     "node tests/icon-boot-order.mjs --selftest": "in-page",
     "node tests/boot-budget.mjs": "in-page",
     "node tests/boot-budget.mjs --selftest": "in-page",
+    "node tests/_chrome.mjs": "in-page",
+    "node tests/_chrome.mjs --selftest": "in-page",
     "node tests/visual-qa-gate.mjs --selftest": "in-page",
     "node tests/visual-qa.mjs --selftest": "in-page",
     "node tests/visual-qa-gate.mjs": "in-page",

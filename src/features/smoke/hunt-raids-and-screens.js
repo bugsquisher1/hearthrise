@@ -1336,7 +1336,20 @@ export default [
         for (const sel of [tSel, cSel]) { const r = doc.querySelector(sel).getBoundingClientRect();
           if (!(r.top >= 0 && r.bottom <= h && r.top - top < 90)) bad.push(m.id + ' ' + w + 'x' + h + ': ' + sel + ' at y ' + Math.round(r.top) + ' (sheet top ' + Math.round(top) + ')'); }
       });
-    } finally { sheets.forEach(([m]) => m.classList.remove('show')); closeOverlays(); }
+      /* VG4 defect 3: "The realm is slow…" (fixed, top 8px) drew over the Codex head's Close.
+         Hit-testable for the probe, it must lie clear of Close or paint beneath the sheet. */
+      window.HearthriseNetStatus.setMode('degraded');
+      const nb = document.getElementById('hr-net-banner');
+      for (const [w, h] of [[1280, 800], [922, 423]]) phoneFrame(w, h, nb.outerHTML + sheets[0][0].outerHTML, (doc) => {
+        const b = doc.getElementById('hr-net-banner'), c = doc.querySelector('#codex-modal .modal-head button');
+        b.style.pointerEvents = 'auto';
+        const br = b.getBoundingClientRect(), cr = c.getBoundingClientRect();
+        const clear = br.right <= cr.left || br.left >= cr.right || br.bottom <= cr.top || br.top >= cr.bottom;
+        const hit = doc.elementFromPoint(cr.left + 2, cr.top + 2);
+        if (!hit || !hit.closest('.modal-head')) bad.push('net banner ' + w + 'x' + h + ': Close\'s corner hits ' + (hit ? hit.id || hit.className : 'nothing') + ' (banner [' + [br.left, br.top, br.right, br.bottom].map(Math.round) + '], clear of Close: ' + clear + ')');
+      });
+    } finally { sheets.forEach(([m]) => m.classList.remove('show')); closeOverlays();
+      window.HearthriseNetStatus.setMode('ok'); const nb = document.getElementById('hr-net-banner'); if (nb) nb.style.opacity = '0'; }
     assert(bad.length === 0, 'THE SCROLLED-AWAY HEAD: ' + bad.join('; '));
   }),
 

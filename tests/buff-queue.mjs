@@ -112,14 +112,23 @@
 //       a scale — that arm is [4], which already fires `scale` by name.
 //  [15] ONE CEILING, ONE NUMBER — hr_apply's c_buff_max_ms and src/core/buffs.js
 //       BUFF_MAX_UNTIL_MS agree. Two numbers for one bound is two that can drift.
+//  [R6] A SEGMENT PAYS NOTHING BEFORE ITS `from` (Security F3, 2026-09-28,
+//       2026-09-28-buff-segment-from.sql). A Feast whose from = nowMs pays nothing
+//       in [fromMs, nowMs) — tick by tick through the core clock, and through the
+//       real engine (a 7.25 h mining night is byte-identical to one with no buff) —
+//       and pays its magnitude once it starts. `--only=R6` runs this arm alone, no
+//       database (it is the half a base checkout can be graded on);
+//       `--mutate=noFrom` loads a copy of src/core/buffs.js that ignores `from`.
 //
 // NO CREDENTIALS. NO NETWORK. Production is untouched — this is a rebuild.
 // NO `?v=` on the imports (tests/**, not a browser module — b332).
 // Exit: 0 green · 1 a violation · 2 a harness problem.
 // ════════════════════════════════════════════════════════════════════════
 
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { pathToFileURL } from 'node:url';
 import { bootReplay, ROOT } from './schema-replay.mjs';
 import { HR_APPLY_FINAL, HR_APPLY_S3_BLIND } from './hr-apply-final-body.mjs';
 import { HR_STATE_OF_FINAL, HR_STATE_OF_S3_BLIND } from './hr-state-of-final-body.mjs';
@@ -127,9 +136,11 @@ import { runMutationProof } from './mutation-proof.mjs';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { ROOM_PERKS } from '../src/data/perks.js';
+import * as BUFFS from '../src/core/buffs.js';
 import { BUFF_MAX_UNTIL_MS, BUFFS_DEF, buffQueueFromServer, buffBonusFor, tickBuffs }
   from '../src/core/buffs.js';
 import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
+import { GATHER_CATALOGUES } from '../supabase/functions/hr-accrue/tick-gather.js';
 /* THE EMITTER ITSELF (step 2). [16]/[17] apply the delta the `eat` verb actually
    builds rather than a hand-written imitation of it, which is the only way this
    guard can see the two halves of the feature drift apart. */
@@ -180,7 +191,10 @@ const MIG_RETIRED = '2026-09-23-client-state-retired-fields.sql';
    most recently-splicable text. Moving this constant when a new file patches
    hr_apply is the registration step; [14] then covers the newest patch rather
    than a body two files behind it. */
-const HR_APPLY_LAST = '2026-09-17-attended-xp-on-settle.sql';
+const HR_APPLY_LAST = '2026-09-28-buff-segment-from.sql';
+/* The two hr_apply touchers before it, kept in [14]'s loop rather than dropped
+   when the constant moved: each must still re-apply clean at chain end. */
+const HR_APPLY_PRIOR = ['2026-09-17-attended-xp-on-settle.sql', '2026-09-28-settle-before-mutate.sql'];
 
 /* ── THE §4 BLINDS ─────────────────────────────────────────────────────────
    Each migration's self-check is short-circuited with a `return;` at the head of
@@ -258,6 +272,13 @@ const BLIND = {
   [MIG_SCALE]: ["  -- ── (a) THE TEXT, AND THE PREDECESSORS ────────────────────────────────────",
     ['  return;  -- §3 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)',
       '  -- ── (a) THE TEXT, AND THE PREDECESSORS ────────────────────────────────────'].join('\n')],
+  /* The segment-start file's §3 (Security F3, 2026-09-28). It DRIVES buff_apply
+     and asserts where each segment starts, so a mutation to the tail rule
+     (second_helping_restarts) makes it raise at apply time — a tick for the
+     migration, not for this guard. Blinded at its first assertion. */
+  [HR_APPLY_LAST]: ['  -- (d0) THE TEXT. Both patches present; the grant posture unchanged.',
+    ['  return;  -- §3 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)',
+      '  -- (d0) THE TEXT. Both patches present; the grant posture unchanged.'].join('\n')],
   [MIG_DENY]: ["  v_def := pg_get_functiondef('public.hr_put_client_state__ungated(int,jsonb,uuid)'::regprocedure);",
     '  return;  -- §2 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)\n'
     + "  v_def := pg_get_functiondef('public.hr_put_client_state__ungated(int,jsonb,uuid)'::regprocedure);"],
@@ -522,6 +543,14 @@ const MUTATIONS = {
     pairs: [["        perform public.hr_reject('bad_buff_shape',",
       "        perform public.hr_reject('bad_buff_item',"]],
   },
+  noFrom: {
+    /* A CORE mutation, not a migration one: the engine ignores the `from` the
+       server stamps, so a Feast eaten at the instant of return prices the whole
+       absence again (Security F3). Planted in a temp COPY of src/core/buffs.js. */
+    core: [['    const delayMs = segmentStartMs(r) - Number(atMs);', '    const delayMs = 0;']],
+    why: 'the engine ignores a segment\'s `from`, so a buff eaten at return pays the whole unpaid '
+       + 'window at its magnitude (the F3 mint)',
+  },
   catalogue_drift: {
     file: MIG_CAT,
     why: 'ONE generated row disagrees with src/data/items.js, which is the data double-copy this repo '
@@ -559,7 +588,7 @@ const patchesFor = (mutate, blind) => {
        three times, so a defect's lines do not all live together. `files` is the
        multi-file form; `file`/`pairs` stays for the single-file majority. */
     if (m.files) for (const [f, pairs] of m.files) add(f, pairs);
-    else add(m.file, m.pairs);
+    else if (m.file) add(m.file, m.pairs);
   }
   return map.size ? map : undefined;
 };
@@ -567,8 +596,99 @@ const patchesFor = (mutate, blind) => {
 let failed = 0;
 const ok = (cond, msg) => { if (!cond) { failed += 1; console.error(`  FAIL  ${msg}`); } };
 
+// ── [R6] A SEGMENT PAYS NOTHING BEFORE ITS `from` ─────────────────────────
+/* The buffs module R6 grades: the real one, or — under a `core` mutation — a
+   temp copy of src/core/buffs.js with the defect planted, its relative imports
+   pointed back at the real tree. Every anchor must match exactly once. */
+async function buffsModuleFor(mutate) {
+  const m = mutate && MUTATIONS[mutate];
+  if (!m || !m.core) return BUFFS;
+  const src = join(ROOT, 'src', 'core', 'buffs.js');
+  let text = (await readFile(src, 'utf8')).replace(/\r\n/g, '\n');
+  for (const [f, r] of m.core) {
+    if (text.split(f).length - 1 !== 1) throw harness(`core mutation ${mutate}: anchor matched != 1 time`);
+    text = text.replace(f, () => r);
+  }
+  text = text.replace(/from '\.\/([^'?]+)(\?[^']*)?'/g,
+    (_, p, q) => `from '${pathToFileURL(join(ROOT, 'src', 'core', p)).href}${q || ''}'`);
+  const tmp = join(tmpdir(), `hr-buffs-${mutate}-${process.pid}.mjs`);
+  await writeFile(tmp, text);
+  try { return await import(pathToFileURL(tmp).href); } finally { await rm(tmp, { force: true }); }
+}
+
+/* THE PRODUCTION SHAPE: a 7.25 h absence, and a Feast eaten at the instant of
+   return (from = nowMs). Pure — no database — so a base checkout can run it. */
+export function r6Core(B) {
+  const bad = [];
+  const FROM6 = Date.UTC(2026, 8, 26, 17, 45, 0);
+  const NOW6 = FROM6 + 7.25 * 3600000;
+  const END6 = NOW6 + 15 * 60000;
+  const rows = [{ type: 'drop_rate', magnitude: 5,
+    from: new Date(NOW6).toISOString(), until: new Date(END6).toISOString() }];
+  const q = B.buffQueueFromServer(rows, FROM6);
+  const ctx = { away: true };
+  if (B.nextBuffExpiryMs(q) !== NOW6 - FROM6) {
+    bad.push(`[R6] the first payout boundary is ${B.nextBuffExpiryMs(q)} ms into the window, want `
+      + `${NOW6 - FROM6} (the segment's start) — a gather/artisan slice would run the whole absence at one rate`);
+  }
+  let paidBefore = 0; let paidAfter = 0;
+  for (let t = FROM6; t < END6 + 60000; t += 10000) {
+    const b = B.buffBonusFor(q, 'dropRate', ctx);
+    if (t < NOW6 && b !== 0 && paidBefore === 0) {
+      bad.push(`[R6] a segment with from = nowMs pays ${b} at t = nowMs - ${NOW6 - t} ms: the unpaid window is `
+        + 'priced at a buff eaten at return (the F3 mint)');
+    }
+    if (t < NOW6 && b !== 0) paidBefore += 10000;
+    if (t >= NOW6 && t < END6 && b === 0.05) paidAfter += 10000;
+    B.tickBuffs(q, 10000, ctx);
+  }
+  if (paidBefore !== 0) bad.push(`[R6] ${paidBefore} ms of [fromMs, nowMs) paid the buff (want 0)`);
+  if (paidAfter !== END6 - NOW6) {
+    bad.push(`[R6] the segment paid ${paidAfter} ms of its own ${END6 - NOW6} ms once it started — `
+      + 'a start that is never reached is a buff that is never paid');
+  }
+  return bad;
+}
+
+/* The same fact through the REAL engine: a mining night whose only buff was eaten
+   at return is byte-identical to one with no buff at all, and a buff that was
+   running when the window opened still pays (so the equality is not vacuous). */
+export function r6Engine() {
+  const bad = [];
+  const FROM6 = Date.UTC(2026, 8, 26, 17, 45, 0);
+  const NOW6 = FROM6 + 7.25 * 3600000;
+  const night6 = (buffs) => computeAccrual({
+    userId: U, slot: 0, nowMs: NOW6, accruedToMs: FROM6, activeSinceMs: FROM6,
+    activeKind: 'gather', activeId: 'mithril_rock', capMs: 12 * 3600000, seed: 55512345,
+    hp: 50, maxHp: 50, gold: 0,
+    skills: { mining: 5000000, hitpoints: 200000 }, inventory: {}, equipment: {},
+    items: GATHER_CATALOGUES.items, monsters: {}, nodes: GATHER_CATALOGUES.nodes, buffs,
+  });
+  const pay = (o) => JSON.stringify({ xp: o.delta && o.delta.xp, items: o.delta && o.delta.items,
+    ticks: o.summary && o.summary.ticks });
+  const seg = (fromMs) => [{ type: 'gather_speed', magnitude: 4,
+    from: new Date(fromMs).toISOString(), until: new Date(fromMs + 15 * 60000).toISOString() }];
+  const bare = night6(undefined);
+  if (!bare.accrued) { bad.push(`[R6] the mining fixture did not accrue (${bare.reason})`); return bad; }
+  const atReturn = night6(seg(NOW6));
+  const onTheWayOut = night6(seg(FROM6));
+  if (pay(atReturn) !== pay(bare)) {
+    bad.push(`[R6] a gather_speed segment with from = nowMs changed the night: ${pay(atReturn)} vs no buff `
+      + `${pay(bare)} — the absence was priced at a buff eaten at return`);
+  }
+  if (pay(onTheWayOut) === pay(bare)) {
+    bad.push('[R6] a segment running when the window OPENED paid nothing — the equality above is vacuous');
+  }
+  return bad;
+}
+
 // ── THE RUN ────────────────────────────────────────────────────────────────
 async function run(mutate, blind) {
+  // ── [R6] first and database-free, so a core mutation is graded here ──────
+  for (const m of r6Core(await buffsModuleFor(mutate))) ok(false, m);
+  for (const m of r6Engine()) ok(false, m);
+  if (mutate && MUTATIONS[mutate] && MUTATIONS[mutate].core) return failed;
+
   const { db } = await bootReplay({ patches: patchesFor(mutate, blind) });
 
   // ── [14] IDEMPOTENCY, taken FIRST, before any row exists ─────────────────
@@ -607,7 +727,7 @@ async function run(mutate, blind) {
      it is MOVED to [14c] below, where MIG_DENY is the chain end and the question
      "is this file idempotent" is the one actually being asked. MIG_RETIRED joins
      the loop in its place, because it is now this body's chain end. */
-  for (const file of [MIG, MIG_SCALE, HR_APPLY_LAST, MIG_RETIRED]) {
+  for (const file of [MIG, MIG_SCALE, ...HR_APPLY_PRIOR, HR_APPLY_LAST, MIG_RETIRED]) {
     let sql = (await readFile(join(ROOT, 'supabase', 'migrations', file), 'utf8')).replace(/\r\n/g, '\n');
     /* The SAME patched text the chain was built from, so under a mutation this
        measures the MUTATED file's idempotency rather than a mismatch. */
@@ -1614,7 +1734,12 @@ async function run(mutate, blind) {
     return JSON.stringify({ xp: d.xp || null, items: d.items || null, gold: d.gold ?? null,
       kills: (o.summary && o.summary.kills) ?? null });
   };
-  const untilAt = (ms) => [{ type: 'damage', magnitude: 200, until: new Date(ms).toISOString() }];
+  /* Each fixture buff was running when the window OPENED, so it says so: since
+     F3 (2026-09-28) a row without `from` is read as starting at until - 1 h, and
+     "alive at FROM, expiring an hour after NOW" is two hours of buff — a row the
+     server's own ceiling cannot write. */
+  const untilAt = (ms) => [{ type: 'damage', magnitude: 200, until: new Date(ms).toISOString(),
+    from: new Date(FROM).toISOString() }];
   const tenMin = payout(night(untilAt(FROM + 600000)));
   const immortal = payout(night(untilAt(NOW + 3600000)));
   const barePay = payout(night(undefined));
@@ -1676,6 +1801,14 @@ if (RUN_DIRECTLY) {
         reset: () => { failed = 0; },
       });
       process.exit(code);
+    }
+
+    if (argv.includes('--only=R6')) {
+      const mA = argv.find((a) => a.startsWith('--mutate='));
+      const bad = [...r6Core(await buffsModuleFor(mA && mA.split('=')[1])), ...r6Engine()];
+      for (const b of bad) console.error(`  FAIL  ${b}`);
+      console.log(bad.length ? `buff-queue R6: RED (${bad.length})` : 'buff-queue R6: GREEN — a segment pays nothing before its from');
+      process.exit(bad.length ? 1 : 0);
     }
 
     const mArg = argv.find((a) => a.startsWith('--mutate='));

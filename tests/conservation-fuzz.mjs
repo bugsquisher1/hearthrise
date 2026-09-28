@@ -2197,6 +2197,14 @@ async function budgetPhase(db, books, keys, rng, applyAs, rpc, asUser, q, ITEMS,
        Measured: caught at 60 ops, slipped at 400, on the same seed. A leg that
        skips on a bad seed is a leg that is decoration on that seed. */
     await db.query("update hr_rate_counters set window_start = now() - interval '2 hours'");
+    /* SETTLE-BEFORE-MUTATE (Security F2, 2026-09-28): a buy on a character whose
+       combat window is still unpaid is refused settle_first — the accrue phase
+       leaves every character six hours stale. Close the buyer's window the way
+       the engine's collect does (an accrued_to-only settle, no value moved), so
+       this leg measures the budget and not the ordering rule. */
+    const sr = await applyAs(b, b.version, uuidOf(rng), { accrued_to: 'now', journal: jr('accrue', 'budget_buyer_settle') });
+    if (sr.ok !== true) fail('could not settle the buyer before the market leg', JSON.stringify(sr));
+    b.version += 1;
     const lr = await market.list(c, id, 5, 100);
     if (lr.ok !== true) fail(`the market leg could not list (${lr.error})`, JSON.stringify(lr));
     c.version += 1; books.invAdd(c, id, -5);

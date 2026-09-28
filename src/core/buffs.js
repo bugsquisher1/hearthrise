@@ -142,6 +142,18 @@ export function remainingAtMs(until, atMs) {
  * whose members the bonus function refuses to pay (a boundary that changes
  * nothing is a segment that pays twice — see `nextBuffExpiryMs`).
  *
+ * A SEGMENT THAT HAS NOT STARTED YET PAYS NOTHING (Security F3, 2026-09-28,
+ * 2026-09-28-buff-segment-from.sql). hr_apply stamps `from` — the segment start
+ * it already computed, max(now, the tail it queued behind) — and a window that
+ * opens BEFORE `from` must not be paid at that segment's magnitude: a Feast eaten
+ * at the instant of return used to price the whole absence, because a row that
+ * carried only `until` could not say when it began. So the entry carries
+ * `delayMs = from - atMs` while it is in the future; `tickBuffs` drains the delay
+ * on the same wall clock as `remainingMs`, and every liveness reader below treats
+ * a delayed entry as not running. A row WITHOUT `from` (written before the column
+ * learned it) reads as `from = until - BUFF_MAX_UNTIL_MS`: it pays at most the
+ * hour hr_apply's own ceiling allowed it, never the whole night.
+ *
  * @param rows  the projected/stored array (anything else → [])
  * @param atMs  the instant the window starts (see remainingAtMs)
  * @returns a FRESH array of fresh objects — the simulators mutate what they are
@@ -158,9 +170,27 @@ export function buffQueueFromServer(rows, atMs) {
     if (!isFinite(mag) || mag <= 0) continue;
     const remainingMs = remainingAtMs(r.until, atMs);
     if (remainingMs <= 0) continue;
-    out.push({ type: r.type, magnitude: mag, remainingMs, until: r.until });
+    const delayMs = segmentStartMs(r) - Number(atMs);
+    out.push(delayMs > 0
+      ? { type: r.type, magnitude: mag, remainingMs, until: r.until, delayMs }
+      : { type: r.type, magnitude: mag, remainingMs, until: r.until });
   }
   return out;
+}
+
+/* When a segment starts paying. `from` is the start hr_apply stamped; a row
+   without one (or with one that is unparseable or after its own `until`) is given
+   the earliest start the server's ceiling allows, until - BUFF_MAX_UNTIL_MS —
+   the fail-safe direction is "paid for less", never "paid for more". */
+function segmentStartMs(row) {
+  const until = remainingAtMs(row.until, 0);
+  const stamped = (row.from === undefined || row.from === null) ? 0 : remainingAtMs(row.from, 0);
+  return (stamped > 0 && stamped <= until) ? stamped : until - BUFF_MAX_UNTIL_MS;
+}
+
+/* Running NOW: time left, a type the registry pays, and no start still ahead. */
+function isRunning(b) {
+  return !!b && b.remainingMs > 0 && !(b.delayMs > 0) && isKnownBuff(b.type);
 }
 
 /** Is this a buff type the engine can actually pay? */
@@ -171,7 +201,7 @@ export function isKnownBuff(type) {
 /** The still-running buffs in a queue. */
 export function activeBuffs(buffs) {
   if (!Array.isArray(buffs)) return [];
-  return buffs.filter((b) => b && b.remainingMs > 0 && isKnownBuff(b.type));
+  return buffs.filter(isRunning);
 }
 
 /**
@@ -183,7 +213,7 @@ export function activeBuffs(buffs) {
 export function hasActiveBuff(buffs) {
   if (!Array.isArray(buffs)) return false;
   for (const b of buffs) {
-    if (b && b.remainingMs > 0 && isKnownBuff(b.type)) return true;
+    if (isRunning(b)) return true;
   }
   return false;
 }
@@ -216,7 +246,12 @@ export function nextBuffExpiryMs(buffs) {
   for (const b of buffs) {
     if (!b || !isKnownBuff(b.type)) continue;
     const r = Number(b.remainingMs);
-    if (isFinite(r) && r > 0 && r < soonest) soonest = r;
+    if (!(isFinite(r) && r > 0)) continue;
+    /* A segment that has not started changes the payout when it STARTS, so its
+       boundary is the delay, not its expiry (F3, 2026-09-28). */
+    const d = Number(b.delayMs);
+    const at = (isFinite(d) && d > 0) ? Math.min(d, r) : r;
+    if (at < soonest) soonest = at;
   }
   return soonest;
 }
@@ -328,6 +363,10 @@ export function tickBuffs(buffs, elapsedMs, ctx) {
   if (dt <= 0) return res;
   for (const b of buffs) {
     if (!b || b.remainingMs <= 0) continue;
+    if (b.delayMs > 0) {
+      b.delayMs = Math.max(0, b.delayMs - dt);
+      if (b.delayMs === 0) res.changed = true;
+    }
     b.remainingMs -= dt;
     if (b.remainingMs <= 0) { res.changed = true; res.expired.push(b.type); }
   }

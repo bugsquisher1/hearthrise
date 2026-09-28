@@ -347,7 +347,9 @@
         "  · enchant — poison, which is goblin_warlord's elementWeak.",
         "  · combatStyle — 'aggressive', which is NOT the sword family's default",
         "    ('controlled'), so the damage and the trained skill both move.",
-        "  · buffs — a live damage buff, absolute `until` so no span can expire it.",
+        "  · buffs — a live damage buff, absolute `until` so no span can expire it,",
+        "    and an explicit `from` before the span: since F3 (2026-09-28) a row",
+        "    without one reads as starting at until - 1 h and would not pay here.",
         "",
         "hearthfindReady is TRUE here and is the ONE of the nine this session cannot",
         "move: the combat sources are elk_king / grim_reaper / dragon at 1-in-14,940",
@@ -402,6 +404,7 @@
         {
           "type": "damage",
           "magnitude": 25,
+          "from": "2026-01-01T00:00:00.000Z",
           "until": "2027-01-01T00:00:00.000Z"
         }
       ],

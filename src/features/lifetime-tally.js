@@ -110,9 +110,13 @@ function markup(key, fmt, from) {
     + esc(f(c.n)) + '">' + esc(f(c.n)) + '+</span>';
 }
 
+/** Test seam: park the module view (null = the realm has not answered) and
+ *  get the previous one back, so a test can restore exactly what it found. */
+function __swapView(v) { const was = view; view = v || null; return was; }
+
 if (typeof window !== 'undefined') {
   window.HearthriseLifetime = {
-    noteEnvelope, count, quests, markup,
+    noteEnvelope, count, quests, markup, __swapView,
     kindsTotal: MONSTER_CLASSES.length, lore: LIFETIME_LORE,
   };
 }

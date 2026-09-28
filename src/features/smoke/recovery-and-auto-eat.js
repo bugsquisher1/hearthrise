@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 30 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, snapshotG, drain, restoreG, stubSignedIn, on, snapshot, closeOverlays } from './_harness.js?v=558';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, snapshotG, drain, restoreG, stubSignedIn, on, snapshot, closeOverlays } from './_harness.js?v=559';
 
 /* ══ THE KO-SHEET FIXTURE (KO-*) — one self-consistent fall, both doors ═══════
    RUNG is the ladder's own price of the third fall today; the receipt's `at`

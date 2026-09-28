@@ -837,16 +837,21 @@ export default [
     // the homestead ladder's plot counts a fake perk. plantCrop must refuse
     // an empty plot index beyond HearthriseHomestead.maxPlots().
     if (typeof window.plantCrop !== 'function' || !window.HearthriseHomestead) return;
-    const snap = snapshotG();
+    const snap = snapshotG(), bagWas = window.G._serverBag;
     try {
       window.G.homestead = { tier: 0 };                 // camp: 2 plots
       window.G.farmPlots = [];
       window.G.inventory = Object.assign({}, window.G.inventory, { turnip_seed: 10 });
+      /* An unstated bag holds the plant as pending, so the fixture states one. */
+      window.G._serverBag = { turnip_seed: 10 };
       window.plantCrop(0, 'turnip');
       assert(!!window.G.farmPlots[0], 'plot 0 (within cap) should plant');
       window.plantCrop(5, 'turnip');
       assert(!window.G.farmPlots[5], 'plot 5 (beyond camp cap of 2) must refuse to plant');
-    } finally { restoreG(snap); }
+    } finally {
+      if (bagWas === undefined) delete window.G._serverBag; else window.G._serverBag = bagWas;
+      restoreG(snap);
+    }
   })),
 
   /* ── THE SUITE'S OWN TEARDOWN ASSERTION (2026-09-23) ──────────────────────

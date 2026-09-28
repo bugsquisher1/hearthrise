@@ -1290,8 +1290,8 @@ export function equippedCount(equipment, id) {
    server's key check pass?" without a round trip. Scratch, never client-authored.
 
    `serverItemCount` returns NULL, not 0, when no envelope has stated a bag yet (a
-   boot before the first settle, Node, an offline tab): only "the server says none"
-   may disable a gesture, never "the server has not said". */
+   boot before the first settle, Node, an offline tab): "the server says none" is an
+   honest refusal, "the server has not said" is a pending state — neither is a number. */
 export function serverItemCount(G, id) {
   if (!G || typeof G !== 'object' || !id) return null;
   const bag = G._serverBag;
@@ -1300,17 +1300,14 @@ export function serverItemCount(G, id) {
   return Number.isFinite(q) && q > 0 ? Math.floor(q) : 0;
 }
 
-/* THE COUNT A GATE MUST READ, with the fail-open rule written ONCE (live P1
-   class, 2026-09-13: dungeon entry keys AND farm seeds both invited refusals the
-   server had already decided). The SERVER's figure when it has stated one; the
-   client's display bag only while it has not. Callers are thin wrappers
-   (src/dungeons.js keyHeld, legacy.js heldByServer) so the two surfaces cannot
-   drift into two different ideas of "have". */
+/* THE COUNT A GATE MUST READ (live P1 class, 2026-09-13: dungeon entry keys AND
+   farm seeds both invited refusals the server had already decided). TRI-STATE
+   (ruling, visual pass 9): the server's figure when it has stated one, NULL while
+   it has not — the caller renders a pending state, never the display bag. Callers
+   (src/dungeons.js keyHeld, src/screens/farm.js heldByServer, auto-actions.js
+   maybeReplant) share it so the surfaces cannot drift apart. */
 export function gateItemCount(G, id) {
-  const srv = serverItemCount(G, id);
-  if (srv !== null) return srv;
-  const q = Number(G && G.inventory && G.inventory[id]);
-  return Number.isFinite(q) && q > 0 ? Math.floor(q) : 0;
+  return serverItemCount(G, id);
 }
 
 /**

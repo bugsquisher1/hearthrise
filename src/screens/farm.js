@@ -254,7 +254,7 @@ const FARM_SYNC_DEPS={
   removeItem:function(id,q){ if(typeof removeItem==='function') removeItem(id,q); },
   addXp:function(sk,x){ if(typeof addXp==='function') addXp(sk,x); },
 };
-/* WHAT THE *SERVER* SAYS WE HOLD — the only count a GATE may read (`G.inventory` is a display bag no envelope can lower). Rule + evidence: accrue.js gateItemCount. */
+/* WHAT THE *SERVER* SAYS WE HOLD — the only count a GATE may read (`G.inventory` is a display bag no envelope can lower). NULL = unstated → pending. Rule: accrue.js gateItemCount. */
 function heldByServer(id){ const A=window.HearthriseAccrual; return (A&&typeof A.gateItemCount==='function')?A.gateItemCount(G,id):((G.inventory&&Number(G.inventory[id]))||0); } window.heldByServer=heldByServer;
 function farmSyncReconcile(kind,res){
   try{ window.HearthriseFarmSync.reconcileFarmResult(G,kind,res,FARM_SYNC_DEPS); }catch(e){}
@@ -336,7 +336,9 @@ function plantCrop(plotIdx,cropId){
   const seedId=crop.seed;
   /* b465: "No seeds!" named no seed and no way forward. Name it (from the crop row,
      never a literal), say where to buy it, count it the way hr_farm_plant will. */
-  if(heldByServer(seedId)<1){
+  const seedHeld=heldByServer(seedId);
+  if(seedHeld===null){notify('The realm is counting your seeds… try again in a moment','info');return;}
+  if(seedHeld<1){
     var _sn=(typeof ITEMS!=='undefined'&&ITEMS[seedId]&&ITEMS[seedId].n)||crop.name+' Seed';
     notify('You have no '+_sn+' — the Local Shop sells them','kill');return;
   }
@@ -553,7 +555,7 @@ window.plantAllEmpty = function plantAllEmpty(){
   const replant = (window.HearthriseAuto && window.HearthriseAuto.getFarmReplant) ? window.HearthriseAuto.getFarmReplant() : null;
   const seeds = {};
   /* The budget is the SERVER's count: a sweep against display-bag seeds spends every plot on a refusal. */
-  Object.values(CROPS).forEach(c=>{ seeds[c.seed] = heldByServer(c.seed); });
+  Object.values(CROPS).forEach(c=>{ seeds[c.seed] = heldByServer(c.seed) || 0; });
   const st = { crops:CROPS, seeds, farmingLevel:getLevel('farming'),
     plotLevel:(window.HearthriseFarm&&window.HearthriseFarm.getPlotLevel)?window.HearthriseFarm.getPlotLevel():1,
     prefer:(replant&&replant.enabled)?replant.cropId:null };
@@ -612,6 +614,7 @@ function openSeedPicker(i){
   const allOwned = Object.entries(CROPS).filter(([,c])=>haveSeed(c));
   const plantable = allOwned.filter(([id])=>canPlant(id));
   const lockedByPlot = allOwned.filter(([id])=>!canPlant(id));
+  if(!plantable.length && !lockedByPlot.length && Object.values(CROPS).some((c)=>heldByServer(c.seed)===null)){notify('The realm is counting your seeds… try again in a moment','info');return;}
   if(!plantable.length && !lockedByPlot.length){notify(window.HearthriseSignposts.fill(Object.values(CROPS).some((c)=>heldByServer(c.seed)>0)?'farm.seedsAboveLevel':'farm.noSeeds'),'kill');return;}
   const m=document.getElementById('settings-modal');
   const plantBtn = ([id,c])=>`<button class="shop-row" style="width:100%;cursor:pointer" onclick="plantCrop(${i},'${id}');document.getElementById('settings-modal').classList.remove('show')"><span class="si">${itemArt(c.prod)}</span><div class="info"><b>${c.name}</b><span>${c.hours}h · ${c.yield[0]}-${c.yield[1]} yield${c.regrows?` · perennial (regrows ×${c.regrowLimit||'∞'})`:''}</span></div><span class="price">x${heldByServer(c.seed)}</span></button>`;

@@ -3075,13 +3075,50 @@ export default [
       window.getCombatLevel = () => 99;
       Object.assign(G, { inventory: Object.assign({}, G.inventory, { bone_key: 3 }), _dungeonCooldowns: {} });
       delete G._serverBag;
-      const silent = card();   // (a) unstated: the dash, and the gate stays open on silence
-      assert(/bal-pending/.test(silent.cost) && !/have 3/.test(silent.cost) && silent.auto,
+      const silent = card();   // (a) unstated: the dash, and the gate is PENDING, not open (DGN-KEY-SERVER-3)
+      assert(/bal-pending/.test(silent.cost) && !/have 3/.test(silent.cost) && !silent.auto,
         'THE BUG: an unstated bag printed the display bag\'s count: ' + JSON.stringify(silent));
       A.applyEnvelopeState(G, { state: {}, inventory: { bone_key: 2 } });
       const stated = card();   // (b) stated: the server's number, and the gate agrees
       assert(/\(have 2\)/.test(stated.cost) && !/bal-pending/.test(stated.cost) && stated.auto,
         'a stated bag must print the server count: ' + JSON.stringify(stated));
+    } finally {
+      window.getCombatLevel = lvl;
+      if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
+      restoreG(snap);
+    }
+  }),
+
+  /* DGN-KEY-SERVER-3 (regression, visual pass 9): unstated bag, display bag bone_key 3,
+     the card said "(have —)" but both run buttons were ENABLED off the display bag and
+     the server refused the run. Unstated is PENDING; stated follows the server count.
+     MUTATION: fall gateItemCount back to G.inventory again and (a) goes red. */
+  () => tryRun('DGN-KEY-SERVER-3: the dungeon run buttons are pending, not enabled, while the server bag is unstated', () => {
+    const A = window.HearthriseAccrual, id = 'crypt_of_bones', d = window.DUNGEONS && window.DUNGEONS[id];
+    if (!A || !d || !document.getElementById('panel-dungeons') || typeof window.renderDungeons !== 'function') return;
+    const G = window.G, snap = snapshotG(), lvl = window.getCombatLevel, bagWas = G._serverBag;
+    const btns = () => {
+      window.renderDungeons();
+      const c = [...document.querySelectorAll('#panel-dungeons .dgn-card')]
+        .find((e) => (e.querySelector('.dgn-name') || {}).textContent === d.name);
+      return c ? [...c.querySelectorAll('button.dgn-run')].map((b) => ({ on: !b.disabled, text: b.textContent,
+        title: b.title || '', pending: b.classList.contains('bal-pending') || b.hasAttribute('data-pending') })) : [];
+    };
+    try {
+      window.getCombatLevel = () => 99;
+      Object.assign(G, { inventory: Object.assign({}, G.inventory, { bone_key: 3 }), _dungeonCooldowns: {} });
+      delete G._serverBag;
+      const silent = btns();   // (a) THE BUG: both buttons were enabled off the display bag
+      assert(silent.length === 2 && silent.every((b) => !b.on && b.pending && /counting/i.test(b.text + b.title)),
+        'THE BUG: an unstated bag must render both run buttons PENDING ("counting"), never enabled: ' + JSON.stringify(silent));
+      A.applyEnvelopeState(G, { state: {}, inventory: { bone_key: 2 } });
+      const stated = btns();   // (b) stated with keys: both enabled
+      assert(stated.length === 2 && stated.every((b) => b.on && !b.pending),
+        'a stated bag holding the key must enable both runs: ' + JSON.stringify(stated));
+      A.applyEnvelopeState(G, { state: {}, inventory: { bone_key: 0 } });
+      const none = btns();     // (c) stated none: the honest refusal, not pending
+      assert(none.length >= 1 && none.every((b) => !b.on && !b.pending && /Need a/.test(b.text + b.title)),
+        'a stated zero must say "Need a…", not pending: ' + JSON.stringify(none));
     } finally {
       window.getCombatLevel = lvl;
       if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
@@ -3291,10 +3328,9 @@ export default [
 
      The gate and the label now read `serverItemCount` -- the mirror of
      `hr_state_of`'s whole-bag projection of `player_inventory`, which is the exact
-     table the RPC debits. Fail-OPEN on silence: an unstated bag still reads the
-     local count, so no gesture is ever disabled because no envelope has arrived.
+     table the RPC debits. An unstated bag is PENDING (DGN-KEY-2), never the local count.
      MUTATION: point keyHeld() back at G.inventory, or drop the _serverBag mirror,
-     and (a)/(b) go red; make it fail CLOSED and (d) goes red. */
+     and (a)/(b) go red. */
   () => tryRun('DGN-KEY-1: a dungeon entry key is counted from the server bag, not the client display bag', () => {
     const A = window.HearthriseAccrual, id = 'goblin_warcamp', key = 'goblin_seal';
     assert(A && typeof A.serverItemCount === 'function' && typeof window.canRunDungeon === 'function'
@@ -3334,10 +3370,10 @@ export default [
     }
   }),
 
-  /* DGN-KEY-2: the OTHER half of the rule. A gate closes when the server SAYS none,
-     never on silence — before the first envelope of a session there is no stated
-     bag at all, and a run refused then would be the client inventing a refusal. */
-  () => tryRun('DGN-KEY-2: an unstated server bag never disables a dungeon run', () => {
+  /* DGN-KEY-2: the OTHER half of the rule (re-ruled visual pass 9). Before the first
+     envelope no bag is stated: the gate is PENDING — neither the display bag's count
+     (a run the server refuses) nor "Need a key" (a refusal the client made up). */
+  () => tryRun('DGN-KEY-2: an unstated server bag makes a dungeon run pending, not open and not refused', () => {
     const A = window.HearthriseAccrual, id = 'goblin_warcamp', key = 'goblin_seal';
     if (!A || typeof A.serverItemCount !== 'function' || !window.DUNGEONS || !window.DUNGEONS[id]) return;
     const G = window.G, snap = snapshotG(), lvl = window.getCombatLevel, bagWas = G._serverBag;
@@ -3346,9 +3382,10 @@ export default [
       G._dungeonCooldowns = {};
       G.inventory = Object.assign({}, G.inventory, { [key]: 2 });
       delete G._serverBag;
-      assert(A.serverItemCount(G, key) === null && window.dungeonKeysHeld(key) === 2
-        && window.canRunDungeon(id, 'auto').ok === true,
-        'an UNSTATED bag must read the local count: ' + JSON.stringify(window.canRunDungeon(id, 'auto')));
+      const got = window.canRunDungeon(id, 'auto');
+      assert(A.serverItemCount(G, key) === null && window.dungeonKeysHeld(key) === null
+        && got.ok === false && got.pending === true && !/Need a/.test(got.reason),
+        'an UNSTATED bag must be pending, never the local count: ' + JSON.stringify(got));
     } finally {
       window.getCombatLevel = lvl;
       if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
@@ -3410,24 +3447,26 @@ export default [
     }
   }),
 
-  /* FARM-SEED-2: the fail-open half. Before the first envelope of a session no bag
-     has been stated, and a plant blocked then would be a refusal the client made up. */
-  () => tryRun('FARM-SEED-2: an unstated server bag still sends the plant', () => {
+  /* FARM-SEED-2: the unstated half (re-ruled visual pass 9). Before the first envelope
+     no bag is stated: the plant waits ("counting"), never sent off the display bag
+     and never refused as "no seeds". */
+  () => tryRun('FARM-SEED-2: an unstated server bag holds the plant as pending, not sent and not refused', () => {
     const A = window.HearthriseAccrual;
     if (!A || typeof A.gateItemCount !== 'function' || !window.CROPS || !window.CROPS.turnip) return;
     const G = window.G, snap = snapshotG(), bagWas = G._serverBag, prevSync = window.HearthriseFarmSync;
-    const sent = [];
+    const realNotify = window.notify, sent = [], said = [];
     try {
+      window.notify = (m) => { said.push(String(m)); };
       window.HearthriseFarmSync = { isFarmServerArmed: () => true, farmPlantRefusalText: () => 'no seeds',
         farmPlant: (i, c) => { sent.push([i, c]); return Promise.resolve({ ok: false, error: 'insufficient_seed' }); } };
       G.farmPlots = [null, null];
       G.inventory = Object.assign({}, G.inventory, { turnip_seed: 5 });
       delete G._serverBag;
       window.plantCrop(0, 'turnip');
-      assert(sent.length === 1 && sent[0][1] === 'turnip',
-        'with no envelope-stated bag the gesture must still be SENT: ' + JSON.stringify(sent));
+      assert(sent.length === 0 && said.some((m) => /counting/i.test(m)) && !said.some((m) => /no Turnip Seed/.test(m)),
+        'with no envelope-stated bag the plant must wait ("counting"), neither sent nor refused: ' + JSON.stringify({ sent, said }));
     } finally {
-      window.HearthriseFarmSync = prevSync;
+      window.HearthriseFarmSync = prevSync; window.notify = realNotify;
       if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
       restoreG(snap);
     }

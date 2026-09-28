@@ -17935,10 +17935,10 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
      hr_claim_goal grades the SERVER's period counter, so a Claim offered from
      anything else is a button the server refuses (`incomplete`) or re-pays
      (`already_claimed`) — the 2026-09-28 vitals signal. A goal is complete
-     ONLY when the server's fresh row says confirmed >= target; it is
+     ONLY when the server's fresh row says so — its verdict AND its count
+     against its own target, so neither alone can offer a refused claim — and
      claimable only when that row (and the local post-verdict flag) also say
-     unclaimed (both the server's verdict AND its count against its own target
-     must agree, so neither alone can offer a refused claim). Unknown state (unanswered, stale, absent — b487's
+     unclaimed. Unknown state (unanswered, stale, absent — b487's
      `unknown_goal` included) fails CLOSED. The local counters (G.stats.*,
      startValues deltas) drive the progress bar and nothing else. The modal
      row, the strip chip, the badge, the counts, the claim handler and the

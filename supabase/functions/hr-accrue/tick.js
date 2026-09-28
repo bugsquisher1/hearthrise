@@ -95,10 +95,11 @@ import { shadowStateOf, applyShadowState, SHADOW_STATE_V, fenceWindowFrom } from
    call for the window. `AWAY-12` forbids a second combat path and there is not
    one — see supabase/functions/hr-accrue/tick-party.js. */
 import { parseParties, settleParty } from './tick-party.js';
-/* THE BESTIARY READ, ONE DEFINITION. The collect path's statement, imported
-   rather than retyped, so the tick and the collect aggregate `hr_bestiary_of`
-   with the same bytes (step (4b)). */
-import { BESTIARY_SQL } from './set-activity.js';
+/* THE PERK AND BESTIARY READS, ONE DEFINITION (steps (1b)/(4b)). The same two
+   functions tick-party.js calls once per member, so a partied character is
+   priced from exactly the inputs a solo one is (Security N4b). The bestiary
+   statement inside is set-activity.js's BESTIARY_SQL, the collect path's bytes. */
+import { readTickPerks, readTickBestiary } from './tick-reads.js';
 
 /* ── THE DISPATCH TABLE (Security S-8, 2026-09-23) ───────────────────────────
    Until today this file imported ONE `CHANNEL` — gather's — and used it three
@@ -782,16 +783,8 @@ async function tickOne(exec, holder, sel, body) {
          Same degrade rule as those two callers: ONLY 42883 (a database that
          predates the function) reads as "no perks"; anything else propagates,
          because a swallowed error is how a guard reports a pass.
-         tests/world-tick-perks-parity.mjs. */
-  let perks = null;
-  try {
-    const [p] = await exec('select public.hr_perks_of($1::uuid, $2::int) as perks',
-      [sel.userId, sel.slot]);
-    const pe = p && p.perks;
-    perks = (pe && pe.ok === true) ? pe : null;
-  } catch (e) {
-    if (String((e && e.code) ?? '') !== '42883') throw e;
-  }
+         tests/world-tick-perks-parity.mjs. The read is ./tick-reads.js's. */
+  const perks = await readTickPerks(exec, sel.userId, sel.slot);
 
   /* (2) THE DISPATCH. The character's pointer picks the code that settles it.
          A kind with no entry is skipped BY NAME: `channel_not_driven` says the
@@ -836,15 +829,8 @@ async function tickOne(exec, holder, sel, body) {
          Made HERE, after the flush line, so only a window that will be priced
          costs the statement — the collect path's rule. Same degrade rule as
          (1b): ONLY 42883 reads as "no counters"; anything else propagates.
-         tests/world-tick-bestiary-parity.mjs. */
-  let bestiaryKills = null;
-  try {
-    const [b] = await exec(BESTIARY_SQL, [sel.userId, sel.slot]);
-    const k = b && b.kills;
-    bestiaryKills = (k && typeof k === 'object' && !Array.isArray(k)) ? k : null;
-  } catch (e) {
-    if (String((e && e.code) ?? '') !== '42883') throw e;
-  }
+         tests/world-tick-bestiary-parity.mjs. The read is ./tick-reads.js's. */
+  const bestiaryKills = await readTickBestiary(exec, sel.userId, sel.slot);
 
   /* (5) THE SESSION. Assembled from SERVER values field by field, with the
          watermark the FENCE reported rather than `st.accrued_to` — in shadow

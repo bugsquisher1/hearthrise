@@ -69,6 +69,9 @@
 //   M6 abort the whole batch on the first refused character
 //   M12 swallow EVERY error on the bestiary read (not just 42883)
 //   M13 drop the bestiary read (the N4 gap, reproduced through the entry)
+//   M14 drop the perks read (N4b's perk half; T-X1h/T-X1i)
+//   M15 bind both reads to roster[0] for every character (N6)
+//   M16 hand each character the previous one's answers, arguments intact (N6)
 //
 // Usage:
 //   node tests/edge-tick-gate.mjs
@@ -176,6 +179,11 @@ const TRANSPORT = [];
 const PG_TIMESTAMPTZ = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}(:?\d{2})?)?$/;
 const UID = '11111111-2222-3333-4444-555555555555';
 const EVIL = '99999999-9999-9999-9999-999999999999';
+/* N6's second character. Sorts AFTER UID, so the party unit (sorted by user)
+   and the roster run them in the same order. */
+const UID2 = '11111111-2222-3333-4444-666666666666';
+const PARTY = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+const HUNT = 'aaaaaaaa-bbbb-4ccc-8ddd-ffffffffffff';
 
 function fakeDb(cfg) {
   const o = Object.assign({
@@ -192,11 +200,38 @@ function fakeDb(cfg) {
     /* hr_bestiary_of's answer (tick.js (4b)); `bestiaryError` makes the read
        throw with that SQLSTATE instead. */
     bestiary: { goblin: 2000 }, bestiaryError: null,
+    /* N6 (2026-09-28): PER-CHARACTER answers, so a two-row fire can hand each
+       character a DIFFERENT perk stack and bestiary and an arm can see whose
+       answer reached whose session. `null` keeps the one-answer-for-all shape
+       every older arm was written against. `activeId` lets an arm put the
+       characters on a monster (the bestiary is a combat input only). */
+    perksBy: null, bestiaryBy: null, activeId: 'normal_tree',
+    /* THE PARTY FENCE's mark (`party_hunt.accrued_to` / the lease's shadow
+       mark), modelled as the solo one is above. */
+    partyMarkMs: null, partyShadowMarkMs: null,
+    /* Render the fence's reported mark as Postgres's jsonb does (`…+00:00`).
+       Combat spells its seed label from that text and refuses the `…Z` one
+       (tick-combat.js rosterWatermarkText, Security T-2); gather does not
+       care, so the older gather arms keep the ISO spelling they were written
+       against. The party fence always answers in the jsonb spelling. */
+    jsonbMark: false,
   }, cfg || {});
+  const jsonbTs = (ms) => new Date(ms).toISOString().replace('Z', '+00:00');
+  /* Whose projection was served last — the character the driver is working
+     on. tick.js and tick-party.js both run ONE character at a time, state
+     read -> reads -> engine, so an access to another character's answer while
+     this one is current is a cross-binding. */
+  o.current = null;
   /* `case when shadow then greatest(accrued_to, shadow_accrued_to) else
      accrued_to end` — the fence's step (6) expression, verbatim. */
-  const effMark = () => (o.shadow
-    ? Math.max(o.markMs, o.shadowMarkMs === null ? o.markMs : o.shadowMarkMs)
+  /* N6: the shadow mark is PER CHARACTER, as the real fence's lease row is.
+     One shared mark made a second roster row read as already settled. The
+     single-character arms see exactly the old behaviour. */
+  const shadowMarks = new Map();
+  const markOf = (user) => (shadowMarks.has(user) ? shadowMarks.get(user)
+    : (shadowMarks.size ? null : o.shadowMarkMs));
+  const effMark = (user) => (o.shadow
+    ? Math.max(o.markMs, markOf(user) === null ? o.markMs : markOf(user))
     : o.markMs);
   const calls = [];
   const settles = [];
@@ -208,6 +243,7 @@ function fakeDb(cfg) {
       return (params[2] || []).map((ts, i) => ({ ord: i + 1, seed: 1000 + i }));
     }
     if (text.includes('hr_state_of')) {
+      o.current = params[0];
       if (!o.known.has(params[0])) {
         return [{ state: { ok: false, error: 'no_character' }, now: new Date(NOW_MS) }];
       }
@@ -218,7 +254,7 @@ function fakeDb(cfg) {
           ok: true, version: o.version, now: NOW_ISO,
           state: {
             accrued_to: new Date(o.markMs).toISOString(),
-            active_kind: o.activeKind, active_id: 'normal_tree',
+            active_kind: o.activeKind, active_id: o.activeId,
             active_since: new Date(NOW_MS - 3600000).toISOString(),
             hp: 40, max_hp: 40, gold: 10,
             skills: { woodcutting: 500, hitpoints: 1200 }, inventory: {}, equipment: {},
@@ -231,6 +267,7 @@ function fakeDb(cfg) {
        Shaped as hr_perks_of answers: a stranger is `no_character`, a known
        character with nothing bought is an empty stack. */
     if (text.includes('hr_perks_of')) {
+      if (o.perksBy && o.known.has(params[0])) return [{ perks: o.perksBy[params[0]] }];
       return [{ perks: o.known.has(params[0])
         ? { ok: true, rooms: {}, plots: {}, propertyTier: 0, unlockedRecipes: {}, renownAllXp: 0 }
         : { ok: false, error: 'no_character' } }];
@@ -244,7 +281,30 @@ function fakeDb(cfg) {
         if (o.bestiaryError) e.code = o.bestiaryError;
         throw e;
       }
+      if (o.bestiaryBy && o.known.has(params[0])) return [{ kills: o.bestiaryBy[params[0]] }];
       return [{ kills: o.known.has(params[0]) ? Object.assign({}, o.bestiary) : {} }];
+    }
+    /* THE PARTY FENCE (tick-party.js probeParty / partyFence). The probe is a
+       deliberately stale window, refused `party_window_already_settled` WITH
+       the mark — the solo fence's shape at party grain. A settle past the mark
+       is recorded per member and, in shadow, moves only the shadow mark. */
+    if (text.includes('hr_party_tick_settle')) {
+      const [holder, party, wFrom, wTo, key, membersJson] = params;
+      const members = JSON.parse(membersJson);
+      if (!o.enabled) return [{ res: { ok: false, error: 'tick_disabled' } }];
+      const mark = o.partyMarkMs === null ? o.markMs : o.partyMarkMs;
+      const eff = o.shadow ? Math.max(mark, o.partyShadowMarkMs ?? mark) : mark;
+      if (Date.parse(wFrom) < eff || Date.parse(wTo) <= eff) {
+        return [{ res: { ok: false, error: 'party_window_already_settled',
+          accrued_to: jsonbTs(eff), shadow: o.shadow, shadow_state: null } }];
+      }
+      for (const m of members) {
+        settles.push({ holder, party, user: m.user, slot: m.slot, version: m.version,
+          wFrom, wTo, key, delta: m.delta });
+      }
+      if (o.shadow) { o.partyShadowMarkMs = Date.parse(wTo); return [{ res: { ok: true, mode: 'shadow' } }]; }
+      o.partyMarkMs = Date.parse(wTo);
+      return [{ res: { ok: true, mode: 'armed' } }];
     }
     if (text.includes('hr_tick_settle')) {
       const [holder, user, slot, channel, version, wFrom, wTo, key, delta] = params;
@@ -271,17 +331,20 @@ function fakeDb(cfg) {
          `hr_engine` is revoked from. Both halves matter: the comparison is
          what makes a replay impossible, and the reported value is what makes
          the next window chainable. */
-      if (Date.parse(wFrom) < effMark() || Date.parse(wTo) <= effMark()) {
+      if (Date.parse(wFrom) < effMark(user) || Date.parse(wTo) <= effMark(user)) {
         return [{ res: { ok: false, error: 'window_already_settled',
-          accrued_to: new Date(effMark()).toISOString(), shadow: o.shadow } }];
+          accrued_to: o.jsonbMark ? jsonbTs(effMark(user)) : new Date(effMark(user)).toISOString(),
+          shadow: o.shadow } }];
       }
       if (version !== o.version) return [{ res: { ok: false, error: 'version_conflict' } }];
       settles.push({ holder, user, slot, channel, version, wFrom, wTo, key, delta: JSON.parse(delta) });
       if (o.shadow) {
         o.shadowMarkMs = Date.parse(wTo);      // step (8): the shadow chain
+        shadowMarks.set(user, o.shadowMarkMs);
         return [{ res: { ok: true, mode: 'shadow', paid: false, window_to: wTo } }];
       }
       o.markMs = Date.parse(wTo); o.shadowMarkMs = null;   // step (9): armed clears it
+      shadowMarks.clear();
       o.version += 1;
       return [{ res: { ok: true, mode: 'armed', paid: true } }];
     }
@@ -841,6 +904,74 @@ async function runArms(mod) {
     ok(b.out.body.skipped === 1 && b.reads.length === 0,
       'T-X1g — below the flush line the read is never made (only a priced window costs it)',
       JSON.stringify(b.out.body));
+
+    /* ── N6 (Security, 2026-09-28): TWO ROWS, TWO DIFFERENT ANSWERS ────────
+       T-X1a fires one row, so a read bound to roster[0] for every character —
+       or one character's answer handed to another's session — passes it. Here
+       two characters on a monster get DIFFERENT perk stacks and bestiaries in
+       ONE fire, each answer a Proxy that logs which character the driver was
+       working on when the answer was touched. Each character's answer must
+       reach its OWN session (touched while it is current) and never another's
+       (touched while the other is current). The solo roster (T-X1h) and the
+       party unit (T-X1i) are the two drivers; both call ./tick-reads.js. */
+    const twoRow = async (bodyOf) => {
+      const log = [];
+      const ref = {};
+      const spy = (owner, what, obj) => {
+        const note = () => log.push({ owner, what, at: ref.db ? ref.db.cfg.current : null });
+        return new Proxy(obj, {
+          get(t, k, r) { if (typeof k === 'string') note(); return Reflect.get(t, k, r); },
+          has(t, k) { note(); return Reflect.has(t, k); },
+          ownKeys(t) { note(); return Reflect.ownKeys(t); },
+          getOwnPropertyDescriptor(t, k) { note(); return Reflect.getOwnPropertyDescriptor(t, k); },
+        });
+      };
+      const perksOf = (renown) => ({ ok: true, rooms: {}, plots: {}, propertyTier: 0,
+        unlockedRecipes: {}, renownAllXp: renown });
+      const db = fakeDb({ shadow: true, activeKind: 'combat', activeId: 'goblin', jsonbMark: true,
+        known: new Set([UID, UID2]),
+        perksBy: { [UID]: spy(UID, 'perks', perksOf(5)), [UID2]: spy(UID2, 'perks', perksOf(0)) },
+        bestiaryBy: { [UID]: spy(UID, 'bestiary', { goblin: 2000 }),
+          [UID2]: spy(UID2, 'bestiary', { goblin: 3 }) } });
+      ref.db = db;
+      const out = await runTick({ exec: db.exec, body: bodyOf() });
+      const readsOf = (fn) => db.calls.filter((c) => c.text.includes(fn)).map((c) => c.params[0]);
+      return { db, out, log, perks: readsOf('hr_perks_of'), bestiary: readsOf('hr_bestiary_of') };
+    };
+    const bound = (r) => {
+      const bad = [];
+      for (const u of [UID, UID2]) {
+        for (const what of ['perks', 'bestiary']) {
+          const own = r.log.filter((x) => x.owner === u && x.what === what);
+          if (!own.some((x) => x.at === u)) bad.push(`${what}(${u.slice(-4)}) never reached its own session`);
+          const cross = own.filter((x) => x.at !== u);
+          if (cross.length) bad.push(`${what}(${u.slice(-4)}) read while ${String(cross[0].at).slice(-4)} was current`);
+        }
+      }
+      if (JSON.stringify(r.perks) !== JSON.stringify([UID, UID2])
+        || JSON.stringify(r.bestiary) !== JSON.stringify([UID, UID2])) {
+        bad.push(`reads bound to perks=${JSON.stringify(r.perks)} bestiary=${JSON.stringify(r.bestiary)}`);
+      }
+      const users = r.db.settles.map((x) => x.user).sort();
+      if (JSON.stringify(users) !== JSON.stringify([UID, UID2])) bad.push(`shadow rows for ${JSON.stringify(users)}`);
+      return bad;
+    };
+    const h = await twoRow(() => ({ op: 'tick', roster: [rosterRow(UID, { active_kind: 'combat' }),
+      rosterRow(UID2, { active_kind: 'combat' })] }));
+    const hBad = bound(h);
+    ok(hBad.length === 0 && h.out.body.shadowed === 2,
+      'T-X1h — two roster rows, two different perk stacks and bestiaries in one fire: each character\'s '
+      + 'reads are bound to its own row and reach only its own session (N6)',
+      JSON.stringify({ out: h.out.body, bad: hBad }));
+    const i = await twoRow(() => ({ op: 'tick', flush_ms: 72000, roster: [], parties: [{
+      party_id: PARTY, hunt_id: HUNT, active_id: 'goblin', stance: 'steady',
+      accrued_to: new Date(NOW_MS - 120000).toISOString(),
+      members: [{ user_id: UID2, slot: 0 }, { user_id: UID, slot: 0 }] }] }));
+    const iBad = bound(i);
+    ok(iBad.length === 0 && i.out.body.shadowed === 1,
+      'T-X1i — a two-member PARTY in one fire: each member makes both reads through tick-reads.js, '
+      + 'bound to its own (user, slot), and only its own shadow row is priced from them (N4b/N6)',
+      JSON.stringify({ out: i.out.body, bad: iBad }));
   }
 
   // ── T-BB1 — THE BODY IS BOUNDED BEFORE IT IS PARSED ─────────────────────
@@ -1259,7 +1390,56 @@ const MUTATIONS = [
           ? [{ kills: null }] : o.exec(text, params)),
       })),
     }),
-    mustFail: ['T-X1a'],
+    /* N6: the two-row arms see the dropped read on both drivers too. */
+    mustFail: ['T-X1a', 'T-X1h', 'T-X1i'],
+  },
+  {
+    /* N4b ON THE PERK HALF: the stack is not handed over and the window prices
+       at zero perks. One-row arms never looked at perks at all. */
+    id: 'M14', what: 'drop the perks read',
+    patch: (m) => Object.assign({}, m, {
+      runTick: async (o) => REAL.runTick(Object.assign({}, o, {
+        exec: async (text, params) => (text.includes('hr_perks_of')
+          ? [{ perks: null }] : o.exec(text, params)),
+      })),
+    }),
+    mustFail: ['T-X1h', 'T-X1i'],
+  },
+  {
+    /* N6 AS SECURITY WROTE IT: every read bound to roster[0]. With one row it
+       is indistinguishable from the right binding; with two it is not. */
+    id: 'M15', what: 'bind both reads to the FIRST character for every character',
+    patch: (m) => Object.assign({}, m, {
+      runTick: async (o) => REAL.runTick(Object.assign({}, o, {
+        exec: async (text, params) => ((text.includes('hr_perks_of') || text.includes('hr_bestiary_of'))
+          ? o.exec(text, [UID].concat(params.slice(1))) : o.exec(text, params)),
+      })),
+    }),
+    mustFail: ['T-X1h', 'T-X1i'],
+  },
+  {
+    /* THE SWAP, WITH THE STATEMENT'S ARGUMENTS LEFT CORRECT: each read is
+       issued for the right (user, slot) and the ANSWER is handed to the next
+       character instead. The selector check cannot see this; only "whose
+       answer reached whose session" can, which is why the arms carry it. */
+    id: 'M16', what: 'hand each character the previous character\'s answers (arguments unchanged)',
+    patch: (m) => Object.assign({}, m, {
+      runTick: async (o) => {
+        const prev = new Map();
+        return REAL.runTick(Object.assign({}, o, {
+          exec: async (text, params) => {
+            const k = text.includes('hr_perks_of') ? 'perks'
+              : (text.includes('hr_bestiary_of') ? 'bestiary' : null);
+            const rows = await o.exec(text, params);
+            if (!k) return rows;
+            const give = prev.has(k) ? prev.get(k) : rows;
+            prev.set(k, rows);
+            return give;
+          },
+        }));
+      },
+    }),
+    mustFail: ['T-X1h', 'T-X1i'],
   },
 ];
 

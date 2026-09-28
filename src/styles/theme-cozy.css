@@ -1288,7 +1288,7 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
   .bounty-option button,
   .shop-row button,
   .iap-card button,
-  .btn-sm {
+  .btn-sm:not(:where(#panel-combat .fs-actionbar .btn-sm)) {
     min-height: var(--tap) !important;
     padding: 8px 14px !important;
     font-size:calc(14.5px * var(--ui-scale, 1)) !important;

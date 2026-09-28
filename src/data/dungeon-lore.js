@@ -6,7 +6,7 @@
 
 export const DUNGEON_CLEAR_LORE = Object.freeze({
   crypt_of_bones: 'The Marrow King lies still at last, and the Crypt of Bones is quiet enough to hear your own heartbeat on the long climb out',
-  goblin_warcamp: 'Grimtusk is down and the Goblin Warcamp scatters into the hills, every runaway goblin telling the tale of your blade to the next',
+  goblin_warcamp: 'Grimtusk is down and the Goblin Warcamp scatters into the hills, every runaway goblin carrying the tale of your blade to the next camp',
   haunted_archive: 'The Pale Archivist has closed its final book, and the Haunted Archive now lets you walk its stacks as a reader, not a trespasser',
   obsidian_keep: 'The Obsidian Throne stands empty, and the black walls of the Keep will whisper your name to whoever dares to climb them after you',
   voidbringer: 'The Riftmaw is driven back through its own wound in the sky, and for a little while the stars over the valley hold still for you',

@@ -985,6 +985,15 @@ body.in-combat #panel-combat .fs-style .combat-style-block .csb-btn small {
 #panel-combat .fs-act-ref { display: flex; align-items: center; gap: 6px; margin-left: auto; }
 #panel-combat .fs-actionbar .arena-act { margin-top: 0; max-width: none; width: auto; }
 #panel-combat .fs-history em { font-style: normal; color: var(--gold-2); font-weight: 800; }
+/* VG5 — THE BAR NEVER SCROLLS. With Auto-eat on it carried Eat, the Auto-eat
+ * picker, Stop, Loot, Stats and History in one nowrap run: 863px in an 810px
+ * bar at 1280x800 and 867 in 650 at 922x423, History past the card. The
+ * picker's label may break between its two word-runs (never inside the food
+ * name), which is the same two-line height as Eat beside it; the phone rule
+ * below shortens History to "Log". Labels shorten; controls never hide. */
+#panel-combat .fs-actionbar .arena-autoeat { margin-top: 0; flex-wrap: wrap; align-content: center; gap: 0 .3em; line-height: 1.1; }
+#panel-combat .fs-actionbar .arena-autoeat > span { white-space: nowrap; }
+#panel-combat .fs-hist-short { display: none; }
 /* The two states of the primary slot. In preview the fight has not started, so
  * Eat is meaningless and Fight is the only move; live, the reverse. */
 #panel-combat[data-fight-state="preview"] #arena-act-player,
@@ -1612,6 +1621,19 @@ body.in-combat #panel-combat .fs-style .combat-style-block .csb-btn small {
   #panel-combat .arena-vs.fs-stage .arena-side.player .fs-lv { justify-self: start; }
   #panel-combat .arena-vs.fs-stage .arena-side.foe .fs-lv { justify-self: end; }
   #panel-combat .fs-metrics.fs-session:has(> .fs-sess-idle) { display: none; }
+  /* VG5 — the bar fits the card's 650px: "History" reads "Log", the chips lose
+   * tracking, the picker stacks its two runs and Eat's meta breaks between
+   * clauses. theme-cozy's important `.btn-sm` padding skips this bar by a
+   * zero-specificity `:not(:where(…))` (the card's own pattern), so these
+   * plain rules set it and keep the --tap floor. */
+  #panel-combat .fs-hist-long { display: none; }
+  #panel-combat .fs-hist-short { display: inline; }
+  #panel-combat .fs-actionbar .btn-sm { min-height: var(--tap); padding: 2px 8px; }
+  #panel-combat .fs-actionbar .arena-chip { padding: 2px 6px; letter-spacing: .02em; }
+  #panel-combat .fs-actionbar .arena-autoeat { flex-direction: column; justify-content: center; }
+  #panel-combat .fs-actionbar .arena-eat { line-height: 1.05; }
+  #panel-combat .fs-actionbar .arena-eat .ae-meta { white-space: normal; }
+  #panel-combat .fs-actionbar .arena-eat .ae-meta > span { white-space: nowrap; }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

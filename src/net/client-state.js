@@ -255,8 +255,6 @@ export const RESIDUE_FIELDS = Object.freeze([
   'lootFilter',
   'autoActions',    // auto-eat food pick / auto-replant prefs (the auto-eat TRIGGER itself is server: hr_set_auto_eat)
   'lastWelcome',    // client-only marker: which build's welcome/changelog sheet has been SHOWN
-  'achievements',   // client-only progress: {id:{progress,unlocked}}. Derived from counters the client holds;
-                    // re-deriving on every boot re-toasts every unlock, which is the only thing it can get wrong
   /* ⚠ `dungeons` ({ lastRun:{id:ms} }) was the seventeenth name here and is DELETED,
      not re-homed. It was a CLIENT-CLOCK cooldown stamp, and the server now owns the
      re-entry window: hr_dungeon_settle refuses inside it and hr_state_of projects

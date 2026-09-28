@@ -13942,112 +13942,10 @@ console.log('UI overhaul loaded');
 (function(){
 "use strict";
 
-/* =========================================================
-   1. ACHIEVEMENTS
-   ========================================================= */
-/* `glyph` is an ATLAS KEY (src/data/glyphs.js). Every row here carried a raw
-   `icon:'⚔️'` and two renderers (the achievements list and the unlock TOAST)
-   printed it straight into an icon slot — twenty-nine system pictographs in a
-   grid, which is the most obviously-generated screen a player can be shown.
-   The ladders are drawn as ONE family climbing in rank, which the emoji set
-   could not express: kills go sword → skull → shield → trophy → crown, gold
-   goes coin → coin-stack → gem → bank, levels go xp → star → medal → crown. */
-var ACHIEVEMENTS = [
-  {id:'first_kill',  name:'First Blood',         desc:'Defeat 1 monster',           glyph:'uiSword',     target:1,    src:'stats.kills'},
-  {id:'kill_50',     name:'Slayer',              desc:'Defeat 50 monsters',         glyph:'uiSkull',     target:50,   src:'stats.kills'},
-  {id:'kill_250',    name:'Champion',            desc:'Defeat 250 monsters',        glyph:'uiShield',    target:250,  src:'stats.kills'},
-  {id:'kill_1000',   name:'Hero of the Realm',   desc:'Defeat 1,000 monsters',      glyph:'uiTrophy',    target:1000, src:'stats.kills'},
-  {id:'kill_5000',   name:'Legendary',           desc:'Defeat 5,000 monsters',      glyph:'uiCrown',     target:5000, src:'stats.kills'},
-  {id:'gold_1k',     name:'First Pouch',         desc:'Earn 1,000 gold lifetime',   glyph:'gold',        target:1000, src:'stats.totalGoldEarned'},
-  {id:'gold_10k',    name:'Wealthy',             desc:'Earn 10,000 gold lifetime',  glyph:'uiCoinStack', target:10000,src:'stats.totalGoldEarned'},
-  {id:'gold_100k',   name:'Tycoon',              desc:'Earn 100,000 gold lifetime', glyph:'gems',        target:100000,src:'stats.totalGoldEarned'},
-  {id:'gold_1m',     name:'Millionaire',         desc:'Earn 1,000,000 gold',        glyph:'bank',        target:1000000,src:'stats.totalGoldEarned'},
-  {id:'lv25_any',    name:'Apprentice',          desc:'Reach Lv 25 in any skill',   glyph:'uiXp',        target:25,   src:'highest_skill'},
-  {id:'lv50_any',    name:'Master',              desc:'Reach Lv 50 in any skill',   glyph:'uiStar',      target:50,   src:'highest_skill'},
-  {id:'lv75_any',    name:'Grandmaster',         desc:'Reach Lv 75 in any skill',   glyph:'uiMedal',     target:75,   src:'highest_skill'},
-  {id:'lv99_any',    name:'99 Club',             desc:'Reach Lv 99 in any skill',   glyph:'uiCrown',     target:99,   src:'highest_skill'},
-  {id:'all_25',      name:'Well-Rounded',        desc:'All combat skills to Lv 25', glyph:'uiTarget',    target:25,   src:'min_combat_skill'},
-  {id:'all_50',      name:'Combat Master',       desc:'All combat skills to Lv 50', glyph:'navCombat',   target:50,   src:'min_combat_skill'},
-  {id:'wood_500',    name:'Lumberjack',          desc:'Chop 500 logs',              glyph:'woodcutting', target:500,  src:'stats.chopped'},
-  {id:'mine_500',    name:'Quarryman',           desc:'Mine 500 ores',              glyph:'mining',      target:500,  src:'stats.mined'},
-  {id:'fish_500',    name:'Angler',              desc:'Catch 500 fish',             glyph:'fishing',     target:500,  src:'stats.fished'},
-  {id:'cook_100',    name:'Chef',                desc:'Cook 100 meals',             glyph:'cooking',     target:100,  src:'stats.cooked'},
-  {id:'plant_100',   name:'Green Thumb',         desc:'Harvest 100 crops',          glyph:'farming',     target:100,  src:'stats.harvested'},
-  {id:'house_lv1',   name:'Homebody',            desc:'Build any house room',       glyph:'uiHome',      target:1,    src:'stats.roomsBuilt'},
-  {id:'house_all',   name:'Estate Owner',        desc:'Build all 6 house rooms',    glyph:'uiCastle',    target:6,    src:'stats.roomsBuilt'},
-  {id:'bounty_1',    name:'Bounty Hunter',       desc:'Complete your first bounty', glyph:'navBounty',   target:1,    src:'bountyHunter.completed'},
-  {id:'bounty_50',   name:'Wanted Poster',       desc:'Complete 50 bounties',       glyph:'uiScroll',    target:50,   src:'bountyHunter.completed'},
-  {id:'rare_drop',   name:'Lucky',               desc:'Get any rare drop',          glyph:'uiSpark',     target:1,    src:'stats.rareDrops'},
-  {id:'rare_25',     name:'Loot Goblin',         desc:'Get 25 rare drops',          glyph:'uiChest',     target:25,   src:'stats.rareDrops'},
-  {id:'food_100',    name:'Well-Fed',            desc:'Eat 100 buff foods',         glyph:'uiFood',      target:100,  src:'stats.buffsConsumed'},
-  /* b499 — these two count `streak.count`, the PLAY streak (days settled), NOT
-     the daily-reward claim streak. "login streak" named the reward's quantity
-     and pointed the player at the wrong number to chase. */
-  {id:'streak_7',    name:'Week Warrior',        desc:'Play 7 days in a row',       glyph:'uiFlame',     target:7,    src:'streak.count'},
-  {id:'streak_30',   name:'Devoted',             desc:'Play 30 days in a row',      glyph:'uiFire',      target:30,   src:'streak.count'},
-  {id:'dragon_slayer',name:'Dragon Slayer',      desc:'Defeat the dragon',          glyph:'uiSkull',     target:1,    src:'bestiary.dragon.kills'},
-];
-/* ONE resolver for achievement art, so the list and the toast can never
-   disagree and neither can reach a character. */
-window.achievementGlyphHTML = function(a, px){
-  var key = (a && a.glyph) || 'uiTrophy';
-  return (window.HR && window.HR.icon) ? (window.HR.icon(key, px || 22, '--gold-2') || '') : '';
-};
-/* b229: this array is IIFE-scoped, but the Hero screen's Account panel needs
-   ACHIEVEMENTS.length to print "X / total". Publish it read-only (the per-player
-   UNLOCK state stays in G.achievements) so the panel counts against the real
-   catalogue rather than a hand-copied number. */
-window.ACHIEVEMENTS = ACHIEVEMENTS;
-
-function readPath(path){
-  if(typeof G !== 'object' || !G) return 0;
-  if(path === '_dailyGoldDelta'){
-    /* b292: delegate to the single income definition (see _dailyGoldDelta). */
-    return (typeof window._dailyGoldDelta === 'function')
-      ? window._dailyGoldDelta()
-      : Math.max(0, balOr('gold', 0) - ((G.dailyGoldStart||{}).gold||0));
-  }
-  if(path === 'highest_skill'){
-    if(typeof getLevel !== 'function') return 1;
-    var max = 0;
-    Object.keys(G.skills||{}).forEach(function(k){ var l = getLevel(k); if(l > max) max = l; });
-    return max;
-  }
-  if(path === 'min_combat_skill'){
-    if(typeof getLevel !== 'function') return 1;
-    var combat = ['attack','strength','defense','hitpoints'];
-    var min = Infinity;
-    combat.forEach(function(k){ var l = getLevel(k); if(l < min) min = l; });
-    return min;
-  }
-  /* Week Warrior / Devoted count the PLAY streak, which is the SERVER's
-     `streak_days` — an achievement must not unlock on a counter the realm never
-     agreed with (CLAUDE.md §6). See src/render/streak-chip.js. */
-  if(path === 'streak.count' && window.HearthriseStreakChip) return window.HearthriseStreakChip.days(G);
-  var parts = path.split('.'); var cur = G;
-  for(var i = 0; i < parts.length; i++){ if(cur == null) return 0; cur = cur[parts[i]]; }
-  return cur || 0;
-}
-
-function checkAchievements(){
-  if(typeof G !== 'object' || !G) return;
-  G.achievements = G.achievements || {};
-  ACHIEVEMENTS.forEach(function(a){
-    var entry = G.achievements[a.id] || (G.achievements[a.id] = {progress:0, unlocked:false});
-    var cur = readPath(a.src);
-    entry.progress = cur;
-    if(!entry.unlocked && cur >= a.target){
-      entry.unlocked = true;
-      entry.unlockedAt = Date.now();
-      showAchToast(a);
-    }
-  });
-}
-/* showAchToast + openAchievements EXTRACTED to src/render/achievements.js
-   (3rd render-layer strangler-fig, task #129). Both are re-exported onto
-   window there; checkAchievements above calls window.showAchToast on unlock,
-   and the inline onclick="openAchievements()" toolbar handlers resolve to the
-   window global. See docs/design/render-extraction-pattern.md. */
+/* 1. ACHIEVEMENTS moved out whole: the catalogue is src/data/deeds.js, the
+   grading and the unlock watcher src/features/deeds.js (on the realm's counts,
+   never a G record), the toast, the sheet and the glyph resolver
+   src/render/achievements.js. */
 
 /* =========================================================
    2. LEVEL-UP CELEBRATION (wraps addXp)
@@ -14172,14 +14070,9 @@ function injectProfileButtons(){
   panel.insertBefore(row, panel.firstChild);
 }
 
-/* Periodic achievement check (covers passive triggers like gold milestones) */
-setInterval(checkAchievements, 6000);
-setTimeout(checkAchievements, 1500);
 setTimeout(injectProfileButtons, 600);
 setTimeout(function(){ if(typeof syncClanActivity==='function') syncClanActivity(); }, 600);
 
-/* Expose */
-window.checkAchievements = checkAchievements;
 console.log('5 retention features loaded');
 })();
 

@@ -290,6 +290,21 @@ export const LINKS = [
     base: '2026-09-23-world-tick-shadow-state-chain.sql',
     target: '2026-09-23-m8-parties-s2-3-engine-allowlist.sql',
     patchIds: ['party_settle'],
+  },  /* Link 15 (T-5 residual, 2026-09-28) — hr_ops STAYS A SINK, ASSERTED IN THE
+     DATABASE. 2026-09-28-tick-harvest-off-rpc-surface.sql moved the pg_net
+     reader into the non-exposed schema hr_ops; tests/pg-net-queue-unreachable
+     .mjs Q-5 guards that from the repo side only, so a grant typed anywhere
+     else (dashboard, support, a platform migration) was invisible until now.
+     Check (9) reports every client/engine role holding USAGE or CREATE on
+     hr_ops, or EXECUTE on any routine in it, and the strict mode raises on it.
+     FOUR anchors, all INSERTIONS (a declaration, the check, a report key, a
+     strict-mode term), so its declared-removals list in tests/run-sql-tests.mjs
+     PART 1f-ii is EMPTY. Its base is link 14's TARGET, the body production has
+     run since the M8 S2 batch applied. It is the new last toucher. */
+  {
+    base: '2026-09-23-m8-parties-s2-3-engine-allowlist.sql',
+    target: '2026-09-28-grant-hygiene-hr-ops.sql',
+    patchIds: ['hr_ops_sink_decl', 'hr_ops_sink_check', 'hr_ops_sink_report', 'hr_ops_sink_strict'],
   },
 ];
 
@@ -934,6 +949,65 @@ export const PATCHES = [
     'hr_partied(uuid,integer)',
 `,
     where: 'after',
+  },  /* ── LINK 15 — hr_ops STAYS A SINK (four insertions, no removal) ─────── */
+  {
+    id: 'hr_ops_sink_decl',
+    name: 'the declare block (link 15: v_ops_reach)',
+    find: '  v_ungated       jsonb;   -- A9: client-callable SECURITY DEFINER with no rate gate\n',
+    add: '  v_ops_reach     jsonb;   -- T-5: the pg_net sink hr_ops reachable by a client/engine role\n',
+    where: 'after',
+  },
+  {
+    id: 'hr_ops_sink_check',
+    name: 'check (9), before the report is built (link 15)',
+    find: '  v_report := jsonb_build_object(\n',
+    add: `  -- (9) T-5 — hr_ops STAYS A SINK (2026-09-28). hr_ops holds the operator-only
+  --     routines that read net._http_response, a table PUBLIC can read and our
+  --     roles cannot revoke. Keeping hr_ops out of PostgREST's exposed list is
+  --     half the property; the other half is that no client or engine role can
+  --     USE the schema, CREATE in it, or EXECUTE anything in it — reachability
+  --     is the arming condition. tests/pg-net-queue-unreachable.mjs Q-5 guards
+  --     the repo; this asks the CATALOGUE, so a grant typed in the dashboard, by
+  --     support or by a platform migration is a finding by the next nightly run.
+  --     The roles are the six the sink was built against: PUBLIC, anon,
+  --     authenticated, service_role, hr_engine, hr_tick. A role that does not
+  --     exist is skipped (this file must stand alone), and so is a database
+  --     with no hr_ops at all: no sink, nothing to reach. prokind is NOT
+  --     filtered — a procedure or an aggregate in hr_ops is reachable too.
+  if exists (select 1 from pg_namespace where nspname = 'hr_ops') then
+    select coalesce(jsonb_agg(x.g order by x.g), '[]'::jsonb) into v_ops_reach from (
+      select 'schema:' || r.role || ':' || pv as g
+        from (values ('public'),('anon'),('authenticated'),('service_role'),('hr_engine'),('hr_tick')) r(role)
+        cross join unnest(array['USAGE','CREATE']) pv
+       where (r.role = 'public' or exists (select 1 from pg_roles where rolname = r.role))
+         and has_schema_privilege(r.role, 'hr_ops', pv)
+      union all
+      select p.oid::regprocedure::text || ':' || r.role
+        from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+        cross join (values ('public'),('anon'),('authenticated'),('service_role'),('hr_engine'),('hr_tick')) r(role)
+       where n.nspname = 'hr_ops'
+         and (r.role = 'public' or exists (select 1 from pg_roles where rolname = r.role))
+         and has_function_privilege(r.role, p.oid, 'execute')) x;
+  else
+    v_ops_reach := '[]'::jsonb;
+  end if;
+
+`,
+    where: 'before',
+  },
+  {
+    id: 'hr_ops_sink_report',
+    name: 'the report object (link 15: hr_ops_reachable)',
+    find: "    'ungated_client_rpcs',             v_ungated);\n",
+    add: "    'hr_ops_reachable',                v_ops_reach,\n",
+    where: 'before',
+  },
+  {
+    id: 'hr_ops_sink_strict',
+    name: 'the strict-mode raise condition (link 15)',
+    find: '                or jsonb_array_length(v_ungated) > 0) then\n',
+    add: '                or jsonb_array_length(v_ops_reach) > 0\n',
+    where: 'before',
   },
 ];
 

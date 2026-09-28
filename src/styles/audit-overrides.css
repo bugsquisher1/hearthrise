@@ -90,7 +90,9 @@
   left: auto !important;
   bottom: auto !important;
   z-index: 9996;
-  max-width: 240px !important;
+  /* 280, not 240: "Achievement unlocked!" holds one line with margin in the
+     fallback face too, and the longest batch name ("… and N more") takes two. */
+  max-width: min(280px, calc(100vw - 40px)) !important;
   font-size:calc(14.5px * var(--ui-scale, 1)) !important;
 }
 .lvl-celebration {

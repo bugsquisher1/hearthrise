@@ -671,7 +671,9 @@ function ensureCharStyle() {
     R + '.cr-acct-cell.reveal{cursor:pointer;transition:border-color .12s}',
     R + '.cr-acct-cell.reveal:hover{border-color:var(--gold-2)}',
     '@media (max-width:640px){' + R + '.cr-acct-grid{grid-template-columns:repeat(2,1fr)}}',
-    R + '.cr-acct-foot{display:flex;justify-content:flex-end;margin-top:10px}',
+    // The right 61px of a desktop viewport is the fixed fab column (#hr-bug-btn over
+    // the #chat-dock pill); the foot's right padding keeps the door clear of it.
+    R + '.cr-acct-foot{display:flex;justify-content:flex-end;margin-top:10px;padding-right:56px}',
     R + '.cr-acct-foot .btn{min-height:44px;display:inline-flex;align-items:center;gap:6px}',
     // Equipment sub-tab
     R + '#char-equip{display:flex;flex-direction:column;gap:12px;align-items:center}',

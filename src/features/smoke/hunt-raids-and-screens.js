@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 131 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays } from './_harness.js?v=559';
+import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays, phoneFrame } from './_harness.js?v=559';
 
 /* DEEPWATERS fixture (content pack 8). Bonus-free and gear-free — getBonus and
    the rested quantum pinned to 0 and an EMPTY equipment stat block (Timberline
@@ -1227,7 +1227,7 @@ export default [
     const beforeToasts = document.querySelectorAll('.ach-toast').length;
     window.showAchToast({ icon: '🏆', name: 'Smoke Test Trophy' });
     const toasts = document.querySelectorAll('.ach-toast');
-    assert(toasts.length === beforeToasts + 1, 'showAchToast did not append a .ach-toast');
+    assert(toasts.length === 1, 'showAchToast must leave exactly one .ach-toast (it replaces, never stacks), found ' + toasts.length + ' (had ' + beforeToasts + ')');
     const toast = toasts[toasts.length - 1];
     assert(toast.innerHTML.indexOf('Smoke Test Trophy') >= 0, 'toast did not render the achievement name');
     toast.remove(); // don't leave it lingering for the 4.2s timer
@@ -1242,6 +1242,77 @@ export default [
     assert(list && list.querySelectorAll('.ach-row').length === window.ACHIEVEMENTS.length,
       'modal must render one .ach-row per catalogue entry');
     ov.classList.remove('show');
+  }),
+
+  /* ── regression suite — DEEDS-POLISH: THE DEED SURFACES, MEASURED ──────────
+     Found by the visual gate: (1) the unlock toast wrapped to
+     four lines because the generic activity-tile `.at-icon{flex:1;width:100%}`
+     gave the glyph half the 240px card; (2) a second toast landed exactly on the
+     first; (3) the reused #ach-list reopened at the last scroll (3310px);
+     (4) the fixed bug-report fab and chat pill sat over the right end of the
+     Character > Lifetime Stats door. Rects are read in 1280x800 and 922x423
+     frames (phoneFrame: media queries grade against the frame's own viewport). */
+  () => tryRun('DEEDS-POLISH: one-line toast title, one toast at a time, the sheet opens at the top, the Lifetime Stats door clears the fabs', () => {
+    const SIZES = [[1280, 800], [922, 423]];
+    const hits = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+    const bad = [];
+    const prevTab = window.activeTab;
+    try {
+      // (2) two crossings inside 100ms: never two overlapping toasts.
+      document.querySelectorAll('.ach-toast').forEach((t) => t.remove());
+      window.showAchToast({ glyph: 'uiTrophy', name: 'Hero of the Realm' });
+      window.showAchToast({ glyph: 'uiTrophy', name: 'Hero of the Realm and 2 more' });
+      const live = [...document.querySelectorAll('.ach-toast')];
+      assert(live.length >= 1, 'showAchToast drew no toast');
+      for (let i = 0; i < live.length; i++) for (let j = i + 1; j < live.length; j++) {
+        if (hits(live[i].getBoundingClientRect(), live[j].getBoundingClientRect())) bad.push('two unlock toasts overlap (' + i + ' and ' + j + ' of ' + live.length + ')');
+      }
+      // (1) the batch toast, as painted, measured at both sizes.
+      const toast = live[live.length - 1].outerHTML;
+      live.forEach((t) => t.remove());
+      for (const [w, h] of SIZES) phoneFrame(w, h, toast, (doc) => {
+        const b = doc.querySelector('.ach-toast .at-text b'), sm = doc.querySelector('.ach-toast .at-text small');
+        assert(b && sm, 'the ' + w + 'x' + h + ' frame drew no toast title/name');
+        const lh = (el) => { const c = doc.defaultView.getComputedStyle(el); return parseFloat(c.lineHeight) || parseFloat(c.fontSize) * 1.2; };
+        const bh = b.getBoundingClientRect().height, sh = sm.getBoundingClientRect().height;
+        if (b.getClientRects().length > 1 || bh > 1.5 * lh(b)) bad.push(w + 'x' + h + ': the toast title wraps (' + b.getClientRects().length + ' lines, ' + Math.round(bh) + 'px)');
+        if (sh > 2.5 * lh(sm)) bad.push(w + 'x' + h + ': the toast name takes ' + Math.round(sh / lh(sm)) + ' lines');
+      });
+      // (3) the reused sheet reopens at the top.
+      window.openAchievements();
+      const list = document.getElementById('ach-list');
+      list.scrollTop = 2000;
+      assert(list.scrollTop > 0, 'the probe could not scroll #ach-list (scrollHeight ' + list.scrollHeight + ', clientHeight ' + list.clientHeight + ') — the reopen check would prove nothing');
+      document.getElementById('ach-overlay').classList.remove('show');
+      window.openAchievements();
+      if (list.scrollTop !== 0) bad.push('the Achievements sheet reopened at scrollTop ' + list.scrollTop);
+      document.getElementById('ach-overlay').classList.remove('show');
+      // (4) the door and the fixed fabs. y is the player's scroll, so the door must
+      // be clear of every fab's COLUMN, which is no rect overlap at any scroll.
+      window.showTab('character');
+      const app = document.getElementById('app'), bug = document.getElementById('hr-bug-btn'), dock = document.getElementById('chat-dock');
+      assert(app && document.querySelector('#app .cr-acct-foot .btn'), 'Character > Hero drew no Lifetime Stats door');
+      assert(bug, 'the bug-report fab (#hr-bug-btn) is not mounted');
+      const nav = document.getElementById('bottom-nav');
+      const chrome = app.outerHTML.replace(/<script[\s\S]*?<\/script>/gi, '') + bug.outerHTML + (dock ? dock.outerHTML : '')
+        + (nav && !app.contains(nav) ? nav.outerHTML : '');
+      for (const [w, h] of SIZES) phoneFrame(w, h, chrome, (doc) => {
+        const door = doc.querySelector('.cr-acct-foot .btn').getBoundingClientRect();
+        assert(door.width > 0, 'the ' + w + 'x' + h + ' frame drew no Lifetime Stats door');
+        const fabs = [['#hr-bug-btn', doc.getElementById('hr-bug-btn')], ['#chat-dock-min', doc.getElementById('chat-dock-min')], ['#btn-chat-mobile', doc.getElementById('btn-chat-mobile')]];
+        for (const [name, el] of fabs) {
+          const f = el ? el.getBoundingClientRect() : null;
+          if (!f || !f.width || !f.height) continue;
+          const column = { left: f.left, right: f.right, top: -1e6, bottom: 1e6 };
+          if (hits(door, column)) bad.push(w + 'x' + h + ': the Lifetime Stats door (x ' + Math.round(door.left) + '–' + Math.round(door.right) + ') runs under ' + name + ' (x ' + Math.round(f.left) + '–' + Math.round(f.right) + ')');
+        }
+      });
+    } finally {
+      document.querySelectorAll('.ach-toast').forEach((t) => t.remove());
+      try { if (prevTab && prevTab !== 'character') window.showTab(prevTab); } catch (e) {}
+      closeOverlays();
+    }
+    assert(bad.length === 0, 'THE DEEDS-POLISH BUG: ' + bad.join('; '));
   }),
 
   () => tryRun('DEEDS-A: a deed is graded on the reader it is handed, and unknown is the pending dash', () => {

@@ -35,7 +35,10 @@
     return (window.HR && window.HR.icon) ? (window.HR.icon(key, px || 22, '--gold-2') || '') : '';
   };
 
+  /* ONE honest toast: a second crossing REPLACES the first rather than landing on
+     top of it (the deeds watcher's batch form already says "and N more"). */
   function showAchToast(a) {
+    document.querySelectorAll('.ach-toast').forEach(function (old) { old.remove(); });
     var t = document.createElement('div');
     t.className = 'ach-toast';
     t.innerHTML = '<span class="at-icon">' + window.achievementGlyphHTML(a, 20) + '</span><div class="at-text"><b>Achievement unlocked!</b><small>' + a.name + '</small></div>';
@@ -55,7 +58,7 @@
       document.body.appendChild(ov);
     }
     var list = document.getElementById('ach-list');
-    if (!D) { list.innerHTML = ''; ov.classList.add('show'); return; }
+    if (!D) { list.innerHTML = ''; ov.classList.add('show'); list.scrollTop = 0; return; }
     var readers = D.readers();
     list.innerHTML = D.groups.map(function (g) {
       var rows = D.rows.filter(function (a) { return a.group === g[0]; });
@@ -69,6 +72,8 @@
       }).join('');
     }).join('');
     ov.classList.add('show');
+    // The sheet is reused: every open starts at the top, never where the last one left off.
+    list.scrollTop = 0;
   }
   window.openAchievements = openAchievements;
 

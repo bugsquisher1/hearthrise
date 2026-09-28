@@ -2193,7 +2193,8 @@ body[data-theme="dark"] .lane1-toggle{
 .ach-row .ach-progress{font-size:calc(14.5px * var(--ui-scale, 1));font-weight:800;color:var(--gold-2);text-align:right;flex-shrink:0}
 .ach-row.unlocked .ach-progress::after{content:" ✓"}
 .ach-toast{position:fixed;top:80px;right:20px;z-index:9996;padding:10px 14px;background:linear-gradient(180deg,#5b2618,#3a1812);border:2px solid var(--gold-2);border-radius:8px;color:var(--gold-2);font-weight:800;display:flex;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.4),0 0 0 1px rgba(0,0,0,.4) inset;animation:ach-slide 4s ease-out forwards;max-width:300px}
-.ach-toast .at-icon{font-size:calc(28px * var(--ui-scale, 1))}
+/* the generic activity-tile .at-icon is flex:1 + width:100%; in the toast the icon column is only as wide as its glyph */
+.ach-toast .at-icon{font-size:calc(28px * var(--ui-scale, 1));flex:0 0 auto;width:auto;margin:0}
 .ach-toast .at-text{flex:1;font-size:calc(14.5px * var(--ui-scale, 1))}
 .ach-toast .at-text small{display:block;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-2);font-weight:600;margin-top:2px}
 @keyframes ach-slide{

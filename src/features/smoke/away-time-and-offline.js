@@ -7169,13 +7169,14 @@ export default [
     } finally { R.getPerks = gp; }
   }),
 
-  () => tryRun('OFFLINE-CAP-1b: the banking row prints the server cap, or the pending mark when unknown', () => {
+  () => tryRun('OFFLINE-CAP-1b: the banking row prints the server cap, or the pending sentence when unknown', () => {
     const H = window.HearthriseHome;
     const row = (min) => withCap(min, () => String(H.__awayBankingRow({ activeMonster: 'slime' })));
     const known = row(900).replace(/<[^>]*>/g, ' ');
     assert(/up to 15h/.test(known), 'the row must print the server cap (15h): ' + known);
     const unknown = row(null);
-    assert(/bal-pending/.test(unknown), 'an unknown cap must render the pending mark: ' + unknown);
+    // NIGHT-PLAN-PENDING-COPY: pending is its own sentence, not a dash mid-sentence.
+    assert(/the limit is being confirmed/.test(unknown), 'an unknown cap must read as pending: ' + unknown);
     assert(!/\b0h\b|12h|null|NaN/.test(unknown.replace(/<[^>]*>/g, ' ')), 'an unknown cap printed a number: ' + unknown);
   }),
 

@@ -1201,7 +1201,8 @@ body.in-combat #panel-combat .fs-style .combat-style-block .csb-btn small {
    * it back; three lines is the least that is worth watching. */
   flex: 0 1 clamp(110px, 20vh, 210px); min-height: 96px;
   display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px;
-  padding: 0 14px 10px; position: relative; z-index: 1;
+  /* The right edge clears the fixed bug/chat FAB column, so no line runs under it. */
+  padding: 0 56px 10px 14px; position: relative; z-index: 1;
 }
 #panel-combat[data-combat-view="fight"] #combat-area {
   min-height: 0; overflow-y: auto; display: flex; flex-direction: column;

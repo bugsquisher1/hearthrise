@@ -3089,6 +3089,47 @@ export default [
     }
   }),
 
+  /* DGN-KEY-SERVER-2 (regression, visual pass 8): in fallback fonts the Crypt card
+     wrapped "(have" and "—)" onto two lines, the pending dash orphaned. The count
+     run is one unbreakable phrase. MUTATION: drop .dgn-key-stock's nowrap, red. */
+  () => tryRun('DGN-KEY-SERVER-2: the "(have …)" key count never breaks across lines at any card width', () => {
+    const A = window.HearthriseAccrual, id = 'crypt_of_bones', d = window.DUNGEONS && window.DUNGEONS[id];
+    if (!A || !d || !document.getElementById('panel-dungeons') || typeof window.renderDungeons !== 'function') return;
+    const G = window.G, snap = snapshotG(), lvl = window.getCombatLevel, bagWas = G._serverBag, bad = [];
+    const box = document.createElement('div');
+    box.setAttribute('style', 'position:fixed;left:0;top:0;visibility:hidden');
+    document.body.appendChild(box);
+    const sweep = (label) => {
+      window.renderDungeons();
+      const c = [...document.querySelectorAll('#panel-dungeons .dgn-card')]
+        .find((e) => (e.querySelector('.dgn-name') || {}).textContent === d.name);
+      const cost = c && c.querySelector('.dgn-cost');
+      assert(cost && cost.querySelector('.dgn-key-stock'), label + ': the card prints no key count');
+      box.innerHTML = '';
+      box.appendChild(cost.cloneNode(true));
+      const stock = box.querySelector('.dgn-key-stock');
+      for (let w = 40; w <= 400; w += 2) {
+        box.style.width = w + 'px';
+        const lines = new Set([...stock.getClientRects()].map((r) => Math.round(r.top))).size;
+        if (lines > 1) { bad.push(label + ' at ' + w + 'px: "' + stock.textContent + '" on ' + lines + ' lines'); break; }
+      }
+    };
+    try {
+      window.getCombatLevel = () => 99;
+      Object.assign(G, { inventory: Object.assign({}, G.inventory, { bone_key: 3 }), _dungeonCooldowns: {} });
+      delete G._serverBag;
+      sweep('unstated');
+      A.applyEnvelopeState(G, { state: {}, inventory: { bone_key: 2 } });
+      sweep('stated');
+    } finally {
+      box.remove();
+      window.getCombatLevel = lvl;
+      if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
+      restoreG(snap);
+    }
+    assert(bad.length === 0, 'THE VG8 ORPHANED-DASH BUG: ' + bad.join('; '));
+  }),
+
   /* DGN-SCRIP-PENDING-1 (regression, visual pass 7 on b560): armed with no envelope
      ever stating scrip, the Dungeons strip printed "0 Dungeon Scrip" and the
      Quartermaster "You have 0". §6: an unstated balance is the pending dash, and

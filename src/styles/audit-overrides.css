@@ -1290,6 +1290,8 @@ body.in-combat #combat-area {
   color: var(--ink-3);
 }
 .dgn-cost b { color: var(--gold-2); }
+/* "(have —)" is one phrase: the pending dash is an inline-block, so a space alone cannot hold it. */
+.dgn-key-stock { white-space: nowrap; }
 .dgn-run {
   background: linear-gradient(180deg, #d9b361 0%, #c09539 52%, #a67c28 100%);
   color: #fff;

@@ -864,8 +864,10 @@
       /* The number only when the credited span IS the server's cap. */
       var capH = awayCapHours();
       var atCap = capH != null && isFinite(off.awayMs) && Math.abs(off.awayMs - capH * 3600000) < 60000;
+      /* The part of the absence the cap refused, as the server stated it. */
+      var unpaid = Number(off.unpaidMs) >= 60000 ? ' — ' + fmtSpanShort(off.unpaidMs) + ' of your absence went unpaid.' : '.';
       notes.push({ tone: 'held', icon: 'uiClock',
-        text: atCap ? 'Capped at your ' + capH + 'h away limit.' : 'Capped at your away limit.' });
+        text: (atCap ? 'Capped at your ' + capH + 'h away limit' : 'Capped at your away limit') + unpaid });
     }
 
     var noteHtml = notes.map(function (n) {
@@ -898,6 +900,9 @@
     var srcHtml = earnedWhile
       ? '<div class="hd-away-src">Earned while ' + esc(earnedWhile) + '.</div>' : '';
 
+    var ledgerHtml = '';
+    try { ledgerHtml = window.HearthriseAwayLedger.html(off) || ''; } catch (e) { ledgerHtml = ''; }
+
     var LF = window.HearthriseLuckyFinds, lfBand = '';
     try { lfBand = (LF && typeof LF.awayBandHtml === 'function' && LF.awayBandHtml()) || ''; } catch (e) { lfBand = ''; }
     return '<div class="hd-awayband"><div class="hd-h"><h3>While you were away</h3></div>' + lfBand +
@@ -909,7 +914,7 @@
               (bits.length ? ' — ' + esc(bits.join(' · '))
                 : (quiet ? ' — your camp was quiet.' : '')) + '</div>' +
             (combatBits.length ? '<div class="hd-away-fight">' + esc(combatBits.join(' · ')) + '</div>' : '') +
-            srcHtml +
+            srcHtml + ledgerHtml +
           '</div>' +
         '</div>' +
         '<div class="hd-away-notes">' + noteHtml + nightDoors + ctaHtml + '</div>' +

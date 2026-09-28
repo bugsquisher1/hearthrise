@@ -1423,6 +1423,21 @@ jobs:
           node tests/world-tick-stall-after-repoint.mjs
           node tests/world-tick-stall-after-repoint.mjs --mutate
 
+      # A STALLED TICK IS RED FROM THE DATABASE ALONE (2026-09-28). The 22 h
+      # stall above read green on every cron-grain query because the edge's
+      # verdict lived only in pg_net's ~6 h response table.
+      # 2026-09-28-world-tick-stall-observability.sql folds it into
+      # hr_tick_cron_log.detail.edge and states "rostered >= 1 and shadow
+      # rows/h < 30 for 2 h => stalled" as hr_tick_stall_status(). This proves
+      # both on planted histories plus a byte-identical second apply;
+      # --selftest re-creates one function at a time with a load-bearing line
+      # broken and requires its arm red.
+      - name: World tick — a stall is red from the database alone
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-stall-guard.mjs
+          node tests/world-tick-stall-guard.mjs --selftest
+
       # EC-3d, the control, carries its own proof since 2026-09-22. It shipped
       # asserting the literal `+00:00` on the accrue path's rendering, which is
       # the replay session's TimeZone talking — PGlite takes that GUC from the

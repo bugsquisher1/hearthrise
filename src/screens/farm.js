@@ -320,6 +320,10 @@ function farmSyncHarvest(plotIdx){
       if(!G.farmPlots[plotIdx] && window.HearthriseAuto && typeof window.HearthriseAuto.maybeReplant==='function'){
         window.HearthriseAuto.maybeReplant(plotIdx, G);
       }
+    } else {
+      /* A settle refusal survived its one retry (src/net/settle-first.js): say the realm's words. */
+      const _sf=window.HearthriseSettleFirst&&window.HearthriseSettleFirst.settleRefusalText(res);
+      if(_sf) notify(_sf,'info');
     }
     window.renderFarm();updateTopbar();
   });
@@ -501,7 +505,7 @@ function renderFarm(){
       const wet=!ready&&plotWindowMs(p)>0;
       const action=ready?`harvestPlot(${i})`:`waterPlot(${i})`;
       const title=ready?'Harvest':(wet?'Watered — growing at double speed':'Water this plot: double growth for 2 hours');
-      return `<div class="farm-tile ${ready?'ready':''} ${wet?'watered':''}" data-plot="${i}" onclick="${action}" title="${title}"><span class="ft-crop">${itemArt(crop.prod, 44)}</span><small class="ft-lab">${farmPlotLabel(p)}</small>${ready?'':`<span class="ft-bar"><i style="width:${pct}%"></i></span><small class="ft-sub">${farmPlotSub(p)}</small>`}</div>`;
+      return `<div class="farm-tile ${ready?'ready':''} ${wet?'watered':''}" data-plot="${i}"${ready?' data-hr-settle-latch':''} onclick="${action}" title="${title}"><span class="ft-crop">${itemArt(crop.prod, 44)}</span><small class="ft-lab">${farmPlotLabel(p)}</small>${ready?'':`<span class="ft-bar"><i style="width:${pct}%"></i></span><small class="ft-sub">${farmPlotSub(p)}</small>`}</div>`;
     }).join('')}
   </div>`;
 

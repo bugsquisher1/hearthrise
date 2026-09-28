@@ -3260,3 +3260,8 @@ body[data-theme="hearthlight"] .ftue-card {
 }
 body[data-theme="hearthlight"] .ftue-card * { color: var(--ink) !important; }
 body[data-theme="hearthlight"] .ftue-card .ftue-title { color: var(--gold-2) !important; }
+
+/* THE BOOT-SETTLE LATCH (src/net/settle-first.js). A claim/shop control the
+   server would refuse until its first settle answers renders pending, not live. */
+[data-hr-latched] { cursor: progress; opacity: .6; }
+button[data-hr-latched]::after { content: " \2026"; }

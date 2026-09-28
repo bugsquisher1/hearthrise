@@ -548,7 +548,10 @@
     network: 'Could not reach the server — try again in a moment'
   };
   function strikeErrorText(err) { return STRIKE_ERRORS[err] || 'Strike failed — the boss is untouched'; }
-  function claimErrorText(err) { return CLAIM_ERRORS[err] || 'The server refused that claim'; }
+  function claimErrorText(err) {
+    var SF = window.HearthriseSettleFirst, sf = SF && SF.settleRefusalText && SF.settleRefusalText({ error: err });
+    return sf || CLAIM_ERRORS[err] || 'The server refused that claim';
+  }
   function declareErrorText(err) { return DECLARE_ERRORS[err] || 'The server refused that declaration'; }
 
   /* ══════════════════════════════════════════════════════════════
@@ -957,7 +960,10 @@
     if (rpcMissing('raid_claim')) return { action: 'unsupported' };
     var r;
     try {
-      r = await rpc('raid_claim', { p_scope: scope, p_clan_id: clanId || null, p_week: wk, p_slot: activeSlot() });
+      var SF = window.HearthriseSettleFirst;
+      var claimBody = { p_scope: scope, p_clan_id: clanId || null, p_week: wk, p_slot: activeSlot() };
+      var send = function () { return rpc('raid_claim', claimBody); };
+      r = await ((SF && SF.withSettleFirstRetry) ? SF.withSettleFirstRetry(send) : send());
     } catch (e) {
       return { action: 'fail', message: claimErrorText('network') };
     }
@@ -1242,7 +1248,7 @@
     var action = downed
       ? (claimed
         ? '<div class="tiny" style="color:var(--gold-2)">Chest claimed — a new quarry rises next week.</div>'
-        : '<button class="btn btn-primary btn-sm" onclick="window.HearthriseRaids.claim()">Claim raid chest</button>')
+        : '<button class="btn btn-primary btn-sm" data-hr-settle-latch onclick="window.HearthriseRaids.claim()">Claim raid chest</button>')
       : '<button class="btn ' + (struckToday ? '' : 'btn-primary') + ' btn-sm" ' + (struckToday ? 'disabled' : '') +
         ' onclick="window.HearthriseRaids.strike()">' +
         (struckToday ? 'Struck today — return tomorrow' : 'Strike the boss (1/day)') + '</button>';
@@ -1335,7 +1341,7 @@
         (downed
           ? (claimed
             ? '<div class="tiny" style="color:var(--gold-2)">Chest claimed — a new quarry rises next week.</div>'
-            : '<button class="btn btn-primary btn-sm" onclick="window.HearthriseRaids.claim()">Claim raid chest</button>')
+            : '<button class="btn btn-primary btn-sm" data-hr-settle-latch onclick="window.HearthriseRaids.claim()">Claim raid chest</button>')
           : '<button class="btn ' + (struckToday ? '' : 'btn-primary') + ' btn-sm" ' + (struckToday ? 'disabled' : '') +
             ' onclick="window.HearthriseRaids.strike()">' +
             (struckToday ? 'Struck today — return tomorrow' : 'Strike the boss (1/day)') + '</button>') +

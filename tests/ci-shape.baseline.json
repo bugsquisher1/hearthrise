@@ -193,6 +193,8 @@
     "node tests/no-duplicate-toplevel-fns.mjs": "client-guards",
     "node tests/quest-reward-parity.mjs": "client-guards",
     "node tests/quest-reward-parity.mjs --selftest": "client-guards",
+    "node tests/this-week.mjs": "client-guards",
+    "node tests/this-week.mjs --selftest": "client-guards",
     "node tests/item-flavour-coverage.mjs": "client-guards",
     "node tests/item-flavour-coverage.mjs --selftest": "client-guards",
     "node tests/lore-notes.mjs": "client-guards",

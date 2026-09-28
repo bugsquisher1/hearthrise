@@ -1259,17 +1259,24 @@
       }
     } catch (e) {}
 
-    /* b341: this read `today.xp`, falling back to `today.totalXp`. getTodayDelta()
-       returns NEITHER — the field is `xpGained` (profile-launchpad.js) — so the
-       tile printed a hardcoded 0 for every player forever, while the Kills tile
-       beside it read `today.kills`, which does exist. The visible symptom was the
-       ledger contradicting itself: "0 XP TODAY" sitting directly above a
-       welcome-back card reading "+15,000 XP". Away XP was never the problem; it
-       lands in G.skills and getTodayDelta counts it correctly. */
+    /* getTodayDelta() names the field `xpGained` (profile-launchpad.js). */
     var xp = today && (today.xpGained != null ? today.xpGained
       : (today.xp != null ? today.xp : today.totalXp));
-    var kills = today && (today.kills != null ? today.kills : (G.stats && G.stats.kills));
-    var harvest = today && (today.harvested != null ? today.harvested : today.gathered);
+    /* XP today is still a device baseline (a local-midnight snapshot); it shows
+       the pending dash until the balance is known. The two realm cells are the
+       server's UTC-day counters (HearthriseThisWeek), pending when unknown. */
+    var pend = function () { var HB = window.HearthriseBalance; return HB ? HB.countMarkup(null) : '<span class="bal-pending">—</span>'; };
+    var xpLed = '<div class="hd-led"><b>' + ((!today || (typeof window.balKnown === 'function' && !window.balKnown('gold')))
+      ? pend() : num(xp)) + '</b><span>XP today</span></div>';
+    function realmLeds() {
+      var TW = window.HearthriseThisWeek;
+      var cells = (TW && typeof TW.todayCells === 'function') ? TW.todayCells(TW.live())
+        : [{ label: 'Kills today' }, { label: 'Gold earned' }];
+      return cells.map(function (c) {
+        return '<div class="hd-led" title="' + esc(c.title || 'Since midnight UTC, as the realm counts it') + '"><b>' +
+          (c.html || pend()) + '</b><span>' + esc(c.label) + '</span></div>';
+      }).join('');
+    }
 
     /* b374 — the hearth band is now the PAINTED holding, not a flat-vector
        silhouette. It shares the login's dawn plate (assets/brand/
@@ -1322,18 +1329,12 @@
            what to do about it. */
         : 'Offline · reconnect to keep playing') + '</div>';
     html += '</div></div>';
-    html += '<div class="hd-ledger">' +
-      '<div class="hd-led"><b>' + (xp != null ? num(xp) : '0') + '</b><span>XP today</span></div>' +
-      '<div class="hd-led"><b>' + (kills != null ? num(kills) : '0') + '</b><span>Kills</span></div>' +
-      '<div class="hd-led"><b>' + (harvest != null ? num(harvest) : '0') + '</b><span>Harvest</span></div>' +
+    html += '<div class="hd-ledger">' + xpLed + realmLeds() +
       '</div>';
     html += '</div></div>';
     // Mobile-only copy of the daily ledger (in-band .hd-ledger is hidden on
-    // phones by the media query above); keeps XP/Kills/Harvest visible.
-    html += '<div class="hd-ledger-m">' +
-      '<div class="hd-led"><b>' + (xp != null ? num(xp) : '0') + '</b><span>XP today</span></div>' +
-      '<div class="hd-led"><b>' + (kills != null ? num(kills) : '0') + '</b><span>Kills</span></div>' +
-      '<div class="hd-led"><b>' + (harvest != null ? num(harvest) : '0') + '</b><span>Harvest</span></div>' +
+    // phones by the media query above); keeps the same three cells visible.
+    html += '<div class="hd-ledger-m">' + xpLed + realmLeds() +
       '</div>';
 
     // ── grid ──
@@ -1704,6 +1705,7 @@
       } catch (e) { /* world events optional */ }
     }
 
+    try { var TW2 = window.HearthriseThisWeek; if (TW2 && typeof TW2.card === 'function') html += TW2.card(); } catch (e) { /* display only */ }
     // Upkeep — buffs + collection progress. Two one-line facts, not two cards.
     /* THE BUFF LADDER — the only VISIBLE buff surface (the Active Effects card
        `__renderBuffsSection` draws into is display:none on Home), so each row states

@@ -78,12 +78,14 @@ export function check(d) {
   }
   for (const r of d.today) if (!g.daily.includes(r.goal)) add('WEEK-2', `THIS_WEEK_TODAY goal ${r.goal} is not a daily id`);
 
-  const labels = new Set();
-  for (const r of [...d.week, ...d.today]) {
-    const s = typeof r.label === 'string' ? r.label : '';
-    if (s.length < 3 || s.length > 24 || !/^[A-Za-z' ]+$/.test(s)) add('WEEK-3', `${r.goal} label ${JSON.stringify(s)} is not 3-24 letters`);
-    if (labels.has(s)) add('WEEK-3', `${r.goal} label "${s}" is not unique`);
-    labels.add(s);
+  for (const rows of [d.week, d.today]) {   // unique within the card, and within the band
+    const labels = new Set();
+    for (const r of rows) {
+      const s = typeof r.label === 'string' ? r.label : '';
+      if (s.length < 3 || s.length > 24 || !/^[A-Za-z' ]+$/.test(s)) add('WEEK-3', `${r.goal} label ${JSON.stringify(s)} is not 3-24 letters`);
+      if (labels.has(s)) add('WEEK-3', `${r.goal} label "${s}" is not unique`);
+      labels.add(s);
+    }
   }
 
   const vocab = d.vocab.map((w) => [w, new RegExp(`(^|[^A-Za-z])${reEsc(w)}($|[^A-Za-z])`, 'i')]);

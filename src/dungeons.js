@@ -502,9 +502,8 @@
      hr_dungeon_settle debits the key from `player_inventory`, which is exactly
      what `hr_state_of` projects and `serverItemCount` mirrors — so the count the
      card prints and the count the gate reads are now the count the RPC will
-     check. Fail-OPEN while the server has not stated a bag yet (null: a boot
-     before the first settle, a test harness, an offline tab): a gesture is never
-     disabled on silence, only on the server saying none. */
+     check. NULL while the server has not stated a bag (visual pass 9 ruling): the
+     run buttons render PENDING, never the display bag's count. */
   function keyHeld(id){
     var A = window.HearthriseAccrual;
     if(A && typeof A.gateItemCount === 'function') return A.gateItemCount(window.G, id);
@@ -524,7 +523,9 @@
     if(d.cost.key){
       var keyItem = window.ITEMS && window.ITEMS[d.cost.key];
       var keyName = keyItem ? keyItem.n : d.cost.key;
-      if(keyHeld(d.cost.key) < 1){
+      var held = keyHeld(d.cost.key);
+      if(held === null) return { ok: false, pending: true, reason: 'The realm is counting your keys…' };
+      if(held < 1){
         return { ok: false, reason: 'Need a ' + keyName };
       }
     }
@@ -704,8 +705,7 @@
              used to print `G.inventory[key]`, which is how it came to say
              "(have 2)" about a key the server had no row for. The LABEL reads the
              stated bag only (§6, visual pass 5): an unstated bag is the pending
-             dash, the same as Home's "Bone Key held: —", never keyHeld()'s
-             fail-open display-bag fallback, which is for the gate alone. */
+             dash, the same as Home's "Bone Key held: —". */
           var A = window.HearthriseAccrual, BAL = window.HearthriseBalance;
           var srvKeys = (A && typeof A.serverItemCount === 'function') ? A.serverItemCount(window.G, d.cost.key) : null;
           var owned = (BAL && typeof BAL.countMarkup === 'function') ? BAL.countMarkup(srvKeys) : (srvKeys == null ? '—' : srvKeys);
@@ -733,7 +733,7 @@
           costStr = 'free';
         }
         html +=
-          '<div class="dgn-card' + (check.ok ? '' : ' locked') + '">' +
+          '<div class="dgn-card' + (check.ok || check.pending ? '' : ' locked') + '">' +
             '<div class="dgn-head">' +
               '<div class="dgn-icon">' + dgnGlyph(id, d) + '</div>' +
               '<div class="dgn-title">' +
@@ -769,6 +769,12 @@
                 var hasManual = !!(d.phases || (window.SCAVENGER_CONFIGS && window.SCAVENGER_CONFIGS[id]));
                 var mMode = manualMode(id);
                 var mCheck = hasManual ? canRun(id, mMode) : { ok: false, reason: check.reason };
+                /* Unstated bag: BOTH buttons pending (.bal-pending), never "Need a key". */
+                var pendBtn = function(label){
+                  return '<button class="dgn-run bal-pending" disabled data-pending="keys" role="status" title="' + label + ' · ' + check.reason + '">'
+                    + label + ' · counting…</button>';
+                };
+                if(check.pending) return '<div class="dgn-run-buttons">' + (hasManual ? pendBtn('Manual Run') : '') + pendBtn('Auto-Run') + '</div>';
                 var autoBtn = check.ok
                   ? '<button class="dgn-run dgn-run-auto" data-dgn="' + id + '" title="Auto-run · full Dungeon Scrip; the chest is rolled by the realm · then the dungeon rests ' + d.cooldownH + 'h">Auto-Run</button>'
                   : '<button class="dgn-run" disabled title="' + check.reason + '">' + check.reason + '</button>';

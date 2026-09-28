@@ -887,11 +887,12 @@
        display bag whose counts the envelope's merge can never lower, so a
        spent-out seed still read "have 5" here and every replant went out to be
        refused with `insufficient_seed`. One rule, shared — see accrue.js
-       gateItemCount / legacy.js heldByServer. */
+       gateItemCount / farm.js heldByServer. Unstated (null): wait, quietly. */
     var A = window.HearthriseAccrual;
     var have = (A && typeof A.gateItemCount === 'function')
       ? A.gateItemCount(G, crop.seed)
       : ((G.inventory && G.inventory[crop.seed]) | 0);
+    if(have === null) return false;
     if(have <= 0){
       say('Auto-replant: out of ' + (crop.name || fr.cropId) + ' seeds');
       return false;

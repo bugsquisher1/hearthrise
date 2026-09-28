@@ -2,7 +2,7 @@
 // tests/world-tick-stall-after-repoint.mjs — REGRESSION (2026-09-28)
 //
 //   node tests/world-tick-stall-after-repoint.mjs            green = the tick resumes
-//   node tests/world-tick-stall-after-repoint.mjs --mutate   the fix reverted: must be RED
+//   node tests/world-tick-stall-after-repoint.mjs --mutate   the fix reverted: R-G-a/R-C-a must go red (exit 0 when they do)
 //
 // THE PRODUCTION FINDING (read-only status pass, 2026-09-28 03:24Z). Two
 // rostered characters, the cron posting every 10 s with HTTP 200, and ZERO
@@ -48,7 +48,7 @@
 // back by whole milliseconds (the fence and the engine read only differences
 // against now()).
 //
-// Exit: 0 green · 1 the tick stalls after a re-point · 2 harness.
+// Exit: 0 green (or, under --mutate, the mutant caught) · 1 red · 2 harness.
 // ============================================================================
 
 import { readFile, writeFile, cp, mkdtemp } from 'node:fs/promises';
@@ -270,9 +270,20 @@ await arm('R-G', U(2), 'gather', 'oak_tree', { microClock: true });
 await arm('R-C0', U(3), 'combat', 'slime', { microClock: false });
 await arm('R-C', U(4), 'combat', 'slime', { microClock: true });
 
-const tag = MUTATE ? ' [--mutate: fix reverted]' : '';
+/* --mutate is GREEN when the mutant is caught: the two production-clock arms
+   must go red and nothing else may (the controls stay green, which is what
+   names the sub-millisecond digits as the cause). */
+if (MUTATE) {
+  const want = ['R-G-a', 'R-C-a'];
+  const caught = want.every((id) => problems.includes(id))
+    && problems.every((id) => want.includes(id));
+  console.log(caught
+    ? `\nworld-tick-stall-after-repoint --mutate: green — reverting the fix turns ${want.join(', ')} red, and only those.`
+    : `\nworld-tick-stall-after-repoint --mutate: RED — the mutant was not caught as required; red arms: [${problems.join(', ')}], wanted exactly [${want.join(', ')}]`);
+  process.exit(caught ? 0 : 1);
+}
 if (problems.length) {
-  console.log(`\nworld-tick-stall-after-repoint: RED${tag} — ${problems.length} arm(s): ${problems.join(', ')}`);
+  console.log(`\nworld-tick-stall-after-repoint: RED — ${problems.length} arm(s): ${problems.join(', ')}`);
   process.exit(1);
 }
-console.log(`\nworld-tick-stall-after-repoint: green${tag} — a re-point's microsecond mark no longer stalls the tick.`);
+console.log('\nworld-tick-stall-after-repoint: green — a re-point\'s microsecond mark no longer stalls the tick.');

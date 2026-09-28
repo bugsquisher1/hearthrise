@@ -199,9 +199,9 @@ export function shadowTick(char, fromMs, toMs, catalogues, opts) {
        "the column does not exist for this character", and emitting the key
        against an hr_apply that does not implement it is a 409. */
     nodes: catalogues.nodes,
-    /* NOT from the envelope: `hr_perks_of` is its own read and the tick does
-       not make it yet, so this is undefined in production and a fixture's
-       pinned value offline. Under-paying, and named in the lane report. */
+    /* NOT from the envelope: `hr_perks_of` is its own read, made by tick.js
+       (1b) and carried on the session (2026-09-28); a fixture's pinned value
+       offline. Absent ⇒ zero perks, the under-paying direction. */
     perks: char.perks,
     /* `goals` WAS HERE AND WAS DEAD (removed 2026-09-22, milestone 3).
        `computeAccrual` builds its own counter — `const goals = makeGoalCounter()`

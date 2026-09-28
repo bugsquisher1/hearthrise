@@ -110,9 +110,9 @@ export const DEFAULT_FLUSH_MS = 90000;
      accrue path in index.ts calls with the same bytes; there is no second list
      to keep in step. (`goals` and `perks` were never inputs the ENVELOPE
      carries: computeAccrual builds its own goal counter, and perks come from
-     `hr_perks_of` — the tick does not read that channel yet, so a tick window
-     prices without perk bonuses, which is the under-paying direction. Named in
-     the report to Security rather than silently fixed here.)
+     `hr_perks_of`, which tick.js reads in its own statement and hands in as
+     `row.perks` since 2026-09-28 — before that a tick window priced without
+     perk bonuses, the −2.56% XP gap.)
 
    `version` is load-bearing and is NOT a game value: it is
    `player_state.version`, the number `hr_apply` refuses a stale copy of and the
@@ -139,6 +139,9 @@ export function sessionFromRoster(row, envelope) {
     activeSinceMs: Date.parse(row.active_since),
     accruedToMs: Date.parse(row.accrued_to),
     capMs: row.cap_ms == null ? undefined : Number(row.cap_ms),
+    /* `hr_perks_of`, read by the CALLER (tick.js (1b)) — not an envelope
+       field. Absent ⇒ undefined ⇒ zero perks, the under-paying direction. */
+    perks: row.perks,
   };
 }
 

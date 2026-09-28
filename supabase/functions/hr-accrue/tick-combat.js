@@ -291,7 +291,8 @@ export function sessionFromRoster(row, envelope) {
 
     /* ── THE TWO INPUTS THE ENVELOPE CANNOT CARRY ───────────────────────────
        `perks` is `hr_perks_of` and `bestiaryKills` is `hr_bestiary_of`, two
-       SEPARATE reads `index.ts` makes (:637) and no tick driver makes yet.
+       SEPARATE reads `index.ts` makes (:637). tick.js makes the perks read
+       since 2026-09-28 (its step (1b)); `hr_bestiary_of` is still not made.
        They used to be read off the envelope as `st.perks` / `st.bestiary_kills`
        — names that have never existed on either level, so both were `undefined`
        while LOOKING sourced. Named here, from the caller, so the day a driver

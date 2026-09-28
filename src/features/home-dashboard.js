@@ -1080,7 +1080,7 @@
      Returns null when there is no open chain, which is exactly when the card
      must not draw. `state` is one of:
        done       finished, and either paid or carrying nothing the server pays
-       claimable  finished, server-payable, `hr_claim_quest` has not confirmed
+       claimable  questClaimable: server count >= goal, server-payable, unconfirmed
        current    the FIRST open step
        ahead      an open step further down. NOT "locked" — every row in the
                   chain counts from the first minute, and a padlock would be
@@ -1104,8 +1104,14 @@
       if (!q) return;
       var goal = Math.max(1, Number(q.goal) || 0);
       var progress = Math.max(0, Math.min(goal, Number(q.progress) || 0));
+      /* CLAIM-FROM-SERVER: 'claimable' and the count come ONLY from the server's
+         projection (legacy.js questClaimable / hrQuestServerCount). A row marked
+         done locally that the server has not confirmed is still OPEN here, and
+         an unknown count is the pending dash (count null), never 0. */
+      var count = (typeof window.hrQuestServerCount === 'function') ? window.hrQuestServerCount(q) : null;
       var state;
-      if (q.done) state = (!q.claimed && questServerPays(q)) ? 'claimable' : 'done';
+      if (q.done && (q.claimed || !questServerPays(q))) state = 'done';
+      else if (q.done && typeof window.questClaimable === 'function' && window.questClaimable(q)) state = 'claimable';
       else if (currentIndex < 0) { state = 'current'; currentIndex = steps.length; }
       else state = 'ahead';
       steps.push({
@@ -1113,6 +1119,7 @@
         label: q.label || q.id,
         goal: goal,
         progress: progress,
+        count: count === null ? null : Math.min(goal, count),
         pct: Math.max(0, Math.min(100, Math.round((progress / goal) * 100))),
         state: state,
         reward: q.reward || {},
@@ -1175,7 +1182,9 @@
         ? (s.state === 'claimable'
             ? '<span class="r hd-fl-wait">Reward on the way</span>'
             : (reward ? '<span class="r">' + reward + '</span>' : '<span class="p">Done</span>'))
-        : '<span class="p">' + num(s.progress) + ' / ' + num(s.goal) + '</span>' +
+        : '<span class="p">' + (s.count === null
+            ? (window.HearthriseBalance?.countMarkup?.(null, { label: 'Not counted yet' }) ?? '—')
+            : num(s.count)) + ' / ' + num(s.goal) + '</span>' +
           (reward ? '<span class="r">' + reward + '</span>' : '');
       var r = questRoute(s.goalRow);
       out += '<div class="hd-card hd-quest hd-fl-row is-' + s.state + '" data-hd="fl" data-i="' + i + '"' +

@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 43 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, errorLog, stampBalanceLikeLoad, stampRecordLikeLoad, predZero, snapshotG, drain, stubSignedIn, restoreG, zeroRenownTerms, restoreRenownTerms, on, withClaimServer, goldOf, withServerBacked, hrCharmDriver, feedServerGoals, goalRow } from './_harness.js?v=559';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, errorLog, stampBalanceLikeLoad, stampRecordLikeLoad, predZero, snapshotG, drain, stubSignedIn, restoreG, zeroRenownTerms, restoreRenownTerms, on, withClaimServer, goldOf, withServerBacked, hrCharmDriver, feedServerGoals, goalRow, feedServerQuests } from './_harness.js?v=559';
 
 /* LEDGER OF FIRSTS — the collection-log rungs read the SERVER mirrors, which
    are `_` scratch outside snapshotG. Each test saves and restores them by
@@ -21,6 +21,26 @@ const saveMirrors = () => {
 const restoreMirrors = (saved) => {
   const G = window.G; if (!G || !saved) return;
   for (const k of MIRROR_KEYS) { if (saved[k]) G[k] = saved[k].v; else delete G[k]; }
+};
+/* CLAIM-FROM-SERVER-3/-4 rig: THE QUEST STEP (hr_claim_quest).
+   vitals 2026-09-28: `incomplete` on hr_claim_quest — first_cook counted LOCAL
+   cook events and fired the claim at local 5/5. A step completes, claims and
+   reads its number ONLY from the server's ev:<type> projection, stated through
+   feedServerQuests (the QA seam); local counts move the bar only. */
+const withQuestServer = async (counts, fn) => {
+  const snap = snapshotG(), GC = window.HearthriseGoalClaim, note = window.notify, calls = [];
+  let unfeed = feedServerQuests(counts);
+  try {
+    window.notify = () => {};
+    window.HearthriseGoalClaim = { isSignedIn: () => true, claimQuest: (id) => { calls.push(id); return new Promise(() => {}); } };
+    window.ensureRetentionState();
+    const q = window.G.quests.find((r) => r.id === 'first_cook');
+    Object.assign(q, { done: false, claimed: false, progress: 0 });
+    window.updateQuest('cooked', 5);                         // LOCAL 5/5
+    const step = () => { const m = window.HearthriseHome.__firstDayModel(), i = m.steps.findIndex((x) => x.id === 'first_cook');
+      return { s: m.steps[i], row: new DOMParser().parseFromString(window.HearthriseHome.__firstDayHtml(m), 'text/html').querySelector('.hd-fl-row[data-i="' + i + '"]') }; };
+    await fn(q, () => calls.filter((id) => id === 'first_cook').length, step, (c) => { unfeed(); unfeed = feedServerQuests(c); });
+  } finally { unfeed(); window.HearthriseGoalClaim = GC; window.notify = note; restoreG(snap); }
 };
 /* CLAIM-FROM-SERVER rig: an armed, signed-in goal claim whose LOCAL counters
    read kill_any 10/10 and whose SERVER goal state is `rows` (null = never
@@ -2422,6 +2442,26 @@ export default [
       assert(!chip || chip.textContent.trim().startsWith('—'), 'the strip chip shows the dash too, got: ' + (chip && chip.textContent));
       window.claimQuestReward('kill_any', false);
       assert(calls.length === 0 && window.questBadgeState().claimable === 0, 'nothing claims from unknown state');
+    });
+  }),
+
+  () => tryRunAsync('CLAIM-FROM-SERVER-3: quest step local 5/5 against server 3/5 is not claimable and fires nothing; server 5/5 fires once', async () => {
+    await withQuestServer({ 'ev:cooked': 3 }, async (q, calls, step, feed) => {
+      let st = step();
+      assert(!q.done && calls() === 0, 'THE BUG: local 5/5 completed first_cook and fired hr_claim_quest against server 3/5 (calls=' + calls() + ')');
+      assert(st.s.state !== 'claimable' && st.s.count === 3 && /3 \/ 5/.test(st.row.textContent), 'the step reads the server 3/5, got ' + st.row.textContent);
+      q.done = true; window.hrSweepUnclaimedQuests._at = 0; window.hrSweepUnclaimedQuests();
+      assert(calls() === 0 && !window.questClaimable(q), 'the sweep must not re-fire a server-incomplete step (calls=' + calls() + ')');
+      q.done = false; feed({ 'ev:cooked': 5 }); window.updateQuest('cooked', 0);
+      assert(q.done && calls() === 1 && step().s.state === 'claimable', 'server 5/5 completes the step and fires the claim exactly once (calls=' + calls() + ')');
+    });
+  }),
+
+  () => tryRunAsync('CLAIM-FROM-SERVER-4: quest projection ABSENT → the step shows the pending dash and nothing claims', async () => {
+    await withQuestServer(null, async (q, calls, step) => {
+      const st = step(), p = st.row && st.row.querySelector('.hd-qmeta .p');
+      assert(st.s.count === null && p && p.textContent.trim().startsWith('—') && !/^0\b/.test(p.textContent.trim()), 'unknown state shows the dash, got: ' + (p && p.textContent));
+      assert(!q.done && calls() === 0 && st.s.state !== 'claimable' && !window.questClaimable(q), 'nothing claims from unknown state');
     });
   }),
 

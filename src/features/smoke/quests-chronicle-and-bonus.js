@@ -2799,6 +2799,68 @@ export default [
     }
     assert(bad.length === 0, 'THE b560 BAND BUG: ' + bad.join('; '));
   }),
+  /* COMEBACK-1..3 + RENDER — Home's 'Come back for' reads only the server's
+     clocks: the farm tile's predicates, the mirrored dungeon windows, the
+     server-stated bag and the core Boss rotation. Fixtures are local objects. */
+  () => tryRun('COMEBACK-1: the return clocks come from the server\'s clocks', () => {
+    const CB = window.HearthriseComeBack;
+    assert(CB && typeof CB.model === 'function', 'window.HearthriseComeBack is missing');
+    const now = Date.UTC(2026, 8, 28, 12, 0, 0);
+    const rows = CB.model({ now, combatLv: null, bossDays: null, msToMidnight: 18120000, fighting: false,
+      crops: [{ name: 'Turnip', ready: false, waterable: false, inMs: 8040000 }, { name: 'Carrot', ready: true, waterable: false, inMs: 0 }],
+      windows: [{ name: 'X', untilMs: now + 11520000, keyName: 'K', keys: null }] });
+    assert(rows[0].when === 'Now', 'the ready crop must lead: ' + JSON.stringify(rows[0]));
+    assert(rows.some((r) => r.when === 'in about 2h 14m'), 'no ripens row at 2h 14m: ' + rows.map((r) => r.when).join(' | '));
+    const d = rows.find((r) => r.kind === 'dungeon');
+    assert(d && d.when === 'in 3h 12m', 'dungeon row: ' + JSON.stringify(d));
+    assert(/bal-pending/.test(d.sHtml) && !/>0</.test(d.sHtml), 'an unstated key count must be the pending dash: ' + d.sHtml);
+    assert(rows.length <= 4 && rows[rows.length - 1].kind === 'newday', 'rows: ' + rows.map((r) => r.kind).join(','));
+  }),
+  () => tryRun('COMEBACK-2: the Boss row agrees with the rotation and the engine', () => {
+    const CB = window.HearthriseComeBack, B = window.HearthriseBossOfDay, M = window.MONSTERS || {};
+    assert(CB && typeof CB.inputs === 'function', 'window.HearthriseComeBack is missing');
+    const now = Date.now(), days = CB.inputs({}, now).bossDays;
+    assert(days && days.length === 7, 'bossDays must be exactly 7 days: ' + (days && days.length));
+    days.forEach((d, k) => assert(d.id === B.botdFor(now + k * 86400000).dailyId, 'day ' + k + ' disagrees with botdFor'));
+    let t = null;
+    for (let k = 0; k < 1100 && t == null; k++) { const b = B.botdFor(now + k * 86400000); if (b.dailyId === b.weeklyId) t = now + k * 86400000; }
+    assert(t != null, 'no day in 1100 where the daily boss is also the weekly one');
+    const boss = (lv, at) => CB.model(Object.assign(CB.inputs({}, at), { combatLv: lv, fighting: false })).find((r) => r.kind === 'boss');
+    const id = B.botdFor(t).dailyId, kb = B.killBonusesFor(id, t), a = boss(999, t);
+    assert(kb.dropMult === 2 && kb.xpMult === 1.5, 'the weekly lift moved: ' + JSON.stringify(kb));
+    assert(a && a.sHtml.includes('+100% drop odds') && a.sHtml.includes('+50% kill XP'), 'form (a) must quote killBonusesFor: ' + (a && a.sHtml));
+    const min = Math.min(...days.map((d) => (M[d.id].tier - 1) * 15)), c = boss(0, now);
+    assert(c && c.t === 'At Combat ' + min + ' the Boss of the Day opens to you', 'form (c): ' + (c && c.t));
+    assert(!/^The The/.test(c.sHtml), 'form (c) doubled the article: ' + c.sHtml);
+  }),
+  () => tryRun('COMEBACK-3: the key count and the windows are the server\'s', () => {
+    const CB = window.HearthriseComeBack, D = window.DUNGEONS || {};
+    assert(CB && typeof CB.inputs === 'function', 'window.HearthriseComeBack is missing');
+    const ids = Object.keys(D).filter((id) => D[id].cost && D[id].cost.key);
+    assert(ids.length >= 2, 'need two keyed dungeons');
+    const [id, id2] = ids, key = D[id].cost.key, now = Date.now(), iso = (ms) => new Date(ms).toISOString();
+    const fx = { inventory: { [key]: 3 }, _dungeonCooldowns: { [id]: { auto: iso(now + 3600e3) }, [id2]: { auto: iso(now - 1000) } } };
+    const w = CB.inputs(fx, now).windows;
+    assert(w.length === 1 && w[0].name === D[id].name, 'only the open-later window may stay: ' + JSON.stringify(w));
+    assert(w[0].keys === null, 'an unstated bag must read null, never the display inventory: ' + w[0].keys);
+    fx._serverBag = { [key]: 2 };
+    assert(CB.inputs(fx, now).windows[0].keys === 2, 'the server bag must be the count');
+  }),
+  () => tryRun('COMEBACK-RENDER: Home draws Come back for with 1..4 rows, the new day last', () => {
+    const H = window.HearthriseHome, prevTab = window.activeTab;
+    assert(window.HearthriseComeBack && H, 'window.HearthriseComeBack or Home is missing');
+    try {
+      window.showTab('profile'); H.render();
+      const h = document.querySelector('#panel-profile [data-cbk-section] h3');
+      assert(h && h.textContent === 'Come back for', 'no Come back for heading');
+      const rows = [...document.querySelectorAll('#panel-profile [data-cbk-row]')];
+      assert(rows.length >= 1 && rows.length <= 4, 'rows: ' + rows.length);
+      assert(rows[rows.length - 1].getAttribute('data-cbk-row') === 'newday', 'the new-day row must be last');
+      const bad = [...document.querySelectorAll('#panel-profile [data-cbk-row] .when')].map((n) => n.textContent)
+        .filter((s) => /-\d|NaN|undefined|Infinity/.test(s));
+      assert(!bad.length, 'broken clocks: ' + bad.join(' | '));
+    } finally { try { window.showTab(prevTab || 'profile'); H.render(); } catch (e) {} }
+  }),
   () => tryRunAsync('WEEK-D: the goal-state cache is deep-frozen and peek() expires at 120 s', async () => {
     const S = window.__hrSyncServerGoals, GS = window.HearthriseGoalState;
     if (!S || !GS) return skip('no goal-state seam');

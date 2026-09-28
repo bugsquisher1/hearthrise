@@ -38,6 +38,8 @@ const RETIRED = [
     re: /save is deleted|wipe save|character(\\?'|’)?s save|erase \+ reload/i },
   { id: 'save-now', why: 'saving is not a player action', re: /\b[Ss]ave [Nn]ow\b|notify\s*\(\s*(['"`])Saved\.?\1/ },
   { id: 'guest', why: 'no guest accounts', re: /continue as guest/i },
+  { id: 'buy-back', why: 'no server buy-back verb (gold-sites BUYBACK_LEDGER); a priced or wired buy-back control is a door the realm refuses',
+    re: /\bBuy back · |sales? you can undo|so you can undo it|onclick=\\?"[^"\n]*\b(repurchase|openBuyback)\(/i },
 ];
 
 const RETIRED_KEYS = /hearthbound-save-v2|hearthrise:save-backup:|hearthrise:char:/g;
@@ -155,7 +157,7 @@ async function selftest(root) {
   };
   probe('clean settings-page.js', base.text, false);
   const SAMPLES = ['Your local save is safe', 'Continue offline', 'Sync your save', 'Export save',
-    "Erase + reload", 'Save now', 'Continue as guest'];
+    "Erase + reload", 'Save now', 'Continue as guest', 'Buy back · 40 gp'];
   RETIRED.forEach((r, i) => {
     if (!r.re.test(SAMPLES[i])) fails.push(`sample for ${r.id} does not match its own rule`);
     probe(`(a) ${r.id} as a literal`, base.text + `\nvar __m = '${SAMPLES[i]}';\n`, true);
@@ -165,6 +167,9 @@ async function selftest(root) {
   probe("(a) bare 'Saved.' toast", base.text + "\nnotify('Saved.', 'info');\n", true);
   probe('(c) split literal', base.text + "\nvar __m = 'on this ' + 'device only';\n", true);
   probe('(e) retired key written', base.text + "\nlocalStorage.setItem('hearthbound-save-v2', x);\n", true);
+  probe('(h) buy-back door wired', base.text + `\nvar __m = '<button onclick="window.openBuyback&&window.openBuyback()">';\n`, true);
+  probe('(h) More-sheet door wired', base.text + `\nvar __m = '<button onclick="x(\\'m\\');window.openBuyback()">';\n`, true);
+  probe('(h) buy-back row wired', base.text + `\nvar __m = '<button onclick="repurchase('+i+')">';\n`, true);
   probe('(f) console argument', base.text + "\nconsole.warn('local save', x);\n", false);
   for (const ok of ['+8h offline cap', 'offline progress', 'Portrait saved on this device',
     'Saved locally — will send when you\\\'re signed in']) {

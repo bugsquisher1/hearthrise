@@ -722,7 +722,6 @@
       <button class="btn tap" type="button" onclick="document.getElementById('more-modal').classList.remove('show');window.HearthriseRecipeBook&&window.HearthriseRecipeBook.open()">Recipe Book</button>
       <button class="btn tap" type="button" id="more-codex" onclick="document.getElementById('more-modal').classList.remove('show');window.HearthriseCodex&&window.HearthriseCodex.open()">Codex</button>
       <button class="btn tap" type="button" id="more-lifetime" onclick="document.getElementById('more-modal').classList.remove('show');window.openLifetimeStats&&window.openLifetimeStats()">Lifetime Stats</button>
-      <button class="btn tap" type="button" onclick="document.getElementById('more-modal').classList.remove('show');window.openBuyback&&window.openBuyback()">Buy Back</button>
       <button class="btn tap" data-tab="events">Events</button>
       <!-- b225 (#18): the 6-slot bottom nav is full, so the More sheet is the
            mobile route to the Clan Seat — the same answer Events got in b220.
@@ -1207,8 +1206,7 @@
   <script src="src/render/shop.js?v=559"></script>
   <!-- Vendor Buy Back modal — 10th render-layer extraction out of legacy.js
        (task #129 Phase 3.5). Re-exports window.renderBuyback + window.openBuyback;
-       read-only paint of the G.buyback journal. repurchase() stays global in
-       legacy.js. Pure refactor — identical DOM. -->
+       paints the closed counter (no server buy-back verb yet). -->
   <script src="src/render/buyback.js?v=559"></script>
   <!-- b154: rebuilt Home dashboard (revamp) — loads AFTER legacy.js so
        window.showTab / getTotalLevel / MONSTERS exist when it wraps them -->

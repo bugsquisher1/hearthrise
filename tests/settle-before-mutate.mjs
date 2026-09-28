@@ -22,6 +22,12 @@
 //      hr_engine) with a non-stamping items:+1 or a buff_apply. Once the row is
 //      settled the SAME claim pays, so the refusal is not vacuous.
 //      `--mutate=staleMs12h` raises the threshold to 12 h (§4 blinded) → RED.
+//  R6  A LIVE PARTY HUNT IS NOT AN EXEMPTION (Security F2/F3 review). While the
+//      party channel is SHADOW the member's own settle pays the whole hunt after
+//      the stop, so a stale partied row is refused party_hunt_running by a
+//      client-direct claim and by hr_apply, writes nothing, and falls back to
+//      settle_first once the hunt stops. `--mutate=partyExempt` restores the
+//      exemption (return null for a partied row) → RED.
 //  R4  A MID-ABSENCE SWAP COUNTS (the world-tick contract, verdict §3). In the
 //      tests/world-tick-parity.mjs harness a real version bump grants the pickaxe
 //      at t = 3 h: every window before it runs at 12.80 s and every window after
@@ -73,6 +79,14 @@ const MUTATIONS = {
        + 'claim prices the whole night at the tool it grants',
     patches: new Map([[MIG_SBM, [
       ['  c_settle_first_ms constant bigint := 180000;', '  c_settle_first_ms constant bigint := 43200000;'],
+      SBM_S4_BLIND]]]),
+  },
+  partyExempt: {
+    why: 'a stale row in a live SHADOW party hunt is admitted, so a claim mid-hunt lands before the '
+       + 'member\'s own settle prices the whole hunt at it (F1\'s party mint, client-direct)',
+    patches: new Map([[MIG_SBM, [
+      ['    if c_party_channel_pays then return null; end if;\n',
+       '    return null;  -- MUTANT partyExempt\n'],
       SBM_S4_BLIND]]]),
   },
   noReseed: {
@@ -158,6 +172,44 @@ async function r5(db) {
   const paid = await client("select public.hr_claim_quest('road_forge', 0) r");
   ok(paid && paid.ok === true && paid.items && paid.items[TOOL] === 1,
     `R5 the same claim on a settled row was not paid — got ${JSON.stringify(paid)}; the refusal above proves nothing`);
+  await db.query("select set_config('request.jwt.claim.sub', '', false)");
+}
+
+// ── R6 ──────────────────────────────────────────────────────────────────────
+async function r6(db) {
+  await db.query("select set_config('request.jwt.claim.sub', $1, false)", [UID]);
+  await db.query(`update player_state set accrued_to = now() - interval '${STALE}', active_kind = 'combat',
+                    active_id = 'r5_probe_target' where user_id = $1 and slot = 0`, [UID]);
+  const pid = (await db.query('insert into party (leader_user, leader_slot) values ($1, 0) returning id::text',
+    [UID])).rows[0].id;
+  await db.query("insert into party_member (party_id, user_id, slot, role) values ($1, $2, 0, 'leader')", [pid, UID]);
+  await db.query(`insert into party_hunt (party_id, active_id, accrued_to)
+                  values ($1, 'r5_probe_target', now() - interval '${STALE}')`, [pid]);
+  const before = await snapshot(db);
+  const client = async (sql) => (await asRole(db, 'authenticated', sql))[0].r;
+  for (const [fn, sql] of [
+    ['hr_set_auto_eat', 'select public.hr_set_auto_eat(0, false, null, null, false) r'],
+    ['hr_claim_goal', `select public.hr_claim_goal('first_blood', false, 0, '${crypto.randomUUID()}') r`],
+  ]) {
+    const r = await client(sql);
+    ok(r && r.ok === false && r.error === 'party_hunt_running',
+      `R6 ${fn} on a stale row in a live SHADOW party hunt answered ${JSON.stringify(r)}, not party_hunt_running. `
+      + 'The member\'s own settle prices the whole hunt after the stop, so an admitted claim is F1\'s mint.');
+  }
+  const version = Number((await db.query('select version::text v from player_state where user_id=$1 and slot=0',
+    [UID])).rows[0].v);
+  const [row] = await asRole(db, 'hr_engine', 'select public.hr_apply($1,0,$2,$3,$4::text::jsonb) r',
+    [UID, version, crypto.randomUUID(), JSON.stringify({ items: { [TOOL]: 1 }, journal: { kind: 'admin', intent: 'r6' } })]);
+  ok(row.r && row.r.error === 'party_hunt_running',
+    `R6 hr_apply items:+1 on a partied stale row answered ${JSON.stringify(row.r).slice(0, 160)}`);
+  const after = await snapshot(db);
+  for (const k of Object.keys(before)) {
+    ok(before[k] === after[k], `R6 a refused partied call WROTE the character (${k}): ${before[k]} -> ${after[k]}`);
+  }
+  await db.query("update party_hunt set ended_at = now(), stopped_by = 'leader' where party_id = $1", [pid]);
+  const stopped = await client('select public.hr_set_auto_eat(0, false, null, null, false) r');
+  ok(stopped && stopped.error === 'settle_first',
+    `R6 once the hunt stops the stale row must answer settle_first (the settle clears it) — got ${JSON.stringify(stopped)}`);
   await db.query("select set_config('request.jwt.claim.sub', '', false)");
 }
 
@@ -304,6 +356,7 @@ async function run(mutate, { only } = {}) {
     throw harness(`the migration chain would not apply — ${String(e.message).split('\n').slice(0, 3).join(' | ')}`);
   }
   await r5(db);
+  await r6(db);
   if (!only && !mutate) { await s1(db); await s2(); }
   await db.close?.();
   return failed;

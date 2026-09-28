@@ -28,15 +28,19 @@
 -- public.hr_settle_first_of(user, slot) -> jsonb | null. NULL when the slot may
 --   be mutated; otherwise the refusal body
 --     { ok:false, error:'settle_first', unsettled_ms, threshold_ms, slot }.
---   The slot is REFUSED when ALL hold:
+--   The slot is REFUSED settle_first when ALL hold:
 --     · its active_kind is PAYABLE (combat / gather / artisan — the engine's
 --       PAYABLE_KINDS, pinned by tests/settle-before-mutate.mjs),
 --     · now() - accrued_to > c_settle_first_ms (180 s, mirrored from
 --       2026-09-09-combat-xp-settle-first.sql and COMBAT_XP_SETTLE_FIRST_MS),
---     · it is not in a live party hunt (hr_partied). A partied member's window
---       is owned and priced per window by hr_party_tick_settle, and its own
---       `accrue` is fenced (party_settle_required) — refusing here would be a
---       refusal the member has no way to clear.
+--   A slot that meets the first two AND is in a live party hunt (hr_partied)
+--   is refused `party_hunt_running` instead (Security F2/F3 review, 2026-09-28).
+--   While the party channel is SHADOW nothing prices a hunt per window: the
+--   member's own settle pays the whole hunt AFTER the stop, at the state that
+--   exists then (2026-09-24-m8-parties-s4-2-hunt-intents.sql). Admitting a claim
+--   mid-hunt is F1's mint again. The member clears it by stopping the hunt, the
+--   same answer the F1 edge gives (party-fence.js PARTY_CHANNEL_PAYS = false);
+--   c_party_channel_pays flips to true in the SAME commit that arms S5.
 --   No character, an idle pointer or a null accrued_to is not this file's
 --   refusal: the caller's own checks answer those.
 -- public.hr_require_settled(user, slot) -> void. RAISES `settle_first` (HR000,
@@ -156,6 +160,9 @@ declare
   c_settle_first_ms constant bigint := 180000;
   -- The engine's PAYABLE_KINDS (supabase/functions/hr-accrue/accrual.js).
   c_payable constant text[] := array['combat', 'gather', 'artisan'];
+  -- Mirrors PARTY_CHANNEL_PAYS in supabase/functions/hr-accrue/party-fence.js.
+  -- False while hr_party_tick_settle is SHADOW; flipped only with S5.
+  c_party_channel_pays constant boolean := false;
   v_slot int := coalesce(p_slot, 0);
   v_kind text;
   v_acc  timestamptz;
@@ -168,7 +175,11 @@ begin
   end if;
   v_unsettled := floor(extract(epoch from (now() - v_acc)) * 1000)::bigint;
   if v_unsettled <= c_settle_first_ms then return null; end if;
-  if public.hr_partied(p_user, v_slot) then return null; end if;
+  if public.hr_partied(p_user, v_slot) then
+    if c_party_channel_pays then return null; end if;
+    return jsonb_build_object('ok', false, 'error', 'party_hunt_running',
+      'unsettled_ms', v_unsettled, 'threshold_ms', c_settle_first_ms, 'slot', v_slot);
+  end if;
   return jsonb_build_object('ok', false, 'error', 'settle_first',
     'unsettled_ms', v_unsettled, 'threshold_ms', c_settle_first_ms, 'slot', v_slot);
 end $fn$;
@@ -182,9 +193,9 @@ as $fn$
 declare v jsonb := public.hr_settle_first_of(p_user, p_slot);
 begin
   -- Writes nothing: the raise aborts the caller's block, and hr_apply's HR000
-  -- handler turns it into { ok:false, error:'settle_first', unsettled_ms, ... }.
+  -- handler turns it into { ok:false, error:<settle_first | party_hunt_running>, ... }.
   if v is not null then
-    perform public.hr_reject('settle_first', v - 'ok' - 'error');
+    perform public.hr_reject(v->>'error', v - 'ok' - 'error');
   end if;
 end $fn$;
 
@@ -276,8 +287,9 @@ begin
     $anc$'too_many_equip_ops', 'bad_enchant',
     -- 2026-09-28-settle-before-mutate.sql: a statement about the READ (the
     -- window is still unpaid), not the delta — the same key works once the
-    -- settle lands, exactly like version_conflict.
-    'settle_first'];$anc$);
+    -- settle lands, exactly like version_conflict. party_hunt_running is its
+    -- partied twin (the key works once the hunt stops and the settle lands).
+    'settle_first', 'party_hunt_running'];$anc$);
 
   v_def := replace(v_def,
     $anc$    if p_version is null or p_version <> v_st.version then
@@ -464,6 +476,33 @@ begin
         raise exception 'settle-before-mutate self-check (b): hr_require_settled raised % not settle_first', sqlerrm;
       end if;
     end;
+    -- (b) A LIVE PARTY HUNT IS NOT AN EXEMPTION while the channel is SHADOW: the
+    --     same stale row, partied, is refused party_hunt_running (clearable by the
+    --     stop), a client-direct claim writes nothing, and hr_apply releases the key.
+    declare v_pid uuid;
+    begin
+      insert into public.party (leader_user, leader_slot) values (v_uid, 0) returning id into v_pid;
+      insert into public.party_member (party_id, user_id, slot, role) values (v_pid, v_uid, 0, 'leader');
+      insert into public.party_hunt (party_id, active_id, accrued_to)
+        values (v_pid, 'hr_probe_target', now() - interval '181 seconds');
+      if coalesce(public.hr_settle_first_of(v_uid, 0)->>'error', '') <> 'party_hunt_running' then
+        raise exception 'settle-before-mutate self-check (b): a stale partied row answered % instead of '
+                        'party_hunt_running — a shadow hunt would be paid at the claim', public.hr_settle_first_of(v_uid, 0);
+      end if;
+      select gold, version into v_gold, v_ver from public.player_state where user_id = v_uid and slot = 0;
+      v := public.hr_claim_daily('x', 0);
+      if coalesce(v->>'error', '') <> 'party_hunt_running'
+         or (select version from public.player_state where user_id = v_uid and slot = 0) <> v_ver then
+        raise exception 'settle-before-mutate self-check (b): a partied hr_claim_daily answered % (or wrote)', v;
+      end if;
+      v := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(),
+             jsonb_build_object('items', jsonb_build_object(c_tool, 1), 'journal', c_j));
+      if coalesce(v->>'error', '') <> 'party_hunt_running' then
+        raise exception 'settle-before-mutate self-check (b): hr_apply on a partied stale row answered %', v; end if;
+      update public.party_hunt set ended_at = now(), stopped_by = 'leader' where party_id = v_pid;
+      if coalesce(public.hr_settle_first_of(v_uid, 0)->>'error', '') <> 'settle_first' then
+        raise exception 'settle-before-mutate self-check (b): a STOPPED hunt did not fall back to settle_first'; end if;
+    end;
     update public.player_state set active_kind = 'idle', active_id = null where user_id = v_uid and slot = 0;
     if public.hr_settle_first_of(v_uid, 0) is not null then
       raise exception 'settle-before-mutate self-check (b): an IDLE pointer was refused — there is no window'; end if;
@@ -489,6 +528,6 @@ begin
                'unmoved; (b) a settled row is admitted and paid, 179 s passes, 181 s refuses, idle and '
                'missing are not this gate''s; (c) hr_apply refuses a non-stamping items:+1 and a '
                'buff_apply on a stale row, admits a debit, and admits the same delta with accrued_to on '
-               'the SAME intent key; (e) hr_assert_grant_hygiene unchanged and passing, the gate is not '
+               'the SAME intent key; a stale partied row answers party_hunt_running and writes nothing; (e) hr_assert_grant_hygiene unchanged and passing, the gate is not '
                'client-executable; (f) accrued_to unmoved across every refusal';
 end $mig$;

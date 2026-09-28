@@ -102,6 +102,14 @@ const MUTATIONS = {
     find: '    callerAuthority: pointerSurvives ? null : CALLER_AUTHORITY,',
     repl: '    callerAuthority: CALLER_AUTHORITY,',
   },
+  partyOwnsWhileShadow: {
+    file: FN('party-fence.js'),
+    why: 'the fence skips a partied settle verb\'s settle while the party channel is SHADOW — '
+       + 'nothing prices the hunt window per window, so a feast eaten mid-hunt is paid over the '
+       + 'whole hunt by the post-stop settle (S4b)',
+    find: 'export const PARTY_CHANNEL_PAYS = false;',
+    repl: 'export const PARTY_CHANNEL_PAYS = true;',
+  },
   partySettles: {
     file: FN('settle-first.js'),
     why: 'a partied character settles anyway — the settle moves a watermark the party owns (S4)',
@@ -510,6 +518,20 @@ async function run(mutate) {
            && mods.pf.partyRefusalFor('eat') === 'party_owns_window'
            && mods.pf.partyRefusalFor('trophy_claim') === null,
           'S4: the fence does not split SWITCH (refused) from SETTLE (proceeds without its settle)');
+        /* S4b — WHILE THE PARTY CHANNEL IS SHADOW the skip is refused. Nothing
+           moves a member watermark in SHADOW, so the hunt window is paid after
+           the stop by the member's own settle, at the state that exists then —
+           a skipped settle here is F1's mint over the whole hunt. A PIN, not a
+           read of PARTY_CHANNEL_PAYS: arming it is S5's decision and updates
+           this line in the same commit as the channel arm. */
+        const partiedExec = async () => [{ partied: true }];
+        for (const v of ['eat', 'market_buy', 'claim_reward', 'unlock_buy']) {
+          const f = await mods.pf.partyIntentFence({ exec: partiedExec, user: U.p, slot: 0, verb: v });
+          ok(!!f && f.status === 409 && f.body?.error === 'party_hunt_running' && f.partyOwnsWindow !== true,
+            `S4b: a partied ${v} answered ${JSON.stringify(f)} while the party channel is SHADOW — `
+            + 'it must be refused party_hunt_running; skipping its settle prices the whole hunt at '
+            + 'the post-mutate state');
+        }
         await miner(U.p);
         const before = await row(U.p);
         const [read] = await exec(sa.READ_SQL, [U.p, 0, 'shop']);

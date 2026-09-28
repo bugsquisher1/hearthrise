@@ -48,6 +48,13 @@
 //       purchase mid-hunt cannot re-price time already priced. Refusing them
 //       instead would close the shop for the length of every party hunt. The
 //       fence answers `{ partyOwnsWindow: true }` and settle-first.js skips.
+//       ⚠ ONLY ONCE THE PARTY CHANNEL PAYS (`PARTY_CHANNEL_PAYS`, Security
+//         review of F1, 2026-09-28). In SHADOW hr_party_tick_settle moves no
+//         member watermark: the hunt window is paid AFTER the stop by the
+//         member's own settle, at the state that exists then — so a feast
+//         eaten or a rung bought mid-hunt with the settle skipped is priced
+//         over the whole hunt, the exact mint F1 closes. Until S5 arms the
+//         channel these verbs are refused `party_hunt_running`, like a switch.
 //
 //   everything else (reads, bug reports, cosmetics)  → unaffected.
 //
@@ -91,6 +98,11 @@ export const PARTY_HUNT_RUNNING = 'party_hunt_running';
 /** Not a refusal: a settle-before-mutate verb proceeds and skips its settle. */
 export const PARTY_OWNS_WINDOW = 'party_owns_window';
 
+/** Does hr_party_tick_settle PAY (move member watermarks) yet? `false` while the
+    party channel is in SHADOW. Armed with the channel at S5, never before: a
+    skip while nothing prices the hunt window per window re-opens F1. */
+export const PARTY_CHANNEL_PAYS = false;
+
 /** Which answer a partied verb gets. Exported so a guard asserts the mapping
     against ONE definition rather than against a copy of it. */
 export function partyRefusalFor(verb) {
@@ -101,8 +113,8 @@ export function partyRefusalFor(verb) {
 
 /**
  * The fence. Returns `null` when the verb may proceed, `{ partyOwnsWindow: true }`
- * when a settle-before-mutate verb may proceed but must not settle, or the
- * refusal `{ status, body }` the caller should answer with.
+ * when a settle-before-mutate verb may proceed but must not settle (only
+ * while PARTY_CHANNEL_PAYS), or the refusal `{ status, body }` the caller should answer with.
  *
  * ⚠ THE PREDICATE IS ONLY CONSULTED FOR A VERB THAT WOULD BE REFUSED. A read,
  *   a bug report or a cosmetic pays no round trip for a fence that could not
@@ -137,7 +149,11 @@ export async function partyIntentFence(o) {
        the two mistakes is not symmetric. */
     return { status: 409, body: { ok: false, error: PARTY_SETTLE_REQUIRED, retry_ms: 2000 } };
   }
-  if (code === PARTY_OWNS_WINDOW) return { partyOwnsWindow: true };
+  if (code === PARTY_OWNS_WINDOW) {
+    return PARTY_CHANNEL_PAYS
+      ? { partyOwnsWindow: true }
+      : { status: 409, body: { ok: false, error: PARTY_HUNT_RUNNING } };
+  }
   return code === PARTY_SETTLE_REQUIRED
     ? { status: 409, body: { ok: false, error: code, retry_ms: 2000 } }
     /* The panel offers *Stop the hunt* and *Leave*; the client renders those

@@ -648,8 +648,9 @@ export function collectsFirst(verb) { return intentSpec(verb).collectsFirst === 
      · guardStampKeys — only a switch may propose a stamping delta. A settle verb
        that stamped would confiscate the remainder its settle just deferred.
      · party-fence.js — a partied SWITCH is refused `party_hunt_running`; a
-       partied settle verb proceeds WITHOUT its settle, because
-       hr_party_tick_settle already prices a partied member window by window.
+       partied settle verb proceeds WITHOUT its settle once the party channel
+       pays (hr_party_tick_settle then prices it window by window); in SHADOW
+       it is refused like a switch (party-fence.js PARTY_CHANNEL_PAYS).
    A list and not a fourth registry column, so the mutation anchors every
    verb's guard pins on its registry row stay one row each. */
 export const SWITCH_VERBS = Object.freeze(['set_activity', 'equip', 'enchant']);

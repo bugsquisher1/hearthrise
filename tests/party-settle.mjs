@@ -56,7 +56,9 @@ import { join } from 'node:path';
 
 import { bootReplay, inventory, ROOT } from './schema-replay.mjs';
 import { PARTY_JOURNAL_KEYS } from '../src/core/party-split.js';
-import { partyIntentFence, partyRefusalFor } from '../supabase/functions/hr-accrue/party-fence.js';
+import {
+  partyIntentFence, partyRefusalFor, PARTY_CHANNEL_PAYS,
+} from '../supabase/functions/hr-accrue/party-fence.js';
 import {
   parseParties, parsePartyUnit, partyIntentId, memberContribution, settleParty,
 } from '../supabase/functions/hr-accrue/tick-party.js';
@@ -470,14 +472,16 @@ try {
       + 'approximation four players share',
       `equip answered ${JSON.stringify(equip)}`);
     /* F2b (2026-09-28, Security F1 — the fence's second class). A settle-before-
-       mutate verb proceeds WITHOUT its settle: the party prices its own window
-       per window, so a purchase mid-hunt cannot re-price time already priced,
-       and refusing would close the shop for the length of every hunt. */
-    judge('F2b', shop && shop.partyOwnsWindow === true && !shop.status
-      && partyRefusalFor('market_buy') === 'party_owns_window',
-      'a partied settle-before-mutate verb (market_buy) proceeds and skips its settle '
-      + '(`partyOwnsWindow`) — it is neither refused nor allowed to move the party\'s watermark',
-      `market_buy answered ${JSON.stringify(shop)}`);
+       mutate verb proceeds WITHOUT its settle only once the party channel PAYS
+       (it then prices its own window per window). In SHADOW nothing moves the
+       member watermark, so the verb is refused like a switch (F1 review). */
+    judge('F2b', PARTY_CHANNEL_PAYS
+        ? (shop && shop.partyOwnsWindow === true && !shop.status)
+        : (shop?.body?.error === 'party_hunt_running' && shop.status === 409),
+      'a partied settle-before-mutate verb (market_buy) is refused party_hunt_running while the '
+      + 'party channel is SHADOW (no member watermark moves, so a skipped settle would price the '
+      + 'whole hunt at the post-purchase state), and proceeds without its settle once it PAYS',
+      `market_buy answered ${JSON.stringify(shop)} (PARTY_CHANNEL_PAYS=${PARTY_CHANNEL_PAYS})`);
     judge('F3', read === null && partyRefusalFor('trophy_claim') === null,
       'a verb that collects nothing is untouched — the fence costs a read only for a verb it '
       + 'could actually refuse',

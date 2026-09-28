@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 131 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays, phoneFrame } from './_harness.js?v=559';
+import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays, phoneFrame } from './_harness.js?v=559';
 
 /* DEEPWATERS fixture (content pack 8). Bonus-free and gear-free — getBonus and
    the rested quantum pinned to 0 and an EMPTY equipment stat block (Timberline
@@ -3695,6 +3695,7 @@ export default [
     const snap = snapshotG();
     const origClaim = window.HearthriseGoalClaim;
     const fired = [];
+    let unfeed = () => {};
     try {
       const H = window.HearthriseHome;
       assert(H && typeof H.__firstDayModel === 'function' && typeof H.__firstDayHtml === 'function',
@@ -3750,7 +3751,9 @@ export default [
         'the header states the step, derived: ' + html0.slice(0, 300));
       assert(/is-current/.test(html0), 'the lit step carries its state class');
 
-      // ── the player finishes step one, through the real engine ──
+      // ── the player finishes step one, through the real engine, and the
+      //    server's ev:gather says so (CLAIM-FROM-SERVER: it completes on that) ──
+      unfeed = feedServerQuests({ 'ev:gather': 15 });
       window.updateQuest('gather', 15);
       assert(fired.indexOf('gatherer') !== -1,
         'completing a chain quest must fire hr_claim_quest for it — the "reward on the way" row is the '
@@ -3775,6 +3778,7 @@ export default [
       assert(m1.steps[0].goalRow.claimed !== true,
         'a refused claim must never mark the row paid — the sweep has to be able to retry it');
     } finally {
+      unfeed();
       window.HearthriseGoalClaim = origClaim;
       restoreG(snap);
     }

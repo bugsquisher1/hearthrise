@@ -5654,12 +5654,17 @@ window.questClaimable=questClaimable;
    done:true and the call never landed". Both ok and already_claimed set it —
    already_claimed IS the server confirming it paid. Any other outcome leaves it
    unset so the sweep retries; the server once-guard makes that free. */
+/* One claim in flight per quest id: completeQuest and the sweep can meet on
+   the same tick, and a second call would only earn a refusal. */
+const _questClaimsInFlight={};
 function hrFireQuestClaim(q){
   const GC=window.HearthriseGoalClaim;
-  if(!(GC&&typeof GC.claimQuest==='function'))return null;
+  if(!(GC&&typeof GC.claimQuest==='function')||_questClaimsInFlight[q.id])return null;
   let p=null;
   try{ p=GC.claimQuest(q.id); }catch(e){ return null; }
   if(!p||typeof p.then!=='function')return null;
+  _questClaimsInFlight[q.id]=true;
+  p.then(function(){ delete _questClaimsInFlight[q.id]; },function(){ delete _questClaimsInFlight[q.id]; });
   return p.then(function(res){
     if(res&&res.ok===true){
       q.claimed=true;

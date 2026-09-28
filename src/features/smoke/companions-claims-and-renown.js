@@ -32,7 +32,7 @@ const withQuestServer = async (counts, fn) => {
   let unfeed = feedServerQuests(counts);
   try {
     window.notify = () => {};
-    window.HearthriseGoalClaim = { isSignedIn: () => true, claimQuest: (id) => { calls.push(id); return new Promise(() => {}); } };
+    window.HearthriseGoalClaim = { isSignedIn: () => true, claimQuest: (id) => { calls.push(id); return Promise.resolve({ ok: false, error: 'test_stub' }); } };
     window.ensureRetentionState();
     const q = window.G.quests.find((r) => r.id === 'first_cook');
     Object.assign(q, { done: false, claimed: false, progress: 0 });
@@ -1563,7 +1563,8 @@ export default [
       // ── QUEST under arm: proceeds, fires claimQuest, no local gold, item granted ──
       predZero(); window.G.gold = 0;
       const q = { id: 'gatherer', type: 'gather', label: 'Gather 15', goal: 15, progress: 15, reward: { gold: 150 }, done: false };
-      window.completeQuest(q);
+      const unfeed = feedServerQuests({ 'ev:gather': 15 });   // the server's count says complete
+      try { window.completeQuest(q); } finally { unfeed(); }
       assert(q.done === true, 'armed quest completion must mark done');
       assert(calls.some((c) => c[0] === 'quest' && c[1] === 'gatherer'), 'armed quest must fire claimQuest(id)');
       assert(window.G.gold === 0, 'armed quest must NOT credit gold locally; got ' + window.G.gold);
@@ -1607,6 +1608,7 @@ export default [
     const snap = snapshotG();
     const origClaim = window.HearthriseGoalClaim;
     const origMay = window.clientMayWriteRecordField;
+    let unfeed = () => {};
     try {
       const C = window.HearthriseCore;
       assert(C && C.goalCatalogue && typeof C.goalCatalogue.questItemsAreServerCredited === 'function',
@@ -1621,6 +1623,7 @@ export default [
       const authored = Object.assign({}, questRow(), { progress: questRow().goal, done: false });
 
       window.clientMayWriteRecordField = function () { return false; };   // armed, the live shape
+      unfeed = feedServerQuests({ 'ev:cooked': 5 });   // server-complete: the claim may fire
 
       // ── (2) THE CLAIM FAILS → NOTHING IS GRANTED. ────────────────────────
       window.G.inventory = {};
@@ -1681,6 +1684,7 @@ export default [
       assert(!window.G.inventory.shrimp, 'already_claimed must grant nothing a second time');
       assert(qReplay.claimed === true, 'already_claimed IS the server confirming it paid — stop retrying');
     } finally {
+      unfeed();
       window.HearthriseGoalClaim = origClaim;
       window.clientMayWriteRecordField = origMay;
       restoreG(snap);
@@ -1698,6 +1702,7 @@ export default [
        goes red (it would ask for ever). */
     const snap = snapshotG();
     const origClaim = window.HearthriseGoalClaim;
+    let unfeed = () => {};
     try {
       const asked = [];
       window.HearthriseGoalClaim = {
@@ -1709,6 +1714,7 @@ export default [
         { id: 'first_cook', type: 'cooked', goal: 5, progress: 5, reward: { gold: 200, item: 'shrimp', qty: 30 }, done: true, claimed: true },
         { id: 'first_blood', type: 'kill_any', goal: 5, progress: 2, reward: { gold: 150 }, done: false },
       ];
+      unfeed = feedServerQuests({ 'ev:gather': 15, 'ev:cooked': 5, 'ev:kill_any': 2 });
       window.hrSweepUnclaimedQuests._at = 0;
       const n = window.hrSweepUnclaimedQuests();
       await Promise.resolve(); await Promise.resolve();
@@ -1726,6 +1732,7 @@ export default [
       assert(window.hrSweepUnclaimedQuests() === 0 && asked.length === 1,
         'a fully-confirmed quest list must cost zero RPCs; asked ' + JSON.stringify(asked));
     } finally {
+      unfeed();
       window.HearthriseGoalClaim = origClaim;
       if (window.hrSweepUnclaimedQuests) window.hrSweepUnclaimedQuests._at = 0;
       restoreG(snap);

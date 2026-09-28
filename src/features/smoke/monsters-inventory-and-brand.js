@@ -7,7 +7,7 @@
 // the monolith by tools/split-smoke-suite.mjs — 183 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
 import { CHARM_CLASS_LORE, CHARM_RANK_LORE } from '../../data/charm-lore.js?v=559';
-import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot, closeOverlays, phoneFrame } from './_harness.js?v=559';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot, closeOverlays, phoneFrame, feedServerQuests } from './_harness.js?v=559';
 
 /* SALVAGE-1's regression pin: the goblin drop panel as a player reads it (the
    text of each row, not the markup, so an icon path or cache bump cannot move
@@ -8190,6 +8190,7 @@ export default [
      a player with history) is what stands there instead. */
   () => tryRun('FIRST-LIGHT-2: a completed chain removes the card entirely — it is the first DAY, not a permanent rail', () => {
     const snap = snapshotG();
+    let unfeed = () => {};
     try {
       const H = window.HearthriseHome;
       assert(H && typeof H.__firstDayModel === 'function', 'the First Light seam is not published');
@@ -8209,7 +8210,9 @@ export default [
         'a null model must render NOTHING, not an empty shell with a heading');
 
       /* A last step whose reward is still in flight is still FINISHED. The card
-         goes; the recovery sweep is what pays it, and the sweep needs no card. */
+         goes; the recovery sweep is what pays it, and the sweep needs no card.
+         "Finished" is the SERVER's count at goal (CLAIM-FROM-SERVER). */
+      unfeed = feedServerQuests({ 'ev:gather': 15, 'ev:cooked': 5, 'ev:kill_any': 100, 'ev:harvest': 6 });
       window.G.quests.forEach((q) => { q.claimed = false; });
       assert(H.__firstDayModel() === null,
         'an unclaimed-but-finished chain still has nothing left for the player to DO — the card goes');
@@ -8220,7 +8223,7 @@ export default [
       window.G.quests = [];
       assert(H.__firstDayModel() === null,
         'with no quest rows the card must draw nothing rather than invent 0/15 progress');
-    } finally { restoreG(snap); }
+    } finally { unfeed(); restoreG(snap); }
   }),
 
   /* ── FIRST-LIGHT-2b — the card and "Next up" may not say the same thing ──

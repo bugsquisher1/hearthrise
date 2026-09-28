@@ -72,6 +72,8 @@
 //   M14 drop the perks read (N4b's perk half; T-X1h/T-X1i)
 //   M15 bind both reads to roster[0] for every character (N6)
 //   M16 hand each character the previous one's answers, arguments intact (N6)
+//   M17 drop the slot from both reads (H1; T-X1i2, one user on two slots)
+//   M18 swallow a party member's read error (H2; T-X1e2)
 //
 // Usage:
 //   node tests/edge-tick-gate.mjs
@@ -204,8 +206,14 @@ function fakeDb(cfg) {
        character a DIFFERENT perk stack and bestiary and an arm can see whose
        answer reached whose session. `null` keeps the one-answer-for-all shape
        every older arm was written against. `activeId` lets an arm put the
-       characters on a monster (the bestiary is a combat input only). */
+       characters on a monster (the bestiary is a combat input only).
+       KEYED BY `user:slot`, as the reads are (H1, 2026-09-28): a map keyed
+       by user alone answers both of one user's slots the same, so no arm
+       could see a read that dropped the slot. */
     perksBy: null, bestiaryBy: null, activeId: 'normal_tree',
+    /* `user:slot` -> SQLSTATE ('' = codeless): that character's perks or
+       bestiary read throws instead (H2, a member's read failing mid-party). */
+    perksErrorBy: null, bestiaryErrorBy: null,
     /* THE PARTY FENCE's mark (`party_hunt.accrued_to` / the lease's shadow
        mark), modelled as the solo one is above. */
     partyMarkMs: null, partyShadowMarkMs: null,
@@ -217,8 +225,8 @@ function fakeDb(cfg) {
     jsonbMark: false,
   }, cfg || {});
   const jsonbTs = (ms) => new Date(ms).toISOString().replace('Z', '+00:00');
-  /* Whose projection was served last — the character the driver is working
-     on. tick.js and tick-party.js both run ONE character at a time, state
+  /* Whose projection was served last (`user:slot`) — the character the
+     driver is working on. tick.js and tick-party.js both run ONE character at a time, state
      read -> reads -> engine, so an access to another character's answer while
      this one is current is a cross-binding. */
   o.current = null;
@@ -235,6 +243,13 @@ function fakeDb(cfg) {
     : o.markMs);
   const calls = [];
   const settles = [];
+  const planted = (map, fn, params) => {
+    const k = `${params[0]}:${params[1]}`;
+    if (!map || !Object.prototype.hasOwnProperty.call(map, k)) return;
+    const e = new Error(`${fn}: planted failure for ${k}`);
+    if (map[k]) e.code = map[k];
+    throw e;
+  };
   const exec = async (text, params) => {
     calls.push({ text, params });
     if (text.includes('current_database()')) return [{ holder: 'cron:postgres' }];
@@ -243,7 +258,7 @@ function fakeDb(cfg) {
       return (params[2] || []).map((ts, i) => ({ ord: i + 1, seed: 1000 + i }));
     }
     if (text.includes('hr_state_of')) {
-      o.current = params[0];
+      o.current = `${params[0]}:${params[1]}`;
       if (!o.known.has(params[0])) {
         return [{ state: { ok: false, error: 'no_character' }, now: new Date(NOW_MS) }];
       }
@@ -267,7 +282,9 @@ function fakeDb(cfg) {
        Shaped as hr_perks_of answers: a stranger is `no_character`, a known
        character with nothing bought is an empty stack. */
     if (text.includes('hr_perks_of')) {
-      if (o.perksBy && o.known.has(params[0])) return [{ perks: o.perksBy[params[0]] }];
+      planted(o.perksErrorBy, 'hr_perks_of', params);
+      const pk = `${params[0]}:${params[1]}`;
+      if (o.perksBy && o.known.has(params[0]) && pk in o.perksBy) return [{ perks: o.perksBy[pk] }];
       return [{ perks: o.known.has(params[0])
         ? { ok: true, rooms: {}, plots: {}, propertyTier: 0, unlockedRecipes: {}, renownAllXp: 0 }
         : { ok: false, error: 'no_character' } }];
@@ -281,7 +298,9 @@ function fakeDb(cfg) {
         if (o.bestiaryError) e.code = o.bestiaryError;
         throw e;
       }
-      if (o.bestiaryBy && o.known.has(params[0])) return [{ kills: o.bestiaryBy[params[0]] }];
+      planted(o.bestiaryErrorBy, 'hr_bestiary_of', params);
+      const bk = `${params[0]}:${params[1]}`;
+      if (o.bestiaryBy && o.known.has(params[0]) && bk in o.bestiaryBy) return [{ kills: o.bestiaryBy[bk] }];
       return [{ kills: o.known.has(params[0]) ? Object.assign({}, o.bestiary) : {} }];
     }
     /* THE PARTY FENCE (tick-party.js probeParty / partyFence). The probe is a
@@ -914,7 +933,9 @@ async function runArms(mod) {
        reach its OWN session (touched while it is current) and never another's
        (touched while the other is current). The solo roster (T-X1h) and the
        party unit (T-X1i) are the two drivers; both call ./tick-reads.js. */
-    const twoRow = async (bodyOf) => {
+    /* `owners` are the two characters as `user:slot` — two users by default,
+       ONE user on two slots for T-X1i2 (H1). */
+    const twoRow = async (bodyOf, owners = [`${UID}:0`, `${UID2}:0`], extra) => {
       const log = [];
       const ref = {};
       const spy = (owner, what, obj) => {
@@ -928,19 +949,21 @@ async function runArms(mod) {
       };
       const perksOf = (renown) => ({ ok: true, rooms: {}, plots: {}, propertyTier: 0,
         unlockedRecipes: {}, renownAllXp: renown });
-      const db = fakeDb({ shadow: true, activeKind: 'combat', activeId: 'goblin', jsonbMark: true,
-        known: new Set([UID, UID2]),
-        perksBy: { [UID]: spy(UID, 'perks', perksOf(5)), [UID2]: spy(UID2, 'perks', perksOf(0)) },
-        bestiaryBy: { [UID]: spy(UID, 'bestiary', { goblin: 2000 }),
-          [UID2]: spy(UID2, 'bestiary', { goblin: 3 }) } });
+      const [o1, o2] = owners;
+      const db = fakeDb(Object.assign({ shadow: true, activeKind: 'combat', activeId: 'goblin', jsonbMark: true,
+        known: new Set(owners.map((k) => k.split(':')[0])),
+        perksBy: { [o1]: spy(o1, 'perks', perksOf(5)), [o2]: spy(o2, 'perks', perksOf(0)) },
+        bestiaryBy: { [o1]: spy(o1, 'bestiary', { goblin: 2000 }),
+          [o2]: spy(o2, 'bestiary', { goblin: 3 }) } }, extra || {}));
       ref.db = db;
       const out = await runTick({ exec: db.exec, body: bodyOf() });
-      const readsOf = (fn) => db.calls.filter((c) => c.text.includes(fn)).map((c) => c.params[0]);
-      return { db, out, log, perks: readsOf('hr_perks_of'), bestiary: readsOf('hr_bestiary_of') };
+      const readsOf = (fn) => db.calls.filter((c) => c.text.includes(fn))
+        .map((c) => `${c.params[0]}:${c.params[1]}`);
+      return { db, out, log, owners, perks: readsOf('hr_perks_of'), bestiary: readsOf('hr_bestiary_of') };
     };
     const bound = (r) => {
       const bad = [];
-      for (const u of [UID, UID2]) {
+      for (const u of r.owners) {
         for (const what of ['perks', 'bestiary']) {
           const own = r.log.filter((x) => x.owner === u && x.what === what);
           if (!own.some((x) => x.at === u)) bad.push(`${what}(${u.slice(-4)}) never reached its own session`);
@@ -948,12 +971,12 @@ async function runArms(mod) {
           if (cross.length) bad.push(`${what}(${u.slice(-4)}) read while ${String(cross[0].at).slice(-4)} was current`);
         }
       }
-      if (JSON.stringify(r.perks) !== JSON.stringify([UID, UID2])
-        || JSON.stringify(r.bestiary) !== JSON.stringify([UID, UID2])) {
+      if (JSON.stringify(r.perks) !== JSON.stringify(r.owners)
+        || JSON.stringify(r.bestiary) !== JSON.stringify(r.owners)) {
         bad.push(`reads bound to perks=${JSON.stringify(r.perks)} bestiary=${JSON.stringify(r.bestiary)}`);
       }
-      const users = r.db.settles.map((x) => x.user).sort();
-      if (JSON.stringify(users) !== JSON.stringify([UID, UID2])) bad.push(`shadow rows for ${JSON.stringify(users)}`);
+      const users = r.db.settles.map((x) => `${x.user}:${x.slot}`).sort();
+      if (JSON.stringify(users) !== JSON.stringify([...r.owners].sort())) bad.push(`shadow rows for ${JSON.stringify(users)}`);
       return bad;
     };
     const h = await twoRow(() => ({ op: 'tick', roster: [rosterRow(UID, { active_kind: 'combat' }),
@@ -972,6 +995,50 @@ async function runArms(mod) {
       'T-X1i — a two-member PARTY in one fire: each member makes both reads through tick-reads.js, '
       + 'bound to its own (user, slot), and only its own shadow row is priced from them (N4b/N6)',
       JSON.stringify({ out: i.out.body, bad: iBad }));
+
+    /* ── H1 (Security, 2026-09-28): ONE USER, TWO SLOTS, ONE PARTY FIRE ────
+       T-X1h/T-X1i put two USERS on slot 0, so a read that dropped the slot
+       (bound to `(user, 0)` for every slot) passed both. Here the same user
+       brings two characters, each with its own perk stack and bestiary; each
+       slot's shadow row must have been priced from its own slot's reads. */
+    const partyOf = (members) => () => ({ op: 'tick', flush_ms: 72000, roster: [], parties: [{
+      party_id: PARTY, hunt_id: HUNT, active_id: 'goblin', stance: 'steady',
+      accrued_to: new Date(NOW_MS - 120000).toISOString(), members }] });
+    const i2 = await twoRow(partyOf([{ user_id: UID, slot: 1 }, { user_id: UID, slot: 0 }]),
+      [`${UID}:0`, `${UID}:1`]);
+    const i2Bad = bound(i2);
+    ok(i2Bad.length === 0 && i2.out.body.shadowed === 1,
+      'T-X1i2 — ONE user on TWO slots in one party fire: each slot reads its own perks and bestiary '
+      + 'and each slot\'s shadow row is priced from its own reads, never the other slot\'s (H1)',
+      JSON.stringify({ out: i2.out.body, bad: i2Bad }));
+  }
+
+  // ── T-X1e2 — A MEMBER'S READ FAILS MID-PARTY (Security H2, 2026-09-28) ──
+  group('T-X1e2  a party member\'s perks/bestiary read error refuses the whole party');
+  {
+    /* T-X1e's rule at party grain. Member 1 reads cleanly; member 2's read
+       throws. Pricing the party from one member's inputs is the partial settle
+       §18.2.5 calls a mint, so the fire must be REFUSED and no settle statement
+       may follow the failed read (the probe before it writes nothing). */
+    for (const fn of ['hr_perks_of', 'hr_bestiary_of']) {
+      for (const code of ['42501', '57014', '']) {
+        const key = fn === 'hr_perks_of' ? 'perksErrorBy' : 'bestiaryErrorBy';
+        const db = fakeDb({ shadow: true, activeKind: 'combat', activeId: 'goblin', jsonbMark: true,
+          known: new Set([UID, UID2]), [key]: { [`${UID2}:0`]: code } });
+        const out = await runTick({ exec: db.exec, body: { op: 'tick', flush_ms: 72000, roster: [],
+          parties: [{ party_id: PARTY, hunt_id: HUNT, active_id: 'goblin', stance: 'steady',
+            accrued_to: new Date(NOW_MS - 120000).toISOString(),
+            members: [{ user_id: UID, slot: 0 }, { user_id: UID2, slot: 0 }] }] } });
+        const failAt = db.calls.findIndex((c) => c.text.includes(fn) && c.params[0] === UID2);
+        const m1Read = db.calls.some((c) => c.text.includes(fn) && c.params[0] === UID);
+        const settleAfter = db.calls.slice(failAt + 1).filter((c) => c.text.includes('hr_party_tick_settle'));
+        ok(failAt >= 0 && m1Read && out.body.refused === 1 && out.body.shadowed === 0
+          && settleAfter.length === 0 && db.settles.length === 0,
+          `T-X1e2 — member 2's ${fn} ${code ? 'SQLSTATE ' + code : 'codeless error'}: the whole party is `
+          + 'refused and no hr_party_tick_settle is issued after it',
+          JSON.stringify({ out: out.body, failAt, m1Read, settleAfter: settleAfter.length, settles: db.settles.length }));
+      }
+    }
   }
 
   // ── T-BB1 — THE BODY IS BOUNDED BEFORE IT IS PARSED ─────────────────────
@@ -1440,6 +1507,35 @@ const MUTATIONS = [
       },
     }),
     mustFail: ['T-X1h', 'T-X1i'],
+  },
+  {
+    /* H1: THE SLOT DROPPED. Each read is made for the right user and slot 0,
+       whatever the character's slot. Two users on slot 0 cannot see it; one
+       user on two slots can. */
+    id: 'M17', what: 'drop the slot from both reads (every read bound to slot 0)',
+    patch: (m) => Object.assign({}, m, {
+      runTick: async (o) => REAL.runTick(Object.assign({}, o, {
+        exec: async (text, params) => ((text.includes('hr_perks_of') || text.includes('hr_bestiary_of'))
+          ? o.exec(text, [params[0], 0].concat(params.slice(2))) : o.exec(text, params)),
+      })),
+    }),
+    mustFail: ['T-X1i2'],
+  },
+  {
+    /* H2: MEMBER 2's READ ERROR SWALLOWED. The party prices member 2 at zero
+       perks / no charm and settles as if healthy — T-X1e's defect one member
+       down, where the solo arm cannot see it. */
+    id: 'M18', what: 'swallow member 2\'s perks/bestiary read error in a party',
+    patch: (m) => Object.assign({}, m, {
+      runTick: async (o) => REAL.runTick(Object.assign({}, o, {
+        exec: async (text, params) => {
+          const k = text.includes('hr_perks_of') ? 'perks' : (text.includes('hr_bestiary_of') ? 'kills' : null);
+          if (!k || params[0] !== UID2) return o.exec(text, params);
+          try { return await o.exec(text, params); } catch { return [{ [k]: null }]; }
+        },
+      })),
+    }),
+    mustFail: ['T-X1e2'],
   },
 ];
 

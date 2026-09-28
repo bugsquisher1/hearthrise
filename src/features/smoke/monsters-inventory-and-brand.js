@@ -9109,4 +9109,56 @@ export default [
       ftue.forEach(([n, parent, next]) => parent && parent.insertBefore(n, next));
     }
   }),
+  /* SPOILS-2 (VG5 defect 1): "The realm is slow…" (fixed, top 8px) painted over the
+     Spoils head at 922x423 — the banner-under-sheet rule named only .modal/.stats-modal. */
+  () => tryRun('SPOILS-2: the slow-realm banner paints beneath an open Spoils sheet at 1280x800 and 922x423', () => {
+    const SP = window.HearthriseSpoils, S = window.HearthriseSheet, N = window.HearthriseNetStatus, bad = [];
+    const settled = { dungeon: 'goblin_warcamp', mode: 'auto', scrip: 21, items: { wartusk_cleaver: 1, goblin_totem: 5 }, key_spent: 'goblin_seal' };
+    const v = { outcome: 'settled', body: { settled, state: { dungeon_scrip: 57 }, inventory: { goblin_seal: 2, goblin_totem: 5, wartusk_cleaver: 1 },
+      dungeon_cooldowns: { goblin_warcamp: { auto: new Date(Date.now() + 4 * 3600e3).toISOString() } } } };
+    const ftue = [...document.querySelectorAll('.ftue-root')].map((n) => [n, n.parentNode, n.nextSibling]);
+    try {
+      ftue.forEach(([n]) => n.remove());
+      N.setMode('degraded'); SP.open(v);
+      const box = document.querySelector('.spoils-scrim'), nb = document.getElementById('hr-net-banner');
+      assert(box && nb, 'the Spoils sheet or the net banner did not mount');
+      for (const [w, h] of [[1280, 800], [922, 423]]) phoneFrame(w, h, nb.outerHTML + box.outerHTML, (doc) => {
+        const b = doc.getElementById('hr-net-banner'); b.style.pointerEvents = 'auto';
+        const t = doc.getElementById('spoils-title').getBoundingClientRect(), br = b.getBoundingClientRect();
+        assert(t.width > 0 && br.width > 0, w + 'x' + h + ': the title or banner drew nothing');
+        for (const x of [t.left + 2, (t.left + t.right) / 2, t.right - 2]) { const hit = doc.elementFromPoint(x, t.top + 2);
+          if (!hit || !hit.closest('.spoils-sheet')) bad.push(w + 'x' + h + ': the title at x ' + Math.round(x) + ' hits ' + (hit ? hit.id || hit.className : 'nothing') + ' (title [' + [t.left, t.top, t.right].map(Math.round) + '], banner [' + [br.left, br.top, br.right, br.bottom].map(Math.round) + '])'); }
+      });
+    } finally {
+      try { S.closeTop(); } catch (e) {}
+      document.querySelectorAll('.spoils-scrim').forEach((n) => n.remove());
+      N.setMode('ok'); const nb = document.getElementById('hr-net-banner'); if (nb) nb.style.opacity = '0';
+      ftue.forEach(([n, parent, next]) => parent && parent.insertBefore(n, next));
+    }
+    assert(bad.length === 0, 'THE BANNER OVER THE SPOILS: ' + bad.join('; '));
+  }),
+  /* SPOILS-3 (VG5 defect 2, Game Designer ruling): the sheet IS the announcement — the
+     loot toast covered its Done button at 922x423. An Auto clear that opens the sheet
+     does not toast; a manual summary (no sheet) still does. note and open share willOpen. */
+  () => tryRun('SPOILS-3: an Auto clear that opens the Spoils sheet does not also toast; a manual clear still toasts', () => {
+    const SP = window.HearthriseSpoils, S = window.HearthriseSheet, prev = window.notify, prevC = window.HearthriseChronicle, toasts = [];
+    const settled = { dungeon: 'goblin_warcamp', mode: 'auto', scrip: 21, items: { goblin_totem: 5 } };
+    const v = { outcome: 'settled', body: { settled, state: { dungeon_scrip: 57 } } };
+    const count = () => document.querySelectorAll('.spoils-scrim').length;
+    const ftue = [...document.querySelectorAll('.ftue-root')].map((n) => [n, n.parentNode, n.nextSibling]);
+    try {
+      ftue.forEach(([n]) => n.remove());
+      window.notify = (msg, kind) => toasts.push([msg, kind]); window.HearthriseChronicle = { record() {} };
+      SP.note(v); SP.open(v);
+      assert(toasts.length === 0 && count() === 1, 'auto: ' + toasts.length + ' toast(s) and ' + count() + ' sheet(s), want 0 and 1');
+      S.closeTop();
+      SP.note({ outcome: 'settled', body: { settled: Object.assign({}, settled, { mode: 'manual' }) } });
+      assert(toasts.length === 1 && toasts[0][1] === 'loot' && count() === 0, 'manual: ' + toasts.length + ' toast(s) and ' + count() + ' sheet(s), want 1 and 0');
+    } finally {
+      window.notify = prev; window.HearthriseChronicle = prevC;
+      try { if (count()) S.closeTop(); } catch (e) {}
+      document.querySelectorAll('.spoils-scrim').forEach((n) => n.remove());
+      ftue.forEach(([n, parent, next]) => parent && parent.insertBefore(n, next));
+    }
+  }),
 ];

@@ -3,9 +3,11 @@
 //
 // Publishes window.HearthriseSpoils = { open(v), note(v) }, both fed the ONE
 // verdict src/net/dungeon-settle.js returns for hr_dungeon_settle.
-//   note(v) — one 'loot' toast and the Chronicle rows for a settled run.
+//   note(v) — the Chronicle rows for a settled run, and one 'loot' toast
+//             only when the sheet will not open (the sheet IS the announcement).
 //   open(v) — the sheet, for an Auto clear only: the manual and scavenger
 //             summaries are already on screen and carry the same rows.
+// willOpen(v) is the ONE predicate both read, so they cannot disagree.
 //
 // EVERY NUMBER IS THE ANSWER'S (CLAUDE.md §6): the rows are v.body.settled
 // through window.dungeonSettleRowHtml, the purse is v.body.state, the key count
@@ -43,13 +45,22 @@ const pending = () => {
   return B && typeof B.countMarkup === 'function' ? B.countMarkup(null) : '—';
 };
 
+/* An Auto clear with no tutorial, no Spoils sheet and no other sheet up. */
+function willOpen(v) {
+  const s = settledOf(v);
+  if (!s || s.mode !== 'auto') return false;
+  if (document.querySelector('.ftue-root, .spoils-scrim')) return false;
+  const S = window.HearthriseSheet;
+  return !(S && typeof S.anyOpen === 'function' && S.anyOpen());
+}
+
 function note(v) {
   const s = settledOf(v);
   if (!s) return;
   const d = dungeonOf(s);
   const name = d ? d.name : (s.dungeon || 'The dungeon');
   const k = Object.keys(s.items || {}).length;
-  if (typeof window.notify === 'function') {
+  if (!willOpen(v) && typeof window.notify === 'function') {
     window.notify(name + ' cleared — ' + k + (k === 1 ? ' find' : ' finds') + ' and ' + (s.scrip || 0) + ' Dungeon Scrip', 'loot');
   }
   const C = window.HearthriseChronicle;
@@ -90,11 +101,8 @@ function factsHtml(v, s, id) {
 }
 
 function open(v) {
+  if (!willOpen(v)) return;
   const s = settledOf(v);
-  if (!s || s.mode !== 'auto') return;
-  if (document.querySelector('.ftue-root, .spoils-scrim')) return;
-  const S = window.HearthriseSheet;
-  if (S && typeof S.anyOpen === 'function' && S.anyOpen()) return;
   const d = dungeonOf(s);
   const id = s.dungeon;
   const name = d ? d.name : (id || 'The dungeon');

@@ -1315,6 +1315,49 @@ export default [
     assert(bad.length === 0, 'THE DEEDS-POLISH BUG: ' + bad.join('; '));
   }),
 
+  /* ── regression suite — SHEET-HEAD-STICKY (b559 gate 3, b560 pass 1 finding 3):
+     scrolling the Codex / Settings / Lifetime Stats body carried the title and
+     Close off screen. Each sheet, as painted, padded so it must scroll, then
+     scrolled 2000 in 1280x800 and 922x423 frames: title and Close stay whole,
+     on screen, at the sheet's top. */
+  () => tryRunAsync('SHEET-HEAD-STICKY: the Codex, Settings and Lifetime Stats heads stay pinned while the body scrolls', async () => {
+    const bad = [], sheets = [];
+    try {
+      sheets.push([await window.HearthriseCodex.open(), '.modal-title', '.modal-head button']);
+      window.openSettings(); sheets.push([document.getElementById('settings-modal'), '.modal-title', '[data-close-modal]']);
+      window.openLifetimeStats(); sheets.push([document.getElementById('lifetime-stats'), '.stats-title', '.stats-close']);
+      for (const [m, tSel, cSel] of sheets) for (const [w, h] of [[1280, 800], [922, 423]]) phoneFrame(w, h, m.outerHTML, (doc) => {
+        const card = doc.querySelector(tSel).closest('.modal-card, .stats-card');
+        (card.querySelector('.hr-sheet-body') || card).insertAdjacentHTML('beforeend', '<div style="height:3000px"></div>');
+        let moved = 0;
+        card.querySelectorAll('*').forEach((e) => { e.scrollTop += 2000; moved += e.scrollTop; }); card.scrollTop += 2000; moved += card.scrollTop;
+        assert(moved > 0, m.id + ' ' + w + 'x' + h + ': nothing scrolled, the probe proves nothing');
+        const top = card.getBoundingClientRect().top;
+        for (const sel of [tSel, cSel]) { const r = doc.querySelector(sel).getBoundingClientRect();
+          if (!(r.top >= 0 && r.bottom <= h && r.top - top < 90)) bad.push(m.id + ' ' + w + 'x' + h + ': ' + sel + ' at y ' + Math.round(r.top) + ' (sheet top ' + Math.round(top) + ')'); }
+      });
+    } finally { sheets.forEach(([m]) => m.classList.remove('show')); closeOverlays(); }
+    assert(bad.length === 0, 'THE SCROLLED-AWAY HEAD: ' + bad.join('; '));
+  }),
+
+  /* ── regression suite — NIGHT-PLAN-PENDING-COPY (b560 pass 1): with the away
+     limit unknown the Right-now row read "up to —". Pending gets its own
+     sentence (no number, no dash mid-sentence); a known cap keeps "up to 12h". */
+  () => tryRun('NIGHT-PLAN-PENDING-COPY: a pending away limit reads as pending, a known one still names its hours', () => {
+    const H = window.HearthriseHome, prev = window.offlineCapHours;
+    assert(H && typeof H.__awayBankingRow === 'function', 'the Right-now banking row seam is missing');
+    try {
+      for (const G of [{ activeMonster: 'goblin' }, {}]) {
+        window.offlineCapHours = () => null;
+        const pend = H.__awayBankingRow(G).replace(/<[^>]+>/g, '');
+        assert(/the limit is being confirmed/.test(pend) && !/up to\s*—/.test(pend) && !/\d/.test(pend), 'pending cap copy reads: ' + pend);
+        window.offlineCapHours = () => 12;
+        const known = H.__awayBankingRow(G).replace(/<[^>]+>/g, '');
+        assert(/up to 12h/.test(known) && !/being confirmed/.test(known), 'known cap copy reads: ' + known);
+      }
+    } finally { window.offlineCapHours = prev; }
+  }),
+
   () => tryRun('DEEDS-A: a deed is graded on the reader it is handed, and unknown is the pending dash', () => {
     const D = window.HearthriseDeeds, row = (id) => D.rows.find((r) => r.id === id);
     const R = (o) => Object.assign({ tally: () => null, skillLevel: () => null, skillIds: () => ['attack', 'mining'],

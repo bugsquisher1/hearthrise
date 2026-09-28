@@ -929,7 +929,6 @@
     try { if (typeof window.offlineCapHours === 'function') return window.offlineCapHours(); } catch (e) {}
     return null;
   }
-  var CAP_PENDING = '<span class="bal-pending" role="status" title="Waiting for the server">—</span>';
   function activityBanks(G) {
     if (G.activeMonster) return true;               // combat always banks
     var sk = G.activeSkill;
@@ -944,12 +943,16 @@
   }
   function awayBankingRow(G) {
     var cap = awayCapHours();
-    var capTxt = cap == null ? CAP_PENDING : cap + 'h';
+    // Unknown cap: a sentence written for the pending state, never a number
+    // and never a bare dash mid-sentence (section 6).
+    var capTxt = cap + 'h';
     var running = !!(G.activeMonster || G.activeSkill);
     if (running && activityBanks(G)) {
       return '<div class="hd-card hd-mini hd-bank is-on"><div class="mi">' +
         gly('uiIdle', 20, '', 'var(--green)') + '</div>' +
-        '<div class="hd-bank-txt">Banking offline — <b>up to ' + capTxt + '</b> while you are away.</div></div>';
+        '<div class="hd-bank-txt">' + (cap == null
+          ? 'Banking offline while you are away — the limit is being confirmed.'
+          : 'Banking offline — <b>up to ' + capTxt + '</b> while you are away.') + '</div></div>';
     }
     var why = running
       ? 'This activity only earns while you are here.'
@@ -957,7 +960,9 @@
     return '<div class="hd-card hd-mini hd-bank is-off"><div class="mi">' +
       gly('uiIdle', 20, '', 'var(--ink-3)') + '</div>' +
       '<div class="hd-bank-txt">' + why +
-      ' Fighting, gathering or crafting banks up to ' + capTxt + ' offline.</div></div>';
+      (cap == null
+        ? ' Fighting, gathering or crafting banks offline; the limit is being confirmed.'
+        : ' Fighting, gathering or crafting banks up to ' + capTxt + ' offline.') + '</div></div>';
   }
 
   /* b227 — this used to be a private regex table that only ever saw a task's

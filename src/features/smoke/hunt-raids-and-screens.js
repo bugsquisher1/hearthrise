@@ -5201,6 +5201,57 @@ export default [
             }));
             assert(bad.length === 0, 'THE VG5 FIGHT-ACTIONBAR BUG: ' + bad.join('; '));
           }),
+
+          // ── regression suite — FIGHT-PHONE-DENSITY-4 (visual gate 7, defect 1) ──
+          // The log row drew past the arena card: 775–871 against a card ending
+          // at 790 at 1280x800, 383–473 against 405 at 922x423. Ruling: the card
+          // contains the log, or at the phone size the row hides and the Log
+          // door (the same log) stays in reach.
+          () => tryRunAsync('FIGHT-PHONE-DENSITY-4: the combat log row lies inside the arena card and the screen at 1280x800, and at 922x423 or hides behind a visible Log door', async () => {
+            const bad = [];
+            await fight(METER(), async (m) => withStockedFight(() => {
+              m.paint();
+              window.HearthriseCombatHud.refresh();
+              const app = document.getElementById('app'), cls = document.body.className;
+              for (const [w, h] of [[922, 423], [1280, 800]]) phoneFrame(w, h, app.outerHTML, (doc) => {
+                doc.body.className = cls;
+                const at = w + 'x' + h + ': ', R = (e) => e.getBoundingClientRect(), box = (r) => '[' + [r.left, r.top, r.right, r.bottom].map(Math.round) + ']';
+                const card = doc.querySelector('#panel-combat .combat-arena'), row = doc.querySelector('#panel-combat .fs-logrow');
+                if (!card || !row) { bad.push(at + 'the arena card or the log row is missing'); return; }
+                const c = R(card), r = R(row), hidden = doc.defaultView.getComputedStyle(row).display === 'none';
+                if (hidden) {
+                  if (w > 1024) bad.push(at + 'the log row is hidden at the desktop size');
+                  const door = doc.querySelector('#fs-actionbar .fs-history'), d = door && R(door);
+                  if (!d || d.width < 1 || d.height < 1) bad.push(at + 'the log row hides and no Log door is drawn');
+                } else if (r.top < c.top - 0.5 || r.bottom > c.bottom + 0.5 || r.left < c.left - 0.5 || r.right > c.right + 0.5 || r.bottom > h + 0.5 || r.right > w + 0.5) {
+                  bad.push(at + 'the log row ' + box(r) + ' leaves the card ' + box(c) + ' or the screen');
+                }
+                if (card.scrollHeight > card.clientHeight + 1) bad.push(at + 'the card clips its content (' + card.scrollHeight + ' > ' + card.clientHeight + ')');
+              });
+            }));
+            assert(bad.length === 0, 'THE VG7 FIGHT-LOGROW BUG: ' + bad.join('; '));
+          }),
+
+          // ── regression suite — FIGHT-METRICS-COPY-1 (visual gate 7, defect 2) ──
+          // A non-finite survival forecast printed "measuring… · you last —": a
+          // dash inside a sentence. Not measurable yet is said in words.
+          () => tryRunAsync('FIGHT-METRICS-COPY-1: a non-finite survival forecast reads as words, never a dash; a finite one reads "you last"', async () => {
+            const HUD = window.HearthriseCombatHud, CS = window.HearthriseCombatScreens, real = HUD._forecast;
+            const text = () => { CS.renderFight(); const e = document.getElementById('fs-metrics'); return e ? e.textContent : ''; };
+            try {
+              await fight(METER(), async () => {
+                for (const f of [{ survivesAnHour: true, survivalSeconds: Infinity, survivalKills: Infinity },
+                  { survivesAnHour: false, survivalSeconds: NaN, survivalKills: NaN }]) {
+                  HUD._forecast = (m) => Object.assign({}, real(m), f);
+                  const t = text();
+                  assert(!/[—–]/.test(t) && /measuring/.test(t), 'a non-finite forecast printed "' + t.trim() + '"');
+                }
+                HUD._forecast = (m) => Object.assign({}, real(m), { survivesAnHour: true, survivalSeconds: 600, survivalKills: 40 });
+                const t = text();
+                assert(/you last/.test(t) && !/[—–]/.test(t), 'a finite forecast printed "' + t.trim() + '"');
+              });
+            } finally { HUD._forecast = real; }
+          }),
         ];
       })(),
     ];

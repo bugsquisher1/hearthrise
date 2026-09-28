@@ -1381,7 +1381,11 @@ function renderMetrics(m, f) {
       parts.push('measuring…');
     }
   }
-  if (f) {
+  /* A forecast that is not finite yet is said in words: never a dash inside
+     a sentence (visual gate 7). */
+  if (f && !isFinite(f.survivalSeconds)) {
+    parts.push('survival still measuring');
+  } else if (f) {
     parts.push(f.survivesAnHour
       ? `you last <b>${fmtRun(f.survivalSeconds)}</b>`
       : `you last <b>≈${num(f.survivalKills)} kills</b> · ${fmtRun(f.survivalSeconds)}`);

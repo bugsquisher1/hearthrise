@@ -235,6 +235,19 @@ export const MODALS = [
     closed: 'return !document.querySelector(".hr-confirm");',
     cleanup: 'const no = document.querySelector(".hr-confirm [data-hrc=no]"); if (no) no.click();',
   },
+  {
+    id: 'modal/spoils',
+    why: 'the Auto clear\'s spoils — Done is its only way back to the Dungeons tab',
+    open: 'document.querySelectorAll(".ftue-root").forEach((e) => e.remove());'
+      + ' const items = {}; Object.keys(window.ITEMS).slice(0, 60).forEach((id) => { items[id] = 1; });'
+      + ' window.HearthriseSpoils.open({ outcome: "settled", body: { settled: { dungeon: "ancient_wyrm", mode: "auto",'
+      + ' scrip: 40, items, key_spent: "dragonsbane_key" }, state: { dungeon_scrip: 120 }, inventory: {} } });',
+    sheet: '.spoils-sheet',
+    head: '#spoils-title',
+    primary: '.spoils-sheet [data-hr-dismiss]',
+    closed: 'return !document.querySelector(".spoils-scrim");',
+    cleanup: 'document.querySelectorAll(".spoils-scrim").forEach((e) => e.remove());',
+  },
 ];
 
 /* The size the welcome-back defect was measured at, live. Sheets only — the CTA

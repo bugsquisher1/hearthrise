@@ -9076,4 +9076,37 @@ export default [
     assert(HL.tick(d({ parked: true, ranks: { undead: 3 } })) === 'parked' && sets === s0, 'a parked watcher wrote');
     assert(HL.tick(d({ slot: 1, ranks: { undead: 3, vermin: 2 } })) === 'seeded' && opens === 1, 'slot switch replayed another slot\'s ranks');
   }),
+  /* SPOILS-1: the settle rows carry the catalogue's odds, rarest last; the Auto
+     sheet reads purse, key and re-entry from the ONE answer and mounts once. */
+  () => tryRun('SPOILS-1: the settle rows show odds rarest-last, and the Spoils sheet mounts once from the answer', () => {
+    const SP = window.HearthriseSpoils, rows = window.dungeonSettleRowHtml, S = window.HearthriseSheet;
+    assert(SP && typeof rows === 'function' && S, 'HearthriseSpoils / dungeonSettleRowHtml / HearthriseSheet must be published');
+    const settled = { dungeon: 'goblin_warcamp', mode: 'auto', scrip: 21, items: { wartusk_cleaver: 1, goblin_totem: 5 }, key_spent: 'goblin_seal' };
+    const v = { outcome: 'settled', body: { settled, state: { dungeon_scrip: 57 }, inventory: { goblin_seal: 2, goblin_totem: 5, wartusk_cleaver: 1 },
+      dungeon_cooldowns: { goblin_warcamp: { auto: new Date(Date.now() + 4 * 3600e3).toISOString() } } } };
+    const h = rows(v);
+    assert(h.indexOf('Goblin Totem') >= 0 && h.indexOf('Goblin Totem') < h.indexOf('Wartusk Cleaver'), 'Goblin Totem must sort before Wartusk Cleaver');
+    for (const w of ['6% a clear', 'Unique', 'data-inspect-item="wartusk_cleaver"']) assert(h.includes(w), 'rows lack ' + w);
+    const miss = rows({ outcome: 'settled', body: { settled: Object.assign({}, settled, { items: { goblin_totem: 5 } }) } });
+    assert(miss.includes('Still in the chest: Wartusk Cleaver') && miss.includes('Quartermaster') && !miss.includes('150'), 'chase line wrong or priced: ' + miss);
+    assert(S.anyOpen() === false, 'a sheet is already open before SPOILS-1 — the suite left one up');
+    const count = () => document.querySelectorAll('.spoils-scrim').length;
+    const ftue = [...document.querySelectorAll('.ftue-root')].map((n) => [n, n.parentNode, n.nextSibling]);
+    try {
+      ftue.forEach(([n]) => n.remove());   // open() declines under the tutorial by design
+      SP.open(v);
+      const box = document.querySelector('.spoils-scrim');
+      assert(count() === 1 && box, 'open(v) must mount exactly one .spoils-scrim (got ' + count() + ')');
+      const lore = box.querySelector('.spoils-lore'); assert(lore && /Grimtusk.*Goblin Warcamp/.test(lore.textContent) && box.querySelector('.spoils-rare'), 'the sheet lacks Grimtusk\'s lore line or .spoils-rare');
+      for (const w of ['2 left', '57', 'Opens to you again in']) assert(box.textContent.includes(w), 'the sheet lacks ' + w);
+      SP.open(v);
+      assert(count() === 1, 'a second open(v) mounted another sheet');
+      assert(S.closeTop() && count() === 0, 'closeTop() must remove the Spoils sheet');
+      SP.open({ outcome: 'refused' }); SP.open({ outcome: 'replayed', body: { settled: null } });
+      assert(count() === 0, 'a refused or replayed verdict mounted a sheet');
+    } finally {
+      document.querySelectorAll('.spoils-scrim').forEach((n) => n.remove());
+      ftue.forEach(([n, parent, next]) => parent && parent.insertBefore(n, next));
+    }
+  }),
 ];

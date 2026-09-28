@@ -230,14 +230,10 @@
       if(A && v && v.body && typeof A.reconcileDungeonCooldowns === 'function') A.reconcileDungeonCooldowns(window.G, v.body);
       if(v && (v.outcome === 'settled' || v.outcome === 'replayed') && v.body){
         if(typeof DS.reconcileFromEnvelope === 'function') DS.reconcileFromEnvelope(window.G, v.body);
-        var s = v.body.settled;
-        if(s && v.outcome === 'settled' && typeof window.notify === 'function'){
-          window.notify('+' + s.scrip + ' Dungeon Scrip', 'loot');
-          Object.keys(s.items || {}).forEach(function(iid){
-            var it = window.ITEMS && window.ITEMS[iid];
-            window.notify('+' + s.items[iid] + '× ' + (it ? it.n : iid), 'loot');
-          });
-        }
+        /* One toast and the Chronicle rows (note), then the Spoils sheet for an
+           Auto clear (open); both read this answer and decline anything else. */
+        var SP = window.HearthriseSpoils;
+        if(SP){ SP.note(v); SP.open(v); }
       } else if(v && v.outcome === 'refused' && typeof window.notify === 'function'){
         window.notify(DS.dungeonRefusalMessage(v.reason, v.body && v.body.detail), 'kill');
       }
@@ -255,6 +251,20 @@
      their loot had landed. `null` is the honest pre-answer state; a refusal shows
      the server's own reason. Exposed because src/dungeons.js is a classic script
      (it cannot export) and this is the one renderer the modal uses. */
+  function _dgnEsc(x){
+    return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  /* THE ONE ODDS WORDING for a catalogue row: 'every clear', or the shared
+     formatter's figure + ' a clear'. '' when the formatter is absent — the
+     row then shows no odds rather than an invented one. */
+  function _dgnOdds(ch){
+    if(!(ch > 0)) return '';
+    if(ch >= 1) return 'every clear';
+    var D = window.HearthriseCore && window.HearthriseCore.drops;
+    return (D && typeof D.formatDropOdds === 'function') ? D.formatDropOdds(ch) + ' a clear' : '';
+  }
+  var SPOILS_NAMED_TIERS = { rare: 1, epic: 1, legendary: 1, mythic: 1, unique: 1 };
   function settleRowHtml(v){
     if(!v) return '<div class="drm-empty">Settling with the server…</div>';
     if(v.outcome !== 'settled' && v.outcome !== 'replayed'){
@@ -265,12 +275,44 @@
     }
     var s = (v.body && v.body.settled) || null;
     if(!s) return '<div class="drm-reward-row">Rewards settled — the server had already credited this run.</div>';
-    return Object.keys((s && s.items) || {}).map(function(iid){
-      var item = window.ITEMS && window.ITEMS[iid];
-      return '<div class="drm-reward-row"><span>' + window.itemFallbackIcon(iid, 22, item) + '</span> +'
-        + s.items[iid] + ' ' + (item ? item.n : iid) + '</div>';
-    }).join('') + '<div class="drm-reward-row">Rewards settled — '
-      + ((s && s.scrip) || 0) + ' Dungeon Scrip is in your purse.</div>';
+    /* Rows are the server's answer; the catalogue only lends each its odds and
+       its place. A row the catalogue does not know still renders, last. */
+    var d = s.dungeon ? DUNGEONS[s.dungeon] : null;
+    var loot = (d && d.loot) || [];
+    var D = window.HearthriseCore && window.HearthriseCore.drops;
+    var rareMax = D && D.DROP_BAND_MAX ? D.DROP_BAND_MAX.uncommon : 0;
+    var nameOf = function(iid){ var it = window.ITEMS && window.ITEMS[iid]; return it ? it.n : iid; };
+    var rows = Object.keys(s.items || {}).map(function(iid, n){
+      var at = -1;
+      for(var i = 0; i < loot.length; i++) if(loot[i].id === iid){ at = i; break; }
+      return { id: iid, qty: s.items[iid], ch: at >= 0 ? loot[at].chance : 0, order: at >= 0 ? at : loot.length + n };
+    }).sort(function(a, b){ return (b.ch - a.ch) || (a.order - b.order); });
+    var rowHtml = function(r){
+      var item = window.ITEMS && window.ITEMS[r.id];
+      var tier = typeof window.itemRarity === 'function' ? window.itemRarity(r.id, item) : null;
+      var label = (tier && SPOILS_NAMED_TIERS[tier] && window.RARITY && window.RARITY.TIERS[tier]) ? window.RARITY.TIERS[tier].label : '';
+      var odds = _dgnOdds(r.ch);
+      var insp = typeof window.hrInspectAttrs === 'function' ? window.hrInspectAttrs(r.id) : '';
+      return '<div class="drm-reward-row spoils-row"><span>' + window.itemFallbackIcon(r.id, 22, item) + '</span> +'
+        + _dgnEsc(r.qty) + ' <span class="spoils-item"' + insp + '>' + _dgnEsc(nameOf(r.id)) + '</span>'
+        + (label ? ' <span class="spoils-tier">' + _dgnEsc(label) + '</span>' : '')
+        + (odds ? ' <span class="spoils-odds">' + _dgnEsc(odds) + '</span>' : '') + '</div>';
+    };
+    var isRare = function(r){ return r.ch > 0 && r.ch <= rareMax; };
+    var common = rows.filter(function(r){ return !isRare(r); });
+    var rare = rows.filter(isRare);
+    var html = common.map(rowHtml).join('')
+      + (rare.length ? '<div class="spoils-rare">' + rare.map(rowHtml).join('') + '</div>' : '');
+    var chase = null;
+    loot.forEach(function(l){ if(l.chance < 1 && (!chase || l.chance < chase.chance)) chase = l; });
+    if(chase && !(s.items && Object.prototype.hasOwnProperty.call(s.items, chase.id))){
+      var odds = _dgnOdds(chase.chance);
+      var qm = (window.QM_STOCK || []).some(function(e){ return e.id === chase.id; });
+      html += '<div class="drm-reward-row spoils-chase">Still in the chest: ' + _dgnEsc(nameOf(chase.id))
+        + (odds ? ', ' + _dgnEsc(odds) : '') + '.' + (qm ? ' Or buy it outright from the Quartermaster.' : '') + '</div>';
+    }
+    return html + '<div class="drm-reward-row">Rewards settled — '
+      + _dgnEsc(s.scrip || 0) + ' Dungeon Scrip is in your purse.</div>';
   }
   window.dungeonSettleRowHtml = settleRowHtml;
 
@@ -641,7 +683,10 @@
                 ? window.itemFallbackIcon(l.id, 16, item)
                 : '');
           var bopTag = item && item.bop ? '<span class="dgn-bop">BoP</span>' : '';
-          return '<div class="dgn-loot" title="' + (item ? item.n : l.id) + '">' + icon + ' ' + (l.qty[0] === l.qty[1] ? l.qty[0] : l.qty[0]+'-'+l.qty[1]) + 'x ' + bopTag + '</div>';
+          var odds = _dgnOdds(l.chance);
+          var title = (item ? item.n : l.id) + (odds ? ' — ' + odds : '') + (_dsArmed() ? ', the same by hand or on Auto' : '');
+          return '<div class="dgn-loot" title="' + _dgnEsc(title) + '">' + icon + ' ' + (l.qty[0] === l.qty[1] ? l.qty[0] : l.qty[0]+'-'+l.qty[1]) + 'x'
+            + (l.chance < 1 && odds ? ' · ' + _dgnEsc(window.HearthriseCore.drops.formatDropOdds(l.chance)) : '') + ' ' + bopTag + '</div>';
         }).join('');
         var costStr;
         if(d.cost.key){
@@ -891,7 +936,7 @@
       '<div class="drm-rewards">' +
         '<h4>Spoils</h4><div id="drm-spoils">' + rewardHtml + '</div>' +
       '</div>',
-      '<button class="drm-btn drm-btn-primary" id="drm-finish">Claim</button>');
+      '<button class="drm-btn drm-btn-primary" id="drm-finish">Done</button>');
     modal.querySelector('.drm-close').addEventListener('click', closeRunModal);
     modal.querySelector('#drm-finish').addEventListener('click', function(){
       closeRunModal();

@@ -480,6 +480,7 @@ import { setupDeeds } from './features/deeds.js?v=559';
 import { setupRecipeBook } from './features/recipe-book.js?v=559';
 import { setupItemIndex } from './features/item-index.js?v=559';
 import { setupCodex } from './features/codex.js?v=559';
+import { setupSpoils } from './render/spoils-sheet.js?v=559';
 import { setupSignposts } from './features/signposts.js?v=559';
 import { setupKnowYourFoe } from './features/know-your-foe.js?v=559';
 import { setupNightPlan } from './features/night-plan.js?v=559';
@@ -548,6 +549,7 @@ function tryBootFeatures() {
   boot('night-plan', setupNightPlan);
   boot('screen-primers', setupScreenPrimers);
   boot('codex', setupCodex);
+  boot('spoils', setupSpoils);
   /* b228: setupCompanions() wraps window.getBonus, and it is the LAST wrapper
      any boot path installs. Hand the per-key power budget back the outermost
      position immediately rather than waiting for its 1s watchdog — otherwise

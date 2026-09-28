@@ -578,6 +578,8 @@
             if(v && (v.outcome === 'settled' || v.outcome === 'replayed') && v.body
                && typeof DS.reconcileFromEnvelope === 'function'){
               DS.reconcileFromEnvelope(window.G, v.body);
+              /* The toast and the Chronicle only: this summary is already the sheet. */
+              if(window.HearthriseSpoils) window.HearthriseSpoils.note(v);
             } else if(v && v.outcome === 'refused'){
               /* The re-entry window is the server's; a refusal names the ONE dungeon
                  and ONE mode it refused on, so adopt it into the mirror the dungeon
@@ -609,7 +611,7 @@
       modal.innerHTML = scvSheet(
         '<button class="scv-close" data-hr-dismiss>✕</button>',
         scavengerSummaryHtml({ armed: _armed, victory: victory, takenPct: takenPct, bossName: run.config.bossName, verdict: null, awarded: awarded, lootRolls: lootRolls }),
-        '<button class="scv-finish">Claim</button>');
+        '<button class="scv-finish">Done</button>');
       modal.querySelector('.scv-close').addEventListener('click', close);
       modal.querySelector('.scv-finish').addEventListener('click', function(){
         close();

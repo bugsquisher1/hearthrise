@@ -1,0 +1,79 @@
+/* src/styles/spoils.css — the Spoils sheet (src/render/spoils-sheet.js) and the
+ * settle rows it shares with the manual and scavenger summaries
+ * (window.dungeonSettleRowHtml). Layout of the sheet is .hr-scrim/.hr-sheet
+ * (art-direction.css); z matches .ach-overlay. Tokens only. */
+.spoils-scrim {
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--bg-0) 78%, transparent);
+}
+.spoils-sheet {
+  width: 100%;
+  max-width: 480px;
+  box-sizing: border-box;
+  padding: 18px 20px;
+  gap: 10px;
+  background: var(--bg-1);
+  border: 2px solid var(--gold);
+  border-radius: var(--r-lg);
+  color: var(--ink);
+  font-family: var(--f-ui);
+}
+.spoils-title {
+  margin: 0;
+  font-family: var(--f-display);
+  font-size: var(--t-h2);
+  line-height: 1.2;
+  color: var(--gold);
+  overflow-wrap: anywhere;
+}
+.spoils-boss { margin: 4px 0 0; font-size: var(--t-small); line-height: 1.4; color: var(--ink-2); }
+.spoils-lore { margin: 0; font-size: var(--t-body); line-height: 1.45; font-style: italic; color: var(--ink); }
+.spoils-rows { display: flex; flex-direction: column; gap: 4px; }
+.spoils-row { flex-wrap: wrap; gap: 4px 6px; }
+.spoils-item { font-weight: 600; }
+.spoils-tier {
+  font-size: var(--t-micro);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+.spoils-odds {
+  margin-left: auto;
+  font-size: var(--t-micro);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.spoils-rare {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line-soft);
+}
+.spoils-chase { font-size: var(--t-small); color: var(--ink-2); }
+.spoils-facts { display: flex; flex-direction: column; gap: 2px; padding-top: 6px; border-top: 1px solid var(--line-soft); }
+.spoils-fact { margin: 0; font-size: var(--t-small); line-height: 1.4; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.spoils-fact b { color: var(--ink); }
+.spoils-foot { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.spoils-btn {
+  min-height: var(--tap);
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.spoils-btn-primary { border-color: var(--gold); background: var(--gold); color: var(--bg-0); }
+
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .spoils-sheet { padding: 12px 14px; gap: 6px; }
+  .spoils-title { font-size: var(--t-lead); }
+}

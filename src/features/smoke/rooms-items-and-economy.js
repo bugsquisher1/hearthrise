@@ -2980,11 +2980,14 @@ export default [
       inv: JSON.parse(JSON.stringify(G.inventory || {})),
       scrip: G.dungeonScrip, cd: G._dungeonCooldowns,
       addItem: window.addItem, getCombatLevel: window.getCombatLevel,
-      send: DS.sendDungeonSettle, notify: window.notify,
+      send: DS.sendDungeonSettle, notify: window.notify, spoils: window.HearthriseSpoils,
     };
     const minted = [];
+    const opened = [], noted = [];
     let sent = null;
     try {
+      /* The Spoils sheet and the Chronicle are stubbed: a stubbed run mounts no real sheet. */
+      window.HearthriseSpoils = { open: (x) => opened.push(x), note: (x) => noted.push(x) };
       /* THE REAL PREDICATE FIRST (b515). Everything below forces the arm through
          __setDungeonSettleArm, which short-circuits isDungeonSettleArmed() entirely —
          so this test passed for four builds while PRODUCTION was dormant: the arm read
@@ -3042,7 +3045,10 @@ export default [
       assert(G.dungeonScrip === 15 && R.scripOf(G) === 15,
         'armed: the balance shown is the ENVELOPE state.dungeon_scrip (got ' + R.scripOf(G) + ')');
       assert(!(G.inventory.dungeon_scrip > 0), 'armed: nothing lands in the legacy bag slot');
+      assert(opened.length === 1 && opened[0].outcome === 'settled',
+        'armed: a settled Auto clear hands its verdict to HearthriseSpoils.open once (got ' + opened.length + ')');
     } finally {
+      window.HearthriseSpoils = snap.spoils;
       R.__setDungeonSettleArm(null);
       DS.sendDungeonSettle = snap.send; window.addItem = snap.addItem;
       window.getCombatLevel = snap.getCombatLevel; window.notify = snap.notify;

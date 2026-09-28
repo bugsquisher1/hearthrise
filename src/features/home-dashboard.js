@@ -141,6 +141,22 @@
         R + '.hd-sub{margin-top:1px}' +
         R + '.hd-ledger{align-items:center;padding-bottom:0}' +
         R + '.hd-led b{font-size:19px}' +
+        /* b560 visual gate (922x423): the strip is 56px and the band's content
+           was ~93px — the name row carried the rename button's 44px tap floor,
+           the status line wrapped to three lines and each realm label to two,
+           so the name hid under the activity bar and the figures were cut top
+           and bottom. Every row is one line here: the button keeps its 44px hit
+           box but lends 22px of it to the band's padding, the status line clips
+           instead of wrapping (the connection clause ellipsizes, rank stays
+           whole), and the labels never break, bottoms aligned so a pending dash
+           cannot drop its label out of line. The band also stops 2px short of
+           the activity bar (the panel pads 8px here, not 10). */
+        R + '.hd-hearth{margin-top:-8px}' +
+        R + '.hd-rename{margin:-11px 0}' +
+        R + '.hd-sub{flex-wrap:nowrap;white-space:nowrap}' +
+        R + '.hd-net{min-width:0;overflow:hidden;text-overflow:ellipsis}' +
+        R + '.hd-ledger{align-items:flex-end}' +
+        R + '.hd-led > span{white-space:nowrap;margin-top:3px;line-height:1.2}' +
       '}',
 
       /* ── ART DIRECTION: ONE IDEA ──────────────────────────────────────────
@@ -1317,7 +1333,7 @@
       /* b371: the save claim is derived from the last CONFIRMED game_saves
          upsert (legacy.js cloudSaveLine → sync.js write channel), not from
          being signed in. See the note at cloudSaveLine. */
-      (isOnline()
+      '<span class="hd-net">' + (isOnline()
         ? ('Online · ' + esc((window.cloudSaveLine ? window.cloudSaveLine() : { text: 'Cloud save connecting…' }).text))
         /* b465 — THIS PROMISED SOMETHING HEARTHRISE DOES NOT DO.
            "progress saved on this device" is the reassurance a single-player
@@ -1327,7 +1343,7 @@
            progress is safe on their machine is the one sentence that turns a
            dropped connection into a support ticket. Say the true thing, and say
            what to do about it. */
-        : 'Offline · reconnect to keep playing') + '</div>';
+        : 'Offline · reconnect to keep playing') + '</span></div>';
     html += '</div></div>';
     html += '<div class="hd-ledger">' + xpLed + realmLeds() +
       '</div>';

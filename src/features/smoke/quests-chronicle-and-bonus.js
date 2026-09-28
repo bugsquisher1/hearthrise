@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 67 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, xpOf, predZero, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, zeroRenownTerms, restoreRenownTerms, on, snapshot, closeOverlays, hrCharmDriver } from './_harness.js?v=559';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, xpOf, predZero, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, zeroRenownTerms, restoreRenownTerms, on, snapshot, closeOverlays, hrCharmDriver, phoneFrame } from './_harness.js?v=559';
 import { THIS_WEEK, THIS_WEEK_QUIET } from '../../data/this-week.js?v=559';
 
 export default [
@@ -2754,6 +2754,50 @@ export default [
       H.render();
       assert(cell().querySelector('b').textContent === (12).toLocaleString(), 'Kills today: ' + cell().textContent);
     } finally { window.HearthriseGoalState = was; try { H.render(); } catch (e) {} }
+  }),
+  /* HOME-BAND-922 — the b560 visual gate: on a 922x423 landscape phone the
+     hearth band collapses to a 56px strip, and its content (name + 44px rename
+     tap floor + a wrapped status line + two-line realm labels) was ~93px, so
+     the name hid under the activity bar and the figures were cut top and
+     bottom. Renders the real #app at each size and measures the band. */
+  () => tryRun('HOME-BAND-922: the hearth band holds its name and every realm cell at 922x423 and 1280x800', () => {
+    const H = window.HearthriseHome, was = window.HearthriseGoalState;
+    if (!H || typeof window.showTab !== 'function') return skip('no Home');
+    const prevTab = window.activeTab, bad = [];
+    try {
+      window.HearthriseGoalState = { peek: () => ({ 'd:kill_any': { have: 12, target: 10 } }) };
+      window.showTab('profile'); H.render();
+      const app = document.getElementById('app').outerHTML;
+      for (const [w, h] of [[922, 423], [1280, 800]]) {
+        phoneFrame(w, h, app, (doc) => {
+          const at = w + 'x' + h + ': ', q = (s) => doc.querySelector('#panel-profile ' + s);
+          const inner = q('.hd-hearth-in'), name = q('.hd-name'), bar = doc.querySelector('.activity-bar');
+          assert(inner && name && bar, at + 'the frame drew no hearth band or activity bar');
+          const box = inner.getBoundingClientRect(), n = name.getBoundingClientRect(), a = bar.getBoundingClientRect();
+          const leds = [...doc.querySelectorAll('#panel-profile .hd-ledger .hd-led')];
+          assert(leds.length === 3 && leds.some((l) => l.querySelector('.bal-pending')) && leds.some((l) => /^12$/.test(l.querySelector(':scope > b').textContent.trim())),
+            at + 'the band must draw XP today plus one known and one pending realm cell: ' + leds.map((l) => l.textContent).join(' | '));
+          for (const el of leds.flatMap((l) => [...l.querySelectorAll(':scope > b, :scope > span')])) {
+            const r = el.getBoundingClientRect();
+            if (r.top < box.top - 0.5 || r.bottom > box.bottom + 0.5 || r.left < box.left - 0.5 || r.right > box.right + 0.5) {
+              bad.push(at + '"' + el.textContent.trim() + '" at y ' + Math.round(r.top) + '..' + Math.round(r.bottom) + ' outside the band ' + Math.round(box.top) + '..' + Math.round(box.bottom));
+            }
+            if (el.tagName === 'SPAN') {
+              const lh = parseFloat(doc.defaultView.getComputedStyle(el).lineHeight) || parseFloat(doc.defaultView.getComputedStyle(el).fontSize) * 1.4;
+              if (r.height > lh + 1) bad.push(at + '"' + el.textContent.trim() + '" wraps (' + Math.round(r.height) + 'px for a ' + Math.round(lh) + 'px line)');
+            }
+          }
+          if (n.top < a.bottom && n.bottom > a.top && n.left < a.right && n.right > a.left) {
+            bad.push(at + 'the name (y ' + Math.round(n.top) + '..' + Math.round(n.bottom) + ') sits under the activity bar (y ' + Math.round(a.top) + '..' + Math.round(a.bottom) + ')');
+          }
+          if (n.top < box.top - 0.5) bad.push(at + 'the name starts ' + Math.round(box.top - n.top) + 'px above the band');
+        });
+      }
+    } finally {
+      window.HearthriseGoalState = was;
+      try { window.showTab(prevTab || 'profile'); H.render(); } catch (e) {}
+    }
+    assert(bad.length === 0, 'THE b560 BAND BUG: ' + bad.join('; '));
   }),
   () => tryRunAsync('WEEK-D: the goal-state cache is deep-frozen and peek() expires at 120 s', async () => {
     const S = window.__hrSyncServerGoals, GS = window.HearthriseGoalState;

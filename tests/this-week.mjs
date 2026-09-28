@@ -201,7 +201,7 @@ function fixture() {
     vocab: ['all xp', 'gather', 'speed', 'xp'],
     foreignLines: ['A goblin measures a raid by what it carries home'],
     packedFiles: [{ name: 'index.ts', origin: 'supabase/functions/hr-accrue/index.ts', content: 'x' }],
-    feature: "import { THIS_WEEK } from '../data/this-week.js?v=559';\nfunction live(){ var S = window.HearthriseGoalState; return S ? S.peek() : null; }\n",
+    feature: "import { THIS_WEEK } from '../data/this-week.js';\nfunction live(){ var S = window.HearthriseGoalState; return S ? S.peek() : null; }\n",
     home: "    function realmLeds() {\n      var c = TW.todayCells(TW.live());\n    }\n"
       + "    html += '<div class=\"hd-ledger\">' + xpLed + realmLeds() + '</div>';\n"
       + "    html += '<div class=\"hd-ledger-m\">' + xpLed + realmLeds() + '</div>';\n",

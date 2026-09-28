@@ -69,6 +69,12 @@
   --hr-panel-pad-t:8px;  /* phone panel top pad; sticky strips cancel it */
   --rail-w:64px;         /* landscape-phone nav rail width */
   --hr-rail-foot-h:var(--tap); /* rail foot box the bug FAB occupies */
+  --hr-fab-col:56px;     /* right-edge column the bug/chat FABs float in */
+}
+
+/* The landscape rail seats the bug FAB in its foot, so no right column. */
+@media (max-height: 540px) and (orientation: landscape) and (max-width: 1024px) {
+  :root {--hr-fab-col:0px}
 }
 
 /* ── legacy.css · tablet dial — the nav collapses to a 64px icon rail

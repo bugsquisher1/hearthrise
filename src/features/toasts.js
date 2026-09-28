@@ -85,6 +85,10 @@
        full-width, so the side-step branch correctly declines. */
     '#panel-combat[data-combat-view="fight"] .fs-actionbar',
   ];
+  // Short (landscape-phone) viewports only: Home's CTA column runs down the right
+  // edge, so the column rests left of it (visual pass 10: a toast sat on "Go train").
+  var SHORT_VH = 560;
+  var SHORT_OBSTACLES = ['#panel-profile .hd-cta'];
 
   // Toasts are system chrome: the TYPE carries the tone (kill/loot/levelup/
   // info), so pictographs in the message text are stripped at this single
@@ -99,6 +103,8 @@
   var paused  = false;
   var held    = [];   // [{ type, text }] pushed while a sheet was open
   var MAX_HELD = 5;   // newest kept
+  var replay  = [];   // held toasts replaying one at a time, oldest first
+  var replayTimer = null, replayCur = null;
 
   // A sheet is the announcement: while one is open toasts wait, and replay in
   // the corner when the last one closes. Toggled scrims stay in the DOM, so
@@ -125,8 +131,18 @@
   }
   function flushHeld() {
     if (watcher) { watcher.disconnect(); watcher = null; }
-    var q = held; held = [];
-    q.forEach(function (h) { deliver(h.text, h.type); });
+    replay = replay.concat(held); held = [];
+    if (!replayTimer && !replayCur) replayNext();
+  }
+  // A replay is paced (visual pass 10: a burst stacked 201px over Home's CTAs):
+  // the next enters once the previous has left, or after a dwell if it coalesced.
+  function replayNext() {
+    replayTimer = null; replayCur = null;
+    if (!replay.length) return;
+    if (sheetOpen()) { held = replay.concat(held).slice(-MAX_HELD); replay = []; watchClose(); return; }
+    var h = replay.shift(), t = deliver(h.text, h.type);
+    if (t) { replayCur = t; t.onGone = function () { if (replayCur === t) replayNext(); }; }
+    else replayTimer = setTimeout(replayNext, MIN_MS);
   }
 
   function container() { return document.getElementById('notifs'); }
@@ -213,20 +229,23 @@
     return { bottom: bottom, right: right };
   }
 
-  function layout() {
-    var el = container();
+  // `doc` (tests): lay out a frame's own #notifs against its own viewport.
+  function layout(doc) {
+    var d = doc && doc.defaultView ? doc : document, win = d.defaultView || window;
+    var el = d.getElementById('notifs');
     if (!el) return null;
-    var vw = window.innerWidth || 1024;
-    var vh = window.innerHeight || 768;
+    var vw = win.innerWidth || 1024;
+    var vh = win.innerHeight || 768;
 
-    var rects = [];
-    for (var i = 0; i < OBSTACLES.length; i++) {
-      var ob = document.querySelector(OBSTACLES[i]);
-      if (!ob) continue;
-      var r;
-      try { r = ob.getBoundingClientRect(); } catch (e) { continue; }
-      if (!r || r.width <= 0 || r.height <= 0) continue;
-      rects.push({ left: r.left, right: r.right, top: r.top });
+    var rects = [], sels = vh <= SHORT_VH ? OBSTACLES.concat(SHORT_OBSTACLES) : OBSTACLES;
+    for (var i = 0; i < sels.length; i++) {
+      var obs = d.querySelectorAll(sels[i]);
+      for (var j = 0; j < obs.length; j++) {
+        var r;
+        try { r = obs[j].getBoundingClientRect(); } catch (e) { continue; }
+        if (!r || r.width <= 0 || r.height <= 0) continue;
+        rects.push({ left: r.left, right: r.right, top: r.top });
+      }
     }
 
     var off = computeOffsets(vw, vh, rects);
@@ -319,8 +338,8 @@
     var node = t.el;
     if (node) {
       node.classList.add('leaving');
-      setTimeout(function () { try { node.remove(); } catch (e) {} }, 220);
-    }
+      setTimeout(function () { try { node.remove(); } catch (e) {} if (t.onGone) t.onGone(); }, 220);
+    } else if (t.onGone) t.onGone();
     // Clicking a toast while hovering it removes the element, so its
     // `mouseleave` never fires — without this the whole stack would stay
     // frozen for the rest of the session. Resume unless the cursor is
@@ -381,10 +400,7 @@
     var same = find(key);
     if (same) { bump(same); return; }
 
-    if (visible.length < MAX_VISIBLE) {
-      show({ key: key, type: t, text: msg });
-      return;
-    }
+    if (visible.length < MAX_VISIBLE) return show({ key: key, type: t, text: msg });
     // Full — queue. Past MAX_PENDING the OLDEST queued entry is dropped:
     // in an idle game the newest event is the one the player cares about,
     // and an unbounded queue would show toasts minutes behind reality.
@@ -400,6 +416,8 @@
     visible.length = 0;
     pending.length = 0;
     held.length = 0;
+    replay.length = 0;
+    clearTimeout(replayTimer); replayTimer = null; replayCur = null;
     if (watcher) { watcher.disconnect(); watcher = null; }
     dropped = 0;
     paused = false;
@@ -443,6 +461,7 @@
         pending: pending.length,
         dropped: dropped,
         held: held.length,
+        replaying: replay.length,
         paused: paused,
         counts: visible.map(function (t) { return t.count; }),
       };

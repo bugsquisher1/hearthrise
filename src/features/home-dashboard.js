@@ -1675,6 +1675,7 @@
       if (STN && typeof STN.strip === 'function') html += STN.strip(G);
     } catch (e) { /* a forecast is never worth a broken Home */ }
     html += '</div>';
+    try { var CBK = window.HearthriseComeBack; if (CBK && typeof CBK.card === 'function') html += CBK.card(G); } catch (e) {}
 
     // Renown — the long game. Status, so it lives in the status rail.
     var RN = window.HearthriseRenown;

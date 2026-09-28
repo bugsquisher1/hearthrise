@@ -17893,14 +17893,14 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
      answered yet, older than the peek window (stale), or the goal absent from
      the answer. Every claimability reader goes through goalClaimable() below,
      which reads ONLY this. */
-  var SRV_GOALS_FRESH_MS = 120000;
+  window.HearthriseGoalState = { peek: function(){ return goalsArmed() && _srvGoals && (Date.now() - _srvGoalsAt) < 120000 ? _srvGoals : null; } };
+  var peekSrvGoals = window.HearthriseGoalState.peek;   // the ONE freshness window (WEEK-9)
   function srvGoal(goal, isWeekly){
-    if(!_srvGoals || !goalsArmed() || (Date.now() - _srvGoalsAt) >= SRV_GOALS_FRESH_MS) return null;
-    return _srvGoals[(isWeekly ? 'w:' : 'd:') + goal.id] || null;
+    var m = peekSrvGoals();
+    return m ? (m[(isWeekly ? 'w:' : 'd:') + goal.id] || null) : null;
   }
   window.__hrSyncServerGoals = syncServerGoals;   // test seam + manual refresh
   window.__hrSyncServerGoals.reset = function(){ _srvGoals = null; _srvGoalsAt = 0; _srvGoalsInflight = false; _srvGoalsForce = false; };
-  window.HearthriseGoalState = { peek: function(){ return goalsArmed() && _srvGoals && (Date.now() - _srvGoalsAt) < SRV_GOALS_FRESH_MS ? _srvGoals : null; } };
 
   /* ── THE ONE READER OF startValues IN THIS IIFE ────────────────────────────
      Delegates to block 16's goalBaselineOf (exported on window because this is

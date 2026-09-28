@@ -66,6 +66,12 @@ const STEPS = [
   // Shipped copy promises no retired capability (local save, offline mode, save files). ~600 ms.
   ['node', ['tests/retired-capability-copy.mjs']],
   ['node', ['tests/retired-capability-copy.mjs', '--selftest']],
+  // The goals surface (WEEK-1..9) and the quest/goal reward catalogue parity — CI-only
+  // until a merged lane went red on WEEK-9 (next@dd9b3a7a, 2026-09-28). Seconds, no network.
+  ['node', ['tests/this-week.mjs']],
+  ['node', ['tests/this-week.mjs', '--selftest']],
+  ['node', ['tests/quest-reward-parity.mjs']],
+  ['node', ['tests/quest-reward-parity.mjs', '--selftest']],
   ['node', ['tests/ci-shape.mjs']],
   ['node', ['tests/guard-hygiene.mjs']],
   // Suite isolation. ONLY the mutation proof is run here: the plain run is RED on

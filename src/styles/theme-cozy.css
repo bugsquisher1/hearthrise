@@ -3263,5 +3263,5 @@ body[data-theme="hearthlight"] .ftue-card .ftue-title { color: var(--gold-2) !im
 
 /* THE BOOT-SETTLE LATCH (src/net/settle-first.js). A claim/shop control the
    server would refuse until its first settle answers renders pending, not live. */
-[data-hr-latched] { cursor: progress; opacity: .6; }
-button[data-hr-latched]::after { content: " \2026"; }
+[data-hr-latched], [data-hr-goal-pending] { cursor: progress; opacity: .6; }
+button[data-hr-latched]::after, button[data-hr-goal-pending]::after { content: " \2026"; }

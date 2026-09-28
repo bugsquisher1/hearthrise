@@ -1028,6 +1028,26 @@ export const withRoomServer = (owned, gold, fn) => {
   }, fn);
 };
 
+/* THE SERVER GOAL-STATE SEAM (CLAIM-FROM-SERVER, 2026-09-28). A goal's number
+   and its Claim come ONLY from hr_goal_state; local counters (G.stats.*,
+   startValues) move the bar and nothing else. So the one way a test or a QA
+   pass (the pass-3 visual gate) states "this goal is 7/10" or "this goal is
+   claimable" is to FEED that state: `rows` in the hr_goal_state shape
+   ({goal_id, weekly, target, have, complete, claimed}), synced through the real
+   reader. Needs gold armed (goalsArmed). A re-feed replaces the last feed (it
+   never stacks on it), so restore() always lands on the real transport. */
+export const goalRow = (id, have, target, o) => Object.assign({ goal_id: id, weekly: false, target, have, complete: have >= target, claimed: false }, o || {});
+export const feedServerGoals = async (rows) => {
+  const was = window.HearthriseGoalClaim;
+  const base = (was && was.__hrFedBase !== undefined) ? was.__hrFedBase : was;
+  window.HearthriseGoalClaim = Object.assign(Object.create(base || null), { __hrFedBase: base,
+    isSignedIn: () => true, goalState: () => Promise.resolve({ ok: true, goals: rows }) });
+  window.__hrSyncServerGoals.reset();
+  await new Promise((r) => window.__hrSyncServerGoals(r));
+  const fed = window.HearthriseGoalClaim;
+  return () => { if (window.HearthriseGoalClaim === fed) window.HearthriseGoalClaim = base; window.__hrSyncServerGoals.reset(); };
+};
+
 /* -- withClaimServer - A CLAIM IS A ROUND TRIP, AND THE REWARD IS NOT LOCAL --
    Every period reward in the game — a Collection milestone, a Renown rank, a
    daily login, a quest — pays in gold / gems / skill XP / items, and every one

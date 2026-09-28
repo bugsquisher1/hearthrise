@@ -28,7 +28,7 @@ followed by bullets. Keep entries short and player-friendly (not commit-log styl
 
 **Hero titles for every skill.** A hero whose best skill is Runecrafting or Stonemason is a "Master Runebinder" or "Master Mason".
 
-**Phone fixes.** The Skills header clears the sticky strip, strip taps open the skill, the bug button sits at the foot of the nav rail, and the Vigour block hides fully when there is no meter to show.
+**Phone fixes.** The Skills header clears the sticky strip, strip taps open the skill, the bug button sits at the foot of the nav rail, and the Vigour block hides fully when there is no meter to show. The Home band fits its three figures at the phone size, the Fight bar keeps the Lifetime and "away: you fall" chips even with a Vigour meter showing, the food row no longer sits on the session line, the four stances no longer run together, and with Auto-eat on every button on the Fight action bar stays inside the card (History reads "Log" on a phone).
 
 **The Night Plan.** Before you leave, the Fight rail, the activity chip and Home say whether you will fall tonight and what fixes it. The forecast is seeded from the server's own death counters.
 
@@ -39,6 +39,44 @@ followed by bullets. Keep entries short and player-friendly (not commit-log styl
 **Lucky Finds Unveiled.** Every lucky drop has a rumour that names where it comes from and what makes it special, and the finds you made while away show on the welcome card and Home.
 
 **The Homestead Almanac.** Every room rung has a line of lore, the plot tiers have names, and each crop says what it is for.
+
+**The realm settles before it sells.** Buying, selling, eating, claiming a reward, listing on the market and settling a dungeon now settle your open activity first, priced at the gear and rates you actually had while you were away. A return can no longer re-price the night at whatever you equipped or ate on the way in, and a claim made before the realm has caught up says "settling your night first" and tries once more instead of failing.
+
+**The world tick keeps up.** A character who switches activity while the realm is running their hunt no longer stalls until the next return, and the tick now pays the same perks and beast bonuses the return settle pays. In a party, the tick reads each member's own perks and bestiary.
+
+**Your standing.** Home names the player you can catch and by how much ("You stand #7 on the Total Level board, 12 levels behind Bran"), every skill board's number one wears a named crown, and the Social boards say the same thing Home does. The Friends card no longer promises a feature that does not exist.
+
+**Hero's Tally.** The Hero tab, Lifetime Stats, the welcome card and the Account grid read only the realm's own counters, with a pending dash until the realm has answered.
+
+**This Week.** Home shows your week so far from the realm's weekly counters, and the first screen of the day no longer shows device-local kill and harvest figures.
+
+**Deeds.** Thirty achievements are now long goals counted by the realm: every progress figure is the realm's own, an unlock is announced once, and the sheet opens at the top.
+
+**Know Your Foe.** When you fall, the sheet names the weapon and element the engine actually pays against that foe, with a door to its Field Note. An unknown killer is named as such, never as "no kills".
+
+**Blessings say what they are.** The Events card, Home, the login toast and the XP-bar note no longer promise gather, craft or cook speed, yield, gold find or XP that the realm never paid; a blessing names the day and what it is for.
+
+**Buy Back is closed honestly.** The realm keeps no buy-back counter yet, so the sheet says so, the shop row is disabled and the More-sheet door is gone; a button that always failed is no longer offered.
+
+**A reward is offered only when the realm has counted it.** A daily or weekly goal, and each step of your first day and the road quests, shows Claim only when the realm's own count says it is done; until the realm answers, the row shows a pending dash. A Claim the realm would refuse is no longer offered.
+
+**The welcome card counts every settled window.** A window the realm settled while you ate, bought, claimed or listed shows on the welcome card once, the same as a window settled by switching activity.
+
+**Come back for.** Home now lists up to four reasons to return, all read from the realm's own clocks: a crop that is ready or can take water, the next crop to ripen, the soonest dungeon Auto-Run window with the keys you hold, the Boss of the Day within your reach (with the bonus the engine actually pays), and the new day. Every row is a door, none of them spends or claims anything.
+
+**The Morning Ledger.** The welcome-back card on Home now itemises the night from the realm's own receipt: what you brought home, rarest first, with the item names as tap targets; the skills you trained and the XP each earned; what was used up. A capped night says how much of your absence went unpaid.
+
+**Spoils of the Deep.** A dungeon's reward rows now say the odds of each find and its rarity, rarest last, and an Auto clear opens a Spoils sheet read straight from the realm's settle: a line of lore for the place, what the chest gave, what is still in it, your Dungeon Scrip, the key you spent and how many are left, and when the dungeon opens to you again. Dungeon clears and rare finds are written into your Chronicle, and the button that used to say Claim now says Done because the realm has already paid.
+
+**Marks of the Climb.** Six named marks on every skill's climb (First Notch at 10, Steady Stride at 25, Old Hand at 50, Master's Nod at 75, Halfway Stone at 92, Mastery at 99), each with a line of lore and a moment when the realm's own level crosses it; level 99 opens a Mastery sheet written for that skill and is kept in your Chronicle for good; a companion's level-up gets its own banner. The old duplicate slide-in toast is gone, and Reduce motion in Settings now really stops the animations.
+
+**Good company.** The Right now card names who else is hunting the same monster or training the same skill, from the live view of the realm; each party member's row says what they are doing; a find in the Crier is a tap target for its item; and the Hearth Codex gains "The realm" with entries for the Common and for Parties.
+
+**Sheet heads stay put.** The Codex, Settings and Lifetime Stats keep their title and Close button in view while you scroll, and the Night Plan's banking line says the limit is being confirmed while the realm has not answered, instead of a dash in the middle of the sentence.
+
+**Dungeon keys are counted by the realm.** A dungeon card's "have N" is the realm's own count of that key; until the realm has answered it shows a pending dash, the same as Home's Come back for, never a number the browser made up. Your Dungeon Scrip on the Dungeons strip and at the Quartermaster shows the same pending dash until the realm has counted it, never 0, and a purchase asked before then is refused in words.
+
+**The arena card keeps its log.** During a fight the log row now sits inside the arena card at desktop sizes and the Log door carries it on a phone; a survival forecast that cannot be measured yet says "still measuring" instead of a dash in the middle of the sentence.
 
 ## v0.9.2-beta build 558 — 2026-09-27 (Every screen explains itself)
 

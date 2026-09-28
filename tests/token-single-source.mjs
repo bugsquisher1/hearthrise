@@ -55,7 +55,7 @@
 //   · custom properties written into JS-authored CSS text or inline style
 //     attributes (`style="--gsz:18px"`, injected <style> strings). Those are
 //     real declarations that simply do not live in a .css file.
-// Two more are runtime dials on <html> — --vh and --reduce-fx — in RUNTIME_ROOT.
+// One more is a runtime dial on <html> — --vh — in RUNTIME_ROOT.
 //
 // Exit: 0 green (or green-with-notes) · 1 an assertion failed · 2 harness problem.
 // ════════════════════════════════════════════════════════════════════════
@@ -81,7 +81,6 @@ const COMPONENT_SCOPED = {
 /* Root-level dials WRITTEN BY JS, never declared in CSS. */
 const RUNTIME_ROOT = {
   '--vh': 'src/mobile.js — real viewport unit for mobile URL-bar chrome',
-  '--reduce-fx': 'src/legacy.js + src/settings-page.js — the reduce-visual-effects switch',
 };
 
 const stripComments = (s) => String(s).replace(/\/\*[\s\S]*?\*\//g, ' ');

@@ -1726,11 +1726,16 @@ export default [
 
     const snap = snapshotG();
     const realNotify = window.notify;
+    const realMark = window.showLevelupCelebration;
     try {
       window.notify = function () {};
       window._hrLastLevelUp = null;
+      let marks = 0;
+      window.showLevelupCelebration = function () { marks += 1; return null; };
       window.G.skills = Object.assign({}, window.G.skills, { woodcutting: 0 });
       window.addXp('woodcutting', 200000);   // crosses several levels
+      window.showLevelupCelebration = realMark;
+      assert(marks === 0, 'the client xp path must not raise the Mark banner (it fires on the server level), got ' + marks);
       assert(window._hrLastLevelUp && window._hrLastLevelUp.skill === 'woodcutting',
         'a level-up MUST fire the notice with the right skill');
       assert(window._hrLastLevelUp.level > 1, 'the notice must carry the new level, got ' + window._hrLastLevelUp.level);
@@ -1741,7 +1746,7 @@ export default [
       window.addXp('woodcutting', 5);
       assert(window._hrLastLevelUp === null,
         'a normal XP tick that crosses no level boundary must NOT fire the notice');
-    } finally { window.notify = realNotify; restoreG(snap); }
+    } finally { window.notify = realNotify; window.showLevelupCelebration = realMark; restoreG(snap); }
   }),
 
   () => tryRun('b343: the spdB speed budget is closed (the pacing anchor holds)', () => {

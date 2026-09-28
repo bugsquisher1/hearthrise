@@ -179,6 +179,10 @@ export async function runSmokeTest(opts = {}) {
   const _Dd = window.HearthriseDeeds;
   let _ddWasOn = true;
   try { if (_Dd && typeof _Dd.__setPollEnabled === 'function') _ddWasOn = _Dd.__setPollEnabled(false); } catch (e) {}
+  /* Same class, the level moments: the suite feeds the skill record. */
+  const _CM = window.HearthriseClimbMarks;
+  let _cmWasOn = true;
+  try { if (_CM && typeof _CM.__setPollEnabled === 'function') _cmWasOn = _CM.__setPollEnabled(false); } catch (e) {}
   const _Prop = window.HearthriseProperty;
   let _propParked = null;
   try {
@@ -238,6 +242,7 @@ export async function runSmokeTest(opts = {}) {
     try { if (_Dl && typeof _Dl.__setAutoOpenEnabled === 'function') _Dl.__setAutoOpenEnabled(_dlAutoWasOn); } catch (e) {}
     try { if (_HL && typeof _HL.__setPollEnabled === 'function') _HL.__setPollEnabled(_hlWasOn); } catch (e) {}
     try { if (_Dd && typeof _Dd.__setPollEnabled === 'function') _Dd.__setPollEnabled(_ddWasOn); } catch (e) {}
+    try { if (_CM && typeof _CM.__setPollEnabled === 'function') _CM.__setPollEnabled(_cmWasOn); } catch (e) {}
     try {
       /* THE RECEIPT, not the pair: __resetPropertyRecord round-trips the
          exact/floor provenance too, so a live session whose record was only a

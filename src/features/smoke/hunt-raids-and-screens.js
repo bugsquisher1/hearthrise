@@ -1445,28 +1445,71 @@ export default [
     }
   }),
 
-  // b385: 6th render-layer extraction — the level-up celebration toast moved to
-  // src/render/levelup-celebration.js. It must stay a window global (the addXp
-  // wrapper in legacy.js calls it by bare name), paint the transient overlay with
-  // the expected class + skill name + level, and NOT persist (auto-removes).
-  () => tryRun('render: level-up celebration toast (extracted surface)', () => {
-    assert(typeof window.showLevelupCelebration === 'function',
-      'showLevelupCelebration must stay on window (addXp wrapper calls it by bare name)');
-    const before = document.querySelectorAll('.lvl-celebration').length;
-    window.showLevelupCelebration('mining', 42);
-    const nodes = document.querySelectorAll('.lvl-celebration');
-    assert(nodes.length === before + 1, 'a .lvl-celebration node must be appended');
-    const el = nodes[nodes.length - 1];
-    assert(el.querySelector('.lc-ring'), 'toast must render its .lc-ring');
-    assert(el.querySelector('.lc-icon'), 'toast must render its .lc-icon');
-    const txt = el.querySelector('.lc-text');
-    assert(txt && txt.textContent.indexOf('Level 42') >= 0,
-      'toast must show the level number');
-    const skname = (window.SKILLS_DEF && window.SKILLS_DEF.mining) ? window.SKILLS_DEF.mining.name : 'mining';
-    const sk = el.querySelector('.lc-skill');
-    assert(sk && sk.textContent.indexOf(skname) >= 0, 'toast must show the skill name');
-    // Clean up the transient node so it doesn't linger past the test.
-    el.remove();
+  // Marks of the Climb (src/features/climb-marks.js): the level moment is a
+  // rise of the SERVER level. The pure core, then the one render test, then the
+  // Reduce motion switch the banners obey.
+  () => tryRun('MARKS-1: a level moment is a rise of the server level, never a first sighting, a null or a stale receipt', () => {
+    const CM = window.HearthriseClimbMarks;
+    assert(CM && typeof CM.observe === 'function', 'window.HearthriseClimbMarks must be published');
+    try {
+      CM.__reset();
+      assert(CM.observe('u1:0', { fishing: 24 }).length === 0, 'the first reading must be a silent baseline');
+      const up = CM.observe('u1:0', { fishing: 26 });
+      assert(up.length === 1 && up[0].from === 24 && up[0].to === 26 && up[0].marks.join() === '25',
+        '24 → 26 must be one rise crossing [25], got ' + JSON.stringify(up));
+      assert(CM.observe('u1:0', { fishing: 26, mining: 50 }).length === 0, 'the first sighting of mining 50 must be silent');
+      assert(CM.observe('u1:0', { fishing: null }).length === 0, 'null is not a reading');
+      assert(CM.observe('u1:0', { fishing: 27 }).length === 1, 'a null must not move the baseline');
+      assert(CM.observe('u2:0', { mining: 60 }).length === 0, 'a new uid:slot must re-base silently');
+      const top = CM.observe('u2:0', { mining: 99 });
+      assert(top.length === 1 && top[0].marks.join() === '75,92,99', '60 → 99 must cross [75,92,99], got ' + JSON.stringify(top));
+      const now = Date.now();
+      const rows = [{ skill: 'mining', from: 49, to: 50 }];
+      assert(CM.fromReceipt({ at: now, restored: true, levelUps: rows }, now).length === 0, 'a restored receipt is history');
+      const rc = { at: now, levelUps: rows };
+      const got = CM.fromReceipt(rc, now);
+      assert(got.length === 1 && got[0].marks.join() === '50', 'a fresh receipt must state mining [50], got ' + JSON.stringify(got));
+      assert(CM.fromReceipt(rc, now).length === 0, 'the same receipt again must be silent');
+    } finally { CM.__reset(); }
+  }),
+
+  () => tryRun('MARKS-2: the Mark banner names its mark and lore, a level between marks paints nothing, Mastery is a sheet', () => {
+    const CM = window.HearthriseClimbMarks;
+    assert(CM && typeof window.hrOpenMastery === 'function', 'the climb marks and window.hrOpenMastery must be published');
+    const made = [];
+    try {
+      const el = window.showLevelupCelebration('mining', 50);
+      made.push(el);
+      assert(el && el.matches('.hr-levelup-pop.is-mark') && document.querySelectorAll('.is-mark').length === 1,
+        'mining 50 must paint exactly one .hr-levelup-pop.is-mark');
+      const t = el.textContent;
+      assert(t.includes('Old Hand') && t.includes(CM.markFor(50).lore) && t.includes('Kept in your Chronicle'),
+        'the Mark banner must name Old Hand, its lore and the Chronicle, got ' + JSON.stringify(t));
+      assert(window.showLevelupCelebration('mining', 42) === null, 'level 42 is no mark and must paint nothing');
+      const scrim = window.hrOpenMastery('fishing');
+      made.push(scrim);
+      const sheet = scrim.matches('.hr-scrim') && scrim.querySelector('.hr-sheet');
+      assert(sheet && sheet.textContent.includes(CM.masteryLore('fishing')) && sheet.textContent.includes('Kept in your Chronicle for good'),
+        'the Mastery sheet must carry the fishing line and the Chronicle note');
+      assert(window.HearthriseSheet.closeTop() && !scrim.isConnected, 'Escape (closeTop) must remove the Mastery sheet');
+    } finally { made.forEach((n) => { if (n) n.remove(); }); }
+  }),
+
+  () => tryRun('MARKS-4: Reduce motion is real — the switch puts a class on <html> that stills the banners', () => {
+    assert(typeof window.hrApplyReduceFx === 'function', 'window.hrApplyReduceFx must be published');
+    const root = document.documentElement;
+    const was = root.classList.contains('hr-reduce-fx');
+    const probe = document.createElement('div');
+    probe.className = 'hr-levelup-pop';
+    try {
+      document.body.appendChild(probe);
+      window.hrApplyReduceFx(true);
+      assert(root.classList.contains('hr-reduce-fx'), 'reduce motion on must set .hr-reduce-fx on <html>');
+      const anim = getComputedStyle(probe).animationName;
+      assert(anim === 'none', 'a level banner must not animate with reduce motion on, got ' + anim);
+      window.hrApplyReduceFx(false);
+      assert(!root.classList.contains('hr-reduce-fx'), 'reduce motion off must clear the class');
+    } finally { root.classList.toggle('hr-reduce-fx', was); probe.remove(); }
   }),
 
   // 9th render-layer extraction: the Shop / IAP store controller moved out of

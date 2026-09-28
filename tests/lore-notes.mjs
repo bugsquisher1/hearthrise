@@ -2,10 +2,10 @@
 // ════════════════════════════════════════════════════════════════════════
 // tests/lore-notes.mjs — ONE LORE LINE PER COMPANION, RANK, TROPHY STAGE,
 //                        ROOM RUNG, FARM PLOT TIER, CHARM CLASS, CHARM RANK,
-//                        LUCKY FIND AND DUNGEON CLEAR
+//                        LUCKY FIND, DUNGEON CLEAR, CLIMB MARK AND MASTERY
 //
 //   node tests/lore-notes.mjs             gate
-//   node tests/lore-notes.mjs --selftest  mutation proof (clean arm + 20 plants)
+//   node tests/lore-notes.mjs --selftest  mutation proof (clean arm + 24 plants)
 //
 // src/data/lore-notes.js is client-only display text. The Stable card, the
 // renown ladder, the rank-up card and the Trophy Room render it as RAW HTML,
@@ -22,6 +22,9 @@
 // taxonomy (extra_dimensional), LORE-9 the rank lines by CHARM_RANKS ids.
 // src/data/dungeon-lore.js: LORE-16 keys the Spoils sheet's clear line by
 // DUNGEONS id (src/render/spoils-sheet.js is its only importer).
+// src/data/mark-lore.js: LORE-17 keys the mark lines by CLIMB_MARKS (ascending,
+// ending at 99, one 3-32 letter name each), LORE-18 the Mastery lines by
+// SKILLS_DEF id (src/features/climb-marks.js is its only importer).
 // Every lore map is one row of the SETS table: {id, name, tag, map, wantKeys,
 // band}. A new lore file is a new row, and it joins LORE-4/5/6 by being one.
 //
@@ -48,7 +51,7 @@ export function labelValues(srcText, decl) {
 }
 
 /* LORE-7: a packed origin or content naming any lore file fails. */
-const LORE_FILE = /lore-notes|lucky-rumours|homestead-lore|charm-lore|dungeon-lore/;
+const LORE_FILE = /lore-notes|lucky-rumours|homestead-lore|charm-lore|dungeon-lore|mark-lore/;
 const BAND = [100, 140];
 
 /* The FIELDNOTES-1 element synonyms (smoke/quests-chronicle-and-bonus.js). */
@@ -74,6 +77,8 @@ export function buildSets(m) {
     { id: 'LORE-8', name: 'CHARM_CLASS_LORE', tag: 'charm class', map: m.charmClassLore, wantKeys: m.charmClassKeys, band: BAND },
     { id: 'LORE-9', name: 'CHARM_RANK_LORE', tag: 'charm rank', map: m.charmRankLore, wantKeys: m.charmRankIds, band: BAND },
     { id: 'LORE-16', name: 'DUNGEON_CLEAR_LORE', tag: 'dungeon', map: m.dungeonLore, wantKeys: m.dungeonIds, band: BAND },
+    { id: 'LORE-17', name: 'MARK_LORE', tag: 'mark', map: m.markLore, wantKeys: m.climbMarks.map(String), band: BAND },
+    { id: 'LORE-18', name: 'MASTERY_LORE', tag: 'mastery', map: m.masteryLore, wantKeys: m.skillIds, band: BAND },
   ];
 }
 
@@ -139,6 +144,17 @@ export function check(d) {
       if (at && Number(at) > Number(n) && line.includes(nm)) add('LORE-13', `plot tier ${n} line names ${nm}, which unlocks at tier ${at}`);
     }
   }
+  const marks = d.climbMarks;
+  const rising = marks.every((v, i) => Number.isInteger(v) && (i === 0 || v > marks[i - 1]));
+  if (!rising || marks[marks.length - 1] !== 99) add('LORE-17', `CLIMB_MARKS [${marks}] is not strictly ascending integers ending at 99`);
+  keysEq('LORE-17', 'MARK_NAMES', Object.keys(d.markNames), marks.map(String));
+  const markNames = new Set();
+  for (const [k, name] of Object.entries(d.markNames)) {
+    const s = typeof name === 'string' ? name : '';
+    if (s.length < 3 || s.length > 32 || !/^[A-Za-z '’-]+$/.test(s)) add('LORE-17', `mark ${k} name ${JSON.stringify(s)} is not 3-32 letters`);
+    if (markNames.has(s.toLowerCase())) add('LORE-17', `mark ${k} name "${s}" is not unique`);
+    markNames.add(s.toLowerCase());
+  }
   const c = d.census;
   const stray = c.plotReaders.filter((f) => f !== 'src/features/farm-progression.js');
   if (stray.length) add('LORE-14', `HearthriseLore.plot is read outside the one builder: ${stray}`);
@@ -183,6 +199,10 @@ async function loadReal() {
   let dungeon;
   try { dungeon = await import('../src/data/dungeon-lore.js'); }
   catch (e) { dungeon = { DUNGEON_CLEAR_LORE: {} }; }
+  let mark;
+  try { mark = await import('../src/data/mark-lore.js'); }
+  catch (e) { mark = { CLIMB_MARKS: [], MARK_NAMES: {}, MARK_LORE: {}, MASTERY_LORE: {} }; }
+  const { SKILLS_DEF } = await import('../src/data/skills.js');
   const { DUNGEONS } = await import('../src/data/dungeons.js');
   const { LUCKY_RUMOURS } = await import('../src/data/lucky-rumours.js');
   const { MONSTERS } = await import('../src/data/monsters.js');
@@ -230,7 +250,10 @@ async function loadReal() {
       charmClassLore: charm.CHARM_CLASS_LORE, charmClassKeys: [...MONSTER_CLASSES],
       charmRankLore: charm.CHARM_RANK_LORE, charmRankIds: CHARM_RANKS.map((r) => r.id),
       dungeonLore: dungeon.DUNGEON_CLEAR_LORE, dungeonIds: Object.keys(DUNGEONS),
+      markLore: mark.MARK_LORE, climbMarks: [...mark.CLIMB_MARKS],
+      masteryLore: mark.MASTERY_LORE, skillIds: Object.keys(SKILLS_DEF),
     }),
+    climbMarks: [...mark.CLIMB_MARKS], markNames: mark.MARK_NAMES,
     luckyDrops, plotNames: home.PLOT_TIER_NAMES,
     maxPlot: MAX_PLOT_LEVEL, plotUnlocks: Object.fromEntries(PLOT_TIERS.map((t, n) => [String(n), t ? t.unlocks : []])),
     cropNames: Object.fromEntries(Object.entries(CROPS).map(([id, c]) => [id, c.name])),
@@ -260,7 +283,7 @@ async function run() {
   return 0;
 }
 
-/* ── MUTATION PROOF (CLAUDE.md §4): a clean arm, then twenty plants, each of
+/* ── MUTATION PROOF (CLAUDE.md §4): a clean arm, then twenty-four plants, each of
    which must be caught by its OWN LORE id. */
 function fixture() {
   const L = (s) => s.padEnd(110, ' and the valley remembers it well');
@@ -281,11 +304,16 @@ function fixture() {
     charmRankIds: ['studied', 'marked'],
     dungeonLore: { crypt_of_bones: L('The crypt is quiet now'), goblin_warcamp: L('The warcamp scatters into the hills') },
     dungeonIds: ['crypt_of_bones', 'goblin_warcamp'],
+    markLore: { 10: L('The tools start to feel like yours'), 99: L('Nothing is left to learn but teaching') },
+    climbMarks: [10, 99],
+    masteryLore: { fishing: L('The fish know your shadow'), mining: L('The hill opens for your pick') },
+    skillIds: ['fishing', 'mining'],
   };
   const sets = buildSets(m);
   const set = (id) => sets.find((s) => s.id === id).map;
   return {
     sets, set, luckyDrops: m.luckyDrops,
+    climbMarks: m.climbMarks, markNames: { 10: 'First Notch', 99: 'Mastery' },
     foreignLines: ['A goblin measures a raid by what it carries home'],
     vocab: ['all xp', 'gather', 'speed', 'xp'],
     packedFiles: [{ name: 'index.ts', origin: 'supabase/functions/hr-accrue/index.ts', content: 'x' }],
@@ -345,6 +373,12 @@ function selftest() {
     ['drop a dungeon line', 'LORE-16', (f) => { delete f.set('LORE-16').goblin_warcamp; }],
     ['pack src/data/dungeon-lore.js', 'LORE-7', (f) => {
       f.packedFiles.push({ name: '_shared/dungeon-lore.js', origin: 'src/data/dungeon-lore.js', content: '' });
+    }],
+    ['drop the fishing Mastery line', 'LORE-18', (f) => { delete f.set('LORE-18').fishing; }],
+    ['add an orphan mark 11', 'LORE-17', (f) => { const k = f.set('LORE-17'); k[11] = k[10].replace('tools', 'blades'); }],
+    ['rename a mark to X', 'LORE-17', (f) => { f.markNames[10] = 'X'; }],
+    ['pack src/data/mark-lore.js', 'LORE-7', (f) => {
+      f.packedFiles.push({ name: '_shared/mark-lore.js', origin: 'src/data/mark-lore.js', content: '' });
     }],
   ];
   for (const [label, want, mutate] of arms) {

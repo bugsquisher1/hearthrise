@@ -144,6 +144,22 @@
   };
   bootScale();
 
+  // Reduce motion is a class on <html>: stylesheets key their still-state on
+  // :root.hr-reduce-fx. Adopted from the account's setting once G hydrates.
+  function applyReduceFx(on){
+    document.documentElement.classList.toggle('hr-reduce-fx', on === true);
+  }
+  window.hrApplyReduceFx = applyReduceFx;
+  function bootReduceFx(){
+    var tries = 0;
+    var t = setInterval(function(){
+      var G = window.G;
+      if(G && G.settings){ clearInterval(t); applyReduceFx(G.settings.reduceFx); }
+      else if(++tries > 300){ clearInterval(t); }
+    }, 100);
+  }
+  bootReduceFx();
+
   // Lazy-init defaults — guarantees fields exist before we read them.
   function ensureSettings(){
     var G = window.G;
@@ -842,7 +858,7 @@
         window.G.settings[key] = v;
         // Side effects
         if(key === 'reduceFx'){
-          document.documentElement.style.setProperty('--reduce-fx', v ? '1' : '0');
+          applyReduceFx(v);
         }
         if(key === 'theme'){
           // Legacy convention: 'dark' = data-theme attribute set, 'cozy' = no attribute

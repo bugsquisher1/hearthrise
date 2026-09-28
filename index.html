@@ -200,6 +200,7 @@
   <link rel="stylesheet" href="src/styles/primers.css?v=559">
   <link rel="stylesheet" href="src/styles/hunters-ledger.css?v=559">
   <link rel="stylesheet" href="src/styles/lucky-finds.css?v=559">
+  <link rel="stylesheet" href="src/styles/climb-marks.css?v=559">
   <link rel="stylesheet" href="src/styles/night-plan.css?v=559">
 </head>
 <body>
@@ -1178,10 +1179,9 @@
        the getEquipmentTotals/getArmorSetBonus logic stayed. Re-exports both onto
        window (buildTibiaDoll's stats pane calls renderEquipmentStatsHTML) -->
   <script src="src/render/equipment-bonuses.js?v=559"></script>
-  <!-- Level-up celebration toast — 6th render-layer extraction out of legacy.js;
-       the ephemeral "Level N!" toast moved out (reads _skillIcon/SKILLS_DEF,
-       paints a transient node, re-checks achievements). Re-exports
-       window.showLevelupCelebration for the addXp wrapper in legacy.js -->
+  <!-- The Mark banner, the companion banner and the Mastery sheet
+       (window.showLevelupCelebration / hrPetLevelNotice / hrOpenMastery),
+       fired by src/features/climb-marks.js on the server's level -->
   <script src="src/render/levelup-celebration.js?v=559"></script>
   <!-- THE paper-doll layout table (window.HearthriseDollLayout). One shape for
        every equipment mount — Character > Equipment, the Inventory Equip

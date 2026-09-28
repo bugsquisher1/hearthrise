@@ -216,6 +216,14 @@ function fakeDb(cfg) {
         },
       }];
     }
+    /* THE PERK STACK (tick.js (1b), 2026-09-28) — the accrue path's own read.
+       Shaped as hr_perks_of answers: a stranger is `no_character`, a known
+       character with nothing bought is an empty stack. */
+    if (text.includes('hr_perks_of')) {
+      return [{ perks: o.known.has(params[0])
+        ? { ok: true, rooms: {}, plots: {}, propertyTier: 0, unlockedRecipes: {}, renownAllXp: 0 }
+        : { ok: false, error: 'no_character' } }];
+    }
     if (text.includes('hr_tick_settle')) {
       const [holder, user, slot, channel, version, wFrom, wTo, key, delta] = params;
       if (!o.enabled) return [{ res: { ok: false, error: 'tick_disabled', mode: 'off' } }];

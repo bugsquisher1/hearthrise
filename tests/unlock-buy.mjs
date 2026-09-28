@@ -41,7 +41,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { bootReplay, ROOT } from './schema-replay.mjs';
+import { bootReplay, chainFiles, ROOT } from './schema-replay.mjs';
 import { ARTISAN_RECIPES } from '../src/data/recipes.js';
 import { ITEMS } from '../src/data/items.js';
 import { recipeInputs } from '../src/core/artisan.js';
@@ -66,7 +66,7 @@ const FN = (f) => join(ROOT, 'supabase', 'functions', 'hr-accrue', f);
 const MUTATIONS = {
   // ── THE MERGE RULE. The arm §9 of the artisan model names by hand. ──────
   merge_is_additive: {
-    migration: '2026-08-16-unlock-buy.sql',
+    migration: '2026-08-19-companion-unlocks.sql',
     why: 'the GREATEST merge becomes `+=` — buying rung 1 twice stands the player in rung 2, '
        + 'i.e. the 2,000g Iron Stove for 1,000 gold. THE defect this whole design exists to '
        + 'make unreachable',
@@ -74,7 +74,7 @@ const MUTATIONS = {
     repl: '      do update set value = pp.value + excluded.value, updated_at = now();',
   },
   already_owned_is_noop: {
-    migration: '2026-08-16-unlock-buy.sql',
+    migration: '2026-08-19-companion-unlocks.sql',
     why: 'a second purchase of an owned rung stops being refused and becomes a silent no-op that '
        + 'still charges — a refund ticket with no error anywhere',
     find: '    if v_cur >= v_off.value then',
@@ -82,20 +82,20 @@ const MUTATIONS = {
   },
   // ── THE LADDER AND THE GATE ────────────────────────────────────────────
   rung_order_off: {
-    migration: '2026-08-16-unlock-buy.sql',
+    migration: '2026-08-19-companion-unlocks.sql',
     why: 'the ladder stops being a ladder: rung 5 is buyable from rung 1, skipping four purchases',
     find: "    if v_cat.merge = 'max' then",
     repl: '    if false then',
   },
   prereq_tier_off: {
-    migration: '2026-08-16-unlock-buy.sql',
+    migration: '2026-08-19-companion-unlocks.sql',
     why: 'the homestead gate is disarmed — a rich player builds the Great Hearth from a bedroll, '
        + 'and the server is more permissive than the client it replaced',
     find: '    if coalesce(v_off.req_property_tier, 0) > 0 then',
     repl: '    if false then',
   },
   prereq_blueprint_off: {
-    migration: '2026-08-16-unlock-buy.sql',
+    migration: '2026-08-19-companion-unlocks.sql',
     why: 'the dungeon blueprint stops being required, so the server sells rungs 2-3 strictly '
        + 'cheaper than the client charges for them',
     find: '    if v_off.req_item is not null then\n      select coalesce(qty, 0) into v_have',
@@ -103,13 +103,13 @@ const MUTATIONS = {
   },
   // ── VALUE ──────────────────────────────────────────────────────────────
   gold_not_debited: {
-    migration: '2026-08-16-unlock-buy.sql',
+    migration: '2026-08-19-companion-unlocks.sql',
     why: 'the rung is granted and the gold is not taken — a free permanent capability',
     find: '       set gold = gold - v_off.gold,',
     repl: '       set gold = gold,',
   },
   items_not_debited: {
-    migration: '2026-08-16-unlock-buy.sql',
+    migration: '2026-08-19-companion-unlocks.sql',
     why: 'the material cost is not consumed, so every room in the game costs gold only — and '
        + '`insufficient_item` becomes unreachable with it',
     find: '      if v_n <= 0 then continue; end if;',
@@ -117,13 +117,13 @@ const MUTATIONS = {
   },
   // ── CONCURRENCY + IDEMPOTENCY ──────────────────────────────────────────
   version_check_off: {
-    migration: '2026-08-16-unlock-buy.sql',
+    migration: '2026-08-19-companion-unlocks.sql',
     why: 'optimistic concurrency is gone: a caller acting on a stale read commits anyway',
     find: '    if p_version is null or p_version <> v_st.version then',
     repl: '    if false then',
   },
   replay_pays_twice: {
-    migration: '2026-08-16-unlock-buy.sql',
+    migration: '2026-08-19-companion-unlocks.sql',
     why: 'a replayed intent id re-runs the purchase instead of returning the first decision — '
        + 'exactly-once becomes at-least-once, and the second run charges again',
     find: '  if found then\n    if v_prev_intent is distinct from v_intent',
@@ -138,7 +138,7 @@ const MUTATIONS = {
     repl: 'const BUY_SQL = `\n  select public.hr_unlock_buy($1::uuid, $2::int, $3::bigint, $4::uuid, $5::text, $6::jsonb) as res`;',
   },
   partial_debit_not_rolled_back: {
-    migration: '2026-08-16-unlock-buy.sql',
+    migration: '2026-08-19-companion-unlocks.sql',
     why: 'S2, reintroduced: the insufficient_item refusal RETURNS instead of raising, so every item '
        + 'line the loop had already debited stays debited and the player pays materials for a '
        + 'purchase that did not happen',
@@ -186,14 +186,15 @@ const MUTATIONS = {
         + 'create table if not exists public.hr_client_write_baseline (',
   },
   detector_still_narrow: {
-    migration: '2026-08-16-client-write-grant-sweep.sql',
+    migration: '2026-09-23-m8-parties-s2-3-engine-allowlist.sql',
     why: 'C3 — check (4) goes back to TRUNCATE/REFERENCES/TRIGGER only, so a client write grant on '
        + 'a table with RLS on and no write policy is invisible again',
-    /* Anchored on the BASELINE JOIN, which appears only in the derived detector
-       body — the class predicate itself now also appears in §2's seed block, so
-       the obvious anchor matches twice and the harness refuses it. */
-    find: '       and not exists (select 1 from public.hr_client_write_baseline b\n'
-        + '                        where b.table_name = g.table_name and b.grantee = g.grantee)',
+    /* Anchored on the BASELINE JOIN inside the LIVE detector body (the last
+       restatement of hr_assert_grant_hygiene in the chain — see
+       liveBodyControl). The sweep file's own copy is replayed over, so a
+       mutant planted there proves nothing about the detector production runs. */
+    find: '       and not exists (select 1 from public.hr_client_write_baseline bl\n'
+        + '                        where bl.table_name = c.relname and bl.grantee = gg)',
     repl: '       and false',
   },
   // ── THE RECEIPT IS THE SERVER'S (Security C4) ──────────────────────────
@@ -250,6 +251,65 @@ const MUTATIONS = {
     repl: '      receipt: {',
   },
 };
+
+/* ── THE LIVE-BODY CONTROL ──────────────────────────────────────────────────
+   A mutant planted inside a function body is only evidence about PRODUCTION
+   if that body survives the chain: a later `create or replace` of the same
+   function replays over it, and the "caught" verdict then describes a body
+   nobody runs (F1, 2026-09-28: ten hr_unlock_buy mutants sat in
+   2026-08-16-unlock-buy.sql, replaced by 2026-08-19-companion-unlocks.sql).
+   So every SQL mutant's anchor is located in its file, the function whose
+   dollar-quoted body contains it is named, and the LAST restatement of that
+   function in the replayed chain must be the mutant's own `migration:`.
+   A top-level statement (a do-block, a revoke) is not a function body and is
+   not replayed over, so it is out of this control's class. */
+const FN_HEAD = /create\s+or\s+replace\s+function\s+(?:public\.)?"?(\w+)"?\s*\(/gi;
+
+function enclosingFunction(sql, pos) {
+  let name = null;
+  for (const m of sql.matchAll(FN_HEAD)) {
+    if (m.index > pos) break;
+    const q = sql.slice(m.index).match(/\bas\s+(\$\w*\$)/i);
+    if (!q) continue;
+    const open = m.index + q.index + q[0].length;
+    const close = sql.indexOf(q[1], open);
+    if (pos >= open && close > pos) name = m[1].toLowerCase();
+  }
+  return name;
+}
+
+async function liveBodyControl(catalogue = MUTATIONS) {
+  const chain = [];
+  for (const [name, path] of await chainFiles()) {
+    chain.push([name, (await readFile(path, 'utf8')).replace(/\r\n/g, '\n')]);
+  }
+  const text = new Map(chain);
+  const lastToucher = (fn) => {
+    let last = null;
+    for (const [name, sql] of chain) {
+      for (const m of sql.matchAll(FN_HEAD)) if (m[1].toLowerCase() === fn) last = name;
+    }
+    return last;
+  };
+  const problems = [];
+  let bodies = 0;
+  for (const [id, m] of Object.entries(catalogue)) {
+    if (!m.migration) continue;
+    const sql = text.get(m.migration);
+    if (sql === undefined) { problems.push(`${id}: ${m.migration} is not in the replayed chain`); continue; }
+    const pos = sql.indexOf(m.find);
+    if (pos < 0) { problems.push(`${id}: anchor not found in ${m.migration}`); continue; }
+    const fn = enclosingFunction(sql, pos);
+    if (!fn) continue;
+    bodies += 1;
+    const last = lastToucher(fn);
+    if (last !== m.migration) {
+      problems.push(`${id}: plants into ${fn} in ${m.migration}, but the body that survives the `
+        + `chain is ${last}'s — the mutant is replayed over and its verdict is vacuous`);
+    }
+  }
+  return { problems, bodies };
+}
 
 // ── args ────────────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
@@ -1196,6 +1256,23 @@ if (isMain) {
   }
 
   if (has('selftest')) {
+    /* CONTROL FIRST. It must pass on the real catalogue AND must bite on a
+       known-superseded target, or its green means nothing. */
+    const live = await liveBodyControl();
+    const probe = await liveBodyControl({
+      superseded_probe: { ...MUTATIONS.gold_not_debited, migration: '2026-08-16-unlock-buy.sql' },
+    });
+    if (!live.bodies || live.problems.length || probe.problems.length !== 1) {
+      for (const p of live.problems) console.error(`  CONTROL  ${p}`);
+      if (probe.problems.length !== 1) {
+        console.error('  CONTROL  the live-body control is BLIND: a mutant planted in the superseded '
+          + '2026-08-16-unlock-buy.sql hr_unlock_buy body was not flagged');
+      }
+      if (!live.bodies) console.error('  CONTROL  no mutant was located inside a function body — the scan is blind');
+      process.exit(1);
+    }
+    console.log(`  CONTROL  ${live.bodies} function-body mutants all target the live (last) restatement; `
+      + 'a superseded-body probe is flagged');
     let slipped = 0;
     for (const id of Object.keys(MUTATIONS)) {
       let caught = false;

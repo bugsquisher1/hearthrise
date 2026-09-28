@@ -4737,6 +4737,21 @@ export default [
             }
           }),
 
+          // `#panel-combat .fsm-block { display: flex }` beat the block's
+          // [hidden], so an absent meter left a bare VIGOUR header above Loadout.
+          () => tryRunAsync('VIGOUR-MOUNT-HIDDEN-1: an absent meter leaves no Vigour header on the Fight rail', async () => {
+            await fight(null, async (m) => {
+              const f = m.frame();
+              assert(f && f.hidden, 'the Fight rail\'s Vigour block is not hidden with no meter');
+              const h = f.getBoundingClientRect().height;
+              assert(h === 0 && f.offsetParent === null, 'THE BUG: a hidden Vigour block still takes ' + h + 'px (its header shows above Loadout)');
+            });
+            await fight(DRY(), async (m) => {
+              const f = m.frame();
+              assert(f && !f.hidden && f.getBoundingClientRect().height > 0, 'a priced meter left the Vigour block collapsed');
+            });
+          }),
+
           () => tryRunAsync('vigour mount: a DRY meter is on the Fight screen and the activity bar, price verbatim', async () => {
             await fight(DRY(), async (m) => {
               const f = m.frame(), b = m.block();

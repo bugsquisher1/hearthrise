@@ -39,8 +39,8 @@
 // It never WRITES a skill. Not a default, not a repair. DOM-free. Node-importable.
 // ============================================================================
 
-import { isServerOfRecord, recordValue, recordLastKnown, clientMayWrite } from './record.js?v=558';
-import { predictedXp, predictedXpMap } from './predict.js?v=558';
+import { isServerOfRecord, recordValue, recordLastKnown, clientMayWrite } from './record.js?v=559';
+import { predictedXp, predictedXpMap } from './predict.js?v=559';
 
 /** The one read. Everything else is a shape of this answer.
  *  @returns {{id, known, value, reason, source}} value is null when !known. */

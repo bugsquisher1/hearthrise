@@ -43,8 +43,8 @@
 
 import {
   resolveActiveSlot, accrueEndpoint, MAX_SLOT,
-} from './accrue.js?v=558';
-import { MAX_TROPHY_STAGE } from '../data/bestiary.js?v=558';
+} from './accrue.js?v=559';
+import { MAX_TROPHY_STAGE } from '../data/bestiary.js?v=559';
 
 export const TROPHY_CLAIM_VERB = 'trophy_claim';
 

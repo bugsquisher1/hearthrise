@@ -22,6 +22,13 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 | Last five merges | f9da2e5b Merge branch 'worktree-agent-ad408251ef743025a'<br>07b83f0a Merge branch 'worktree-agent-a13103d1368b3ed10'<br>68ab4a9b Merge branch 'worktree-agent-ad408251ef743025a'<br>b729ae21 Merge branch 'worktree-agent-a5ec5d462bc708b2b'<br>8a700736 Merge branch 'worktree-agent-a4bd50bfbdabbad36' |
 <!-- END GENERATED -->
 
+## 2026-09-28 03:50 UTC — b559 set FINAL (a97ce24a), candidate release/b559 a7a87b24 pushed; world tick M2 LATE with a stall class found (Coordinator)
+
+- **b559 "Numbers you can trust":** six fixes (cook receipt, phone rail, companion parity, tile captions + gate level, rank-up/daily overlays wait on any sheet, pending dash for every unknown count) + all five batch-4 packs (Night Plan, Plain Words, Hunter's Ledger, Lucky Finds, Homestead Almanac) + the honesty sweep (offline cap, market stats, set bonus, Settings > Data, War Table bounty count, hero titles) + two visual-gate fixes (hidden rail blocks, charm-moment lore). Every matrix on the set green (last: 36373948283 on a97ce24a); visual gate pass 1 read (38 PNGs), pass 2 in flight; **unplayed** (Chrome extension down since 09-27 17:02 UTC).
+- **Process today:** the test-file ratchet selftest arm was pinned to the baseline ratio and MISSED whenever the corpus got leaner (fixed: sizes plants from the live corpus, mutation-proved); the client-guards job outgrew its 9-min budget (raised to 24 with the measurement; 8.4–8.6 min on two green runs); merge lanes resolved every conflict (never the Coordinator).
+- **World tick (read-only prod status 03:24Z, all users, 7 d):** scheduler healthy; parity exists only for the one operator-rostered account; gather 23.9 h in band of the 48 h bar (M2 NOT met, 09-27 target LATE); combat 0 usable h. **Two shadow stalls while rostered (21.9 h combat, 14.7 h gather) each began within a minute of a set_activity re-point** and cron-grain reads stayed green through them → diagnosis+fix lane out (lane/world-tick-stall-after-repoint), plus a Security read of the return-time pricing finding (sec/absence-priced-at-return).
+
+
 ## 2026-09-24 04:10 UTC — M8 S2 + S4 applied overnight · party panel on the set · three CI reds root-caused (Coordinator)
 
 | Item | State |
@@ -382,6 +389,8 @@ _Six read-only audit dimensions + a systems root-cause lane. THE ROOT CAUSE of a
 | **Run the restore drill** (free) | recommend NOW | 8 daily backups exist; none ever opened. Runbook: docs/design/restore-runbook.md. At 34 MB it will never be cheaper. The census banner nags every run until `restore_drill.last_executed` is stamped. |
 | Add 2 repo secrets for edge-quota-watch | — | `SUPABASE_ACCESS_TOKEN` (from `~/.supabase-token`) + `DISCORD_ALERT_WEBHOOK` (from `~/.hearthrise/changelog-webhook`) in GitHub → Settings → Secrets → Actions. Workflow is committed and INERT until then. |
 | Re-auth the Supabase MCP connector | — | Dropped 2026-08-30; specialists lose `execute_sql` until re-authorized from an interactive session (`/mcp`). Coordinator's curl path unaffected. |
+| **Remove the "Keep my local save" consent gate (C1)** | Security: GO-WITH-CHANGES (2026-09-27) | The cloud classifier refused the removal twice ("Security Test Removal"/"Security Weaken"); Security read: the gate is a client-local localStorage flag evaluated AFTER the server committed, it makes fresh browsers show the wrong gold/room level after a purchase, and the deleted pins asserted a forged G.gold surviving a server envelope. Six required changes in the verdict (scratchpad c1-verdict.md; re-brief on approval). C2+C3 shipped in b559 without it. |
+| **Reopen the Claude side panel in Chrome** | — | Since 2026-09-27 17:02 UTC no play gate can run (b557/b558/b559 "pushed, unplayed") and no QA return lands, so world-tick parity stopped accruing. |
 
 ---
 
@@ -391,6 +400,14 @@ _Six read-only audit dimensions + a systems root-cause lane. THE ROOT CAUSE of a
 
 | Item | Status | Pri | Notes |
 |---|---|---|---|
+| **World tick: shadow stalls for a rostered character after a set_activity re-point** | 🔧 lane out | P1 | Prod 09-26/27: combat shadow rows stopped for 21.9 h, gather for 14.7 h, each within a minute of a re-point, resumed only at the next real settle; cron-grain reads stayed green (T-1 shape) because hr_tick_cron_log.detail lacks per-character reasons. Lane: root cause + replay test + edge fix + cron_note detail counts (lane C, REVIEW ONLY) + standing stall guard. Edge deploy after Security GO. |
+| **Return-time settle prices the whole absence at the gear/rate claimed at the return** | 🔧 Security read out | P1? | The −13.5% gather parity interval: the settle priced 7.25 h at the pickaxe rate claimed 2 min before it; the tick priced each window by the state that existed then. Verdict + fix design in docs/planning/SEC_ABSENCE_PRICED_AT_RETURN_2026-09-28.md when it lands. |
+| **World tick under-pays XP by 2.6%: tick does not read hr_perks_of** | 🧊 | P2 | services/world-tick/tick-gather.js documents it; fails any ±2% XP parity gate until read. Folded into the stall lane's brief as task 4. |
+| **Boss of the Day phone card (922×423) omits the drop-odds / kill-XP line** | 🧊 | P3 | The desktop card and the rows say "drop odds ×1.5 · kill XP ×1.25"; the compact phone card shows only the name. Visual gate b559. |
+| **Top-bar "Cloud is slow" pill overlaps sheet eyebrows at 922×423** | 🧊 | P3 | Pre-existing; seen over the charm moment and Codex sheets in the b559 gate. |
+| **Combat style buttons cramped at 922×423** | 🧊 | P3 | Pre-existing; the four labels run together on the phone Fight screen. |
+| **run-ci-local labels the test-file ratchet step continue-on-error while GitHub runs it hard** | 🧊 | P2 | A parser divergence that hides a hard red locally (found 2026-09-27 when the selftest arm went red on GitHub only). |
+| **client-guards CI budget** | 🔧 | P3 | 9 → 24 min after the 09-28 timeout at step 59/125; measured 8.6 and 8.4 min on two green runs; tighten to measured ×2 after a third. |
 | Skill-detail banner copy is stale | FIXED b541 | P3 | Viewing a bench while another skill trains shows “Click ‘Stop’ on that skill first to start a new activity”, but a tap on any tile switches directly (seen on live b539: Woodcutting while cooking). Copy only; behaviour is the router’s. |
 | **lane-C follow-up: `hr_apply` refuses collection keys like `trophy:%`** | 🧊 | P3 | Security F2 on the Bestiary trophy ladder (`SEC_BESTIARY_TROPHY_2026-09-22.md`). `hr_apply` admits `kind='collection'` with any 1..64-char key and `progress_claim` flips `done`→`claimed`, so a trophy row can exist with no `player_ledger` row beside it. NOT client-reachable (`parseIntent`/`INTENT_KEYS` carry no progress or delta field) and it mints nothing; bounded to a compromised Edge. Closed for ranking purposes today by the binding rule in `BESTIARY_LADDER.md` §4.3 and the header of `2026-09-22-trophy-claim.sql`: any "trophies claimed" board counts `player_ledger` rows with `intent='trophy_claim'`, never `player_progress` rows. The real reservation is another restatement of the repo's highest-traffic writer and needs its own lane-C. |
 | Craft material dupe | documented | P2 | Accepted pre-wipe trade (dupe > data loss). Real fix = inventory authority (§2). |

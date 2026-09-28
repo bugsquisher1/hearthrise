@@ -69,7 +69,7 @@ import {
   sessionFromRoster as combatSessionFromRoster,
   settleCombatSession,
 } from './tick-combat.js';
-import { shadowStateOf, applyShadowState, SHADOW_STATE_V } from './tick-contract.js';
+import { shadowStateOf, applyShadowState, SHADOW_STATE_V, fenceWindowFrom } from './tick-contract.js';
 /* THE SPLIT, AND IT IS S3's FILE, IMPORTED — never re-implemented here. One
    pure function, dual-runtime, the same code in the live tick and the away
    replay (`AWAY-12`). Nothing in this file names a share, a weight or a
@@ -407,7 +407,9 @@ export async function settleParty(exec, holder, unit, body, deps) {
   const res = await fence(exec, {
     holder,
     party: unit.partyId,
-    windowFrom: new Date(markMs).toISOString(),
+    /* A party hunt's mark is stamped from a microsecond now() at the start,
+       exactly as a solo switch is (tick-contract.js fenceWindowFrom). */
+    windowFrom: fenceWindowFrom(new Date(markMs).toISOString(), markMs, probe.markText),
     windowTo: new Date(toMs).toISOString(),
     intentId,
     members,

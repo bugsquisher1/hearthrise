@@ -59,8 +59,8 @@
 // write exactly when the server is unhappy.
 // ════════════════════════════════════════════════════════════════════════
 
-import { getSession } from './auth.js?v=558';
-import { settleBeforeIntent } from './accrue.js?v=558';
+import { getSession } from './auth.js?v=559';
+import { settleBeforeIntent } from './accrue.js?v=559';
 
 /* ── §3.5 — SETTLE BEFORE A VALUE-MOVING INTENT (b366, Phase 2) ─────────────
    THE PROBLEM IT SOLVES, AND IT IS A NEW ONE. Before live settling the client

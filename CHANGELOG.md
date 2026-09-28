@@ -4,6 +4,42 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 559 — 2026-09-28 (Numbers you can trust)
+
+**Nothing shows a zero it doesn't know.** Every count the server has not answered yet renders a pending dash instead of 0: the collection log's rungs, the Home tile, the bestiary charm strip, daily goals, the quests strip, bounty labels and the top-bar streak. The boot load feeds the claim rows, so a reload never flashes "0 to claim".
+
+**One bounty count.** The Bounty Board, the War Table, the bounty pill and chip, the Fight screen and the bag all print the server's count for your contract, or a dash while it is being confirmed. Six readers used to keep their own.
+
+**Receipts count what landed.** A collect receipt counts the units that entered your bag ("+937 items", not "+0"), and a smithing receipt reads "+900", never "+-900".
+
+**The away limit is the server's.** Home, the House card, the renown ladder, fight previews and the welcome-back receipt say the limit the realm actually pays (12 hours, 15 with a level-7 clan) or a pending mark. The "+12h" renown perk, the "+4h" property perk, the Count's extra listing slot and the King's daily task were promises the server never kept, so they are gone.
+
+**Market prices come from the realm.** The 7-day price stats, "Top movers" and "Player market avg" were made up on your device and are gone. The listing hint quotes what the vendor really pays and suggests an ask from it, buying a listing the realm has never seen is refused, a listing left behind by a refused post settles, and the ledger says it covers your last 60 trades.
+
+**Your crit is the engine's number.** Character, Inventory and Combat all read the same crit chance the engine pays, and a full armour set names its material ("6-piece Dawnsteel set — +7% crit") instead of "Tier 7".
+
+**Settings tells the truth.** The Data section (Save now, Export, Import, Backups, Erase) acted on a save file that no longer exists and is gone; signed-out, offline and re-prompt copy says what is true ("nothing you do here reaches the realm until you sign in"; "your activity keeps running on the realm"). Leftover backup keys from before the wipe are cleared at boot.
+
+**Companions pay what the engine pays.** The companion bonus, equip, crit and proc numbers the client shows are the engine's own.
+
+**Gather tiles name their yield.** Every gathering tile says what it yields ("Yields Oak Log"), and a tile's lock reads the level the server holds.
+
+**Popups take turns.** Rank-up and daily overlays wait for whatever sheet is already open instead of piling on top of it.
+
+**Hero titles for every skill.** A hero whose best skill is Runecrafting or Stonemason is a "Master Runebinder" or "Master Mason".
+
+**Phone fixes.** The Skills header clears the sticky strip, strip taps open the skill, the bug button sits at the foot of the nav rail, and the Vigour block hides fully when there is no meter to show.
+
+**The Night Plan.** Before you leave, the Fight rail, the activity chip and Home say whether you will fall tonight and what fixes it. The forecast is seeded from the server's own death counters.
+
+**Plain Words.** Vigour copy comes from the server meter, with the renewal clock in your own time. Dungeon result screens show what the server settled. Boss of the Day says the drop odds and kill XP. The Hearth Codex gains volume II: Vigour, Dungeons, Boss of the Day and Lucky finds.
+
+**The Hunter's Ledger.** Home and the Fight rail show your charm and trophy ladders with the next rung, a charm rank-up gets its own moment, and every charm class and rank has a line of lore.
+
+**Lucky Finds Unveiled.** Every lucky drop has a rumour that names where it comes from and what makes it special, and the finds you made while away show on the welcome card and Home.
+
+**The Homestead Almanac.** Every room rung has a line of lore, the plot tiers have names, and each crop says what it is for.
+
 ## v0.9.2-beta build 558 — 2026-09-27 (Every screen explains itself)
 
 **First Steps.** The starter tour tells the truth (Auto-Eat is yours from the start; armour is not what keeps you alive), the post-signup sheet points at screens that exist, and eight screens open with a one-line primer the first time you see them. Settings has a "Show screen tips again" row.

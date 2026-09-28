@@ -88,7 +88,7 @@ import {
    `shadowStateOf` serialises the engine's own output state; `applyShadowState`
    lays it back over a session read from `hr_state_of`. Neither computes a
    delta and neither is authority. */
-import { shadowStateOf, applyShadowState, SHADOW_STATE_V } from './tick-contract.js';
+import { shadowStateOf, applyShadowState, SHADOW_STATE_V, fenceWindowFrom } from './tick-contract.js';
 /* THE PARTY UNIT (M8 S2). A party is a ROSTER UNIT, not a new engine and not a
    new channel: `settleParty` runs the SAME `settleCombatSession` this file runs
    for a solo character, once per member, and emits ONE `hr_party_tick_settle`
@@ -770,6 +770,25 @@ async function tickOne(exec, holder, sel, body) {
   if (!env || env.ok !== true) return { outcome: 'skipped', reason: 'no_character' };
   const st = env.state || {};
 
+  /* (1b) THE PERMANENT PERK STACK — `hr_perks_of`, the SAME read index.ts's
+         accrue path and set-activity.js's collect make (the room rungs, the
+         plot buildings, the property tier, renown), and one hr_engine already
+         holds. It is not an envelope field, so until 2026-09-28 the tick priced
+         every window at ZERO perks: the standing −2.56% XP gap against accrue.
+         Same degrade rule as those two callers: ONLY 42883 (a database that
+         predates the function) reads as "no perks"; anything else propagates,
+         because a swallowed error is how a guard reports a pass.
+         tests/world-tick-perks-parity.mjs. */
+  let perks = null;
+  try {
+    const [p] = await exec('select public.hr_perks_of($1::uuid, $2::int) as perks',
+      [sel.userId, sel.slot]);
+    const pe = p && p.perks;
+    perks = (pe && pe.ok === true) ? pe : null;
+  } catch (e) {
+    if (String((e && e.code) ?? '') !== '42883') throw e;
+  }
+
   /* (2) THE DISPATCH. The character's pointer picks the code that settles it.
          A kind with no entry is skipped BY NAME: `channel_not_driven` says the
          edge cannot settle this character, which is a different sentence from
@@ -843,6 +862,8 @@ async function tickOne(exec, holder, sel, body) {
        Postgres from the instant (SEED_LABEL_EXPR), never from a JS string. */
     mark_text: probe.markText,
     version: env.version,
+    /* (1b)'s read. Both channels' `sessionFromRoster` take it off the row. */
+    perks,
     /* THE ABSENCE CAP, read in the same transaction as everything else —
        `hr_offline_cap_ms`, exactly as the accrue path reads it. Without it the
        engine answers `no_cap` and settles nothing, which is the safe direction
@@ -953,7 +974,10 @@ async function tickOne(exec, holder, sel, body) {
     slot: sel.slot,
     channel,                         // the character's own, as the probe used
     version: a.p_version,
-    windowFrom: a.p_window_from,
+    /* The fence's own spelling when the window starts at its mark: a switch
+       stamps the mark from a microsecond now(), and the planned ms start is
+       then "before" it (tick-contract.js fenceWindowFrom). */
+    windowFrom: fenceWindowFrom(a.p_window_from, markMs, probe.markText),
     windowTo: a.p_window_to,
     intentId: a.p_intent_id,
     delta: JSON.stringify(a.p_delta),

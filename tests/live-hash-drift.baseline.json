@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-09-28",
- "replay_ms": 19817,
+ "replay_ms": 22422,
  "counts": {
-  "tracked_names": 61,
-  "entries": 58
+  "tracked_names": 77,
+  "entries": 74
  },
  "functions": [
   {
@@ -140,17 +140,19 @@
     "2026-09-17-attended-xp-on-settle.sql",
     "2026-09-19-lifetime-facts-off-the-ledger.sql",
     "2026-09-22-hunt-stance-stop.sql",
-    "2026-09-23-frame-emit-from-apply.sql"
+    "2026-09-23-frame-emit-from-apply.sql",
+    "2026-09-28-buff-segment-from.sql",
+    "2026-09-28-settle-before-mutate.sql"
    ],
    "live": {
-    "md5": "a416d576f488c23b97db8c60e443e200",
-    "norm_len": 142871,
+    "md5": "790f28cb56ea1e7f8a452948212b82c3",
+    "norm_len": 144576,
     "measured": "2026-09-28",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "a416d576f488c23b97db8c60e443e200",
-    "norm_len": 142871,
+    "md5": "790f28cb56ea1e7f8a452948212b82c3",
+    "norm_len": 144576,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -178,7 +180,8 @@
     "2026-09-22-engine-allowlist-hunt-reads.sql",
     "2026-09-22-trophy-claim.sql",
     "2026-09-23-m8-parties-s2-3-engine-allowlist.sql",
-    "2026-09-23-world-tick-shadow-state-chain.sql"
+    "2026-09-23-world-tick-shadow-state-chain.sql",
+    "2026-09-28-settle-before-mutate.sql"
    ],
    "live": {
     "md5": "1437ce5480ce6229ac007c67546a038c",
@@ -202,17 +205,18 @@
    "touched_by": [
     "2026-08-27-bank-store.sql",
     "2026-09-03-intent-mismatch-class.sql",
-    "2026-09-12-hr-rejections-journal.sql"
+    "2026-09-12-hr-rejections-journal.sql",
+    "2026-09-28-settle-before-mutate.sql"
    ],
    "live": {
-    "md5": "b9538d0ed981316c6234b20e1422d873",
-    "norm_len": 6833,
+    "md5": "5c64b584891d147ef358577681ce7b3a",
+    "norm_len": 7349,
     "measured": "2026-09-28",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "b9538d0ed981316c6234b20e1422d873",
-    "norm_len": 6833,
+    "md5": "5c64b584891d147ef358577681ce7b3a",
+    "norm_len": 7349,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -287,6 +291,29 @@
    "agree": true
   },
   {
+   "sig": "hr_claim_daily(p_task_id text, p_slot integer)",
+   "name": "hr_claim_daily",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-20-goal-reward-rpc-credit.sql",
+    "2026-09-28-settle-before-mutate.sql"
+   ],
+   "live": {
+    "md5": "d224c6aca56fe2ca59263d3320c7ee3e",
+    "norm_len": 955,
+    "measured": "2026-09-28",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "d224c6aca56fe2ca59263d3320c7ee3e",
+    "norm_len": 955,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_claim_daily__ungated(p_task_id text, p_slot integer)",
    "name": "hr_claim_daily__ungated",
    "tracked_by": [
@@ -313,6 +340,29 @@
    "why": "VERIFIED 2026-08-31 with  node tests/live-hash-drift.mjs --codediff  (strips SQL comments outside string/dollar-quote literals from both bodies and compares): CODE-IDENTICAL, 3,181 code chars. Production was moved by 2026-09-04-goal-gold-retune.sql's programmatic patch; the authoring file 2026-08-20-goal-reward-rpc-credit.sql was separately re-aligned and given a b497 explanatory comment, so the rebuild installs the SAME numbers (25/600, 60/1400, 50/400, 120/800, 12/400, 40/500, 40/500) with different comments and column alignment. 2026-09-04-goal-gold-retune.sql states this divergence itself."
   },
   {
+   "sig": "hr_claim_goal(p_goal_id text, p_weekly boolean, p_slot integer, p_idem uuid)",
+   "name": "hr_claim_goal",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-23-modal-goal-claims.sql",
+    "2026-09-28-settle-before-mutate.sql"
+   ],
+   "live": {
+    "md5": "0d89acaf3749db89644808ff17cf6947",
+    "norm_len": 1030,
+    "measured": "2026-09-28",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "0d89acaf3749db89644808ff17cf6947",
+    "norm_len": 1030,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_claim_goal__ungated(p_goal_id text, p_weekly boolean, p_slot integer, p_idem uuid)",
    "name": "hr_claim_goal__ungated",
    "tracked_by": [
@@ -331,6 +381,52 @@
    "replay": {
     "md5": "f538e493cc118188511d16a050d30f67",
     "norm_len": 8503,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_claim_milestone(p_milestone_id text, p_slot integer)",
+   "name": "hr_claim_milestone",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-22-collection-claim.sql",
+    "2026-09-28-settle-before-mutate.sql"
+   ],
+   "live": {
+    "md5": "d02168a968f90dea57b096bc46764842",
+    "norm_len": 980,
+    "measured": "2026-09-28",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "d02168a968f90dea57b096bc46764842",
+    "norm_len": 980,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_claim_quest(p_quest_id text, p_slot integer)",
+   "name": "hr_claim_quest",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-20-goal-reward-rpc-credit.sql",
+    "2026-09-28-settle-before-mutate.sql"
+   ],
+   "live": {
+    "md5": "e1bf5a5c7e4c3fabd0a1d4dd453aeeb2",
+    "norm_len": 956,
+    "measured": "2026-09-28",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "e1bf5a5c7e4c3fabd0a1d4dd453aeeb2",
+    "norm_len": 956,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -358,6 +454,29 @@
    "replay": {
     "md5": "557591eac172a53e3eaa67b0ec806545",
     "norm_len": 5277,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_claim_rank(p_rank_id text, p_slot integer)",
+   "name": "hr_claim_rank",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-22-renown-claim.sql",
+    "2026-09-28-settle-before-mutate.sql"
+   ],
+   "live": {
+    "md5": "d082086e2c32e7a185f85f446762b962",
+    "norm_len": 950,
+    "measured": "2026-09-28",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "d082086e2c32e7a185f85f446762b962",
+    "norm_len": 950,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -433,6 +552,29 @@
    "replay": {
     "md5": "40cd62d5540dd49407fb92e6a0419f3a",
     "norm_len": 19432,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_credit_kills(p_slot integer, p_target text, p_claimed bigint, p_idem text)",
+   "name": "hr_credit_kills",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-30-bounty-kill-credit.sql",
+    "2026-09-28-settle-before-mutate.sql"
+   ],
+   "live": {
+    "md5": "590318076439b73cbb0558571065f744",
+    "norm_len": 998,
+    "measured": "2026-09-28",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "590318076439b73cbb0558571065f744",
+    "norm_len": 998,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -517,17 +659,18 @@
    ],
    "touched_by": [
     "2026-09-10-dungeon-settle.sql",
-    "2026-09-12-dungeon-cooldown.sql"
+    "2026-09-12-dungeon-cooldown.sql",
+    "2026-09-28-settle-before-mutate.sql"
    ],
    "live": {
-    "md5": "9ab6f689b4ecdb81f1b3d6041b700f0c",
-    "norm_len": 16308,
+    "md5": "9d133e3bcea570172f17ea4ce1e98136",
+    "norm_len": 16826,
     "measured": "2026-09-28",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "9ab6f689b4ecdb81f1b3d6041b700f0c",
-    "norm_len": 16308,
+    "md5": "9d133e3bcea570172f17ea4ce1e98136",
+    "norm_len": 16826,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -542,17 +685,18 @@
     "2026-08-20-server-farming.sql",
     "2026-08-22-server-farming-complete.sql",
     "2026-09-03-intent-mismatch-class.sql",
-    "2026-09-12-hr-rejections-journal.sql"
+    "2026-09-12-hr-rejections-journal.sql",
+    "2026-09-28-settle-before-mutate.sql"
    ],
    "live": {
-    "md5": "afb0e20b452cd14d7b159015738ccb0b",
-    "norm_len": 7784,
+    "md5": "904639a5a3357255194bb0aac7ca0f15",
+    "norm_len": 8303,
     "measured": "2026-09-28",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "afb0e20b452cd14d7b159015738ccb0b",
-    "norm_len": 7784,
+    "md5": "904639a5a3357255194bb0aac7ca0f15",
+    "norm_len": 8303,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -700,6 +844,52 @@
    "agree": true
   },
   {
+   "sig": "hr_market_buy(p_user uuid, p_slot integer, p_version bigint, p_intent_id uuid, p_listing_id uuid, p_qty bigint)",
+   "name": "hr_market_buy",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-17-market-v2.sql",
+    "2026-09-28-settle-before-mutate.sql"
+   ],
+   "live": {
+    "md5": "6939771758bd852e5ab4817f6540536b",
+    "norm_len": 21619,
+    "measured": "2026-09-28",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "6939771758bd852e5ab4817f6540536b",
+    "norm_len": 21619,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_market_cancel(p_user uuid, p_slot integer, p_version bigint, p_intent_id uuid, p_listing_id uuid)",
+   "name": "hr_market_cancel",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-17-market-v2.sql",
+    "2026-09-28-settle-before-mutate.sql"
+   ],
+   "live": {
+    "md5": "6d26d16ed7fa2b38896d8c0808118b8d",
+    "norm_len": 10079,
+    "measured": "2026-09-28",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "6d26d16ed7fa2b38896d8c0808118b8d",
+    "norm_len": 10079,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_market_list(p_user uuid, p_slot integer, p_version bigint, p_intent_id uuid, p_item_id text, p_qty bigint, p_ask_each bigint)",
    "name": "hr_market_list",
    "tracked_by": [
@@ -729,7 +919,8 @@
    ],
    "touched_by": [
     "2026-09-12-hr-rejections-journal.sql",
-    "2026-09-14-rejection-field-detail.sql"
+    "2026-09-14-rejection-field-detail.sql",
+    "2026-09-28-settle-before-mutate.sql"
    ],
    "live": {
     "md5": "807506a8f149cc089f0716a30d80034a",
@@ -740,6 +931,29 @@
    "replay": {
     "md5": "807506a8f149cc089f0716a30d80034a",
     "norm_len": 2139,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_partied(p_user uuid, p_slot integer)",
+   "name": "hr_partied",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-23-m8-parties-s2-1-hunt-tables.sql",
+    "2026-09-28-settle-before-mutate.sql"
+   ],
+   "live": {
+    "md5": "0203df83091bbee6bb47252708b042c1",
+    "norm_len": 390,
+    "measured": "2026-09-28",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "0203df83091bbee6bb47252708b042c1",
+    "norm_len": 390,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -821,6 +1035,29 @@
    "agree": true
   },
   {
+   "sig": "hr_quartermaster_buy(p_user uuid, p_slot integer, p_version bigint, p_intent_id uuid, p_offer_id text)",
+   "name": "hr_quartermaster_buy",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-11-quartermaster-buy.sql",
+    "2026-09-28-settle-before-mutate.sql"
+   ],
+   "live": {
+    "md5": "fce9340cc733e6a9b7547eb49dd7f9c1",
+    "norm_len": 9531,
+    "measured": "2026-09-28",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "fce9340cc733e6a9b7547eb49dd7f9c1",
+    "norm_len": 9531,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_rate_gate(p_user uuid, p_slot integer, p_bucket text)",
    "name": "hr_rate_gate",
    "tracked_by": [
@@ -869,6 +1106,29 @@
    "replay": {
     "md5": "545d26dafbcd6dc1909ecc31c1525f1f",
     "norm_len": 9599,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_reject(p_code text, p_detail jsonb)",
+   "name": "hr_reject",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-11-apply-engine.sql",
+    "2026-09-28-settle-before-mutate.sql"
+   ],
+   "live": {
+    "md5": "34f422a6eb646d7cbfd1554eb8eb2970",
+    "norm_len": 293,
+    "measured": "2026-09-28",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "34f422a6eb646d7cbfd1554eb8eb2970",
+    "norm_len": 293,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -940,6 +1200,28 @@
    "replay": {
     "md5": "c583b4545f4ae41e378340e8c1b101e2",
     "norm_len": 3922,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_require_settled(p_user uuid, p_slot integer)",
+   "name": "hr_require_settled",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-28-settle-before-mutate.sql"
+   ],
+   "live": {
+    "md5": "b92c0779dbca735b21f5d983c54381cc",
+    "norm_len": 521,
+    "measured": "2026-09-28",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "b92c0779dbca735b21f5d983c54381cc",
+    "norm_len": 521,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1025,17 +1307,18 @@
     "2026-08-15-auto-eat.sql",
     "2026-08-23-trait-buy.sql",
     "2026-08-29-auto-eat-tiers.sql",
-    "2026-09-06-recovering-until.sql"
+    "2026-09-06-recovering-until.sql",
+    "2026-09-28-settle-before-mutate.sql"
    ],
    "live": {
-    "md5": "114a18f05ea2e423d85470a7442de49e",
-    "norm_len": 6350,
+    "md5": "a38d6e4eb2d4e3eb59d15dfb185421a1",
+    "norm_len": 6869,
     "measured": "2026-09-28",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "114a18f05ea2e423d85470a7442de49e",
-    "norm_len": 6350,
+    "md5": "a38d6e4eb2d4e3eb59d15dfb185421a1",
+    "norm_len": 6869,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1088,6 +1371,50 @@
    "agree": true
   },
   {
+   "sig": "hr_settle_first_noted(p_verb text, p_user uuid, p_slot integer)",
+   "name": "hr_settle_first_noted",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-28-settle-before-mutate.sql"
+   ],
+   "live": {
+    "md5": "b7ec5c00f2402e749e443e52795269ba",
+    "norm_len": 376,
+    "measured": "2026-09-28",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "b7ec5c00f2402e749e443e52795269ba",
+    "norm_len": 376,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_settle_first_of(p_user uuid, p_slot integer)",
+   "name": "hr_settle_first_of",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-28-settle-before-mutate.sql"
+   ],
+   "live": {
+    "md5": "2082f2d3299fcae99bb37ab8ca888df8",
+    "norm_len": 1672,
+    "measured": "2026-09-28",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "2082f2d3299fcae99bb37ab8ca888df8",
+    "norm_len": 1672,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_state_of(p_user uuid, p_slot integer)",
    "name": "hr_state_of",
    "tracked_by": [
@@ -1133,17 +1460,18 @@
     "2026-09-22-hunt-stance-stop.sql",
     "2026-09-22-state-of-trophy-prefix.sql",
     "2026-09-22-vigour-daily.sql",
-    "2026-09-23-frame-emit-from-apply.sql"
+    "2026-09-23-frame-emit-from-apply.sql",
+    "2026-09-28-buff-segment-from.sql"
    ],
    "live": {
-    "md5": "1a9bfb987e8c7659638b1b57bc15c827",
-    "norm_len": 31560,
+    "md5": "89cf9a09ea46892af818d199213a9d8b",
+    "norm_len": 31814,
     "measured": "2026-09-28",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "1a9bfb987e8c7659638b1b57bc15c827",
-    "norm_len": 31560,
+    "md5": "89cf9a09ea46892af818d199213a9d8b",
+    "norm_len": 31814,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1265,6 +1593,29 @@
    "agree": true
   },
   {
+   "sig": "hr_trait_buy(p_trait_id text, p_slot integer, p_idem uuid)",
+   "name": "hr_trait_buy",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-23-trait-buy.sql",
+    "2026-09-28-settle-before-mutate.sql"
+   ],
+   "live": {
+    "md5": "ae64c62dd0847ee4eb6fbcf83061a20c",
+    "norm_len": 992,
+    "measured": "2026-09-28",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "ae64c62dd0847ee4eb6fbcf83061a20c",
+    "norm_len": 992,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_trait_buy__ungated(p_trait_id text, p_slot integer, p_idem uuid)",
    "name": "hr_trait_buy__ungated",
    "tracked_by": [
@@ -1295,17 +1646,18 @@
    ],
    "touched_by": [
     "2026-08-16-unlock-buy.sql",
-    "2026-08-19-companion-unlocks.sql"
+    "2026-08-19-companion-unlocks.sql",
+    "2026-09-28-settle-before-mutate.sql"
    ],
    "live": {
-    "md5": "40f1ead2515b0c3f898db0bd4bf97a35",
-    "norm_len": 20059,
+    "md5": "23b42c18cc09c472287379039a60d731",
+    "norm_len": 20577,
     "measured": "2026-09-28",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "40f1ead2515b0c3f898db0bd4bf97a35",
-    "norm_len": 20059,
+    "md5": "23b42c18cc09c472287379039a60d731",
+    "norm_len": 20577,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1482,22 +1834,24 @@
    "sig": "raid_claim(p_scope text, p_clan_id uuid, p_week text, p_slot integer)",
    "name": "raid_claim",
    "tracked_by": [
-    "chain"
+    "chain",
+    "pin"
    ],
    "touched_by": [
     "2026-08-08-hunt.sql",
     "2026-08-08-raid-hardening.sql",
-    "2026-08-19-muster-raid-rpc-credit.sql"
+    "2026-08-19-muster-raid-rpc-credit.sql",
+    "2026-09-28-settle-before-mutate.sql"
    ],
    "live": {
-    "md5": "fb338f1ad3b3f614effecdce8d8e7f07",
-    "norm_len": 453,
+    "md5": "cdf4cf77ca7a4b3f7c0444b50e9e82e0",
+    "norm_len": 970,
     "measured": "2026-09-28",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "fb338f1ad3b3f614effecdce8d8e7f07",
-    "norm_len": 453,
+    "md5": "cdf4cf77ca7a4b3f7c0444b50e9e82e0",
+    "norm_len": 970,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1527,6 +1881,30 @@
    },
    "agree": false,
    "why": "VERIFIED 2026-08-31 with  node tests/live-hash-drift.mjs --codediff  (strips SQL comments outside string/dollar-quote literals from both bodies and compares): CODE-IDENTICAL, 10,175 code chars. 2026-08-22-raid-chest-items.sql grew provenance comments (the src/features/raids.js constants each chest value mirrors, the R1 week-key note, the bossOfWeek derivation) and re-wrapped two statements after the apply. Every constant and every branch is identical."
+  },
+  {
+   "sig": "world_event_claim(p_day_key text, p_slot integer)",
+   "name": "world_event_claim",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-08-muster.sql",
+    "2026-08-19-muster-raid-rpc-credit.sql",
+    "2026-09-28-settle-before-mutate.sql"
+   ],
+   "live": {
+    "md5": "def6a8ed883433ac31f91478e7f56d21",
+    "norm_len": 970,
+    "measured": "2026-09-28",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "def6a8ed883433ac31f91478e7f56d21",
+    "norm_len": 970,
+    "source": "computed-from-replay"
+   },
+   "agree": true
   }
  ]
 }

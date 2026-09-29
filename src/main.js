@@ -408,6 +408,8 @@ import './render/house-themes.js?v=559';
 /* what each skill is for and what it opens next — published on window for the
    classic-script buildHead twin and the level-up banner (src/render/skill-guide.js). */
 import './render/skill-guide.js?v=559';
+/* "a Bone Key" / "an Arcane Tome" for the classic dungeon cards. */
+import './render/article.js?v=559';
 // b333 — tells a LIVE tab that a new build shipped. An idle game is played with
 // a tab open for days, so "the fix ships" and "the fix arrives" are different
 // events; without this, every client-side fix reaches only the players who

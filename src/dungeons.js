@@ -526,7 +526,7 @@
       var held = keyHeld(d.cost.key);
       if(held === null) return { ok: false, pending: true, reason: 'The realm is counting your keys…' };
       if(held < 1){
-        return { ok: false, reason: 'Need a ' + keyName };
+        return { ok: false, reason: 'Need ' + (window.withArticle ? window.withArticle(keyName) : 'a ' + keyName) };
       }
     }
     if(d.cost.gold && !window.balCanAfford(d.cost.gold, 'gold')){
@@ -747,8 +747,9 @@
               /* b281: enrich the boss line from the data-driven registry (weakness
                  to route your loadout, plus the fight's signature mechanic). */
               var br = window.BOSS_BY_DUNGEON && window.BOSS_BY_DUNGEON[id];
-              return '<div class="dgn-boss-line"><span class="dgn-boss-skull">' + _gly('uiSkull', 14, '--red') + '</span> Final boss: <b>' + d.boss.name + '</b>' +
-                (br && br.weakness ? ' <span class="dgn-boss-weak">weak to ' + br.weakness + '</span>' : '') + '</div>' +
+              /* One sentence; it may wrap only between these nowrap phrases. */
+              return '<div class="dgn-boss-line"><span class="dgn-boss-lead"><span class="dgn-boss-skull">' + _gly('uiSkull', 14, '--red') + '</span> Final boss:</span> <b>' + d.boss.name + '</b>' +
+                (br && br.weakness ? ' · <span class="dgn-boss-weak">weak to ' + br.weakness + '</span>' : '') + '</div>' +
                 (br && br.mechanic ? '<div class="dgn-boss-mech">' + br.mechanic + '</div>' : '');
             })() +
             '<div class="dgn-loot-row">' + lootHtml + '</div>' +

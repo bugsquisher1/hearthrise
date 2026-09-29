@@ -3126,6 +3126,70 @@ export default [
     }
   }),
 
+  /* DGN-COPY-ARTICLE-1 (regression, visual pass 12 G1): a stated empty bag printed
+     "Need a Arcane Tome". Every keyed card's refusal carries the right article.
+     MUTATION: print 'Need a ' + keyName again, red. */
+  () => tryRun('DGN-COPY-ARTICLE-1: a dungeon card without its key says "Need a"/"Need an" by the key name', () => {
+    const A = window.HearthriseAccrual, D = window.DUNGEONS;
+    if (!A || !D || !document.getElementById('panel-dungeons') || typeof window.renderDungeons !== 'function') return;
+    const G = window.G, snap = snapshotG(), lvl = window.getCombatLevel, bagWas = G._serverBag, bad = [];
+    try {
+      window.getCombatLevel = () => 99;
+      G._dungeonCooldowns = {};
+      A.applyEnvelopeState(G, { state: {}, inventory: {} });
+      window.renderDungeons();
+      const keyed = Object.values(D).filter((d) => d.cost && d.cost.key);
+      assert(keyed.length >= 3, 'expected keyed dungeons, got ' + keyed.length);
+      for (const d of keyed) {
+        const item = window.ITEMS && window.ITEMS[d.cost.key], name = item ? item.n : d.cost.key;
+        const want = 'Need ' + (/^[aeiou]/i.test(name) ? 'an ' : 'a ') + name;
+        const c = [...document.querySelectorAll('#panel-dungeons .dgn-card')]
+          .find((e) => (e.querySelector('.dgn-name') || {}).textContent === d.name);
+        const bs = c ? [...c.querySelectorAll('button.dgn-run')] : [];
+        if (!bs.length) { bad.push(d.name + ': no run buttons'); continue; }
+        for (const b of bs) {
+          const t = b.textContent.trim();
+          if (!b.disabled || t !== want || /Need a [AEIOU]/.test(t + b.title)) bad.push(d.name + ': ' + JSON.stringify(t) + ' want ' + JSON.stringify(want));
+        }
+      }
+    } finally {
+      window.getCombatLevel = lvl;
+      if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
+      restoreG(snap);
+    }
+    assert(bad.length === 0, 'THE PASS-12 ARTICLE: ' + bad.join('; '));
+  }),
+
+  /* DGN-BOSS-LINE-1 (regression, visual pass 12 G2): at 1280 the boss line laid out as
+     three flex columns, each on two lines ("The Marrow / King"). One sentence, ≤2
+     lines, never a phrase split, also in a WIDE face. MUTATION: restore the flex, red. */
+  () => tryRun('DGN-BOSS-LINE-1: the dungeon boss line is one sentence on at most two lines, no name split', () => {
+    const D = window.DUNGEONS;
+    if (!D || !document.getElementById('panel-dungeons') || typeof window.renderDungeons !== 'function') return;
+    window.renderDungeons();
+    const grid = document.querySelector('#panel-dungeons .dgn-grid'), bad = [];
+    assert(grid && grid.querySelector('.dgn-boss-line'), 'no boss line in a .dgn-grid');
+    const html = grid.outerHTML;
+    const wide = '<style>body[data-theme] .dgn-boss-line{letter-spacing:.08em}</style>';
+    for (const [w, h, gw] of [[1280, 800, 1090], [922, 423, 834]]) for (const face of ['', wide]) {
+      const tag = w + (face ? ' wide' : '');
+      const rows = phoneFrame(w, h, '<div id="app"><div style="width:' + gw + 'px">' + face + html + '</div></div>', (doc) =>
+        [...doc.querySelectorAll('.dgn-boss-line')].map((l) => {
+          const lines = (el) => { const r = doc.createRange(); r.selectNodeContents(el);   // tops within 8px share a line (inline icons)
+            const tops = [...r.getClientRects()].filter((x) => x.width > 0).map((x) => x.top).sort((a, b) => a - b);
+            return tops.filter((t, i) => i === 0 || t - tops[i - 1] > 8).length; };
+          return { text: l.textContent.trim(), lines: lines(l),   // a blockified phrase is one rect however it wraps: count its lines
+            split: [...l.querySelectorAll('.dgn-boss-lead, b, .dgn-boss-weak')].filter((e) => lines(e) !== 1).map((e) => e.textContent) };
+        }));
+      if (!rows.length) bad.push(tag + ': no boss lines');
+      for (const r of rows) {
+        if (r.lines > 2) bad.push(tag + ': ' + r.text + ' on ' + r.lines + ' lines');
+        if (r.split.length) bad.push(tag + ': ' + r.text + ' splits ' + JSON.stringify(r.split));
+      }
+    }
+    assert(bad.length === 0, 'THE PASS-12 BOSS LINE: ' + bad.join('; '));
+  }),
+
   /* DGN-KEY-SERVER-4 (regression, visual passes 10+11): pending "Counting keys…" spilled
      35px out of the foot in Cinzel; stated "Manual Run" wrapped (55 vs 38px). Every run
      label is one line inside the foot (under #app: its !important font-size was the

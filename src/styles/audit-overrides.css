@@ -1263,12 +1263,14 @@ body.in-combat #combat-area {
   font-size:calc(14.5px * var(--ui-scale, 1));
   color: var(--ink-2);
   margin: 4px 0 6px;
-  display: flex; align-items: center; gap: 5px;
 }
+/* pass 12 G2: one flowing sentence; breaks fall between phrases, never inside one */
+.dgn-boss-lead, .dgn-boss-line b, .dgn-boss-weak { white-space: nowrap; }
+.dgn-boss-skull svg { vertical-align: -2px; }
 .dgn-boss-line b { color: var(--gold-2); font-family: var(--f-display, Georgia, serif); letter-spacing: .01em; }
 .dgn-boss-skull { color: #c96; font-size: 1.05em; }
 /* b281: boss weakness tag + one-line mechanic from the data-driven registry */
-.dgn-boss-weak { font-size: calc(14.5px * var(--ui-scale,1)); color: #6fae7f; font-weight: 600; margin-left: 4px; }
+.dgn-boss-weak { font-size: calc(14.5px * var(--ui-scale,1)); color: #6fae7f; font-weight: 600; }
 .dgn-boss-mech { font-size: calc(14.5px * var(--ui-scale,1)); color: var(--ink-3); font-style: italic; margin: 2px 0 6px; }
 .dgn-bop {
   font-size:calc(14.5px * var(--ui-scale, 1));

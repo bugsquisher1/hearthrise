@@ -3126,10 +3126,13 @@ export default [
     }
   }),
 
-  /* DGN-KEY-SERVER-4 (regression, visual pass 10): "Manual Run · counting…" wrapped to
-     three lines in the 355px card (86px vs 55px stated). The pending label is short.
-     MUTATION: restore the long label and the 1280x800 height check goes red. */
-  () => tryRun('DGN-KEY-SERVER-4: pending dungeon run buttons read "Counting keys…" at the stated height', () => {
+  /* DGN-KEY-SERVER-4 (regression, visual passes 10+11): pending "Counting keys…" spilled
+     35px out of the foot in Cinzel; stated "Manual Run" wrapped (55 vs 38px). Every run
+     label is one line inside the foot (under #app: its !important font-size was the
+     spill), pending = stated height, also in a WIDE face
+     (+.28em ≈ the 177px Cinzel button) so a fallback-font run still bites.
+     MUTATION: drop .dgn-foot's flex-wrap, red (74px spill). */
+  () => tryRun('DGN-KEY-SERVER-4: pending and stated dungeon run buttons sit on one line inside the card foot', () => {
     const A = window.HearthriseAccrual, d = window.DUNGEONS && window.DUNGEONS.crypt_of_bones;
     if (!A || !d || !document.getElementById('panel-dungeons') || typeof window.renderDungeons !== 'function') return;
     const G = window.G, snap = snapshotG(), lvl = window.getCombatLevel, bagWas = G._serverBag, bad = [];
@@ -3143,14 +3146,18 @@ export default [
       c.removeAttribute('data-probe');
       return html;
     };
-    const measure = (html, w, h, gw) => phoneFrame(w, h, '<div style="width:' + gw + 'px">' + html + '</div>', (doc) => {
+    const wide = '<style>body[data-theme] .dgn-card .dgn-run{letter-spacing:.28em}</style>';
+    const measure = (html, w, h, gw) => phoneFrame(w, h, '<div id="app"><div style="width:' + gw + 'px">' + html + '</div></div>', (doc) => {
       const c = doc.querySelector('[data-probe]'), bs = [...c.querySelectorAll('button.dgn-run')];
       const lines = (el) => { const r = doc.createRange(); r.selectNodeContents(el);   // tops within 8px share a line (inline icons)
         const tops = [...r.getClientRects()].filter((x) => x.width > 0).map((x) => x.top).sort((a, b) => a - b);
         return tops.filter((t, i) => i === 0 || t - tops[i - 1] > 8).length; };
+      const f = c.querySelector('.dgn-foot').getBoundingClientRect(), k = c.getBoundingClientRect();
+      const out = (r) => Math.max(f.left - r.left, r.right - f.right, f.top - r.top, r.bottom - f.bottom,
+        k.left - r.left, r.right - k.right, k.top - r.top, r.bottom - k.bottom);
       return { hs: bs.map((b) => b.getBoundingClientRect().height), texts: bs.map((b) => b.textContent),
         lines: bs.map(lines), cost: lines(c.querySelector('.dgn-cost')),
-        spill: Math.max(...bs.map((b) => b.getBoundingClientRect().right), 0) - c.querySelector('.dgn-foot').getBoundingClientRect().right,
+        spill: Math.max(...bs.map((b) => out(b.getBoundingClientRect())), 0),
         clip: bs.some((b) => b.scrollWidth > b.clientWidth + 1) };
     });
     try {
@@ -3160,20 +3167,24 @@ export default [
       const pend = grid();
       A.applyEnvelopeState(G, { state: {}, inventory: { bone_key: 2 } });
       const stated = grid();
-      for (const [w, h, gw] of [[1280, 800, 1090], [922, 423, 834]]) {
-        const p = measure(pend, w, h, gw), s = measure(stated, w, h, gw), top = Math.max(...s.hs);
-        if (!p.texts.length || !p.texts.every((t) => t === 'Counting keys…')) bad.push(w + ': pending text ' + JSON.stringify(p.texts));
-        if (p.hs.some((x) => x > top + 2)) bad.push(w + ': pending ' + p.hs.map(Math.round) + 'px vs stated ' + Math.round(top) + 'px');
-        if (p.lines.some((n) => n > 2)) bad.push(w + ': pending label on ' + p.lines + ' lines');
-        if (p.cost > 2) bad.push(w + ': entry line on ' + p.cost + ' lines');
-        if (p.spill > 1 || p.clip) bad.push(w + ': pending buttons spill the card (' + Math.round(p.spill) + 'px) or clip their label');
+      for (const [w, h, gw] of [[1280, 800, 1090], [922, 423, 834]]) for (const face of ['', wide]) {
+        const tag = w + (face ? ' wide' : ''), p = measure(face + pend, w, h, gw), s = measure(face + stated, w, h, gw);
+        if (!p.texts.length || !p.texts.every((t) => t === 'Counting keys…')) bad.push(tag + ': pending text ' + JSON.stringify(p.texts));
+        if (s.texts.join() !== 'Manual Run,Auto-Run') bad.push(tag + ': stated text ' + JSON.stringify(s.texts));
+        for (const [st, m] of [['pending', p], ['stated', s]]) {
+          if (m.lines.some((n) => n !== 1)) bad.push(tag + ': ' + st + ' labels on ' + m.lines + ' lines');
+          if (m.spill > 1 || m.clip) bad.push(tag + ': ' + st + ' buttons leave the foot by ' + Math.round(m.spill) + 'px or clip');
+          if (m.cost > 2) bad.push(tag + ': ' + st + ' entry line on ' + m.cost + ' lines');
+        }
+        const gap = Math.max(...p.hs, ...s.hs) - Math.min(...p.hs, ...s.hs);
+        if (gap > 2) bad.push(tag + ': pending ' + p.hs.map(Math.round) + 'px vs stated ' + s.hs.map(Math.round) + 'px');
       }
     } finally {
       window.getCombatLevel = lvl;
       if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
       restoreG(snap);
     }
-    assert(bad.length === 0, 'THE VG10 WRAPPED-PENDING BUG: ' + bad.join('; '));
+    assert(bad.length === 0, 'THE VG11 RUN-BUTTON SPILL: ' + bad.join('; '));
   }),
 
   /* DGN-KEY-SERVER-2 (regression, visual pass 8): in fallback fonts the Crypt card

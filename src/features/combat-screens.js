@@ -1601,7 +1601,8 @@ function renderFight() {
   }
   const fsw = document.getElementById('fs-foe-swing');
   if (fsw) {
-    const lbl = `${esc(weaponLabel(m.weaponWeak) !== '—' ? m.family || 'Foe' : 'Foe')} · ${swingS}`;
+    const fam = weaponLabel(m.weaponWeak) !== '—' ? foeFamily(m, 'Foe') : 'Foe';   // FOE-NAME-1
+    const lbl = fam ? `${esc(fam)} · ${swingS}` : swingS;
     const sp = fsw.querySelector('span'); if (sp.textContent !== lbl) sp.textContent = lbl;
   }
   /* A KNOCKED-OUT fight is not a LIVE one for the bar's purposes: the pointer

@@ -5290,8 +5290,9 @@ export default [
 
   // ── regression suite — FOE-NAME-1: A NAME NEVER REPEATS ITS OWN FAMILY ──
   // The Fight head and the monster row printed "Fire Elemental Elemental · Tier
-  // 1" (visual-qa duplicate-word). The family word drops beside a name that
-  // already ends with it; a control foe still prints both.
+  // 1" (visual-qa duplicate-word); vg11: #fs-foe-swing read "Elemental · 2.40s"
+  // under "Fire Elemental". The family word drops beside a name that already
+  // ends with it; a control foe still prints both.
   () => tryRunAsync('FOE-NAME-1: a foe whose name ends with its family never prints the word twice; a control foe still prints both', async () => {
     const G = window.G, CS = window.HearthriseCombatScreens, M = window.MONSTERS || {};
     assert(CS && typeof CS.preview === 'function' && typeof window.renderMonsterList === 'function', 'CONTROL: the Fight screen or the monster list is unpublished');
@@ -5304,16 +5305,20 @@ export default [
       CS.preview(id); CS.renderFight();
       G.currentCombatTier = M[id].tier; window.renderMonsterList();
       const row = document.querySelector('#monster-list [data-monster="' + id + '"] div');
-      return [words(document.getElementById('fs-title')), words(row)];
+      const sw = document.querySelector('#fs-foe-swing span');
+      return [words(document.getElementById('fs-title')), words(row), sw ? sw.textContent.trim() : ''];
     };
     const snap = snapshotG(); const prevTab = window.activeTab; const bad = [];
     try {
       window.showTab('combat'); G.activeMonster = null;
-      for (const id of ids) for (const t of read(id)) {
-        const dup = t.match(/\b(\w+)\s+\1\b/i);
-        if (!t || dup) bad.push(id + ': "' + t + '"');
+      for (const id of ids) {
+        const got = read(id), sw = got[2];
+        for (const t of got) if (!t || t.match(/\b(\w+)\s+\1\b/i)) bad.push(id + ': "' + t + '"');
+        if (new RegExp('\\b' + M[id].family + '\\b', 'i').test(sw) || /^·/.test(sw)) bad.push(id + ' swing: "' + sw + '"');
       }
-      for (const t of read(ctl)) {
+      const cs = read(ctl)[2];
+      if (!cs.startsWith(M[ctl].family + ' · ')) bad.push('control ' + ctl + ' swing: "' + cs + '"');
+      for (const t of read(ctl).slice(0, 2)) {
         if (!t.includes(M[ctl].name) || !t.includes(M[ctl].family)) bad.push('control ' + ctl + ' lost a word: "' + t + '"');
       }
       assert(bad.length === 0, 'THE b561 ELEMENTAL-ELEMENTAL BUG: ' + bad.join('; '));

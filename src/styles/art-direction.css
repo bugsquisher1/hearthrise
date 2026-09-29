@@ -2576,6 +2576,10 @@ body[data-theme] .bal-pending {
 body[data-theme] #app .bal-pending.bal-pending,
 body[data-theme] #app .bal-pending.bal-pending * {
   color: var(--ink-3) !important;
+}
+/* A pending BUTTON keeps its own size (vg11: the dungeon pair inherited 17px and spilled). */
+body[data-theme] #app .bal-pending.bal-pending:not(:where(.dgn-run)),
+body[data-theme] #app .bal-pending.bal-pending * {
   font-size: inherit !important;
 }
 

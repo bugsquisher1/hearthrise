@@ -1312,12 +1312,13 @@ body.in-combat #combat-area {
   cursor: not-allowed;
   font-size:calc(14.5px * var(--ui-scale, 1));
 }
-.dgn-run-buttons { display: flex; gap: 6px; }
-/* Pending (visual pass 10): one-line labels; the buttons drop under the entry line rather than squeeze it. */
+/* One-line run labels (visual pass 11): flex lines break on max-content, so the pair
+   drops under the entry line, then stacks, before any label would wrap. */
+.dgn-foot { flex-wrap: wrap; gap: 6px 8px; }
+.dgn-run-buttons { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 0 auto; }
+.dgn-run-buttons .dgn-run { flex: 1 1 auto; padding-inline: 8px; font-size: var(--t-micro); }
 .dgn-run.bal-pending { white-space: nowrap; }
-.dgn-foot-pending { flex-wrap: wrap; row-gap: 6px; }
-.dgn-foot-pending .dgn-run-buttons { flex: 1 1 100%; }
-.dgn-foot-pending .dgn-run { flex: 1; padding-inline: 8px; }
+.dgn-foot-pending .dgn-run-buttons { flex-basis: 100%; }
 .dgn-run-manual {
   background: linear-gradient(180deg, #f3d181, #c9a040);
   color: #3a2a10;

@@ -2104,6 +2104,8 @@ body[data-theme] #panel-house.active,
 body[data-theme] #panel-social.active,
 body[data-theme] #panel-bounty.active,
 body[data-theme] #panel-market.active { padding-bottom: 78px; }
+/* The Crops rows end left of the fixed FAB column (visual pass 10: Carrot's lock label). */
+body[data-theme] #panel-farming #crops-guide { padding-right: var(--hr-fab-col); }
 
 /* Market blocks were sized by the panel's grid rows, not by their content: the
  * one-line "Listings rules" strip ran 150px tall and the list form left 130px

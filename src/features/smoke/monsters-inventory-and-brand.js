@@ -7854,52 +7854,98 @@ export default [
     assert(bad.length === 0, 'THE VG5 SLOT-LABEL BUG: ' + bad.join('; '));
   }),
 
-  /* TOAST-SHEET-1 (visual passes 5, 9): a toast over an open sheet covered its
-     Done, then (moved to the band under the header) the Codex title. The sheet
-     is the announcement: toasts are held while one is open, the newest 5 kept,
-     and replay in the bottom-right corner when it closes. */
-  () => tryRunAsync('TOAST-SHEET-1: toasts are held while a sheet is open and replay in the corner when it closes', async () => {
+  /* TOAST-SHEET-1 (visual passes 5, 9, 10): a toast over an open sheet covered its
+     Done, then the Codex title. Toasts are held while a sheet is open, the newest 5
+     kept, and replay PACED when it closes: one at a time, oldest first (pass 10: a
+     burst stacked 201px over Home's CTAs). At 922x423 the column rests clear of them. */
+  () => tryRunAsync('TOAST-SHEET-1: held toasts replay one at a time, in order, clear of Home\'s CTAs', async () => {
     const T = window.HearthriseToasts, C = window.HearthriseCodex;
     if (!T || !C) { skip('the toast queue or the Codex is absent'); return; }
-    const notifs = document.getElementById('notifs');
+    const notifs = document.getElementById('notifs'), prevTab = window.activeTab;
     const frames = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     const texts = () => [...notifs.querySelectorAll('.notif-text')].map((e) => e.textContent);
+    const hit = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
     const bad = [];
     try {
       T.clear();
       await C.open();
-      assert(typeof T.sheetOpen === 'function' && T.sheetOpen(), 'the Codex is open but the toast queue does not see a sheet');
-      window.notify('held one', 'info');
-      assert(notifs.children.length === 0, 'a toast drew over the open Codex: ' + JSON.stringify(texts()));
-      assert(T.state().held === 1, 'the held queue is ' + T.state().held + ', not 1');
-      C.close();
-      await frames();
-      assert(texts().includes('held one'), 'the held toast did not replay when the Codex closed: ' + JSON.stringify(texts()));
-      for (const [w, h] of [[1280, 800], [922, 423]]) {
-        phoneFrame(w, h, notifs.outerHTML, (doc) => {
-          const off = T.computeOffsets(w, h, []), n = doc.getElementById('notifs');
-          n.style.bottom = off.bottom + 'px'; n.style.right = off.right + 'px';
-          const r = n.firstElementChild.getBoundingClientRect();
-          if (r.left < w / 2 || r.top < h / 2) bad.push(w + 'x' + h + ': the replayed toast [' + [r.left, r.top, r.right, r.bottom].map(Math.round) + '] is not bottom-right');
-        });
-      }
-      T.clear();
-      window.notify('shown now', 'info');
-      assert(texts().includes('shown now'), 'with no sheet open a toast did not show at once');
-      T.clear();
-      await C.open();
+      assert(T.sheetOpen(), 'the Codex is open but the toast queue does not see a sheet');
       for (let k = 1; k <= 7; k++) window.notify('burst ' + k, 'info');
       assert(notifs.children.length === 0 && T.state().held === 5, 'held ' + T.state().held + ' of 7 (want the newest 5), ' + notifs.children.length + ' drawn');
       C.close();
       await frames();
-      const st = T.state(), shown = texts();
-      assert(st.visible + st.pending === 5 && shown[0] === 'burst 3' && !shown.includes('burst 2'),
-        'after close: ' + JSON.stringify(shown) + ' + ' + st.pending + ' pending (want burst 3..7 in order)');
+      const seen = [];
+      let one = 0, most = 0;
+      // Only the replayed burst is counted: a live toast from the page may land meanwhile.
+      const poll = () => {
+        const els = [...notifs.children].filter((e) => /^burst /.test(e.textContent)), n = els.length, t = els.map((e) => e.textContent);
+        most = Math.max(most, n);
+        if (n === 1) one = Math.max(one, els[0].getBoundingClientRect().height);
+        if (n > 1 && !bad.length) bad.push(n + ' toasts at once ' + JSON.stringify(t) + ', ' + Math.round(els.reduce((h, e) => h + e.getBoundingClientRect().height, 0)) + 'px tall');
+        for (const x of t) if (!seen.includes(x)) seen.push(x);
+      };
+      for (let ms = 0; ms < T.config.MIN_MS + 800; ms += 100) { poll(); await wait(100); }
+      for (let k = 0; k < 8 && (seen.length < 5 || T.state().replaying); k++) {
+        const el = [...notifs.querySelectorAll('.notif:not(.leaving)')].find((e) => /^burst /.test(e.textContent));
+        if (el) el.click();
+        for (let ms = 0; ms < 400; ms += 50) { poll(); await wait(50); }
+      }
+      assert(JSON.stringify(seen) === JSON.stringify(['burst 3', 'burst 4', 'burst 5', 'burst 6', 'burst 7']),
+        'replay order ' + JSON.stringify(seen) + ' (want burst 3..7, one at a time)');
+      assert(most <= 1, 'the column held ' + most + ' toasts during the replay (one toast is ' + Math.round(one) + 'px)');
+      T.clear();
+      window.notify('shown now — your crops grew while you were away', 'info');
+      assert(texts()[0] === 'shown now — your crops grew while you were away', 'with no sheet open a toast did not show at once');
+      window.showTab('profile');
+      await frames();
+      const cls = document.body.className;
+      phoneFrame(922, 423, document.getElementById('app').outerHTML + notifs.outerHTML, (doc) => {
+        doc.body.className = cls;
+        T.layout(doc);
+        const r = doc.getElementById('notifs').getBoundingClientRect(); // the column: a toast mid-slide is offset
+        const ctas = [...doc.querySelectorAll('#panel-profile .hd-cta')].map((e) => [e.textContent.trim(), e.getBoundingClientRect()]).filter(([, c]) => c.width);
+        if (!ctas.length) bad.push('922x423: Home drew no CTA to measure');
+        for (const [t, c] of ctas) {
+          const band = { left: c.left, right: c.right, top: 0, bottom: 1e6 };
+          if (hit(r, band)) bad.push('922x423: the resting toast [' + [r.left, r.top, r.right, r.bottom].map(Math.round) + '] shares the "' + t + '" CTA column [' + [c.left, c.top, c.right, c.bottom].map(Math.round) + ']');
+        }
+        if (r.left < 0 || r.bottom > 423 || r.top < 423 / 2) bad.push('922x423: the resting toast [' + [r.left, r.top, r.right, r.bottom].map(Math.round) + '] left the bottom band');
+      });
     } finally {
       try { C.close(); } catch (e) {}
       try { T.clear(); } catch (e) {}
+      try { T.layout(); } catch (e) {}
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
     }
-    assert(bad.length === 0, 'THE VG9 TOAST-OVER-SHEET BUG: ' + bad.join('; '));
+    assert(bad.length === 0, 'THE VG10 TOAST-REPLAY BUG: ' + bad.join('; '));
+  }),
+
+  /* FARM-LIST-FAB-1 (visual pass 10): the Crops rows ran under the bug-report FAB,
+     Carrot's lock label beneath it. The panel scrolls every row through the FAB's
+     band, so each row's content box must end left of the FAB column. */
+  () => tryRunAsync('FARM-LIST-FAB-1: at 1280x800 the Crops rows end left of the FAB column', async () => {
+    const fab = document.getElementById('hr-bug-btn');
+    if (!fab) { skip('the bug-report FAB is absent'); return; }
+    const prevTab = window.activeTab, bad = [];
+    try {
+      window.showTab('farming');
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const cls = document.body.className;
+      const n = phoneFrame(1280, 800, document.getElementById('app').outerHTML + fab.outerHTML, (doc) => {
+        doc.body.className = cls;
+        const f = doc.getElementById('hr-bug-btn').getBoundingClientRect();
+        const rows = [...doc.querySelectorAll('#crops-guide .shop-row')].filter((e) => e.getClientRects().length);
+        for (const row of rows) {
+          const r = row.getBoundingClientRect(), cs = doc.defaultView.getComputedStyle(row);
+          const right = r.right - parseFloat(cs.paddingRight) - parseFloat(cs.borderRightWidth);
+          if (right > f.left) bad.push('"' + row.textContent.trim().slice(0, 12) + '" content ends at ' + Math.round(right) + ' > FAB [' + [f.left, f.top, f.right, f.bottom].map(Math.round) + ']');
+        }
+        return rows.length;
+      });
+      assert(n > 0, 'the 1280x800 Crops list drew no rows to measure');
+    } finally { try { window.showTab(prevTab || 'profile'); } catch (e) {} }
+    assert(bad.length === 0, 'THE VG10 FARM-FAB BUG: ' + bad.join('; '));
   }),
 
   /* #32, live: "inventory is missing the tool tab. only place to find the tools

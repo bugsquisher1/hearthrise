@@ -9,7 +9,8 @@
 // sword), and only once the equipment record is known. The element is printed
 // only through the charm curtain (studied kind); unknown counters print nothing.
 
-import { weaknessInfo, WEAPON_TYPES } from '../core/combat.js?v=559';
+import { weaknessInfo } from '../core/combat.js?v=559';
+import { weaknessWords } from '../render/foe-weakness.js?v=559';
 import { MONSTER_NOTES } from '../data/monster-notes.js?v=559';
 import { SIGNPOSTS } from '../data/signposts.js?v=559';
 import { fill } from './signposts.js?v=559';
@@ -44,7 +45,7 @@ export function facts(id, opts) {
   const charms = ('charms' in o) ? o.charms : window.HearthriseCharms;
   const wi = weaknessInfo(m, eq);
   const name = m.name;
-  const weapon = WEAPON_TYPES[m.weaponWeak];
+  const weapon = weaknessWords(m);
   const held = known && wi.matched;
   return {
     id,

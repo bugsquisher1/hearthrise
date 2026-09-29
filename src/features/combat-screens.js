@@ -41,13 +41,13 @@
 // "long fight — pays on the kill" rather than quoting a number.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from '../data/monsters.js?v=559';
-import { ITEMS } from '../data/items.js?v=559';
-import * as ST from './session-tally.js?v=559';
-import { fill } from './signposts.js?v=559';
-import { foeFamily } from '../render/foe-family.js?v=559';
-import { weaknessWords } from '../render/foe-weakness.js?v=559';
-import { SIGNPOSTS } from '../data/signposts.js?v=559';
+import { MONSTERS } from '../data/monsters.js?v=560';
+import { ITEMS } from '../data/items.js?v=560';
+import * as ST from './session-tally.js?v=560';
+import { fill } from './signposts.js?v=560';
+import { foeFamily } from '../render/foe-family.js?v=560';
+import { weaknessWords } from '../render/foe-weakness.js?v=560';
+import { SIGNPOSTS } from '../data/signposts.js?v=560';
 
 /* ── small shared helpers ────────────────────────────────────────────────*/
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (

@@ -4,6 +4,24 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 560 — 2026-09-29 (Nothing moves before the count)
+
+**Pending states say a word.** While the realm has not answered yet, the Fight bar's away chip reads "away: counting…" instead of a bare dash, and the Quartermaster's scrip line keeps only the one pending dash ("You have — Dungeon Scrip, earned by clearing dungeons.").
+
+**Toasts wait for an open sheet.** A toast that arrives while a sheet is open (the Codex, Spoils, Lifetime Stats) is held instead of painting over the sheet, and the last few play back in their corner the moment the sheet closes.
+
+**The fight log clears the corner buttons.** The bug and chat buttons no longer sit over the end of a combat log line at desktop sizes.
+
+**Whole names in the bag.** Inventory slot names wrap on whole words in every font, and a dungeon card's "(have —)" never splits across two lines.
+
+**A gate waits for the realm's count.** Until the realm has stated your bag, a dungeon's Run and Auto-Run buttons and the farm's Plant say "counting…" instead of letting you ask for a run the realm would refuse; once the count arrives they follow it as before.
+
+**A foe is named once.** The fight screen no longer reads "Elemental · Elemental" for a foe whose name already carries its family; the family word appears only when the name does not.
+
+**One answer about a foe's weakness.** The Fight card, the War Table, the monster list, the drops sheet and Know Your Foe now name the same weapon a foe is weak to (or all say it fears no weapon), read from the number the engine actually pays; a foe's richer drops are said as drops, never as a weakness.
+
+**The auto-eat chip tells the truth.** The Fight bar's Auto-eat chip now reads the realm's own setting — "best in bag", a named food, or Off — and choosing a food is announced only once the realm has recorded it.
+
 ## v0.9.2-beta build 559 — 2026-09-28 (Numbers you can trust)
 
 **Nothing shows a zero it doesn't know.** Every count the server has not answered yet renders a pending dash instead of 0: the collection log's rungs, the Home tile, the bestiary charm strip, daily goals, the quests strip, bounty labels and the top-bar streak. The boot load feeds the claim rows, so a reload never flashes "0 to claim".

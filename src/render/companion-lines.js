@@ -12,8 +12,8 @@
 // Pure ESM, no DOM: importable from Node by tests/companion-promise-parity.mjs.
 // ============================================================
 
-import { COMPANIONS } from '../data/companions.js?v=559';
-import { COMPANION_KEYS, companionKeyBonus } from '../core/companion-perk.js?v=559';
+import { COMPANIONS } from '../data/companions.js?v=560';
+import { COMPANION_KEYS, companionKeyBonus } from '../core/companion-perk.js?v=560';
 
 /* The stat vocabulary for every key a companion row may author, paid or not.
    tests/lore-notes.mjs reads this map as the words lore may use. */

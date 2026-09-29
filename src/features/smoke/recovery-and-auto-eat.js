@@ -6,8 +6,8 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 30 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, snapshotG, drain, restoreG, stubSignedIn, on, snapshot, closeOverlays } from './_harness.js?v=559';
-import { MONSTER_NOTES } from '../../data/monster-notes.js?v=559';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, snapshotG, drain, restoreG, stubSignedIn, on, snapshot, closeOverlays } from './_harness.js?v=560';
+import { MONSTER_NOTES } from '../../data/monster-notes.js?v=560';
 
 /* aeRig — a signed-in page whose server auto-eat belief is `state(b)`; the verb
    is stubbed and answers only when the test resolves `answer`. */

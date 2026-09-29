@@ -9,11 +9,11 @@
 // sword), and only once the equipment record is known. The element is printed
 // only through the charm curtain (studied kind); unknown counters print nothing.
 
-import { weaknessInfo } from '../core/combat.js?v=559';
-import { weaknessWords } from '../render/foe-weakness.js?v=559';
-import { MONSTER_NOTES } from '../data/monster-notes.js?v=559';
-import { SIGNPOSTS } from '../data/signposts.js?v=559';
-import { fill } from './signposts.js?v=559';
+import { weaknessInfo } from '../core/combat.js?v=560';
+import { weaknessWords } from '../render/foe-weakness.js?v=560';
+import { MONSTER_NOTES } from '../data/monster-notes.js?v=560';
+import { SIGNPOSTS } from '../data/signposts.js?v=560';
+import { fill } from './signposts.js?v=560';
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const own = (o, k) => !!o && typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k);

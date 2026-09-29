@@ -752,7 +752,7 @@
                 (br && br.mechanic ? '<div class="dgn-boss-mech">' + br.mechanic + '</div>' : '');
             })() +
             '<div class="dgn-loot-row">' + lootHtml + '</div>' +
-            '<div class="dgn-foot">' +
+            '<div class="dgn-foot' + (check.pending ? ' dgn-foot-pending' : '') + '">' +
               '<div class="dgn-cost">Entry: <b>' + costStr + '</b></div>' +
               (function(){
                 /* EACH BUTTON IS GATED, AND LABELLED, FROM ITS OWN MODE'S WINDOW.
@@ -770,9 +770,11 @@
                 var mMode = manualMode(id);
                 var mCheck = hasManual ? canRun(id, mMode) : { ok: false, reason: check.reason };
                 /* Unstated bag: BOTH buttons pending (.bal-pending), never "Need a key". */
+                /* Short label keeps the stated height (visual pass 10); the full sentence rides the title. */
                 var pendBtn = function(label){
-                  return '<button class="dgn-run bal-pending" disabled data-pending="keys" role="status" title="' + label + ' · ' + check.reason + '">'
-                    + label + ' · counting…</button>';
+                  var full = label + ' · the realm is counting your keys';
+                  return '<button class="dgn-run bal-pending" disabled data-pending="keys" role="status" title="' + full + '" aria-label="' + full + '">'
+                    + 'Counting keys…</button>';
                 };
                 if(check.pending) return '<div class="dgn-run-buttons">' + (hasManual ? pendBtn('Manual Run') : '') + pendBtn('Auto-Run') + '</div>';
                 var autoBtn = check.ok

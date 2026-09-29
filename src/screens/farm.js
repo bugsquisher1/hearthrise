@@ -256,6 +256,7 @@ const FARM_SYNC_DEPS={
 };
 /* WHAT THE *SERVER* SAYS WE HOLD — the only count a GATE may read (`G.inventory` is a display bag no envelope can lower). NULL = unstated → pending. Rule: accrue.js gateItemCount. */
 function heldByServer(id){ const A=window.HearthriseAccrual; return (A&&typeof A.gateItemCount==='function')?A.gateItemCount(G,id):((G.inventory&&Number(G.inventory[id]))||0); } window.heldByServer=heldByServer;
+function seedCountPending(){ return Object.values(CROPS).some((c)=>heldByServer(c.seed)===null); }
 function farmSyncReconcile(kind,res){
   try{ window.HearthriseFarmSync.reconcileFarmResult(G,kind,res,FARM_SYNC_DEPS); }catch(e){}
 }
@@ -468,6 +469,7 @@ function renderFarm(){
   /* The SAME answer plantAllEmpty acts on, so the button cannot offer a sweep
      the sweep will refuse (the silent "Plant all", live 2026-09-13). */
   const plantable = window.HearthriseCore.farm.emptyPlotIndices(G.farmPlots, farmPlotCap()).length;
+  const seedsPending = plantable > 0 && seedCountPending();
   const header = `
     <div class="farm-status row between" style="margin-bottom:8px;flex-wrap:wrap;gap:8px">
       <div class="tiny muted">
@@ -477,7 +479,8 @@ function renderFarm(){
         <br><span id="farm-next-water">${farmNextWaterText()}</span> · crops grow even while you're away
       </div>
       <div class="row gap-sm">
-        <button class="btn btn-sm" onclick="window.plantAllEmpty()" ${plantable?'':'disabled'} title="${plantable?'Plant configured/best seed in every empty plot':'Every plot is already planted'}">${plantable?`Plant all (${plantable})`:'Plant all'}</button>
+        ${seedsPending ? `<button class="btn btn-sm bal-pending" disabled data-pending="seeds" role="status" title="Plant all · counting your seeds…" aria-label="Plant all · counting your seeds…">Plant all</button>`
+          : `<button class="btn btn-sm" onclick="window.plantAllEmpty()" ${plantable?'':'disabled'} title="${plantable?'Plant configured/best seed in every empty plot':'Every plot is already planted'}">${plantable?`Plant all (${plantable})`:'Plant all'}</button>`}
         <button class="btn btn-sm" onclick="window.waterAllPlots()" ${waterable?'':'disabled'} title="${waterable?'Watering doubles growth speed for 2 hours':farmNextWaterText()}">${waterable?`Water all (${waterable})`:'Water all'}</button>
         <button class="btn btn-sm" onclick="window.toggleAutoReplant()" title="Auto-replant after harvest">${replant.enabled?'Auto-replant: on':'Auto-replant: off'}</button>
         <button class="btn btn-sm" onclick="showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Buy the next plot tier with gold (or a Farmer's Deed) in House → Plot">Upgrade Plot</button>
@@ -552,10 +555,12 @@ window.plantAllEmpty = function plantAllEmpty(){
       : 'Your homestead has no farmland yet — upgrade your property in House → Property','kill');
     return 0;
   }
+  /* An unstated count is pending, never "no seeds" (§6, visual pass 10). */
+  if(seedCountPending()){ notify('The realm is counting your seeds… try again in a moment','info'); return 0; }
   const replant = (window.HearthriseAuto && window.HearthriseAuto.getFarmReplant) ? window.HearthriseAuto.getFarmReplant() : null;
   const seeds = {};
   /* The budget is the SERVER's count: a sweep against display-bag seeds spends every plot on a refusal. */
-  Object.values(CROPS).forEach(c=>{ seeds[c.seed] = heldByServer(c.seed) || 0; });
+  Object.values(CROPS).forEach(c=>{ seeds[c.seed] = heldByServer(c.seed); });
   const st = { crops:CROPS, seeds, farmingLevel:getLevel('farming'),
     plotLevel:(window.HearthriseFarm&&window.HearthriseFarm.getPlotLevel)?window.HearthriseFarm.getPlotLevel():1,
     prefer:(replant&&replant.enabled)?replant.cropId:null };

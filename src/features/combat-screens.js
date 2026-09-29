@@ -46,6 +46,7 @@ import { ITEMS } from '../data/items.js?v=559';
 import * as ST from './session-tally.js?v=559';
 import { fill } from './signposts.js?v=559';
 import { foeFamily } from '../render/foe-family.js?v=559';
+import { weaknessWords } from '../render/foe-weakness.js?v=559';
 import { SIGNPOSTS } from '../data/signposts.js?v=559';
 
 /* ── small shared helpers ────────────────────────────────────────────────*/
@@ -1047,10 +1048,10 @@ function renderGrid() {
          only after you have already committed to the foe, which is one screen
          too late to be a choice. Spend the tooltip on the thing the player
          cannot infer instead of repeating the thing they can read. */
-      `${locked ? ' disabled' : ''} data-monster="${esc(id)}" title="${esc(m.name)} — weak to ${esc(weaponLabel(m.weaponWeak))} · ${num(m.hp)} HP${locked ? ` · unlocks at Combat Lv ${req}` : ''}">
+      `${locked ? ' disabled' : ''} data-monster="${esc(id)}" title="${esc(m.name)} — ${weaknessWords(m) ? 'weak to ' + esc(weaknessWords(m)) : 'fears no weapon'} · ${num(m.hp)} HP${locked ? ` · unlocks at Combat Lv ${req}` : ''}">
       <span class="wtc-art">${monsterArt(id, 'wtc-img')}</span>
       <span class="wtc-name">${esc(m.name)}</span>
-      <span class="wtc-stats"><em>${esc(weaponLabel(m.weaponWeak))}</em><b>${num(m.hp)} HP</b></span>
+      <span class="wtc-stats"><em>${esc(weaknessWords(m) || '—')}</em><b>${num(m.hp)} HP</b></span>
       ${badge}
       ${drops ? `<span class="wtc-drops"><span class="wtc-drops-head">Drops</span>${drops}</span>` : ''}
     </button>`;
@@ -1601,7 +1602,7 @@ function renderFight() {
   }
   const fsw = document.getElementById('fs-foe-swing');
   if (fsw) {
-    const lbl = `${esc(weaponLabel(m.weaponWeak) !== '—' ? m.family || 'Foe' : 'Foe')} · ${swingS}`;
+    const lbl = `${esc(weaknessWords(m) ? m.family || 'Foe' : 'Foe')} · ${swingS}`;
     const sp = fsw.querySelector('span'); if (sp.textContent !== lbl) sp.textContent = lbl;
   }
   /* A KNOCKED-OUT fight is not a LIVE one for the bar's purposes: the pointer
@@ -1626,7 +1627,7 @@ function renderFight() {
   const weak = document.getElementById('fs-weak');
   if (weak) {
     /* The charm lift vanishes into `dropMult`; `panelLine` names it, or ''. */
-    let txt = `Weak to ${weaponLabel(m.weaponWeak)}`;
+    let txt = weaknessWords(m) ? `Weak to ${weaknessWords(m)}` : 'Fears no weapon';
     const CH = window.HearthriseCharms;
     const wi = typeof window.getWeaknessInfo === 'function' ? window.getWeaknessInfo(m, eq) : null;
     const charm = (wi && CH && typeof CH.panelLine === 'function') ? CH.panelLine(wi) : '';

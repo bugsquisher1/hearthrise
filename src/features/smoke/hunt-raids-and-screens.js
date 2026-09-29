@@ -7,6 +7,8 @@
 // the monolith by tools/split-smoke-suite.mjs — 131 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
 import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays, phoneFrame, withStockedFight } from './_harness.js?v=559';
+import { weaknessOf, weaknessWords } from '../../render/foe-weakness.js?v=559';
+import { weaknessInfo, WEAPON_TYPES } from '../../core/combat.js?v=559';
 
 /* DEEPWATERS fixture (content pack 8). Bonus-free and gear-free — getBonus and
    the rested quantum pinned to 0 and an EMPTY equipment stat block (Timberline
@@ -2414,6 +2416,52 @@ export default [
       rig.restore();
       try { HUD.close(); } catch (e) {}
       if (prevCharms === undefined) delete G._bestiaryCharms; else G._bestiaryCharms = prevCharms;
+      restoreG(snap);
+      try { window.showTab(prevTab || 'combat'); } catch (e) {}
+    }
+  }),
+
+  /* ── FOE-WEAKNESS-1 — EVERY SURFACE NAMES THE WEAKNESS THE ENGINE PAYS ──
+     The loot sheet read `dropBonus` as "Slime fears no weapon" while
+     the Fight card said "Weak to 2H Hammer". One helper now composes the words;
+     every foe, every surface, and the helper against `weaknessInfo`. */
+  () => tryRunAsync('FOE-WEAKNESS-1: the Fight card, War Table, monster list and loot sheet name the weakness weaknessInfo pays, for every foe', async () => {
+    const G = window.G, CS = window.HearthriseCombatScreens, HUD = window.HearthriseCombatHud, MON = window.MONSTERS;
+    assert(CS && HUD && typeof HUD.openLoot === 'function' && typeof window.renderMonsterList === 'function',
+      'CONTROL: combat screens / HUD / renderMonsterList unpublished');
+    const ids = Object.keys(MON);
+    assert(ids.length > 50, 'CONTROL: roster too small: ' + ids.length);
+    const snap = snapshotG(); const prevTab = window.activeTab; const bad = [];
+    const txt = (el) => (el ? el.textContent.replace(/\s+/g, ' ') : '');
+    try {
+      window.showTab('combat');
+      for (const id of ids) {
+        const m = MON[id]; const w = weaknessOf(m);
+        for (const t of Object.keys(WEAPON_TYPES)) {
+          if (weaknessInfo(m, { weaponType: t }, null, null, id).matched !== (t === w)) bad.push(id + ': engine pays ' + t + ', helper says ' + w);
+        }
+        G.currentCombatTier = m.tier || 1; G.activeMonster = id; G.monsterHp = m.hp; G.monsterMaxHp = m.hp;
+        CS.render(); CS.renderFight(); window.renderMonsterList();
+        const card = document.querySelector('#wt-grid [data-monster="' + id + '"]');
+        const row = document.querySelector('#monster-list [data-monster="' + id + '"]');
+        const surfaces = {
+          fight: txt(document.getElementById('fs-weak')),
+          warTable: card ? txt(card.querySelector('.wtc-stats')) + ' ' + card.getAttribute('title') : '',
+          list: txt(row),
+          loot: (HUD.openLoot(), txt(document.querySelector('.hr-room-scrim[data-combat-hud]'))),
+        };
+        HUD.close();
+        const words = weaknessWords(m).toLowerCase();
+        for (const [k, s] of Object.entries(surfaces)) {
+          const l = s.toLowerCase();
+          if (!s) bad.push(id + '/' + k + ': not rendered');
+          else if (w && (!l.includes(words) || l.includes('fears no weapon'))) bad.push(id + '/' + k + ': "' + s.slice(0, 160) + '"');
+          else if (!w && Object.values(WEAPON_TYPES).some((n) => n !== 'Neutral' && l.includes(n.toLowerCase()))) bad.push(id + '/' + k + ' names a weapon: ' + s.slice(0, 160));
+        }
+      }
+      assert(!bad.length, bad.length + ' disagreements: ' + bad.slice(0, 6).join(' | '));
+    } finally {
+      try { HUD.close(); } catch (e) {}
       restoreG(snap);
       try { window.showTab(prevTab || 'combat'); } catch (e) {}
     }

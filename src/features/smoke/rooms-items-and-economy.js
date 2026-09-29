@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 105 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, bountyRig, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, withRoomServer, awayArtisanSpan, tryRunRestampingBalance, goldOf, gemsOf, snapshotG, setAway, drain, restoreG, restoreGAndRecord, restoreBankCap, on, snapshot } from './_harness.js?v=559';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, bountyRig, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, withRoomServer, awayArtisanSpan, tryRunRestampingBalance, goldOf, gemsOf, snapshotG, setAway, drain, restoreG, restoreGAndRecord, restoreBankCap, on, snapshot, phoneFrame, farmReplantFixtureG, withDeferredFarmPlant } from './_harness.js?v=559';
 
 export default [
 
@@ -3126,6 +3126,56 @@ export default [
     }
   }),
 
+  /* DGN-KEY-SERVER-4 (regression, visual pass 10): "Manual Run · counting…" wrapped to
+     three lines in the 355px card (86px vs 55px stated). The pending label is short.
+     MUTATION: restore the long label and the 1280x800 height check goes red. */
+  () => tryRun('DGN-KEY-SERVER-4: pending dungeon run buttons read "Counting keys…" at the stated height', () => {
+    const A = window.HearthriseAccrual, d = window.DUNGEONS && window.DUNGEONS.crypt_of_bones;
+    if (!A || !d || !document.getElementById('panel-dungeons') || typeof window.renderDungeons !== 'function') return;
+    const G = window.G, snap = snapshotG(), lvl = window.getCombatLevel, bagWas = G._serverBag, bad = [];
+    const grid = () => {
+      window.renderDungeons();
+      const c = [...document.querySelectorAll('#panel-dungeons .dgn-card')]
+        .find((e) => (e.querySelector('.dgn-name') || {}).textContent === d.name);
+      assert(c && c.closest('.dgn-grid'), 'no Crypt card in a .dgn-grid');
+      c.setAttribute('data-probe', '1');
+      const html = c.closest('.dgn-grid').outerHTML;
+      c.removeAttribute('data-probe');
+      return html;
+    };
+    const measure = (html, w, h, gw) => phoneFrame(w, h, '<div style="width:' + gw + 'px">' + html + '</div>', (doc) => {
+      const c = doc.querySelector('[data-probe]'), bs = [...c.querySelectorAll('button.dgn-run')];
+      const lines = (el) => { const r = doc.createRange(); r.selectNodeContents(el);   // tops within 8px share a line (inline icons)
+        const tops = [...r.getClientRects()].filter((x) => x.width > 0).map((x) => x.top).sort((a, b) => a - b);
+        return tops.filter((t, i) => i === 0 || t - tops[i - 1] > 8).length; };
+      return { hs: bs.map((b) => b.getBoundingClientRect().height), texts: bs.map((b) => b.textContent),
+        lines: bs.map(lines), cost: lines(c.querySelector('.dgn-cost')),
+        spill: Math.max(...bs.map((b) => b.getBoundingClientRect().right), 0) - c.querySelector('.dgn-foot').getBoundingClientRect().right,
+        clip: bs.some((b) => b.scrollWidth > b.clientWidth + 1) };
+    });
+    try {
+      window.getCombatLevel = () => 99;
+      Object.assign(G, { inventory: Object.assign({}, G.inventory, { bone_key: 3 }), _dungeonCooldowns: {} });
+      delete G._serverBag;
+      const pend = grid();
+      A.applyEnvelopeState(G, { state: {}, inventory: { bone_key: 2 } });
+      const stated = grid();
+      for (const [w, h, gw] of [[1280, 800, 1090], [922, 423, 834]]) {
+        const p = measure(pend, w, h, gw), s = measure(stated, w, h, gw), top = Math.max(...s.hs);
+        if (!p.texts.length || !p.texts.every((t) => t === 'Counting keys…')) bad.push(w + ': pending text ' + JSON.stringify(p.texts));
+        if (p.hs.some((x) => x > top + 2)) bad.push(w + ': pending ' + p.hs.map(Math.round) + 'px vs stated ' + Math.round(top) + 'px');
+        if (p.lines.some((n) => n > 2)) bad.push(w + ': pending label on ' + p.lines + ' lines');
+        if (p.cost > 2) bad.push(w + ': entry line on ' + p.cost + ' lines');
+        if (p.spill > 1 || p.clip) bad.push(w + ': pending buttons spill the card (' + Math.round(p.spill) + 'px) or clip their label');
+      }
+    } finally {
+      window.getCombatLevel = lvl;
+      if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
+      restoreG(snap);
+    }
+    assert(bad.length === 0, 'THE VG10 WRAPPED-PENDING BUG: ' + bad.join('; '));
+  }),
+
   /* DGN-KEY-SERVER-2 (regression, visual pass 8): in fallback fonts the Crypt card
      wrapped "(have" and "—)" onto two lines, the pending dash orphaned. The count
      run is one unbreakable phrase. MUTATION: drop .dgn-key-stock's nowrap, red. */
@@ -3467,6 +3517,50 @@ export default [
         'with no envelope-stated bag the plant must wait ("counting"), neither sent nor refused: ' + JSON.stringify({ sent, said }));
     } finally {
       window.HearthriseFarmSync = prevSync; window.notify = realNotify;
+      if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
+      restoreG(snap);
+    }
+  }),
+
+  /* FARM-SEED-3 (regression, visual pass 10): unstated bag, display turnip seeds —
+     "Plant all (N)" was enabled and toasted "No plantable seeds". Unstated is PENDING.
+     MUTATION: fold heldByServer null to 0 in plantAllEmpty/renderFarm and (a) goes red. */
+  () => tryRun('FARM-SEED-3: Plant all is pending, not "no seeds", while the server bag is unstated', () => {
+    if (!document.getElementById('farm-panel') || typeof window.plantAllEmpty !== 'function' || !window.HearthriseFarmSync) return;
+    const G = window.G, snap = snapshotG(), bagWas = G._serverBag, realNotify = window.notify, said = [];
+    const fr = window.HearthriseAuto ? window.HearthriseAuto.getFarmReplant() : null;
+    const btn = () => {
+      window.renderFarm();
+      const b = [...document.querySelectorAll('#farm-panel .farm-status button')].find((e) => /^Plant all/.test(e.textContent));
+      return b ? { on: !b.disabled, text: b.textContent, title: b.title || '', pending: b.classList.contains('bal-pending') } : null;
+    };
+    try {
+      window.notify = (m) => { said.push(String(m)); };
+      if (window.HearthriseAuto) window.HearthriseAuto.setFarmReplant({ enabled: false });
+      farmReplantFixtureG({ turnip_seed: 5 });
+      G.farmPlots = [null, null, null, null];
+      delete G._serverBag;
+      const silent = btn();   // (a) unstated: pending, and a forced tap waits
+      assert(silent && !silent.on && silent.pending && /counting/i.test(silent.title),
+        'THE BUG: an unstated bag must render Plant all PENDING ("counting"): ' + JSON.stringify(silent));
+      withDeferredFarmPlant((calls) => {
+        const n = window.plantAllEmpty();
+        assert(n === 0 && calls.length === 0 && said.some((m) => /counting/i.test(m)) && !said.some((m) => /No plantable/.test(m)),
+          'a forced tap while unstated must send nothing and say "counting": ' + JSON.stringify({ n, calls, said }));
+      });
+      G._serverBag = { turnip_seed: 10 };
+      const stated = btn();   // (b) stated: enabled, the count as before
+      assert(stated && stated.on && !stated.pending && /Plant all \(\d+\)/.test(stated.text),
+        'a stated bag must enable "Plant all (N)": ' + JSON.stringify(stated));
+      G._serverBag = {}; said.length = 0;
+      withDeferredFarmPlant((calls) => {   // (c) stated none: the honest shop hint
+        window.plantAllEmpty();
+        assert(calls.length === 0 && said.some((m) => /No plantable seeds/.test(m)),
+          'a stated empty bag must say "No plantable seeds": ' + JSON.stringify(said));
+      });
+    } finally {
+      window.notify = realNotify;
+      try { if (fr && window.HearthriseAuto) window.HearthriseAuto.setFarmReplant(fr); } catch (e) {}
       if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
       restoreG(snap);
     }

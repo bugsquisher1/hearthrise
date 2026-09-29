@@ -908,6 +908,7 @@
     var liveOn = (function () {
       try {
         var A = window.HearthriseAuto;
+        if (A && typeof A.eatEnabled === 'function') return !!A.eatEnabled();   // the server's switch
         return !!(A && typeof A.getEat === 'function' && A.getEat().enabled);
       } catch (e) { return false; }
     })();

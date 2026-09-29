@@ -280,19 +280,13 @@ const HUD = (() => {
        the always-visible HUD, beside the Eat button, when the player owns the
        Auto-Eat trait. */
     const hasAuto = typeof window.hasTrait === 'function' && window.hasTrait('auto_eat');
-    const eatCfg = (window.HearthriseAuto && window.HearthriseAuto.getEat) ? window.HearthriseAuto.getEat() : null;
-    /* THE NAME ON THE CHIP IS THE SERVER'S `auto_eat_food` (eatFoodId), never the
-       local preference: the QA account showed "Cooked Shrimp" here while the
-       engine ate turnip. CLAUDE.md §6. `null` is "best in the bag", which this
-       surface has always drawn as 'Off' — the pre-existing reading of "no
-       nomination", unchanged. */
+    /* THE CHIP PRINTS THE SERVER'S CONFIG (autoEatLabel): Off / the food / "best
+       in bag" for a null `auto_eat_food`, pending until the server states it. */
     const A_ = window.HearthriseAuto;
-    const autoFood = (A_ && typeof A_.eatFoodId === 'function')
-      ? A_.eatFoodId() : (eatCfg ? (eatCfg.foodId || null) : null);
-    const autoName = hasAuto
-      ? ((eatCfg && eatCfg.enabled && autoFood && window.ITEMS[autoFood]) ? window.ITEMS[autoFood].n : 'Off')
-      : '';
-    const sig = [s.key, s.label, s.meta, autoName].join('|');
+    const lab = (hasAuto && A_ && typeof A_.autoEatLabel === 'function') ? A_.autoEatLabel() : null;
+    const autoName = hasAuto ? (lab ? lab.text : 'Off') : '';
+    const autoPend = !!(lab && lab.pending);
+    const sig = [s.key, s.label, s.meta, autoName, autoPend].join('|');
     if (mount.dataset.sig === sig) return;
     mount.dataset.sig = sig;
     const on = s.key === 'eat';
@@ -306,7 +300,7 @@ const HUD = (() => {
     if (hasAuto) {
       html +=
         `<button type="button" class="btn btn-sm arena-autoeat" data-arena-act="autoeat" ` +
-        `title="Choose which food auto-eat uses"><span class="aa-lbl">Auto-eat:</span> <span class="aa-food">${esc(autoName)} ▾</span></button>`;
+        `title="Choose which food auto-eat uses"><span class="aa-lbl">Auto-eat:</span> <span class="aa-food${autoPend ? ' bal-pending' : ''}"${autoPend ? ' role="status"' : ''}>${esc(autoName)} ▾</span></button>`;
     }
     mount.innerHTML = html;
   }

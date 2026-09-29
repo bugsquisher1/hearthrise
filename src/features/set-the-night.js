@@ -189,7 +189,8 @@
           enabled: (A && typeof A.eatEnabled === 'function') ? A.eatEnabled() : !!eat.enabled,
           owned: owned,
           hp: clone.playerHp, maxHp: clone.playerMaxHp,
-          threshold: th, foodId: fid || clone.foodSlot || null,   /* clone.foodSlot = the in-memory gesture */
+          /* A mirrored null is "best in the bag", never the local foodSlot. */
+          threshold: th, foodId: (A && typeof A.eatFoodId === 'function') ? fid : (fid || clone.foodSlot || null),
           inventory: clone.inventory || {}, items: items(),
         });
         if (!r) return false;
@@ -595,6 +596,7 @@
     memo: memo,
     peek: peek,
     _resetMemo: function () { last = null; },
+    _forecastFx: forecastFx,
     sentence: sentence,
     strip: strip,
     remember: remember,

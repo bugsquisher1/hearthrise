@@ -9,6 +9,37 @@
 import { pass, fail, tryRun, tryRunAsync, assert, skip, snapshotG, drain, restoreG, stubSignedIn, on, snapshot, closeOverlays } from './_harness.js?v=559';
 import { MONSTER_NOTES } from '../../data/monster-notes.js?v=559';
 
+/* aeRig — a signed-in page whose server auto-eat belief is `state(b)`; the verb
+   is stubbed and answers only when the test resolves `answer`. */
+const aeApi = () => window.HearthriseAuto;
+const aeRig = () => {
+  const Au = aeApi(), snap = snapshotG(), origGC = window.HearthriseGoalClaim, origAcc = window.HearthriseAccrual;
+  const realNotify = window.notify, before = Au.getEat();
+  const wasSync = Au._parkEatSync(false), wasMirror = Au._parkAutoEatMirror(false);
+  Au._resetEatSync();
+  const r = { calls: [], toasts: [], answer: null };
+  let belief = {}, seq = 1;
+  const stamp = () => Object.assign({}, belief, { pctSeq: seq, foodSeq: seq, enabledSeq: seq });
+  r.state = (b) => { belief = Object.assign({}, b); seq++; };
+  window.HearthriseAccrual = Object.assign({}, origAcc, {
+    serverAutoEatSettings: stamp,
+    noteAutoEatVerb: (res) => { const a = res && res.ok && res.auto_eat;
+      if (a) { belief = { enabled: a.enabled, food: a.food, pct: a.pct }; seq++; } return stamp(); },
+    settleBeforeIntent: () => Promise.resolve(null),
+  });
+  window.HearthriseGoalClaim = Object.assign({}, origGC, { isSignedIn: () => true,
+    setAutoEat: (p) => { r.calls.push(p); return new Promise((ok) => { r.answer = { resolve: ok }; }); } });
+  window.notify = (m) => { r.toasts.push(String(m)); };
+  window.G.traits = Object.assign({}, window.G.traits, { auto_eat: true });
+  r.done = () => {
+    Au._resetEatSync(); window.notify = realNotify;
+    window.HearthriseGoalClaim = origGC; window.HearthriseAccrual = origAcc;
+    Au.setEat(before); Au._resetEatSync(); Au._parkEatSync(wasSync); Au._parkAutoEatMirror(wasMirror);
+    restoreG(snap);
+  };
+  return r;
+};
+
 /* ══ THE KO-SHEET FIXTURE (KO-*) — one self-consistent fall, both doors ═══════
    RUNG is the ladder's own price of the third fall today; the receipt's `at`
    is 30 s ago and the line ends one RUNG later, so the record is PAIRED with the
@@ -328,6 +359,88 @@ export default [
       A.setEat(before); A._resetEatSync(); A._parkEatSync(wasParked);
       restoreG(snap);
     }
+  }),
+
+  /* ══ THE AUTO-EAT CHIP / PICK / FORECAST SAY WHAT THE SERVER SAYS (live QA slot 0): `auto_eat_enabled=true, auto_eat_food=null` drew "Auto-eat: Off", and a
+     pick toasted "set to Raw Shrimp" before any answer. aeRig: a signed-in page
+     whose server belief is `belief`, the mirror and the sync unparked. ═══════ */
+  () => tryRunAsync('AUTOEAT-CHIP-1: the Fight HUD chip prints the server\'s config — best in bag, the food, Off, or pending', async () => {
+    const r = aeRig(), G = window.G;
+    try {
+      window.showTab('combat');
+      G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 12 });
+      G.playerMaxHp = 100; G.playerHp = 90;
+      window.startCombat('slime');
+      const chip = () => { window.renderCombat();
+        const el = document.querySelector('#arena-act-player .arena-autoeat');
+        return el ? { t: el.textContent.replace(/\s+/g, ' ').trim(), p: !!el.querySelector('.bal-pending') } : null; };
+      r.state({ enabled: true, food: null, pct: 25 });
+      let c = chip();
+      assert(c && /Auto-eat: best in bag/.test(c.t) && !/Off/.test(c.t), 'enabled + null food must read "best in bag"; got ' + JSON.stringify(c));
+      r.state({ enabled: true, food: 'cooked_shrimp', pct: 25 });
+      c = chip(); assert(/Auto-eat: Cooked Shrimp/.test(c.t) && !c.p, 'enabled + a food must name it; got ' + JSON.stringify(c));
+      r.state({ enabled: false, food: 'cooked_shrimp', pct: 25 });
+      c = chip(); assert(/Auto-eat: Off/.test(c.t), 'disabled must read Off; got ' + JSON.stringify(c));
+      r.state({});
+      c = chip(); assert(c.p && /counting/.test(c.t) && !/Off/.test(c.t), 'an unstated config is pending, never Off; got ' + JSON.stringify(c));
+    } finally { try { window.stopCombat(); } catch (e) {} r.done(); }
+  }),
+
+  () => tryRunAsync('AUTOEAT-SYNC-PICK-1: a picker pick reaches hr_set_auto_eat once, and only the server\'s answer is toasted', async () => {
+    const r = aeRig(), G = window.G;
+    try {
+      r.state({ enabled: true, food: null, pct: 25 });
+      G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 12 });
+      window.openAutoEatPicker();
+      const row = [...document.querySelectorAll('#aep-overlay .aep-row')].find((b) => /Cooked Shrimp/.test(b.textContent));
+      assert(row, 'the picker offers no Cooked Shrimp row');
+      const off = document.querySelector('#aep-overlay .aep-row.is-on');
+      assert(!off || !/Off/.test(off.textContent), 'the picker marks Off while the server says best in bag');
+      row.click();
+      assert(r.calls.length === 0 && !r.toasts.some((t) => /set to/.test(t)), 'no call and no "set to" before the quiet window; toasts ' + JSON.stringify(r.toasts));
+      assert(aeApi().autoEatLabel().pending, 'an unanswered pick must show the pending idiom');
+      await new Promise((ok) => setTimeout(ok, aeApi()._SYNC_QUIET_MS + 150));
+      assert(r.calls.length === 1 && r.calls[0].food === 'cooked_shrimp', 'THE PICK NEVER LEFT: ' + JSON.stringify(r.calls));
+      assert(!r.toasts.some((t) => /set to/.test(t)), 'toasted before the server answered: ' + JSON.stringify(r.toasts));
+      r.answer.resolve({ ok: true, auto_eat: { enabled: true, food: 'cooked_shrimp', pct: 25 } });
+      await new Promise((ok) => setTimeout(ok, 40));
+      assert(r.toasts.some((t) => t === 'Auto-eat set to Cooked Shrimp.'), 'no success toast after the answer: ' + JSON.stringify(r.toasts));
+      assert(aeApi().autoEatLabel().text === 'Cooked Shrimp', 'the chip does not print the answered food');
+
+      // ── the realm refuses: no "set to", and the chip is the server's last state.
+      r.calls.length = 0; r.toasts.length = 0;
+      G.inventory.shrimp = 5;
+      window.setAutoEatFood('shrimp');
+      aeApi()._flushEatSync();
+      await new Promise((ok) => setTimeout(ok, 40));
+      assert(r.calls.length === 1, 'the second pick did not go out');
+      r.answer.resolve({ ok: false, error: 'not_auto_eatable' });
+      await new Promise((ok) => setTimeout(ok, 40));
+      assert(!r.toasts.some((t) => /set to/.test(t)), 'a refusal toasted success: ' + JSON.stringify(r.toasts));
+      assert(r.toasts.some((t) => /realm/i.test(t)), 'the refusal was silent: ' + JSON.stringify(r.toasts));
+      const lab = aeApi().autoEatLabel();
+      assert(!lab.pending && lab.text === 'Cooked Shrimp', 'after a refusal the chip must be the server\'s last state; got ' + JSON.stringify(lab));
+    } finally { try { window.closeAutoEatPicker(); document.getElementById('aep-overlay').remove(); } catch (e) {} r.done(); }
+  }),
+
+  () => tryRunAsync('AUTOEAT-FORECAST-1: enabled + null food with a Provision in the bag is never forecast as "no food" (attended + away)', async () => {
+    const r = aeRig(), G = window.G;
+    try {
+      r.state({ enabled: true, food: null, pct: 50 });
+      G.inventory = { cooked_shrimp: 40 };
+      G.foodSlot = 'trout';   // a stale local pointer the server does not hold
+      // ATTENDED: the Fight screen's Away row / activity chip predicate.
+      assert(window.awayFightSustains() === true, 'the fight is forecast as unfed while the server eats best in bag');
+      assert(window.autoEatFoodId() === 'cooked_shrimp', 'the forecast food is ' + window.autoEatFoodId());
+      // AWAY: the Night Plan's forecast eats what the engine's chooseFood eats.
+      const SN = window.HearthriseSetTheNight;
+      assert(SN && typeof SN._forecastFx === 'function', 'the night forecast seam is not published');
+      const clone = { playerHp: 10, playerMaxHp: 100, inventory: { cooked_shrimp: 40 }, foodSlot: 'trout' };
+      assert(SN._forecastFx(clone).autoEat() === true && clone.inventory.cooked_shrimp === 39,
+        'the night forecast did not eat the best food in the bag: ' + JSON.stringify(clone.inventory));
+      r.state({ enabled: false, food: null, pct: 50 });
+      assert(window.awayFightSustains() === false, 'switched off on the server, the away fight must not be forecast as fed');
+    } finally { r.done(); }
   }),
 
   /* ══════════════════════════════════════════════════════════════════════════

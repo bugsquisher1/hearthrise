@@ -205,6 +205,27 @@
   var _syncPending = null;        // {enabled?:true, food?:true, pct?:true}
   var _syncTimer = null;
   var _syncInFlight = false;
+  /* A picker gesture that owes the player a sentence: 1 = speak the server's
+     answer, 2 = a retried refusal already spoke. Never a toast before the answer. */
+  var _syncAnnounce = 0;
+  var REFUSAL_WORDS = {
+    collect_first: 'Auto-eat will change once your fight settles.',
+    settle_first: 'Auto-eat will change once your fight settles.',
+    rate_limited: 'Too many auto-eat changes this hour — the realm will take it shortly.',
+    trait_not_owned: 'Auto-eat is locked — unlock it in the Store.',
+    not_auto_eatable: 'The realm will not auto-eat that — it must be eaten by hand.',
+    unknown_item: 'The realm will not auto-eat that — it must be eaten by hand.',
+    not_signed_in: 'Sign in to change auto-eat.'
+  };
+  function say(t, kind){ try { if(t && typeof window.notify === 'function') window.notify(t, kind || 'info'); } catch(e){} }
+  function foodName(id){ var it = id && window.ITEMS && window.ITEMS[id]; return it ? it.n : null; }
+  /* The sentence for a config the SERVER stated — its answer, never our request. */
+  function sayServerConfig(cfg){
+    if(!cfg || typeof cfg !== 'object') return;
+    if(cfg.enabled === false){ say('Auto-eat off.'); return; }
+    var n = foodName(cfg.food);
+    say(n ? ('Auto-eat set to ' + n + '.') : 'Auto-eat set to the best food in your bag.');
+  }
   /* ⚠ PARKED FOR THE SUITE, the same way runSmokeTest parks the 90 s settle loop
      and the autosave. Thirty-odd tests drive setEat() (and applyLoadout, whose
      fixture kit carries `foodSlot: null`), so an unparked sync would push a
@@ -302,7 +323,13 @@
        stale-by-agreement window with no reason to exist. */
     if(pending.pct && !sending.pct) notePctAnswered();
     if(pending.food && !sending.food) noteFoodAnswered();
-    if(!sending.enabled && !sending.pct && !sending.food){ _syncPending = null; return; }
+    if(pending.enabled && !sending.enabled) noteEnabledAnswered();
+    if(!sending.enabled && !sending.pct && !sending.food){
+      _syncPending = null;
+      if(_syncAnnounce === 1) sayServerConfig(have);   // the server already holds it
+      _syncAnnounce = 0;
+      return;
+    }
 
     _syncPending = null;
     _syncInFlight = true;
@@ -324,6 +351,8 @@
            braces, for a server that answers ok without restating the column. */
         if(sending.food) noteFoodAnswered();
         if(sending.enabled) noteEnabledAnswered();   /* same belt-and-braces, for the switch */
+        if(_syncAnnounce) sayServerConfig(res.auto_eat || serverBelief());
+        _syncAnnounce = 0;
         return;
       }
       var why = (res && res.error) || 'network';
@@ -345,13 +374,25 @@
         _syncPending = again;
         if(_syncTimer) clearTimeout(_syncTimer);
         _syncTimer = setTimeout(flushServerSync, SYNC_RETRY_MS);
+        if(_syncAnnounce === 1 && why !== 'party_hunt_running'){ say(REFUSAL_WORDS[why]); _syncAnnounce = 2; }
         return;
       }
       try { console.warn('[auto-eat] settings sync refused:', why); } catch(e){}
+      refused(sending, why);
     }).catch(function(e){
       _syncInFlight = false;
       try { console.warn('[auto-eat] settings sync threw:', e && e.message); } catch(_){}
+      refused(sending, 'network');
     });
+  }
+  /* A FINAL REFUSAL: the server's last state stands, so the gesture ends and every
+     surface reads the mirror again; the picker speaks the realm's words. */
+  function refused(sending, why){
+    if(sending.pct) notePctAnswered();
+    if(sending.food) noteFoodAnswered();
+    if(sending.enabled) noteEnabledAnswered();
+    if(_syncAnnounce === 1) say(REFUSAL_WORDS[why] || 'The realm did not answer — auto-eat is unchanged.', 'kill');
+    _syncAnnounce = 0;
   }
 
   // ── Getters / setters ───────────────────────────────────────
@@ -372,8 +413,9 @@
      exactly. The live object is still reachable via `_ensureShape()` for
      anything that genuinely needs it. */
   function getEat(){ var a = ensureShape(); return Object.assign({}, a ? a.eat : DEFAULTS.eat); }
-  function setEat(opts){
+  function setEat(opts, how){
     var a = ensureShape(); if(!a) return;
+    if(how && how.announce && syncLive()) _syncAnnounce = 1;
     if(opts && typeof opts === 'object') Object.assign(a.eat, opts);
     /* Clamp the gesture here. There is no longer a `G.autoEatPct` mirror to write:
        the threshold that COUNTS is `player_state.auto_eat_pct`, read back through
@@ -594,6 +636,29 @@
     if(seen.enabledSeq !== _enabledSeqSeen){ _enabledSeqSeen = seen.enabledSeq; _enabledExpressed = false; }
     if(!_enabledExpressed && (seen.enabled === true || seen.enabled === false)) return seen.enabled;
     return local;
+  }
+  /* Will a gesture reach the server? Parked (the suite) or signed out: no. */
+  function syncLive(){
+    if(_syncParked) return false;
+    var GC = window.HearthriseGoalClaim;
+    try { return !!(GC && typeof GC.setAutoEat === 'function' && typeof GC.isSignedIn === 'function' && GC.isSignedIn() === true); }
+    catch(e){ return false; }
+  }
+  /* ── THE AUTO-EAT STATE, AS PRINTED — the one reader for every chip and panel.
+     Off / the named food / "best in bag" (a null `auto_eat_food` is the engine's
+     best-in-the-bag, never Off); `pending` while a live server has not stated
+     the config or has not answered the player's gesture (§6). */
+  function autoEatLabel(){
+    var on = eatEnabled(), fid = eatFoodId();
+    if(!_mirrorParked && syncLive()){
+      var seen = serverBelief();
+      var stated = seen.enabled === true || seen.enabled === false;
+      if(!stated || _enabledExpressed || _foodExpressed) return { state: 'pending', text: 'counting…', pending: true };
+    }
+    if(!on) return { state: 'off', text: 'Off', pending: false };
+    var n = foodName(fid);
+    return n ? { state: 'food', text: n, foodId: fid, pending: false }
+             : { state: 'best', text: 'best in bag', pending: false };
   }
   /* ── THE PROVISION THE ENGINE WILL ACTUALLY EAT, for every FORECAST surface ──
      `eatFoodId()` above answers "what is nominated", and null is a real answer
@@ -1017,6 +1082,8 @@
        local gesture in `getEat().enabled`. Every surface that says "auto-eat is
        on" reads this one. */
     eatEnabled: eatEnabled,
+    autoEatLabel: autoEatLabel,
+    eatSyncLive: syncLive,
     /* The SLIDER'S position (local, client-tier clamped) as distinct from the
        EFFECTIVE trigger point above (the server's `auto_eat_pct`). Published so
        the suite can prove the two differ and that only this one goes up. */
@@ -1043,7 +1110,7 @@
        leak a queued call into the next. */
     _flushEatSync: flushServerSync,
     _syncState: function(){ return { pending: _syncPending && Object.assign({}, _syncPending), inFlight: _syncInFlight, armed: !!_syncTimer, parked: _syncParked }; },
-    _resetEatSync: function(){ if(_syncTimer) clearTimeout(_syncTimer); _syncTimer = null; _syncPending = null; _syncInFlight = false; notePctAnswered(); noteFoodAnswered(); noteEnabledAnswered(); },
+    _resetEatSync: function(){ if(_syncTimer) clearTimeout(_syncTimer); _syncTimer = null; _syncPending = null; _syncInFlight = false; _syncAnnounce = 0; notePctAnswered(); noteFoodAnswered(); noteEnabledAnswered(); },
     /* The unanswered-gesture latch, for the regression suite. Reading it proves
        WHY eatThreshold() answered as it did; clearing it puts the client back in
        the "boot, nothing expressed yet" state the mirror governs. */

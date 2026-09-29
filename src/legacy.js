@@ -7421,6 +7421,7 @@ function renderCombat(){
   const _eatCfg = (window.HearthriseAuto && window.HearthriseAuto.getEat) ? window.HearthriseAuto.getEat() : null;
   /* SELECTED = the server's `auto_eat_food` (eatFoodId), never the local
      preference: the browser must not name one food while the engine eats another. */
+  const _eatLab = (window.HearthriseAuto && window.HearthriseAuto.autoEatLabel) ? window.HearthriseAuto.autoEatLabel() : null;
   const _eatAutoFood = (window.HearthriseAuto && typeof window.HearthriseAuto.eatFoodId === 'function')
     ? window.HearthriseAuto.eatFoodId() : (_eatCfg ? (_eatCfg.foodId||null) : null);
   /* b326: read the engine's own effective threshold rather than re-deriving it
@@ -7445,8 +7446,9 @@ function renderCombat(){
     <div class="cbt-food">
       ${(_hasAutoEat && foods.length) ? `<div class="cbt-food-row"><label class="row tiny muted" style="gap:6px">Auto-eat:
           <select onchange="setCombatAutoEat(this.value)" style="background:rgba(255,255,255,.04);border:1px solid var(--line-soft);border-radius:6px;padding:5px 8px;color:var(--ink)">
+            ${(_eatLab && _eatLab.state!=='off' && _eatLab.state!=='food') ? `<option value="" disabled selected hidden>${_eatLab.text}</option>` : ''}
             <option value="">Off</option>
-            ${foods.map(([id])=>`<option value="${id}" ${(_eatCfg&&_eatAutoFood===id&&_eatCfg.enabled)?'selected':''}>${ITEMS[id].n} ×${G.inventory[id]}</option>`).join('')}
+            ${foods.map(([id])=>`<option value="${id}" ${(_eatLab?(_eatLab.state==='food'&&_eatLab.foodId===id):(_eatCfg&&_eatAutoFood===id&&_eatCfg.enabled))?'selected':''}>${ITEMS[id].n} ×${G.inventory[id]}</option>`).join('')}
           </select>
         </label></div>` : ''}
       <div class="cbt-food-note tiny muted">${_foodNote}</div>
@@ -9826,7 +9828,7 @@ function _autoEatUsesThis(id){
   const A = window.HearthriseAuto;                      // the EFFECTIVE nomination,
   const cfg = (A && A.getEat) ? A.getEat() : null;     // i.e. the server's auto_eat_food
   const fid = (A && typeof A.eatFoodId === 'function') ? A.eatFoodId() : (cfg ? cfg.foodId : null);
-  return !!(cfg && cfg.enabled && fid === id);
+  return !!(((A && A.eatEnabled) ? A.eatEnabled() : (cfg && cfg.enabled)) && fid === id);
 }
 
 /* Eat from a UI surface: consume, then refresh what the player is looking at.
@@ -9857,10 +9859,8 @@ window.setAutoEatFood = function(id){
     return false;
   }
   G.foodSlot = id;   /* kept in step for old saves / loadout presets */
-  if(window.HearthriseAuto && window.HearthriseAuto.setEat){
-    window.HearthriseAuto.setEat({foodId:id, enabled:true});
-  }
-  notify('Auto-eat set to ' + ((ITEMS[id]||{}).n || id) + '.','info');
+  const _A = window.HearthriseAuto, _live = !!(_A && _A.eatSyncLive && _A.eatSyncLive());
+  if(_A && _A.setEat) _A.setEat({foodId:id, enabled:true}, {announce:true}); if(!_live) notify('Auto-eat set to ' + ((ITEMS[id]||{}).n || id) + '.','info');
   if(typeof renderCombat === 'function' && G.activeMonster) renderCombat();
   return true;
 };
@@ -9868,10 +9868,8 @@ window.setAutoEatFood = function(id){
 window.setCombatAutoEat = function(value){
   if(!value){
     G.foodSlot = null;
-    if(window.HearthriseAuto && window.HearthriseAuto.setEat){
-      window.HearthriseAuto.setEat({foodId:null, enabled:false});
-    }
-    notify('Auto-eat off.','info');
+    const _A = window.HearthriseAuto, _live = !!(_A && _A.eatSyncLive && _A.eatSyncLive());
+    if(_A && _A.setEat) _A.setEat({foodId:null, enabled:false}, {announce:true}); if(!_live) notify('Auto-eat off.','info');
     if(typeof renderCombat === 'function' && G.activeMonster) renderCombat();
     return false;
   }
@@ -9894,8 +9892,8 @@ window.openAutoEatPicker = function(){
     ? window.HearthriseAuto.isAutoEatable(ITEMS[id])
     : !!(ITEMS[id] && ITEMS[id].heals && ITEMS[id].foodClass!=='buff');
   const foods = Object.entries(G.inventory||{}).filter(([id])=> _aeOk(id));
-  const cur = (window.HearthriseAuto && typeof window.HearthriseAuto.eatFoodId === 'function')
-    ? window.HearthriseAuto.eatFoodId() : null;
+  const _lab = (window.HearthriseAuto && window.HearthriseAuto.autoEatLabel) ? window.HearthriseAuto.autoEatLabel() : null;
+  const cur = (_lab && _lab.state === 'food') ? _lab.foodId : null;
   const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   /* b341 — DO NOT OFFER A CHOICE THAT WILL BE REFUSED.
      setAutoEatFood() has always rejected every pick when the Auto-Eat trait is
@@ -9917,7 +9915,7 @@ window.openAutoEatPicker = function(){
         <span class="aep-q">×${(q||0).toLocaleString()}</span>
       </button>`;
   }).join('');
-  const offRow = `<button class="aep-row${(!_locked && !cur)?' is-on':''}"${_locked?' disabled':''}${_act(`''`)}>
+  const offRow = `<button class="aep-row${(!_locked && _lab && _lab.state === 'off')?' is-on':''}"${_locked?' disabled':''}${_act(`''`)}>
       <span class="aep-ic">—</span><span class="aep-nm">Off — heal by hand</span></button>`;
   const empty = _locked
     ? '<div class="aep-empty">Auto-eat is locked. Unlock it in the Store to choose a food — until then, heal by hand with the Eat button beside your champion.</div>'
@@ -9931,7 +9929,7 @@ window.openAutoEatPicker = function(){
   ov.innerHTML = `<div class="aep-modal" role="dialog" aria-label="Choose auto-eat food">
       <div class="aep-head"><span>Auto-eat food</span><button class="aep-x" onclick="closeAutoEatPicker()" aria-label="Close">✕</button></div>
       <div class="aep-body">${empty}${offRow}${rows}</div>
-      <div class="aep-note">Spends one Provision when your HP drops low. Feasts &amp; Draughts are never auto-eaten.</div>
+      <div class="aep-note">${_lab ? 'Now: ' + esc(_lab.text) + '. ' : ''}Spends one Provision when your HP drops low. Feasts &amp; Draughts are never auto-eaten.</div>
     </div>`;
   ov.style.display = 'flex';
 };
@@ -11166,6 +11164,7 @@ function _activityAwayXpHr(live){
 function awayFightSustains(){
   try{
     if(typeof hasTrait!=='function' || !hasTrait('auto_eat')) return false;
+    const A = window.HearthriseAuto; if(A && A.eatEnabled && !A.eatEnabled()) return false;   /* the server's switch */
     const id = autoEatFoodId();
     if(!id) return false;
     const item = window.ITEMS && window.ITEMS[id];

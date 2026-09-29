@@ -4,7 +4,7 @@
 // Reads `m.weaponWeak`, the field `weaknessInfo` (src/core/combat.js) pays the
 // +20% damage / +15% accuracy from. Every surface that names a weakness (Fight
 // card, War Table, monster list, loot sheet, Stats) prints these words, so two
-// surfaces cannot give two answers (b561 O2: Slime "fears no weapon" vs
+// surfaces cannot give two answers (Slime "fears no weapon" vs
 // "Weak to 2H Hammer"). A `dropBonus` is NOT a weakness and never reads as one.
 //
 // Pure ESM, no DOM.

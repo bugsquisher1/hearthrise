@@ -2422,7 +2422,7 @@ export default [
   }),
 
   /* ── FOE-WEAKNESS-1 — EVERY SURFACE NAMES THE WEAKNESS THE ENGINE PAYS ──
-     b561 O2: the loot sheet read `dropBonus` as "Slime fears no weapon" while
+     The loot sheet read `dropBonus` as "Slime fears no weapon" while
      the Fight card said "Weak to 2H Hammer". One helper now composes the words;
      every foe, every surface, and the helper against `weaknessInfo`. */
   () => tryRunAsync('FOE-WEAKNESS-1: the Fight card, War Table, monster list and loot sheet name the weakness weaknessInfo pays, for every foe', async () => {

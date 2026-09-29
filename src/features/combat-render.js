@@ -19,6 +19,7 @@ import { ITEMS } from '../data/items.js?v=559';
 import { formatDropOdds } from '../core/drops.js?v=559';
 import { SIGNPOSTS } from '../data/signposts.js?v=559';
 import { foeFamily } from '../render/foe-family.js?v=559';
+import { weaknessWords, weaknessSentence } from '../render/foe-weakness.js?v=559';
 
 function getMonsterIconHtml(id) {
   const path = window._monsterIcon?.[id];
@@ -45,7 +46,7 @@ function renderMonsterList() {
          between foes) at the end of a sentence, at different x-positions on
          every row. Flavour stays left; the numbers move into a fixed right
          column so the list can be scanned straight down. */
-      const meta = [foeFamily(m), m.weaponWeak ? `weak to ${m.weaponWeak}` : ''].filter(Boolean).join(' · ');
+      const meta = [foeFamily(m), weaknessWords(m) ? `weak to ${weaknessWords(m)}` : ''].filter(Boolean).join(' · ');
       const fighting = window.G && window.G.activeMonster === id;
       const right = fighting
         ? '<span class="mr-fighting">Fighting</span>'
@@ -364,7 +365,7 @@ const HUD = (() => {
        So the product is split back into its two factors and each is named. */
     var CH = window.HearthriseCharms;
     const charmMult = Number(weak.charmDropMult) > 1 ? Number(weak.charmDropMult) : 1;
-    const matchupMult = charmMult > 1 ? (mult / charmMult) : mult;
+    const ownMult = charmMult > 1 ? (mult / charmMult) : mult;
     const charmName = (charmMult > 1 && CH && typeof CH.classLabel === 'function')
       ? CH.classLabel(weak.charmClass) : '';
     const rows = (m.drops || []).map((d) => {
@@ -374,7 +375,7 @@ const HUD = (() => {
       const pct = eff >= 1 ? 'always' : formatDropOdds(eff);
       const lifted = mult > 1 && base < 1;
       const by = charmMult > 1
-        ? (matchupMult > 1 ? 'your matchup and charm' : 'your charm') : 'your matchup';
+        ? (ownMult > 1 ? 'this foe and your charm' : 'your charm') : 'this foe';
       return {
         name: `<span class="cdr-name">${esc(def ? def.n : d.id)}</span>`,
         meta: lifted ? `${formatDropOdds(base)} base, lifted by ${by}` : '',
@@ -391,9 +392,8 @@ const HUD = (() => {
       }] },
       { kind: 'note', html:
         'Every line rolls on its own, so one kill can pay out several — or none. ' +
-        (matchupMult > 1
-          ? `${esc(m.name)} fears no weapon, and an even matchup pays <b>${Math.round((matchupMult - 1) * 100)}% better</b>. `
-          : `${esc(m.name)} is weak to <b>${esc(weaponLabel(m.weaponWeak))}</b>; bringing one raises your damage and accuracy, not your drop rates. `) +
+        `${esc(weaknessSentence(m))}` + (weaknessWords(m) ? '; bringing one raises your damage and accuracy, not your drop rates. ' : '. ') +
+        (ownMult > 1 ? `Its drops run <b>${Math.round((ownMult - 1) * 100)}% richer</b> than most foes'. ` : '') +
         (charmMult > 1
           ? `Your <b>${esc(charmName || 'bestiary')}</b> charm adds <b>${Math.round((charmMult - 1) * 100)}%</b> on top, for studying the class. `
           : '') +
@@ -417,7 +417,7 @@ const HUD = (() => {
     if (!f) return null;
     const amt = (v) => `<span class="hr-cs-amt">${v}</span>`;
     const matched = f.weak && f.weak.matched;
-    const neutral = m.weaponWeak === 'neutral';
+    const fears = weaknessWords(m);
     return {
       id: 'combat-stats', theme: 'warroom',
       title: `${m.name} — the maths`,
@@ -435,10 +435,10 @@ const HUD = (() => {
         ] },
         { kind: 'rows', title: 'Matchup', rows: [
           { name: 'You are carrying', meta: 'the weapon decides which skills swing', right: amt(weaponLabel(f.eq.weaponType)) },
-          { name: 'It fears', meta: neutral
-              ? 'nothing — an even fight, and 15% better drops for it'
+          { name: 'It fears', meta: !fears
+              ? 'no weapon — an even fight'
               : (matched ? 'you brought it: +20% damage, +15% accuracy' : 'bring this and both go up'),
-            right: amt(weaponLabel(m.weaponWeak)) },
+            right: amt(fears || '—') },
         ] },
         /* THE RULE (b341): a rate may only be quoted over a span the
            character can actually survive. Below the

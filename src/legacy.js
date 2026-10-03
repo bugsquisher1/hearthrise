@@ -8567,12 +8567,12 @@ function setHouseTab(t){houseTab=t;document.querySelectorAll('[data-house]').for
    room grid, the plot-building grid and (inverted) here. Three copies is three
    chances to teach only two of them about an UNKNOWN balance, which is the b348
    shape. FAIL-CLOSED on an unknown gold balance: a Build button that lights up
-   against a number nobody has read is a purchase the server never agreed to. */
+   against a number nobody has read is a purchase the server never agreed to. ITEMS read the SERVER's bag (accrue.js gateItemCount). */
 function canPayCost(cost){
   return Object.entries(cost||{}).every(([k,v])=>
     k==='gold' ? balCanAfford(v,'gold')
     : k==='gems' ? balCanAfford(v,'gems')
-    : (G.inventory[k]||0)>=v);
+    : (window.HearthriseAccrual?.gateItemCount(G,k)??-1)>=v);
 }
 /* b213 QA: name exactly what's missing instead of a bare "Not enough
    resources" — players couldn't tell which material was short. Returns a
@@ -8583,10 +8583,9 @@ function canPayCost(cost){
 function describeMissingCost(cost){
   const parts=[];
   for(const [k,v] of Object.entries(cost||{})){
-    if(k==='gold'||k==='gems'){
-      if(!balKnown(k)){ parts.push(k+' balance not loaded yet'); continue; }
-    }
-    const have=k==='gold'?balNum('gold'):k==='gems'?balNum('gems'):(G.inventory[k]||0);
+    const _bal=(k==='gold'||k==='gems'), _srv=_bal?null:(window.HearthriseAccrual?.gateItemCount(G,k)??null);
+    if(_bal?!balKnown(k):_srv===null){ parts.push(_bal?k+' balance not loaded yet':((ITEMS[k]&&ITEMS[k].n)||k)+' still being counted'); continue; }
+    const have=k==='gold'?balNum('gold'):k==='gems'?balNum('gems'):_srv;
     if(have<v){
       parts.push(k==='gold'?((v-have)+' gold'):(((ITEMS[k]&&ITEMS[k].n)||k)+' ×'+(v-have)));
     }
@@ -8739,7 +8738,7 @@ function roomRungItemGate(id,want){
   let bid=null;
   for(const iid in ITEMS){ if(ITEMS[iid] && ITEMS[iid].unlocks===key){ bid=iid; break; } }
   if(!bid) return null;
-  const need=1, have=(G.inventory&&G.inventory[bid])||0;
+  const need=1, have=window.HearthriseAccrual?.gateItemCount(G,bid)??0;   /* the SERVER's bag: hr_unlock_buy consumes the blueprint */
   let source='';
   try{ if(typeof window.itemSourceLine==='function') source=window.itemSourceLine(bid)||''; }catch(e){}
   return {id:bid, name:(ITEMS[bid]&&ITEMS[bid].n)||bid, need:need, have:have, ok:have>=need, source:source};
@@ -15471,10 +15470,10 @@ function _costPart(itemId, qty){
   /* `have` is UNKNOWN-aware: a cost part whose currency has not arrived says so
      in its own title and does NOT mark itself met. `-1` can never satisfy a
      positive requirement, which is the fail-closed direction. */
-  var _known = itemId==='gold'||itemId==='gems' ? balKnown(itemId) : true;
+  var _srv = (itemId==='gold'||itemId==='gems') ? null : (window.HearthriseAccrual?.gateItemCount(G, itemId) ?? null);   /* items: the SERVER's bag */
+  var _known = itemId==='gold'||itemId==='gems' ? balKnown(itemId) : _srv !== null;
   var have = itemId === 'gold' ? balOr('gold', -1)
-           : itemId === 'gems' ? balOr('gems', -1)
-           : ((G.inventory||{})[itemId]||0);
+           : itemId === 'gems' ? balOr('gems', -1) : (_srv === null ? -1 : _srv);
   var met = _known && have >= qty;
   var name = itemId === 'gold' ? 'Gold' : (((typeof ITEMS !== 'undefined') && ITEMS[itemId] && ITEMS[itemId].n) || itemId);
   var tip = qty.toLocaleString() + ' ' + name + ' — you have '

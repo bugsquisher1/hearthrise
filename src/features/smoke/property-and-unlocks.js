@@ -95,6 +95,32 @@ export default [
     } finally { restoreGAndRecord(snap); }
   }),
 
+  /* HOUSE-SERVER-BAG-1 (CLAUDE.md §6 sweep). hr_unlock_buy debits
+     player_inventory; G.inventory is the merge bag an envelope can only RAISE, so a
+     client-rolled surplus lit Build (canPayCost, heldOf, the cost chip) for a room
+     the realm then refused. The count a Build reads is the SERVER's bag. */
+  () => tryRunAsync('HOUSE-SERVER-BAG-1: a Build reads the server\'s bag, never the merge-raised display bag', async () => {
+    const G = window.G, H = window.HearthriseHomestead, snap = snapshotG(), bagWas = G._serverBag;
+    assert(H && typeof H.heldOf === 'function' && typeof window.upgradeRoom === 'function', 'CONTROL: heldOf/upgradeRoom unpublished');
+    const mat = Object.keys(window.ROOMS.forge.levels[0].cost).find((k) => k !== 'gold' && k !== 'gems');
+    assert(!!mat, 'CONTROL: the Forge\'s first rung costs no item, so the bag cannot be the gate under test');
+    try {
+      G.homestead = { tier: 2 }; G.rooms = {}; G.gold = 500000; stampBalanceLikeLoad(G);
+      G.inventory = Object.assign({}, G.inventory, { [mat]: 9999 });   // the display bag holds plenty
+      delete G._serverBag;
+      assert(H.heldOf(mat).known === false, 'an UNSTATED server bag read as a figure: ' + JSON.stringify(H.heldOf(mat)));
+      G._serverBag = {};                                                // the realm holds none
+      assert(H.heldOf(mat).have === 0 && H.heldOf(mat).known === true, 'heldOf counted the display bag: ' + JSON.stringify(H.heldOf(mat)));
+      await withRoomServer({ forge: 1 }, G.gold, async (rig) => {
+        assert(window.upgradeRoom('forge') === false, 'upgradeRoom dispatched a build the server bag cannot pay for');
+        await rig.drain();
+        assert(rig.sent.length === 0, 'a build the realm would refuse went on the wire: ' + JSON.stringify(rig.sent));
+        G._serverBag = { [mat]: 9999 };                                 // CONTROL: the realm agrees, the same call goes
+        assert(window.upgradeRoom('forge') === true, 'with the server holding the material the build must dispatch');
+      });
+    } finally { restoreGAndRecord(snap); if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas; }
+  }),
+
   () => tryRun('b227 regression: a maxed room refuses another build, out loud', () => {
     // The fourth click used to hit `if(!nx)return` — a silent no-op that is
     // indistinguishable from a broken button, and the reason the screen read

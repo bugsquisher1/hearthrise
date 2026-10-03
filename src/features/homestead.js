@@ -278,7 +278,13 @@
      satisfy a positive requirement — FAIL-CLOSED, so a Build button cannot
      light up against a balance nobody has read. Every renderer below checks
      `known` before printing the figure, because `(0).toLocaleString()` in a
-     have/need line is a claim about the player's purse, not a placeholder. */
+     have/need line is a claim about the player's purse, not a placeholder.
+
+     ITEMS READ THE SERVER'S BAG (CLAUDE.md §6 sweep). hr_unlock_buy debits
+     player_inventory, and `G.inventory` is the merge bag an envelope can only
+     RAISE (accrue.js reconcileInventory), so a client-rolled drop lit Build for
+     a material the realm then refused. gateItemCount is that table's mirror;
+     NULL (no envelope has stated the bag) is `known:false`, never a figure. */
   function heldOf(k) {
     var G = G_();
     if (k === 'gold' || k === 'gems') {
@@ -286,7 +292,9 @@
       var n = (typeof window.balOr === 'function') ? window.balOr(k, -1) : (typeof G[k] === 'number' ? G[k] : -1);
       return { have: known ? n : -1, known: known };
     }
-    return { have: ((G.inventory || {})[k] || 0), known: true };
+    var A = window.HearthriseAccrual;
+    var srv = (A && typeof A.gateItemCount === 'function') ? A.gateItemCount(G, k) : null;
+    return srv === null ? { have: -1, known: false } : { have: srv, known: true };
   }
 
   function costAffordable(cost) {
@@ -349,7 +357,7 @@
     if (missing.length) {
       if (window.notify) notify('Missing: ' + missing.map(function (m) {
         var n = (window.ITEMS && window.ITEMS[m.id] && window.ITEMS[m.id].n) || m.id;
-        if (!m.known) return m.id + ' balance not loaded yet';
+        if (!m.known) return (m.id === 'gold' || m.id === 'gems') ? m.id + ' balance not loaded yet' : n + ' still being counted';
         return (m.id === 'gold' ? m.need + ' gold' : n + ' ×' + m.need);
       }).join(', '), 'kill');
       return false;
@@ -1376,6 +1384,7 @@
     isCastle: isCastle,
     roomMinTier: roomMinTier,
     canBuildRoom: canBuildRoom,
+    heldOf: heldOf,
     serverRungKnown: serverRungKnown,
     hasWorkbench: hasWorkbench,
     upgradeProperty: upgradeProperty,

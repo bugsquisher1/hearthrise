@@ -2088,7 +2088,7 @@ export default [
     const entry = Object.entries(D).find(([, d]) => d.phases && d.cost && d.cost.key);
     if (!entry) return;
     const [id, d] = entry;
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();   // restores the bag runOnce states (it leaked into every later test)
     const R = window.HearthriseDungeonScrip;
     /* BOTH ARMS (b515). The key debit moved to the SERVER when the settle arm went
        live, so "the client spends the key" is now the DORMANT contract only. Until
@@ -2097,7 +2097,7 @@ export default [
     const runOnce = () => {
       const G = window.G;
       G.inventory = Object.assign({}, G.inventory); G.inventory[d.cost.key] = 3;
-      G._serverBag = Object.assign({}, G.inventory);   // the key is REAL server-side; the debit is what is under test
+      bag.agree();   // the key is REAL server-side; the debit is what is under test
       G.gold = (G.gold || 0) + 100000;
       G._dungeonCooldowns = {};              // clear any server cooldown window
       G.skills = Object.assign({}, G.skills, { attack: 5000000, strength: 5000000, defense: 5000000, hitpoints: 5000000 });
@@ -2127,7 +2127,7 @@ export default [
           'armed: the entry key is consumed by the SERVER at settle — a local debit here double-spends it'
           + ' (before ' + armed.before + ', after ' + armed.after + ')');
       }
-    } finally { if (R) R.__setDungeonSettleArm(null); restoreG(snap); }
+    } finally { if (R) R.__setDungeonSettleArm(null); restoreG(snap); bag.restore(); }
   }),
 
   () => tryRun('b214: no PvE loot table mints the premium hearth_token', () => {

@@ -4188,7 +4188,7 @@ export default [
   }),
 
   () => tryRun('action: purchase a market listing', () => {
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     try {
       const M = window.HearthriseMarket;
       // SA-013: an absent market API is an unarmed seam, not a silent pass.
@@ -4198,6 +4198,7 @@ export default [
       window.G.gold = (window.G.gold || 0) + 1000;
       window.G.inventory = window.G.inventory || {};
       window.G.inventory.normal_log = (window.G.inventory.normal_log || 0) + 5;
+      bag.agree();   // the server holds the logs — RED alone without it; it passed only on b214's leaked bag
       const r = M.listItem('normal_log', 1, 5);
       // The listing itself is the first real assertion: listing a held item must succeed.
       assert(r && r.ok, 'listItem(normal_log) failed: ' + JSON.stringify(r));
@@ -4211,7 +4212,7 @@ export default [
       if (typeof M.cancelListing === 'function') {
         for (const l of (mine || [])) try { M.cancelListing(l.id); } catch {}
       }
-    } finally { restoreG(snap); }
+    } finally { restoreG(snap); bag.restore(); }
   }),
 
   () => tryRun('action: claim a daily quest reward', () => {

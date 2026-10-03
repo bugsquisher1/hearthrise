@@ -247,15 +247,18 @@ function eatState() {
     return { key: 'none', label: 'No healing food', meta: 'Cook fish or bake bread',
       title: 'You have no Provisions — cook fish or bake bread to get some' };
   }
+  /* EVERY COUNT ON THIS BAR GOES THROUGH num(): the meta printed the bag raw
+     ("100000 left") beside a Provisions rail reading "100,000 held". */
+  const held = num(G.inventory[id] || 0);
   if (G.playerHp >= G.playerMaxHp) {
-    return { key: 'full', label: 'Full health', meta: `${ITEMS[id].n} · ${G.inventory[id]} held`,
+    return { key: 'full', label: 'Full health', meta: `${ITEMS[id].n} · ${held} held`,
       title: 'Your health is already full' };
   }
   return {
     key: 'eat', id,
     label: `Eat ${ITEMS[id].n}`,
-    meta: `+${info.heals} HP · ${G.inventory[id]} left`,
-    title: `${ITEMS[id].n} — heals ${info.heals}, you have ${G.inventory[id]}`,
+    meta: `+${num(info.heals)} HP · ${held} left`,
+    title: `${ITEMS[id].n} — heals ${num(info.heals)}, you have ${held}`,
   };
 }
 

@@ -3720,7 +3720,8 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 /* The short forms' glyphs: Vigour's is drawn only by the phone rule below;
    Lifetime's trophy is hidden beside its word on a wide bar. */
 .activity-bar .ab-vigour-glyph,
-.activity-bar .ab-tkills > .hr-glyph { display: none; }
+.activity-bar .ab-tkills > .hr-glyph,
+.activity-bar .ab-bounty > .hr-glyph { display: none; }
 /* EVERY CHIP STAYS (the Game Designer's ruling, FIGHT-PHONE-DENSITY). A chip the
    player acts on — Lifetime, away: you fall — is never hidden to make room for
    another chip: when the bar is narrow the chips get SHORTER, not fewer (the
@@ -3916,7 +3917,8 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
   .activity-bar .ab-vigour .ab-vigour-word,
   .activity-bar:has(.ab-vigour) .ab-meta .ab-chip-word { display: none; }
   .activity-bar .ab-vigour .ab-vigour-glyph { display: inline-flex; vertical-align: -2px; margin-right: 3px; }
-  .activity-bar:has(.ab-vigour) .ab-meta .ab-tkills > .hr-glyph { display: inline-flex; margin-right: 4px; }
+  .activity-bar:has(.ab-vigour) .ab-meta .ab-tkills > .hr-glyph,
+  .activity-bar:has(.ab-vigour) .ab-meta .ab-bounty > .hr-glyph { display: inline-flex; margin-right: 4px; }
   .activity-bar .ab-vigour { padding: 2px 4px; }
   .activity-bar:has(.ab-vigour) .ab-meta { gap: 6px; letter-spacing: 0; }
   /* A LANDSCAPE PHONE IS SHORT, NOT NARROW (922x423 is the measured case), so

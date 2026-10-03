@@ -11,6 +11,16 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 
 ## Log
 
+### 2026-10-03 · b562 exploratory rerun (branch qa/b562-exploratory)
+- `node tests/run-smoke.mjs --only X` still runs the whole Node guard prelude first (>10 min here). For a
+  slice, boot the page with the harness flag and call `window.__smokeTest({silent:true, only})` directly.
+- `window.TREES/ROCKS/FISH_SPOTS` ARE published (main.js `unifyArray` + `Object.assign(window, …)`);
+  the top-level `const`s in legacy.js are the same arrays. Don't "fix" tests that read `window.TREES`.
+- Intent probing without a session: `wireServerIntents` with a local fake url + answer `hr_load` so
+  `isCharacterHydrated()` flips; otherwise every gesture is gated before the wire and proves nothing.
+- `#hr-dl-modal` re-opens ~20 s after a harness boot and counts as a sheet: toasts pushed then are HELD.
+  Not a bug; it explains "held: 2" stragglers in a storm measurement.
+
 ### 2026-09-12 · The mutation proof with no floor — `tests/mutation-proof.mjs` + guard-hygiene RULE 5 (branch `worktree-agent-a3906653b0a242bc2`, commit 883b62d6 + merge of main)
 
 **What I now know and will not re-learn:** a `--selftest` that never runs the CLEAN arm turns "the

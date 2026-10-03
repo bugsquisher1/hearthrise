@@ -2871,6 +2871,35 @@ export default [
     }
   }),
 
+  /* FIRST-30-2 — the bag's class strip is labelled "Show": "Keep" beside "Weapons / Food"
+     reads as a loot rule (keep these, drop the rest). Paints the real bag, reads the label,
+     clicks a chip, proves the bag itself never moved. Mutation: label back to 'Keep' → red. */
+  () => tryRunAsync('b562 FIRST-30-2: the bag\'s class strip says Show, and clicking a class hides — never removes — the rest', async () => {
+    const G = window.G, LF = window.HearthriseLootFilter;
+    assert(LF && typeof LF.rowHTML === 'function' && typeof window._renderInvFancy === 'function', 'CONTROL: the loot filter or the bag renderer is unpublished');
+    const food = Object.keys(window.ITEMS).find((id) => window.ITEMS[id].heals && !window.ITEMS[id].type);
+    assert(!!food, 'CONTROL: no plain food item in the catalogue');
+    const snap = snapshotG();
+    try {
+      G.inventory = { normal_log: 4 }; G.inventory[food] = 2; G.lootFilter = []; G.lockedItems = {};
+      window.showTab('inventory');
+      window._renderInvFancy(); await new Promise((r) => setTimeout(r, 30));
+      const label = document.querySelector('#panel-inventory .invc-lf-label');
+      assert(label && label.textContent.trim() === 'Show', 'the bag filter is labelled "' + (label && label.textContent) + '" — "Keep" reads as a loot rule that discards the rest');
+      const chips = [...document.querySelectorAll('#panel-inventory .invc-lf-chip')];
+      assert(chips.length === LF.classes().length + 1, 'CONTROL: expected every class + Everything as chips, got ' + chips.length);
+      chips.forEach((c) => assert(/^Show /.test(c.getAttribute('title') || ''), 'a chip still titles itself "' + c.getAttribute('title') + '"'));
+      const foodChip = chips.find((c) => /toggle\('food'\)/.test(c.getAttribute('onclick') || ''));
+      assert(foodChip, 'CONTROL: no Food chip on the strip');
+      foodChip.click(); await new Promise((r) => setTimeout(r, 30));
+      const tiles = document.querySelectorAll('#panel-inventory .invc-tile:not(.invc-slot)').length;
+      assert(tiles === 1, 'showing only Food painted ' + tiles + ' tiles for one food stack');
+      assert(G.inventory.normal_log === 4 && G.inventory[food] === 2, 'showing a class REMOVED items from the bag: ' + JSON.stringify(G.inventory));
+    } finally {
+      restoreG(snap); try { window._renderInvFancy(); } catch (e) {}
+    }
+  }),
+
   /* PRAYER-LADDER-1 — Prayer shipped with rungs at 1/15/35 and NOTHING from 36 to 99, on the one bench whose whole output is XP. Drives the REAL tile renderer at Prayer 39 and again at 40; the boundary IS the property, and it is the same one hr_apply's `activity_locked` arm enforces server-side.
      `PAY` below is the literal (id, req, xp, ms) of all thirteen rungs: NOTHING else in the repo measures what a Prayer rung PAYS — hr_activities has no yield columns and the edge engine reads these very rows — so a typo (2400 → 24000) shipped green until it existed. Its 840 XP/s ceiling is MEASURED, just above the catalogue's own non-prayer maximum (forge_slagheart_platebody, 833.3): the one bench whose entire output is XP must never out-pay every other bench. */
   () => tryRun('PRAYER-LADDER-1: the Prayer ladder reaches 99 — Prayer 40 sees Sift Bone Chips live, Prayer 39 sees it locked', () => {

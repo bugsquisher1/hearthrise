@@ -20,11 +20,20 @@ Harness (`__HR_TEST_HARNESS__`), local build, desktop 1440x900 + 922x423, scratc
 | 3 | double click: daily Claim (real dblclick) | 1 `claim_reward` intent, +500 once | OK |
 | 3b | shop Buy, synchronous double `click()` | 1 `shop_buy`, display moved by exactly one purchase | OK |
 | 3c | bounty Accept / Upgrade Property / Upgrade Plot / Plant all / Water | no intent reached the faked hr-accrue wire (other transports, or refused locally); not proven either way | NOT COVERED |
-| 4 | activity strip label | "Woodcutting — normal tree", "Cooking — cook shrimp": the raw id, while the Character card named the node | **P3, FIXED** (`hrActivityTargetName`, activity-tile.js; regression `b562: the activity strip names…`) |
+| 4 | activity strip label | "Woodcutting — normal tree", "Cooking — cook shrimp": the raw id (bar AND the Character panel's progress strip) | **P3, FIXED** (`hrActivityTargetName`, activity-tile.js; regression `b562: the activity strip names…`) |
 
 Fake-wire recipe for the next pass: `HearthriseAuth.wireServerIntents(window,{url:<local>/fake-sb, …})`,
 answer `hr_load` with `{ok,skills,inventory,equipment,progress:[],state:{slot:0,hp,max_hp,active_kind:'idle',gold,gems}}`
 so `isCharacterHydrated()` flips, then hold hr-accrue POSTs 900 ms and 503 them.
+
+Follow-up rows (GO-WITH-CHANGES on the row-4 fix, same day):
+
+| # | Finding | Repro | Severity · route |
+|---|---|---|---|
+| 5 | **Toasts eat taps at 922x423.** `.notif` is `pointer-events:auto` (legacy.css `.notif`) and a tap on one dismisses it (toasts.js `build` click handler), so a tap aimed at the control underneath never reaches it. Expands 1f from "covers" to "intercepts". | Harness, viewport 922x423, `showTab('combat')`, `startCombat('slime')`, skip the FTUE, then four two-line `notify()`. Column lands at x 630-910, y 79-394. `elementFromPoint` at the centre of `#ab-stop` (886,146) returns `.notif`; at `.arena-foe-hp` (755,269) returns `.notif-text`; `#ab-meta` centre also a toast. The player's Stop tap dismisses a toast instead of stopping the fight, for up to ~8 s per toast. | **P3 → Art Director** (short-view column placement or `pointer-events:none` + an explicit close target; toasts.js `layout()` already measures chrome to avoid) |
+| 6 | **`notifyAction` removes nodes the toast queue still counts.** legacy.js `notifyAction` appends to `#notifs` and trims with `while(el.children.length > 5) el.children[0].remove()`, which deletes queue-owned toasts without telling toasts.js. | Harness: 8× `notify('storm toast N')` then 2× `notifyAction(…,'Undo',fn)`. `HearthriseToasts.state()` still reads `visible 4, pending 4` while only 3 queue toasts are on screen ("storm toast 0" is gone); the 4 pending wait behind a phantom slot until the removed toast's timer fires. No throw, no leak. | **P4** → whoever next touches toasts (route `notifyAction` through the queue) |
+| 7 | **The Character "current activity" card is unreachable.** legacy.js wraps `window.renderCharacter` to `setTimeout(applyCharExtensions)` (~14943), but a later `window.renderCharacter = function(){…}` (~16811) replaces it without calling the wrapper, so `applyCharExtensions` → `buildActivityCard` / `buildLoadoutDoll` / the skill-card rate patch never run. Corrects row 4: the "card named the node" claim was the code, not the screen. | Harness: `startSkill('woodcutting','normal_tree')`, `showTab('character')`, `renderCharacter()`, wait 300 ms: `.char-active-card` count 0, `.ca-info` count 0. | **P3 render debt → Systems Engineer** (delete the cluster + `window._calcForSkill` + the `.char-active-card` / `.char-loadout` CSS in one paydown; the GO's ask to test `buildActivityCard` has no player surface to test until then) |
+| 8 | `G.activeAction` / `G.activeArtisanRecipe` have no writer in `src/**`; `stopAction` exists nowhere. | grep | **FIXED here**: their branches in `refreshActivityBar`, `refreshPanelProgress`, `stopCurrentActivity`, `_activityProgress` deleted. Still read (board P3, untouched): `activity-bar-clickable.js`, `companions.js`, `death-sheet.js`, `restedContextLine`, `snapshotG` |
 
 ## 2026-09-18 · QA · adversarial pass on b548 (combat-XP deferral) + b549 (conflict retry)
 

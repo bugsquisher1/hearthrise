@@ -1935,7 +1935,7 @@ export default [
   () => tryRun('SNAP-2a: snapshotG produces a KEY for every field it names, even on a character that owns none of them', () => {
     const r = snapRoundTrip();
     assert(r.fields.length >= 55, 'CONTROL: snapshotG named ' + r.fields.length + ' field(s) — it is not snapshotting the live character, so SNAP-2a/b/c are all vacuous');
-    ['buyback', 'recoveringUntilMs', 'heroSlotsUnlocked', '_bankCap', 'traits', 'rooms', 'skills', 'gold']
+    ['buyback', 'recoveringUntilMs', 'heroSlotsUnlocked', '_bankCap', 'traits', 'rooms', 'skills', 'gold', '_serverBag', '_bagFromServerAt', '_startKitHintAt']
       .forEach((k) => assert(r.fields.indexOf(k) >= 0, k + ' is not on the snapshot list at all, so no test can put it back — it leaks for the rest of the run'));
     assert(!r.noKey.length, 'snapshotG produced NO KEY for ' + r.noKey.join(', ') + ' on a character that does not own it. JSON.stringify drops '
       + 'undefined and restoreG walks Object.keys(snap), so it puts nothing back and whatever a test writes there is inherited by every test '
@@ -1956,6 +1956,55 @@ export default [
     assert(r.fields.filter((f) => r.value.indexOf(f) < 0).length >= 55, 'CONTROL: the probe walked ' + r.fields.length + ' field(s)');
     assert(!r.value.length, 'restoreG did not put the real value back: ' + r.value.join(' | ') + '. The seal clones each value; assigning the '
       + 'live object instead would make the snapshot a reference to the thing it is meant to preserve.');
+  }),
+
+  /* SNAP-BAG-1 — THE STATED SERVER BAG CROSSES NO TEST BOUNDARY. `_serverBag` was off the
+     snapshot list: 25 bare writes, farmReplantFixtureG's four callers and every test that
+     applied an inventory envelope left a bag every later item gate counted as the server's.
+     restoreG IS the boundary between two tests, so it is driven here three ways: a bare
+     fixture write, the production writer (reconcileInventory stamps the bag AND
+     `_bagFromServerAt`), and a test that starts with a bag. MUTATION: drop any of the three
+     keys from snapshotG → a named red here. */
+  () => tryRun('SNAP-BAG-1: a test that states a server bag and never hand-restores it does not change the next test\'s gate view', () => {
+    const A = window.HearthriseAccrual;
+    assert(A && typeof A.gateItemCount === 'function' && typeof A.reconcileInventory === 'function' && typeof A.bagHydrated === 'function',
+      'HearthriseAccrual no longer publishes gateItemCount / reconcileInventory / bagHydrated — the gates this test guards are unreachable');
+    const G = window.G, own = (k) => Object.prototype.hasOwnProperty.call(window.G, k);
+    const BAG = ['_serverBag', '_bagFromServerAt', '_startKitHintAt'], ABSENT = {}, held = {};
+    BAG.forEach((k) => { held[k] = own(k) ? G[k] : ABSENT; });   // hand-held so a RED run cannot leak what it proves leaks
+    const outer = snapshotG();
+    try {
+      BAG.forEach((k) => { delete G[k]; });
+      const s1 = snapshotG();
+      G._serverBag = { copper_ore: 3 };          // FARM-TIER-3's shape: a bare write, no hand restore
+      restoreG(s1);
+      assert(!own('_serverBag'), 'a bare `G._serverBag =` outlived restoreG: the next test inherits a stated bag of '
+        + JSON.stringify(window.G._serverBag) + ' and every item gate counts it as the server\'s');
+      assert(A.gateItemCount(window.G, 'copper_ore') === null, 'the next test\'s gate read '
+        + A.gateItemCount(window.G, 'copper_ore') + ' — with no envelope stated it must read PENDING (null)');
+
+      const s2 = snapshotG();
+      A.reconcileInventory(window.G, { inventory: { copper_ore: 2 } }, false, false);
+      assert(window.G._serverBag && window.G._serverBag.copper_ore === 2 && A.bagHydrated(window.G),
+        'CONTROL: reconcileInventory did not state the bag, so the production-writer half proves nothing');
+      restoreG(s2);
+      const left = BAG.filter(own);
+      assert(!left.length, 'an applied envelope left ' + left.join(', ') + ' behind restoreG — the bag and the stamps written with it '
+        + 'must restore as ONE, or the next test reads "hydrated" over a bag nobody stated');
+      assert(!A.bagHydrated(window.G) && A.gateItemCount(window.G, 'copper_ore') === null,
+        'after the boundary the next test must see an UNSTATED bag (bagHydrated false, gate null)');
+
+      G._serverBag = { copper_ore: 1, turnip_seed: 4 };
+      const s3 = snapshotG();
+      G._serverBag.copper_ore = 9; G._serverBag.tin_ore = 50;   // nested writes are writes to the field
+      restoreG(s3);
+      assert(JSON.stringify(window.G._serverBag) === '{"copper_ore":1,"turnip_seed":4}',
+        'a test that STARTED with a stated bag got ' + JSON.stringify(window.G._serverBag) + ' back — restoring is never a wipe or a merge');
+      assert(A.gateItemCount(window.G, 'copper_ore') === 1, 'the restored bag must gate on its own figure (1)');
+    } finally {
+      restoreG(outer);
+      BAG.forEach((k) => { if (held[k] === ABSENT) delete window.G[k]; else window.G[k] = held[k]; });
+    }
   }),
 
   () => tryRun('b221: the shop renders the counter scene with every offer reachable', () => {

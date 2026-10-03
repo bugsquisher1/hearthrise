@@ -817,8 +817,9 @@ export const farmReplantFixtureG = (seeds) => {
    the display bag (the tier, rung, gold or answer is the subject); `agree(bag)`
    states a divergence. Positive integers only, as the real mirror copies them.
    ⚠ OPT-IN, PER TEST, called AFTER the inventory is set — a blanket stamp would
-   hide production forgetting the mirror. `_serverBag` is not in snapshotG, so
-   create this BEFORE the test's try and call restore() in its finally. */
+   hide production forgetting the mirror. snapshotG carries `_serverBag` (absent
+   stays absent), so restoreG alone undoes `agree()`; restore() is for a test
+   that states a bag WITHOUT a snapshot. */
 export const serverBagFixture = () => {
   const G = window.G, had = Object.prototype.hasOwnProperty.call(G, '_serverBag'), was = G._serverBag;
   return {
@@ -1789,6 +1790,16 @@ export const snapshotG = () => {
        sealSnapshot records the absence and restoreG deletes the key. */
     _gemUnlocks: G._gemUnlocks,
     _recipeUnlocks: G._recipeUnlocks,
+    /* THE STATED SERVER BAG AND THE TWO STAMPS ITS APPLY WRITES WITH IT — a TRIPLE that
+       restores together. reconcileInventory (src/net/accrue.js) writes all three in one
+       block; every item gate counts `_serverBag` (gateItemCount: null = pending) and
+       bagHydrated reads `_bagFromServerAt`. Off this list, the 25 test writes, the
+       farmReplantFixtureG callers AND every test that applied an inventory envelope left
+       a stated bag for the rest of the run — a later gate read "sent" off a bag nobody
+       stated. BARE — absence IS "the server has not stated a bag"; SNAP-BAG-1 proves it. */
+    _serverBag: G._serverBag,
+    _bagFromServerAt: G._bagFromServerAt,
+    _startKitHintAt: G._startKitHintAt,
     /* ⚠ `?? []`, NOT bare — SNAP-2, and this one BIT: a character who never sold has
        no key, JSON drops it, restoreG cannot put back what it has not got, and a test
        that made a REAL sale left an entry render/shop.js paints as an extra row. */

@@ -4,6 +4,19 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-10-03 · systems-engineer · b562 projection sweep: three item gates still read the merge bag (CLAUDE.md §6)
+
+`lane/b562-projection-sweep` moved Build / property / plot / market-list onto `gateItemCount` (accrue.js:1309,
+the `player_inventory` mirror; unstated reads pending). The sweep found three more readers of `G.inventory`
+(the raise-only MERGE bag, which a client-rolled surplus can sit above the server) that were left out of scope:
+
+| # | Reader | Where | Class / priority | Required action |
+|---|---|---|---|---|
+| 1 | `hasItem` = `G.inventory[id] >= qty` | `src/legacy.js:3758`; gates at **8428** (vendor sell after the confirm), **9668** (`applyLoadout` equips a held item), **9695** (`applyLoadout` restores the food slot) | §6 "client shows X, server refuses" — **P2** (each gate fronts a server intent that refuses on its own; the client lights a control the realm then denies) | `hasItem` reads `gateItemCount`; unstated = not held. One test per site that fails with a display-bag surplus |
+| 2 | artisan `hasInputs(recipe)` → `core.artisan.hasInputs(recipe, G.inventory)` | `src/legacy.js:14510`; craft-start gate in `startArtisan` **14726** + its missing-list **14728**; recipe card `canDo` **14756** + "Missing materials" **14762** | **P1 of the §6 class** — Start lights and the card says "ready" on a surplus the server will refuse at the first settle; the missing list prints the display count | pass a server-bag view to `hasInputs` (core stays pure: the caller picks the bag), pending when unstated; both-path test (attended start + away accrual of the same recipe) |
+| 3 | auto-eat picker option label `×${G.inventory[id]}` (and the `foods` list built from `G.inventory`) | `src/legacy.js:7386`, `:7451` | display-only count — **P3**; the picker spends nothing, but it is the number a player reads before trusting auto-eat | label from `gateItemCount` (pending glyph when unstated); list built from the server bag |
+| 4 | House cost chips' met / short / pending colours never paint on hearthlight: `theme-cozy.css` `body[data-theme="hearthlight"] #panel-house :not(…) { color: var(--ink) !important }` beats `.hh-cost.is-*` (measured: all three classes compute `rgb(236,225,204)`) | `src/styles/theme-cozy.css` (the per-panel `:not(…)` ink rule), `src/styles/homestead-rooms.css:365-368` | visual, **P4** — b562 made the class honest (`is-pending`, italic shows); the colour is flattened by the blanket rule | **Art Director**: exempt `.hh-cost` from the panel ink rule (one selector), do not stack an override |
+
 ## 2026-09-18 · QA · adversarial pass on b548 (combat-XP deferral) + b549 (conflict retry)
 
 Both shipped "pushed, unplayed". Driven in the headless harness (Node against the real modules for

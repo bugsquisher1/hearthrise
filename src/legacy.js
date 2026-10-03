@@ -8567,12 +8567,12 @@ function setHouseTab(t){houseTab=t;document.querySelectorAll('[data-house]').for
    room grid, the plot-building grid and (inverted) here. Three copies is three
    chances to teach only two of them about an UNKNOWN balance, which is the b348
    shape. FAIL-CLOSED on an unknown gold balance: a Build button that lights up
-   against a number nobody has read is a purchase the server never agreed to. */
+   against a number nobody has read is a purchase the server never agreed to. ITEMS read the SERVER's bag (accrue.js gateItemCount). */
 function canPayCost(cost){
   return Object.entries(cost||{}).every(([k,v])=>
     k==='gold' ? balCanAfford(v,'gold')
     : k==='gems' ? balCanAfford(v,'gems')
-    : (G.inventory[k]||0)>=v);
+    : (window.HearthriseAccrual?.gateItemCount(G,k)??-1)>=v);
 }
 /* b213 QA: name exactly what's missing instead of a bare "Not enough
    resources" — players couldn't tell which material was short. Returns a
@@ -8583,10 +8583,9 @@ function canPayCost(cost){
 function describeMissingCost(cost){
   const parts=[];
   for(const [k,v] of Object.entries(cost||{})){
-    if(k==='gold'||k==='gems'){
-      if(!balKnown(k)){ parts.push(k+' balance not loaded yet'); continue; }
-    }
-    const have=k==='gold'?balNum('gold'):k==='gems'?balNum('gems'):(G.inventory[k]||0);
+    const _bal=(k==='gold'||k==='gems'), _srv=_bal?null:(window.HearthriseAccrual?.gateItemCount(G,k)??null);
+    if(_bal?!balKnown(k):_srv===null){ parts.push(_bal?k+' balance not loaded yet':((ITEMS[k]&&ITEMS[k].n)||k)+' still being counted'); continue; }
+    const have=k==='gold'?balNum('gold'):k==='gems'?balNum('gems'):_srv;
     if(have<v){
       parts.push(k==='gold'?((v-have)+' gold'):(((ITEMS[k]&&ITEMS[k].n)||k)+' ×'+(v-have)));
     }
@@ -8646,7 +8645,7 @@ function upgradeRoom(id){
        modal's ladder, its pinned build bar and the House card all state this
        requirement inline before the player ever clicks (b355). Kept because
        upgradeRoom is the authority and must refuse audibly on any path. */
-    notify('Requires a '+_bp.name+(_bp.source?' — '+_bp.source:''),'kill');
+    notify(_bp.known===false ? _bp.name+' still being counted — try again in a moment' : 'Requires a '+_bp.name+(_bp.source?' — '+_bp.source:''),'kill');
     return false;
   }
   const missing=describeMissingCost(nx.cost);
@@ -8730,7 +8729,7 @@ function upgradeRoom(id){
    so a view can never disagree with the authority), but now every view can ASK.
 
    Returns null when the rung has no item gate at all, else
-     { id, name, need, have, ok, source }
+     { id, name, need, have, known, ok, source }   (known:false = the server bag is unstated; have -1)
    `source` is the real reverse-index line (window.itemSourceLine, b242) so a
    blueprint that starts dropping somewhere new re-describes itself for free —
    the old toast hardcoded "they drop from dungeons", which is prose, not data. */
@@ -8739,10 +8738,10 @@ function roomRungItemGate(id,want){
   let bid=null;
   for(const iid in ITEMS){ if(ITEMS[iid] && ITEMS[iid].unlocks===key){ bid=iid; break; } }
   if(!bid) return null;
-  const need=1, have=(G.inventory&&G.inventory[bid])||0;
+  const srv=window.HearthriseAccrual?.gateItemCount(G,bid)??null, known=srv!==null, need=1, have=known?srv:-1;   /* the SERVER's bag (hr_unlock_buy consumes it); NULL = unstated: known:false, pending, never 0 */
   let source='';
   try{ if(typeof window.itemSourceLine==='function') source=window.itemSourceLine(bid)||''; }catch(e){}
-  return {id:bid, name:(ITEMS[bid]&&ITEMS[bid].n)||bid, need:need, have:have, ok:have>=need, source:source};
+  return {id:bid, name:(ITEMS[bid]&&ITEMS[bid].n)||bid, need:need, have:have, known:known, ok:known&&have>=need, source:source};
 }
 
 /* Is rung `want` (1-based) legal at the player's current property tier?
@@ -15471,10 +15470,10 @@ function _costPart(itemId, qty){
   /* `have` is UNKNOWN-aware: a cost part whose currency has not arrived says so
      in its own title and does NOT mark itself met. `-1` can never satisfy a
      positive requirement, which is the fail-closed direction. */
-  var _known = itemId==='gold'||itemId==='gems' ? balKnown(itemId) : true;
+  var _srv = (itemId==='gold'||itemId==='gems') ? null : (window.HearthriseAccrual?.gateItemCount(G, itemId) ?? null);   /* items: the SERVER's bag */
+  var _known = itemId==='gold'||itemId==='gems' ? balKnown(itemId) : _srv !== null;
   var have = itemId === 'gold' ? balOr('gold', -1)
-           : itemId === 'gems' ? balOr('gems', -1)
-           : ((G.inventory||{})[itemId]||0);
+           : itemId === 'gems' ? balOr('gems', -1) : (_srv === null ? -1 : _srv);
   var met = _known && have >= qty;
   var name = itemId === 'gold' ? 'Gold' : (((typeof ITEMS !== 'undefined') && ITEMS[itemId] && ITEMS[itemId].n) || itemId);
   var tip = qty.toLocaleString() + ' ' + name + ' — you have '

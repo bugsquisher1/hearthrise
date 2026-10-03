@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 131 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays, phoneFrame, withStockedFight } from './_harness.js?v=560';
+import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays, phoneFrame, withStockedFight, serverBagFixture } from './_harness.js?v=560';
 import { weaknessOf, weaknessWords } from '../../render/foe-weakness.js?v=560';
 import { fitBar } from '../../render/bar-fit.js?v=560';
 import { weaknessInfo, WEAPON_TYPES } from '../../core/combat.js?v=560';
@@ -4163,7 +4163,7 @@ export default [
   // gold-arm: upgradeRoom's debit is gated by clientMayWriteRecordField
   // (switch-OFF position); the stamp makes the affordability read known.
   () => tryRunAsync('action: upgrade a house room (state-level)', async () => {
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     try {
       if (typeof window.upgradeRoom !== 'function') return;
       // b201 homestead gate: rooms are tier-locked (a tier-0 camp has no
@@ -4177,6 +4177,7 @@ export default [
       // Pre-pay every possible mat cost in absurd quantity.
       const mats = ['normal_log','oak_log','willow_log','copper_bar','iron_bar','stone','normal_plank','oak_plank'];
       for (const m of mats) window.G.inventory[m] = 999;
+      bag.agree();   // the server holds the mats: the build reaching the wire is the subject
       /* b515: the rung is the SERVER's — `clientMayWriteRecordField('rooms')` is
          false and `upgradeRoom` advances nothing locally, so the build has to be
          answered before it can be read. */
@@ -4189,11 +4190,11 @@ export default [
         const afterLv = window.G.rooms?.kitchen || 0;
         assert(afterLv === beforeLv + 1, `kitchen should be Lv ${beforeLv + 1}, got ${afterLv}`);
       });
-    } finally { restoreGAndRecord(snap); }
+    } finally { restoreGAndRecord(snap); bag.restore(); }
   }),
 
   () => tryRun('action: create + cancel a market listing', () => {
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     try {
       // Real API: M.listItem(itemId, qty, askEach) → { ok, reason?, id? }
       // M.cancelListing(listingId) → { ok }. b127 fixed this test.
@@ -4201,6 +4202,7 @@ export default [
       if (!M || typeof M.listItem !== 'function') return;
       window.G.inventory = window.G.inventory || {};
       window.G.inventory.normal_log = (window.G.inventory.normal_log || 0) + 10;
+      bag.agree();   // the server holds the logs (listItem counts its bag) — not a leak from an earlier test
       const beforeQty = window.G.inventory.normal_log;
       const r = M.listItem('normal_log', 1, 5);
       assert(r && r.ok, 'listItem should succeed, got ' + JSON.stringify(r));
@@ -4212,11 +4214,11 @@ export default [
       if (mine && mine.length && typeof M.cancelListing === 'function') {
         M.cancelListing(mine[mine.length - 1].id);
       }
-    } finally { restoreG(snap); }
+    } finally { restoreG(snap); bag.restore(); }
   }),
 
   () => tryRun('action: purchase a market listing', () => {
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     try {
       const M = window.HearthriseMarket;
       // SA-013: an absent market API is an unarmed seam, not a silent pass.
@@ -4226,6 +4228,7 @@ export default [
       window.G.gold = (window.G.gold || 0) + 1000;
       window.G.inventory = window.G.inventory || {};
       window.G.inventory.normal_log = (window.G.inventory.normal_log || 0) + 5;
+      bag.agree();   // the server holds the logs — RED alone without it; it passed only on the dungeon-key test's leaked bag
       const r = M.listItem('normal_log', 1, 5);
       // The listing itself is the first real assertion: listing a held item must succeed.
       assert(r && r.ok, 'listItem(normal_log) failed: ' + JSON.stringify(r));
@@ -4239,7 +4242,7 @@ export default [
       if (typeof M.cancelListing === 'function') {
         for (const l of (mine || [])) try { M.cancelListing(l.id); } catch {}
       }
-    } finally { restoreG(snap); }
+    } finally { restoreG(snap); bag.restore(); }
   }),
 
   () => tryRun('action: claim a daily quest reward', () => {

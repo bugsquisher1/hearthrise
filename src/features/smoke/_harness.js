@@ -806,6 +806,31 @@ export const farmReplantFixtureG = (seeds) => {
   G._serverBag = Object.assign({}, G.inventory);
   G.farmPlots = [{ cropId: 'turnip', plantedAt: Date.now() - 9e7, waterings: [], state: 'ready' }];
 };
+
+/* ── serverBagFixture — THE SERVER STATES THE BAG THE FIXTURE BUILT ─────────
+   Every item gate (canPayCost, describeMissingCost, _costPart, roomRungItemGate,
+   homestead heldOf, market listItem) counts accrue.js gateItemCount — the mirror
+   of player_inventory the last envelope stated (`G._serverBag`) — and an unstated
+   bag fails CLOSED. The harness never runs a real hr_load, so a fixture that stocks
+   `G.inventory` and wants its Build / plot / listing SENT must also say what the
+   server holds, exactly as farmReplantFixtureG does. `agree()` = the server holds
+   the display bag (the tier, rung, gold or answer is the subject); `agree(bag)`
+   states a divergence. Positive integers only, as the real mirror copies them.
+   ⚠ OPT-IN, PER TEST, called AFTER the inventory is set — a blanket stamp would
+   hide production forgetting the mirror. `_serverBag` is not in snapshotG, so
+   create this BEFORE the test's try and call restore() in its finally. */
+export const serverBagFixture = () => {
+  const G = window.G, had = Object.prototype.hasOwnProperty.call(G, '_serverBag'), was = G._serverBag;
+  return {
+    agree(bag) {
+      const src = bag || window.G.inventory || {}, m = {};
+      for (const k of Object.keys(src)) { const q = Number(src[k]); if (Number.isFinite(q) && q > 0) m[k] = Math.floor(q); }
+      window.G._serverBag = m;
+      return m;
+    },
+    restore() { if (had) window.G._serverBag = was; else delete window.G._serverBag; },
+  };
+};
 /* One envelope shape for both: harvest clears the plot, any plant is accepted. */
 export const farmHarvestThenPlant = (verb, args) => (verb === 'farmHarvest'
   ? { ok: true, plot: args[0], crop: 'turnip', produce: 'turnip', qty: 3, xp: 30, regrew: false, withered: false }

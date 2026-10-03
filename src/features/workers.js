@@ -234,13 +234,30 @@
      `crew_cap_reached` triggers a purchase of the NEXT rung, after which we
      materialise again. The server's uid is stamped onto the prediction so the
      next envelope's reconcileWorkers() matches it and preserves the display
-     ledger; a hard refusal drops the prediction. Returns the optimistic worker. */
+     ledger; a hard refusal drops the prediction. Returns the optimistic worker.
+
+     ONE HIRE IN FLIGHT (src/net/intent-latch.js). The chain below can BUY the
+     next, dearer rung; a double-click used to run it twice. The latch is held
+     across the WHOLE chain (materialise → buy → materialise) and a repeat tap
+     while it is held does nothing at all — no optimistic worker, no toast. */
+  var _hireLatch = null;
+  function hireLatch() {
+    var L = window.HearthriseIntentLatch;
+    if (!_hireLatch && L && typeof L.createIntentLatch === 'function') _hireLatch = L.createIntentLatch();
+    return _hireLatch;
+  }
   function hireServer(G) {
     var Net = window.HearthriseWorkersNet;
     if (!Net || !Net.isSignedIn()) {
       if (window.notify) notify('Connect to the server to hire workers', 'kill');
       return null;
     }
+    var latch = hireLatch();
+    if (!latch) {                                  // fail closed: never an unlatched purchase chain
+      if (window.notify) notify('Hiring is unavailable for a moment — try again', 'kill');
+      return null;
+    }
+    if (latch.held('hire')) return null;
     var temp = makeOptimisticWorker(G);
     G.workers.hired.push(temp);
     if (window.notify) notify('' + temp.name + ' joins your homestead!', 'levelup');
@@ -250,7 +267,7 @@
     function fail(res) { dropWorker(G, temp); notifyHireError(res); render(); }
 
     // (1) MATERIALISE against the paid cap first — free, and drains a stranded rung.
-    Promise.resolve(Net.hire()).then(function (res) {
+    latch.run('hire', function () { return Promise.resolve(Net.hire()).then(function (res) {
       if (res && res.ok) { settleOk(res); return; }
       if (!res || res.error !== 'crew_cap_reached') { fail(res); return; }
 
@@ -276,7 +293,7 @@
       var _buy = (_k && window.HearthriseGold && typeof window.HearthriseGold.buyUnlock === 'function')
         ? window.HearthriseGold.buyUnlock('worker_hire.' + nextRung, _k) : null;
       if (_buy && _buy.catch) _buy.catch(function () {});
-      Promise.resolve(_buy || { outcome: 'applied' }).then(function (r) {
+      return Promise.resolve(_buy || { outcome: 'applied' }).then(function (r) {
         /* b463 — `already_owned` is a RECEIPT, not a refusal: the rung is paid
            and the gold seam already rolled this attempt's prediction back, so we
            proceed to materialise. Any other refusal is real; drop and explain. */
@@ -287,11 +304,11 @@
           if (window.notify) notify('Could not complete the hire — ' + ((r && r.reason) || 'try again'), 'kill');
           render(); return;
         }
-        Promise.resolve(Net.hire()).then(function (res2) {
+        return Promise.resolve(Net.hire()).then(function (res2) {
           if (res2 && res2.ok) settleOk(res2); else fail(res2);
         }).catch(function () {});
       }).catch(function () {});
-    }).catch(function () { /* transient — leave the optimistic worker; the next envelope reconciles */ });
+    }).catch(function () { /* transient — leave the optimistic worker; the next envelope reconciles */ }); });
 
     return temp;
   }

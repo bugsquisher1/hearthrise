@@ -693,9 +693,19 @@
     renderIfOpen();
     return true;
   }
+  /* ONE TIER-UP IN FLIGHT (net/intent-latch.js): clan_tier_up is castle_tier + 1
+     from shared stores, so a double-click raised the hold twice. */
+  var _tierLatch = null;
   async function tierUp() {
     if (needServer()) return false;
-    var d = await call('clan_tier_up', { p_clan_id: clanId() }, function (o) { return { out: o }; });
+    var L = window.HearthriseIntentLatch;
+    if (!_tierLatch && L && typeof L.createIntentLatch === 'function') _tierLatch = L.createIntentLatch();
+    if (!_tierLatch) { toast('The hold cannot rise right now — try again in a moment', 'kill'); return false; }
+    var cid = clanId();
+    var d = await _tierLatch.run('tier_up:' + cid, function () {
+      return call('clan_tier_up', { p_clan_id: cid }, function (o) { return { out: o }; });
+    });
+    if (d && d.inFlight === true) return false;   // the first tap answers for both
     if (d.action !== 'accept') { toast(d.message || C().errorText(d.error), 'kill'); return false; }
     var r = C().reduceTierUp(200, d.out);
     toast('The hold rises: ' + r.name + '.', 'levelup');

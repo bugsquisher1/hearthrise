@@ -286,6 +286,9 @@ function farmSyncPlant(plotIdx,cropId){
   G.farmPlots[plotIdx]={cropId,plantedAt:Date.now(),waterings:[],state:'growing'};
   window.renderFarm();
   FS.farmPlant(plotIdx,cropId).then(function(res){
+    /* A repeat tap while this plot's plant is on the wire sent nothing (farm-sync
+       latch): the first call answers for both — no revert, no refusal toast. */
+    if(res&&res.inFlight===true) return;
     if(res&&res.ok){ farmSyncReconcile('plant',res); }
     else {
       G.farmPlots[plotIdx]=prev||null;
@@ -305,6 +308,7 @@ function farmSyncPlant(plotIdx,cropId){
 function farmSyncWater(plotIdx){
   const FS=farmSyncApi(); if(!FS) return;
   FS.farmWater(plotIdx).then(function(res){
+    if(res&&res.inFlight===true) return;   // a repeat tap: the first call answers for both
     if(res&&res.ok){ farmSyncReconcile('water',res); }
     window.renderFarm();
   });
@@ -312,6 +316,7 @@ function farmSyncWater(plotIdx){
 function farmSyncHarvest(plotIdx){
   const FS=farmSyncApi(); if(!FS) return;
   FS.farmHarvest(plotIdx).then(function(res){
+    if(res&&res.inFlight===true) return;   // a repeat tap: the first call answers for both
     if(res&&res.ok){
       farmSyncReconcile('harvest',res);
       if(res.produce&&res.qty>0){ const crop=CROPS[res.crop]; notify(`+${res.qty} ${crop?crop.name:res.crop}`,'loot'); }

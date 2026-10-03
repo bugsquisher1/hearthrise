@@ -205,6 +205,10 @@
       setGold: function(n){ if(window.G) window.G.gold = n; },
     };
     FS.farmUpgradePlot().then(function(res){
+      /* A second tap while the first upgrade is on the wire sent NOTHING (the
+         farm-sync latch — the verb is relative, so a second intent would buy
+         the tier after this one). The first call answers for both: silence. */
+      if(res && res.inFlight === true) return;
       if(res && res.ok){ try{ FS.reconcileFarmResult(window.G,'upgrade',res,deps); }catch(e){}
         if(typeof window.notify === 'function'){
           window.notify('Farm Plot upgraded to Lv ' + res.plot_level

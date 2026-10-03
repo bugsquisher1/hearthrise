@@ -3028,6 +3028,7 @@ export default [
       F.upgradePlot();
       assert(wire.sent.length === 4 && wire.idem(3) === wire.idem(2),
         'a re-tap after a timeout sent a FRESH key — an upgrade the server committed would be bought again');
+      await sleep(350);                                  // the last tap times out inside the toast capture
     } finally {
       wire.restore(); toasts.restore(); FS.farmUpgradePlot = realUp; FS.__resetFarmLatch(); restoreG(snap);
       if (hadMirror) G._serverPlotLevel = prevMirror; else delete G._serverPlotLevel;
@@ -3165,21 +3166,24 @@ export default [
     }
   }),
 
-  () => tryRunAsync('INTENT-LATCH-6: a held repeat tap on a ready plot neither toasts nor moves the plot', async () => {
+  () => tryRunAsync('INTENT-LATCH-6: a held repeat Plant on one plot neither toasts nor reverts the planted crop', async () => {
     const FS = window.HearthriseFarmSync, G = window.G;
-    assert(FS && typeof window.harvestPlot === 'function', 'farm.js harvestPlot / farm-sync.js did not load');
-    const snap = snapshotG(), realHarvest = FS.farmHarvest;
-    FS.farmHarvest = (i, o) => realHarvest(i, Object.assign({ url: 'https://probe.supabase.co', anonKey: 'anon', jwt: 'jwt', slot: 0 }, o));
-    const wire = holdWire('/rpc/hr_farm_harvest'), toasts = catchToasts();
+    assert(FS && typeof window.plantCrop === 'function' && window.HearthriseFarm, 'farm.js plantCrop / farm-sync.js did not load');
+    const snap = snapshotG(), realPlant = FS.farmPlant;
+    FS.farmPlant = (i, c, o) => realPlant(i, c, Object.assign({ url: 'https://probe.supabase.co', anonKey: 'anon', jwt: 'jwt', slot: 0 }, o));
+    const wire = holdWire('/rpc/hr_farm_plant'), toasts = catchToasts();
     try {
-      G.farmPlots = G.farmPlots || []; G.farmPlots[3] = { cropId: 'turnip', plantedAt: 1, waterings: [], state: 'ready' };
-      const plot = G.farmPlots[3];
-      window.harvestPlot(3);
-      window.harvestPlot(3);
-      assert(wire.sent.length === 1, 'two taps on a ready plot sent ' + wire.sent.length + ' hr_farm_harvest intents');
+      G.plotLevels = 1; G.skills.farming = 1e6; G.inventory.turnip_seed = 10;
+      G._serverBag = Object.assign({}, G._serverBag, { turnip_seed: 10 });
+      G.farmPlots[0] = null;
+      window.plantCrop(0, 'turnip');
+      window.plantCrop(0, 'turnip');                     // the double-click's second press
+      assert(wire.sent.length === 1, 'two Plant presses on one plot sent ' + wire.sent.length + ' hr_farm_plant intents');
       await sleep(30);
-      assert(toasts.seen.length === 0 && G.farmPlots[3] === plot,
-        'the held repeat tap toasted or moved the plot: [' + toasts.seen.join(' | ') + ']');
-    } finally { wire.restore(); toasts.restore(); FS.farmHarvest = realHarvest; FS.__resetFarmLatch(); await sleep(0); restoreG(snap); }
+      assert(toasts.seen.length === 0 && G.farmPlots[0] && G.farmPlots[0].cropId === 'turnip',
+        'the held repeat press toasted or reverted the plot: [' + toasts.seen.join(' | ') + '] ' + JSON.stringify(G.farmPlots[0]));
+      wire.answer({ ok: false, error: 'not_ready' });   // settle inside the capture: the refusal reverts to the empty plot
+      await untilTrue(() => G.farmPlots[0] === null, 'the refused plant to revert');
+    } finally { wire.restore(); toasts.restore(); FS.farmPlant = realPlant; FS.__resetFarmLatch(); await sleep(0); restoreG(snap); }
   }),
 ];

@@ -595,7 +595,7 @@ export default [
      tests/run-smoke.mjs, which delays the /src/core/ responses and requires
      zero pageerrors. Both are needed: a warm-page guard would never have
      caught this, and a node-only guard leaves the API unpinned. */
-  /* b562 REGRESSION — first load after a version bump: the SW purge made
+  /* REGRESSION (live 2026-09-29) — first load after a version bump: the SW purge made
      core-bridge.js fail to load, the gate released without a core and boot()
      painted Home into it (getTotalLevel "reading 'xp'", error boundary
      "Something broke here"). A coreless release must reload ONCE before any

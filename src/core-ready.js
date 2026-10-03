@@ -158,9 +158,9 @@
     maybeUnwrapClears();
   }
 
-  /* b562 — A CORE THAT DID NOT ARRIVE IS RETRIED ONCE, AND NOTHING BOOTS INTO
-     IT MEANWHILE. Live 2026-09-29, first load after the 560 bump: the b124
-     kill-switch in <head> unregisters the old service worker and deletes its
+  /* A CORE THAT DID NOT ARRIVE IS RETRIED ONCE, AND NOTHING BOOTS INTO
+     IT MEANWHILE. Live 2026-09-29, first load after a version bump: the
+     service-worker kill-switch in <head> unregisters the old service worker and deletes its
      caches while this page is still fetching its module graph, core-bridge.js
      fails to load, the gate released WITHOUT a core, and DOMContentLoaded booted
      the engine into it — getTotalLevel/getCombatLevel "reading 'xp'",

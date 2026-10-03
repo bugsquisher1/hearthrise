@@ -595,6 +595,28 @@ export default [
      tests/run-smoke.mjs, which delays the /src/core/ responses and requires
      zero pageerrors. Both are needed: a warm-page guard would never have
      caught this, and a node-only guard leaves the API unpinned. */
+  /* b562 REGRESSION — first load after a version bump: the SW purge made
+     core-bridge.js fail to load, the gate released without a core and boot()
+     painted Home into it (getTotalLevel "reading 'xp'", error boundary
+     "Something broke here"). A coreless release must reload ONCE before any
+     engine code runs, and never loop. Drives the gate's real decision with a
+     fake session store and a fake reload. */
+  () => tryRun('b562: a coreless release reloads once instead of booting the engine', () => {
+    const decide = window.__hrCoreRetry;
+    assert(typeof decide === 'function', 'window.__hrCoreRetry is missing — a failed core load boots the engine into a coreless page');
+    const m = new Map();
+    const store = { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) };
+    let reloads = 0;
+    const reload = () => { reloads++; };
+    assert(decide('core-bridge failed to load', store, reload) === true && reloads === 1,
+      'the first coreless release must reload (and report it) instead of releasing the boot');
+    assert(decide('timeout after 30000ms', store, reload) === false && reloads === 1,
+      'a second coreless release in the same session must release loudly, never reload-loop');
+    assert(decide('core', store, reload) === false && reloads === 1 && m.size === 0,
+      'a core that arrives must clear the retry mark so a later failure can retry again');
+    assert(window.isCoreReady() === true && !!window.HearthriseCore,
+      'this warm page must have released WITH a core');
+  }),
   () => tryRun('b323: the core readiness gate is present, satisfied, and uninstalled', () => {
     assert(typeof window.whenCoreReady === 'function',
       'window.whenCoreReady is missing — src/core-ready.js did not load (boot timers are unprotected on a cold load)');

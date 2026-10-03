@@ -158,8 +158,45 @@
     maybeUnwrapClears();
   }
 
+  /* b562 — A CORE THAT DID NOT ARRIVE IS RETRIED ONCE, AND NOTHING BOOTS INTO
+     IT MEANWHILE. Live 2026-09-29, first load after the 560 bump: the b124
+     kill-switch in <head> unregisters the old service worker and deletes its
+     caches while this page is still fetching its module graph, core-bridge.js
+     fails to load, the gate released WITHOUT a core, and DOMContentLoaded booted
+     the engine into it — getTotalLevel/getCombatLevel "reading 'xp'",
+     getEquipmentStats "reading 'combat'", and the error boundary painting
+     "Something broke here" over Home until the kill-switch's own reload landed.
+     The engine must never render numbers it cannot compute, so on the first
+     coreless release of a tab session the page reloads instead of releasing:
+     parked timers stay parked and DOMContentLoaded/load are stopped at the
+     window capture phase (this file's listener is registered before any engine
+     script's), so no engine code runs at all. A second coreless release in the
+     same session is a genuinely broken deploy and releases loudly as before —
+     a reload loop would hide the fault. `store`/`reload` are injectable so the
+     in-page suite can drive the decision without navigating. */
+  var RETRY_KEY = 'hr-core-retry';
+  var reloading = false;
+  function retryOnce(reason, store, reload) {
+    if (reason === 'core') { try { store.removeItem(RETRY_KEY); } catch (e) {} return false; }
+    try {
+      if (store.getItem(RETRY_KEY)) return false;
+      store.setItem(RETRY_KEY, String(reason));
+    } catch (e) { return false; }                    // no session storage → cannot bound the loop → release loudly
+    reload();
+    return true;
+  }
+  window.__hrCoreRetry = retryOnce;
+  function holdBootEvent(ev) { if (reloading) ev.stopImmediatePropagation(); }
+  window.addEventListener('DOMContentLoaded', holdBootEvent, true);
+  window.addEventListener('load', holdBootEvent, true);
+
   function release(reason) {
-    if (ready) return;
+    if (ready || reloading) return;
+    if (retryOnce(reason, window.sessionStorage, function () { location.reload(); })) {
+      reloading = true;
+      console.warn('[core-ready] core did not arrive (' + reason + ') — reloading once before the engine boots');
+      return;
+    }
     ready = true;
     releasing = true;
     var entries = Array.from(parked.entries());

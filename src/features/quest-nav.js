@@ -67,6 +67,11 @@
   var EVENTS  = function () { return dest('events',  { verb: 'Go to the muster', label: 'Events',       glyph: 'uiBanner' }); };
   var HOUSE   = function () { return dest('house',   { verb: 'Go build', label: 'Homestead',    glyph: 'uiHome' }); };
   var GRID    = function () { return dest('skills',  { verb: 'Go train', label: 'Skills',       glyph: 'totalLvl' }); };
+  /* b562 (first-30 play): "Gather 15 resources" is the FIRST row of "Your first
+     day" and its button said "Go train" — the one verb on that card that did
+     not name the action. Same door as GRID (any gathering skill counts, so the
+     grid IS the choice); only the words differ. "Gain a level" keeps Go train. */
+  var GATHER  = function () { return dest('skills',  { verb: 'Go gather', label: 'Gathering', glyph: 'totalLvl' }); };
 
   // A skill's own detail screen. Verbs are the action the player performs
   // there, so the button can honestly carry the goal's own word.
@@ -112,7 +117,7 @@
     // Both artisan skills bump `refined`; the grid is the honest answer.
     refined: GRID,
     planted: FARM, harvested: FARM, cropsHarvested: FARM,
-    gathered: GRID,       // "any resource" — the grid IS the choice of which
+    gathered: GATHER,     // "any resource" — the grid IS the choice of which
     levelups: GRID,       // "gain a level" — any skill will do
     totalGoldEarned: MARKET, totalGoldSpent: MARKET,
     roomsBuilt: HOUSE,
@@ -131,7 +136,7 @@
   // ── layer 2: updateDaily()'s action vocabulary ─────────────────────────
   var TYPE_DEST = {
     kill_any: COMBAT, kill: COMBAT, combat: COMBAT,
-    gather: GRID,
+    gather: GATHER,
     harvest: FARM, plant: FARM, farm: FARM,
     cooked: function () { return SKILL('cooking'); },
     smithed: function () { return SKILL('smithing'); },
@@ -175,7 +180,8 @@
     [/\bkill|\bslay|\bdefeat|\bmonster|\bfight|\bcombat/, COMBAT],
     [/\bgold\b|\bsell\b|\bcoin|\bmarket|\btrade|\bearn\b/, MARKET],
     [/\bhomestead|\bbuild\b|\bupgrade\b/,        HOUSE],
-    [/\bgather|\bresource|\blevel\b|\bskill/,    GRID],
+    [/\bgather|\bresource/,                      GATHER],
+    [/\blevel\b|\bskill/,                        GRID],
   ];
   function fromText(text) {
     var t = String(text || '').toLowerCase();

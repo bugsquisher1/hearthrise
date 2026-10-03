@@ -2990,6 +2990,7 @@ export default [
     const minted = [];
     const opened = [], noted = [];
     let sent = null;
+    const bag = serverBagFixture();
     try {
       /* The Spoils sheet and the Chronicle are stubbed: a stubbed run mounts no real sheet. */
       window.HearthriseSpoils = { open: (x) => opened.push(x), note: (x) => noted.push(x) };
@@ -3022,6 +3023,9 @@ export default [
       G.inventory = Object.assign({}, G.inventory);
       G.inventory[d.cost.key] = 1;                       // a real key, so canRun passes
       delete G.inventory.dungeon_scrip;
+      /* …AND THE SERVER HOLDS IT: canRun counts the STATED bag. Without this the test passed
+         only on a bag an earlier test leaked, and failed alone (2026-10-03). */
+      bag.agree();
       G.dungeonScrip = 0;
       G._dungeonCooldowns = {};                          // off cooldown
       window.getCombatLevel = () => 99;
@@ -3058,6 +3062,7 @@ export default [
       DS.sendDungeonSettle = snap.send; window.addItem = snap.addItem;
       window.getCombatLevel = snap.getCombatLevel; window.notify = snap.notify;
       G.inventory = snap.inv; G.dungeonScrip = snap.scrip; G._dungeonCooldowns = snap.cd;
+      bag.restore();
     }
   }),
 

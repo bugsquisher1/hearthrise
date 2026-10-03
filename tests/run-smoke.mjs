@@ -931,6 +931,106 @@ async function coldLoadGuard(browser, url) {
   return problems;
 }
 
+// ── The core-retry guard (b562) ──────────────────────────────────────────────
+// The cold-load guard above proves a LATE core; this proves a core that never
+// arrives on the first load. Live 2026-09-29, first load after a version bump:
+// the service-worker purge in <head> made core-bridge.js fail, the gate released
+// coreless, DOMContentLoaded booted the engine into it and the error boundary
+// painted "Something broke here" over Home. src/core-ready.js now reloads ONCE
+// per tab session instead. The in-page b562 test drives only the decision
+// function; whether release() calls it, whether any boot listener still runs on
+// the coreless page, and whether the storage read can throw out of the happy
+// path are only visible to a real navigation:
+//   A. core-bridge.js aborted on the FIRST load only -> exactly one reload, no
+//      DOMContentLoaded/load listener runs while the core is absent, zero
+//      pageerrors across both loads, a booted engine answering getCombatLevel.
+//   B. core-bridge.js aborted on EVERY load -> exactly one reload, then a loud
+//      coreless release; never a reload loop.
+//   C. reading window.sessionStorage throws SecurityError (blocked site data,
+//      the itch.io iframe in Incognito) -> the gate still releases WITH the core.
+// "No listener runs" is asserted by a probe rather than by pageerrors because
+// the live failure was CAUGHT: the error boundary swallows the throw and paints
+// over Home, so an uncaught-error count alone reads it as clean.
+// Chromium aborts the coreless document inside location.reload() (measured:
+// beforeunload, readyState "complete", no DOMContentLoaded), so this asserts the
+// outcome; core-ready.js's capture-phase hold is the same outcome for an engine
+// that starts the navigation asynchronously, and cannot be exercised here.
+async function coreRetryGuard(browser, url) {
+  const problems = [];
+  const SETTLE_MS = 3_000;
+  const PROBE = '[hr-core-retry-probe]';
+  async function arm(label, { abortBridge, blockSessionStorage = false }) {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, serviceWorkers: 'block' });
+    const page = await ctx.newPage();
+    const pageErrors = [];
+    let loads = 0, bridgeFetches = 0, corelessBootEvents = 0;
+    page.on('pageerror', (e) => pageErrors.push(String(e.message || e).slice(0, 160)));
+    page.on('request', (r) => { if (r.isNavigationRequest() && r.frame() === page.mainFrame()) loads++; });
+    page.on('console', (m) => { if (m.text().startsWith(PROBE)) corelessBootEvents++; });
+    await page.addInitScript(() => { window.__HR_TEST_HARNESS__ = true; });
+    /* Main frame only, and only while the core is ABSENT: a DOMContentLoaded on
+       document (where boot() listens) or a load on window, at the bubble phase,
+       i.e. a boot event that got past src/core-ready.js to the engine. */
+    await page.addInitScript((tag) => {
+      if (window.top !== window) return;
+      const note = (ev) => { if (!window.HearthriseCore) console.log(tag + ' ' + ev.type); };
+      document.addEventListener('DOMContentLoaded', note);
+      window.addEventListener('load', note);
+    }, PROBE);
+    if (blockSessionStorage) {
+      await page.addInitScript(() => {
+        Object.defineProperty(window, 'sessionStorage', {
+          configurable: true,
+          get() { throw new DOMException('The operation is insecure.', 'SecurityError'); },
+        });
+      });
+    }
+    await page.route(/\/src\/core-bridge\.js/, (route) => {
+      bridgeFetches++;
+      return abortBridge(bridgeFetches) ? route.abort('failed') : route.continue();
+    });
+    try {
+      await page.goto(url, { waitUntil: 'commit', timeout: 60_000 });
+      await page.waitForFunction(() => typeof window.isCoreReady === 'function' && window.isCoreReady() === true,
+        null, { timeout: 60_000 })
+        .catch(() => problems.push(`${label}: the readiness gate never released, so the game never boots`));
+      await page.waitForTimeout(SETTLE_MS);   // a pending reload, a loop, or a parked timer shows up here
+      const state = await page.evaluate(() => ({
+        core: !!window.HearthriseCore,
+        booted: typeof window.G !== 'undefined' && typeof window.getCombatLevel === 'function',
+        combatLevel: (() => { try { return window.getCombatLevel(); } catch (e) { return 'threw: ' + e.message; } })(),
+      })).catch((e) => ({ error: e.message }));
+      return { loads, bridgeFetches, corelessBootEvents, pageErrors: [...new Set(pageErrors)], state };
+    } finally {
+      await ctx.close().catch(() => {});
+    }
+  }
+  try {
+    const a = await arm('A (first core-bridge.js aborted)', { abortBridge: (n) => n === 1 });
+    if (a.bridgeFetches !== 2) problems.push(`A: expected one aborted and one served core-bridge.js; saw ${a.bridgeFetches} fetch(es)`);
+    if (a.loads !== 2) problems.push(`A: a coreless first load must reload exactly once; saw ${a.loads} document load(s)`);
+    if (a.corelessBootEvents) problems.push(`A: ${a.corelessBootEvents} DOMContentLoaded/load dispatch(es) reached the engine's `
+      + 'listeners while the core was absent: boot() ran into a page whose maths never arrived');
+    if (a.pageErrors.length) problems.push(`A: ${a.pageErrors.length} uncaught error(s), the engine ran into the coreless page `
+      + 'before the reload landed: ' + a.pageErrors.slice(0, 4).join(' | '));
+    if (!a.state.core) problems.push('A: the core is not online after the reload: ' + JSON.stringify(a.state));
+    if (!a.state.booted) problems.push('A: the engine did not boot after the reload: ' + JSON.stringify(a.state));
+    if (typeof a.state.combatLevel !== 'number') problems.push('A: getCombatLevel() is not answering after the reload: ' + a.state.combatLevel);
+
+    const b = await arm('B (every core-bridge.js aborted)', { abortBridge: () => true });
+    if (b.loads !== 2) problems.push(`B: a deploy whose core never loads must reload exactly once, then release loudly; saw ${b.loads} document load(s)`
+      + (b.loads > 2 ? ' (a reload loop hides the fault from the player and from the error report)' : ''));
+    if (b.state.core) problems.push('B: the core came online although every core-bridge.js was aborted, so the arm proved nothing');
+
+    const c = await arm('C (sessionStorage access throws)', { abortBridge: () => false, blockSessionStorage: true });
+    if (c.loads !== 1) problems.push(`C: a healthy load with blocked site data must not reload; saw ${c.loads} document load(s)`);
+    if (!c.state.core) problems.push('C: with sessionStorage access denied the gate did not release WITH the core: ' + JSON.stringify(c.state));
+  } catch (err) {
+    problems.push('harness failure: ' + err.message);
+  }
+  return problems;
+}
+
 // ── The auth-resilience guard (b331) ─────────────────────────────────────────
 // WHY THIS IS NOT IN THE IN-PAGE SUITE: `tryRun` calls its test function and
 // takes the return value, so an `async` test resolves after the runner has
@@ -3861,6 +3961,16 @@ const run = async () => {
       exitCode = 1;
     } else {
       console.log('Cold-load guard — a slow core module graph produces zero uncaught errors.');
+    }
+
+    const retryProblems = await coreRetryGuard(browser, url);
+    if (retryProblems.length) {
+      console.log('\nCore-retry guard (core-bridge.js aborted / sessionStorage denied) — FAILED:');
+      for (const p of retryProblems) console.log(`  ✗ ${p}`);
+      exitCode = 1;
+    } else {
+      console.log('Core-retry guard — a coreless first load reloads once with zero uncaught errors, a dead core '
+        + 'never loops, and denied sessionStorage still releases the gate.');
     }
 
     const authProblems = await authResilienceGuard(browser, url);

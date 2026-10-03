@@ -595,28 +595,6 @@ export default [
      tests/run-smoke.mjs, which delays the /src/core/ responses and requires
      zero pageerrors. Both are needed: a warm-page guard would never have
      caught this, and a node-only guard leaves the API unpinned. */
-  /* REGRESSION (live 2026-09-29) — first load after a version bump: the SW purge made
-     core-bridge.js fail to load, the gate released without a core and boot()
-     painted Home into it (getTotalLevel "reading 'xp'", error boundary
-     "Something broke here"). A coreless release must reload ONCE before any
-     engine code runs, and never loop. Drives the gate's real decision with a
-     fake session store and a fake reload. */
-  () => tryRun('b562: a coreless release reloads once instead of booting the engine', () => {
-    const decide = window.__hrCoreRetry;
-    assert(typeof decide === 'function', 'window.__hrCoreRetry is missing — a failed core load boots the engine into a coreless page');
-    const m = new Map();
-    const store = { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) };
-    let reloads = 0;
-    const reload = () => { reloads++; };
-    assert(decide('core-bridge failed to load', store, reload) === true && reloads === 1,
-      'the first coreless release must reload (and report it) instead of releasing the boot');
-    assert(decide('timeout after 30000ms', store, reload) === false && reloads === 1,
-      'a second coreless release in the same session must release loudly, never reload-loop');
-    assert(decide('core', store, reload) === false && reloads === 1 && m.size === 0,
-      'a core that arrives must clear the retry mark so a later failure can retry again');
-    assert(window.isCoreReady() === true && !!window.HearthriseCore,
-      'this warm page must have released WITH a core');
-  }),
   () => tryRun('b323: the core readiness gate is present, satisfied, and uninstalled', () => {
     assert(typeof window.whenCoreReady === 'function',
       'window.whenCoreReady is missing — src/core-ready.js did not load (boot timers are unprotected on a cold load)');
@@ -642,6 +620,54 @@ export default [
     const id = window.setTimeout(function () {}, 50);
     assert(id != null, 'setTimeout returned no id after the gate uninstalled');
     window.clearTimeout(id);
+  }),
+
+  /* REGRESSION (live 2026-09-29) — first load after a version bump: the SW purge made
+     core-bridge.js fail to load, the gate released without a core and boot()
+     painted Home into it (getTotalLevel "reading 'xp'", error boundary
+     "Something broke here"). A coreless release must reload ONCE, and never loop.
+     This drives the gate's real decision with fake hosts and a fake reload; it
+     cannot see release() wiring it up or the boot events being held — that half
+     is tests/run-smoke.mjs coreRetryGuard (first-load abort, always-abort, and
+     sessionStorage that throws on access). */
+  () => tryRun('b562: a coreless release reloads once instead of booting the engine', () => {
+    const decide = window.__hrCoreRetry;
+    assert(typeof decide === 'function', 'window.__hrCoreRetry is missing — a failed core load boots the engine into a coreless page');
+    const m = new Map();
+    const store = { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) };
+    const host = { sessionStorage: store };
+    let reloads = 0;
+    const reload = () => { reloads++; };
+    assert(decide('core-bridge failed to load', host, reload) === true && reloads === 1,
+      'the first coreless release must reload (and report it) instead of releasing the boot');
+    assert(decide('timeout after 30000ms', host, reload) === false && reloads === 1,
+      'a second coreless release in the same session must release loudly, never reload-loop');
+    assert(decide('core', host, reload) === false && reloads === 1 && m.size === 0,
+      'a core that arrives must clear the retry mark so a later failure can retry again');
+
+    /* Blocked site data (itch.io iframe in Incognito, sandboxed iframe): READING
+       window.sessionStorage throws SecurityError. The decision must swallow it:
+       the happy path still releases (returns false, does not throw) and a
+       coreless release releases loudly — no store means the loop cannot be
+       bounded, so no reload. */
+    const denied = () => { const e = new Error('The operation is insecure.'); e.name = 'SecurityError'; throw e; };
+    const blockedHost = Object.defineProperty({}, 'sessionStorage', { get: denied });
+    let threw = null, verdict;
+    try { verdict = decide('core', blockedHost, reload); } catch (e) { threw = e; }
+    assert(threw === null && verdict === false,
+      'with sessionStorage access denied, release("core") must still release — got ' + (threw ? 'a throw: ' + threw.name : verdict));
+    threw = null;
+    try { verdict = decide('core-bridge failed to load', blockedHost, reload); } catch (e) { threw = e; }
+    assert(threw === null && verdict === false && reloads === 1,
+      'with sessionStorage access denied, a coreless release must release loudly without reloading');
+    const refusing = { sessionStorage: { getItem: denied, setItem: denied, removeItem: denied } };
+    assert(decide('core', refusing, reload) === false && decide('core-bridge failed to load', refusing, reload) === false && reloads === 1,
+      'a store whose every call throws must release on both paths and never reload');
+    assert(decide('core-bridge failed to load', { sessionStorage: { getItem: () => null, setItem: () => {} } }, denied) === false,
+      'a reload that throws must fall through to a loud release, not strand the gate');
+
+    assert(window.isCoreReady() === true && !!window.HearthriseCore,
+      'this warm page must have released WITH a core');
   }),
 
   () => tryRun('Phase 0: the balance constants are ONE object, not a client copy', () => {

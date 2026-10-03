@@ -181,10 +181,21 @@ export default [
         'an unstated ITEM must read "still being counted", never currency words: ' + btn.why);
       assert(/Kitchen Blueprint II still being counted/.test(btn.why) && !/Needs Kitchen Blueprint II/.test(btn.why),
         'the blueprint must read pending, not "Needs": ' + btn.why);
+      assert(!/Missing [^·]*still being counted/.test(btn.why), 'an unstated count is pending, not "Missing": ' + btn.why);
       H.openRoom('kitchen');
       const line = document.querySelector('.hr-room-body .hr-room-gate');
       assert(line && line.classList.contains('is-pending') && /Still being counted/.test(line.textContent)
         && !/You have none/.test(line.textContent), 'the gate line claimed a figure: ' + (line && line.outerHTML));
+      /* P4: the pinned bar printed the verdict AND the gate line, so the blueprint was named twice. */
+      const bar = document.querySelector('.hr-room-wrap .hr-room-build'), named = ((bar && bar.textContent) || '').split('Kitchen Blueprint II').length - 1;
+      assert(bar && named === 1, 'the pinned Build bar must name the blueprint once (its gate line), got ' + named + ': ' + (bar && bar.textContent));
+      /* …and the House card's chips are neither met nor short: no red "none" for a count nobody has read. */
+      const host = document.createElement('div'); H.renderRoomGrid(host);
+      const cost = host.querySelector('.hh-room[data-room="kitchen"] .hh-room-cost');
+      const gateChip = cost && cost.querySelector('.hh-cost-gate'), logChip = cost && [...cost.querySelectorAll('.hh-cost')].find((c) => /Normal Log/.test(c.textContent));
+      assert(gateChip && gateChip.classList.contains('is-pending') && !gateChip.classList.contains('is-short'),
+        'the pending blueprint chip must be is-pending, not is-short: ' + (gateChip && gateChip.outerHTML));
+      assert(logChip && logChip.classList.contains('is-pending'), 'the pending cost chip must be is-pending: ' + (logChip && logChip.outerHTML));
       window.notify = (m) => { said.push(String(m)); };
       assert(window.upgradeRoom('kitchen') === false, 'the authority must refuse against an unstated bag');
       assert(said.some((m) => /Kitchen Blueprint II still being counted/.test(m)) && !said.some((m) => /^Requires a/.test(m)),

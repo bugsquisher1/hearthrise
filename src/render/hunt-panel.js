@@ -390,8 +390,13 @@
       var when = !clock ? '' : clock.stale ? ' (the day has turned; fresh Vigour arrives with the next settle)'
         : clock.local ? ' (' + clock.local + ' your time, ' + clock.left + ' from now)' : '';
       return '<span class="ab-vigour is-dry" title="' + esc('Out of Vigour — hunts pay ' + rate + ' until midnight UTC' + when
-        + '. Gathering still pays in full.' + (vigourForSale(v) ? ' Refills are on the Fight screen.' : '')) + '">' + chipGlyph() + 'Out<span class="ab-vigour-word"> of Vigour</span>'
-        + (fin(v.dry_mult) ? ' · <span class="ab-vigour-verb">pays </span><b>×' + esc(v.dry_mult) + '</b>' : '') + '</span>';
+        + '. Gathering still pays in full.' + (vigourForSale(v) ? ' Refills are on the Fight screen.' : '')) + '">' + chipGlyph()
+        /* "Out ·" is its own run only beside a rate: the bar's tightest fit
+           tier (art-direction.css) keeps the hourglass, the red rim and "×0.25",
+           which say it on their own; with no rate, "Out" is the whole verdict. */
+        + (fin(v.dry_mult)
+          ? '<span class="ab-vigour-out">Out<span class="ab-vigour-word"> of Vigour</span> · </span><span class="ab-vigour-verb">pays </span><b>×' + esc(v.dry_mult) + '</b>'
+          : 'Out<span class="ab-vigour-word"> of Vigour</span>') + '</span>';
     }
     if (!fin(v.remaining_min)) return '';
     var renews = clock && !clock.stale && clock.local ? ' (' + clock.local + ' your time)' : '';

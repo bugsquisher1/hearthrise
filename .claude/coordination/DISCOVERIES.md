@@ -4,6 +4,32 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-10-03 · Systems · value verbs: which ones the SERVER makes idempotent (for the migration lane)
+
+The client latch (`src/net/intent-latch.js`, lane `b562-intent-latch`) holds a gesture for
+max(answer, send + 600 ms) and re-sends the SAME `p_idem` on a re-tap after an ambiguous answer
+(timeout / network / http / unreadable body). That only closes the double-buy if the server
+replays a key it has seen. Measured from the latest migration body of each verb:
+
+| Verb | Shape | Server replays `p_idem`? | Server-side need |
+|---|---|---|---|
+| `hr_farm_upgrade_plot` | RELATIVE (`plot_level + 1`) | yes (`hr_intent_replay`, per key+intent+slot) | none; the client latch was the hole |
+| `hr_farm_plant` / `_water` / `_harvest` | per-plot absolute (occupied / window / ready) | yes | none |
+| `hr_worker_hire` | materialise up to the PAID cap | yes (`player_intents`) | none |
+| `hr_unlock_buy worker_hire.N` | absolute rung (`already_owned` receipt) | yes | none |
+| `hr_bounty_spend` reroll | ESCALATING (5 + 5 × paid today) | yes (self-check asserts "replay same idem: no re-debit") | none |
+| `hr_vigour_refill` | spend | yes (client already reuses `_pendingIdem` on network) | none |
+| **`clan_tier_up`** | **RELATIVE (`castle_tier + 1`, shared stores)** | **NO `p_idem` parameter** | **add `p_idem` + replay; the client latch cannot cover a timeout retry** |
+| **`clan_work_supply`** | **RELATIVE (delivers `least(qty, need, has)` per call)** | **NO `p_idem`** | **add `p_idem` + replay; a double delivery is capped at the order's need but is still two donations** |
+| `clan_feast_call` | absolute (cooldown after a feast) | no `p_idem` | none (server-bounded) |
+| `clan_board_claim` | absolute (`claimed_by` array, once per user) | no `p_idem` | none (server-bounded) |
+| `raid_strike` | absolute (`already_struck_today`) | no `p_idem` | none (server-bounded) |
+| `quartermaster_buy` (edge) | RELATIVE (one item per press, fresh key per press) | yes per key | client latch NOT built (open) — a double-click buys two |
+
+REQUIRED ACTION: the migration lane adds `p_idem uuid` + `hr_intent_replay` to `clan_tier_up` and
+`clan_work_supply` (money-adjacent: Security GO). The client then passes the latch's `idem` (the
+`fire(idem)` argument) — `clan-seat-ui.js tierUp` already runs inside the latch.
+
 ## 2026-09-18 · QA · adversarial pass on b548 (combat-XP deferral) + b549 (conflict retry)
 
 Both shipped "pushed, unplayed". Driven in the headless harness (Node against the real modules for

@@ -7448,7 +7448,7 @@ function renderCombat(){
           <select onchange="setCombatAutoEat(this.value)" style="background:rgba(255,255,255,.04);border:1px solid var(--line-soft);border-radius:6px;padding:5px 8px;color:var(--ink)">
             ${(_eatLab && _eatLab.state!=='off' && _eatLab.state!=='food') ? `<option value="" disabled selected hidden>${_eatLab.text}</option>` : ''}
             <option value="">Off</option>
-            ${foods.map(([id])=>`<option value="${id}" ${(_eatLab?(_eatLab.state==='food'&&_eatLab.foodId===id):(_eatCfg&&_eatAutoFood===id&&_eatCfg.enabled))?'selected':''}>${ITEMS[id].n} ×${G.inventory[id]}</option>`).join('')}
+            ${foods.map(([id])=>`<option value="${id}" ${(_eatLab?(_eatLab.state==='food'&&_eatLab.foodId===id):(_eatCfg&&_eatAutoFood===id&&_eatCfg.enabled))?'selected':''}>${ITEMS[id].n} ×${(G.inventory[id]||0).toLocaleString()}</option>`).join('')}
           </select>
         </label></div>` : ''}
       <div class="cbt-food-note tiny muted">${_foodNote}</div>
@@ -11246,7 +11246,8 @@ function refreshActivityBar(){
     const m = MONSTERS[G.activeMonster];
     bar.classList.remove('idle'); bar.classList.add('combat');
     HearthriseIcons.setActivityIcon(iconEl, 'navCombat', 'var(--red)');
-    if(nameEl) nameEl.textContent = `Fighting ${m?.name||'?'}`;
+    if(nameEl){ const _foe = m?.name||'?', _fe = nameEl.querySelector('.ab-foe');
+      if(!(_fe && _fe.textContent === _foe)) nameEl.innerHTML = '<span class="ab-verb">Fighting</span> <span class="ab-foe" title="'+escapeHtml(_foe)+'">'+escapeHtml(_foe)+'</span>'; }
     if(metaEl){
       // Show kill count for the current foe (resets when the player picks a
       // new monster) + the realm's lifetime count. The arena vs panel shows
@@ -11261,9 +11262,8 @@ function refreshActivityBar(){
       if(_ab && _ab.target === G.activeMonster){
         const v = hrBountyView(_ab);
         const _mark = v.known ? v.mark : (window.HearthriseBalance?.countMarkup?.(null, {label:'Not counted yet'}) ?? '—');
-        bountyChip = v.confirming
-          ? '<span class="ab-bounty confirming">Bounty <b>'+_mark+'/'+_ab.required+' · verifying</b></span>'
-          : '<span class="ab-bounty">Bounty <b>'+_mark+'/'+_ab.required+'</b></span>';
+        const _bw = _hrGly('navBounty',13)+'<span class="ab-chip-word">Bounty </span>', _req = (Number(_ab.required)||0).toLocaleString();
+        bountyChip = '<span class="ab-bounty'+(v.confirming?' confirming':'')+'" title="Bounty task">'+_bw+'<b>'+_mark+'/'+_req+(v.confirming?' · verifying':'')+'</b></span>';
       }
       /* b266 (tester): show the combat SKILL you're training + XP to the next
          level, right in the always-visible bar — "can I see Strength XP til level

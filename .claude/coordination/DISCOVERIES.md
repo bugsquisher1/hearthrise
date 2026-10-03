@@ -3392,3 +3392,12 @@ name/wrap half of that test is real (computed styles resolve on a hidden element
 half proves nothing where it runs. Any test that measures geometry must `showTab()` the screen first
 and skip loudly if it did not paint - both b550 rail tests do. Whoever next touches that test should
 give it the same treatment.
+
+## 2026-10-03 · game-designer · the bag paints TWO class strips with the same eleven icons (handoff: Art Director)
+
+Played first-30 on b560 (desktop 1440×900 and 922×423): the bag shows the standing loot filter
+(`.invc-lootfilter`, now labelled "Show", multi-select, persisted) and directly under it the momentary
+category strip (`.invc-cat-btn`, icon-only, scratch). Same classes, same glyphs, stacked; at 922×423
+both rows are icon-only circles/squares and a new player cannot tell which one they pressed or why
+there are two. Mechanics are fine; it reads badly. Ask: merge into one strip (tap = lens, long-press
+or a pin = standing) or visibly separate them. Not changed in lane/b562-first-30-polish (UI design).

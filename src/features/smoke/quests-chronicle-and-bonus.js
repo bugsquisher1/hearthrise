@@ -84,11 +84,9 @@ export default [
     });
   }),
 
-  /* b562 FIRST-30-1 — played as a brand-new player: the FIRST button "Your first
-     day" offers sat on "Gather 15 resources" and said "Go train", the only CTA on
-     the card that did not name its action. Drives the real card renderer on a
-     fresh chain, reads the button a player sees, then presses the door. Mutation:
-     `gather: GRID` in quest-nav.js TYPE_DEST → red on the first assert. */
+  /* FIRST-30-1 — the first-day card's FIRST button ("Gather 15 resources") names its action.
+     Drives the real card renderer on a fresh chain, reads the button, presses the door.
+     Mutation: `gather: GRID` in quest-nav.js TYPE_DEST → red on the first assert. */
   () => tryRun('b562 FIRST-30-1: "Gather 15 resources" says Go gather and lands on the skills grid; "Gain a level" still says Go train', () => {
     const QN = window.HearthriseQuestNav, H = window.HearthriseHome, G = window.G;
     assert(QN && H && typeof H.__firstDayModel === 'function' && typeof H.__firstDayHtml === 'function',

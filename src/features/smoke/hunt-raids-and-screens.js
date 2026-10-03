@@ -2871,11 +2871,9 @@ export default [
     }
   }),
 
-  /* b562 FIRST-30-2 — played as a brand-new player: the bag's class strip was
-     labelled "Keep", which beside "Weapons / Armour / Food" reads as a loot rule
-     (keep these, drop the rest). It only chooses what the bag SHOWS. Paints the
-     real bag, reads the label a player sees, clicks a chip, and proves the bag
-     itself never moved. Mutation: the label back to 'Keep' → red. */
+  /* FIRST-30-2 — the bag's class strip is labelled "Show": "Keep" beside "Weapons / Food"
+     reads as a loot rule (keep these, drop the rest). Paints the real bag, reads the label,
+     clicks a chip, proves the bag itself never moved. Mutation: label back to 'Keep' → red. */
   () => tryRunAsync('b562 FIRST-30-2: the bag\'s class strip says Show, and clicking a class hides — never removes — the rest', async () => {
     const G = window.G, LF = window.HearthriseLootFilter;
     assert(LF && typeof LF.rowHTML === 'function' && typeof window._renderInvFancy === 'function', 'CONTROL: the loot filter or the bag renderer is unpublished');

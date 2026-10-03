@@ -67,10 +67,10 @@
   var EVENTS  = function () { return dest('events',  { verb: 'Go to the muster', label: 'Events',       glyph: 'uiBanner' }); };
   var HOUSE   = function () { return dest('house',   { verb: 'Go build', label: 'Homestead',    glyph: 'uiHome' }); };
   var GRID    = function () { return dest('skills',  { verb: 'Go train', label: 'Skills',       glyph: 'totalLvl' }); };
-  /* b562 (first-30 play): "Gather 15 resources" is the FIRST row of "Your first
-     day" and its button said "Go train" — the one verb on that card that did
-     not name the action. Same door as GRID (any gathering skill counts, so the
-     grid IS the choice); only the words differ. "Gain a level" keeps Go train. */
+  /* "Gather 15 resources" is the FIRST row of "Your first day", so its button
+     names the action like every other row on that card. Same door as GRID (any
+     gathering skill counts, so the grid IS the choice); only the words differ.
+     "Gain a level" keeps Go train. */
   var GATHER  = function () { return dest('skills',  { verb: 'Go gather', label: 'Gathering', glyph: 'totalLvl' }); };
 
   // A skill's own detail screen. Verbs are the action the player performs

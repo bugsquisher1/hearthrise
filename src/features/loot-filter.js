@@ -103,11 +103,10 @@
       return (window.HR && typeof window.HR.icon === 'function')
         ? (window.HR.icon(glyph, 17, 'currentColor') || '') : '';
     };
-    /* b562 (first-30 play): the strip's word was "Keep", which beside a row of
-       item classes reads as a LOOT rule — "keep Weapons" sounds like "drop the
-       rest", so a new player hesitates to touch it. It only ever chooses what the
-       bag SHOWS (see the file header), so that is the word it prints. The
-       residue field stays `lootFilter`; only the copy moved. */
+    /* The strip's word is "Show": it only ever chooses what the bag SHOWS (see
+       the file header). "Keep" beside a row of item classes reads as a LOOT rule
+       ("keep Weapons" = "drop the rest"), so a new player hesitates to touch it.
+       The residue field stays `lootFilter`; only the copy differs. */
     var chip = function (id, label, glyph, on) {
       return '<button class="invc-lf-chip' + (on ? ' active' : '') + '" title="Show ' + label + '" onclick="'
         + (id ? "window.HearthriseLootFilter.toggle('" + id + "')" : 'window.HearthriseLootFilter.clear()')

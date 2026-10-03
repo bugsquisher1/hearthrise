@@ -477,6 +477,8 @@ import { setupCharacterPage } from './features/character-page.js?v=560';
 import { setupCombatRender } from './features/combat-render.js?v=560';
 import { setupCombatScreens } from './features/combat-screens.js?v=560';
 import { setupVigourMount } from './features/vigour-mount.js?v=560';
+// The activity bar's fit tiers: measured, so the chips shorten only on overflow.
+import { setupBarFit } from './render/bar-fit.js?v=560';
 import { setupHuntersLedger } from './features/hunters-ledger.js?v=560';
 import { setupDeeds } from './features/deeds.js?v=560';
 import { setupClimbMarks } from './features/climb-marks.js?v=560';
@@ -541,6 +543,7 @@ function tryBootFeatures() {
   boot('combat-screens', setupCombatScreens);
   /* AFTER combat-screens, which builds the Fight rail the Vigour block heads. */
   boot('vigour-mount', setupVigourMount);
+  boot('bar-fit', setupBarFit);
   boot('hunters-ledger', setupHuntersLedger);
   boot('deeds', setupDeeds);
   boot('climb-marks', setupClimbMarks);

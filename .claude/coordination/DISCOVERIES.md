@@ -3396,3 +3396,11 @@ or a pin = standing) or visibly separate them. Not changed in lane/b562-first-30
 Tyler's PC, DejaVu Sans on the CI runner (~18% wider). A fit test green locally can be red on GitHub
 for that reason alone (b562 FIGHT-PHONE-DENSITY). Any layout test measured in a frame should also run
 a forced wide face (`font-family: Verdana, "DejaVu Sans"`) the way FIGHT-STATUS-VERB-1 does.
+
+## 2026-10-03 · art-director · the XP chip is the only bar chip with no glyph anchor (P3)
+
+At the bar's `short` fit step every chip reads glyph + value except XP, so at 922x423 the kills chip
+and the XP chip run together: "1,234 STR 72 · 45,678 to go" - the inter-chip gap (6px) is narrower
+than the XP chip's own " · " separator, so proximity groups the wrong things. Not changed in
+lane/b562-combat-strip-polish (scope: clipping). Candidate fix: the skill's own atlas glyph replaces
+"STR" at `short` (narrower than the word), after checking it does not read as the kills sword.

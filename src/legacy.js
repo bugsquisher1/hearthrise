@@ -11286,9 +11286,9 @@ function refreshActivityBar(){
       /* THE AWAY CHIP answers "can I leave this running?" from the Night Plan's
          stored forecast (night-plan.js chipHtml): pays away, you fall, or no
          food; a pending mark until the server has stated the bag. It never computes. */
-      /* Each chip carries its word in a span so the phone's short form
-         (legacy.css) can drop the word and keep the glyph and the number. */
-      const licChip = '<span class="ab-tkills" title="Lifetime kills">'+_hrGly('uiTrophy',13)+'<span class="ab-chip-word">Lifetime </span><b>'+(window.HearthriseLifetime ? window.HearthriseLifetime.markup('kills') : '—')+'</b></span>';
+      /* Each chip carries its word (and Lifetime its compact figure) in a span so
+         the bar's fit tiers (render/bar-fit.js) can trade them for the glyph and a shorter number. */
+      const _LT = window.HearthriseLifetime, _cn = window.HearthriseBalance?.compactNumber, licChip = '<span class="ab-tkills" title="Lifetime kills">'+_hrGly('uiTrophy',13)+'<span class="ab-chip-word">Lifetime </span><b>'+(!_LT ? '—' : '<span class="ab-n-full">'+_LT.markup('kills')+'</span><span class="ab-n-short">'+_LT.markup('kills', _cn)+'</span>')+'</b></span>';
       const _NP = window.HearthriseNightPlan, _STN = window.HearthriseSetTheNight;
       const awayChip = (_NP && _STN) ? _NP.chipHtml(_STN.peek(G)) : '';
       metaEl.innerHTML = ''

@@ -3717,13 +3717,14 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
   color: var(--red); border: 1px solid var(--red); font-weight: 700;
 }
 .activity-bar .ab-vigour.is-dry b { color: var(--red); }
-/* The short forms' glyphs (Vigour's hourglass, Lifetime's trophy, Bounty's
-   mark, away's bed) are hidden beside their words on a bar with room; the
-   bar's fit tiers (art-direction.css) draw them when the words give way. */
+/* The short forms (Vigour's hourglass, Lifetime's trophy and compact figure,
+   Bounty's mark, away's bed) are hidden on a bar with room; the bar's fit
+   tiers (art-direction.css, src/render/bar-fit.js) draw them when it is not. */
 .activity-bar .ab-vigour-glyph,
 .activity-bar .ab-tkills > .hr-glyph,
 .activity-bar .ab-bounty > .hr-glyph,
-.activity-bar .ab-away > .hr-glyph { display: none; }
+.activity-bar .ab-away > .hr-glyph,
+.activity-bar .ab-tkills .ab-n-short { display: none; }
 /* EVERY CHIP STAYS (the Game Designer's ruling, FIGHT-PHONE-DENSITY). A chip the
    player acts on — Lifetime, away: you fall — is never hidden to make room for
    another chip: when the bar is narrow the chips get SHORTER, not fewer (the

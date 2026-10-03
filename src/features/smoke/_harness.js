@@ -1918,7 +1918,7 @@ export const cameFromArc = async (cfg, body) => {
     if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
     let b = null; try { b = JSON.parse(init && init.body); } catch (e) {} if (b && b.verb === 'set_activity') sent.push(b);
     const act = (b && b.activity) || { kind: 'idle', id: null };   /* ECHO THE DECLARED POINTER BACK as the server's own: a stub answering with a fixed activity reconciles the client onto something the gesture never asked for */
-    return Promise.resolve(new Response(JSON.stringify({ ok: true, verb: 'set_activity', version: 700 + sent.length, now: null, activity: act, state: { active_kind: act.kind, active_id: act.id }, skills: {}, inventory: {} }), { status: 200 }));
+    return Promise.resolve(new Response(JSON.stringify({ ok: true, verb: 'set_activity', version: 700 + sent.length, now: null, activity: act, state: { active_kind: act.kind, active_id: act.id }, skills: {}, inventory: Object.assign({}, G._serverBag) }), { status: 200 }));   /* a switch moves no item: the stub server answers with the bag it holds */
   };
   const snap = snapshotG(); const tileOf = () => [...document.querySelectorAll('#skill-detail .act-tile')].find((e) => e.getAttribute('data-prod') === cfg.prod);
   const settle = async () => { for (let i = 0; i < 60; i++) await Promise.resolve(); await new Promise((r) => setTimeout(r, 0)); for (let i = 0; i < 60; i++) await Promise.resolve(); };

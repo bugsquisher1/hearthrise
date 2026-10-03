@@ -3755,7 +3755,6 @@ function addItem(id,qty=1,track=true){
   return true;
 }
 function removeItem(id,qty=1){G.inventory[id]=(G.inventory[id]||0)-qty;if(G.inventory[id]<=0)delete G.inventory[id];_retimeIfTool(id);}
-function hasItem(id,qty=1){return(G.inventory[id]||0)>=qty;}
 
 /* ── b487 (#33, live: "sold the pickaxe, the boost still applied") ──────────
    THE TOOL BONUS IS DERIVED, NOT CACHED — `HearthriseTools.bestTool()` scans
@@ -8425,7 +8424,8 @@ function onItemTap(id){
     confirmLabel:'Sell',
   }).then(function(ok){
     if(!ok) return;
-    if(!hasItem(id,1)) return;               // the bag can change while a modal is open
+    const _held=window.HearthriseAccrual?.gateItemCount(G,id)??null;   // the SERVER's bag, re-read after the modal: it can change while one is open
+    if(_held===null||_held<1){ notify(_held===null?`${d.n} still being counted — try again in a moment`:`No ${d.n} left to sell`,'kill'); return; }
     const _k=goldIntentKey();
     goldSettle(_p,'vendor.tap_sell',_k);
     removeItem(id,1);
@@ -9653,6 +9653,8 @@ function applyLoadout(idx){
      equip request (the wire takes a map). Fifteen calls would spend half the
      shared 30/min accrue bucket on one tap, run fifteen collects, and — because
      each one stamps `accrued_to` — settle fourteen sub-minute windows. */
+  const _pool={}; for(const id of [...Object.values(l.equipment||{}),l.foodSlot]){ if(!id||id in _pool) continue; const n=window.HearthriseAccrual?.gateItemCount(G,id)??null; if(n===null){ notify('Your bag is still being counted — try again in a moment','kill'); return; } _pool[id]=n; }   /* FUNDED BY THE SERVER'S BAG (§6), not G.inventory (the display bag); unstated = refuse the whole kit, never half of it */
+  Object.values(G.equipment||{}).forEach(cur=>{ if(cur&&cur in _pool) _pool[cur]++; });   /* equip moved a worn unit OUT of player_inventory, and every worn piece returns to the bag below, so it funds its own slot */
   const _b = equipStateSnapshot();
   /* Equipment: items currently equipped that aren't in the preset go to bag */
   const newEq = {};
@@ -9665,8 +9667,8 @@ function applyLoadout(idx){
     if(target){
       /* b246: a loadout can't sneak past the wield gate, and records no exemption
          — a piece the realm refuses is dropped, not sent and bounced, every apply. */
-      if(hasItem(target, 1) && (typeof canWield!=='function' || canWield(target).ok)){
-        removeItem(target, 1);
+      if((_pool[target]||0)>=1 && (typeof canWield!=='function' || canWield(target).ok)){
+        removeItem(target, 1); _pool[target]--;
         newEq[slot] = target;
       } else {
         newEq[slot] = null;
@@ -9692,7 +9694,7 @@ function applyLoadout(idx){
      accrual) would actually eat. The toggle is deliberately NOT touched: a
      loadout says what to carry, not whether auto-eat is on. */
   var _loadoutFood;
-  if(l.foodSlot && hasItem(l.foodSlot, 1)) { G.foodSlot = l.foodSlot; _loadoutFood = l.foodSlot; }
+  if(l.foodSlot && (_pool[l.foodSlot]||0)>=1) { G.foodSlot = l.foodSlot; _loadoutFood = l.foodSlot; }
   else if(!l.foodSlot) { G.foodSlot = null; _loadoutFood = null; }
   if(_loadoutFood !== undefined && window.HearthriseAuto && window.HearthriseAuto.setEat){
     window.HearthriseAuto.setEat({ foodId: _loadoutFood });
@@ -14507,7 +14509,7 @@ function has(skill, id){ return (window.ARTISAN_RECIPES[skill]||[]).some(functio
    named wrappers because the artisan renderer and the auto-actions feature
    both call them. */
 function getInputs(recipe){ return window.HearthriseCore.artisan.recipeInputs(recipe); }
-function hasInputs(recipe){ return window.HearthriseCore.artisan.hasInputs(recipe, G.inventory); }
+function artisanInputGate(recipe){ return window.HearthriseCore.artisan.inputGate(recipe, function(id){ return window.HearthriseAccrual?.gateItemCount(G,id)??null; }); }   /* §6: hr_apply debits the SERVER's bag, so the start gate counts its mirror; unstated = counting (core/artisan.js inputGate) */
 /* consumeInputs() was deleted with this pass: resolveArtisanAction returns a
    `consumed` map and doArtisanAction applies it, so a helper that removed
    items without knowing whether craftSave had refunded them had no honest
@@ -14705,7 +14707,6 @@ window.doArtisanAction = function(skillId, recipeId, opts){
 };
 
 /* Override startArtisan to check inputs (any-of-them) instead of single .input */
-var origStart = window.startArtisan;
 window.startArtisan = function(skillId, recipeId){
   /* R4 COOKING PAUSE — refuse to start a cook. No declare, no timer, no debit.
      The cooking screen already replaces the tiles with the pause banner; this is
@@ -14723,11 +14724,9 @@ window.startArtisan = function(skillId, recipeId){
      — the LEVEL, then the recipe scroll, then the inputs. */
   if((window.hrGateLevel?window.hrGateLevel(skillId):1) < r.req){ if(typeof notify==='function') notify((window.hrLevelGateText?window.hrLevelGateText(skillId,r.req,'Need Lv '+r.req+' '+skillId):'Need Lv '+r.req+' '+skillId),'kill'); return; }
   if(!gateOk(r)){ if(typeof notify==='function') notify('Need recipe scroll: '+(ITEMS[r.gated]?.n||r.gated),'kill'); return; }
-  if(!hasInputs(r)){ 
-    var missing = []; var inp = getInputs(r);
-    Object.entries(inp).forEach(function(kv){ if((G.inventory[kv[0]]||0) < kv[1]) missing.push((ITEMS[kv[0]]?.n||kv[0])+' x'+kv[1]); });
-    if(typeof notify==='function') notify('Need: '+missing.join(', '),'kill'); return;
-  }
+  var _ig = artisanInputGate(r), _nm = function(id){ return (ITEMS[id]&&ITEMS[id].n)||id; };   /* the SERVER's bag: an unstated one is counting, said once, never a shortfall */
+  if(_ig.counting.length){ if(typeof notify==='function') notify(_ig.counting.map(_nm).join(' and ')+' still being counted — try again in a moment','kill'); return; }
+  if(!_ig.ok){ if(typeof notify==='function') notify('Need: '+_ig.short.map(function(id){ return _nm(id)+' x'+_ig.inputs[id]; }).join(', '),'kill'); return; }
   /* b348 SEAM 7 — the inputs-aware override is the one that actually runs;
      seam 6 above is the base it shadows. BOTH declare, because a build that
      loaded only one of them must not be silent. */
@@ -14747,19 +14746,19 @@ window.renderArtisanActivities = function(skillId){
   var lv = getLevel(skillId);
   return recipes.map(function(r){
     var inp = getInputs(r);
-    var inputNames = Object.entries(inp).map(function(kv){
-      var nm = (ITEMS[kv[0]]&&ITEMS[kv[0]].n)||kv[0];
-      return kv[1]+'×'+nm+'('+(G.inventory[kv[0]]||0)+')';
+    var ig = artisanInputGate(r), inputNames = Object.entries(inp).map(function(kv){   /* the count the gate reads (server bag), '…' while unstated */
+      var nm = (ITEMS[kv[0]]&&ITEMS[kv[0]].n)||kv[0], n = window.HearthriseAccrual?.gateItemCount(G,kv[0])??null;
+      return kv[1]+'×'+nm+'('+(n===null?'…':n)+')';
     }).join(' + ');
     var unlocked = (window.hrGateLevel?window.hrGateLevel(skillId):1) >= r.req;
     var gated = r.gated && !window.knowsRecipe(r.gated);
-    var canDo = unlocked && !gated && hasInputs(r);
+    var canDo = unlocked && !gated && ig.ok;
     var active = G.activeSkill===skillId && G.skillTargetId===r.id;
     var outputLabel = r.output && ITEMS[r.output] ? ITEMS[r.output].n : (r.output||'XP only');
     var status = '';
     if(!unlocked) status = '<span class="muted tiny">'+lockGlyph()+' Lv '+r.req+'</span>';
     else if(gated) status = '<span class="muted tiny">'+_hrGly('uiScroll',12)+' Recipe locked</span>';
-    else if(!hasInputs(r)) status = '<span class="muted tiny">Missing materials</span>';
+    else if(!ig.ok) status = '<span class="muted tiny">'+(ig.counting.length?'Still being counted':'Missing materials')+'</span>';
     else if(active) status = '<span class="mr-active">Active</span>';
     /* b225: this row is wide enough for the whole sentence, so it gets it. */
     var burnSentence = (typeof window.burnRiskText === 'function') ? window.burnRiskText(r, skillId) : '';

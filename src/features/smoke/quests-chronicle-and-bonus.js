@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 67 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, xpOf, predZero, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, zeroRenownTerms, restoreRenownTerms, on, snapshot, closeOverlays, hrCharmDriver, phoneFrame, feedServerGoals, goalRow } from './_harness.js?v=560';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, xpOf, predZero, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, zeroRenownTerms, restoreRenownTerms, on, snapshot, closeOverlays, hrCharmDriver, phoneFrame, feedServerGoals, goalRow, serverBagFixture } from './_harness.js?v=560';
 import { THIS_WEEK, THIS_WEEK_QUIET } from '../../data/this-week.js?v=560';
 
 export default [
@@ -1178,12 +1178,12 @@ export default [
   // active class, the Active chip, and zeroes the fill.
   () => tryRun('b228: starting combat clears the old activity tile Active state', () => {
     if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     const prevTab = window.activeTab;
     try {
       /* Stock BOTH sides: the factory literal is gone and the gate reads the mirror. */
       window.G.inventory.shrimp = (window.G.inventory.shrimp || 0) + 5;
-      window.G._serverBag = Object.assign({}, window.G._serverBag, { shrimp: window.G.inventory.shrimp });
+      bag.agree(Object.assign({}, window.G._serverBag, { shrimp: window.G.inventory.shrimp }));   // restored in finally: it leaked into every later test
       window.showTab('skills');
       if (typeof window.openSkillDetail === 'function') window.openSkillDetail('cooking');
       window.startArtisan('cooking', 'cook_shrimp');
@@ -1197,7 +1197,7 @@ export default [
     } finally {
       if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(null);
       try { window.stopCombat(); } catch (e) {}
-      restoreG(snap);
+      bag.restore(); restoreG(snap);
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
     }
   }),
@@ -1208,7 +1208,7 @@ export default [
   // running out stops the activity fully, clears the tile, and says why.
   () => tryRun('b228: running out of materials stops the activity honestly (all artisan skills)', () => {
     if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     const realNotify = window.notify;
     try {
       // Feed is DERIVED from each recipe's real input (cook_shrimp's input is
@@ -1232,6 +1232,7 @@ export default [
         window.notify = (m) => { toast += ' ' + m; };
         window.G.inventory = Object.assign({}, window.G.inventory);
         for (const k in c.feed) window.G.inventory[k] = c.feed[k];
+        bag.agree();   // the server holds the one action's feed: exhaustion is the subject
         window.G.skills[c.skill] = Math.max(window.G.skills[c.skill] || 0, 100000);
         window.showTab('skills');
         if (typeof window.openSkillDetail === 'function') window.openSkillDetail(c.skill);
@@ -1256,7 +1257,7 @@ export default [
     } finally {
       if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(null);
       window.notify = realNotify;
-      restoreG(snap);
+      bag.restore(); restoreG(snap);
       try { window.showTab('profile'); } catch (e) {}
     }
   }),
@@ -1281,7 +1282,7 @@ export default [
      bag figure only the client believes). */
   () => tryRun('b531: an artisan run that runs out of inputs DECLARES idle — the server collect is what pays it', () => {
     if (typeof window.startArtisan !== 'function') { skip('no startArtisan'); return; }
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     const realNotify = window.notify, realDeclare = window.declareActivity;
     const stopBench = () => {
       try { if (typeof window._stopArtisan === 'function') window._stopArtisan(); } catch (e) {}
@@ -1301,7 +1302,7 @@ export default [
       if (r.inputs) Object.keys(r.inputs).forEach((k) => { feed[k] = r.inputs[k]; });
       else feed[r.input] = 1;
       G.rooms = Object.assign({}, G.rooms, { forge: 1 });
-      G.inventory = Object.assign({}, G.inventory, feed);
+      G.inventory = Object.assign({}, G.inventory, feed); bag.agree();   // the server holds the feed: the exhaustion DECLARE is the subject
       G.skills = Object.assign({}, G.skills, { smithing: 100000 });
       stampRecordLikeLoad(G);
       window.startArtisan('smithing', r.id);
@@ -1322,7 +1323,74 @@ export default [
         + 'gates a server capability on a client-held bag figure.');
     } finally {
       window.notify = realNotify; window.declareActivity = realDeclare;
-      stopBench(); restoreGAndRecord(snap);
+      stopBench(); bag.restore(); restoreGAndRecord(snap);
+    }
+  }),
+
+  /* regression suite — THE BENCH COUNTS THE SERVER'S BAG (CLAUDE.md §6, P1 class
+     "client shows X, server refuses"). The attended start gate (startArtisan) and
+     the recipe row's enabled/status state read hasInputs(G.inventory) — the
+     display bag, which a client-rolled drop can hold ahead of the server — so a
+     smith pressed a lit row, a run was declared, and hr_apply's own input check
+     refused it. Both now read core/artisan.js inputGate over gateItemCount (the
+     mirror of player_inventory): short = "Missing materials", unstated = "Still
+     being counted", never a fabricated count and never a pass.
+     MUTATION: point legacy.js artisanInputGate's countOf back at G.inventory and
+     (a) goes red on the row AND the start. */
+  () => tryRun('CRAFT-GATE-1: the bench start and its recipe row count the SERVER bag — display-only ore starts nothing, an unstated bag is "still being counted"', () => {
+    if (typeof window.startArtisan !== 'function' || typeof window.renderArtisanActivities !== 'function') { skip('no artisan bench'); return; }
+    const snap = snapshotG(), bag = serverBagFixture();
+    const realNotify = window.notify, realDeclare = window.declareActivity;
+    const said = [], declares = [];
+    const stopBench = () => {
+      try { if (typeof window._stopArtisan === 'function') window._stopArtisan(); } catch (e) {}
+      window.G.activeSkill = null; window.G.skillTargetId = null;
+    };
+    try {
+      const G = window.G, inputsOf = window.HearthriseCore.artisan.recipeInputs;
+      window.notify = (m) => { said.push(String(m)); };
+      window.declareActivity = (kind, id) => { declares.push({ kind, id }); return null; };
+      const list = window.ARTISAN_RECIPES.smithing || [];
+      const r = list.find((x) => x.req <= 1 && !x.gated && Object.keys(inputsOf(x)).length);
+      assert(r, 'no ungated level-1 smithing recipe that takes inputs, for the probe');
+      const feed = Object.assign({}, inputsOf(r));
+      G.skills = Object.assign({}, G.skills, { smithing: 100000 });
+      G.inventory = Object.assign({}, G.inventory, feed);
+      stampRecordLikeLoad(G);
+      const row = () => {
+        const host = document.createElement('div');
+        host.innerHTML = window.renderArtisanActivities('smithing');
+        return host.querySelectorAll('button')[list.indexOf(r)];
+      };
+      const attempt = () => { stopBench(); said.length = 0; declares.length = 0; window.startArtisan('smithing', r.id); };
+
+      // (a) the DISPLAY bag holds the feed; the SERVER holds none of it.
+      bag.agree({});
+      assert(row().disabled && /Missing materials/.test(row().textContent),
+        '(a) the row is lit for inputs only the display bag holds: ' + row().outerHTML.slice(0, 240));
+      attempt();
+      assert(G.skillTargetId !== r.id && !declares.length,
+        '(a) THE BUG: ' + r.id + ' started and declared ' + JSON.stringify(declares) + ' on inputs the server does not hold — hr_apply refuses it');
+      assert(said.some((m) => /^Need: /.test(m)), '(a) the refusal did not name the inputs: ' + JSON.stringify(said));
+
+      // (b) an unstated bag is a pending state: no start, no shortfall, said once.
+      delete G._serverBag;
+      assert(row().disabled && /Still being counted/.test(row().textContent),
+        '(b) an unstated bag must read "Still being counted": ' + row().outerHTML.slice(0, 240));
+      attempt();
+      assert(G.skillTargetId !== r.id && !declares.length, '(b) an unstated bag started ' + r.id);
+      assert(said.some((m) => /still being counted/.test(m)) && !said.some((m) => /^Need: /.test(m)),
+        '(b) an unstated bag must say "still being counted", never a shortfall: ' + JSON.stringify(said));
+
+      // (c) CONTROL: the server holds the feed, so the row is lit and the run starts.
+      bag.agree(feed);
+      assert(!row().disabled, '(c) CONTROL: the server holds the feed and the row is still disabled');
+      attempt();
+      assert(G.skillTargetId === r.id && declares.some((d) => d.kind === 'artisan' && d.id === r.id),
+        '(c) CONTROL: the server holds the feed and ' + r.id + ' did not start: ' + JSON.stringify(said));
+    } finally {
+      window.notify = realNotify; window.declareActivity = realDeclare;
+      stopBench(); bag.restore(); restoreGAndRecord(snap);
     }
   }),
 

@@ -4455,7 +4455,7 @@ export default [
     const wasAck = A.isReplacementAcknowledged();
     const wasHeld = S.isSnapshotHeld();
     const savedInv = { ...G.inventory }, savedEq = { ...G.equipment }, savedGold = G.gold;
-    const savedLoadouts = G.loadouts;
+    const savedLoadouts = G.loadouts, bag = serverBagFixture();
     let sent = [];
     const drain = () => new Promise((r) => setTimeout(r, 60));
     try {
@@ -4477,7 +4477,7 @@ export default [
 
       G.gold = 0;
       G.equipment = { weapon: null, helmet: null, body: null };
-      G.inventory = { bronze_sword: 1, bronze_helm: 1 };
+      G.inventory = { bronze_sword: 1, bronze_helm: 1 }; bag.agree();   // the server holds the kit: the ONE request is the subject
       G.loadouts = [{ name: 'Test kit', set: true,
         equipment: { weapon: 'bronze_sword', helmet: 'bronze_helm' }, tools: {}, foodSlot: null }];
       // Bronze is tier 1, so the kit passes the wield gate on its own merits.
@@ -4510,7 +4510,77 @@ export default [
       if (prevCfg) E.configureEquip(prevCfg);
       A.acknowledgeReplacement(wasAck);
       if (wasHeld) S.holdSnapshots(); else S.releaseSnapshots();
-      G.inventory = savedInv; G.equipment = savedEq; G.gold = savedGold; G.loadouts = savedLoadouts;
+      G.inventory = savedInv; G.equipment = savedEq; G.gold = savedGold; G.loadouts = savedLoadouts; bag.restore();
+    }
+  }),
+
+  /* regression suite — THE KIT AND THE VENDOR COUNT THE SERVER'S BAG (CLAUDE.md
+     §6, P1 class "client shows X, server refuses"). applyLoadout funded every
+     slot and the food from hasItem(), i.e. G.inventory — the display bag a
+     client-rolled drop can hold ahead of the server — so a kit equipped a piece
+     hr_apply then refused, and the vendor tap sold one the server never held.
+     Both now count gateItemCount (the mirror of player_inventory). A WORN piece
+     still funds its own slot: equip moved it OUT of player_inventory, and every
+     worn piece returns to the bag in the apply. An unstated bag refuses, says
+     so, and moves nothing.
+     MUTATION: fund the kit (or the sale) from G.inventory again and (a)/(d) go red. */
+  () => tryRunAsync('LOADOUT-SRV-BAG: a loadout and a vendor sale count the SERVER bag — a display-only piece is not equipped or sold, an unstated bag moves nothing', async () => {
+    const G = window.G, Auto = window.HearthriseAuto, Gd = window.HearthriseGold;
+    const snap = snapshotG(), bag = serverBagFixture();
+    const real = { notify: window.notify, route: window.routeEquipGesture, ask: window.askConfirm, settle: window.goldSettle,
+      setEat: Auto && Auto.setEat, sell: Gd && Gd.sellItem, loadouts: G.loadouts, food: G.foodSlot, active: window._activeLoadout };
+    const said = [], eats = [];
+    let sold = 0;
+    try {
+      window.notify = (m) => { said.push(String(m)); };
+      window.routeEquipGesture = () => null;   // the wire is EQUIP-BATCH's subject
+      if (Auto) Auto.setEat = (o) => { eats.push(o && o.foodId); };
+      if (Gd) Gd.sellItem = () => null;
+      window.goldSettle = () => { sold++; return {}; };
+      window.askConfirm = () => Promise.resolve(true);
+      const kit = { name: 'Probe kit', set: true, equipment: { weapon: 'bronze_sword', helmet: 'bronze_helm' }, tools: {}, foodSlot: 'cooked_shrimp' };
+      const wear = (eq) => { G.equipment = Object.assign({ weapon: null, helmet: null, body: null }, eq); G.loadouts = [kit]; said.length = 0; };
+      G.inventory = { bronze_sword: 1, bronze_helm: 1, cooked_shrimp: 5, copper_ore: 5 };
+
+      // (a) the display bag holds the sword and the shrimp; the SERVER holds only the helm.
+      wear({}); bag.agree({ bronze_helm: 1 });
+      window.applyLoadout(0);
+      assert(G.equipment.weapon === null && G.equipment.helmet === 'bronze_helm',
+        '(a) the kit equipped ' + JSON.stringify(G.equipment) + ' — the sword is in the DISPLAY bag only, and hr_apply refuses that equip');
+      assert(eats.length === 0, '(a) the kit set auto-eat to ' + JSON.stringify(eats) + ' off shrimp the server does not hold');
+
+      // (b) an unstated bag refuses the WHOLE kit, says why, and moves nothing.
+      wear({}); delete G._serverBag;
+      window.applyLoadout(0);
+      assert(G.equipment.weapon === null && G.equipment.helmet === null, '(b) an unstated bag equipped ' + JSON.stringify(G.equipment));
+      assert(said.some((m) => /still being counted/.test(m)), '(b) the refusal did not say the bag is still being counted: ' + JSON.stringify(said));
+
+      // (c) CONTROL, and the trap a naive switch falls into: a WORN piece funds its own slot.
+      wear({ weapon: 'bronze_sword' }); bag.agree({ bronze_helm: 1, cooked_shrimp: 5 });
+      window.applyLoadout(0);
+      assert(G.equipment.weapon === 'bronze_sword' && G.equipment.helmet === 'bronze_helm',
+        '(c) re-applying the kit dropped the sword the player is WEARING: ' + JSON.stringify(G.equipment));
+      assert(eats[eats.length - 1] === 'cooked_shrimp', '(c) the server holds the shrimp and the kit did not choose it: ' + JSON.stringify(eats));
+
+      // (d) the vendor tap: the display bag shows ore the server does not hold.
+      G.inventory.copper_ore = 5; bag.agree({}); said.length = 0;
+      window.onItemTap('copper_ore'); await drain();
+      assert(sold === 0 && G.inventory.copper_ore === 5, '(d) the vendor sold ore the SERVER does not hold (' + sold + ' sale(s))');
+      assert(said.some((m) => /No Copper Ore left to sell/.test(m)), '(d) the refusal was not spoken: ' + JSON.stringify(said));
+      // (e) unstated: no sale, and it says the bag is being counted.
+      delete G._serverBag; said.length = 0;
+      window.onItemTap('copper_ore'); await drain();
+      assert(sold === 0 && said.some((m) => /still being counted/.test(m)), '(e) an unstated bag sold or stayed silent: ' + JSON.stringify(said));
+      // (f) CONTROL: the server holds it, so it sells.
+      bag.agree({ copper_ore: 5 });
+      window.onItemTap('copper_ore'); await drain();
+      assert(sold === 1 && G.inventory.copper_ore === 4, '(f) CONTROL: the server holds the ore and the sale did not happen (' + sold + ')');
+    } finally {
+      window.notify = real.notify; window.routeEquipGesture = real.route; window.askConfirm = real.ask; window.goldSettle = real.settle;
+      if (Auto) Auto.setEat = real.setEat;
+      if (Gd) Gd.sellItem = real.sell;
+      G.loadouts = real.loadouts; G.foodSlot = real.food; window._activeLoadout = real.active;
+      bag.restore(); restoreG(snap);
     }
   }),
 
@@ -8752,9 +8822,10 @@ export default [
   () => tryRunAsync('B539-1: after a fight, tapping the artisan recipe you came FROM sends the switch — a stale paint cannot swallow the gesture', async () => {
     const rec = ((window.ARTISAN_RECIPES || {}).cooking || []).find((r) => r.id === 'cook_shrimp'); const mid = (window.MONSTERS || {}).slime ? 'slime' : Object.keys(window.MONSTERS || {})[0];
     assert(!!rec && !!mid && !!window.HearthriseActivity && typeof window.startArtisan === 'function', 'setup: no cook_shrimp recipe / monster / activity seam — the reported gesture cannot be driven');
+    const bag = serverBagFixture();   // the stub server holds the seeded shrimp (cameFromArc echoes its bag)
     try {
       await withCookingArmed(() => cameFromArc({ skillId: 'cooking', targetId: rec.id, prod: rec.output, mid, start: () => window.startArtisan('cooking', rec.id),   /* the bench pause is not this test's subject */
-        seed: (G) => { const inp = rec.inputs || { [rec.input]: rec.inputQty || 1 }; Object.keys(inp).forEach((id) => { G.inventory[id] = (G.inventory[id] || 0) + 200; }); } },
+        seed: (G) => { const inp = rec.inputs || { [rec.input]: rec.inputQty || 1 }; Object.keys(inp).forEach((id) => { G.inventory[id] = (G.inventory[id] || 0) + 200; }); bag.agree(); } },
         async ({ G, sent, settle, tileOf, tile, stalePaint }) => {
           tile.click(); await settle();
           const sw = sent.filter((b) => b.activity && b.activity.kind === 'artisan' && b.activity.id === rec.id);
@@ -8764,7 +8835,7 @@ export default [
           const third = tileOf(); third.click(); await settle(); assert(G.activeSkill === 'cooking' && G.skillTargetId === rec.id, 'the tap AFTER a stop did not restart the recipe (' + G.activeSkill + '/' + G.skillTargetId + ') — a stop strips .active in place and rebuilds nothing');
         }));
     } finally {
-      closeOverlays();   // same accrual replacement gate as B533-1
+      bag.restore(); closeOverlays();   // same accrual replacement gate as B533-1
     }
   }),
 

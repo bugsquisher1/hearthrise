@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 31 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, withFarmServer, snapshotG, restoreG, restoreGAndRecord, on, overlayResidue, captureShellLocks, residueProbe } from './_harness.js?v=560';
+import { pass, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, withFarmServer, snapshotG, restoreG, restoreGAndRecord, on, overlayResidue, captureShellLocks, residueProbe, serverBagFixture } from './_harness.js?v=560';
 import { SCREEN_PRIMERS } from '../../data/screen-primers.js?v=560';
 
 /* The primer markers on this device, so a PRIMER test can put them back exactly. */
@@ -759,7 +759,7 @@ export default [
      and no refusal is spoken. */
   () => tryRun('a Wanderer\'s Camp smith with ore and Smithing 1 can start smelt_copper — no room refusal, the run is declared', () => {
     if (typeof window.startArtisan !== 'function') { skip('no startArtisan'); return; }
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     const realNotify = window.notify, realDeclare = window.declareActivity;
     /* The bench arms two setIntervals; leaving them running would tick
        doArtisanAction() through the rest of the suite, eating ore and moving
@@ -778,7 +778,7 @@ export default [
       window.declareActivity = (kind, id) => { declares.push({ kind, id }); return null; };
       // No rooms at all — no Forge, no Workshop. Both recipes are req 1.
       G.homestead = { tier: 0 }; G.rooms = {};
-      G.inventory = Object.assign({}, G.inventory, { copper_ore: 50, normal_log: 50, iron_ore: 50, coal: 50 });
+      G.inventory = Object.assign({}, G.inventory, { copper_ore: 50, normal_log: 50, iron_ore: 50, coal: 50 }); bag.agree();   // the server holds the ore: the ROOM gate is the subject
       G.skills = Object.assign({}, G.skills, { smithing: 0, crafting: 0 });
       stampRecordLikeLoad(G);
       [['smithing', 'smelt_copper'], ['crafting', 'saw_normal']].forEach(([skill, recipe]) => {
@@ -803,7 +803,7 @@ export default [
       assert(said.some((m) => /Lv\s*15/i.test(m)), 'the level refusal must name the level, said: ' + JSON.stringify(said));
     } finally {
       window.notify = realNotify; window.declareActivity = realDeclare;
-      stopBench(); restoreGAndRecord(snap);
+      stopBench(); bag.restore(); restoreGAndRecord(snap);
     }
   }),
 

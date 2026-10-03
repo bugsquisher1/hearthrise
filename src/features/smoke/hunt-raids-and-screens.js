@@ -4227,7 +4227,7 @@ export default [
       window.G.gold = (window.G.gold || 0) + 1000;
       window.G.inventory = window.G.inventory || {};
       window.G.inventory.normal_log = (window.G.inventory.normal_log || 0) + 5;
-      bag.agree();   // the server holds the logs — RED alone without it; it passed only on b214's leaked bag
+      bag.agree();   // the server holds the logs — RED alone without it; it passed only on the dungeon-key test's leaked bag
       const r = M.listItem('normal_log', 1, 5);
       // The listing itself is the first real assertion: listing a held item must succeed.
       assert(r && r.ok, 'listItem(normal_log) failed: ' + JSON.stringify(r));

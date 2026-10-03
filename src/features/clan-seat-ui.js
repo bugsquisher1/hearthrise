@@ -2066,7 +2066,6 @@
           (p.level != null ? '<span class="hr-room-build-lv">Lv ' + esc(p.level) + '</span>' : '') +
           (chips ? '<span class="hr-room-build-cost">' + chips + '</span>'
                  : '<span class="hr-room-build-cost is-free">Ready to build</span>') +
-          /* `whyShown` (when the descriptor gives one) is `why` minus what gateLines prints below. */
           (p.disabled && !p.whyCovered && (p.whyShown != null ? p.whyShown : p.why)
             ? '<div class="hr-room-build-why">' + esc(p.whyShown != null ? p.whyShown : p.why) + '</div>' : '') +
           /* The gate rides in the PINNED bar, never in a toast: the bar is the

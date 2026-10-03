@@ -78,17 +78,9 @@ export function activeSlot() {
   return 0;
 }
 
-/** A client-generated idempotency key (uuid). A RETRY of the SAME gesture must
- *  carry the SAME key so the server's player_intents cache replays the identical
- *  result with no second seed debit / no second harvest credit; a NEW gesture
- *  gets a fresh one. */
-export function newFarmIdem() {
-  try { if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID(); } catch (e) {}
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-    const r = (Math.random() * 16) | 0, v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
+/* The idempotency key is the latch's (net/intent-latch.js): fresh per gesture,
+   the SAME on a re-tap after an ambiguous answer, so the server's player_intents
+   cache replays the committed result with no second debit or credit. */
 
 /** Resolve {url, anonKey, jwt, slot} from an explicit opts override first, then
  *  the window singletons. Returns null when there is no usable config — the
@@ -390,7 +382,7 @@ if (typeof window !== 'undefined') {
   window.HearthriseFarmSync = {
     isFarmServerArmed,
     farmPlantRefusalText,
-    activeSlot, newFarmIdem,
+    activeSlot,
     farmPlant, farmWater, farmHarvest, farmUpgradePlot,
     farmGestureInFlight,
     reconcileFarmResult,

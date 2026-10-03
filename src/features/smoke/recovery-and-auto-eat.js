@@ -2974,7 +2974,8 @@ export default [
     const pending = NP.chipHtml(null);
     assert(pending.indexOf(B.PENDING_CLASS) >= 0 && !/pays away/.test(pending), 'the chip spoke before the forecast: ' + pending);
     const chip = NP.chipHtml({ kind: 'combat', numeric: true, deaths: 3, stoppedBy: 'retreat', retreatFalls: 3, retreatMs: 600000, foodQty: 0, foodEaten: 0, targetName: 'Slime' });
-    assert(/away: no food/.test(chip), 'a hungry retreat chip is wrong: ' + chip);
+    const said = chip.replace(/<[^>]+>/g, '');
+    assert(/away: no food/.test(said), 'a hungry retreat chip does not READ "away: no food": ' + chip);
   }),
 
   /* AB-AWAY-PENDING-1 (regression, board P3): the pending chip was a bare dash with

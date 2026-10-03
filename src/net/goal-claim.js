@@ -298,6 +298,7 @@
     });
   }
 
+  var _spendLatch = null;   // the bounty-reroll latch (bountyRerollOnce)
   window.HearthriseGoalClaim = {
     activeSlot: activeSlot,
     isSignedIn: isSignedIn,
@@ -442,12 +443,28 @@
        Fire-and-forget, DISPLAY-PREDICTION shape: the server owns player_state.marks
        and the next envelope reconciles it. Only fired for a PAID reroll (free
        rerolls never reach the server) or an abandon with a fee. */
-    bountyReroll: function () {
+    bountyReroll: function (key) {
       return call('hr_bounty_spend', {
         p_slot: activeSlot(), p_reason: 'reroll', p_bounty_level: 0,
-        p_reward_marks: 0, p_idem: newIdem()
+        p_reward_marks: 0, p_idem: key || newIdem()
       });
     },
+    /* ONE PAID REROLL IN FLIGHT (net/intent-latch.js). The server prices a
+       reroll 5 + 5 × paid rerolls today, so a double-click on the board's "New
+       notices" paid 5 AND 10 for one refresh. bountyRerollOnce returns the
+       call's promise, or null while a reroll is held (or the latch is absent):
+       the caller then does nothing at all. A re-tap after a timeout re-sends
+       the same p_idem, which hr_bounty_spend replays without a second debit. */
+    bountyRerollHeld: function () { return !!(_spendLatch && _spendLatch.held('reroll:' + activeSlot())); },
+    bountyRerollOnce: function () {
+      var L = window.HearthriseIntentLatch;
+      if (!_spendLatch && L && typeof L.createIntentLatch === 'function') _spendLatch = L.createIntentLatch();
+      var k = 'reroll:' + activeSlot();
+      if (!_spendLatch || _spendLatch.held(k)) return null;
+      return _spendLatch.run(k, function (idem) { return window.HearthriseGoalClaim.bountyReroll(idem); });
+    },
+    /* Test teardown only: drop every held spend. */
+    __resetSpendLatch: function () { if (_spendLatch) _spendLatch.reset(); },
     bountyAbandon: function (bountyLevel, rewardMarks) {
       return call('hr_bounty_spend', {
         p_slot: activeSlot(), p_reason: 'abandon',

@@ -90,6 +90,7 @@
       || (typeof json.message === 'string' && /could not find the function/i.test(json.message))));
   }
 
+  var CALL_TIMEOUT_MS = 15000;
   async function call(name, body) {
     var R = window.HearthriseRpc;
     if (R && typeof R.mayCall === 'function' && !R.mayCall(name, isSignedIn())) {
@@ -98,26 +99,36 @@
     if (missing(name)) return { ok: false, error: 'rpc_missing' };
     var c = cfg();
     if (!c) return { ok: false, error: 'no_config' };
+    /* A deadline across the fetch AND its body, below the hire latch's hold
+       (features/workers.js HIRE_HOLD_MS covers three of these in a chain). */
+    var ctl = (typeof AbortController === 'function') ? new AbortController() : null;
+    var timedOut = false;
+    var timer = setTimeout(function () { timedOut = true; if (ctl) ctl.abort(); }, CALL_TIMEOUT_MS);
     try {
       var res = await fetch(c.url + '/rest/v1/rpc/' + name, {
-        method: 'POST', headers: headers(), body: JSON.stringify(body || {})
+        method: 'POST', headers: headers(), body: JSON.stringify(body || {}),
+        signal: ctl ? ctl.signal : undefined
       });
       var json = null;
       try { json = await res.json(); } catch (e) { json = null; }
+      if (timedOut) return { ok: false, error: 'timeout' };
       if (isMissingShape(json, res.status)) { note(name, false); return { ok: false, error: 'rpc_missing' }; }
       note(name, true);
       if (json && typeof json === 'object') return json;
       return { ok: false, error: 'bad_response', status: res.status };
     } catch (e) {
-      return { ok: false, error: 'network' };
+      return { ok: false, error: timedOut ? 'timeout' : 'network' };
+    } finally {
+      clearTimeout(timer);
     }
   }
 
   window.HearthriseWorkersNet = {
     activeSlot: activeSlot,
     isSignedIn: isSignedIn,
-    /** MATERIALISE a worker up to the paid cap. @returns Promise<{ok,uid,name,crew}|{ok:false,error}> */
-    hire: function () { return call('hr_worker_hire', { p_slot: activeSlot(), p_idem: idem() }); },
+    /** MATERIALISE a worker up to the paid cap; `key` re-sends a retried intent's
+     *  p_idem (the hire latch's). @returns Promise<{ok,uid,name,crew}|{ok:false,error}> */
+    hire: function (key) { return call('hr_worker_hire', { p_slot: activeSlot(), p_idem: key || idem() }); },
     /** ASSIGN (or, with null skill/target, idle) a worker. @returns Promise<{ok,uid,skill,target_id}|{ok:false,error}> */
     assign: function (uid, skill, targetId) {
       return call('hr_worker_assign', {

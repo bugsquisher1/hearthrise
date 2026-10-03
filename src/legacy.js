@@ -4154,12 +4154,11 @@ function rerollBountyBoard(prepaid){
       if((G.marks||0)<cost){notify(`Need ${cost} Bounty Marks to reroll.`,'kill');return;}
       G.marks-=cost;G.bountyHunter.rerollsToday=(G.bountyHunter.rerollsToday||0)+1;
     } else {
-      /* ARMED: server owns marks. Affordability fail-closes on UNKNOWN via marksOf;
-         the real debit is hr_bounty_spend (server re-derives the cost). The local
-         write is display-only, reconciled by the next envelope. */
-      const MR=window.HearthriseMarks;
+      /* ARMED: the real debit is hr_bounty_spend (server prices it, one press per latch — goal-claim.js
+         bountyRerollOnce; a held press returns BEFORE any toast). Local writes are display-only. */
+      const MR=window.HearthriseMarks,GC=window.HearthriseGoalClaim;if(!GC||!GC.bountyRerollOnce||GC.bountyRerollHeld())return;
       if(MR&&!MR.canAffordMarks(G,cost)){notify(`Need ${cost} Bounty Marks to reroll.`,'kill');return;}
-      try{if(window.HearthriseGoalClaim&&HearthriseGoalClaim.bountyReroll){const _p=HearthriseGoalClaim.bountyReroll();if(_p&&_p.catch)_p.catch(()=>{});}}catch(e){}
+      const _p=GC.bountyRerollOnce();if(!_p)return;_p.catch(()=>{});
       G.bountyHunter.rerollsToday=(G.bountyHunter.rerollsToday||0)+1;
     }
   }

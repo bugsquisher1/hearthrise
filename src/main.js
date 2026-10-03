@@ -330,6 +330,9 @@ import './net/gold.js?v=560';
 // legacy farm writers run byte-for-byte as today and nothing here is called.
 // Importing it does NOT arm anything — it only makes the transport available.
 import './net/farm-sync.js?v=560';
+// ONE IN-FLIGHT LATCH PER VALUE GESTURE — publishes window.HearthriseIntentLatch
+// for the classic-script callers (workers, clan seat, bounty board, farm screens).
+import './net/intent-latch.js?v=560';
 // b366 — the EQUIP intent (`equip`), Phase 2 of docs/design/live-settlement.md.
 // AFTER accrue.js, and for a reason stronger than the shared kill switch this
 // time: loading it is what makes `markEquipAuthorityLive` REACHABLE, and that

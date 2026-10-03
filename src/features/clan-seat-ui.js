@@ -193,13 +193,21 @@
   function rpcMissing(n) { var p = probe[n]; return !!(p && p.known === false && (Date.now() - p.at) < 600000); }
   function noteRpc(n, present) { probe[n] = { known: present, at: Date.now() }; }
 
+  /* A deadline across the fetch AND its body, below the tier-up latch's 20 s
+     hold (net/intent-latch.js DEFAULT_HOLD_MS): a lost answer frees the button. */
+  var RPC_TIMEOUT_MS = 15000;
   async function rpc(name, body) {
-    var res = await fetch(cfg().url + '/rest/v1/rpc/' + name, {
-      method: 'POST', headers: headers(), body: JSON.stringify(body || {})
-    });
-    var json = null;
-    try { json = await res.json(); } catch (e) { json = null; }
-    return { status: res.status, json: json };
+    var ctl = (typeof AbortController === 'function') ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctl) ctl.abort(); }, RPC_TIMEOUT_MS);
+    try {
+      var res = await fetch(cfg().url + '/rest/v1/rpc/' + name, {
+        method: 'POST', headers: headers(), body: JSON.stringify(body || {}),
+        signal: ctl ? ctl.signal : undefined
+      });
+      var json = null;
+      try { json = await res.json(); } catch (e) { json = null; }
+      return { status: res.status, json: json };
+    } finally { clearTimeout(timer); }
   }
   // Every clan-seat RPC answers the same {ok:boolean,…} envelope, so there is
   // one call helper and it returns the b222 reducer's verdict.
@@ -705,7 +713,7 @@
     var d = await _tierLatch.run('tier_up:' + cid, function () {
       return call('clan_tier_up', { p_clan_id: cid }, function (o) { return { out: o }; });
     });
-    if (d && d.inFlight === true) return false;   // the first tap answers for both
+    if (L.isInFlightAnswer(d)) return false;   // the first tap answers for both
     if (d.action !== 'accept') { toast(d.message || C().errorText(d.error), 'kill'); return false; }
     var r = C().reduceTierUp(200, d.out);
     toast('The hold rises: ' + r.name + '.', 'levelup');

@@ -43,7 +43,7 @@
 
 import { isFarmServerArmed } from '../data/item-authority.js?v=560';
 import { withSettleFirstRetry } from './settle-first.js?v=560';
-import { createIntentLatch, isInFlightAnswer } from './intent-latch.js?v=560';
+import { createIntentLatch } from './intent-latch.js?v=560';
 
 export { isFarmServerArmed };
 
@@ -167,9 +167,11 @@ async function callFarmRpc(name, body, opts) {
    ONE GESTURE IN FLIGHT PER (verb, slot, plot) — src/net/intent-latch.js. A
    double-click used to send two intents with two keys, and hr_farm_upgrade_plot
    is RELATIVE (plot_level + 1): the second paid for a tier nobody asked for.
-   While a gesture is on the wire a repeat sends NOTHING and resolves to the
-   held answer {ok:false, error:'in_flight', inFlight:true}, which every caller
-   treats as silence — the first call answers for both. ─────────────────────── */
+   While a gesture is held (its answer AND a 600 ms floor) a repeat sends
+   NOTHING and resolves to the held answer {ok:false, error:'in_flight',
+   inFlight:true}, which every caller treats as silence. The latch hands each
+   gesture its p_idem: a re-tap after a timeout re-sends the SAME key, so the
+   server replays what it committed instead of buying again. ─────────────── */
 const farmLatch = createIntentLatch();
 function slotOf(o) { return (o.slot !== undefined && o.slot !== null) ? (o.slot | 0) : activeSlot(); }
 function latchKey(kind, slot, plotIdx) {
@@ -179,20 +181,20 @@ function latchKey(kind, slot, plotIdx) {
 export function farmPlant(plotIdx, cropId, opts) {
   const o = opts || {};
   const slot = slotOf(o);
-  return farmLatch.run(latchKey('plant', slot, plotIdx), () => callFarmRpc('hr_farm_plant', {
+  return farmLatch.run(latchKey('plant', slot, plotIdx), (idem) => callFarmRpc('hr_farm_plant', {
     p_slot: slot,
     p_plot_idx: plotIdx | 0,
     p_crop: String(cropId == null ? '' : cropId),
-    p_idem: o.idem || newFarmIdem(),
+    p_idem: o.idem || idem,
   }, o));
 }
 export function farmWater(plotIdx, opts) {
   const o = opts || {};
   const slot = slotOf(o);
-  return farmLatch.run(latchKey('water', slot, plotIdx), () => callFarmRpc('hr_farm_water', {
+  return farmLatch.run(latchKey('water', slot, plotIdx), (idem) => callFarmRpc('hr_farm_water', {
     p_slot: slot,
     p_plot_idx: plotIdx | 0,
-    p_idem: o.idem || newFarmIdem(),
+    p_idem: o.idem || idem,
   }, o));
 }
 /* hr_farm_harvest is settle-gated (2026-09-28-settle-before-mutate.sql): the ONE
@@ -201,20 +203,17 @@ export function farmWater(plotIdx, opts) {
 export function farmHarvest(plotIdx, opts) {
   const o = opts || {};
   const slot = slotOf(o);
-  const body = {
-    p_slot: slot,
-    p_plot_idx: plotIdx | 0,
-    p_idem: o.idem || newFarmIdem(),
-  };
-  return farmLatch.run(latchKey('harvest', slot, plotIdx),
-    () => withSettleFirstRetry(() => callFarmRpc('hr_farm_harvest', body, o)));
+  return farmLatch.run(latchKey('harvest', slot, plotIdx), (idem) => {
+    const body = { p_slot: slot, p_plot_idx: plotIdx | 0, p_idem: o.idem || idem };
+    return withSettleFirstRetry(() => callFarmRpc('hr_farm_harvest', body, o));
+  });
 }
 export function farmUpgradePlot(opts) {
   const o = opts || {};
   const slot = slotOf(o);
-  return farmLatch.run(latchKey('upgrade', slot), () => callFarmRpc('hr_farm_upgrade_plot', {
+  return farmLatch.run(latchKey('upgrade', slot), (idem) => callFarmRpc('hr_farm_upgrade_plot', {
     p_slot: slot,
-    p_idem: o.idem || newFarmIdem(),
+    p_idem: o.idem || idem,
   }, o));
 }
 /** Is a farm gesture of this kind already on the wire for this slot/plot? */
@@ -393,7 +392,7 @@ if (typeof window !== 'undefined') {
     farmPlantRefusalText,
     activeSlot, newFarmIdem,
     farmPlant, farmWater, farmHarvest, farmUpgradePlot,
-    farmGestureInFlight, isInFlightAnswer,
+    farmGestureInFlight,
     reconcileFarmResult,
     /* Test teardown only: drop every hold, so a suite that abandons a fake
        transport mid-flight cannot leave the next test's tap swallowed. */

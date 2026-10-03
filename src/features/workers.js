@@ -238,8 +238,12 @@
 
      ONE HIRE IN FLIGHT (src/net/intent-latch.js). The chain below can BUY the
      next, dearer rung; a double-click used to run it twice. The latch is held
-     across the WHOLE chain (materialise → buy → materialise) and a repeat tap
-     while it is held does nothing at all — no optimistic worker, no toast. */
+     across the WHOLE chain (materialise → buy → materialise, each call under a
+     15 s deadline, so HIRE_HOLD_MS outlasts all three) and a repeat tap while it
+     is held does nothing at all — no optimistic worker, no toast. The chain
+     resolves to its LAST answer: an ambiguous one (timeout/network) hands the
+     re-tap the same p_idem for its first materialise, which the server replays.*/
+  var HIRE_HOLD_MS = 50000;
   var _hireLatch = null;
   function hireLatch() {
     var L = window.HearthriseIntentLatch;
@@ -267,9 +271,9 @@
     function fail(res) { dropWorker(G, temp); notifyHireError(res); render(); }
 
     // (1) MATERIALISE against the paid cap first — free, and drains a stranded rung.
-    latch.run('hire', function () { return Promise.resolve(Net.hire()).then(function (res) {
-      if (res && res.ok) { settleOk(res); return; }
-      if (!res || res.error !== 'crew_cap_reached') { fail(res); return; }
+    latch.run('hire', function (idem) { return Promise.resolve(Net.hire(idem)).then(function (res) {
+      if (res && res.ok) { settleOk(res); return res; }
+      if (!res || res.error !== 'crew_cap_reached') { fail(res); return res; }
 
       /* (2) AT THE PAID CAP — buy the NEXT rung, then materialise. The rung is
          (paid_cap + 1), STATED by the server in the crew_cap_reached answer, so
@@ -279,14 +283,14 @@
       if (nextRung > HIRE_COSTS.length) {          // 6 is the hard ceiling
         dropWorker(G, temp);
         if (window.notify) notify('Your crew is already at full strength', 'kill');
-        render(); return;
+        render(); return res;
       }
       var cost = HIRE_COSTS[Math.min(paidCap, HIRE_COSTS.length - 1)];
       if (!window.balCanAfford(cost, 'gold')) {
         dropWorker(G, temp);
         if (window.notify) notify(window.balKnown('gold') ? ('Need ' + cost.toLocaleString() + ' gold to hire')
           : window.balShortfall(cost, 'gold'), 'kill');
-        render(); return;
+        render(); return res;
       }
       var _k = (typeof window.goldIntentKey === 'function') ? window.goldIntentKey() : null;
       window.goldSettle(-cost, 'workers.hire', _k);
@@ -302,13 +306,16 @@
         if (!ok) {
           dropWorker(G, temp);
           if (window.notify) notify('Could not complete the hire — ' + ((r && r.reason) || 'try again'), 'kill');
-          render(); return;
+          render(); return { ok: false, error: (r && r.outcome === 'refused') ? 'refused' : 'transport' };
         }
         return Promise.resolve(Net.hire()).then(function (res2) {
           if (res2 && res2.ok) settleOk(res2); else fail(res2);
-        }).catch(function () {});
-      }).catch(function () {});
-    }).catch(function () { /* transient — leave the optimistic worker; the next envelope reconciles */ }); });
+          return res2;
+        });
+      });
+    }).catch(function () { /* transient — leave the optimistic worker; the next envelope reconciles */
+      return { ok: false, error: 'transport' };
+    }); }, { holdMs: HIRE_HOLD_MS });
 
     return temp;
   }

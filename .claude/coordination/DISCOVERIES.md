@@ -4,6 +4,21 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-10-03 · qa-engineer · the stated server bag leaked across the in-page suite (snapshotG)
+
+`G._serverBag` (+ the two stamps `reconcileInventory` writes with it, `_bagFromServerAt`, `_startKitHintAt`)
+was off `snapshotG`, so any test that stated a bag — 28 direct writes, farmReplantFixtureG's callers, every
+applied inventory envelope — left it for every later test. `lane/b562-serverbag-snapshot` puts the triple on
+the list (SNAP_ABSENT), guard M10a-c + in-page SNAP-BAG-1. 169 bag/gate/render tests run ALONE each:
+
+| # | Test | Alone (pre- and post-fix) | Class / priority | Disposition |
+|---|---|---|---|---|
+| 1 | DGN-SETTLE-3 | red "armed: the run must be accepted" — passed in order only on a leaked bag | P2 suite order-dependence | fixed: `serverBagFixture().agree()` |
+| 2 | DGN-COOLDOWN-1 | red `{pending:true,"counting your keys"}` — same | P2 | fixed: `serverBagFixture().agree()` |
+| 3 | B353-3b | red "topbar stayed in the pending state after the balance came back" — NOT the bag (gold/gems record) | P2 order-dependence, another unrestored field | open → systems-engineer (balance/record owner) |
+
+Required action: a test that wants a gate SENT states the server bag (`serverBagFixture`); it never inherits one.
+
 ## 2026-10-03 · systems-engineer · b562 projection sweep: three item gates still read the merge bag (CLAUDE.md §6)
 
 `lane/b562-projection-sweep` moved Build / property / plot / market-list onto `gateItemCount` (accrue.js:1309,

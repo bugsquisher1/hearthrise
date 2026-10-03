@@ -20,6 +20,12 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
   `isCharacterHydrated()` flips; otherwise every gesture is gated before the wire and proves nothing.
 - `#hr-dl-modal` re-opens ~20 s after a harness boot and counts as a sheet: toasts pushed then are HELD.
   Not a bug; it explains "held: 2" stragglers in a storm measurement.
+- GO-WITH-CHANGES follow-up: legacy.js top-level functions are NOT all on `window` (`buildActivityCard`
+  is not; `refreshActivityBar` is). Probe `typeof window.X` before writing a test against it.
+- Read the code path to the SCREEN before claiming a surface shows something: `renderCharacter` is
+  reassigned at ~16811 after the ~14943 wrapper, so the Character "activity card" never paints.
+- Covering toasts: measure with `elementFromPoint` at the control's centre, not by overlap. Skip the
+  FTUE first (`.ftue-btn.skip`), or every hit-test returns `.ftue-shade`.
 
 ### 2026-09-12 · The mutation proof with no floor — `tests/mutation-proof.mjs` + guard-hygiene RULE 5 (branch `worktree-agent-a3906653b0a242bc2`, commit 883b62d6 + merge of main)
 

@@ -3399,6 +3399,7 @@ export default [
     try {
       window.getCombatLevel = () => 99;
       G.inventory = Object.assign({}, G.inventory, { bone_key: 1 });
+      serverBagFixture().agree();   // the key gate counts the STATED bag; passed only on a leaked one (2026-10-03)
       // (a) a PROJECTED window blocks its OWN mode only, and prints a countdown.
       A.reconcileDungeonCooldowns(G, { dungeon_cooldowns: { [id]: { auto: at, manual: at } } });
       const busy = window.canRunDungeon(id, 'auto');

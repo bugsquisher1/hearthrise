@@ -4,6 +4,28 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-10-03 · QA · b562 exploratory rerun (toast storm, reload mid-run, double-clicks) on b560
+
+Harness (`__HR_TEST_HARNESS__`), local build, desktop 1440x900 + 922x423, scratch Playwright.
+
+| # | Probe | Observed | Verdict |
+|---|---|---|---|
+| 1 | 60 distinct `notify()` in one task | 4 visible / 12 queued / 44 dropped; all drained by +32 s; 0 toast timers left; no throw | OK |
+| 1b | 60 identical | 1 row "x60" | OK |
+| 1c | 60 with Settings open | 0 painted, 5 held, replayed one at a time after close | OK |
+| 1d | hover a toast mid-storm | all timers cleared while paused; drains after mouse leaves | OK |
+| 1e | `notifyAction` inside a storm | its own `children>5` cap removes queue-owned nodes; `#notifs` 5 nodes vs `visible` 4 | P4, `legacy.js` notifyAction |
+| 1f | 4 toasts at 922x423, fight view | short toasts: column 47% of height, over the foe name/HP bar; two-line toasts: 69%, over `#ab-stop` + Quests | **P3 → Art Director** (`toasts.js` MAX_VISIBLE / short-view column) |
+| 2 | reload with fight / gather / craft running, and instant reload after start | always Idle after reload, no console errors, no stale pointer, no timers left. The harness has no server, so the RESUME path is not exercised | OK (harness limit) |
+| 3 | double click: daily Claim (real dblclick) | 1 `claim_reward` intent, +500 once | OK |
+| 3b | shop Buy, synchronous double `click()` | 1 `shop_buy`, display moved by exactly one purchase | OK |
+| 3c | bounty Accept / Upgrade Property / Upgrade Plot / Plant all / Water | no intent reached the faked hr-accrue wire (other transports, or refused locally); not proven either way | NOT COVERED |
+| 4 | activity strip label | "Woodcutting — normal tree", "Cooking — cook shrimp": the raw id, while the Character card named the node | **P3, FIXED** (`hrActivityTargetName`, activity-tile.js; regression `b562: the activity strip names…`) |
+
+Fake-wire recipe for the next pass: `HearthriseAuth.wireServerIntents(window,{url:<local>/fake-sb, …})`,
+answer `hr_load` with `{ok,skills,inventory,equipment,progress:[],state:{slot:0,hp,max_hp,active_kind:'idle',gold,gems}}`
+so `isCharacterHydrated()` flips, then hold hr-accrue POSTs 900 ms and 503 them.
+
 ## 2026-09-18 · QA · adversarial pass on b548 (combat-XP deferral) + b549 (conflict retry)
 
 Both shipped "pushed, unplayed". Driven in the headless harness (Node against the real modules for

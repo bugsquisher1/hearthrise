@@ -2290,6 +2290,35 @@ export default [
     }
   }),
 
+  () => tryRun('b562: the activity strip names the node/recipe, not its id', () => {
+    /* The strip printed `skillTargetId.replace(/_/g,' ')` ("Woodcutting — normal
+       tree") while the Character card named the node. */
+    const nameEl = document.getElementById('ab-name');
+    assert(nameEl && typeof window.hrActivityTargetName === 'function', 'activity strip or name helper missing');
+    const G = window.G, tree = window.TREES[0], recipe = (window.ARTISAN_RECIPES.cooking || [])[0];
+    assert(tree && recipe && recipe.input, 'no woodcutting node or cooking recipe to start');
+    const snap = { skill: G.activeSkill, target: G.skillTargetId, monster: G.activeMonster,
+      action: G.activeAction, recipe: G.activeArtisanRecipe, inv: G.inventory[recipe.input] };
+    try {
+      if (typeof window.stopSkill === 'function') window.stopSkill();
+      G.activeMonster = null; G.activeAction = null; G.activeArtisanRecipe = null;
+      window.startSkill('woodcutting', tree.id, 3000);
+      let text = nameEl.textContent || '';
+      assert(text.includes(tree.name), 'gathering strip reads "' + text + '", expected the node name "' + tree.name + '"');
+      G.inventory[recipe.input] = 5;
+      window.startArtisan('cooking', recipe.id);
+      text = nameEl.textContent || '';
+      assert(text.includes(recipe.name), 'cooking strip reads "' + text + '", expected the recipe name "' + recipe.name + '"');
+      assert(window.hrActivityTargetName('no_such_node') === 'no such node', 'an unknown id must still read as words');
+    } finally {
+      try { window.stopSkill && window.stopSkill(); } catch (e) {}
+      G.activeSkill = snap.skill; G.skillTargetId = snap.target; G.activeMonster = snap.monster;
+      G.activeAction = snap.action; G.activeArtisanRecipe = snap.recipe;
+      if (snap.inv === undefined) delete G.inventory[recipe.input]; else G.inventory[recipe.input] = snap.inv;
+      try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
   () => tryRun('b371: buying a hero slot asks before it spends premium currency', () => {
     const HP = window.HearthriseProfile;
     if (!HP || !HP.profile) return;

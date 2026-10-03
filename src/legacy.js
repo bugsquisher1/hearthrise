@@ -11307,7 +11307,7 @@ function refreshActivityBar(){
     const s = SKILLS_DEF[G.activeSkill];
     bar.classList.remove('idle','combat');
     HearthriseIcons.setActivityIcon(iconEl, G.activeSkill, 'var(--green)');
-    let actName = G.skillTargetId ? G.skillTargetId.replace(/_/g,' ') : '';
+    let actName = hrActivityTargetName(G.skillTargetId);
     if(nameEl) nameEl.textContent = `${s?.name||G.activeSkill}${actName?' — '+actName:''}`;
     const xph = _activityXpHr();
     if(metaEl){
@@ -11417,7 +11417,7 @@ function refreshPanelProgress(){
   }
   if(G.activeSkill){
     const s = SKILLS_DEF[G.activeSkill] || {};
-    const target = G.skillTargetId ? G.skillTargetId.replace(/_/g,' ') : '';
+    const target = hrActivityTargetName(G.skillTargetId);
     const xph = _activityXpHr();
     /* b229: Skills folded into the Character screen, so the per-tab progress
        strip lives on #panel-character now (it was keyed to #panel-skills, which
@@ -15078,24 +15078,7 @@ function buildActivityCard(){
        the honest picture and the one the rail, the activity bar and the
        level-up toast all use for the same thing. */
     var iconHtml = skillIconHTML(G.activeSkill, 34);
-    if(typeof TREES!=='undefined'){
-      var n = TREES.find(function(a){return a.id===G.skillTargetId;});
-      if(n){ nodeName = n.name; }
-    }
-    if(!nodeName && typeof ROCKS!=='undefined'){
-      var n = ROCKS.find(function(a){return a.id===G.skillTargetId;});
-      if(n){ nodeName = n.name; }
-    }
-    if(!nodeName && typeof FISH_SPOTS!=='undefined'){
-      var n = FISH_SPOTS.find(function(a){return a.id===G.skillTargetId;});
-      if(n){ nodeName = n.name; }
-    }
-    if(!nodeName && typeof window.ARTISAN_RECIPES !== 'undefined'){
-      Object.keys(window.ARTISAN_RECIPES).forEach(function(s){
-        var r = window.ARTISAN_RECIPES[s].find(function(x){return x.id===G.skillTargetId;});
-        if(r){ nodeName = r.name; }
-      });
-    }
+    nodeName = escapeHtml(hrActivityTargetName(G.skillTargetId));
     var skName = (typeof SKILLS_DEF!=='undefined' && SKILLS_DEF[G.activeSkill]) ? SKILLS_DEF[G.activeSkill].name : G.activeSkill;
     card.className = 'char-active-card';
     card.innerHTML = '<div class="ca-icon">'+iconHtml+'</div>'+

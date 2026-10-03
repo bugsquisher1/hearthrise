@@ -7173,9 +7173,10 @@ export default [
       assert(nameEl, 'the activity strip is missing from the page, so the reported symptom cannot be measured');
       const txt = String(nameEl.textContent || '');
       const benchName = (window.SKILLS_DEF && window.SKILLS_DEF[SKILL] && window.SKILLS_DEF[SKILL].name) || SKILL;
-      assert(txt.indexOf(benchName) !== -1 && txt.indexOf(RID.replace(/_/g, ' ')) !== -1,
+      const recipeName = (hit.recipe && hit.recipe.name) || RID.replace(/_/g, ' ');
+      assert(txt.indexOf(benchName) !== -1 && txt.indexOf(recipeName) !== -1,
         'the activity strip reads "' + txt + '" — it must name the bench and the recipe ("' + benchName
-        + ' — ' + RID.replace(/_/g, ' ') + '"), which is the sentence the player said was missing');
+        + ' — ' + recipeName + '"), which is the sentence the player said was missing');
       assert(!/^Idle/.test(txt), 'THE REPORTED SYMPTOM VERBATIM: the strip still reads "' + txt + '"');
 
       /* ③ NOTHING WENT BACK ON THE WIRE. */

@@ -69,4 +69,18 @@
     }
     start(skillId, targetId, ms);
   };
+
+  /* The DISPLAY name of a tile's target (node or recipe), for every strip that
+     names the running activity; an unknown id still reads as words. */
+  window.hrActivityTargetName = function (id) {
+    if (!id) return '';
+    var tables = [window.TREES, window.ROCKS, window.FISH_SPOTS];
+    var R = window.ARTISAN_RECIPES || {};
+    for (var s in R) tables.push(R[s]);
+    for (var i = 0; i < tables.length; i++) {
+      var hit = Array.isArray(tables[i]) && tables[i].find(function (x) { return x && x.id === id; });
+      if (hit && hit.name) return hit.name;
+    }
+    return String(id).replace(/_/g, ' ');
+  };
 })();

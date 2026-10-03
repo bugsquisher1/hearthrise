@@ -1108,7 +1108,7 @@
              its own source rather than being mixed into the price chips where
              "0/1 Kitchen Blueprint II" reads like 1 more plank. */
           gates: (row.gates || []).map(function (g) {
-            return { id: g.id, name: g.name, have: g.have, need: g.need, ok: g.ok,
+            return { id: g.id, name: g.name, have: g.have, need: g.need, ok: g.ok, known: g.known !== false,
                      source: g.source || '', spent: !!row.owned };
           }),
           why: row.gateReason || null,
@@ -1146,9 +1146,12 @@
          press this" is ON the bar (item, held/not, and where it comes from)
          instead of arriving in a toast after the click. */
       var pinGates = (d.next.gates || []).map(function (g) {
-        return { id: g.id, name: g.name, have: g.have, need: g.need, ok: g.ok, source: g.source || '' };
+        return { id: g.id, name: g.name, have: g.have, need: g.need, ok: g.ok, known: g.known !== false, source: g.source || '' };
       });
       var unmet = pinGates.filter(function (g) { return !g.ok; });
+      /* An UNSTATED server bag is not "you need one" (roomRungItemGate known:false):
+         the bar says the bag is still being counted, the same words as the toast. */
+      var counting = unmet.filter(function (g) { return !g.known; }), short = unmet.filter(function (g) { return g.known; });
       /* ONE reason string, built from every blocker rather than the first one.
          The branch chain this replaces returned only the highest-priority
          reason, so a rung short of BOTH a blueprint and 40 planks named one of
@@ -1156,11 +1159,13 @@
          — name what is short, never "not enough" — applied to all three classes. */
       var reasons = [];
       if (d.next.gated) reasons.push(d.next.gateReason);
-      if (unmet.length) reasons.push('Needs ' + unmet.map(function (g) { return g.name; }).join(' and '));
+      if (short.length) reasons.push('Needs ' + short.map(function (g) { return g.name; }).join(' and '));
+      if (counting.length) reasons.push(counting.map(function (g) { return g.name; }).join(' and ') + ' still being counted');
       if (!d.next.gated && d.next.missing.length) {
         reasons.push('Missing ' + d.next.missing.map(function (m) {
           var n = (window.ITEMS && window.ITEMS[m.id] && window.ITEMS[m.id].n) || m.id;
-          if (m.known === false) return m.id + ' balance not loaded yet';
+          /* Same words as upgradeProperty's toast: a currency balance is "not loaded", an item is "still being counted". */
+          if (m.known === false) return (m.id === 'gold' || m.id === 'gems') ? m.id + ' balance not loaded yet' : n + ' still being counted';
           return m.id === 'gold' ? ((m.need - m.have) + ' gold') : (n + ' ×' + (m.need - m.have));
         }).join(', '));
       }
@@ -1287,7 +1292,7 @@
            short exactly like the others, with its source in the hover. */
         (d.next.gates || []).forEach(function (g) {
           chips.push('<span class="hh-cost hh-cost-gate ' + (g.ok ? 'is-met' : 'is-short') + '" title="' +
-            esc(g.name + ' — ' + (g.ok ? 'in your bags' : 'you have none') +
+            esc(g.name + ' — ' + (g.ok ? 'in your bags' : g.known === false ? 'still being counted' : 'you have none') +
                 (g.source ? '. ' + g.source : '')) + '">' +
             '<b>' + esc(g.need.toLocaleString()) + '</b> ' + esc(g.name) + '</span>');
         });
@@ -1309,10 +1314,11 @@
            answers to "why is this not ready", and only one of the two was ever
            given. Short costs deliberately stay unnamed here — the chips below
            already colour them, and the modal carries the full ledger. */
-        var ug = (d.next.gates || []).filter(function (g) { return !g.ok; });
+        var ug = (d.next.gates || []).filter(function (g) { return !g.ok && g.known !== false; });
+        var uc = (d.next.gates || []).filter(function (g) { return !g.ok && g.known === false; });
         foot = 'Next: ' + esc(d.next.name) + (ug.length
           ? ' &mdash; needs ' + esc(ug.map(function (g) { return g.name; }).join(' and '))
-          : (d.next.affordable ? ' &mdash; ready' : ''));
+          : uc.length ? ' &mdash; counting your bag' : (d.next.affordable ? ' &mdash; ready' : ''));
       }
       return '<button type="button" class="hh-room ' + cls + '" data-room="' + esc(id) + '" ' +
         'aria-label="' + esc(d.title + ' — ' + (owned ? 'level ' + d.level : d.state === 'locked' ? 'locked' : 'not built')) + '">' +

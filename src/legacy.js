@@ -8645,7 +8645,7 @@ function upgradeRoom(id){
        modal's ladder, its pinned build bar and the House card all state this
        requirement inline before the player ever clicks (b355). Kept because
        upgradeRoom is the authority and must refuse audibly on any path. */
-    notify('Requires a '+_bp.name+(_bp.source?' — '+_bp.source:''),'kill');
+    notify(_bp.known===false ? _bp.name+' still being counted — try again in a moment' : 'Requires a '+_bp.name+(_bp.source?' — '+_bp.source:''),'kill');
     return false;
   }
   const missing=describeMissingCost(nx.cost);
@@ -8729,7 +8729,7 @@ function upgradeRoom(id){
    so a view can never disagree with the authority), but now every view can ASK.
 
    Returns null when the rung has no item gate at all, else
-     { id, name, need, have, ok, source }
+     { id, name, need, have, known, ok, source }   (known:false = the server bag is unstated; have -1)
    `source` is the real reverse-index line (window.itemSourceLine, b242) so a
    blueprint that starts dropping somewhere new re-describes itself for free —
    the old toast hardcoded "they drop from dungeons", which is prose, not data. */
@@ -8738,10 +8738,10 @@ function roomRungItemGate(id,want){
   let bid=null;
   for(const iid in ITEMS){ if(ITEMS[iid] && ITEMS[iid].unlocks===key){ bid=iid; break; } }
   if(!bid) return null;
-  const need=1, have=window.HearthriseAccrual?.gateItemCount(G,bid)??0;   /* the SERVER's bag: hr_unlock_buy consumes the blueprint */
+  const srv=window.HearthriseAccrual?.gateItemCount(G,bid)??null, known=srv!==null, need=1, have=known?srv:-1;   /* the SERVER's bag (hr_unlock_buy consumes it); NULL = unstated: known:false, pending, never 0 */
   let source='';
   try{ if(typeof window.itemSourceLine==='function') source=window.itemSourceLine(bid)||''; }catch(e){}
-  return {id:bid, name:(ITEMS[bid]&&ITEMS[bid].n)||bid, need:need, have:have, ok:have>=need, source:source};
+  return {id:bid, name:(ITEMS[bid]&&ITEMS[bid].n)||bid, need:need, have:have, known:known, ok:known&&have>=need, source:source};
 }
 
 /* Is rung `want` (1-based) legal at the player's current property tier?

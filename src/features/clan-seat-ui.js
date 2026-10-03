@@ -2024,10 +2024,10 @@
       var g = (list || []).filter(Boolean);
       if (!g.length) return '';
       return '<div class="hr-room-gates">' + g.map(function (x) {
-        var cls = x.spent ? 'is-spent' : x.ok ? 'is-met' : 'is-need';
+        var cls = x.spent ? 'is-spent' : x.ok ? 'is-met' : x.known === false ? 'is-pending' : 'is-need';   /* known:false = bag unstated: pending, never "none" */
         var state = x.spent ? 'Spent' : x.ok
           ? ('In your bags' + (x.have > 1 ? ' (' + nfmt(x.have) + ')' : ''))
-          : 'You have none';
+          : x.known === false ? 'Still being counted' : 'You have none';
         /* b372: the gate is the requirement a player is MOST likely to tap —
            it is the one they cannot grind for. b355 already prints its source
            line underneath; the name now also opens the full flyout, where the

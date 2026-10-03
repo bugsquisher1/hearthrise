@@ -484,8 +484,11 @@ begin
     raise exception 'GATE(d): the farm verb lost its rate gate, row lock or journal row'; end if;
   if v_src ~ 'return jsonb_build_object\(''ok'', false' then
     raise exception 'GATE(d): the farm verb has an UNJOURNALLED refusal site - the rejections seam is incomplete'; end if;
-  if position('hr_intent_replay(' in v_src) > position('p_expect_level <>' in v_src) then
-    raise exception 'GATE(d): the stale check runs BEFORE the replay - a retried landed gesture would read stale_level'; end if;
+  if position('p_expect_level <> v_state.plot_level + 1' in v_src) = 0 then
+    raise exception 'GATE(d): the farm verb does not compare the expected level with plot_level + 1'; end if;
+  if position('hr_intent_replay(' in v_src) > position('p_expect_level <>' in v_src)
+     or position('for update' in v_src) > position('p_expect_level <>' in v_src) then
+    raise exception 'GATE(d): the stale check runs BEFORE the replay or OUTSIDE the row lock - a retried landed gesture would read stale_level, or two intents would both pass'; end if;
   v_src := replace(pg_get_functiondef('public.clan_tier_up__ungated(uuid,int)'::regprocedure), chr(13), '');
   if position('for update' in v_src) = 0
      or position('for update' in v_src) > position('clan_upkeep_settle(' in v_src) then

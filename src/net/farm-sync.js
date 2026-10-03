@@ -190,11 +190,22 @@ export function farmHarvest(plotIdx, opts) {
   };
   return withSettleFirstRetry(() => callFarmRpc('hr_farm_harvest', body, o));
 }
+/* THE RUNG BEING BOUGHT IS NAMED (2026-10-04-expected-level-idempotency.sql).
+   hr_farm_upgrade_plot refuses unless p_expect_level = plot_level + 1 under the
+   row lock, so a double-click or a retry that minted a fresh key cannot buy the
+   tier AFTER the one on screen. `o.expectLevel` must come from the SERVER's
+   plot level (G._serverPlotLevel + 1); without one there is nothing honest to
+   send, so nothing is sent — the server would refuse it as missing_expect. */
 export function farmUpgradePlot(opts) {
   const o = opts || {};
+  const expect = Number(o.expectLevel);
+  if (!Number.isInteger(expect) || expect < 2) {
+    return Promise.resolve({ ok: false, error: 'missing_expect', refused: true });
+  }
   return callFarmRpc('hr_farm_upgrade_plot', {
     p_slot: (o.slot !== undefined && o.slot !== null) ? (o.slot | 0) : activeSlot(),
     p_idem: o.idem || newFarmIdem(),
+    p_expect_level: expect,
   }, o);
 }
 

@@ -63,7 +63,7 @@ export default [
       const snap = snapshotG();
       try {
         window.G.plotLevels = 1;
-        delete window.G._serverPlotLevel;   // the tier under test is 1, from both sources
+        window.G._serverPlotLevel = 1;      // the SERVER's tier is 1, so the intent names rung 2
         window.G.inventory.farm_deed = 5;
         /* b510: deeds are the FALLBACK payment now — gold is charged first — and
            the tier sits behind a farming level. Broke + eligible is the state
@@ -121,7 +121,7 @@ export default [
       const snap = snapshotG();
       try {
         window.G.plotLevels = 1;
-        delete window.G._serverPlotLevel;   // the tier under test is 1, from both sources
+        window.G._serverPlotLevel = 1;      // the SERVER's tier is 1, so the intent names rung 2
         window.G.inventory.farm_deed = 0;          // no deed anywhere in sight
         window.G.gold = 500;
         window.G.skills = window.G.skills || {};
@@ -184,7 +184,7 @@ export default [
       const snap = snapshotG();
       try {
         window.G.plotLevels = 1;
-        delete window.G._serverPlotLevel;   // the tier under test is 1, from both sources
+        window.G._serverPlotLevel = 1;      // the SERVER's tier is 1, so the intent names rung 2
         window.G.gold = 5000;
         window.G.inventory.farm_deed = 4;
         window.G.skills = window.G.skills || {};
@@ -203,6 +203,70 @@ export default [
         assert((window.G.gold | 0) === 4500, "the server's balance should render as 4500, got " + window.G.gold);
         assert((window.G.inventory.farm_deed | 0) === 4,
           'the deeds must be untouched, got ' + window.G.inventory.farm_deed);
+      } finally { restoreG(snap); }
+    })),
+
+  // ════════════════════════════════════════════════════════════════════════
+  // b562 — AN ESCALATING PURCHASE NAMES THE RUNG IT IS BUYING
+  // (supabase/migrations/2026-10-04-expected-level-idempotency.sql). A second
+  // tap with a fresh key used to buy the tier AFTER the one on the card; the
+  // server now refuses unless p_expect_level = its plot_level + 1, so the
+  // client must send the SERVER's next rung, never the residue's.
+  // ════════════════════════════════════════════════════════════════════════
+  () => tryRun('EXPECT-LEVEL-1: a plot upgrade names the SERVER\'s next rung, never the residue\'s', () => withFarmServer(
+    () => ({ ok: true, plot_level: 3, paid_with: 'gold', gold_spent: 5000, gold: 995000 }),
+    (calls) => {
+      if (!window.HearthriseFarm) return;
+      const snap = snapshotG();
+      try {
+        window.G.plotLevels = 1;              // a stale residue says tier 1...
+        window.G._serverPlotLevel = 2;        // ...the server says tier 2
+        window.G.gold = 1000000;
+        window.G.inventory.farm_deed = 0;
+        window.G.skills = window.G.skills || {};
+        window.G.skills.farming = 1000000;
+        assert(window.HearthriseFarm.upgradePlot() === true, 'an eligible upgrade should be taken');
+        assert(calls.length === 1 && calls[0].verb === 'farmUpgradePlot', 'exactly one intent, got ' + calls.length);
+        const o = calls[0].args[0] || {};
+        assert(o.expectLevel === 3,
+          'the intent must name rung 3 (server tier 2 + 1), got expectLevel=' + JSON.stringify(o.expectLevel));
+      } finally { restoreG(snap); }
+    })),
+
+  () => tryRun('EXPECT-LEVEL-2: with no server tier the plot upgrade sends nothing', () => withFarmServer(
+    () => { throw new Error('an upgrade with no server rung must not reach the server'); },
+    (calls) => {
+      if (!window.HearthriseFarm) return;
+      const snap = snapshotG();
+      try {
+        window.G.plotLevels = 1;
+        delete window.G._serverPlotLevel;     // the server has not spoken yet
+        window.G.gold = 1000000;
+        window.G.inventory.farm_deed = 0;
+        window.G.skills = window.G.skills || {};
+        window.G.skills.farming = 1000000;
+        assert(window.HearthriseFarm.upgradePlot() === false, 'the upgrade must not be taken without a server rung');
+        assert(calls.length === 0, 'no intent may be sent without a server rung, got ' + calls.length);
+      } finally { restoreG(snap); }
+    })),
+
+  () => tryRun('EXPECT-LEVEL-3: a stale_level refusal adopts the server\'s tier and charges nothing', () => withFarmServer(
+    () => ({ ok: false, error: 'stale_level', plot_level: 3, expect_level: 2 }),
+    (calls) => {
+      if (!window.HearthriseFarm) return;
+      const snap = snapshotG();
+      try {
+        window.G.plotLevels = 1;
+        window.G._serverPlotLevel = 1;        // the envelope is one purchase behind
+        window.G.gold = 1000000;
+        window.G.inventory.farm_deed = 0;
+        window.G.skills = window.G.skills || {};
+        window.G.skills.farming = 1000000;
+        assert(window.HearthriseFarm.upgradePlot() === true, 'the gesture is taken and the server refuses it');
+        assert(calls.length === 1, 'exactly one intent');
+        assert(window.HearthriseFarm.getPlotLevel() === 3,
+          "the refusal's server tier (3) must be adopted, got " + window.HearthriseFarm.getPlotLevel());
+        assert(window.G.gold === 1000000, 'a refused upgrade must charge nothing, gold is ' + window.G.gold);
       } finally { restoreG(snap); }
     })),
 

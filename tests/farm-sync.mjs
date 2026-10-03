@@ -71,7 +71,14 @@ export async function farmSyncGuard() {
         await F.farmPlant(2, 'tomato', { ...cfg, idem: 'idem-p' });
         await F.farmWater(2, { ...cfg, idem: 'idem-w' });
         await F.farmHarvest(2, { ...cfg, idem: 'idem-h' });
-        await F.farmUpgradePlot({ ...cfg, idem: 'idem-u' });
+        await F.farmUpgradePlot({ ...cfg, idem: 'idem-u', expectLevel: 3 });
+        /* EXPECT-LEVEL-0: no server rung, no intent. A call that cannot name the
+           rung it buys is never sent (2026-10-04-expected-level-idempotency.sql). */
+        const before = calls.length;
+        const r0 = await F.farmUpgradePlot({ ...cfg, idem: 'idem-u0' });
+        if (calls.length !== before || !r0 || r0.error !== 'missing_expect')
+          fail('upgrade: a call with no expected level reached the wire (' + JSON.stringify(r0) + ')');
+        calls.length = before;
 
         const [p, w, h, u] = calls;
         if (!/\/rest\/v1\/rpc\/hr_farm_plant$/.test(p.url)) fail('plant: wrong endpoint (' + p.url + ')');
@@ -90,8 +97,12 @@ export async function farmSyncGuard() {
         if (h.body.p_plot_idx !== 2 || h.body.p_idem !== 'idem-h') fail('harvest: wrong body ' + JSON.stringify(h.body));
 
         if (!/\/rest\/v1\/rpc\/hr_farm_upgrade_plot$/.test(u.url)) fail('upgrade: wrong endpoint');
-        if (u.body.p_slot !== 3 || u.body.p_idem !== 'idem-u' || 'p_plot_idx' in u.body)
+        if (u.body.p_slot !== 3 || u.body.p_idem !== 'idem-u' || 'p_plot_idx' in u.body
+            || u.body.p_expect_level !== 3)
           fail('upgrade: wrong body ' + JSON.stringify(u.body));
+        // The expected rung is the ONLY new field: no price, currency or level crosses.
+        for (const k of Object.keys(u.body)) if (!['p_slot', 'p_idem', 'p_expect_level'].includes(k))
+          fail('upgrade: unexpected wire field ' + k);
       } finally {
         globalThis.fetch = realFetch;
       }

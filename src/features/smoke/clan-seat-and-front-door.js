@@ -1104,6 +1104,64 @@ export default [
     } finally { UI._reset(); }
   }),
 
+  // b562 — 2026-10-04-expected-level-idempotency.sql. clan_tier_up refuses
+  // unless p_expect_tier = castle_tier + 1 under the clans row lock, so a
+  // double-click cannot raise the hold TWO tiers (or pay twice for one). The
+  // client must name the tier from the SERVER's seat read, and send nothing
+  // when it has no read for this clan.
+  () => tryRun('EXPECT-TIER-1: a hold tier-up names the server\'s next tier, and no seat read sends nothing', () => {
+    const UI = window.HearthriseClanSeatUI;
+    const C = window.HearthriseClanSeat;
+    assert(UI && typeof UI.tierUp === 'function', 'HearthriseClanSeatUI.tierUp must be published');
+    const calls = [];
+    const realFetch = window.fetch;
+    const sb = window.HearthriseSupabase, au = window.HearthriseAuth;
+    const realGetConfig = sb && sb.getConfig, realGetSession = au && au.getSession;
+    const realNotify = window.notify;
+    try {
+      if (sb) sb.getConfig = () => ({ url: 'https://probe.invalid', anonKey: 'anon-probe-key' });
+      if (au) au.getSession = () => ({ access_token: 'probe-token', user: { id: 'probe-user' } });
+      window.notify = () => {};
+      window.fetch = function (url, opts) {
+        calls.push({ url: String(url), opts: opts || {} });
+        return Promise.resolve({ ok: true, status: 200,
+          json: () => Promise.resolve({ ok: false, error: 'stale_tier', castle_tier: 3, expect_tier: 3 }) });
+      };
+      UI._reset();
+      UI._setClan({ id: 'test-hold', name: 'Testhold', level: 1, treasury: 0, myRole: 'leader' });
+      UI._setSeat({ castle_tier: 2, standing: 0, treasury: 0, upkeep_state: 'active',
+                    upgrades: {}, stores: {}, orders: [] }, 'test-hold');
+      const p = UI.tierUp();
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+      const tierCalls = calls.filter((c) => c.url.indexOf('/rest/v1/rpc/clan_tier_up') !== -1);
+      assert(tierCalls.length === 1, 'a tier-up must issue exactly one clan_tier_up request, saw ' + tierCalls.length);
+      const body = JSON.parse(tierCalls[0].opts.body || '{}');
+      assert(body.p_clan_id === 'test-hold', 'the hold is p_clan_id');
+      assert(body.p_expect_tier === 3,
+        'the request must name tier 3 (the server seat says 2), got p_expect_tier=' + JSON.stringify(body.p_expect_tier));
+      assert(Object.keys(body).sort().join(',') === 'p_clan_id,p_expect_tier',
+        'only the hold and the expected tier may cross the wire, got ' + Object.keys(body).join(','));
+      assert(typeof C.errorText === 'function' && C.errorText('stale_tier').indexOf('stale_tier') === -1
+        && C.errorText('stale_tier') !== C.errorText('__unknown__'),
+        'stale_tier must read as a sentence, got ' + C.errorText('stale_tier'));
+
+      // A seat read for ANOTHER hold is no read for this one: nothing is sent.
+      calls.length = 0;
+      UI._setSeat({ castle_tier: 2, standing: 0, treasury: 0, upkeep_state: 'active',
+                    upgrades: {}, stores: {}, orders: [] }, 'other-hold');
+      const p2 = UI.tierUp();
+      if (p2 && typeof p2.catch === 'function') p2.catch(() => {});
+      assert(calls.filter((c) => c.url.indexOf('/rest/v1/rpc/clan_tier_up') !== -1).length === 0,
+        'a tier-up with no server seat for this hold must send nothing, saw ' + calls.length);
+    } finally {
+      window.fetch = realFetch;
+      window.notify = realNotify;
+      if (sb && realGetConfig) sb.getConfig = realGetConfig;
+      if (au && realGetSession) au.getSession = realGetSession;
+      UI._reset();
+    }
+  }),
+
   // §9.4 — the Common Room. The b222 seam (G.restedXp, watermarked accrual)
   // was inert because nothing granted a potency. The Tavern grants it, and the
   // rest of the chain was already built.

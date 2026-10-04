@@ -103,14 +103,18 @@
       return (window.HR && typeof window.HR.icon === 'function')
         ? (window.HR.icon(glyph, 17, 'currentColor') || '') : '';
     };
+    /* The strip's word is "Show": it only ever chooses what the bag SHOWS (see
+       the file header). "Keep" beside a row of item classes reads as a LOOT rule
+       ("keep Weapons" = "drop the rest"), so a new player hesitates to touch it.
+       The residue field stays `lootFilter`; only the copy differs. */
     var chip = function (id, label, glyph, on) {
-      return '<button class="invc-lf-chip' + (on ? ' active' : '') + '" title="Keep ' + label + '" onclick="'
+      return '<button class="invc-lf-chip' + (on ? ' active' : '') + '" title="Show ' + label + '" onclick="'
         + (id ? "window.HearthriseLootFilter.toggle('" + id + "')" : 'window.HearthriseLootFilter.clear()')
         + '">' + icon(glyph) + '<span class="invc-lf-txt">' + label + '</span></button>';
     };
-    return '<div class="invc-lootfilter" title="The classes your bag keeps in view. '
+    return '<div class="invc-lootfilter" title="Which classes your bag shows. '
       + 'Remembered between sessions — your items stay in your bag either way.">'
-      + '<span class="invc-lf-label">Keep</span>'
+      + '<span class="invc-lf-label">Show</span>'
       + chip(null, 'Everything', 'uiChest', !w.length)
       + classes().map(function (c) { return chip(c.id, c.name, c.glyph, w.indexOf(c.id) !== -1); }).join('')
       + '</div>';

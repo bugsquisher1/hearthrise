@@ -1935,6 +1935,7 @@
             if (!pin && b && b.pin) {
               pin = { label: b.label, action: b.action, data: b.data, disabled: !!b.disabled,
                       why: b.why || '', whyCovered: !!b.whyCovered,
+                      whyShown: typeof b.whyShown === 'string' ? b.whyShown : null,
                       costs: b.costs || null, gates: b.gates || null,
                       level: b.level || null,
                       primary: b.primary !== false };
@@ -2024,10 +2025,10 @@
       var g = (list || []).filter(Boolean);
       if (!g.length) return '';
       return '<div class="hr-room-gates">' + g.map(function (x) {
-        var cls = x.spent ? 'is-spent' : x.ok ? 'is-met' : 'is-need';
+        var cls = x.spent ? 'is-spent' : x.ok ? 'is-met' : x.known === false ? 'is-pending' : 'is-need';   /* known:false = bag unstated: pending, never "none" */
         var state = x.spent ? 'Spent' : x.ok
           ? ('In your bags' + (x.have > 1 ? ' (' + nfmt(x.have) + ')' : ''))
-          : 'You have none';
+          : x.known === false ? 'Still being counted' : 'You have none';
         /* b372: the gate is the requirement a player is MOST likely to tap —
            it is the one they cannot grind for. b355 already prints its source
            line underneath; the name now also opens the full flyout, where the
@@ -2065,7 +2066,8 @@
           (p.level != null ? '<span class="hr-room-build-lv">Lv ' + esc(p.level) + '</span>' : '') +
           (chips ? '<span class="hr-room-build-cost">' + chips + '</span>'
                  : '<span class="hr-room-build-cost is-free">Ready to build</span>') +
-          (p.disabled && p.why && !p.whyCovered ? '<div class="hr-room-build-why">' + esc(p.why) + '</div>' : '') +
+          (p.disabled && !p.whyCovered && (p.whyShown != null ? p.whyShown : p.why)
+            ? '<div class="hr-room-build-why">' + esc(p.whyShown != null ? p.whyShown : p.why) + '</div>' : '') +
           /* The gate rides in the PINNED bar, never in a toast: the bar is the
              one strip of this modal that cannot be scrolled away from, so the
              reason a Build button is dead is on screen the moment it opens. */

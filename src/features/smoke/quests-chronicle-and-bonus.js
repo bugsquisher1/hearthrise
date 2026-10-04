@@ -84,6 +84,44 @@ export default [
     });
   }),
 
+  /* FIRST-30-1 — the first-day card's FIRST button ("Gather 15 resources") names its action.
+     Drives the real card renderer on a fresh chain, reads the button, presses the door.
+     Mutation: `gather: GRID` in quest-nav.js TYPE_DEST → red on the first assert. */
+  () => tryRun('b562 FIRST-30-1: "Gather 15 resources" says Go gather and lands on the skills grid; "Gain a level" still says Go train', () => {
+    const QN = window.HearthriseQuestNav, H = window.HearthriseHome, G = window.G;
+    assert(QN && H && typeof H.__firstDayModel === 'function' && typeof H.__firstDayHtml === 'function',
+      'CONTROL: the quest resolver or the first-day seams are unpublished — this would pass vacuously');
+    const snap = snapshotG();
+    const prior = (document.querySelector('.panel.active') || {}).id || 'panel-profile';
+    try {
+      G.quests = []; G.daily = { lastReset: window.hrGoalDayKey(), tasks: [] };
+      window.ensureRetentionState();
+      const m = H.__firstDayModel();
+      assert(m && m.steps.length >= 5, 'CONTROL: a fresh character has no first-day chain: ' + JSON.stringify(m && m.steps.map((s) => s.id)));
+      const i = m.steps.findIndex((s) => s.id === 'gatherer');
+      assert(i >= 0, 'the first-day chain lost its gather step: ' + m.steps.map((s) => s.id).join(','));
+      const doc = new DOMParser().parseFromString(H.__firstDayHtml(m), 'text/html');
+      const cta = doc.querySelector('.hd-fl-row[data-i="' + i + '"] .hd-cta');
+      assert(cta && cta.textContent === 'Go gather',
+        'the gather step\'s button reads "' + (cta && cta.textContent) + '" — a new player is told to TRAIN when the row says GATHER');
+      // No open first-day row may fall back to the generic verb: each names its action.
+      doc.querySelectorAll('.hd-fl-row .hd-cta').forEach((b) => {
+        assert(b.textContent !== 'Go train', 'a first-day row still offers the generic "Go train": ' + b.closest('.hd-fl-row').textContent.trim().slice(0, 60));
+      });
+      // The daily "Gather N resources" tasks share the door and the word.
+      assert(QN.destination({ type: 'gather', label: 'Gather 120 resources' }).verb === 'Go gather', 'the gather daily task still says Go train');
+      const lvl = (window.DAILY_GOAL_POOL || []).find((g) => g.id === 'level_up');
+      assert(lvl && QN.destination(lvl).verb === 'Go train', '"Gain a level" is a TRAIN goal and must keep its verb: ' + (lvl && QN.destination(lvl).verb));
+      // Press it: the door is still the skills grid (any gathering skill counts).
+      const d = QN.go(m.steps[i].goalRow);
+      assert(d && d.tab === 'skills' && !d.skillId, 'the gather door moved off the skills grid: ' + JSON.stringify(d));
+      assert(document.getElementById('panel-skills').classList.contains('active'), 'pressing Go gather did not open the Skills panel');
+    } finally {
+      restoreG(snap);
+      try { window.showTab(prior.replace(/^panel-/, '')); } catch (e) {}
+    }
+  }),
+
   /* ══════════════════════════════════════════════════════════════════════════
      VOICE — b465. THE COPY PASS, AS A GATE.
      Three defects, each of which shipped and each of which is invisible to

@@ -1391,11 +1391,12 @@ export default [
       assert(G.skillTargetId === r.id && !!window._artisanInterval && !window.HearthriseBenchCount.isCounting('smithing', r.id),
         '(c) CONTROL: the server holds the feed and the bench did not arm at once: ' + JSON.stringify(said));
     } finally {
-      window.fetch = realFetch; window.notify = realNotify; A.acknowledgeReplacement(wasAck);
+      window.notify = realNotify;
       try { window.stopSkill(); } catch (e) {}
-      window._benchCounting = null; await drain();
+      window._benchCounting = null; await settle();   // the stop's idle envelope lands while the stub and the ack still stand
+      window.fetch = realFetch; A.acknowledgeReplacement(wasAck);
       restoreAccrualSwitch(wasOn); M.resetActivity(); M.configureActivity(null);
-      bag.restore(); restoreGAndRecord(snap);
+      bag.restore(); restoreGAndRecord(snap); closeOverlays();
     }
   }),
 

@@ -664,8 +664,7 @@
     return true;
   }
 
-  /* The seat's value gestures share one page-wide latch (fail closed: absent
-     latch module = no relative clan write). */
+  // The seat's value gestures share one page-wide latch; absent = fail closed.
   function seatLatch() {
     var L = window.HearthriseIntentLatch;
     return (L && typeof L.namedLatch === 'function') ? L.namedLatch('clan-seat') : null;
@@ -681,11 +680,8 @@
     renderIfOpen();
     return true;
   }
-  /* ONE SUPPLY IN FLIGHT PER ORDER (net/intent-latch.js), as tier-up: each
-     clan_work_supply call moves least(qty, need, has) more onto the order, so a
-     double-click was two donations. The verb has no p_idem yet (DISCOVERIES
-     2026-10-03, migration lane), so a re-tap after a timeout is still a fresh
-     call; the latch closes the double-click. */
+  /* ONE SUPPLY IN FLIGHT PER ORDER, as tier-up: each call moves more onto the order (double-click =
+     two donations). No p_idem server-side yet (DISCOVERIES 2026-10-03), so a timed-out re-tap is fresh. */
   async function supplyOrder(orderId, items) {
     if (needServer()) return false;
     var L = window.HearthriseIntentLatch, latch = seatLatch();

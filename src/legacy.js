@@ -3690,12 +3690,9 @@ function buyBankSpaceGold(){
     /* CLIENT-AUTHORITATIVE (switch off): the local grant IS the expansion. */
     _debitBank(); _advanceBank(); _announceBank(); return true;
   }
-  /* SERVER-OWNED: the confirm envelope writes gold ABSOLUTELY; a refusal touched
-     nothing local. ONE BANK BUY IN FLIGHT, keyed 'bank' (not per offer) and held
-     for the answer + the 600 ms floor (net/intent-latch.js): a per-offer boolean
-     freed on a fast answer let the double-click's second press read the advanced
-     rung and buy bank.<k+1>. The latch's key rides the buy, so a re-tap after a
-     timeout replays instead of buying again. */
+  /* SERVER-OWNED (a refusal touched nothing local). ONE BUY IN FLIGHT keyed 'bank', not per offer, held
+     answer + 600 ms (net/intent-latch.js): a per-offer boolean freed on a fast answer let the second press
+     of a double-click buy bank.<k+1>. The latch's key rides the buy, so a timed-out re-tap replays. */
   var _bl=window.HearthriseIntentLatch&&typeof window.HearthriseIntentLatch.namedLatch==='function'?window.HearthriseIntentLatch.namedLatch('bank'):null;
   if(!_bl||_bl.held('bank')) return false;
   _bl.run('bank',function(idem){ return Promise.resolve(window.HearthriseGold.buyUnlock(_boffer,idem)); }).then(function(v){

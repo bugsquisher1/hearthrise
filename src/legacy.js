@@ -14509,7 +14509,7 @@ function has(skill, id){ return (window.ARTISAN_RECIPES[skill]||[]).some(functio
    named wrappers because the artisan renderer and the auto-actions feature
    both call them. */
 function getInputs(recipe){ return window.HearthriseCore.artisan.recipeInputs(recipe); }
-function artisanInputGate(recipe){ return window.HearthriseCore.artisan.inputGate(recipe, function(id){ return window.HearthriseAccrual?.gateItemCount(G,id)??null; }); }   /* §6: hr_apply debits the SERVER's bag, so the start gate counts its mirror; unstated = counting (core/artisan.js inputGate) */
+function artisanInputGate(recipe){ const inp=getInputs(recipe), A=window.HearthriseAccrual; return (A&&typeof A.gateInputs==='function')?A.gateInputs(G,inp):{ok:false,inputs:inp,short:[],counting:Object.keys(inp)}; }   /* §6: hr_apply debits the SERVER's bag, so the start gate counts its mirror (accrue.js gateInputs); unstated = counting */
 /* consumeInputs() was deleted with this pass: resolveArtisanAction returns a
    `consumed` map and doArtisanAction applies it, so a helper that removed
    items without knowing whether craftSave had refunded them had no honest

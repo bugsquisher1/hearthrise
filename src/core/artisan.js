@@ -96,22 +96,6 @@ export function hasInputs(recipe, inventory) {
   return missingInput(recipe, inventory) === null;
 }
 
-/** THE ATTENDED START GATE, TRI-STATE (CLAUDE.md §6). hr_apply debits the
-    SERVER's bag, so the client gate counts the server's figure, never the display
-    bag. `countOf(id)` answers the server's count, or null/undefined while the server
-    has not stated one; an unstated input is COUNTING (a pending state), never a
-    shortfall and never a pass. No countOf at all = every input counting: fail
-    closed. `short` and `counting` keep recipe order so the caller can name them. */
-export function inputGate(recipe, countOf) {
-  const inputs = recipeInputs(recipe), short = [], counting = [];
-  for (const id in inputs) {
-    const n = typeof countOf === 'function' ? countOf(id) : null;
-    if (n == null || !Number.isFinite(Number(n))) counting.push(id);
-    else if (Number(n) < inputs[id]) short.push(id);
-  }
-  return { ok: !short.length && !counting.length, inputs, short, counting };
-}
-
 export function gateOk(recipe, unlockedRecipes) {
   if (!recipe || !recipe.gated) return true;
   return !!(unlockedRecipes && unlockedRecipes[recipe.gated]);

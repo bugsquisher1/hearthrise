@@ -1179,15 +1179,17 @@ export default [
   () => tryRun('b228: starting combat clears the old activity tile Active state', () => {
     if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
     const snap = snapshotG(), bag = serverBagFixture();
-    const prevTab = window.activeTab;
+    const prevTab = window.activeTab, realNotify = window.notify, said = [];
     try {
+      window.notify = function (m) { said.push(String(m)); return realNotify.apply(this, arguments); };
       /* Stock BOTH sides: the factory literal is gone and the gate reads the mirror. */
       window.G.inventory.shrimp = (window.G.inventory.shrimp || 0) + 5;
       bag.agree(Object.assign({}, window.G._serverBag, { shrimp: window.G.inventory.shrimp }));   // restored in finally: it leaked into every later test
       window.showTab('skills');
       if (typeof window.openSkillDetail === 'function') window.openSkillDetail('cooking');
       window.startArtisan('cooking', 'cook_shrimp');
-      assert(document.querySelector('.act-tile.active'), 'setup: cook tile not active');
+      assert(document.querySelector('.act-tile.active'), 'setup: cook tile not active (pointer ' + window.G.activeSkill + '/' + window.G.skillTargetId
+        + ', server shrimp ' + (window.G._serverBag && window.G._serverBag.shrimp) + ', said ' + JSON.stringify(said) + ')');
       const mid = Object.keys(window.MONSTERS)[0];
       window.startCombat(mid);
       assert(!document.querySelector('.act-tile.active'),
@@ -1196,6 +1198,7 @@ export default [
         'a stale Active chip survived the switch');
     } finally {
       if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(null);
+      window.notify = realNotify;
       try { window.stopCombat(); } catch (e) {}
       bag.restore(); restoreG(snap);
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
@@ -1332,11 +1335,11 @@ export default [
      the recipe row's enabled/status state read hasInputs(G.inventory) — the
      display bag, which a client-rolled drop can hold ahead of the server — so a
      smith pressed a lit row, a run was declared, and hr_apply's own input check
-     refused it. Both now read core/artisan.js inputGate over gateItemCount (the
+     refused it. Both now read accrue.js gateInputs over gateItemCount (the
      mirror of player_inventory): short = "Missing materials", unstated = "Still
      being counted", never a fabricated count and never a pass.
-     MUTATION: point legacy.js artisanInputGate's countOf back at G.inventory and
-     (a) goes red on the row AND the start. */
+     MUTATION: hand legacy.js artisanInputGate's gateInputs the display bag
+     (G.inventory) and (a) goes red on the row AND the start. */
   () => tryRun('CRAFT-SRV-BAG: the bench start and its recipe row count the SERVER bag — display-only ore starts nothing, an unstated bag is "still being counted"', () => {
     if (typeof window.startArtisan !== 'function' || typeof window.renderArtisanActivities !== 'function') { skip('no artisan bench'); return; }
     const snap = snapshotG(), bag = serverBagFixture();

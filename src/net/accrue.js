@@ -1310,6 +1310,20 @@ export function gateItemCount(G, id) {
   return serverItemCount(G, id);
 }
 
+/* THE SAME RULE OVER A RECIPE'S WHOLE INPUT MAP — the bench start gate and its
+   recipe row (legacy.js artisanInputGate). hr_apply debits player_inventory, so
+   `short` = ids the server holds too few of; `counting` = ids it has not stated
+   (a pending state: never a shortfall, never a pass). Keeps the map's order. */
+export function gateInputs(G, inputs) {
+  const inp = (inputs && typeof inputs === 'object') ? inputs : {}, short = [], counting = [];
+  for (const id of Object.keys(inp)) {
+    const n = gateItemCount(G, id);
+    if (n === null) counting.push(id);
+    else if (n < (Number(inp[id]) || 0)) short.push(id);
+  }
+  return { ok: !short.length && !counting.length, inputs: inp, short, counting };
+}
+
 /**
  * b362 — copies worn on THIS client that the server's inventory figure has not
  * been told about. Pure. See the block in applyEnvelopeState for the proof.
@@ -6610,7 +6624,7 @@ if (typeof window !== 'undefined') {
     /* "How many does the SERVER say I hold?" — null while unstated. Read by any
        surface that gates a server-owned spend (dungeon entry keys today); never
        use `G.inventory` for that, it is a display bag with a ratchet. */
-    serverItemCount, gateItemCount,
+    serverItemCount, gateItemCount, gateInputs,
     /* THE PENDING-CONSUMPTION LEDGER (live P0 — "eaten food gets restocked").
        Re-published here as well as on window.HearthrisePendingConsume so a
        caller that already holds the accrual module does not need a second

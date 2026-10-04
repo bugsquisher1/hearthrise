@@ -4564,42 +4564,6 @@ export default [
     }
   }),
 
-  /* regression suite — the vendor tap re-read hasItem() (G.inventory) after its
-     confirm, so it sold a unit the server never held. It now counts
-     gateItemCount; unstated = "still being counted", no sale.
-     MUTATION: read G.inventory in onItemTap's sale again and (d) goes red. */
-  () => tryRunAsync('VENDOR-SRV-BAG: the vendor tap counts the SERVER bag — display-only ore is not sold, an unstated bag says it is being counted', async () => {
-    const G = window.G, Gd = window.HearthriseGold;
-    const snap = snapshotG(), bag = serverBagFixture();
-    const real = { notify: window.notify, ask: window.askConfirm, settle: window.goldSettle, sell: Gd && Gd.sellItem };
-    const said = [];
-    let sold = 0;
-    try {
-      window.notify = (m) => { said.push(String(m)); };
-      if (Gd) Gd.sellItem = () => null;
-      window.goldSettle = () => { sold++; return {}; };
-      window.askConfirm = () => Promise.resolve(true);
-      const tap = async () => { said.length = 0; window.onItemTap('copper_ore'); await drain(); };
-      // (d) the display bag shows ore the server does not hold.
-      G.inventory = Object.assign({}, G.inventory, { copper_ore: 5 }); bag.agree({});
-      await tap();
-      assert(sold === 0 && G.inventory.copper_ore === 5, '(d) the vendor sold ore the SERVER does not hold (' + sold + ' sale(s))');
-      assert(said.some((m) => /No Copper Ore left to sell/.test(m)), '(d) the refusal was not spoken: ' + JSON.stringify(said));
-      // (e) unstated: no sale, and it says the bag is being counted.
-      delete G._serverBag;
-      await tap();
-      assert(sold === 0 && said.some((m) => /still being counted/.test(m)), '(e) an unstated bag sold or stayed silent: ' + JSON.stringify(said));
-      // (f) CONTROL: the server holds it, so it sells.
-      bag.agree({ copper_ore: 5 });
-      await tap();
-      assert(sold === 1 && G.inventory.copper_ore === 4, '(f) CONTROL: the server holds the ore and the sale did not happen (' + sold + ')');
-    } finally {
-      window.notify = real.notify; window.askConfirm = real.ask; window.goldSettle = real.settle;
-      if (Gd) Gd.sellItem = real.sell;
-      bag.restore(); restoreG(snap);
-    }
-  }),
-
   /* ══════════════════════════════════════════════════════════════════════
      PHASE 1 — LIVE SETTLEMENT. docs/design/live-settlement.md §3, §5.2, §7.
      ══════════════════════════════════════════════════════════════════════

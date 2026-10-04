@@ -845,6 +845,7 @@ export const serverBagFixture = () => {
     },
     restore() {
       const G = window.G;
+      if (!G || typeof G !== 'object') return;   // a test that left no G has no bag to put back
       for (const k of SERVER_BAG_TRIPLE) {
         if (held[k] === undefined) delete G[k]; else G[k] = JSON.parse(JSON.stringify(held[k]));
       }

@@ -235,8 +235,8 @@ export async function runSmokeTest(opts = {}) {
          an inventory envelope and does not put the triple back hands the next
          test a bag nobody stated: DGN-SETTLE-3 and DGN-COOLDOWN-1 passed for
          builds on a leaked {bone_key} and went red the day it was restored.
-         snapshotG/restoreG covers a test that snapshots; nine that wrote through
-         the production envelope path did not. Measured here, attributed to the
+         snapshotG/restoreG covers a test that snapshots; sixteen that wrote
+         through the production envelope path did not. Measured here, attributed to the
          test that moved it, and PUT BACK, so the next test runs on the bag it
          would have had. A FAIL keeps its own reason. */
       const bagMoved = bagHeld.changed();

@@ -746,6 +746,20 @@ jobs:
           node tests/client-state-retired-fields.mjs
           node tests/client-state-retired-fields.mjs --selftest
 
+      # 2026-10-04-bounty-abandon-server-fee.sql (Security P2): the abandon fee is
+      # priced from the server's active_bounty + Bounty-Hunter level, never a client
+      # number. Replays the WHOLE chain and drives the gated wrapper as
+      # `authenticated`: the file re-applies byte-identically, the retired
+      # (level, reward) call does not resolve, a level-15 abandon pays 10 and ends
+      # the contract, a second abandon is refused, level 9 pays 0, and the ungated
+      # body reaches no client. --mutate plants four defects (§5 switched off so
+      # they reach these arms) and requires each CAUGHT by its named arm.
+      - name: Bounty abandon fee — server-priced, contract ends, second apply identical
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/bounty-abandon-fee.mjs
+          node tests/bounty-abandon-fee.mjs --mutate
+
   # ── db-replay-2 ── THE SECOND HALF OF db-replay, SPLIT OUT 2026-09-20. Same
   # inputs (an applied migration chain), same reason for the split as
   # utc-midnight-replay: the family had outgrown one job's budget with no

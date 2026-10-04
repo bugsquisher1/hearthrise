@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 59 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, stampRecordLikeLoad, withFarmServer, farmReplantFixtureG, farmHarvestThenPlant, withDeferredFarmPlant, goldOf, gemsOf, snapshotG, restoreG, snapRoundTrip, on, snapshot } from './_harness.js?v=560';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, stampRecordLikeLoad, withFarmServer, farmReplantFixtureG, farmHarvestThenPlant, withDeferredFarmPlant, goldOf, gemsOf, snapshotG, restoreG, snapRoundTrip, on, snapshot, serverBagFixture } from './_harness.js?v=560';
 
 export default [
 
@@ -1958,13 +1958,14 @@ export default [
       + 'live object instead would make the snapshot a reference to the thing it is meant to preserve.');
   }),
 
-  /* SNAP-BAG-1 — THE STATED SERVER BAG CROSSES NO TEST BOUNDARY. `_serverBag` was off the
-     snapshot list: 25 bare writes, farmReplantFixtureG's four callers and every test that
-     applied an inventory envelope left a bag every later item gate counted as the server's.
-     restoreG IS the boundary between two tests, so it is driven here three ways: a bare
-     fixture write, the production writer (reconcileInventory stamps the bag AND
-     `_bagFromServerAt`), and a test that starts with a bag. MUTATION: drop any of the three
-     keys from snapshotG → a named red here. */
+  /* SNAP-BAG-1 — restoreG PUTS THE STATED SERVER BAG BACK. `_serverBag` was off the
+     snapshot list, so a test that stated a bag left it for every later item gate. restoreG
+     is the boundary for a test that SNAPSHOTS; it is driven here three ways: a bare fixture
+     write, the production writer (reconcileInventory on a COMPLETE baseline stamps the bag,
+     `_bagFromServerAt` AND `_startKitHintAt` — the control below proves all three were
+     written), and a test that starts with a bag. A test that applies an envelope WITHOUT a
+     snapshot is the runner's per-test bag check's (smoke-test.js) and SNAP-BAG-2's.
+     MUTATION: drop any of the three keys from snapshotG → a named red here. */
   () => tryRun('SNAP-BAG-1: a test that states a server bag and never hand-restores it does not change the next test\'s gate view', () => {
     const A = window.HearthriseAccrual;
     assert(A && typeof A.gateItemCount === 'function' && typeof A.reconcileInventory === 'function' && typeof A.bagHydrated === 'function',
@@ -1984,9 +1985,11 @@ export default [
         + A.gateItemCount(window.G, 'copper_ore') + ' — with no envelope stated it must read PENDING (null)');
 
       const s2 = snapshotG();
-      A.reconcileInventory(window.G, { inventory: { copper_ore: 2 } }, false, false);
+      A.reconcileInventory(window.G, { inventory: { copper_ore: 2 } }, false, true);   // a COMPLETE baseline: all three stamps
       assert(window.G._serverBag && window.G._serverBag.copper_ore === 2 && A.bagHydrated(window.G),
         'CONTROL: reconcileInventory did not state the bag, so the production-writer half proves nothing');
+      assert(BAG.every(own), 'CONTROL: the production writer stamped only ' + BAG.filter(own).join(', ')
+        + ' — the restore check below would not bite on the missing field');
       restoreG(s2);
       const left = BAG.filter(own);
       assert(!left.length, 'an applied envelope left ' + left.join(', ') + ' behind restoreG — the bag and the stamps written with it '
@@ -2001,6 +2004,47 @@ export default [
       assert(JSON.stringify(window.G._serverBag) === '{"copper_ore":1,"turnip_seed":4}',
         'a test that STARTED with a stated bag got ' + JSON.stringify(window.G._serverBag) + ' back — restoring is never a wipe or a merge');
       assert(A.gateItemCount(window.G, 'copper_ore') === 1, 'the restored bag must gate on its own figure (1)');
+    } finally {
+      restoreG(outer);
+      BAG.forEach((k) => { if (held[k] === ABSENT) delete window.G[k]; else window.G[k] = held[k]; });
+    }
+  }),
+
+  /* SNAP-BAG-2 — serverBagFixture IS THE RESTORE FOR A TEST THAT DOES NOT SNAPSHOT, AND THE
+     RUNNER'S PER-TEST CHECK. Its restore() used to put back `_serverBag` alone, so a test that
+     applied an envelope through production (WAVE2's room rig, the bank buy) left
+     `_bagFromServerAt` — bagHydrated read TRUE over a bag nobody stated. changed() is what
+     smoke-test.js runs after every test to name the one that moved the triple.
+     MUTATION: restore() back to `_serverBag` only, or changed() blind to a stamp → red here. */
+  () => tryRun('SNAP-BAG-2: serverBagFixture().restore() puts back the bag AND both stamps, and changed() names what moved', () => {
+    const A = window.HearthriseAccrual;
+    assert(A && typeof A.reconcileInventory === 'function' && typeof A.bagHydrated === 'function',
+      'HearthriseAccrual no longer publishes reconcileInventory / bagHydrated');
+    const G = window.G, own = (k) => Object.prototype.hasOwnProperty.call(window.G, k);
+    const BAG = ['_serverBag', '_bagFromServerAt', '_startKitHintAt'], ABSENT = {}, held = {};
+    BAG.forEach((k) => { held[k] = own(k) ? G[k] : ABSENT; });
+    const outer = snapshotG();
+    try {
+      BAG.forEach((k) => { delete G[k]; });
+      const fx = serverBagFixture();
+      assert(fx.changed().length === 0, 'an untouched triple read as changed: ' + fx.changed().join(', '));
+      A.reconcileInventory(window.G, { inventory: { copper_ore: 2 } }, false, true);
+      assert(BAG.every(own), 'CONTROL: the production writer stamped only ' + BAG.filter(own).join(', '));
+      assert(fx.changed().join() === BAG.join(), 'changed() named [' + fx.changed().join(', ') + '] after an envelope wrote all three');
+      fx.restore();
+      const left = BAG.filter(own);
+      assert(!left.length, 'serverBagFixture().restore() left ' + left.join(', ') + ' — a test restoring through it hands the next '
+        + 'test a bag that reads hydrated (bagHydrated ' + A.bagHydrated(window.G) + ')');
+      assert(fx.changed().length === 0, 'after restore() changed() still names ' + fx.changed().join(', '));
+
+      G._serverBag = { copper_ore: 1 }; G._bagFromServerAt = 111; G._startKitHintAt = 222;
+      const fx2 = serverBagFixture();
+      G._bagFromServerAt = 333;                                  // a re-stamp alone is a change
+      assert(fx2.changed().join() === '_bagFromServerAt', 'a re-stamped `_bagFromServerAt` read as [' + fx2.changed().join(', ') + ']');
+      G._serverBag.copper_ore = 7;                               // a nested write after capture is a change, not an edit of the capture
+      fx2.restore();
+      assert(JSON.stringify(window.G._serverBag) === '{"copper_ore":1}' && window.G._bagFromServerAt === 111 && window.G._startKitHintAt === 222,
+        'restore() did not put back the triple it captured: ' + JSON.stringify(BAG.map((k) => window.G[k])));
     } finally {
       restoreG(outer);
       BAG.forEach((k) => { if (held[k] === ABSENT) delete window.G[k]; else window.G[k] = held[k]; });

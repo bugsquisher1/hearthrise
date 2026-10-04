@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 67 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, xpOf, predZero, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, zeroRenownTerms, restoreRenownTerms, on, snapshot, closeOverlays, hrCharmDriver, phoneFrame, feedServerGoals, goalRow, serverBagFixture } from './_harness.js?v=560';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, xpOf, predZero, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, zeroRenownTerms, restoreRenownTerms, on, snapshot, closeOverlays, hrCharmDriver, phoneFrame, feedServerGoals, goalRow, serverBagFixture, armActivityTransport, drain, restoreAccrualSwitch } from './_harness.js?v=560';
 import { THIS_WEEK, THIS_WEEK_QUIET } from '../../data/this-week.js?v=560';
 
 export default [
@@ -1330,70 +1330,101 @@ export default [
     }
   }),
 
-  /* regression suite — THE BENCH COUNTS THE SERVER'S BAG (CLAUDE.md §6, P1 class
-     "client shows X, server refuses"). The attended start gate (startArtisan) and
-     the recipe row's enabled/status state read hasInputs(G.inventory) — the
-     display bag, which a client-rolled drop can hold ahead of the server — so a
-     smith pressed a lit row, a run was declared, and hr_apply's own input check
-     refused it. Both now read accrue.js gateInputs over gateItemCount (the
-     mirror of player_inventory): short = "Missing materials", unstated = "Still
-     being counted", never a fabricated count and never a pass.
-     MUTATION: hand legacy.js artisanInputGate's gateInputs the display bag
-     (G.inventory) and (a) goes red on the row AND the start. */
-  () => tryRun('CRAFT-SRV-BAG: the bench start and its recipe row count the SERVER bag — display-only ore starts nothing, an unstated bag is "still being counted"', () => {
-    if (typeof window.startArtisan !== 'function' || typeof window.renderArtisanActivities !== 'function') { skip('no artisan bench'); return; }
-    const snap = snapshotG(), bag = serverBagFixture();
-    const realNotify = window.notify, realDeclare = window.declareActivity;
-    const said = [], declares = [];
-    const stopBench = () => {
-      try { if (typeof window._stopArtisan === 'function') window._stopArtisan(); } catch (e) {}
-      window.G.activeSkill = null; window.G.skillTargetId = null;
-    };
+  /* regression suite — SETTLE-THEN-GATE AT THE BENCH (§6, both directions). The
+     last stated server bag lags the open window that set_activity collects before
+     it switches; pre-refusing on it refused every gather→smelt inside a cadence.
+     MUTATION: make bench-count.js countFirst refuse ("Need:") on a short last bag
+     instead of sending the switch, and (a) goes red by name. */
+  () => tryRunAsync('CRAFT-SRV-BAG: a craft the last server bag cannot fund is settled by the switch\'s own collect — funded arms, display-only stops and is named, never a pre-refusal', async () => {
+    if (typeof window.startArtisan !== 'function') { skip('no artisan bench'); return; }
+    const G = window.G, M = window.HearthriseActivity, A = window.HearthriseAccrual, inputsOf = window.HearthriseCore.artisan.recipeInputs;
+    const snap = snapshotG(), bag = serverBagFixture(), realFetch = window.fetch, realNotify = window.notify;
+    const wasOn = A.isServerAccrualEnabled(), wasAck = A.isReplacementAcknowledged();
+    const said = [], sent = []; let answerBag = {};
+    const list = window.ARTISAN_RECIPES.smithing || [];
+    const r = list.find((x) => x.req <= 1 && !x.gated && Object.keys(inputsOf(x)).length);
+    const settle = async () => { for (let i = 0; i < 4; i++) await drain(); };
+    const stop = async () => { try { window.stopSkill(); } catch (e) {} await settle(); };
     try {
-      const G = window.G, inputsOf = window.HearthriseCore.artisan.recipeInputs;
-      window.notify = (m) => { said.push(String(m)); };
-      window.declareActivity = (kind, id) => { declares.push({ kind, id }); return null; };
-      const list = window.ARTISAN_RECIPES.smithing || [];
-      const r = list.find((x) => x.req <= 1 && !x.gated && Object.keys(inputsOf(x)).length);
       assert(r, 'no ungated level-1 smithing recipe that takes inputs, for the probe');
       const feed = Object.assign({}, inputsOf(r));
+      window.notify = (m) => { said.push(String(m)); };
+      window.fetch = function (u, init) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        let b = null; try { b = JSON.parse(init && init.body); } catch (e) {}
+        if (!b || b.verb !== 'set_activity') return Promise.resolve(new Response('{"ok":false,"error":"rate_limited"}', { status: 429 }));
+        const act = b.activity || { kind: 'idle', id: null }; sent.push(act);
+        /* THE COLLECT'S BAG: what the server holds once the open window is paid. */
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, verb: 'set_activity', version: A.getAppliedFrame() + 1000 + sent.length, now: null,
+          activity: act, state: { active_kind: act.kind, active_id: act.id },
+          skills: Object.keys(G.skills || {}).reduce((o, k) => { o[k] = { xp: G.skills[k] }; return o; }, {}),
+          inventory: Object.assign({}, answerBag) }), { status: 200 }));
+      };
+      armActivityTransport(); A.acknowledgeReplacement(true);
       G.skills = Object.assign({}, G.skills, { smithing: 100000 });
       G.inventory = Object.assign({}, G.inventory, feed);
       stampRecordLikeLoad(G);
-      const row = () => {
-        const host = document.createElement('div');
-        host.innerHTML = window.renderArtisanActivities('smithing');
-        return host.querySelectorAll('button')[list.indexOf(r)];
+      const attempt = async (lastBag, collected) => {
+        await stop(); said.length = 0; sent.length = 0; bag.agree(lastBag); answerBag = collected;
+        window.startArtisan('smithing', r.id);
+        const pending = G.skillTargetId === r.id && !window._artisanInterval && window.HearthriseBenchCount.isCounting('smithing', r.id);
+        await settle(); return pending;
       };
-      const attempt = () => { stopBench(); said.length = 0; declares.length = 0; window.startArtisan('smithing', r.id); };
 
-      // (a) the DISPLAY bag holds the feed; the SERVER holds none of it.
-      bag.agree({});
-      assert(row().disabled && /Missing materials/.test(row().textContent),
-        '(a) the row is lit for inputs only the display bag holds: ' + row().outerHTML.slice(0, 240));
-      attempt();
-      assert(G.skillTargetId !== r.id && !declares.length,
-        '(a) THE BUG: ' + r.id + ' started and declared ' + JSON.stringify(declares) + ' on inputs the server does not hold — hr_apply refuses it');
-      assert(said.some((m) => /^Need: /.test(m)), '(a) the refusal did not name the inputs: ' + JSON.stringify(said));
+      // (a) THE REPORT: the feed was gathered since the last envelope — the last bag is empty, the collect holds it.
+      const pa = await attempt({}, feed);
+      assert(!said.some((m) => /^Need: /.test(m)), '(a) THE BUG: pre-refused a craft the switch\'s collect funds: ' + JSON.stringify(said));
+      assert(pa, '(a) a short last bag must paint the pending "Counting…" state with no bench armed (pointer ' + G.skillTargetId + ')');
+      assert(sent.some((a) => a.kind === 'artisan' && a.id === r.id), '(a) the switch (the settle) was never sent: ' + JSON.stringify(sent));
+      assert(G.skillTargetId === r.id && !!window._artisanInterval, '(a) the bench did not arm on the funded envelope (pointer ' + G.skillTargetId + ', said ' + JSON.stringify(said) + ')');
 
-      // (b) an unstated bag is a pending state: no start, no shortfall, said once.
-      delete G._serverBag;
-      assert(row().disabled && /Still being counted/.test(row().textContent),
-        '(b) an unstated bag must read "Still being counted": ' + row().outerHTML.slice(0, 240));
-      attempt();
-      assert(G.skillTargetId !== r.id && !declares.length, '(b) an unstated bag started ' + r.id);
-      assert(said.some((m) => /still being counted/.test(m)) && !said.some((m) => /^Need: /.test(m)),
-        '(b) an unstated bag must say "still being counted", never a shortfall: ' + JSON.stringify(said));
+      // (b) display-only feed: the collect's bag still lacks it — stopped, idle declared, named.
+      const pb = await attempt({}, {});
+      assert(pb, '(b) setup: the pending state never painted');
+      assert(!window._artisanInterval && G.skillTargetId !== r.id, '(b) the bench runs on inputs the server says it lacks (pointer ' + G.skillTargetId + ')');
+      assert(sent.some((a) => a.kind === 'idle'), '(b) the server pointer was left on a recipe it cannot fund: ' + JSON.stringify(sent));
+      assert(said.some((m) => /^Need: .*the realm counts 0/.test(m)), '(b) the stop did not name the shortfall: ' + JSON.stringify(said));
 
-      // (c) CONTROL: the server holds the feed, so the row is lit and the run starts.
-      bag.agree(feed);
-      assert(!row().disabled, '(c) CONTROL: the server holds the feed and the row is still disabled');
-      attempt();
-      assert(G.skillTargetId === r.id && declares.some((d) => d.kind === 'artisan' && d.id === r.id),
-        '(c) CONTROL: the server holds the feed and ' + r.id + ' did not start: ' + JSON.stringify(said));
+      // (c) CONTROL: the last bag funds it — the bench arms at the tap, no count asked.
+      await stop(); said.length = 0; bag.agree(feed);
+      window.startArtisan('smithing', r.id);
+      assert(G.skillTargetId === r.id && !!window._artisanInterval && !window.HearthriseBenchCount.isCounting('smithing', r.id),
+        '(c) CONTROL: the server holds the feed and the bench did not arm at once: ' + JSON.stringify(said));
     } finally {
-      window.notify = realNotify; window.declareActivity = realDeclare;
-      stopBench(); bag.restore(); restoreGAndRecord(snap);
+      window.fetch = realFetch; window.notify = realNotify; A.acknowledgeReplacement(wasAck);
+      try { window.stopSkill(); } catch (e) {}
+      window._benchCounting = null; await drain();
+      restoreAccrualSwitch(wasOn); M.resetActivity(); M.configureActivity(null);
+      bag.restore(); restoreGAndRecord(snap);
+    }
+  }),
+
+  /* regression suite — stopSkill strips `.active` in place; the render key kept
+     naming the stopped run, so restarting the SAME recipe took lightUpdate and no
+     tile read Active. MUTATION: drop the activeKey reset in stopSkill → red. */
+  () => tryRun('B562-STALE-TILE: stopping a bench and restarting the SAME recipe paints its tile Active again', () => {
+    if (typeof window.startArtisan !== 'function' || !window.HearthriseArtisanCat) { skip('no artisan bench'); return; }
+    const G = window.G, inputsOf = window.HearthriseCore.artisan.recipeInputs;
+    const snap = snapshotG(), bag = serverBagFixture(), realDeclare = window.declareActivity, prevTab = window.activeTab;
+    try {
+      window.declareActivity = () => null;   // the paint is the subject, not the wire
+      const r = window.HearthriseArtisanCat.recipesFor('smithing').find((x) => x.req <= 1 && !x.gated && Object.keys(inputsOf(x)).length);
+      assert(r, 'no visible level-1 smithing recipe to start');
+      G.skills = Object.assign({}, G.skills, { smithing: 100000 });
+      G.inventory = Object.assign({}, G.inventory, inputsOf(r)); bag.agree(); stampRecordLikeLoad(G);
+      window.showTab('skills'); window.renderSkillDetail('smithing');
+      const active = () => document.querySelector('#skill-detail .act-tile.active');
+      window.startArtisan('smithing', r.id);
+      assert(active(), 'setup: the first start painted no Active tile');
+      window.stopSkill();
+      assert(!active(), 'setup: the stop left a tile Active');
+      window.startArtisan('smithing', r.id);
+      assert(active(), 'the SAME recipe restarted after a stop paints no Active tile — the render key still named the stopped run');
+    } finally {
+      window.declareActivity = realDeclare;
+      try { window.stopSkill(); } catch (e) {}
+      bag.restore(); restoreGAndRecord(snap);
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
     }
   }),
 

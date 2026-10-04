@@ -4514,48 +4514,43 @@ export default [
     }
   }),
 
-  /* regression suite — THE KIT AND THE VENDOR COUNT THE SERVER'S BAG (CLAUDE.md
-     §6, P1 class "client shows X, server refuses"). applyLoadout funded every
-     slot and the food from hasItem(), i.e. G.inventory — the display bag a
-     client-rolled drop can hold ahead of the server — so a kit equipped a piece
-     hr_apply then refused. It now counts gateItemCount (the mirror of
-     player_inventory). A WORN piece still funds its own slot: equip moved it OUT
-     of player_inventory, and every worn piece returns to the bag in the apply.
-     An unstated bag refuses the whole kit, says so, and moves nothing.
-     MUTATION: fund the kit from G.inventory again and (a) goes red. */
-  () => tryRun('LOADOUT-SRV-BAG: a loadout counts the SERVER bag — a display-only piece is not equipped, a worn one funds its slot, an unstated bag moves nothing', () => {
+  /* regression suite — THE KIT IS DECIDED BY THE SERVER'S ANSWER. Equip collects
+     first, so funding the kit from the last stated bag silently nulled a piece
+     crafted since (and still toasted ✓). MUTATION: fund from gateItemCount → (a)
+     red; toast before routeEquipGesture answers → (c) red. */
+  () => tryRunAsync('LOADOUT-SRV-BAG: a loadout equips a piece crafted since the last envelope, names every skipped slot, and says ✓ only on the server\'s answer', async () => {
     const G = window.G, Auto = window.HearthriseAuto;
     const snap = snapshotG(), bag = serverBagFixture();
     const real = { notify: window.notify, route: window.routeEquipGesture, setEat: Auto && Auto.setEat,
       loadouts: G.loadouts, food: G.foodSlot, active: window._activeLoadout };
-    const said = [], eats = [];
+    const said = [], eats = []; let answer = 'equipped';
     try {
       window.notify = (m) => { said.push(String(m)); };
-      window.routeEquipGesture = () => null;   // the wire is EQUIP-BATCH's subject
+      window.routeEquipGesture = () => Promise.resolve({ outcome: answer });   // the wire is EQUIP-BATCH's subject; the ANSWER is this one's
       if (Auto) Auto.setEat = (o) => { eats.push(o && o.foodId); };
       const kit = { name: 'Probe kit', set: true, equipment: { weapon: 'bronze_sword', helmet: 'bronze_helm' }, tools: {}, foodSlot: 'cooked_shrimp' };
-      const wear = (eq) => { G.equipment = Object.assign({ weapon: null, helmet: null, body: null }, eq); G.loadouts = [kit]; said.length = 0; };
-      G.inventory = { bronze_sword: 1, bronze_helm: 1, cooked_shrimp: 5 };
+      const wear = (eq, inv) => { G.equipment = Object.assign({ weapon: null, helmet: null, body: null }, eq); G.inventory = Object.assign({}, inv); G.loadouts = [kit]; said.length = 0; };
+      const settle = () => new Promise((r) => setTimeout(r, 0));
 
-      // (a) the display bag holds the sword and the shrimp; the SERVER holds only the helm.
-      wear({}); bag.agree({ bronze_helm: 1 });
-      window.applyLoadout(0);
-      assert(G.equipment.weapon === null && G.equipment.helmet === 'bronze_helm',
-        '(a) the kit equipped ' + JSON.stringify(G.equipment) + ' — the sword is in the DISPLAY bag only, and hr_apply refuses that equip');
-      assert(eats.length === 0, '(a) the kit set auto-eat to ' + JSON.stringify(eats) + ' off shrimp the server does not hold');
-
-      // (b) an unstated bag refuses the WHOLE kit, says why, and moves nothing.
-      wear({}); delete G._serverBag;
-      window.applyLoadout(0);
-      assert(G.equipment.weapon === null && G.equipment.helmet === null, '(b) an unstated bag equipped ' + JSON.stringify(G.equipment));
-      assert(said.some((m) => /still being counted/.test(m)), '(b) the refusal did not say the bag is still being counted: ' + JSON.stringify(said));
-
-      // (c) CONTROL, and the trap a naive switch falls into: a WORN piece funds its own slot.
-      wear({ weapon: 'bronze_sword' }); bag.agree({ bronze_helm: 1, cooked_shrimp: 5 });
-      window.applyLoadout(0);
+      // (a) THE REPORT: the sword was forged since the last envelope — the display bag holds it, the last stated bag does not.
+      wear({}, { bronze_sword: 1, bronze_helm: 1, cooked_shrimp: 5 }); bag.agree({ bronze_helm: 1, cooked_shrimp: 5 });
+      window.applyLoadout(0); await settle();
       assert(G.equipment.weapon === 'bronze_sword' && G.equipment.helmet === 'bronze_helm',
-        '(c) re-applying the kit dropped the sword the player is WEARING: ' + JSON.stringify(G.equipment));
-      assert(eats[eats.length - 1] === 'cooked_shrimp', '(c) the server holds the shrimp and the kit did not choose it: ' + JSON.stringify(eats));
+        '(a) THE BUG: the kit dropped a piece the equip collect funds: ' + JSON.stringify(G.equipment));
+      assert(said.some((m) => /^✓ Applied loadout: Probe kit$/.test(m)), '(a) the server answered equipped and no ✓ was said: ' + JSON.stringify(said));
+
+      // (b) a piece in NO bag is skipped OUT LOUD, never a silent null.
+      wear({}, { bronze_helm: 1, cooked_shrimp: 5 }); bag.agree();
+      window.applyLoadout(0); await settle();
+      assert(G.equipment.weapon === null && G.equipment.helmet === 'bronze_helm', '(b) setup: ' + JSON.stringify(G.equipment));
+      assert(said.some((m) => /skipped .*Bronze Sword \(not in your bag\)/i.test(m)), '(b) the skipped sword was not named: ' + JSON.stringify(said));
+
+      // (c) the server REFUSES: no ✓ (its own refusal is equipVerdictOutcome's to say).
+      answer = 'refused';
+      wear({}, { bronze_sword: 1, bronze_helm: 1, cooked_shrimp: 5 }); bag.agree();
+      window.applyLoadout(0); await settle();
+      assert(!said.some((m) => /Applied loadout/.test(m)), '(c) "✓ Applied loadout" was said for a kit the server refused: ' + JSON.stringify(said));
+      assert(eats[eats.length - 1] === 'cooked_shrimp', '(c) the kit did not choose the food it carries: ' + JSON.stringify(eats));
     } finally {
       window.notify = real.notify; window.routeEquipGesture = real.route;
       if (Auto) Auto.setEat = real.setEat;

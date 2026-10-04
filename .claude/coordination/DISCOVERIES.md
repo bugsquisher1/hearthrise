@@ -4,6 +4,27 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-10-03 · systems-engineer · settle-then-gate: a collect-first verb is its own settle (lane b562-craft-gate-server-bag)
+
+The last stated server bag (`G._serverBag`) is up to one 90 s cadence old. Anything gathered since is real
+on the server and absent from it. A verb with `collectsFirst:true` (set_activity, equip, vendor_sell,
+shop_buy, market_*) settles that window before it decides, and set_activity's collect has **no 60 s floor**
+(the accrue verb does — `requestAccrual` inside 60 s of the last settle answers `below_min_span` and returns
+no fresh bag). So "request a settle, then gate" cannot close the gap; the switch can. Ruling: a gate on
+the last bag may only *accept early*, never *refuse*. Bench: a funded last bag arms now; a short one sends
+the switch, paints "Counting…", and arms on the switch's envelope (stops and names the shortfall if the
+collect still cannot fund it). Loadout: funded from the display bag, skipped slots named, ✓ waits for the
+equip answer. hr_apply's activity branch has **no input check** (`2026-09-14-hr-apply-restatement.sql`
+§4a) — a run on an empty bag is accepted and pays nothing, so the client's stop-to-idle is what keeps the
+pointer honest.
+
+| # | Not fixed in this lane | Owner |
+|---|---|---|
+| 1 | Sell All per the Game Designer ruling #5: label/quantity from the server-confirmed stack ("Sell All 37 · 74g"), disabled "Sell All · counting…" while unconfirmed, receipt from the server's answer — `legacy.js` item flyout (~10065) + `shop-counter.js invSellAll` | systems-engineer (next lane; button copy art-director) |
+| 2 | `invSellSelected` and `inv-context-menu.js sellJunk/settleJunk` count `G.inventory` and predict gold for a stack the server may not hold; the receipt is the prediction, not the server's answer | systems-engineer |
+| 3 | `invSellOne` toasts "Sold 1×" before `vendor_sell` answers (a refusal rolls the gold back but the toast stands) | systems-engineer |
+| 4 | Dead renderers `renderArtisanActivities` (two copies) and legacy `onItemTap`/`renderInventory` are still exercised by PRAYER-LADDER-1, REEDTIDE-5, DEEPSEAM-4, SELFSUPPLY-1 — tests of a surface no player sees; re-point them at `tileForArtisan` or delete the renderers | qa-engineer |
+
 ## 2026-10-03 · QA · b562 exploratory rerun (toast storm, reload mid-run, double-clicks) on b560
 
 Harness (`__HR_TEST_HARNESS__`), local build, desktop 1440x900 + 922x423, scratch Playwright.

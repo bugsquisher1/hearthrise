@@ -402,6 +402,7 @@ import './features/boot-hydration.js?v=560';
    here with boot-hydration rather than in the setup() block below. */
 import './features/gem-unlocks.js?v=560';
 import './features/recipe-scrolls.js?v=560';
+import './features/bench-count.js?v=560';   // settle-then-gate at the bench: legacy.js startArtisan asks it before arming
 /* and the House theme cards those two decide the state of — a pure painter
    (src/render/house-themes.js), loaded here so renderHouse can call it. */
 import './render/house-themes.js?v=560';

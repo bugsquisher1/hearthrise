@@ -2903,7 +2903,7 @@ export default [
   /* PRAYER-LADDER-1 — Prayer shipped with rungs at 1/15/35 and NOTHING from 36 to 99, on the one bench whose whole output is XP. Drives the REAL tile renderer at Prayer 39 and again at 40; the boundary IS the property, and it is the same one hr_apply's `activity_locked` arm enforces server-side.
      `PAY` below is the literal (id, req, xp, ms) of all thirteen rungs: NOTHING else in the repo measures what a Prayer rung PAYS — hr_activities has no yield columns and the edge engine reads these very rows — so a typo (2400 → 24000) shipped green until it existed. Its 840 XP/s ceiling is MEASURED, just above the catalogue's own non-prayer maximum (forge_slagheart_platebody, 833.3): the one bench whose entire output is XP must never out-pay every other bench. */
   () => tryRun('PRAYER-LADDER-1: the Prayer ladder reaches 99 — Prayer 40 sees Sift Bone Chips live, Prayer 39 sees it locked', () => {
-    const snap = snapshotG(), bag = serverBagFixture();
+    const snap = snapshotG();
     try {
       const G = window.G, rows = window.ARTISAN_RECIPES.prayer;
       const first = rows.find((r) => r.id === 'bury_bone_chips');
@@ -2925,7 +2925,7 @@ export default [
       assert(rows[12].req === 99, 'the bench must reach Prayer 99, its top rung is ' + rows[12].req);
 
 
-      G.inventory = { bone_chips: 5 }; bag.agree();   // the server holds the stock: the LEVEL gate is the subject
+      G.inventory = { bone_chips: 5 };
       G.skills = { prayer: window.xpForLevel(39) }; stampRecordLikeLoad(window.G);
       assert(window.getLevel('prayer') === 39, 'fixture: Prayer is ' + window.getLevel('prayer') + ', not 39');
       const at39 = window.renderArtisanActivities('prayer');
@@ -2948,7 +2948,7 @@ export default [
         'a null-output rung must promise no product — the tile printed an output arrow');
       assert(cell(at40).indexOf(window.ITEMS.bone_chips.n) >= 0,
         'the live tile must name the drop it consumes');
-    } finally { bag.restore(); restoreGAndRecord(snap); }
+    } finally { restoreGAndRecord(snap); }
   }),
 
   /* ── REEDTIDE-1..5 — the "Reed & Tide" band, PLAYED ─────────────────────
@@ -3049,12 +3049,12 @@ export default [
   }),
 
   () => tryRun('REEDTIDE-5: the Grill Pikeperch tile is DISABLED at Cooking 17 and LIVE at 18 — the client half of hr_apply activity_locked', () => {
-    const snap = snapshotG(), bag = serverBagFixture();
+    const snap = snapshotG();
     const G = window.G, I = window.ITEMS;
     try {
       const rec = (window.ARTISAN_RECIPES.cooking || []).find((r) => r.id === 'cook_pikeperch');
       assert(rec, 'cook_pikeperch is missing from the cooking bench');
-      G.inventory = { pikeperch: 5 }; bag.agree();   // the server holds the stock: the LEVEL gate is the subject
+      G.inventory = { pikeperch: 5 };
       /* The WHOLE button: `disabled` sits BEFORE the onclick carrying the id. */
       const cell = (html) => {
         const at = html.indexOf('cook_pikeperch');
@@ -3069,7 +3069,7 @@ export default [
       const live = cell(window.renderArtisanActivities('cooking'));
       assert(!/disabled/.test(live), 'at Cooking ' + rec.req + ', holding pikeperch, the rung must be LIVE: ' + live.slice(0, 200));
       assert(live.indexOf(I.cooked_pikeperch.n) >= 0, 'the live tile must name what it makes, ' + I.cooked_pikeperch.n);
-    } finally { bag.restore(); restoreGAndRecord(snap); }
+    } finally { restoreGAndRecord(snap); }
   }),
 
   /* ── DEEPSEAM-1..6 — the "Deep Seam" band, PLAYED ───────────────────────
@@ -3175,12 +3175,12 @@ export default [
   }),
 
   () => tryRun('DEEPSEAM-4: the Forge Verdite Platebody tile is DISABLED at Smithing 49 and LIVE at 50 — the client half of hr_apply activity_locked', () => {
-    const snap = snapshotG(), bag = serverBagFixture();
+    const snap = snapshotG();
     const G = window.G, I = window.ITEMS;
     try {
       const rec = (window.ARTISAN_RECIPES.smithing || []).find((r) => r.id === 'forge_verdite_platebody');
       assert(rec && rec.req === 50, 'forge_verdite_platebody must be the Smithing 50 rung, got ' + JSON.stringify(rec));
-      G.inventory = { verdite_bar: 20, flux_salt: 10 }; bag.agree();   // the server holds the stock: the LEVEL gate is the subject
+      G.inventory = { verdite_bar: 20, flux_salt: 10 };
       /* The WHOLE button: `disabled` sits BEFORE the onclick carrying the id. */
       const cell = (html) => {
         const at = html.indexOf('forge_verdite_platebody');
@@ -3195,7 +3195,7 @@ export default [
       const live = cell(window.renderArtisanActivities('smithing'));
       assert(!/disabled/.test(live), 'at Smithing ' + rec.req + ', holding bars, the rung must be LIVE: ' + live.slice(0, 200));
       assert(live.indexOf(I.verdite_platebody.n) >= 0, 'the live tile must name what it makes, ' + I.verdite_platebody.n);
-    } finally { bag.restore(); restoreGAndRecord(snap); }
+    } finally { restoreGAndRecord(snap); }
   }),
 
   () => tryRun('SELFSUPPLY-1: at Smithing 30 the bench offers the Steel Bar AND the steel armour it feeds — the tier opens on ONE rung', () => {
@@ -3205,7 +3205,7 @@ export default [
        you cannot make it. This renders the REAL bench at 29, 30 and 31 and reads
        the buttons, i.e. it fails on the pre-ruling data at the `30` assertion.
        Ore is in the bag so the test measures the LEVEL GATE and nothing else. */
-    const snap = snapshotG(), bag = serverBagFixture();
+    const snap = snapshotG();
     const G = window.G, I = window.ITEMS;
     try {
       const bar = (window.ARTISAN_RECIPES.smithing || []).find((r) => r.id === 'smelt_steel');
@@ -3213,7 +3213,7 @@ export default [
       assert(bar && bar.req === 30, 'smelt_steel must be the Smithing 30 rung (the steel tier gate), got ' + (bar && bar.req));
       assert(glove && glove.req === 31, 'forge_steel_gauntlets must still be the 31 rung, got ' + (glove && glove.req));
 
-      G.inventory = { iron_bar: 40, coal: 40, steel_bar: 10 }; bag.agree();   // the server holds the stock: the LEVEL gate is the subject
+      G.inventory = { iron_bar: 40, coal: 40, steel_bar: 10 };
       const cell = (html, id) => {
         const at = html.indexOf(id);
         assert(at > 0, 'the smithing bench rendered no ' + id + ' tile at all');
@@ -3239,7 +3239,7 @@ export default [
       const at31 = atLevel(31);
       assert(!/disabled/.test(cell(at31, 'forge_steel_gauntlets')),
         'at Smithing 31, holding bars, the first steel armour rung must be LIVE');
-    } finally { bag.restore(); restoreGAndRecord(snap); }
+    } finally { restoreGAndRecord(snap); }
   }),
 
   () => tryRun('SELFSUPPLY-2: no tier gate sits above the first rung it feeds, and no bar opens below the reagent it eats', () => {

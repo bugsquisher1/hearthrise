@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 105 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, bountyRig, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, withRoomServer, awayArtisanSpan, tryRunRestampingBalance, goldOf, gemsOf, snapshotG, setAway, drain, restoreG, restoreGAndRecord, restoreBankCap, on, snapshot, phoneFrame, farmReplantFixtureG, withDeferredFarmPlant } from './_harness.js?v=560';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, bountyRig, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, withRoomServer, awayArtisanSpan, tryRunRestampingBalance, goldOf, gemsOf, snapshotG, setAway, drain, restoreG, restoreGAndRecord, restoreBankCap, on, snapshot, phoneFrame, farmReplantFixtureG, withDeferredFarmPlant, serverBagFixture } from './_harness.js?v=560';
 
 export default [
 
@@ -256,13 +256,14 @@ export default [
        thing meant to illustrate it. This guards the rule, not the one row:
        nothing purchasable on this screen may state a price the player cannot
        read in words. */
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     try {
       window.G.homestead = { tier: 3 };
       window.G.rooms = { workshop: 0, forge: 2 };
       window.G.gold = 1000;
       stampBalanceLikeLoad(window.G);   // armed: _costPart('gold', …) reads via canAfford
       window.G.inventory = Object.assign({}, window.G.inventory, { normal_log: 2, normal_plank: 2 });
+      bag.agree();   // the server holds the same 2s: "you have 2" is the server's count
 
       // (1) the shared helper itself — with art present, which is the bug case.
       const part = window._costPart('normal_plank', 15);
@@ -308,7 +309,7 @@ export default [
       assert(meta && /Normal Log/.test(meta.textContent),
         'the rendered ladder must show the item name, got "' + (meta && meta.textContent) + '"');
       assert(/\d+\s*\/\s*\d+/.test(meta.textContent), 'the rendered ladder must show your count over the needed count');
-    } finally { restoreG(snap); window.HearthriseRoomModal && window.HearthriseRoomModal.close(); }
+    } finally { restoreG(snap); bag.restore(); window.HearthriseRoomModal && window.HearthriseRoomModal.close(); }
   }),
 
   /* gold-arm: W.hire() is a deferred SPEND gated by clientMayWriteRecordField
@@ -1619,9 +1620,10 @@ export default [
     assert(M.backendActive() === false || !!window.HearthriseAuth, 'backendActive only with auth');
     // signed-out: seeding still allowed (dev), listing flow still local + sync
     const G = window.G;
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     try {
       G.inventory.normal_log = (G.inventory.normal_log || 0) + 5;
+      bag.agree();   // the server holds the logs (listItem counts its bag): the seam's defaults are the subject
       const r = M.listItem('normal_log', 5, 3);
       assert(r && r.ok === true, 'local listItem still returns sync {ok:true}, got ' + JSON.stringify(r));
       const mine = M.myListings ? M.myListings() : null;
@@ -1629,7 +1631,7 @@ export default [
       const all = JSON.parse(localStorage.getItem('hearthrise:market:listings') || '[]');
       const l = all.filter(x => x.itemId === 'normal_log').slice(-1)[0];
       if (l) M.cancelListing(l.id);
-    } finally { restoreGAndRecord(snap); }
+    } finally { restoreGAndRecord(snap); bag.restore(); }
   }),
   () => tryRun('b216: the light theme never paints under the dark theme', () => {
     // THE root cause of the recurring "mismatched colours". Two ways it broke:
@@ -2086,7 +2088,7 @@ export default [
     const entry = Object.entries(D).find(([, d]) => d.phases && d.cost && d.cost.key);
     if (!entry) return;
     const [id, d] = entry;
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();   // restores the bag runOnce states (it leaked into every later test)
     const R = window.HearthriseDungeonScrip;
     /* BOTH ARMS (b515). The key debit moved to the SERVER when the settle arm went
        live, so "the client spends the key" is now the DORMANT contract only. Until
@@ -2095,7 +2097,7 @@ export default [
     const runOnce = () => {
       const G = window.G;
       G.inventory = Object.assign({}, G.inventory); G.inventory[d.cost.key] = 3;
-      G._serverBag = Object.assign({}, G.inventory);   // the key is REAL server-side; the debit is what is under test
+      bag.agree();   // the key is REAL server-side; the debit is what is under test
       G.gold = (G.gold || 0) + 100000;
       G._dungeonCooldowns = {};              // clear any server cooldown window
       G.skills = Object.assign({}, G.skills, { attack: 5000000, strength: 5000000, defense: 5000000, hitpoints: 5000000 });
@@ -2125,7 +2127,7 @@ export default [
           'armed: the entry key is consumed by the SERVER at settle — a local debit here double-spends it'
           + ' (before ' + armed.before + ', after ' + armed.after + ')');
       }
-    } finally { if (R) R.__setDungeonSettleArm(null); restoreG(snap); }
+    } finally { if (R) R.__setDungeonSettleArm(null); restoreG(snap); bag.restore(); }
   }),
 
   () => tryRun('b214: no PvE loot table mints the premium hearth_token', () => {
@@ -2200,12 +2202,14 @@ export default [
     if (typeof window.upgradeRoom !== 'function' || !window.ROOMS || !window.ROOMS.kitchen || !window.ITEMS) return;
     const bp = 'kitchen_blueprint_t2';
     if (!window.ITEMS[bp]) return;
+    const bag = serverBagFixture();
     const snap = { rooms: JSON.parse(JSON.stringify(G.rooms || {})), homestead: JSON.parse(JSON.stringify(G.homestead || {})), inv: JSON.parse(JSON.stringify(G.inventory || {})), gold: G.gold };
     try {
       G.homestead = { tier: 6 };                              // property tier high enough that the rung gate passes
       G.rooms = Object.assign({}, G.rooms, { kitchen: 1 });   // built; upgrading to tier 2
       const inv = {}; Object.keys(window.ITEMS).forEach(id => inv[id] = 100000); delete inv[bp]; // everything EXCEPT the blueprint
       G.inventory = inv; G.gold = 1e9;
+      bag.agree();   // the server holds everything but the blueprint, too
       /* b515: the rooms record is ARMED, so the "already built at 1" premise has
          to arrive through applyRecord or `roomRungG` reads UNKNOWN and this
          would be testing the FIRST build, not the upgrade. */
@@ -2225,6 +2229,7 @@ export default [
           + JSON.stringify(rig.sent));
 
         G.inventory[bp] = 1;
+        bag.agree();   // the blueprint is REAL server-side (the gate counts the server's bag)
         /* WHO EATS THE BLUEPRINT, AND WHY THE CLIENT MAY NOT PREDICT IT.
            Under b500 the client's `_debitRoom()` — which removed the blueprint
            and the item costs — runs ONLY on the client-authoritative branch. On
@@ -2259,7 +2264,7 @@ export default [
           + 'is the b362 Dragon-Scale decay in reverse. hr_unlock_buy is the consumer.');
       });
     } finally { G.rooms = snap.rooms; G.homestead = snap.homestead; G.inventory = snap.inv; G.gold = snap.gold;
-      try { stampRecordLikeLoad(G); } catch (e) {} }
+      try { stampRecordLikeLoad(G); } catch (e) {} bag.restore(); }
   }),
 
   () => tryRun('WAVE2: the damage food buff actually raises max hit (Cooked Shark honest)', () => {
@@ -2982,6 +2987,7 @@ export default [
       addItem: window.addItem, getCombatLevel: window.getCombatLevel,
       send: DS.sendDungeonSettle, notify: window.notify, spoils: window.HearthriseSpoils,
     };
+    const bag = serverBagFixture();   // the gate counts the server bag: state it here, never borrow an earlier test's leak
     const minted = [];
     const opened = [], noted = [];
     let sent = null;
@@ -3017,6 +3023,7 @@ export default [
       G.inventory = Object.assign({}, G.inventory);
       G.inventory[d.cost.key] = 1;                       // a real key, so canRun passes
       delete G.inventory.dungeon_scrip;
+      bag.agree();                                       // ...real SERVER-side: the gate reads the stated bag
       G.dungeonScrip = 0;
       G._dungeonCooldowns = {};                          // off cooldown
       window.getCombatLevel = () => 99;
@@ -3053,6 +3060,7 @@ export default [
       DS.sendDungeonSettle = snap.send; window.addItem = snap.addItem;
       window.getCombatLevel = snap.getCombatLevel; window.notify = snap.notify;
       G.inventory = snap.inv; G.dungeonScrip = snap.scrip; G._dungeonCooldowns = snap.cd;
+      bag.restore();
     }
   }),
 
@@ -3384,11 +3392,12 @@ export default [
     assert(A && typeof A.reconcileDungeonCooldowns === 'function', 'accrue.js must export reconcileDungeonCooldowns');
     assert(typeof window.canRunDungeon === 'function' && typeof window.dungeonSettleRowHtml === 'function',
       'the dungeon gate reader and the settle-row renderer must both be exposed');
-    const G = window.G, snap = snapshotG(), lvl = window.getCombatLevel;
+    const G = window.G, snap = snapshotG(), lvl = window.getCombatLevel, bag = serverBagFixture();
     const at = new Date(Date.now() + 3600000).toISOString();
     try {
       window.getCombatLevel = () => 99;
       G.inventory = Object.assign({}, G.inventory, { bone_key: 1 });
+      bag.agree();   // the key is real server-side, so the cooldown is the only gate left to read
       // (a) a PROJECTED window blocks its OWN mode only, and prints a countdown.
       A.reconcileDungeonCooldowns(G, { dungeon_cooldowns: { [id]: { auto: at, manual: at } } });
       const busy = window.canRunDungeon(id, 'auto');
@@ -3415,7 +3424,7 @@ export default [
       assert(G._dungeonCooldowns[id].manual === at && window.canRunDungeon(id, 'manual').ok === false
         && window.canRunDungeon(id, 'auto').ok === true,
         'the refusal detail must rest ITS mode at once and no other (got ' + JSON.stringify(G._dungeonCooldowns) + ')');
-    } finally { window.getCombatLevel = lvl; restoreG(snap); }
+    } finally { window.getCombatLevel = lvl; restoreG(snap); bag.restore(); }
   }),
 
   /* ── regression suite — DGN-TRUTH-1: THE SCAVENGER SPOILS ARE THE SERVER'S ──

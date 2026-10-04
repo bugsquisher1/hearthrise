@@ -76,10 +76,11 @@ const benchSwitchArc = async (body) => {
 };
 
 /* ONE market_list ON A SCRIPTED WIRE (MP-R3a/b): list 3 normal_log @ 7g with
-   the seam configured, let `respond` answer, and report what is left behind. */
-const marketListArc = async (respond) => {
+   the seam configured, let `respond` answer, and report what is left behind.
+   `srvBag`: the server's bag (gateItemCount); default = it agrees with the bag. */
+const marketListArc = async (respond, srvBag) => {
   const G = window.G, A = window.HearthriseAccrual, Gd = window.HearthriseGold, M = window.HearthriseMarket;
-  const snap = snapshotG(), realFetch = window.fetch, realNotify = window.notify, wasOn = A.isServerAccrualEnabled();
+  const snap = snapshotG(), realFetch = window.fetch, realNotify = window.notify, wasOn = A.isServerAccrualEnabled(), bagWas = G._serverBag;
   const wasAck = A.isReplacementAcknowledged(), KEY = 'hearthrise:market:listings', saved = localStorage.getItem(KEY);
   const said = [];
   try {
@@ -90,6 +91,7 @@ const marketListArc = async (respond) => {
     window.fetch = function (u) { return /hr-accrue/.test(String(u)) ? respond() : realFetch.apply(this, arguments); };
     window.addItem('normal_log', 3);
     const before = G.inventory.normal_log || 0;
+    G._serverBag = srvBag || Object.assign({}, G._serverBag, { normal_log: before });
     const r = M.listItem('normal_log', 3, 7);
     await drain();
     const rows = JSON.parse(localStorage.getItem(KEY) || '[]').filter((l) => l.itemId === 'normal_log' && l.askEach === 7);
@@ -98,7 +100,7 @@ const marketListArc = async (respond) => {
     window.fetch = realFetch; window.notify = realNotify;
     Gd.resetGold(); Gd.configureGold(null); A.acknowledgeReplacement(wasAck); restoreAccrualSwitch(wasOn);
     if (saved === null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, saved);
-    restoreG(snap);
+    restoreG(snap); if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
   }
 };
 
@@ -7173,9 +7175,10 @@ export default [
       assert(nameEl, 'the activity strip is missing from the page, so the reported symptom cannot be measured');
       const txt = String(nameEl.textContent || '');
       const benchName = (window.SKILLS_DEF && window.SKILLS_DEF[SKILL] && window.SKILLS_DEF[SKILL].name) || SKILL;
-      assert(txt.indexOf(benchName) !== -1 && txt.indexOf(RID.replace(/_/g, ' ')) !== -1,
+      const recipeName = (hit.recipe && hit.recipe.name) || RID.replace(/_/g, ' ');
+      assert(txt.indexOf(benchName) !== -1 && txt.indexOf(recipeName) !== -1,
         'the activity strip reads "' + txt + '" — it must name the bench and the recipe ("' + benchName
-        + ' — ' + RID.replace(/_/g, ' ') + '"), which is the sentence the player said was missing');
+        + ' — ' + recipeName + '"), which is the sentence the player said was missing');
       assert(!/^Idle/.test(txt), 'THE REPORTED SYMPTOM VERBATIM: the strip still reads "' + txt + '"');
 
       /* ③ NOTHING WENT BACK ON THE WIRE. */
@@ -8390,6 +8393,16 @@ export default [
     assert(o.rows.length === 0, 'an unanswered listing stayed on the books: ' + JSON.stringify(o.rows));
     assert(o.have === o.before - 3, 'an unanswered listing refunded locally (the server may have written): have ' + o.have);
     assert(o.said.some((m) => /did not confirm/i.test(m)), 'the unknown outcome was never said: ' + JSON.stringify(o.said));
+  }),
+
+  /* MP-R6 (CLAUDE.md §6): the listing count is the SERVER's bag, which market_list escrows from. */
+  () => tryRunAsync('MP-R6: a listing is gated on the server\'s bag, not the display bag', async () => {
+    let calls = 0;
+    const o = await marketListArc(() => { calls++; return Promise.resolve(new Response('{"ok":true}', { status: 200 })); }, {});
+    assert(o.r && o.r.ok === false && /only have 0/.test(String(o.r.reason)), 'a listing the server bag cannot cover was accepted: ' + JSON.stringify(o.r));
+    assert(calls === 0 && o.rows.length === 0 && o.have === o.before, 'the refused listing reached the wire or escrowed: calls ' + calls + ', have ' + o.have + '/' + o.before);
+    const u = await marketListArc(() => { calls++; return Promise.resolve(new Response('{"ok":true}', { status: 200 })); }, null);
+    assert(u.r && u.r.ok === true, 'CONTROL: with the server holding the stack the listing must go: ' + JSON.stringify(u.r));
   }),
 
   () => tryRun('MP-R4: the listing hint quotes the vendor\'s real bid', () => {

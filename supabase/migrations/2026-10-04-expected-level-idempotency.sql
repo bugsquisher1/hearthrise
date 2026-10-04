@@ -536,7 +536,8 @@ begin
       raise exception 'GATE(e3): the stale intent wrote a ledger row'; end if;
     if exists (select 1 from public.player_intents where user_id = v_uid and intent_id = v_k2) then
       raise exception 'GATE(e3): the stale refusal was cached as a decision - a retry would replay a refusal'; end if;
-    if not exists (select 1 from public.hr_rejections where user_id = v_uid and code = 'stale_level') then
+    if not exists (select 1 from public.hr_rejections
+                    where user_id = v_uid and code = 'stale_level' and verbs ? 'farm_upgrade_plot') then
       raise exception 'GATE(e3): the stale refusal was not journalled in hr_rejections'; end if;
 
     -- (e4) A RETRY OF THE LANDED GESTURE (same key) REPLAYS, never stale.
@@ -575,8 +576,13 @@ begin
     select treasury into v_tre from public.clans where id = v_clan;
     if v_tre <> 60000 then raise exception 'GATE(e6): treasury % after a 40,000 raise on 100,000', v_tre; end if;
 
-    -- (e7) THE STALE SECOND RAISE moves nothing: tier, treasury, stores, ledger.
+    -- (e7) THE STALE SECOND RAISE moves nothing: tier, treasury, stores, ledger
+    --      — and is journalled under the wrapper's verb.
+    perform set_config('hearthrise.rejection_noted', '', true);
     v_r := public.clan_tier_up(v_clan, 2);
+    if not exists (select 1 from public.hr_rejections
+                    where user_id = v_uid and code = 'stale_tier' and verbs ? 'clan_tier_up') then
+      raise exception 'GATE(e7): the stale raise was not journalled in hr_rejections under clan_tier_up'; end if;
     if v_r->>'error' is distinct from 'stale_tier' or (v_r->>'castle_tier')::int <> 2 then
       raise exception 'GATE(e7): a stale second raise was not refused as stale_tier: %', v_r; end if;
     if (select castle_tier from public.clans where id = v_clan) <> 2

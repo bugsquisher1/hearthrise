@@ -417,12 +417,16 @@ async function run(mutate) {
 
     // ══ R2 — A FEAST EATEN AT RETURN ═════════════════════════════════════
     {
+      /* combat_xp_accrued_to is combat XP's own watermark. Left at creation, the
+         XP leg prices only the wall time since setup (usually under one kill, so
+         XP compared {} to {}); a night away has it at the window's start. */
       const fighter = async (uid) => {
         await give(uid, FEAST, 1);
         await q(`update public.player_state
                     set max_hp = 900, hp = 900, buffs = '[]'::jsonb,
                         active_kind = 'combat', active_id = 'goblin',
-                        active_since = now() - interval '2 hours', accrued_to = now() - interval '2 hours'
+                        active_since = now() - interval '2 hours', accrued_to = now() - interval '2 hours',
+                        combat_xp_accrued_to = now() - interval '2 hours'
                   where user_id=$1 and slot=0`, [uid]);
       };
       const snap = async (uid) => {
@@ -452,20 +456,37 @@ async function run(mutate) {
         return eat.runEat({ exec, user: U[uid], slot: 0, intentId: uuid(), item: FEAST, auto: false });
       };
 
-      await fighter(U.e);
-      const e0 = await snap(U.e);
-      const ea = await eatFeast('e');
-      ok(ea.status === 200 && ea.body.ok === true, `R2-CONTROL: order A's eat refused ${JSON.stringify(ea.body).slice(0, 240)}`);
-      const eatAt = Number((await row(U.e)).now_ms);
-      await accrue(U.e);
-      const dE = diff(e0, await snap(U.e));
+      /* ONE CLOCK PER ORDER. Each order runs in one transaction, so now() is the
+         same instant for fighter() and for the first settling verb and both
+         orders price exactly two hours. Unpinned, the window is two hours PLUS
+         the wall time from fighter() to the first settle, which differs between
+         the orders: on a loaded machine (2026-10-03, six suites in parallel) it
+         crossed a goblin kill and R2 went red with no defect (bones 752 vs 750;
+         reproduced by sleeping 12 s inside order A). */
+      const oneClock = async (fn) => {
+        await db.exec('begin');
+        try { const r = await fn(); await db.exec('commit'); return r; }
+        catch (e) { await db.exec('rollback'); throw e; }
+      };
 
-      await fighter(U.f);
-      const f0 = await snap(U.f);
-      await accrue(U.f);
-      const fb = await eatFeast('f');
-      ok(fb.status === 200 && fb.body.ok === true, `R2-CONTROL: order B's eat refused ${JSON.stringify(fb.body).slice(0, 240)}`);
-      const dF = diff(f0, await snap(U.f));
+      const { dE, eatAt } = await oneClock(async () => {
+        await fighter(U.e);
+        const e0 = await snap(U.e);
+        const ea = await eatFeast('e');
+        ok(ea.status === 200 && ea.body.ok === true, `R2-CONTROL: order A's eat refused ${JSON.stringify(ea.body).slice(0, 240)}`);
+        const at = Number((await row(U.e)).now_ms);
+        await accrue(U.e);
+        return { dE: diff(e0, await snap(U.e)), eatAt: at };
+      });
+
+      const dF = await oneClock(async () => {
+        await fighter(U.f);
+        const f0 = await snap(U.f);
+        await accrue(U.f);
+        const fb = await eatFeast('f');
+        ok(fb.status === 200 && fb.body.ok === true, `R2-CONTROL: order B's eat refused ${JSON.stringify(fb.body).slice(0, 240)}`);
+        return diff(f0, await snap(U.f));
+      });
 
       notes.push(`R2: eat→settle ${JSON.stringify(dE)}`);
       notes.push(`R2: settle→eat ${JSON.stringify(dF)}`);

@@ -11,6 +11,14 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 
 ## Log
 
+### 2026-10-03 · merge set/b562 + a lane-done flake (DISCOVERIES row 9)
+lane-done went red on `absence-priced-at-return` R2 while six other suites shared the box; alone it
+passed. Do not re-run it until it goes green. Inject the suspected skew (a sleep in ONE order of an
+A-vs-B comparison) and it reproduces every time. Two clocks were hiding there: the window end (fixed
+by one transaction per order, since `now()` is frozen inside a transaction) and a second watermark
+(`combat_xp_accrued_to`) the fixture never set, which also made the XP comparison vacuous. Any
+"same gestures, two orders" test must pin EVERY watermark the verb reads, not only `accrued_to`.
+
 ### 2026-10-03 · b562 exploratory rerun (branch qa/b562-exploratory)
 - `node tests/run-smoke.mjs --only X` still runs the whole Node guard prelude first (>10 min here). For a
   slice, boot the page with the harness flag and call `window.__smokeTest({silent:true, only})` directly.

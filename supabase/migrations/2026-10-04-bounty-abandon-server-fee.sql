@@ -64,10 +64,11 @@
 --   old defect never crossed players — it was a self-discount on a sink.
 --
 -- ── CONCURRENCY + IDEMPOTENCY ───────────────────────────────────────────────
--- The per-character advisory lock hr_apply takes, then player_state FOR UPDATE,
--- then active_bounty FOR UPDATE — the row lock hr_claim_bounty also takes, so a
--- racing claim and abandon serialise and exactly one consumes the contract (the
--- loser answers no_active_bounty). p_idem through hr_intent_replay (intent +
+-- The per-character advisory lock hr_apply takes, then (abandon) active_bounty
+-- FOR UPDATE, then player_state FOR UPDATE — hr_claim_bounty's own order
+-- (contract row, then wallet), so a racing claim and abandon serialise on the
+-- contract row instead of deadlocking, and exactly one consumes the contract
+-- (the loser answers no_active_bounty). p_idem through hr_intent_replay (intent +
 -- slot compared); successes cache in player_intents, refusals cache nothing
 -- (every client gesture mints a fresh key, the 2026-08-26 discipline).
 --
@@ -184,6 +185,16 @@ begin
   if v_prev ->> 'error' = 'intent_mismatch' then return v_prev; end if;
   if v_prev is not null then return v_prev || jsonb_build_object('replayed', true); end if;
 
+  -- LOCK ORDER IS THE CLAIM'S: contract row, THEN wallet. hr_claim_bounty__ungated
+  -- locks active_bounty FOR UPDATE and then updates player_state, and the client
+  -- fires that claim on a 12 s hold-retry while a full bar waits; taking the two
+  -- in the opposite order here would let an Abandon click deadlock it. A reroll
+  -- touches no contract and takes only the wallet.
+  if p_reason = 'abandon' then
+    select * into v_ab from public.active_bounty
+      where user_id = v_uid and slot = v_slot for update;
+  end if;
+
   select marks into v_marks from public.player_state
     where user_id = v_uid and slot = v_slot for update;
   if not found then
@@ -214,10 +225,8 @@ begin
                                  'marks', v_marks - v_cost, 'slot', v_slot);
   else
     -- ABANDON. The contract is the server's row or it is nothing: no row, no
-    -- abandon, no fee. Locked against a racing hr_claim_bounty (same row lock).
-    select * into v_ab from public.active_bounty
-      where user_id = v_uid and slot = v_slot for update;
-    if not found then
+    -- abandon, no fee. Locked above, before the wallet (the claim's order).
+    if v_ab.user_id is null then
       perform public.hr_record_rejection(v_uid, v_slot, v_intent, 'no_active_bounty', '{}'::jsonb, 1);
       return jsonb_build_object('ok', false, 'error', 'no_active_bounty', 'slot', v_slot);
     end if;

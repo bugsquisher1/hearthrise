@@ -11051,7 +11051,7 @@ console.log('Combat life: loaded');
 /* ════════════════════════════════════════════════════════════
    PERSISTENT ACTIVITY BAR
    Slot below topbar. Shows current action + progress + stop.
-   Reads from G.activeMonster / G.activeSkill / G.activeAction.
+   Reads from G.activeMonster / G.activeSkill (+ the server fall clock).
    Updates every 100ms via tick. No engine changes.
    ════════════════════════════════════════════════════════════ */
 
@@ -11079,7 +11079,6 @@ console.log('Combat life: loaded');
 function stopCurrentActivity(){
   if(G.activeMonster && typeof stopCombat === 'function'){ stopCombat(); return; }
   if(G.activeSkill && typeof stopSkill === 'function'){ stopSkill(); return; }
-  if(G.activeAction && typeof stopAction === 'function'){ stopAction(); return; }
 }
 
 /* Compute progress fraction. We try several common paths since this game
@@ -11096,9 +11095,6 @@ function _activityProgress(){
   }
   if(G.activeSkill && typeof G.skillProgress === 'number'){
     return Math.min(1, G.skillProgress || 0);
-  }
-  if(G.activeAction && typeof G.actionProgress === 'number'){
-    return Math.min(1, G.actionProgress || 0);
   }
   return 0;
 }
@@ -11308,7 +11304,7 @@ function refreshActivityBar(){
     const s = SKILLS_DEF[G.activeSkill];
     bar.classList.remove('idle','combat');
     HearthriseIcons.setActivityIcon(iconEl, G.activeSkill, 'var(--green)');
-    let actName = G.skillTargetId ? G.skillTargetId.replace(/_/g,' ') : '';
+    let actName = hrActivityTargetName(G.skillTargetId);
     if(nameEl) nameEl.textContent = `${s?.name||G.activeSkill}${actName?' — '+actName:''}`;
     const xph = _activityXpHr();
     if(metaEl){
@@ -11323,40 +11319,9 @@ function refreshActivityBar(){
     refreshPanelProgress();
     return;
   }
-  /* Generic action loop (smelt/saw/forge/cook in some branches) */
-  if(G.activeAction){
-    const a = G.activeAction;
-    const map = {smelt:'uiFire',saw:'uiAxe',forge:'uiAnvil',cook:'cooking',craft:'crafting',enchant:'uiSpark',pray:'prayer'};
-    const labelMap = {smelt:'Smelting',saw:'Sawing',forge:'Forging',cook:'Cooking',craft:'Crafting',enchant:'Enchanting',pray:'Bury'};
-    bar.classList.remove('idle','combat');
-    HearthriseIcons.setActivityIcon(iconEl, map[a.kind] || 'uiAnvil', 'var(--gold-2)');
-    if(nameEl) nameEl.textContent = `${labelMap[a.kind]||a.kind} — ${(a.targetId||'').replace(/_/g,' ')}`;
-    if(metaEl) metaEl.innerHTML = '';
-    if(stopBtn) stopBtn.style.display = '';
-    refreshPanelProgress();
-    return;
-  }
-  /* Artisan (cooking/smithing/crafting recipes) — Phase A.1 onwards uses
-     this path instead of legacy activeAction. */
-  if(G.activeArtisanRecipe){
-    /* icon key per bench; anything unmapped falls through to the uiAnvil
-       default below, which is the right picture for a workbench. */
-    const map = {cooking:'cooking', smithing:'smithing', crafting:'crafting', prayer:'prayer'};
-    const skill = G.activeArtisanSkill || 'cooking';
-    bar.classList.remove('idle','combat');
-    HearthriseIcons.setActivityIcon(iconEl, map[skill] || 'uiAnvil', 'var(--gold-2)');
-    if(nameEl){
-      const recipeName = G.activeArtisanRecipe.replace(/^[a-z]+_/,'').replace(/_/g,' ');
-      nameEl.textContent = `${skill[0].toUpperCase()}${skill.slice(1)} — ${recipeName}`;
-    }
-    if(metaEl){
-      const lv = (typeof getLevel==='function') ? getLevel(skill) : 0;
-      metaEl.innerHTML = `<span class="ab-lv">Lv <b>${lv}</b></span>`;
-    }
-    if(stopBtn) stopBtn.style.display = '';
-    refreshPanelProgress();
-    return;
-  }
+  /* No third pointer: G.activeAction / G.activeArtisanRecipe have no writer in src/**
+     (startArtisan runs a recipe through activeSkill + skillTargetId, above), so their
+     branches here were unreachable (and printed the raw id). */
   /* Idle */
   bar.classList.add('idle'); bar.classList.remove('combat');
   HearthriseIcons.setActivityIcon(iconEl, 'uiIdle', 'var(--ink-3)');
@@ -11418,7 +11383,7 @@ function refreshPanelProgress(){
   }
   if(G.activeSkill){
     const s = SKILLS_DEF[G.activeSkill] || {};
-    const target = G.skillTargetId ? G.skillTargetId.replace(/_/g,' ') : '';
+    const target = hrActivityTargetName(G.skillTargetId);
     const xph = _activityXpHr();
     /* b229: Skills folded into the Character screen, so the per-tab progress
        strip lives on #panel-character now (it was keyed to #panel-skills, which
@@ -11428,16 +11393,6 @@ function refreshPanelProgress(){
       xph ? `${xph.toLocaleString()} xp/hr` : '',
       _activityProgress(),
       'skill');
-    return;
-  }
-  if(G.activeArtisanRecipe){
-    const skill = G.activeArtisanSkill || 'cooking';
-    const recipeName = G.activeArtisanRecipe.replace(/^[a-z]+_/,'').replace(/_/g,' ');
-    updateOne('panel-character',
-      `${skill[0].toUpperCase()}${skill.slice(1)} — ${recipeName}`,
-      '',
-      Math.min(1, G.skillProgress || G.actionProgress || 0),
-      'artisan');
     return;
   }
 }
@@ -15076,24 +15031,7 @@ function buildActivityCard(){
        the honest picture and the one the rail, the activity bar and the
        level-up toast all use for the same thing. */
     var iconHtml = skillIconHTML(G.activeSkill, 34);
-    if(typeof TREES!=='undefined'){
-      var n = TREES.find(function(a){return a.id===G.skillTargetId;});
-      if(n){ nodeName = n.name; }
-    }
-    if(!nodeName && typeof ROCKS!=='undefined'){
-      var n = ROCKS.find(function(a){return a.id===G.skillTargetId;});
-      if(n){ nodeName = n.name; }
-    }
-    if(!nodeName && typeof FISH_SPOTS!=='undefined'){
-      var n = FISH_SPOTS.find(function(a){return a.id===G.skillTargetId;});
-      if(n){ nodeName = n.name; }
-    }
-    if(!nodeName && typeof window.ARTISAN_RECIPES !== 'undefined'){
-      Object.keys(window.ARTISAN_RECIPES).forEach(function(s){
-        var r = window.ARTISAN_RECIPES[s].find(function(x){return x.id===G.skillTargetId;});
-        if(r){ nodeName = r.name; }
-      });
-    }
+    nodeName = escapeHtml(hrActivityTargetName(G.skillTargetId));
     var skName = (typeof SKILLS_DEF!=='undefined' && SKILLS_DEF[G.activeSkill]) ? SKILLS_DEF[G.activeSkill].name : G.activeSkill;
     card.className = 'char-active-card';
     card.innerHTML = '<div class="ca-icon">'+iconHtml+'</div>'+

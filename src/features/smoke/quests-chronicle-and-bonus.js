@@ -2368,16 +2368,15 @@ export default [
     if (!bar || !nameEl || typeof window.startSkill !== 'function') return;
     if (!window.TREES || !window.TREES.length) return;
     const G = window.G;
-    const snap = { skill: G.activeSkill, target: G.skillTargetId, monster: G.activeMonster,
-      action: G.activeAction, recipe: G.activeArtisanRecipe, artisanSkill: G.activeArtisanSkill };
+    const snap = { skill: G.activeSkill, target: G.skillTargetId, monster: G.activeMonster };
     try {
       const node = window.TREES[0];
       if (typeof window.stopSkill === 'function') window.stopSkill();
-      /* Every other pointer cleared, because the strip renders the FIRST one it
-         finds: a cooking recipe left running by an earlier test would make the
-         "back to Idle" assertion below fail for a reason that is not this bug. */
-      G.activeMonster = null; G.activeAction = null;
-      G.activeArtisanRecipe = null; G.activeArtisanSkill = null;
+      /* The fight pointer cleared, because the strip renders it before the skill:
+         a fight left running by an earlier test would make the "back to Idle"
+         assertion below fail for a reason that is not this bug. (The strip reads no
+         other pointer: activeAction / activeArtisanRecipe have no writer.) */
+      G.activeMonster = null;
       window.startSkill('woodcutting', node.id, 3000);
       const text = nameEl.textContent || '';
       assert(!/^Idle/i.test(text),
@@ -2392,9 +2391,55 @@ export default [
         'stopping the activity did not put the strip back to Idle in the same tick');
     } finally {
       G.activeSkill = snap.skill; G.skillTargetId = snap.target; G.activeMonster = snap.monster;
-      G.activeAction = snap.action; G.activeArtisanRecipe = snap.recipe;
-      G.activeArtisanSkill = snap.artisanSkill;
       try { window.stopSkill && !snap.skill && window.stopSkill(); } catch (e) {}
+      try { window.saveLocal(); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('b562: the activity strip names the node/recipe, not its id', () => {
+    /* The strip printed `skillTargetId.replace(/_/g,' ')` ("Woodcutting — normal
+       tree"). One lookup, hrActivityTargetName, feeds both live surfaces and each
+       is read here: the bar and the Character panel's progress strip
+       (refreshPanelProgress). legacy.js buildActivityCard routes through it too,
+       but nothing paints that card (its renderCharacter wrapper is overwritten
+       later in the file), so no player surface can witness it. */
+    const nameEl = document.getElementById('ab-name');
+    assert(nameEl && typeof window.hrActivityTargetName === 'function', 'activity strip or name helper missing');
+    assert(typeof window.refreshActivityBar === 'function', 'the bar painter is missing');
+    const G = window.G, tree = window.TREES[0], recipe = (window.ARTISAN_RECIPES.cooking || [])[0];
+    assert(tree && recipe && recipe.input, 'no woodcutting node or cooking recipe to start');
+    /* The id-as-words form must differ from the name, or no arm below can go red. */
+    [tree, recipe].forEach((t) => assert(!t.id.replace(/_/g, ' ').includes(t.name),
+      t.id + ' reads as its own name, so this test cannot tell the name from the id'));
+    const ppLabel = () => {
+      const el = document.querySelector('#panel-character > .panel-progress [data-pp="label"]');
+      return el ? String(el.textContent || '') : '(no Character progress strip)';
+    };
+    const prevTab = (document.querySelector('.panel.active') || { id: '' }).id.replace(/^panel-/, '');
+    const snap = { skill: G.activeSkill, target: G.skillTargetId, monster: G.activeMonster, inv: G.inventory[recipe.input] };
+    try {
+      if (typeof window.stopSkill === 'function') window.stopSkill();
+      G.activeMonster = null;
+      window.showTab('character');
+      window.startSkill('woodcutting', tree.id, 3000);
+      window.refreshActivityBar();
+      let text = nameEl.textContent || '';
+      assert(text.includes(tree.name), 'gathering strip reads "' + text + '", expected the node name "' + tree.name + '"');
+      text = ppLabel();
+      assert(text.includes(tree.name), 'Character progress strip reads "' + text + '", expected "' + tree.name + '"');
+      G.inventory[recipe.input] = 5;
+      window.startArtisan('cooking', recipe.id);
+      window.refreshActivityBar();
+      text = nameEl.textContent || '';
+      assert(text.includes(recipe.name), 'cooking strip reads "' + text + '", expected the recipe name "' + recipe.name + '"');
+      text = ppLabel();
+      assert(text.includes(recipe.name), 'Character progress strip reads "' + text + '", expected "' + recipe.name + '"');
+      assert(window.hrActivityTargetName('no_such_node') === 'no such node', 'an unknown id must still read as words');
+    } finally {
+      try { window.stopSkill && window.stopSkill(); } catch (e) {}
+      G.activeSkill = snap.skill; G.skillTargetId = snap.target; G.activeMonster = snap.monster;
+      if (snap.inv === undefined) delete G.inventory[recipe.input]; else G.inventory[recipe.input] = snap.inv;
+      if (prevTab && typeof window.showTab === 'function') { try { window.showTab(prevTab); } catch (e) {} }
       try { window.saveLocal(); } catch (e) {}
     }
   }),

@@ -17,10 +17,19 @@
 // ── WHAT IT DRIVES ──────────────────────────────────────────────────────────
 // The REAL edge modules (market.js, eat.js, claim-reward.js, set-activity.js)
 // behind the same one-statement `exec` seam index.ts hands them, as `hr_engine`,
-// against the REAL migration chain in PGlite. `accrue` is index.ts's verb and
-// index.ts is Deno TypeScript, so the settle it performs is driven through
-// `collectCurrentWindow` — the SAME computeAccrual literal (A14 proves the two
-// call sites hand the engine the same input set) and the same derived key.
+// against the REAL migration chain in PGlite.
+//
+// ⚠ THE HARNESS `accrue` IS NOT index.ts's accrue. index.ts is Deno TypeScript,
+//   so the harness calls `collectCurrentWindow` WITHOUT `pointerSurvives`: the
+//   privileged SWITCH-collect (set-activity.js ~L1035, `callerAuthority:
+//   CALLER_AUTHORITY`). It has no ACCRUE_MIN_MS floor, stamps `accrued_to` at
+//   now() and DROPS the leftover partial action. index.ts's accrue keeps the
+//   floor, defers that remainder and owns the degrade ladder. What the two
+//   share is the computeAccrual literal (A14 proves both call sites hand the
+//   engine the same input set) and the seed/key derivation. So every "accrue"
+//   below ends its order in the privileged collect: R1/R2/R3 prove the ORDER
+//   of two gestures moves no value under that collect, not that index.ts's
+//   accrue pays the same bytes.
 //
 // ⚠ ONE HARNESS PRIVILEGE, STATED. The seed of a window is
 //   hr_seed(user, slot, 'accrue:<watermark>') — a per-character secret. R1 and
@@ -44,6 +53,15 @@
 //        R1's accrue-first night, and the watermark has moved.
 //   R2   eat hunters_feast then settle a combat night == settle then eat
 //        (drops, gold, XP, kills), and the live buff keeps its full duration.
+//        THE CLOCK RULE: each order runs in ONE transaction, so now() is one
+//        instant and the time between the eat and the settle is pinned to ZERO
+//        in both orders. A sub-minute settle→eat gap (a boot settle, then a tap
+//        seconds later) is therefore OUT OF R2's REACH. That case is owned by
+//        tests/buff-queue.mjs R6 (`--mutate=noFrom`: a segment pays nothing
+//        before its `from`) plus F2's 180 s `settle_first` refusal
+//        (2026-09-28-settle-before-mutate.sql). The equality itself is proven
+//        to bite by `--mutate=eatSettlesBuffed`; `flipCollectEat` is caught
+//        earlier, by R2-CONTROL (F2 refuses the stale eat), not by the equality.
 //   R3   the self-market loop: slot 1 lists the pickaxe, slot 0 of the SAME
 //        player buys it at return, then accrue — slot 0 is paid the no-tool rate.
 //   R4   (world-tick P5 fold) — not in this file; tests/world-tick-parity.mjs.
@@ -68,6 +86,11 @@ const FN = (f) => join(ROOT, 'supabase', 'functions', 'hr-accrue', f);
 
 const ROW = (verb, bucket, v) =>
   `  ${verb}: Object.freeze({ bucket: '${bucket}', needsKey: true, collectsFirst: ${v} }),`;
+
+/* R2's equality failure opens with this text. A mutation with `by` counts as
+   CAUGHT only when a failure starting with `by` is in the run, so the claim it
+   was planted against has to be the one that bites. */
+const R2_EQ = 'R2: a Hunter\'s Feast eaten at return re-priced the two-hour fight before it';
 
 /* ── THE MUTATION CATALOGUE ─────────────────────────────────────────────────
    Each entry plants a REAL defect in the edge half. `--mutate` demands every
@@ -94,6 +117,21 @@ const MUTATIONS = {
        + 'absence and then runs its full duration anyway (R2)',
     find: ROW('eat', 'activity', 'true'),
     repl: ROW('eat', 'activity', 'false'),
+  },
+  /* The settle still runs FIRST, but the envelope it prices carries the feast's
+     segment running from the window's start — the pre-F1/F3 pricing. Only the
+     R2 equality can see it: the eat is not refused, so R2-CONTROL stays green. */
+  eatSettlesBuffed: {
+    file: FN('eat.js'),
+    why: 'the eat\'s settle prices the night with the feast\'s buff already applied — +5 % drops '
+       + 'over the whole absence, then the buff runs its full duration anyway (R2 equality)',
+    by: R2_EQ,
+    claim: 'THE R2 EQUALITY',
+    find: 'env: read.env,',
+    repl: 'env: food.hasBuff ? { ...read.env, buffs: [...(read.env.buffs || []), { '
+       + 'type: ITEMS[food.item].buff.type, magnitude: ITEMS[food.item].buff.magnitude, '
+       + 'from: read.env.state.accrued_to, '
+       + 'until: new Date(read.nowMs + ITEMS[food.item].buff.durationMs).toISOString() }] } : read.env,',
   },
   settleStampsNow: {
     file: FN('set-activity.js'),
@@ -255,8 +293,9 @@ async function run(mutate) {
              where user_id=$1 and slot=$2`, [uid, slot, NODE, HOURS * 3600]);
   };
 
-  /** The accrue verb's settle — see the header for why it is driven through the
-      collect. Reads with the `accrue` bucket, the gate index.ts spends. */
+  /** A privileged SWITCH-collect standing in for index.ts's accrue — see the
+      header: no floor, stamps now(), drops the partial action. Reads with the
+      `accrue` bucket, the gate index.ts spends. */
   const accrue = async (uid, slot = 0) => {
     await clearGate();
     const [read] = await exec(sa.READ_SQL, [uid, slot, 'accrue']);
@@ -417,12 +456,16 @@ async function run(mutate) {
 
     // ══ R2 — A FEAST EATEN AT RETURN ═════════════════════════════════════
     {
+      /* combat_xp_accrued_to is combat XP's own watermark. Left at creation, the
+         XP leg prices only the wall time since setup (usually under one kill, so
+         XP compared {} to {}); a night away has it at the window's start. */
       const fighter = async (uid) => {
         await give(uid, FEAST, 1);
         await q(`update public.player_state
                     set max_hp = 900, hp = 900, buffs = '[]'::jsonb,
                         active_kind = 'combat', active_id = 'goblin',
-                        active_since = now() - interval '2 hours', accrued_to = now() - interval '2 hours'
+                        active_since = now() - interval '2 hours', accrued_to = now() - interval '2 hours',
+                        combat_xp_accrued_to = now() - interval '2 hours'
                   where user_id=$1 and slot=0`, [uid]);
       };
       const snap = async (uid) => {
@@ -452,28 +495,47 @@ async function run(mutate) {
         return eat.runEat({ exec, user: U[uid], slot: 0, intentId: uuid(), item: FEAST, auto: false });
       };
 
-      await fighter(U.e);
-      const e0 = await snap(U.e);
-      const ea = await eatFeast('e');
-      ok(ea.status === 200 && ea.body.ok === true, `R2-CONTROL: order A's eat refused ${JSON.stringify(ea.body).slice(0, 240)}`);
-      const eatAt = Number((await row(U.e)).now_ms);
-      await accrue(U.e);
-      const dE = diff(e0, await snap(U.e));
+      /* ONE CLOCK PER ORDER. Each order runs in one transaction, so now() is the
+         same instant for fighter() and for the first settling verb and both
+         orders price exactly two hours. Unpinned, the window is two hours PLUS
+         the wall time from fighter() to the first settle, which differs between
+         the orders: on a loaded machine (2026-10-03, six suites in parallel) it
+         crossed a goblin kill and R2 went red with no defect (bones 752 vs 750;
+         reproduced by sleeping 12 s inside order A). */
+      const oneClock = async (fn) => {
+        await db.exec('begin');
+        try { const r = await fn(); await db.exec('commit'); return r; }
+        catch (e) { await db.exec('rollback'); throw e; }
+      };
 
-      await fighter(U.f);
-      const f0 = await snap(U.f);
-      await accrue(U.f);
-      const fb = await eatFeast('f');
-      ok(fb.status === 200 && fb.body.ok === true, `R2-CONTROL: order B's eat refused ${JSON.stringify(fb.body).slice(0, 240)}`);
-      const dF = diff(f0, await snap(U.f));
+      const { dE, eatAt } = await oneClock(async () => {
+        await fighter(U.e);
+        const e0 = await snap(U.e);
+        const ea = await eatFeast('e');
+        ok(ea.status === 200 && ea.body.ok === true, `R2-CONTROL: order A's eat refused ${JSON.stringify(ea.body).slice(0, 240)}`);
+        const at = Number((await row(U.e)).now_ms);
+        await accrue(U.e);
+        return { dE: diff(e0, await snap(U.e)), eatAt: at };
+      });
+
+      const dF = await oneClock(async () => {
+        await fighter(U.f);
+        const f0 = await snap(U.f);
+        await accrue(U.f);
+        const fb = await eatFeast('f');
+        ok(fb.status === 200 && fb.body.ok === true, `R2-CONTROL: order B's eat refused ${JSON.stringify(fb.body).slice(0, 240)}`);
+        return diff(f0, await snap(U.f));
+      });
 
       notes.push(`R2: eat→settle ${JSON.stringify(dE)}`);
       notes.push(`R2: settle→eat ${JSON.stringify(dF)}`);
       ok(Object.keys(dF).length > 2 && (dF['inv.' + FEAST] === -1),
         `R2-CONTROL: the settle-first night moved ${JSON.stringify(dF)} — no fight happened, or the `
         + 'feast was not eaten, so an equality would be vacuous');
+      const differ = [...new Set([...Object.keys(dE), ...Object.keys(dF)])]
+        .filter((k) => dE[k] !== dF[k]).map((k) => `${k} ${dE[k] ?? 0} vs ${dF[k] ?? 0}`).join(', ');
       ok(JSON.stringify(Object.entries(dE).sort()) === JSON.stringify(Object.entries(dF).sort()),
-        'R2: a Hunter\'s Feast eaten at return re-priced the two-hour fight before it — eat→settle '
+        `${R2_EQ} — eat→settle vs settle→eat differ on ${differ}. eat→settle `
         + `moved ${JSON.stringify(dE)}, settle→eat moved ${JSON.stringify(dF)}. A 15-minute food `
         + 'must never buy a night of +5 % drops.');
       const buffs = (await row(U.e)).buffs || [];
@@ -570,9 +632,18 @@ async function main() {
     const ids = one ? [one] : Object.keys(MUTATIONS);
     let slipped = 0;
     for (const id of ids) {
+      const m = MUTATIONS[id];
+      if (!m) { const e = new Error(`unknown mutation "${id}"`); e.harness = true; throw e; }
       const { fails } = await run(id);
-      if (fails.length) console.log(`  CAUGHT   ${id} — ${fails[0].slice(0, 160)}`);
-      else { slipped++; console.log(`  SLIPPED  ${id} — ${MUTATIONS[id].why}`); }
+      const hit = m.by ? fails.find((f) => f.startsWith(m.by)) : fails[0];
+      if (hit) {
+        console.log(m.by
+          ? `  CAUGHT   ${id} BY ${m.claim} — ${hit.slice(m.by.length + 3, m.by.length + 3 + 320)}`
+          : `  CAUGHT   ${id} — ${hit.slice(0, 160)}`);
+      } else if (fails.length) {
+        slipped++;
+        console.log(`  SLIPPED  ${id} — ${m.claim} did not bite; red only by: ${fails[0].slice(0, 160)}`);
+      } else { slipped++; console.log(`  SLIPPED  ${id} — ${m.why}`); }
     }
     console.log(slipped ? `absence-priced-at-return --mutate: ${slipped} SLIPPED` : `absence-priced-at-return --mutate: all ${ids.length} caught`);
     return slipped ? 1 : 0;

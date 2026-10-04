@@ -1337,7 +1337,7 @@ export default [
      being counted", never a fabricated count and never a pass.
      MUTATION: point legacy.js artisanInputGate's countOf back at G.inventory and
      (a) goes red on the row AND the start. */
-  () => tryRun('CRAFT-GATE-1: the bench start and its recipe row count the SERVER bag — display-only ore starts nothing, an unstated bag is "still being counted"', () => {
+  () => tryRun('CRAFT-SRV-BAG: the bench start and its recipe row count the SERVER bag — display-only ore starts nothing, an unstated bag is "still being counted"', () => {
     if (typeof window.startArtisan !== 'function' || typeof window.renderArtisanActivities !== 'function') { skip('no artisan bench'); return; }
     const snap = snapshotG(), bag = serverBagFixture();
     const realNotify = window.notify, realDeclare = window.declareActivity;

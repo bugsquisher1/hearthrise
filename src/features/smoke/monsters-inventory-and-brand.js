@@ -4518,29 +4518,24 @@ export default [
      §6, P1 class "client shows X, server refuses"). applyLoadout funded every
      slot and the food from hasItem(), i.e. G.inventory — the display bag a
      client-rolled drop can hold ahead of the server — so a kit equipped a piece
-     hr_apply then refused, and the vendor tap sold one the server never held.
-     Both now count gateItemCount (the mirror of player_inventory). A WORN piece
-     still funds its own slot: equip moved it OUT of player_inventory, and every
-     worn piece returns to the bag in the apply. An unstated bag refuses, says
-     so, and moves nothing.
-     MUTATION: fund the kit (or the sale) from G.inventory again and (a)/(d) go red. */
-  () => tryRunAsync('LOADOUT-SRV-BAG: a loadout and a vendor sale count the SERVER bag — a display-only piece is not equipped or sold, an unstated bag moves nothing', async () => {
-    const G = window.G, Auto = window.HearthriseAuto, Gd = window.HearthriseGold;
+     hr_apply then refused. It now counts gateItemCount (the mirror of
+     player_inventory). A WORN piece still funds its own slot: equip moved it OUT
+     of player_inventory, and every worn piece returns to the bag in the apply.
+     An unstated bag refuses the whole kit, says so, and moves nothing.
+     MUTATION: fund the kit from G.inventory again and (a) goes red. */
+  () => tryRun('LOADOUT-SRV-BAG: a loadout counts the SERVER bag — a display-only piece is not equipped, a worn one funds its slot, an unstated bag moves nothing', () => {
+    const G = window.G, Auto = window.HearthriseAuto;
     const snap = snapshotG(), bag = serverBagFixture();
-    const real = { notify: window.notify, route: window.routeEquipGesture, ask: window.askConfirm, settle: window.goldSettle,
-      setEat: Auto && Auto.setEat, sell: Gd && Gd.sellItem, loadouts: G.loadouts, food: G.foodSlot, active: window._activeLoadout };
+    const real = { notify: window.notify, route: window.routeEquipGesture, setEat: Auto && Auto.setEat,
+      loadouts: G.loadouts, food: G.foodSlot, active: window._activeLoadout };
     const said = [], eats = [];
-    let sold = 0;
     try {
       window.notify = (m) => { said.push(String(m)); };
       window.routeEquipGesture = () => null;   // the wire is EQUIP-BATCH's subject
       if (Auto) Auto.setEat = (o) => { eats.push(o && o.foodId); };
-      if (Gd) Gd.sellItem = () => null;
-      window.goldSettle = () => { sold++; return {}; };
-      window.askConfirm = () => Promise.resolve(true);
       const kit = { name: 'Probe kit', set: true, equipment: { weapon: 'bronze_sword', helmet: 'bronze_helm' }, tools: {}, foodSlot: 'cooked_shrimp' };
       const wear = (eq) => { G.equipment = Object.assign({ weapon: null, helmet: null, body: null }, eq); G.loadouts = [kit]; said.length = 0; };
-      G.inventory = { bronze_sword: 1, bronze_helm: 1, cooked_shrimp: 5, copper_ore: 5 };
+      G.inventory = { bronze_sword: 1, bronze_helm: 1, cooked_shrimp: 5 };
 
       // (a) the display bag holds the sword and the shrimp; the SERVER holds only the helm.
       wear({}); bag.agree({ bronze_helm: 1 });
@@ -4561,25 +4556,46 @@ export default [
       assert(G.equipment.weapon === 'bronze_sword' && G.equipment.helmet === 'bronze_helm',
         '(c) re-applying the kit dropped the sword the player is WEARING: ' + JSON.stringify(G.equipment));
       assert(eats[eats.length - 1] === 'cooked_shrimp', '(c) the server holds the shrimp and the kit did not choose it: ' + JSON.stringify(eats));
+    } finally {
+      window.notify = real.notify; window.routeEquipGesture = real.route;
+      if (Auto) Auto.setEat = real.setEat;
+      G.loadouts = real.loadouts; G.foodSlot = real.food; window._activeLoadout = real.active;
+      bag.restore(); restoreG(snap);
+    }
+  }),
 
-      // (d) the vendor tap: the display bag shows ore the server does not hold.
-      G.inventory.copper_ore = 5; bag.agree({}); said.length = 0;
-      window.onItemTap('copper_ore'); await drain();
+  /* regression suite — the vendor tap re-read hasItem() (G.inventory) after its
+     confirm, so it sold a unit the server never held. It now counts
+     gateItemCount; unstated = "still being counted", no sale.
+     MUTATION: read G.inventory in onItemTap's sale again and (d) goes red. */
+  () => tryRunAsync('VENDOR-SRV-BAG: the vendor tap counts the SERVER bag — display-only ore is not sold, an unstated bag says it is being counted', async () => {
+    const G = window.G, Gd = window.HearthriseGold;
+    const snap = snapshotG(), bag = serverBagFixture();
+    const real = { notify: window.notify, ask: window.askConfirm, settle: window.goldSettle, sell: Gd && Gd.sellItem };
+    const said = [];
+    let sold = 0;
+    try {
+      window.notify = (m) => { said.push(String(m)); };
+      if (Gd) Gd.sellItem = () => null;
+      window.goldSettle = () => { sold++; return {}; };
+      window.askConfirm = () => Promise.resolve(true);
+      const tap = async () => { said.length = 0; window.onItemTap('copper_ore'); await drain(); };
+      // (d) the display bag shows ore the server does not hold.
+      G.inventory = Object.assign({}, G.inventory, { copper_ore: 5 }); bag.agree({});
+      await tap();
       assert(sold === 0 && G.inventory.copper_ore === 5, '(d) the vendor sold ore the SERVER does not hold (' + sold + ' sale(s))');
       assert(said.some((m) => /No Copper Ore left to sell/.test(m)), '(d) the refusal was not spoken: ' + JSON.stringify(said));
       // (e) unstated: no sale, and it says the bag is being counted.
-      delete G._serverBag; said.length = 0;
-      window.onItemTap('copper_ore'); await drain();
+      delete G._serverBag;
+      await tap();
       assert(sold === 0 && said.some((m) => /still being counted/.test(m)), '(e) an unstated bag sold or stayed silent: ' + JSON.stringify(said));
       // (f) CONTROL: the server holds it, so it sells.
       bag.agree({ copper_ore: 5 });
-      window.onItemTap('copper_ore'); await drain();
+      await tap();
       assert(sold === 1 && G.inventory.copper_ore === 4, '(f) CONTROL: the server holds the ore and the sale did not happen (' + sold + ')');
     } finally {
-      window.notify = real.notify; window.routeEquipGesture = real.route; window.askConfirm = real.ask; window.goldSettle = real.settle;
-      if (Auto) Auto.setEat = real.setEat;
+      window.notify = real.notify; window.askConfirm = real.ask; window.goldSettle = real.settle;
       if (Gd) Gd.sellItem = real.sell;
-      G.loadouts = real.loadouts; G.foodSlot = real.food; window._activeLoadout = real.active;
       bag.restore(); restoreG(snap);
     }
   }),

@@ -14725,7 +14725,7 @@ window.startArtisan = function(skillId, recipeId){
   if((window.hrGateLevel?window.hrGateLevel(skillId):1) < r.req){ if(typeof notify==='function') notify((window.hrLevelGateText?window.hrLevelGateText(skillId,r.req,'Need Lv '+r.req+' '+skillId):'Need Lv '+r.req+' '+skillId),'kill'); return; }
   if(!gateOk(r)){ if(typeof notify==='function') notify('Need recipe scroll: '+(ITEMS[r.gated]?.n||r.gated),'kill'); return; }
   var _ig = artisanInputGate(r), _nm = function(id){ return (ITEMS[id]&&ITEMS[id].n)||id; };   /* the SERVER's bag: an unstated one is counting, said once, never a shortfall */
-  if(_ig.counting.length){ if(typeof notify==='function') notify(_ig.counting.map(_nm).join(' and ')+' still being counted — try again in a moment','kill'); return; }
+  if(_ig.counting.length){ if(typeof notify==='function') notify('Your bag is still being counted — try again in a moment','kill'); return; }   /* the mirror is the WHOLE bag (market.js / applyLoadout say the same) */
   if(!_ig.ok){ if(typeof notify==='function') notify('Need: '+_ig.short.map(function(id){ return _nm(id)+' x'+_ig.inputs[id]; }).join(', '),'kill'); return; }
   /* b348 SEAM 7 — the inputs-aware override is the one that actually runs;
      seam 6 above is the base it shadows. BOTH declare, because a build that

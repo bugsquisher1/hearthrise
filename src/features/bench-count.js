@@ -36,8 +36,9 @@ function finish(mark, skillId, r, v) {
   const G = W.G;
   if (G.activeSkill !== skillId || G.skillTargetId !== r.id) { repaint(skillId); return; }   // the server's reconcile moved it
   const answered = !!v && (v.outcome === 'switched' || v.outcome === 'replayed');
+  const unsent = !!v && (v.outcome === 'unconfigured' || v.outcome === 'undeclarable');   // no realm to count it: the pre-gate local run
   const ig = gateInputs(G, inputsOf(r));
-  if (answered && ig.ok) { W._armArtisanTimers(G.skillMs); repaint(skillId); return; }
+  if ((answered && ig.ok) || unsent) { W._armArtisanTimers(G.skillMs); repaint(skillId); return; }
   if (typeof W.stopSkill === 'function') W.stopSkill();
   if (v && v.outcome === 'refused') return;                // the refusal is the server's own message
   say(answered && !ig.counting.length
@@ -53,10 +54,14 @@ function finish(mark, skillId, r, v) {
 export function countFirst(skillId, r) {
   if (gateInputs(W.G, inputsOf(r)).ok) return false;
   const mark = W._benchCounting = { skill: skillId, id: r.id };
+  const p = (typeof W.declareActivity === 'function') ? W.declareActivity('artisan', r.id) : null;
+  /* NOTHING WAS SENT: a quiet start is the client applying the SERVER's own
+     pointer (reconcile/resume) — it already decided, and a stop here would
+     evict its run on uncertainty. Hand the gesture back to the caller. */
+  if (!p || typeof p.then !== 'function') { W._benchCounting = null; return false; }
   repaint(skillId);
   say('Counting your bag…', 'info');
-  const p = (typeof W.declareActivity === 'function') ? W.declareActivity('artisan', r.id) : null;
-  Promise.resolve(p).then((v) => finish(mark, skillId, r, v), () => finish(mark, skillId, r, null));
+  p.then((v) => finish(mark, skillId, r, v), () => finish(mark, skillId, r, null));
   return true;
 }
 

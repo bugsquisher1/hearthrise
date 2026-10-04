@@ -695,12 +695,8 @@
   }
   async function tierUp() {
     if (needServer()) return false;
-    /* THE TIER BEING BOUGHT IS THE SERVER'S (2026-10-04-expected-level-
-       idempotency.sql). clan_tier_up refuses unless p_expect_tier equals its
-       castle_tier + 1 under the clans row lock, so a double-click or a retried
-       raise cannot buy the tier AFTER the one on screen. The value is the last
-       clan_seat_read answer — never castleTier()'s display clamp — and with no
-       read for THIS clan nothing is sent. */
+    /* The tier bought is the SERVER's next one (clan_tier_up refuses a stale
+       p_expect_tier); with no seat read for this hold, nothing is sent. */
     var s = seat();
     var cur = s ? Number(s.castle_tier) : NaN;
     if (!isFinite(cur) || cur < 0) { toast(C().errorText('missing_expect'), 'kill'); return false; }
@@ -708,8 +704,6 @@
       function (o) { return { out: o }; });
     if (d.action !== 'accept') {
       toast(d.message || C().errorText(d.error), 'kill');
-      /* stale_tier: an earlier raise already landed. Re-read the seat so the
-         panel shows the tier the hold actually stands at. */
       if (d.error === 'stale_tier') { await readSeat(true); renderIfOpen(); }
       return false;
     }

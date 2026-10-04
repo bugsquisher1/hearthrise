@@ -207,7 +207,7 @@ export default [
     })),
 
   // ════════════════════════════════════════════════════════════════════════
-  // b562 — AN ESCALATING PURCHASE NAMES THE RUNG IT IS BUYING
+  // AN ESCALATING PURCHASE NAMES THE RUNG IT IS BUYING
   // (supabase/migrations/2026-10-04-expected-level-idempotency.sql). A second
   // tap with a fresh key used to buy the tier AFTER the one on the card; the
   // server now refuses unless p_expect_level = its plot_level + 1, so the

@@ -1104,7 +1104,7 @@ export default [
     } finally { UI._reset(); }
   }),
 
-  // b562 — 2026-10-04-expected-level-idempotency.sql. clan_tier_up refuses
+  // 2026-10-04-expected-level-idempotency.sql: clan_tier_up refuses
   // unless p_expect_tier = castle_tier + 1 under the clans row lock, so a
   // double-click cannot raise the hold TWO tiers (or pay twice for one). The
   // client must name the tier from the SERVER's seat read, and send nothing

@@ -4,6 +4,18 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-10-03 · backend-architect · lane C follow-ups from the expected-rung review (Security GO-WITH-CHANGES on 3a525095)
+
+C1/C2/C3 landed on `lane/b562-server-expected-level`. What the review listed and this lane did NOT fix:
+
+| # | Finding | Evidence | Sev | Owner |
+|---|---|---|---|---|
+| 1 | `hr_vigour_refill` is an escalating relative verb with no server-side expected rung. Closed on the honest path only (src/net/vigour.js coalesces and reuses its key); a second key buys the next, dearer rung | migration header "DELIBERATELY DOES NOT DO" | P2 | backend-architect + security |
+| 2 | `hr_bounty_spend` reroll: the paid-reroll index is client residue (`rerollsToday`/`freeRerolls`), so no honest caller can name it. Project today's paid-reroll count from the server first, then add `p_expect_index` | same | P2 | backend-architect + security |
+| 3 | `clan_upkeep_settle` (2026-08-08-clan-seat.sql:401) takes no lock and its treasury debit is unjournalled: N concurrent callers after a weekly boundary each read the stale row, and each `update ... treasury = treasury - v_gold_paid` re-evaluates on the committed row, so the clan is charged N times | body read 2026-10-03; clans not launched | P2 | backend-architect + security |
+| 4 | Lock-order deadlock: `clan_tier_up` locks `clans` then updates `clan_stores`; `clan_deposit__ungated` (2026-08-18-clan-deposit-ownership.sql) upserts `clan_stores` then updates `clans.standing`. Concurrent calls can raise 40P01 (one aborts, no corruption) | both bodies read 2026-10-03 | P3 | backend-architect + security |
+| 5 | `lane/b562-intent-latch` (758843cb) conflicts with this lane in `farm-sync.js` farmUpgradePlot, `farm-progression.js` upgrade `.then`, `clan-seat-ui.js` tierUp (+ this file). Merged result: the latch runs the call AND sends `p_expect_level`/`p_expect_tier` with the `missing_expect` early return; `.then` handles both in-flight silence and `stale_level`; tierUp keeps its stale_tier re-read | trial merge, aborted | P2 | systems-engineer (whichever lane merges second) |
+
 ## 2026-10-03 · QA · b562 exploratory rerun (toast storm, reload mid-run, double-clicks) on b560
 
 Harness (`__HR_TEST_HARNESS__`), local build, desktop 1440x900 + 922x423, scratch Playwright.

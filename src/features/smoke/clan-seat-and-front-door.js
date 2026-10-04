@@ -1109,19 +1109,27 @@ export default [
   // double-click cannot raise the hold TWO tiers (or pay twice for one). The
   // client must name the tier from the SERVER's seat read, and send nothing
   // when it has no read for this clan.
-  () => tryRun('EXPECT-TIER-1: a hold tier-up names the server\'s next tier, and no seat read sends nothing', () => {
+  // AWAITED (Security C2 on 3a525095): tierUp's refusal path toasts and
+  // re-reads the seat AFTER the response. A sync test restored fetch/notify and
+  // ran UI._reset() first, so that continuation raised a REAL toast against
+  // real modules after the test had passed. Both calls settle inside the stubs.
+  () => tryRunAsync('EXPECT-TIER-1: a hold tier-up names the server\'s next tier, and no seat read sends nothing', async () => {
     const UI = window.HearthriseClanSeatUI;
     const C = window.HearthriseClanSeat;
     assert(UI && typeof UI.tierUp === 'function', 'HearthriseClanSeatUI.tierUp must be published');
     const calls = [];
+    const toasts = [];
     const realFetch = window.fetch;
     const sb = window.HearthriseSupabase, au = window.HearthriseAuth;
     const realGetConfig = sb && sb.getConfig, realGetSession = au && au.getSession;
     const realNotify = window.notify;
+    const staleText = C.errorText('stale_tier');
+    const missingText = C.errorText('missing_expect');
+    let r1, r2;
     try {
       if (sb) sb.getConfig = () => ({ url: 'https://probe.invalid', anonKey: 'anon-probe-key' });
       if (au) au.getSession = () => ({ access_token: 'probe-token', user: { id: 'probe-user' } });
-      window.notify = () => {};
+      window.notify = (m, k) => { toasts.push({ m: String(m), k: k }); };
       window.fetch = function (url, opts) {
         calls.push({ url: String(url), opts: opts || {} });
         return Promise.resolve({ ok: true, status: 200,
@@ -1132,7 +1140,7 @@ export default [
       UI._setSeat({ castle_tier: 2, standing: 0, treasury: 0, upkeep_state: 'active',
                     upgrades: {}, stores: {}, orders: [] }, 'test-hold');
       const p = UI.tierUp();
-      if (p && typeof p.catch === 'function') p.catch(() => {});
+      r1 = await p;
       const tierCalls = calls.filter((c) => c.url.indexOf('/rest/v1/rpc/clan_tier_up') !== -1);
       assert(tierCalls.length === 1, 'a tier-up must issue exactly one clan_tier_up request, saw ' + tierCalls.length);
       const body = JSON.parse(tierCalls[0].opts.body || '{}');
@@ -1144,13 +1152,15 @@ export default [
       assert(typeof C.errorText === 'function' && C.errorText('stale_tier').indexOf('stale_tier') === -1
         && C.errorText('stale_tier') !== C.errorText('__unknown__'),
         'stale_tier must read as a sentence, got ' + C.errorText('stale_tier'));
+      assert(calls.some((c) => c.url.indexOf('/rest/v1/rpc/clan_seat_read') !== -1),
+        'a stale_tier refusal must re-read the seat while the stubs are live');
 
       // A seat read for ANOTHER hold is no read for this one: nothing is sent.
       calls.length = 0;
       UI._setSeat({ castle_tier: 2, standing: 0, treasury: 0, upkeep_state: 'active',
                     upgrades: {}, stores: {}, orders: [] }, 'other-hold');
       const p2 = UI.tierUp();
-      if (p2 && typeof p2.catch === 'function') p2.catch(() => {});
+      r2 = await p2;
       assert(calls.filter((c) => c.url.indexOf('/rest/v1/rpc/clan_tier_up') !== -1).length === 0,
         'a tier-up with no server seat for this hold must send nothing, saw ' + calls.length);
     } finally {
@@ -1160,6 +1170,19 @@ export default [
       if (au && realGetSession) au.getSession = realGetSession;
       UI._reset();
     }
+    /* NO RESIDUE: with the real notify back, nothing this test started may
+       still be running. A pass-through spy (it forwards, it suppresses nothing)
+       watches one macrotask for either of this test's two sentences. */
+    const leaked = [];
+    const restored = window.notify;
+    window.notify = function (m) { leaked.push(String(m)); return restored.apply(this, arguments); };
+    try { await new Promise((res) => setTimeout(res, 20)); } finally { window.notify = restored; }
+    assert(!leaked.some((m) => m === staleText || m === missingText),
+      'NOTIF RESIDUE: a tier-up continuation toasted after the stubs were restored: ' + JSON.stringify(leaked));
+    assert(r1 === false && toasts.some((t) => t.m === staleText && t.k === 'kill'),
+      'the stale_tier refusal must toast inside the stubs, got r1=' + r1 + ' ' + JSON.stringify(toasts));
+    assert(r2 === false && toasts.some((t) => t.m === missingText && t.k === 'kill'),
+      'no seat for this hold must toast missing_expect inside the stubs, got r2=' + r2 + ' ' + JSON.stringify(toasts));
   }),
 
   // §9.4 — the Common Room. The b222 seam (G.restedXp, watermarked accrual)

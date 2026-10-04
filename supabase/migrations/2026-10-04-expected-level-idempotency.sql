@@ -10,6 +10,19 @@
 --     client half (src/features/farm-progression.js, src/net/farm-sync.js,
 --     src/features/clan-seat-ui.js) must ride the SAME cut, AFTER the apply.
 --
+-- ⚠ SAME-SITTING APPLY (Security C1) — NOT the "lane C applies when its token
+--     works" path of CLAUDE.md §3.3a. The LIVE client's old call shape omits
+--     p_expect_level / p_expect_tier; with `default null` it resolves to the
+--     NEW function and is refused `missing_expect`. From the moment this file
+--     lands until the client half is served, EVERY plot upgrade (and every
+--     clan tier-up) is refused. So: apply this file in the same sitting as the
+--     cut push that carries the client half — apply, read §4's notices, push
+--     within minutes. Never apply it on a day whose cut does not carry the
+--     client half, and never leave the apply waiting on a later cut.
+--     Between apply and push: `node tests/rpc-resolution.mjs` must show only
+--     the two staged new-shape probes flipping PGRST202 -> 42501 (Security
+--     C3; exact expectation in tests/schema-apply-order.json), then re-baseline.
+--
 -- ── THE CLASS ───────────────────────────────────────────────────────────────
 -- A RELATIVE money verb ("buy the NEXT plot tier", "raise the hall ONE tier")
 -- is not idempotent on intent. The idempotency key makes a REPLAY of one

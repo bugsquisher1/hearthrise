@@ -1920,7 +1920,10 @@ body[data-theme] .activity-bar.v2 .ab-meta > span { white-space: nowrap; }
  * flex), then `short` (the chips' words - "Lifetime", "this fight", "Bounty",
  * "away:", Vigour's "of Vigour"/"pays" - become their glyphs), then `tight`
  * (the status icon and the dry chip's "Out ·"; hourglass, red rim and ×0.25
- * stay), then `compact` (the Lifetime figure, "12M"). No chip is ever hidden
+ * stay), then `compact` (the Lifetime figure, "12M"), `togo` (the XP chip's
+ * to-go, "1.2M to go") and last `streak` (this fight's count, "123K" - the
+ * screen's heartbeat, so it stops ticking only when nothing else is left).
+ * Vigour, the bounty and the away verdict never compact. No chip is ever hidden
  * (the Game Designer's ruling, FIGHT-PHONE-DENSITY). src/render/bar-fit.js
  * MEASURES: it takes a step only while #ab-meta overflows, so a narrow face
  * keeps its words and a wide one (Segoe, Verdana, DejaVu on CI) shortens
@@ -1928,13 +1931,17 @@ body[data-theme] .activity-bar.v2 .ab-meta > span { white-space: nowrap; }
  * measure the result. */
 body[data-theme] .activity-bar.v2[data-fit~="short"] :is(.ab-vigour-verb, .ab-vigour-word, .ab-chip-word) { display: none; }
 body[data-theme] .activity-bar.v2[data-fit~="short"] .ab-vigour .ab-vigour-glyph { display: inline-flex; vertical-align: -2px; margin-right: 3px; }
-body[data-theme] .activity-bar.v2[data-fit~="short"] .ab-meta :is(.ab-tkills, .ab-bounty, .ab-away) > .hr-glyph { display: inline-flex; margin-right: 4px; }
+body[data-theme] .activity-bar.v2[data-fit~="short"] .ab-meta :is(.ab-tkills, .ab-bounty, .ab-away, .ab-xp) > .hr-glyph { display: inline-flex; margin-right: 4px; }
 body[data-theme] .activity-bar.v2[data-fit~="short"] .ab-vigour { padding: 2px 4px; }
 body[data-theme] .activity-bar.v2[data-fit~="short"] .ab-meta { gap: 6px; letter-spacing: 0; }
 body[data-theme] .activity-bar.v2[data-fit~="tight"]:has(.ab-verb) .ab-icon,
 body[data-theme] .activity-bar.v2[data-fit~="tight"] .ab-vigour-out,
-body[data-theme] .activity-bar.v2[data-fit~="compact"] .ab-tkills .ab-n-full { display: none; }
-body[data-theme] .activity-bar.v2[data-fit~="compact"] .ab-tkills .ab-n-short { display: inline; }
+body[data-theme] .activity-bar.v2[data-fit~="compact"] .ab-tkills .ab-n-full,
+body[data-theme] .activity-bar.v2[data-fit~="togo"] .ab-xp .ab-n-full,
+body[data-theme] .activity-bar.v2[data-fit~="streak"] .ab-kills .ab-n-full { display: none; }
+body[data-theme] .activity-bar.v2[data-fit~="compact"] .ab-tkills .ab-n-short,
+body[data-theme] .activity-bar.v2[data-fit~="togo"] .ab-xp .ab-n-short,
+body[data-theme] .activity-bar.v2[data-fit~="streak"] .ab-kills .ab-n-short { display: inline; }
 body[data-theme] .activity-bar.v2 .ab-meta { font-size: var(--t-small); color: var(--ink-3); font-variant-numeric: tabular-nums; }
 body[data-theme] .activity-bar.v2 .ab-lv b,
 body[data-theme] .activity-bar.v2 .ab-xph b { color: var(--gold-2); }

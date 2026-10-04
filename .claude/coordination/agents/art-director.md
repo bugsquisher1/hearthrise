@@ -2762,3 +2762,16 @@ least in the next minute. Frames run no scripts, so the tests call `fitBar` them
 observer is proven by squeezing the real bar to 560px and giving the room back.
 Lesson: when a rule is "fit", measure the fit. Thresholds are calibrated on today's numbers and
 today's face; the overflow is always the current truth.
+
+### 2026-10-04 · lane/b562-combat-strip-polish (review GO-WITH-CHANGES): give-way rulings + the flake
+
+Landed the review's two required tests on a shared fixture (`statusBar` in hunt-raids-and-screens.js,
+upper band: 123,456 / STR 98 · 1,228,825 to go / 234/1,500 / 12,345,678 / "you fall"): BAR-FIT-1
+undoes the last step in 16 frames plus the live bar at 760/680/620/560px and demands overflow, and must
+see both "none" and "streak" (not vacuous); BAR-FIT-2 holds 560px and goes crowded→sparse→crowded.
+Mutants: always-short-first, MutationObserver removed, textContent out of the key, old compactNumber,
+old injector - each fails by name. Fit steps are now short→tight→compact→togo→streak (GD order); every
+compacted chip's title carries the full figure; the XP chip's "STR" becomes the skill glyph at `short`.
+compactNumber picks its unit on the rounded figure (no "1000K"). The FIGHT-PHONE-DENSITY flake was a
+real bug: the retired Events shortcut raced the boot into the stance ribbon (see DISCOVERIES).
+Lesson: a layout flake is a layout that differs between loads - dump and diff the subtree first.

@@ -3449,3 +3449,29 @@ and the XP chip run together: "1,234 STR 72 · 45,678 to go" - the inter-chip ga
 than the XP chip's own " · " separator, so proximity groups the wrong things. Not changed in
 lane/b562-combat-strip-polish (scope: clipping). Candidate fix: the skill's own atlas glyph replaces
 "STR" at `short` (narrower than the word), after checking it does not read as the kills sword.
+
+RESOLVED 2026-10-04 in lane/b562-combat-strip-polish (Game Designer ruling 3): at `short` the XP chip's
+"STR" is the skill's own atlas glyph (the fist for Strength; it does not read as the kills sword),
+level kept gold-bold, title/label "Strength 98 · 1,228,825 XP to go"; no glyph keeps the letters.
+
+## 2026-10-04 · art-director · the FIGHT-PHONE-DENSITY "flake" was a retired button racing the boot (FIXED)
+
+Not a flake. Measured on 8 fresh loads with a layout dump: on 2 of them the Fight screen's stance
+block carried an extra 44px "Events" row, pushing the action bar 48px down and the food row out of
+the arena card at 922x423 (410 vs 405). `nav-consolidation.js` injected the b362-retired combat
+Events shortcut into the style ribbon whenever its boot pass ran before `combat-screens.js` built
+`.cbt-views`, and deliberately KEPT a ribbon copy afterwards. Players on a slow boot saw it too.
+The injector and its two dead CSS blocks are deleted; FIGHT-EVENTS-SHORTCUT-1 replays the slow boot
+on a stand-in panel and fails by name on the old code. FIGHT-PHONE-DENSITY: 30/30 fresh pages green.
+Lesson for every "N in 21" layout flake: dump the card's subtree on a passing and a failing load and
+diff them before touching a threshold.
+
+## 2026-10-04 · art-director · Game Designer rulings 4 and 5 (Quartermaster buy lock, Sell All) are unowned (handoff: Systems Engineer)
+
+The 2026-10-03 rulings that came with the combat-bar give-way also decided two shop behaviours this
+lane did not implement (scope: the bar). 4: the Quartermaster row's button is disabled and reads
+"Buying…" from the press until that buy's envelope or refusal returns (no timer floor; one press per
+confirmed buy). 5: "Sell All 37 · 74g" sells the stack the server last confirmed, never a predicted
+count; unconfirmed reads "Sell All · counting…" (disabled, title "Not counted yet — the realm is
+still counting your bag"); the receipt reports what the server sold. Owner: systems-engineer (client
+intent + projection); the server half of 5 (sell-by-confirmed-quantity) may need backend-architect.

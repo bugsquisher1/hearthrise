@@ -8,7 +8,7 @@
 // ══════════════════════════════════════════════════════════════════════
 import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays, phoneFrame, withStockedFight, serverBagFixture } from './_harness.js?v=560';
 import { weaknessOf, weaknessWords } from '../../render/foe-weakness.js?v=560';
-import { fitBar } from '../../render/bar-fit.js?v=560';
+import { fitBar, xpChip } from '../../render/bar-fit.js?v=560';
 import { weaknessInfo, WEAPON_TYPES } from '../../core/combat.js?v=560';
 
 /* DEEPWATERS fixture (content pack 8). Bonus-free and gear-free — getBonus and
@@ -4997,6 +4997,64 @@ export default [
             try { window.HearthriseVigourMount && window.HearthriseVigourMount.paint(); } catch (e) {}
           }
         };
+        /* THE STATUS-BAR FIXTURE (FIGHT-STATUS-VERB-1, BAR-FIT-1, BAR-FIT-2): a
+           fight on the long-named foe carrying the UPPER BAND a late-game player
+           does - 123,456 this fight, STR 98 with 1,228,825 to go (the widest
+           to-go there is, 98 -> 99, built by the real chip builder), bounty
+           234/1,500, a Lifetime of 12,345,678, the away chip at "you fall" -
+           visited in a phoneFrame at 922x423 and 1280x800, in the theme face and
+           in Verdana/DejaVu (what a player with blocked webfonts and CI see).
+           The foe is SET, never fought, so no swing can leave a death sheet. */
+        const statusBar = async (states, perFrame, perLive) => {
+          const G = window.G, LT = window.HearthriseLifetime, NP = window.HearthriseNightPlan, D = window.HearthriseDeathSheet;
+          assert(LT && typeof LT.__swapView === 'function' && NP && typeof NP.chipHtml === 'function', 'the Lifetime seam or the Night Plan chip is not published');
+          assert(window.HearthriseBarFit && window.HearthriseBarFit.xpChip === xpChip && typeof window.xpForLevel === 'function', 'the XP chip builder (render/bar-fit.js) is not what legacy.js reaches');
+          const xp98 = () => xpChip({ skill: 'strength', name: 'Strength', level: 98, toGo: window.xpForLevel(99) - window.xpForLevel(98), glyph: window.HR.icon('strength', 13, 'currentColor') });
+          const bh = G.bountyHunter, hp = G.playerHp, parked = LT.__swapView(null);
+          const kind = { 'stated+bounty': [METER, true], stated: [METER, false], 'dry+bounty': [DRY, true], dry: [DRY, false] };
+          const frames = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+          try {
+            for (const state of states) {
+              const [meterOf, bounty] = kind[state];
+              await fight(meterOf(), async (m) => {
+                const crowd = () => {
+                  LT.__swapView({ counts: { kills: { n: 12345678, exact: true } } });
+                  G.activeMonster = 'carnivorous_plant'; G.playerHp = G.playerMaxHp; G.combatKillsThisFoe = 123456;
+                  G.bountyHunter = Object.assign({}, bh, { active: bounty ? { target: 'carnivorous_plant', required: 1500, progress: 234 } : null });
+                  m.paint(); window.refreshActivityBar();
+                  const meta = document.getElementById('ab-meta'), away = meta.querySelector('.ab-away'), xp = meta.querySelector('.ab-xp');
+                  if (away) away.outerHTML = NP.chipHtml({ deaths: 1, foodQty: 5, foodEaten: 0 });
+                  if (xp) xp.outerHTML = xp98();
+                  return meta;
+                };
+                const meta0 = crowd();
+                const html = document.getElementById('app').outerHTML, cls = document.body.className;
+                if (perFrame) for (const [w, h] of [[922, 423], [1280, 800]]) for (const face of ['theme', 'fallback']) {
+                  phoneFrame(w, h, html, (doc) => {
+                    doc.body.className = cls;
+                    if (face === 'fallback') {
+                      const st = doc.createElement('style');
+                      st.textContent = '#activity-bar, #activity-bar * { font-family: Verdana, "DejaVu Sans", sans-serif !important; }';
+                      doc.head.appendChild(st);
+                    }
+                    fitBar(doc.getElementById('activity-bar')); // the frame runs no scripts; the live bar's observer does this
+                    perFrame(doc, state + ' ' + w + 'x' + h + ' ' + face + ': ', { state, bounty, face, meta0: w === 922 && face === 'theme' ? meta0 : null });
+                  });
+                }
+                if (!perLive) return;
+                const bar = document.getElementById('activity-bar');
+                const steps = () => (bar.getAttribute('data-fit') || '').split(' ').filter(Boolean).length;
+                const settle = async (pred) => { for (let i = 0; i < 30 && !pred(); i++) await frames(); return pred(); };
+                await frames(); await frames();
+                await perLive({ state, bar, steps, settle, crowd, bh });
+              });
+            }
+          } finally {
+            LT.__swapView(parked); G.bountyHunter = bh; G.playerHp = hp;
+            // Whatever a fixture opens, it puts away: a knockout here would sit over every later test.
+            if (D && typeof D.__resetForTest === 'function') D.__resetForTest();
+          }
+        };
         return [
           () => tryRunAsync('vigour mount: with no priced meter the Fight screen and activity bar show no Vigour', async () => {
             for (const meter of [null, PROD_METER()]) {
@@ -5399,92 +5457,187 @@ export default [
           // "Figh…". The verb is whole at both sizes in any face; only the foe's
           // name gives way, no chip folds onto a clipped second line, and no chip
           // is clipped by the meta - the LAST chip ends inside #ab-meta's visible
-          // box. Numbers are the UPPER BAND a mid-game player carries (review of
-          // the ch-threshold fit: 1,234 kills, STR 72 / 45,678 to go, bounty
-          // 234/1,500 and a Lifetime of 12,345,678 clipped "away: you fall" in
-          // Segoe and Verdana at 1280x800 and in Verdana at 922x423), in all four
-          // Vigour x bounty states. The frames run no scripts, so each calls
-          // fitBar itself; the LIVE bar is then narrowed and widened to prove the
-          // observer steps up on overflow and back down when room returns. The foe
-          // is SET, never fought, so no swing can leave a death sheet behind.
+          // box. Numbers are the UPPER BAND (statusBar above), in all four Vigour
+          // x bounty states, so the Game Designer's worst case - 922x423, Verdana,
+          // stated Vigour + a bounty - is one of the sixteen frames. Every chip's
+          // title keeps its full figure however short its face has gone, and at
+          // `short` the XP chip's "STR" is the skill's own glyph (rulings,
+          // 2026-10-03). The LIVE bar is then narrowed and widened to prove the
+          // observer steps up on overflow and back down when room returns.
           () => tryRunAsync('FIGHT-STATUS-VERB-1: "Fighting" is never cut and no bar chip wraps or is clipped, at 922x423 and 1280x800, in the theme face and a wide fallback, with upper-band numbers', async () => {
-            const G = window.G, LT = window.HearthriseLifetime, NP = window.HearthriseNightPlan, D = window.HearthriseDeathSheet;
-            const bh = G.bountyHunter, hp = G.playerHp;
-            assert(LT && typeof LT.__swapView === 'function' && NP && typeof NP.chipHtml === 'function', 'the Lifetime seam or the Night Plan chip is not published');
-            const parked = LT.__swapView({ counts: { kills: { n: 12345678, exact: true } } });
-            const frames = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
             const bad = [];
-            try {
-              G.playerHp = G.playerMaxHp;
-              for (const [state, meter, bounty] of [['stated+bounty', METER(), true], ['stated', METER(), false], ['dry+bounty', DRY(), true], ['dry', DRY(), false]]) {
-                await fight(meter, async (m) => {
-                  G.activeMonster = 'carnivorous_plant'; G.playerHp = G.playerMaxHp; G.combatKillsThisFoe = 1234;
-                  G.bountyHunter = Object.assign({}, bh, { active: bounty ? { target: 'carnivorous_plant', required: 1500, progress: 234 } : null });
-                  m.paint(); window.refreshActivityBar();
-                  const meta0 = document.getElementById('ab-meta'), away = meta0.querySelector('.ab-away'), xp = meta0.querySelector('.ab-xp');
-                  if (away) away.outerHTML = NP.chipHtml({ deaths: 1, foodQty: 5, foodEaten: 0 });
-                  // The XP chip's own markup (legacy refreshActivityBar), at a level and a gap the fixture's G does not carry.
-                  if (xp) xp.innerHTML = 'STR <b>72</b> · 45,678 to go';
-                  const said = meta0.textContent.replace(/\s+/g, ' ');
-                  for (const want of ['1,234', 'STR 72 · 45,678 to go', '12,345,678', 'you fall'].concat(bounty ? ['234/1,500'] : [])) {
-                    if (said.indexOf(want) < 0) bad.push(state + ': the fixture bar does not say "' + want + '": ' + said);
-                  }
-                  assert(!!meta0.querySelector('.ab-bounty') === bounty, state + ': the bounty chip is ' + (bounty ? 'missing' : 'drawn with no contract'));
-                  assert(/Carnivorous Plant/.test(document.getElementById('ab-name').textContent), 'the bar is not on the long-named foe');
-                  const html = document.getElementById('app').outerHTML, cls = document.body.className;
-                  for (const [w, h] of [[922, 423], [1280, 800]]) for (const face of ['theme', 'fallback']) {
-                    const at = state + ' ' + w + 'x' + h + ' ' + face + ': ';
-                    phoneFrame(w, h, html, (doc) => {
-                      doc.body.className = cls;
-                      if (face === 'fallback') {
-                        const st = doc.createElement('style');
-                        st.textContent = '#activity-bar, #activity-bar * { font-family: Verdana, "DejaVu Sans", sans-serif !important; }';
-                        doc.head.appendChild(st);
-                      }
-                      const name = doc.getElementById('ab-name'), meta = doc.getElementById('ab-meta'), bar = doc.getElementById('activity-bar'), stop = doc.getElementById('ab-stop');
-                      if (!name || !meta || !bar || !stop) { bad.push(at + 'the frame lost the activity bar'); return; }
-                      fitBar(bar);
-                      const t = doc.createTreeWalker(name, 4).nextNode();
-                      if (!t || !/^Fighting/.test(t.data)) { bad.push(at + 'the status does not open on "Fighting": "' + name.textContent + '"'); return; }
-                      const rg = doc.createRange(); rg.setStart(t, 0); rg.setEnd(t, 8);
-                      const v = rg.getBoundingClientRect(), n = name.getBoundingClientRect();
-                      if (v.width < 1 || v.right > n.right + 0.5 || v.bottom > n.bottom + 0.5) bad.push(at + '"Fighting" is cut: the word ends ' + Math.round(v.right) + ',' + Math.round(v.bottom) + ' in a name box ending ' + Math.round(n.right) + ',' + Math.round(n.bottom));
-                      const chips = [...meta.children].filter((e) => e.getBoundingClientRect().width > 0);
-                      const want = bounty ? 5 : 4;
-                      if (chips.length < want) bad.push(at + 'the meta draws ' + chips.length + ' chips, want ' + want + ' (this fight, XP, ' + (bounty ? 'bounty, ' : '') + 'Lifetime, away)');
-                      const lh = Math.min(...chips.map((e) => e.getBoundingClientRect().height));
-                      chips.forEach((e) => { const r = e.getBoundingClientRect(); if (r.height > lh * 1.5) bad.push(at + '"' + e.textContent.trim() + '" folds onto two lines (' + Math.round(r.height) + 'px vs ' + Math.round(lh) + ')'); });
-                      // THE META'S VISIBLE BOX: it clips at its own edges (overflow hidden), so every chip - the LAST above all - must end inside it.
-                      const mr = meta.getBoundingClientRect(), last = chips[chips.length - 1], fit = ' [fit: ' + (bar.getAttribute('data-fit') || 'none') + ']';
-                      chips.forEach((e) => { const r = e.getBoundingClientRect(); if (r.left < mr.left - 0.5 || r.right > mr.right + 0.5) bad.push(at + '"' + e.innerText.trim() + '"' + (e === last ? ' (the last chip)' : '') + ' is clipped by the meta: chip ' + Math.round(r.left) + '..' + Math.round(r.right) + ' vs visible ' + Math.round(mr.left) + '..' + Math.round(mr.right) + fit); });
-                      if (meta.scrollWidth > meta.clientWidth + 1) bad.push(at + 'the meta overflows its box (' + meta.scrollWidth + ' > ' + meta.clientWidth + ')' + fit);
-                      const sr = stop.getBoundingClientRect(), b = bar.getBoundingClientRect();
-                      const vg = doc.querySelector('#activity-bar .ab-vigour'), vr = vg && vg.getBoundingClientRect();
-                      if (!vr || vr.width < 1 || vr.left < b.left - 0.5 || vr.right > mr.left + 0.5) bad.push(at + 'the Vigour chip is missing or overlaps the meta');
-                      if (sr.width < 1 || sr.right > b.right + 0.5 || sr.right > w) bad.push(at + 'Stop is pushed off the bar');
-                    });
-                  }
-                  if (state !== 'stated+bounty') return;
-                  // THE LIVE OBSERVER, both directions: squeeze the real bar, then give the room back.
-                  const bar = document.getElementById('activity-bar'), steps = () => (bar.getAttribute('data-fit') || '').split(' ').filter(Boolean).length;
-                  const settle = async (pred) => { for (let i = 0; i < 30 && !pred(); i++) await frames(); return pred(); };
-                  await frames(); await frames();
-                  const roomy = steps();
-                  try {
-                    bar.style.maxWidth = '560px';
-                    if (!(await settle(() => steps() > roomy))) bad.push('live: the bar was narrowed to 560px and took no fit step (still ' + roomy + ')');
-                    const squeezed = steps();
-                    bar.style.maxWidth = '';
-                    if (!(await settle(() => steps() < squeezed))) bad.push('live: the bar got its width back and stayed at ' + squeezed + ' steps (was ' + roomy + ' with room)');
-                  } finally { bar.style.maxWidth = ''; }
-                });
+            await statusBar(['stated+bounty', 'stated', 'dry+bounty', 'dry'], (doc, at, { bounty, meta0 }) => {
+              if (meta0) {
+                const said = meta0.textContent.replace(/\s+/g, ' ');
+                for (const want of ['123,456', 'STR 98', '1,228,825', '12,345,678', 'you fall'].concat(bounty ? ['234/1,500'] : [])) {
+                  if (said.indexOf(want) < 0) bad.push(at + 'the fixture bar does not say "' + want + '": ' + said);
+                }
+                for (const [sel, title] of [['.ab-kills', 'Kills this fight: 123,456'], ['.ab-xp', 'Strength 98 · 1,228,825 XP to go'], ['.ab-tkills', 'Lifetime kills: 12,345,678']]) {
+                  const e = meta0.querySelector(sel);
+                  if (!e || e.title !== title) bad.push(at + sel + ' is titled "' + (e && e.title) + '", want "' + title + '" (a compacted chip keeps its full figure)');
+                }
+                const xl = meta0.querySelector('.ab-xp');
+                if (!xl || xl.getAttribute('aria-label') !== 'Strength 98 · 1,228,825 XP to go') bad.push(at + 'the XP chip is labelled "' + (xl && xl.getAttribute('aria-label')) + '"');
+                if (!!meta0.querySelector('.ab-bounty') !== bounty) bad.push(at + 'the bounty chip is ' + (bounty ? 'missing' : 'drawn with no contract'));
+                if (!/Carnivorous Plant/.test(document.getElementById('ab-name').textContent)) bad.push(at + 'the bar is not on the long-named foe');
               }
-            } finally {
-              LT.__swapView(parked); G.bountyHunter = bh; G.playerHp = hp;
-              // Whatever a fixture opens, it puts away: a knockout here would sit over every later test.
-              if (D && typeof D.__resetForTest === 'function') D.__resetForTest();
-            }
+              const name = doc.getElementById('ab-name'), meta = doc.getElementById('ab-meta'), bar = doc.getElementById('activity-bar'), stop = doc.getElementById('ab-stop');
+              if (!name || !meta || !bar || !stop) { bad.push(at + 'the frame lost the activity bar'); return; }
+              const t = doc.createTreeWalker(name, 4).nextNode();
+              if (!t || !/^Fighting/.test(t.data)) { bad.push(at + 'the status does not open on "Fighting": "' + name.textContent + '"'); return; }
+              const rg = doc.createRange(); rg.setStart(t, 0); rg.setEnd(t, 8);
+              const v = rg.getBoundingClientRect(), n = name.getBoundingClientRect();
+              if (v.width < 1 || v.right > n.right + 0.5 || v.bottom > n.bottom + 0.5) bad.push(at + '"Fighting" is cut: the word ends ' + Math.round(v.right) + ',' + Math.round(v.bottom) + ' in a name box ending ' + Math.round(n.right) + ',' + Math.round(n.bottom));
+              const chips = [...meta.children].filter((e) => e.getBoundingClientRect().width > 0);
+              const want = bounty ? 5 : 4;
+              if (chips.length < want) bad.push(at + 'the meta draws ' + chips.length + ' chips, want ' + want + ' (this fight, XP, ' + (bounty ? 'bounty, ' : '') + 'Lifetime, away)');
+              const lh = Math.min(...chips.map((e) => e.getBoundingClientRect().height));
+              chips.forEach((e) => { const r = e.getBoundingClientRect(); if (r.height > lh * 1.5) bad.push(at + '"' + e.textContent.trim() + '" folds onto two lines (' + Math.round(r.height) + 'px vs ' + Math.round(lh) + ')'); });
+              // THE META'S VISIBLE BOX: it clips at its own edges (overflow hidden), so every chip - the LAST above all - must end inside it.
+              const mr = meta.getBoundingClientRect(), last = chips[chips.length - 1], fit = ' [fit: ' + (bar.getAttribute('data-fit') || 'none') + ']';
+              chips.forEach((e) => { const r = e.getBoundingClientRect(); if (r.left < mr.left - 0.5 || r.right > mr.right + 0.5) bad.push(at + '"' + e.innerText.trim() + '"' + (e === last ? ' (the last chip)' : '') + ' is clipped by the meta: chip ' + Math.round(r.left) + '..' + Math.round(r.right) + ' vs visible ' + Math.round(mr.left) + '..' + Math.round(mr.right) + fit); });
+              if (meta.scrollWidth > meta.clientWidth + 1) bad.push(at + 'the meta overflows its box (' + meta.scrollWidth + ' > ' + meta.clientWidth + ')' + fit);
+              // THE XP CHIP AT `short`: the skill's own glyph stands for "STR"; the level stays.
+              const xp = meta.querySelector('.ab-xp');
+              if (xp && (bar.getAttribute('data-fit') || '').split(' ').indexOf('short') >= 0) {
+                const g = xp.querySelector(':scope > .hr-glyph'), said = xp.innerText.replace(/\s+/g, ' ').trim();
+                if (!g || g.getBoundingClientRect().width < 1) bad.push(at + 'the XP chip at `short` draws no skill glyph' + fit);
+                if (/STR/.test(said) || !/^98\b/.test(said)) bad.push(at + 'the XP chip at `short` reads "' + said + '", want the glyph then "98 · …"' + fit);
+              }
+              const sr = stop.getBoundingClientRect(), b = bar.getBoundingClientRect();
+              const vg = doc.querySelector('#activity-bar .ab-vigour'), vr = vg && vg.getBoundingClientRect();
+              if (!vr || vr.width < 1 || vr.left < b.left - 0.5 || vr.right > mr.left + 0.5) bad.push(at + 'the Vigour chip is missing or overlaps the meta');
+              if (sr.width < 1 || sr.right > b.right + 0.5 || sr.right > doc.defaultView.innerWidth) bad.push(at + 'Stop is pushed off the bar');
+            }, async ({ state, bar, steps, settle }) => {
+              if (state !== 'stated+bounty') return;
+              // THE LIVE OBSERVER, both directions: squeeze the real bar, then give the room back.
+              const roomy = steps();
+              try {
+                bar.style.maxWidth = '560px';
+                if (!(await settle(() => steps() > roomy))) bad.push('live: the bar was narrowed to 560px and took no fit step (still ' + roomy + ')');
+                const squeezed = steps();
+                bar.style.maxWidth = '';
+                if (!(await settle(() => steps() < squeezed))) bad.push('live: the bar got its width back and stayed at ' + squeezed + ' steps (was ' + roomy + ' with room)');
+              } finally { bar.style.maxWidth = ''; }
+            });
             assert(bad.length === 0, 'THE STATUS-VERB BUG: ' + bad.join('; '));
+          }),
+
+          // ── regression suite — BAR-FIT-1 (review of the measured fit, 9e2030bc) ──
+          // A fit step is a loss (a word, a digit of precision), so it is taken
+          // ONLY on real overflow: in every frame, undo the LAST step the fit
+          // took and the meta must overflow again. A fit that shortens a chip
+          // the bar had room for - the 'always take short first' mutant - fails
+          // here by name. Overflow is measured here, not by bar-fit.js's probe.
+          () => tryRunAsync('BAR-FIT-1: the bar takes a fit step only on real overflow - undo the last step and the meta overflows, in every frame', async () => {
+            const bad = [], seen = [];
+            const earned = (bar, meta, at) => {
+              const took = (bar.getAttribute('data-fit') || '').split(' ').filter(Boolean);
+              seen.push(at + (took.join(' ') || 'none'));
+              if (!took.length) return;
+              const keep = took.join(' '), fewer = took.slice(0, -1).join(' ');
+              if (fewer) bar.setAttribute('data-fit', fewer); else bar.removeAttribute('data-fit');
+              const chips = [...meta.children].filter((e) => e.getBoundingClientRect().width > 0);
+              const lastR = chips.length ? chips[chips.length - 1].getBoundingClientRect().right : 0;
+              const over = meta.scrollWidth > meta.clientWidth || lastR > meta.getBoundingClientRect().right + 0.5;
+              bar.setAttribute('data-fit', keep);
+              if (!over) bad.push(at + 'the fit took "' + took[took.length - 1] + '" while the bar had room without it [fit: ' + keep + ']');
+            };
+            await statusBar(['stated+bounty', 'stated', 'dry+bounty', 'dry'], (doc, at) => {
+              const bar = doc.getElementById('activity-bar'), meta = doc.getElementById('ab-meta');
+              if (!bar || !meta) { bad.push(at + 'the frame lost the activity bar'); return; }
+              earned(bar, meta, at);
+            }, async ({ state, bar, crowd }) => {
+              // The reserve steps (`togo`, `streak`) on the LIVE bar, narrowed until it needs them.
+              if (state !== 'stated+bounty') return;
+              const meta = document.getElementById('ab-meta'), tick = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+              try {
+                for (const px of [760, 680, 620, 560]) {
+                  bar.style.maxWidth = px + 'px'; crowd();
+                  await tick(); await tick(); // the observers' frame runs the fit
+                  earned(bar, meta, 'live ' + px + 'px: ');
+                }
+              } finally { bar.style.maxWidth = ''; }
+            });
+            // Not vacuous: some case keeps every word, and the reserve steps were reached.
+            if (!seen.some((x) => /: none$/.test(x)) || !seen.some((x) => / streak$/.test(x))) bad.push('the cases do not span "room" to "streak": ' + seen.join('; '));
+            assert(bad.length === 0, 'THE UNEARNED FIT STEP: ' + bad.join('; '));
+          }),
+
+          // ── regression suite — BAR-FIT-2 (review of the measured fit, 9e2030bc) ──
+          // The fit re-runs on CONTENT, not only on width: a bar held at 560px
+          // goes from crowded to sparse (the bounty paid off, a new foe, a small
+          // Lifetime) and must step back DOWN, then crowded again and step back
+          // UP. The width never changes, so the ResizeObserver never fires - only
+          // the MutationObserver and a key that reads the bar's text can see it.
+          // The 'observer removed' and 'textContent dropped from the key' mutants
+          // both fail here by name.
+          () => tryRunAsync('BAR-FIT-2: at a held width the fit follows the content - crowded to sparse steps down, sparse to crowded steps back up', async () => {
+            const bad = [], G = window.G, LT = window.HearthriseLifetime;
+            await statusBar(['stated+bounty'], null, async ({ bar, steps, settle, crowd, bh }) => {
+              try {
+                bar.style.maxWidth = '560px';
+                crowd();
+                await settle(() => steps() > 0);
+                const crowded = steps();
+                if (!crowded) { bad.push('the crowded bar at 560px took no fit step - nothing to step down from'); return; }
+                LT.__swapView({ counts: { kills: { n: 5, exact: true } } });
+                G.bountyHunter = Object.assign({}, bh, { active: null }); G.combatKillsThisFoe = 5;
+                window.refreshActivityBar();
+                if (!(await settle(() => steps() < crowded))) bad.push('at 560px a sparse bar kept ' + crowded + ' steps (the content change did not re-fit)');
+                const sparse = steps();
+                crowd();
+                if (!(await settle(() => steps() > sparse))) bad.push('at 560px the crowded bar came back and stayed at ' + sparse + ' steps');
+              } finally { bar.style.maxWidth = ''; }
+            });
+            assert(bad.length === 0, 'THE CONTENT-BLIND FIT: ' + bad.join('; '));
+          }),
+
+          // ── regression suite — COMPACT-ROLLOVER-1 (Game Designer ruling 2c) ──
+          // compactNumber chose its unit BEFORE rounding, so 999,500-999,999
+          // printed "1000K" and anything just under a billion "1000M" - now on
+          // the bar's three compact steps. The unit is chosen on the rounded
+          // figure; below 10,000 the figure stays exact.
+          () => tryRun('COMPACT-ROLLOVER-1: compactNumber rolls 999,500 over to "1M" and 999.5M to "1B", never "1000K" or "1000M"', () => {
+            const cn = window.HearthriseBalance && window.HearthriseBalance.compactNumber;
+            assert(typeof cn === 'function', 'window.HearthriseBalance.compactNumber is not published');
+            const want = [[9999, '9,999'], [10000, '10K'], [123456, '123K'], [999499, '999K'], [999500, '1M'], [999999, '1M'],
+              [1000000, '1M'], [1228825, '1.2M'], [9999999, '10M'], [12345678, '12M'], [999499999, '999M'], [999500000, '1B'],
+              [999999999, '1B'], [1e9, '1B'], [1.5e9, '1.5B']];
+            const bad = want.filter(([n, w]) => cn(n) !== w).map(([n, w]) => n + ' -> "' + cn(n) + '", want "' + w + '"');
+            assert(bad.length === 0, 'THE 1000K BUG: ' + bad.join('; '));
+          }),
+
+          // ── regression suite — FIGHT-EVENTS-SHORTCUT-1 (the FIGHT-PHONE-DENSITY "flake") ──
+          // ~1 fresh load in 4, FIGHT-PHONE-DENSITY found the food row 5px below
+          // the arena card at 922x423. Measured: on those loads the stance block
+          // carried an extra 44px "Events" row - nav-consolidation.js injected
+          // the War-Table-retired shortcut into the style ribbon whenever its boot
+          // pass ran before the combat views were built, and KEPT a ribbon copy
+          // once they were. Replayed here on a stand-in panel: the slow boot
+          // (ribbon up, views not), then the views arriving.
+          () => tryRunAsync('FIGHT-EVENTS-SHORTCUT-1: a boot that reaches the stance ribbon before the combat views leaves no retired Events shortcut on the Fight screen', async () => {
+            const real = document.getElementById('panel-combat');
+            assert(real, 'the combat panel is missing');
+            const stand = document.createElement('div');
+            stand.hidden = true;
+            stand.innerHTML = '<div class="combat-style-block"></div><i data-tab=""></i>';
+            const tab = stand.querySelector('[data-tab]'), wait = (ms) => new Promise((r) => setTimeout(r, ms));
+            let early = false, late = null;
+            real.id = 'panel-combat-parked'; stand.id = 'panel-combat'; document.body.appendChild(stand);
+            try {
+              tab.click();              // a boot pass with the ribbon up and the views not yet built
+              await wait(250);
+              early = !!stand.querySelector('#hr-dungeons-link');
+              const views = document.createElement('div'); views.className = 'cbt-views';
+              stand.appendChild(views);
+              tab.click();              // the next pass, once the views exist
+              await wait(250);
+              late = stand.querySelector('#hr-dungeons-link');
+            } finally { stand.remove(); real.id = 'panel-combat'; }
+            assert(!late, 'THE SLOW-BOOT EVENTS ROW: the retired Events shortcut ' + (early ? 'was injected before the views and ' : '')
+              + 'is still in .' + (late && late.parentElement ? late.parentElement.className : '?') + ' after them - on the Fight screen it pushes the food row out of the arena card at 922x423');
+            assert(!early, 'THE SLOW-BOOT EVENTS ROW: a boot pass before the views injected the retired Events shortcut (it flashes, then is swept)');
           }),
         ];
       })(),

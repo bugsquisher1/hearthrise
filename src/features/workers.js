@@ -242,13 +242,18 @@
      15 s deadline, so HIRE_HOLD_MS outlasts all three) and a repeat tap while it
      is held does nothing at all — no optimistic worker, no toast. The chain
      resolves to its LAST answer: an ambiguous one (timeout/network) hands the
-     re-tap the same p_idem for its first materialise, which the server replays.*/
+     re-tap the same p_idem, which the server replays.
+
+     ONE KEY FOR BOTH MATERIALISES. hr_worker_hire caches only a SUCCESS in
+     player_intents (crew_cap_reached is answered uncached), so the chain's
+     second materialise carries the latch's idem too. With a fresh key there, a
+     second materialise that COMMITTED but timed out was invisible to the
+     re-tap: its first materialise met the cap, bought the NEXT rung and hired
+     again — two rungs, two workers for one intended hire. */
   var HIRE_HOLD_MS = 50000;
-  var _hireLatch = null;
   function hireLatch() {
     var L = window.HearthriseIntentLatch;
-    if (!_hireLatch && L && typeof L.createIntentLatch === 'function') _hireLatch = L.createIntentLatch();
-    return _hireLatch;
+    return (L && typeof L.namedLatch === 'function') ? L.namedLatch('workers') : null;
   }
   function hireServer(G) {
     var Net = window.HearthriseWorkersNet;
@@ -308,7 +313,7 @@
           if (window.notify) notify('Could not complete the hire — ' + ((r && r.reason) || 'try again'), 'kill');
           render(); return { ok: false, error: (r && r.outcome === 'refused') ? 'refused' : 'transport' };
         }
-        return Promise.resolve(Net.hire()).then(function (res2) {
+        return Promise.resolve(Net.hire(idem)).then(function (res2) {
           if (res2 && res2.ok) settleOk(res2); else fail(res2);
           return res2;
         });

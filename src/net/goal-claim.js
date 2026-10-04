@@ -298,7 +298,10 @@
     });
   }
 
-  var _spendLatch = null;   // the bounty-reroll latch (bountyRerollOnce)
+  function spendLatch() {   // the bounty-reroll latch (bountyRerollOnce), page-wide by name
+    var L = window.HearthriseIntentLatch;
+    return (L && typeof L.namedLatch === 'function') ? L.namedLatch('bounty-spend') : null;
+  }
   window.HearthriseGoalClaim = {
     activeSlot: activeSlot,
     isSignedIn: isSignedIn,
@@ -455,16 +458,14 @@
        call's promise, or null while a reroll is held (or the latch is absent):
        the caller then does nothing at all. A re-tap after a timeout re-sends
        the same p_idem, which hr_bounty_spend replays without a second debit. */
-    bountyRerollHeld: function () { return !!(_spendLatch && _spendLatch.held('reroll:' + activeSlot())); },
+    bountyRerollHeld: function () { var l = spendLatch(); return !!(l && l.held('reroll:' + activeSlot())); },
     bountyRerollOnce: function () {
-      var L = window.HearthriseIntentLatch;
-      if (!_spendLatch && L && typeof L.createIntentLatch === 'function') _spendLatch = L.createIntentLatch();
-      var k = 'reroll:' + activeSlot();
-      if (!_spendLatch || _spendLatch.held(k)) return null;
-      return _spendLatch.run(k, function (idem) { return window.HearthriseGoalClaim.bountyReroll(idem); });
+      var l = spendLatch(), k = 'reroll:' + activeSlot();
+      if (!l || l.held(k)) return null;
+      return l.run(k, function (idem) { return window.HearthriseGoalClaim.bountyReroll(idem); });
     },
     /* Test teardown only: drop every held spend. */
-    __resetSpendLatch: function () { if (_spendLatch) _spendLatch.reset(); },
+    __resetSpendLatch: function () { var l = spendLatch(); if (l) l.reset(); },
     bountyAbandon: function (bountyLevel, rewardMarks) {
       return call('hr_bounty_spend', {
         p_slot: activeSlot(), p_reason: 'abandon',

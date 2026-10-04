@@ -196,6 +196,12 @@ export async function runSmokeTest(opts = {}) {
     let residueBefore = overlayResidue();
     for (const t of PLAN) {
       const r = await t();
+      /* EVERY INTENT LATCH, ONE PLACE (net/intent-latch.js). A gesture's hold
+         outlives its answer by a 600 ms floor, so a test that ends inside one
+         hands it to the next test's first tap (HIRE-OWNED-1 → HIRE-STRANDED-1:
+         W.hire() null). Reset here, after every test, for every latch the page
+         ever made — not in each test's finally. */
+      try { const IL = window.HearthriseIntentLatch; if (IL && typeof IL.__resetAll === 'function') IL.__resetAll(); } catch (e) {}
       /* ── THE TEARDOWN ASSERTION (2026-09-23) ──────────────────────────────
          A test that finishes with a modal still up, the body scroll still
          locked, or a full-viewport scrim painted does not fail. The NEXT test

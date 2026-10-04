@@ -356,9 +356,18 @@
     return (window.G && window.G.inventory && window.G.inventory.dungeon_scrip) || 0;
   }
 
+  /* ONE BUY PER PRESS, NO TIMER (Game Designer ruling, 2026-10-03). The pressed
+     row's button is locked — disabled, "Buying…" — from the press until THAT
+     buy's envelope or refusal comes back, so a double-click's second click lands
+     on a disabled button (it bought an 800-Scrip bind-on-pickup Dragonfang Pike
+     twice). Deliberate repeat buying still works: one press per confirmed buy.
+     No 600 ms floor here — a timer that swallows a deliberate press is worse.
+     The transport's own 15 s deadline (dungeon-settle.js) bounds the lock. */
+  var _qmBuying = Object.create(null);   // item id -> true while its buy is on the wire
   function buyFromQuartermaster(id){
     var entry = QM_STOCK.find(function(e){ return e.id === id; });
     if(!entry) return false;
+    if(_qmBuying[id]) return false;      // the row is locked: this press never sends
     var held = scripHeld();
     if(held == null){ if(window.notify) window.notify('The realm has not counted your Dungeon Scrip yet', 'kill'); return false; }
     if(held < entry.scrip){ if(window.notify) window.notify('Not enough Dungeon Scrip', 'kill'); return false; }
@@ -372,7 +381,11 @@
     if(_dsArmed()){
       var DS = window.HearthriseDungeonSettle;
       if(DS && typeof DS.sendQuartermasterBuy === 'function'){
-        DS.sendQuartermasterBuy('qm.' + id).then(function(v){
+        _qmBuying[id] = true;
+        renderQuartermaster();
+        var unlock = function(){ delete _qmBuying[id]; };
+        Promise.resolve().then(function(){ return DS.sendQuartermasterBuy('qm.' + id); }).then(function(v){
+          unlock();
           if(v && (v.outcome === 'settled' || v.outcome === 'replayed') && v.body){
             if(typeof DS.reconcileQuartermasterFromEnvelope === 'function') DS.reconcileQuartermasterFromEnvelope(window.G, v.body);
             if(v.outcome === 'settled' && window.notify){
@@ -385,7 +398,7 @@
           renderQuartermaster();
           if(typeof window.updateTopbar === 'function') window.updateTopbar();
           if(typeof window.renderInvFancy === 'function') window.renderInvFancy();
-        }).catch(function(e){ console.warn('[quartermaster] buy send threw:', e && e.message); });
+        }).catch(function(e){ unlock(); renderQuartermaster(); console.warn('[quartermaster] buy send threw:', e && e.message); });
         return true;   // armed: the server owns the trade; no local mint
       }
       /* armed but the transport did not load — fall through to the dormant path,
@@ -448,14 +461,15 @@
         var e = QM_STOCK.find(function(x){ return x.id === id; });
         if(!e) return '';
         var it = window.ITEMS && window.ITEMS[id];
-        var held = scripHeld(), can = held != null && held >= e.scrip;
+        var held = scripHeld(), buying = !!_qmBuying[id], can = !buying && held != null && held >= e.scrip;
         /* b283 (studio-review P1): the shop was pure text — give each row an icon. */
         var ipath = window._itemPath && window._itemPath[id];
         var iconHtml = ipath ? '<img src="' + ipath + '" alt="" style="width:26px;height:26px;object-fit:contain">' : '<span>' + window.itemFallbackIcon(id, 26, it) + '</span>';
         return '<div class="qm-row"><span class="qm-icon">' + iconHtml + '</span><span class="qm-name">' + (it ? it.n : id) + '</span>' +
           '<span class="qm-cost">' + e.scrip + ' Scrip</span>' +
-          '<button class="btn btn-sm ' + (can ? 'btn-primary' : '') + '" ' + (can ? '' : 'disabled') +
-          ' onclick="window.buyFromQuartermaster(\'' + id + '\')">Buy</button></div>';
+          '<button class="btn btn-sm ' + (can ? 'btn-primary' : '') + '" data-qm-buy="' + id + '" ' + (can ? '' : 'disabled') +
+          (buying ? ' aria-busy="true"' : '') +
+          ' onclick="window.buyFromQuartermaster(\'' + id + '\')">' + (buying ? 'Buying…' : 'Buy') + '</button></div>';
       }).join('');
       return '<div class="qm-group-label">' + g.label + '</div>' + rows;
     }).join('');

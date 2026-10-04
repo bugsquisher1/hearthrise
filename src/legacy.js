@@ -3691,18 +3691,19 @@ function buyBankSpaceGold(){
     _debitBank(); _advanceBank(); _announceBank(); return true;
   }
   /* SERVER-OWNED: the confirm envelope writes gold ABSOLUTELY; a refusal touched
-     nothing local. In-flight latch per offer against a double-tap. */
-  buyBankSpaceGold._inflight=buyBankSpaceGold._inflight||{};
-  if(buyBankSpaceGold._inflight[_boffer]) return false;
-  buyBankSpaceGold._inflight[_boffer]=true;
-  Promise.resolve(window.HearthriseGold.buyUnlock(_boffer,_bk)).then(function(v){
-    delete buyBankSpaceGold._inflight[_boffer];
+     nothing local. ONE BANK BUY IN FLIGHT, keyed 'bank' (not per offer) and held
+     for the answer + the 600 ms floor (net/intent-latch.js): a per-offer boolean
+     freed on a fast answer let the double-click's second press read the advanced
+     rung and buy bank.<k+1>. The latch's key rides the buy, so a re-tap after a
+     timeout replays instead of buying again. */
+  var _bl=window.HearthriseIntentLatch&&typeof window.HearthriseIntentLatch.namedLatch==='function'?window.HearthriseIntentLatch.namedLatch('bank'):null;
+  if(!_bl||_bl.held('bank')) return false;
+  _bl.run('bank',function(idem){ return Promise.resolve(window.HearthriseGold.buyUnlock(_boffer,idem)); }).then(function(v){
     var c=(typeof window.hrClassifyUnlock==='function')?window.hrClassifyUnlock(v)
       :{ok:!!(v&&(v.outcome==='applied'||v.outcome==='replayed')),owned:false,reason:(v&&v.reason)||'network'};
     if(c.ok){ _advanceBank(); if(c.owned){ if(typeof notify==='function')notify('That bank space is already yours.','info'); _renderBankModal(); } else _announceBank(); }
     else { if(typeof notify==='function')notify((typeof window.hrUnlockRefusalMessage==='function')?window.hrUnlockRefusalMessage(c,'that bank expansion'):'The realm couldn’t record that bank expansion — nothing was spent.','kill'); _renderBankModal(); }
   }).catch(function(){
-    delete buyBankSpaceGold._inflight[_boffer];
     if(typeof notify==='function')notify('The realm couldn’t record that bank expansion right now — nothing was spent. Try again in a moment.','kill');
   });
   return true;

@@ -664,6 +664,12 @@
     return true;
   }
 
+  /* The seat's value gestures share one page-wide latch (fail closed: absent
+     latch module = no relative clan write). */
+  function seatLatch() {
+    var L = window.HearthriseIntentLatch;
+    return (L && typeof L.namedLatch === 'function') ? L.namedLatch('clan-seat') : null;
+  }
   async function postOrder(building) {
     if (needServer()) return false;
     var to = level(building) + 1;
@@ -675,10 +681,21 @@
     renderIfOpen();
     return true;
   }
+  /* ONE SUPPLY IN FLIGHT PER ORDER (net/intent-latch.js), as tier-up: each
+     clan_work_supply call moves least(qty, need, has) more onto the order, so a
+     double-click was two donations. The verb has no p_idem yet (DISCOVERIES
+     2026-10-03, migration lane), so a re-tap after a timeout is still a fresh
+     call; the latch closes the double-click. */
   async function supplyOrder(orderId, items) {
     if (needServer()) return false;
-    var d = await call('clan_work_supply', { p_clan_id: clanId(), p_order: orderId, p_items: items },
-      function (o) { return { out: o }; });
+    var L = window.HearthriseIntentLatch, latch = seatLatch();
+    if (!latch) { toast('The Work Order cannot take materials right now — try again in a moment', 'kill'); return false; }
+    var cid = clanId();
+    var d = await latch.run('work_supply:' + cid + ':' + orderId, function () {
+      return call('clan_work_supply', { p_clan_id: cid, p_order: orderId, p_items: items },
+        function (o) { return { out: o }; });
+    });
+    if (L.isInFlightAnswer(d)) return false;   // the first tap answers for both
     if (d.action !== 'accept') { toast(d.message || C().errorText(d.error), 'kill'); return false; }
     if (d.out && d.out.phase === 'labour') {
       toast('The Work Order is fully supplied — construction begins. Every skill action now feeds it.', 'levelup');
@@ -703,14 +720,12 @@
   }
   /* ONE TIER-UP IN FLIGHT (net/intent-latch.js): clan_tier_up is castle_tier + 1
      from shared stores, so a double-click raised the hold twice. */
-  var _tierLatch = null;
   async function tierUp() {
     if (needServer()) return false;
-    var L = window.HearthriseIntentLatch;
-    if (!_tierLatch && L && typeof L.createIntentLatch === 'function') _tierLatch = L.createIntentLatch();
-    if (!_tierLatch) { toast('The hold cannot rise right now — try again in a moment', 'kill'); return false; }
+    var L = window.HearthriseIntentLatch, latch = seatLatch();
+    if (!latch) { toast('The hold cannot rise right now — try again in a moment', 'kill'); return false; }
     var cid = clanId();
-    var d = await _tierLatch.run('tier_up:' + cid, function () {
+    var d = await latch.run('tier_up:' + cid, function () {
       return call('clan_tier_up', { p_clan_id: cid }, function (o) { return { out: o }; });
     });
     if (L.isInFlightAnswer(d)) return false;   // the first tap answers for both

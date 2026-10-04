@@ -191,14 +191,17 @@ export function farmWater(plotIdx, opts) {
 }
 /* hr_farm_harvest is settle-gated (2026-09-28-settle-before-mutate.sql): the ONE
    shared handler waits for the server's settle and re-sends this same body once
-   — inside the latch, so the retry is part of the one gesture. */
+   — inside the latch, so the retry is part of the one gesture. That chain is
+   three calls under 15 s deadlines (harvest → settle → harvest, ~45 s), so it
+   holds HARVEST_HOLD_MS, not the 20 s default that outlasts only one call. */
+const HARVEST_HOLD_MS = 50000;
 export function farmHarvest(plotIdx, opts) {
   const o = opts || {};
   const slot = slotOf(o);
   return farmLatch.run(latchKey('harvest', slot, plotIdx), (idem) => {
     const body = { p_slot: slot, p_plot_idx: plotIdx | 0, p_idem: o.idem || idem };
     return withSettleFirstRetry(() => callFarmRpc('hr_farm_harvest', body, o));
-  });
+  }, { holdMs: HARVEST_HOLD_MS });
 }
 export function farmUpgradePlot(opts) {
   const o = opts || {};
@@ -384,7 +387,7 @@ if (typeof window !== 'undefined') {
     farmPlantRefusalText,
     activeSlot,
     farmPlant, farmWater, farmHarvest, farmUpgradePlot,
-    farmGestureInFlight,
+    farmGestureInFlight, HARVEST_HOLD_MS,
     reconcileFarmResult,
     /* Test teardown only: drop every hold, so a suite that abandons a fake
        transport mid-flight cannot leave the next test's tap swallowed. */

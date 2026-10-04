@@ -3117,12 +3117,17 @@ export default [
       wire.answer({ ok: true, castle_tier: 2, standing: 0, contributors: 3 });
       assert(await within(first, 'the first press') === true, "the first press did not take the server's accept");
       UI._setSupport('live');                            // the post-accept seat re-read hit the probe wire
+      UI._setSeat({ castle_tier: 2, upgrades: {}, upkeep_state: 'active' }, 'latch-hold');   // the hold as the server answered it
       const n = toasts.seen.length;
+      const clanState = () => JSON.stringify({ seat: UI.seat(), tier: UI.castleTier(), support: UI.supported() });
+      const before = clanState();
       const second = UI.tierUp();                        // the double-click's second press, after the answer
       assert(wire.sent.length === 1,
         'a double-click whose answer beat the second press sent ' + wire.sent.length + ' clan_tier_up calls — castle_tier + 1 from the shared stores, twice');
       assert(await within(second, 'the held press') === false, 'the held press did not stand down');
       assert(toasts.seen.length === n, 'the held press toasted: ' + toasts.seen.slice(n).join(' | '));
+      await sleep(30);
+      assert(clanState() === before, 'the held press moved the clan state: ' + before + ' -> ' + clanState());
       await sleep(L.MIN_HOLD_MS);
       const third = UI.tierUp();
       assert(wire.sent.length === 2, 'a press AFTER the hold was swallowed — the latch never let go');
@@ -3185,5 +3190,208 @@ export default [
       wire.answer({ ok: false, error: 'not_ready' });   // settle inside the capture: the refusal reverts to the empty plot
       await untilTrue(() => G.farmPlots[0] === null, 'the refused plant to revert');
     } finally { wire.restore(); toasts.restore(); FS.farmPlant = realPlant; FS.__resetFarmLatch(); await sleep(0); restoreG(snap); }
+  }),
+
+  () => tryRunAsync('INTENT-LATCH-0: the harness reset drops every latch the page made, and a dropped hold\'s late answer plants no retry key', async () => {
+    const L = window.HearthriseIntentLatch;
+    assert(L && typeof L.__resetAll === 'function' && typeof L.namedLatch === 'function', 'intent-latch.js __resetAll / namedLatch are gone');
+    const mine = L.createIntentLatch(), named = L.namedLatch('workers');
+    let answer = null; const keys = [];
+    mine.run('k', (idem) => { keys.push(idem); return new Promise((r) => { answer = r; }); });
+    named.run('hire', () => new Promise(() => {}));
+    assert(mine.held('k') && named.held('hire'), 'the holds were not taken');
+    L.__resetAll();
+    assert(!mine.held('k') && !named.held('hire'), 'the harness reset left a hold: a test ending inside one hands it to the next test');
+    answer({ ok: false, error: 'timeout' });           // the abandoned call answers ambiguously, after the reset
+    await sleep(0);
+    mine.run('k', (idem) => { keys.push(idem); return Promise.resolve({ ok: true }); });
+    assert(keys.length === 2 && keys[1] !== keys[0], "a dropped hold's late timeout planted its key for the next test's gesture");
+  }),
+
+  () => tryRunAsync('INTENT-LATCH-7: a double-click on "Upgrade Property" buys ONE tier even when the answer beats the second press', async () => {
+    const H = window.HearthriseHomestead, G = window.G, L = window.HearthriseIntentLatch;
+    assert(H && typeof H.upgradeProperty === 'function' && L, 'homestead.js upgradeProperty / intent-latch.js did not load');
+    const snap = snapshotG();
+    const saved = { gold: window.HearthriseGold, known: window.balKnown, or: window.balOr, afford: window.balCanAfford, key: window.goldIntentKey,
+      notify: window.notify, prop: window.HearthriseProperty, acc: window.HearthriseAccrual, refresh: window.refreshAll };
+    const offers = [], keys = [];
+    try {
+      window.HearthriseGold = Object.assign({}, saved.gold, { buyUnlock: (offer, k) => { offers.push(offer); keys.push(k);
+        return new Promise((r) => setTimeout(() => r({ outcome: 'applied' }), 40)); } });
+      window.balKnown = () => true; window.balOr = () => 1e9; window.balCanAfford = () => true;
+      window.goldIntentKey = () => 'k-gold'; window.notify = () => {}; window.refreshAll = () => {};
+      window.HearthriseProperty = undefined;                       // the tier reads straight off G.homestead
+      window.HearthriseAccrual = Object.assign({}, saved.acc, { gateItemCount: () => 99999 });
+      G.homestead = Object.assign({}, G.homestead, { tier: 1 });
+      assert(H.upgradeProperty() === true, 'the first press was refused by the pre-flight');
+      await sleep(150);                                            // answered at 40 ms: the tier advanced
+      assert(G.homestead.tier === 2, "the first press did not take the server's tier 2");
+      H.upgradeProperty();                                         // the double-click's second press
+      await sleep(120);
+      assert(offers.length === 1,
+        'a double-click whose answer beat the second press bought ' + offers.join(' + ') + ' — the second press bought the NEXT tier');
+      assert(keys[0] !== 'k-gold', "the buy did not carry the latch's key (a re-tap after a timeout would buy again)");
+      await sleep(L.MIN_HOLD_MS);
+      H.upgradeProperty();
+      assert(offers.length === 2, 'a deliberate press after the hold was swallowed');
+      await sleep(80);
+    } finally {
+      window.HearthriseGold = saved.gold; window.balKnown = saved.known; window.balOr = saved.or; window.balCanAfford = saved.afford;
+      window.goldIntentKey = saved.key; window.notify = saved.notify; window.HearthriseProperty = saved.prop;
+      window.HearthriseAccrual = saved.acc; window.refreshAll = saved.refresh;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRunAsync('INTENT-LATCH-8: a double-click on the bank\'s gold expansion buys ONE rung even when the answer beats the second press', async () => {
+    const G = window.G, L = window.HearthriseIntentLatch;
+    assert(typeof window.buyBankSpaceGold === 'function' && L, 'legacy.js buyBankSpaceGold / intent-latch.js did not load');
+    const snap = snapshotG();
+    const saved = { gold: window.HearthriseGold, afford: window.balCanAfford, key: window.goldIntentKey, notify: window.notify };
+    const offers = [];
+    try {
+      window.HearthriseGold = Object.assign({}, saved.gold, { buyUnlock: (offer) => { offers.push(offer);
+        return new Promise((r) => setTimeout(() => r({ outcome: 'applied' }), 40)); } });
+      window.balCanAfford = () => true; window.goldIntentKey = () => 'k-gold'; window.notify = () => {};
+      G.bank = Object.assign({}, G.bank, { goldBuys: 0 });
+      assert(window.buyBankSpaceGold() === true, 'the first press was refused');
+      await sleep(150);
+      assert(G.bank.goldBuys === 1, "the first press did not take the server's rung 1");
+      window.buyBankSpaceGold();                                   // the double-click's second press
+      await sleep(120);
+      assert(offers.length === 1,
+        'a double-click whose answer beat the second press bought ' + offers.join(' + ') + ' — the second press bought the NEXT rung');
+      await sleep(L.MIN_HOLD_MS);
+      window.buyBankSpaceGold();
+      assert(offers.length === 2 && offers[1] === 'bank.1', 'a deliberate press after the hold was swallowed: ' + offers.join(' + '));
+      await sleep(80);
+    } finally {
+      window.HearthriseGold = saved.gold; window.balCanAfford = saved.afford; window.goldIntentKey = saved.key; window.notify = saved.notify;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRunAsync('INTENT-LATCH-9: a hire chain whose second materialise committed but timed out — the re-tap replays it, no second rung', async () => {
+    const W = window.HearthriseWorkers, IA = window.HearthriseItemAuthority, G = window.G, L = window.HearthriseIntentLatch;
+    assert(W && typeof W.hire === 'function' && L, 'workers.js / intent-latch.js did not load');
+    const snap = snapshotG();
+    const saved = { net: window.HearthriseWorkersNet, gold: window.HearthriseGold, home: window.HearthriseHomestead, notify: window.notify,
+      afford: window.balCanAfford, settle: window.goldSettle, key: window.goldIntentKey, flag: IA && IA.WORKER_PRODUCTION_SERVER_BACKED };
+    /* The server as 2026-08-25-workers.sql writes it: only a SUCCESS is cached
+       under p_idem; crew_cap_reached is answered uncached. */
+    const srv = { crew: 1, paid: 1, cache: {}, buys: [], timeoutNext: true };
+    let n = 0;
+    try {
+      if (IA) IA.WORKER_PRODUCTION_SERVER_BACKED = true;
+      window.notify = () => {}; window.balCanAfford = () => true; window.goldSettle = () => {};
+      window.goldIntentKey = () => 'gk-' + (++n);
+      window.HearthriseHomestead = Object.assign({}, saved.home, { workerSlots: () => 6 });
+      window.HearthriseGold = Object.assign({}, saved.gold, { buyUnlock: (offer) => {
+        const r = +offer.split('.')[1]; srv.buys.push(offer);
+        if (r <= srv.paid) return Promise.resolve({ outcome: 'refused', reason: 'already_owned' });
+        srv.paid = r; return Promise.resolve({ outcome: 'applied' });
+      } });
+      window.HearthriseWorkersNet = Object.assign({}, saved.net, { isSignedIn: () => true, hire: (key) => {
+        const k = key || ('fresh-' + (++n));
+        if (srv.cache[k]) return Promise.resolve(srv.cache[k]);
+        if (srv.crew >= srv.paid) return Promise.resolve({ ok: false, error: 'crew_cap_reached', crew: srv.crew, paid_cap: srv.paid });
+        srv.crew++; const ans = { ok: true, uid: 'w' + srv.crew, name: 'W' + srv.crew, crew: srv.crew }; srv.cache[k] = ans;
+        if (srv.timeoutNext) { srv.timeoutNext = false; return Promise.resolve({ ok: false, error: 'timeout' }); }   // committed; the client gave up
+        return Promise.resolve(ans);
+      } });
+      G.workers = { hired: [{ uid: 'w1', name: 'W1' }] };
+      W.hire();                                        // cap -> buy worker_hire.2 -> materialise (commits, times out)
+      await untilTrue(() => srv.crew === 2, 'the first chain to reach the server');
+      await sleep(L.MIN_HOLD_MS + 50);
+      W.hire();                                        // the re-tap after "could not hire"
+      await sleep(60);
+      assert(srv.buys.length === 1 && srv.crew === 2,
+        'the re-tap bought ' + srv.buys.join(' + ') + ' and the crew is ' + srv.crew + ' — a committed hire was bought again with the next rung');
+    } finally {
+      window.HearthriseWorkersNet = saved.net; window.HearthriseGold = saved.gold; window.HearthriseHomestead = saved.home; window.notify = saved.notify;
+      window.balCanAfford = saved.afford; window.goldSettle = saved.settle; window.goldIntentKey = saved.key;
+      if (IA) IA.WORKER_PRODUCTION_SERVER_BACKED = saved.flag;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRunAsync('INTENT-LATCH-10: a harvest holds its latch past the settle-first chain (~45 s), not the 20 s of one call', async () => {
+    const FS = window.HearthriseFarmSync, L = window.HearthriseIntentLatch;
+    assert(FS && typeof FS.farmHarvest === 'function' && L, 'farm-sync.js farmHarvest did not load');
+    const cfg = { url: 'https://probe.supabase.co', anonKey: 'anon', jwt: 'jwt', slot: 0 };
+    const wire = holdWire('/rpc/hr_farm_harvest'), realST = window.setTimeout, delays = [];
+    let p = null;
+    try {
+      window.setTimeout = function (fn, ms) { delays.push(Number(ms) || 0); return realST.apply(window, arguments); };
+      try { p = FS.farmHarvest(5, cfg); } finally { window.setTimeout = realST; }
+      const hold = Math.max.apply(null, delays.concat([0]));
+      assert(hold >= 45000, 'the harvest latch holds ' + hold + ' ms — harvest, settle and the re-sent harvest take ~45 s, so a re-tap mid-chain would send a second gesture');
+      wire.answer({ ok: false, error: 'not_ready' });
+      await p;
+    } finally { window.setTimeout = realST; wire.restore(); if (p) await p.catch(() => {}); }
+  }),
+
+  () => tryRunAsync('INTENT-LATCH-11: a double-click on a Work Order "Supply" sends ONE clan_work_supply and leaves the clan state alone', async () => {
+    const UI = window.HearthriseClanSeatUI, L = window.HearthriseIntentLatch;
+    assert(UI && L && typeof UI.supplyOrder === 'function', 'clan-seat-ui.js supplyOrder is gone');
+    const origAuth = window.HearthriseAuth, origSb = window.HearthriseSupabase;
+    window.HearthriseAuth = Object.assign({}, origAuth, { getSession: () => ({ user: { id: 'u-latch' }, access_token: 'jwt' }) });
+    window.HearthriseSupabase = Object.assign({}, origSb, { getConfig: () => ({ url: 'https://probe.supabase.co', anonKey: 'anon' }) });
+    const wire = holdWire('/rpc/clan_work_supply'), toasts = catchToasts();
+    try {
+      UI._reset();
+      UI._setClan({ id: 'latch-hold', name: 'Latchhold', level: 4, treasury: 0, myRole: 'leader' });
+      UI._setSeat({ castle_tier: 2, upgrades: {}, upkeep_state: 'active' }, 'latch-hold');
+      const clanState = () => JSON.stringify({ seat: UI.seat(), tier: UI.castleTier(), support: UI.supported() });
+      const before = clanState();
+      const first = UI.supplyOrder('order-1', { oak_log: 5 });
+      const second = UI.supplyOrder('order-1', { oak_log: 5 });   // the double-click's second press
+      assert(wire.sent.length === 1, 'a double-click sent ' + wire.sent.length + ' clan_work_supply calls — two donations onto one order');
+      assert(await within(second, 'the held press') === false, 'the held press did not stand down');
+      assert(toasts.seen.length === 0 && clanState() === before, 'the held press toasted or moved the clan state: [' + toasts.seen.join(' | ') + ']');
+      wire.answer({ ok: true, phase: 'supply' });
+      await within(first, 'the first press');
+    } finally {
+      wire.restore(); toasts.restore(); window.HearthriseAuth = origAuth; window.HearthriseSupabase = origSb; UI._reset();
+    }
+  }),
+
+  () => tryRunAsync('INTENT-LATCH-12: Quartermaster — the pressed row reads "Buying…" and is disabled until its answer, then buys again on the next press (no timer)', async () => {
+    const DSc = window.HearthriseDungeonScrip, DS = window.HearthriseDungeonSettle;
+    assert(typeof window.buyFromQuartermaster === 'function' && typeof window.renderQuartermaster === 'function' && DSc && DS,
+      'dungeons.js Quartermaster / dungeon-settle.js did not load');
+    const saved = { scrip: window.HearthriseDungeonScrip, settle: window.HearthriseDungeonSettle, notify: window.notify };
+    const sent = [], waiting = [], toasts = [];
+    const host = document.createElement('div'); host.id = 'quartermaster-body'; host.style.display = 'none';
+    document.body.appendChild(host);
+    const btn = () => host.querySelector('[data-qm-buy="dragonfang_pike"]');
+    try {
+      window.notify = (m) => toasts.push(String(m));
+      window.HearthriseDungeonScrip = Object.assign({}, DSc, { isDungeonSettleArmed: () => true, scripOf: () => 5000 });
+      window.HearthriseDungeonSettle = Object.assign({}, DS, {
+        sendQuartermasterBuy: (offer) => { sent.push(offer); return new Promise((r) => waiting.push(r)); },
+        reconcileQuartermasterFromEnvelope: () => {},
+      });
+      window.renderQuartermaster();
+      const press = btn();
+      assert(press && !press.disabled && /^Buy$/.test(press.textContent.trim()), 'the Dragonfang Pike row has no live Buy button');
+      press.click();
+      press.click();                                   // the double-click's second click (old node, same handler)
+      if (btn()) btn().click();                        // and a click on whatever the row shows now
+      await sleep(0);
+      assert(sent.length === 1, 'a double-click sent ' + sent.length + ' quartermaster_buy intents — two 800-Scrip Pikes');
+      assert(btn() && btn().disabled && /Buying/.test(btn().textContent), 'the pressed row is not locked as "Buying…" while its buy is on the wire');
+      waiting.shift()({ outcome: 'settled', body: {} });
+      await untilTrue(() => btn() && !btn().disabled, 'the row to unlock on the answer');
+      assert(/^Buy$/.test(btn().textContent.trim()), 'the row did not return to "Buy" after its answer');
+      btn().click();                                   // a deliberate second buy right after the confirm: no timer
+      await sleep(0);
+      assert(sent.length === 2, 'a deliberate press after the confirmed buy was swallowed');
+    } finally {
+      while (waiting.length) waiting.shift()({ outcome: 'refused', reason: 'torn_down' });
+      await sleep(0);
+      window.HearthriseDungeonScrip = saved.scrip; window.HearthriseDungeonSettle = saved.settle; window.notify = saved.notify;
+      host.remove();
+    }
   }),
 ];

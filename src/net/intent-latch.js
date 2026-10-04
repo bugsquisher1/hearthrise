@@ -37,7 +37,16 @@
 // a latch carries its own deadline BELOW the hold it runs under.
 //
 // Pure (no DOM, no network); published on window for the classic-script
-// callers. New value gestures use THIS helper, not a module boolean.
+// callers. New value gestures use THIS helper, not a module boolean: a boolean
+// released on the answer lets a fast answer's second click buy the NEXT rung
+// (property tier, bank rung), which is the class the floor exists to close.
+//
+// EVERY LATCH IS REGISTERED. A held floor outlives the gesture by up to 600 ms,
+// so a test that ends inside one hands its hold to the next test's first tap.
+// `resetAllIntentLatches()` is the ONE teardown the in-page harness calls
+// after every test; a new latch is covered by construction, not by a new line
+// in someone's finally. A reset also retires late settles of the holds it
+// dropped (epoch check), so an abandoned call cannot plant a retry key later.
 // ============================================================================
 
 export const IN_FLIGHT = 'in_flight';
@@ -74,6 +83,8 @@ function uuid() {
   });
 }
 
+const REGISTRY = new Set();   // every latch ever made (a handful per session)
+
 /**
  * A latch keyed by gesture (e.g. 'upgrade:0', 'water:0:3'). Each instance is
  * one module's private set of holds.
@@ -84,6 +95,7 @@ function uuid() {
 export function createIntentLatch() {
   const holds = new Map();   // key → token (one object per hold)
   const retry = new Map();   // key → { idem, at } of an ambiguous answer
+  let epoch = 0;             // bumped by reset(): a dropped hold's late settle is inert
   function release(k, token) {
     if (holds.get(k) !== token) return;   // an expired hold's late settle: not ours
     holds.delete(k);
@@ -95,7 +107,7 @@ export function createIntentLatch() {
     retry.delete(k);
     return uuid();
   }
-  return {
+  const api = {
     run(key, fire, opts) {
       const k = String(key);
       if (holds.has(k)) return Promise.resolve({ ok: false, error: IN_FLIGHT, inFlight: true, key: k });
@@ -106,7 +118,9 @@ export function createIntentLatch() {
       holds.set(k, token);
       token.timer = setTimeout(() => release(k, token), cap);
       const idem = idemFor(k);
+      const born = epoch;
       const settle = (ans, rejected) => {
+        if (born !== epoch) return;            // reset() dropped this hold: not ours
         if (rejected || isAmbiguousAnswer(ans)) retry.set(k, { idem, at: Date.now() });
         else if (retry.has(k) && retry.get(k).idem === idem) retry.delete(k);
         const left = sentAt + MIN_HOLD_MS - Date.now();
@@ -124,12 +138,39 @@ export function createIntentLatch() {
       return p;
     },
     held(key) { return holds.has(String(key)); },
-    reset() { for (const t of holds.values()) if (t.timer) clearTimeout(t.timer); holds.clear(); retry.clear(); },
+    size() { return holds.size; },
+    reset() {
+      epoch++;
+      for (const t of holds.values()) if (t.timer) clearTimeout(t.timer);
+      holds.clear(); retry.clear();
+    },
   };
+  REGISTRY.add(api);
+  return api;
+}
+
+/** One latch per NAME for the whole page (classic-script callers share it with
+ *  no module state of their own): namedLatch('homestead'), namedLatch('bank'). */
+const NAMED = new Map();
+function namedLatch(name) {
+  const n = String(name);
+  if (!NAMED.has(n)) NAMED.set(n, createIntentLatch());
+  return NAMED.get(n);
+}
+
+/** Test teardown: drop every hold and retry key of every latch. Returns how
+ *  many holds were live (the harness can name a test that left one). */
+function resetAllIntentLatches() {
+  let live = 0;
+  for (const l of REGISTRY) { live += l.size(); l.reset(); }
+  return live;
 }
 
 if (typeof window !== 'undefined') {
   window.HearthriseIntentLatch = {
     IN_FLIGHT, DEFAULT_HOLD_MS, MIN_HOLD_MS, isInFlightAnswer, isAmbiguousAnswer, createIntentLatch,
+    namedLatch,
+    /* Test teardown only (smoke-test.js, after EVERY test). */
+    __resetAll: resetAllIntentLatches,
   };
 }

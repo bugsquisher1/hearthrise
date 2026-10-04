@@ -3695,7 +3695,7 @@ function buyBankSpaceGold(){
      of a double-click buy bank.<k+1>. The latch's key rides the buy, so a timed-out re-tap replays. */
   var _bl=window.HearthriseIntentLatch&&typeof window.HearthriseIntentLatch.namedLatch==='function'?window.HearthriseIntentLatch.namedLatch('bank'):null;
   if(!_bl||_bl.held('bank')) return false;
-  _bl.run('bank',function(idem){ return Promise.resolve(window.HearthriseGold.buyUnlock(_boffer,idem)); }).then(function(v){
+  _bl.run('bank',function(idem){ return Promise.resolve(window.HearthriseGold.buyUnlock(_boffer,idem)); },{scope:_boffer}).then(function(v){
     var c=(typeof window.hrClassifyUnlock==='function')?window.hrClassifyUnlock(v)
       :{ok:!!(v&&(v.outcome==='applied'||v.outcome==='replayed')),owned:false,reason:(v&&v.reason)||'network'};
     if(c.ok){ _advanceBank(); if(c.owned){ if(typeof notify==='function')notify('That bank space is already yours.','info'); _renderBankModal(); } else _announceBank(); }

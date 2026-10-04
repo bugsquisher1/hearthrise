@@ -419,7 +419,7 @@
     var nxtIndex = getTier() + 1;
     latch.run('property', function (idem) {
       return Promise.resolve(GLD.buyUnlock(_offer, idem));
-    }).then(function (v) {
+    }, { scope: _offer }).then(function (v) {
       var c = (typeof window.hrClassifyUnlock === 'function')
         ? window.hrClassifyUnlock(v)
         : { ok: !!(v && (v.outcome === 'applied' || v.outcome === 'replayed')), owned: false,

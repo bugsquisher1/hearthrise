@@ -3192,7 +3192,7 @@ export default [
     } finally { wire.restore(); toasts.restore(); FS.farmPlant = realPlant; FS.__resetFarmLatch(); await sleep(0); restoreG(snap); }
   }),
 
-  () => tryRunAsync('INTENT-LATCH-0: the harness reset drops every latch the page made, and a dropped hold\'s late answer plants no retry key', async () => {
+  () => tryRunAsync('INTENT-LATCH-0: the harness reset drops every latch the page made, a dropped hold\'s late answer plants no retry key, and a retry key is scoped to its offer', async () => {
     const L = window.HearthriseIntentLatch;
     assert(L && typeof L.__resetAll === 'function' && typeof L.namedLatch === 'function', 'intent-latch.js __resetAll / namedLatch are gone');
     const mine = L.createIntentLatch(), named = L.namedLatch('workers');
@@ -3206,6 +3206,17 @@ export default [
     await sleep(0);
     mine.run('k', (idem) => { keys.push(idem); return Promise.resolve({ ok: true }); });
     assert(keys.length === 2 && keys[1] !== keys[0], "a dropped hold's late timeout planted its key for the next test's gesture");
+    /* A retry key belongs to WHAT was bought: after a timed-out property.manor, a
+       press for property.castle (the envelope advanced the tier) must not carry
+       manor's key, or the server's replay of manor reads as the castle. */
+    const scoped = L.createIntentLatch(), sk = [];
+    await scoped.run('property', (idem) => { sk.push(idem); return Promise.resolve({ ok: false, error: 'timeout' }); }, { scope: 'property.manor' });
+    await sleep(L.MIN_HOLD_MS + 20);
+    await scoped.run('property', (idem) => { sk.push(idem); return Promise.resolve({ ok: false, error: 'timeout' }); }, { scope: 'property.castle' });
+    await sleep(L.MIN_HOLD_MS + 20);
+    await scoped.run('property', (idem) => { sk.push(idem); return Promise.resolve({ ok: true }); }, { scope: 'property.castle' });
+    assert(sk[1] !== sk[0], "a press for the NEXT offer re-sent the timed-out offer's key — its replay would read as the next rung");
+    assert(sk[2] === sk[1], 'a re-tap of the SAME offer after a timeout sent a fresh key — a committed buy would be bought again');
   }),
 
   () => tryRunAsync('INTENT-LATCH-7: a double-click on "Upgrade Property" buys ONE tier even when the answer beats the second press', async () => {

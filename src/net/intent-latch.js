@@ -88,8 +88,10 @@ const REGISTRY = new Set();   // every latch ever made (a handful per session)
 /**
  * A latch keyed by gesture (e.g. 'upgrade:0', 'water:0:3'). Each instance is
  * one module's private set of holds.
- *   run(key, fire, {holdMs}) → fire(idem) once and return its
- *       promise, or, while `key` is held, a resolved held answer.
+ *   run(key, fire, {holdMs, scope}) → fire(idem) once and return its
+ *       promise, or, while `key` is held, a resolved held answer. `scope`
+ *       names WHAT the gesture buys (an offer id): a retry key is reused only
+ *       for the same scope, so a replayed answer is never read as the next rung.
  *   held(key) / reset() — the read and the test teardown.
  */
 export function createIntentLatch() {
@@ -101,9 +103,9 @@ export function createIntentLatch() {
     holds.delete(k);
     if (token.timer) clearTimeout(token.timer);
   }
-  function idemFor(k) {
+  function idemFor(k, scope) {
     const r = retry.get(k);
-    if (r && Date.now() - r.at < RETRY_KEY_TTL_MS) return r.idem;
+    if (r && r.scope === scope && Date.now() - r.at < RETRY_KEY_TTL_MS) return r.idem;
     retry.delete(k);
     return uuid();
   }
@@ -117,11 +119,12 @@ export function createIntentLatch() {
       const token = { timer: null };
       holds.set(k, token);
       token.timer = setTimeout(() => release(k, token), cap);
-      const idem = idemFor(k);
+      const scope = o.scope === undefined ? undefined : String(o.scope);
+      const idem = idemFor(k, scope);
       const born = epoch;
       const settle = (ans, rejected) => {
         if (born !== epoch) return;            // reset() dropped this hold: not ours
-        if (rejected || isAmbiguousAnswer(ans)) retry.set(k, { idem, at: Date.now() });
+        if (rejected || isAmbiguousAnswer(ans)) retry.set(k, { idem, scope, at: Date.now() });
         else if (retry.has(k) && retry.get(k).idem === idem) retry.delete(k);
         const left = sentAt + MIN_HOLD_MS - Date.now();
         if (left <= 0) { release(k, token); return; }

@@ -60,10 +60,12 @@
 //
 // FAILSAFE
 // If the core never arrives (404, offline, a syntax error in a core module)
-// the gate releases everything anyway after CORE_READY_TIMEOUT_MS and logs
-// loudly. A frozen game is a worse failure than a noisy one, and we do not
-// silently swallow: the original TypeErrors will surface with their real
-// stacks, which is what a bug report needs.
+// the page first reloads ONCE per tab session (see retryOnce below — this
+// covers the CORE_READY_TIMEOUT_MS path as well as a failed core-bridge.js),
+// and only a second coreless release in the same session releases everything
+// anyway and logs loudly. A frozen game is a worse failure than a noisy one,
+// and we do not silently swallow: the original TypeErrors will surface with
+// their real stacks, which is what a bug report needs.
 // ============================================================
 (function () {
   'use strict';
@@ -158,8 +160,68 @@
     maybeUnwrapClears();
   }
 
+  /* A CORE THAT DID NOT ARRIVE IS RETRIED ONCE, AND NOTHING BOOTS INTO
+     IT MEANWHILE. Live 2026-09-29, first load after a version bump: the
+     service-worker kill-switch in <head> unregisters the old service worker and deletes its
+     caches while this page is still fetching its module graph, core-bridge.js
+     fails to load, the gate released WITHOUT a core, and DOMContentLoaded booted
+     the engine into it — getTotalLevel/getCombatLevel "reading 'xp'",
+     getEquipmentStats "reading 'combat'", and the error boundary painting
+     "Something broke here" over Home until the kill-switch's own reload landed.
+     The engine must never render numbers it cannot compute, so on the first
+     coreless release of a tab session the page reloads instead of releasing.
+     What that holds back is the BOOT, and only the boot: parked timers stay
+     parked, and boot() and every other DOMContentLoaded/load listener never
+     run on the coreless page. Chromium gets that by itself — it aborts the
+     document inside location.reload() (measured: beforeunload, readyState
+     "complete", no DOMContentLoaded). An engine that starts the navigation
+     asynchronously can still reach DOMContentLoaded/load on the old document,
+     so both are also stopped at the window capture phase (this file's listener
+     is registered before any engine script's, and window is first on the
+     capture path of a document event). It is NOT "no engine code runs": the
+     classic scripts' parse-time top level has already run by now (as on every
+     load, cold or warm), and handlers that are not boot events — pageshow/
+     focus/visibilitychange resume (try-wrapped, gated on the account gate),
+     input, rAF, promise continuations — are not held; coreRetryGuard's
+     zero-pageerror arm is the evidence that none of them throws meanwhile.
+     A second coreless release in the same session is a genuinely broken deploy
+     and releases loudly as before — a reload loop would hide the fault.
+     The CORE_READY_TIMEOUT_MS failsafe goes through the same decision, so a core
+     that is merely 30 s late now costs one reload before it releases loudly.
+     The storage READ is inside the try on purpose: where site data is blocked
+     (the itch.io iframe in an Incognito window, a sandboxed iframe) merely
+     touching window.sessionStorage throws SecurityError, and a throw here would
+     escape release('core') itself — the happy path — and the gate would never
+     open. No readable store = the loop cannot be bounded = release loudly.
+     `host` (whose .sessionStorage is read; window in production) and `reload`
+     are injectable so the in-page suite can drive the decision without
+     navigating; tests/run-smoke.mjs coreRetryGuard drives the real one. */
+  var RETRY_KEY = 'hr-core-retry';
+  var reloading = false;
+  function retryOnce(reason, host, reload) {
+    var store = null;
+    try { store = host.sessionStorage || null; } catch (e) {}
+    if (reason === 'core') { try { if (store) store.removeItem(RETRY_KEY); } catch (e) {} return false; }
+    if (!store) return false;                        // cannot bound the loop → release loudly
+    try {
+      if (store.getItem(RETRY_KEY)) return false;
+      store.setItem(RETRY_KEY, String(reason));
+      reload();
+    } catch (e) { return false; }                    // storage refused, or the reload did → release loudly
+    return true;
+  }
+  window.__hrCoreRetry = retryOnce;
+  function holdBootEvent(ev) { if (reloading) ev.stopImmediatePropagation(); }
+  window.addEventListener('DOMContentLoaded', holdBootEvent, true);
+  window.addEventListener('load', holdBootEvent, true);
+
   function release(reason) {
-    if (ready) return;
+    if (ready || reloading) return;
+    if (retryOnce(reason, window, function () { location.reload(); })) {
+      reloading = true;
+      console.warn('[core-ready] core did not arrive (' + reason + ') — reloading once before the engine boots');
+      return;
+    }
     ready = true;
     releasing = true;
     var entries = Array.from(parked.entries());

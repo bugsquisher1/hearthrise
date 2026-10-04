@@ -7447,7 +7447,7 @@ function renderCombat(){
           <select onchange="setCombatAutoEat(this.value)" style="background:rgba(255,255,255,.04);border:1px solid var(--line-soft);border-radius:6px;padding:5px 8px;color:var(--ink)">
             ${(_eatLab && _eatLab.state!=='off' && _eatLab.state!=='food') ? `<option value="" disabled selected hidden>${_eatLab.text}</option>` : ''}
             <option value="">Off</option>
-            ${foods.map(([id])=>`<option value="${id}" ${(_eatLab?(_eatLab.state==='food'&&_eatLab.foodId===id):(_eatCfg&&_eatAutoFood===id&&_eatCfg.enabled))?'selected':''}>${ITEMS[id].n} ×${G.inventory[id]}</option>`).join('')}
+            ${foods.map(([id])=>`<option value="${id}" ${(_eatLab?(_eatLab.state==='food'&&_eatLab.foodId===id):(_eatCfg&&_eatAutoFood===id&&_eatCfg.enabled))?'selected':''}>${ITEMS[id].n} ×${(G.inventory[id]||0).toLocaleString()}</option>`).join('')}
           </select>
         </label></div>` : ''}
       <div class="cbt-food-note tiny muted">${_foodNote}</div>
@@ -8566,12 +8566,12 @@ function setHouseTab(t){houseTab=t;document.querySelectorAll('[data-house]').for
    room grid, the plot-building grid and (inverted) here. Three copies is three
    chances to teach only two of them about an UNKNOWN balance, which is the b348
    shape. FAIL-CLOSED on an unknown gold balance: a Build button that lights up
-   against a number nobody has read is a purchase the server never agreed to. */
+   against a number nobody has read is a purchase the server never agreed to. ITEMS read the SERVER's bag (accrue.js gateItemCount). */
 function canPayCost(cost){
   return Object.entries(cost||{}).every(([k,v])=>
     k==='gold' ? balCanAfford(v,'gold')
     : k==='gems' ? balCanAfford(v,'gems')
-    : (G.inventory[k]||0)>=v);
+    : (window.HearthriseAccrual?.gateItemCount(G,k)??-1)>=v);
 }
 /* b213 QA: name exactly what's missing instead of a bare "Not enough
    resources" — players couldn't tell which material was short. Returns a
@@ -8582,10 +8582,9 @@ function canPayCost(cost){
 function describeMissingCost(cost){
   const parts=[];
   for(const [k,v] of Object.entries(cost||{})){
-    if(k==='gold'||k==='gems'){
-      if(!balKnown(k)){ parts.push(k+' balance not loaded yet'); continue; }
-    }
-    const have=k==='gold'?balNum('gold'):k==='gems'?balNum('gems'):(G.inventory[k]||0);
+    const _bal=(k==='gold'||k==='gems'), _srv=_bal?null:(window.HearthriseAccrual?.gateItemCount(G,k)??null);
+    if(_bal?!balKnown(k):_srv===null){ parts.push(_bal?k+' balance not loaded yet':((ITEMS[k]&&ITEMS[k].n)||k)+' still being counted'); continue; }
+    const have=k==='gold'?balNum('gold'):k==='gems'?balNum('gems'):_srv;
     if(have<v){
       parts.push(k==='gold'?((v-have)+' gold'):(((ITEMS[k]&&ITEMS[k].n)||k)+' ×'+(v-have)));
     }
@@ -8645,7 +8644,7 @@ function upgradeRoom(id){
        modal's ladder, its pinned build bar and the House card all state this
        requirement inline before the player ever clicks (b355). Kept because
        upgradeRoom is the authority and must refuse audibly on any path. */
-    notify('Requires a '+_bp.name+(_bp.source?' — '+_bp.source:''),'kill');
+    notify(_bp.known===false ? _bp.name+' still being counted — try again in a moment' : 'Requires a '+_bp.name+(_bp.source?' — '+_bp.source:''),'kill');
     return false;
   }
   const missing=describeMissingCost(nx.cost);
@@ -8729,7 +8728,7 @@ function upgradeRoom(id){
    so a view can never disagree with the authority), but now every view can ASK.
 
    Returns null when the rung has no item gate at all, else
-     { id, name, need, have, ok, source }
+     { id, name, need, have, known, ok, source }   (known:false = the server bag is unstated; have -1)
    `source` is the real reverse-index line (window.itemSourceLine, b242) so a
    blueprint that starts dropping somewhere new re-describes itself for free —
    the old toast hardcoded "they drop from dungeons", which is prose, not data. */
@@ -8738,10 +8737,10 @@ function roomRungItemGate(id,want){
   let bid=null;
   for(const iid in ITEMS){ if(ITEMS[iid] && ITEMS[iid].unlocks===key){ bid=iid; break; } }
   if(!bid) return null;
-  const need=1, have=(G.inventory&&G.inventory[bid])||0;
+  const srv=window.HearthriseAccrual?.gateItemCount(G,bid)??null, known=srv!==null, need=1, have=known?srv:-1;   /* the SERVER's bag (hr_unlock_buy consumes it); NULL = unstated: known:false, pending, never 0 */
   let source='';
   try{ if(typeof window.itemSourceLine==='function') source=window.itemSourceLine(bid)||''; }catch(e){}
-  return {id:bid, name:(ITEMS[bid]&&ITEMS[bid].n)||bid, need:need, have:have, ok:have>=need, source:source};
+  return {id:bid, name:(ITEMS[bid]&&ITEMS[bid].n)||bid, need:need, have:have, known:known, ok:known&&have>=need, source:source};
 }
 
 /* Is rung `want` (1-based) legal at the player's current property tier?
@@ -11049,7 +11048,7 @@ console.log('Combat life: loaded');
 /* ════════════════════════════════════════════════════════════
    PERSISTENT ACTIVITY BAR
    Slot below topbar. Shows current action + progress + stop.
-   Reads from G.activeMonster / G.activeSkill / G.activeAction.
+   Reads from G.activeMonster / G.activeSkill (+ the server fall clock).
    Updates every 100ms via tick. No engine changes.
    ════════════════════════════════════════════════════════════ */
 
@@ -11077,7 +11076,6 @@ console.log('Combat life: loaded');
 function stopCurrentActivity(){
   if(G.activeMonster && typeof stopCombat === 'function'){ stopCombat(); return; }
   if(G.activeSkill && typeof stopSkill === 'function'){ stopSkill(); return; }
-  if(G.activeAction && typeof stopAction === 'function'){ stopAction(); return; }
 }
 
 /* Compute progress fraction. We try several common paths since this game
@@ -11094,9 +11092,6 @@ function _activityProgress(){
   }
   if(G.activeSkill && typeof G.skillProgress === 'number'){
     return Math.min(1, G.skillProgress || 0);
-  }
-  if(G.activeAction && typeof G.actionProgress === 'number'){
-    return Math.min(1, G.actionProgress || 0);
   }
   return 0;
 }
@@ -11246,7 +11241,8 @@ function refreshActivityBar(){
     const m = MONSTERS[G.activeMonster];
     bar.classList.remove('idle'); bar.classList.add('combat');
     HearthriseIcons.setActivityIcon(iconEl, 'navCombat', 'var(--red)');
-    if(nameEl) nameEl.textContent = `Fighting ${m?.name||'?'}`;
+    if(nameEl){ const _foe = m?.name||'?', _fe = nameEl.querySelector('.ab-foe');
+      if(!(_fe && _fe.textContent === _foe)) nameEl.innerHTML = '<span class="ab-verb">Fighting</span> <span class="ab-foe" title="'+escapeHtml(_foe)+'">'+escapeHtml(_foe)+'</span>'; }
     if(metaEl){
       // Show kill count for the current foe (resets when the player picks a
       // new monster) + the realm's lifetime count. The arena vs panel shows
@@ -11261,9 +11257,8 @@ function refreshActivityBar(){
       if(_ab && _ab.target === G.activeMonster){
         const v = hrBountyView(_ab);
         const _mark = v.known ? v.mark : (window.HearthriseBalance?.countMarkup?.(null, {label:'Not counted yet'}) ?? '—');
-        bountyChip = v.confirming
-          ? '<span class="ab-bounty confirming">Bounty <b>'+_mark+'/'+_ab.required+' · verifying</b></span>'
-          : '<span class="ab-bounty">Bounty <b>'+_mark+'/'+_ab.required+'</b></span>';
+        const _bw = _hrGly('navBounty',13)+'<span class="ab-chip-word">Bounty </span>', _req = (Number(_ab.required)||0).toLocaleString();
+        bountyChip = '<span class="ab-bounty'+(v.confirming?' confirming':'')+'" title="Bounty task">'+_bw+'<b>'+_mark+'/'+_req+(v.confirming?' · verifying':'')+'</b></span>';
       }
       /* b266 (tester): show the combat SKILL you're training + XP to the next
          level, right in the always-visible bar — "can I see Strength XP til level
@@ -11306,7 +11301,7 @@ function refreshActivityBar(){
     const s = SKILLS_DEF[G.activeSkill];
     bar.classList.remove('idle','combat');
     HearthriseIcons.setActivityIcon(iconEl, G.activeSkill, 'var(--green)');
-    let actName = G.skillTargetId ? G.skillTargetId.replace(/_/g,' ') : '';
+    let actName = hrActivityTargetName(G.skillTargetId);
     if(nameEl) nameEl.textContent = `${s?.name||G.activeSkill}${actName?' — '+actName:''}`;
     const xph = _activityXpHr();
     if(metaEl){
@@ -11321,40 +11316,9 @@ function refreshActivityBar(){
     refreshPanelProgress();
     return;
   }
-  /* Generic action loop (smelt/saw/forge/cook in some branches) */
-  if(G.activeAction){
-    const a = G.activeAction;
-    const map = {smelt:'uiFire',saw:'uiAxe',forge:'uiAnvil',cook:'cooking',craft:'crafting',enchant:'uiSpark',pray:'prayer'};
-    const labelMap = {smelt:'Smelting',saw:'Sawing',forge:'Forging',cook:'Cooking',craft:'Crafting',enchant:'Enchanting',pray:'Bury'};
-    bar.classList.remove('idle','combat');
-    HearthriseIcons.setActivityIcon(iconEl, map[a.kind] || 'uiAnvil', 'var(--gold-2)');
-    if(nameEl) nameEl.textContent = `${labelMap[a.kind]||a.kind} — ${(a.targetId||'').replace(/_/g,' ')}`;
-    if(metaEl) metaEl.innerHTML = '';
-    if(stopBtn) stopBtn.style.display = '';
-    refreshPanelProgress();
-    return;
-  }
-  /* Artisan (cooking/smithing/crafting recipes) — Phase A.1 onwards uses
-     this path instead of legacy activeAction. */
-  if(G.activeArtisanRecipe){
-    /* icon key per bench; anything unmapped falls through to the uiAnvil
-       default below, which is the right picture for a workbench. */
-    const map = {cooking:'cooking', smithing:'smithing', crafting:'crafting', prayer:'prayer'};
-    const skill = G.activeArtisanSkill || 'cooking';
-    bar.classList.remove('idle','combat');
-    HearthriseIcons.setActivityIcon(iconEl, map[skill] || 'uiAnvil', 'var(--gold-2)');
-    if(nameEl){
-      const recipeName = G.activeArtisanRecipe.replace(/^[a-z]+_/,'').replace(/_/g,' ');
-      nameEl.textContent = `${skill[0].toUpperCase()}${skill.slice(1)} — ${recipeName}`;
-    }
-    if(metaEl){
-      const lv = (typeof getLevel==='function') ? getLevel(skill) : 0;
-      metaEl.innerHTML = `<span class="ab-lv">Lv <b>${lv}</b></span>`;
-    }
-    if(stopBtn) stopBtn.style.display = '';
-    refreshPanelProgress();
-    return;
-  }
+  /* No third pointer: G.activeAction / G.activeArtisanRecipe have no writer in src/**
+     (startArtisan runs a recipe through activeSkill + skillTargetId, above), so their
+     branches here were unreachable (and printed the raw id). */
   /* Idle */
   bar.classList.add('idle'); bar.classList.remove('combat');
   HearthriseIcons.setActivityIcon(iconEl, 'uiIdle', 'var(--ink-3)');
@@ -11416,7 +11380,7 @@ function refreshPanelProgress(){
   }
   if(G.activeSkill){
     const s = SKILLS_DEF[G.activeSkill] || {};
-    const target = G.skillTargetId ? G.skillTargetId.replace(/_/g,' ') : '';
+    const target = hrActivityTargetName(G.skillTargetId);
     const xph = _activityXpHr();
     /* b229: Skills folded into the Character screen, so the per-tab progress
        strip lives on #panel-character now (it was keyed to #panel-skills, which
@@ -11426,16 +11390,6 @@ function refreshPanelProgress(){
       xph ? `${xph.toLocaleString()} xp/hr` : '',
       _activityProgress(),
       'skill');
-    return;
-  }
-  if(G.activeArtisanRecipe){
-    const skill = G.activeArtisanSkill || 'cooking';
-    const recipeName = G.activeArtisanRecipe.replace(/^[a-z]+_/,'').replace(/_/g,' ');
-    updateOne('panel-character',
-      `${skill[0].toUpperCase()}${skill.slice(1)} — ${recipeName}`,
-      '',
-      Math.min(1, G.skillProgress || G.actionProgress || 0),
-      'artisan');
     return;
   }
 }
@@ -15077,24 +15031,7 @@ function buildActivityCard(){
        the honest picture and the one the rail, the activity bar and the
        level-up toast all use for the same thing. */
     var iconHtml = skillIconHTML(G.activeSkill, 34);
-    if(typeof TREES!=='undefined'){
-      var n = TREES.find(function(a){return a.id===G.skillTargetId;});
-      if(n){ nodeName = n.name; }
-    }
-    if(!nodeName && typeof ROCKS!=='undefined'){
-      var n = ROCKS.find(function(a){return a.id===G.skillTargetId;});
-      if(n){ nodeName = n.name; }
-    }
-    if(!nodeName && typeof FISH_SPOTS!=='undefined'){
-      var n = FISH_SPOTS.find(function(a){return a.id===G.skillTargetId;});
-      if(n){ nodeName = n.name; }
-    }
-    if(!nodeName && typeof window.ARTISAN_RECIPES !== 'undefined'){
-      Object.keys(window.ARTISAN_RECIPES).forEach(function(s){
-        var r = window.ARTISAN_RECIPES[s].find(function(x){return x.id===G.skillTargetId;});
-        if(r){ nodeName = r.name; }
-      });
-    }
+    nodeName = escapeHtml(hrActivityTargetName(G.skillTargetId));
     var skName = (typeof SKILLS_DEF!=='undefined' && SKILLS_DEF[G.activeSkill]) ? SKILLS_DEF[G.activeSkill].name : G.activeSkill;
     card.className = 'char-active-card';
     card.innerHTML = '<div class="ca-icon">'+iconHtml+'</div>'+
@@ -15470,10 +15407,10 @@ function _costPart(itemId, qty){
   /* `have` is UNKNOWN-aware: a cost part whose currency has not arrived says so
      in its own title and does NOT mark itself met. `-1` can never satisfy a
      positive requirement, which is the fail-closed direction. */
-  var _known = itemId==='gold'||itemId==='gems' ? balKnown(itemId) : true;
+  var _srv = (itemId==='gold'||itemId==='gems') ? null : (window.HearthriseAccrual?.gateItemCount(G, itemId) ?? null);   /* items: the SERVER's bag */
+  var _known = itemId==='gold'||itemId==='gems' ? balKnown(itemId) : _srv !== null;
   var have = itemId === 'gold' ? balOr('gold', -1)
-           : itemId === 'gems' ? balOr('gems', -1)
-           : ((G.inventory||{})[itemId]||0);
+           : itemId === 'gems' ? balOr('gems', -1) : (_srv === null ? -1 : _srv);
   var met = _known && have >= qty;
   var name = itemId === 'gold' ? 'Gold' : (((typeof ITEMS !== 'undefined') && ITEMS[itemId] && ITEMS[itemId].n) || itemId);
   var tip = qty.toLocaleString() + ' ' + name + ' — you have '

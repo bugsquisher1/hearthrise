@@ -3401,3 +3401,11 @@ category strip (`.invc-cat-btn`, icon-only, scratch). Same classes, same glyphs,
 both rows are icon-only circles/squares and a new player cannot tell which one they pressed or why
 there are two. Mechanics are fine; it reads badly. Ask: merge into one strip (tap = lens, long-press
 or a pin = standing) or visibly separate them. Not changed in lane/b562-first-30-polish (UI design).
+
+## 2026-10-03 · art-director · phoneFrame's "theme face" is the OS fallback, never Alegreya
+
+`phoneFrame()` copies `cssRules` into an iframe; the Google Fonts sheet is cross-origin, so its
+@font-face rules are skipped and every frame-measured layout runs in the OS fallback: Segoe UI on
+Tyler's PC, DejaVu Sans on the CI runner (~18% wider). A fit test green locally can be red on GitHub
+for that reason alone (b562 FIGHT-PHONE-DENSITY). Any layout test measured in a frame should also run
+a forced wide face (`font-family: Verdana, "DejaVu Sans"`) the way FIGHT-STATUS-VERB-1 does.

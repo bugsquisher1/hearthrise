@@ -3717,16 +3717,18 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
   color: var(--red); border: 1px solid var(--red); font-weight: 700;
 }
 .activity-bar .ab-vigour.is-dry b { color: var(--red); }
-/* The short forms' glyphs: Vigour's is drawn only by the phone rule below;
-   Lifetime's trophy is hidden beside its word on a wide bar. */
+/* The short forms' glyphs (Vigour's hourglass, Lifetime's trophy, Bounty's
+   mark, away's bed) are hidden beside their words on a bar with room; the
+   bar's fit tiers (art-direction.css) draw them when the words give way. */
 .activity-bar .ab-vigour-glyph,
 .activity-bar .ab-tkills > .hr-glyph,
-.activity-bar .ab-bounty > .hr-glyph { display: none; }
+.activity-bar .ab-bounty > .hr-glyph,
+.activity-bar .ab-away > .hr-glyph { display: none; }
 /* EVERY CHIP STAYS (the Game Designer's ruling, FIGHT-PHONE-DENSITY). A chip the
    player acts on — Lifetime, away: you fall — is never hidden to make room for
    another chip: when the bar is narrow the chips get SHORTER, not fewer (the
-   phone rule below), and the activity name gives way first (`.ab-info` is
-   flex 1 from a zero basis, so it only ever holds the space left over). The
+   bar's fit tiers, art-direction.css), and the foe's name gives way first
+   ("Fighting" itself is the floor - FIGHT-STATUS-VERB-1). The
    meta may still shrink and clip at its own end as a last resort, so Stop is
    never pushed off the screen. */
 .activity-bar:has(.ab-vigour) .ab-meta { flex-shrink: 1; min-width: 0; overflow: hidden; }
@@ -3908,19 +3910,9 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
    right column and sits under the bar, because at 922×423 a third column takes
    the name down to two words. The tap floor does not move. */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
-  /* THE COMBAT BAR'S SHORT FORM. 922px holds Vigour, this fight, DEF/to go,
-     Lifetime and away only if each is spelt short: the Vigour chip trades its
-     word for its glyph ("Out of Vigour · pays" becomes "Out · ×0.25"), this
-     fight and Lifetime keep their glyph and number, the meta drops its
-     tracking, and no chip is hidden. */
-  .activity-bar .ab-vigour .ab-vigour-verb,
-  .activity-bar .ab-vigour .ab-vigour-word,
-  .activity-bar:has(.ab-vigour) .ab-meta .ab-chip-word { display: none; }
-  .activity-bar .ab-vigour .ab-vigour-glyph { display: inline-flex; vertical-align: -2px; margin-right: 3px; }
-  .activity-bar:has(.ab-vigour) .ab-meta .ab-tkills > .hr-glyph,
-  .activity-bar:has(.ab-vigour) .ab-meta .ab-bounty > .hr-glyph { display: inline-flex; margin-right: 4px; }
-  .activity-bar .ab-vigour { padding: 2px 4px; }
-  .activity-bar:has(.ab-vigour) .ab-meta { gap: 6px; letter-spacing: 0; }
+  /* THE COMBAT BAR'S SHORT FORM moved out of this query: it keys on the width
+     the BAR has, measured in its own face (art-direction.css, "the bar's fit
+     tiers"), because a 1280px desktop beside a dry Vigour chip needs it too. */
   /* A LANDSCAPE PHONE IS SHORT, NOT NARROW (922x423 is the measured case), so
      the density pass buys ROWS, not width: a member stays exactly two lines,
      the Remove control keeps its column on the first of them instead of

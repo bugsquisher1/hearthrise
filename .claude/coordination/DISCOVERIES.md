@@ -19,6 +19,38 @@ the list (SNAP_ABSENT), guard M10a-c + in-page SNAP-BAG-1. 169 bag/gate/render t
 
 Required action: a test that wants a gate SENT states the server bag (`serverBagFixture`); it never inherits one.
 
+## 2026-10-03 · QA · b562 exploratory rerun (toast storm, reload mid-run, double-clicks) on b560
+
+Harness (`__HR_TEST_HARNESS__`), local build, desktop 1440x900 + 922x423, scratch Playwright.
+
+| # | Probe | Observed | Verdict |
+|---|---|---|---|
+| 1 | 60 distinct `notify()` in one task | 4 visible / 12 queued / 44 dropped; all drained by +32 s; 0 toast timers left; no throw | OK |
+| 1b | 60 identical | 1 row "x60" | OK |
+| 1c | 60 with Settings open | 0 painted, 5 held, replayed one at a time after close | OK |
+| 1d | hover a toast mid-storm | all timers cleared while paused; drains after mouse leaves | OK |
+| 1e | `notifyAction` inside a storm | its own `children>5` cap removes queue-owned nodes; `#notifs` 5 nodes vs `visible` 4 | P4, `legacy.js` notifyAction |
+| 1f | 4 toasts at 922x423, fight view | short toasts: column 47% of height, over the foe name/HP bar; two-line toasts: 69%, over `#ab-stop` + Quests | **P3 → Art Director** (`toasts.js` MAX_VISIBLE / short-view column) |
+| 2 | reload with fight / gather / craft running, and instant reload after start | always Idle after reload, no console errors, no stale pointer, no timers left. The harness has no server, so the RESUME path is not exercised | OK (harness limit) |
+| 3 | double click: daily Claim (real dblclick) | 1 `claim_reward` intent, +500 once | OK |
+| 3b | shop Buy, synchronous double `click()` | 1 `shop_buy`, display moved by exactly one purchase | OK |
+| 3c | bounty Accept / Upgrade Property / Upgrade Plot / Plant all / Water | no intent reached the faked hr-accrue wire (other transports, or refused locally); not proven either way | NOT COVERED |
+| 4 | activity strip label | "Woodcutting — normal tree", "Cooking — cook shrimp": the raw id (bar AND the Character panel's progress strip) | **P3, FIXED** (`hrActivityTargetName`, activity-tile.js; regression `b562: the activity strip names…`) |
+
+Fake-wire recipe for the next pass: `HearthriseAuth.wireServerIntents(window,{url:<local>/fake-sb, …})`,
+answer `hr_load` with `{ok,skills,inventory,equipment,progress:[],state:{slot:0,hp,max_hp,active_kind:'idle',gold,gems}}`
+so `isCharacterHydrated()` flips, then hold hr-accrue POSTs 900 ms and 503 them.
+
+Follow-up rows (GO-WITH-CHANGES on the row-4 fix, same day):
+
+| # | Finding | Repro | Severity · route |
+|---|---|---|---|
+| 5 | **Toasts eat taps at 922x423.** `.notif` is `pointer-events:auto` (legacy.css `.notif`) and a tap on one dismisses it (toasts.js `build` click handler), so a tap aimed at the control underneath never reaches it. Expands 1f from "covers" to "intercepts". | Harness, viewport 922x423, `showTab('combat')`, `startCombat('slime')`, skip the FTUE, then four two-line `notify()`. Column lands at x 630-910, y 79-394. `elementFromPoint` at the centre of `#ab-stop` (886,146) returns `.notif`; at `.arena-foe-hp` (755,269) returns `.notif-text`; `#ab-meta` centre also a toast. The player's Stop tap dismisses a toast instead of stopping the fight, for up to ~8 s per toast. | **P3 → Art Director** (short-view column placement or `pointer-events:none` + an explicit close target; toasts.js `layout()` already measures chrome to avoid) |
+| 6 | **`notifyAction` removes nodes the toast queue still counts.** legacy.js `notifyAction` appends to `#notifs` and trims with `while(el.children.length > 5) el.children[0].remove()`, which deletes queue-owned toasts without telling toasts.js. | Harness: 8× `notify('storm toast N')` then 2× `notifyAction(…,'Undo',fn)`. `HearthriseToasts.state()` still reads `visible 4, pending 4` while only 3 queue toasts are on screen ("storm toast 0" is gone); the 4 pending wait behind a phantom slot until the removed toast's timer fires. No throw, no leak. | **P4** → whoever next touches toasts (route `notifyAction` through the queue) |
+| 7 | **The Character "current activity" card is unreachable.** legacy.js wraps `window.renderCharacter` to `setTimeout(applyCharExtensions)` (~14943), but a later `window.renderCharacter = function(){…}` (~16811) replaces it without calling the wrapper, so `applyCharExtensions` → `buildActivityCard` / `buildLoadoutDoll` / the skill-card rate patch never run. Corrects row 4: the "card named the node" claim was the code, not the screen. | Harness: `startSkill('woodcutting','normal_tree')`, `showTab('character')`, `renderCharacter()`, wait 300 ms: `.char-active-card` count 0, `.ca-info` count 0. | **P3 render debt → Systems Engineer** (delete the cluster + `window._calcForSkill` + the `.char-active-card` / `.char-loadout` CSS in one paydown; the GO's ask to test `buildActivityCard` has no player surface to test until then) |
+| 8 | `G.activeAction` / `G.activeArtisanRecipe` have no writer in `src/**`; `stopAction` exists nowhere. | grep | **FIXED here**: their branches in `refreshActivityBar`, `refreshPanelProgress`, `stopCurrentActivity`, `_activityProgress` deleted. Still read (board P3, untouched): `activity-bar-clickable.js`, `companions.js`, `death-sheet.js`, `restedContextLine`, `snapshotG` |
+| 9 | **`absence-priced-at-return` R2 flakes under load (a lane-done guard, red with no defect).** Two clocks: (a) each order's window is 2 h + the wall time from `fighter()` to its first settle, which differs between orders; (b) `combat_xp_accrued_to` was left at creation, so the XP leg priced only the wall time since setup (`{}` vs `{}` on a fast box, 13 XP on a slow one). | lane-done with six suites running: R2 red. Scratch copy sleeping 12 s inside order A: bones 752 vs 750, red every time. | **P1 (guard flake), FIXED**: each order runs in one transaction (one `now()`), `fighter()` sets `combat_xp_accrued_to`. Proof: 12 s skew in A or B green; XP leg now compares 7237 vs 7237; `--mutate` 6/6 caught; a planted whole-night drop buff in A still goes red (goblin_ear 402 vs 383); pin removed + 12 s skew red again |
+
 ## 2026-10-03 · systems-engineer · b562 projection sweep: three item gates still read the merge bag (CLAUDE.md §6)
 
 `lane/b562-projection-sweep` moved Build / property / plot / market-list onto `gateItemCount` (accrue.js:1309,

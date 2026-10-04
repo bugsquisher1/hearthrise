@@ -2987,10 +2987,10 @@ export default [
       addItem: window.addItem, getCombatLevel: window.getCombatLevel,
       send: DS.sendDungeonSettle, notify: window.notify, spoils: window.HearthriseSpoils,
     };
+    const bag = serverBagFixture();   // the gate counts the server bag: state it here, never borrow an earlier test's leak
     const minted = [];
     const opened = [], noted = [];
     let sent = null;
-    const bag = serverBagFixture();
     try {
       /* The Spoils sheet and the Chronicle are stubbed: a stubbed run mounts no real sheet. */
       window.HearthriseSpoils = { open: (x) => opened.push(x), note: (x) => noted.push(x) };
@@ -3023,9 +3023,7 @@ export default [
       G.inventory = Object.assign({}, G.inventory);
       G.inventory[d.cost.key] = 1;                       // a real key, so canRun passes
       delete G.inventory.dungeon_scrip;
-      /* …AND THE SERVER HOLDS IT: canRun counts the STATED bag. Without this the test passed
-         only on a bag an earlier test leaked, and failed alone (2026-10-03). */
-      bag.agree();
+      bag.agree();                                       // ...real SERVER-side: the gate reads the stated bag
       G.dungeonScrip = 0;
       G._dungeonCooldowns = {};                          // off cooldown
       window.getCombatLevel = () => 99;
@@ -3394,12 +3392,12 @@ export default [
     assert(A && typeof A.reconcileDungeonCooldowns === 'function', 'accrue.js must export reconcileDungeonCooldowns');
     assert(typeof window.canRunDungeon === 'function' && typeof window.dungeonSettleRowHtml === 'function',
       'the dungeon gate reader and the settle-row renderer must both be exposed');
-    const G = window.G, snap = snapshotG(), lvl = window.getCombatLevel;
+    const G = window.G, snap = snapshotG(), lvl = window.getCombatLevel, bag = serverBagFixture();
     const at = new Date(Date.now() + 3600000).toISOString();
     try {
       window.getCombatLevel = () => 99;
       G.inventory = Object.assign({}, G.inventory, { bone_key: 1 });
-      serverBagFixture().agree();   // the key gate counts the STATED bag; passed only on a leaked one (2026-10-03)
+      bag.agree();   // the key is real server-side, so the cooldown is the only gate left to read
       // (a) a PROJECTED window blocks its OWN mode only, and prints a countdown.
       A.reconcileDungeonCooldowns(G, { dungeon_cooldowns: { [id]: { auto: at, manual: at } } });
       const busy = window.canRunDungeon(id, 'auto');
@@ -3426,7 +3424,7 @@ export default [
       assert(G._dungeonCooldowns[id].manual === at && window.canRunDungeon(id, 'manual').ok === false
         && window.canRunDungeon(id, 'auto').ok === true,
         'the refusal detail must rest ITS mode at once and no other (got ' + JSON.stringify(G._dungeonCooldowns) + ')');
-    } finally { window.getCombatLevel = lvl; restoreG(snap); }
+    } finally { window.getCombatLevel = lvl; restoreG(snap); bag.restore(); }
   }),
 
   /* ── regression suite — DGN-TRUTH-1: THE SCAVENGER SPOILS ARE THE SERVER'S ──

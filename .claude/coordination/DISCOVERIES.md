@@ -4,6 +4,17 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-10-03 · Backend Architect · lane/b562-bounty-abandon-fee (2026-10-04-bounty-abandon-server-fee.sql, STAGED)
+
+hr_bounty_spend is now `(p_slot, p_reason, p_bounty_id, p_idem)`; the abandon fee reads active_bounty.marks_reward + the server BH level, and abandon deletes the contract. Listed, not fixed here:
+
+| # | Item | Owner | Action |
+|---|---|---|---|
+| 1 | `node tests/live-hash-drift.mjs` is RED by design on this branch (untracked `hr_bounty_spend`; replay-missing 5-arg `hr_bounty_spend__ungated`; replay-extra 4-arg) | Coordinator | `--write --no-live` with a real why at merge (staged), `--live --write` after apply — agents may not edit that baseline |
+| 2 | The signature changes: apply at the cut, immediately before the client push; in between an old client's reroll/abandon answers rpc_missing (no value moves) | Coordinator | sequence the apply with the cut |
+| 3 | `tests/patch-chain-guard.mjs` (green) asks for `--write` to record `hr_bounty_spend__ungated` chain 1 → 0, but a write also re-grandfathers ~30 other files' chains (hr_apply depth 9) measured since 2026-09-23 | Coordinator | re-measure deliberately, not from a lane |
+| 4 | `rerollBountyBoard` still prices and gates the PAID reroll on a client-computed `5 + rerollsToday*5` (display gate; the server re-derives), and keeps a DORMANT local Marks debit | Systems Engineer | project the next reroll cost from the server (`hr_state_of`), drop the dormant debit |
+
 ## 2026-10-03 · QA · b562 exploratory rerun (toast storm, reload mid-run, double-clicks) on b560
 
 Harness (`__HR_TEST_HARNESS__`), local build, desktop 1440x900 + 922x423, scratch Playwright.

@@ -433,26 +433,22 @@
         return call('hr_credit_combat_xp', { p_slot: activeSlot(), p_xp: clean, p_idem: newIdem() });
       });
     },
-    /* Bounty MARKS spend — supabase/migrations/2026-08-26-marks-record.sql. ONE
-       server-authoritative debit for reroll + abandon. The server derives the
-       reroll cost (5 + paid-rerolls-today*5, counted from the ledger) and the
-       abandon fee (min(10, floor(reward_marks*0.25)) for BH level >= 10, reward
-       taken from the server's own active_bounty when present); the client value it
-       accepts is only context, never a balance. p_idem makes a retry a no-op.
-       Fire-and-forget, DISPLAY-PREDICTION shape: the server owns player_state.marks
-       and the next envelope reconciles it. Only fired for a PAID reroll (free
-       rerolls never reach the server) or an abandon with a fee. */
+    /* Bounty MARKS spend — supabase/migrations/2026-10-04-bounty-abandon-server-fee.sql.
+       ONE server-authoritative debit for reroll + abandon, and NO NUMBER CROSSES:
+       the reroll cost (5 + paid-rerolls-today*5) comes from the ledger, the
+       abandon fee from the server's own active_bounty.marks_reward and its own
+       Bounty-Hunter level (player_skills). The abandon NAMES the contract
+       (p_bounty_id) so an abandon that lands after the next accept is refused
+       (bounty_mismatch) instead of deleting the new contract. p_idem makes a
+       retry a no-op. The answer's `fee` is the only figure a caller may quote. */
     bountyReroll: function () {
       return call('hr_bounty_spend', {
-        p_slot: activeSlot(), p_reason: 'reroll', p_bounty_level: 0,
-        p_reward_marks: 0, p_idem: newIdem()
+        p_slot: activeSlot(), p_reason: 'reroll', p_bounty_id: null, p_idem: newIdem()
       });
     },
-    bountyAbandon: function (bountyLevel, rewardMarks) {
+    bountyAbandon: function (bountyId) {
       return call('hr_bounty_spend', {
-        p_slot: activeSlot(), p_reason: 'abandon',
-        p_bounty_level: Math.max(0, Math.floor(Number(bountyLevel) || 0)),
-        p_reward_marks: Math.max(0, Math.floor(Number(rewardMarks) || 0)),
+        p_slot: activeSlot(), p_reason: 'abandon', p_bounty_id: String(bountyId || ''),
         p_idem: newIdem()
       });
     },

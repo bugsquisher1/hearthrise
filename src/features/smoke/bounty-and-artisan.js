@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 64 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, awayGatherSpan, tryRunRestampingBalance, xpOf, xpZero, goldOf, snapshotG, setAway, restoreG, restoreGAndRecord, withCap, on } from './_harness.js?v=560';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, awayGatherSpan, tryRunRestampingBalance, xpOf, xpZero, goldOf, snapshotG, setAway, restoreG, restoreGAndRecord, withCap, on, stubSignedIn } from './_harness.js?v=560';
 
 export default [
 
@@ -287,6 +287,44 @@ export default [
       window.rerollBountyBoard();
       assert(G.bountyHunter.freeRerolls === 0, 'CONTROL: an unpaid reroll must still spend the free one');
     } finally { restoreG(snap); }
+  }),
+
+  /* BOUNTY-ABANDON-1 (2026-10-04-bounty-abandon-server-fee.sql, Security P2):
+     the abandon fee was priced off a client-sent Bounty-Hunter level and reward,
+     and the call was skipped below a CLIENT level of 10. Now the server prices
+     it, so the client must always ask, send no number, name the contract, and
+     quote the server's fee — never its own formula (here it would say 0). */
+  () => tryRunAsync('BOUNTY-ABANDON-1: abandon sends no level or reward, names the contract, and quotes the SERVER fee', async () => {
+    if (typeof window.abandonBounty !== 'function' || !window.HearthriseGoalClaim) return;
+    const snap = snapshotG();
+    const origFetch = window.fetch, origNotify = window.notify;
+    const unstub = stubSignedIn(2);
+    const bodies = [], said = [];
+    let answer = null;
+    try {
+      window.fetch = (url, init) => {
+        if (String(url).indexOf('/rpc/hr_bounty_spend') !== -1) bodies.push(JSON.parse(init.body));
+        return Promise.resolve(new Response(JSON.stringify(answer || []), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      };
+      window.notify = (m) => { said.push(String(m)); };
+      window.ensureBountyState();
+      window.G.skills.bountyHunter = 0;               // client level 1: the old code never called
+      window.G.bountyHunter.active = { id: 'bx-abandon-1', type: 'cull', target: 'goblin', required: 10, progress: 0, rewards: { marks: 40 } };
+      answer = { ok: true, reason: 'abandon', fee: 7, marks: 93, bounty_id: 'bx-abandon-1' };
+      await window.abandonBounty();
+      assert(bodies.length === 1, 'abandon must ALWAYS ask the server (it owns the level); saw ' + bodies.length + ' hr_bounty_spend calls');
+      const b = bodies[0];
+      assert(!('p_bounty_level' in b) && !('p_reward_marks' in b), 'abandon sent a client number the fee could be priced from: ' + JSON.stringify(b));
+      assert(b.p_reason === 'abandon' && b.p_bounty_id === 'bx-abandon-1' && b.p_slot === 2 && !!b.p_idem,
+        'abandon must name the contract, the slot and a key: ' + JSON.stringify(b));
+      assert(window.G.bountyHunter.active === null, 'the local contract must end');
+      assert(said.some((m) => /-7 Marks/.test(m)), 'the toast must quote the SERVER fee (7); said ' + JSON.stringify(said));
+      // A refusal (no server contract) charges nothing and says so.
+      window.G.bountyHunter.active = { id: 'bx-abandon-2', type: 'cull', target: 'goblin', required: 10, progress: 0, rewards: { marks: 40 } };
+      answer = { ok: false, error: 'no_active_bounty' }; said.length = 0;
+      await window.abandonBounty();
+      assert(said.length === 1 && !/Marks/.test(said[0]), 'a refused abandon must not quote a fee; said ' + JSON.stringify(said));
+    } finally { window.fetch = origFetch; window.notify = origNotify; unstub(); restoreG(snap); }
   }),
 
   () => tryRun('BOUNTY-SHOP-1: no Bounty Shop row offers an enabled Buy that the spend will refuse', () => {

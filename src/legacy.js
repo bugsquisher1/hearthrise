@@ -4119,25 +4119,20 @@ function hrAdoptAcceptedBounty(res,accepted){
   return out;
 }
 window.hrAdoptAcceptedBounty=hrAdoptAcceptedBounty;
+/* The abandon FEE is the server's (2026-10-04-bounty-abandon-server-fee.sql): it
+   is priced from active_bounty.marks_reward and the server's Bounty-Hunter level,
+   and the client neither computes it nor gates the call on its own level. The
+   abandon names the contract; the toast quotes the answer's `fee`, never a guess. */
 function abandonBounty(){
   if(!G.bountyHunter?.active)return;
   const b=G.bountyHunter.active;
-  const lv=getBountyHunterLevel();
-  if(lv>=10){
-    const fee=Math.min(10,Math.floor((b.rewards?.marks||0)*.25));
-    if(clientMayWriteRecordField('marks')){
-      /* DORMANT: client owns marks — debit locally exactly as before. */
-      G.marks=Math.max(0,(G.marks||0)-fee);if(fee)notify(`Bounty abandoned (-${fee} Marks)`,'kill');
-    } else {
-      /* ARMED: server owns marks. The real debit is hr_bounty_spend (which re-derives
-         the fee from the server's active_bounty); the next envelope reconciles. */
-      try{if(window.HearthriseGoalClaim&&HearthriseGoalClaim.bountyAbandon){const _p=HearthriseGoalClaim.bountyAbandon(lv,b.rewards?.marks||0);if(_p&&_p.catch)_p.catch(()=>{});}}catch(e){}
-      if(fee)notify(`Bounty abandoned (-${fee} Marks)`,'kill');
-    }
-  }
-  else notify('Bounty abandoned','info');
+  let p=null;
+  try{const GC=window.HearthriseGoalClaim;if(GC&&GC.bountyAbandon)p=GC.bountyAbandon(b.id);}catch(e){}
   hrClearBountyRetry(b);
   G.bountyHunter.active=null;renderCombat();repaintBounty();saveLocal();
+  const say=(res)=>{const fee=Math.floor(Number(res&&res.ok===true?res.fee:0))||0;
+    notify(fee>0?`Bounty abandoned (-${fee} Marks)`:'Bounty abandoned',fee>0?'kill':'info');return res;};
+  return (p&&typeof p.then==='function')?p.then(say,()=>say(null)):Promise.resolve(say(null));
 }
 /* @param prepaid — the caller has ALREADY charged for this refresh (the Bounty
    Shop's Reroll Token). It was passing `rerollBountyBoard(true)` into a function

@@ -33,6 +33,16 @@
 //   A7      a party hunt is COMBAT: gather armed → the party fence answers
 //           shadow (naming combat) and hr_party_mark chains on the shadow mark;
 //           combat armed → armed, and the mark is the paid one
+//   A8      C1 (2026-10-06-world-tick-arm-guards.sql): armed gather, raw
+//           accrued_to 25 h old on a CURRENT shadow chain (the roster admitted
+//           it in shadow, then the operator armed) → the armed settle is
+//           refused fenced_24h and writes ZERO ledger rows; 23 h old pays
+//   A9      C2: gather armed, a combat sentinel, two hours of rostered fires,
+//           gather-only shadow rows → hr_tick_stall_status judges the combat
+//           shadow and reads STALLED; the same history with nothing armed is ok
+//
+// P-IDEM re-applies BOTH files in chain order: the guards file restates
+// hr_tick_settle and hr_tick_stall_status over the channel-arm file.
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ============================================================================
@@ -44,6 +54,8 @@ import { bootReplay, inventory, ROOT } from './schema-replay.mjs';
 const SELFTEST = process.argv.includes('--selftest');
 const MIG = '2026-10-06-world-tick-channel-arm.sql';
 const MIG_SQL = (await readFile(join(ROOT, 'supabase', 'migrations', MIG), 'utf8')).replace(/\r\n/g, '\n');
+const GUARDS = '2026-10-06-world-tick-arm-guards.sql';
+const GUARDS_SQL = (await readFile(join(ROOT, 'supabase', 'migrations', GUARDS), 'utf8')).replace(/\r\n/g, '\n');
 const FNS = ['hr_tick_admit', 'hr_tick_roster', 'hr_tick_settle', 'hr_party_mark', 'hr_party_roster',
   'hr_party_tick_settle', 'hr_tick_cron_run', 'hr_tick_stall_status'];
 
@@ -264,6 +276,62 @@ async function arms(db, { log = true } = {}) {
       `gather-armed ${JSON.stringify(pg)} mark ${mg - fromMs} ms; combat-armed ${JSON.stringify(pc)} mark ${mc - fromMs} ms`);
   }
 
+  // ── A8 C1: an armed window pays only a character the raw fence admits
+  await cfg("enabled = true, channels = array['combat','gather','artisan'], armed_channels = '{}'");
+  {
+    await makeChar(UG, 'gather', gact, "date_trunc('second', now()) - interval '25 hours'");
+    await db.exec(`update public.hr_tick_ownership set shadow_accrued_to = now() - interval '1 minute' where user_id = '${UG}';`);
+    const r25 = await rostered(UG, 'gather');           // admitted in SHADOW on its chain...
+    await db.exec(`update public.hr_tick_ownership set lease_holder = '${HOLDER}', lease_until = now() + interval '10 minutes' where user_id = '${UG}';`);
+    await cfg("armed_channels = array['gather']");      // ...then the operator arms
+    const m = await mark0(UG);
+    const l0 = await ledger(UG);
+    const v0 = await version(UG);
+    const f = await settle(UG, 'gather', m.toISOString(), iso(m, 90), KEY(81));
+    const fl = (await ledger(UG)) - l0;
+    const fv = await version(UG);
+    await makeChar(UG, 'gather', gact, "date_trunc('second', now()) - interval '23 hours'");
+    const m2 = await mark0(UG);
+    const w0 = await windowRows(UG, 'gather');
+    const p = await settle(UG, 'gather', m2.toISOString(), iso(m2, 90), KEY(82));
+    const pw = (await windowRows(UG, 'gather')) - w0;
+    ok('A8', r25 === 1 && f.error === 'fenced_24h' && f.channel === 'gather' && fl === 0 && fv === v0
+        && p.mode === 'armed' && p.paid === true && pw === 1,
+      'shadow-admitted at raw 25 h, then armed: the settle is refused fenced_24h and writes 0 ledger rows; '
+      + 'raw 23 h pays exactly one window',
+      `rostered ${r25}; 25 h ${JSON.stringify(f)} ledger +${fl} version ${v0}->${fv}; 23 h ${JSON.stringify(p)} rows +${pw}`);
+    await cfg("armed_channels = '{}'");
+  }
+
+  // ── A9 C2: the combat shadow is still watched while gather pays
+  {
+    const AT = '2005-01-01 12:00:00+00';
+    await makeChar(UC, 'combat', cact, "now() - interval '5 minutes'");
+    // The sentinel's activity must predate the judged window (planted at AT).
+    await db.exec(`update public.player_state set active_since = '2000-01-01 00:00:00+00' where user_id = '${UC}';`);
+    await db.exec(`delete from public.hr_tick_ownership where user_id <> '${UC}';`);
+    await db.query(`insert into public.hr_tick_cron_log (at, outcome, ms, rostered, effective_cadence_seconds)
+                    select $1::timestamptz - make_interval(secs => g * 10), 'posted', 5, 2, 10
+                      from generate_series(1, 719) g`, [AT]);
+    await db.query(`insert into public.hr_tick_shadow (at, user_id, slot, channel, holder, window_from, window_to,
+                                                       version, intent_id, delta)
+                    select $1::timestamptz - make_interval(secs => g * 90), $2::uuid, 0, 'gather', 'arm-guard',
+                           $1::timestamptz - make_interval(secs => g * 90 + 90), $1::timestamptz - make_interval(secs => g * 90),
+                           1, gen_random_uuid(), '{}'::jsonb
+                      from generate_series(1, 79) g`, [AT, UG]);
+    const st = async () => (await one('select public.hr_tick_stall_status($1::timestamptz, 2, 30) as s', [AT])).s;
+    await cfg("armed_channels = array['gather']");
+    const armed = await st();
+    await cfg("armed_channels = '{}'");
+    const none = await st();
+    ok('A9', armed.judged === true && armed.stalled === true && armed.mode === 'partial'
+        && armed.watched_channels.includes('combat') && !armed.watched_channels.includes('gather')
+        && none.judged === true && none.stalled === false,
+      'gather armed: 2 h of gather-only shadow rows with a combat sentinel reads STALLED (combat watched); '
+      + 'nothing armed: the same history reads ok',
+      `armed ${JSON.stringify({ ...armed, buckets: undefined })}; none ${JSON.stringify({ ...none, buckets: undefined })}`);
+  }
+
   await cfg("armed_channels = '{}'");
   return red;
 }
@@ -274,8 +342,8 @@ const bodies = async (db) => (await db.query(
     where n.nspname = 'public' and p.proname = any($1::text[]) order by 1`, [FNS])).rows
   .map((r) => r.h).join(',');
 
-async function boot(patches) {
-  const r = await bootReplay(patches ? { patches: new Map([[MIG, patches]]), tolerant: true } : {});
+async function boot(patches, file = MIG) {
+  const r = await bootReplay(patches ? { patches: new Map([[file, patches]]), tolerant: true } : {});
   return r;
 }
 
@@ -290,12 +358,12 @@ if (!SELFTEST) {
   const inv0 = JSON.stringify(await inventory(db));
   const b0 = await bodies(db);
   let err = null;
-  try { await db.exec(MIG_SQL); } catch (e) { err = String(e.message).split('\n')[0]; }
+  try { await db.exec(MIG_SQL); await db.exec(GUARDS_SQL); } catch (e) { err = String(e.message).split('\n')[0]; }
   const inv1 = JSON.stringify(await inventory(db));
   const b1 = await bodies(db);
   const idem = !err && inv0 === inv1 && b0 === b1 && b0.split(',').length === FNS.length;
   console.log(idem
-    ? `  ✓ P-IDEM — ${MIG} re-applies byte-identically (self-check passed twice; inventory and ${FNS.length} bodies unchanged)`
+    ? `  ✓ P-IDEM — ${MIG} + ${GUARDS} re-apply byte-identically (self-check passed twice; inventory and ${FNS.length} bodies unchanged)`
     : `  ✗ P-IDEM — second apply: ${err || (inv0 !== inv1 ? 'the schema inventory moved' : `bodies moved (${b0.split(',').length} found)`)}`);
   let red;
   try { red = await arms(db); } catch (e) {
@@ -338,6 +406,26 @@ const MUTANTS = [
     expect: null,
     patch: [["  select case when not coalesce('combat' = any (cfg.armed_channels), false)",
              "  select case when not coalesce('gather' = any (cfg.armed_channels), false)"]] },
+  /* C1 / C2 — patched into the GUARDS file, which owns the chain-end bodies. */
+  { name: 'armedIgnoresRawFence', file: GUARDS, why: 'the armed settle pays a shadow-admitted character past 24 h',
+    expect: /g1:|g1c/,
+    patch: [["  if public.hr_tick_admit(false, v_st.accrued_to, null) <> 'admit' then",
+             '  if false then']] },
+  { name: 'armedFenceUsesChain', file: GUARDS, why: 'the C1 fence reads the shadow chain instead of the raw mark',
+    expect: /g1:|g1c/,
+    patch: [["  if public.hr_tick_admit(false, v_st.accrued_to, null) <> 'admit' then",
+             "  if public.hr_tick_admit(false, v_st.accrued_to, v_own.shadow_accrued_to) <> 'admit' then"]] },
+  { name: 'stallBlindWhenArmed', file: GUARDS, why: 'the stall rule stops judging once any channel arms',
+    expect: /g2:/,
+    patch: [['  v_judged := coalesce(v_cfg.enabled, false) and cardinality(v_unarmed) > 0 and v_sentinel;',
+             '  v_judged := coalesce(v_cfg.enabled, false) and cardinality(v_armed) = 0 and v_sentinel;']] },
+  { name: 'armedRowsCounted', file: GUARDS, why: "an armed channel's rows hide an unarmed channel's stall",
+    expect: /g2:/,
+    patch: [['                               where s.at >= b.lo and s.at < b.hi\n                                 and not (s.channel = any (v_armed))),',
+             '                               where s.at >= b.lo and s.at < b.hi),']] },
+  { name: 'noSentinel', file: GUARDS, why: 'an empty unarmed channel is judged a stall',
+    expect: /g2b/,
+    patch: [['  v_sentinel := cardinality(v_armed) = 0 or exists (', '  v_sentinel := true or exists (']] },
   { name: 'rosterIgnoresChannelMode', why: 'the roster reads one mode for every channel',
     expect: /c7e/,
     patch: [['        select coalesce(o.channel = any (v_armed), false) as armed) a\n      cross join lateral (\n        select case when not a.armed',
@@ -349,10 +437,18 @@ let survived = 0;
 for (const m of MUTANTS) {
   let verdict;
   let r;
-  try { r = await boot(m.patch); } catch (e) { console.error(`harness: ${m.name}: ${e.message}`); process.exit(2); }
+  try { r = await boot(m.patch, m.file || MIG); } catch (e) { console.error(`harness: ${m.name}: ${e.message}`); process.exit(2); }
   if (r.failures.length) {
-    const msg = r.failures.map((f) => f.error).join(' | ');
-    const mine = r.failures.every((f) => f.file === MIG) && (!m.expect || m.expect.test(msg));
+    /* A mutant of the channel-arm file refuses THAT file; the guards file
+       downstream then refuses on its own §0 precondition, by name. That one
+       cascade is expected; any other failure is the wrong reason. */
+    const own = r.failures.filter((f) => f.file === (m.file || MIG));
+    const cascade = r.failures.filter((f) => f.file !== (m.file || MIG));
+    const msg = own.map((f) => f.error).join(' | ');
+    const mine = own.length > 0
+      && cascade.every((f) => (m.file || MIG) === MIG && f.file === GUARDS
+        && /PRECONDITION: 2026-10-06-world-tick-channel-arm\.sql is not applied/.test(f.error))
+      && (!m.expect || m.expect.test(msg));
     verdict = mine ? `RED via the file's own self-check (${msg.slice(0, 90)})` : null;
     if (!mine) { console.log(`  ✗ ${m.name} — refused for the WRONG reason: ${msg.slice(0, 200)}`); survived++; continue; }
   } else {

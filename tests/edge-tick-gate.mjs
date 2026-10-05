@@ -74,6 +74,7 @@
 //   M16 hand each character the previous one's answers, arguments intact (N6)
 //   M17 drop the slot from both reads (H1; T-X1i2, one user on two slots)
 //   M18 swallow a party member's read error (H2; T-X1e2)
+//   M19 ignore the channel a fence answer names (mode_channel_mismatch; T-PCc, T-PCd)
 //
 // Usage:
 //   node tests/edge-tick-gate.mjs
@@ -1426,6 +1427,27 @@ const MUTATIONS = [
        timestamp". A mutant that chains on the body is exactly what T-B1g
        forbids, so an M5 that left T-B1 green would mean T-B1g was decorative. */
     mustFail: ['T-M1', 'T-B1'],
+  },
+  {
+    /* THE mode_channel_mismatch CHECK'S OWN PROOF (Security follow-up,
+       SEC_WORLD_TICK_CHANNEL_ARM_2026-10-05 finding 7). tick.js and
+       tick-party.js skip a fence answer that names another channel; an
+       answer naming NONE is read as given (pre-migration fence). Dropping the
+       name from every answer is therefore exactly "the check is gone": the
+       wrong-channel answer is believed and its mode settles the character.
+       T-PCc (solo) and T-PCd (party) must both go red. */
+    id: 'M19', what: 'ignore the channel a fence answer names (mode_channel_mismatch removed)',
+    patch: (m) => Object.assign({}, m, {
+      runTick: async (o) => REAL.runTick(Object.assign({}, o, {
+        exec: async (text, params) => {
+          const rows = await o.exec(text, params);
+          const r = rows && rows[0] && rows[0].res;
+          if (r && typeof r === 'object' && 'channel' in r) delete r.channel;
+          return rows;
+        },
+      })),
+    }),
+    mustFail: ['T-PCc —', 'T-PCd'],
   },
   {
     /* T-3's OWN PROOF. T-T1 is worth nothing unless it goes red on the defect

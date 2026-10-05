@@ -242,7 +242,8 @@ select g.i,
 // unread" and judges as if in shadow.
 const WORLD_TICK_MODE = `
 select case when not coalesce(c.enabled, false) then 'off'
-            when coalesce(cardinality(c.armed_channels), 0) = 0 then 'shadow' else 'armed' end as mode
+            when coalesce(cardinality(c.armed_channels), 0) = 0 then 'shadow'
+            when c.channels <@ c.armed_channels then 'armed' else 'partial' end as mode
   from public.hr_tick_config c where c.id`;
 
 // ── STALL RULE BEGIN ─────────────────────────────────────────────────────────
@@ -261,6 +262,13 @@ function tickStallVerdict(buckets, mode, rule) {
   if (win.length < rule.hours) return { verdict: 'NO VERDICT', why: `under ${rule.hours} h of history` };
   if (mode === 'armed' || mode === 'off') {
     return { verdict: 'NOT JUDGED', why: `tick is ${mode}; shadow rows are zero by design` };
+  }
+  // PARTIAL (some channels armed): hr_tick_stall_status judges the UNARMED
+  // channels with a sentinel character (2026-10-06-world-tick-arm-guards.sql
+  // C2); that needs hr_tick_admit, which this read-only role cannot execute,
+  // so the restatement declines rather than guess.
+  if (mode === 'partial') {
+    return { verdict: 'NOT JUDGED', why: 'tick is partially armed; read hr_tick_stall_status() (per unarmed channel)' };
   }
   if (win.some((b) => Number(b.rost_fires) < 1)) {
     return { verdict: 'NO VERDICT', why: 'an hour with nothing rostered' };
@@ -395,6 +403,7 @@ async function selftest() {
       V([hour({}), hour({}), hour({ shadow_rows: 500 })]), 'STALL');
     t('S9 a stalled last hour after a healthy one -> OK', V([hour({}), hour({ shadow_rows: 40 })]), 'OK');
     t('S10 armed -> NOT JUDGED', V([hour({}), hour({})], 'armed'), 'NOT JUDGED');
+    t('S10b partially armed -> NOT JUDGED, never a false STALL', V([hour({}), hour({})], 'partial'), 'NOT JUDGED');
     t('S11 one hour of history -> NO VERDICT', V([hour({})]), 'NO VERDICT');
     // A day of 24 hours: healthy (40/h) except a 3-hour stall at i = 5..7 -> 2 stalled windows.
     const day = Array.from({ length: 24 }, (_, i) => hour({ shadow_rows: i >= 5 && i <= 7 ? 0 : 40, refused: i >= 5 && i <= 7 ? 360 : 0 }));

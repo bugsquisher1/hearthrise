@@ -469,9 +469,10 @@ const MUTANTS = {
 };
 
 /* The SQL mutants patch hr_tick_settle's CHAIN-END definition. It was restated
-   by 2026-10-06-world-tick-channel-arm.sql (per-channel mode); a patch to the
-   09-23 text would be overwritten by that later file and prove nothing. */
-const CHAIN_END = '2026-10-06-world-tick-channel-arm.sql';
+   by 2026-10-06-world-tick-channel-arm.sql (per-channel mode) and again by
+   2026-10-06-world-tick-arm-guards.sql (Security C1); a patch to an earlier
+   text would be overwritten by the later file and prove nothing. */
+const CHAIN_END = '2026-10-06-world-tick-arm-guards.sql';
 const patchesFor = (m) => (m.sql ? new Map([[CHAIN_END, m.sql]]) : undefined);
 const tickFor = (m) => {
   if (!m.tick) return undefined;

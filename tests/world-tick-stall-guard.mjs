@@ -19,7 +19,7 @@
 //           inventory and the four bodies are unchanged). Since 2026-09-28 that
 //           is 2026-09-28-tick-harvest-off-rpc-surface.sql for the note, the
 //           summary and the harvest (the latter two now in the non-exposed
-//           schema hr_ops, T-5 Q-1) and, since 2026-10-06, 2026-10-06-world-tick-channel-arm.sql for the stall
+//           schema hr_ops, T-5 Q-1) and, since 2026-10-06, 2026-10-06-world-tick-arm-guards.sql for the stall
 //           status. Re-applying the SUPERSEDED observability file would put the
 //           public bridge back and test that instead of the chain end.
 //   G1      a planted HEALTHY two hours reads ok
@@ -48,9 +48,10 @@ import { bootReplay, inventory, ROOT } from './schema-replay.mjs';
 
 const SELFTEST = process.argv.includes('--selftest');
 const MIG = '2026-09-28-tick-harvest-off-rpc-surface.sql';
-// The stall status was restated by 2026-10-06-world-tick-channel-arm.sql (judged
-// while nothing is armed, per-channel config), which is its chain-end file now.
-const OBS = '2026-10-06-world-tick-channel-arm.sql';
+// The stall status was restated by 2026-10-06-world-tick-channel-arm.sql (per-channel
+// config) and again by 2026-10-06-world-tick-arm-guards.sql (judged per UNARMED
+// channel, Security C2), which is its chain-end file now.
+const OBS = '2026-10-06-world-tick-arm-guards.sql';
 const read = async (f) => (await readFile(join(ROOT, 'supabase', 'migrations', f), 'utf8')).replace(/\r\n/g, '\n');
 const MIG_SQL = await read(MIG);
 const OBS_SQL = await read(OBS);

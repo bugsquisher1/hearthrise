@@ -363,7 +363,16 @@
      twice). Deliberate repeat buying still works: one press per confirmed buy.
      No 600 ms floor here — a timer that swallows a deliberate press is worse.
      The transport's own 15 s deadline (dungeon-settle.js) bounds the lock. */
-  var _qmBuying = Object.create(null);   // item id -> true while its buy is on the wire
+  var _qmBuying = Object.create(null);   // item id -> lock token while its buy is on the wire
+  var _qmRegistered = false;
+  function _qmRegister(){                // joins the per-test latch teardown (intent-latch.js)
+    if(_qmRegistered) return;
+    var IL = window.HearthriseIntentLatch;
+    if(!IL || typeof IL.register !== 'function') return;
+    _qmRegistered = true;
+    IL.register({ size: function(){ return Object.keys(_qmBuying).length; },
+      reset: function(){ _qmBuying = Object.create(null); } });
+  }
   function buyFromQuartermaster(id){
     var entry = QM_STOCK.find(function(e){ return e.id === id; });
     if(!entry) return false;
@@ -381,9 +390,10 @@
     if(_dsArmed()){
       var DS = window.HearthriseDungeonSettle;
       if(DS && typeof DS.sendQuartermasterBuy === 'function'){
-        _qmBuying[id] = true;
+        _qmRegister();
+        var lock = _qmBuying[id] = {};
         renderQuartermaster();
-        var unlock = function(){ delete _qmBuying[id]; };
+        var unlock = function(){ if(_qmBuying[id] === lock) delete _qmBuying[id]; };   // a reset-dropped lock's late answer frees nothing newer
         Promise.resolve().then(function(){ return DS.sendQuartermasterBuy('qm.' + id); }).then(function(v){
           unlock();
           if(v && (v.outcome === 'settled' || v.outcome === 'replayed') && v.body){

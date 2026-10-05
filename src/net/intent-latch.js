@@ -68,10 +68,14 @@ export function isInFlightAnswer(ans) {
 }
 
 const NO_VERDICT = /^(timeout|transport|network|bad_response|http_|no_fetch|no_config)/;
+/* gold.js answers {outcome, reason} with no `error`: these four carry no
+   verdict (UNANSWERED_OUTCOMES + the answered-but-not-unwritten pair). */
+const NO_VERDICT_OUTCOMES = ['timeout', 'unreachable', 'unavailable', 'malformed'];
 /** True when the answer carries no server verdict — the intent may or may not
  *  have committed, so a retry must carry the same key. */
 export function isAmbiguousAnswer(ans) {
   if (!ans || typeof ans !== 'object') return true;
+  if (typeof ans.outcome === 'string' && NO_VERDICT_OUTCOMES.indexOf(ans.outcome) !== -1) return true;
   return typeof ans.error === 'string' && NO_VERDICT.test(ans.error);
 }
 
@@ -173,6 +177,8 @@ if (typeof window !== 'undefined') {
   window.HearthriseIntentLatch = {
     IN_FLIGHT, DEFAULT_HOLD_MS, MIN_HOLD_MS, isInFlightAnswer, isAmbiguousAnswer, createIntentLatch,
     namedLatch,
+    /* A lock that is not a latch (a row boolean) joins the teardown: {size, reset}. */
+    register(lock) { if (lock && typeof lock.size === 'function' && typeof lock.reset === 'function') REGISTRY.add(lock); },
     /* Test teardown only (smoke-test.js, after EVERY test). */
     __resetAll: resetAllIntentLatches,
   };

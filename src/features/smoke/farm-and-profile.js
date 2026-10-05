@@ -3398,11 +3398,53 @@ export default [
       btn().click();                                   // a deliberate second buy right after the confirm: no timer
       await sleep(0);
       assert(sent.length === 2, 'a deliberate press after the confirmed buy was swallowed');
+      const L = window.HearthriseIntentLatch;               // the row lock is in the per-test teardown
+      assert(L.__resetAll() >= 1, 'the Quartermaster row lock is not in the shared latch registry');
+      window.buyFromQuartermaster('dragonfang_pike');
+      assert(sent.length === 3, 'the harness reset left the Quartermaster row locked for the next test');
     } finally {
       while (waiting.length) waiting.shift()({ outcome: 'refused', reason: 'torn_down' });
       await sleep(0);
       window.HearthriseDungeonScrip = saved.scrip; window.HearthriseDungeonSettle = saved.settle; window.notify = saved.notify;
       host.remove();
+    }
+  }),
+
+  () => tryRunAsync('INTENT-LATCH-13: a timed-out Property / bank buy (gold.js {outcome:"timeout"}) — the re-tap re-sends the SAME key', async () => {
+    const H = window.HearthriseHomestead, G = window.G, L = window.HearthriseIntentLatch;
+    assert(H && typeof H.upgradeProperty === 'function' && typeof window.buyBankSpaceGold === 'function' && L,
+      'homestead.js upgradeProperty / legacy.js buyBankSpaceGold / intent-latch.js did not load');
+    assert(L.isAmbiguousAnswer({ outcome: 'timeout', reason: 'aborted' }) && !L.isAmbiguousAnswer({ outcome: 'refused', reason: 'already_owned' }),
+      "isAmbiguousAnswer does not read gold.js's outcome codes");
+    const snap = snapshotG();
+    const saved = { gold: window.HearthriseGold, known: window.balKnown, or: window.balOr, afford: window.balCanAfford, key: window.goldIntentKey,
+      notify: window.notify, prop: window.HearthriseProperty, acc: window.HearthriseAccrual, refresh: window.refreshAll };
+    const sent = [];
+    try {
+      /* The shape sendGoldIntent returns when its AbortController fires: no `error` field. */
+      window.HearthriseGold = Object.assign({}, saved.gold, { buyUnlock: (offer, k) => { sent.push({ offer, k });
+        return Promise.resolve({ outcome: 'timeout', reason: 'The operation was aborted.', verb: 'unlock_buy', key: k }); } });
+      window.balKnown = () => true; window.balOr = () => 1e9; window.balCanAfford = () => true;
+      window.goldIntentKey = () => 'k-gold'; window.notify = () => {}; window.refreshAll = () => {};
+      window.HearthriseProperty = undefined;
+      window.HearthriseAccrual = Object.assign({}, saved.acc, { gateItemCount: () => 99999 });
+      G.homestead = Object.assign({}, G.homestead, { tier: 1 });
+      G.bank = Object.assign({}, G.bank, { goldBuys: 0 });
+      H.upgradeProperty(); window.buyBankSpaceGold();
+      await sleep(L.MIN_HOLD_MS + 40);
+      H.upgradeProperty(); window.buyBankSpaceGold();
+      await sleep(40);
+      const prop = sent.filter((x) => /^property\./.test(x.offer)), bank = sent.filter((x) => /^bank\./.test(x.offer));
+      assert(prop.length === 2 && bank.length === 2, 'expected two presses each, sent ' + sent.map((x) => x.offer).join(' + '));
+      assert(prop[1].offer === prop[0].offer && prop[1].k === prop[0].k,
+        'a re-tap of a timed-out Property buy sent a fresh key — a committed buy is not replayed');
+      assert(bank[1].offer === bank[0].offer && bank[1].k === bank[0].k,
+        'a re-tap of a timed-out bank buy sent a fresh key — a committed buy is not replayed');
+    } finally {
+      window.HearthriseGold = saved.gold; window.balKnown = saved.known; window.balOr = saved.or; window.balCanAfford = saved.afford;
+      window.goldIntentKey = saved.key; window.notify = saved.notify; window.HearthriseProperty = saved.prop;
+      window.HearthriseAccrual = saved.acc; window.refreshAll = saved.refresh;
+      restoreG(snap);
     }
   }),
 ];

@@ -100,6 +100,9 @@ import { parseParties, settleParty } from './tick-party.js';
    priced from exactly the inputs a solo one is (Security N4b). The bestiary
    statement inside is set-activity.js's BESTIARY_SQL, the collect path's bytes. */
 import { readTickPerks, readTickBestiary } from './tick-reads.js';
+/* THE SHADOW PARITY PROBE (Security ruling 1, 2026-10-05). One function, called
+   after a shadow settle has returned; its only writer is hr_tick_probe_commit. */
+import { probeStep, MAX_PROBES_PER_FIRE } from './tick-probe.js';
 
 /* ── THE DISPATCH TABLE (Security S-8, 2026-09-23) ───────────────────────────
    Until today this file imported ONE `CHANNEL` — gather's — and used it three
@@ -1012,12 +1015,33 @@ async function tickOne(exec, holder, sel, body) {
   if (!res || res.ok !== true) {
     return { outcome: 'refused', reason: String((res && res.error) || 'no_answer') };
   }
+  /* (8) THE PARITY PROBE (Security ruling 1, 2026-10-05) — AFTER the settle
+         returned, so nothing it does can reach the window just journalled or
+         the carrier the fence just stored. Only on a JOURNALLED SHADOW window
+         (an armed settle writes no shadow row and the probe's anchor is one),
+         only on the one window in ~160 that holds this character's probe
+         boundary, and never allowed to change this character's outcome: a
+         probe that throws is counted and dropped. ./tick-probe.js. */
+  let probed = null;
+  if (res.mode === 'shadow' && res.journalled === true && body.probeBudget) {
+    try {
+      probed = await probeStep(exec, {
+        holder, userId: sel.userId, slot: sel.slot, channel, session,
+        windowFrom: fenceWindowFrom(a.p_window_from, markMs, probe.markText),
+        windowTo: a.p_window_to,
+        budget: body.probeBudget,
+        seedLadder: (labels) => seedLadder(exec, sel, labels),
+      });
+    } catch (e) {
+      probed = 'probe_error';
+    }
+  }
   /* THE MODE IS THE FENCE'S, NEVER THE BODY'S. `armed` arrives in the driver's
      POST and is ignored: `hr_tick_config.armed_channels` is read inside the
      fence, under the lease lock, for this character's channel, and this is
      what it decided. A summary that reported the body's flag would say
      "shadowed" about a fire that paid. */
-  return { outcome: res.mode === 'shadow' ? 'shadowed' : 'processed' };
+  return { outcome: res.mode === 'shadow' ? 'shadowed' : 'processed', probe: probed };
 }
 
 /* THE PARTY'S SEED LADDER, PER MEMBER. The same two functions the solo path
@@ -1066,6 +1090,13 @@ export async function runTick(opts) {
 
   const counts = { processed: 0, skipped: 0, shadowed: 0, refused: 0 };
   const reasons = Object.create(null);
+  /* THE PROBE BUDGET, PER FIRE (./tick-probe.js MAX_PROBES_PER_FIRE). Server
+     state, never the body's: `parseTickBody` builds `body` field by field and
+     this key is set here, after it. `opts.probe === false` is the guard's
+     switch for the with/without-probe chain comparison (PP-3); index.ts never
+     passes it. */
+  body.probeBudget = opts.probe === false ? null : { left: MAX_PROBES_PER_FIRE };
+  const probes = Object.create(null);
 
   /* PARTIES FIRST, and the order is not a preference: invariant 7 excludes a
      partied character from `body.roster` at the ROSTER, so the two cohorts are
@@ -1096,7 +1127,11 @@ export async function runTick(opts) {
     }
     counts[v.outcome] = (counts[v.outcome] || 0) + 1;
     if (v.reason) reasons[v.reason] = (reasons[v.reason] || 0) + 1;
+    if (v.probe) probes[v.probe] = (probes[v.probe] || 0) + 1;
   }
 
-  return { status: 200, body: summary(Object.assign({}, counts, { reasons })) };
+  /* `probes` is present only on a fire that met a probe boundary, so every
+     other fire's summary is byte-identical to before this step existed. */
+  const extra = Object.keys(probes).length ? { reasons, probes } : { reasons };
+  return { status: 200, body: summary(Object.assign({}, counts, extra)) };
 }

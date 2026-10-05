@@ -15,6 +15,29 @@ C1/C2/C3 landed on `lane/b562-server-expected-level`. What the review listed and
 | 3 | `clan_upkeep_settle` (2026-08-08-clan-seat.sql:401) takes no lock and its treasury debit is unjournalled: N concurrent callers after a weekly boundary each read the stale row, and each `update ... treasury = treasury - v_gold_paid` re-evaluates on the committed row, so the clan is charged N times | body read 2026-10-03; clans not launched | P2 | backend-architect + security |
 | 4 | Lock-order deadlock: `clan_tier_up` locks `clans` then updates `clan_stores`; `clan_deposit__ungated` (2026-08-18-clan-deposit-ownership.sql) upserts `clan_stores` then updates `clans.standing`. Concurrent calls can raise 40P01 (one aborts, no corruption) | both bodies read 2026-10-03 | P3 | backend-architect + security |
 | 5 | `lane/b562-intent-latch` (758843cb) conflicts with this lane in `farm-sync.js` farmUpgradePlot, `farm-progression.js` upgrade `.then`, `clan-seat-ui.js` tierUp (+ this file). Merged result: the latch runs the call AND sends `p_expect_level`/`p_expect_tier` with the `missing_expect` early return; `.then` handles both in-flight silence and `stale_level`; tierUp keeps its stale_tier re-read | trial merge, aborted | P2 | systems-engineer (whichever lane merges second) |
+## 2026-10-03 · qa-engineer · the stated server bag leaked across the in-page suite (snapshotG + per-test check)
+
+`G._serverBag` (+ the two stamps `reconcileInventory` writes with it, `_bagFromServerAt`, `_startKitHintAt`)
+was off `snapshotG`, so a test that stated a bag left it for every later test. `lane/b562-serverbag-snapshot`
+puts the triple on the list (guard M10a-c, in-page SNAP-BAG-1). That covers only the tests that snapshot: a
+test that applied an inventory envelope through production WITHOUT restoreG still leaked, and
+`serverBagFixture().restore()` put back `_serverBag` alone. Security GO-WITH-CHANGES on da4e7b38 named nine;
+the per-test check names sixteen (WAVE2 only while the fixture restored the bag alone). Now: the fixture
+restores all three (SNAP-BAG-2), the sixteen hold and
+restore the triple, and `runSmokeTest` compares the triple around EVERY test (overlayResidue's shape), fails
+the test that moved it by name and puts it back. Mutation: one restore removed → that test red by name.
+
+| # | Test | Alone / in order | Class / priority | Disposition |
+|---|---|---|---|---|
+| 1 | DGN-SETTLE-3 | red "armed: the run must be accepted" — passed in order only on a leaked bag | P2 suite order-dependence | fixed: `serverBagFixture().agree()` (both lanes; set/b562's hunk kept) |
+| 2 | DGN-COOLDOWN-1 | red `{pending:true,"counting your keys"}` — same | P2 | fixed: same |
+| 3 | B353-3b | red "topbar stayed in the pending state after the balance came back" — NOT the bag (gold/gems record) | P2 order-dependence, another unrestored field | open → systems-engineer (balance/record owner) |
+| 4 | b269 bank space, b166 daily login, b337 REPLACES, ACT-1/3/4, B354-1/2/3/4, claim regression (top bar), goal-claim regression, B355-1/2/3, B354-10/11/12/13, B345-2, b348 bag space, EQUIP-GESTURE, EQUIP-ASSERT-1, WAVE2 upgradeRoom | moved `_serverBag` + `_bagFromServerAt` for the next test (runner check, 627-test envelope slice) | P2 suite order-dependence | fixed: `serverBagFixture()` held + `restore()` in the finally (WAVE2 via the fixture fix) |
+| 5 | b305 cloud snapshot | red "persistent progress key MUST be uploaded: gold" in the 713-test envelope slice, identically on set/b562 (green in full order) | P3 filtered-order dependence (an earlier test leaves `G.gold` unset) | open → qa-engineer |
+| 6 | RETREAT-A4c | leaves `#hr-hf-veil` open in the same slice, identically on set/b562 | P3 filtered-order dependence (overlay) | open → qa-engineer |
+
+Required action: a test that wants a gate SENT states the server bag (`serverBagFixture`); a test that applies
+an envelope holds `serverBagFixture()` and restores it. The runner names any test that does neither.
 
 ## 2026-10-03 · QA · b562 exploratory rerun (toast storm, reload mid-run, double-clicks) on b560
 

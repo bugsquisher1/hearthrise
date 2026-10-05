@@ -784,6 +784,28 @@ const selftest = () => {
         hit ? 'RED: G.gold  ' + line(hit) + '  ' + hit.test : 'NOT CAUGHT');
     }
   }
+  {
+    /* M10a-c — THE STATED SERVER BAG (2026-10-03). `_serverBag` was off the list with 25
+       writers (and farmReplantFixtureG's callers and every applied inventory envelope
+       beside them), so a stated bag outlived every test. It joined the list WITH the two
+       stamps reconcileInventory writes in the same block, because restoring the bag alone
+       leaves `bagHydrated` true over a bag nobody stated. Per field, a CONTROL (listed ⇒
+       zero SNAP-1 writes) and a MUTATION (entry removed ⇒ SNAP-1 names its real writers).
+       In-page twin: SNAP-BAG-1 (muster-nav-and-identity.js). */
+    const base = analyse(tree.suite, tree.legacy, tree.record);
+    const ls0 = tree.suite.split(/\r?\n/);
+    [['M10a', '_serverBag', 20], ['M10b', '_bagFromServerAt', 1], ['M10c', '_startKitHintAt', 1]].forEach(([id, f, min]) => {
+      const entry = base.allow.fields.get(f);
+      if (!entry) { grade(id, 'the `' + f + '` allowlist entry exists to remove', false, 'NOT ON THE LIST — the bag leaks again'); return; }
+      const listedClean = !base.snap1.some((x) => x.field === f);
+      const ls = ls0.slice();
+      ls[entry.line - 1] = ls[entry.line - 1].replace(new RegExp('\\b' + f + '\\s*:\\s*G\\.' + f + '\\s*,?'), '');
+      const hits = analyse(ls.join('\n'), tree.legacy, tree.record).snap1.filter((x) => x.field === f);
+      grade(id, 'SNAP-1 is silent on G.' + f + ' while listed and bites when the entry is REMOVED', listedClean && hits.length >= min,
+        (listedClean ? 'control clean' : 'CONTROL RED: listed yet SNAP-1 still names it') + '; removed ⇒ '
+        + (hits.length ? 'RED ×' + hits.length + ' (' + line(hits[0]) + '  ' + hits[0].test.slice(0, 60) + ')' : 'NOT CAUGHT'));
+    });
+  }
 
   {
     /* M7/M8/M9 \u2014 THE SEAL IS THE ONLY THING KEEPING SNAP-2 QUIET, SO PROVE IT.

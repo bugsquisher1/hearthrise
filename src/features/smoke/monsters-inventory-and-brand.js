@@ -4213,6 +4213,7 @@ export default [
     const realNotify = window.notify;
     let sent = [];
     const drain = () => new Promise((r) => setTimeout(r, 60));
+    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       A.acknowledgeReplacement(true);
       /* The handoff deferral is a REAL branch on this path now (b366): with the
@@ -4296,6 +4297,7 @@ export default [
       A.acknowledgeReplacement(wasAck);
       if (wasHeld) S.holdSnapshots(); else S.releaseSnapshots();
       G.inventory = savedInv; G.equipment = savedEq; G.gold = savedGold;
+      bagHeld.restore();
     }
     assert(A.isEnvelopeAbsolute() === false, 'the flip must disarm when the transport is torn down');
   }),
@@ -4327,6 +4329,7 @@ export default [
       skills: {}, inventory: { iron_sword: 1 }, equipment,
       away: { grantMs: 0, gold: 0, xp: {}, items: {} },
     });
+    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       window.__resetEquipAssertion();
       A.acknowledgeReplacement(true);
@@ -4438,6 +4441,7 @@ export default [
       A.acknowledgeReplacement(wasAck);
       if (wasHeld) S.holdSnapshots(); else S.releaseSnapshots();
       G.inventory = savedInv; G.equipment = savedEq; G.gold = savedGold;
+      bagHeld.restore();
     }
   }),
 

@@ -2258,6 +2258,7 @@ export default [
     };
     const wasParked = window.__saveParked;
     const wasAcked = A.isReplacementAcknowledged();
+    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       /* The applied envelope is a FIXTURE, and the hook that applies it calls
          saveLocal() for real. Park persistence so a test character never
@@ -2375,6 +2376,7 @@ export default [
       A.hideReplacementSheet();
       window.__saveParked = wasParked;
       try { if (typeof window.refreshAll === 'function') window.refreshAll(); } catch (e) {}
+      bagHeld.restore();
     }
   }),
 
@@ -6011,6 +6013,7 @@ export default [
     const realFetch = window.fetch;
     const seen = [];
     const wasOn = A.isServerAccrualEnabled();
+    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       /* THE ENVELOPE MIRRORS THE LIVE CHARACTER. applyIntentEnvelope replaces
          gold/skills/inventory wholesale (that IS server authority), so an
@@ -6103,6 +6106,7 @@ export default [
         lastOfflineSummary: save.los, offlineBudget: save.offlineBudget, restedAt: save.restedAt,
         _record: save._record, _serverAccrual: save._serverAccrual });
       try { window.saveLocal(); } catch (e) {}
+      bagHeld.restore();
     }
   }),
 
@@ -6221,6 +6225,7 @@ export default [
     const realFetch = window.fetch;
     const wasOn = A.isServerAccrualEnabled();
     let body = null;
+    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       /* The server is AHEAD of the client by the collected gold, which is what a
          real collect looks like — and it keeps the replacement gate quiet, since
@@ -6293,6 +6298,7 @@ export default [
         activeMonster: save.activeMonster, offlineBudget: save.offlineBudget, restedAt: save.restedAt,
         _record: save._record, _serverAccrual: save._serverAccrual });
       try { window.saveLocal(); } catch (e) {}
+      bagHeld.restore();
     }
   }),
 
@@ -6311,6 +6317,7 @@ export default [
     const realFetch = window.fetch;
     const wasOn = A.isServerAccrualEnabled();
     let answer = null;
+    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       window.fetch = function (u, init) {
         if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
@@ -6362,6 +6369,7 @@ export default [
       try { window.stopCombat(); } catch (e) {}
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
+      bagHeld.restore();
     }
   }),
 
@@ -7414,6 +7422,7 @@ export default [
       }, extra || {});
     };
 
+    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       A.setServerAccrualEnabled(true);
       A.acknowledgeReplacement(true);
@@ -7559,6 +7568,7 @@ export default [
       restoreAccrualSwitch(wasOn);
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
+      bagHeld.restore();
     }
   }),
 
@@ -7608,6 +7618,7 @@ export default [
     const save = { gold: G.gold, gems: G.gems, streak: G.streak, dailyReward: G.dailyReward,
       skills: JSON.parse(JSON.stringify(G.skills)), inventory: JSON.parse(JSON.stringify(G.inventory)) };
 
+    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       A.setServerAccrualEnabled(true);
       A.acknowledgeReplacement(true);
@@ -7666,6 +7677,7 @@ export default [
       stampBalanceLikeLoad(G);
       try { window.updateTopbar(); } catch (e) {}
       try { window.saveLocal(); } catch (e) {}
+      bagHeld.restore();
     }
   }),
 
@@ -7880,6 +7892,7 @@ export default [
       stats: G.stats ? Object.assign({}, G.stats) : G.stats };
     const said = [], seen = [];
 
+    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       A.setServerAccrualEnabled(true);
       A.acknowledgeReplacement(true);
@@ -7984,6 +7997,7 @@ export default [
       stampBalanceLikeLoad(G);
       try { window.updateTopbar(); } catch (e) {}
       try { window.saveLocal(); } catch (e) {}
+      bagHeld.restore();
     }
   }),
 
@@ -8216,6 +8230,7 @@ export default [
       }, extra || {});
     };
 
+    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       A.setServerAccrualEnabled(true);
       A.acknowledgeReplacement(true);
@@ -8321,6 +8336,7 @@ export default [
       else localStorage.setItem('hearthrise:market:history', savedHistory);
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
+      bagHeld.restore();
     }
   }),
 

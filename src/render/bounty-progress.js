@@ -79,7 +79,7 @@ export function attempt(b) {
    naming a contract the client does not hold REPLACES the client's view with it. */
 let acceptP = null, abandonP = null, abandonedId = null;
 const settle = (p, clear) => p.then(clear, clear);
-export function busy() { return { accept: !!acceptP, abandon: !!abandonP }; }
+export function busy() { return { accept: !!acceptP, abandon: !!abandonP, any: !!(acceptP || abandonP) }; }
 export function trackAccept(p) {
   if (!p || typeof p.then !== 'function') return;
   acceptP = p;
@@ -257,6 +257,7 @@ export function setupBountyProgress() {
   W.bountyAttemptProgress = attempt;
   W.hrNoteServerBounty = noteServer;
   W.hrTurnInBounty = turnIn;
+  W.hrBountyBusy = busy;
   W.bountyLabel = label;
   W.bountyProgressText = progressText;
   W._bbNail = bbNail;

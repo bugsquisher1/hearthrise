@@ -3978,7 +3978,7 @@ function repaintBounty(){
 function acceptBounty(index){
   ensureBountyState();
   if(G.bountyHunter.active){notify('Finish or abandon your active bounty first.','kill');return;}
-  if(_hrBountyBusy().abandon){notify('Abandoning your bounty, one moment.','info');return;}
+  if((window.hrBountyBusy?window.hrBountyBusy():{}).abandon){notify('Abandoning your bounty, one moment.','info');return;}
   const b=G.bountyHunter.board[index];if(!b)return;
   G.bountyHunter.active=JSON.parse(JSON.stringify(b));
   /* Snapshot the proof-item count at accept time so only kills AFTER this count
@@ -4121,13 +4121,7 @@ function hrAdoptAcceptedBounty(res,accepted){
   return out;
 }
 window.hrAdoptAcceptedBounty=hrAdoptAcceptedBounty;
-/* The abandon FEE is the server's (2026-10-04-bounty-abandon-server-fee.sql): it
-   is priced from active_bounty.marks_reward and the server's Bounty-Hunter level,
-   and the client neither computes it nor gates the call on its own level. The
-   abandon names the contract; the toast quotes the answer's `fee`, never a guess. */
-/* The board's Abandon and the in-flight state live in src/render/bounty-progress.js
-   (Security C1): the contract ends only when the server answers ok:true. */
-function _hrBountyBusy(){const V=window.HearthriseBountyView;return (V&&V.busy)?V.busy():{accept:false,abandon:false};}
+/* Abandon (server fee, contract ends only on ok:true) lives in src/render/bounty-progress.js. */
 function abandonBounty(){const V=window.HearthriseBountyView;return (V&&V.abandon)?V.abandon():Promise.resolve(null);}
 /* @param prepaid — the caller has ALREADY charged for this refresh (the Bounty
    Shop's Reroll Token). It was passing `rerollBountyBoard(true)` into a function
@@ -4919,7 +4913,7 @@ function renderBountyPanel(){
       <p class="bb-weak">Weak to ${WEAPON_TYPES[m?.weaponWeak]||'—'}${_hrDropBonusNote(m)}${window.HearthriseFoe?window.HearthriseFoe.elementSuffix(active.target):''}</p>${window.HearthriseFoe?window.HearthriseFoe.noticeHtml(active.target):''}
       <div class="bb-prog"><span class="bb-prog-t">${bountyProgressText(active)}</span><span class="bb-bar"><i style="width:${pct}%"></i></span></div>
       ${active.rewards&&active.rewards.gold!=null?`<div class="bb-pay">${_gp(active.rewards.gold)}<span>${active.rewards.marks} Marks</span><span>${active.rewards.xp} BH XP</span></div>`:''}
-      <div class="bb-foot">${_claimBtn}<button class="btn btn-sm btn-danger" onclick="abandonBounty()"${(_hrBountyBusy().accept||_hrBountyBusy().abandon)?' disabled':''}>Abandon</button></div>
+      <div class="bb-foot">${_claimBtn}<button class="btn btn-sm btn-danger" onclick="abandonBounty()"${(window.hrBountyBusy?window.hrBountyBusy():{}).any?' disabled':''}>Abandon</button></div>
     </article>`;
   }else{
     notices=bh.board.map((b,i)=>{
@@ -4939,7 +4933,7 @@ function renderBountyPanel(){
         <p class="bb-task">${bountyLabel(b)}</p>
         <p class="bb-weak">Weak to ${WEAPON_TYPES[m?.weaponWeak]||'—'}${_hrDropBonusNote(m)}${window.HearthriseFoe?window.HearthriseFoe.elementSuffix(b.target):''}</p>
         <div class="bb-pay">${_gp(b.rewards.gold)}<span>${b.rewards.marks} Marks</span><span>${b.rewards.xp} BH XP</span></div>
-        <div class="bb-foot"><button class="btn btn-sm btn-primary" onclick="acceptBounty(${i})"${_hrBountyBusy().abandon?' disabled title="Abandoning your bounty"':''}>Accept</button></div>
+        <div class="bb-foot"><button class="btn btn-sm btn-primary" onclick="acceptBounty(${i})"${(window.hrBountyBusy?window.hrBountyBusy():{}).abandon?' disabled title="Abandoning your bounty"':''}>Accept</button></div>
       </article>`;
     }).join('');
   }

@@ -11271,7 +11271,13 @@ function refreshActivityBar(){
       if(_st && _st.xp){
         const _sk = Object.keys(_st.xp).sort((a,b)=>_st.xp[b]-_st.xp[a])[0];
         const _x = _sk ? skillXp(_sk) : 0;
-        if(_sk && _BF) xpChip = _BF.xpChip({ skill: _sk, name: SKILLS_DEF[_sk]?.name, level: levelFromXp(_x), toGo: xpToNext(_x), glyph: _hrGly(_sk, 13) });
+        const _xv = { skill: _sk, name: SKILLS_DEF[_sk]?.name, level: levelFromXp(_x), toGo: xpToNext(_x), glyph: _hrGly(_sk, 13) };
+        /* Fail-safe: before main.js publishes the builder (this classic script runs first)
+           the chip still draws, in the plain letters form - no chip is ever hidden. */
+        if(_sk) xpChip = _BF ? _BF.xpChip(_xv) : (() => {
+          const _max = _xv.level >= 99, _l = _sk.slice(0,3).toUpperCase(), _said = escapeHtml((_xv.name||_sk)+' '+(_max?99:_xv.level)+(_max?'':' · '+_xv.toGo.toLocaleString()+' XP to go'));
+          return '<span class="ab-xp" role="img" title="'+_said+'" aria-label="'+_said+'">'+_l+' <b>'+(_max?99:_xv.level)+'</b>'+(_max?'':' · '+_xv.toGo.toLocaleString()+' to go')+'</span>';
+        })();
       }
       /* THE AWAY CHIP answers "can I leave this running?" from the Night Plan's
          stored forecast (night-plan.js chipHtml): pays away, you fall, or no

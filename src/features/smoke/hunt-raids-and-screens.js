@@ -5595,6 +5595,49 @@ export default [
             assert(bad.length === 0, 'THE CONTENT-BLIND FIT: ' + bad.join('; '));
           }),
 
+          // ── regression suite — BAR-XP-CHIP-1 (Security review of the fit lane, GO-WITH-CHANGES) ──
+          // legacy.js is a classic script and runs before main.js publishes
+          // window.HearthriseBarFit; the XP chip was built only when the builder
+          // was there, so an early paint drew NO chip. Without the builder the
+          // chip falls back to the letters form ("STR 98 · n to go"). And the
+          // REAL chip legacy.js draws - not xpChip() on fixture input - says the
+          // skill's SKILLS_DEF name, level and XP to go in its title and label,
+          // and carries the skill's own atlas glyph.
+          () => tryRunAsync('BAR-XP-CHIP-1: the real XP chip is titled and labelled from SKILLS_DEF with the skill glyph, and still draws in letters before HearthriseBarFit is published', async () => {
+            const bad = [], BF = window.HearthriseBarFit;
+            assert(BF, 'window.HearthriseBarFit is not published');
+            await fight(METER(), async (m) => {
+              m.paint(); window.refreshActivityBar();
+              const st = window.getActiveCombatStyle && window.getActiveCombatStyle();
+              assert(st && st.xp, 'the fight has no active combat style');
+              const sk = Object.keys(st.xp).sort((a, b) => st.xp[b] - st.xp[a])[0], x = window.skillXp(sk);
+              const lv = window.levelFromXp(x), lvS = lv >= 99 ? 99 : lv, name = window.SKILLS_DEF[sk].name;
+              const said = name + ' ' + lvS + (lv >= 99 ? '' : ' · ' + window.xpToNext(x).toLocaleString() + ' XP to go');
+              const real = document.querySelector('#ab-meta .ab-xp');
+              if (!real) bad.push('the live bar draws no XP chip');
+              else {
+                if (real.title !== said) bad.push('the real XP chip is titled "' + real.title + '", want "' + said + '"');
+                if (real.getAttribute('aria-label') !== said) bad.push('the real XP chip is labelled "' + real.getAttribute('aria-label') + '", want "' + said + '"');
+                const g = real.querySelector(':scope > .hr-glyph'), want = window.HR.icon(sk, 13, 'currentColor');
+                const w = document.createElement('div'); w.innerHTML = want || '';
+                if (!g || !w.firstElementChild || g.outerHTML !== w.firstElementChild.outerHTML) bad.push('the real XP chip does not carry the ' + sk + ' atlas glyph');
+              }
+              try {
+                delete window.HearthriseBarFit;
+                window.refreshActivityBar();
+                const early = document.querySelector('#ab-meta .ab-xp'), lbl = sk.slice(0, 3).toUpperCase();
+                const txt = early ? early.textContent.replace(/\s+/g, ' ').trim() : '';
+                if (!early) bad.push('THE HIDDEN CHIP: with no HearthriseBarFit the bar draws no XP chip');
+                else {
+                  if (txt.indexOf(lbl + ' ' + lvS) !== 0) bad.push('the fallback XP chip reads "' + txt + '", want "' + lbl + ' ' + lvS + ' …"');
+                  if (early.title !== said || early.getAttribute('aria-label') !== said) bad.push('the fallback XP chip is titled "' + early.title + '", want "' + said + '"');
+                }
+              } finally { window.HearthriseBarFit = BF; window.refreshActivityBar(); }
+            });
+            assert(window.HearthriseBarFit === BF, 'window.HearthriseBarFit was not restored');
+            assert(bad.length === 0, 'THE XP CHIP: ' + bad.join('; '));
+          }),
+
           // ── regression suite — COMPACT-ROLLOVER-1 (Game Designer ruling 2c) ──
           // compactNumber chose its unit BEFORE rounding, so 999,500-999,999
           // printed "1000K" and anything just under a billion "1000M" - now on

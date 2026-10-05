@@ -43,6 +43,12 @@ export const BAR = Object.freeze({
     valueAggFrac: 0.10,
     /* "red if either side has ≤ 2 of ≥ 12" */
     directionMinSide: 2,
+    /* SEC_WORLD_TICK_PROBE_2026-10-05.md (a): "score a direction field only
+       when it has ≥ 12 non-tied probes; below that it reads INSUFFICIENT,
+       never FAIL." Zero-death probes MUST tie on ticks (the bar above demands
+       it exact), so a correct engine on a low-death character has few
+       non-tied ticks probes, and scoring them would read it red. */
+    directionMinNonTied: 12,
     directionFields: Object.freeze(['ticks', 'kills', 'gold', 'xp']),
   }),
   /* "a row reached ≥ 2× by the one-span set and 0× by the windows set" */
@@ -116,6 +122,7 @@ export function judgeGroup(channel, probes, opts) {
 
   const agg = (f) => ({ one: sumBy(live, (p) => p.one[f]), chain: sumBy(live, (p) => p.chain[f]) });
   const fails = [];
+  const insufficient = [];
 
   if (channel === 'gather') {
     for (const p of live) {
@@ -190,20 +197,29 @@ export function judgeGroup(channel, probes, opts) {
       }
     }
     /* THE DIRECTION TEST — "the real bar". Δ = windows − one-span; ties
-       excluded; red if either sign has ≤ 2 probes. Applied as written. */
+       excluded; red if either sign has ≤ 2 probes. SCORED ONLY on a field
+       with ≥ directionMinNonTied non-tied probes (Security (a)); a field below
+       that is INSUFFICIENT and holds the group at INSUFFICIENT, so an
+       unscored real bar can never read as a PASS either. */
     stats.direction = {};
     for (const f of bar.directionFields) {
       const neg = live.filter((p) => p.chain[f] < p.one[f]).length;
       const pos = live.filter((p) => p.chain[f] > p.one[f]).length;
-      stats.direction[f] = { neg, pos, ties: live.length - neg - pos };
-      if (Math.min(neg, pos) <= bar.directionMinSide) {
+      const scored = neg + pos >= bar.directionMinNonTied;
+      stats.direction[f] = { neg, pos, ties: live.length - neg - pos, verdict: scored ? 'SCORED' : 'INSUFFICIENT' };
+      if (!scored) {
+        insufficient.push(`direction ${f}: ${neg + pos} non-tied probes (${neg} below / ${pos} above); `
+          + `scored only at ≥ ${bar.directionMinNonTied}`);
+      } else if (Math.min(neg, pos) <= bar.directionMinSide) {
         fails.push(`direction ${f}: ${neg} probes below / ${pos} above — one-signed (either side ≤ ${bar.directionMinSide})`);
       }
     }
     itemBands(live, null, fails, rareIds);
   }
 
-  return { verdict: fails.length ? 'FAIL' : 'PASS', reasons: fails, stats };
+  if (fails.length) return { verdict: 'FAIL', reasons: fails, stats };
+  if (insufficient.length) return { verdict: 'INSUFFICIENT', reasons: insufficient, stats };
+  return { verdict: 'PASS', reasons: [], stats };
 }
 
 /* Starvation (both channels) and, for gather, the ±10 % band on any item row

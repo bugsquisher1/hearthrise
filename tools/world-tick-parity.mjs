@@ -225,6 +225,30 @@ async function selftest() {
   expect('an accepted intent in 2 spans (> 20 %)',
     readVerdict(rows.map((r, i) => (i < 2 ? base(i, { ledger_rows: 1 }) : r)), H), 'UNREADABLE');
   expect('5 probes only', readVerdict(rows.slice(0, 5), H), 'INSUFFICIENT');
+
+  /* ── THE DIRECTION RULE (SEC_WORLD_TICK_PROBE_2026-10-05.md (a)) ─────────
+     14 combat probes x 4 h. A zero-death probe of a CORRECT engine ties on
+     every field (ticks must be exact), so a low-death character has few
+     non-tied probes: scored, its 2-above / 2-below would read one-signed and
+     a correct engine would read red. `kinds` is one letter per probe:
+     t = tie (no death), + / − = a death-bearing probe the windows over/under-
+     shoot by 5 on ticks, kills, gold and xp. */
+  const combat = (kinds) => kinds.split('').map((k, i) => {
+    const d = k === 't' ? 0 : 1;
+    const s = k === '+' ? 5 : k === '-' ? -5 : 0;
+    const one = { accrued: true, ticks: 3000, qty: 0, gold: 1000, kills: 2000, ate: d ? 3 : 1, deaths: d,
+      xp: { attack: 10000 }, items: {}, capped: false, stopped: null,
+      recovering_until: d ? '2026-10-01T02:00:00+00:00' : null };
+    return base(i, { channel: 'combat', result: one, qty: 0, ticks: 3000 + s, gold: 1000 + s, kills: 2000 + s,
+      ate: one.ate, deaths: d, xp: { attack: 10000 + s }, items: {},
+      recover_texts: d ? ['2026-10-01T02:00:00+00:00'] : null });
+  });
+  expect('a correct LOW-death engine: 10 ties + 2 above / 2 below (4 non-tied < 12)',
+    readVerdict(combat('tttttttttt++--'), H), 'INSUFFICIENT', 'combat');
+  expect('a correct death-heavy engine: 7 above / 7 below, every field scored',
+    readVerdict(combat('+-+-+-+-+-+-+-'), H), 'PASS', 'combat');
+  expect('a one-signed engine: 14 below on every field, scored and red',
+    readVerdict(combat('--------------'), H), 'FAIL', 'combat');
   if (bad) { console.error(`\nworld-tick-parity --selftest: ${bad} rule(s) did not bite`); process.exit(1); }
   console.log('\nworld-tick-parity --selftest: every eligibility rule and bar bites.');
   process.exit(0);

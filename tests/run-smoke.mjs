@@ -158,7 +158,8 @@ const argOf = (flag) => { const i = argv.indexOf(flag); return i >= 0 ? argv[i +
 const HEADED = argv.includes('--headed');
 const EXTERNAL_URL = argOf('--url');
 /* `--only <substring>`: run the slice of the in-page suite whose SOURCE TEXT
-   contains <substring>, i.e. `__smokeTest({only})`, which has existed in-page
+   contains <substring> (or matches `/pattern/flags`: one in-order run over a class
+   of tests), i.e. `__smokeTest({only})`, which has existed in-page
    with no way to reach it from a terminal. A lane proving one new battery either
    ran the whole several-minute suite or did not run it at all, and "did not run
    it at all" is how a test ships unproven (§4: a claim is gated on an exit

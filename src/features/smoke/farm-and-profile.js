@@ -3401,6 +3401,7 @@ export default [
       const L = window.HearthriseIntentLatch;               // the row lock is in the per-test teardown
       assert(L.__resetAll() >= 1, 'the Quartermaster row lock is not in the shared latch registry');
       window.buyFromQuartermaster('dragonfang_pike');
+      await sleep(0);                                  // the send rides a microtask
       assert(sent.length === 3, 'the harness reset left the Quartermaster row locked for the next test');
     } finally {
       while (waiting.length) waiting.shift()({ outcome: 'refused', reason: 'torn_down' });

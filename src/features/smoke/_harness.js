@@ -10,17 +10,17 @@
 // The runner (runSmokeTest) stayed in ../smoke-test.js with the registry, because it
 // owns the PLAN and the parks around it, not the fixtures.
 // ══════════════════════════════════════════════════════════════════════
-import { on, snapshot } from '../../net/events.js?v=560';
-import { findUiOverlaps, watchUiOverlaps } from '../ui-overlap.js?v=560';
+import { on, snapshot } from '../../net/events.js?v=561';
+import { findUiOverlaps, watchUiOverlaps } from '../ui-overlap.js?v=561';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../../net/auth.js?v=560';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../../net/auth.js?v=561';
 /* BESTIARY CHARMS (CHARM-2). The ladder's magnitudes are READ from the data
    table, never retyped: a designer re-pricing a rung must re-price the
    expectation, not turn the suite red. */
-import { CHARM_RANKS } from '../../data/bestiary-charms.js?v=560';
+import { CHARM_RANKS } from '../../data/bestiary-charms.js?v=561';
 
 export const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -805,6 +805,55 @@ export const farmReplantFixtureG = (seeds) => {
      the bag, and the tier/level gates are what the test is about. */
   G._serverBag = Object.assign({}, G.inventory);
   G.farmPlots = [{ cropId: 'turnip', plantedAt: Date.now() - 9e7, waterings: [], state: 'ready' }];
+};
+
+/* ── serverBagFixture — THE SERVER STATES THE BAG THE FIXTURE BUILT ─────────
+   Every item gate (canPayCost, describeMissingCost, _costPart, roomRungItemGate,
+   homestead heldOf, market listItem) counts accrue.js gateItemCount — the mirror
+   of player_inventory the last envelope stated (`G._serverBag`) — and an unstated
+   bag fails CLOSED. The harness never runs a real hr_load, so a fixture that stocks
+   `G.inventory` and wants its Build / plot / listing SENT must also say what the
+   server holds, exactly as farmReplantFixtureG does. `agree()` = the server holds
+   the display bag (the tier, rung, gold or answer is the subject); `agree(bag)`
+   states a divergence. Positive integers only, as the real mirror copies them.
+   ⚠ OPT-IN, PER TEST, called AFTER the inventory is set — a blanket stamp would
+   hide production forgetting the mirror.
+   THE TRIPLE, NOT THE BAG. Creating the fixture captures `_serverBag` AND the two
+   stamps reconcileInventory writes in the same block (`_bagFromServerAt`, read by
+   bagHydrated; `_startKitHintAt`), as COPIES, absent kept absent. restore() puts
+   all three back, so a test that applies an inventory envelope without a
+   snapshotG/restoreG pair creates this before its try and calls restore() in its
+   finally. changed() names the fields that differ from the capture: the suite
+   runner (smoke-test.js) holds one of these across EVERY test and fails the test
+   that moved the triple, by name. */
+const SERVER_BAG_TRIPLE = ['_serverBag', '_bagFromServerAt', '_startKitHintAt'];
+const bagFieldOf = (G, k) => ((G && Object.prototype.hasOwnProperty.call(G, k) && G[k] !== undefined)
+  ? JSON.parse(JSON.stringify(G[k])) : undefined);   // a COPY: a nested write after capture cannot edit it
+const bagFieldKey = (v) => (v === undefined ? 'absent'
+  : (v && typeof v === 'object' && !Array.isArray(v))
+    ? JSON.stringify(Object.keys(v).sort().map((k) => [k, v[k]]))   // key order is not a change
+    : JSON.stringify(v));
+export const serverBagFixture = () => {
+  const held = {};
+  for (const k of SERVER_BAG_TRIPLE) held[k] = bagFieldOf(window.G, k);
+  return {
+    agree(bag) {
+      const src = bag || window.G.inventory || {}, m = {};
+      for (const k of Object.keys(src)) { const q = Number(src[k]); if (Number.isFinite(q) && q > 0) m[k] = Math.floor(q); }
+      window.G._serverBag = m;
+      return m;
+    },
+    restore() {
+      const G = window.G;
+      if (!G || typeof G !== 'object') return;   // a test that left no G has no bag to put back
+      for (const k of SERVER_BAG_TRIPLE) {
+        if (held[k] === undefined) delete G[k]; else G[k] = JSON.parse(JSON.stringify(held[k]));
+      }
+    },
+    changed() {
+      return SERVER_BAG_TRIPLE.filter((k) => bagFieldKey(bagFieldOf(window.G, k)) !== bagFieldKey(held[k]));
+    },
+  };
 };
 /* One envelope shape for both: harvest clears the plot, any plant is accepted. */
 export const farmHarvestThenPlant = (verb, args) => (verb === 'farmHarvest'
@@ -1764,6 +1813,18 @@ export const snapshotG = () => {
        sealSnapshot records the absence and restoreG deletes the key. */
     _gemUnlocks: G._gemUnlocks,
     _recipeUnlocks: G._recipeUnlocks,
+    /* THE STATED SERVER BAG AND THE TWO STAMPS ITS APPLY WRITES WITH IT — a TRIPLE that
+       restores together. reconcileInventory (src/net/accrue.js) writes all three in one
+       block; every item gate counts `_serverBag` (gateItemCount: null = pending) and
+       bagHydrated reads `_bagFromServerAt`. Off this list, every test that stated a bag
+       left it for the rest of the run — a later gate read "sent" off a bag nobody stated.
+       This covers a test that snapshots; one that applies an envelope WITHOUT restoreG
+       restores through serverBagFixture, and the runner's per-test bag check names any
+       test that does neither. BARE — absence IS "the server has not stated a bag";
+       SNAP-BAG-1 proves it. */
+    _serverBag: G._serverBag,
+    _bagFromServerAt: G._bagFromServerAt,
+    _startKitHintAt: G._startKitHintAt,
     /* ⚠ `?? []`, NOT bare — SNAP-2, and this one BIT: a character who never sold has
        no key, JSON drops it, restoreG cannot put back what it has not got, and a test
        that made a REAL sale left an entry render/shop.js paints as an extra row. */

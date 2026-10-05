@@ -6,8 +6,8 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 49 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, withRoomServer, awayArtisanSpan, snapshotG, restoreG, restoreGAndRecord, bankEnv, on, snapshot } from './_harness.js?v=560';
-import { SKILL_GUIDE } from '../../data/skill-guide.js?v=560';
+import { pass, fail, tryRun, tryRunAsync, assert, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, withRoomServer, awayArtisanSpan, snapshotG, restoreG, restoreGAndRecord, bankEnv, on, snapshot, serverBagFixture } from './_harness.js?v=561';
+import { SKILL_GUIDE } from '../../data/skill-guide.js?v=561';
 
 export default [
 
@@ -43,13 +43,14 @@ export default [
     // the NEXT price with still no acknowledgement. Three real buys, zero
     // feedback, then a silent dead button.
     if (typeof window.upgradeRoom !== 'function' || typeof window.renderHouse !== 'function') return;
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     try {
       window.G.homestead = { tier: 2 };                 // farmstead: the Forge is legal
       window.G.rooms = {};
       window.G.gold = 500000;
       stampBalanceLikeLoad(window.G);   // armed: canPayCost reads gold via the balance accessor
       window.G.inventory = Object.assign({}, window.G.inventory, { copper_ore: 500, iron_ore: 500 });
+      bag.agree();   // the server holds the same stock: the REPAINT is the subject, not the bag
       window.showTab('house');
       if (typeof window.setHouseTab === 'function') window.setHouseTab('rooms');
       window.renderHouse();
@@ -92,7 +93,117 @@ export default [
         assert(/Lv 1/.test(after),
           'the House still does not show the Forge as owned after building it — this is the double-build report');
       });
-    } finally { restoreGAndRecord(snap); }
+    } finally { restoreGAndRecord(snap); bag.restore(); }
+  }),
+
+  /* HOUSE-SERVER-BAG-1 (CLAUDE.md §6 sweep). hr_unlock_buy debits
+     player_inventory; G.inventory is the merge bag an envelope can only RAISE, so a
+     client-rolled surplus lit Build (canPayCost, heldOf, the cost chip) for a room
+     the realm then refused. The count a Build reads is the SERVER's bag. */
+  () => tryRunAsync('HOUSE-SERVER-BAG-1: a Build reads the server\'s bag, never the merge-raised display bag', async () => {
+    const G = window.G, H = window.HearthriseHomestead, snap = snapshotG(), bagWas = G._serverBag;
+    assert(H && typeof H.heldOf === 'function' && typeof window.upgradeRoom === 'function', 'CONTROL: heldOf/upgradeRoom unpublished');
+    const mat = Object.keys(window.ROOMS.forge.levels[0].cost).find((k) => k !== 'gold' && k !== 'gems');
+    assert(!!mat, 'CONTROL: the Forge\'s first rung costs no item, so the bag cannot be the gate under test');
+    try {
+      G.homestead = { tier: 2 }; G.rooms = {}; G.gold = 500000; stampBalanceLikeLoad(G);
+      G.inventory = Object.assign({}, G.inventory, { [mat]: 9999 });   // the display bag holds plenty
+      delete G._serverBag;
+      assert(H.heldOf(mat).known === false, 'an UNSTATED server bag read as a figure: ' + JSON.stringify(H.heldOf(mat)));
+      G._serverBag = {};                                                // the realm holds none
+      assert(H.heldOf(mat).have === 0 && H.heldOf(mat).known === true, 'heldOf counted the display bag: ' + JSON.stringify(H.heldOf(mat)));
+      await withRoomServer({ forge: 1 }, G.gold, async (rig) => {
+        assert(window.upgradeRoom('forge') === false, 'upgradeRoom dispatched a build the server bag cannot pay for');
+        await rig.drain();
+        assert(rig.sent.length === 0, 'a build the realm would refuse went on the wire: ' + JSON.stringify(rig.sent));
+        G._serverBag = { [mat]: 9999 };                                 // CONTROL: the realm agrees, the same call goes
+        assert(window.upgradeRoom('forge') === true, 'with the server holding the material the build must dispatch');
+        await rig.drain();   // answered INSIDE the rig, or the reply lands in the next test's balance
+      });
+    } finally { restoreGAndRecord(snap); if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas; }
+  }),
+
+  /* HOUSE-SERVER-BAG-2 — EACH item-gate reader counts the server's bag, asserted at
+     its own seam: HOUSE-SERVER-BAG-1 drives heldOf + upgradeRoom and cannot see
+     canPayCost (the room/plot grid button), _costPart (the cost chip) or
+     roomRungItemGate (the blueprint line). Three states each: UNSTATED (pending,
+     never a figure), the server holds NONE, and the CONTROL where it holds them.
+     MUTATION: point canPayCost, _costPart or roomRungItemGate back at G.inventory → red. */
+  () => tryRun('HOUSE-SERVER-BAG-2: canPayCost, the cost chip and the blueprint gate each count the server\'s bag', () => {
+    const G = window.G, snap = snapshotG(), bag = serverBagFixture();
+    assert(typeof window.canPayCost === 'function' && typeof window._costPart === 'function'
+      && typeof window.roomRungItemGate === 'function', 'CONTROL: an item-gate reader is unpublished');
+    const bp = Object.keys(window.ITEMS).find((k) => window.ITEMS[k] && window.ITEMS[k].unlocks === 'kitchen.2');
+    assert(!!bp, 'CONTROL: no blueprint unlocks kitchen.2, so the item gate cannot be measured');
+    try {
+      G.inventory = Object.assign({}, G.inventory, { normal_log: 9999, [bp]: 5 });   // the display bag holds plenty
+      delete G._serverBag;                                                           // (1) no envelope has stated the bag
+      assert(window.canPayCost({ normal_log: 1 }) === false, 'canPayCost paid from an UNSTATED server bag');
+      const p0 = window._costPart('normal_log', 1);
+      assert(/is-short/.test(p0) && /no figure yet/.test(p0), 'the cost chip counted the display bag before the server spoke: ' + p0);
+      const g0 = window.roomRungItemGate('kitchen', 2);
+      assert(g0 && g0.ok === false && g0.known === false && g0.have === -1,
+        'the blueprint gate read an unstated bag as a figure (pending is not 0): ' + JSON.stringify(g0));
+      bag.agree({});                                                                 // (2) the realm holds none
+      assert(window.canPayCost({ normal_log: 1 }) === false, 'canPayCost counted the display bag over the server\'s empty one');
+      const p1 = window._costPart('normal_log', 1);
+      assert(/is-short/.test(p1) && /you have 0/.test(p1), 'the cost chip counted the display bag: ' + p1);
+      const g1 = window.roomRungItemGate('kitchen', 2);
+      assert(g1.ok === false && g1.known === true && g1.have === 0, 'the blueprint gate counted the display bag: ' + JSON.stringify(g1));
+      bag.agree({ normal_log: 3, [bp]: 1 });                                         // (3) CONTROL: the realm holds them
+      assert(window.canPayCost({ normal_log: 3 }) === true && window.canPayCost({ normal_log: 4 }) === false,
+        'canPayCost must count the server\'s 3, exactly');
+      const p2 = window._costPart('normal_log', 3);
+      assert(/is-met/.test(p2) && /you have 3/.test(p2), 'the cost chip must show the server\'s 3: ' + p2);
+      assert(window.roomRungItemGate('kitchen', 2).ok === true, 'a blueprint the server holds must meet the gate');
+    } finally { restoreG(snap); bag.restore(); }
+  }),
+
+  /* HOUSE-SERVER-BAG-3 — AN UNSTATED BAG READS AS PENDING ON EVERY HOUSE SURFACE.
+     Before the first envelope the Build bar printed "normal_log balance not loaded
+     yet" (an item id, in currency words) and the blueprint line said "Requires a
+     Kitchen Blueprint II" / "You have none" — a claim about a bag nobody had read.
+     The bar, the gate line and the authority's toast now all say "still being counted".
+     MUTATION: restore the `m.id + ' balance not loaded yet'` branch in the modal
+     builder, or `?? 0` in roomRungItemGate → red. */
+  () => tryRun('HOUSE-SERVER-BAG-3: before the bag is stated the House says "still being counted", never "none"', () => {
+    const G = window.G, H = window.HearthriseHomestead, RM = window.HearthriseRoomModal, snap = snapshotG(), bag = serverBagFixture();
+    assert(H && typeof H.modalDescriptor === 'function' && RM, 'CONTROL: the room modal is unpublished');
+    const realNotify = window.notify, said = [];
+    try {
+      G.homestead = { tier: 3 }; G.rooms = { kitchen: 1 }; G.gold = 999999;
+      stampRecordLikeLoad(G);
+      G.inventory = { normal_log: 999, oak_log: 999 };
+      delete G._serverBag;
+      const btn = H.modalDescriptor('kitchen').sections.find((s) => s.kind === 'actions').buttons.find((b) => b.pin);
+      assert(btn && btn.disabled, 'a Build against an unstated bag must be disabled: ' + JSON.stringify(btn));
+      assert(/Normal Log still being counted/.test(btn.why) && !/balance not loaded yet/.test(btn.why),
+        'an unstated ITEM must read "still being counted", never currency words: ' + btn.why);
+      assert(/Kitchen Blueprint II still being counted/.test(btn.why) && !/Needs Kitchen Blueprint II/.test(btn.why),
+        'the blueprint must read pending, not "Needs": ' + btn.why);
+      assert(!/Missing [^·]*still being counted/.test(btn.why), 'an unstated count is pending, not "Missing": ' + btn.why);
+      H.openRoom('kitchen');
+      const line = document.querySelector('.hr-room-body .hr-room-gate');
+      assert(line && line.classList.contains('is-pending') && /Still being counted/.test(line.textContent)
+        && !/You have none/.test(line.textContent), 'the gate line claimed a figure: ' + (line && line.outerHTML));
+      /* P4: the pinned bar printed the verdict AND the gate line, so the blueprint was named twice. */
+      const bar = document.querySelector('.hr-room-wrap .hr-room-build'), named = ((bar && bar.textContent) || '').split('Kitchen Blueprint II').length - 1;
+      assert(bar && named === 1, 'the pinned Build bar must name the blueprint once (its gate line), got ' + named + ': ' + (bar && bar.textContent));
+      /* …and the House card's chips are neither met nor short: no red "none" for a count nobody has read. */
+      const host = document.createElement('div'); H.renderRoomGrid(host);
+      const cost = host.querySelector('.hh-room[data-room="kitchen"] .hh-room-cost');
+      const gateChip = cost && cost.querySelector('.hh-cost-gate'), logChip = cost && [...cost.querySelectorAll('.hh-cost')].find((c) => /Normal Log/.test(c.textContent));
+      assert(gateChip && gateChip.classList.contains('is-pending') && !gateChip.classList.contains('is-short'),
+        'the pending blueprint chip must be is-pending, not is-short: ' + (gateChip && gateChip.outerHTML));
+      assert(logChip && logChip.classList.contains('is-pending'), 'the pending cost chip must be is-pending: ' + (logChip && logChip.outerHTML));
+      window.notify = (m) => { said.push(String(m)); };
+      assert(window.upgradeRoom('kitchen') === false, 'the authority must refuse against an unstated bag');
+      assert(said.some((m) => /Kitchen Blueprint II still being counted/.test(m)) && !said.some((m) => /^Requires a/.test(m)),
+        'the authority\'s toast must say pending, not "Requires a": ' + JSON.stringify(said));
+      bag.agree();                                                                  // CONTROL: stated, no blueprint
+      said.length = 0; window.upgradeRoom('kitchen');
+      assert(said.some((m) => /^Requires a Kitchen Blueprint II/.test(m)), 'CONTROL: a stated bag without the blueprint must say "Requires a": ' + JSON.stringify(said));
+    } finally { window.notify = realNotify; restoreG(snap); bag.restore(); RM.close(); }
   }),
 
   () => tryRun('b227 regression: a maxed room refuses another build, out loud', () => {
@@ -132,7 +243,7 @@ export default [
     // shared one gate; a hole the moment L4 needs a Manor. A tier-2 player who
     // owns a Forge could otherwise buy the tier-3 and tier-4 rungs outright.
     if (typeof window.upgradeRoom !== 'function') return;
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     try {
       window.G.homestead = { tier: 2 };                 // farmstead — below the L4 gate of 3
       window.G.rooms = { forge: 3 };                    // owns every ungated rung
@@ -144,6 +255,7 @@ export default [
       const inv = {};
       Object.keys(window.ROOMS.forge.levels[3].cost).forEach((k) => { if (k !== 'gold') inv[k] = 9999; });
       window.G.inventory = Object.assign({}, window.G.inventory, inv);
+      bag.agree();   // the server holds the materials: the TIER is the gate under test
       const goldBefore = window.G.gold;
 
       /* THE REFUSAL IS THE CLIENT'S, AND IT MUST NOT COST A ROUND TRIP. A
@@ -169,7 +281,7 @@ export default [
           'the fitted rung sent ' + JSON.stringify(rig.sent) + ' — one unlock_buy naming room.forge.4');
         assert(window.G.rooms.forge === 4, 'the fitted rung should be owned once the server records it');
       });
-    } finally { restoreGAndRecord(snap); }
+    } finally { restoreGAndRecord(snap); bag.restore(); }
   }),
 
   () => tryRunAsync('unlock_buy client transport: offer id crosses, a price never does', async () => {
@@ -658,7 +770,7 @@ export default [
        having computed anything at all). */
     const H = window.HearthriseHomestead;
     if (!H || typeof H.upgradeProperty !== 'function') return;
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     /* ── ORDER-DEPENDENCE (QA P3, b495) ────────────────────────────────────
        `G.homestead.tier = 0` is NOT the tier this test upgrades from.
        property-record.js keeps a MODULE-LEVEL, session-scoped, MONOTONE cache of
@@ -679,6 +791,7 @@ export default [
       window.G.gold = 500000;
       stampBalanceLikeLoad(window.G);   // armed: upgradeProperty's affordability read is registry-first
       window.G.inventory = Object.assign({}, window.G.inventory, { copper_ore: 500, normal_log: 500 });
+      bag.agree();   // the server holds the materials: the offer id and the server's balance are the subject
       const goldBefore = window.G.gold;
       /* NOT `goldBefore - 400`: a number the client could not have computed, so
          "the tier was bought" cannot pass on a client debit. */
@@ -707,7 +820,7 @@ export default [
       if (prevProp && propRec) {
         try { propRec.__resetPropertyRecord(prevProp.tier, prevProp.workers); } catch (e) {}
       }
-      restoreG(snap);
+      restoreG(snap); bag.restore();
     }
   }),
 
@@ -748,7 +861,7 @@ export default [
   () => tryRunAsync('PROP-REFUSE-1 (b500): a server-REFUSED property upgrade does NOT advance the tier and speaks the refusal', async () => {
     const H = window.HearthriseHomestead;
     if (!H || typeof H.upgradeProperty !== 'function') return;
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     const origGold = window.HearthriseGold, origNotify = window.notify;
     const propRec = window.HearthriseProperty;
     const prevProp = (propRec && typeof propRec.__resetPropertyRecord === 'function') ? propRec.__resetPropertyRecord() : null;
@@ -759,6 +872,10 @@ export default [
       window.G.gold = 500000;
       window.G.inventory = Object.assign({}, window.G.inventory,
         { oak_log: 500, copper_ore: 500, wolf_pelt: 4, cooked_shrimp: 500 });   // client SHOWS 4 pelts
+      /* …and so did the last envelope (the gate counts the server's bag): the settle that
+         spent the 4th pelt lands between that statement and this tap — a refusal no
+         client-side count can foresee, which is the path under test. */
+      bag.agree();
       stampBalanceLikeLoad(window.G);
       window.notify = function (m, k) { said.push({ m: String(m), k: k }); };
       /* SERVER-OWNED (switch on), and the server REFUSES insufficient_item — the
@@ -786,7 +903,7 @@ export default [
     } finally {
       window.HearthriseGold = origGold; window.notify = origNotify;
       if (prevProp && propRec) { try { propRec.__resetPropertyRecord(prevProp.tier, prevProp.workers); } catch (e) {} }
-      restoreG(snap);
+      restoreG(snap); bag.restore();
     }
   }),
 
@@ -972,7 +1089,7 @@ export default [
     const H = window.HearthriseHomestead;
     const P = window.HearthriseProperty;
     if (!P || !H || typeof window.upgradeRoom !== 'function' || !window.ROOMS || !window.ROOMS.forge) return;
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     const origGold = window.HearthriseGold, origNotify = window.notify;
     const prev = P.__resetPropertyRecord();
     const said = [];
@@ -990,6 +1107,7 @@ export default [
       const cost = window.ROOMS.forge.levels[0].cost || {};
       const inv = {}; Object.keys(cost).forEach(function (k) { if (k !== 'gold') inv[k] = (cost[k] || 0) + 10; });
       window.G.inventory = Object.assign({}, window.G.inventory, inv);
+      bag.agree();   // the last envelope stated the materials (the gate counts it): the property-tier refusal is the subject
       stampBalanceLikeLoad(window.G);
       window.notify = function (m, k) { said.push({ m: String(m), k: k }); };
       window.HearthriseGold = Object.assign({}, origGold, {
@@ -1032,14 +1150,14 @@ export default [
     } finally {
       window.HearthriseGold = origGold; window.notify = origNotify;
       P.__resetPropertyRecord(prev.tier, prev.workers);
-      restoreG(snap);
+      restoreG(snap); bag.restore();
     }
   }),
 
   () => tryRunAsync('PROP-OK-1 (b500): a server-CONFIRMED property upgrade advances the tier EXACTLY once', async () => {
     const H = window.HearthriseHomestead;
     if (!H || typeof H.upgradeProperty !== 'function') return;
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     const origGold = window.HearthriseGold, origNotify = window.notify;
     const propRec = window.HearthriseProperty;
     const prevProp = (propRec && typeof propRec.__resetPropertyRecord === 'function') ? propRec.__resetPropertyRecord() : null;
@@ -1050,6 +1168,7 @@ export default [
       window.G.gold = 500000;
       window.G.inventory = Object.assign({}, window.G.inventory,
         { oak_log: 500, copper_ore: 500, wolf_pelt: 20, cooked_shrimp: 500 });
+      bag.agree();   // the server holds the materials: the confirmed-once tier is the subject
       stampBalanceLikeLoad(window.G);
       window.notify = function (m, k) { said.push({ m: String(m), k: k }); };
       window.HearthriseGold = Object.assign({}, origGold, {
@@ -1073,14 +1192,14 @@ export default [
     } finally {
       window.HearthriseGold = origGold; window.notify = origNotify;
       if (prevProp && propRec) { try { propRec.__resetPropertyRecord(prevProp.tier, prevProp.workers); } catch (e) {} }
-      restoreG(snap);
+      restoreG(snap); bag.restore();
     }
   }),
 
   () => tryRunAsync('ROOM-REFUSE-1 (b500): a server-REFUSED room build shows NO room and speaks the refusal', async () => {
     if (typeof window.upgradeRoom !== 'function' || !window.ROOMS || !window.ROOMS.forge
         || !window.ROOMS.forge.levels || !window.ROOMS.forge.levels[0]) return;
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     const origGold = window.HearthriseGold, origNotify = window.notify;
     const propRec = window.HearthriseProperty;
     const prevProp = (propRec && typeof propRec.__resetPropertyRecord === 'function') ? propRec.__resetPropertyRecord() : null;
@@ -1094,6 +1213,7 @@ export default [
       const cost = window.ROOMS.forge.levels[0].cost || {};
       const inv = {}; Object.keys(cost).forEach(function (k) { if (k !== 'gold') inv[k] = (cost[k] || 0) + 10; });
       window.G.inventory = Object.assign({}, window.G.inventory, inv);
+      bag.agree();   // the last envelope stated the materials (the gate counts it): the server's refusal is the subject
       stampBalanceLikeLoad(window.G);
       window.notify = function (m, k) { said.push({ m: String(m), k: k }); };
       const costItem = Object.keys(cost).filter(function (k) { return k !== 'gold'; })[0] || 'copper_ore';
@@ -1118,7 +1238,7 @@ export default [
     } finally {
       window.HearthriseGold = origGold; window.notify = origNotify;
       if (prevProp && propRec) { try { propRec.__resetPropertyRecord(prevProp.tier, prevProp.workers); } catch (e) {} }
-      restoreG(snap);
+      restoreG(snap); bag.restore();
     }
   }),
 
@@ -1984,7 +2104,7 @@ export default [
     /* plotBuildings is a RESIDUE array with NO reconcile — an optimistic push on
        a refusal is STRANDED (a plot the realm never recorded). farm_plot cost is
        {gold:100, normal_log:5} (PLOT_BUILDINGS), stocked below. */
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     const origGold = window.HearthriseGold, origNotify = window.notify;
     const propRec = window.HearthriseProperty;
     const prevProp = (propRec && typeof propRec.__resetPropertyRecord === 'function') ? propRec.__resetPropertyRecord() : null;
@@ -1995,6 +2115,7 @@ export default [
       window.G.plotBuildings = [];
       window.G.gold = 5000000;
       window.G.inventory = Object.assign({}, window.G.inventory, { normal_log: 500, copper_ore: 500, oak_log: 500 });
+      bag.agree();   // the server holds the logs: the refused-plot path is the subject
       stampBalanceLikeLoad(window.G);
       window.notify = function (m, k) { said.push({ m: String(m), k: k }); };
       window.HearthriseGold = Object.assign({}, origGold, {
@@ -2019,7 +2140,7 @@ export default [
     } finally {
       window.HearthriseGold = origGold; window.notify = origNotify;
       if (prevProp && propRec) { try { propRec.__resetPropertyRecord(prevProp.tier, prevProp.workers); } catch (e) {} }
-      restoreG(snap);
+      restoreG(snap); bag.restore();
     }
   }),
 
@@ -2061,7 +2182,7 @@ export default [
 
        The BYTES (offer id crosses, price never does) are the sibling test
        immediately above, unchanged. */
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     try {
       if (typeof window.buildPlot === 'function' && window.HearthriseHomestead) {
         window.G.homestead = { tier: 1 };
@@ -2069,6 +2190,7 @@ export default [
         window.G.gold = 100000;
         stampBalanceLikeLoad(window.G);
         window.G.inventory = Object.assign({}, window.G.inventory, { normal_log: 100 });
+        bag.agree();   // the server holds the logs: one intent and the server's balance are the subject
         const before = window.G.gold;
         const SERVER_GOLD = before - 100 - 5;   // NOT the client's arithmetic
         await withServerBacked({ state: { gold: SERVER_GOLD } }, async (rig) => {
@@ -2102,7 +2224,7 @@ export default [
             'buyBankSpaceGold left the balance at ' + window.G.gold + ' and the server said ' + SERVER_GOLD);
         });
       }
-    } finally { restoreGAndRecord(snap); }
+    } finally { restoreGAndRecord(snap); bag.restore(); }
   }),
 
   () => tryRun('unlock_buy slices 2-3: each site sends offer.<next rung> and NOTHING else on the wire', () => {
@@ -2113,7 +2235,7 @@ export default [
     // all). resetGold() clears the predictions the stub leaves outstanding.
     const S = window.HearthriseGold;
     if (!S || typeof S.buyUnlock !== 'function' || !S.isGoldIntentEnabled || !S.isGoldIntentEnabled()) return;
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     const origBuy = S.buyUnlock;
     const sent = [];
     try {
@@ -2138,6 +2260,7 @@ export default [
         window.G.homestead = { tier: 1 }; window.G.plotBuildings = []; window.G.gold = 100000;
         stampBalanceLikeLoad(window.G);   // armed: buildPlot gates on the affordability read before firing buyUnlock
         window.G.inventory = Object.assign({}, window.G.inventory, { normal_log: 100 });
+        bag.agree();   // the server holds the logs: the offer id is the subject
         sent.length = 0;
         window.buildPlot('farm_plot');
         assert(sent.some((a) => a[0] === 'farm_land.1'), 'buildPlot must send offer farm_land.1; sent ' + JSON.stringify(sent));
@@ -2152,7 +2275,7 @@ export default [
     } finally {
       S.buyUnlock = origBuy;
       try { S.resetGold(); } catch (e) {}
-      restoreG(snap);
+      restoreG(snap); bag.restore();
     }
   }),
 

@@ -6,8 +6,8 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 183 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { CHARM_CLASS_LORE, CHARM_RANK_LORE } from '../../data/charm-lore.js?v=560';
-import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot, closeOverlays, phoneFrame, feedServerQuests } from './_harness.js?v=560';
+import { CHARM_CLASS_LORE, CHARM_RANK_LORE } from '../../data/charm-lore.js?v=561';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot, closeOverlays, phoneFrame, feedServerQuests, serverBagFixture } from './_harness.js?v=561';
 
 /* SALVAGE-1's regression pin: the goblin drop panel as a player reads it (the
    text of each row, not the markup, so an icon path or cache bump cannot move
@@ -72,7 +72,7 @@ export default [
       return { bar: bar, btn: btn, body: body };
     };
 
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     try {
       // ── PILLAR 1: a homestead room ────────────────────────────────────
       window.G.homestead = { tier: 3 };
@@ -80,6 +80,7 @@ export default [
       window.G.gold = 500000;
       stampBalanceLikeLoad(window.G);   // armed: the Build bar's affordability reads gold
       window.G.inventory = Object.assign({}, window.G.inventory, { normal_log: 999, normal_plank: 999 });
+      bag.agree();   // the server holds the stock: the pinned bar is the subject
       H.openRoom('kitchen');
       let seen = above('homestead kitchen');
       assert(/Build/.test(seen.btn.textContent), 'an unbuilt room offers Build, got "' + seen.btn.textContent + '"');
@@ -103,7 +104,7 @@ export default [
       });
 
       // Unaffordable: still pinned, still priced, and it NAMES what is short.
-      predZero(); window.G.gold = 0; stampBalanceLikeLoad(window.G); window.G.inventory = {};
+      predZero(); window.G.gold = 0; stampBalanceLikeLoad(window.G); window.G.inventory = {}; bag.agree();
       RM.refresh();
       seen = above('homestead kitchen, unaffordable');
       assert(seen.btn.disabled, 'an unaffordable rung must be disabled');
@@ -133,7 +134,7 @@ export default [
             'the pinned button must carry its action data, or pressing it does nothing');
         } finally { UI._reset(); }
       }
-    } finally { restoreGAndRecord(snap); RM.close(); }
+    } finally { restoreGAndRecord(snap); bag.restore(); RM.close(); }
   }),
 
   // ══════════════════════════════════════════════════════════════════════
@@ -4212,6 +4213,7 @@ export default [
     const realNotify = window.notify;
     let sent = [];
     const drain = () => new Promise((r) => setTimeout(r, 60));
+    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       A.acknowledgeReplacement(true);
       /* The handoff deferral is a REAL branch on this path now (b366): with the
@@ -4295,6 +4297,7 @@ export default [
       A.acknowledgeReplacement(wasAck);
       if (wasHeld) S.holdSnapshots(); else S.releaseSnapshots();
       G.inventory = savedInv; G.equipment = savedEq; G.gold = savedGold;
+      bagHeld.restore();
     }
     assert(A.isEnvelopeAbsolute() === false, 'the flip must disarm when the transport is torn down');
   }),
@@ -4326,6 +4329,7 @@ export default [
       skills: {}, inventory: { iron_sword: 1 }, equipment,
       away: { grantMs: 0, gold: 0, xp: {}, items: {} },
     });
+    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       window.__resetEquipAssertion();
       A.acknowledgeReplacement(true);
@@ -4437,6 +4441,7 @@ export default [
       A.acknowledgeReplacement(wasAck);
       if (wasHeld) S.holdSnapshots(); else S.releaseSnapshots();
       G.inventory = savedInv; G.equipment = savedEq; G.gold = savedGold;
+      bagHeld.restore();
     }
   }),
 
@@ -5103,7 +5108,7 @@ export default [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=560')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=561')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -7142,7 +7147,7 @@ export default [
        fought a Dark Wizard the server settled from 6 straight into death #8).
        The rest of this test is UNCHANGED: away still owns hp mid-fight, and a
        heal still applies. */
-    const A = await import('../../net/accrue.js?v=560');
+    const A = await import('../../net/accrue.js?v=561');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 2, 'an IDLE client refused the server\'s hp (kept ' + G1.playerHp
@@ -7167,7 +7172,7 @@ export default [
        raised hp freely (next >= cur), so the live fight snapped to full and the
        player never took damage. A non-away envelope during a live fight must
        PRESERVE the client's combat hp; an away-return envelope still applies. */
-    const A = await import('../../net/accrue.js?v=560');
+    const A = await import('../../net/accrue.js?v=561');
 
     // Live sync: activeMonster set, NO away block, server hp full, client hp low.
     const G = { playerHp: 4, playerMaxHp: 10, activeMonster: 'goblin' };
@@ -7194,7 +7199,7 @@ export default [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../../net/accrue.js?v=560');
+    const A = await import('../../net/accrue.js?v=561');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);
@@ -7387,7 +7392,7 @@ export default [
        teaches the next author to delete the explanation. */
     const FILES = ['src/net/auth.js', 'src/net/supabase-chat-backend.js', 'src/bug-report.js'];
     for (const f of FILES) {
-      const raw = await (await fetch(f + '?v=560')).text();
+      const raw = await (await fetch(f + '?v=561')).text();
       assert(raw.length > 1000, 'could not read ' + f + ' to guard it — the guard is checking nothing');
       const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
       /* Any remote fetch of EXECUTABLE code: a dynamic import, or a <script>
@@ -7437,7 +7442,7 @@ export default [
        PREREQUISITE for integrity, not a substitute, so the code looked careful
        while verifying nothing. A compromise there is arbitrary JS in every
        player's page beside their session token. */
-    const raw = await (await fetch('src/observability.js?v=560')).text();
+    const raw = await (await fetch('src/observability.js?v=561')).text();
     assert(raw.length > 1000, 'could not read src/observability.js to guard it');
     const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
 
@@ -7541,7 +7546,7 @@ export default [
        pendingArt() names TODAY: the set is read live from monster-art.js, so
        the moment the batch ships and SHIPPED grows, the exemption evaporates
        and a leftover emoji fails again on its own — staleness by construction. */
-    const _art = await import('../../data/monster-art.js?v=560');
+    const _art = await import('../../data/monster-art.js?v=561');
     const _pendingIcons = new Set(
       _art.pendingArt().map((p) => ((window.MONSTERS || {})[p.id] || {}).icon).filter(Boolean)
         .map((s) => String(s).trim()));

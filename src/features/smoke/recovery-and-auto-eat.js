@@ -6,8 +6,8 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 30 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, snapshotG, drain, restoreG, stubSignedIn, on, snapshot, closeOverlays } from './_harness.js?v=560';
-import { MONSTER_NOTES } from '../../data/monster-notes.js?v=560';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, snapshotG, drain, restoreG, stubSignedIn, on, snapshot, closeOverlays } from './_harness.js?v=561';
+import { MONSTER_NOTES } from '../../data/monster-notes.js?v=561';
 
 /* aeRig — a signed-in page whose server auto-eat belief is `state(b)`; the verb
    is stubbed and answers only when the test resolves `answer`. */
@@ -2974,7 +2974,8 @@ export default [
     const pending = NP.chipHtml(null);
     assert(pending.indexOf(B.PENDING_CLASS) >= 0 && !/pays away/.test(pending), 'the chip spoke before the forecast: ' + pending);
     const chip = NP.chipHtml({ kind: 'combat', numeric: true, deaths: 3, stoppedBy: 'retreat', retreatFalls: 3, retreatMs: 600000, foodQty: 0, foodEaten: 0, targetName: 'Slime' });
-    assert(/away: no food/.test(chip), 'a hungry retreat chip is wrong: ' + chip);
+    const said = chip.replace(/<[^>]+>/g, '');
+    assert(/away: no food/.test(said), 'a hungry retreat chip does not READ "away: no food": ' + chip);
   }),
 
   /* AB-AWAY-PENDING-1 (regression, board P3): the pending chip was a bare dash with

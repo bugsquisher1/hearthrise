@@ -364,6 +364,8 @@ body[data-theme="hearthlight"] #panel-house .hh-room-badge,
    are the project's own semantic tokens; no literals enter here. */
 .hh-cost.is-met   { color: var(--green, var(--gold-2)); }
 .hh-cost.is-short { color: var(--red, var(--ink-3)); }
+/* No figure yet (the server has not stated the bag): neither answer, so neither colour. */
+.hh-cost.is-pending { color: var(--ink-3); font-style: italic; }
 .hh-cost .hr-cost-art { flex: 0 0 auto; }
 /* b355 — an item gate (blueprint) sits in the same strip as the costs so the
    card states EVERY requirement, but it is not the same kind of thing: costs

@@ -79,7 +79,7 @@ function build(groups, entries) {
 async function open(id) {
   let modal = document.getElementById(MODAL_ID);
   if (!modal) {
-    const { CODEX_GROUPS, CODEX_ENTRIES } = await import('../data/codex.js?v=560');
+    const { CODEX_GROUPS, CODEX_ENTRIES } = await import('../data/codex.js?v=561');
     modal = document.getElementById(MODAL_ID) || build(CODEX_GROUPS, CODEX_ENTRIES);
   }
   modal.querySelectorAll('details[open]').forEach((d) => { d.open = false; });

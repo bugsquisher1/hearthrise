@@ -11,23 +11,23 @@
 // one live G and several depend on what the previous one left behind, so the
 // concatenation below is a CONTRACT, not a convenience. Add a domain module where its
 // tests used to sit; never re-sort this list to tidy it.
-import { errorLog, analyzeAssertionCoverage, stampBalanceLikeLoad, watchUiOverlaps, overlayResidue, captureShellLocks } from './smoke/_harness.js?v=560';
-import boot from './smoke/boot.js?v=560';
-import propertyAndUnlocks from './smoke/property-and-unlocks.js?v=560';
-import companionsClaimsAndRenown from './smoke/companions-claims-and-renown.js?v=560';
-import roomsItemsAndEconomy from './smoke/rooms-items-and-economy.js?v=560';
-import huntRaidsAndScreens from './smoke/hunt-raids-and-screens.js?v=560';
-import recoveryAndAutoEat from './smoke/recovery-and-auto-eat.js?v=560';
-import farmAndProfile from './smoke/farm-and-profile.js?v=560';
-import musterNavAndIdentity from './smoke/muster-nav-and-identity.js?v=560';
-import clanSeatAndFrontDoor from './smoke/clan-seat-and-front-door.js?v=560';
-import cookingCoreAndSave from './smoke/cooking-core-and-save.js?v=560';
-import bountyAndArtisan from './smoke/bounty-and-artisan.js?v=560';
-import questsChronicleAndBonus from './smoke/quests-chronicle-and-bonus.js?v=560';
-import awayTimeAndOffline from './smoke/away-time-and-offline.js?v=560';
-import recordSeamAndHydration from './smoke/record-seam-and-hydration.js?v=560';
-import marketNightAndPrices from './smoke/market-night-and-prices.js?v=560';
-import monstersInventoryAndBrand from './smoke/monsters-inventory-and-brand.js?v=560';
+import { errorLog, analyzeAssertionCoverage, stampBalanceLikeLoad, watchUiOverlaps, overlayResidue, captureShellLocks, serverBagFixture } from './smoke/_harness.js?v=561';
+import boot from './smoke/boot.js?v=561';
+import propertyAndUnlocks from './smoke/property-and-unlocks.js?v=561';
+import companionsClaimsAndRenown from './smoke/companions-claims-and-renown.js?v=561';
+import roomsItemsAndEconomy from './smoke/rooms-items-and-economy.js?v=561';
+import huntRaidsAndScreens from './smoke/hunt-raids-and-screens.js?v=561';
+import recoveryAndAutoEat from './smoke/recovery-and-auto-eat.js?v=561';
+import farmAndProfile from './smoke/farm-and-profile.js?v=561';
+import musterNavAndIdentity from './smoke/muster-nav-and-identity.js?v=561';
+import clanSeatAndFrontDoor from './smoke/clan-seat-and-front-door.js?v=561';
+import cookingCoreAndSave from './smoke/cooking-core-and-save.js?v=561';
+import bountyAndArtisan from './smoke/bounty-and-artisan.js?v=561';
+import questsChronicleAndBonus from './smoke/quests-chronicle-and-bonus.js?v=561';
+import awayTimeAndOffline from './smoke/away-time-and-offline.js?v=561';
+import recordSeamAndHydration from './smoke/record-seam-and-hydration.js?v=561';
+import marketNightAndPrices from './smoke/market-night-and-prices.js?v=561';
+import monstersInventoryAndBrand from './smoke/monsters-inventory-and-brand.js?v=561';
 
 const TESTS = [].concat(
   boot, propertyAndUnlocks, companionsClaimsAndRenown,
@@ -57,7 +57,13 @@ export async function runSmokeTest(opts = {}) {
      affordance and it is loud — the summary carries `only` so a filtered run
      can never be mistaken for a full one in a log. */
   const only = (typeof opts.only === 'string' && opts.only) ? opts.only : null;
-  const PLAN = only ? TESTS.filter((t) => String(t).indexOf(only) !== -1) : TESTS;
+  /* `/source/flags` is a PATTERN over the same source text, so one IN-ORDER run can
+     take every test of a class (the stated-bag slice is `/_serverBag|withServerBacked|…/`)
+     rather than one substring at a time, which would break the order under test. */
+  const onlyRe = only && /^\/(.+)\/([imsu]*)$/.exec(only);
+  const onlyMatch = onlyRe ? ((re) => (t) => re.test(String(t)))(new RegExp(onlyRe[1], onlyRe[2]))
+    : (t) => String(t).indexOf(only) !== -1;
+  const PLAN = only ? TESTS.filter(onlyMatch) : TESTS;
   const startTab = window.activeTab || 'profile';
   const preErrCount = errorLog.length;
   /* b337: sequential, never Promise.all. These tests mutate the live G and
@@ -195,6 +201,7 @@ export async function runSmokeTest(opts = {}) {
     captureShellLocks();
     let residueBefore = overlayResidue();
     for (const t of PLAN) {
+      const bagHeld = serverBagFixture();   // the stated-bag triple, captured (copied) before the test
       const r = await t();
       /* ── THE TEARDOWN ASSERTION (2026-09-23) ──────────────────────────────
          A test that finishes with a modal still up, the body scroll still
@@ -222,6 +229,26 @@ export async function runSmokeTest(opts = {}) {
         }
       }
       residueBefore = overlayResidue();
+      /* ── AND THE STATED SERVER BAG (2026-10-03) ──────────────────────────
+         Same shape, for `G._serverBag` and the two stamps reconcileInventory
+         writes with it. Every item gate counts that bag, so a test that applies
+         an inventory envelope and does not put the triple back hands the next
+         test a bag nobody stated: DGN-SETTLE-3 and DGN-COOLDOWN-1 passed for
+         builds on a leaked {bone_key} and went red the day it was restored.
+         snapshotG/restoreG covers a test that snapshots; sixteen that wrote
+         through the production envelope path did not. Measured here, attributed to the
+         test that moved it, and PUT BACK, so the next test runs on the bag it
+         would have had. A FAIL keeps its own reason. */
+      const bagMoved = bagHeld.changed();
+      if (bagMoved.length) {
+        bagHeld.restore();
+        if (r.status === 'PASS') {
+          r.status = 'FAIL';
+          r.why = 'changed the stated server bag for every test after it — ' + bagMoved.join(', ')
+            + ' differ after the test. Create serverBagFixture() before the try and call restore() in the '
+            + 'finally (or snapshotG/restoreG): a later item gate would count a bag nobody stated.';
+        }
+      }
       if (verbose) {
         const mark = r.status === 'PASS' ? '✓ ' : (r.status === 'SKIP' ? '⃠ SKIP ' : '✗ ');
         console.log(mark + r.name + (r.why ? ' — ' + r.why : ''));

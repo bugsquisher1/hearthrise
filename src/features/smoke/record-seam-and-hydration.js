@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 110 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, applyAwayEnvelope, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, on, snapshot, freshFrameGate, closeOverlays } from './_harness.js?v=560';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, applyAwayEnvelope, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, on, snapshot, freshFrameGate, closeOverlays, serverBagFixture } from './_harness.js?v=561';
 
 /* A RUNNING SMITHING BENCH ON A SCRIPTED WIRE — written once, driven by the two
    recipe-switch regressions below. See their header for the report. */
@@ -76,10 +76,11 @@ const benchSwitchArc = async (body) => {
 };
 
 /* ONE market_list ON A SCRIPTED WIRE (MP-R3a/b): list 3 normal_log @ 7g with
-   the seam configured, let `respond` answer, and report what is left behind. */
-const marketListArc = async (respond) => {
+   the seam configured, let `respond` answer, and report what is left behind.
+   `srvBag`: the server's bag (gateItemCount); default = it agrees with the bag. */
+const marketListArc = async (respond, srvBag) => {
   const G = window.G, A = window.HearthriseAccrual, Gd = window.HearthriseGold, M = window.HearthriseMarket;
-  const snap = snapshotG(), realFetch = window.fetch, realNotify = window.notify, wasOn = A.isServerAccrualEnabled();
+  const snap = snapshotG(), realFetch = window.fetch, realNotify = window.notify, wasOn = A.isServerAccrualEnabled(), bagWas = G._serverBag;
   const wasAck = A.isReplacementAcknowledged(), KEY = 'hearthrise:market:listings', saved = localStorage.getItem(KEY);
   const said = [];
   try {
@@ -90,6 +91,7 @@ const marketListArc = async (respond) => {
     window.fetch = function (u) { return /hr-accrue/.test(String(u)) ? respond() : realFetch.apply(this, arguments); };
     window.addItem('normal_log', 3);
     const before = G.inventory.normal_log || 0;
+    G._serverBag = srvBag || Object.assign({}, G._serverBag, { normal_log: before });
     const r = M.listItem('normal_log', 3, 7);
     await drain();
     const rows = JSON.parse(localStorage.getItem(KEY) || '[]').filter((l) => l.itemId === 'normal_log' && l.askEach === 7);
@@ -98,7 +100,7 @@ const marketListArc = async (respond) => {
     window.fetch = realFetch; window.notify = realNotify;
     Gd.resetGold(); Gd.configureGold(null); A.acknowledgeReplacement(wasAck); restoreAccrualSwitch(wasOn);
     if (saved === null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, saved);
-    restoreG(snap);
+    restoreG(snap); if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
   }
 };
 
@@ -2256,6 +2258,7 @@ export default [
     };
     const wasParked = window.__saveParked;
     const wasAcked = A.isReplacementAcknowledged();
+    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       /* The applied envelope is a FIXTURE, and the hook that applies it calls
          saveLocal() for real. Park persistence so a test character never
@@ -2373,6 +2376,7 @@ export default [
       A.hideReplacementSheet();
       window.__saveParked = wasParked;
       try { if (typeof window.refreshAll === 'function') window.refreshAll(); } catch (e) {}
+      bagHeld.restore();
     }
   }),
 
@@ -2844,7 +2848,7 @@ export default [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../../data/start-kit.js?v=560');
+    const KIT = await import('../../data/start-kit.js?v=561');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -2934,7 +2938,7 @@ export default [
        test pins the PROPERTY that shape exists for, so a future edit that keeps
        the shape honest while swapping the bridge for a prettier item that heals
        3 fails here instead of shipping. */
-    const KIT = await import('../../data/start-kit.js?v=560');
+    const KIT = await import('../../data/start-kit.js?v=561');
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     assert(AE && typeof AE.isAutoEatable === 'function',
       'HearthriseCore.autoEat.isAutoEatable missing — cannot grade the starting food');
@@ -3048,7 +3052,7 @@ export default [
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     const RNGM = window.HearthriseCore && window.HearthriseCore.rngMod;
     const ST = window.HearthriseCore && window.HearthriseCore.styles;
-    const KIT = await import('../../data/start-kit.js?v=560');
+    const KIT = await import('../../data/start-kit.js?v=561');
     if (!CS || !C || !AE || !RNGM || !ST) { skip('core sim unavailable'); return; }
 
     const eqp = { weapon: KIT.START_EQUIPMENT.weapon };
@@ -5171,7 +5175,7 @@ export default [
        in a CLASSIC script with no exports, so the only honest way to assert them
        is against the shipped bytes. Fetched from the same origin the engine
        loaded from, the way B-accrue and the observability guard already do. */
-    const src = await (await fetch('src/legacy.js?v=560')).text();
+    const src = await (await fetch('src/legacy.js?v=561')).text();
     assert(src.length > 100000, 'legacy.js did not come back — this guard would be vacuous');
 
     /* (1) THE FORGET. `loadLocal()`'s capstone early return skipped it, so the
@@ -6009,6 +6013,7 @@ export default [
     const realFetch = window.fetch;
     const seen = [];
     const wasOn = A.isServerAccrualEnabled();
+    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       /* THE ENVELOPE MIRRORS THE LIVE CHARACTER. applyIntentEnvelope replaces
          gold/skills/inventory wholesale (that IS server authority), so an
@@ -6101,6 +6106,7 @@ export default [
         lastOfflineSummary: save.los, offlineBudget: save.offlineBudget, restedAt: save.restedAt,
         _record: save._record, _serverAccrual: save._serverAccrual });
       try { window.saveLocal(); } catch (e) {}
+      bagHeld.restore();
     }
   }),
 
@@ -6219,6 +6225,7 @@ export default [
     const realFetch = window.fetch;
     const wasOn = A.isServerAccrualEnabled();
     let body = null;
+    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       /* The server is AHEAD of the client by the collected gold, which is what a
          real collect looks like — and it keeps the replacement gate quiet, since
@@ -6291,6 +6298,7 @@ export default [
         activeMonster: save.activeMonster, offlineBudget: save.offlineBudget, restedAt: save.restedAt,
         _record: save._record, _serverAccrual: save._serverAccrual });
       try { window.saveLocal(); } catch (e) {}
+      bagHeld.restore();
     }
   }),
 
@@ -6309,6 +6317,7 @@ export default [
     const realFetch = window.fetch;
     const wasOn = A.isServerAccrualEnabled();
     let answer = null;
+    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       window.fetch = function (u, init) {
         if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
@@ -6360,6 +6369,7 @@ export default [
       try { window.stopCombat(); } catch (e) {}
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
+      bagHeld.restore();
     }
   }),
 
@@ -7173,9 +7183,10 @@ export default [
       assert(nameEl, 'the activity strip is missing from the page, so the reported symptom cannot be measured');
       const txt = String(nameEl.textContent || '');
       const benchName = (window.SKILLS_DEF && window.SKILLS_DEF[SKILL] && window.SKILLS_DEF[SKILL].name) || SKILL;
-      assert(txt.indexOf(benchName) !== -1 && txt.indexOf(RID.replace(/_/g, ' ')) !== -1,
+      const recipeName = (hit.recipe && hit.recipe.name) || RID.replace(/_/g, ' ');
+      assert(txt.indexOf(benchName) !== -1 && txt.indexOf(recipeName) !== -1,
         'the activity strip reads "' + txt + '" — it must name the bench and the recipe ("' + benchName
-        + ' — ' + RID.replace(/_/g, ' ') + '"), which is the sentence the player said was missing');
+        + ' — ' + recipeName + '"), which is the sentence the player said was missing');
       assert(!/^Idle/.test(txt), 'THE REPORTED SYMPTOM VERBATIM: the strip still reads "' + txt + '"');
 
       /* ③ NOTHING WENT BACK ON THE WIRE. */
@@ -7410,6 +7421,7 @@ export default [
       }, extra || {});
     };
 
+    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       A.setServerAccrualEnabled(true);
       A.acknowledgeReplacement(true);
@@ -7555,6 +7567,7 @@ export default [
       restoreAccrualSwitch(wasOn);
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
+      bagHeld.restore();
     }
   }),
 
@@ -7604,6 +7617,7 @@ export default [
     const save = { gold: G.gold, gems: G.gems, streak: G.streak, dailyReward: G.dailyReward,
       skills: JSON.parse(JSON.stringify(G.skills)), inventory: JSON.parse(JSON.stringify(G.inventory)) };
 
+    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       A.setServerAccrualEnabled(true);
       A.acknowledgeReplacement(true);
@@ -7662,6 +7676,7 @@ export default [
       stampBalanceLikeLoad(G);
       try { window.updateTopbar(); } catch (e) {}
       try { window.saveLocal(); } catch (e) {}
+      bagHeld.restore();
     }
   }),
 
@@ -7876,6 +7891,7 @@ export default [
       stats: G.stats ? Object.assign({}, G.stats) : G.stats };
     const said = [], seen = [];
 
+    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       A.setServerAccrualEnabled(true);
       A.acknowledgeReplacement(true);
@@ -7980,6 +7996,7 @@ export default [
       stampBalanceLikeLoad(G);
       try { window.updateTopbar(); } catch (e) {}
       try { window.saveLocal(); } catch (e) {}
+      bagHeld.restore();
     }
   }),
 
@@ -8212,6 +8229,7 @@ export default [
       }, extra || {});
     };
 
+    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       A.setServerAccrualEnabled(true);
       A.acknowledgeReplacement(true);
@@ -8317,6 +8335,7 @@ export default [
       else localStorage.setItem('hearthrise:market:history', savedHistory);
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
+      bagHeld.restore();
     }
   }),
 
@@ -8390,6 +8409,16 @@ export default [
     assert(o.rows.length === 0, 'an unanswered listing stayed on the books: ' + JSON.stringify(o.rows));
     assert(o.have === o.before - 3, 'an unanswered listing refunded locally (the server may have written): have ' + o.have);
     assert(o.said.some((m) => /did not confirm/i.test(m)), 'the unknown outcome was never said: ' + JSON.stringify(o.said));
+  }),
+
+  /* MP-R6 (CLAUDE.md §6): the listing count is the SERVER's bag, which market_list escrows from. */
+  () => tryRunAsync('MP-R6: a listing is gated on the server\'s bag, not the display bag', async () => {
+    let calls = 0;
+    const o = await marketListArc(() => { calls++; return Promise.resolve(new Response('{"ok":true}', { status: 200 })); }, {});
+    assert(o.r && o.r.ok === false && /only have 0/.test(String(o.r.reason)), 'a listing the server bag cannot cover was accepted: ' + JSON.stringify(o.r));
+    assert(calls === 0 && o.rows.length === 0 && o.have === o.before, 'the refused listing reached the wire or escrowed: calls ' + calls + ', have ' + o.have + '/' + o.before);
+    const u = await marketListArc(() => { calls++; return Promise.resolve(new Response('{"ok":true}', { status: 200 })); }, null);
+    assert(u.r && u.r.ok === true, 'CONTROL: with the server holding the stack the listing must go: ' + JSON.stringify(u.r));
   }),
 
   () => tryRun('MP-R4: the listing hint quotes the vendor\'s real bid', () => {

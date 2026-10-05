@@ -6,9 +6,9 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 131 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays, phoneFrame, withStockedFight } from './_harness.js?v=560';
-import { weaknessOf, weaknessWords } from '../../render/foe-weakness.js?v=560';
-import { weaknessInfo, WEAPON_TYPES } from '../../core/combat.js?v=560';
+import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays, phoneFrame, withStockedFight, serverBagFixture } from './_harness.js?v=561';
+import { weaknessOf, weaknessWords } from '../../render/foe-weakness.js?v=561';
+import { weaknessInfo, WEAPON_TYPES } from '../../core/combat.js?v=561';
 
 /* DEEPWATERS fixture (content pack 8). Bonus-free and gear-free — getBonus and
    the rested quantum pinned to 0 and an EMPTY equipment stat block (Timberline
@@ -640,6 +640,7 @@ export default [
     const G = window.G;
     const sDR = G.dailyReward ? JSON.parse(JSON.stringify(G.dailyReward)) : undefined;
     const sGold = G.gold, sStreak = G.streak ? JSON.parse(JSON.stringify(G.streak)) : undefined;
+    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       /* b498: the day now comes from the server's claim rows when an envelope
          has been seen. Forget any capture so this fixture is total. */
@@ -680,6 +681,7 @@ export default [
       if (sDR === undefined) delete G.dailyReward; else G.dailyReward = sDR;
       if (sStreak === undefined) delete G.streak; else G.streak = sStreak;
       seedPlayStreak(null);
+      bagHeld.restore();
     }
   }),
   () => tryRun('B349-1: the daily login cycle is DATA, read by the client, and its multiplier is capped', () => {
@@ -2871,6 +2873,35 @@ export default [
     }
   }),
 
+  /* FIRST-30-2 — the bag's class strip is labelled "Show": "Keep" beside "Weapons / Food"
+     reads as a loot rule (keep these, drop the rest). Paints the real bag, reads the label,
+     clicks a chip, proves the bag itself never moved. Mutation: label back to 'Keep' → red. */
+  () => tryRunAsync('b562 FIRST-30-2: the bag\'s class strip says Show, and clicking a class hides — never removes — the rest', async () => {
+    const G = window.G, LF = window.HearthriseLootFilter;
+    assert(LF && typeof LF.rowHTML === 'function' && typeof window._renderInvFancy === 'function', 'CONTROL: the loot filter or the bag renderer is unpublished');
+    const food = Object.keys(window.ITEMS).find((id) => window.ITEMS[id].heals && !window.ITEMS[id].type);
+    assert(!!food, 'CONTROL: no plain food item in the catalogue');
+    const snap = snapshotG();
+    try {
+      G.inventory = { normal_log: 4 }; G.inventory[food] = 2; G.lootFilter = []; G.lockedItems = {};
+      window.showTab('inventory');
+      window._renderInvFancy(); await new Promise((r) => setTimeout(r, 30));
+      const label = document.querySelector('#panel-inventory .invc-lf-label');
+      assert(label && label.textContent.trim() === 'Show', 'the bag filter is labelled "' + (label && label.textContent) + '" — "Keep" reads as a loot rule that discards the rest');
+      const chips = [...document.querySelectorAll('#panel-inventory .invc-lf-chip')];
+      assert(chips.length === LF.classes().length + 1, 'CONTROL: expected every class + Everything as chips, got ' + chips.length);
+      chips.forEach((c) => assert(/^Show /.test(c.getAttribute('title') || ''), 'a chip still titles itself "' + c.getAttribute('title') + '"'));
+      const foodChip = chips.find((c) => /toggle\('food'\)/.test(c.getAttribute('onclick') || ''));
+      assert(foodChip, 'CONTROL: no Food chip on the strip');
+      foodChip.click(); await new Promise((r) => setTimeout(r, 30));
+      const tiles = document.querySelectorAll('#panel-inventory .invc-tile:not(.invc-slot)').length;
+      assert(tiles === 1, 'showing only Food painted ' + tiles + ' tiles for one food stack');
+      assert(G.inventory.normal_log === 4 && G.inventory[food] === 2, 'showing a class REMOVED items from the bag: ' + JSON.stringify(G.inventory));
+    } finally {
+      restoreG(snap); try { window._renderInvFancy(); } catch (e) {}
+    }
+  }),
+
   /* PRAYER-LADDER-1 — Prayer shipped with rungs at 1/15/35 and NOTHING from 36 to 99, on the one bench whose whole output is XP. Drives the REAL tile renderer at Prayer 39 and again at 40; the boundary IS the property, and it is the same one hr_apply's `activity_locked` arm enforces server-side.
      `PAY` below is the literal (id, req, xp, ms) of all thirteen rungs: NOTHING else in the repo measures what a Prayer rung PAYS — hr_activities has no yield columns and the edge engine reads these very rows — so a typo (2400 → 24000) shipped green until it existed. Its 840 XP/s ceiling is MEASURED, just above the catalogue's own non-prayer maximum (forge_slagheart_platebody, 833.3): the one bench whose entire output is XP must never out-pay every other bench. */
   () => tryRun('PRAYER-LADDER-1: the Prayer ladder reaches 99 — Prayer 40 sees Sift Bone Chips live, Prayer 39 sees it locked', () => {
@@ -4133,7 +4164,7 @@ export default [
   // gold-arm: upgradeRoom's debit is gated by clientMayWriteRecordField
   // (switch-OFF position); the stamp makes the affordability read known.
   () => tryRunAsync('action: upgrade a house room (state-level)', async () => {
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     try {
       if (typeof window.upgradeRoom !== 'function') return;
       // b201 homestead gate: rooms are tier-locked (a tier-0 camp has no
@@ -4147,6 +4178,7 @@ export default [
       // Pre-pay every possible mat cost in absurd quantity.
       const mats = ['normal_log','oak_log','willow_log','copper_bar','iron_bar','stone','normal_plank','oak_plank'];
       for (const m of mats) window.G.inventory[m] = 999;
+      bag.agree();   // the server holds the mats: the build reaching the wire is the subject
       /* b515: the rung is the SERVER's — `clientMayWriteRecordField('rooms')` is
          false and `upgradeRoom` advances nothing locally, so the build has to be
          answered before it can be read. */
@@ -4159,11 +4191,11 @@ export default [
         const afterLv = window.G.rooms?.kitchen || 0;
         assert(afterLv === beforeLv + 1, `kitchen should be Lv ${beforeLv + 1}, got ${afterLv}`);
       });
-    } finally { restoreGAndRecord(snap); }
+    } finally { restoreGAndRecord(snap); bag.restore(); }
   }),
 
   () => tryRun('action: create + cancel a market listing', () => {
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     try {
       // Real API: M.listItem(itemId, qty, askEach) → { ok, reason?, id? }
       // M.cancelListing(listingId) → { ok }. b127 fixed this test.
@@ -4171,6 +4203,7 @@ export default [
       if (!M || typeof M.listItem !== 'function') return;
       window.G.inventory = window.G.inventory || {};
       window.G.inventory.normal_log = (window.G.inventory.normal_log || 0) + 10;
+      bag.agree();   // the server holds the logs (listItem counts its bag) — not a leak from an earlier test
       const beforeQty = window.G.inventory.normal_log;
       const r = M.listItem('normal_log', 1, 5);
       assert(r && r.ok, 'listItem should succeed, got ' + JSON.stringify(r));
@@ -4182,11 +4215,11 @@ export default [
       if (mine && mine.length && typeof M.cancelListing === 'function') {
         M.cancelListing(mine[mine.length - 1].id);
       }
-    } finally { restoreG(snap); }
+    } finally { restoreG(snap); bag.restore(); }
   }),
 
   () => tryRun('action: purchase a market listing', () => {
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     try {
       const M = window.HearthriseMarket;
       // SA-013: an absent market API is an unarmed seam, not a silent pass.
@@ -4196,6 +4229,7 @@ export default [
       window.G.gold = (window.G.gold || 0) + 1000;
       window.G.inventory = window.G.inventory || {};
       window.G.inventory.normal_log = (window.G.inventory.normal_log || 0) + 5;
+      bag.agree();   // the server holds the logs — RED alone without it; it passed only on the dungeon-key test's leaked bag
       const r = M.listItem('normal_log', 1, 5);
       // The listing itself is the first real assertion: listing a held item must succeed.
       assert(r && r.ok, 'listItem(normal_log) failed: ' + JSON.stringify(r));
@@ -4209,7 +4243,7 @@ export default [
       if (typeof M.cancelListing === 'function') {
         for (const l of (mine || [])) try { M.cancelListing(l.id); } catch {}
       }
-    } finally { restoreG(snap); }
+    } finally { restoreG(snap); bag.restore(); }
   }),
 
   () => tryRun('action: claim a daily quest reward', () => {
@@ -4919,7 +4953,7 @@ export default [
           const b = r.host.querySelector('[data-codex="vigour"]');
           assert(b, 'the dry line has no "What is Vigour?" button: ' + r.text());
           b.click();
-          await import('../../data/codex.js?v=560');
+          await import('../../data/codex.js?v=561');
           for (let i = 0; i < 10 && !document.querySelector('#codex-modal.show'); i++) await drain();
           assert(document.querySelector('#codex-modal.show'), 'the Codex did not open');
           assert(document.querySelector('#cx-vigour[open]'), 'the Codex did not open at the Vigour entry');
@@ -5331,6 +5365,102 @@ export default [
               });
             } finally { HUD._forecast = real; }
           }),
+
+          // ── regression suite — FIGHT-COUNTS-1 (found on the live play gate) ──
+          // The Eat button read "+8 HP · 100000 left" beside a rail reading
+          // "100,000 held", the bounty chip "0/1500", the strip "≈1 kills". Every
+          // count on the bar and the strip is the house format, and a singular
+          // reads as one.
+          () => tryRunAsync('FIGHT-COUNTS-1: the Eat button, the bounty chip and the metrics strip print every count in the house format', async () => {
+            const G = window.G, HUD = window.HearthriseCombatHud, real = HUD._forecast, bh = G.bountyHunter;
+            const raw = (t) => (String(t).match(/\d{4,}/g) || []);
+            try {
+              await fight(METER(), async (m) => withStockedFight(() => {
+                G.activeMonster = 'goblin';
+                const id = window.bestProvisionId();
+                assert(id, 'the stocked fight has no provision to eat');
+                G.inventory = Object.assign({}, G.inventory, { [id]: 100000 });
+                G.playerHp = 1;
+                G.bountyHunter = Object.assign({}, bh, { active: { target: 'goblin', required: 1500, progress: 0 } });
+                HUD._forecast = (mm) => Object.assign({}, real(mm), { survivesAnHour: false, survivalSeconds: 40, survivalKills: 1 });
+                m.paint(); HUD.refresh(); window.refreshActivityBar(); window.HearthriseCombatScreens.renderFight();
+                const eat = document.querySelector('#arena-act-player .arena-eat'), chip = document.querySelector('#ab-meta .ab-bounty');
+                const met = document.getElementById('fs-metrics');
+                assert(eat && /left/.test(eat.textContent), 'the Eat button is not in its eat state: "' + (eat ? eat.textContent : 'absent') + '"');
+                assert(!raw(eat.textContent).length && /100,000 left/.test(eat.textContent), 'the Eat button printed a raw count: "' + eat.textContent.trim() + '"');
+                assert(chip && !raw(chip.textContent).length && /1,500/.test(chip.textContent), 'the bounty chip printed a raw count: "' + (chip ? chip.textContent.trim() : 'absent') + '"');
+                assert(met && /≈1 kill\b/.test(met.textContent) && !/1 kills/.test(met.textContent), 'the strip printed "' + (met ? met.textContent.trim() : 'absent') + '"');
+              }));
+            } finally { HUD._forecast = real; G.bountyHunter = bh; }
+          }),
+
+          // ── regression suite — FIGHT-STATUS-VERB-1 (found on the live play gate) ──
+          // In the fallback face at 922x423 a crowded bar (Vigour, bounty, the
+          // widest away chip, a seven-figure Lifetime) trimmed the status to
+          // "Figh…". The verb is whole at both sizes in any face; only the foe's
+          // name gives way, no chip folds onto a clipped second line, and no chip
+          // is clipped by the meta - the LAST chip ends inside #ab-meta's visible
+          // box (CI: holding the verb whole let the meta clip "away: you fall"
+          // at 1280x800 in DejaVu until the fit tiers shortened the chips).
+          // Both Vigour states; the foe is SET, never fought, so no swing can
+          // knock the hero out and leave a death sheet behind.
+          () => tryRunAsync('FIGHT-STATUS-VERB-1: "Fighting" is never cut and no bar chip wraps or is clipped, at 922x423 and 1280x800, in the theme face and a wide fallback', async () => {
+            const G = window.G, LT = window.HearthriseLifetime, NP = window.HearthriseNightPlan, D = window.HearthriseDeathSheet;
+            const bh = G.bountyHunter, hp = G.playerHp;
+            assert(LT && typeof LT.__swapView === 'function' && NP && typeof NP.chipHtml === 'function', 'the Lifetime seam or the Night Plan chip is not published');
+            const parked = LT.__swapView({ counts: { kills: { n: 1284905, exact: true } } });
+            const bad = [];
+            try {
+              G.playerHp = G.playerMaxHp;
+              for (const [state, meter] of [['stated', METER()], ['dry', DRY()]]) {
+                await fight(meter, async (m) => {
+                  G.activeMonster = 'carnivorous_plant'; G.playerHp = G.playerMaxHp;
+                  G.bountyHunter = Object.assign({}, bh, { active: { target: 'carnivorous_plant', required: 1500, progress: 0 } });
+                  m.paint(); window.refreshActivityBar();
+                  const away = document.querySelector('#ab-meta .ab-away');
+                  if (away) away.outerHTML = NP.chipHtml({ deaths: 1, foodQty: 5, foodEaten: 0 });
+                  assert(document.querySelector('#ab-meta .ab-bounty'), 'the crowded bar drew no bounty chip');
+                  assert(/Carnivorous Plant/.test(document.getElementById('ab-name').textContent), 'the bar is not on the long-named foe');
+                  const html = document.getElementById('app').outerHTML, cls = document.body.className;
+                  for (const [w, h] of [[922, 423], [1280, 800]]) for (const face of ['theme', 'fallback']) {
+                    const at = state + ' ' + w + 'x' + h + ' ' + face + ': ';
+                    phoneFrame(w, h, html, (doc) => {
+                      doc.body.className = cls;
+                      if (face === 'fallback') {
+                        const st = doc.createElement('style');
+                        st.textContent = '#activity-bar, #activity-bar * { font-family: Verdana, "DejaVu Sans", sans-serif !important; }';
+                        doc.head.appendChild(st);
+                      }
+                      const name = doc.getElementById('ab-name'), meta = doc.getElementById('ab-meta'), bar = doc.getElementById('activity-bar'), stop = doc.getElementById('ab-stop');
+                      if (!name || !meta || !bar || !stop) { bad.push(at + 'the frame lost the activity bar'); return; }
+                      const t = doc.createTreeWalker(name, 4).nextNode();
+                      if (!t || !/^Fighting/.test(t.data)) { bad.push(at + 'the status does not open on "Fighting": "' + name.textContent + '"'); return; }
+                      const rg = doc.createRange(); rg.setStart(t, 0); rg.setEnd(t, 8);
+                      const v = rg.getBoundingClientRect(), n = name.getBoundingClientRect();
+                      if (v.width < 1 || v.right > n.right + 0.5 || v.bottom > n.bottom + 0.5) bad.push(at + '"Fighting" is cut: the word ends ' + Math.round(v.right) + ',' + Math.round(v.bottom) + ' in a name box ending ' + Math.round(n.right) + ',' + Math.round(n.bottom));
+                      const chips = [...meta.children].filter((e) => e.getBoundingClientRect().width > 0);
+                      if (chips.length < 5) bad.push(at + 'the meta draws ' + chips.length + ' chips, want 5 (this fight, XP, bounty, Lifetime, away)');
+                      const lh = Math.min(...chips.map((e) => e.getBoundingClientRect().height));
+                      chips.forEach((e) => { const r = e.getBoundingClientRect(); if (r.height > lh * 1.5) bad.push(at + '"' + e.textContent.trim() + '" folds onto two lines (' + Math.round(r.height) + 'px vs ' + Math.round(lh) + ')'); });
+                      // THE META'S VISIBLE BOX: it clips at its own edges (overflow hidden), so every chip - the LAST above all - must end inside it.
+                      const mr = meta.getBoundingClientRect(), last = chips[chips.length - 1];
+                      chips.forEach((e) => { const r = e.getBoundingClientRect(); if (r.left < mr.left - 0.5 || r.right > mr.right + 0.5) bad.push(at + '"' + e.textContent.trim() + '"' + (e === last ? ' (the last chip)' : '') + ' is clipped by the meta: chip ' + Math.round(r.left) + '..' + Math.round(r.right) + ' vs visible ' + Math.round(mr.left) + '..' + Math.round(mr.right)); });
+                      if (meta.scrollWidth > meta.clientWidth + 1) bad.push(at + 'the meta overflows its box (' + meta.scrollWidth + ' > ' + meta.clientWidth + ')');
+                      const sr = stop.getBoundingClientRect(), b = bar.getBoundingClientRect();
+                      const vg = doc.querySelector('#activity-bar .ab-vigour'), vr = vg && vg.getBoundingClientRect();
+                      if (!vr || vr.width < 1 || vr.left < b.left - 0.5 || vr.right > mr.left + 0.5) bad.push(at + 'the Vigour chip is missing or overlaps the meta');
+                      if (sr.width < 1 || sr.right > b.right + 0.5 || sr.right > w) bad.push(at + 'Stop is pushed off the bar');
+                    });
+                  }
+                });
+              }
+            } finally {
+              LT.__swapView(parked); G.bountyHunter = bh; G.playerHp = hp;
+              // Whatever a fixture opens, it puts away: a knockout here would sit over every later test.
+              if (D && typeof D.__resetForTest === 'function') D.__resetForTest();
+            }
+            assert(bad.length === 0, 'THE STATUS-VERB BUG: ' + bad.join('; '));
+          }),
         ];
       })(),
     ];
@@ -5418,7 +5548,7 @@ export default [
   // restated its own copy on every declaration is how a stale client value ends
   // up overwriting a server one.
   () => tryRunAsync('hunt panel: set_activity carries stance/stop only when named', async () => {
-    const mod = await import('../../net/activity.js?v=560');
+    const mod = await import('../../net/activity.js?v=561');
     const bodyOf = (o) => JSON.parse(mod.buildActivityRequest(
       Object.assign({ kind: 'combat', id: 'goblin', intentId: 'k' }, o)).init.body);
     const bare = bodyOf({});

@@ -2732,3 +2732,17 @@ rows. Forcing the landscape shape takes both halves (narrow rail AND `flex-wrap:
 fixing it I found that b548's own containment assertions run against a HIDDEN panel in the suite
 (every rect is 0), so they are vacuous there; both new tests call `showTab('combat')` first and skip
 loudly if the panel does not paint. Filed in DISCOVERIES.
+
+### 2026-10-03 · lane/b562-combat-strip-polish (CI red fix): the bar's fit tiers
+
+CI went red on my own b562 rule: holding "Fighting" whole made the meta the shrinker, and at
+1280x800 with a dry Vigour chip the meta clipped "away: you fall" by 28px in DejaVu (the phoneFrame
+iframe never has the Google webfonts, so CI measures DejaVu, Windows measures Segoe - my local run
+was green for that reason). Short forms were a phone MEDIA query, so a 1280 desktop could never use
+them. Now the bar is a size container and the short forms key on its content box in `ch` of its own
+face (Chrome resolves container-query `ch` against the container's font incl. weight - measured).
+Thresholds are tiered by content via :has (Vigour / bounty or dry / dry+bounty) and calibrated on
+the widest face +4ch; S2 (icon + dry "Out ·") only below ~90ch with a bounty. Away chip got the
+bed-glyph short form. Known cost: Alegreya needs ~10% fewer ch than Segoe/Verdana, so dry+bounty at
+1280 shows glyph forms where words would fit. Lesson: a fit rule calibrated in my face is not a fit
+rule; measure in Verdana and Segoe, and test the LAST chip against the clipping box, not just wrap.

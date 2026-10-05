@@ -41,13 +41,14 @@
 // "long fight — pays on the kill" rather than quoting a number.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from '../data/monsters.js?v=560';
-import { ITEMS } from '../data/items.js?v=560';
-import * as ST from './session-tally.js?v=560';
-import { fill } from './signposts.js?v=560';
-import { foeFamily } from '../render/foe-family.js?v=560';
-import { weaknessWords } from '../render/foe-weakness.js?v=560';
-import { SIGNPOSTS } from '../data/signposts.js?v=560';
+import { MONSTERS } from '../data/monsters.js?v=561';
+import { ITEMS } from '../data/items.js?v=561';
+import * as ST from './session-tally.js?v=561';
+import { fill } from './signposts.js?v=561';
+import { foeFamily } from '../render/foe-family.js?v=561';
+import { weaknessWords } from '../render/foe-weakness.js?v=561';
+import { SIGNPOSTS } from '../data/signposts.js?v=561';
+import { compactNumber } from '../net/balance.js?v=561';
 
 /* ── small shared helpers ────────────────────────────────────────────────*/
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
@@ -1173,8 +1174,12 @@ function renderFood() {
   } else {
     const qty = (g && g.inventory && g.inventory[id]) || 0;
     const def = ITEMS[id] || {};
+    /* The corner badge takes the house SHORT form (compactNumber, as every slot
+       badge in the bag does): "×100,000" is wider than the 44px slot (34px at
+       922x423) and ran off its left edge into the rail's. The full figure is
+       one line over, in "100,000 held". */
     html = `<div class="fsm-food-slot" title="${esc(def.n || id)}">${itemImg(id, 'fsm-slot-art')}` +
-      `<i>×${num(qty)}</i></div>` +
+      `<i>×${esc(compactNumber(qty))}</i></div>` +
       `<div class="fsm-food-txt"><b>${esc(def.n || id)}</b>` +
       `<span>+${num(info.heals)} HP each · ${num(qty)} held</span></div>`;
   }
@@ -1369,8 +1374,8 @@ function renderMetrics(m, f) {
   } else {
     const mt = Ledger.metrics();
     if (mt && mt.rateReady) {
-      parts.push(`<b>${mt.xpPerMin.toFixed(0)}</b> XP/min`);
-      if (mt.gold > 0) parts.push(`<b>${mt.goldPerMin.toFixed(0)}</b> gold/min`);
+      parts.push(`<b>${num(mt.xpPerMin)}</b> XP/min`);
+      if (mt.gold > 0) parts.push(`<b>${num(mt.goldPerMin)}</b> gold/min`);
       /* "this fight" is a gloss, not a figure: its own span so the phone
          size can drop it and keep the strip on one line (visual gate 4). */
       parts.push(`<b>${num(mt.kills)}</b> kills<span class="fs-met-gloss"> this fight</span>`);
@@ -1388,7 +1393,7 @@ function renderMetrics(m, f) {
   } else if (f) {
     parts.push(f.survivesAnHour
       ? `you last <b>${fmtRun(f.survivalSeconds)}</b>`
-      : `you last <b>≈${num(f.survivalKills)} kills</b> · ${fmtRun(f.survivalSeconds)}`);
+      : `you last <b>≈${num(f.survivalKills)} ${Math.round(f.survivalKills) === 1 ? 'kill' : 'kills'}</b> · ${fmtRun(f.survivalSeconds)}`);
   }
   const html = parts.join(' <s>·</s> ');
   if (host.dataset.sig === html) return;
@@ -1644,7 +1649,7 @@ function renderFight() {
 
   const badge = document.getElementById('fs-history-badge');
   const n = Ledger.lootCount();
-  if (badge) { const t2 = n ? '●' + n : ''; if (badge.textContent !== t2) badge.textContent = t2; }
+  if (badge) { const t2 = n ? '●' + num(n) : ''; if (badge.textContent !== t2) badge.textContent = t2; }
 
   /* The HUD paints Eat into `#arena-act-player` and Loot/Stats into
      `#arena-act-foe`; both mounts live in the action bar. It refuses to paint

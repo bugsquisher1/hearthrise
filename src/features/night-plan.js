@@ -16,8 +16,8 @@
 // except through the memo's key.
 // ════════════════════════════════════════════════════════════════════════
 
-import { fill } from './signposts.js?v=560';
-import { SIGNPOSTS } from '../data/signposts.js?v=560';
+import { fill } from './signposts.js?v=561';
+import { SIGNPOSTS } from '../data/signposts.js?v=561';
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const label = (key) => SIGNPOSTS.labels[key] || '';
@@ -56,7 +56,17 @@ function fightBlockHtml(f, ctx) {
 /** The activity bar's away chip, from the stored forecast only. */
 function chipHtml(f) {
   const B = window.HearthriseBalance || {};
-  const span = (cls, title, text) => `<span class="ab-xph ab-away${cls}"${title}>${esc(text)}</span>`;
+  /* THE SHORT FORM'S HANDLE (art-direction.css, the bar's fit tiers): "away: "
+     is the chip's word, so a crowded bar trades it for the bed glyph and keeps
+     the verdict ("you fall"), as Lifetime and Bounty keep their numbers. A
+     label without the prefix ("pays away") prints whole. */
+  const body = (text) => {
+    const m = /^(away:\s+)(\S[\s\S]*)$/.exec(text);
+    if (!m) return esc(text);
+    const g = (window.HR && typeof window.HR.icon === 'function') ? (window.HR.icon('uiBed', 13, 'currentColor') || '') : '';
+    return `${g}<span class="ab-chip-word">${esc(m[1])}</span>${esc(m[2])}`;
+  };
+  const span = (cls, title, text) => `<span class="ab-xph ab-away${cls}"${title}>${body(text)}</span>`;
   if (!f) {
     return span(' ' + (B.PENDING_CLASS || ''), ` aria-label="${esc(label('night.chipPending'))}"`, label('night.chipCounting'));
   }

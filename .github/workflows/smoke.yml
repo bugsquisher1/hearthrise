@@ -1504,6 +1504,30 @@ jobs:
           node tests/world-tick-stall-after-repoint.mjs
           node tests/world-tick-stall-after-repoint.mjs --mutate
 
+      # THE SHADOW PARITY PROBE (Security ruling 1, 2026-10-05). Every 4 h per
+      # rostered shadow character the tick runs ONE single-span accrual over
+      # the span its windows tiled and stores it in hr_tick_probe — and nothing
+      # else. world-tick-parity-probe drives the shipped runTick on the replayed
+      # chain: the span tiles real windows, the stored input IS the opening
+      # window's session, the chain is byte-identical with and without the
+      # probe, and an open+close moves zero tuples in every other user table.
+      # --mutate plants a player_state write, a shadow_accrued_to advance, a
+      # shadow-journal insert, a dropped lease and a dropped chain-head check,
+      # and requires each RED by name at apply AND in the guard.
+      # world-tick-probe-bar calibrates the ruling's bar on 4 h fixture spans
+      # (green) and pins the max_hp shadow-carrier finding; --mutate requires
+      # fixedSeed/shiftWindow/noAutoEat/freeHeal/skipFoodDebit/resumeMisalign
+      # red. tools/world-tick-parity.mjs --selftest proves the evaluator's
+      # eligibility rules on planted rows.
+      - name: World tick — the parity probe writes its own rows and the bar bites
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-parity-probe.mjs
+          node tests/world-tick-parity-probe.mjs --mutate
+          node tests/world-tick-probe-bar.mjs
+          node tests/world-tick-probe-bar.mjs --mutate
+          node tools/world-tick-parity.mjs --selftest
+
       # A STALLED TICK IS RED FROM THE DATABASE ALONE (2026-09-28). The 22 h
       # stall above read green on every cron-grain query because the edge's
       # verdict lived only in pg_net's ~6 h response table.

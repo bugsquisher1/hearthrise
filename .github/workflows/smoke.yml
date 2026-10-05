@@ -1558,6 +1558,19 @@ jobs:
           node tests/world-tick-stall-guard.mjs
           node tests/world-tick-stall-guard.mjs --selftest
 
+      # Security SEC_WORLD_TICK_ARM_2026-10-05 rulings 5 + 1 (admission):
+      # armed_channels is the one arming authority. Presents hr_engine as the
+      # edge does and measures: gather armed alone writes one ledger row per
+      # window while combat writes none; one UPDATE de-arms every channel;
+      # shadow admission ends at 7 d and is logged; the armed 24 h fence holds;
+      # the migration re-applies byte-identically; a party follows combat's mode. --selftest plants eight
+      # defects and requires each red (self-check or arm, by name).
+      - name: World tick — each channel arms alone, one statement de-arms all
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-channel-arm.mjs
+          node tests/world-tick-channel-arm.mjs --selftest
+
       # EC-3d, the control, carries its own proof since 2026-09-22. It shipped
       # asserting the literal `+00:00` on the accrue path's rendering, which is
       # the replay session's TimeZone talking — PGlite takes that GUC from the

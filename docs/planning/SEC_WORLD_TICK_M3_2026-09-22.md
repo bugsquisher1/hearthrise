@@ -186,9 +186,9 @@ recurring on the *chain* rather than on the helper. `guard-hygiene` is green wit
    ```sql
    select channels,
           array_position(channels, null) as has_null_element,   -- must be NULL (S-5)
-          enabled, shadow
+          enabled, armed_channels
      from public.hr_tick_config where id;
-   -- Expect: channels = {gather}, has_null_element NULL, enabled false, shadow true.
+   -- Expect: channels = {gather}, has_null_element NULL, enabled false, armed_channels {} (2026-10-06: was `shadow true`).
 
    select pg_size_pretty(pg_total_relation_size('public.hr_tick_shadow')) as size,
           count(*) as rows
@@ -554,9 +554,9 @@ with both arms. `guard-hygiene` green with the entry **gone** is the exit code f
    ```sql
    select channels,
           array_position(channels, null) as has_null_element,   -- must be NULL
-          enabled, shadow
+          enabled, armed_channels
      from public.hr_tick_config where id;
-   -- Expect: channels = {gather}, has_null_element NULL, enabled false, shadow true.
+   -- Expect: channels = {gather}, has_null_element NULL, enabled false, armed_channels {} (2026-10-06: was `shadow true`).
 
    select pg_size_pretty(pg_total_relation_size('public.hr_tick_shadow')) as size,
           count(*) as rows
@@ -857,9 +857,9 @@ are ready the day S-8 is closed, not so they may be run today.
 ```sql
 select channels,
        array_position(channels, null) as has_null_element,   -- must be NULL
-       enabled, shadow, batch_limit, lease_ms, cadence_seconds, flush_seconds
+       enabled, armed_channels, batch_limit, lease_ms, cadence_seconds, flush_seconds
   from public.hr_tick_config where id;
--- Expect: channels = {gather}, has_null_element NULL, enabled true, shadow true.
+-- Expect: channels = {gather}, has_null_element NULL, enabled true, armed_channels {} (2026-10-06: was `shadow true`).
 
 select pg_size_pretty(pg_total_relation_size('public.hr_tick_shadow')) as size,
        count(*) as rows
@@ -988,8 +988,8 @@ update public.hr_tick_config
    and not ('combat' = any (channels));
 
 -- (c) READ IT BACK before walking away.
-select channels, enabled, shadow from public.hr_tick_config where id;
--- Expect: channels = {combat,gather}, enabled true, shadow TRUE.
+select channels, enabled, armed_channels from public.hr_tick_config where id;
+-- Expect: channels = {combat,gather}, enabled true, armed_channels {} — nothing armed (2026-10-06: was `shadow TRUE`).
 ```
 
 `shadow` stays **true** throughout. Setting it false is a separate operator action with its
@@ -1142,8 +1142,10 @@ update public.hr_tick_config
 delete from public.hr_tick_ownership
  where user_id = '<uuid>' and slot = <slot> and channel = 'combat';
 
--- (4) BELT AND BRACES, if anything ever suggests value moved.
-update public.hr_tick_config set shadow = true where id;
+-- (4) BELT AND BRACES, if anything ever suggests value moved. THE MASTER KILL:
+--     de-arms every channel in one statement; the shadow keeps measuring
+--     (2026-10-06-world-tick-channel-arm.sql; was `set shadow = true`).
+update public.hr_tick_config set armed_channels = '{}' where id;
 ```
 
 Pull (1) on **any** of: a non-zero `error` or `no_secret` in 8d, `breaks <> 0` in 8b, a
@@ -1433,9 +1435,9 @@ Steps 1–6 are unchanged from RE-VERIFY 2 except where marked. **Step 7's BLOCK
 ```sql
 select channels,
        array_position(channels, null) as has_null_element,   -- must be NULL
-       enabled, shadow, batch_limit, lease_ms, cadence_seconds, flush_seconds
+       enabled, armed_channels, batch_limit, lease_ms, cadence_seconds, flush_seconds
   from public.hr_tick_config where id;
--- Expect: channels = {gather}, has_null_element NULL, enabled true, shadow true.
+-- Expect: channels = {gather}, has_null_element NULL, enabled true, armed_channels {} (2026-10-06: was `shadow true`).
 
 select pg_size_pretty(pg_total_relation_size('public.hr_tick_shadow')) as size,
        count(*) as rows
@@ -1570,8 +1572,8 @@ update public.hr_tick_config
    and not ('combat' = any (channels));
 
 -- (c) READ IT BACK before walking away.
-select channels, enabled, shadow from public.hr_tick_config where id;
--- Expect: channels = {combat,gather}, enabled true, shadow TRUE.
+select channels, enabled, armed_channels from public.hr_tick_config where id;
+-- Expect: channels = {combat,gather}, enabled true, armed_channels {} — nothing armed (2026-10-06: was `shadow TRUE`).
 ```
 
 ### 10. The parity reads — at T+1 h, T+24 h and T+48 h
@@ -1612,8 +1614,9 @@ update public.hr_tick_config set channels = array_remove(channels, 'combat') whe
 delete from public.hr_tick_ownership
  where user_id = '<uuid>' and slot = <slot> and channel = 'combat';
 
--- (4) AND IF SHADOW WAS EVER FLIPPED, PUT IT BACK FIRST, before anything else.
-update public.hr_tick_config set shadow = true where id;
+-- (4) AND IF ANY CHANNEL WAS EVER ARMED, DE-ARM EVERY CHANNEL FIRST, before anything
+--     else (2026-10-06-world-tick-channel-arm.sql; was `set shadow = true`).
+update public.hr_tick_config set armed_channels = '{}' where id;
 ```
 
 None of the four needs an edge deploy, and (2) is reversible by step 9(b).
@@ -2032,7 +2035,8 @@ on conflict (user_id, slot, channel) do update set owned = excluded.owned;
 --   arrival and there is no point turning the channel on.
 select o.user_id, o.slot, o.channel, o.owned, o.lease_holder, o.lease_until,
        ps.active_kind, ps.accrued_to,
-       case when (select shadow from public.hr_tick_config where id)
+       case when (select not coalesce(o.channel = any (c.armed_channels), false)
+                    from public.hr_tick_config c where c.id)
             then greatest(ps.accrued_to, coalesce(o.shadow_accrued_to, ps.accrued_to))
             else ps.accrued_to end                           as mark
   from public.hr_tick_ownership o
@@ -2059,8 +2063,8 @@ update public.hr_tick_config
 
 ```sql
 -- (9c) READ IT BACK before walking away.
-select channels, enabled, shadow, flush_seconds from public.hr_tick_config where id;
--- Expect: channels = {combat,gather}, enabled true, shadow TRUE.
+select channels, enabled, armed_channels, flush_seconds from public.hr_tick_config where id;
+-- Expect: channels = {combat,gather}, enabled true, armed_channels {} — nothing armed (2026-10-06: was `shadow TRUE`).
 ```
 
 ```sql

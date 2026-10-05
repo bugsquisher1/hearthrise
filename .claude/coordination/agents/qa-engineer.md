@@ -11,6 +11,14 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 
 ## Log
 
+### 2026-10-03 · the stated-bag triple, per test (lane/b562-serverbag-snapshot, GO-WITH-CHANGES)
+A snapshot-list fix only covers tests that snapshot. The class check belongs at the REAL boundary
+(the runner loop), which found sixteen movers where the review named nine. `__smokeTest({only:'/re/'})`
+now takes a pattern, so a class can run in one in-order slice. To tell a filtered-order artifact from a
+regression, run the SAME slice on `git archive origin/<base>` (tar needs `cd` into the target, not a
+`C:/` path) with the same one-line `only` patch: b305 and RETREAT-A4c fail identically on set/b562.
+Git Bash mangles a leading `/` argument: `MSYS_NO_PATHCONV=1` for `--only "/…/"`.
+
 ### 2026-10-03 · merge set/b562 + a lane-done flake (DISCOVERIES row 9)
 lane-done went red on `absence-priced-at-return` R2 while six other suites shared the box; alone it
 passed. Do not re-run it until it goes green. Inject the suspected skew (a sleep in ONE order of an

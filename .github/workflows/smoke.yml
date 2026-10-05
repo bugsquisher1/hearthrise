@@ -1533,6 +1533,16 @@ jobs:
           node tests/world-tick-bestiary-parity.mjs
           node tests/world-tick-bestiary-parity.mjs --mutate
 
+      # VIGOUR UNDER SUBDIVISION (2026-10-05, the 09-29 combat parity read:
+      # gold -71.8%, xp -35.5%). A tired payout was floored per settle window
+      # and a chain of 10 s windows never spent its own budget. Replays the real
+      # 09-29 span both ways; --mutate reverts each fix in a temp copy.
+      - name: World tick — a tired hunt pays the same however often it is settled
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-vigour-scale.mjs
+          node tests/world-tick-vigour-scale.mjs --mutate
+
       - name: World tick — a stall is red from the database alone
         if: ${{ !cancelled() }}
         run: |

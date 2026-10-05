@@ -278,7 +278,13 @@
      satisfy a positive requirement — FAIL-CLOSED, so a Build button cannot
      light up against a balance nobody has read. Every renderer below checks
      `known` before printing the figure, because `(0).toLocaleString()` in a
-     have/need line is a claim about the player's purse, not a placeholder. */
+     have/need line is a claim about the player's purse, not a placeholder.
+
+     ITEMS READ THE SERVER'S BAG (CLAUDE.md §6 sweep). hr_unlock_buy debits
+     player_inventory, and `G.inventory` is the merge bag an envelope can only
+     RAISE (accrue.js reconcileInventory), so a client-rolled drop lit Build for
+     a material the realm then refused. gateItemCount is that table's mirror;
+     NULL (no envelope has stated the bag) is `known:false`, never a figure. */
   function heldOf(k) {
     var G = G_();
     if (k === 'gold' || k === 'gems') {
@@ -286,7 +292,9 @@
       var n = (typeof window.balOr === 'function') ? window.balOr(k, -1) : (typeof G[k] === 'number' ? G[k] : -1);
       return { have: known ? n : -1, known: known };
     }
-    return { have: ((G.inventory || {})[k] || 0), known: true };
+    var A = window.HearthriseAccrual;
+    var srv = (A && typeof A.gateItemCount === 'function') ? A.gateItemCount(G, k) : null;
+    return srv === null ? { have: -1, known: false } : { have: srv, known: true };
   }
 
   function costAffordable(cost) {
@@ -349,7 +357,7 @@
     if (missing.length) {
       if (window.notify) notify('Missing: ' + missing.map(function (m) {
         var n = (window.ITEMS && window.ITEMS[m.id] && window.ITEMS[m.id].n) || m.id;
-        if (!m.known) return m.id + ' balance not loaded yet';
+        if (!m.known) return (m.id === 'gold' || m.id === 'gems') ? m.id + ' balance not loaded yet' : n + ' still being counted';
         return (m.id === 'gold' ? m.need + ' gold' : n + ' ×' + m.need);
       }).join(', '), 'kill');
       return false;
@@ -1100,7 +1108,7 @@
              its own source rather than being mixed into the price chips where
              "0/1 Kitchen Blueprint II" reads like 1 more plank. */
           gates: (row.gates || []).map(function (g) {
-            return { id: g.id, name: g.name, have: g.have, need: g.need, ok: g.ok,
+            return { id: g.id, name: g.name, have: g.have, need: g.need, ok: g.ok, known: g.known !== false,
                      source: g.source || '', spent: !!row.owned };
           }),
           why: row.gateReason || null,
@@ -1138,23 +1146,35 @@
          press this" is ON the bar (item, held/not, and where it comes from)
          instead of arriving in a toast after the click. */
       var pinGates = (d.next.gates || []).map(function (g) {
-        return { id: g.id, name: g.name, have: g.have, need: g.need, ok: g.ok, source: g.source || '' };
+        return { id: g.id, name: g.name, have: g.have, need: g.need, ok: g.ok, known: g.known !== false, source: g.source || '' };
       });
       var unmet = pinGates.filter(function (g) { return !g.ok; });
+      /* An UNSTATED server bag is not "you need one" (roomRungItemGate known:false):
+         the bar says the bag is still being counted, the same words as the toast. */
+      var counting = unmet.filter(function (g) { return !g.known; }), short = unmet.filter(function (g) { return g.known; });
       /* ONE reason string, built from every blocker rather than the first one.
          The branch chain this replaces returned only the highest-priority
          reason, so a rung short of BOTH a blueprint and 40 planks named one of
          them and the player fixed it to find the button still dead. b213's rule
          — name what is short, never "not enough" — applied to all three classes. */
-      var reasons = [];
-      if (d.next.gated) reasons.push(d.next.gateReason);
-      if (unmet.length) reasons.push('Needs ' + unmet.map(function (g) { return g.name; }).join(' and '));
+      var reasons = [], shown = [];
+      var say = function (r, gateLineSaysIt) { reasons.push(r); if (!gateLineSaysIt) shown.push(r); };
+      var costName = function (m) { return (window.ITEMS && window.ITEMS[m.id] && window.ITEMS[m.id].n) || m.id; };
+      if (d.next.gated) say(d.next.gateReason, false);
+      if (short.length) say('Needs ' + short.map(function (g) { return g.name; }).join(' and '), true);
+      if (counting.length) say(counting.map(function (g) { return g.name; }).join(' and ') + ' still being counted', true);
       if (!d.next.gated && d.next.missing.length) {
-        reasons.push('Missing ' + d.next.missing.map(function (m) {
-          var n = (window.ITEMS && window.ITEMS[m.id] && window.ITEMS[m.id].n) || m.id;
-          if (m.known === false) return m.id + ' balance not loaded yet';
-          return m.id === 'gold' ? ((m.need - m.have) + ' gold') : (n + ' ×' + (m.need - m.have));
-        }).join(', '));
+        /* A known shortfall is "Missing"; an unstated count is not missing, it is pending —
+           same words as upgradeProperty's toast: a currency balance is "not loaded", an item
+           is "still being counted". */
+        var miss = d.next.missing.filter(function (m) { return m.known !== false; });
+        var pend = d.next.missing.filter(function (m) { return m.known === false; });
+        if (miss.length) say('Missing ' + miss.map(function (m) {
+          return m.id === 'gold' ? ((m.need - m.have) + ' gold') : (costName(m) + ' ×' + (m.need - m.have));
+        }).join(', '), false);
+        if (pend.length) say(pend.map(function (m) {
+          return (m.id === 'gold' || m.id === 'gems') ? m.id + ' balance not loaded yet' : costName(m) + ' still being counted';
+        }).join(', '), false);
       }
       if (reasons.length) {
         /* `why` stays COMPLETE — it is the button's hover title and the text an
@@ -1164,8 +1184,11 @@
            same sentence twice, which this codebase already treats as a rendering
            fault rather than as emphasis. `whyCovered` tells the renderer the
            detail lines say everything the verdict does — a boolean, so nobody
-           has to parse prose to find out. */
+           has to parse prose to find out. `whyShown` is the same verdict minus the
+           item-gate reasons the gate lines restate (a pending bag named the
+           blueprint in the verdict AND in its gate line directly below). */
         buttons.push({ label: label, action: 'noop', disabled: true, why: reasons.join(' · '),
+                       whyShown: shown.join(' · '),
                        whyCovered: reasons.length === 1 && unmet.length > 0,
                        pin: true, costs: costs, gates: pinGates, level: d.next.level });
       } else {
@@ -1267,7 +1290,7 @@
       if (d.next && !d.next.gated) {
         var rung = d.ladder[d.next.level - 1];
         var chips = rung.cost.map(function (c) {
-          return '<span class="hh-cost ' + (c.known === false ? '' : (c.have >= c.need ? 'is-met' : 'is-short')) + '" title="' +
+          return '<span class="hh-cost ' + (c.known === false ? 'is-pending' : (c.have >= c.need ? 'is-met' : 'is-short')) + '" title="' +
             esc(c.need.toLocaleString() + ' ' + c.label + ' — you have '
               + (c.known === false ? 'no figure yet (waiting for the server)' : c.have.toLocaleString())) + '">' +
             '<b>' + esc(c.need.toLocaleString()) + '</b> ' + esc(c.label) + '</span>';
@@ -1278,8 +1301,9 @@
            they cannot build. The gate gets a chip in the SAME cost strip, met /
            short exactly like the others, with its source in the hover. */
         (d.next.gates || []).forEach(function (g) {
-          chips.push('<span class="hh-cost hh-cost-gate ' + (g.ok ? 'is-met' : 'is-short') + '" title="' +
-            esc(g.name + ' — ' + (g.ok ? 'in your bags' : 'you have none') +
+          /* An unstated bag is neither met nor short: `is-pending`, never the red of "you have none". */
+          chips.push('<span class="hh-cost hh-cost-gate ' + (g.ok ? 'is-met' : g.known === false ? 'is-pending' : 'is-short') + '" title="' +
+            esc(g.name + ' — ' + (g.ok ? 'in your bags' : g.known === false ? 'still being counted' : 'you have none') +
                 (g.source ? '. ' + g.source : '')) + '">' +
             '<b>' + esc(g.need.toLocaleString()) + '</b> ' + esc(g.name) + '</span>');
         });
@@ -1301,10 +1325,11 @@
            answers to "why is this not ready", and only one of the two was ever
            given. Short costs deliberately stay unnamed here — the chips below
            already colour them, and the modal carries the full ledger. */
-        var ug = (d.next.gates || []).filter(function (g) { return !g.ok; });
+        var ug = (d.next.gates || []).filter(function (g) { return !g.ok && g.known !== false; });
+        var uc = (d.next.gates || []).filter(function (g) { return !g.ok && g.known === false; });
         foot = 'Next: ' + esc(d.next.name) + (ug.length
           ? ' &mdash; needs ' + esc(ug.map(function (g) { return g.name; }).join(' and '))
-          : (d.next.affordable ? ' &mdash; ready' : ''));
+          : uc.length ? ' &mdash; counting your bag' : (d.next.affordable ? ' &mdash; ready' : ''));
       }
       return '<button type="button" class="hh-room ' + cls + '" data-room="' + esc(id) + '" ' +
         'aria-label="' + esc(d.title + ' — ' + (owned ? 'level ' + d.level : d.state === 'locked' ? 'locked' : 'not built')) + '">' +
@@ -1376,6 +1401,7 @@
     isCastle: isCastle,
     roomMinTier: roomMinTier,
     canBuildRoom: canBuildRoom,
+    heldOf: heldOf,
     serverRungKnown: serverRungKnown,
     hasWorkbench: hasWorkbench,
     upgradeProperty: upgradeProperty,

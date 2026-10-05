@@ -362,6 +362,46 @@ export function vigourMult(o) {
   return (fullMs + dryMs * VIGOUR_DRY_MULT) / total;
 }
 
+/**
+ * SCALE AN INTEGER PAYOUT BY THE TIRED MULTIPLIER, CONSERVED UNDER SUBDIVISION.
+ *
+ * ⚠ THIS USED TO BE `Math.floor(raw * mult)` AT THE SETTLE, and a floor per
+ *   window makes the payout a function of how often the span is settled — the
+ *   same defect `vigourCharge` was rewritten to close on the CHARGE side. A tired
+ *   character earning 1 gold per 10 s world-tick window was paid
+ *   `floor(1 x 0.25) = 0` every window: measured on production, QA slot 1,
+ *   2026-09-29 06:13-16:12, the tick shadow proposed -71.8% gold and -35.5% xp
+ *   against the one-span accrue over the same 9.98 h, and a 200-seed replay of
+ *   that span reproduces -54.7% / -21.9% with every other field inside 0.5%
+ *   (tests/world-tick-vigour-scale.mjs). The 90 s attended poll pays the same
+ *   discount, smaller.
+ *
+ * So the fraction is DITHERED, not discarded: `floor(raw x mult + u)` with `u`
+ * one draw in [0,1). The expectation is exactly `raw x mult` for ANY partition
+ * of the span, so the total is a function of elapsed time alone. Bounded both
+ * ways by construction: never below `floor(raw x mult)`, never above
+ * `ceil(raw x mult)`, and so never above `raw` while `mult <= 1` — a tired
+ * window can never out-pay a rested one. An integral product (mult 1, or raw 0)
+ * returns without drawing.
+ *
+ * `rng` MUST BE ITS OWN STREAM, never the fight's: one extra draw from the
+ * combat stream would shift every roll after it (combat-sim.js draw order). The
+ * engine hands a salted stream off the same server seed, so it stays replayable.
+ *
+ * @param raw  a non-negative integer payout (xp for one skill, or gold)
+ * @param mult `vigourMult(...)`, in [VIGOUR_DRY_MULT, 1]
+ * @param rng  the rng.js contract; only `next()` is used
+ */
+export function vigourScale(raw, mult, rng) {
+  const r = Math.max(0, Math.floor(Number(raw) || 0));
+  const m = Number(mult);
+  if (!(m >= 0) || m >= 1) return r;
+  const x = r * m;
+  const lo = Math.floor(x);
+  if (x === lo) return lo;
+  return Math.min(r, lo + (rng.next() < x - lo ? 1 : 0));
+}
+
 /** The daily counter's `player_progress` key. ONE spelling, imported by the
     engine and asserted by the migration, so the row the engine writes and the
     row `hr_vigour_of` reads cannot be two rows (design §4.2). */

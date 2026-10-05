@@ -355,8 +355,11 @@ export const BINDS = {
     return all(
       need(H.VIGOUR_DRY_MULT > 0 && H.VIGOUR_DRY_MULT < 1, 'VIGOUR_DRY_MULT is ' + H.VIGOUR_DRY_MULT + ' — not "a small share"'),
       need(sp.dryMs === 3600000 && sp.fullMs === 0, 'past the budget a window is no longer all dry'),
-      need(a.includes('dropMult: (w.dropMult || 1) * vigMult') && a.includes('Math.floor(raw * vigMult)')
-        && a.includes('Math.floor(Math.floor(state.gold || 0) * vigMult)'),
+      /* Experience and gold are scaled through hunt.js vigourScale (the
+         dithered floor that conserves under subdivision, 2026-10-05) — the
+         claim is that vigMult still reaches both, not how they round. */
+      need(a.includes('dropMult: (w.dropMult || 1) * vigMult') && a.includes('vigourScale(raw, vigMult, vigRng)')
+        && a.includes('vigourScale(Math.floor(state.gold || 0), vigMult, vigRng)'),
         'the away settle no longer folds vigMult into drop chance, experience and gold'));
   },
   vigourScope: (w) => {

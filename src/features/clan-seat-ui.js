@@ -2012,9 +2012,10 @@
       var title = insp ? ' title="' + esc(c.label + hint) + '"' : '';
       /* `known === false` is a balance the server has not sent yet. It is
          neither full nor short — it renders as the pending dash, the same
-         glyph the rest of the game uses for that state. */
+         glyph the rest of the game uses for that state. `is-pending` keeps it
+         off the red "you are short" colour (the House card's .hh-cost twin). */
       if (c.known === false) {
-        return '<span class="hr-cs-qty"' + insp + title + '><span class="bal-pending" role="status" '
+        return '<span class="hr-cs-qty is-pending"' + insp + title + '><span class="bal-pending" role="status" '
           + 'title="Waiting for the server">—</span>/' + nfmt(c.need) + ' ' + label + '</span>';
       }
       return '<span class="hr-cs-qty' + (c.have != null && c.have >= c.need ? ' is-full' : '') + '"' + insp + title + '>' +

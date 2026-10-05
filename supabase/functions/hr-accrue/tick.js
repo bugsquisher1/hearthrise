@@ -42,7 +42,7 @@
 //                 carry no value and no instant; the total time a fire can pay
 //                 for is `[server watermark, server now()]` whatever they say.
 //
-// EVERYTHING ELSE IN THE BODY IS IGNORED, INCLUDING `holder`, `shadow` AND THE
+// EVERYTHING ELSE IN THE BODY IS IGNORED, INCLUDING `holder`, `armed` AND THE
 // ROSTER'S `state`, `version`, `seed`, `accrued_to` AND `active_*`. Each of
 // those is re-derived from the database inside this request:
 //
@@ -642,13 +642,28 @@ export async function probeWatermark(exec, holder, sel, nowIso, channel) {
        ownership row, in this role's own transaction, on the same statement
        that reports the mark — one lock, one answer, no second read.
 
-       `shadow` is the fence's own `hr_tick_config.shadow`, never the body's:
-       the driver must know the mode BEFORE it settles, because sending a
-       state on the armed branch is a refusal by design. If the operator arms
-       between this probe and the settle below, that one settle is refused
-       `shadow_state_while_armed`, loudly and countably, and the next fire
-       runs armed with no carrier — the tick pays nothing rather than paying
-       against a proposal built in the other mode. */
+       `shadow` is the fence's own answer for THIS CHANNEL — `channel` is not
+       in `hr_tick_config.armed_channels` (2026-10-06, Security ruling 5) —
+       never the body's: the driver must know the mode BEFORE it settles,
+       because sending a state on the armed branch is a refusal by design. If
+       the operator arms this channel between this probe and the settle below,
+       that one settle is refused `shadow_state_while_armed`, loudly and
+       countably, and the next fire runs armed with no carrier — the tick pays
+       nothing rather than paying against a proposal built in the other mode.
+
+       ⚠ AN ANSWER THAT NAMES ANOTHER CHANNEL IS NOT THIS CHANNEL'S MODE. The
+         fence names the channel its mode is for; an answer naming a
+         different one is refused `mode_channel_mismatch` and nothing is
+         settled for this character this fire. An answer that names NONE is a
+         fence older than 2026-10-06-world-tick-channel-arm.sql, whose one
+         global flag IS the mode for every channel on that database — read as
+         given, so the edge and the migration can deploy in either order. The
+         mode only ever decides whether a carrier is SENT — the fence decides
+         whether anything PAYS, under its own lock — so neither branch here
+         can make a window pay. */
+    if (res.channel != null && res.channel !== channel) {
+      return { ok: false, reason: 'mode_channel_mismatch' };
+    }
     return {
       ok: true,
       markMs: mark,
@@ -997,9 +1012,10 @@ async function tickOne(exec, holder, sel, body) {
   if (!res || res.ok !== true) {
     return { outcome: 'refused', reason: String((res && res.error) || 'no_answer') };
   }
-  /* THE MODE IS THE FENCE'S, NEVER THE BODY'S. `shadow` arrives in the driver's
-     POST and is ignored: `hr_tick_config.shadow` is read inside the fence, and
-     this is what it decided. A summary that reported the body's flag would say
+  /* THE MODE IS THE FENCE'S, NEVER THE BODY'S. `armed` arrives in the driver's
+     POST and is ignored: `hr_tick_config.armed_channels` is read inside the
+     fence, under the lease lock, for this character's channel, and this is
+     what it decided. A summary that reported the body's flag would say
      "shadowed" about a fire that paid. */
   return { outcome: res.mode === 'shadow' ? 'shadowed' : 'processed' };
 }

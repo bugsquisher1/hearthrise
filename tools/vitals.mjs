@@ -242,7 +242,7 @@ select g.i,
 // unread" and judges as if in shadow.
 const WORLD_TICK_MODE = `
 select case when not coalesce(c.enabled, false) then 'off'
-            when coalesce(c.shadow, false) then 'shadow' else 'armed' end as mode
+            when coalesce(cardinality(c.armed_channels), 0) = 0 then 'shadow' else 'armed' end as mode
   from public.hr_tick_config c where c.id`;
 
 // ── STALL RULE BEGIN ─────────────────────────────────────────────────────────

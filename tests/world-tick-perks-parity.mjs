@@ -82,7 +82,7 @@ console.log(`\nworld-tick-perks-parity${MUTATE ? ' [--mutate: perks read removed
 
 const holder = (await one("select left('cron:' || coalesce(current_database(), 'db'), 64) as h")).h;
 await db.exec("update public.hr_tick_config set channels = array['combat','gather']::text[],"
-  + ' enabled = true, shadow = true where id;');
+  + ' enabled = true, armed_channels = array[]::text[] where id;');
 await db.exec(`insert into auth.users (id) values ('${U}') on conflict do nothing;`);
 await db.exec(`insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version,
                  accrued_to, active_kind, active_id, active_since)

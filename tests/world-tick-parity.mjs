@@ -953,9 +953,25 @@ for (const f of FIXTURES) {
      credential-free, here, so the day PAYABLE_KINDS grows a fourth kind the
      roster cannot silently refuse it. */
   {
+    /* THE CHAIN-END DEFINITION, NOT THE FIRST ONE (2026-10-06). A function
+       restated by a later migration runs the LATER text; reading the literal
+       out of the file that first created it would compare a body production
+       no longer runs. `chainEnd` walks tests/schema-apply-order.json and
+       returns the text of the LAST file that defines the function. */
+    const ORDER = JSON.parse(readFileSync(new URL('./schema-apply-order.json', import.meta.url), 'utf8')).order;
+    const chainEnd = (fn) => {
+      const re = new RegExp(`create\\s+or\\s+replace\\s+function\\s+public\\.${fn}\\s*\\(`, 'i');
+      for (const f of ORDER.slice().reverse()) {
+        const text = readFileSync(new URL(`../supabase/migrations/${f}`, import.meta.url), 'utf8');
+        const at = text.search(re);
+        if (at >= 0) return { file: f, text: text.slice(at) };
+      }
+      return { file: '(none)', text: '' };
+    };
     const sql = readFileSync(new URL('../supabase/migrations/2026-09-20-world-tick-roster.sql', import.meta.url), 'utf8');
-    const m = sql.match(/c_payable\s+constant\s+text\[\]\s*:=\s*array\[([^\]]*)\]/);
-    ok(!!m, 'P-G7 could not find the c_payable literal in 2026-09-20-world-tick-roster.sql - the drift guard has nothing to compare');
+    const roster = chainEnd('hr_tick_roster');
+    const m = roster.text.match(/c_payable\s+constant\s+text\[\]\s*:=\s*array\[([^\]]*)\]/);
+    ok(!!m, `P-G7 could not find the c_payable literal in hr_tick_roster's chain-end definition (${roster.file}) - the drift guard has nothing to compare`);
     if (m) {
       let inSql = m[1].split(',').map((x) => x.trim().replace(/^'|'$/g, '')).filter(Boolean);
       if (gm === 'gatherPayableDrift') inSql = inSql.filter((k) => k !== 'artisan');
@@ -970,9 +986,9 @@ for (const f of FIXTURES) {
        copy. A drift guard that watched only the first would let the fence
        quietly refuse a kind the engine pays — which reads to a player as
        "gathering stopped crediting" and to an operator as nothing at all. */
-    const fence = readFileSync(new URL('../supabase/migrations/2026-09-21-world-tick-settle-fence.sql', import.meta.url), 'utf8');
-    const fm = fence.match(/c_payable\s+constant\s+text\[\]\s*:=\s*array\[([^\]]*)\]/);
-    ok(!!fm, 'P-G7b could not find the c_payable literal in 2026-09-21-world-tick-settle-fence.sql');
+    const fenceDef = chainEnd('hr_tick_settle');
+    const fm = fenceDef.text.match(/c_payable\s+constant\s+text\[\]\s*:=\s*array\[([^\]]*)\]/);
+    ok(!!fm, `P-G7b could not find the c_payable literal in hr_tick_settle's chain-end definition (${fenceDef.file})`);
     if (fm) {
       let inFence = fm[1].split(',').map((x) => x.trim().replace(/^'|'$/g, '')).filter(Boolean);
       if (gm === 'gatherPayableDrift') inFence = inFence.filter((k) => k !== 'artisan');

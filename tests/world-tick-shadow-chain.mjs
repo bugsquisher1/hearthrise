@@ -122,7 +122,7 @@ const shadowRows = async (db, u) => Number((await db.query(
 /* Run FIRES driver fires, chaining on whichever payload key the driver shipped. */
 async function run(db, u, keys, chainKey) {
   await makeChar(db, u);
-  await db.exec(`update public.hr_tick_config set enabled = true, shadow = true where id;`);
+  await db.exec(`update public.hr_tick_config set enabled = true, armed_channels = array[]::text[] where id;`);
   const errs = [];
   for (let i = 0; i < FIRES; i++) {
     const row = await fire(db, u, keys);
@@ -138,7 +138,19 @@ async function run(db, u, keys, chainKey) {
 console.log('world-tick-shadow-chain: the SHADOW parity run must survive its own driver');
 console.log('  SC-1..SC-3 the watermark reaches the edge · SC-4..SC-10 the CHARACTER does too');
 
-const SRC = await readFile('supabase/migrations/2026-09-21-world-tick-cron.sql', 'utf8');
+/* hr_tick_cron_run's CHAIN-END definition: the LAST file in the apply order
+   that defines it (restated by 2026-09-22-world-tick-derived-token.sql and
+   2026-10-06-world-tick-channel-arm.sql since this arm was written), sliced to
+   that one function so another body's jsonb_agg cannot answer for it. */
+const SRC = await (async () => {
+  const order = JSON.parse(await readFile('tests/schema-apply-order.json', 'utf8')).order;
+  for (const f of order.slice().reverse()) {
+    const text = (await readFile(`supabase/migrations/${f}`, 'utf8')).replace(/\r\n/g, '\n');
+    const at = text.search(/create\s+or\s+replace\s+function\s+public\.hr_tick_cron_run\s*\(/i);
+    if (at >= 0) return text.slice(at, text.indexOf('\nend $$;', at) + 1);
+  }
+  return '';
+})();
 const TICK_FILE = await readFile('supabase/functions/hr-accrue/tick.js', 'utf8');
 
 /* The whole suite, so a mutant can re-run it against a patched schema (and a
@@ -234,7 +246,7 @@ async function runSuite({ patches, tickSource, allowReplayFailure = false } = {}
     const ST2 = { v: 1, base_version: 1, hp: 9, consec_falls: 0 };
 
     await makeChar(db, U4);
-    await db.exec('update public.hr_tick_config set enabled = true, shadow = true where id;');
+    await db.exec('update public.hr_tick_config set enabled = true, armed_channels = array[]::text[] where id;');
 
     const settle = async (mark, toIso, key, state) => (await db.query(`
       select public.hr_tick_settle('cron:postgres', $1::uuid, 0, 'gather', 1::bigint,
@@ -320,7 +332,7 @@ async function runSuite({ patches, tickSource, allowReplayFailure = false } = {}
     // ── SC-9: AN ARMED WINDOW MAY NOT CARRY ONE. Refused, never ignored: a
     //        carrier silently dropped on the branch that PAYS is how a proposal
     //        built in the other mode gets believed by the writer.
-    await db.exec('update public.hr_tick_config set shadow = false where id;');
+    await db.exec('update public.hr_tick_config set armed_channels = channels where id;');
     const armedWithState = await settle(t2, plus(mark0, 270), KEY(43), ST2);
     const goldAfter = Number((await db.query(
       'select gold from public.player_state where user_id = $1 and slot = 0', [U4])).rows[0].gold);
@@ -376,7 +388,7 @@ async function runSuite({ patches, tickSource, allowReplayFailure = false } = {}
     // ══════════════════════════════════════════════════════════════════════════
     const U5 = U(5);
     await makeChar(db, U5);
-    await db.exec('update public.hr_tick_config set enabled = true, shadow = false where id;');
+    await db.exec('update public.hr_tick_config set enabled = true, armed_channels = channels where id;');
     const MARKER = { v: SHADOW_STATE_V, base_version: 1, restart: true };
     const m0 = (await db.query(
       'select accrued_to from public.player_state where user_id = $1 and slot = 0', [U5]))
@@ -433,19 +445,19 @@ const MUTANTS = {
   noProbeCarrier: {
     want: 'SC-6',
     why: 'the state is stored but never handed back, so the chain is write-only',
-    sql: [['  v_chain := case\n    when v_cfg.shadow\n', '  v_chain := case\n    when false\n']],
+    sql: [['  v_chain := case\n    when v_shadow\n', '  v_chain := case\n    when false\n']],
   },
   noArmedRefusal: {
     want: 'SC-9',
     why: 'the armed branch stops refusing a carrier built in the other mode',
-    sql: [["  if p_shadow_state is not null and not v_cfg.shadow then\n    return jsonb_build_object('ok', false, 'error', 'shadow_state_while_armed');\n  end if;\n",
+    sql: [["  if p_shadow_state is not null and not v_shadow then\n    return jsonb_build_object('ok', false, 'error', 'shadow_state_while_armed',\n      'channel', p_channel);\n  end if;\n",
            '  -- mutant noArmedRefusal: the armed refusal removed\n']],
   },
   noClearOnPay: {
     want: 'SC-10',
     why: 'an armed payment leaves a stale carrier behind for the next shadow run to believe',
-    sql: [['       set shadow_accrued_to = null, shadow_state = null, updated_at = now()\n',
-           '       set shadow_accrued_to = null, updated_at = now()\n']],
+    sql: [['       set shadow_accrued_to = null, shadow_state = null, updated_at = now()\n     where user_id = p_user',
+           '       set shadow_accrued_to = null, updated_at = now()\n     where user_id = p_user']],
   },
   armedPaysOverlay: {
     want: 'SC-11b',
@@ -456,7 +468,11 @@ const MUTANTS = {
   },
 };
 
-const patchesFor = (m) => (m.sql ? new Map([[MIG, m.sql]]) : undefined);
+/* The SQL mutants patch hr_tick_settle's CHAIN-END definition. It was restated
+   by 2026-10-06-world-tick-channel-arm.sql (per-channel mode); a patch to the
+   09-23 text would be overwritten by that later file and prove nothing. */
+const CHAIN_END = '2026-10-06-world-tick-channel-arm.sql';
+const patchesFor = (m) => (m.sql ? new Map([[CHAIN_END, m.sql]]) : undefined);
 const tickFor = (m) => {
   if (!m.tick) return undefined;
   let out = TICK_FILE;

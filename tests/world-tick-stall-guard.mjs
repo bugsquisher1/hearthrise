@@ -19,7 +19,7 @@
 //           inventory and the four bodies are unchanged). Since 2026-09-28 that
 //           is 2026-09-28-tick-harvest-off-rpc-surface.sql for the note, the
 //           summary and the harvest (the latter two now in the non-exposed
-//           schema hr_ops, T-5 Q-1) and the observability file for the stall
+//           schema hr_ops, T-5 Q-1) and, since 2026-10-06, 2026-10-06-world-tick-channel-arm.sql for the stall
 //           status. Re-applying the SUPERSEDED observability file would put the
 //           public bridge back and test that instead of the chain end.
 //   G1      a planted HEALTHY two hours reads ok
@@ -48,7 +48,9 @@ import { bootReplay, inventory, ROOT } from './schema-replay.mjs';
 
 const SELFTEST = process.argv.includes('--selftest');
 const MIG = '2026-09-28-tick-harvest-off-rpc-surface.sql';
-const OBS = '2026-09-28-world-tick-stall-observability.sql';
+// The stall status was restated by 2026-10-06-world-tick-channel-arm.sql (judged
+// while nothing is armed, per-channel config), which is its chain-end file now.
+const OBS = '2026-10-06-world-tick-channel-arm.sql';
 const read = async (f) => (await readFile(join(ROOT, 'supabase', 'migrations', f), 'utf8')).replace(/\r\n/g, '\n');
 const MIG_SQL = await read(MIG);
 const OBS_SQL = await read(OBS);
@@ -86,7 +88,7 @@ const bodies = async () => (await db.query(
 
 // ── THE PLANTED HISTORIES ───────────────────────────────────────────────────
 await db.exec(`insert into auth.users (id) values ('${U}') on conflict do nothing;`);
-await db.exec('update public.hr_tick_config set enabled = true, shadow = true where id;');
+await db.exec('update public.hr_tick_config set enabled = true, armed_channels = array[]::text[] where id;');
 
 /** Two hours of fires ending at `at`, one per 10 s, each rostering `rostered`. */
 async function plantFires(at, rostered, reason) {

@@ -19,6 +19,10 @@
 // and the replay tool keep ONE copy (AWAY-12). No `?v=` (not under src/**).
 // ============================================================================
 
+/* The two vigour counter keys, from the module that owns them, so the row the
+   engine files and the row this file sums cannot be two spellings. */
+import { VIGOUR_PROGRESS_KEY, VIGOUR_REMAINDER_KEY } from '../../../src/core/hunt.js';
+
 /* ── RULE 1: TICK-ALIGNED WINDOWS ───────────────────────────────────────────
    `simulateSpan` (src/core/combat-sim.js) budgets a segment as
    `seg.ms * rate + carryMs`, takes `floor(budget / tickMs)` ticks, and keeps the
@@ -276,14 +280,22 @@ export const MAX_SHADOW_BESTIARY_KEYS = 16;
    what the database would refuse to store. 16 KiB against a measured ~700 B. */
 export const MAX_SHADOW_STATE_BYTES = 16384;
 
-/* The two counters the engine files as `progress` ops, read back off that list.
+/* The counters the engine files as `progress` ops, read back off that list.
    `stat:deaths` under period '' is lifetime and under a UTC day key is today's;
-   `daily:ev:vigour_min` is the hunt's charge. Summing the engine's own ops is
-   not arithmetic of our own — it is the same number, read where it was put. */
+   `daily:ev:vigour_min` + `daily:ev:vigour_rem_ms` are the hunt's charge — ONE
+   number in two rows (src/core/hunt.js vigourCharge). Summing the engine's own
+   ops is not arithmetic of our own — it is the same number, read where it was put.
+
+   ⚠ THE REMAINDER IS RETURNED TOO (2026-10-05). It used to be dropped, and a
+     10 s window charges `addMin = 0, remMs = 10000` — so a chain of ticks never
+     charged its own budget at all, and a character crossing the Vigour line
+     mid-chain kept paying full rate: +269% gold against the one-span accrue on a
+     replay that starts 20 minutes under the line (tests/world-tick-vigour-scale.mjs). */
 export function countersFromProgress(progress) {
   let deathsLifetime = 0;
   let deathsToday = 0;
   let vigourMin = 0;
+  let vigourRemMs = 0;
   for (const op of progress || []) {
     if (!op) continue;
     const add = Math.floor(Number(op.add) || 0);
@@ -293,9 +305,23 @@ export function countersFromProgress(progress) {
       else deathsToday += add;
       continue;
     }
-    if (op.kind === 'daily' && op.key === 'ev:vigour_min') vigourMin += add;
+    if (op.kind === 'daily' && op.key === VIGOUR_PROGRESS_KEY) vigourMin += add;
+    if (op.kind === 'daily' && op.key === VIGOUR_REMAINDER_KEY) vigourRemMs += add;
   }
-  return { deathsLifetime, deathsToday, vigourMin };
+  return { deathsLifetime, deathsToday, vigourMin, vigourRemMs };
+}
+
+/* THE CHAIN'S SPENT MINUTES, as `hr_vigour_of` would read them back after the
+   chain's own charges: `floor((minutes x 60000 + remainder) / 60000)`, the ONE
+   division the read does. `baseSpentMin` is the envelope's `spent_min`; the
+   day's pre-chain sub-minute remainder is not projected, so it is taken as 0 —
+   the chain crosses each minute up to 59.999 s late, a bound that does not grow
+   with the cadence (which is the property the floor-per-window charge broke). */
+export function chainSpentMin(baseSpentMin, chainMin, chainRemMs) {
+  const base = Math.max(0, Math.floor(Number(baseSpentMin) || 0));
+  const min = Math.max(0, Math.floor(Number(chainMin) || 0));
+  const rem = Math.max(0, Math.floor(Number(chainRemMs) || 0));
+  return base + min + Math.floor(rem / 60000);
 }
 
 /* BYTES, NOT UTF-16 CODE UNITS (Security S-4, 2026-09-23). The column's CHECK
@@ -356,6 +382,9 @@ export function shadowStateOf(char, opts) {
   if (chain.deathsToday) st.deaths_today = Math.floor(chain.deathsToday);
   if (chain.deathsLifetime) st.deaths_lifetime = Math.floor(chain.deathsLifetime);
   if (chain.vigourMin) st.vigour_spent_min = Math.floor(chain.vigourMin);
+  /* The remainder row's cumulative ms. Without it the carrier re-floors the
+     charge at every fire and the shadow never spends its budget (2026-10-05). */
+  if (chain.vigourRemMs) st.vigour_rem_ms = Math.floor(chain.vigourRemMs);
 
   /* Nothing moved — no window settled. Sending `{v:1}` would chain an empty
      proposal and look like a carrier that works; null is the honest answer. */
@@ -420,9 +449,14 @@ export function applyShadowState(session, state) {
      `{budget_min, spent_min, …}` and only `spent_min` is a counter a settle
      moves. A session with no vigour block has a database without the column
      and must keep reading that way. */
-  if (st.vigour_spent_min && s.vigour && typeof s.vigour === 'object') {
-    s.vigour = Object.assign({}, s.vigour,
-      { spent_min: (Number(s.vigour.spent_min) || 0) + st.vigour_spent_min });
+  if ((st.vigour_spent_min || st.vigour_rem_ms) && s.vigour && typeof s.vigour === 'object') {
+    /* `_vigourBaseMin` is the envelope's own spent_min, kept as scratch so
+       advance() re-derives from the same base rather than adding onto a
+       number that already holds the chain (tick-shadow.js advance). */
+    s._vigourBaseMin = Math.max(0, Math.floor(Number(s.vigour.spent_min) || 0));
+    s.vigour = Object.assign({}, s.vigour, {
+      spent_min: chainSpentMin(s._vigourBaseMin, st.vigour_spent_min, st.vigour_rem_ms),
+    });
   }
 
   /* ── THE ACCUMULATOR IS SEEDED, NOT RESTARTED ───────────────────────────
@@ -448,6 +482,7 @@ export function applyShadowState(session, state) {
     deathsToday: Number(st.deaths_today) || 0,
     deathsLifetime: Number(st.deaths_lifetime) || 0,
     vigourMin: Number(st.vigour_spent_min) || 0,
+    vigourRemMs: Number(st.vigour_rem_ms) || 0,
     activity: st.activity || null,
   };
   return s;

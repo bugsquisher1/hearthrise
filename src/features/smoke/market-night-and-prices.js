@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 76 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, withCap, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, awaySpan, awayGatherSpan, awayArtisanSpan, applyAwayEnvelope, xpOf, predZero, goldOf, snapshotG, setAway, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, nightWorld, retreatFixture, retreatReload, withLiveLine, restoreBankCap, hfPoll, on, snapshot, decideRestore } from './_harness.js?v=560';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, withCap, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, awaySpan, awayGatherSpan, awayArtisanSpan, applyAwayEnvelope, xpOf, predZero, goldOf, snapshotG, setAway, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, nightWorld, retreatFixture, retreatReload, withLiveLine, restoreBankCap, hfPoll, on, snapshot, decideRestore, serverBagFixture } from './_harness.js?v=561';
 
 export default [
 
@@ -38,6 +38,7 @@ export default [
         state: { gold, gems, active_kind: 'idle', active_id: null, accrued_to: null },
         skills, inventory: Object.assign({}, G.inventory) };
     };
+    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       A.setServerAccrualEnabled(true);
       A.acknowledgeReplacement(true);
@@ -302,6 +303,7 @@ export default [
       restoreAccrualSwitch(wasOn);
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
+      bagHeld.restore();
     }
   }),
 
@@ -4193,7 +4195,7 @@ export default [
      ══════════════════════════════════════════════════════════════════════ */
 
   () => tryRunAsync('B343-1: every extracted price equals what the LIVE shop tables charge', async () => {
-    const S = await import('../../data/shops.js?v=560');
+    const S = await import('../../data/shops.js?v=561');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — an empty or tiny '
       + 'catalogue would make every assertion below vacuous');
@@ -4739,6 +4741,7 @@ export default [
        element would be a guard asserting nothing. */
     const parked = Array.from(document.querySelectorAll('.ftue-root'))
       .map((el) => ({ el, prev: el.style.display }));
+    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       parked.forEach((p) => { p.el.style.display = 'none'; });
       const toasts = [];
@@ -4868,6 +4871,7 @@ export default [
       if (prevDaily) G.dailyReward = prevDaily;
       G.gold = prevGold;
       try { if (typeof window.updateTopbar === 'function') window.updateTopbar(); } catch (e) {}
+      bagHeld.restore();
     }
   }),
 
@@ -5227,6 +5231,7 @@ export default [
     const saved = { inv: JSON.parse(JSON.stringify(G.inventory || {})), bank: JSON.parse(JSON.stringify(G.bank || {})),
       gems: G.gems, gold: G.gold, cap: G._bankCap, filter: JSON.parse(JSON.stringify(window._invFilter || {})) };
     const prevTab = window.activeTab;
+    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       window._invFilter = { category: 'all', search: '' };
       /* The fixture must hold at least one WEAPON, because the filtered half of
@@ -5321,6 +5326,7 @@ export default [
       restoreBankCap(saved.cap);
       window._invFilter = saved.filter;
       try { window._renderInvFancy(); window.showTab(prevTab || 'profile'); } catch (e) {}
+      bagHeld.restore();
     }
   }),
 
@@ -5793,7 +5799,7 @@ export default [
 
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
-    const S = await import('../../data/shops.js?v=560');
+    const S = await import('../../data/shops.js?v=561');
     const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
     assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
       'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '

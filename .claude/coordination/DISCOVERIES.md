@@ -50,6 +50,29 @@ Out of this lane (Game Designer ruling 2026-10-03, the `#ab-meta` overflow items
 | R2c | `compactNumber` prints "1000K" for 999,500-999,999 (and "1000M" under 1B): roll over to "1M"/"1B" + a test that fails on "1000K" | Systems Engineer (one line; lands with R1/R2 to avoid a conflict on the formatter) |
 | R3 | `short` XP chip: skill atlas glyph instead of "STR", title/aria "Strength 72 · 1,228,825 XP to go", three letters fail-safe | Art Director |
 | R5 | SELL ALL sells the server-confirmed stack, "Sell All 37 · 74g", disabled "Sell All · counting…" while unconfirmed | Systems Engineer (needs the server stack seam) + Art Director (button) |
+## 2026-10-03 · qa-engineer · the stated server bag leaked across the in-page suite (snapshotG + per-test check)
+
+`G._serverBag` (+ the two stamps `reconcileInventory` writes with it, `_bagFromServerAt`, `_startKitHintAt`)
+was off `snapshotG`, so a test that stated a bag left it for every later test. `lane/b562-serverbag-snapshot`
+puts the triple on the list (guard M10a-c, in-page SNAP-BAG-1). That covers only the tests that snapshot: a
+test that applied an inventory envelope through production WITHOUT restoreG still leaked, and
+`serverBagFixture().restore()` put back `_serverBag` alone. Security GO-WITH-CHANGES on da4e7b38 named nine;
+the per-test check names sixteen (WAVE2 only while the fixture restored the bag alone). Now: the fixture
+restores all three (SNAP-BAG-2), the sixteen hold and
+restore the triple, and `runSmokeTest` compares the triple around EVERY test (overlayResidue's shape), fails
+the test that moved it by name and puts it back. Mutation: one restore removed → that test red by name.
+
+| # | Test | Alone / in order | Class / priority | Disposition |
+|---|---|---|---|---|
+| 1 | DGN-SETTLE-3 | red "armed: the run must be accepted" — passed in order only on a leaked bag | P2 suite order-dependence | fixed: `serverBagFixture().agree()` (both lanes; set/b562's hunk kept) |
+| 2 | DGN-COOLDOWN-1 | red `{pending:true,"counting your keys"}` — same | P2 | fixed: same |
+| 3 | B353-3b | red "topbar stayed in the pending state after the balance came back" — NOT the bag (gold/gems record) | P2 order-dependence, another unrestored field | open → systems-engineer (balance/record owner) |
+| 4 | b269 bank space, b166 daily login, b337 REPLACES, ACT-1/3/4, B354-1/2/3/4, claim regression (top bar), goal-claim regression, B355-1/2/3, B354-10/11/12/13, B345-2, b348 bag space, EQUIP-GESTURE, EQUIP-ASSERT-1, WAVE2 upgradeRoom | moved `_serverBag` + `_bagFromServerAt` for the next test (runner check, 627-test envelope slice) | P2 suite order-dependence | fixed: `serverBagFixture()` held + `restore()` in the finally (WAVE2 via the fixture fix) |
+| 5 | b305 cloud snapshot | red "persistent progress key MUST be uploaded: gold" in the 713-test envelope slice, identically on set/b562 (green in full order) | P3 filtered-order dependence (an earlier test leaves `G.gold` unset) | open → qa-engineer |
+| 6 | RETREAT-A4c | leaves `#hr-hf-veil` open in the same slice, identically on set/b562 | P3 filtered-order dependence (overlay) | open → qa-engineer |
+
+Required action: a test that wants a gate SENT states the server bag (`serverBagFixture`); a test that applies
+an envelope holds `serverBagFixture()` and restores it. The runner names any test that does neither.
 
 ## 2026-10-03 · QA · b562 exploratory rerun (toast storm, reload mid-run, double-clicks) on b560
 

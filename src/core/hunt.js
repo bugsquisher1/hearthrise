@@ -394,8 +394,14 @@ export function vigourMult(o) {
  */
 export function vigourScale(raw, mult, rng) {
   const r = Math.max(0, Math.floor(Number(raw) || 0));
-  const m = Number(mult);
-  if (!(m >= 0) || m >= 1) return r;
+  /* FAIL CLOSED (SEC_WORLD_TICK_VIGOUR_2026-10-05, LOW): a multiplier that is
+     not a finite Number — NaN, undefined, null, a string, ±Infinity — pays 0, the old floor's
+     answer, never the rested `r`. A finite one is clamped into [0, 1]: below 0
+     pays 0, at or above 1 pays exactly `r`. */
+  const n = typeof mult === 'number' ? mult : NaN;
+  if (!Number.isFinite(n)) return 0;
+  const m = Math.min(1, Math.max(0, n));
+  if (m === 1) return r;
   const x = r * m;
   const lo = Math.floor(x);
   if (x === lo) return lo;

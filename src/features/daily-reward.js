@@ -514,19 +514,15 @@
        retention pillar should front-door a player at that moment is the
        Designer's call, not a bug fix's. Filed as a handoff.
        ══════════════════════════════════════════════════════════════════════ */
+    /* ESCAPE IS THE ONE SEAM'S (src/render/modal-sheet.js), not this sheet's.
+       The × carries `data-hr-dismiss`, so Escape presses it only while this is
+       the TOP open sheet and lands in dismiss() below. The private capture
+       listener this replaced answered Escape whenever the node was connected —
+       hidden or covered too — and preventDefault() then stopped the seam from
+       closing the sheet actually on top (the reachability guard's spoils and
+       welcome sheets stayed up behind a hidden daily sheet). */
     function close() {
-      document.removeEventListener('keydown', onKey, true);
       scrim.remove();
-    }
-    function onKey(e) {
-      /* SELF-EVICTING. `close()` unhooks this, but the sheet can also be torn
-         out by anything that removes #hr-dl-modal (the suite does; so would a
-         future "close every overlay" sweep), and a document-level keydown that
-         outlives its own modal is a listener that fires forever — here it
-         would toast "your reward is waiting" on every Escape press for the
-         rest of the session. */
-      if (!scrim.isConnected) { document.removeEventListener('keydown', onKey, true); return; }
-      if (e.key === 'Escape' || e.key === 'Esc') { e.preventDefault(); dismiss(); }
     }
     function dismiss() {
       close();
@@ -550,7 +546,6 @@
       }
       dismiss();
     });
-    document.addEventListener('keydown', onKey, true);
     document.body.appendChild(scrim);
     /* The claim button takes focus, so the FIRST Enter or Space a keyboard
        player presses claims the reward instead of reaching nothing. */

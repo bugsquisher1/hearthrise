@@ -838,6 +838,13 @@ const SEED = () => {
    the hit test and the guard says nothing useful about layout. */
 const KILL_OVERLAYS = (keepBanner) => {
   try { if (window.G) { window.G.ftueDone = true; window.G.ftueStep = 99; } } catch (e) {}
+  /* PARK THE DAILY AUTO-OPEN, as the in-page suite does (smoke-test.js). It
+     polls for a quiet moment every 1.2s, and a quiet moment is exactly the gap
+     between two sheet probes: on a loaded runner it landed there, VISIBLE, over
+     welcome-back / What's New, and the Escape that closed IT read as the probed
+     sheet ignoring Escape. Hiding it below is not enough on its own —
+     it can mount after this sweep. The Home claim CTA does not need the sheet. */
+  try { const D = window.HearthriseDaily; if (D && D.__setAutoOpenEnabled) D.__setAutoOpenEnabled(false); } catch (e) {}
   window.__hrKeepDesktopBanner = !!keepBanner;
   const kill = () => {
     /* On the ORDINARY passes the desktop-mode banner is a HARNESS ARTIFACT and

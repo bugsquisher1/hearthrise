@@ -186,7 +186,7 @@ const MUTATIONS = {
         + 'create table if not exists public.hr_client_write_baseline (',
   },
   detector_still_narrow: {
-    migration: '2026-09-28-grant-hygiene-hr-ops.sql',
+    migration: '2026-10-06-world-tick-parity-probe.sql',
     why: 'C3 — check (4) goes back to TRUNCATE/REFERENCES/TRIGGER only, so a client write grant on '
        + 'a table with RLS on and no write policy is invisible again',
     /* Anchored on the BASELINE JOIN inside the LIVE detector body (the last

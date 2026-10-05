@@ -9712,7 +9712,8 @@ function applyLoadout(idx){
   _p.then(function(v){
     const o = v && v.outcome;
     if(o==='equipped'||o==='replayed'||o==='switch-off'||o==='unconfigured') notify(_said, _skipped.length?'info':'levelup');   // landed, or a dark build whose local kit stands
-    /* any other outcome was already said (refusal) or is still pending (unanswered) — never a ✓ */
+    else if(!o||o==='timeout'||o==='unreachable'||o==='malformed'||o==='undeliverable') notify('The realm did not answer — your loadout settles on the next sync.', 'kill');   // never a silent tap; never a ✓ it did not give
+    /* a refusal (incl. 429) was already said by equipVerdictOutcome */
   });
 }
 /* b373: both of these asked with a native dialog. The loadout is re-read from

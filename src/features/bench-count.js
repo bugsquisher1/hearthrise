@@ -29,21 +29,27 @@ export function isCounting(skillId, id) {
   return !!m && m.skill === skillId && m.id === id;
 }
 
-/** The answer to a switch that was sent because the last bag was short. */
+/** The answer to a switch that was sent because the last bag was short.
+ *  ONLY an answered switch whose collect still cannot fund the recipe stops the
+ *  run: every other outcome is the server deciding (a refusal's reconcile has
+ *  already moved the pointer if it disagreed) or not having decided yet — and a
+ *  client stop there would declare idle over a switch that may have landed. */
 function finish(mark, skillId, r, v) {
   if (W._benchCounting !== mark) return;                  // a newer gesture owns the pointer
+  /* COALESCED behind an in-flight switch: nothing was sent yet. Wait for the
+     declaration that actually goes out (activity.js `settled`), still Counting… */
+  if (v && v.outcome === 'queued' && v.settled && typeof v.settled.then === 'function') {
+    v.settled.then((v2) => finish(mark, skillId, r, v2), () => finish(mark, skillId, r, null));
+    return;
+  }
   W._benchCounting = null;
   const G = W.G;
   if (G.activeSkill !== skillId || G.skillTargetId !== r.id) { repaint(skillId); return; }   // the server's reconcile moved it
   const answered = !!v && (v.outcome === 'switched' || v.outcome === 'replayed');
-  const unsent = !!v && (v.outcome === 'unconfigured' || v.outcome === 'undeclarable');   // no realm to count it: the pre-gate local run
   const ig = gateInputs(G, inputsOf(r));
-  if ((answered && ig.ok) || unsent) { W._armArtisanTimers(G.skillMs); repaint(skillId); return; }
+  if (!(answered && ig.short.length)) { W._armArtisanTimers(G.skillMs); repaint(skillId); return; }   // funded, unstated, refused-to-this-pointer, unanswered, 429/5xx: the server's pointer stands
   if (typeof W.stopSkill === 'function') W.stopSkill();
-  if (v && v.outcome === 'refused') return;                // the refusal is the server's own message
-  say(answered && !ig.counting.length
-    ? 'Need: ' + ig.short.map((id) => nameOf(id) + ' x' + ig.inputs[id] + ' (the realm counts ' + (gateItemCount(G, id) || 0) + ')').join(', ')
-    : 'Your bag is still being counted — try again in a moment', 'kill');
+  say('Need: ' + ig.short.map((id) => nameOf(id) + ' x' + ig.inputs[id] + ' (the realm counts ' + (gateItemCount(G, id) || 0) + ')').join(', '), 'kill');
 }
 
 /**

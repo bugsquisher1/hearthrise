@@ -1400,20 +1400,108 @@ export default [
     }
   }),
 
+  /* regression suite — §6: THE CLIENT NEVER REFUSES WHAT THE SERVER WOULD ACCEPT.
+     A short-bag switch answered by anything but "switched, and still short" is the
+     server deciding or not having decided: the bench must not stop (stopSkill
+     declares idle over a switch that may have landed). Three reproduced cases:
+     (a) the switch was COALESCED behind an in-flight gather, (b) unreachable,
+     (c) 429. MUTATION: restore finish()'s "everything else stops" → all three red. */
+  () => tryRunAsync('CRAFT-SRV-BAG-2: a short-bag bench switch that is queued, unanswered or rate-limited waits for the server — never a client stop to idle', async () => {
+    if (typeof window.startArtisan !== 'function') { skip('no artisan bench'); return; }
+    const G = window.G, M = window.HearthriseActivity, A = window.HearthriseAccrual, inputsOf = window.HearthriseCore.artisan.recipeInputs;
+    const snap = snapshotG(), bag = serverBagFixture(), realFetch = window.fetch, realNotify = window.notify;
+    const wasOn = A.isServerAccrualEnabled(), wasAck = A.isReplacementAcknowledged();
+    const said = [], sent = []; let mode = 'ok', answerBag = {}, hold = null;
+    const r = (window.ARTISAN_RECIPES.smithing || []).find((x) => x.req <= 1 && !x.gated && Object.keys(inputsOf(x)).length);
+    const tree = (window.TREES || []).find((t) => t.id === 'normal_tree') || (window.TREES || [])[0];
+    const settle = async () => { for (let i = 0; i < 6; i++) await drain(); };
+    const stop = async () => { try { window.stopSkill(); } catch (e) {} await settle(); };
+    const reply = (act) => new Response(JSON.stringify({ ok: true, verb: 'set_activity', version: A.getAppliedFrame() + 1000 + sent.length, now: null,
+      activity: act, state: { active_kind: act.kind, active_id: act.id },
+      skills: Object.keys(G.skills || {}).reduce((o, k) => { o[k] = { xp: G.skills[k] }; return o; }, {}),
+      inventory: Object.assign({}, answerBag) }), { status: 200 });
+    const stopped = () => sent.some((a) => a.kind === 'idle') || said.some((m) => /still being counted|^Need: /.test(m));
+    try {
+      assert(r && tree, 'setup: no ungated level-1 smithing recipe / tree for the probe');
+      const feed = Object.assign({}, inputsOf(r));
+      window.notify = (m) => { said.push(String(m)); };
+      window.fetch = function (u, init) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        let b = null; try { b = JSON.parse(init && init.body); } catch (e) {}
+        if (!b || b.verb !== 'set_activity') return Promise.resolve(new Response('{"ok":false,"error":"rate_limited"}', { status: 429 }));
+        const act = b.activity || { kind: 'idle', id: null }; sent.push(act);
+        if (mode === 'unreachable' && act.kind === 'artisan') return Promise.reject(new TypeError('Failed to fetch'));
+        if (mode === 'limited' && act.kind === 'artisan') return Promise.resolve(new Response('{"ok":false,"error":"rate_limited"}', { status: 429 }));
+        if (mode === 'held' && act.kind === 'gather') return new Promise((res) => { hold = () => res(reply(act)); });
+        return Promise.resolve(reply(act));
+      };
+      armActivityTransport(); A.acknowledgeReplacement(true);
+      G.skills = Object.assign({}, G.skills, { smithing: 100000 });
+      G.inventory = Object.assign({}, G.inventory, feed);
+      stampRecordLikeLoad(G);
+      const begin = async (m) => { await stop(); mode = m; said.length = 0; sent.length = 0; hold = null; bag.agree({}); answerBag = feed; };
+
+      // (a) QUEUED: the gather's switch is still in flight when the smelt is tapped.
+      await begin('held');
+      window.declareActivity('gather', tree.id); await drain();
+      assert(typeof hold === 'function', '(a) setup: the gather switch was not held in flight: ' + JSON.stringify(sent));
+      G.inventory = Object.assign({}, G.inventory, feed);
+      window.startArtisan('smithing', r.id);
+      assert(window.HearthriseBenchCount.isCounting('smithing', r.id), '(a) setup: the short last bag did not paint Counting…');
+      await settle();
+      assert(!stopped(), '(a) THE BUG: a QUEUED switch was read as a shortfall — stopped/declared idle: sent ' + JSON.stringify(sent) + ', said ' + JSON.stringify(said));
+      hold(); await settle();
+      assert(sent.some((a) => a.kind === 'artisan' && a.id === r.id), '(a) the queued smelt switch was never sent: ' + JSON.stringify(sent));
+      assert(!stopped(), '(a) stopped after the queued switch went out: sent ' + JSON.stringify(sent) + ', said ' + JSON.stringify(said));
+      assert(G.skillTargetId === r.id && !!window._artisanInterval && !window.HearthriseBenchCount.isCounting('smithing', r.id),
+        '(a) the bench did not arm on the queued switch\'s funded envelope (pointer ' + G.activeSkill + '/' + G.skillTargetId + ')');
+
+      // (b) UNREACHABLE (both tries): the switch may have landed — the run stands, nothing evicted.
+      await begin('unreachable');
+      window.startArtisan('smithing', r.id); await settle();
+      assert(!stopped(), '(b) an UNANSWERED switch stopped the run / declared idle: sent ' + JSON.stringify(sent) + ', said ' + JSON.stringify(said));
+      assert(G.skillTargetId === r.id && !!window._artisanInterval, '(b) the run did not stand on an unanswered switch (pointer ' + G.skillTargetId + ')');
+
+      // (c) 429 on a session the server has never told a pointer: a rate limit is not the server saying "short".
+      await begin('limited'); M.resetActivity();
+      window.startArtisan('smithing', r.id); await settle();
+      assert(!stopped(), '(c) a RATE-LIMITED switch stopped the run / declared idle: sent ' + JSON.stringify(sent) + ', said ' + JSON.stringify(said));
+      assert(G.skillTargetId === r.id && !!window._artisanInterval, '(c) the run did not stand on a 429 (pointer ' + G.skillTargetId + ')');
+
+      // (d) 429 when the server's last word was idle: activity.js reconciles to THAT word — the bench adds no stop of its own.
+      await begin('limited');
+      window.startArtisan('smithing', r.id); await settle();
+      assert(!stopped(), '(d) the bench declared its own idle over a 429: sent ' + JSON.stringify(sent) + ', said ' + JSON.stringify(said));
+      assert(!window.HearthriseBenchCount.isCounting('smithing', r.id) && G.skillTargetId === null && !window._artisanInterval,
+        '(d) the pointer did not follow the server\'s last word (idle) after a 429 (pointer ' + G.activeSkill + '/' + G.skillTargetId + ')');
+    } finally {
+      mode = 'ok'; if (typeof hold === 'function') hold();
+      window.notify = realNotify;
+      try { window.stopSkill(); } catch (e) {}
+      window._benchCounting = null; await settle();
+      window.fetch = realFetch; A.acknowledgeReplacement(wasAck);
+      restoreAccrualSwitch(wasOn); M.resetActivity(); M.configureActivity(null);
+      bag.restore(); restoreGAndRecord(snap); closeOverlays();
+    }
+  }),
+
   /* regression suite — stopSkill strips `.active` in place; the render key kept
      naming the stopped run, so restarting the SAME recipe took lightUpdate and no
      tile read Active. MUTATION: drop the activeKey reset in stopSkill → red. */
   () => tryRun('B562-STALE-TILE: stopping a bench and restarting the SAME recipe paints its tile Active again', () => {
     if (typeof window.startArtisan !== 'function' || !window.HearthriseArtisanCat) { skip('no artisan bench'); return; }
     const G = window.G, inputsOf = window.HearthriseCore.artisan.recipeInputs;
-    const snap = snapshotG(), bag = serverBagFixture(), realDeclare = window.declareActivity, prevTab = window.activeTab;
+    const snap = snapshotG(), bag = serverBagFixture(), realDeclare = window.declareActivity, prevTab = window.activeTab, prevViewed = window.__viewedSkillId;
     try {
       window.declareActivity = () => null;   // the paint is the subject, not the wire
       const r = window.HearthriseArtisanCat.recipesFor('smithing').find((x) => x.req <= 1 && !x.gated && Object.keys(inputsOf(x)).length);
       assert(r, 'no visible level-1 smithing recipe to start');
       G.skills = Object.assign({}, G.skills, { smithing: 100000 });
       G.inventory = Object.assign({}, G.inventory, inputsOf(r)); bag.agree(); stampRecordLikeLoad(G);
-      window.showTab('skills'); window.renderSkillDetail('smithing');
+      /* OPENED THE WAY A PLAYER OPENS IT: the running-out-of-materials test leaves
+         __viewedSkillId on another skill, and a bare renderSkillDetail then skips
+         the active-skill repaint — red in suite order, green alone. */
+      window.showTab('skills'); window.openSkillDetail('smithing');
       const active = () => document.querySelector('#skill-detail .act-tile.active');
       window.startArtisan('smithing', r.id);
       assert(active(), 'setup: the first start painted no Active tile');
@@ -1425,6 +1513,7 @@ export default [
       window.declareActivity = realDeclare;
       try { window.stopSkill(); } catch (e) {}
       bag.restore(); restoreGAndRecord(snap);
+      window.__viewedSkillId = prevViewed;
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
     }
   }),

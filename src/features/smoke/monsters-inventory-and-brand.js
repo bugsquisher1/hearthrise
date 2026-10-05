@@ -4555,6 +4555,16 @@ export default [
       window.applyLoadout(0); await settle();
       assert(!said.some((m) => /Applied loadout/.test(m)), '(c) "✓ Applied loadout" was said for a kit the server refused: ' + JSON.stringify(said));
       assert(eats[eats.length - 1] === 'cooked_shrimp', '(c) the kit did not choose the food it carries: ' + JSON.stringify(eats));
+
+      // (d) the retried equip is NEVER ANSWERED: the tap still gets an answer — the house failure line, never a ✓.
+      // MUTATION: drop the unanswered branch in applyLoadout's verdict → (d) red (the tap says nothing).
+      for (const o of ['timeout', 'unreachable']) {
+        answer = o;
+        wear({}, { bronze_sword: 1, bronze_helm: 1, cooked_shrimp: 5 }); bag.agree();
+        window.applyLoadout(0); await settle();
+        assert(!said.some((m) => /Applied loadout/.test(m)), '(d) "✓ Applied loadout" was said for an equip the server never answered (' + o + '): ' + JSON.stringify(said));
+        assert(said.some((m) => /^The realm did not answer/.test(m)), '(d) an unanswered (' + o + ') loadout tap got no answer at all: ' + JSON.stringify(said));
+      }
     } finally {
       window.notify = real.notify; window.routeEquipGesture = real.route;
       if (Auto) Auto.setEat = real.setEat;

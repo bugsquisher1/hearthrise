@@ -101,11 +101,11 @@
 --   without the functions (42883 → the probe step is skipped, the fire is not).
 --
 -- ── AFTER APPLYING ─────────────────────────────────────────────────────────
---   tests/live-hash-drift.mjs is red with THREE deliberate rows: replay
---   hr_assert_grant_hygiene(boolean) (link 16), replay-extra
---   hr_tick_probe_fetch(...) and hr_tick_probe_commit(...) (and the prune).
---   The Coordinator re-seeds with `--live --write` and writes the whys from
---   `--codediff`. restore-census: one new table, hr_tick_probe, classified
+--   tests/live-hash-drift.mjs is red with ONE deliberate row, measured on this
+--   branch (exit 1): `RED replay hr_assert_grant_hygiene(p_strict boolean)` —
+--   link 16. The three probe functions are not tracked names. The Coordinator
+--   re-seeds with `--live --write` and writes the why from `--codediff`;
+--   `touched_by` for the detector gains this filename. restore-census: one new table, hr_tick_probe, classified
 --   `operational` + `player_value_exempt` in this branch's baseline.
 -- ════════════════════════════════════════════════════════════════════════
 

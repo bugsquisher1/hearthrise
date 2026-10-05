@@ -193,13 +193,21 @@
   function rpcMissing(n) { var p = probe[n]; return !!(p && p.known === false && (Date.now() - p.at) < 600000); }
   function noteRpc(n, present) { probe[n] = { known: present, at: Date.now() }; }
 
+  /* A deadline across the fetch AND its body, below the tier-up latch's 20 s
+     hold (net/intent-latch.js DEFAULT_HOLD_MS): a lost answer frees the button. */
+  var RPC_TIMEOUT_MS = 15000;
   async function rpc(name, body) {
-    var res = await fetch(cfg().url + '/rest/v1/rpc/' + name, {
-      method: 'POST', headers: headers(), body: JSON.stringify(body || {})
-    });
-    var json = null;
-    try { json = await res.json(); } catch (e) { json = null; }
-    return { status: res.status, json: json };
+    var ctl = (typeof AbortController === 'function') ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctl) ctl.abort(); }, RPC_TIMEOUT_MS);
+    try {
+      var res = await fetch(cfg().url + '/rest/v1/rpc/' + name, {
+        method: 'POST', headers: headers(), body: JSON.stringify(body || {}),
+        signal: ctl ? ctl.signal : undefined
+      });
+      var json = null;
+      try { json = await res.json(); } catch (e) { json = null; }
+      return { status: res.status, json: json };
+    } finally { clearTimeout(timer); }
   }
   // Every clan-seat RPC answers the same {ok:boolean,…} envelope, so there is
   // one call helper and it returns the b222 reducer's verdict.
@@ -656,6 +664,11 @@
     return true;
   }
 
+  // The seat's value gestures share one page-wide latch; absent = fail closed.
+  function seatLatch() {
+    var L = window.HearthriseIntentLatch;
+    return (L && typeof L.namedLatch === 'function') ? L.namedLatch('clan-seat') : null;
+  }
   async function postOrder(building) {
     if (needServer()) return false;
     var to = level(building) + 1;
@@ -667,10 +680,18 @@
     renderIfOpen();
     return true;
   }
+  /* ONE SUPPLY IN FLIGHT PER ORDER, as tier-up: each call moves more onto the order (double-click =
+     two donations). No p_idem server-side yet (DISCOVERIES 2026-10-03), so a timed-out re-tap is fresh. */
   async function supplyOrder(orderId, items) {
     if (needServer()) return false;
-    var d = await call('clan_work_supply', { p_clan_id: clanId(), p_order: orderId, p_items: items },
-      function (o) { return { out: o }; });
+    var L = window.HearthriseIntentLatch, latch = seatLatch();
+    if (!latch) { toast('The Work Order cannot take materials right now — try again in a moment', 'kill'); return false; }
+    var cid = clanId();
+    var d = await latch.run('work_supply:' + cid + ':' + orderId, function () {
+      return call('clan_work_supply', { p_clan_id: cid, p_order: orderId, p_items: items },
+        function (o) { return { out: o }; });
+    });
+    if (L.isInFlightAnswer(d)) return false;   // the first tap answers for both
     if (d.action !== 'accept') { toast(d.message || C().errorText(d.error), 'kill'); return false; }
     if (d.out && d.out.phase === 'labour') {
       toast('The Work Order is fully supplied — construction begins. Every skill action now feeds it.', 'levelup');
@@ -693,6 +714,8 @@
     renderIfOpen();
     return true;
   }
+  /* ONE TIER-UP IN FLIGHT (net/intent-latch.js): clan_tier_up is castle_tier + 1
+     from shared stores, so a double-click raised the hold twice. */
   async function tierUp() {
     if (needServer()) return false;
     /* The tier bought is the SERVER's next one (clan_tier_up refuses a stale
@@ -700,8 +723,14 @@
     var s = seat();
     var cur = s ? Number(s.castle_tier) : NaN;
     if (!isFinite(cur) || cur < 0) { toast(C().errorText('missing_expect'), 'kill'); return false; }
-    var d = await call('clan_tier_up', { p_clan_id: clanId(), p_expect_tier: Math.floor(cur) + 1 },
-      function (o) { return { out: o }; });
+    var L = window.HearthriseIntentLatch, latch = seatLatch();
+    if (!latch) { toast('The hold cannot rise right now — try again in a moment', 'kill'); return false; }
+    var cid = clanId(), expectTier = Math.floor(cur) + 1;
+    var d = await latch.run('tier_up:' + cid, function () {
+      return call('clan_tier_up', { p_clan_id: cid, p_expect_tier: expectTier },
+        function (o) { return { out: o }; });
+    });
+    if (L.isInFlightAnswer(d)) return false;   // the first tap answers for both
     if (d.action !== 'accept') {
       toast(d.message || C().errorText(d.error), 'kill');
       if (d.error === 'stale_tier') { await readSeat(true); renderIfOpen(); }

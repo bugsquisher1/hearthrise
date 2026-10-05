@@ -15,6 +15,52 @@ C1/C2/C3 landed on `lane/b562-server-expected-level`. What the review listed and
 | 3 | `clan_upkeep_settle` (2026-08-08-clan-seat.sql:401) takes no lock and its treasury debit is unjournalled: N concurrent callers after a weekly boundary each read the stale row, and each `update ... treasury = treasury - v_gold_paid` re-evaluates on the committed row, so the clan is charged N times | body read 2026-10-03; clans not launched | P2 | backend-architect + security |
 | 4 | Lock-order deadlock: `clan_tier_up` locks `clans` then updates `clan_stores`; `clan_deposit__ungated` (2026-08-18-clan-deposit-ownership.sql) upserts `clan_stores` then updates `clans.standing`. Concurrent calls can raise 40P01 (one aborts, no corruption) | both bodies read 2026-10-03 | P3 | backend-architect + security |
 | 5 | `lane/b562-intent-latch` (758843cb) conflicts with this lane in `farm-sync.js` farmUpgradePlot, `farm-progression.js` upgrade `.then`, `clan-seat-ui.js` tierUp (+ this file). Merged result: the latch runs the call AND sends `p_expect_level`/`p_expect_tier` with the `missing_expect` early return; `.then` handles both in-flight silence and `stale_level`; tierUp keeps its stale_tier re-read | trial merge, aborted | P2 | systems-engineer (whichever lane merges second) |
+## 2026-10-03 · Systems · value verbs: which ones the SERVER makes idempotent (for the migration lane)
+
+The client latch (`src/net/intent-latch.js`, lane `b562-intent-latch`) holds a gesture for
+max(answer, send + 600 ms) and re-sends the SAME `p_idem` on a re-tap after an ambiguous answer
+(timeout / network / http / unreadable body). That only closes the double-buy if the server
+replays a key it has seen. Measured from the latest migration body of each verb:
+
+| Verb | Shape | Server replays `p_idem`? | Server-side need |
+|---|---|---|---|
+| `hr_farm_upgrade_plot` | RELATIVE (`plot_level + 1`) | yes (`hr_intent_replay`, per key+intent+slot) | none; the client latch was the hole |
+| `hr_farm_plant` / `_water` / `_harvest` | per-plot absolute (occupied / window / ready) | yes | none |
+| `hr_worker_hire` | materialise up to the PAID cap | yes (`player_intents`) | none |
+| `hr_unlock_buy worker_hire.N` | absolute rung (`already_owned` receipt) | yes | none |
+| `hr_bounty_spend` reroll | ESCALATING (5 + 5 × paid today) | yes (self-check asserts "replay same idem: no re-debit") | none |
+| `hr_vigour_refill` | spend | yes (client already reuses `_pendingIdem` on network) | none |
+| **`clan_tier_up`** | **RELATIVE (`castle_tier + 1`, shared stores)** | **NO `p_idem` parameter** | **add `p_idem` + replay; the client latch cannot cover a timeout retry** |
+| **`clan_work_supply`** | **RELATIVE (delivers `least(qty, need, has)` per call)** | **NO `p_idem`** | **add `p_idem` + replay; client latch BUILT (`clan-seat-ui.js supplyOrder`, INTENT-LATCH-11) closes the double-click, not the timeout retry** |
+| `hr_unlock_buy property.<tier>` (Upgrade Property) | RELATIVE in the client (next tier is read after the envelope advances) | yes (gold intent key) | client latch BUILT (`namedLatch('homestead')`, the latch idem rides the buy; INTENT-LATCH-7) |
+| `hr_unlock_buy bank.<k>` (bank gold expansion) | RELATIVE in the client (`bank.<goldBuys>` after the envelope) | yes | client latch BUILT, keyed `'bank'` not per offer (INTENT-LATCH-8) |
+| **`clan_deposit`** | **RELATIVE (each call deposits `qty` and debits it)** | **NO `p_idem`** (signature cannot carry one, 2026-08-18 header) | **migration lane: `p_idem` + replay; client latch NOT built (open → Systems)** |
+| **`clan_feast_deposit`** | **RELATIVE (each call lays `qty` food)** | **NO `p_idem`** | **gated by `CLAN_LAUNCHED`; add `p_idem` + a client latch before the launch flip (open → Systems + migration lane)** |
+| `clan_contribute` | RELATIVE (gold `p_amount` per call) | NO `p_idem` | refused client-side under the gold arm (`clans.js` contribute, b511) — unreachable; must get `p_idem` before it is re-armed (backend-architect) |
+| **`market_buy` (edge)** | **RELATIVE (`qty` from one listing per call, fresh key per press)** | yes per key | **client latch NOT built: a double-click on a listing with stock buys twice (open → Systems; Quartermaster-style row lock)** |
+| **`shop_buy` (edge, `screens/shop-counter.js`)** | **RELATIVE (one purchase per press, fresh key)** | yes per key | **client lock NOT built (QA 3b saw one intent on a synchronous double `click()`, not proven for a real dblclick with a fast answer) — apply the Quartermaster ruling (row lock until the answer) (open → Systems)** |
+| `hr_renown_claim` / gem unlocks / recipe scrolls | absolute (once per rank / unlock id) | server once-guard | none: a second press after a fast answer is an `already_*` receipt; booleans left as is |
+| `clan_feast_call` | absolute (cooldown after a feast) | no `p_idem` | none (server-bounded) |
+| `clan_board_claim` | absolute (`claimed_by` array, once per user) | no `p_idem` | none (server-bounded) |
+| `raid_strike` | absolute (`already_struck_today`) | no `p_idem` | none (server-bounded) |
+| `quartermaster_buy` (edge) | RELATIVE (one item per press, fresh key per press) | yes per key | client lock BUILT per the Game Designer ruling (no timer: the pressed row is disabled "Buying…" until its answer; INTENT-LATCH-12) |
+| `hr_farm_harvest` chain | harvest → settle → harvest (~45 s) | yes | the latch holds 50 s for this chain (INTENT-LATCH-10) |
+
+REQUIRED ACTION: the migration lane adds `p_idem uuid` + `hr_intent_replay` to `clan_tier_up`,
+`clan_work_supply` and `clan_deposit` (money-adjacent: Security GO). The client then passes the latch's
+`idem` (the `fire(idem)` argument) — `clan-seat-ui.js tierUp` and `supplyOrder` already run inside the
+latch. Every latch is registered and the in-page harness resets them all after every test
+(`HearthriseIntentLatch.__resetAll`, smoke-test.js); a new latch needs no teardown line.
+
+Out of this lane (Game Designer ruling 2026-10-03, the `#ab-meta` overflow items), routed, not built here:
+
+| # | Item | Owner |
+|---|---|---|
+| R1 | `compact` Lifetime chip → `compactNumber` form, full figure in the title | Art Director (ab-meta lane) |
+| R2 | `togo` then `streak` compaction steps while `#ab-meta` overflows; vigour / bounty / away verdict never compacted, no chip hidden | Art Director (ab-meta lane) |
+| R2c | `compactNumber` prints "1000K" for 999,500-999,999 (and "1000M" under 1B): roll over to "1M"/"1B" + a test that fails on "1000K" | Systems Engineer (one line; lands with R1/R2 to avoid a conflict on the formatter) |
+| R3 | `short` XP chip: skill atlas glyph instead of "STR", title/aria "Strength 72 · 1,228,825 XP to go", three letters fail-safe | Art Director |
+| R5 | SELL ALL sells the server-confirmed stack, "Sell All 37 · 74g", disabled "Sell All · counting…" while unconfirmed | Systems Engineer (needs the server stack seam) + Art Director (button) |
 ## 2026-10-03 · qa-engineer · the stated server bag leaked across the in-page suite (snapshotG + per-test check)
 
 `G._serverBag` (+ the two stamps `reconcileInventory` writes with it, `_bagFromServerAt`, `_startKitHintAt`)

@@ -215,6 +215,10 @@
       setGold: function(n){ if(window.G) window.G.gold = n; },
     };
     FS.farmUpgradePlot({ expectLevel: sv + 1 }).then(function(res){
+      /* A second tap while the first upgrade is on the wire sent NOTHING (the
+         farm-sync latch — the verb is relative, so a second intent would buy
+         the tier after this one). The first call answers for both: silence. */
+      if(window.HearthriseIntentLatch.isInFlightAnswer(res)) return;
       /* stale_level: the server already holds a higher tier (an earlier tap
          landed). Its CURRENT level rides the refusal — adopt it, say so, and
          charge nothing. */

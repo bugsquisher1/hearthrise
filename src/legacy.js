@@ -3690,19 +3690,17 @@ function buyBankSpaceGold(){
     /* CLIENT-AUTHORITATIVE (switch off): the local grant IS the expansion. */
     _debitBank(); _advanceBank(); _announceBank(); return true;
   }
-  /* SERVER-OWNED: the confirm envelope writes gold ABSOLUTELY; a refusal touched
-     nothing local. In-flight latch per offer against a double-tap. */
-  buyBankSpaceGold._inflight=buyBankSpaceGold._inflight||{};
-  if(buyBankSpaceGold._inflight[_boffer]) return false;
-  buyBankSpaceGold._inflight[_boffer]=true;
-  Promise.resolve(window.HearthriseGold.buyUnlock(_boffer,_bk)).then(function(v){
-    delete buyBankSpaceGold._inflight[_boffer];
+  /* SERVER-OWNED (a refusal touched nothing local). ONE BUY IN FLIGHT keyed 'bank', not per offer, held
+     answer + 600 ms (net/intent-latch.js): a per-offer boolean freed on a fast answer let the second press
+     of a double-click buy bank.<k+1>. The latch's key rides the buy, so a timed-out re-tap replays. */
+  var _bl=window.HearthriseIntentLatch&&typeof window.HearthriseIntentLatch.namedLatch==='function'?window.HearthriseIntentLatch.namedLatch('bank'):null;
+  if(!_bl||_bl.held('bank')) return false;
+  _bl.run('bank',function(idem){ return Promise.resolve(window.HearthriseGold.buyUnlock(_boffer,idem)); },{scope:_boffer}).then(function(v){
     var c=(typeof window.hrClassifyUnlock==='function')?window.hrClassifyUnlock(v)
       :{ok:!!(v&&(v.outcome==='applied'||v.outcome==='replayed')),owned:false,reason:(v&&v.reason)||'network'};
     if(c.ok){ _advanceBank(); if(c.owned){ if(typeof notify==='function')notify('That bank space is already yours.','info'); _renderBankModal(); } else _announceBank(); }
     else { if(typeof notify==='function')notify((typeof window.hrUnlockRefusalMessage==='function')?window.hrUnlockRefusalMessage(c,'that bank expansion'):'The realm couldn’t record that bank expansion — nothing was spent.','kill'); _renderBankModal(); }
   }).catch(function(){
-    delete buyBankSpaceGold._inflight[_boffer];
     if(typeof notify==='function')notify('The realm couldn’t record that bank expansion right now — nothing was spent. Try again in a moment.','kill');
   });
   return true;
@@ -4154,12 +4152,11 @@ function rerollBountyBoard(prepaid){
       if((G.marks||0)<cost){notify(`Need ${cost} Bounty Marks to reroll.`,'kill');return;}
       G.marks-=cost;G.bountyHunter.rerollsToday=(G.bountyHunter.rerollsToday||0)+1;
     } else {
-      /* ARMED: server owns marks. Affordability fail-closes on UNKNOWN via marksOf;
-         the real debit is hr_bounty_spend (server re-derives the cost). The local
-         write is display-only, reconciled by the next envelope. */
-      const MR=window.HearthriseMarks;
+      /* ARMED: the real debit is hr_bounty_spend (server prices it, one press per latch — goal-claim.js
+         bountyRerollOnce; a held press returns BEFORE any toast). Local writes are display-only. */
+      const MR=window.HearthriseMarks,GC=window.HearthriseGoalClaim;if(!GC||!GC.bountyRerollOnce||GC.bountyRerollHeld())return;
       if(MR&&!MR.canAffordMarks(G,cost)){notify(`Need ${cost} Bounty Marks to reroll.`,'kill');return;}
-      try{if(window.HearthriseGoalClaim&&HearthriseGoalClaim.bountyReroll){const _p=HearthriseGoalClaim.bountyReroll();if(_p&&_p.catch)_p.catch(()=>{});}}catch(e){}
+      const _p=GC.bountyRerollOnce();if(!_p)return;_p.catch(()=>{});
       G.bountyHunter.rerollsToday=(G.bountyHunter.rerollsToday||0)+1;
     }
   }

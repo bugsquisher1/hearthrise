@@ -181,6 +181,11 @@ async function boot({ mutate, upTo } = {}) {
 
   const accept = async (target, type, diff, required) => {
     await gate();
+    /* ONE CONTRACT AT A TIME (2026-10-04-bounty-abandon-server-fee.sql §2b):
+       the accept REFUSES over a held contract (bounty_active) instead of
+       replacing it. Each probe accept below is a fresh contract, so the
+       previous one is ended first, as a claim or abandon would. */
+    await q('delete from public.active_bounty where user_id = $1 and slot = 0', [uid]);
     return asUser(uid, 'select public.hr_accept_bounty(0,$1,$2,$3,$4,$5) as r',
       [`b_${target}_${diff}_${required}`, target, type, diff, required]);
   };

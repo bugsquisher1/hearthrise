@@ -3978,6 +3978,7 @@ function repaintBounty(){
 function acceptBounty(index){
   ensureBountyState();
   if(G.bountyHunter.active){notify('Finish or abandon your active bounty first.','kill');return;}
+  if(_hrBountyAbandonInFlight){notify('Abandoning your bounty, one moment.','info');return;}
   const b=G.bountyHunter.board[index];if(!b)return;
   G.bountyHunter.active=JSON.parse(JSON.stringify(b));
   /* Snapshot the proof-item count at accept time so only kills AFTER this count
@@ -4123,16 +4124,22 @@ window.hrAdoptAcceptedBounty=hrAdoptAcceptedBounty;
    is priced from active_bounty.marks_reward and the server's Bounty-Hunter level,
    and the client neither computes it nor gates the call on its own level. The
    abandon names the contract; the toast quotes the answer's `fee`, never a guess. */
+/* Abandon in flight: the server refuses an accept over a held contract (bounty_active), so accepts wait. */
+let _hrBountyAbandonInFlight=null;
 function abandonBounty(){
   if(!G.bountyHunter?.active)return;
   const b=G.bountyHunter.active;
   let p=null;
   try{const GC=window.HearthriseGoalClaim;if(GC&&GC.bountyAbandon)p=GC.bountyAbandon(b.id);}catch(e){}
   hrClearBountyRetry(b);
+  const pending=(p&&typeof p.then==='function')?p:null;
+  if(pending)_hrBountyAbandonInFlight=pending;
   G.bountyHunter.active=null;renderCombat();repaintBounty();saveLocal();
   const say=(res)=>{const fee=Math.floor(Number(res&&res.ok===true?res.fee:0))||0;
     notify(fee>0?`Bounty abandoned (-${fee} Marks)`:'Bounty abandoned',fee>0?'kill':'info');return res;};
-  return (p&&typeof p.then==='function')?p.then(say,()=>say(null)):Promise.resolve(say(null));
+  if(!pending)return Promise.resolve(say(null));
+  const done=()=>{if(_hrBountyAbandonInFlight===pending){_hrBountyAbandonInFlight=null;try{repaintBounty();}catch(e){}}};
+  return pending.then((res)=>{done();return say(res);},()=>{done();return say(null);});
 }
 /* @param prepaid — the caller has ALREADY charged for this refresh (the Bounty
    Shop's Reroll Token). It was passing `rerollBountyBoard(true)` into a function
@@ -4944,7 +4951,7 @@ function renderBountyPanel(){
         <p class="bb-task">${bountyLabel(b)}</p>
         <p class="bb-weak">Weak to ${WEAPON_TYPES[m?.weaponWeak]||'—'}${_hrDropBonusNote(m)}${window.HearthriseFoe?window.HearthriseFoe.elementSuffix(b.target):''}</p>
         <div class="bb-pay">${_gp(b.rewards.gold)}<span>${b.rewards.marks} Marks</span><span>${b.rewards.xp} BH XP</span></div>
-        <div class="bb-foot"><button class="btn btn-sm btn-primary" onclick="acceptBounty(${i})">Accept</button></div>
+        <div class="bb-foot"><button class="btn btn-sm btn-primary" onclick="acceptBounty(${i})"${_hrBountyAbandonInFlight?' disabled title="Abandoning your bounty"':''}>Accept</button></div>
       </article>`;
     }).join('');
   }

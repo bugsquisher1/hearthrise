@@ -327,6 +327,51 @@ export default [
     } finally { window.fetch = origFetch; window.notify = origNotify; unstub(); restoreG(snap); }
   }),
 
+  /* BOUNTY-ABANDON-2 (Security GO-WITH-CHANGES, 2026-10-04): the server now
+     REFUSES an accept over a held contract (bounty_active) instead of replacing
+     it — that replace was a fee-free abandon. So the board must not fire an
+     accept until the abandon's answer is back: the two are separate requests
+     and an accept that lands first would be refused, leaving a local contract
+     the server never took. Fails without the in-flight wait: the accept fires
+     while the abandon is still pending. */
+  () => tryRunAsync('BOUNTY-ABANDON-2: the board waits for the abandon answer before it allows an accept', async () => {
+    if (typeof window.abandonBounty !== 'function' || typeof window.acceptBounty !== 'function' || !window.HearthriseGoalClaim) return;
+    const snap = snapshotG();
+    const origFetch = window.fetch, origNotify = window.notify;
+    const unstub = stubSignedIn(0);
+    const calls = [];
+    let release = null;
+    try {
+      window.fetch = (url) => {
+        const u = String(url);
+        if (u.indexOf('/rpc/hr_bounty_spend') !== -1) {
+          calls.push('abandon');
+          return new Promise((res) => { release = () => res(new Response(JSON.stringify({ ok: true, reason: 'abandon', fee: 0, marks: 0, bounty_id: 'bx-ab2-old' }), { status: 200, headers: { 'Content-Type': 'application/json' } })); });
+        }
+        if (u.indexOf('/rpc/hr_accept_bounty') !== -1) calls.push('accept');
+        return Promise.resolve(new Response(JSON.stringify({ ok: false, error: 'stubbed' }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      };
+      window.notify = () => {};
+      window.ensureBountyState();
+      const G = window.G;
+      G.bountyHunter.active = { id: 'bx-ab2-old', type: 'cull', target: 'goblin', required: 10, progress: 0, rewards: { gold: 10, marks: 4, xp: 5 } };
+      G.bountyHunter.board = [{ id: 'bx-ab2-new', type: 'cull', difficulty: 'normal', target: 'goblin', required: 10, progress: 0, rewards: { gold: 10, marks: 4, xp: 5 } }];
+      const done = window.abandonBounty();
+      for (let i = 0; i < 20 && !release; i++) await new Promise((r) => setTimeout(r, 5));
+      assert(typeof release === 'function', 'abandon must reach hr_bounty_spend');
+      window.acceptBounty(0);
+      await new Promise((r) => setTimeout(r, 10));
+      assert(G.bountyHunter.active === null && calls.indexOf('accept') === -1,
+        'an accept was allowed while the abandon was in flight: active=' + JSON.stringify(G.bountyHunter.active && G.bountyHunter.active.id) + ' calls=' + calls.join(','));
+      assert(G.bountyHunter.board.length === 1, 'the refused accept must leave the board row in place');
+      release();
+      await done;
+      window.acceptBounty(0);
+      assert(G.bountyHunter.active && G.bountyHunter.active.id === 'bx-ab2-new',
+        'once the abandon answered, the accept must go through; active=' + JSON.stringify(G.bountyHunter.active));
+    } finally { if (release) release(); window.fetch = origFetch; window.notify = origNotify; unstub(); restoreG(snap); }
+  }),
+
   () => tryRun('BOUNTY-SHOP-1: no Bounty Shop row offers an enabled Buy that the spend will refuse', () => {
     if (typeof window.renderBountyTab !== 'function' || typeof window.bountyShopOffers !== 'function') return;
     const snap = snapshotG();

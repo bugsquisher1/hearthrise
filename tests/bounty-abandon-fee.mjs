@@ -15,6 +15,8 @@
 //       40-Mark contract -> 10) and ENDS the contract, so a second abandon is
 //       refused and pays nothing; a level-9 BH pays 0;
 //   B4  privileges: the ungated body reaches no client role.
+//   B5  accept over a held contract is refused (bounty_active), moves 0 Marks,
+//       keeps the contract and writes no bounty_abandon row (Security P2).
 // The whole chain is replayed (no upTo): a later migration that restates the
 // body back to a client-priced shape must fail HERE.
 // ════════════════════════════════════════════════════════════════════════
@@ -37,6 +39,9 @@ const MUTATIONS = {
     pairs: [offS5, ['grant  execute on function public.hr_bounty_spend(int, text, text, uuid)           to authenticated;',
       'grant  execute on function public.hr_bounty_spend(int, text, text, uuid)           to authenticated;\n'
       + 'grant  execute on function public.hr_bounty_spend__ungated(int, text, text, uuid) to authenticated;']] },
+  accept_replaces: { why: 'hr_accept_bounty no longer refuses over a held contract: accept-over skips the abandon fee', expect: 'B5',
+    pairs: [offS5, ["  if found then\n    perform public.hr_record_rejection(auth.uid(), v_slot, 'hr_accept_bounty', 'bounty_active',",
+      "  if false then\n    perform public.hr_record_rejection(auth.uid(), v_slot, 'hr_accept_bounty', 'bounty_active',"]] },
   not_reentrant: { why: 'the baseline row is inserted without its delete: a second apply is not idempotent', expect: 'B1',
     pairs: [offS5, ["delete from public.hr_client_rpc_baseline where proname = 'hr_bounty_spend';\n", '']] },
 };
@@ -54,7 +59,7 @@ async function run(mutate) {
   };
   const bodies = () => q(`select p.proname, md5(p.prosrc) as h, p.proacl::text as acl from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public'
-     and p.proname in ('hr_bounty_spend','hr_bounty_spend__ungated') order by 1`);
+     and p.proname in ('hr_bounty_spend','hr_bounty_spend__ungated','hr_accept_bounty','hr_accept_bounty__ungated') order by 1`);
   const baseRow = () => q("select identity_args, grantee from public.hr_client_rpc_baseline where proname = 'hr_bounty_spend'");
 
   // ── B1. SECOND APPLY IS BYTE-IDENTICAL ─────────────────────────────────
@@ -109,6 +114,28 @@ async function run(mutate) {
   ok('B3', r3?.ok === true && Number(r3.fee) === 0 && (await marks()) === 90,
     `a level-9 abandon answered ${JSON.stringify(r3)} (want fee 0)`);
 
+  // ── B5. NO FEE-SKIP BY ACCEPTING OVER A HELD CONTRACT (Security P2) ─────
+  //   Through the rate-gated wrapper, as `authenticated`: a level-15 BH holding
+  //   a 40-Mark contract accepts another. Refused bounty_active, 0 Marks move,
+  //   the held contract survives, no bounty_abandon row; then the honest abandon
+  //   still charges its 10.
+  await q('delete from public.active_bounty where user_id = $1', [uid]);
+  await setUp(15, 'bx-held', 40, 100);
+  const t1 = (await q('select monster_id from public.hr_bounty_monsters where tier = 1 order by monster_id limit 1'))[0].monster_id;
+  const abBefore = Number((await q("select count(*)::int n from public.player_ledger where user_id = $1 and intent = 'bounty_abandon'", [uid]))[0].n);
+  let r5; try { r5 = await asUser(uid, 'select public.hr_accept_bounty(0,$1,$2,$3,$4,$5) as r', ['bx-swap', t1, 'cull', 'normal', 100]); }
+  catch (e) { r5 = { raised: String(e.message).split('\n')[0] }; }
+  const held = (await q('select bounty_id from public.active_bounty where user_id = $1 and slot = 0', [uid]))[0]?.bounty_id;
+  const abAfter = Number((await q("select count(*)::int n from public.player_ledger where user_id = $1 and intent = 'bounty_abandon'", [uid]))[0].n);
+  ok('B5', r5?.error === 'bounty_active' && held === 'bx-held' && (await marks()) === 100 && abAfter === abBefore,
+    `accept over a held contract answered ${JSON.stringify(r5)}, held ${held}, marks ${await marks()}, abandon rows ${abBefore}->${abAfter}`);
+  const rj = (await q("select count(*)::int n from public.hr_rejections where user_id = $1 and code = 'bounty_active'", [uid]))[0].n;
+  ok('B5', rj >= 1, 'bounty_active was not journalled in hr_rejections');
+  await q('delete from public.hr_rate_counters');
+  const r6 = await abandon('bx-held');
+  ok('B5', r6?.ok === true && Number(r6.fee) === 10 && (await marks()) === 90,
+    `the honest abandon after the refused accept answered ${JSON.stringify(r6)}`);
+
   // ── B4. THE UNGATED BODY REACHES NO CLIENT ─────────────────────────────
   const priv = (await q(`select has_function_privilege('authenticated','public.hr_bounty_spend__ungated(int,text,text,uuid)','execute') as a,
     has_function_privilege('anon','public.hr_bounty_spend__ungated(int,text,text,uuid)','execute') as n,
@@ -133,7 +160,7 @@ try {
   }
   const fails = await run(null);
   if (fails.length) { console.error('bounty-abandon-fee: RED\n  ' + fails.join('\n  ')); process.exit(1); }
-  console.log('bounty-abandon-fee: OK — second apply byte-identical; forged-level call does not resolve; level-15 abandon pays 10 and ends the contract; second abandon refused; level-9 pays 0; ungated body reaches no client');
+  console.log('bounty-abandon-fee: OK — second apply byte-identical; forged-level call does not resolve; level-15 abandon pays 10 and ends the contract; second abandon refused; level-9 pays 0; accept over a held contract refused, 0 Marks; ungated body reaches no client');
 } catch (e) {
   console.error('bounty-abandon-fee: HARNESS ERROR — ' + (e && e.message)); process.exit(2);
 }

@@ -60,6 +60,11 @@
 --            callable by nobody; wrapper by authenticated only (revoke-before-
 --            grant, asserted by EXECUTING has_function_privilege); hr_client_
 --            rpc_baseline carries exactly the new identity; no table grant moves.
+--   CLOSED   (Security GO-WITH-CHANGES, P2) the fee-skip by ACCEPTING over an
+--            active contract: hr_accept_bounty__ungated upserted, replacing
+--            the contract with no fee and no ledger row. §2b restates it to
+--            refuse 'bounty_active' (journalled) — one contract at a time; it
+--            ends only by claim or by this file's abandon.
 --   Marks are self-only (they buy self utility; nothing tradeable), so even the
 --   old defect never crossed players — it was a self-discount on a sink.
 --
@@ -126,6 +131,17 @@ begin
     raise exception 'PRECONDITION: hr_rpc_gate has no hr_bounty_spend bucket - the verb would answer rate_limited forever'; end if;
   if to_regclass('public.hr_client_rpc_baseline') is null then
     raise exception 'PRECONDITION: hr_client_rpc_baseline absent - the grant cannot be approved'; end if;
+  -- §2b restates the accept body in full; every helper it calls must exist.
+  if to_regprocedure('public.hr_accept_bounty__ungated(int,text,text,text,text,bigint)') is null
+     or to_regprocedure('public.hr_bounty_difficulty_unlocked(text,integer)') is null
+     or to_regprocedure('public.hr_bounty_kill_range(int,text)') is null
+     or to_regprocedure('public.hr_bounty_first_contract(uuid,int)') is null
+     or to_regprocedure('public.hr_bounty_first_contract_range(text)') is null
+     or to_regprocedure('public.hr_bounty_reward(int,text,text)') is null
+     or to_regprocedure('public.hr_bounty_kills(uuid,int,text)') is null
+     or to_regprocedure('public.hr_bounty_combat_level(uuid,int)') is null
+     or to_regprocedure('public.hr_bounty_unlocked_tier(int)') is null then
+    raise exception 'PRECONDITION: the accept chain is incomplete - apply 2026-09-04-bounty-difficulty-count.sql and 2026-09-12-bounty-accept-bh-clamp.sql FIRST'; end if;
   if not exists (select 1 from public.hr_skills where skill_id = 'bountyHunter') then
     raise exception 'PRECONDITION: hr_skills has no bountyHunter row - the fee level would read an uncatalogued skill'; end if;
 end $$;
@@ -271,6 +287,146 @@ begin
   return v_prev;
 end $$;
 
+-- ── 2b. hr_accept_bounty__ungated — REFUSES OVER A HELD CONTRACT ───────────
+-- Security GO-WITH-CHANGES (2026-10-04, P2, proven on a PGlite replay): the
+-- chain-end accept upserted `on conflict (user_id, slot) do update`, so
+-- accepting over an active contract replaced it — the abandon fee above was
+-- skippable and no bounty_abandon row was written. RESTATED IN FULL from the
+-- chain-end body (2026-08-29 first-contract + 2026-09-04 difficulty-count +
+-- 2026-09-12 SA-048 splices, as installed after 2026-09-28-grant-hygiene-hr-
+-- ops.sql) with exactly one delta: the upsert became lock + refuse
+-- ('bounty_active', journalled through hr_record_rejection) + plain insert.
+-- Signature, volatility, SECURITY DEFINER and search_path are unchanged;
+-- `create or replace` keeps proacl and the revoke below re-asserts it.
+-- REVERT (targeted create-or-replace, never a file re-apply): restate this
+-- body with the lock + refusal removed and the 2026-08-23 upsert restored
+-- (`on conflict (user_id, slot) do update set ...`, quoted in that file's §7).
+create or replace function public.hr_accept_bounty__ungated(
+  p_slot int, p_bounty_id text, p_target text, p_type text, p_difficulty text, p_required bigint)
+returns jsonb language plpgsql security definer
+set search_path to 'public' as $function$
+declare
+  v_slot     int := coalesce(p_slot, 0);
+  v_tier     int;
+  v_cl       int;
+  v_maxtier  int;
+  v_bh_lvl   int;
+  v_kmin     bigint; v_kmax bigint;
+  v_req      bigint;
+  v_gold     bigint; v_marks int; v_xp int;
+  v_baseline bigint;
+  v_first    boolean;
+  v_held     text;
+begin
+  if auth.uid() is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
+  if not exists (select 1 from public.player_state where user_id = auth.uid() and slot = v_slot) then
+    return jsonb_build_object('ok', false, 'error', 'no_character', 'slot', v_slot);
+  end if;
+  -- ONLY 'cull' is server-verifiable (see header). proof/weapon/streak refused.
+  if p_type is distinct from 'cull' then
+    return jsonb_build_object('ok', false, 'error', 'type_not_server_verifiable', 'type', p_type);
+  end if;
+  -- ⚠ 'elite' is REFUSED at the server (Security ruling 2026-08-23): elite is never
+  -- board-generated and is gated only by the client-owned Bounty-Hunter level, so every
+  -- 'elite' reaching the server is forged — and it scales tradeable gold up to 1.75×.
+  -- Durable fix (tracked): server-own the difficulty (server-derived board seed OR
+  -- server-owned BH level with difficulty<=unlocked). The easy/normal/hard residual
+  -- (<=1.53x) is a bounded, self-only, journalled residual accepted with that follow-up.
+  if p_difficulty not in ('easy','normal','hard') then
+    return jsonb_build_object('ok', false, 'error', 'bad_difficulty', 'difficulty', p_difficulty);
+  end if;
+
+  select tier into v_tier from public.hr_bounty_monsters where monster_id = p_target;
+  if v_tier is null then
+    return jsonb_build_object('ok', false, 'error', 'unknown_monster', 'target', p_target);
+  end if;
+
+  -- SA-048 BH-LEVEL READ. The Bounty-Hunter level the SERVER owns
+  -- (player_skills.bountyHunter.xp -> hr_level_from_xp). Absent row -> 0 xp -> level 1:
+  -- FAIL CLOSED to the shallowest difficulty, never 'hard' because a read missed.
+  v_bh_lvl := public.hr_level_from_xp(coalesce((
+    select xp from public.player_skills
+     where user_id = auth.uid() and slot = v_slot and skill_id = 'bountyHunter'), 0));
+
+  -- SA-048 DIFFICULTY GATE. The board posts 'hard' only once 'streak' unlocks
+  -- (BH>=15, generateBountyBoard slot 3); easy/normal are always board-legal and
+  -- 'elite' is refused above. A forged 'hard' at BH<15 buys the 1.3x difficulty
+  -- multiplier on the now-RANKED bountyHunter skill. This is the ONLY forgeable ranked
+  -- gain: the target TIER is honestly gated by the combat level below (the board offers
+  -- exactly unlockedTier(combatLevel); there is no board-tier min to enforce).
+  if not public.hr_bounty_difficulty_unlocked(p_difficulty, v_bh_lvl) then
+    return jsonb_build_object('ok', false, 'error', 'difficulty_locked',
+      'difficulty', p_difficulty, 'bounty_level', v_bh_lvl);
+  end if;
+
+  -- COMBAT-LEVEL GATE: the target's tier must be unlocked by the SERVER combat level.
+  v_cl := public.hr_bounty_combat_level(auth.uid(), v_slot);
+  v_maxtier := public.hr_bounty_unlocked_tier(v_cl);
+  if v_tier > v_maxtier then
+    return jsonb_build_object('ok', false, 'error', 'tier_locked',
+      'tier', v_tier, 'unlocked_tier', v_maxtier, 'combat_level', v_cl);
+  end if;
+
+  -- b497 DESIGNER RULING: the DIFFICULTY scales the kill count, so the range
+  -- the server clamps into is the one the client drew from. A tier-only range
+  -- here would silently raise an honest 72-kill EASY contract to 80.
+  select kmin, kmax into v_kmin, v_kmax
+    from public.hr_bounty_kill_range(v_tier, p_difficulty);
+  -- FAIL CLOSED. No row (unknown difficulty) or a null bound (unknown tier)
+  -- used to fall through least/greatest into a NOT NULL violation — a 500 that
+  -- reads as "the server is down". A machine code is the honest answer.
+  if v_kmin is null or v_kmax is null then
+    return jsonb_build_object('ok', false, 'error', 'bad_difficulty',
+      'difficulty', p_difficulty, 'tier', v_tier);
+  end if;
+  -- THE FIRST-CONTRACT FLOOR. Tier 1 only, floor only — see the header for why
+  -- kmax must NOT move with it.
+  v_first := (v_tier = 1) and public.hr_bounty_first_contract(auth.uid(), v_slot);
+  if v_first then
+    -- SCALED TOO. The board's first slot is always EASY, so an unscaled floor
+    -- of 15 would raise the client's honest round(15*0.9)=14 to 15.
+    select kmin into v_kmin from public.hr_bounty_first_contract_range(p_difficulty);
+  end if;
+  v_req := least(v_kmax, greatest(v_kmin, coalesce(p_required, v_kmin)));
+
+  select gold, marks, xp into v_gold, v_marks, v_xp
+    from public.hr_bounty_reward(v_tier, 'cull', p_difficulty);
+
+  v_baseline := public.hr_bounty_kills(auth.uid(), v_slot, p_target);
+
+  -- 2026-10-04 (Security, P2): ONE CONTRACT AT A TIME, ENFORCED HERE. This was
+  -- an upsert that REPLACED an active contract, so "accept over the old one" was
+  -- an abandon that skipped hr_bounty_spend: no fee, no bounty_abandon ledger
+  -- row. Now a held contract is REFUSED (bounty_active) and the only ways a
+  -- contract ends are claim (hr_claim_bounty) and abandon (hr_bounty_spend).
+  -- The per-character advisory lock (hr_apply's key; abandon takes it too) plus
+  -- FOR UPDATE on the row make check-then-insert atomic against a racing accept
+  -- or abandon; the insert carries NO on-conflict arm, so a row that appeared
+  -- anyway raises instead of being silently replaced.
+  perform pg_advisory_xact_lock(hashtextextended(auth.uid()::text || ':' || v_slot::text, 0));
+  select bounty_id into v_held from public.active_bounty
+    where user_id = auth.uid() and slot = v_slot for update;
+  if found then
+    perform public.hr_record_rejection(auth.uid(), v_slot, 'hr_accept_bounty', 'bounty_active',
+      jsonb_build_object('target', left(coalesce(p_target, ''), 32)), 1);
+    return jsonb_build_object('ok', false, 'error', 'bounty_active',
+      'bounty_id', v_held, 'slot', v_slot);
+  end if;
+  insert into public.active_bounty
+    (user_id, slot, bounty_id, b_type, difficulty, target, tier, required, baseline,
+     gold_reward, marks_reward, xp_reward, accepted_at)
+  values
+    (auth.uid(), v_slot, coalesce(p_bounty_id,''), 'cull', p_difficulty, p_target, v_tier, v_req,
+     v_baseline, v_gold, v_marks, v_xp, now());
+
+  return jsonb_build_object('ok', true, 'bounty_id', coalesce(p_bounty_id,''),
+    'target', p_target, 'tier', v_tier, 'required', v_req, 'baseline', v_baseline,
+    'gold', v_gold, 'marks', v_marks, 'xp', v_xp, 'slot', v_slot, 'first_contract', v_first);
+end $function$;
+
+revoke execute on function public.hr_accept_bounty__ungated(int, text, text, text, text, bigint)
+  from public, anon, authenticated, service_role;
+
 -- ── 3. Gated wrapper + grants (revoke before grant) ─────────────────────────
 create or replace function public.hr_bounty_spend(
   p_slot int, p_reason text, p_bounty_id text, p_idem uuid)
@@ -306,6 +462,7 @@ declare
   v_lv9   bigint;
   v_role  text;
   v_raised boolean;
+  v_t1    text;
   v_uid   constant uuid := '000000c0-0000-0000-0000-0000b0a4d0f1';
 begin
   -- (a) EXACTLY ONE OVERLOAD OF EACH, AND IT CARRIES NO NUMBER FROM THE CLIENT.
@@ -330,6 +487,16 @@ begin
   if (length(v_src) - length(replace(v_src, 'hr_intent_replay(', ''))) / length('hr_intent_replay(') <> 1
      or v_src ~* 'from[[:space:]]+public\.player_intents' then
     raise exception 'GATE(a2): the intent-mismatch guard is missing or bypassed'; end if;
+
+  -- (a3) THE ACCEPT CANNOT REPLACE A CONTRACT: no on-conflict arm survives in
+  --      its body, and it is still callable by no client role.
+  v_src := replace(pg_get_functiondef('public.hr_accept_bounty__ungated(int,text,text,text,text,bigint)'::regprocedure), chr(13), '');
+  if v_src ~* 'on[[:space:]]+conflict' or position('''bounty_active''' in v_src) = 0 then
+    raise exception 'GATE(a3): hr_accept_bounty__ungated can still replace a held contract (upsert) or lost its bounty_active refusal'; end if;
+  foreach v_role in array array['anon', 'authenticated', 'service_role'] loop
+    if has_function_privilege(v_role, 'public.hr_accept_bounty__ungated(int,text,text,text,text,bigint)', 'execute') then
+      raise exception 'GATE(a3): % can call the UNGATED accept', v_role; end if;
+  end loop;
 
   -- (b) PRIVILEGES, EXECUTED. Inner: nobody. Wrapper: authenticated only.
   foreach v_role in array array['anon', 'authenticated', 'service_role'] loop
@@ -403,6 +570,22 @@ begin
       raise exception 'GATE(c1) CONTROL: hr_state_of does not project the held contract: %',
         public.hr_state_of(v_uid, 0)->'bounty'; end if;
 
+    -- (c3) NO ABANDON BY ACCEPTING OVER THE HELD CONTRACT (Security P2): an
+    --      accept while bx-honest is held is refused bounty_active, moves 0
+    --      Marks, leaves bx-honest in place, writes no bounty_abandon row, and
+    --      is journalled through hr_record_rejection.
+    select monster_id into v_t1 from public.hr_bounty_monsters where tier = 1 order by monster_id limit 1;
+    if v_t1 is null then raise exception 'GATE(c3) CANNOT RUN: no tier-1 bounty monster'; end if;
+    v := public.hr_accept_bounty__ungated(0, 'bx-swap', v_t1, 'cull', 'normal', 100);
+    if coalesce(v->>'error', '') <> 'bounty_active' or coalesce(v->>'bounty_id', '') <> 'bx-honest' then
+      raise exception 'GATE(c3): accept over a held contract answered %', v; end if;
+    if (select marks from public.player_state where user_id = v_uid and slot = 0) <> 100
+       or (select bounty_id from public.active_bounty where user_id = v_uid and slot = 0) is distinct from 'bx-honest'
+       or exists (select 1 from public.player_ledger where user_id = v_uid and intent = 'bounty_abandon') then
+      raise exception 'GATE(c3): accept over a held contract moved Marks, replaced the contract or journalled an abandon'; end if;
+    if not exists (select 1 from public.hr_rejections where user_id = v_uid and code = 'bounty_active') then
+      raise exception 'GATE(c3): bounty_active was not journalled through hr_record_rejection'; end if;
+
     -- (d1) HONEST ABANDON PAYS WHAT IT ALWAYS PAID: least(10, floor(40 x 0.25)) = 10.
     --      This is also the FORGED-LOW-LEVEL proof: the same player sending
     --      level 9 to the 2026-08-26 body paid 0; nothing it sends now reaches the fee.
@@ -426,6 +609,15 @@ begin
     if (select count(*) from public.player_ledger where user_id = v_uid and intent = 'bounty_abandon'
           and (meta->>'marks')::bigint = -10 and meta->>'bounty_id' = 'bx-honest') <> 1 then
       raise exception 'GATE(d2): the abandon was not journalled exactly once with its signed fee'; end if;
+
+    -- (c3) CONTROL: with the contract ended, the same accept is ACCEPTED - the
+    --      refusal is "one at a time", not "never". Removed again so (c2) below
+    --      still finds no contract.
+    v := public.hr_accept_bounty__ungated(0, 'bx-swap', v_t1, 'cull', 'normal', 100);
+    if coalesce(v->>'ok', '') <> 'true'
+       or (select bounty_id from public.active_bounty where user_id = v_uid and slot = 0) is distinct from 'bx-swap' then
+      raise exception 'GATE(c3) CONTROL: accept with no held contract answered %', v; end if;
+    delete from public.active_bounty where user_id = v_uid and slot = 0;
 
     -- (e1) REPLAY: same key, nothing moves twice.
     v := public.hr_bounty_spend__ungated(0, 'abandon', 'bx-honest', v_i);
@@ -535,7 +727,7 @@ begin
 
   raise notice 'bounty-abandon-server-fee: one 4-arg overload, no client number reaches a fee, the 5-arg '
                'shape does not resolve; inner callable by nobody, wrapper authenticated + rate-gated, baseline '
-               'exact; EXECUTED - unheld contract refused, honest level-15 abandon pays 10 and ends the '
+               'exact; EXECUTED - accept over a held contract refused (0 Marks, contract kept), unheld contract refused, honest level-15 abandon pays 10 and ends the '
                'contract (row + projection), replay moves nothing, no-bounty refused, level-9 pays 0, '
                '6-Mark rounds to 1, fee clamped to on-hand, reroll 5/10/refused, every refusal journalled; '
                'detector green - net zero';

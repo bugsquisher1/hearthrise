@@ -17,7 +17,7 @@
 
 import { computeAccrual, CALLER_AUTHORITY } from './accrual.js';
 import { hashSeed } from '../../../src/core/rng.js';
-import { planWindows, countersFromProgress } from './tick-contract.js';
+import { planWindows, countersFromProgress, chainSpentMin } from './tick-contract.js';
 import { engineStateOf } from './envelope.js';
 
 /* ── THE SEED, PER WINDOW, FROM THE WATERMARK ───────────────────────────────
@@ -76,7 +76,7 @@ export function advance(char, res) {
      engine as an input. */
   const ch = char._chain || (char._chain = {
     gold: 0, xp: {}, items: {}, bestiaryKills: {},
-    deathsToday: 0, deathsLifetime: 0, vigourMin: 0, activity: null,
+    deathsToday: 0, deathsLifetime: 0, vigourMin: 0, vigourRemMs: 0, activity: null,
   });
   if (typeof d.gold === 'number') {
     char.gold = Math.max(0, Math.floor((char.gold || 0) + d.gold));
@@ -136,10 +136,20 @@ export function advance(char, res) {
     char.deathsTodayBefore = (Number(char.deathsTodayBefore) || 0) + counters.deathsToday;
     ch.deathsToday += counters.deathsToday;
   }
-  if (counters.vigourMin && char.vigour && typeof char.vigour === 'object') {
-    char.vigour = Object.assign({}, char.vigour,
-      { spent_min: (Number(char.vigour.spent_min) || 0) + counters.vigourMin });
+  /* VIGOUR: BOTH ROWS, ONE DIVISION (2026-10-05). The charge is a quotient AND
+     a remainder, and a 10 s window files ONLY the remainder — so adding just
+     the minutes left the budget unspent for a whole chain and a character
+     crossing the line mid-chain kept paying full rate. `spent_min` is re-derived
+     from the chain's cumulative charge exactly as `hr_vigour_of` derives it,
+     over the `spent_min` the chain started from (`_vigourBaseMin`, scratch). */
+  if ((counters.vigourMin || counters.vigourRemMs) && char.vigour && typeof char.vigour === 'object') {
+    if (!Number.isFinite(char._vigourBaseMin)) {
+      char._vigourBaseMin = Math.max(0, Math.floor(Number(char.vigour.spent_min) || 0));
+    }
     ch.vigourMin += counters.vigourMin;
+    ch.vigourRemMs = (Number(ch.vigourRemMs) || 0) + counters.vigourRemMs;
+    char.vigour = Object.assign({}, char.vigour,
+      { spent_min: chainSpentMin(char._vigourBaseMin, ch.vigourMin, ch.vigourRemMs) });
   }
   return char;
 }

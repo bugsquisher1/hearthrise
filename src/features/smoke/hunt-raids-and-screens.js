@@ -640,6 +640,7 @@ export default [
     const G = window.G;
     const sDR = G.dailyReward ? JSON.parse(JSON.stringify(G.dailyReward)) : undefined;
     const sGold = G.gold, sStreak = G.streak ? JSON.parse(JSON.stringify(G.streak)) : undefined;
+    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       /* b498: the day now comes from the server's claim rows when an envelope
          has been seen. Forget any capture so this fixture is total. */
@@ -680,6 +681,7 @@ export default [
       if (sDR === undefined) delete G.dailyReward; else G.dailyReward = sDR;
       if (sStreak === undefined) delete G.streak; else G.streak = sStreak;
       seedPlayStreak(null);
+      bagHeld.restore();
     }
   }),
   () => tryRun('B349-1: the daily login cycle is DATA, read by the client, and its multiplier is capped', () => {

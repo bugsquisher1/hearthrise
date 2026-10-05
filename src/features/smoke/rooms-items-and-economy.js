@@ -1393,6 +1393,7 @@ export default [
     assert(typeof window.bankCap === 'function' && typeof window.bankGoldCost === 'function', 'bank helpers missing');
     const BS = window.BANK_SPACE;
     const saved = { gold: G.gold, gems: G.gems, bank: JSON.parse(JSON.stringify(G.bank || {})), cap: G._bankCap };
+    const bagHeld = serverBagFixture();   // the rig's envelopes state a bag: put the triple back
     try {
       G.bank = { goldBuys: 0, gemBuys: 0, grandfather: 0 }; delete G._bankCap;   // nothing stated yet
       const cap0 = window.bankCap();
@@ -1453,7 +1454,7 @@ export default [
           'a broke player still spent a round trip to be told they are broke: ' + JSON.stringify(rig.sent));
         assert(goldOf() === 0, 'a refused buy moved the balance');
       });
-    } finally { G.gold = saved.gold; G.gems = saved.gems; G.bank = saved.bank; restoreBankCap(saved.cap); }
+    } finally { G.gold = saved.gold; G.gems = saved.gems; G.bank = saved.bank; restoreBankCap(saved.cap); bagHeld.restore(); }
   }),
   () => tryRun('b269: addItem refuses a NEW stack when the bank is full, but grows existing stacks', () => {
     const G = window.G;

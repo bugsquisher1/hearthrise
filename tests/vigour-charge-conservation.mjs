@@ -137,8 +137,18 @@ const ENGINE_PATCHES = {
      so it is always 0 and the row is never written. A reader of the diff would
      see two counters and believe the law held. */
   remainder_refloored: [[
+    '    const { addMin, remMs } = vigourCharge(grantMs - deferredMs);',
+    '    const { addMin } = vigourCharge(grantMs - deferredMs);\n'
+      + '    const remMs = Math.floor((grantMs - deferredMs) % 60000 / 60000) * 60000;',
+  ]],
+  /* THE TAIL CHARGED TWICE (SEC_WORLD_TICK_VIGOUR_2026-10-05 (a), the shape
+     that shipped in 362ffb7f). An uncapped window leaves its half-wound swing
+     OPEN (`accrued_to = now - deferredMs`) and the next window re-simulates it,
+     so charging `grantMs` bills that tail here AND again next window: +10% at
+     the 10 s tick. C1, C3 and C5 must go RED. */
+  tail_charged_twice: [[
+    '    const { addMin, remMs } = vigourCharge(grantMs - deferredMs);',
     '    const { addMin, remMs } = vigourCharge(grantMs);',
-    '    const { addMin } = vigourCharge(grantMs);\n    const remMs = Math.floor(grantMs % 60000 / 60000) * 60000;',
   ]],
 };
 
@@ -175,6 +185,7 @@ async function loadEngine(mutate) {
 const MUTATIONS = {
   floor_per_window: 'Discard the sub-minute remainder again (the shipped defect of 2026-09-22, finding S-1).',
   remainder_refloored: 'Keep the remainder row but re-floor it to whole minutes, so it is always 0 and never written.',
+  tail_charged_twice: 'Charge grantMs, including the sub-swing tail the next window re-simulates (2026-10-05 (a)).',
 };
 
 const MON = 'goblin';
@@ -196,7 +207,7 @@ let AUTHORITY = CALLER_AUTHORITY;
 /** ONE settle window. `caller` null = the ordinary 'accrue' path a browser
     polls on; 'collect' = what every set_activity runs; 'tick' = the world tick.
     The authority token is imported, exactly as the two real callers pass it. */
-const window_ = (fromMs, spanMs, caller) => ENGINE({
+const window_ = (fromMs, spanMs, caller, attended) => ENGINE({
   userId: '00000000-0000-4000-8000-0000b5510c01', slot: 0,
   nowMs: fromMs + spanMs, accruedToMs: fromMs, activeSinceMs: FROM,
   activeKind: 'combat', activeId: MON,
@@ -204,7 +215,7 @@ const window_ = (fromMs, spanMs, caller) => ENGINE({
   hp: 900, maxHp: 900, gold: 0,
   skills: { attack: 400000, strength: 400000, defense: 400000, hitpoints: 400000 },
   equipment: {}, inventory: { trout: 5000 },
-  attended: null,
+  attended: attended || null,
   autoEatEnabled: true, autoEatFood: 'trout', autoEatPct: 10,
   recoveringUntilMs: 0, consecFalls: 0, deathsTodayBefore: 0, deathsLifetimeBefore: 60,
   items: ITEMS, monsters: MONSTERS,
@@ -235,20 +246,39 @@ function chargeOf(out) {
   return add(VIGOUR_PROGRESS_KEY) + (add(VIGOUR_REMAINDER_KEY) / 60000);
 }
 
-/** Drive a span as `n` equal windows and total what was PAID and CHARGED. */
-function chain(spanMs, windowMs, caller) {
+/** Drive a span the way production does: the settle fires every `windowMs` of
+    WALL CLOCK, and each window opens at the watermark the previous one STAMPED
+    (`delta.accrued_to`), not at the previous fire. That is the load-bearing
+    difference from a fixed partition: an uncapped window leaves its half-wound
+    swing open and the next window re-simulates it (settledWatermarkMs), so the
+    time a chain actually CONSUMED is `final watermark - FROM`, and `paidMs` is
+    that advance — never the sum of `meta.ms`, which counts every re-opened tail
+    once per window that saw it (2026-10-05 (a)).
+
+    `attendedAt(fromMs, nowMs)` optionally hands each window the attended-kill
+    projection a live poll carries (the C6 floor), so the ATTENDED path is driven
+    through the same chain as the away one. */
+function chain(spanMs, windowMs, caller, attendedAt) {
   const n = Math.floor(spanMs / windowMs);
-  let charged = 0; let paidMs = 0; let gold = 0; let windows = 0;
-  for (let i = 0; i < n; i++) {
-    const out = window_(FROM + (i * windowMs), windowMs, caller);
+  let charged = 0; let gold = 0; let windows = 0;
+  let cursor = FROM;
+  for (let i = 1; i <= n; i++) {
+    const nowMs = FROM + (i * windowMs);
+    if (nowMs <= cursor) continue;
+    const out = window_(cursor, nowMs - cursor, caller,
+      attendedAt ? attendedAt(cursor, nowMs) : null);
     if (!out || !out.accrued) continue;
     windows += 1;
     charged += chargeOf(out);
-    paidMs += Number((out.delta && out.delta.journal && out.delta.journal.meta
-      && out.delta.journal.meta.ms) || 0);
     gold += Number((out.delta && out.delta.gold) || 0);
+    const to = Date.parse(String(out.delta && out.delta.accrued_to));
+    if (!(to > cursor && to <= nowMs)) {
+      throw Object.assign(new Error(`window ${i} stamped accrued_to ${out.delta && out.delta.accrued_to}, `
+        + `outside (${cursor}, ${nowMs}]`), { harness: true });
+    }
+    cursor = to;
   }
-  return { windows, charged, paidMs, gold };
+  return { windows, charged, paidMs: cursor - FROM, gold, endMs: cursor };
 }
 
 const mins = (ms) => ms / 60000;
@@ -269,9 +299,15 @@ async function run(mutate) {
   const ref = window_(FROM, HOUR, null);
   ok(ref.accrued === true, 'C0: the one-hour reference window did not accrue at all — the fixture is broken, not the engine.');
   const refCharge = chargeOf(ref);
-  ok(refCharge === 60,
-    `C0: one settled hour charged ${refCharge} Vigour minutes, expected 60. This guard's whole `
-    + 'measurement is relative to that number; fix the fixture before reading any arm below.');
+  /* The hour charges the time its watermark ADVANCED over, to the millisecond:
+     the sub-swing tail is left open for the next window and is not this one's
+     to bill (2026-10-05 (a)). The tail is under one swing, so the reference is
+     still an hour to within a minute. */
+  const refAdvance = Date.parse(String(ref.delta && ref.delta.accrued_to)) - FROM;
+  ok(Math.abs(refCharge - mins(refAdvance)) <= slack && refAdvance > HOUR - 60000 && refAdvance <= HOUR,
+    `C0: one settled hour advanced the watermark ${mins(refAdvance)} minutes and charged ${refCharge}. `
+    + 'The charge must be exactly the consumed span, and the consumed span within one swing of the hour; '
+    + 'this guard\'s whole measurement is relative to that number, so fix it before reading any arm below.');
 
   // ── C1. CADENCE ALONE, NO PRIVILEGE, NO EXPLOIT ────────────────────────
   // 90 s is above ACCRUE_MIN_MS, so this is the plain 'accrue' caller a browser
@@ -321,6 +357,41 @@ async function run(mutate) {
     + `CHARGED ${c3b.charged}. An operator_tunable row silently decides whether the daily limiter exists; `
     + 'no migration, no review, no guard would notice. Whatever the fix, the charge must not be a function '
     + 'of the flush.');
+
+  // ── C5. THE CHARGE IS A FUNCTION OF THE SPAN, NOT OF THE CADENCE ───────
+  // SEC_WORLD_TICK_VIGOUR_2026-10-05 (a): charging `grantMs` billed the
+  // sub-swing tail that the next window re-simulates and bills again — 132 min
+  // for 120 at the 10 s tick, 66 for 60 over two fires. The same hour settled at
+  // every cadence the system meets must cost the same within one minute, and
+  // every chain must cost EXACTLY what its watermark consumed. BOTH PATHS
+  // (CLAUDE.md §4): AWAY is the world tick (caller 'tick', exempt from the
+  // 60 s floor, so 10 s and 3 s are real); ATTENDED is the browser poll
+  // ('accrue') carrying an attended-kill projection whose newest row sits in
+  // the window's tail, which drives the C6 floor of settledWatermarkMs.
+  const attendedAt = (fromMs, nowMs) => ({
+    ok: true, kills: { [MON]: 1 },
+    from: new Date(fromMs).toISOString(), to: new Date(nowMs - 500).toISOString(),
+  });
+  const c5 = [
+    ...[1800000, 61000, 10000, 3000].map((w) => ({ path: 'away', w, r: chain(HOUR, w, 'tick') })),
+    ...[1800000, 90000, 61000].map((w) => ({ path: 'attended', w, r: chain(HOUR, w, null, attendedAt) })),
+  ];
+  for (const { path, w, r } of c5) {
+    ok(r.windows >= Math.floor(HOUR / w) - 1 && r.paidMs > HOUR - 60000,
+      `C5: the ${path} chain at ${w / 1000} s settled ${r.windows} windows and consumed `
+      + `${mins(r.paidMs).toFixed(3)} minutes — the arm did not run the hour it claims to.`);
+    ok(Math.abs(r.charged - mins(r.paidMs)) <= slack,
+      `C5: the ${path} chain at a ${w / 1000} s cadence CONSUMED ${mins(r.paidMs).toFixed(3)} minutes and `
+      + `CHARGED ${r.charged.toFixed(3)} (${(100 * (r.charged / mins(r.paidMs) - 1)).toFixed(1)}%). A window `
+      + 'that charges `grantMs` bills the half-wound swing it leaves open, and the next window bills it '
+      + 'again: charge `grantMs - deferredMs`, the span the watermark actually advanced over.');
+  }
+  const charges = c5.map((x) => x.r.charged);
+  const spread = Math.max(...charges) - Math.min(...charges);
+  ok(spread < 1,
+    `C5: one hour costs ${c5.map((x) => `${x.path}@${x.w / 1000}s=${x.r.charged.toFixed(3)}`).join(', ')} `
+    + `Vigour minutes — a spread of ${spread.toFixed(3)}. The charge for a span must not depend on how `
+    + 'often it is settled (the S-1 conservation class).');
 
   // ── C4. THE UNIT ITSELF, STATED WITHOUT AN ENGINE ──────────────────────
   // The arithmetic under all three arms, so a reader can see the law hold

@@ -64,6 +64,28 @@ const MUTANTS = [
     file: 'supabase/functions/hr-accrue/tick-contract.js',
     edits: [['if (chain.vigourRemMs) st.vigour_rem_ms = Math.floor(chain.vigourRemMs);', '']],
   },
+  /* SEC_WORLD_TICK_VIGOUR_2026-10-05 (a): the charge billed `grantMs`, including
+     the sub-swing tail the next window re-simulates — 132 min for 120 (W3). */
+  {
+    name: 'tail charged twice', arm: 'W3',
+    file: 'supabase/functions/hr-accrue/accrual.js',
+    edits: [['vigourCharge(grantMs - deferredMs)', 'vigourCharge(grantMs)']],
+  },
+  {
+    name: 'tail charged twice (carried)', arm: 'W4',
+    file: 'supabase/functions/hr-accrue/accrual.js',
+    edits: [['vigourCharge(grantMs - deferredMs)', 'vigourCharge(grantMs)']],
+  },
+  /* SEC (same review, LOW): a non-finite or negative multiplier paid the full
+     rested `r`. The fail-closed lines removed must turn W2 red. */
+  {
+    name: 'vigourScale fails open', arm: 'W2',
+    file: 'src/core/hunt.js',
+    edits: [
+      ["  const n = typeof mult === 'number' ? mult : NaN;\n  if (!Number.isFinite(n)) return 0;\n  const m = Math.min(1, Math.max(0, n));\n  if (m === 1) return r;",
+        '  const m = Number(mult);\n  if (!(m >= 0) || m >= 1) return r;'],
+    ],
+  },
 ];
 
 async function load(base) {
@@ -231,6 +253,19 @@ const ARMS = {
         fail('W2', 'vigourScale changed an integral product');
       }
     } catch (e) { fail('W2', `vigourScale drew on an integral product (${e.message})`); }
+    /* FAIL CLOSED (SEC_WORLD_TICK_VIGOUR_2026-10-05, LOW). A multiplier that is
+       not a finite Number pays 0 (the old floor's answer), never the rested
+       `raw`; a finite one is clamped into [0, 1]. Each of these used to pay 9. */
+    const closed = [NaN, undefined, null, -0.5, -Infinity, Infinity, '0.5', {}];
+    for (const bad of closed) {
+      let got;
+      try { got = vigourScale(9, bad, noDraw); } catch (e) { got = `threw ${e.message}`; }
+      if (got !== 0) fail('W2', `vigourScale(9, ${String(bad)}) = ${got}; a non-finite or negative multiplier must pay 0`);
+    }
+    try {
+      if (vigourScale(9, 1.5, noDraw) !== 9) fail('W2', 'vigourScale(9, 1.5) must clamp to the rested 9, never above');
+      if (vigourScale(9, 0, noDraw) !== 0) fail('W2', 'vigourScale(9, 0) must pay 0');
+    } catch (e) { fail('W2', `vigourScale drew on a clamped integral product (${e.message})`); }
     const r = L.createRng(11);
     let paid = 0; const windows = 40000;
     for (let i = 0; i < windows; i++) paid += vigourScale(1, 0.25, r);
@@ -265,6 +300,16 @@ const ARMS = {
         + `the chain believes ${spent} minutes are spent, want ${want}. A window files its charge as a `
         + 'quotient and a remainder and the chain read only the quotient, so the budget never ran out (V2).');
     }
+    /* AND THE CHARGE IS THE TIME CONSUMED, to the millisecond
+       (SEC_WORLD_TICK_VIGOUR_2026-10-05 (a)). Each window leaves its half-wound
+       swing open for the next one to re-simulate; charging `grantMs` billed
+       that tail twice — 132 minutes for this 120-minute chain. */
+    const consumedMs = run.watermarkMs - from;
+    if (chargedMs !== consumedMs) {
+      fail('W3', `${run.settled} ten-second windows consumed ${(consumedMs / 60000).toFixed(3)} minutes `
+        + `and charged ${(chargedMs / 60000).toFixed(3)} — the charge billed the sub-swing tail the next `
+        + 'window re-simulates (charge grantMs - deferredMs).');
+    }
     const v = L.intentValue(run.intents);
     const g = 100 * (v.gold - one.delta.gold) / one.delta.gold;
     const x = 100 * (sumMap(v.xp) - sumMap(one.delta.xp)) / sumMap(one.delta.xp);
@@ -289,6 +334,14 @@ const ARMS = {
     s2.accruedToText = first.watermarkText;
     const second = L.settleCombatSession(s2, first.watermarkMs, to, opts);
     const a = whole.char.vigour.spent_min; const b = second.char.vigour.spent_min;
+    /* THE HOUR COSTS THE TIME IT CONSUMED (2026-10-05 (a): it cost 66). */
+    for (const [label, run] of [['one chain', whole], ['two carried fires', second]]) {
+      const want = Math.floor((run.watermarkMs - from) / 60000);
+      if (run.char.vigour.spent_min !== want) {
+        fail('W4', `${label} consumed ${((run.watermarkMs - from) / 60000).toFixed(3)} minutes and ends on `
+          + `spent_min ${run.char.vigour.spent_min}, want ${want} — the sub-swing tail is charged twice.`);
+      }
+    }
     if (a !== b || !(a > 0)) {
       fail('W4', `one 60-minute chain ends on spent_min ${a}; the same hour as two fires through the `
         + `shadow carrier ends on ${b}. The carrier dropped the sub-minute charge (V2).`);

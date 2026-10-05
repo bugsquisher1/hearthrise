@@ -17,7 +17,7 @@
 
 import { computeAccrual, CALLER_AUTHORITY } from './accrual.js';
 import { hashSeed } from '../../../src/core/rng.js';
-import { planWindows, countersFromProgress, chainSpentMin } from './tick-contract.js';
+import { planWindows, countersFromProgress, chainSpentMin, raiseMaxHpToLevel } from './tick-contract.js';
 import { engineStateOf } from './envelope.js';
 
 /* ── THE SEED, PER WINDOW, FROM THE WATERMARK ───────────────────────────────
@@ -86,6 +86,10 @@ export function advance(char, res) {
     char.skills[k] = (char.skills[k] || 0) + Number(d.xp[k] || 0);
     ch.xp[k] = (ch.xp[k] || 0) + Number(d.xp[k] || 0);
   }
+  /* A Hitpoints level-up raises the ceiling the next window fights at, as the
+     max_hp trigger does on the armed write (tick-contract.js raiseMaxHpToLevel).
+     Raise-only; `hp` is the delta's, assigned below — never a heal. */
+  if (d.xp && 'hitpoints' in d.xp) raiseMaxHpToLevel(char);
   for (const k of Object.keys(d.items || {})) {
     const q = (char.inventory[k] || 0) + Number(d.items[k] || 0);
     if (q > 0) char.inventory[k] = q; else delete char.inventory[k];

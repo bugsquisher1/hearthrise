@@ -22,6 +22,7 @@
 /* The two vigour counter keys, from the module that owns them, so the row the
    engine files and the row this file sums cannot be two spellings. */
 import { VIGOUR_PROGRESS_KEY, VIGOUR_REMAINDER_KEY } from '../../../src/core/hunt.js';
+import { levelFromXp } from '../../../src/core/xp.js';
 
 /* ── RULE 1: TICK-ALIGNED WINDOWS ───────────────────────────────────────────
    `simulateSpan` (src/core/combat-sim.js) budgets a segment as
@@ -243,10 +244,13 @@ export const ZERO_TIME = Object.freeze({ ticks: 0, recoverMs: 0, grantMs: 0 });
    maintains from `summary.kills`.
 
    ── WHAT IS DELIBERATELY NOT CARRIED, EACH WITH ITS REASON ─────────────────
-     maxHp             hr_apply DERIVES it on a level-up and the engine emits
-                       no delta key for it. Carrying it would mean writing
-                       hr_apply's derivation here, which is the one thing this
-                       file exists to refuse. UNDER-paying, and named.
+     maxHp             NOT A KEY OF ITS OWN — it is a FUNCTION of the carried
+                       hitpoints xp, re-derived on both sides of the seam by
+                       `raiseMaxHpToLevel` below (2026-10-05). It used to be
+                       dropped, and a mid-chain Hitpoints level-up fought every
+                       later window at the old ceiling: -13.6% ticks on a
+                       character still gaining Hitpoints levels, the combat
+                       parity miss (tests/world-tick-maxhp-carry.mjs).
      hearthfindReady   `hr_state_of` projects the LITERAL `true`
                        (2026-09-08-hearthfind.sql L466: "Always true once this
                        has run … not a feature flag"). There is nothing for
@@ -322,6 +326,37 @@ export function chainSpentMin(baseSpentMin, chainMin, chainRemMs) {
   const min = Math.max(0, Math.floor(Number(chainMin) || 0));
   const rem = Math.max(0, Math.floor(Number(chainRemMs) || 0));
   return base + min + Math.floor(rem / 60000);
+}
+
+/* ── MAX HP FOLLOWS THE HITPOINTS LEVEL, RAISE-ONLY (2026-10-05) ────────────
+   The ARMED chain gets this from the database: hr_apply credits hitpoints xp,
+   the AFTER trigger of 2026-09-06-max-hp-tracks-hitpoints.sql
+   (`hr_sync_max_hp`) raises `max_hp` to `greatest(1, hr_level_from_xp(xp))`,
+   and the next fire's `hr_state_of` reads it back. A single-span accrual does
+   the same inside the engine (accrual.js: `ev.skill === 'hitpoints'` →
+   `state.playerMaxHp = ev.to`). The CHAIN between two settles had neither —
+   `advance()` and the shadow carrier moved the xp but not the ceiling — so
+   every window after a mid-chain level-up fought at the old max.
+
+   This is that trigger's derivation, restated over the same curve
+   (src/core/xp.js is what hr_xp_table is generated from), and NOTHING ELSE:
+     · RAISE-ONLY. A ceiling already at or above the level is left alone, as
+       `where ps.max_hp < v_lvl` leaves it.
+     · HP IS NOT TOUCHED. Never a heal. The trigger's "was at full" arm is
+       superseded on every combat settle by hr_apply's own
+       `hp = least(max_hp, delta.hp)`, and a combat delta always carries `hp`,
+       so the settled hp is the engine's — which is what the caller already
+       assigned from the delta.
+     · PRESENCE OF KEY. A session with no numeric `maxHp` has no column to
+       derive into, and must keep reading that way to the engine.
+   Returns the session for chaining. Pure; no authority: the armed write is
+   still the trigger's, and this only keeps the in-memory copy honest. */
+export function raiseMaxHpToLevel(char) {
+  if (!char || typeof char.maxHp !== 'number' || !Number.isFinite(char.maxHp)) return char;
+  const xp = Math.max(0, Number((char.skills || {}).hitpoints) || 0);
+  const lvl = Math.max(1, levelFromXp(xp));
+  if (char.maxHp < lvl) char.maxHp = lvl;
+  return char;
 }
 
 /* BYTES, NOT UTF-16 CODE UNITS (Security S-4, 2026-09-23). The column's CHECK
@@ -425,6 +460,9 @@ export function applyShadowState(session, state) {
     const skills = Object.assign({}, s.skills);
     for (const k of Object.keys(st.xp)) skills[k] = (skills[k] || 0) + Number(st.xp[k] || 0);
     s.skills = skills;
+    /* The carrier holds the hitpoints xp, so it holds the ceiling: re-derive
+       it exactly as the fire that carried it did (raiseMaxHpToLevel). */
+    if ('hitpoints' in st.xp) raiseMaxHpToLevel(s);
   }
   if (st.items) {
     const inv = Object.assign({}, s.inventory);

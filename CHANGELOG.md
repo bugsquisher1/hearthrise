@@ -4,6 +4,22 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 561 — 2026-10-05 (The count comes first)
+
+**No more "Something broke here" after an update.** The first load after a new build could start the game before its core had arrived and show an error box on Home. The page now reloads once, quietly, and comes up clean.
+
+**Every count on the Fight bar reads like a number.** The Eat button says "100,000 left", not "100000 left"; XP and gold per minute, the bounty chip and the provisions badge use the same house format; "≈1 kill", not "≈1 kills".
+
+**"Fighting" is never cut off.** When the Fight bar is crowded, the foe's name gives way first, then the chips take their short forms, measured against the bar itself in whatever font your device shows. No chip is ever hidden.
+
+**The House, plots and market wait for the realm's count.** Build, upgrade, plot and listing buttons check the bag the realm has stated, not the screen's copy; until it answers they say "still being counted" instead of offering something the realm would refuse.
+
+**Your first day reads right.** The "Gather 15 resources" step says "Go gather", and the bag filter is labelled "Show" (it filters what you see; it never touched loot).
+
+**Activity names, not ids.** The activity strip and the Character progress strip say "Woodcutting — Oak Tree" and "Cooking — Cook Shrimp" instead of internal ids.
+
+**A tired hunt pays its fair quarter.** Out of Vigour, a hunt earns a quarter of its gold and XP, but short settles were rounding that quarter down to nothing. It now pays the true quarter however often the realm counts.
+
 ## v0.9.2-beta build 560 — 2026-09-29 (Nothing moves before the count)
 
 **Pending states say a word.** While the realm has not answered yet, the Fight bar's away chip reads "away: counting…" instead of a bare dash, and the Quartermaster's scrip line keeps only the one pending dash ("You have — Dungeon Scrip, earned by clearing dungeons.").

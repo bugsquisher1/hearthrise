@@ -13,9 +13,9 @@
 // boot hydrate). Guarded by tests/lifetime-tally.mjs (TALLY-6 folds fixtures
 // through `fold`, the only export) and the TALLY-A/B in-page tests.
 
-import { LIFETIME_KEYS, LIFETIME_LORE } from '../data/lifetime-tally.js?v=560';
-import { isCompleteProgressStatement } from '../net/property-record.js?v=560';
-import { MONSTER_CLASSES } from '../core/bane.js?v=560';
+import { LIFETIME_KEYS, LIFETIME_LORE } from '../data/lifetime-tally.js?v=561';
+import { isCompleteProgressStatement } from '../net/property-record.js?v=561';
+import { MONSTER_CLASSES } from '../core/bane.js?v=561';
 
 const fin = (v) => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
 const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);

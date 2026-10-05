@@ -436,7 +436,7 @@ begin
   if not public.hr_rpc_gate('hr_bounty_spend') then
     return jsonb_build_object('ok', false, 'error', 'rate_limited')::jsonb;
   end if;
-  return public.hr_bounty_spend__ungated($1, $2, $3, $4);
+  return public.hr_note_rejection('hr_bounty_spend', p_slot, public.hr_bounty_spend__ungated($1, $2, $3, $4));
 end $w$;
 
 revoke execute on function public.hr_bounty_spend__ungated(int, text, text, uuid) from public, anon, authenticated, service_role;

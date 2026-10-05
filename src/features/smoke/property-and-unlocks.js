@@ -189,7 +189,7 @@ export default [
       /* P4: the pinned bar printed the verdict AND the gate line, so the blueprint was named twice. */
       const bar = document.querySelector('.hr-room-wrap .hr-room-build'), named = ((bar && bar.textContent) || '').split('Kitchen Blueprint II').length - 1;
       assert(bar && named === 1, 'the pinned Build bar must name the blueprint once (its gate line), got ' + named + ': ' + (bar && bar.textContent));
-      /* b562 visual gate: the modal's uncounted cost chip ("—/20 Normal Log") rendered in the red "short" colour.
+      /* Visual gate: the modal's uncounted cost chip ("—/20 Normal Log") rendered in the red "short" colour.
          MUTATION: drop `is-pending` from costChip's known:false branch → red. */
       const qty = [...document.querySelectorAll('.hr-room-wrap .hr-cs-qty')].find((c) => c.querySelector('.bal-pending') && /Normal Log/.test(c.textContent));
       assert(qty && qty.classList.contains('is-pending') && !qty.classList.contains('is-short') && !qty.classList.contains('is-full'),

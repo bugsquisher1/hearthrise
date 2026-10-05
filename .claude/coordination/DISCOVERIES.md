@@ -4,6 +4,75 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-10-03 · qa-engineer · the stated server bag leaked across the in-page suite (snapshotG + per-test check)
+
+`G._serverBag` (+ the two stamps `reconcileInventory` writes with it, `_bagFromServerAt`, `_startKitHintAt`)
+was off `snapshotG`, so a test that stated a bag left it for every later test. `lane/b562-serverbag-snapshot`
+puts the triple on the list (guard M10a-c, in-page SNAP-BAG-1). That covers only the tests that snapshot: a
+test that applied an inventory envelope through production WITHOUT restoreG still leaked, and
+`serverBagFixture().restore()` put back `_serverBag` alone. Security GO-WITH-CHANGES on da4e7b38 named nine;
+the per-test check names sixteen (WAVE2 only while the fixture restored the bag alone). Now: the fixture
+restores all three (SNAP-BAG-2), the sixteen hold and
+restore the triple, and `runSmokeTest` compares the triple around EVERY test (overlayResidue's shape), fails
+the test that moved it by name and puts it back. Mutation: one restore removed → that test red by name.
+
+| # | Test | Alone / in order | Class / priority | Disposition |
+|---|---|---|---|---|
+| 1 | DGN-SETTLE-3 | red "armed: the run must be accepted" — passed in order only on a leaked bag | P2 suite order-dependence | fixed: `serverBagFixture().agree()` (both lanes; set/b562's hunk kept) |
+| 2 | DGN-COOLDOWN-1 | red `{pending:true,"counting your keys"}` — same | P2 | fixed: same |
+| 3 | B353-3b | red "topbar stayed in the pending state after the balance came back" — NOT the bag (gold/gems record) | P2 order-dependence, another unrestored field | open → systems-engineer (balance/record owner) |
+| 4 | b269 bank space, b166 daily login, b337 REPLACES, ACT-1/3/4, B354-1/2/3/4, claim regression (top bar), goal-claim regression, B355-1/2/3, B354-10/11/12/13, B345-2, b348 bag space, EQUIP-GESTURE, EQUIP-ASSERT-1, WAVE2 upgradeRoom | moved `_serverBag` + `_bagFromServerAt` for the next test (runner check, 627-test envelope slice) | P2 suite order-dependence | fixed: `serverBagFixture()` held + `restore()` in the finally (WAVE2 via the fixture fix) |
+| 5 | b305 cloud snapshot | red "persistent progress key MUST be uploaded: gold" in the 713-test envelope slice, identically on set/b562 (green in full order) | P3 filtered-order dependence (an earlier test leaves `G.gold` unset) | open → qa-engineer |
+| 6 | RETREAT-A4c | leaves `#hr-hf-veil` open in the same slice, identically on set/b562 | P3 filtered-order dependence (overlay) | open → qa-engineer |
+
+Required action: a test that wants a gate SENT states the server bag (`serverBagFixture`); a test that applies
+an envelope holds `serverBagFixture()` and restores it. The runner names any test that does neither.
+
+## 2026-10-03 · QA · b562 exploratory rerun (toast storm, reload mid-run, double-clicks) on b560
+
+Harness (`__HR_TEST_HARNESS__`), local build, desktop 1440x900 + 922x423, scratch Playwright.
+
+| # | Probe | Observed | Verdict |
+|---|---|---|---|
+| 1 | 60 distinct `notify()` in one task | 4 visible / 12 queued / 44 dropped; all drained by +32 s; 0 toast timers left; no throw | OK |
+| 1b | 60 identical | 1 row "x60" | OK |
+| 1c | 60 with Settings open | 0 painted, 5 held, replayed one at a time after close | OK |
+| 1d | hover a toast mid-storm | all timers cleared while paused; drains after mouse leaves | OK |
+| 1e | `notifyAction` inside a storm | its own `children>5` cap removes queue-owned nodes; `#notifs` 5 nodes vs `visible` 4 | P4, `legacy.js` notifyAction |
+| 1f | 4 toasts at 922x423, fight view | short toasts: column 47% of height, over the foe name/HP bar; two-line toasts: 69%, over `#ab-stop` + Quests | **P3 → Art Director** (`toasts.js` MAX_VISIBLE / short-view column) |
+| 2 | reload with fight / gather / craft running, and instant reload after start | always Idle after reload, no console errors, no stale pointer, no timers left. The harness has no server, so the RESUME path is not exercised | OK (harness limit) |
+| 3 | double click: daily Claim (real dblclick) | 1 `claim_reward` intent, +500 once | OK |
+| 3b | shop Buy, synchronous double `click()` | 1 `shop_buy`, display moved by exactly one purchase | OK |
+| 3c | bounty Accept / Upgrade Property / Upgrade Plot / Plant all / Water | no intent reached the faked hr-accrue wire (other transports, or refused locally); not proven either way | NOT COVERED |
+| 4 | activity strip label | "Woodcutting — normal tree", "Cooking — cook shrimp": the raw id (bar AND the Character panel's progress strip) | **P3, FIXED** (`hrActivityTargetName`, activity-tile.js; regression `b562: the activity strip names…`) |
+
+Fake-wire recipe for the next pass: `HearthriseAuth.wireServerIntents(window,{url:<local>/fake-sb, …})`,
+answer `hr_load` with `{ok,skills,inventory,equipment,progress:[],state:{slot:0,hp,max_hp,active_kind:'idle',gold,gems}}`
+so `isCharacterHydrated()` flips, then hold hr-accrue POSTs 900 ms and 503 them.
+
+Follow-up rows (GO-WITH-CHANGES on the row-4 fix, same day):
+
+| # | Finding | Repro | Severity · route |
+|---|---|---|---|
+| 5 | **Toasts eat taps at 922x423.** `.notif` is `pointer-events:auto` (legacy.css `.notif`) and a tap on one dismisses it (toasts.js `build` click handler), so a tap aimed at the control underneath never reaches it. Expands 1f from "covers" to "intercepts". | Harness, viewport 922x423, `showTab('combat')`, `startCombat('slime')`, skip the FTUE, then four two-line `notify()`. Column lands at x 630-910, y 79-394. `elementFromPoint` at the centre of `#ab-stop` (886,146) returns `.notif`; at `.arena-foe-hp` (755,269) returns `.notif-text`; `#ab-meta` centre also a toast. The player's Stop tap dismisses a toast instead of stopping the fight, for up to ~8 s per toast. | **P3 → Art Director** (short-view column placement or `pointer-events:none` + an explicit close target; toasts.js `layout()` already measures chrome to avoid) |
+| 6 | **`notifyAction` removes nodes the toast queue still counts.** legacy.js `notifyAction` appends to `#notifs` and trims with `while(el.children.length > 5) el.children[0].remove()`, which deletes queue-owned toasts without telling toasts.js. | Harness: 8× `notify('storm toast N')` then 2× `notifyAction(…,'Undo',fn)`. `HearthriseToasts.state()` still reads `visible 4, pending 4` while only 3 queue toasts are on screen ("storm toast 0" is gone); the 4 pending wait behind a phantom slot until the removed toast's timer fires. No throw, no leak. | **P4** → whoever next touches toasts (route `notifyAction` through the queue) |
+| 7 | **The Character "current activity" card is unreachable.** legacy.js wraps `window.renderCharacter` to `setTimeout(applyCharExtensions)` (~14943), but a later `window.renderCharacter = function(){…}` (~16811) replaces it without calling the wrapper, so `applyCharExtensions` → `buildActivityCard` / `buildLoadoutDoll` / the skill-card rate patch never run. Corrects row 4: the "card named the node" claim was the code, not the screen. | Harness: `startSkill('woodcutting','normal_tree')`, `showTab('character')`, `renderCharacter()`, wait 300 ms: `.char-active-card` count 0, `.ca-info` count 0. | **P3 render debt → Systems Engineer** (delete the cluster + `window._calcForSkill` + the `.char-active-card` / `.char-loadout` CSS in one paydown; the GO's ask to test `buildActivityCard` has no player surface to test until then) |
+| 8 | `G.activeAction` / `G.activeArtisanRecipe` have no writer in `src/**`; `stopAction` exists nowhere. | grep | **FIXED here**: their branches in `refreshActivityBar`, `refreshPanelProgress`, `stopCurrentActivity`, `_activityProgress` deleted. Still read (board P3, untouched): `activity-bar-clickable.js`, `companions.js`, `death-sheet.js`, `restedContextLine`, `snapshotG` |
+| 9 | **`absence-priced-at-return` R2 flakes under load (a lane-done guard, red with no defect).** Two clocks: (a) each order's window is 2 h + the wall time from `fighter()` to its first settle, which differs between orders; (b) `combat_xp_accrued_to` was left at creation, so the XP leg priced only the wall time since setup (`{}` vs `{}` on a fast box, 13 XP on a slow one). | lane-done with six suites running: R2 red. Scratch copy sleeping 12 s inside order A: bones 752 vs 750, red every time. | **P1 (guard flake), FIXED**: each order runs in one transaction (one `now()`), `fighter()` sets `combat_xp_accrued_to`. Proof: 12 s skew in A or B green; XP leg now compares 7237 vs 7237; `--mutate` 6/6 caught; a planted whole-night drop buff in A still goes red (goblin_ear 402 vs 383); pin removed + 12 s skew red again |
+
+## 2026-10-03 · systems-engineer · b562 projection sweep: three item gates still read the merge bag (CLAUDE.md §6)
+
+`lane/b562-projection-sweep` moved Build / property / plot / market-list onto `gateItemCount` (accrue.js:1309,
+the `player_inventory` mirror; unstated reads pending). The sweep found three more readers of `G.inventory`
+(the raise-only MERGE bag, which a client-rolled surplus can sit above the server) that were left out of scope:
+
+| # | Reader | Where | Class / priority | Required action |
+|---|---|---|---|---|
+| 1 | `hasItem` = `G.inventory[id] >= qty` | `src/legacy.js:3758`; gates at **8428** (vendor sell after the confirm), **9668** (`applyLoadout` equips a held item), **9695** (`applyLoadout` restores the food slot) | §6 "client shows X, server refuses" — **P2** (each gate fronts a server intent that refuses on its own; the client lights a control the realm then denies) | `hasItem` reads `gateItemCount`; unstated = not held. One test per site that fails with a display-bag surplus |
+| 2 | artisan `hasInputs(recipe)` → `core.artisan.hasInputs(recipe, G.inventory)` | `src/legacy.js:14510`; craft-start gate in `startArtisan` **14726** + its missing-list **14728**; recipe card `canDo` **14756** + "Missing materials" **14762** | **P1 of the §6 class** — Start lights and the card says "ready" on a surplus the server will refuse at the first settle; the missing list prints the display count | pass a server-bag view to `hasInputs` (core stays pure: the caller picks the bag), pending when unstated; both-path test (attended start + away accrual of the same recipe) |
+| 3 | auto-eat picker option label `×${G.inventory[id]}` (and the `foods` list built from `G.inventory`) | `src/legacy.js:7386`, `:7451` | display-only count — **P3**; the picker spends nothing, but it is the number a player reads before trusting auto-eat | label from `gateItemCount` (pending glyph when unstated); list built from the server bag |
+| 4 | House cost chips' met / short / pending colours never paint on hearthlight: `theme-cozy.css` `body[data-theme="hearthlight"] #panel-house :not(…) { color: var(--ink) !important }` beats `.hh-cost.is-*` (measured: all three classes compute `rgb(236,225,204)`) | `src/styles/theme-cozy.css` (the per-panel `:not(…)` ink rule), `src/styles/homestead-rooms.css:365-368` | visual, **P4** — b562 made the class honest (`is-pending`, italic shows); the colour is flattened by the blanket rule | **Art Director**: exempt `.hh-cost` from the panel ink rule (one selector), do not stack an override |
+
 ## 2026-09-18 · QA · adversarial pass on b548 (combat-XP deferral) + b549 (conflict retry)
 
 Both shipped "pushed, unplayed". Driven in the headless harness (Node against the real modules for
@@ -3379,3 +3448,20 @@ name/wrap half of that test is real (computed styles resolve on a hidden element
 half proves nothing where it runs. Any test that measures geometry must `showTab()` the screen first
 and skip loudly if it did not paint - both b550 rail tests do. Whoever next touches that test should
 give it the same treatment.
+
+## 2026-10-03 · game-designer · the bag paints TWO class strips with the same eleven icons (handoff: Art Director)
+
+Played first-30 on b560 (desktop 1440×900 and 922×423): the bag shows the standing loot filter
+(`.invc-lootfilter`, now labelled "Show", multi-select, persisted) and directly under it the momentary
+category strip (`.invc-cat-btn`, icon-only, scratch). Same classes, same glyphs, stacked; at 922×423
+both rows are icon-only circles/squares and a new player cannot tell which one they pressed or why
+there are two. Mechanics are fine; it reads badly. Ask: merge into one strip (tap = lens, long-press
+or a pin = standing) or visibly separate them. Not changed in lane/b562-first-30-polish (UI design).
+
+## 2026-10-03 · art-director · phoneFrame's "theme face" is the OS fallback, never Alegreya
+
+`phoneFrame()` copies `cssRules` into an iframe; the Google Fonts sheet is cross-origin, so its
+@font-face rules are skipped and every frame-measured layout runs in the OS fallback: Segoe UI on
+Tyler's PC, DejaVu Sans on the CI runner (~18% wider). A fit test green locally can be red on GitHub
+for that reason alone (b562 FIGHT-PHONE-DENSITY). Any layout test measured in a frame should also run
+a forced wide face (`font-family: Verdana, "DejaVu Sans"`) the way FIGHT-STATUS-VERB-1 does.

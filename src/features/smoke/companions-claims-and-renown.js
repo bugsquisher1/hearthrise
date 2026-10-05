@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 43 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, errorLog, stampBalanceLikeLoad, stampRecordLikeLoad, predZero, snapshotG, drain, stubSignedIn, restoreG, zeroRenownTerms, restoreRenownTerms, on, withClaimServer, goldOf, withServerBacked, hrCharmDriver, feedServerGoals, goalRow, feedServerQuests } from './_harness.js?v=560';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, errorLog, stampBalanceLikeLoad, stampRecordLikeLoad, predZero, snapshotG, drain, stubSignedIn, restoreG, zeroRenownTerms, restoreRenownTerms, on, withClaimServer, goldOf, withServerBacked, hrCharmDriver, feedServerGoals, goalRow, feedServerQuests, serverBagFixture } from './_harness.js?v=560';
 
 /* LEDGER OF FIRSTS — the collection-log rungs read the SERVER mirrors, which
    are `_` scratch outside snapshotG. Each test saves and restores them by
@@ -3557,7 +3557,7 @@ export default [
     const H = window.HearthriseHomestead;
     if (!H || typeof H.modalDescriptor !== 'function' || !window.HearthriseRoomModal) return;
     if (typeof window.roomRungItemGate !== 'function') { assert(false, 'roomRungItemGate must be published'); return; }
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     try {
       window.G.homestead = { tier: 3 };
       window.G.rooms = { kitchen: 1 };
@@ -3565,6 +3565,7 @@ export default [
       // b456: gold AND rooms are both server-of-record now — one stamp, real path.
       stampRecordLikeLoad(window.G);    // armed: `affordable` reads gold via canAfford, the rung via roomsOf
       window.G.inventory = { normal_log: 999, oak_log: 999 };
+      bag.agree();   // the server holds the same bag (no blueprint): the gate line is the subject
 
       // ── the descriptor carries it, on the rung AND on `next`
       const d = H.roomDescriptor('kitchen');
@@ -3596,6 +3597,7 @@ export default [
 
       // ── holding one flips the same line, and unblocks the rung
       window.G.inventory.kitchen_blueprint_t2 = 1;
+      bag.agree();   // held means the SERVER holds it (roomRungItemGate counts its bag)
       window.HearthriseRoomModal.refresh();
       assert(document.querySelector('.hr-room-body .hr-room-gate.is-met'), 'holding the blueprint must show as met');
       assert(/In your bags/.test(document.querySelector('.hr-room-body .hr-room-gate.is-met').textContent),
@@ -3610,19 +3612,20 @@ export default [
       window.HearthriseRoomModal.refresh();
       assert(document.querySelector('.hr-room-body .hr-room-gate.is-spent'),
         'a built gated rung must still show its requirement, marked spent');
-    } finally { restoreG(snap); window.HearthriseRoomModal && window.HearthriseRoomModal.close(); }
+    } finally { restoreG(snap); bag.restore(); window.HearthriseRoomModal && window.HearthriseRoomModal.close(); }
   }),
 
   () => tryRun('b355: the pinned Build bar says WHY it is blocked — never a toast', () => {
     const H = window.HearthriseHomestead;
     if (!H || !window.HearthriseRoomModal) return;
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     try {
       window.G.homestead = { tier: 3 };
       window.G.rooms = { kitchen: 1 };
       window.G.gold = 999999;
       stampRecordLikeLoad(window.G);    // b456: modalDescriptor reads gold via canAfford AND the rung via roomsOf
       window.G.inventory = { normal_log: 999 };
+      bag.agree();   // the server holds the same bag (no blueprint): the bar's reason is the subject
 
       const m = H.modalDescriptor('kitchen');
       const acts = m.sections.find((s) => s.kind === 'actions');
@@ -3662,7 +3665,7 @@ export default [
       const b2 = both.sections.find((s) => s.kind === 'actions').buttons.find((b) => /^Upgrade/.test(b.label));
       assert(/Kitchen Blueprint II/.test(b2.why) && /Missing/.test(b2.why),
         'both the gate and the shortfall must be named: ' + b2.why);
-    } finally { restoreG(snap); window.HearthriseRoomModal && window.HearthriseRoomModal.close(); }
+    } finally { restoreG(snap); bag.restore(); window.HearthriseRoomModal && window.HearthriseRoomModal.close(); }
   }),
 
   () => tryRun('b355: dungeon loot and the Quartermaster are real sources in the item index', () => {

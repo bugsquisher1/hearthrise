@@ -119,7 +119,7 @@ import {
    the away replay end a player's night at different moments (AWAY-1). */
 import {
   stanceOf, evaluateStop, DEFAULT_STANCE,
-  vigourBudgetMin, vigourMult, vigourCharge, VIGOUR_PROGRESS_KEY,
+  vigourBudgetMin, vigourMult, vigourScale, vigourCharge, VIGOUR_PROGRESS_KEY,
   VIGOUR_REMAINDER_KEY, VIGOUR_DRY_MULT,
 } from '../../../src/core/hunt.js';
 import { killBonusesFor } from '../../../src/core/botd.js';
@@ -419,6 +419,12 @@ export const ATTENDED_MAX_FIDELITY = 3;
    from the same server secret through the same seed, so a dispute is still
    replayable from the ledger. */
 export const ATTENDED_RNG_SALT = 0x100d;
+
+/* THE TIRED-PAYOUT DITHER'S STREAM (src/core/hunt.js vigourScale). Same reason
+   as the top-up's: its draws run after simulateSpan and must never be able to
+   move a span roll, and the same seed keeps a dispute replayable. Distinct from
+   ATTENDED_RNG_SALT so the two post-span consumers cannot share draws. */
+export const VIGOUR_RNG_SALT = 0x7160;
 
 /**
  * The attended input, NORMALISED. One reader, so nothing downstream re-decides.
@@ -2580,11 +2586,18 @@ export function computeAccrual(input) {
        `Math.floor` after the multiply, and a grant that rounds to zero is
        simply not proposed: the same direction every other rounding in this
        engine takes. `vigMult === 1` short-circuits so an ordinary night is
-       byte-identical. */
+       byte-identical.
+     ⚠ DITHERED, NOT FLOORED (2026-10-05). A floor per window made the tired
+       payout a function of the settle cadence: the 10 s world tick lost
+       -35.5% xp and -71.8% gold against the one-span accrue on production.
+       `vigourScale` keeps the expectation exact under any subdivision, draws
+       from its own salted stream, and never pays above `raw`. The draw order
+       is the grant order the seeded simulation produced, so it replays. */
   const xpDelta = {};
+  const vigRng = vigMult === 1 ? null : createRng((nat(inp.seed, 0) ^ VIGOUR_RNG_SALT) >>> 0);
   for (const k in eligibleXp) {
     const raw = Math.floor(eligibleXp[k] || 0);
-    const gained = vigMult === 1 ? raw : Math.floor(raw * vigMult);
+    const gained = vigMult === 1 ? raw : vigourScale(raw, vigMult, vigRng);
     if (gained > 0) xpDelta[k] = gained;
   }
 
@@ -2618,7 +2631,7 @@ export function computeAccrual(input) {
      and discounting them would pay a player for being out of Vigour. */
   const goldDelta = vigMult === 1
     ? Math.floor(state.gold || 0)
-    : Math.floor(Math.floor(state.gold || 0) * vigMult);
+    : vigourScale(Math.floor(state.gold || 0), vigMult, vigRng);
 
   /* THE ITEM DELTA IS SIGNED. Gains come from drops; the one negative is food
      auto-eat consumed. hr_apply's item block is signed too — it re-reads

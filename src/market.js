@@ -368,7 +368,15 @@
       return { ok:false, reason:'Locked — unlock it in your bag first' };
     }
     if(qty <= 0 || askEach <= 0) return { ok:false, reason:'Invalid amount' };
-    var have = (window.G && window.G.inventory[itemId]) || 0;
+    /* THE SERVER'S BAG, never G.inventory (CLAUDE.md §6 sweep): market_list
+       escrows from player_inventory, and the display bag is a merge an envelope can
+       only raise — a client-rolled drop offered a listing the realm then refused.
+       NULL = no envelope has stated the bag yet: wait, never guess. With the seam
+       off the local book is the judge, so its own bag is the count. */
+    var _A = window.HearthriseAccrual;
+    var have = !serverMarketActive() ? ((window.G && window.G.inventory[itemId]) || 0)
+      : (_A && typeof _A.gateItemCount === 'function') ? _A.gateItemCount(window.G, itemId) : null;
+    if(have === null) return { ok:false, reason:'Your bag is still being counted — try again in a moment' };
     if(have < qty) return { ok:false, reason:'You only have ' + have + ' to list' };
 
     var list = loadListings();

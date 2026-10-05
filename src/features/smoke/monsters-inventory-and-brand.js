@@ -7,7 +7,7 @@
 // the monolith by tools/split-smoke-suite.mjs — 183 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
 import { CHARM_CLASS_LORE, CHARM_RANK_LORE } from '../../data/charm-lore.js?v=560';
-import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot, closeOverlays, phoneFrame, feedServerQuests } from './_harness.js?v=560';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot, closeOverlays, phoneFrame, feedServerQuests, serverBagFixture } from './_harness.js?v=560';
 
 /* SALVAGE-1's regression pin: the goblin drop panel as a player reads it (the
    text of each row, not the markup, so an icon path or cache bump cannot move
@@ -72,7 +72,7 @@ export default [
       return { bar: bar, btn: btn, body: body };
     };
 
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     try {
       // ── PILLAR 1: a homestead room ────────────────────────────────────
       window.G.homestead = { tier: 3 };
@@ -80,6 +80,7 @@ export default [
       window.G.gold = 500000;
       stampBalanceLikeLoad(window.G);   // armed: the Build bar's affordability reads gold
       window.G.inventory = Object.assign({}, window.G.inventory, { normal_log: 999, normal_plank: 999 });
+      bag.agree();   // the server holds the stock: the pinned bar is the subject
       H.openRoom('kitchen');
       let seen = above('homestead kitchen');
       assert(/Build/.test(seen.btn.textContent), 'an unbuilt room offers Build, got "' + seen.btn.textContent + '"');
@@ -103,7 +104,7 @@ export default [
       });
 
       // Unaffordable: still pinned, still priced, and it NAMES what is short.
-      predZero(); window.G.gold = 0; stampBalanceLikeLoad(window.G); window.G.inventory = {};
+      predZero(); window.G.gold = 0; stampBalanceLikeLoad(window.G); window.G.inventory = {}; bag.agree();
       RM.refresh();
       seen = above('homestead kitchen, unaffordable');
       assert(seen.btn.disabled, 'an unaffordable rung must be disabled');
@@ -133,7 +134,7 @@ export default [
             'the pinned button must carry its action data, or pressing it does nothing');
         } finally { UI._reset(); }
       }
-    } finally { restoreGAndRecord(snap); RM.close(); }
+    } finally { restoreGAndRecord(snap); bag.restore(); RM.close(); }
   }),
 
   // ══════════════════════════════════════════════════════════════════════
@@ -4212,6 +4213,7 @@ export default [
     const realNotify = window.notify;
     let sent = [];
     const drain = () => new Promise((r) => setTimeout(r, 60));
+    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       A.acknowledgeReplacement(true);
       /* The handoff deferral is a REAL branch on this path now (b366): with the
@@ -4295,6 +4297,7 @@ export default [
       A.acknowledgeReplacement(wasAck);
       if (wasHeld) S.holdSnapshots(); else S.releaseSnapshots();
       G.inventory = savedInv; G.equipment = savedEq; G.gold = savedGold;
+      bagHeld.restore();
     }
     assert(A.isEnvelopeAbsolute() === false, 'the flip must disarm when the transport is torn down');
   }),
@@ -4326,6 +4329,7 @@ export default [
       skills: {}, inventory: { iron_sword: 1 }, equipment,
       away: { grantMs: 0, gold: 0, xp: {}, items: {} },
     });
+    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       window.__resetEquipAssertion();
       A.acknowledgeReplacement(true);
@@ -4437,6 +4441,7 @@ export default [
       A.acknowledgeReplacement(wasAck);
       if (wasHeld) S.holdSnapshots(); else S.releaseSnapshots();
       G.inventory = savedInv; G.equipment = savedEq; G.gold = savedGold;
+      bagHeld.restore();
     }
   }),
 

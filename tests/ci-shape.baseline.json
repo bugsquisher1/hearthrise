@@ -94,6 +94,8 @@
     "node tests/world-tick-perks-parity.mjs --mutate": "db-replay-3",
     "node tests/world-tick-bestiary-parity.mjs": "db-replay-3",
     "node tests/world-tick-bestiary-parity.mjs --mutate": "db-replay-3",
+    "node tests/world-tick-vigour-scale.mjs": "db-replay-3",
+    "node tests/world-tick-vigour-scale.mjs --mutate": "db-replay-3",
     "node tests/world-tick-stall-guard.mjs": "db-replay-3",
     "node tests/world-tick-stall-guard.mjs --selftest": "db-replay-3",
     "node tests/world-tick-edge-contract.mjs --selftest": "db-replay-3",

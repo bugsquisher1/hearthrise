@@ -306,6 +306,18 @@ export const LINKS = [
     target: '2026-09-28-grant-hygiene-hr-ops.sql',
     patchIds: ['hr_ops_sink_decl', 'hr_ops_sink_check', 'hr_ops_sink_report', 'hr_ops_sink_strict'],
   },
+  /* Link 16 (Security ruling 1, 2026-10-05) — THE SHADOW PARITY PROBE.
+     2026-10-06-world-tick-parity-probe.sql grants hr_engine EXECUTE on the
+     probe pair (hr_tick_probe_fetch, hr_tick_probe_commit). Two entries at the
+     HEAD of c_engine_allow, an INSERTION, so its declared-removals list in
+     tests/run-sql-tests.mjs PART 1f-ii is EMPTY. Its base is link 15's TARGET.
+     The grants and this link land in ONE file, so the nightly detector is
+     never red between them. It is the new last toucher. */
+  {
+    base: '2026-09-28-grant-hygiene-hr-ops.sql',
+    target: '2026-10-06-world-tick-parity-probe.sql',
+    patchIds: ['tick_probe'],
+  },
 ];
 
 const OPEN = 'create or replace function public.hr_assert_grant_hygiene(';
@@ -888,6 +900,38 @@ export const PATCHES = [
     -- binding, the version — is untouched and runs in the same order.
     'hr_tick_settle(text,uuid,integer,text,bigint,timestamp with time zone,timestamp with time zone,uuid,jsonb,jsonb)',\n`,
     where: 'replace',
+  },
+  {
+    id: 'tick_probe',
+    name: 'the c_engine_allow array head (link 16)',
+    find: '  c_engine_allow constant text[] := array[\n',
+    add: `    -- ── ADDED 2026-10-06 — THE SHADOW PARITY PROBE (Security ruling 1) ──
+    -- At the HEAD, an INSERTION: it removes nothing, so PART 1f-ii grades this
+    -- link with an EMPTY declared-removals list. Position carries no meaning —
+    -- check (7) tests membership with \`<> all (...)\`.
+    --
+    -- READ-ONLY (STABLE): the fetch returns ONE open probe row of ONE
+    -- character, and only to the holder the ROSTER leased that character to,
+    -- inside the lease. Its payload is a snapshot the engine itself built from
+    -- hr_state_of, which hr_engine already reads for any character it names.
+    -- NO NEW TARGET: (p_user, p_slot) is the pair the engine already passes to
+    -- hr_state_of and hr_tick_settle.
+    'hr_tick_probe_fetch(text,uuid,integer,text)',
+    -- NOT READ-ONLY, and the claim rests on its WRITE TARGET: its only write
+    -- is the operator table the probe owns (RLS forced, no policy, no client
+    -- or engine grant, classified operational + player_value_exempt). It
+    -- writes no player_state, no ledger, no inventory, no hr_tick_ownership
+    -- (it takes no row lock either), no shadow row and no frame — proved by
+    -- execution over EVERY user table's transaction tuple counters in its
+    -- migration's p3. SELF-VALIDATING: the caller names a holder, a character
+    -- and a window, and the window must be the character's journalled SHADOW
+    -- CHAIN HEAD under a lease the roster stamped — so it can only measure a
+    -- span the fence actually tiled, never invent one, and an armed channel
+    -- cannot reach it at all. Nothing reads its rows to decide a number a
+    -- player can spend, rank or trade. NO NEW TARGET.
+    'hr_tick_probe_commit(text,uuid,integer,text,timestamp with time zone,timestamp with time zone,text,bigint,jsonb,jsonb)',
+`,
+    where: 'after',
   },
   {
     id: 'party_settle',

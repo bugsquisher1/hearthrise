@@ -287,7 +287,7 @@ try {
     const holder = (await db.query(
       "select left('cron:' || coalesce(current_database(), 'db'), 64) as h")).rows[0].h;
     await seed(u, { holder });
-    await db.exec('update public.hr_tick_config set enabled = true, shadow = true where id;');
+    await db.exec('update public.hr_tick_config set enabled = true, armed_channels = array[]::text[] where id;');
     await db.exec(`delete from public.hr_tick_shadow where user_id = '${u}';`);
 
     let fire; let raised = '';

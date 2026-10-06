@@ -74,6 +74,7 @@
 //   M16 hand each character the previous one's answers, arguments intact (N6)
 //   M17 drop the slot from both reads (H1; T-X1i2, one user on two slots)
 //   M18 swallow a party member's read error (H2; T-X1e2)
+//   M19 ignore the channel a fence answer names (mode_channel_mismatch; T-PCc, T-PCd)
 //
 // Usage:
 //   node tests/edge-tick-gate.mjs
@@ -223,8 +224,18 @@ function fakeDb(cfg) {
        care, so the older gather arms keep the ISO spelling they were written
        against. The party fence always answers in the jsonb spelling. */
     jsonbMark: false,
+    /* PER-CHANNEL ARMING (2026-10-06-world-tick-channel-arm.sql). `armed`,
+       when an array, is `hr_tick_config.armed_channels` and decides the mode
+       per channel; `null` keeps the one-flag `shadow` every older arm was
+       written against. Every mode answer names its channel, as the real fence
+       does; `answerChannel` overrides what it names (`null` = omits it, the
+       shape of a fence older than that file). */
+    armed: null, answerChannel: undefined,
   }, cfg || {});
   const jsonbTs = (ms) => new Date(ms).toISOString().replace('Z', '+00:00');
+  const shadowFor = (ch) => (Array.isArray(o.armed) ? !o.armed.includes(ch) : o.shadow);
+  const named = (ch) => (o.answerChannel === undefined ? { channel: ch }
+    : (o.answerChannel === null ? {} : { channel: o.answerChannel }));
   /* Whose projection was served last (`user:slot`) — the character the
      driver is working on. tick.js and tick-party.js both run ONE character at a time, state
      read -> reads -> engine, so an access to another character's answer while
@@ -238,7 +249,7 @@ function fakeDb(cfg) {
   const shadowMarks = new Map();
   const markOf = (user) => (shadowMarks.has(user) ? shadowMarks.get(user)
     : (shadowMarks.size ? null : o.shadowMarkMs));
-  const effMark = (user) => (o.shadow
+  const effMark = (user, ch) => (shadowFor(ch)
     ? Math.max(o.markMs, markOf(user) === null ? o.markMs : markOf(user))
     : o.markMs);
   const calls = [];
@@ -312,16 +323,17 @@ function fakeDb(cfg) {
       const members = JSON.parse(membersJson);
       if (!o.enabled) return [{ res: { ok: false, error: 'tick_disabled' } }];
       const mark = o.partyMarkMs === null ? o.markMs : o.partyMarkMs;
-      const eff = o.shadow ? Math.max(mark, o.partyShadowMarkMs ?? mark) : mark;
+      const eff = shadowFor('combat') ? Math.max(mark, o.partyShadowMarkMs ?? mark) : mark;
       if (Date.parse(wFrom) < eff || Date.parse(wTo) <= eff) {
         return [{ res: { ok: false, error: 'party_window_already_settled',
-          accrued_to: jsonbTs(eff), shadow: o.shadow, shadow_state: null } }];
+          accrued_to: jsonbTs(eff), shadow: shadowFor('combat'), ...named('combat'),
+          shadow_state: null } }];
       }
       for (const m of members) {
         settles.push({ holder, party, user: m.user, slot: m.slot, version: m.version,
           wFrom, wTo, key, delta: m.delta });
       }
-      if (o.shadow) { o.partyShadowMarkMs = Date.parse(wTo); return [{ res: { ok: true, mode: 'shadow' } }]; }
+      if (shadowFor('combat')) { o.partyShadowMarkMs = Date.parse(wTo); return [{ res: { ok: true, mode: 'shadow' } }]; }
       o.partyMarkMs = Date.parse(wTo);
       return [{ res: { ok: true, mode: 'armed' } }];
     }
@@ -350,14 +362,15 @@ function fakeDb(cfg) {
          `hr_engine` is revoked from. Both halves matter: the comparison is
          what makes a replay impossible, and the reported value is what makes
          the next window chainable. */
-      if (Date.parse(wFrom) < effMark(user) || Date.parse(wTo) <= effMark(user)) {
+      if (Date.parse(wFrom) < effMark(user, channel) || Date.parse(wTo) <= effMark(user, channel)) {
         return [{ res: { ok: false, error: 'window_already_settled',
-          accrued_to: o.jsonbMark ? jsonbTs(effMark(user)) : new Date(effMark(user)).toISOString(),
-          shadow: o.shadow } }];
+          accrued_to: o.jsonbMark ? jsonbTs(effMark(user, channel))
+            : new Date(effMark(user, channel)).toISOString(),
+          shadow: shadowFor(channel), ...named(channel) } }];
       }
       if (version !== o.version) return [{ res: { ok: false, error: 'version_conflict' } }];
       settles.push({ holder, user, slot, channel, version, wFrom, wTo, key, delta: JSON.parse(delta) });
-      if (o.shadow) {
+      if (shadowFor(channel)) {
         o.shadowMarkMs = Date.parse(wTo);      // step (8): the shadow chain
         shadowMarks.set(user, o.shadowMarkMs);
         return [{ res: { ok: true, mode: 'shadow', paid: false, window_to: wTo } }];
@@ -804,6 +817,55 @@ async function runArms(mod) {
     ok(outA.body.processed === 1 && outA.body.shadowed === 0,
       'T-S1d — the same code armed reports processed, so T-S1a is not vacuous',
       JSON.stringify(outA.body));
+  }
+
+  // ── T-PC — THE MODE IS PER CHANNEL, AND THE ANSWER MUST SAY WHOSE ───────
+  group('T-PC  per-channel arming reaches the entry (2026-10-06-world-tick-channel-arm.sql)');
+  {
+    /* armed = {combat}: a GATHER character is shadowed even though "the tick
+       is armed" — the one-flag reading of the old config would have paid it. */
+    const g = fakeDb({ armed: ['combat'], activeKind: 'gather' });
+    const outG = await runTick({ exec: g.exec, body: { op: 'tick', roster: [rosterRow(UID)] } });
+    ok(outG.body.shadowed === 1 && outG.body.processed === 0,
+      'T-PCa — combat armed, a gather character settles in SHADOW', JSON.stringify(outG.body));
+    const c = fakeDb({ armed: ['combat'], activeKind: 'combat', activeId: 'goblin', jsonbMark: true });
+    const outC = await runTick({ exec: c.exec, body: { op: 'tick',
+      roster: [rosterRow(UID, { active_kind: 'combat', active_id: 'goblin' })] } });
+    ok(outC.body.processed >= 1 && outC.body.shadowed === 0,
+      'T-PCb — the same config, a combat character is PAID, so T-PCa is not vacuous',
+      JSON.stringify(outC.body));
+    /* A fence answer that names ANOTHER channel is not this channel's mode:
+       the character is skipped by name, nothing is settled, the next fire
+       retries. An answer naming NO channel is a pre-migration fence, whose
+       one global flag is the mode on that database: read as given, so the
+       edge and the migration deploy in either order. */
+    const x = fakeDb({ armed: ['gather'], activeKind: 'gather', answerChannel: 'combat' });
+    const outX = await runTick({ exec: x.exec, body: { op: 'tick', roster: [rosterRow(UID)] } });
+    ok(outX.body.skipped === 1 && outX.body.processed === 0 && outX.body.shadowed === 0
+        && x.settles.length === 0
+        && JSON.stringify(outX.body.reasons || {}).includes('mode_channel_mismatch'),
+      'T-PCc — a fence answer naming the wrong channel is skipped mode_channel_mismatch, nothing settled',
+      JSON.stringify(outX.body));
+    const old = fakeDb({ armed: ['gather'], activeKind: 'gather', answerChannel: null });
+    const outO = await runTick({ exec: old.exec, body: { op: 'tick', roster: [rosterRow(UID)] } });
+    ok(outO.body.processed === 1 && old.settles.length === 1,
+      'T-PCc2 — a pre-migration answer (no channel named) is read as the fence gave it',
+      JSON.stringify(outO.body));
+    /* At party grain: a party hunt is COMBAT. */
+    const partyBody = { op: 'tick', flush_ms: 72000, roster: [],
+      parties: [{ party_id: PARTY, hunt_id: HUNT, active_id: 'goblin', stance: 'steady',
+        accrued_to: new Date(NOW_MS - 120000).toISOString(), members: [{ user_id: UID, slot: 0 }] }] };
+    const pOk = fakeDb({ armed: ['gather'], activeKind: 'combat', activeId: 'goblin', jsonbMark: true });
+    const outPOk = await runTick({ exec: pOk.exec, body: partyBody });
+    const pX = fakeDb({ armed: ['gather'], activeKind: 'combat', activeId: 'goblin', jsonbMark: true,
+      answerChannel: 'gather' });
+    const outPX = await runTick({ exec: pX.exec, body: partyBody });
+    ok(outPOk.body.shadowed === 1 && pOk.settles.length === 1
+        && outPX.body.shadowed === 0 && outPX.body.processed === 0 && pX.settles.length === 0
+        && JSON.stringify(outPX.body.reasons || {}).includes('mode_channel_mismatch'),
+      'T-PCd — gather armed, a party (combat) settles in SHADOW; a party answer naming gather\'s '
+      + 'mode settles nobody (mode_channel_mismatch)',
+      JSON.stringify({ ok: outPOk.body, x: outPX.body }));
   }
 
   // ── T-M1 — M-1's RECEIVING HALF, END TO END ─────────────────────────────
@@ -1365,6 +1427,27 @@ const MUTATIONS = [
        timestamp". A mutant that chains on the body is exactly what T-B1g
        forbids, so an M5 that left T-B1 green would mean T-B1g was decorative. */
     mustFail: ['T-M1', 'T-B1'],
+  },
+  {
+    /* THE mode_channel_mismatch CHECK'S OWN PROOF (Security follow-up,
+       SEC_WORLD_TICK_CHANNEL_ARM_2026-10-05 finding 7). tick.js and
+       tick-party.js skip a fence answer that names another channel; an
+       answer naming NONE is read as given (pre-migration fence). Dropping the
+       name from every answer is therefore exactly "the check is gone": the
+       wrong-channel answer is believed and its mode settles the character.
+       T-PCc (solo) and T-PCd (party) must both go red. */
+    id: 'M19', what: 'ignore the channel a fence answer names (mode_channel_mismatch removed)',
+    patch: (m) => Object.assign({}, m, {
+      runTick: async (o) => REAL.runTick(Object.assign({}, o, {
+        exec: async (text, params) => {
+          const rows = await o.exec(text, params);
+          const r = rows && rows[0] && rows[0].res;
+          if (r && typeof r === 'object' && 'channel' in r) delete r.channel;
+          return rows;
+        },
+      })),
+    }),
+    mustFail: ['T-PCc —', 'T-PCd'],
   },
   {
     /* T-3's OWN PROOF. T-T1 is worth nothing unless it goes red on the defect

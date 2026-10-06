@@ -106,6 +106,8 @@
     "node tests/world-tick-probe-bar.mjs": "db-replay-5",
     "node tests/world-tick-probe-bar.mjs --mutate": "db-replay-5",
     "node tools/world-tick-parity.mjs --selftest": "db-replay-5",
+    "node tests/world-tick-seed-no-leak.mjs": "db-replay-5",
+    "node tests/world-tick-seed-no-leak.mjs --mutate": "db-replay-5",
     "node tests/world-tick-resume-alignment.mjs": "db-replay-5",
     "node tests/world-tick-resume-alignment.mjs --mutate": "db-replay-5",
     "node tests/world-tick-perks-parity.mjs": "db-replay-5",

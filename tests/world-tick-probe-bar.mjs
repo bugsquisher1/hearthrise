@@ -305,6 +305,19 @@ judge('PB-1', cal.verdict === 'PASS',
   + `replay ${JSON.stringify(cal.stats.replay)})`,
   `combat bar ${cal.verdict} on the calibration set:\n      - ${cal.reasons.join('\n      - ')}`);
 
+// ── PB-1z THE PER-PROBE z BAR SITS WHERE IT WAS RULED ─────────────────────
+/* SEC_PROBE_RETAIN_2026-10-06 B2: any per-probe |z| > BAR.combat.zProbeMax
+   (4.3, Bonferroni over 48) FAILS; the C6 calibration probe at ~−3.5 must stay
+   inside it, AND outside 3.29 — the draw that made a 3.29 per-probe bar
+   false-fail a correct engine. If it ever drops under 3.29 this pin no longer
+   shows the bar's headroom; if it passes 4.3 the calibration is red above. */
+{
+  const zw = cal.stats.replay && cal.stats.replay.zWorst;
+  judge('PB-1z', Number.isFinite(zw) && Math.abs(zw) > 3.29 && Math.abs(zw) <= 4.3,
+    `the calibration's worst per-probe z is ${zw}: past 3.29, inside the per-probe FAIL at 4.3`,
+    `the calibration's worst per-probe z is ${zw}, not in (3.29, 4.3] — re-read the per-probe bar's calibration`);
+}
+
 // ── PB-1g CALIBRATION: gather, six 4 h probes ─────────────────────────────
 {
   const probes = [];

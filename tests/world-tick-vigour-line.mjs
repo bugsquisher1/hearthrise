@@ -114,6 +114,19 @@ const MUTANTS = [
         'const goldFull = goldAll;'],
     ],
   },
+  /* THE RULING'S 2x OVERPAY (SEC_VIGOUR_LINE_SPLIT_2026-10-06 "Condition":
+     "a 2x overpay would pass undetected" by the parity arms; SEC_PROBE_RETAIN
+     B3 asks VL3 to prove it). Tired XP AND gold pay twice VIGOUR_DRY_MULT:
+     per kill 0.50 of rested, outside [0.22, 0.28]. */
+  {
+    name: 'VL-M7 tired pays 2x VIGOUR_DRY_MULT (xp and gold)', arm: 'VL3',
+    file: 'supabase/functions/hr-accrue/accrual.js',
+    edits: [
+      ['const vigMultAt = (atMs) => (vigDry && atMs >= vigLineMs ? VIGOUR_DRY_MULT : 1);',
+        'const vigMultAt = (atMs) => (vigDry && atMs >= vigLineMs ? 2 * VIGOUR_DRY_MULT : 1);'],
+      ['const vigMult = VIGOUR_DRY_MULT;', 'const vigMult = 2 * VIGOUR_DRY_MULT;'],
+    ],
+  },
   /* The latent LOW: tick instants are seg.fromMs + i·tickMs with
      n = ms·rate/tickMs, so a rate below 1 compresses the ticks ahead of the
      wall clock and the line lands late, in the player's favour (VL4). */
@@ -292,7 +305,7 @@ const ARMS = {
   },
   /* VL3 — THE RATIO ARM. VL1/VL2 are parity arms: an engine that overpays the
      one span and the chain alike stays in parity, and VL-M4/VL-M5 (4x tired
-     overpay) passed every vigour guard. Here the SAME input and seeds run
+     overpay) passed every vigour guard; VL-M7 is the ruling's 2x. Here the SAME input and seeds run
      rested (spent 0), crossing (the line two hours in) and wholly past it
      (spent = budget).
      THE BAND IS READ PER KILL. Since b563 the fight levels off BANKED xp, so a

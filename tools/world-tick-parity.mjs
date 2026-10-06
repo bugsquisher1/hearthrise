@@ -205,14 +205,18 @@ export function readVerdict(rows, liveHash, opts) {
   return Object.assign(judgeRead(recs, { rareIds: RARE_IDS }), { offPayload, trimmed, records: recs });
 }
 
-function print(v, liveHash) {
+/* The ONLY place a read is written out. It prints verdicts, counts and
+   reasons — never a row, never a row's seed (tests/world-tick-seed-no-leak.mjs
+   scans this source and captures this function's output to hold that). */
+export function printRead(v, liveHash, opts) {
+  const verbose = opts && 'verbose' in opts ? !!opts.verbose : VERBOSE;
   console.log(`world-tick-parity: ${v.records.length} probes on payload ${String(liveHash).slice(0, 16)}… `
     + `(${v.offPayload} on another payload, ${v.trimmed} combat past replay retention; not counted)`);
   for (const g of v.groups) {
     console.log(`  ${g.key}  ${g.verdict}  ${JSON.stringify({ probes: g.stats.probes, hours: g.stats.hours, discarded: g.stats.discarded })}`);
     if (g.stats.replay) console.log(`      replay ${JSON.stringify(g.stats.replay)}`);
-    for (const r of g.reasons.slice(0, VERBOSE ? 50 : 6)) console.log(`      - ${r}`);
-    if (VERBOSE) console.log(`      stats ${JSON.stringify(g.stats)}`);
+    for (const r of g.reasons.slice(0, verbose ? 50 : 6)) console.log(`      - ${r}`);
+    if (verbose) console.log(`      stats ${JSON.stringify(g.stats)}`);
   }
   for (const ch of ['gather', 'combat']) console.log(`${ch}: ${v.channels[ch]}`);
 }
@@ -320,6 +324,14 @@ async function selftest() {
     readVerdict(heavy, H, { replayOf: planted(0, { reproduced: null }) }), 'INSUFFICIENT', 'combat');
   expect('the realised read at z 5 against its replay (two probes +200 gold)',
     readVerdict(heavy.map((r, i) => (i === 1 || i === 3 ? Object.assign({}, r, { gold: r.gold + 200 }) : r)), H, R0), 'FAIL', 'combat');
+  /* SEC_PROBE_RETAIN_2026-10-06 B2: per-probe |z| > 4.3 FAILS, so two
+     offsetting defects (+5 sd and −5 sd, summed pair z 0) cannot cancel; one
+     probe at ~4 sd (the bar's inside) stays PASS. */
+  expect('two offsetting probe defects (+100 / −100 gold, each ~5 sd; summed z ~0)',
+    readVerdict(heavy.map((r, i) => (i === 1 ? Object.assign({}, r, { gold: r.gold + 100 })
+      : i === 3 ? Object.assign({}, r, { gold: r.gold - 100 }) : r)), H, R0), 'FAIL', 'combat');
+  expect('one probe at ~4 sd (+75 gold): inside the per-probe 4.3',
+    readVerdict(heavy.map((r, i) => (i === 1 ? Object.assign({}, r, { gold: r.gold + 75 }) : r)), H, R0), 'PASS', 'combat');
 
   bad += engineReplaySelftest(H);
   if (bad) { console.error(`\nworld-tick-parity --selftest: ${bad} rule(s) did not bite`); process.exit(1); }
@@ -340,9 +352,11 @@ async function selftest() {
      +12 % chain bias          → FAIL on the replay aggregate
    The bias multiplies the chain's ticks, kills, gold and xp by 1.12 in the
    live pair AND in every replica — the engine is biased, not the reading. */
-export const SELFTEST_REPLICAS = 40;
+/* ≥ 120 (SEC_PROBE_RETAIN_2026-10-06 B1): at 40 the correct engine drew
+   −3.6 % at 2.5 se, so the zero-centred se test was reading noise. */
+export const SELFTEST_REPLICAS = 120;
 const SPAN_PAD_MS = 74400;   // probes 8/10: 4 h 01 m 14 s, like production's close
-function selftestProbes() {
+export function selftestProbes() {
   const qa1 = JSON.parse(readFileSync(new URL('../services/world-tick/fixtures/vigour-line-qa1.json', import.meta.url), 'utf8'));
   const out = [];
   const userOf = (i) => `00000000-0000-4000-8000-${String(0x5e1f00 + i).padStart(12, '0')}`;
@@ -509,7 +523,7 @@ async function productionRead() {
     const v = readVerdict(rows, hash, { replayOf: productionReplayOf(engineHash, REPLICAS) });
     console.log(`world-tick-parity: replay engine = this repo's hr-accrue payload ${String(engineHash).slice(0, 16)}… `
       + `(${engineHash === hash ? 'IS' : 'is NOT'} the live payload), ${REPLICAS} replicas per combat probe`);
-    print(v, hash);
+    printRead(v, hash);
     process.exitCode = (v.channels.gather === 'PASS' && v.channels.combat === 'PASS') ? 0 : 3;
   }
 }
@@ -518,8 +532,13 @@ async function productionRead() {
    re-read at t1 is not the snapshot at t0), and the only admissible engine is
    the one at the probe's payload hash. The seed is the probe row's own: the
    one-span draw hr_tick_probe_commit derived at close from hr_seed's
-   span-start label (2026-10-07-probe-retain-input.sql) — one 32-bit value for
-   one past span, never the hr_seed secret. A row without one replays with
+   span-start label (2026-10-07-probe-retain-input.sql) — one 32-bit value,
+   never the hr_seed secret. It is SECRET-EQUIVALENT (SEC_PROBE_RETAIN_2026-10-06,
+   correcting that file's header): the shadow chain starts at ps.accrued_to,
+   so a probe's span_from can equal an away player's live watermark, and then
+   this value IS the seed of that player's NEXT live settle. It is used here
+   and nowhere else — never printed, exported, written to a fixture or sent to
+   CI (tests/world-tick-seed-no-leak.mjs). A row without one replays with
    `reproduced` null, which can never PASS. */
 export const seedOfRow = (row) => {
   if (row.seed === null || row.seed === undefined || row.seed === '') return null;
@@ -542,5 +561,10 @@ export function productionReplayOf(engineHash, replicas) {
 const isMain = (process.argv[1] || '').replace(/\\/g, '/').endsWith('tools/world-tick-parity.mjs');
 if (isMain) {
   if (SELFTEST) await selftest();
-  else await productionRead();
+  else if (process.env.CI || process.env.GITHUB_ACTIONS) {
+    /* The production read handles probe seeds (secret-equivalent): it never
+       runs in CI, whatever a workflow asks (tests/world-tick-seed-no-leak.mjs). */
+    console.error('world-tick-parity: refusing — the production read never runs in CI; CI runs --selftest');
+    process.exit(2);
+  } else await productionRead();
 }

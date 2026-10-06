@@ -6,8 +6,8 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-10-05",
- "digest": "dca1918b7cff4ac6a3aec301c86c45ff26394a65b51fb08f395ba9dfb077522b",
+ "generated": "2026-10-06",
+ "digest": "848e1b35a52fef32c0c5171d837e5291582f024c73c9b15150d89bfa0f09e667",
  "counts": {
   "relations": 138,
   "functions": 344,
@@ -252,8 +252,8 @@
    "hr_bounty_kill_range(p_tier integer, p_difficulty text)",
    "hr_bounty_kills(p_user uuid, p_slot integer, p_target text)",
    "hr_bounty_reward(p_tier integer, p_type text, p_difficulty text)",
-   "hr_bounty_spend(p_slot integer, p_reason text, p_bounty_level integer, p_reward_marks bigint, p_idem uuid)",
-   "hr_bounty_spend__ungated(p_slot integer, p_reason text, p_bounty_level integer, p_reward_marks bigint, p_idem uuid)",
+   "hr_bounty_spend(p_slot integer, p_reason text, p_bounty_id text, p_idem uuid)",
+   "hr_bounty_spend__ungated(p_slot integer, p_reason text, p_bounty_id text, p_idem uuid)",
    "hr_bounty_unlocked_tier(p_cl integer)",
    "hr_buy_gem_unlock(p_unlock_id text, p_slot integer, p_idem uuid)",
    "hr_buy_gem_unlock__ungated(p_unlock_id text, p_slot integer, p_idem uuid)",

@@ -90,7 +90,7 @@
 //    fresh server character over real local progress is permanent — but it
 //    means the first switch-on purchase shows the sheet.
 // 3. ~~`vendor_sell` PRICES ONE ITEM ID PER CALL, so the two BULK gestures
-//    have no server story.~~ CLOSED (b564): Sell Selected and the sell-junk
+//    have no server story.~~ CLOSED: Sell Selected and the sell-junk
 //    sweep send ONE `vendor_sell_many` per press (`sellItems` below).
 // 4. ~~THE ACCRUAL PATH DOES NOT RECONCILE GEMS.~~ CLOSED. `reconcilePredictions`
 //    is registered into `applyEnvelopeState`, so gems are now written absolutely
@@ -124,7 +124,7 @@ import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=562';
 
 export const SHOP_BUY_VERB = 'shop_buy';
 export const VENDOR_SELL_VERB = 'vendor_sell';
-/* b564 — THE BULK SALE. N stacks, ONE intent, ONE shop rate token, ONE settle,
+/* THE BULK SALE. N stacks, ONE intent, ONE shop rate token, ONE settle,
    all-or-nothing under hr_apply. The wire carries `lines: [{item, qty}]` —
    names and counts, never a price (buildGoldRequest). */
 export const VENDOR_SELL_MANY_VERB = 'vendor_sell_many';
@@ -1288,7 +1288,7 @@ export function sellItem(itemId, qty, key) {
 }
 
 /**
- * SELL MANY STACKS IN ONE INTENT (b564). `lines` is `[{item, qty}]`.
+ * SELL MANY STACKS IN ONE INTENT. `lines` is `[{item, qty}]`.
  *
  * Refused LOCALLY on any shape the server would refuse (`bad_lines` there):
  * empty, more than MAX_SELL_LINES, a malformed id, a qty outside [1, MAX_QTY],

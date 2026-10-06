@@ -284,11 +284,11 @@ function invSellAll(id){
   updateTopbar(); renderInvNew(); closeInvDetail();
 }
 /* ══════════════════════════════════════════════════════════════════════
-   b564 — BULK SELL, ONE INTENT PER PRESS (`vendor_sell_many`).
+   BULK SELL, ONE INTENT PER PRESS (`vendor_sell_many`).
    ══════════════════════════════════════════════════════════════════════
    Sell Selected and the junk sweep used to pay gold locally through a DEFERRED
    site and send nothing, so the next envelope took both halves back (CLAUDE.md
-   §6); the b563 interim closed them. They are back on the server verb built for
+   §6); an interim closed them. They are back on the server verb built for
    them: N stacks in ONE intent — one key, one `shop` rate token, one settle —
    priced line by line from the server's catalogue and ALL-OR-NOTHING under
    hr_apply.
@@ -388,7 +388,7 @@ function vendorSellMany(picks, site){
       lines.forEach((l) => addItem(l.item, l.qty, false));
     }
     const out = bulkSellToast(r, left);
-    if(out && out.sold > 0) lines.forEach((l) => recordVendorSale(l.item, l.qty, vendorPrice(l.item)));   // b240: noted
+    if(out && out.sold > 0) lines.forEach((l) => recordVendorSale(l.item, l.qty, vendorPrice(l.item)));   // noted for the buy-back list
     try{ updateTopbar(); renderInvNew(); }catch(e){}
     return out;
   }, () => { notify('The realm has not answered yet — your bag will settle', 'info'); return null; });
@@ -403,7 +403,7 @@ function invSellSelected(){
   const picks = []; let skipped = 0;
   for(const id of window._invSelected){
     if(!ITEMS[id]) continue;
-    if(isItemLocked(id) || vendorPrice(id) <= 0){ skipped++; continue; }   // b240: locked stays; a 0g bid would refuse the batch
+    if(isItemLocked(id) || vendorPrice(id) <= 0){ skipped++; continue; }   // a locked stack stays; a 0g bid would refuse the batch
     const qty = sellableCount(id) || 0;
     if(qty > 0) picks.push({ id, qty });
   }

@@ -384,7 +384,7 @@
       var def = window.ITEMS[id];
       if(!def) return;
       if(def.bop) return;                              // never sell BoP
-      if(typeof window.isItemLocked === 'function' && window.isItemLocked(id)) return;   // b240: a locked stack is never swept
+      if(typeof window.isItemLocked === 'function' && window.isItemLocked(id)) return;   // a locked stack is never swept
       if(def.heals && def.heals > 0) return;           // keep food
       if(def.recipe || def.unlocks) return;            // keep recipe scrolls / blueprints / keys
       if(def.type === 'weapon' || def.type === 'armor') return; // keep gear
@@ -440,7 +440,7 @@
     return 'Sell ' + stacks + ' (' + items + ') for ' + q.totalGold.toLocaleString() + ' gold?';
   }
 
-  /* ONE PRESS IS ONE INTENT (b564, `vendor_sell_many`), so the sweep a player is
+  /* ONE PRESS IS ONE INTENT (`vendor_sell_many`), so the sweep a player is
      asked about is the sweep that is sent: at most MAX_SELL_LINES stacks of at
      most MAX_QTY each. Anything past that stays in the bag; the confirm says so
      and the receipt toast says so again. */

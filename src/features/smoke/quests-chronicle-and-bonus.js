@@ -2440,7 +2440,7 @@ export default [
       'the pencil no longer calls HearthriseLaunchpad.openRename() — it asks by some other means: ' + onclick);
   }),
 
-  /* b564: the sweep is back (vendor_sell_many), so the modal is back too. */
+  /* The sweep sells through vendor_sell_many, and asks first with the modal. */
   () => tryRunAsync('B373-2: sell-junk asks with the in-game modal, and cancelling pays nothing', async () => {
     const G = window.G;
     const CM = window.HearthriseInvCtx;

@@ -7851,9 +7851,9 @@ export default [
     } finally { window.notify = realNotify; try { window.closeInvDetail(); } catch (e) {} restoreG(snap); bag.restore(); }
   }),
 
-  /* ── b564 — BULK SELL ON `vendor_sell_many`: ONE INTENT PER PRESS ─────────
+  /* ── BULK SELL ON `vendor_sell_many`: ONE INTENT PER PRESS ─────────
      Sell Selected and the junk sweep used to pay gold locally and send nothing
-     (the envelope took it back, CLAUDE.md §6); the b563 interim closed them.
+     (the envelope took it back, CLAUDE.md §6); an interim closed them.
      They send ONE vendor_sell_many per press now. These four pin the press:
      the one intent and what is on it, the toast from the SERVER receipt, the
      rollback of a refused batch, the latch, and the toolbar that reaches it.
@@ -8161,7 +8161,7 @@ export default [
        documentation this codebase depends on"). Over-stripping can only remove
        comment text, never a statement, so it cannot hide a real occurrence. */
     const stripJs = (js) => js.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
-    /* b564: Sell Selected writes the bag through vendorSellMany (one intent per press). */
+    /* Sell Selected writes the bag through vendorSellMany (one intent per press). */
     assert(typeof window.vendorSellMany === 'function', 'vendorSellMany is unpublished');
     assert(!/delete\s+G\.inventory\s*\[/.test(stripJs(String(window.invSellSelected))),
       'invSellSelected() deletes a bag entry directly');

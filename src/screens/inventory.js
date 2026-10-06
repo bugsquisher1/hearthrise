@@ -135,7 +135,7 @@ function renderInvFancy(){
     if(search && def.n.toLowerCase().indexOf(search) < 0) return false;
     return true;
   });
-  /* b564 — the selection, counted against the bag that is actually here. */
+  /* The selection, counted against the bag that is actually here. */
   var _sel = window._invSelectMode ? (window._invSelected || new Set()) : null;
   var _selN = _sel ? entries.filter(function(kv){ return _sel.has(kv[0]); }).length : 0;
 
@@ -172,7 +172,7 @@ function renderInvFancy(){
         +' <span class="invc-space-free">('+Math.max(0, bankCap()-bankUsed()).toLocaleString()+' free)</span>'
         +'<span class="invc-space-sub"> · '+totalCount.toLocaleString()+' items</span></span>'+
       '<div class="invc-actions">'+
-        /* b564 — BULK SELL IS BACK, on the server verb built for it
+        /* BULK SELL, on the server verb built for it
            (`vendor_sell_many`, shop-counter.js vendorSellMany). "Select" puts the
            bag in select mode — the flag invItemTap actually reads (the old
            "Multi-select" toggled one nothing read) — and the toolbar becomes the
@@ -403,7 +403,7 @@ window._invSearchClear = function(){
   window._invFilter.category = 'all';
   renderInvFancy();
 };
-/* b564 — SELECT MODE. The tile tap (legacy.js invItemTap) already toggles
+/* SELECT MODE. The tile tap (legacy.js invItemTap) already toggles
    `_invSelected` while `_invSelectMode` is on; this is the switch, and leaving
    select mode drops the selection so a stale pick can never ride a later Sell. */
 window._invToggleSelect = function(){

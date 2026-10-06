@@ -216,7 +216,7 @@ const B = Object.freeze({
      flipGuard rather than a blocker. See those rows below. */
   /* B.BULK_VENDOR was RETIRED on 2026-10-06: Sell Selected and the
      sell-junk sweep paid gold through it and sent nothing, so the envelope took
-     it back. They are `wired` rows naming `vendor_sell_many` now (b564). */
+     it back. They are `wired` rows naming `vendor_sell_many` now. */
   DERIVED_PRICE: 'a server-owned price. This spend computes its cost at call time and is NOT in '
     + 'SHOP_OFFERS — see DERIVED_PRICES in src/data/shops.js. A server that authorises a spend must '
     + 'own the price, and for this one it would also have to own the purchase COUNT the price '
@@ -338,7 +338,7 @@ export const GOLD_SITE_LEDGER = Object.freeze({
     kind: 'vendor', status: 'wired', verb: 'vendor_sell',
     site: 'src/item-ux.js — the quick-sell slider',
   },
-  /* b564 — THE TWO BULK GESTURES, BACK AND WIRED. Both send ONE
+  /* THE TWO BULK GESTURES, WIRED. Both send ONE
      `vendor_sell_many` per press through `vendorSellMany` (shop-counter.js):
      one key, one prediction, one shop rate token, all-or-nothing under hr_apply.
      The toast is built from the server's receipt only; a refusal rolls back the

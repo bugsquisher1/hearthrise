@@ -2605,7 +2605,7 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 }
 .invc-tile .invc-lock svg{width:13px;height:13px}
 .invc-tile.invc-locked{border-color:var(--gold-2)}
-/* b564 — a stack picked for Sell Selected. Tokens only: the green the game
+/* A stack picked for Sell Selected. Tokens only: the green the game
    uses for "yes, this one" (--green / --green-bg), so a selection never reads as
    the gold of a lock. */
 .invc-tile.invc-selected{border-color:var(--green);background:var(--green-bg);box-shadow:inset 0 0 0 2px var(--green)}

@@ -135,7 +135,7 @@ async function arm(db, { holder = 'proofs', shadow = false } = {}) {
     insert into public.hr_tick_ownership (user_id, slot, channel, owned, lease_holder, lease_until)
     values ('${U}', 0, 'gather', true, '${holder}', now() + interval '5 minutes');`);
   await db.exec(`update public.hr_tick_config
-                    set enabled = true, shadow = ${shadow ? 'true' : 'false'} where id;`);
+                    set enabled = true, armed_channels = ${shadow ? 'array[]::text[]' : 'channels'} where id;`);
 }
 
 /* One settle through the FENCE, made AS a named role — the same `set local

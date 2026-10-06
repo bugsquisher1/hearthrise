@@ -374,7 +374,7 @@ try {
     await db.exec(`
       insert into public.hr_tick_ownership (user_id, slot, channel, owned, lease_holder, lease_until)
       values ('${u}', 0, 'gather', true, 'proofs', now() + interval '5 minutes');`);
-    await db.exec('update public.hr_tick_config set enabled = true, shadow = true where id;');
+    await db.exec('update public.hr_tick_config set enabled = true, armed_channels = array[]::text[] where id;');
 
     const probe = async (nowSpelling) => {
       await db.exec('begin'); await db.exec('set local role hr_engine');
@@ -658,7 +658,7 @@ try {
        settle what an armed roster would hand it, which is the precondition the
        arm is blocked on — not a recommendation to arm. */
     await db.exec("update public.hr_tick_config set channels = array['combat','gather']::text[],"
-      + ' enabled = true, shadow = true where id;');
+      + ' enabled = true, armed_channels = array[]::text[] where id;');
 
     const uc = U(10);
     await seedFighter(uc, 'combat');

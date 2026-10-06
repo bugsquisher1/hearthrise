@@ -23,15 +23,17 @@
 // A client in the second state is INDISTINGUISHABLE from a quiet one. The game
 // looks calm, the bug report says nothing, and `vitals.mjs` counts a player who
 // stopped playing — which CLAUDE.md §3.4 calls a P1 by definition and gives two
-// days to notice. So until `lane/m5-live-subscribe` ships the forced re-read
-// that is ALLOWED TO RESET the floor (SEC §3 makes it a hard prerequisite of
-// that lane, not of this one), the honest deliverable is DETECTION: a counter
-// of consecutive refusals, published on a seam a human already reads.
+// days to notice. This file pins DETECTION: a counter of consecutive refusals,
+// published on a seam a human already reads.
 //
-// ⚠ THIS GUARD DOES NOT CLAIM THE STATE IS FIXED. It claims the state is
-//   SAYABLE. That distinction is the whole reason the file exists, and a future
-//   reader who takes green here as "the stuck floor is handled" has been misled
-//   by this header, not by the code. See D4, which pins the gap ITSELF.
+// ⚠ THE CURE IS NOT HERE, AND IT IS PARTIAL. `lane/m5-live-subscribe` put it in
+//   src/net/live.js `healStuckFloor()`: after LIVE_HEAL_AFTER_DROPS consecutive
+//   `reorder`s, while the channel is JOINED, it sends ONE forced hello whose
+//   own answer alone may lower the floor (SEC M5-client C1; L6 + L13 of
+//   tests/live-frame-subscribe.mjs). No join (Realtime down, user cap) means
+//   no heal. D4 below pins the other half: the APPLIER still refuses every
+//   other envelope below a stuck floor, and the streak keeps counting so the
+//   healer has something to read.
 //
 // ── THE CLAIMS ──────────────────────────────────────────────────────────────
 //   D1  IT COUNTS       consecutive refusals raise a published counter, at ALL
@@ -43,11 +45,11 @@
 //   D3  HELLO CLEARS IT a fresh full envelope at a higher version — the §5
 //                       healer, as the shipped client actually performs it —
 //                       both applies and zeroes the streak, in one step.
-//   D4  AND THE GAP IS REAL, PINNED ON PURPOSE. With the floor stuck ABOVE the
-//                       server, that same `hello` is refused and the streak
-//                       KEEPS RISING. This asserts the hole rather than papering
-//                       it: if a later lane closes it, this claim goes red and
-//                       the next author must come here and say so.
+//   D4  THE APPLIER NEVER FAILS OPEN. With the floor stuck ABOVE the server,
+//                       that same `hello` is refused BY THE APPLIER and the
+//                       streak KEEPS RISING — the signal live.js's healer reads
+//                       (L6 of tests/live-frame-subscribe.mjs) before it resets
+//                       the floor on purpose.
 //   D5  IDENTITY CLEARS a character/slot change resets floor AND streak
 //                       together — a streak carried across identities would
 //                       report the outgoing character's silence as the
@@ -274,27 +276,26 @@ export async function frameDropStreakGuard(mutation) {
       + 'signal it healed, or the sheet reports an outage that is over.');
   }
 
-  /* ── D4 …AND THE GAP IS REAL. PINNED, NOT PAPERED. ────────────────────────
-     A floor ABOVE the server is the case with no healer: `hello` itself is
-     refused, and the streak rises without bound. This claim asserts the HOLE.
-     It is the one claim in this file that will go RED when the thing it
-     describes is fixed — and that is the point: whoever lands the forced
-     re-read in `lane/m5-live-subscribe` must come here, read this, and rewrite
-     it, rather than find a green guard that quietly says nothing. */
+  /* ── D4 THE APPLIER NEVER FAILS OPEN BELOW A STUCK FLOOR ───────────────────
+     Rewritten by lane/m5-live-subscribe, which added a healer for a JOINED
+     channel only (no heal while Realtime is down or past its user cap). The
+     healer is ONE forced hello whose own tagged answer may lower the floor
+     (L6/L13 of tests/live-frame-subscribe.mjs), never an applier that accepts
+     a lower version on its own: an untagged envelope is still refused, and
+     the streak still rises — that rising streak is exactly what it reads. */
   {
     A.resetFrameGate();
     A.commitFrame(1e6);                                   // the stuck floor
     const G = { gold: 0, gems: 0, skills: {}, inventory: {} };
     ok(A.applyEnvelope(G, envAt(900, 12345)) === null && G.gold === 0, 'D4',
-      'a `hello` BELOW a stuck floor was applied. If a forced re-read that resets the floor has '
-      + 'landed, this guard is describing a client that no longer exists — rewrite D4 and the '
-      + 'header, and move the healer row in LIVE_COUNTERS_PUSH.md §5.');
+      'a `hello` BELOW a stuck floor was applied BY THE APPLIER — it failed open. The stuck '
+      + 'floor is healed only by the answer to live.js healStuckFloor\'s own hello, never here.');
     const before = drops();
     A.applyEnvelope({ gold: 1 }, envAt(901, 1));
     ok(drops() === before + 1, 'D4',
       'the streak stopped rising under a stuck floor (' + before + ' → ' + drops() + '). '
-      + 'Detection is the ONLY thing this client has for that state; if the counter goes quiet '
-      + 'there, it is quiet exactly when it is needed.');
+      + 'live.js healStuckFloor() reads this streak; if the counter goes quiet there, the healer '
+      + 'never fires.');
   }
 
   // ── D5 AN IDENTITY CHANGE CLEARS BOTH ─────────────────────────────────────
@@ -359,5 +360,5 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   if (found.length) { for (const m of found) console.error('  ✗ ' + m); process.exit(1); }
   console.log('frame-drop-streak: OK — consecutive refusals are counted at all three appliers, '
     + 'a landed frame clears the streak, `hello` heals a floor that is too LOW in one step, and '
-    + 'the too-HIGH case is pinned as the open gap it still is (SEC S3).');
+    + 'below a too-HIGH floor the applier still refuses and keeps counting for the live.js healer (SEC S3).');
 }

@@ -457,6 +457,9 @@ import { setupBestiaryTrophies } from './render/bestiary-trophies.js?v=562';
    the server half lands in its own lane and until it does the panel is simply
    not rendered (see the fail-safe block in src/net/town.js). */
 import { startTownChannel } from './net/town.js?v=562';
+/* THE PUSH CHANNEL (M5). Transport only: each frame goes through accrue.js's
+   one gate and one applier; with no frames the 90 s settle poll is today's game. */
+import { startLive } from './net/live.js?v=562';
 import { setupTownPanel } from './render/town-panel.js?v=562';
 import { setupStandings } from './features/standings.js?v=562';
 import { setupComeBack } from './features/come-back.js?v=562';
@@ -538,6 +541,7 @@ function tryBootFeatures() {
   /* AFTER the panel is published: the first poll can land before the next Home
      repaint, and a parked view with no renderer is a view nothing draws. */
   boot('town-channel', startTownChannel);
+  boot('live-frames', startLive);
   boot('bank-panel', setupBankPanel);
   boot('smoke-test-loader', setupSmokeTestLoader);
   boot('companions', setupCompanions);

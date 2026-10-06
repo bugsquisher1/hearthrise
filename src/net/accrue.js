@@ -303,8 +303,9 @@ export const ACCRUE_OUTCOMES = [
    monotonic and already the number gold.js was comparing.
 
    THE PREDICATE READS THE FLOOR; ONLY AN APPLIER RAISES IT, which keeps
-   `isEnvelopeApplicable` safe to ask twice: applyEnvelope here, applyGoldEnvelope
-   and applyIntentEnvelope call `commitFrame` on what they wrote, nothing else may.
+   `isEnvelopeApplicable` safe to ask twice: applyEnvelope and applyFrame here,
+   applyGoldEnvelope and applyIntentEnvelope call `commitFrame` on what they
+   wrote, nothing else may.
 
    PER CHARACTER, so the reset is load-bearing: carrying one character's floor
    into another would drop every frame of the new one until its version passed
@@ -330,10 +331,11 @@ export function getAppliedFrame() { return lastAppliedFrame; }
    client asks, the server answers, every answer is refused, and NOTHING says
    so. A quiet game in the browser; a player who stopped in `vitals.mjs`.
 
-   ⚠ THIS COUNTS THE STATE; IT DOES NOT FIX IT. The only healer is `hello`,
-   which heals a floor that is too low — one too HIGH refuses the healer too.
-   The cure belongs to `lane/m5-live-subscribe`; the gap is in
-   LIVE_COUNTERS_PUSH.md §5 and pinned by D4 of `tests/frame-drop-streak.mjs`.
+   ⚠ THIS COUNTS THE STATE; IT DOES NOT FIX IT. `hello` heals a floor that is
+   too low and is refused by one too HIGH. The cure is src/net/live.js
+   `healStuckFloor()`: after LIVE_HEAL_AFTER_DROPS consecutive `reorder`s it
+   sends ONE forced hello under `beginFloorHeal` below — the floor stays shut
+   until THAT answer lands (D4 of `tests/frame-drop-streak.mjs`).
    COUNTED AT THE APPLIERS, NEVER IN `classifyFrame`: that predicate is pure and
    safe to ask twice, so counting there would score one frame as two. */
 let frameDrops = 0;
@@ -353,15 +355,120 @@ export function noteFrameDrop(verdict) {
 /** A frame landed, so the streak is over. */
 export function clearFrameDrops() { frameDrops = 0; lastDropVerdict = null; return 0; }
 
+/* ── THE FLOOR A PUSHED FRAME RAISED, AND THE ANSWER IT OWES (M5) ──────────
+   One write produces TWO copies of one version: the HTTP answer to the intent
+   and the pushed frame (`hr_frame_send` broadcasts hr_apply's own envelope).
+   Either may arrive first. A frame carries state only — never the receipt —
+   so a frame that won the race would make the answer a `duplicate`, and the
+   away/collect receipt it carries would be dropped with it. So the version a
+   FRAME raised the floor to is held for exactly ONE answer at that version,
+   which classifies `answer` (applies, idempotent: same version, same state)
+   and claims it; a second copy after that is a plain duplicate again. */
+let frameHeldAt = null;
+
+/* ── THE STUCK-FLOOR HEAL (SEC M5-client C1, 2026-10-06) ───────────────────
+   A floor stuck ABOVE the server refuses every frame and every answer, so the
+   only way down is an answer the server gave AFTER we asked. The first healer
+   reset the floor to -1 and THEN asked — and every stale frame or HTTP answer
+   still in flight landed as `fresh` in that window (floor 20/gold 200, frames
+   17,18,19, heal, late 16 → gold 1016). So THE FLOOR NEVER OPENS:
+     · `beginFloorHeal()` records the floor and mints a token; nothing moves.
+     · requestAccrual({heal: token}) tags ITS OWN answer (`healAnswer`), and
+       only a tagged answer may set the floor BELOW where it stands — to its
+       own version, the server's word read after the heal began.
+     · …and only if nothing fresher has landed since: any raise ends the heal
+       (`commitFrame`), so a gate that proved itself unstuck is left alone.
+   One answer per heal: the tag is consumed whatever it says. */
+let floorHeal = null;           // { token, floor } while one forced hello is out
+
+/* A FRAME/ANSWER VERSION IS A FINITE NUMBER OR IT IS NOTHING (SEC M5-client C3).
+   `Number(null)` is 0 and `Number('4')` is 4, so a coercing read turned an
+   unversioned idle heal answer into "the server is at frame 0" and dropped the
+   floor. The server stamps versions as JSON numbers; anything else is NaN here,
+   and every reader below treats NaN as unorderable (fail closed). */
+function frameVersion(x) {
+  return (typeof x === 'number' && Number.isFinite(x)) ? x : NaN;
+}
+let floorHealSeq = 0;
+const healTagged = new WeakMap();   // answer body → the heal token that asked for it
+
+/** Open a heal against the floor as it stands NOW. Returns its token, or null
+ *  when there is no floor to heal. Moves nothing. */
+export function beginFloorHeal() {
+  if (lastAppliedFrame < 0) return null;
+  floorHealSeq += 1;
+  floorHeal = { token: floorHealSeq, floor: lastAppliedFrame };
+  return floorHeal.token;
+}
+
+/** The heal's live view (tests/diagnostics). */
+export function getFloorHeal() { return floorHeal ? { ...floorHeal } : null; }
+
+/** The heal `token` is over (its request ended, answered or not). */
+export function endFloorHeal(token) {
+  if (floorHeal && floorHeal.token === token) floorHeal = null;
+  return floorHeal === null;
+}
+
+/* Is the heal `token` still entitled to lower the floor? Not once anything
+   fresher has landed: a raise moves the floor off the one the heal recorded. */
+function healStillOpen(token) {
+  return !!floorHeal && floorHeal.token === token && lastAppliedFrame === floorHeal.floor;
+}
+
+/** THE ANSWER TO A HEAL'S OWN REQUEST. Called by requestAccrual on the parsed
+ *  body BEFORE it is settled. An accrued body is tagged for applyEnvelope; a
+ *  not-accrued one (idle: a version, no state) lowers the floor to the
+ *  server's stated version here, since no applier will see it. */
+export function healAnswer(body, token) {
+  if (!body || typeof body !== 'object' || !floorHeal || floorHeal.token !== token) return body;
+  if (body.ok === true && body.accrued === true) { healTagged.set(body, token); return body; }
+  const v = body.ok === true ? frameVersion(body.version) : NaN;
+  if (Number.isSafeInteger(v) && v >= 0 && healStillOpen(token) && v < lastAppliedFrame) {
+    lastAppliedFrame = v;
+    frameHeldAt = null;
+    clearFrameDrops();
+  }
+  floorHeal = null;
+  return body;
+}
+
+/* The gate's question, asked by isEnvelopeApplicable: the floor to classify a
+   heal's OWN answer against (just below its version), or null for every other
+   envelope. A PEEK — safe to ask twice, like the gate; the applier consumes
+   it (`takeHealAnswer`) after the write, and requestAccrual ends it anyway. */
+function healSinceOf(res) {
+  const token = (res && typeof res === 'object') ? healTagged.get(res) : undefined;
+  if (token === undefined || !healStillOpen(token)) return null;
+  const v = frameVersion(res.version);
+  if (!Number.isSafeInteger(v) || v < 0 || v >= lastAppliedFrame) return null;
+  return v - 1;
+}
+
+/* The applier, AFTER writing a heal answer: the floor goes DOWN to its
+   version — the one write that may — and the heal is spent. */
+function takeHealAnswer(res) {
+  const token = healTagged.get(res);
+  healTagged.delete(res);
+  if (floorHeal && floorHeal.token === token) floorHeal = null;
+  const v = frameVersion(res.version);
+  if (!Number.isFinite(v)) return;    // unreachable behind the shape gate; never a NaN floor
+  lastAppliedFrame = v;
+  frameHeldAt = null;
+  clearFrameDrops();
+}
+
 /** A DIFFERENT CHARACTER IS NOW IN G. */
 export function resetFrameGate() {
   lastAppliedFrame = -1;
   clearFrameDrops();
+  frameHeldAt = null;
+  floorHeal = null;
   return lastAppliedFrame;
 }
 
 /** Named so a caller branches on the REASON, not on the numbers. */
-export const FRAME_VERDICTS = Object.freeze(['fresh', 'duplicate', 'reorder', 'unversioned']);
+export const FRAME_VERDICTS = Object.freeze(['fresh', 'answer', 'duplicate', 'reorder', 'unversioned']);
 
 /** PURE given its floor. `since` defaults to the module ledger.
  *  ⚠ FAIL CLOSED ON AN UNREADABLE VERSION — a frame whose ORDER cannot be
@@ -374,8 +481,11 @@ export const FRAME_VERDICTS = Object.freeze(['fresh', 'duplicate', 'reorder', 'u
  *    is above. Fail OPEN, in the function contracted to fail closed. */
 export function classifyFrame(version, since) {
   const floor = (typeof since === 'number' && Number.isFinite(since)) ? since : lastAppliedFrame;
-  const v = Number(version);
+  const v = frameVersion(version);
   if (!Number.isFinite(v)) return { apply: false, verdict: 'unversioned', frame: null, current: floor };
+  if (v === floor && floor === lastAppliedFrame && v === frameHeldAt) {
+    return { apply: true, verdict: 'answer', frame: v, current: floor };
+  }
   if (v > floor) return { apply: true, verdict: 'fresh', frame: v, current: floor };
   if (v === floor) return { apply: false, verdict: 'duplicate', frame: v, current: floor };
   return { apply: false, verdict: 'reorder', frame: v, current: floor };
@@ -385,9 +495,15 @@ export function classifyFrame(version, since) {
  *  RAISE-ONLY (CLAUDE.md §6), so a mis-ordered commit is a no-op, not a
  *  rewind. Returns true if the floor moved. */
 export function commitFrame(version) {
-  const v = Number(version);
+  const v = frameVersion(version);
+  if (Number.isFinite(v) && v === frameHeldAt && v === lastAppliedFrame) {
+    frameHeldAt = null;     // the answer owed to that frame has landed; the next copy is a duplicate
+    clearFrameDrops();
+    return false;
+  }
   if (!Number.isFinite(v) || v <= lastAppliedFrame) return false;
   lastAppliedFrame = v;
+  frameHeldAt = null;
   /* THE STREAK ENDS HERE AND ONLY HERE (SEC S3): a raise is the one event that
      proves the gate is not stuck, and `hello` arrives as a raise. */
   clearFrameDrops();
@@ -403,7 +519,7 @@ export function isEnvelopeShapeComplete(res) {
   if (!res.skills || typeof res.skills !== 'object') return false;
   if (!res.inventory || typeof res.inventory !== 'object') return false;
   if (!res.away || typeof res.away !== 'object') return false;
-  if (!Number.isFinite(Number(res.version))) return false;
+  if (!Number.isFinite(frameVersion(res.version))) return false;
   return true;
 }
 
@@ -411,7 +527,10 @@ export function isEnvelopeShapeComplete(res) {
  *  Fail closed on both halves. `since` overrides the module floor (tests). */
 export function isEnvelopeApplicable(res, since) {
   if (!isEnvelopeShapeComplete(res)) return false;
-  return classifyFrame(res.version, since).apply;
+  /* SEC M5-client C1: a stuck-floor heal's OWN answer is gated just below its
+     version; every other envelope against the floor (or the caller's `since`). */
+  const heal = (typeof since === 'number') ? null : healSinceOf(res);
+  return classifyFrame(res.version, heal === null ? since : heal).apply;
 }
 
 export function classifyAccrueResponse(status, body) {
@@ -863,6 +982,9 @@ export function resetAccrualIdentity() {
      `resetActivity()` has existed since the intent cutover with no
      identity-change caller; this is it. */
   try { (typeof window !== 'undefined' ? window.HearthriseActivity : null)?.resetActivity?.(); } catch (e) {}
+  /* …and the push channel: the outgoing character's topic is left NOW, so not
+     one more of its frames can land in the incoming character's G. */
+  try { (typeof window !== 'undefined' ? window.HearthriseLive : null)?.leave?.('identity'); } catch (e) {}
   return true;
 }
 
@@ -936,6 +1058,9 @@ export async function flushAttendedCredits() {
  */
 export async function requestAccrual(opts) {
   const o = opts || {};
+  /* A HEAL may not borrow an answer to a request sent BEFORE it began: that
+     answer is exactly the stale copy the heal must not trust. Wait, then ask. */
+  if (inFlight && o.heal != null) return Promise.resolve(inFlight).catch(() => {}).then(() => requestAccrual(o));
   if (inFlight) return inFlight;
   const now = nowMs();
 
@@ -1002,6 +1127,7 @@ export async function requestAccrual(opts) {
       let body = null;
       try { body = await Promise.race([res.json(), deadline]); } catch (err) { body = (ctl && ctl.signal.aborted) ? TIMED_OUT : null; }
       if (body === TIMED_OUT) return settle({ outcome: 'unreachable', reason: 'timeout' }, nowMs());
+      if (o.heal != null && res.status === 200) healAnswer(body, o.heal);
       return settle({ ...classifyAccrueResponse(res.status, body), status: res.status }, nowMs());
     } finally { e.clearTimer(timer); }
   })();
@@ -1018,7 +1144,7 @@ export async function requestAccrual(opts) {
        deferral stands for the next flush. */
     try { if (out) resolveCombatXpDeferral(out.outcome); } catch (e) {}
     return out;
-  } finally { inFlight = null; inFlightSince = 0; }
+  } finally { inFlight = null; inFlightSince = 0; if (o.heal != null) endFloorHeal(o.heal); }
 }
 
 /** The ONE place an outcome becomes state. Everything funnels here. */
@@ -5138,7 +5264,12 @@ export function applyEnvelope(G, res) {
    raised after `lastAwayReceipt` below, never between the state and it. */
 function applyAcceptedEnvelope(G, res) {
   const st = res.state || {};
+  const healed = healSinceOf(res) !== null;      // asked BEFORE the write moves anything
   const written = applyEnvelopeState(G, res);
+  /* A stuck-floor heal's own answer is the ONE write that sets the floor down
+     (to its version); raise-only commitFrame below then has nothing to raise.
+     Same rule: after the write, never before. */
+  if (healed) takeHealAnswer(res);
   /* RAISE THE FLOOR, AND ONLY HERE — AFTER the write, never before. A throw
      inside applyEnvelopeState must not leave the floor above a frame nothing
      applied: the retry carrying that version would be dropped as a duplicate
@@ -5186,12 +5317,79 @@ function applyAcceptedEnvelope(G, res) {
   /* The server owns `accrued_to`. Parking it here is what makes it visible to
      the countdown UI and to a bug report; nothing reads it as authority. */
   G._serverAccrual = {
-    version: Number(res.version),
+    version: Number.isFinite(frameVersion(res.version)) ? res.version : null,
     accruedTo: st.accrued_to || null,
     serverNow: res.now || null,
     at: nowMs(),
   };
   return written;
+}
+
+/* ── THE PUSHED FRAME (M5, docs/design/LIVE_COUNTERS_PUSH.md §9) ────────────
+   `hr_frame_send` broadcasts `{t:'delta', frame, patch}`: `frame` IS the
+   envelope's `version`, `patch` is WHOLE top-level keys of hr_apply's own
+   envelope (§7.2), restricted by `hr_tick_config.frame_keys`. A frame is
+   PARTIAL by design, so it cannot pass `isEnvelopeShapeComplete` (no
+   `inventory`/`away` unless configured); it is gated by the SAME
+   `classifyFrame` and written by the SAME `applyEnvelopeState`, whose every
+   reconciler is fail-closed on an absent key. What it never does: hang a
+   receipt (it carries none), credit a counter, or apply a `duplicate`. */
+export const FRAME_KEYS = Object.freeze(['state', 'skills', 'buffs', 'place', 'dungeon_cooldowns',
+  'inventory', 'bank', 'equipment', 'enchant', 'workers', 'farm', 'progress', 'inventory_complete']);
+/* Keys that may not ride a frame until the bag is ABSOLUTE (WORLD_TICK_DESIGN.md §7a). */
+export const FRAME_KEYS_NEED_ABSOLUTE = Object.freeze(['inventory', 'bank']);
+
+/** The broadcast message as an envelope, or null. Pure. Constructed, never a
+ *  spread: an unknown key is a malformed frame, not a key to ignore. */
+export function frameEnvelopeOf(msg) {
+  if (!msg || typeof msg !== 'object' || msg.t !== 'delta') return null;
+  const v = msg.frame;
+  if (typeof v !== 'number' || !Number.isSafeInteger(v) || v < 0) return null;
+  const patch = msg.patch;
+  if (!patch || typeof patch !== 'object' || Array.isArray(patch)) return null;
+  const keys = Object.keys(patch);
+  if (!keys.length || keys.some((k) => FRAME_KEYS.indexOf(k) === -1)) return null;
+  if ('state' in patch && (!patch.state || typeof patch.state !== 'object' || Array.isArray(patch.state))) return null;
+  if ('inventory_complete' in patch && typeof patch.inventory_complete !== 'boolean') return null;
+  const env = { ok: true, accrued: true, version: v };
+  for (const k of keys) env[k] = patch[k];
+  return env;
+}
+
+/** Apply one pushed frame. Returns the `written` receipt, or null when nothing
+ *  was written (with the reason on `lastFrameRefusal`). */
+let lastFrameRefusal = null;
+export function frameRefusal() { return lastFrameRefusal; }
+export function applyFrame(G, msg) {
+  const env = frameEnvelopeOf(msg);
+  const refuse = (why, count) => { lastFrameRefusal = why; if (count) noteFrameDrop(why); return null; };
+  if (!G || typeof G !== 'object') return refuse('no_g', false);
+  if (!env) return refuse('malformed', true);
+  /* Before the session's first settle the boot settle IS the hello; a frame
+     here would race the away receipt and the reconcile. Not a drop. */
+  if (!awaySettleClosed || isReconcilePending()) return refuse('booting', false);
+  /* SEC M5-client F2: a bag frame lands only ABSOLUTE and only when the FRAME
+     itself states `inventory_complete === true` — so it can never take the
+     merge-upward path in reconcileInventory (baselineComplete=false). */
+  if (FRAME_KEYS_NEED_ABSOLUTE.some((k) => k in env)) {
+    if (!isInventoryAbsolute()) return refuse('premature', true);
+    if (env.inventory_complete !== true) return refuse('bag_incomplete', true);
+  }
+  const gate = classifyFrame(env.version);
+  /* Only `fresh`. A duplicate/answer frame is the echo of a state already applied. */
+  if (gate.verdict !== 'fresh') return refuse(gate.verdict, gate.verdict === 'reorder');
+  const release = holdFallAnnounce();
+  try {
+    const written = applyEnvelopeState(G, env);
+    commitFrame(env.version);
+    frameHeldAt = env.version;
+    lastFrameRefusal = null;
+    written.envelope = env;
+    G._serverAccrual = { ...(G._serverAccrual || {}), version: env.version,
+      accruedTo: (env.state && env.state.accrued_to) || (G._serverAccrual && G._serverAccrual.accruedTo) || null,
+      at: nowMs(), via: 'frame' };
+    return written;
+  } finally { release(); }
 }
 
 /* ── THE LAST AWAY-CLASSIFIED RECEIPT, ACROSS A RELOAD (ruling 2026-09-07) ──
@@ -5429,7 +5627,7 @@ export function summaryFromAway(away, res) {
     /* THE HONEST LABEL. A renderer, a screenshot and a bug report can all tell
        a server-stated receipt from a locally-computed one. */
     serverAuthoritative: true,
-    version: Number(res && res.version) || null,
+    version: (res && Number.isFinite(frameVersion(res.version))) ? res.version : null,
   };
 }
 
@@ -6658,6 +6856,9 @@ if (typeof window !== 'undefined') {
     isEnvelopeShapeComplete, classifyFrame, commitFrame, getAppliedFrame,
     getFrameDrops, noteFrameDrop, clearFrameDrops,
     resetFrameGate, FRAME_VERDICTS,
+    beginFloorHeal, healAnswer, endFloorHeal, getFloorHeal,
+    /* THE PUSHED FRAME (M5) — live.js is the transport, this is the applier. */
+    FRAME_KEYS, FRAME_KEYS_NEED_ABSOLUTE, frameEnvelopeOf, applyFrame, frameRefusal,
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES, playStreakKnown,
     awaySettleDone, __resetAwaySettleLatch, settleInFlight, dropPendingCombatXp,   // settle-first, read by legacy.js's combat-XP cadence

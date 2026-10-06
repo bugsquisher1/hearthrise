@@ -9654,7 +9654,7 @@ function applyLoadout(idx){
      equip request (the wire takes a map). Fifteen calls would spend half the
      shared 30/min accrue bucket on one tap, run fifteen collects, and — because
      each one stamps `accrued_to` — settle fourteen sub-minute windows. */
-  const _b = equipStateSnapshot(), _skipped = [];   /* display-funded: `equip` collects first, so its ANSWER decides and the ✓ waits for it */
+  const _b = equipStateSnapshot(), _skipped = [], _LV = window.HearthriseLoadoutVerdict;   /* the ✓ waits for `equip`'s ANSWER (render/loadout-verdict.js) */
   /* Equipment: items currently equipped that aren't in the preset go to bag */
   const newEq = {};
   Object.keys(G.equipment||{}).forEach(slot=>{
@@ -9671,8 +9671,7 @@ function applyLoadout(idx){
         removeItem(target, 1);
         newEq[slot] = target;
       } else {
-        newEq[slot] = null;   /* never silently: the toast names it and why */
-        _skipped.push((ITEMS[target]?.n||target)+(_w.ok?' (not in your bag)':' (needs '+((SKILLS_DEF[_w.req.skill]&&SKILLS_DEF[_w.req.skill].name)||_w.req.skill)+' '+_w.req.lv+')'));
+        newEq[slot] = null; _skipped.push(_LV.skipWhy(target, _w));   /* never silently: the toast names it and why */
       }
     } else {
       newEq[slot] = null;
@@ -9686,18 +9685,13 @@ function applyLoadout(idx){
       if(target && ITEMS[target]) G.tools[slot] = target;
     });
   }
-  /* Food slot.
-     b499: the loadout is a PLAYER GESTURE that expresses a food choice, so it
-     goes through HearthriseAuto.setEat — the one writer the engine reads and the
-     seam that debounces the choice out to hr_set_auto_eat. Writing only the
-     legacy `G.foodSlot` mirror meant applying a loadout changed the food the
-     player was SHOWN and not the food the fight (or the server's overnight
-     accrual) would actually eat. The toggle is deliberately NOT touched: a
-     loadout says what to carry, not whether auto-eat is on. */
+  /* Food slot. b499: a PLAYER GESTURE choosing food goes through HearthriseAuto.setEat,
+     the one writer the engine and the server's accrual read (G.foodSlot alone only
+     changed the food SHOWN). The auto-eat toggle is deliberately NOT touched. */
   var _loadoutFood;
   if(l.foodSlot && hasItem(l.foodSlot, 1)) { G.foodSlot = l.foodSlot; _loadoutFood = l.foodSlot; }
   else if(!l.foodSlot) { G.foodSlot = null; _loadoutFood = null; }
-  else _skipped.push((ITEMS[l.foodSlot]?.n||l.foodSlot)+' (no food left to carry)');
+  else _skipped.push(_LV.skipWhy(l.foodSlot, null));
   if(_loadoutFood !== undefined && window.HearthriseAuto && window.HearthriseAuto.setEat){
     window.HearthriseAuto.setEat({ foodId: _loadoutFood });
   }
@@ -9706,15 +9700,7 @@ function applyLoadout(idx){
   refreshAll();
   /* S4 again: re-applying the kit you are already wearing diffs to nothing and
      sends nothing, so tapping a loadout twice cannot stamp a second window. */
-  const _said = `✓ Applied loadout: ${l.name}` + (_skipped.length ? ` · skipped ${_skipped.join(', ')}` : '');
-  const _p = routeEquipGesture(_b);
-  if(!_p || typeof _p.then!=='function'){ notify(_said, _skipped.length?'info':'levelup'); return; }   // nothing to send (no change / dark build): the local kit is the answer
-  _p.then(function(v){
-    const o = v && v.outcome;
-    if(o==='equipped'||o==='replayed'||o==='switch-off'||o==='unconfigured') notify(_said, _skipped.length?'info':'levelup');   // landed, or a dark build whose local kit stands
-    else if(!o||o==='timeout'||o==='unreachable'||o==='malformed'||o==='undeliverable') notify('The realm did not answer — your loadout settles on the next sync.', 'kill');   // never a silent tap; never a ✓ it did not give
-    /* a refusal (incl. 429) was already said by equipVerdictOutcome */
-  });
+  _LV.sayLoadout(routeEquipGesture(_b), l.name, _skipped, notify);
 }
 /* b373: both of these asked with a native dialog. The loadout is re-read from
    G inside the answer rather than captured before the question — a modal is

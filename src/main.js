@@ -485,6 +485,7 @@ import { setupRecipeBook } from './features/recipe-book.js?v=561';
 import { setupItemIndex } from './features/item-index.js?v=561';
 import { setupCodex } from './features/codex.js?v=561';
 import { setupSpoils } from './render/spoils-sheet.js?v=561';
+import './render/loadout-verdict.js?v=561';   // what a loadout tap says: legacy.js applyLoadout
 import { setupSignposts } from './features/signposts.js?v=561';
 import { setupKnowYourFoe } from './features/know-your-foe.js?v=561';
 import { setupNightPlan } from './features/night-plan.js?v=561';

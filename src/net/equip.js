@@ -99,7 +99,7 @@
 // same bytes the browser runs.
 // ============================================================================
 
-import { markEquipAuthorityLive, resolveActiveSlot, awaitSettleRaceClear } from './accrue.js?v=562';
+import { markEquipAuthorityLive, resolveActiveSlot, awaitSettleRaceClear } from './accrue.js?v=563';
 
 export const EQUIP_VERB = 'equip';
 

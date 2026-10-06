@@ -2092,7 +2092,7 @@ export const stubSignedIn = (slot, name) => {
      resumed on restore, so no arm has to remember a rule its own subject never
      mentions, and nothing here reaches in for a timer or swaps `window.fetch`.
      Regression: STUB-ORIGIN-1. */
-  const CHANNELS = [window.HearthriseTown, window.HearthriseNetStatus];
+  const CHANNELS = [window.HearthriseTown, window.HearthriseNetStatus, window.HearthriseLive];
   CHANNELS.forEach((m) => { if (m && typeof m.__pauseForTest === 'function') m.__pauseForTest(); });
   window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
   window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };

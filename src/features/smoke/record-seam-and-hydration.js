@@ -8576,6 +8576,10 @@ export default [
      PRIVATE Gs throughout, never window.G, so nothing global moves and the
      destructive-replacement gate sees no local progress to lose. */
   ...m5FrameGateTests(),
+  /* ── M5 · THE PUSH CHANNEL'S CLIENT HALF (src/net/live.js) ───────────────
+     Driven through the shipped router with a fake Realtime client; the node
+     guard tests/live-frame-subscribe.mjs carries a mutant per rule. */
+  ...m5LiveSubscribeTests(),
 ];
 
 /* The shared fixture. A COMPLETE envelope, so every refusal in the four tests
@@ -8834,9 +8838,9 @@ function m5FrameGateTests() { return [
      There was no counter of dropped frames anywhere, so a client stuck behind a
      bad floor was indistinguishable from a quiet one — in the browser, in a bug
      report, and in vitals.mjs (CLAUDE.md §3.4: two days to notice).
-     WHAT HEALS IT, HONESTLY: `hello` heals a floor that is too LOW in one step
-     — the path asserted at (3) — and does NOT heal one too HIGH, being gated by
-     the same floor. D4 of frame-drop-streak.mjs pins that hole.
+     WHAT HEALS IT: `hello` heals a floor that is too LOW in one step — the path
+     asserted at (3). One too HIGH is healed by live.js `healStuckFloor()`, which
+     reads this streak and resets the floor on purpose (the test below).
 
      RED WITHOUT THE FIX at (1): getAccrualState() carries no streak at all. */
   () => tryRun('M5 regression: the frame-drop streak is counted and published (SEC S3)', () => {
@@ -8875,5 +8879,153 @@ function m5FrameGateTests() { return [
         'the healer left the streak at ' + A.getAccrualState().drops + ', so the sheet keeps '
         + 'reporting an outage that is over');
     } finally { A.acknowledgeReplacement(wasAcked); A.resetFrameGate(); }
+  }),
+]; }
+
+/* ── M5 · THE PUSH CHANNEL — fixtures ───────────────────────────────────────
+   A fake Realtime client with the three calls live.js makes (channel /
+   removeChannel / realtime.setAuth) and a hand-driven status + broadcast. */
+const M5_UID = '0b5e7c1a-1111-4222-8333-944455556666';
+const m5Frame = (frame, gold, extra) => ({ t: 'delta', frame,
+  patch: { state: { slot: 0, gold, gems: 0, hp: 40, max_hp: 40, accrued_to: '2026-10-05T12:00:00Z' },
+    skills: { mining: { xp: gold * 2, level: 1 } }, buffs: [], place: null, ...(extra || {}) } });
+const m5FakeClient = () => {
+  const c = { channels: [], removed: 0, setAuth: [] };
+  c.realtime = { setAuth: (t) => { c.setAuth.push(t); return Promise.resolve(); } };
+  c.channel = (topic, opts) => {
+    const ch = { topic, opts, hs: [], st: null,
+      on(type, filter, cb) { this.hs.push({ filter, cb }); return this; },
+      subscribe(cb) { this.st = cb; return this; } };
+    c.channels.push(ch);
+    return ch;
+  };
+  c.removeChannel = () => { c.removed += 1; return Promise.resolve('ok'); };
+  c.status = (s) => { const ch = c.channels[c.channels.length - 1]; if (ch && ch.st) ch.st(s); };
+  c.emit = (payload) => { const ch = c.channels[c.channels.length - 1];
+    for (const h of ch.hs) if (h.filter.event === 'frame') h.cb({ type: 'broadcast', event: 'frame', payload }); };
+  return c;
+};
+/* Installs the fake transport around `fn` and puts the module state back. */
+const m5WithLive = (opts, fn) => {
+  const L = window.HearthriseLive; const A = window.HearthriseAccrual;
+  assert(L && typeof L.setLiveEnv === 'function' && A && typeof A.applyFrame === 'function',
+    'live.js / accrue.js applyFrame are not published — the push channel has no client half');
+  const c = m5FakeClient(); const timers = []; const r = { c, timers, hellos: 0 };
+  const wasClosed = A.awaySettleDone();
+  L.__resetLive(); A.resetFrameGate(); A.__resetAwaySettleLatch(!opts.booting);
+  L.setLiveEnv({ client: () => c, identity: () => ({ uid: M5_UID, token: 'tk', slot: 0 }),
+    hello: () => { r.hellos += 1; if (opts.onHello) opts.onHello(); return Promise.resolve(); },
+    setTimer: (f, ms) => { timers.push({ f, ms }); return timers.length; }, clearTimer: () => {},
+    ...(opts.G ? { G: () => opts.G } : {}) });
+  try { return fn(r, L, A); } finally {
+    L.setLiveEnv(null); L.__resetLive(); A.resetFrameGate(); A.__resetAwaySettleLatch(wasClosed);
+  }
+};
+/* Private-G arms share the replacement acknowledgement dance. */
+const m5Acked = (fn) => {
+  const A = window.HearthriseAccrual;
+  const was = A.isReplacementAcknowledged();
+  try { A.acknowledgeReplacement(true); return fn(A); } finally { A.acknowledgeReplacement(was); A.resetFrameGate(); }
+};
+
+function m5LiveSubscribeTests() { return [
+  /* HAPPY PATH on the real G and the real bar. RED WITHOUT live.js + applyFrame. */
+  () => tryRun('M5 live: a pushed frame ticks the activity bar and the bag', () => {
+    const snap = snapshotG();
+    const accrual = window.G._serverAccrual;
+    try {
+      m5Acked((A) => m5WithLive({}, (r, L) => {
+        L.ensureLive();
+        const ch = r.c.channels[0];
+        assert(r.c.channels.length === 1 && ch.topic === 'hr:' + M5_UID + ':0' && ch.opts.config.private === true,
+          'did not join the own PRIVATE topic');
+        r.c.status('SUBSCRIBED');
+        window.G.activeSkill = 'mining';
+        const xp = 250000;
+        const lv = window.HearthriseCore.xp.levelFromXp(xp);
+        r.c.emit(m5Frame(10, xp / 2));
+        assert(window.G.gold === xp / 2, 'the frame did not replace gold: ' + window.G.gold);
+        const meta = document.getElementById('ab-meta');
+        assert(meta && meta.textContent.indexOf('Lv ' + lv) !== -1,
+          'the activity bar did not tick to Lv ' + lv + ' from the frame: "' + (meta && meta.textContent) + '"');
+        /* THE BAG rides a frame only once the bag is ABSOLUTE (§7a); refused before. */
+        const before = (window.G.inventory || {}).copper_ore || 0;
+        r.c.emit(m5Frame(11, 1, { inventory: { copper_ore: before + 7 } }));
+        const now = (window.G.inventory || {}).copper_ore || 0;
+        const absolute = A.isInventoryAbsolute();
+        assert(absolute ? now === before + 7 : now === before,
+          'bag after an inventory frame: ' + now + ' (was ' + before + ', absolute=' + absolute + ')');
+        assert(L.getLiveState().applied >= 1 && A.getAppliedFrame() >= 10, 'the frame was not committed');
+      }));
+    } finally { restoreGAndRecord(snap); window.G._serverAccrual = accrual; }
+  }),
+
+  () => tryRun('M5 live: out-of-order and stale frames are ignored whole', () => {
+    const G = { gold: 0, gems: 0, skills: {}, inventory: {} };
+    m5Acked((A) => m5WithLive({ G }, (r, L) => {
+      L.ensureLive(); r.c.status('SUBSCRIBED');
+      r.c.emit(m5Frame(20, 200));
+      r.c.emit(m5Frame(19, 1));
+      assert(G.gold === 200 && G.skills.mining === 400, 'a REORDERED frame rewound G: ' + JSON.stringify(G));
+      r.c.emit(m5Frame(20, 3));
+      assert(G.gold === 200, 'a DUPLICATE frame wrote G: ' + G.gold);
+      r.c.emit({ t: 'delta', frame: 21, patch: { state: { gold: 5 }, gold_override: 9 } });
+      assert(G.gold === 200 && A.getAppliedFrame() === 20, 'a malformed frame landed');
+    }));
+  }),
+
+  () => tryRun('M5 live: a reconnect backs off and re-reads state once per join', () => {
+    m5WithLive({ G: { gold: 0, skills: {}, inventory: {} } }, (r, L) => {
+      L.ensureLive(); r.c.status('SUBSCRIBED');
+      assert(r.hellos === 1, 'the first join did not re-read (' + r.hellos + ')');
+      r.c.status('CHANNEL_ERROR');
+      assert(r.timers.length === 1 && r.c.removed === 1, 'an error did not schedule ONE retry');
+      r.timers.shift().f();
+      assert(r.c.channels.length === 2, 'the retry did not re-join');
+      r.c.status('SUBSCRIBED');
+      assert(r.hellos === 2, 'the RE-join did not re-read hr_state_of (' + r.hellos + ')');
+    });
+  }),
+
+  /* frame_push=false: no frame ever comes, and the envelope path writes exactly
+     what it writes with no channel at all. */
+  () => tryRun('M5 live: with frame_push off the envelope path is unchanged', () => {
+    const norm = (g) => JSON.stringify(g, (k, v) => (/(^at$|At$)/.test(k) ? 0 : v));
+    const G1 = { gold: 0, gems: 0, skills: {}, inventory: {} };
+    const G2 = { gold: 0, gems: 0, skills: {}, inventory: {} };
+    m5Acked((A) => {
+      A.resetFrameGate(); A.applyEnvelope(G1, m5Env(40, 9)); A.applyEnvelope(G1, m5Env(41, 11));
+      m5WithLive({ G: G2 }, (r, L) => {
+        L.ensureLive(); r.c.status('SUBSCRIBED');
+        A.resetFrameGate(); A.applyEnvelope(G2, m5Env(40, 9)); A.applyEnvelope(G2, m5Env(41, 11));
+        assert(L.getLiveState().applied === 0, 'something was applied with no frame sent');
+      });
+    });
+    assert(norm(G1) === norm(G2), 'the joined, frameless channel changed what the envelope path wrote');
+  }),
+
+  /* The HTTP answer at the version a frame already applied keeps its receipt. */
+  () => tryRun('M5 live: the answer behind a frame still lands once, with its receipt', () => {
+    const G = { gold: 0, gems: 0, skills: {}, inventory: {} };
+    m5Acked((A) => m5WithLive({ G }, (r, L) => {
+      L.ensureLive(); r.c.status('SUBSCRIBED');
+      r.c.emit(m5Frame(30, 300));
+      const first = A.applyEnvelope(G, m5Env(30, 300));
+      assert(first && first.paidReceipt, 'the answer behind the frame was dropped with its receipt');
+      assert(A.applyEnvelope(G, m5Env(30, 300)) === null, 'a second copy of the answer applied');
+    }));
+  }),
+
+  /* SEC S3: a floor stuck ABOVE the server is reset and re-read, once. */
+  () => tryRun('M5 live: a stuck-high frame floor heals by one reset + re-read', () => {
+    const G = { gold: 0, gems: 0, skills: {}, inventory: {} };
+    m5Acked((A) => m5WithLive({ G, onHello: () => A.applyEnvelope(G, m5Env(900, 77)) }, (r, L) => {
+      L.ensureLive(); r.c.status('SUBSCRIBED');
+      A.commitFrame(1e6);
+      const h0 = r.hellos;
+      for (let v = 895; v < 905 && A.getAppliedFrame() === 1e6; v++) r.c.emit(m5Frame(v, 1));
+      assert(A.getAppliedFrame() === 900 && G.gold === 77 && r.hellos === h0 + 1,
+        'floor ' + A.getAppliedFrame() + ', gold ' + G.gold + ', re-reads ' + (r.hellos - h0));
+    }));
   }),
 ]; }

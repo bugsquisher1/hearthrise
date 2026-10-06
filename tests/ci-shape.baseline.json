@@ -114,6 +114,8 @@
     "node tests/world-tick-bestiary-parity.mjs --mutate": "db-replay-5",
     "node tests/world-tick-vigour-scale.mjs": "db-replay-5",
     "node tests/world-tick-vigour-scale.mjs --mutate": "db-replay-5",
+    "node tests/world-tick-vigour-line.mjs": "db-replay-5",
+    "node tests/world-tick-vigour-line.mjs --mutate": "db-replay-5",
     "node tests/world-tick-maxhp-carry.mjs": "db-replay-5",
     "node tests/world-tick-maxhp-carry.mjs --mutate": "db-replay-5",
     "node tests/world-tick-stall-guard.mjs": "db-replay-5",

@@ -348,12 +348,12 @@ export function vigourSplit(o) {
  * halves. 1 when the whole window is inside the budget, VIGOUR_DRY_MULT when
  * none of it is.
  *
- * ⚠ ONE MULTIPLIER FOR THE WHOLE WINDOW, and that is a stated approximation
- *   rather than an accident. The exact form would re-simulate the span twice at
- *   two rates, which is a SECOND combat path (`AWAY-12` forbids one). A blend is
- *   identical in expectation, is the same number attended and away, and errs in
- *   neither direction. A window is bounded by the settle cadence, so the
- *   in-window error is bounded with it.
+ * ⚠ THE SETTLE DOES NOT PAY THIS BLEND. It is the window's AVERAGE, exact only
+ *   when earning is uniform in time, and a knockout cycle is not: an accrue
+ *   span is up to the offline cap long, so its error is not bounded by any
+ *   cadence. The engine reads the line instead — `vigourSplit`'s `fullMs` is
+ *   the FRONT of the window, and each payout takes 1 or VIGOUR_DRY_MULT by the
+ *   tick it was earned on (hr-accrue/accrual.js `vigMultAt`).
  */
 export function vigourMult(o) {
   const { fullMs, dryMs } = vigourSplit(o);

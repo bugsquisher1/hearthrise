@@ -210,7 +210,9 @@ async function runAll(db) {
   // ── Q-2: TWO REAL UPGRADES → plot_level 3, written only by the server ─────
   for (let i = 0; i < 2; i++) {
     const r = (await asUser(db, A,
-      'select public.hr_farm_upgrade_plot(0, $1::uuid) as res', [uuid()])).rows[0].res;
+      /* p_expect_level (2026-10-04-expected-level-idempotency.sql): the rung each
+         intent buys — 2, then 3 — exactly as the client names it from the server. */
+      'select public.hr_farm_upgrade_plot(0, $1::uuid, $2::int) as res', [uuid(), i + 2])).rows[0].res;
     ok(r && r.ok === true, `hr_farm_upgrade_plot #${i + 1} ok (got ${JSON.stringify(r && r.error)})`);
   }
   const serverTier = Number((await db.query(

@@ -413,6 +413,7 @@ Machine codes only, never prose. Rejections merge a detail payload into the enve
 | Progress | `bad_progress_kind`, `bad_progress_key`, `bad_progress_state`, `progress_clamp`, `not_claimable` |
 | Market | `bad_qty`, `bad_price`, `not_tradeable`, `too_many_listings`, `gone`, `expired`, `own_listing`, `not_enough`, `not_yours`, `seller_unavailable`, `overflow` |
 | Companions | `unknown_companion`, `bad_slot`, `not_grantable`, `missing_req_item` — detail `{item, companion}` — and `unknown_unlock:<unlock_id>` — detail `{companion, unlock_id, raced}` |
+| Expected rung (2026-10-04) | `missing_expect`, `stale_level` — detail `{plot_level: <CURRENT>, expect_level}` — `stale_tier` — detail `{castle_tier: <CURRENT>, expect_tier}`. See "Relative verbs name their rung" below. |
 
 `unknown_unlock:<unlock_id>` is the one **prefixed** code in the taxonomy, and the shape is
 deliberate: a client matches it with `error.startsWith('unknown_unlock:')`, and the suffix names the
@@ -499,6 +500,21 @@ is claimed under the same advisory lock that serialises the character, and the r
 into that row in the same transaction. Same key ⇒ same answer, success **or** rejection. Rows are
 pruned after 24 hours by `hr_intents_prune()`; a dedupe window only has to outlive a client's retry
 budget.
+
+**Relative verbs name their rung (2026-10-04-expected-level-idempotency.sql).** A key makes a
+*replay* of one gesture safe; it does nothing for a *second gesture with a second key* — a
+double-click, or a retry after a timeout that minted a fresh key. On a relative, escalating verb
+("buy the NEXT tier") that second intent reads the first one's write and buys the rung after it.
+So every such verb takes the rung the caller is buying, read from the server's own projection, and
+under the lock that serialises the purchase refuses unless `current + 1 = expected` (`stale_level` /
+`stale_tier`, carrying the CURRENT rung for the client to adopt; `missing_expect` when omitted). The
+order is fixed: replay check → rate gate → `missing_expect` → lock → stale check → every other gate,
+so a retried key that already landed gets its own cached envelope, never a stale refusal. The value
+is compared for equality only and cannot choose a price, rung or currency. Applied to
+`hr_farm_upgrade_plot` and `clan_tier_up` (which also gained the `for update` on `clans` it never
+had — two concurrent raises debited the treasury twice for one tier). Owed: `hr_vigour_refill`
+(client already coalesces a double tap and reuses its key) and the `hr_bounty_spend` reroll (the
+reroll index is not on any server projection yet).
 
 **One namespace, two kinds of key (review S6).** `player_intents` is keyed on `(user_id,
 intent_id)` and nothing else, so the uuids a browser supplies (`market_list`, `market_cancel`,

@@ -198,13 +198,35 @@
       if(typeof window.notify === 'function') window.notify('The farm is offline for a moment — try again','kill');
       return false;
     }
+    /* THE RUNG BEING BOUGHT IS THE SERVER'S (2026-10-04-expected-level-
+       idempotency.sql). The server refuses unless this equals its plot_level + 1,
+       so a double-click or a retried tap cannot buy the tier AFTER the one on
+       the card. It is read from the server mirror ONLY — never G.plotLevels,
+       which a stale residue can hold — and with no mirror nothing is sent. */
+    var sv = getServerPlotLevel();
+    if(sv === null){
+      if(typeof window.notify === 'function') window.notify('The farm is still syncing — try again in a moment','kill');
+      return false;
+    }
     var deps = {
       addItem: function(id,q){ if(typeof window.addItem==='function') window.addItem(id,q); },
       removeItem: function(id,q){ if(typeof window.removeItem==='function') window.removeItem(id,q); },
       addXp: function(sk,x){ if(typeof window.addXp==='function') window.addXp(sk,x); },
       setGold: function(n){ if(window.G) window.G.gold = n; },
     };
-    FS.farmUpgradePlot().then(function(res){
+    FS.farmUpgradePlot({ expectLevel: sv + 1 }).then(function(res){
+      /* A second tap while the first upgrade is on the wire sent NOTHING (the
+         farm-sync latch — the verb is relative, so a second intent would buy
+         the tier after this one). The first call answers for both: silence. */
+      if(window.HearthriseIntentLatch.isInFlightAnswer(res)) return;
+      /* stale_level: the server already holds a higher tier (an earlier tap
+         landed). Its CURRENT level rides the refusal — adopt it, say so, and
+         charge nothing. */
+      if(res && res.error === 'stale_level' && typeof res.plot_level === 'number' && isFinite(res.plot_level) && res.plot_level >= 1){
+        if(window.G){ window.G._serverPlotLevel = res.plot_level; }
+        getPlotLevel();
+        if(typeof window.notify === 'function') window.notify('Farm Plot is already Lv ' + res.plot_level, 'info');
+      } else
       if(res && res.ok){ try{ FS.reconcileFarmResult(window.G,'upgrade',res,deps); }catch(e){}
         if(typeof window.notify === 'function'){
           window.notify('Farm Plot upgraded to Lv ' + res.plot_level

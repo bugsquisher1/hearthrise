@@ -307,11 +307,16 @@
     return missing;
   }
 
-  /* In-flight latch: a double-click may not fire two purchases. The server's
-     idempotency key is fresh per call, so two taps are two DIFFERENT keys and
-     two real attempts — the second would answer `already_owned` (harmless) but
-     would toast twice. Mirrors renown.js `_claimInFlight`. */
-  var _upgradeInFlight = false;
+  /* ONE UPGRADE IN FLIGHT (net/intent-latch.js), held for the answer AND the
+     600 ms floor. A boolean released on the answer was not enough: a fast
+     answer advances the tier (the confirm envelope writes the rung) BEFORE the
+     double-click's second press lands, so that press priced and bought the
+     NEXT tier. The latch also hands the gesture its key, so a re-tap after a
+     timeout re-sends the same one and the server replays what it committed. */
+  function upgradeLatch() {
+    var L = window.HearthriseIntentLatch;
+    return (L && typeof L.namedLatch === 'function') ? L.namedLatch('homestead') : null;
+  }
 
   /* Debit the tier's cost. Gold rides the record seam (a PREDICTION the server
      envelope reconciles under the accrual switch; the plain local debit with it
@@ -409,11 +414,12 @@
        nothing local, so "nothing was spent" is always true — and the refusal
        itself now teaches the record the true rung (legacy.js hrClassifyUnlock),
        so the card the player is looking at corrects itself on the same click. */
-    if (_upgradeInFlight) return false;
-    _upgradeInFlight = true;
+    var latch = upgradeLatch();
+    if (!latch || latch.held('property')) return false;   // fail closed; a held press is silent
     var nxtIndex = getTier() + 1;
-    Promise.resolve(GLD.buyUnlock(_offer, _k)).then(function (v) {
-      _upgradeInFlight = false;
+    latch.run('property', function (idem) {
+      return Promise.resolve(GLD.buyUnlock(_offer, idem));
+    }, { scope: _offer }).then(function (v) {
       var c = (typeof window.hrClassifyUnlock === 'function')
         ? window.hrClassifyUnlock(v)
         : { ok: !!(v && (v.outcome === 'applied' || v.outcome === 'replayed')), owned: false,
@@ -438,7 +444,6 @@
         renderCard();
       }
     }).catch(function () {
-      _upgradeInFlight = false;
       if (window.notify) notify('The realm couldn’t record the ' + nxt.name
         + ' upgrade right now — nothing was spent. Try again in a moment.', 'kill');
     });

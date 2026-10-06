@@ -14,7 +14,11 @@
 //   · reconnect — backoff, and on every SUBSCRIBED one `hello` (the existing
 //     hr-accrue round trip, which re-reads hr_state_of), so a gap is closed;
 //   · a floor stuck too HIGH (SEC S3) — after LIVE_HEAL_AFTER_DROPS consecutive
-//     `reorder`s the floor is reset and re-read once;
+//     `reorder`s ONE forced hello is sent under accrue.js `beginFloorHeal`; the
+//     floor stays shut, and only THAT answer may set it lower (SEC C1);
+//   · cost (SEC C2) — the backoff resets only after a join held
+//     LIVE_STABLE_JOIN_MS, and join hellos are at most one per
+//     LIVE_HELLO_MIN_INTERVAL_MS, so a flapping channel cannot spend Edge calls;
 //   · no client, no session, no Realtime, frame_push=false — nothing arrives,
 //     and the 90 s settle poll (untouched) is today's game exactly.
 //
@@ -25,7 +29,7 @@
 // nothing). ONE Realtime client: auth.js's shared one; this never creates one.
 // ============================================================================
 
-import { applyFrame, frameRefusal, getFrameDrops, resetFrameGate, getAppliedFrame,
+import { applyFrame, frameRefusal, getFrameDrops, beginFloorHeal, getAppliedFrame,
   requestAccrual, bootSettlePending, settleInFlight, resolveActiveSlot, MAX_SLOT } from './accrue.js?v=561';
 
 export const LIVE_EVENT = 'frame';
@@ -33,6 +37,8 @@ const LIVE_BACKOFF_BASE_MS = 1000;
 export const LIVE_BACKOFF_MAX_MS = 60000;
 export const LIVE_HEAL_AFTER_DROPS = 3;
 export const LIVE_HEAL_MIN_INTERVAL_MS = 60000;
+export const LIVE_STABLE_JOIN_MS = 30000;
+export const LIVE_HELLO_MIN_INTERVAL_MS = 30000;
 const LIVE_WATCH_MS = 15000;
 const LIVE_REPAINT_MIN_MS = 1000;
 
@@ -67,6 +73,7 @@ function defaultEnv() {
     },
     G: () => win()?.G || null,
     hello: () => requestAccrual({}),
+    heal: (token) => requestAccrual({ force: true, heal: token }),
     applied: (written) => repaintAfterFrame(written),
     now: () => Date.now(),
     setTimer: (fn, ms) => setTimeout(fn, ms),
@@ -80,12 +87,14 @@ export function setLiveEnv(e) { envOverride = e ? { ...defaultEnv(), ...e } : nu
 
 function freshState() {
   return { topic: null, status: 'idle', attempt: 0, joins: 0, hellos: 0, heals: 0,
-    applied: 0, dropped: 0, lastFrame: null, lastBytes: 0, lastAt: 0, lastRefusal: null, lastHealAt: 0 };
+    applied: 0, dropped: 0, lastFrame: null, lastBytes: 0, lastAt: 0, lastRefusal: null, lastHealAt: 0,
+    joinedAt: 0, lastHelloAt: 0, hellosDeferred: 0 };
 }
 let st = freshState();
 let channel = null;
 let channelClient = null;
 let retryTimer = null;
+let helloTimer = null;
 let epoch = 0;
 let paused = 0;
 let watch = null;
@@ -100,6 +109,7 @@ export function getLiveState() {
 export function leave(why) {
   epoch += 1;
   if (retryTimer != null) { env().clearTimer(retryTimer); retryTimer = null; }
+  if (helloTimer != null) { env().clearTimer(helloTimer); helloTimer = null; }
   const ch = channel; const c = channelClient;
   channel = null; channelClient = null;
   if (ch && c) { try { const p = c.removeChannel(ch); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
@@ -162,17 +172,38 @@ function join(c, topic, token) {
 function onStatus(status) {
   if (status === 'SUBSCRIBED') {
     st.status = 'joined';
-    st.attempt = 0;
+    /* SEC C2: NOT `attempt = 0` here — a subscribe→close flap would then retry
+       at the base delay forever. The backoff resets in scheduleRetry, and only
+       for a join that held LIVE_STABLE_JOIN_MS. */
+    st.joinedAt = env().now();
     st.joins += 1;
-    hello();
+    joinHello();
     return;
   }
   if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') scheduleRetry();
 }
 
+/* SEC C2: at most one join hello per LIVE_HELLO_MIN_INTERVAL_MS. A join inside
+   the window DEFERS its hello to the window's end (one timer, dropped if the
+   channel leaves first) instead of dropping it — the gap still closes, and the
+   90 s settle poll is the floor beneath both. */
+function joinHello() {
+  const e = env();
+  const wait = st.lastHelloAt ? (st.lastHelloAt + LIVE_HELLO_MIN_INTERVAL_MS) - e.now() : 0;
+  if (wait <= 0) { hello(); return; }
+  if (helloTimer != null) return;
+  st.hellosDeferred += 1;
+  const my = epoch;
+  const h = helloTimer = e.setTimer(() => {
+    if (helloTimer === h) helloTimer = null;
+    if (my === epoch && st.status === 'joined') hello();
+  }, wait);
+}
+
 function scheduleRetry() {
   const topic = st.topic;
-  const attempt = st.attempt + 1;
+  const held = st.status === 'joined' && st.joinedAt > 0 && env().now() - st.joinedAt >= LIVE_STABLE_JOIN_MS;
+  const attempt = (held ? 0 : st.attempt) + 1;
   leave('retry');
   st.topic = topic;          // still the topic we want; ensureLive re-joins it
   st.status = 'retrying';
@@ -187,7 +218,7 @@ function scheduleRetry() {
 export function hello() {
   const e = env();
   if (bootSettlePending() && !settleInFlight()) return 'boot';
-  const ask = () => { st.hellos += 1; try { const p = e.hello(); if (p && p.catch) p.catch(() => {}); return p; } catch (x) { return null; } };
+  const ask = () => { st.hellos += 1; st.lastHelloAt = e.now(); try { const p = e.hello(); if (p && p.catch) p.catch(() => {}); return p; } catch (x) { return null; } };
   if (settleInFlight()) {
     const p = requestAccrual({});
     Promise.resolve(p).catch(() => {}).then(() => ask());
@@ -219,7 +250,14 @@ function onFrame(topic, payload) {
 }
 
 /** SEC S3: a floor ABOVE the server refuses every frame AND the hello. After
- *  enough consecutive reorders, reset it and re-read once, rate-limited. */
+ *  enough consecutive reorders, send ONE forced hello, rate-limited.
+ *  SEC C1: THE FLOOR IS KEPT. Reorders are also what a socket does on a good
+ *  day (a newer answer beat an older frame), and an opened floor let every
+ *  stale frame or answer still in flight land as fresh. `beginFloorHeal` marks
+ *  the floor; only the answer to THIS request may set it lower, and only if
+ *  nothing fresher landed meanwhile (accrue.js `healAnswer`/`applyEnvelope`).
+ *  ⚠ Runs only while the channel is joined: Realtime down or past its user cap
+ *  means no heal (LIVE_COUNTERS_PUSH.md §5 D4). */
 export function healStuckFloor() {
   const e = env();
   const d = getFrameDrops();
@@ -227,11 +265,13 @@ export function healStuckFloor() {
   if (st.status !== 'joined') return false;
   const now = e.now();
   if (st.lastHealAt && now - st.lastHealAt < LIVE_HEAL_MIN_INTERVAL_MS) return false;
+  const token = beginFloorHeal();
+  if (token == null) return false;
   st.lastHealAt = now;
   st.heals += 1;
-  resetFrameGate();
   st.hellos += 1;
-  try { const p = e.hello(); if (p && p.catch) p.catch(() => {}); } catch (x) {}
+  st.lastHelloAt = now;
+  try { const p = e.heal(token); if (p && p.catch) p.catch(() => {}); } catch (x) {}
   return true;
 }
 
@@ -269,6 +309,7 @@ export function __resetLive() { leave('reset'); st = freshState(); lastRepaintAt
 if (typeof window !== 'undefined') {
   window.HearthriseLive = {
     LIVE_EVENT, LIVE_HEAL_AFTER_DROPS, LIVE_HEAL_MIN_INTERVAL_MS, LIVE_BACKOFF_MAX_MS,
+    LIVE_STABLE_JOIN_MS, LIVE_HELLO_MIN_INTERVAL_MS,
     liveTopic, liveBackoffMs, getLiveState, ensureLive, leave, hello, healStuckFloor, startLive,
     setLiveEnv, __resetLive, __pauseForTest: pauseForTest, __resumeForTest: resumeForTest,
   };

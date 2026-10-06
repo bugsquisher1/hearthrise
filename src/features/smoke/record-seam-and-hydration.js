@@ -8910,11 +8910,15 @@ const m5WithLive = (opts, fn) => {
   const L = window.HearthriseLive; const A = window.HearthriseAccrual;
   assert(L && typeof L.setLiveEnv === 'function' && A && typeof A.applyFrame === 'function',
     'live.js / accrue.js applyFrame are not published — the push channel has no client half');
-  const c = m5FakeClient(); const timers = []; const r = { c, timers, hellos: 0 };
+  const c = m5FakeClient(); const timers = []; const r = { c, timers, hellos: 0, heals: [], clock: 1e9 };
   const wasClosed = A.awaySettleDone();
   L.__resetLive(); A.resetFrameGate(); A.__resetAwaySettleLatch(!opts.booting);
   L.setLiveEnv({ client: () => c, identity: () => ({ uid: M5_UID, token: 'tk', slot: 0 }),
     hello: () => { r.hellos += 1; if (opts.onHello) opts.onHello(); return Promise.resolve(); },
+    /* The heal's forced hello: the test answers it by hand (A.healAnswer + applyEnvelope),
+       exactly what requestAccrual does with its own response. */
+    heal: (token) => { r.heals.push(token); return Promise.resolve(); },
+    now: () => r.clock,
     setTimer: (f, ms) => { timers.push({ f, ms }); return timers.length; }, clearTimer: () => {},
     ...(opts.G ? { G: () => opts.G } : {}) });
   try { return fn(r, L, A); } finally {
@@ -8948,9 +8952,13 @@ function m5LiveSubscribeTests() { return [
         const meta = document.getElementById('ab-meta');
         assert(meta && meta.textContent.indexOf('Lv ' + lv) !== -1,
           'the activity bar did not tick to Lv ' + lv + ' from the frame: "' + (meta && meta.textContent) + '"');
-        /* THE BAG rides a frame only once the bag is ABSOLUTE (§7a); refused before. */
+        /* THE BAG rides a frame only once the bag is ABSOLUTE (§7a), and only with a
+           frame-carried inventory_complete===true (SEC F2); refused otherwise. */
         const before = (window.G.inventory || {}).copper_ore || 0;
-        r.c.emit(m5Frame(11, 1, { inventory: { copper_ore: before + 7 } }));
+        r.c.emit(m5Frame(11, 1, { inventory: { copper_ore: before + 5 } }));
+        assert(((window.G.inventory || {}).copper_ore || 0) === before,
+          'a bag frame WITHOUT inventory_complete===true landed — the merge-upward path (SEC F2)');
+        r.c.emit(m5Frame(11, 1, { inventory: { copper_ore: before + 7 }, inventory_complete: true }));
         const now = (window.G.inventory || {}).copper_ore || 0;
         const absolute = A.isInventoryAbsolute();
         assert(absolute ? now === before + 7 : now === before,
@@ -8982,6 +8990,7 @@ function m5LiveSubscribeTests() { return [
       assert(r.timers.length === 1 && r.c.removed === 1, 'an error did not schedule ONE retry');
       r.timers.shift().f();
       assert(r.c.channels.length === 2, 'the retry did not re-join');
+      r.clock += L.LIVE_HELLO_MIN_INTERVAL_MS;
       r.c.status('SUBSCRIBED');
       assert(r.hellos === 2, 'the RE-join did not re-read hr_state_of (' + r.hellos + ')');
     });
@@ -9016,16 +9025,60 @@ function m5LiveSubscribeTests() { return [
     }));
   }),
 
-  /* SEC S3: a floor stuck ABOVE the server is reset and re-read, once. */
-  () => tryRun('M5 live: a stuck-high frame floor heals by one reset + re-read', () => {
+  /* SEC S3: a floor stuck ABOVE the server heals through ONE forced hello. */
+  () => tryRun('M5 live: a stuck-high frame floor heals by one forced re-read', () => {
     const G = { gold: 0, gems: 0, skills: {}, inventory: {} };
-    m5Acked((A) => m5WithLive({ G, onHello: () => A.applyEnvelope(G, m5Env(900, 77)) }, (r, L) => {
+    m5Acked((A) => m5WithLive({ G }, (r, L) => {
       L.ensureLive(); r.c.status('SUBSCRIBED');
       A.commitFrame(1e6);
-      const h0 = r.hellos;
-      for (let v = 895; v < 905 && A.getAppliedFrame() === 1e6; v++) r.c.emit(m5Frame(v, 1));
-      assert(A.getAppliedFrame() === 900 && G.gold === 77 && r.hellos === h0 + 1,
-        'floor ' + A.getAppliedFrame() + ', gold ' + G.gold + ', re-reads ' + (r.hellos - h0));
+      for (let v = 895; v < 905; v++) r.c.emit(m5Frame(v, 1));
+      assert(r.heals.length === 1, 'the healer sent ' + r.heals.length + ' forced hellos, not one');
+      const ans = m5Env(900, 77);
+      A.healAnswer(ans, r.heals[0]);
+      A.applyEnvelope(G, ans);
+      assert(A.getAppliedFrame() === 900 && G.gold === 77,
+        'the heal answer did not heal: floor ' + A.getAppliedFrame() + ', gold ' + G.gold);
     }));
+  }),
+
+  /* SEC M5-client C1 (HIGH). RED WITHOUT THE FIX: the old healer reset the floor
+     to -1 BEFORE its hello returned, so the late frame 16 below landed as fresh
+     (gold 1016) and the stale HTTP answer at 15 after it. */
+  () => tryRun('M5 regression: a stale frame or answer between a heal and its answer writes nothing (SEC C1)', () => {
+    const G = { gold: 0, gems: 0, skills: {}, inventory: {} };
+    m5Acked((A) => m5WithLive({ G }, (r, L) => {
+      L.ensureLive(); r.c.status('SUBSCRIBED');
+      r.c.emit(m5Frame(20, 200));
+      for (const v of [17, 18, 19]) r.c.emit(m5Frame(v, 1000 + v));
+      assert(r.heals.length === 1, 'precondition: three legitimate reorders did not fire the heal');
+      assert(A.getAppliedFrame() === 20, 'the heal OPENED the floor before its answer (floor ' + A.getAppliedFrame() + ')');
+      r.c.emit(m5Frame(16, 1016));
+      assert(G.gold === 200, 'a stale frame 16 landed between the heal and its answer: gold ' + G.gold);
+      assert(A.applyEnvelope(G, m5Env(15, 946)) === null && G.gold === 200,
+        'a stale HTTP answer (15) landed between the heal and its answer: gold ' + G.gold);
+      const ans = m5Env(22, 220);
+      A.healAnswer(ans, r.heals[0]);
+      A.applyEnvelope(G, ans);
+      assert(G.gold === 220 && A.getAppliedFrame() === 22, 'the heal answer (truth, 22) did not land: gold ' + G.gold);
+    }));
+  }),
+
+  /* SEC C2 (cost): a subscribe→close flap may not spend a hello a second. */
+  () => tryRun('M5 regression: a flapping channel backs off and sends at most one hello per 30 s (SEC C2)', () => {
+    m5WithLive({ G: { gold: 0, skills: {}, inventory: {} } }, (r, L) => {
+      L.ensureLive();
+      const t0 = r.clock;
+      let lastDelay = 0;
+      for (let i = 0; i < 30; i++) {
+        r.c.status('SUBSCRIBED');
+        r.clock += 1000;
+        r.c.status('CLOSED');
+        lastDelay = r.timers.length ? r.timers[r.timers.length - 1].ms : 0;
+        while (r.timers.length) r.timers.shift().f();
+      }
+      const cap = Math.ceil((r.clock - t0) / L.LIVE_HELLO_MIN_INTERVAL_MS) + 1;
+      assert(r.hellos <= cap, '30 one-second flaps sent ' + r.hellos + ' hellos (cap ' + cap + ')');
+      assert(lastDelay >= L.LIVE_BACKOFF_MAX_MS * 0.8, 'after 30 flaps the retry delay is ' + lastDelay + ' ms — no backoff');
+    });
   }),
 ]; }

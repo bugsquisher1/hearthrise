@@ -21,12 +21,21 @@
 //                    SUBSCRIBED (first and re-join) re-reads once (`hello`).
 //   L5  PUSH OFF     with no frames the game is today's: no hello at a boot
 //                    join, and the envelope path leaves G byte-identical.
-//   L6  STUCK FLOOR  after N consecutive reorders the floor is reset and
-//                    re-read once (SEC S3), and the healer is rate-limited.
+//   L6  STUCK FLOOR  after N consecutive reorders ONE forced hello goes out
+//                    through the real requestAccrual (SEC S3), its answer heals
+//                    a floor stuck above the server, and the healer is
+//                    rate-limited; a heal never borrows an earlier request.
+//   L13 HEAL ORDER   (SEC M5-client C1) the floor is KEPT while the heal is
+//                    out: a stale frame or HTTP answer arriving between the
+//                    heal and its answer writes nothing; an answer is not
+//                    allowed below the floor once something fresher landed.
+//   L14 COST         (SEC C2) a subscribe→close flap sends at most one hello
+//                    per 30 s and backs off; a join that held 30 s resets it.
 //   L7  IDENTITY     a frame on a topic that is no longer the player's is
 //                    never applied, and the channel is left.
 //   L8  BAG ORDER    a frame carrying inventory/bank is refused until the bag
-//                    is ABSOLUTE (WORLD_TICK_DESIGN.md §7a); after, it lands.
+//                    is ABSOLUTE (WORLD_TICK_DESIGN.md §7a), and after that
+//                    unless the frame carries inventory_complete===true (F2).
 //   L9  SHAPE        a frame with an unknown key / wrong type / bad number is
 //                    refused whole.
 //   L10 AUTH         setAuth on join AND on every TOKEN_REFRESHED; sign-out
@@ -66,13 +75,35 @@ const MUTATIONS = {
     from: "  if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') scheduleRetry();", to: '' },
   no_hello_on_join: { kills: ['L4'], file: 'live',
     why: 'a (re)join does not re-read, so the gap stays open',
-    from: '    st.joins += 1;\n    hello();', to: '    st.joins += 1;' },
+    from: '    st.joins += 1;\n    joinHello();', to: '    st.joins += 1;' },
   hello_at_boot: { kills: ['L5'], file: 'live',
     why: 'the boot join sends its own hello on top of the boot settle',
     from: "  if (bootSettlePending() && !settleInFlight()) return 'boot';", to: '' },
   no_heal: { kills: ['L6'], file: 'live',
-    why: 'the stuck-floor healer re-reads without resetting the floor',
-    from: '  resetFrameGate();\n  st.hellos += 1;', to: '  st.hellos += 1;' },
+    why: 'the stuck-floor healer re-reads with a plain hello, whose answer the stuck floor refuses',
+    from: '  try { const p = e.heal(token);', to: '  try { const p = e.hello();' },
+  heal_opens_floor: { kills: ['L13'], file: 'accrue',
+    why: 'THE OLD HEAL (SEC C1): the floor opens before the answer, so a stale frame/answer in flight lands as fresh',
+    from: '  floorHeal = { token: floorHealSeq, floor: lastAppliedFrame };',
+    to: '  lastAppliedFrame = -1; clearFrameDrops(); floorHeal = { token: floorHealSeq, floor: lastAppliedFrame };' },
+  heal_trusts_any_answer: { kills: ['L13'], file: 'accrue',
+    why: 'any answer arriving during a heal may lower the floor, not only the heal\'s own',
+    from: "healTagged.get(res) : undefined;", to: "(floorHeal ? floorHeal.token : undefined) : undefined;" },
+  heal_after_fresher: { kills: ['L13'], file: 'accrue',
+    why: 'the heal answer lowers the floor even after something fresher landed',
+    from: ' && lastAppliedFrame === floorHeal.floor;', to: ';' },
+  heal_borrows_inflight: { kills: ['L6'], file: 'accrue',
+    why: 'the heal borrows the answer to a request sent before it began, and never asks itself',
+    from: '  if (inFlight && o.heal != null) return', to: '  if (false) return' },
+  attempt_reset_on_join: { kills: ['L14'], file: 'live',
+    why: 'SEC C2: every SUBSCRIBED resets the backoff, so a flap retries at the base delay forever',
+    from: '    st.joinedAt = env().now();', to: '    st.attempt = 0; st.joinedAt = env().now();' },
+  hello_uncapped: { kills: ['L14'], file: 'live',
+    why: 'SEC C2: every join sends a hello, so a flap spends ~1 Edge call a second',
+    from: '  if (wait <= 0) { hello(); return; }', to: '  { hello(); return; }' },
+  bag_without_complete: { kills: ['L8'], file: 'accrue',
+    why: 'SEC F2: a bag frame without inventory_complete lands and takes the merge-upward path',
+    from: "    if (env.inventory_complete !== true) return refuse('bag_incomplete', true);", to: '' },
   heal_unlimited: { kills: ['L6'], file: 'live',
     why: 'the healer is not rate-limited',
     from: '  if (st.lastHealAt && now - st.lastHealAt < LIVE_HEAL_MIN_INTERVAL_MS) return false;', to: '' },
@@ -81,7 +112,7 @@ const MUTATIONS = {
     from: "  if (topic !== st.topic || topic !== liveTopic(id.uid, id.slot)) { leave('identity'); ensureLive(); return; }", to: '' },
   bag_before_flip: { kills: ['L8'], file: 'accrue',
     why: 'an inventory frame lands on a merging bag',
-    from: "  if (FRAME_KEYS_NEED_ABSOLUTE.some((k) => k in env) && !isInventoryAbsolute()) return refuse('premature', true);", to: '' },
+    from: "    if (!isInventoryAbsolute()) return refuse('premature', true);", to: '' },
   unknown_key_ok: { kills: ['L9'], file: 'accrue',
     why: 'a frame with an unknown key is applied',
     from: "  if (!keys.length || keys.some((k) => FRAME_KEYS.indexOf(k) === -1)) return null;", to: '' },
@@ -173,6 +204,29 @@ function rig(A, L, opts) {
   return r;
 }
 
+const settleIo = async () => { for (let i = 0; i < 6; i++) await new Promise((res) => setImmediate(res)); };
+
+/* The REAL requestAccrual over a held fetch: each hr-accrue call queues until
+   the test answers it, so the order of arrival is the test's to choose. */
+function http(A, G) {
+  const q = [];
+  const prev = globalThis.fetch;
+  globalThis.fetch = (url) => {
+    if (String(url).includes('/rest/v1/')) return Promise.resolve({ ok: false, status: 404, json: async () => [] });
+    return new Promise((resolve) => q.push((body) => resolve({ ok: true, status: 200, json: async () => body })));
+  };
+  A.configureAccrual({ url: 'https://example.invalid', authToken: 'tok' });
+  A.setAccrualHooks({ onApplied: (b) => A.applyEnvelope(G, b) });
+  return {
+    q,
+    answer: async (body) => { const f = q.shift(); if (f) f(body); await settleIo(); return !!f; },
+    restore: async () => {
+      while (q.length) { q.shift()({ ok: true, accrued: false, reason: 'idle', version: 0 }); await settleIo(); }
+      globalThis.fetch = prev; A.configureAccrual(null); A.setAccrualHooks({ onApplied: null });
+    },
+  };
+}
+
 export async function liveFrameGuard(mutation) {
   problems.length = 0;
   let mods; let dir = null;
@@ -249,9 +303,13 @@ export async function liveFrameGuard(mutation) {
       const d2 = r.timers[0] && r.timers[0].ms;
       ok(d1 > 0 && d2 > d1 * 1.1, 'L4', 'the retry delay did not back off (' + d1 + ' → ' + d2 + ')');
       r.fire();
+      r.clock += L.LIVE_HELLO_MIN_INTERVAL_MS;
       r.c.status('SUBSCRIBED');
       ok(r.hellos === 2, 'L4', 'the RE-join did not re-read hr_state_of (hellos ' + r.hellos + ')');
-      ok(L.getLiveState().attempt === 0, 'L4', 'a successful join did not reset the backoff');
+      r.clock += L.LIVE_STABLE_JOIN_MS;
+      r.c.status('CLOSED');
+      const d3 = r.timers[r.timers.length - 1] && r.timers[r.timers.length - 1].ms;
+      ok(d3 > 0 && d3 <= 1200, 'L4', 'a join that held ' + L.LIVE_STABLE_JOIN_MS + ' ms did not reset the backoff (next delay ' + d3 + ')');
     }
 
     // ── L5 PUSH OFF = TODAY ─────────────────────────────────────────────────
@@ -278,21 +336,52 @@ export async function liveFrameGuard(mutation) {
 
     // ── L6 STUCK FLOOR ──────────────────────────────────────────────────────
     {
-      const r = rig(A, L, { onHello: (G) => A.applyEnvelope(G, envAt(900, 77)) });
-      L.ensureLive(); r.c.status('SUBSCRIBED');
-      A.commitFrame(1e6);                               // the stuck floor
-      const before = r.hellos;
-      for (let v = 895; v < 895 + L.LIVE_HEAL_AFTER_DROPS && A.getAppliedFrame() === 1e6; v++) r.c.emit(frameAt(v, 1));
-      ok(A.getAppliedFrame() === 900 && r.G.gold === 77, 'L6',
-        'after ' + L.LIVE_HEAL_AFTER_DROPS + ' reorders the floor is ' + A.getAppliedFrame()
-        + ' and gold ' + r.G.gold + ' — the stuck floor was not reset and re-read.');
-      ok(r.hellos === before + 1, 'L6', 'the healer re-read ' + (r.hellos - before) + ' times, not once');
-      A.commitFrame(2e6);
-      for (let v = 0; v < 5; v++) r.c.emit(frameAt(901 + v, 1));
-      ok(r.hellos === before + 1, 'L6', 'the healer fired again inside its rate limit (hellos +' + (r.hellos - before) + ')');
-      r.clock += L.LIVE_HEAL_MIN_INTERVAL_MS + 1;
-      r.c.emit(frameAt(950, 1));
-      ok(r.hellos === before + 2, 'L6', 'the healer never fires again after its rate limit');
+      const r = rig(A, L);
+      const h = http(A, r.G);
+      try {
+        L.ensureLive(); r.c.status('SUBSCRIBED');
+        A.commitFrame(1e6);                               // the stuck floor
+        const heals0 = L.getLiveState().heals;
+        for (let v = 895; v < 895 + L.LIVE_HEAL_AFTER_DROPS; v++) r.c.emit(frameAt(v, 1));
+        await settleIo();
+        ok(L.getLiveState().heals === heals0 + 1 && h.q.length === 1, 'L6',
+          'after ' + L.LIVE_HEAL_AFTER_DROPS + ' reorders the healer sent ' + h.q.length + ' request(s) (heals +'
+          + (L.getLiveState().heals - heals0) + '), not ONE forced hello.');
+        await h.answer(envAt(900, 77));
+        ok(A.getAppliedFrame() === 900 && r.G.gold === 77, 'L6',
+          'the heal answer did not heal the stuck floor: floor ' + A.getAppliedFrame() + ', gold ' + r.G.gold + '.');
+        A.commitFrame(2e6);
+        for (let v = 0; v < 5; v++) r.c.emit(frameAt(901 + v, 1));
+        await settleIo();
+        ok(L.getLiveState().heals === heals0 + 1 && h.q.length === 0, 'L6', 'the healer fired again inside its rate limit');
+        r.clock += L.LIVE_HEAL_MIN_INTERVAL_MS + 1;
+        r.c.emit(frameAt(950, 1));
+        await settleIo();
+        ok(h.q.length === 1, 'L6', 'the healer never fires again after its rate limit');
+        const g = r.G.gold;
+        await h.answer({ ok: true, accrued: false, reason: 'idle', version: 1500, now: '2026-10-05T12:00:00Z' });
+        ok(A.getAppliedFrame() === 1500 && r.G.gold === g, 'L6',
+          'an idle (not-accrued) heal answer did not set the floor to the server\'s version 1500 (floor '
+          + A.getAppliedFrame() + ', gold ' + r.G.gold + ').');
+
+        /* A heal raised while another settle is in flight waits for it and asks
+           ITSELF — the in-flight answer predates the heal and is never trusted. */
+        A.resetFrameGate(); L.__resetLive(); L.ensureLive(); r.c.status('SUBSCRIBED');
+        A.commitFrame(1e6);
+        const early = A.requestAccrual({ force: true });  // in flight BEFORE the heal
+        await settleIo();
+        for (let v = 895; v < 895 + L.LIVE_HEAL_AFTER_DROPS; v++) r.c.emit(frameAt(v, 1));
+        await h.answer(envAt(800, 8));                    // the earlier request's (stale) answer
+        await early;
+        await settleIo();
+        ok(A.getAppliedFrame() === 1e6 && r.G.gold !== 8, 'L6',
+          'the answer to a request sent BEFORE the heal lowered the floor (floor ' + A.getAppliedFrame() + ').');
+        ok(h.q.length === 1, 'L6', 'the heal borrowed the in-flight answer and never asked itself ('
+          + h.q.length + ' request(s) queued after it).');
+        await h.answer(envAt(900, 90));
+        ok(A.getAppliedFrame() === 900 && r.G.gold === 90, 'L6',
+          'the heal\'s own answer, sent after the in-flight one, did not heal (floor ' + A.getAppliedFrame() + ').');
+      } finally { await h.restore(); }
     }
 
     // ── L7 IDENTITY ─────────────────────────────────────────────────────────
@@ -312,7 +401,7 @@ export async function liveFrameGuard(mutation) {
       const r = rig(A, L);
       L.ensureLive(); r.c.status('SUBSCRIBED');
       r.G.inventory = { copper_ore: 3 };
-      r.c.emit(frameAt(60, 5, { inventory: { copper_ore: 9 } }));
+      r.c.emit(frameAt(60, 5, { inventory: { copper_ore: 9 }, inventory_complete: true }));
       ok(r.G.inventory.copper_ore === 3 && r.G.gold === 0, 'L8',
         'an inventory frame landed on a MERGING bag (copper ' + r.G.inventory.copper_ore + ').');
       const prevD = globalThis.DUNGEONS;
@@ -324,9 +413,13 @@ export async function liveFrameGuard(mutation) {
         let armed = false;
         try { A.markInventoryAuthorityLive(true); armed = A.isInventoryAbsolute(); } catch (e) { armed = false; }
         if (armed) {
-          r.c.emit(frameAt(62, 6, { inventory: { copper_ore: 9 } }));
+          r.c.emit(frameAt(61, 5, { inventory: { copper_ore: 9 } }));
+          ok(r.G.gold === 0 && r.G.inventory.copper_ore === 3, 'L8',
+            'an ABSOLUTE-time bag frame WITHOUT inventory_complete===true landed (copper '
+            + r.G.inventory.copper_ore + ') — it would take the merge-upward path (SEC F2).');
+          r.c.emit(frameAt(62, 6, { inventory: { copper_ore: 9 }, inventory_complete: true }));
           ok(r.G.gold === 6 && r.G.inventory.copper_ore === 9, 'L8',
-            'after the ABSOLUTE flip an inventory frame did not land in the bag (copper '
+            'after the ABSOLUTE flip a complete inventory frame did not land in the bag (copper '
             + r.G.inventory.copper_ore + ', gold ' + r.G.gold + ').');
         } else {
           problems.push('L8: could not arm the absolute bag in node, so the post-flip half did not run.');
@@ -377,6 +470,101 @@ export async function liveFrameGuard(mutation) {
       r.c.emit(frameAt(80, 80));
       ok(r.G.gold === 0, 'L11', 'a frame applied before the boot settle closed (gold ' + r.G.gold + ').');
       ok(A.getFrameDrops().drops === 0, 'L11', 'a pre-boot frame was counted as a drop.');
+    }
+
+    // ── L13 HEAL ORDER (SEC M5-client C1) ─────────────────────────────────
+    {
+      /* (a) THE SECURITY REPRO. Floor 20/gold 200; frames 17,18,19 are a
+         legitimate reorder and fire the heal. A late frame 16 and a stale HTTP
+         answer at 15 arrive BEFORE the heal's answer: neither may write G. */
+      const r = rig(A, L);
+      const h = http(A, r.G);
+      try {
+        L.ensureLive(); r.c.status('SUBSCRIBED');
+        r.c.emit(frameAt(20, 200));
+        for (const v of [17, 18, 19]) r.c.emit(frameAt(v, 1000 + v));
+        await settleIo();
+        ok(L.getLiveState().heals === 1 && h.q.length === 1, 'L13', 'precondition: the reorders did not fire the heal');
+        ok(A.getAppliedFrame() === 20, 'L13', 'the heal OPENED the floor before its answer (floor ' + A.getAppliedFrame() + ').');
+        r.c.emit(frameAt(16, 1016));
+        ok(r.G.gold === 200 && A.getAppliedFrame() === 20, 'L13',
+          'a stale frame 16 arriving between the heal and its answer wrote G (gold ' + r.G.gold
+          + ', floor ' + A.getAppliedFrame() + ') — the SEC C1 rollback.');
+        A.applyEnvelope(r.G, envAt(15, 946));
+        ok(r.G.gold === 200 && A.getAppliedFrame() === 20, 'L13',
+          'a stale HTTP answer (15) arriving between the heal and its answer wrote G (gold ' + r.G.gold + ').');
+        await h.answer(envAt(22, 220));
+        ok(r.G.gold === 220 && A.getAppliedFrame() === 22, 'L13',
+          'the heal\'s own answer (22, truth) did not land (gold ' + r.G.gold + ', floor ' + A.getAppliedFrame() + ').');
+        r.c.emit(frameAt(16, 1016));
+        ok(r.G.gold === 220, 'L13', 'a stale frame after the heal answer wrote G (gold ' + r.G.gold + ').');
+      } finally { await h.restore(); }
+    }
+    {
+      /* (b) SOMETHING FRESHER LANDED while the heal was out: the gate proved it
+         is not stuck, so the heal's lower answer may not take the floor down. */
+      const r = rig(A, L);
+      const h = http(A, r.G);
+      try {
+        L.ensureLive(); r.c.status('SUBSCRIBED');
+        r.c.emit(frameAt(1000, 100));
+        for (const v of [997, 998, 999]) r.c.emit(frameAt(v, 1));
+        await settleIo();
+        ok(h.q.length === 1, 'L13', 'precondition (b): no heal in flight');
+        r.c.emit(frameAt(1001, 101));
+        await h.answer(envAt(950, 5));
+        ok(r.G.gold === 101 && A.getAppliedFrame() === 1001, 'L13',
+          'a heal answer BELOW a floor that something fresher had raised was applied (gold ' + r.G.gold
+          + ', floor ' + A.getAppliedFrame() + ').');
+      } finally { await h.restore(); }
+    }
+    {
+      /* (c) HTTP ONLY (frame_push=false): the watchdog heal on reordered answers
+         keeps the floor, so a late answer at 46 cannot roll gold back. */
+      const r = rig(A, L);
+      const h = http(A, r.G);
+      try {
+        L.ensureLive(); r.c.status('SUBSCRIBED');
+        A.applyEnvelope(r.G, envAt(50, 500));
+        for (const v of [47, 48, 49]) A.applyEnvelope(r.G, envAt(v, 900 + v));
+        const healed = L.healStuckFloor();
+        await settleIo();
+        ok(healed === true && h.q.length === 1, 'L13', 'precondition (c): the watchdog heal did not fire');
+        A.applyEnvelope(r.G, envAt(46, 946));
+        ok(r.G.gold === 500 && A.getAppliedFrame() === 50, 'L13',
+          'HTTP only: a late answer (46) after the watchdog heal wrote G (gold ' + r.G.gold + ', truth 500).');
+        await h.answer({ ok: true, accrued: false, reason: 'idle', version: 50 });
+        ok(A.getAppliedFrame() === 50 && r.G.gold === 500, 'L13', 'the idle heal answer at the floor moved it to ' + A.getAppliedFrame());
+      } finally { await h.restore(); }
+    }
+
+    // ── L14 COST (SEC C2) ───────────────────────────────────────────────────
+    {
+      const r = rig(A, L);
+      L.ensureLive();
+      const t0 = r.clock;
+      let lastDelay = 0;
+      for (let i = 0; i < 30; i++) {
+        r.c.status('SUBSCRIBED');
+        r.clock += 1000;
+        r.c.status('CLOSED');
+        lastDelay = r.timers.length ? r.timers[r.timers.length - 1].ms : 0;
+        while (r.timers.length) r.fire();
+      }
+      const window = Math.ceil((r.clock - t0) / L.LIVE_HELLO_MIN_INTERVAL_MS) + 1;
+      ok(r.hellos <= window, 'L14', 'a subscribe→close flap over ' + ((r.clock - t0) / 1000) + ' s sent '
+        + r.hellos + ' hellos (cap ' + window + ', one per ' + L.LIVE_HELLO_MIN_INTERVAL_MS + ' ms).');
+      ok(lastDelay >= L.LIVE_BACKOFF_MAX_MS * 0.8, 'L14',
+        'after 30 flaps the retry delay is ' + lastDelay + ' ms — the backoff resets on every SUBSCRIBED.');
+      /* A deferred hello still goes out once the window passes, if still joined. */
+      const r2 = rig(A, L);
+      L.ensureLive(); r2.c.status('SUBSCRIBED');
+      r2.c.status('CLOSED'); r2.fire();
+      r2.clock += 1000;
+      r2.c.status('SUBSCRIBED');
+      ok(r2.hellos === 1 && r2.timers.length === 1, 'L14', 'a join inside the hello window did not defer its hello');
+      r2.fire();
+      ok(r2.hellos === 2, 'L14', 'the deferred hello never went out, so the join gap stays open');
     }
 
     // ── L12 SURFACE (source) ────────────────────────────────────────────────

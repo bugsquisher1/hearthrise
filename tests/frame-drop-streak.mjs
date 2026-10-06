@@ -26,12 +26,13 @@
 // days to notice. This file pins DETECTION: a counter of consecutive refusals,
 // published on a seam a human already reads.
 //
-// ⚠ THE CURE IS NOT HERE. `lane/m5-live-subscribe` landed it in src/net/live.js
-//   `healStuckFloor()`: after LIVE_HEAL_AFTER_DROPS consecutive `reorder`s it
-//   RESETS the floor and re-reads once, rate-limited — pinned by L6 of
-//   tests/live-frame-subscribe.mjs. D4 below pins the other half: the APPLIER
-//   itself still refuses below a stuck floor (the cure is a deliberate reset,
-//   never an applier that fails open), and the streak keeps counting so the
+// ⚠ THE CURE IS NOT HERE, AND IT IS PARTIAL. `lane/m5-live-subscribe` put it in
+//   src/net/live.js `healStuckFloor()`: after LIVE_HEAL_AFTER_DROPS consecutive
+//   `reorder`s, while the channel is JOINED, it sends ONE forced hello whose
+//   own answer alone may lower the floor (SEC M5-client C1; L6 + L13 of
+//   tests/live-frame-subscribe.mjs). No join (Realtime down, user cap) means
+//   no heal. D4 below pins the other half: the APPLIER still refuses every
+//   other envelope below a stuck floor, and the streak keeps counting so the
 //   healer has something to read.
 //
 // ── THE CLAIMS ──────────────────────────────────────────────────────────────
@@ -276,18 +277,19 @@ export async function frameDropStreakGuard(mutation) {
   }
 
   /* ── D4 THE APPLIER NEVER FAILS OPEN BELOW A STUCK FLOOR ───────────────────
-     Rewritten by lane/m5-live-subscribe, which closed the hole this used to pin.
-     The cure is a deliberate floor RESET in live.js `healStuckFloor()` (L6 of
-     tests/live-frame-subscribe.mjs), never an applier that accepts a lower
-     version on its own: so the applier still refuses, and the streak still
-     rises — that rising streak is exactly what the healer reads. */
+     Rewritten by lane/m5-live-subscribe, which added a healer for a JOINED
+     channel only (no heal while Realtime is down or past its user cap). The
+     healer is ONE forced hello whose own tagged answer may lower the floor
+     (L6/L13 of tests/live-frame-subscribe.mjs), never an applier that accepts
+     a lower version on its own: an untagged envelope is still refused, and
+     the streak still rises — that rising streak is exactly what it reads. */
   {
     A.resetFrameGate();
     A.commitFrame(1e6);                                   // the stuck floor
     const G = { gold: 0, gems: 0, skills: {}, inventory: {} };
     ok(A.applyEnvelope(G, envAt(900, 12345)) === null && G.gold === 0, 'D4',
       'a `hello` BELOW a stuck floor was applied BY THE APPLIER — it failed open. The stuck '
-      + 'floor is healed only by live.js resetting it on purpose (healStuckFloor), never here.');
+      + 'floor is healed only by the answer to live.js healStuckFloor\'s own hello, never here.');
     const before = drops();
     A.applyEnvelope({ gold: 1 }, envAt(901, 1));
     ok(drops() === before + 1, 'D4',

@@ -11276,8 +11276,8 @@ function refreshActivityBar(){
          stored forecast (night-plan.js chipHtml): pays away, you fall, or no
          food; a pending mark until the server has stated the bag. It never computes. */
       // Word and figure sit in spans the bar's fit steps (render/bar-fit.js) trade away.
-      const _LT = window.HearthriseLifetime, _cn = window.HearthriseBalance?.compactNumber, _ltc = _LT && _LT.count('kills');
-      const licChip = '<span class="ab-tkills" title="Lifetime kills'+(_ltc ? ': '+_ltc.n.toLocaleString()+(_ltc.exact ? '' : '+') : '')+'">'+_hrGly('uiTrophy',13)+'<span class="ab-chip-word">Lifetime </span><b>'+(!_LT ? '—' : '<span class="ab-n-full">'+_LT.markup('kills')+'</span><span class="ab-n-short">'+_LT.markup('kills', _cn)+'</span>')+'</b></span>';
+      const _cn = window.HearthriseBalance?.compactNumber;
+      const _ltc = window.HearthriseLifetime?.count('kills'), licChip = '<span class="ab-tkills" title="Lifetime kills'+(_ltc ? ': '+_ltc.n.toLocaleString()+(_ltc.exact ? '' : '+') : '')+'">'+_hrGly('uiTrophy',13)+'<span class="ab-chip-word">Lifetime </span><b>'+(!window.HearthriseLifetime ? '—' : '<span class="ab-n-full">'+window.HearthriseLifetime.markup('kills')+'</span><span class="ab-n-short">'+window.HearthriseLifetime.markup('kills', _cn)+'</span>')+'</b></span>';
       const _NP = window.HearthriseNightPlan, _STN = window.HearthriseSetTheNight;
       const awayChip = (_NP && _STN) ? _NP.chipHtml(_STN.peek(G)) : '';
       metaEl.innerHTML = ''

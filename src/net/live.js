@@ -29,7 +29,7 @@
 // nothing). ONE Realtime client: auth.js's shared one; this never creates one.
 // ============================================================================
 
-import { applyFrame, frameRefusal, getFrameDrops, beginFloorHeal, getAppliedFrame,
+import { applyFrame, frameRefusal, getFrameDrops, beginFloorHeal, getFloorHeal, getAppliedFrame,
   requestAccrual, bootSettlePending, settleInFlight, resolveActiveSlot, MAX_SLOT } from './accrue.js?v=561';
 
 export const LIVE_EVENT = 'frame';
@@ -102,7 +102,7 @@ const authWired = new WeakSet();
 
 /** Diagnostics (bug report / devtools). Read-only copy. */
 export function getLiveState() {
-  return { ...st, paused: paused > 0, floor: getAppliedFrame(), ...getFrameDrops() };
+  return { ...st, paused: paused > 0, floor: getAppliedFrame(), heal: getFloorHeal(), ...getFrameDrops() };
 }
 
 /** Leave the current topic now. Any callback of the old channel is dead (epoch). */

@@ -45,6 +45,18 @@ const MUTATE = process.argv.includes('--mutate');
    the arm that must go red. A marker that is gone is a harness failure (2): a
    mutation that cannot be applied proves nothing. */
 const MUTANTS = [
+  /* V3 (b563): a tired span fought at the RAW xp's levels while the chain
+     re-reads the banked ones — -14..-18% ticks/kills/gold/xp on W1 once a
+     defence level is worth 0.02 monster accuracy. Reverting the banked-skills
+     view must turn W1 red. */
+  {
+    name: 'V3 tired fight levels on unbanked xp', arm: 'W1',
+    file: 'supabase/functions/hr-accrue/accrual.js',
+    edits: [
+      ['const fightSkills = vigMult === 1 ? state.skills : { ...skills0 };',
+        'const fightSkills = state.skills;'],
+    ],
+  },
   {
     name: 'V1 floor per window', arm: 'W1',
     file: 'supabase/functions/hr-accrue/accrual.js',

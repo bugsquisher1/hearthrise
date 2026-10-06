@@ -96,6 +96,12 @@ export const START_SKILL_XP = Object.freeze({
    lesson "fish, then cook, then fight" is the one the first hour has to teach,
    and it teaches far better from an empty food slot than from a corpse.
 
+   RE-MEASURED 2026-10-06 (monster accuracy 0.006 -> 0.02 per defence point, same
+   fresh save, 400 seeds): the curve pivots at defence == foe attack, so a
+   level-1 hero is hit slightly MORE — dmg per kill Slime 2.91 -> 2.99, Goblin
+   5.53 -> 6.11, Wolf Cub 14.09 -> 16.39. The bridge is ~26 goblin kills, not
+   ~29: still past `first_blood` and a first bounty, still gone in session one.
+
    `shrimp` stays (8 -> 10) because it is the INPUT half of that lesson: the
    `first_cook` quest asks for 5 dishes and `cook_shrimp` is the level-1 recipe.
    A kit with only cooked food would hand the player the output and hide the

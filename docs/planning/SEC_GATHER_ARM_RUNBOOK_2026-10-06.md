@@ -1,0 +1,27 @@
+# Security: M2 gather ARM runbook (2026-10-06 22:05 UTC, veto role, read-only on prod)
+**Verdict: ARM-READY WITH CONDITIONS. Not yet:** the bar closes about 10-07 16:30 UTC. Payload `6205e4e0` is live (probe rows 9-13). Counted so far: probe 9 (12:28 to 16:30, exact). Probe 11 is DISCARDED because the version went 2789 to 2796 with a real return at 18:42. Probes 5 and 7 are off-payload. **One more discard makes the read UNREADABLE (more than 20 %) until there are 10 or more probes, so leave QA gather slot 2 untouched until P1.**
+**Anchor (09-29 16:14, payload e545713b) carries over.** The pack diff touches accrual/tick-contract/tick-shadow/tick.js, but every changed hunk is combat, vigour or probe code. Gather returns at accrual.js:1536, before any of it. EXECUTED: probe-13's live snapshot through both packs, as a one-span run and a 1,440 x 10 s chain, rested, tired and with no HP. The results are byte-identical; the only difference is an in-memory `vigourRemMs: 0`. No migration since 09-29 touches a gather reader.
+**Pre-arm (in order, each one green):**
+P1 `node tools/world-tick-parity.mjs` on set/b563 prints gather **PASS** (a combat line that is not PASS does not matter here). INSUFFICIENT means wait; UNREADABLE or FAIL means stop.
+P2 There has been no edge deploy since 6205e4e0, and the live `payload_sha256` equals the pinned hash.
+P3 `select hr_tick_stall_status(now(),2,30)` returns judged=true and stalled=false. QA combat slot 1 has been untouched for 2 h or more, because after the arm it is the C2 sentinel.
+P4 **Fresh return (F1):** after P1, open QA slot 2 on live, let it claim, then close the tab. Its raw `accrued_to` must be under 15 min old.
+P5 Not 00:00-00:10 UTC. No edge deploy and no other migration in the same sitting.
+**ARM:** `node tools/apply-migration.mjs 2026-10-07-world-tick-arm-gather.sql`. The file re-asserts P1-P4 in SQL: config 90/10 with frame_push off, at least 6 probes and 24 h on the pinned payload, no off-pin probe in the last 24 h, 1-2 owned gatherers all fresh, the C1 body, and C2 judging. It then writes `armed_channels={gather}` and post-asserts that C2 now watches combat. If it raises, it has rolled back: stop and report. Never edit it and retry.
+**Post-arm (at T+15 min, 1 h, 6 h and 24 h):**
+V1 `player_ledger` rows since the arm with `meta->>'src'='tick'` are kind `gather` only. A combat tick row means KILL.
+V2 Tick and non-tick gather `accrue` rows for slot 2 never overlap: `tstzrange(meta->>'from', meta->>'to')` gives 0 rows under `&&`. The sum of `meta.ms` across all of them must be no more than (wall-clock since the arm + 90 s).
+V3 The combat shadow keeps writing (about 40 rows/h in `hr_tick_shadow`). The stall check shows `watched_channels=[combat]` and stalled=false.
+V4 Edge `refused` in `hr_tick_cron_log` stays near 0. `shadow_state_while_armed`/`fenced_24h` may appear at most once, for the boundary window.
+V5 Gather tick rows keep landing (30/h or more while on gather). **C2 does not watch an armed channel (F2): V5 is the only gather-stall detector.**
+**KILL:** `node tools/apply-migration.mjs 2026-10-07-world-tick-disarm.sql` (staged; it keeps the shadow measuring). `enabled=false` stops everything. Pull it if any of these happen:
+- V1, V2 or V3 goes red.
+- Tick-paid qty/h is more than 1.01 x the probe rate.
+- Gather tick rows stop for more than 30 min.
+- Before re-enabling a tick that has been down for more than 6 h, ALWAYS kill first (F1).
+- An edge deploy lands without the gather differential.
+
+**Edge deploys after arming:** wait at least 24 h (one full V cycle, one variable at a time). Arming resets nothing, but once gather is armed it has **no probe**, because probes only run on shadow windows (F3). Every deploy GO therefore carries the gather differential: probe snapshot, one-span run plus 10 s chain, old pack vs new pack, byte-identical. The Vigour-line split touches accrual.js/hunt.js, so it needs this. If the result is not identical, disarm first and re-earn 6 probes. Every deploy also restarts the M4 combat probe count. `vendor_sell_many` moves gold, so it needs its own Security GO.
+**F1 (CONFIRMED by execution plus fence code):** the armed catch-up ignores `cap_ms`. A raw watermark 12-24 h old is paid in full: 6,755 ore against accrue's capped 3,900 on the live snapshot. This is bounded today by P4 and the 2-character limit. **Fix this before widening the cohort:** either start armed windows at `greatest(accrued_to, now()-cap)`, or admit only within `cap_ms`.
+**F2:** add a judgement on the armed-channel ledger rate to `hr_tick_stall_status`/vitals. Until then, run V5 by hand.
+**Residual accepted:** R-T1 replay at 90 s (unchanged), and gather parity is blind between deploys except for the differential.

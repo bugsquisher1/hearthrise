@@ -1066,7 +1066,7 @@ body[data-theme] .invc-topbar .invc-space {
   letter-spacing: .02em;
   color: var(--gold-2);
 }
-/* Uppercase-tracked gilt-filled buttons for "Multi-select" and "Manage" made
+/* Uppercase-tracked gilt-filled buttons for the bag toolbar ("Manage" etc.) made
  * two utility controls the loudest thing above the bag. */
 body[data-theme] .invc-topbar button {
   text-transform: none;
@@ -1916,51 +1916,32 @@ body[data-theme] .activity-bar.v2:has(.ab-verb) .ab-meta { flex-shrink: 1; min-w
 /* A chip is one line. Shrinking the meta folded "DEF 60 · 2,277 to go" onto a
  * clipped second line at 922x423; the short forms below buy the room. */
 body[data-theme] .activity-bar.v2 .ab-meta > span { white-space: nowrap; }
-/* THE BAR'S FIT TIERS. What gives way, in order: the foe's name (above), then
- * the chips' words (S1: "Lifetime", "this fight", "Bounty", "away:", Vigour's
- * "of Vigour"/"pays" become their glyphs), then on the tightest bars the status
- * icon and the dry chip's "Out ·" (S2: the hourglass, red rim and ×0.25 stay).
- * No chip is ever hidden (the Game Designer's ruling, FIGHT-PHONE-DENSITY).
- * The bar is the query container and the thresholds are in `ch` of the bar's
- * own face, so a wide fallback (DejaVu on Linux, Verdana) reaches a tier at a
- * wider bar than Alegreya does: a 1280x800 desktop beside a dry Vigour chip
- * clipped "away: you fall" in DejaVu because the old short form was a phone
- * media query. A query reads the bar's CONTENT box; each threshold is the
- * measured need of that content set in the widest face + ~4ch for digits
- * (2026-10-03, Verdana/Segoe, in ch of the content box: long forms need 111
- * with Vigour, 129 with a bounty or dry, 141 dry with a bounty; S1 needs 82
- * without a bounty, 93 with one). Alegreya needs less at every tier.
- * FIGHT-STATUS-VERB-1 and FIGHT-PHONE-DENSITY measure the result. */
-body[data-theme] .activity-bar.v2 { container: ab-bar / inline-size; }
-@container ab-bar (max-width: 115ch) {
-  body[data-theme] .activity-bar.v2 :is(.ab-vigour-verb, .ab-vigour-word, .ab-chip-word) { display: none; }
-  body[data-theme] .activity-bar.v2 .ab-vigour .ab-vigour-glyph { display: inline-flex; vertical-align: -2px; margin-right: 3px; }
-  body[data-theme] .activity-bar.v2 .ab-meta :is(.ab-tkills, .ab-bounty, .ab-away) > .hr-glyph { display: inline-flex; margin-right: 4px; }
-  body[data-theme] .activity-bar.v2 .ab-vigour { padding: 2px 4px; }
-  body[data-theme] .activity-bar.v2 .ab-meta { gap: 6px; letter-spacing: 0; }
-}
-@container ab-bar (max-width: 133ch) {
-  body[data-theme] .activity-bar.v2:is(:has(.ab-bounty), :has(.ab-vigour.is-dry)) :is(.ab-vigour-verb, .ab-vigour-word, .ab-chip-word) { display: none; }
-  body[data-theme] .activity-bar.v2:is(:has(.ab-bounty), :has(.ab-vigour.is-dry)) .ab-vigour .ab-vigour-glyph { display: inline-flex; vertical-align: -2px; margin-right: 3px; }
-  body[data-theme] .activity-bar.v2:is(:has(.ab-bounty), :has(.ab-vigour.is-dry)) .ab-meta :is(.ab-tkills, .ab-bounty, .ab-away) > .hr-glyph { display: inline-flex; margin-right: 4px; }
-  body[data-theme] .activity-bar.v2:is(:has(.ab-bounty), :has(.ab-vigour.is-dry)) .ab-vigour { padding: 2px 4px; }
-  body[data-theme] .activity-bar.v2:is(:has(.ab-bounty), :has(.ab-vigour.is-dry)) .ab-meta { gap: 6px; letter-spacing: 0; }
-}
-@container ab-bar (max-width: 145ch) {
-  body[data-theme] .activity-bar.v2:has(.ab-bounty):has(.ab-vigour.is-dry) :is(.ab-vigour-verb, .ab-vigour-word, .ab-chip-word) { display: none; }
-  body[data-theme] .activity-bar.v2:has(.ab-bounty):has(.ab-vigour.is-dry) .ab-vigour .ab-vigour-glyph { display: inline-flex; vertical-align: -2px; margin-right: 3px; }
-  body[data-theme] .activity-bar.v2:has(.ab-bounty):has(.ab-vigour.is-dry) .ab-meta :is(.ab-tkills, .ab-bounty, .ab-away) > .hr-glyph { display: inline-flex; margin-right: 4px; }
-  body[data-theme] .activity-bar.v2:has(.ab-bounty):has(.ab-vigour.is-dry) .ab-vigour { padding: 2px 4px; }
-  body[data-theme] .activity-bar.v2:has(.ab-bounty):has(.ab-vigour.is-dry) .ab-meta { gap: 6px; letter-spacing: 0; }
-}
-@container ab-bar (max-width: 86ch) {
-  body[data-theme] .activity-bar.v2:has(.ab-verb) .ab-icon,
-  body[data-theme] .activity-bar.v2 .ab-vigour-out { display: none; }
-}
-@container ab-bar (max-width: 97ch) {
-  body[data-theme] .activity-bar.v2:has(.ab-verb):has(.ab-bounty) .ab-icon,
-  body[data-theme] .activity-bar.v2:has(.ab-bounty) .ab-vigour-out { display: none; }
-}
+/* THE BAR'S FIT TIERS. What gives way, in order: the foe's name (above, pure
+ * flex), then `short` (the chips' words - "Lifetime", "this fight", "Bounty",
+ * "away:", Vigour's "of Vigour"/"pays" - become their glyphs), then `tight`
+ * (the status icon and the dry chip's "Out ·"; hourglass, red rim and ×0.25
+ * stay), then `compact` (the Lifetime figure, "12M"), `togo` (the XP chip's
+ * to-go, "1.2M to go") and last `streak` (this fight's count, "123K" - the
+ * screen's heartbeat, so it stops ticking only when nothing else is left).
+ * Vigour, the bounty and the away verdict never compact. No chip is ever hidden
+ * (the Game Designer's ruling, FIGHT-PHONE-DENSITY). src/render/bar-fit.js
+ * MEASURES: it takes a step only while #ab-meta overflows, so a narrow face
+ * keeps its words and a wide one (Segoe, Verdana, DejaVu on CI) shortens
+ * exactly as far as it must. FIGHT-STATUS-VERB-1 and FIGHT-PHONE-DENSITY
+ * measure the result. */
+body[data-theme] .activity-bar.v2[data-fit~="short"] :is(.ab-vigour-verb, .ab-vigour-word, .ab-chip-word) { display: none; }
+body[data-theme] .activity-bar.v2[data-fit~="short"] .ab-vigour .ab-vigour-glyph { display: inline-flex; vertical-align: -2px; margin-right: 3px; }
+body[data-theme] .activity-bar.v2[data-fit~="short"] .ab-meta :is(.ab-tkills, .ab-bounty, .ab-away, .ab-xp) > .hr-glyph { display: inline-flex; margin-right: 4px; }
+body[data-theme] .activity-bar.v2[data-fit~="short"] .ab-vigour { padding: 2px 4px; }
+body[data-theme] .activity-bar.v2[data-fit~="short"] .ab-meta { gap: 6px; letter-spacing: 0; }
+body[data-theme] .activity-bar.v2[data-fit~="tight"]:has(.ab-verb) .ab-icon,
+body[data-theme] .activity-bar.v2[data-fit~="tight"] .ab-vigour-out,
+body[data-theme] .activity-bar.v2[data-fit~="compact"] .ab-tkills .ab-n-full,
+body[data-theme] .activity-bar.v2[data-fit~="togo"] .ab-xp .ab-n-full,
+body[data-theme] .activity-bar.v2[data-fit~="streak"] .ab-kills .ab-n-full { display: none; }
+body[data-theme] .activity-bar.v2[data-fit~="compact"] .ab-tkills .ab-n-short,
+body[data-theme] .activity-bar.v2[data-fit~="togo"] .ab-xp .ab-n-short,
+body[data-theme] .activity-bar.v2[data-fit~="streak"] .ab-kills .ab-n-short { display: inline; }
 body[data-theme] .activity-bar.v2 .ab-meta { font-size: var(--t-small); color: var(--ink-3); font-variant-numeric: tabular-nums; }
 body[data-theme] .activity-bar.v2 .ab-lv b,
 body[data-theme] .activity-bar.v2 .ab-xph b { color: var(--gold-2); }

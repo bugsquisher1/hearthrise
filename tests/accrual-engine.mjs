@@ -1466,6 +1466,7 @@ function attendedSettleAutoEatGuard() {
 // parity is preserved without anyone having to remember to preserve it.
 function recoveryGuard() {
   const SLIME = MONSTERS.slime ? 'slime' : MONSTER;
+  const FED_FOE = MONSTERS.goblin ? 'goblin' : SLIME;   // b563: see RECOVER-1's fed control
   /* THE LADDER, RE-DERIVED FROM THE TABLE ITSELF so this file never restates a
      rung. `sumLadder(n, L)` is what n falls in a day cost a character whose
      lifetime count started at L — the same arithmetic simulateSpan performs one
@@ -1640,11 +1641,19 @@ function recoveryGuard() {
      a SHORT window rather than against a fraction of the night, because the
      absolute share a foodless character earns is the ladder's business
      (RECOVER-8) and this assertion's business is only that the accumulation
-     does not STOP. A terminated run pays the same on both spans. */
-  const short = night({ spanMs: 5 * 60000, recoveringUntilMs: 0 });
-  ok(S.paidMs > short.summary.paidMs,
-    `RECOVER-1: a twelve-hour night paid ${S.paidMs} ms and a five-minute one paid `
-    + `${short.summary.paidMs} ms. If they are equal the run stops earning at the first fall — the `
+     does not STOP. A terminated run pays the same on both spans.
+     ⚠ MEASURED AGAINST THE NIGHT'S OWN FIRST FALL (b563). It was a literal
+       five-minute window; once the defence curve steepened (0.006 -> 0.02 per
+       point) this foodless hero's three falls and retreat all land inside five
+       minutes (28.8 s, 40.8 s, 172.8 s), so both spans paid 52,800 ms and the
+       comparison measured nothing. A terminated run pays EXACTLY the time to its
+       first fall (nothing is knocked out before it: recoveringUntilMs 0), so
+       that instant, read off the night's own deathLog, is the "short window"
+       the assertion always meant — and it cannot drift with balance. */
+  const firstFallPaidMs = (S.deathLog && S.deathLog.length) ? S.deathLog[0].atMs - FROM_MS : S.paidMs;
+  ok(S.paidMs > firstFallPaidMs,
+    `RECOVER-1: a twelve-hour night paid ${S.paidMs} ms and its first fall came at `
+    + `${firstFallPaidMs} ms. If they are equal the run stops earning at the first fall — the `
     + 'cliff, with extra steps.');
   /* AND THE POINTER SURVIVES. `delta.activity` is what the settle tells the
      server the character is doing; idling it on a death is the half of the old
@@ -1654,12 +1663,17 @@ function recoveryGuard() {
        so asserting the absence there would have been asserting the absence of
        the new feature. The property under test is "a DEATH does not idle the
        pointer", and the honest fixture for it is a character who falls many
-       times and keeps killing: 13 falls across twelve hours, ~1,997 kills,
+       times and keeps killing: 9 falls across twelve hours, ~2,750 kills (b563),
        counter reset by every kill, pointer untouched. That is a strictly better
        control than the old one — it proves the survival of the pointer across
-       THIRTEEN falls rather than across a night the engine now stops at three. */
+       NINE falls rather than across a night the engine now stops at three. */
+  /* ⚠ RE-PICKED TO A GOBLIN (b563). With monster accuracy at 0.02 a defence
+     point, a fresh hero out-levels an atk-2 Slime overnight and 400 shrimp now
+     cover the whole night (0 falls) — the designer's curve working, not a
+     defect. An atk-4 Goblin still out-eats the bag: measured 9 falls, ~2,750
+     kills, no retreat, counter 0 at the close. */
   const fedNight = night({
-    spanMs: 12 * 3600000, recoveringUntilMs: 0,
+    spanMs: 12 * 3600000, recoveringUntilMs: 0, monster: FED_FOE,
     autoEatEnabled: true, autoEatOwned: true, autoEatPct: 50,
     autoEatFood: 'cooked_shrimp', inventory: { cooked_shrimp: 400 },
   });
@@ -2110,6 +2124,7 @@ function recoveryGuard() {
 // ════════════════════════════════════════════════════════════════════════════
 function retreatGuard() {
   const SLIME = MONSTERS.slime ? 'slime' : MONSTER;
+  const FED_FOE = MONSTERS.goblin ? 'goblin' : SLIME;   // b563: see RECOVER-1's fed control
   /* THE QA ACCOUNT'S ACTUAL TARGET where the catalogue still has it. Falling
      back keeps the guard runnable if the row is ever renamed, and the fixture
      states which one it used in every failure message. */
@@ -2307,10 +2322,12 @@ function retreatGuard() {
   // The ruling's whole premise, and the reason the trigger is CONSECUTIVE falls
   // rather than "N deaths a day": every kill resets the count.
   // MUTATION PROVEN: delete `state.consecFalls = 0` from resolveKill and this
-  // goes red — a fed hero with 13 falls retreats before the night is out.
+  // goes red — a fed hero with 9 falls retreats before the night is out.
   if (PROVISION) {
+    /* RE-PICKED with RECOVER-1's fed control (b563): a Slime no longer drops a
+       fed hero who levels defence overnight; a Goblin still does, 9 times. */
     const fed = night({
-      spanMs: 12 * 3600000, monster: SLIME,
+      spanMs: 12 * 3600000, monster: FED_FOE,
       autoEatEnabled: true, autoEatOwned: true, autoEatPct: 50,
       autoEatFood: PROVISION, inventory: { [PROVISION]: 400 },
     });
@@ -2330,7 +2347,7 @@ function retreatGuard() {
     /* THE COUNTER NEVER REACHES THE RUNG. Deliberately not `=== 0`: a twelve-
        hour window can perfectly well CLOSE on a fall, and the counter is then
        legitimately 1 or 2 going into the next window. The property is that
-       across 13 falls and ~2,000 kills it never accumulates to the any-hero
+       across 9 falls and ~2,750 kills it never accumulates to the any-hero
        rung, which is what "reset by ANY kill" buys. Asserted against the TABLE
        rather than a literal, so moving the rung moves the assertion with it. */
     ok(fed.delta.consec_falls < RETREAT_ANY_FALLS,

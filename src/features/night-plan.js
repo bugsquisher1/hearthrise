@@ -16,8 +16,8 @@
 // except through the memo's key.
 // ════════════════════════════════════════════════════════════════════════
 
-import { fill } from './signposts.js?v=561';
-import { SIGNPOSTS } from '../data/signposts.js?v=561';
+import { fill } from './signposts.js?v=562';
+import { SIGNPOSTS } from '../data/signposts.js?v=562';
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const label = (key) => SIGNPOSTS.labels[key] || '';
@@ -35,11 +35,16 @@ function doorsHtml(ctx) {
   const c = ctx || {};
   const cook = c.cookable && c.cookable.qty > 0
     ? fill('night.cookable', { raw: c.cookable.qty + ' ' + c.cookable.name }) : '';
-  const lines = [cook, fill('night.gatherInstead')].filter(Boolean)
+  /* THE FOOD SOURCE. Nothing raw to cook means the fighter has no food
+     income at all — the live night that ate 20 bought shrimp and lay down.
+     Name the loop and open its first step, fishing. */
+  const fish = cook ? '' : fill('night.fishForFood');
+  const lines = [cook || fish, fill('night.gatherInstead')].filter(Boolean)
     .map((t) => `<p class="np-line">${esc(t)}</p>`).join('');
   const doors = [button('foodshop', label('night.buyFood'))];
   if (c.owned && c.serverEatOn === false && Number(c.foodQty) > 0) doors.push(button('autoeat', label('night.autoEat')));
   if (cook) doors.push(button('cook', SIGNPOSTS.lines['night.cookable'].door.label));
+  else if (fish) doors.push(button('fish', SIGNPOSTS.lines['night.fishForFood'].door.label));
   doors.push(button('gather', SIGNPOSTS.lines['night.gatherInstead'].door.label));
   return `<div class="np-doors">${lines}<div class="np-door-row">${doors.join('')}</div></div>`;
 }
@@ -128,6 +133,7 @@ function act(name) {
     if (typeof window.notify === 'function') window.notify(label('night.autoEat'), 'info');
     refresh();
   } else if (name === 'cook' && SP) SP.go(SIGNPOSTS.lines['night.cookable'].door);
+  else if (name === 'fish' && SP) SP.go(SIGNPOSTS.lines['night.fishForFood'].door);
   else if (name === 'gather' && SP) SP.go(SIGNPOSTS.lines['night.gatherInstead'].door);
 }
 

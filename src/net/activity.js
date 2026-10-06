@@ -85,14 +85,14 @@ import {
   /* THE RECEIPT READERS and the once-per-window seam every verb's `collected`
      feeds (2026-09-28) — they live beside the away holder they write. */
   collectedOf, awayFromCollected, applyCollectedReceipt,
-} from './accrue.js?v=561';
+} from './accrue.js?v=562';
 /* THE PAYABLE-BENCH PREDICATE, read — never restated. `benchPayable` lives in
    src/core/artisan-sim.js and is the SAME function the accrual engine's
    `computeAccrual` and the intent's shape check read, so the client, the engine
    and the intent cannot disagree about which benches exist tonight. Precedent:
    src/net/gold.js already imports src/data/shops.js for exactly this reason. */
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=561';
-import { indexArtisanRecipes, recipePayable } from '../core/artisan-sim.js?v=561';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=562';
+import { indexArtisanRecipes, recipePayable } from '../core/artisan-sim.js?v=562';
 
 export const ACTIVITY_VERB = 'set_activity';
 
@@ -144,6 +144,12 @@ export const GAME_ACTIVITY_KINDS = Object.freeze(['combat', 'gather', 'artisan',
    was never really doing it. */
 let inFlight = null;
 let queued = null;
+/* The verdict of the declaration a coalesced tap will ACTUALLY send (or null if
+   it never goes out). Handed to every 'queued' caller as `settled`, so a caller
+   that must act on the server's answer waits for that answer instead of reading
+   'queued' as one (bench-count.js: a stop there declared idle over the tap). */
+let queuedSettled = null;
+const deferred = () => { let resolve; const promise = new Promise((r) => { resolve = r; }); return { promise, resolve }; };
 let config = null;
 let last = null;
 let lastServerActivity = null;   // the newest activity the SERVER has stated
@@ -678,6 +684,7 @@ export function getActivityState() {
 export function resetActivity() {
   inFlight = null; queued = null; last = null; lastServerActivity = null; confirmed = null;
   lastServerFight = null; deferredReconcile = null; collectRetryArmed = false;
+  if (queuedSettled) { queuedSettled.resolve(null); queuedSettled = null; }
 }
 
 /**
@@ -1154,7 +1161,8 @@ export async function declareActivity(rawKind, rawId, opts) {
     /* COALESCE. The newest declaration replaces any earlier queued one — the
        player's most recent tap is the only one that describes where they are. */
     queued = { kind, id: id == null ? null : id };
-    return { outcome: 'queued', declared: { ...queued } };
+    if (!queuedSettled) queuedSettled = deferred();
+    return { outcome: 'queued', declared: { ...queued }, settled: queuedSettled.promise };
   }
 
   inFlight = (async () => {
@@ -1195,9 +1203,13 @@ export async function declareActivity(rawKind, rawId, opts) {
     return await inFlight;
   } finally {
     inFlight = null;
-    const next = queued;
-    queued = null;
-    if (next) { const p = declareActivity(next.kind, next.id); if (p && p.catch) p.catch(() => {}); }
+    const next = queued, waiters = queuedSettled;
+    queued = null; queuedSettled = null;
+    if (next) {
+      const p = declareActivity(next.kind, next.id);
+      if (p && typeof p.then === 'function') p.then((v) => { if (waiters) waiters.resolve(v); }, () => { if (waiters) waiters.resolve(null); });
+      else if (waiters) waiters.resolve(null);
+    } else if (waiters) waiters.resolve(null);
   }
 }
 

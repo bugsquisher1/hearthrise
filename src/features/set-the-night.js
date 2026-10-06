@@ -221,13 +221,87 @@
     return out;
   }
 
+  /* ── WHAT A WHOLE NIGHT EATS (the fighter-food loop) ──────────────────
+     LIVE, QA account 2026-10-06: a Combat-25 hero on Slime was bought 20
+     Cooked Shrimp, ate them by ~22:20 and lay knocked out for the rest of the
+     night. The forecast said "even with your 20 Cooked Shrimp you fall" — a
+     verdict with no number to act on. MEASURED (same engine): Combat 25 in
+     iron vs Slime bleeds ~196 HP an hour (monster accuracy 0.29, max hit 1,
+     no regeneration), ~25 Cooked Shrimp an hour, ~200 a night. So the plan a
+     player needs is "how many", and only the engine can say it: the SAME
+     seeded span, on a second clone whose bag holds the food it would eat
+     without limit. Said only when that fed night stands all the way through;
+     a foe that drops the hero WITH food is the outmatched sentence, not a
+     shopping list. Display only, like everything here (CLAUDE.md §6). */
+  var FED_TOPUP = 100000;
+  function fedFoodId(G, food) {
+    var A = window.HearthriseAuto;
+    var fid = null;
+    try { fid = (A && typeof A.eatFoodId === 'function') ? A.eatFoodId() : null; } catch (e) { fid = null; }
+    if (fid && items()[fid]) return fid;
+    if (food && food.id) return food.id;
+    return items().cooked_shrimp ? 'cooked_shrimp' : null;
+  }
+  function nightNeed(G, food) {
+    var fid = fedFoodId(G, food);
+    if (!fid) return null;
+    var out = runNight(G, fid);
+    if (!out) return null;
+    var eaten = Math.max(0, Number(out.foodEaten) || 0);
+    if (out.died || (Number(out.deaths) || 0) > 0 || !(eaten > 0)) return null;
+    return { id: fid, name: itemName(fid), qty: eaten };
+  }
+
   function combatForecast(G) {
+    var out = runNight(G, null);
+    if (!out) return null;
+    var food = bagFood(G);
+    var survivedMs = Math.max(0, Number(out.survivedMs) || 0);
+    var died = !!out.died || (Number(out.deaths) || 0) > 0;
+    var offEat = autoEatOff(G);
+    var need = (died && !offEat) ? nightNeed(G, food) : null;
+    return {
+      kind: 'combat',
+      target: G.activeMonster,
+      targetName: monsterName(G.activeMonster),
+      spanMs: died ? survivedMs : HORIZON_MS,
+      horizonMs: HORIZON_MS,
+      allNight: !died,
+      kills: Math.max(0, Number(out.kills) || 0),
+      deaths: Math.max(0, Number(out.deaths) || 0),
+      downMs: Math.max(0, Number(out.recoverMs) || 0),
+      stoppedBy: out.stoppedBy || null,
+      retreatMs: out.retreatMs == null ? null : Number(out.retreatMs),
+      retreatFalls: Math.max(0, Number(out.retreatFalls) || 0),
+      foodEaten: Math.max(0, Number(out.foodEaten) || 0),
+      autoEatOff: offEat,
+      numeric: typeof G.consecFalls === 'number' && noHuntOrders(G),
+      foodQty: food.qty,
+      foodId: food.id,
+      foodName: food.id ? itemName(food.id) : null,
+      /* null = not sayable (the night holds, Auto-Eat is off, or the foe drops
+         you even fed). `needQty` counts meals of `needName`. */
+      needQty: need ? need.qty : null,
+      needId: need ? need.id : null,
+      needName: need ? need.name : null,
+      banks: true,
+      at: Date.now(),
+    };
+  }
+
+  /* One seeded eight-hour span on a clone. `topUpId` = stock that food without
+     limit on the clone (the nightNeed run); null = the bag as the server stated it. */
+  function runNight(G, topUpId) {
     var C = core();
     if (!C || !C.combatSim || typeof C.combatSim.simulateSpan !== 'function') return null;
     var CS = window.HearthriseCombatSim;
     if (!CS || typeof CS.ctx !== 'function') return null;
     var clone = cloneForForecast(G, serverCounts(G));
     if (!clone) return null;
+    if (topUpId) {
+      clone.inventory = clone.inventory || {};
+      clone.inventory[topUpId] = FED_TOPUP;
+    }
 
     var ctx;
     try { ctx = CS.ctx(); } catch (e) { return null; }
@@ -276,33 +350,7 @@
 
     var out;
     try { out = C.combatSim.simulateSpan(clone, ctx); } catch (e) { return null; }
-    if (!out) return null;
-
-    var food = bagFood(G);
-    var survivedMs = Math.max(0, Number(out.survivedMs) || 0);
-    var died = !!out.died || (Number(out.deaths) || 0) > 0;
-    return {
-      kind: 'combat',
-      target: G.activeMonster,
-      targetName: monsterName(G.activeMonster),
-      spanMs: died ? survivedMs : HORIZON_MS,
-      horizonMs: HORIZON_MS,
-      allNight: !died,
-      kills: Math.max(0, Number(out.kills) || 0),
-      deaths: Math.max(0, Number(out.deaths) || 0),
-      downMs: Math.max(0, Number(out.recoverMs) || 0),
-      stoppedBy: out.stoppedBy || null,
-      retreatMs: out.retreatMs == null ? null : Number(out.retreatMs),
-      retreatFalls: Math.max(0, Number(out.retreatFalls) || 0),
-      foodEaten: Math.max(0, Number(out.foodEaten) || 0),
-      autoEatOff: autoEatOff(G),
-      numeric: typeof G.consecFalls === 'number' && noHuntOrders(G),
-      foodQty: food.qty,
-      foodId: food.id,
-      foodName: food.id ? itemName(food.id) : null,
-      banks: true,
-      at: Date.now(),
-    };
+    return out || null;
   }
 
   // ── THE BENCH / NODE FORECAST ─────────────────────────────────────────
@@ -443,8 +491,12 @@
   function combatKey(f) {
     var deaths = Number(f.deaths) || 0, eaten = Number(f.foodEaten) || 0;
     if (!f.numeric && (deaths >= 1 || f.stoppedBy === 'retreat')) return 'night.fallsUncounted';
-    if (f.stoppedBy === 'retreat') return 'night.retreat';
+    /* A fed night that holds is a NUMBER the player can go and get: say it
+       Only where the engine proved it (`needQty`, see nightNeed). */
+    var need = Number(f.needQty) > 0 && f.needName;
+    if (f.stoppedBy === 'retreat') return need ? 'night.retreatNeed' : 'night.retreat';
     if (deaths === 0) return eaten > 0 ? 'night.fed' : 'night.hold';
+    if (need) return f.foodQty > 0 ? 'night.fallsShort' : 'night.fallsHungryNeed';
     if (deaths === 1) return 'night.fallsOnce';
     if (eaten > 0) return 'night.fallsFed';
     if (!(f.foodQty > 0)) return 'night.fallsHungry';
@@ -458,6 +510,12 @@
         food: f.foodQty > 0 && f.foodName ? countOf(f.foodQty, f.foodName) : null,
         foe: f.targetName, falls: f.stoppedBy === 'retreat' ? f.retreatFalls : f.deaths,
         down: fmtSpan(f.downMs), span: fmtSpan(f.retreatMs),
+        need: Number(f.needQty) > 0 && f.needName ? countOf(f.needQty, f.needName) : null,
+        /* The bag against the fed night's eating rate: the same engine's
+           meals-per-night, so "last about" and "eats about" cannot disagree. */
+        lasts: Number(f.needQty) > 0
+          ? fmtSpan(Math.min(1, (Number(f.foodQty) || 0) / Number(f.needQty)) * (f.horizonMs || HORIZON_MS))
+          : null,
       });
     }
     if (!f.banks) return 'Tonight: ' + f.skillName + ' only earns while you are here.';

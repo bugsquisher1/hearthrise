@@ -298,6 +298,10 @@
     });
   }
 
+  function spendLatch() {   // the bounty-reroll latch (bountyRerollOnce), page-wide by name
+    var L = window.HearthriseIntentLatch;
+    return (L && typeof L.namedLatch === 'function') ? L.namedLatch('bounty-spend') : null;
+  }
   window.HearthriseGoalClaim = {
     activeSlot: activeSlot,
     isSignedIn: isSignedIn,
@@ -440,12 +444,29 @@
        Bounty-Hunter level (player_skills). The abandon NAMES the contract
        (p_bounty_id) so an abandon that lands after the next accept is refused
        (bounty_mismatch) instead of deleting the new contract. p_idem makes a
-       retry a no-op. The answer's `fee` is the only figure a caller may quote. */
-    bountyReroll: function () {
+       retry a no-op. The answer's `fee` is the only figure a caller may quote.
+       In-flight model: a reroll is held by the 'bounty-spend' latch below; the
+       accept and the abandon are held by render/bounty-progress.js (busy()),
+       which also reads bountyRerollHeld so all three answer one question. */
+    bountyReroll: function (key) {
       return call('hr_bounty_spend', {
-        p_slot: activeSlot(), p_reason: 'reroll', p_bounty_id: null, p_idem: newIdem()
+        p_slot: activeSlot(), p_reason: 'reroll', p_bounty_id: null, p_idem: key || newIdem()
       });
     },
+    /* ONE PAID REROLL IN FLIGHT (net/intent-latch.js). The server prices a
+       reroll 5 + 5 × paid rerolls today, so a double-click on the board's "New
+       notices" paid 5 AND 10 for one refresh. bountyRerollOnce returns the
+       call's promise, or null while a reroll is held (or the latch is absent):
+       the caller then does nothing at all. A re-tap after a timeout re-sends
+       the same p_idem, which hr_bounty_spend replays without a second debit. */
+    bountyRerollHeld: function () { var l = spendLatch(); return !!(l && l.held('reroll:' + activeSlot())); },
+    bountyRerollOnce: function () {
+      var l = spendLatch(), k = 'reroll:' + activeSlot();
+      if (!l || l.held(k)) return null;
+      return l.run(k, function (idem) { return window.HearthriseGoalClaim.bountyReroll(idem); });
+    },
+    /* Test teardown only: drop every held spend. */
+    __resetSpendLatch: function () { var l = spendLatch(); if (l) l.reset(); },
     bountyAbandon: function (bountyId) {
       return call('hr_bounty_spend', {
         p_slot: activeSlot(), p_reason: 'abandon', p_bounty_id: String(bountyId || ''),

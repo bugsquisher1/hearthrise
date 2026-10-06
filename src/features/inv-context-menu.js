@@ -408,16 +408,26 @@
      pays the quote it is HANDED — it does not recompute a price — which makes
      "the quote is the payment" true by construction rather than by two loops
      agreeing, and it is directly assertable without a dialog in the loop. */
+  /* THE QUANTITY IS THE SERVER'S (sellableCount → accrue.js gateItemCount), never
+     the display bag. An unstated bag quotes `pending` and sells nothing. */
+  function serverQty(id){
+    return (typeof window.sellableCount === 'function') ? window.sellableCount(id) : null;
+  }
   function quoteJunk(threshold){
     var ids = selectJunk(threshold);
-    var totalGold = 0, totalCount = 0;
-    ids.forEach(function(id){
-      var qty = window.G.inventory[id] | 0;
+    var totalGold = 0, totalCount = 0, qtys = {}, pending = false;
+    ids = ids.filter(function(id){
+      var qty = serverQty(id);
+      if(qty === null){ pending = true; return false; }
+      if(qty <= 0) return false;
       var v = (typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : (window.ITEMS[id].v | 0);
+      qtys[id] = qty;
       totalGold += qty * v;
       totalCount += qty;
+      return true;
     });
-    return { ids: ids, totalGold: totalGold, totalCount: totalCount };
+    if(pending) return { ids: [], qtys: {}, totalGold: 0, totalCount: 0, pending: true };
+    return { ids: ids, qtys: qtys, totalGold: totalGold, totalCount: totalCount };
   }
 
   function quoteText(q){
@@ -429,69 +439,22 @@
     return 'Sell ' + stacks + ' (' + items + ') for ' + q.totalGold.toLocaleString() + ' gold?';
   }
 
-  /** Ask, then settle. Resolves the gold paid (0 if declined or nothing to do). */
-  function sellJunk(threshold){
-    var q = quoteJunk(threshold);
-    if(!q.ids.length){
-      if(typeof window.notify === 'function') window.notify('No junk to sell — your bag is clean.', 'info');
-      return Promise.resolve(0);
-    }
-    var D = window.HearthriseDialog;
-    var ask = (D && D.confirm)
-      ? D.confirm({ title:'Sell junk?', body: quoteText(q), confirmLabel:'Sell' })
-      : Promise.resolve(false);
-    return ask.then(function(ok){
-      if(!ok) return 0;
-      /* RE-QUOTED AFTER THE ANSWER. The modal does not stop the game: a kill can
-         drop loot and a tick can consume a stack while it is open, so paying the
-         old total would pay for items that are no longer there (or leave new
-         junk behind holding its gold). The player is told if the number moved
-         rather than being silently charged a different price. */
-      var now = quoteJunk(threshold);
-      if(!now.ids.length) return 0;
-      if(now.totalGold !== q.totalGold && typeof window.notify === 'function'){
-        window.notify('Your bag changed — sold for ' + now.totalGold.toLocaleString() + 'g', 'info');
-      }
-      return settleJunk(now);
-    });
+  /* THE SWEEP IS CLOSED UNTIL THE SERVER CAN SELL A BAG IN ONE ANSWER
+     (Game Designer interim; see invSellSelected in src/screens/shop-counter.js
+     for the ruling and the `vendor_sell_many` brief in HANDOFFS.md).
+     settleJunk used to pay the quote through a DEFERRED gold site and toast
+     "Sold N junk for Xg" while sending nothing, so the next envelope took both
+     halves back. Now neither function asks, sends, pays, removes or says
+     "Sold"; both resolve 0 and say what to do instead. The QUOTE stays a pure
+     value (quoteJunk/quoteText): it is what the server verb will be asked to
+     honour, and B354-6 still pins it to the one vendor bid. */
+  function sweepClosed(){
+    if(typeof window.notify === 'function') window.notify(window.BULK_SELL_CLOSED || 'Bulk selling is resting for now', 'info');
+    return 0;
   }
-
-  function settleJunk(q){
-    var ids = q.ids, totalGold = q.totalGold, totalCount = q.totalCount;
-    if(!ids || !ids.length) return 0;
-    /* ⚠ THE QUOTE AND THE PAYMENT WERE TWO DIFFERENT PRICES. Found by the gold
-       census: the loop above totals with `vendorPrice(id)` — the game's ONE
-       vendor bid, raws discounted to 20% since b226 — and this loop used to pay
-       `ITEMS[id].v`, the undiscounted book value. So the confirm said "sell 40
-       stacks for 12,000 gold" and the sweep paid 60,000. A silent 5x faucet on
-       every raw material, and a dialog that lied about it.
-
-       legacy.js's own header for vendorPrice states the rule this broke: "ONE
-       choke-point… A price that differs by which button you pressed is not a
-       price." The fix is not "use the same expression twice" — the second
-       computation is DELETED, so the quote IS the payment by construction.
-       Regression: B354-6, proven RED against the original two-loop shape.
-
-       The payment goes through the seam (ledger site `vendor.sell_junk`), which
-       is DEFERRED: the sweep is N item ids in one gesture and `vendor_sell`
-       prices one per call. See B.BULK_VENDOR in src/net/gold-sites.js.
-
-       PAID FIRST, REMOVED SECOND, and that order is load-bearing: `goldSettle`
-       THROWS when the kill switch is on and src/net/gold.js is absent, and a
-       throw between "items gone" and "gold paid" is the only way this function
-       can cost a player their bag. */
-    window.goldSettle(totalGold, 'vendor.sell_junk', null);
-    ids.forEach(function(id){
-      var qty = window.G.inventory[id] | 0;
-      if(typeof window.removeItem === 'function') window.removeItem(id, qty);
-      else delete window.G.inventory[id];
-    });
-    if(typeof window.notify === 'function') window.notify('Sold ' + totalCount.toLocaleString() + ' junk for ' + totalGold.toLocaleString() + 'g', 'loot');
-    if(typeof window.updateTopbar === 'function') window.updateTopbar();
-    if(typeof window.renderInvNew === 'function') setTimeout(window.renderInvNew, 0);
-    else if(typeof window.renderInventory === 'function') setTimeout(window.renderInventory, 0);
-    return totalGold;
-  }
+  /** Resolves the gold paid — always 0 while the sweep is closed. */
+  function sellJunk(){ return Promise.resolve(sweepClosed()); }
+  function settleJunk(){ return sweepClosed(); }
 
   // ── Public API ────────────────────────────────────────────
   window.HearthriseInvCtx = {

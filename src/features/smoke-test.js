@@ -11,23 +11,23 @@
 // one live G and several depend on what the previous one left behind, so the
 // concatenation below is a CONTRACT, not a convenience. Add a domain module where its
 // tests used to sit; never re-sort this list to tidy it.
-import { errorLog, analyzeAssertionCoverage, stampBalanceLikeLoad, watchUiOverlaps, overlayResidue, captureShellLocks, serverBagFixture } from './smoke/_harness.js?v=561';
-import boot from './smoke/boot.js?v=561';
-import propertyAndUnlocks from './smoke/property-and-unlocks.js?v=561';
-import companionsClaimsAndRenown from './smoke/companions-claims-and-renown.js?v=561';
-import roomsItemsAndEconomy from './smoke/rooms-items-and-economy.js?v=561';
-import huntRaidsAndScreens from './smoke/hunt-raids-and-screens.js?v=561';
-import recoveryAndAutoEat from './smoke/recovery-and-auto-eat.js?v=561';
-import farmAndProfile from './smoke/farm-and-profile.js?v=561';
-import musterNavAndIdentity from './smoke/muster-nav-and-identity.js?v=561';
-import clanSeatAndFrontDoor from './smoke/clan-seat-and-front-door.js?v=561';
-import cookingCoreAndSave from './smoke/cooking-core-and-save.js?v=561';
-import bountyAndArtisan from './smoke/bounty-and-artisan.js?v=561';
-import questsChronicleAndBonus from './smoke/quests-chronicle-and-bonus.js?v=561';
-import awayTimeAndOffline from './smoke/away-time-and-offline.js?v=561';
-import recordSeamAndHydration from './smoke/record-seam-and-hydration.js?v=561';
-import marketNightAndPrices from './smoke/market-night-and-prices.js?v=561';
-import monstersInventoryAndBrand from './smoke/monsters-inventory-and-brand.js?v=561';
+import { errorLog, analyzeAssertionCoverage, stampBalanceLikeLoad, watchUiOverlaps, overlayResidue, captureShellLocks, serverBagFixture, watchLiveRpc } from './smoke/_harness.js?v=562';
+import boot from './smoke/boot.js?v=562';
+import propertyAndUnlocks from './smoke/property-and-unlocks.js?v=562';
+import companionsClaimsAndRenown from './smoke/companions-claims-and-renown.js?v=562';
+import roomsItemsAndEconomy from './smoke/rooms-items-and-economy.js?v=562';
+import huntRaidsAndScreens from './smoke/hunt-raids-and-screens.js?v=562';
+import recoveryAndAutoEat from './smoke/recovery-and-auto-eat.js?v=562';
+import farmAndProfile from './smoke/farm-and-profile.js?v=562';
+import musterNavAndIdentity from './smoke/muster-nav-and-identity.js?v=562';
+import clanSeatAndFrontDoor from './smoke/clan-seat-and-front-door.js?v=562';
+import cookingCoreAndSave from './smoke/cooking-core-and-save.js?v=562';
+import bountyAndArtisan from './smoke/bounty-and-artisan.js?v=562';
+import questsChronicleAndBonus from './smoke/quests-chronicle-and-bonus.js?v=562';
+import awayTimeAndOffline from './smoke/away-time-and-offline.js?v=562';
+import recordSeamAndHydration from './smoke/record-seam-and-hydration.js?v=562';
+import marketNightAndPrices from './smoke/market-night-and-prices.js?v=562';
+import monstersInventoryAndBrand from './smoke/monsters-inventory-and-brand.js?v=562';
 
 const TESTS = [].concat(
   boot, propertyAndUnlocks, companionsClaimsAndRenown,
@@ -195,14 +195,29 @@ export async function runSmokeTest(opts = {}) {
     if (_Prop && typeof _Prop.__resetPropertyRecord === 'function') _propParked = _Prop.__resetPropertyRecord();
   } catch (e) {}
   const results = [];
+  let liveRpc = null;
   try {
     /* The shell's authored overflow, taken BEFORE the first test so the baseline
        is the app's own state. Everything after this is measured against it. */
     captureShellLocks();
     let residueBefore = overlayResidue();
+    liveRpc = watchLiveRpc();   // _harness.js: a session RPC that reaches the real transport fails its test
     for (const t of PLAN) {
       const bagHeld = serverBagFixture();   // the stated-bag triple, captured (copied) before the test
+      liveRpc.take();
       const r = await t();
+      const leftThePage = liveRpc.take();
+      if (leftThePage.length && r.status === 'PASS') {
+        r.status = 'FAIL';
+        r.why = 'sent ' + leftThePage.join(', ') + ' to the LIVE realm: its answer lands in a later test (or, signed in, '
+          + 'moves a real account). Stub the transport (withFarmServer / holdWire / a fetch stub) or await and tear down the intent.';
+      }
+      /* EVERY INTENT LATCH, ONE PLACE (net/intent-latch.js). A gesture's hold
+         outlives its answer by a 600 ms floor, so a test that ends inside one
+         hands it to the next test's first tap (HIRE-OWNED-1 → HIRE-STRANDED-1:
+         W.hire() null). Reset here, after every test, for every latch the page
+         ever made — not in each test's finally. */
+      try { const IL = window.HearthriseIntentLatch; if (IL && typeof IL.__resetAll === 'function') IL.__resetAll(); } catch (e) {}
       /* ── THE TEARDOWN ASSERTION (2026-09-23) ──────────────────────────────
          A test that finishes with a modal still up, the body scroll still
          locked, or a full-viewport scrim painted does not fail. The NEXT test
@@ -256,6 +271,7 @@ export async function runSmokeTest(opts = {}) {
       results.push(r);
     }
   } finally {
+    try { if (liveRpc) liveRpc.restore(); } catch (e) {}
     try {
       if (_loopWasRunning && _A) { _A.setSettleEnv(null); _A.startSettleLoop(); }
     } catch (e) {}

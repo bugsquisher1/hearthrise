@@ -4,6 +4,93 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-10-06 · qa-engineer · P1 in-page red: a test sent a real hr_farm_plant to production (lane b563-plant-toast-leak)
+
+`b220: auto-replant produces a plot that actually matures` drove `maybeReplant` → real `plantCrop` → real `farmPlant` with no transport stub. The request left the page for the live realm (401 with no session in CI; on a signed-in Ctrl+Shift+T run it would plant a real turnip and spend a real seed), and its refusal toast "Could not plant (http_401)" landed ~300 ms later — inside INTENT-LATCH-1's 60 ms no-toast window on GitHub (set/b563 @fe39ce9c). Timing-dependent, not caused by the sell lane. Fix: b220 runs under `withFarmServer`; class guard: the runner wraps fetch (`watchLiveRpc`, `_harness.js`) and FAILS any test under which a session-only RPC reached the real transport (ANON_CALLABLE reads exempt). Measured on a full run: zero other offenders. Routed: none (qa lane).
+
+## 2026-10-06 · systems-engineer · sells: display-bounded, server answers; Sell All is the one confirmed-count gesture (lane b563-sell-server-bag)
+
+Sell 1 / tap-sell / quick-sell send the display-bounded count and render the server's receipt; a provably-unwritten chunk (refused, e.g. all-or-nothing `insufficient_item`) gets its gold rolled back by gold.js and its items put back by `sellReceipt`. Sell All sells the server-confirmed stack and holds its button until its own answer (`answerLock`, registered with the intent-latch teardown). gold.js's deadline now spans the body read (`callDeadline`). **Open, P2 systems lane:** Sell Selected and sell-junk still settle through `goldSettle(…, null)` / `B.BULK_VENDOR` and never reach the server per sale — their gold is a prediction with no intent behind it.
+
+## 2026-10-03 · systems-engineer · settle-then-gate: a collect-first verb is its own settle (lane b562-craft-gate-server-bag)
+
+The last stated server bag (`G._serverBag`) is up to one 90 s cadence old. Anything gathered since is real
+on the server and absent from it. A verb with `collectsFirst:true` (set_activity, equip, vendor_sell,
+shop_buy, market_*) settles that window before it decides, and set_activity's collect has **no 60 s floor**
+(the accrue verb does — `requestAccrual` inside 60 s of the last settle answers `below_min_span` and returns
+no fresh bag). So "request a settle, then gate" cannot close the gap; the switch can. Ruling: a gate on
+the last bag may only *accept early*, never *refuse*. Bench: a funded last bag arms now; a short one sends
+the switch, paints "Counting…", and arms on the switch's envelope (stops and names the shortfall if the
+collect still cannot fund it). Loadout: funded from the display bag, skipped slots named, ✓ waits for the
+equip answer. hr_apply's activity branch has **no input check** (`2026-09-14-hr-apply-restatement.sql`
+§4a) — a run on an empty bag is accepted and pays nothing, so the client's stop-to-idle is what keeps the
+pointer honest.
+
+| # | Not fixed in this lane | Owner |
+|---|---|---|
+| 1 | Sell All per the Game Designer ruling #5: label/quantity from the server-confirmed stack ("Sell All 37 · 74g"), disabled "Sell All · counting…" while unconfirmed, receipt from the server's answer — `legacy.js` item flyout (~10065) + `shop-counter.js invSellAll` | systems-engineer (next lane; button copy art-director) |
+| 2 | `invSellSelected` and `inv-context-menu.js sellJunk/settleJunk` count `G.inventory` and predict gold for a stack the server may not hold; the receipt is the prediction, not the server's answer | systems-engineer |
+| 3 | `invSellOne` toasts "Sold 1×" before `vendor_sell` answers (a refusal rolls the gold back but the toast stands) | systems-engineer |
+| 4 | Dead renderers `renderArtisanActivities` (two copies) and legacy `onItemTap`/`renderInventory` are still exercised by PRAYER-LADDER-1, REEDTIDE-5, DEEPSEAM-4, SELFSUPPLY-1 — tests of a surface no player sees; re-point them at `tileForArtisan` or delete the renderers | qa-engineer |
+
+
+## 2026-10-03 · backend-architect · lane C follow-ups from the expected-rung review (Security GO-WITH-CHANGES on 3a525095)
+
+C1/C2/C3 landed on `lane/b562-server-expected-level`. What the review listed and this lane did NOT fix:
+
+| # | Finding | Evidence | Sev | Owner |
+|---|---|---|---|---|
+| 1 | `hr_vigour_refill` is an escalating relative verb with no server-side expected rung. Closed on the honest path only (src/net/vigour.js coalesces and reuses its key); a second key buys the next, dearer rung | migration header "DELIBERATELY DOES NOT DO" | P2 | backend-architect + security |
+| 2 | `hr_bounty_spend` reroll: the paid-reroll index is client residue (`rerollsToday`/`freeRerolls`), so no honest caller can name it. Project today's paid-reroll count from the server first, then add `p_expect_index` | same | P2 | backend-architect + security |
+| 3 | `clan_upkeep_settle` (2026-08-08-clan-seat.sql:401) takes no lock and its treasury debit is unjournalled: N concurrent callers after a weekly boundary each read the stale row, and each `update ... treasury = treasury - v_gold_paid` re-evaluates on the committed row, so the clan is charged N times | body read 2026-10-03; clans not launched | P2 | backend-architect + security |
+| 4 | Lock-order deadlock: `clan_tier_up` locks `clans` then updates `clan_stores`; `clan_deposit__ungated` (2026-08-18-clan-deposit-ownership.sql) upserts `clan_stores` then updates `clans.standing`. Concurrent calls can raise 40P01 (one aborts, no corruption) | both bodies read 2026-10-03 | P3 | backend-architect + security |
+| 5 | `lane/b562-intent-latch` (758843cb) conflicts with this lane in `farm-sync.js` farmUpgradePlot, `farm-progression.js` upgrade `.then`, `clan-seat-ui.js` tierUp (+ this file). Merged result: the latch runs the call AND sends `p_expect_level`/`p_expect_tier` with the `missing_expect` early return; `.then` handles both in-flight silence and `stale_level`; tierUp keeps its stale_tier re-read | trial merge, aborted | P2 | systems-engineer (whichever lane merges second) |
+## 2026-10-03 · Systems · value verbs: which ones the SERVER makes idempotent (for the migration lane)
+
+The client latch (`src/net/intent-latch.js`, lane `b562-intent-latch`) holds a gesture for
+max(answer, send + 600 ms) and re-sends the SAME `p_idem` on a re-tap after an ambiguous answer
+(timeout / network / http / unreadable body). That only closes the double-buy if the server
+replays a key it has seen. Measured from the latest migration body of each verb:
+
+| Verb | Shape | Server replays `p_idem`? | Server-side need |
+|---|---|---|---|
+| `hr_farm_upgrade_plot` | RELATIVE (`plot_level + 1`) | yes (`hr_intent_replay`, per key+intent+slot) | none; the client latch was the hole |
+| `hr_farm_plant` / `_water` / `_harvest` | per-plot absolute (occupied / window / ready) | yes | none |
+| `hr_worker_hire` | materialise up to the PAID cap | yes (`player_intents`) | none |
+| `hr_unlock_buy worker_hire.N` | absolute rung (`already_owned` receipt) | yes | none |
+| `hr_bounty_spend` reroll | ESCALATING (5 + 5 × paid today) | yes (self-check asserts "replay same idem: no re-debit") | none |
+| `hr_vigour_refill` | spend | yes (client already reuses `_pendingIdem` on network) | none |
+| **`clan_tier_up`** | **RELATIVE (`castle_tier + 1`, shared stores)** | **NO `p_idem` parameter** | **add `p_idem` + replay; the client latch cannot cover a timeout retry** |
+| **`clan_work_supply`** | **RELATIVE (delivers `least(qty, need, has)` per call)** | **NO `p_idem`** | **add `p_idem` + replay; client latch BUILT (`clan-seat-ui.js supplyOrder`, INTENT-LATCH-11) closes the double-click, not the timeout retry** |
+| `hr_unlock_buy property.<tier>` (Upgrade Property) | RELATIVE in the client (next tier is read after the envelope advances) | yes (gold intent key) | client latch BUILT (`namedLatch('homestead')`, the latch idem rides the buy; INTENT-LATCH-7) |
+| `hr_unlock_buy bank.<k>` (bank gold expansion) | RELATIVE in the client (`bank.<goldBuys>` after the envelope) | yes | client latch BUILT, keyed `'bank'` not per offer (INTENT-LATCH-8) |
+| **`clan_deposit`** | **RELATIVE (each call deposits `qty` and debits it)** | **NO `p_idem`** (signature cannot carry one, 2026-08-18 header) | **migration lane: `p_idem` + replay; client latch NOT built (open → Systems)** |
+| **`clan_feast_deposit`** | **RELATIVE (each call lays `qty` food)** | **NO `p_idem`** | **gated by `CLAN_LAUNCHED`; add `p_idem` + a client latch before the launch flip (open → Systems + migration lane)** |
+| `clan_contribute` | RELATIVE (gold `p_amount` per call) | NO `p_idem` | refused client-side under the gold arm (`clans.js` contribute, b511) — unreachable; must get `p_idem` before it is re-armed (backend-architect) |
+| **`market_buy` (edge)** | **RELATIVE (`qty` from one listing per call, fresh key per press)** | yes per key | **client latch NOT built: a double-click on a listing with stock buys twice (open → Systems; Quartermaster-style row lock)** |
+| **`shop_buy` (edge, `screens/shop-counter.js`)** | **RELATIVE (one purchase per press, fresh key)** | yes per key | **client lock NOT built (QA 3b saw one intent on a synchronous double `click()`, not proven for a real dblclick with a fast answer) — apply the Quartermaster ruling (row lock until the answer) (open → Systems)** |
+| `hr_renown_claim` / gem unlocks / recipe scrolls | absolute (once per rank / unlock id) | server once-guard | none: a second press after a fast answer is an `already_*` receipt; booleans left as is |
+| `clan_feast_call` | absolute (cooldown after a feast) | no `p_idem` | none (server-bounded) |
+| `clan_board_claim` | absolute (`claimed_by` array, once per user) | no `p_idem` | none (server-bounded) |
+| `raid_strike` | absolute (`already_struck_today`) | no `p_idem` | none (server-bounded) |
+| `quartermaster_buy` (edge) | RELATIVE (one item per press, fresh key per press) | yes per key | client lock BUILT per the Game Designer ruling (no timer: the pressed row is disabled "Buying…" until its answer; INTENT-LATCH-12) |
+| `hr_farm_harvest` chain | harvest → settle → harvest (~45 s) | yes | the latch holds 50 s for this chain (INTENT-LATCH-10) |
+
+REQUIRED ACTION: the migration lane adds `p_idem uuid` + `hr_intent_replay` to `clan_tier_up`,
+`clan_work_supply` and `clan_deposit` (money-adjacent: Security GO). The client then passes the latch's
+`idem` (the `fire(idem)` argument) — `clan-seat-ui.js tierUp` and `supplyOrder` already run inside the
+latch. Every latch is registered and the in-page harness resets them all after every test
+(`HearthriseIntentLatch.__resetAll`, smoke-test.js); a new latch needs no teardown line.
+
+Out of this lane (Game Designer ruling 2026-10-03, the `#ab-meta` overflow items), routed, not built here:
+
+| # | Item | Owner |
+|---|---|---|
+| R1 | `compact` Lifetime chip → `compactNumber` form, full figure in the title | Art Director (ab-meta lane) |
+| R2 | `togo` then `streak` compaction steps while `#ab-meta` overflows; vigour / bounty / away verdict never compacted, no chip hidden | Art Director (ab-meta lane) |
+| R2c | `compactNumber` prints "1000K" for 999,500-999,999 (and "1000M" under 1B): roll over to "1M"/"1B" + a test that fails on "1000K" | Systems Engineer (one line; lands with R1/R2 to avoid a conflict on the formatter) |
+| R3 | `short` XP chip: skill atlas glyph instead of "STR", title/aria "Strength 72 · 1,228,825 XP to go", three letters fail-safe | Art Director |
+| R5 | SELL ALL sells the server-confirmed stack, "Sell All 37 · 74g", disabled "Sell All · counting…" while unconfirmed | Systems Engineer (needs the server stack seam) + Art Director (button) |
 ## 2026-10-03 · Backend Architect · lane/b562-bounty-abandon-fee (2026-10-04-bounty-abandon-server-fee.sql, STAGED)
 
 hr_bounty_spend is now `(p_slot, p_reason, p_bounty_id, p_idem)`; the abandon fee reads active_bounty.marks_reward + the server BH level, and abandon deletes the contract. Listed, not fixed here:
@@ -3476,3 +3563,37 @@ or a pin = standing) or visibly separate them. Not changed in lane/b562-first-30
 Tyler's PC, DejaVu Sans on the CI runner (~18% wider). A fit test green locally can be red on GitHub
 for that reason alone (b562 FIGHT-PHONE-DENSITY). Any layout test measured in a frame should also run
 a forced wide face (`font-family: Verdana, "DejaVu Sans"`) the way FIGHT-STATUS-VERB-1 does.
+
+## 2026-10-03 · art-director · the XP chip is the only bar chip with no glyph anchor (P3)
+
+At the bar's `short` fit step every chip reads glyph + value except XP, so at 922x423 the kills chip
+and the XP chip run together: "1,234 STR 72 · 45,678 to go" - the inter-chip gap (6px) is narrower
+than the XP chip's own " · " separator, so proximity groups the wrong things. Not changed in
+lane/b562-combat-strip-polish (scope: clipping). Candidate fix: the skill's own atlas glyph replaces
+"STR" at `short` (narrower than the word), after checking it does not read as the kills sword.
+
+RESOLVED 2026-10-04 in lane/b562-combat-strip-polish (Game Designer ruling 3): at `short` the XP chip's
+"STR" is the skill's own atlas glyph (the fist for Strength; it does not read as the kills sword),
+level kept gold-bold, title/label "Strength 98 · 1,228,825 XP to go"; no glyph keeps the letters.
+
+## 2026-10-04 · art-director · the FIGHT-PHONE-DENSITY "flake" was a retired button racing the boot (FIXED)
+
+Not a flake. Measured on 8 fresh loads with a layout dump: on 2 of them the Fight screen's stance
+block carried an extra 44px "Events" row, pushing the action bar 48px down and the food row out of
+the arena card at 922x423 (410 vs 405). `nav-consolidation.js` injected the b362-retired combat
+Events shortcut into the style ribbon whenever its boot pass ran before `combat-screens.js` built
+`.cbt-views`, and deliberately KEPT a ribbon copy afterwards. Players on a slow boot saw it too.
+The injector and its two dead CSS blocks are deleted; FIGHT-EVENTS-SHORTCUT-1 replays the slow boot
+on a stand-in panel and fails by name on the old code. FIGHT-PHONE-DENSITY: 30/30 fresh pages green.
+Lesson for every "N in 21" layout flake: dump the card's subtree on a passing and a failing load and
+diff them before touching a threshold.
+
+## 2026-10-04 · art-director · Game Designer rulings 4 and 5 (Quartermaster buy lock, Sell All) are unowned (handoff: Systems Engineer)
+
+The 2026-10-03 rulings that came with the combat-bar give-way also decided two shop behaviours this
+lane did not implement (scope: the bar). 4: the Quartermaster row's button is disabled and reads
+"Buying…" from the press until that buy's envelope or refusal returns (no timer floor; one press per
+confirmed buy). 5: "Sell All 37 · 74g" sells the stack the server last confirmed, never a predicted
+count; unconfirmed reads "Sell All · counting…" (disabled, title "Not counted yet — the realm is
+still counting your bag"); the receipt reports what the server sold. Owner: systems-engineer (client
+intent + projection); the server half of 5 (sell-by-confirmed-quantity) may need backend-architect.

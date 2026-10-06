@@ -2358,22 +2358,21 @@ function processOffline(){
        `no_character`, and asking before creating just burns a rate budget for
        a refusal) and does NOT gate accrual: a failed load leaves the field
        UNKNOWN, which is the honest state, and never a local number. */
-    /* b427/b428 — REPAINT WHENEVER THE RECORD LANDS. record.js is DOM-free by
-       design, so a successful hr_load STAMPS the balance (gold/gems via
-       applyRecord) but paints nothing. On a live session the next combat/activity
-       tick calls updateTopbar() and the number appears within a frame; on an IDLE
-       cloud-restore / new-device boot there is NO tick, so the top bar and shop
-       sat on the pending em dash and every Buy/Sell fail-closed indefinitely even
-       though the balance was known.
-       Registered through onRecordApplied (not chained onto a single
-       beginRecordLoad promise) precisely because the load that actually succeeds
-       on a fresh new-device tab is the CONFIG-RETRY one fired from configureRecord
-       (b428) — a promise this boot code never holds. The hook fires for both the
-       initial read and that retry, only when a field was written. Idempotent. */
+    /* b427/b428 — REPAINT WHENEVER THE RECORD LANDS. record.js is DOM-free, so a
+       successful hr_load STAMPS the balance (gold/gems via applyRecord) but paints
+       nothing; on an IDLE cloud-restore / new-device boot there is NO tick, so the
+       top bar and shop sat on the pending em dash and every Buy/Sell fail-closed
+       indefinitely. Registered through onRecordApplied (not a beginRecordLoad
+       promise) because the load that succeeds on a fresh new-device tab is the
+       CONFIG-RETRY one from configureRecord (b428), a promise this code never
+       holds. Fires for both, only when a field was written. Idempotent. The idle
+       boot's BAG lands here too (not via applyEnvelopeState), so the open market
+       list sheet repaints from it (CLAUDE.md §6). */
     if(R&&typeof R.onRecordApplied==='function'){
       try{ R.onRecordApplied(function(){
         try{ if(typeof updateTopbar==='function') updateTopbar(); }catch(e){}
         try{ if(typeof activeTab!=='undefined'&&activeTab==='shop'&&typeof renderShop==='function') renderShop(); }catch(e){}
+        try{ const MK=window.HearthriseMarket; if(MK&&typeof MK.refreshListSheet==='function') MK.refreshListSheet(); }catch(e){}
       }); }catch(e){}
     }
     if(C&&typeof C.ensureThenAccrue==='function'){
@@ -3690,19 +3689,17 @@ function buyBankSpaceGold(){
     /* CLIENT-AUTHORITATIVE (switch off): the local grant IS the expansion. */
     _debitBank(); _advanceBank(); _announceBank(); return true;
   }
-  /* SERVER-OWNED: the confirm envelope writes gold ABSOLUTELY; a refusal touched
-     nothing local. In-flight latch per offer against a double-tap. */
-  buyBankSpaceGold._inflight=buyBankSpaceGold._inflight||{};
-  if(buyBankSpaceGold._inflight[_boffer]) return false;
-  buyBankSpaceGold._inflight[_boffer]=true;
-  Promise.resolve(window.HearthriseGold.buyUnlock(_boffer,_bk)).then(function(v){
-    delete buyBankSpaceGold._inflight[_boffer];
+  /* SERVER-OWNED (a refusal touched nothing local). ONE BUY IN FLIGHT keyed 'bank', not per offer, held
+     answer + 600 ms (net/intent-latch.js): a per-offer boolean freed on a fast answer let the second press
+     of a double-click buy bank.<k+1>. The latch's key rides the buy, so a timed-out re-tap replays. */
+  var _bl=window.HearthriseIntentLatch&&typeof window.HearthriseIntentLatch.namedLatch==='function'?window.HearthriseIntentLatch.namedLatch('bank'):null;
+  if(!_bl||_bl.held('bank')) return false;
+  _bl.run('bank',function(idem){ return Promise.resolve(window.HearthriseGold.buyUnlock(_boffer,idem)); },{scope:_boffer}).then(function(v){
     var c=(typeof window.hrClassifyUnlock==='function')?window.hrClassifyUnlock(v)
       :{ok:!!(v&&(v.outcome==='applied'||v.outcome==='replayed')),owned:false,reason:(v&&v.reason)||'network'};
     if(c.ok){ _advanceBank(); if(c.owned){ if(typeof notify==='function')notify('That bank space is already yours.','info'); _renderBankModal(); } else _announceBank(); }
     else { if(typeof notify==='function')notify((typeof window.hrUnlockRefusalMessage==='function')?window.hrUnlockRefusalMessage(c,'that bank expansion'):'The realm couldn’t record that bank expansion — nothing was spent.','kill'); _renderBankModal(); }
   }).catch(function(){
-    delete buyBankSpaceGold._inflight[_boffer];
     if(typeof notify==='function')notify('The realm couldn’t record that bank expansion right now — nothing was spent. Try again in a moment.','kill');
   });
   return true;
@@ -4138,12 +4135,11 @@ function rerollBountyBoard(prepaid){
       if((G.marks||0)<cost){notify(`Need ${cost} Bounty Marks to reroll.`,'kill');return;}
       G.marks-=cost;G.bountyHunter.rerollsToday=(G.bountyHunter.rerollsToday||0)+1;
     } else {
-      /* ARMED: server owns marks. Affordability fail-closes on UNKNOWN via marksOf;
-         the real debit is hr_bounty_spend (server re-derives the cost). The local
-         write is display-only, reconciled by the next envelope. */
-      const MR=window.HearthriseMarks;
+      /* ARMED: the real debit is hr_bounty_spend (server prices it, one press per latch — goal-claim.js
+         bountyRerollOnce; a held press returns BEFORE any toast). Local writes are display-only. */
+      const MR=window.HearthriseMarks,GC=window.HearthriseGoalClaim;if(!GC||!GC.bountyRerollOnce||GC.bountyRerollHeld())return;
       if(MR&&!MR.canAffordMarks(G,cost)){notify(`Need ${cost} Bounty Marks to reroll.`,'kill');return;}
-      try{if(window.HearthriseGoalClaim&&HearthriseGoalClaim.bountyReroll){const _p=HearthriseGoalClaim.bountyReroll();if(_p&&_p.catch)_p.catch(()=>{});}}catch(e){}
+      const _p=GC.bountyRerollOnce();if(!_p)return;_p.catch(()=>{});
       G.bountyHunter.rerollsToday=(G.bountyHunter.rerollsToday||0)+1;
     }
   }
@@ -6622,6 +6618,7 @@ function stopSkill(){
   G.activeSkill=null;G.skillTargetId=null;G.skillProgress=0;
   try{
     document.querySelectorAll('.act-tile.active').forEach(function(t){ t.classList.remove('active'); var st=t.querySelector('.at-stop'); if(st) st.remove(); var f=t.querySelector('.at-prog-fill'); if(f) f.style.width='0%'; });
+    if(window._actLastRender) window._actLastRender.activeKey = null;   /* the grid was edited in place: a restart of the SAME recipe must rebuild, not lightUpdate */
   }catch(e){}
   renderSkillsList();
   /* A stop is a declaration too — without it the server goes on paying an
@@ -7047,8 +7044,9 @@ function updateTopbar(){
      zero, or the word "undefined". */
   balPaint(document.getElementById('top-gold'), 'gold');
   balPaint(document.getElementById('top-gems'), 'gems');
-  document.getElementById('top-total').textContent=getTotalLevel();
-  document.getElementById('top-combat').textContent=getCombatLevel();
+  /* CL/TL before the record hydrates are the fresh seed's 1s: the pending dash, like gold. */
+  const _pend=window.hrRecordPending?window.hrRecordPending():true;
+  [['top-total',getTotalLevel],['top-combat',getCombatLevel]].forEach(([id,fn])=>{ const el=document.getElementById(id); el.textContent=_pend?'—':fn(); el.classList.toggle('bal-pending',_pend); });
   /* b466: route the topbar name through the server-authoritative identity seam
      (HearthriseIdentity.getDisplayName) instead of the raw G.playerName default,
      which stayed "Adventurer" because it was never reconciled to the claimed
@@ -7083,7 +7081,7 @@ function renderProfile(){
   const subEl = document.getElementById('dash-user-sub');
   const bodyEl = document.getElementById('dash-user-body');
   if (!subEl || !bodyEl) return; // Profile panel not in DOM yet — bail
-  subEl.textContent = `Lv ${cl} · Total ${tl}`;
+  subEl.textContent = (window.hrRecordPending?window.hrRecordPending():true) ? 'Lv — · Total —' : `Lv ${cl} · Total ${tl}`;
   bodyEl.innerHTML=`
     ${(()=>{
       // Auth-state resolution for the Profile dashboard:
@@ -8409,12 +8407,14 @@ function onItemTap(id){
     confirmLabel:'Sell',
   }).then(function(ok){
     if(!ok) return;
-    if(!hasItem(id,1)) return;               // the bag can change while a modal is open
+    if(!hasItem(id,1)) return;   // display-bounded, read after the modal; vendor_sell collects first, so the server answers (shop-counter.js sellableCount)
     const _k=goldIntentKey();
     goldSettle(_p,'vendor.tap_sell',_k);
     removeItem(id,1);
-    if(_k&&window.HearthriseGold){const _q=window.HearthriseGold.sellItem(id,1,_k);if(_q&&_q.catch)_q.catch(()=>{});}
-    notify(`Sold ${d.n}`,'loot');renderInventory();updateTopbar();
+    const _sent=[];
+    if(_k&&window.HearthriseGold){const _q=window.HearthriseGold.sellItem(id,1,_k);if(_q&&_q.catch)_q.catch(()=>{});if(_q)_sent.push({p:_q,qty:1});}
+    window.vendorSellReceipt(id,1,_p,_sent);   // the toast is the SERVER's answer
+    renderInventory();updateTopbar();
   });
 }
 
@@ -9637,7 +9637,7 @@ function applyLoadout(idx){
      equip request (the wire takes a map). Fifteen calls would spend half the
      shared 30/min accrue bucket on one tap, run fifteen collects, and — because
      each one stamps `accrued_to` — settle fourteen sub-minute windows. */
-  const _b = equipStateSnapshot();
+  const _b = equipStateSnapshot(), _skipped = [], _LV = window.HearthriseLoadoutVerdict;   /* the ✓ waits for `equip`'s ANSWER (render/loadout-verdict.js) */
   /* Equipment: items currently equipped that aren't in the preset go to bag */
   const newEq = {};
   Object.keys(G.equipment||{}).forEach(slot=>{
@@ -9649,11 +9649,12 @@ function applyLoadout(idx){
     if(target){
       /* b246: a loadout can't sneak past the wield gate, and records no exemption
          — a piece the realm refuses is dropped, not sent and bounced, every apply. */
-      if(hasItem(target, 1) && (typeof canWield!=='function' || canWield(target).ok)){
+      const _w = (typeof canWield==='function') ? canWield(target) : {ok:true};
+      if(hasItem(target, 1) && _w.ok){
         removeItem(target, 1);
         newEq[slot] = target;
       } else {
-        newEq[slot] = null;
+        newEq[slot] = null; _skipped.push(_LV.skipWhy(target, _w));   /* never silently: the toast names it and why */
       }
     } else {
       newEq[slot] = null;
@@ -9667,27 +9668,22 @@ function applyLoadout(idx){
       if(target && ITEMS[target]) G.tools[slot] = target;
     });
   }
-  /* Food slot.
-     b499: the loadout is a PLAYER GESTURE that expresses a food choice, so it
-     goes through HearthriseAuto.setEat — the one writer the engine reads and the
-     seam that debounces the choice out to hr_set_auto_eat. Writing only the
-     legacy `G.foodSlot` mirror meant applying a loadout changed the food the
-     player was SHOWN and not the food the fight (or the server's overnight
-     accrual) would actually eat. The toggle is deliberately NOT touched: a
-     loadout says what to carry, not whether auto-eat is on. */
+  /* Food slot. b499: a PLAYER GESTURE choosing food goes through HearthriseAuto.setEat,
+     the one writer the engine and the server's accrual read (G.foodSlot alone only
+     changed the food SHOWN). The auto-eat toggle is deliberately NOT touched. */
   var _loadoutFood;
   if(l.foodSlot && hasItem(l.foodSlot, 1)) { G.foodSlot = l.foodSlot; _loadoutFood = l.foodSlot; }
   else if(!l.foodSlot) { G.foodSlot = null; _loadoutFood = null; }
+  else _skipped.push(_LV.skipWhy(l.foodSlot, null));
   if(_loadoutFood !== undefined && window.HearthriseAuto && window.HearthriseAuto.setEat){
     window.HearthriseAuto.setEat({ foodId: _loadoutFood });
   }
   window._activeLoadout = idx;
   saveLocal();
-  notify(`✓ Applied loadout: ${l.name}`, 'levelup');
   refreshAll();
   /* S4 again: re-applying the kit you are already wearing diffs to nothing and
      sends nothing, so tapping a loadout twice cannot stamp a second window. */
-  routeEquipGesture(_b);
+  _LV.sayLoadout(routeEquipGesture(_b), l.name, _skipped, notify);
 }
 /* b373: both of these asked with a native dialog. The loadout is re-read from
    G inside the answer rather than captured before the question — a modal is
@@ -10044,7 +10040,7 @@ function openInvDetail(id){
     } else {
       if(vendorPrice(id) > 0){
         acts.push(`<button class="btn" onclick="invSellOne('${id}');closeInvDetail()">Sell 1 · ${_gp(vendorPrice(id))}</button>`);
-        if(qty > 1) acts.push(`<button class="btn btn-danger" onclick="invSellAll('${id}')">Sell All ${qty} · ${_gp(vendorPrice(id)*qty)}</button>`);
+        const _sq = window.sellableCount ? window.sellableCount(id) : null; const _sb = window.sellAllPending && window.sellAllPending(id); if(_sb) acts.push(`<button class="btn btn-danger" disabled title="Waiting for the realm to answer your last Sell All">Sell All · selling…</button>`); else if(_sq === null ? qty > 1 : _sq > 1) acts.push(_sq === null ? `<button class="btn btn-danger" disabled title="${window.SELL_PENDING_TITLE}">Sell All · counting…</button>` : `<button class="btn btn-danger" onclick="invSellAll('${id}')">Sell All ${_sq} · ${_gp(vendorPrice(id)*_sq)}</button>`);   /* Sell All names the SERVER's stack (sellableCount); unstated = counting; a sent one = selling until its answer — all disabled */
       }
       acts.push(`<button class="btn" onclick="toggleItemLock('${id}');openInvDetail('${id}')" title="Protect this item from being sold or listed on the market">${lockGlyph()} Lock</button>`);
     }
@@ -11049,7 +11045,7 @@ console.log('Combat life: loaded');
   bar.innerHTML = `
     <div class="ab-icon" id="ab-icon"></div>
     <div class="ab-info">
-      <div class="ab-name" id="ab-name">Idle — pick an activity</div>
+      <div class="ab-name" id="ab-name">Connecting your character…</div>
     </div>
     <div class="ab-meta" id="ab-meta"></div>
     <button class="ab-stop" id="ab-stop">Stop</button>`;
@@ -11233,6 +11229,7 @@ function refreshActivityBar(){
       // new monster) + the realm's lifetime count. The arena vs panel shows
       // player HP, so the activity bar carries the more interesting numbers.
       const kills = (G.combatKillsThisFoe||0);
+      const _BF = window.HearthriseBarFit;
       /* b262 (paione): the bounty task progress lived in a card that fell below
          the fold of the short landscape combat view, so "how many kills left for
          my task" wasn't visible. Surface it in the always-on activity bar when
@@ -11253,25 +11250,24 @@ function refreshActivityBar(){
       const _st = (typeof window.getActiveCombatStyle==='function') ? window.getActiveCombatStyle() : null;
       if(_st && _st.xp){
         const _sk = Object.keys(_st.xp).sort((a,b)=>_st.xp[b]-_st.xp[a])[0];
-        if(_sk){
-          const _xp = skillXp(_sk);
-          const _lv = levelFromXp(_xp), _to = xpToNext(_xp);
-          const _lbl = _sk.slice(0,3).toUpperCase();
-          xpChip = _lv>=99
-            ? '<span class="ab-xp">'+_lbl+' <b>99</b></span>'
-            : '<span class="ab-xp">'+_lbl+' <b>'+_lv+'</b> · '+_to.toLocaleString()+' to go</span>';
-        }
+        const _x = _sk ? skillXp(_sk) : 0;
+        const _xv = { skill: _sk, name: SKILLS_DEF[_sk]?.name, level: levelFromXp(_x), toGo: xpToNext(_x), glyph: _hrGly(_sk, 13) };
+        // Fail-safe: before main.js publishes the builder the chip draws in its letters form.
+        if(_sk) xpChip = _BF ? _BF.xpChip(_xv) : (() => {
+          const _max = _xv.level >= 99, _l = _sk.slice(0,3).toUpperCase(), _said = escapeHtml((_xv.name||_sk)+' '+(_max?99:_xv.level)+(_max?'':' · '+_xv.toGo.toLocaleString()+' XP to go'));
+          return '<span class="ab-xp" role="img" title="'+_said+'" aria-label="'+_said+'">'+_l+' <b>'+(_max?99:_xv.level)+'</b>'+(_max?'':' · '+_xv.toGo.toLocaleString()+' to go')+'</span>';
+        })();
       }
       /* THE AWAY CHIP answers "can I leave this running?" from the Night Plan's
          stored forecast (night-plan.js chipHtml): pays away, you fall, or no
          food; a pending mark until the server has stated the bag. It never computes. */
-      /* Each chip carries its word in a span so the phone's short form
-         (legacy.css) can drop the word and keep the glyph and the number. */
-      const licChip = '<span class="ab-tkills" title="Lifetime kills">'+_hrGly('uiTrophy',13)+'<span class="ab-chip-word">Lifetime </span><b>'+(window.HearthriseLifetime ? window.HearthriseLifetime.markup('kills') : '—')+'</b></span>';
+      // Word and figure sit in spans the bar's fit steps (render/bar-fit.js) trade away.
+      const _cn = window.HearthriseBalance?.compactNumber;
+      const _ltc = window.HearthriseLifetime?.count('kills'), licChip = '<span class="ab-tkills" title="Lifetime kills'+(_ltc ? ': '+_ltc.n.toLocaleString()+(_ltc.exact ? '' : '+') : '')+'">'+_hrGly('uiTrophy',13)+'<span class="ab-chip-word">Lifetime </span><b>'+(!window.HearthriseLifetime ? '—' : '<span class="ab-n-full">'+window.HearthriseLifetime.markup('kills')+'</span><span class="ab-n-short">'+window.HearthriseLifetime.markup('kills', _cn)+'</span>')+'</b></span>';
       const _NP = window.HearthriseNightPlan, _STN = window.HearthriseSetTheNight;
       const awayChip = (_NP && _STN) ? _NP.chipHtml(_STN.peek(G)) : '';
       metaEl.innerHTML = ''
-        + '<span class="ab-kills" title="Kills this fight">'+_hrGly('uiSword',13)+' <b>'+kills.toLocaleString()+'</b><span class="ab-chip-word"> this fight</span></span>'
+        + '<span class="ab-kills" title="Kills this fight: '+kills.toLocaleString()+'">'+_hrGly('uiSword',13)+' <b>'+(_BF ? _BF.figure(kills) : kills.toLocaleString())+'</b><span class="ab-chip-word"> this fight</span></span>'
         + xpChip
         + bountyChip
         + licChip
@@ -11307,7 +11303,7 @@ function refreshActivityBar(){
   /* Idle */
   bar.classList.add('idle'); bar.classList.remove('combat');
   HearthriseIcons.setActivityIcon(iconEl, 'uiIdle', 'var(--ink-3)');
-  if(nameEl) nameEl.textContent = 'Idle — pick an activity';
+  if(nameEl) nameEl.textContent = (window.hrRecordPending?window.hrRecordPending():true) ? 'Connecting your character…' : 'Idle — pick an activity';
   if(metaEl) metaEl.innerHTML = '';
   if(stopBtn) stopBtn.style.display = 'none';
 
@@ -14662,7 +14658,7 @@ window.startArtisan = function(skillId, recipeId){
      — the LEVEL, then the recipe scroll, then the inputs. */
   if((window.hrGateLevel?window.hrGateLevel(skillId):1) < r.req){ if(typeof notify==='function') notify((window.hrLevelGateText?window.hrLevelGateText(skillId,r.req,'Need Lv '+r.req+' '+skillId):'Need Lv '+r.req+' '+skillId),'kill'); return; }
   if(!gateOk(r)){ if(typeof notify==='function') notify('Need recipe scroll: '+(ITEMS[r.gated]?.n||r.gated),'kill'); return; }
-  if(!hasInputs(r)){ 
+  if(!hasInputs(r)){   /* not even the display bag funds it: refuse now, nothing sent, the current activity stands */
     var missing = []; var inp = getInputs(r);
     Object.entries(inp).forEach(function(kv){ if((G.inventory[kv[0]]||0) < kv[1]) missing.push((ITEMS[kv[0]]?.n||kv[0])+' x'+kv[1]); });
     if(typeof notify==='function') notify('Need: '+missing.join(', '),'kill'); return;
@@ -14673,6 +14669,7 @@ window.startArtisan = function(skillId, recipeId){
   if(typeof stopSkill === 'function') activityQuietly(stopSkill);
   G.activeSkill = skillId; G.skillTargetId = recipeId; G.skillProgress = 0;
   G.skillMs = artisanIntervalMs(skillId, r);
+  if(window.HearthriseBenchCount && window.HearthriseBenchCount.countFirst(skillId, r)) return;   /* the last server bag is short: the switch's collect decides (src/features/bench-count.js) */
   window._armArtisanTimers(G.skillMs);
   if(typeof renderSkillsList==='function') renderSkillsList();
   if(typeof renderSkillDetail==='function') renderSkillDetail(skillId);
@@ -15661,7 +15658,9 @@ function tileForArtisan(recipe, skillId){
     +(unlocked ? (typeof window.hrToolLineHtml==='function' ? window.hrToolLineHtml(skillId) : '') : '')
     +(qty>0 ? '<div class="at-qty">'+fmtQty(qty)+'</div>' : '')
     +(unlocked ? '' : '<div class="at-lock'+(benchLock?' at-lock-bench':'')+'">'+lockGlyph()+lockLabel+'</div>')
-    +(active ? '<span class="at-stop">Active</span>' : '')
+    +(active ? (window.HearthriseBenchCount && window.HearthriseBenchCount.isCounting(skillId, recipe.id)
+        ? '<span class="at-stop" title="The realm is counting your bag — the bench starts when it answers">Counting…</span>'
+        : '<span class="at-stop">Active</span>') : '')
     +(unlocked ? '<div class="at-prog"><div class="at-prog-fill"></div></div>' : '')
     +'</div>';
 }
@@ -15864,7 +15863,7 @@ function patchSkillDetail(){
        whether to repaint it has to carry that fact. One extra getBonus() per
        render (measured below 0.01ms; the key already calls one for cooking). */
     var catXp = (typeof getBonus==='function') ? getBonus('allXP') : 0;
-    var activeKey = (G.activeSkill||'')+'|'+(G.skillTargetId||'')+'|'+(G.activeArtisanRecipe||'')+'|'+(catSel||'')+'|'+catLv+'|'+catBurn+'|'+catXp+'|'+(window.hrGateLevel?window.hrGateLevel(id):'');
+    var activeKey = (G.activeSkill||'')+'|'+(G.skillTargetId||'')+'|'+(G.activeArtisanRecipe||'')+'|'+(catSel||'')+'|'+catLv+'|'+catBurn+'|'+catXp+'|'+(window.hrGateLevel?window.hrGateLevel(id):'')+'|'+(window._benchCounting?window._benchCounting.id:'');
     var detailEl = document.getElementById('skill-detail');
     var alreadyRendered = detailEl && detailEl.querySelector('.act-grid');
     if(alreadyRendered && window._actLastRender.skillId===id && window._actLastRender.activeKey===activeKey){

@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-06",
- "replay_ms": 3418,
+ "replay_ms": 27815,
  "counts": {
-  "tracked_names": 79,
-  "entries": 76
+  "tracked_names": 82,
+  "entries": 79
  },
  "functions": [
   {
@@ -74,6 +74,51 @@
    "replay": {
     "md5": "d98d063119f063168df46d40d5599b01",
     "norm_len": 409,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "clan_tier_up(p_clan_id uuid, p_expect_tier integer)",
+   "name": "clan_tier_up",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-08-clan-seat.sql",
+    "2026-10-04-expected-level-idempotency.sql"
+   ],
+   "live": {
+    "md5": "6640ef9bd32a23de2d0e5e0118eadc71",
+    "norm_len": 450,
+    "measured": "2026-10-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "6640ef9bd32a23de2d0e5e0118eadc71",
+    "norm_len": 450,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "clan_tier_up__ungated(p_clan_id uuid, p_expect_tier integer)",
+   "name": "clan_tier_up__ungated",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-04-expected-level-idempotency.sql"
+   ],
+   "live": {
+    "md5": "2e37a2335545b5ffd30740e1a4068a6b",
+    "norm_len": 4642,
+    "measured": "2026-10-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "2e37a2335545b5ffd30740e1a4068a6b",
+    "norm_len": 4642,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -731,26 +776,28 @@
    "agree": true
   },
   {
-   "sig": "hr_farm_upgrade_plot(p_slot integer, p_idem uuid)",
+   "sig": "hr_farm_upgrade_plot(p_slot integer, p_idem uuid, p_expect_level integer)",
    "name": "hr_farm_upgrade_plot",
    "tracked_by": [
+    "chain",
     "pin"
    ],
    "touched_by": [
     "2026-08-22-server-farming-complete.sql",
     "2026-09-03-intent-mismatch-class.sql",
     "2026-09-06-plot-tier-reachable.sql",
-    "2026-09-12-hr-rejections-journal.sql"
+    "2026-09-12-hr-rejections-journal.sql",
+    "2026-10-04-expected-level-idempotency.sql"
    ],
    "live": {
-    "md5": "bb087feef2991979575b91b40d1afe4d",
-    "norm_len": 6552,
+    "md5": "599ff5364f1691b23491a26ab2cd4cc1",
+    "norm_len": 6262,
     "measured": "2026-10-06",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "bb087feef2991979575b91b40d1afe4d",
-    "norm_len": 6552,
+    "md5": "599ff5364f1691b23491a26ab2cd4cc1",
+    "norm_len": 6262,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -808,17 +855,18 @@
     "pin"
    ],
    "touched_by": [
-    "2026-09-23-frame-emit-from-apply.sql"
+    "2026-09-23-frame-emit-from-apply.sql",
+    "2026-10-07-frame-emit-online-only.sql"
    ],
    "live": {
-    "md5": "76b73406b3103be4ddcf31d71d15582a",
-    "norm_len": 1575,
+    "md5": "83bb8d29d253bf8815f718f35f5fd5c5",
+    "norm_len": 1921,
     "measured": "2026-10-06",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "76b73406b3103be4ddcf31d71d15582a",
-    "norm_len": 1575,
+    "md5": "83bb8d29d253bf8815f718f35f5fd5c5",
+    "norm_len": 1921,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1003,6 +1051,30 @@
    "replay": {
     "md5": "571f57c35fc8bab706af7fde51ea5e78",
     "norm_len": 616,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_party_tick_settle(p_holder text, p_party uuid, p_window_from timestamp with time zone, p_window_to timestamp with time zone, p_intent_id uuid, p_members jsonb)",
+   "name": "hr_party_tick_settle",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-09-23-m8-parties-s2-2-roster-settle.sql",
+    "2026-10-06-world-tick-channel-arm.sql",
+    "2026-10-07-frame-emit-online-only.sql"
+   ],
+   "live": {
+    "md5": "3f517e9ded1a3479fb9745ac98587be3",
+    "norm_len": 21893,
+    "measured": "2026-10-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "3f517e9ded1a3479fb9745ac98587be3",
+    "norm_len": 21893,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1579,23 +1651,25 @@
    "name": "hr_tick_settle",
    "tracked_by": [
     "chain",
-    "floor"
+    "floor",
+    "pin"
    ],
    "touched_by": [
     "2026-09-21-world-tick-settle-fence.sql",
     "2026-09-23-world-tick-shadow-state-chain.sql",
     "2026-10-06-world-tick-arm-guards.sql",
-    "2026-10-06-world-tick-channel-arm.sql"
+    "2026-10-06-world-tick-channel-arm.sql",
+    "2026-10-07-frame-emit-online-only.sql"
    ],
    "live": {
-    "md5": "065a965ff962ac293159080241fa0d5f",
-    "norm_len": 12518,
+    "md5": "51a72624a9c90163afdf5b43160110f9",
+    "norm_len": 12783,
     "measured": "2026-10-06",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "065a965ff962ac293159080241fa0d5f",
-    "norm_len": 12518,
+    "md5": "51a72624a9c90163afdf5b43160110f9",
+    "norm_len": 12783,
     "source": "computed-from-replay"
    },
    "agree": true

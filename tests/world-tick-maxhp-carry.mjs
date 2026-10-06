@@ -23,7 +23,8 @@
 //   H3  parity: 4 h spans that cross Hitpoints level-ups, through the shipped
 //       shadow composition (one 90 s fire per hop, the carrier between) AND the
 //       in-memory chain, against the one-span accrual — ticks/kills/xp within
-//       Security's ±10% combat bar, deaths within ±1 a probe on average.
+//       Security's ±10% combat bar, deaths within ±1 a probe on average; and
+//       the chain stops early only where the one span changes activity.
 //
 // Exit: 0 green (or, under --mutate, every mutant caught) · 1 red · 2 harness.
 // ============================================================================
@@ -254,17 +255,27 @@ const ARMS = {
     const one = { ticks: 0, kills: 0, deaths: 0, xp: 0 };
     const sh = { ticks: 0, kills: 0, deaths: 0, xp: 0 };
     const mem = { ticks: 0, kills: 0, deaths: 0, xp: 0 };
-    let probes = 0; let levelUps = 0;
+    let probes = 0; let levelUps = 0; const retreats = [];
     for (const fx of fixtures(L)) {
       for (let i = 0; i < STARTS; i++) {
         const from = FROM + i * START_STEP_MS;
         const c0 = L.atSpan(fx, from);
         const { v, endMs } = shadowChain(L, c0, from, from + SPAN_MS);
-        /* A pointer that ENDS inside the span closes no probe in production. */
-        if (endMs - from < SPAN_MS - FLUSH_MS) continue;
-        const run = L.settleCombatSession(L.atSpan(fx, from), from, endMs, OPTS);
-        const res = accrueOnce(L, L.atSpan(fx, from), from, endMs);
+        /* RETREAT PARITY: the chain stops early only where the one span over
+           the same 4 h also changes activity. Under the defence curve (b563) a
+           stale ceiling barely moves ticks on the probes that close; it shows
+           as a hero the chain RETREATS (out of food, knocked out at the old
+           max) while the one span keeps fighting — and that probe never closes. */
+        const closed = endMs - from >= SPAN_MS - FLUSH_MS;
+        const res = accrueOnce(L, L.atSpan(fx, from), from, closed ? endMs : from + SPAN_MS);
         if (!res.accrued) return fail('H3', `harness: one-span accrue refused (${res.reason})`);
+        if (closed === !!res.delta.activity) {
+          retreats.push(`${fx.name.slice(0, 24)}@${i}: chain ${closed ? 'fought on' : `stopped at ${((endMs - from) / 36e5).toFixed(2)} h`}, `
+            + `one span ${res.delta.activity ? 'changed activity' : 'fought 4 h'}`);
+        }
+        /* A pointer that ENDS inside the span closes no probe in production. */
+        if (!closed) continue;
+        const run = L.settleCombatSession(L.atSpan(fx, from), from, endMs, OPTS);
         probes++;
         const lv0 = hpLevel(L, c0);
         const lv1 = L.levelFromXp(Number(c0.skills.hitpoints || 0) + Number((res.delta.xp || {}).hitpoints || 0));
@@ -281,6 +292,10 @@ const ARMS = {
       return fail('H3', `harness: ${probes} probes and ${levelUps} Hitpoints level-ups — the arm sees nothing`);
     }
     const pct = (a, b) => (b ? 100 * (a - b) / b : 0);
+    if (retreats.length) {
+      fail('H3', `${retreats.length} span(s) where the chain and the one span disagree on stopping — ${retreats.join('; ')}. `
+        + 'The chain fought at a stale ceiling: max_hp is not carried (raiseMaxHpToLevel).');
+    }
     const out = [];
     for (const [label, got] of [['shadow composition', sh], ['in-memory chain', mem]]) {
       for (const k of ['ticks', 'kills', 'xp']) {

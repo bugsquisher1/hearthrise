@@ -2372,8 +2372,14 @@ select jobid, jobname, schedule, command, active
   from cron.job
  where command ilike '%realtime%' or command ilike '%messages%';
 
--- (W3) PUBLICATION DRIFT — expect EXACTLY ONE row: supabase_realtime_messages_publication
--- carrying realtime.messages. A second row means postgres_changes now decodes frame rows too.
+-- (W3) PUBLICATION DRIFT — CORRECTED 2026-10-07. The old line here said "expect EXACTLY ONE
+-- row". That has been wrong since 2026-09-06: supabase_realtime carries public.chat_messages
+-- on purpose (2026-09-06-realtime-publication-trim.sql). Expect realtime.messages in EXACTLY ONE
+-- publication, supabase_realtime_messages_publication, and no FOR ALL TABLES publication.
+-- realtime.messages in any other publication means postgres_changes now decodes frame rows too.
+-- supabase_realtime's own set is pinned by tests/realtime-cost.mjs (== client subscriptions).
+-- Standing form: select public.hr_slot_health(); (2026-10-07-frame-emit-online-only.sql,
+-- alarms frames_unpublished / frames_double_published; cron hr-slot-health every 5 min).
 select p.pubname, p.puballtables, n.nspname, c.relname
   from pg_publication p
   left join pg_publication_rel r on r.prpubid = p.oid

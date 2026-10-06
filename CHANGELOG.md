@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 562 — 2026-10-06 (One click, one purchase)
+
+**A double-click buys once.** Upgrading a farm plot, raising a clan tier, rerolling the bounty board, buying a house rung or bank space, hiring a hand, and planting or watering now send one request per press, even on a fast connection. A double-click could buy the next, dearer rung or charge twice.
+
+**The realm checks what you meant to buy.** A plot upgrade or a clan tier-up names the rung you pressed; if it has already risen, the realm refuses instead of selling you the next one.
+
 ## v0.9.2-beta build 561 — 2026-10-05 (The count comes first)
 
 **No more "Something broke here" after an update.** The first load after a new build could start the game before its core had arrived and show an error box on Home. The page now reloads once, quietly, and comes up clean.

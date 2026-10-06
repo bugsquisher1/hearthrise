@@ -130,7 +130,7 @@ export const SELF_GATING = [
   'public.hr_bank_move(int,text,bigint,text,uuid)',
   'public.hr_farm_harvest(int,int,uuid)',
   'public.hr_farm_plant(int,int,text,uuid)',
-  'public.hr_farm_upgrade_plot(int,uuid)',
+  'public.hr_farm_upgrade_plot(int,uuid,int)',   // (int,uuid,int) since 2026-10-04-expected-level-idempotency.sql
   'public.hr_farm_water(int,int,uuid)',
   'public.hr_worker_assign(int,text,text,text,uuid)',
   'public.hr_worker_hire(int,uuid)',

@@ -17,11 +17,11 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { levelOf } from './xp.js?v=561';
+import { levelOf } from './xp.js?v=562';
 import {
   baneIndex, baneMultFor, classOfMonster, MAX_COMBINED_DAMAGE_MULT,
-} from './bane.js?v=561';
-import { isElement, elementMultFor, MAX_TOTAL_DAMAGE_MULT } from './elements.js?v=561';
+} from './bane.js?v=562';
+import { isElement, elementMultFor, MAX_TOTAL_DAMAGE_MULT } from './elements.js?v=562';
 /* BESTIARY CHARMS, PHASE 2 — the DROP multiplier only. Imported here, and
    nowhere else in the engine, for the reason src/core/charms.js's header states:
    the Edge accrual does not run the client's `getBonus` wrapper chain, so a
@@ -29,7 +29,7 @@ import { isElement, elementMultFor, MAX_TOTAL_DAMAGE_MULT } from './elements.js?
    `weaknessInfo` it is one expression with two callers, exactly like bane and
    element. `charmDamageMultFor` is deliberately NOT imported — see the note on
    `charmDropMult` in `weaknessInfo`. */
-import { charmDropMultFor, charmRankFor } from './charms.js?v=561';
+import { charmDropMultFor, charmRankFor } from './charms.js?v=562';
 /* BESTIARY TROPHIES (docs/design/BESTIARY_LADDER.md) — the LONG ladder, the
    same treatment for the same reason. Per-MONSTER where the charm is per-CLASS,
    read inside the one `weaknessInfo` expression and never as a `getBonus` key.
@@ -42,7 +42,7 @@ import { charmDropMultFor, charmRankFor } from './charms.js?v=561';
 import {
   trophyDropMultFor, trophyDamageMultFor, trophyStageFor, memoryDropMult,
   TROPHY_DAMAGE_ARM_ENABLED,
-} from './trophies.js?v=561';
+} from './trophies.js?v=562';
 
 /* `neutral` is retired as a MONSTER weakness (DEC-NEUT-01) but survives here
    as a WEAPON type — an unarmed/typeless loadout still has to render. */
@@ -65,8 +65,15 @@ export const COMBAT_BALANCE = {
   playerBaseMaxHit: 2,
   monsterDefenseDamageReduction: 0.03,
   monsterBaseAccuracy: 0.50,
-  monsterAccuracyPerPoint: 0.006,
-  monsterMinAccuracy: 0.10,
+  /* Game Designer ruling 2026-10-06: food is the price of fighting at
+     or above your level, never of fighting something you out-class. At 0.006
+     a Combat-25 hero 35 defence over a Slime still lost ~200 HP/h; at 0.02 the
+     same gap reaches the floor. Measured with the real simulateTick (tier
+     sweep in the defence-curve report): an own-tier hero still eats ~20-33 meals/h,
+     gold/xp per FED hour are unchanged, and away pay rises only by uptime
+     (gold per kill unchanged). Shared with hr-accrue: moves LIVE away pay. */
+  monsterAccuracyPerPoint: 0.02,
+  monsterMinAccuracy: 0.05,
   monsterMaxAccuracy: 0.85,
   monsterAttackDamageScale: 0.45,
   defenseXpMiss: 1,

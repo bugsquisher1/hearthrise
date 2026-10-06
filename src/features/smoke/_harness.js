@@ -10,17 +10,17 @@
 // The runner (runSmokeTest) stayed in ../smoke-test.js with the registry, because it
 // owns the PLAN and the parks around it, not the fixtures.
 // ══════════════════════════════════════════════════════════════════════
-import { on, snapshot } from '../../net/events.js?v=561';
-import { findUiOverlaps, watchUiOverlaps } from '../ui-overlap.js?v=561';
+import { on, snapshot } from '../../net/events.js?v=562';
+import { findUiOverlaps, watchUiOverlaps } from '../ui-overlap.js?v=562';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../../net/auth.js?v=561';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../../net/auth.js?v=562';
 /* BESTIARY CHARMS (CHARM-2). The ladder's magnitudes are READ from the data
    table, never retyped: a designer re-pricing a rung must re-price the
    expectation, not turn the suite red. */
-import { CHARM_RANKS } from '../../data/bestiary-charms.js?v=561';
+import { CHARM_RANKS } from '../../data/bestiary-charms.js?v=562';
 
 export const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -105,6 +105,36 @@ let shellLockBaseline = null;
 export function captureShellLocks() {
   try { shellLockBaseline = shellLockState(); } catch (e) { shellLockBaseline = null; }
   return shellLockBaseline;
+}
+
+/* ── NO SESSION RPC LEAVES THE PAGE (2026-10-06) ─────────────────────────────
+   "b220: auto-replant…" called the REAL plantCrop with no transport stub, so a
+   real hr_farm_plant went to production; its refusal answered ~300 ms later and
+   toasted "Could not plant (http_401)" inside INTENT-LATCH-1's no-toast window —
+   a red many tests later, with nothing pointing back. On a signed-in page the
+   same test plants a real turnip on a real account. So the runner wraps the
+   page's fetch once: every call that reaches the REAL transport (a test's own
+   stub answers without it) for a session-only RPC on another origin is
+   recorded, and the runner fails the test it was sent under. The public read
+   surface (HearthriseRpc.ANON_CALLABLE: the leaderboard a rendered panel polls)
+   is exempt. Measured on a full run: zero such calls once b220 is stubbed. */
+export function watchLiveRpc() {
+  const real = window.fetch, sent = [];
+  const R = window.HearthriseRpc;
+  const needsSession = (n) => ((R && typeof R.needsSession === 'function') ? R.needsSession(n) : true);
+  const wrapper = function (u, init) {
+    try {
+      const url = String((u && u.url) || u);
+      const m = /\/rest\/v1\/rpc\/([^?/#]+)/.exec(url);
+      if (m && new URL(url, location.href).origin !== location.origin && needsSession(m[1])) sent.push(m[1]);
+    } catch (e) { /* an unparsable url is the transport's problem, not the watcher's */ }
+    return real.apply(this, arguments);
+  };
+  window.fetch = wrapper;
+  return {
+    take() { return sent.splice(0); },
+    restore() { if (window.fetch === wrapper) window.fetch = real; },
+  };
 }
 
 export function overlayResidue() {
@@ -1954,7 +1984,7 @@ export const cameFromArc = async (cfg, body) => {
     if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
     let b = null; try { b = JSON.parse(init && init.body); } catch (e) {} if (b && b.verb === 'set_activity') sent.push(b);
     const act = (b && b.activity) || { kind: 'idle', id: null };   /* ECHO THE DECLARED POINTER BACK as the server's own: a stub answering with a fixed activity reconciles the client onto something the gesture never asked for */
-    return Promise.resolve(new Response(JSON.stringify({ ok: true, verb: 'set_activity', version: 700 + sent.length, now: null, activity: act, state: { active_kind: act.kind, active_id: act.id }, skills: {}, inventory: {} }), { status: 200 }));
+    return Promise.resolve(new Response(JSON.stringify({ ok: true, verb: 'set_activity', version: 700 + sent.length, now: null, activity: act, state: { active_kind: act.kind, active_id: act.id }, skills: {}, inventory: Object.assign({}, G._serverBag) }), { status: 200 }));   /* a switch moves no item: the stub server answers with the bag it holds */
   };
   const snap = snapshotG(); const tileOf = () => [...document.querySelectorAll('#skill-detail .act-tile')].find((e) => e.getAttribute('data-prod') === cfg.prod);
   const settle = async () => { for (let i = 0; i < 60; i++) await Promise.resolve(); await new Promise((r) => setTimeout(r, 0)); for (let i = 0; i < 60; i++) await Promise.resolve(); };
@@ -2092,7 +2122,7 @@ export const stubSignedIn = (slot, name) => {
      resumed on restore, so no arm has to remember a rule its own subject never
      mentions, and nothing here reaches in for a timer or swaps `window.fetch`.
      Regression: STUB-ORIGIN-1. */
-  const CHANNELS = [window.HearthriseTown, window.HearthriseNetStatus];
+  const CHANNELS = [window.HearthriseTown, window.HearthriseNetStatus, window.HearthriseLive];
   CHANNELS.forEach((m) => { if (m && typeof m.__pauseForTest === 'function') m.__pauseForTest(); });
   window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
   window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };

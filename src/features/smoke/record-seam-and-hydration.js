@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 110 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, applyAwayEnvelope, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, on, snapshot, freshFrameGate, closeOverlays, serverBagFixture } from './_harness.js?v=561';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, applyAwayEnvelope, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, on, snapshot, freshFrameGate, closeOverlays, serverBagFixture } from './_harness.js?v=562';
 
 /* A RUNNING SMITHING BENCH ON A SCRIPTED WIRE — written once, driven by the two
    recipe-switch regressions below. See their header for the report. */
@@ -15,7 +15,7 @@ const benchSwitchArc = async (body) => {
   const R = (window.ARTISAN_RECIPES && window.ARTISAN_RECIPES.smithing) || [];
   const a = R.find((x) => x.id === 'forge_iron_helm'), b = R.find((x) => x.id === 'forge_iron_platebody');
   assert(a && b, 'the fixture needs two smithing recipes');
-  const snap = snapshotG(), realFetch = window.fetch, origNotify = window.notify, wasOn = A.isServerAccrualEnabled();
+  const snap = snapshotG(), bag = serverBagFixture(), realFetch = window.fetch, origNotify = window.notify, wasOn = A.isServerAccrualEnabled();
   const sent = [], probe = [], log = [], said = [];
   let steps = [], release = null;
   const envOf = (v, id) => ({ version: v, now: null, activity: { kind: 'artisan', id },
@@ -40,7 +40,7 @@ const benchSwitchArc = async (body) => {
   try {
     window.notify = function (m) { said.push(String(m)); };
     G.skills = Object.assign({}, G.skills, { smithing: 200000 }); stampRecordLikeLoad(G);
-    G.inventory = Object.assign({}, G.inventory, { iron_bar: 200, oak_plank: 50 });
+    G.inventory = Object.assign({}, G.inventory, { iron_bar: 200, oak_plank: 50 }); bag.agree();   // the server holds the bars: the switch is the subject
     window.fetch = function (u, init) {
       if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
       let bd = null; try { bd = JSON.parse(init && init.body); } catch (e) {}
@@ -71,7 +71,7 @@ const benchSwitchArc = async (body) => {
     M.resetActivity(); M.configureActivity(null);
     try { A.configureAccrual(null); } catch (e) {}
     try { window.stopSkill(); } catch (e) {}
-    restoreGAndRecord(snap);
+    bag.restore(); restoreGAndRecord(snap);
   }
 };
 
@@ -2848,7 +2848,7 @@ export default [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../../data/start-kit.js?v=561');
+    const KIT = await import('../../data/start-kit.js?v=562');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -2938,7 +2938,7 @@ export default [
        test pins the PROPERTY that shape exists for, so a future edit that keeps
        the shape honest while swapping the bridge for a prettier item that heals
        3 fails here instead of shipping. */
-    const KIT = await import('../../data/start-kit.js?v=561');
+    const KIT = await import('../../data/start-kit.js?v=562');
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     assert(AE && typeof AE.isAutoEatable === 'function',
       'HearthriseCore.autoEat.isAutoEatable missing — cannot grade the starting food');
@@ -3052,7 +3052,7 @@ export default [
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     const RNGM = window.HearthriseCore && window.HearthriseCore.rngMod;
     const ST = window.HearthriseCore && window.HearthriseCore.styles;
-    const KIT = await import('../../data/start-kit.js?v=561');
+    const KIT = await import('../../data/start-kit.js?v=562');
     if (!CS || !C || !AE || !RNGM || !ST) { skip('core sim unavailable'); return; }
 
     const eqp = { weapon: KIT.START_EQUIPMENT.weapon };
@@ -5175,7 +5175,7 @@ export default [
        in a CLASSIC script with no exports, so the only honest way to assert them
        is against the shipped bytes. Fetched from the same origin the engine
        loaded from, the way B-accrue and the observability guard already do. */
-    const src = await (await fetch('src/legacy.js?v=561')).text();
+    const src = await (await fetch('src/legacy.js?v=562')).text();
     assert(src.length > 100000, 'legacy.js did not come back — this guard would be vacuous');
 
     /* (1) THE FORGET. `loadLocal()`'s capstone early return skipped it, so the
@@ -5223,6 +5223,89 @@ export default [
       + 'hr_load this session would have made');
     assert(/p\.then\(_load,\s*_load\)/.test(after),
       'the boot read must fire whether the ensure resolved OR rejected');
+  }),
+
+  () => tryRunAsync('B564-1: before the record hydrates, Home + topbar draw PENDING and the daily Claim cannot send an intent', async () => {
+    /* Live, QA account, 2026-10-05: before hr_load landed, Home drew the fresh-G
+       seed as fact — "1 CL / 0 TL", "Combat 1 · Total 1", "Peasant · 2 Renown",
+       "Day 1 · Reward ready" with a LIVE Claim, "Step 1 of 5" with Go buttons.
+       The veil cannot cover it (auth had not restored the session yet). The
+       gate is record.js isRecordPending; every first-paint surface reads it. */
+    const R = window.HearthriseRecord, DL = window.HearthriseDaily, H = window.HearthriseHome;
+    assert(R && typeof R.isRecordPending === 'function' && typeof R.__pinRecordPending === 'function',
+      'record.js does not publish the first-paint gate');
+    assert(DL && typeof DL.claim === 'function' && H && typeof H.render === 'function', 'daily/home seams missing');
+    const G = window.G;
+    const snap = snapshotG();
+    const origGold = window.HearthriseGold, origSettle = window.goldSettleCurrency;
+    const intents = [];
+    const wasPinned = R.__pinRecordPending(true);
+    try {
+      G.dailyReward = { lastClaimDay: 0 };            // the seed: "Reward ready"
+      window.HearthriseGold = Object.assign({}, origGold, {
+        claimReward: (...a) => { intents.push(['claimReward'].concat(a)); return Promise.resolve({ outcome: 'applied' }); },
+      });
+      window.goldSettleCurrency = (...a) => { intents.push(['settle'].concat(a)); };
+      assert(R.isRecordPending() === true, 'the pin did not hold');
+
+      /* (a) THE CLAIM GATE — no prediction, no intent, while pending. */
+      const rw = DL.claim(G);
+      assert(rw === null, 'claim() paid while the record was un-hydrated: ' + JSON.stringify(rw));
+      assert(intents.length === 0, 'a daily claim INTENT went out before the character arrived: ' + JSON.stringify(intents));
+      assert(G.dailyReward.lastClaimDay === 0, 'the un-hydrated claim stamped the day locally');
+
+      /* (b) the sheet shows a DISABLED button that is not a claim. */
+      DL.open();
+      const sheet = document.getElementById('hr-dl-modal');
+      assert(sheet, 'fixture: the daily sheet did not open');
+      assert(!sheet.querySelector('[data-dl-claim]'), 'the daily sheet lit a live Claim before hydration');
+      const pb = sheet.querySelector('.hr-dl-claim');
+      assert(pb && pb.disabled, 'the daily sheet\'s pending button is not disabled');
+      sheet.remove();
+      assert(intents.length === 0, 'the pending sheet sent an intent: ' + JSON.stringify(intents));
+
+      /* (c) the topbar: pending dash, never the seed's level. */
+      window.updateTopbar();
+      ['top-combat', 'top-total'].forEach((id) => {
+        const el = document.getElementById(id);
+        assert(el && el.textContent.trim() === '—' && el.classList.contains('bal-pending'),
+          id + ' painted "' + (el && el.textContent) + '" before hydration — must be the pending dash');
+      });
+
+      /* (d) Home: one pending card; no live Claim, no First-day Go, no heroes. */
+      if (typeof window.showTab === 'function') window.showTab('profile');
+      H.render();
+      const root = document.getElementById('hd-root');
+      assert(root && root.hasAttribute('data-hr-pending'), 'Home did not render its pending state');
+      assert(!root.querySelector('.hd-daily'), 'Home drew the daily reward card before hydration');
+      assert(!root.querySelector('[data-hd="fl"]'), 'Home drew the first-day steps before hydration');
+      assert(!root.querySelector('[data-hero],[data-herobuy]'), 'Home drew the hero slots before hydration');
+      const lit = [...root.querySelectorAll('button')].filter((b) => !b.disabled && b.getAttribute('data-hd') !== 'rename');
+      assert(lit.length === 0, 'Home lit ' + lit.length + ' action button(s) before hydration: '
+        + lit.map((b) => b.textContent.trim()).join(', '));
+      const sub = root.querySelector('.hd-sub');
+      assert(!/Renown/.test(sub ? sub.textContent : ''), 'Home printed a Renown figure before hydration');
+
+      /* (e) AFTER the hydrate the real values render, and the claim is live again. */
+      R.__pinRecordPending(false);
+      window.updateTopbar();
+      const cl = document.getElementById('top-combat');
+      assert(/^\d+$/.test(cl.textContent.trim()) && !cl.classList.contains('bal-pending'),
+        'after hydration the topbar still reads "' + cl.textContent + '"');
+      H.render();
+      assert(!root.hasAttribute('data-hr-pending'), 'Home stayed pending after hydration');
+      assert(root.querySelector('.hd-daily'), 'after hydration the claimable daily card did not render');
+      const rw2 = DL.claim(G);
+      assert(rw2 && intents.some((i) => i[0] === 'claimReward'),
+        'after hydration the claim did not reach the server seam: ' + JSON.stringify(intents));
+    } finally {
+      R.__pinRecordPending(wasPinned);
+      window.HearthriseGold = origGold; window.goldSettleCurrency = origSettle;
+      const s = document.getElementById('hr-dl-modal'); if (s) s.remove();
+      restoreG(snap);
+      try { window.updateTopbar(); } catch (e) {}
+      try { H.render(); } catch (e) {}
+    }
   }),
 
   () => tryRun('B492-4: the boot veil shows "Connecting your character" instead of a fresh account, and never lies', () => {
@@ -6808,7 +6891,7 @@ export default [
       },
     };
 
-    const save = { activeSkill: G.activeSkill, skillTargetId: G.skillTargetId, skillMs: G.skillMs,
+    const bag = serverBagFixture(), save = { activeSkill: G.activeSkill, skillTargetId: G.skillTargetId, skillMs: G.skillMs,
       activeMonster: G.activeMonster, monsterHp: G.monsterHp, monsterMaxHp: G.monsterMaxHp,
       playerHp: G.playerHp, playerMaxHp: G.playerMaxHp, combatLog: G.combatLog,
       gold: G.gold, skills: JSON.parse(JSON.stringify(G.skills)),
@@ -6827,6 +6910,7 @@ export default [
       stampRecordLikeLoad(G);
       const inputs = window.getInputs ? window.getInputs(recipe) : (recipe.inputs || {});
       for (const id of Object.keys(inputs)) G.inventory[id] = (G.inventory[id] || 0) + 500;
+      bag.agree();   // the server holds the inputs: the declaration is the subject
     }
     const realDeclare = M.declare;
     let calls = [];
@@ -6929,7 +7013,7 @@ export default [
       M.declare = realDeclare;
       try { window.stopSkill(); } catch (e) {}
       try { window.stopCombat(); } catch (e) {}
-      Object.assign(G, save);
+      Object.assign(G, save); bag.restore();
       try { window.saveLocal(); } catch (e) {}
     }
   }),
@@ -8020,13 +8104,13 @@ export default [
      which is a stronger assertion than reading a sentence: settleJunk() pays
      the quote it is handed and computes no second price. The dialog half (the
      modal states that same number, and cancelling pays nothing) is B373-2. */
-  () => tryRun('B354-6: the sell-junk sweep pays the price it quoted (one vendor bid, not two)', () => {
+  () => tryRun('B354-6: the sell-junk quote is the one vendor bid on the server\'s bag', () => {
     const G = window.G;
     const CM = window.HearthriseInvCtx;
     assert(CM && typeof CM.quoteJunk === 'function' && typeof CM.settleJunk === 'function',
       'src/features/inv-context-menu.js did not load, or no longer separates the quote from the payment');
     /* snapshotG() now names gold/inventory/lockedItems, so the bespoke bag is just the confirm stub. */
-    const snap = snapshotG(); const save = { confirm: window.confirm };
+    const snap = snapshotG(), bag = serverBagFixture(); const save = { confirm: window.confirm };
     try {
       /* A RAW item worth 10+: below that the `max(1,…)` floor makes the
          discounted bid equal the book value and the two prices cannot differ,
@@ -8040,7 +8124,7 @@ export default [
         + 'applied at all, so "the quote equals the payment" would only prove they are both wrong');
 
       G.lockedItems = {};
-      G.inventory = {}; G.inventory[raw] = 40;
+      G.inventory = {}; G.inventory[raw] = 40; bag.agree();   // the sweep quotes the SERVER's bag
       G.gold = 0;
       let native = 0;
       window.confirm = function () { native++; return true; };
@@ -8050,19 +8134,24 @@ export default [
       const quoted = Number(String(CM._quoteText(q)).replace(/,/g, '').match(/for (\d+) gold/)[1]);
       assert(quoted === q.totalGold, 'the sentence shown to the player (' + quoted + ') is not the quote ('
         + q.totalGold + ') — the dialog and the payment are two numbers again');
-      const returned = CM.settleJunk(q);
+      /* The sweep is CLOSED (BULK-INTERIM-1 owns "pays nothing"), so the
+         payment half is gone; the QUOTE stays, priced by the one vendor bid,
+         sized on the SERVER's bag, because it is what vendor_sell_many will be
+         asked to honour. */
       assert(native === 0, 'the sweep raised a NATIVE confirm() — it blocks the renderer main thread (b371/b373)');
       assert(q.ids.length > 0, 'the sweep selected nothing, so there is no quote to compare against');
-      assert(G.gold === quoted,
-        'THE SWEEP QUOTED ' + quoted + ' GOLD AND PAID ' + G.gold + '. It totalled with vendorPrice() and '
-        + 'paid ITEMS[id].v — the undiscounted book value — so every raw material sold through this button '
-        + 'minted 5x, silently, and the dialog lied about it. legacy.js\'s own rule: "A price that differs '
-        + 'by which button you pressed is not a price."');
-      assert(returned === quoted, 'sellJunk() reported ' + returned + ' and paid ' + G.gold);
-      assert(!G.inventory[raw], 'the sweep paid but did not take the items');
+      assert(quoted === 40 * window.vendorPrice(raw),
+        'THE SWEEP QUOTED ' + quoted + ' GOLD for 40 ' + raw + ' at a bid of ' + window.vendorPrice(raw)
+        + '. A quote off ITEMS[id].v — the undiscounted book value — mints 5x on every raw material. '
+        + 'legacy.js\'s own rule: "A price that differs by which button you pressed is not a price."');
+      G.inventory[raw] = 40; bag.agree({ [raw]: 25 });
+      assert(CM.quoteJunk(1e9).totalCount === 25, 'the sweep quoted the display bag (40), not the server\'s 25');
+      delete G._serverBag;
+      const pq = CM.quoteJunk(1e9);
+      assert(pq.pending === true && pq.ids.length === 0 && pq.totalGold === 0, 'an unstated bag quoted ' + JSON.stringify(pq) + ' — it must be pending with no count');
     } finally {
       window.confirm = save.confirm;
-      restoreG(snap);
+      restoreG(snap); bag.restore();
     }
   }),
 
@@ -8073,7 +8162,7 @@ export default [
     const realFetch = window.fetch;
     const wasOn = A.isServerAccrualEnabled();
     const wasAck = A.isReplacementAcknowledged();
-    const snap = snapshotG();   /* gold/inventory/skills/lockedItems are all named by the allowlist now */
+    const snap = snapshotG(), bag = serverBagFixture();   /* gold/inventory/skills/lockedItems are all named by the allowlist now */
     let ver = 40;
     let sent = [];
     const envelope = (gold) => {
@@ -8131,7 +8220,7 @@ export default [
         + 'BY NAME so the drift is legible instead of looking like a dead network');
 
       // ── B354-8: the bag's Sell 1.
-      G.gold = 500; G.lockedItems = {}; G.inventory = { normal_log: 4 }; sent = [];
+      G.gold = 500; G.lockedItems = {}; G.inventory = { normal_log: 4 }; bag.agree(); sent = [];
       window.invSellOne('normal_log');
       await drain();
       assert(sent.length === 1 && sent[0].verb === 'vendor_sell' && sent[0].item === 'normal_log' && sent[0].qty === 1,
@@ -8151,7 +8240,7 @@ export default [
          each ≤MAX_QTY, so every chunk has a server story and pays for itself. */
       const bigQty = Gd.MAX_QTY * 4 + 137;               // 4,137 — a Tyler-sized stack
       const wantChunks = Math.ceil(bigQty / Gd.MAX_QTY); // 5
-      G.gold = 500; G.inventory = { normal_log: bigQty }; sent = [];
+      G.gold = 500; G.inventory = { normal_log: bigQty }; bag.agree(); sent = [];
       window.invSellAll('normal_log');
       await drain();
       assert(sent.length === wantChunks,
@@ -8173,7 +8262,7 @@ export default [
       Gd.resetGold(); Gd.configureGold(null);
       A.acknowledgeReplacement(wasAck);
       restoreAccrualSwitch(wasOn);
-      restoreG(snap);
+      restoreG(snap); bag.restore();
     }
   }),
 
@@ -8464,6 +8553,47 @@ export default [
     } finally { bag.restore(); restoreG(snap); window.renderMarket(); }
   }),
 
+  /* MP-R8 (CLAUDE.md §6): the OPEN sheet follows every applied envelope — the bag moved by a
+     settle / sale / live frame repaints the picker, hint and max in place; a typed quantity
+     is kept or clamped, never reset; focus stays put; closing drops the subscription. */
+  () => tryRunAsync('MP-R8: the open listing sheet follows every applied envelope', async () => {
+    const snap = snapshotG(), bag = serverBagFixture(), A = window.HearthriseAccrual, MK = window.HearthriseMarket;
+    const panel = document.getElementById('panel-market'), wasActive = panel && panel.classList.contains('active');
+    const settle = async (inv) => {
+      A.applyEnvelopeState(window.G, { state: {}, inventory: inv });
+      await Promise.resolve(); await new Promise((r) => setTimeout(r, 0));
+    };
+    const $ = (id) => document.getElementById(id);
+    try {
+      assert(panel && A && typeof A.applyEnvelopeState === 'function', 'fixture: no market panel or envelope applier');
+      panel.classList.add('active');
+      window.addItem('normal_log', 5); bag.agree({ normal_log: 5 });
+      window.renderMarket();
+      assert(MK.listSheetSubscribed() === true, 'the open listing sheet is not subscribed to the envelope seam');
+      $('mk-list-id').value = 'normal_log'; $('mk-list-id').dispatchEvent(new Event('change'));
+      assert($('mk-list-qty').value === '5', 'setup: the default quantity was not the bag: ' + $('mk-list-qty').value);
+      $('mk-list-qty').focus();
+      await settle({ normal_log: 8 });
+      assert(/You have 8\b/.test($('mk-list-hint').textContent) && $('mk-list-qty').max === '8',
+        'the open sheet kept a stale count after an envelope: "' + $('mk-list-hint').textContent + '" max ' + $('mk-list-qty').max);
+      assert($('mk-list-qty').value === '8', 'an untouched default quantity did not follow the bag: ' + $('mk-list-qty').value);
+      assert($('mk-list-id').value === 'normal_log' && /\(8\)/.test($('mk-list-id').selectedOptions[0].textContent), 'the picker lost the pick or its count');
+      assert(document.activeElement === $('mk-list-qty'), 'the envelope repaint stole focus from the quantity');
+      $('mk-list-qty').value = '6'; $('mk-list-qty').dispatchEvent(new Event('input'));
+      await settle({ normal_log: 3 });
+      assert($('mk-list-qty').value === '3' && $('mk-list-qty').max === '3', 'a typed quantity was not clamped to the new count: ' + $('mk-list-qty').value + ' max ' + $('mk-list-qty').max);
+      $('mk-list-qty').value = '2';
+      await settle({ normal_log: 4 });
+      assert($('mk-list-qty').value === '2', 'a typed quantity under the count was reset: ' + $('mk-list-qty').value);
+      panel.classList.remove('active');   // the player leaves the Market
+      await settle({ normal_log: 4, iron_ore: 1 });
+      assert(MK.listSheetSubscribed() === false, 'closing the sheet left the envelope listener attached');
+    } finally {
+      if (panel && wasActive) panel.classList.add('active'); else if (panel) panel.classList.remove('active');
+      bag.restore(); restoreG(snap); window.renderMarket();
+    }
+  }),
+
   () => tryRun('MP-R5: ledger totals name their window', () => {
     const MH = window.HearthriseMarketHistory, before = MH.getHistory(), N = MH.HISTORY_LIMIT;
     assert(N > 0, 'market-history.js publishes no HISTORY_LIMIT');
@@ -8576,6 +8706,10 @@ export default [
      PRIVATE Gs throughout, never window.G, so nothing global moves and the
      destructive-replacement gate sees no local progress to lose. */
   ...m5FrameGateTests(),
+  /* ── M5 · THE PUSH CHANNEL'S CLIENT HALF (src/net/live.js) ───────────────
+     Driven through the shipped router with a fake Realtime client; the node
+     guard tests/live-frame-subscribe.mjs carries a mutant per rule. */
+  ...m5LiveSubscribeTests(),
 ];
 
 /* The shared fixture. A COMPLETE envelope, so every refusal in the four tests
@@ -8834,9 +8968,9 @@ function m5FrameGateTests() { return [
      There was no counter of dropped frames anywhere, so a client stuck behind a
      bad floor was indistinguishable from a quiet one — in the browser, in a bug
      report, and in vitals.mjs (CLAUDE.md §3.4: two days to notice).
-     WHAT HEALS IT, HONESTLY: `hello` heals a floor that is too LOW in one step
-     — the path asserted at (3) — and does NOT heal one too HIGH, being gated by
-     the same floor. D4 of frame-drop-streak.mjs pins that hole.
+     WHAT HEALS IT: `hello` heals a floor that is too LOW in one step — the path
+     asserted at (3). One too HIGH is healed by live.js `healStuckFloor()`, which
+     reads this streak and resets the floor on purpose (the test below).
 
      RED WITHOUT THE FIX at (1): getAccrualState() carries no streak at all. */
   () => tryRun('M5 regression: the frame-drop streak is counted and published (SEC S3)', () => {
@@ -8875,5 +9009,206 @@ function m5FrameGateTests() { return [
         'the healer left the streak at ' + A.getAccrualState().drops + ', so the sheet keeps '
         + 'reporting an outage that is over');
     } finally { A.acknowledgeReplacement(wasAcked); A.resetFrameGate(); }
+  }),
+]; }
+
+/* ── M5 · THE PUSH CHANNEL — fixtures ───────────────────────────────────────
+   A fake Realtime client with the three calls live.js makes (channel /
+   removeChannel / realtime.setAuth) and a hand-driven status + broadcast. */
+const M5_UID = '0b5e7c1a-1111-4222-8333-944455556666';
+const m5Frame = (frame, gold, extra) => ({ t: 'delta', frame,
+  patch: { state: { slot: 0, gold, gems: 0, hp: 40, max_hp: 40, accrued_to: '2026-10-05T12:00:00Z' },
+    skills: { mining: { xp: gold * 2, level: 1 } }, buffs: [], place: null, ...(extra || {}) } });
+const m5FakeClient = () => {
+  const c = { channels: [], removed: 0, setAuth: [] };
+  c.realtime = { setAuth: (t) => { c.setAuth.push(t); return Promise.resolve(); } };
+  c.channel = (topic, opts) => {
+    const ch = { topic, opts, hs: [], st: null,
+      on(type, filter, cb) { this.hs.push({ filter, cb }); return this; },
+      subscribe(cb) { this.st = cb; return this; } };
+    c.channels.push(ch);
+    return ch;
+  };
+  c.removeChannel = () => { c.removed += 1; return Promise.resolve('ok'); };
+  c.status = (s) => { const ch = c.channels[c.channels.length - 1]; if (ch && ch.st) ch.st(s); };
+  c.emit = (payload) => { const ch = c.channels[c.channels.length - 1];
+    for (const h of ch.hs) if (h.filter.event === 'frame') h.cb({ type: 'broadcast', event: 'frame', payload }); };
+  return c;
+};
+/* Installs the fake transport around `fn` and puts the module state back. */
+const m5WithLive = (opts, fn) => {
+  const L = window.HearthriseLive; const A = window.HearthriseAccrual;
+  assert(L && typeof L.setLiveEnv === 'function' && A && typeof A.applyFrame === 'function',
+    'live.js / accrue.js applyFrame are not published — the push channel has no client half');
+  const c = m5FakeClient(); const timers = []; const r = { c, timers, hellos: 0, heals: [], clock: 1e9 };
+  const wasClosed = A.awaySettleDone();
+  L.__resetLive(); A.resetFrameGate(); A.__resetAwaySettleLatch(!opts.booting);
+  L.setLiveEnv({ client: () => c, identity: () => ({ uid: M5_UID, token: 'tk', slot: 0 }),
+    hello: () => { r.hellos += 1; if (opts.onHello) opts.onHello(); return Promise.resolve(); },
+    /* The heal's forced hello: the test answers it by hand (A.healAnswer + applyEnvelope),
+       exactly what requestAccrual does with its own response. */
+    heal: (token) => { r.heals.push(token); return Promise.resolve(); },
+    now: () => r.clock,
+    setTimer: (f, ms) => { timers.push({ f, ms }); return timers.length; }, clearTimer: () => {},
+    ...(opts.G ? { G: () => opts.G } : {}) });
+  try { return fn(r, L, A); } finally {
+    L.setLiveEnv(null); L.__resetLive(); A.resetFrameGate(); A.__resetAwaySettleLatch(wasClosed);
+  }
+};
+/* Private-G arms share the replacement acknowledgement dance. */
+const m5Acked = (fn) => {
+  const A = window.HearthriseAccrual;
+  const was = A.isReplacementAcknowledged();
+  try { A.acknowledgeReplacement(true); return fn(A); } finally { A.acknowledgeReplacement(was); A.resetFrameGate(); }
+};
+
+function m5LiveSubscribeTests() { return [
+  /* HAPPY PATH on the real G and the real bar. RED WITHOUT live.js + applyFrame. */
+  () => tryRun('M5 live: a pushed frame ticks the activity bar and the bag', () => {
+    const snap = snapshotG();
+    const accrual = window.G._serverAccrual;
+    try {
+      m5Acked((A) => m5WithLive({}, (r, L) => {
+        L.ensureLive();
+        const ch = r.c.channels[0];
+        assert(r.c.channels.length === 1 && ch.topic === 'hr:' + M5_UID + ':0' && ch.opts.config.private === true,
+          'did not join the own PRIVATE topic');
+        r.c.status('SUBSCRIBED');
+        window.G.activeSkill = 'mining';
+        const xp = 250000;
+        const lv = window.HearthriseCore.xp.levelFromXp(xp);
+        r.c.emit(m5Frame(10, xp / 2));
+        assert(window.G.gold === xp / 2, 'the frame did not replace gold: ' + window.G.gold);
+        const meta = document.getElementById('ab-meta');
+        assert(meta && meta.textContent.indexOf('Lv ' + lv) !== -1,
+          'the activity bar did not tick to Lv ' + lv + ' from the frame: "' + (meta && meta.textContent) + '"');
+        /* THE BAG rides a frame only once the bag is ABSOLUTE (§7a), and only with a
+           frame-carried inventory_complete===true (SEC F2); refused otherwise. */
+        const before = (window.G.inventory || {}).copper_ore || 0;
+        r.c.emit(m5Frame(11, 1, { inventory: { copper_ore: before + 5 } }));
+        assert(((window.G.inventory || {}).copper_ore || 0) === before,
+          'a bag frame WITHOUT inventory_complete===true landed — the merge-upward path (SEC F2)');
+        r.c.emit(m5Frame(11, 1, { inventory: { copper_ore: before + 7 }, inventory_complete: true }));
+        const now = (window.G.inventory || {}).copper_ore || 0;
+        const absolute = A.isInventoryAbsolute();
+        assert(absolute ? now === before + 7 : now === before,
+          'bag after an inventory frame: ' + now + ' (was ' + before + ', absolute=' + absolute + ')');
+        assert(L.getLiveState().applied >= 1 && A.getAppliedFrame() >= 10, 'the frame was not committed');
+      }));
+    } finally { restoreGAndRecord(snap); window.G._serverAccrual = accrual; }
+  }),
+
+  () => tryRun('M5 live: out-of-order and stale frames are ignored whole', () => {
+    const G = { gold: 0, gems: 0, skills: {}, inventory: {} };
+    m5Acked((A) => m5WithLive({ G }, (r, L) => {
+      L.ensureLive(); r.c.status('SUBSCRIBED');
+      r.c.emit(m5Frame(20, 200));
+      r.c.emit(m5Frame(19, 1));
+      assert(G.gold === 200 && G.skills.mining === 400, 'a REORDERED frame rewound G: ' + JSON.stringify(G));
+      r.c.emit(m5Frame(20, 3));
+      assert(G.gold === 200, 'a DUPLICATE frame wrote G: ' + G.gold);
+      r.c.emit({ t: 'delta', frame: 21, patch: { state: { gold: 5 }, gold_override: 9 } });
+      assert(G.gold === 200 && A.getAppliedFrame() === 20, 'a malformed frame landed');
+    }));
+  }),
+
+  () => tryRun('M5 live: a reconnect backs off and re-reads state once per join', () => {
+    m5WithLive({ G: { gold: 0, skills: {}, inventory: {} } }, (r, L) => {
+      L.ensureLive(); r.c.status('SUBSCRIBED');
+      assert(r.hellos === 1, 'the first join did not re-read (' + r.hellos + ')');
+      r.c.status('CHANNEL_ERROR');
+      assert(r.timers.length === 1 && r.c.removed === 1, 'an error did not schedule ONE retry');
+      r.timers.shift().f();
+      assert(r.c.channels.length === 2, 'the retry did not re-join');
+      r.clock += L.LIVE_HELLO_MIN_INTERVAL_MS;
+      r.c.status('SUBSCRIBED');
+      assert(r.hellos === 2, 'the RE-join did not re-read hr_state_of (' + r.hellos + ')');
+    });
+  }),
+
+  /* frame_push=false: no frame ever comes, and the envelope path writes exactly
+     what it writes with no channel at all. */
+  () => tryRun('M5 live: with frame_push off the envelope path is unchanged', () => {
+    const norm = (g) => JSON.stringify(g, (k, v) => (/(^at$|At$)/.test(k) ? 0 : v));
+    const G1 = { gold: 0, gems: 0, skills: {}, inventory: {} };
+    const G2 = { gold: 0, gems: 0, skills: {}, inventory: {} };
+    m5Acked((A) => {
+      A.resetFrameGate(); A.applyEnvelope(G1, m5Env(40, 9)); A.applyEnvelope(G1, m5Env(41, 11));
+      m5WithLive({ G: G2 }, (r, L) => {
+        L.ensureLive(); r.c.status('SUBSCRIBED');
+        A.resetFrameGate(); A.applyEnvelope(G2, m5Env(40, 9)); A.applyEnvelope(G2, m5Env(41, 11));
+        assert(L.getLiveState().applied === 0, 'something was applied with no frame sent');
+      });
+    });
+    assert(norm(G1) === norm(G2), 'the joined, frameless channel changed what the envelope path wrote');
+  }),
+
+  /* The HTTP answer at the version a frame already applied keeps its receipt. */
+  () => tryRun('M5 live: the answer behind a frame still lands once, with its receipt', () => {
+    const G = { gold: 0, gems: 0, skills: {}, inventory: {} };
+    m5Acked((A) => m5WithLive({ G }, (r, L) => {
+      L.ensureLive(); r.c.status('SUBSCRIBED');
+      r.c.emit(m5Frame(30, 300));
+      const first = A.applyEnvelope(G, m5Env(30, 300));
+      assert(first && first.paidReceipt, 'the answer behind the frame was dropped with its receipt');
+      assert(A.applyEnvelope(G, m5Env(30, 300)) === null, 'a second copy of the answer applied');
+    }));
+  }),
+
+  /* SEC S3: a floor stuck ABOVE the server heals through ONE forced hello. */
+  () => tryRun('M5 live: a stuck-high frame floor heals by one forced re-read', () => {
+    const G = { gold: 0, gems: 0, skills: {}, inventory: {} };
+    m5Acked((A) => m5WithLive({ G }, (r, L) => {
+      L.ensureLive(); r.c.status('SUBSCRIBED');
+      A.commitFrame(1e6);
+      for (let v = 895; v < 905; v++) r.c.emit(m5Frame(v, 1));
+      assert(r.heals.length === 1, 'the healer sent ' + r.heals.length + ' forced hellos, not one');
+      const ans = m5Env(900, 77);
+      A.healAnswer(ans, r.heals[0]);
+      A.applyEnvelope(G, ans);
+      assert(A.getAppliedFrame() === 900 && G.gold === 77,
+        'the heal answer did not heal: floor ' + A.getAppliedFrame() + ', gold ' + G.gold);
+    }));
+  }),
+
+  /* SEC M5-client C1 (HIGH). RED WITHOUT THE FIX: the old healer reset the floor
+     to -1 BEFORE its hello returned, so the late frame 16 below landed as fresh
+     (gold 1016) and the stale HTTP answer at 15 after it. */
+  () => tryRun('M5 regression: a stale frame or answer between a heal and its answer writes nothing (SEC C1)', () => {
+    const G = { gold: 0, gems: 0, skills: {}, inventory: {} };
+    m5Acked((A) => m5WithLive({ G }, (r, L) => {
+      L.ensureLive(); r.c.status('SUBSCRIBED');
+      r.c.emit(m5Frame(20, 200));
+      for (const v of [17, 18, 19]) r.c.emit(m5Frame(v, 1000 + v));
+      assert(r.heals.length === 1, 'precondition: three legitimate reorders did not fire the heal');
+      assert(A.getAppliedFrame() === 20, 'the heal OPENED the floor before its answer (floor ' + A.getAppliedFrame() + ')');
+      r.c.emit(m5Frame(16, 1016));
+      assert(G.gold === 200, 'a stale frame 16 landed between the heal and its answer: gold ' + G.gold);
+      assert(A.applyEnvelope(G, m5Env(15, 946)) === null && G.gold === 200,
+        'a stale HTTP answer (15) landed between the heal and its answer: gold ' + G.gold);
+      const ans = m5Env(22, 220);
+      A.healAnswer(ans, r.heals[0]);
+      A.applyEnvelope(G, ans);
+      assert(G.gold === 220 && A.getAppliedFrame() === 22, 'the heal answer (truth, 22) did not land: gold ' + G.gold);
+    }));
+  }),
+
+  /* SEC C2 (cost): a subscribe→close flap may not spend a hello a second. */
+  () => tryRun('M5 regression: a flapping channel backs off and sends at most one hello per 30 s (SEC C2)', () => {
+    m5WithLive({ G: { gold: 0, skills: {}, inventory: {} } }, (r, L) => {
+      L.ensureLive();
+      const t0 = r.clock;
+      let lastDelay = 0;
+      for (let i = 0; i < 30; i++) {
+        r.c.status('SUBSCRIBED');
+        r.clock += 1000;
+        r.c.status('CLOSED');
+        lastDelay = r.timers.length ? r.timers[r.timers.length - 1].ms : 0;
+        while (r.timers.length) r.timers.shift().f();
+      }
+      const cap = Math.ceil((r.clock - t0) / L.LIVE_HELLO_MIN_INTERVAL_MS) + 1;
+      assert(r.hellos <= cap, '30 one-second flaps sent ' + r.hellos + ' hellos (cap ' + cap + ')');
+      assert(lastDelay >= L.LIVE_BACKOFF_MAX_MS * 0.8, 'after 30 flaps the retry delay is ' + lastDelay + ' ms — no backoff');
+    });
   }),
 ]; }

@@ -20,14 +20,14 @@
 // Imports: SKILLS_DEF, action tables
 // Exports: setupCharacterPage()
 
-import { SKILLS_DEF } from '../data/skills.js?v=561';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=561';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=561';
-import { SKILL_GUIDE } from '../data/skill-guide.js?v=561';
+import { SKILLS_DEF } from '../data/skills.js?v=562';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=562';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=562';
+import { SKILL_GUIDE } from '../data/skill-guide.js?v=562';
 /* The UNKNOWN-balance accessor. This screen prints the purse, so it is one of
    the surfaces that must render a pending balance rather than a number. */
-import { balanceMarkup, countMarkup, UNKNOWN_TEXT } from '../net/balance.js?v=561';
-import { heroClass } from '../render/skill-guide.js?v=561';
+import { balanceMarkup, countMarkup, UNKNOWN_TEXT } from '../net/balance.js?v=562';
+import { heroClass } from '../render/skill-guide.js?v=562';
 
 /* b431 — skill-xp READ accessor (src/net/skill-record.js), DORMANT no-op today;
    the ESM analogue of the b429 legacy skillXp() sweep. */

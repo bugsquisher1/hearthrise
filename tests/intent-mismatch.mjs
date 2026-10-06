@@ -73,7 +73,9 @@ export const GUARDED = [
   'public.hr_claim_goal__ungated(text,boolean,int,uuid)',
   'public.hr_farm_harvest(int,int,uuid)',
   'public.hr_farm_plant(int,int,text,uuid)',
-  'public.hr_farm_upgrade_plot(int,uuid)',
+  /* (int,uuid,int) since 2026-10-04-expected-level-idempotency.sql, which RESTATES
+     the body with the guard carried forward — the chain-end property is the same. */
+  'public.hr_farm_upgrade_plot(int,uuid,int)',
   'public.hr_farm_water(int,int,uuid)',
   'public.hr_put_client_state__ungated(int,jsonb,uuid)',
   'public.hr_set_style__ungated(text,text,int,uuid)',

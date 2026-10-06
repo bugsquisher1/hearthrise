@@ -6,8 +6,8 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 183 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { CHARM_CLASS_LORE, CHARM_RANK_LORE } from '../../data/charm-lore.js?v=561';
-import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot, closeOverlays, phoneFrame, feedServerQuests, serverBagFixture } from './_harness.js?v=561';
+import { CHARM_CLASS_LORE, CHARM_RANK_LORE } from '../../data/charm-lore.js?v=562';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot, closeOverlays, phoneFrame, feedServerQuests, serverBagFixture, withServerBacked } from './_harness.js?v=562';
 
 /* SALVAGE-1's regression pin: the goblin drop panel as a player reads it (the
    text of each row, not the markup, so an icon path or cache bump cannot move
@@ -4459,7 +4459,7 @@ export default [
     const wasAck = A.isReplacementAcknowledged();
     const wasHeld = S.isSnapshotHeld();
     const savedInv = { ...G.inventory }, savedEq = { ...G.equipment }, savedGold = G.gold;
-    const savedLoadouts = G.loadouts;
+    const savedLoadouts = G.loadouts, bag = serverBagFixture();
     let sent = [];
     const drain = () => new Promise((r) => setTimeout(r, 60));
     try {
@@ -4481,7 +4481,7 @@ export default [
 
       G.gold = 0;
       G.equipment = { weapon: null, helmet: null, body: null };
-      G.inventory = { bronze_sword: 1, bronze_helm: 1 };
+      G.inventory = { bronze_sword: 1, bronze_helm: 1 }; bag.agree();   // the server holds the kit: the ONE request is the subject
       G.loadouts = [{ name: 'Test kit', set: true,
         equipment: { weapon: 'bronze_sword', helmet: 'bronze_helm' }, tools: {}, foodSlot: null }];
       // Bronze is tier 1, so the kit passes the wield gate on its own merits.
@@ -4514,7 +4514,62 @@ export default [
       if (prevCfg) E.configureEquip(prevCfg);
       A.acknowledgeReplacement(wasAck);
       if (wasHeld) S.holdSnapshots(); else S.releaseSnapshots();
-      G.inventory = savedInv; G.equipment = savedEq; G.gold = savedGold; G.loadouts = savedLoadouts;
+      G.inventory = savedInv; G.equipment = savedEq; G.gold = savedGold; G.loadouts = savedLoadouts; bag.restore();
+    }
+  }),
+
+  /* regression suite — THE KIT IS DECIDED BY THE SERVER'S ANSWER. Equip collects
+     first, so funding the kit from the last stated bag silently nulled a piece
+     crafted since (and still toasted ✓). MUTATION: fund from gateItemCount → (a)
+     red; toast before routeEquipGesture answers → (c) red. */
+  () => tryRunAsync('LOADOUT-SRV-BAG: a loadout equips a piece crafted since the last envelope, names every skipped slot, and says ✓ only on the server\'s answer', async () => {
+    const G = window.G, Auto = window.HearthriseAuto;
+    const snap = snapshotG(), bag = serverBagFixture();
+    const real = { notify: window.notify, route: window.routeEquipGesture, setEat: Auto && Auto.setEat,
+      loadouts: G.loadouts, food: G.foodSlot, active: window._activeLoadout };
+    const said = [], eats = []; let answer = 'equipped';
+    try {
+      window.notify = (m) => { said.push(String(m)); };
+      window.routeEquipGesture = () => Promise.resolve({ outcome: answer });   // the wire is EQUIP-BATCH's subject; the ANSWER is this one's
+      if (Auto) Auto.setEat = (o) => { eats.push(o && o.foodId); };
+      const kit = { name: 'Probe kit', set: true, equipment: { weapon: 'bronze_sword', helmet: 'bronze_helm' }, tools: {}, foodSlot: 'cooked_shrimp' };
+      const wear = (eq, inv) => { G.equipment = Object.assign({ weapon: null, helmet: null, body: null }, eq); G.inventory = Object.assign({}, inv); G.loadouts = [kit]; said.length = 0; };
+      const settle = () => new Promise((r) => setTimeout(r, 0));
+
+      // (a) THE REPORT: the sword was forged since the last envelope — the display bag holds it, the last stated bag does not.
+      wear({}, { bronze_sword: 1, bronze_helm: 1, cooked_shrimp: 5 }); bag.agree({ bronze_helm: 1, cooked_shrimp: 5 });
+      window.applyLoadout(0); await settle();
+      assert(G.equipment.weapon === 'bronze_sword' && G.equipment.helmet === 'bronze_helm',
+        '(a) THE BUG: the kit dropped a piece the equip collect funds: ' + JSON.stringify(G.equipment));
+      assert(said.some((m) => /^✓ Applied loadout: Probe kit$/.test(m)), '(a) the server answered equipped and no ✓ was said: ' + JSON.stringify(said));
+
+      // (b) a piece in NO bag is skipped OUT LOUD, never a silent null.
+      wear({}, { bronze_helm: 1, cooked_shrimp: 5 }); bag.agree();
+      window.applyLoadout(0); await settle();
+      assert(G.equipment.weapon === null && G.equipment.helmet === 'bronze_helm', '(b) setup: ' + JSON.stringify(G.equipment));
+      assert(said.some((m) => /skipped .*Bronze Sword \(not in your bag\)/i.test(m)), '(b) the skipped sword was not named: ' + JSON.stringify(said));
+
+      // (c) the server REFUSES: no ✓ (its own refusal is equipVerdictOutcome's to say).
+      answer = 'refused';
+      wear({}, { bronze_sword: 1, bronze_helm: 1, cooked_shrimp: 5 }); bag.agree();
+      window.applyLoadout(0); await settle();
+      assert(!said.some((m) => /Applied loadout/.test(m)), '(c) "✓ Applied loadout" was said for a kit the server refused: ' + JSON.stringify(said));
+      assert(eats[eats.length - 1] === 'cooked_shrimp', '(c) the kit did not choose the food it carries: ' + JSON.stringify(eats));
+
+      // (d) the retried equip is NEVER ANSWERED: the tap still gets an answer — the house failure line, never a ✓.
+      // MUTATION: drop the unanswered branch in applyLoadout's verdict → (d) red (the tap says nothing).
+      for (const o of ['timeout', 'unreachable']) {
+        answer = o;
+        wear({}, { bronze_sword: 1, bronze_helm: 1, cooked_shrimp: 5 }); bag.agree();
+        window.applyLoadout(0); await settle();
+        assert(!said.some((m) => /Applied loadout/.test(m)), '(d) "✓ Applied loadout" was said for an equip the server never answered (' + o + '): ' + JSON.stringify(said));
+        assert(said.some((m) => /^The realm did not answer/.test(m)), '(d) an unanswered (' + o + ') loadout tap got no answer at all: ' + JSON.stringify(said));
+      }
+    } finally {
+      window.notify = real.notify; window.routeEquipGesture = real.route;
+      if (Auto) Auto.setEat = real.setEat;
+      G.loadouts = real.loadouts; G.foodSlot = real.food; window._activeLoadout = real.active;
+      bag.restore(); restoreG(snap);
     }
   }),
 
@@ -5108,7 +5163,7 @@ export default [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=561')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=562')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -7147,7 +7202,7 @@ export default [
        fought a Dark Wizard the server settled from 6 straight into death #8).
        The rest of this test is UNCHANGED: away still owns hp mid-fight, and a
        heal still applies. */
-    const A = await import('../../net/accrue.js?v=561');
+    const A = await import('../../net/accrue.js?v=562');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 2, 'an IDLE client refused the server\'s hp (kept ' + G1.playerHp
@@ -7172,7 +7227,7 @@ export default [
        raised hp freely (next >= cur), so the live fight snapped to full and the
        player never took damage. A non-away envelope during a live fight must
        PRESERVE the client's combat hp; an away-return envelope still applies. */
-    const A = await import('../../net/accrue.js?v=561');
+    const A = await import('../../net/accrue.js?v=562');
 
     // Live sync: activeMonster set, NO away block, server hp full, client hp low.
     const G = { playerHp: 4, playerMaxHp: 10, activeMonster: 'goblin' };
@@ -7199,7 +7254,7 @@ export default [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../../net/accrue.js?v=561');
+    const A = await import('../../net/accrue.js?v=562');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);
@@ -7392,7 +7447,7 @@ export default [
        teaches the next author to delete the explanation. */
     const FILES = ['src/net/auth.js', 'src/net/supabase-chat-backend.js', 'src/bug-report.js'];
     for (const f of FILES) {
-      const raw = await (await fetch(f + '?v=561')).text();
+      const raw = await (await fetch(f + '?v=562')).text();
       assert(raw.length > 1000, 'could not read ' + f + ' to guard it — the guard is checking nothing');
       const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
       /* Any remote fetch of EXECUTABLE code: a dynamic import, or a <script>
@@ -7442,7 +7497,7 @@ export default [
        PREREQUISITE for integrity, not a substitute, so the code looked careful
        while verifying nothing. A compromise there is arbitrary JS in every
        player's page beside their session token. */
-    const raw = await (await fetch('src/observability.js?v=561')).text();
+    const raw = await (await fetch('src/observability.js?v=562')).text();
     assert(raw.length > 1000, 'could not read src/observability.js to guard it');
     const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
 
@@ -7546,7 +7601,7 @@ export default [
        pendingArt() names TODAY: the set is read live from monster-art.js, so
        the moment the batch ships and SHIPPED grows, the exemption evaporates
        and a leftover emoji fails again on its own — staleness by construction. */
-    const _art = await import('../../data/monster-art.js?v=561');
+    const _art = await import('../../data/monster-art.js?v=562');
     const _pendingIcons = new Set(
       _art.pendingArt().map((p) => ((window.MONSTERS || {})[p.id] || {}).icon).filter(Boolean)
         .map((s) => String(s).trim()));
@@ -7692,9 +7747,9 @@ export default [
       assert(false, 'the tool/gather seams are missing — the boost could silently outlive the tool');
       return;
     }
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     try {
-      G.inventory = { steel_pickaxe: 1 };
+      G.inventory = { steel_pickaxe: 1 }; bag.agree();   // Sell All sells the SERVER's stack
       window.startSkill('mining', 'copper_rock', 3000);
       const boosted = G.skillMs;
       assert(T.bestToolSpeed('mining') > 0, 'precondition: the steel pickaxe must grant a mining speed bonus');
@@ -7721,8 +7776,252 @@ export default [
         'buying a better tool mid-run left the timer at ' + G.skillMs + 'ms; the tool says ' + faster + 'ms');
     } finally {
       try { window.stopSkill(); } catch (e) {}
-      restoreG(snap);
+      restoreG(snap); bag.restore();
     }
+  }),
+
+  /* ── SELL-SRV — THE SELL GESTURES AND THE SERVER'S BAG (§6, both directions) ──
+     Sell All names and sells the stack the SERVER confirmed (Game Designer ruling
+     5): the display bag must never size it. Every OTHER sell is display-bounded and
+     lets the server answer: vendor_sell is collectsFirst (settle-first.js collects
+     the open window before hr_apply debits), so a log gathered since the last
+     envelope is real on the server and sells. A gate on the last bag may only
+     accept early, never refuse (DISCOVERIES 2026-10-03). */
+  /* MUTATION: put the sellableCount gate back in invSellOne → the first assert is
+     red; drop the addItem in sellReceipt → the refusal assert is red. (legacy
+     onItemTap's sell prompt got the same fix but is unreachable: window.onItemTap
+     opens the flyout, and the original is held only in a legacy.js closure.) */
+  () => tryRunAsync('SELL-SRV-1: Sell 1 sends a freshly gathered log the last server bag does not show, and render the server\'s answer', async () => {
+    const G = window.G, snap = snapshotG(), bag = serverBagFixture(), realNotify = window.notify, toasts = [];
+    window.notify = (m) => { toasts.push(String(m)); };
+    try {
+      G.lockedItems = {}; G.gold = 1000; stampBalanceLikeLoad(G);
+      const unit = window.vendorPrice('normal_log');
+      G.inventory = { normal_log: 5 }; bag.agree({});   // gathered since the last envelope: the display shows 5, the last server bag none
+      await withServerBacked({}, async (rig) => {
+        rig.reply((body) => rig.envelope({}, { receipt: { item: body.item, qty: body.qty, gold: body.qty * unit } }));
+        window.invSellOne('normal_log'); await rig.drain();
+        assert(rig.sent.length === 1 && rig.sent[0].verb === 'vendor_sell' && rig.sent[0].qty === 1,
+          'Sell 1 sent ' + JSON.stringify(rig.sent) + ' for a log the server holds (collect-first) but the LAST bag does not show — a gate on the last bag refused it');
+        assert(toasts.some((t) => t.indexOf('Sold 1×') === 0), 'the server\'s receipt was not rendered: ' + JSON.stringify(toasts));
+        delete G._serverBag;   // unstated: still the server's call, never a refusal
+        window.invSellOne('normal_log'); await rig.drain();
+        assert(rig.sent.length === 2, 'Sell 1 refused while the bag was unstated: ' + JSON.stringify(rig.sent));
+        /* The server says no (insufficient_item is all-or-nothing): the gold rolls back, the log comes back, the toast says so. */
+        toasts.length = 0; bag.agree({});
+        const goldBefore = G.gold, logsBefore = G.inventory.normal_log | 0;
+        rig.reply(() => new Response(JSON.stringify({ ok: false, error: 'insufficient_item' }), { status: 409 }));
+        window.invSellOne('normal_log'); await rig.drain();
+        assert(rig.sent.length === 3, 'CONTROL: the refused sale never reached the wire');
+        assert(G.gold === goldBefore, 'a refused sale kept its predicted gold: ' + goldBefore + ' → ' + G.gold);
+        assert((G.inventory.normal_log | 0) === logsBefore, 'a refused sale kept the log off the bag: ' + logsBefore + ' → ' + (G.inventory.normal_log | 0));
+        assert(toasts.some((t) => /did not sell/.test(t)) && !toasts.some((t) => /^Sold/.test(t)), 'the refusal did not render the server\'s answer: ' + JSON.stringify(toasts));
+      });
+    } finally { window.notify = realNotify; try { window.HearthriseDialog.close(); } catch (e) {} restoreG(snap); bag.restore(); }
+  }),
+
+  () => tryRunAsync('SELL-SRV-2: Sell All sells the stack the server confirmed, names it, and the receipt is the server\'s', async () => {
+    const G = window.G, snap = snapshotG(), bag = serverBagFixture(), realNotify = window.notify, toasts = [];
+    window.notify = (m) => { toasts.push(String(m)); };
+    try {
+      G.lockedItems = {}; G.gold = 1000; stampBalanceLikeLoad(G);
+      G.inventory = { normal_log: 50 }; bag.agree({ normal_log: 37 });
+      /* The flyout button names the SERVER's number. */
+      window.openInvDetail('normal_log');
+      const btn = () => Array.from(document.querySelectorAll('#inv-detail-overlay button')).find((b) => /^Sell All/.test(b.textContent.trim()));
+      assert(btn() && /^Sell All 37 ·/.test(btn().textContent.trim()) && !btn().disabled, 'the Sell All button reads "' + (btn() && btn().textContent.trim()) + '" — it must name the 37 the server confirmed, not the display 50');
+      const unit = window.vendorPrice('normal_log');
+      await withServerBacked({}, async (rig) => {
+        rig.reply((body) => rig.envelope({}, { receipt: { item: body.item, qty: 30, gold: 30 * unit } }));
+        window.invSellAll('normal_log'); await rig.drain();
+        assert(rig.sent.length === 1 && rig.sent[0].qty === 37, 'Sell All sent ' + JSON.stringify(rig.sent.map((s) => s && s.qty)) + ' — it must sell the server\'s 37, never the display 50');
+        assert(toasts.some((t) => t.indexOf('Sold 30×') === 0), 'the receipt did not report what the SERVER sold (30): ' + JSON.stringify(toasts));
+      });
+      window.closeInvDetail();
+      /* Unstated: the button says counting and is disabled; the gesture sends nothing. */
+      G.inventory = { normal_log: 50 }; delete G._serverBag;
+      window.openInvDetail('normal_log');
+      assert(btn() && btn().disabled && /Sell All · counting…/.test(btn().textContent) && /still counting your bag/.test(btn().title), 'an unstated bag rendered "' + (btn() && btn().textContent.trim()) + '" — it must read "Sell All · counting…", disabled, titled');
+      window.closeInvDetail();
+      await withServerBacked({}, async (rig) => {
+        window.invSellAll('normal_log'); await rig.drain();
+        assert(rig.sent.length === 0, 'Sell All sent with no server bag stated: ' + JSON.stringify(rig.sent));
+        assert(G.inventory.normal_log === 50, 'the pending Sell All still emptied the display stack');
+      });
+    } finally { window.notify = realNotify; try { window.closeInvDetail(); } catch (e) {} restoreG(snap); bag.restore(); }
+  }),
+
+  /* BULK SELL IS CLOSED until the server's vendor_sell_many ships (Game
+     Designer interim; HANDOFFS.md 2026-10-06). Both bulk gestures used to pay
+     gold through a deferred site and toast "Sold" while sending NOTHING, so the
+     next envelope took the gold and gave the items back (CLAUDE.md §6).
+     MUTATION (run 2026-10-06 with --only BULK-INTERIM-1): restore either old body
+     (removeItem + goldSettle(total, site, null) + the "Sold" notify) → red on
+     "paid/removed/said Sold". */
+  () => tryRunAsync('BULK-INTERIM-1: Sell Selected and the junk sweep send nothing, pay nothing, take nothing and never toast "Sold"', async () => {
+    const G = window.G, CM = window.HearthriseInvCtx, snap = snapshotG(), bag = serverBagFixture(), realNotify = window.notify, toasts = [];
+    assert(typeof window.invSellSelected === 'function' && CM && typeof CM.sellJunk === 'function' && typeof CM.settleJunk === 'function', 'a bulk gesture is unpublished');
+    window.notify = (m) => { toasts.push(String(m)); };
+    try {
+      const raw = Object.keys(window.ITEMS).find((id) => window.ITEMS[id].raw && Number(window.ITEMS[id].v) >= 10);
+      assert(!!raw, 'CONTROL: no raw item worth 10+ to sweep');
+      G.lockedItems = {}; G.gold = 1000; stampBalanceLikeLoad(G);
+      G.inventory = { normal_log: 50 }; G.inventory[raw] = 40; bag.agree({ normal_log: 50, [raw]: 40 });
+      const q = CM.quoteJunk(1e9);
+      assert(q.ids.length > 0 && q.totalGold > 0, 'CONTROL: the junk quote is empty, so the sweep below proves nothing: ' + JSON.stringify(q));
+      await withServerBacked({}, async (rig) => {
+        const before = JSON.stringify(G.inventory);
+        window._invSelected = new Set(['normal_log', raw]);
+        const r1 = window.invSellSelected(); await rig.drain();
+        const r2 = CM.settleJunk(q); await rig.drain();
+        const r3 = await CM.sellJunk(1e9); await rig.drain();
+        assert(!document.getElementById('hr-confirm-overlay'), 'the closed sweep still ASKED to sell the bag');
+        assert(rig.sent.length === 0, 'a closed bulk gesture reached the wire: ' + JSON.stringify(rig.sent));
+        assert(G.gold === 1000 && (r1 | 0) === 0 && (r2 | 0) === 0 && (r3 | 0) === 0, 'a bulk gesture paid ' + (G.gold - 1000) + ' gold (returned ' + [r1, r2, r3] + ') the server never confirmed');
+        assert(JSON.stringify(G.inventory) === before, 'a bulk gesture removed items the server never sold: ' + before + ' → ' + JSON.stringify(G.inventory));
+        assert(!toasts.some((t) => /^Sold/.test(t)), 'a bulk gesture said "Sold" with no server receipt: ' + JSON.stringify(toasts));
+        assert(toasts.filter((t) => t === window.BULK_SELL_CLOSED).length === 3, 'a closed bulk gesture did not say what to do instead: ' + JSON.stringify(toasts));
+      });
+      /* The bag offers no bulk affordance: the old "Multi-select" toggled a flag nothing read. */
+      window.renderInvFancy();
+      const panel = document.getElementById('panel-inventory');
+      assert(panel && panel.querySelector('.invc-topbar'), 'CONTROL: the bag toolbar did not paint, so its absence check proves nothing');
+      assert(!Array.from(panel.querySelectorAll('button')).some((b) => /multi-?select|sell selected|sell junk/i.test(b.textContent)),
+        'the bag offers a bulk-sell/select button again while bulk selling is closed: ' + Array.from(panel.querySelectorAll('.invc-topbar button')).map((b) => b.textContent.trim()));
+    } finally { window.notify = realNotify; window._invSelected = new Set(); window._invSelectMode = false; try { window.HearthriseDialog.close(); } catch (e) {} restoreG(snap); bag.restore(); }
+  }),
+
+  /* MUTATION: put the sellableCount cut back in quick-sell → the first assert is red. */
+  () => tryRunAsync('SELL-SRV-5: quick-sell sends the display-bounded count and shows the server\'s receipt — the last server bag never shrinks or refuses it', async () => {
+    const G = window.G, snap = snapshotG(), bag = serverBagFixture(), realNotify = window.notify, toasts = [];
+    assert(typeof window.openQtySlider === 'function', 'the quick-sell slider is unpublished');
+    window.notify = (m) => { toasts.push(String(m)); };
+    try {
+      G.lockedItems = {}; G.gold = 1000; stampBalanceLikeLoad(G);
+      const unit = window.vendorPrice('normal_log');
+      G.inventory = { normal_log: 50 }; bag.agree({ normal_log: 20 });   // 30 gathered since the last envelope
+      await withServerBacked({}, async (rig) => {
+        rig.reply((body) => rig.envelope({}, { receipt: { item: body.item, qty: body.qty, gold: body.qty * unit } }));
+        window.openQtySlider('normal_log');
+        document.getElementById('qs-num').value = '50';
+        document.getElementById('qs-sell').click(); await rig.drain();
+        const total = rig.sent.reduce((n, s) => n + ((s && s.qty) || 0), 0);
+        assert(total === 50, 'quick-sell sent ' + total + ' logs of the 50 shown — the last server bag (20) cut a sale the server would take');
+        assert(toasts.some((t) => t.indexOf('Sold 50×') === 0), 'quick-sell did not render the server\'s receipt: ' + JSON.stringify(toasts));
+        rig.sent.length = 0;
+        G.inventory = { normal_log: 50 }; delete G._serverBag;
+        window.openQtySlider('normal_log');
+        document.getElementById('qs-num').value = '5';
+        document.getElementById('qs-sell').click(); await rig.drain();
+        assert(rig.sent.length === 1 && rig.sent[0].qty === 5, 'quick-sell refused while the bag was unstated: ' + JSON.stringify(rig.sent));
+      });
+    } finally { window.notify = realNotify; try { window.HearthriseDialog.close(); } catch (e) {} try { document.getElementById('qs-cancel').click(); } catch (e) {} restoreG(snap); bag.restore(); }
+  }),
+
+  /* SELL-SRV-6 — a sent Sell All holds its button until ITS answer: a second press
+     would resend the same confirmed count. MUTATION: drop the sellAllLock.has()
+     early return in invSellAll → the "sent twice" assert is red. */
+  () => tryRunAsync('SELL-SRV-6: after a Sell All is sent its button is disabled until that sell\'s answer, and a second press sends nothing', async () => {
+    const G = window.G, snap = snapshotG(), bag = serverBagFixture(), realNotify = window.notify;
+    assert(typeof window.sellAllPending === 'function', 'CONTROL: sellAllPending is unpublished');
+    window.notify = () => {};
+    const btn = () => Array.from(document.querySelectorAll('#inv-detail-overlay button')).find((b) => /^Sell All/.test(b.textContent.trim()));
+    try {
+      G.lockedItems = {}; G.gold = 1000; stampBalanceLikeLoad(G);
+      G.inventory = { normal_log: 40 }; bag.agree({ normal_log: 40 });
+      await withServerBacked({}, async (rig) => {
+        const rigFetch = window.fetch; let release = null, wire = 0;
+        window.fetch = function (u, init) {   // hold the answer: the button must wait on IT
+          if (!/hr-accrue/.test(String(u))) return rigFetch.apply(this, arguments);
+          wire++;
+          return new Promise((r) => { release = () => r(rigFetch.call(window, u, init)); });
+        };
+        try {
+          window.invSellAll('normal_log');
+          G.inventory = { normal_log: 40 };   // a stale display/bag: the same count still reads sellable
+          window.invSellAll('normal_log');
+          await rig.drain();
+          assert(wire === 1, 'two Sell All presses sent ' + wire + ' intents for one confirmed stack');
+          window.openInvDetail('normal_log');
+          assert(btn() && btn().disabled && /selling/.test(btn().textContent), 'the flyout\'s Sell All reads "' + (btn() && btn().textContent.trim()) + '" while its sell is out — it must be disabled');
+          assert(typeof release === 'function', 'CONTROL: the Sell All never reached the wire');
+          release(); await rig.drain();
+        } finally { window.fetch = rigFetch; }
+        assert(!window.sellAllPending('normal_log'), 'the answer did not release the Sell All');
+        const b = btn();
+        assert(!b || !b.disabled, 'the flyout did not repaint an enabled Sell All after the answer: "' + (b && b.textContent.trim()) + '"');
+      });
+    } finally { window.notify = realNotify; try { window.closeInvDetail(); } catch (e) {} restoreG(snap); bag.restore(); }
+  }),
+
+  /* SHOP-LOCK-1 — Quartermaster ruling: the pressed row reads "Buying…" and is
+     disabled until ITS answer (no timer); a second press sends nothing; the lock
+     resets per test. MUTATION: drop the _shopBuying.has() early return → red. */
+  () => tryRunAsync('SHOP-LOCK-1: a shop row holds "Buying…" until its answer and a second press sends nothing', async () => {
+    const G = window.G, snap = snapshotG();
+    const rows = window.SEED_SHOP || [];
+    const row = rows.find((r) => r.id === 'cooked_shrimp') || rows[0];
+    assert(row && window.__shopBuyLock && typeof window.shopBuyPending === 'function', 'CONTROL: the shop row lock is unpublished');
+    const btnFor = () => Array.from(document.querySelectorAll('#shop-panel .shop-row button')).find((b) => (b.getAttribute('onclick') || '').indexOf("'" + row.id + "'") !== -1);
+    try {
+      G.gold = row.cost * 10; stampBalanceLikeLoad(G);
+      window.showTab('shop'); if (typeof window.setShopTab === 'function') window.setShopTab('seeds');
+      await withServerBacked({}, async (rig) => {
+        const rigFetch = window.fetch; let release = null, held = 0;
+        window.fetch = function (u, init) {   // hold the answer: the row must wait on IT, not a timer
+          if (!/hr-accrue/.test(String(u))) return rigFetch.apply(this, arguments);
+          held++;
+          return new Promise((r) => { release = () => r(rigFetch.call(window, u, init)); });
+        };
+        const had = G.inventory[row.id] || 0, realAfford = window.balCanAfford;
+        /* An in-flight prediction can make the balance read unknown, which refuses a
+           second press on its own; pin affordability so this measures the ROW LOCK. */
+        window.balCanAfford = () => true;
+        try {
+          window.buyShopItem(row.id, row.qty, row.cost);
+          window.buyShopItem(row.id, row.qty, row.cost);
+          await rig.drain();
+        } finally { window.fetch = rigFetch; window.balCanAfford = realAfford; }
+        assert(held === 1, 'two presses on a held row sent ' + held + ' shop_buy intents');
+        assert((G.inventory[row.id] || 0) === had + row.qty, 'two presses on a held row predicted ' + ((G.inventory[row.id] || 0) - had) + ' items — the second press must do nothing while the first is out');
+        assert(btnFor() && btnFor().disabled && btnFor().textContent.trim() === 'Buying…', 'the pressed row reads "' + (btnFor() && btnFor().textContent.trim()) + '" while its answer is out — it must be disabled "Buying…"');
+        assert(typeof release === 'function', 'CONTROL: the buy never reached the wire');
+        release();
+        await rig.drain();
+        assert(!window.shopBuyPending(row.id, row.qty, row.cost) && btnFor() && btnFor().textContent.trim() === 'Buy', 'the answer did not release the row: "' + (btnFor() && btnFor().textContent.trim()) + '"');
+        /* THE ONE TEARDOWN: a held row is in the intent-latch registry, so the
+           per-test __resetAll releases it (MUTATION: drop the register call → red). */
+        window.fetch = function (u, init) { if (!/hr-accrue/.test(String(u))) return rigFetch.apply(this, arguments); return new Promise(() => {}); };
+        try { window.buyShopItem(row.id, row.qty, row.cost); } finally { window.fetch = rigFetch; }
+        assert(window.shopBuyPending(row.id, row.qty, row.cost), 'CONTROL: the third press did not hold the row');
+        const live = window.HearthriseIntentLatch.__resetAll();
+        assert(live >= 1 && !window.shopBuyPending(row.id, row.qty, row.cost), 'the intent-latch teardown did not release the shop row lock (live ' + live + ') — it is not registered');
+      });
+    } finally { restoreGAndRecord(snap); window.__shopBuyLock.reset(); try { window.renderShop(); } catch (e) {} }
+  }),
+
+  /* GOLD-DEADLINE-1 — the deadline spans the BODY read: headers came back, the
+     body never did. The call must end as a timeout (prediction stands, the lock
+     waiting on it releases), not hang until reload. MUTATION: clear the deadline
+     before reading the body (the old shape) → the race reads "hung". */
+  () => tryRunAsync('GOLD-DEADLINE-1: a gold intent whose body stalls after the headers ends as a timeout and releases its lock', async () => {
+    const Gd = window.HearthriseGold, G = window.G, snap = snapshotG();
+    assert(Gd && typeof Gd.sendGoldIntent === 'function', 'CONTROL: sendGoldIntent is unpublished');
+    const realFetch = window.fetch, hadCfg = Gd.getGoldConfig();
+    try {
+      Gd.resetGold(); Gd.configureGold({ url: 'https://probe.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
+      let calls = 0;
+      window.fetch = function (u) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        calls++;
+        return Promise.resolve({ ok: true, status: 200, json: () => new Promise(() => {}) });   // headers, then nothing
+      };
+      const p = Gd.sendGoldIntent({ verb: Gd.VENDOR_SELL_VERB, item: 'normal_log', qty: 1 }, Gd.newIntentKey(), { timeoutMs: 80 });
+      const r = await Promise.race([p, new Promise((res) => setTimeout(() => res('hung'), 1500))]);
+      assert(calls === 1, 'CONTROL: the intent never reached the wire (' + calls + ')');
+      assert(r !== 'hung', 'a body that stalled after the headers held the call past its deadline — "Buying…" until reload');
+      assert(r.outcome === 'timeout' && r.reason === 'body_stalled', 'a stalled body ended as ' + JSON.stringify(r && { outcome: r.outcome, reason: r.reason }) + ' — it must be a timeout (no verdict was read)');
+    } finally { window.fetch = realFetch; Gd.resetGold(); Gd.configureGold(hadCfg || null); restoreG(snap); }
   }),
 
   /* #33 (the seam, not the symptom). Every path that can lose an item must go
@@ -7742,7 +8041,10 @@ export default [
        documentation this codebase depends on"). Over-stripping can only remove
        comment text, never a statement, so it cannot hide a real occurrence. */
     const stripJs = (js) => js.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
-    [['invSellAll', window.invSellAll], ['invSellSelected', window.invSellSelected]].forEach(([name, fn]) => {
+    /* invSellSelected is CLOSED (BULK-INTERIM-1): it writes the bag not at all. */
+    assert(!/delete\s+G\.inventory\s*\[|removeItem\s*\(/.test(stripJs(String(window.invSellSelected))),
+      'invSellSelected() writes the bag again — it is closed until vendor_sell_many ships (BULK-INTERIM-1)');
+    [['invSellAll', window.invSellAll]].forEach(([name, fn]) => {
       const src = stripJs(String(fn));
       assert(/delete\s+G\.inventory\s*\[/.test('delete G.inventory[x];'),
         'the raw-delete scan is BLIND — it does not match a known positive');
@@ -8756,9 +9058,10 @@ export default [
   () => tryRunAsync('B539-1: after a fight, tapping the artisan recipe you came FROM sends the switch — a stale paint cannot swallow the gesture', async () => {
     const rec = ((window.ARTISAN_RECIPES || {}).cooking || []).find((r) => r.id === 'cook_shrimp'); const mid = (window.MONSTERS || {}).slime ? 'slime' : Object.keys(window.MONSTERS || {})[0];
     assert(!!rec && !!mid && !!window.HearthriseActivity && typeof window.startArtisan === 'function', 'setup: no cook_shrimp recipe / monster / activity seam — the reported gesture cannot be driven');
+    const bag = serverBagFixture();   // the stub server holds the seeded shrimp (cameFromArc echoes its bag)
     try {
       await withCookingArmed(() => cameFromArc({ skillId: 'cooking', targetId: rec.id, prod: rec.output, mid, start: () => window.startArtisan('cooking', rec.id),   /* the bench pause is not this test's subject */
-        seed: (G) => { const inp = rec.inputs || { [rec.input]: rec.inputQty || 1 }; Object.keys(inp).forEach((id) => { G.inventory[id] = (G.inventory[id] || 0) + 200; }); } },
+        seed: (G) => { const inp = rec.inputs || { [rec.input]: rec.inputQty || 1 }; Object.keys(inp).forEach((id) => { G.inventory[id] = (G.inventory[id] || 0) + 200; }); bag.agree(); } },
         async ({ G, sent, settle, tileOf, tile, stalePaint }) => {
           tile.click(); await settle();
           const sw = sent.filter((b) => b.activity && b.activity.kind === 'artisan' && b.activity.id === rec.id);
@@ -8768,7 +9071,7 @@ export default [
           const third = tileOf(); third.click(); await settle(); assert(G.activeSkill === 'cooking' && G.skillTargetId === rec.id, 'the tap AFTER a stop did not restart the recipe (' + G.activeSkill + '/' + G.skillTargetId + ') — a stop strips .active in place and rebuilds nothing');
         }));
     } finally {
-      closeOverlays();   // same accrual replacement gate as B533-1
+      bag.restore(); closeOverlays();   // same accrual replacement gate as B533-1
     }
   }),
 

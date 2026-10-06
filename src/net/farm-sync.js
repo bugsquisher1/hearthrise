@@ -41,8 +41,9 @@
 // window for legacy.js — but the ESM exports exist for the Node guard.
 // ============================================================================
 
-import { isFarmServerArmed } from '../data/item-authority.js?v=561';
-import { withSettleFirstRetry } from './settle-first.js?v=561';
+import { isFarmServerArmed } from '../data/item-authority.js?v=562';
+import { withSettleFirstRetry } from './settle-first.js?v=562';
+import { createIntentLatch } from './intent-latch.js?v=562';
 
 export { isFarmServerArmed };
 
@@ -77,17 +78,9 @@ export function activeSlot() {
   return 0;
 }
 
-/** A client-generated idempotency key (uuid). A RETRY of the SAME gesture must
- *  carry the SAME key so the server's player_intents cache replays the identical
- *  result with no second seed debit / no second harvest credit; a NEW gesture
- *  gets a fresh one. */
-export function newFarmIdem() {
-  try { if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID(); } catch (e) {}
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-    const r = (Math.random() * 16) | 0, v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
+/* The idempotency key is the latch's (net/intent-latch.js): fresh per gesture,
+   the SAME on a re-tap after an ambiguous answer, so the server's player_intents
+   cache replays the committed result with no second debit or credit. */
 
 /** Resolve {url, anonKey, jwt, slot} from an explicit opts override first, then
  *  the window singletons. Returns null when there is no usable config — the
@@ -161,41 +154,78 @@ async function callFarmRpc(name, body, opts) {
 
 /* ── THE FOUR GESTURES. Only ids/slots/plot indices cross the wire — never a
    price, a yield, an xp figure or a timestamp; the server owns every one of
-   those. p_idem makes a retry a no-op. Each returns Promise<jsonb result>. ─── */
+   those. p_idem makes a retry a no-op. Each returns Promise<jsonb result>.
+
+   ONE GESTURE IN FLIGHT PER (verb, slot, plot) — src/net/intent-latch.js. A
+   double-click used to send two intents with two keys, and hr_farm_upgrade_plot
+   is RELATIVE (plot_level + 1): the second paid for a tier nobody asked for.
+   While a gesture is held (its answer AND a 600 ms floor) a repeat sends
+   NOTHING and resolves to the held answer {ok:false, error:'in_flight',
+   inFlight:true}, which every caller treats as silence. The latch hands each
+   gesture its p_idem: a re-tap after a timeout re-sends the SAME key, so the
+   server replays what it committed instead of buying again. ─────────────── */
+const farmLatch = createIntentLatch();
+function slotOf(o) { return (o.slot !== undefined && o.slot !== null) ? (o.slot | 0) : activeSlot(); }
+function latchKey(kind, slot, plotIdx) {
+  return kind === 'upgrade' ? 'upgrade:' + slot : kind + ':' + slot + ':' + (plotIdx | 0);
+}
+
 export function farmPlant(plotIdx, cropId, opts) {
   const o = opts || {};
-  return callFarmRpc('hr_farm_plant', {
-    p_slot: (o.slot !== undefined && o.slot !== null) ? (o.slot | 0) : activeSlot(),
+  const slot = slotOf(o);
+  return farmLatch.run(latchKey('plant', slot, plotIdx), (idem) => callFarmRpc('hr_farm_plant', {
+    p_slot: slot,
     p_plot_idx: plotIdx | 0,
     p_crop: String(cropId == null ? '' : cropId),
-    p_idem: o.idem || newFarmIdem(),
-  }, o);
+    p_idem: o.idem || idem,
+  }, o));
 }
 export function farmWater(plotIdx, opts) {
   const o = opts || {};
-  return callFarmRpc('hr_farm_water', {
-    p_slot: (o.slot !== undefined && o.slot !== null) ? (o.slot | 0) : activeSlot(),
+  const slot = slotOf(o);
+  return farmLatch.run(latchKey('water', slot, plotIdx), (idem) => callFarmRpc('hr_farm_water', {
+    p_slot: slot,
     p_plot_idx: plotIdx | 0,
-    p_idem: o.idem || newFarmIdem(),
-  }, o);
+    p_idem: o.idem || idem,
+  }, o));
 }
 /* hr_farm_harvest is settle-gated (2026-09-28-settle-before-mutate.sql): the ONE
-   shared handler waits for the server's settle and re-sends this same body once. */
+   shared handler waits for the server's settle and re-sends this same body once
+   — inside the latch, so the retry is part of the one gesture. That chain is
+   three calls under 15 s deadlines (harvest → settle → harvest, ~45 s), so it
+   holds HARVEST_HOLD_MS, not the 20 s default that outlasts only one call. */
+const HARVEST_HOLD_MS = 50000;
 export function farmHarvest(plotIdx, opts) {
   const o = opts || {};
-  const body = {
-    p_slot: (o.slot !== undefined && o.slot !== null) ? (o.slot | 0) : activeSlot(),
-    p_plot_idx: plotIdx | 0,
-    p_idem: o.idem || newFarmIdem(),
-  };
-  return withSettleFirstRetry(() => callFarmRpc('hr_farm_harvest', body, o));
+  const slot = slotOf(o);
+  return farmLatch.run(latchKey('harvest', slot, plotIdx), (idem) => {
+    const body = { p_slot: slot, p_plot_idx: plotIdx | 0, p_idem: o.idem || idem };
+    return withSettleFirstRetry(() => callFarmRpc('hr_farm_harvest', body, o));
+  }, { holdMs: HARVEST_HOLD_MS });
 }
+/* THE RUNG BEING BOUGHT IS NAMED (2026-10-04-expected-level-idempotency.sql).
+   hr_farm_upgrade_plot refuses unless p_expect_level = plot_level + 1 under the
+   row lock, so a double-click or a retry that minted a fresh key cannot buy the
+   tier AFTER the one on screen. `o.expectLevel` must come from the SERVER's
+   plot level (G._serverPlotLevel + 1); without one there is nothing honest to
+   send, so nothing is sent — the server would refuse it as missing_expect. */
 export function farmUpgradePlot(opts) {
   const o = opts || {};
-  return callFarmRpc('hr_farm_upgrade_plot', {
-    p_slot: (o.slot !== undefined && o.slot !== null) ? (o.slot | 0) : activeSlot(),
-    p_idem: o.idem || newFarmIdem(),
-  }, o);
+  const expect = Number(o.expectLevel);
+  if (!Number.isInteger(expect) || expect < 2) {
+    return Promise.resolve({ ok: false, error: 'missing_expect', refused: true });
+  }
+  const slot = slotOf(o);
+  return farmLatch.run(latchKey('upgrade', slot), (idem) => callFarmRpc('hr_farm_upgrade_plot', {
+    p_slot: slot,
+    p_idem: o.idem || idem,
+    p_expect_level: expect,
+  }, o));
+}
+/** Is a farm gesture of this kind already on the wire for this slot/plot? */
+export function farmGestureInFlight(kind, plotIdx, slot) {
+  const s = (slot !== undefined && slot !== null) ? (slot | 0) : activeSlot();
+  return farmLatch.held(latchKey(kind, s, plotIdx));
 }
 
 /* ── REFUSAL TEXT — SAY WHY, AND WHAT CLEARS IT ───────────────────────────────
@@ -366,8 +396,12 @@ if (typeof window !== 'undefined') {
   window.HearthriseFarmSync = {
     isFarmServerArmed,
     farmPlantRefusalText,
-    activeSlot, newFarmIdem,
+    activeSlot,
     farmPlant, farmWater, farmHarvest, farmUpgradePlot,
+    farmGestureInFlight, HARVEST_HOLD_MS,
     reconcileFarmResult,
+    /* Test teardown only: drop every hold, so a suite that abandons a fake
+       transport mid-flight cannot leave the next test's tap swallowed. */
+    __resetFarmLatch() { farmLatch.reset(); },
   };
 }

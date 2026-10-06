@@ -79,7 +79,10 @@ export function attempt(b) {
    naming a contract the client does not hold REPLACES the client's view with it. */
 let acceptP = null, abandonP = null, abandonedId = null;
 const settle = (p, clear) => p.then(clear, clear);
-export function busy() { return { accept: !!acceptP, abandon: !!abandonP, any: !!(acceptP || abandonP) }; }
+/* The reroll's in-flight is the 'bounty-spend' latch (net/goal-claim.js); it is
+   read here so accept / abandon / reroll answer one busy() question. */
+function rerollHeld() { try { const GC = w().HearthriseGoalClaim; return !!(GC && GC.bountyRerollHeld && GC.bountyRerollHeld()); } catch (e) { return false; } }
+export function busy() { const reroll = rerollHeld(); return { accept: !!acceptP, abandon: !!abandonP, reroll, any: !!(acceptP || abandonP || reroll) }; }
 export function trackAccept(p) {
   if (!p || typeof p.then !== 'function') return;
   acceptP = p;

@@ -157,10 +157,12 @@ async function run(legacySrc, accrualSrc, C) {
   // eslint-disable-next-line no-new-func
   const engine = new Function(
     'monsters', 'eq', 'equipment', 'items', 'state', 'bonus', 'setBonus', 'profile', 'style',
-    'charms', 'trophies', 'playerCombatRolls', 'monsterIdIn',
+    'charms', 'trophies', 'playerCombatRolls', 'monsterIdIn', 'fightSkills',
     `const o = {\n${engineSrc}\n};\nreturn o.playerRolls;`,
+  /* `fightSkills` (b563): the rolls read the banked-skills view, which IS
+     `state.skills` on a rested window — the same empty object here. */
   )(MONSTERS, EQ, {}, ITEMS, { skills: {} }, () => 0, null, undefined, undefined,
-    CHARMS, TROPHIES, playerCombatRolls, monsterIdIn);
+    CHARMS, TROPHIES, playerCombatRolls, monsterIdIn, {});
 
   const away = engine(ROW).weak;
 

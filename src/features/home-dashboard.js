@@ -74,7 +74,7 @@
          is not a colour, so it is not a token, but its fallback surface above
          is. */
       R + '.hd-hearth::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;',
-      'background:url(assets/brand/hearthrise-splash.jpg?v=561) 50% 40%/cover no-repeat}',
+      'background:url(assets/brand/hearthrise-splash.jpg?v=562) 50% 40%/cover no-repeat}',
       /* Scrim, legibility-aware. The identity block sits bottom-left and the
          ledger bottom-right, so both flanks and the floor darken to
          --scene-scrim-2 while the centre-top stays open for the painting. Two
@@ -1239,6 +1239,16 @@
     return !!((sess && sess.user) || (window.G && window.G.account));
   }
 
+  /* HAS THE CHARACTER ARRIVED? Before it has, G is the fresh seed and
+     every number on this screen would be a default drawn as fact ("Combat 1 ·
+     Total 1", "Day 1 · Reward ready" with a live Claim — QA account, live,
+     2026-10-05). A missing seam reads as pending (§6 fail-safe). */
+  function recordPending() {
+    var R = window.HearthriseRecord;
+    if (!R || typeof R.isRecordPending !== 'function') return true;
+    try { return !!R.isRecordPending(); } catch (e) { return true; }
+  }
+
   function render() {
     if (!enabled()) return;
     var panel = document.getElementById('panel-profile');
@@ -1253,6 +1263,8 @@
     }
 
     var G = window.G;
+    var pending = recordPending();
+    root.toggleAttribute('data-hr-pending', pending);
     var cl = (typeof window.getCombatLevel === 'function') ? window.getCombatLevel() : 0;
     var tl = (typeof window.getTotalLevel === 'function') ? window.getTotalLevel() : 0;
     var mile = LP().getNextMilestone ? call(LP().getNextMilestone) : null;
@@ -1282,8 +1294,12 @@
     var rankLine = '';
     try {
       var _RN0 = window.HearthriseRenown;
-      var _rn = _RN0 && _RN0.getState(G);
-      if (_rn) {
+      var _rn = (!pending && _RN0) ? _RN0.getState(G) : null;
+      if (pending) {
+        var _HBr = window.HearthriseBalance;
+        rankLine = _HBr ? _HBr.pendingMarkup({ label: 'Renown not loaded yet', hint: 'Waiting for the server — your rank will appear in a moment.' })
+          : '<span class="bal-pending">—</span>';
+      } else if (_rn) {
         /* THE headline: `rank · N Renown`, and nothing under it (Tyler,
            2026-09-12). The one place the settle lag is explained is this
            figure's tooltip — plain words, opt-in. '' → the old bare markup. */
@@ -1301,7 +1317,7 @@
        the pending dash until the balance is known. The two realm cells are the
        server's UTC-day counters (HearthriseThisWeek), pending when unknown. */
     var pend = function () { var HB = window.HearthriseBalance; return HB ? HB.countMarkup(null) : '<span class="bal-pending">—</span>'; };
-    var xpLed = '<div class="hd-led"><b>' + ((!today || (typeof window.balKnown === 'function' && !window.balKnown('gold')))
+    var xpLed = '<div class="hd-led"><b>' + ((pending || !today || (typeof window.balKnown === 'function' && !window.balKnown('gold')))
       ? pend() : num(xp)) + '</b><span>XP today</span></div>';
     function realmLeds() {
       var TW = window.HearthriseThisWeek;
@@ -1309,7 +1325,7 @@
         : [{ label: 'Kills today' }, { label: 'Gold earned' }];
       return cells.map(function (c) {
         return '<div class="hd-led" title="' + esc(c.title || 'Since midnight UTC, as the realm counts it') + '"><b>' +
-          (c.html || pend()) + '</b><span>' + esc(c.label) + '</span></div>';
+          ((!pending && c.html) || pend()) + '</b><span>' + esc(c.label) + '</span></div>';
       }).join('');
     }
 
@@ -1328,7 +1344,8 @@
          held the PREVIOUS portrait until the next boot — the measured half of
          "one reload behind". */
       '<img src="' + esc(window._playerAvatar || 'assets/avatars/placeholder-portrait.webp') + '" alt="" data-hr-avatar style="width:100%;height:100%;object-fit:cover;display:block"></div><div style="min-width:0">';
-    html += '<div class="hd-eyebrow">' + esc((hsDef && hsDef.name) || "Wanderer's Camp") + '</div>';
+    html += '<div class="hd-eyebrow">' + (pending ? 'Connecting your character…'
+      : esc((hsDef && hsDef.name) || "Wanderer's Camp")) + '</div>';
     /* b373 — WHICH HERO AM I? Under the account-scoped identity ruling (see
        src/multi-character.js heroLabel) the big name on the hearth is the
        ACCOUNT's, which is correct and is also exactly what confused the FTUE
@@ -1339,7 +1356,7 @@
     var heroChip = '';
     try {
       var _HP = window.HearthriseProfile;
-      if (_HP && typeof _HP.unlockedCount === 'function' && _HP.unlockedCount() > 1) {
+      if (!pending && _HP && typeof _HP.unlockedCount === 'function' && _HP.unlockedCount() > 1) {
         heroChip = '<span class="hd-hero-chip">' + esc(_HP.heroLabel(_HP.activeSlot())) + '</span>';
       }
     } catch (e) {}
@@ -1371,6 +1388,19 @@
     // phones by the media query above); keeps the same three cells visible.
     html += '<div class="hd-ledger-m">' + xpLed + realmLeds() +
       '</div>';
+
+    /* PENDING: the band above (name, dashes) and ONE honest card. No
+       daily reward, no first-day steps, no heroes, no "Idle": each of those is
+       a number or a button the seed would author. Repainted by the 1.5s tick
+       the moment the record lands. */
+    if (pending) {
+      html += '<div class="hd-wrap"><div class="hd-card hd-mini hd-pending" role="status">' +
+        '<div class="mi">' + gly('uiHourglass', 20, '', 'var(--ink-3)') + '</div>' +
+        '<div>Reading your character from the server… nothing has been lost.</div></div></div>';
+      root.innerHTML = html;
+      wire(root, [], null, null, null);
+      return;
+    }
 
     // ── grid ──
     html += '<div class="hd-wrap">';

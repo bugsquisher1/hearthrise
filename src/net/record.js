@@ -103,22 +103,22 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, isInventoryAbsolute, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcilePlayStreak, reconcileToolCarry, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileHp, reconcileFall, announceFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=561';
+import { isServerAccrualEnabled, resolveActiveSlot, isInventoryAbsolute, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcilePlayStreak, reconcileToolCarry, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileHp, reconcileFall, announceFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=562';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
-import { applyClientState } from './client-state.js?v=561';
+import { applyClientState } from './client-state.js?v=562';
 /* THE DUNGEON SCRIP ARM (docs/design/dungeon-settlement.md §1). Scrip becomes a
    top-level record field read from state.dungeon_scrip. Its own arm flag defaults
    OFF; while off the entry below is invisible to the field list / strip / decode
    loop (armed()=false), so nothing changes byte-for-byte until the rollout flips
    DUNGEON_SETTLE_ARM_ENABLED (coupled with increment 3's quartermaster_buy). */
-import { isDungeonSettleArmed } from './dungeon-scrip-record.js?v=561';
+import { isDungeonSettleArmed } from './dungeon-scrip-record.js?v=562';
 /* THE DISPLAY-PREDICTION SCRATCH (b455). record.js is the ONE writer of a moved
    field, so it is also the one place that can honestly retire a prediction: the
    number it is about to stamp already contains whatever the client predicted.
    predict.js imports nothing, so there is no cycle. */
-import { coverageBoundary, retirePredictions, reconcileCreditedXp, resetPredictions, MAX_PREDICTION_AGE_MS } from './predict.js?v=561';
+import { coverageBoundary, retirePredictions, reconcileCreditedXp, resetPredictions, MAX_PREDICTION_AGE_MS } from './predict.js?v=562';
 
 /* THE SAME SWITCH AS b337/b338, DELIBERATELY — and since b515 that switch is
    RETIRED, so this is a constant. A separate switch would have created a state
@@ -1442,6 +1442,27 @@ export function onHydrationChange(cb) {
   return hydrationCb;
 }
 
+/* ── THE FIRST-PAINT GATE ────────────────────────────────────────────────────
+   The veil above covers a SIGNED-IN boot. It cannot cover the seconds before
+   auth restores the session (signedIn is false, so shouldVeil says no), and in
+   that window Home painted the fresh-G seed as fact on the QA account
+   (2026-10-05): "1 CL", "Combat 1 · Total 1", "Peasant · 2 Renown", "Day 1 ·
+   Reward ready" with a LIVE Claim. So every renderer of an actionable number,
+   and every button that spends, claims or starts, asks THIS before trusting G:
+   while it says pending they draw the house dash and stay disabled.
+
+   The harness boots with no server and is read as hydrated (its fixtures are
+   its record) unless a test pins it pending through `__pinRecordPending`. */
+let pinnedPending = false;
+export function isRecordPending(win) {
+  const w = win !== undefined ? win : (typeof window !== 'undefined' ? window : null);
+  if (pinnedPending) return true;
+  if (w && w.__HR_TEST_HARNESS__) return false;
+  return !isCharacterHydrated();
+}
+/** Test seam: force the pending state in the harness. Returns the old pin. */
+export function __pinRecordPending(on) { const was = pinnedPending; pinnedPending = !!on; return was; }
+
 function setHydration(next) {
   const prev = hydration;
   hydration = { ...hydration, ...next, at: Date.now() };
@@ -1990,5 +2011,9 @@ if (typeof window !== 'undefined') {
     RECORD_TIMEOUT_MS, BOOT_RETRY_DELAYS_MS, bootRetryDelayFor, isBootHydrationSettled,
     isBootRetryWorthwhile,
     bootHydrationState, isCharacterHydrated, onHydrationChange, stopBootHydration,
+    /* The first-paint gate every pre-hydration renderer reads. */
+    isRecordPending, __pinRecordPending,
   };
+  /* The classic scripts' spelling of the same gate (legacy.js, multi-character.js). */
+  window.hrRecordPending = () => isRecordPending();
 }

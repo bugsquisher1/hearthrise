@@ -649,12 +649,21 @@ for (const f of FIXTURES) {
        the foodless grinder) and NOT a whole number of its own action interval,
        so the window has a real sub-action deferral for the boundary to land on.
        A round span flushes at now() and is honestly unprovable either way. */
+    /* RE-PICKED (b563): the SAME foodless grinder, sword only, pointed at a
+       Dire Wolf. With monster accuracy at 0.02 a defence point its defence-34
+       hero sits on the 0.05 floor against a Goblin (atk 4), plate or not, and a
+       2 h night held with 0 falls — the arm proved nothing. A tier-3 foe at
+       atk 19 hits it 20% of the time: it kills, falls and recovers inside the
+       night, which is the window this arm exists for. */
+    const cn = atSpan({
+      ...FIXTURES[0], activeId: 'dire_wolf', equipment: { weapon: FIXTURES[0].equipment.weapon },
+    }, FROM_MS);
     const NIGHT = 2 * 3600000 + 1234;
-    const n1 = accrualOnReturn(c, FROM_MS, FROM_MS + NIGHT, { caller: as('accrue') });
+    const n1 = accrualOnReturn(cn, FROM_MS, FROM_MS + NIGHT, { caller: as('accrue') });
     const nwm = n1.accrued ? Date.parse(n1.delta.accrued_to) : 0;
-    const n2 = n1.accrued ? accrualOnReturn(c, nwm, nwm + 90000, { caller: as('accrue') }) : { accrued: false };
+    const n2 = n1.accrued ? accrualOnReturn(cn, nwm, nwm + 90000, { caller: as('accrue') }) : { accrued: false };
     ok(n1.accrued && Number(n1.summary.recoverMs) > 0,
-      `P7f the foodless fixture reported recoverMs=${n1.accrued ? n1.summary.recoverMs : 'n/a'} - without a window that actually spends non-paying time this arm proves nothing about w`);
+      `P7f the foodless fixture reported recoverMs=${n1.accrued ? n1.summary.recoverMs : 'n/a'} over ${n1.accrued ? n1.summary.deaths : 'n/a'} fall(s) - without a window that actually spends non-paying time this arm proves nothing about w`);
     if (n1.accrued && n2.accrued) {
       const nrows = [row(n1, FROM_MS + NIGHT), row(n2, nwm + 90000)];
       const nAn = analyzeRows(nrows);

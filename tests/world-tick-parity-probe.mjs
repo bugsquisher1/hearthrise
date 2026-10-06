@@ -337,6 +337,18 @@ async function guard(db, opts) {
                               from public.hr_tick_shadow s join public.hr_tick_ownership o
                                 on o.user_id = s.user_id and o.channel = s.channel and o.shadow_accrued_to = s.window_to
                              where s.user_id = $1`, [UG]);
+    /* The shadow mark must still BE the chain head after the fleet. A probe that
+       advances hr_tick_ownership.shadow_accrued_to leaves it pointing at no
+       window; that is the planted write, named here rather than crashing below. */
+    if (!head) {
+      const [own] = await q(`select to_jsonb(shadow_accrued_to) #>> '{}' as mark from public.hr_tick_ownership
+                              where user_id = $1`, [UG]);
+      const [last] = await q(`select to_jsonb(max(window_to)) #>> '{}' as t from public.hr_tick_shadow
+                               where user_id = $1`, [UG]);
+      judge('PP-4', false, '',
+        `the hr_tick_ownership shadow mark (shadow_accrued_to ${own && own.mark}) is the end of no hr_tick_shadow `
+        + `window (last window_to ${last && last.t}) — something outside the settle advanced it`);
+    } else {
     const [openRow] = await q(`select id from public.hr_tick_probe where user_id = $1 and status = 'open'`, [UG]);
     await db.exec('begin');
     const snap = async () => new Map((await db.query(
@@ -374,6 +386,7 @@ async function guard(db, opts) {
       'as hr_engine the commit refuses a foreign holder (no_lease) and a window that is not the chain head (not_chain_head)',
       `refusals wrong: foreign holder -> ${e1 || foreign.error} (want no_lease), `
       + `stale window -> ${e2 || stale.error} (want not_chain_head)`);
+    }
   }
 
   // ── PP-6 NOTHING ELSE READS THE TABLE ────────────────────────────────────

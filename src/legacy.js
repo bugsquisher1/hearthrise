@@ -11249,6 +11249,7 @@ function refreshActivityBar(){
       // new monster) + the realm's lifetime count. The arena vs panel shows
       // player HP, so the activity bar carries the more interesting numbers.
       const kills = (G.combatKillsThisFoe||0);
+      const _BF = window.HearthriseBarFit;
       /* b262 (paione): the bounty task progress lived in a card that fell below
          the fold of the short landscape combat view, so "how many kills left for
          my task" wasn't visible. Surface it in the always-on activity bar when
@@ -11269,25 +11270,24 @@ function refreshActivityBar(){
       const _st = (typeof window.getActiveCombatStyle==='function') ? window.getActiveCombatStyle() : null;
       if(_st && _st.xp){
         const _sk = Object.keys(_st.xp).sort((a,b)=>_st.xp[b]-_st.xp[a])[0];
-        if(_sk){
-          const _xp = skillXp(_sk);
-          const _lv = levelFromXp(_xp), _to = xpToNext(_xp);
-          const _lbl = _sk.slice(0,3).toUpperCase();
-          xpChip = _lv>=99
-            ? '<span class="ab-xp">'+_lbl+' <b>99</b></span>'
-            : '<span class="ab-xp">'+_lbl+' <b>'+_lv+'</b> · '+_to.toLocaleString()+' to go</span>';
-        }
+        const _x = _sk ? skillXp(_sk) : 0;
+        const _xv = { skill: _sk, name: SKILLS_DEF[_sk]?.name, level: levelFromXp(_x), toGo: xpToNext(_x), glyph: _hrGly(_sk, 13) };
+        // Fail-safe: before main.js publishes the builder the chip draws in its letters form.
+        if(_sk) xpChip = _BF ? _BF.xpChip(_xv) : (() => {
+          const _max = _xv.level >= 99, _l = _sk.slice(0,3).toUpperCase(), _said = escapeHtml((_xv.name||_sk)+' '+(_max?99:_xv.level)+(_max?'':' · '+_xv.toGo.toLocaleString()+' XP to go'));
+          return '<span class="ab-xp" role="img" title="'+_said+'" aria-label="'+_said+'">'+_l+' <b>'+(_max?99:_xv.level)+'</b>'+(_max?'':' · '+_xv.toGo.toLocaleString()+' to go')+'</span>';
+        })();
       }
       /* THE AWAY CHIP answers "can I leave this running?" from the Night Plan's
          stored forecast (night-plan.js chipHtml): pays away, you fall, or no
          food; a pending mark until the server has stated the bag. It never computes. */
-      /* Each chip carries its word in a span so the phone's short form
-         (legacy.css) can drop the word and keep the glyph and the number. */
-      const licChip = '<span class="ab-tkills" title="Lifetime kills">'+_hrGly('uiTrophy',13)+'<span class="ab-chip-word">Lifetime </span><b>'+(window.HearthriseLifetime ? window.HearthriseLifetime.markup('kills') : '—')+'</b></span>';
+      // Word and figure sit in spans the bar's fit steps (render/bar-fit.js) trade away.
+      const _LT = window.HearthriseLifetime, _cn = window.HearthriseBalance?.compactNumber, _ltc = _LT && _LT.count('kills');
+      const licChip = '<span class="ab-tkills" title="Lifetime kills'+(_ltc ? ': '+_ltc.n.toLocaleString()+(_ltc.exact ? '' : '+') : '')+'">'+_hrGly('uiTrophy',13)+'<span class="ab-chip-word">Lifetime </span><b>'+(!_LT ? '—' : '<span class="ab-n-full">'+_LT.markup('kills')+'</span><span class="ab-n-short">'+_LT.markup('kills', _cn)+'</span>')+'</b></span>';
       const _NP = window.HearthriseNightPlan, _STN = window.HearthriseSetTheNight;
       const awayChip = (_NP && _STN) ? _NP.chipHtml(_STN.peek(G)) : '';
       metaEl.innerHTML = ''
-        + '<span class="ab-kills" title="Kills this fight">'+_hrGly('uiSword',13)+' <b>'+kills.toLocaleString()+'</b><span class="ab-chip-word"> this fight</span></span>'
+        + '<span class="ab-kills" title="Kills this fight: '+kills.toLocaleString()+'">'+_hrGly('uiSword',13)+' <b>'+(_BF ? _BF.figure(kills) : kills.toLocaleString())+'</b><span class="ab-chip-word"> this fight</span></span>'
         + xpChip
         + bountyChip
         + licChip

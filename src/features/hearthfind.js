@@ -924,6 +924,11 @@
   var BOARD_KEY = 'hearthrise:hearthfind:board';
   var lastRowId = 0;
   var polling = false;
+  /* A stubbed session (_harness.js stubSignedIn) is not a player: while one
+     stands the 90 s board poll spends nothing (measured: hr_world_finds_of to
+     the stub origin). Only the CADENCE is paused; refreshBoard() called
+     directly still runs. Players never call the hooks, so this is 0. */
+  var pollPaused = 0;
 
   function cfg() {
     return (window.HearthriseSupabase && window.HearthriseSupabase.getConfig
@@ -1046,10 +1051,11 @@
   }
 
   var timer = null;
+  function pollTick() { return pollPaused ? Promise.resolve(false) : refreshBoard(); }
   function startPolling() {
     if (timer) return;
-    timer = setInterval(function () { refreshBoard(); }, POLL_MS);
-    refreshBoard();
+    timer = setInterval(pollTick, POLL_MS);
+    pollTick();
   }
   if (typeof window !== 'undefined') {
     if (document.readyState === 'loading') {
@@ -1075,6 +1081,9 @@
     drawCard: drawCard, copyCard: copyCard, openCardFor: openCardFor,
     // board
     refreshBoard: refreshBoard, announce: announce, ordinalFor: ordinalFor,
+    __pauseForTest: function () { pollPaused += 1; return pollPaused; },
+    __resumeForTest: function () { pollPaused = pollPaused > 0 ? pollPaused - 1 : 0; return pollPaused; },
+    __pollTick: pollTick,
     // test seams
     __setBoardCount: __setBoardCount,
     __resetProbe: __resetProbe,

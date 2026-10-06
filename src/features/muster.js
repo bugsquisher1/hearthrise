@@ -1240,7 +1240,21 @@
     }
     return r.json;
   }
+  // ── THE AMBIENT CADENCES, PAUSABLE BY A STUBBED SESSION (test seam) ──
+  // Three things here go out on their own clock rather than on a gesture: the
+  // 60 s pledge pass, the 30 s contribution flush and the 1 Hz auto-join (the
+  // boot clock+pledge chain waits on account-gate, which a stub never opens). A stubbed session (_harness.js stubSignedIn) is not
+  // a player, so while one stands none of them may spend a request — measured
+  // on GitHub set/b563 as `hr_rally_pledge_state` reaching the realm whenever
+  // the 60 s pledge pass landed inside SIGNED-IN-STUB's 2.5 s window. Gestures
+  // and direct calls (claim, join, hydratePledge) are untouched: a test that
+  // drives one under a stub still reaches its own fetch stub. Players never
+  // call either hook, so `ambientPaused` is 0 for every real session.
+  var ambientPaused = 0;
+  function ambientOn() { return ambientPaused === 0; }
+  function flushTick() { return ambientOn() ? flush() : Promise.resolve(); }
   async function pledgeTick() {
+    if (!ambientOn()) return;
     try {
       if (!readPledge() && isSignedIn() && (Date.now() - lastHydrateAt) > 600000) {
         lastHydrateAt = Date.now();
@@ -1493,7 +1507,7 @@
     // here at 13:00:01 should already be mustered, not a minute late.
     // autoJoinDecision() is pure and returns on its first line in every state
     // but the one that matters, so this costs nothing on an ordinary session.
-    try { var pj = autoJoinTick(); if (pj && pj.catch) pj.catch(function () {}); } catch (e) {}
+    if (ambientOn()) { try { var pj = autoJoinTick(); if (pj && pj.catch) pj.catch(function () {}); } catch (e) {} }
     var el = ensurePill(); if (!el) return;
     var s = pillState();
     var t = el.querySelector('.mp-t'), lab = el.querySelector('.mp-lab');
@@ -1938,7 +1952,7 @@
       }
       tickPill();
       setInterval(tickPill, 1000);
-      setInterval(flush, FLUSH_MS);
+      setInterval(flushTick, FLUSH_MS);
       // Settlement is cheap when nothing is owed (a pure outcome check that
       // returns 'hold'/'no_pledge' without touching the network), so a minute
       // is frequent enough to catch a day roll mid-session and quiet enough to
@@ -1993,6 +2007,11 @@
     _setSkew: function (ms) { skewMs = ms | 0; },
     _skewState: function () { return skewState; },
     _resetProbes: _resetProbes,
-    _community: function (c) { if (arguments.length) community = c; return community; }
+    _community: function (c) { if (arguments.length) community = c; return community; },
+    // Test seam: stubSignedIn pauses the ambient cadences; both return the depth.
+    __pauseForTest: function () { ambientPaused += 1; return ambientPaused; },
+    __resumeForTest: function () { ambientPaused = ambientPaused > 0 ? ambientPaused - 1 : 0; return ambientPaused; },
+    __ambientTick: pledgeTick, __flushTick: flushTick,
+    _resetHydrateThrottle: function () { lastHydrateAt = 0; }
   };
 })();

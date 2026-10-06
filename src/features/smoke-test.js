@@ -11,7 +11,7 @@
 // one live G and several depend on what the previous one left behind, so the
 // concatenation below is a CONTRACT, not a convenience. Add a domain module where its
 // tests used to sit; never re-sort this list to tidy it.
-import { errorLog, analyzeAssertionCoverage, stampBalanceLikeLoad, watchUiOverlaps, overlayResidue, captureShellLocks, serverBagFixture } from './smoke/_harness.js?v=562';
+import { errorLog, analyzeAssertionCoverage, stampBalanceLikeLoad, watchUiOverlaps, overlayResidue, captureShellLocks, serverBagFixture, watchLiveRpc } from './smoke/_harness.js?v=562';
 import boot from './smoke/boot.js?v=562';
 import propertyAndUnlocks from './smoke/property-and-unlocks.js?v=562';
 import companionsClaimsAndRenown from './smoke/companions-claims-and-renown.js?v=562';
@@ -195,14 +195,23 @@ export async function runSmokeTest(opts = {}) {
     if (_Prop && typeof _Prop.__resetPropertyRecord === 'function') _propParked = _Prop.__resetPropertyRecord();
   } catch (e) {}
   const results = [];
+  let liveRpc = null;
   try {
     /* The shell's authored overflow, taken BEFORE the first test so the baseline
        is the app's own state. Everything after this is measured against it. */
     captureShellLocks();
     let residueBefore = overlayResidue();
+    liveRpc = watchLiveRpc();   // _harness.js: a session RPC that reaches the real transport fails its test
     for (const t of PLAN) {
       const bagHeld = serverBagFixture();   // the stated-bag triple, captured (copied) before the test
+      liveRpc.take();
       const r = await t();
+      const leftThePage = liveRpc.take();
+      if (leftThePage.length && r.status === 'PASS') {
+        r.status = 'FAIL';
+        r.why = 'sent ' + leftThePage.join(', ') + ' to the LIVE realm: its answer lands in a later test (or, signed in, '
+          + 'moves a real account). Stub the transport (withFarmServer / holdWire / a fetch stub) or await and tear down the intent.';
+      }
       /* EVERY INTENT LATCH, ONE PLACE (net/intent-latch.js). A gesture's hold
          outlives its answer by a 600 ms floor, so a test that ends inside one
          hands it to the next test's first tap (HIRE-OWNED-1 → HIRE-STRANDED-1:
@@ -262,6 +271,7 @@ export async function runSmokeTest(opts = {}) {
       results.push(r);
     }
   } finally {
+    try { if (liveRpc) liveRpc.restore(); } catch (e) {}
     try {
       if (_loopWasRunning && _A) { _A.setSettleEnv(null); _A.startSettleLoop(); }
     } catch (e) {}

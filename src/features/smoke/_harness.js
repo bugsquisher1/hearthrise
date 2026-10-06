@@ -107,6 +107,36 @@ export function captureShellLocks() {
   return shellLockBaseline;
 }
 
+/* ── NO SESSION RPC LEAVES THE PAGE (2026-10-06) ─────────────────────────────
+   "b220: auto-replant…" called the REAL plantCrop with no transport stub, so a
+   real hr_farm_plant went to production; its refusal answered ~300 ms later and
+   toasted "Could not plant (http_401)" inside INTENT-LATCH-1's no-toast window —
+   a red many tests later, with nothing pointing back. On a signed-in page the
+   same test plants a real turnip on a real account. So the runner wraps the
+   page's fetch once: every call that reaches the REAL transport (a test's own
+   stub answers without it) for a session-only RPC on another origin is
+   recorded, and the runner fails the test it was sent under. The public read
+   surface (HearthriseRpc.ANON_CALLABLE: the leaderboard a rendered panel polls)
+   is exempt. Measured on a full run: zero such calls once b220 is stubbed. */
+export function watchLiveRpc() {
+  const real = window.fetch, sent = [];
+  const R = window.HearthriseRpc;
+  const needsSession = (n) => ((R && typeof R.needsSession === 'function') ? R.needsSession(n) : true);
+  const wrapper = function (u, init) {
+    try {
+      const url = String((u && u.url) || u);
+      const m = /\/rest\/v1\/rpc\/([^?/#]+)/.exec(url);
+      if (m && new URL(url, location.href).origin !== location.origin && needsSession(m[1])) sent.push(m[1]);
+    } catch (e) { /* an unparsable url is the transport's problem, not the watcher's */ }
+    return real.apply(this, arguments);
+  };
+  window.fetch = wrapper;
+  return {
+    take() { return sent.splice(0); },
+    restore() { if (window.fetch === wrapper) window.fetch = real; },
+  };
+}
+
 export function overlayResidue() {
   const out = [];
   const nm = (e) => (e.id ? '#' + e.id : '') + e.tagName.toLowerCase()

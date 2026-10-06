@@ -170,7 +170,10 @@ function renderInvFancy(){
         +'<span class="invc-space-sub"> · '+totalCount.toLocaleString()+' items</span></span>'+
       '<div class="invc-actions">'+
         (window.HearthriseDepot?window.HearthriseDepot.toolbarButtonHtml():'')+'<button class="invc-buyspace" onclick="window.openBankModal()">Buy space</button>'+
-        '<button id="invc-multi" class="'+(window._invMultiSelect?'active':'')+'" onclick="window._invToggleMulti()">Multi-select</button>'+
+        /* No "Multi-select" here. It toggled a flag nothing read, so the
+           player selected nothing and bulk sell (closed until vendor_sell_many,
+           shop-counter.js invSellSelected) could not be reached anyway. A dead
+           button that promises a bulk action is the lie §6 forbids, worn as UI. */
         '<button onclick="window._invManage()">Manage</button>'+
       '</div>'+
     '</div>'+
@@ -387,10 +390,6 @@ window._invSearchInput = function(v){
 window._invSearchClear = function(){
   window._invFilter.search = '';
   window._invFilter.category = 'all';
-  renderInvFancy();
-};
-window._invToggleMulti = function(){
-  window._invMultiSelect = !window._invMultiSelect;
   renderInvFancy();
 };
 window._invManage = function(){

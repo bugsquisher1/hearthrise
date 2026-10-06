@@ -7851,40 +7851,44 @@ export default [
     } finally { window.notify = realNotify; try { window.closeInvDetail(); } catch (e) {} restoreG(snap); bag.restore(); }
   }),
 
-  () => tryRun('SELL-SRV-3: Sell Selected sizes every stack on the server bag and sells nothing while it is unstated', () => {
-    const G = window.G, snap = snapshotG(), bag = serverBagFixture(), realNotify = window.notify;
-    window.notify = () => {};
-    try {
-      G.lockedItems = {}; G.inventory = { normal_log: 50 }; bag.agree({ normal_log: 20 });
-      window._invSelected = new Set(['normal_log']);
-      window.invSellSelected();
-      assert(G.inventory.normal_log === 30, 'Sell Selected took ' + (50 - (G.inventory.normal_log || 0)) + ' logs — it must sell the server\'s 20, not the display 50');
-      G.inventory = { normal_log: 50 }; delete G._serverBag;
-      window._invSelected = new Set(['normal_log']);
-      window.invSellSelected();
-      assert(G.inventory.normal_log === 50, 'Sell Selected sold with no server bag stated (left ' + G.inventory.normal_log + ')');
-    } finally { window.notify = realNotify; window._invSelected = new Set(); window._invSelectMode = false; restoreG(snap); bag.restore(); }
-  }),
-
-  () => tryRunAsync('SELL-SRV-4: the sell-junk sweep quotes and settles the server bag, and fails closed while it is unstated', async () => {
+  /* BULK SELL IS CLOSED until the server's vendor_sell_many ships (Game
+     Designer interim; HANDOFFS.md 2026-10-06). Both bulk gestures used to pay
+     gold through a deferred site and toast "Sold" while sending NOTHING, so the
+     next envelope took the gold and gave the items back (CLAUDE.md §6).
+     MUTATION (run 2026-10-06 with --only BULK-INTERIM-1): restore either old body
+     (removeItem + goldSettle(total, site, null) + the "Sold" notify) → red on
+     "paid/removed/said Sold". */
+  () => tryRunAsync('BULK-INTERIM-1: Sell Selected and the junk sweep send nothing, pay nothing, take nothing and never toast "Sold"', async () => {
     const G = window.G, CM = window.HearthriseInvCtx, snap = snapshotG(), bag = serverBagFixture(), realNotify = window.notify, toasts = [];
-    assert(CM && typeof CM.quoteJunk === 'function' && typeof CM.settleJunk === 'function', 'the junk sweep is unpublished');
+    assert(typeof window.invSellSelected === 'function' && CM && typeof CM.sellJunk === 'function' && typeof CM.settleJunk === 'function', 'a bulk gesture is unpublished');
     window.notify = (m) => { toasts.push(String(m)); };
     try {
       const raw = Object.keys(window.ITEMS).find((id) => window.ITEMS[id].raw && Number(window.ITEMS[id].v) >= 10);
       assert(!!raw, 'CONTROL: no raw item worth 10+ to sweep');
-      G.lockedItems = {}; G.gold = 0; G.inventory = {}; G.inventory[raw] = 40; bag.agree({ [raw]: 25 });
+      G.lockedItems = {}; G.gold = 1000; stampBalanceLikeLoad(G);
+      G.inventory = { normal_log: 50 }; G.inventory[raw] = 40; bag.agree({ normal_log: 50, [raw]: 40 });
       const q = CM.quoteJunk(1e9);
-      assert(q.totalCount === 25 && q.totalGold === 25 * window.vendorPrice(raw), 'the sweep quoted ' + q.totalCount + ' items — the server holds 25, the display 40');
-      CM.settleJunk(q);
-      assert(G.inventory[raw] === 15, 'the sweep took ' + (40 - (G.inventory[raw] || 0)) + ' from the bag — it must take the 25 it quoted');
-      G.inventory[raw] = 40; delete G._serverBag;
-      const pq = CM.quoteJunk(1e9);
-      assert(pq.pending === true && pq.ids.length === 0 && pq.totalGold === 0, 'an unstated bag quoted ' + JSON.stringify(pq) + ' — it must be pending with no count');
-      const paid = await CM.sellJunk(1e9);
-      assert(paid === 0 && !document.getElementById('hr-confirm-overlay'), 'the sweep asked or paid on an unstated bag');
-      assert(toasts.some((t) => /still counting your bag/.test(t)), 'the pending sweep was silent: ' + JSON.stringify(toasts));
-    } finally { window.notify = realNotify; try { window.HearthriseDialog.close(); } catch (e) {} restoreG(snap); bag.restore(); }
+      assert(q.ids.length > 0 && q.totalGold > 0, 'CONTROL: the junk quote is empty, so the sweep below proves nothing: ' + JSON.stringify(q));
+      await withServerBacked({}, async (rig) => {
+        const before = JSON.stringify(G.inventory);
+        window._invSelected = new Set(['normal_log', raw]);
+        const r1 = window.invSellSelected(); await rig.drain();
+        const r2 = CM.settleJunk(q); await rig.drain();
+        const r3 = await CM.sellJunk(1e9); await rig.drain();
+        assert(!document.getElementById('hr-confirm-overlay'), 'the closed sweep still ASKED to sell the bag');
+        assert(rig.sent.length === 0, 'a closed bulk gesture reached the wire: ' + JSON.stringify(rig.sent));
+        assert(G.gold === 1000 && (r1 | 0) === 0 && (r2 | 0) === 0 && (r3 | 0) === 0, 'a bulk gesture paid ' + (G.gold - 1000) + ' gold (returned ' + [r1, r2, r3] + ') the server never confirmed');
+        assert(JSON.stringify(G.inventory) === before, 'a bulk gesture removed items the server never sold: ' + before + ' → ' + JSON.stringify(G.inventory));
+        assert(!toasts.some((t) => /^Sold/.test(t)), 'a bulk gesture said "Sold" with no server receipt: ' + JSON.stringify(toasts));
+        assert(toasts.filter((t) => t === window.BULK_SELL_CLOSED).length === 3, 'a closed bulk gesture did not say what to do instead: ' + JSON.stringify(toasts));
+      });
+      /* The bag offers no bulk affordance: the old "Multi-select" toggled a flag nothing read. */
+      window.renderInvFancy();
+      const panel = document.getElementById('panel-inventory');
+      assert(panel && panel.querySelector('.invc-topbar'), 'CONTROL: the bag toolbar did not paint, so its absence check proves nothing');
+      assert(!Array.from(panel.querySelectorAll('button')).some((b) => /multi-?select|sell selected|sell junk/i.test(b.textContent)),
+        'the bag offers a bulk-sell/select button again while bulk selling is closed: ' + Array.from(panel.querySelectorAll('.invc-topbar button')).map((b) => b.textContent.trim()));
+    } finally { window.notify = realNotify; window._invSelected = new Set(); window._invSelectMode = false; try { window.HearthriseDialog.close(); } catch (e) {} restoreG(snap); bag.restore(); }
   }),
 
   /* MUTATION: put the sellableCount cut back in quick-sell → the first assert is red. */
@@ -8037,7 +8041,10 @@ export default [
        documentation this codebase depends on"). Over-stripping can only remove
        comment text, never a statement, so it cannot hide a real occurrence. */
     const stripJs = (js) => js.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
-    [['invSellAll', window.invSellAll], ['invSellSelected', window.invSellSelected]].forEach(([name, fn]) => {
+    /* invSellSelected is CLOSED (BULK-INTERIM-1): it writes the bag not at all. */
+    assert(!/delete\s+G\.inventory\s*\[|removeItem\s*\(/.test(stripJs(String(window.invSellSelected))),
+      'invSellSelected() writes the bag again — it is closed until vendor_sell_many ships (BULK-INTERIM-1)');
+    [['invSellAll', window.invSellAll]].forEach(([name, fn]) => {
       const src = stripJs(String(fn));
       assert(/delete\s+G\.inventory\s*\[/.test('delete G.inventory[x];'),
         'the raw-delete scan is BLIND — it does not match a known positive');

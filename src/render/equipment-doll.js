@@ -197,7 +197,7 @@
        renderCharacter re-runs every 2s), and each rebuild hardcoded the Equipment
        pane active — so a player who opened Stats or Companion was snapped back to
        Equipment within seconds. Persist the selected pane in a single session-UI
-       field (same window._* convention as _invFilter / _invMultiSelect) and
+       field (same window._* convention as _invFilter) and
        restore it on build so the choice survives auto-refresh. */
     var activePane = (window._tdPane === 'stats' || window._tdPane === 'pet') ? window._tdPane : 'gear';
     var tabs = document.createElement('div');

@@ -283,31 +283,24 @@ function invSellAll(id){
   sellReceipt(id, qty, price, sent);
   updateTopbar(); renderInvNew(); closeInvDetail();
 }
+/* BULK SELL IS CLOSED UNTIL THE SERVER CAN SELL A BAG IN ONE ANSWER
+   (Game Designer interim; the real fix is the `vendor_sell_many` verb,
+   .claude/coordination/HANDOFFS.md 2026-10-06).
+   This gesture used to remove every selected stack, add the total to G through
+   a DEFERRED gold site and toast "Sold N items for Xg" while sending NOTHING:
+   the next envelope put the items back and took the gold away (CLAUDE.md §6).
+   Closed, not N per-stack `vendor_sell`s: the 30/min shop bucket is shared
+   with every purchase, so a sweep would spend the player's minute of buying
+   and stop halfway on a big bag. No live screen reaches it (its button went
+   with the dead second renderer, c16b87455); Sell 1 / Sell All / Sell N… stay
+   server-backed. It sends nothing, writes neither bag nor gold, never says
+   "Sold". Regression: BULK-INTERIM-1 (mutation-proved on the old body). */
+const BULK_SELL_CLOSED = 'Bulk selling is resting for now — sell each stack from its own menu (Sell All / Sell N…)';
+window.BULK_SELL_CLOSED = BULK_SELL_CLOSED;
 function invSellSelected(){
-  if(!window._invSelected.size){ notify('Nothing selected','kill'); return; }
-  /* Every quantity is the server's; an unstated bag sells nothing. */
-  for(const id of window._invSelected){ if(ITEMS[id] && sellableCount(id) === null){ notify(SELL_PENDING_TITLE,'info'); return; } }
-  let total = 0, count = 0, skipped = 0;
-  for(const id of window._invSelected){
-    const it = ITEMS[id]; if(!it) continue;
-    if(isItemLocked(id)){ skipped++; continue; }   // b240: locked items are left alone
-    const qty = sellableCount(id) || 0; if(qty<=0) continue;
-    const price = vendorPrice(id);
-    total += price*qty; count += qty;
-    removeItem(id, qty);                // b487: through the bag seam (see invSellAll)
-    recordVendorSale(id, qty, price);   // b240: undoable
-  }
-  /* DEFERRED, and routed through the seam anyway so the census can see it. This
-     gesture sells N DIFFERENT item ids in one tap and `vendor_sell` prices ONE
-     per call against a 20/min bucket — see B.BULK_VENDOR in
-     src/net/gold-sites.js. Sending N intents here would rate-limit a 30-stack
-     sweep halfway through and leave the bag half-sold against a server that
-     agrees with the half. Nothing is sent; the row says why. */
-  goldSettle(total, 'vendor.sell_selected', null);
-  window._invSelected.clear();
-  notify(`Sold ${count} items for ${total.toLocaleString()} gold` + (skipped?` · ${skipped} locked item(s) skipped`:''),'loot');
-  window._invSelectMode = false;
-  updateTopbar(); renderInvNew();
+  if(!window._invSelected.size){ notify('Nothing selected','kill'); return 0; }
+  notify(BULK_SELL_CLOSED,'info');
+  return 0;
 }
 
 /* ══════════════════════════════════════════════════════════════════════

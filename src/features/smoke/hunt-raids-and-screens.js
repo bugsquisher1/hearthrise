@@ -5549,11 +5549,17 @@ export default [
               const bar = doc.getElementById('activity-bar'), meta = doc.getElementById('ab-meta');
               if (!bar || !meta) { bad.push(at + 'the frame lost the activity bar'); return; }
               earned(bar, meta, at);
-            }, async ({ state, bar, crowd }) => {
+            }, async ({ state, bar, crowd, bh }) => {
               // The reserve steps (`togo`, `streak`) on the LIVE bar, narrowed until it needs them.
               if (state !== 'stated+bounty') return;
               const meta = document.getElementById('ab-meta'), tick = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
               try {
+                // THE ROOM CASE in any face (CI's DejaVu frames all need `short`): sparse, full width, keeps every word.
+                window.HearthriseLifetime.__swapView({ counts: { kills: { n: 5, exact: true } } });
+                window.G.bountyHunter = Object.assign({}, bh, { active: null }); window.G.combatKillsThisFoe = 5;
+                window.refreshActivityBar();
+                await tick(); await tick();
+                earned(bar, meta, 'live sparse full width: ');
                 for (const px of [760, 680, 620, 560]) {
                   bar.style.maxWidth = px + 'px'; crowd();
                   await tick(); await tick(); // the observers' frame runs the fit

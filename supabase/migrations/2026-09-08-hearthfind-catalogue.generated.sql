@@ -11,8 +11,8 @@
 --   from. Any hand edit is reverted by the next generation and FAILS
 --   `node tools/gen-hearthfind.mjs --check`.
 --
---   hearthfind digest: 053c39221493052b5fb276c4e9d345758dc1ca220b98ccd34af4e26093cd3eb0
---   4 trophies · 12 sources · odds 1 in 14940 … 1 in 420000
+--   hearthfind digest: f5d22b46776d497b3b3df70b7eeca29aa887a376221d02079f7dd20bfa791ef7
+--   4 trophies · 12 sources · odds 1 in 14760 … 1 in 420000
 --   band: EXPECTED HOURS 100–400 at the source
 --
 -- Read by hr_apply's hearthfind arm to re-derive the trophy, the source, the
@@ -97,9 +97,9 @@ insert into public.hr_hearthfind_meta (key, value) values
   ('set_title_name', 'Wonderkeeper'),
   ('plinth_code', 'hearth_plinth');
 insert into public.hr_hearthfind_sources (source_kind, source_id, item_id, one_in, expected_hours) values
-  ('monster', 'dragon', 'emberheart', 14940, 180),
-  ('monster', 'elk_king', 'emberheart', 22750, 250),
-  ('monster', 'grim_reaper', 'emberheart', 24860, 220),
+  ('monster', 'dragon', 'emberheart', 14760, 180),
+  ('monster', 'elk_king', 'emberheart', 23000, 250),
+  ('monster', 'grim_reaper', 'emberheart', 24420, 220),
   ('node', 'copper_rock', 'deepvein_lodestar', 420000, 350),
   ('node', 'dawnstone_rock', 'deepvein_lodestar', 54000, 180),
   ('node', 'duskwood_tree', 'worldroot_seed', 49846, 179.9994),

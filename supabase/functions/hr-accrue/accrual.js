@@ -2044,16 +2044,27 @@ export function computeAccrual(input) {
       /* The delta the settle will PROPOSE is the eligible portion only. A grant
          at a tick the live credit already paid (curAtMs < xpEligibleFromMs) still
          happens in the simulation but is not re-proposed here. */
+      const applied = (Number(state.skills[skillId]) || 0) - before;
       if (curAtMs >= xpEligibleFromMs) {
-        const applied = (Number(state.skills[skillId]) || 0) - before;
         if (applied > 0) eligibleXp[skillId] = (eligibleXp[skillId] || 0) + applied;
+      }
+      /* A TIRED FIGHT LEVELS ON THE XP IT BANKS — see `fightSkills` below. Only
+         an eligible grant is scaled; one the live credit already paid is real. */
+      if (fightSkills !== state.skills && applied > 0) {
+        const k = skillId;
+        fightGain[k] = (fightGain[k] || 0) + (curAtMs >= xpEligibleFromMs ? applied * vigMult : applied);
+        fightSkills[k] = (Number(skills0[k]) || 0) + Math.floor(fightGain[k]);
+        if (k === 'hitpoints') {
+          const lv = levelFromXp(fightSkills[k]);
+          if (lv > state.playerMaxHp) state.playerMaxHp = lv;
+        }
       }
       for (const ev of res.events) {
         if (ev.type !== 'levelup') continue;
         /* The client raises max HP on a Hitpoints level (legacy.js:2003). The
            server must do the same or a long absence ends with a character whose
            max HP silently disagrees with their level. */
-        if (ev.skill === 'hitpoints') state.playerMaxHp = ev.to;
+        if (ev.skill === 'hitpoints' && fightSkills === state.skills) state.playerMaxHp = ev.to;
         /* ⚠ THE SIMULATION'S LEVEL-UPS ARE NOT THE RECEIPT'S. They are raised
            off `state.skills`, which grantXp advances on EVERY grant — including
            the grants before `xpEligibleFromMs` that the live credit already paid
@@ -2232,6 +2243,21 @@ export function computeAccrual(input) {
   const vigMult = vigBudgetMin === null ? 1 : vigourMult({
     spentMin: vigSpentMin, budgetMin: vigBudgetMin, windowMs: credit.paidMs,
   });
+  /* THE SKILLS THE FIGHT IS FOUGHT AT (b563). `grantXp` advances
+     `state.skills` by the RAW grant, but a tired window banks only
+     `vigMult` of it — so rolling against `state.skills` fought a tired hero at
+     levels the write never banks. One span did that for its whole length; the
+     10 s world-tick chain re-reads banked skills every window. Measured on
+     tests/world-tick-vigour-scale.mjs W1 (QA 09-29, Slime, tired): -14% to
+     -18% ticks/kills/gold/xp chain vs span once the b563 defence curve made a
+     level worth 0.02 monster accuracy (was 0.006, -0.5%: under the bar, never
+     zero). The rolls and the Hitpoints ceiling now read
+     `skills0 + floor(vigMult x eligible + ineligible)`, the expectation of
+     what both paths bank. Rested (`vigMult === 1`) it IS `state.skills`, the
+     same object, so every rested night and AWAY-1 are byte-identical. Draw-free.
+     The DELTA is untouched: XP is still proposed off `eligibleXp`. */
+  const fightSkills = vigMult === 1 ? state.skills : { ...skills0 };
+  const fightGain = Object.create(null);
 
   const ctx = {
     away: true,                    // this IS the away path (docs/design/away-time-ruling.md)
@@ -2272,12 +2298,12 @@ export function computeAccrual(input) {
          from the request. */
       const id = monsterIdIn(monsters, m);
       return playerCombatRolls(m, {
-        eq, equipment, items, skills: state.skills,
+        eq, equipment, items, skills: fightSkills,
         bonus, setBonus, profile, style, charms, trophies, monsterId: id,
       });
     },
     monsterRolls(m) {
-      return monsterCombatRolls(m, { eq, skills: state.skills, bonus });
+      return monsterCombatRolls(m, { eq, skills: fightSkills, bonus });
     },
     /* ⚠ VIGOUR RIDES THE DROP *CHANCE*, NOT THE DROP COUNT, AND THAT IS THE
          WHOLE REASON IT IS HERE AND NOT AT THE DELTA.

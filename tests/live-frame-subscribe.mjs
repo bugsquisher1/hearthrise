@@ -89,6 +89,10 @@ const MUTATIONS = {
   heal_trusts_any_answer: { kills: ['L13'], file: 'accrue',
     why: 'any answer arriving during a heal may lower the floor, not only the heal\'s own',
     from: "healTagged.get(res) : undefined;", to: "(floorHeal ? floorHeal.token : undefined) : undefined;" },
+  heal_answer_coerces: { kills: ['L13'], file: 'accrue',
+    why: 'SEC C3: the heal answer coerces its version, so version:null reads as frame 0 and drops the floor',
+    from: 'const v = body.ok === true ? frameVersion(body.version) : NaN;',
+    to: 'const v = body.ok === true ? Number(body.version) : NaN;' },
   heal_after_fresher: { kills: ['L13'], file: 'accrue',
     why: 'the heal answer lowers the floor even after something fresher landed',
     from: ' && lastAppliedFrame === floorHeal.floor;', to: ';' },
@@ -535,6 +539,26 @@ export async function liveFrameGuard(mutation) {
           'HTTP only: a late answer (46) after the watchdog heal wrote G (gold ' + r.G.gold + ', truth 500).');
         await h.answer({ ok: true, accrued: false, reason: 'idle', version: 50 });
         ok(A.getAppliedFrame() === 50 && r.G.gold === 500, 'L13', 'the idle heal answer at the floor moved it to ' + A.getAppliedFrame());
+      } finally { await h.restore(); }
+    }
+    for (const bad of [null, '4', NaN, undefined, -3]) {
+      /* (d) SEC C3 (repro R8): an ok:true idle heal answer whose version is not
+         a finite non-negative NUMBER closes the heal and KEEPS the floor —
+         `Number(null)` is 0 and `Number('4')` is 4, neither is the server's word. */
+      const r = rig(A, L);
+      const h = http(A, r.G);
+      try {
+        L.ensureLive(); r.c.status('SUBSCRIBED');
+        A.applyEnvelope(r.G, envAt(20, 200));
+        for (const v of [17, 18, 19]) A.applyEnvelope(r.G, envAt(v, 900 + v));
+        const healed = L.healStuckFloor();
+        await settleIo();
+        ok(healed === true && h.q.length === 1, 'L13', 'precondition (d ' + String(bad) + '): the watchdog heal did not fire');
+        await h.answer({ ok: true, accrued: false, reason: 'idle', version: bad });
+        ok(A.getAppliedFrame() === 20 && r.G.gold === 200, 'L13',
+          'an idle heal answer with version ' + JSON.stringify(String(bad)) + ' (' + typeof bad + ') moved the floor 20 → '
+          + A.getAppliedFrame() + ' (SEC C3).');
+        ok(A.getFloorHeal() === null, 'L13', 'an idle heal answer with version ' + String(bad) + ' left the heal open.');
       } finally { await h.restore(); }
     }
 

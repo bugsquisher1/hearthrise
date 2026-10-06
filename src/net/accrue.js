@@ -380,6 +380,15 @@ let frameHeldAt = null;
        (`commitFrame`), so a gate that proved itself unstuck is left alone.
    One answer per heal: the tag is consumed whatever it says. */
 let floorHeal = null;           // { token, floor } while one forced hello is out
+
+/* A FRAME/ANSWER VERSION IS A FINITE NUMBER OR IT IS NOTHING (SEC M5-client C3).
+   `Number(null)` is 0 and `Number('4')` is 4, so a coercing read turned an
+   unversioned idle heal answer into "the server is at frame 0" and dropped the
+   floor. The server stamps versions as JSON numbers; anything else is NaN here,
+   and every reader below treats NaN as unorderable (fail closed). */
+function frameVersion(x) {
+  return (typeof x === 'number' && Number.isFinite(x)) ? x : NaN;
+}
 let floorHealSeq = 0;
 const healTagged = new WeakMap();   // answer body → the heal token that asked for it
 
@@ -414,7 +423,7 @@ function healStillOpen(token) {
 export function healAnswer(body, token) {
   if (!body || typeof body !== 'object' || !floorHeal || floorHeal.token !== token) return body;
   if (body.ok === true && body.accrued === true) { healTagged.set(body, token); return body; }
-  const v = body.ok === true ? Number(body.version) : NaN;
+  const v = body.ok === true ? frameVersion(body.version) : NaN;
   if (Number.isSafeInteger(v) && v >= 0 && healStillOpen(token) && v < lastAppliedFrame) {
     lastAppliedFrame = v;
     frameHeldAt = null;
@@ -431,7 +440,7 @@ export function healAnswer(body, token) {
 function healSinceOf(res) {
   const token = (res && typeof res === 'object') ? healTagged.get(res) : undefined;
   if (token === undefined || !healStillOpen(token)) return null;
-  const v = Number(res.version);
+  const v = frameVersion(res.version);
   if (!Number.isSafeInteger(v) || v < 0 || v >= lastAppliedFrame) return null;
   return v - 1;
 }
@@ -442,7 +451,9 @@ function takeHealAnswer(res) {
   const token = healTagged.get(res);
   healTagged.delete(res);
   if (floorHeal && floorHeal.token === token) floorHeal = null;
-  lastAppliedFrame = Number(res.version);
+  const v = frameVersion(res.version);
+  if (!Number.isFinite(v)) return;    // unreachable behind the shape gate; never a NaN floor
+  lastAppliedFrame = v;
   frameHeldAt = null;
   clearFrameDrops();
 }
@@ -470,7 +481,7 @@ export const FRAME_VERDICTS = Object.freeze(['fresh', 'answer', 'duplicate', 're
  *    is above. Fail OPEN, in the function contracted to fail closed. */
 export function classifyFrame(version, since) {
   const floor = (typeof since === 'number' && Number.isFinite(since)) ? since : lastAppliedFrame;
-  const v = Number(version);
+  const v = frameVersion(version);
   if (!Number.isFinite(v)) return { apply: false, verdict: 'unversioned', frame: null, current: floor };
   if (v === floor && floor === lastAppliedFrame && v === frameHeldAt) {
     return { apply: true, verdict: 'answer', frame: v, current: floor };
@@ -484,7 +495,7 @@ export function classifyFrame(version, since) {
  *  RAISE-ONLY (CLAUDE.md §6), so a mis-ordered commit is a no-op, not a
  *  rewind. Returns true if the floor moved. */
 export function commitFrame(version) {
-  const v = Number(version);
+  const v = frameVersion(version);
   if (Number.isFinite(v) && v === frameHeldAt && v === lastAppliedFrame) {
     frameHeldAt = null;     // the answer owed to that frame has landed; the next copy is a duplicate
     clearFrameDrops();
@@ -508,7 +519,7 @@ export function isEnvelopeShapeComplete(res) {
   if (!res.skills || typeof res.skills !== 'object') return false;
   if (!res.inventory || typeof res.inventory !== 'object') return false;
   if (!res.away || typeof res.away !== 'object') return false;
-  if (!Number.isFinite(Number(res.version))) return false;
+  if (!Number.isFinite(frameVersion(res.version))) return false;
   return true;
 }
 
@@ -5306,7 +5317,7 @@ function applyAcceptedEnvelope(G, res) {
   /* The server owns `accrued_to`. Parking it here is what makes it visible to
      the countdown UI and to a bug report; nothing reads it as authority. */
   G._serverAccrual = {
-    version: Number(res.version),
+    version: Number.isFinite(frameVersion(res.version)) ? res.version : null,
     accruedTo: st.accrued_to || null,
     serverNow: res.now || null,
     at: nowMs(),
@@ -5616,7 +5627,7 @@ export function summaryFromAway(away, res) {
     /* THE HONEST LABEL. A renderer, a screenshot and a bug report can all tell
        a server-stated receipt from a locally-computed one. */
     serverAuthoritative: true,
-    version: Number(res && res.version) || null,
+    version: (res && Number.isFinite(frameVersion(res.version))) ? res.version : null,
   };
 }
 

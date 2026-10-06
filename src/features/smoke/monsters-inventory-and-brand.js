@@ -7780,32 +7780,44 @@ export default [
     }
   }),
 
-  /* ── SELL-SRV — EVERY SELL SPENDS THE SERVER'S BAG (§6, P1 class) ─────────
-     "Client shows X, server refuses": the vendor gestures gated and sized their
-     quantity on the DISPLAY bag G.inventory, which no envelope can lower. Each
-     test states a server bag that DISAGREES with the display bag and asserts the
-     wire carries the server's figure; then it removes the stated bag and asserts
-     nothing is sent (pending fails closed, no invented count).
-     MUTATION (each): read G.inventory again in that path → its first assert is red. */
-  () => tryRunAsync('SELL-SRV-1: Sell 1 gates on the server bag — none stated or none held sends nothing', async () => {
+  /* ── SELL-SRV — THE SELL GESTURES AND THE SERVER'S BAG (§6, both directions) ──
+     Sell All names and sells the stack the SERVER confirmed (Game Designer ruling
+     5): the display bag must never size it. Every OTHER sell is display-bounded and
+     lets the server answer: vendor_sell is collectsFirst (settle-first.js collects
+     the open window before hr_apply debits), so a log gathered since the last
+     envelope is real on the server and sells. A gate on the last bag may only
+     accept early, never refuse (DISCOVERIES 2026-10-03). */
+  /* MUTATION: put the sellableCount gate back in invSellOne → the first assert is
+     red; drop the addItem in sellReceipt → the refusal assert is red. (legacy
+     onItemTap's sell prompt got the same fix but is unreachable: window.onItemTap
+     opens the flyout, and the original is held only in a legacy.js closure.) */
+  () => tryRunAsync('SELL-SRV-1: Sell 1 sends a freshly gathered log the last server bag does not show, and render the server\'s answer', async () => {
     const G = window.G, snap = snapshotG(), bag = serverBagFixture(), realNotify = window.notify, toasts = [];
     window.notify = (m) => { toasts.push(String(m)); };
     try {
       G.lockedItems = {}; G.gold = 1000; stampBalanceLikeLoad(G);
-      G.inventory = { normal_log: 5 }; bag.agree({});   // the display shows 5; the server holds none
+      const unit = window.vendorPrice('normal_log');
+      G.inventory = { normal_log: 5 }; bag.agree({});   // gathered since the last envelope: the display shows 5, the last server bag none
       await withServerBacked({}, async (rig) => {
+        rig.reply((body) => rig.envelope({}, { receipt: { item: body.item, qty: body.qty, gold: body.qty * unit } }));
         window.invSellOne('normal_log'); await rig.drain();
-        assert(rig.sent.length === 0, 'Sell 1 sent ' + JSON.stringify(rig.sent) + ' for a log the SERVER says is not held — it gated on the display bag');
-        assert(G.inventory.normal_log === 5, 'the refused sale still took a log from the bag');
-        delete G._serverBag;   // unstated: pending
+        assert(rig.sent.length === 1 && rig.sent[0].verb === 'vendor_sell' && rig.sent[0].qty === 1,
+          'Sell 1 sent ' + JSON.stringify(rig.sent) + ' for a log the server holds (collect-first) but the LAST bag does not show — a gate on the last bag refused it');
+        assert(toasts.some((t) => t.indexOf('Sold 1×') === 0), 'the server\'s receipt was not rendered: ' + JSON.stringify(toasts));
+        delete G._serverBag;   // unstated: still the server's call, never a refusal
         window.invSellOne('normal_log'); await rig.drain();
-        assert(rig.sent.length === 0, 'Sell 1 sent with NO server bag stated — pending must fail closed');
-        assert(toasts.some((t) => /still counting your bag/.test(t)), 'the pending refusal was silent: ' + JSON.stringify(toasts));
-        bag.agree({ normal_log: 5 });   // CONTROL: the server agrees → it sells
+        assert(rig.sent.length === 2, 'Sell 1 refused while the bag was unstated: ' + JSON.stringify(rig.sent));
+        /* The server says no (insufficient_item is all-or-nothing): the gold rolls back, the log comes back, the toast says so. */
+        toasts.length = 0; bag.agree({});
+        const goldBefore = G.gold, logsBefore = G.inventory.normal_log | 0;
+        rig.reply(() => new Response(JSON.stringify({ ok: false, error: 'insufficient_item' }), { status: 409 }));
         window.invSellOne('normal_log'); await rig.drain();
-        assert(rig.sent.length === 1 && rig.sent[0].verb === 'vendor_sell' && rig.sent[0].qty === 1, 'CONTROL: an agreed bag did not sell: ' + JSON.stringify(rig.sent));
+        assert(rig.sent.length === 3, 'CONTROL: the refused sale never reached the wire');
+        assert(G.gold === goldBefore, 'a refused sale kept its predicted gold: ' + goldBefore + ' → ' + G.gold);
+        assert((G.inventory.normal_log | 0) === logsBefore, 'a refused sale kept the log off the bag: ' + logsBefore + ' → ' + (G.inventory.normal_log | 0));
+        assert(toasts.some((t) => /did not sell/.test(t)) && !toasts.some((t) => /^Sold/.test(t)), 'the refusal did not render the server\'s answer: ' + JSON.stringify(toasts));
       });
-    } finally { window.notify = realNotify; restoreG(snap); bag.restore(); }
+    } finally { window.notify = realNotify; try { window.HearthriseDialog.close(); } catch (e) {} restoreG(snap); bag.restore(); }
   }),
 
   () => tryRunAsync('SELL-SRV-2: Sell All sells the stack the server confirmed, names it, and the receipt is the server\'s', async () => {
@@ -7875,27 +7887,67 @@ export default [
     } finally { window.notify = realNotify; try { window.HearthriseDialog.close(); } catch (e) {} restoreG(snap); bag.restore(); }
   }),
 
-  () => tryRunAsync('SELL-SRV-5: quick-sell is bounded by the server bag and fails closed while it is unstated', async () => {
-    const G = window.G, snap = snapshotG(), bag = serverBagFixture(), realNotify = window.notify;
+  /* MUTATION: put the sellableCount cut back in quick-sell → the first assert is red. */
+  () => tryRunAsync('SELL-SRV-5: quick-sell sends the display-bounded count and shows the server\'s receipt — the last server bag never shrinks or refuses it', async () => {
+    const G = window.G, snap = snapshotG(), bag = serverBagFixture(), realNotify = window.notify, toasts = [];
     assert(typeof window.openQtySlider === 'function', 'the quick-sell slider is unpublished');
-    window.notify = () => {};
+    window.notify = (m) => { toasts.push(String(m)); };
     try {
       G.lockedItems = {}; G.gold = 1000; stampBalanceLikeLoad(G);
-      G.inventory = { normal_log: 50 }; bag.agree({ normal_log: 20 });
+      const unit = window.vendorPrice('normal_log');
+      G.inventory = { normal_log: 50 }; bag.agree({ normal_log: 20 });   // 30 gathered since the last envelope
       await withServerBacked({}, async (rig) => {
+        rig.reply((body) => rig.envelope({}, { receipt: { item: body.item, qty: body.qty, gold: body.qty * unit } }));
         window.openQtySlider('normal_log');
         document.getElementById('qs-num').value = '50';
         document.getElementById('qs-sell').click(); await rig.drain();
         const total = rig.sent.reduce((n, s) => n + ((s && s.qty) || 0), 0);
-        assert(total === 20, 'quick-sell sent ' + total + ' logs — the server holds 20, the display 50');
+        assert(total === 50, 'quick-sell sent ' + total + ' logs of the 50 shown — the last server bag (20) cut a sale the server would take');
+        assert(toasts.some((t) => t.indexOf('Sold 50×') === 0), 'quick-sell did not render the server\'s receipt: ' + JSON.stringify(toasts));
         rig.sent.length = 0;
         G.inventory = { normal_log: 50 }; delete G._serverBag;
         window.openQtySlider('normal_log');
         document.getElementById('qs-num').value = '5';
         document.getElementById('qs-sell').click(); await rig.drain();
-        assert(rig.sent.length === 0 && G.inventory.normal_log === 50, 'quick-sell sold with no server bag stated: ' + JSON.stringify(rig.sent));
+        assert(rig.sent.length === 1 && rig.sent[0].qty === 5, 'quick-sell refused while the bag was unstated: ' + JSON.stringify(rig.sent));
       });
     } finally { window.notify = realNotify; try { window.HearthriseDialog.close(); } catch (e) {} try { document.getElementById('qs-cancel').click(); } catch (e) {} restoreG(snap); bag.restore(); }
+  }),
+
+  /* SELL-SRV-6 — a sent Sell All holds its button until ITS answer: a second press
+     would resend the same confirmed count. MUTATION: drop the sellAllLock.has()
+     early return in invSellAll → the "sent twice" assert is red. */
+  () => tryRunAsync('SELL-SRV-6: after a Sell All is sent its button is disabled until that sell\'s answer, and a second press sends nothing', async () => {
+    const G = window.G, snap = snapshotG(), bag = serverBagFixture(), realNotify = window.notify;
+    assert(typeof window.sellAllPending === 'function', 'CONTROL: sellAllPending is unpublished');
+    window.notify = () => {};
+    const btn = () => Array.from(document.querySelectorAll('#inv-detail-overlay button')).find((b) => /^Sell All/.test(b.textContent.trim()));
+    try {
+      G.lockedItems = {}; G.gold = 1000; stampBalanceLikeLoad(G);
+      G.inventory = { normal_log: 40 }; bag.agree({ normal_log: 40 });
+      await withServerBacked({}, async (rig) => {
+        const rigFetch = window.fetch; let release = null, wire = 0;
+        window.fetch = function (u, init) {   // hold the answer: the button must wait on IT
+          if (!/hr-accrue/.test(String(u))) return rigFetch.apply(this, arguments);
+          wire++;
+          return new Promise((r) => { release = () => r(rigFetch.call(window, u, init)); });
+        };
+        try {
+          window.invSellAll('normal_log');
+          G.inventory = { normal_log: 40 };   // a stale display/bag: the same count still reads sellable
+          window.invSellAll('normal_log');
+          await rig.drain();
+          assert(wire === 1, 'two Sell All presses sent ' + wire + ' intents for one confirmed stack');
+          window.openInvDetail('normal_log');
+          assert(btn() && btn().disabled && /selling/.test(btn().textContent), 'the flyout\'s Sell All reads "' + (btn() && btn().textContent.trim()) + '" while its sell is out — it must be disabled');
+          assert(typeof release === 'function', 'CONTROL: the Sell All never reached the wire');
+          release(); await rig.drain();
+        } finally { window.fetch = rigFetch; }
+        assert(!window.sellAllPending('normal_log'), 'the answer did not release the Sell All');
+        const b = btn();
+        assert(!b || !b.disabled, 'the flyout did not repaint an enabled Sell All after the answer: "' + (b && b.textContent.trim()) + '"');
+      });
+    } finally { window.notify = realNotify; try { window.closeInvDetail(); } catch (e) {} restoreG(snap); bag.restore(); }
   }),
 
   /* SHOP-LOCK-1 — Quartermaster ruling: the pressed row reads "Buying…" and is
@@ -7933,8 +7985,39 @@ export default [
         release();
         await rig.drain();
         assert(!window.shopBuyPending(row.id, row.qty, row.cost) && btnFor() && btnFor().textContent.trim() === 'Buy', 'the answer did not release the row: "' + (btnFor() && btnFor().textContent.trim()) + '"');
+        /* THE ONE TEARDOWN: a held row is in the intent-latch registry, so the
+           per-test __resetAll releases it (MUTATION: drop the register call → red). */
+        window.fetch = function (u, init) { if (!/hr-accrue/.test(String(u))) return rigFetch.apply(this, arguments); return new Promise(() => {}); };
+        try { window.buyShopItem(row.id, row.qty, row.cost); } finally { window.fetch = rigFetch; }
+        assert(window.shopBuyPending(row.id, row.qty, row.cost), 'CONTROL: the third press did not hold the row');
+        const live = window.HearthriseIntentLatch.__resetAll();
+        assert(live >= 1 && !window.shopBuyPending(row.id, row.qty, row.cost), 'the intent-latch teardown did not release the shop row lock (live ' + live + ') — it is not registered');
       });
     } finally { restoreGAndRecord(snap); window.__shopBuyLock.reset(); try { window.renderShop(); } catch (e) {} }
+  }),
+
+  /* GOLD-DEADLINE-1 — the deadline spans the BODY read: headers came back, the
+     body never did. The call must end as a timeout (prediction stands, the lock
+     waiting on it releases), not hang until reload. MUTATION: clear the deadline
+     before reading the body (the old shape) → the race reads "hung". */
+  () => tryRunAsync('GOLD-DEADLINE-1: a gold intent whose body stalls after the headers ends as a timeout and releases its lock', async () => {
+    const Gd = window.HearthriseGold, G = window.G, snap = snapshotG();
+    assert(Gd && typeof Gd.sendGoldIntent === 'function', 'CONTROL: sendGoldIntent is unpublished');
+    const realFetch = window.fetch, hadCfg = Gd.getGoldConfig();
+    try {
+      Gd.resetGold(); Gd.configureGold({ url: 'https://probe.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
+      let calls = 0;
+      window.fetch = function (u) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        calls++;
+        return Promise.resolve({ ok: true, status: 200, json: () => new Promise(() => {}) });   // headers, then nothing
+      };
+      const p = Gd.sendGoldIntent({ verb: Gd.VENDOR_SELL_VERB, item: 'normal_log', qty: 1 }, Gd.newIntentKey(), { timeoutMs: 80 });
+      const r = await Promise.race([p, new Promise((res) => setTimeout(() => res('hung'), 1500))]);
+      assert(calls === 1, 'CONTROL: the intent never reached the wire (' + calls + ')');
+      assert(r !== 'hung', 'a body that stalled after the headers held the call past its deadline — "Buying…" until reload');
+      assert(r.outcome === 'timeout' && r.reason === 'body_stalled', 'a stalled body ended as ' + JSON.stringify(r && { outcome: r.outcome, reason: r.reason }) + ' — it must be a timeout (no verdict was read)');
+    } finally { window.fetch = realFetch; Gd.resetGold(); Gd.configureGold(hadCfg || null); restoreG(snap); }
   }),
 
   /* #33 (the seam, not the symptom). Every path that can lose an item must go

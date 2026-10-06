@@ -831,6 +831,37 @@ export function isIntentKey(k) { return typeof k === 'string' && UUID_RE.test(k)
 /* ── TRANSPORT ────────────────────────────────────────────────────────────── */
 export const GOLD_TIMEOUT_MS = 15000;
 
+/**
+ * ONE DEADLINE FOR THE WHOLE CALL — headers AND body. The first revision cleared
+ * the abort timer when fetch() resolved, so a body that stalled after the
+ * headers held `await res.json()` (and every "Buying…" lock waiting on it) until
+ * reload. `body(res)` races the read against the SAME deadline and answers
+ * {timedOut:true} when it fires; the caller reports `timeout` — never answered,
+ * the prediction stands and the next envelope settles it (settleVerdict).
+ * `ms` is the per-call override (tests); otherwise GOLD_TIMEOUT_MS.
+ */
+function callDeadline(ac, ms) {
+  let fired = false; const waiters = [];
+  const t = setTimeout(() => {
+    fired = true;
+    try { if (ac) ac.abort(); } catch (e) {}
+    waiters.splice(0).forEach((w) => w());
+  }, (Number(ms) > 0) ? Number(ms) : GOLD_TIMEOUT_MS);
+  return {
+    get fired() { return fired; },
+    clear() { clearTimeout(t); },
+    body(res) {
+      return new Promise((resolve) => {
+        const late = () => resolve({ timedOut: true, body: null });
+        if (fired) { late(); return; }
+        waiters.push(late);
+        Promise.resolve().then(() => res.json())
+          .then((b) => resolve({ timedOut: false, body: b }), () => resolve({ timedOut: fired, body: null }));
+      });
+    },
+  };
+}
+
 export function configureGold(cfg) {
   if (!cfg || !cfg.url) { config = null; return null; }
   config = {
@@ -931,8 +962,11 @@ function inert(outcome, verb, reason, detail, key) {
  * the next envelope settles it. `version_conflict` is the single code that
  * would be safe to retry and it is left to the caller's next gesture, because
  * an automatic retry of a purchase is a purchase the player did not make twice.
+ *
+ * @param opts  { timeoutMs } — the call's deadline (default GOLD_TIMEOUT_MS); it
+ *              spans the body read too (callDeadline).
  */
-export async function sendGoldIntent(req, key) {
+export async function sendGoldIntent(req, key, opts) {
   const verb = req && req.verb;
   if (!config) return inert('unconfigured', verb, 'no_endpoint', null, key);
   const token = tokenOf();
@@ -944,25 +978,26 @@ export async function sendGoldIntent(req, key) {
     ...req, url: config.url, apiKey: config.apiKey, token, slot, intentId: key,
   });
 
-  let ac = null; let timer = null;
+  let ac = null;
   try { ac = (typeof AbortController !== 'undefined') ? new AbortController() : null; } catch (e) { ac = null; }
-  const opts = ac ? { ...init, signal: ac.signal } : init;
-  if (ac) timer = setTimeout(() => { try { ac.abort(); } catch (e) {} }, GOLD_TIMEOUT_MS);
+  const fetchOpts = ac ? { ...init, signal: ac.signal } : init;
+  const dl = callDeadline(ac, opts && opts.timeoutMs);
 
   let res = null;
   try {
-    res = await fetch(url, opts);
+    res = await fetch(url, fetchOpts);
   } catch (e) {
-    const aborted = !!(ac && ac.signal && ac.signal.aborted);
-    if (timer) clearTimeout(timer);
+    dl.clear();
     /* NEVER ANSWERED. The prediction STANDS — see the header. */
-    return settleVerdict({ outcome: aborted ? 'timeout' : 'unreachable',
+    return settleVerdict({ outcome: dl.fired ? 'timeout' : 'unreachable',
       reason: String((e && e.message) || e) }, verb, key);
   }
-  if (timer) clearTimeout(timer);
-  let body = null;
-  try { body = await res.json(); } catch (e) { body = null; }
-  return settleVerdict({ ...classifyGoldResponse(res.status, body), status: res.status }, verb, key);
+  const read = await dl.body(res);
+  dl.clear();
+  /* Headers came back but the body never did: no verdict was READ, so this is a
+     timeout (the prediction stands), not a malformed answer. */
+  if (read.timedOut) return settleVerdict({ outcome: 'timeout', reason: 'body_stalled', status: res.status }, verb, key);
+  return settleVerdict({ ...classifyGoldResponse(res.status, read.body), status: res.status }, verb, key);
 }
 
 function settleVerdict(verdict, verb, key) {
@@ -1196,27 +1231,27 @@ async function buyTraitOnce(traitId, key) {
     slot: resolveActiveSlot(config.slot), intentId: key,
   });
 
-  let ac = null; let timer = null;
+  let ac = null;
   try { ac = (typeof AbortController !== 'undefined') ? new AbortController() : null; } catch (e) { ac = null; }
   const opts = ac ? { ...init, signal: ac.signal } : init;
-  if (ac) timer = setTimeout(() => { try { ac.abort(); } catch (e) {} }, GOLD_TIMEOUT_MS);
+  const dl = callDeadline(ac);   // the same deadline across the body read (see callDeadline)
 
   let res = null;
   try {
     res = await fetch(url, opts);
   } catch (e) {
-    const aborted = !!(ac && ac.signal && ac.signal.aborted);
-    if (timer) clearTimeout(timer);
+    const aborted = dl.fired;
+    dl.clear();
     /* NEVER ANSWERED. Nothing local moved, so there is nothing to reverse — the
        purchase either landed or it did not, and the next envelope (or a retry
        with the SAME key) settles it. */
     return done({ outcome: aborted ? 'timeout' : 'unreachable',
       reason: String((e && e.message) || e) });
   }
-  if (timer) clearTimeout(timer);
-  let body = null;
-  try { body = await res.json(); } catch (e) { body = null; }
-  return done({ ...classifyTraitResponse(res.status, body), status: res.status });
+  const read = await dl.body(res);
+  dl.clear();
+  if (read.timedOut) return done({ outcome: 'timeout', reason: 'body_stalled' });
+  return done({ ...classifyTraitResponse(res.status, read.body), status: res.status });
 }
 
 export function sellItem(itemId, qty, key) {

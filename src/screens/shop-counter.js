@@ -73,18 +73,31 @@ window.shopTab='seeds';
    window.shopTab (above) so the extracted painter and setShopTab (still here,
    below) share one identity. The purchase/redeem handlers stay global here. */
 function setShopTab(t){window.shopTab=t;document.querySelectorAll('[data-shop]').forEach(c=>c.classList.toggle('active',c.dataset.shop===t));renderShop();}
-/* THE ROW LOCK (Quartermaster ruling): the pressed row reads "Buying…" until
-   ITS answer — no timer. {size,reset} is published as __shopBuyLock and reset
-   after every test (smoke-test.js); it is the shape the intent-latch registry
-   takes, so it registers there when that lands. The epoch makes a reset hold's
-   late answer inert. */
-const _shopBuying=new Set(); let _shopBuyEpoch=0;
+/* AN ANSWER LOCK: a key is held from the send until ITS answer — no timer, the
+   answer is the event (the transport's own deadline bounds it: gold.js keeps one
+   across the body read). Each lock joins the intent-latch teardown registry
+   (HearthriseIntentLatch.register, {size,reset}) on its first hold — that module
+   loads after this classic script. The epoch makes a reset hold's late answer
+   inert. Used by the shop row ("Buying…", Quartermaster ruling) and Sell All. */
+function answerLock(onRelease){
+  const held=new Set(); let epoch=0;
+  const lock={
+    size(){return held.size;}, reset(){held.clear();epoch++;}, has(k){return held.has(k);},
+    hold(k,p){
+      held.add(k); const born=epoch;
+      const L=window.HearthriseIntentLatch; if(L&&typeof L.register==='function') L.register(lock);
+      const rel=()=>{ if(born===epoch&&held.delete(k)&&onRelease){ try{onRelease(k);}catch(e){} } };
+      Promise.resolve(p).then(rel,rel);
+    },
+  };
+  return lock;
+}
 const _shopBuyKey=(id,qty,cost)=>id+'|'+qty+'|'+cost;
-const shopBuyLock={ size(){return _shopBuying.size;}, reset(){_shopBuying.clear();_shopBuyEpoch++;} };
-function shopBuyPending(id,qty,cost){return _shopBuying.has(_shopBuyKey(id,qty,cost));}
+const shopBuyLock=answerLock(()=>renderShop());
+function shopBuyPending(id,qty,cost){return shopBuyLock.has(_shopBuyKey(id,qty,cost));}
 function buyShopItem(id,qty,cost){
   const _lk=_shopBuyKey(id,qty,cost);
-  if(_shopBuying.has(_lk)) return;   // this row is still waiting on its answer
+  if(shopBuyLock.has(_lk)) return;   // this row is still waiting on its answer
   if(!balCanAfford(cost,'gold')){notify(balShortfall(cost,'gold'),'kill');return;}
   /* The key is generated BEFORE the local payment so the prediction and the
      request carry one identity — that is what lets the envelope retire exactly
@@ -97,11 +110,7 @@ function buyShopItem(id,qty,cost){
      the catalogue disagree about refuses locally rather than charging a number
      the player never saw. No-op with the switch off. */
   const _p=(_k&&window.HearthriseGold)?window.HearthriseGold.buyShop(id,qty,cost,_k):null;
-  if(_p&&typeof _p.then==='function'){
-    _shopBuying.add(_lk); const born=_shopBuyEpoch;
-    const release=()=>{ if(born===_shopBuyEpoch&&_shopBuying.delete(_lk)){ try{renderShop();}catch(e){} } };
-    _p.then(release,release);
-  }
+  if(_p&&typeof _p.then==='function') shopBuyLock.hold(_lk,_p);
   notify(`Bought ${qty}× ${ITEMS[id]?.n}`,'loot');updateTopbar();renderShop();
 }
 /* ── COSMETICS: THE THIRD GEM TWIN, NOW THE THEME'S TWIN THE OTHER WAY. This
@@ -190,15 +199,17 @@ function vendorSellChunked(id, qty, site, sent){
     const chunk = Math.min(remaining, MAXQ);
     const _k = goldIntentKey();
     goldSettle(price * chunk, site, _k);
-    if(_k && S){ const _p = S.sellItem(id, chunk, _k); if(_p && _p.catch) _p.catch(()=>{}); if(sent && _p) sent.push(_p); }
+    if(_k && S){ const _p = S.sellItem(id, chunk, _k); if(_p && _p.catch) _p.catch(()=>{}); if(sent && _p) sent.push({ p: _p, qty: chunk }); }
     remaining -= chunk;
   }
   return price;
 }
 window.vendorSellChunked = vendorSellChunked;
-/* WHAT A SELL MAY SPEND: the bag the SERVER last stated (accrue.js
-   gateItemCount), never the display bag G.inventory (§6). NULL = unstated →
-   pending; the gesture fails closed and invents no count. */
+/* THE STACK THE SERVER LAST CONFIRMED (accrue.js gateItemCount); NULL = unstated.
+   Sell All names and sells THIS (Game Designer ruling 5). Every other sell is
+   display-bounded and lets the server answer: vendor_sell is collectsFirst, so
+   items gathered since the last envelope ARE sellable on the server, and a gate
+   on the last bag may only accept early, never refuse (DISCOVERIES 2026-10-03). */
 const SELL_PENDING_TITLE = 'Not counted yet — the realm is still counting your bag';
 function sellableCount(id){
   const A = window.HearthriseAccrual;
@@ -206,17 +217,28 @@ function sellableCount(id){
 }
 window.sellableCount = sellableCount;
 window.SELL_PENDING_TITLE = SELL_PENDING_TITLE;
+window.vendorSellReceipt = sellReceipt;   // onItemTap (legacy.js) and quick-sell (item-ux.js) show the server's answer too
+/* Sell All's answer lock, keyed by item id; the open flyout repaints on release. */
+const sellAllLock = answerLock((id) => { if(window._invDetailId === id){ try{ openInvDetail(id); }catch(e){} } });
+window.sellAllPending = (id) => sellAllLock.has(id);
 /* THE RECEIPT IS THE SERVER'S: the sum of each answered chunk's receipt
-   ({qty, gold}), never the count we asked for. Nothing sent → the local line. */
-function sellReceipt(it, qty, price, sent){
+   ({qty, gold}), never the count we asked for. Nothing sent → the local line.
+   A chunk the server provably did not write (refused — insufficient_item is
+   all-or-nothing — rate-limited, not signed in) had its gold rolled back by
+   gold.js; its items go back on the display bag here, so neither half of the
+   prediction outlives the server's "no". sent = [{p, qty}]. */
+function sellReceipt(id, qty, price, sent){
+  const it = ITEMS[id] || { n: id };
   if(!sent || !sent.length){ notify(`Sold ${qty}× ${it.n} for ${(price*qty).toLocaleString()} gold`,'loot'); return Promise.resolve(null); }
-  return Promise.all(sent.map((p) => Promise.resolve(p).then((r) => r, () => null))).then((rs) => {
-    const S = window.HearthriseGold; let sold = 0, gold = 0;
-    rs.forEach((r) => {
+  return Promise.all(sent.map((c) => Promise.resolve(c.p).then((r) => r, () => null))).then((rs) => {
+    const S = window.HearthriseGold; let sold = 0, gold = 0, back = 0;
+    rs.forEach((r, i) => {
+      if(r && S && typeof S.isProvablyUnwritten === 'function' && S.isProvablyUnwritten(r.outcome)) back += sent[i].qty | 0;
       if(!r || (r.outcome !== 'applied' && r.outcome !== 'replayed')) return;
       const rc = (S && typeof S.receiptOf === 'function') ? S.receiptOf(r.body) : null;
       if(rc){ sold += Number(rc.qty) || 0; gold += Number(rc.gold) || 0; }
     });
+    if(back > 0){ addItem(id, back, false); try{ renderInvNew(); }catch(e){} }
     if(sold > 0) notify(`Sold ${sold}× ${it.n} for ${gold.toLocaleString()} gold` + (sold < qty ? ` · ${qty - sold} not sold` : ''),'loot');
     else notify(`The realm did not sell your ${it.n} — your bag will settle`,'kill');
     return { sold, gold };
@@ -225,17 +247,17 @@ function sellReceipt(it, qty, price, sent){
 function invSellOne(id){
   const it = ITEMS[id]; if(!it) return;
   if(isItemLocked(id)){ notify(`${it.n} is locked — unlock it in your bag first`,'kill'); return; }
-  const held = sellableCount(id);
-  if(held === null){ notify(SELL_PENDING_TITLE,'info'); return; }
-  if(held <= 0){ notify('Nothing to sell','kill'); return; }
+  /* DISPLAY-BOUNDED, the server answers (see sellableCount): a log gathered
+     since the last envelope is real on the server and sells. */
+  if((G.inventory[id]||0) <= 0){ notify('Nothing to sell','kill'); return; }
   const price = vendorPrice(id);
   const _k = goldIntentKey();
   goldSettle(price, 'vendor.sell_one', _k);
   removeItem(id, 1);
   const sent = [];
-  if(_k && window.HearthriseGold){ const _p = window.HearthriseGold.sellItem(id, 1, _k); if(_p && _p.catch) _p.catch(()=>{}); if(_p) sent.push(_p); }
+  if(_k && window.HearthriseGold){ const _p = window.HearthriseGold.sellItem(id, 1, _k); if(_p && _p.catch) _p.catch(()=>{}); if(_p) sent.push({ p: _p, qty: 1 }); }
   recordVendorSale(id, 1, price);   // b240: undoable
-  sellReceipt(it, 1, price, sent);
+  sellReceipt(id, 1, price, sent);
   updateTopbar(); renderInvNew();
 }
 function invSellAll(id){
@@ -245,15 +267,20 @@ function invSellAll(id){
   const qty = sellableCount(id);
   if(qty === null){ notify(SELL_PENDING_TITLE,'info'); return; }
   if(qty <= 0){ notify('Nothing to sell','kill'); return; }
+  if(sellAllLock.has(id)) return;   // this stack's Sell All is still waiting on its answer
   const sent = [];
   const price = vendorSellChunked(id, qty, 'vendor.sell_all', sent);   // b377: ≤1,000 per intent
+  /* HELD UNTIL ITS OWN ANSWER: a second press would resend the same confirmed
+     count the first one already spent. Released when every chunk has answered
+     (its envelope applied), never by a timer. */
+  if(sent.length) sellAllLock.hold(id, Promise.all(sent.map((c) => Promise.resolve(c.p).catch(() => null))));
   /* b487 — THROUGH THE BAG SEAM, not `delete G.inventory[id]`. Sell All is the
      natural gesture for a single tool, and the raw delete skipped every
      consequence removeItem() owns — including the tool retime (#33: "sold the
      pickaxe, the boost still applied"). Same result on the bag, one writer. */
   removeItem(id, qty);
   recordVendorSale(id, qty, price);   // b240: undoable
-  sellReceipt(it, qty, price, sent);
+  sellReceipt(id, qty, price, sent);
   updateTopbar(); renderInvNew(); closeInvDetail();
 }
 function invSellSelected(){

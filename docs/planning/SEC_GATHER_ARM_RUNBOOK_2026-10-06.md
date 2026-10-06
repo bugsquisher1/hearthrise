@@ -14,13 +14,7 @@ V2 Tick and non-tick gather `accrue` rows for slot 2 never overlap: `tstzrange(m
 V3 The combat shadow keeps writing (about 40 rows/h in `hr_tick_shadow`). The stall check shows `watched_channels=[combat]` and stalled=false.
 V4 Edge `refused` in `hr_tick_cron_log` stays near 0. `shadow_state_while_armed`/`fenced_24h` may appear at most once, for the boundary window.
 V5 Gather tick rows keep landing (30/h or more while on gather). **C2 does not watch an armed channel (F2): V5 is the only gather-stall detector.**
-**KILL:** `node tools/apply-migration.mjs 2026-10-07-world-tick-disarm.sql` (staged; it keeps the shadow measuring). `enabled=false` stops everything. Pull it if any of these happen:
-- V1, V2 or V3 goes red.
-- Tick-paid qty/h is more than 1.01 x the probe rate.
-- Gather tick rows stop for more than 30 min.
-- Before re-enabling a tick that has been down for more than 6 h, ALWAYS kill first (F1).
-- An edge deploy lands without the gather differential.
-
+**KILL:** `node tools/apply-migration.mjs 2026-10-07-world-tick-disarm.sql` (staged; it keeps the shadow measuring). `enabled=false` stops everything. Pull it if: V1, V2 or V3 goes red; tick-paid qty/h exceeds 1.01 x the probe rate; gather tick rows stop for more than 30 min; an edge deploy lands without the gather differential. ALWAYS kill before re-enabling a tick that has been down more than 6 h (F1).
 **Edge deploys after arming:** wait at least 24 h (one full V cycle, one variable at a time). Arming resets nothing, but once gather is armed it has **no probe**, because probes only run on shadow windows (F3). Every deploy GO therefore carries the gather differential: probe snapshot, one-span run plus 10 s chain, old pack vs new pack, byte-identical. The Vigour-line split touches accrual.js/hunt.js, so it needs this. If the result is not identical, disarm first and re-earn 6 probes. Every deploy also restarts the M4 combat probe count. `vendor_sell_many` moves gold, so it needs its own Security GO.
 **F1 (CONFIRMED by execution plus fence code):** the armed catch-up ignores `cap_ms`. A raw watermark 12-24 h old is paid in full: 6,755 ore against accrue's capped 3,900 on the live snapshot. This is bounded today by P4 and the 2-character limit. **Fix this before widening the cohort:** either start armed windows at `greatest(accrued_to, now()-cap)`, or admit only within `cap_ms`.
 **F2:** add a judgement on the armed-channel ledger rate to `hr_tick_stall_status`/vitals. Until then, run V5 by hand.

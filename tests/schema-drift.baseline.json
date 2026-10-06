@@ -7,7 +7,7 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-10-06",
- "digest": "446989a9733983d4d92493a1bc452bb87a12768b513b563907da1fb4bbfe2266",
+ "digest": "6435a25e6d53ffeefe0a4b2714ded74b2278b04ff416c5cf2ed5bbfda4f50764",
  "counts": {
   "relations": 138,
   "functions": 348,
@@ -252,8 +252,8 @@
    "hr_bounty_kill_range(p_tier integer, p_difficulty text)",
    "hr_bounty_kills(p_user uuid, p_slot integer, p_target text)",
    "hr_bounty_reward(p_tier integer, p_type text, p_difficulty text)",
-   "hr_bounty_spend(p_slot integer, p_reason text, p_bounty_level integer, p_reward_marks bigint, p_idem uuid)",
-   "hr_bounty_spend__ungated(p_slot integer, p_reason text, p_bounty_level integer, p_reward_marks bigint, p_idem uuid)",
+   "hr_bounty_spend(p_slot integer, p_reason text, p_bounty_id text, p_idem uuid)",
+   "hr_bounty_spend__ungated(p_slot integer, p_reason text, p_bounty_id text, p_idem uuid)",
    "hr_bounty_unlocked_tier(p_cl integer)",
    "hr_buy_gem_unlock(p_unlock_id text, p_slot integer, p_idem uuid)",
    "hr_buy_gem_unlock__ungated(p_unlock_id text, p_slot integer, p_idem uuid)",

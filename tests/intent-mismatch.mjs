@@ -68,7 +68,7 @@ const MIG = '2026-09-03-intent-mismatch-class.sql';
    of this sweep is precisely the hole the sweep exists to see. */
 export const GUARDED = [
   'public.hr_bank_move(int,text,bigint,text,uuid)',
-  'public.hr_bounty_spend__ungated(int,text,int,bigint,uuid)',
+  'public.hr_bounty_spend__ungated(int,text,text,uuid)',     // 4-arg since 2026-10-04-bounty-abandon-server-fee.sql (guard carried from birth)
   'public.hr_buy_hero_slot__ungated(int,int,uuid)',
   'public.hr_claim_goal__ungated(text,boolean,int,uuid)',
   'public.hr_farm_harvest(int,int,uuid)',

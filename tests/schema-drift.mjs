@@ -762,6 +762,110 @@ const MUTATIONS = {
     patches: [],
     seedBefore: [['2026-09-23-frame-emit-from-apply.sql', DUPLICATING_TRANSPORT]],
   },
+  /* ── 2026-10-07, frame-emit-online-only (REL_M5_FLIP F4c, W2) ──────────
+     §9 installs a PROBE realtime transport where the schema is absent, so
+     its frame counts (v4–v9) EXECUTE in this replay rather than skipping.
+     frame_send_skips_gate is the proof of that: the gate's text stays in
+     front of the send (v0's source read is satisfied) and only the executed
+     offline settle at v4 can see that it no longer drops anything. */
+  frame_send_skips_gate: {
+    what: "hr_frame_send keeps the gate's text but no longer acts on it, so every tick frame for an offline character goes out — 28,800 per character-month against a 2 M quota",
+    expect: 'replay', // v4 raises: an OFFLINE character's tick settle sent 1 frame(s)
+    patches: [['2026-10-07-frame-emit-online-only.sql', [[
+      "    if not public.hr_frame_wanted(p_user, p_slot) then return; end if;",
+      "    if not public.hr_frame_wanted(p_user, p_slot) and false then return; end if;",
+    ]]]],
+  },
+  frame_offline_tick_wanted: {
+    what: "hr_frame_wanted answers true for a tick frame whoever is watching, so the gate is decoration",
+    expect: 'replay', // v2c raises: a tick frame for a character that has NEVER heartbeat was wanted
+    patches: [['2026-10-07-frame-emit-online-only.sql', [[
+      "  return v_seen is not null\n     and v_seen >  now() - c_ttl",
+      "  return true or v_seen is not null\n     and v_seen >  now() - c_ttl",
+    ]]]],
+  },
+  frame_http_gated: {
+    what: "the gate stops distinguishing origins, so an HTTP-originated envelope for a character with no fresh heartbeat is dropped — the brief keeps HTTP unchanged",
+    expect: 'replay', // v2a raises: a NON-tick frame for a never-seen character was suppressed
+    patches: [['2026-10-07-frame-emit-online-only.sql', [[
+      "  if coalesce(current_setting('hr.frame_origin', true), '') <> 'tick' then\n    return true;\n  end if;",
+      "  if false then\n    return true;\n  end if;",
+    ]]]],
+  },
+  frame_ttl_widened: {
+    what: "the online TTL is widened to an hour, so a tab closed 59 minutes ago still costs a frame every 90 s",
+    expect: 'replay', // v2e raises: a 10-minute-old heartbeat counted as online
+    patches: [['2026-10-07-frame-emit-online-only.sql', [[
+      "c_ttl  constant interval := interval '75 seconds';",
+      "c_ttl  constant interval := interval '1 hour';",
+    ]]]],
+  },
+  frame_future_stamp_online: {
+    what: "a last_seen_at in the future reads as online, so one garbage stamp pins a character's frames on forever",
+    expect: 'replay', // v2i raises: a heartbeat from the FUTURE counted as online
+    patches: [['2026-10-07-frame-emit-online-only.sql', [[
+      "     and v_seen >  now() - c_ttl\n     and v_seen <= now() + interval '60 seconds';",
+      "     and v_seen >  now() - c_ttl;",
+    ]]]],
+  },
+  frame_tick_marker_lost: {
+    what: "hr_tick_settle no longer marks its transaction, so the gate reads every tick frame as HTTP and sends it to offline characters",
+    expect: 'replay', // v1 raises: tick writers reach hr_apply without first marking the transaction
+    patches: [['2026-10-07-frame-emit-online-only.sql', [[
+      "  --         character with no live window (2026-10-07-frame-emit-online-only.sql).\n"
+      + "  perform set_config('hr.frame_origin', 'tick', true);",
+      "  --         character with no live window (2026-10-07-frame-emit-online-only.sql).\n"
+      + "  perform 1;",
+    ]]]],
+  },
+  frame_party_marker_lost: {
+    what: "hr_party_tick_settle no longer marks its transaction, so a party fan-out pushes a frame to every offline member",
+    expect: 'replay', // v1 / v1b / v3 raise
+    patches: [['2026-10-07-frame-emit-online-only.sql', [[
+      "  --         with no live window (2026-10-07-frame-emit-online-only.sql).\n"
+      + "  perform set_config('hr.frame_origin', 'tick', true);",
+      "  --         with no live window (2026-10-07-frame-emit-online-only.sql).\n"
+      + "  perform 1;",
+    ]]]],
+  },
+  frame_heartbeat_pays: {
+    what: "an online character is paid double by the tick — the heartbeat, a client-triggered stamp, becomes worth gold",
+    expect: 'replay', // v7 raises: the same delta paid differently ONLINE than OFFLINE
+    patches: [['2026-10-07-frame-emit-online-only.sql', [[
+      "  --         character with no live window (2026-10-07-frame-emit-online-only.sql).\n"
+      + "  perform set_config('hr.frame_origin', 'tick', true);",
+      "  --         character with no live window (2026-10-07-frame-emit-online-only.sql).\n"
+      + "  perform set_config('hr.frame_origin', 'tick', true);\n"
+      + "  if public.hr_frame_wanted(p_user, p_slot) then\n"
+      + "    p_delta := jsonb_set(p_delta, '{gold}', to_jsonb(coalesce((p_delta->>'gold')::bigint, 0) * 2));\n"
+      + "  end if;",
+    ]]]],
+  },
+  slot_threshold_lowered: {
+    what: "the slot detector's safe-WAL line drops to 38 MB, so it pages after Postgres has already invalidated the slot",
+    expect: 'replay', // s1e raises: safe_wal_size one byte under 384 MB was not flagged
+    patches: [['2026-10-07-frame-emit-online-only.sql', [[
+      "c_min_safe constant numeric := 384 * 1048576;",
+      "c_min_safe constant numeric := 38 * 1048576;",
+    ]]]],
+  },
+  slot_w3_stale_expectation: {
+    what: "the W3 arm goes back to 'exactly one publication row', so the healthy production shape (chat_messages in supabase_realtime) pages forever",
+    expect: 'replay', // s1a raises: the HEALTHY production shape raised frames_double_published
+    patches: [['2026-10-07-frame-emit-online-only.sql', [[
+      "             where coalesce((e->>'all_tables')::boolean, false)\n"
+      + "                or (e->>'schema' = 'realtime' and e->>'rel' = 'messages')) x;",
+      "            ) x;",
+    ]]]],
+  },
+  slot_alert_not_deduped: {
+    what: "the alert writer loses its ref dedupe, so a red slot files a row every five minutes — and the second insert in an hour aborts the cron run",
+    expect: 'replay', // s3c: the second call raises unique_violation on maintenance_alerts.ref
+    patches: [['2026-10-07-frame-emit-online-only.sql', [[
+      "    on conflict (ref) do nothing;\n    get diagnostics v_one = row_count;",
+      "    ;\n    get diagnostics v_one = row_count;",
+    ]]]],
+  },
   reopen_a11: {
     what: 'the beta_invites lockdown GUC is unset, so a rebuild leaves every invite code world-readable',
     expect: 'replay', // live-market-rls §3b raises without it, by design

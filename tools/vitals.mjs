@@ -305,6 +305,14 @@ const STALL_RULE_TEXT = `STALL = tick in SHADOW mode and EACH of the last ${STAL
   + ` >= 1 posted fire with rostered >= 1 AND < ${STALL_RULE.minRowsPerHour} hr_tick_shadow rows`
   + ' (hr_tick_stall_status(now(), 2, 30), restated; an hour with no rostered fire = NO VERDICT).';
 
+// ── REALTIME SLOT HEALTH (2026-10-07, REL_M5_FLIP W2/W3) ─────────────────────
+// ONE call, no restatement: public.hr_slot_health() is SELECT-only and holds the
+// rule (0 pgoutput slots, a slot not 'reserved', safe WAL < 384 MB, frame rows
+// not in exactly one publication). 2026-10-07-frame-emit-online-only.sql grants
+// it to supabase_read_only_user, which is who this endpoint runs as. Before that
+// file is applied the call fails and the line says so.
+const SLOT_HEALTH = 'select public.hr_slot_health() as h';
+
 const refusalsMode = process.argv.includes('--refusals');
 const worldTickMode = process.argv.includes('--world-tick');
 const selftestMode = process.argv.includes('--selftest');
@@ -314,7 +322,7 @@ const chosen = refusalsMode ? REFUSALS : worldTickMode ? WORLD_TICK : QUERY;
 // send is checked, not just the one the flag selected. A second query added
 // later must not be able to ride in unchecked behind the first one's clearance.
 const selectOnly = (sql) => !/\b(insert|update|delete|create|alter|drop|grant|revoke|truncate|call|do)\b/i.test(sql);
-for (const sql of [QUERY, REFUSALS, REFUSAL_TABS, WORLD_TICK, WORLD_TICK_MODE]) {
+for (const sql of [QUERY, REFUSALS, REFUSAL_TABS, WORLD_TICK, WORLD_TICK_MODE, SLOT_HEALTH]) {
   if (!selectOnly(sql)) {
     console.error('vitals: refusing — query is not SELECT-only'); process.exitCode = 2; throw new Error('not select-only');
   }
@@ -523,6 +531,17 @@ if (selftestMode) {
         + ' | --world-tick for the hours');
     } catch (e) {
       console.log(`\nworld tick: UNREAD — ${e.message} (the exit code says so)`);
+    }
+    // The cron job hr-slot-health files maintenance_alerts on the same rule;
+    // this line is the read a person sees at session start.
+    try {
+      const h = (await ask(SLOT_HEALTH, { soft: true }))[0]?.h || {};
+      const codes = (h.alarms || []).map((a) => `${a.code}(${a.severity})`).join(' ');
+      console.log(`realtime slots: ${h.ok ? 'OK' : `ALARM ${codes}`} — pgoutput ${h.pgoutput_slots}/${h.slots} slot(s), `
+        + `min safe ${h.min_safe_mb ?? '?'} MB (line 384)`);
+    } catch (e) {
+      console.log(`realtime slots: UNREAD — hr_slot_health() not callable (${e.message}); `
+        + 'is 2026-10-07-frame-emit-online-only.sql applied?');
     }
   }
 }

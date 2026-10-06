@@ -264,6 +264,18 @@ const MUTATIONS = {
 let failed = 0;
 const ok = (cond, msg) => { if (!cond) { failed++; console.error(`  FAIL  ${msg}`); } };
 
+/* ...and the frame gate's (2026-10-07-frame-emit-online-only.sql). It reads
+   last_seen_at and its §9 v7 drives hr_heartbeat, so a heartbeat defect planted
+   here (heartbeat_bumps_version) is refused by THAT file first. It is a later
+   layer over the same column, not this guard's measurement, so it is disarmed
+   with the others. */
+const MIG_FRAME_ONLINE = '2026-10-07-frame-emit-online-only.sql';
+const DISARM_FRAME_ONLINE = [
+  '    -- ── v0: THE GATE IS ON THE PATH, AND IN FRONT OF THE SEND',
+  '    return;  -- §9 self-check disarmed by the mutation proof (tests/town-presence.mjs)\n'
+  + '    -- ── v0: THE GATE IS ON THE PATH, AND IN FRONT OF THE SEND',
+];
+
 async function boot(mutate) {
   // MIG's own §13 gate is ALWAYS disarmed (see DISARM_GATE); the arm's defect goes
   // into whichever file is the LAST toucher of the body it targets.
@@ -273,6 +285,7 @@ async function boot(mutate) {
     [MIG_ON, [DISARM_ON]],
     [MIG_COOLDOWN, [DISARM_COOLDOWN]],
     [MIG_PRUNE, [DISARM_PRUNE]],
+    [MIG_FRAME_ONLINE, [DISARM_FRAME_ONLINE]],
   ]);
   if (mutate) {
     const m = MUTATIONS[mutate];

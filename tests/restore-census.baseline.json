@@ -33,7 +33,7 @@
   "Classifications are AUTHORED, never generated — deciding what a restore owes",
   "a table is a judgement, and --write preserves whatever is already here."
  ],
- "generated": "2026-09-26",
+ "generated": "2026-10-06",
  "production": {
   "measured": "2026-08-30",
   "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Micro compute)",
@@ -407,6 +407,7 @@
    "hr-market-sales-prune | 45 3 * * * | select public.market_sales_prune()",
    "hr-progress-prune | 25 4 * * * | select public.hr_progress_prune()",
    "hr-rejections-prune | 35 4 * * * | select public.hr_rejections_prune()",
+   "hr-slot-health | */5 * * * * | select public.hr_slot_health_alert()",
    "hr-tick-cron-log-prune | 37 * * * * | select public.hr_tick_cron_log_prune(20000)",
    "hr-tick-probe-prune | 29 * * * * | select public.hr_tick_probe_prune(20000)",
    "hr-tick-run | 10 seconds | select public.hr_tick_cron_run()",

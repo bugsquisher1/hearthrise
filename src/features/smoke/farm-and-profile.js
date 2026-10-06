@@ -3067,7 +3067,7 @@ export default [
     const wire = holdWire('/rpc/hr_farm_upgrade_plot'), toasts = catchToasts();
     let level = 1;
     try {
-      G.plotLevels = 1; G._serverPlotLevel = 1;          // the server mirror p_expect_level is named from
+      G._serverPlotLevel = 1;                            // the server mirror: p_expect_level is named from it, G.plotLevels converges to it
       G.inventory.farm_deed = 0; G.gold = 1e7; G.skills.farming = 1e9;
       wire.auto = () => ({ ok: true, plot_level: ++level, paid_with: 'gold', gold_spent: 500, gold: 1e7 });
       assert(F.upgradePlot() === true, 'the first tap was refused by the pre-flight: ' + JSON.stringify(F.getUpgradeCheck()));

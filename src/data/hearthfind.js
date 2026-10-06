@@ -61,7 +61,7 @@
 //        grim_reaper 111 kills/h   (accuracy .95, max hit 60 vs 388 hp)
 //        dragon       82 kills/h   (accuracy .95, max hit 59 vs 520 hp)
 //
-//   RE-MEASURED b563 (was 91 / 113 / 83): the defence curve (monster accuracy
+//   RE-MEASURED 2026-10-06 (was 91 / 113 / 83): the defence curve (monster accuracy
 //   0.02 a point, floor 0.05) halves the bosses' landed hits on this plated
 //   character, so the fixed seed walks a different draw path — the player's
 //   own rolls are unchanged. Hours stay as ruled; the derived one_in moves <2%.

@@ -65,11 +65,11 @@ export const COMBAT_BALANCE = {
   playerBaseMaxHit: 2,
   monsterDefenseDamageReduction: 0.03,
   monsterBaseAccuracy: 0.50,
-  /* b563 (Game Designer ruling 2026-10-06): food is the price of fighting at
+  /* Game Designer ruling 2026-10-06: food is the price of fighting at
      or above your level, never of fighting something you out-class. At 0.006
      a Combat-25 hero 35 defence over a Slime still lost ~200 HP/h; at 0.02 the
      same gap reaches the floor. Measured with the real simulateTick (tier
-     sweep in the b563 report): an own-tier hero still eats ~20-33 meals/h,
+     sweep in the defence-curve report): an own-tier hero still eats ~20-33 meals/h,
      gold/xp per FED hour are unchanged, and away pay rises only by uptime
      (gold per kill unchanged). Shared with hr-accrue: moves LIVE away pay. */
   monsterAccuracyPerPoint: 0.02,

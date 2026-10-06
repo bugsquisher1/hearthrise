@@ -2243,13 +2243,13 @@ export function computeAccrual(input) {
   const vigMult = vigBudgetMin === null ? 1 : vigourMult({
     spentMin: vigSpentMin, budgetMin: vigBudgetMin, windowMs: credit.paidMs,
   });
-  /* THE SKILLS THE FIGHT IS FOUGHT AT (b563). `grantXp` advances
+  /* THE SKILLS THE FIGHT IS FOUGHT AT (2026-10-06). `grantXp` advances
      `state.skills` by the RAW grant, but a tired window banks only
      `vigMult` of it — so rolling against `state.skills` fought a tired hero at
      levels the write never banks. One span did that for its whole length; the
      10 s world-tick chain re-reads banked skills every window. Measured on
      tests/world-tick-vigour-scale.mjs W1 (QA 09-29, Slime, tired): -14% to
-     -18% ticks/kills/gold/xp chain vs span once the b563 defence curve made a
+     -18% ticks/kills/gold/xp chain vs span once the 2026-10-06 defence curve made a
      level worth 0.02 monster accuracy (was 0.006, -0.5%: under the bar, never
      zero). The rolls and the Hitpoints ceiling now read
      `skills0 + floor(vigMult x eligible + ineligible)`, the expectation of

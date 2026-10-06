@@ -96,7 +96,7 @@ export const START_SKILL_XP = Object.freeze({
    lesson "fish, then cook, then fight" is the one the first hour has to teach,
    and it teaches far better from an empty food slot than from a corpse.
 
-   b563 RE-MEASURE (monster accuracy 0.006 -> 0.02 per defence point, same
+   RE-MEASURED 2026-10-06 (monster accuracy 0.006 -> 0.02 per defence point, same
    fresh save, 400 seeds): the curve pivots at defence == foe attack, so a
    level-1 hero is hit slightly MORE — dmg per kill Slime 2.91 -> 2.99, Goblin
    5.53 -> 6.11, Wolf Cub 14.09 -> 16.39. The bridge is ~26 goblin kills, not

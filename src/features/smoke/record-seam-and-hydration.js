@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 110 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, applyAwayEnvelope, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, on, snapshot, freshFrameGate, closeOverlays, serverBagFixture } from './_harness.js?v=560';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, applyAwayEnvelope, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, on, snapshot, freshFrameGate, closeOverlays, serverBagFixture } from './_harness.js?v=561';
 
 /* A RUNNING SMITHING BENCH ON A SCRIPTED WIRE — written once, driven by the two
    recipe-switch regressions below. See their header for the report. */
@@ -2848,7 +2848,7 @@ export default [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../../data/start-kit.js?v=560');
+    const KIT = await import('../../data/start-kit.js?v=561');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -2938,7 +2938,7 @@ export default [
        test pins the PROPERTY that shape exists for, so a future edit that keeps
        the shape honest while swapping the bridge for a prettier item that heals
        3 fails here instead of shipping. */
-    const KIT = await import('../../data/start-kit.js?v=560');
+    const KIT = await import('../../data/start-kit.js?v=561');
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     assert(AE && typeof AE.isAutoEatable === 'function',
       'HearthriseCore.autoEat.isAutoEatable missing — cannot grade the starting food');
@@ -3052,7 +3052,7 @@ export default [
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     const RNGM = window.HearthriseCore && window.HearthriseCore.rngMod;
     const ST = window.HearthriseCore && window.HearthriseCore.styles;
-    const KIT = await import('../../data/start-kit.js?v=560');
+    const KIT = await import('../../data/start-kit.js?v=561');
     if (!CS || !C || !AE || !RNGM || !ST) { skip('core sim unavailable'); return; }
 
     const eqp = { weapon: KIT.START_EQUIPMENT.weapon };
@@ -5175,7 +5175,7 @@ export default [
        in a CLASSIC script with no exports, so the only honest way to assert them
        is against the shipped bytes. Fetched from the same origin the engine
        loaded from, the way B-accrue and the observability guard already do. */
-    const src = await (await fetch('src/legacy.js?v=560')).text();
+    const src = await (await fetch('src/legacy.js?v=561')).text();
     assert(src.length > 100000, 'legacy.js did not come back — this guard would be vacuous');
 
     /* (1) THE FORGET. `loadLocal()`'s capstone early return skipped it, so the
@@ -8422,18 +8422,46 @@ export default [
   }),
 
   () => tryRun('MP-R4: the listing hint quotes the vendor\'s real bid', () => {
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     try {
       assert(window.ITEMS.iron_ore && window.ITEMS.iron_ore.raw === true, 'fixture: iron_ore must be a raw material');
       const bid = window.vendorPrice('iron_ore'), v = window.ITEMS.iron_ore.v;
       assert(bid !== v, 'fixture: a raw item\'s vendor bid must differ from its v (' + bid + ' vs ' + v + ')');
-      window.addItem('iron_ore', 2); window.renderMarket();
+      window.addItem('iron_ore', 2); bag.agree(); window.renderMarket();
       const pick = document.getElementById('mk-list-id');
       pick.value = 'iron_ore'; pick.dispatchEvent(new Event('change'));
       const hint = document.getElementById('mk-list-hint').textContent;
       assert(hint.indexOf('pays ' + bid + 'g') >= 0 && hint.indexOf(v + 'g each') < 0,
         'the Market quoted a vendor price the vendor does not pay: "' + hint + '" (vendor pays ' + bid + 'g)');
-    } finally { restoreG(snap); }
+    } finally { bag.restore(); restoreG(snap); }
+  }),
+
+  /* MP-R7 (CLAUDE.md §6, found at a visual gate): the listing SHEET reads the bag listItem
+     gates on. A picker / hint / default quantity off G.inventory offered a stack the
+     server's market_list then refused; an unstated bag must say so and stay shut. */
+  () => tryRun('MP-R7: the listing sheet offers the server\'s bag, never the display bag', () => {
+    const snap = snapshotG(), bag = serverBagFixture();
+    try {
+      window.addItem('normal_log', 5); window.addItem('iron_ore', 4);
+      bag.agree({ normal_log: 2 });   // the server holds 2 logs and no ore
+      window.renderMarket();
+      const pick = document.getElementById('mk-list-id');
+      const opt = [...pick.options].find((o) => o.value === 'normal_log');
+      assert(opt && opt.getAttribute('data-have') === '2' && /\(2\)/.test(opt.textContent),
+        'the picker counted the display bag, not the server\'s: ' + (opt ? opt.textContent + ' have=' + opt.getAttribute('data-have') : 'no normal_log option'));
+      assert(![...pick.options].some((o) => o.value === 'iron_ore'), 'the picker offered ore the server does not hold');
+      pick.value = 'normal_log'; pick.dispatchEvent(new Event('change'));
+      const qty = document.getElementById('mk-list-qty'), hint = document.getElementById('mk-list-hint').textContent;
+      assert(qty.value === '2' && qty.max === '2', 'the default quantity is not the server\'s count: value ' + qty.value + ', max ' + qty.max);
+      assert(/You have 2\b/.test(hint), 'the hint did not quote the server\'s count: "' + hint + '"');
+      delete window.G._serverBag;   // no envelope has stated the bag
+      window.renderMarket();
+      const btn = document.getElementById('mk-list-btn'), h2 = document.getElementById('mk-list-hint').textContent;
+      const p2 = document.getElementById('mk-list-id');
+      assert(btn.disabled === true, 'an unstated bag left the List button open');
+      assert(/still being counted/.test(h2), 'an unstated bag was not said: "' + h2 + '"');
+      assert(![...p2.options].some((o) => o.value), 'an unstated bag invented counts: ' + [...p2.options].map((o) => o.textContent).join(' | '));
+    } finally { bag.restore(); restoreG(snap); window.renderMarket(); }
   }),
 
   () => tryRun('MP-R5: ledger totals name their window', () => {

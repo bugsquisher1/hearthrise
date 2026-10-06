@@ -424,6 +424,11 @@ body[data-theme="hearthlight"] #panel-house .hh-room-badge,
 .hr-room-wrap[data-room-theme="trophy"]   .hr-cs-qty.is-full {
   color: var(--green, var(--gold-2));
 }
+/* An uncounted balance ("—/500 Gold") is neither met nor short: neutral ink,
+   the same pending treatment as the House card's `.hh-cost.is-pending`. */
+.hr-room-wrap[data-room-theme] .hr-cs-qty.is-pending {
+  color: var(--ink-3);
+}
 
 /* ── mobile ───────────────────────────────────────────────────────────
    The project's standard breakpoint (portrait phones AND landscape phones).

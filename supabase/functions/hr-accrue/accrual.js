@@ -2992,10 +2992,19 @@ export function computeAccrual(input) {
      ⚠ ONE ENGINE, ALL THREE CALLERS. attended, away and the world tick reach
        this line through the same computeAccrual (AWAY-1; AWAY-12 forbids a
        second path), and `vigourCharge` is a pure function of `grantMs` with no
-       carried state, so there is nothing for the three to thread differently. */
+       carried state, so there is nothing for the three to thread differently.
+
+     ⚠ THE CONSUMED MS, NOT `grantMs` (SEC_WORLD_TICK_VIGOUR_2026-10-05 (a)).
+       An uncapped window stamps `accrued_to` at `now - deferredMs`: the
+       half-wound swing is left OPEN and the next window re-simulates it. Charging
+       `grantMs` charged that tail here AND again next window — +10% at the 10 s
+       tick (132 min for 120), the S-1 cadence class with the sign flipped. The
+       charge is the span the watermark actually advanced over, so the windows of
+       any chain tile the timeline exactly once. A capped window defers nothing
+       (deferredMs 0) and charges the `grantMs` it paid. */
   if (vigIn && vigIn.day_key) {
     const period = String(vigIn.day_key);
-    const { addMin, remMs } = vigourCharge(grantMs);
+    const { addMin, remMs } = vigourCharge(grantMs - deferredMs);
     if (addMin > 0) {
       progress.push({ kind: 'daily', key: VIGOUR_PROGRESS_KEY,
         period, add: addMin, state: 'active' });

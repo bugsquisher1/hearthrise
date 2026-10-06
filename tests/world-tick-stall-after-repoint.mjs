@@ -110,7 +110,7 @@ const one = async (sql, p) => (await db.query(sql, p)).rows[0];
 
 const holder = (await one("select left('cron:' || coalesce(current_database(), 'db'), 64) as h")).h;
 await db.exec("update public.hr_tick_config set channels = array['combat','gather']::text[],"
-  + ' enabled = true, shadow = true where id;');
+  + ' enabled = true, armed_channels = array[]::text[] where id;');
 
 const TS_COLS = (await db.query(
   "select column_name from information_schema.columns where table_schema = 'public'"

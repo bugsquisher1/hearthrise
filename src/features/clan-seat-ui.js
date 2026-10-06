@@ -2011,10 +2011,10 @@
       var label = '<span class="hr-si">' + esc(c.label) + '</span>';
       var title = insp ? ' title="' + esc(c.label + hint) + '"' : '';
       /* `known === false` is a balance the server has not sent yet. It is
-         neither full nor short — it renders as the pending dash, the same
-         glyph the rest of the game uses for that state. */
+         neither full nor short (`is-pending`, never the short red) — it renders
+         as the pending dash, the glyph the rest of the game uses for that state. */
       if (c.known === false) {
-        return '<span class="hr-cs-qty"' + insp + title + '><span class="bal-pending" role="status" '
+        return '<span class="hr-cs-qty is-pending"' + insp + title + '><span class="bal-pending" role="status" '
           + 'title="Waiting for the server">—</span>/' + nfmt(c.need) + ' ' + label + '</span>';
       }
       return '<span class="hr-cs-qty' + (c.have != null && c.have >= c.need ? ' is-full' : '') + '"' + insp + title + '>' +

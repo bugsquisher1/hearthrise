@@ -11272,8 +11272,7 @@ function refreshActivityBar(){
         const _sk = Object.keys(_st.xp).sort((a,b)=>_st.xp[b]-_st.xp[a])[0];
         const _x = _sk ? skillXp(_sk) : 0;
         const _xv = { skill: _sk, name: SKILLS_DEF[_sk]?.name, level: levelFromXp(_x), toGo: xpToNext(_x), glyph: _hrGly(_sk, 13) };
-        /* Fail-safe: before main.js publishes the builder (this classic script runs first)
-           the chip still draws, in the plain letters form - no chip is ever hidden. */
+        // Fail-safe: before main.js publishes the builder the chip draws in its letters form.
         if(_sk) xpChip = _BF ? _BF.xpChip(_xv) : (() => {
           const _max = _xv.level >= 99, _l = _sk.slice(0,3).toUpperCase(), _said = escapeHtml((_xv.name||_sk)+' '+(_max?99:_xv.level)+(_max?'':' · '+_xv.toGo.toLocaleString()+' XP to go'));
           return '<span class="ab-xp" role="img" title="'+_said+'" aria-label="'+_said+'">'+_l+' <b>'+(_max?99:_xv.level)+'</b>'+(_max?'':' · '+_xv.toGo.toLocaleString()+' to go')+'</span>';
@@ -11282,8 +11281,7 @@ function refreshActivityBar(){
       /* THE AWAY CHIP answers "can I leave this running?" from the Night Plan's
          stored forecast (night-plan.js chipHtml): pays away, you fall, or no
          food; a pending mark until the server has stated the bag. It never computes. */
-      /* Each chip carries its word and its figure in spans the bar's fit steps
-         (render/bar-fit.js) trade for a glyph and a compact number. */
+      // Word and figure sit in spans the bar's fit steps (render/bar-fit.js) trade away.
       const _LT = window.HearthriseLifetime, _cn = window.HearthriseBalance?.compactNumber, _ltc = _LT && _LT.count('kills');
       const licChip = '<span class="ab-tkills" title="Lifetime kills'+(_ltc ? ': '+_ltc.n.toLocaleString()+(_ltc.exact ? '' : '+') : '')+'">'+_hrGly('uiTrophy',13)+'<span class="ab-chip-word">Lifetime </span><b>'+(!_LT ? '—' : '<span class="ab-n-full">'+_LT.markup('kills')+'</span><span class="ab-n-short">'+_LT.markup('kills', _cn)+'</span>')+'</b></span>';
       const _NP = window.HearthriseNightPlan, _STN = window.HearthriseSetTheNight;

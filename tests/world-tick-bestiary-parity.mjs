@@ -100,7 +100,7 @@ async function run(mutant) {
 
   const holder = (await one("select left('cron:' || coalesce(current_database(), 'db'), 64) as h")).h;
   await db.exec("update public.hr_tick_config set channels = array['combat','gather']::text[],"
-    + ' enabled = true, shadow = true where id;');
+    + ' enabled = true, armed_channels = array[]::text[] where id;');
   for (let i = 0; i < CHARS; i++) {
     const u = U(i);
     await db.exec(`insert into auth.users (id) values ('${u}') on conflict do nothing;`);

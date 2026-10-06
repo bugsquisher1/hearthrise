@@ -14,12 +14,12 @@
 // Imports: MONSTERS, ITEMS
 // Exports: setupCombatRender()
 
-import { MONSTERS } from '../data/monsters.js?v=560';
-import { ITEMS } from '../data/items.js?v=560';
-import { formatDropOdds } from '../core/drops.js?v=560';
-import { SIGNPOSTS } from '../data/signposts.js?v=560';
-import { foeFamily } from '../render/foe-family.js?v=560';
-import { weaknessWords, weaknessSentence } from '../render/foe-weakness.js?v=560';
+import { MONSTERS } from '../data/monsters.js?v=561';
+import { ITEMS } from '../data/items.js?v=561';
+import { formatDropOdds } from '../core/drops.js?v=561';
+import { SIGNPOSTS } from '../data/signposts.js?v=561';
+import { foeFamily } from '../render/foe-family.js?v=561';
+import { weaknessWords, weaknessSentence } from '../render/foe-weakness.js?v=561';
 
 function getMonsterIconHtml(id) {
   const path = window._monsterIcon?.[id];

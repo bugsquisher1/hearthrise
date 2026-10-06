@@ -2121,8 +2121,14 @@ export const stubSignedIn = (slot, name) => {
      reads the config belongs on it. Each is paused through its OWN hook and
      resumed on restore, so no arm has to remember a rule its own subject never
      mentions, and nothing here reaches in for a timer or swaps `window.fetch`.
+       · GitHub set/b563 @d09be9d5 caught muster.js's 60 s pledge pass
+         (hr_rally_pledge_state) inside SIGNED-IN-STUB's 2.5 s wait; the sweep
+         (a stub held 130 s, every request counted) added hearthfind.js's 90 s
+         board poll (hr_world_finds_of). hr_goal_state, the third, is parked
+         suite-wide by smoke-test.js.
      Regression: STUB-ORIGIN-1. */
-  const CHANNELS = [window.HearthriseTown, window.HearthriseNetStatus, window.HearthriseLive];
+  const CHANNELS = [window.HearthriseTown, window.HearthriseNetStatus, window.HearthriseLive,
+    window.HearthriseMuster, window.HearthriseHearthfind];
   CHANNELS.forEach((m) => { if (m && typeof m.__pauseForTest === 'function') m.__pauseForTest(); });
   window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
   window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };

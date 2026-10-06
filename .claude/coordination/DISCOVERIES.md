@@ -4,6 +4,10 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-10-06 · qa-engineer · P1 in-page red: a test sent a real hr_farm_plant to production (lane b563-plant-toast-leak)
+
+`b220: auto-replant produces a plot that actually matures` drove `maybeReplant` → real `plantCrop` → real `farmPlant` with no transport stub. The request left the page for the live realm (401 with no session in CI; on a signed-in Ctrl+Shift+T run it would plant a real turnip and spend a real seed), and its refusal toast "Could not plant (http_401)" landed ~300 ms later — inside INTENT-LATCH-1's 60 ms no-toast window on GitHub (set/b563 @fe39ce9c). Timing-dependent, not caused by the sell lane. Fix: b220 runs under `withFarmServer`; class guard: the runner wraps fetch (`watchLiveRpc`, `_harness.js`) and FAILS any test under which a session-only RPC reached the real transport (ANON_CALLABLE reads exempt). Measured on a full run: zero other offenders. Routed: none (qa lane).
+
 ## 2026-10-06 · systems-engineer · sells: display-bounded, server answers; Sell All is the one confirmed-count gesture (lane b563-sell-server-bag)
 
 Sell 1 / tap-sell / quick-sell send the display-bounded count and render the server's receipt; a provably-unwritten chunk (refused, e.g. all-or-nothing `insufficient_item`) gets its gold rolled back by gold.js and its items put back by `sellReceipt`. Sell All sells the server-confirmed stack and holds its button until its own answer (`answerLock`, registered with the intent-latch teardown). gold.js's deadline now spans the body read (`callDeadline`). **Open, P2 systems lane:** Sell Selected and sell-junk still settle through `goldSettle(…, null)` / `B.BULK_VENDOR` and never reach the server per sale — their gold is a prediction with no intent behind it.

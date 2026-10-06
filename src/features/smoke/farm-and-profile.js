@@ -2488,7 +2488,13 @@ export default [
     assert(JSON.stringify(save.farmPlots) === before, 'the migration must be idempotent');
   }),
 
-  () => tryRun('b220: auto-replant produces a plot that actually matures', () => {
+  /* ⚠ THE INTENT IS ANSWERED HERE, NOT BY THE REALM (2026-10-06). maybeReplant
+     sends a REAL hr_farm_plant through plantCrop; unstubbed, that request left the
+     page for production and its refusal ("Could not plant (http_401)") toasted
+     ~300 ms later inside INTENT-LATCH-1's no-toast window.
+     withFarmServer answers inline, so nothing outlives the test. */
+  () => tryRun('b220: auto-replant produces a plot that actually matures', () => withFarmServer((verb, args) => ({ ok: true, plot: args[0], crop: args[1],
+      planted_at: new Date().toISOString(), seed_spent: args[1] + '_seed', plant_xp: 0 }), (calls) => {
     const snap = snapshotG();
     try {
       if (!window.HearthriseAuto || typeof window.HearthriseAuto.maybeReplant !== 'function') return;
@@ -2505,6 +2511,8 @@ export default [
       window.G.farmPlots[0] = null;
       window.HearthriseAuto.setFarmReplant({ enabled: true, cropId: 'turnip' });
       assert(window.HearthriseAuto.maybeReplant(0) === true, 'auto-replant should have planted plot 0');
+      assert(calls.length === 1 && calls[0].verb === 'farmPlant' && calls[0].args[0] === 0 && calls[0].args[1] === 'turnip',
+        'auto-replant must send exactly one hr_farm_plant(0, turnip) intent, got ' + JSON.stringify(calls));
       const p = window.G.farmPlots[0];
       assert(p && p.cropId === 'turnip', 'plot 0 should hold a turnip, got ' + JSON.stringify(p));
       assert(Array.isArray(p.waterings) && p.waterings.length === 0,
@@ -2514,7 +2522,7 @@ export default [
       assert(window.HearthriseFarm.isReady(p) === true,
         'an auto-replanted (dry) plot must mature unattended — this is the whole feature');
     } finally { restoreG(snap); }
-  }),
+  })),
 
   () => tryRun('b220: the harvest daily scales with the farm it measures', () => {
     const snap = snapshotG();

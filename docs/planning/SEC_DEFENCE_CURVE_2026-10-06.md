@@ -1,0 +1,13 @@
+# Security review — defence curve + tired-fight levels (lane/b563-defence-curve @34222063), 2026-10-06
+
+**Verdict: EDGE DEPLOY + APPLY GO.** Guards run on the archived lane tree, every exit 0: accrual-engine, world-tick-parity (P-G9 AWAY-1), world-tick-vigour-scale and `--mutate` (V3 caught: W1 -13.7%), trophy-call-sites, hearthfind-boss-rate, `gen-hearthfind --check`; pack hash 6205e4e0.
+
+| Question | Finding |
+|---|---|
+| Re-pins: re-measure or loosening? | Re-measures. The OLD tests run on NEW code fail only because the fixtures went vacuous (RECOVER-1 52,800 = 52,800 ms; fed control 0 falls; RETREAT-W4 0 falls; P7f recoverMs 0). Each re-pick (goblin, dire_wolf, own-first-fall anchor) keeps its "≥3 falls / recoverMs>0" check and fails closed (empty deathLog makes `paidMs > paidMs` go red). No bound was widened. |
+| Can accrual.js pay more, or pay twice? | No (CONFIRMED by reading). `fightSkills` only changes which levels the dice are rolled at. vigourMult ≤ 1, so the levels can never be higher than the old `state.skills`. It draws no random numbers. Proposed XP still comes from `eligibleXp` through vigourScale. Gold and drops are unchanged. Live-credited grants count at face value, which is real banked XP, and nothing gets proposed a second time. `playerMaxHp` only caps the simulated hp; it is not written into the delta. |
+| AWAY-1 parity | Holds. When rested, `fightSkills === state.skills` (same object, so the output is byte-identical); P-G9 tick-vs-accrue passes. When tired, W1 is now inside the ±10% bar (it was -14..-18% with the new curve). Tick and accrue are the same edge bundle, so one deploy switches both. |
+| Hearthfind regeneration | Safe. Only the odds change: dragon 14940→14760, elk_king 22750→23000, grim_reaper 24860→24420. Items, titles, meta, hours band and grants are unchanged, and the self-check holds. The only foreign key pointing in is sources→items (cascade, catalogue-internal); no player row references these tables. hr_apply stamps `world_finds.one_in` from the table, never from the client, and prod has 0 finds, so there are no quoted odds to disagree with. Between the edge deploy and the apply, the engine rolls the new odds while the DB stamps the old ones (<2%); apply right after the deploy. |
+| World-tick probes | The combat parity clock restarts at the edge deploy. An accrue span that started before the deploy settles entirely on the new curve, so that one night pays more (uptime only). Do not read a tick-vs-accrue pair that straddles the deploy as drift. |
+
+Residual (accepted): unfed away gold/xp/h rises 1.5–6× by uptime (Designer ruling). Gold per kill is unchanged and hr_apply's blast-radius clamps still bind (clampGuard is green).

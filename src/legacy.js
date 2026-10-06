@@ -2374,6 +2374,9 @@ function processOffline(){
       try{ R.onRecordApplied(function(){
         try{ if(typeof updateTopbar==='function') updateTopbar(); }catch(e){}
         try{ if(typeof activeTab!=='undefined'&&activeTab==='shop'&&typeof renderShop==='function') renderShop(); }catch(e){}
+        /* The idle-boot bag lands here, not through applyEnvelopeState, so the
+           open market list sheet hears it here too (§6). */
+        try{ const MK=window.HearthriseMarket; if(MK&&typeof MK.refreshListSheet==='function') MK.refreshListSheet(); }catch(e){}
       }); }catch(e){}
     }
     if(C&&typeof C.ensureThenAccrue==='function'){

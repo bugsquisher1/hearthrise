@@ -8465,6 +8465,47 @@ export default [
     } finally { bag.restore(); restoreG(snap); window.renderMarket(); }
   }),
 
+  /* MP-R8 (CLAUDE.md §6): the OPEN sheet follows every applied envelope — the bag moved by a
+     settle / sale / live frame repaints the picker, hint and max in place; a typed quantity
+     is kept or clamped, never reset; focus stays put; closing drops the subscription. */
+  () => tryRunAsync('MP-R8: the open listing sheet follows every applied envelope', async () => {
+    const snap = snapshotG(), bag = serverBagFixture(), A = window.HearthriseAccrual, MK = window.HearthriseMarket;
+    const panel = document.getElementById('panel-market'), wasActive = panel && panel.classList.contains('active');
+    const settle = async (inv) => {
+      A.applyEnvelopeState(window.G, { state: {}, inventory: inv });
+      await Promise.resolve(); await new Promise((r) => setTimeout(r, 0));
+    };
+    const $ = (id) => document.getElementById(id);
+    try {
+      assert(panel && A && typeof A.applyEnvelopeState === 'function', 'fixture: no market panel or envelope applier');
+      panel.classList.add('active');
+      window.addItem('normal_log', 5); bag.agree({ normal_log: 5 });
+      window.renderMarket();
+      assert(MK.listSheetSubscribed() === true, 'the open listing sheet is not subscribed to the envelope seam');
+      $('mk-list-id').value = 'normal_log'; $('mk-list-id').dispatchEvent(new Event('change'));
+      assert($('mk-list-qty').value === '5', 'setup: the default quantity was not the bag: ' + $('mk-list-qty').value);
+      $('mk-list-qty').focus();
+      await settle({ normal_log: 8 });
+      assert(/You have 8\b/.test($('mk-list-hint').textContent) && $('mk-list-qty').max === '8',
+        'the open sheet kept a stale count after an envelope: "' + $('mk-list-hint').textContent + '" max ' + $('mk-list-qty').max);
+      assert($('mk-list-qty').value === '8', 'an untouched default quantity did not follow the bag: ' + $('mk-list-qty').value);
+      assert($('mk-list-id').value === 'normal_log' && /\(8\)/.test($('mk-list-id').selectedOptions[0].textContent), 'the picker lost the pick or its count');
+      assert(document.activeElement === $('mk-list-qty'), 'the envelope repaint stole focus from the quantity');
+      $('mk-list-qty').value = '6'; $('mk-list-qty').dispatchEvent(new Event('input'));
+      await settle({ normal_log: 3 });
+      assert($('mk-list-qty').value === '3' && $('mk-list-qty').max === '3', 'a typed quantity was not clamped to the new count: ' + $('mk-list-qty').value + ' max ' + $('mk-list-qty').max);
+      $('mk-list-qty').value = '2';
+      await settle({ normal_log: 4 });
+      assert($('mk-list-qty').value === '2', 'a typed quantity under the count was reset: ' + $('mk-list-qty').value);
+      panel.classList.remove('active');   // the player leaves the Market
+      await settle({ normal_log: 4, iron_ore: 1 });
+      assert(MK.listSheetSubscribed() === false, 'closing the sheet left the envelope listener attached');
+    } finally {
+      if (panel && wasActive) panel.classList.add('active'); else if (panel) panel.classList.remove('active');
+      bag.restore(); restoreG(snap); window.renderMarket();
+    }
+  }),
+
   () => tryRun('MP-R5: ledger totals name their window', () => {
     const MH = window.HearthriseMarketHistory, before = MH.getHistory(), N = MH.HISTORY_LIMIT;
     assert(N > 0, 'market-history.js publishes no HISTORY_LIMIT');

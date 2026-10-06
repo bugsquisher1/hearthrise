@@ -370,13 +370,6 @@ body[data-theme="classic"] {
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  /* The Dungeons button injected by nav-consolidation.js sits absolute
-   * on desktop; on mobile let it flow into the header normally. */
-  #panel-combat #hr-dungeons-link {
-    position: static !important;
-    width: 100%;
-    margin: 4px 0;
-  }
 }
 
 /* ============================================================
@@ -597,15 +590,6 @@ body[data-theme="classic"] {
     padding-bottom: max(10px, var(--safe-b, 0px)) !important;
   }
 
-  /* DUNGEONS button — was overflowing right. Constrain to inline width. */
-  #panel-combat #hr-dungeons-link {
-    width: auto !important;
-    max-width: 140px !important;
-    margin: 0 0 0 8px !important;
-    padding: 6px 12px !important;
-    font-size:calc(14.5px * var(--ui-scale, 1)) !important;
-    position: static !important;
-  }
   /* Combat sub-tab strip + DUNGEONS share a single row in landscape */
   #panel-combat .cmb-mob-tabs {
     margin: -6px -8px 6px !important;

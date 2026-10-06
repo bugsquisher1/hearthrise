@@ -49,7 +49,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { bootReplay, inventory, ROOT } from './schema-replay.mjs';
+import { bootReplay, chainFiles, inventory, ROOT } from './schema-replay.mjs';
 
 const SELFTEST = process.argv.includes('--selftest');
 const MIG = '2026-10-06-world-tick-channel-arm.sql';
@@ -342,6 +342,21 @@ const bodies = async (db) => (await db.query(
     where n.nspname = 'public' and p.proname = any($1::text[]) order by 1`, [FNS])).rows
   .map((r) => r.h).join(',');
 
+/** Chain files AFTER the guards file that patch one of FNS through pg_get_functiondef. */
+async function laterPatchers() {
+  const files = await chainFiles();
+  const names = files.map(([name]) => name);
+  const at = names.indexOf(GUARDS);
+  if (at < 0) throw Object.assign(new Error(`${GUARDS} is not in the chain`), { harness: true });
+  const out = [];
+  for (const [, path] of files.slice(at + 1)) {
+    const sql = (await readFile(path, 'utf8')).replace(/\r\n/g, '\n');
+    if (FNS.some((fn) => sql.includes(`pg_get_functiondef(\n    'public.${fn}(`)
+                       || sql.includes(`pg_get_functiondef('public.${fn}(`))) out.push(sql);
+  }
+  return out;
+}
+
 async function boot(patches, file = MIG) {
   const r = await bootReplay(patches ? { patches: new Map([[file, patches]]), tolerant: true } : {});
   return r;
@@ -358,7 +373,16 @@ if (!SELFTEST) {
   const inv0 = JSON.stringify(await inventory(db));
   const b0 = await bodies(db);
   let err = null;
-  try { await db.exec(MIG_SQL); await db.exec(GUARDS_SQL); } catch (e) { err = String(e.message).split('\n')[0]; }
+  try {
+    await db.exec(MIG_SQL); await db.exec(GUARDS_SQL);
+    // …then every LATER chain file that patches one of these bodies in place
+    // (pg_get_functiondef + replace), in chain order. Re-applying an older
+    // `create or replace` drops a later file's anchored line, and that is the
+    // apply order doing its job, not a second apply that moved anything.
+    // 2026-10-07-frame-emit-online-only.sql splices the tick marker into
+    // hr_tick_settle and hr_party_tick_settle this way.
+    for (const later of await laterPatchers()) await db.exec(later);
+  } catch (e) { err = String(e.message).split('\n')[0]; }
   const inv1 = JSON.stringify(await inventory(db));
   const b1 = await bodies(db);
   const idem = !err && inv0 === inv1 && b0 === b1 && b0.split(',').length === FNS.length;
@@ -440,14 +464,18 @@ for (const m of MUTANTS) {
   try { r = await boot(m.patch, m.file || MIG); } catch (e) { console.error(`harness: ${m.name}: ${e.message}`); process.exit(2); }
   if (r.failures.length) {
     /* A mutant of the channel-arm file refuses THAT file; the guards file
-       downstream then refuses on its own §0 precondition, by name. That one
-       cascade is expected; any other failure is the wrong reason. */
+       downstream then refuses on its own §0 precondition, by name, and so does
+       2026-10-07-frame-emit-online-only.sql, which patches the bodies the
+       guards file installs. Those named cascades are expected; any other
+       failure is the wrong reason. */
     const own = r.failures.filter((f) => f.file === (m.file || MIG));
     const cascade = r.failures.filter((f) => f.file !== (m.file || MIG));
     const msg = own.map((f) => f.error).join(' | ');
     const mine = own.length > 0
-      && cascade.every((f) => (m.file || MIG) === MIG && f.file === GUARDS
-        && /PRECONDITION: 2026-10-06-world-tick-channel-arm\.sql is not applied/.test(f.error))
+      && cascade.every((f) => ((m.file || MIG) === MIG && f.file === GUARDS
+             && /PRECONDITION: 2026-10-06-world-tick-channel-arm\.sql is not applied/.test(f.error))
+          || (f.file === '2026-10-07-frame-emit-online-only.sql'
+             && /PRECONDITION: 2026-10-06-world-tick-arm-guards\.sql is not applied/.test(f.error)))
       && (!m.expect || m.expect.test(msg));
     verdict = mine ? `RED via the file's own self-check (${msg.slice(0, 90)})` : null;
     if (!mine) { console.log(`  ✗ ${m.name} — refused for the WRONG reason: ${msg.slice(0, 200)}`); survived++; continue; }

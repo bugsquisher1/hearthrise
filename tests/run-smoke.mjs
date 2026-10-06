@@ -1067,6 +1067,25 @@ async function authResilienceGuard(browser, url) {
       const past = jwt({ sub: 'u1', exp: Math.floor(Date.now() / 1000) - 7200 });
       const real = window.fetch;
       const out = {};
+      /* b563 — COUNT THE DEAD-TOKEN SESSION, NOT THE PAGE. window.fetch is global:
+         the page's own boot traffic (the leaderboard probe on a 2.6 s timer, chat
+         loadCache) fires seconds after HearthriseSync exists, and on a loaded
+         machine it landed inside the stub's window and was counted as a "probe" —
+         "a dead token cost 3 request(s)" in three lanes on 2026-10-06, measured
+         to be hr_leaderboard + chat_messages riding along, not a client double
+         probe. A probe is a request CARRYING the dead token; that is the session
+         this guard is about, so a second probe on ANY url still counts. Every
+         other request is tallied as `stray` and answered the same way. */
+      const bearerOf = (u, init) => {
+        const h = (init && init.headers) || (u && typeof u === 'object' && u.headers) || null;
+        if (!h) return '';
+        return String((typeof h.get === 'function') ? (h.get('Authorization') || '') : (h.Authorization || h.authorization || ''));
+      };
+      let stray = 0;
+      const stub = (status, body, onProbe) => (u, init) => {
+        if (bearerOf(u, init) === 'Bearer ' + past) onProbe(); else stray++;
+        return Promise.resolve(new Response(body, { status }));
+      };
       /* ⚠ b456 — DRIVEN WITH THE LOCAL BLOB LIVE, AND (4) BELOW SAYS WHY.
          Every property this guard pins — probe-once, tell-the-player-once, latch
          the dead token, count server evidence, learn the clock from a 200 — is
@@ -1087,14 +1106,22 @@ async function authResilienceGuard(browser, url) {
       try {
         // ── A. the token really is dead: the server refuses it ──────────────
         let hits = 0, told = 0;
-        window.fetch = () => { hits++; return Promise.resolve(new Response('{"code":"PGRST303"}', { status: 401 })); };
+        window.fetch = stub(401, '{"code":"PGRST303"}', () => { hits++; });
         S.setClockTrusted(true);
         // One short of terminal, no corroboration yet — so this attempt must
         // PROBE, be refused, and only then terminate.
         S.resetAuthGate({ streak: S.AUTH_DEAD_AFTER_TRIES - 1, firstAt: Date.now() - 1000, blockedUntil: 0, serverFails: 0 });
         await S.__withConfig({ ...base, onAuthError: async () => false, onAuthExpired: () => { told++; } },
-          async () => { await S.snapshotIfDue(true, false); });
+          async () => {
+            const probe = S.snapshotIfDue(true, false);
+            // The page's own traffic, made deterministic: one unrelated request
+            // lands mid-probe on EVERY run, so the scoping above is proven each
+            // time rather than only on the runs a loaded machine happens to race.
+            await window.fetch('https://example.invalid/rest/v1/rpc/hr_leaderboard', { headers: { apikey: 'anon' } });
+            await probe;
+          });
         out.deadHits = hits;                       // must be 1: no pointless retry
+        out.deadStray = stray;                     // must be >= 1: the noise above was seen and NOT counted
         out.deadTold = told;                       // must be 1: the player is told
         out.deadLatched = S.getAuthGate().dead;    // must be true
         out.deadServerFails = S.getAuthGate().serverFails;
@@ -1105,7 +1132,7 @@ async function authResilienceGuard(browser, url) {
         // can teach us is the server's 200. Otherwise a broken 200-path would
         // hide behind the refresh path and the guard would prove nothing.
         hits = 0; told = 0;
-        window.fetch = () => { hits++; return Promise.resolve(new Response('[]', { status: 200 })); };
+        window.fetch = stub(200, '[]', () => { hits++; });
         S.setClockTrusted(true);
         S.resetAuthGate({ streak: S.AUTH_DEAD_AFTER_TRIES - 1, firstAt: Date.now() - 600000, blockedUntil: 0, serverFails: 0 });
         await S.__withConfig({ ...base, onAuthError: async () => false, onAuthExpired: () => { told++; } },
@@ -1129,7 +1156,7 @@ async function authResilienceGuard(browser, url) {
         // …and having learnt it, the local veto is retired: further requests flow
         // even with the server having refused us in the past.
         hits = 0;
-        window.fetch = () => { hits++; return Promise.resolve(new Response('[]', { status: 200 })); };
+        window.fetch = stub(200, '[]', () => { hits++; });
         S.resetAuthGate({ serverFails: 5 });
         await S.__withConfig({ ...base, onAuthError: async () => true, onAuthExpired: () => {} },
           async () => { await S.snapshotIfDue(true, false); });
@@ -1141,7 +1168,7 @@ async function authResilienceGuard(browser, url) {
         if (blobWasRetired && CAP && CAP.__setBlobRetired) {
           CAP.__setBlobRetired(null);              // back to the shipped (armed) state
           let aHits = 0, aTold = 0;
-          window.fetch = () => { aHits++; return Promise.resolve(new Response('{"code":"PGRST303"}', { status: 401 })); };
+          window.fetch = stub(401, '{"code":"PGRST303"}', () => { aHits++; });
           S.setClockTrusted(true);
           S.resetAuthGate({ streak: S.AUTH_DEAD_AFTER_TRIES - 1, firstAt: Date.now() - 1000, blockedUntil: 0, serverFails: 0 });
           await S.__withConfig({ ...base, onAuthError: async () => false, onAuthExpired: () => { aTold++; } },
@@ -1163,6 +1190,7 @@ async function authResilienceGuard(browser, url) {
     });
 
     if (r.deadHits !== 1) problems.push(`a dead token cost ${r.deadHits} request(s); it must probe exactly once and then stop`);
+    if (!(r.deadStray >= 1)) problems.push('the mid-probe unrelated request never reached the stub — the dead-token scoping is unproven this run');
     if (r.deadTold !== 1) problems.push(`the player was told ${r.deadTold} times that their sign-in died (expected exactly 1)`);
     if (r.deadLatched !== true) problems.push('a server-confirmed dead token did not terminate — the b331 loop can come back');
     if (!(r.deadServerFails >= 1)) problems.push('the 401 was not recorded as server evidence');

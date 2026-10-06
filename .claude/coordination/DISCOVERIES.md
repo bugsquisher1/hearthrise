@@ -4,6 +4,10 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-10-06 · systems-engineer · sells: display-bounded, server answers; Sell All is the one confirmed-count gesture (lane b563-sell-server-bag)
+
+Sell 1 / tap-sell / quick-sell send the display-bounded count and render the server's receipt; a provably-unwritten chunk (refused, e.g. all-or-nothing `insufficient_item`) gets its gold rolled back by gold.js and its items put back by `sellReceipt`. Sell All sells the server-confirmed stack and holds its button until its own answer (`answerLock`, registered with the intent-latch teardown). gold.js's deadline now spans the body read (`callDeadline`). **Open, P2 systems lane:** Sell Selected and sell-junk still settle through `goldSettle(…, null)` / `B.BULK_VENDOR` and never reach the server per sale — their gold is a prediction with no intent behind it.
+
 ## 2026-10-03 · systems-engineer · settle-then-gate: a collect-first verb is its own settle (lane b562-craft-gate-server-bag)
 
 The last stated server bag (`G._serverBag`) is up to one 90 s cadence old. Anything gathered since is real

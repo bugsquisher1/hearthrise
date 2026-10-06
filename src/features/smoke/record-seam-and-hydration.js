@@ -8027,7 +8027,7 @@ export default [
     assert(CM && typeof CM.quoteJunk === 'function' && typeof CM.settleJunk === 'function',
       'src/features/inv-context-menu.js did not load, or no longer separates the quote from the payment');
     /* snapshotG() now names gold/inventory/lockedItems, so the bespoke bag is just the confirm stub. */
-    const snap = snapshotG(); const save = { confirm: window.confirm };
+    const snap = snapshotG(), bag = serverBagFixture(); const save = { confirm: window.confirm };
     try {
       /* A RAW item worth 10+: below that the `max(1,…)` floor makes the
          discounted bid equal the book value and the two prices cannot differ,
@@ -8041,7 +8041,7 @@ export default [
         + 'applied at all, so "the quote equals the payment" would only prove they are both wrong');
 
       G.lockedItems = {};
-      G.inventory = {}; G.inventory[raw] = 40;
+      G.inventory = {}; G.inventory[raw] = 40; bag.agree();   // the sweep quotes the SERVER's bag
       G.gold = 0;
       let native = 0;
       window.confirm = function () { native++; return true; };
@@ -8063,7 +8063,7 @@ export default [
       assert(!G.inventory[raw], 'the sweep paid but did not take the items');
     } finally {
       window.confirm = save.confirm;
-      restoreG(snap);
+      restoreG(snap); bag.restore();
     }
   }),
 
@@ -8074,7 +8074,7 @@ export default [
     const realFetch = window.fetch;
     const wasOn = A.isServerAccrualEnabled();
     const wasAck = A.isReplacementAcknowledged();
-    const snap = snapshotG();   /* gold/inventory/skills/lockedItems are all named by the allowlist now */
+    const snap = snapshotG(), bag = serverBagFixture();   /* gold/inventory/skills/lockedItems are all named by the allowlist now */
     let ver = 40;
     let sent = [];
     const envelope = (gold) => {
@@ -8132,7 +8132,7 @@ export default [
         + 'BY NAME so the drift is legible instead of looking like a dead network');
 
       // ── B354-8: the bag's Sell 1.
-      G.gold = 500; G.lockedItems = {}; G.inventory = { normal_log: 4 }; sent = [];
+      G.gold = 500; G.lockedItems = {}; G.inventory = { normal_log: 4 }; bag.agree(); sent = [];
       window.invSellOne('normal_log');
       await drain();
       assert(sent.length === 1 && sent[0].verb === 'vendor_sell' && sent[0].item === 'normal_log' && sent[0].qty === 1,
@@ -8152,7 +8152,7 @@ export default [
          each ≤MAX_QTY, so every chunk has a server story and pays for itself. */
       const bigQty = Gd.MAX_QTY * 4 + 137;               // 4,137 — a Tyler-sized stack
       const wantChunks = Math.ceil(bigQty / Gd.MAX_QTY); // 5
-      G.gold = 500; G.inventory = { normal_log: bigQty }; sent = [];
+      G.gold = 500; G.inventory = { normal_log: bigQty }; bag.agree(); sent = [];
       window.invSellAll('normal_log');
       await drain();
       assert(sent.length === wantChunks,
@@ -8174,7 +8174,7 @@ export default [
       Gd.resetGold(); Gd.configureGold(null);
       A.acknowledgeReplacement(wasAck);
       restoreAccrualSwitch(wasOn);
-      restoreG(snap);
+      restoreG(snap); bag.restore();
     }
   }),
 

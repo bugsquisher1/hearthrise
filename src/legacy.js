@@ -8426,12 +8426,14 @@ function onItemTap(id){
     confirmLabel:'Sell',
   }).then(function(ok){
     if(!ok) return;
-    if(!hasItem(id,1)) return;               // the bag can change while a modal is open
+    if(!hasItem(id,1)) return;   // display-bounded, read after the modal; vendor_sell collects first, so the server answers (shop-counter.js sellableCount)
     const _k=goldIntentKey();
     goldSettle(_p,'vendor.tap_sell',_k);
     removeItem(id,1);
-    if(_k&&window.HearthriseGold){const _q=window.HearthriseGold.sellItem(id,1,_k);if(_q&&_q.catch)_q.catch(()=>{});}
-    notify(`Sold ${d.n}`,'loot');renderInventory();updateTopbar();
+    const _sent=[];
+    if(_k&&window.HearthriseGold){const _q=window.HearthriseGold.sellItem(id,1,_k);if(_q&&_q.catch)_q.catch(()=>{});if(_q)_sent.push({p:_q,qty:1});}
+    window.vendorSellReceipt(id,1,_p,_sent);   // the toast is the SERVER's answer
+    renderInventory();updateTopbar();
   });
 }
 
@@ -10057,7 +10059,7 @@ function openInvDetail(id){
     } else {
       if(vendorPrice(id) > 0){
         acts.push(`<button class="btn" onclick="invSellOne('${id}');closeInvDetail()">Sell 1 · ${_gp(vendorPrice(id))}</button>`);
-        if(qty > 1) acts.push(`<button class="btn btn-danger" onclick="invSellAll('${id}')">Sell All ${qty} · ${_gp(vendorPrice(id)*qty)}</button>`);
+        const _sq = window.sellableCount ? window.sellableCount(id) : null; const _sb = window.sellAllPending && window.sellAllPending(id); if(_sb) acts.push(`<button class="btn btn-danger" disabled title="Waiting for the realm to answer your last Sell All">Sell All · selling…</button>`); else if(_sq === null ? qty > 1 : _sq > 1) acts.push(_sq === null ? `<button class="btn btn-danger" disabled title="${window.SELL_PENDING_TITLE}">Sell All · counting…</button>` : `<button class="btn btn-danger" onclick="invSellAll('${id}')">Sell All ${_sq} · ${_gp(vendorPrice(id)*_sq)}</button>`);   /* Sell All names the SERVER's stack (sellableCount); unstated = counting; a sent one = selling until its answer — all disabled */
       }
       acts.push(`<button class="btn" onclick="toggleItemLock('${id}');openInvDetail('${id}')" title="Protect this item from being sold or listed on the market">${lockGlyph()} Lock</button>`);
     }

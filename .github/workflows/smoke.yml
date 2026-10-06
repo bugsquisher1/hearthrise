@@ -1194,6 +1194,18 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/realtime-cost.mjs
 
+      # TICK FRAMES ONLY TO A LIVE WINDOW (2026-10-07-frame-emit-online-only.sql,
+      # REL_M5_FLIP F4c). The gate is marked by ONE line in each tick settle;
+      # the migration's §9 v1 checks the catalog at apply. This catches a later
+      # restatement or a new tick writer that loses the marker, or an emitter
+      # that stops asking hr_frame_wanted. No DB, milliseconds. The executed
+      # arms run in schema-drift --mutate.
+      - name: Frame origin marker — tick writers mark, the emitter asks (base + mutate)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/frame-origin-marker.mjs
+          node tests/frame-origin-marker.mjs --mutate
+
       # THE POSTGREST RPC RESOLUTION GATE.
       # The A9 retrofit (2026-08-11) rewrapped 35 live RPCs; every wrapper had to
       # keep the original PARAMETER NAMES, because that is what PostgREST resolves

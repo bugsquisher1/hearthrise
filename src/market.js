@@ -1147,22 +1147,41 @@
     // Build a dropdown of every listable bag item — not BoP, has qty > 0,
     // and known to ITEMS so we can show its name. Sorted by name for the
     // player's convenience (typing the partial name still works as a search).
-    var inv = (window.G && window.G.inventory) || {};
+    /* THE SERVER'S BAG, the same count listItem gates on (CLAUDE.md §6): the
+       picker, the "You have N" hint and the default quantity all read
+       gateItemCount, so the sheet never offers a quantity market_list refuses.
+       Under the seam the catalogue is walked (an id the display bag lacks can
+       still be held server-side); NULL = no envelope has stated the bag yet:
+       the sheet says so, the List button stays shut, no count is invented.
+       With the seam off the local book is the judge, so its own bag counts. */
     var items = (window.ITEMS) || {};
-    var listable = Object.keys(inv).filter(function(id){
-      if(!inv[id] || inv[id] <= 0) return false;
+    var _bagA = window.HearthriseAccrual;
+    var _bagSrv = serverMarketActive();
+    var _bagInv = (window.G && window.G.inventory) || {};
+    var bagCount = function(id){
+      if(!_bagSrv) return _bagInv[id] || 0;
+      return (_bagA && typeof _bagA.gateItemCount === 'function') ? _bagA.gateItemCount(window.G, id) : null;
+    };
+    var bagUnstated = false;
+    var listable = Object.keys(_bagSrv ? items : _bagInv).filter(function(id){
       var def = items[id];
       if(!def) return false;
       if(def.bop) return false;     // BoP can't be listed
-      return true;
+      var n = bagCount(id);
+      if(n === null){ bagUnstated = true; return false; }
+      return n > 0;
     }).map(function(id){
       var d = items[id] || {};
       // The vendor's REAL bid (raw materials pay a fraction of v), as the bag tooltip quotes it.
       var bid = (typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : (d.v || 0);
-      return { id: id, name: d.n || id, qty: inv[id], v: bid };
+      return { id: id, name: d.n || id, qty: bagCount(id), v: bid };
     }).sort(function(a, b){ return a.name.localeCompare(b.name); });
+    if(bagUnstated) listable = [];
+    var BAG_PENDING = 'Your bag is still being counted — listing opens once the realm has it.';
 
-    var pickerOpts = '<option value="">— Pick an item from your bag —</option>'
+    var pickerOpts = (bagUnstated
+        ? '<option value="">— Your bag is still being counted —</option>'
+        : '<option value="">— Pick an item from your bag —</option>')
       + listable.map(function(it){
           return '<option value="' + it.id + '" data-have="' + it.qty + '" data-vendor="' + it.v + '">'
                + it.name + ' (' + it.qty.toLocaleString() + ')'
@@ -1173,12 +1192,14 @@
       '<div class="mk-list-form">' +
         '<h3>List an item</h3>' +
         '<div class="mk-form-row">' +
-          '<select id="mk-list-id">' + pickerOpts + '</select>' +
+          '<select id="mk-list-id"' + (bagUnstated ? ' disabled' : '') + '>' + pickerOpts + '</select>' +
           '<input type="number" id="mk-list-qty" min="1" value="1" placeholder="qty">' +
           '<input type="number" id="mk-list-each" min="1" placeholder="asking each">' +
-          '<button id="mk-list-btn">List</button>' +
+          '<button id="mk-list-btn"' + (bagUnstated ? ' disabled' : '') + '>List</button>' +
         '</div>' +
-        '<div class="mk-form-hint" id="mk-list-hint">Pick an item to see how many you have and the NPC vendor price.</div>' +
+        (bagUnstated
+          ? '<div class="mk-form-hint bal-pending" id="mk-list-hint" role="status">' + BAG_PENDING + '</div>'
+          : '<div class="mk-form-hint" id="mk-list-hint">Pick an item to see how many you have and the NPC vendor price.</div>') +
       '</div>';
 
     /* THE LEDGER. Placed directly under "Your listings", because the question
@@ -1257,7 +1278,10 @@
         if(hint) hint.textContent = 'Pick an item to see how many you have and the NPC vendor price.';
         return;
       }
-      var have = parseInt(opt.getAttribute('data-have'), 10) || 1;
+      /* Re-read at pick time: an envelope may have moved the server bag since paint. */
+      var have = bagCount(opt.value);
+      if(have === null){ if(hint) hint.textContent = BAG_PENDING; listBtn.disabled = true; return; }
+      listBtn.disabled = false;
       var vendor = parseInt(opt.getAttribute('data-vendor'), 10) || 0;
       qtyInput.max = have;
       qtyInput.value = have;
@@ -1267,7 +1291,8 @@
       if(hint) hint.innerHTML = 'You have <b>' + have.toLocaleString() + '</b>. NPC vendor pays <b>' + vendor.toLocaleString() + 'g</b> each. Suggested ask: <b>' + Math.max(1, Math.ceil(vendor * 1.5)).toLocaleString() + 'g</b>.';
     });
 
-    panel.querySelector('#mk-list-btn').addEventListener('click', function(){
+    var listBtn = panel.querySelector('#mk-list-btn');
+    listBtn.addEventListener('click', function(){
       var id = (picker.value || '').trim();
       var q = parseInt(qtyInput.value, 10);
       var p = parseInt(eachInput.value, 10);

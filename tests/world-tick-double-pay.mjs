@@ -169,7 +169,7 @@ async function d1(db) {
      its keep — the case the version CAS cannot see. */
 
   // (a) the client lands first; the tick's in-flight settle must lose.
-  const a = U(1); await makeChar(db, a); await own(db, a); await config(db, 'enabled = true, shadow = false');
+  const a = U(1); await makeChar(db, a); await own(db, a); await config(db, 'enabled = true, armed_channels = channels');
   await clientApply(db, a, { ver: 1, key: KEY(101), toSql: TO });
   const midA = await stateOf(db, a);
   const tickA = await settle(db, a, { ver: 1, key: KEY(102), from: FROM, to: TO });
@@ -180,7 +180,7 @@ async function d1(db) {
     + `pre-client version (result ${JSON.stringify(tickA)})`);
 
   // (b) the tick lands first; the client's in-flight collect must lose.
-  const b = U(2); await makeChar(db, b); await own(db, b); await config(db, 'enabled = true, shadow = false');
+  const b = U(2); await makeChar(db, b); await own(db, b); await config(db, 'enabled = true, armed_channels = channels');
   const tickB = await settle(db, b, { ver: 1, key: KEY(103), from: FROM, to: TO });
   const midB = await stateOf(db, b);
   const cliB = await clientApply(db, b, { ver: 1, key: KEY(104), toSql: TO });
@@ -197,7 +197,7 @@ async function d1(db) {
 // believed in can refuse this — only the watermark compare-and-set can.
 async function d2(db) {
   console.log('\nD2  a replayed window carrying a FRESH version and a FRESH idempotency key');
-  const u = U(3); await makeChar(db, u); await own(db, u); await config(db, 'enabled = true, shadow = false');
+  const u = U(3); await makeChar(db, u); await own(db, u); await config(db, 'enabled = true, armed_channels = channels');
   const first = await settle(db, u, { ver: 1, key: KEY(201), from: FROM, to: TO });
   const before = await stateOf(db, u);
   const replay = await settle(db, u,
@@ -229,14 +229,14 @@ async function d2(db) {
 async function d3(db) {
   console.log('\nD3  the kill switch');
   const u = U(4); await makeChar(db, u); await own(db, u);
-  await config(db, 'enabled = false, shadow = false');
+  await config(db, 'enabled = false, armed_channels = channels');
   const off = await settle(db, u, { ver: 1, key: KEY(301), from: FROM, to: TO });
   const s1 = await stateOf(db, u);
   judge('D3a', off.ok !== true && Number(s1.gold) === 0,
     `with hr_tick_config.enabled = false the settle was refused (${off.error}) and paid nothing`,
     `the tick paid ${s1.gold} gold while the kill switch was off (${JSON.stringify(off)})`);
 
-  await config(db, 'enabled = true, shadow = false');
+  await config(db, 'enabled = true, armed_channels = channels');
   const on = await settle(db, u, { ver: 1, key: KEY(302), from: FROM, to: TO });
   const s2 = await stateOf(db, u);
   judge('D3b', MUTATE ? false : (on.ok === true && Number(s2.gold) === 100),
@@ -260,7 +260,7 @@ async function d3(db) {
 async function d4(db) {
   console.log('\nD4  SHADOW mode writes a journal row and pays nothing');
   const u = U(5); await makeChar(db, u); await own(db, u);
-  await config(db, 'enabled = true, shadow = true');
+  await config(db, 'enabled = true, armed_channels = array[]::text[]');
   const before = await stateOf(db, u);
   const r = await settle(db, u, { ver: 1, key: KEY(401), from: FROM, to: TO });
   const after = await stateOf(db, u);
@@ -307,7 +307,7 @@ async function d4(db) {
      real gap. `hr_tick_ownership.shadow_accrued_to` is the watermark the tick
      chains on while shadowed, and these arms are its exit code. */
   const v = U(9); await makeChar(db, v); await own(db, v);
-  await config(db, 'enabled = true, shadow = true');
+  await config(db, 'enabled = true, armed_channels = array[]::text[]');
   const W1 = `(now() - interval '8 minutes')::timestamptz`;
   const W2 = `(now() - interval '4 minutes')::timestamptz`;
   await settle(db, v, { ver: 1, key: KEY(410), from: FROM, to: W1 });
@@ -386,7 +386,7 @@ async function d5(db) {
 // ── D6. THE LEASE IS THE ANSWER TO "WHOSE WORLD TICKS" ──────────────────────
 async function d6(db) {
   console.log('\nD6  a settle for a character this holder was never handed');
-  await config(db, 'enabled = true, shadow = false');
+  await config(db, 'enabled = true, armed_channels = channels');
   /* A FRESH character per sub-arm. Under --mutate the raw path actually pays,
      so a shared character would fail the next sub-arm on `version_conflict` —
      red for the wrong reason, which is a mutation proof that proves nothing. */

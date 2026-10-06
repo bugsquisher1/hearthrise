@@ -1457,7 +1457,7 @@ select public.hr_assert_grant_hygiene();          # EXPECT: no raise (M-2 landed
 # 5. edge deploy (the op:'tick' entry — see "remaining work" below)
 # 6. ARM IN SHADOW. Pays nothing, and costs the ledger NOTHING (M-6):
 #    player_ledger rows/day while shadowed is ZERO at every size.
-#    update public.hr_tick_config set enabled = true, shadow = true;
+#    update public.hr_tick_config set enabled = true, armed_channels = '{}';   -- §19: was `shadow = true`
 #    insert into public.hr_tick_ownership (user_id, slot, channel, owned)
 #      select user_id, slot, 'gather', true from public.player_state
 #       where active_kind = 'gather';        -- the rollout cohort, one INSERT
@@ -1486,9 +1486,11 @@ select outcome, count(*), avg(ms)::int ms, max(effective_cadence_seconds) eff
   from public.hr_tick_cron_log where at > now() - interval '24 hours' group by 1;
 ```
 
-**Arming is a separate decision with its own Security GO** (`update
-public.hr_tick_config set shadow = false;`), and the kill switch — `set enabled
-= false` — is the rollback for all of it, with no deploy and no schema change.
+**Arming is a separate decision with its own Security GO, per channel** (§19:
+`update public.hr_tick_config set armed_channels = array['gather'] where id;`),
+and the kill switches — `set armed_channels = '{}'` (de-arm every channel) and
+`set enabled = false` — are the rollback for all of it, with no deploy and no
+schema change.
 
 ### Remaining work before gather can be ARMED
 
@@ -4474,3 +4476,36 @@ findings, sixteen closings, two corrections back to me that were both right, and
 no ruling softened in the course of being implemented — including the two
 (S-3's four closed doors, S-5's XP-only floor) that cost the design real player
 affordances and said so rather than hiding the cost.
+
+## §19 Per-channel arming and shadow-chain admission (2026-10-06)
+
+Implements `SEC_WORLD_TICK_ARM_2026-10-05.md` ruling 5 and the admission half of
+ruling 1. Migration: `supabase/migrations/2026-10-06-world-tick-channel-arm.sql`
+(STAGED; Security GO required). Guard: `tests/world-tick-channel-arm.mjs`
+(`--selftest`, eight mutants). Every `shadow = true/false` instruction earlier in
+this document is superseded by the table below; the `shadow` column no longer
+exists once that file is applied.
+
+| Object | Shape | Rule |
+|---|---|---|
+| `hr_tick_config.armed_channels` | `text[] NOT NULL DEFAULT '{}'` | THE arming authority. A listed channel pays through `hr_apply`; every other channel in `channels` is shadow. Born `'{}'` on apply — nothing armed. |
+| `hr_tick_config_armed_ck` | CHECK | `coalesce(ndims = 1 and armed_channels <@ channels, false)`. `<@` refuses a NULL element (measured); `ndims` is load-bearing because `<@` flattens; NOT NULL + `coalesce` close the NULL-passes-CHECK hole (S-5). A channel cannot leave `channels` while armed. |
+| `hr_tick_admit(armed, accrued_to, mark)` | `text`: `admit` / `fenced_24h` / `shadow_expired` | Armed (or NULL): raw `accrued_to > now() − 24 h`, unchanged (S-14). Shadow: `accrued_to > now() − 7 d` AND the shadow chain within 24 h. One definition, read by the roster and the cron's counter. Executable by no client or engine role. |
+| `hr_tick_settle` / `hr_party_tick_settle` | signatures unchanged | Mode read AFTER the player/party and lease locks, per channel (a party is `combat`). Every mode answer carries `channel`; `shadow_state_while_armed` is decided on that read and names the channel. Plain read, not `FOR SHARE`: the config row is the driver's hot cursor row and share-lockers starve its UPDATE. Stated consequence: a settle that read "armed" before a kill commits may finish that one window (the `enabled` switch's semantics). |
+| `hr_tick_cron_run` | body key `armed`; log `detail.armed`, `detail.admission` | `detail.admission` = `{shadow_expired: n, fenced_24h: m}` over the roster's own cohort (owned, on-channel, unpartied), only when non-zero. The 7-day end is loud. |
+| `hr_tick_stall_status` | adds `armed_channels` | Judged only while nothing is armed (as before). |
+| edge `probeWatermark` / `probeParty` | an answer naming ANOTHER channel is `mode_channel_mismatch` (skipped by name, nothing settled); one naming none is a pre-migration fence whose global flag is the mode | The mode only decides whether a carrier is SENT; the fence decides whether anything pays. Edge and migration deploy in either order. |
+
+Operator switches, one statement each:
+
+```sql
+update public.hr_tick_config set armed_channels = array['gather'] where id;  -- arm gather only
+update public.hr_tick_config set armed_channels = '{}' where id;             -- MASTER KILL: de-arm all; shadow keeps measuring
+update public.hr_tick_config set enabled = false where id;                   -- stop the tick entirely
+```
+
+Out of scope here and still required by the ruling: the server-side PROBE (its
+own lane); ruling 3's `frame_keys` CHECK before combat arms; and the 8c pairing
+fence ("no shadow row older than raw-settle + 24 h is summed into a ledger
+pairing"), which belongs to whichever read performs the pairing. Party-hunt
+admission is unchanged (raw 24 h).

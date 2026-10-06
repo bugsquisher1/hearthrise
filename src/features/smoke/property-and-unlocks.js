@@ -189,6 +189,14 @@ export default [
       /* P4: the pinned bar printed the verdict AND the gate line, so the blueprint was named twice. */
       const bar = document.querySelector('.hr-room-wrap .hr-room-build'), named = ((bar && bar.textContent) || '').split('Kitchen Blueprint II').length - 1;
       assert(bar && named === 1, 'the pinned Build bar must name the blueprint once (its gate line), got ' + named + ': ' + (bar && bar.textContent));
+      /* Visual gate: the modal's uncounted cost chip ("—/20 Normal Log") rendered in the red "short" colour.
+         MUTATION: drop `is-pending` from costChip's known:false branch → red. */
+      const qty = [...document.querySelectorAll('.hr-room-wrap .hr-cs-qty')].find((c) => c.querySelector('.bal-pending') && /Normal Log/.test(c.textContent));
+      assert(qty && qty.classList.contains('is-pending') && !qty.classList.contains('is-short') && !qty.classList.contains('is-full'),
+        'the modal\'s uncounted cost chip must be is-pending, never short/full: ' + (qty && qty.outerHTML));
+      const probe = document.createElement('span'); probe.style.color = 'var(--red)'; qty.parentNode.appendChild(probe);
+      const redC = getComputedStyle(probe).color; probe.remove();
+      assert(getComputedStyle(qty).color !== redC, 'the uncounted cost chip still paints the "short" red ' + redC);
       /* …and the House card's chips are neither met nor short: no red "none" for a count nobody has read. */
       const host = document.createElement('div'); H.renderRoomGrid(host);
       const cost = host.querySelector('.hh-room[data-room="kitchen"] .hh-room-cost');

@@ -3975,6 +3975,7 @@ function repaintBounty(){
 function acceptBounty(index){
   ensureBountyState();
   if(G.bountyHunter.active){notify('Finish or abandon your active bounty first.','kill');return;}
+  if((window.hrBountyBusy?window.hrBountyBusy():{}).abandon){notify('Abandoning your bounty, one moment.','info');return;}
   const b=G.bountyHunter.board[index];if(!b)return;
   G.bountyHunter.active=JSON.parse(JSON.stringify(b));
   /* Snapshot the proof-item count at accept time so only kills AFTER this count
@@ -3997,6 +3998,7 @@ function acceptBounty(index){
            flight" — see hrAdoptAcceptedBounty. */
         const _accepted=G.bountyHunter.active;
         const _p=HearthriseGoalClaim.acceptBounty(_accepted);
+        try{window.HearthriseBountyView.trackAccept(_p);}catch(e){}
         if(_p&&_p.then)_p.then(function(res){ hrAdoptAcceptedBounty(res,_accepted); }).catch(function(){});
         else if(_p&&_p.catch)_p.catch(function(){});
       }
@@ -4116,26 +4118,8 @@ function hrAdoptAcceptedBounty(res,accepted){
   return out;
 }
 window.hrAdoptAcceptedBounty=hrAdoptAcceptedBounty;
-function abandonBounty(){
-  if(!G.bountyHunter?.active)return;
-  const b=G.bountyHunter.active;
-  const lv=getBountyHunterLevel();
-  if(lv>=10){
-    const fee=Math.min(10,Math.floor((b.rewards?.marks||0)*.25));
-    if(clientMayWriteRecordField('marks')){
-      /* DORMANT: client owns marks — debit locally exactly as before. */
-      G.marks=Math.max(0,(G.marks||0)-fee);if(fee)notify(`Bounty abandoned (-${fee} Marks)`,'kill');
-    } else {
-      /* ARMED: server owns marks. The real debit is hr_bounty_spend (which re-derives
-         the fee from the server's active_bounty); the next envelope reconciles. */
-      try{if(window.HearthriseGoalClaim&&HearthriseGoalClaim.bountyAbandon){const _p=HearthriseGoalClaim.bountyAbandon(lv,b.rewards?.marks||0);if(_p&&_p.catch)_p.catch(()=>{});}}catch(e){}
-      if(fee)notify(`Bounty abandoned (-${fee} Marks)`,'kill');
-    }
-  }
-  else notify('Bounty abandoned','info');
-  hrClearBountyRetry(b);
-  G.bountyHunter.active=null;renderCombat();repaintBounty();saveLocal();
-}
+/* Abandon (server fee, contract ends only on ok:true) lives in src/render/bounty-progress.js. */
+function abandonBounty(){const V=window.HearthriseBountyView;return (V&&V.abandon)?V.abandon():Promise.resolve(null);}
 /* @param prepaid — the caller has ALREADY charged for this refresh (the Bounty
    Shop's Reroll Token). It was passing `rerollBountyBoard(true)` into a function
    that took no arguments, so a purchased reroll ALSO burned the free one, or
@@ -4924,8 +4908,8 @@ function renderBountyPanel(){
       <p class="bb-task">${bountyLabel(active)}</p>
       <p class="bb-weak">Weak to ${WEAPON_TYPES[m?.weaponWeak]||'—'}${_hrDropBonusNote(m)}${window.HearthriseFoe?window.HearthriseFoe.elementSuffix(active.target):''}</p>${window.HearthriseFoe?window.HearthriseFoe.noticeHtml(active.target):''}
       <div class="bb-prog"><span class="bb-prog-t">${bountyProgressText(active)}</span><span class="bb-bar"><i style="width:${pct}%"></i></span></div>
-      <div class="bb-pay">${_gp(active.rewards.gold)}<span>${active.rewards.marks} Marks</span><span>${active.rewards.xp} BH XP</span></div>
-      <div class="bb-foot">${_claimBtn}<button class="btn btn-sm btn-danger" onclick="abandonBounty()">Abandon</button></div>
+      ${active.rewards&&active.rewards.gold!=null?`<div class="bb-pay">${_gp(active.rewards.gold)}<span>${active.rewards.marks} Marks</span><span>${active.rewards.xp} BH XP</span></div>`:''}
+      <div class="bb-foot">${_claimBtn}<button class="btn btn-sm btn-danger" onclick="abandonBounty()"${(window.hrBountyBusy?window.hrBountyBusy():{}).any?' disabled':''}>Abandon</button></div>
     </article>`;
   }else{
     notices=bh.board.map((b,i)=>{
@@ -4945,7 +4929,7 @@ function renderBountyPanel(){
         <p class="bb-task">${bountyLabel(b)}</p>
         <p class="bb-weak">Weak to ${WEAPON_TYPES[m?.weaponWeak]||'—'}${_hrDropBonusNote(m)}${window.HearthriseFoe?window.HearthriseFoe.elementSuffix(b.target):''}</p>
         <div class="bb-pay">${_gp(b.rewards.gold)}<span>${b.rewards.marks} Marks</span><span>${b.rewards.xp} BH XP</span></div>
-        <div class="bb-foot"><button class="btn btn-sm btn-primary" onclick="acceptBounty(${i})">Accept</button></div>
+        <div class="bb-foot"><button class="btn btn-sm btn-primary" onclick="acceptBounty(${i})"${(window.hrBountyBusy?window.hrBountyBusy():{}).abandon?' disabled title="Abandoning your bounty"':''}>Accept</button></div>
       </article>`;
     }).join('');
   }

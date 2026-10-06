@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 64 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, awayGatherSpan, tryRunRestampingBalance, xpOf, xpZero, goldOf, snapshotG, setAway, restoreG, restoreGAndRecord, withCap, on, serverBagFixture } from './_harness.js?v=562';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, awayGatherSpan, tryRunRestampingBalance, xpOf, xpZero, goldOf, snapshotG, setAway, restoreG, restoreGAndRecord, withCap, on, stubSignedIn, serverBagFixture } from './_harness.js?v=562';
 
 export default [
 
@@ -287,6 +287,190 @@ export default [
       window.rerollBountyBoard();
       assert(G.bountyHunter.freeRerolls === 0, 'CONTROL: an unpaid reroll must still spend the free one');
     } finally { restoreG(snap); }
+  }),
+
+  /* BOUNTY-ABANDON-1 (2026-10-04-bounty-abandon-server-fee.sql, Security P2):
+     the abandon fee was priced off a client-sent Bounty-Hunter level and reward,
+     and the call was skipped below a CLIENT level of 10. Now the server prices
+     it, so the client must always ask, send no number, name the contract, and
+     quote the server's fee — never its own formula (here it would say 0). */
+  () => tryRunAsync('BOUNTY-ABANDON-1: abandon sends no level or reward, names the contract, and quotes the SERVER fee', async () => {
+    if (typeof window.abandonBounty !== 'function' || !window.HearthriseGoalClaim) return;
+    const snap = snapshotG();
+    const origFetch = window.fetch, origNotify = window.notify;
+    const unstub = stubSignedIn(2);
+    const bodies = [], said = [];
+    let answer = null;
+    try {
+      window.fetch = (url, init) => {
+        if (String(url).indexOf('/rpc/hr_bounty_spend') !== -1) bodies.push(JSON.parse(init.body));
+        return Promise.resolve(new Response(JSON.stringify(answer || []), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      };
+      window.notify = (m) => { said.push(String(m)); };
+      window.ensureBountyState();
+      window.G.skills.bountyHunter = 0;               // client level 1: the old code never called
+      window.G.bountyHunter.active = { id: 'bx-abandon-1', type: 'cull', target: 'goblin', required: 10, progress: 0, rewards: { marks: 40 } };
+      answer = { ok: true, reason: 'abandon', fee: 7, marks: 93, bounty_id: 'bx-abandon-1' };
+      await window.abandonBounty();
+      assert(bodies.length === 1, 'abandon must ALWAYS ask the server (it owns the level); saw ' + bodies.length + ' hr_bounty_spend calls');
+      const b = bodies[0];
+      assert(!('p_bounty_level' in b) && !('p_reward_marks' in b), 'abandon sent a client number the fee could be priced from: ' + JSON.stringify(b));
+      assert(b.p_reason === 'abandon' && b.p_bounty_id === 'bx-abandon-1' && b.p_slot === 2 && !!b.p_idem,
+        'abandon must name the contract, the slot and a key: ' + JSON.stringify(b));
+      assert(window.G.bountyHunter.active === null, 'the local contract must end');
+      assert(said.some((m) => /-7 Marks/.test(m)), 'the toast must quote the SERVER fee (7); said ' + JSON.stringify(said));
+      // A refusal (no server contract) charges nothing and says so.
+      window.G.bountyHunter.active = { id: 'bx-abandon-2', type: 'cull', target: 'goblin', required: 10, progress: 0, rewards: { marks: 40 } };
+      answer = { ok: false, error: 'no_active_bounty' }; said.length = 0; window.G._bountyServer = null;
+      await window.abandonBounty();
+      assert(said.length === 1 && !/Marks/.test(said[0]), 'a refused abandon must not quote a fee; said ' + JSON.stringify(said));
+    } finally { window.fetch = origFetch; window.notify = origNotify; unstub(); restoreG(snap); }
+  }),
+
+  /* BOUNTY-ABANDON-2 (Security GO-WITH-CHANGES, 2026-10-04): the server now
+     REFUSES an accept over a held contract (bounty_active) instead of replacing
+     it — that replace was a fee-free abandon. So the board must not fire an
+     accept until the abandon's answer is back: the two are separate requests
+     and an accept that lands first would be refused, leaving a local contract
+     the server never took. Fails without the in-flight wait: the accept fires
+     while the abandon is still pending. */
+  () => tryRunAsync('BOUNTY-ABANDON-2: the board waits for the abandon answer before it allows an accept', async () => {
+    if (typeof window.abandonBounty !== 'function' || typeof window.acceptBounty !== 'function' || !window.HearthriseGoalClaim) return;
+    const snap = snapshotG();
+    const origFetch = window.fetch, origNotify = window.notify;
+    const unstub = stubSignedIn(0);
+    const calls = [];
+    let release = null;
+    try {
+      window.fetch = (url) => {
+        const u = String(url);
+        if (u.indexOf('/rpc/hr_bounty_spend') !== -1) {
+          calls.push('abandon');
+          return new Promise((res) => { release = () => res(new Response(JSON.stringify({ ok: true, reason: 'abandon', fee: 0, marks: 0, bounty_id: 'bx-ab2-old' }), { status: 200, headers: { 'Content-Type': 'application/json' } })); });
+        }
+        if (u.indexOf('/rpc/hr_accept_bounty') !== -1) calls.push('accept');
+        return Promise.resolve(new Response(JSON.stringify({ ok: false, error: 'stubbed' }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      };
+      window.notify = () => {};
+      window.ensureBountyState();
+      const G = window.G;
+      G.bountyHunter.active = { id: 'bx-ab2-old', type: 'cull', target: 'goblin', required: 10, progress: 0, rewards: { gold: 10, marks: 4, xp: 5 } };
+      G.bountyHunter.board = [{ id: 'bx-ab2-new', type: 'cull', difficulty: 'normal', target: 'goblin', required: 10, progress: 0, rewards: { gold: 10, marks: 4, xp: 5 } }];
+      const done = window.abandonBounty();
+      for (let i = 0; i < 20 && !release; i++) await new Promise((r) => setTimeout(r, 5));
+      assert(typeof release === 'function', 'abandon must reach hr_bounty_spend');
+      window.acceptBounty(0);
+      await new Promise((r) => setTimeout(r, 10));
+      assert(G.bountyHunter.active && G.bountyHunter.active.id === 'bx-ab2-old' && calls.indexOf('accept') === -1,
+        'the contract must stay until the abandon answers, and no accept may fire: active=' + JSON.stringify(G.bountyHunter.active && G.bountyHunter.active.id) + ' calls=' + calls.join(','));
+      assert(G.bountyHunter.board.length === 1, 'the refused accept must leave the board row in place');
+      release();
+      await done;
+      window.acceptBounty(0);
+      assert(G.bountyHunter.active && G.bountyHunter.active.id === 'bx-ab2-new',
+        'once the abandon answered, the accept must go through; active=' + JSON.stringify(G.bountyHunter.active));
+    } finally { if (release) release(); window.fetch = origFetch; window.notify = origNotify; unstub(); restoreG(snap); }
+  }),
+
+  /* BOUNTY-ABANDON-3 (Security C1, 2026-10-05): an abandon that does not answer
+     ok:true must leave the contract where it was — the server still holds it, and
+     a client that dropped it would be refused bounty_active on every accept after.
+     Fails with the clear-before-answer abandon. */
+  () => tryRunAsync('BOUNTY-ABANDON-3: a failed abandon (network, rate_limited) keeps the contract', async () => {
+    if (typeof window.abandonBounty !== 'function' || !window.HearthriseGoalClaim) return;
+    const snap = snapshotG();
+    const origFetch = window.fetch, origNotify = window.notify;
+    const unstub = stubSignedIn(0);
+    let mode = 'network';
+    try {
+      window.fetch = (url) => (String(url).indexOf('/rpc/hr_bounty_spend') !== -1 && mode === 'network')
+        ? Promise.reject(new TypeError('Failed to fetch'))
+        : Promise.resolve(new Response(JSON.stringify({ ok: false, error: mode }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      window.notify = () => {};
+      window.ensureBountyState();
+      window.G.bountyHunter.active = { id: 'bx-ab3', type: 'cull', target: 'goblin', required: 10, progress: 0, rewards: { marks: 40 } };
+      for (const m of ['network', 'rate_limited', 'bounty_mismatch']) {
+        mode = m;
+        await window.abandonBounty();
+        const a = window.G.bountyHunter.active;
+        assert(a && a.id === 'bx-ab3', 'a ' + m + ' answer dropped the contract the server still holds: ' + JSON.stringify(a));
+      }
+    } finally { window.fetch = origFetch; window.notify = origNotify; unstub(); restoreG(snap); }
+  }),
+
+  /* BOUNTY-ABANDON-4 (Security C1): Abandon waits for the ACCEPT's answer. An
+     abandon that overtakes its accept answers no_active_bounty, the accept then
+     commits, and the server holds a contract the client let go. Fails without
+     the accept tracking: the spend fires while the accept is unanswered. */
+  () => tryRunAsync('BOUNTY-ABANDON-4: Abandon is refused until the accept has answered', async () => {
+    if (typeof window.abandonBounty !== 'function' || typeof window.acceptBounty !== 'function' || !window.HearthriseBountyView) return;
+    const snap = snapshotG();
+    const origFetch = window.fetch, origNotify = window.notify;
+    const unstub = stubSignedIn(0);
+    const calls = [];
+    let release = null;
+    const ok = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    try {
+      window.fetch = (url) => {
+        const u = String(url);
+        if (u.indexOf('/rpc/hr_accept_bounty') !== -1) return new Promise((r) => { release = () => r(ok({ ok: true, bounty_id: 'bx-ab4', target: 'goblin', required: 10, tier: 1 })); });
+        if (u.indexOf('/rpc/hr_bounty_spend') !== -1) { calls.push('abandon'); return Promise.resolve(ok({ ok: true, fee: 0, bounty_id: 'bx-ab4' })); }
+        return Promise.resolve(ok({ ok: false, error: 'stubbed' }));
+      };
+      window.notify = () => {};
+      window.ensureBountyState();
+      window.G.bountyHunter.active = null;
+      window.G.bountyHunter.board = [{ id: 'bx-ab4', type: 'cull', difficulty: 'normal', target: 'goblin', required: 10, progress: 0, rewards: { gold: 10, marks: 4, xp: 5 } }];
+      window.acceptBounty(0);
+      for (let i = 0; i < 20 && !release; i++) await new Promise((r) => setTimeout(r, 5));
+      assert(typeof release === 'function' && window.HearthriseBountyView.busy().accept, 'the accept must be tracked while it is unanswered');
+      await window.abandonBounty();
+      assert(calls.length === 0 && window.G.bountyHunter.active && window.G.bountyHunter.active.id === 'bx-ab4',
+        'Abandon fired over an unanswered accept: calls=' + calls.join(','));
+      release(); await new Promise((r) => setTimeout(r, 10));
+      assert(!window.HearthriseBountyView.busy().accept, 'the accept answered, Abandon must be enabled again');
+      await window.abandonBounty();
+      assert(calls.length === 1 && window.G.bountyHunter.active === null, 'after the accept answered, the abandon must go through');
+    } finally { if (release) release(); window.fetch = origFetch; window.notify = origNotify; unstub(); restoreG(snap); }
+  }),
+
+  /* BOUNTY-ABANDON-5 (Security C2): the server's contract is the contract. The
+     abandon request is dropped, the reload brings back a client that holds no
+     contract (or a ghost), and the envelope names the server's — the board must
+     show it and Abandon must send ITS id, or the character is locked out of the
+     board forever (every accept: bounty_active). Fails without the rebuild. */
+  () => tryRunAsync('BOUNTY-ABANDON-5: abandon dropped, reload, the envelope contract is shown and a real abandon ends it', async () => {
+    if (typeof window.abandonBounty !== 'function' || typeof window.hrNoteServerBounty !== 'function') return;
+    const snap = snapshotG();
+    const origFetch = window.fetch, origNotify = window.notify;
+    const unstub = stubSignedIn(0);
+    const ids = [];
+    let drop = true;
+    const srv = { bounty_id: 'bx-ab5-srv', b_type: 'cull', difficulty: 'normal', target: 'goblin', tier: 1, required: 12, progress: 3 };
+    try {
+      window.fetch = (url, init) => {
+        if (String(url).indexOf('/rpc/hr_bounty_spend') !== -1) {
+          if (drop) return Promise.reject(new TypeError('Failed to fetch'));
+          ids.push(JSON.parse(init.body).p_bounty_id);
+          return Promise.resolve(new Response(JSON.stringify({ ok: true, fee: 2, bounty_id: 'bx-ab5-srv' }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        }
+        return Promise.resolve(new Response('{"ok":false,"error":"stubbed"}', { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      };
+      window.notify = () => {};
+      window.ensureBountyState();
+      window.G.bountyHunter.active = { id: 'bx-ab5-ghost', type: 'cull', target: 'goblin', required: 10, progress: 0, rewards: {} };
+      await window.abandonBounty();                       // the request is dropped
+      window.G._bountyServer = null;
+      const r = window.hrNoteServerBounty({ state: { bounty: srv } });   // reload: the envelope names the server's
+      const a = window.G.bountyHunter.active;
+      assert(r.adopted && a && a.id === 'bx-ab5-srv' && a.required === 12 && window.hrBountyView(a).progress === 3,
+        'the envelope contract must replace the ghost: ' + JSON.stringify(a));
+      drop = false;
+      await window.abandonBounty();
+      assert(ids.length === 1 && ids[0] === 'bx-ab5-srv' && window.G.bountyHunter.active === null, 'Abandon must send the server id and end it: ' + JSON.stringify(ids));
+      window.hrNoteServerBounty({ state: { bounty: srv } });           // a stale envelope from before the abandon
+      assert(window.G.bountyHunter.active === null, 'a stale envelope must not resurrect the abandoned contract');
+    } finally { window.fetch = origFetch; window.notify = origNotify; unstub(); restoreG(snap); }
   }),
 
   () => tryRun('BOUNTY-SHOP-1: no Bounty Shop row offers an enabled Buy that the spend will refuse', () => {

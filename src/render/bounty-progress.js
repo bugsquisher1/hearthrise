@@ -71,6 +71,85 @@ export function attempt(b) {
   return C.attemptProgress(b, proofHave(b), view(b).progress);
 }
 
+/* ── THE CONTRACT LEAVES ONLY WHEN THE SERVER SAYS SO (Security C1/C2, 2026-10-05) ──
+   hr_accept_bounty refuses over a held contract (bounty_active), so a contract the
+   client dropped while the server kept it locks the whole board. Hence: the accept
+   and the abandon are each tracked until they ANSWER; Abandon is refused while the
+   accept is unanswered; the local contract ends only on {ok:true}; and an envelope
+   naming a contract the client does not hold REPLACES the client's view with it. */
+let acceptP = null, abandonP = null, abandonedId = null;
+const settle = (p, clear) => p.then(clear, clear);
+/* The reroll's in-flight is the 'bounty-spend' latch (net/goal-claim.js); it is
+   read here so accept / abandon / reroll answer one busy() question. */
+function rerollHeld() { try { const GC = w().HearthriseGoalClaim; return !!(GC && GC.bountyRerollHeld && GC.bountyRerollHeld()); } catch (e) { return false; } }
+export function busy() { const reroll = rerollHeld(); return { accept: !!acceptP, abandon: !!abandonP, reroll, any: !!(acceptP || abandonP || reroll) }; }
+export function trackAccept(p) {
+  if (!p || typeof p.then !== 'function') return;
+  acceptP = p;
+  settle(p, () => { if (acceptP === p) { acceptP = null; repaint(); } });
+}
+function repaint() {
+  const W = w();
+  try { if (typeof W.renderCombat === 'function') W.renderCombat(); } catch (e) {}
+  try { if (typeof W.repaintBounty === 'function') W.repaintBounty(); } catch (e) {}
+}
+const say = (m, k) => { const n = w().notify; if (typeof n === 'function') n(m, k); };
+
+/** The board's Abandon. @returns a Promise of the server's answer (or null). */
+export function abandon() {
+  const W = w(), G = W.G || {};
+  const b = (G.bountyHunter && G.bountyHunter.active) || null;
+  if (!b || abandonP) return Promise.resolve(null);
+  if (acceptP) { say('Your accept is still on its way to the board, one moment.', 'info'); return Promise.resolve(null); }
+  let p = null;
+  try { const GC = W.HearthriseGoalClaim; if (GC && GC.bountyAbandon) p = GC.bountyAbandon(b.id); } catch (e) {}
+  if (!p || typeof p.then !== 'function') { say('The board could not be reached. Your bounty is still active.', 'info'); return Promise.resolve(null); }
+  abandonP = p; repaint();
+  const done = (res) => {
+    if (abandonP === p) abandonP = null;
+    const cur = (G.bountyHunter && G.bountyHunter.active) || null;
+    const mine = !!cur && String(cur.id) === String(b.id);
+    const m = G._bountyServer || null;
+    /* no_active_bounty is the server saying it holds NOTHING (the accept has
+       answered, so it is not racing one); believe it unless the mirror still
+       names this contract. Every other non-ok answer keeps the contract. */
+    const gone = res && (res.ok === true || (res.error === 'no_active_bounty'
+      && !(m && m.bounty_id != null && String(m.bounty_id) === String(b.id))));
+    if (gone && mine) {
+      if (res.ok === true) abandonedId = String(b.id);
+      try { if (typeof W.hrClearBountyRetry === 'function') W.hrClearBountyRetry(cur); } catch (e) {}
+      G.bountyHunter.active = null;
+      try { if (typeof W.saveLocal === 'function') W.saveLocal(); } catch (e) {}
+    }
+    const fee = res && res.ok === true ? (Math.floor(Number(res.fee)) || 0) : 0;
+    if (res && res.ok === true) say(fee > 0 ? `Bounty abandoned (-${fee} Marks)` : 'Bounty abandoned', fee > 0 ? 'kill' : 'info');
+    else if (gone) say('Bounty abandoned', 'info');
+    else say('The board did not take the abandon (' + String((res && res.error) || 'network').replace(/[^a-z_]/gi, '') + '). Your bounty is still active.', 'info');
+    repaint();
+    return res;
+  };
+  return p.then(done, () => done(null));
+}
+
+/* C2: the server's contract, rebuilt from the projection when the client holds
+   none or another. Rewards are not projected, so they are taken from the board
+   row of the same id when there is one; the turn-in pays from its own RESPONSE. */
+function adoptServerContract(sb, G) {
+  if (!sb || typeof sb !== 'object' || sb.bounty_id == null || typeof sb.target !== 'string') return false;
+  const id = String(sb.bounty_id);
+  if (acceptP || abandonP || id === abandonedId) return false;
+  const bh = G.bountyHunter; if (!bh) return false;
+  if (bh.active && String(bh.active.id) === id) return false;
+  const req = Math.floor(Number(sb.required));
+  if (!Number.isFinite(req) || req < 1) return false;
+  const row = (bh.board || []).find((r) => r && String(r.id) === id);
+  bh.active = { id, type: String(sb.b_type || 'cull'), difficulty: String(sb.difficulty || 'normal'),
+    target: sb.target, tier: Math.floor(Number(sb.tier)) || 1, required: req,
+    progress: Math.max(0, Math.floor(Number(sb.progress)) || 0),
+    rewards: row && row.rewards ? JSON.parse(JSON.stringify(row.rewards)) : {}, _serverContract: true };
+  return true;
+}
+
 /* Adopt the envelope's (or hr_load's) `bounty`, top-level or under `state`. The
    mirror is stored whenever the key is present, even before the contract is
    hydrated; the receipt is then judged against `active`. When the contract is
@@ -78,7 +157,7 @@ export function attempt(b) {
    judges it and still pays from the RESPONSE). A missing key is a no-op.
    @returns a receipt, so the suite asserts the rule and not a rendered string. */
 export function noteServer(res) {
-  const out = { noted: false, reason: '', progress: null, turnIn: false };
+  const out = { noted: false, reason: '', progress: null, turnIn: false, adopted: false };
   const has = (o, k) => !!o && typeof o === 'object' && Object.prototype.hasOwnProperty.call(o, k);
   const src = has(res && res.state, 'bounty') ? res.state : (has(res, 'bounty') ? res : null);
   if (!src) { out.reason = 'no_key'; return out; }          // FAIL-SAFE: today's behaviour
@@ -88,6 +167,8 @@ export function noteServer(res) {
   try { if (typeof W.ensureBountyState === 'function') W.ensureBountyState(); } catch (e) {}
   if (!noteServerProgress(src.bounty)) { out.reason = 'bad_progress'; return out; }
   const G = W.G || {};
+  if (src.bounty === null || (src.bounty && String(src.bounty.bounty_id) !== abandonedId)) abandonedId = null;
+  if (adoptServerContract(src.bounty, G)) out.adopted = true;
   const act = (G.bountyHunter && G.bountyHunter.active) || null;
   if (!act) { out.reason = 'no_active'; return out; }
   const v = view(act);
@@ -171,7 +252,7 @@ export function bbCut(id) {
 
 export function setupBountyProgress() {
   const W = w();
-  W.HearthriseBountyView = { view, attempt, noteServer, noteServerProgress, turnIn, label, progressText, bbNail, bbCut };
+  W.HearthriseBountyView = { view, attempt, noteServer, noteServerProgress, turnIn, label, progressText, bbNail, bbCut, busy, trackAccept, abandon };
   /* Bare globals too: legacy.js's four render sites and the envelope hook call
      these by name, and the Claim control is an inline onclick. */
   W.hrBountyView = view;
@@ -179,6 +260,7 @@ export function setupBountyProgress() {
   W.bountyAttemptProgress = attempt;
   W.hrNoteServerBounty = noteServer;
   W.hrTurnInBounty = turnIn;
+  W.hrBountyBusy = busy;
   W.bountyLabel = label;
   W.bountyProgressText = progressText;
   W._bbNail = bbNail;

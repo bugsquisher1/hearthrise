@@ -50,7 +50,7 @@ permissions:
 # and the second time this workflow has raised that number rather than the
 # question underneath it.
 #
-# The steps are now partitioned by what they NEED, into NINE jobs that run in
+# The steps are now partitioned by what they NEED, into TEN jobs that run in
 # parallel, so the wall clock is the slowest family rather than the sum:
 #
 #   job                  needs                      MEASURED   timeout (= x2)
@@ -59,7 +59,8 @@ permissions:
 #   db-replay            an applied migration chain   5.8 min  16 [1][5]
 #   db-replay-4          an applied migration chain   6.9 min  16 [5]
 #   db-replay-2          an applied migration chain  10.8 min  19 [1][4]
-#   db-replay-3          an applied migration chain   9.5 min  19 [4]
+#   db-replay-3          an applied migration chain  10.4 min  21 [4][6]
+#   db-replay-5          an applied migration chain  10.0 min  20 [6]
 #   utc-midnight-replay  an applied migration chain   6.85 min 14 [2]
 #   client-guards        nothing but this repo        4.3 min   9 [3]
 #   edge                 the live gateway              0.5 s    5 (floor)
@@ -118,6 +119,14 @@ permissions:
 #     Live-hash 39 + Apply-order 1 + Retreat 21 + readonly-rpc 25 = 348 s
 #     (5.8 min); db-replay-4 = verify 44 + Rejections 113 + Buff queue 178 +
 #     Client-state 67 = 402 s, + ~11 s setup = 6.9 min. Both keep 16 min.
+# [6] db-replay-3 SPLIT IN TWO 2026-10-06 (CI-SPLIT-5): run 37470960216
+#     (next@e585a031) CANCELLED db-replay-3 at 19 min (1151 s, every step
+#     green). The world-tick family moved whole to db-replay-5. NOTE: the same
+#     run measured db-replay 575 s, db-replay-4 616 s, db-replay-2 752 s,
+#     utc-midnight-replay 521 s, economy-selftests 1455 s, in-page 813 s (up to
+#     1105 s on other runs today) — the table lines above for those jobs are
+#     STALE and every one of them is past x2 of its timeout; they are not
+#     re-stated here (not moved by this split) and are owed a re-measure.
 #
 # RE-MEASURED 2026-09-07 after merging main, which brought SIXTEEN steps this
 # branch forked before (guard-hygiene, window-globals, no-client-farm-mint,
@@ -746,6 +755,20 @@ jobs:
           node tests/client-state-retired-fields.mjs
           node tests/client-state-retired-fields.mjs --selftest
 
+      # 2026-10-04-bounty-abandon-server-fee.sql (Security P2): the abandon fee is
+      # priced from the server's active_bounty + Bounty-Hunter level, never a client
+      # number. Replays the WHOLE chain and drives the gated wrapper as
+      # `authenticated`: the file re-applies byte-identically, the retired
+      # (level, reward) call does not resolve, a level-15 abandon pays 10 and ends
+      # the contract, a second abandon is refused, level 9 pays 0, and the ungated
+      # body reaches no client. --mutate plants four defects (§5 switched off so
+      # they reach these arms) and requires each CAUGHT by its named arm.
+      - name: Bounty abandon fee — server-priced, contract ends, second apply identical
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/bounty-abandon-fee.mjs
+          node tests/bounty-abandon-fee.mjs --mutate
+
   # ── db-replay-2 ── THE SECOND HALF OF db-replay, SPLIT OUT 2026-09-20. Same
   # inputs (an applied migration chain), same reason for the split as
   # utc-midnight-replay: the family had outgrown one job's budget with no
@@ -1041,9 +1064,18 @@ jobs:
   # verify 57 s + 501 s across the guards below = 558 s of guards, plus ~11 s
   # of checkout/setup-node/install = 569 s (9.5 min) — inside the SAME 19-min
   # timeout as db-replay-2, unraised.
+  #
+  # RE-MEASURED 2026-10-06 (CI-SPLIT-5): the world-tick wave grew this job to
+  # 1151 s and run 37470960216 (next@e585a031) was CANCELLED at 19 min, every
+  # step green. The world-tick family moved whole to db-replay-5 (see there).
+  # What stays, from that run's own step times: verify 64 + trophies/collection
+  # 42 + realtime 45 + frame-origin 0 + RPC resolution 20 + World finds 151 +
+  # Recipe learn 133 + Projected key set 2 + M8 parties 105 + client-state
+  # adversarial 52 = 614 s, + ~11 s setup = 625 s (10.4 min). Budget = measured
+  # x2 = 20.8, rounded up to 21.
   db-replay-3:
     runs-on: ubuntu-latest
-    timeout-minutes: 19
+    timeout-minutes: 21
 
     steps:
       - uses: actions/checkout@v4
@@ -1314,6 +1346,197 @@ jobs:
       - name: Projected key set — hr_state_of's real keys vs the client's pin
         if: ${{ !cancelled() }}
         run: node tests/no-client-copy-of-projection.mjs --execute
+
+      # M8 SLICE 1 — THE PARTY IS A SERVER OBJECT AND ONLY THE VERBS CHANGE IT
+      # (docs/planning/WORLD_TICK_DESIGN.md §18, and Security's threat model in
+      # §18-SEC). Two planted users play the whole membership journey on the
+      # PGlite chain replay as real auth.uid() values — create, invite, accept,
+      # leave, kick — and every refusal code the design names is asserted by
+      # exit code. It carries the findings the slice was briefed on: S-7 (the
+      # SELECT policies neither recurse nor reach a predicate the caller cannot
+      # execute, and hr_party_view is frozen at eight keys and refuses a
+      # non-member), S-11 (an accept is refused party_hunt_running the day
+      # hr_party_hunt_live starts answering TRUE — the body S2 will ship, proved
+      # against the real call site), S-12 (the ten-level spread re-checked on
+      # ACCEPT, which §18.1's "at hunt start only" does not cover) and S-13
+      # (three causes, one string to the sender, three distinct codes to the
+      # journal, plus the receiver clamp at the sixth live card).
+      #
+      # The migrations' own §4 blocks run ONCE, at apply time. This runs on
+      # every push, and it adds three properties a §4 block structurally cannot:
+      # that all three files RE-APPLY byte-identically (measured as a full
+      # schema inventory before and after a second apply — "additive and
+      # idempotent" was a claim in three headers and nothing checked it), that
+      # the `party` rate bucket really refuses the 13th call in a minute, and
+      # the S-11 refusal under a predicate that actually answers TRUE.
+      #
+      # --mutate is TWO STAGES. Stage 1 plants distinguishable refusals in
+      # hr_party_invite — the pre-S-13 oracle — and requires the MIGRATION to
+      # refuse to install. Stage 2 disables file 2's whole §8 self-check as well
+      # so the mutant reaches this file's arms, and requires S13a to go red on
+      # its own: an arm that only ever fails because the apply gate failed is
+      # not a standing guard the day someone edits the verb.
+      - name: M8 parties — membership, and the four findings it carries
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/party-membership.mjs
+          node tests/party-membership.mjs --mutate
+
+      # M8 SLICE 3 — THE SPLIT, AND §18-SEC.3 RULES THAT THIS FILE *IS* THE
+      # SLICE'S §4 SELF-CHECK: "the split is a pure function, so its self-check
+      # is in tests/party-split.mjs --mutate; the migration half has no body."
+      # So there is no migration in this slice at all, and the executing
+      # assertion §18.5 asks for — both share vectors summing to 10,000 bp on a
+      # planted four-member window read back out of hr_tick_shadow — runs here,
+      # inside a transaction that is ROLLED BACK, against the PGlite chain.
+      #
+      # It reads the attribution off `delta->'journal'->'meta'->'party'`, which
+      # is where §18.2.1a puts it and the object hr_apply would receive verbatim;
+      # `hr_tick_shadow.party` is S2's nullable column and does not exist yet, so
+      # the guard DETECTS it and grades both forms the day it lands.
+      #
+      # The plain run is eleven properties over 414 generated windows of 1..4
+      # members: both vectors at exactly 10,000 bp with no band (P-b), the XP
+      # floor and the participation threshold, NO floor on gold or on the lottery
+      # weights (S-5), the remainder to the lowest (user_id, slot) (S-6),
+      # VIGOUR_DRY_MULT on the member's own share with the freed value accounted
+      # rather than redistributed (S-10, and (P-c) as an inequality with an exact
+      # equality underneath), the seven-key nested journal set as an EQUALITY
+      # with a thirteenth top-level meta key still red (B-A5), determinism, and
+      # §18.1's own published Fellowship block reproduced to the basis point.
+      #
+      # --mutate patches a COPY of src/core/party-split.js in a temp dir — never
+      # the tracked file (S-UM-1) — ten times, and each mutant must go red BY THE
+      # PROPERTY THAT NAMES IT: the floor applied to gold, the floor applied to
+      # the lottery weights, the remainder to the highest, a vector at 9,999, an
+      # eighth journal key, VIGOUR_DRY_MULT dropped, a leaked float, the floor
+      # removed, the threshold removed, and the lottery line detached from
+      # damage. A missing anchor exits 2, and the clean arm runs first.
+      - name: M8 parties — the split, and its ten mutants
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/party-split.mjs
+          node tests/party-split.mjs --mutate
+
+      # M8 SLICE 4 — THE HUNT INTENTS, AND THE SETTLE BOUNDARY PRICED. The three
+      # migrations carry their own §4 blocks (Security's §18-SEC.3 S4 list plus
+      # §18-SEC-2.2's B-A1 and B-A6, executed at apply time and refusing to
+      # install otherwise); this is the STANDING half. A four-member party is
+      # formed through the REAL membership verbs, starts a hunt, is settled once
+      # in SHADOW through S2's own hr_party_tick_settle, and is then kicked, left
+      # and stopped.
+      #
+      #   P-IDEM   the three files re-apply byte-identically — and file 2 PATCHES
+      #            two existing bodies (hr_party_kick, hr_party_leave) by anchored
+      #            pg_get_functiondef replacement, so this is also the proof that
+      #            the patch is SKIPPED on a second apply rather than stapled in
+      #            twice. It runs BEFORE the fixture is planted, because both
+      #            files' §(z) arms require the S4 tables EMPTY after an apply.
+      #   P-SETTLE the last window goes through S2's settle and NOTHING else:
+      #            four hr_tick_shadow rows, the attribution key set as an
+      #            EQUALITY, zero ledger rows, the party watermark moved by the
+      #            settle rather than by the verb. A second settle path on a
+      #            client verb is S-3 and AWAY-12 in one move.
+      #   P-B-A1   the eight-boundary budget across ALL FOUR doors — start, stop,
+      #            leave, kick — which no single migration arm can walk end to
+      #            end because it is a property of the four verbs together.
+      #
+      # ★ B-A6 is the arm to read first: a start with one of four members' windows
+      #   still open is refused member_uncollectable and writes ZERO ROWS — no
+      #   hunt, no boundary spent, no pointer moved, no watermark moved, no
+      #   left_at. ★ T-3 is the second: a kick whose settle cannot run is refused
+      #   with left_at UNWRITTEN, the key released and no boundary spent, and the
+      #   same kick then LANDS once the settle has run.
+      #
+      # --mutate plants five defects, each of which the MIGRATIONS' OWN §4 blocks
+      # must refuse at apply time: a start that stops counting against the eight
+      # (B-A1), a start that writes ONE member's pointer instead of all four
+      # (B-A6), a kick that closes the row although the settle could not run
+      # (T-3), a stop that calls hr_party_tick_settle itself (S-3), and a
+      # party_settle_required refusal that hands the leader the watermark no
+      # caller may read. THREE of them are then re-run with the migration's §6
+      # gate neutered, so the node arms have to catch them on their own — which
+      # is the only state that matters the day somebody edits a verb without
+      # re-running the apply.
+      - name: M8 parties — the hunt intents, T-3 and the eight-boundary budget
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/party-hunt.mjs
+          node tests/party-hunt.mjs --mutate
+
+      # THE THREE PROPERTIES THE STRIP INTRODUCED THAT ITS OWN GUARD DOES NOT
+      # MEASURE. Written by the security-engineer role during the review of
+      # 2026-09-23-client-state-retired-fields.sql; it deliberately does NOT
+      # repeat tests/client-state-retired-fields.mjs (which already proves a
+      # retired key strips, an authority key refuses and a replay is one effect).
+      #   X1 SIZE ACCOUNTING — the strip moved the merge from `p_patch` to
+      #      `v_patch`. A later restatement that merges the raw patch while still
+      #      reporting `stripped` keeps the answer saying the right thing while
+      #      the forged value lands AND eats the 256 KiB bag cap. 50 KB of
+      #      retired `buffs` must change `bytes` by nothing and the bag by
+      #      nothing, and a bag already 200 KB full must still accept a put whose
+      #      only over-cap key is retired.
+      #   X2 ORDERING IS THE WHOLE FAIL-SAFE — nothing says a name cannot be on
+      #      BOTH lists; what makes the authority key win is that the deny loop
+      #      runs FIRST and reads the RAW patch. The arm proving it bites hoists
+      #      the strip, points the deny loop at the stripped remainder and puts
+      #      `gold` on both lists — the shape a restatement "simplifying" the body
+      #      into one remainder would take.
+      #   X3 THE JOURNAL IS BOUNDED BY A CAP IN ANOTHER FILE — hr_record_rejection
+      #      folds `whys` at c_why_cap = 12 (2026-09-13-rejections-verb-map-2.sql)
+      #      and v_retired holds TEN, so the breakdown naming WHICH key a stale
+      #      tab sends survives on two names of headroom held in a file that has
+      #      never heard of v_retired. The list is read out of the INSTALLED body,
+      #      so the arm grows with it rather than going stale.
+      # Registered in db-replay-2 rather than db-replay on the budget rationale
+      # that split the family: this is one replay plus eight mutation boots, and
+      # db-replay already took the lane's own guard.
+      - name: Client-state retired fields — size accounting, list ordering, journal bound
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/client-state-retired-fields-adversarial.mjs
+          node tests/client-state-retired-fields-adversarial.mjs --selftest
+
+
+  # ── db-replay-5 ── SPLIT OUT OF db-replay-3 2026-10-06 (CI-SPLIT-5). The
+  # GitHub run for e585a031 (branch next, run 37470960216) CANCELLED db-replay-3
+  # at its own 19-min timeout after 1151 s, every step green; the five runs
+  # before it on next measured 1072-1133 s. The 09-26 line (569 s) predates the
+  # world-tick wave, so the job was structurally past its budget, not one guard
+  # regressing. db-replay, db-replay-2 and db-replay-4 had no room to take the
+  # family: on the same run they measured 575/752/616 s against 16/19/16-min
+  # timeouts, already past x2. So the WORLD TICK family moved whole into its own
+  # job (every arm from "parity with the accrual path" through "the parity
+  # read's ledger-meta spellings", plus "a tick that could not derive refuses
+  # the apply"), with the PGlite snapshot cache verified FIRST again under its
+  # own `--for=` (CI-SHAPE-4).
+  #
+  # MEASURED from run 37470960216's own step times: verify 64 s + 525 s of
+  # world-tick guards + ~11 s checkout/setup/install = 600 s (10.0 min).
+  # Budget = measured x2 = 20 min.
+  db-replay-5:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      # THE SNAPSHOT CACHE'S OWN PROOF, AGAIN — fresh runner, no shared snapshot;
+      # nothing measured after it means anything if it is red.
+      - name: PGlite snapshot cache - restored == replayed, corruption refused
+        if: ${{ !cancelled() }}
+        run: node tests/pglite-template.mjs --verify --for=db-replay-5
 
       # ── THE WORLD TICK, REGISTERED 2026-09-21 ──────────────────────────────
       # docs/planning/WORLD_TICK_DESIGN.md §13 asked for this the moment the
@@ -1661,123 +1884,6 @@ jobs:
           node tests/world-tick-ledger-meta.mjs
           node tests/world-tick-ledger-meta.mjs --mutate
 
-      # M8 SLICE 1 — THE PARTY IS A SERVER OBJECT AND ONLY THE VERBS CHANGE IT
-      # (docs/planning/WORLD_TICK_DESIGN.md §18, and Security's threat model in
-      # §18-SEC). Two planted users play the whole membership journey on the
-      # PGlite chain replay as real auth.uid() values — create, invite, accept,
-      # leave, kick — and every refusal code the design names is asserted by
-      # exit code. It carries the findings the slice was briefed on: S-7 (the
-      # SELECT policies neither recurse nor reach a predicate the caller cannot
-      # execute, and hr_party_view is frozen at eight keys and refuses a
-      # non-member), S-11 (an accept is refused party_hunt_running the day
-      # hr_party_hunt_live starts answering TRUE — the body S2 will ship, proved
-      # against the real call site), S-12 (the ten-level spread re-checked on
-      # ACCEPT, which §18.1's "at hunt start only" does not cover) and S-13
-      # (three causes, one string to the sender, three distinct codes to the
-      # journal, plus the receiver clamp at the sixth live card).
-      #
-      # The migrations' own §4 blocks run ONCE, at apply time. This runs on
-      # every push, and it adds three properties a §4 block structurally cannot:
-      # that all three files RE-APPLY byte-identically (measured as a full
-      # schema inventory before and after a second apply — "additive and
-      # idempotent" was a claim in three headers and nothing checked it), that
-      # the `party` rate bucket really refuses the 13th call in a minute, and
-      # the S-11 refusal under a predicate that actually answers TRUE.
-      #
-      # --mutate is TWO STAGES. Stage 1 plants distinguishable refusals in
-      # hr_party_invite — the pre-S-13 oracle — and requires the MIGRATION to
-      # refuse to install. Stage 2 disables file 2's whole §8 self-check as well
-      # so the mutant reaches this file's arms, and requires S13a to go red on
-      # its own: an arm that only ever fails because the apply gate failed is
-      # not a standing guard the day someone edits the verb.
-      - name: M8 parties — membership, and the four findings it carries
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/party-membership.mjs
-          node tests/party-membership.mjs --mutate
-
-      # M8 SLICE 3 — THE SPLIT, AND §18-SEC.3 RULES THAT THIS FILE *IS* THE
-      # SLICE'S §4 SELF-CHECK: "the split is a pure function, so its self-check
-      # is in tests/party-split.mjs --mutate; the migration half has no body."
-      # So there is no migration in this slice at all, and the executing
-      # assertion §18.5 asks for — both share vectors summing to 10,000 bp on a
-      # planted four-member window read back out of hr_tick_shadow — runs here,
-      # inside a transaction that is ROLLED BACK, against the PGlite chain.
-      #
-      # It reads the attribution off `delta->'journal'->'meta'->'party'`, which
-      # is where §18.2.1a puts it and the object hr_apply would receive verbatim;
-      # `hr_tick_shadow.party` is S2's nullable column and does not exist yet, so
-      # the guard DETECTS it and grades both forms the day it lands.
-      #
-      # The plain run is eleven properties over 414 generated windows of 1..4
-      # members: both vectors at exactly 10,000 bp with no band (P-b), the XP
-      # floor and the participation threshold, NO floor on gold or on the lottery
-      # weights (S-5), the remainder to the lowest (user_id, slot) (S-6),
-      # VIGOUR_DRY_MULT on the member's own share with the freed value accounted
-      # rather than redistributed (S-10, and (P-c) as an inequality with an exact
-      # equality underneath), the seven-key nested journal set as an EQUALITY
-      # with a thirteenth top-level meta key still red (B-A5), determinism, and
-      # §18.1's own published Fellowship block reproduced to the basis point.
-      #
-      # --mutate patches a COPY of src/core/party-split.js in a temp dir — never
-      # the tracked file (S-UM-1) — ten times, and each mutant must go red BY THE
-      # PROPERTY THAT NAMES IT: the floor applied to gold, the floor applied to
-      # the lottery weights, the remainder to the highest, a vector at 9,999, an
-      # eighth journal key, VIGOUR_DRY_MULT dropped, a leaked float, the floor
-      # removed, the threshold removed, and the lottery line detached from
-      # damage. A missing anchor exits 2, and the clean arm runs first.
-      - name: M8 parties — the split, and its ten mutants
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/party-split.mjs
-          node tests/party-split.mjs --mutate
-
-      # M8 SLICE 4 — THE HUNT INTENTS, AND THE SETTLE BOUNDARY PRICED. The three
-      # migrations carry their own §4 blocks (Security's §18-SEC.3 S4 list plus
-      # §18-SEC-2.2's B-A1 and B-A6, executed at apply time and refusing to
-      # install otherwise); this is the STANDING half. A four-member party is
-      # formed through the REAL membership verbs, starts a hunt, is settled once
-      # in SHADOW through S2's own hr_party_tick_settle, and is then kicked, left
-      # and stopped.
-      #
-      #   P-IDEM   the three files re-apply byte-identically — and file 2 PATCHES
-      #            two existing bodies (hr_party_kick, hr_party_leave) by anchored
-      #            pg_get_functiondef replacement, so this is also the proof that
-      #            the patch is SKIPPED on a second apply rather than stapled in
-      #            twice. It runs BEFORE the fixture is planted, because both
-      #            files' §(z) arms require the S4 tables EMPTY after an apply.
-      #   P-SETTLE the last window goes through S2's settle and NOTHING else:
-      #            four hr_tick_shadow rows, the attribution key set as an
-      #            EQUALITY, zero ledger rows, the party watermark moved by the
-      #            settle rather than by the verb. A second settle path on a
-      #            client verb is S-3 and AWAY-12 in one move.
-      #   P-B-A1   the eight-boundary budget across ALL FOUR doors — start, stop,
-      #            leave, kick — which no single migration arm can walk end to
-      #            end because it is a property of the four verbs together.
-      #
-      # ★ B-A6 is the arm to read first: a start with one of four members' windows
-      #   still open is refused member_uncollectable and writes ZERO ROWS — no
-      #   hunt, no boundary spent, no pointer moved, no watermark moved, no
-      #   left_at. ★ T-3 is the second: a kick whose settle cannot run is refused
-      #   with left_at UNWRITTEN, the key released and no boundary spent, and the
-      #   same kick then LANDS once the settle has run.
-      #
-      # --mutate plants five defects, each of which the MIGRATIONS' OWN §4 blocks
-      # must refuse at apply time: a start that stops counting against the eight
-      # (B-A1), a start that writes ONE member's pointer instead of all four
-      # (B-A6), a kick that closes the row although the settle could not run
-      # (T-3), a stop that calls hr_party_tick_settle itself (S-3), and a
-      # party_settle_required refusal that hands the leader the watermark no
-      # caller may read. THREE of them are then re-run with the migration's §6
-      # gate neutered, so the node arms have to catch them on their own — which
-      # is the only state that matters the day somebody edits a verb without
-      # re-running the apply.
-      - name: M8 parties — the hunt intents, T-3 and the eight-boundary budget
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/party-hunt.mjs
-          node tests/party-hunt.mjs --mutate
-
       # SECURITY T-1 (SEC_WORLD_TICK_TOKEN_2026-09-23.md), P1. The token
       # migration used to APPLY GREEN on a database where pgcrypto could not be
       # resolved, and the world tick then answered `no_hmac` on every fire for
@@ -1794,39 +1900,6 @@ jobs:
         run: |
           node tests/world-tick-token-failclosed.mjs
           node tests/world-tick-token-failclosed.mjs --selftest
-
-      # THE THREE PROPERTIES THE STRIP INTRODUCED THAT ITS OWN GUARD DOES NOT
-      # MEASURE. Written by the security-engineer role during the review of
-      # 2026-09-23-client-state-retired-fields.sql; it deliberately does NOT
-      # repeat tests/client-state-retired-fields.mjs (which already proves a
-      # retired key strips, an authority key refuses and a replay is one effect).
-      #   X1 SIZE ACCOUNTING — the strip moved the merge from `p_patch` to
-      #      `v_patch`. A later restatement that merges the raw patch while still
-      #      reporting `stripped` keeps the answer saying the right thing while
-      #      the forged value lands AND eats the 256 KiB bag cap. 50 KB of
-      #      retired `buffs` must change `bytes` by nothing and the bag by
-      #      nothing, and a bag already 200 KB full must still accept a put whose
-      #      only over-cap key is retired.
-      #   X2 ORDERING IS THE WHOLE FAIL-SAFE — nothing says a name cannot be on
-      #      BOTH lists; what makes the authority key win is that the deny loop
-      #      runs FIRST and reads the RAW patch. The arm proving it bites hoists
-      #      the strip, points the deny loop at the stripped remainder and puts
-      #      `gold` on both lists — the shape a restatement "simplifying" the body
-      #      into one remainder would take.
-      #   X3 THE JOURNAL IS BOUNDED BY A CAP IN ANOTHER FILE — hr_record_rejection
-      #      folds `whys` at c_why_cap = 12 (2026-09-13-rejections-verb-map-2.sql)
-      #      and v_retired holds TEN, so the breakdown naming WHICH key a stale
-      #      tab sends survives on two names of headroom held in a file that has
-      #      never heard of v_retired. The list is read out of the INSTALLED body,
-      #      so the arm grows with it rather than going stale.
-      # Registered in db-replay-2 rather than db-replay on the budget rationale
-      # that split the family: this is one replay plus eight mutation boots, and
-      # db-replay already took the lane's own guard.
-      - name: Client-state retired fields — size accounting, list ordering, journal bound
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/client-state-retired-fields-adversarial.mjs
-          node tests/client-state-retired-fields-adversarial.mjs --selftest
 
 
   # ── utc-midnight-replay ── SPLIT OUT OF db-replay 2026-09-19 (b550). The

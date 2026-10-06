@@ -4725,7 +4725,9 @@ export default [
        MUTATION PROVEN: restore `else if (e.target === scrim) { scrim.remove(); }`
        in daily-reward.js and the first assertion fails with the sheet still on
        screen; remove the `.hr-dl-close` button and the affordance assertion
-       fails; remove the keydown listener and the Escape assertion fails. */
+       fails; strip `data-hr-dismiss` from the × and the Escape assertion fails
+       (Escape reaches this sheet only through the one seam,
+       HearthriseSheet.closeTop, which presses that ×). */
     const G = window.G;
     const D = window.HearthriseDaily;
     assert(D && typeof D.open === 'function', 'the daily-reward feature must be loaded');
@@ -4824,9 +4826,9 @@ export default [
       /* THE LISTENER MUST DIE WITH THE SHEET, including when the sheet is torn
          out by something other than close(). A document-level keydown that
          outlives its modal fires forever — here it would toast "your reward is
-         waiting" on every Escape for the rest of the session.
-         MUTATION PROVEN: drop the `scrim.isConnected` guard from onKey and
-         this fails with a toast from a sheet nobody can see. */
+         waiting" on every Escape for the rest of the session. The sheet now
+         owns no listener at all (the seam reads the DOM per press); this
+         stays as the standing proof that nothing outlives the node. */
       toasts.length = 0;
       kill(); D.open();
       document.getElementById('hr-dl-modal').remove();      // torn out, not closed
@@ -4872,6 +4874,64 @@ export default [
       G.gold = prevGold;
       try { if (typeof window.updateTopbar === 'function') window.updateTopbar(); } catch (e) {}
       bagHeld.restore();
+    }
+  }),
+
+  /* A DAILY SHEET THAT IS NOT ON TOP MAY NOT TAKE ESCAPE.
+     The sheet used to own a document capture-phase keydown that answered
+     Escape whenever its node was CONNECTED — hidden or covered — and called
+     preventDefault(), so legacy.js's one seam (HearthriseSheet.closeTop) never
+     ran and the sheet the player was actually looking at stayed up. Measured:
+     the reachability guard's spoils and welcome-back sheets "did not close on
+     Escape" whenever the daily auto-open landed mid-run under CPU load.
+     MUTATION PROVEN: restore the private `onKey` capture listener in
+     daily-reward.js and both arms fail with the top sheet still open. */
+  () => tryRun('DAILY-ESC-1: a hidden or covered daily sheet never steals Escape from the sheet on top', () => {
+    const G = window.G;
+    const D = window.HearthriseDaily;
+    assert(D && typeof D.open === 'function', 'the daily-reward feature must be loaded');
+    assert(window.HearthriseSheet && typeof window.HearthriseSheet.closeTop === 'function', 'the Escape seam must be loaded');
+    const prevDaily = G.dailyReward ? JSON.parse(JSON.stringify(G.dailyReward)) : null;
+    const realNotify = window.notify;
+    const kill = () => { const s = document.getElementById('hr-dl-modal'); if (s) s.remove(); };
+    const tops = [];
+    const topSheet = (z) => {
+      const s = document.createElement('div');
+      s.className = 'hr-scrim esc-probe-top';
+      s.style.cssText = 'position:fixed;inset:0;z-index:' + z + ';display:flex';
+      s.innerHTML = '<div class="hr-sheet"><button type="button" data-hr-dismiss>Done</button></div>';
+      s.addEventListener('click', (e) => { if (e.target.closest('[data-hr-dismiss]')) s.remove(); });
+      document.body.appendChild(s); tops.push(s);
+      return s;
+    };
+    const esc = () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    try {
+      const toasts = [];
+      window.notify = function (m) { toasts.push(String(m)); };
+      G.dailyReward = { lastClaimDay: 0 };                 // claimable
+      /* (a) HIDDEN: the state a harness or a future sweep leaves — connected, display:none. */
+      kill(); D.open();
+      const daily = document.getElementById('hr-dl-modal');
+      assert(daily, 'the daily sheet did not open');
+      daily.style.setProperty('display', 'none', 'important');
+      let top = topSheet(9998);
+      esc();
+      assert(!top.isConnected, 'Escape did not close the open sheet: a HIDDEN daily sheet took the key');
+      assert(daily.isConnected, 'Escape dismissed a daily sheet the player could not see');
+      assert(!toasts.some((t) => /still waiting/i.test(t)), 'a hidden sheet answered Escape: ' + toasts.join(' | '));
+      /* (b) COVERED: a sheet stacked above the daily sheet closes first; the daily goes on the next press. */
+      daily.style.removeProperty('display');
+      top = topSheet(Number(getComputedStyle(daily).zIndex || 0) + 1);
+      esc();
+      assert(!top.isConnected, 'Escape did not close the sheet stacked ABOVE the daily sheet');
+      assert(daily.isConnected, 'one Escape closed two layers: the daily sheet underneath went too');
+      esc();
+      assert(!daily.isConnected, 'Escape no longer closes the daily sheet once it is on top');
+    } finally {
+      window.notify = realNotify;
+      kill();
+      tops.forEach((s) => s.remove());
+      if (prevDaily) G.dailyReward = prevDaily; else delete G.dailyReward;
     }
   }),
 

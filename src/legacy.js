@@ -2358,24 +2358,20 @@ function processOffline(){
        `no_character`, and asking before creating just burns a rate budget for
        a refusal) and does NOT gate accrual: a failed load leaves the field
        UNKNOWN, which is the honest state, and never a local number. */
-    /* b427/b428 — REPAINT WHENEVER THE RECORD LANDS. record.js is DOM-free by
-       design, so a successful hr_load STAMPS the balance (gold/gems via
-       applyRecord) but paints nothing. On a live session the next combat/activity
-       tick calls updateTopbar() and the number appears within a frame; on an IDLE
-       cloud-restore / new-device boot there is NO tick, so the top bar and shop
-       sat on the pending em dash and every Buy/Sell fail-closed indefinitely even
-       though the balance was known.
-       Registered through onRecordApplied (not chained onto a single
-       beginRecordLoad promise) precisely because the load that actually succeeds
-       on a fresh new-device tab is the CONFIG-RETRY one fired from configureRecord
-       (b428) — a promise this boot code never holds. The hook fires for both the
-       initial read and that retry, only when a field was written. Idempotent. */
+    /* b427/b428 — REPAINT WHENEVER THE RECORD LANDS. record.js is DOM-free, so a
+       successful hr_load STAMPS the balance (gold/gems via applyRecord) but paints
+       nothing; on an IDLE cloud-restore / new-device boot there is NO tick, so the
+       top bar and shop sat on the pending em dash and every Buy/Sell fail-closed
+       indefinitely. Registered through onRecordApplied (not a beginRecordLoad
+       promise) because the load that succeeds on a fresh new-device tab is the
+       CONFIG-RETRY one from configureRecord (b428), a promise this code never
+       holds. Fires for both, only when a field was written. Idempotent. The idle
+       boot's BAG lands here too (not via applyEnvelopeState), so the open market
+       list sheet repaints from it (CLAUDE.md §6). */
     if(R&&typeof R.onRecordApplied==='function'){
       try{ R.onRecordApplied(function(){
         try{ if(typeof updateTopbar==='function') updateTopbar(); }catch(e){}
         try{ if(typeof activeTab!=='undefined'&&activeTab==='shop'&&typeof renderShop==='function') renderShop(); }catch(e){}
-        /* The idle-boot bag lands here, not through applyEnvelopeState, so the
-           open market list sheet hears it here too (§6). */
         try{ const MK=window.HearthriseMarket; if(MK&&typeof MK.refreshListSheet==='function') MK.refreshListSheet(); }catch(e){}
       }); }catch(e){}
     }

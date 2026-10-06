@@ -79,6 +79,19 @@ export function attempt(b) {
    naming a contract the client does not hold REPLACES the client's view with it. */
 let acceptP = null, abandonP = null, abandonedId = null;
 const settle = (p, clear) => p.then(clear, clear);
+/* ORDERING (C2 vs a stale envelope). An envelope may REPLACE the client's
+   contract only when it is at least as new as the client's last CONFIRMED bounty
+   state. seenV = newest envelope version noted; floorV = the version an envelope
+   must reach to be adoptable: raised past seenV when an accept/abandon answers ok
+   (neither RPC returns its version), and to the version of any envelope that
+   confirms the held contract. Versions follow accrue.js frameVersion — a JSON
+   number, finite, else unorderable — and unorderable never adopts over a confirm. */
+let seenV = null, floorV = null;
+const frameV = (x) => ((typeof x === 'number' && Number.isFinite(x)) ? x : NaN);
+const raise = (v) => { if (Number.isFinite(v) && (floorV === null || v > floorV)) floorV = v; };
+const confirmed = () => raise(seenV === null ? 0 : seenV + 1);
+/** Read-only for the suite: the ordering state this module holds. */
+export function versions() { return { seen: seenV, floor: floorV }; }
 /* The reroll's in-flight is the 'bounty-spend' latch (net/goal-claim.js); it is
    read here so accept / abandon / reroll answer one busy() question. */
 function rerollHeld() { try { const GC = w().HearthriseGoalClaim; return !!(GC && GC.bountyRerollHeld && GC.bountyRerollHeld()); } catch (e) { return false; } }
@@ -86,6 +99,7 @@ export function busy() { const reroll = rerollHeld(); return { accept: !!acceptP
 export function trackAccept(p) {
   if (!p || typeof p.then !== 'function') return;
   acceptP = p;
+  p.then((res) => { if (res && res.ok === true) confirmed(); }, () => {});
   settle(p, () => { if (acceptP === p) { acceptP = null; repaint(); } });
 }
 function repaint() {
@@ -107,6 +121,7 @@ export function abandon() {
   abandonP = p; repaint();
   const done = (res) => {
     if (abandonP === p) abandonP = null;
+    if (res && res.ok === true) confirmed();
     const cur = (G.bountyHunter && G.bountyHunter.active) || null;
     const mine = !!cur && String(cur.id) === String(b.id);
     const m = G._bountyServer || null;
@@ -134,10 +149,11 @@ export function abandon() {
 /* C2: the server's contract, rebuilt from the projection when the client holds
    none or another. Rewards are not projected, so they are taken from the board
    row of the same id when there is one; the turn-in pays from its own RESPONSE. */
-function adoptServerContract(sb, G) {
+function adoptServerContract(sb, G, v) {
   if (!sb || typeof sb !== 'object' || sb.bounty_id == null || typeof sb.target !== 'string') return false;
   const id = String(sb.bounty_id);
-  if (acceptP || abandonP || id === abandonedId) return false;
+  if (busy().any || id === abandonedId) return false;
+  if (floorV !== null && !(v >= floorV)) return false;   // older than the confirm, or unorderable
   const bh = G.bountyHunter; if (!bh) return false;
   if (bh.active && String(bh.active.id) === id) return false;
   const req = Math.floor(Number(sb.required));
@@ -168,18 +184,21 @@ export function noteServer(res) {
   if (!noteServerProgress(src.bounty)) { out.reason = 'bad_progress'; return out; }
   const G = W.G || {};
   if (src.bounty === null || (src.bounty && String(src.bounty.bounty_id) !== abandonedId)) abandonedId = null;
-  if (adoptServerContract(src.bounty, G)) out.adopted = true;
+  const v = frameV(res && res.version);
+  if (adoptServerContract(src.bounty, G, v)) out.adopted = true;
+  if (Number.isFinite(v) && (seenV === null || v > seenV)) seenV = v;
   const act = (G.bountyHunter && G.bountyHunter.active) || null;
   if (!act) { out.reason = 'no_active'; return out; }
-  const v = view(act);
-  if (!v.known) { out.reason = src.bounty === null ? 'no_server_bounty' : 'mismatch'; return out; }
-  out.noted = true; out.progress = v.progress;
+  const vw = view(act);
+  if (!vw.known) { out.reason = src.bounty === null ? 'no_server_bounty' : 'mismatch'; return out; }
+  raise(v);                                              // this envelope confirms the held contract
+  out.noted = true; out.progress = vw.progress;
   /* FINISHED AWAY ⇒ FIRE THE TURN-IN THE PLAYER CAME BACK TO. Only the one type
      the server verifies, only live, and only under the arm — the dormant path
      still owns its own reward and must not be driven from an envelope. */
   const armed = (typeof W.clientMayWriteRecordField === 'function' && !W.clientMayWriteRecordField('gold'));
   const live = (typeof W.inOfflineReplay !== 'function' || !W.inOfflineReplay());
-  if (armed && live && act.type === 'cull' && v.claimable
+  if (armed && live && act.type === 'cull' && vw.claimable
       && !act._confirmed && typeof W.completeBounty === 'function') {
     out.turnIn = true;
     try { W.completeBounty(); } catch (e) {}
@@ -252,7 +271,7 @@ export function bbCut(id) {
 
 export function setupBountyProgress() {
   const W = w();
-  W.HearthriseBountyView = { view, attempt, noteServer, noteServerProgress, turnIn, label, progressText, bbNail, bbCut, busy, trackAccept, abandon };
+  W.HearthriseBountyView = { view, attempt, noteServer, noteServerProgress, turnIn, label, progressText, bbNail, bbCut, busy, trackAccept, abandon, versions };
   /* Bare globals too: legacy.js's four render sites and the envelope hook call
      these by name, and the Claim control is an inline onclick. */
   W.hrBountyView = view;

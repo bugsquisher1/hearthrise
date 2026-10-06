@@ -45,8 +45,8 @@
 // transport) and the optional window singletons. Node-importable.
 // ============================================================================
 
-import { BANK_NON_ITEM_KEYS } from './accrue.js?v=561';
-import { withSettleFirstRetry, settleRefusalText } from './settle-first.js?v=561';
+import { BANK_NON_ITEM_KEYS } from './accrue.js?v=562';
+import { withSettleFirstRetry, settleRefusalText } from './settle-first.js?v=562';
 
 export { BANK_NON_ITEM_KEYS };
 

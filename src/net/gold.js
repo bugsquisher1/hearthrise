@@ -118,10 +118,10 @@ import {
   showReplacementSheet, registerPredictionSeam, isReconcilePending,
   classifyFrame, commitFrame, resetFrameGate, getAppliedFrame, noteFrameDrop,   // the frame gate, §7.1
   applyCollectedReceipt,   // a verb that settled first hands its `collected` to the welcome card
-} from './accrue.js?v=561';
-import { SHOP_OFFERS } from '../data/shops.js?v=561';
-import { withSettleFirstRetry } from './settle-first.js?v=561';
-import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=561';
+} from './accrue.js?v=562';
+import { SHOP_OFFERS } from '../data/shops.js?v=562';
+import { withSettleFirstRetry } from './settle-first.js?v=562';
+import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=562';
 
 export const SHOP_BUY_VERB = 'shop_buy';
 export const VENDOR_SELL_VERB = 'vendor_sell';

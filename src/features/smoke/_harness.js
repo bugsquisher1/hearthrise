@@ -425,11 +425,19 @@ export function bountyRig(opts) {
     calls, target,
     armed: typeof window.clientMayWriteRecordField === 'function' && window.clientMayWriteRecordField('gold') === false,
     set(b) { if (window.ensureBountyState) window.ensureBountyState(); delete G._bountyServer; G.bountyHunter.active = b; return b; },
-    // hr_state_of's shape (TOP-LEVEL, as hr_load and the envelope carry it).
-    envelope(id, progress) {
+    // hr_state_of's shape (TOP-LEVEL, as hr_load and the envelope carry it);
+    // `version` (optional) is the envelope's frame version, as hr_load/hr_apply stamp it.
+    envelope(id, progress, version) {
       const a = G.bountyHunter.active || {};
-      return { bounty: { bounty_id: id, target, required: a.required, baseline: 100,
+      const e = { bounty: { bounty_id: id, target, required: a.required, baseline: 100,
         kills_now: 100 + progress, progress } };
+      if (version !== undefined) e.version = version;
+      return e;
+    },
+    /* A frame version newer than anything the bounty seam has seen or confirmed. */
+    nextVersion(k) {
+      const BV = window.HearthriseBountyView, s = (BV && BV.versions) ? BV.versions() : {};
+      return Math.max(Number(s.seen) || 0, Number(s.floor) || 0) + (k || 1);
     },
     fight(t) { if (!('mon' in saved)) saved.mon = G.activeMonster; G.activeMonster = t; },
     combatTab(on) {

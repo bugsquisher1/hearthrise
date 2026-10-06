@@ -1065,7 +1065,8 @@ export default [
       const ab = rig.set({ id: 'b_settled', type: 'cull', target: rig.target, difficulty: 'normal',
         required: 20, progress: 9, rewards: { gold: 100, marks: 6, xp: 40 } });
       assert(window.hrBountyView(ab).mark === '—', 'precondition: with no server value the board renders pending');
-      const rec = window.hrNoteServerBounty(rig.envelope('b_settled', 218));
+      const v0 = rig.nextVersion(10);
+      const rec = window.hrNoteServerBounty(rig.envelope('b_settled', 218, v0));
       assert(rec && rec.noted === true, 'a matching envelope bounty must be adopted; got ' + JSON.stringify(rec));
       assert(rec.progress === 20, 'the server progress must land clamped to `required` (20), got ' + rec.progress);
       assert(window.hrBountyView(ab).progress === 20, 'the bar must show the SERVER 20, not the local 9 — got ' + window.hrBountyView(ab).progress);
@@ -1077,12 +1078,13 @@ export default [
       // THE OTHER DIRECTION ("full bar that will not pay"): local never exceeds server.
       const ah = rig.set({ id: 'b_ahead', type: 'cull', target: rig.target, difficulty: 'normal',
         required: 20, progress: 19, rewards: { gold: 100, marks: 6, xp: 40 } });
-      window.hrNoteServerBounty(rig.envelope('b_ahead', 4));
+      window.hrNoteServerBounty(rig.envelope('b_ahead', 4, v0 + 1));
       assert(window.hrBountyView(ah).progress === 4, 'a local 19 must never exceed the server 4; got ' + window.hrBountyView(ah).progress);
 
-      // FAIL-SAFE + IDENTITY: a foreign id, or no key at all, writes nothing.
-      const miss = window.hrNoteServerBounty(rig.envelope('someone_elses', 20));
-      assert(miss.noted === false && miss.reason === 'mismatch', 'an envelope for a DIFFERENT bounty must be refused: ' + JSON.stringify(miss));
+      // FAIL-SAFE + IDENTITY: a foreign id older than b_ahead's confirm (v0+1), or no key, writes nothing (newer: BOUNTY-ORDER-1).
+      const miss = window.hrNoteServerBounty(rig.envelope('someone_elses', 20, v0));
+      assert(miss.noted === false && miss.reason === 'mismatch' && !miss.adopted && G.bountyHunter.active === ah,
+        'a STALE envelope for a DIFFERENT bounty must be refused: ' + JSON.stringify(miss));
       const none = window.hrNoteServerBounty({ state: { gold: 5 } });
       assert(none.noted === false && none.reason === 'no_key', 'an envelope without the key must be a no-op: ' + JSON.stringify(none));
       assert(window.hrBountyView(ah).known === false, 'after the server names a different contract, b_ahead renders pending');

@@ -461,16 +461,63 @@ export default [
       window.G.bountyHunter.active = { id: 'bx-ab5-ghost', type: 'cull', target: 'goblin', required: 10, progress: 0, rewards: {} };
       await window.abandonBounty();                       // the request is dropped
       window.G._bountyServer = null;
-      const r = window.hrNoteServerBounty({ state: { bounty: srv } });   // reload: the envelope names the server's
+      const vs = window.HearthriseBountyView.versions(), v = Math.max(Number(vs.seen) || 0, Number(vs.floor) || 0) + 5;
+      const r = window.hrNoteServerBounty({ version: v, state: { bounty: srv } });   // reload: the envelope names the server's
       const a = window.G.bountyHunter.active;
       assert(r.adopted && a && a.id === 'bx-ab5-srv' && a.required === 12 && window.hrBountyView(a).progress === 3,
         'the envelope contract must replace the ghost: ' + JSON.stringify(a));
       drop = false;
       await window.abandonBounty();
       assert(ids.length === 1 && ids[0] === 'bx-ab5-srv' && window.G.bountyHunter.active === null, 'Abandon must send the server id and end it: ' + JSON.stringify(ids));
-      window.hrNoteServerBounty({ state: { bounty: srv } });           // a stale envelope from before the abandon
+      window.hrNoteServerBounty({ version: v, state: { bounty: srv } });   // a stale envelope from before the abandon
       assert(window.G.bountyHunter.active === null, 'a stale envelope must not resurrect the abandoned contract');
     } finally { window.fetch = origFetch; window.notify = origNotify; unstub(); restoreG(snap); }
+  }),
+
+  /* BOUNTY-ORDER-1 (C2 ordering): the server's contract replaces the client's
+     only when its envelope is at least as new as the client's last CONFIRMED
+     bounty state. Both orders: an envelope from before a confirmed accept naming
+     the old contract is refused (the accept would be silently undone), and a
+     newer envelope naming a server-held contract is adopted (else the board
+     locks on bounty_active). Fails without the version floor (first half) or with
+     a floor that never lets a newer envelope through (second half). */
+  () => tryRunAsync('BOUNTY-ORDER-1: a stale envelope never undoes a confirmed accept; a newer one adopts the server contract', async () => {
+    if (typeof window.acceptBounty !== 'function' || !window.HearthriseBountyView || !window.HearthriseBountyView.versions) return;
+    const snap = snapshotG();
+    const origFetch = window.fetch, origNotify = window.notify;
+    const unstub = stubSignedIn(0);
+    let release = null;
+    const ok = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    const env = (v, id) => ({ version: v, state: { bounty: id == null ? null
+      : { bounty_id: id, b_type: 'cull', difficulty: 'normal', target: 'goblin', tier: 1, required: 8, progress: 1 } } });
+    try {
+      window.fetch = (url) => {
+        if (String(url).indexOf('/rpc/hr_accept_bounty') !== -1) return new Promise((r) => { release = () => r(ok({ ok: true, bounty_id: 'bx-ord-new', target: 'goblin', required: 10, tier: 1 })); });
+        return Promise.resolve(ok({ ok: false, error: 'stubbed' }));
+      };
+      window.notify = () => {};
+      window.ensureBountyState();
+      const vs = window.HearthriseBountyView.versions(), v0 = Math.max(Number(vs.seen) || 0, Number(vs.floor) || 0) + 10;
+      window.G.bountyHunter.active = null;
+      window.hrNoteServerBounty(env(v0, null));            // the server held nothing at v0
+      window.G.bountyHunter.board = [{ id: 'bx-ord-new', type: 'cull', difficulty: 'normal', target: 'goblin', required: 10, progress: 0, rewards: { gold: 10, marks: 4, xp: 5 } }];
+      window.acceptBounty(0);
+      for (let i = 0; i < 20 && !release; i++) await new Promise((r) => setTimeout(r, 5));
+      assert(typeof release === 'function', 'CONTROL: the accept must reach hr_accept_bounty');
+      const mid = window.hrNoteServerBounty(env(v0 + 3, 'bx-ord-other'));
+      assert(!mid.adopted && window.G.bountyHunter.active && window.G.bountyHunter.active.id === 'bx-ord-new',
+        'an envelope landing while the accept is in flight replaced it: ' + JSON.stringify(mid));
+      release(); await new Promise((r) => setTimeout(r, 10));
+      const stale = window.hrNoteServerBounty(env(v0, 'bx-ord-old'));
+      assert(!stale.adopted && window.G.bountyHunter.active && window.G.bountyHunter.active.id === 'bx-ord-new',
+        'an envelope OLDER than the confirmed accept undid it: ' + JSON.stringify(window.G.bountyHunter.active));
+      const bare = window.hrNoteServerBounty({ state: { bounty: env(0, 'bx-ord-old').state.bounty } });
+      assert(!bare.adopted && window.G.bountyHunter.active.id === 'bx-ord-new', 'an UNVERSIONED envelope replaced a confirmed accept');
+      const fresh = window.hrNoteServerBounty(env(v0 + 4, 'bx-ord-srv'));
+      const a = window.G.bountyHunter.active;
+      assert(fresh.adopted && a && a.id === 'bx-ord-srv' && a.required === 8 && window.hrBountyView(a).progress === 1,
+        'a NEWER envelope naming the server contract must be adopted: ' + JSON.stringify(fresh) + ' ' + JSON.stringify(a));
+    } finally { if (release) release(); window.fetch = origFetch; window.notify = origNotify; unstub(); restoreG(snap); }
   }),
 
   () => tryRun('BOUNTY-SHOP-1: no Bounty Shop row offers an enabled Buy that the spend will refuse', () => {

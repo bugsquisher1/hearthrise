@@ -66,6 +66,8 @@
     "node tests/collection-renown-claim-drift.mjs --selftest": "db-replay-3",
     "node tests/realtime-cost.mjs --selftest": "db-replay-3",
     "node tests/realtime-cost.mjs": "db-replay-3",
+    "node tests/frame-origin-marker.mjs": "db-replay-3",
+    "node tests/frame-origin-marker.mjs --mutate": "db-replay-3",
     "node tests/rpc-resolution.mjs": "db-replay-3",
     "node tests/rpc-resolution.mjs --selftest": "db-replay-3",
     "node tests/world-finds-projection.mjs": "db-replay-3",

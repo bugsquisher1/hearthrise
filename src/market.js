@@ -856,6 +856,11 @@
        directly. It is a PREDICATE, not a setter: the switch is still
        accrue.js's and there is no way to move the market alone. */
     serverMarketActive: serverMarketActive,
+    /* The open list sheet's envelope seam (§6). `refreshListSheet` is also the
+       boot hr_load door's repaint (legacy onRecordApplied), which does not run
+       the gold prediction sweep; `listSheetSubscribed` is the leak probe. */
+    refreshListSheet: function(){ return refreshListSheet(); },
+    listSheetSubscribed: function(){ return !!_listSheet; },
   };
 
   // ── UI: Market host ───────────────────────────────────────────
@@ -1012,6 +1017,125 @@
     return head + totals + tabs + body + '</div>';
   }
 
+  /* ── THE LIST SHEET'S MODEL, READ FRESH ─────────────────────────────────
+     THE SERVER'S BAG, the same count listItem gates on (CLAUDE.md §6). One
+     model for the first paint AND for every repaint of the open sheet, so the
+     two cannot disagree about what is listable. */
+  var LIST_BAG_PENDING = 'Your bag is still being counted — listing opens once the realm has it.';
+  var LIST_PICK_HINT = 'Pick an item to see how many you have and the NPC vendor price.';
+  function listSheetBagCount(id){
+    if(!serverMarketActive()) return ((window.G && window.G.inventory) || {})[id] || 0;
+    var A = window.HearthriseAccrual;
+    return (A && typeof A.gateItemCount === 'function') ? A.gateItemCount(window.G, id) : null;
+  }
+  function listSheetModel(){
+    var items = (window.ITEMS) || {};
+    var srv = serverMarketActive();
+    var unstated = false;
+    var listable = Object.keys(srv ? items : ((window.G && window.G.inventory) || {})).filter(function(id){
+      var def = items[id];
+      if(!def || def.bop) return false;     // BoP can't be listed
+      var n = listSheetBagCount(id);
+      if(n === null){ unstated = true; return false; }
+      return n > 0;
+    }).map(function(id){
+      var d = items[id] || {};
+      // The vendor's REAL bid (raw materials pay a fraction of v), as the bag tooltip quotes it.
+      var bid = (typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : (d.v || 0);
+      return { id: id, name: d.n || id, qty: listSheetBagCount(id), v: bid };
+    }).sort(function(a, b){ return a.name.localeCompare(b.name); });
+    if(unstated) listable = [];
+    return { unstated: unstated, listable: listable };
+  }
+  function listSheetSig(m){
+    return (m.unstated ? 'u|' : 's|') + m.listable.map(function(it){ return it.id + ':' + it.qty + ':' + it.v; }).join(',');
+  }
+  function listPickerOptionsHtml(m){
+    return (m.unstated
+        ? '<option value="">— Your bag is still being counted —</option>'
+        : '<option value="">— Pick an item from your bag —</option>')
+      + m.listable.map(function(it){
+          return '<option value="' + it.id + '" data-have="' + it.qty + '" data-vendor="' + it.v + '">'
+               + it.name + ' (' + it.qty.toLocaleString() + ')'
+               + '</option>';
+        }).join('');
+  }
+  function listHintHtml(have, vendor){
+    return 'You have <b>' + have.toLocaleString() + '</b>. NPC vendor pays <b>' + vendor.toLocaleString()
+      + 'g</b> each. Suggested ask: <b>' + Math.max(1, Math.ceil(vendor * 1.5)).toLocaleString() + 'g</b>.';
+  }
+
+  /* ── THE OPEN SHEET FOLLOWS EVERY ENVELOPE (CLAUDE.md §6) ────────────────
+     The sheet painted once, at render; a settle, a sale or a live frame that
+     moved the bag left "You have N" and the max stale until a re-open. It now
+     listens on `hr:balance-resolved` — the seam gold.js announces after EVERY
+     applied envelope (reconcilePredictions runs last in applyEnvelopeState,
+     after the bag write), the one the Buy modal already uses. ONE subscription
+     at a time: every render replaces it, and it removes itself the first time
+     it fires on a sheet that is gone or a market that is not on screen. It
+     never re-renders the panel (that would eat a half-typed search or ask):
+     it repaints the picker, hint, max and List button in place; a quantity the
+     player typed is kept, clamped to the new count; one still at the default
+     the pick wrote follows the new count. */
+  var BAG_SEAM_EVENT = 'hr:balance-resolved';
+  var _listSheet = null;
+  function unbindListSheet(){
+    if(_listSheet){ window.removeEventListener(BAG_SEAM_EVENT, _listSheet.handler); _listSheet = null; }
+  }
+  function listSheetOnScreen(form){
+    return !!(form && form.isConnected && document.querySelector('#panel-market.active'));
+  }
+  function bindListSheet(form, model){
+    unbindListSheet();
+    if(!form) return;
+    var st = { form: form, sig: listSheetSig(model), qtyDefault: null, handler: null };
+    st.handler = function(){ refreshListSheet(); };
+    var picker = form.querySelector('#mk-list-id');
+    var qty = form.querySelector('#mk-list-qty');
+    /* Registered after render's own change handler, so it reads the default
+       that handler just wrote. */
+    if(picker) picker.addEventListener('change', function(){ st.qtyDefault = picker.value ? qty.value : null; });
+    _listSheet = st;
+    window.addEventListener(BAG_SEAM_EVENT, st.handler);
+  }
+  /** Repaint the open sheet from the current bag. Returns false (and unbinds)
+   *  when no sheet is on screen, 'same' when nothing moved, true on a repaint. */
+  function refreshListSheet(){
+    var st = _listSheet;
+    if(!st) return false;
+    var form = st.form;
+    if(!listSheetOnScreen(form)){ unbindListSheet(); return false; }
+    var m = listSheetModel();
+    var sig = listSheetSig(m);
+    if(sig === st.sig) return 'same';
+    st.sig = sig;
+    var picker = form.querySelector('#mk-list-id');
+    var qty = form.querySelector('#mk-list-qty');
+    var btn = form.querySelector('#mk-list-btn');
+    var hint = form.querySelector('#mk-list-hint');
+    var prev = picker.value;
+    picker.innerHTML = listPickerOptionsHtml(m);
+    picker.disabled = m.unstated;
+    if(btn) btn.disabled = m.unstated;
+    var it = null;
+    for(var i = 0; i < m.listable.length; i++){ if(m.listable[i].id === prev){ it = m.listable[i]; break; } }
+    picker.value = it ? it.id : '';
+    if(hint) hint.classList.toggle('bal-pending', m.unstated);
+    if(m.unstated){ if(hint) hint.textContent = LIST_BAG_PENDING; return true; }
+    if(!it){
+      st.qtyDefault = null;
+      qty.removeAttribute('max');
+      if(hint) hint.textContent = LIST_PICK_HINT;
+      return true;
+    }
+    qty.max = it.qty;
+    var typed = parseInt(qty.value, 10);
+    if(st.qtyDefault !== null && qty.value === st.qtyDefault){ qty.value = it.qty; st.qtyDefault = qty.value; }
+    else if(typed > it.qty) qty.value = it.qty;
+    if(hint) hint.innerHTML = listHintHtml(it.qty, it.v);
+    return true;
+  }
+
   function render(){
     /* b230: render into #market-root, never into #panel-market itself. The
        panel now hosts the Shops toggle strip as a sibling of this container —
@@ -1154,39 +1278,13 @@
        still be held server-side); NULL = no envelope has stated the bag yet:
        the sheet says so, the List button stays shut, no count is invented.
        With the seam off the local book is the judge, so its own bag counts. */
-    var items = (window.ITEMS) || {};
-    var _bagA = window.HearthriseAccrual;
-    var _bagSrv = serverMarketActive();
-    var _bagInv = (window.G && window.G.inventory) || {};
-    var bagCount = function(id){
-      if(!_bagSrv) return _bagInv[id] || 0;
-      return (_bagA && typeof _bagA.gateItemCount === 'function') ? _bagA.gateItemCount(window.G, id) : null;
-    };
-    var bagUnstated = false;
-    var listable = Object.keys(_bagSrv ? items : _bagInv).filter(function(id){
-      var def = items[id];
-      if(!def) return false;
-      if(def.bop) return false;     // BoP can't be listed
-      var n = bagCount(id);
-      if(n === null){ bagUnstated = true; return false; }
-      return n > 0;
-    }).map(function(id){
-      var d = items[id] || {};
-      // The vendor's REAL bid (raw materials pay a fraction of v), as the bag tooltip quotes it.
-      var bid = (typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : (d.v || 0);
-      return { id: id, name: d.n || id, qty: bagCount(id), v: bid };
-    }).sort(function(a, b){ return a.name.localeCompare(b.name); });
-    if(bagUnstated) listable = [];
-    var BAG_PENDING = 'Your bag is still being counted — listing opens once the realm has it.';
-
-    var pickerOpts = (bagUnstated
-        ? '<option value="">— Your bag is still being counted —</option>'
-        : '<option value="">— Pick an item from your bag —</option>')
-      + listable.map(function(it){
-          return '<option value="' + it.id + '" data-have="' + it.qty + '" data-vendor="' + it.v + '">'
-               + it.name + ' (' + it.qty.toLocaleString() + ')'
-               + '</option>';
-        }).join('');
+    /* Read FRESH on every call (listSheetModel): the same model repaints the
+       open sheet on every applied envelope — see bindListSheet. */
+    var BAG_PENDING = LIST_BAG_PENDING;
+    var bagCount = listSheetBagCount;
+    var sheetModel = listSheetModel();
+    var bagUnstated = sheetModel.unstated;
+    var pickerOpts = listPickerOptionsHtml(sheetModel);
 
     var listForm =
       '<div class="mk-list-form">' +
@@ -1288,7 +1386,7 @@
       if(!eachInput.value && vendor > 0){
         eachInput.value = Math.max(1, Math.ceil(vendor * 1.5));
       }
-      if(hint) hint.innerHTML = 'You have <b>' + have.toLocaleString() + '</b>. NPC vendor pays <b>' + vendor.toLocaleString() + 'g</b> each. Suggested ask: <b>' + Math.max(1, Math.ceil(vendor * 1.5)).toLocaleString() + 'g</b>.';
+      if(hint) hint.innerHTML = listHintHtml(have, vendor);
     });
 
     var listBtn = panel.querySelector('#mk-list-btn');
@@ -1300,6 +1398,7 @@
       if(r.ok){ render(); }
       else if(typeof window.notify === 'function') window.notify(r.reason, 'kill');
     });
+    bindListSheet(panel.querySelector('.mk-list-form'), sheetModel);
     panel.querySelectorAll('button.mk-buy[data-buy]').forEach(function(b){
       b.addEventListener('click', function(){
         var itemId = b.getAttribute('data-item');

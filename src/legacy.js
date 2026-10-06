@@ -2358,22 +2358,21 @@ function processOffline(){
        `no_character`, and asking before creating just burns a rate budget for
        a refusal) and does NOT gate accrual: a failed load leaves the field
        UNKNOWN, which is the honest state, and never a local number. */
-    /* b427/b428 — REPAINT WHENEVER THE RECORD LANDS. record.js is DOM-free by
-       design, so a successful hr_load STAMPS the balance (gold/gems via
-       applyRecord) but paints nothing. On a live session the next combat/activity
-       tick calls updateTopbar() and the number appears within a frame; on an IDLE
-       cloud-restore / new-device boot there is NO tick, so the top bar and shop
-       sat on the pending em dash and every Buy/Sell fail-closed indefinitely even
-       though the balance was known.
-       Registered through onRecordApplied (not chained onto a single
-       beginRecordLoad promise) precisely because the load that actually succeeds
-       on a fresh new-device tab is the CONFIG-RETRY one fired from configureRecord
-       (b428) — a promise this boot code never holds. The hook fires for both the
-       initial read and that retry, only when a field was written. Idempotent. */
+    /* b427/b428 — REPAINT WHENEVER THE RECORD LANDS. record.js is DOM-free, so a
+       successful hr_load STAMPS the balance (gold/gems via applyRecord) but paints
+       nothing; on an IDLE cloud-restore / new-device boot there is NO tick, so the
+       top bar and shop sat on the pending em dash and every Buy/Sell fail-closed
+       indefinitely. Registered through onRecordApplied (not a beginRecordLoad
+       promise) because the load that succeeds on a fresh new-device tab is the
+       CONFIG-RETRY one from configureRecord (b428), a promise this code never
+       holds. Fires for both, only when a field was written. Idempotent. The idle
+       boot's BAG lands here too (not via applyEnvelopeState), so the open market
+       list sheet repaints from it (CLAUDE.md §6). */
     if(R&&typeof R.onRecordApplied==='function'){
       try{ R.onRecordApplied(function(){
         try{ if(typeof updateTopbar==='function') updateTopbar(); }catch(e){}
         try{ if(typeof activeTab!=='undefined'&&activeTab==='shop'&&typeof renderShop==='function') renderShop(); }catch(e){}
+        try{ const MK=window.HearthriseMarket; if(MK&&typeof MK.refreshListSheet==='function') MK.refreshListSheet(); }catch(e){}
       }); }catch(e){}
     }
     if(C&&typeof C.ensureThenAccrue==='function'){
@@ -7061,8 +7060,9 @@ function updateTopbar(){
      zero, or the word "undefined". */
   balPaint(document.getElementById('top-gold'), 'gold');
   balPaint(document.getElementById('top-gems'), 'gems');
-  document.getElementById('top-total').textContent=getTotalLevel();
-  document.getElementById('top-combat').textContent=getCombatLevel();
+  /* CL/TL before the record hydrates are the fresh seed's 1s: the pending dash, like gold. */
+  const _pend=window.hrRecordPending?window.hrRecordPending():true;
+  [['top-total',getTotalLevel],['top-combat',getCombatLevel]].forEach(([id,fn])=>{ const el=document.getElementById(id); el.textContent=_pend?'—':fn(); el.classList.toggle('bal-pending',_pend); });
   /* b466: route the topbar name through the server-authoritative identity seam
      (HearthriseIdentity.getDisplayName) instead of the raw G.playerName default,
      which stayed "Adventurer" because it was never reconciled to the claimed
@@ -7097,7 +7097,7 @@ function renderProfile(){
   const subEl = document.getElementById('dash-user-sub');
   const bodyEl = document.getElementById('dash-user-body');
   if (!subEl || !bodyEl) return; // Profile panel not in DOM yet — bail
-  subEl.textContent = `Lv ${cl} · Total ${tl}`;
+  subEl.textContent = (window.hrRecordPending?window.hrRecordPending():true) ? 'Lv — · Total —' : `Lv ${cl} · Total ${tl}`;
   bodyEl.innerHTML=`
     ${(()=>{
       // Auth-state resolution for the Profile dashboard:
@@ -11061,7 +11061,7 @@ console.log('Combat life: loaded');
   bar.innerHTML = `
     <div class="ab-icon" id="ab-icon"></div>
     <div class="ab-info">
-      <div class="ab-name" id="ab-name">Idle — pick an activity</div>
+      <div class="ab-name" id="ab-name">Connecting your character…</div>
     </div>
     <div class="ab-meta" id="ab-meta"></div>
     <button class="ab-stop" id="ab-stop">Stop</button>`;
@@ -11319,7 +11319,7 @@ function refreshActivityBar(){
   /* Idle */
   bar.classList.add('idle'); bar.classList.remove('combat');
   HearthriseIcons.setActivityIcon(iconEl, 'uiIdle', 'var(--ink-3)');
-  if(nameEl) nameEl.textContent = 'Idle — pick an activity';
+  if(nameEl) nameEl.textContent = (window.hrRecordPending?window.hrRecordPending():true) ? 'Connecting your character…' : 'Idle — pick an activity';
   if(metaEl) metaEl.innerHTML = '';
   if(stopBtn) stopBtn.style.display = 'none';
 

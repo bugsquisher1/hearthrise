@@ -2440,10 +2440,8 @@ export default [
       'the pencil no longer calls HearthriseLaunchpad.openRename() — it asks by some other means: ' + onclick);
   }),
 
-  /* The sweep is CLOSED (BULK-INTERIM-1), so there is no modal to answer.
-     What the modal move protected still holds: it never raises a NATIVE confirm() (which
-     freezes the renderer) and it stays a Promise for the vendor_sell_many return. */
-  () => tryRunAsync('B373-2: sell-junk never blocks the renderer with a native confirm, and while closed it asks and pays nothing', async () => {
+  /* b564: the sweep is back (vendor_sell_many), so the modal is back too. */
+  () => tryRunAsync('B373-2: sell-junk asks with the in-game modal, and cancelling pays nothing', async () => {
     const G = window.G;
     const CM = window.HearthriseInvCtx;
     if (!CM || typeof CM.sellJunk !== 'function') return;
@@ -2454,16 +2452,22 @@ export default [
       const raw = Object.keys(window.ITEMS).find((id) => window.ITEMS[id].raw && Number(window.ITEMS[id].v) >= 10);
       if (!raw) return;
       G.lockedItems = {}; G.inventory = {}; G.inventory[raw] = 40; G.gold = 0;
-      bag.agree();
+      bag.agree();   // the sweep quotes the SERVER's bag
+      const q = CM.quoteJunk(1e9);
       const p = CM.sellJunk(1e9);
       assert(p && typeof p.then === 'function',
         'sellJunk must return a Promise — a synchronous sweep is one that asked with a blocking dialog');
       await new Promise((r) => setTimeout(r, 0));
       assert(native === 0, 'the sweep raised a native confirm()');
-      assert(!document.getElementById('hr-confirm-overlay'), 'the closed sweep asked to sell the bag');
+      const ov = document.getElementById('hr-confirm-overlay');
+      assert(!!ov, 'no in-game confirmation appeared before a bulk sale of the player\'s bag');
+      assert(ov.textContent.replace(/,/g, '').includes(String(q.totalGold)),
+        'the modal does not state the gold it will pay (' + q.totalGold + '): ' + ov.textContent.slice(0, 120));
+      assert(G.gold === 0, 'the sweep paid BEFORE the player answered');
+      ov.querySelector('[data-hrc="no"]').click();
       const paid = await p;
-      assert(paid === 0 && G.gold === 0, 'the closed sweep paid ' + G.gold + ' gold');
-      assert(G.inventory[raw] === 40, 'the closed sweep took the items');
+      assert(paid === 0 && G.gold === 0, 'declining the sweep still paid ' + G.gold + ' gold');
+      assert(G.inventory[raw] === 40, 'declining the sweep still took the items');
     } finally {
       window.confirm = save.confirm;
       try { window.HearthriseDialog.close(); } catch (e) {}

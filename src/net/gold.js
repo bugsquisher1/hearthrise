@@ -89,10 +89,9 @@
 //    and the prediction stands. Correct — that gate exists because applying a
 //    fresh server character over real local progress is permanent — but it
 //    means the first switch-on purchase shows the sheet.
-// 3. `vendor_sell` PRICES ONE ITEM ID PER CALL, so the two BULK gestures
-//    (Sell Selected, the sell-junk sweep) have no server story; they
-//    are CLOSED (pay, send and remove nothing) until the
-//    `vendor_sell_many` verb ships.
+// 3. ~~`vendor_sell` PRICES ONE ITEM ID PER CALL, so the two BULK gestures
+//    have no server story.~~ CLOSED (b564): Sell Selected and the sell-junk
+//    sweep send ONE `vendor_sell_many` per press (`sellItems` below).
 // 4. ~~THE ACCRUAL PATH DOES NOT RECONCILE GEMS.~~ CLOSED. `reconcilePredictions`
 //    is registered into `applyEnvelopeState`, so gems are now written absolutely
 //    by EVERY envelope — away, activity switch and gold verb alike.
@@ -125,6 +124,10 @@ import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=562';
 
 export const SHOP_BUY_VERB = 'shop_buy';
 export const VENDOR_SELL_VERB = 'vendor_sell';
+/* b564 — THE BULK SALE. N stacks, ONE intent, ONE shop rate token, ONE settle,
+   all-or-nothing under hr_apply. The wire carries `lines: [{item, qty}]` —
+   names and counts, never a price (buildGoldRequest). */
+export const VENDOR_SELL_MANY_VERB = 'vendor_sell_many';
 export const CLAIM_REWARD_VERB = 'claim_reward';
 /* ── unlock_buy — GOLD OUT, A PERMANENT RUNG IN. ─────────────────────────────
    The mirror of shop_buy on the buy side and its OPPOSITE on the wire: shop_buy
@@ -173,6 +176,11 @@ export const MAX_QTY = 1000;
  *  input error in this whole surface that a player would rather be told about
  *  before it becomes a public listing. */
 export const MAX_ASK = 1000000000;
+
+/** Mirrors `MAX_SELL_LINES` in supabase/functions/hr-accrue/request.js: how many
+ *  stacks one bulk sale may name. A sweep larger than this is sent as its first
+ *  MAX_SELL_LINES lines and the rest stay in the bag (the caller says so). */
+export const MAX_SELL_LINES = 64;
 
 /* Was the accrual kill switch itself; retired in b515. Unconditional: the OFF
    position of that switch is what let gold be minted on the client. */
@@ -786,6 +794,14 @@ export function buildGoldRequest(opts) {
      was written to make impossible. */
   else if (o.verb === UNLOCK_BUY_VERB) { body.offer = String(o.offer); }
   else if (o.verb === VENDOR_SELL_VERB) { body.item = String(o.item); body.qty = Number(o.qty); }
+  /* ⚠ ITEM AND QTY PER LINE, AND NOTHING ELSE — rebuilt field by field, never
+     the caller's line objects. A `unit` riding along on a line would be ignored
+     by the server (request.js readLines), but a client that never sends one
+     cannot be mistaken for one that relies on it. */
+  else if (o.verb === VENDOR_SELL_MANY_VERB) {
+    body.lines = (Array.isArray(o.lines) ? o.lines : [])
+      .map((l) => ({ item: String(l && l.item), qty: Number(l && l.qty) }));
+  }
   else if (o.verb === CLAIM_REWARD_VERB) {
     body.reward = { kind: String(o.rewardKind), key: String(o.rewardKey) };
   }
@@ -1271,6 +1287,39 @@ export function sellItem(itemId, qty, key) {
   return sendGoldIntent({ verb: VENDOR_SELL_VERB, item: id, qty: n }, key);
 }
 
+/**
+ * SELL MANY STACKS IN ONE INTENT (b564). `lines` is `[{item, qty}]`.
+ *
+ * Refused LOCALLY on any shape the server would refuse (`bad_lines` there):
+ * empty, more than MAX_SELL_LINES, a malformed id, a qty outside [1, MAX_QTY],
+ * or the same item twice. The caller chunks a > MAX_QTY stack itself — a sweep
+ * names each stack once. Nothing about a price is checked or sent: the server
+ * prices every line from its own catalogue and answers with a receipt.
+ */
+export function sellItems(lines, key) {
+  const ls = Array.isArray(lines) ? lines : [];
+  if (ls.length < 1 || ls.length > MAX_SELL_LINES) {
+    return Promise.resolve(inert('unsendable', VENDOR_SELL_MANY_VERB, 'lines_out_of_range',
+      { lines: ls.length, max: MAX_SELL_LINES }, key));
+  }
+  const seen = new Set();
+  const out = [];
+  for (const l of ls) {
+    const id = String(l && l.item == null ? '' : l.item);
+    const n = Number(l && l.qty);
+    if (!ITEM_ID_RE.test(id) || seen.has(id)) {
+      return Promise.resolve(inert('unsendable', VENDOR_SELL_MANY_VERB, 'bad_item', { item: id }, key));
+    }
+    if (!Number.isSafeInteger(n) || n < 1 || n > MAX_QTY) {
+      return Promise.resolve(inert('unsendable', VENDOR_SELL_MANY_VERB, 'qty_out_of_range',
+        { item: id, qty: n, max: MAX_QTY }, key));
+    }
+    seen.add(id);
+    out.push({ item: id, qty: n });
+  }
+  return sendGoldIntent({ verb: VENDOR_SELL_MANY_VERB, lines: out }, key);
+}
+
 export function claimReward(kind, rkey, key) {
   const k = String(kind == null ? '' : kind);
   const v = String(rkey == null ? '' : rkey);
@@ -1378,7 +1427,7 @@ if (typeof window !== 'undefined') {
   });
 
   window.HearthriseGold = {
-    SHOP_BUY_VERB, VENDOR_SELL_VERB, CLAIM_REWARD_VERB,
+    SHOP_BUY_VERB, VENDOR_SELL_VERB, VENDOR_SELL_MANY_VERB, CLAIM_REWARD_VERB, MAX_SELL_LINES,
     MARKET_VERBS, MARKET_LIST_VERB, MARKET_CANCEL_VERB, MARKET_BUY_VERB,
     listOnMarket, cancelMarketListing, buyMarketListing, isListingId, MAX_ASK,
     MAX_QTY, MAX_PENDING, GOLD_TIMEOUT_MS, PREDICTION_CARRY_MS, PREDICTED_FIELDS,
@@ -1388,7 +1437,7 @@ if (typeof window !== 'undefined') {
     envelopeOf, receiptOf, classifyGoldResponse, dropPrediction, isAnswered, applyGoldEnvelope,
     buildGoldRequest, newIntentKey, isIntentKey, resolvePurchase, shopOfferIndex,
     configureGold, getGoldConfig, setGoldHooks, getGoldState, resetGold,
-    buyShop, buyUnlock, sellItem, claimReward, sendGoldIntent,
+    buyShop, buyUnlock, sellItem, sellItems, claimReward, sendGoldIntent,
     UNLOCK_BUY_VERB, UNLOCK_OFFER_ID_RE,
     /* The permanent-trait purchase (hr_trait_buy). NOT a gold verb and NOT a
        prediction — see its header. legacy.js buyTrait() is the only caller. */

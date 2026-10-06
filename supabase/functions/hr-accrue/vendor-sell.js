@@ -150,3 +150,168 @@ export async function runVendorSell(o) {
     },
   });
 }
+
+// ============================================================================
+// b564 — `vendor_sell_many`. THE SAME SALE, N STACKS, ONE ANSWER.
+//
+// "Sell these 30 stacks." Sell Selected and the junk sweep. Before this verb the
+// client had two bad options: pay gold locally and send nothing (the envelope
+// took it back — CLAUDE.md §6), or send one `vendor_sell` per stack, which costs
+// one `shop` rate token and one full settle EACH, empties the player's minute of
+// buying, and stops half-sold past thirty stacks.
+//
+// What changes is the COUNT of round trips. Nothing about the authority does:
+//   · every line is priced by `resolveSale` — the SAME function vendor_sell
+//     uses, so a bid that differs by which button you pressed is impossible by
+//     construction. No unit, price or total is read from the request; request.js
+//     `readLines` copies exactly `item` and `qty` out of each line.
+//   · ONE delta, ONE hr_apply: `{gold: Σ unit·qty, items: {id: -qty, …}}`. Stock
+//     is hr_apply's answer under the per-character lock, and its protected block
+//     is all-or-nothing — one short line (`insufficient_item`) refuses the WHOLE
+//     batch and nothing moves. A sweep never half-applies.
+//   · an unknown or unsellable line refuses the WHOLE intent BEFORE any database
+//     work and names the line. A partial sale the player did not ask for is the
+//     server authoring a different gesture.
+//   · the daily `gold_in` budget is hr_apply's stamp of the delta's own gold, so
+//     one big delta is charged exactly what N small ones would have been, and
+//     the 50,000,000 per-call gold clamp refuses an oversized sweep by name.
+//   · ONE ledger row, kind `shop` (the NPC shop, as vendor_sell), with every
+//     line's unit price in `meta.lines` — the audit trail of what the server
+//     paid and why, at one row per GESTURE, never one per stack.
+// ============================================================================
+
+/** The bulk verb's name. */
+export const VERB_MANY = 'vendor_sell_many';
+
+/**
+ * A short, deterministic digest of the CANONICAL line set (sorted).
+ *
+ * WHY THE INTENT NAME NEEDS IT. hr_apply's `intent_mismatch` compares
+ * `journal.intent` and nothing else, so whatever changes WHAT THE DELTA DOES
+ * must be in the name (intentNameOf's rule: "the quantity is part of the
+ * name"). For a list that is every (item, qty) pair, and spelling 64 of them out
+ * would put ~4 KB in `player_intents.intent` and `player_ledger.intent` on every
+ * sweep. So the name is `vendor_sell_many:<lines>:<digest>`, which makes one key
+ * reused for a DIFFERENT sweep a loud `intent_mismatch` rather than a silent
+ * `replayed:true` that sold nothing while the client believes it sold.
+ *
+ * FNV-1a 64 over ASCII ids and integers: pure, synchronous, identical in Node and
+ * Deno (BigInt). It is NOT a security boundary and does not need to be — a
+ * collision can only make a reused key answer `replayed`, which moves nothing.
+ * The money is bounded by the delta, never by this string.
+ */
+export function linesDigest(lines) {
+  const canon = [...lines]
+    .map((l) => `${l.item}*${l.qty}`)
+    .sort()
+    .join(',');
+  let h = 0xcbf29ce484222325n;
+  const P = 0x100000001b3n;
+  const M = 0xffffffffffffffffn;
+  for (let i = 0; i < canon.length; i++) {
+    h ^= BigInt(canon.charCodeAt(i));
+    h = (h * P) & M;
+  }
+  return h.toString(16).padStart(16, '0');
+}
+
+/**
+ * Resolve EVERY line, or refuse the whole batch naming the first bad one.
+ * Pure — no database, no clock.
+ *
+ * @param lines  the `[{item, qty}]` from request.js readLines
+ * @returns {ok:true, sales:[{item,name,unit,qty}]} | {ok:false, status, error, detail}
+ */
+export function resolveSaleLines(lines) {
+  const sales = [];
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    const r = resolveSale(l.item);
+    if (!r.ok) {
+      return { ok: false, status: r.status, error: r.error, detail: { ...(r.detail || {}), line: i } };
+    }
+    sales.push({ item: r.item, name: r.name, unit: r.unit, qty: l.qty });
+  }
+  return { ok: true, sales };
+}
+
+/**
+ * The ONE delta for the whole batch. Same signs as sellDelta: items NEGATIVE,
+ * gold POSITIVE, in one object hr_apply applies inside one protected block.
+ *
+ * ⚠ EVERY `unit` HERE CAME FROM resolveSale (the catalogue). The parameter is
+ *   the resolved SALES list, never the request's lines, so a price on the wire
+ *   has no path into this function.
+ */
+export function sellManyDelta(sales) {
+  const items = {};
+  const lines = {};
+  let gold = 0;
+  for (const s of sales) {
+    gold += s.unit * s.qty;
+    items[s.item] = -s.qty;
+    /* [qty, unit_gold] — what the server paid, per line, compact: ~30 bytes a
+       line, ≤ MAX_SELL_LINES lines, one row per GESTURE. */
+    lines[s.item] = [s.qty, s.unit];
+  }
+  return {
+    gold,
+    items,
+    journal: {
+      kind: 'shop',
+      intent: intentNameOf(VERB_MANY, sales.length, linesDigest(sales)),
+      meta: { lines },
+    },
+  };
+}
+
+/**
+ * THE BULK INTENT.
+ *
+ * @param o.exec      (text, params) => Promise<rows[]>, one statement per call
+ * @param o.user      the VERIFIED JWT subject. Never a request field.
+ * @param o.slot      selects a row the caller already owns
+ * @param o.intentId  the caller's canonical-uuid idempotency key
+ * @param o.lines     request.js readLines output, or null
+ * @returns { status, body }
+ */
+export async function runVendorSellMany(o) {
+  const { exec, user, slot, intentId, lines } = o;
+
+  /* (0) SHAPE FIRST — before any database work, so garbage spends no rate
+     token. The key check is shapeRefusal's (qty 1 stands in: every line's qty
+     was bounded by readLines, and a null list is refused just below). */
+  const keyShape = shapeRefusal(VERB_MANY, intentId, 1);
+  if (keyShape) return keyShape;
+  if (!Array.isArray(lines) || lines.length === 0) {
+    return { status: 400, body: { ok: false, verb: VERB_MANY, error: INTENT_ERRORS.BAD_LINES } };
+  }
+
+  const resolved = resolveSaleLines(lines);
+  if (!resolved.ok) {
+    return {
+      status: resolved.status,
+      body: { ok: false, verb: VERB_MANY, error: resolved.error, ...(resolved.detail || {}) },
+    };
+  }
+
+  /* NOTHING IS CHECKED AGAINST THE PLAYER'S STOCK HERE — vendor_sell's rule.
+     A line the player cannot cover comes back from hr_apply as
+     `insufficient_item` and the WHOLE batch is refused under the lock. */
+  const delta = sellManyDelta(resolved.sales);
+  return runValueIntent({
+    partyOwnsWindow: o.partyOwnsWindow === true,
+    exec, user, slot, verb: VERB_MANY, intentId,
+    plan: {
+      delta,
+      /* THE RECEIPT — the server's own numbers, line by line, and their sum.
+         The client builds its toast from `gold` and Σ `lines[].qty` only. */
+      receipt: {
+        lines: resolved.sales.map((s) => ({
+          item: s.item, name: s.name, qty: s.qty, unit_gold: s.unit, gold: s.unit * s.qty,
+        })),
+        gold: delta.gold,
+      },
+    },
+  });
+}

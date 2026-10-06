@@ -135,6 +135,9 @@ function renderInvFancy(){
     if(search && def.n.toLowerCase().indexOf(search) < 0) return false;
     return true;
   });
+  /* b564 — the selection, counted against the bag that is actually here. */
+  var _sel = window._invSelectMode ? (window._invSelected || new Set()) : null;
+  var _selN = _sel ? entries.filter(function(kv){ return _sel.has(kv[0]); }).length : 0;
 
   /* Preserve scroll across this FULL-panel rebuild. Tester report (paione):
      the bag "keeps scrolling up" every combat/skill tick — because this renderer
@@ -169,12 +172,20 @@ function renderInvFancy(){
         +' <span class="invc-space-free">('+Math.max(0, bankCap()-bankUsed()).toLocaleString()+' free)</span>'
         +'<span class="invc-space-sub"> · '+totalCount.toLocaleString()+' items</span></span>'+
       '<div class="invc-actions">'+
-        (window.HearthriseDepot?window.HearthriseDepot.toolbarButtonHtml():'')+'<button class="invc-buyspace" onclick="window.openBankModal()">Buy space</button>'+
-        /* No "Multi-select" here. It toggled a flag nothing read, so the
-           player selected nothing and bulk sell (closed until vendor_sell_many,
-           shop-counter.js invSellSelected) could not be reached anyway. A dead
-           button that promises a bulk action is the lie §6 forbids, worn as UI. */
-        '<button onclick="window._invManage()">Manage</button>'+
+        /* b564 — BULK SELL IS BACK, on the server verb built for it
+           (`vendor_sell_many`, shop-counter.js vendorSellMany). "Select" puts the
+           bag in select mode — the flag invItemTap actually reads (the old
+           "Multi-select" toggled one nothing read) — and the toolbar becomes the
+           bulk counter: Sell <n> (the selection, ONE intent), Sell junk (the
+           sweep, ONE intent) and Done. Same button count either way, so the
+           landscape-phone toolbar never grows. It replaces "Manage", which only
+           ever toasted a hint. */
+        (window._invSelectMode
+          ? '<button class="invc-sell-selected" onclick="window.invSellSelected()"'+(_selN?'':' disabled')+'>Sell '+_selN+'</button>'+
+            '<button class="invc-sell-junk" onclick="window._invSellJunk()">Sell junk</button>'+
+            '<button class="invc-select active" onclick="window._invToggleSelect()">Done</button>'
+          : (window.HearthriseDepot?window.HearthriseDepot.toolbarButtonHtml():'')+'<button class="invc-buyspace" onclick="window.openBankModal()">Buy space</button>'+
+            '<button class="invc-select" onclick="window._invToggleSelect()">Select</button>')+
       '</div>'+
     '</div>'+
     /* Search row */
@@ -277,7 +288,7 @@ function renderInvFancy(){
                  right-click menu, so the screen a player scans before a bulk sell
                  never said which stacks were protected. Shipped atlas glyph. */
               var lk = (typeof isItemLocked === 'function') && isItemLocked(id);
-              return '<div class="'+tileCls+(lk?' invc-locked':'')+'" '+(canEquip?'draggable="true" data-item-id="'+id+'"':'')+' onclick="invItemTap(\''+id+'\')" title="'+(def.n||'').replace(/"/g,'&quot;')+' (×'+qty+')'+(lk?' — locked against selling':'')+'">'+
+              return '<div class="'+tileCls+(lk?' invc-locked':'')+(_sel&&_sel.has(id)?' invc-selected':'')+'" '+(canEquip?'draggable="true" data-item-id="'+id+'"':'')+' onclick="invItemTap(\''+id+'\')" title="'+(def.n||'').replace(/"/g,'&quot;')+' (×'+qty+')'+(lk?' — locked against selling':'')+'">'+
                 itemImg(id)+
                 (lk ? '<span class="invc-lock" aria-label="Locked">'+lockGlyph()+'</span>' : '')+
                 '<span class="invc-qty">'+fmtQty(qty)+'</span>'+
@@ -392,10 +403,19 @@ window._invSearchClear = function(){
   window._invFilter.category = 'all';
   renderInvFancy();
 };
-window._invManage = function(){
-  /* b465: "Manage UI coming soon" — a feature name from a spec and a promise
-     with no date on it. Say what the player can do instead, right now. */
-  if(typeof notify === 'function') notify('Right-click or long-press any item to equip, eat, bury, inspect or sell it','info');
+/* b564 — SELECT MODE. The tile tap (legacy.js invItemTap) already toggles
+   `_invSelected` while `_invSelectMode` is on; this is the switch, and leaving
+   select mode drops the selection so a stale pick can never ride a later Sell. */
+window._invToggleSelect = function(){
+  window._invSelectMode = !window._invSelectMode;
+  if(!window._invSelectMode && window._invSelected) window._invSelected.clear();
+  else if(typeof notify === 'function') notify('Tap the stacks to sell, then Sell — or sweep the junk','info');
+  renderInvFancy();
+};
+window._invSellJunk = function(){
+  var CM = window.HearthriseInvCtx;
+  if(!CM || typeof CM.sellJunk !== 'function') return Promise.resolve(0);
+  return CM.sellJunk();
 };
 window._invLoadoutSelect = function(idx){
   if(idx === '' || isNaN(idx)) return;

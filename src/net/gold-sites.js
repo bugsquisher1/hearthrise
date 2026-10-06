@@ -216,9 +216,7 @@ const B = Object.freeze({
      flipGuard rather than a blocker. See those rows below. */
   /* B.BULK_VENDOR was RETIRED on 2026-10-06: Sell Selected and the
      sell-junk sweep paid gold through it and sent nothing, so the envelope took
-     it back. Both gestures are CLOSED (they pay, send and remove nothing), so
-     they have no gold site. They return as `wired` rows naming
-     `vendor_sell_many` (brief in HANDOFFS.md 2026-10-06). */
+     it back. They are `wired` rows naming `vendor_sell_many` now (b564). */
   DERIVED_PRICE: 'a server-owned price. This spend computes its cost at call time and is NOT in '
     + 'SHOP_OFFERS — see DERIVED_PRICES in src/data/shops.js. A server that authorises a spend must '
     + 'own the price, and for this one it would also have to own the purchase COUNT the price '
@@ -339,6 +337,19 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   'seam:vendor.quick_sell': {
     kind: 'vendor', status: 'wired', verb: 'vendor_sell',
     site: 'src/item-ux.js — the quick-sell slider',
+  },
+  /* b564 — THE TWO BULK GESTURES, BACK AND WIRED. Both send ONE
+     `vendor_sell_many` per press through `vendorSellMany` (shop-counter.js):
+     one key, one prediction, one shop rate token, all-or-nothing under hr_apply.
+     The toast is built from the server's receipt only; a refusal rolls back the
+     gold (PROVABLY_UNWRITTEN) and puts every stack back on the bag. */
+  'seam:vendor.sell_selected': {
+    kind: 'vendor', status: 'wired', verb: 'vendor_sell_many',
+    site: 'src/screens/shop-counter.js invSellSelected() — Sell Selected, N item ids in one gesture',
+  },
+  'seam:vendor.sell_junk': {
+    kind: 'vendor', status: 'wired', verb: 'vendor_sell_many',
+    site: 'src/features/inv-context-menu.js settleJunk() — the sell-junk sweep',
   },
   'seam:claim.daily_login': {
     kind: 'grant', status: 'wired', verb: 'claim_reward',

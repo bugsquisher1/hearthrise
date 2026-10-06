@@ -89,8 +89,14 @@ export const PATTERNS = Object.freeze([
      visible to the census — the alternative (inlining the chunk loop at both
      call sites) would be two copies of the same payment path, which is the exact
      thing the seam exists to prevent. Same standing as goldSettle wrapping
-     settleCurrency. */
-  { name: 'seam', re: /(?:goldSettle(?:Currency)?|vendorSellChunked)\(\s*[\s\S]{0,120}?['"]([\w.]+)['"]/g, seam: true },
+     settleCurrency.
+     `vendorSellMany` (b564) has the same standing for the two BULK gestures:
+     ONE goldSettle(Σ, site, key) per press, the site id at the CALLER
+     (`vendor.sell_selected`, `vendor.sell_junk`). A wrapper's own DECLARATION
+     (`function vendorSellMany(picks, site){…`) is not a call and is skipped by
+     the lookbehind — otherwise the first quoted word in its body would be read
+     as a site id. */
+  { name: 'seam', re: /(?<!function\s+)(?:goldSettle(?:Currency)?|vendorSellChunked|vendorSellMany)\(\s*[\s\S]{0,120}?['"]([\w.]+)['"]/g, seam: true },
 
   /* ══════════════════════════════════════════════════════════════════════════
      F6 — THE FOUR EVASIONS. THE SCANNER WAS BLIND TO ITS OWN API.

@@ -283,24 +283,135 @@ function invSellAll(id){
   sellReceipt(id, qty, price, sent);
   updateTopbar(); renderInvNew(); closeInvDetail();
 }
-/* BULK SELL IS CLOSED UNTIL THE SERVER CAN SELL A BAG IN ONE ANSWER
-   (Game Designer interim; the real fix is the `vendor_sell_many` verb,
-   .claude/coordination/HANDOFFS.md 2026-10-06).
-   This gesture used to remove every selected stack, add the total to G through
-   a DEFERRED gold site and toast "Sold N items for Xg" while sending NOTHING:
-   the next envelope put the items back and took the gold away (CLAUDE.md §6).
-   Closed, not N per-stack `vendor_sell`s: the 30/min shop bucket is shared
-   with every purchase, so a sweep would spend the player's minute of buying
-   and stop halfway on a big bag. No live screen reaches it (its button went
-   with the dead second renderer, c16b87455); Sell 1 / Sell All / Sell N… stay
-   server-backed. It sends nothing, writes neither bag nor gold, never says
-   "Sold". Regression: BULK-INTERIM-1 (mutation-proved on the old body). */
-const BULK_SELL_CLOSED = 'Bulk selling is resting for now — sell each stack from its own menu (Sell All / Sell N…)';
-window.BULK_SELL_CLOSED = BULK_SELL_CLOSED;
+/* ══════════════════════════════════════════════════════════════════════
+   b564 — BULK SELL, ONE INTENT PER PRESS (`vendor_sell_many`).
+   ══════════════════════════════════════════════════════════════════════
+   Sell Selected and the junk sweep used to pay gold locally through a DEFERRED
+   site and send nothing, so the next envelope took both halves back (CLAUDE.md
+   §6); the b563 interim closed them. They are back on the server verb built for
+   them: N stacks in ONE intent — one key, one `shop` rate token, one settle —
+   priced line by line from the server's catalogue and ALL-OR-NOTHING under
+   hr_apply.
+
+   THE PRESS, IN ORDER:
+     1. the `vendor-bulk` intent latch holds from the send until the answer (plus
+        its 600 ms floor), so a double press sends ONCE;
+     2. ONE display prediction under the intent key (vendorPrice is the shop's
+        own bid, so the number the player sees is the number the server will
+        pay — and the envelope overwrites it either way);
+     3. the stacks leave the display bag;
+     4. the answer: the toast is built from the server RECEIPT and nothing else.
+        A provable refusal (PROVABLY_UNWRITTEN) rolls the gold back in gold.js;
+        the stacks come back from the refusal's envelope when it carried one, or
+        from here when it did not. An unanswered call (timeout, 5xx) leaves the
+        display as it is and the next absolute envelope settles it.
+
+   ONE INTENT PER PRESS, so a press names at most MAX_SELL_LINES stacks of at
+   most MAX_QTY each. Anything beyond stays in the bag and the toast says so; it
+   is never removed locally, so there is nothing to put back.
+   Regressions: BULK-SELL-1…4 (src/features/smoke/monsters-inventory-and-brand.js). */
+function bulkSellLatch(){
+  const L = window.HearthriseIntentLatch;
+  return (L && typeof L.namedLatch === 'function') ? L.namedLatch('vendor-bulk') : null;
+}
+/** The press's lines: one per stack, capped to what ONE intent may carry. */
+function bulkSellLines(picks){
+  const S = window.HearthriseGold;
+  const MAXL = (S && S.MAX_SELL_LINES) || 64, MAXQ = (S && S.MAX_QTY) || 1000;
+  const lines = [], seen = new Set();
+  let left = 0;
+  for(const p of picks){
+    const qty = Math.floor(Number(p && p.qty) || 0);
+    if(!p || qty <= 0 || seen.has(p.id)) continue;
+    if(lines.length >= MAXL){ left += qty; continue; }
+    seen.add(p.id);
+    const q = Math.min(qty, MAXQ);
+    lines.push({ item: p.id, qty: q });
+    left += qty - q;
+  }
+  return { lines, left };
+}
+/** The toast — the SERVER's receipt, or a line that says the server did not sell. */
+function bulkSellToast(r, left){
+  const H = window.HearthriseGold;
+  const rc = (r && H && typeof H.receiptOf === 'function') ? H.receiptOf(r.body) : null;
+  if(r && (r.outcome === 'applied' || r.outcome === 'replayed') && rc && Array.isArray(rc.lines)){
+    const sold = rc.lines.reduce((s, l) => s + (Number(l && l.qty) || 0), 0);
+    const gold = Number(rc.gold) || 0;
+    notify(`Sold ${sold.toLocaleString()} items for ${gold.toLocaleString()} gold`
+      + (left > 0 ? ` · ${left.toLocaleString()} left in your bag — sell again for the rest` : ''), 'loot');
+    return { sold, gold };
+  }
+  if(r && (r.outcome === 'applied' || r.outcome === 'replayed')){
+    notify('That sale already went through — your bag has settled', 'info');
+    return { sold: 0, gold: 0 };
+  }
+  if(r && H && typeof H.isProvablyUnwritten === 'function' && H.isProvablyUnwritten(r.outcome)){
+    notify(r.outcome === 'rate-limited'
+      ? 'The shopkeeper needs a moment — nothing was sold, try again shortly'
+      : 'The realm did not buy that batch — nothing was sold', 'kill');
+    return null;
+  }
+  notify('The realm has not answered yet — your bag will settle', 'info');
+  return null;
+}
+/**
+ * SELL THESE STACKS IN ONE INTENT. `picks` = [{id, qty}] with the server-
+ * confirmed counts; locked and worthless stacks are the caller's to drop.
+ * Resolves {sold, gold} from the receipt, or null (refused, unanswered, or a
+ * second press while the first is in flight — which is silence).
+ */
+function vendorSellMany(picks, site){
+  const S = window.HearthriseGold, latch = bulkSellLatch();
+  if(!S || typeof S.sellItems !== 'function' || !latch){
+    notify('The shop is still opening — try again in a moment', 'info');
+    return Promise.resolve(null);
+  }
+  const { lines, left } = bulkSellLines(picks || []);
+  if(!lines.length){ notify('Nothing to sell', 'kill'); return Promise.resolve(null); }
+  const scope = lines.map((l) => l.item + '*' + l.qty).sort().join(',');
+  const p = latch.run('sweep', (idem) => {
+    /* DISPLAY ONLY, under the intent key: the next envelope is absolute. */
+    goldSettle(lines.reduce((s, l) => s + vendorPrice(l.item) * l.qty, 0), site, idem);
+    lines.forEach((l) => removeItem(l.item, l.qty));
+    try{ updateTopbar(); renderInvNew(); }catch(e){}
+    return S.sellItems(lines, idem);
+  }, { scope });
+  return p.then((r) => {
+    const IL = window.HearthriseIntentLatch;
+    if(IL && IL.isInFlightAnswer(r)) return null;   // the first press answers for both
+    /* THE STACKS COME BACK when the server provably wrote nothing and its answer
+       carried no envelope to restore them from (a stateless refusal, a 429). An
+       envelope-bearing refusal (insufficient_item) already put the bag back. */
+    const hadEnvelope = !!(r && r.applied && r.applied.envelope);
+    if(r && !hadEnvelope && typeof S.isProvablyUnwritten === 'function' && S.isProvablyUnwritten(r.outcome)){
+      lines.forEach((l) => addItem(l.item, l.qty, false));
+    }
+    const out = bulkSellToast(r, left);
+    if(out && out.sold > 0) lines.forEach((l) => recordVendorSale(l.item, l.qty, vendorPrice(l.item)));   // b240: noted
+    try{ updateTopbar(); renderInvNew(); }catch(e){}
+    return out;
+  }, () => { notify('The realm has not answered yet — your bag will settle', 'info'); return null; });
+}
+window.vendorSellMany = vendorSellMany;
+
+/** Sell Selected — every selected, unlocked, sellable stack, in ONE intent. */
 function invSellSelected(){
-  if(!window._invSelected.size){ notify('Nothing selected','kill'); return 0; }
-  notify(BULK_SELL_CLOSED,'info');
-  return 0;
+  if(!window._invSelected.size){ notify('Nothing selected','kill'); return Promise.resolve(null); }
+  /* Every quantity is the server's; an unstated bag sells nothing. */
+  for(const id of window._invSelected){ if(ITEMS[id] && sellableCount(id) === null){ notify(SELL_PENDING_TITLE,'info'); return Promise.resolve(null); } }
+  const picks = []; let skipped = 0;
+  for(const id of window._invSelected){
+    if(!ITEMS[id]) continue;
+    if(isItemLocked(id) || vendorPrice(id) <= 0){ skipped++; continue; }   // b240: locked stays; a 0g bid would refuse the batch
+    const qty = sellableCount(id) || 0;
+    if(qty > 0) picks.push({ id, qty });
+  }
+  if(!picks.length){ notify(skipped ? 'Nothing selected can be sold — locked or worthless' : 'Nothing to sell','kill'); return Promise.resolve(null); }
+  window._invSelected.clear();
+  window._invSelectMode = false;
+  if(skipped) notify(`${skipped} locked or worthless item(s) left in your bag`,'info');
+  return vendorSellMany(picks, 'vendor.sell_selected');
 }
 
 /* ══════════════════════════════════════════════════════════════════════

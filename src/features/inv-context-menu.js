@@ -384,6 +384,7 @@
       var def = window.ITEMS[id];
       if(!def) return;
       if(def.bop) return;                              // never sell BoP
+      if(typeof window.isItemLocked === 'function' && window.isItemLocked(id)) return;   // b240: a locked stack is never swept
       if(def.heals && def.heals > 0) return;           // keep food
       if(def.recipe || def.unlocks) return;            // keep recipe scrolls / blueprints / keys
       if(def.type === 'weapon' || def.type === 'armor') return; // keep gear
@@ -439,22 +440,71 @@
     return 'Sell ' + stacks + ' (' + items + ') for ' + q.totalGold.toLocaleString() + ' gold?';
   }
 
-  /* THE SWEEP IS CLOSED UNTIL THE SERVER CAN SELL A BAG IN ONE ANSWER
-     (Game Designer interim; see invSellSelected in src/screens/shop-counter.js
-     for the ruling and the `vendor_sell_many` brief in HANDOFFS.md).
-     settleJunk used to pay the quote through a DEFERRED gold site and toast
-     "Sold N junk for Xg" while sending nothing, so the next envelope took both
-     halves back. Now neither function asks, sends, pays, removes or says
-     "Sold"; both resolve 0 and say what to do instead. The QUOTE stays a pure
-     value (quoteJunk/quoteText): it is what the server verb will be asked to
-     honour, and B354-6 still pins it to the one vendor bid. */
-  function sweepClosed(){
-    if(typeof window.notify === 'function') window.notify(window.BULK_SELL_CLOSED || 'Bulk selling is resting for now', 'info');
-    return 0;
+  /* ONE PRESS IS ONE INTENT (b564, `vendor_sell_many`), so the sweep a player is
+     asked about is the sweep that is sent: at most MAX_SELL_LINES stacks of at
+     most MAX_QTY each. Anything past that stays in the bag; the confirm says so
+     and the receipt toast says so again. */
+  function capQuote(q){
+    var S = window.HearthriseGold;
+    var maxL = (S && S.MAX_SELL_LINES) || 64, maxQ = (S && S.MAX_QTY) || 1000;
+    var ids = [], qtys = {}, totalGold = 0, totalCount = 0, all = 0;
+    q.ids.forEach(function(id){
+      var qty = (q.qtys && q.qtys[id]) | 0;
+      all += qty;
+      if(ids.length >= maxL || qty <= 0) return;
+      var n = Math.min(qty, maxQ);
+      var v = (typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : 0;
+      ids.push(id); qtys[id] = n; totalGold += n * v; totalCount += n;
+    });
+    return { ids: ids, qtys: qtys, totalGold: totalGold, totalCount: totalCount, left: all - totalCount };
   }
-  /** Resolves the gold paid — always 0 while the sweep is closed. */
-  function sellJunk(){ return Promise.resolve(sweepClosed()); }
-  function settleJunk(){ return sweepClosed(); }
+
+  /** Ask, then settle. Resolves the gold the SERVER paid (0 if declined, refused or nothing to do). */
+  function sellJunk(threshold){
+    var q = quoteJunk(threshold);
+    if(q.pending){
+      if(typeof window.notify === 'function') window.notify(window.SELL_PENDING_TITLE, 'info');
+      return Promise.resolve(0);
+    }
+    if(!q.ids.length){
+      if(typeof window.notify === 'function') window.notify('No junk to sell — your bag is clean.', 'info');
+      return Promise.resolve(0);
+    }
+    var c = capQuote(q);
+    var D = window.HearthriseDialog;
+    var body = quoteText(c) + (c.left > 0 ? ' The rest (' + c.left.toLocaleString() + ' items) stays for the next sweep.' : '');
+    var ask = (D && D.confirm)
+      ? D.confirm({ title:'Sell junk?', body: body, confirmLabel:'Sell' })
+      : Promise.resolve(false);
+    return ask.then(function(ok){
+      if(!ok) return 0;
+      /* RE-QUOTED AFTER THE ANSWER. The modal does not stop the game: a kill can
+         drop loot and a tick can consume a stack while it is open. The server
+         prices the sale itself, so a moved total is only ever a display fact —
+         the player is told, and the receipt toast carries the real number. */
+      var now = quoteJunk(threshold);
+      if(!now.ids.length) return 0;
+      var nc = capQuote(now);
+      if(nc.totalGold !== c.totalGold && typeof window.notify === 'function'){
+        window.notify('Your bag changed — selling for about ' + nc.totalGold.toLocaleString() + 'g', 'info');
+      }
+      return settleJunk(nc);
+    });
+  }
+
+  /* THE QUOTE IS THE REQUEST, AND THE SERVER IS THE PRICE. settleJunk sends the
+     quoted ids and their SERVER counts (never a re-read of the display bag) as
+     ONE `vendor_sell_many` through `vendorSellMany` (shop-counter.js): one key,
+     one prediction at the shop's own bid (vendorPrice — B354-6 pins the quote
+     to it), all-or-nothing under hr_apply. It resolves the gold in the server's
+     RECEIPT, never the quote: a refused sweep resolves 0 and its stacks and gold
+     go back. Ledger site `vendor.sell_junk`, wired to vendor_sell_many. */
+  function settleJunk(q){
+    var ids = (q && q.ids) || [];
+    if(!ids.length || typeof window.vendorSellMany !== 'function') return Promise.resolve(0);
+    var picks = ids.map(function(id){ return { id: id, qty: (q.qtys && q.qtys[id]) | 0 }; });
+    return window.vendorSellMany(picks, 'vendor.sell_junk').then(function(res){ return res ? res.gold : 0; });
+  }
 
   // ── Public API ────────────────────────────────────────────
   window.HearthriseInvCtx = {

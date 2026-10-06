@@ -165,7 +165,14 @@ export const VERBS = Object.freeze(
          pressed. That is what makes the verb ranked-safe by construction rather
          than by a clamp: a forged or replayed claim cannot move a value that
          crosses into another player's economy, because it moves no value. */
-    'trophy_claim']);
+    'trophy_claim',
+    /* b564 — THE BULK SALE. `vendor_sell` for N stacks in ONE gesture: one rate
+       token, one settle, one hr_apply. A separate verb rather than an array on
+       `vendor_sell`, for the dispatch-table reason the market's three are three:
+       a body field that changes WHAT the verb does is a typo away from a
+       different intent. The wire carries `lines: [{item, qty}]` — NAMES and
+       COUNTS, never a price (readLines). */
+    'vendor_sell_many']);
 export const DEFAULT_VERB = 'accrue';
 
 /** The catalogue's activity vocabulary — the `kind` column of `hr_activities`
@@ -228,7 +235,7 @@ export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
     which is the direction that matters. */
 export const INTENT_KEYS = Object.freeze(
   ['slot', 'verb', 'intentId', 'activity', 'offer', 'item', 'qty', 'reward',
-    'listing', 'ask', 'equip', 'enchant', 'dungeon', 'auto', 'trophy'],
+    'listing', 'ask', 'equip', 'enchant', 'dungeon', 'auto', 'trophy', 'lines'],
 );
 
 /** The stage ceiling a claim may NAME. Deliberately the parse-level bound only:
@@ -271,6 +278,17 @@ export const MAX_EQUIP_OPS = 15;
  *  `bad_price` back to every honest client that fat-fingered a price. */
 export const MAX_ASK = 1000000000;
 
+/** How many LINES one `vendor_sell_many` may carry (b564).
+    Not 200, although hr_apply takes `c_max_item_kinds = 200` item keys in one
+    delta: the line count also sizes the journal row (`meta.lines`, one entry
+    per line) and the request body, and a bag sweep is a gesture over what a
+    player can SEE — 64 stacks is more than a full bag page. Stated as a literal
+    for the MAX_EQUIP_OPS reason (the parser answers a SHAPE question without a
+    catalogue); tests/vendor-sell-many.mjs asserts it stays ≤ hr_apply's bound
+    by reading the migration, so the edge can never propose a delta the
+    database refuses for its size. */
+export const MAX_SELL_LINES = 64;
+
 /**
  * Read the intent out of a parsed request body.
  *
@@ -300,6 +318,55 @@ export function parseIntent(body) {
   out.dungeon = readDungeon(body);
   out.auto = readAuto(body);
   out.trophy = readTrophy(body);
+  out.lines = readLines(body);
+  return out;
+}
+
+/**
+ * THE BULK SALE'S WHOLE CALLER-SUPPLIED SURFACE: `lines: [{item, qty}]` (b564).
+ *
+ * ⚠ AND THERE IS NO PRICE ON IT, BY CONSTRUCTION. Each line is copied FIELD BY
+ *   FIELD into a fresh null-prototype object holding exactly `item` and `qty`;
+ *   a `unit`, `price` or `gold` key on a line is not refused, it is simply never
+ *   read — it cannot reach vendor-sell.js because nothing here forwards it.
+ *
+ * WHOLE-ARRAY REFUSAL, like readEquip: a sweep is ONE gesture, and a half-
+ * readable one ("these three stacks, and something") is not a smaller sale, it
+ * is an unreadable request. So any of these makes the whole thing `null`, which
+ * the verb refuses BY NAME as `bad_lines`:
+ *   · not an array, empty, or longer than MAX_SELL_LINES
+ *   · a line that is not a plain object
+ *   · an item that is not a catalogue-shaped id (CATALOGUE_ID_RE)
+ *   · a qty that readQty would refuse (a real JSON integer in [1, MAX_QTY])
+ *   · THE SAME ITEM TWICE. hr_apply's delta is a MAP keyed by item, so two
+ *     lines for one id would have to be merged — and a merge is the parser
+ *     authoring a number the client did not send (and doubling past MAX_QTY
+ *     without either line breaking the bound). The client sends one line per
+ *     stack, so a duplicate is a malformed request, never a bigger sale.
+ *
+ * @returns a null-prototype-element array of `{item, qty}`, or `null`.
+ *          NEVER partially populated.
+ */
+export function readLines(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
+  if (!Object.prototype.hasOwnProperty.call(body, 'lines')) return null;
+  const a = body.lines;
+  if (!Array.isArray(a) || a.length === 0 || a.length > MAX_SELL_LINES) return null;
+  const seen = new Set();
+  const out = [];
+  for (const l of a) {
+    if (!l || typeof l !== 'object' || Array.isArray(l)) return null;
+    const item = ownString(l, 'item');
+    if (item === null || !CATALOGUE_ID_RE.test(item)) return null;
+    const qty = readQty(l);
+    if (qty === null) return null;
+    if (seen.has(item)) return null;
+    seen.add(item);
+    const line = Object.create(null);
+    line.item = item;
+    line.qty = qty;
+    out.push(line);
+  }
   return out;
 }
 

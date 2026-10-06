@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 92 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, awayArtisanSpan, withFightScreen, xpOf, xpZero, snapshotG, drain, restoreG, restoreGAndRecord, combatScreen, on, snapshot, decideRestore, decideLocalOwnership, withDesktopBanner, assertBannerReserved, phoneFrame } from './_harness.js?v=561';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, awayArtisanSpan, withFightScreen, xpOf, xpZero, snapshotG, drain, restoreG, restoreGAndRecord, combatScreen, on, snapshot, decideRestore, decideLocalOwnership, withDesktopBanner, assertBannerReserved, phoneFrame, serverBagFixture } from './_harness.js?v=561';
 
 export default [
 
@@ -394,11 +394,11 @@ export default [
   // deterministically instead of sleeping.)
   () => tryRun('b226: cooking marks its tile active and the progress bar moves', () => {
     if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     try {
       /* Stock BOTH sides: the factory literal is gone and the gate reads the mirror. */
       window.G.inventory.shrimp = (window.G.inventory.shrimp || 0) + 10;
-      window.G._serverBag = Object.assign({}, window.G._serverBag, { shrimp: window.G.inventory.shrimp });
+      bag.agree(Object.assign({}, window.G._serverBag, { shrimp: window.G.inventory.shrimp }));   // restored in finally: it leaked into every later test
       window.showTab('skills');
       if (typeof window.openSkillDetail === 'function') window.openSkillDetail('cooking');
       window.startArtisan('cooking', 'cook_shrimp');
@@ -421,7 +421,7 @@ export default [
     } finally {
       if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(null);
       if (typeof window.stopSkill === 'function') try { window.stopSkill(); } catch (e) {}
-      restoreG(snap);
+      bag.restore(); restoreG(snap);
       try { window.showTab('profile'); } catch (e) {}
     }
   }),

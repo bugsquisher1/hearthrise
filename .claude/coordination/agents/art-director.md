@@ -2746,3 +2746,32 @@ the widest face +4ch; S2 (icon + dry "Out ·") only below ~90ch with a bounty. A
 bed-glyph short form. Known cost: Alegreya needs ~10% fewer ch than Segoe/Verdana, so dry+bounty at
 1280 shows glyph forms where words would fit. Lesson: a fit rule calibrated in my face is not a fit
 rule; measure in Verdana and Segoe, and test the LAST chip against the clipping box, not just wrap.
+
+### 2026-10-03 · lane/b562-combat-strip-polish (review NO-GO): the bar's fit is MEASURED now
+
+Review was right: per-face `ch` thresholds are a guess about the content. With upper-band numbers
+(1,234 / STR 72 · 45,678 to go / 234/1,500 / 12,345,678) Segoe and Verdana clipped "away: you fall"
+at 1280x800, Verdana at 922x423, and Alegreya went glyph-only with ~500px free. `src/render/bar-fit.js`
+(ESM, booted from main.js, no global) steps `data-fit` through `short` -> `tight` -> `compact` only while
+#ab-meta overflows, starting from zero on every width/text/theme/scale/font change, so it also steps
+back. The foe's name still gives way first (pure flex), which is why every 1280 theme case now holds
+full words. Measured in 24 cases (4 Vigour x bounty states, 1280/922, Alegreya/Verdana/Segoe): zero
+overflow. 922x423 Verdana + bounty still overflowed by 33px at `tight`, so `compact` (my pick for the
+Game Designer's give-way) prints Lifetime as "12M": the chip stays, its precision is what matters
+least in the next minute. Frames run no scripts, so the tests call `fitBar` themselves; the live
+observer is proven by squeezing the real bar to 560px and giving the room back.
+Lesson: when a rule is "fit", measure the fit. Thresholds are calibrated on today's numbers and
+today's face; the overflow is always the current truth.
+
+### 2026-10-04 · lane/b562-combat-strip-polish (review GO-WITH-CHANGES): give-way rulings + the flake
+
+Landed the review's two required tests on a shared fixture (`statusBar` in hunt-raids-and-screens.js,
+upper band: 123,456 / STR 98 · 1,228,825 to go / 234/1,500 / 12,345,678 / "you fall"): BAR-FIT-1
+undoes the last step in 16 frames plus the live bar at 760/680/620/560px and demands overflow, and must
+see both "none" and "streak" (not vacuous); BAR-FIT-2 holds 560px and goes crowded→sparse→crowded.
+Mutants: always-short-first, MutationObserver removed, textContent out of the key, old compactNumber,
+old injector - each fails by name. Fit steps are now short→tight→compact→togo→streak (GD order); every
+compacted chip's title carries the full figure; the XP chip's "STR" becomes the skill glyph at `short`.
+compactNumber picks its unit on the rounded figure (no "1000K"). The FIGHT-PHONE-DENSITY flake was a
+real bug: the retired Events shortcut raced the boot into the stance ribbon (see DISCOVERIES).
+Lesson: a layout flake is a layout that differs between loads - dump and diff the subtree first.

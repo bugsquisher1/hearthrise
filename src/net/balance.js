@@ -269,8 +269,11 @@ export function fmtBalance(G, field, opts) {
  *  happened to reach for. */
 export function compactNumber(n) {
   const v = Number(n) || 0;
-  if (v >= 1e9) return (v / 1e9).toFixed(v >= 1e10 ? 0 : 1).replace(/\.0$/, '') + 'B';
-  if (v >= 1e6) return (v / 1e6).toFixed(v >= 1e7 ? 0 : 1).replace(/\.0$/, '') + 'M';
+  const unit = (d, s) => (v / d).toFixed(v >= d * 10 ? 0 : 1).replace(/\.0$/, '') + s;
+  /* The unit is chosen on the ROUNDED figure: 999,500 rounds to 1000 thousands,
+     which is "1M", never "1000K" (and 999.5M is "1B", never "1000M"). */
+  if (v >= 1e9 || Math.round(v / 1e6) >= 1000) return unit(1e9, 'B');
+  if (v >= 1e6 || Math.round(v / 1e3) >= 1000) return unit(1e6, 'M');
   if (v >= 1e4) return (v / 1e3).toFixed(0) + 'K';
   return v.toLocaleString();
 }

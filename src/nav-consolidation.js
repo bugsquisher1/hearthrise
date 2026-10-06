@@ -114,54 +114,13 @@
     if (typeof window.showTab === 'function') window.showTab(pane === 'local' ? 'shop' : pane);
   });
 
-  function injectCombatDungeonsLink() {
-    const combatPanel = document.getElementById('panel-combat');
-    if (!combatPanel) return;
-    /* b362 — RETIRED BY THE WAR TABLE, AND IT WAS OVERLAPPING.
-       This shortcut has a fallback that absolutely-positions it in the panel's
-       top-right corner when the style ribbon is not up yet — and on the new
-       combat screen that corner belongs to the gear quick-swap strip, so the
-       two drew on top of each other (caught in the b362 visual gate). The old
-       path is not lost: Dungeons and World Events are both DESTINATION CARDS on
-       the War Table now (COMBAT-UI-05), with live counters the floating button
-       never had. Any copy injected before the views were built is removed here,
-       because this runs on a settling interval and would otherwise leave the
-       overlap behind on a slow boot. */
-    if (combatPanel.querySelector('.cbt-views')) {
-      const stale = combatPanel.querySelector('#hr-dungeons-link');
-      if (stale && !stale.closest('.combat-style-block')) stale.remove();
-      return;
-    }
-    if (combatPanel.querySelector('#hr-dungeons-link')) return;
-    // Find a sensible insertion point — top of the combat panel
-    const target = combatPanel.querySelector('.combat-style-block')
-                || combatPanel.querySelector('.card-head')
-                || combatPanel.firstElementChild;
-    if (!target) return;
-    // b217: this shipped as an absolutely-positioned filled-red button with a
-    // 🗝 emoji and inline styles — floating in the panel's top-right corner,
-    // aligned to nothing, in the colour reserved for danger, and the loudest
-    // element on a screen whose subject is a monster list. It's a navigation
-    // shortcut, so it's a secondary control that sits IN the style ribbon
-    // where the rest of the combat controls live.
-    const btn = document.createElement('button');
-    btn.id = 'hr-dungeons-link';
-    btn.type = 'button';
-    btn.className = 'btn btn-sm';
-    // b220 (#14): dungeons are no longer a destination of their own — they are
-    // a section of the top-level Events panel, alongside the muster and the
-    // weekly clan boss. The shortcut stays (the old path must keep working) but
-    // it now says where it actually goes.
-    const gly = (window.HR && window.HR.icon) ? (window.HR.icon('uiEvent', 14, 'currentColor') || '') : '';
-    btn.innerHTML = gly + '<span>Events</span>';
-    btn.title = 'Dungeons, the weekly clan boss and today’s muster';
-    btn.addEventListener('click', () => {
-      if (typeof window.showTab === 'function') window.showTab('events');
-    });
-    const ribbon = combatPanel.querySelector('.combat-style-block');
-    if (ribbon) { btn.style.marginLeft = 'auto'; ribbon.appendChild(btn); }
-    else { combatPanel.style.position = 'relative'; btn.style.cssText = 'position:absolute;top:12px;right:12px;z-index:5'; combatPanel.appendChild(btn); }
-  }
+  /* THE COMBAT EVENTS SHORTCUT IS RETIRED, injector and all (FIGHT-EVENTS-
+     SHORTCUT-1). b362 retired it for the War Table, whose Dungeons and World
+     Events destination cards replace it, but kept an injector for "the style
+     ribbon is up, the views are not" - and a copy that landed in the ribbon was
+     KEPT once the views were built. On a slow boot (~1 in 4 fresh loads) the
+     Fight screen's stance block grew an Events row, which at 922x423 pushed the
+     food row 5px out of the arena card (the FIGHT-PHONE-DENSITY "flake"). */
 
   /* b230: injectMarketStoreLink() and injectShopBackLink() are GONE.
      They were the two halves of a manual round-trip between two screens that
@@ -198,7 +157,6 @@
   }
 
   function bootAll() {
-    injectCombatDungeonsLink();
     injectDungeonsBackLink();
     paintStrips();
   }
@@ -214,13 +172,9 @@
       setTimeout(bootAll, 100);
     }
   });
-  /* b217: the Dungeons link now lives inside the combat style ribbon rather
-     than floating absolutely in the panel corner, and that ribbon is built by
-     the combat renderer the first time the tab is opened. A single boot pass
-     300ms after DOMContentLoaded therefore ran before its host existed, and
-     the click listener above only fires for real clicks — code paths that call
-     showTab() directly never re-ran it. Hook showTab and keep a short retry so
-     the shortcut appears regardless of how Combat is reached. */
+  /* b217: the click listener above only fires for real clicks, so code paths
+     that call showTab() directly never re-ran the boot pass. Hook showTab and
+     keep a short retry so the shop strips paint however a panel is reached. */
   window.HearthriseShowTab.wrapShowTab('nav-consol-bootall', function () {
     setTimeout(bootAll, 60);
   });

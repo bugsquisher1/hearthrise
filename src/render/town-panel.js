@@ -47,8 +47,8 @@
 // did nothing today would be dead code pretending to be a feature.
 // ============================================================
 
-import { agoText } from '../net/sync.js?v=562';
-import { TOWN_POLL_MS } from '../net/town.js?v=562';
+import { agoText } from '../net/sync.js?v=563';
+import { TOWN_POLL_MS } from '../net/town.js?v=563';
 
 const STYLE_ID = 'town-panel-css';
 

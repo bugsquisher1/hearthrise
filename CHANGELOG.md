@@ -4,6 +4,26 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 563 — 2026-10-06 (Armour finally matters)
+
+**Armour finally matters.** Monsters now land far fewer hits on a well-armoured hero. A Combat-25 fighter in iron used to lose about 200 HP an hour even to Slime and burn a whole bag of shrimp before midnight; now it is closer to 35. A hero left on a hunt stays on its feet instead of spending the night knocked out. Food still matters at your own tier.
+
+**Your night, priced in food.** The Fight rail's "Tonight" forecast says how long your food lasts and how much a whole night eats, and a fighter with nothing to cook gets a one-tap door to fishing.
+
+**Selling asks the realm.** Sell 1, Sell All and quick-sell send your sale to the realm and show its answer. Sell All names the stack the realm has counted ("Sell All 37 · 37g") and waits for its own answer before you can press it again. The old bulk "sell selected" and junk sweeps are closed for now: they never reached the realm. Sell each stack from its own menu until the new bulk sale arrives.
+
+**Nothing to press before your character arrives.** While your save is loading, Home shows dashes and "Reading your character…" instead of a level-1 placeholder with a live Claim button.
+
+**Crafting waits for the count, not the clock.** A bench no longer refuses ore you gathered a minute ago: it asks the realm first and starts when the realm agrees.
+
+**The market sheet keeps up.** The listing sheet's counts follow every update from the realm while it is open, and its "You have N" uses the realm's count.
+
+**Fight bar fits every screen.** Counts read like numbers ("100,000 left"), "Fighting" is never cut, and on a crowded bar the foe's name gives way first, then short forms; no chip is ever hidden.
+
+**Smaller fixes.** House costs not yet counted show in grey instead of "short" red, all in one wording ("still being counted"); a plot upgrade waits until the realm has counted your plot tier; the market's List button looks disabled while your bag is being counted; Escape always closes the sheet on top; the first-day "Gather" step says "Go gather".
+
+**Abandoning a bounty costs what the realm says.** The abandon fee is worked out by the realm from your own contract, and taking a new contract while one is still held is refused instead of quietly replacing it.
+
 ## v0.9.2-beta build 562 — 2026-10-06 (One click, one purchase)
 
 **A double-click buys once.** Upgrading a farm plot, raising a clan tier, rerolling the bounty board, buying a house rung or bank space, hiring a hand, and planting or watering now send one request per press, even on a fast connection. A double-click could buy the next, dearer rung or charge twice.

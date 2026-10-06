@@ -81,7 +81,7 @@
 // DOM-free. Node-importable. `fetch`/`window` resolve at call time.
 // ============================================================================
 
-import { isClientStateFromServer, RESIDUE_FIELDS, sanitizeResidueField, BOUNTY_TRANSIENT_KEYS } from './client-state.js?v=562';
+import { isClientStateFromServer, RESIDUE_FIELDS, sanitizeResidueField, BOUNTY_TRANSIENT_KEYS } from './client-state.js?v=563';
 
 /* ── THE CAPSTONE ARM — LIVE SINCE b454 (2026-08-22, 953bd626) ──────────────
    Same shape as record.js's per-field arms (SKILLS_RECORD_ARM_ENABLED et al): one

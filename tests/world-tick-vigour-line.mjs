@@ -4,6 +4,10 @@
 //
 //   node tests/world-tick-vigour-line.mjs            green = one span and the 90 s chain agree
 //   node tests/world-tick-vigour-line.mjs --mutate   each mutant must turn its arm red (exit 0)
+//   node tests/world-tick-vigour-line.mjs --arm VL3  one arm only (iteration; never the gate)
+//
+// VL1/VL2 parity on the two probes · VL3 the tired payout's RATIO to rested ·
+// VL4 the AWAY_RATE_MULT === 1 pin (SEC_VIGOUR_LINE_SPLIT_2026-10-06).
 //
 // THE MEASUREMENT (production, read-only, 2026-10-06; edge 6205e4e0). The
 // first fully-counted combat probes after the b563 defence curve, QA slot 1,
@@ -50,6 +54,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
+const ONLY = (() => { const i = process.argv.indexOf('--arm'); return i >= 0 ? process.argv[i + 1] : null; })();
 /* Seeds per side. Deterministic (a fixed seed set), so a pass is a pass; 150
    puts the post-fix worst field ~3 standard errors inside the bar and the
    pre-fix defect ~3 outside it. */
@@ -88,6 +93,35 @@ const MUTANTS = [
         'const goldFull = !vigDry ? goldAll : 0;'],
     ],
   },
+  /* The two OVERPAY mutants Security found passing every vigour guard
+     (SEC_VIGOUR_LINE_SPLIT_2026-10-06, "Condition"): C5, W1-W4, vigour.mjs and
+     VL1 are all parity arms, and a defect that overpays the one span AND the
+     chain by the same factor keeps them in parity. Only a ratio against the
+     rested payout can see it (VL3). */
+  {
+    name: 'VL-M4 the tired multiplier is always 1 (dry XP pays rested)', arm: 'VL3',
+    file: 'supabase/functions/hr-accrue/accrual.js',
+    edits: [
+      ['const vigMultAt = (atMs) => (vigDry && atMs >= vigLineMs ? VIGOUR_DRY_MULT : 1);',
+        'const vigMultAt = (atMs) => 1;'],
+    ],
+  },
+  {
+    name: 'VL-M5 gold never splits at the line (dry gold pays rested)', arm: 'VL3',
+    file: 'supabase/functions/hr-accrue/accrual.js',
+    edits: [
+      ['const goldFull = (!vigDry || vigGoldAtLine === null) ? goldAll : Math.min(goldAll, vigGoldAtLine);',
+        'const goldFull = goldAll;'],
+    ],
+  },
+  /* The latent LOW: tick instants are seg.fromMs + i·tickMs with
+     n = ms·rate/tickMs, so a rate below 1 compresses the ticks ahead of the
+     wall clock and the line lands late, in the player's favour (VL4). */
+  {
+    name: 'VL-M6 AWAY_RATE_MULT drops to 0.8', arm: 'VL4',
+    file: 'src/core/away.js',
+    edits: [['export const AWAY_RATE_MULT = 1.00;', 'export const AWAY_RATE_MULT = 0.80;']],
+  },
 ];
 
 async function mutantBase(m) {
@@ -110,66 +144,29 @@ async function mutantBase(m) {
 
 async function load(base) {
   const at = (p) => import(pathToFileURL(join(base, p)).href);
-  const [probe, combat, contract, rng] = await Promise.all([
+  const [probe, combat, contract, rng, sim] = await Promise.all([
     at('supabase/functions/hr-accrue/tick-probe.js'),
     at('supabase/functions/hr-accrue/tick-combat.js'),
     at('supabase/functions/hr-accrue/tick-contract.js'),
     at('src/core/rng.js'),
+    at('src/core/combat-sim.js'),
   ]);
-  return { ...probe, ...combat, ...contract, ...rng };
+  /* The rate the ENGINE reads (combat-sim re-exports away.js's constant). */
+  return { ...probe, ...combat, ...contract, ...rng, AWAY_RATE_MULT: sim.AWAY_RATE_MULT };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
 // THE TWO INPUTS (see the header for how they were reconstructed)
 // ═══════════════════════════════════════════════════════════════════════════
 
-/* hr_state_of at version 103, as the tick's session builder sees it before the
-   shadow overlay (sessionFromRoster). Pointer/watermark keys are overwritten
-   per window by `session()`. */
-const ENV = Object.freeze({
-  slot: 1, shard: 0, version: 103, capMs: 43200000,
-  activeKind: 'combat', activeId: 'slime', activeSinceMs: 1790444865564,
-  hp: 9, maxHp: 21, gold: 7028, fight: {}, consecFalls: 1, recoveringUntilMs: 1791267232800,
-  skills: { magic: 0, attack: 5662, mining: 0, prayer: 0, ranged: 0, cooking: 0, defense: 5656,
-    farming: 112, fishing: 0, crafting: 0, smithing: 0, strength: 5655, hitpoints: 5247,
-    stonemason: 0, woodcutting: 280, bountyHunter: 0, runecrafting: 0 },
-  inventory: { bones: 260, bone_key: 1, slime_gel: 868, normal_log: 56, carrot_seed: 3, sticky_core: 23, turnip_seed: 18 },
-  equipment: { weapon: 'bronze_sword' }, enchant: {}, combatStyle: {}, traits: ['auto_eat'],
-  buffs: [{ from: null, type: 'gather_speed', scale: 1, until: '2026-09-26T17:50:11.475001+00:00', magnitude: 1, remaining_ms: 0 }],
-  perks: { ok: true, plots: {}, rooms: {}, castle: null, clanPerks: {}, companion: null, renownAllXp: 0, propertyTier: 0, unlockedRecipes: {} },
-  vigour: { level: 25, day_key: '2026-10-6', refills: 0, dry_mult: 0.25, grant_min: 720, spent_min: 416,
-    bought_min: 0, budget_min: 720, refill_min: 120, ceiling_min: 1320, refills_max: 5, refills_left: 5,
-    remaining_min: 304, next_refill_gold: 12750 },
-  huntStop: null, huntStance: null, ammoCarry: null, toolCarry: {},
-  autoEatEnabled: true, autoEatFood: 'cooked_shrimp', autoEatPct: 25, hearthfindReady: true,
-  combatXpAccruedToMs: 1791214224985, bestiaryKills: { slime: 1350 },
-  deathsTodayBefore: 11, deathsLifetimeBefore: 115,
-});
-
-const PROBES = Object.freeze({
-  /* hr_tick_probe id 8: crosses the Vigour line (spent 416 + 171 at open, budget 720). */
-  p8: {
-    fromText: '2026-10-06T08:39:48.505+00:00', to: '2026-10-06T12:41:02.905Z',
-    carrier: { v: 1, base_version: 103, hp: 9, xp: { attack: 375, defense: 375, strength: 375, hitpoints: 287 }, gold: 110,
-      items: { bones: 13, slime_gel: 57, sticky_core: 3 }, deaths_today: 3, deaths_lifetime: 3, vigour_rem_ms: 10300800,
-      bestiary_kills: { slime: 60 }, fight: { hp: 8, kills: 0, monster: 'slime' }, consec_falls: 1,
-      recovering_until: 1791279062905, ammo_carry: null, tool_carry: {} },
-  },
-  /* hr_tick_probe id 10: wholly past the line (spent 416 + 411 at open). */
-  p10: {
-    fromText: '2026-10-06T12:39:34.105+00:00', to: '2026-10-06T16:40:48.505Z',
-    carrier: { v: 1, base_version: 103, hp: 10, xp: { attack: 1993, defense: 1994, strength: 2006, hitpoints: 1523 }, gold: 624,
-      items: { bones: 98, slime_gel: 297, sticky_core: 10 }, deaths_today: 6, deaths_lifetime: 6, vigour_rem_ms: 24686400,
-      bestiary_kills: { slime: 511 }, fight: { hp: 8, kills: 0, monster: 'slime' }, consec_falls: 1,
-      recovering_until: 1791292810105, ammo_carry: null, tool_carry: {} },
-    /* What production journalled: hr_tick_probe.result and the sum of the 163
-       hr_tick_shadow windows of the span. */
-    live: {
-      one: { ticks: 1161, kills: 567, gold: 285, xp: 895 * 3 + 673 },
-      chain: { ticks: 1649, kills: 829, gold: 420, xp: 1320 + 1316 + 1322 + 996 },
-    },
-  },
-});
+/* hr_state_of at version 103 (ENV), as the tick's session builder sees it
+   before the shadow overlay (sessionFromRoster), and the carriers at the two
+   span starts. Pointer/watermark keys are overwritten per window by
+   `session()`. The bytes live in services/world-tick/fixtures/vigour-line-qa1.json
+   so tools/world-tick-parity.mjs --selftest replays the SAME no-food input. */
+const QA1 = JSON.parse(await readFile(join(ROOT, 'services', 'world-tick', 'fixtures', 'vigour-line-qa1.json'), 'utf8'));
+const ENV = Object.freeze(QA1.env);
+const PROBES = Object.freeze(QA1.probes);
 
 const FIELDS = ['ticks', 'kills', 'gold', 'xp'];
 const sumMap = (m) => Object.values(m || {}).reduce((a, b) => a + Number(b), 0);
@@ -213,6 +210,19 @@ function chainRun(L, p, i) {
   return { ticks: v.ticks, kills: v.kills, gold: v.gold, xp: sumMap(v.xp), deaths: v.deaths, xpk: v.kills ? sumMap(v.xp) / v.kills : 0, gpk: v.kills ? v.gold / v.kills : 0 };
 }
 
+/* VL3's input: probe 10's span and carrier with the chain's Vigour counters
+   stripped, so the ENVELOPE's `spent_min` alone places the line. Same seed i
+   on every Vigour state, so the three runs differ only in where the line is. */
+function vigourOneSpan(L, p, i, spentMin) {
+  const from = Date.parse(p.fromText); const to = Date.parse(p.to);
+  const carrier = JSON.parse(JSON.stringify(p.carrier));
+  delete carrier.vigour_rem_ms; delete carrier.vigour_spent_min;
+  const s = session(L, i, from, p.fromText, carrier);
+  s.vigour = Object.assign({}, s.vigour, { spent_min: spentMin });
+  const r = L.probeResultOf(L.oneSpan('combat', s, from, to, L.offlineSeedFor(s.userId, s.slot, p.fromText)));
+  return { gold: r.gold, xp: sumMap(r.xp), kills: r.kills };
+}
+
 function stats(rows, f) {
   const m = rows.reduce((a, r) => a + r[f], 0) / rows.length;
   const sd = Math.sqrt(rows.reduce((a, r) => a + (r[f] - m) ** 2, 0) / Math.max(1, rows.length - 1));
@@ -232,6 +242,12 @@ function replay(L, p) {
 }
 
 const fmt = (r) => [...FIELDS, 'xpk', 'gpk'].map((f) => `${f} ${r[f].pct >= 0 ? '+' : ''}${r[f].pct.toFixed(1)}%±${r[f].sePct.toFixed(1)}`).join(', ');
+
+/* VL3 seeds per Vigour state (one span only — the engine both paths share). */
+const N3 = 40;
+/* SEC_VIGOUR_LINE_SPLIT_2026-10-06: wholly past the line pays within
+   [0.22, 0.28] of rested (VIGOUR_DRY_MULT 0.25 with the dither's noise). */
+const DRY_RATIO = Object.freeze([0.22, 0.28]);
 
 const ARMS = {
   /* VL1 — THE SPAN THAT CROSSES THE LINE (probe 8). The one span and the
@@ -274,6 +290,66 @@ const ARMS = {
     const zc = (p.live.chain.ticks - r.ticks.chain.m) / r.ticks.chain.sd;
     return `${fmt(r)}; live chain ticks z ${zc.toFixed(2)}`;
   },
+  /* VL3 — THE RATIO ARM. VL1/VL2 are parity arms: an engine that overpays the
+     one span and the chain alike stays in parity, and VL-M4/VL-M5 (4x tired
+     overpay) passed every vigour guard. Here the SAME input and seeds run
+     rested (spent 0), crossing (the line two hours in) and wholly past it
+     (spent = budget).
+     THE BAND IS READ PER KILL. Since b563 the fight levels off BANKED xp, so a
+     tired span levels slower and fights fewer kills: on this low-level input
+     wholly-tired kills are 0.86 of rested (0.66 on probe 8's carrier) and the
+     TOTAL gold/xp ratio is 0.214, a correct engine outside [0.22, 0.28]. That
+     drag is the simulation, not the multiplier, so:
+       • gold/kill and xp/kill, wholly past / rested, inside DRY_RATIO;
+       • total gold and xp, wholly past / rested, never ABOVE DRY_RATIO's top
+         (the overpay direction is still read on the payout itself);
+       • a crossing window's total strictly between wholly past and rested. */
+  VL3(L, fail) {
+    const p = PROBES.p10;
+    const budget = Number(ENV.vigour.budget_min);
+    const spanMin = (Date.parse(p.to) - Date.parse(p.fromText)) / 60000;
+    if (!(budget > 120 && spanMin > 120)) { fail('VL3', `fixture cannot place a crossing line (budget ${budget}, span ${spanMin} min)`); return null; }
+    const state = { rested: 0, crossing: budget - 120, past: budget };
+    const mean = {};
+    for (const [k, spent] of Object.entries(state)) {
+      const rows = [];
+      for (let i = 0; i < N3; i++) rows.push(vigourOneSpan(L, p, i, spent));
+      mean[k] = { gold: stats(rows, 'gold').m, xp: stats(rows, 'xp').m, kills: stats(rows, 'kills').m };
+    }
+    if (!(mean.rested.kills > 0 && mean.past.kills > 0)) { fail('VL3', 'the fixture fought no kills — nothing to price'); return null; }
+    const notes = [];
+    for (const f of ['gold', 'xp']) {
+      const perKill = (mean.past[f] / mean.past.kills) / (mean.rested[f] / mean.rested.kills);
+      const total = mean.past[f] / mean.rested[f];
+      notes.push(`${f}/kill ${perKill.toFixed(3)} total ${total.toFixed(3)} crossing ${(mean.crossing[f] / mean.rested[f]).toFixed(3)}`);
+      if (!(perKill >= DRY_RATIO[0] && perKill <= DRY_RATIO[1])) {
+        fail('VL3', `wholly-tired ${f} per kill pays ${perKill.toFixed(3)} of rested (${N3} seeds) — outside `
+          + `[${DRY_RATIO.join(', ')}]: past the Vigour line is not paying VIGOUR_DRY_MULT`);
+      }
+      if (!(total <= DRY_RATIO[1])) {
+        fail('VL3', `wholly-tired total ${f} is ${total.toFixed(3)} of rested (${mean.past[f].toFixed(1)} / `
+          + `${mean.rested[f].toFixed(1)}) — above ${DRY_RATIO[1]}: a tired span overpays`);
+      }
+      if (!(mean.past[f] < mean.crossing[f] && mean.crossing[f] < mean.rested[f])) {
+        fail('VL3', `a crossing window's ${f} (${mean.crossing[f].toFixed(1)}) is not strictly between wholly tired `
+          + `(${mean.past[f].toFixed(1)}) and rested (${mean.rested[f].toFixed(1)})`);
+      }
+    }
+    return `${N3} seeds: ${notes.join('; ')}; kills past/rested ${(mean.past.kills / mean.rested.kills).toFixed(3)}`;
+  },
+  /* VL4 — THE RATE PIN (SEC_VIGOUR_LINE_SPLIT_2026-10-06, "Latent"). The line
+     is an instant compared against tick instants seg.fromMs + i·tickMs, with
+     n = ms·rate/tickMs. Below rate 1 the ticks run ahead of the wall clock and
+     the line lands late, in the player's favour. Pinned rather than mapped:
+     changing the rate must first map the instants through it. */
+  VL4(L, fail) {
+    if (L.AWAY_RATE_MULT !== 1) {
+      fail('VL4', `AWAY_RATE_MULT is ${L.AWAY_RATE_MULT}, not 1 — the Vigour line is compared against tick `
+        + 'instants that a rate below 1 compresses ahead of the wall clock; map the instants through the rate first');
+      return null;
+    }
+    return 'AWAY_RATE_MULT === 1 (as the engine imports it)';
+  },
 };
 
 async function runArms(L, only) {
@@ -292,7 +368,7 @@ async function runArms(L, only) {
 async function main() {
   if (!MUTATE) {
     console.log(`world-tick-vigour-line (${N} seeds per side)`);
-    const fails = await runArms(await load(ROOT));
+    const fails = await runArms(await load(ROOT), ONLY);
     for (const f of fails) console.log(`  ✗ ${f}`);
     console.log(fails.length ? `world-tick-vigour-line: RED (${fails.length})` : 'world-tick-vigour-line: green');
     process.exit(fails.length ? 1 : 0);

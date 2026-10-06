@@ -7,14 +7,24 @@
 //   node tools/world-tick-parity.mjs --hash <sha>    pin the payload by hand
 //                                                    (default: GET hr-accrue)
 //   node tools/world-tick-parity.mjs --verbose       every probe and its reason
+//   node tools/world-tick-parity.mjs --replicas 32   seeded replays per combat probe
 //   node tools/world-tick-parity.mjs --selftest      the eligibility rules and the
-//                                                    bar on planted rows,
-//                                                    mutation-proved; no token, no DB
+//                                                    bar on planted rows, and the
+//                                                    REPLAY bar on the no-food
+//                                                    fixture through the shipped
+//                                                    engine, mutation-proved; no
+//                                                    token, no DB
 //
 // Applies Security ruling 1's acceptance bars
 // (docs/planning/SEC_WORLD_TICK_ARM_2026-10-05.md) to the rows
 // 2026-10-06-world-tick-parity-probe.sql's probe writes, and prints one line per
-// channel: PASS / FAIL / UNREADABLE / INSUFFICIENT. The bar itself is
+// channel: PASS / FAIL / UNREADABLE / INSUFFICIENT. COMBAT is read on the
+// SEEDED REPLAY of each probe (SEC_VIGOUR_LINE_SPLIT_2026-10-06 "Bar ruling";
+// services/world-tick/parity-replay.js): R replicas of the one span and the
+// shipped chain from the STORED input, on the engine this repo packs — admitted
+// only when that engine's payload hash is the probe's. A probe whose input was
+// not retained, or whose engine is not this one, has no replay, and the combat
+// read is INSUFFICIENT and says which. The bar itself is
 // services/world-tick/parity-bar.js — the module tests/world-tick-probe-bar.mjs
 // calibrates and mutation-proves, so the bar read here is the bar that was
 // shown to bite.
@@ -44,6 +54,13 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 import { judgeRead } from '../services/world-tick/parity-bar.js';
+import { replayProbe, shippedChain, chainFields, fieldsOf, replayStats, REPLAY_FIELDS }
+  from '../services/world-tick/parity-replay.js';
+import { oneSpan, probeResultOf, encodeProbeInput, decodeProbeInput }
+  from '../supabase/functions/hr-accrue/tick-probe.js';
+import { offlineSeedFor, atSpan, loadCombatSessions } from '../services/world-tick/combat.js';
+import { applyShadowState } from '../supabase/functions/hr-accrue/tick-contract.js';
+import { levelFromXp } from '../src/core/xp.js';
 import { MONSTERS } from '../src/data/monsters.js';
 
 const ARGV = process.argv.slice(2);
@@ -51,6 +68,7 @@ const arg = (k, d) => { const i = ARGV.indexOf(k); return i >= 0 && ARGV[i + 1] 
 const VERBOSE = ARGV.includes('--verbose');
 const SELFTEST = ARGV.includes('--selftest');
 const DAYS = Math.max(1, Math.min(14, Math.floor(Number(arg('--days', 14)) || 14)));
+const REPLICAS = Math.max(2, Math.min(400, Math.floor(Number(arg('--replicas', 32)) || 32)));
 
 const PROJECT = 'nezapsylztqbbwuwembx';
 const URL_Q = `https://api.supabase.com/v1/projects/${PROJECT}/database/query`;
@@ -62,7 +80,7 @@ const COVERAGE_MIN = 0.99;
 export const QUERY = (days) => `
 with p as (
   select id, user_id, slot, channel, status, void_reason, span_from, span_to,
-         base_version, version_close, payload_open, payload_close, result
+         base_version, version_close, payload_open, payload_close, result, input
     from public.hr_tick_probe
    where opened_at >= now() - make_interval(days => ${Number(days)})
      and status in ('closed', 'void')),
@@ -103,7 +121,7 @@ it as (
    group by probe_id)
 select p.id, p.user_id, p.slot, p.channel, p.status, p.void_reason,
        to_jsonb(p.span_from) #>> '{}' as span_from, to_jsonb(p.span_to) #>> '{}' as span_to,
-       p.base_version, p.version_close, p.payload_open, p.payload_close, p.result,
+       p.base_version, p.version_close, p.payload_open, p.payload_close, p.result, p.input,
        a.n, to_jsonb(a.first_from) #>> '{}' as first_from, to_jsonb(a.last_to) #>> '{}' as last_to,
        a.covered_s, a.breaks, a.straddles, a.off_version,
        a.gold, a.qty, a.ticks, a.kills, a.ate, a.deaths, a.recover_texts,
@@ -158,12 +176,16 @@ export function classify(row, liveHash) {
   return Object.assign(rec, { spanMs, discard, one, chain });
 }
 
-export function readVerdict(rows, liveHash) {
+/* opts.replayOf(row, rec) → the combat replay record (parity-replay.js
+   replayStats) or { unavailable: reason }, for every eligible combat probe. */
+export function readVerdict(rows, liveHash, opts) {
+  const replayOf = opts && opts.replayOf;
   const recs = [];
   let offPayload = 0;
   for (const row of rows) {
     const c = classify(row, liveHash);
     if (c.exclude) { offPayload++; continue; }
+    if (replayOf && c.channel === 'combat' && !c.discard) c.replay = replayOf(row, c);
     recs.push(c);
   }
   return Object.assign(judgeRead(recs, { rareIds: RARE_IDS }), { offPayload, records: recs });
@@ -174,6 +196,7 @@ function print(v, liveHash) {
     + `(${v.offPayload} on another payload, not counted)`);
   for (const g of v.groups) {
     console.log(`  ${g.key}  ${g.verdict}  ${JSON.stringify({ probes: g.stats.probes, hours: g.stats.hours, discarded: g.stats.discarded })}`);
+    if (g.stats.replay) console.log(`      replay ${JSON.stringify(g.stats.replay)}`);
     for (const r of g.reasons.slice(0, VERBOSE ? 50 : 6)) console.log(`      - ${r}`);
     if (VERBOSE) console.log(`      stats ${JSON.stringify(g.stats)}`);
   }
@@ -243,15 +266,154 @@ async function selftest() {
       ate: one.ate, deaths: d, xp: { attack: 10000 + s }, items: {},
       recover_texts: d ? ['2026-10-01T02:00:00+00:00'] : null });
   });
+  /* A planted replay: the one-span expectation at the realised one span, a
+     Δ distribution centred on `bias` x one with sd `sdFrac` x one over 400
+     replicas. */
+  const planted = (bias, over, sdFrac = 0.02) => (row, rec) => {
+    const st = { replicas: 400, reproduced: true, one: {}, chain: {}, delta: {} };
+    for (const k of REPLAY_FIELDS) {
+      const one = k === 'xp' ? Object.values(rec.one.xp).reduce((a, v) => a + v, 0) : (Number(rec.one[k]) || 0);
+      const sd = sdFrac * Math.max(1, one);
+      st.one[k] = { mean: one, sd };
+      st.delta[k] = { mean: bias * one, sd };
+      st.chain[k] = { mean: one * (1 + bias), sd };
+    }
+    return Object.assign(st, over || {});
+  };
+  const R0 = { replayOf: planted(0) };
   expect('a correct LOW-death engine: 10 ties + 2 above / 2 below (4 non-tied < 12)',
-    readVerdict(combat('tttttttttt++--'), H), 'INSUFFICIENT', 'combat');
+    readVerdict(combat('tttttttttt++--'), H, R0), 'INSUFFICIENT', 'combat');
   expect('a correct death-heavy engine: 7 above / 7 below, every field scored',
-    readVerdict(combat('+-+-+-+-+-+-+-'), H), 'PASS', 'combat');
+    readVerdict(combat('+-+-+-+-+-+-+-'), H, R0), 'PASS', 'combat');
   expect('a one-signed engine: 14 below on every field, scored and red',
-    readVerdict(combat('--------------'), H), 'FAIL', 'combat');
+    readVerdict(combat('--------------'), H, R0), 'FAIL', 'combat');
+
+  /* ── THE REPLAY BAR (SEC_VIGOUR_LINE_SPLIT_2026-10-06 "Bar ruling") ──── */
+  const heavy = combat('+-+-+-+-+-+-+-');
+  expect('no replay on any probe (production today: input NULLed at close)',
+    readVerdict(heavy, H, { replayOf: () => ({ unavailable: 'input_not_retained' }) }), 'INSUFFICIENT', 'combat');
+  expect('no replayOf at all: the realised pair alone is never a combat verdict',
+    readVerdict(heavy, H), 'INSUFFICIENT', 'combat');
+  expect('replay expectation +12 % (se tiny): the aggregate is outside ±10 %',
+    readVerdict(heavy, H, { replayOf: planted(0.12) }), 'FAIL', 'combat');
+  expect('replay expectation +12 % but se > bar/3: INSUFFICIENT, never widened',
+    readVerdict(heavy, H, { replayOf: planted(0.12, { replicas: 2 }, 2) }), 'INSUFFICIENT', 'combat');
+  expect('replay expectation +40 % at se ~6 % (> bar/3): past the bar by > 3 se, FAIL at any precision',
+    readVerdict(heavy, H, { replayOf: planted(0.40, { replicas: 2 }, 0.32) }), 'FAIL', 'combat');
+  expect('the stored one span does NOT reproduce from input + seed',
+    readVerdict(heavy, H, { replayOf: planted(0, { reproduced: false }) }), 'FAIL', 'combat');
+  expect('the seed is unknown (reproduced null): not proven, INSUFFICIENT',
+    readVerdict(heavy, H, { replayOf: planted(0, { reproduced: null }) }), 'INSUFFICIENT', 'combat');
+  expect('the realised read at z 5 against its replay (two probes +200 gold)',
+    readVerdict(heavy.map((r, i) => (i === 1 || i === 3 ? Object.assign({}, r, { gold: r.gold + 200 }) : r)), H, R0), 'FAIL', 'combat');
+
+  bad += engineReplaySelftest(H);
   if (bad) { console.error(`\nworld-tick-parity --selftest: ${bad} rule(s) did not bite`); process.exit(1); }
   console.log('\nworld-tick-parity --selftest: every eligibility rule and bar bites.');
   process.exit(0);
+}
+
+// ── --selftest, engine half: the SHIPPED engine on the no-food fixture ─────
+/* Twelve probes, 48 h: ten death-dominated NO-FOOD probes on the QA slot 1
+   Slime input that carried the vigour-line defect (probe 8's carrier crosses
+   the line, probe 10's is wholly past it; services/world-tick/fixtures/
+   vigour-line-qa1.json, shared with tests/world-tick-vigour-line.mjs), and two
+   FOOD-EXHAUSTED probes (C6 "the bag empties mid-span") for the ate > 0
+   non-vacuity rule. Each live pair is the probe's own: the one span and the
+   shipped chain on the offline seed stream, stored through encodeProbeInput
+   exactly as the probe stores it. Then:
+     correct engine            → PASS (reproduced, aggregate inside ±10 %, z ok)
+     +12 % chain bias          → FAIL on the replay aggregate
+   The bias multiplies the chain's ticks, kills, gold and xp by 1.12 in the
+   live pair AND in every replica — the engine is biased, not the reading. */
+export const SELFTEST_REPLICAS = 40;
+const SPAN_PAD_MS = 74400;   // probes 8/10: 4 h 01 m 14 s, like production's close
+function selftestProbes() {
+  const qa1 = JSON.parse(readFileSync(new URL('../services/world-tick/fixtures/vigour-line-qa1.json', import.meta.url), 'utf8'));
+  const out = [];
+  const userOf = (i) => `00000000-0000-4000-8000-${String(0x5e1f00 + i).padStart(12, '0')}`;
+  for (let i = 0; i < 10; i++) {
+    const p = qa1.probes[i % 2 ? 'p10' : 'p8'];
+    const s = JSON.parse(JSON.stringify(qa1.env));
+    s.userId = userOf(i);
+    s.accruedToMs = Date.parse(p.fromText); s.accruedToText = p.fromText;
+    out.push({ input: applyShadowState(s, JSON.parse(JSON.stringify(p.carrier))),
+      fromMs: Date.parse(p.fromText), toMs: Date.parse(p.to) });
+  }
+  const food = loadCombatSessions().find((x) => /bag empties/.test(x.name));
+  for (let i = 0; i < 2; i++) {
+    const from = Date.UTC(2026, 9, 2, 3 + 7 * i, 0, 0);
+    const s = atSpan(food, from);
+    const lvl = Math.max(10, levelFromXp(Number((s.skills || {}).hitpoints) || 0));
+    s.hp = Math.max(1, Math.round((Number(s.hp) || 0) / (Number(s.maxHp) || lvl) * lvl));
+    s.maxHp = lvl;
+    s.userId = userOf(10 + i);
+    out.push({ input: s, fromMs: from, toMs: from + 4 * 3600e3 + SPAN_PAD_MS });
+  }
+  /* Stored the way the probe stores it, then read back. */
+  return out.map((p) => Object.assign(p, { input: decodeProbeInput(encodeProbeInput(p.input)) }));
+}
+
+function engineReplaySelftest(H) {
+  let bad = 0;
+  const t0 = Date.now();
+  const probes = selftestProbes().map((p, i) => {
+    const seed = offlineSeedFor(p.input.userId, p.input.slot, p.input.accruedToText);
+    const result = probeResultOf(oneSpan('combat', p.input, p.fromMs, p.toMs, seed));
+    const windows = shippedChain(p.input, p.fromMs, p.toMs).windows;
+    const chain = chainFields(windows);
+    chain.items = {};
+    for (const res of windows) {
+      if (!res || !res.accrued) continue;
+      const it = probeResultOf(res).items;
+      for (const k of Object.keys(it)) chain.items[k] = (chain.items[k] || 0) + it[k];
+    }
+    const replay = replayProbe({ input: p.input, fromMs: p.fromMs, toMs: p.toMs, seed, result },
+      { replicas: SELFTEST_REPLICAS });
+    return { i, p, result, chain, replay };
+  });
+  const iso = (ms) => new Date(ms).toISOString().replace('Z', '+00:00');
+  const rowsOf = (bias) => probes.map(({ i, p, result, chain }) => {
+    const b = (k, v) => (['ticks', 'kills', 'gold', 'xp'].includes(k) ? Math.round(v * bias) : v);
+    return {
+      id: 100 + i, user_id: p.input.userId, slot: p.input.slot, channel: 'combat', status: 'closed', void_reason: null,
+      span_from: iso(p.fromMs), span_to: iso(p.toMs), base_version: 3, version_close: 3,
+      payload_open: H, payload_close: H, result, input: null,
+      n: 160, first_from: iso(p.fromMs), last_to: iso(p.toMs), covered_s: (p.toMs - p.fromMs) / 1000,
+      breaks: 0, straddles: 0, off_version: 0, gold: b('gold', chain.gold), qty: 0, ticks: b('ticks', chain.ticks),
+      kills: b('kills', chain.kills), ate: chain.ate, deaths: chain.deaths,
+      recover_texts: null, xp: { attack: b('xp', chain.xp) }, items: chain.items, ledger_rows: 0,
+    };
+  });
+  /* One combat group is ONE character: the planted rows share a user and slot. */
+  const oneChar = (rows) => rows.map((r) => Object.assign(r, { user_id: 'u-replay', slot: 0 }));
+  const replayOf = (bias) => {
+    const byId = new Map(probes.map(({ i, replay }) => {
+      const s = replay.samples;
+      const scale = (x) => Object.fromEntries(REPLAY_FIELDS.map((k) =>
+        [k, ['ticks', 'kills', 'gold', 'xp'].includes(k) ? Math.round(x[k] * bias) : x[k]]));
+      return [100 + i, replayStats({ one: s.one, chain: s.chain.map(scale) }, replay.reproduced)];
+    }));
+    return (row) => byId.get(row.id);
+  };
+  const reproducedAll = probes.every((x) => x.replay.reproduced === true);
+  console.log(`  ${reproducedAll ? '✓' : '✗'} every stored one span reproduces from its input + seed on this engine `
+    + `(${probes.length} probes, ${SELFTEST_REPLICAS} replicas each, ${((Date.now() - t0) / 1000).toFixed(1)} s)`);
+  if (!reproducedAll) bad++;
+  const ok = readVerdict(oneChar(rowsOf(1)), H, { replayOf: replayOf(1) });
+  const g = ok.groups.find((x) => x.channel === 'combat');
+  const okPass = ok.channels.combat === 'PASS';
+  console.log(`  ${okPass ? '✓' : '✗'} correct engine on the no-food fixture: combat ${ok.channels.combat} (want PASS) `
+    + `replay ${JSON.stringify(g && g.stats.replay)}`);
+  if (!okPass) { bad++; for (const r of (g ? g.reasons : [])) console.log(`      - ${r}`); }
+  const mut = readVerdict(oneChar(rowsOf(1.12)), H, { replayOf: replayOf(1.12) });
+  const gm = mut.groups.find((x) => x.channel === 'combat');
+  const byReplay = !!gm && gm.reasons.some((r) => r.startsWith('replay '));
+  const mutRed = mut.channels.combat === 'FAIL' && byReplay;
+  console.log(`  ${mutRed ? '✓' : '✗'} +12 % chain bias (the vigour-line defect's shape): combat ${mut.channels.combat} `
+    + `(want FAIL on the replay aggregate)${gm ? ` — ${gm.reasons.filter((r) => r.startsWith('replay ')).slice(0, 2).join('; ')}` : ''}`);
+  if (!mutRed) { bad++; for (const r of (gm ? gm.reasons : [])) console.log(`      - ${r}`); }
+  return bad;
 }
 
 // ── the production read ────────────────────────────────────────────────────
@@ -275,8 +437,11 @@ async function productionRead() {
   if (!selectOnly(sql)) { console.error('world-tick-parity: refusing — query is not SELECT-only'); process.exit(2); }
   let hash;
   let rows;
+  let engineHash;
   try {
   hash = await liveHash();
+  /* The engine this reader would replay with: the payload this repo packs. */
+  engineHash = (await (await import('./pack-edge.mjs')).pack('hr-accrue')).hash;
   const token = readFileSync(join(homedir(), '.supabase-token'), 'utf8').trim();
   const res = await fetch(URL_Q, {
     method: 'POST',
@@ -291,10 +456,28 @@ async function productionRead() {
   process.exitCode = 2;
 }
   if (rows) {
-    const v = readVerdict(rows, hash);
+    const v = readVerdict(rows, hash, { replayOf: productionReplayOf(engineHash, REPLICAS) });
+    console.log(`world-tick-parity: replay engine = this repo's hr-accrue payload ${String(engineHash).slice(0, 16)}… `
+      + `(${engineHash === hash ? 'IS' : 'is NOT'} the live payload), ${REPLICAS} replicas per combat probe`);
     print(v, hash);
     process.exitCode = (v.channels.gather === 'PASS' && v.channels.combat === 'PASS') ? 0 : 3;
   }
+}
+
+/* THE PRODUCTION REPLAY. The stored input is the only admissible input (a
+   re-read at t1 is not the snapshot at t0), and the only admissible engine is
+   the one at the probe's payload hash. The seed is hr_seed's — not readable
+   here and never to be — so `reproduced` stays null and the read cannot
+   PASS until the probe row carries what reproduction needs. */
+export function productionReplayOf(engineHash, replicas) {
+  return (row) => {
+    if (!row.input || typeof row.input !== 'object') return { unavailable: 'input_not_retained' };
+    if (row.payload_open !== engineHash || row.payload_close !== engineHash) return { unavailable: 'engine_not_at_payload' };
+    const input = decodeProbeInput(row.input);
+    const r = replayProbe({ input, fromMs: Date.parse(row.span_from), toMs: Date.parse(row.span_to),
+      seed: null, result: row.result }, { replicas });
+    return Object.assign(r.stats, { reproduceDetail: r.reproduceDetail });
+  };
 }
 
 /* A module the guard imports (tests/world-tick-parity-probe.mjs PP-8 runs QUERY

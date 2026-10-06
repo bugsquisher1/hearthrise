@@ -10,17 +10,17 @@
 // The runner (runSmokeTest) stayed in ../smoke-test.js with the registry, because it
 // owns the PLAN and the parks around it, not the fixtures.
 // ══════════════════════════════════════════════════════════════════════
-import { on, snapshot } from '../../net/events.js?v=561';
-import { findUiOverlaps, watchUiOverlaps } from '../ui-overlap.js?v=561';
+import { on, snapshot } from '../../net/events.js?v=562';
+import { findUiOverlaps, watchUiOverlaps } from '../ui-overlap.js?v=562';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../../net/auth.js?v=561';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../../net/auth.js?v=562';
 /* BESTIARY CHARMS (CHARM-2). The ladder's magnitudes are READ from the data
    table, never retyped: a designer re-pricing a rung must re-price the
    expectation, not turn the suite red. */
-import { CHARM_RANKS } from '../../data/bestiary-charms.js?v=561';
+import { CHARM_RANKS } from '../../data/bestiary-charms.js?v=562';
 
 export const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -2092,7 +2092,7 @@ export const stubSignedIn = (slot, name) => {
      resumed on restore, so no arm has to remember a rule its own subject never
      mentions, and nothing here reaches in for a timer or swaps `window.fetch`.
      Regression: STUB-ORIGIN-1. */
-  const CHANNELS = [window.HearthriseTown, window.HearthriseNetStatus];
+  const CHANNELS = [window.HearthriseTown, window.HearthriseNetStatus, window.HearthriseLive];
   CHANNELS.forEach((m) => { if (m && typeof m.__pauseForTest === 'function') m.__pauseForTest(); });
   window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
   window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };

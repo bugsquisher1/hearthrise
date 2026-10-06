@@ -24,10 +24,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-06",
- "replay_ms": 3418,
+ "replay_ms": 3168,
  "counts": {
-  "tracked_names": 79,
-  "entries": 76
+  "tracked_names": 81,
+  "entries": 78
  },
  "functions": [
   {
@@ -74,6 +74,51 @@
    "replay": {
     "md5": "d98d063119f063168df46d40d5599b01",
     "norm_len": 409,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "clan_tier_up(p_clan_id uuid, p_expect_tier integer)",
+   "name": "clan_tier_up",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-08-08-clan-seat.sql",
+    "2026-10-04-expected-level-idempotency.sql"
+   ],
+   "live": {
+    "md5": "6640ef9bd32a23de2d0e5e0118eadc71",
+    "norm_len": 450,
+    "measured": "2026-10-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "6640ef9bd32a23de2d0e5e0118eadc71",
+    "norm_len": 450,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "clan_tier_up__ungated(p_clan_id uuid, p_expect_tier integer)",
+   "name": "clan_tier_up__ungated",
+   "tracked_by": [
+    "pin"
+   ],
+   "touched_by": [
+    "2026-10-04-expected-level-idempotency.sql"
+   ],
+   "live": {
+    "md5": "2e37a2335545b5ffd30740e1a4068a6b",
+    "norm_len": 4642,
+    "measured": "2026-10-06",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "2e37a2335545b5ffd30740e1a4068a6b",
+    "norm_len": 4642,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -731,26 +776,28 @@
    "agree": true
   },
   {
-   "sig": "hr_farm_upgrade_plot(p_slot integer, p_idem uuid)",
+   "sig": "hr_farm_upgrade_plot(p_slot integer, p_idem uuid, p_expect_level integer)",
    "name": "hr_farm_upgrade_plot",
    "tracked_by": [
+    "chain",
     "pin"
    ],
    "touched_by": [
     "2026-08-22-server-farming-complete.sql",
     "2026-09-03-intent-mismatch-class.sql",
     "2026-09-06-plot-tier-reachable.sql",
-    "2026-09-12-hr-rejections-journal.sql"
+    "2026-09-12-hr-rejections-journal.sql",
+    "2026-10-04-expected-level-idempotency.sql"
    ],
    "live": {
-    "md5": "bb087feef2991979575b91b40d1afe4d",
-    "norm_len": 6552,
+    "md5": "599ff5364f1691b23491a26ab2cd4cc1",
+    "norm_len": 6262,
     "measured": "2026-10-06",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "bb087feef2991979575b91b40d1afe4d",
-    "norm_len": 6552,
+    "md5": "599ff5364f1691b23491a26ab2cd4cc1",
+    "norm_len": 6262,
     "source": "computed-from-replay"
    },
    "agree": true

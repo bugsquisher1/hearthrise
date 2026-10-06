@@ -12,7 +12,7 @@
 //   · that envelope still cannot fund it → stop (declares idle, the server's
 //     pointer is this recipe) and name the shortfall with the realm's count.
 // A gate on the last bag may only accept early; it never refuses.
-import { gateInputs, gateItemCount } from '../net/accrue.js?v=561';
+import { gateInputs, gateItemCount } from '../net/accrue.js?v=562';
 
 const W = window;
 const inputsOf = (r) => W.HearthriseCore.artisan.recipeInputs(r);

@@ -447,6 +447,8 @@
     contributors_short:'Not enough members have supplied this tier',
     hunt_required:     'A Hunt clear at the matching tier is required first',
     dormant:           'The hold is dormant — settle its upkeep first',
+    stale_tier:        'The hold has already risen to that tier — the panel is catching up',
+    missing_expect:    'Your panel is out of date — reopen the hold',
     network:           'Could not reach the server — try again in a moment'
   };
   function errorText(e) { return ERRORS[e] || 'The server refused that'; }

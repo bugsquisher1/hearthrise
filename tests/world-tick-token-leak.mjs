@@ -174,9 +174,13 @@ async function main(selftest) {
     gateOf(presented).ok === true && tickBodyAuthOk(tok, bytes, K_SECRET) === true);
   ok('X-4b the SAME header with ONE BYTE of body changed is REFUSED',
     tickBodyAuthOk(tok, new TextEncoder().encode(`${q.btxt} `), K_SECRET) === false);
-  ok('X-4c the same header with a body that flips `shadow` is REFUSED',
-    tickBodyAuthOk(tok, new TextEncoder().encode(q.btxt.replace('"shadow": true', '"shadow": false')),
-      K_SECRET) === false);
+  /* The body's mode key is `armed` (the config's armed_channels) since
+     2026-10-06-world-tick-channel-arm.sql. The flip must actually CHANGE the
+     bytes, or "refused" would be proving X-4b's one-byte case again. */
+  const flipped = q.btxt.replace('"armed": []', '"armed": ["combat", "gather"]');
+  ok('X-4c the same header with a body that flips `armed` (arms every channel) is REFUSED',
+    flipped !== q.btxt
+    && tickBodyAuthOk(tok, new TextEncoder().encode(flipped), K_SECRET) === false);
   ok('X-4d a header two buckets stale is REFUSED before the body is read',
     gateOf(presented, nowMs + (TICK_BUCKET_SKEW + 1) * TICK_BUCKET_SECONDS * 1000 + 2000).ok !== true);
   ok('X-4e a header two buckets in the FUTURE is REFUSED just as firmly',

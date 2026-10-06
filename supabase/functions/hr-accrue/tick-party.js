@@ -436,8 +436,9 @@ export async function settleParty(exec, holder, unit, body, deps) {
   if (!res || res.ok !== true) {
     return { outcome: 'refused', reason: String((res && res.error) || 'no_answer') };
   }
-  /* THE MODE IS THE FENCE'S, NEVER THE BODY'S. `hr_tick_config.shadow` is read
-     inside the fence, and this is what it decided. */
+  /* THE MODE IS THE FENCE'S, NEVER THE BODY'S. `hr_tick_config.armed_channels`
+     is read inside the fence, under the lease lock, for combat, and this is
+     what it decided. */
   return {
     outcome: res.mode === 'shadow' ? 'shadowed' : 'processed',
     members: members.length,
@@ -472,6 +473,13 @@ export async function probeParty(exec, holder, unit, nowIso) {
   }
   const mark = res.accrued_to ? Date.parse(String(res.accrued_to)) : NaN;
   if (!Number.isFinite(mark)) return { ok: false, reason: 'unreadable_watermark' };
+  /* THE MODE IS PER CHANNEL (2026-10-06, Security ruling 5) and a party hunt
+     is COMBAT: an answer naming another channel is not this party's mode.
+     One naming none is a pre-2026-10-06 fence whose global flag is the mode —
+     see tick.js probeWatermark. */
+  if (res.channel != null && res.channel !== PARTY_CHANNEL) {
+    return { ok: false, reason: 'mode_channel_mismatch' };
+  }
   /* THE VERBATIM SPELLING TRAVELS WITH THE MILLISECONDS (T-2). `accrued_to`
      arrives as the fence's own jsonb rendering of the mark — microseconds and
      `+00:00` included — and that string IS the per-window PRNG label the accrue

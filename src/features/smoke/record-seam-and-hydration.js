@@ -15,7 +15,7 @@ const benchSwitchArc = async (body) => {
   const R = (window.ARTISAN_RECIPES && window.ARTISAN_RECIPES.smithing) || [];
   const a = R.find((x) => x.id === 'forge_iron_helm'), b = R.find((x) => x.id === 'forge_iron_platebody');
   assert(a && b, 'the fixture needs two smithing recipes');
-  const snap = snapshotG(), realFetch = window.fetch, origNotify = window.notify, wasOn = A.isServerAccrualEnabled();
+  const snap = snapshotG(), bag = serverBagFixture(), realFetch = window.fetch, origNotify = window.notify, wasOn = A.isServerAccrualEnabled();
   const sent = [], probe = [], log = [], said = [];
   let steps = [], release = null;
   const envOf = (v, id) => ({ version: v, now: null, activity: { kind: 'artisan', id },
@@ -40,7 +40,7 @@ const benchSwitchArc = async (body) => {
   try {
     window.notify = function (m) { said.push(String(m)); };
     G.skills = Object.assign({}, G.skills, { smithing: 200000 }); stampRecordLikeLoad(G);
-    G.inventory = Object.assign({}, G.inventory, { iron_bar: 200, oak_plank: 50 });
+    G.inventory = Object.assign({}, G.inventory, { iron_bar: 200, oak_plank: 50 }); bag.agree();   // the server holds the bars: the switch is the subject
     window.fetch = function (u, init) {
       if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
       let bd = null; try { bd = JSON.parse(init && init.body); } catch (e) {}
@@ -71,7 +71,7 @@ const benchSwitchArc = async (body) => {
     M.resetActivity(); M.configureActivity(null);
     try { A.configureAccrual(null); } catch (e) {}
     try { window.stopSkill(); } catch (e) {}
-    restoreGAndRecord(snap);
+    bag.restore(); restoreGAndRecord(snap);
   }
 };
 
@@ -6808,7 +6808,7 @@ export default [
       },
     };
 
-    const save = { activeSkill: G.activeSkill, skillTargetId: G.skillTargetId, skillMs: G.skillMs,
+    const bag = serverBagFixture(), save = { activeSkill: G.activeSkill, skillTargetId: G.skillTargetId, skillMs: G.skillMs,
       activeMonster: G.activeMonster, monsterHp: G.monsterHp, monsterMaxHp: G.monsterMaxHp,
       playerHp: G.playerHp, playerMaxHp: G.playerMaxHp, combatLog: G.combatLog,
       gold: G.gold, skills: JSON.parse(JSON.stringify(G.skills)),
@@ -6827,6 +6827,7 @@ export default [
       stampRecordLikeLoad(G);
       const inputs = window.getInputs ? window.getInputs(recipe) : (recipe.inputs || {});
       for (const id of Object.keys(inputs)) G.inventory[id] = (G.inventory[id] || 0) + 500;
+      bag.agree();   // the server holds the inputs: the declaration is the subject
     }
     const realDeclare = M.declare;
     let calls = [];
@@ -6929,7 +6930,7 @@ export default [
       M.declare = realDeclare;
       try { window.stopSkill(); } catch (e) {}
       try { window.stopCombat(); } catch (e) {}
-      Object.assign(G, save);
+      Object.assign(G, save); bag.restore();
       try { window.saveLocal(); } catch (e) {}
     }
   }),

@@ -4459,7 +4459,7 @@ export default [
     const wasAck = A.isReplacementAcknowledged();
     const wasHeld = S.isSnapshotHeld();
     const savedInv = { ...G.inventory }, savedEq = { ...G.equipment }, savedGold = G.gold;
-    const savedLoadouts = G.loadouts;
+    const savedLoadouts = G.loadouts, bag = serverBagFixture();
     let sent = [];
     const drain = () => new Promise((r) => setTimeout(r, 60));
     try {
@@ -4481,7 +4481,7 @@ export default [
 
       G.gold = 0;
       G.equipment = { weapon: null, helmet: null, body: null };
-      G.inventory = { bronze_sword: 1, bronze_helm: 1 };
+      G.inventory = { bronze_sword: 1, bronze_helm: 1 }; bag.agree();   // the server holds the kit: the ONE request is the subject
       G.loadouts = [{ name: 'Test kit', set: true,
         equipment: { weapon: 'bronze_sword', helmet: 'bronze_helm' }, tools: {}, foodSlot: null }];
       // Bronze is tier 1, so the kit passes the wield gate on its own merits.
@@ -4514,7 +4514,62 @@ export default [
       if (prevCfg) E.configureEquip(prevCfg);
       A.acknowledgeReplacement(wasAck);
       if (wasHeld) S.holdSnapshots(); else S.releaseSnapshots();
-      G.inventory = savedInv; G.equipment = savedEq; G.gold = savedGold; G.loadouts = savedLoadouts;
+      G.inventory = savedInv; G.equipment = savedEq; G.gold = savedGold; G.loadouts = savedLoadouts; bag.restore();
+    }
+  }),
+
+  /* regression suite — THE KIT IS DECIDED BY THE SERVER'S ANSWER. Equip collects
+     first, so funding the kit from the last stated bag silently nulled a piece
+     crafted since (and still toasted ✓). MUTATION: fund from gateItemCount → (a)
+     red; toast before routeEquipGesture answers → (c) red. */
+  () => tryRunAsync('LOADOUT-SRV-BAG: a loadout equips a piece crafted since the last envelope, names every skipped slot, and says ✓ only on the server\'s answer', async () => {
+    const G = window.G, Auto = window.HearthriseAuto;
+    const snap = snapshotG(), bag = serverBagFixture();
+    const real = { notify: window.notify, route: window.routeEquipGesture, setEat: Auto && Auto.setEat,
+      loadouts: G.loadouts, food: G.foodSlot, active: window._activeLoadout };
+    const said = [], eats = []; let answer = 'equipped';
+    try {
+      window.notify = (m) => { said.push(String(m)); };
+      window.routeEquipGesture = () => Promise.resolve({ outcome: answer });   // the wire is EQUIP-BATCH's subject; the ANSWER is this one's
+      if (Auto) Auto.setEat = (o) => { eats.push(o && o.foodId); };
+      const kit = { name: 'Probe kit', set: true, equipment: { weapon: 'bronze_sword', helmet: 'bronze_helm' }, tools: {}, foodSlot: 'cooked_shrimp' };
+      const wear = (eq, inv) => { G.equipment = Object.assign({ weapon: null, helmet: null, body: null }, eq); G.inventory = Object.assign({}, inv); G.loadouts = [kit]; said.length = 0; };
+      const settle = () => new Promise((r) => setTimeout(r, 0));
+
+      // (a) THE REPORT: the sword was forged since the last envelope — the display bag holds it, the last stated bag does not.
+      wear({}, { bronze_sword: 1, bronze_helm: 1, cooked_shrimp: 5 }); bag.agree({ bronze_helm: 1, cooked_shrimp: 5 });
+      window.applyLoadout(0); await settle();
+      assert(G.equipment.weapon === 'bronze_sword' && G.equipment.helmet === 'bronze_helm',
+        '(a) THE BUG: the kit dropped a piece the equip collect funds: ' + JSON.stringify(G.equipment));
+      assert(said.some((m) => /^✓ Applied loadout: Probe kit$/.test(m)), '(a) the server answered equipped and no ✓ was said: ' + JSON.stringify(said));
+
+      // (b) a piece in NO bag is skipped OUT LOUD, never a silent null.
+      wear({}, { bronze_helm: 1, cooked_shrimp: 5 }); bag.agree();
+      window.applyLoadout(0); await settle();
+      assert(G.equipment.weapon === null && G.equipment.helmet === 'bronze_helm', '(b) setup: ' + JSON.stringify(G.equipment));
+      assert(said.some((m) => /skipped .*Bronze Sword \(not in your bag\)/i.test(m)), '(b) the skipped sword was not named: ' + JSON.stringify(said));
+
+      // (c) the server REFUSES: no ✓ (its own refusal is equipVerdictOutcome's to say).
+      answer = 'refused';
+      wear({}, { bronze_sword: 1, bronze_helm: 1, cooked_shrimp: 5 }); bag.agree();
+      window.applyLoadout(0); await settle();
+      assert(!said.some((m) => /Applied loadout/.test(m)), '(c) "✓ Applied loadout" was said for a kit the server refused: ' + JSON.stringify(said));
+      assert(eats[eats.length - 1] === 'cooked_shrimp', '(c) the kit did not choose the food it carries: ' + JSON.stringify(eats));
+
+      // (d) the retried equip is NEVER ANSWERED: the tap still gets an answer — the house failure line, never a ✓.
+      // MUTATION: drop the unanswered branch in applyLoadout's verdict → (d) red (the tap says nothing).
+      for (const o of ['timeout', 'unreachable']) {
+        answer = o;
+        wear({}, { bronze_sword: 1, bronze_helm: 1, cooked_shrimp: 5 }); bag.agree();
+        window.applyLoadout(0); await settle();
+        assert(!said.some((m) => /Applied loadout/.test(m)), '(d) "✓ Applied loadout" was said for an equip the server never answered (' + o + '): ' + JSON.stringify(said));
+        assert(said.some((m) => /^The realm did not answer/.test(m)), '(d) an unanswered (' + o + ') loadout tap got no answer at all: ' + JSON.stringify(said));
+      }
+    } finally {
+      window.notify = real.notify; window.routeEquipGesture = real.route;
+      if (Auto) Auto.setEat = real.setEat;
+      G.loadouts = real.loadouts; G.foodSlot = real.food; window._activeLoadout = real.active;
+      bag.restore(); restoreG(snap);
     }
   }),
 
@@ -8756,9 +8811,10 @@ export default [
   () => tryRunAsync('B539-1: after a fight, tapping the artisan recipe you came FROM sends the switch — a stale paint cannot swallow the gesture', async () => {
     const rec = ((window.ARTISAN_RECIPES || {}).cooking || []).find((r) => r.id === 'cook_shrimp'); const mid = (window.MONSTERS || {}).slime ? 'slime' : Object.keys(window.MONSTERS || {})[0];
     assert(!!rec && !!mid && !!window.HearthriseActivity && typeof window.startArtisan === 'function', 'setup: no cook_shrimp recipe / monster / activity seam — the reported gesture cannot be driven');
+    const bag = serverBagFixture();   // the stub server holds the seeded shrimp (cameFromArc echoes its bag)
     try {
       await withCookingArmed(() => cameFromArc({ skillId: 'cooking', targetId: rec.id, prod: rec.output, mid, start: () => window.startArtisan('cooking', rec.id),   /* the bench pause is not this test's subject */
-        seed: (G) => { const inp = rec.inputs || { [rec.input]: rec.inputQty || 1 }; Object.keys(inp).forEach((id) => { G.inventory[id] = (G.inventory[id] || 0) + 200; }); } },
+        seed: (G) => { const inp = rec.inputs || { [rec.input]: rec.inputQty || 1 }; Object.keys(inp).forEach((id) => { G.inventory[id] = (G.inventory[id] || 0) + 200; }); bag.agree(); } },
         async ({ G, sent, settle, tileOf, tile, stalePaint }) => {
           tile.click(); await settle();
           const sw = sent.filter((b) => b.activity && b.activity.kind === 'artisan' && b.activity.id === rec.id);
@@ -8768,7 +8824,7 @@ export default [
           const third = tileOf(); third.click(); await settle(); assert(G.activeSkill === 'cooking' && G.skillTargetId === rec.id, 'the tap AFTER a stop did not restart the recipe (' + G.activeSkill + '/' + G.skillTargetId + ') — a stop strips .active in place and rebuilds nothing');
         }));
     } finally {
-      closeOverlays();   // same accrual replacement gate as B533-1
+      bag.restore(); closeOverlays();   // same accrual replacement gate as B533-1
     }
   }),
 

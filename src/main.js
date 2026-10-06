@@ -402,6 +402,7 @@ import './features/boot-hydration.js?v=561';
    here with boot-hydration rather than in the setup() block below. */
 import './features/gem-unlocks.js?v=561';
 import './features/recipe-scrolls.js?v=561';
+import './features/bench-count.js?v=561';   // settle-then-gate at the bench: legacy.js startArtisan asks it before arming
 /* and the House theme cards those two decide the state of — a pure painter
    (src/render/house-themes.js), loaded here so renderHouse can call it. */
 import './render/house-themes.js?v=561';
@@ -486,6 +487,7 @@ import { setupRecipeBook } from './features/recipe-book.js?v=561';
 import { setupItemIndex } from './features/item-index.js?v=561';
 import { setupCodex } from './features/codex.js?v=561';
 import { setupSpoils } from './render/spoils-sheet.js?v=561';
+import './render/loadout-verdict.js?v=561';   // what a loadout tap says: legacy.js applyLoadout
 import { setupSignposts } from './features/signposts.js?v=561';
 import { setupKnowYourFoe } from './features/know-your-foe.js?v=561';
 import { setupNightPlan } from './features/night-plan.js?v=561';

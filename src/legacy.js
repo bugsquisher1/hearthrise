@@ -6638,6 +6638,7 @@ function stopSkill(){
   G.activeSkill=null;G.skillTargetId=null;G.skillProgress=0;
   try{
     document.querySelectorAll('.act-tile.active').forEach(function(t){ t.classList.remove('active'); var st=t.querySelector('.at-stop'); if(st) st.remove(); var f=t.querySelector('.at-prog-fill'); if(f) f.style.width='0%'; });
+    if(window._actLastRender) window._actLastRender.activeKey = null;   /* the grid was edited in place: a restart of the SAME recipe must rebuild, not lightUpdate */
   }catch(e){}
   renderSkillsList();
   /* A stop is a declaration too — without it the server goes on paying an
@@ -9653,7 +9654,7 @@ function applyLoadout(idx){
      equip request (the wire takes a map). Fifteen calls would spend half the
      shared 30/min accrue bucket on one tap, run fifteen collects, and — because
      each one stamps `accrued_to` — settle fourteen sub-minute windows. */
-  const _b = equipStateSnapshot();
+  const _b = equipStateSnapshot(), _skipped = [], _LV = window.HearthriseLoadoutVerdict;   /* the ✓ waits for `equip`'s ANSWER (render/loadout-verdict.js) */
   /* Equipment: items currently equipped that aren't in the preset go to bag */
   const newEq = {};
   Object.keys(G.equipment||{}).forEach(slot=>{
@@ -9665,11 +9666,12 @@ function applyLoadout(idx){
     if(target){
       /* b246: a loadout can't sneak past the wield gate, and records no exemption
          — a piece the realm refuses is dropped, not sent and bounced, every apply. */
-      if(hasItem(target, 1) && (typeof canWield!=='function' || canWield(target).ok)){
+      const _w = (typeof canWield==='function') ? canWield(target) : {ok:true};
+      if(hasItem(target, 1) && _w.ok){
         removeItem(target, 1);
         newEq[slot] = target;
       } else {
-        newEq[slot] = null;
+        newEq[slot] = null; _skipped.push(_LV.skipWhy(target, _w));   /* never silently: the toast names it and why */
       }
     } else {
       newEq[slot] = null;
@@ -9683,27 +9685,22 @@ function applyLoadout(idx){
       if(target && ITEMS[target]) G.tools[slot] = target;
     });
   }
-  /* Food slot.
-     b499: the loadout is a PLAYER GESTURE that expresses a food choice, so it
-     goes through HearthriseAuto.setEat — the one writer the engine reads and the
-     seam that debounces the choice out to hr_set_auto_eat. Writing only the
-     legacy `G.foodSlot` mirror meant applying a loadout changed the food the
-     player was SHOWN and not the food the fight (or the server's overnight
-     accrual) would actually eat. The toggle is deliberately NOT touched: a
-     loadout says what to carry, not whether auto-eat is on. */
+  /* Food slot. b499: a PLAYER GESTURE choosing food goes through HearthriseAuto.setEat,
+     the one writer the engine and the server's accrual read (G.foodSlot alone only
+     changed the food SHOWN). The auto-eat toggle is deliberately NOT touched. */
   var _loadoutFood;
   if(l.foodSlot && hasItem(l.foodSlot, 1)) { G.foodSlot = l.foodSlot; _loadoutFood = l.foodSlot; }
   else if(!l.foodSlot) { G.foodSlot = null; _loadoutFood = null; }
+  else _skipped.push(_LV.skipWhy(l.foodSlot, null));
   if(_loadoutFood !== undefined && window.HearthriseAuto && window.HearthriseAuto.setEat){
     window.HearthriseAuto.setEat({ foodId: _loadoutFood });
   }
   window._activeLoadout = idx;
   saveLocal();
-  notify(`✓ Applied loadout: ${l.name}`, 'levelup');
   refreshAll();
   /* S4 again: re-applying the kit you are already wearing diffs to nothing and
      sends nothing, so tapping a loadout twice cannot stamp a second window. */
-  routeEquipGesture(_b);
+  _LV.sayLoadout(routeEquipGesture(_b), l.name, _skipped, notify);
 }
 /* b373: both of these asked with a native dialog. The loadout is re-read from
    G inside the answer rather than captured before the question — a modal is
@@ -14678,7 +14675,7 @@ window.startArtisan = function(skillId, recipeId){
      — the LEVEL, then the recipe scroll, then the inputs. */
   if((window.hrGateLevel?window.hrGateLevel(skillId):1) < r.req){ if(typeof notify==='function') notify((window.hrLevelGateText?window.hrLevelGateText(skillId,r.req,'Need Lv '+r.req+' '+skillId):'Need Lv '+r.req+' '+skillId),'kill'); return; }
   if(!gateOk(r)){ if(typeof notify==='function') notify('Need recipe scroll: '+(ITEMS[r.gated]?.n||r.gated),'kill'); return; }
-  if(!hasInputs(r)){ 
+  if(!hasInputs(r)){   /* not even the display bag funds it: refuse now, nothing sent, the current activity stands */
     var missing = []; var inp = getInputs(r);
     Object.entries(inp).forEach(function(kv){ if((G.inventory[kv[0]]||0) < kv[1]) missing.push((ITEMS[kv[0]]?.n||kv[0])+' x'+kv[1]); });
     if(typeof notify==='function') notify('Need: '+missing.join(', '),'kill'); return;
@@ -14689,6 +14686,7 @@ window.startArtisan = function(skillId, recipeId){
   if(typeof stopSkill === 'function') activityQuietly(stopSkill);
   G.activeSkill = skillId; G.skillTargetId = recipeId; G.skillProgress = 0;
   G.skillMs = artisanIntervalMs(skillId, r);
+  if(window.HearthriseBenchCount && window.HearthriseBenchCount.countFirst(skillId, r)) return;   /* the last server bag is short: the switch's collect decides (src/features/bench-count.js) */
   window._armArtisanTimers(G.skillMs);
   if(typeof renderSkillsList==='function') renderSkillsList();
   if(typeof renderSkillDetail==='function') renderSkillDetail(skillId);
@@ -15677,7 +15675,9 @@ function tileForArtisan(recipe, skillId){
     +(unlocked ? (typeof window.hrToolLineHtml==='function' ? window.hrToolLineHtml(skillId) : '') : '')
     +(qty>0 ? '<div class="at-qty">'+fmtQty(qty)+'</div>' : '')
     +(unlocked ? '' : '<div class="at-lock'+(benchLock?' at-lock-bench':'')+'">'+lockGlyph()+lockLabel+'</div>')
-    +(active ? '<span class="at-stop">Active</span>' : '')
+    +(active ? (window.HearthriseBenchCount && window.HearthriseBenchCount.isCounting(skillId, recipe.id)
+        ? '<span class="at-stop" title="The realm is counting your bag — the bench starts when it answers">Counting…</span>'
+        : '<span class="at-stop">Active</span>') : '')
     +(unlocked ? '<div class="at-prog"><div class="at-prog-fill"></div></div>' : '')
     +'</div>';
 }
@@ -15880,7 +15880,7 @@ function patchSkillDetail(){
        whether to repaint it has to carry that fact. One extra getBonus() per
        render (measured below 0.01ms; the key already calls one for cooking). */
     var catXp = (typeof getBonus==='function') ? getBonus('allXP') : 0;
-    var activeKey = (G.activeSkill||'')+'|'+(G.skillTargetId||'')+'|'+(G.activeArtisanRecipe||'')+'|'+(catSel||'')+'|'+catLv+'|'+catBurn+'|'+catXp+'|'+(window.hrGateLevel?window.hrGateLevel(id):'');
+    var activeKey = (G.activeSkill||'')+'|'+(G.skillTargetId||'')+'|'+(G.activeArtisanRecipe||'')+'|'+(catSel||'')+'|'+catLv+'|'+catBurn+'|'+catXp+'|'+(window.hrGateLevel?window.hrGateLevel(id):'')+'|'+(window._benchCounting?window._benchCounting.id:'');
     var detailEl = document.getElementById('skill-detail');
     var alreadyRendered = detailEl && detailEl.querySelector('.act-grid');
     if(alreadyRendered && window._actLastRender.skillId===id && window._actLastRender.activeKey===activeKey){

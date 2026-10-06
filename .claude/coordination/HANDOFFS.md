@@ -3,6 +3,38 @@
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
 
+### 2026-10-06 · FROM Game Designer → TO Systems Engineer + Security (lane C/edge) · **b563: an outclassed foe still bleeds a hero dry — the fix is in src/core, not data**
+
+**Live finding.** QA Hero 2 (Combat 25, Slime, auto-eat Cooked Shrimp) ate 20 bought shrimp before
+midnight and lay knocked out the rest of the night; on 09-29 the same hero was down ~98% of a 10 h window.
+
+**Measured with the real engine** (`simulateTick`, seeded, att/str/def/hp all 25, iron sword + iron
+platebody, Slime): monster accuracy `0.5 + (2 - 37) * 0.006 = 0.29`, max hit 1, ~815 kills/h, **196 HP/h
+lost, ~25 Cooked Shrimp/h, ~200 a night**. Level 40 in steel still loses 88 HP/h to a Slime. There is no
+HP regeneration in `combat-sim.js`, and `monsterAccuracyPerPoint = 0.006` means 23 levels of defence over
+a T1 foe only takes its hit chance from 0.50 to 0.29. Food cost is therefore a function of TIME, not of
+challenge, and no amount of out-levelling makes a hunt self-sustaining. Slime is not under-tuned (it
+already hits for 1); food is not too weak (any heal value just scales the same linear bill).
+
+**Designer ruling (the target).** Food is the price of fighting at or above your level, never of fighting
+something you out-class. A hero ≥ ~10 effective defence above a foe's attack should hold an eight-hour
+night on a handful of meals.
+
+**Proposed change (needs Security GO + edge deploy; src/core is shared with hr-accrue):**
+1. `COMBAT_BALANCE.monsterAccuracyPerPoint` 0.006 → 0.02 and `monsterMinAccuracy` 0.10 → 0.05
+   (src/core/combat.js). Measured: C25 vs Slime 196 → 35 HP/h (≈4 shrimp/h), vs Wolf Cub 476 → 76 HP/h;
+   level-10 starter vs Slime 485 → 372 HP/h (early game stays a food lesson).
+2. Optional, second: deterministic in-fight regeneration (e.g. 1 HP per 60 s of fight time, no RNG draw so
+   AWAY-1 parity and the draw order hold) — at 1/min the C25 Slime night needs no food at all.
+Both move away pay (fewer knock-outs = more credited ticks), so: a tier-sweep table (every TIER_BANDS tier,
+gear at its gate) before/after, AWAY-HONEST/AWAY-1 fixtures re-pinned, the start-kit bridge note
+(src/data/start-kit.js) re-measured, edge pack hash re-verified.
+
+**Shipped now (client display only, lane `lane/b563-fighter-food-loop`):** the Tonight forecast prices
+"a whole night there eats about N <food>" from a second seeded clone fed without limit, and names the food
+source with a one-tap "Fish for food" door when the bag has nothing raw to cook (NIGHT-6).
+
+
 ### 2026-09-12 · FROM Systems Engineer → TO Coordinator + Backend (lane C) · **b540: the dungeon-cooldown client half is in and is forward-compatible — ship it BEFORE the apply**
 
 **Branch** `lane/b540-dungeon-cooldown-client`. Files: `src/dungeons.js`, `src/dungeon-scavenger.js`,

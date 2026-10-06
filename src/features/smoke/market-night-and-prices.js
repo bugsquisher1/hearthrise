@@ -53,7 +53,7 @@ export default [
          envelope, so the amount was sitting in G.gold with nothing left to take
          it out. MUTATION: drop the `rollbackPrediction` on the stale return → RED. */
       Gd.resetGold();
-      G.gold = 1000; G.gems = 0; G.inventory = { normal_log: 50 };
+      G.gold = 1000; G.gems = 0; G.inventory = { normal_log: 50 }; bagHeld.agree();
       let order = 0;
       window.fetch = function (u, init) {
         if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
@@ -83,7 +83,7 @@ export default [
       Gd.resetGold();
       A.acknowledgeReplacement(false);
       try { A.hideReplacementSheet(); } catch (e) {}
-      G.gold = 100000; G.inventory = { normal_log: 50 };
+      G.gold = 100000; G.inventory = { normal_log: 50 }; bagHeld.agree();
       window.fetch = function (u, init) {
         if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
         /* Server gold FAR below local ⇒ destructive ⇒ the gate refuses. */
@@ -128,7 +128,7 @@ export default [
 
       /* And once acknowledged, the next envelope drops it and gold is the server's. */
       A.acknowledgeReplacement(true);
-      G.inventory = { normal_log: 50 };
+      G.inventory = { normal_log: 50 }; bagHeld.agree();
       window.invSellOne('normal_log');
       await drain();
       assert(G.gold === 1 && Gd.getGoldState().pending.length === 0,
@@ -254,7 +254,7 @@ export default [
          MUTATION: put 'unavailable' back in PROVABLY_UNWRITTEN → RED. */
       Gd.resetGold();
       A.acknowledgeReplacement(true);
-      G.gold = 1000; G.inventory = { normal_log: 50 }; G.lockedItems = {};
+      G.gold = 1000; G.inventory = { normal_log: 50 }; bagHeld.agree(); G.lockedItems = {};
       const bid = window.vendorPrice('normal_log');
       assert(bid > 0, 'B354-F7-CONTROL: normal_log has no vendor bid, so nothing would move');
       window.fetch = function (u) {
@@ -273,7 +273,7 @@ export default [
         'the 5xx left the prediction INFLIGHT instead of abandoned: ' + JSON.stringify(after5xx.pending));
       /* CONTROL — a 400 IS provably unwritten and MUST reverse, or the check
          above would pass simply because rollback had been switched off. */
-      G.gold = 2000; G.inventory = { normal_log: 50 };
+      G.gold = 2000; G.inventory = { normal_log: 50 }; bagHeld.agree();
       window.fetch = function (u) {
         if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
         return Promise.resolve(new Response(JSON.stringify({ ok: false, error: 'bad_qty' }), { status: 400 }));

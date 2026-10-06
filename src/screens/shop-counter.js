@@ -73,7 +73,18 @@ window.shopTab='seeds';
    window.shopTab (above) so the extracted painter and setShopTab (still here,
    below) share one identity. The purchase/redeem handlers stay global here. */
 function setShopTab(t){window.shopTab=t;document.querySelectorAll('[data-shop]').forEach(c=>c.classList.toggle('active',c.dataset.shop===t));renderShop();}
+/* THE ROW LOCK (Quartermaster ruling): the pressed row reads "Buying…" until
+   ITS answer — no timer. {size,reset} is published as __shopBuyLock and reset
+   after every test (smoke-test.js); it is the shape the intent-latch registry
+   takes, so it registers there when that lands. The epoch makes a reset hold's
+   late answer inert. */
+const _shopBuying=new Set(); let _shopBuyEpoch=0;
+const _shopBuyKey=(id,qty,cost)=>id+'|'+qty+'|'+cost;
+const shopBuyLock={ size(){return _shopBuying.size;}, reset(){_shopBuying.clear();_shopBuyEpoch++;} };
+function shopBuyPending(id,qty,cost){return _shopBuying.has(_shopBuyKey(id,qty,cost));}
 function buyShopItem(id,qty,cost){
+  const _lk=_shopBuyKey(id,qty,cost);
+  if(_shopBuying.has(_lk)) return;   // this row is still waiting on its answer
   if(!balCanAfford(cost,'gold')){notify(balShortfall(cost,'gold'),'kill');return;}
   /* The key is generated BEFORE the local payment so the prediction and the
      request carry one identity — that is what lets the envelope retire exactly
@@ -85,7 +96,12 @@ function buyShopItem(id,qty,cost){
      are DERIVED from the item/qty/cost by src/net/gold.js; a price the shop and
      the catalogue disagree about refuses locally rather than charging a number
      the player never saw. No-op with the switch off. */
-  if(_k&&window.HearthriseGold){const _p=window.HearthriseGold.buyShop(id,qty,cost,_k);if(_p&&_p.catch)_p.catch(()=>{});}
+  const _p=(_k&&window.HearthriseGold)?window.HearthriseGold.buyShop(id,qty,cost,_k):null;
+  if(_p&&typeof _p.then==='function'){
+    _shopBuying.add(_lk); const born=_shopBuyEpoch;
+    const release=()=>{ if(born===_shopBuyEpoch&&_shopBuying.delete(_lk)){ try{renderShop();}catch(e){} } };
+    _p.then(release,release);
+  }
   notify(`Bought ${qty}× ${ITEMS[id]?.n}`,'loot');updateTopbar();renderShop();
 }
 /* ── COSMETICS: THE THIRD GEM TWIN, NOW THE THEME'S TWIN THE OTHER WAY. This
@@ -165,7 +181,7 @@ window.vendorPrice = vendorPrice;
    envelope. Purely client-side: no server change, no redeploy.
 
    Returns the unit bid so callers can still total the receipt/notify. */
-function vendorSellChunked(id, qty, site){
+function vendorSellChunked(id, qty, site, sent){
   const S = window.HearthriseGold;
   const MAXQ = (S && S.MAX_QTY) || 1000;
   const price = vendorPrice(id);
@@ -174,47 +190,81 @@ function vendorSellChunked(id, qty, site){
     const chunk = Math.min(remaining, MAXQ);
     const _k = goldIntentKey();
     goldSettle(price * chunk, site, _k);
-    if(_k && S){ const _p = S.sellItem(id, chunk, _k); if(_p && _p.catch) _p.catch(()=>{}); }
+    if(_k && S){ const _p = S.sellItem(id, chunk, _k); if(_p && _p.catch) _p.catch(()=>{}); if(sent && _p) sent.push(_p); }
     remaining -= chunk;
   }
   return price;
 }
 window.vendorSellChunked = vendorSellChunked;
+/* WHAT A SELL MAY SPEND: the bag the SERVER last stated (accrue.js
+   gateItemCount), never the display bag G.inventory (§6). NULL = unstated →
+   pending; the gesture fails closed and invents no count. */
+const SELL_PENDING_TITLE = 'Not counted yet — the realm is still counting your bag';
+function sellableCount(id){
+  const A = window.HearthriseAccrual;
+  return (A && typeof A.gateItemCount === 'function') ? A.gateItemCount(G, id) : null;
+}
+window.sellableCount = sellableCount;
+window.SELL_PENDING_TITLE = SELL_PENDING_TITLE;
+/* THE RECEIPT IS THE SERVER'S: the sum of each answered chunk's receipt
+   ({qty, gold}), never the count we asked for. Nothing sent → the local line. */
+function sellReceipt(it, qty, price, sent){
+  if(!sent || !sent.length){ notify(`Sold ${qty}× ${it.n} for ${(price*qty).toLocaleString()} gold`,'loot'); return Promise.resolve(null); }
+  return Promise.all(sent.map((p) => Promise.resolve(p).then((r) => r, () => null))).then((rs) => {
+    const S = window.HearthriseGold; let sold = 0, gold = 0;
+    rs.forEach((r) => {
+      if(!r || (r.outcome !== 'applied' && r.outcome !== 'replayed')) return;
+      const rc = (S && typeof S.receiptOf === 'function') ? S.receiptOf(r.body) : null;
+      if(rc){ sold += Number(rc.qty) || 0; gold += Number(rc.gold) || 0; }
+    });
+    if(sold > 0) notify(`Sold ${sold}× ${it.n} for ${gold.toLocaleString()} gold` + (sold < qty ? ` · ${qty - sold} not sold` : ''),'loot');
+    else notify(`The realm did not sell your ${it.n} — your bag will settle`,'kill');
+    return { sold, gold };
+  });
+}
 function invSellOne(id){
   const it = ITEMS[id]; if(!it) return;
   if(isItemLocked(id)){ notify(`${it.n} is locked — unlock it in your bag first`,'kill'); return; }
-  if((G.inventory[id]||0) <= 0){ notify('Nothing to sell','kill'); return; }
+  const held = sellableCount(id);
+  if(held === null){ notify(SELL_PENDING_TITLE,'info'); return; }
+  if(held <= 0){ notify('Nothing to sell','kill'); return; }
   const price = vendorPrice(id);
   const _k = goldIntentKey();
   goldSettle(price, 'vendor.sell_one', _k);
   removeItem(id, 1);
-  if(_k && window.HearthriseGold){ const _p = window.HearthriseGold.sellItem(id, 1, _k); if(_p && _p.catch) _p.catch(()=>{}); }
+  const sent = [];
+  if(_k && window.HearthriseGold){ const _p = window.HearthriseGold.sellItem(id, 1, _k); if(_p && _p.catch) _p.catch(()=>{}); if(_p) sent.push(_p); }
   recordVendorSale(id, 1, price);   // b240: undoable
-  notify(`Sold 1× ${it.n} for ${price.toLocaleString()} gold`,'loot');
+  sellReceipt(it, 1, price, sent);
   updateTopbar(); renderInvNew();
 }
 function invSellAll(id){
   const it = ITEMS[id]; if(!it) return;
   if(isItemLocked(id)){ notify(`${it.n} is locked — unlock it in your bag first`,'kill'); return; }
-  const qty = G.inventory[id]||0;
+  /* Game Designer ruling: Sell All sells the stack the server last confirmed. */
+  const qty = sellableCount(id);
+  if(qty === null){ notify(SELL_PENDING_TITLE,'info'); return; }
   if(qty <= 0){ notify('Nothing to sell','kill'); return; }
-  const price = vendorSellChunked(id, qty, 'vendor.sell_all');   // b377: ≤1,000 per intent
+  const sent = [];
+  const price = vendorSellChunked(id, qty, 'vendor.sell_all', sent);   // b377: ≤1,000 per intent
   /* b487 — THROUGH THE BAG SEAM, not `delete G.inventory[id]`. Sell All is the
      natural gesture for a single tool, and the raw delete skipped every
      consequence removeItem() owns — including the tool retime (#33: "sold the
      pickaxe, the boost still applied"). Same result on the bag, one writer. */
   removeItem(id, qty);
   recordVendorSale(id, qty, price);   // b240: undoable
-  notify(`Sold ${qty}× ${it.n} for ${(price*qty).toLocaleString()} gold`,'loot');
+  sellReceipt(it, qty, price, sent);
   updateTopbar(); renderInvNew(); closeInvDetail();
 }
 function invSellSelected(){
   if(!window._invSelected.size){ notify('Nothing selected','kill'); return; }
+  /* Every quantity is the server's; an unstated bag sells nothing. */
+  for(const id of window._invSelected){ if(ITEMS[id] && sellableCount(id) === null){ notify(SELL_PENDING_TITLE,'info'); return; } }
   let total = 0, count = 0, skipped = 0;
   for(const id of window._invSelected){
     const it = ITEMS[id]; if(!it) continue;
     if(isItemLocked(id)){ skipped++; continue; }   // b240: locked items are left alone
-    const qty = G.inventory[id]||0; if(qty<=0) continue;
+    const qty = sellableCount(id) || 0; if(qty<=0) continue;
     const price = vendorPrice(id);
     total += price*qty; count += qty;
     removeItem(id, qty);                // b487: through the bag seam (see invSellAll)
@@ -370,6 +420,8 @@ window._renderBankModal = _renderBankModal;
       Everything else this file declares is now module-private. ── */
 window.setShopTab      = setShopTab;
 window.buyShopItem     = buyShopItem;
+window.shopBuyPending  = shopBuyPending;
+window.__shopBuyLock   = shopBuyLock;
 window.buyCosmetic     = buyCosmetic;
 window.invSellOne      = invSellOne;
 window.invSellAll      = invSellAll;

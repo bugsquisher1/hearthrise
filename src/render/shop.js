@@ -270,8 +270,11 @@
     /* in-game shop side */
     const el=document.getElementById('shop-panel');if(!el)return;
     let offers='';
+    /* The pressed row waits on ITS answer (shop-counter.js shopBuyPending). */
+    const buyBtn=(id,qty,cost,can)=>{const busy=typeof window.shopBuyPending==='function'&&window.shopBuyPending(id,qty,cost);
+      return `<button class="btn btn-sm ${can&&!busy?'btn-primary':''}" ${can&&!busy?'':'disabled'} onclick="buyShopItem('${id}',${qty},${cost})">${busy?'Buying…':'Buy'}</button>`;};
     if(shopTab==='seeds'){
-      offers=SEED_SHOP.map(s=>{const d=ITEMS[s.id];const can=balCanAfford(s.cost,'gold');return `<div class="shop-row"><span class="si">${itemArt(s.id)}</span><div class="info"><b>${d.n} ×${s.qty}</b><span>Have: ${G.inventory[s.id]||0}</span></div><span class="price">${_gp(s.cost)}</span><button class="btn btn-sm ${can?'btn-primary':''}" ${can?'':'disabled'} onclick="buyShopItem('${s.id}',${s.qty},${s.cost})">Buy</button></div>`;}).join('');
+      offers=SEED_SHOP.map(s=>{const d=ITEMS[s.id];const can=balCanAfford(s.cost,'gold');return `<div class="shop-row"><span class="si">${itemArt(s.id)}</span><div class="info"><b>${d.n} ×${s.qty}</b><span>Have: ${G.inventory[s.id]||0}</span></div><span class="price">${_gp(s.cost)}</span>${buyBtn(s.id,s.qty,s.cost,can)}</div>`;}).join('');
     } else if(shopTab==='equip'){
       /* b341 — THE SHOP SAYS WHAT YOU CAN WEAR.
          An Iron Sword rendered as "Iron Sword · +7 ATK · +6 STR · 500 · Buy" and
@@ -303,7 +306,7 @@
         const lockGly=(window.HR&&window.HR.icon)?(window.HR.icon('uiLock',11,'currentColor')||''):'';
         const reqChip=req?`<span class="mr-lock" style="margin-left:8px">${lockGly}${reqText}</span>`:'';
         const label=`${d.n}${reqText?' — '+reqText+(wieldable?' (met)':''):''}`;
-        return `<div class="shop-row"${req?` data-req-skill="${req.skill}" data-req-lv="${req.lv}"`:''} title="${label.replace(/"/g,'&quot;')}" aria-label="${label.replace(/"/g,'&quot;')}"><span class="si">${itemArt(s.id)}</span><div class="info"><b>${d.n}</b><span>${stats||d.n}${wieldable?'':reqChip}</span></div><span class="price">${_gp(s.cost)}</span><button class="btn btn-sm ${can?'btn-primary':''}" ${can?'':'disabled'} onclick="buyShopItem('${s.id}',1,${s.cost})">Buy</button></div>`;
+        return `<div class="shop-row"${req?` data-req-skill="${req.skill}" data-req-lv="${req.lv}"`:''} title="${label.replace(/"/g,'&quot;')}" aria-label="${label.replace(/"/g,'&quot;')}"><span class="si">${itemArt(s.id)}</span><div class="info"><b>${d.n}</b><span>${stats||d.n}${wieldable?'':reqChip}</span></div><span class="price">${_gp(s.cost)}</span>${buyBtn(s.id,1,s.cost,can)}</div>`;
       }).join('');
     } else {
       /* cosmetics — gem-priced.

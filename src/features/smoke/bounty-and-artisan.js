@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 64 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, awayGatherSpan, tryRunRestampingBalance, xpOf, xpZero, goldOf, snapshotG, setAway, restoreG, restoreGAndRecord, withCap, on } from './_harness.js?v=561';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, awayGatherSpan, tryRunRestampingBalance, xpOf, xpZero, goldOf, snapshotG, setAway, restoreG, restoreGAndRecord, withCap, on, serverBagFixture } from './_harness.js?v=561';
 
 export default [
 
@@ -1998,10 +1998,11 @@ export default [
 
   () => tryRunAsync('b240: sell-lock protects items from selling + vendor buy-back undoes a sale', async () => {
     const G = window.G;
-    const snap = snapshotG();
+    const snap = snapshotG(), bag = serverBagFixture();
     try {
       const id = 'normal_log';
       G.inventory = G.inventory || {}; G.inventory[id] = 100;
+      bag.agree();   // the sell counts the SERVER's bag (sellableCount)
       G.gold = 100000; G.buyback = []; G.lockedItems = {};
       stampBalanceLikeLoad(G);
       // LOCK — a locked item cannot be sold, and must not cost a round trip.
@@ -2085,7 +2086,7 @@ export default [
         assert(toasts.length >= 1 && !/bought back/i.test(toasts.join(' ')),
           'the refusal was silent, or claimed the buy-back happened: ' + JSON.stringify(toasts));
       }
-    } finally { restoreGAndRecord(snap); }
+    } finally { restoreGAndRecord(snap); bag.restore(); }
   }),
 
   () => tryRun('b239: the Recipe Book lists every recipe; locked ones stay grayscale but still show inputs + requirement', () => {

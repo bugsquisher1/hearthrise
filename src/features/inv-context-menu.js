@@ -408,16 +408,26 @@
      pays the quote it is HANDED — it does not recompute a price — which makes
      "the quote is the payment" true by construction rather than by two loops
      agreeing, and it is directly assertable without a dialog in the loop. */
+  /* THE QUANTITY IS THE SERVER'S (sellableCount → accrue.js gateItemCount), never
+     the display bag. An unstated bag quotes `pending` and sells nothing. */
+  function serverQty(id){
+    return (typeof window.sellableCount === 'function') ? window.sellableCount(id) : null;
+  }
   function quoteJunk(threshold){
     var ids = selectJunk(threshold);
-    var totalGold = 0, totalCount = 0;
-    ids.forEach(function(id){
-      var qty = window.G.inventory[id] | 0;
+    var totalGold = 0, totalCount = 0, qtys = {}, pending = false;
+    ids = ids.filter(function(id){
+      var qty = serverQty(id);
+      if(qty === null){ pending = true; return false; }
+      if(qty <= 0) return false;
       var v = (typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : (window.ITEMS[id].v | 0);
+      qtys[id] = qty;
       totalGold += qty * v;
       totalCount += qty;
+      return true;
     });
-    return { ids: ids, totalGold: totalGold, totalCount: totalCount };
+    if(pending) return { ids: [], qtys: {}, totalGold: 0, totalCount: 0, pending: true };
+    return { ids: ids, qtys: qtys, totalGold: totalGold, totalCount: totalCount };
   }
 
   function quoteText(q){
@@ -432,6 +442,10 @@
   /** Ask, then settle. Resolves the gold paid (0 if declined or nothing to do). */
   function sellJunk(threshold){
     var q = quoteJunk(threshold);
+    if(q.pending){
+      if(typeof window.notify === 'function') window.notify(window.SELL_PENDING_TITLE, 'info');
+      return Promise.resolve(0);
+    }
     if(!q.ids.length){
       if(typeof window.notify === 'function') window.notify('No junk to sell — your bag is clean.', 'info');
       return Promise.resolve(0);
@@ -482,7 +496,7 @@
        can cost a player their bag. */
     window.goldSettle(totalGold, 'vendor.sell_junk', null);
     ids.forEach(function(id){
-      var qty = window.G.inventory[id] | 0;
+      var qty = (q.qtys && q.qtys[id]) | 0;   // the quoted SERVER count, never a re-read of the display bag
       if(typeof window.removeItem === 'function') window.removeItem(id, qty);
       else delete window.G.inventory[id];
     });

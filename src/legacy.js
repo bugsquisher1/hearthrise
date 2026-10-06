@@ -8426,7 +8426,7 @@ function onItemTap(id){
     confirmLabel:'Sell',
   }).then(function(ok){
     if(!ok) return;
-    if(!hasItem(id,1)) return;               // the bag can change while a modal is open
+    const _held=window.sellableCount?window.sellableCount(id):null; if(_held===null){notify(window.SELL_PENDING_TITLE,'info');return;} if(_held<1) return;   // the SERVER's bag, read after the modal
     const _k=goldIntentKey();
     goldSettle(_p,'vendor.tap_sell',_k);
     removeItem(id,1);
@@ -10057,7 +10057,7 @@ function openInvDetail(id){
     } else {
       if(vendorPrice(id) > 0){
         acts.push(`<button class="btn" onclick="invSellOne('${id}');closeInvDetail()">Sell 1 · ${_gp(vendorPrice(id))}</button>`);
-        if(qty > 1) acts.push(`<button class="btn btn-danger" onclick="invSellAll('${id}')">Sell All ${qty} · ${_gp(vendorPrice(id)*qty)}</button>`);
+        const _sq = window.sellableCount ? window.sellableCount(id) : null; if(_sq === null ? qty > 1 : _sq > 1) acts.push(_sq === null ? `<button class="btn btn-danger" disabled title="${window.SELL_PENDING_TITLE}">Sell All · counting…</button>` : `<button class="btn btn-danger" onclick="invSellAll('${id}')">Sell All ${_sq} · ${_gp(vendorPrice(id)*_sq)}</button>`);   /* Sell All names the SERVER's stack (sellableCount); unstated = counting, disabled */
       }
       acts.push(`<button class="btn" onclick="toggleItemLock('${id}');openInvDetail('${id}')" title="Protect this item from being sold or listed on the market">${lockGlyph()} Lock</button>`);
     }

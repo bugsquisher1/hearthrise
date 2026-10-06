@@ -2825,7 +2825,7 @@ export default [
      on reload" class with a padlock on it. */
   () => tryRunAsync('SELLLOCK-1: a locked item sends no sale and cannot be listed; the loot filter hides a class; both survive a reload', async () => {
     const G = window.G, CS = window.HearthriseClientState, CAP = window.HearthriseCapstone, MK = window.HearthriseMarket, LF = window.HearthriseLootFilter;
-    const snap = snapshotG();
+    const snap = snapshotG(), srvBag = serverBagFixture();
     const bag = () => G.inventory.normal_log || 0;
     assert(CS && typeof CS.hydrateInto === 'function' && CAP && typeof CAP.buildResiduePatch === 'function' && MK && typeof MK.listItem === 'function' && LF && typeof LF.toggle === 'function' && typeof window.toggleItemLock === 'function', 'CONTROL: a seam this test drives is unpublished (residue / market / lock) — it would pass vacuously');
     assert(CAP.RESIDUE_FIELDS.indexOf('lockedItems') >= 0 && CAP.RESIDUE_FIELDS.indexOf('lootFilter') >= 0, 'lockedItems/lootFilter are not on the residue allowlist, so hr_put_client_state never carries them and every lock and every kept class is forgotten on reload');
@@ -2833,7 +2833,7 @@ export default [
     assert(!!food, 'CONTROL: no plain food item in the catalogue, so "the filter drops a class" is untestable');
     try {
       await withServerBacked({ state: { gold: 777777 } }, async (rig) => {
-        G.inventory = { normal_log: 5 }; G.lockedItems = {}; G.lootFilter = []; G.gold = 500; stampBalanceLikeLoad(G); window.toggleItemLock('normal_log');
+        G.inventory = { normal_log: 5 }; srvBag.agree(); G.lockedItems = {}; G.lootFilter = []; G.gold = 500; stampBalanceLikeLoad(G); window.toggleItemLock('normal_log');
         assert(window.isItemLocked('normal_log') === true, 'the Lock action did not lock the item');
         window.invSellOne('normal_log'); await rig.drain();
         assert(rig.sent.length === 0, 'a LOCKED item put ' + JSON.stringify(rig.sent) + ' on the wire — the lock must stop the client AUTHORING the sale, not merely hide a button');
@@ -2870,7 +2870,7 @@ export default [
       CS.hydrateInto(G, { lootFilter: 'food' });
       assert(Array.isArray(G.lootFilter) && G.lootFilter.length === 0, 'a garbage lootFilter hydrated as ' + JSON.stringify(G.lootFilter) + ' — the fail-safe is KEEP ALL, because a hidden bag is indistinguishable from a robbed one');
     } finally {
-      restoreG(snap); try { window._renderInvFancy(); } catch (e) {}
+      restoreG(snap); srvBag.restore(); try { window._renderInvFancy(); } catch (e) {}
     }
   }),
 

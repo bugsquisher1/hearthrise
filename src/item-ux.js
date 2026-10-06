@@ -571,6 +571,11 @@
       if(typeof window.notify === 'function') window.notify(item.n + ' is locked — unlock it in your bag first', 'kill');
       return;
     }
+    /* The SERVER's stack bounds the sale (shop-counter.js sellableCount); unstated = counting, fail closed. */
+    var held = (typeof window.sellableCount === 'function') ? window.sellableCount(id) : null;
+    if(held === null){ if(typeof window.notify === 'function') window.notify(window.SELL_PENDING_TITLE, 'info'); return; }
+    if(held <= 0){ if(typeof window.notify === 'function') window.notify('Nothing to sell', 'kill'); return; }
+    qty = Math.min(qty, held);
     var unit = (typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : Math.max(1, Math.floor((item.v || 0) * 0.5));
     var goldGain = unit * qty;
     /* THE PAYMENT GOES THROUGH THE SEAM (src/net/gold.js) like every other

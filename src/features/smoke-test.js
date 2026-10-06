@@ -249,6 +249,9 @@ export async function runSmokeTest(opts = {}) {
             + 'finally (or snapshotG/restoreG): a later item gate would count a bag nobody stated.';
         }
       }
+      /* The shop's row lock (shop-counter.js) is held until its answer; a test that
+         ends inside one must not hand "Buying…" to the next test. */
+      try { const SL = window.__shopBuyLock; if (SL && typeof SL.reset === 'function') SL.reset(); } catch (e) {}
       if (verbose) {
         const mark = r.status === 'PASS' ? '✓ ' : (r.status === 'SKIP' ? '⃠ SKIP ' : '✗ ');
         console.log(mark + r.name + (r.why ? ' — ' + r.why : ''));

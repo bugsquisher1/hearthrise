@@ -1066,7 +1066,7 @@ body[data-theme] .invc-topbar .invc-space {
   letter-spacing: .02em;
   color: var(--gold-2);
 }
-/* Uppercase-tracked gilt-filled buttons for "Multi-select" and "Manage" made
+/* Uppercase-tracked gilt-filled buttons for the bag toolbar ("Manage" etc.) made
  * two utility controls the loudest thing above the bag. */
 body[data-theme] .invc-topbar button {
   text-transform: none;

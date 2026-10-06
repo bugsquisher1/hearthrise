@@ -283,6 +283,20 @@ function invSellAll(id){
   sellReceipt(id, qty, price, sent);
   updateTopbar(); renderInvNew(); closeInvDetail();
 }
+/* b563 — BULK SELL IS CLOSED UNTIL THE SERVER CAN SELL A BAG IN ONE ANSWER
+   (Game Designer interim; the real fix is the b564 `vendor_sell_many` verb,
+   .claude/coordination/HANDOFFS.md 2026-10-06).
+   This gesture used to remove every selected stack, add the total to G through
+   a DEFERRED gold site and toast "Sold N items for Xg" while sending NOTHING:
+   the next envelope put the items back and took the gold away (CLAUDE.md §6).
+   Closed, not N per-stack `vendor_sell`s: the 30/min shop bucket is shared
+   with every purchase, so a sweep would spend the player's minute of buying
+   and stop halfway on a big bag. No live screen reaches it (its button went
+   with the dead second renderer, c16b87455); Sell 1 / Sell All / Sell N… stay
+   server-backed. It sends nothing, writes neither bag nor gold, never says
+   "Sold". Regression: BULK-INTERIM-1 (mutation-proved on the old body). */
+const BULK_SELL_CLOSED = 'Bulk selling is resting for now — sell each stack from its own menu (Sell All / Sell N…)';
+window.BULK_SELL_CLOSED = BULK_SELL_CLOSED;
 function invSellSelected(){
   if(!window._invSelected.size){ notify('Nothing selected','kill'); return; }
   /* Every quantity is the server's; an unstated bag sells nothing. */

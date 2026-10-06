@@ -8021,7 +8021,7 @@ export default [
      which is a stronger assertion than reading a sentence: settleJunk() pays
      the quote it is handed and computes no second price. The dialog half (the
      modal states that same number, and cancelling pays nothing) is B373-2. */
-  () => tryRun('B354-6: the sell-junk sweep pays the price it quoted (one vendor bid, not two)', () => {
+  () => tryRun('B354-6: the sell-junk quote is the one vendor bid on the server\'s bag', () => {
     const G = window.G;
     const CM = window.HearthriseInvCtx;
     assert(CM && typeof CM.quoteJunk === 'function' && typeof CM.settleJunk === 'function',
@@ -8051,16 +8051,21 @@ export default [
       const quoted = Number(String(CM._quoteText(q)).replace(/,/g, '').match(/for (\d+) gold/)[1]);
       assert(quoted === q.totalGold, 'the sentence shown to the player (' + quoted + ') is not the quote ('
         + q.totalGold + ') — the dialog and the payment are two numbers again');
-      const returned = CM.settleJunk(q);
+      /* b563: the sweep is CLOSED (BULK-INTERIM-1 owns "pays nothing"), so the
+         payment half is gone; the QUOTE stays, priced by the one vendor bid,
+         sized on the SERVER's bag, because it is what vendor_sell_many will be
+         asked to honour. */
       assert(native === 0, 'the sweep raised a NATIVE confirm() — it blocks the renderer main thread (b371/b373)');
       assert(q.ids.length > 0, 'the sweep selected nothing, so there is no quote to compare against');
-      assert(G.gold === quoted,
-        'THE SWEEP QUOTED ' + quoted + ' GOLD AND PAID ' + G.gold + '. It totalled with vendorPrice() and '
-        + 'paid ITEMS[id].v — the undiscounted book value — so every raw material sold through this button '
-        + 'minted 5x, silently, and the dialog lied about it. legacy.js\'s own rule: "A price that differs '
-        + 'by which button you pressed is not a price."');
-      assert(returned === quoted, 'sellJunk() reported ' + returned + ' and paid ' + G.gold);
-      assert(!G.inventory[raw], 'the sweep paid but did not take the items');
+      assert(quoted === 40 * window.vendorPrice(raw),
+        'THE SWEEP QUOTED ' + quoted + ' GOLD for 40 ' + raw + ' at a bid of ' + window.vendorPrice(raw)
+        + '. A quote off ITEMS[id].v — the undiscounted book value — mints 5x on every raw material. '
+        + 'legacy.js\'s own rule: "A price that differs by which button you pressed is not a price."');
+      G.inventory[raw] = 40; bag.agree({ [raw]: 25 });
+      assert(CM.quoteJunk(1e9).totalCount === 25, 'the sweep quoted the display bag (40), not the server\'s 25');
+      delete G._serverBag;
+      const pq = CM.quoteJunk(1e9);
+      assert(pq.pending === true && pq.ids.length === 0 && pq.totalGold === 0, 'an unstated bag quoted ' + JSON.stringify(pq) + ' — it must be pending with no count');
     } finally {
       window.confirm = save.confirm;
       restoreG(snap); bag.restore();

@@ -90,9 +90,9 @@
 //    fresh server character over real local progress is permanent — but it
 //    means the first switch-on purchase shows the sheet.
 // 3. `vendor_sell` PRICES ONE ITEM ID PER CALL, so the two BULK gestures
-//    (Sell Selected, the sell-junk sweep) have no server story and are DEFERRED
-//    by name in src/net/gold-sites.js. Reported, not patched:
-//    supabase/functions/** is held by other agents.
+//    (Sell Selected, the sell-junk sweep) have no server story; since b563 they
+//    are CLOSED (pay, send and remove nothing) until the b564
+//    `vendor_sell_many` verb ships.
 // 4. ~~THE ACCRUAL PATH DOES NOT RECONCILE GEMS.~~ CLOSED. `reconcilePredictions`
 //    is registered into `applyEnvelopeState`, so gems are now written absolutely
 //    by EVERY envelope — away, activity switch and gold verb alike.

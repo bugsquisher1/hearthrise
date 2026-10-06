@@ -214,11 +214,11 @@ const B = Object.freeze({
      collection-milestone and renown-rank payouts are now server-credited
      (hr_claim_milestone / hr_claim_rank), so their sites carry a serverCredits
      flipGuard rather than a blocker. See those rows below. */
-  BULK_VENDOR: 'a BULK vendor verb. `vendor_sell` prices ONE item id per call and the shop rate '
-    + 'bucket is 20/min, so a sweep of N stacks needs N intents and a 30-stack sweep is rate-'
-    + 'limited halfway through — leaving the bag half-sold against a server that agrees. Needs '
-    + 'either a `vendor_sell_many` taking a list, or a server-side "sell everything below value V".'
-    + ' REPORTED, NOT PATCHED: supabase/functions/** is held by other agents.',
+  /* B.BULK_VENDOR was RETIRED on 2026-10-06 (b563): Sell Selected and the
+     sell-junk sweep paid gold through it and sent nothing, so the envelope took
+     it back. Both gestures are CLOSED (they pay, send and remove nothing), so
+     they have no gold site. They return as `wired` rows naming
+     `vendor_sell_many` (b564 brief, HANDOFFS.md 2026-10-06). */
   DERIVED_PRICE: 'a server-owned price. This spend computes its cost at call time and is NOT in '
     + 'SHOP_OFFERS — see DERIVED_PRICES in src/data/shops.js. A server that authorises a spend must '
     + 'own the price, and for this one it would also have to own the purchase COUNT the price '
@@ -339,14 +339,6 @@ export const GOLD_SITE_LEDGER = Object.freeze({
   'seam:vendor.quick_sell': {
     kind: 'vendor', status: 'wired', verb: 'vendor_sell',
     site: 'src/item-ux.js — the quick-sell slider',
-  },
-  'seam:vendor.sell_selected': {
-    kind: 'vendor', status: 'deferred', blockedBy: B.BULK_VENDOR,
-    site: 'src/screens/shop-counter.js invSellSelected() — Sell Selected, N item ids in one gesture',
-  },
-  'seam:vendor.sell_junk': {
-    kind: 'vendor', status: 'deferred', blockedBy: B.BULK_VENDOR,
-    site: 'src/features/inv-context-menu.js sellJunk() — the sell-junk sweep',
   },
   'seam:claim.daily_login': {
     kind: 'grant', status: 'wired', verb: 'claim_reward',

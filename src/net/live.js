@@ -30,7 +30,7 @@
 // ============================================================================
 
 import { applyFrame, frameRefusal, getFrameDrops, beginFloorHeal, getFloorHeal, getAppliedFrame,
-  requestAccrual, bootSettlePending, settleInFlight, resolveActiveSlot, MAX_SLOT } from './accrue.js?v=562';
+  requestAccrual, bootSettlePending, settleInFlight, resolveActiveSlot, MAX_SLOT } from './accrue.js?v=563';
 
 export const LIVE_EVENT = 'frame';
 const LIVE_BACKOFF_BASE_MS = 1000;

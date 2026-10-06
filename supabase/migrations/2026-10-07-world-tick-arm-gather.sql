@@ -69,16 +69,14 @@ begin
     raise exception 'ARM-P2: a probe in the last 24 h ran on another payload — the edge moved; re-measure';
   end if;
 
-  -- (P3) COHORT, FRESH. The armed fence admits raw accrued_to < 24 h and the
-  --      tick catches up one flush per fire with NO offline cap: a character
-  --      whose raw watermark is 12-24 h old is paid the whole gap (measured
-  --      2026-10-06 on the live probe snapshot: 6,755 ore vs accrue's capped
-  --      3,900). Until the armed branch honours cap_ms, the arm is allowed only
-  --      over a small owned cohort whose raw watermark was settled by a real
-  --      return in the last 15 minutes.
+  -- (P3) COHORT, FRESH, SMALL. F1 (an armed catch-up paid a 12-24 h gap in
+  --      full: 6,755 ore vs accrue's capped 3,900) is closed in the body by
+  --      2026-10-07-world-tick-armed-cap.sql step 8c, REQUIRED at P4. The
+  --      1..2 cohort and the 15 min freshness stay as the M2 STAGE limit
+  --      (defence in depth, one variable at a time); widening is its own GO.
   select count(*) into v_n from public.hr_tick_ownership o where o.owned and o.channel = 'gather';
   if v_n < 1 or v_n > 2 then
-    raise exception 'ARM-P3: % owned gather rows (allowed 1..2 until the armed branch honours cap_ms)', v_n;
+    raise exception 'ARM-P3: % owned gather rows (M2 stage allows 1..2; widening needs its own Security GO)', v_n;
   end if;
   if exists (select 1 from public.hr_tick_ownership o
                join public.player_state ps on ps.user_id = o.user_id and ps.slot = o.slot
@@ -87,12 +85,28 @@ begin
     raise exception 'ARM-P3: an owned gatherer''s raw accrued_to is older than 15 min — do the fresh real return first';
   end if;
 
-  -- (P4) C1 IS THE LIVE FENCE BODY (its behaviour was executed by its own
-  --      apply, g1); C2 IS JUDGING AND NOT STALLED, executed now.
+  -- (P4) C1 + F1 ARE THE LIVE FENCE BODY (behaviour executed by their own
+  --      applies, g1 and armed-cap k1-k5); C2 IS JUDGING AND NOT STALLED, and
+  --      F2 (armed channels judged) is live, executed now.
+  --      F1: 2026-10-07-world-tick-armed-cap.sql MUST BE APPLIED. Its step 8c
+  --      refuses `fenced_cap` from the offline cap, on the ARMED branch, after
+  --      the 24 h fence and before hr_apply. Checked by position, not marker.
   if (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
        where n.nspname = 'public' and p.proname = 'hr_tick_settle'
          and position('fenced_24h' in p.prosrc) > 0) <> 1 then
     raise exception 'ARM-P4: hr_tick_settle is not the C1 body';
+  end if;
+  if (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public' and p.proname = 'hr_tick_settle'
+         and position('fenced_cap' in p.prosrc) > position('fenced_24h' in p.prosrc)
+         and position('public.hr_offline_cap_ms(p_user, p_slot)' in p.prosrc) > position('fenced_24h' in p.prosrc)
+         and position('public.hr_apply(' in p.prosrc) > position('fenced_cap' in p.prosrc)) <> 1 then
+    raise exception 'ARM-P4: hr_tick_settle lacks the 8c offline-cap fence (apply 2026-10-07-world-tick-armed-cap.sql first, F1)';
+  end if;
+  if (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public' and p.proname = 'hr_tick_stall_status'
+         and position('armed_stalled' in p.prosrc) > 0) <> 1 then
+    raise exception 'ARM-P4: hr_tick_stall_status does not judge armed channels (apply 2026-10-07-world-tick-armed-cap.sql first, F2)';
   end if;
   v_stall := public.hr_tick_stall_status(now(), 2, 30);
   if coalesce((v_stall->>'judged')::boolean, false) is not true
@@ -108,12 +122,18 @@ begin
   if v_cfg.armed_channels <> array['gather']::text[] then
     raise exception 'ARM-S1: armed_channels read back %', v_cfg.armed_channels;
   end if;
-  -- (S2) C2 NOW WATCHES COMBAT ALONE, WITH A SENTINEL, AND IT IS HEALTHY.
+  -- (S2) C2 NOW WATCHES COMBAT ALONE, WITH A SENTINEL, AND IT IS HEALTHY;
+  --      F2 JUDGES THE ARMED GATHER CHANNEL (a sentinel exists) AND IT IS
+  --      HEALTHY across the boundary (its shadow rows count until tick rows land).
   v_stall := public.hr_tick_stall_status(now(), 2, 30);
   if (v_stall->'watched_channels') <> '["combat"]'::jsonb
      or coalesce((v_stall->>'judged')::boolean, false) is not true
      or coalesce((v_stall->>'stalled')::boolean, true) is not false then
-    raise exception 'ARM-S2: combat shadow would go unwatched or stalled after the arm: %', v_stall;
+    raise exception 'ARM-S2: combat shadow unwatched, or a stall (shadow_stalled or armed_stalled) after the arm: %', v_stall;
+  end if;
+  if coalesce((v_stall->>'armed_judged')::boolean, false) is not true
+     or coalesce((v_stall->>'armed_stalled')::boolean, true) is not false then
+    raise exception 'ARM-S2: armed gather would go unjudged (no sentinel) or reads stalled: %', v_stall;
   end if;
   raise notice 'ARMED gather at % on payload %; stall %', now(), left(c_pin, 8), v_stall;
 end $arm$;

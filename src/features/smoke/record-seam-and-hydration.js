@@ -5225,6 +5225,89 @@ export default [
       'the boot read must fire whether the ensure resolved OR rejected');
   }),
 
+  () => tryRunAsync('B564-1: before the record hydrates, Home + topbar draw PENDING and the daily Claim cannot send an intent', async () => {
+    /* Live, QA account, 2026-10-05: before hr_load landed, Home drew the fresh-G
+       seed as fact — "1 CL / 0 TL", "Combat 1 · Total 1", "Peasant · 2 Renown",
+       "Day 1 · Reward ready" with a LIVE Claim, "Step 1 of 5" with Go buttons.
+       The veil cannot cover it (auth had not restored the session yet). The
+       gate is record.js isRecordPending; every first-paint surface reads it. */
+    const R = window.HearthriseRecord, DL = window.HearthriseDaily, H = window.HearthriseHome;
+    assert(R && typeof R.isRecordPending === 'function' && typeof R.__pinRecordPending === 'function',
+      'record.js does not publish the first-paint gate');
+    assert(DL && typeof DL.claim === 'function' && H && typeof H.render === 'function', 'daily/home seams missing');
+    const G = window.G;
+    const snap = snapshotG();
+    const origGold = window.HearthriseGold, origSettle = window.goldSettleCurrency;
+    const intents = [];
+    const wasPinned = R.__pinRecordPending(true);
+    try {
+      G.dailyReward = { lastClaimDay: 0 };            // the seed: "Reward ready"
+      window.HearthriseGold = Object.assign({}, origGold, {
+        claimReward: (...a) => { intents.push(['claimReward'].concat(a)); return Promise.resolve({ outcome: 'applied' }); },
+      });
+      window.goldSettleCurrency = (...a) => { intents.push(['settle'].concat(a)); };
+      assert(R.isRecordPending() === true, 'the pin did not hold');
+
+      /* (a) THE CLAIM GATE — no prediction, no intent, while pending. */
+      const rw = DL.claim(G);
+      assert(rw === null, 'claim() paid while the record was un-hydrated: ' + JSON.stringify(rw));
+      assert(intents.length === 0, 'a daily claim INTENT went out before the character arrived: ' + JSON.stringify(intents));
+      assert(G.dailyReward.lastClaimDay === 0, 'the un-hydrated claim stamped the day locally');
+
+      /* (b) the sheet shows a DISABLED button that is not a claim. */
+      DL.open();
+      const sheet = document.getElementById('hr-dl-modal');
+      assert(sheet, 'fixture: the daily sheet did not open');
+      assert(!sheet.querySelector('[data-dl-claim]'), 'the daily sheet lit a live Claim before hydration');
+      const pb = sheet.querySelector('.hr-dl-claim');
+      assert(pb && pb.disabled, 'the daily sheet\'s pending button is not disabled');
+      sheet.remove();
+      assert(intents.length === 0, 'the pending sheet sent an intent: ' + JSON.stringify(intents));
+
+      /* (c) the topbar: pending dash, never the seed's level. */
+      window.updateTopbar();
+      ['top-combat', 'top-total'].forEach((id) => {
+        const el = document.getElementById(id);
+        assert(el && el.textContent.trim() === '—' && el.classList.contains('bal-pending'),
+          id + ' painted "' + (el && el.textContent) + '" before hydration — must be the pending dash');
+      });
+
+      /* (d) Home: one pending card; no live Claim, no First-day Go, no heroes. */
+      if (typeof window.showTab === 'function') window.showTab('profile');
+      H.render();
+      const root = document.getElementById('hd-root');
+      assert(root && root.hasAttribute('data-hr-pending'), 'Home did not render its pending state');
+      assert(!root.querySelector('.hd-daily'), 'Home drew the daily reward card before hydration');
+      assert(!root.querySelector('[data-hd="fl"]'), 'Home drew the first-day steps before hydration');
+      assert(!root.querySelector('[data-hero],[data-herobuy]'), 'Home drew the hero slots before hydration');
+      const lit = [...root.querySelectorAll('button')].filter((b) => !b.disabled && b.getAttribute('data-hd') !== 'rename');
+      assert(lit.length === 0, 'Home lit ' + lit.length + ' action button(s) before hydration: '
+        + lit.map((b) => b.textContent.trim()).join(', '));
+      const sub = root.querySelector('.hd-sub');
+      assert(!/Renown/.test(sub ? sub.textContent : ''), 'Home printed a Renown figure before hydration');
+
+      /* (e) AFTER the hydrate the real values render, and the claim is live again. */
+      R.__pinRecordPending(false);
+      window.updateTopbar();
+      const cl = document.getElementById('top-combat');
+      assert(/^\d+$/.test(cl.textContent.trim()) && !cl.classList.contains('bal-pending'),
+        'after hydration the topbar still reads "' + cl.textContent + '"');
+      H.render();
+      assert(!root.hasAttribute('data-hr-pending'), 'Home stayed pending after hydration');
+      assert(root.querySelector('.hd-daily'), 'after hydration the claimable daily card did not render');
+      const rw2 = DL.claim(G);
+      assert(rw2 && intents.some((i) => i[0] === 'claimReward'),
+        'after hydration the claim did not reach the server seam: ' + JSON.stringify(intents));
+    } finally {
+      R.__pinRecordPending(wasPinned);
+      window.HearthriseGold = origGold; window.goldSettleCurrency = origSettle;
+      const s = document.getElementById('hr-dl-modal'); if (s) s.remove();
+      restoreG(snap);
+      try { window.updateTopbar(); } catch (e) {}
+      try { H.render(); } catch (e) {}
+    }
+  }),
+
   () => tryRun('B492-4: the boot veil shows "Connecting your character" instead of a fresh account, and never lies', () => {
     const V = window.HearthriseBootVeil;
     assert(V && typeof V.shouldVeil === 'function', 'src/features/boot-hydration.js did not load');

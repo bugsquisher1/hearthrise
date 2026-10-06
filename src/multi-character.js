@@ -905,6 +905,10 @@
      every consumer falls back to the STORED summary instead of printing 1. */
   function liveLevels(){
     if(typeof window.getCombatLevel !== 'function' || typeof window.getTotalLevel !== 'function') return null;
+    /* Before the record hydrates the engine holds the fresh seed, so "live"
+       would be 1/1 — printed on the hero row, and written over the stored
+       summary by refreshActiveMeta. Not loaded is null. */
+    if(typeof window.hrRecordPending === 'function' && window.hrRecordPending()) return null;
     try {
       var c = window.getCombatLevel(), t = window.getTotalLevel();
       if(typeof c !== 'number' || typeof t !== 'number' || !isFinite(c) || !isFinite(t)) return null;

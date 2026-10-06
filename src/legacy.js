@@ -7061,8 +7061,9 @@ function updateTopbar(){
      zero, or the word "undefined". */
   balPaint(document.getElementById('top-gold'), 'gold');
   balPaint(document.getElementById('top-gems'), 'gems');
-  document.getElementById('top-total').textContent=getTotalLevel();
-  document.getElementById('top-combat').textContent=getCombatLevel();
+  /* CL/TL before the record hydrates are the fresh seed's 1s: the pending dash, like gold. */
+  const _pend=window.hrRecordPending?window.hrRecordPending():true;
+  [['top-total',getTotalLevel],['top-combat',getCombatLevel]].forEach(([id,fn])=>{ const el=document.getElementById(id); el.textContent=_pend?'—':fn(); el.classList.toggle('bal-pending',_pend); });
   /* b466: route the topbar name through the server-authoritative identity seam
      (HearthriseIdentity.getDisplayName) instead of the raw G.playerName default,
      which stayed "Adventurer" because it was never reconciled to the claimed
@@ -7097,7 +7098,7 @@ function renderProfile(){
   const subEl = document.getElementById('dash-user-sub');
   const bodyEl = document.getElementById('dash-user-body');
   if (!subEl || !bodyEl) return; // Profile panel not in DOM yet — bail
-  subEl.textContent = `Lv ${cl} · Total ${tl}`;
+  subEl.textContent = (window.hrRecordPending?window.hrRecordPending():true) ? 'Lv — · Total —' : `Lv ${cl} · Total ${tl}`;
   bodyEl.innerHTML=`
     ${(()=>{
       // Auth-state resolution for the Profile dashboard:
@@ -11061,7 +11062,7 @@ console.log('Combat life: loaded');
   bar.innerHTML = `
     <div class="ab-icon" id="ab-icon"></div>
     <div class="ab-info">
-      <div class="ab-name" id="ab-name">Idle — pick an activity</div>
+      <div class="ab-name" id="ab-name">Connecting your character…</div>
     </div>
     <div class="ab-meta" id="ab-meta"></div>
     <button class="ab-stop" id="ab-stop">Stop</button>`;
@@ -11319,7 +11320,7 @@ function refreshActivityBar(){
   /* Idle */
   bar.classList.add('idle'); bar.classList.remove('combat');
   HearthriseIcons.setActivityIcon(iconEl, 'uiIdle', 'var(--ink-3)');
-  if(nameEl) nameEl.textContent = 'Idle — pick an activity';
+  if(nameEl) nameEl.textContent = (window.hrRecordPending?window.hrRecordPending():true) ? 'Connecting your character…' : 'Idle — pick an activity';
   if(metaEl) metaEl.innerHTML = '';
   if(stopBtn) stopBtn.style.display = 'none';
 

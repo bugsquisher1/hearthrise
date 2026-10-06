@@ -899,7 +899,7 @@ export default [
         'after the envelope the forecast must run against the SERVER bag (empty), got '
         + JSON.stringify(f && { k: f.kind, q: f.foodQty }));
       const s = STN.sentence(f);
-      assert(f.deaths ? /^Tonight: with nothing to eat you fall about /.test(s) : /^Tonight: you hold out /.test(s),
+      assert(f.deaths ? /^Tonight: (with nothing to eat you fall about |you have nothing to eat, and a whole night )/.test(s) : /^Tonight: you hold out /.test(s),
         'an empty server bag must be priced as an empty bag, got: ' + JSON.stringify(s));
       STN._resetMemo();
       assert(STN.strip(window.G).indexOf('Tonight:') > 0,
@@ -910,6 +910,58 @@ export default [
       restoreG(snap);
       if (typeof hadStamp === 'undefined') { try { AC.__forgetBagHydrated(window.G); } catch (e) {} }
       else window.G._bagFromServerAt = hadStamp;
+    }
+  }),
+
+  () => tryRun('NIGHT-6: a fighter short of food is told how much a whole night eats, and given a door to fishing', () => {
+    /* THE LIVE NIGHT (QA account, 2026-10-06). A Combat-25 hero on Slime
+       was bought 20 Cooked Shrimp, ate them in under an hour and lay knocked
+       out until morning. The forecast said "even with your 20 Cooked Shrimp you
+       fall" — true, and nothing to act on. The engine knows the number: the same
+       seeded night on a clone fed without limit. Fails without nightNeed
+       (needQty absent, the old sentence) and without the fish door. */
+    const STN = window.HearthriseSetTheNight;
+    const NP = window.HearthriseNightPlan;
+    const AC = window.HearthriseAccrual;
+    const snap = snapshotG();
+    const was = { t: AC.deathsToday(), l: AC.deathsLifetime(), c: G.consecFalls };
+    const realOpen = window.hrOpenActivity, opened = [], host = document.createElement('div');
+    try {
+      nightWorld({ foe: 'slime', inventory: { cooked_shrimp: 3 }, food: 'cooked_shrimp' });
+      AC.reconcileFall(G, { state: { consec_falls: 0, deaths_today: 0, deaths_lifetime: 0 } });
+      STN._resetMemo();
+      const f = STN.forecast(G);
+      assert(f && f.kind === 'combat' && f.deaths > 0,
+        'FIXTURE: three shrimp must not carry an eight-hour Slime night, got ' + JSON.stringify(f && { d: f.deaths, e: f.foodEaten }));
+      assert(f.needId === 'cooked_shrimp' && f.needQty > 3,
+        'the forecast did not price the whole night in the food Auto-Eat reaches for: ' + JSON.stringify({ id: f.needId, q: f.needQty }));
+      const before = JSON.stringify({ inv: G.inventory, hp: G.playerHp });
+      STN.forecast(G);
+      assert(JSON.stringify({ inv: G.inventory, hp: G.playerHp }) === before, 'the fed night touched the live save');
+      const s = STN.sentence(f);
+      assert(new RegExp('^Tonight: your 3 Cooked Shrimp last about .+ against Slime, and a whole night there eats about '
+        + f.needQty + ' Cooked Shrimp\.').test(s), 'the short-food night is not stated as a number: ' + s);
+      assert(STN.sentence(Object.assign({}, f, { foodQty: 0, foodName: null })).indexOf('eats about ' + f.needQty) > 0,
+        'the empty-bag night lost its number');
+      assert(STN.sentence(Object.assign({}, f, { stoppedBy: 'retreat', retreatFalls: 3, retreatMs: 3600000 })).indexOf('eats about ' + f.needQty) > 0,
+        'the retreat night lost its number');
+      const outmatched = STN.sentence(Object.assign({}, f, { needQty: null, needName: null, foodEaten: 3, deaths: 4 }));
+      assert(/even with your/.test(outmatched), 'with no provable need the old verdict must stand: ' + outmatched);
+
+      const html = NP.fightBlockHtml(f, { owned: true, serverEatOn: true, foodQty: 3, cookable: null });
+      assert(/A fighter earns no food of its own/.test(html) && /Fish for food/.test(html),
+        'no food source is named for a fighter with nothing to cook: ' + html);
+      assert(!/Fish for food/.test(NP.fightBlockHtml(f, { owned: true, serverEatOn: true, cookable: { qty: 4, name: 'Raw Shrimp' } })),
+        'the fish door showed when the bag already holds something to cook');
+      window.hrOpenActivity = (sk) => opened.push(sk);
+      host.innerHTML = html; document.body.appendChild(host);
+      host.querySelector('[data-night-act="fish"]').click();
+      assert(opened.join() === 'fishing', 'Fish for food opened ' + opened.join());
+    } finally {
+      window.hrOpenActivity = realOpen; host.remove();
+      try { STN.forget(); STN._resetMemo(); } catch (e) {}
+      AC.reconcileFall(G, { state: { consec_falls: was.c == null ? 0 : was.c, deaths_today: was.t, deaths_lifetime: was.l } });
+      restoreG(snap);
     }
   }),
 

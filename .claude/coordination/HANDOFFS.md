@@ -3,6 +3,54 @@
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
 
+### 2026-10-06 · FROM Systems Engineer → TO Coordinator + Security (edge, after the freeze) · **b564: bulk sell needs a `vendor_sell_many` verb — brief, not built**
+
+**Finding (P2, DISCOVERIES 2026-10-06).** Sell Selected (`src/screens/shop-counter.js invSellSelected`) and
+sell-junk (`src/features/inv-context-menu.js settleJunk`) call `goldSettle(total, site, null)`. Both sites are
+`deferred` (`B.BULK_VENDOR`, `src/net/gold-sites.js`), so `settleCurrency` adds the gold to `G` with NO prediction
+recorded and nothing is sent; `removeItem` drops the stacks locally. The next absolute envelope puts the items
+back and takes the gold away. The "Sold N for Xg" toast is the client's own number, which §6 forbids.
+
+**Why the client cannot fix this alone by sending one `vendor_sell` per stack:**
+1. **Rate.** `hr_rate_gate` gives the `shop` bucket 30/min, and `shop_buy`, `unlock_buy`, the market verbs
+   and `quartermaster_buy` all share it. A 30-stack sweep uses the whole minute, so the next purchase is
+   refused. Anything over 30 stacks (a select-all bag) stops halfway with `rate_limited`. The registry comment
+   in `intents.js` (~line 436) already rules on this: "Batch the sell; do not widen the gate."
+2. **Settle cost.** `vendor_sell` is `collectsFirst:true`, so each call runs a full settle before it applies.
+   N stacks means N settles for one tap, which does not scale to 10× the players.
+3. **Atomicity.** If the sweep stops partway, the bag stays half-sold. The server agrees with that state, so
+   it is honest, but the player gets a different result each time depending on the bucket.
+
+**The verb (edge-only: no migration, no `hr_apply` change).** `hr_apply` already accepts up to
+`c_max_item_kinds = 200` item keys in one delta (2026-09-14-hr-apply-restatement.sql:313/932). So:
+- `vendor_sell_many`: registry row `{ bucket:'shop', needsKey:true, collectsFirst:true }`, which costs ONE
+  rate token and ONE settle per gesture.
+- Request `lines: [{item, qty}]`, 1..64 lines. Parse it in `request.js`: duplicate ids are a shape refusal,
+  and each qty goes through the same bound as `vendor_sell` (≤ MAX_QTY; the client still chunks larger stacks).
+- Each line goes through `resolveSale` (server catalogue price; never a client unit). Any unknown or unsellable
+  line refuses the WHOLE intent and names the line in `detail`. The delta is one
+  `{ gold: Σ unit·qty, items: {id: -qty…} }`, journalled `kind:'shop'` and `intent: vendor_sell_many:<n>`,
+  with `meta.lines` holding each line's unit price.
+- All-or-nothing under `hr_apply`'s lock. `insufficient_item` on any line rolls back the whole sale, so the
+  player never sees a partial sweep.
+- Receipt `{ lines:[{item,name,qty,unit_gold,gold}], gold: Σ }`. The client builds its toast from
+  `receipt.gold` / `Σ receipt.lines[].qty` only.
+- Daily `gold_in` budget: unchanged. It sums `hr_apply`'s stamp, and one big delta stamps the same total.
+
+**Client half (rides the cut after the deploy).** Add a sender beside `vendorSellChunked` (src/legacy.js)
+that uses one key and the shared `HearthriseIntentLatch` (`namedLatch('vendor-bulk')`), so a double press
+sends once. Record ONE `settleCurrency` prediction under that key. On a refusal or rate-limit, roll it back
+(`PROVABLY_UNWRITTEN`) and put the stacks back. Show the toast only after the receipt arrives. Flip both
+`gold-sites` rows `deferred → wired`, verb `vendor_sell_many`. Tests: one intent carries every stack; a
+refused sweep rolls back both bag and gold; the toast equals `receipt.gold` (mutation: have the toast use
+the local `total` and the test must go red); a double press sends once.
+
+**Gates.** Security GO (money surface: a new gold faucet shape). Edge deploy is blocked by the world-tick
+EDGE FREEZE (an hr-accrue deploy resets the parity clocks), so this waits for the freeze to lift.
+**Interim, client-only, needs a Designer call:** until the verb ships, either hide both bulk buttons, or
+have them say "Sell one stack at a time for now" so they never pay gold the server will take back.
+
+
 ### 2026-10-06 · FROM Game Designer → TO Systems Engineer + Security (lane C/edge) · **b563: an outclassed foe still bleeds a hero dry — the fix is in src/core, not data**
 
 **Live finding.** QA Hero 2 (Combat 25, Slime, auto-eat Cooked Shrimp) ate 20 bought shrimp before

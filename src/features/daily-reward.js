@@ -262,6 +262,16 @@
     return out;
   }
 
+  /* NOTHING IS CLAIMED BEFORE THE CHARACTER ARRIVES. Until the record
+     hydrates, `lastClaimDay` is the fresh-G seed, so "claimable" is a guess and
+     a Claim pressed on it is an intent built on a default. Pending fails toward
+     NOT claimable-yet; a missing seam reads as pending (§6 fail-safe). */
+  function recordPending() {
+    var R = window.HearthriseRecord;
+    if (!R || typeof R.isRecordPending !== 'function') return true;
+    try { return !!R.isRecordPending(); } catch (e) { return true; }
+  }
+
   function isClaimable(G) {
     G = G || window.G; var s = ensureState(G); if (!s) return false;
     return todayKey() !== s.lastClaimDay;
@@ -269,6 +279,7 @@
 
   function claim(G) {
     G = G || window.G; var s = ensureState(G); if (!s) return null;
+    if (recordPending()) return null;
     if (!isClaimable(G)) return null;
     var rw = rewardFor(G);
     /* NOTHING IS PAID WHEN NOTHING CAN BE PRICED. `rewardFor` is null exactly
@@ -391,6 +402,7 @@
       '.hr-dl-day b{display:block;font-size:calc(16px * var(--ui-scale, 1));color:var(--gold,#e0a64a);margin-top:2px}',
       '.hr-dl-claim{border:none;border-radius:9px;padding:11px 22px;font-weight:800;font-size:calc(16px * var(--ui-scale, 1));cursor:pointer;background:linear-gradient(180deg,var(--gold,#f0b860),var(--gold-2,#d99c40));color:var(--bg-0,#20160a)}',
       '.hr-dl-claim:active{transform:translateY(1px)}',
+      '.hr-dl-claim:disabled{opacity:.6;cursor:default;transform:none}',
       /* b345 — THE WAY OUT, MADE VISIBLE. See the block comment on open().
          Tokens only (no hardcoded colour beyond the existing fallbacks this
          file already uses), and it sits INSIDE the box so it is part of the
@@ -422,7 +434,8 @@
     if (!R) return;
     var p = R.priceDailyLogin(streakCount(G));
     var day = p.cycleDay, wk = p.weeksDone;
-    var claimable = isClaimable(G);
+    var pending = recordPending();
+    var claimable = !pending && isClaimable(G);
     /* The strip is rendered through the SAME pricing function as the claim, one
        cycle position at a time, so the "D5 = 6k" a player reads and the gold
        they are actually paid cannot come from two different multipliers. */
@@ -471,7 +484,9 @@
           + (wk ? ' · week ' + (wk + 1) : '') + '</div>' +
         '<div class="hr-dl-h">' + (streakCount(G) > 1 ? 'Welcome back!' : 'Your daily reward') + '</div></div>' +
         '<div class="hr-sheet-body"><div class="hr-dl-week">' + week + '</div></div>' +
-        '<div class="hr-sheet-foot">' + (claimable
+        '<div class="hr-sheet-foot">' + (pending
+          ? '<button class="hr-dl-claim" disabled aria-disabled="true" title="Waiting for the server">Checking your reward…</button>'
+          : claimable
           ? '<button class="hr-dl-claim" data-dl-claim="1">Claim Day ' + day + ' · ' + rewardText(rewardFor(G)) + '</button>'
           : '<div class="hr-dl-eyebrow">Come back tomorrow for Day ' + ((day % 7) + 1) + '</div>') +
         '<div class="hr-dl-hint">Click anywhere to close — your reward stays on the Home screen.</div></div>' +
@@ -529,7 +544,7 @@
       /* Only when there was something to claim — telling a player who already
          claimed today that "your reward is waiting" is a lie in the other
          direction. */
-      if (isClaimable(window.G) && typeof window.notify === 'function') {
+      if (!recordPending() && isClaimable(window.G) && typeof window.notify === 'function') {
         window.notify('Daily reward still waiting — claim it on the Home screen.', 'info');
       }
       try { if (window.HearthriseHome && window.HearthriseHome.render) window.HearthriseHome.render(); } catch (er) {}
@@ -584,6 +599,7 @@
 
   window.HearthriseDaily = {
     isClaimable: isClaimable,
+    recordPending: recordPending,
     markServerClaim: markServerClaim,
     noteServerStreak: noteServerStreak,
     claim: claim,
@@ -631,6 +647,9 @@
   }
   function autoBoot(tries) {
     if (!window.G) { setTimeout(function () { autoBoot(tries); }, 500); return; }
+    /* The character itself has not arrived: no bound, because opening
+       the sheet before it does would only ever say "Checking…". */
+    if (recordPending()) { setTimeout(function () { autoBoot(tries); }, 500); return; }
     if (residuePending() && tries < 40) { setTimeout(function () { autoBoot(tries + 1); }, 500); return; }
     ensureState(window.G);
     if (!isClaimable(window.G)) return;              // already claimed today

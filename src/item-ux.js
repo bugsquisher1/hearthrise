@@ -571,6 +571,11 @@
       if(typeof window.notify === 'function') window.notify(item.n + ' is locked — unlock it in your bag first', 'kill');
       return;
     }
+    /* DISPLAY-BOUNDED, the server answers (shop-counter.js sellableCount): vendor_sell
+       collects first, so a stack gathered since the last envelope sells on the server. */
+    var held = (window.G.inventory[id] | 0);
+    if(held <= 0){ if(typeof window.notify === 'function') window.notify('Nothing to sell', 'kill'); return; }
+    qty = Math.min(qty, held);
     var unit = (typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : Math.max(1, Math.floor((item.v || 0) * 0.5));
     var goldGain = unit * qty;
     /* THE PAYMENT GOES THROUGH THE SEAM (src/net/gold.js) like every other
@@ -582,11 +587,14 @@
        of having its whole prediction rolled back by one oversized refusal.
        `vendorSellChunked` lives in legacy.js, which loads before this classic
        script — the same assumption the goldSettle call it replaces already made. */
-    window.vendorSellChunked(id, qty, 'vendor.quick_sell');
+    var sent = [];
+    window.vendorSellChunked(id, qty, 'vendor.quick_sell', sent);
     if(typeof window.removeItem === 'function') window.removeItem(id, qty);
     else { window.G.inventory[id] = Math.max(0, (window.G.inventory[id]||0) - qty); }
     if(typeof window.recordVendorSale === 'function') window.recordVendorSale(id, qty, unit);
-    if(typeof window.notify === 'function') window.notify('Sold ' + qty + '× ' + item.n + ' for ' + goldGain + 'g', 'loot');
+    /* The toast is the SERVER's answer (shop-counter.js sellReceipt); goldGain is the quote. */
+    if(typeof window.vendorSellReceipt === 'function') window.vendorSellReceipt(id, qty, unit, sent);
+    else if(typeof window.notify === 'function') window.notify('Sold ' + qty + '× ' + item.n + ' for ' + goldGain + 'g', 'loot');
     if(typeof window.renderInvFancy === 'function') window.renderInvFancy();
     if(typeof window.updateTopbar === 'function') window.updateTopbar();
     closeSlider();

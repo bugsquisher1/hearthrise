@@ -2445,13 +2445,14 @@ export default [
     const CM = window.HearthriseInvCtx;
     if (!CM || typeof CM.sellJunk !== 'function') return;
     /* snapshotG() now names gold/inventory/lockedItems, so the bespoke bag is just the confirm stub. */
-    const snap = snapshotG(); const save = { confirm: window.confirm };
+    const snap = snapshotG(), bag = serverBagFixture(); const save = { confirm: window.confirm };
     let native = 0;
     window.confirm = function () { native++; return true; };
     try {
       const raw = Object.keys(window.ITEMS).find((id) => window.ITEMS[id].raw && Number(window.ITEMS[id].v) >= 10);
       if (!raw) return;
       G.lockedItems = {}; G.inventory = {}; G.inventory[raw] = 40; G.gold = 0;
+      bag.agree();   // the sweep quotes the SERVER's bag
       const q = CM.quoteJunk(1e9);
       const p = CM.sellJunk(1e9);
       assert(p && typeof p.then === 'function',
@@ -2470,7 +2471,7 @@ export default [
     } finally {
       window.confirm = save.confirm;
       try { window.HearthriseDialog.close(); } catch (e) {}
-      restoreG(snap);
+      restoreG(snap); bag.restore();
     }
   }),
 

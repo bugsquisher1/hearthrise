@@ -8553,6 +8553,29 @@ export default [
     } finally { bag.restore(); restoreG(snap); window.renderMarket(); }
   }),
 
+  /* MP-R7b (visual gate): the shut List button LOOKED live — gold fill, opacity 1, a pointer —
+     and the quantity / asking inputs stayed typeable while the bag was being counted.
+     MUTATION: drop the `#mk-list-btn:disabled` rule in art-direction.css (opacity/cursor), or the
+     `bagUnstated ? ' disabled'` on either input in market.js → red. */
+  () => tryRun('MP-R7b: while the bag is counted the listing sheet is visibly shut, inputs included', () => {
+    const snap = snapshotG(), bag = serverBagFixture();
+    try {
+      delete window.G._serverBag;
+      window.renderMarket();
+      const btn = document.getElementById('mk-list-btn'), qty = document.getElementById('mk-list-qty'), each = document.getElementById('mk-list-each');
+      assert(btn && qty && each, 'fixture: the listing sheet did not render');
+      assert(btn.disabled && qty.disabled && each.disabled,
+        'an unstated bag left the sheet open: btn ' + btn.disabled + ', qty ' + qty.disabled + ', each ' + each.disabled);
+      const cs = getComputedStyle(btn);
+      assert(parseFloat(cs.opacity) < 0.6, 'the shut List button still reads live: opacity ' + cs.opacity);
+      assert(cs.cursor === 'not-allowed', 'the shut List button still offers a pointer: ' + cs.cursor);
+      bag.agree({ normal_log: 2 }); window.renderMarket();                    // CONTROL: a stated bag opens it
+      const b2 = document.getElementById('mk-list-btn'), q2 = document.getElementById('mk-list-qty');
+      assert(!b2.disabled && !q2.disabled && parseFloat(getComputedStyle(b2).opacity) > 0.9,
+        'CONTROL: a stated bag must open the sheet at full strength');
+    } finally { bag.restore(); restoreG(snap); window.renderMarket(); }
+  }),
+
   /* MP-R8 (CLAUDE.md §6): the OPEN sheet follows every applied envelope — the bag moved by a
      settle / sale / live frame repaints the picker, hint and max in place; a typed quantity
      is kept or clamped, never reset; focus stays put; closing drops the subscription. */

@@ -1344,8 +1344,9 @@
          held the PREVIOUS portrait until the next boot — the measured half of
          "one reload behind". */
       '<img src="' + esc(window._playerAvatar || 'assets/avatars/placeholder-portrait.webp') + '" alt="" data-hr-avatar style="width:100%;height:100%;object-fit:cover;display:block"></div><div style="min-width:0">';
-    html += '<div class="hd-eyebrow">' + (pending ? 'Connecting your character…'
-      : esc((hsDef && hsDef.name) || "Wanderer's Camp")) + '</div>';
+    /* Pending says nothing here — the activity bar directly above already
+       reads "Connecting your character…", and the same words twice is noise. */
+    if (!pending) html += '<div class="hd-eyebrow">' + esc((hsDef && hsDef.name) || "Wanderer's Camp") + '</div>';
     /* b373 — WHICH HERO AM I? Under the account-scoped identity ruling (see
        src/multi-character.js heroLabel) the big name on the hearth is the
        ACCOUNT's, which is correct and is also exactly what confused the FTUE

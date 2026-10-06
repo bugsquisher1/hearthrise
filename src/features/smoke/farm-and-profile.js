@@ -130,7 +130,7 @@ export default [
       const snap = snapshotG();
       try {
         window.G.plotLevels = 1;
-        delete window.G._serverPlotLevel;   // the tier under test is 1, from both sources
+        window.G._serverPlotLevel = 1;      // the tier under test is 1, from both sources (no server rung = pending, not a price)
         window.G.inventory.farm_deed = 0;
         window.G.gold = 0;                 // b510: gold is the first payment
         window.G.skills = window.G.skills || {};
@@ -193,7 +193,7 @@ export default [
       const snap = snapshotG();
       try {
         window.G.plotLevels = 1;
-        delete window.G._serverPlotLevel;   // the tier under test is 1, from both sources
+        window.G._serverPlotLevel = 1;      // the tier under test is 1, from both sources (no server rung = pending, not a price)
         window.G.gold = 1e9;
         window.G.inventory.farm_deed = 0;
         window.G.skills = window.G.skills || {};
@@ -286,6 +286,34 @@ export default [
         assert(calls.length === 0, 'no intent may be sent without a server rung, got ' + calls.length);
       } finally { restoreG(snap); }
     })),
+
+  /* EXPECT-LEVEL-2b (visual gate): House -> Plot showed "Lv —/5" beside an ENABLED
+     "Upgrade · 500" — a price read off the residue tier, for a rung the server had not named.
+     MUTATION: drop the plot_level_pending line in getUpgradeCheck → red. */
+  () => tryRun('EXPECT-LEVEL-2b: with no server tier the Plot card\'s Upgrade is shut and says it is counting', () => {
+    const F = window.HearthriseFarm, snap = snapshotG();
+    const prevTab = (document.querySelector('[data-house].active') || {}).dataset?.house || 'rooms';
+    if (!F) return;
+    try {
+      window.G.plotLevels = 1;
+      delete window.G._serverPlotLevel;
+      window.G.gold = 1000000; window.G.inventory.farm_deed = 0;
+      window.G.skills = window.G.skills || {}; window.G.skills.farming = 1000000;
+      const chk = F.getUpgradeCheck();
+      assert(chk.ok === false && chk.error === 'plot_level_pending', 'no server rung must read pending, got ' + JSON.stringify(chk));
+      assert(typeof window.setHouseTab === 'function', 'fixture: setHouseTab is unpublished');
+      window.setHouseTab('plot');
+      const btn = document.querySelector('#panel-house button[onclick*="upgradePlot"]');
+      assert(btn, 'fixture: the Plot card has no Upgrade button');
+      assert(btn.disabled && btn.getAttribute('data-pending') === 'plot-level' && /counting/.test(btn.textContent),
+        'the Upgrade must be shut and pending with no server tier: ' + btn.outerHTML);
+      window.G._serverPlotLevel = 1;                                               // CONTROL: the server names tier 1
+      assert(F.getUpgradeCheck().ok === true, 'CONTROL: a known tier with the means must be upgradable: ' + JSON.stringify(F.getUpgradeCheck()));
+      window.setHouseTab('plot');
+      const b2 = document.querySelector('#panel-house button[onclick*="upgradePlot"]');
+      assert(b2 && !b2.disabled && !b2.hasAttribute('data-pending'), 'CONTROL: a known tier must open the Upgrade: ' + (b2 && b2.outerHTML));
+    } finally { restoreG(snap); try { window.setHouseTab(prevTab); } catch (e) {} }
+  }),
 
   () => tryRun('EXPECT-LEVEL-3: a stale_level refusal adopts the server\'s tier and charges nothing', () => withFarmServer(
     () => ({ ok: false, error: 'stale_level', plot_level: 3, expect_level: 2 }),

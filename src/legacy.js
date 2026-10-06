@@ -8489,13 +8489,13 @@ function renderHouse(){
       const newCropsLabel = newCrops.length
         ? newCrops.map(id=>`${CROPS[id]?.icon||''} ${CROPS[id]?.name||id} <span class="muted">(Farming ${CROPS[id]?.req||1})</span>`).join(', ')
         : (lv >= max ? 'All crops unlocked' : 'No new crops at this tier');
-      const canUpgrade = !!(chk && chk.ok);
-      const priceLine = price
+      const canUpgrade = !!(chk && chk.ok), plotPending = !!(chk && chk.error === 'plot_level_pending');   /* no server rung: no price, no shortfall, no live button */
+      const priceLine = !plotPending && price
         ? `Costs ${_gp(price.gold)} <span class="muted">or</span> ${price.deeds} Farmer's Deed${price.deeds===1?'':'s'} · needs Farming ${price.farming}`
         : '';
       /* WHAT YOU HAVE, against WHAT IT COSTS — the short line that turns a
          disabled button into a goal. The blocking fact is named first. */
-      const haveLine = price
+      const haveLine = !plotPending && price
         ? `You have ${_gp(goldNow)} · ${have} deed${have===1?'':'s'} · Farming ${farmLv}`
           + (chk && chk.error === 'farm_level_too_low'
               ? ` — <b>${price.farming - farmLv} more farming level${price.farming-farmLv===1?'':'s'}</b>`
@@ -8503,7 +8503,7 @@ function renderHouse(){
                   ? ` — <b>${_gp(price.gold - goldNow)} short</b>`
                   : ''))
         : '';
-      const btnLabel = price
+      const btnLabel = plotPending ? 'Upgrade · counting…' : price
         ? (chk && chk.ok && chk.pay === 'deeds'
             ? `Spend ${price.deeds} Deed${price.deeds===1?'':'s'}`
             : `Upgrade · ${_gp(price.gold)}`)
@@ -8512,12 +8512,12 @@ function renderHouse(){
         <span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center">${_hrGly('navFarm',30)}</span>
         <div class="info">
           ${window.HearthriseFarm.tierHeadHtml()}${window.HearthriseFarm.tierLoreHtml()}
-          <span>${lv >= max ? 'Maxed — all crops unlocked' : `Next tier unlocks: ${newCropsLabel}`}</span>
+          <span${plotPending?' class="bal-pending" role="status"':''}>${plotPending ? 'Your plot tier is still being counted' : lv >= max ? 'Maxed — all crops unlocked' : `Next tier unlocks: ${newCropsLabel}`}</span>
           ${priceLine?`<span class="tiny">${priceLine}</span>`:''}
           ${haveLine?`<span class="tiny muted">${haveLine}</span>`:''}
         </div>
-        ${lv < max
-          ? `<button class="btn btn-sm ${canUpgrade?'btn-primary':''}" ${canUpgrade?'':'disabled'} onclick="window.HearthriseFarm.upgradePlot()">${btnLabel}</button>`
+        ${plotPending || lv < max
+          ? `<button class="btn btn-sm ${canUpgrade?'btn-primary':''}" ${canUpgrade?'':'disabled'}${plotPending?' data-pending="plot-level" title="Your plot tier is still being counted"':''} onclick="window.HearthriseFarm.upgradePlot()">${btnLabel}</button>`
           : '<span class="tag">MAX</span>'}
       </div>`;
     }
@@ -8568,7 +8568,7 @@ function describeMissingCost(cost){
   const parts=[];
   for(const [k,v] of Object.entries(cost||{})){
     const _bal=(k==='gold'||k==='gems'), _srv=_bal?null:(window.HearthriseAccrual?.gateItemCount(G,k)??null);
-    if(_bal?!balKnown(k):_srv===null){ parts.push(_bal?k+' balance not loaded yet':((ITEMS[k]&&ITEMS[k].n)||k)+' still being counted'); continue; }
+    if(_bal?!balKnown(k):_srv===null){ parts.push((_bal?(k==='gold'?'Gold':'Gems'):((ITEMS[k]&&ITEMS[k].n)||k))+' still being counted'); continue; }
     const have=k==='gold'?balNum('gold'):k==='gems'?balNum('gems'):_srv;
     if(have<v){
       parts.push(k==='gold'?((v-have)+' gold'):(((ITEMS[k]&&ITEMS[k].n)||k)+' ×'+(v-have)));
@@ -10031,7 +10031,7 @@ function openInvDetail(id){
       acts.push(`<button class="btn" title="Starts the altar bench — ${_bg.xp} Prayer XP per bone, and it keeps burying while you are away" onclick="if(typeof buryBones==='function'){buryBones('${id}');}closeInvDetail();renderInvNew()">Bury</button>`);
     }
   }
-  if(qty > 0){
+  let sellNote = ''; if(qty > 0){
     /* b240: sell-lock. A locked item shows no sell buttons — just Unlock — so an
        accidental tap can't get through. Vendorable items get a Lock button. */
     if(isItemLocked(id)){
@@ -10040,7 +10040,7 @@ function openInvDetail(id){
     } else {
       if(vendorPrice(id) > 0){
         acts.push(`<button class="btn" onclick="invSellOne('${id}');closeInvDetail()">Sell 1 · ${_gp(vendorPrice(id))}</button>`);
-        const _sq = window.sellableCount ? window.sellableCount(id) : null; const _sb = window.sellAllPending && window.sellAllPending(id); if(_sb) acts.push(`<button class="btn btn-danger" disabled title="Waiting for the realm to answer your last Sell All">Sell All · selling…</button>`); else if(_sq === null ? qty > 1 : _sq > 1) acts.push(_sq === null ? `<button class="btn btn-danger" disabled title="${window.SELL_PENDING_TITLE}">Sell All · counting…</button>` : `<button class="btn btn-danger" onclick="invSellAll('${id}')">Sell All ${_sq} · ${_gp(vendorPrice(id)*_sq)}</button>`);   /* Sell All names the SERVER's stack (sellableCount); unstated = counting; a sent one = selling until its answer — all disabled */
+        const _sq = window.sellableCount ? window.sellableCount(id) : null; const _sb = window.sellAllPending && window.sellAllPending(id); if(_sb) acts.push(`<button class="btn btn-danger" disabled title="Waiting for the realm to answer your last Sell All">Sell All · selling…</button>`); else if(_sq === null ? qty > 1 : _sq > 1) acts.push(_sq === null ? `<button class="btn btn-danger" disabled title="${window.SELL_PENDING_TITLE}">Sell All · counting…</button>` : `<button class="btn btn-danger" onclick="invSellAll('${id}')"${_sq !== qty ? ` title="The realm has counted ${_sq} — Sell All sells what it has counted"` : ''}>Sell All ${_sq} · ${_gp(vendorPrice(id)*_sq)}</button>`); if(!_sb && _sq !== null && _sq > 1 && _sq !== qty) sellNote = `<div class="inv-detail-sellnote" role="note">The realm has counted ${_sq} of these — Sell All sells what it has counted.</div>`;   /* the display-vs-counted gap is said, not left to puzzle over. Sell All names the SERVER's stack (sellableCount); unstated = counting; a sent one = selling until its answer — all disabled */
       }
       acts.push(`<button class="btn" onclick="toggleItemLock('${id}');openInvDetail('${id}')" title="Protect this item from being sold or listed on the market">${lockGlyph()} Lock</button>`);
     }
@@ -10127,7 +10127,7 @@ function openInvDetail(id){
     ${infoBlock}
     ${foodNote}
     ${enchantNote}</div>
-    <div class="inv-detail-actions hr-sheet-foot">${acts.join('')}</div>
+    <div class="inv-detail-actions hr-sheet-foot">${sellNote}${acts.join('')}</div>
   </div>`;
   d.classList.add('show');
 }

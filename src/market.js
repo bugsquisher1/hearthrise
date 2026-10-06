@@ -1117,6 +1117,9 @@
     picker.innerHTML = listPickerOptionsHtml(m);
     picker.disabled = m.unstated;
     if(btn) btn.disabled = m.unstated;
+    if(qty) qty.disabled = m.unstated;
+    var each = form.querySelector('#mk-list-each');
+    if(each) each.disabled = m.unstated;
     var it = null;
     for(var i = 0; i < m.listable.length; i++){ if(m.listable[i].id === prev){ it = m.listable[i]; break; } }
     picker.value = it ? it.id : '';
@@ -1291,8 +1294,8 @@
         '<h3>List an item</h3>' +
         '<div class="mk-form-row">' +
           '<select id="mk-list-id"' + (bagUnstated ? ' disabled' : '') + '>' + pickerOpts + '</select>' +
-          '<input type="number" id="mk-list-qty" min="1" value="1" placeholder="qty">' +
-          '<input type="number" id="mk-list-each" min="1" placeholder="asking each">' +
+          '<input type="number" id="mk-list-qty" min="1" value="1" placeholder="qty"' + (bagUnstated ? ' disabled' : '') + '>' +
+          '<input type="number" id="mk-list-each" min="1" placeholder="asking each"' + (bagUnstated ? ' disabled' : '') + '>' +
           '<button id="mk-list-btn"' + (bagUnstated ? ' disabled' : '') + '>List</button>' +
         '</div>' +
         (bagUnstated

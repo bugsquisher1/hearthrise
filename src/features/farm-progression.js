@@ -150,6 +150,11 @@
   function getUpgradePrice(){ return core().plotUpgradePrice(getPlotLevel()); }
   /** The whole answer the card renders and upgradePlot() acts on. */
   function getUpgradeCheck(){
+    /* The upgrade names the rung it buys (p_expect_level = the
+       SERVER's plot level + 1), so with no server rung there is nothing honest
+       to send - and nothing honest to price. Pending wins over every other
+       verdict: a price or a shortfall read off a residue tier is a guess. */
+    if(getServerPlotLevel() === null) return { ok: false, error: 'plot_level_pending' };
     return core().plotUpgradeCheck({
       plotLevel: getPlotLevel(),
       farmingLevel: getFarmingLevel(),
@@ -180,7 +185,9 @@
     var v = getUpgradeCheck();
     if(!v.ok){
       if(typeof window.notify === 'function'){
-        window.notify(v.error === 'max_plot_level' ? 'Farm Plot already maxed' : refusalText(v), 'kill');
+        window.notify(v.error === 'max_plot_level' ? 'Farm Plot already maxed'
+          : v.error === 'plot_level_pending' ? 'Your plot tier is still being counted — try again in a moment'
+          : refusalText(v), 'kill');
       }
       return false;
     }

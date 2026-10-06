@@ -362,7 +362,7 @@
     if (missing.length) {
       if (window.notify) notify('Missing: ' + missing.map(function (m) {
         var n = (window.ITEMS && window.ITEMS[m.id] && window.ITEMS[m.id].n) || m.id;
-        if (!m.known) return (m.id === 'gold' || m.id === 'gems') ? m.id + ' balance not loaded yet' : n + ' still being counted';
+        if (!m.known) return (m.id === 'gold' ? 'Gold' : m.id === 'gems' ? 'Gems' : n) + ' still being counted';
         return (m.id === 'gold' ? m.need + ' gold' : n + ' ×' + m.need);
       }).join(', '), 'kill');
       return false;
@@ -1177,9 +1177,16 @@
         if (miss.length) say('Missing ' + miss.map(function (m) {
           return m.id === 'gold' ? ((m.need - m.have) + ' gold') : (costName(m) + ' ×' + (m.need - m.have));
         }).join(', '), false);
-        if (pend.length) say(pend.map(function (m) {
-          return (m.id === 'gold' || m.id === 'gems') ? m.id + ' balance not loaded yet' : costName(m) + ' still being counted';
-        }).join(', '), false);
+        /* ONE house wording for every pending cost, currency or item, as a
+           sentence ("Gold and Normal Log still being counted"), not two phrasings
+           in one line ("gold balance not loaded yet, Normal Log still being counted"). */
+        if (pend.length) {
+          var pn = pend.map(function (m) {
+            return m.id === 'gold' ? 'Gold' : m.id === 'gems' ? 'Gems' : costName(m);
+          });
+          var ps = pn.length > 1 ? pn.slice(0, -1).join(', ') + ' and ' + pn[pn.length - 1] : pn[0];
+          say(ps.charAt(0).toUpperCase() + ps.slice(1) + ' still being counted', false);
+        }
       }
       if (reasons.length) {
         /* `why` stays COMPLETE — it is the button's hover title and the text an

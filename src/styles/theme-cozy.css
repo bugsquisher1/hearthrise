@@ -181,8 +181,8 @@ body[data-theme="classic"] {
 /* Title in the band — Cinzel, with a small flourish character */
 
 
-#panel-market .mk-form-row button:hover,
-#panel-market #mk-list-btn:hover {
+#panel-market .mk-form-row button:hover:not(:disabled),
+#panel-market #mk-list-btn:hover:not(:disabled) {
   filter: brightness(1.08);
 }
 

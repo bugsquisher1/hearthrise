@@ -8134,7 +8134,7 @@ export default [
       const quoted = Number(String(CM._quoteText(q)).replace(/,/g, '').match(/for (\d+) gold/)[1]);
       assert(quoted === q.totalGold, 'the sentence shown to the player (' + quoted + ') is not the quote ('
         + q.totalGold + ') — the dialog and the payment are two numbers again');
-      /* b563: the sweep is CLOSED (BULK-INTERIM-1 owns "pays nothing"), so the
+      /* The sweep is CLOSED (BULK-INTERIM-1 owns "pays nothing"), so the
          payment half is gone; the QUOTE stays, priced by the one vendor bid,
          sized on the SERVER's bag, because it is what vendor_sell_many will be
          asked to honour. */

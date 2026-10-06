@@ -7851,7 +7851,7 @@ export default [
     } finally { window.notify = realNotify; try { window.closeInvDetail(); } catch (e) {} restoreG(snap); bag.restore(); }
   }),
 
-  /* b563 — BULK SELL IS CLOSED until the server's vendor_sell_many ships (Game
+  /* BULK SELL IS CLOSED until the server's vendor_sell_many ships (Game
      Designer interim; HANDOFFS.md 2026-10-06). Both bulk gestures used to pay
      gold through a deferred site and toast "Sold" while sending NOTHING, so the
      next envelope took the gold and gave the items back (CLAUDE.md §6).
@@ -8041,7 +8041,7 @@ export default [
        documentation this codebase depends on"). Over-stripping can only remove
        comment text, never a statement, so it cannot hide a real occurrence. */
     const stripJs = (js) => js.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
-    /* invSellSelected is CLOSED since b563 (BULK-INTERIM-1): it writes the bag not at all. */
+    /* invSellSelected is CLOSED (BULK-INTERIM-1): it writes the bag not at all. */
     assert(!/delete\s+G\.inventory\s*\[|removeItem\s*\(/.test(stripJs(String(window.invSellSelected))),
       'invSellSelected() writes the bag again — it is closed until vendor_sell_many ships (BULK-INTERIM-1)');
     [['invSellAll', window.invSellAll]].forEach(([name, fn]) => {

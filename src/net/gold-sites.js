@@ -214,11 +214,11 @@ const B = Object.freeze({
      collection-milestone and renown-rank payouts are now server-credited
      (hr_claim_milestone / hr_claim_rank), so their sites carry a serverCredits
      flipGuard rather than a blocker. See those rows below. */
-  /* B.BULK_VENDOR was RETIRED on 2026-10-06 (b563): Sell Selected and the
+  /* B.BULK_VENDOR was RETIRED on 2026-10-06: Sell Selected and the
      sell-junk sweep paid gold through it and sent nothing, so the envelope took
      it back. Both gestures are CLOSED (they pay, send and remove nothing), so
      they have no gold site. They return as `wired` rows naming
-     `vendor_sell_many` (b564 brief, HANDOFFS.md 2026-10-06). */
+     `vendor_sell_many` (brief in HANDOFFS.md 2026-10-06). */
   DERIVED_PRICE: 'a server-owned price. This spend computes its cost at call time and is NOT in '
     + 'SHOP_OFFERS — see DERIVED_PRICES in src/data/shops.js. A server that authorises a spend must '
     + 'own the price, and for this one it would also have to own the purchase COUNT the price '

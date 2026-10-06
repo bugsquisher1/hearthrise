@@ -439,9 +439,9 @@
     return 'Sell ' + stacks + ' (' + items + ') for ' + q.totalGold.toLocaleString() + ' gold?';
   }
 
-  /* b563 — THE SWEEP IS CLOSED UNTIL THE SERVER CAN SELL A BAG IN ONE ANSWER
+  /* THE SWEEP IS CLOSED UNTIL THE SERVER CAN SELL A BAG IN ONE ANSWER
      (Game Designer interim; see invSellSelected in src/screens/shop-counter.js
-     for the ruling and the b564 `vendor_sell_many` brief in HANDOFFS.md).
+     for the ruling and the `vendor_sell_many` brief in HANDOFFS.md).
      settleJunk used to pay the quote through a DEFERRED gold site and toast
      "Sold N junk for Xg" while sending nothing, so the next envelope took both
      halves back. Now neither function asks, sends, pays, removes or says

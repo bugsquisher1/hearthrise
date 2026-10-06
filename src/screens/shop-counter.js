@@ -283,8 +283,8 @@ function invSellAll(id){
   sellReceipt(id, qty, price, sent);
   updateTopbar(); renderInvNew(); closeInvDetail();
 }
-/* b563 — BULK SELL IS CLOSED UNTIL THE SERVER CAN SELL A BAG IN ONE ANSWER
-   (Game Designer interim; the real fix is the b564 `vendor_sell_many` verb,
+/* BULK SELL IS CLOSED UNTIL THE SERVER CAN SELL A BAG IN ONE ANSWER
+   (Game Designer interim; the real fix is the `vendor_sell_many` verb,
    .claude/coordination/HANDOFFS.md 2026-10-06).
    This gesture used to remove every selected stack, add the total to G through
    a DEFERRED gold site and toast "Sold N items for Xg" while sending NOTHING:

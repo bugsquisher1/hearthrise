@@ -2440,8 +2440,8 @@ export default [
       'the pencil no longer calls HearthriseLaunchpad.openRename() — it asks by some other means: ' + onclick);
   }),
 
-  /* b563: the sweep is CLOSED (BULK-INTERIM-1), so there is no modal to answer.
-     What b373 protected still holds: it never raises a NATIVE confirm() (which
+  /* The sweep is CLOSED (BULK-INTERIM-1), so there is no modal to answer.
+     What the modal move protected still holds: it never raises a NATIVE confirm() (which
      freezes the renderer) and it stays a Promise for the vendor_sell_many return. */
   () => tryRunAsync('B373-2: sell-junk never blocks the renderer with a native confirm, and while closed it asks and pays nothing', async () => {
     const G = window.G;

@@ -66,3 +66,7 @@ Each step ships behind a flag and keeps the current path as fallback, so a red g
 - **Displaces the feature track** from the moment the current P1 class-kill lands. No new client-prediction or reconciliation work from this date; such work is built on the tick or waits for it.
 
 Next step: protocol capture of Huntera's socket (cadence, event catalogue) → brief v2 → step 1 of the sequence (tick service in read-only shadow, parity gate against accrual).
+
+## Re-scope (Tyler, 2026-10-07)
+
+The tick stops at gather + combat + party hunts. Crafting, farming, workers and companions stay on return-time accrual; no new tick channels. Steps 3–5 above are not on the launch path. See PRIORITY_BOARD.md, 2026-10-07 decision.

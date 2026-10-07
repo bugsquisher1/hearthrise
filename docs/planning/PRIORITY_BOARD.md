@@ -22,6 +22,18 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 | Last five merges | 59a05973 merge: lane/b564-local-ci-reds (seed-label session pinned UTC; raid-card reads after the icon sweep) into set/b564<br>edca6c1f merge: sec/gather-arm-s2 (arm file P3b/P3c, APPLIED 18:36 UTC; world-tick-arm-gather guard) into set/b564<br>c894abf3 Merge remote-tracking branch 'origin/next' into sec/gather-arm-s2<br>6cca7fc0 merge: lane/b564-guard-upto (bank-cap-rungs + bh-clamp mutants bite again; meta-guard refuses bare upTo) into set/b564<br>23810f16 merge: lane/b564-hollow-mutants (goal-counters/token-failclosed mutants bite; mutant-control; 13 proofs wired in db-replay-6/7) into set/b564 |
 <!-- END GENERATED -->
 
+## 2026-10-07 — DECISION (Tyler): live world re-scoped; launch finish line redefined
+
+| Item | Ruling |
+|---|---|
+| World tick: gather | Keep (armed for the test hero; widen to all players as planned) |
+| World tick: combat → party hunts | Keep: arm combat, then ship party hunts (the one multiplayer feature that needs a live tick) |
+| World tick: crafting, farming, workers, companions | STOPPED. Return-time accrual keeps paying them; no new tick channels |
+| Freed effort | Goes to the square-one game review (player journey, feature inventory, content/economy) and its fixes |
+| Backend finish line | Party hunts work AND everything in the game works (replaces "the world tick is universal") |
+
+Why: since 09-16, ~30 of 56 migrations (~24.6k lines SQL, ~4.3k lines tick edge code, ~20k lines of design/security docs) went to the tick and parties, for one channel paying one character. In a semi-idle game return-time accrual already pays; the tick earns its keep only where the world is shared.
+
 ## 2026-09-29 20:00 UTC — b560 CUT from the set head c608502d: the pending-state class-kill (gates, words, toasts), one answer about a foe, and the visual-gate residue of b559, all found and fixed by twelve assembled visual passes (Coordinator)
 
 - **Shipped:** eleven lanes on set/b561 — HR_CHROME resolver for the page runners; pending states say a word ("away: counting…", one dash on the scrip line); four visual P3s (fight log clears the FABs, "(have —)" never splits, inventory names whole-word); dungeon Run/Auto-Run, the Auto-Run picker, farm Plant and Plant all PENDING while the bag is unstated (gateItemCount tri-state; the fail-open assertions retired); toasts HELD under a sheet and replayed one at a time, the phone column clear of Home's CTAs; "Counting keys…" labels that fit every card in both font sets; a foe is named once (foe-family composer, incl. the swing line); one source for a foe's weakness across five surfaces.

@@ -1,6 +1,6 @@
 {
   "note": "BARE var(--x) reads — no fallback — whose token is declared nowhere in CSS, in JS setProperty, or in JS-authored style text. Each one makes its whole declaration invalid at computed-value time, so the property silently reverts to its initial value. This is a ratchet: the list may only shrink. A new one is red; fixing one prints a note and is re-recorded with --write. These are real bugs, not exemptions.",
-  "measured": "2026-10-06",
+  "measured": "2026-10-07",
   "single_source": "src/styles/tokens.css",
   "component_scoped_allowlist": {
     "--td-cell": "paper-doll cell size; .td-doll re-declares it per breakpoint",

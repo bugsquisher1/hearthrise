@@ -50,7 +50,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { bootReplay, ROOT } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED, ROOT } from './schema-replay.mjs';
 import { COMBAT_XP_SETTLE_FIRST_MS } from '../src/core/combat-xp-cap.js';
 import { computeAccrual, PAYABLE_KINDS, CALLER_AUTHORITY }
   from '../supabase/functions/hr-accrue/accrual.js';
@@ -351,7 +351,7 @@ async function run(mutate, { only } = {}) {
   }
   if (only === 'R4' || (m && m.r4)) return failed;
   let db;
-  try { ({ db } = await bootReplay({ patches: m && m.patches })); } catch (e) {
+  try { ({ db } = await bootReplay({ patches: m && m.patches, upTo: LAST_PATCHED })); } catch (e) {
     if (e.harness) throw e;
     throw harness(`the migration chain would not apply — ${String(e.message).split('\n').slice(0, 3).join(' | ')}`);
   }

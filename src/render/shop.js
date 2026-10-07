@@ -264,7 +264,7 @@
         </div>`).join('')}
     </div>
     ${(G.inventory?.hearth_token||0)>0?`
-    <div class="activity-card sc-token-card"><div class="ac-icon">${(window.HR&&window.HR.icon)?window.HR.icon('token',22,'--gold-2'):''}</div><div style="flex:1"><b>Hearth Tokens: ${G.inventory.hearth_token}</b><span>Sell on the player market for gold, or redeem here for 150 gems each.</span></div><button class="btn btn-sm btn-primary" onclick="redeemHearthToken()">Redeem 1 → 150 gems</button></div>`:''}
+    <div class="activity-card sc-token-card"><div class="ac-icon">${(window.HR&&window.HR.icon)?window.HR.icon('token',22,'--gold-2'):''}</div><div style="flex:1"><b>Hearth Tokens: ${Number(G.inventory.hearth_token).toLocaleString()}</b><span>Sell on the player market for gold, or redeem here for 150 gems each.</span></div><button class="btn btn-sm btn-primary" onclick="redeemHearthToken()">Redeem 1 → 150 gems</button></div>`:''}
     <div class="muted tiny" style="margin-top:14px">Purchases route to the platform you're running on (Steamworks / App Store / Play Store / Stripe). Receipts are validated server-side before granting items. Detected: <b>${IAP.detectPlatform()}</b>.</div>`;
 
     /* in-game shop side */
@@ -274,7 +274,7 @@
     const buyBtn=(id,qty,cost,can)=>{const busy=typeof window.shopBuyPending==='function'&&window.shopBuyPending(id,qty,cost);
       return `<button class="btn btn-sm ${can&&!busy?'btn-primary':''}" ${can&&!busy?'':'disabled'} onclick="buyShopItem('${id}',${qty},${cost})">${busy?'Buying…':'Buy'}</button>`;};
     if(shopTab==='seeds'){
-      offers=SEED_SHOP.map(s=>{const d=ITEMS[s.id];const can=balCanAfford(s.cost,'gold');return `<div class="shop-row"><span class="si">${itemArt(s.id)}</span><div class="info"><b>${d.n} ×${s.qty}</b><span>Have: ${G.inventory[s.id]||0}</span></div><span class="price">${_gp(s.cost)}</span>${buyBtn(s.id,s.qty,s.cost,can)}</div>`;}).join('');
+      offers=SEED_SHOP.map(s=>{const d=ITEMS[s.id];const can=balCanAfford(s.cost,'gold');return `<div class="shop-row"><span class="si">${itemArt(s.id)}</span><div class="info"><b>${d.n} ×${Number(s.qty).toLocaleString()}</b><span>Have: ${(G.inventory[s.id]||0).toLocaleString()}</span></div><span class="price">${_gp(s.cost)}</span>${buyBtn(s.id,s.qty,s.cost,can)}</div>`;}).join('');
     } else if(shopTab==='equip'){
       /* b341 — THE SHOP SAYS WHAT YOU CAN WEAR.
          An Iron Sword rendered as "Iron Sword · +7 ATK · +6 STR · 500 · Buy" and

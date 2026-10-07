@@ -52,6 +52,10 @@ import { bootReplay } from './schema-replay.mjs';
    such an arm reads "THE REPO CANNOT REBUILD THE DATABASE" instead of biting.
    The projection arm plants THERE; the constants live in one place. */
 import { HR_STATE_OF_FINAL, HR_STATE_OF_S3_BLIND } from './hr-state-of-final-body.mjs';
+/* A mutant replays UP TO the newest file this guard stands on, never past it, so a
+   newer migration's lock or self-check cannot refuse first: the newest file it names.
+   (tests/schema-replay.mjs replayScopeError). The plain run is the whole chain. */
+const REPLAY_UPTO = '2026-09-21-engine-allowlist-tick-settle.sql';
 
 /* A URL, not the filesystem path schema-replay.mjs exports — `new URL(rel, path)`
    throws on Windows, and this file loads three real repo modules by URL. */
@@ -266,7 +270,7 @@ async function boot(mutate, gateBlind, extra) {
       add(HR_STATE_OF_FINAL, HR_STATE_OF_S3_BLIND.slice());
     }
   }
-  const { db } = byFile.size ? await bootReplay({ patches: byFile }) : await bootReplay();
+  const { db } = byFile.size ? await bootReplay({ patches: byFile, upTo: REPLAY_UPTO }) : await bootReplay();
   if (post) await db.exec(post);
   return db;
 }

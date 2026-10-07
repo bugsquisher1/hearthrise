@@ -36,7 +36,10 @@
 //   A8      C1 (2026-10-06-world-tick-arm-guards.sql): armed gather, raw
 //           accrued_to 25 h old on a CURRENT shadow chain (the roster admitted
 //           it in shadow, then the operator armed) → the armed settle is
-//           refused fenced_24h and writes ZERO ledger rows; 23 h old pays
+//           refused fenced_24h and writes ZERO ledger rows; 11 h old pays
+//           (inside the 12 h offline cap: since 2026-10-07-world-tick-armed-cap.sql
+//           an armed mark past the cap is refused fenced_cap, its own guard
+//           tests/world-tick-armed-cap.mjs)
 //   A9      C2: gather armed, a combat sentinel, two hours of rostered fires,
 //           gather-only shadow rows → hr_tick_stall_status judges the combat
 //           shadow and reads STALLED; the same history with nothing armed is ok
@@ -290,7 +293,7 @@ async function arms(db, { log = true } = {}) {
     const f = await settle(UG, 'gather', m.toISOString(), iso(m, 90), KEY(81));
     const fl = (await ledger(UG)) - l0;
     const fv = await version(UG);
-    await makeChar(UG, 'gather', gact, "date_trunc('second', now()) - interval '23 hours'");
+    await makeChar(UG, 'gather', gact, "date_trunc('second', now()) - interval '11 hours'");
     const m2 = await mark0(UG);
     const w0 = await windowRows(UG, 'gather');
     const p = await settle(UG, 'gather', m2.toISOString(), iso(m2, 90), KEY(82));
@@ -298,8 +301,8 @@ async function arms(db, { log = true } = {}) {
     ok('A8', r25 === 1 && f.error === 'fenced_24h' && f.channel === 'gather' && fl === 0 && fv === v0
         && p.mode === 'armed' && p.paid === true && pw === 1,
       'shadow-admitted at raw 25 h, then armed: the settle is refused fenced_24h and writes 0 ledger rows; '
-      + 'raw 23 h pays exactly one window',
-      `rostered ${r25}; 25 h ${JSON.stringify(f)} ledger +${fl} version ${v0}->${fv}; 23 h ${JSON.stringify(p)} rows +${pw}`);
+      + 'raw 11 h pays exactly one window',
+      `rostered ${r25}; 25 h ${JSON.stringify(f)} ledger +${fl} version ${v0}->${fv}; 11 h ${JSON.stringify(p)} rows +${pw}`);
     await cfg("armed_channels = '{}'");
   }
 
@@ -351,14 +354,24 @@ async function laterPatchers() {
   const out = [];
   for (const [, path] of files.slice(at + 1)) {
     const sql = (await readFile(path, 'utf8')).replace(/\r\n/g, '\n');
+    // …and every later file that RESTATES one of them whole (`create or
+    // replace`): since 2026-10-07-world-tick-armed-cap.sql the chain-end
+    // hr_tick_settle and hr_tick_stall_status are that file's.
     if (FNS.some((fn) => sql.includes(`pg_get_functiondef(\n    'public.${fn}(`)
-                       || sql.includes(`pg_get_functiondef('public.${fn}(`))) out.push(sql);
+                       || sql.includes(`pg_get_functiondef('public.${fn}(`)
+                       || sql.includes(`create or replace function public.${fn}(`))) out.push(sql);
   }
   return out;
 }
 
+/* The plain run replays the WHOLE chain, so a later restatement that breaks a
+   channel's arming fails HERE. A mutant replays only UP TO the guards file —
+   the last one this guard owns (tests/schema-replay.mjs replayScopeError): a
+   NEWER file's §0 md5 lock or self-check would otherwise refuse first and blind
+   the arms (CI db-replay-5, set/b564: 2026-10-09-party-hunt-start-gate.sql).
+   That state is append-only, so it never moves under the mutants. */
 async function boot(patches, file = MIG) {
-  const r = await bootReplay(patches ? { patches: new Map([[file, patches]]), tolerant: true } : {});
+  const r = await bootReplay(patches ? { patches: new Map([[file, patches]]), tolerant: true, upTo: GUARDS } : {});
   return r;
 }
 
@@ -464,18 +477,14 @@ for (const m of MUTANTS) {
   try { r = await boot(m.patch, m.file || MIG); } catch (e) { console.error(`harness: ${m.name}: ${e.message}`); process.exit(2); }
   if (r.failures.length) {
     /* A mutant of the channel-arm file refuses THAT file; the guards file
-       downstream then refuses on its own §0 precondition, by name, and so does
-       2026-10-07-frame-emit-online-only.sql, which patches the bodies the
-       guards file installs. Those named cascades are expected; any other
-       failure is the wrong reason. */
+       downstream then refuses on its own §0 precondition, by name. Nothing
+       newer runs (upTo GUARDS), so any other failure is the wrong reason. */
     const own = r.failures.filter((f) => f.file === (m.file || MIG));
     const cascade = r.failures.filter((f) => f.file !== (m.file || MIG));
     const msg = own.map((f) => f.error).join(' | ');
     const mine = own.length > 0
-      && cascade.every((f) => ((m.file || MIG) === MIG && f.file === GUARDS
+      && cascade.every((f) => (m.file || MIG) === MIG && f.file === GUARDS
              && /PRECONDITION: 2026-10-06-world-tick-channel-arm\.sql is not applied/.test(f.error))
-          || (f.file === '2026-10-07-frame-emit-online-only.sql'
-             && /PRECONDITION: 2026-10-06-world-tick-arm-guards\.sql is not applied/.test(f.error)))
       && (!m.expect || m.expect.test(msg));
     verdict = mine ? `RED via the file's own self-check (${msg.slice(0, 90)})` : null;
     if (!mine) { console.log(`  ✗ ${m.name} — refused for the WRONG reason: ${msg.slice(0, 200)}`); survived++; continue; }

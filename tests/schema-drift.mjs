@@ -927,7 +927,10 @@ async function fingerprint(patches, extraSeeds) {
   for (const [file, sql] of extraSeeds || []) {
     seedBefore.set(file, (seedBefore.get(file) || '') + sql);
   }
-  const { db } = await bootReplay({ patches, seedBefore });
+  /* WHOLE chain on purpose: the fingerprint is the chain-end inventory. */
+  const { db } = await bootReplay(patches && patches.size
+    ? { patches, seedBefore, fullChain: 'the fingerprint is the CHAIN-END inventory; every file judges it' }
+    : { patches, seedBefore });
   await assertBystanders(db);
   return inventory(db);
 }

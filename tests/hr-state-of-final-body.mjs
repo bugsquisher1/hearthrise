@@ -66,7 +66,7 @@
 import { readFile } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { bootReplay } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED } from './schema-replay.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 
@@ -202,7 +202,7 @@ const NEGATIVE_CONTROL = [
 
 async function applies(pairsByFile) {
   try {
-    const { db } = await bootReplay({ patches: new Map(pairsByFile) });
+    const { db } = await bootReplay({ patches: new Map(pairsByFile), upTo: LAST_PATCHED });
     await db.close?.();
     return null;
   } catch (e) {

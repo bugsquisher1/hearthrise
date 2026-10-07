@@ -63,7 +63,7 @@
 // Exit: 0 green · 1 an assertion failed · 2 the harness is not measurable.
 // ════════════════════════════════════════════════════════════════════════
 
-import { bootReplay } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED } from './schema-replay.mjs';
 import { runMutationProof } from './mutation-proof.mjs';
 
 const MIG = '2026-09-13-town-presence.sql';
@@ -292,7 +292,7 @@ async function boot(mutate) {
     const target = m.file || MIG;
     patches.set(target, [...(patches.get(target) || []), ...m.pairs]);
   }
-  const { db } = await bootReplay({ patches });
+  const { db } = await bootReplay({ patches, upTo: LAST_PATCHED });
   return db;
 }
 

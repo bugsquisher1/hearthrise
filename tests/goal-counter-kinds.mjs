@@ -200,7 +200,11 @@ async function boot(name, gateBlind) {
   };
   if (name) for (const [f, find, repl] of MUTATIONS[name].patches) add(f, find, repl);
   if (gateBlind) for (const [f, find, repl] of GATE_BLIND) add(f, find, repl);
-  const { db } = await bootReplay(map.size ? { patches: map } : undefined);
+  /* A mutant stops at the newest file this guard stands on — the quest body's
+     chain end (QUEST_MIG, after MIG) — never past it (replayScopeError). Not
+     LAST_PATCHED: the negative control patches only the older CREATE and needs
+     MIG's ADD path and the quest body to run. */
+  const { db } = await bootReplay(map.size ? { patches: map, upTo: QUEST_MIG } : undefined);
   return db;
 }
 

@@ -50,7 +50,7 @@ permissions:
 # and the second time this workflow has raised that number rather than the
 # question underneath it.
 #
-# The steps are now partitioned by what they NEED, into TEN jobs that run in
+# The steps are now partitioned by what they NEED, into TWELVE jobs that run in
 # parallel, so the wall clock is the slowest family rather than the sum:
 #
 #   job                  needs                      MEASURED   timeout (= x2)
@@ -61,6 +61,8 @@ permissions:
 #   db-replay-2          an applied migration chain  10.8 min  19 [1][4]
 #   db-replay-3          an applied migration chain  10.4 min  21 [4][6]
 #   db-replay-5          an applied migration chain  10.0 min  20 [6]
+#   db-replay-6          an applied migration chain  10.0 min  21 [7]
+#   db-replay-7          an applied migration chain  10.6 min  22 [7]
 #   utc-midnight-replay  an applied migration chain   6.85 min 14 [2]
 #   client-guards        nothing but this repo        4.3 min   9 [3]
 #   edge                 the live gateway              0.5 s    5 (floor)
@@ -127,6 +129,9 @@ permissions:
 #     1105 s on other runs today) — the table lines above for those jobs are
 #     STALE and every one of them is past x2 of its timeout; they are not
 #     re-stated here (not moved by this split) and are owed a re-measure.
+# [7] NEW 2026-10-07 (lane b564-hollow-mutants): thirteen mutation proofs that
+#     no step ran, plus tests/mutant-control.mjs. Measured locally; see the
+#     jobs' own header for the per-step sums.
 #
 # RE-MEASURED 2026-09-07 after merging main, which brought SIXTEEN steps this
 # branch forked before (guard-hygiene, window-globals, no-client-farm-mint,
@@ -1830,6 +1835,17 @@ jobs:
           node tests/world-tick-stall-guard.mjs
           node tests/world-tick-stall-guard.mjs --selftest
 
+      # A guard's mutant replay stops at its own files (upTo / LAST_PATCHED), or
+      # says why the whole chain must judge it (fullChain). Without that, a
+      # NEWER migration's §0 lock refuses first and blinds the guard — CI
+      # db-replay-5 on set/b564. RS1-RS3: the predicate, the engine's refusal,
+      # every bootReplay caller. --selftest: 7 mutants + 5 negative controls.
+      - name: Replay scope — a mutant stops at its own guard's files
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/replay-scope-guard.mjs
+          node tests/replay-scope-guard.mjs --selftest
+
       # Security SEC_WORLD_TICK_ARM_2026-10-05 rulings 5 + 1 (admission):
       # armed_channels is the one arming authority. Presents hr_engine as the
       # edge does and measures: gather armed alone writes one ledger row per
@@ -1842,6 +1858,58 @@ jobs:
         run: |
           node tests/world-tick-channel-arm.mjs
           node tests/world-tick-channel-arm.mjs --selftest
+
+      # Security SEC_GATHER_ARM_RUNBOOK_2026-10-06 F1 + F2: an ARMED window
+      # never pays time the offline cap forfeits (one span or a drip from an old
+      # mark is refused fenced_cap), and an armed channel's stall is judged on
+      # its tick ledger rate; the shadow verdict is diffed against the
+      # 2026-10-06 body. --mutate re-creates one body with one line broken.
+      - name: World tick — armed windows stay inside the offline cap; armed stalls are judged
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-armed-cap.mjs
+          node tests/world-tick-armed-cap.mjs --mutate
+
+      # Security review of armed-cap (SEC_GATHER_ARM_RUNBOOK_2026-10-06): the M4
+      # blocker (an ARMED party settle is refused fenced_24h / fenced_cap per
+      # member, whole window) and F2b (an ONLINE character is not an armed
+      # stall sentinel; a real stall still reads STALLED). --mutate: 8 mutants.
+      - name: World tick — armed party windows fenced per member; online is not a stall
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-party-fences.mjs
+          node tests/world-tick-party-fences.mjs --mutate
+
+      # Security (c) 1-7 on party-fences + the Game Designer ruling: a fenced
+      # party member is DROPPED from the hunt (probe-time, armed only, own locked
+      # mark + own cap) and the rest keep being paid; rejoin forward-only after
+      # their own solo settle, clamped 3/day; under two hunters ends the hunt.
+      # ATTENDED and AWAY ledger sums. --mutate: 15 mutants.
+      - name: World tick — a fenced party member is dropped, the rest are paid
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-party-drop.mjs
+          node tests/world-tick-party-drop.mjs --mutate
+
+      # Security PD1 on party-drop: a party hunt >= 24 h behind is never
+      # rostered, so its members stay partied and every accrue is refused. The
+      # owner-only reaper (pg_cron, 10 min) ends it as a server Stop in every
+      # mode, journalled per hunter; nothing paid. --mutate: 10 mutants.
+      - name: World tick — a party hunt nobody can tick is reaped
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-party-reaper.mjs
+          node tests/world-tick-party-reaper.mjs --mutate
+
+      # Security P3 on the party-reaper verdict: a party hunt started while
+      # combat is disarmed is never ticked, so its members' accrue is refused
+      # for up to 24 h. hr_party_hunt_start now refuses hunt_channel_disarmed
+      # (journalled) unless the tick is enabled and combat armed. --mutate: 7.
+      - name: Party hunt — start refused unless combat is armed
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/party-hunt-start-gate.mjs
+          node tests/party-hunt-start-gate.mjs --mutate
 
       # EC-3d, the control, carries its own proof since 2026-09-22. It shipped
       # asserting the literal `+00:00` on the accrue path's rendering, which is
@@ -1893,13 +1961,142 @@ jobs:
       # and reads the APPLY's own verdict: Vault + no pgcrypto must be REFUSED,
       # the credential-free replay must still apply and still fail closed with a
       # journalled `no_hmac`, and the working shape must pay nothing for the
-      # gate. --selftest removes §0b and d10 singly and together: each alone is
-      # still caught by the other, and only removing both reproduces T-1.
+      # gate. --selftest: §0b off is still caught by d10, both off reproduces
+      # T-1, and §0b over-firing breaks the credential-free replay. (d10 alone
+      # is unobservable behind §0b; its control is tests/mutant-control.mjs.)
       - name: World tick — a tick that could not derive refuses the apply
         if: ${{ !cancelled() }}
         run: |
           node tests/world-tick-token-failclosed.mjs
           node tests/world-tick-token-failclosed.mjs --selftest
+
+
+  # ── db-replay-6 / db-replay-7 ── MUTATION PROOFS NOTHING RAN (2026-10-07,
+  # lane b564-hollow-mutants). Thirteen guards' plain bodies run in the in-page
+  # job (tests/run-smoke.mjs), but their --mutate/--selftest proofs were wired
+  # into no step — "a guard that has never been red is not a guard" held on
+  # paper only. No existing replay job had headroom (note [6]: every one is
+  # already past x2), so they get two jobs of their own, each verifying the
+  # PGlite snapshot cache FIRST under its own --for= (CI-SHAPE-4).
+  #
+  # MEASURED locally 2026-10-07, one guard at a time on a quiet machine:
+  #   db-replay-6: unlock-buy 256 + companion-codes-severity 137 + market-v2 57
+  #     + auto-eat-at-creation 23 + bounty-difficulty-count 20 + client-write-
+  #     sweep-5 17 + gem-daily-budget 2 plain + 16 mutate = 528 s, + verify
+  #     ~64 + setup ~11 = 603 s (10.05 min). Budget = x2 = 20.1, rounded up to 21.
+  db-replay-6:
+    runs-on: ubuntu-latest
+    timeout-minutes: 21
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      - name: PGlite snapshot cache - restored == replayed, corruption refused
+        if: ${{ !cancelled() }}
+        run: node tests/pglite-template.mjs --verify --for=db-replay-6
+
+      - name: Unlock buy — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/unlock-buy.mjs --selftest
+
+      - name: Companion codes severity — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/companion-codes-severity.mjs --selftest
+
+      - name: Market v2 — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/market-v2.mjs --selftest
+
+      - name: Auto-eat at creation — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/auto-eat-at-creation.mjs --selftest
+
+      - name: Bounty difficulty count — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/bounty-difficulty-count.mjs --selftest
+
+      - name: Client write sweep 5 — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/client-write-sweep-5.mjs --selftest
+
+      # Was in tests/guards-unregistered.json as "asserts:false"; re-measured
+      # 2026-10-07: the plain run asserts the 5,000/day gem ceiling (2.2 s) and
+      # --mutate installs a no-ceiling body and goes RED on it. Both run here.
+      - name: Gem daily budget — the per-day gem ceiling, and its mutation proof
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/gem-daily-budget.mjs
+          node tests/gem-daily-budget.mjs --mutate
+
+  # db-replay-7 (same origin as db-replay-6, above). MEASURED locally
+  # 2026-10-07: intent-mismatch 123 + goal-counters 117 + goal-gold-retune 56
+  # + cron-health 33 + artisan-progress-model 25 + companion-grant-hardening 24
+  # + mutant-control 181 (goal-counters 137 + world-tick-token-failclosed 44,
+  # each with nothing planted) + its selftest ~1 = 560 s, + verify ~64 + setup
+  # ~11 = 635 s (10.6 min). Budget = x2 = 21.2, rounded up to 22.
+  db-replay-7:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      - name: PGlite snapshot cache - restored == replayed, corruption refused
+        if: ${{ !cancelled() }}
+        run: node tests/pglite-template.mjs --verify --for=db-replay-7
+
+      - name: Intent mismatch — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/intent-mismatch.mjs --selftest
+
+      - name: Goal counters — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/goal-counters.mjs --mutate
+
+      - name: Goal gold retune — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/goal-gold-retune.mjs --selftest
+
+      - name: Cron health — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/cron-health.mjs --selftest
+
+      - name: Artisan progress model — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/artisan-progress-model.mjs --mutate
+
+      - name: Companion grant hardening — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tests/companion-grant-hardening.mjs --selftest
+
+      # THE CONTROL HALF OF A MUTATION PROOF. Every registered guard is re-run
+      # with HR_MUTANT_CONTROL=1 (nothing planted, scope kept); any arm that
+      # still reads "caught" is caught by something other than its mutant
+      # (measured 2026-10-07: world-tick-token-failclosed MF2). --selftest feeds
+      # it the five ways a control can lie.
+      - name: Mutant control — every arm survives when nothing is planted
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/mutant-control.mjs
+          node tests/mutant-control.mjs --selftest
 
 
   # ── utc-midnight-replay ── SPLIT OUT OF db-replay 2026-09-19 (b550). The
@@ -3140,6 +3337,17 @@ jobs:
           node tests/market-price-source.mjs
           node tests/market-prices.mjs --mutate
           node tests/market-prices.mjs
+
+      # VENDOR/SHOP ARBITRAGE (b564): no shop_buy offer may cost less gold than
+      # vendor_sell pays for what it grants (buy -> sell -> repeat is a faucet).
+      # Reads the edge GOLD_OFFERS + vendorPriceOf and hr_items.value at the end
+      # of the apply order; --selftest raises one item's bid in each source and
+      # requires the offer named, and an unparsed hr_items.value write to fail closed.
+      - name: Vendor/shop arbitrage - no offer is cheaper than its vendor bid
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/vendor-shop-arbitrage.mjs --selftest
+          node tests/vendor-shop-arbitrage.mjs
 
       # NO CLIENT FARM MINT (cleanup slice 4, b514): plantCrop / waterPlot /
       # waterAllPlots / harvestPlot / upgradePlot may only SEND AN INTENT. Their

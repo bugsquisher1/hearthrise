@@ -689,7 +689,12 @@ async function run(mutate, blind) {
   for (const m of r6Engine()) ok(false, m);
   if (mutate && MUTATIONS[mutate] && MUTATIONS[mutate].core) return failed;
 
-  const { db } = await bootReplay({ patches: patchesFor(mutate, blind) });
+  /* A mutant replays UP TO HR_APPLY_LAST — the newest file these arms stand on
+     (the current hr_apply chain end) — never past it, so a newer migration's
+     lock cannot refuse first (tests/schema-replay.mjs replayScopeError). Not the
+     newest PATCHED file: a MIG_RETIRED-only mutant's arms read HR_APPLY_LAST. */
+  const patched = patchesFor(mutate, blind);
+  const { db } = await bootReplay(patched ? { patches: patched, upTo: HR_APPLY_LAST } : {});
 
   // ── [14] IDEMPOTENCY, taken FIRST, before any row exists ─────────────────
   const defs = async () => (await db.query(

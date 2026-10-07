@@ -38,7 +38,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { bootReplay, ROOT } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED, ROOT } from './schema-replay.mjs';
 import {
   vigourGrantMin, vigourBudgetMin, vigourSplit, vigourMult, vigourCharge,
   VIGOUR_FLOOR_MIN, VIGOUR_CEILING_MIN, VIGOUR_REFILL_MIN, VIGOUR_MAX_REFILLS,
@@ -325,7 +325,7 @@ async function run(mutate) {
     + 'hunting time — selling away-accrual hours for cash is pay-to-win on a ranked economy.');
 
   // ── V5-V8. THE REAL RPC, ON A REAL DATABASE ────────────────────────────
-  const { db } = await bootReplay({ patches: patchesFor(mutate) });
+  const { db } = await bootReplay({ patches: patchesFor(mutate), upTo: LAST_PATCHED });
   const q = async (sql, args) => (await db.query(sql, args)).rows;
   const as = async (sql, args) => {
     await db.query("select set_config('request.jwt.claim.sub', $1, false)", [PROBE]);

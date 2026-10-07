@@ -327,6 +327,17 @@ function armedStallVerdict(rows, rule) {
     ? { verdict: 'STALL', why: `${rule.hours} h rostered with < ${rule.minRowsPerHour} tick+shadow windows/h` }
     : { verdict: 'OK', why: `an hour with >= ${rule.minRowsPerHour} tick+shadow windows` };
 }
+// PARTY HUNTS NOBODY CAN TICK (Security PD1, 2026-10-08-world-tick-party-reaper.sql):
+// a live party_hunt whose mark is > 24 h behind is never rostered, so its
+// members are refused every accrue. The operator check is `stale` = 0; the
+// reaper (hr-party-reap, 10 min) should hold it there. ANY stale hunt is an
+// ALARM: before the reaper applies it is PD1 itself, after it the cron is down.
+function partyStaleVerdict(row) {
+  const stale = Number(row?.stale);
+  if (!Number.isFinite(stale)) return { verdict: 'UNREAD', why: 'no count' };
+  if (stale > 0) return { verdict: 'ALARM', why: `${stale} live party hunt(s) > 24 h behind: members refused every accrue (PD1; is hr-party-reap running?)` };
+  return { verdict: 'OK', why: 'no live party hunt > 24 h behind' };
+}
 // ── STALL RULE END ───────────────────────────────────────────────────────────
 const STALL_RULE = { hours: 2, minRowsPerHour: 30 };
 const STALL_RULE_TEXT = `STALL = tick in SHADOW mode and EACH of the last ${STALL_RULE.hours} whole hours ending now had`
@@ -340,6 +351,14 @@ const STALL_RULE_TEXT = `STALL = tick in SHADOW mode and EACH of the last ${STAL
 // it to supabase_read_only_user, which is who this endpoint runs as. Before that
 // file is applied the call fails and the line says so.
 const SLOT_HEALTH = 'select public.hr_slot_health() as h';
+
+// ── PARTY HUNTS > 24 h BEHIND (Security PD1) ────────────────────────────────
+// The interim operator check, verbatim, plus what the reaper ended in 7 days.
+const PARTY_STALE = `
+select (select count(*) from public.party_hunt
+         where ended_at is null and accrued_to < now() - interval '24 hours') as stale,
+       (select count(*) from public.party_hunt
+         where stopped_by = 'stale_hunt' and ended_at >= now() - interval '7 days') as reaped_7d`;
 
 // ── ARMED CHANNELS (2026-10-07-world-tick-armed-cap.sql, Security F2) ───────
 // hr_tick_stall_status() is owner-only (42501 for this endpoint), so its armed
@@ -404,7 +423,7 @@ const chosen = refusalsMode ? REFUSALS : worldTickMode ? WORLD_TICK : QUERY;
 // send is checked, not just the one the flag selected. A second query added
 // later must not be able to ride in unchecked behind the first one's clearance.
 const selectOnly = (sql) => !/\b(insert|update|delete|create|alter|drop|grant|revoke|truncate|call|do)\b/i.test(sql);
-for (const sql of [QUERY, REFUSALS, REFUSAL_TABS, WORLD_TICK, WORLD_TICK_MODE, SLOT_HEALTH, ARMED_TICK]) {
+for (const sql of [QUERY, REFUSALS, REFUSAL_TABS, WORLD_TICK, WORLD_TICK_MODE, SLOT_HEALTH, ARMED_TICK, PARTY_STALE]) {
   if (!selectOnly(sql)) {
     console.error('vitals: refusing — query is not SELECT-only'); process.exitCode = 2; throw new Error('not select-only');
   }
@@ -473,7 +492,7 @@ async function selftest() {
   const b = SRC.indexOf('// ── STALL RULE END');
   if (a < 0 || b < 0) { console.error('vitals --selftest: the STALL RULE markers are gone'); return 2; }
   const RULE_SRC = SRC.slice(a, b);
-  const lift = (src) => new Function(`${src}\nreturn { tickStallVerdict, tickDayRollup, armedStallVerdict };`)();
+  const lift = (src) => new Function(`${src}\nreturn { tickStallVerdict, tickDayRollup, armedStallVerdict, partyStaleVerdict };`)();
 
   const hour = (o) => ({ day: '2026-09-28', fires: 360, rost_fires: 360, rostered: 1, shadow_rows: 0, refused: 0, ...o });
   const checks = (L) => {
@@ -524,6 +543,12 @@ async function selftest() {
     t('A6 an hour with nothing rostered -> NO VERDICT', AV([arm({ rost_fires: 0 }), arm({})]), 'NO VERDICT');
     t('A7 one hour of history -> NO VERDICT', AV([arm({})]), 'NO VERDICT');
     t('A8 a stalled newest hour after a healthy one -> OK', AV([arm({}), arm({ tick_rows: 40 })]), 'OK');
+    // Security PD1: the operator check `stale = 0`.
+    const PV = (row) => L.partyStaleVerdict(row).verdict;
+    t('P1 no live party hunt > 24 h behind -> OK', PV({ stale: 0, reaped_7d: 3 }), 'OK');
+    t('P2 one stale party hunt -> ALARM', PV({ stale: 1, reaped_7d: 0 }), 'ALARM');
+    t('P3 the count as the endpoint returns it (a string) -> ALARM', PV({ stale: '2' }), 'ALARM');
+    t('P4 no count -> UNREAD, never OK', PV({}), 'UNREAD');
     return out;
   };
 
@@ -553,6 +578,8 @@ async function selftest() {
     { name: 'armedRosterIgnored', find: "if (win.some((r) => Number(r.rost_fires) < 1)) return { verdict: 'NO VERDICT', why: 'an hour with nothing rostered' };",
       repl: '' },
     { name: 'armedAnyHourStalls', find: 'win.every((r) => Number(r.tick_rows)', repl: 'win.some((r) => Number(r.tick_rows)' },
+    { name: 'partyStaleTolerated', find: 'if (stale > 0) return', repl: 'if (stale > 1) return' },
+    { name: 'partyStaleUnreadIsOk', find: "if (!Number.isFinite(stale)) return { verdict: 'UNREAD', why: 'no count' };", repl: '' },
   ];
   let missed = 0;
   for (const m of MUTANTS) {
@@ -650,6 +677,15 @@ if (selftestMode) {
       for (const l of armedLines(await ask(ARMED_TICK))) console.log(l);
     } catch (e) {
       console.log(`armed channels: UNREAD — ${e.message} (the exit code says so)`);
+    }
+    // Security PD1: a party hunt nobody can tick. Must read 0.
+    try {
+      const row = (await ask(PARTY_STALE))[0] || {};
+      const v = partyStaleVerdict(row);
+      console.log(`party hunts > 24 h behind: ${row.stale} (want 0) — ${v.verdict}: ${v.why} | reaped (stale_hunt) last 7 d: ${row.reaped_7d}`);
+      if (v.verdict !== 'OK') process.exitCode = 1;
+    } catch (e) {
+      console.log(`party hunts > 24 h behind: UNREAD — ${e.message} (the exit code says so)`);
     }
     // The cron job hr-slot-health files maintenance_alerts on the same rule;
     // this line is the read a person sees at session start.

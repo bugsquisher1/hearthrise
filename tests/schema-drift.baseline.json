@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-10-07",
- "digest": "1e27149224ab71471920a92cd1f8c4748af3429bbdce2b0d2103a692d0427791",
+ "digest": "86f59390521a1681e03c46f84b15679ba3970407f7ab9986d60d8a9e01fec512",
  "counts": {
   "relations": 140,
-  "functions": 349,
+  "functions": 350,
   "policies": 95,
   "indexes": 203,
   "triggers": 20,
@@ -391,6 +391,7 @@
    "hr_party_level(p_user uuid, p_slot integer)",
    "hr_party_mark(p_party uuid)",
    "hr_party_of(p_user uuid, p_slot integer)",
+   "hr_party_reap_stale(p_limit integer)",
    "hr_party_role(p_party uuid, p_user uuid, p_slot integer)",
    "hr_party_roster(p_channels text[], p_limit integer, p_holder text, p_lease_ms integer, p_after_accrued timestamp with time zone, p_after_party uuid)",
    "hr_party_sat_out(p_hunt uuid, p_user uuid, p_slot integer)",

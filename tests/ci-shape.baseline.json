@@ -126,6 +126,8 @@
     "node tests/world-tick-party-fences.mjs --mutate": "db-replay-5",
     "node tests/world-tick-party-drop.mjs": "db-replay-5",
     "node tests/world-tick-party-drop.mjs --mutate": "db-replay-5",
+    "node tests/world-tick-party-reaper.mjs": "db-replay-5",
+    "node tests/world-tick-party-reaper.mjs --mutate": "db-replay-5",
     "node tests/world-tick-edge-contract.mjs --selftest": "db-replay-5",
     "node tests/world-tick-ledger-meta.mjs": "db-replay-5",
     "node tests/world-tick-ledger-meta.mjs --mutate": "db-replay-5",

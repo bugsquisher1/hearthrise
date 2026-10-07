@@ -33,7 +33,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { bootReplay, ROOT, inventory } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED, ROOT, inventory } from './schema-replay.mjs';
 import { runTick, planSeedLabels, SEED_LABEL_EXPR, CHANNELS }
   from '../supabase/functions/hr-accrue/tick.js';
 import { oneSpan, probeResultOf, decodeProbeInput, probeStep, PROBE_FETCH_SQL, PROBE_COMMIT_SQL }
@@ -41,7 +41,11 @@ import { oneSpan, probeResultOf, decodeProbeInput, probeStep, PROBE_FETCH_SQL, P
 
 const ARGS = process.argv.slice(2);
 const MUTATE = ARGS.includes('--mutate');
-const MIG = '2026-10-06-world-tick-parity-probe.sql';
+/* The LAST TOUCHER of hr_tick_probe_commit / hr_tick_probe_prune: PP-0
+   re-applies it and the mutants plant into its body. It restates the commit
+   (the close keeps input + seed) and carries the same self-check arms
+   (p2a, p2b, p3a..p3i, p6, p6b) the 2026-10-06 file introduced. */
+const MIG = '2026-10-07-probe-retain-input.sql';
 
 const U = (n) => `00000000-0000-4000-8000-0000000f${String(n).padStart(4, '0')}`;
 const FLUSH_MS = 900000;
@@ -337,6 +341,18 @@ async function guard(db, opts) {
                               from public.hr_tick_shadow s join public.hr_tick_ownership o
                                 on o.user_id = s.user_id and o.channel = s.channel and o.shadow_accrued_to = s.window_to
                              where s.user_id = $1`, [UG]);
+    /* The shadow mark must still BE the chain head after the fleet. A probe that
+       advances hr_tick_ownership.shadow_accrued_to leaves it pointing at no
+       window; that is the planted write, named here rather than crashing below. */
+    if (!head) {
+      const [own] = await q(`select to_jsonb(shadow_accrued_to) #>> '{}' as mark from public.hr_tick_ownership
+                              where user_id = $1`, [UG]);
+      const [last] = await q(`select to_jsonb(max(window_to)) #>> '{}' as t from public.hr_tick_shadow
+                               where user_id = $1`, [UG]);
+      judge('PP-4', false, '',
+        `the hr_tick_ownership shadow mark (shadow_accrued_to ${own && own.mark}) is the end of no hr_tick_shadow `
+        + `window (last window_to ${last && last.t}) — something outside the settle advanced it`);
+    } else {
     const [openRow] = await q(`select id from public.hr_tick_probe where user_id = $1 and status = 'open'`, [UG]);
     await db.exec('begin');
     const snap = async () => new Map((await db.query(
@@ -374,6 +390,7 @@ async function guard(db, opts) {
       'as hr_engine the commit refuses a foreign holder (no_lease) and a window that is not the chain head (not_chain_head)',
       `refusals wrong: foreign holder -> ${e1 || foreign.error} (want no_lease), `
       + `stale window -> ${e2 || stale.error} (want not_chain_head)`);
+    }
   }
 
   // ── PP-6 NOTHING ELSE READS THE TABLE ────────────────────────────────────
@@ -444,12 +461,12 @@ const MUTANTS = {
    defect and the GUARD's executed arm must be the one that names it. */
 const DISARM = [
   ['  begin\n    -- ── A PROBE CHARACTER WITH A SHADOW CHAIN HEAD',
-    "  begin\n    raise exception 'HR1006_ROLLBACK_OK';\n    -- ── A PROBE CHARACTER WITH A SHADOW CHAIN HEAD"],
+    "  begin\n    raise exception 'HR1007_ROLLBACK_OK';\n    -- ── A PROBE CHARACTER WITH A SHADOW CHAIN HEAD"],
   ...['p6', 'p6b'].map((id) => [`raise exception '${id}:`, `raise notice '${id}:`]),
 ];
 
 async function boot(patches) {
-  const { db, failures } = await bootReplay(patches ? { patches: new Map([[MIG, patches]]) } : {});
+  const { db, failures } = await bootReplay(patches ? { patches: new Map([[MIG, patches]]), upTo: LAST_PATCHED } : {});
   if (failures.length) throw Object.assign(new Error(JSON.stringify(failures).slice(0, 400)), { harness: true });
   return db;
 }

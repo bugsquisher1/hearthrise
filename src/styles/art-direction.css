@@ -1733,6 +1733,20 @@ body[data-theme] #mk-list-btn {
   padding: 8px 20px;
   box-shadow: inset 0 1px 0 rgba(255, 246, 220, .55), inset 0 -2px 3px rgba(90, 60, 8, .4), 0 2px 5px -2px rgba(0, 0, 0, .7);
 }
+/* A shut List button (bag still being counted) wore the live gold fill,
+ * full opacity and a pointer: it looked pressable. House disabled look, no lift. */
+body[data-theme] .mk-form-row button:disabled,
+body[data-theme] #mk-list-btn:disabled {
+  opacity: .38;
+  filter: grayscale(.6);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+body[data-theme] .mk-form-row input:disabled,
+body[data-theme] .mk-form-row select:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
 body[data-theme] .mk-form-row input {
   font-family: var(--f-ui);
   font-variant-numeric: tabular-nums;

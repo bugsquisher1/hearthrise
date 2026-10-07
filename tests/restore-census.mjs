@@ -298,7 +298,10 @@ const BASELINE_MUTATIONS = {
 
 // ── Measure a replay ───────────────────────────────────────────────────────
 async function measure(patches) {
-  const { db } = await bootReplay({ patches });
+  /* WHOLE chain on purpose: the census classifies every CHAIN-END table. */
+  const { db } = await bootReplay(patches && patches.size
+    ? { patches, fullChain: 'the census classifies every CHAIN-END table; every file judges it' }
+    : {});
 
   const tables = (await db.query(
     `select c.relname::text as nm from pg_class c join pg_namespace n on n.oid=c.relnamespace

@@ -42,6 +42,11 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { bootReplay } from './schema-replay.mjs';
+/* A mutant replays UP TO the newest file this guard stands on, never past it, so a
+   newer migration's lock or self-check cannot refuse first: its fixture reads
+   player_state.consec_falls, added there. (tests/schema-replay.mjs replayScopeError).
+   The plain run is the whole chain. */
+const REPLAY_UPTO = '2026-09-07-retreat.sql';
 
 const FILE = '2026-09-06-recovering-until.sql';
 const uidFor = (n) => `000000e5-0000-0000-0000-0000000000${n}`;
@@ -173,7 +178,7 @@ async function boot(mutate) {
   const patches = (m && !m.js)
     ? new Map([[m.file, [[m.find, m.repl]]]])
     : undefined;
-  const { db } = await bootReplay(patches ? { patches } : {});
+  const { db } = await bootReplay(patches ? { patches, upTo: REPLAY_UPTO } : {});
   return db;
 }
 

@@ -47,7 +47,7 @@
 //   node tests/bounty-difficulty-count.mjs --selftest  every mutation must be caught
 //   node tests/bounty-difficulty-count.mjs --mutate=<id>
 // ════════════════════════════════════════════════════════════════════════
-import { bootReplay } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED } from './schema-replay.mjs';
 import { burnBountyGrace } from './bounty-grace-fixture.mjs';
 import {
   BOUNTY_DIFFICULTY_COUNT, BOUNTY_KILL_COUNTS, BOUNTY_FIRST_CONTRACT_COUNT,
@@ -102,7 +102,7 @@ const ok = (cond, msg) => { if (!cond) problems.push(msg); };
 
 async function run(mutate) {
   const patches = mutate ? new Map([[MIG, [[MUTATIONS[mutate].find, MUTATIONS[mutate].repl]]]]) : undefined;
-  const { db } = await bootReplay({ patches });
+  const { db } = await bootReplay({ patches, upTo: LAST_PATCHED });
   const q = async (sql, p) => (await db.query(sql, p)).rows;
   const asUser = async (uid, sql, p) => {
     await q("select set_config('request.jwt.claim.sub',$1,false)", [uid]);
@@ -174,6 +174,11 @@ async function run(mutate) {
 
   const accept = async (d, required) => {
     await gate();
+    /* ONE CONTRACT AT A TIME (2026-10-04-bounty-abandon-server-fee.sql §2b):
+       the accept REFUSES over a held contract (bounty_active) instead of
+       replacing it. Each probe accept below is a fresh contract, so the
+       previous one is ended first, as a claim or abandon would. */
+    await q('delete from public.active_bounty where user_id = $1 and slot = 0', [uid]);
     return asUser(uid, 'select public.hr_accept_bounty(0,$1,$2,$3,$4,$5) as r',
       [`b_${d}_${required}`, target, 'cull', d, required]);
   };

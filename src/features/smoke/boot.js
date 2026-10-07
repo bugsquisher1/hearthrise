@@ -6,8 +6,8 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 31 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, withFarmServer, snapshotG, restoreG, restoreGAndRecord, on, overlayResidue, captureShellLocks, residueProbe, serverBagFixture } from './_harness.js?v=562';
-import { SCREEN_PRIMERS } from '../../data/screen-primers.js?v=562';
+import { pass, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, withFarmServer, snapshotG, restoreG, restoreGAndRecord, on, overlayResidue, captureShellLocks, residueProbe, serverBagFixture } from './_harness.js?v=564';
+import { SCREEN_PRIMERS } from '../../data/screen-primers.js?v=564';
 
 /* The primer markers on this device, so a PRIMER test can put them back exactly. */
 const primerSnap = (S) => S.keys().filter((k) => k.indexOf('hearthrise:primer:') === 0).map((k) => [k, S.get(k)]);

@@ -67,7 +67,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { bootReplay, ROOT, manifest } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED, ROOT, manifest } from './schema-replay.mjs';
 
 const FIX = '2026-09-06-companion-grant-hardening.sql';
 const AUTHOR = '2026-08-22-companion-grant.sql';
@@ -330,6 +330,11 @@ async function armLayerB(extra = []) {
   try {
     ({ db } = await bootReplay({
       patches: new Map([[FIX, [[A_LAYER_A, A_LAYER_A_OFF], [A_RACED, A_RACED_OFF], ...extra]]]),
+      /* Layer A off is this arm's FIXTURE: the plain run judges Layer B on the
+         whole chain, as before. A planted defect (extra) stops at FIX, so nothing
+         newer refuses first (tests/schema-replay.mjs replayScopeError). */
+      ...(extra.length ? { upTo: FIX }
+        : { fullChain: 'Layer A off is a fixture: the plain arm judges Layer B on the chain-end body' }),
     }));
   } catch (e) {
     if (e.harness) throw e;               // a moved anchor is not a result
@@ -537,7 +542,7 @@ async function run({ mutation = null } = {}) {
   let db = null;
   let chainError = null;
   try {
-    ({ db } = await bootReplay(patches ? { patches } : {}));
+    ({ db } = await bootReplay(patches ? { patches, upTo: LAST_PATCHED } : {}));
   } catch (e) {
     if (e.harness) throw e;                 // a broken anchor is not a result
     chainError = String(e.message || e);

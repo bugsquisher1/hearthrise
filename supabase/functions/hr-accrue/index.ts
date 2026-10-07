@@ -84,6 +84,7 @@ import { withAwayReceipt, receiptRescue } from './away-receipt.js';
 import { COMPANION_XP_SERVER_BACKED } from '../../../src/core/companion-xp.js';
 import { verifyJwt, bearerOf, gotrueIntrospector } from './jwt.js';
 import { parseIntent } from './request.js';
+import { frameSelfMarker } from './frame-self.js';
 import { intentIdFor, isKnownVerb, INTENT_ERRORS, rateBucketFor } from './intents.js';
 import { partyIntentFence } from './party-fence.js';
 import { runSetActivity } from './set-activity.js';
@@ -363,9 +364,25 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
        run one statement — so no intent can open a long transaction, hold a
        connection, or write a table it was not granted (hr_engine holds zero
        table privileges in every schema). */
+    /* ── THE SELF-ECHO MARKER (2026-10-09-frame-self-echo.sql) ──────────────
+       Every PLAYER-PATH transaction below names its requester, transaction-
+       local, so hr_frame_wanted can skip the frame that would only echo this
+       caller's own write back to the browser that is about to receive the same
+       envelope over HTTP. `user` is the VERIFIED JWT subject (never a body
+       field); `slot` is the one hr_apply is called with. The tick path above
+       (`execTick`) never marks: a world-tick frame is never an echo. A null
+       marker (malformed identity) marks nothing, which costs a frame, never a
+       fact. See ./frame-self.js. */
+    const selfMarker = frameSelfMarker(user, slot);
+    // deno-lint-ignore no-explicit-any
+    const markSelf = async (tx: any): Promise<void> => {
+      if (selfMarker) await tx`select set_config('hr.frame_self', ${selfMarker}, true)`;
+    };
+
     const exec = async (text: string, params: unknown[]): Promise<Record<string, any>[]> =>
       await sql.begin(async (tx) => {
         await tx`set local role hr_engine`;
+        await markSelf(tx);
         return await tx.unsafe(text, params as any[]);
       }) as unknown as Record<string, any>[];
 
@@ -687,6 +704,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     //   not have one.
     const read = await sql.begin(async (tx) => {
       await tx`set local role hr_engine`;
+      await markSelf(tx);
       /* The bucket is READ OUT OF INTENT_REGISTRY, never written here. A literal
          at this call site is a second registry, and a second registry is how the
          row over there became decoration in the first place. */
@@ -977,6 +995,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     const attendedUpto = new Date(nowMs).toISOString();
     const seedSql = (withPerks: boolean, withAttended: boolean) => sql.begin(async (tx) => {
       await tx`set local role hr_engine`;
+      await markSelf(tx);
       const [r] = (withPerks && withAttended)
         ? await tx`
         select (public.hr_seed(${user}::uuid, ${slot}::int,
@@ -1283,6 +1302,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         });
         const wres = await sql.begin(async (tx) => {
           await tx`set local role hr_engine`;
+          await markSelf(tx);
           const [r] = await tx`
             select public.hr_apply(${user}::uuid, ${slot}::int, ${env.version}::bigint,
                                    ${wIntentId}::uuid, ${JSON.stringify(delta)}::text::jsonb) as res`;
@@ -1399,6 +1419,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       });
       const applied = await sql.begin(async (tx) => {
         await tx`set local role hr_engine`;
+        await markSelf(tx);
         /* ⚠ `::text::jsonb`, NEVER `::jsonb`, ON A PRE-STRINGIFIED DELTA.
            THE CONSTRAINT: a parameter that POSTGRES DESCRIBES AS json/jsonb
            makes postgres.js re-serialize the value with JSON.stringify. With

@@ -10,17 +10,17 @@
 // The runner (runSmokeTest) stayed in ../smoke-test.js with the registry, because it
 // owns the PLAN and the parks around it, not the fixtures.
 // ══════════════════════════════════════════════════════════════════════
-import { on, snapshot } from '../../net/events.js?v=562';
-import { findUiOverlaps, watchUiOverlaps } from '../ui-overlap.js?v=562';
+import { on, snapshot } from '../../net/events.js?v=564';
+import { findUiOverlaps, watchUiOverlaps } from '../ui-overlap.js?v=564';
 // b225: the save-conflict rule, lifted out of pullAndMaybeRestore() precisely
 // so the "a local save is never discarded silently" promise is provable.
 // b226: same reasoning for the auth-event rule — the cached session is what the
 // account wall opens on, so "when may we delete it" has to be provable.
-import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../../net/auth.js?v=562';
+import { decideRestore, decideSessionEvent, decideLocalOwnership } from '../../net/auth.js?v=564';
 /* BESTIARY CHARMS (CHARM-2). The ladder's magnitudes are READ from the data
    table, never retyped: a designer re-pricing a rung must re-price the
    expectation, not turn the suite red. */
-import { CHARM_RANKS } from '../../data/bestiary-charms.js?v=562';
+import { CHARM_RANKS } from '../../data/bestiary-charms.js?v=564';
 
 export const errorLog = (window.__errorLog = window.__errorLog || []);
 
@@ -425,11 +425,19 @@ export function bountyRig(opts) {
     calls, target,
     armed: typeof window.clientMayWriteRecordField === 'function' && window.clientMayWriteRecordField('gold') === false,
     set(b) { if (window.ensureBountyState) window.ensureBountyState(); delete G._bountyServer; G.bountyHunter.active = b; return b; },
-    // hr_state_of's shape (TOP-LEVEL, as hr_load and the envelope carry it).
-    envelope(id, progress) {
+    // hr_state_of's shape (TOP-LEVEL, as hr_load and the envelope carry it);
+    // `version` (optional) is the envelope's frame version, as hr_load/hr_apply stamp it.
+    envelope(id, progress, version) {
       const a = G.bountyHunter.active || {};
-      return { bounty: { bounty_id: id, target, required: a.required, baseline: 100,
+      const e = { bounty: { bounty_id: id, target, required: a.required, baseline: 100,
         kills_now: 100 + progress, progress } };
+      if (version !== undefined) e.version = version;
+      return e;
+    },
+    /* A frame version newer than anything the bounty seam has seen or confirmed. */
+    nextVersion(k) {
+      const BV = window.HearthriseBountyView, s = (BV && BV.versions) ? BV.versions() : {};
+      return Math.max(Number(s.seen) || 0, Number(s.floor) || 0) + (k || 1);
     },
     fight(t) { if (!('mon' in saved)) saved.mon = G.activeMonster; G.activeMonster = t; },
     combatTab(on) {
@@ -2121,8 +2129,14 @@ export const stubSignedIn = (slot, name) => {
      reads the config belongs on it. Each is paused through its OWN hook and
      resumed on restore, so no arm has to remember a rule its own subject never
      mentions, and nothing here reaches in for a timer or swaps `window.fetch`.
+       · GitHub set/b563 @d09be9d5 caught muster.js's 60 s pledge pass
+         (hr_rally_pledge_state) inside SIGNED-IN-STUB's 2.5 s wait; the sweep
+         (a stub held 130 s, every request counted) added hearthfind.js's 90 s
+         board poll (hr_world_finds_of). hr_goal_state, the third, is parked
+         suite-wide by smoke-test.js.
      Regression: STUB-ORIGIN-1. */
-  const CHANNELS = [window.HearthriseTown, window.HearthriseNetStatus, window.HearthriseLive];
+  const CHANNELS = [window.HearthriseTown, window.HearthriseNetStatus, window.HearthriseLive,
+    window.HearthriseMuster, window.HearthriseHearthfind];
   CHANNELS.forEach((m) => { if (m && typeof m.__pauseForTest === 'function') m.__pauseForTest(); });
   window.HearthriseSupabase = { getConfig: () => ({ url: 'https://test.local', anonKey: 'k' }) };
   window.HearthriseAuth = { getSession: () => ({ user: { id: 'u' }, access_token: 't' }) };

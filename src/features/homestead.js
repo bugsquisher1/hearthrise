@@ -362,8 +362,8 @@
     if (missing.length) {
       if (window.notify) notify('Missing: ' + missing.map(function (m) {
         var n = (window.ITEMS && window.ITEMS[m.id] && window.ITEMS[m.id].n) || m.id;
-        if (!m.known) return (m.id === 'gold' || m.id === 'gems') ? m.id + ' balance not loaded yet' : n + ' still being counted';
-        return (m.id === 'gold' ? m.need + ' gold' : n + ' ×' + m.need);
+        if (!m.known) return (m.id === 'gold' ? 'Gold' : m.id === 'gems' ? 'Gems' : n) + ' still being counted';
+        return (m.id === 'gold' ? m.need.toLocaleString() + ' gold' : n + ' ×' + m.need.toLocaleString());
       }).join(', '), 'kill');
       return false;
     }
@@ -489,12 +489,12 @@
       var insp = (typeof window.hrInspectAttrs === 'function') ? window.hrInspectAttrs(k) : '';
       var inspHint = (typeof window.hrInspectHint === 'function') ? window.hrInspectHint(k) : '';
       return '<span class="hh-req' + (ok ? ' is-met' : '') + '"' + insp + ' title="' +
-        name + ': you hold ' + (h.known ? have : 'an unknown amount') + ' of ' + need + inspHint + '">' +
+        name + ': you hold ' + (h.known ? have.toLocaleString() : 'an unknown amount') + ' of ' + need.toLocaleString() + inspHint + '">' +
         '<span class="hh-req-art">' + art + '</span>' +
         '<span class="hh-req-name hr-si">' + name + '</span>' +
-        '<b>' + (h.known ? Math.min(have, need)
+        '<b>' + (h.known ? Math.min(have, need).toLocaleString()
           : '<span class="bal-pending" role="status" title="Waiting for the server">—</span>')
-        + ' / ' + need + '</b></span>';
+        + ' / ' + need.toLocaleString() + '</b></span>';
     }).join('');
   }
 
@@ -1175,11 +1175,18 @@
         var miss = d.next.missing.filter(function (m) { return m.known !== false; });
         var pend = d.next.missing.filter(function (m) { return m.known === false; });
         if (miss.length) say('Missing ' + miss.map(function (m) {
-          return m.id === 'gold' ? ((m.need - m.have) + ' gold') : (costName(m) + ' ×' + (m.need - m.have));
+          return m.id === 'gold' ? ((m.need - m.have).toLocaleString() + ' gold') : (costName(m) + ' ×' + (m.need - m.have).toLocaleString());
         }).join(', '), false);
-        if (pend.length) say(pend.map(function (m) {
-          return (m.id === 'gold' || m.id === 'gems') ? m.id + ' balance not loaded yet' : costName(m) + ' still being counted';
-        }).join(', '), false);
+        /* ONE house wording for every pending cost, currency or item, as a
+           sentence ("Gold and Normal Log still being counted"), not two phrasings
+           in one line ("gold balance not loaded yet, Normal Log still being counted"). */
+        if (pend.length) {
+          var pn = pend.map(function (m) {
+            return m.id === 'gold' ? 'Gold' : m.id === 'gems' ? 'Gems' : costName(m);
+          });
+          var ps = pn.length > 1 ? pn.slice(0, -1).join(', ') + ' and ' + pn[pn.length - 1] : pn[0];
+          say(ps.charAt(0).toUpperCase() + ps.slice(1) + ' still being counted', false);
+        }
       }
       if (reasons.length) {
         /* `why` stays COMPLETE — it is the button's hover title and the text an

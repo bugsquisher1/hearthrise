@@ -103,22 +103,22 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, isInventoryAbsolute, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcilePlayStreak, reconcileToolCarry, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileHp, reconcileFall, announceFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=562';
+import { isServerAccrualEnabled, resolveActiveSlot, isInventoryAbsolute, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcilePlayStreak, reconcileToolCarry, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileHp, reconcileFall, announceFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=564';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
-import { applyClientState } from './client-state.js?v=562';
+import { applyClientState } from './client-state.js?v=564';
 /* THE DUNGEON SCRIP ARM (docs/design/dungeon-settlement.md §1). Scrip becomes a
    top-level record field read from state.dungeon_scrip. Its own arm flag defaults
    OFF; while off the entry below is invisible to the field list / strip / decode
    loop (armed()=false), so nothing changes byte-for-byte until the rollout flips
    DUNGEON_SETTLE_ARM_ENABLED (coupled with increment 3's quartermaster_buy). */
-import { isDungeonSettleArmed } from './dungeon-scrip-record.js?v=562';
+import { isDungeonSettleArmed } from './dungeon-scrip-record.js?v=564';
 /* THE DISPLAY-PREDICTION SCRATCH (b455). record.js is the ONE writer of a moved
    field, so it is also the one place that can honestly retire a prediction: the
    number it is about to stamp already contains whatever the client predicted.
    predict.js imports nothing, so there is no cycle. */
-import { coverageBoundary, retirePredictions, reconcileCreditedXp, resetPredictions, MAX_PREDICTION_AGE_MS } from './predict.js?v=562';
+import { coverageBoundary, retirePredictions, reconcileCreditedXp, resetPredictions, MAX_PREDICTION_AGE_MS } from './predict.js?v=564';
 
 /* THE SAME SWITCH AS b337/b338, DELIBERATELY — and since b515 that switch is
    RETIRED, so this is a constant. A separate switch would have created a state
@@ -1554,6 +1554,7 @@ export function resetRecord() {
  */
 export async function requestRecord(opts) {
   const o = opts || {};
+  if (o.heal === true) return healRead(o);
   if (inFlight) return inFlight;
   /* LATCH, DON'T ABANDON (b428). A boot read that arrives before configureRecord
      wanted to run and could not; record that so configureRecord replays it the
@@ -1633,6 +1634,46 @@ export async function requestRecord(opts) {
      tail) means the latch cannot outlive the request that owns it. */
   const mine = inFlight;
   const release = () => { if (inFlight === mine) inFlight = null; };
+  mine.then(release, release);
+  return await mine;
+}
+
+/* ── THE GAP-HEAL READ (2026-10-09-frame-self-echo.sql) ───────────────────────
+   accrue.js requestGapHeal re-reads the projection when the browser has missed
+   a version. It is THIS read — the same hr_load request, the same classifier —
+   and NOT this module's settle(): the boot-only steps there (activity resume,
+   the residue hydrate, the boot ladder and its verdict) would replay a boot in
+   the middle of play. It returns the verdict with the body, applies nothing,
+   and touches no boot state; accrue.js applies the body through the same
+   mid-session applier every settle uses, under the frame gate. Its own latch
+   and never the boot read's: a heal may not borrow an answer to a request that
+   was sent before the version it is looking for existed. */
+let healInFlight = null;
+async function healRead(o) {
+  if (healInFlight) return healInFlight;
+  if (!config) return { outcome: 'unconfigured', reason: 'no_endpoint', applied: false };
+  const token = tokenOf();
+  if (!token) return { outcome: 'unconfigured', reason: 'no_token', applied: false };
+  const slot = resolveActiveSlot(Number.isInteger(o.slot) ? o.slot : config.slot);
+  const { url, init } = buildLoadRequest({ url: config.url, apiKey: config.apiKey, token, slot });
+  let ac = null; let timer = null;
+  try { ac = (typeof AbortController !== 'undefined') ? new AbortController() : null; } catch (e) { ac = null; }
+  const init2 = ac ? { ...init, signal: ac.signal } : init;
+  if (ac) {
+    timer = setTimeout(() => { try { ac.abort(); } catch (e) {} }, RECORD_TIMEOUT_MS);
+    try { if (timer && typeof timer.unref === 'function') timer.unref(); } catch (e) {}
+  }
+  const mine = healInFlight = (async () => {
+    try {
+      let res = null;
+      try { res = await fetch(url, init2); }
+      catch (e) { return { outcome: 'unreachable', reason: String((e && e.message) || e), applied: false }; }
+      let body = null;
+      try { body = await res.json(); } catch (e) { body = null; }
+      return { ...classifyLoadResponse(res.status, body), status: res.status, applied: false };
+    } finally { if (timer !== null) { try { clearTimeout(timer); } catch (e) {} timer = null; } }
+  })();
+  const release = () => { if (healInFlight === mine) healInFlight = null; };
   mine.then(release, release);
   return await mine;
 }

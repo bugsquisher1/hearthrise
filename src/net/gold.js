@@ -111,16 +111,16 @@
 // override IS the transport and the suite asserts the literal bytes.
 // ============================================================================
 
-import {
+import { fetchWrite,
   isServerAccrualEnabled, resolveActiveSlot, accrueEndpoint, MAX_SLOT,
   applyEnvelopeState, describeReplacement, isReplacementAcknowledged,
   showReplacementSheet, registerPredictionSeam, isReconcilePending,
   classifyFrame, commitFrame, resetFrameGate, getAppliedFrame, noteFrameDrop,   // the frame gate, §7.1
   applyCollectedReceipt,   // a verb that settled first hands its `collected` to the welcome card
-} from './accrue.js?v=562';
-import { SHOP_OFFERS } from '../data/shops.js?v=562';
-import { withSettleFirstRetry } from './settle-first.js?v=562';
-import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=562';
+} from './accrue.js?v=564';
+import { SHOP_OFFERS } from '../data/shops.js?v=564';
+import { withSettleFirstRetry } from './settle-first.js?v=564';
+import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=564';
 
 export const SHOP_BUY_VERB = 'shop_buy';
 export const VENDOR_SELL_VERB = 'vendor_sell';
@@ -1001,7 +1001,7 @@ export async function sendGoldIntent(req, key, opts) {
 
   let res = null;
   try {
-    res = await fetch(url, fetchOpts);
+    res = await fetchWrite(url, fetchOpts, 'gold');
   } catch (e) {
     dl.clear();
     /* NEVER ANSWERED. The prediction STANDS — see the header. */
@@ -1254,7 +1254,7 @@ async function buyTraitOnce(traitId, key) {
 
   let res = null;
   try {
-    res = await fetch(url, opts);
+    res = await fetchWrite(url, opts, 'gold');
   } catch (e) {
     const aborted = dl.fired;
     dl.clear();

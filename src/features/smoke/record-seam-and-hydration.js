@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 110 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, applyAwayEnvelope, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, on, snapshot, freshFrameGate, closeOverlays, serverBagFixture } from './_harness.js?v=562';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, applyAwayEnvelope, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, on, snapshot, freshFrameGate, closeOverlays, serverBagFixture } from './_harness.js?v=564';
 
 /* A RUNNING SMITHING BENCH ON A SCRIPTED WIRE — written once, driven by the two
    recipe-switch regressions below. See their header for the report. */
@@ -2848,7 +2848,7 @@ export default [
        This is the guard, and without it the divergence is invisible: production
        granted 0 gold and no weapon against a client that starts with 500 and a
        Bronze Sword, and nothing in the repo could see it. */
-    const KIT = await import('../../data/start-kit.js?v=562');
+    const KIT = await import('../../data/start-kit.js?v=564');
     const F = window.__FRESH_START;
     assert(F && typeof F === 'object',
       'window.__FRESH_START is missing — legacy.js no longer snapshots its fresh-character literal, '
@@ -2938,7 +2938,7 @@ export default [
        test pins the PROPERTY that shape exists for, so a future edit that keeps
        the shape honest while swapping the bridge for a prettier item that heals
        3 fails here instead of shipping. */
-    const KIT = await import('../../data/start-kit.js?v=562');
+    const KIT = await import('../../data/start-kit.js?v=564');
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     assert(AE && typeof AE.isAutoEatable === 'function',
       'HearthriseCore.autoEat.isAutoEatable missing — cannot grade the starting food');
@@ -3052,7 +3052,7 @@ export default [
     const AE = window.HearthriseCore && window.HearthriseCore.autoEat;
     const RNGM = window.HearthriseCore && window.HearthriseCore.rngMod;
     const ST = window.HearthriseCore && window.HearthriseCore.styles;
-    const KIT = await import('../../data/start-kit.js?v=562');
+    const KIT = await import('../../data/start-kit.js?v=564');
     if (!CS || !C || !AE || !RNGM || !ST) { skip('core sim unavailable'); return; }
 
     const eqp = { weapon: KIT.START_EQUIPMENT.weapon };
@@ -5175,7 +5175,7 @@ export default [
        in a CLASSIC script with no exports, so the only honest way to assert them
        is against the shipped bytes. Fetched from the same origin the engine
        loaded from, the way B-accrue and the observability guard already do. */
-    const src = await (await fetch('src/legacy.js?v=562')).text();
+    const src = await (await fetch('src/legacy.js?v=564')).text();
     assert(src.length > 100000, 'legacy.js did not come back — this guard would be vacuous');
 
     /* (1) THE FORGET. `loadLocal()`'s capstone early return skipped it, so the
@@ -8550,6 +8550,29 @@ export default [
       assert(btn.disabled === true, 'an unstated bag left the List button open');
       assert(/still being counted/.test(h2), 'an unstated bag was not said: "' + h2 + '"');
       assert(![...p2.options].some((o) => o.value), 'an unstated bag invented counts: ' + [...p2.options].map((o) => o.textContent).join(' | '));
+    } finally { bag.restore(); restoreG(snap); window.renderMarket(); }
+  }),
+
+  /* MP-R7b (visual gate): the shut List button LOOKED live — gold fill, opacity 1, a pointer —
+     and the quantity / asking inputs stayed typeable while the bag was being counted.
+     MUTATION: drop the `#mk-list-btn:disabled` rule in art-direction.css (opacity/cursor), or the
+     `bagUnstated ? ' disabled'` on either input in market.js → red. */
+  () => tryRun('MP-R7b: while the bag is counted the listing sheet is visibly shut, inputs included', () => {
+    const snap = snapshotG(), bag = serverBagFixture();
+    try {
+      delete window.G._serverBag;
+      window.renderMarket();
+      const btn = document.getElementById('mk-list-btn'), qty = document.getElementById('mk-list-qty'), each = document.getElementById('mk-list-each');
+      assert(btn && qty && each, 'fixture: the listing sheet did not render');
+      assert(btn.disabled && qty.disabled && each.disabled,
+        'an unstated bag left the sheet open: btn ' + btn.disabled + ', qty ' + qty.disabled + ', each ' + each.disabled);
+      const cs = getComputedStyle(btn);
+      assert(parseFloat(cs.opacity) < 0.6, 'the shut List button still reads live: opacity ' + cs.opacity);
+      assert(cs.cursor === 'not-allowed', 'the shut List button still offers a pointer: ' + cs.cursor);
+      bag.agree({ normal_log: 2 }); window.renderMarket();                    // CONTROL: a stated bag opens it
+      const b2 = document.getElementById('mk-list-btn'), q2 = document.getElementById('mk-list-qty');
+      assert(!b2.disabled && !q2.disabled && parseFloat(getComputedStyle(b2).opacity) > 0.9,
+        'CONTROL: a stated bag must open the sheet at full strength');
     } finally { bag.restore(); restoreG(snap); window.renderMarket(); }
   }),
 

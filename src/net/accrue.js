@@ -464,7 +464,207 @@ export function resetFrameGate() {
   clearFrameDrops();
   frameHeldAt = null;
   floorHeal = null;
+  resetGapHeal();
   return lastAppliedFrame;
+}
+
+/* ── THE GAP HEAL (2026-10-09-frame-self-echo.sql; CLAUDE.md §6) ───────────
+   The server no longer pushes a player's OWN write back to that player: the
+   HTTP response already carries the envelope. So a response that never
+   arrives is a write the browser will not hear about from anywhere else, and
+   "the browser says one thing while the server says another" until the next
+   envelope happens to land. Three signals mean the browser has missed a
+   version, and each asks for ONE re-read of the projection:
+     · a WRITE that ended with no envelope — an intent (fetchWrite) or an
+       accrue settle (requestAccrual) that threw, timed out or got a 5xx;
+     · a pushed FRAME whose version jumps past the floor (live.js onFrame): a
+       frame is partial (frame_keys), so what the skipped version changed
+       outside those keys is not in it;
+     · a settle-poll answer that states a version ABOVE the floor (after a
+       short grace, so a frame already in flight can land first).
+   THE READ IS THE EXISTING ONE: record.js requestRecord({heal:true}), the
+   hr_load projection the boot uses, in a mode that returns the verdict and
+   runs none of the boot-only hydration (activity resume, residue, the boot
+   ladder). THE WRITE IS THE EXISTING ONE: applyEnvelopeState, the same
+   mid-session applier every settle uses, under the same frame gate. Nothing
+   here reads a second projection or computes a number.
+   ARMED ONLY WHILE THE PUSH CHANNEL IS JOINED (live.js). That is exactly when
+   a self-frame used to be the thing that healed a lost response, so with no
+   channel (push off, signed out, Realtime down) the game is byte-for-byte
+   what it was. One read in flight; at most one per GAP_HEAL_MIN_INTERVAL_MS. */
+export const GAP_HEAL_MIN_INTERVAL_MS = 10000;
+export const GAP_HEAL_GRACE_MS = 1500;
+export const GAP_HEAL_JITTER_MS = 2000;
+let gapEnv = null;      // { read, G, applied, now, setTimer, clearTimer } while armed
+let gapGen = 0;         // bumps on disarm/reset, so an old answer lands nowhere
+let gapHeal = freshGapHeal();
+function freshGapHeal() {
+  return { inFlight: null, timer: null, pend: null, again: null, lastAt: 0, sent: 0, healed: 0,
+    stale: 0, lastReason: null, lastVerdict: null };
+}
+function resetGapHeal() {
+  gapGen += 1;
+  if (gapHeal.timer != null && gapEnv) { try { gapEnv.clearTimer(gapHeal.timer); } catch (e) {} }
+  gapHeal = freshGapHeal();
+}
+
+/** Arm with the transport's env (live.js, on SUBSCRIBED), or disarm with null
+ *  (on leave). Disarming drops any pending heal. */
+export function armGapHeal(e) {
+  if (!e) { resetGapHeal(); gapEnv = null; return false; }
+  gapEnv = e;
+  return true;
+}
+
+/** Diagnostics (bug report / tests). */
+export function getGapHealState() {
+  const { inFlight, timer, ...rest } = gapHeal;
+  return { ...rest, armed: !!gapEnv, pending: !!inFlight || timer != null };
+}
+
+/** Ask for ONE re-read of the projection. `opts.atLeast`: skip if the floor
+ *  has reached this version by the time the read would go out. `opts.delayMs`:
+ *  wait at least this long first. Returns what it did, never throws. */
+export function requestGapHeal(reason, opts) {
+  const e = gapEnv;
+  if (!e) return 'unarmed';
+  if (!awaySettleClosed) return 'boot';          // the boot settle + boot read ARE the heal
+  const o = opts || {};
+  const why = typeof reason === 'string' ? reason : 'gap';
+  if (gapHeal.inFlight) {
+    /* A read already out may predate the loss; ask once more after it. */
+    gapHeal.again = { reason: why, atLeast: o.atLeast };
+    return 'queued';
+  }
+  const now = e.now();
+  /* 0–GAP_HEAL_JITTER_MS of jitter (SEC, optional): a server blip that loses
+     many answers at once must not turn every open tab into one synchronised
+     hr_load burst. Injected by the transport so tests pin it to 0. */
+  let jitter = 0;
+  try { jitter = typeof e.jitterMs === 'function' ? Math.max(0, Math.min(GAP_HEAL_JITTER_MS, Number(e.jitterMs()) || 0)) : 0; }
+  catch (x) { jitter = 0; }
+  const wait = Math.max(gapHeal.lastAt ? gapHeal.lastAt + GAP_HEAL_MIN_INTERVAL_MS - now : 0,
+    Number.isFinite(o.delayMs) ? o.delayMs : 0, jitter);
+  if (wait > 0 || gapHeal.timer != null) {
+    /* ONE pending read for every request that arrives before it goes out. The
+       merged condition is the WEAKEST one: a request with no `atLeast` (a lost
+       write, a frame gap) must not be skipped because a poll's floor caught up. */
+    const p = gapHeal.pend;
+    gapHeal.pend = p
+      ? { reason: p.reason, atLeast: (Number.isFinite(p.atLeast) && Number.isFinite(o.atLeast))
+          ? Math.min(p.atLeast, o.atLeast) : undefined }
+      : { reason: why, atLeast: o.atLeast };
+    if (gapHeal.timer == null) {
+      const gen = gapGen;
+      gapHeal.timer = e.setTimer(() => {
+        if (gen !== gapGen) return;
+        gapHeal.timer = null;
+        const pend = gapHeal.pend;
+        gapHeal.pend = null;
+        if (pend) runGapHeal(pend.reason, pend.atLeast);
+      }, Math.max(wait, 0));
+    }
+    return 'deferred';
+  }
+  runGapHeal(why, o.atLeast);
+  return 'sent';
+}
+
+function runGapHeal(reason, atLeast) {
+  const e = gapEnv;
+  if (!e) return;
+  if (Number.isFinite(atLeast) && lastAppliedFrame >= atLeast) return;   // already caught up
+  const gen = gapGen;
+  gapHeal.lastAt = e.now();
+  gapHeal.sent += 1;
+  gapHeal.lastReason = reason;
+  const p = Promise.resolve()
+    .then(() => e.read())
+    .then((v) => {
+      if (gen !== gapGen) return null;                 // a different character, or disarmed
+      gapHeal.lastVerdict = (v && v.outcome) || null;
+      if (!v || v.outcome !== 'loaded') return null;
+      const G = e.G();
+      const written = applyHealProjection(G, v.body);
+      if (written) {
+        gapHeal.healed += 1;
+        try { e.applied(written); } catch (x) {}
+      } else if (lastHealRefusal === 'reorder') {
+        /* Something fresher landed while the read was out. A frame is partial,
+           so that is not proof the gap closed: ask once more (rate-limited). */
+        gapHeal.stale += 1;
+        gapHeal.again = gapHeal.again || { reason: 'heal_stale' };
+      }
+      return written;
+    })
+    .catch(() => null)
+    .then((w) => {
+      if (gen !== gapGen) return w;
+      gapHeal.inFlight = null;
+      const again = gapHeal.again;
+      gapHeal.again = null;
+      if (again) requestGapHeal(again.reason, { atLeast: again.atLeast });
+      return w;
+    });
+  gapHeal.inFlight = p;
+}
+
+/** Apply ONE re-read projection (an hr_load body): the whole envelope through
+ *  applyEnvelopeState, gated like a frame — `fresh` (the browser missed a
+ *  version) or `answer` (a partial frame at this version is all it has).
+ *  A duplicate means nothing changed and nothing is written; a reorder means a
+ *  fresher fact already landed and is never rewound. */
+let lastHealRefusal = null;
+export function applyHealProjection(G, body) {
+  lastHealRefusal = null;
+  const refuse = (why) => { lastHealRefusal = why; return null; };
+  if (!G || typeof G !== 'object') return refuse('no_g');
+  if (!body || body.ok !== true || !body.state || typeof body.state !== 'object'
+      || !body.skills || typeof body.skills !== 'object'
+      || !body.inventory || typeof body.inventory !== 'object') return refuse('malformed');
+  if (!awaySettleClosed || isReconcilePending()) return refuse('booting');
+  const gate = classifyFrame(body.version);
+  if (gate.verdict !== 'fresh' && gate.verdict !== 'answer') return refuse(gate.verdict);
+  const written = applyEnvelopeState(G, body);
+  commitFrame(body.version);
+  written.envelope = body;
+  G._serverAccrual = { ...(G._serverAccrual || {}), version: body.version,
+    accruedTo: (body.state && body.state.accrued_to) || (G._serverAccrual && G._serverAccrual.accruedTo) || null,
+    at: nowMs(), via: 'heal' };
+  return written;
+}
+
+/** fetch() for a WRITE to hr-accrue. Identical to fetch, plus: a write that
+ *  threw (network, abort, timeout) or answered 5xx ended with no envelope, so
+ *  the server may have committed what the browser never heard — ask for the
+ *  gap heal. `verb` names the reason in diagnostics only. */
+export async function fetchWrite(url, init, verb) {
+  let res;
+  try { res = await fetch(url, init); } catch (err) {
+    requestGapHeal('lost:' + (verb || 'write'));
+    throw err;
+  }
+  if (res && typeof res.status === 'number' && res.status >= 500) requestGapHeal('5xx:' + (verb || 'write'));
+  /* SEC (APPLY GO-WITH-CHANGES, change A): a 2xx whose body is unreadable or
+     truncated, or that carries no versioned envelope, is a committed write the
+     browser never heard about either. The body read is the caller's, so it is
+     wrapped here: same value, same throw, plus the heal. */
+  if (res && typeof res.status === 'number' && res.status >= 200 && res.status < 300
+      && typeof res.json === 'function') {
+    const read = res.json.bind(res);
+    const why = verb || 'write';
+    try {
+      res.json = async () => {
+        let body;
+        try { body = await read(); } catch (err) { requestGapHeal('unreadable:' + why); throw err; }
+        if (!body || typeof body !== 'object' || !Number.isFinite(frameVersion(body.version))) {
+          requestGapHeal('no_envelope:' + why);
+        }
+        return body;
+      };
+    } catch (e) { /* a frozen response: the poll gap still heals it */ }
+  }
+  return res;
 }
 
 /** Named so a caller branches on the REASON, not on the numbers. */
@@ -1134,6 +1334,18 @@ export async function requestAccrual(opts) {
 
   try {
     const out = await inFlight;
+    /* THE GAP HEAL, AWAY + POLL HALVES. A settle that ended with no envelope
+       may have paid an absence the browser never heard about; a settle that
+       says the server is AHEAD of the floor means a version was missed. */
+    if (out && !out.abandoned && (out.outcome === 'unreachable' || out.outcome === 'unavailable'
+        || out.outcome === 'malformed')) {
+      requestGapHeal('accrue:' + out.outcome);
+    } else if (out && out.outcome === 'nothing' && out.body && lastAppliedFrame >= 0) {
+      const v = frameVersion(out.body.version);
+      if (Number.isSafeInteger(v) && v > lastAppliedFrame) {
+        requestGapHeal('poll_gap', { atLeast: v, delayMs: GAP_HEAL_GRACE_MS });
+      }
+    }
     if (skippedSnap && out && (out.outcome === 'accrued' || out.outcome === 'nothing')) {
       dropPendingCombatXp(skippedSnap);
     }
@@ -2477,14 +2689,14 @@ export function startFlipDriftReporter(intervalMs) {
    imports nothing, so there is no cycle to dodge — and a direct import has no
    "unregistered, therefore silently inert" failure mode, which for a correction
    that prevents an item dupe is the whole ballgame. */
-import * as itemLedger from './item-ledger.js?v=562';
+import * as itemLedger from './item-ledger.js?v=564';
 
 /* THE SERVER-OWNED-ITEM PREDICATE (server-authority inventory-flip, Step 2).
    A pure data-derived leaf like item-ledger.js — no cycle to dodge, so a direct
    import. It answers "may the absolute envelope OWN this id?"; a false id is one
    a live, un-modeled path writes (cooked food, crop, dungeon reward, companion
    proc) and the absolute branch below leaves the client's copy of it intact. */
-import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED, INVENTORY_ARM_STAGE, inventoryArmStaged } from '../data/item-authority.js?v=562';
+import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlockers, INVENTORY_ARM_ENABLED, INVENTORY_ARM_STAGE, inventoryArmStaged } from '../data/item-authority.js?v=564';
 
 /* THE SERVER-ACCRUED-SKILL PREDICATE (P0 — client-only skills must not be
    dragged DOWN by the absolute reconcile). Same shape and same reasoning as
@@ -2493,15 +2705,15 @@ import { serverOwnedItem, serverConsumedItem, rebuildItemAuthority, flipArmBlock
    cooking, or any skill with no server accrual path — follows Math.max below
    (can only rise) instead of the absolute assign, so the server's FROZEN xp for
    an un-modeled skill can never reduce the client's real progress. */
-import { serverAccruedSkill } from '../data/skill-authority.js?v=562';
+import { serverAccruedSkill } from '../data/skill-authority.js?v=564';
 /* THE START KIT — the fresh-G bag hint the first envelope discards (see the
    START_INVENTORY block in reconcileInventory). The SAME frozen source the
    server's hr_start_kit catalogue is generated from, so there is no second copy
    of the numbers here either. */
-import { START_INVENTORY } from '../data/start-kit.js?v=562';
+import { START_INVENTORY } from '../data/start-kit.js?v=564';
 /* The cache-buster, so a soak row says WHICH build produced it (a +24 h window
    spans a release). A frozen constant leaf — no cycle, no DOM. */
-import { BUILD } from '../build-info.js?v=562';
+import { BUILD } from '../build-info.js?v=564';
 
 /* WHAT THE CLIENT HAS SPENT AND THE SERVER HAS NOT AGREED TO YET (LIVE P0,
    "food eaten in combat gets restocked"). Another pure leaf that imports
@@ -2519,25 +2731,25 @@ import { BUILD } from '../build-info.js?v=562';
    because the XP buffer is ADDITIVE and drains on the flush's own receipt,
    while this is SUBTRACTIVE and drains on the server's figure moving — one file
    holding both rules would have to state which one it was obeying per call. */
-import * as pendingConsume from './pending-consume.js?v=562';
+import * as pendingConsume from './pending-consume.js?v=564';
 /* The style catalogue's DEFAULTS — the same object the picker, the XP router and
    the server-side accrual engine all read (src/core/styles.js). Imported rather
    than restated so `reconcileCombatStyle`'s back-fill filter can never disagree
    with what `resolveStyle` treats as "unchosen"; two copies of that fact is the
    b222 shape this repo has already paid for once. */
-import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=562';
+import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=564';
 /* b492 — the property/worker rung OBSERVER. A static import rather than a window
    hop so the observation is exercised in Node by the suite exactly as it runs in
    the browser; property-record.js imports NOTHING, so there is no cycle. */
-import { notePropertyUnlocks, pickBankRung, isCompleteProgressStatement } from './property-record.js?v=562';
+import { notePropertyUnlocks, pickBankRung, isCompleteProgressStatement } from './property-record.js?v=564';
 /* b313 rev.2 — the companion XP CURVE, for the level-up detector below. The
    pure core copy (src/core/companion-perk.js), not the feature module's twin:
    companions.js imports the event bus and reaches for window, and this file is
    driven headlessly by the suite. The two curves are pinned equal to each other
    by tests/perk-channel.mjs, so reading the level here can never disagree with
    the level the doll and getCompanionBonus read. */
-import { companionLevelFromXp } from '../core/companion-perk.js?v=562';
-import { capHoursFromVigour } from './offline-cap.js?v=562';
+import { companionLevelFromXp } from '../core/companion-perk.js?v=564';
+import { capHoursFromVigour } from './offline-cap.js?v=564';
 
 /* ── THE HIRED CREW, RECONCILED FROM THE ENVELOPE (worker-settlement slice) ──
    `hr_state_of` projects the server-owned crew (player_workers — no client write
@@ -5380,11 +5592,17 @@ export function applyFrame(G, msg) {
   if (gate.verdict !== 'fresh') return refuse(gate.verdict, gate.verdict === 'reorder');
   const release = holdFallAnnounce();
   try {
+    const prev = lastAppliedFrame;
     const written = applyEnvelopeState(G, env);
     commitFrame(env.version);
     frameHeldAt = env.version;
     lastFrameRefusal = null;
     written.envelope = env;
+    /* A JUMP: a version between the floor and this frame never reached the
+       browser (its own write's lost answer, a write that pushes no frame, or
+       tick frames held while the tab had no live window). This frame is
+       partial, so the transport asks for the gap heal (live.js). */
+    if (prev >= 0 && env.version > prev + 1) written.gap = { from: prev, to: env.version };
     G._serverAccrual = { ...(G._serverAccrual || {}), version: env.version,
       accruedTo: (env.state && env.state.accrued_to) || (G._serverAccrual && G._serverAccrual.accruedTo) || null,
       at: nowMs(), via: 'frame' };
@@ -6859,6 +7077,9 @@ if (typeof window !== 'undefined') {
     beginFloorHeal, healAnswer, endFloorHeal, getFloorHeal,
     /* THE PUSHED FRAME (M5) — live.js is the transport, this is the applier. */
     FRAME_KEYS, FRAME_KEYS_NEED_ABSOLUTE, frameEnvelopeOf, applyFrame, frameRefusal,
+    /* THE GAP HEAL (2026-10-09-frame-self-echo.sql): a missed version re-reads hr_load. */
+    GAP_HEAL_MIN_INTERVAL_MS, GAP_HEAL_GRACE_MS, armGapHeal, getGapHealState, requestGapHeal,
+    applyHealProjection, fetchWrite,
     isAccrualFailure, newAccrualGate, accrualGateStep, decideAccrualGate,
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES, playStreakKnown,
     awaySettleDone, __resetAwaySettleLatch, settleInFlight, dropPendingCombatXp,   // settle-first, read by legacy.js's combat-XP cadence

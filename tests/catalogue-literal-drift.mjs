@@ -97,7 +97,9 @@ export async function catalogueLiteralDrift(opts = {}) {
   const repo = await deriveCatalogueRows();
   if (opts.dataMutate) opts.dataMutate(repo);
 
-  const { db } = await bootReplay(opts.patches ? { patches: opts.patches } : {});
+  const { db } = await bootReplay(opts.patches
+    ? { patches: opts.patches, fullChain: 'the drift is the CHAIN-END catalogue against src/data; every file judges it' }
+    : {});
 
   const problems = [];
   const counts = {};

@@ -34,7 +34,7 @@
 // starts from 0 every time, so it steps back down when room returns.
 // ============================================================
 
-import { compactNumber } from '../net/balance.js?v=562';
+import { compactNumber } from '../net/balance.js?v=564';
 
 /** A figure in both forms for the fit steps to pick between: the full one
  *  while there is room, the compact one ("1.2M") once its chip's step is taken. */

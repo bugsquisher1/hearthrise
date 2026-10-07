@@ -857,6 +857,9 @@ img,svg{display:block;max-width:100%}
   background:rgba(255,255,255,.03);border:1px solid var(--line-soft);
   color:var(--ink-2);font-size:calc(14.5px * var(--ui-scale, 1));line-height:1.5;
 }
+/* One quiet line when the bag shows more than the realm has counted, so
+   "400 quantity" beside "Sell All 380" is explained. Plain text, no box. */
+.inv-detail-sellnote{flex:1 0 100%;margin:0;color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1));font-style:italic;line-height:1.45}
 /* b387 — flex-wrap instead of a rigid 120px grid: a long label ("Sell All 2000 ·
    80,000", "Enchant a weapon with this") in a 1fr grid track kept its nowrap text
    but the track could not grow to fit it, so the text bled past the button edge.

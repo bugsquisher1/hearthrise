@@ -74,7 +74,7 @@
 // override IS the transport, and the suite asserts the literal bytes.
 // ============================================================================
 
-import {
+import { fetchWrite,
   isServerAccrualEnabled, resolveActiveSlot, accrueEndpoint, MAX_SLOT,
   applyEnvelopeState, holdFallAnnounce, describeReplacement,
   isReplacementAcknowledged, showReplacementSheet, beginServerAccrual,
@@ -85,14 +85,14 @@ import {
   /* THE RECEIPT READERS and the once-per-window seam every verb's `collected`
      feeds (2026-09-28) — they live beside the away holder they write. */
   collectedOf, awayFromCollected, applyCollectedReceipt,
-} from './accrue.js?v=562';
+} from './accrue.js?v=564';
 /* THE PAYABLE-BENCH PREDICATE, read — never restated. `benchPayable` lives in
    src/core/artisan-sim.js and is the SAME function the accrual engine's
    `computeAccrual` and the intent's shape check read, so the client, the engine
    and the intent cannot disagree about which benches exist tonight. Precedent:
    src/net/gold.js already imports src/data/shops.js for exactly this reason. */
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=562';
-import { indexArtisanRecipes, recipePayable } from '../core/artisan-sim.js?v=562';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=564';
+import { indexArtisanRecipes, recipePayable } from '../core/artisan-sim.js?v=564';
 
 export const ACTIVITY_VERB = 'set_activity';
 
@@ -883,7 +883,7 @@ async function attemptOnce(kind, id, key, attempt) {
   let res = null;
   let aborted = false;
   try {
-    res = await fetch(url, opts);
+    res = await fetchWrite(url, opts, 'set_activity');
   } catch (e) {
     aborted = !!(ac && ac.signal && ac.signal.aborted);
     if (timer) clearTimeout(timer);

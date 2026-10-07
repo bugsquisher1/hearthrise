@@ -49,6 +49,11 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, ROOT } from './schema-replay.mjs';
+/* A mutant replays UP TO the newest file this guard stands on, never past it, so a
+   newer migration's lock or self-check cannot refuse first: the newest file it names;
+   its arms drive bodies that file restated. (tests/schema-replay.mjs
+   replayScopeError). The plain run is the whole chain. */
+const REPLAY_UPTO = '2026-10-04-bounty-abandon-server-fee.sql';
 
 const MIG = '2026-09-03-intent-mismatch-class.sql';
 
@@ -68,7 +73,7 @@ const MIG = '2026-09-03-intent-mismatch-class.sql';
    of this sweep is precisely the hole the sweep exists to see. */
 export const GUARDED = [
   'public.hr_bank_move(int,text,bigint,text,uuid)',
-  'public.hr_bounty_spend__ungated(int,text,int,bigint,uuid)',
+  'public.hr_bounty_spend__ungated(int,text,text,uuid)',     // 4-arg since 2026-10-04-bounty-abandon-server-fee.sql (guard carried from birth)
   'public.hr_buy_hero_slot__ungated(int,int,uuid)',
   'public.hr_claim_goal__ungated(text,boolean,int,uuid)',
   'public.hr_farm_harvest(int,int,uuid)',
@@ -287,7 +292,7 @@ async function run(mutate) {
     ? new Map([[mutationFile(mutate), mutationPairs(mutate)]])
     : undefined;
   /* NO `upTo` — see the header. The property must hold at the END of the chain. */
-  const { db } = await bootReplay({ patches });
+  const { db } = await bootReplay(patches ? { patches, upTo: REPLAY_UPTO } : {});
 
   const q = async (sql, p) => (await db.query(sql, p)).rows;
   /* SESSION-SCOPED (`is_local = false`): PGlite runs each query in its own

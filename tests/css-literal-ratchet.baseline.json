@@ -1,6 +1,6 @@
 {
   "method": "comments stripped; declaration VALUES only; quoted strings dropped; custom properties in :root / html[data-theme…] / body[data-theme…] blocks exempt; literal = hex(3/4/6/8) | rgb|rgba|hsl|hsla|hwb|lab|lch|oklab|oklch|color( | one of 149 CSS named colours as a whole token (transparent/currentColor/inherit excluded); !important = raw occurrences; js table = hex inside string literals in src/**/*.js",
-  "measured": "2026-10-05",
+  "measured": "2026-10-07",
   "note": "Ceilings, not targets. Counts may only fall. Regenerate with `node tests/css-literal-ratchet.mjs --write` when they do — never to make a red build green.",
   "css": {
     "art-direction.css": {
@@ -69,7 +69,7 @@
     },
     "theme-cozy.css": {
       "literals": 171,
-      "important": 583
+      "important": 576
     },
     "tokens.css": {
       "literals": 0,

@@ -6,10 +6,10 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 131 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays, phoneFrame, withStockedFight, serverBagFixture } from './_harness.js?v=562';
-import { weaknessOf, weaknessWords } from '../../render/foe-weakness.js?v=562';
-import { fitBar, xpChip } from '../../render/bar-fit.js?v=562';
-import { weaknessInfo, WEAPON_TYPES } from '../../core/combat.js?v=562';
+import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays, phoneFrame, withStockedFight, serverBagFixture } from './_harness.js?v=564';
+import { weaknessOf, weaknessWords } from '../../render/foe-weakness.js?v=564';
+import { fitBar, xpChip } from '../../render/bar-fit.js?v=564';
+import { weaknessInfo, WEAPON_TYPES } from '../../core/combat.js?v=564';
 
 /* DEEPWATERS fixture (content pack 8). Bonus-free and gear-free — getBonus and
    the rested quantum pinned to 0 and an EMPTY equipment stat block (Timberline
@@ -3813,9 +3813,12 @@ export default [
      the RED run raises none of the page errors this test exists to prevent. */
   () => tryRunAsync('STUB-ORIGIN-1: a stubbed session pauses every cadenced channel, and none asks the harness origin', async () => {
     const T = window.HearthriseTown, N = window.HearthriseNetStatus;
+    const M = window.HearthriseMuster, HF = window.HearthriseHearthfind;
     const hookable = (m) => m && typeof m.__pauseForTest === 'function' && typeof m.__resumeForTest === 'function';
     assert(hookable(T) && typeof T.refreshTown === 'function' && typeof T.heartbeat === 'function'
-      && hookable(N) && typeof N.__probeForTest === 'function' && typeof N.__probesForTest === 'function',
+      && hookable(N) && typeof N.__probeForTest === 'function' && typeof N.__probesForTest === 'function'
+      && hookable(M) && typeof M.__ambientTick === 'function' && typeof M.__flushTick === 'function'
+      && typeof M._resetHydrateThrottle === 'function' && hookable(HF) && typeof HF.__pollTick === 'function',
       'a channel on the helper\'s list has no pause seam — this test would pass vacuously');
     const realFetch = window.fetch, hits = [], prior = window.G._town;
     const STUB = 'https://test.local';
@@ -3837,6 +3840,11 @@ export default [
       await T.refreshTown(Date.now() + T.TOWN_POLL_MS);
       await T.heartbeat(Date.now() + T.TOWN_POLL_MS);
       await N.__probeForTest();
+      // The interval ticks; the pledge pass reads only with no pledge and its throttle open.
+      const hadPledge = Object.prototype.hasOwnProperty.call(window.G, 'rallyPledge'), pledgeWas = window.G.rallyPledge;
+      delete window.G.rallyPledge; M._resetHydrateThrottle();
+      try { await M.__ambientTick(); await M.__flushTick(); await HF.__pollTick(); }
+      finally { if (hadPledge) window.G.rallyPledge = pledgeWas; }
       unstub();
       await Promise.all(straddling);
       await T.refreshTown(Date.now() + T.TOWN_POLL_MS * 2);
@@ -3845,7 +3853,9 @@ export default [
       assert(!hits.length && !spent, 'the stub origin was asked for ' + (hits.length + spent)
         + ' request(s): ' + hits.concat(spent ? [spent + ' network-status probe(s)'] : []).join(', '));
       assert(T.__pauseForTest() === 1 && T.__resumeForTest() === 0
-        && N.__pauseForTest() === 1 && N.__resumeForTest() === 0,
+        && N.__pauseForTest() === 1 && N.__resumeForTest() === 0
+        && M.__pauseForTest() === 1 && M.__resumeForTest() === 0
+        && HF.__pauseForTest() === 1 && HF.__resumeForTest() === 0,
         'the stub did not resume a channel it paused — a depth did not return to zero, so that channel '
         + 'stays dead for every arm after it and this test would pass by silencing the feature');
     } finally {
@@ -4954,7 +4964,7 @@ export default [
           const b = r.host.querySelector('[data-codex="vigour"]');
           assert(b, 'the dry line has no "What is Vigour?" button: ' + r.text());
           b.click();
-          await import('../../data/codex.js?v=562');
+          await import('../../data/codex.js?v=564');
           for (let i = 0; i < 10 && !document.querySelector('#codex-modal.show'); i++) await drain();
           assert(document.querySelector('#codex-modal.show'), 'the Codex did not open');
           assert(document.querySelector('#cx-vigour[open]'), 'the Codex did not open at the Vigour entry');
@@ -5775,7 +5785,7 @@ export default [
   // restated its own copy on every declaration is how a stale client value ends
   // up overwriting a server one.
   () => tryRunAsync('hunt panel: set_activity carries stance/stop only when named', async () => {
-    const mod = await import('../../net/activity.js?v=562');
+    const mod = await import('../../net/activity.js?v=564');
     const bodyOf = (o) => JSON.parse(mod.buildActivityRequest(
       Object.assign({ kind: 'combat', id: 'goblin', intentId: 'k' }, o)).init.body);
     const bare = bodyOf({});

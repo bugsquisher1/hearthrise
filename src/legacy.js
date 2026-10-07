@@ -3975,6 +3975,7 @@ function repaintBounty(){
 function acceptBounty(index){
   ensureBountyState();
   if(G.bountyHunter.active){notify('Finish or abandon your active bounty first.','kill');return;}
+  if((window.hrBountyBusy?window.hrBountyBusy():{}).abandon){notify('Abandoning your bounty, one moment.','info');return;}
   const b=G.bountyHunter.board[index];if(!b)return;
   G.bountyHunter.active=JSON.parse(JSON.stringify(b));
   /* Snapshot the proof-item count at accept time so only kills AFTER this count
@@ -3997,6 +3998,7 @@ function acceptBounty(index){
            flight" — see hrAdoptAcceptedBounty. */
         const _accepted=G.bountyHunter.active;
         const _p=HearthriseGoalClaim.acceptBounty(_accepted);
+        try{window.HearthriseBountyView.trackAccept(_p);}catch(e){}
         if(_p&&_p.then)_p.then(function(res){ hrAdoptAcceptedBounty(res,_accepted); }).catch(function(){});
         else if(_p&&_p.catch)_p.catch(function(){});
       }
@@ -4116,26 +4118,8 @@ function hrAdoptAcceptedBounty(res,accepted){
   return out;
 }
 window.hrAdoptAcceptedBounty=hrAdoptAcceptedBounty;
-function abandonBounty(){
-  if(!G.bountyHunter?.active)return;
-  const b=G.bountyHunter.active;
-  const lv=getBountyHunterLevel();
-  if(lv>=10){
-    const fee=Math.min(10,Math.floor((b.rewards?.marks||0)*.25));
-    if(clientMayWriteRecordField('marks')){
-      /* DORMANT: client owns marks — debit locally exactly as before. */
-      G.marks=Math.max(0,(G.marks||0)-fee);if(fee)notify(`Bounty abandoned (-${fee} Marks)`,'kill');
-    } else {
-      /* ARMED: server owns marks. The real debit is hr_bounty_spend (which re-derives
-         the fee from the server's active_bounty); the next envelope reconciles. */
-      try{if(window.HearthriseGoalClaim&&HearthriseGoalClaim.bountyAbandon){const _p=HearthriseGoalClaim.bountyAbandon(lv,b.rewards?.marks||0);if(_p&&_p.catch)_p.catch(()=>{});}}catch(e){}
-      if(fee)notify(`Bounty abandoned (-${fee} Marks)`,'kill');
-    }
-  }
-  else notify('Bounty abandoned','info');
-  hrClearBountyRetry(b);
-  G.bountyHunter.active=null;renderCombat();repaintBounty();saveLocal();
-}
+/* Abandon (server fee, contract ends only on ok:true) lives in src/render/bounty-progress.js. */
+function abandonBounty(){const V=window.HearthriseBountyView;return (V&&V.abandon)?V.abandon():Promise.resolve(null);}
 /* @param prepaid — the caller has ALREADY charged for this refresh (the Bounty
    Shop's Reroll Token). It was passing `rerollBountyBoard(true)` into a function
    that took no arguments, so a purchased reroll ALSO burned the free one, or
@@ -4924,8 +4908,8 @@ function renderBountyPanel(){
       <p class="bb-task">${bountyLabel(active)}</p>
       <p class="bb-weak">Weak to ${WEAPON_TYPES[m?.weaponWeak]||'—'}${_hrDropBonusNote(m)}${window.HearthriseFoe?window.HearthriseFoe.elementSuffix(active.target):''}</p>${window.HearthriseFoe?window.HearthriseFoe.noticeHtml(active.target):''}
       <div class="bb-prog"><span class="bb-prog-t">${bountyProgressText(active)}</span><span class="bb-bar"><i style="width:${pct}%"></i></span></div>
-      <div class="bb-pay">${_gp(active.rewards.gold)}<span>${active.rewards.marks} Marks</span><span>${active.rewards.xp} BH XP</span></div>
-      <div class="bb-foot">${_claimBtn}<button class="btn btn-sm btn-danger" onclick="abandonBounty()">Abandon</button></div>
+      ${active.rewards&&active.rewards.gold!=null?`<div class="bb-pay">${_gp(active.rewards.gold)}<span>${active.rewards.marks} Marks</span><span>${active.rewards.xp} BH XP</span></div>`:''}
+      <div class="bb-foot">${_claimBtn}<button class="btn btn-sm btn-danger" onclick="abandonBounty()"${(window.hrBountyBusy?window.hrBountyBusy():{}).any?' disabled':''}>Abandon</button></div>
     </article>`;
   }else{
     notices=bh.board.map((b,i)=>{
@@ -4945,7 +4929,7 @@ function renderBountyPanel(){
         <p class="bb-task">${bountyLabel(b)}</p>
         <p class="bb-weak">Weak to ${WEAPON_TYPES[m?.weaponWeak]||'—'}${_hrDropBonusNote(m)}${window.HearthriseFoe?window.HearthriseFoe.elementSuffix(b.target):''}</p>
         <div class="bb-pay">${_gp(b.rewards.gold)}<span>${b.rewards.marks} Marks</span><span>${b.rewards.xp} BH XP</span></div>
-        <div class="bb-foot"><button class="btn btn-sm btn-primary" onclick="acceptBounty(${i})">Accept</button></div>
+        <div class="bb-foot"><button class="btn btn-sm btn-primary" onclick="acceptBounty(${i})"${(window.hrBountyBusy?window.hrBountyBusy():{}).abandon?' disabled title="Abandoning your bounty"':''}>Accept</button></div>
       </article>`;
     }).join('');
   }
@@ -7097,7 +7081,7 @@ function renderProfile(){
   const subEl = document.getElementById('dash-user-sub');
   const bodyEl = document.getElementById('dash-user-body');
   if (!subEl || !bodyEl) return; // Profile panel not in DOM yet — bail
-  subEl.textContent = (window.hrRecordPending?window.hrRecordPending():true) ? 'Lv — · Total —' : `Lv ${cl} · Total ${tl}`;
+  subEl.textContent = (window.hrRecordPending?window.hrRecordPending():true) ? 'Lv — · Total —' : `Lv ${cl} · Total ${Number(tl).toLocaleString()}`;
   bodyEl.innerHTML=`
     ${(()=>{
       // Auth-state resolution for the Profile dashboard:
@@ -8505,35 +8489,35 @@ function renderHouse(){
       const newCropsLabel = newCrops.length
         ? newCrops.map(id=>`${CROPS[id]?.icon||''} ${CROPS[id]?.name||id} <span class="muted">(Farming ${CROPS[id]?.req||1})</span>`).join(', ')
         : (lv >= max ? 'All crops unlocked' : 'No new crops at this tier');
-      const canUpgrade = !!(chk && chk.ok);
-      const priceLine = price
-        ? `Costs ${_gp(price.gold)} <span class="muted">or</span> ${price.deeds} Farmer's Deed${price.deeds===1?'':'s'} · needs Farming ${price.farming}`
+      const canUpgrade = !!(chk && chk.ok), plotPending = !!(chk && chk.error === 'plot_level_pending');   /* no server rung: no price, no shortfall, no live button */
+      const priceLine = !plotPending && price
+        ? `Costs ${_gp(price.gold)} <span class="muted">or</span> ${price.deeds.toLocaleString()} Farmer's Deed${price.deeds===1?'':'s'} · needs Farming ${price.farming}`
         : '';
       /* WHAT YOU HAVE, against WHAT IT COSTS — the short line that turns a
          disabled button into a goal. The blocking fact is named first. */
-      const haveLine = price
-        ? `You have ${_gp(goldNow)} · ${have} deed${have===1?'':'s'} · Farming ${farmLv}`
+      const haveLine = !plotPending && price
+        ? `You have ${_gp(goldNow)} · ${have.toLocaleString()} deed${have===1?'':'s'} · Farming ${farmLv}`
           + (chk && chk.error === 'farm_level_too_low'
               ? ` — <b>${price.farming - farmLv} more farming level${price.farming-farmLv===1?'':'s'}</b>`
               : (chk && chk.error === 'cannot_afford'
                   ? ` — <b>${_gp(price.gold - goldNow)} short</b>`
                   : ''))
         : '';
-      const btnLabel = price
+      const btnLabel = plotPending ? 'Upgrade · counting…' : price
         ? (chk && chk.ok && chk.pay === 'deeds'
-            ? `Spend ${price.deeds} Deed${price.deeds===1?'':'s'}`
+            ? `Spend ${price.deeds.toLocaleString()} Deed${price.deeds===1?'':'s'}`
             : `Upgrade · ${_gp(price.gold)}`)
         : '';
       plotCard = `<div class="shop-row" style="border:1px solid var(--accent,#7f9a4f);background:rgba(127,154,79,0.05)">
         <span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center">${_hrGly('navFarm',30)}</span>
         <div class="info">
           ${window.HearthriseFarm.tierHeadHtml()}${window.HearthriseFarm.tierLoreHtml()}
-          <span>${lv >= max ? 'Maxed — all crops unlocked' : `Next tier unlocks: ${newCropsLabel}`}</span>
+          <span${plotPending?' class="bal-pending" role="status"':''}>${plotPending ? 'Your plot tier is still being counted' : lv >= max ? 'Maxed — all crops unlocked' : `Next tier unlocks: ${newCropsLabel}`}</span>
           ${priceLine?`<span class="tiny">${priceLine}</span>`:''}
           ${haveLine?`<span class="tiny muted">${haveLine}</span>`:''}
         </div>
-        ${lv < max
-          ? `<button class="btn btn-sm ${canUpgrade?'btn-primary':''}" ${canUpgrade?'':'disabled'} onclick="window.HearthriseFarm.upgradePlot()">${btnLabel}</button>`
+        ${plotPending || lv < max
+          ? `<button class="btn btn-sm ${canUpgrade?'btn-primary':''}" ${canUpgrade?'':'disabled'}${plotPending?' data-pending="plot-level" title="Your plot tier is still being counted"':''} onclick="window.HearthriseFarm.upgradePlot()">${btnLabel}</button>`
           : '<span class="tag">MAX</span>'}
       </div>`;
     }
@@ -8584,7 +8568,7 @@ function describeMissingCost(cost){
   const parts=[];
   for(const [k,v] of Object.entries(cost||{})){
     const _bal=(k==='gold'||k==='gems'), _srv=_bal?null:(window.HearthriseAccrual?.gateItemCount(G,k)??null);
-    if(_bal?!balKnown(k):_srv===null){ parts.push(_bal?k+' balance not loaded yet':((ITEMS[k]&&ITEMS[k].n)||k)+' still being counted'); continue; }
+    if(_bal?!balKnown(k):_srv===null){ parts.push((_bal?(k==='gold'?'Gold':'Gems'):((ITEMS[k]&&ITEMS[k].n)||k))+' still being counted'); continue; }
     const have=k==='gold'?balNum('gold'):k==='gems'?balNum('gems'):_srv;
     if(have<v){
       parts.push(k==='gold'?((v-have)+' gold'):(((ITEMS[k]&&ITEMS[k].n)||k)+' ×'+(v-have)));
@@ -10047,7 +10031,7 @@ function openInvDetail(id){
       acts.push(`<button class="btn" title="Starts the altar bench — ${_bg.xp} Prayer XP per bone, and it keeps burying while you are away" onclick="if(typeof buryBones==='function'){buryBones('${id}');}closeInvDetail();renderInvNew()">Bury</button>`);
     }
   }
-  if(qty > 0){
+  let sellNote = ''; if(qty > 0){
     /* b240: sell-lock. A locked item shows no sell buttons — just Unlock — so an
        accidental tap can't get through. Vendorable items get a Lock button. */
     if(isItemLocked(id)){
@@ -10056,7 +10040,7 @@ function openInvDetail(id){
     } else {
       if(vendorPrice(id) > 0){
         acts.push(`<button class="btn" onclick="invSellOne('${id}');closeInvDetail()">Sell 1 · ${_gp(vendorPrice(id))}</button>`);
-        const _sq = window.sellableCount ? window.sellableCount(id) : null; const _sb = window.sellAllPending && window.sellAllPending(id); if(_sb) acts.push(`<button class="btn btn-danger" disabled title="Waiting for the realm to answer your last Sell All">Sell All · selling…</button>`); else if(_sq === null ? qty > 1 : _sq > 1) acts.push(_sq === null ? `<button class="btn btn-danger" disabled title="${window.SELL_PENDING_TITLE}">Sell All · counting…</button>` : `<button class="btn btn-danger" onclick="invSellAll('${id}')">Sell All ${_sq} · ${_gp(vendorPrice(id)*_sq)}</button>`);   /* Sell All names the SERVER's stack (sellableCount); unstated = counting; a sent one = selling until its answer — all disabled */
+        const _sq = window.sellableCount ? window.sellableCount(id) : null; const _sb = window.sellAllPending && window.sellAllPending(id); if(_sb) acts.push(`<button class="btn btn-danger" disabled title="Waiting for the realm to answer your last Sell All">Sell All · selling…</button>`); else if(_sq === null ? qty > 1 : _sq > 1) acts.push(_sq === null ? `<button class="btn btn-danger" disabled title="${window.SELL_PENDING_TITLE}">Sell All · counting…</button>` : `<button class="btn btn-danger" onclick="invSellAll('${id}')"${_sq !== qty ? ` title="The realm has counted ${_sq.toLocaleString()} — Sell All sells what it has counted"` : ''}>Sell All ${_sq.toLocaleString()} · ${_gp(vendorPrice(id)*_sq)}</button>`); if(!_sb && _sq !== null && _sq > 1 && _sq !== qty) sellNote = `<div class="inv-detail-sellnote" role="note">The realm has counted ${_sq.toLocaleString()} of these — Sell All sells what it has counted.</div>`;   /* the display-vs-counted gap is said, not left to puzzle over. Sell All names the SERVER's stack (sellableCount); unstated = counting; a sent one = selling until its answer — all disabled */
       }
       acts.push(`<button class="btn" onclick="toggleItemLock('${id}');openInvDetail('${id}')" title="Protect this item from being sold or listed on the market">${lockGlyph()} Lock</button>`);
     }
@@ -10143,7 +10127,7 @@ function openInvDetail(id){
     ${infoBlock}
     ${foodNote}
     ${enchantNote}</div>
-    <div class="inv-detail-actions hr-sheet-foot">${acts.join('')}</div>
+    <div class="inv-detail-actions hr-sheet-foot">${sellNote}${acts.join('')}</div>
   </div>`;
   d.classList.add('show');
 }
@@ -10843,7 +10827,7 @@ function renderBountyTab(){
   const marks = window.HearthriseMarks ? window.HearthriseMarks.fmtMarks(G) : (G.marks || 0);
   const completed = G.bountyHunter?.completed || 0;
   const sub = document.getElementById('bounty-sub');
-  if(sub) sub.textContent = `Lv ${lv} · ${marks} Marks · ${completed} completed`;
+  if(sub) sub.textContent = `Lv ${lv} · ${marks} Marks · ${Number(completed).toLocaleString()} completed`;
 
   const board = document.getElementById('bounty-board-body');
   if(board){
@@ -14921,8 +14905,8 @@ window._calcForSkill = function(skill){
     var tickMs = 2400; /* default combat tick */
     var msPerKill = ticksToKill * tickMs;
     var killsHr = 3600000 / msPerKill;
-    var killXp = m.xp * ratio;
-    var damageXpHr = avgDmg * 4 * ratio * (3600000/tickMs); // dmg*4 XP per tick
+    var killXp = skill === 'hitpoints' ? 0 : m.xp * ratio; // killXpRoute pays styled skills only
+    var damageXpHr = killsHr * m.hp * 4 * ratio; // hit XP is on damage dealt: m.hp per kill, overkill pays 0
     var totalXpHr = (killsHr * killXp) + damageXpHr;
     return {
       kind:'combat',

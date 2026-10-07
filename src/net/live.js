@@ -30,7 +30,8 @@
 // ============================================================================
 
 import { applyFrame, frameRefusal, getFrameDrops, beginFloorHeal, getFloorHeal, getAppliedFrame,
-  requestAccrual, bootSettlePending, settleInFlight, resolveActiveSlot, MAX_SLOT } from './accrue.js?v=562';
+  requestAccrual, bootSettlePending, settleInFlight, resolveActiveSlot, MAX_SLOT,
+  armGapHeal, requestGapHeal, getGapHealState } from './accrue.js?v=564';
 
 export const LIVE_EVENT = 'frame';
 const LIVE_BACKOFF_BASE_MS = 1000;
@@ -74,8 +75,17 @@ function defaultEnv() {
     G: () => win()?.G || null,
     hello: () => requestAccrual({}),
     heal: (token) => requestAccrual({ force: true, heal: token }),
+    /* THE GAP HEAL'S READ: record.js's hr_load, in its heal mode (verdict only,
+       no boot hydration). Through the window for the reason accrue.js reads it
+       that way: record.js imports accrue.js. */
+    reread: () => {
+      const R = win()?.HearthriseRecord;
+      return (R && typeof R.requestRecord === 'function') ? R.requestRecord({ heal: true }) : Promise.resolve(null);
+    },
     applied: (written) => repaintAfterFrame(written),
     now: () => Date.now(),
+    /* 0–2 s spread on a gap-heal read, so one server blip is not a synchronised burst. */
+    gapJitterMs: () => Math.random() * 2000,
     setTimer: (fn, ms) => setTimeout(fn, ms),
     clearTimer: (h) => { if (h != null) clearTimeout(h); },
   };
@@ -88,7 +98,7 @@ export function setLiveEnv(e) { envOverride = e ? { ...defaultEnv(), ...e } : nu
 function freshState() {
   return { topic: null, status: 'idle', attempt: 0, joins: 0, hellos: 0, heals: 0,
     applied: 0, dropped: 0, lastFrame: null, lastBytes: 0, lastAt: 0, lastRefusal: null, lastHealAt: 0,
-    joinedAt: 0, lastHelloAt: 0, hellosDeferred: 0 };
+    joinedAt: 0, lastHelloAt: 0, hellosDeferred: 0, gaps: 0 };
 }
 let st = freshState();
 let channel = null;
@@ -102,7 +112,8 @@ const authWired = new WeakSet();
 
 /** Diagnostics (bug report / devtools). Read-only copy. */
 export function getLiveState() {
-  return { ...st, paused: paused > 0, floor: getAppliedFrame(), heal: getFloorHeal(), ...getFrameDrops() };
+  return { ...st, paused: paused > 0, floor: getAppliedFrame(), heal: getFloorHeal(), gapHeal: getGapHealState(),
+    ...getFrameDrops() };
 }
 
 /** Leave the current topic now. Any callback of the old channel is dead (epoch). */
@@ -115,6 +126,8 @@ export function leave(why) {
   if (ch && c) { try { const p = c.removeChannel(ch); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
   st.topic = null;
   st.status = 'idle';
+  /* No channel, no self-frame to have relied on: the gap heal stands down. */
+  armGapHeal(null);
   if (why === 'identity' || why === 'signout') st.attempt = 0;
   return st.status;
 }
@@ -177,10 +190,29 @@ function onStatus(status) {
        for a join that held LIVE_STABLE_JOIN_MS. */
     st.joinedAt = env().now();
     st.joins += 1;
+    armGap();
     joinHello();
     return;
   }
   if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') scheduleRetry();
+}
+
+/* THE GAP HEAL IS ARMED WHILE JOINED (2026-10-09-frame-self-echo.sql). The
+   server stopped pushing a player's own write back to them, so while frames
+   flow, a write whose answer never arrived, a frame that skips a version and a
+   poll that states a newer version each re-read the projection once
+   (accrue.js requestGapHeal). Every callback reads THIS module's env at call
+   time, so the test seam reaches it. */
+function armGap() {
+  armGapHeal({
+    read: () => env().reread(),
+    G: () => env().G(),
+    applied: (written) => env().applied(written),
+    now: () => env().now(),
+    setTimer: (fn, ms) => env().setTimer(fn, ms),
+    clearTimer: (h) => env().clearTimer(h),
+    jitterMs: () => env().gapJitterMs(),
+  });
 }
 
 /* SEC C2: at most one join hello per LIVE_HELLO_MIN_INTERVAL_MS. A join inside
@@ -247,6 +279,8 @@ function onFrame(topic, payload) {
   st.lastFrame = written.envelope.version;
   st.lastRefusal = null;
   try { e.applied(written); } catch (x) {}
+  /* A SKIPPED VERSION: this frame is partial, so re-read the projection. */
+  if (written.gap) { st.gaps += 1; requestGapHeal('frame_gap'); }
 }
 
 /** SEC S3: a floor ABOVE the server refuses every frame AND the hello. After

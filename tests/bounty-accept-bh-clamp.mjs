@@ -63,7 +63,7 @@
 //   · The PostgREST / JWT path. RPCs are called as SQL with
 //     request.jwt.claim.sub set, which is how PostgREST sets it.
 // ════════════════════════════════════════════════════════════════════════
-import { bootReplay } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED } from './schema-replay.mjs';
 import { unlockedTypes } from '../src/core/bounty.js';
 import { burnBountyGrace } from './bounty-grace-fixture.mjs';
 
@@ -71,6 +71,8 @@ const MIG = '2026-09-12-bounty-accept-bh-clamp.sql';
 /* The migration BEFORE this one in the apply order — the pre-patch state used to
    prove honest play is unchanged (AC-8). It does not touch the accept body. */
 const PRE = '2026-09-11-bounty-hunter-xp.sql';
+/* The latest full restatement of the accept body (§2b). */
+const CHAIN_END = '2026-10-04-bounty-abandon-server-fee.sql';
 
 const COMBAT = ['attack', 'strength', 'defense', 'hitpoints', 'prayer', 'ranged', 'magic'];
 const MAXED_XP = 13034431;   // level 99 for every combat skill -> unlockedTier 6
@@ -103,6 +105,13 @@ const BODY = {
         + "    || '      ''difficulty'', p_difficulty, ''bounty_level'', v_bh_lvl);' || chr(10)\n"
         + "    || '  end if;' || chr(10)",
     repl: "    || '  -- SA-048 difficulty gate removed by mutation' || chr(10)",
+    /* The accept body is RESTATED in full at chain end (bounty-abandon-server-fee
+       §2b), which overwrites the splice above; the same defect is planted there
+       too, or the mutant never reaches the installed accept. */
+    chain: [[CHAIN_END, "  if not public.hr_bounty_difficulty_unlocked(p_difficulty, v_bh_lvl) then\n"
+      + "    return jsonb_build_object('ok', false, 'error', 'difficulty_locked',\n"
+      + "      'difficulty', p_difficulty, 'bounty_level', v_bh_lvl);\n"
+      + "  end if;\n", "  -- SA-048 difficulty gate removed by mutation\n"]],
   },
   ladder_off_by_one: {
     why: "the 'hard' difficulty threshold opens at BH-20 instead of BH-15, so it no longer matches the "
@@ -130,6 +139,7 @@ for (const id of Object.keys(BODY)) {
     find: BODY[id].find,
     repl: BODY[id].repl,
     also: [GATE_BLIND],
+    chain: BODY[id].chain,
   };
 }
 
@@ -142,8 +152,12 @@ async function boot({ mutate, upTo } = {}) {
   if (mutate) {
     const m = MUTATIONS[mutate];
     patches = new Map([[MIG, [[m.find, m.repl], ...(m.also || [])]]]);
+    for (const [file, find, repl] of (m.chain || [])) patches.set(file, [...(patches.get(file) || []), [find, repl]]);
   }
-  const { db } = await bootReplay({ patches, upTo });
+  /* A mutant with no explicit upTo stops at the newest file it patches; a bare
+     `upTo` shorthand is undefined there, and bootReplay refuses an unscoped
+     mutant (tests/schema-replay.mjs replayScopeError). */
+  const { db } = await bootReplay({ patches, upTo: upTo ?? LAST_PATCHED });
   const q = async (sql, p) => (await db.query(sql, p)).rows;
   const asUser = async (uid, sql, p) => {
     await q("select set_config('request.jwt.claim.sub',$1,false)", [uid]);
@@ -181,6 +195,11 @@ async function boot({ mutate, upTo } = {}) {
 
   const accept = async (target, type, diff, required) => {
     await gate();
+    /* ONE CONTRACT AT A TIME (2026-10-04-bounty-abandon-server-fee.sql §2b):
+       the accept REFUSES over a held contract (bounty_active) instead of
+       replacing it. Each probe accept below is a fresh contract, so the
+       previous one is ended first, as a claim or abandon would. */
+    await q('delete from public.active_bounty where user_id = $1 and slot = 0', [uid]);
     return asUser(uid, 'select public.hr_accept_bounty(0,$1,$2,$3,$4,$5) as r',
       [`b_${target}_${diff}_${required}`, target, type, diff, required]);
   };

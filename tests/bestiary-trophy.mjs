@@ -658,14 +658,14 @@ async function selfcheckStripPatch() {
 }
 
 async function bootAndAudit(extraPatch) {
-  const { bootReplay } = await import('./schema-replay.mjs');
+  const { bootReplay, LAST_PATCHED } = await import('./schema-replay.mjs');
   const patchList = [];
   if (extraPatch) {
     patchList.push(await selfcheckStripPatch());
     patchList.push(extraPatch);
   }
   const { db, failures } = await bootReplay(
-    patchList.length ? { patches: new Map([[CLAIM_FILE, patchList]]) } : {});
+    patchList.length ? { patches: new Map([[CLAIM_FILE, patchList]]), upTo: LAST_PATCHED } : {});
   if (failures && failures.length) {
     const e = new Error(`the chain did not replay: ${failures[0].file}: ${failures[0].error}`);
     e.harness = !extraPatch;   // a PATCHED chain failing to apply is a bad mutation, not a finding

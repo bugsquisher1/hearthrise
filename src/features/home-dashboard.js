@@ -74,7 +74,7 @@
          is not a colour, so it is not a token, but its fallback surface above
          is. */
       R + '.hd-hearth::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;',
-      'background:url(assets/brand/hearthrise-splash.jpg?v=562) 50% 40%/cover no-repeat}',
+      'background:url(assets/brand/hearthrise-splash.jpg?v=564) 50% 40%/cover no-repeat}',
       /* Scrim, legibility-aware. The identity block sits bottom-left and the
          ledger bottom-right, so both flanks and the floor darken to
          --scene-scrim-2 while the centre-top stays open for the painting. Two
@@ -1344,8 +1344,9 @@
          held the PREVIOUS portrait until the next boot — the measured half of
          "one reload behind". */
       '<img src="' + esc(window._playerAvatar || 'assets/avatars/placeholder-portrait.webp') + '" alt="" data-hr-avatar style="width:100%;height:100%;object-fit:cover;display:block"></div><div style="min-width:0">';
-    html += '<div class="hd-eyebrow">' + (pending ? 'Connecting your character…'
-      : esc((hsDef && hsDef.name) || "Wanderer's Camp")) + '</div>';
+    /* Pending says nothing here — the activity bar directly above already
+       reads "Connecting your character…", and the same words twice is noise. */
+    if (!pending) html += '<div class="hd-eyebrow">' + esc((hsDef && hsDef.name) || "Wanderer's Camp") + '</div>';
     /* b373 — WHICH HERO AM I? Under the account-scoped identity ruling (see
        src/multi-character.js heroLabel) the big name on the hearth is the
        ACCOUNT's, which is correct and is also exactly what confused the FTUE

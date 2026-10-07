@@ -150,6 +150,11 @@
   function getUpgradePrice(){ return core().plotUpgradePrice(getPlotLevel()); }
   /** The whole answer the card renders and upgradePlot() acts on. */
   function getUpgradeCheck(){
+    /* The upgrade names the rung it buys (p_expect_level = the
+       SERVER's plot level + 1), so with no server rung there is nothing honest
+       to send - and nothing honest to price. Pending wins over every other
+       verdict: a price or a shortfall read off a residue tier is a guess. */
+    if(getServerPlotLevel() === null) return { ok: false, error: 'plot_level_pending' };
     return core().plotUpgradeCheck({
       plotLevel: getPlotLevel(),
       farmingLevel: getFarmingLevel(),
@@ -166,9 +171,9 @@
     if(v.error === 'farm_level_too_low'){
       return 'Farm Plot Lv ' + p.level + ' needs Farming ' + p.farming + ' (you are ' + v.have + ')';
     }
-    return 'Farm Plot Lv ' + p.level + ' costs ' + fmtN(p.gold) + ' gold or ' + p.deeds
+    return 'Farm Plot Lv ' + p.level + ' costs ' + fmtN(p.gold) + ' gold or ' + fmtN(p.deeds)
       + " Farmer's Deed" + (p.deeds === 1 ? '' : 's') + ' — you have ' + fmtN(v.gold) + ' gold and '
-      + v.deeds + ' deed' + (v.deeds === 1 ? '' : 's');
+      + fmtN(v.deeds) + ' deed' + (v.deeds === 1 ? '' : 's');
   }
 
   function getDeedCount(){
@@ -180,7 +185,9 @@
     var v = getUpgradeCheck();
     if(!v.ok){
       if(typeof window.notify === 'function'){
-        window.notify(v.error === 'max_plot_level' ? 'Farm Plot already maxed' : refusalText(v), 'kill');
+        window.notify(v.error === 'max_plot_level' ? 'Farm Plot already maxed'
+          : v.error === 'plot_level_pending' ? 'Your plot tier is still being counted — try again in a moment'
+          : refusalText(v), 'kill');
       }
       return false;
     }
@@ -231,7 +238,7 @@
         if(typeof window.notify === 'function'){
           window.notify('Farm Plot upgraded to Lv ' + res.plot_level
             + (res.paid_with === 'deeds'
-                ? ' — paid with ' + res.deeds_spent + " Farmer's Deed" + (res.deeds_spent===1?'':'s')
+                ? ' — paid with ' + fmtN(res.deeds_spent) + " Farmer's Deed" + (res.deeds_spent===1?'':'s')
                 : ' — ' + fmtN(res.gold_spent || 0) + ' gold'), 'levelup');
         }
       } else if(res && res.error && res.error!=='transport'){
@@ -239,7 +246,7 @@
           /* The server is the price. Speak ITS refusal, not the client's guess. */
           var msg = 'Could not upgrade plot — try again';
           if(res.error === 'farm_level_too_low') msg = 'Farm Plot Lv ' + res.plot_level + ' needs Farming ' + res.need + ' (you are ' + res.have + ')';
-          else if(res.error === 'cannot_afford') msg = 'Farm Plot Lv ' + res.plot_level + ' costs ' + fmtN(res.need_gold) + ' gold or ' + res.need_deeds + " Farmer's Deed" + (res.need_deeds===1?'':'s') + ' — you have ' + fmtN(res.have_gold) + ' gold and ' + res.have_deeds;
+          else if(res.error === 'cannot_afford') msg = 'Farm Plot Lv ' + res.plot_level + ' costs ' + fmtN(res.need_gold) + ' gold or ' + fmtN(res.need_deeds) + " Farmer's Deed" + (res.need_deeds===1?'':'s') + ' — you have ' + fmtN(res.have_gold) + ' gold and ' + fmtN(res.have_deeds);
           else if(res.error === 'max_plot_level') msg = 'Farm Plot already maxed';
           window.notify(msg, 'kill');
         }

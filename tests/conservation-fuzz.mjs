@@ -827,7 +827,9 @@ async function boot(injectionId) {
 
   let db;
   try {
-    ({ db } = await bootReplay(patches ? { patches } : {}));
+    ({ db } = await bootReplay(patches
+      ? { patches, fullChain: 'the fuzz judges the CHAIN-END economy; the injection file is checked above to be the LAST writer' }
+      : {}));
   } catch (e) {
     // A `gate: true` injection is one the MIGRATION'S OWN do$$ block is
     // supposed to refuse. That is a stronger result than the fuzz catching it

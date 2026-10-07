@@ -4,6 +4,14 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-10-07 · qa-engineer · a control must remove the thing the mutant plants (lane b564-hollow-mutants)
+
+Closes the three P3s below. (1) `goal-counters --mutate` was NOT vacuous: all 13 arms are JS mutants (`loadMutant`), and `HR_REPLAY_SCOPE_CONTROL` drops SQL patches only, so the "control" left every mutant planted ("looted nothing" was M12/M13's own effect, message reworded). With the honest control (`HR_MUTANT_CONTROL=1`: anchors checked, unmutated copy loaded) all 13 read GREEN. (2) `world-tick-token-failclosed` MF2 was genuinely vacuous: d10 alone is unobservable behind §0b (its live half is MF1 + MF3); MF2 now plants §0b over-firing on the credential-free replay (F-1a), which survives the control. (3) The 13 unwired proofs run in a new `db-replay-6` job. Standing guard: `tests/mutant-control.mjs` runs every registered guard under `HR_MUTANT_CONTROL=1` (bootReplay drops patches, scope kept) and is red unless every `[mutant]` arm reads `survived`; guards join by printing `[mutants] N` / `[mutant] <id> caught|survived`. Only two guards speak the protocol so far; the rest are owed (qa lane).
+
+## 2026-10-07 · qa-engineer · a mutant replay must declare its scope; LAST_PATCHED is not always the honest one (lane b564-guard-upto)
+
+CI db-replay-5 (set/b564 @346abaf9) was red because world-tick-channel-arm's mutants replayed the WHOLE chain and 2026-10-09-party-hunt-start-gate.sql's §0 lock refused first. Class fix: `bootReplay` refuses a patched replay without `upTo` (or `LAST_PATCHED`) or a `fullChain` reason; `tests/replay-scope-guard.mjs` (CI + lane-done) holds every caller to it. Measured while converting: "the newest patched file" is the wrong scope whenever the arms call an API a later file installed — 22/22 rejections-journal mutants were "caught" by `hr_farm_upgrade_plot(int,uuid,int) does not exist`. So every converted guard was proven twice: real (mutants red) and `HR_REPLAY_SCOPE_CONTROL=scoped` (patches dropped, scope kept: every SQL-planted mutant must survive; =full is the baseline). Eleven guards needed a named later scope (REPLAY_UPTO). Found, not fixed (P3, qa lane): `goal-counters --mutate` is vacuous at every scope (no patch planted, the combat night loots nothing, all 13 read "caught"); `world-tick-token-failclosed` MF2 is caught with no mutant (the unpatched file already refuses on the T1 marker under SHIM_VAULT); 13 guards' mutation proofs are wired into no CI step (artisan-progress-model, auto-eat-at-creation, bounty-difficulty-count, client-write-sweep-5, companion-codes-severity, companion-grant-hardening, cron-health, gem-daily-budget, goal-counters, goal-gold-retune, intent-mismatch, market-v2, unlock-buy).
+
 ## 2026-10-06 · qa-engineer · P1 in-page red: a test sent a real hr_farm_plant to production (lane b563-plant-toast-leak)
 
 `b220: auto-replant produces a plot that actually matures` drove `maybeReplant` → real `plantCrop` → real `farmPlant` with no transport stub. The request left the page for the live realm (401 with no session in CI; on a signed-in Ctrl+Shift+T run it would plant a real turnip and spend a real seed), and its refusal toast "Could not plant (http_401)" landed ~300 ms later — inside INTENT-LATCH-1's 60 ms no-toast window on GitHub (set/b563 @fe39ce9c). Timing-dependent, not caused by the sell lane. Fix: b220 runs under `withFarmServer`; class guard: the runner wraps fetch (`watchLiveRpc`, `_harness.js`) and FAILS any test under which a session-only RPC reached the real transport (ANON_CALLABLE reads exempt). Measured on a full run: zero other offenders. Routed: none (qa lane).
@@ -91,6 +99,17 @@ Out of this lane (Game Designer ruling 2026-10-03, the `#ab-meta` overflow items
 | R2c | `compactNumber` prints "1000K" for 999,500-999,999 (and "1000M" under 1B): roll over to "1M"/"1B" + a test that fails on "1000K" | Systems Engineer (one line; lands with R1/R2 to avoid a conflict on the formatter) |
 | R3 | `short` XP chip: skill atlas glyph instead of "STR", title/aria "Strength 72 · 1,228,825 XP to go", three letters fail-safe | Art Director |
 | R5 | SELL ALL sells the server-confirmed stack, "Sell All 37 · 74g", disabled "Sell All · counting…" while unconfirmed | Systems Engineer (needs the server stack seam) + Art Director (button) |
+## 2026-10-03 · Backend Architect · lane/b562-bounty-abandon-fee (2026-10-04-bounty-abandon-server-fee.sql, STAGED)
+
+hr_bounty_spend is now `(p_slot, p_reason, p_bounty_id, p_idem)`; the abandon fee reads active_bounty.marks_reward + the server BH level, and abandon deletes the contract. Listed, not fixed here:
+
+| # | Item | Owner | Action |
+|---|---|---|---|
+| 1 | `node tests/live-hash-drift.mjs` is RED by design on this branch (untracked `hr_bounty_spend`; replay-missing 5-arg `hr_bounty_spend__ungated`; replay-extra 4-arg) | Coordinator | `--write --no-live` with a real why at merge (staged), `--live --write` after apply — agents may not edit that baseline |
+| 2 | The signature changes: apply at the cut, immediately before the client push; in between an old client's reroll/abandon answers rpc_missing (no value moves) | Coordinator | sequence the apply with the cut |
+| 3 | `tests/patch-chain-guard.mjs` (green) asks for `--write` to record `hr_bounty_spend__ungated` chain 1 → 0, but a write also re-grandfathers ~30 other files' chains (hr_apply depth 9) measured since 2026-09-23 | Coordinator | re-measure deliberately, not from a lane |
+| 4 | `rerollBountyBoard` still prices and gates the PAID reroll on a client-computed `5 + rerollsToday*5` (display gate; the server re-derives), and keeps a DORMANT local Marks debit | Systems Engineer | project the next reroll cost from the server (`hr_state_of`), drop the dormant debit |
+
 ## 2026-10-03 · qa-engineer · the stated server bag leaked across the in-page suite (snapshotG + per-test check)
 
 `G._serverBag` (+ the two stamps `reconcileInventory` writes with it, `_bagFromServerAt`, `_startKitHintAt`)

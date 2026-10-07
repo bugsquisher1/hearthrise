@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 105 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, bountyRig, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, withRoomServer, awayArtisanSpan, tryRunRestampingBalance, goldOf, gemsOf, snapshotG, setAway, drain, restoreG, restoreGAndRecord, restoreBankCap, on, snapshot, phoneFrame, farmReplantFixtureG, withDeferredFarmPlant, serverBagFixture } from './_harness.js?v=562';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, bountyRig, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, withRoomServer, awayArtisanSpan, tryRunRestampingBalance, goldOf, gemsOf, snapshotG, setAway, drain, restoreG, restoreGAndRecord, restoreBankCap, on, snapshot, phoneFrame, farmReplantFixtureG, withDeferredFarmPlant, serverBagFixture } from './_harness.js?v=564';
 
 export default [
 
@@ -1065,7 +1065,8 @@ export default [
       const ab = rig.set({ id: 'b_settled', type: 'cull', target: rig.target, difficulty: 'normal',
         required: 20, progress: 9, rewards: { gold: 100, marks: 6, xp: 40 } });
       assert(window.hrBountyView(ab).mark === '—', 'precondition: with no server value the board renders pending');
-      const rec = window.hrNoteServerBounty(rig.envelope('b_settled', 218));
+      const v0 = rig.nextVersion(10);
+      const rec = window.hrNoteServerBounty(rig.envelope('b_settled', 218, v0));
       assert(rec && rec.noted === true, 'a matching envelope bounty must be adopted; got ' + JSON.stringify(rec));
       assert(rec.progress === 20, 'the server progress must land clamped to `required` (20), got ' + rec.progress);
       assert(window.hrBountyView(ab).progress === 20, 'the bar must show the SERVER 20, not the local 9 — got ' + window.hrBountyView(ab).progress);
@@ -1077,12 +1078,13 @@ export default [
       // THE OTHER DIRECTION ("full bar that will not pay"): local never exceeds server.
       const ah = rig.set({ id: 'b_ahead', type: 'cull', target: rig.target, difficulty: 'normal',
         required: 20, progress: 19, rewards: { gold: 100, marks: 6, xp: 40 } });
-      window.hrNoteServerBounty(rig.envelope('b_ahead', 4));
+      window.hrNoteServerBounty(rig.envelope('b_ahead', 4, v0 + 1));
       assert(window.hrBountyView(ah).progress === 4, 'a local 19 must never exceed the server 4; got ' + window.hrBountyView(ah).progress);
 
-      // FAIL-SAFE + IDENTITY: a foreign id, or no key at all, writes nothing.
-      const miss = window.hrNoteServerBounty(rig.envelope('someone_elses', 20));
-      assert(miss.noted === false && miss.reason === 'mismatch', 'an envelope for a DIFFERENT bounty must be refused: ' + JSON.stringify(miss));
+      // FAIL-SAFE + IDENTITY: a foreign id older than b_ahead's confirm (v0+1), or no key, writes nothing (newer: BOUNTY-ORDER-1).
+      const miss = window.hrNoteServerBounty(rig.envelope('someone_elses', 20, v0));
+      assert(miss.noted === false && miss.reason === 'mismatch' && !miss.adopted && G.bountyHunter.active === ah,
+        'a STALE envelope for a DIFFERENT bounty must be refused: ' + JSON.stringify(miss));
       const none = window.hrNoteServerBounty({ state: { gold: 5 } });
       assert(none.noted === false && none.reason === 'no_key', 'an envelope without the key must be a no-op: ' + JSON.stringify(none));
       assert(window.hrBountyView(ah).known === false, 'after the server names a different contract, b_ahead renders pending');
@@ -1979,7 +1981,7 @@ export default [
     }
 
     /* THE GENERATED CATALOGUE — what hr-accrue actually authorises. */
-    const S = await import('../../data/shops.js?v=562');
+    const S = await import('../../data/shops.js?v=564');
     assert(Array.isArray(S.SHOP_OFFERS) && S.SHOP_OFFERS.length > 100,
       'src/data/shops.js published ' + (S.SHOP_OFFERS || []).length + ' offers — a tiny catalogue '
       + 'would make the checks below vacuous');
@@ -2896,7 +2898,7 @@ export default [
   () => tryRunAsync('DGN-SETTLE-1: src/data/dungeons.js matches the client window.DUNGEONS (server catalogue = render source)', async () => {
     const D = window.DUNGEONS;
     if (!D) return;
-    const mod = await import('../../data/dungeons.js?v=562');
+    const mod = await import('../../data/dungeons.js?v=564');
     const SRC = mod && mod.DUNGEONS;
     assert(SRC && typeof SRC === 'object', 'src/data/dungeons.js must export DUNGEONS');
     const a = Object.keys(SRC).sort(), b = Object.keys(D).sort();
@@ -2927,7 +2929,7 @@ export default [
   () => tryRunAsync('DGN-QM-1: src/data/dungeons.js QM_STOCK matches the client window.QM_STOCK (server price = shop price)', async () => {
     const C = window.QM_STOCK;
     if (!C) return;
-    const mod = await import('../../data/dungeons.js?v=562');
+    const mod = await import('../../data/dungeons.js?v=564');
     const SRC = mod && mod.QM_STOCK;
     assert(Array.isArray(SRC), 'src/data/dungeons.js must export QM_STOCK (array)');
     assert(SRC.length === C.length, 'QM_STOCK length drift: data=' + SRC.length + ' client=' + C.length);

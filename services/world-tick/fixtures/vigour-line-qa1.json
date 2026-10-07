@@ -1,0 +1,193 @@
+{
+  "_about": "QA slot 1, Slime, no food: the hr_state_of envelope at version 103 and the shadow carriers at the span starts of hr_tick_probe ids 8 (crosses the Vigour line) and 10 (wholly past it), reconstructed read-only 2026-10-06 (tests/world-tick-vigour-line.mjs header). live = what production journalled for probe 10.",
+  "env": {
+    "slot": 1,
+    "shard": 0,
+    "version": 103,
+    "capMs": 43200000,
+    "activeKind": "combat",
+    "activeId": "slime",
+    "activeSinceMs": 1790444865564,
+    "hp": 9,
+    "maxHp": 21,
+    "gold": 7028,
+    "fight": {},
+    "consecFalls": 1,
+    "recoveringUntilMs": 1791267232800,
+    "skills": {
+      "magic": 0,
+      "attack": 5662,
+      "mining": 0,
+      "prayer": 0,
+      "ranged": 0,
+      "cooking": 0,
+      "defense": 5656,
+      "farming": 112,
+      "fishing": 0,
+      "crafting": 0,
+      "smithing": 0,
+      "strength": 5655,
+      "hitpoints": 5247,
+      "stonemason": 0,
+      "woodcutting": 280,
+      "bountyHunter": 0,
+      "runecrafting": 0
+    },
+    "inventory": {
+      "bones": 260,
+      "bone_key": 1,
+      "slime_gel": 868,
+      "normal_log": 56,
+      "carrot_seed": 3,
+      "sticky_core": 23,
+      "turnip_seed": 18
+    },
+    "equipment": {
+      "weapon": "bronze_sword"
+    },
+    "enchant": {},
+    "combatStyle": {},
+    "traits": [
+      "auto_eat"
+    ],
+    "buffs": [
+      {
+        "from": null,
+        "type": "gather_speed",
+        "scale": 1,
+        "until": "2026-09-26T17:50:11.475001+00:00",
+        "magnitude": 1,
+        "remaining_ms": 0
+      }
+    ],
+    "perks": {
+      "ok": true,
+      "plots": {},
+      "rooms": {},
+      "castle": null,
+      "clanPerks": {},
+      "companion": null,
+      "renownAllXp": 0,
+      "propertyTier": 0,
+      "unlockedRecipes": {}
+    },
+    "vigour": {
+      "level": 25,
+      "day_key": "2026-10-6",
+      "refills": 0,
+      "dry_mult": 0.25,
+      "grant_min": 720,
+      "spent_min": 416,
+      "bought_min": 0,
+      "budget_min": 720,
+      "refill_min": 120,
+      "ceiling_min": 1320,
+      "refills_max": 5,
+      "refills_left": 5,
+      "remaining_min": 304,
+      "next_refill_gold": 12750
+    },
+    "huntStop": null,
+    "huntStance": null,
+    "ammoCarry": null,
+    "toolCarry": {},
+    "autoEatEnabled": true,
+    "autoEatFood": "cooked_shrimp",
+    "autoEatPct": 25,
+    "hearthfindReady": true,
+    "combatXpAccruedToMs": 1791214224985,
+    "bestiaryKills": {
+      "slime": 1350
+    },
+    "deathsTodayBefore": 11,
+    "deathsLifetimeBefore": 115
+  },
+  "probes": {
+    "p8": {
+      "fromText": "2026-10-06T08:39:48.505+00:00",
+      "to": "2026-10-06T12:41:02.905Z",
+      "carrier": {
+        "v": 1,
+        "base_version": 103,
+        "hp": 9,
+        "xp": {
+          "attack": 375,
+          "defense": 375,
+          "strength": 375,
+          "hitpoints": 287
+        },
+        "gold": 110,
+        "items": {
+          "bones": 13,
+          "slime_gel": 57,
+          "sticky_core": 3
+        },
+        "deaths_today": 3,
+        "deaths_lifetime": 3,
+        "vigour_rem_ms": 10300800,
+        "bestiary_kills": {
+          "slime": 60
+        },
+        "fight": {
+          "hp": 8,
+          "kills": 0,
+          "monster": "slime"
+        },
+        "consec_falls": 1,
+        "recovering_until": 1791279062905,
+        "ammo_carry": null,
+        "tool_carry": {}
+      }
+    },
+    "p10": {
+      "fromText": "2026-10-06T12:39:34.105+00:00",
+      "to": "2026-10-06T16:40:48.505Z",
+      "carrier": {
+        "v": 1,
+        "base_version": 103,
+        "hp": 10,
+        "xp": {
+          "attack": 1993,
+          "defense": 1994,
+          "strength": 2006,
+          "hitpoints": 1523
+        },
+        "gold": 624,
+        "items": {
+          "bones": 98,
+          "slime_gel": 297,
+          "sticky_core": 10
+        },
+        "deaths_today": 6,
+        "deaths_lifetime": 6,
+        "vigour_rem_ms": 24686400,
+        "bestiary_kills": {
+          "slime": 511
+        },
+        "fight": {
+          "hp": 8,
+          "kills": 0,
+          "monster": "slime"
+        },
+        "consec_falls": 1,
+        "recovering_until": 1791292810105,
+        "ammo_carry": null,
+        "tool_carry": {}
+      },
+      "live": {
+        "one": {
+          "ticks": 1161,
+          "kills": 567,
+          "gold": 285,
+          "xp": 3358
+        },
+        "chain": {
+          "ticks": 1649,
+          "kills": 829,
+          "gold": 420,
+          "xp": 4954
+        }
+      }
+    }
+  }
+}

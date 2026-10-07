@@ -1921,6 +1921,74 @@ export default [
     }
   }),
 
+  /* ── regression suite — XP IS EARNED ON DAMAGE DEALT, NOT ROLLED ────
+     simulateTick passed the full swing (crit included) to hitXpRoute before
+     it was clamped to the foe's remaining HP, so a big hitter on an 8-HP slime
+     was paid ~4 XP per point of overkill: ~117 styled XP a swing at max hit 19
+     vs the 37 the foe could ever yield. Ruling (game-designer, final): hit XP
+     pays on min(damage, HP before the swing), styled and hitpoints alike.
+     Both paths (CLAUDE.md §4): ATTENDED through simulateTick away:false, AWAY
+     through simulateSpan away:true. A plain state object and a pinned rng —
+     nothing here reads or writes the live G. Each fails without the clamp. */
+  ...(() => {
+    const SLIME_HP = 8;
+    const rig = () => {
+      let s = 0x5EED5;
+      const r = () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; };
+      const swings = [];
+      let cur = null;
+      const fx = {
+        onSwing: () => { cur = {}; swings.push(cur); },
+        addXp: (k, a) => { if (cur) cur[k] = (cur[k] || 0) + a; },
+      };
+      const ctx = {
+        rng: { next: r, int: (a, b) => a + Math.floor(r() * (b - a + 1)), chance: (p) => r() < p },
+        monsters: window.MONSTERS, style: { xp: { attack: 1 } }, fx,
+        playerRolls: () => ({ accuracy: 1, maxHit: 40, critChance: 0.5 }),
+        monsterRolls: () => ({ accuracy: 0, maxHit: 1 }),
+        weakness: () => ({ dropMult: 1 }), bonus: () => 0,
+      };
+      const state = { activeMonster: 'slime', monsterHp: SLIME_HP, monsterMaxHp: SLIME_HP,
+        playerHp: 1e9, playerMaxHp: 1e9, stats: {}, buffs: [] };
+      return { ctx, state, swings };
+    };
+    const check = (swings, label) => {
+      assert(window.MONSTERS.slime && window.MONSTERS.slime.hp === SLIME_HP,
+        'the rig assumes an 8-HP slime; found ' + (window.MONSTERS.slime || {}).hp);
+      assert(swings.length >= 20, label + ': the rig swung only ' + swings.length + ' times');
+      const styledCap = 4 * SLIME_HP + window.MONSTERS.slime.xp;
+      const hpCap = Math.floor(SLIME_HP * 1.33);
+      let worstStyled = 0; let worstHp = 0;
+      for (const sw of swings) {
+        worstStyled = Math.max(worstStyled, sw.attack || 0);
+        worstHp = Math.max(worstHp, sw.hitpoints || 0);
+      }
+      assert(worstStyled > 0, label + ': no swing paid styled XP — the assertion would be vacuous');
+      assert(worstStyled <= styledCap, label + ': a kill-swing on an 8-HP slime paid ' + worstStyled +
+        ' styled XP (cap ' + styledCap + ' = 4 x 8 HP + 5 kill XP) — overkill is being paid as XP');
+      assert(worstHp <= hpCap, label + ': a swing on an 8-HP slime paid ' + worstHp +
+        ' hitpoints XP (cap ' + hpCap + ') — overkill is being paid as hitpoints XP');
+    };
+    return [
+      () => tryRun('XP-DEALT-1 (attended): a big hitter on an 8-HP slime earns hit XP on the 8 HP it removed, not the swing it rolled', () => {
+        const C = window.HearthriseCore;
+        const { ctx, state, swings } = rig();
+        ctx.away = false;
+        for (let i = 0; i < 200 && state.activeMonster; i++) C.combatSim.simulateTick(state, ctx);
+        check(swings, 'ATTENDED');
+      }),
+      () => tryRun('XP-DEALT-2 (away): the same clamp holds through simulateSpan away:true', () => {
+        const C = window.HearthriseCore;
+        const { ctx, state, swings } = rig();
+        const from = Date.UTC(2026, 0, 15, 6, 0, 0);
+        Object.assign(ctx, { away: true, fromMs: from, toMs: from + 600000, tickMs: 2400 });
+        const out = C.combatSim.simulateSpan(state, ctx);
+        assert(out && out.kills > 0, 'AWAY: the span landed no kills — ' + JSON.stringify(out && { ticks: out.ticks, kills: out.kills }));
+        check(swings, 'AWAY');
+      }),
+    ];
+  })(),
+
   /* ── AWAY-1b: THE SAME CONTRACT, WITH AUTO-EAT IN THE LOOP ────────────────
      AWAY-1 above runs on an EMPTY bag, so `fx.autoEat` decides nothing and the
      parity it proves is parity of the fight. Since the 2026-08-31 ruling the

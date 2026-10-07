@@ -64,7 +64,32 @@ const N = 300;
 const BAR_PCT = 6;
 const Z_MAX = 3.29;     // two-sided p = 0.001
 
+/* THE ENGINE THE LIVE PROBES RAN ON. Probe 10's `live` pair was journalled on
+   edge payload 6205e4e0, which paid hit XP on the ROLLED swing (overkill
+   included). The engine under test pays it on damage DEALT (combat-sim.js
+   simulateTick, game-designer ruling 2026-10-07). The recorded pair is judged
+   against the repo engine with exactly that rule restored — the one
+   difference between the two payloads that reaches this fixture — and VL2b
+   proves that rule is the only delta. Post-deploy probes are recorded on the
+   new payload; when this fixture is re-measured, drop these edits. */
+const RECORDED_ON = '6205e4e0';
+const RECORDED_ENGINE = {
+  name: `payload ${RECORDED_ON}: hit XP on the rolled swing`,
+  file: 'src/core/combat-sim.js',
+  edits: [
+    ['if (xpDmg > 0) {', 'if (pDmg > 0) {'],
+    ['hitXpRoute(ctx.style, xpDmg)', 'hitXpRoute(ctx.style, pDmg)'],
+  ],
+};
+
 const MUTANTS = [
+  /* The dealt-damage rule reverted in the engine under test: it then equals
+     the recorded payload's engine, so VL2b must see no XP delta. */
+  {
+    name: 'VL-M7 overkill XP paid again', arm: 'VL2b',
+    file: 'src/core/combat-sim.js',
+    edits: [['hitXpRoute(ctx.style, xpDmg)', 'hitXpRoute(ctx.style, pDmg)']],
+  },
   {
     name: 'VL-M1 one blend for the whole span (the engine before this fix)', arm: 'VL1',
     file: 'supabase/functions/hr-accrue/accrual.js',
@@ -229,7 +254,14 @@ function stats(rows, f) {
   return { m, sd };
 }
 
+/* One replay per (engine, probe): VL2 and VL2b read the same distribution. */
+const REPLAYS = new WeakMap();
 function replay(L, p) {
+  const byP = REPLAYS.get(L) || new Map(); REPLAYS.set(L, byP);
+  if (!byP.has(p)) byP.set(p, replayRaw(L, p));
+  return byP.get(p);
+}
+function replayRaw(L, p) {
   const one = []; const chain = [];
   for (let i = 0; i < N; i++) { one.push(oneSpanRun(L, p, i)); chain.push(chainRun(L, p, i)); }
   const out = {};
@@ -271,24 +303,59 @@ const ARMS = {
   /* VL2 — THE SPAN WHOLLY PAST THE LINE (probe 10). Parity in expectation,
      AND the live pair inside the replay's noise: if a change ever made the
      journalled 1161 / 1649 impossible for this input, this arm names it. */
-  VL2(L, fail) {
+  VL2(L, fail, Lrec) {
     const p = PROBES.p10;
     const r = replay(L, p);
+    /* The live pair is judged against the engine of ITS payload (RECORDED_ON):
+       a probe is evidence about the engine that produced it, and the parity
+       half above already reads the engine under test. */
+    const rr = replay(Lrec, p);
     for (const f of FIELDS) {
       if (!(Math.abs(r[f].pct) <= BAR_PCT)) {
         fail('VL2', `probe 10 replay (wholly tired): chain vs one span ${f} ${r[f].pct.toFixed(1)}% outside ±${BAR_PCT}%. ` + fmt(r));
         return null;
       }
       for (const side of ['one', 'chain']) {
-        const z = (p.live[side][f] - r[f][side].m) / (r[f][side].sd || 1);
+        const z = (p.live[side][f] - rr[f][side].m) / (rr[f][side].sd || 1);
         if (!(Math.abs(z) <= Z_MAX)) {
           fail('VL2', `probe 10 live ${side} ${f} ${p.live[side][f]} is z ${z.toFixed(2)} against its own `
-            + `replay (${r[f][side].m.toFixed(0)} ± ${r[f][side].sd.toFixed(0)}) — no longer explained by chance`);
+            + `replay on its payload's engine (${rr[f][side].m.toFixed(0)} ± ${rr[f][side].sd.toFixed(0)}) — no longer explained by chance`);
         }
       }
     }
-    const zc = (p.live.chain.ticks - r.ticks.chain.m) / r.ticks.chain.sd;
-    return `${fmt(r)}; live chain ticks z ${zc.toFixed(2)}`;
+    const zc = (p.live.chain.ticks - rr.ticks.chain.m) / rr.ticks.chain.sd;
+    return `${fmt(r)}; live chain ticks z ${zc.toFixed(2)} (on payload ${RECORDED_ON})`;
+  },
+  /* VL2b — THE ONLY DELTA FROM THE PROBE'S PAYLOAD IS OVERKILL XP. Same input,
+     same seeds, the engine under test against the engine the live probe ran
+     on: XP must be strictly LOWER on both sides (the dealt-damage rule only
+     ever removes overkill), and ticks, kills and gold must agree within the
+     parity band (what XP drags through levelling is small; anything larger is
+     a second change hiding behind the first). An engine that pays overkill
+     again (VL-M7) equals the recorded one and goes red here. */
+  VL2b(L, fail, Lrec) {
+    const p = PROBES.p10;
+    const r = replay(L, p); const rr = replay(Lrec, p);
+    const notes = [];
+    for (const side of ['one', 'chain']) {
+      const cur = r.xp[side]; const rec = rr.xp[side];
+      const se = Math.sqrt((cur.sd ** 2 + rec.sd ** 2) / N);
+      if (!(rec.m - cur.m > 3 * se)) {
+        fail('VL2b', `probe 10 ${side} xp ${cur.m.toFixed(0)} is not below the recorded payload's ${rec.m.toFixed(0)} `
+          + `(se ${se.toFixed(0)}) — the engine pays overkill XP again, or nothing about XP changed`);
+      }
+      notes.push(`${side} xp ${rec.m.toFixed(0)} -> ${cur.m.toFixed(0)}`);
+      for (const f of ['ticks', 'kills', 'gold']) {
+        const a = rr[f][side].m; const b = r[f][side].m;
+        const pct = a ? 100 * (b / a - 1) : 0;
+        if (!(Math.abs(pct) <= BAR_PCT)) {
+          fail('VL2b', `probe 10 ${side} ${f} moved ${pct.toFixed(1)}% from the recorded payload's engine `
+            + `(${a.toFixed(0)} -> ${b.toFixed(0)}), outside ±${BAR_PCT}% — more than overkill XP changed`);
+        }
+        notes.push(`${side} ${f} ${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`);
+      }
+    }
+    return notes.join(', ');
   },
   /* VL3 — THE RATIO ARM. VL1/VL2 are parity arms: an engine that overpays the
      one span and the chain alike stays in parity, and VL-M4/VL-M5 (4x tired
@@ -352,14 +419,14 @@ const ARMS = {
   },
 };
 
-async function runArms(L, only) {
+async function runArms(L, only, Lrec) {
   const fails = [];
   const fail = (arm, msg) => { fails.push(`${arm}: ${msg}`); };
   for (const [name, arm] of Object.entries(ARMS)) {
     if (only && name !== only) continue;
     const before = fails.length;
     let note = '';
-    try { note = arm(L, fail) || ''; } catch (e) { fail(name, `threw: ${e.stack || e.message}`); }
+    try { note = arm(L, fail, Lrec) || ''; } catch (e) { fail(name, `threw: ${e.stack || e.message}`); }
     if (fails.length === before) console.log(`  ok  ${name}  ${note}`);
   }
   return fails;
@@ -368,15 +435,16 @@ async function runArms(L, only) {
 async function main() {
   if (!MUTATE) {
     console.log(`world-tick-vigour-line (${N} seeds per side)`);
-    const fails = await runArms(await load(ROOT), ONLY);
+    const fails = await runArms(await load(ROOT), ONLY, await load(await mutantBase(RECORDED_ENGINE)));
     for (const f of fails) console.log(`  ✗ ${f}`);
     console.log(fails.length ? `world-tick-vigour-line: RED (${fails.length})` : 'world-tick-vigour-line: green');
     process.exit(fails.length ? 1 : 0);
   }
   console.log('world-tick-vigour-line --mutate');
   let escaped = 0;
+  const Lrec = await load(await mutantBase(RECORDED_ENGINE));
   for (const m of MUTANTS) {
-    const fails = await runArms(await load(await mutantBase(m)), m.arm);
+    const fails = await runArms(await load(await mutantBase(m)), m.arm, Lrec);
     const caught = fails.some((f) => f.startsWith(`${m.arm}:`));
     console.log(`  ${caught ? 'caught ' : 'ESCAPED'}  ${m.name} -> ${m.arm}${caught ? '' : ' stayed green'}`);
     if (caught) console.log(`           ${fails[0].slice(0, 420)}`);

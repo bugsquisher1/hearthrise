@@ -433,7 +433,7 @@ export const BINDS = {
     return all(
       need(D.dropMult > 1 && D.xpMult > 1 && W.dropMult > D.dropMult && W.xpMult > D.xpMult, 'the featured bonuses no longer lift drops and kill XP, weekly most'),
       need(w.away.AWAY_SCOPE.botd === true, 'the featured bonus no longer pays away'),
-      need(w.combatSimJs.includes('killXpRoute(ctx.style, m.xp, feat.xpMult)') && w.combatSimJs.includes('hitXpRoute(ctx.style, pDmg)'),
+      need(w.combatSimJs.includes('killXpRoute(ctx.style, m.xp, feat.xpMult)') && w.combatSimJs.includes('hitXpRoute(ctx.style, xpDmg)'),
         'the featured XP bonus no longer scales kill XP alone — "for each kill" is wrong'),
       need(w.accrualJs.includes('lootCtx.botd = {'), 'the attended top-up no longer applies the featured bonus'),
       need(/import\s*\{[^}]*\bWEEKLY_BONUS\b[^}]*\}\s*from\s*'\.\/botd\.js/.test(w.src['src/core/combat-xp-cap.js'] || ''), 'the live XP credit no longer allows the weekly bonus'));
@@ -602,7 +602,7 @@ async function selftest() {
     ['M10 codex feature reads G', 'CODEX-10', (w) => { w.src['src/features/codex.js'] += '\nconst x = G.gold;'; }],
     ['M11 VIGOUR_DRY_MULT = 1', 'CODEX-6', (w) => { w.hunt.VIGOUR_DRY_MULT = 1; }, 'vigourDryAway'],
     ['M12 plant a "Reward multiplier" label', 'CODEX-6', (w) => { w.src['src/dungeons.js'] = "var _m = 'Reward multiplier: ';\n" + w.src['src/dungeons.js']; }, 'dungeonChest'],
-    ['M13 hit XP scaled by the featured bonus', 'CODEX-6', (w) => { w.combatSimJs = w.combatSimJs.replace('hitXpRoute(ctx.style, pDmg)', 'hitXpRoute(ctx.style, pDmg * feat.xpMult)'); }, 'botdBonus'],
+    ['M13 hit XP scaled by the featured bonus', 'CODEX-6', (w) => { w.combatSimJs = w.combatSimJs.replace('hitXpRoute(ctx.style, xpDmg)', 'hitXpRoute(ctx.style, xpDmg * feat.xpMult)'); }, 'botdBonus'],
     ['M14 hr_town_refresh lists quiet heroes', 'CODEX-6', (w) => { const fb = w.fnBody; w.fnBody = (fn) => { const b = fb(fn); return fn === 'hr_town_refresh' && b ? { ...b, text: b.text.replace('not coalesce(ps.presence_quiet, false)', 'true') } : b; }; }, 'commonQuietHidesYou'],
     ['M15 the Party screen calls a hunt verb', 'CODEX-6', (w) => { w.src['src/render/party-panel.js'] += "\nrpcPost('hr_party_hunt_start', {});"; }, 'partyHuntNotCalled'],
   ];

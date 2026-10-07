@@ -1999,7 +1999,7 @@ async function run(mutate) {
        confiscated, it is priced at the state the verb creates — the mint
        tests/absence-priced-at-return.mjs measures) and only the pin sees it. */
     const SETTLE = ['claim_reward', 'dungeon_settle', 'eat', 'market_buy', 'market_cancel',
-      'market_list', 'quartermaster_buy', 'shop_buy', 'unlock_buy', 'vendor_sell'];
+      'market_list', 'quartermaster_buy', 'shop_buy', 'unlock_buy', 'vendor_sell', 'vendor_sell_many'];
     const SWITCH = ['enchant', 'equip', 'set_activity'];
     const collecting = Object.keys(it.INTENT_REGISTRY).filter((v) => it.collectsFirst(v)).sort();
     ok(collecting.join(',') === [...SETTLE, ...SWITCH].sort().join(','),

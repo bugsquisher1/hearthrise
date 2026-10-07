@@ -52,6 +52,8 @@
     "node tests/town-presence.mjs --selftest": "db-replay-2",
     "node tests/gem-unlock-buy.mjs": "db-replay-2",
     "node tests/gem-unlock-buy.mjs --selftest": "db-replay-2",
+    "node tests/vendor-sell-many.mjs": "db-replay-2",
+    "node tests/vendor-sell-many.mjs --mutate": "db-replay-2",
     "node tests/party-settle.mjs": "db-replay-2",
     "node tests/party-settle.mjs --mutate": "db-replay-2",
     "node tests/world-tick-token-leak.mjs": "db-replay-2",

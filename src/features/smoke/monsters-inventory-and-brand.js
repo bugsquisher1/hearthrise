@@ -7870,44 +7870,164 @@ export default [
     } finally { try { window.closeInvDetail(); } catch (e) {} restoreG(snap); bag.restore(); }
   }),
 
-  /* BULK SELL IS CLOSED until the server's vendor_sell_many ships (Game
-     Designer interim; HANDOFFS.md 2026-10-06). Both bulk gestures used to pay
-     gold through a deferred site and toast "Sold" while sending NOTHING, so the
-     next envelope took the gold and gave the items back (CLAUDE.md §6).
-     MUTATION (run 2026-10-06 with --only BULK-INTERIM-1): restore either old body
-     (removeItem + goldSettle(total, site, null) + the "Sold" notify) → red on
-     "paid/removed/said Sold". */
-  () => tryRunAsync('BULK-INTERIM-1: Sell Selected and the junk sweep send nothing, pay nothing, take nothing and never toast "Sold"', async () => {
-    const G = window.G, CM = window.HearthriseInvCtx, snap = snapshotG(), bag = serverBagFixture(), realNotify = window.notify, toasts = [];
-    assert(typeof window.invSellSelected === 'function' && CM && typeof CM.sellJunk === 'function' && typeof CM.settleJunk === 'function', 'a bulk gesture is unpublished');
+  /* ── BULK SELL ON `vendor_sell_many`: ONE INTENT PER PRESS ─────────
+     Sell Selected and the junk sweep used to pay gold locally and send nothing
+     (the envelope took it back, CLAUDE.md §6); an interim closed them.
+     They send ONE vendor_sell_many per press now. These four pin the press:
+     the one intent and what is on it, the toast from the SERVER receipt, the
+     rollback of a refused batch, the latch, and the toolbar that reaches it.
+     MUTATION (BULK-SELL-1, run 2026-10-06 with --only BULK-SELL): have
+     bulkSellToast use the local quote (Σ vendorPrice·qty and the asked count)
+     instead of receipt.gold / Σ receipt.lines[].qty → red on the toast. */
+  () => tryRunAsync('BULK-SELL-1: Sell Selected sends ONE vendor_sell_many with every unlocked stack at the server count, no price, and toasts the SERVER receipt', async () => {
+    const G = window.G, snap = snapshotG(), bag = serverBagFixture(), realNotify = window.notify, toasts = [];
+    assert(typeof window.invSellSelected === 'function' && typeof window.vendorSellMany === 'function', 'the bulk sell gestures are unpublished');
     window.notify = (m) => { toasts.push(String(m)); };
     try {
       const raw = Object.keys(window.ITEMS).find((id) => window.ITEMS[id].raw && Number(window.ITEMS[id].v) >= 10);
-      assert(!!raw, 'CONTROL: no raw item worth 10+ to sweep');
-      G.lockedItems = {}; G.gold = 1000; stampBalanceLikeLoad(G);
-      G.inventory = { normal_log: 50 }; G.inventory[raw] = 40; bag.agree({ normal_log: 50, [raw]: 40 });
-      const q = CM.quoteJunk(1e9);
-      assert(q.ids.length > 0 && q.totalGold > 0, 'CONTROL: the junk quote is empty, so the sweep below proves nothing: ' + JSON.stringify(q));
+      assert(!!raw, 'CONTROL: no raw item worth 10+ to sell');
+      G.lockedItems = { copper_ore: true }; G.gold = 1000; stampBalanceLikeLoad(G);
+      G.inventory = { normal_log: 50, copper_ore: 9 }; G.inventory[raw] = 40;
+      bag.agree({ normal_log: 37, copper_ore: 9, [raw]: 40 });
+      const localQuote = 37 * window.vendorPrice('normal_log') + 40 * window.vendorPrice(raw);
+      assert(localQuote !== 777, 'CONTROL: the local quote equals the server receipt, so the toast cannot tell them apart');
+      window._invSelectMode = true;
+      window._invSelected = new Set(['normal_log', raw, 'copper_ore']);
       await withServerBacked({}, async (rig) => {
-        const before = JSON.stringify(G.inventory);
-        window._invSelected = new Set(['normal_log', raw]);
-        const r1 = window.invSellSelected(); await rig.drain();
-        const r2 = CM.settleJunk(q); await rig.drain();
-        const r3 = await CM.sellJunk(1e9); await rig.drain();
-        assert(!document.getElementById('hr-confirm-overlay'), 'the closed sweep still ASKED to sell the bag');
-        assert(rig.sent.length === 0, 'a closed bulk gesture reached the wire: ' + JSON.stringify(rig.sent));
-        assert(G.gold === 1000 && (r1 | 0) === 0 && (r2 | 0) === 0 && (r3 | 0) === 0, 'a bulk gesture paid ' + (G.gold - 1000) + ' gold (returned ' + [r1, r2, r3] + ') the server never confirmed');
-        assert(JSON.stringify(G.inventory) === before, 'a bulk gesture removed items the server never sold: ' + before + ' → ' + JSON.stringify(G.inventory));
-        assert(!toasts.some((t) => /^Sold/.test(t)), 'a bulk gesture said "Sold" with no server receipt: ' + JSON.stringify(toasts));
-        assert(toasts.filter((t) => t === window.BULK_SELL_CLOSED).length === 3, 'a closed bulk gesture did not say what to do instead: ' + JSON.stringify(toasts));
+        rig.reply((body) => (body && body.verb === 'vendor_sell_many')
+          ? rig.envelope({ gold: 1777 }, { verb: 'vendor_sell_many', receipt: { gold: 777, lines: [
+              { item: 'normal_log', name: 'Normal Log', qty: 30, unit_gold: 1, gold: 30 },
+              { item: raw, name: raw, qty: 40, unit_gold: 18, gold: 747 }] } })
+          : null);
+        const p = window.invSellSelected(); await rig.drain(); const res = await p;
+        assert(rig.sent.length === 1 && rig.sent[0].verb === 'vendor_sell_many',
+          'Sell Selected sent ' + JSON.stringify(rig.sent.map((b) => b && b.verb)) + ' — it must be exactly ONE vendor_sell_many');
+        const body = rig.sent[0];
+        assert(Object.keys(body).sort().join(',') === 'intentId,lines,slot,verb', 'the bulk body carries extra fields: ' + Object.keys(body));
+        const byItem = (a, b) => (a.item < b.item ? -1 : 1);
+        const lines = (body.lines || []).slice().sort(byItem);
+        const want = [{ item: 'normal_log', qty: 37 }, { item: raw, qty: 40 }].sort(byItem);
+        assert(JSON.stringify(lines) === JSON.stringify(want),
+          'the intent named ' + JSON.stringify(lines) + ' — want the SERVER counts of the unlocked stacks ' + JSON.stringify(want) + ' (the locked copper stays)');
+        assert(body.lines.every((l) => Object.keys(l).sort().join(',') === 'item,qty'), 'a line carried a field other than item/qty — a price must never cross: ' + JSON.stringify(body.lines));
+        assert(toasts.includes('Sold 70 items for 777 gold'),
+          'the toast is not the server receipt (70 items, 777 gold): ' + JSON.stringify(toasts));
+        assert(!toasts.some((t) => t.includes(localQuote.toLocaleString() + ' gold')), 'the toast used the local quote (' + localQuote + ')');
+        assert(res && res.gold === 777 && res.sold === 70, 'invSellSelected resolved ' + JSON.stringify(res) + ' — want the receipt {sold:70, gold:777}');
+        assert(G.gold === 1777, 'gold is ' + G.gold + ' — the server said 1777');
+        assert(G.inventory.copper_ore === 9, 'the LOCKED stack left the bag');
+        assert(window._invSelected.size === 0 && window._invSelectMode === false, 'the selection survived the sale');
       });
-      /* The bag offers no bulk affordance: the old "Multi-select" toggled a flag nothing read. */
+    } finally { window.notify = realNotify; window._invSelected = new Set(); window._invSelectMode = false; restoreG(snap); bag.restore(); }
+  }),
+
+  () => tryRunAsync('BULK-SELL-2: a refused batch rolls back BOTH the gold and every stack — stateless 429 and enveloped insufficient_item alike', async () => {
+    const G = window.G, snap = snapshotG(), bag = serverBagFixture(), realNotify = window.notify, toasts = [];
+    window.notify = (m) => { toasts.push(String(m)); };
+    try {
+      for (const mode of ['rate-limited', 'insufficient_item']) {
+        toasts.length = 0;
+        G.lockedItems = {}; G.gold = 1000; stampBalanceLikeLoad(G);
+        G.inventory = { normal_log: 30, copper_ore: 20 }; bag.agree();
+        const before = JSON.stringify(G.inventory);
+        await withServerBacked({}, async (rig) => {
+          rig.reply((body) => {
+            if (!body || body.verb !== 'vendor_sell_many') return null;
+            if (mode === 'rate-limited') return new Response(JSON.stringify({ ok: false, verb: body.verb, error: 'rate_limited' }), { status: 429 });
+            /* The server's refusal carries ITS bag — the pre-sale one, since nothing moved. */
+            const env = rig.envelope({ gold: 1000 }, { ok: false, verb: body.verb, error: 'insufficient_item', stage: 'apply' });
+            env.inventory = JSON.parse(before);
+            return new Response(JSON.stringify(env), { status: 409 });
+          });
+          const p = window.vendorSellMany([{ id: 'normal_log', qty: 30 }, { id: 'copper_ore', qty: 20 }], 'vendor.sell_selected');
+          await rig.drain(); const res = await p;
+          assert(rig.sent.length === 1, mode + ': the press sent ' + rig.sent.length + ' intents');
+          assert(res === null, mode + ': a refused batch resolved ' + JSON.stringify(res));
+          assert(G.gold === 1000, mode + ': gold is ' + G.gold + ' after a refused batch — the prediction was not rolled back');
+          assert(JSON.stringify(G.inventory) === before, mode + ': the bag is ' + JSON.stringify(G.inventory) + ' after a refused batch, want ' + before + ' (no stack lost, none doubled)');
+          assert(!toasts.some((t) => /^Sold/.test(t)), mode + ': a refused batch said "Sold": ' + JSON.stringify(toasts));
+        });
+        window.HearthriseIntentLatch.__resetAll();
+      }
+    } finally { window.notify = realNotify; restoreG(snap); bag.restore(); }
+  }),
+
+  () => tryRunAsync('BULK-SELL-3: a double press sends once, a sweep past the line cap sends one capped intent, and the junk sweep is one intent of its quote', async () => {
+    const G = window.G, CM = window.HearthriseInvCtx, Gd = window.HearthriseGold, snap = snapshotG(), bag = serverBagFixture(), realNotify = window.notify, toasts = [];
+    window.notify = (m) => { toasts.push(String(m)); };
+    try {
+      G.lockedItems = {}; G.gold = 1000; stampBalanceLikeLoad(G);
+      G.inventory = { normal_log: 30 }; bag.agree();
+      await withServerBacked({}, async (rig) => {
+        const p1 = window.vendorSellMany([{ id: 'normal_log', qty: 30 }], 'vendor.sell_selected');
+        const p2 = window.vendorSellMany([{ id: 'normal_log', qty: 30 }], 'vendor.sell_selected');
+        await rig.drain(); await p1; const r2 = await p2;
+        assert(rig.sent.length === 1, 'a double press sent ' + rig.sent.length + ' intents — the vendor-bulk latch must send ONCE');
+        assert(r2 === null, 'the second press answered ' + JSON.stringify(r2) + ' — a latched press is silence');
+      });
+      window.HearthriseIntentLatch.__resetAll();
+
+      /* MORE STACKS THAN ONE INTENT TAKES: the first MAX_SELL_LINES go, the rest stay, the toast says so. */
+      const ids = Object.keys(window.ITEMS).filter((id) => window.vendorPrice(id) > 0).slice(0, Gd.MAX_SELL_LINES + 6);
+      assert(ids.length === Gd.MAX_SELL_LINES + 6, 'CONTROL: not enough sellable items for the cap case');
+      G.inventory = {}; ids.forEach((id) => { G.inventory[id] = 2; }); bag.agree();
+      toasts.length = 0;
+      await withServerBacked({}, async (rig) => {
+        rig.reply((body) => (body && body.verb === 'vendor_sell_many')
+          ? rig.envelope({}, { receipt: { gold: 5, lines: body.lines.map((l) => ({ item: l.item, qty: l.qty, unit_gold: 0, gold: 0 })) } }) : null);
+        await window.vendorSellMany(ids.map((id) => ({ id, qty: 2 })), 'vendor.sell_selected'); await rig.drain();
+        assert(rig.sent.length === 1 && rig.sent[0].lines.length === Gd.MAX_SELL_LINES,
+          'a ' + ids.length + '-stack sweep sent ' + rig.sent.length + ' intent(s) of ' + (rig.sent[0] && rig.sent[0].lines.length) + ' lines — want ONE of ' + Gd.MAX_SELL_LINES);
+        assert(ids.slice(Gd.MAX_SELL_LINES).every((id) => G.inventory[id] === 2), 'a stack past the cap left the bag without being sold');
+        const sold = Gd.MAX_SELL_LINES * 2, left = 6 * 2;
+        assert(toasts.some((t) => t.indexOf('Sold ' + sold + ' items for 5 gold · ' + left + ' left in your bag') === 0), 'the capped sweep did not say what stayed: ' + JSON.stringify(toasts));
+      });
+      window.HearthriseIntentLatch.__resetAll();
+
+      /* THE JUNK SWEEP: ONE intent carrying exactly its quote's ids and server counts. */
+      const raw = Object.keys(window.ITEMS).find((id) => window.ITEMS[id].raw && Number(window.ITEMS[id].v) >= 10);
+      G.inventory = { normal_log: 50 }; G.inventory[raw] = 40; bag.agree({ normal_log: 45, [raw]: 40 });
+      const q = CM.quoteJunk(1e9);
+      assert(q.ids.length >= 2, 'CONTROL: the junk quote is empty: ' + JSON.stringify(q));
+      await withServerBacked({}, async (rig) => {
+        rig.reply((body) => (body && body.verb === 'vendor_sell_many')
+          ? rig.envelope({ gold: 1234 }, { receipt: { gold: 234, lines: body.lines.map((l) => ({ item: l.item, qty: l.qty, unit_gold: 1, gold: 1 })) } }) : null);
+        const paid = await CM.settleJunk(q); await rig.drain();
+        assert(rig.sent.length === 1 && rig.sent[0].verb === 'vendor_sell_many', 'the junk sweep sent ' + JSON.stringify(rig.sent.map((b) => b && b.verb)));
+        const sentQ = {}; rig.sent[0].lines.forEach((l) => { sentQ[l.item] = l.qty; });
+        assert(JSON.stringify(Object.keys(sentQ).sort()) === JSON.stringify(q.ids.slice().sort()) && q.ids.every((id) => sentQ[id] === q.qtys[id]),
+          'the sweep sent ' + JSON.stringify(sentQ) + ' — want its quote ' + JSON.stringify(q.qtys));
+        assert(paid === 234, 'settleJunk resolved ' + paid + ' — it must resolve the RECEIPT gold (234), never the quote');
+      });
+    } finally { window.notify = realNotify; restoreG(snap); bag.restore(); }
+  }),
+
+  () => tryRun('BULK-SELL-4: the bag toolbar reaches Sell Selected and the junk sweep — Select toggles the mode the tile tap reads', () => {
+    const G = window.G, snap = snapshotG(), realNotify = window.notify, realNew = window.renderInvNew;
+    window.notify = () => {};
+    window.renderInvNew = () => window.renderInvFancy();   // paint now, not on a 0ms hop
+    try {
+      G.lockedItems = {}; G.inventory = { normal_log: 5, copper_ore: 3 };
+      window._invSelectMode = false; window._invSelected = new Set();
+      window._invFilter = { category: 'all', search: '' };
       window.renderInvFancy();
       const panel = document.getElementById('panel-inventory');
-      assert(panel && panel.querySelector('.invc-topbar'), 'CONTROL: the bag toolbar did not paint, so its absence check proves nothing');
-      assert(!Array.from(panel.querySelectorAll('button')).some((b) => /multi-?select|sell selected|sell junk/i.test(b.textContent)),
-        'the bag offers a bulk-sell/select button again while bulk selling is closed: ' + Array.from(panel.querySelectorAll('.invc-topbar button')).map((b) => b.textContent.trim()));
-    } finally { window.notify = realNotify; window._invSelected = new Set(); window._invSelectMode = false; try { window.HearthriseDialog.close(); } catch (e) {} restoreG(snap); bag.restore(); }
+      const btns = () => Array.from(panel.querySelectorAll('.invc-topbar button')).map((b) => b.textContent.trim());
+      assert(panel && panel.querySelector('.invc-topbar'), 'CONTROL: the bag toolbar did not paint');
+      assert(btns().includes('Select'), 'the bag offers no way into select mode: ' + JSON.stringify(btns()));
+      window._invToggleSelect();
+      assert(window._invSelectMode === true, 'Select did not turn select mode on');
+      assert(btns().includes('Sell 0') && btns().includes('Sell junk') && btns().includes('Done'), 'select mode toolbar is ' + JSON.stringify(btns()));
+      assert(panel.querySelector('.invc-sell-selected').disabled, 'Sell 0 is pressable');
+      window.invItemTap('normal_log');
+      assert(window._invSelected.has('normal_log'), 'a tile tap in select mode did not select the stack');
+      window.renderInvFancy();
+      assert(btns().includes('Sell 1') && !panel.querySelector('.invc-sell-selected').disabled, 'the toolbar did not count the selection: ' + JSON.stringify(btns()));
+      assert(panel.querySelectorAll('.invc-tile.invc-selected').length === 1, 'the selected tile is not marked');
+      window._invToggleSelect();
+      assert(window._invSelectMode === false && window._invSelected.size === 0, 'Done left a stale selection behind');
+      assert(btns().includes('Select') && !btns().includes('Sell junk'), 'Done did not restore the toolbar: ' + JSON.stringify(btns()));
+    } finally { window.notify = realNotify; window.renderInvNew = realNew; window._invSelectMode = false; window._invSelected = new Set(); restoreG(snap); }
   }),
 
   /* MUTATION: put the sellableCount cut back in quick-sell → the first assert is red. */
@@ -8060,10 +8180,11 @@ export default [
        documentation this codebase depends on"). Over-stripping can only remove
        comment text, never a statement, so it cannot hide a real occurrence. */
     const stripJs = (js) => js.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
-    /* invSellSelected is CLOSED (BULK-INTERIM-1): it writes the bag not at all. */
-    assert(!/delete\s+G\.inventory\s*\[|removeItem\s*\(/.test(stripJs(String(window.invSellSelected))),
-      'invSellSelected() writes the bag again — it is closed until vendor_sell_many ships (BULK-INTERIM-1)');
-    [['invSellAll', window.invSellAll]].forEach(([name, fn]) => {
+    /* Sell Selected writes the bag through vendorSellMany (one intent per press). */
+    assert(typeof window.vendorSellMany === 'function', 'vendorSellMany is unpublished');
+    assert(!/delete\s+G\.inventory\s*\[/.test(stripJs(String(window.invSellSelected))),
+      'invSellSelected() deletes a bag entry directly');
+    [['invSellAll', window.invSellAll], ['vendorSellMany', window.vendorSellMany]].forEach(([name, fn]) => {
       const src = stripJs(String(fn));
       assert(/delete\s+G\.inventory\s*\[/.test('delete G.inventory[x];'),
         'the raw-delete scan is BLIND — it does not match a known positive');

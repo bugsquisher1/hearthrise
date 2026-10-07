@@ -154,8 +154,15 @@ const BASELINE = {
      `seam:shop.buy` gold site) and `b.id` = repurchase (the vendor buy-back,
      `src/screens/shop-counter.js#repurchase` in the gold ledger, deferred behind
      B.BUYBACK_LEDGER). Neither is a new lane — both are the same rows they were
-     in the monolith, now readable in the file that owns the gesture. */
-  'src/screens/shop-counter.js': ['b.id', 'id'],
+     in the monolith, now readable in the file that owns the gesture.
+     b564 — `l.item` = vendorSellMany's PUT-BACK: a bulk sale removes its stacks
+     from the display bag at the press, and when the server PROVABLY wrote
+     nothing (gold.js PROVABLY_UNWRITTEN) and its answer carried no envelope to
+     restore them from, the same stacks go back. It can only return what this
+     press took (the press's own `lines`), never more, and the next absolute
+     envelope overwrites the bag either way — the same standing as sellReceipt's
+     `addItem(id, back)` restore, which `id` already covers. Not a mint lane. */
+  'src/screens/shop-counter.js': ['b.id', 'id', 'l.item'],
   'src/features/muster.js': ["'muster_seal'", 'it.id'],
   'src/features/raids.js': ['chest.sig', 'id'],
   'src/features/renown.js': ['rw.item'],

@@ -983,6 +983,24 @@ jobs:
           node tests/gem-unlock-buy.mjs
           node tests/gem-unlock-buy.mjs --selftest
 
+      # b564 — THE BULK SALE (`vendor_sell_many`), against the real chain, through
+      # the real edge bytes (parseIntent -> runVendorSellMany -> hr_apply as
+      # hr_engine). A client `unit`/`price` on a line never reaches the delta; one
+      # short line refuses the WHOLE batch (gold, stacks and ledger unchanged); one
+      # sweep is ONE shop rate token and ONE ledger row; the cap sits under
+      # hr_apply's c_max_item_kinds; same key + same lines replays, same key +
+      # different lines is intent_mismatch; the receipt sums to the gold moved.
+      # --mutate plants eight defects (client price trusted, per-line applies,
+      # unknown line skipped, duplicates, cap dropped, digest dropped, receipt
+      # invented, settle-first off) and each must turn it red.
+      # No credentials; production untouched. MEASURED 2026-10-06: base ~30 s,
+      # --mutate ~20 s on the dev machine (template-warm).
+      - name: Bulk vendor sell — one answer, catalogue price, all or nothing
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/vendor-sell-many.mjs
+          node tests/vendor-sell-many.mjs --mutate
+
       # M8 SLICE 2 — THE PARTY AS A ROSTER UNIT, IN SHADOW. The three migrations
       # carry their own §4 blocks (Security's §18-SEC.3 S2 list, executed at
       # apply time and refusing to install otherwise); this is the STANDING half,

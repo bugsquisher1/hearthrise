@@ -473,12 +473,15 @@ for (const m of MUTANTS) {
      applied cleanly through its own file and every file after it, and only a
      downstream §0 lock (2026-10-08-world-tick-party-fences.sql over
      hr_party_tick_settle, 2026-10-08-world-tick-party-drop.sql over it and
-     hr_party_roster / hr_partied) noticed the body is not the measured one. The
+     hr_party_roster / hr_partied, 2026-10-08-world-tick-party-reaper.sql over
+     all three) noticed the body is not the measured one. The
      mutated body is still the installed one (the refusing file rolled back),
      so the ARMS decide, exactly as they did before that file existed. */
   const lockOnly = r.failures.length > 0 && r.failures.every((f) =>
     f.file !== (m.file || MIG)
-    && /PRECONDITION: hr_(party_tick_settle|tick_settle|tick_stall_status|party_roster|partied) prosrc md5 is/.test(f.error));
+    && (/PRECONDITION: hr_(party_tick_settle|tick_settle|tick_stall_status|party_roster|partied) prosrc md5 is/.test(f.error)
+      || (f.file === '2026-10-08-world-tick-party-reaper.sql'
+        && /PRECONDITION: the party bodies are not the live party-drop ones/.test(f.error))));
   if (r.failures.length && !lockOnly) {
     /* A mutant of the channel-arm file refuses THAT file; the guards file
        downstream then refuses on its own §0 precondition, by name, and so does
@@ -505,7 +508,12 @@ for (const m of MUTANTS) {
           /* 2026-10-08-world-tick-party-drop.sql holds the same md5 lock on
              hr_party_tick_settle (and on hr_party_roster / hr_partied). */
           || (f.file === '2026-10-08-world-tick-party-drop.sql'
-             && /PRECONDITION: hr_(party_tick_settle|party_roster|partied) prosrc md5 is/.test(f.error)))
+             && /PRECONDITION: hr_(party_tick_settle|party_roster|partied) prosrc md5 is/.test(f.error))
+          /* 2026-10-08-world-tick-party-reaper.sql restates no body but its §0
+             pins the party-drop bodies, so it refuses by name after any of the
+             three locks above. */
+          || (f.file === '2026-10-08-world-tick-party-reaper.sql'
+             && /PRECONDITION: the party bodies are not the live party-drop ones/.test(f.error)))
       && (!m.expect || m.expect.test(msg));
     verdict = mine ? `RED via the file's own self-check (${msg.slice(0, 90)})` : null;
     if (!mine) { console.log(`  ✗ ${m.name} — refused for the WRONG reason: ${msg.slice(0, 200)}`); survived++; continue; }

@@ -80,7 +80,7 @@ const ok = (name, cond, detail) => {
 async function apply(seed, patch) {
   const opts = {};
   if (seed) { const m = new Map(); m.set(TOKEN_FILE, seed); opts.seedBefore = m; }
-  if (patch) { const m = new Map(); m.set(TOKEN_FILE, patch); opts.patches = m; }
+  if (patch) { const m = new Map(); m.set(TOKEN_FILE, patch); opts.patches = m; opts.upTo = TOKEN_FILE; }
   try {
     const { db } = await bootReplay(opts);
     return { applied: true, db, error: null };

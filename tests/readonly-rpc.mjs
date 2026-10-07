@@ -49,7 +49,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { bootReplay, inventory, ROOT } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED, inventory, ROOT } from './schema-replay.mjs';
 
 const ARGS = process.argv.slice(2);
 const SELFTEST = ARGS.includes('--selftest');
@@ -231,7 +231,7 @@ async function seedPlayer(db) {
 }
 
 async function boot(patches) {
-  const r = await bootReplay({ patches });
+  const r = await bootReplay({ patches, upTo: LAST_PATCHED });
   if (r.failures.length) {
     await r.db.close();
     return { failure: r.failures[0] };

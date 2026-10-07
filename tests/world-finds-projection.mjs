@@ -82,7 +82,7 @@
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { bootReplay, ROOT } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED, ROOT } from './schema-replay.mjs';
 import { runMutationProof } from './mutation-proof.mjs';
 
 const MIG = '2026-09-13-world-finds-projection.sql';
@@ -281,7 +281,7 @@ async function boot(mutate) {
      must differ by the defect and nothing else. */
   const patches = new Map([[MIG, [DISARM, DISARM_4A]]]);
   if (m && !m.post) patches.set(MIG, [...patches.get(MIG), ...m.pairs]);
-  const { db } = await bootReplay({ patches });
+  const { db } = await bootReplay({ patches, upTo: LAST_PATCHED });
   if (m && typeof m.post === 'string') await db.exec(m.post);
   else if (m && m.post) await plantInBody(db, m.postFn, m.post);
   return db;

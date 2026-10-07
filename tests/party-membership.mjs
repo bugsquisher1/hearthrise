@@ -48,7 +48,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { bootReplay, inventory, ROOT } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED, inventory, ROOT } from './schema-replay.mjs';
 
 const MUTATE = process.argv.slice(2).includes('--mutate');
 
@@ -117,7 +117,7 @@ if (MUTATE) {
   group('M1  the mutant is refused by the APPLY (file 2 §8(c))');
   let failed = null;
   try {
-    const r = await bootReplay({ patches: new Map([[F2, [MUTANT]]]) });
+    const r = await bootReplay({ patches: new Map([[F2, [MUTANT]]]), upTo: LAST_PATCHED });
     failed = r.failures[0] || null;
     await r.db.close();
   } catch (e) {
@@ -137,7 +137,7 @@ if (MUTATE) {
 const patches = new Map();
 if (MUTATE) patches.set(F2, [MUTANT, NEUTER_SELFCHECK]);
 
-const { db, failures } = await bootReplay({ patches });
+const { db, failures } = await bootReplay({ patches, upTo: LAST_PATCHED });
 if (failures.length) {
   console.error('the schema replay did not complete:', failures);
   process.exit(2);

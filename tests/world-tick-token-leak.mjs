@@ -55,6 +55,11 @@ import {
   tickTokenMac, tickBodySha256, tickSecretUsable,
   TICK_BUCKET_SECONDS, TICK_BUCKET_SKEW, FLUSH_MS_MIN,
 } from '../supabase/functions/hr-accrue/tick.js';
+/* A mutant replays UP TO the newest file this guard stands on, never past it, so a
+   newer migration's lock or self-check cannot refuse first: its arms read the tick
+   body's `armed` key, introduced there; MX6 needs TOKEN_FILE's d11b to run.
+   (tests/schema-replay.mjs replayScopeError). The plain run is the whole chain. */
+const REPLAY_UPTO = '2026-10-06-world-tick-channel-arm.sql';
 
 const TOKEN_FILE = '2026-09-22-world-tick-derived-token.sql';
 const CRON_FILE = '2026-09-21-world-tick-cron.sql';
@@ -399,7 +404,7 @@ async function main(selftest) {
       const seed = new Map();
       seed.set(TOKEN_FILE, (shim || SHIM_CRYPTO) + SHIM_VAULT + SHIM_NET);
       const p = new Map(); p.set(file, patch);
-      const b = await bootReplay({ seedBefore: seed, patches: p });
+      const b = await bootReplay({ seedBefore: seed, patches: p, upTo: REPLAY_UPTO });
       red = await probeMutation(b.db, name);
     } catch (e) {
       red = `refused at apply: ${String(e && e.message || e).split('\n')[1] || ''}`.trim();

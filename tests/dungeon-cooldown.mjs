@@ -78,7 +78,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { readFile } from 'node:fs/promises';
-import { bootReplay } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED } from './schema-replay.mjs';
 
 const MIG = '2026-09-12-dungeon-cooldown.sql';
 const DUNGEON = 'crypt_of_bones';       // req_lv 25, cooldown_s 14400, bone_key
@@ -193,7 +193,7 @@ async function boot(mutate) {
   const patches = mutate
     ? new Map([[MIG, [...MUTATIONS[mutate].pairs, DISARM_GATE]]])
     : undefined;
-  const { db } = await bootReplay(patches ? { patches } : {});
+  const { db } = await bootReplay(patches ? { patches, upTo: LAST_PATCHED } : {});
   return db;
 }
 

@@ -47,6 +47,11 @@ import { ITEMS } from '../src/data/items.js';
 import { recipeInputs } from '../src/core/artisan.js';
 import { mulberry32, rngFrom } from '../src/core/rng.js';
 import { xpForLevel } from '../src/core/xp.js';
+/* A mutant replays UP TO the newest file this guard stands on, never past it, so a
+   newer migration's lock or self-check cannot refuse first: the newest file it names;
+   its arms buy through the hr_unlock_buy signature and catalogue as of there.
+   (tests/schema-replay.mjs replayScopeError). The plain run is the whole chain. */
+const REPLAY_UPTO = '2026-10-06-world-tick-parity-probe.sql';
 
 /* An UNGATED cooking recipe for the burn measurement, chosen by the PROPERTY
    that matters — cheapest inputs, so a long span never runs dry — rather than
@@ -357,7 +362,7 @@ async function boot(mutate) {
 
   let db;
   try {
-    ({ db } = await bootReplay(sqlPatches ? { patches: sqlPatches } : {}));
+    ({ db } = await bootReplay(sqlPatches ? { patches: sqlPatches, upTo: REPLAY_UPTO } : {}));
   } catch (e) {
     if (e.harness) throw e;
     /* A mutation that makes a migration REFUSE TO INSTALL is the guard working:

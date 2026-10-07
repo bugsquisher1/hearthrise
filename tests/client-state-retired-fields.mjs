@@ -56,7 +56,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { readFile } from 'node:fs/promises';
-import { bootReplay } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED } from './schema-replay.mjs';
 
 const ROOT = new URL('../', import.meta.url);
 const MIG = '2026-09-23-client-state-retired-fields.sql';
@@ -199,6 +199,7 @@ async function boot(mutate, gateBlind, extra, upTo) {
   const opts = {};
   if (pairs.length) opts.patches = new Map([[MIG, pairs]]);
   if (upTo) opts.upTo = upTo;
+  else if (opts.patches) opts.upTo = LAST_PATCHED;
   const { db } = await bootReplay(opts);
   return db;
 }

@@ -36,7 +36,7 @@
 // A mutation nothing catches is reported as SLIPPED and exits 1.
 // ════════════════════════════════════════════════════════════════════════
 
-import { bootReplay } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED } from './schema-replay.mjs';
 
 const MIG = '2026-08-16-client-write-grant-sweep-5.sql';
 
@@ -172,7 +172,7 @@ async function detector(db, strict) {
 
 // ── THE RUN ────────────────────────────────────────────────────────────────
 async function run({ patches } = {}) {
-  const { db } = await bootReplay({ patches });
+  const { db } = await bootReplay({ patches, upTo: LAST_PATCHED });
   await db.query('begin');
   const VOCAB = await vocabulary(db);
   const owner = (await db.query(

@@ -56,7 +56,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 
-import { bootReplay, ROOT } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED, ROOT } from './schema-replay.mjs';
 import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { makeBonus } from '../src/core/perks.js';
@@ -107,7 +107,7 @@ const BURN_RECIPE = (ARTISAN_RECIPES.cooking || [])
 
 // ── the harness ───────────────────────────────────────────────────────────
 async function boot(patches) {
-  const { db } = await bootReplay(patches ? { patches } : {});
+  const { db } = await bootReplay(patches ? { patches, upTo: LAST_PATCHED } : {});
   await db.query('insert into auth.users (id) values ($1) on conflict do nothing', [USER]);
   await db.query("select set_config('request.jwt.claim.sub', $1, false)", [USER]);
   const r = await db.query('select public.hr_create_character(0) as r');

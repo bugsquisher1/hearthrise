@@ -74,7 +74,7 @@
 // override IS the transport, and the suite asserts the literal bytes.
 // ============================================================================
 
-import {
+import { fetchWrite,
   isServerAccrualEnabled, resolveActiveSlot, accrueEndpoint, MAX_SLOT,
   applyEnvelopeState, holdFallAnnounce, describeReplacement,
   isReplacementAcknowledged, showReplacementSheet, beginServerAccrual,
@@ -883,7 +883,7 @@ async function attemptOnce(kind, id, key, attempt) {
   let res = null;
   let aborted = false;
   try {
-    res = await fetch(url, opts);
+    res = await fetchWrite(url, opts, 'set_activity');
   } catch (e) {
     aborted = !!(ac && ac.signal && ac.signal.aborted);
     if (timer) clearTimeout(timer);

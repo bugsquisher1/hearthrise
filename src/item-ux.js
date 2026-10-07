@@ -234,7 +234,7 @@
          used to pay v × 0.5 while every OTHER sell button in the game paid the
          full v — the same item fetched two different prices depending on which
          control you pressed. One price, one place. */
-      var sellPrice = (typeof window.vendorPrice === 'function') ? window.vendorPrice(itemId) : Math.max(1, Math.floor(item.v * 0.5));
+      var sellPrice = (typeof window.vendorPrice === 'function') ? window.vendorPrice(itemId) : 0;
       var isNpcSold = isItemSoldByNpc(itemId);
       if(isNpcSold){
         marketBlock += '<div class="ttl-row-2"><span>' + _iuGly('shop',13) + '</span><b>NPC value</b><i>' + item.v + 'g · sells back ' + sellPrice + 'g</i></div>';
@@ -522,7 +522,7 @@
     var item = sliderState.id && window.ITEMS && window.ITEMS[sliderState.id];
     if(!item) return;
     var qty = parseInt(document.getElementById('qs-num').value, 10) || 1;
-    var sellEach = (typeof window.vendorPrice === 'function') ? window.vendorPrice(sliderState.id) : Math.max(1, Math.floor((item.v || 0) * 0.5));
+    var sellEach = (typeof window.vendorPrice === 'function') ? window.vendorPrice(sliderState.id) : 0;
     var totalSell = sellEach * qty;
     var lines = [];
     lines.push('<div class="qs-sum-row">' + _iuGly('gold',13,'--gold-2') + ' Sell ' + qty + ' for <b>' + totalSell.toLocaleString() + 'g</b> <i>(' + sellEach + 'g each)</i></div>');
@@ -576,7 +576,7 @@
     var held = (window.G.inventory[id] | 0);
     if(held <= 0){ if(typeof window.notify === 'function') window.notify('Nothing to sell', 'kill'); return; }
     qty = Math.min(qty, held);
-    var unit = (typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : Math.max(1, Math.floor((item.v || 0) * 0.5));
+    var unit = (typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : 0;
     var goldGain = unit * qty;
     /* THE PAYMENT GOES THROUGH THE SEAM (src/net/gold.js) like every other
        vendor path — ledger site `vendor.quick_sell` — and it happens BEFORE the

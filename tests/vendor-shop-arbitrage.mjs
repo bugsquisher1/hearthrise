@@ -5,10 +5,11 @@
 //   node tests/vendor-shop-arbitrage.mjs             the guard
 //   node tests/vendor-shop-arbitrage.mjs --selftest  mutation proof
 //
-// THE PROPERTY. For every offer the server will SELL for gold (`shop_buy`), the
-// gold the NPC vendor PAYS for everything that offer grants (`vendor_sell`)
-// must not exceed the gold the offer costs. Otherwise buy -> sell -> repeat is
-// an unbounded gold faucet that needs no play at all.
+// THE PROPERTY (b565 strict margin, game-designer ruling). For every offer the
+// server will SELL for gold (`shop_buy`), the gold the NPC vendor PAYS for
+// everything that offer grants (`vendor_sell`) must not exceed HALF the gold the
+// offer costs (SHOP_BUYBACK_RATE × shop price). At 1.00 a buy -> sell loop is a
+// zero-loss laundering channel; above it, an unbounded gold faucet.
 //
 // THE AUTHORITATIVE SOURCES — both server-side, never the client mirror:
 //   SHOP PRICE   supabase/functions/hr-accrue/catalogue.js GOLD_OFFERS — the
@@ -19,19 +20,22 @@
 //                    function vendor-sell.js pays from;
 //                (b) the database: public.hr_items.value as the LAST migration
 //                    in tests/schema-apply-order.json leaves it, run through
-//                    the same raw/rate formula. The guard takes the HIGHER of
+//                    the same raw/rate/buy-back formula. The guard takes the HIGHER of
 //                    the two, so a drift between the payload and the catalogue
 //                    can only make it stricter.
 //   An `update public.hr_items` that writes `value` in a shape this parser does
 //   not understand FAILS CLOSED (exit 2) rather than being skipped.
 //
-// Equal prices are not a loop (zero profit); only vendor > shop is red.
+// Only vendor > SHOP_BUYBACK_RATE × shop is red; exactly half is the ruling.
 // Exit 0 clean, 1 on any violation (each named with both prices), 2 harness.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { GOLD_OFFERS, vendorPriceOf, VENDOR_RAW_RATE } from '../supabase/functions/hr-accrue/catalogue.js';
+import * as CAT from '../supabase/functions/hr-accrue/catalogue.js';
+import { writeFileSync, unlinkSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
+const { GOLD_OFFERS, VENDOR_RAW_RATE, SHOP_BUYBACK_RATE, SHOP_UNIT_PRICE } = CAT;
 import { ITEMS } from '../src/data/items.js';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
@@ -117,11 +121,17 @@ function sqlBid(sqlVal, items, id) {
   const v = sqlVal.get(id) || 0;
   if (!(v > 0)) return 0;
   const it = Object.prototype.hasOwnProperty.call(items, id) ? items[id] : null;
-  return it && it.raw ? Math.max(1, Math.floor(v * VENDOR_RAW_RATE)) : v;
+  const bid = it && it.raw ? Math.max(1, Math.floor(v * VENDOR_RAW_RATE)) : v;
+  const unit = Object.prototype.hasOwnProperty.call(SHOP_UNIT_PRICE, id) ? SHOP_UNIT_PRICE[id] : 0;
+  return unit > 0 ? Math.min(bid, Math.max(1, Math.floor(SHOP_BUYBACK_RATE * unit))) : bid;
 }
 
-/** Pure: every offer whose vendor revenue beats its price. */
-export function findArbitrage({ offers = GOLD_OFFERS, items = ITEMS, sqlVal }) {
+/** The STRICT margin. Never read from the module under test, so a mutant that
+    raises SHOP_BUYBACK_RATE cannot also raise the bar it is measured against. */
+const MARGIN = 0.5;
+
+/** Pure: every offer whose vendor revenue beats half its price. */
+export function findArbitrage({ offers = GOLD_OFFERS, items = ITEMS, sqlVal, vendorPriceOf = CAT.vendorPriceOf }) {
   const bad = []; let priced = 0;
   for (const id of Object.keys(offers)) {
     const o = offers[id];
@@ -132,7 +142,7 @@ export function findArbitrage({ offers = GOLD_OFFERS, items = ITEMS, sqlVal }) {
     }
     const sell = Math.max(edge, db);
     if (sell > 0) priced++;
-    if (sell > o.gold) {
+    if (sell > MARGIN * o.gold) {
       bad.push({ offer: id, items: o.grant.map((g) => `${g.amount}x${g.id}`).join('+'), shop: o.gold, vendor: sell, edge, db });
     }
   }
@@ -142,51 +152,67 @@ export function findArbitrage({ offers = GOLD_OFFERS, items = ITEMS, sqlVal }) {
 function report({ bad, priced, total }) {
   if (total === 0 || priced === 0) throw new HarnessError(`vacuous: ${total} gold offers, ${priced} with a vendor bid`);
   for (const b of bad) {
-    console.log(`  ✗ ${b.offer} (${b.items}): shop ${b.shop}g < vendor ${b.vendor}g (edge ${b.edge}g, hr_items ${b.db}g)`);
+    console.log(`  ✗ ${b.offer} (${b.items}): vendor ${b.vendor}g > ${MARGIN} × shop ${b.shop}g (edge ${b.edge}g, hr_items ${b.db}g)`);
   }
   console.log(`vendor-shop-arbitrage: ${total} gold offers, ${priced} vendorable, ${bad.length} violation(s)`);
   return bad.length ? 1 : 0;
 }
 
-function selftest() {
+/** Import catalogue.js with ONE textual patch, from a sibling temp file so its
+    relative imports resolve. The anchor must match exactly once. */
+async function mutantCatalogue(find, repl) {
+  const src = join(ROOT, 'supabase', 'functions', 'hr-accrue', 'catalogue.js');
+  const text = readFileSync(src, 'utf8');
+  if (text.split(find).length !== 2) throw new HarnessError(`mutant anchor matched ${text.split(find).length - 1}x: ${find}`);
+  const tmp = join(ROOT, 'supabase', 'functions', 'hr-accrue', `.catalogue.mutant-${process.pid}-${Date.now()}.js`);
+  writeFileSync(tmp, text.replace(find, repl));
+  try { return await import(pathToFileURL(tmp).href); } finally { unlinkSync(tmp); }
+}
+
+async function selftest() {
   const sqlVal = sqlItemValues();
   const fails = [];
   const clean = findArbitrage({ sqlVal });
   if (clean.bad.length) fails.push(`control: tree is not clean (${clean.bad.map((b) => b.offer).join(', ')})`);
-  const target = Object.values(GOLD_OFFERS).find((o) => o.grant.length === 1);
-  if (!target) throw new HarnessError('no single-grant offer to mutate');
+  /* The planted victim: the offer that sat at exactly 1.00 before b565. */
+  const target = GOLD_OFFERS['equip.steel_platebody'];
+  if (!target || target.grant.length !== 1) throw new HarnessError('equip.steel_platebody is not a single-grant gold offer');
+  const caught = (r) => r.bad.some((b) => b.offer === target.id);
+
+  // M1 — the edge cap removed: vendorPriceOf bids book value again.
+  const m1 = await mutantCatalogue(
+    '  return unit > 0 ? Math.min(bid, Math.max(1, Math.floor(SHOP_BUYBACK_RATE * unit))) : bid;',
+    '  return bid;');
+  if (!caught(findArbitrage({ sqlVal, vendorPriceOf: m1.vendorPriceOf }))) fails.push('M1 buy-back cap removed: not caught by name');
+
+  // M2 — the rate drifts above the ruling (0.5 -> 0.6).
+  const m2 = await mutantCatalogue('export const SHOP_BUYBACK_RATE = 0.5;', 'export const SHOP_BUYBACK_RATE = 0.6;');
+  if (!caught(findArbitrage({ sqlVal, vendorPriceOf: m2.vendorPriceOf }))) fails.push('M2 SHOP_BUYBACK_RATE=0.6: not caught by name');
+
+  // M3 — the cheapest-unit index loses the item (cap silently skipped).
+  const m3 = await mutantCatalogue(
+    '  const unit = catalogueGet(SHOP_UNIT_PRICE, id);',
+    "  const unit = id === 'steel_platebody' ? 0 : catalogueGet(SHOP_UNIT_PRICE, id);");
+  if (!caught(findArbitrage({ sqlVal, vendorPriceOf: m3.vendorPriceOf }))) fails.push('M3 unit index drops steel_platebody: not caught by name');
+
+  // M4 — an unparseable later write to hr_items.value must fail closed.
   const item = target.grant[0].id;
-  const high = target.gold * 10 + 10; // above the shop price even through the 20% raw rate
-
-  // M1 — the database: the item's hr_items.value raised in the catalogue file's own text.
-  const cat = '2026-08-11-catalogue.generated.sql';
-  const text = readMig(cat);
-  const rowRe = new RegExp(`(\\('${item}',(?:'(?:[^']|'')*'|[^,]*),[^,]*,[^,]*,)(\\d+)`);
-  if (!rowRe.test(text)) throw new HarnessError(`cannot find ${item} in ${cat}`);
-  const mutSql = sqlItemValues(ORDER, (f) => (f === cat ? text.replace(rowRe, `$1${high}`) : readMig(f)));
-  const m1 = findArbitrage({ sqlVal: mutSql });
-  if (!m1.bad.some((b) => b.offer === target.id)) fails.push(`M1 hr_items.value ${item}=${high}: not caught by name`);
-
-  // M2 — the edge payload: ITEMS[item].v raised; the database untouched.
-  const mutItems = { ...ITEMS, [item]: { ...ITEMS[item], v: high } };
-  const m2 = findArbitrage({ items: mutItems, sqlVal });
-  if (!m2.bad.some((b) => b.offer === target.id)) fails.push(`M2 ITEMS.${item}.v=${high}: not caught by name`);
-
-  // M3 — an unparseable later write to hr_items.value must fail closed.
   const last = ORDER[ORDER.length - 1];
   try {
-    sqlItemValues(ORDER, (f) => readMig(f) + (f === last ? `\nupdate public.hr_items set value = 1 where item_id = '${item}';\n` : ''));
-    fails.push('M3 unparsed hr_items.value UPDATE: accepted silently');
+    sqlItemValues(ORDER, (f) => readMig(f) + (f === last ? `
+update public.hr_items set value = 1 where item_id = '${item}';
+` : ''));
+    fails.push('M4 unparsed hr_items.value UPDATE: accepted silently');
   } catch (e) { if (!(e instanceof HarnessError)) throw e; }
 
   for (const f of fails) console.log(`  ✗ ${f}`);
-  console.log(`vendor-shop-arbitrage --selftest: control + 3 mutants on ${target.id} (${item}), ${fails.length} failure(s)`);
+  console.log(`vendor-shop-arbitrage --selftest: control + 4 mutants on ${target.id} (${item}), ${fails.length} failure(s)`);
   return fails.length ? 1 : 0;
 }
 
 try {
   process.exitCode = process.argv.includes('--selftest')
-    ? selftest()
+    ? await selftest()
     : report(findArbitrage({ sqlVal: sqlItemValues() }));
 } catch (e) {
   console.error(`vendor-shop-arbitrage: HARNESS ${e instanceof HarnessError ? '' : 'CRASH '}${e.message}`);

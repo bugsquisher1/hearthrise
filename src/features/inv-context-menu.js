@@ -267,7 +267,7 @@
     if(!def.bop){
       /* b226: the vendor's bid, not the book value — one price everywhere
          (legacy.js vendorPrice, pacing-overhaul §6.1). */
-      var price = (typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : (def.v || 0);
+      var price = (typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : 0;
       var locked = (typeof window.isItemLocked === 'function') && window.isItemLocked(id);
       // b240: lock toggle (protect from accidental selling).
       opts.push({ label: locked ? 'Unlock — allow selling' : 'Lock — protect from selling', action: function(){
@@ -390,7 +390,7 @@
       if(def.type === 'jewelry' || def.type === 'companion' || def.type === 'ammo') return;
       if((def.v|0) <= 0) return;
       // Per-stack value cap — let the player keep stacks worth a lot.
-      var stackValue = qty * ((typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : (def.v|0));
+      var stackValue = qty * ((typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : 0);
       if(stackValue > th * Math.max(1, qty)) return;   // single-item value > threshold → keep
       picks.push(id);
     });
@@ -420,7 +420,7 @@
       var qty = serverQty(id);
       if(qty === null){ pending = true; return false; }
       if(qty <= 0) return false;
-      var v = (typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : (window.ITEMS[id].v | 0);
+      var v = (typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : 0;
       qtys[id] = qty;
       totalGold += qty * v;
       totalCount += qty;

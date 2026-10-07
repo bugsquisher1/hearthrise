@@ -13813,7 +13813,7 @@ window._renderInvSummary = function(){
   Object.entries(G.inventory||{}).forEach(function(kv){
     var id = kv[0], qty = kv[1];
     if(!qty || !ITEMS[id]) return;
-    total += (typeof vendorPrice==='function' ? vendorPrice(id) : (ITEMS[id].v||0)) * qty;
+    total += (typeof vendorPrice==='function' ? vendorPrice(id) : 0) * qty;
     count += qty;
   });
   /* b348: write into the SUB-span, never over the whole line. This used to do

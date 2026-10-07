@@ -159,16 +159,31 @@ function buyCosmetic(id,price){
    A price that differs by which button you pressed is not a price.
    ════════════════════════════════════════════════════════════════ */
 const VENDOR_RAW_RATE = 0.20;
+/* THE SHOP BUY-BACK CAP. The vendor pays at most half the cheapest shop
+   unit price for anything the shop also sells (game-designer ruling). The SAME
+   formula as the server's vendorPriceOf (supabase/functions/hr-accrue/
+   catalogue.js), pinned equal over the whole catalogue by tests/gold-intents.mjs
+   G1 — the bag shows what the server pays (CLAUDE.md §6). The unit prices are
+   window.SHOP_UNIT_PRICE, published by src/main.js from the generated catalogue
+   via src/core/shop-buyback.js — the same derivation the edge imports. Until it
+   is published the vendor BIDS NOTHING (fail-closed): an uncapped number shown
+   before boot would be a price the server never pays. */
+const SHOP_BUYBACK_RATE = 0.5;
 function vendorPrice(id){
-  const it = (typeof ITEMS==='object' && ITEMS) ? ITEMS[id] : null;
+  const it = (typeof ITEMS==='object' && ITEMS && Object.prototype.hasOwnProperty.call(ITEMS, id)) ? ITEMS[id] : null;
   if(!it) return 0;
   const v = Number(it.v) || 0;
   if(v <= 0) return 0;
+  const U = window.SHOP_UNIT_PRICE;
+  if(!U) return 0;
   /* Floored at 1: a raw worth anything at all is still worth something, and a
      0g bid reads as "this item is broken" rather than "this is cheap". */
-  return it.raw ? Math.max(1, Math.floor(v * VENDOR_RAW_RATE)) : v;
+  const bid = it.raw ? Math.max(1, Math.floor(v * VENDOR_RAW_RATE)) : v;
+  const unit = Object.prototype.hasOwnProperty.call(U, id) ? U[id] : 0;
+  return unit > 0 ? Math.min(bid, Math.max(1, Math.floor(SHOP_BUYBACK_RATE * unit))) : bid;
 }
 window.VENDOR_RAW_RATE = VENDOR_RAW_RATE;
+window.SHOP_BUYBACK_RATE = SHOP_BUYBACK_RATE;
 window.vendorPrice = vendorPrice;
 
 /* Sell helpers — wrap existing logic if available, else simple */

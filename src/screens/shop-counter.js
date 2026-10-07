@@ -111,7 +111,7 @@ function buyShopItem(id,qty,cost){
      the player never saw. No-op with the switch off. */
   const _p=(_k&&window.HearthriseGold)?window.HearthriseGold.buyShop(id,qty,cost,_k):null;
   if(_p&&typeof _p.then==='function') shopBuyLock.hold(_lk,_p);
-  notify(`Bought ${qty}× ${ITEMS[id]?.n}`,'loot');updateTopbar();renderShop();
+  notify(`Bought ${Number(qty).toLocaleString()}× ${ITEMS[id]?.n}`,'loot');updateTopbar();renderShop();
 }
 /* ── COSMETICS: THE THIRD GEM TWIN, NOW THE THEME'S TWIN THE OTHER WAY. This
    was one line and every part of it was a client-authored premium purchase —
@@ -229,7 +229,7 @@ window.sellAllPending = (id) => sellAllLock.has(id);
    prediction outlives the server's "no". sent = [{p, qty}]. */
 function sellReceipt(id, qty, price, sent){
   const it = ITEMS[id] || { n: id };
-  if(!sent || !sent.length){ notify(`Sold ${qty}× ${it.n} for ${(price*qty).toLocaleString()} gold`,'loot'); return Promise.resolve(null); }
+  if(!sent || !sent.length){ notify(`Sold ${Number(qty).toLocaleString()}× ${it.n} for ${(price*qty).toLocaleString()} gold`,'loot'); return Promise.resolve(null); }
   return Promise.all(sent.map((c) => Promise.resolve(c.p).then((r) => r, () => null))).then((rs) => {
     const S = window.HearthriseGold; let sold = 0, gold = 0, back = 0;
     rs.forEach((r, i) => {
@@ -239,7 +239,7 @@ function sellReceipt(id, qty, price, sent){
       if(rc){ sold += Number(rc.qty) || 0; gold += Number(rc.gold) || 0; }
     });
     if(back > 0){ addItem(id, back, false); try{ renderInvNew(); }catch(e){} }
-    if(sold > 0) notify(`Sold ${sold}× ${it.n} for ${gold.toLocaleString()} gold` + (sold < qty ? ` · ${qty - sold} not sold` : ''),'loot');
+    if(sold > 0) notify(`Sold ${sold.toLocaleString()}× ${it.n} for ${gold.toLocaleString()} gold` + (sold < qty ? ` · ${(qty - sold).toLocaleString()} not sold` : ''),'loot');
     else notify(`The realm did not sell your ${it.n} — your bag will settle`,'kill');
     return { sold, gold };
   });
@@ -357,7 +357,7 @@ function repurchase(idx){
   G.gold -= cost;
   addItem(b.id, b.qty);
   G.buyback.splice(idx, 1);
-  notify(`Bought back ${b.qty}× ${it.n} for ${cost.toLocaleString()} gold`,'loot');
+  notify(`Bought back ${Number(b.qty).toLocaleString()}× ${it.n} for ${cost.toLocaleString()} gold`,'loot');
   try{ saveLocal(); }catch(e){}
   updateTopbar();
   renderBuyback();

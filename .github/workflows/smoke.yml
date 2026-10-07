@@ -1760,8 +1760,11 @@ jobs:
       # red. tools/world-tick-parity.mjs --selftest proves the evaluator's
       # eligibility rules on planted rows, and the COMBAT REPLAY BAR
       # (SEC_VIGOUR_LINE_SPLIT_2026-10-06 "Bar ruling": ±10 % and ≤ 3 se on
-      # the seeded replay expectation, realised read by z ≤ 3.29) on the
-      # no-food fixture through the shipped engine: correct PASS, +12 % FAIL.
+      # the seeded replay expectation, realised read by z ≤ 3.29, every probe
+      # |z| ≤ 4.3) on the no-food fixture through the shipped engine at 120
+      # replicas: correct PASS, +12 % FAIL. world-tick-seed-no-leak holds the
+      # probe's stored seed (secret-equivalent, SEC_PROBE_RETAIN_2026-10-06)
+      # out of every print, export, fixture and CI read; --mutate plants seven.
       - name: World tick — the parity probe writes its own rows and the bar bites
         if: ${{ !cancelled() }}
         run: |
@@ -1770,6 +1773,8 @@ jobs:
           node tests/world-tick-probe-bar.mjs
           node tests/world-tick-probe-bar.mjs --mutate
           node tools/world-tick-parity.mjs --selftest
+          node tests/world-tick-seed-no-leak.mjs
+          node tests/world-tick-seed-no-leak.mjs --mutate
 
       # THE RESUME LINE, TO THE TICK (SEC_WORLD_TICK_PROBE_2026-10-05.md (c)).
       # The probe bar cannot see a resume defect under ~4 min per fall, so the

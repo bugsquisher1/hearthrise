@@ -80,7 +80,8 @@ const COVERAGE_MIN = 0.99;
 export const QUERY = (days) => `
 with p as (
   select id, user_id, slot, channel, status, void_reason, span_from, span_to,
-         base_version, version_close, payload_open, payload_close, result, input
+         base_version, version_close, payload_open, payload_close, result, input,
+         seed, input_trimmed_at
     from public.hr_tick_probe
    where opened_at >= now() - make_interval(days => ${Number(days)})
      and status in ('closed', 'void')),
@@ -122,6 +123,7 @@ it as (
 select p.id, p.user_id, p.slot, p.channel, p.status, p.void_reason,
        to_jsonb(p.span_from) #>> '{}' as span_from, to_jsonb(p.span_to) #>> '{}' as span_to,
        p.base_version, p.version_close, p.payload_open, p.payload_close, p.result, p.input,
+       p.seed, to_jsonb(p.input_trimmed_at) #>> '{}' as input_trimmed_at,
        a.n, to_jsonb(a.first_from) #>> '{}' as first_from, to_jsonb(a.last_to) #>> '{}' as last_to,
        a.covered_s, a.breaks, a.straddles, a.off_version,
        a.gold, a.qty, a.ticks, a.kills, a.ate, a.deaths, a.recover_texts,
@@ -148,6 +150,16 @@ export function classify(row, liveHash) {
   const rec = { user: row.user_id, slot: row.slot, channel: row.channel, id: row.id };
   if (row.payload_open !== liveHash || (row.status === 'closed' && row.payload_close !== liveHash)) {
     return { exclude: 'off_payload' };
+  }
+  /* RETENTION (2026-10-07-probe-retain-input.sql): a closed COMBAT probe whose
+     replay material hr_tick_probe_prune trimmed (past 4 days / 30 per
+     character-channel) is OUT of the combat read, like another payload — by
+     age and count, never by outcome, so it cannot choose what is judged. A
+     closed probe with no input and NO trim stamp is not excluded: it reads
+     input_not_retained and keeps the combat read INSUFFICIENT. Gather needs
+     no replay and reads every probe. */
+  if (row.channel === 'combat' && row.status === 'closed' && row.input_trimmed_at) {
+    return { exclude: 'retention_trimmed' };
   }
   const spanMs = row.span_to ? Date.parse(row.span_to) - Date.parse(row.span_from) : 0;
   const r = row.result || {};
@@ -182,23 +194,29 @@ export function readVerdict(rows, liveHash, opts) {
   const replayOf = opts && opts.replayOf;
   const recs = [];
   let offPayload = 0;
+  let trimmed = 0;
   for (const row of rows) {
     const c = classify(row, liveHash);
+    if (c.exclude === 'retention_trimmed') { trimmed++; continue; }
     if (c.exclude) { offPayload++; continue; }
     if (replayOf && c.channel === 'combat' && !c.discard) c.replay = replayOf(row, c);
     recs.push(c);
   }
-  return Object.assign(judgeRead(recs, { rareIds: RARE_IDS }), { offPayload, records: recs });
+  return Object.assign(judgeRead(recs, { rareIds: RARE_IDS }), { offPayload, trimmed, records: recs });
 }
 
-function print(v, liveHash) {
+/* The ONLY place a read is written out. It prints verdicts, counts and
+   reasons — never a row, never a row's seed (tests/world-tick-seed-no-leak.mjs
+   scans this source and captures this function's output to hold that). */
+export function printRead(v, liveHash, opts) {
+  const verbose = opts && 'verbose' in opts ? !!opts.verbose : VERBOSE;
   console.log(`world-tick-parity: ${v.records.length} probes on payload ${String(liveHash).slice(0, 16)}… `
-    + `(${v.offPayload} on another payload, not counted)`);
+    + `(${v.offPayload} on another payload, ${v.trimmed} combat past replay retention; not counted)`);
   for (const g of v.groups) {
     console.log(`  ${g.key}  ${g.verdict}  ${JSON.stringify({ probes: g.stats.probes, hours: g.stats.hours, discarded: g.stats.discarded })}`);
     if (g.stats.replay) console.log(`      replay ${JSON.stringify(g.stats.replay)}`);
-    for (const r of g.reasons.slice(0, VERBOSE ? 50 : 6)) console.log(`      - ${r}`);
-    if (VERBOSE) console.log(`      stats ${JSON.stringify(g.stats)}`);
+    for (const r of g.reasons.slice(0, verbose ? 50 : 6)) console.log(`      - ${r}`);
+    if (verbose) console.log(`      stats ${JSON.stringify(g.stats)}`);
   }
   for (const ch of ['gather', 'combat']) console.log(`${ch}: ${v.channels[ch]}`);
 }
@@ -290,7 +308,7 @@ async function selftest() {
 
   /* ── THE REPLAY BAR (SEC_VIGOUR_LINE_SPLIT_2026-10-06 "Bar ruling") ──── */
   const heavy = combat('+-+-+-+-+-+-+-');
-  expect('no replay on any probe (production today: input NULLed at close)',
+  expect('no replay on any probe (a probe closed before 2026-10-07-probe-retain-input.sql)',
     readVerdict(heavy, H, { replayOf: () => ({ unavailable: 'input_not_retained' }) }), 'INSUFFICIENT', 'combat');
   expect('no replayOf at all: the realised pair alone is never a combat verdict',
     readVerdict(heavy, H), 'INSUFFICIENT', 'combat');
@@ -306,6 +324,14 @@ async function selftest() {
     readVerdict(heavy, H, { replayOf: planted(0, { reproduced: null }) }), 'INSUFFICIENT', 'combat');
   expect('the realised read at z 5 against its replay (two probes +200 gold)',
     readVerdict(heavy.map((r, i) => (i === 1 || i === 3 ? Object.assign({}, r, { gold: r.gold + 200 }) : r)), H, R0), 'FAIL', 'combat');
+  /* SEC_PROBE_RETAIN_2026-10-06 B2: per-probe |z| > 4.3 FAILS, so two
+     offsetting defects (+5 sd and −5 sd, summed pair z 0) cannot cancel; one
+     probe at ~4 sd (the bar's inside) stays PASS. */
+  expect('two offsetting probe defects (+100 / −100 gold, each ~5 sd; summed z ~0)',
+    readVerdict(heavy.map((r, i) => (i === 1 ? Object.assign({}, r, { gold: r.gold + 100 })
+      : i === 3 ? Object.assign({}, r, { gold: r.gold - 100 }) : r)), H, R0), 'FAIL', 'combat');
+  expect('one probe at ~4 sd (+75 gold): inside the per-probe 4.3',
+    readVerdict(heavy.map((r, i) => (i === 1 ? Object.assign({}, r, { gold: r.gold + 75 }) : r)), H, R0), 'PASS', 'combat');
 
   bad += engineReplaySelftest(H);
   if (bad) { console.error(`\nworld-tick-parity --selftest: ${bad} rule(s) did not bite`); process.exit(1); }
@@ -326,9 +352,11 @@ async function selftest() {
      +12 % chain bias          → FAIL on the replay aggregate
    The bias multiplies the chain's ticks, kills, gold and xp by 1.12 in the
    live pair AND in every replica — the engine is biased, not the reading. */
-export const SELFTEST_REPLICAS = 40;
+/* ≥ 120 (SEC_PROBE_RETAIN_2026-10-06 B1): at 40 the correct engine drew
+   −3.6 % at 2.5 se, so the zero-centred se test was reading noise. */
+export const SELFTEST_REPLICAS = 120;
 const SPAN_PAD_MS = 74400;   // probes 8/10: 4 h 01 m 14 s, like production's close
-function selftestProbes() {
+export function selftestProbes() {
   const qa1 = JSON.parse(readFileSync(new URL('../services/world-tick/fixtures/vigour-line-qa1.json', import.meta.url), 'utf8'));
   const out = [];
   const userOf = (i) => `00000000-0000-4000-8000-${String(0x5e1f00 + i).padStart(12, '0')}`;
@@ -400,6 +428,42 @@ function engineReplaySelftest(H) {
   console.log(`  ${reproducedAll ? '✓' : '✗'} every stored one span reproduces from its input + seed on this engine `
     + `(${probes.length} probes, ${SELFTEST_REPLICAS} replicas each, ${((Date.now() - t0) / 1000).toFixed(1)} s)`);
   if (!reproducedAll) bad++;
+
+  /* THE RETAINED ROW, AS PRODUCTION STORES IT (2026-10-07-probe-retain-input.sql):
+     input kept at close, the one-span seed as the bigint column the
+     management endpoint returns. productionReplayOf — the production path,
+     not replayProbe called by hand — must reproduce it byte-identically, and
+     each mutation must bite: a wrong seed FAILS reproduction, a missing input
+     is input_not_retained, a trimmed combat row leaves the read. */
+  {
+    const { p, result } = probes[0];
+    const seed = offlineSeedFor(p.input.userId, p.input.slot, p.input.accruedToText);
+    const row = { id: 900, user_id: p.input.userId, slot: p.input.slot, channel: 'combat', status: 'closed',
+      span_from: iso(p.fromMs), span_to: iso(p.toMs), payload_open: H, payload_close: H,
+      input: JSON.parse(JSON.stringify(encodeProbeInput(p.input))), seed: String(seed), result };
+    const rep = productionReplayOf(H, 2);
+    const a = rep(row);
+    const b = rep(Object.assign({}, row, { seed: String((seed ^ 1) >>> 0) }));
+    const c = rep(Object.assign({}, row, { input: null, seed: null }));
+    const d = rep(Object.assign({}, row, { seed: null }));
+    const checks = [
+      ['a retained probe (stored input + stored seed) replays byte-identically', a.reproduced === true, a.reproduceDetail],
+      ['the same row with seed^1 does NOT reproduce', b.reproduced === false, b.reproduceDetail],
+      ['input NULL reads input_not_retained', c.unavailable === 'input_not_retained', JSON.stringify(c).slice(0, 80)],
+      ['input kept but no seed is never reproduced (null)', d.reproduced === null, String(d.reproduced)],
+    ];
+    for (const [name, ok, why] of checks) {
+      console.log(`  ${ok ? '✓' : '✗'} ${name}${ok ? '' : ` — ${why}`}`);
+      if (!ok) bad++;
+    }
+    const trimmedRow = Object.assign({}, rowsOf(1)[0], { input_trimmed_at: '2026-10-01T00:00:00+00:00' });
+    const vt = readVerdict([trimmedRow], H, { replayOf: () => ({ unavailable: 'input_not_retained' }) });
+    const tOk = vt.trimmed === 1 && vt.records.length === 0;
+    console.log(`  ${tOk ? '✓' : '✗'} a combat probe past replay retention leaves the read (trimmed ${vt.trimmed}, `
+      + `records ${vt.records.length})`);
+    if (!tOk) bad++;
+  }
+
   const ok = readVerdict(oneChar(rowsOf(1)), H, { replayOf: replayOf(1) });
   const g = ok.groups.find((x) => x.channel === 'combat');
   const okPass = ok.channels.combat === 'PASS';
@@ -459,23 +523,35 @@ async function productionRead() {
     const v = readVerdict(rows, hash, { replayOf: productionReplayOf(engineHash, REPLICAS) });
     console.log(`world-tick-parity: replay engine = this repo's hr-accrue payload ${String(engineHash).slice(0, 16)}… `
       + `(${engineHash === hash ? 'IS' : 'is NOT'} the live payload), ${REPLICAS} replicas per combat probe`);
-    print(v, hash);
+    printRead(v, hash);
     process.exitCode = (v.channels.gather === 'PASS' && v.channels.combat === 'PASS') ? 0 : 3;
   }
 }
 
 /* THE PRODUCTION REPLAY. The stored input is the only admissible input (a
    re-read at t1 is not the snapshot at t0), and the only admissible engine is
-   the one at the probe's payload hash. The seed is hr_seed's — not readable
-   here and never to be — so `reproduced` stays null and the read cannot
-   PASS until the probe row carries what reproduction needs. */
+   the one at the probe's payload hash. The seed is the probe row's own: the
+   one-span draw hr_tick_probe_commit derived at close from hr_seed's
+   span-start label (2026-10-07-probe-retain-input.sql) — one 32-bit value,
+   never the hr_seed secret. It is SECRET-EQUIVALENT (SEC_PROBE_RETAIN_2026-10-06,
+   correcting that file's header): the shadow chain starts at ps.accrued_to,
+   so a probe's span_from can equal an away player's live watermark, and then
+   this value IS the seed of that player's NEXT live settle. It is used here
+   and nowhere else — never printed, exported, written to a fixture or sent to
+   CI (tests/world-tick-seed-no-leak.mjs). A row without one replays with
+   `reproduced` null, which can never PASS. */
+export const seedOfRow = (row) => {
+  if (row.seed === null || row.seed === undefined || row.seed === '') return null;
+  const v = Number(row.seed);
+  return Number.isInteger(v) && v >= 0 && v <= 4294967295 ? v : null;
+};
 export function productionReplayOf(engineHash, replicas) {
   return (row) => {
     if (!row.input || typeof row.input !== 'object') return { unavailable: 'input_not_retained' };
     if (row.payload_open !== engineHash || row.payload_close !== engineHash) return { unavailable: 'engine_not_at_payload' };
     const input = decodeProbeInput(row.input);
     const r = replayProbe({ input, fromMs: Date.parse(row.span_from), toMs: Date.parse(row.span_to),
-      seed: null, result: row.result }, { replicas });
+      seed: seedOfRow(row), result: row.result }, { replicas });
     return Object.assign(r.stats, { reproduceDetail: r.reproduceDetail });
   };
 }
@@ -485,5 +561,10 @@ export function productionReplayOf(engineHash, replicas) {
 const isMain = (process.argv[1] || '').replace(/\\/g, '/').endsWith('tools/world-tick-parity.mjs');
 if (isMain) {
   if (SELFTEST) await selftest();
-  else await productionRead();
+  else if (process.env.CI || process.env.GITHUB_ACTIONS) {
+    /* The production read handles probe seeds (secret-equivalent): it never
+       runs in CI, whatever a workflow asks (tests/world-tick-seed-no-leak.mjs). */
+    console.error('world-tick-parity: refusing — the production read never runs in CI; CI runs --selftest');
+    process.exit(2);
+  } else await productionRead();
 }

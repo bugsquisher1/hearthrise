@@ -16,7 +16,8 @@
 // (services/world-tick/parity-replay.js), with the aggregate's standard error
 // ≤ bar/3 — above that the read is INSUFFICIENT ("add probes, never widen").
 // The LIVE realised pair is judged by z against its own replay distribution
-// (|z| ≤ 3.29). The realised-pair ±10 % aggregates and the per-probe |Δ| ≤ 1
+// (|z| ≤ 3.29 on the read's summed pair; |z| ≤ 4.3 on every probe,
+// SEC_PROBE_RETAIN_2026-10-06 B2). The realised-pair ±10 % aggregates and the per-probe |Δ| ≤ 1
 // count rule are retired: on death-dominated and food-exhausted probes they
 // false-fail correct engines — and those probes are where the vigour-line
 // defect lived, so they stay in. Gather is exact and unchanged.
@@ -62,12 +63,17 @@ export const BAR = Object.freeze({
        "aggregate within ±10 %" rule read — against the replay distribution
        of that sum (means add, variances add: the probes' seeds are
        independent). Per field, four tests at two-sided p = 0.001.
-       Per-probe z is REPORTED (stats.replay.zWorst), not barred: scored on
-       12 probes x 4 fields at 3.29 a correct engine false-fails ~5 % of
-       reads, and the C6 calibration set holds exactly such a draw (the
-       "NINE inputs" probe's own one-span seed is a 1-in-~1000 tail, per-probe
-       z −3.0 at 80 replicas). */
+       Per-probe z at 3.29 is REPORTED (stats.replay.zWorst), not barred:
+       scored on 12 probes x 4 fields at 3.29 a correct engine false-fails
+       ~5 % of reads, and the C6 calibration set holds exactly such a draw
+       (the "NINE inputs" probe's own one-span seed is a 1-in-~1000 tail,
+       per-probe z −3.0 at 80 replicas, −3.5 at the probe-bar's 12). */
     zMax: 3.29,
+    /* SEC_PROBE_RETAIN_2026-10-06 B2 hardening: ANY per-probe |z| > 4.3 is a
+       FAIL as well — Bonferroni over 48 tests (12 probes x 4 fields) at
+       family p 0.001 — so two offsetting probe defects cannot cancel inside
+       the summed pair. The C6 probe at −3.5 stays inside. */
+    zProbeMax: 4.3,
     zFields: Object.freeze(['ticks', 'kills', 'gold', 'xp']),
     /* "red if either side has ≤ 2 of ≥ 12" */
     directionMinSide: 2,
@@ -326,7 +332,9 @@ function replayBar(live, bar, fails, insufficient, stats) {
         + `(${mean.toFixed(1)} ± ${sd.toFixed(1)}), |z| > ${bar.zMax}`);
     }
   }
-  /* Per probe: reported, never barred (see BAR.combat.zMax). */
+  /* Per probe: the worst |z| is reported; past BAR.combat.zProbeMax it is a
+     FAIL (Bonferroni over the read's probe x field tests), so a +5 sd probe
+     and a −5 sd probe cannot cancel in the summed pair above. */
   let zWorst = 0;
   for (const p of live) {
     for (const f of bar.zFields) {
@@ -334,6 +342,10 @@ function replayBar(live, bar, fails, insufficient, stats) {
       if (!(sd > 0)) continue;
       const z = (p.chain[f] - p.one[f] - mean) / sd;
       if (Math.abs(z) > Math.abs(zWorst)) zWorst = z;
+      if (Math.abs(z) > bar.zProbeMax) {
+        fails.push(`probe ${p.id}: live ${f} Δ ${p.chain[f] - p.one[f]} is z ${z.toFixed(2)} against its own replay `
+          + `(${mean.toFixed(1)} ± ${sd.toFixed(1)}), |z| > ${bar.zProbeMax} (Bonferroni over the read)`);
+      }
     }
   }
   stats.replay.zWorst = +zWorst.toFixed(2);

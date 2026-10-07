@@ -25,6 +25,10 @@
 //   PP-5  the commit refuses a foreign holder and a non-head window AS hr_engine
 //   PP-6  no function body outside the probe trio reads hr_tick_probe — rule 3
 //   PP-7  a database without the functions skips the step, never the fire
+//   PP-9  a CLOSED probe retains the input stored at open and the one-span
+//         seed (= hr_seed's span-start draw), and the evaluator's own SELECT +
+//         productionReplayOf replays every closed combat probe from them
+//         byte-identically (2026-10-07-probe-retain-input.sql)
 //
 // Writes NOTHING to production; synthetic uuids gen_random_uuid() cannot mint.
 // Exit: 0 green · 1 a red arm · 2 harness.
@@ -318,6 +322,35 @@ async function guard(db, opts) {
       err ? `the evaluator's query FAILED on the real schema: ${err}`
         : `evaluator mismatch: ${eligible.length} eligible of ${closed.length} closed `
           + `(${JSON.stringify(v.records.map((r) => r.discard))}), chain ticks ${chainTicks} vs shadow ${shadowTicks}`);
+  }
+
+  // ── PP-9 THE CLOSED PROBE KEEPS WHAT ITS REPLAY NEEDS ────────────────────
+  //    The input at close is the input captured while open; the seed is the
+  //    span-start hr_seed draw the edge used; and the evaluator — its own
+  //    QUERY, its own productionReplayOf — reproduces each closed combat
+  //    probe's stored one-span result from the stored (input, seed).
+  {
+    const kept = await q(`select id, channel, input, seed, to_jsonb(span_from) #>> '{}' as span_from
+                            from public.hr_tick_probe where status = 'closed' order by id`);
+    const bad = [];
+    for (const k of kept) {
+      const cap = withProbe.opened.get(Number(k.id));
+      const [{ seed: want }] = await q(
+        `select (public.hr_seed(user_id, slot, ${SEED_LABEL_EXPR.replace('l.ts', 'l2.ts')}) & 4294967295)::bigint as seed
+           from public.hr_tick_probe, (select $2::text as ts) l2 where id = $1`, [k.id, k.span_from]);
+      if (!cap || canon(k.input) !== canon(cap.input)) bad.push(`#${k.id} ${k.channel} input not the open snapshot`);
+      if (k.seed === null || String(k.seed) !== String(want)) bad.push(`#${k.id} ${k.channel} seed ${k.seed} != ${want}`);
+    }
+    const { QUERY, productionReplayOf } = await import('../tools/world-tick-parity.mjs');
+    const rows = (await q(QUERY(14))).filter((r) => r.status === 'closed' && r.channel === 'combat');
+    const replay = productionReplayOf('unpacked', 2);
+    const outs = rows.map((r) => ({ id: r.id, rep: replay(r) }));
+    const notRepro = outs.filter((o) => !o.rep || o.rep.unavailable || o.rep.reproduced !== true);
+    judge('PP-9', kept.length >= 2 && bad.length === 0 && rows.length >= 1 && notRepro.length === 0,
+      `${kept.length} closed probes retain the open input + the span-start seed; the evaluator replays `
+      + `${rows.length} closed combat probe(s) from them byte-identically`,
+      `retention broken: [${bad.slice(0, 3).join('; ')}] closed ${kept.length}; combat replays `
+      + `${outs.map((o) => `#${o.id} ${o.rep && (o.rep.unavailable || o.rep.reproduceDetail)}`).join(', ').slice(0, 300)}`);
   }
 
   // ── PP-3 THE CHAIN IS BYTE-IDENTICAL WITH AND WITHOUT THE PROBE ──────────

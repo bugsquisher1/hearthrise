@@ -304,14 +304,22 @@ function tickDayRollup(buckets, rule, verdict) {
 // that channel's whole-hour buckets ENDING NOW, newest first, each carrying
 // rost_fires, tick_rows (player_ledger rows of the channel's kind with
 // meta.src = 'tick'), shadow_rows (hr_tick_shadow rows of the channel; they
-// carry the arm boundary) and the channel's sentinel flag. STALL when a
-// sentinel exists and EVERY hour had >= 1 rostered fire and fewer than
-// minRowsPerHour tick + shadow windows. No sentinel / no roster = NO VERDICT.
+// carry the arm boundary) and the channel's sentinel counts: `sentinels`
+// (owned, on the channel 2 h+, raw mark < 24 h) and `online_sentinels` (those
+// with a NON-tick ledger row of the channel's kind in the judged window, i.e.
+// a client accrue settle — the player was ONLINE and the tick rightly stood
+// aside; 2026-10-08-world-tick-party-fences.sql F2b, mirrored here per the
+// Security review's G1). STALL when an OFFLINE sentinel exists and EVERY hour
+// had >= 1 rostered fire and fewer than minRowsPerHour tick + shadow windows.
+// No offline sentinel / no roster = NO VERDICT.
 function armedStallVerdict(rows, rule) {
   const win = rows.slice(0, rule.hours);
   if (win.length < rule.hours) return { verdict: 'NO VERDICT', why: `under ${rule.hours} h of history` };
-  if (win[0].sentinel !== true) {
-    return { verdict: 'NO VERDICT', why: 'no armed sentinel (owned, on the channel 2 h+, raw mark < 24 h)' };
+  const offline = Number(win[0].sentinels) - Number(win[0].online_sentinels);
+  if (!(offline >= 1)) {
+    return { verdict: 'NO VERDICT', why: Number(win[0].sentinels) >= 1
+      ? 'every armed sentinel is ONLINE (client settles in the window): not a stall (F2b)'
+      : 'no armed sentinel (owned, on the channel 2 h+, raw mark < 24 h)' };
   }
   if (win.some((r) => Number(r.rost_fires) < 1)) return { verdict: 'NO VERDICT', why: 'an hour with nothing rostered' };
   const stalled = win.every((r) => Number(r.tick_rows) + Number(r.shadow_rows) < rule.minRowsPerHour);
@@ -338,8 +346,10 @@ const SLOT_HEALTH = 'select public.hr_slot_health() as h';
 // judge is restated here over the same three tables, per armed channel, for the
 // last 2 whole hours ending now, newest first (i = 0). The sentinel is the
 // function's, minus hr_partied (not executable here): a partied character is
-// combat, and only matters once combat is armed. An artisan window journals as
-// 'craft'. A rule over the rows is armedStallVerdict() above.
+// combat, and only matters once combat is armed. Its F2b half (online = not a
+// sentinel) is counted here as `online_sentinels` and subtracted in
+// armedStallVerdict() above, so the rule — not this query — is what the
+// --selftest mutants bite. An artisan window journals as 'craft'.
 const ARMED_TICK = `
 with c as (
   select distinct a as ch
@@ -357,11 +367,21 @@ select c.ch as channel, h.i,
            and pl.meta ->> 'src' = 'tick') as tick_rows,
        (select count(*) from public.hr_tick_shadow s
          where s.at >= h.lo and s.at < h.hi and s.channel = c.ch) as shadow_rows,
-       exists (select 1 from public.hr_tick_ownership o
-                 join public.player_state ps on ps.user_id = o.user_id and ps.slot = o.slot
-                where o.owned and o.channel = c.ch and ps.active_kind = c.ch
-                  and ps.active_since <= now() - interval '2 hours'
-                  and ps.accrued_to > now() - interval '24 hours') as sentinel
+       (select count(*) from public.hr_tick_ownership o
+          join public.player_state ps on ps.user_id = o.user_id and ps.slot = o.slot
+         where o.owned and o.channel = c.ch and ps.active_kind = c.ch
+           and ps.active_since <= now() - interval '2 hours'
+           and ps.accrued_to > now() - interval '24 hours') as sentinels,
+       (select count(*) from public.hr_tick_ownership o
+          join public.player_state ps on ps.user_id = o.user_id and ps.slot = o.slot
+         where o.owned and o.channel = c.ch and ps.active_kind = c.ch
+           and ps.active_since <= now() - interval '2 hours'
+           and ps.accrued_to > now() - interval '24 hours'
+           and exists (select 1 from public.player_ledger pl
+                        where pl.user_id = o.user_id and pl.slot = o.slot
+                          and pl.at >= now() - interval '2 hours' and pl.at < now()
+                          and pl.kind = (case c.ch when 'artisan' then 'craft' else c.ch end)
+                          and pl.meta ->> 'src' is distinct from 'tick')) as online_sentinels
   from c cross join h
  order by c.ch, h.i`;
 const armedLines = (rows) => {
@@ -487,14 +507,20 @@ async function selftest() {
     const quiet = L.tickDayRollup(Array.from({ length: 24 }, () => hour({ rost_fires: 0, rostered: 0 })), STALL_RULE, L.tickStallVerdict)[0] || {};
     t('D6 a day with nothing rostered reads no verdict', quiet.stall, 'no verdict');
     // The ARMED judge: rows newest first, one channel.
-    const arm = (o) => ({ channel: 'gather', rost_fires: 360, tick_rows: 0, shadow_rows: 0, sentinel: true, ...o });
+    const arm = (o) => ({ channel: 'gather', rost_fires: 360, tick_rows: 0, shadow_rows: 0, sentinels: 1, online_sentinels: 0, ...o });
     const AV = (rs) => L.armedStallVerdict(rs, STALL_RULE).verdict;
     t('A1 armed, 2 h rostered, 0 windows, sentinel -> STALL', AV([arm({}), arm({})]), 'STALL');
     t('A2 40 tick rows/h -> OK', AV([arm({ tick_rows: 40 }), arm({ tick_rows: 40 })]), 'OK');
     t('A3 the arm boundary: 20 tick + 19 shadow, then 39 shadow -> OK',
       AV([arm({ tick_rows: 20, shadow_rows: 19 }), arm({ shadow_rows: 39 })]), 'OK');
     t('A4 29 + 29 tick rows/h -> STALL', AV([arm({ tick_rows: 29 }), arm({ tick_rows: 29 })]), 'STALL');
-    t('A5 no sentinel -> NO VERDICT, never STALL', AV([arm({ sentinel: false }), arm({ sentinel: false })]), 'NO VERDICT');
+    t('A5 no sentinel -> NO VERDICT, never STALL', AV([arm({ sentinels: 0 }), arm({ sentinels: 0 })]), 'NO VERDICT');
+    // G1 (Security, party-fences review): F2b mirrored. 10-05 QA gather slot 2
+    // online: 250 client accrue rows and 0 tick windows for ~2 h.
+    t('A9 the only sentinel is ONLINE, 0 windows -> NO VERDICT, never STALL',
+      AV([arm({ online_sentinels: 1 }), arm({ online_sentinels: 1 })]), 'NO VERDICT');
+    t('A10 one online + one offline sentinel, 0 windows -> STALL (the offline one is still judged)',
+      AV([arm({ sentinels: 2, online_sentinels: 1 }), arm({ sentinels: 2, online_sentinels: 1 })]), 'STALL');
     t('A6 an hour with nothing rostered -> NO VERDICT', AV([arm({ rost_fires: 0 }), arm({})]), 'NO VERDICT');
     t('A7 one hour of history -> NO VERDICT', AV([arm({})]), 'NO VERDICT');
     t('A8 a stalled newest hour after a healthy one -> OK', AV([arm({}), arm({ tick_rows: 40 })]), 'OK');
@@ -519,7 +545,11 @@ async function selftest() {
     { name: 'dayRowsPerFire', find: 'd.shadow_rows / d.hours', repl: 'd.shadow_rows / d.rost_fires' },
     { name: 'armedTickOnly', find: 'Number(r.tick_rows) + Number(r.shadow_rows) < rule.minRowsPerHour',
       repl: 'Number(r.tick_rows) < rule.minRowsPerHour' },
-    { name: 'armedSentinelIgnored', find: 'if (win[0].sentinel !== true) {', repl: 'if (false) {' },
+    { name: 'armedSentinelIgnored', find: 'if (!(offline >= 1)) {', repl: 'if (false) {' },
+    { name: 'armedOnlineIsSentinel', find: 'Number(win[0].sentinels) - Number(win[0].online_sentinels)',
+      repl: 'Number(win[0].sentinels)' },
+    { name: 'armedAnyOnlineUnjudges', find: 'Number(win[0].sentinels) - Number(win[0].online_sentinels)',
+      repl: '(Number(win[0].online_sentinels) > 0 ? 0 : Number(win[0].sentinels))' },
     { name: 'armedRosterIgnored', find: "if (win.some((r) => Number(r.rost_fires) < 1)) return { verdict: 'NO VERDICT', why: 'an hour with nothing rostered' };",
       repl: '' },
     { name: 'armedAnyHourStalls', find: 'win.every((r) => Number(r.tick_rows)', repl: 'win.some((r) => Number(r.tick_rows)' },

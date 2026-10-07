@@ -1864,6 +1864,17 @@ jobs:
           node tests/world-tick-party-fences.mjs
           node tests/world-tick-party-fences.mjs --mutate
 
+      # Security (c) 1-7 on party-fences + the Game Designer ruling: a fenced
+      # party member is DROPPED from the hunt (probe-time, armed only, own locked
+      # mark + own cap) and the rest keep being paid; rejoin forward-only after
+      # their own solo settle, clamped 3/day; under two hunters ends the hunt.
+      # ATTENDED and AWAY ledger sums. --mutate: 15 mutants.
+      - name: World tick — a fenced party member is dropped, the rest are paid
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-party-drop.mjs
+          node tests/world-tick-party-drop.mjs --mutate
+
       # EC-3d, the control, carries its own proof since 2026-09-22. It shipped
       # asserting the literal `+00:00` on the accrue path's rendering, which is
       # the replay session's TimeZone talking — PGlite takes that GUC from the

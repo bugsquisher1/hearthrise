@@ -507,6 +507,7 @@
   "world_event_pledges",
   "world_finds",
   "party",
+  "party_hunt_roster_log",
   "party_member"
  ],
  "_player_value_tables_why": [
@@ -1100,6 +1101,11 @@
    "class": "restore_only",
    "wiped_at_cutover": false,
    "note": "M8 S2 (2026-09-23), ships EMPTY and the migration's own §7(z) fails the apply if it does not. THE SESSION OBJECT, and the row that makes a party a settle unit: party_id, the monster, the stance, the stop rules, and `accrued_to` — THE PARTY WATERMARK, which invariant 8 makes equal to every live member's own player_state.accrued_to for the life of the hunt. Written ONLY by SECURITY DEFINER functions (hr_party_tick_settle here; hr_party_hunt_start/stop in S4); no client write policy, no client write grant, SELECT only to a live member. restore_only and NOT operational, and the difference is the whole point: a lost row here does not merely stop a hunt, it un-binds four characters from a window the tick has already settled some of. What a rebuild costs is bounded and is stated rather than guessed: the table comes back EMPTY, hr_partied goes false for everyone, invariant 7 stops excluding those characters, and the per-character roster serves each of them under the ordinary solo rules from their own player_state.accrued_to — which the party settle has been keeping equal to the party's. So nobody loses a second of credited time; what is lost is the hunt itself (re-formed in two taps) and the Analyzer's history of it."
+  },
+  "party_hunt_roster_log": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "2026-10-08 (world-tick party-drop; Security SEC_GATHER_ARM_RUNBOOK (c) 1-7 + the Game Designer ruling), ships EMPTY. THE APPEND-ONLY JOURNAL of every member a party hunt DROPPED (own mark past 24 h or past their own offline cap, judged by hr_party_tick_settle on the locked row and the server clock) and every REJOIN, and ALSO THE STATE: a member is sat out of a hunt iff their latest row for that hunt is a drop (hr_party_sat_out, read by hr_partied, hr_party_roster and the settle). Written ONLY by hr_party_tick_settle (SECURITY DEFINER); RLS enabled AND forced, ZERO policies, every privilege revoked from anon/authenticated/service_role/hr_engine/hr_tick; no function body updates or deletes it (the migration's §7 k0c asserts that). restore_only and on player_value_tables, argued: a row here decides whether a character is served by the party roster or by their own, exactly like party_member. What a rebuild without it costs is bounded and loud, never a mint: every sat-out member reads as a hunter again with a mark unequal to the hunt's, so the party settle refuses that hunt (invariant 8) until a member stops or leaves it, after which each is priced solo from their own mark on their own cap; and the per-day drop clamp resets early. No credited time is lost and none is paid twice; the hunt and its drop history are."
   },
   "party_invite": {
    "class": "restore_only",

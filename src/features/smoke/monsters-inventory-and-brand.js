@@ -7851,6 +7851,25 @@ export default [
     } finally { window.notify = realNotify; try { window.closeInvDetail(); } catch (e) {} restoreG(snap); bag.restore(); }
   }),
 
+  /* COUNT-FMT-1 (seen live): the bag popup read "The realm has counted 46733 of
+     these" and "Sell All 46733 · 1,869,320" — the count raw beside a formatted
+     gold figure. Every count in that line and button reads like every other number.
+     MUTATION (2026-10-07): drop `.toLocaleString()` from either `_sq` interpolation
+     in openInvDetail → red. */
+  () => tryRun('COUNT-FMT-1: the bag popup\'s counted line and Sell All button print 46,733, not 46733', () => {
+    const G = window.G, snap = snapshotG(), bag = serverBagFixture();
+    try {
+      G.lockedItems = {}; stampBalanceLikeLoad(G);
+      G.inventory = { normal_log: 50000 }; bag.agree({ normal_log: 46733 });
+      window.openInvDetail('normal_log');
+      const note = document.querySelector('#inv-detail-overlay .inv-detail-sellnote');
+      const btn = Array.from(document.querySelectorAll('#inv-detail-overlay button')).find((b) => /^Sell All/.test(b.textContent.trim()));
+      const want = (46733).toLocaleString();
+      assert(note && note.textContent.indexOf('counted ' + want + ' of these') >= 0, 'the counted line reads "' + (note && note.textContent) + '" — it must say ' + want);
+      assert(btn && btn.textContent.trim().indexOf('Sell All ' + want + ' ·') === 0 && !/46733/.test(btn.textContent), 'the Sell All button reads "' + (btn && btn.textContent.trim()) + '" — it must name ' + want);
+    } finally { try { window.closeInvDetail(); } catch (e) {} restoreG(snap); bag.restore(); }
+  }),
+
   /* BULK SELL IS CLOSED until the server's vendor_sell_many ships (Game
      Designer interim; HANDOFFS.md 2026-10-06). Both bulk gestures used to pay
      gold through a deferred site and toast "Sold" while sending NOTHING, so the

@@ -69,11 +69,29 @@ begin
     raise exception 'ARM-P2: a probe in the last 24 h ran on another payload — the edge moved; re-measure';
   end if;
 
-  -- (P3) COHORT, FRESH, SMALL. F1 (an armed catch-up paid a 12-24 h gap in
-  --      full: 6,755 ore vs accrue's capped 3,900) is closed in the body by
-  --      2026-10-07-world-tick-armed-cap.sql step 8c, REQUIRED at P4. The
-  --      1..2 cohort and the 15 min freshness stay as the M2 STAGE limit
-  --      (defence in depth, one variable at a time); widening is its own GO.
+  -- (P3) COHORT SMALL, RETURN RECENT, AND QUIET LONG ENOUGH TO BE WATCHED.
+  --      AMENDED 2026-10-07 (Security, after the 16:34 UTC refusal at ARM-S2).
+  --      The 15 min freshness this block carried CONTRADICTED S2: the fresh
+  --      real return writes a non-tick `gather` ledger row, and F2b
+  --      (2026-10-08-world-tick-party-fences.sql, live) unseats any armed
+  --      sentinel with such a row in the judged 2 h window. So no state could
+  --      pass both P3 and S2 (executed: tests/world-tick-arm-gather.mjs A0).
+  --      The money control for a stale mark is NOT freshness: it is 8c,
+  --      required by body at P4 (an armed settle pays at most hr_offline_cap_ms
+  --      of un-ticked time, 90 s per fire, journalled). Freshness is the stage
+  --      limit, and it now reads:
+  --        P3a 1..2 owned gatherers (unchanged; widening is its own GO);
+  --        P3b every owned gatherer's raw accrued_to inside 4 h (was 15 min):
+  --            a real return after P1 bounds the boundary catch-up to <= 4 h
+  --            (<= 160 flush windows, one per fire), the measured probe span;
+  --        P3c ★ at least one owned gatherer IS the armed sentinel S2 will
+  --            need, judged by F2b's own predicate over the same 2 h window:
+  --            unpartied, on gather since before the window, admitted on the
+  --            armed fence, and NO non-tick gather row in [now-2h, now).
+  --            Refuses BEFORE the write, naming the earliest arm time.
+  --      Arm window = [last real return + 2 h, last real return + 4 h].
+  --      S2 is unchanged and still binding: P3c is the early, named refusal,
+  --      S2 the behavioural proof on the real body.
   select count(*) into v_n from public.hr_tick_ownership o where o.owned and o.channel = 'gather';
   if v_n < 1 or v_n > 2 then
     raise exception 'ARM-P3: % owned gather rows (M2 stage allows 1..2; widening needs its own Security GO)', v_n;
@@ -81,8 +99,32 @@ begin
   if exists (select 1 from public.hr_tick_ownership o
                join public.player_state ps on ps.user_id = o.user_id and ps.slot = o.slot
               where o.owned and o.channel = 'gather' and ps.active_kind = 'gather'
-                and (ps.accrued_to is null or ps.accrued_to < now() - interval '15 minutes')) then
-    raise exception 'ARM-P3: an owned gatherer''s raw accrued_to is older than 15 min — do the fresh real return first';
+                and (ps.accrued_to is null or ps.accrued_to < now() - interval '4 hours')) then
+    raise exception 'ARM-P3: an owned gatherer''s raw accrued_to is older than 4 h — do a real return, then wait 2 h offline';
+  end if;
+  if not exists (
+    select 1
+      from public.hr_tick_ownership o
+      join public.player_state ps on ps.user_id = o.user_id and ps.slot = o.slot
+     where o.owned and o.channel = 'gather' and ps.active_kind = 'gather'
+       and ps.active_since <= now() - interval '2 hours'
+       and not public.hr_partied(o.user_id, o.slot)
+       and public.hr_tick_admit(true, ps.accrued_to, null) = 'admit'
+       and not exists (
+             select 1 from public.player_ledger pl
+              where pl.user_id = o.user_id and pl.slot = o.slot
+                and pl.at >= now() - interval '2 hours' and pl.at < now()
+                and pl.kind = 'gather'
+                and pl.meta->>'src' is distinct from 'tick')) then
+    raise exception 'ARM-P3: no owned gatherer can be the armed sentinel (F2b: a client gather settle inside the 2 h window, or on gather < 2 h); earliest arm %',
+      (select min(greatest(ps.active_since,
+                           coalesce((select max(pl.at) from public.player_ledger pl
+                                      where pl.user_id = o.user_id and pl.slot = o.slot and pl.kind = 'gather'
+                                        and pl.meta->>'src' is distinct from 'tick'), ps.active_since))
+                  + interval '2 hours')
+         from public.hr_tick_ownership o
+         join public.player_state ps on ps.user_id = o.user_id and ps.slot = o.slot
+        where o.owned and o.channel = 'gather');
   end if;
 
   -- (P4) C1 + F1 ARE THE LIVE FENCE BODY (behaviour executed by their own

@@ -2037,6 +2037,18 @@ jobs:
           node tests/gem-daily-budget.mjs
           node tests/gem-daily-budget.mjs --mutate
 
+      # Security, 2026-10-07: the M2 gather ARM file is excluded from the
+      # replay chain, so nothing re-measured it, and its P3 (15 min freshness)
+      # contradicted F2b at S2 — it refused on prod at 16:34 UTC. Executed on a
+      # live-shaped fixture, rolled back: the as-found file arms in NO state,
+      # the amended one arms 2-4 h after a real return and keeps every P/S
+      # refusal. --mutate: 9 mutants of the arm file's own text. (~10 s each.)
+      - name: World tick — the gather arm file arms only when gather will be judged
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-arm-gather.mjs
+          node tests/world-tick-arm-gather.mjs --mutate
+
   # db-replay-7 (same origin as db-replay-6, above). MEASURED locally
   # 2026-10-07: intent-mismatch 123 + goal-counters 117 + goal-gold-retune 56
   # + cron-health 33 + artisan-progress-model 25 + companion-grant-hardening 24

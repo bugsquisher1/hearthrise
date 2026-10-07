@@ -275,7 +275,13 @@ const bodies = async (db) => (await db.query(
   .map((r) => r.h).join(',');
 
 async function boot() {
-  const { db } = await bootReplay({});
+  /* THIS FILE'S STATE, not the chain end: 2026-10-08-world-tick-party-fences.sql
+     restates hr_tick_stall_status after it (F2b: an ONLINE character is not an
+     armed sentinel, which is exactly what S5 plants), so this file's §0 lock
+     would refuse a re-apply over the chain end, and S5 measures this body's
+     tick-row rule. The chain-end body has its own guard,
+     tests/world-tick-party-fences.mjs. */
+  const { db } = await bootReplay({ upTo: MIG });
   await db.exec(PREV_STALL);
   return db;
 }

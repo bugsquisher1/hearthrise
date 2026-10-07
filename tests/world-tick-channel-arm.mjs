@@ -469,7 +469,16 @@ for (const m of MUTANTS) {
   let verdict;
   let r;
   try { r = await boot(m.patch, m.file || MIG); } catch (e) { console.error(`harness: ${m.name}: ${e.message}`); process.exit(2); }
-  if (r.failures.length) {
+  /* A LATER md5-locked restatement refusing ALONE is not a verdict: the mutant
+     applied cleanly through its own file and every file after it, and only a
+     downstream §0 lock (2026-10-08-world-tick-party-fences.sql over
+     hr_party_tick_settle) noticed the body is not the measured one. The
+     mutated body is still the installed one (the refusing file rolled back),
+     so the ARMS decide, exactly as they did before that file existed. */
+  const lockOnly = r.failures.length > 0 && r.failures.every((f) =>
+    f.file !== (m.file || MIG)
+    && /PRECONDITION: hr_(party_tick_settle|tick_settle|tick_stall_status) prosrc md5 is/.test(f.error));
+  if (r.failures.length && !lockOnly) {
     /* A mutant of the channel-arm file refuses THAT file; the guards file
        downstream then refuses on its own §0 precondition, by name, and so does
        2026-10-07-frame-emit-online-only.sql, which patches the bodies the
@@ -487,7 +496,11 @@ for (const m of MUTANTS) {
              bodies only over the exact ones measured live (its §0 md5 lock),
              so it refuses by name whenever an upstream mutant left another. */
           || (f.file === '2026-10-07-world-tick-armed-cap.sql'
-             && /PRECONDITION: hr_tick_(settle|stall_status) prosrc md5 is/.test(f.error)))
+             && /PRECONDITION: hr_tick_(settle|stall_status) prosrc md5 is/.test(f.error))
+          /* 2026-10-08-world-tick-party-fences.sql holds the same md5 lock on
+             hr_tick_stall_status and hr_party_tick_settle. */
+          || (f.file === '2026-10-08-world-tick-party-fences.sql'
+             && /PRECONDITION: hr_(party_tick_settle|tick_stall_status) prosrc md5 is/.test(f.error)))
       && (!m.expect || m.expect.test(msg));
     verdict = mine ? `RED via the file's own self-check (${msg.slice(0, 90)})` : null;
     if (!mine) { console.log(`  ✗ ${m.name} — refused for the WRONG reason: ${msg.slice(0, 200)}`); survived++; continue; }

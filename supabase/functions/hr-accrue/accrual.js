@@ -119,7 +119,7 @@ import {
    the away replay end a player's night at different moments (AWAY-1). */
 import {
   stanceOf, evaluateStop, DEFAULT_STANCE,
-  vigourBudgetMin, vigourMult, vigourScale, vigourCharge, VIGOUR_PROGRESS_KEY,
+  vigourBudgetMin, vigourSplit, vigourScale, vigourCharge, VIGOUR_PROGRESS_KEY,
   VIGOUR_REMAINDER_KEY, VIGOUR_DRY_MULT,
 } from '../../../src/core/hunt.js';
 import { killBonusesFor } from '../../../src/core/botd.js';
@@ -1853,19 +1853,27 @@ export function computeAccrual(input) {
   /* ── VIGOUR: THE DAILY BUDGET, RESOLVED BEFORE THE SPAN RUNS ─────────────
      design §4. The budget is DERIVED (`hr_offline_cap_ms` in minutes, floored
      at 720, plus what was bought today, capped at 22 h) and the split is
-     time-weighted across this window: the part inside the budget pays 1, the
-     part past it pays VIGOUR_DRY_MULT.
+     TIME-ORDERED across this window: what is earned before the budget line
+     pays 1, what is earned past it pays VIGOUR_DRY_MULT (design §4.3: "an
+     eight-hour hunt … six paid hours" — the first six, not a blend).
 
      ⚠ SELF-CONFIGURING AND INERT BY DEFAULT. `inp.vigour` absent — which is
        every caller until the vigour migration is applied and index.ts is taught
        to send it — makes `spentMin` 0 against a budget of at least 720 minutes,
-       so `vigMult` is exactly 1 and every line below is arithmetic that changes
-       nothing. There is no flag to forget to flip.
+       so no instant of the window is dry and every line below is arithmetic
+       that changes nothing. There is no flag to forget to flip.
 
-     ⚠ ONE MULTIPLIER, COMPUTED ONCE, APPLIED IN THREE PLACES, AND IT IS THE
-       SAME NUMBER ATTENDED AND AWAY. Re-simulating the span at two rates would
-       be a SECOND combat path, which AWAY-12 forbids; a blend is identical in
-       expectation and errs in neither direction. */
+     ⚠ ONE LINE, NOT ONE BLEND (2026-10-06). The multiplier is read at the
+       instant each payout is earned (`vigMultAt`, below), off the same tick
+       clock `fx.mark` keeps for the combat-XP watermark. It used to be ONE
+       time-weighted blend for the whole window, "identical in expectation".
+       It is not when the earning is not uniform in time, and a knockout cycle
+       is the opposite of uniform: on the exact input of production parity
+       probe 8 (QA slot 1, 2026-10-06 08:39-12:41, crossing the line at
+       ~10:52) the one-span accrue paid -13% xp/gold and fought -15% ticks
+       against the time-ordered chain, 200 seeds
+       (tests/world-tick-vigour-line.mjs). Still ONE simulation — the rate
+       changes at an instant, the combat path does not (AWAY-12). */
   const vigIn = (inp.vigour && typeof inp.vigour === 'object') ? inp.vigour : null;
   /* ⚠ THE SERVER'S OWN `budget_min` IS PREFERRED OVER RE-DERIVING IT, and that
        is the point of reading it off the envelope at all: hr_vigour_of applies
@@ -2010,6 +2018,25 @@ export function computeAccrual(input) {
   let curAtMs = credit.fromMs;
   const eligibleXp = Object.create(null);
 
+  /* ── THE VIGOUR LINE, IN THE SAME TICK CLOCK (2026-10-06) ─────────────────
+     `vigourSplit` already answers "how much of this paid window is inside the
+     budget"; the inside part is the FRONT of the window, because the budget is
+     spent in time order — so the line is an INSTANT, `credit.fromMs + fullMs`,
+     and every payout reads its multiplier off the tick it was earned on.
+     `vigDry` false (no vigour input, or the whole window inside the budget)
+     keeps every rested night byte-identical: nothing below draws or scales.
+     A window wholly past the line (fullMs 0) pays VIGOUR_DRY_MULT on every
+     grant, which is the number the old blend gave it — byte-identical too.
+     `eligibleDryXp` / `vigGoldAtLine` are the DRY PART of the two payouts the
+     delta scales; the loot half rides the drop chance at the kill's tick. */
+  const vigSplit = vigBudgetMin === null ? null
+    : vigourSplit({ spentMin: vigSpentMin, budgetMin: vigBudgetMin, windowMs: credit.paidMs });
+  const vigDry = vigSplit !== null && vigSplit.dryMs > 0;
+  const vigLineMs = vigDry ? credit.fromMs + vigSplit.fullMs : Infinity;
+  const vigMultAt = (atMs) => (vigDry && atMs >= vigLineMs ? VIGOUR_DRY_MULT : 1);
+  const eligibleDryXp = Object.create(null);
+  let vigGoldAtLine = null;
+
   /* THE HEARTHFIND claims this span produced. At most the FIRST becomes
      delta.hearthfind - hr_apply accepts one find per apply. A second find inside
      ONE settle window needs two independent 1-in-6,000-or-longer rolls in the
@@ -2027,7 +2054,15 @@ export function computeAccrual(input) {
   const fx = {
     /* Per-tick clock, so addXp can decide whether this tick's XP falls in the
        window the live credit has NOT already covered. A no-op for the client. */
-    mark(atMs) { const t = Number(atMs); if (Number.isFinite(t)) curAtMs = t; },
+    mark(atMs) {
+      const t = Number(atMs);
+      if (!Number.isFinite(t)) return;
+      curAtMs = t;
+      /* The gold banked BEFORE the first tick past the Vigour line: everything
+         `state.gold` gains after this is the dry part. Taken on a tick, so a
+         line that falls inside a knockout is crossed by the first swing after. */
+      if (vigDry && vigGoldAtLine === null && t >= vigLineMs) vigGoldAtLine = Math.floor(state.gold || 0);
+    },
     /* XP goes through the SHARED grant, not a bare accumulator. grantXp applies
        PACE.xp (0.39 — a raw sum would over-pay by 2.5x), the perk block, the
        single floor and the "a positive grant never rounds to zero" rule, and it
@@ -2045,14 +2080,18 @@ export function computeAccrual(input) {
          at a tick the live credit already paid (curAtMs < xpEligibleFromMs) still
          happens in the simulation but is not re-proposed here. */
       const applied = (Number(state.skills[skillId]) || 0) - before;
-      if (curAtMs >= xpEligibleFromMs) {
-        if (applied > 0) eligibleXp[skillId] = (eligibleXp[skillId] || 0) + applied;
+      if (curAtMs >= xpEligibleFromMs && applied > 0) {
+        eligibleXp[skillId] = (eligibleXp[skillId] || 0) + applied;
+        /* Earned past the Vigour line: the part of this skill's delta that is
+           scaled. Before the line it is banked as earned. */
+        if (vigMultAt(curAtMs) !== 1) eligibleDryXp[skillId] = (eligibleDryXp[skillId] || 0) + applied;
       }
       /* A TIRED FIGHT LEVELS ON THE XP IT BANKS — see `fightSkills` below. Only
-         an eligible grant is scaled; one the live credit already paid is real. */
+         an eligible grant is scaled, at the multiplier of the tick it was earned
+         on; one the live credit already paid is real. */
       if (fightSkills !== state.skills && applied > 0) {
         const k = skillId;
-        fightGain[k] = (fightGain[k] || 0) + (curAtMs >= xpEligibleFromMs ? applied * vigMult : applied);
+        fightGain[k] = (fightGain[k] || 0) + (curAtMs >= xpEligibleFromMs ? applied * vigMultAt(curAtMs) : applied);
         fightSkills[k] = (Number(skills0[k]) || 0) + Math.floor(fightGain[k]);
         if (k === 'hitpoints') {
           const lv = levelFromXp(fightSkills[k]);
@@ -2236,27 +2275,21 @@ export function computeAccrual(input) {
      SAME `style` object simulateSpan routes XP through, resolved above from
      server-owned equipment — never from the request body. */
   const tickMs = deriveTickMs(equipment, items, style);
-  /* THE TIRED MULTIPLIER FOR THIS WINDOW. Computed HERE because `credit` — the
-     span that will actually be paid — is only settled above this line, and a
-     multiplier derived from anything else would describe a window that was
-     never run. Exactly 1 whenever no vigour input was supplied. */
-  const vigMult = vigBudgetMin === null ? 1 : vigourMult({
-    spentMin: vigSpentMin, budgetMin: vigBudgetMin, windowMs: credit.paidMs,
-  });
   /* THE SKILLS THE FIGHT IS FOUGHT AT (2026-10-06). `grantXp` advances
-     `state.skills` by the RAW grant, but a tired window banks only
-     `vigMult` of it — so rolling against `state.skills` fought a tired hero at
-     levels the write never banks. One span did that for its whole length; the
-     10 s world-tick chain re-reads banked skills every window. Measured on
-     tests/world-tick-vigour-scale.mjs W1 (QA 09-29, Slime, tired): -14% to
-     -18% ticks/kills/gold/xp chain vs span once the 2026-10-06 defence curve made a
-     level worth 0.02 monster accuracy (was 0.006, -0.5%: under the bar, never
-     zero). The rolls and the Hitpoints ceiling now read
-     `skills0 + floor(vigMult x eligible + ineligible)`, the expectation of
-     what both paths bank. Rested (`vigMult === 1`) it IS `state.skills`, the
-     same object, so every rested night and AWAY-1 are byte-identical. Draw-free.
-     The DELTA is untouched: XP is still proposed off `eligibleXp`. */
-  const fightSkills = vigMult === 1 ? state.skills : { ...skills0 };
+     `state.skills` by the RAW grant, but a tired tick banks only
+     VIGOUR_DRY_MULT of it — so rolling against `state.skills` fought a tired
+     hero at levels the write never banks. One span did that for its whole
+     length; the 10 s world-tick chain re-reads banked skills every window.
+     Measured on tests/world-tick-vigour-scale.mjs W1 (QA 09-29, Slime, tired):
+     -14% to -18% ticks/kills/gold/xp chain vs span once the 2026-10-06 defence
+     curve made a level worth 0.02 monster accuracy (was 0.006, -0.5%: under
+     the bar, never zero). The rolls and the Hitpoints ceiling now read
+     `skills0 + floor(Σ vigMultAt(t) x eligible + ineligible)`, the expectation
+     of what both paths bank — 1 before the line, the dry share after it
+     (tests/world-tick-vigour-line.mjs). A window with no dry instant IS
+     `state.skills`, the same object, so every rested night and AWAY-1 are
+     byte-identical. Draw-free. The DELTA is still proposed off `eligibleXp`. */
+  const fightSkills = vigDry ? { ...skills0 } : state.skills;
   const fightGain = Object.create(null);
 
   const ctx = {
@@ -2316,9 +2349,10 @@ export function computeAccrual(input) {
        than the one the design wrote and one no player could ever observe as
        "a quarter".
        It costs the shared engine NOTHING: combat-sim.js and drops.js are
-       untouched, `vigMult` is 1 for every caller that sends no vigour input,
-       and the cap is applied AFTER every multiplier so a reduction is always
-       honoured.
+       untouched, `vigMult` is 1 for every caller that sends no vigour input
+       and for every kill before the line (read at the kill's tick,
+       `vigMultAt(curAtMs)`), and the cap is applied AFTER every multiplier so
+       a reduction is always honoured.
        `id` IS THE FIFTH ARGUMENT and it is not optional in practice (M7, F4):
        the trophy index is keyed by monster id and no roster row carries one, so
        a binding that dropped it would pay every charm and no trophy — away
@@ -2327,6 +2361,7 @@ export function computeAccrual(input) {
        second lookup. */
     weakness(m, id) {
       const w = weaknessInfo(m, eq, charms, trophies, id);
+      const vigMult = vigMultAt(curAtMs);
       return (vigMult === 1) ? w : { ...w, dropMult: (w.dropMult || 1) * vigMult };
     },
     /* Boss of the Day, resolved PER UTC-DAY SEGMENT of the absence, from the
@@ -2611,8 +2646,12 @@ export function computeAccrual(input) {
        banked — the exact honesty defect the block under it was written to fix.
        `Math.floor` after the multiply, and a grant that rounds to zero is
        simply not proposed: the same direction every other rounding in this
-       engine takes. `vigMult === 1` short-circuits so an ordinary night is
-       byte-identical.
+       engine takes. A window with no dry instant (`vigDry` false)
+       short-circuits so an ordinary night is byte-identical.
+     ⚠ ONLY THE DRY PART IS SCALED (2026-10-06). XP earned before the Vigour
+       line is banked as earned; `eligibleDryXp` is what was earned past it.
+       A window wholly past the line has every grant dry, which is the old
+       single-multiplier call with the same draws in the same order.
      ⚠ DITHERED, NOT FLOORED (2026-10-05). A floor per window made the tired
        payout a function of the settle cadence: the 10 s world tick lost
        -35.5% xp and -71.8% gold against the one-span accrue on production.
@@ -2620,10 +2659,12 @@ export function computeAccrual(input) {
        from its own salted stream, and never pays above `raw`. The draw order
        is the grant order the seeded simulation produced, so it replays. */
   const xpDelta = {};
-  const vigRng = vigMult === 1 ? null : createRng((nat(inp.seed, 0) ^ VIGOUR_RNG_SALT) >>> 0);
+  const vigRng = vigDry ? createRng((nat(inp.seed, 0) ^ VIGOUR_RNG_SALT) >>> 0) : null;
+  const vigMult = VIGOUR_DRY_MULT;
   for (const k in eligibleXp) {
-    const raw = Math.floor(eligibleXp[k] || 0);
-    const gained = vigMult === 1 ? raw : vigourScale(raw, vigMult, vigRng);
+    const all = Math.floor(eligibleXp[k] || 0);
+    const raw = Math.min(all, Math.floor(eligibleDryXp[k] || 0));
+    const gained = vigDry ? (all - raw) + vigourScale(raw, vigMult, vigRng) : all;
     if (gained > 0) xpDelta[k] = gained;
   }
 
@@ -2655,9 +2696,13 @@ export function computeAccrual(input) {
      delta is scaled, because nothing else is a PAYOUT — a death, a watermark
      and a consumable burn all happened whether the character was tired or not,
      and discounting them would pay a player for being out of Vigour. */
-  const goldDelta = vigMult === 1
-    ? Math.floor(state.gold || 0)
-    : vigourScale(Math.floor(state.gold || 0), vigMult, vigRng);
+  /* Split at the line the same way: `vigGoldAtLine` is what `state.gold` held
+     at the first tick past it (null: the run never got there, all of it full). */
+  const goldAll = Math.floor(state.gold || 0);
+  const goldFull = (!vigDry || vigGoldAtLine === null) ? goldAll : Math.min(goldAll, vigGoldAtLine);
+  const goldDelta = !vigDry
+    ? goldAll
+    : goldFull + vigourScale(goldAll - goldFull, vigMult, vigRng);
 
   /* THE ITEM DELTA IS SIGNED. Gains come from drops; the one negative is food
      auto-eat consumed. hr_apply's item block is signed too — it re-reads

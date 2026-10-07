@@ -57,7 +57,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { bootReplay, ROOT, manifest } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED, ROOT, manifest } from './schema-replay.mjs';
 import { BANK_STACKS_PER_RUNG, BANK_RUNGS, BANK_LADDER } from '../src/data/gold-ladders.js';
 import { START_CURRENCY } from '../src/data/start-kit.js';
 
@@ -158,7 +158,10 @@ async function migrationText(mutate) {
 
 /** A booted chain plus the drivers every arm needs. */
 async function boot({ mutate, upTo } = {}) {
-  const { db } = await bootReplay({ patches: patchesFor(mutate), upTo });
+  /* A mutant with no explicit upTo stops at the newest file it patches; a bare
+     `upTo` shorthand is undefined there, and bootReplay refuses an unscoped
+     mutant (tests/schema-replay.mjs replayScopeError). */
+  const { db } = await bootReplay({ patches: patchesFor(mutate), upTo: upTo ?? LAST_PATCHED });
   const q = async (sql, p) => (await db.query(sql, p)).rows;
   const asEngine = async (sql, p) => {
     await db.exec('set role hr_engine');

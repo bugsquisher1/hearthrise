@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 116 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withClientOwnedSlots, awaySpan, tryRunRestampingBalance, xpOf, xpMap, predZero, goldOf, snapshotG, onFeet, drain, withResidueWire, seedPlayStreak, residuePurgeSnap, residuePurgeRestore, restoreG, restoreGAndRecord, autoEatMirrorReady, autoEatMirrorFixture, withCap, withStockedFight, on, snapshot, decideRestore, freshFrameGate } from './_harness.js?v=563';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withClientOwnedSlots, awaySpan, tryRunRestampingBalance, xpOf, xpMap, predZero, goldOf, snapshotG, onFeet, drain, withResidueWire, seedPlayStreak, residuePurgeSnap, residuePurgeRestore, restoreG, restoreGAndRecord, autoEatMirrorReady, autoEatMirrorFixture, withCap, withStockedFight, on, snapshot, decideRestore, freshFrameGate } from './_harness.js?v=564';
 
 /* MODAL-FIT-1's probes. `mfClear` parks every layer that can sit above a sheet
    (scrims DETACHED, so no "another modal is up" check defers; toasts hidden) and
@@ -1920,6 +1920,126 @@ export default [
       restoreG(snap);
     }
   }),
+
+  /* ── regression suite — XP IS EARNED ON DAMAGE DEALT, NOT ROLLED ────
+     simulateTick passed the full swing (crit included) to hitXpRoute before
+     it was clamped to the foe's remaining HP, so a big hitter on an 8-HP slime
+     was paid ~4 XP per point of overkill: ~117 styled XP a swing at max hit 19
+     vs the 37 the foe could ever yield. Ruling (game-designer, final): hit XP
+     pays on min(damage, HP before the swing), styled and hitpoints alike.
+     Both paths (CLAUDE.md §4): ATTENDED through simulateTick away:false, AWAY
+     through simulateSpan away:true. A plain state object and a pinned rng —
+     nothing here reads or writes the live G. Each fails without the clamp. */
+  ...(() => {
+    const SLIME_HP = 8;
+    /* EXACT, PER SWING, AGAINST A FOE THAT IS OFTEN ALREADY HURT. A cap alone
+       ("<= 4 x 8 + 5") cannot tell the right clamp from min(pDmg, maxHp): a
+       40-max hit one-shots a FULL slime either way. So the rig alternates a
+       3-max and a 40-max swing (the small one leaves the slime hurt, the big
+       one overkills it), opens on a slime at 3 HP, and asserts each swing's
+       grants EXACTLY: styled = 4 x min(pDmg, hpBefore), hitpoints =
+       floor(1.33 x min(pDmg, hpBefore)) — hitXpRoute's own constants.
+       hpBefore is tracked by the rig, never read from the engine's answer:
+       the HP the previous swing left, or the respawn HP after a kill. */
+    const rig = () => {
+      let s = 0x5EED5;
+      const r = () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; };
+      const swings = [];
+      let cur = null; let n = 0;
+      const state = { activeMonster: 'slime', monsterHp: 3, monsterMaxHp: SLIME_HP,
+        playerHp: 1e9, playerMaxHp: 1e9, stats: {}, buffs: [] };
+      let nextBefore = state.monsterHp;
+      const fx = {
+        onSwing: (m, pDmg) => {
+          const after = state.monsterHp;
+          cur = { pDmg, hpBefore: nextBefore, after };
+          swings.push(cur);
+          nextBefore = after > 0 ? after : window.MONSTERS.slime.hp;
+        },
+        addXp: (k, a) => {
+          if (!cur) return;
+          if (k === 'attack' && cur.hit === undefined) cur.hit = a;
+          cur[k] = (cur[k] || 0) + a;
+        },
+      };
+      const ctx = {
+        rng: { next: r, int: (a, b) => a + Math.floor(r() * (b - a + 1)), chance: (p) => r() < p },
+        monsters: window.MONSTERS, style: { xp: { attack: 1 } }, fx,
+        playerRolls: () => ({ accuracy: 1, maxHit: (n++ % 2) ? 40 : 3, critChance: 0.5 }),
+        monsterRolls: () => ({ accuracy: 0, maxHit: 1 }),
+        weakness: () => ({ dropMult: 1 }), bonus: () => 0,
+      };
+      return { ctx, state, swings };
+    };
+    const check = (swings, label) => {
+      const slime = window.MONSTERS.slime;
+      assert(slime && slime.hp === SLIME_HP, 'the rig assumes an 8-HP slime; found ' + (slime || {}).hp);
+      assert(swings.length >= 20, label + ': the rig swung only ' + swings.length + ' times');
+      let hurtOverkill = 0; let kills = 0;
+      swings.forEach((sw, i) => {
+        if (sw.after > 0) {
+          assert(sw.hpBefore === sw.after + sw.pDmg, label + ': the rig lost track of HP at swing ' + i + ' ' + JSON.stringify(sw));
+        }
+        const dealt = Math.min(sw.pDmg, sw.hpBefore);
+        if (sw.hpBefore < SLIME_HP && sw.pDmg > sw.hpBefore) hurtOverkill++;
+        if (sw.after === 0) kills++;
+        assert((sw.hit || 0) === 4 * dealt, label + ': swing ' + i + ' (' + sw.pDmg + ' rolled into ' + sw.hpBefore
+          + ' HP) paid ' + sw.hit + ' styled hit XP, expected 4 x ' + dealt + ' — hit XP is not paid on damage dealt');
+        assert((sw.hitpoints || 0) === Math.floor(dealt * 1.33), label + ': swing ' + i + ' paid ' + sw.hitpoints
+          + ' hitpoints XP, expected floor(1.33 x ' + dealt + ')');
+        assert((sw.attack || 0) === 4 * dealt + (sw.after === 0 ? slime.xp : 0),
+          label + ': swing ' + i + ' styled total ' + sw.attack + ' is not hit XP plus the kill XP');
+      });
+      assert(kills >= 5, label + ': only ' + kills + ' kills — the kill-swing assertion would be vacuous');
+      assert(hurtOverkill >= 5, label + ': only ' + hurtOverkill + ' overkill swings into an already-hurt slime — '
+        + 'the rig cannot tell min(pDmg, hpBefore) from min(pDmg, maxHp)');
+    };
+    return [
+      () => tryRun('XP-DEALT-1 (attended): a big hitter on an 8-HP slime earns hit XP on the 8 HP it removed, not the swing it rolled', () => {
+        const C = window.HearthriseCore;
+        const { ctx, state, swings } = rig();
+        ctx.away = false;
+        for (let i = 0; i < 200 && state.activeMonster; i++) C.combatSim.simulateTick(state, ctx);
+        check(swings, 'ATTENDED');
+      }),
+      () => tryRun('XP-DEALT-2 (away): the same clamp holds through simulateSpan away:true', () => {
+        const C = window.HearthriseCore;
+        const { ctx, state, swings } = rig();
+        const from = Date.UTC(2026, 0, 15, 6, 0, 0);
+        Object.assign(ctx, { away: true, fromMs: from, toMs: from + 600000, tickMs: 2400 });
+        const out = C.combatSim.simulateSpan(state, ctx);
+        assert(out && out.kills > 0, 'AWAY: the span landed no kills — ' + JSON.stringify(out && { ticks: out.ticks, kills: out.kills }));
+        check(swings, 'AWAY');
+      }),
+      /* The XP/hr estimate must price the same rule, or the Character screen
+         promises overkill XP the engine never pays: a kill is worth m.hp of
+         damage, and hitpoints gets no kill XP (killXpRoute is styled-only). */
+      () => tryRun('XP-DEALT-3 (display): the XP/hr estimate prices hit XP on the foe\'s HP, not the raw average swing', () => {
+        const G = window.G;
+        const snap = snapshotG();
+        const origRolls = window.getPlayerCombatRolls;
+        const origStyle = window.getActiveCombatStyle;
+        try {
+          assert(typeof window._calcForSkill === 'function', '_calcForSkill is missing');
+          window.getPlayerCombatRolls = () => ({ accuracy: 1, maxHit: 40, critChance: 0 });
+          window.getActiveCombatStyle = () => ({ xp: { attack: 1 } });
+          G.activeMonster = 'slime';
+          const m = window.MONSTERS.slime;
+          const killsHr = 3600000 / (Math.ceil(m.hp / 20.5) * 2400);
+          const atk = window._calcForSkill('attack');
+          assert(atk && atk.xpHr === Math.floor(killsHr * (m.xp + 4 * m.hp)),
+            'attack XP/hr ' + (atk && atk.xpHr) + ', expected ' + Math.floor(killsHr * (m.xp + 4 * m.hp)) + ' (kill XP + 4 x foe HP per kill)');
+          const hp = window._calcForSkill('hitpoints');
+          assert(hp && Math.abs(hp.xpHr - Math.floor(killsHr * m.hp * 1.33)) <= 1,
+            'hitpoints XP/hr ' + (hp && hp.xpHr) + ', expected ' + Math.floor(killsHr * m.hp * 1.33) + ' (1.33 x foe HP per kill, no kill XP)');
+        } finally {
+          window.getPlayerCombatRolls = origRolls;
+          window.getActiveCombatStyle = origStyle;
+          restoreG(snap);
+        }
+      }),
+    ];
+  })(),
 
   /* ── AWAY-1b: THE SAME CONTRACT, WITH AUTO-EAT IN THE LOOP ────────────────
      AWAY-1 above runs on an EMPTY bag, so `fx.autoEat` decides nothing and the

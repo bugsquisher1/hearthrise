@@ -10,7 +10,7 @@
 // Pure ESM, no DOM.
 // ============================================================
 
-import { WEAPON_TYPES } from '../core/combat.js?v=563';
+import { WEAPON_TYPES } from '../core/combat.js?v=564';
 
 /** The weapon type the engine pays a bonus for, or null (retired `neutral` = none). */
 export function weaknessOf(m) {

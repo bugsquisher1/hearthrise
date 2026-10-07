@@ -30,6 +30,12 @@
 // armed-equivalent model (PB-1) reads. If it drifts out of that band, the
 // carrier lost something again; find out what before re-pinning.
 //
+// ── THE REPLAY BAR (SEC_VIGOUR_LINE_SPLIT_2026-10-06 "Bar ruling") ─────────
+// Every probe carries a seeded replay (services/world-tick/parity-replay.js)
+// through the engine under test, mutant included: the combat bar reads the
+// replay EXPECTATION (±10 % and ≤ 3 se) and the realised read by z. Every
+// mutant now goes red on the replay aggregate itself.
+//
 // No network, no database, no credential.
 // ============================================================================
 
@@ -42,6 +48,8 @@ import { shadowStateOf, applyShadowState } from '../supabase/functions/hr-accrue
 import { oneSpan, probeResultOf, PROBE_SPAN_MS, encodeProbeInput, decodeProbeInput }
   from '../supabase/functions/hr-accrue/tick-probe.js';
 import { judgeGroup } from '../services/world-tick/parity-bar.js';
+import { shippedChain, replicaSeedOf, replayStats, fieldsOf, canon }
+  from '../services/world-tick/parity-replay.js';
 import { hashSeed } from '../src/core/rng.js';
 import { levelFromXp } from '../src/core/xp.js';
 import { MONSTERS } from '../src/data/monsters.js';
@@ -49,6 +57,14 @@ import { MONSTERS } from '../src/data/monsters.js';
 const ARGS = process.argv.slice(2);
 const MUTATE = ARGS.includes('--mutate');
 const VERBOSE = ARGS.includes('--verbose');
+/* Seeded replays per probe (SEC_VIGOUR_LINE_SPLIT_2026-10-06 "Bar ruling": the
+   combat bar reads each probe's replay expectation). The engine replayed is
+   the engine under test, mutant included: a defect in the decomposition moves
+   the replay expectation, which is what the bar reads.
+   A mutant read must FAIL, which the replay aggregate does at fewer replicas
+   (a FAIL is never held back by an INSUFFICIENT). */
+const REPLICAS = 12;
+const MUTANT_REPLICAS = 8;
 const say = (s) => { if (VERBOSE) console.log(s); };
 
 const FROM = Date.UTC(2026, 2, 14, 20, 0, 0);
@@ -110,27 +126,17 @@ const zero = () => ({ ticks: 0, qty: 0, gold: 0, kills: 0, ate: 0, deaths: 0, xp
 /* ── THE SHIPPED SHADOW COMPOSITION ─────────────────────────────────────────
    Exactly what production does across fires: each fire builds the session
    from the FROZEN row (c0), lays the previous fire's carrier over it, and
-   settles ONE flush window through the shipped settler. No hook. */
-function shippedShadow(c0, from, to) {
+   settles ONE flush window through the shipped settler. No hook. The loop is
+   services/world-tick/parity-replay.js `shippedChain` — the one the
+   evaluator replays production probes with. `m.salt` picks a replica's seed
+   family (parity-replay.js replicaSeedOf); unset, the probe's own stream. */
+function shippedShadow(c0, from, to, m) {
   const acc = zero();
-  let carrier = null;
-  let mark = from;
-  let markText = c0.accruedToText;
-  while (mark < to) {
-    const base = JSON.parse(JSON.stringify(c0));
-    base.accruedToMs = mark;
-    base.accruedToText = markText;
-    const sess = carrier ? applyShadowState(base, carrier) : base;
-    const run = settleCombatSession(sess, mark, Math.min(to, mark + FLUSH_MS),
-      { cadenceMs: CADENCE_MS, flushMs: FLUSH_MS, maxPolls: MAX_POLLS });
-    for (const r of run.results) sumInto(acc, r.res);
-    if (run.settled === 0) break;
-    carrier = shadowStateOf(run.char, { baseVersion: c0.version, atMs: run.watermarkMs });
-    mark = run.watermarkMs;
-    markText = pgTimestamptzText(mark);
-    if (run.stoppedBy === 'activity') break;
-  }
-  return { acc, endMs: mark };
+  const salt = m && m.salt;
+  const { windows, endMs } = shippedChain(c0, from, to,
+    salt == null ? {} : { seedOf: replicaSeedOf(c0.userId, c0.slot, salt) });
+  for (const res of windows) sumInto(acc, res);
+  return { acc, endMs };
 }
 
 /* ── THE SAME COMPOSITION, HAND-DRIVEN, WITH THE MUTATION SEAMS ──────────────
@@ -181,7 +187,9 @@ function manualChain(c0, from, to, m) {
       }
       const start = wm + (mut.shiftMs || 0);
       if (start >= clock) continue;
-      const label = mut.fixedLabel ? seedLabelFor(c0.accruedToText) : seedLabelFor(wmText);
+      const label0 = mut.fixedLabel ? seedLabelFor(c0.accruedToText) : seedLabelFor(wmText);
+      /* A replica's seed family, spelled as parity-replay.js replicaSeedOf. */
+      const label = mut.salt == null ? label0 : `replay#${mut.salt}|${label0}`;
       const res = combatTick(char, start, wmText, clock, {
         seedOf: () => hashSeed(String(char.userId), String(char.slot), label),
         perturb: mut.perturb,
@@ -210,13 +218,28 @@ function manualChain(c0, from, to, m) {
 
 /* ONE PROBE: the one-span accrual over [from, chainEnd] from the SAME session
    snapshot (round-tripped through the stored form) on the span start's seed. */
-function probeOf(c0, from, endMs) {
+function probeOf(c0, from, endMs, salt) {
   const snap = decodeProbeInput(encodeProbeInput(c0));
-  const res = oneSpan('combat', snap, from, endMs, offlineSeedFor(c0.userId, c0.slot, c0.accruedToText));
+  const seed = salt == null ? offlineSeedFor(c0.userId, c0.slot, c0.accruedToText)
+    : replicaSeedOf(c0.userId, c0.slot, salt)(from, c0.accruedToText);
+  const res = oneSpan('combat', snap, from, endMs, seed);
   return sumInto(zero(), res);
 }
 
-function buildRead(chainFn, mut) {
+/* THE PROBE'S REPLAY: REPLICAS draws of (one span, chain) from the same input
+   through the same engine (`chainFn`, mutant included) on replica seed
+   families, and the reproduction check — the one span re-run on the probe's
+   own seed equals the stored result. */
+function replayOf(chainFn, mut, c0, from, endMs, stored, replicas) {
+  const samples = { one: [], chain: [] };
+  for (let r = 0; r < replicas; r++) {
+    samples.one.push(fieldsOf(probeOf(c0, from, endMs, r)));
+    samples.chain.push(fieldsOf(chainFn(c0, from, endMs, Object.assign({}, mut, { salt: r })).acc));
+  }
+  return replayStats(samples, canon(probeOf(c0, from, endMs)) === canon(stored));
+}
+
+function buildRead(chainFn, mut, replicas = REPLICAS) {
   const probes = [];
   let n = 0;
   for (const fx of combatFixtures()) {
@@ -229,7 +252,8 @@ function buildRead(chainFn, mut) {
          production (the roster drops the character), so it is not one here. */
       if (endMs - from < PROBE_SPAN_MS - FLUSH_MS) continue;
       const one = probeOf(c0, from, endMs);
-      probes.push({ id: `${++n}:${fx.name.slice(0, 18)}@${i}`, spanMs: endMs - from, discard: null, one, chain: acc });
+      probes.push({ id: `${++n}:${fx.name.slice(0, 18)}@${i}`, spanMs: endMs - from, discard: null, one, chain: acc,
+        replay: replayOf(chainFn, mut, c0, from, endMs, one, replicas) });
     }
   }
   return probes;
@@ -277,7 +301,8 @@ show(calProbes);
 const cal = judgeGroup('combat', calProbes, { rareIds: RARE_IDS });
 judge('PB-1', cal.verdict === 'PASS',
   `combat bar PASS on ${cal.stats.probes} probes / ${cal.stats.hours} h `
-  + `(ticks ${JSON.stringify(cal.stats.ticks)}, direction ${JSON.stringify(cal.stats.direction)})`,
+  + `(ticks ${JSON.stringify(cal.stats.ticks)}, direction ${JSON.stringify(cal.stats.direction)}, `
+  + `replay ${JSON.stringify(cal.stats.replay)})`,
   `combat bar ${cal.verdict} on the calibration set:\n      - ${cal.reasons.join('\n      - ')}`);
 
 // ── PB-1g CALIBRATION: gather, six 4 h probes ─────────────────────────────
@@ -304,7 +329,7 @@ judge('PB-1', cal.verdict === 'PASS',
 
 // ── PB-2 THE PINNED FINDING: the shipped SHADOW composition carries maxHp ──
 {
-  const probes = buildRead((c0, from, to) => shippedShadow(c0, from, to));
+  const probes = buildRead(shippedShadow);
   const v = judgeGroup('combat', probes, { rareIds: RARE_IDS });
   const t = v.stats.ticks || { one: 0, chain: 0 };
   const loss = t.one ? ((t.chain - t.one) / t.one) * 100 : NaN;
@@ -352,10 +377,14 @@ if (MUTATE) {
   console.log('\n  mutants (each must turn the calibrated PASS into FAIL)');
   let blind = 0;
   for (const [name, m] of Object.entries(MUTANTS)) {
-    const probes = buildRead(manualChain, Object.assign({}, CAL, m));
+    const probes = buildRead(manualChain, Object.assign({}, CAL, m), MUTANT_REPLICAS);
     const v = judgeGroup('combat', probes, { rareIds: RARE_IDS });
     if (v.verdict === 'FAIL') console.log(`  ✓ --${name} RED: ${v.reasons[0]}`);
-    else { console.log(`  ✗ --${name} stayed ${v.verdict} — the comparator is blind to it`); blind++; }
+    else {
+      console.log(`  ✗ --${name} stayed ${v.verdict} — the comparator is blind to it`);
+      for (const r of v.reasons) console.log(`      - ${r}`);
+      blind++;
+    }
   }
   if (blind || problems) {
     console.error(`\nworld-tick-probe-bar --mutate: ${blind} blind mutant(s), ${problems} red arm(s)`);

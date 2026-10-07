@@ -1758,7 +1758,10 @@ jobs:
       # (green) and pins the max_hp shadow-carrier finding; --mutate requires
       # fixedSeed/shiftWindow/noAutoEat/freeHeal/skipFoodDebit/resumeMisalign
       # red. tools/world-tick-parity.mjs --selftest proves the evaluator's
-      # eligibility rules on planted rows.
+      # eligibility rules on planted rows, and the COMBAT REPLAY BAR
+      # (SEC_VIGOUR_LINE_SPLIT_2026-10-06 "Bar ruling": ±10 % and ≤ 3 se on
+      # the seeded replay expectation, realised read by z ≤ 3.29) on the
+      # no-food fixture through the shipped engine: correct PASS, +12 % FAIL.
       - name: World tick — the parity probe writes its own rows and the bar bites
         if: ${{ !cancelled() }}
         run: |
@@ -1819,6 +1822,19 @@ jobs:
         run: |
           node tests/world-tick-vigour-scale.mjs
           node tests/world-tick-vigour-scale.mjs --mutate
+
+      # THE VIGOUR LINE IS AN INSTANT, NOT A BLEND (2026-10-06, probes 8/10 on
+      # edge 6205e4e0). A span crossing the budget paid ONE blended multiplier:
+      # +17.6% ticks / +15% gold+xp chain over the one-span accrue on probe 8's
+      # exact input. Probe 10 (wholly tired) is parity and its +42% is chance.
+      # VL3: wholly tired pays [0.22, 0.28] of rested per kill and a crossing
+      # span sits between (catches the 4x overpay mutants the parity arms
+      # miss); VL4 pins AWAY_RATE_MULT === 1 (the line is a wall-clock instant).
+      - name: World tick — a span crossing the Vigour line pays in time order
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-vigour-line.mjs
+          node tests/world-tick-vigour-line.mjs --mutate
 
       # MAX HP FOLLOWS A MID-CHAIN HITPOINTS LEVEL-UP (2026-10-05, probe-bar
       # PB-2: the shadow chain fought at the frozen ceiling, -14% ticks). Both
@@ -1984,6 +2000,7 @@ jobs:
   #     + auto-eat-at-creation 23 + bounty-difficulty-count 20 + client-write-
   #     sweep-5 17 + gem-daily-budget 2 plain + 16 mutate = 528 s, + verify
   #     ~64 + setup ~11 = 603 s (10.05 min). Budget = x2 = 20.1, rounded up to 21.
+  #     + frame-self-echo (2026-10-07, measured locally): 2 s plain + 45 s mutate.
   db-replay-6:
     runs-on: ubuntu-latest
     timeout-minutes: 21
@@ -2036,6 +2053,31 @@ jobs:
         run: |
           node tests/gem-daily-budget.mjs
           node tests/gem-daily-budget.mjs --mutate
+
+      # Security, 2026-10-07: the M2 gather ARM file is excluded from the
+      # replay chain, so nothing re-measured it, and its P3 (15 min freshness)
+      # contradicted F2b at S2 — it refused on prod at 16:34 UTC. Executed on a
+      # live-shaped fixture, rolled back: the as-found file arms in NO state,
+      # the amended one arms 2-4 h after a real return and keeps every P/S
+      # refusal. --mutate: 9 mutants of the arm file's own text. (~10 s each.)
+      - name: World tick — the gather arm file arms only when gather will be judged
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-arm-gather.mjs
+          node tests/world-tick-arm-gather.mjs --mutate
+
+      # NO SELF-ECHO FRAMES (2026-10-09-frame-self-echo.sql). A player's own
+      # HTTP write is not pushed back to their own topic; another character's
+      # write, a world-tick settle and every client-shaped request still are.
+      # Executed on the replayed chain's final state; --mutate plants five
+      # defects the file's own §9 must refuse (forged marker, unbound marker,
+      # self-before-tick, …), a negative control without the file, and two
+      # edge defects (the tick path marking, an apply site unmarked).
+      - name: Frame self-echo — own writes not echoed, tick + others + forged still sent (base + mutate)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/frame-self-echo.mjs
+          node tests/frame-self-echo.mjs --mutate
 
   # db-replay-7 (same origin as db-replay-6, above). MEASURED locally
   # 2026-10-07: intent-mismatch 123 + goal-counters 117 + goal-gold-retune 56

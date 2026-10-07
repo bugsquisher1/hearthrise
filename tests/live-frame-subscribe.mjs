@@ -57,6 +57,8 @@
 //                    and not if a frame closed the gap inside it.
 //   L19 PUSH OFF     no joined channel → no re-read (today's game).
 //   L20 COST         one read in flight, at most one per interval.
+//   L21 JITTER       the read is spread 0–2 s (injected; pinned to 0 elsewhere).
+//   (L16 also covers SEC change A: a 2xx with a truncated body / no envelope.)
 //
 // Mutations patch COPIES of accrue.js/live.js written to the OS temp dir (never
 // the tree), with their imports re-pointed at the real files, and re-run every
@@ -155,6 +157,13 @@ const MUTATIONS = {
   frame_gap_ignored: { kills: ['L15'], file: 'live',
     why: 'a frame that skips a version is applied and nothing re-reads what the skipped version changed',
     from: "  if (written.gap) { st.gaps += 1; requestGapHeal('frame_gap'); }", to: '' },
+  heal_2xx_unread: { kills: ['L16'], file: 'accrue',
+    why: 'SEC change A: a committed write answered 2xx with a truncated body / no envelope never re-reads',
+    from: "  if (res && typeof res.status === 'number' && res.status >= 200 && res.status < 300",
+    to: "  if (false && res && typeof res.status === 'number' && res.status >= 200 && res.status < 300" },
+  heal_no_jitter: { kills: ['L21'], file: 'accrue',
+    why: 'every tab heals at the same instant after a blip',
+    from: '    Number.isFinite(o.delayMs) ? o.delayMs : 0, jitter);', to: '    Number.isFinite(o.delayMs) ? o.delayMs : 0);' },
   heal_rewinds: { kills: ['L15'], file: 'accrue',
     why: 'a re-read older than a frame that landed meanwhile is applied (a rewind)',
     from: "  if (gate.verdict !== 'fresh' && gate.verdict !== 'answer') return refuse(gate.verdict);",
@@ -250,6 +259,7 @@ function rig(A, L, opts) {
     hello: () => { r.hellos += 1; if (o.onHello) o.onHello(G); return Promise.resolve(); },
     /* The gap heal's read (record.js hr_load, heal mode): the SERVER's projection
        as the test has it at the moment of the read. */
+    gapJitterMs: () => (o.jitter == null ? 0 : o.jitter),
     reread: () => { r.reads += 1; return Promise.resolve(r.server ? { outcome: 'loaded', body: r.server() } : null); },
     applied: () => { r.applied += 1; },
     now: () => r.clock,
@@ -654,18 +664,26 @@ export async function liveFrameGuard(mutation) {
     //    The server COMMITS the player's write (v201: gold 20 → 15) and the HTTP
     //    response is dropped. No self-frame follows any more. The screen must
     //    catch up to the server within the heal (one read, now).
-    for (const shape of ['throw', '503']) {
+    for (const shape of ['throw', '503', 'truncated', 'no_envelope']) {
       const r = rig(A, L);
       L.ensureLive(); r.c.status('SUBSCRIBED');
       r.c.emit(frameAt(200, 20));
       r.server = () => projAt(201, 15, { bread: 2 });
       const prev = globalThis.fetch;
-      globalThis.fetch = shape === 'throw'
-        ? () => Promise.reject(new TypeError('Failed to fetch'))
-        : () => Promise.resolve({ ok: false, status: 503, json: async () => ({ ok: false, error: 'engine_unavailable' }) });
+      /* SEC change A: a 2xx after the commit whose body is TRUNCATED (the JSON
+         read throws) or carries NO versioned envelope is just as lost. */
+      globalThis.fetch = {
+        throw: () => Promise.reject(new TypeError('Failed to fetch')),
+        503: () => Promise.resolve({ ok: false, status: 503, json: async () => ({ ok: false, error: 'engine_unavailable' }) }),
+        truncated: () => Promise.resolve({ ok: true, status: 200,
+          json: async () => JSON.parse('{"ok":true,"accrued":true,"version":201,"sta') }),
+        no_envelope: () => Promise.resolve({ ok: true, status: 200, json: async () => ({ ok: true }) }),
+      }[shape];
       let threw = false;
-      try { await A.fetchWrite('https://example.invalid/functions/v1/hr-accrue', { method: 'POST' }, 'eat'); }
-      catch (e) { threw = true; }
+      try {
+        const res = await A.fetchWrite('https://example.invalid/functions/v1/hr-accrue', { method: 'POST' }, 'eat');
+        try { await res.json(); } catch (e) { if (shape !== 'truncated') throw e; }   // the caller's own body read
+      } catch (e) { threw = true; }
       finally { globalThis.fetch = prev; }
       await settleIo();
       ok(threw === (shape === 'throw'), 'L16', 'fetchWrite changed what the caller sees (' + shape + ', threw ' + threw + ').');
@@ -725,6 +743,23 @@ export async function liveFrameGuard(mutation) {
         await settleIo();
         ok(r.reads === 1, 'L18', 'a poll gap that a frame closed inside the grace still re-read (reads ' + r.reads + ').');
       } finally { await h.restore(); A.resetAccrualGate(); }
+    }
+
+    // ── L21 JITTER: a lost write's read is spread over 0–2 s, never a burst ──
+    {
+      const r = rig(A, L, { jitter: 1234 });
+      L.ensureLive(); r.c.status('SUBSCRIBED');
+      r.c.emit(frameAt(700, 1));
+      r.server = () => projAt(701, 9, {});
+      const prev = globalThis.fetch;
+      globalThis.fetch = () => Promise.reject(new TypeError('Failed to fetch'));
+      try { await A.fetchWrite('https://example.invalid/functions/v1/hr-accrue', { method: 'POST' }, 'eat'); } catch (e) {}
+      finally { globalThis.fetch = prev; }
+      await settleIo();
+      ok(r.reads === 0 && r.timers.length === 1 && r.timers[0].ms === 1234, 'L21',
+        'the heal read was not deferred by its jitter (reads ' + r.reads + ', timers ' + r.timers.map((x) => x.ms).join(',') + ').');
+      r.fire(); await settleIo();
+      ok(r.reads === 1 && r.G.gold === 9, 'L21', 'the jittered read never went out / never healed (gold ' + r.G.gold + ').');
     }
 
     // ── L19 PUSH OFF = TODAY: no channel, no gap heal ───────────────────────

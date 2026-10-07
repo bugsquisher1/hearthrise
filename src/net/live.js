@@ -84,6 +84,8 @@ function defaultEnv() {
     },
     applied: (written) => repaintAfterFrame(written),
     now: () => Date.now(),
+    /* 0–2 s spread on a gap-heal read, so one server blip is not a synchronised burst. */
+    gapJitterMs: () => Math.random() * 2000,
     setTimer: (fn, ms) => setTimeout(fn, ms),
     clearTimer: (h) => { if (h != null) clearTimeout(h); },
   };
@@ -209,6 +211,7 @@ function armGap() {
     now: () => env().now(),
     setTimer: (fn, ms) => env().setTimer(fn, ms),
     clearTimer: (h) => env().clearTimer(h),
+    jitterMs: () => env().gapJitterMs(),
   });
 }
 

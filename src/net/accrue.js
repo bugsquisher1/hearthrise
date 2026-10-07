@@ -494,6 +494,7 @@ export function resetFrameGate() {
    what it was. One read in flight; at most one per GAP_HEAL_MIN_INTERVAL_MS. */
 export const GAP_HEAL_MIN_INTERVAL_MS = 10000;
 export const GAP_HEAL_GRACE_MS = 1500;
+export const GAP_HEAL_JITTER_MS = 2000;
 let gapEnv = null;      // { read, G, applied, now, setTimer, clearTimer } while armed
 let gapGen = 0;         // bumps on disarm/reset, so an old answer lands nowhere
 let gapHeal = freshGapHeal();
@@ -536,8 +537,14 @@ export function requestGapHeal(reason, opts) {
     return 'queued';
   }
   const now = e.now();
+  /* 0–GAP_HEAL_JITTER_MS of jitter (SEC, optional): a server blip that loses
+     many answers at once must not turn every open tab into one synchronised
+     hr_load burst. Injected by the transport so tests pin it to 0. */
+  let jitter = 0;
+  try { jitter = typeof e.jitterMs === 'function' ? Math.max(0, Math.min(GAP_HEAL_JITTER_MS, Number(e.jitterMs()) || 0)) : 0; }
+  catch (x) { jitter = 0; }
   const wait = Math.max(gapHeal.lastAt ? gapHeal.lastAt + GAP_HEAL_MIN_INTERVAL_MS - now : 0,
-    Number.isFinite(o.delayMs) ? o.delayMs : 0);
+    Number.isFinite(o.delayMs) ? o.delayMs : 0, jitter);
   if (wait > 0 || gapHeal.timer != null) {
     /* ONE pending read for every request that arrives before it goes out. The
        merged condition is the WEAKEST one: a request with no `atLeast` (a lost
@@ -638,6 +645,25 @@ export async function fetchWrite(url, init, verb) {
     throw err;
   }
   if (res && typeof res.status === 'number' && res.status >= 500) requestGapHeal('5xx:' + (verb || 'write'));
+  /* SEC (APPLY GO-WITH-CHANGES, change A): a 2xx whose body is unreadable or
+     truncated, or that carries no versioned envelope, is a committed write the
+     browser never heard about either. The body read is the caller's, so it is
+     wrapped here: same value, same throw, plus the heal. */
+  if (res && typeof res.status === 'number' && res.status >= 200 && res.status < 300
+      && typeof res.json === 'function') {
+    const read = res.json.bind(res);
+    const why = verb || 'write';
+    try {
+      res.json = async () => {
+        let body;
+        try { body = await read(); } catch (err) { requestGapHeal('unreadable:' + why); throw err; }
+        if (!body || typeof body !== 'object' || !Number.isFinite(frameVersion(body.version))) {
+          requestGapHeal('no_envelope:' + why);
+        }
+        return body;
+      };
+    } catch (e) { /* a frozen response: the poll gap still heals it */ }
+  }
   return res;
 }
 

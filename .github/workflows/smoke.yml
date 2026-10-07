@@ -3338,6 +3338,17 @@ jobs:
           node tests/market-prices.mjs --mutate
           node tests/market-prices.mjs
 
+      # VENDOR/SHOP ARBITRAGE (b564): no shop_buy offer may cost less gold than
+      # vendor_sell pays for what it grants (buy -> sell -> repeat is a faucet).
+      # Reads the edge GOLD_OFFERS + vendorPriceOf and hr_items.value at the end
+      # of the apply order; --selftest raises one item's bid in each source and
+      # requires the offer named, and an unparsed hr_items.value write to fail closed.
+      - name: Vendor/shop arbitrage - no offer is cheaper than its vendor bid
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/vendor-shop-arbitrage.mjs --selftest
+          node tests/vendor-shop-arbitrage.mjs
+
       # NO CLIENT FARM MINT (cleanup slice 4, b514): plantCrop / waterPlot /
       # waterAllPlots / harvestPlot / upgradePlot may only SEND AN INTENT. Their
       # client-authored twins — the yield roll, the perennial ladder, the seed

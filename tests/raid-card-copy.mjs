@@ -103,6 +103,20 @@ async function readCard() {
     window.HearthriseRaids.invalidate?.();
     await window.HearthriseRaids.render();
     await new Promise((r) => setTimeout(r, 250));
+    /* SETTLE THE PAGE'S OWN DOM PASS BEFORE READING, every read. icon-set.js
+       runs paintAll() on a 1200 ms interval, and its stripChromeEmoji() deletes
+       the boss glyph (☲, U+2632) from `.card-title` — so whether a read saw
+       "☲ The Emberclad Tyrant" or "The Emberclad Tyrant" depended on where that
+       interval's phase fell on the machine's clock. Under C6 (gate opened early)
+       both renders are the same card and GATE-LIFTS must see them EQUAL; on a
+       loaded Windows PC the sweep landed between the two reads, the texts
+       differed by one glyph, and GATE-LIFTS stayed green (2026-10-07,
+       reproduced by delaying the read 500 ms). Running the sweep synchronously
+       here reads what a player is shown once the page has settled, on any
+       machine, at any phase. */
+    if (window.HearthriseIconSet && typeof window.HearthriseIconSet.repaint === 'function') {
+      window.HearthriseIconSet.repaint();
+    }
     const el = document.getElementById('hr-raid-card');
     if (!el) return { text: null, controls: -1 };
     return {

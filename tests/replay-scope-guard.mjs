@@ -97,7 +97,9 @@ function rs3Text(name, text) {
       if (setsPatches && !setsScope) bad.push(`RS3 ${name}:${line} bootReplay(${a}) — ${a}.patches is set but never ${a}.upTo / ${a}.fullChain`);
       continue;
     }
-    if (/\bpatches\b/.test(a) && !/\bupTo\b|\bfullChain\b/.test(a)) {
+    /* `upTo` must carry a VALUE: the shorthand `{ patches, upTo }` is undefined
+       whenever the caller did not pass one (bank-cap-rungs, 2026-10-07). */
+    if (/\bpatches\b/.test(a) && !/\bupTo\s*:|\bfullChain\b/.test(a)) {
       bad.push(`RS3 ${name}:${line} bootReplay(${a.replace(/\s+/g, ' ').slice(0, 90)}) — patched with no upTo/fullChain`);
     }
   }
@@ -144,6 +146,8 @@ const MUTANTS = [
     run: async () => rs3Text('planted.mjs', 'const { db } = await bootReplay({ patches });\n') },
   { name: 'unscopedTernary', arm: 'RS3',
     run: async () => rs3Text('planted.mjs', 'await bootReplay(patches ? { patches } : {});\n') },
+  { name: 'shorthandUpTo', arm: 'RS3',
+    run: async () => rs3Text('planted.mjs', 'async function boot({ mutate, upTo } = {}) {\n  await bootReplay({ patches: p(mutate), upTo });\n}\n') },
   { name: 'unscopedOptsObject', arm: 'RS3',
     run: async () => rs3Text('planted.mjs', 'const opts = {};\nif (p) opts.patches = p;\nawait bootReplay(opts);\n') },
 ];

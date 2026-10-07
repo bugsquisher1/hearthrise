@@ -67,7 +67,7 @@
 // Exit: 0 green · 1 a violation · 2 a harness problem.
 // ════════════════════════════════════════════════════════════════════════
 
-import { bootReplay } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED } from './schema-replay.mjs';
 import { HR_APPLY_FINAL, HR_APPLY_S3_BLIND } from './hr-apply-final-body.mjs';
 
 const MIG = '2026-09-07-retreat.sql';
@@ -125,7 +125,7 @@ async function run(mutate) {
   const problems = [];
   const ok = (cond, msg) => { if (!cond) problems.push(msg); };
 
-  const { db } = await bootReplay({ patches: patchesFor(mutate) });
+  const { db } = await bootReplay({ patches: patchesFor(mutate), upTo: LAST_PATCHED });
 
   /* ── [7] IDEMPOTENCY, taken FIRST, before anything has written a row ──────
      Read the two bodies, apply the file a second time from the chain's own

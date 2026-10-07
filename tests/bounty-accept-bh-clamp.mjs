@@ -63,7 +63,7 @@
 //   · The PostgREST / JWT path. RPCs are called as SQL with
 //     request.jwt.claim.sub set, which is how PostgREST sets it.
 // ════════════════════════════════════════════════════════════════════════
-import { bootReplay } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED } from './schema-replay.mjs';
 import { unlockedTypes } from '../src/core/bounty.js';
 import { burnBountyGrace } from './bounty-grace-fixture.mjs';
 
@@ -154,7 +154,10 @@ async function boot({ mutate, upTo } = {}) {
     patches = new Map([[MIG, [[m.find, m.repl], ...(m.also || [])]]]);
     for (const [file, find, repl] of (m.chain || [])) patches.set(file, [...(patches.get(file) || []), [find, repl]]);
   }
-  const { db } = await bootReplay({ patches, upTo });
+  /* A mutant with no explicit upTo stops at the newest file it patches; a bare
+     `upTo` shorthand is undefined there, and bootReplay refuses an unscoped
+     mutant (tests/schema-replay.mjs replayScopeError). */
+  const { db } = await bootReplay({ patches, upTo: upTo ?? LAST_PATCHED });
   const q = async (sql, p) => (await db.query(sql, p)).rows;
   const asUser = async (uid, sql, p) => {
     await q("select set_config('request.jwt.claim.sub',$1,false)", [uid]);

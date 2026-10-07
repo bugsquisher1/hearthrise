@@ -64,6 +64,11 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, ROOT } from './schema-replay.mjs';
+/* A mutant replays UP TO the newest file this guard stands on, never past it, so a
+   newer migration's lock or self-check cannot refuse first: its fixture drives
+   hr_farm_upgrade_plot(int, uuid, int), installed there. (tests/schema-replay.mjs
+   replayScopeError). The plain run is the whole chain. */
+const REPLAY_UPTO = '2026-10-04-expected-level-idempotency.sql';
 
 const MIG = '2026-09-12-hr-rejections-journal.sql';
 const MIG_PATH = join(ROOT, 'supabase', 'migrations', MIG);
@@ -602,7 +607,7 @@ const mutationFileMap = (id) => {
 async function run(mutate) {
   const patches = mutate ? mutationFileMap(mutate) : undefined;
   /* NO `upTo` — see the header. The property must hold at the END of the chain. */
-  const { db } = await bootReplay({ patches });
+  const { db } = await bootReplay(patches ? { patches, upTo: REPLAY_UPTO } : {});
 
   const q = async (sql, p) => (await db.query(sql, p)).rows;
   /* SESSION-SCOPED (`is_local = false`): PGlite runs each query in its own

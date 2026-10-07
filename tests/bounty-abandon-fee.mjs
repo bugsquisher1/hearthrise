@@ -17,8 +17,15 @@
 //   B4  privileges: the ungated body reaches no client role.
 //   B5  accept over a held contract is refused (bounty_active), moves 0 Marks,
 //       keeps the contract and writes no bounty_abandon row (Security P2).
-// The whole chain is replayed (no upTo): a later migration that restates the
-// body back to a client-priced shape must fail HERE.
+// The plain run replays the WHOLE chain (no upTo): a later migration that
+// restates the body back to a client-priced shape must fail HERE. --mutate
+// replays only UP TO this file: a later file's strict grant-hygiene gate would
+// otherwise refuse a grant-widening mutant first, and the chain abort read as a
+// HARNESS ERROR instead of the arm that names it (CI db-replay-4, set/b564).
+// A DOWNSTREAM mutant does the opposite on purpose: no arm here sees it, the
+// full chain is replayed, and it is CAUGHT only when a LATER file refuses to
+// apply with an error that NAMES the mutated object. Any other failure is a
+// harness error (exit 2), never a catch.
 // ════════════════════════════════════════════════════════════════════════
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -42,13 +49,19 @@ const MUTATIONS = {
   accept_replaces: { why: 'hr_accept_bounty no longer refuses over a held contract: accept-over skips the abandon fee', expect: 'B5',
     pairs: [offS5, ["  if found then\n    perform public.hr_record_rejection(auth.uid(), v_slot, 'hr_accept_bounty', 'bounty_active',",
       "  if false then\n    perform public.hr_record_rejection(auth.uid(), v_slot, 'hr_accept_bounty', 'bounty_active',"]] },
+  accept_inner_granted: { why: 'the ungated accept body is granted to authenticated: only a later file\'s grant-hygiene gate sees it', expect: 'DOWNSTREAM',
+    names: 'hr_accept_bounty__ungated',
+    pairs: [offS5, ['grant  execute on function public.hr_bounty_spend(int, text, text, uuid)           to authenticated;',
+      'grant  execute on function public.hr_bounty_spend(int, text, text, uuid)           to authenticated;\n'
+      +'grant  execute on function public.hr_accept_bounty__ungated(int, text, text, text, text, bigint) to authenticated;']] },
   not_reentrant: { why: 'the baseline row is inserted without its delete: a second apply is not idempotent', expect: 'B1',
     pairs: [offS5, ["delete from public.hr_client_rpc_baseline where proname = 'hr_bounty_spend';\n", '']] },
 };
 
 async function run(mutate) {
   const patches = mutate ? new Map([[MIG, MUTATIONS[mutate].pairs]]) : undefined;
-  const { db } = await bootReplay({ patches });
+  /* --mutate stops at this file (see the header); the plain run replays it all. */
+  const { db } = await bootReplay(mutate ? { patches, upTo: MIG } : { patches });
   const fails = [];
   const ok = (arm, cond, msg) => { if (!cond) fails.push(`${arm}: ${msg}`); };
   const q = async (sql, p) => (await db.query(sql, p)).rows;
@@ -151,6 +164,20 @@ try {
   if (argv.includes('--mutate')) {
     let bad = 0;
     for (const [id, m] of Object.entries(MUTATIONS)) {
+      if (m.expect === 'DOWNSTREAM') {
+        let rec = null;
+        try { const { db } = await bootReplay({ patches: new Map([[MIG, m.pairs]]),
+          fullChain: 'DOWNSTREAM: a LATER file must refuse, naming the mutated object' }); await db.close().catch(() => {}); }
+        catch (e) {
+          if (!e.replay) throw e;                       // a harness fault is exit 2, never a catch
+          rec = (e.failures || [])[0] || null;
+        }
+        const hit = !!rec && rec.file !== MIG && rec.error.includes(m.names);
+        if (rec && !hit) throw new Error(`${id}: the chain refused for a reason that does not name ${m.names}: ${rec.file}: ${rec.error}`);
+        console.log(`${hit ? 'CAUGHT ' : 'MISSED '} ${id} (DOWNSTREAM${hit ? ': ' + rec.file : ''}) — ${m.why}${hit ? '' : '\n        saw: the full chain applied'}`);
+        if (!hit) bad++;
+        continue;
+      }
       const fails = await run(id);
       const hit = fails.some((f) => f.startsWith(m.expect + ':'));
       console.log(`${hit ? 'CAUGHT ' : 'MISSED '} ${id} (${m.expect}) — ${m.why}${hit ? '' : `\n        saw: ${fails.join(' | ') || 'green'}`}`);

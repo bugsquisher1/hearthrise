@@ -47,7 +47,7 @@
 //   node tests/bounty-difficulty-count.mjs --selftest  every mutation must be caught
 //   node tests/bounty-difficulty-count.mjs --mutate=<id>
 // ════════════════════════════════════════════════════════════════════════
-import { bootReplay } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED } from './schema-replay.mjs';
 import { burnBountyGrace } from './bounty-grace-fixture.mjs';
 import {
   BOUNTY_DIFFICULTY_COUNT, BOUNTY_KILL_COUNTS, BOUNTY_FIRST_CONTRACT_COUNT,
@@ -102,7 +102,7 @@ const ok = (cond, msg) => { if (!cond) problems.push(msg); };
 
 async function run(mutate) {
   const patches = mutate ? new Map([[MIG, [[MUTATIONS[mutate].find, MUTATIONS[mutate].repl]]]]) : undefined;
-  const { db } = await bootReplay({ patches });
+  const { db } = await bootReplay({ patches, upTo: LAST_PATCHED });
   const q = async (sql, p) => (await db.query(sql, p)).rows;
   const asUser = async (uid, sql, p) => {
     await q("select set_config('request.jwt.claim.sub',$1,false)", [uid]);

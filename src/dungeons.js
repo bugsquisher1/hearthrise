@@ -476,7 +476,7 @@
         var ipath = window._itemPath && window._itemPath[id];
         var iconHtml = ipath ? '<img src="' + ipath + '" alt="" style="width:26px;height:26px;object-fit:contain">' : '<span>' + window.itemFallbackIcon(id, 26, it) + '</span>';
         return '<div class="qm-row"><span class="qm-icon">' + iconHtml + '</span><span class="qm-name">' + (it ? it.n : id) + '</span>' +
-          '<span class="qm-cost">' + e.scrip + ' Scrip</span>' +
+          '<span class="qm-cost">' + Number(e.scrip).toLocaleString() + ' Scrip</span>' +
           '<button class="btn btn-sm ' + (can ? 'btn-primary' : '') + '" data-qm-buy="' + id + '" ' + (can ? '' : 'disabled') +
           (buying ? ' aria-busy="true"' : '') +
           ' onclick="window.buyFromQuartermaster(\'' + id + '\')">' + (buying ? 'Buying…' : 'Buy') + '</button></div>';

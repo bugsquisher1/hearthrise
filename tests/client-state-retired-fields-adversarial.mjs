@@ -45,7 +45,7 @@
 // NO ?v= on the imports (tests/**, not a browser module — b332).
 // ════════════════════════════════════════════════════════════════════════
 
-import { bootReplay } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED } from './schema-replay.mjs';
 
 const MIG = '2026-09-23-client-state-retired-fields.sql';
 const UID = '000000ad-0000-0000-0000-0000000000ad';
@@ -149,7 +149,7 @@ async function boot(mutate, gateBlind, extra) {
   if (extra) pairs.push([extra.find, extra.repl]);
   if (gateBlind) pairs.push(...GATE_BLIND.map((p) => p.slice()));
   const opts = {};
-  if (pairs.length) opts.patches = new Map([[MIG, pairs]]);
+  if (pairs.length) { opts.patches = new Map([[MIG, pairs]]); opts.upTo = LAST_PATCHED; }
   const { db } = await bootReplay(opts);
   return db;
 }

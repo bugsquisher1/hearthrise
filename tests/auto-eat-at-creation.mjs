@@ -92,7 +92,7 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { bootReplay } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED } from './schema-replay.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MIG = '2026-09-04-auto-eat-at-creation.sql';
@@ -191,7 +191,7 @@ const ok = (cond, msg) => { if (!cond) problems.push(msg); };
 async function run(mutate) {
   const mut = mutate ? MUTATIONS[mutate] : null;
   const patches = mut ? new Map([[MIG, mut.pairs]]) : undefined;
-  const { db } = await bootReplay({ patches });
+  const { db } = await bootReplay({ patches, upTo: LAST_PATCHED });
 
   const q = async (sql, p) => (await db.query(sql, p)).rows;
   const asUser = async (uid, sql, p) => {

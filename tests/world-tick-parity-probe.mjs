@@ -37,7 +37,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { bootReplay, ROOT, inventory } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED, ROOT, inventory } from './schema-replay.mjs';
 import { runTick, planSeedLabels, SEED_LABEL_EXPR, CHANNELS }
   from '../supabase/functions/hr-accrue/tick.js';
 import { oneSpan, probeResultOf, decodeProbeInput, probeStep, PROBE_FETCH_SQL, PROBE_COMMIT_SQL }
@@ -499,7 +499,7 @@ const DISARM = [
 ];
 
 async function boot(patches) {
-  const { db, failures } = await bootReplay(patches ? { patches: new Map([[MIG, patches]]) } : {});
+  const { db, failures } = await bootReplay(patches ? { patches: new Map([[MIG, patches]]), upTo: LAST_PATCHED } : {});
   if (failures.length) throw Object.assign(new Error(JSON.stringify(failures).slice(0, 400)), { harness: true });
   return db;
 }

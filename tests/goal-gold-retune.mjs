@@ -50,7 +50,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { bootReplay, ROOT } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED, ROOT } from './schema-replay.mjs';
 import { DAILY_TASK_REWARDS, QUEST_REWARDS } from '../src/data/goal-catalogue.js';
 
 const MIG = '2026-09-04-goal-gold-retune.sql';
@@ -220,7 +220,11 @@ async function run(mutate) {
      fail-closed file is supposed to have. */
   const patches = new Map(PRE_RULING);
   if (mutate) patches.set(MIG, patchesOf(mutate));
-  const { db } = await bootReplay({ patches });
+  /* PRE_RULING is a fixture, not a mutant: the plain run keeps the whole chain
+     over it, as before. A mutant stops at MIG so nothing newer judges it first
+     (tests/schema-replay.mjs replayScopeError). */
+  const { db } = await bootReplay(mutate ? { patches, upTo: MIG }
+    : { patches, fullChain: 'PRE_RULING is a fixture: the plain run replays the whole chain over the reverted files' });
 
   const q = async (sql, p) => (await db.query(sql, p)).rows;
   const asUser = async (uid, sql, p) => {
@@ -343,7 +347,7 @@ async function run(mutate) {
      planting it in an authoring file would test a differently-built chain
      instead of a drifted one. */
   const { db: db2 } = await bootReplay(
-    mutate ? { patches: new Map([[MIG, patchesOf(mutate)]]) } : {});
+    mutate ? { patches: new Map([[MIG, patchesOf(mutate)]]), upTo: LAST_PATCHED } : {});
   const q2 = async (sql, p) => (await db2.query(sql, p)).rows;
   const apply = async () => {
     try { await db2.exec(`begin;\n${mig}\ncommit;`); return 'ok'; }

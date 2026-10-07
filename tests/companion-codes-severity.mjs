@@ -76,6 +76,11 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, ROOT, manifest } from './schema-replay.mjs';
+/* A mutant replays UP TO the newest file this guard stands on, never past it, so a
+   newer migration's lock or self-check cannot refuse first: the newest file it names;
+   its arms read the verb map and hr_unlocks as of there. (tests/schema-replay.mjs
+   replayScopeError). The plain run is the whole chain. */
+const REPLAY_UPTO = '2026-09-13-rejections-verb-map-3.sql';
 
 const FIX = '2026-09-07-companion-codes-severity.sql';
 /** Where hr_record_rejection was BORN, and the file this guard's FIX names as the
@@ -1092,7 +1097,7 @@ async function run({ mutation = null } = {}) {
   let db = null;
   let chainError = null;
   try {
-    ({ db } = await bootReplay(patches ? { patches } : {}));
+    ({ db } = await bootReplay(patches ? { patches, upTo: REPLAY_UPTO } : {}));
   } catch (e) {
     if (e.harness) throw e;                 // a broken anchor is not a result
     chainError = String(e.message || e);

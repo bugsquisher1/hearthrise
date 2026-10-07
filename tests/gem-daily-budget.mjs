@@ -51,7 +51,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { bootReplay, ROOT } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED, ROOT } from './schema-replay.mjs';
 
 const MIGFILE = join(ROOT, 'supabase', 'migrations', '2026-08-15-gem-daily-budget.sql');
 const MUTATE = process.argv.includes('--mutate');
@@ -341,6 +341,7 @@ try {
       try {
         await bootReplay({
           patches: new Map([['2026-08-15-gem-daily-budget.sql', [[m.find, m.with]]]]),
+          upTo: LAST_PATCHED,
         });
         installed = true;
       } catch (e) {

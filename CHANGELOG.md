@@ -4,6 +4,12 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 564 — 2026-10-07 (Numbers you can read)
+
+**Big numbers read cleanly.** Counts across the bag popup, Sell All, the shop, the farm and the house now print with separators: 46,733 ore, not 46733.
+
+**The live world takes its first step.** The realm's own clock now pays gathering for our test hero while nobody has the game open, checked against the old return-to-game sums for a full day before it was switched on. Every player is next, after a few days of watching it.
+
 ## v0.9.2-beta build 563 — 2026-10-06 (Armour finally matters)
 
 **Armour finally matters.** Monsters now land far fewer hits on a well-armoured hero. A Combat-25 fighter in iron used to lose about 200 HP an hour even to Slime and burn a whole bag of shrimp before midnight; now it is closer to 35. A hero left on a hunt stays on its feet instead of spending the night knocked out. Food still matters at your own tier.

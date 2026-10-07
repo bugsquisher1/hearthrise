@@ -553,7 +553,10 @@ order by 1;`;
 /** The same measurement, taken against a full PGlite replay of the repo chain. */
 async function measureReplay(patches) {
   const t0 = Date.now();
-  const { db } = await bootReplay(patches ? { patches } : undefined);
+  /* WHOLE chain on purpose: the measurement is the CHAIN-END body set vs the live baseline. */
+  const { db } = await bootReplay(patches
+    ? { patches, fullChain: 'the measurement is the CHAIN-END body set, compared to the live baseline' }
+    : undefined);
   const names = [...(await sweep()).keys()];
   const rows = (await db.query(bodyQuery(names))).rows;
   await db.close?.();

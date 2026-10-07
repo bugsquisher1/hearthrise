@@ -594,7 +594,7 @@
     if(typeof window.recordVendorSale === 'function') window.recordVendorSale(id, qty, unit);
     /* The toast is the SERVER's answer (shop-counter.js sellReceipt); goldGain is the quote. */
     if(typeof window.vendorSellReceipt === 'function') window.vendorSellReceipt(id, qty, unit, sent);
-    else if(typeof window.notify === 'function') window.notify('Sold ' + qty + '× ' + item.n + ' for ' + goldGain + 'g', 'loot');
+    else if(typeof window.notify === 'function') window.notify('Sold ' + Number(qty).toLocaleString() + '× ' + item.n + ' for ' + Number(goldGain).toLocaleString() + 'g', 'loot');
     if(typeof window.renderInvFancy === 'function') window.renderInvFancy();
     if(typeof window.updateTopbar === 'function') window.updateTopbar();
     closeSlider();

@@ -47,7 +47,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { readFile } from 'node:fs/promises';
-import { bootReplay, chainFiles } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED, chainFiles } from './schema-replay.mjs';
 import { HR_APPLY_FINAL, HR_APPLY_S3_BLIND } from './hr-apply-final-body.mjs';
 import { HR_STATE_OF_FINAL, HR_STATE_OF_S3_BLIND } from './hr-state-of-final-body.mjs';
 
@@ -278,6 +278,18 @@ function blindMarkers(m) {
    first whole function body this scan had ever seen). */
 const GATE_HEADER = /^([ \t]*)(if|elsif)\b([^;]*?)\bthen[ \t]*$/gm;
 
+/* [start, end) of every top-level anonymous `do $tag$ … $tag$` block — the only
+   place a migration's self-check gates live. */
+function selfCheckRanges(sql) {
+  const out = [];
+  for (const mt of sql.matchAll(/^do\s+(\$[A-Za-z_]*\$)/gm)) {
+    const open = mt.index + mt[0].length;
+    const close = sql.indexOf(mt[1], open);
+    out.push([mt.index, close === -1 ? sql.length : close]);
+  }
+  return out;
+}
+
 async function laterChainBlinds(mutate) {
   const markers = blindMarkers(MUTATIONS[mutate]);
   if (!markers.length) return [];
@@ -292,9 +304,18 @@ async function laterChainBlinds(mutate) {
   for (const [name, path] of files.slice(at + 1)) {
     const sql = (await readFile(path, 'utf8')).replace(/\r\n/g, '\n');
     const pairs = [];
+    const gates = selfCheckRanges(sql);
     for (const mt of sql.matchAll(GATE_HEADER)) {
       const header = mt[0];
       if (!markers.some((k) => header.includes(k))) continue;
+      /* Only a SELF-CHECK gate (inside a top-level `do $$ … $$` block) is blinded.
+         A header inside a FUNCTION BODY is the product, not a gate: measured
+         2026-10-06 (set/b564), `raise_not_journalled` removes the literal
+         'intent_id', the scan rewrote an `if … intent_id … then` inside
+         hr_tick_settle, and 2026-10-07-world-tick-armed-cap.sql's md5
+         PRECONDITION on that body refused the chain — the arm read "THE REPO
+         CANNOT REBUILD THE DATABASE" instead of R6. */
+      if (!gates.some(([a, b]) => mt.index > a && mt.index < b)) continue;
       const blinded = `${mt[1]}${mt[2]} false /* gate-blind: ${markers.join(', ')} */ then`;
       /* bootReplay demands an anchor that matches EXACTLY once, so grow it line
          by line until it is unique rather than silently patching the wrong gate. */
@@ -370,7 +391,7 @@ async function boot(mutate, gateBlind, extra) {
     if ((MUTATIONS[mutate].file || MIG) === MIG_STATE) add(MIG_STATE, [HR_STATE_OF_S3_BLIND.slice()]);
     for (const [name, list] of await laterChainBlinds(mutate)) add(name, list);
   }
-  const { db } = await bootReplay({ patches });
+  const { db } = await bootReplay({ patches, upTo: LAST_PATCHED });
   return db;
 }
 
@@ -669,7 +690,7 @@ if (only) {
   if (!MUTATIONS[only]) { console.error(`unknown mutation "${only}" — see --list`); process.exit(2); }
   const gateBlind = argv.includes('--gate-blind');
   try { const db = await boot(only, gateBlind); await runAll(db); }
-  catch (e) { console.log(`${only}: RED (threw: ${String(e.message).split('\n')[0]})`); process.exit(0); }
+  catch (e) { console.log(`${only}: RED (threw: ${String(e.message).split('\n').slice(0, 2).join(' ')})`); process.exit(0); }
   console.log(`${only}${gateBlind ? ' [gate-blind]' : ''}: ${failed ? `RED (${failed} assertion(s))` : 'GREEN'}`);
   process.exit(0);
 }

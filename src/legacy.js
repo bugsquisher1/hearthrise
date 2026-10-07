@@ -7081,7 +7081,7 @@ function renderProfile(){
   const subEl = document.getElementById('dash-user-sub');
   const bodyEl = document.getElementById('dash-user-body');
   if (!subEl || !bodyEl) return; // Profile panel not in DOM yet — bail
-  subEl.textContent = (window.hrRecordPending?window.hrRecordPending():true) ? 'Lv — · Total —' : `Lv ${cl} · Total ${tl}`;
+  subEl.textContent = (window.hrRecordPending?window.hrRecordPending():true) ? 'Lv — · Total —' : `Lv ${cl} · Total ${Number(tl).toLocaleString()}`;
   bodyEl.innerHTML=`
     ${(()=>{
       // Auth-state resolution for the Profile dashboard:
@@ -8491,12 +8491,12 @@ function renderHouse(){
         : (lv >= max ? 'All crops unlocked' : 'No new crops at this tier');
       const canUpgrade = !!(chk && chk.ok), plotPending = !!(chk && chk.error === 'plot_level_pending');   /* no server rung: no price, no shortfall, no live button */
       const priceLine = !plotPending && price
-        ? `Costs ${_gp(price.gold)} <span class="muted">or</span> ${price.deeds} Farmer's Deed${price.deeds===1?'':'s'} · needs Farming ${price.farming}`
+        ? `Costs ${_gp(price.gold)} <span class="muted">or</span> ${price.deeds.toLocaleString()} Farmer's Deed${price.deeds===1?'':'s'} · needs Farming ${price.farming}`
         : '';
       /* WHAT YOU HAVE, against WHAT IT COSTS — the short line that turns a
          disabled button into a goal. The blocking fact is named first. */
       const haveLine = !plotPending && price
-        ? `You have ${_gp(goldNow)} · ${have} deed${have===1?'':'s'} · Farming ${farmLv}`
+        ? `You have ${_gp(goldNow)} · ${have.toLocaleString()} deed${have===1?'':'s'} · Farming ${farmLv}`
           + (chk && chk.error === 'farm_level_too_low'
               ? ` — <b>${price.farming - farmLv} more farming level${price.farming-farmLv===1?'':'s'}</b>`
               : (chk && chk.error === 'cannot_afford'
@@ -8505,7 +8505,7 @@ function renderHouse(){
         : '';
       const btnLabel = plotPending ? 'Upgrade · counting…' : price
         ? (chk && chk.ok && chk.pay === 'deeds'
-            ? `Spend ${price.deeds} Deed${price.deeds===1?'':'s'}`
+            ? `Spend ${price.deeds.toLocaleString()} Deed${price.deeds===1?'':'s'}`
             : `Upgrade · ${_gp(price.gold)}`)
         : '';
       plotCard = `<div class="shop-row" style="border:1px solid var(--accent,#7f9a4f);background:rgba(127,154,79,0.05)">
@@ -10040,7 +10040,7 @@ function openInvDetail(id){
     } else {
       if(vendorPrice(id) > 0){
         acts.push(`<button class="btn" onclick="invSellOne('${id}');closeInvDetail()">Sell 1 · ${_gp(vendorPrice(id))}</button>`);
-        const _sq = window.sellableCount ? window.sellableCount(id) : null; const _sb = window.sellAllPending && window.sellAllPending(id); if(_sb) acts.push(`<button class="btn btn-danger" disabled title="Waiting for the realm to answer your last Sell All">Sell All · selling…</button>`); else if(_sq === null ? qty > 1 : _sq > 1) acts.push(_sq === null ? `<button class="btn btn-danger" disabled title="${window.SELL_PENDING_TITLE}">Sell All · counting…</button>` : `<button class="btn btn-danger" onclick="invSellAll('${id}')"${_sq !== qty ? ` title="The realm has counted ${_sq} — Sell All sells what it has counted"` : ''}>Sell All ${_sq} · ${_gp(vendorPrice(id)*_sq)}</button>`); if(!_sb && _sq !== null && _sq > 1 && _sq !== qty) sellNote = `<div class="inv-detail-sellnote" role="note">The realm has counted ${_sq} of these — Sell All sells what it has counted.</div>`;   /* the display-vs-counted gap is said, not left to puzzle over. Sell All names the SERVER's stack (sellableCount); unstated = counting; a sent one = selling until its answer — all disabled */
+        const _sq = window.sellableCount ? window.sellableCount(id) : null; const _sb = window.sellAllPending && window.sellAllPending(id); if(_sb) acts.push(`<button class="btn btn-danger" disabled title="Waiting for the realm to answer your last Sell All">Sell All · selling…</button>`); else if(_sq === null ? qty > 1 : _sq > 1) acts.push(_sq === null ? `<button class="btn btn-danger" disabled title="${window.SELL_PENDING_TITLE}">Sell All · counting…</button>` : `<button class="btn btn-danger" onclick="invSellAll('${id}')"${_sq !== qty ? ` title="The realm has counted ${_sq.toLocaleString()} — Sell All sells what it has counted"` : ''}>Sell All ${_sq.toLocaleString()} · ${_gp(vendorPrice(id)*_sq)}</button>`); if(!_sb && _sq !== null && _sq > 1 && _sq !== qty) sellNote = `<div class="inv-detail-sellnote" role="note">The realm has counted ${_sq.toLocaleString()} of these — Sell All sells what it has counted.</div>`;   /* the display-vs-counted gap is said, not left to puzzle over. Sell All names the SERVER's stack (sellableCount); unstated = counting; a sent one = selling until its answer — all disabled */
       }
       acts.push(`<button class="btn" onclick="toggleItemLock('${id}');openInvDetail('${id}')" title="Protect this item from being sold or listed on the market">${lockGlyph()} Lock</button>`);
     }
@@ -10827,7 +10827,7 @@ function renderBountyTab(){
   const marks = window.HearthriseMarks ? window.HearthriseMarks.fmtMarks(G) : (G.marks || 0);
   const completed = G.bountyHunter?.completed || 0;
   const sub = document.getElementById('bounty-sub');
-  if(sub) sub.textContent = `Lv ${lv} · ${marks} Marks · ${completed} completed`;
+  if(sub) sub.textContent = `Lv ${lv} · ${marks} Marks · ${Number(completed).toLocaleString()} completed`;
 
   const board = document.getElementById('bounty-board-body');
   if(board){
@@ -14905,8 +14905,8 @@ window._calcForSkill = function(skill){
     var tickMs = 2400; /* default combat tick */
     var msPerKill = ticksToKill * tickMs;
     var killsHr = 3600000 / msPerKill;
-    var killXp = m.xp * ratio;
-    var damageXpHr = avgDmg * 4 * ratio * (3600000/tickMs); // dmg*4 XP per tick
+    var killXp = skill === 'hitpoints' ? 0 : m.xp * ratio; // killXpRoute pays styled skills only
+    var damageXpHr = killsHr * m.hp * 4 * ratio; // hit XP is on damage dealt: m.hp per kill, overkill pays 0
     var totalXpHr = (killsHr * killXp) + damageXpHr;
     return {
       kind:'combat',

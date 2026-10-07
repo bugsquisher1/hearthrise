@@ -46,7 +46,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 
-import { bootReplay, ROOT } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED, ROOT } from './schema-replay.mjs';
 import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
 import {
   GOAL_EVENTS, UNCOUNTED_EVENTS, GOAL_KEY_PREFIX, MAX_GOAL_ADD,
@@ -111,7 +111,13 @@ const NOW_MS = Date.UTC(2026, 7, 16, 9, 0, 0);
 
 // ── the harness ───────────────────────────────────────────────────────────
 async function boot(patches) {
-  const { db } = await bootReplay(patches ? { patches } : {});
+  /* A mutant stops at the newest file it patches (replayScopeError). Every
+     --mutate arm is a JS mutant (loadMutant), so HR_REPLAY_SCOPE_CONTROL —
+     which drops SQL patches only — left them all planted and read "caught"
+     (2026-10-07). The honest control is HR_MUTANT_CONTROL=1: loadMutant checks
+     each anchor and loads an UNMUTATED copy; all 13 must then read GREEN
+     (tests/mutant-control.mjs runs it). */
+  const { db } = await bootReplay(patches ? { patches, upTo: LAST_PATCHED } : {});
   await db.query('insert into auth.users (id) values ($1) on conflict do nothing', [USER]);
   await db.query("select set_config('request.jwt.claim.sub', $1, false)", [USER]);
   const r = await db.query('select public.hr_create_character(0) as r');
@@ -809,7 +815,8 @@ async function run(patches) {
     const coll = collOps(combat.delta);
     const items = combat.delta.items || {};
     ok(coll.length > 0,
-      'COLLECTION-1: the combat night looted nothing — the fixture cannot prove the counter');
+      'COLLECTION-1: the combat night proposed no collection op — either it looted nothing '
+      + '(the fixture cannot prove the counter) or the loot never reached the collection counter');
     for (const op of coll) {
       ok(op.kind === 'stat' && op.period === '' && op.state === 'active',
         `COLLECTION-1: the collection op shape is ${JSON.stringify(op)} — must be kind='stat', `
@@ -1012,6 +1019,7 @@ const GOALS_PATH = join(ROOT, 'src', 'core', 'goals.js');
    reason. The rewrite points every relative specifier at an absolute file URL,
    and refuses to write a file with a surviving relative import — a mutant that
    cannot load is a harness failure, not a caught defect. */
+const CONTROL = !!process.env.HR_MUTANT_CONTROL;
 async function loadMutant(m) {
   const rootUrl = pathToFileURL(join(ROOT, 'x')).href.replace(/x$/, '');
   const fnUrl = pathToFileURL(join(ROOT, 'supabase', 'functions', 'hr-accrue', 'x')).href.replace(/x$/, '');
@@ -1021,10 +1029,10 @@ async function loadMutant(m) {
   let engineSrc = await readFile(ENGINE_PATH, 'utf8');
   if (m.file === 'goals') {
     if (!goalsSrc.includes(m.from)) throw new Error(`MUTATION HARNESS: ${m.name} — anchor not found in goals.js`);
-    goalsSrc = goalsSrc.replace(m.from, m.to);
+    if (!CONTROL) goalsSrc = goalsSrc.replace(m.from, m.to);
   } else {
     if (!engineSrc.includes(m.from)) throw new Error(`MUTATION HARNESS: ${m.name} — anchor not found in accrual.js`);
-    engineSrc = engineSrc.replace(m.from, m.to);
+    if (!CONTROL) engineSrc = engineSrc.replace(m.from, m.to);
   }
 
   const goalsFile = join(tmpdir(), `hr-goals-mutant-${stamp}.mjs`);
@@ -1056,6 +1064,7 @@ async function mutate() {
   const escapes = [];
   const realEngine = computeAccrualFn;
   const realGoals = goalsMod;
+  console.log(`[mutants] ${MUTATIONS.length}`);
   for (const m of MUTATIONS) {
     problems = [];
     const loaded = await loadMutant(m);   // THROWS on a failed plant, deliberately
@@ -1065,6 +1074,7 @@ async function mutate() {
     catch (e) { problems.push(`threw: ${String(e?.message || e).split('\n')[0]}`); }
     finally { computeAccrualFn = realEngine; goalsMod = realGoals; }
     const caught = problems.length > 0;
+    console.log(`[mutant] ${m.name.split(' ')[0]} ${caught ? 'caught' : 'survived'}`);
     console.log(`  ${caught ? 'RED  ' : 'GREEN'}  ${m.name}${caught ? ` (${problems.length})` : ''}`);
     if (caught) console.log(`         first: ${problems[0]}`);
     else escapes.push(m.name);

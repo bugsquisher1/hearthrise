@@ -50,6 +50,7 @@ const ROOT = new URL('../', import.meta.url);
 const mod = (p) => new URL(p, ROOT).href;
 const MIG = '2026-09-06-state-of-farm-projection.sql';
 const MIG_STATE = HR_STATE_OF_FINAL;
+const ARMS_API = '2026-10-04-expected-level-idempotency.sql';
 
 const uidFor = (n) => `000000f2-0000-0000-0000-0000000000${n}`;
 const uuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -150,7 +151,10 @@ async function boot(mutate, gateBlind) {
        to prove THIS GUARD sees the defect, so §3 is short-circuited too. */
     if (m.file === MIG_STATE) add(MIG_STATE, HR_STATE_OF_S3_BLIND.slice());
   }
-  const { db } = await bootReplay({ patches: byFile });
+  /* A mutant stops at the newest file these arms stand on — they drive
+     hr_farm_upgrade_plot(int, uuid, int), the signature ARMS_API installed —
+     so nothing newer can refuse first (tests/schema-replay.mjs replayScopeError). */
+  const { db } = await bootReplay({ patches: byFile, upTo: ARMS_API });
   return db;
 }
 

@@ -13,10 +13,10 @@
 // Online-readiness: every state mutation here goes through emit() so a future
 // network adapter can ship companion changes to the backend.
 
-import { COMPANIONS } from '../data/companions.js?v=563';
-import { companionLore } from '../data/lore-notes.js?v=563';
-import { emit } from '../net/events.js?v=563';
-import { companionPaidBonus, companionPaidLines } from '../render/companion-lines.js?v=563';
+import { COMPANIONS } from '../data/companions.js?v=564';
+import { companionLore } from '../data/lore-notes.js?v=564';
+import { emit } from '../net/events.js?v=564';
+import { companionPaidBonus, companionPaidLines } from '../render/companion-lines.js?v=564';
 /* THE SERVER-OF-RECORD ARM SWITCH for companion XP — ARMED. The accrual
    engine is the sole writer (a `stat companion_xp:<id>` op priced at
    settle AND away over the same role-matched actions this client seam counts),
@@ -29,7 +29,7 @@ import { companionPaidBonus, companionPaidLines } from '../render/companion-line
      `true`, so `awardCompanionXp` already returned for every caller. With this
      switch also false there was NO writer anywhere and every pet was frozen at
      level 1 — Paione's live report. See src/core/companion-xp.js. */
-import { COMPANION_XP_SERVER_BACKED } from '../core/companion-xp.js?v=563';
+import { COMPANION_XP_SERVER_BACKED } from '../core/companion-xp.js?v=564';
 
 // b229 (Asset Director — "pet icons"): every companion in COMPANIONS still
 // carries an emoji `icon` field (data stays as-authored — other consumers may

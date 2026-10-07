@@ -1885,6 +1885,16 @@ jobs:
           node tests/world-tick-party-reaper.mjs
           node tests/world-tick-party-reaper.mjs --mutate
 
+      # Security P3 on the party-reaper verdict: a party hunt started while
+      # combat is disarmed is never ticked, so its members' accrue is refused
+      # for up to 24 h. hr_party_hunt_start now refuses hunt_channel_disarmed
+      # (journalled) unless the tick is enabled and combat armed. --mutate: 7.
+      - name: Party hunt — start refused unless combat is armed
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/party-hunt-start-gate.mjs
+          node tests/party-hunt-start-gate.mjs --mutate
+
       # EC-3d, the control, carries its own proof since 2026-09-22. It shipped
       # asserting the literal `+00:00` on the accrue path's rendering, which is
       # the replay session's TimeZone talking — PGlite takes that GUC from the

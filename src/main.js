@@ -55,6 +55,8 @@ import { BOSSES, BOSS_BY_DUNGEON } from './data/bosses.js?v=564';
    board) cannot import, so it is republished on window here — ONE implementation
    the render sites and the smoke tests both read. */
 import { goalDisplayState, GOAL_PHASE } from './core/goal-display.js?v=564';
+import { cheapestShopUnitPrice } from './core/shop-buyback.js?v=564';
+import { SHOP_OFFERS } from './data/shops.js?v=564';
 /* b349 — CLAIMABLE REWARDS. The daily-login cycle used to be a literal inside
    src/features/daily-reward.js, a classic <script> that neither Deno nor Node
    can import, so the server could not read the numbers it is about to be
@@ -117,6 +119,11 @@ window.HearthriseMonsterArt = { expected: MONSTER_ART_EXPECTED, pending: pending
 window.HearthriseMonsterNotes = MONSTER_NOTES;
 window.HearthriseLore = Object.freeze({ companion: companionLore, rank: rankLore, trophy: trophyLore, room: roomRungLore, plot: plotTier });
 window.HearthriseLuckyRumours = LUCKY_RUMOURS;
+/* The shop buy-back cap's input: the cheapest gold price of one unit of
+   every item the NPC shop sells, from the generated catalogue through the SAME
+   pure derivation the edge's vendorPriceOf imports. shop-counter.js
+   vendorPrice() reads it at call time and bids nothing until it exists. */
+window.SHOP_UNIT_PRICE = cheapestShopUnitPrice(SHOP_OFFERS);
 window._monsterIcon = Object.assign(window._monsterIcon || {}, wiredIconMap());
 
 /* b358 — the Hearthfire ITEM art manifest, same shape as the monster one.

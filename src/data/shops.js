@@ -16,7 +16,7 @@
 //   hand-authored source, tools/gen-shops.mjs is deleted, and the preflight
 //   goes with it. The filename does not change, so nothing downstream moves.
 //
-//   catalogue digest: 1fbb112f1a44a5dc9f7b5eafa0d428f19e72c205c72e67ca6ca0382ceeccaf1f
+//   catalogue digest: d5e67957083c322c4e9a17f97d8065901630606f913947dba919249380242688
 //   129 offers · 225 cost lines · 6 prices that are formulas, not data
 //
 // EXTRACTED FROM
@@ -65,7 +65,7 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-export const SHOPS_DIGEST = "1fbb112f1a44a5dc9f7b5eafa0d428f19e72c205c72e67ca6ca0382ceeccaf1f";
+export const SHOPS_DIGEST = "d5e67957083c322c4e9a17f97d8065901630606f913947dba919249380242688";
 
 /** Every offer whose price is fully known as data. */
 export const SHOP_OFFERS = [
@@ -1089,13 +1089,14 @@ export const DERIVED_PRICES = [
   {
     "id": "vendor.sell",
     "name": "Vendor sell-back price",
-    "where": "src/legacy.js vendorPrice()",
+    "where": "src/screens/shop-counter.js vendorPrice() = supabase/functions/hr-accrue/catalogue.js vendorPriceOf()",
     "currency": "gold",
-    "formula": "ITEMS[id].raw ? max(1, floor(v * VENDOR_RAW_RATE)) : v",
+    "formula": "min(ITEMS[id].raw ? max(1, floor(v * VENDOR_RAW_RATE)) : v, max(1, floor(SHOP_BUYBACK_RATE * cheapest shop unit price)))   (cap only if the shop sells it)",
     "params": {
-      "VENDOR_RAW_RATE": 0.2
+      "VENDOR_RAW_RATE": 0.2,
+      "SHOP_BUYBACK_RATE": 0.5
     },
-    "server_needs": "DERIVABLE TODAY — hr_items.value already carries v. Needs `raw` added to the catalogue and the rate as a constant. This is the cheapest of the six to close."
+    "server_needs": "CLOSED — the edge prices every sale with vendorPriceOf from ITEMS and this catalogue (src/core/shop-buyback.js derives the cheapest unit price for both sides)."
   },
   {
     "id": "vendor.buyback",

@@ -182,6 +182,7 @@ const COSMETICS = sliceLiteral(shopRenderSrc, 'const cosmetics=[', 'src/render/s
 // the counter (task #129 phase 2, 2026-09-14) — same slice, new file.
 const shopCounterSrc = await read('src/screens/shop-counter.js');
 const VENDOR_RAW_RATE = sliceNumber(shopCounterSrc, 'const VENDOR_RAW_RATE', 'src/screens/shop-counter.js');
+const SHOP_BUYBACK_RATE = sliceNumber(shopCounterSrc, 'const SHOP_BUYBACK_RATE', 'src/screens/shop-counter.js');
 
 const dungeonsSrc = await read('src/dungeons.js');
 const DUNGEONS = sliceLiteral(dungeonsSrc, 'var DUNGEONS = {', 'src/dungeons.js');
@@ -567,12 +568,13 @@ const DERIVED_PRICES = [
   {
     id: 'vendor.sell',
     name: 'Vendor sell-back price',
-    where: 'src/legacy.js vendorPrice()',
+    where: 'src/screens/shop-counter.js vendorPrice() = supabase/functions/hr-accrue/catalogue.js vendorPriceOf()',
     currency: 'gold',
-    formula: "ITEMS[id].raw ? max(1, floor(v * VENDOR_RAW_RATE)) : v",
-    params: { VENDOR_RAW_RATE },
-    server_needs: 'DERIVABLE TODAY — hr_items.value already carries v. Needs `raw` added to the '
-      + 'catalogue and the rate as a constant. This is the cheapest of the six to close.',
+    formula: "min(ITEMS[id].raw ? max(1, floor(v * VENDOR_RAW_RATE)) : v, "
+      + "max(1, floor(SHOP_BUYBACK_RATE * cheapest shop unit price)))   (cap only if the shop sells it)",
+    params: { VENDOR_RAW_RATE, SHOP_BUYBACK_RATE },
+    server_needs: 'CLOSED — the edge prices every sale with vendorPriceOf from ITEMS and this catalogue '
+      + '(src/core/shop-buyback.js derives the cheapest unit price for both sides).',
   },
   {
     id: 'vendor.buyback',

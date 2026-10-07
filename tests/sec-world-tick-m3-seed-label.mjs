@@ -108,6 +108,16 @@ console.log('sec-world-tick-m3-seed-label: the M3 combat channel\'s seed label'
   + (MUTATE ? '  [--mutate: the defect is back; every arm must go RED]' : ''));
 
 const db = await new PGlite();
+/* PRODUCTION RENDERS IN UTC, SO THIS SESSION DOES TOO. PGlite inherits the
+   MACHINE's zone and TZ in the environment does not reach it, so on a Chicago
+   PC `to_jsonb(ts)` came back `…T06:00:00-06:00` and S-M3-2a went red
+   against a helper that is correct in production (same pin as
+   schema-replay.mjs bootReplay's `sessionTimeZone`). Asserted, not assumed. */
+await db.exec("set time zone 'UTC'");
+{
+  const z = (await db.query("select current_setting('TimeZone') as z")).rows[0].z;
+  if (z !== 'UTC') { console.log(`  ✗ harness — session TimeZone is ${z}, not UTC`); process.exit(1); }
+}
 
 // ── S-M3-1 ─────────────────────────────────────────────────────────────────
 console.log('\nS-M3-1  every window\'s seed label is the hr_state_of rendering');

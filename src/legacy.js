@@ -14905,8 +14905,8 @@ window._calcForSkill = function(skill){
     var tickMs = 2400; /* default combat tick */
     var msPerKill = ticksToKill * tickMs;
     var killsHr = 3600000 / msPerKill;
-    var killXp = m.xp * ratio;
-    var damageXpHr = avgDmg * 4 * ratio * (3600000/tickMs); // dmg*4 XP per tick
+    var killXp = skill === 'hitpoints' ? 0 : m.xp * ratio; // killXpRoute pays styled skills only
+    var damageXpHr = killsHr * m.hp * 4 * ratio; // hit XP is on damage dealt: m.hp per kill, overkill pays 0
     var totalXpHr = (killsHr * killXp) + damageXpHr;
     return {
       kind:'combat',

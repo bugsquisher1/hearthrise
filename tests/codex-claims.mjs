@@ -357,9 +357,13 @@ export const BINDS = {
       need(sp.dryMs === 3600000 && sp.fullMs === 0, 'past the budget a window is no longer all dry'),
       /* Experience and gold are scaled through hunt.js vigourScale (the
          dithered floor that conserves under subdivision, 2026-10-05) — the
-         claim is that vigMult still reaches both, not how they round. */
+         claim is that vigMult still reaches both, not how they round. Since
+         2026-10-06 only the part earned past the Vigour line is scaled
+         (`vigMultAt`, tests/world-tick-vigour-line.mjs), so the gold call
+         scales the dry remainder rather than the whole of `state.gold`. */
       need(a.includes('dropMult: (w.dropMult || 1) * vigMult') && a.includes('vigourScale(raw, vigMult, vigRng)')
-        && a.includes('vigourScale(Math.floor(state.gold || 0), vigMult, vigRng)'),
+        && a.includes('vigourScale(goldAll - goldFull, vigMult, vigRng)')
+        && a.includes('const vigMult = VIGOUR_DRY_MULT;'),
         'the away settle no longer folds vigMult into drop chance, experience and gold'));
   },
   vigourScope: (w) => {

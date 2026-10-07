@@ -262,6 +262,14 @@ the perks it is derived from and it rises the instant a player earns a rung.
 Past the budget, the hunt keeps running and keeps killing, and pays
 `VIGOUR_DRY_MULT = 0.25` on gold, loot and XP.
 
+The budget is spent **in time order**: within one settle window, what is earned
+before the line pays full and what is earned after it pays the dry share. The
+settle reads the multiplier at the tick each payout was earned on
+(`accrual.js` `vigMultAt`), never one blend for the whole window — a blend is
+exact only when earning is uniform in time, and a knockout cycle is not
+(2026-10-06: −13 % gold/xp on a 4 h accrue that crossed the line,
+`tests/world-tick-vigour-line.mjs`).
+
 That number is not chosen freshly: it is `AMMO_DRY_MULT`, which this game already
 ships and already teaches, for the same situation — *you ran out of the thing
 that makes this efficient, and the game degrades instead of slamming a door.* A

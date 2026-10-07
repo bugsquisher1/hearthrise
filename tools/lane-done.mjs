@@ -74,6 +74,9 @@ const STEPS = [
   ['node', ['tests/quest-reward-parity.mjs', '--selftest']],
   ['node', ['tests/ci-shape.mjs']],
   ['node', ['tests/guard-hygiene.mjs']],
+  // A new guard's mutant replay must declare its scope (upTo / fullChain) where
+  // the guard is written, not after a newer migration blinds it in CI.
+  ['node', ['tests/replay-scope-guard.mjs']],
   // Suite isolation. ONLY the mutation proof is run here: the plain run is RED on
   // today's tree for real reasons (873 unrestored `G` writes across 72 fields — see
   // `node tests/snapshot-allowlist-guard.mjs --report`), and a runner that is red for

@@ -166,7 +166,8 @@ try {
     for (const [id, m] of Object.entries(MUTATIONS)) {
       if (m.expect === 'DOWNSTREAM') {
         let rec = null;
-        try { const { db } = await bootReplay({ patches: new Map([[MIG, m.pairs]]) }); await db.close().catch(() => {}); }
+        try { const { db } = await bootReplay({ patches: new Map([[MIG, m.pairs]]),
+          fullChain: 'DOWNSTREAM: a LATER file must refuse, naming the mutated object' }); await db.close().catch(() => {}); }
         catch (e) {
           if (!e.replay) throw e;                       // a harness fault is exit 2, never a catch
           rec = (e.failures || [])[0] || null;

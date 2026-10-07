@@ -62,6 +62,11 @@
 import { bootReplay } from './schema-replay.mjs';
 import { runMutationProof } from './mutation-proof.mjs';
 import { xpForLevel } from '../src/core/xp.js';
+/* A mutant replays UP TO the newest file this guard stands on, never past it, so a
+   newer migration's lock or self-check cannot refuse first: its arms call the
+   7-argument hr_dungeon_settle restated there. (tests/schema-replay.mjs
+   replayScopeError). The plain run is the whole chain. */
+const REPLAY_UPTO = '2026-09-12-dungeon-cooldown.sql';
 
 // crypt_of_bones is the lowest-req dungeon (25) and costs a bone_key. big_bones
 // drops at chance 1.0 (>=10), so it is a deterministic loot assertion.
@@ -150,7 +155,7 @@ async function boot(mutate) {
   const patches = mutate
     ? new Map([[MUTATIONS[mutate].file, [[MUTATIONS[mutate].find, MUTATIONS[mutate].repl]]]])
     : undefined;
-  const { db } = await bootReplay(patches ? { patches } : {});
+  const { db } = await bootReplay(patches ? { patches, upTo: REPLAY_UPTO } : {});
   return db;
 }
 

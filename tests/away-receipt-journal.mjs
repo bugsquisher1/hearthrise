@@ -78,7 +78,7 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { join, normalize } from 'node:path';
-import { bootReplay } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED } from './schema-replay.mjs';
 import { HR_APPLY_FINAL, HR_APPLY_S3_BLIND } from './hr-apply-final-body.mjs';
 import {
   awayReceiptFor, withAwayReceipt, classifiesAway, receiptRescue,
@@ -819,7 +819,7 @@ async function main() {
         const patches = new Map([[MIG, [GATE_BLIND]]]);
         if (target === MIG) patches.get(MIG).unshift([m.find, m.repl]);
         else patches.set(target, [[m.find, m.repl], HR_APPLY_S3_BLIND.slice()]);
-        const { db } = await bootReplay({ patches });
+        const { db } = await bootReplay({ patches, upTo: LAST_PATCHED });
         builderSection(migSql.includes(m.find) ? migSql.replace(m.find, m.repl) : migSql);
         await sqlSection(db);
       }

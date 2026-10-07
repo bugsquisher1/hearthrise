@@ -48,7 +48,7 @@
 //   · That an operator ever reads maintenance_alerts. That is an ops question
 //     and this file cannot answer it.
 // ════════════════════════════════════════════════════════════════════════
-import { bootReplay } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED } from './schema-replay.mjs';
 
 const MIG = '2026-09-03-cron-health-generalized.sql';
 
@@ -293,7 +293,7 @@ async function run(mutate, plant) {
      held all eight WASM heaps live at once, which is what put this guard within
      reach of an allocation failure in the first place). */
   if (plant && PLANTS[plant].beforeBoot) PLANTS[plant].beforeBoot();
-  const { db } = await bootReplay({ patches });
+  const { db } = await bootReplay({ patches, upTo: LAST_PATCHED });
   try {
     return await probe(db, plant);
   } finally {

@@ -153,6 +153,66 @@ alter table auth.users add column if not exists role text;
 
 // GUCs come from the manifest — see its "gucs" block for why each is set.
 
+/** upTo: LAST_PATCHED — stop at the newest file the replay patches (see replayScopeError). */
+export const LAST_PATCHED = '@last-patched';
+
+/**
+ * REPLAY SCOPE — a mutant stops at the files its guard owns.
+ *
+ * A guard's --mutate/--selftest plants a defect in ITS migration and asks ITS
+ * arms (or its own self-check) to name it. Replayed over the whole chain, every
+ * NEWER file is a second judge the guard never asked for: a later §0 md5 lock,
+ * a grant-hygiene gate or a self-check refuses first, the chain aborts, and the
+ * guard reads "refused for the WRONG reason" or a harness error. That class
+ * broke CI five times by 2026-10-07 (world-tick-channel-arm, bounty-abandon-fee,
+ * armed-cap, …), each time "fixed" with a per-file allowlist of downstream
+ * refusals that went stale on the next migration.
+ *
+ * So a patched replay must say where it ends:
+ *   upTo:      the LAST file the guard owns (its arms judge the state as of it;
+ *              the chain before it is append-only, so that state never moves).
+ *              LAST_PATCHED resolves to the newest patched file, and to the
+ *              whole chain when nothing is patched (one call serves both runs).
+ *              Use it ONLY when the arms need nothing newer than the patched
+ *              file; when they drive an API a later file installed, name the
+ *              newest file they stand on instead (measured 2026-10-07: 22
+ *              rejections-journal mutants "caught" by a missing function).
+ *              Prove a scope with HR_REPLAY_SCOPE_CONTROL (in bootReplay):
+ *              =scoped drops the patches and keeps the scope, so every
+ *              SQL-planted mutant must SURVIVE; =full drops both (the baseline);
+ *   fullChain: a sentence saying why a LATER file is meant to catch this mutant
+ *              by name (bounty-abandon-fee's DOWNSTREAM mutant, schema-drift's
+ *              whole-chain replay). Exactly one of the two.
+ * The plain run (no patches) is unaffected and replays the whole chain.
+ * tests/replay-scope-guard.mjs is the standing meta-guard over every caller.
+ *
+ * A patch on a file AFTER upTo is legal: some guards carry one patch map into a
+ * bounded boot and then apply the next file's (patched) text themselves
+ * (companion-codes-severity's dual-shape arm), so order is not policed here.
+ *
+ * @param {{patches?:Map<string,any[]>, upTo?:string, fullChain?:string}} opts
+ * @returns {string|null} the refusal, or null when the scope is honest.
+ */
+export function replayScopeError({ patches, upTo, fullChain } = {}) {
+  const patched = patches ? [...patches.keys()].filter((k) => (patches.get(k) || []).length) : [];
+  if (fullChain !== undefined) {
+    if (typeof fullChain !== 'string' || fullChain.trim().length < 20) {
+      return 'REPLAY-SCOPE: fullChain must be a sentence (>= 20 chars) naming the LATER file '
+        + 'meant to catch this mutant — an empty opt-in is no opt-in.';
+    }
+    if (upTo !== undefined) return 'REPLAY-SCOPE: fullChain and upTo are exclusive — pick one.';
+    if (!patched.length) return 'REPLAY-SCOPE: fullChain without patches — a plain replay is full-chain already.';
+  }
+  if (patched.length && upTo === undefined && fullChain === undefined) {
+    return `REPLAY-SCOPE: a mutant replay (patches on ${patched.join(', ')}) must stop at the guard's own file.\n`
+      + '  Pass  upTo: <the last migration this guard owns>  so a NEWER file\'s lock or\n'
+      + '  self-check cannot refuse first and blind the arms, or  fullChain: "<why a later\n'
+      + '  file is meant to catch it, by name>"  when that is the point (tests/schema-replay.mjs\n'
+      + '  replayScopeError).';
+  }
+  return null;
+}
+
 /**
  * Apply the whole chain to a fresh in-process PostgreSQL.
  *
@@ -180,10 +240,15 @@ alter table auth.users add column if not exists role text;
  *        schema-wide, which would silently correct (and hide) a MAINTAIN-left-
  *        behind mutation planted in batch 2/3/4. Throws if the name is not in the
  *        chain, so a stale upTo cannot silently boot the whole thing.
+ * @param {string}  [opts.fullChain] the REASON a patched (mutant) replay must run
+ *        past its own file — only when a LATER file is the thing meant to catch
+ *        the mutant, by name. Mutually exclusive with upTo. See replayScopeError.
  * @returns {Promise<{db:any, applied:string[], failures:{file:string,error:string}[]}>}
  */
-export async function bootReplay({ patches, seedBefore, tolerant = false, upTo,
+export async function bootReplay({ patches, seedBefore, tolerant = false, upTo, fullChain,
                                    sessionTimeZone = 'UTC' } = {}) {
+  const scopeErr = replayScopeError({ patches, upTo, fullChain });
+  if (scopeErr) { const e = new Error(scopeErr); e.harness = true; e.replayScope = true; throw e; }
   let PGlite;
   try { ({ PGlite } = await import('@electric-sql/pglite')); }
   catch {
@@ -195,6 +260,17 @@ export async function bootReplay({ patches, seedBefore, tolerant = false, upTo,
   }
 
   const files = await chainFiles();
+  if (upTo === LAST_PATCHED) {
+    /* The common scope: stop at the newest file this replay patches. With no
+       patch at all (a guard's plain run through the same call) it is the whole
+       chain, exactly as if upTo had not been passed. */
+    const order = files.map(([n]) => n);
+    const patched = patches ? [...patches.keys()].filter((k) => (patches.get(k) || []).length) : [];
+    upTo = patched.length ? patched.reduce((a, b) => (order.indexOf(a) >= order.indexOf(b) ? a : b)) : undefined;
+  }
+  /* The scope's own control (see replayScopeError). Diagnostic only; unset in CI. */
+  if (process.env.HR_REPLAY_SCOPE_CONTROL === 'scoped') patches = undefined;
+  if (process.env.HR_REPLAY_SCOPE_CONTROL === 'full') { patches = undefined; upTo = undefined; }
   const sources = new Map();
   for (const [name, path] of files) {
     // LF in memory only — the migrations are checked in with CRLF on Windows

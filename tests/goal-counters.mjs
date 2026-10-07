@@ -46,7 +46,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 
-import { bootReplay, ROOT } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED, ROOT } from './schema-replay.mjs';
 import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
 import {
   GOAL_EVENTS, UNCOUNTED_EVENTS, GOAL_KEY_PREFIX, MAX_GOAL_ADD,
@@ -111,7 +111,11 @@ const NOW_MS = Date.UTC(2026, 7, 16, 9, 0, 0);
 
 // ── the harness ───────────────────────────────────────────────────────────
 async function boot(patches) {
-  const { db } = await bootReplay(patches ? { patches } : {});
+  /* A mutant stops at the newest file it patches (replayScopeError). ⚠ Measured
+     2026-10-07: --mutate is VACUOUS at any scope, the whole chain included —
+     with no patch planted the combat night loots nothing (COLLECTION-1) and all
+     13 mutants read "caught". The fixture needs repair before this proof counts. */
+  const { db } = await bootReplay(patches ? { patches, upTo: LAST_PATCHED } : {});
   await db.query('insert into auth.users (id) values ($1) on conflict do nothing', [USER]);
   await db.query("select set_config('request.jwt.claim.sub', $1, false)", [USER]);
   const r = await db.query('select public.hr_create_character(0) as r');

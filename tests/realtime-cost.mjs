@@ -49,7 +49,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { bootReplay, ROOT } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED, ROOT } from './schema-replay.mjs';
 
 const MIG = '2026-09-06-realtime-publication-trim.sql';
 
@@ -179,7 +179,7 @@ async function subscribedTables(srcPatches) {
 // ── the database half ───────────────────────────────────────────────────
 async function readDatabase(sqlPatches) {
   const patches = sqlPatches ? new Map([[MIG, sqlPatches]]) : undefined;
-  const { db } = await bootReplay({ patches });
+  const { db } = await bootReplay({ patches, upTo: LAST_PATCHED });
   const r = await db.query(
     `select tablename from pg_publication_tables
       where pubname = 'supabase_realtime' and schemaname = 'public'

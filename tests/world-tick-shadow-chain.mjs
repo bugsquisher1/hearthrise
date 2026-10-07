@@ -47,7 +47,7 @@
 // ============================================================================
 
 import { readFile } from 'node:fs/promises';
-import { bootReplay } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED } from './schema-replay.mjs';
 import { applyShadowState, SHADOW_STATE_V } from '../supabase/functions/hr-accrue/tick-contract.js';
 
 /* ── THE MUTATION PROOF (Security S-2, 2026-09-23) ──────────────────────────
@@ -167,7 +167,7 @@ async function runSuite({ patches, tickSource, allowReplayFailure = false } = {}
      driver counts it RED — naming which self-check arm bit. Unmutated, a
      replay failure is still a hole in disaster recovery and still exits 2. */
   const { db, failures } = await bootReplay(
-    patches ? { patches, tolerant: allowReplayFailure } : { tolerant: allowReplayFailure });
+    patches ? { patches, tolerant: allowReplayFailure, upTo: LAST_PATCHED } : { tolerant: allowReplayFailure });
   if (failures.length) {
     if (allowReplayFailure) {
       if (db) await db.close();

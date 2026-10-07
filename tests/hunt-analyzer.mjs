@@ -32,7 +32,7 @@
 // and spends half its night knocked out is not profitable, and the number used
 // to choose a spawn must not hide that.
 // ════════════════════════════════════════════════════════════════════════
-import { bootReplay } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED } from './schema-replay.mjs';
 
 const MIG = '2026-09-22-hunt-analyzer.sql';
 
@@ -115,7 +115,7 @@ const LOOT_QTY = [10, 5];      // positive item delta per window
 const BURN_QTY = [40, 0];      // negative item delta (arrows) per window
 
 async function run(mutate) {
-  const { db } = await bootReplay({ patches: patchesFor(mutate) });
+  const { db } = await bootReplay({ patches: patchesFor(mutate), upTo: LAST_PATCHED });
   const q = async (sql, args) => (await db.query(sql, args)).rows;
   const ver = async () => Number((await q('select public.hr_state_of($1,0) as e', [U]))[0].e.version);
   const apply = async (delta) => (await q(

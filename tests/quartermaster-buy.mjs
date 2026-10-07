@@ -34,7 +34,7 @@
 // NO ?v= on the imports (this is tests/**, not a browser module — b332).
 // ════════════════════════════════════════════════════════════════════════
 
-import { bootReplay } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED } from './schema-replay.mjs';
 import { runMutationProof } from './mutation-proof.mjs';
 
 // bone_key is the cheapest offer (18 scrip) and a BoP key — a deterministic,
@@ -101,7 +101,7 @@ async function boot(mutate) {
   const patches = mutate
     ? new Map([[MUTATIONS[mutate].file, [[MUTATIONS[mutate].find, MUTATIONS[mutate].repl]]]])
     : undefined;
-  const { db } = await bootReplay(patches ? { patches } : {});
+  const { db } = await bootReplay(patches ? { patches, upTo: LAST_PATCHED } : {});
   return db;
 }
 

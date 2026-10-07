@@ -47,7 +47,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { readFile } from 'node:fs/promises';
-import { bootReplay, chainFiles } from './schema-replay.mjs';
+import { bootReplay, LAST_PATCHED, chainFiles } from './schema-replay.mjs';
 import { HR_APPLY_FINAL, HR_APPLY_S3_BLIND } from './hr-apply-final-body.mjs';
 import { HR_STATE_OF_FINAL, HR_STATE_OF_S3_BLIND } from './hr-state-of-final-body.mjs';
 
@@ -391,7 +391,7 @@ async function boot(mutate, gateBlind, extra) {
     if ((MUTATIONS[mutate].file || MIG) === MIG_STATE) add(MIG_STATE, [HR_STATE_OF_S3_BLIND.slice()]);
     for (const [name, list] of await laterChainBlinds(mutate)) add(name, list);
   }
-  const { db } = await bootReplay({ patches });
+  const { db } = await bootReplay({ patches, upTo: LAST_PATCHED });
   return db;
 }
 

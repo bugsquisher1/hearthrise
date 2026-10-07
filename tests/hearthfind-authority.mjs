@@ -43,6 +43,11 @@
 
 import { readFile } from 'node:fs/promises';
 import { bootReplay } from './schema-replay.mjs';
+/* A mutant replays UP TO the newest file this guard stands on, never past it, so a
+   newer migration's lock or self-check cannot refuse first: its arms read
+   hr_world_finds_of / world_finds (PROJ). (tests/schema-replay.mjs replayScopeError).
+   The plain run is the whole chain. */
+const REPLAY_UPTO = '2026-09-13-world-finds-projection.sql';
 
 const FILE = '2026-09-08-hearthfind.sql';
 const CAT = '2026-09-08-hearthfind-catalogue.generated.sql';
@@ -232,7 +237,7 @@ async function boot(mutate) {
   const patches = mutate
     ? new Map([[m.file, m.pairs || [[m.find, m.repl]]]])
     : undefined;
-  const { db } = await bootReplay(patches ? { patches } : {});
+  const { db } = await bootReplay(patches ? { patches, upTo: REPLAY_UPTO } : {});
   return db;
 }
 

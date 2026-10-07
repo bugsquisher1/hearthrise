@@ -113,6 +113,9 @@ const argv = process.argv.slice(2);
  * way. tests/schema-apply-order.json's note for that file records the takeover.
  */
 const PRUNE_OWNER = '2026-09-18-ledger-rollup-currencies.sql';
+/* A mutant replays UP TO the newest file this guard's arms stand on (the 09-19
+   closure of the known lifetime readers), never past it (replayScopeError). */
+const LIFETIME_FACTS = '2026-09-19-lifetime-facts-off-the-ledger.sql';
 // The LAST file in the apply order that may `create or replace`
 // hr_day_budget_used — patching any earlier one is overwritten and the mutant
 // silently slips, which is the failure this file's header already records.
@@ -571,7 +574,7 @@ async function main() {
     for (const [name, mut] of Object.entries(MUTATIONS)) {
       let problems;
       try {
-        const { db } = await bootReplay({ patches: new Map(mut.patches) });
+        const { db } = await bootReplay({ patches: new Map(mut.patches), upTo: LIFETIME_FACTS });
         problems = await check(db);
       } catch (e) {
         if (e.harness) { console.error(`HARNESS  ${name}: ${e.message}`); process.exit(2); }

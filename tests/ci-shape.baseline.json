@@ -118,6 +118,8 @@
     "node tests/world-tick-maxhp-carry.mjs --mutate": "db-replay-5",
     "node tests/world-tick-stall-guard.mjs": "db-replay-5",
     "node tests/world-tick-stall-guard.mjs --selftest": "db-replay-5",
+    "node tests/replay-scope-guard.mjs": "db-replay-5",
+    "node tests/replay-scope-guard.mjs --selftest": "db-replay-5",
     "node tests/world-tick-channel-arm.mjs": "db-replay-5",
     "node tests/world-tick-channel-arm.mjs --selftest": "db-replay-5",
     "node tests/world-tick-armed-cap.mjs": "db-replay-5",

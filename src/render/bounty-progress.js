@@ -137,7 +137,7 @@ export function abandon() {
       try { if (typeof W.saveLocal === 'function') W.saveLocal(); } catch (e) {}
     }
     const fee = res && res.ok === true ? (Math.floor(Number(res.fee)) || 0) : 0;
-    if (res && res.ok === true) say(fee > 0 ? `Bounty abandoned (-${fee} Marks)` : 'Bounty abandoned', fee > 0 ? 'kill' : 'info');
+    if (res && res.ok === true) say(fee > 0 ? `Bounty abandoned (-${Number(fee).toLocaleString()} Marks)` : 'Bounty abandoned', fee > 0 ? 'kill' : 'info');
     else if (gone) say('Bounty abandoned', 'info');
     else say('The board did not take the abandon (' + String((res && res.error) || 'network').replace(/[^a-z_]/gi, '') + '). Your bounty is still active.', 'info');
     repaint();

@@ -363,7 +363,7 @@
       if (window.notify) notify('Missing: ' + missing.map(function (m) {
         var n = (window.ITEMS && window.ITEMS[m.id] && window.ITEMS[m.id].n) || m.id;
         if (!m.known) return (m.id === 'gold' ? 'Gold' : m.id === 'gems' ? 'Gems' : n) + ' still being counted';
-        return (m.id === 'gold' ? m.need + ' gold' : n + ' ×' + m.need);
+        return (m.id === 'gold' ? m.need.toLocaleString() + ' gold' : n + ' ×' + m.need.toLocaleString());
       }).join(', '), 'kill');
       return false;
     }
@@ -489,12 +489,12 @@
       var insp = (typeof window.hrInspectAttrs === 'function') ? window.hrInspectAttrs(k) : '';
       var inspHint = (typeof window.hrInspectHint === 'function') ? window.hrInspectHint(k) : '';
       return '<span class="hh-req' + (ok ? ' is-met' : '') + '"' + insp + ' title="' +
-        name + ': you hold ' + (h.known ? have : 'an unknown amount') + ' of ' + need + inspHint + '">' +
+        name + ': you hold ' + (h.known ? have.toLocaleString() : 'an unknown amount') + ' of ' + need.toLocaleString() + inspHint + '">' +
         '<span class="hh-req-art">' + art + '</span>' +
         '<span class="hh-req-name hr-si">' + name + '</span>' +
-        '<b>' + (h.known ? Math.min(have, need)
+        '<b>' + (h.known ? Math.min(have, need).toLocaleString()
           : '<span class="bal-pending" role="status" title="Waiting for the server">—</span>')
-        + ' / ' + need + '</b></span>';
+        + ' / ' + need.toLocaleString() + '</b></span>';
     }).join('');
   }
 
@@ -1175,7 +1175,7 @@
         var miss = d.next.missing.filter(function (m) { return m.known !== false; });
         var pend = d.next.missing.filter(function (m) { return m.known === false; });
         if (miss.length) say('Missing ' + miss.map(function (m) {
-          return m.id === 'gold' ? ((m.need - m.have) + ' gold') : (costName(m) + ' ×' + (m.need - m.have));
+          return m.id === 'gold' ? ((m.need - m.have).toLocaleString() + ' gold') : (costName(m) + ' ×' + (m.need - m.have).toLocaleString());
         }).join(', '), false);
         /* ONE house wording for every pending cost, currency or item, as a
            sentence ("Gold and Normal Log still being counted"), not two phrasings

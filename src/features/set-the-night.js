@@ -80,7 +80,9 @@
      rule read "107 cooked shrimps" on the first screenshot of this feature,
      which is the one place a returning player is being asked to trust a
      number. The name is printed exactly as `ITEMS[id].n` authored it. */
-  function countOf(n, name) { return n + ' ' + name; }
+  /* Counts read like every other count in the game (46,733, not 46733). */
+  function figure(n) { return n == null || !isFinite(Number(n)) ? n : Number(n).toLocaleString('en-US'); }
+  function countOf(n, name) { return figure(n) + ' ' + name; }
 
   /* A SAVE-SAFE CLONE. `G` is plain data (the save allowlist is JSON), so a
      JSON round trip is both sufficient and the strongest possible guarantee
@@ -508,7 +510,7 @@
     if (f.kind === 'combat') {
       return fillLine(combatKey(f), {
         food: f.foodQty > 0 && f.foodName ? countOf(f.foodQty, f.foodName) : null,
-        foe: f.targetName, falls: f.stoppedBy === 'retreat' ? f.retreatFalls : f.deaths,
+        foe: f.targetName, falls: figure(f.stoppedBy === 'retreat' ? f.retreatFalls : f.deaths),
         down: fmtSpan(f.downMs), span: fmtSpan(f.retreatMs),
         need: Number(f.needQty) > 0 && f.needName ? countOf(f.needQty, f.needName) : null,
         /* The bag against the fed night's eating rate: the same engine's

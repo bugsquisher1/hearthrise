@@ -65,7 +65,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { createServer } from 'node:net';
 import { bootChain, ROOT } from './pglite-chain.mjs';
 
@@ -117,6 +117,13 @@ const MUTATIONS = {
        + 'and the bag (which still caps) shows a price the server does not pay',
     find: '  return unit > 0 ? Math.min(bid, Math.max(1, Math.floor(SHOP_BUYBACK_RATE * unit))) : bid;',
     repl: '  return bid;',
+  },
+  counter_bids_before_index: {
+    file: join(ROOT, 'src', 'screens', 'shop-counter.js'),
+    why: 'the bag bids an UNCAPPED price before window.SHOP_UNIT_PRICE is published — a number the '
+       + 'server never pays (CLAUDE.md §6)',
+    find: '  if(!U) return 0;',
+    repl: '  if(!U) return it.raw ? Math.max(1, Math.floor(v * VENDOR_RAW_RATE)) : v;',
   },
   buyback_rate_drift: {
     file: FN('catalogue.js'),
@@ -371,7 +378,7 @@ async function loadModules(patched) {
   await cp(FN(''), dir, { recursive: true });
   await cp(join(ROOT, 'src'), join(base, 'src'), { recursive: true });
   for (const [file, text] of patched) {
-    await writeFile(join(dir, file.split(/[\\/]/).pop()), text, 'utf8');
+    await writeFile(join(base, relative(ROOT, file)), text, 'utf8');
   }
   return importAll(dir);
 }
@@ -545,7 +552,8 @@ async function run(mutate) {
        SCREEN CONTROLLER (task #129 phase 2). The path follows the code — the two
        CONTROLs below go red on a blind scan, which is how this pin was found
        rather than passing quietly over a file that no longer holds the rate. */
-    const legacy = (await readFile(join(ROOT, 'src', 'screens', 'shop-counter.js'), 'utf8')).replace(/\r\n/g, '\n');
+    const counterPath = join(fnDir, '..', '..', '..', 'src', 'screens', 'shop-counter.js');   // the source that RAN
+    const legacy = (await readFile(counterPath, 'utf8')).replace(/\r\n/g, '\n');
     const rate = /const VENDOR_RAW_RATE\s*=\s*([0-9.]+)\s*;/.exec(legacy);
     ok(!!rate,
       'G1-CONTROL: no `const VENDOR_RAW_RATE = …` in src/screens/shop-counter.js — this scan is '
@@ -591,7 +599,26 @@ async function run(mutate) {
       const unit = Object.prototype.hasOwnProperty.call(U, id) ? U[id] : 0;
       return unit > 0 ? Math.min(bid, Math.max(1, Math.floor(Number(buyRate[1]) * unit))) : bid;
     };
-    /* b565 — THE RULING'S NUMBERS, per unit, as the server pays them. */
+    /* FAIL-CLOSED BEFORE BOOT: the real vendorPrice(), run with no unit index
+       published, must bid NOTHING for a shop-sold item — an uncapped bid there is
+       a price the server never pays. Then, published, it must bid the server's. */
+    {
+      const vm = await import('node:vm');
+      const win = { addEventListener() {} };
+      const ctx = vm.createContext({ window: win, ITEMS, console: { log() {}, info() {}, warn() {} } });
+      vm.runInContext(legacy, ctx);
+      ok(typeof win.vendorPrice === 'function', 'G1-CONTROL: shop-counter.js did not publish vendorPrice in the vm');
+      let pre;
+      try { pre = win.vendorPrice('steel_platebody'); } catch (e) { pre = `a throw (${e.message})`; }
+      ok(pre === 0,
+        `G1: vendorPrice('steel_platebody') answered ${pre} with no SHOP_UNIT_PRICE `
+        + 'published — before boot the bag must bid nothing, not an uncapped price the server never pays');
+      win.SHOP_UNIT_PRICE = U;
+      ok(win.vendorPrice('steel_platebody') === cat.vendorPriceOf(ITEMS, 'steel_platebody'),
+        `G1-CONTROL: the vm vendorPrice bid ${win.vendorPrice('steel_platebody')} once published, the server `
+        + `${cat.vendorPriceOf(ITEMS, 'steel_platebody')} — the fail-closed check is measuring the wrong function`);
+    }
+    /* THE RULING'S NUMBERS, per unit, as the server pays them. */
     const BUYBACK_EXPECT = {
       steel_platebody: 750, carrot_seed: 5, potato_seed: 10, pumpkin_seed: 25, turnip_seed: 2,
       wheat_seed: 7, tomato_seed: 15, stone_maul: 70, shortbow: 60, apprentice_staff: 60,

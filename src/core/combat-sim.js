@@ -419,11 +419,17 @@ export function simulateTick(state, ctx) {
     state.stats.crits = (state.stats.crits || 0) + 1;
   }
   state._lastPlayerCrit = didCrit;
+  /* XP IS EARNED ON DAMAGE DEALT (design ruling). The swing may roll
+     past the foe's remaining HP — overkill, crits included — but only the
+     HP it actually removed pays hit XP, styled and hitpoints alike. Without
+     the clamp a maxed hitter earned ~4 XP per wasted point on a slime. */
+  const hpBefore = Math.max(0, state.monsterHp);
+  const xpDmg = Math.min(pDmg, hpBefore);
   state.monsterHp = Math.max(0, state.monsterHp - pDmg);
   call(fx, 'onSwing', m, pDmg, didCrit, ctx);
 
-  if (pDmg > 0) {
-    for (const g of hitXpRoute(ctx.style, pDmg)) call(fx, 'addXp', g.skill, g.amount);
+  if (xpDmg > 0) {
+    for (const g of hitXpRoute(ctx.style, xpDmg)) call(fx, 'addXp', g.skill, g.amount);
   }
 
   if (state.monsterHp <= 0) {

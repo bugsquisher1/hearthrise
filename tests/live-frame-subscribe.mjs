@@ -44,6 +44,19 @@
 //                    and not counted as a drop.
 //   L12 SURFACE      live.js never creates a Realtime client, joins PRIVATE,
 //                    and RESIDUE_FIELDS names nothing of this module.
+//   ── THE GAP HEAL (2026-10-09-frame-self-echo.sql: no self-frames any more) ──
+//   L15 FRAME GAP    a frame that skips a version re-reads the projection and
+//                    REPLACES the screen; a contiguous one does not; a re-read
+//                    older than a frame that landed meanwhile never rewinds.
+//   L16 ★ LOST WRITE (attended) the server commits, the HTTP answer is lost
+//                    (throw / 503): the screen catches up in ONE read, now.
+//                    FAILS without the heal (mutation lost_write_no_heal).
+//   L17 LOST SETTLE  (away) the accrue answer that paid the night is lost:
+//                    the screen catches up.
+//   L18 POLL GAP     a settle poll above the floor re-reads after a grace,
+//                    and not if a frame closed the gap inside it.
+//   L19 PUSH OFF     no joined channel → no re-read (today's game).
+//   L20 COST         one read in flight, at most one per interval.
 //
 // Mutations patch COPIES of accrue.js/live.js written to the OS temp dir (never
 // the tree), with their imports re-pointed at the real files, and re-run every
@@ -75,7 +88,7 @@ const MUTATIONS = {
     from: "  if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') scheduleRetry();", to: '' },
   no_hello_on_join: { kills: ['L4'], file: 'live',
     why: 'a (re)join does not re-read, so the gap stays open',
-    from: '    st.joins += 1;\n    joinHello();', to: '    st.joins += 1;' },
+    from: '    armGap();\n    joinHello();', to: '    armGap();' },
   hello_at_boot: { kills: ['L5'], file: 'live',
     why: 'the boot join sends its own hello on top of the boot settle',
     from: "  if (bootSettlePending() && !settleInFlight()) return 'boot';", to: '' },
@@ -123,6 +136,39 @@ const MUTATIONS = {
   no_setauth_refresh: { kills: ['L10'], file: 'live',
     why: 'a refreshed token never reaches Realtime, so the private channel stops authorizing',
     from: "      if ((event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN')", to: "      if ((event === 'NEVER')" },
+  /* ── THE GAP HEAL (2026-10-09-frame-self-echo.sql) ── */
+  lost_write_no_heal: { kills: ['L16', 'L20'], file: 'accrue',
+    why: 'THE REGRESSION: a write whose answer was lost never re-reads, and no self-frame comes any more',
+    from: "    requestGapHeal('lost:' + (verb || 'write'));\n    throw err;", to: '    throw err;' },
+  lost_5xx_no_heal: { kills: ['L16'], file: 'accrue',
+    why: 'a write answered 5xx (maybe committed) never re-reads',
+    from: "  if (res && typeof res.status === 'number' && res.status >= 500) requestGapHeal(", to: '  if (false) requestGapHeal(' },
+  accrue_lost_no_heal: { kills: ['L17'], file: 'accrue',
+    why: 'an away settle whose answer was lost never re-reads, so the paid night is invisible',
+    from: "      requestGapHeal('accrue:' + out.outcome);", to: '' },
+  poll_gap_ignored: { kills: ['L18'], file: 'accrue',
+    why: 'a settle poll that says the server is ahead of the floor is ignored',
+    from: "        requestGapHeal('poll_gap', { atLeast: v, delayMs: GAP_HEAL_GRACE_MS });", to: '' },
+  poll_gap_no_grace: { kills: ['L18'], file: 'accrue',
+    why: 'the poll gap re-reads at once, racing the frame already in flight',
+    from: "{ atLeast: v, delayMs: GAP_HEAL_GRACE_MS }", to: '{ atLeast: v }' },
+  frame_gap_ignored: { kills: ['L15'], file: 'live',
+    why: 'a frame that skips a version is applied and nothing re-reads what the skipped version changed',
+    from: "  if (written.gap) { st.gaps += 1; requestGapHeal('frame_gap'); }", to: '' },
+  heal_rewinds: { kills: ['L15'], file: 'accrue',
+    why: 'a re-read older than a frame that landed meanwhile is applied (a rewind)',
+    from: "  if (gate.verdict !== 'fresh' && gate.verdict !== 'answer') return refuse(gate.verdict);",
+    to: "  if (gate.verdict === 'unversioned') return refuse(gate.verdict);" },
+  heal_reads_but_keeps: { kills: ['L15', 'L16', 'L17', 'L18'], file: 'accrue',
+    why: 'the re-read arrives and nothing REPLACES the screen with it',
+    from: '      const written = applyHealProjection(G, v.body);', to: '      const written = null;' },
+  gap_heal_never_disarmed: { kills: ['L19'], file: 'live',
+    why: 'leaving the channel leaves the gap heal armed (push off is no longer today)',
+    from: "  armGapHeal(null);\n  if (why === 'identity'", to: "  if (why === 'identity'" },
+  gap_heal_unlimited: { kills: ['L20'], file: 'accrue',
+    why: 'every lost write is its own re-read: a flaky network becomes a read storm',
+    from: '  const wait = Math.max(gapHeal.lastAt ? gapHeal.lastAt + GAP_HEAL_MIN_INTERVAL_MS - now : 0,',
+    to: '  const wait = Math.max(0,' },
   frames_at_boot: { kills: ['L11'], file: 'accrue',
     why: 'frames apply before the boot settle, racing the away receipt',
     from: "  if (!awaySettleClosed || isReconcilePending()) return refuse('booting', false);", to: '' },
@@ -160,6 +206,9 @@ const UID2 = '0b5e7c1a-1111-4222-8333-000000000002';
 const state = (gold) => ({ slot: 0, gold, gems: 0, hp: 40, max_hp: 40, accrued_to: '2026-10-05T12:00:00Z' });
 const frameAt = (v, gold, extra) => ({ t: 'delta', frame: v,
   patch: { state: state(gold), skills: { mining: { xp: gold * 2, level: 1 } }, buffs: [], place: null, ...(extra || {}) } });
+/* An hr_load body (record.js heal mode): the whole projection, no away receipt. */
+const projAt = (v, gold, bag) => ({ ok: true, version: v, now: '2026-10-05T12:00:00Z',
+  state: state(gold), skills: { mining: { xp: gold * 2 } }, inventory: { ...(bag || {}) }, equipment: {}, bank: {} });
 const envAt = (v, gold) => ({ ok: true, accrued: true, version: v, now: '2026-10-05T12:00:00Z',
   state: state(gold), skills: { mining: { xp: gold * 2 } }, inventory: { copper_ore: 1 },
   equipment: {}, bank: {}, away: { ms: 600000, kind: 'gather', credited: true, gold: 3 } });
@@ -190,7 +239,7 @@ function rig(A, L, opts) {
   const G = { gold: 0, gems: 0, skills: {}, inventory: {} };
   const timers = [];
   const id = { uid: UID, token: 't1', slot: 0 };
-  const r = { c, G, timers, id, hellos: 0, applied: 0, clock: 1e9 };
+  const r = { c, G, timers, id, hellos: 0, applied: 0, reads: 0, clock: 1e9 };
   L.__resetLive();
   A.resetFrameGate();
   A.__resetAwaySettleLatch(o.booting ? false : true);
@@ -199,6 +248,9 @@ function rig(A, L, opts) {
     identity: () => ({ ...id }),
     G: () => G,
     hello: () => { r.hellos += 1; if (o.onHello) o.onHello(G); return Promise.resolve(); },
+    /* The gap heal's read (record.js hr_load, heal mode): the SERVER's projection
+       as the test has it at the moment of the read. */
+    reread: () => { r.reads += 1; return Promise.resolve(r.server ? { outcome: 'loaded', body: r.server() } : null); },
     applied: () => { r.applied += 1; },
     now: () => r.clock,
     setTimer: (fn, ms) => { timers.push({ fn, ms }); return timers.length; },
@@ -560,6 +612,159 @@ export async function liveFrameGuard(mutation) {
           + A.getAppliedFrame() + ' (SEC C3).');
         ok(A.getFloorHeal() === null, 'L13', 'an idle heal answer with version ' + String(bad) + ' left the heal open.');
       } finally { await h.restore(); }
+    }
+
+    // ── L15 FRAME GAP (2026-10-09-frame-self-echo.sql) ──────────────────────
+    //    The player's own write at 101 pushes NO frame (the HTTP answer was
+    //    meant to carry it, and was lost); the tick's 102 does, partially.
+    {
+      const r = rig(A, L);
+      L.ensureLive(); r.c.status('SUBSCRIBED');
+      r.c.emit(frameAt(100, 10));
+      r.server = () => projAt(102, 60, { copper_ore: 5 });
+      r.c.emit(frameAt(102, 60));
+      await settleIo();
+      ok(r.reads === 1, 'L15', 'a frame that SKIPPED a version (100 → 102) did not re-read the projection '
+        + '(reads ' + r.reads + '). Whatever 101 changed outside frame_keys stays wrong on screen.');
+      ok(r.G.inventory.copper_ore === 5 && r.G.gold === 60 && A.getAppliedFrame() === 102, 'L15',
+        'the re-read did not REPLACE the screen with the server\'s 102 (copper ' + r.G.inventory.copper_ore
+        + ', gold ' + r.G.gold + ', floor ' + A.getAppliedFrame() + ').');
+      r.c.emit(frameAt(103, 61));
+      await settleIo();
+      ok(r.reads === 1, 'L15', 'a CONTIGUOUS frame (102 → 103) re-read the projection (reads ' + r.reads + ').');
+      /* A read that comes back OLDER than a frame that landed while it was out
+         never rewinds, and asks once more (the frame is partial). */
+      r.clock += A.GAP_HEAL_MIN_INTERVAL_MS + 1;
+      let raced = false;   // the first read races frame 106; any later read is the server at 106
+      r.server = () => {
+        if (raced) return projAt(106, 66, { copper_ore: 5 });
+        raced = true; r.c.emit(frameAt(106, 66)); return projAt(105, 55, { copper_ore: 1 });
+      };
+      r.c.emit(frameAt(105, 65));
+      await settleIo();
+      ok(r.G.gold === 66 && A.getAppliedFrame() === 106 && r.G.inventory.copper_ore === 5, 'L15',
+        'a re-read OLDER than a frame that landed meanwhile rewound the screen (gold ' + r.G.gold + ', floor '
+        + A.getAppliedFrame() + ', copper ' + r.G.inventory.copper_ore + ').');
+      ok(A.getGapHealState().stale === 1 && r.timers.length === 1, 'L15',
+        'the stale re-read did not ask once more, rate-limited (stale ' + A.getGapHealState().stale
+        + ', timers ' + r.timers.length + ').');
+    }
+
+    // ── L16 ★ LOST WRITE, ATTENDED: the regression the self-echo makes real ──
+    //    The server COMMITS the player's write (v201: gold 20 → 15) and the HTTP
+    //    response is dropped. No self-frame follows any more. The screen must
+    //    catch up to the server within the heal (one read, now).
+    for (const shape of ['throw', '503']) {
+      const r = rig(A, L);
+      L.ensureLive(); r.c.status('SUBSCRIBED');
+      r.c.emit(frameAt(200, 20));
+      r.server = () => projAt(201, 15, { bread: 2 });
+      const prev = globalThis.fetch;
+      globalThis.fetch = shape === 'throw'
+        ? () => Promise.reject(new TypeError('Failed to fetch'))
+        : () => Promise.resolve({ ok: false, status: 503, json: async () => ({ ok: false, error: 'engine_unavailable' }) });
+      let threw = false;
+      try { await A.fetchWrite('https://example.invalid/functions/v1/hr-accrue', { method: 'POST' }, 'eat'); }
+      catch (e) { threw = true; }
+      finally { globalThis.fetch = prev; }
+      await settleIo();
+      ok(threw === (shape === 'throw'), 'L16', 'fetchWrite changed what the caller sees (' + shape + ', threw ' + threw + ').');
+      ok(r.reads === 1 && r.G.gold === 15 && r.G.inventory.bread === 2 && A.getAppliedFrame() === 201, 'L16',
+        'after a write whose answer was lost (' + shape + ') the screen did NOT catch up to the server: gold '
+        + r.G.gold + ' (server 15), bread ' + r.G.inventory.bread + ', floor ' + A.getAppliedFrame()
+        + ', reads ' + r.reads + '. The browser says one thing and the server another (CLAUDE.md §6).');
+    }
+
+    // ── L17 ★ LOST SETTLE, AWAY: the accrue answer that paid the night is lost ─
+    {
+      const r = rig(A, L);
+      L.ensureLive(); r.c.status('SUBSCRIBED');
+      r.c.emit(frameAt(300, 30));
+      r.server = () => projAt(301, 90, { copper_ore: 12 });
+      const prev = globalThis.fetch;
+      globalThis.fetch = (url) => (String(url).includes('/rest/v1/')
+        ? Promise.resolve({ ok: false, status: 404, json: async () => [] })
+        : Promise.reject(new TypeError('network changed')));
+      A.configureAccrual({ url: 'https://example.invalid', authToken: 'tok' });
+      try { await A.requestAccrual({ force: true }); }
+      finally { globalThis.fetch = prev; A.configureAccrual(null); A.resetAccrualGate(); }
+      await settleIo();
+      ok(r.reads === 1 && r.G.gold === 90 && r.G.inventory.copper_ore === 12, 'L17',
+        'an away settle whose answer was lost left the screen behind the server (gold ' + r.G.gold
+        + ' vs 90, copper ' + r.G.inventory.copper_ore + ' vs 12, reads ' + r.reads + ').');
+    }
+
+    // ── L18 POLL GAP: the settle poll states a version above the floor ───────
+    {
+      const r = rig(A, L);
+      const h = http(A, r.G);
+      try {
+        L.ensureLive(); r.c.status('SUBSCRIBED');
+        r.c.emit(frameAt(400, 40));
+        r.server = () => projAt(402, 70, {});
+        const p = A.requestAccrual({ force: true });
+        await settleIo();
+        await h.answer({ ok: true, accrued: false, reason: 'idle', version: 402, now: '2026-10-05T12:00:00Z' });
+        await p; await settleIo();
+        const t = r.timers.find((x) => x.ms === A.GAP_HEAL_GRACE_MS);
+        ok(r.reads === 0 && !!t, 'L18', 'a poll answer above the floor did not wait its grace before re-reading '
+          + '(reads ' + r.reads + ', timers ' + r.timers.map((x) => x.ms).join(',') + ').');
+        while (r.timers.length) r.fire();
+        await settleIo();
+        ok(r.reads === 1 && r.G.gold === 70 && A.getAppliedFrame() === 402, 'L18',
+          'a poll that said the server is at 402 while the screen was at 400 did not heal (gold ' + r.G.gold
+          + ', floor ' + A.getAppliedFrame() + ', reads ' + r.reads + ').');
+        /* …and a frame that closes the gap inside the grace cancels the read. */
+        r.clock += A.GAP_HEAL_MIN_INTERVAL_MS + 1;
+        const p2 = A.requestAccrual({ force: true });
+        await settleIo();
+        await h.answer({ ok: true, accrued: false, reason: 'idle', version: 403, now: '2026-10-05T12:00:00Z' });
+        await p2; await settleIo();
+        r.c.emit(frameAt(403, 71));
+        while (r.timers.length) r.fire();
+        await settleIo();
+        ok(r.reads === 1, 'L18', 'a poll gap that a frame closed inside the grace still re-read (reads ' + r.reads + ').');
+      } finally { await h.restore(); A.resetAccrualGate(); }
+    }
+
+    // ── L19 PUSH OFF = TODAY: no channel, no gap heal ───────────────────────
+    {
+      const r = rig(A, L);
+      r.server = () => projAt(501, 1, {});
+      A.commitFrame(500);
+      const prev = globalThis.fetch;
+      globalThis.fetch = () => Promise.reject(new TypeError('Failed to fetch'));
+      try { await A.fetchWrite('https://example.invalid/functions/v1/hr-accrue', { method: 'POST' }, 'eat'); } catch (e) {}
+      finally { globalThis.fetch = prev; }
+      await settleIo();
+      ok(r.reads === 0 && A.requestGapHeal('probe') === 'unarmed', 'L19',
+        'with NO joined channel a lost write still re-read (reads ' + r.reads + '): push off must be today\'s game.');
+      L.ensureLive(); r.c.status('SUBSCRIBED');
+      r.id.token = null;
+      r.c.authCb && r.c.authCb('SIGNED_OUT', null);
+      ok(A.requestGapHeal('probe') === 'unarmed', 'L19', 'leaving the channel did not disarm the gap heal.');
+    }
+
+    // ── L20 COST: one read in flight, at most one per interval ──────────────
+    {
+      const r = rig(A, L);
+      L.ensureLive(); r.c.status('SUBSCRIBED');
+      r.c.emit(frameAt(600, 1));
+      let v = 600;
+      r.server = () => projAt(++v, 2, {});
+      const prev = globalThis.fetch;
+      globalThis.fetch = () => Promise.reject(new TypeError('Failed to fetch'));
+      try {
+        for (let i = 0; i < 20; i++) {
+          try { await A.fetchWrite('https://example.invalid/functions/v1/hr-accrue', { method: 'POST' }, 'eat'); } catch (e) {}
+        }
+      } finally { globalThis.fetch = prev; }
+      await settleIo();
+      ok(r.reads === 1 && r.timers.length === 1, 'L20', '20 lost writes inside one interval sent ' + r.reads
+        + ' read(s) and armed ' + r.timers.length + ' timer(s) — expected 1 now and 1 deferred.');
+      r.fire();
+      await settleIo();
+      ok(r.reads === 2 && r.timers.length === 0, 'L20', 'the deferred read did not go out exactly once (reads ' + r.reads + ').');
     }
 
     // ── L14 COST (SEC C2) ───────────────────────────────────────────────────

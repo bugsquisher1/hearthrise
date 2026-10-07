@@ -112,7 +112,7 @@
 // override IS the transport and the suite asserts the literal bytes.
 // ============================================================================
 
-import {
+import { fetchWrite,
   isServerAccrualEnabled, resolveActiveSlot, accrueEndpoint, MAX_SLOT,
   applyEnvelopeState, describeReplacement, isReplacementAcknowledged,
   showReplacementSheet, registerPredictionSeam, isReconcilePending,
@@ -985,7 +985,7 @@ export async function sendGoldIntent(req, key, opts) {
 
   let res = null;
   try {
-    res = await fetch(url, fetchOpts);
+    res = await fetchWrite(url, fetchOpts, 'gold');
   } catch (e) {
     dl.clear();
     /* NEVER ANSWERED. The prediction STANDS — see the header. */
@@ -1238,7 +1238,7 @@ async function buyTraitOnce(traitId, key) {
 
   let res = null;
   try {
-    res = await fetch(url, opts);
+    res = await fetchWrite(url, opts, 'gold');
   } catch (e) {
     const aborted = dl.fired;
     dl.clear();

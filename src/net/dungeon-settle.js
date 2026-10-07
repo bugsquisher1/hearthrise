@@ -37,7 +37,7 @@
 // bytes the browser runs. Node-importable.
 // ============================================================================
 
-import {
+import { fetchWrite,
   resolveActiveSlot, accrueEndpoint, MAX_SLOT, applyCollectedReceipt,
 } from './accrue.js?v=563';
 import { isDungeonSettleArmed, reconcileScrip } from './dungeon-scrip-record.js?v=563';
@@ -276,7 +276,7 @@ export async function sendDungeonSettle(run, o = {}) {
 
   let res = null;
   try {
-    res = await fetch(url, init2);
+    res = await fetchWrite(url, init2, 'dungeon_settle');
   } catch (e) {
     const aborted = !!(ac && ac.signal && ac.signal.aborted);
     if (timer) clearTimeout(timer);
@@ -381,7 +381,7 @@ export async function sendQuartermasterBuy(offer, o = {}) {
 
   let res = null;
   try {
-    res = await fetch(url, init2);
+    res = await fetchWrite(url, init2, 'dungeon_settle');
   } catch (e) {
     const aborted = !!(ac && ac.signal && ac.signal.aborted);
     if (timer) clearTimeout(timer);

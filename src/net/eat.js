@@ -35,7 +35,7 @@
 // same bytes the browser runs. Node-importable.
 // ============================================================================
 
-import {
+import { fetchWrite,
   isServerAccrualEnabled, resolveActiveSlot, accrueEndpoint, MAX_SLOT,
 } from './accrue.js?v=563';
 
@@ -238,7 +238,7 @@ export async function sendEat(foodId, o = {}) {
 
   let res = null;
   try {
-    res = await fetch(url, init2);
+    res = await fetchWrite(url, init2, 'eat');
   } catch (e) {
     const aborted = !!(ac && ac.signal && ac.signal.aborted);
     if (timer) clearTimeout(timer);

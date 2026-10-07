@@ -41,7 +41,7 @@
 // same bytes the browser runs. Node-importable.
 // ============================================================================
 
-import {
+import { fetchWrite,
   resolveActiveSlot, accrueEndpoint, MAX_SLOT,
 } from './accrue.js?v=563';
 import { MAX_TROPHY_STAGE } from '../data/bestiary.js?v=563';
@@ -244,7 +244,7 @@ export async function sendTrophyClaim(monster, stage, o = {}) {
 
   let res = null;
   try {
-    res = await fetch(url, init2);
+    res = await fetchWrite(url, init2, 'trophy_claim');
   } catch (e) {
     const aborted = !!(ac && ac.signal && ac.signal.aborted);
     if (timer) clearTimeout(timer);

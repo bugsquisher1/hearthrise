@@ -99,7 +99,7 @@
 // same bytes the browser runs.
 // ============================================================================
 
-import { markEquipAuthorityLive, resolveActiveSlot, awaitSettleRaceClear } from './accrue.js?v=563';
+import { markEquipAuthorityLive, resolveActiveSlot, awaitSettleRaceClear, fetchWrite } from './accrue.js?v=563';
 
 export const EQUIP_VERB = 'equip';
 
@@ -641,7 +641,7 @@ async function attemptEquipOnce(ops, o = {}) {
 
   let res = null;
   try {
-    res = await fetch(url, init2);
+    res = await fetchWrite(url, init2, 'equip');
   } catch (e) {
     const aborted = !!(ac && ac.signal && ac.signal.aborted);
     if (timer) clearTimeout(timer);

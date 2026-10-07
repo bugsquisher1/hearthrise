@@ -40,6 +40,8 @@
 // equip tests).
 // ============================================================================
 
+import { fetchWrite } from './accrue.js?v=563';
+
 export const ENCHANT_VERB = 'enchant';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -193,7 +195,7 @@ export async function sendEnchant(rune, o = {}) {
 
   let res = null;
   try {
-    res = await fetch(url, init2);
+    res = await fetchWrite(url, init2, 'enchant');
   } catch (e) {
     const aborted = !!(ac && ac.signal && ac.signal.aborted);
     if (timer) clearTimeout(timer);

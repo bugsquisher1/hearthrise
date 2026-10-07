@@ -4509,3 +4509,24 @@ own lane); ruling 3's `frame_keys` CHECK before combat arms; and the 8c pairing
 fence ("no shadow row older than raw-settle + 24 h is summed into a ledger
 pairing"), which belongs to whichever read performs the pairing. Party-hunt
 admission is unchanged (raw 24 h).
+
+## §20 The probe's stored seed is secret-equivalent (correction, 2026-10-06)
+
+`supabase/migrations/2026-10-07-probe-retain-input.sql` (APPLIED as reviewed; its
+bytes are not edited) says in its header that the stored `hr_tick_probe.seed`
+belongs to "a PAST shadow watermark" and "reproduces that span only". That is
+**wrong** (SEC_PROBE_RETAIN_2026-10-06, correction to A). The shadow chain starts
+at `ps.accrued_to` (roster), so a probe's `span_from` can equal an away
+player's live `accrued_to`; in that case the stored seed **is** the seed of that
+player's next live settle. Treat `seed` as secret-equivalent:
+
+- Readers are unchanged (owner + management-endpoint roles that can already read
+  `hr_server_secrets`; no client, engine or tick role; `fetch` returns only open
+  rows, whose seed is NULL). No new reader may be added.
+- `tools/world-tick-parity.mjs` is the only consumer. It never prints, exports,
+  writes to a fixture or sends a seed to CI; CI runs only its `--selftest`.
+  Standing guard: `tests/world-tick-seed-no-leak.mjs` (source scan of the
+  evaluator, the world-tick tests and fixtures, plus a runtime capture of the
+  evaluator's print path on retained rows; `--mutate` plants a printed seed, an
+  exported seed, a probe-row fixture, a CI production read and a second tool
+  that selects the column, and requires each RED).

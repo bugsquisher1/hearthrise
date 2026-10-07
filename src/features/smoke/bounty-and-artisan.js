@@ -2883,9 +2883,11 @@ export default [
     assert(window.vendorPrice('dawnstone_ore') === Math.floor(ITEMS.dawnstone_ore.v * 0.20),
       'the biggest faucet in the game must be throttled at the choke-point');
     assert(ITEMS.normal_log.v === 8, 'the item BOOK value must be untouched — only the vendor bid moves');
-    // A crafted item is not raw, so it keeps the full bid.
-    assert(!ITEMS.cooked_shrimp.raw, 'a cooked dish is not a raw material');
-    assert(window.vendorPrice('cooked_shrimp') === ITEMS.cooked_shrimp.v,
+    // A crafted item the shop does not stock is not raw, so it keeps the full bid.
+    assert(!ITEMS.cooked_herring.raw, 'a cooked dish is not a raw material');
+    assert(!(window.SHOP_UNIT_PRICE && 'cooked_herring' in window.SHOP_UNIT_PRICE),
+      'cooked_herring is now shop-sold — pick another unstocked dish for this control');
+    assert(window.vendorPrice('cooked_herring') === ITEMS.cooked_herring.v,
       'a crafted/cooked item must still fetch full value');
   }),
 

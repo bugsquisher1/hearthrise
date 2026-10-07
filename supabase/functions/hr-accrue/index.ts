@@ -89,7 +89,7 @@ import { intentIdFor, isKnownVerb, INTENT_ERRORS, rateBucketFor } from './intent
 import { partyIntentFence } from './party-fence.js';
 import { runSetActivity } from './set-activity.js';
 import { runShopBuy } from './shop-buy.js';
-import { runVendorSell } from './vendor-sell.js';
+import { runVendorSell, runVendorSellMany } from './vendor-sell.js';
 import { runClaimReward } from './claim-reward.js';
 import { runUnlockBuy } from './unlock-buy.js';
 import { runDungeonSettle } from './dungeon-settle.js';
@@ -517,6 +517,21 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         intentId: intent.intentId,
         item: intent.item,
         qty: intent.qty,
+      });
+      return json(out.body, out.status);
+    }
+
+    /* b564 — THE BULK SALE. `lines` is a list of NAMES and COUNTS built field
+       by field by request.js readLines; every price is resolved inside the
+       verb from ./catalogue.js. */
+    if (intent.verb === 'vendor_sell_many') {
+      const out = await runVendorSellMany({
+        exec,
+        partyOwnsWindow,
+        user,
+        slot,
+        intentId: intent.intentId,
+        lines: intent.lines,
       });
       return json(out.body, out.status);
     }

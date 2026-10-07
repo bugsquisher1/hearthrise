@@ -37,6 +37,7 @@ import { indexArtisanRecipes, payableRecipeIndex } from '../../../src/core/artis
 import { SHOP_OFFERS } from '../../../src/data/shops.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { catalogueGet } from './intents.js';
+import { cheapestShopUnitPrice } from '../../../src/core/shop-buyback.js';
 
 /**
  * `{ [nodeId]: { skill, node } }` over all 23 gathering nodes.
@@ -315,6 +316,26 @@ export const ALL_OFFER_IDS = Object.freeze(offerIds);
    belongs to the Game Designer; it is mirrored here, never chosen here. */
 export const VENDOR_RAW_RATE = 0.20;
 
+/* ── THE SHOP BUY-BACK CAP (game-designer ruling, b565) ─────────────────────
+   The NPC vendor buys back anything the NPC shop also sells for AT MOST HALF
+   the cheapest shop unit price:
+
+       bid = min(book bid, max(1, floor(SHOP_BUYBACK_RATE × cheapest unit)))
+
+   Before this, `steel_platebody` was sold for 1,500 and bought back for 1,500,
+   and every seed packet round-tripped at par — a buy→sell loop with zero loss
+   is a laundering channel and a price floor nobody chose. The cap is applied
+   HERE, once, as a formula over the catalogue; `v` and `hr_items.value` are
+   untouched, so market listings, chest payouts and the Hunt Analyzer keep
+   reading book value. Mirrored in src/screens/shop-counter.js vendorPrice()
+   and pinned equal by tests/gold-intents.mjs G1; the strict margin (vendor ≤
+   0.5 × shop unit) is tests/vendor-shop-arbitrage.mjs. A BALANCE number — the
+   Game Designer's, mirrored here, never chosen here. */
+export const SHOP_BUYBACK_RATE = 0.5;
+
+/** `{ [itemId]: cheapest gold per unit }` over every single-item gold offer. */
+export const SHOP_UNIT_PRICE = cheapestShopUnitPrice(SHOP_OFFERS);
+
 /**
  * What the NPC vendor pays for ONE `id`. 0 means "the vendor does not buy it",
  * which is a refusal, not a free sale.
@@ -331,5 +352,7 @@ export function vendorPriceOf(items, id) {
   if (!(v > 0)) return 0;
   /* Floored at 1: a raw worth anything at all is still worth something, and a
      0g bid reads as "this item is broken" rather than "this is cheap". */
-  return it.raw ? Math.max(1, Math.floor(v * VENDOR_RAW_RATE)) : v;
+  const bid = it.raw ? Math.max(1, Math.floor(v * VENDOR_RAW_RATE)) : v;
+  const unit = catalogueGet(SHOP_UNIT_PRICE, id);
+  return unit > 0 ? Math.min(bid, Math.max(1, Math.floor(SHOP_BUYBACK_RATE * unit))) : bid;
 }

@@ -4107,11 +4107,8 @@ export default [
   }),
 
   () => tryRun('PROVISION-2: no gold offer sells for less than the vendor pays back', () => {
-    /* THE NO-PROFIT RULE, for EVERY item-granting gold offer that ships:
-       buy-then-sell must never mint gold. `>=`, not `>`: seven shipped rows sit
-       at exactly 1.00 (equip.steel_platebody 1500/1500 and seed.carrot_seed,
-       potato_seed, pumpkin_seed, tomato_seed, turnip_seed, wheat_seed) — a
-       designer follow-up, not a faucet. The strict food margin is the empty-bag test. */
+    /* THE NO-PROFIT RULE, for EVERY item-granting gold offer that ships, at the
+       strict margin: the vendor pays at most HALF the shop price (SHOP_BUYBACK_RATE). */
     const idx = window.HearthriseGold && window.HearthriseGold.shopOfferIndex();
     assert(idx && typeof window.vendorPrice === 'function', 'offer index or vendorPrice not published');
     const ids = Object.keys(idx);
@@ -4119,9 +4116,29 @@ export default [
     for (const id of ids) {
       const e = idx[id];
       const buyback = e.grants * window.vendorPrice(id);
-      assert(e.gold >= buyback,
-        e.offer + ' costs ' + e.gold + ' and sells back for ' + buyback + ' — a gold faucet');
+      assert(buyback <= 0.5 * e.gold,
+        e.offer + ' costs ' + e.gold + ' and sells back for ' + buyback
+        + ' — more than half the shop price (SHOP_BUYBACK_RATE)');
     }
+  }),
+
+  /* ── regression suite — the vendor bought back at the shop's own price
+     (steel_platebody 1500/1500, seeds at par). These are the server's numbers
+     (catalogue.js vendorPriceOf); the bag must show exactly them (CLAUDE.md §6). */
+  () => tryRun('b565 regression: the vendor pays at most half the cheapest shop unit price', () => {
+    assert(window.SHOP_BUYBACK_RATE === 0.5, 'SHOP_BUYBACK_RATE must be 0.5, got ' + window.SHOP_BUYBACK_RATE);
+    assert(window.SHOP_UNIT_PRICE && window.SHOP_UNIT_PRICE.steel_platebody === 1500,
+      'window.SHOP_UNIT_PRICE is not published from the catalogue — vendorPrice bids nothing without it');
+    const EXPECT = {
+      steel_platebody: 750, carrot_seed: 5, potato_seed: 10, pumpkin_seed: 25, turnip_seed: 2,
+      wheat_seed: 7, tomato_seed: 15, stone_maul: 70, shortbow: 60, apprentice_staff: 60,
+      iron_warhammer: 375, longbow: 325, rune_blank: 3, goldenroot_seed: 75, emberfruit_seed: 150,
+      cooked_lobster: 200, cooked_trout: 45, cooked_shrimp: 15,
+    };
+    const wrong = Object.keys(EXPECT).filter((id) => window.vendorPrice(id) !== EXPECT[id])
+      .map((id) => id + ' shows ' + window.vendorPrice(id) + ', server pays ' + EXPECT[id]);
+    assert(wrong.length === 0, 'the bag disagrees with the server buy-back: ' + wrong.join('; '));
+    assert(window.ITEMS.steel_platebody.v === 1500, 'steel_platebody book value moved');
   }),
 
   /* ── regression suite — ONE BUY GREYED EVERY BUY (live, QA account) ──

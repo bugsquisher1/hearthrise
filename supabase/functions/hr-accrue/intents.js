@@ -604,6 +604,20 @@ export const INTENT_REGISTRY = Object.freeze({
      asserted in the migration's own §4 self-check, which measures accrued_to
      across a real claim. */
   trophy_claim: Object.freeze({ bucket: 'claim', needsKey: true, collectsFirst: false }),
+  /* b564 — THE BULK SALE, AND THE ROW IS THE WHOLE POINT OF THE VERB. The
+     `shop` bucket, with vendor_sell, and ONE token per gesture: the registry
+     comment on vendor_sell above already ruled "Batch the sell; do not widen
+     the gate", and this is that batch. A 30-stack sweep that cost thirty tokens
+     emptied the player's minute of buying and stopped half-sold past thirty;
+     now it costs one, exactly like Sell All on one stack.
+
+     `collectsFirst: TRUE` for vendor_sell's reason (SETTLE-BEFORE-MUTATE): a
+     sale REMOVES priceable inputs — a tool, ammo, food — and must not under-pay
+     the night they were used for. ONE settle for N stacks, which is the other
+     half of why the verb exists (N per-stack sells were N settles per tap).
+     The delta carries `gold` and `items` only; guardStampKeys re-checks that on
+     the delta actually built. */
+  vendor_sell_many: Object.freeze({ bucket: 'shop', needsKey: true, collectsFirst: true }),
 });
 
 /** The registry columns every row must carry, exported so the guard reads the
@@ -933,6 +947,17 @@ export const INTENT_ERRORS = Object.freeze({
   UNKNOWN_MONSTER: 'unknown_monster',     // 409 — not in the server's combat catalogue
   NOT_YET: 'not_yet',                     // 409 — the kill threshold is not reached
   ALREADY_OWNED: 'already_owned',         // 409 — the trophy row already exists
+
+  /* ── THE BULK SALE (b564) ─────────────────────────────────────────────────
+     ONE code minted HERE for the SHAPE of the list; every per-line catalogue
+     answer reuses vendor_sell's words (`unknown_item`, `item_not_sellable`)
+     with the offending line named in `detail` (`item`, `line`), and the stock
+     answer is hr_apply's own `insufficient_item` for the WHOLE batch:
+       bad_lines   400 — `lines` absent, empty, longer than MAX_SELL_LINES, a
+                   malformed line, an out-of-range qty, or the same item twice.
+                   Minted here, answered from the parsed request before any
+                   database work. */
+  BAD_LINES: 'bad_lines',                 // 400 — absent or malformed sale lines
 });
 
 /* ── THE REFUSALS THAT CANNOT CARRY AN ENVELOPE ────────────────────────────
@@ -1054,6 +1079,13 @@ export const STATELESS_REFUSALS = Object.freeze([
        ran ahead of the server's, and the envelope is how it reconciles instead
        of arguing (CLAUDE.md §6). */
   INTENT_ERRORS.BAD_TROPHY,
+  /* THE BULK SALE — its ONE shape refusal, answered from the parsed request
+     BEFORE the rate gate and before any database work, exactly like bad_qty.
+     Nothing was written, so the client's LAST envelope is still current. Its
+     per-line `unknown_item` / `item_not_sellable` are already on this list
+     (shared with vendor_sell); its `insufficient_item` is hr_apply's, under the
+     lock, and carries the envelope the client restores the bag from. */
+  INTENT_ERRORS.BAD_LINES,
 ]);
 
 /** Must a refusal with this code carry the `hr_state_of` envelope? */

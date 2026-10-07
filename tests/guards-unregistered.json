@@ -107,16 +107,6 @@
         "selftest": false
       }
     },
-    "gem-daily-budget.mjs": {
-      "reason": "family pglite-chain-replay: Security's blocking condition 1 — no delta key without a per-call clamp AND a per-day ledger-derived ceiling. NOTE: measured as asserts:false, so the condition is currently DOCUMENTED rather than enforced by this file. The clamp itself is enforced server-side by hr_day_budget_limits(). Worth a verdict.",
-      "family": "pglite-chain-replay",
-      "owner": "security-engineer",
-      "disposition": "needs-a-verdict-first",
-      "verified": {
-        "asserts": false,
-        "selftest": false
-      }
-    },
     "open-beta.mjs": {
       "reason": "family pglite-chain-replay: the open-beta invite/door surface. The in-page suite registers beta-invite-gate for the live half.",
       "family": "pglite-chain-replay",

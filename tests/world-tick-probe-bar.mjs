@@ -163,6 +163,9 @@ function manualChain(c0, from, to, m) {
     base.accruedToMs = mark;
     base.accruedToText = markText;
     const sess = carrier ? applyShadowState(base, carrier) : base;
+    /* THE PB-2 DEFECT, RE-OPENED: the carrier forgets max_hp (every fire
+       rebuilds it from the frozen row) — PB-2's own mutant. */
+    if (mut.dropMaxHp) sess.maxHp = c0.maxHp;
     if (mut.armedMaxHp) {
       sess.maxHp = Math.max(Number(sess.maxHp) || 0,
         levelFromXp(Number((sess.skills || {}).hitpoints) || 0));
@@ -341,17 +344,32 @@ judge('PB-1', cal.verdict === 'PASS',
 }
 
 // ── PB-2 THE PINNED FINDING: the shipped SHADOW composition carries maxHp ──
-{
-  const probes = buildRead(shippedShadow);
-  const v = judgeGroup('combat', probes, { rareIds: RARE_IDS });
+/* READ ON THE REPLAY EXPECTATION, not the one realised sum. The realised
+   chain-vs-one tick sum over 15 single-seed probes has a spread of ~1.5 %
+   (one probe alone swings 800 of 53k ticks), so a ±1 % pin on it re-rolls
+   whenever the engine's trajectory moves — the dealt-damage XP rule moved it
+   from 0.0 % to 1.2 % with no carrier change at all. The expectation over
+   REPLICAS seed families (se ~0.3 %) is the quantity a carrier loss moves;
+   the realised figure is still printed. --mutate proves the pin bites:
+   `dropMaxHp` (the defect PB-2 was written for) must turn it red. */
+function pb2(chainFn, mut, replicas) {
+  const v = judgeGroup('combat', buildRead(chainFn, mut, replicas), { rareIds: RARE_IDS });
   const t = v.stats.ticks || { one: 0, chain: 0 };
-  const loss = t.one ? ((t.chain - t.one) / t.one) * 100 : NaN;
-  judge('PB-2 (pinned)', v.verdict === 'PASS' && Math.abs(loss) <= 1,
-    `the shipped shadow composition reads ${loss.toFixed(1)}% ticks on death-bearing probes and the bar `
-    + 'is GREEN — the carrier carries max_hp (lane/world-tick-maxhp-carry closed the −13.6 % it pinned).',
-    `the pin MOVED: the shipped shadow composition now reads ${v.verdict} at ${loss.toFixed(1)}% ticks `
-    + '(required: PASS inside ±1 %). The carrier has lost something the armed chain keeps — find it.\n      - '
-    + (v.reasons || []).join('\n      - '));
+  const realised = t.one ? ((t.chain - t.one) / t.one) * 100 : NaN;
+  const rp = (v.stats.replay || {}).ticks;
+  const rel = rp ? rp.rel * 100 : NaN;
+  const se = rp ? rp.se * 100 : NaN;
+  return { v, realised, rel, se, ok: v.verdict === 'PASS' && Math.abs(rel) <= 1 };
+}
+{
+  const r = pb2(shippedShadow);
+  judge('PB-2 (pinned)', r.ok,
+    `the shipped shadow composition reads ${r.rel.toFixed(2)}% ± ${r.se.toFixed(2)}% ticks (replay expectation; `
+    + `realised ${r.realised.toFixed(1)}%) and the bar is GREEN — the carrier carries max_hp `
+    + '(lane/world-tick-maxhp-carry closed the −13.6 % it pinned).',
+    `the pin MOVED: the shipped shadow composition now reads ${r.v.verdict} at ${r.rel.toFixed(2)}% ± ${r.se.toFixed(2)}% `
+    + `ticks in expectation (realised ${r.realised.toFixed(1)}%; required: PASS inside ±1 %). The carrier has lost `
+    + 'something the armed chain keeps — find it.\n      - ' + (r.v.reasons || []).join('\n      - '));
 }
 
 // ── THE MUTANTS ────────────────────────────────────────────────────────────
@@ -398,6 +416,13 @@ if (MUTATE) {
       for (const r of v.reasons) console.log(`      - ${r}`);
       blind++;
     }
+  }
+  /* PB-2's own tooth: the carrier forgets max_hp. Read by the PB-2 pin, not
+     the bar (the bar is calibrated on the armed model, which never had it). */
+  {
+    const r = pb2(manualChain, { dropMaxHp: true }, MUTANT_REPLICAS);
+    if (!r.ok) console.log(`  ✓ --dropMaxHp RED on PB-2: ${r.v.verdict} at ${r.rel.toFixed(2)}% ± ${r.se.toFixed(2)}% ticks`);
+    else { console.log(`  ✗ --dropMaxHp stayed green on PB-2 (${r.rel.toFixed(2)}%) — the pin is blind to the defect it pins`); blind++; }
   }
   if (blind || problems) {
     console.error(`\nworld-tick-probe-bar --mutate: ${blind} blind mutant(s), ${problems} red arm(s)`);

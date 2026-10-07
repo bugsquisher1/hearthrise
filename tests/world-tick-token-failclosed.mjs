@@ -195,7 +195,16 @@ async function main(selftest) {
   // must still be caught by the other, and only removing BOTH may reproduce
   // T-1. An expectation per mutation, rather than one blanket rule, is what
   // makes that distinction measurable instead of asserted.
-  console.log('\n--selftest  §0b and d10 removed, singly and together');
+  //
+  // Every expectation must DIFFER from the unpatched file's behaviour, or the
+  // arm proves nothing. Measured 2026-10-07: the old MF2 ("d10 downgraded →
+  // still refused by §0b") read the same with no patch planted, because §0b
+  // refuses before d10 is ever reached — d10 ALONE is unobservable, and its
+  // live half is MF1 + MF3 (§0b off: d10 refuses; both off: applies). MF2 now
+  // plants the opposite failure of the gate, an OVER-fire, which is what F-1a
+  // exists to catch. HR_MUTANT_CONTROL=1 (tests/mutant-control.mjs) replays
+  // every arm with nothing planted; each must then read "survived".
+  console.log('\n--selftest  §0b and d10 removed, singly and together; §0b over-firing');
   const NOTICE_0B = [
     "  if to_regclass('vault.decrypted_secrets') is not null\n"
     + "     and public.hr_tick_crypto_schema() is null then\n    raise exception",
@@ -206,23 +215,30 @@ async function main(selftest) {
     "      raise exception 'd10: pgcrypto is unreachable on a database that has Vault, and the '",
     "      raise notice 'd10: pgcrypto is unreachable on a database that has Vault, and the '",
   ];
+  const OVERFIRE_0B = [
+    "  if to_regclass('vault.decrypted_secrets') is not null\n"
+    + "     and public.hr_tick_crypto_schema() is null then\n    raise exception",
+    "  if public.hr_tick_crypto_schema() is null then\n    raise exception",
+  ];
+  // [name, patch, seed, expect, marker, by]
   const mutations = [
     ['MF1 §0b downgraded to a `raise notice` (the review\'s exact wording for T-1)',
-      [NOTICE_0B], 'refused', D10_MARKER,
+      [NOTICE_0B], SHIM_VAULT, 'refused', D10_MARKER,
       'd10 — the backstop at the far end of §5 still refuses the apply'],
-    ['MF2 d10 downgraded to a `raise notice`',
-      [NOTICE_D10], 'refused', T1_MARKER,
-      '§0b — the gate at the top still refuses the apply'],
+    ['MF2 §0b drops its Vault clause and over-fires on the credential-free replay',
+      [OVERFIRE_0B], null, 'refused', T1_MARKER,
+      'F-1a — the canonical chain no longer applies, so every db-replay guard would go dark'],
     ['MF3 BOTH gates downgraded — T-1 itself, reproduced',
-      [NOTICE_0B, NOTICE_D10], 'applied', null,
+      [NOTICE_0B, NOTICE_D10], SHIM_VAULT, 'applied', null,
       'F-2a — the file applies green and the tick is a permanent no-op, which is '
       + 'the defect exactly; F-2a is the arm that goes red'],
   ];
   let caught = 0;
-  for (const [name, patch, expect, marker, by] of mutations) {
+  console.log(`[mutants] ${mutations.length}`);
+  for (const [name, patch, seed, expect, marker, by] of mutations) {
     let verdict = null;
     try {
-      const r = await apply(SHIM_VAULT, patch);
+      const r = await apply(seed, patch);
       if (expect === 'refused') {
         if (r.applied) verdict = 'THE APPLY SUCCEEDED — the remaining gate did not bite';
         else if (!r.error.includes(marker)) {
@@ -235,6 +251,7 @@ async function main(selftest) {
         verdict = `the apply was still refused: ${r.error.split('\n')[0].slice(0, 120)}`;
       }
     } catch (e) { verdict = `harness: ${String((e && e.message) || e).split('\n')[0]}`; }
+    console.log(`[mutant] ${name.split(' ')[0]} ${verdict === null ? 'caught' : 'survived'}`);
     if (verdict === null) { caught += 1; console.log(`  ✓ ${name}\n      as expected (${expect}) — ${by}`); }
     else { failed += 1; console.log(`  ✗ ${name}\n      ${verdict}`); }
   }

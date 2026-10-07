@@ -269,7 +269,11 @@ export async function bootReplay({ patches, seedBefore, tolerant = false, upTo, 
     upTo = patched.length ? patched.reduce((a, b) => (order.indexOf(a) >= order.indexOf(b) ? a : b)) : undefined;
   }
   /* The scope's own control (see replayScopeError). Diagnostic only; unset in CI. */
-  if (process.env.HR_REPLAY_SCOPE_CONTROL === 'scoped') patches = undefined;
+  /* HR_MUTANT_CONTROL=1 is tests/mutant-control.mjs's switch: plant NOTHING,
+     keep every scope, so an arm that still reads "caught" is caught by
+     something other than its mutant. Same effect as =scoped for SQL patches;
+     guards with JS mutants honour it in their own loaders. */
+  if (process.env.HR_REPLAY_SCOPE_CONTROL === 'scoped' || process.env.HR_MUTANT_CONTROL) patches = undefined;
   if (process.env.HR_REPLAY_SCOPE_CONTROL === 'full') { patches = undefined; upTo = undefined; }
   const sources = new Map();
   for (const [name, path] of files) {

@@ -226,9 +226,25 @@ begin
      or has_column_privilege('anon', 'public.player_skills', 'xp_frac', 'UPDATE')
      or has_column_privilege('anon', 'public.player_skills', 'xp_frac', 'INSERT') then
     raise exception 'xp-frac self-check (b): a client role can write player_skills.xp_frac'; end if;
+  --     NARROWED 2026-10-13 (2026-10-13-party-settle-frac-keys.sql; Security
+  --     re-review): hr_party_tick_settle names the key inside its `c_delta_ok`
+  --     REFUSAL ALLOWLIST, which writes nothing. That one declaration is cut
+  --     out before the scan; any other mention, in that body or any other,
+  --     still raises. Required: tests/xp-frac-carry.mjs X6 re-applies this
+  --     file on the full chain, where the party allowlist already exists.
   select string_agg(distinct p.proname, ',' order by p.proname) into v_names
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-   where n.nspname = 'public' and p.prosrc like '%xp\_frac%'
+   cross join lateral (select regexp_replace(p.prosrc, '--[^\n]*', '', 'g') as code) c
+   where n.nspname = 'public'
+     and (case when p.proname = 'hr_party_tick_settle'
+                    -- the carve-out holds only while c_delta_ok is used in
+                    -- exactly two places, its declaration and the key check,
+                    -- so a writer that reads a name out of it (format %I) is
+                    -- scanned in full (Security, 2026-10-13 #4)
+                    and (length(c.code) - length(replace(c.code, 'c_delta_ok', ''))) / 10 = 2
+                    and strpos(c.code, 'k = any (c_delta_ok)') > 0
+               then regexp_replace(p.prosrc, 'c_delta_ok\s+constant\s+text\[\]\s*:=\s*array\[[^]]*\];', '')
+               else p.prosrc end) like '%xp\_frac%'
      and p.proname not in ('hr_apply', 'hr_state_of');
   if v_names is not null then
     raise exception 'xp-frac self-check (b): functions other than hr_apply / hr_state_of name xp_frac: % '

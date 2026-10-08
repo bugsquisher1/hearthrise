@@ -101,7 +101,7 @@ const JS_MUTANTS = [
   { name: 'paid grant moves the remainder', arm: 'X8', file: 'supabase/functions/hr-accrue/accrual.js',
     edits: [['      if (curAtMs < xpEligibleFromMs && state.xpFrac) {\n', '      if (false) {\n']] },
   { name: 'the S4 fold stops at xp_frac', arm: 'X9', file: 'supabase/functions/hr-accrue/tick.js',
-    edits: [["'xp', 'xp_frac', 'gold',", "'xp', 'gold',"]] },
+    edits: [["'xp', 'xp_frac', 'companion_xp_frac', 'gold',", "'xp', 'companion_xp_frac', 'gold',"]] },
   { name: 'xp_frac folded whole-map last-wins', arm: 'X9', file: 'supabase/functions/hr-accrue/tick-contract.js',
     edits: [['      if (ABSOLUTE_MAP.includes(k)) { out[k] = Object.assign(out[k] || {}, v || {}); continue; }', '      if (ABSOLUTE_MAP.includes(k)) { out[k] = v; continue; }']] },
   { name: 'tick chain drops the remainder', arm: 'X3', file: 'supabase/functions/hr-accrue/tick-shadow.js',

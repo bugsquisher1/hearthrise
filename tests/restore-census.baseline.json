@@ -1174,7 +1174,7 @@
   "player_progress": {
    "class": "restore_only",
    "wiped_at_cutover": false,
-   "note": "PLAYER VALUE — quests, dailies, bounties, lifetime stats, collections, flags, and the bestiary kill counts. 914 rows in production. A generic (kind, key, period_key) -> value space; losing it resets every quest, every collection and every lifetime counter, and because the quest model is a LIFETIME count there is nothing else in the database it could be reconstructed from."
+   "note": "PLAYER VALUE — quests, dailies, bounties, lifetime stats, collections, flags, and the bestiary kill counts. 914 rows in production. A generic (kind, key, period_key) -> value space; losing it resets every quest, every collection and every lifetime counter, and because the quest model is a LIFETIME count there is nothing else in the database it could be reconstructed from. Since 2026-10-12-companion-xp-frac.sql each row also carries xp_frac, non-zero only on a stat companion_xp:<id> row: the pet's [0,1) XP remainder (written only by hr_apply) — a restore without it costs under 1 companion XP per pet, never a level."
   },
   "player_skills": {
    "class": "restore_only",

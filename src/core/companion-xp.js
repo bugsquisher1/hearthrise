@@ -73,6 +73,10 @@ import { COMPANIONS } from '../data/companions.js?v=564';
    tests/companion-perk.mjs. Importing its cap here inherits that pin rather than
    opening a third copy that could drift. */
 import { companionXpToReach, COMPANION_MAX_LEVEL } from './companion-perk.js?v=564';
+/* THE CARRY'S ARITHMETIC, REUSED — the same fixed point grantXp carries a
+   skill's remainder in (2026-10-09-xp-frac-carry.sql). One mechanism, two
+   ledgers: a skill's remainder and a companion's. */
+import { XP_FRAC_SCALE, xpFracUnits } from './progression.js?v=564';
 
 /* THE CAP, DERIVED FROM THE SHARED CURVE. Cumulative XP to reach the max level —
    the same ceiling src/features/companions.js clamps to (COMPANION_XP_CAP). */
@@ -113,37 +117,77 @@ function own(obj, key) {
 }
 
 /**
- * The INTEGER XP a span earns for the equipped companion, clamped to the
- * remaining headroom under the cap.
+ * The grant a span earns the equipped companion: the INTEGER `add` (the
+ * `stat companion_xp:<id>` op — player_progress.value is a bigint and hr_apply
+ * casts `add::bigint`) and, when the server owns a remainder, the new
+ * remainder `frac` in [0,1).
  *
- * ⚠ FLOORED, and the floor is forced, not a choice: player_progress.value is a
- *   bigint and hr_apply casts `add::bigint`, so a fractional grant would raise
- *   invalid_text_representation and cost the player the whole night. For a
- *   utility pet (0.5/action) this discards at most <1 XP of remainder per
- *   settle — a negligible UNDER-pay (the safe direction), documented rather
- *   than carried in a schema column. A dedicated pet (1/action) is exact.
+ * ── THE CARRY (2026-10-12-companion-xp-frac.sql) ────────────────────────────
+ * A utility pet earns 0.5 per action. Floored per settle, a 10-second
+ * world-tick window holding one mithril swing paid the Fox NOTHING, every
+ * window, forever — and a tick chain paid ~4% under one span of the same
+ * actions. Exactly grantXp's defect, so exactly grantXp's cure: the remainder
+ * is server state (player_progress.xp_frac on the companion's own row, written
+ * only by hr_apply, projected by hr_state_of as companions.frac), the credit is
+ * floor(remainder + per x actions) in XP_FRAC_SCALE fixed point, and the rest
+ * is carried. Over any split of the actions the credit is floor(remainder0 +
+ * per x total) — a chain of windows equals one span, to the unit.
+ *
+ * PRESENCE OF KEY, the xpFrac idiom: `opts.frac` undefined/null means the
+ * database has no column (no `companions.frac` projected), and the grant keeps
+ * the pre-carry per-span floor with `frac` undefined — so the engine proposes
+ * no `companion_xp_frac` key an older hr_apply would refuse as unknown.
+ *
+ * THE CAP. The credit never passes COMPANION_XP_CAP; when the clamp binds the
+ * pet is maxed and the remainder is 0 (there is nothing left to carry toward).
+ * A chain clamps exactly once, like a span: tick-shadow.js advance() carries
+ * each window's credit into the next window's `currentXp`.
  *
  * @param opts.companionId  the equipped companion's id (server-owned)
  * @param opts.currentXp    the companion's current server XP (for the clamp)
  * @param opts.activityType 'combat-kill' | 'gather' | 'artisan'
  * @param opts.actionCount  the number of role-matched actions the span produced
- * @returns a non-negative integer XP grant, 0 when nothing is owed
+ * @param opts.frac         the server's carried remainder, or undefined/null
+ * @returns { add, frac } — add a non-negative integer; frac a number in [0,1)
+ *          when carried, else undefined
  */
-export function companionSpanXp(opts) {
+export function companionSpanGrant(opts) {
   const o = opts || {};
+  const carried = o.frac !== undefined && o.frac !== null;
+  const f0 = carried ? xpFracUnits(o.frac) : 0;
+  const none = { add: 0, frac: carried ? f0 / XP_FRAC_SCALE : undefined };
   const id = o.companionId;
-  if (typeof id !== 'string' || !own(COMPANIONS, id)) return 0;
+  if (typeof id !== 'string' || !own(COMPANIONS, id)) return none;
   const def = COMPANIONS[id];
   const role = def && def.role;
-  if (!role) return 0;
+  if (!role) return none;
   const per = companionActionXp(role, o.activityType);
-  if (!(per > 0)) return 0;
+  if (!(per > 0)) return none;
   const n = Math.floor(Number(o.actionCount) || 0);
-  if (!(n > 0)) return 0;
-  const raw = Math.floor(per * n);
-  if (!(raw > 0)) return 0;
+  if (!(n > 0)) return none;
   const cur = Math.max(0, Math.floor(Number(o.currentXp) || 0));
   const headroom = COMPANION_XP_CAP - cur;
-  if (!(headroom > 0)) return 0;
-  return Math.min(raw, headroom);
+  if (!(headroom > 0)) return { add: 0, frac: carried ? 0 : undefined };
+  if (!carried) {
+    const raw = Math.floor(per * n);
+    return { add: raw > 0 ? Math.min(raw, headroom) : 0, frac: undefined };
+  }
+  /* FIXED POINT, integer arithmetic only — xpFracUnits clamps the remainder to
+     [0, SCALE-1], so a projected 900 cannot mint. */
+  const total = f0 + Math.round(per * n * XP_FRAC_SCALE);
+  const whole = Math.floor(total / XP_FRAC_SCALE);
+  if (whole >= headroom) return { add: headroom, frac: 0 };
+  return { add: whole, frac: (total - whole * XP_FRAC_SCALE) / XP_FRAC_SCALE };
+}
+
+/**
+ * The INTEGER XP a span earns for the equipped companion with NO carried
+ * remainder (the pre-carry per-span floor), clamped to the remaining headroom
+ * under the cap. `companionSpanGrant(opts).add` without `frac`; kept for the
+ * client-matrix pins in tests/companion-xp.mjs.
+ */
+export function companionSpanXp(opts) {
+  const o = Object.assign({}, opts || {});
+  delete o.frac;
+  return companionSpanGrant(o).add;
 }

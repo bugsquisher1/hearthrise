@@ -2065,9 +2065,14 @@ jobs:
   # ~11 = 635 s (10.6 min). Budget = x2 = 21.2, rounded up to 22.
   # + xp-frac-carry (2026-10-08, measured locally): 3 s plain + 129 s mutate
   # = 767 s (12.8 min). Budget = x2 = 25.6, rounded up to 26.
+  # + companion-xp-frac (2026-10-08, measured locally): 35 s plain + 176 s
+  # mutate = 978 s (16.3 min). Budget = x2 = 32.6, rounded up to 33.
+  # + delta-key-allowlists (2026-10-13, measured locally): 29 s plain + 3 s
+  # mutate (template-warm; ~30 s cold) = 1040 s (17.3 min). Budget = x2 = 34.7,
+  # rounded up to 35.
   db-replay-7:
     runs-on: ubuntu-latest
-    timeout-minutes: 26
+    timeout-minutes: 35
 
     steps:
       - uses: actions/checkout@v4
@@ -2119,6 +2124,33 @@ jobs:
         run: |
           node tests/xp-frac-carry.mjs
           node tests/xp-frac-carry.mjs --mutate
+
+      # THE PET'S FRACTIONAL XP IS CARRIED AND ITS CAP IS THE SERVER'S
+      # (2026-10-12-companion-xp-frac.sql). A tick chain pays a utility and a
+      # combat pet exactly what one span does (the Fox on mithril earns > 0),
+      # attended == away, the remainder folds per key and is server-only, and
+      # hr_apply clamps companion XP at the cap, journalled. --mutate plants six
+      # JS defects in a copy and ten SQL defects into the migration's §4.
+      - name: Companion XP fraction carry + server cap (base + mutate)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/companion-xp-frac.mjs
+          node tests/companion-xp-frac.mjs --mutate
+
+      # EVERY DELTA-KEY ALLOWLIST COVERS EVERY KEY THE ENGINE CAN PROPOSE
+      # (2026-10-13-party-settle-frac-keys.sql). The proposable set is DERIVED
+      # from accrual.js / tick-gather.js; hr_apply's c_delta_keys, the party
+      # settle's c_delta_ok + c_stamp and foldDeltas must cover it, and an armed
+      # party window carrying xp_frac + companion_xp_frac pays each member what
+      # a solo hr_apply pays their twin (control: the pre-fix body refuses it
+      # unknown_delta_key). --mutate: 17 mutants, one per allowlist missing a key,
+      # a NEW engine key, eight non-literal key writes (K0), a format(%I) reader
+      # of c_delta_ok (KR), a dormant key's column appearing, the scan narrowed.
+      - name: Delta-key allowlists cover the engine (base + mutate)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/delta-key-allowlists.mjs
+          node tests/delta-key-allowlists.mjs --mutate
 
       # THE CONTROL HALF OF A MUTATION PROOF. Every registered guard is re-run
       # with HR_MUTANT_CONTROL=1 (nothing planted, scope kept); any arm that

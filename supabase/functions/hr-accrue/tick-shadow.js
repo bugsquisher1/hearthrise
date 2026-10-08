@@ -76,7 +76,7 @@ export function advance(char, res) {
      (which forwards exactly ENGINE_STATE_KEYS) can never hand it to the
      engine as an input. */
   const ch = char._chain || (char._chain = {
-    gold: 0, xp: {}, xpFrac: {}, items: {}, bestiaryKills: {},
+    gold: 0, xp: {}, xpFrac: {}, companionXpFrac: {}, items: {}, bestiaryKills: {},
     deathsToday: 0, deathsLifetime: 0, vigourMin: 0, vigourRemMs: 0, activity: null,
   });
   if (typeof d.gold === 'number') {
@@ -94,6 +94,14 @@ export function advance(char, res) {
   if (d.xp_frac && typeof d.xp_frac === 'object') {
     char.xpFrac = Object.assign({}, char.xpFrac, d.xp_frac);
     ch.xpFrac = Object.assign(ch.xpFrac || {}, d.xp_frac);
+  }
+  /* THE PET'S REMAINDER, the same checkpoint per companion
+     (2026-10-12-companion-xp-frac.sql): without it every 10 s window would
+     restart the Fox's half-XP at the row's value and a chain would pay a
+     utility pet nothing for one-swing windows. */
+  if (d.companion_xp_frac && typeof d.companion_xp_frac === 'object') {
+    char.companionXpFrac = Object.assign({}, char.companionXpFrac, d.companion_xp_frac);
+    ch.companionXpFrac = Object.assign(ch.companionXpFrac || {}, d.companion_xp_frac);
   }
   /* A Hitpoints level-up raises the ceiling the next window fights at, as the
      max_hp trigger does on the armed write (tick-contract.js raiseMaxHpToLevel).

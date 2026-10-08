@@ -122,7 +122,7 @@ export { refusalCarriesState, STATELESS_REFUSALS };
    `hearthfindReady`, `enchant` and `combatStyle` invisible to a tick window. */
 export const ENGINE_STATE_KEYS = Object.freeze([
   'hp', 'maxHp', 'gold',
-  'skills', 'xpFrac', 'inventory', 'equipment',
+  'skills', 'xpFrac', 'companionXpFrac', 'inventory', 'equipment',
   'enchant', 'buffs', 'combatStyle',
   'autoEatEnabled', 'autoEatFood', 'autoEatPct',
   'toolCarry', 'ammoCarry', 'fight',
@@ -183,6 +183,20 @@ export function engineInputsFromEnvelope(env, nowMs) {
     const cell = e.skills[k];
     if (cell && typeof cell === 'object' && 'frac' in cell) (xpFrac || (xpFrac = {}))[k] = Number(cell.frac) || 0;
   }
+  /* THE PET'S CARRIED REMAINDER (2026-10-12-companion-xp-frac.sql):
+     `companions.frac`, `{ <companion_id>: [0,1) }`, beside `companions.xp`.
+     PRESENCE OF KEY, as above: a database without the column projects no
+     `frac`, this is null, and the engine proposes no `companion_xp_frac` key.
+     Envelope-only; no request body carries it. */
+  const comps = e.companions;
+  let companionXpFrac = null;
+  if (comps && typeof comps === 'object' && 'frac' in comps) {
+    companionXpFrac = {};
+    const f = comps.frac;
+    if (f && typeof f === 'object' && !Array.isArray(f)) {
+      for (const k of Object.keys(f)) companionXpFrac[k] = Number(f[k]) || 0;
+    }
+  }
 
   return {
     /* ── THE POINTER AND THE TWO WATERMARKS ──────────────────────────────── */
@@ -211,6 +225,7 @@ export function engineInputsFromEnvelope(env, nowMs) {
     /* ── THE PROJECTIONS, WHICH LIVE AT THE ENVELOPE TOP LEVEL ───────────── */
     skills,
     xpFrac,
+    companionXpFrac,
     equipment: e.equipment || {},
     /* `inventory` is the first input the engine SPENDS rather than only reads —
        auto-eat consumes food — which is why the returned delta's `items` map is

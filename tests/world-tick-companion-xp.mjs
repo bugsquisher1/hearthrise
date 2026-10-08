@@ -28,10 +28,10 @@
 //       holds if advance() carries each window's credit into the next
 //       window's clamp.
 //
-// UTILITY PETS (0.5/action) are MEASURED, not asserted: companionSpanXp floors
-// per span (player_progress.value is a bigint), so a 10 s window holding one
-// action credits 0 where a span pairs them. Closing that needs a server-owned
-// remainder (the xp_frac carrier's shape) — a DB lane, reported, not hidden.
+// UTILITY PETS (0.5/action) are MEASURED here, on sessions WITHOUT a projected
+// remainder (a database before 2026-10-12-companion-xp-frac.sql): floored per
+// window, a 10 s window holding one action credits 0. The carried remainder that
+// closes it is asserted in tests/companion-xp-frac.mjs (C2: the Fox on mithril).
 //
 // Exit: 0 green (or, under --mutate, every mutant caught) · 1 red · 2 harness.
 // ============================================================================

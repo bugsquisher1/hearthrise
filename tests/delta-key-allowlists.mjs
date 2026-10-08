@@ -308,6 +308,11 @@ async function dbArms(db, { log = () => {} } = {}) {
     const pid = (await one('insert into public.party (leader_user, leader_slot) values ($1, 0) returning id', [A])).id;
     await q(`insert into public.party_member (party_id, user_id, slot, role, joined_at)
              values ($1, $2, 0, 'leader', now() - interval '2 hours'), ($1, $3, 0, 'member', now() - interval '1 hour')`, [pid, A, B]);
+    /* The combat cohort (2026-10-14-world-tick-m4-party-horizon.sql (3a)): an
+       armed party window pays only hunters the tick OWNS for combat. */
+    await q(`insert into public.hr_tick_ownership (user_id, slot, channel, owned)
+             values ($1, 0, 'combat', true), ($2, 0, 'combat', true)
+             on conflict (user_id, slot, channel) do update set owned = true`, [A, B]);
     const hunt = (await one('insert into public.party_hunt (party_id, active_id, accrued_to) values ($1, $2, $3) returning id',
       [pid, cact, mark])).id;
     await q(`insert into public.party_tick_lease (party_id, owned, lease_holder, lease_until)
@@ -464,11 +469,6 @@ async function main() {
   if (!MUTATE) {
     console.log('\ndelta-key-allowlists: every allowlist covers every key the engine can propose');
     const red = await everything(db, src, fracSql, { log: (s) => console.log(s) });
-    // PI
-    const m0 = await settleMd5(db);
-    try { await db.exec(migSql); } catch (e) { red.push(`PI: a re-apply RAISED: ${String(e.message).split('\n')[0]}`); }
-    if ((await settleMd5(db)) !== m0) red.push('PI: a re-apply moved the body');
-    else console.log(`  ✓ PI — ${MIG} re-applied byte-identically (§0 accepted its own body, §4 passed twice)`);
     // P0 CONTROL: the pre-fix body.
     await db.exec(preSettle);
     const pre = await dbArms(db);
@@ -476,6 +476,16 @@ async function main() {
     if (!pre.some((x) => x.startsWith('P:') && x.includes('unknown_delta_key'))) {
       red.push(`P0: with party-drop's body P was not refused unknown_delta_key (${pre.join(' | ') || 'green'}) — the arm cannot see the bug`);
     } else console.log('  ✓ P0 — CONTROL: with the pre-fix body the same window is refused unknown_delta_key (the regression, reproduced)');
+    // PI — AFTER P0, which re-installed party-drop's body and then this file's:
+    // the settle is this file's own output again, so its re-apply is measured
+    // at its own chain position. (At the chain head a LATER file —
+    // 2026-10-14-world-tick-m4-party-horizon.sql — restates the body, and this
+    // file's §0 refuses any body but its own two, as every restating file's
+    // does; that later file's own guard measures its own re-apply.)
+    const m0 = await settleMd5(db);
+    try { await db.exec(migSql); } catch (e) { red.push(`PI: a re-apply RAISED: ${String(e.message).split('\n')[0]}`); }
+    if ((await settleMd5(db)) !== m0) red.push('PI: a re-apply moved the body');
+    else console.log(`  ✓ PI — ${MIG} re-applied byte-identically (§0 accepted its own body, §4 passed twice)`);
     for (const x of red) console.log(`  ✗ ${x}`);
     await db.close();
     console.log(red.length ? `\nRED (${red.length})` : '\nGREEN: no delta-key allowlist can lag the engine again without this going red');

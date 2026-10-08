@@ -7,14 +7,14 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-10-08",
- "digest": "e4b446aedc7a8a80126523c80e6837264296ad8073939007c52bc24284adfe6b",
+ "digest": "bd054f1a9bb61348d13033167f7ed8f7ff2685fa67679264627e289f41a0f8c9",
  "counts": {
   "relations": 146,
   "functions": 356,
   "policies": 95,
   "indexes": 210,
   "triggers": 22,
-  "constraints": 414,
+  "constraints": 415,
   "columns": 894,
   "rls": 126,
   "event_triggers": 1
@@ -1089,6 +1089,7 @@
    "hr_tick_config :: hr_tick_config_cadence_ck",
    "hr_tick_config :: hr_tick_config_catchup_ck",
    "hr_tick_config :: hr_tick_config_channels_ck",
+   "hr_tick_config :: hr_tick_config_combat_frame_ck",
    "hr_tick_config :: hr_tick_config_edge_url_ck",
    "hr_tick_config :: hr_tick_config_flush_ck",
    "hr_tick_config :: hr_tick_config_flush_ge_cadence_ck",

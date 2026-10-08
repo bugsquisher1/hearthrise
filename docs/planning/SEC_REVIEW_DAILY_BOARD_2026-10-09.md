@@ -33,3 +33,22 @@ Method: read every grant and body; replayed the chain in PGlite; ran exploit cal
 - Display only, fails closed: `goalClaimable` ignores the per-row `offered` field. For up to 120 s after UTC midnight a cached board can show a Claim button the server refuses with `not_offered`, which is recorded.
 - The drift test binds pool membership only to the 2026-08-23 catalogue seed. A later delete of a catalogue row would show a goal the server refuses (fails closed). §4(b) catches a short board at apply time.
 - `hr_claim_daily` stays client-callable until the retire migration applies. This is unchanged from today and bounded by its own once-guard.
+
+## RE-VERIFY — `origin/lane/daily-board` @ `95b877dfa231454e80f16f41a60e998692c994d0` (2026-10-09)
+
+**Verdict: GO-WITH-CHANGES (C1b).** Both migrations remain apply-safe. C2 is closed, and C1 is closed except for one arm.
+
+**Method.** To simulate a later restatement, I appended a mutating `do` block to the end of the board migration in a local copy (nothing committed). I then ran both guards against the full chain. The replay date was 2026-10-08, when the board dealt fish, cook and gold_500.
+
+| Mutant (chain end) | goal-counter-kinds | goal-gold-retune |
+|---|---|---|
+| A: claim reads the lifetime row instead of the daily row | green | **RED** |
+| B: state reads the lifetime row | **RED** | green |
+| C: claim pays 2× gold | green | **RED** |
+| D: `not_offered` gate removed | **RED** | **RED** |
+| E: claim adds the lifetime stock to the daily count (the real backfill exposure) | **green** | **green** |
+
+- **C1b (CONFIRMED gap; the change still required before merge).** The claim-half probe in `tests/goal-counter-kinds.mjs` (~line 344) only grades `plant`. On a day the board does not deal `plant` (6 of 9 goals are off the board on any day), the probe sees only `not_offered`, so mutant E passes both guards. **Fix:** when `plant` is not dealt, also stamp a lifetime `stat` row for a dealt daily-counter goal and require `not_complete` with have=0. Add mutant E as a selftest arm.
+- Nothing else regressed. All of the following exited 0: schema-drift; daily-board `--selftest` (9/9); goal-catalogue-drift `--selftest` (10/10); goal-counter-kinds plain and `--selftest` (11 arms); goal-gold-retune plain and `--selftest` (6/6); intent-mismatch; modal-goal-claim; rejections-journal; lane-done.
+- DAILY-BOARD-3 (client Claim gate) is sound. It reads the server's `offered` and `day_key`, and the unpadded `Y-M-D` comparison matches the format `hr_utc_day_key` returns. It is display-only, and the server still refuses.
+- The record-seam smoke fix is test-only: it stubs `hr_load` and awaits it.

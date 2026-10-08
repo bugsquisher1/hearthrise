@@ -461,15 +461,17 @@
   // gold only, prestige only, ending on The Throne.
   //
   // NOTHING HERE IS AUTHORED BY THE CLIENT. The pieces owned are the SERVER's
-  // `throne_room` rung (reconciled onto the scratch field G._throneRung by
-  // src/net/accrue.js reconcileThroneRoom on every envelope); the purchase is
+  // `throne_room` rung, observed from every envelope by the property record
+  // (src/net/property-record.js serverThroneRung — no G field, no residue);
+  // the purchase is
   // the offer id `throne_room.<n>` sent through HearthriseGold.buyUnlock, which
   // hr_unlock_buy prices, gates on the castle and journals. There is NO
   // client-authoritative fallback: signed out, nothing is sold. An UNKNOWN rung
   // shows "being counted" and no button, never a guess.
   function throneRung() {
-    var n = Number(G_()._throneRung);
-    return (isFinite(n) && n >= 0) ? Math.floor(n) : null;
+    var PR = window.HearthriseProperty;
+    var n = (PR && typeof PR.serverThroneRung === 'function') ? PR.serverThroneRung() : null;
+    return (typeof n === 'number' && isFinite(n) && n >= 0) ? Math.floor(n) : null;
   }
   function throneLatch() {
     var L = window.HearthriseIntentLatch;
@@ -536,11 +538,13 @@
         : { ok: !!(v && (v.outcome === 'applied' || v.outcome === 'replayed')), owned: false,
             reason: (v && v.reason) || 'network' };
       if (c.ok) {
-        /* The confirm envelope has already been applied (reconcileThroneRoom
-           wrote the server's rung); raising to the rung THIS press bought is
-           idempotent and catches a lean answer up. Never above it. */
-        var G = G_(); var cur = throneRung();
-        G._throneRung = Math.max(cur === null ? 0 : cur, piece.n);
+        /* The confirm envelope has already been observed; the receipt raises
+           the record to the rung THIS press bought (idempotent, raise-only),
+           which catches a lean answer up and is never above what applied. */
+        try {
+          var PR = window.HearthriseProperty;
+          if (PR && typeof PR.noteThroneGranted === 'function') PR.noteThroneGranted(piece.n);
+        } catch (e) {}
         if (window.notify) {
           notify(c.owned ? (piece.name + ' is already in your hall.')
             : (piece.name + ' — ' + piece.lore + '.'), c.owned ? 'info' : 'levelup');

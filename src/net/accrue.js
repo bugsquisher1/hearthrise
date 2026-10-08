@@ -2529,7 +2529,7 @@ import { DEFAULT_STYLE_KEYS } from '../core/styles.js?v=564';
 /* b492 — the property/worker rung OBSERVER. A static import rather than a window
    hop so the observation is exercised in Node by the suite exactly as it runs in
    the browser; property-record.js imports NOTHING, so there is no cycle. */
-import { notePropertyUnlocks, pickBankRung, pickThroneRung, isCompleteProgressStatement } from './property-record.js?v=564';
+import { notePropertyUnlocks, pickBankRung, isCompleteProgressStatement } from './property-record.js?v=564';
 /* b313 rev.2 — the companion XP CURVE, for the level-up detector below. The
    pure core copy (src/core/companion-perk.js), not the feature module's twin:
    companions.js imports the event bus and reaches for window, and this file is
@@ -2775,28 +2775,6 @@ export function reconcileBankRungs(G, res) {
     G.bank.goldBuys = next;
   }
   return { mode: 'server', rungs: next, from: cur, exact: complete, lowered: next < cur, cap };
-}
-
-/* ── THE THRONE ROOM RUNG (2026-10-08) ───────────────────────────────────────
-   How many pieces of the castle's Throne Room the SERVER says this character
-   owns (`progress` unlock row `throne_room`, written only by hr_unlock_buy).
-   Mirrored onto `G._throneRung` — `_`-PREFIXED, scratch, never persisted
-   (CLAUDE.md §6): the room is re-read from every envelope, so it cannot be
-   held ahead of the server across a reload. Same claim rules as the bank
-   rung: a COMPLETE progress statement is exact (up or down); a partial one is
-   a floor; an absent one is UNKNOWN and leaves the field alone — and an
-   unknown room is what the castle card reads as "being counted", with no
-   Furnish button, rather than a guess. */
-export function reconcileThroneRoom(G, res) {
-  if (!G || typeof G !== 'object') return null;
-  const rung = pickThroneRung(res);
-  if (rung === null) return { mode: 'absent' };
-  const cur0 = Number(G._throneRung);
-  const known = Number.isFinite(cur0) && cur0 >= 0;
-  const complete = isCompleteProgressStatement(res);
-  const next = (complete || !known) ? rung : Math.max(Math.floor(cur0), rung);
-  G._throneRung = next;
-  return { mode: 'server', rung: next, exact: complete };
 }
 
 /* ── THE ENFORCED BANK CAP IS THE SERVER'S NUMBER, NOT THE CLIENT'S SUM ───────
@@ -4387,8 +4365,6 @@ function applyEnvelopeStateBody(G, res, ownKey) {
      unlock rows and are NOT gated on the inventory arm — a paid rung must come
      home on every envelope in prod, today. See reconcileBankRungs' header. */
   written.bankRungs = reconcileBankRungs(G, res);
-  /* THE THRONE ROOM RUNG — the same `progress` array, its own authority. */
-  written.throneRoom = reconcileThroneRoom(G, res);
   /* THE BAG (b46x inventory-hydrate). Extracted to reconcileInventory so the
      boot hr_load settle (record.js) can hydrate the bag on an IDLE boot — where
      hr-accrue returns {accrued:false} and applyEnvelopeState never runs, the
@@ -6896,7 +6872,7 @@ if (typeof window !== 'undefined') {
     /* …to the character that EARNED it and nobody else (QA-DEFER-ID). The
        switch path and the sign-out path call these; nothing else may. */
     accrualIdentity, sameAccrualIdentity, clearCombatXpDeferral, resetAccrualIdentity,
-    requestAccrual, awaitSettleRaceClear, bootSettlePending, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileThroneRoom, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, capHoursFromVigour, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
+    requestAccrual, awaitSettleRaceClear, bootSettlePending, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, capHoursFromVigour, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt, collectedOf, awayFromCollected, applyCollectedReceipt,
     fallRecord, announceFall,

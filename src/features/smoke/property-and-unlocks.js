@@ -1166,17 +1166,17 @@ export default [
      action, played: a castle owner opens the House card, sees the room the SERVER
      says they own, presses Furnish, and the next piece is bought by OFFER ID ONLY;
      the room grows only on the server's ok, a refusal moves nothing and says why,
-     and an unknown rung shows no button. MUTATIONS: (a) drop reconcileThroneRoom
-     from applyEnvelopeState → the card never learns the rung → RED; (b) advance
-     G._throneRung before the buy resolves → the refused press shows a piece → RED;
-     (c) send `throne_room.1` regardless of the rung → the offer check is RED. */
+     and an unknown rung shows no button. MUTATIONS: (a) drop the throne merge
+     from notePropertyUnlocks → the card never learns the rung → RED; (b) call
+     noteThroneGranted before the buy resolves → the refused press shows a piece
+     → RED; (c) send `throne_room.1` regardless of the rung → the offer check is RED. */
   () => tryRunAsync('THRONE-1 (2026-10-08): Furnish buys the NEXT piece by offer id; the room grows only on the server ok', async () => {
-    const H = window.HearthriseHomestead, P = window.HearthriseProperty, A = window.HearthriseAccrual;
+    const H = window.HearthriseHomestead, P = window.HearthriseProperty;
     assert(H && typeof H.furnishThroneRoom === 'function' && typeof H.throneRoomHtml === 'function',
       'HearthriseHomestead.furnishThroneRoom / throneRoomHtml are not published');
     assert(window.THRONE_ROOM && window.THRONE_ROOM.PIECES && window.THRONE_ROOM.PIECES.length === 30,
       'window.THRONE_ROOM (src/data/throne-room.js) is not published by main.js');
-    assert(A && typeof A.reconcileThroneRoom === 'function', 'HearthriseAccrual.reconcileThroneRoom is not published');
+    assert(P && typeof P.serverThroneRung === 'function', 'HearthriseProperty.serverThroneRung is not published');
     const snap = snapshotG();
     const origGold = window.HearthriseGold, origNotify = window.notify;
     const prev = P.__resetPropertyRecord();
@@ -1188,12 +1188,11 @@ export default [
         { kind: 'unlock', key: 'property:castle', value: 5, period: '' },
         { kind: 'unlock', key: 'throne_room', value: 3, period: '' },
       ] };
-      delete window.G._throneRung;
+      assert(P.serverThroneRung() === null, 'SETUP: the reset record must not know the throne rung');
       assert(/still being counted/.test(H.throneRoomHtml()) && !/Furnish/.test(H.throneRoomHtml()),
         'an UNKNOWN room must read "being counted" with no Furnish button; got ' + H.throneRoomHtml());
       P.notePropertyUnlocks(env);
-      A.reconcileThroneRoom(window.G, env);
-      assert(window.G._throneRung === 3, 'reconcileThroneRoom did not mirror the server rung: ' + window.G._throneRung);
+      assert(P.serverThroneRung() === 3, 'the property record did not observe the server throne rung: ' + P.serverThroneRung());
       assert(H.getTier() === 5, 'SETUP: the property record should read the castle, got tier ' + H.getTier());
       const html = H.throneRoomHtml();
       const fourth = window.THRONE_ROOM.PIECES[3];
@@ -1217,7 +1216,7 @@ export default [
       assert(H.furnishThroneRoom() === true, 'Furnish did not dispatch at the castle with gold on hand');
       await new Promise(function (r) { setTimeout(r, 40); });
       assert(sent[0] === fourth.offer_id, 'Furnish must send the NEXT piece’s offer id ' + fourth.offer_id + '; sent ' + sent[0]);
-      assert(window.G._throneRung === 3, 'a REFUSED piece was shown furnished (rung ' + window.G._throneRung + ')');
+      assert(P.serverThroneRung() === 3, 'a REFUSED piece was shown furnished (rung ' + P.serverThroneRung() + ')');
       assert(said.some(function (x) { return x.k === 'kill'; }) && !said.some(function (x) { return /insufficient_gold/.test(x.m); }),
         'a refusal must be a sentence, not an error code: ' + JSON.stringify(said));
 
@@ -1227,7 +1226,7 @@ export default [
       assert(H.furnishThroneRoom() === true, 'the second press did not dispatch');
       await new Promise(function (r) { setTimeout(r, 40); });
       assert(sent[1] === fourth.offer_id, 'the retry must still buy ' + fourth.offer_id + '; sent ' + sent[1]);
-      assert(window.G._throneRung === 4, 'a CONFIRMED piece did not grow the room by one: rung ' + window.G._throneRung);
+      assert(P.serverThroneRung() === 4, 'a CONFIRMED piece did not grow the room by one: rung ' + P.serverThroneRung());
       assert(H.throneRoomHtml().indexOf(window.THRONE_ROOM.PIECES[4].name) >= 0,
         'after the 4th piece the card must offer the 5th');
 
@@ -1239,9 +1238,8 @@ export default [
       assert(H.furnishThroneRoom() === false && sent.length === n, 'a keep was offered a Throne Room piece');
     } finally {
       window.HearthriseGold = origGold; window.notify = origNotify;
-      P.__resetPropertyRecord(prev.tier, prev.workers);
+      P.__resetPropertyRecord(prev);
       restoreG(snap);
-      delete window.G._throneRung;
     }
   }),
 

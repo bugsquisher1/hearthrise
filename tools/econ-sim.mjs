@@ -11,6 +11,8 @@
 //   node tools/econ-sim.mjs --worker-eff-per-lvl=0  # what-if: flat crew curve
 //   node tools/econ-sim.mjs --upkeep-bp=50        # what-if: 0.5%/day of owned gold-ladder value
 //   node tools/econ-sim.mjs --worker-mult=0.5     # what-if: crew pays half
+//   node tools/econ-sim.mjs --worker-base-eff=0.08 --worker-xp-mult=10  # what-if: crew curve / slower levelling
+//   node tools/econ-sim.mjs --throne-room=0       # what-if: without the Throne Room sink (src/data/throne-room.js)
 //   node tools/econ-sim.mjs --json                # machine-readable
 //   node tools/econ-sim.mjs --selftest            # plant a faucet, prove the sim sees it
 //
@@ -810,9 +812,9 @@ function parseKnobs(argv) {
   const k = {};
   if (argv.includes('--greedy')) k.greedy = 1;
   for (const a of argv) {
-    const m = /^--(gear-rate|crafted-rate|crew-cap-h|worker-eff-per-lvl|worker-base-eff|worker-xp-mult|day-budget|upkeep-bp|worker-mult|login-max-mult|market-share)=([\d.]+)$/.exec(a);
+    const m = /^--(gear-rate|crafted-rate|crew-cap-h|worker-eff-per-lvl|worker-base-eff|worker-xp-mult|throne-room|day-budget|upkeep-bp|worker-mult|login-max-mult|market-share)=([\d.]+)$/.exec(a);
     if (m) {
-      k[{ 'gear-rate': 'gearRate', 'crafted-rate': 'craftedRate', 'crew-cap-h': 'crewCapH', 'worker-eff-per-lvl': 'workerEffPerLvl', 'worker-base-eff': 'workerBaseEff', 'worker-xp-mult': 'workerXpMult', 'day-budget': 'dayBudget', 'upkeep-bp': 'upkeepBp',
+      k[{ 'gear-rate': 'gearRate', 'crafted-rate': 'craftedRate', 'crew-cap-h': 'crewCapH', 'worker-eff-per-lvl': 'workerEffPerLvl', 'worker-base-eff': 'workerBaseEff', 'worker-xp-mult': 'workerXpMult', 'throne-room': 'throneRoom', 'day-budget': 'dayBudget', 'upkeep-bp': 'upkeepBp',
         'worker-mult': 'workerMult', 'login-max-mult': 'loginMaxMult', 'market-share': 'marketShare' }[m[1]]] = Number(m[2]);
     } else if (/^--(?!selftest$|json$|sweep$|greedy$|explain=|breakdown=)/.test(a)) throw new Error(`econ-sim: unknown flag ${a}`);
   }

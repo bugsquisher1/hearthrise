@@ -277,6 +277,11 @@ export function pickThroneRung(res) {
    it here. */
 let observedTier = null;
 let observedWorkers = null;
+/* The Throne Room rung (2026-10-08): observed from the SAME envelopes by the
+   SAME merge rule, never written into G. `null` = the server has not said;
+   the castle card reads that as "being counted" and offers no button. */
+let observedThrone = null;
+let observedThroneExact = false;
 /* Is `observedTier` an EXACT statement (true) or only a FLOOR (false)? Meaning-
    less while observedTier is null. */
 let observedExact = false;
@@ -352,6 +357,7 @@ function mergeRung(prev, prevExact, next, complete) {
 export function notePropertyUnlocks(res) {
   const tier = pickPropertyTier(res);
   const workers = pickWorkerRung(res);
+  const throne = pickThroneRung(res);
   const complete = isCompleteProgressStatement(res);
   const before = observedTier;
   const t = mergeRung(observedTier, observedExact, tier, complete);
@@ -359,9 +365,12 @@ export function notePropertyUnlocks(res) {
   observedTier = t.value;
   observedExact = t.exact;
   observedWorkers = w.value;
+  const th = mergeRung(observedThrone, observedThroneExact, throne, complete);
+  observedThrone = th.value;
+  observedThroneExact = th.exact;
   return {
-    mode: (tier === null && workers === null) ? 'absent' : 'server',
-    tier: observedTier, workers: observedWorkers, exact: observedExact,
+    mode: (tier === null && workers === null && throne === null) ? 'absent' : 'server',
+    tier: observedTier, workers: observedWorkers, exact: observedExact, throne: observedThrone,
     raised: (t.changed && (before === null || observedTier > before)) || w.changed,
     lowered: before !== null && observedTier !== null && observedTier < before,
     complete, truncated: !complete,
@@ -430,6 +439,23 @@ export function notePropertyRefusalTier(have) {
 
 /** The property rung the server has stated this session, or null (UNKNOWN). */
 export function serverPropertyTier() { return observedTier; }
+/** The Throne Room pieces the SERVER says this character owns (0..30), or
+ *  null when no envelope has said this session. */
+export function serverThroneRung() { return observedThrone; }
+/** A confirmed Throne Room purchase (hr_unlock_buy ok / replayed / already
+ *  owned) is a statement that the rung is AT LEAST `rung`. Raise only — the
+ *  notePropertyGranted rule — so the card shows the piece before the next
+ *  envelope and can never run ahead of what the server applied. */
+export function noteThroneGranted(rung) {
+  const n = Number(rung);
+  if (!Number.isFinite(n) || n < 0) return { ok: false, throne: observedThrone };
+  const v = Math.floor(n);
+  if (observedThrone === null || v > observedThrone) {
+    observedThroneExact = observedThrone !== null && observedThroneExact;
+    observedThrone = v;
+  }
+  return { ok: true, throne: observedThrone };
+}
 /** Has the server stated the property rung at all this session? UNKNOWN is the
  *  ONE state in which the residue is the only reading available — every caller
  *  that gates a capability should be able to say so honestly rather than guess.
@@ -524,7 +550,11 @@ export function effectiveWorkerSlots(G, tierSlots) {
  *  found it (`const prev = __resetPropertyRecord(); … __resetPropertyRecord(prev.tier, prev.workers)`)
  *  rather than silently dropping a rung a real envelope had already delivered. */
 export function __resetPropertyRecord(tier, workers) {
-  const prev = { tier: observedTier, workers: observedWorkers, exact: observedExact };
+  const prev = { tier: observedTier, workers: observedWorkers, exact: observedExact,
+    throne: observedThrone, throneExact: observedThroneExact };
+  /* Every form forgets the throne rung unless the receipt carries it back. */
+  observedThrone = (tier && typeof tier === 'object' && typeof tier.throne === 'number') ? tier.throne : null;
+  observedThroneExact = !!(tier && typeof tier === 'object' && tier.throneExact);
   /* THE RECEIPT ROUND-TRIPS. `__resetPropertyRecord(prev)` restores the exact/
      floor provenance too, which matters on a LIVE signed-in page: the suite
      parks the record for the whole run, and putting a FLOOR back as an EXACT
@@ -547,6 +577,7 @@ export function __resetPropertyRecord(tier, workers) {
 if (typeof window !== 'undefined') {
   window.HearthriseProperty = {
     pickPropertyTier, pickWorkerRung, pickBankRung, pickThroneRung, isCompleteProgressStatement,
+    serverThroneRung, noteThroneGranted,
     notePropertyUnlocks,
     notePropertyGranted, notePropertyRefusalTier,
     serverPropertyTier, propertyTierKnown, propertyTierExact,

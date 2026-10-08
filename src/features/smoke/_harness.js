@@ -1810,7 +1810,7 @@ export const snapshotG = () => {
     _serverBag: G._serverBag,
     _bagFromServerAt: G._bagFromServerAt,
     _startKitHintAt: G._startKitHintAt,
-    /* b487: the QUEST MODAL's two slates. `G.daily` (the DAILY_TASK_POOL tasks)
+    /* b487: the QUEST MODAL's two slates. `G.daily` (the launchpad snapshot)
        has been on this list since b138 — its two SIBLINGS never were, and they
        are the ones the goal tests actually drive. GOAL-CLAIM-1 assigns
        `G.dailyGoals = {dayKey, picks:['kill_more'], startValues:{kill_more:0},

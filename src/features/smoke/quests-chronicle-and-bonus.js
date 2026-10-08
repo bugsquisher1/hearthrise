@@ -94,7 +94,7 @@ export default [
     const snap = snapshotG();
     const prior = (document.querySelector('.panel.active') || {}).id || 'panel-profile';
     try {
-      G.quests = []; G.daily = { lastReset: window.hrGoalDayKey(), tasks: [] };
+      G.quests = []; G.daily = {};
       window.ensureRetentionState();
       const m = H.__firstDayModel();
       assert(m && m.steps.length >= 5, 'CONTROL: a fresh character has no first-day chain: ' + JSON.stringify(m && m.steps.map((s) => s.id)));
@@ -1787,85 +1787,6 @@ export default [
     } finally { restoreG(snap); }
   }),
 
-  () => tryRun('DAILY-HEAL-1 (b461): a stale pre-eligibility slate is healed in place — impossible tasks swapped, progress on kept tasks preserved', () => {
-    /* The b459 eligibility filter applies at GENERATION only, so a slate rolled
-       before the fix carried its impossible tasks all day (found live on beta
-       morning: Craft 8 + Smith 8 against zero craftable recipes). The heal in
-       generateDailyTasks rebuilds today's slate from the filtered deterministic
-       set when an UN-done stored task is ineligible now. */
-    const snap = snapshotG();
-    const GCat = window.HearthriseCore && window.HearthriseCore.goalCatalogue;
-    assert(GCat && typeof GCat.dailyTaskEligible === 'function', 'goalCatalogue bridge must be up');
-    const savedCaps = window.dailyTaskCaps;
-    const savedDayKey = window.hrGoalDayKey;
-    try {
-      // A fresh account: no rooms, no artisan XP — craft/smith are ineligible.
-      window.dailyTaskCaps = () => ({ rooms: {}, skillXp: {} });
-      const caps = window.dailyTaskCaps();
-      /* THE AUTHORED GOAL OF EVERY POOL ROW. A genuine pre-fix slate carries the
-         POOL's own numbers, so the stale slate must be seeded with them — and the
-         seeded progress must be a value that slate could really hold.
-         (2026-09-06: this test seeded every stale task `goal: 50, progress: 37`
-         and went red the first day the roll's first eligible id was "Kill 25
-         monsters". Nothing was wrong with the heal: the b497 repair below it
-         clamps `progress = min(goal, progress)`, and 37 kills against a goal of
-         25 is a state the game cannot produce. 13 of the next 60 day keys were
-         red the same way — a fabricated fixture, not a heal bug.) */
-      const authoredGoal = {};
-      window.DAILY_TASK_POOL.forEach((f) => { const t = f(); authoredGoal[t.id] = t.goal; });
-
-      /* One day's heal, DERIVED from that day's real raw roll — a hand-picked
-         slate is only "the pre-fix roll" on days whose seed deals those ids,
-         which is the date-flake this test originally shipped with. */
-      const healDay = (dayKey) => {
-        window.hrGoalDayKey = () => dayKey;
-        const rawIds = GCat.dailyTaskIndexes(dayKey).slice(0, 3).map((i) => GCat.DAILY_TASK_POOL_ORDER[i]);
-        const eligibleOld = rawIds.filter((id) => GCat.dailyTaskEligible(id, caps));
-        const keptId = eligibleOld[0];
-        const seeded = keptId ? Math.max(1, Math.floor(authoredGoal[keptId] / 2)) : 0;
-        window.G.daily = { lastReset: dayKey, tasks: rawIds.map((id) => ({
-          id, type: id, label: id, goal: authoredGoal[id],
-          progress: (id === keptId) ? seeded : 0, reward: 400, done: false,
-        })) };
-        window.generateDailyTasks(false);
-        const tasks = window.G.daily.tasks;
-        const ids = tasks.map((t) => t.id);
-        assert(tasks.length === 3, dayKey + ': the healed slate keeps its size, got ' + ids.length);
-        assert(ids.every((id) => GCat.dailyTaskEligible(id, caps)),
-          'THE BUG: ' + dayKey + ' healed slate still offers an impossible task: ' + ids.join(','));
-        const swapped = eligibleOld.length < rawIds.length;
-        if (swapped && keptId) {
-          const kept = tasks.find((t) => t.id === keptId);
-          assert(kept && kept.progress === seeded,
-            dayKey + ': progress on a kept task must survive the heal (kept ' + keptId
-            + ', ' + seeded + ' -> ' + (kept ? kept.progress : 'GONE') + ')');
-        }
-        return { ids: ids.join(','), swapped };
-      };
-
-      const today = savedDayKey();
-      const first = healDay(today);
-      // Idempotent: a second call with a clean slate changes nothing.
-      window.generateDailyTasks(false);
-      assert(window.G.daily.tasks.map((t) => t.id).join(',') === first.ids,
-        'a clean slate must not be re-rolled');
-
-      /* THE SWEEP. The heal's guarantee is for EVERY roll shape, not today's —
-         and today's shape is exactly what hid the fixture defect above. 60
-         consecutive UTC day keys; ~34 of them deal a gated task and therefore
-         run the kept-progress assertion for real. */
-      let swaps = 0;
-      const t0 = Date.now();
-      for (let n = 0; n < 60; n++) {
-        const d = new Date(t0 + n * 86400000);
-        if (healDay(`${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`).swapped) swaps++;
-      }
-      assert(swaps >= 10, 'the sweep must actually exercise the swap path, hit it ' + swaps + ' of 60 days');
-    } finally {
-      window.hrGoalDayKey = savedDayKey; window.dailyTaskCaps = savedCaps; restoreG(snap);
-    }
-  }),
-
   () => tryRun('b228 P1: combatXP pays RANGED and MAGIC, not four styles out of six', () => {
     /* Pre-existing, ~unknown lifetime: addXp listed attack/strength/defense/
        hitpoints and silently skipped ranged and magic, so the Trophy Room, the
@@ -2269,23 +2190,23 @@ export default [
       const grid = document.querySelector('#char-hero .cr-acct-grid');
       assert(grid, 'the Account stat grid did not render on the Hero sub-tab');
       const cells = [...grid.querySelectorAll('.cr-acct-cell')];
-      assert(cells.length >= 9, 'expected the full Account panel (CL, TL, XP, Quests, Achievements, Bounties, Collections, Renown, Days running), got ' + cells.length);
+      assert(cells.length >= 9, 'expected the full Account panel (CL, TL, XP, Quests, Deeds, Bounties, Collections, Renown, Days running), got ' + cells.length);
       const byLabel = (needle) => cells.find((c) => (c.querySelector(':scope > span').textContent || '').toLowerCase().indexOf(needle) === 0);
       const cl = byLabel('combat'); const tl = byLabel('total');
       assert(cl && cl.querySelector('b').textContent === String(window.getCombatLevel()),
         'Combat Lv cell must equal getCombatLevel()');
       assert(tl && tl.querySelector('b').textContent === String(window.getTotalLevel()),
         'Total Lv cell must equal getTotalLevel()');
-      const ach = byLabel('achievements');
+      const ach = byLabel('deeds');
       assert(ach && ach.querySelector('b').textContent.indexOf('/ ' + (window.ACHIEVEMENTS || []).length) >= 0,
-        'Achievements cell must count against the real ACHIEVEMENTS catalogue');
+        'Deeds cell must count against the real ACHIEVEMENTS catalogue');
       /* Deeds are graded on the realm's counts: with the tally unstated, the
          done-count is the pending dash, never a client-kept 0. */
       const was = window.HearthriseLifetime.__swapView(null);
       try {
         window.renderCharacter();
-        const pend = [...document.querySelectorAll('#char-hero .cr-acct-cell')].find((c) => /^achievements/i.test(c.querySelector(':scope > span').textContent));
-        assert(pend && pend.querySelector('.bal-pending'), 'Achievements must be the pending dash while the tally is unknown, got ' + (pend && pend.innerHTML));
+        const pend = [...document.querySelectorAll('#char-hero .cr-acct-cell')].find((c) => /^deeds/i.test(c.querySelector(':scope > span').textContent));
+        assert(pend && pend.querySelector('.bal-pending'), 'Deeds must be the pending dash while the tally is unknown, got ' + (pend && pend.innerHTML));
       } finally { window.HearthriseLifetime.__swapView(was); }
       assert(byLabel('days running'), 'a Days running cell must exist (the server play streak)');
       assert(!byLabel('time played'), 'the device-timed Time played cell is back');
@@ -2920,7 +2841,7 @@ export default [
       assert(H && typeof H.__roadModel === 'function' && typeof H.__firstDayModel === 'function', 'the chain-card seams are unpublished');
       G.stats = { kills: 0, gathered: 0, harvested: 0, cropsHarvested: 0, rareDrops: 0 };
       G.quests = [];
-      G.daily = { lastReset: window.hrGoalDayKey(), tasks: [] };
+      G.daily = {};
       window.ensureRetentionState();
       const dayDefs = window.QUEST_DEFS.filter((d) => !d.chain);
       const m0 = H.__firstDayModel();
@@ -2975,14 +2896,14 @@ export default [
       assert(rows.indexOf(k) === -1, 'EVENT_COUNTER_PROJECTION maps onto the shared stats.' + k);
     });
   }),
-  /* WEEK-A..D — Home's "Your week" card and the hearth band's realm cells read
-     the server's goal-state cache only; unknown is the pending dash (§6). */
+  /* WEEK-A..D — the "Your week" ledger (Quests Weekly tab) and the hearth band's
+     realm cells read the server's goal-state cache only; unknown is the pending dash (§6). */
   () => tryRun('WEEK-A: an unknown week and unknown realm cells render the pending dash, never 0', () => {
     const TW = window.HearthriseThisWeek;
     if (!TW) return skip('no this-week module');
     const v = TW.view(null);
     assert(v.known === false, 'view(null) must be unknown');
-    const html = TW.cardHtml(v);
+    const html = TW.ledgerHtml(v);
     assert(/bal-pending/.test(html), 'the unknown card has no pending dash');
     assert(!/[0-9]/.test(html.replace(/<[^>]*>/g, '')), 'the unknown card prints a digit: ' + html);
     const cells = TW.todayCells(null);
@@ -3164,6 +3085,139 @@ export default [
       if (unfeed) unfeed();
       if (knownWas === undefined) delete window.G._eventCountersKnown; else window.G._eventCountersKnown = knownWas;
       restoreG(snap); try { window.renderQuestStrip(); } catch (e) {}
+    }
+  }),
+  /* ══ ONE DAILY BOARD, FEWER TRACKERS (lane daily-board, 2026-10-11) ═══════
+     Daily Tasks and Daily Goals both asked "kill N / gather N" on two screens;
+     the server now deals ONE board of three (hr_goal_board) and pays it through
+     hr_claim_goal. The weekly card folded into the Weekly tab, Deeds into the
+     Collection Log, and Standings / Hunter's Ledger wait for the realm's own
+     count before they take a Home row (src/data/progress-surfaces.js). */
+  () => tryRunAsync('DAILY-BOARD-1 (player actions): Home plays the SERVER\'s board — its three goals, its count, one Claim on the confirmed row, paid through hr_claim_goal, and the modal shows the same three', async () => {
+    const H = window.HearthriseHome, GC = window.HearthriseCore && window.HearthriseCore.goalCatalogue;
+    if (!H || !GC || typeof window.showTab !== 'function') return skip('no Home or goal catalogue');
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField, origClaim = window.HearthriseGoalClaim;
+    const mt = () => new Promise((r) => setTimeout(r, 0));
+    const local = GC.boardAt(Date.now());
+    const server = GC.DAILY_BOARD_POOL.filter((id) => local.daily.indexOf(id) < 0 && id !== 'gold_500').slice(0, 3);
+    const def = (id) => window.DAILY_GOAL_POOL.find((g) => g.id === id);
+    const claims = [];
+    let paid = false;
+    try {
+      window.clientMayWriteRecordField = (f) => f !== 'gold';
+      window.__hrGoalDisplay.reset(); window.__hrSyncServerGoals.reset();
+      window.HearthriseGoalClaim = { isSignedIn: () => true, grantedReward: () => null,
+        goalState: () => Promise.resolve({ ok: true, board: { daily: server, weekly: local.weekly },
+          goals: server.map((id, i) => goalRow(id, i === 0 ? def(id).target : 0, def(id).target,
+            { claimed: i === 0 && paid, offered: true })) }),
+        claimGoal: (id, wk) => { claims.push([id, wk]); paid = true; return Promise.resolve({ ok: true, credited: true, goal: id }); } };
+      await new Promise((r) => window.__hrSyncServerGoals(r));
+      assert(window.getGoalsForToday().map((g) => g.id).join() === server.join(),
+        'the board must be the SERVER\'s [' + server + '], got [' + window.getGoalsForToday().map((g) => g.id) + ']');
+      window.showTab('profile'); H.render();
+      const rows = Array.from(document.querySelectorAll('#hd-root .hd-board .hd-qtitle')).map((n) => n.textContent);
+      assert(rows.join('|') === server.map((id) => def(id).name).join('|'), 'Home rows: ' + rows.join('|'));
+      const btns = document.querySelectorAll('#hd-root [data-hd="bclaim"]');
+      assert(btns.length === 1 && btns[0].getAttribute('data-id') === server[0], 'exactly the server-complete goal offers Claim');
+      btns[0].click();
+      for (let i = 0; i < 6; i++) await mt();
+      assert(claims.length === 1 && claims[0][0] === server[0] && claims[0][1] === false, 'Claim fired ' + JSON.stringify(claims));
+      H.render();
+      assert(!document.querySelector('#hd-root [data-hd="bclaim"]') && /Claimed/.test(document.querySelector('#hd-root .hd-board').textContent),
+        'the paid row must read Claimed and offer no second Claim');
+      window.openQuestsModal(); await mt();
+      const modal = Array.from(document.querySelectorAll('#quests-modal-overlay .qm-q-name')).map((n) => n.textContent);
+      assert(modal.join('|') === rows.join('|'), 'the Quests modal shows a different board: ' + modal.join('|'));
+    } finally {
+      if (typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
+      window.__hrSyncServerGoals.reset(); window.__hrGoalDisplay.reset();
+      window.clientMayWriteRecordField = origMay; window.HearthriseGoalClaim = origClaim;
+      restoreG(snap); try { H.render(); } catch (e) {}
+    }
+  }),
+  /* -- regression suite -- the board's count is the server's: unknown is the
+     pending dash and offers no Claim, whatever the browser tallied. */
+  () => tryRun('DAILY-BOARD-2: with no server answer the Home board shows the pending dash and no Claim, never a local tally', () => {
+    const H = window.HearthriseHome;
+    if (!H || typeof window.showTab !== 'function') return skip('no Home');
+    const snap = snapshotG();
+    try {
+      window.__hrSyncServerGoals.reset();
+      window.G.stats = Object.assign({}, window.G.stats, { kills: 9999, chopped: 9999, mined: 9999, cooked: 9999, fished: 9999 });
+      window.showTab('profile'); H.render();
+      const rows = document.querySelectorAll('#hd-root .hd-board');
+      assert(rows.length === 3, 'Home must draw the board of three, drew ' + rows.length);
+      assert(Array.from(rows).every((r) => r.querySelector('.bal-pending')), 'an unanswered board row must be the pending dash');
+      assert(!document.querySelector('#hd-root [data-hd="bclaim"]'), 'a local tally offered a Claim the server has not confirmed');
+    } finally { restoreG(snap); try { H.render(); } catch (e) {} }
+  }),
+  /* -- regression suite -- Daily Tasks retired: nothing deals, counts or claims
+     a task slate, and updateDaily stays the seam the Muster wraps. */
+  () => tryRun('TASKS-RETIRED: no task slate, no task claim, no client gold — updateDaily is only the wrapper seam', () => {
+    assert(typeof window.generateDailyTasks === 'undefined' && typeof window.DAILY_TASK_POOL === 'undefined',
+      'the daily-task slate is back');
+    assert(!(window.HearthriseGoalClaim && 'claimDaily' in window.HearthriseGoalClaim), 'the hr_claim_daily transport is back');
+    const snap = snapshotG();
+    try {
+      const gold = window.G.gold;
+      window.G.daily = {};
+      window.updateDaily('kill_any', 60); window.updateDaily('gather', 120);
+      assert(window.G.gold === gold, 'updateDaily moved G.gold');
+      assert(Object.keys(window.G.daily).length === 0, 'updateDaily wrote a task sheet: ' + JSON.stringify(window.G.daily));
+      assert(window.updateDailyWrappers().indexOf('muster') >= 0, 'the Muster no longer wraps the action seam');
+    } finally { restoreG(snap); }
+  }),
+  /* -- regression suite -- ONE weekly surface. */
+  () => tryRun('WEEK-ONE: Home draws no weekly card; the Quests Weekly tab carries the "Your week" ledger', () => {
+    const H = window.HearthriseHome;
+    if (!H || typeof window.showTab !== 'function') return skip('no Home');
+    try {
+      window.showTab('profile'); H.render();
+      const heads = Array.from(document.querySelectorAll('#hd-root .hd-h h3')).map((h) => h.textContent);
+      assert(heads.indexOf('Your week') < 0, 'Home still draws "Your week": ' + heads.join(', '));
+      window.openQuestsModal();
+      document.querySelector('#quests-modal-overlay .qm-tab[data-tab="weekly"]').click();
+      assert(document.getElementById('qm-summary-h').textContent === 'Your week', 'the weekly aside is not the ledger');
+      assert(document.querySelector('#qm-summary .qm-sum-row'), 'the ledger drew no row');
+      document.querySelector('#quests-modal-overlay .qm-tab[data-tab="daily"]').click();
+      assert(document.getElementById('qm-summary-h').textContent === 'Quest Info', 'the daily aside took the weekly ledger');
+    } finally { if (typeof window.closeQuestsModal === 'function') window.closeQuestsModal(); }
+  }),
+  /* -- regression suite -- Deeds fold into the Collection Log, every row kept. */
+  () => tryRun('DEEDS-FOLD: Deeds open as the Collection Log\'s Deeds tab with every deed, and no second sheet is built', () => {
+    const D = window.HearthriseDeeds;
+    if (!D || !window.HearthriseCollection) return skip('no deeds or collection');
+    try {
+      window.openAchievements();
+      const m = document.getElementById('hr-cl-modal');
+      assert(m && m.querySelector('.hr-cl-tab.on').textContent === 'Deeds', 'the Collection Log did not open on Deeds');
+      assert(m.querySelectorAll('.ach-row').length === D.rows.length, 'the Deeds tab lost a deed');
+      assert(!document.getElementById('ach-overlay'), 'a second Deeds sheet was built');
+    } finally { const m = document.getElementById('hr-cl-modal'); if (m) m.remove(); }
+  }),
+  /* -- regression suite -- HIDE until the realm's own count says so. */
+  () => tryRun('SURFACES-REVEAL: Standings and the Hunter\'s Ledger take a Home row only once the server count reaches their reveal', () => {
+    const H = window.HearthriseHome, SF = window.HearthriseSurfaces;
+    if (!H || !SF || typeof window.showTab !== 'function') return skip('no Home or surfaces');
+    const was = { L: window.HearthriseLifetime, SR: window.HearthriseSkillRecord, HL: window.HearthriseHuntersLedger, ST: window.HearthriseStandings };
+    const probe = (cls) => ({ card: () => '<div class="' + cls + '"></div>' });
+    const at = (kills, lv) => {
+      window.HearthriseLifetime = Object.assign(Object.create(was.L || null), { count: () => (kills === null ? null : { n: kills, exact: true }) });
+      window.HearthriseSkillRecord = Object.assign(Object.create(was.SR || null), { skillLevelOf: () => lv });
+      H.render();
+      return [!!document.querySelector('#hd-root .sf-probe-hl'), !!document.querySelector('#hd-root .sf-probe-st')];
+    };
+    try {
+      window.HearthriseHuntersLedger = probe('sf-probe-hl'); window.HearthriseStandings = probe('sf-probe-st');
+      window.showTab('profile');
+      assert(at(null, null).join() === 'false,false', 'an UNKNOWN count revealed a surface');
+      assert(at(99, 5).join() === 'false,false', 'a count below the reveal revealed a surface');
+      assert(at(100, 99).join() === 'true,true', 'a reached reveal did not show the surface');
+    } finally {
+      window.HearthriseLifetime = was.L; window.HearthriseSkillRecord = was.SR;
+      window.HearthriseHuntersLedger = was.HL; window.HearthriseStandings = was.ST;
+      try { H.render(); } catch (e) {}
     }
   }),
 ];

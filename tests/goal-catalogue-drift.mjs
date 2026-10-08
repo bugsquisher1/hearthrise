@@ -277,7 +277,7 @@ MUTATIONS.push(
   { name: 'a pinned vector the JS picker does not deal',
     apply: (b) => ({ boardSql: b.boardSql.replace("is distinct from array['gold_500','kill_any','level_up']", "is distinct from array['gold_500','kill_any','plant']") }) },
   { name: 'Daily Tasks come back (a claimDaily call in legacy.js)',
-    apply: (b) => ({ legacy: b.legacy.replace('function updateDaily(type,amt=1){}', 'function updateDaily(type,amt=1){ window.HearthriseGoalClaim.claimDaily(type); }') }) },
+    apply: (b) => ({ legacy: b.legacy.replace('function updateDaily(type,amt=1){ ensureRetentionState(); }', 'function updateDaily(type,amt=1){ window.HearthriseGoalClaim.claimDaily(type); }') }) },
 );
 
 async function selftest() {

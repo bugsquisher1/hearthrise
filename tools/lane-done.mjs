@@ -71,6 +71,8 @@ const STEPS = [
   // until a merged lane went red on WEEK-9 (next@dd9b3a7a, 2026-09-28). Seconds, no network.
   ['node', ['tests/this-week.mjs']],
   ['node', ['tests/this-week.mjs', '--selftest']],
+  ['node', ['tests/daily-board.mjs']],
+  ['node', ['tests/daily-board.mjs', '--selftest']],
   ['node', ['tests/quest-reward-parity.mjs']],
   ['node', ['tests/quest-reward-parity.mjs', '--selftest']],
   // An item id is a save key (content-holes, 2026-10-08): never deleted, never re-tiered or re-slotted. ms.

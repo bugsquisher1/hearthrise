@@ -258,6 +258,8 @@
     "node tests/quest-reward-parity.mjs --selftest": "client-guards",
     "node tests/this-week.mjs": "client-guards",
     "node tests/this-week.mjs --selftest": "client-guards",
+    "node tests/daily-board.mjs": "client-guards",
+    "node tests/daily-board.mjs --selftest": "client-guards",
     "node tests/item-flavour-coverage.mjs": "client-guards",
     "node tests/item-flavour-coverage.mjs --selftest": "client-guards",
     "node tests/content-holes.mjs": "client-guards",

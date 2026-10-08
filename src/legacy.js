@@ -4987,8 +4987,9 @@ function ensureRetentionState(){
 /* updateDaily — THE ACTION SEAM, no longer a task sheet. Daily Tasks were
    retired for the one daily board (src/data/goal-catalogue.js THE DAILY BOARD),
    which grades the server's own counters. Every action site still calls this and
-   the Muster / Work Order wrap it, so the name and the call stay. */
-function updateDaily(type,amt=1){}
+   the Muster / Work Order wrap it, so the name and the call stay. It still
+   seeds the retention state every action relies on (G.quests, G.stats). */
+function updateDaily(type,amt=1){ ensureRetentionState(); }
 /* ════════════════════════════════════════════════════════════════
    b222 (SEAM 4) — the updateDaily wrapper chain, with names.
 
@@ -6583,6 +6584,8 @@ function renderProfile(){
      buffs read — there is exactly one "are we replaying?" oracle. */
   if(window.HearthrisePresence && window.HearthrisePresence.inOfflineReplay
      && window.HearthrisePresence.inOfflineReplay()) return;
+  /* Seeds G.quests from QUEST_DEFS before Home's First Light card reads it. */
+  ensureRetentionState();
   /* The Home screen itself is src/features/home-dashboard.js (#hd-root), which
      paints on showTab('profile') and on its own refresh tick. The legacy dash
      cards this function used to fill are deleted (2026-10-08); it stays as the
@@ -16782,7 +16785,13 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
     } else if((board.server && board.ids.join() !== G.weeklyGoals.picks.join())
         || G.weeklyGoals.picks.some(function(id){ return !goalDealable(WEEKLY_GOAL_POOL.find(function(p){return p.id===id;})); })){
       window.__hrReslateGoals(G.weeklyGoals, board.ids, WEEKLY_GOAL_POOL);
+    } else if(G.weeklyGoals.sv !== 1){
+      /* b224: a slate written before the baseline fix carries 0 for every source;
+         re-baseline once from now so a long-time player is not paid a windfall. */
+      G.weeklyGoals.startValues = {}; G.weeklyGoals.counterBaselined = {};
+      window.__hrReslateGoals(G.weeklyGoals, G.weeklyGoals.picks, WEEKLY_GOAL_POOL);
     }
+    G.weeklyGoals.sv = 1;
     var week = G.weeklyGoals.picks.map(function(id){
       return WEEKLY_GOAL_POOL.find(function(p){return p.id===id;});
     }).filter(Boolean);

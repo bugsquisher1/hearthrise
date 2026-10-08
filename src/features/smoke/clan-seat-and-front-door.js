@@ -2338,8 +2338,7 @@ export default [
     }
   }),
 
-  // The other half of the report: the Home "Next up" ladder and the daily tasks
-  // ride the updateDaily chain that b220-b223 wrapped twice. One real gather has
+  // The other half of the report: the Home "Next up" ladder rides the updateDaily chain that b220-b223 wrapped twice. One real gather has
   // to move the ladder AND be seen exactly once by every wrapper, no matter what
   // order the wrappers booted in — a swallowed, re-ordered or double-fired link
   // would kill or double every counter in the game at once.
@@ -2366,8 +2365,6 @@ export default [
       const quest = (G.quests || []).find((q) => q.type === 'gather');
       assert(quest, 'no gather quest on the ladder to measure');
       quest.done = false; quest.progress = 0;
-      const task = ((G.daily && G.daily.tasks) || []).find((t) => t.type === 'gather') || null;
-      if (task) { task.done = false; task.progress = 0; }
       const g0 = G.stats.gathered || 0;
 
       // The real player path — the interval callback behind "chop this tree".
@@ -2381,8 +2378,6 @@ export default [
       assert(gained > 0, 'the gather never happened');
       assert((quest.progress || 0) === gained,
         'the Home "Next up" quest did not follow the gather: 0 → ' + quest.progress + ' (gathered ' + gained + ')');
-      if (task) assert((task.progress || 0) === gained,
-        'the daily task did not follow the gather: 0 → ' + task.progress + ' (gathered ' + gained + ')');
       assert(seen.a.length === 1 && seen.b.length === 1,
         'each wrapper must see exactly one event per action, got ' + seen.a.length + ' and ' + seen.b.length);
       assert(seen.a[0] === 'gather:' + gained && seen.b[0] === 'gather:' + gained,

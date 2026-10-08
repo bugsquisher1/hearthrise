@@ -8627,7 +8627,7 @@ export default [
       assert(panel, 'CONTROL: there is no #panel-profile to render into');
       window.G.stats = { kills: 0, gathered: 0, harvested: 0, cropsHarvested: 0, rareDrops: 0 };
       window.G.quests = [];
-      window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: [] };
+      window.G.daily = {};
       window.ensureRetentionState();
       const lead = window.G.quests.find((q) => !q.done);
       assert(lead, 'CONTROL: the fixture must leave a chain quest open');
@@ -8646,8 +8646,9 @@ export default [
         '"' + lead.label + '" is drawn ' + drawn + ' times on Home — the pinned card and "Next up" are '
         + 'duplicating the same quest. Titles: ' + JSON.stringify(titles));
 
-      /* And with no dailies behind it, the emptied section is REMOVED rather
-         than left as a heading over a line about a different quest system.
+      /* And with nothing behind it, the emptied section is REMOVED rather than
+         left as a bare heading; the daily board (lane daily-board) is what
+         normally stands under it.
          CONDITIONAL ON ITS OWN PRECONDITION: this only applies when the leading
          milestone really is a chain quest (i.e. when suppressing it empties the
          section). Asserting it unconditionally made this test go red for
@@ -8657,31 +8658,23 @@ export default [
       const leadIsChain = !!(lead2 && lead2.kind === 'quest' && lead2.goal
         && window.G.quests.some((q) => q.id === lead2.goal.id));
       if (leadIsChain) {
-        assert(!/Next up/.test(root.textContent || ''),
-          'the "Next up" heading survived with nothing left to put under it');
+        const boardRows = root.querySelectorAll('.hd-board').length;
+        assert(boardRows ? /Next up/.test(root.textContent || '') : !/Next up/.test(root.textContent || ''),
+          boardRows ? 'the daily board lost its "Next up" heading' : 'the "Next up" heading survived with nothing left to put under it');
       }
 
-      /* ── THE SAME CLASS, ONE SYSTEM OVER ────────────────────────────────
-         The milestone picks the closest OPEN GOAL, and daily tasks are in that
-         pool AND rendered underneath it — so with the chain finished, "Next up"
-         restated a daily task it was about to list ("Kill 60 monsters" over
-         "Kill 60 monsters"). Same defect, different source; both are suppressed
-         by the same rule, so this half is asserted here rather than filed. */
+      /* ── THE SAME CLASS, ONE SYSTEM OVER: the daily board's rows are never
+         restated by the milestone hero row above them. */
       window.G.quests.forEach((q) => { q.done = true; q.claimed = true; q.progress = q.goal; });
-      window.generateDailyTasks(false);
       window.HearthriseHome.render();
       const root2 = document.getElementById('hd-root');
-      const open = (window.G.daily.tasks || []).filter((t) => !t.done).slice(0, 3);
-      if (open.length) {
-        const t2 = Array.from(root2.querySelectorAll('.hd-qtitle, .hd-mile-title'))
-          .map((e) => (e.textContent || '').trim());
-        open.forEach((t) => {
-          const n = t2.filter((x) => x === t.label).length;
-          assert(n <= 1,
-            'daily task "' + t.label + '" is drawn ' + n + ' times — the milestone hero row is restating '
-            + 'a row directly below it. Titles: ' + JSON.stringify(t2));
-        });
-      }
+      const board = window.getGoalsForToday();
+      assert(board.length === 3, 'CONTROL: the board must deal three, got ' + board.length);
+      const t2 = Array.from(root2.querySelectorAll('.hd-qtitle, .hd-mile-title')).map((e) => (e.textContent || '').trim());
+      board.forEach((g) => {
+        const n = t2.filter((x) => x === g.name).length;
+        assert(n === 1, 'board goal "' + g.name + '" is drawn ' + n + ' times on Home. Titles: ' + JSON.stringify(t2));
+      });
     } finally {
       if (panel && !hadActive) panel.classList.remove('active');
       restoreG(snap);
@@ -8714,7 +8707,7 @@ export default [
 
       window.G.stats = { kills: 0, gathered: 0, harvested: 0, cropsHarvested: 0, rareDrops: 0 };
       window.G.quests = [];
-      window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: [] };
+      window.G.daily = {};
       window.ensureRetentionState();
       const first = window.G.quests.find((q) => !q.done);
       assert(first, 'CONTROL: the fixture must leave a chain quest open');

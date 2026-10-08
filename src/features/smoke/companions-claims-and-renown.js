@@ -1251,7 +1251,7 @@ export default [
         ['recipe book', () => window.HearthriseRecipeBook.open(), () => window.HearthriseRecipeBook.close(), () => byId('rb-overlay')],
         ['welcome-back', () => { G.lastSeen = Date.now() - 8 * 3600000; G.lastWelcome = 0; window.__maybeShowWelcome(); },
           () => document.querySelector('#welcome-overlay .wb-claim').click(), () => byId('welcome-overlay')],
-        ['achievements', () => window.openAchievements(), () => document.querySelector('#ach-overlay [data-hr-dismiss]').click(), () => byId('ach-overlay')],
+        ['deeds (collection log)', () => window.openAchievements(), () => document.querySelector('#hr-cl-modal [data-cl-close]').click(), () => true],
         ['acquisition tip', () => window.showAcquisitionTip('x'), () => window.hideAcquisitionTip(), () => byId('acq-overlay')],
         ['name modal (plant)', () => plants.push(plant('hr-id-scrim hr-scrim')), () => plants.pop().remove(), () => true],
         ['post-signup sheet (plant)', () => plants.push(plant('hr-scrim', 'hr-post-signup-modal')), () => plants.pop().remove(), () => true],
@@ -1606,49 +1606,21 @@ export default [
     }
   }),
 
-  () => tryRun('server-credited (Tier-1 daily/quest): under arm a daily task + a gold quest PROCEED, fire the claim RPC with the id, and do not double-pay locally', () => {
-    // b414: updateDaily + completeQuest gold is now server-credited
-    // (hr_claim_daily / hr_claim_quest verify the ev:<type> counter and credit
-    // player_state). Under arm the completion must PROCEED (mark done, fire the
-    // claim, grant non-gold parts) and NOT write gold locally — the local write
-    // is a gated prediction the envelope reconciles. Unarmed is the control.
+  () => tryRun('server-credited (Tier-1 quest): under arm a gold quest PROCEEDS, fires the claim RPC with the id, and does not pay locally', () => {
+    // b414: completeQuest gold is server-credited (hr_claim_quest verifies the
+    // ev:<type> counter and credits player_state). Under arm the completion must
+    // PROCEED (mark done, fire the claim) and NOT write gold locally. The daily
+    // half of this test left with Daily Tasks (lane daily-board; TASKS-RETIRED).
     const snap = snapshotG();
     const origMay = window.clientMayWriteRecordField;
     const origClaim = window.HearthriseGoalClaim;
     const calls = [];
     try {
       window.HearthriseGoalClaim = {
-        claimDaily: (id) => { calls.push(['daily', id]); return Promise.resolve({ ok: true, gold: 500, credited: true }); },
         claimQuest: (id) => { calls.push(['quest', id]); return Promise.resolve({ ok: true, gold: 150, credited: true }); },
       };
       window.ensureRetentionState();
-
-      /* ⚠ THE FIXTURE IS DERIVED FROM THE AUTHORED POOL, never hand-typed
-         (b497). It used to state `reward: 500` and assert `G.gold === 500`
-         because that is what daily_kill happened to pay. The Designer's balance
-         retune moved it to 600 AND the b497 stale-slate heal now corrects any
-         stored task whose numbers disagree with the pool — so a hand-typed
-         fixture both stops describing the game and gets rewritten underneath
-         the assertion. The PROPERTY here is "the unarmed prediction credits THE
-         REWARD", which is a statement about the code, not about a balance
-         number that is the Designer's to move. */
-      const kill = window.DAILY_TASK_POOL.map((f) => f()).find((t) => t.id === 'daily_kill');
-      assert(kill && kill.reward > 0, 'CONTROL: daily_kill is not in the authored pool with a reward');
-      const freshKill = () => Object.assign(
-        window.DAILY_TASK_POOL.map((f) => f()).find((t) => t.id === 'daily_kill'),
-        { progress: kill.goal - 1, done: false });
-
-      // ── DAILY under arm: proceeds, fires claimDaily, no local gold ──
       window.clientMayWriteRecordField = function (f) { return f !== 'gold'; };
-      predZero(); window.G.gold = 0;
-      window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: [freshKill()] };
-      window.updateDaily('kill_any', 1);
-      const dt = window.G.daily.tasks[0];
-      assert(dt.done === true, 'armed daily completion must mark the task done (defer is gone)');
-      assert(calls.some((c) => c[0] === 'daily' && c[1] === 'daily_kill'), 'armed daily must fire claimDaily(id)');
-      assert(window.G.gold === 0, 'armed daily must NOT credit gold locally (server credits it); got ' + window.G.gold);
-
-      // ── QUEST under arm: proceeds, fires claimQuest, no local gold, item granted ──
       predZero(); window.G.gold = 0;
       const q = { id: 'gatherer', type: 'gather', label: 'Gather 15', goal: 15, progress: 15, reward: { gold: 150 }, done: false };
       const unfeed = feedServerQuests({ 'ev:gather': 15 });   // the server's count says complete
@@ -1656,16 +1628,6 @@ export default [
       assert(q.done === true, 'armed quest completion must mark done');
       assert(calls.some((c) => c[0] === 'quest' && c[1] === 'gatherer'), 'armed quest must fire claimQuest(id)');
       assert(window.G.gold === 0, 'armed quest must NOT credit gold locally; got ' + window.G.gold);
-
-      // ── UNARMED control: daily credits gold locally (prediction), still fires the claim ──
-      calls.length = 0;
-      window.clientMayWriteRecordField = function () { return true; };
-      predZero(); window.G.gold = 0;
-      window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: [freshKill()] };
-      window.updateDaily('kill_any', 1);
-      assert(window.G.gold === kill.reward,
-        'unarmed daily must credit THE AUTHORED REWARD locally as the prediction; expected '
-        + kill.reward + ', got ' + window.G.gold);
     } finally {
       window.clientMayWriteRecordField = origMay;
       window.HearthriseGoalClaim = origClaim;

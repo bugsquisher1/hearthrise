@@ -346,9 +346,9 @@ async function run(mutate) {
   /* The counter a daily is graded on, stamped the way the ENGINE writes it
      (kind='daily', key='ev:<counter>', period=<utc day>).
      TWO GOALS, because a daily is claimable ONCE per period: P1 spends
-     `gather_logs` proving the refusal did not consume it, so P2's
-     replay-still-replays probe needs its own (`mine_ore`, same shape, same
-     price, a different counter). */
+     the first board goal proving the refusal did not consume it, so P2's
+     replay-still-replays probe needs the second (same shape, a different
+     goal). */
   const complete = (key, n) => q(
     `insert into public.player_progress (user_id, slot, kind, key, value, period_key, state)
      values ($1, 0, 'daily', $2, $3, $4, 'active')
@@ -371,7 +371,16 @@ async function run(mutate) {
     return asUser(uid, 'select public.hr_put_client_state($1,$2::jsonb,$3) as r',
       [slot, JSON.stringify({ ui: { tab: 'home' } }), idem]);
   };
-  const claimGoal = async (idem, goal = 'gather_logs', slot = 0) => {
+  /* TWO GOALS ON TODAY'S BOARD (2026-10-11-daily-board.sql): hr_claim_goal
+     refuses an unoffered goal, so the probes claim what the server dealt — the
+     first two gold-paying, counter-graded goals of hr_goal_board, by order. */
+  const dealt = (await q(
+    `select g.goal_id, g.counter_key from unnest(public.hr_goal_board(false, now())) with ordinality b(id, n)
+       join public.hr_goal_rewards g on g.goal_id = b.id
+      where g.counter_kind = 'daily' and g.gold > 0 order by b.n`));
+  ok(dealt.length >= 2, `FIXTURE: today's board deals ${dealt.length} gold-paying counter goals, need 2`);
+  const [G1, G2] = dealt;
+  const claimGoal = async (idem, goal = G1.goal_id, slot = 0) => {
     await gate();
     return asUser(uid, 'select public.hr_claim_goal($1,$2,$3,$4) as r',
       [goal, false, slot, idem]);
@@ -380,7 +389,7 @@ async function run(mutate) {
   const obs = { dayKey };
 
   // ── P1. THE HEADLINE: A KEY BURNED ON A FREE VERB CANNOT ANSWER A CLAIM ──
-  await complete('ev:chopped', await targetOf('gather_logs'));
+  await complete(G1.counter_key, await targetOf(G1.goal_id));
   const k1 = UUID();
   obs.p1_state = await putState(0, k1);
   const goldBefore = await goldOf();
@@ -397,13 +406,13 @@ async function run(mutate) {
     [uid]))[0].c);
 
   // ── P2. A GENUINE REPLAY STILL REPLAYS (the property being hardened, not removed)
-  await complete('ev:mined', await targetOf('mine_ore'));
+  await complete(G2.counter_key, await targetOf(G1.goal_id) + await targetOf(G2.goal_id));
   const k2 = UUID();
   const g2 = await goldOf();
-  obs.p2_first = await claimGoal(k2, 'mine_ore');
+  obs.p2_first = await claimGoal(k2, G2.goal_id);
   obs.p2_first_gold = (await goldOf()) - g2;
   const g2b = await goldOf();
-  obs.p2_replay = await claimGoal(k2, 'mine_ore');
+  obs.p2_replay = await claimGoal(k2, G2.goal_id);
   obs.p2_replay_gold = (await goldOf()) - g2b;
 
   // ── P3. THE SLOT HALF (hr_apply §S6's own live example) ──────────────

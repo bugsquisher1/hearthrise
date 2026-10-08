@@ -5714,12 +5714,14 @@ export default [
          unreachable-content assertion, is untouched and unweakened. */
       { name: 'boss of the week', members: botdPool('WEEKLY_POOL'), minRatio: 0.25,
         pick: (t) => C.botd.botdFor(t, mons).weeklyId },
-      /* The daily-task draw is hash-SEEDED rather than hash-INDEXED (an LCG
-         Fisher-Yates runs on top), so its residual skew is the shuffle's, not
-         the hash's — hence the looser fairness floor. Under the broken hash it
-         measured 0.08; it is 0.37 with the fix. */
-      { name: 'daily tasks (top 3 of the pool)', members: (window.DAILY_TASK_POOL || []).map((_, i) => i), minRatio: 0.20,
-        pick: (t) => window.dailyTaskIndexes(new Date(t).toDateString()).slice(0, 3) },
+      /* THE DAILY BOARD (lane daily-board): the server's hr_goal_board ports
+         this picker. Measured 0.97 daily / 0.86 weekly over these four years;
+         wk_rare inherits the undealt wk_bury slot, hence the weekly floor. */
+      { name: 'daily board', members: [...C.goalCatalogue.DAILY_BOARD_POOL],
+        pick: (t) => C.goalCatalogue.boardAt(t).daily },
+      { name: 'weekly board', minRatio: 0.4,
+        members: C.goalCatalogue.WEEKLY_BOARD_POOL.filter((id) => C.goalCatalogue.BOARD_UNDEALT.indexOf(id) < 0),
+        pick: (t) => C.goalCatalogue.boardAt(t).weekly },
     ];
 
     const DAYS = 1461;                       // four years of real keys
@@ -6964,14 +6966,13 @@ export default [
     } finally { window.fetch = realFetch; try { R.resetRecord(); R.configureRecord(null); } catch (e) {} restoreGAndRecord(snap); }
   })),
 
-  () => tryRun('OFFLINE-CAP-1h: no client renown perk raises a server limit (12 listings, 3 daily tasks)', () => {
+  () => tryRun('OFFLINE-CAP-1h: no client renown perk raises a server limit (12 listings, a board of 3)', () => {
     const R = window.HearthriseRenown, gp = R.getPerks, snap = snapshotG(), M = window.HearthriseMarket;
     R.getPerks = () => ({ allXP: 0, bankSlots: 0, dropRate: 0, marketSlots: 1, dailyTasks: 1 });
     try {
       assert(M.listingLimit() === M.PER_CHAR_LIMIT, 'hr_market_config.max_listings is 12; the client offers ' + M.listingLimit());
-      delete window.G.daily;
-      window.generateDailyTasks(false);
-      assert(window.G.daily.tasks.length === 3, 'the server offers 3 daily tasks; the client dealt ' + window.G.daily.tasks.length);
+      delete window.G.dailyGoals;
+      assert(window.getGoalsForToday().length === 3, 'hr_goal_board deals 3; the client dealt ' + window.getGoalsForToday().length);
     } finally { R.getPerks = gp; restoreG(snap); }
   }),
 

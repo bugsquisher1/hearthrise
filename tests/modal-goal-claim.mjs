@@ -48,6 +48,7 @@ import { modalGoalOps, MODAL_GOAL_COUNTERS, modalGoalKey } from
 /* b487 — the two catalogues a reward SPENDS. Imported, never re-listed: the
    whole point of the payout bind is that no side of it is a hand copy. */
 import { SKILLS_DEF } from '../src/data/skills.js';
+import { boardWeekKey } from '../src/data/goal-catalogue.js';
 import { ITEMS } from '../src/data/items.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -779,12 +780,13 @@ async function bindGuard(cat) {
   /* (A)↔(B): the ISO week's BOUNDARIES must equal legacy.js thisWeekKey()'s, or
      a goal re-offered on Monday answers already_claimed until the server's week
      rolls. The KEYS differ by design (a string vs an integer); the INSTANTS
-     they change at must not. */
-  ok(/Math\.floor\(\(ms \/ 86400000 \+ 3\) \/ 7\)/.test(legacy),
-    'BIND: legacy.js thisWeekKey() no longer buckets on (days+3)/7 — re-derive the server week');
+     they change at must not. thisWeekKey reads goalCatalogue.boardWeekKey, the
+     seed hr_goal_board ports (lane daily-board). */
+  ok(/GC\.boardWeekKey\(Date\.now\(\)\)/.test(legacy),
+    'BIND: legacy.js thisWeekKey() no longer reads goalCatalogue.boardWeekKey — re-derive the server week');
   ok(/hr_iso_week_key/.test(mig) && /IYYY-"W"IW/.test(mig),
     'BIND: the migration no longer defines an ISO (Monday) week key');
-  const clientWeek = (ms) => Math.floor((ms / 86400000 + 3) / 7);
+  const clientWeek = boardWeekKey;
   let boundaryMismatch = 0;
   for (let i = 1; i < 800; i++) {
     const prev = Date.UTC(2026, 0, 1) + (i - 1) * 86400000;

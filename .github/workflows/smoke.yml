@@ -3133,10 +3133,14 @@ jobs:
         run: |
           node tests/quest-reward-parity.mjs
           node tests/quest-reward-parity.mjs --selftest
-          # This Week: Home's weekly card names exactly the server's weekly goal
+          # This Week: the weekly ledger names exactly the server's weekly goal
           # ids and reads only the goal-state cache (tests/this-week.mjs).
           node tests/this-week.mjs
           node tests/this-week.mjs --selftest
+          # One daily board, fewer trackers: every tracker ruled KEEP/FOLD/HIDE,
+          # reveals fail closed, Deeds in the Collection Log (tests/daily-board.mjs).
+          node tests/daily-board.mjs
+          node tests/daily-board.mjs --selftest
 
       # ITEM FLAVOUR COVERAGE — every catalogued item has a "what is it" line.
       # Content pack 4 closed 419/538 to 538/538 in the base ITEM_DESC literal;

@@ -659,8 +659,10 @@ async function run(mutate) {
   //    has to be executed, not read.
   await q('delete from public.hr_rejections where user_id = $1', [uid]);
   await gate();
+  /* hr_claim_quest, not hr_claim_daily: the task claim left the client
+     surface (2026-10-12-retire-daily-tasks.sql). Same gated-wrapper shape. */
   obs.p1b_envelope = await asUser(uid,
-    'select public.hr_claim_daily($1, 0) as r', ['__no_such_task__']);
+    'select public.hr_claim_quest($1, 0) as r', ['__no_such_quest__']);
   obs.p1b_rows = await rows();
 
   // ── P2. AN ACCEPTED CALL WRITES NOTHING ───────────────────────────────
@@ -1159,7 +1161,7 @@ function grade(obs, migText, mig2Text, mig3Text) {
   // ── P1b. a refused GATED WRAPPER, executed
   const envB = obs.p1b_envelope;
   ok(envB && envB.ok === false,
-    `P1b: hr_claim_daily on an unknown task did not refuse: ${JSON.stringify(envB)}`);
+    `P1b: hr_claim_quest on an unknown quest did not refuse: ${JSON.stringify(envB)}`);
   ok(obs.p1b_rows.length === 1,
     `P1b: a refused gated wrapper wrote ${obs.p1b_rows.length} row(s), expected exactly 1 — the `
     + 'wrapper family is decorated by a different edit from the seven and has to be executed');
@@ -1167,7 +1169,7 @@ function grade(obs, migText, mig2Text, mig3Text) {
     const r = obs.p1b_rows[0];
     ok(r.code === envB?.error,
       `P1b: the journal recorded "${r.code}" but the player was told "${envB?.error}"`);
-    ok(r.verbs && Number(r.verbs.hr_claim_daily) === 1,
+    ok(r.verbs && Number(r.verbs.hr_claim_quest) === 1,
       `P1b: the wrapper's verb was not recorded (verbs=${JSON.stringify(r.verbs)})`);
   }
 

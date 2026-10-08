@@ -1278,17 +1278,15 @@ export default [
     const toast = toasts[toasts.length - 1];
     assert(toast.innerHTML.indexOf('Smoke Test Trophy') >= 0, 'toast did not render the achievement name');
     toast.remove(); // don't leave it lingering for the 4.2s timer
-    // Sheet: reads the deeds catalogue and paints one row per deed, headings apart.
+    // The list: the Collection Log's Deeds tab (lane daily-board), one row per deed.
     assert(Array.isArray(window.ACHIEVEMENTS) && window.ACHIEVEMENTS.length > 0,
-      'ACHIEVEMENTS catalogue must be published for the modal to read');
+      'ACHIEVEMENTS catalogue must be published for the Deeds tab to read');
     window.openAchievements();
-    const ov = document.getElementById('ach-overlay');
-    assert(ov, 'ach-overlay element not created');
-    assert(ov.classList.contains('show'), 'achievements modal did not open (missing .show)');
-    const list = document.getElementById('ach-list');
-    assert(list && list.querySelectorAll('.ach-row').length === window.ACHIEVEMENTS.length,
-      'modal must render one .ach-row per catalogue entry');
-    ov.classList.remove('show');
+    const ov = document.getElementById('hr-cl-modal');
+    assert(ov, 'openAchievements did not open the Collection Log');
+    assert(ov.querySelectorAll('.ach-row').length === window.ACHIEVEMENTS.length,
+      'the Deeds tab must render one .ach-row per catalogue entry');
+    ov.remove();
   }),
 
   /* ── regression suite — DEEDS-POLISH: THE DEED SURFACES, MEASURED ──────────
@@ -1325,15 +1323,15 @@ export default [
         if (b.getClientRects().length > 1 || bh > 1.5 * lh(b)) bad.push(w + 'x' + h + ': the toast title wraps (' + b.getClientRects().length + ' lines, ' + Math.round(bh) + 'px)');
         if (sh > 2.5 * lh(sm)) bad.push(w + 'x' + h + ': the toast name takes ' + Math.round(sh / lh(sm)) + ' lines');
       });
-      // (3) the reused sheet reopens at the top.
+      // (3) the Deeds tab reopens at the top.
+      const body = () => document.querySelector('#hr-cl-modal .hr-sheet-body');
       window.openAchievements();
-      const list = document.getElementById('ach-list');
-      list.scrollTop = 2000;
-      assert(list.scrollTop > 0, 'the probe could not scroll #ach-list (scrollHeight ' + list.scrollHeight + ', clientHeight ' + list.clientHeight + ') — the reopen check would prove nothing');
-      document.getElementById('ach-overlay').classList.remove('show');
+      body().scrollTop = 2000;
+      assert(body().scrollTop > 0, 'the probe could not scroll the Deeds tab (scrollHeight ' + body().scrollHeight + ', clientHeight ' + body().clientHeight + ') — the reopen check would prove nothing');
+      document.getElementById('hr-cl-modal').remove();
       window.openAchievements();
-      if (list.scrollTop !== 0) bad.push('the Achievements sheet reopened at scrollTop ' + list.scrollTop);
-      document.getElementById('ach-overlay').classList.remove('show');
+      if (body().scrollTop !== 0) bad.push('the Deeds tab reopened at scrollTop ' + body().scrollTop);
+      document.getElementById('hr-cl-modal').remove();
       // (4) the door and the fixed fabs. y is the player's scroll, so the door must
       // be clear of every fab's COLUMN, which is no rect overlap at any scroll.
       window.showTab('character');
@@ -3890,7 +3888,7 @@ export default [
          the fixture is a first boot rather than whoever ran the suite. */
       window.G.stats = { kills: 0, gathered: 0, harvested: 0, cropsHarvested: 0, rareDrops: 0 };
       window.G.quests = [];
-      window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: [] };
+      window.G.daily = {};
       window.ensureRetentionState();
 
       const m0 = H.__firstDayModel();

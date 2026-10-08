@@ -630,7 +630,7 @@ export default [
       assert(cook && cook.type === 'cooked', 'first_cook must be a cooking quest');
     } finally { G.quests = saved.quests; }
   }),
-  () => tryRun('b217: cooking progresses daily + quest trackers (live artisan path)', () => {
+  () => tryRun('b217: cooking progresses the quest tracker and the action seam (live artisan path)', () => {
     if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
     const G = window.G;
     const saved = {
@@ -662,15 +662,14 @@ export default [
       stampRecordLikeLoad(G);
       G.inventory = Object.assign({}, G.inventory, { shrimp: 10 });
       G.quests = [{ id: 'first_cook', type: 'cooked', label: 'Cook 5 dishes', goal: 5, progress: 0, reward: { gold: 1 }, done: false }];
-      G.daily = G.daily || {};
-      // b414: generateDailyTasks resets on the UTC day key now (server-authoritative
-      // selection), not toDateString() — pin lastReset to the same key so this
-      // hand-set task is not regenerated out from under the assertion.
-      G.daily.lastReset = window.hrGoalDayKey();
-      G.daily.tasks = [{ id: 'daily_cook', type: 'cooked', label: 'Cook 12 items', goal: 12, progress: 0, reward: 400, done: false }];
-      for (let i = 0; i < 3; i++) window.doArtisanAction('cooking', 'cook_shrimp');
+      /* The daily board grades the server's counters (lane daily-board); what the
+         live path still owes is the action SEAM the Muster and Work Orders wrap. */
+      const seam = window.updateDaily, seen = [];
+      window.updateDaily = function (t, a) { seen.push([t, a == null ? 1 : a]); return seam.apply(this, arguments); };
+      try { for (let i = 0; i < 3; i++) window.doArtisanAction('cooking', 'cook_shrimp'); } finally { window.updateDaily = seam; }
       assert(G.quests[0].progress === 3, 'cooking must progress the onboarding cook quest, got ' + G.quests[0].progress);
-      assert(G.daily.tasks[0].progress === 3, 'cooking must progress the daily cook task, got ' + G.daily.tasks[0].progress);
+      const cooked = seen.filter((x) => x[0] === 'cooked').reduce((n, x) => n + x[1], 0);
+      assert(cooked === 3, 'cooking must reach the updateDaily seam once per dish, got ' + JSON.stringify(seen));
     } finally {
       if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(null);
       G.quests = saved.quests; G.daily = saved.daily; G.inventory = saved.inv;

@@ -112,6 +112,10 @@ async function plantProbe(db) {
             || 'hr-accrue-failclosed-probe-does-not-exist' where id;`);
 }
 
+/* Each arm boots a whole WASM PostgreSQL; close it when the arm is done so the
+   process holds one database at a time, not seven (2026-10-08). */
+const closeDb = async (r) => { if (r && r.db) await r.db.close(); };
+
 const fire = async (db) => (await db.query('select public.hr_tick_cron_run() r')).rows[0].r;
 
 async function main(selftest) {
@@ -141,6 +145,7 @@ async function main(selftest) {
           + " where outcome = 'no_hmac' order by id desc limit 1")).rows[0].h
           .includes('pgcrypto'));
     }
+    await closeDb(r);
   }
 
   // ── F-2  THE FINDING. Vault present, pgcrypto absent → THE APPLY REFUSES ──
@@ -155,6 +160,7 @@ async function main(selftest) {
       r.applied === false && /create extension if not exists pgcrypto/.test(r.error));
     ok('F-2d and it does NOT leak the Vault secret into the apply output',
       r.applied === false && !r.error.includes(K_SECRET));
+    await closeDb(r);
   }
 
   // ── F-3  THE PRODUCTION SHAPE. Both present → the file is taken, and derives.
@@ -170,6 +176,7 @@ async function main(selftest) {
       ok('F-3c and a fire reaches `posted` — the gate cost the working state nothing',
         f && f.outcome === 'posted' && f.auth === 'v1', JSON.stringify(f));
     }
+    await closeDb(r);
   }
 
   // ── F-4  THE OVER-FIRE CHECK, and the reason `no_hmac` is its own outcome ──
@@ -185,6 +192,7 @@ async function main(selftest) {
         f && f.outcome === 'no_secret', JSON.stringify(f));
       ok('F-4c and it still posts nothing', f && f.ok === false);
     }
+    await closeDb(r);
   }
 
   if (!selftest) return;
@@ -239,6 +247,7 @@ async function main(selftest) {
     let verdict = null;
     try {
       const r = await apply(seed, patch);
+      await closeDb(r);
       if (expect === 'refused') {
         if (r.applied) verdict = 'THE APPLY SUCCEEDED — the remaining gate did not bite';
         else if (!r.error.includes(marker)) {

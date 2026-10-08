@@ -1,5 +1,6 @@
 {
-  "_about": "QA slot 1, Slime, no food: the hr_state_of envelope at version 103 and the shadow carriers at the span starts of hr_tick_probe ids 8 (crosses the Vigour line) and 10 (wholly past it), reconstructed read-only 2026-10-06 (tests/world-tick-vigour-line.mjs header). live = what production journalled for probe 10.",
+  "_about": "QA slot 1, Slime, no food: the hr_state_of envelope at version 103 and the shadow carriers at the span starts of hr_tick_probe ids 8 (crosses the Vigour line) and 10 (wholly past it), reconstructed read-only 2026-10-06 (tests/world-tick-vigour-line.mjs header). live = what production journalled for probe 10. recorded_on = the hr-accrue payload (first 8 hex of payload_sha256) the live pair ran on; re-record and update it together.",
+  "recorded_on": "6205e4e0",
   "env": {
     "slot": 1,
     "shard": 0,

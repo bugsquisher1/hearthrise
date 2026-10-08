@@ -372,6 +372,41 @@ function pb2(chainFn, mut, replicas) {
     + 'something the armed chain keeps — find it.\n      - ' + (r.v.reasons || []).join('\n      - '));
 }
 
+// ── PB-2p THE PAIRED READ: shipped shadow minus the ARMED chain, same seeds ──
+/* Security (2026-10-07): the ±1 % expectation pin is a coarse instrument. The
+   sharp one is PAIRED: the shipped composition and the armed model
+   (manualChain armedMaxHp) on the SAME replica seed family r, so the seed
+   noise both share cancels. Per replica, Δr = Σticks(shipped) / Σticks(armed)
+   − 1 over every calibration probe; PB-2p requires |mean Δ| ≤ 3·se_paired,
+   and --mutate requires `dropMaxHp` to read beyond 3·se_paired. */
+function pairedDelta(mut, replicas = REPLICAS) {
+  const deltas = [];
+  for (let salt = 0; salt < replicas; salt++) {
+    let a = 0; let b = 0;
+    for (const fx of combatFixtures()) {
+      for (let i = 0; i < STARTS; i++) {
+        const from = FROM + i * START_STEP_MS;
+        const c0 = atSpan(fx, from);
+        const to = from + PROBE_SPAN_MS;
+        const subject = mut ? manualChain(c0, from, to, Object.assign({ salt }, mut)) : shippedShadow(c0, from, to, { salt });
+        b += subject.acc.ticks;
+        a += manualChain(c0, from, to, { salt, armedMaxHp: true }).acc.ticks;
+      }
+    }
+    deltas.push(a ? b / a - 1 : 0);
+  }
+  const m = deltas.reduce((x, y) => x + y, 0) / deltas.length;
+  const sd = Math.sqrt(deltas.reduce((x, y) => x + (y - m) ** 2, 0) / Math.max(1, deltas.length - 1));
+  return { mean: m * 100, se: (sd / Math.sqrt(deltas.length)) * 100, n: deltas.length };
+}
+if (!MUTATE) {
+  const d = pairedDelta(null);
+  judge('PB-2p (paired)', Math.abs(d.mean) <= 3 * d.se,
+    `shipped − armed ${d.mean.toFixed(3)}% ± ${d.se.toFixed(3)}% ticks over ${d.n} paired seed families (inside 3 se)`,
+    `shipped − armed ${d.mean.toFixed(3)}% ± ${d.se.toFixed(3)}% ticks over ${d.n} paired seed families — outside 3 se: `
+    + 'the shadow carrier diverges from the armed chain on the same dice');
+}
+
 // ── THE MUTANTS ────────────────────────────────────────────────────────────
 const MUTANTS = {
   /* One constant instant seeds every window (the §11 shape). */
@@ -420,9 +455,18 @@ if (MUTATE) {
   /* PB-2's own tooth: the carrier forgets max_hp. Read by the PB-2 pin, not
      the bar (the bar is calibrated on the armed model, which never had it). */
   {
-    const r = pb2(manualChain, { dropMaxHp: true }, MUTANT_REPLICAS);
-    if (!r.ok) console.log(`  ✓ --dropMaxHp RED on PB-2: ${r.v.verdict} at ${r.rel.toFixed(2)}% ± ${r.se.toFixed(2)}% ticks`);
-    else { console.log(`  ✗ --dropMaxHp stayed green on PB-2 (${r.rel.toFixed(2)}%) — the pin is blind to the defect it pins`); blind++; }
+    /* At full REPLICAS. MEASURED (2026-10-07): on these normalised fixtures
+       the defect is −1.15 % ± 0.38 %, past the ±1 % pin by only 0.4 se, so
+       the unpaired pin's margin is PRINTED, not barred — barring it at 2 se
+       (Security's first ask) is red on the correct defect and would need
+       ~300 replicas. The margin-bearing tooth is PB-2p below (paired seeds). */
+    const r = pb2(manualChain, { dropMaxHp: true }, REPLICAS);
+    const margin = Math.abs(r.rel) - 1;
+    if (!r.ok) console.log(`  ✓ --dropMaxHp RED on PB-2: ${r.v.verdict} at ${r.rel.toFixed(2)}% ± ${r.se.toFixed(2)}% ticks (past ±1 % by ${(margin / r.se).toFixed(1)} se — thin; PB-2p carries the margin)`);
+    else { console.log(`  ✗ --dropMaxHp stayed green on PB-2 (${r.rel.toFixed(2)}% ± ${r.se.toFixed(2)}%) — the pin is blind to the defect it pins`); blind++; }
+    const d = pairedDelta({ dropMaxHp: true });
+    if (Math.abs(d.mean) > 3 * d.se) console.log(`  ✓ --dropMaxHp RED on PB-2p: ${d.mean.toFixed(3)}% ± ${d.se.toFixed(3)}% (${(Math.abs(d.mean) / d.se).toFixed(1)} se)`);
+    else { console.log(`  ✗ --dropMaxHp on PB-2p reads ${d.mean.toFixed(3)}% ± ${d.se.toFixed(3)}% — inside 3 se`); blind++; }
   }
   if (blind || problems) {
     console.error(`\nworld-tick-probe-bar --mutate: ${blind} blind mutant(s), ${problems} red arm(s)`);

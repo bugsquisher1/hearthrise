@@ -726,6 +726,16 @@
    "replay": 13,
    "note": "Hand-seeded by 2026-08-24-combat-style.sql: the combat style -> skill routing table (Attack/Strength/Defence/Ranged/Magic and the shared splits). Server-owned, and the client holds the same numbers — the live 'Defensive XP routed to Attack' bug was exactly a divergence between the two copies, so a rebuild producing a different set silently mis-routes every point of combat XP. Content additionally guarded by tests/combat-style.mjs. Rebuilt from repo."
   },
+  "hr_style_xp_routes": {
+   "class": "seeded",
+   "replay": 19,
+   "note": "Seeded by 2026-10-10-quest-combat-xp.sql: the per-style combat-XP shares (src/core/styles.js COMBAT_STYLES[*][*].xp) hr_claim_quest routes a quest's combat XP through. Rebuilt from repo; content bound both ways by tests/combat-style.mjs section F. Empty after a restore = hundred_kills pays its 1,500 XP to nobody."
+  },
+  "hr_weapon_families": {
+   "class": "seeded",
+   "replay": 48,
+   "note": "Seeded by 2026-10-10-quest-combat-xp.sql: item_id -> weapon family (src/data/items.js weaponType), read by hr_claim_quest to route a quest's combat XP by the equipped weapon. Rebuilt from repo; bound by tests/combat-style.mjs section F. Empty after a restore = every character routed as the sword family."
+  },
   "hr_combat_xp_credit_log": {
    "class": "restore_only",
    "wiped_at_cutover": false,

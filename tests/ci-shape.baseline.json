@@ -178,6 +178,8 @@
     "node tests/dungeon-scrip-reload.mjs --selftest": "economy-selftests",
     "node tests/dungeon-cooldown.mjs": "economy-selftests",
     "node tests/dungeon-cooldown.mjs --selftest": "economy-selftests",
+    "node tests/muster-server-points.mjs": "economy-selftests",
+    "node tests/muster-server-points.mjs --selftest": "economy-selftests",
     "node tests/state-of-farm-projection.mjs": "economy-selftests",
     "node tests/state-of-farm-projection.mjs --selftest": "economy-selftests",
     "node tests/away-receipt-journal.mjs --selftest": "economy-selftests",

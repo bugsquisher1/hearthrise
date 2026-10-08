@@ -27,8 +27,8 @@ import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, st
 const partyRig = () => {
   const realFetch = window.fetch;
   const calls = [];
-  const WREN = { name: 'Wren', combat_level: 57, hp: 38, hp_max: 61, recovering_until: null, share_bp: null, xp: null, gold: null };
-  const BRAM = { name: 'Bram', combat_level: 43, hp: 12, hp_max: 74, share_bp: null, xp: null, gold: null,
+  const WREN = { name: 'Wren', combat_level: 57, hp: 38, hp_max: 61, recovering_until: null };
+  const BRAM = { name: 'Bram', combat_level: 43, hp: 12, hp_max: 74,
                  recovering_until: new Date(Date.now() + 20 * 60000).toISOString() };
   const world = {
     member: [],
@@ -4093,10 +4093,11 @@ export default [
   }),
 
   () => tryRun('M8 PARTY-5: the three columns S2 owns are NOT drawn while they are NULL', () => {
-    /* hr_party_view's frozen shape already carries share_bp / xp / gold and
-       answers NULL until a party window settles. A column of em-dashes is a
-       worse lie than an absent column — and a panel that renders the key today
-       is a panel that will quietly show a stale split the day it fills. */
+    /* hr_party_view carried share_bp / xp / gold as NULL until
+       2026-10-15-party-hunt-view.sql retired them (the hunt's numbers are
+       hr_party_hunt_view's). The roster panel must still never draw them if a
+       stale server sends the keys: a column of em-dashes is a worse lie than an
+       absent column, and the hunt card is the one place a split belongs. */
     const html = window.partyPanelHtml({ known: true, partyId: 'P1', role: 'leader', invites: [],
       members: [{ name: 'Nia', combat_level: 51, hp: 44, hp_max: 58, share_bp: null, xp: null, gold: null }] }, { nowMs: 0 });
     assert(!/share|bp|\bxp\b|gold/i.test(html), 'slice 1 rendered a settle column it has no value for: ' + html.slice(0, 200));

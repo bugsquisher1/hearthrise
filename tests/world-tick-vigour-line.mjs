@@ -50,6 +50,7 @@
 import { readFile, writeFile, cp, mkdtemp } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
+import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -71,16 +72,38 @@ const Z_MAX = 3.29;     // two-sided p = 0.001
    against the repo engine with exactly that rule restored — the one
    difference between the two payloads that reaches this fixture — and VL2b
    proves that rule is the only delta. Post-deploy probes are recorded on the
-   new payload; when this fixture is re-measured, drop these edits. */
+   new payload; when this fixture is re-measured, drop these edits (VL5 says
+   when).
+   THE PATCH IS PROVEN, NOT ASSERTED: the patched combat-sim.js must hash to
+   RECORDED_SRC_SHA256 = sha256(`git show 0c07f85f:src/core/combat-sim.js`),
+   the b563 release commit whose hr-accrue pack is 6205e4e0 (the ?v= stamps
+   are restored to 563 for that reason). A combat-sim.js change that lands
+   after this pin and is not part of the recorded engine makes mutantBase
+   refuse the patch (exit 2) instead of replaying a hybrid. */
 const RECORDED_ON = '6205e4e0';
+const RECORDED_SRC_SHA256 = '310668a167336c52485424df32f05855188ad202695fb8159eae51e1f9c2d071';
 const RECORDED_ENGINE = {
   name: `payload ${RECORDED_ON}: hit XP on the rolled swing`,
   file: 'src/core/combat-sim.js',
   edits: [
+    ['  /* XP IS EARNED ON DAMAGE DEALT (design ruling). The swing may roll\n'
+      + '     past the foe\'s remaining HP — overkill, crits included — but only the\n'
+      + '     HP it actually removed pays hit XP, styled and hitpoints alike. Without\n'
+      + '     the clamp a maxed hitter earned ~4 XP per wasted point on a slime. */\n'
+      + '  const hpBefore = Math.max(0, state.monsterHp);\n'
+      + '  const xpDmg = Math.min(pDmg, hpBefore);\n', ''],
     ['if (xpDmg > 0) {', 'if (pDmg > 0) {'],
     ['hitXpRoute(ctx.style, xpDmg)', 'hitXpRoute(ctx.style, pDmg)'],
   ],
+  stampV: '563',
+  sha256: RECORDED_SRC_SHA256,
 };
+
+/* VL5's pin: the hr-accrue payload production serves, as the Coordinator
+   recorded it at the last edge deploy (CLAUDE.md §3.3: deploy, then verify the
+   live payload_sha256). A CONSTANT, read in CI — this guard never calls prod.
+   Bump it in the same commit that records a deploy. */
+const LIVE_PAYLOAD_PIN = '6205e4e0';
 
 const MUTANTS = [
   /* The dealt-damage rule reverted in the engine under test: it then equals
@@ -144,7 +167,7 @@ const MUTANTS = [
      B3 asks VL3 to prove it). Tired XP AND gold pay twice VIGOUR_DRY_MULT:
      per kill 0.50 of rested, outside [0.22, 0.28]. */
   {
-    name: 'VL-M7 tired pays 2x VIGOUR_DRY_MULT (xp and gold)', arm: 'VL3',
+    name: 'VL-M8 tired pays 2x VIGOUR_DRY_MULT (xp and gold)', arm: 'VL3',
     file: 'supabase/functions/hr-accrue/accrual.js',
     edits: [
       ['const vigMultAt = (atMs) => (vigDry && atMs >= vigLineMs ? VIGOUR_DRY_MULT : 1);',
@@ -168,13 +191,22 @@ async function mutantBase(m) {
     join(base, 'supabase', 'functions', 'hr-accrue'), { recursive: true });
   await cp(join(ROOT, 'src'), join(base, 'src'), { recursive: true });
   const path = join(base, m.file);
-  let src = await readFile(path, 'utf8');
+  let src = (await readFile(path, 'utf8')).replace(/\r\n/g, '\n');
   for (const [from, to] of m.edits) {
     if (!src.includes(from)) {
       console.error(`--mutate ${m.name}: marker gone from ${m.file} — "${from}"`);
       process.exit(2);
     }
     src = src.split(from).join(to);
+  }
+  if (m.stampV) src = src.replace(/\?v=\d+'/g, `?v=${m.stampV}'`);
+  if (m.sha256) {
+    const got = createHash('sha256').update(src, 'utf8').digest('hex');
+    if (got !== m.sha256) {
+      console.error(`${m.name}: the patched ${m.file} hashes ${got}, not the recorded engine's ${m.sha256} — `
+        + 'combat-sim.js changed in a way the patch does not undo; re-derive the patch or re-record the probe');
+      process.exit(2);
+    }
   }
   await writeFile(path, src, 'utf8');
   return base;
@@ -316,7 +348,8 @@ const ARMS = {
   /* VL2 — THE SPAN WHOLLY PAST THE LINE (probe 10). Parity in expectation,
      AND the live pair inside the replay's noise: if a change ever made the
      journalled 1161 / 1649 impossible for this input, this arm names it. */
-  VL2(L, fail, Lrec) {
+  VL2(L, fail, X) {
+    const Lrec = X.rec;
     const p = PROBES.p10;
     const r = replay(L, p);
     /* The live pair is judged against the engine of ITS payload (RECORDED_ON):
@@ -346,7 +379,8 @@ const ARMS = {
      parity band (what XP drags through levelling is small; anything larger is
      a second change hiding behind the first). An engine that pays overkill
      again (VL-M7) equals the recorded one and goes red here. */
-  VL2b(L, fail, Lrec) {
+  VL2b(L, fail, X) {
+    const Lrec = X.rec;
     const p = PROBES.p10;
     const r = replay(L, p); const rr = replay(Lrec, p);
     const notes = [];
@@ -370,9 +404,46 @@ const ARMS = {
     }
     return notes.join(', ');
   },
+  /* VL2c — PROBE 10 IS WHOLLY PAST THE LINE, PROVEN. VL2 compares a live pair
+     recorded on the engine that priced Vigour as ONE blend for the span
+     against the time-ordered line, and that is only sound if the two models
+     agree on this input. They do exactly when the span never crosses the
+     line: the blend of an all-dry window is VIGOUR_DRY_MULT itself. So run
+     the blend engine (VL-M1's edits) and the line engine on the same seeds and
+     require identical one-span AND chain results on probe 10 — and, as the
+     positive control that the comparison can see a difference at all, a
+     difference on probe 8, which crosses. */
+  VL2c(L, fail, X) {
+    const n = 24;
+    let same10 = 0; let diff8 = 0;
+    for (let i = 0; i < n; i++) {
+      const a = JSON.stringify([oneSpanRun(L, PROBES.p10, i), chainRun(L, PROBES.p10, i)]);
+      const b = JSON.stringify([oneSpanRun(X.blend, PROBES.p10, i), chainRun(X.blend, PROBES.p10, i)]);
+      if (a === b) same10++;
+      if (JSON.stringify(oneSpanRun(L, PROBES.p8, i)) !== JSON.stringify(oneSpanRun(X.blend, PROBES.p8, i))) diff8++;
+    }
+    if (same10 !== n) {
+      fail('VL2c', `probe 10: the blended and time-ordered Vigour models disagree on ${n - same10}/${n} seeds — `
+        + 'the span is not wholly past the line, so the recorded live pair cannot stand for the line engine');
+    }
+    if (diff8 === 0) fail('VL2c', `probe 8 (crosses the line): the two models agree on all ${n} seeds — the comparison is blind`);
+    return `probe 10 identical on ${same10}/${n} seeds; probe 8 differs on ${diff8}/${n}`;
+  },
+  /* VL5 — THE SUNSET TRIPWIRE. VL2 judges probe 10 on RECORDED_ENGINE, a
+     reconstruction of payload RECORDED_ON. Once production serves another
+     payload, new probes exist on the shipped engine and this one should be
+     re-recorded (and RECORDED_ENGINE deleted). Red when the pinned live
+     payload is not the one the fixture was recorded on. */
+  VL5(L, fail) {
+    const why = sunsetCheck(LIVE_PAYLOAD_PIN, QA1.recorded_on, RECORDED_ON);
+    if (why) { fail('VL5', why); return null; }
+    /* The tripwire's own tooth, run every time: a moved pin must trip it. */
+    if (!sunsetCheck('ffffffff', QA1.recorded_on, RECORDED_ON)) fail('VL5', 'sunsetCheck passed a moved pin — the tripwire is blind');
+    return `live pin ${LIVE_PAYLOAD_PIN} = fixture recorded_on ${QA1.recorded_on}`;
+  },
   /* VL3 — THE RATIO ARM. VL1/VL2 are parity arms: an engine that overpays the
      one span and the chain alike stays in parity, and VL-M4/VL-M5 (4x tired
-     overpay) passed every vigour guard; VL-M7 is the ruling's 2x. Here the SAME input and seeds run
+     overpay) passed every vigour guard; VL-M8 is the ruling's 2x. Here the SAME input and seeds run
      rested (spent 0), crossing (the line two hours in) and wholly past it
      (spent = budget).
      THE BAND IS READ PER KILL. Since b563 the fight levels off BANKED xp, so a
@@ -432,32 +503,48 @@ const ARMS = {
   },
 };
 
-async function runArms(L, only, Lrec) {
+function sunsetCheck(livePin, fixtureOn, engineOn) {
+  if (fixtureOn !== engineOn) return `fixture recorded_on ${fixtureOn} but RECORDED_ENGINE reconstructs ${engineOn} — update both together`;
+  if (livePin !== fixtureOn) {
+    return `production serves payload ${livePin} but probe 10 was recorded on ${fixtureOn}: re-record probe 10 on the live `
+      + 'payload (vigour-line-qa1.json probes.p10 + recorded_on), then delete RECORDED_ENGINE and VL2b';
+  }
+  return null;
+}
+
+async function runArms(L, only, X) {
   const fails = [];
   const fail = (arm, msg) => { fails.push(`${arm}: ${msg}`); };
   for (const [name, arm] of Object.entries(ARMS)) {
     if (only && name !== only) continue;
     const before = fails.length;
     let note = '';
-    try { note = arm(L, fail, Lrec) || ''; } catch (e) { fail(name, `threw: ${e.stack || e.message}`); }
+    try { note = arm(L, fail, X) || ''; } catch (e) { fail(name, `threw: ${e.stack || e.message}`); }
     if (fails.length === before) console.log(`  ok  ${name}  ${note}`);
   }
   return fails;
 }
 
+/* The two reference engines every arm may read: the recorded payload's and
+   the blended-Vigour one (VL-M1's edits, the engine before the line fix). */
+async function refs() {
+  const blend = MUTANTS.find((m) => m.name.startsWith('VL-M1 '));
+  return { rec: await load(await mutantBase(RECORDED_ENGINE)), blend: await load(await mutantBase(blend)) };
+}
+
 async function main() {
   if (!MUTATE) {
     console.log(`world-tick-vigour-line (${N} seeds per side)`);
-    const fails = await runArms(await load(ROOT), ONLY, await load(await mutantBase(RECORDED_ENGINE)));
+    const fails = await runArms(await load(ROOT), ONLY, await refs());
     for (const f of fails) console.log(`  ✗ ${f}`);
     console.log(fails.length ? `world-tick-vigour-line: RED (${fails.length})` : 'world-tick-vigour-line: green');
     process.exit(fails.length ? 1 : 0);
   }
   console.log('world-tick-vigour-line --mutate');
   let escaped = 0;
-  const Lrec = await load(await mutantBase(RECORDED_ENGINE));
+  const X = await refs();
   for (const m of MUTANTS) {
-    const fails = await runArms(await load(await mutantBase(m)), m.arm, Lrec);
+    const fails = await runArms(await load(await mutantBase(m)), m.arm, X);
     const caught = fails.some((f) => f.startsWith(`${m.arm}:`));
     console.log(`  ${caught ? 'caught ' : 'ESCAPED'}  ${m.name} -> ${m.arm}${caught ? '' : ' stayed green'}`);
     if (caught) console.log(`           ${fails[0].slice(0, 420)}`);

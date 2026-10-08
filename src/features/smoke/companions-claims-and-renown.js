@@ -2372,12 +2372,11 @@ export default [
       window.claimQuestReward('kill_more', false);
       assert(toasts.length > 0, 'a missing transport must be surfaced, never silent');
 
-      // 5 — GOAL-STATE + R1: the SERVER GATES the claim, but the DISPLAY is the
-      // player's own monotonic predicted progress (ruling R1 supersedes b461's
-      // "server is display truth"). Local stats say 99/30; the server confirms
-      // only 4/30 — so the row shows the player's progress held at the goal in a
-      // "Confirming…" state, offers NO Claim, and nothing reads as claimable.
-      // Then the server says claimed → the row reads claimed.
+      // 5 — GOAL-STATE: the SERVER gates the claim AND owns the bar (whole-game
+      // review 2026-10-08, item 7, superseding ruling R1's predicted display).
+      // Local stats say 99/30; the server confirms only 4/30 — so the row shows
+      // 4 / 30, offers NO Claim, and nothing reads as claimable. Then the
+      // server says claimed → the row reads claimed.
       window.G.dailyGoals.claimed = {};
       window.__hrGoalDisplay && window.__hrGoalDisplay.reset();
       window.HearthriseGoalClaim = { isSignedIn: () => true,
@@ -2392,7 +2391,8 @@ export default [
       (document.querySelector('#quests-modal-overlay .qm-tab[data-tab="daily"]') || {click(){}}).click();
       await microtasks();
       const prog = document.querySelector('#quests-modal-overlay .qm-q-progtext');
-      assert(prog && /Confirming/i.test(prog.textContent), 'R1: the row must read Confirming… while the server has not confirmed, got: ' + (prog && prog.textContent));
+      assert(prog && /\b4\s*\/\s*30\b/.test(prog.textContent) && !/Confirming/i.test(prog.textContent),
+        'the row must show the SERVER count 4 / 30 (never a local 30 / 30 "Confirming"), got: ' + (prog && prog.textContent));
       assert(!document.querySelector('#quests-modal-overlay .qm-q-claim'), 'no Claim button when the server says incomplete');
       window.closeQuestsModal();
       window.HearthriseGoalClaim.goalState = () => Promise.resolve({ ok: true, goals: [
@@ -2500,7 +2500,51 @@ export default [
     assert(s.phase === 'progress' && s.canClaim === false, 'a 0-goal counter is never complete/claimable');
   }),
 
-  () => tryRunAsync('R1-CONFIRM (ruling R1): predicted-complete but server-incomplete shows "Confirming…", NO Claim, NO completion toast', async () => {
+  /* -- regression suite -- GOAL-BAR-SERVER (whole-game review 2026-10-08, item 7).
+     The daily/weekly bars read BROWSER counts (G.stats.* minus a start value,
+     held at a monotonic high-water) while hr_claim_goal graded the SERVER's
+     period counters: a weekly "Slay 100" could read 100 / 100 "Confirming…"
+     against a server 40. hr_goal_state already projects the server's `have`, so
+     the bar now reads it and nothing else. RED before the fix: the weekly row
+     printed "100 / 100 · Confirming…". */
+  () => tryRunAsync('GOAL-BAR-SERVER: the weekly AND daily bars print the SERVER count, never a local tally', async () => {
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField, origClaim = window.HearthriseGoalClaim;
+    const mt = () => new Promise((r) => setTimeout(r, 0));
+    try {
+      window.clientMayWriteRecordField = (f) => f !== 'gold';
+      window.__hrGoalDisplay.reset(); window.__hrSyncServerGoals.reset();
+      window.getWeeklyGoals(); window.getGoalsForToday();
+      const weekKey = window.G.weeklyGoals.weekKey, dayKey = window.G.dailyGoals.dayKey;
+      window.G.stats.kills = 999;   // the browser's own tally is far past both goals
+      window.G.weeklyGoals = { weekKey, picks: ['wk_kills'], startValues: { wk_kills: 0 }, claimed: {}, sv: 1 };
+      window.G.dailyGoals = { dayKey, picks: ['kill_more'], startValues: { kill_more: 0 }, claimed: {} };
+      window.HearthriseGoalClaim = { isSignedIn: () => true,
+        goalState: () => Promise.resolve({ ok: true, goals: [
+          { goal_id: 'wk_kills', weekly: true, target: 100, have: 40, complete: false, claimed: false },
+          { goal_id: 'kill_more', weekly: false, target: 30, have: 12, complete: false, claimed: false } ] }) };
+      await new Promise((r) => window.__hrSyncServerGoals((f) => r(f)));
+      for (const [tab, want] of [['weekly', /\b40\s*\/\s*100\b/], ['daily', /\b12\s*\/\s*30\b/]]) {
+        window.openQuestsModal();
+        (document.querySelector('#quests-modal-overlay .qm-tab[data-tab="' + tab + '"]') || { click() {} }).click();
+        await mt();
+        const prog = document.querySelector('#quests-modal-overlay .qm-q-progtext');
+        assert(prog && want.test(prog.textContent) && !/Confirming/i.test(prog.textContent),
+          tab + ': the bar must print the SERVER count, got: ' + (prog && prog.textContent));
+        assert(!document.querySelector('#quests-modal-overlay .qm-q-claim'), tab + ': no Claim while the server says incomplete');
+        window.closeQuestsModal();
+      }
+      const d = window.__hrGoalDisplay({ id: 'wk_kills', target: 100 }, true);
+      assert(d.shown === 40 && d.confirmed === 40, 'goalDisplay.shown is the server count (got ' + d.shown + ')');
+    } finally {
+      if (typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
+      window.__hrSyncServerGoals.reset(); window.__hrGoalDisplay.reset();
+      window.clientMayWriteRecordField = origMay; window.HearthriseGoalClaim = origClaim;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRunAsync('R1-CONFIRM (superseded by GOAL-BAR-SERVER): a local tally past the goal against server-incomplete shows the server count, NO Claim, NO completion toast', async () => {
     const snap = snapshotG();
     const origMay = window.clientMayWriteRecordField, origClaim = window.HearthriseGoalClaim, origNotify = window.notify;
     const toasts = [];
@@ -2522,11 +2566,11 @@ export default [
       (document.querySelector('#quests-modal-overlay .qm-tab[data-tab="daily"]') || { click() {} }).click();
       await mt();
       const prog = document.querySelector('#quests-modal-overlay .qm-q-progtext');
-      assert(prog && /Confirming/i.test(prog.textContent), 'the row must read "Confirming…" when predicted hit the goal but the server has not, got: ' + (prog && prog.textContent));
-      assert(prog && /30\s*\/\s*30/.test(prog.textContent), 'the bar is FULL (30 / 30) during Confirming, got: ' + (prog && prog.textContent));
+      assert(prog && /\b27\s*\/\s*30\b/.test(prog.textContent) && !/Confirming/i.test(prog.textContent),
+        'the row must show the SERVER 27 / 30, never a locally-full 30 / 30 "Confirming…", got: ' + (prog && prog.textContent));
       assert(!document.querySelector('#quests-modal-overlay .qm-q-claim'), 'NO Claim button while the server has not confirmed');
-      assert(document.querySelector('#quests-modal-overlay .qm-q-confirming'), 'a Confirming chip stands in for the Claim button');
-      assert(!toasts.some((t) => /Quest complete/i.test(t)), 'NO completion toast may fire while merely Confirming');
+      assert(!document.querySelector('#quests-modal-overlay .qm-q-confirming'), 'a local tally can no longer raise the Confirming chip');
+      assert(!toasts.some((t) => /Quest complete/i.test(t)), 'NO completion toast may fire before the server confirms');
     } finally {
       if (typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
       window.__hrSyncServerGoals.reset(); window.__hrGoalDisplay.reset();

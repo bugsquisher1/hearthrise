@@ -17856,20 +17856,6 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
   window.__hrSyncServerGoals = syncServerGoals;   // test seam + manual refresh
   window.__hrSyncServerGoals.reset = function(){ _srvGoals = null; _srvGoalsAt = 0; _srvGoalsInflight = false; _srvGoalsForce = false; };
 
-  /* ── THE ONE READER OF startValues IN THIS IIFE ────────────────────────────
-     Delegates to block 16's goalBaselineOf (exported on window because this is
-     a different IIFE — the b224/b130 cross-scope trap). {known:false} means the
-     source is a SERVER-MIRRORED counter that has not arrived yet, and a goal
-     graded against a baseline nobody measured reads as instantly complete; see
-     the header on goalSourceMirrored.
-     FALLBACK, deliberately the OLD behaviour and not "unknown": if the export
-     ever goes missing, every goal reading 0 forever is a worse, louder bug than
-     the one this fixes, and tests/…/smoke asserts the export exists. */
-  function baselineOf(goal, isWeekly){
-    var stateObj = isWeekly ? G.weeklyGoals : G.dailyGoals;
-    if(typeof window.__hrGoalBaseline === 'function') return window.__hrGoalBaseline(stateObj, goal);
-    return {known: true, value: (stateObj && stateObj.startValues && stateObj.startValues[goal.id]) || 0};
-  }
   /* A goal whose server state is unknown shows the pending dash, never 0 and
      never the local count (the local count drives the BAR only). */
   function shownOr(g, isWeekly, d){ return srvGoal(g, isWeekly) ? d.shown : (window.HearthriseBalance?.countMarkup?.(null, {label:'Not counted yet'}) ?? '—'); }
@@ -17906,56 +17892,34 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
     return isComplete(goal, isWeekly) && !isClaimed(goal, isWeekly);
   }
 
-  /* ── R1/R5 — THE MONOTONIC PREDICTED-vs-CONFIRMED DISPLAY SEAM ──────────────
-     getProgress() returns the CONFIRMED value (the server's own count; 0 and
-     phase PENDING while that is unknown). localProgress() is always the LOCAL
-     OPTIMISTIC count — what the player just did this session, before the ~90s
-     span-sim has reported it. The display shows max(shownLastFrame, confirmed,
-     min(predicted, goal)) so a number, once on screen, only ever climbs; when
-     the server reconciles DOWN the bar HOLDS at its high-water and the row
-     enters "Confirming…" until server truth catches up. See src/core/goals.js.
-
-     The high-water and the one-shot celebration latch are keyed per PERIOD so a
-     daily/weekly reset (a new dayKey/weekKey) starts the counter fresh rather
-     than pinning a new day's bar at yesterday's goal. */
-  var _goalShown = Object.create(null);
+  /* ── THE BAR IS THE SERVER'S COUNT (whole-game review 2026-10-08, item 7) ──
+     The bar used to show max(shownLastFrame, confirmed, min(LOCAL, goal)) — a
+     browser tally (G.stats.* minus a start value) that could sit at 30 / 30
+     while hr_claim_goal, grading the server's own period counter, answered 27.
+     That is CLAUDE.md §6's "the browser says one thing, the server another", on
+     the surface a player acts on. hr_goal_state ALREADY projects the server's
+     `have` for every catalogued daily and weekly goal, so the fix is the
+     client's alone: the bar, its number and its phase all read getProgress()
+     (the server's count; the pending dash while unknown) and nothing else, and
+     each answer REPLACES the last — no high-water, no prediction.
+     goalDisplayState (src/core/goal-display.js) stays the one display rule; its
+     `predicted` input is simply the confirmed count now. The one-shot
+     celebration latch stays keyed per PERIOD, so a new day/week fires afresh. */
   var _goalCelebrated = Object.create(null);
-  function localProgress(goal, isWeekly){
-    var b = baselineOf(goal, isWeekly);
-    return b.known ? Math.max(0, src(goal.source) - b.value) : 0;
-  }
   function goalDisplayKey(goal, isWeekly){
     var stateObj = isWeekly ? G.weeklyGoals : G.dailyGoals;
     var per = isWeekly
       ? ('w' + ((stateObj && stateObj.weekKey) || 0))
       : ('d' + ((stateObj && stateObj.dayKey) || 0));
-    /* The BASELINE (startValue) is part of the key: a re-baseline is a new
-       counting epoch, so the monotonic high-water must NOT carry across it.
-       This is what keeps a reset counter (a new period, or a re-picked goal)
-       from being pinned at the prior instance's shown value — and it is exactly
-       the distinction between R1's "hold on a server reconcile-down" (baseline
-       unchanged, predicted still high) and a genuine restart (baseline moved). */
-    /* An UNKNOWN baseline is its own epoch: when the counter finally lands and
-       the baseline is taken, the key changes, so the monotonic high-water does
-       not pin the bar at a number that was only ever rendered as 0. */
-    var b = baselineOf(goal, isWeekly);
-    return per + ':' + goal.id + ':' + (b.known ? b.value : 'pending');
+    return per + ':' + goal.id;
   }
   function goalDisplay(goal, isWeekly){
     var confirmed = getProgress(goal, isWeekly);
-    var predicted = localProgress(goal, isWeekly);
     var k = goalDisplayKey(goal, isWeekly);
-    var prev = _goalShown[k] || 0;
     var GLS = window.HearthriseGoals && window.HearthriseGoals.goalDisplayState;
     var st = GLS
-      ? GLS({ goal: goal.target, confirmed: confirmed, predicted: predicted, prevShown: prev })
-      : (function(){
-          var pc = Math.min(predicted, goal.target);
-          var shown = Math.min(goal.target, Math.max(prev, confirmed, pc));
-          var phase = confirmed >= goal.target ? 'complete' : (shown >= goal.target ? 'confirming' : 'progress');
-          return { shown: shown, phase: phase, canClaim: confirmed >= goal.target };
-        })();
-    _goalShown[k] = st.shown;
+      ? GLS({ goal: goal.target, confirmed: confirmed, predicted: confirmed, prevShown: 0 })
+      : { shown: Math.min(goal.target, confirmed), phase: confirmed >= goal.target ? 'complete' : 'progress' };
     /* The phase and the claim come from the ONE predicate, never from the
        display maths: unknown server state is PENDING (dash, disabled Claim). */
     var phase = isComplete(goal, isWeekly) ? 'complete'
@@ -17963,8 +17927,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
       : (st.phase === 'complete' ? 'confirming' : st.phase);
     st = { shown: st.shown, phase: phase, canClaim: goalClaimable(goal, isWeekly), confirmed: confirmed, goal: goal.target };
     /* SERVER-GATED CELEBRATION: exactly one completion toast, fired the frame the
-       SERVER confirms the goal (phase COMPLETE) — never at predicted>=goal
-       (that is CONFIRMING, silent). Latched per period so it cannot repeat. */
+       SERVER confirms the goal (phase COMPLETE). Latched per period. */
     if(st.phase === 'complete' && !isClaimed(goal, isWeekly) && !_goalCelebrated[k]){
       _goalCelebrated[k] = true;
       if(typeof window.notify === 'function') notify('Quest complete: ' + goal.name + ' — reward ready to claim!', 'levelup');
@@ -17972,7 +17935,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
     return st;
   }
   window.__hrGoalDisplay = goalDisplay;   // test seam
-  window.__hrGoalDisplay.reset = function(){ _goalShown = Object.create(null); _goalCelebrated = Object.create(null); };
+  window.__hrGoalDisplay.reset = function(){ _goalCelebrated = Object.create(null); };
 
   /* b371 — THE TOPBAR QUEST BADGE READ A SENTENCE THAT STOPPED BEING WRITTEN.
      src/quests-topbar-button.js derived its count by running
@@ -18414,21 +18377,17 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
         var claimed = isClaimed(g, isWeekly);
         var complete = d.phase === 'complete';
         var confirming = d.phase === 'confirming';
-        var pendingFull = d.phase === 'pending' && d.shown >= g.target;
-        var done = complete || confirming || pendingFull;      // bar-full states
+        var done = complete || confirming;      // bar-full states (the bar is the server's count)
         var pct = Math.min(100, (d.shown/g.target)*100);
         var reward = rewardFor(g.id, isWeekly);
         var rewardHtml = '<div class="qm-q-reward"><div class="qm-r-label">Reward</div><div class="qm-r-val">'+rewardSummaryHTML(reward)+'</div></div>';
         var claimBtn = '';
         /* SERVER-GATED: Claim is OFFERED only when the SERVER confirms the goal
-           (phase COMPLETE). While predicted has hit the goal but the server
-           hasn't caught up (phase CONFIRMING) the row shows a non-alarming
-           "Confirming…" chip and NO claim button — R1's two-value contract. */
+           (phase COMPLETE). When the server's own count has reached the goal
+           but its verdict has not (phase CONFIRMING) the row shows a
+           non-alarming "Confirming…" chip and NO claim button. */
         if(claimed) claimBtn = '<span class="qm-q-claimed">✓ Claimed</span>';
         else if(d.canClaim) claimBtn = '<button class="qm-q-claim" data-hr-settle-latch data-qid="'+g.id+'" data-weekly="'+(isWeekly?1:0)+'">Claim</button>';
-        /* Server state unknown and the local bar full: the F2 latch's pending
-           Claim — disabled, marked, and not the settle latch's to lift. */
-        else if(pendingFull) claimBtn = '<button class="qm-q-claim" disabled aria-busy="true" data-hr-goal-pending data-qid="'+g.id+'" data-weekly="'+(isWeekly?1:0)+'">Claim</button>';
         else if(confirming) claimBtn = '<span class="qm-q-confirming">Confirming…</span>';
         /* b227 (audit finding #2) — "take me to the area the quest is asking
            me to complete". Until now this modal was a dead end: it told you to

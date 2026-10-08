@@ -8,13 +8,9 @@
 // ══════════════════════════════════════════════════════════════════════
 import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, awayArtisanSpan, withFightScreen, xpOf, xpZero, snapshotG, drain, restoreG, restoreGAndRecord, combatScreen, on, snapshot, decideRestore, decideLocalOwnership, withDesktopBanner, assertBannerReserved, phoneFrame, serverBagFixture } from './_harness.js?v=564';
 
-/* THE BALANCE THESE SAVE-CONTRACT TESTS READ IS STATED, NOT INHERITED. `gold` is
-   SERVER-OF-RECORD: every load deletes it off G until an envelope re-states it,
-   and the headless harness never runs a real hr_load. The b305/b319 tests below
-   used to pass only because an EARLIER test left a balance behind (they were red
-   under `--only` on main too); when that test was retired with its subject the
-   leak went with it. So each states the balance the way a load does —
-   applyRecord, the one writer — and restores through restoreGAndRecord. */
+/* The balance the save-contract tests below read is STATED, never inherited:
+   `gold` is server-of-record and absent until a load states it, so each test
+   states it through applyRecord (the one writer) and restores after. */
 const stateBalanceLikeLoad = (G, gold) => {
   const R = window.HearthriseRecord;
   assert(R && typeof R.applyRecord === 'function', 'HearthriseRecord.applyRecord is not published');

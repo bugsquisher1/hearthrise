@@ -4290,9 +4290,7 @@ export default [
     /* The catalogue must never be mistaken for complete. These spend sites
        compute their price at call time and are deliberately absent; a server
        that could not find an offer and invented a price is worse than one with
-       no catalogue at all. Pinned BY ID, not by count, so dropping one is named.
-       (`vendor.buyback` left the set on 2026-10-08 with the buy-back itself —
-       there is no repurchase site left to price.) */
+       no catalogue at all. Pinned BY ID, so dropping one is named. */
     const KNOWN_DERIVED = ['bank.gold', 'bounty.reroll', 'vendor.sell', 'clan_building.*', 'market.*'];
     const derivedIds = new Set((S.DERIVED_PRICES || []).map((d) => d && d.id));
     const lost = KNOWN_DERIVED.filter((id) => !derivedIds.has(id));

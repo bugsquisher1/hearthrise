@@ -154,8 +154,10 @@ import { buffQueueFromServer, buffBonusFor, activeBuffs } from '../../../src/cor
    companion + a role-matched action count into an INTEGER stat grant; it draws
    no rng, so away == live stays byte-identical. Gated by inp.companionXpBacked,
    which index.ts / set-activity.js thread from COMPANION_XP_SERVER_BACKED — so
-   the emission is inert until the one arm switch flips. */
-import { companionSpanXp } from '../../../src/core/companion-xp.js';
+   the emission is inert until the one arm switch flips. companionSpanGrant
+   also carries the pet's fractional remainder when the server owns one
+   (2026-10-12-companion-xp-frac.sql), in grantXp's own fixed point. */
+import { companionSpanGrant } from '../../../src/core/companion-xp.js';
 /* BESTIARY CHARMS, PHASE 2 — THE RANK IS DERIVED HERE, ON THE SERVER, FROM THE
    SERVER'S OWN ROWS. `inp.bestiaryKills` is `hr_bestiary_of`'s `{monsterId:
    kills}` read (index.ts / set-activity.js hand it over field by field, like
@@ -880,19 +882,37 @@ export function liveBuffHost(get) {
      appending this op moves no seeded roll — away and a live settle over the
      same span emit the identical op, and AWAY-1 stays byte-identical.
 
-   @returns [] or a single-element progress-op array. */
-function companionXpOps(inp, activityType, actionCount) {
-  if (!inp || inp.companionXpBacked !== true) return [];
+   ⚠ THE REMAINDER IS CARRIED (2026-10-12-companion-xp-frac.sql). A utility
+     pet earns 0.5 an action; floored per settle, a 10 s tick window with one
+     swing in it paid nothing. `inp.companionXpFrac` is hr_state_of's
+     `companions.frac` map (envelope.js, PRESENCE OF KEY: null on a database
+     without the column, and then nothing is carried or proposed). The
+     equipped pet's new remainder is proposed as the ABSOLUTE delta key
+     `companion_xp_frac`, the `xp_frac` shape, only when it moved.
+
+   @returns { ops: [] or one progress op, frac: null or { <id>: [0,1) } } */
+function companionXpGrant(inp, activityType, actionCount) {
+  const none = { ops: [], frac: null };
+  if (!inp || inp.companionXpBacked !== true) return none;
   const comp = inp.perks && inp.perks.companion;
-  if (!comp || typeof comp !== 'object' || typeof comp.id !== 'string') return [];
-  const add = companionSpanXp({
+  if (!comp || typeof comp !== 'object' || typeof comp.id !== 'string') return none;
+  const fracs = normaliseXpFrac(inp.companionXpFrac);
+  const f0 = fracs ? (fracs[comp.id] || 0) : undefined;
+  const g = companionSpanGrant({
     companionId: comp.id,
     currentXp: comp.xp,
     activityType,
     actionCount,
+    frac: f0,
   });
-  if (!(add > 0)) return [];
-  return [{ kind: 'stat', key: 'companion_xp:' + comp.id, period: '', add, state: 'active' }];
+  const ops = g.add > 0
+    ? [{ kind: 'stat', key: 'companion_xp:' + comp.id, period: '', add: g.add, state: 'active' }]
+    : [];
+  /* Compared in units (xpFracChanges), so a projection round trip never reads
+     as a move. */
+  const moved = fracs && g.frac !== undefined
+    ? xpFracChanges({ [comp.id]: f0 }, { [comp.id]: g.frac }) : {};
+  return { ops, frac: Object.keys(moved).length ? moved : null };
 }
 
 /**
@@ -2845,7 +2865,8 @@ export function computeAccrual(input) {
   for (const op of collectionProgressOps(collection, events)) progress.push(op);
   /* THE COMPANION XP OP (armed, b550) — the equipped pet earns per KILL on the
      combat path, the same basis wireKillHook fires on live. Draw-free, gated. */
-  for (const op of companionXpOps(inp, 'combat-kill', summary.kills)) progress.push(op);
+  const compXp = companionXpGrant(inp, 'combat-kill', summary.kills);
+  for (const op of compXp.ops) progress.push(op);
 
   /* WHERE THE WATERMARK ACTUALLY LANDS. `attended.toMs` is the newest attended
      kill row this settle consumed — the C6 floor, so a row cannot be projected
@@ -3047,6 +3068,9 @@ export function computeAccrual(input) {
     const fr = xpFracChanges(xpFrac0, state.xpFrac);
     if (Object.keys(fr).length) delta.xp_frac = fr;
   }
+  /* THE PET'S CARRIED REMAINDER, ABSOLUTE, only when it moved and only when
+     the server owns the column (companionXpGrant). */
+  if (compXp.frac) delta.companion_xp_frac = compXp.frac;
   /* ── THE VIGOUR CHARGE (design §4.1, §5) ─────────────────────────────────
      CHARGED FROM THE SAME `grantMs` THE PAYOUT WAS COMPUTED FROM, in the same
      delta, so a window cannot pay and not charge: there is ONE number. An
@@ -3829,7 +3853,8 @@ function accrueGather(inp, span) {
   }
   /* THE COMPANION XP OP (armed, b550) — the equipped pet earns per gather-yield
      action, the count wireAddItemForGather awards on live. Draw-free, gated. */
-  for (const op of companionXpOps(inp, 'gather', companionActions)) progress.push(op);
+  const compXp = companionXpGrant(inp, 'gather', companionActions);
+  for (const op of compXp.ops) progress.push(op);
 
   /* THE SUB-STEP REMAINDER, DEFERRED RATHER THAN FORFEITED — see
      settledWatermarkMs. No attended floor: `hr_attended_kills` is a COMBAT
@@ -3866,6 +3891,9 @@ function accrueGather(inp, span) {
     const fr = xpFracChanges(xpFrac0, state.xpFrac);
     if (Object.keys(fr).length) delta.xp_frac = fr;
   }
+  /* THE PET'S CARRIED REMAINDER, ABSOLUTE, only when it moved and only when
+     the server owns the column (companionXpGrant). */
+  if (compXp.frac) delta.companion_xp_frac = compXp.frac;
   if (progress.length) delta.progress = progress;
   /* THE CARRY, written back only when the server actually owns it. See the
      `toolCarry` note in computeAccrual's contract: a null input means the
@@ -4271,7 +4299,8 @@ function accrueArtisan(inp, span) {
   /* THE COMPANION XP OP (armed, b550) — the equipped pet earns per produce action,
      the count wireAddItemForGather awards on live for an active recipe.
      Draw-free, gated. */
-  for (const op of companionXpOps(inp, 'artisan', companionActions)) progress.push(op);
+  const compXp = companionXpGrant(inp, 'artisan', companionActions);
+  for (const op of compXp.ops) progress.push(op);
 
   /* THE SUB-STEP REMAINDER, DEFERRED RATHER THAN FORFEITED — the same call the
      gather path makes, over the same `sliceSpan` primitive (artisan-sim.js:355).
@@ -4329,6 +4358,9 @@ function accrueArtisan(inp, span) {
     const fr = xpFracChanges(xpFrac0, state.xpFrac);
     if (Object.keys(fr).length) delta.xp_frac = fr;
   }
+  /* THE PET'S CARRIED REMAINDER, ABSOLUTE, only when it moved and only when
+     the server owns the column (companionXpGrant). */
+  if (compXp.frac) delta.companion_xp_frac = compXp.frac;
   if (progress.length) delta.progress = progress;
   /* THE CARRY, written back only when the server actually owns it — see the
      `toolCarry` note in computeAccrual's contract. Artisan tools share the one

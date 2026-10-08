@@ -154,6 +154,8 @@
     "node tests/companion-grant-hardening.mjs --selftest": "db-replay-7",
     "node tests/xp-frac-carry.mjs": "db-replay-7",
     "node tests/xp-frac-carry.mjs --mutate": "db-replay-7",
+    "node tests/companion-xp-frac.mjs": "db-replay-7",
+    "node tests/companion-xp-frac.mjs --mutate": "db-replay-7",
     "node tests/mutant-control.mjs": "db-replay-7",
     "node tests/mutant-control.mjs --selftest": "db-replay-7",
     "node tests/pglite-template.mjs --verify --for=db-replay-8": "db-replay-8",

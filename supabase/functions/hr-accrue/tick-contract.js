@@ -104,8 +104,10 @@ export const APPEND = Object.freeze(['deaths', 'progress', 'hearthfind']);
 /* ABSOLUTE PER KEY: a map whose every entry is a checkpoint, folded "last
    window wins" ENTRY BY ENTRY. `xp_frac` (2026-10-09-xp-frac-carry.sql) carries
    only the skills a window moved, so a whole-map last-wins would drop the
-   remainder of a skill an earlier window moved and a later one did not. */
-export const ABSOLUTE_MAP = Object.freeze(['xp_frac']);
+   remainder of a skill an earlier window moved and a later one did not.
+   `companion_xp_frac` (2026-10-12-companion-xp-frac.sql) is the same shape
+   per companion. */
+export const ABSOLUTE_MAP = Object.freeze(['xp_frac', 'companion_xp_frac']);
 
 export function foldDeltas(deltas) {
   const out = {};
@@ -425,6 +427,14 @@ export function shadowStateOf(char, opts) {
     st.xp_frac = {};
     for (const k of Object.keys(chain.xpFrac).sort()) st.xp_frac[k] = Number(chain.xpFrac[k]) || 0;
   }
+  /* THE PET'S REMAINDER, the same checkpoint per companion. */
+  if (chain.companionXpFrac && Object.keys(chain.companionXpFrac).length) {
+    if (Object.keys(chain.companionXpFrac).length > MAX_SHADOW_XP_KEYS) return null;
+    st.companion_xp_frac = {};
+    for (const k of Object.keys(chain.companionXpFrac).sort()) {
+      st.companion_xp_frac[k] = Number(chain.companionXpFrac[k]) || 0;
+    }
+  }
   if (items) st.items = items;
   if (bestiary) st.bestiary_kills = bestiary;
   if (chain.deathsToday) st.deaths_today = Math.floor(chain.deathsToday);
@@ -483,6 +493,10 @@ export function applyShadowState(session, state) {
   if (st.xp_frac && typeof st.xp_frac === 'object' && s.xpFrac && typeof s.xpFrac === 'object') {
     s.xpFrac = Object.assign({}, s.xpFrac, st.xp_frac);
   }
+  if (st.companion_xp_frac && typeof st.companion_xp_frac === 'object'
+      && s.companionXpFrac && typeof s.companionXpFrac === 'object') {
+    s.companionXpFrac = Object.assign({}, s.companionXpFrac, st.companion_xp_frac);
+  }
   if (st.items) {
     const inv = Object.assign({}, s.inventory);
     for (const k of Object.keys(st.items)) {
@@ -535,6 +549,7 @@ export function applyShadowState(session, state) {
     gold: Number(st.gold) || 0,
     xp: Object.assign({}, st.xp),
     xpFrac: Object.assign({}, st.xp_frac),
+    companionXpFrac: Object.assign({}, st.companion_xp_frac),
     items: Object.assign({}, st.items),
     bestiaryKills: Object.assign({}, st.bestiary_kills),
     deathsToday: Number(st.deaths_today) || 0,

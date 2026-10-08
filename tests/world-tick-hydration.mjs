@@ -610,6 +610,9 @@ try {
          each skills cell as `frac`, so its source is the same top-level
          `skills` projection — moved to `state`, the map must lose it too. */
       xpFrac: { from: 'skills', level: 'top' },
+      /* THE PET'S CARRIED REMAINDER (2026-10-12-companion-xp-frac.sql) rides
+         inside the top-level `companions` projection as `frac`. */
+      companionXpFrac: { from: 'companions', level: 'top' },
       inventory: { from: 'inventory', level: 'top' },
       equipment: { from: 'equipment', level: 'top' },
       enchant: { from: 'enchant', level: 'top', combat: true },
@@ -710,6 +713,10 @@ try {
         Object.keys(env.skills).map((k) => [k, Number(env.skills[k].xp) || 0])),
       xpFrac: Object.fromEntries(
         Object.keys(env.skills).map((k) => [k, Number(env.skills[k].frac) || 0])),
+      companionXpFrac: env.companions && typeof env.companions === 'object' && 'frac' in env.companions
+        ? Object.fromEntries(Object.keys(env.companions.frac || {})
+          .map((k) => [k, Number(env.companions.frac[k]) || 0]))
+        : null,
       inventory: env.inventory, equipment: env.equipment,
       enchant: env.enchant, buffs: env.buffs,
       ammoCarry: null,

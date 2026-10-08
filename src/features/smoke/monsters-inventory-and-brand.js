@@ -8666,6 +8666,7 @@ export default [
       /* ── THE SAME CLASS, ONE SYSTEM OVER: the daily board's rows are never
          restated by the milestone hero row above them. */
       window.G.quests.forEach((q) => { q.done = true; q.claimed = true; q.progress = q.goal; });
+      delete window.G.dailyGoals;
       window.HearthriseHome.render();
       const root2 = document.getElementById('hd-root');
       const board = window.getGoalsForToday();

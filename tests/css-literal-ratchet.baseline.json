@@ -9,7 +9,7 @@
     },
     "audit-overrides.css": {
       "literals": 515,
-      "important": 125
+      "important": 123
     },
     "away-ledger.css": {
       "literals": 0,
@@ -48,8 +48,8 @@
       "important": 0
     },
     "legacy.css": {
-      "literals": 829,
-      "important": 164
+      "literals": 814,
+      "important": 150
     },
     "lucky-finds.css": {
       "literals": 0,
@@ -68,8 +68,8 @@
       "important": 0
     },
     "theme-cozy.css": {
-      "literals": 171,
-      "important": 576
+      "literals": 168,
+      "important": 566
     },
     "tokens.css": {
       "literals": 0,
@@ -111,7 +111,7 @@
       "literals": 1
     },
     "src/features/companions.js": {
-      "literals": 5
+      "literals": 1
     },
     "src/features/daily-reward.js": {
       "literals": 19
@@ -174,7 +174,7 @@
       "literals": 2
     },
     "src/legacy.js": {
-      "literals": 57
+      "literals": 56
     },
     "src/main.js": {
       "literals": 2

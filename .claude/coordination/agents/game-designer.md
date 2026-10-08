@@ -756,3 +756,22 @@ away night goes 0.5 min → 13.5 min / 40 kills, and attended deaths in the firs
   `sticky_core`, `keystone`), and three of those are bounty-proof or a shop cost. The b356 wave
   closed it.
 - "Harvest 25 crops" — b220 already made it scale; the residue was the FLOOR, fixed here.
+
+# 2026-10-11 — lane daily-board: one daily board, fewer trackers
+
+- **Ruling: the Goals half survives.** It had a catalogue table, a server read (hr_goal_state) and
+  one claim for daily + weekly. Daily Tasks (hr_claim_daily) are retired; the server now DEALS the
+  board (hr_goal_board, a port of goalCatalogue.pickBoard) and refuses an unoffered goal. The
+  integer picker equals the live float picker over the whole seed space, so the apply cannot
+  desync an open client. Rewards untouched; the ceiling falls (9 dailies + 10 weeklies payable →
+  3 + 3).
+- **Trackers are data** (src/data/progress-surfaces.js): 5 first-hour Home surfaces; Standings and
+  Hunter's Ledger HIDE until total level 100 / 100 lifetime kills; This-week folds into the Weekly
+  tab aside; Deeds fold into the Collection Log (Deeds tab).
+- **Found:** econ-sim had been reading a self-check probe row as the whole goal catalogue (board
+  gold = 0 in every past run); fixed (column-0 anchor). wk_rare is dealt ~1.6x as often as other
+  weeklies because it inherits wk_bury's skipped slot — a picker change would desync live clients,
+  so it waits for a release that ships client and server together.
+- **Open (design):** visible daily quest gold falls from ~2.8k (3 tasks + 3 goals) to ~0.9k per day.
+  If the first week feels thin, retune the board rows up to that total — a catalogue change with a
+  Security GO, not a client edit.

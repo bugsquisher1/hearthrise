@@ -37,6 +37,8 @@
 //   W9  no role holds EXECUTE on the three functions; hr_engine and hr_tick
 //           are refused by name; no role holds a privilege on either table
 //   W10 the cron job hr-tick-enrol is scheduled every minute with its command
+//   W12 tools/vitals.mjs ARMED_LAG (the V6 read a person sees) agrees with the
+//           DB lag judge on the same fixtures: stuck and judged counts equal
 //   W11 the staged kill file 2026-10-10-world-tick-gather-unwiden.sql runs and
 //           its own read-back assertions pass
 //
@@ -56,6 +58,15 @@ const MIG = '2026-10-10-world-tick-gather-widen.sql';
 const KILL = '2026-10-10-world-tick-gather-unwiden.sql';
 const MIG_SQL = (await readFile(join(ROOT, 'supabase', 'migrations', MIG), 'utf8')).replace(/\r\n/g, '\n');
 const KILL_SQL = (await readFile(join(ROOT, 'supabase', 'migrations', KILL), 'utf8')).replace(/\r\n/g, '\n');
+// tools/vitals.mjs's ARMED_LAG, lifted verbatim (W12): the person's V6 read must
+// never disagree with the database's lag judge.
+const VITALS_SRC = (await readFile(join(ROOT, 'tools', 'vitals.mjs'), 'utf8')).replace(/\r\n/g, '\n');
+const VITALS_LAG = (() => {
+  const a = VITALS_SRC.indexOf('const ARMED_LAG = `');
+  const b = VITALS_SRC.indexOf('`;', a);
+  if (a < 0 || b < 0) throw Object.assign(new Error('ARMED_LAG not found in tools/vitals.mjs'), { harness: true });
+  return VITALS_SRC.slice(a + 'const ARMED_LAG = `'.length, b);
+})();
 
 /** The `create or replace function public.<name>(` statement, verbatim, through its closing `$$;`. */
 function fnSource(sql, name) {
@@ -238,6 +249,13 @@ async function arms(db, { log = true } = {}) {
         buckets: g.buckets }));
     // Y, Z and the healthy three are operator-owned; leave them for W7.
     arms.operator = [X, Y, Z, ...H];
+
+    // W12: vitals' restatement (runbook V6) reads the same stuck set as the DB.
+    let v; try { v = await one(arms.lagSql || VITALS_LAG); } catch (e) { v = { threw: e.message }; }
+    const dbStuck = Number(lag.stuck); const dbJudged = Number(lag.characters);
+    ok('W12', v && v.channel === 'gather' && Number(v.stuck) === dbStuck && Number(v.judged) === dbJudged && dbStuck >= 1,
+      `tools/vitals.mjs ARMED_LAG agrees with hr_tick_stall_status: ${dbStuck} stuck of ${dbJudged}`,
+      JSON.stringify({ vitals: v, db: { stuck: lag.stuck, characters: lag.characters } }));
   }
 
   // ── W7 unenrol ──────────────────────────────────────────────────────────
@@ -371,6 +389,7 @@ const SRC = {
   enrol: fnSource(MIG_SQL, 'hr_tick_enrol'),
   unenrol: fnSource(MIG_SQL, 'hr_tick_unenrol'),
   stall: fnSource(MIG_SQL, 'hr_tick_stall_status'),
+  vitals: VITALS_LAG,
 };
 const RESTORE = `${SRC.enrol}\n${SRC.unenrol}\n${SRC.stall}\n`
   + 'revoke execute on function public.hr_tick_enrol(int) from public;\n'
@@ -427,6 +446,10 @@ const MUTANTS = [
     find: '    v_any_as := v_any_as or v_astall;\n', repl: '    v_any_as := v_any_as or v_astall or v_ls;\n' },
   { name: 'lagNotReported', fn: 'stall', why: 'lag_stalled never turns true', expect: /W6|W8/,
     find: "    v_ls := v_lj and (v_lag->>'stuck')::int > 0;", repl: '    v_ls := false;' },
+  { name: 'vitalsLagHour', fn: 'vitals', why: 'vitals restates the lag rule at 60 min (the person reads OK while the DB reads STUCK)', expect: /W12/,
+    find: "         where ps.accrued_to < now() - interval '15 minutes'\n", repl: "         where ps.accrued_to < now() - interval '60 minutes'\n" },
+  { name: 'vitalsLagIgnoresMoving', fn: 'vitals', why: 'vitals calls a catching-up character stuck', expect: /W12/,
+    find: "                              and pl.meta ->> 'src' = 'tick')) as stuck,", repl: "                              and false)) as stuck," },
   { name: 'grantEngine', fn: 'enrol', why: 'hr_engine is granted EXECUTE on enrol', expect: /W9/,
     find: null, repl: '\ngrant execute on function public.hr_tick_enrol(int) to hr_engine;' },
 ];
@@ -454,12 +477,14 @@ for (const m of MUTANTS) {
       src = src.replace(m.and[0], () => m.and[1]);
     }
   }
-  if (!CONTROL) {
+  if (m.fn === 'vitals') { if (!CONTROL) arms.lagSql = src; }
+  else if (!CONTROL) {
     try { await db.exec(src); } catch (e) { console.error(`harness: ${m.name}: ${e.message}`); process.exit(2); }
   }
   let red;
   try { red = await arms(db, { log: false }); } catch (e) { red = [`threw: ${e.message}`]; }
   try { await db.exec('rollback;'); } catch { /* not inside a transaction */ }
+  arms.lagSql = null;
   await db.exec(RESTORE);
   const hit = red.some((id) => m.expect.test(id));
   console.log(`[mutant] ${m.name} ${hit ? 'caught' : 'survived'}`);

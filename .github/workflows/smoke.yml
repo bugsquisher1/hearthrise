@@ -1965,7 +1965,7 @@ jobs:
       # permille, raw accrued_to inside 600 s, armed, unpartied, under the
       # max_owned fuse), journalled, paying nothing; unenrol restores the
       # operator cohort exactly; the stall judge names ONE stuck gatherer the
-      # aggregate floor hides. --mutate: 17 mutants.
+      # aggregate floor hides; vitals' V6 restatement agrees. --mutate: 19 mutants.
       - name: World tick — gather widens by server enrolment; one stuck gatherer is named
         if: ${{ !cancelled() }}
         run: |

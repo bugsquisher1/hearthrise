@@ -174,6 +174,8 @@
     "node tests/world-tick-vigour-line.mjs --mutate": "db-replay-8",
     "node tests/world-tick-maxhp-carry.mjs": "db-replay-8",
     "node tests/world-tick-maxhp-carry.mjs --mutate": "db-replay-8",
+    "node tests/world-tick-companion-xp.mjs": "db-replay-8",
+    "node tests/world-tick-companion-xp.mjs --mutate": "db-replay-8",
     "node tests/utc-midnight-replay.mjs": "utc-midnight-replay",
     "node tests/utc-midnight-replay.mjs --selftest": "utc-midnight-replay",
     "node tests/renown-kill-faucet.mjs --selftest": "economy-selftests",

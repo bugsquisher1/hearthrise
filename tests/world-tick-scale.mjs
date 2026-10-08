@@ -82,6 +82,7 @@
 //           windows single fires pay before parking (same pay, one row), the
 //           crossing is journalled once, and the parked character then leaves
 //           the roster (S1's parked skip)
+//   F11 ★ companion XP folds like single fires (0 xp, and 7 under the cap)
 //   F10 ★ a window carrying an unmodelled key (a real hearthfind, from a
 //           fixture engine whose copy rolls 1 in 25) is settled as its own row,
 //           never folded; pay equals 8 single fires
@@ -97,6 +98,7 @@ import { bootReplay, inventory, ROOT } from './schema-replay.mjs';
 import * as TICK from '../supabase/functions/hr-accrue/tick.js';
 import * as TICK_GATHER from '../supabase/functions/hr-accrue/tick-gather.js';
 import { xpForLevel } from '../src/core/xp.js';
+import { COMPANION_XP_CAP } from '../src/core/companion-xp.js';
 import { SHIM_CRYPTO, SHIM_VAULT, SHIM_NET, K_SECRET } from './world-tick-token-shims.mjs';
 
 const MUTATE = process.argv.includes('--mutate') || process.argv.includes('--selftest');
@@ -920,6 +922,38 @@ async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER, hfT
       + `${d10.c.length} rows in all, pay (trophies included, under the 3/day cap) identical to 8 single fires`,
       JSON.stringify({ findsA: findsA.length, findsC: findsC.length, rowsA: d10.a.length, rowsC: d10.c.length,
         same: value(d10.A.snap) === value(d10.C.snap), fires: d10.C.fires.map((f) => ({ c: f.catchup, r: f.reasons })) }));
+
+    // F11 ★ COMPANION XP THROUGH A FOLD (2026-10-08, lane b566-tick-companion-xp).
+    //     The pet's credit is a `stat companion_xp:<id>` op under `progress`
+    //     (in FOLD_CHAIN_KEYS), and the cap clamp reads `perks.companion.xp`,
+    //     which single fires re-read from hr_perks_of each visit but a fold
+    //     reads ONCE — so window i+1 must see window i's credit via advance().
+    //     Two equipped Sparrows (a gather pet): one at 0 xp, one 7 under
+    //     COMPANION_XP_CAP. Pay — the companion_xp progress row included —
+    //     must equal 8 single fires, the first must actually move, and the
+    //     second must land exactly on the cap.
+    await db.exec('delete from public.hr_tick_ownership;');
+    const pets = [];
+    for (const [i, start] of [[0, 0], [1, COMPANION_XP_CAP - 7]]) {
+      const u = await char(U(780 + i), { ageS: 1200 });
+      await q("update public.player_state set active_id = 'normal_tree', companion_equipped = 'sparrow' where user_id = $1", [u]);
+      await q(`insert into public.player_skills (user_id, slot, skill_id, xp) values ($1, 0, 'woodcutting', $2)
+               on conflict (user_id, slot, skill_id) do update set xp = excluded.xp`, [u, xpForLevel(60) + 1]);
+      if (start > 0) {
+        await q(`insert into public.player_progress (user_id, slot, kind, key, period_key, value)
+                 values ($1, 0, 'stat', 'companion_xp:sparrow', '', $2)`, [u, start]);
+      }
+      await leaseTo(u);
+      const d = await differential(u, F);
+      const rowOf = (snap) => Number((snap.progress.find((r) => r.kind === 'stat' && r.key === 'companion_xp:sparrow') || {}).value || 0);
+      pets.push({ start, same: value(d.A.snap) === value(d.C.snap), A: rowOf(d.A.snap), C: rowOf(d.C.snap),
+        rowsC: d.c.length });
+    }
+    ok('F11', pets.every((p) => p.same && p.A === p.C) && pets[0].C > pets[0].start
+        && pets[1].C === COMPANION_XP_CAP && pets[1].A === COMPANION_XP_CAP,
+      `companion XP folds like single fires: Sparrow ${pets[0].start} -> ${pets[0].C} xp, and 7 under the cap -> `
+      + `${pets[1].C} (exactly the cap) in ${pets[1].rowsC} folded row(s)`,
+      JSON.stringify(pets));
   }
 
   return red;
@@ -1078,6 +1112,11 @@ const MUTANTS = [
   { name: 'foldNoHorizonTrim', edge: 'tick.js', why: 'a fold crossing the horizon is refused whole (the 4 payable windows are lost)', expect: /F9/,
     find: "  if (res && res.ok !== true && res.error === 'past_horizon' && wins.length > 1 && res.horizon) {",
     repl: '  if (false) {' },
+  { name: 'foldDropsCompanionArm', edge: 'tick-shadow.js', why: 'the tick stops hydrating the companion-XP arm switch (the 2026-10-08 underpay)', expect: /F11/,
+    find: '    companionXpBacked: COMPANION_XP_SERVER_BACKED,\n', repl: '    companionXpBacked: char.companionXpBacked,\n' },
+  { name: 'foldStaleCompanionClamp', edge: 'tick-shadow.js', why: 'the fold clamps each window against the visit-start companion xp (pays past the cap)', expect: /F11/,
+    find: "  if (comp && typeof comp.id === 'string' && Array.isArray(d.progress)) {\n",
+    repl: "  if (false && comp && typeof comp.id === 'string' && Array.isArray(d.progress)) {\n" },
   { name: 'foldCeiling', edge: 'tick.js', why: 'the edge fold ceiling drifts from the CHECK', expect: /F7/,
     find: 'export const MAX_FOLD_WINDOWS = 8;', repl: 'export const MAX_FOLD_WINDOWS = 16;' },
 ];

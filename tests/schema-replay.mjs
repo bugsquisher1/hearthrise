@@ -467,6 +467,10 @@ export async function bootReplay({ patches, seedBefore, tolerant = false, upTo, 
       const rec = { file: name, error: String(err && err.message || err).split('\n')[0] };
       failures.push(rec);
       if (!tolerant) {
+        // The caller never receives this database, so nobody else can close it:
+        // a refused replay would otherwise leak a whole WASM heap per call.
+        endCapture();
+        await db.close().catch(() => {});
         const e = new Error(
           `THE REPO CANNOT REBUILD THE DATABASE.\n`
           + `  ${name} failed to apply: ${rec.error}\n`

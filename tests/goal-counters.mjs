@@ -194,8 +194,25 @@ function gatherNight(over) {
 }
 
 // ════════════════════════════════════════════════════════════════════════
+/* Every database an arm opens is CLOSED when the arm ends. A PGlite instance is
+   a whole WASM PostgreSQL heap; left open, five per arm across the 13 --mutate
+   arms took the process to 12-13 GB and the OOM killer (2026-10-08: exit 137 at
+   M10/M12 on a 14.3 GB box). `release` frees a block's fresh database as soon
+   as the block is done; the finally is the backstop for an arm that throws. */
 async function run(patches) {
-  const db = await boot(patches);
+  const opened = [];
+  const open = async () => { const d = await boot(patches); opened.push(d); return d; };
+  const release = async (d) => {
+    const i = opened.indexOf(d);
+    if (i >= 0) opened.splice(i, 1);
+    await d.close();
+  };
+  try { await runArms(open, release); }
+  finally { for (const d of opened.splice(0).reverse()) await d.close().catch(() => {}); }
+}
+
+async function runArms(open, release) {
+  const db = await open();
   const G = goalsMod;
 
   // ── G0 · THE FIXTURES ARE REAL ────────────────────────────────────────
@@ -753,7 +770,7 @@ async function run(patches) {
 
     // hr_apply accepts the op verbatim, and hr_bestiary_of reads it back by
     // prefix — the projection this slice ships, exercised end to end.
-    const fresh = await boot(patches);
+    const fresh = await open();
     const c2 = combatNight();
     if (c2.accrued) {
       const r = await apply(fresh, c2.delta);
@@ -772,6 +789,7 @@ async function run(patches) {
       ok(!got.has('kill_any') && ![...got.keys()].some((k) => k.startsWith('ev:')),
         'B3: hr_bestiary_of leaked a non-bestiary stat row (ev:kill_any / kills) into the bestiary');
     }
+    await release(fresh);
   }
 
   // ══════════════════════════════════════════════════════════════════════
@@ -834,7 +852,7 @@ async function run(patches) {
       + 'looted id must be recorded once, and nothing else');
 
     // hr_apply accepts the ops verbatim; hr_collection_of reads them back by prefix.
-    const fresh = await boot(patches);
+    const fresh = await open();
     const c2 = combatNight();
     if (c2.accrued) {
       const r = await apply(fresh, c2.delta);
@@ -850,6 +868,7 @@ async function run(patches) {
       ok(![...got.keys()].some((k) => k.includes(':')),
         'COLLECTION-1: hr_collection_of leaked a prefixed (non-item) key — the strip is wrong');
     }
+    await release(fresh);
   }
 
   // ── COLLECTION-2 · A 20-DISTINCT-DROP SPAN STAYS UNDER c_max_progress_ops.
@@ -880,7 +899,7 @@ async function run(patches) {
   //    settles the same day are idempotent. The streak is computed from now()
   //    inside hr_apply — never a client value.
   {
-    const fresh = await boot(patches);
+    const fresh = await open();
     const settle = () => apply(fresh, { accrued_to: 'now', journal: { kind: 'accrue', intent: 'accrue' } });
     const readStreak = async () => {
       const r = await fresh.query(
@@ -925,13 +944,14 @@ async function run(patches) {
     const after = Number((await readStreak()).streak_days);
     ok(after === before,
       `STREAK-1: a non-accrual delta moved the streak ${before}→${after} — it must gate on accrued_to`);
+    await release(fresh);
   }
 
   // ── STATE-EXCL · hr_state_of EXCLUDES the bestiary + collection populations
   //    from its generic envelope (they have dedicated projections) while still
   //    returning ordinary progress AND the streak.
   {
-    const fresh = await boot(patches);
+    const fresh = await open();
     const c2 = combatNight();
     if (c2.accrued) {
       await apply(fresh, c2.delta);   // writes ev:kill_monster:* and ev:loot:* rows
@@ -949,6 +969,7 @@ async function run(patches) {
       ok(Number(env?.state?.streak_days) >= 1,
         `STATE-EXCL: hr_state_of did not project streak_days (${env?.state?.streak_days})`);
     }
+    await release(fresh);
   }
 }
 

@@ -411,8 +411,9 @@ async function run(patch) {
          every monster up to 12 HP pays Trophy rung 2 EXACTLY what no perk
          pays, so a weakest-monster fixture can no longer tell "the engine
          spends the rung" from "the channel forwards a constant". The goblin
-         (15 HP) resolves every rung. The floor-eats-small-perks behaviour is
-         a separate finding, not this block's to hide. Pinned by id and
+         (15 HP) resolves every rung. The floor-eats-small-perks behaviour was
+         fixed by carrying the remainder (2026-10-07 ruling) and the weakest
+         monster is back below, in P9-W, beside this case. Pinned by id and
          asserted present just below, so a rename is a loud red, never a
          silent `unknown_monster` skip. */
       activeId: 'goblin',
@@ -430,6 +431,10 @@ async function run(patch) {
       },
       equipment: {}, inventory: {},
       items: ITEMS, monsters: MONSTERS, nodes: {},
+      /* THE SERVER OWNS THE REMAINDER COLUMN (2026-10-09-xp-frac-carry.sql):
+         the projection hands the engine a map, so grantXp carries. Without it
+         the engine keeps the pre-column per-grant floor. */
+      xpFrac: {},
     };
     ok(MONSTERS[base.activeId] && MONSTERS[base.activeId].hp > 12,
       `P9: the fixture monster ${base.activeId} is missing or at most 12 HP — a +2% rung floors away there`);
@@ -456,20 +461,19 @@ async function run(patch) {
       ok(b > a,
         `P9: a decorated character was paid ${b} XP against a bare one's ${a} — the perk state reaches `
         + 'the bonus function and the engine does not spend it');
-      /* MEASURED 2026-10-07 (goblin, dealt-damage XP): 361,187 -> 414,453 XP, +14.7%;
+      /* MEASURED 2026-10-07 (goblin, carried remainder): 422,802 -> 481,995 XP, +14.0%;
+         2026-10-07 (goblin, per-grant floor): 361,187 -> 414,453 XP, +14.7%;
          2026-08-15 (slime, overkill XP): 651,398 -> 758,572, +16.45%. Same seed, same equipment, varying only the perk state.
          The naive expectation is +14% (Trophy L5 + Watchtower = +7% combatXP,
          Library L5 + capstone = +7% allXP, both applying to combat skills).
-         It measures HIGHER, and the reason is worth recording rather than
-         widening the band around: `grantXp` FLOORS each grant, so on a
-         low-XP monster a percentage bonus is worth more than its headline —
-         floor(1.95) is 1 and floor(1.95 x 1.14) is 2. A Slime's 5 base XP is
-         the extreme of that. The band is set from the measurement with room
-         for the fight to diverge, not from the arithmetic. */
+         Under the per-grant floor it measured HIGHER (floor(1.95) is 1 and
+         floor(1.95 x 1.14) is 2); with the remainder carried it measures the
+         headline +14.0%, which is the point of the ruling. The band is set
+         from the measurement with room for the fight to diverge. */
       const lift = a > 0 ? (b - a) / a : 0;
       ok(lift > 0.10 && lift < 0.25,
         `P9: the perk lift is ${(lift * 100).toFixed(1)}% (${a} -> ${b} XP). Trophy L5 + Watchtower `
-        + '(+7% combatXP) and Library L5 + capstone (+7% allXP) measured +14.7% on this fixture.');
+        + '(+7% combatXP) and Library L5 + capstone (+7% allXP) measured +14.0% on this fixture.');
       /* SHAPE, immune to the flooring: a bigger grant must pay more than a
          smaller one. If the channel were paying a constant, both would match. */
       const only = (p) => sum(computeAccrual({ ...base, perks: { ok: true, plots: {}, propertyTier: 0, ...p } }));
@@ -481,6 +485,51 @@ async function run(patch) {
       console.log(`  perk lift on a 12h ${base.activeId} night: ${a} -> ${b} XP `
         + `(+${(lift * 100).toFixed(1)}%), ${none.summary.kills} -> ${decked.summary.kills} kills; `
         + `Trophy rung 2 ${small} < rung 5 ${big}`);
+    }
+    /* ── P9-W · THE WEAKEST MONSTER, BACK (fractional-XP ruling, 2026-10-07) ──
+       The goblin above was a WORKAROUND: on dealt-damage XP every monster up
+       to 12 HP paid Trophy rung 2 exactly what no perk paid, because grantXp
+       floored each ~10 XP grant (floor(10.6 x 1.02) = 10). grantXp now carries
+       the remainder, so the rung must pay on the weakest monster too — and not
+       merely "more": per skill, at least floor(2% of what the bare night paid),
+       which is the arithmetic floor(1.02 S) - floor(S) >= floor(0.02 floor(S)).
+       THE SLIME (8 HP, 5 XP — the lowest XP per kill of the 8-HP pair, so the
+       hardest case for a percentage), pinned by id AND asserted to be at the
+       catalogue's minimum HP, so a rename is a loud red rather than a silent
+       `unknown_monster` skip and a re-balance that lifts it out of the band
+       is a red too. */
+    {
+      const weakest = 'slime';
+      const minHp = Math.min(...Object.keys(MONSTERS).map((k) => MONSTERS[k].hp || Infinity));
+      ok(MONSTERS[weakest] && MONSTERS[weakest].hp === minHp && minHp <= 12,
+        `P9-W: ${weakest} is missing or not at the catalogue's minimum HP (${minHp}) — this block exists `
+        + 'for the weakest monster, in the <= 12 HP band the per-grant floor used to swallow');
+      const wBase = { ...base, activeId: weakest };
+      const wNone = computeAccrual({ ...wBase, perks: null });
+      const wRung2 = computeAccrual({ ...wBase, perks: { ok: true, plots: {}, propertyTier: 0, rooms: { trophy: 2 } } });
+      ok(wNone.accrued === true && wRung2.accrued === true && wNone.summary.died === false,
+        `P9-W: the ${weakest} fixture did not run a full night (${wNone.reason} / ${wRung2.reason})`);
+      if (wNone.accrued && wRung2.accrued) {
+        ok(wNone.summary.kills >= 100,
+          `P9-W: only ${wNone.summary.kills} kills — the +2% claim is pinned over at least 100`);
+        ok(wRung2.summary.kills === wNone.summary.kills,
+          `P9-W: the rung changed the kill count (${wNone.summary.kills} -> ${wRung2.summary.kills}) — XP must not move a single draw`);
+        const xa = wNone.delta.xp || {};
+        const xb = wRung2.delta.xp || {};
+        let any = false;
+        for (const k of Object.keys(xa)) {
+          const need = Math.floor(0.02 * xa[k]);
+          any = any || need > 0;
+          ok((xb[k] || 0) - xa[k] >= need,
+            `P9-W: Trophy rung 2 paid ${weakest} ${k} ${xb[k] || 0} against a bare ${xa[k]} — +${(xb[k] || 0) - xa[k]}, `
+            + `under floor(2% of ${xa[k]}) = ${need}. The +2% is being floored away per grant again.`);
+        }
+        ok(any, `P9-W: the bare ${weakest} night paid no skill 50+ XP, so the +2% bound tests nothing`);
+        const sa = Object.values(xa).reduce((p, q) => p + q, 0);
+        const sb = Object.values(xb).reduce((p, q) => p + q, 0);
+        console.log(`  weakest-monster rung 2 on a 12h ${weakest} night: ${sa} -> ${sb} XP `
+          + `(+${(((sb - sa) / Math.max(1, sa)) * 100).toFixed(2)}%), ${wNone.summary.kills} kills`);
+      }
     }
     /* CONTROL: an EMPTY perk envelope pays exactly what `perks: null` pays.
        This is the degrade path measured on the real engine rather than on

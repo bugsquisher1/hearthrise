@@ -1938,7 +1938,7 @@ export default [
        3-max and a 40-max swing (the small one leaves the slime hurt, the big
        one overkills it), opens on a slime at 3 HP, and asserts each swing's
        grants EXACTLY: styled = 4 x min(pDmg, hpBefore), hitpoints =
-       floor(1.33 x min(pDmg, hpBefore)) — hitXpRoute's own constants.
+       1.33 x min(pDmg, hpBefore) unfloored (grantXp carries) — hitXpRoute's own constants.
        hpBefore is tracked by the rig, never read from the engine's answer:
        the HP the previous swing left, or the respawn HP after a kill. */
     const rig = () => {
@@ -1985,8 +1985,8 @@ export default [
         if (sw.after === 0) kills++;
         assert((sw.hit || 0) === 4 * dealt, label + ': swing ' + i + ' (' + sw.pDmg + ' rolled into ' + sw.hpBefore
           + ' HP) paid ' + sw.hit + ' styled hit XP, expected 4 x ' + dealt + ' — hit XP is not paid on damage dealt');
-        assert((sw.hitpoints || 0) === Math.floor(dealt * 1.33), label + ': swing ' + i + ' paid ' + sw.hitpoints
-          + ' hitpoints XP, expected floor(1.33 x ' + dealt + ')');
+        assert(Math.abs((sw.hitpoints || 0) - dealt * 1.33) < 1e-9, label + ': swing ' + i + ' paid ' + sw.hitpoints
+          + ' hitpoints XP, expected 1.33 x ' + dealt + ' (unfloored: grantXp carries the remainder)');
         assert((sw.attack || 0) === 4 * dealt + (sw.after === 0 ? slime.xp : 0),
           label + ': swing ' + i + ' styled total ' + sw.attack + ' is not hit XP plus the kill XP');
       });

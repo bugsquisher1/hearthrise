@@ -29,21 +29,84 @@ import { advanceToolCarry } from './tools.js?v=564';
    the hint the player sees, so they can never disagree again. */
 export const COMBAT_XP_SKILLS = ['attack', 'strength', 'defense', 'hitpoints', 'ranged', 'magic'];
 
+/* ── FRACTIONAL XP IS CARRIED, NEVER FLOORED AWAY (game-designer ruling,
+   2026-10-07, final) ─────────────────────────────────────────────────────────
+   XP is paid on damage DEALT, so an 8-HP kill pays ~10 XP per skill and
+   a per-grant floor swallowed every small multiplier whole: Trophy rung 2
+   (+2%) paid NOTHING against any monster of 12 HP or less, because
+   floor(10.6 x 1.02) = 10. The ruling: keep a per-skill REMAINDER in [0,1),
+   apply every multiplier to the exact value ONCE, credit floor(frac + grant)
+   and carry the rest. No RNG — the remainder is arithmetic, so every seeded
+   draw is unchanged.
+
+   FIXED POINT, so batching cannot move a unit. The remainder and each grant
+   are held as integers of 1/XP_FRAC_SCALE XP; the carry is integer addition
+   and one integer division. Over any N grants the credit is exactly
+   floor((frac0 + sum of grants) / SCALE) whether they arrive one per swing
+   (the live tick), in one 12-hour span (away) or in 10-second windows chained
+   through hr_apply (the world tick). A float accumulator would agree only
+   "almost always", which is not a property a ranked surface can rest on.
+
+   SERVER-OWNED. `player_skills.xp_frac` (2026-10-09-xp-frac-carry.sql) is
+   written only by hr_apply from the engine's delta and projected by
+   hr_state_of; the client renders the integer and never sends the fraction. */
+export const XP_FRAC_SCALE = 1000000;
+
+/** A remainder (a number in [0,1)) as integer units, CLAMPED to [0, SCALE-1].
+    Garbage, negatives and NaN are 0 — the never-mint direction. */
+export function xpFracUnits(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.min(XP_FRAC_SCALE - 1, Math.round(n * XP_FRAC_SCALE));
+}
+
+/** The server's per-skill remainder map, normalised. `null` when the input is
+    not an object — PRESENCE OF KEY, the toolCarry idiom: a database with no
+    `xp_frac` column projects nothing, and the engine must then propose no
+    `xp_frac` key hr_apply would refuse as unknown. */
+export function normaliseXpFrac(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const out = {};
+  for (const k of Object.keys(raw)) {
+    const u = xpFracUnits(raw[k]);
+    if (u > 0) out[k] = u / XP_FRAC_SCALE;
+  }
+  return out;
+}
+
+/** The remainders that MOVED between two maps, as the delta's `xp_frac`
+    (absolute per skill, the tool_carry shape). Compared in units, so a
+    projection round trip (numeric -> JSON -> Number) never reads as a move. */
+export function xpFracChanges(before, after) {
+  const out = {};
+  const b = before || {};
+  const a = after || {};
+  for (const k of Object.keys(a)) {
+    const u = xpFracUnits(a[k]);
+    if (u !== xpFracUnits(b[k])) out[k] = u / XP_FRAC_SCALE;
+  }
+  return out;
+}
+
 /**
  * The whole of addXp's maths.
  *
- * @param state  { skills, restedXp }  — MUTATED
+ * @param state  { skills, xpFrac, restedXp }  — MUTATED
  * @param ctx    { bonus, xpB, restedQuantum, authored }
  * @returns { gain, base, rested, oldLevel, newLevel, events }
  *
- * Ordering is load-bearing and unchanged from legacy.js:
- *   PACE first, then the additive perk block, then ONE floor, then the
- *   rested quantum ADDED OUTSIDE the floor and outside the multiplier.
- *   A rested charge is capacity, not throughput — letting +15% allXP scale
- *   it would quietly turn the bank back into throughput, which is the exact
- *   thing the b228 conversion exists to stop. And a positive grant never
- *   rounds to zero: a 1-damage hit must still be worth 1 Hitpoints XP or the
- *   low end of combat goes dead.
+ * Ordering is load-bearing:
+ *   PACE first, then the additive perk block, applied to the EXACT value
+ *   once, then ONE floor of (carried remainder + grant), the rest carried in
+ *   `state.xpFrac[skillId]`; then the rested quantum ADDED OUTSIDE the floor
+ *   and outside the multiplier. A rested charge is capacity, not throughput —
+ *   letting +15% allXP scale it would quietly turn the bank back into
+ *   throughput, which is the exact thing the b228 conversion exists to stop.
+ *   With a carry there is no "a positive grant never rounds to zero" floor:
+ *   the 0.5 XP a 1-damage hit is worth is carried and paid on the next hit,
+ *   which is exact where the old max(1, …) over-paid the low end and
+ *   under-paid every multiplier. Without one (no `state.xpFrac`, a database
+ *   that has no column yet) the pre-ruling per-grant floor stands.
  */
 export function grantXp(state, skillId, amt, ctx) {
   const c = ctx || {};
@@ -54,7 +117,29 @@ export function grantXp(state, skillId, amt, ctx) {
   const rested = amt > 0 ? spendRestedCharge(state, c.restedQuantum || 0) : 0;
   const base = c.authored ? (Number(amt) || 0) : pacedXp(skillId, amt);
   const raw = base * (1 + perk + combat);
-  const gain = (raw > 0 ? Math.max(1, Math.floor(raw)) : 0) + rested;
+
+  /* PRESENCE OF KEY, the toolCarry idiom. A state that carries an `xpFrac` map
+     is a state whose server owns the column (the engine builds it from the
+     projection), and there the remainder is carried. A state WITHOUT one — a
+     database with no column yet, or legacy.js addXp's display-only prediction
+     shadow (no new client prediction since 2026-09-16; the server pays) —
+     keeps the pre-ruling per-grant floor, so an
+     edge deployed before 2026-10-09-xp-frac-carry.sql applies does not start
+     dropping each window's remainder on the floor — a 10 s world-tick gather
+     chain would lose ~6% of its XP that way (tests/world-tick-parity P-G1).
+     DEBT, bounded: once the column is live everywhere this branch is dead and
+     goes, with the fixtures that still omit the map. */
+  let whole = 0;
+  if (state.xpFrac && typeof state.xpFrac === 'object') {
+    if (raw > 0) {
+      const total = xpFracUnits(state.xpFrac[skillId]) + Math.round(raw * XP_FRAC_SCALE);
+      whole = Math.floor(total / XP_FRAC_SCALE);
+      state.xpFrac[skillId] = (total - whole * XP_FRAC_SCALE) / XP_FRAC_SCALE;
+    }
+  } else {
+    whole = raw > 0 ? Math.max(1, Math.floor(raw)) : 0;
+  }
+  const gain = whole + rested;
 
   if (!state.skills) state.skills = {};
   const oldLevel = levelFromXp(state.skills[skillId] || 0);

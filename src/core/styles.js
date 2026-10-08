@@ -151,7 +151,10 @@ export function normaliseStyleKeys(styleKeys) {
  *
  * Current behaviour, preserved exactly: styled hits split `dmg x 4` by the
  * style's ratios; an unresolved style pays `dmg x 4` to Attack AND
- * Strength (i.e. double); Hitpoints always gets floor(dmg x 1.33).
+ * Strength (i.e. double); Hitpoints always gets dmg x 1.33 — UNFLOORED
+ * since 2026-10-07: a floor here sat before grantXp's pace and perk
+ * multipliers, and the fractional-XP ruling applies every multiplier to the
+ * exact value once, with grantXp's carried remainder as the only rounding.
  *
  * @returns [{ skill, amount }]
  */
@@ -166,7 +169,7 @@ export function hitXpRoute(style, dmg) {
     out.push({ skill: 'attack', amount: dmg * HIT_XP_PER_DAMAGE });
     out.push({ skill: 'strength', amount: dmg * HIT_XP_PER_DAMAGE });
   }
-  out.push({ skill: 'hitpoints', amount: Math.floor(dmg * HIT_HP_XP_PER_DAMAGE) });
+  out.push({ skill: 'hitpoints', amount: dmg * HIT_HP_XP_PER_DAMAGE });
   return out;
 }
 

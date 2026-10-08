@@ -248,6 +248,11 @@ async function arms(db, { log = true } = {}) {
     await cfg("enabled = true, channels = array['combat','gather','artisan'], armed_channels = '{}'");
     await makeChar(UP, 'combat', cact, "now() - interval '30 minutes'");
     await db.exec(`delete from public.hr_tick_ownership where user_id = '${UP}';`);
+    // The combat cohort (2026-10-14-world-tick-m4-party-horizon.sql (3a)): an
+    // armed party settle ends a hunt whose hunter the tick does not own for
+    // combat, before the CAS this arm reads. The hunter is in the cohort.
+    await db.exec(`insert into public.hr_tick_ownership (user_id, slot, channel, owned)
+                   values ('${UP}', 0, 'combat', true);`);
     const from = (await one("select date_trunc('second', now()) - interval '30 minutes' as t")).t;
     const party = (await one(
       'insert into public.party (leader_user, leader_slot) values ($1, 0) returning id', [UP])).id;

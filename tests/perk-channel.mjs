@@ -403,15 +403,19 @@ async function run(patch) {
       accruedToMs: Date.UTC(2026, 2, 15, 0, 0, 0),
       activeSinceMs: Date.UTC(2026, 2, 15, 0, 0, 0),
       activeKind: 'combat',
-      /* THE WEAKEST MONSTER IN THE CATALOGUE, derived — never a hand-typed id,
-         so a rename cannot turn this block into a silent `unknown_monster`
-         skip that reports green. Derived by the PROPERTY that matters rather
-         than by name: the first draft took `Object.keys().sort()[0]`, which is
-         `ancient_bear`, and a level-1 character died at once — 0 kills, 2 XP,
-         and a perk lift of exactly 0% that read as "the engine ignores perks".
-         A fixture chosen by alphabetical order is a fixture chosen at random. */
-      activeId: Object.keys(MONSTERS).sort(
-        (a, b) => (MONSTERS[a].hp || 0) - (MONSTERS[b].hp || 0) || a.localeCompare(b))[0],
+      /* THE GOBLIN, the C6 fixtures' monster. It was the weakest monster by
+         HP until hit XP moved to damage DEALT (combat-sim.js, 2026-10-07): a
+         maxed hitter now earns at most 4 x 8 HP a swing on an 8-HP foe, split
+         three ways, and grantXp's ONE floor per grant swallows a +2 % rung on
+         a ~10 XP grant (floor(10.6 x 1.02) = 10). Measured on a 12 h night:
+         every monster up to 12 HP pays Trophy rung 2 EXACTLY what no perk
+         pays, so a weakest-monster fixture can no longer tell "the engine
+         spends the rung" from "the channel forwards a constant". The goblin
+         (15 HP) resolves every rung. The floor-eats-small-perks behaviour is
+         a separate finding, not this block's to hide. Pinned by id and
+         asserted present just below, so a rename is a loud red, never a
+         silent `unknown_monster` skip. */
+      activeId: 'goblin',
       capMs: 12 * 3600000,
       seed: 0x5eed1234,
       /* A MAXED CHARACTER, so the night is not truncated by a death. The
@@ -427,6 +431,8 @@ async function run(patch) {
       equipment: {}, inventory: {},
       items: ITEMS, monsters: MONSTERS, nodes: {},
     };
+    ok(MONSTERS[base.activeId] && MONSTERS[base.activeId].hp > 12,
+      `P9: the fixture monster ${base.activeId} is missing or at most 12 HP — a +2% rung floors away there`);
     const none = computeAccrual({ ...base, perks: null });
     /* Trophy Room L5 (+5% combatXP) + a Watchtower (+2%) = +7% combat XP.
        Library L5 (+5% allXP) + the capstone (+2%) = +7% on everything. */
@@ -450,8 +456,8 @@ async function run(patch) {
       ok(b > a,
         `P9: a decorated character was paid ${b} XP against a bare one's ${a} — the perk state reaches `
         + 'the bonus function and the engine does not spend it');
-      /* MEASURED 2026-08-15: 651,398 -> 758,572 XP, +16.45%, 14,097 kills,
-         same seed, same equipment, varying only the perk state.
+      /* MEASURED 2026-10-07 (goblin, dealt-damage XP): 361,187 -> 414,453 XP, +14.7%;
+         2026-08-15 (slime, overkill XP): 651,398 -> 758,572, +16.45%. Same seed, same equipment, varying only the perk state.
          The naive expectation is +14% (Trophy L5 + Watchtower = +7% combatXP,
          Library L5 + capstone = +7% allXP, both applying to combat skills).
          It measures HIGHER, and the reason is worth recording rather than
@@ -463,7 +469,7 @@ async function run(patch) {
       const lift = a > 0 ? (b - a) / a : 0;
       ok(lift > 0.10 && lift < 0.25,
         `P9: the perk lift is ${(lift * 100).toFixed(1)}% (${a} -> ${b} XP). Trophy L5 + Watchtower `
-        + '(+7% combatXP) and Library L5 + capstone (+7% allXP) measured +16.45% on this fixture.');
+        + '(+7% combatXP) and Library L5 + capstone (+7% allXP) measured +14.7% on this fixture.');
       /* SHAPE, immune to the flooring: a bigger grant must pay more than a
          smaller one. If the channel were paying a constant, both would match. */
       const only = (p) => sum(computeAccrual({ ...base, perks: { ok: true, plots: {}, propertyTier: 0, ...p } }));

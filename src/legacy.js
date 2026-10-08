@@ -5024,40 +5024,6 @@ const QUEST_DEFS=[
 ];
 window.QUEST_DEFS=QUEST_DEFS;
 
-/* ── RENAMED QUEST IDS — a TABLE, because a rename is save state ───────────
-   A quest id is the merge key AND the save key, so renaming a row without
-   moving the saves that hold it does two bad things at once: the old row
-   survives under its old LABEL (the player keeps reading the retired copy)
-   and the new row is seeded fresh, re-granting a reward that was already
-   paid. `hundred_kills` was `field_licence` until b343, and ~every live beta
-   save carries it — a 1,500 XP double-pay for anyone who had finished it.
-
-   A row here renames in place, keeping `done` and `progress`. Deduping is
-   part of the same pass because "both ids present" is the one state a rename
-   can produce, and two rows with one id would complete — and PAY — twice. */
-const QUEST_ID_RENAMES={ field_licence:'hundred_kills' };
-function migrateQuestIds(){
-  if(!Array.isArray(G.quests)) return;
-  /* Cheap pre-check: this runs on every ensureRetentionState (which runs on
-     every kill), and the answer is `false` for every save written after this
-     build ships. No allocation on the hot path. */
-  if(!G.quests.some(function(q){ return q && QUEST_ID_RENAMES[q.id]; })) return;
-  const byId={};
-  G.quests=G.quests.filter(function(q){
-    if(!q||!q.id) return false;
-    q.id=QUEST_ID_RENAMES[q.id]||q.id;
-    const prev=byId[q.id];
-    if(prev){
-      /* Keep the furthest-along truth from both rows, drop the duplicate. */
-      prev.done=!!(prev.done||q.done);
-      prev.progress=Math.max(prev.progress||0,q.progress||0);
-      return false;
-    }
-    byId[q.id]=q;
-    return true;
-  });
-}
-
 /* Where a mirrored quest reads its progress from. A TABLE, so a second
    mirrored quest is a row here plus a row above — never a branch in
    updateQuest(). Every reader is defensive: a save missing `stats` reads 0,
@@ -5104,9 +5070,6 @@ function ensureRetentionState(){
      idempotent: a completed quest keeps its `done`, an in-flight one keeps its
      `progress`, and nothing is ever re-granted. */
   if(!Array.isArray(G.quests))G.quests=[];
-  /* Renames run BEFORE the merge, or the merge would seed the new id beside
-     the old row and pay its reward a second time. */
-  migrateQuestIds();
   /* ── b497: THE MERGE NOW REFRESHES THE DEFINITION, NOT JUST THE ROW SET ───
      b341 fixed "a new quest never reaches an existing save". It did not fix the
      other half, and the b497 farmhand retune walked straight into it: a quest
@@ -5144,8 +5107,7 @@ function ensureRetentionState(){
        and `label` are the two fields a retune moves, and `mirror` is the one
        whose staleness changes behaviour — three comparisons in the steady
        state, and the answer is `false` for every save written after this build
-       ships. No allocation and no key sweep on the hot path. (Same discipline
-       as migrateQuestIds' own pre-check, six lines up.) */
+       ships. No allocation and no key sweep on the hot path. */
     if(row.goal===def.goal && row.label===def.label && row.type===def.type
        && row.mirror===def.mirror && row.target===def.target
        && (row.reward&&row.reward.gold)===(def.reward&&def.reward.gold)

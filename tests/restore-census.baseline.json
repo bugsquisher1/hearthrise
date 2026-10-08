@@ -678,7 +678,7 @@
   },
   "hr_activities": {
    "class": "seeded",
-   "replay": 532,
+   "replay": 535,
    "note": "Generated from src/data/*.js by tools/gen-catalogues.mjs; content guarded by --check as a smoke preflight. 344 rows on 2026-08-15, 508 now. Rebuilt from repo, never restored."
   },
   "hr_bounty_monsters": {
@@ -860,12 +860,12 @@
   },
   "hr_item_slots": {
    "class": "seeded",
-   "replay": 290,
+   "replay": 291,
    "note": "Generated catalogue — which items may occupy which equipment slot. 222 rows on 2026-08-15, 275 now. Rebuilt from repo, never restored."
   },
   "hr_items": {
    "class": "seeded",
-   "replay": 550,
+   "replay": 551,
    "note": "Generated catalogue — the market tradeable allowlist and every item's server-side truth. 426 rows on 2026-08-15, 515 on 2026-09-06, 519 now (+4 Hearthfind trophies, 2026-09-08). Content digest guarded by tools/gen-catalogues.mjs --check as a smoke preflight."
   },
   "hr_kill_credit_log": {

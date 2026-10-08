@@ -48,12 +48,20 @@ const MUTANTS = [
   /* V3 (b563): a tired span fought at the RAW xp's levels while the chain
      re-reads the banked ones — -14..-18% ticks/kills/gold/xp on W1 once a
      defence level is worth 0.02 monster accuracy. Reverting the banked-skills
-     view must turn W1 red. */
+     view must turn W5 red.
+     Re-anchored after the Vigour-line split (e22f0f4e): the view is keyed on
+     `vigDry` (any instant past the line) instead of the blended `vigMult`;
+     `fightSkills === state.skills` still switches off both the banked-gain
+     fold and the Hitpoints ceiling, so this edit restores the b563 defect
+     exactly. Its arm moved W1 -> W5: once xp is paid on damage dealt (b565) a
+     level-16 hunter gains too little in 10 h for the defect to leave W1's ±10%
+     bar (measured -7.5% ticks / -9.4% kills, vs -13.7% before) — W5 is the
+     fixture where levels move. */
   {
-    name: 'V3 tired fight levels on unbanked xp', arm: 'W1',
+    name: 'V3 tired fight levels on unbanked xp', arm: 'W5',
     file: 'supabase/functions/hr-accrue/accrual.js',
     edits: [
-      ['const fightSkills = vigMult === 1 ? state.skills : { ...skills0 };',
+      ['const fightSkills = vigDry ? { ...skills0 } : state.skills;',
         'const fightSkills = state.skills;'],
     ],
   },
@@ -62,8 +70,10 @@ const MUTANTS = [
     file: 'supabase/functions/hr-accrue/accrual.js',
     edits: [
       ['vigourScale(raw, vigMult, vigRng)', 'Math.floor(raw * vigMult)'],
-      ['vigourScale(Math.floor(state.gold || 0), vigMult, vigRng)',
-        'Math.floor(Math.floor(state.gold || 0) * vigMult)'],
+      /* The Vigour-line split (e22f0f4e) scales only the gold earned past the
+         line; flooring THAT per window is the same V1 defect. */
+      ['vigourScale(goldAll - goldFull, vigMult, vigRng)',
+        'Math.floor((goldAll - goldFull) * vigMult)'],
     ],
   },
   {
@@ -177,6 +187,39 @@ function goblinUnderLine(L, sessions, fromMs, spentMin) {
   const s = L.atSpanOffline(sessions.find((x) => x.activeId === 'goblin'), fromMs);
   s.vigour = { day_key: '2026-9-29', spent_min: spentMin, budget_min: 720, offline_cap_ms: 43200000, refills: 0 };
   return s;
+}
+
+/* A FRESH FIGHTER, WHOLLY TIRED: level-1 attack/strength/defence, Hitpoints
+   10, a bronze sword on Slimes with a deep stack of shrimp under auto-eat, so
+   it never dies and every tick is a swing. At these levels a tired span's raw
+   xp crosses many levels its banked quarter does not, which is exactly the
+   gap V3 fought in. `fight: {}` is a real row's empty checkpoint (null would
+   mean "no column" and restart the fight every 10 s window). Synthetic ids;
+   in-memory only. */
+const FRESH_FROM = Date.UTC(2026, 8, 29, 6, 0, 0);
+const FRESH_TO = FRESH_FROM + 2 * 3600000;
+function freshTired(L, i) {
+  return {
+    userId: `00000000-0000-4000-8000-${String(0x5c0000 + i).padStart(12, '0')}`,
+    slot: 1, shard: 0, version: 70,
+    activeKind: 'combat', activeId: 'slime',
+    activeSinceMs: FRESH_FROM - 3600000,
+    accruedToMs: FRESH_FROM, accruedToText: L.pgTimestamptzText(FRESH_FROM),
+    capMs: 43200000,
+    hp: 10, maxHp: 10, gold: 0,
+    skills: { attack: 0, defense: 0, strength: 0, hitpoints: 1154 },
+    inventory: { cooked_shrimp: 5000 },
+    equipment: { weapon: 'bronze_sword' },
+    fight: {},
+    consecFalls: 0, recoveringUntilMs: 0, ammoCarry: null,
+    autoEatEnabled: true, autoEatFood: 'cooked_shrimp', autoEatPct: 25,
+    deathsTodayBefore: 0, deathsLifetimeBefore: 0,
+    combatXpAccruedToMs: 0, hearthfindReady: false, enchant: null, combatStyle: {},
+    buffs: [],
+    vigour: { day_key: '2026-9-29', spent_min: 796, budget_min: 720, offline_cap_ms: 43200000, refills: 0 },
+    bestiaryKills: {},
+    perks: null,
+  };
 }
 
 function accrueOnce(L, c, fromMs, toMs) {
@@ -359,6 +402,46 @@ const ARMS = {
         + `shadow carrier ends on ${b}. The carrier dropped the sub-minute charge (V2).`);
     }
     return `one chain and two carried fires both end on spent_min ${a}`;
+  },
+
+  /* W5 — a tired hunt fights at the levels it BANKS (V3). The fresh fighter,
+     2 h wholly past the line, 8 seeds: the 10 s chain re-reads banked skills
+     every window, so the one-span accrue must fight at them too. Same ±10%
+     aggregate combat bar as W1 (SEC_WORLD_TICK_ARM_2026-10-05); deaths ±1 per
+     seed. MEALS are held to the aggregate bar, not ±1 per seed: this fighter
+     eats ~140 times in 2 h on two independent RNG streams (W1's fixture
+     carries no food, so its ±1 never bites), and the engine has no regen, so
+     a fighter that levels must take damage and eat. Measured: fixed -1.8%
+     kills; the b563 defect -33% kills / -31% xp. */
+  W5(L, fail) {
+    const N = 8;
+    const a = { ticks: 0, kills: 0, xp: 0, ate: 0 }; const t = { ticks: 0, kills: 0, xp: 0, ate: 0 };
+    for (let i = 0; i < N; i++) {
+      const one = accrueOnce(L, freshTired(L, i), FRESH_FROM, FRESH_TO);
+      if (!one.accrued) return fail('W5', `harness: the one-span accrue did not settle (${one.reason})`);
+      const run = L.settleCombatSession(freshTired(L, i), FRESH_FROM, FRESH_TO,
+        { cadenceMs: 10000, flushMs: 90000, holder: 'guard' });
+      const v = L.intentValue(run.intents);
+      const m = one.delta.journal.meta;
+      const oneDeaths = (one.delta.deaths || []).length;
+      if (Math.abs(v.deaths - oneDeaths) > 1) fail('W5', `seed ${i}: the tick filed ${v.deaths} deaths, the accrue ${oneDeaths}`);
+      a.ate += Number(m.ate || 0); t.ate += v.ate;
+      a.ticks += Number(m.ticks || 0); t.ticks += v.ticks;
+      a.kills += Number(m.kills || 0); t.kills += v.kills;
+      a.xp += sumMap(one.delta.xp); t.xp += sumMap(v.xp);
+    }
+    if (!(a.kills > 0 && t.kills > 0)) return fail('W5', 'harness: no kills on either path');
+    const agg = (k) => 100 * (t[k] - a[k]) / a[k];
+    if (!(a.ate > 0 && t.ate > 0)) return fail('W5', 'harness: the fresh fighter never ate on one path');
+    for (const k of ['ticks', 'kills', 'xp', 'ate']) {
+      if (!(Math.abs(agg(k)) <= 10)) {
+        fail('W5', `a fresh fighter hunting 2 h tired: ${k} tick ${t[k]} vs accrue ${a[k]} (${agg(k).toFixed(1)}%) `
+          + `over ${N} seeds. The one span fought at the RAW xp's levels while the chain re-reads the banked `
+          + 'ones — a tired fight must level on the xp it banks (V3).');
+      }
+    }
+    return `${N} seeds, fresh fighter 2 h tired: ticks ${agg('ticks').toFixed(1)}%, kills ${agg('kills').toFixed(1)}%, `
+      + `xp ${agg('xp').toFixed(1)}%, meals ${agg('ate').toFixed(1)}%`;
   },
 };
 

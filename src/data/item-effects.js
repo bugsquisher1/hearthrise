@@ -122,8 +122,8 @@ export const EFFECT_KINDS = Object.freeze({
      the seam the engine will have to touch. Items carrying these are, by
      guard, unobtainable. */
   drop_band_vs_class:  { live: false, owner: 'systems',  note: 'src/core/drops.js — shift the drop band by one tier for one monster class.' },
-  element_pierce:      { live: false, owner: 'systems',  note: 'Needs the element axis (elementWeak / ELEMENT_BONUS / MAX_WEAKNESS_MULT) which is NOT built. Monster workstream owns elementWeak.' },
-  element_immunity:    { live: false, owner: 'systems',  note: 'Same dependency as element_pierce.' },
+  element_pierce:      { live: false, owner: 'systems',  note: 'The element axis EXISTS (src/core/elements.js ELEMENT_BONUS; monsters carry elementWeak / elementResist / elementImmune). What is missing is a pierce term: elements.js has no hook that lets an item override a resist or an immunity.' },
+  element_immunity:    { live: false, owner: 'systems',  note: 'Same axis; missing a player-side immunity term in src/core/elements.js (today only monsters carry elementImmune).' },
   /* STAYS FALSE, and the note is corrected rather than left stale (charms
      phase 1, 2026-09-13). Both of its stated dependencies now EXIST: the
      element axis shipped with Elements v1, and the bestiary reveal shipped as
@@ -169,7 +169,7 @@ export const EFFECT_KINDS = Object.freeze({
   cosmetic_profile:    { live: false, owner: 'art',      note: 'Shows a value on the public profile / clan list.' },
   cosmetic_pin:        { live: false, owner: 'art',      note: 'Pin one Chronicle entry to the public profile.' },
   cosmetic_homestead:  { live: false, owner: 'art',      note: 'Homestead art reads the active world blessing.' },
-  dungeon_key:         { live: false, owner: 'systems',  note: 'Doubles as a dungeon key. The `unlocks` field already does this — wire on the day the dungeon exists.' },
+  dungeon_key:         { live: false, owner: 'systems',  note: 'Doubles as a dungeon key. Dungeons gate on src/data/dungeons.js `cost.key`, NOT on the item `unlocks` field; live the day a dungeons.js row names this item as its key (no Iron Colossus dungeon row exists yet).' },
 });
 
 /** Is every kind on this item known, and are they all live? */

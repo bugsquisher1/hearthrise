@@ -16,8 +16,8 @@
 //   hand-authored source, tools/gen-shops.mjs is deleted, and the preflight
 //   goes with it. The filename does not change, so nothing downstream moves.
 //
-//   catalogue digest: 1fbb112f1a44a5dc9f7b5eafa0d428f19e72c205c72e67ca6ca0382ceeccaf1f
-//   129 offers · 225 cost lines · 6 prices that are formulas, not data
+//   catalogue digest: 75ca9c0cf458224ce5a9e30acc72c78fa048f5466c126e9b60d778fb2bddf037
+//   129 offers · 225 cost lines · 5 prices that are formulas, not data
 //
 // EXTRACTED FROM
 //   room              40  src/legacy.js
@@ -52,7 +52,7 @@
 //   debit every cost line, credit every grant line, one transaction. The
 //   client sends an OFFER ID and never a price.
 //
-// ⚠ DERIVED_PRICES IS NOT DECORATION. Six spend sites compute their price at
+// ⚠ DERIVED_PRICES IS NOT DECORATION. Five spend sites compute their price at
 //   call time and are NOT in SHOP_OFFERS. A consumer that cannot find an
 //   offer id must REFUSE, never default — a server that invents a price is
 //   worse than a server that has none.
@@ -61,11 +61,11 @@
 //   gold           player_state.gold
 //   gems           player_state.gems
 //   hearth_tokens  player_state.hearth_tokens   (IAP-only; never PvE-minted)
-//   marks          NOWHERE — Bounty Marks have no server column today
+//   marks          player_state.marks           (projected by hr_state_of; spent by hr_bounty_spend)
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-export const SHOPS_DIGEST = "1fbb112f1a44a5dc9f7b5eafa0d428f19e72c205c72e67ca6ca0382ceeccaf1f";
+export const SHOPS_DIGEST = "75ca9c0cf458224ce5a9e30acc72c78fa048f5466c126e9b60d778fb2bddf037";
 
 /** Every offer whose price is fully known as data. */
 export const SHOP_OFFERS = [
@@ -1025,7 +1025,7 @@ export const SHOP_TABLES = [
     "table": "character_slot",
     "origin": "src/multi-character.js",
     "anchor": "const SLOT_COSTS_GEMS = [",
-    "spends_at": "multi-character.js unlockSlot()",
+    "spends_at": "multi-character.js buySlot() → hr_buy_hero_slot",
     "note": "Hearth Hall Premium grants slots 1-3 free — an entitlement waiver, not a price",
     "count": 4
   },
@@ -1072,7 +1072,7 @@ export const DERIVED_PRICES = [
       "growth": 1.32,
       "slots": 20
     },
-    "server_needs": "player_state must hold the purchase COUNT; the server recomputes the price from it. Unbounded — the client has no cap, so the server needs one before it authorises this."
+    "server_needs": "BUILT — a 30-rung ladder in public.hr_unlock_offers (bank.0…bank.29, tools/gen-gold-ladders.mjs); hr_unlock_buy prices each rung, merges GREATEST and enforces the 30-rung cap. The client sends the offer id, never a price."
   },
   {
     "id": "bounty.reroll",
@@ -1084,7 +1084,7 @@ export const DERIVED_PRICES = [
       "base": 5,
       "step": 5
     },
-    "server_needs": "a per-UTC-day reroll counter, plus the free-reroll grant from bounty.free_reroll_2. Marks have no server column at all today."
+    "server_needs": "BUILT — hr_bounty_spend (2026-08-26-marks-record.sql) derives 5 + N*5 from the paid rerolls in today's player_ledger and debits player_state.marks. Free rerolls never reach it."
   },
   {
     "id": "vendor.sell",
@@ -1095,16 +1095,7 @@ export const DERIVED_PRICES = [
     "params": {
       "VENDOR_RAW_RATE": 0.2
     },
-    "server_needs": "DERIVABLE TODAY — hr_items.value already carries v. Needs `raw` added to the catalogue and the rate as a constant. This is the cheapest of the six to close."
-  },
-  {
-    "id": "vendor.buyback",
-    "name": "Vendor buy-back price",
-    "where": "src/legacy.js repurchase()",
-    "currency": "gold",
-    "formula": "buyback[i].unit * buyback[i].qty — the unit price RECORDED at sale time",
-    "params": {},
-    "server_needs": "a server-side buyback ledger. The price is a property of a past transaction, not of the catalogue, so it can never be a static row — and a client-supplied unit price is a mint."
+    "server_needs": "DERIVABLE TODAY — hr_items.value already carries v. Needs `raw` added to the catalogue and the rate as a constant. This is the cheapest of the five to close."
   },
   {
     "id": "clan_building.*",

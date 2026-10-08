@@ -439,9 +439,10 @@ export const ITEMS={
   duskwood_rod:   {n:'Duskwood Rod',  icon:'🎣', v:23000, type:'tool', toolSkill:'fishing', toolTier:6, toolSpeed:.30},
   dawnsteel_rod:  {n:'Dawnsteel Rod', icon:'🎣', v:58000, type:'tool', toolSkill:'fishing', toolTier:7, toolSpeed:.35},
 
-  /* ── Cooked crops (farm → cooking) — extension hooks for upcoming
-     pumpkin pie / carrot stew recipes. Defined with placeholder buffs
-     so that even a partial cooking unlock has working buff foods. */
+  /* ── Cooked crops (farm → cooking): baked potato, pumpkin pie and carrot
+     stew, produced by the cook_baked_potato / cook_pumpkin_pie /
+     cook_carrot_stew recipes in src/data/recipes.js. Their buffs are the
+     authored values. */
   baked_potato: {
     n:'Baked Potato', icon:'🥔', v:150, heals:20, foodTier:2, foodClass:'healing',
     buff:{type:'gather_speed', magnitude:3, durationMs:240000},
@@ -497,25 +498,18 @@ export const ITEMS={
      Drops from Tier-2+ kills (0.1%) and bounty completions (0.5%).
      Spent at House → Plot tab to upgrade Farm Plot tier and unlock crops.
      Explicitly NOT bind-on-pickup — tradable on the player market.
-     Drop hooks live in src/features/farm-progression.js. Keep this in sync
-     with the inline ITEMS const in src/legacy.js. */
+     Drop hooks live in src/features/farm-progression.js. */
   /* b268: Deeds are TRADEABLE (non-BoP) — Tyler's call: dungeon-runners farm
      them and sell to players who'd rather not run dungeons, so deeds become a
      market money source rather than a personal-only currency. Rarish. Faucets:
      dungeons (tier-scaled), the bounty trickle, and (b269) any-activity Scraps. */
   farm_deed: {n:"Farmer's Deed", icon:'📜', v:250, rarity:'rare', tag:'housing'},
 
-  /* ── Phase A.1 items mirrored from legacy.js (b139 — QA sweep §1.1)
-     These were defined in legacy.js's NEW_ITEMS block but missing from
-     this ESM module. Because main.js does `Object.assign(window, {ITEMS})`
-     AFTER legacy.js runs, the ESM ITEMS overwrote the legacy version and
-     these were silently undefined at runtime — breaking every recipe that
-     produced one of them (smelt_bronze, smelt_steel, smelt_rune, all
-     cooked meats, all buff foods, all gated recipe scrolls). The
-     data-integrity check (src/utils/data-integrity.js) flagged this on
-     every boot once the b137 fix made the check actually work. Now in
-     sync. Keep both this file and legacy.js's NEW_ITEMS aligned until
-     legacy.js's block is deleted. */
+  /* ── Phase A.1 items (b139 — QA sweep §1.1). First authored in a legacy.js
+     NEW_ITEMS block that main.js's publish overwrote, which left every recipe
+     producing one of them broken until they moved here. That block is deleted
+     (2026-10-08); this is the only copy, and tests/legacy-data-onecopy.mjs
+     keeps it that way. */
   raw_wolf_meat:    {n:'Raw Wolf Meat',    icon:'🍖', v:5,  cookedFrom:null},
   raw_panther_meat: {n:'Raw Panther Meat', icon:'🍖', v:8,  cookedFrom:null},
   raw_bear_meat:    {n:'Raw Bear Meat',    icon:'🍖', v:15, cookedFrom:null},

@@ -20,9 +20,7 @@
 // HOW A ROW WORKS
 //   cls          the taxonomy class id. THIS is what carries the weakness
 //                profile. A row with nothing but `cls` is fully specified.
-//   family       DISPLAY LABEL ONLY (the class's display name). Also the key
-//                of `G.stats.killsByFamily`, which is why FAMILY_ALIAS exists
-//                in legacy.js — see the fold note below.
+//   family       DISPLAY LABEL ONLY (the class's display name).
 //   weaponWeak / weaponResist / elementWeak / elementResist / elementImmune
 //                THE SINGLE OVERRIDE. A row may diverge from its class on at
 //                most ONE axis (weapon or element). `auditRoster()` fails the
@@ -65,9 +63,8 @@
 //
 // FOLD NOTE (`family` changed, ids did not): Beast→Mammal, Arcane→Human,
 // Goblinoid→Humanoid, Mythic→Demon/Dragon, and shadow_creeper/void_parasite
-// left Vermin for Extra Dimensional. `family` is not an id, so a fold is
-// free — but it IS the key of `G.stats.killsByFamily`, so legacy.js's
-// FAMILY_ALIAS folds the historical counts rather than stranding them.
+// left Vermin for Extra Dimensional. `family` is not an id and keys no
+// stored state, so a fold is free.
 // ════════════════════════════════════════════════════════════════════════
 
 import { applyClassProfiles } from './monster-classes.js?v=564';

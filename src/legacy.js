@@ -11705,7 +11705,7 @@ console.log('Activity bar: loaded');
             in 4.4 — a 23% overstatement of incoming damage if you skip it, and
             it is exactly what put the draft outside its own acceptance window.
        incomingDps      = incomingPerSwing x (retaliations/swingsPerKill) / swingS
-       effectiveHp      = playerHp + (auto-eat AND a slotted food ? qty x heals : 0)
+       effectiveHp      = playerHp + (auto-eat owned AND the server's switch on AND a slotted food ? qty x heals : 0)
          ── auto-actions.js:219 returns false without `traits.auto_eat`, so a
             character who does not own the trait eats NOTHING while away, no
             matter how much food is in the bag. Counting unslotted or
@@ -11738,7 +11738,7 @@ console.log('Activity bar: loaded');
     var hp = (G && G.playerHp > 0) ? G.playerHp : ((G && G.playerMaxHp) || 1);
     var maxHp = (G && G.playerMaxHp > 0) ? G.playerMaxHp : hp;
     var pool = 0, foodId = autoEatFoodId();
-    var owns = (typeof hasTrait === 'function') && hasTrait('auto_eat');
+    var owns = (typeof hasTrait === 'function') && hasTrait('auto_eat') && !(window.HearthriseAuto && typeof window.HearthriseAuto.eatEnabled === 'function' && !window.HearthriseAuto.eatEnabled());
     if(owns && foodId && window.ITEMS && window.ITEMS[foodId] && window.ITEMS[foodId].heals > 0){
       /* A heal is wasted above the bar, so one food is worth at most a full
          bar — otherwise 60 shrimp on a 10 HP character reads as 180 kills. */

@@ -81,15 +81,14 @@
 // blind spot GEAR_LADDERS was published to close.
 //
 // ── CHECK 3: THE AMMO LADDER (the specific regression) ─────────────────────
-// Every ammo-slot item's book value must sit inside the ladder's band, and the
-// two copies of `iron_arrows` (src/data/items.js and the inline table in
-// src/legacy.js) must agree — this repo has been burned by data double-copies.
+// Every ammo-slot item's book value must sit inside the ladder's band. (The
+// second, inline copy of `iron_arrows` in src/legacy.js is gone; the
+// one-copy rule is tests/legacy-data-onecopy.mjs.)
 //
 //   node tests/recipe-yield-guard.mjs            → run standalone
 //   node tests/recipe-yield-guard.mjs --mutate   → prove the guard sees failure
 // ============================================================================
 
-import { readFile } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -306,21 +305,9 @@ export async function recipeYieldGuard(overrides) {
     }
   }
 
-  // ── CHECK 3b: the double copy. src/legacy.js carries an inline ITEMS table.
-  const legacy = await readFile(join(ROOT, 'src', 'legacy.js'), 'utf8');
-  const m = legacy.match(/\n\s*iron_arrows:\s*\{([^}]*)\}/);
-  if (!m) {
-    problems.push('src/legacy.js no longer defines an inline `iron_arrows` — if the inline '
-      + 'ITEMS table was removed on purpose, delete this check with it.');
-  } else {
-    const lv = m[1].match(/\bv:\s*([0-9.]+)/);
-    const dv = Number(ITEMS.iron_arrows?.v);
-    if (!lv || Number(lv[1]) !== dv) {
-      problems.push(`iron_arrows book value has DIVERGED between its two copies: `
-        + `src/legacy.js says ${lv ? lv[1] : '(none)'}, src/data/items.js says ${dv}. `
-        + `Fix both or delete one.`);
-    }
-  }
+  /* CHECK 3b (the iron_arrows double copy) is retired with its subject: the
+     inline ITEMS table in src/legacy.js is deleted (2026-10-08), and
+     tests/legacy-data-onecopy.mjs refuses any item literal returning there. */
 
   return {
     problems,

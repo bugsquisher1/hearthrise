@@ -65,6 +65,16 @@ const MUTANTS = [
         'const fightSkills = state.skills;'],
     ],
   },
+  /* Security 2026-10-07: a meal counted but never debited (free food). Both
+     the bag and the proposed item line lose their -1; `ate` still counts. */
+  {
+    name: 'auto-eat meal not debited', arm: 'W5',
+    file: 'supabase/functions/hr-accrue/accrual.js',
+    edits: [
+      ['      bag[decision.foodId] -= 1;\n      if (bag[decision.foodId] <= 0) delete bag[decision.foodId];\n'
+        + '      itemDelta[decision.foodId] = (itemDelta[decision.foodId] || 0) - 1;\n', ''],
+    ],
+  },
   {
     name: 'V1 floor per window', arm: 'W1',
     file: 'supabase/functions/hr-accrue/accrual.js',
@@ -425,6 +435,21 @@ const ARMS = {
       const m = one.delta.journal.meta;
       const oneDeaths = (one.delta.deaths || []).length;
       if (Math.abs(v.deaths - oneDeaths) > 1) fail('W5', `seed ${i}: the tick filed ${v.deaths} deaths, the accrue ${oneDeaths}`);
+      /* EVERY MEAL IS PAID FOR, exactly, per seed and per path (Security,
+         2026-10-07): `ate` == the shrimp stack's start-minus-end AND == minus
+         the delta's item line. Slimes never drop shrimp, so nothing else
+         moves that stack. */
+      const food = 'cooked_shrimp'; const start = freshTired(L, i).inventory[food];
+      const oneLine = -Number((one.delta.items || {})[food] || 0);
+      const oneEnd = start - oneLine;
+      const tickLine = -Number(v.items[food] || 0);
+      const tickEnd = Number((run.char.inventory || {})[food] || 0);
+      for (const [path, ate, line, end] of [['accrue', Number(m.ate || 0), oneLine, oneEnd], ['tick', v.ate, tickLine, tickEnd]]) {
+        if (!(ate > 0 && ate === line && ate === start - end)) {
+          fail('W5', `seed ${i} ${path}: ate ${ate} meals but the ${food} stack went ${start} -> ${end} `
+            + `(item line -${line}). A meal that does not debit the stack is free food.`);
+        }
+      }
       a.ate += Number(m.ate || 0); t.ate += v.ate;
       a.ticks += Number(m.ticks || 0); t.ticks += v.ticks;
       a.kills += Number(m.kills || 0); t.kills += v.kills;

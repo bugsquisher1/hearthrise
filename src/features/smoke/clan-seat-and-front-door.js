@@ -2149,10 +2149,7 @@ export default [
       assert(/0\s*\/\s*30/.test(strip.innerText),
         'a freshly baselined quest should read 0 / 30, got: ' + strip.innerText);
 
-      /* 2026-10-08 (whole-game review, item 7): the number is the SERVER's count.
-         A local tally moving on its own must NOT move it — that was the browser
-         saying 7 while hr_claim_goal graded 0 — and the server's count moving
-         MUST (the b224 property, now fed by the one source that pays). */
+      // The SERVER's count: a local tally must NOT move it; the settle MUST.
       G.stats.kills = 47;                        // seven kills later, not yet settled
       repaint();
       assert(/0\s*\/\s*30/.test(strip.innerText),

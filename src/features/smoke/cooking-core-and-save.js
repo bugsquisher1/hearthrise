@@ -4693,9 +4693,6 @@ export default [
           },
           () => window.killMonster(window.MONSTERS.lich),
           () => unlockCalls.indexOf('lichling') >= 0, seamValue, globalValue);
-        /* 2026-10-10-pet-roll-server.sql: the BROWSER rolls no pet at all — the
-           server settle does. Whatever either source says, a client kill claims
-           nothing (it used to follow the seam; following nothing is stronger). */
         assert(oneBossKill(0, 0) === false,
           'a client lich kill claimed the lichling — the boss pet is the server settle\'s to roll');
 

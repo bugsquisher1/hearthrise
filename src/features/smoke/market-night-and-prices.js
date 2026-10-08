@@ -2929,12 +2929,8 @@ export default [
         'the counter drifted from stats.evKillAny — it must READ, never count');
       assert(!G.quests.find((x) => x.id === ID).done, 'the quest completed below its goal');
 
-      /* (3) THE SERVER PAYS IT (whole-game review 2026-10-08, item 4;
-         2026-10-10-quest-combat-xp.sql). The 1,500 XP is hr_claim_quest's,
-         routed by the server-held style. Completing the quest must FIRE the
-         claim and must NOT add the XP locally — a local addXp also queued it on
-         hr_credit_combat_xp, a client-reported channel. RED before the fix:
-         the route skills gained 1,500 and no claim was fired. */
+      /* (3) THE SERVER PAYS IT (2026-10-10-quest-combat-xp.sql): completing fires
+         the claim and adds no XP locally (that queued it on hr_credit_combat_xp). */
       const origBonus = window.getBonus;
       window.getBonus = () => 0;
       try {
@@ -2943,10 +2939,7 @@ export default [
         assert(route.length > 0, 'the style must route the reward somewhere');
         const before = {}; route.forEach((r) => { before[r.skill] = xpOf(r.skill); });
         const pendBefore = JSON.stringify(G._combatXpPending || {});
-        /* The step completes on the SERVER's projected count, which is only a
-           count once a complete progress statement has landed (questComplete).
-           Pinned here rather than inherited from whichever test ran first. */
-        G._eventCountersKnown = true;
+        G._eventCountersKnown = true;      // pinned: the server count is authoritative (questComplete)
         G.stats.evKillAny = 100;
         window.updateQuest('kill_any', 1);
         const done = G.quests.find((x) => x.id === ID);

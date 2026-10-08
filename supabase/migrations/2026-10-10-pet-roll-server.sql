@@ -3,6 +3,8 @@
 --                                  hr_companion_grant STOPS TAKING THE
 --                                  CLIENT'S WORD FOR THEM.
 --
+-- RESTATEMENT-DEBT-ACK: adds 5 anchored patches to hr_apply (chain depth 9 -> 14 since the 2026-09-14 restatement). Kept anchored so the Security review of a money-surface change reads only the spliced text, not a 3,300-line body; every anchor is asserted EXACTLY ONCE and RAISES otherwise, and the self-check exercises each spliced arm. The hr_apply restatement (slice 7) is owed next and should land as its own reviewed file.
+--
 -- STAGED, NOT APPLIED - REVIEW ONLY. SECURITY GO REQUIRED BEFORE APPLY (lane C:
 --   it patches hr_apply, the economy's single write path, and a client RPC).
 --   The Coordinator applies it with

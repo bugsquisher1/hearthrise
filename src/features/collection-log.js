@@ -601,6 +601,9 @@
   var detailItem = null;
 
   function renderBody(G) {
+    /* DEEDS, folded in (lane daily-board): the realm-graded long goals live
+       beside the bestiary and the items they overlap. */
+    if (activeTab === 'deeds') return (typeof window.deedsListHtml === 'function') ? window.deedsListHtml() : '';
     var MON = window.MONSTERS || {}, ITEMS = window.ITEMS || {};
     var best = G.bestiary || {}, col = G.collection || {};
     if (activeTab === 'bestiary') {
@@ -648,7 +651,8 @@
     }).join('');
   }
 
-  function open() {
+  function open(tab) {
+    if (tab === 'bestiary' || tab === 'items' || tab === 'deeds') { activeTab = tab; detailMon = null; detailItem = null; }
     if (document.getElementById('hr-cl-modal')) document.getElementById('hr-cl-modal').remove();
     ensureStyle();
     var G = window.G;
@@ -697,6 +701,7 @@
         '<div class="hr-cl-tabs">' +
           '<div class="hr-cl-tab' + (activeTab === 'bestiary' ? ' on' : '') + '" data-cl-tab="bestiary">Bestiary</div>' +
           '<div class="hr-cl-tab' + (activeTab === 'items' ? ' on' : '') + '" data-cl-tab="items">Items</div>' +
+          '<div class="hr-cl-tab' + (activeTab === 'deeds' ? ' on' : '') + '" data-cl-tab="deeds">Deeds</div>' +
         '</div>' +
         '<div id="hr-cl-body">' + renderBody(G) + '</div></div>' +
       '</div>';

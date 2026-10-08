@@ -222,7 +222,7 @@ function buildHeroCard() {
 /* The OSRS-our-own Account panel. Total XP sits behind a "click to reveal" the
    way OSRS hides its precise figures — the reveal state is a session field so it
    survives the 2s auto-refresh. Quests and Bounties are the realm's lifetime
-   counts, Achievements the deeds the realm's counts have met, and Days running
+   counts, Deeds the ones the realm's counts have met, and Days running
    is the server's play streak, each a pending dash until stated; Collections is
    still read from the client's own record. The foot row is the Lifetime Stats door. */
 function buildAccountStatGrid() {
@@ -262,7 +262,7 @@ function buildAccountStatGrid() {
       ${cell(tlv, 'Total Lv')}
       ${xpCell}
       ${cell(questCell, 'Quests')}
-      ${cell((achN === null ? countMarkup(null) : fmt(achN)) + ' / ' + ach.length, 'Achievements')}
+      ${cell((achN === null ? countMarkup(null) : fmt(achN)) + ' / ' + ach.length, 'Deeds')}
       ${cell(lifetime('bounty_turnins'), 'Bounties')}
       ${cell(colPct, 'Collections')}
       ${cell(esc(rank), 'Renown')}

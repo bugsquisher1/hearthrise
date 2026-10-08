@@ -13317,7 +13317,7 @@ window.HearthriseShowTab.wrapShowTab('clan-activity', function(tab){
    measurement live where the rows are built (the b342 block inside maybeShowWelcome);
    the estimator itself is gone (b516 tombstone, section 3). */
 
-/* Add Achievements + Bestiary buttons to the Profile panel */
+/* Add Deeds + Bestiary buttons to the Profile panel */
 function injectProfileButtons(){
   var panel = document.getElementById('panel-profile');
   if(!panel) return;
@@ -13325,7 +13325,7 @@ function injectProfileButtons(){
   var row = document.createElement('div');
   row.className = 'feat-buttons';
   row.style.cssText = 'display:flex;gap:8px;margin:8px 0;grid-column:1 / -1';
-  row.innerHTML = '<button class="btn" onclick="openAchievements()">'+_hrGly('uiTrophy',14)+' Achievements</button>'+
+  row.innerHTML = '<button class="btn" onclick="openAchievements()">'+_hrGly('uiTrophy',14)+' Deeds</button>'+
                   '<button class="btn" onclick="openBestiary()">'+_hrGly('uiBook',14)+' Bestiary</button><button class="btn" onclick="window.HearthriseCodex&&HearthriseCodex.open()">'+_hrGly('uiScroll',14)+' Codex</button>';
   panel.insertBefore(row, panel.firstChild);
 }

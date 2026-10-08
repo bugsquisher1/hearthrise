@@ -1,29 +1,23 @@
 // ============================================================
-// src/render/achievements.js — Achievements presentation (render layer)
+// src/render/achievements.js — Deeds presentation (render layer)
 //
 // THIRD render-layer strangler-fig extraction out of src/legacy.js
 // (structural track, 2026-08-18). See docs/design/render-extraction-pattern.md
 // for the playbook every extraction follows.
 //
-// WHAT THIS IS: the two presentation surfaces of the Deeds of the Realm — the
-// "Achievement unlocked!" toast (showAchToast) and the Achievements sheet
-// (openAchievements) — plus the one resolver for their art
-// (achievementGlyphHTML), so the list and the toast can never disagree.
+// WHAT THIS IS: the "Achievement unlocked!" toast (showAchToast), the Deeds list
+// (deedsListHtml) and the one resolver for their art (achievementGlyphHTML), so
+// the list and the toast can never disagree.
+//
+// FOLDED INTO THE COLLECTION LOG (lane daily-board, 2026-10-11). Deeds were a
+// sheet of their own beside the Collection Log and Renown; the list is now the
+// Log's Deeds tab, and openAchievements() opens it there. Every deed is still
+// graded on the realm's counts, so nothing earned moves or vanishes.
 //
 // NOTHING HERE OWNS A NUMBER (CLAUDE.md §6). The catalogue and every grade come
 // from window.HearthriseDeeds (src/features/deeds.js), which reads the realm's
 // counts; an unknown deed paints the pending dash, never 0 and never Earned.
-// This file neither reads nor writes any per-player record in G.
-//
-// The sheet groups the deeds under DEED_GROUPS headings in catalogue order; each
-// row carries its line of lore. No inline style and no colour here: the
-// .ach-* selectors in src/styles/*.css own the look.
-//
-// Globals are read via window.* at call time, so this classic script may load in
-// any order after legacy.js. BOTH functions are re-exported onto window:
-// showAchToast because the deeds watcher opens it on a crossing, and
-// openAchievements because the inline onclick="openAchievements()" handlers
-// (the profile button row and the toolbar) invoke it from template strings.
+// No inline style and no colour here: the .ach-* selectors own the look.
 // ============================================================
 (function () {
   'use strict';
@@ -47,20 +41,13 @@
   }
   window.showAchToast = showAchToast;
 
-  function openAchievements() {
+  /* The Deeds tab's body: DEED_GROUPS headings in catalogue order, each row with
+     its line of lore. '' while the deeds module is not up. */
+  function deedsListHtml() {
     var D = window.HearthriseDeeds;
-
-    var ov = document.getElementById('ach-overlay');
-    if (!ov) {
-      ov = document.createElement('div'); ov.id = 'ach-overlay'; ov.className = 'ach-overlay hr-scrim';
-      ov.innerHTML = '<div class="ach-modal hr-sheet" onclick="event.stopPropagation()"><h2 class="hr-sheet-head">Achievements</h2><div id="ach-list" class="ach-list hr-sheet-body"></div><button class="btn hr-sheet-foot" data-hr-dismiss onclick="document.getElementById(\'ach-overlay\').classList.remove(\'show\')" style="margin-top:12px;width:100%">Close</button></div>';
-      ov.addEventListener('click', function (e) { if (e.target === ov) ov.classList.remove('show'); });
-      document.body.appendChild(ov);
-    }
-    var list = document.getElementById('ach-list');
-    if (!D) { list.innerHTML = ''; ov.classList.add('show'); list.scrollTop = 0; return; }
+    if (!D) return '';
     var readers = D.readers();
-    list.innerHTML = D.groups.map(function (g) {
+    return '<div class="ach-list">' + D.groups.map(function (g) {
       var rows = D.rows.filter(function (a) { return a.group === g[0]; });
       return '<h4 class="muted">' + g[1] + '</h4>' + rows.map(function (a) {
         var p = D.progressOf(a, readers);
@@ -70,10 +57,14 @@
           '<div class="ach-progress">' + p.html + '</div>' +
         '</div>';
       }).join('');
-    }).join('');
-    ov.classList.add('show');
-    // The sheet is reused: every open starts at the top, never where the last one left off.
-    list.scrollTop = 0;
+    }).join('') + '</div>';
+  }
+  window.deedsListHtml = deedsListHtml;
+
+  /* Kept by name: inline onclick="openAchievements()" handlers call it. */
+  function openAchievements() {
+    var C = window.HearthriseCollection;
+    if (C && typeof C.open === 'function') C.open('deeds');
   }
   window.openAchievements = openAchievements;
 

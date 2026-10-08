@@ -132,6 +132,19 @@ const MUTATIONS = {
     find: '      for (const p of paths[id]) {',
     repl: '      for (const p of paths[id].slice(0, 1)) {',
   },
+  vendor_quarry_at_book: {
+    file: CORE('vendor.js'),
+    why: 'a no-input (quarry) recipe output bids book value instead of the raw rate — the casual '
+       + 'player\'s main income is 5x the ruling',
+    find: "bids[id] = baseVendorBid(gathered[id] === true && it",
+    repl: "bids[id] = baseVendorBid(false && it",
+  },
+  vendor_zero_bid_credited: {
+    file: FN('vendor-sell.js'),
+    why: 'a 0-bid item is "sold" for 0 gold instead of refused by name — the player loses the stack',
+    find: '  if (!(unit > 0)) {',
+    repl: '  if (false) {',
+  },
   vendor_floor_at_one: {
     file: CORE('vendor.js'),
     why: 'an anchor that floors to 0 is lifted to 1 — 10 whetstones out of one 3g block sell for '
@@ -590,11 +603,11 @@ async function run(mutate) {
     const { ITEMS } = await import('../src/data/items.js');
     const { ARTISAN_RECIPES } = await import('../src/data/recipes.js');
     const { recipeInputs } = await import('../src/core/artisan.js');
-    const byOut = new Map();
+    const byOut = new Map(); const gathered = new Set();
     for (const list of Object.values(ARTISAN_RECIPES)) for (const r of list) {
       if (!r.output) continue;
       const ins = recipeInputs(r);
-      if (!Object.keys(ins).length) continue;
+      if (!Object.keys(ins).length) { gathered.add(r.output); continue; }   // a quarry: bids as a raw gather
       if (!byOut.has(r.output)) byOut.set(r.output, []);
       byOut.get(r.output).push({ ins, q: r.outputQty || 1 });
     }
@@ -603,7 +616,7 @@ async function run(mutate) {
       if (memo.has(id)) return memo.get(id);
       const it = Object.prototype.hasOwnProperty.call(ITEMS, id) ? ITEMS[id] : null;
       const v = it ? Number(it.v) || 0 : 0;
-      let bid = v > 0 ? (it.raw ? Math.max(1, Math.floor(v / 5)) : v) : 0;
+      let bid = v > 0 ? ((it.raw || gathered.has(id)) ? Math.max(1, Math.floor(v / 5)) : v) : 0;
       if (onStack.has(id)) { cyclic = true; return bid; }
       onStack.add(id);
       for (const p of byOut.get(id) || []) {
@@ -668,7 +681,7 @@ async function run(mutate) {
     ok(b('plate') === 30, `G1-EDGE: plate bids ${b('plate')}, want 30 — the CHEAPEST recipe (1 ore) sets it, not 5 bars (450)`);
     ok(b('loopA') === 1000 && b('loopB') === 1000, `G1-EDGE: a 1:1 cycle moved off book (${b('loopA')}/${b('loopB')})`);
     ok(b('sinkE') === 0 && b('sinkF') === 0, `G1-EDGE: a shrinking cycle did not settle at 0 (${b('sinkE')}/${b('sinkF')})`);
-    ok(b('quarry') === 999, `G1-EDGE: a no-input recipe anchored its output (${b('quarry')}) — a gather is not an anchor path`);
+    ok(b('quarry') === 199, `G1-EDGE: a no-input recipe's output (book 999, not flagged raw) bids ${b('quarry')}, want 199 — a quarry is a gather and bids the raw rate`);
     ok(b('fromWorthless') === 0, `G1-EDGE: a recipe that is FREE to make sells for ${b('fromWorthless')}`);
     ok(b('fromTypo') === 0, `G1-EDGE: an unknown input priced its output at ${b('fromTypo')} — must fail closed to 0`);
     ok(b('batch') === 9, `G1-EDGE: 10 out of one 60g bar bids ${b('batch')} each, want floor(90/10) = 9`);
@@ -1188,6 +1201,21 @@ async function run(mutate) {
     ok(ns.status === 409 && ns.body.error === 'item_not_sellable',
       `G10: '${worthless}' (vendor bid 0) returned ${JSON.stringify(ns.body).slice(0, 200)} — it is a `
       + 'REAL item, and "unknown_item" would tell the player their quest key does not exist');
+
+    /* CRAFT-ANCHORED TO ZERO (craft-anchor follow-up ruling): an item with a
+       real book value whose anchor floors to 0 (earth_rune: 45 out of 6 blanks)
+       is REFUSED by name, never credited 0 and never priced at book. */
+    const anchoredZero = Object.keys(ITEMS).filter((id) => Number(ITEMS[id].v) > 0 && cat.vendorPriceOf(ITEMS, id) === 0);
+    ok(anchoredZero.includes('earth_rune') && anchoredZero.includes('rune_blank'),
+      `G10: earth_rune / rune_blank no longer anchor to a 0 bid (zero-bid set: [${anchoredZero}]) — the refusal below is unexercised`);
+    const g0 = Number((await state(db, UID)).gold);
+    for (const id of ['earth_rune', 'rune_blank']) {
+      const z = await doSell({ intentId: uuid(), item: id, qty: 5 });
+      ok(z.status === 409 && z.body.error === 'item_not_sellable',
+        `G10: selling ${id} (book ${ITEMS[id].v}, anchored bid 0) returned ${JSON.stringify(z.body).slice(0, 200)} — `
+        + 'a 0 bid must be refused BY NAME, not credited 0 gold');
+    }
+    ok(Number((await state(db, UID)).gold) === g0, 'G10: a refused 0-bid sale moved gold');
   }
 
   // ── G11. THE SHAPE CHECKS COST NO RATE BUDGET ───────────────────────────

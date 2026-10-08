@@ -30,7 +30,9 @@
 //      about iteration order because the answer does not depend on it.
 //   2. SEVERAL RECIPES → the CHEAPEST input path wins (min over recipes).
 //   3. NO RECIPE → base bid, unchanged. A recipe with NO INPUTS (quarrying) is
-//      a gather, not an anchor path, and is ignored.
+//      a GATHER (Game Designer ruling, craft-anchor follow-up): its output bids
+//      like a raw item — VENDOR_RAW_RATE x book — whether or not items.js flags
+//      it raw, so a new quarry rung cannot become a book-value faucet.
 //   4. CYCLES are safe by construction: bids only ever decrease, are integers
 //      and are floored at 0, so the iteration terminates; MAX_ROUNDS is a
 //      belt on top, and every value it could leave is still ≤ base (≤ book).
@@ -95,6 +97,22 @@ export function anchorPaths(sources) {
   return out;
 }
 
+/** Null-prototype `{ [outputId]: true }` for every recipe with NO inputs — a
+    gather wearing a bench (decision 3). */
+export function gatheredOutputs(sources) {
+  const out = Object.create(null);
+  const src = sources || {};
+  for (const skill of Object.keys(src)) {
+    const list = src[skill];
+    if (!Array.isArray(list)) continue;
+    for (const r of list) {
+      if (!r || typeof r.output !== 'string' || !r.output) continue;
+      if (Object.keys(recipeInputs(r) || {}).length === 0) out[r.output] = true;
+    }
+  }
+  return out;
+}
+
 /**
  * Every item's vendor bid, as a null-prototype `{ [id]: gold }`.
  * Pure in (items, sources); see the header for the rule.
@@ -102,7 +120,11 @@ export function anchorPaths(sources) {
 export function computeVendorBids(items, sources) {
   const bids = Object.create(null);
   if (!items || typeof items !== 'object') return bids;
-  for (const id of Object.keys(items)) bids[id] = baseVendorBid(items[id]);
+  const gathered = gatheredOutputs(sources);
+  for (const id of Object.keys(items)) {
+    const it = items[id];
+    bids[id] = baseVendorBid(gathered[id] === true && it && typeof it === 'object' ? { v: it.v, raw: true } : it);
+  }
   const paths = anchorPaths(sources);
   const outs = Object.keys(paths).filter((id) => hasOwn(bids, id));
   for (let round = 0; round < MAX_ROUNDS; round++) {

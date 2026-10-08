@@ -8367,7 +8367,7 @@ function renderInventory(){
   el.innerHTML=`<div class="item-grid">${items.map(([id,qty])=>{
     const d=ITEMS[id];if(!d)return'';
     const qShow=qty>=1000?(qty/1000).toFixed(1)+'k':qty;
-    return `<button class="item-slot" title="${d.n} ×${qty} · ${vendorPrice(id)}gp" onclick="onItemTap('${id}')">${itemArt(id,26)}<span class="qty">${qShow}</span><span class="nm">${d.n.split(' ')[0]}</span></button>`;
+    return `<button class="item-slot" title="${d.n} ×${qty} · ${vendorPrice(id)>0?vendorPrice(id)+'gp':window.VENDOR_WONT_BUY}" onclick="onItemTap('${id}')">${itemArt(id,26)}<span class="qty">${qShow}</span><span class="nm">${d.n.split(' ')[0]}</span></button>`;
   }).join('')}</div>
   <div class="muted tiny" style="margin-top:10px">Tap to use: equip, eat, plant, or sell. Long press for menu.</div>`;
 }
@@ -8394,7 +8394,7 @@ function onItemTap(id){
     G.foodSlot=id;notify(`Auto-eat: ${d.n}`,'info');return;
   }
   if(d.seed){showTab('farming');return;}
-  /* default: prompt to sell */
+  if(window.refuseUnbuyable&&window.refuseUnbuyable(id)) return;   /* default: prompt to sell — unless the vendor bids 0, which is said, never offered as "0 gold" */
   const _p=vendorPrice(id);
   /* b373: an in-game modal, never window.confirm — see src/utils/dialog.js.
      The sale moved INTO the answer rather than staying after a blocking call;
@@ -10041,7 +10041,7 @@ function openInvDetail(id){
       if(vendorPrice(id) > 0){
         acts.push(`<button class="btn" onclick="invSellOne('${id}');closeInvDetail()">Sell 1 · ${_gp(vendorPrice(id))}</button>`);
         const _sq = window.sellableCount ? window.sellableCount(id) : null; const _sb = window.sellAllPending && window.sellAllPending(id); if(_sb) acts.push(`<button class="btn btn-danger" disabled title="Waiting for the realm to answer your last Sell All">Sell All · selling…</button>`); else if(_sq === null ? qty > 1 : _sq > 1) acts.push(_sq === null ? `<button class="btn btn-danger" disabled title="${window.SELL_PENDING_TITLE}">Sell All · counting…</button>` : `<button class="btn btn-danger" onclick="invSellAll('${id}')"${_sq !== qty ? ` title="The realm has counted ${_sq.toLocaleString()} — Sell All sells what it has counted"` : ''}>Sell All ${_sq.toLocaleString()} · ${_gp(vendorPrice(id)*_sq)}</button>`); if(!_sb && _sq !== null && _sq > 1 && _sq !== qty) sellNote = `<div class="inv-detail-sellnote" role="note">The realm has counted ${_sq.toLocaleString()} of these — Sell All sells what it has counted.</div>`;   /* the display-vs-counted gap is said, not left to puzzle over. Sell All names the SERVER's stack (sellableCount); unstated = counting; a sent one = selling until its answer — all disabled */
-      }
+      } else acts.push(`<button class="btn" disabled title="${window.VENDOR_WONT_BUY}">${window.VENDOR_WONT_BUY}</button>`);   /* a 0 bid is said, never offered as Sell 0g */
       acts.push(`<button class="btn" onclick="toggleItemLock('${id}');openInvDetail('${id}')" title="Protect this item from being sold or listed on the market">${lockGlyph()} Lock</button>`);
     }
     /* b311: Buy-Back moved to the Local Shop (where you sell to the vendor) — it

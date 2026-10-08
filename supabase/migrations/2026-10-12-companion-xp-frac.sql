@@ -320,9 +320,17 @@ begin
      or has_column_privilege('anon', 'public.player_progress', 'xp_frac', 'UPDATE')
      or has_column_privilege('anon', 'public.player_progress', 'xp_frac', 'INSERT') then
     raise exception 'companion-xp-frac self-check (b): a client role can write player_progress.xp_frac'; end if;
+  --     NARROWED 2026-10-13 exactly as 2026-10-09-xp-frac-carry.sql §4(b) is
+  --     (2026-10-13-party-settle-frac-keys.sql; Security re-review): the one
+  --     `c_delta_ok` refusal-allowlist declaration in hr_party_tick_settle is
+  --     cut out before the scan. Required: C7 re-applies this file on the full
+  --     chain, where that allowlist already names both remainder keys.
   select string_agg(distinct p.proname, ',' order by p.proname) into v_names
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-   where n.nspname = 'public' and p.prosrc like '%xp\_frac%'
+   where n.nspname = 'public'
+     and (case when p.proname = 'hr_party_tick_settle'
+               then regexp_replace(p.prosrc, 'c_delta_ok\s+constant\s+text\[\]\s*:=\s*array\[[^]]*\];', '')
+               else p.prosrc end) like '%xp\_frac%'
      and p.proname not in ('hr_apply', 'hr_state_of');
   if v_names is not null then
     raise exception 'companion-xp-frac self-check (b): functions other than hr_apply / hr_state_of name xp_frac: % '

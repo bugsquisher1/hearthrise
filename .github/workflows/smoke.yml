@@ -2067,9 +2067,12 @@ jobs:
   # = 767 s (12.8 min). Budget = x2 = 25.6, rounded up to 26.
   # + companion-xp-frac (2026-10-08, measured locally): 35 s plain + 176 s
   # mutate = 978 s (16.3 min). Budget = x2 = 32.6, rounded up to 33.
+  # + delta-key-allowlists (2026-10-13, measured locally): 29 s plain + 3 s
+  # mutate (template-warm; ~30 s cold) = 1040 s (17.3 min). Budget = x2 = 34.7,
+  # rounded up to 35.
   db-replay-7:
     runs-on: ubuntu-latest
-    timeout-minutes: 33
+    timeout-minutes: 35
 
     steps:
       - uses: actions/checkout@v4
@@ -2133,6 +2136,20 @@ jobs:
         run: |
           node tests/companion-xp-frac.mjs
           node tests/companion-xp-frac.mjs --mutate
+
+      # EVERY DELTA-KEY ALLOWLIST COVERS EVERY KEY THE ENGINE CAN PROPOSE
+      # (2026-10-13-party-settle-frac-keys.sql). The proposable set is DERIVED
+      # from accrual.js / tick-gather.js; hr_apply's c_delta_keys, the party
+      # settle's c_delta_ok + c_stamp and foldDeltas must cover it, and an armed
+      # party window carrying xp_frac + companion_xp_frac pays each member what
+      # a solo hr_apply pays their twin (control: the pre-fix body refuses it
+      # unknown_delta_key). --mutate: 8 mutants, one per allowlist missing a key,
+      # a NEW engine key, a dormant key's column appearing, the scan narrowed.
+      - name: Delta-key allowlists cover the engine (base + mutate)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/delta-key-allowlists.mjs
+          node tests/delta-key-allowlists.mjs --mutate
 
       # THE CONTROL HALF OF A MUTATION PROOF. Every registered guard is re-run
       # with HR_MUTANT_CONTROL=1 (nothing planted, scope kept); any arm that

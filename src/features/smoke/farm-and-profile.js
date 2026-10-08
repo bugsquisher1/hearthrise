@@ -634,17 +634,16 @@ export default [
     assert(window.ITEMS.rune_bar.v > 0, 'rune_bar.v should be > 0');
   }),
 
-  // b139 §1.1: ITEMS divergence count should be 0 (or negligible) now.
-  // This is the integrity check itself running explicitly. Catches the
-  // moment someone adds an item to legacy.js without mirroring it.
-  () => tryRun('b139: ITEMS divergence between legacy + ESM is zero', () => {
-    const legacy = window.__LEGACY_INLINE_ITEMS;
-    const esm = window.ITEMS;
-    if (!legacy || !esm) return; // skip on builds without snapshot
-    const legacyKeys = Object.keys(legacy);
-    const onlyLegacy = legacyKeys.filter(k => !esm[k]);
-    assert(onlyLegacy.length === 0,
-      onlyLegacy.length + ' items still legacy-only: ' + onlyLegacy.slice(0,5).join(',') + (onlyLegacy.length>5?',…':''));
+  // ITEM-ONECOPY-1 (was b139's divergence check, which read a REFERENCE to the
+  // merged object and so compared the data against itself): legacy.js declares
+  // NO item of its own — the count is captured eagerly, before main.js merges
+  // src/data/items.js in — and the merged catalogue is the full one. The static
+  // half is tests/legacy-data-onecopy.mjs.
+  () => tryRun('ITEM-ONECOPY-1: legacy.js declares no second item catalogue', () => {
+    assert(window.__LEGACY_INLINE_ITEM_COUNT === 0,
+      'legacy.js re-declared ' + window.__LEGACY_INLINE_ITEM_COUNT + ' items — src/data/items.js is the only copy');
+    assert(Object.keys(window.ITEMS).length >= 300,
+      'the merged catalogue must still be the full one, got ' + Object.keys(window.ITEMS).length);
   }),
 
   // b139 §1.1: the smelting + cooking + gated recipe chains are reachable

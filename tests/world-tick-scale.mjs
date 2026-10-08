@@ -740,15 +740,18 @@ async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER, hfT
       const from = Date.parse('2026-10-01T00:00:00.000Z');
       s0.accruedToMs = from; s0.activeSinceMs = from;
       const geom = { cadenceMs: 10000, flushMs: 90000, maxPolls: 64, holder: 'f2' };
-      let s = s0; let m = from; const wins = [];
+      /* `raw` is the POLLS' concatenation — what the fold would carry with no
+         coalescing anywhere. Each window's own intent is coalesced too since
+         2026-10-08 (tests/progress-coalesce.mjs), so it is read off the polls. */
+      let s = s0; let m = from; const wins = []; const raw = [];
       for (let w = 0; w < F; w++) {
         const run = tickGather.settleGatherSession(s, m, m + 90000, geom);
         if (!run.intents[0]) break;
+        for (const r of run.results) if (r.res && r.res.accrued) raw.push(...(r.res.delta.progress || []));
         wins.push(run.intents[0]); m = Date.parse(run.intents[0].args.p_window_to);
         s = Object.assign({}, run.char, { accruedToMs: m });
       }
       const folded = wins.length >= 2 ? tickGather.foldWindowIntents({ userId: s0.userId, slot: 0, shard: 0, version: 1, holder: 'f2' }, wins) : null;
-      const raw = wins.flatMap((w) => w.args.p_delta.progress || []);
       const sumBy = (ops) => {
         const out = {};
         for (const o of ops) { const k = `${o.kind}|${o.key}|${o.period ?? ''}`; out[k] = (out[k] || 0) + Number(o.add); }
@@ -1091,7 +1094,7 @@ const MUTANTS = [
   { name: 'noFoldWait', fn: 'roster', why: 'an away character is visited every flush (no ledger saving)', expect: /F3/,
     find: '                  then v_fold else 1 end)\n', repl: '                  then 1 else 1 end)\n' },
   { name: 'foldNoCoalesce', edge: 'tick-gather.js', why: 'the fold concatenates progress ops (hr_apply refuses > 64)', expect: /F1|F2/,
-    find: '    it.args.p_delta.progress = coalesceProgress(it.args.p_delta.progress);\n', repl: '' },
+    find: '  if (Array.isArray(folded.progress)) folded.progress = coalesceProgress(folded.progress);\n', repl: '' },
   { name: 'foldIgnoresLevelUp', edge: 'tick.js', why: 'the fold chain runs through a level-up (renown/perks may move)', expect: /F5/,
     find: '    if (levelledUp(session.skills, run.char.skills)) break;\n', repl: '' },
   { name: 'foldChainsOnClock', edge: 'tick.js', why: 'the next folded window starts at the clock, not at the settled watermark', expect: /F1|F5/,

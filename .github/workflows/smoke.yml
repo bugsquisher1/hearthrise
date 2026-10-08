@@ -2073,9 +2073,11 @@ jobs:
   # + companion-equip-version-bump (2026-10-14, measured locally): 2 s plain +
   # 2 s mutate template-warm (~30 s each cold) + its mutant-control re-run
   # ~30 s = ~1130 s (18.8 min). Budget = x2 = 37.7, rounded up to 38.
+  # + progress-coalesce's mutant-control re-run (2026-10-08, measured locally
+  # 37 s) = ~1167 s (19.5 min). Budget = x2 = 38.9, rounded up to 39.
   db-replay-7:
     runs-on: ubuntu-latest
-    timeout-minutes: 38
+    timeout-minutes: 39
 
     steps:
       - uses: actions/checkout@v4
@@ -2210,9 +2212,11 @@ jobs:
   # GitHub's own slowest observed verify 68 + resume 4 + perks/bestiary 10 +
   # vigour-scale 40 + max-hp 8 + setup ~11 = ~540 s (9.0 min). Budget = x2
   # rounded up = 20 min. Re-measure from the first GitHub run and tighten.
+  # + progress-coalesce (2026-10-08, measured locally): 36 s plain + 37 s
+  # mutate = ~613 s (10.2 min). Budget = x2 = 20.4, rounded up to 21.
   db-replay-8:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 21
 
     steps:
       - uses: actions/checkout@v4
@@ -2337,6 +2341,18 @@ jobs:
         run: |
           node tests/world-tick-companion-xp.mjs
           node tests/world-tick-companion-xp.mjs --mutate
+
+      # ONE TICK WINDOW FILES ONE OP PER PROGRESS ROW (2026-10-08, Security P2:
+      # a 90 s gather window filed 46-55 of hr_apply's 64 ops). Coalesced ==
+      # raw through the replayed hr_apply (state + ledger, attended window and
+      # away fold, five fixtures), and every 90 s window of every fixture ships
+      # <= 32 ops. --mutate: additive absolute keys, a dropped op, merged keys,
+      # an ignored state, an uncoalesced window.
+      - name: World tick — progress ops coalesced per window, under half the cap
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/progress-coalesce.mjs
+          node tests/progress-coalesce.mjs --mutate
 
 
   # ── utc-midnight-replay ── SPLIT OUT OF db-replay 2026-09-19 (b550). The

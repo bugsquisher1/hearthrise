@@ -190,18 +190,20 @@ export function proposable({ accrual, ticks }) {
   const combat = of('computeAccrual');
   const gather = of('accrueGather');
   const artisan = of('accrueArtisan');
-  /* THE TICK LAYER rewrites a settled delta in place in two shapes —
-     `it.args.p_delta.<key> = ` (tick-gather's progress coalesce) and a local
-     copy's `delta.<key> = ` (tick-party's journal). Both keys are collected
-     into every set (conservative: a party is combat). A bracket write on
-     either is RED. foldDeltas, the only whole-delta builder there, throws on
-     an unclassified key (KD). */
+  /* THE TICK LAYER rewrites a settled delta in place in three shapes —
+     `folded.<key> = ` (writeIntent / foldCombatDelta, the window's folded
+     delta, where `progress` is coalesced since 2026-10-08),
+     `it.args.p_delta.<key> = ` and a local copy's `delta.<key> = `
+     (tick-party's journal). Every key is collected into every set
+     (conservative: a party is combat). A bracket write on any of them is RED.
+     foldDeltas, the only whole-delta builder there, throws on an unclassified
+     key (KD). */
   for (const [file, text] of Object.entries(ticks)) {
     const t = stripComments(text);
-    for (const k of [...assignedKeys(t, 'p_delta'), ...assignedKeys(t, 'delta')]) {
+    for (const k of [...assignedKeys(t, 'p_delta'), ...assignedKeys(t, 'delta'), ...assignedKeys(t, 'folded')]) {
       combat.add(k); gather.add(k); artisan.add(k);
     }
-    for (const m of t.matchAll(/\b(?:p_)?delta\s*\[[^\]]*\]\s*=(?!=)|Object\.assign\(\s*[A-Za-z_.]*\b(?:p_)?delta\b/g)) {
+    for (const m of t.matchAll(/\b(?:(?:p_)?delta|folded)\s*\[[^\]]*\]\s*=(?!=)|Object\.assign\(\s*[A-Za-z_.]*\b(?:(?:p_)?delta|folded)\b/g)) {
       bad.push(`${file}: a non-literal delta write: ${m[0].slice(0, 60)}`);
     }
   }
@@ -525,8 +527,8 @@ async function main() {
       src: { accrual: src.accrual.replace('  const delta = {\n', '  const delta = {\n    ...extras,\n') } },
     { name: 'non-literal key write: a bracket write in the tick layer', arms: /^K0:/,
       src: { ticks: Object.assign({}, src.ticks, { 'tick-gather.js': src.ticks['tick-gather.js'].replace(
-        '    it.args.p_delta.progress = coalesceProgress(it.args.p_delta.progress);',
-        "    it.args.p_delta.progress = coalesceProgress(it.args.p_delta.progress);\n    it.args.p_delta['zz'] = 1;") }) } },
+        '  if (Array.isArray(folded.progress)) folded.progress = coalesceProgress(folded.progress);',
+        "  if (Array.isArray(folded.progress)) folded.progress = coalesceProgress(folded.progress);\n  folded['zz'] = 1;") }) } },
     { name: 'a party settle reads a name out of c_delta_ok (format %I)', arms: /^(KR|KW):/,
       plant: bodyMutant(settleDef, '  v_role     text;', "  v_role     text; v_dyn text := format('%I', c_delta_ok[14]);") },
     { name: 'foldDeltas stops classifying companion_xp_frac', arms: /^KD:/,

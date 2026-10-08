@@ -60,7 +60,7 @@ import { GATHER_NODES } from './catalogue.js';
 import { PAYABLE_KINDS } from './accrual.js';
 import { shadowTick, advance, hydrate } from './tick-shadow.js';
 import { engineInputsFromEnvelope } from './envelope.js';
-import { foldDeltas } from './tick-contract.js';
+import { foldDeltas, coalesceProgress } from './tick-contract.js';
 
 
 /* The catalogues a gather window needs, from the SAME modules the edge imports.
@@ -386,6 +386,12 @@ export function foldGatherMeta(metas, windowFromMs, windowToMs) {
    it adds no arithmetic. */
 export function writeIntent(who, deltas, metas, windowFromMs, windowToMs, seq) {
   const folded = foldDeltas(deltas);
+  /* ── ONE WINDOW COALESCES TOO (2026-10-08) ─────────────────────────────────
+     The polls' `progress` lists arrive CONCATENATED (APPEND), ~6 ops per poll:
+     46 for a 90 s window, 55 with a utility pet, against hr_apply's 64 per
+     call. Coalesced by the contract's one rule (tick-contract.js RULE 2b) —
+     the same write, one op per row: 6, or 7 with a pet. */
+  if (Array.isArray(folded.progress)) folded.progress = coalesceProgress(folded.progress);
   /* `journal` is excluded by foldDeltas on purpose (each poll carried its own)
      and is restated here as the single row the flush writes. */
   folded.journal = {
@@ -448,17 +454,18 @@ export function writeIntent(who, deltas, metas, windowFromMs, windowToMs, seq) {
    `foldDeltas` contract a flush already folds its polls with: `gold`/`xp`/
    `items` add, the ABSOLUTE checkpoints (`tool_carry`, `accrued_to`,
    `activity`) are the last window's, `progress` concatenates — and is then
-   COALESCED (coalesceProgress), because hr_apply refuses more than
-   `c_max_progress_ops` = 64 ops per call and one gather window already files
-   ~6 per poll. The journal row is `foldGatherMeta` over the windows' own
+   COALESCED by writeIntent (tick-contract.js RULE 2b), exactly as a single
+   window's polls are. The journal row is `foldGatherMeta` over the windows' own
    metas: the shape of an accrue row (the receipt cannot tell), covering the
    span the watermark actually moved. Every value movement stays journalled;
    only the row count drops, by K.
 
-   ONLY K >= 2 COMES HERE. One window keeps `writeIntent`'s output byte for
-   byte (no coalescing), so a deploy at fold_windows = 1 is the old pack's
-   intent, exactly — the gather differential the runbook demands of every
-   deploy stays byte-identical. */
+   ONLY K >= 2 COMES HERE. One window is `writeIntent`'s output as is.
+   ⚠ Since 2026-10-08 that output is COALESCED too (RULE 2b), so the runbook's
+     deploy differential (old pack vs new pack) is byte-identical on every key
+     but `progress`, whose ops are compared as the rows hr_apply writes:
+     tests/progress-coalesce.mjs D1 applies both through the replayed hr_apply
+     and requires the state and ledger byte-identical. */
 export function foldWindowIntents(who, windowIntents) {
   const wins = windowIntents || [];
   if (wins.length < 2) throw new Error('foldWindowIntents: a fold needs two or more windows');
@@ -475,44 +482,11 @@ export function foldWindowIntents(who, windowIntents) {
   const metas = deltas.map((d) => (d.journal && d.journal.meta) || {});
   const fromMs = wins[0].window.fromMs;
   const toMs = wins[wins.length - 1].window.toMs;
+  /* writeIntent coalesces `progress` again over the WHOLE fold (the K
+     windows' lists, each already coalesced), so a row they share is one op. */
   const it = writeIntent(who, deltas, metas, fromMs, toMs, 0);
-  if (Array.isArray(it.args.p_delta.progress)) {
-    it.args.p_delta.progress = coalesceProgress(it.args.p_delta.progress);
-  }
   it.window.folded = wins.length;
   return it;
-}
-
-/* ONE OP PER (kind, key, period), `add` summed, the LAST op's `state`, in
-   first-seen order. hr_apply applies each op as
-       insert ... value = add ... on conflict do update set value = value + add,
-       state = case when claimed then claimed else coalesce(op.state, state) end
-   so N ops on one row and one op carrying their sum land the same value, and
-   the last state wins either way (no tick op can be 'claimed'; hr_apply
-   refuses it from this block). A daily op carries its UTC day in `period`, so
-   a fold across midnight keeps the two days apart. Any key other than
-   kind/key/period/add/state is refused loudly rather than merged by guess. */
-export function coalesceProgress(ops) {
-  const out = [];
-  const at = new Map();
-  for (const op of ops || []) {
-    if (!op || typeof op !== 'object') throw new Error('coalesceProgress: a progress op is not an object');
-    for (const k of Object.keys(op)) {
-      if (!['kind', 'key', 'period', 'add', 'state'].includes(k)) {
-        throw new Error(`coalesceProgress: unknown progress-op key "${k}" — classify it before folding`);
-      }
-    }
-    const id = `${op.kind}\u0000${op.key}\u0000${op.period ?? ''}`;
-    if (!at.has(id)) {
-      at.set(id, out.length);
-      out.push(Object.assign({}, op));
-      continue;
-    }
-    const prev = out[at.get(id)];
-    prev.add = Number(prev.add || 0) + Number(op.add || 0);
-    if ('state' in op) prev.state = op.state;
-  }
-  return out;
 }
 
 /* The value a shadow run is compared on. Deliberately not the whole intent:

@@ -42,6 +42,7 @@ export const REGISTERED = [
   ['tests/world-tick-presence-horizon.mjs', '--mutate'],
   ['tests/world-tick-scale.mjs', '--mutate'],
   ['tests/companion-equip-version-bump.mjs', '--mutate'],
+  ['tests/progress-coalesce.mjs', '--mutate'],
 ];
 
 /** Parse a guard's control-run output. Returns the list of problems (empty = honest). */

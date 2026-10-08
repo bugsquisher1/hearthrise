@@ -49,14 +49,14 @@ import { join, dirname } from 'node:path';
 
 import {
   loadCombatSessions, atSpan, settleCombatSession, combatTick, intentValue,
-  foldCombatDelta, foldProgressOps, collapseHearthfind, foldCombatMeta,
+  foldCombatDelta, collapseHearthfind, foldCombatMeta,
   writeIntent, seedLabelFor, pgTimestamptzText, sessionFromRoster,
   COMBAT_CATALOGUES, CHANNEL, MAX_PROGRESS_OPS, DEFAULT_FLUSH_MS,
 } from '../services/world-tick/combat.js';
 import { shadowTick, hydrate, advance, seedFor }
   from '../supabase/functions/hr-accrue/tick-shadow.js';
 /* THE FLUSH-BOUNDARY CARRIER (M3, 2026-09-23). C17/C18/C19's subject. */
-import { shadowStateOf, applyShadowState }
+import { shadowStateOf, applyShadowState, coalesceProgress }
   from '../supabase/functions/hr-accrue/tick-contract.js';
 import {
   loadGatherSessions, atSpan as gatherAtSpan, settleGatherSession,
@@ -1178,9 +1178,9 @@ for (const raw of SESSIONS) {
         let raw = [];
         for (let j = i; j < i + perFlush; j++) raw = raw.concat(settled[j].res.delta.progress || []);
         worstRaw = Math.max(worstRaw, raw.length);
-        worstFold = Math.max(worstFold, foldProgressOps(raw).length);
+        worstFold = Math.max(worstFold, coalesceProgress(raw).length);
         const sumRaw = raw.reduce((a, o) => a + Math.floor(Number(o.add || 0)), 0);
-        const sumFold = foldProgressOps(raw).reduce((a, o) => a + Math.floor(Number(o.add || 0)), 0);
+        const sumFold = coalesceProgress(raw).reduce((a, o) => a + Math.floor(Number(o.add || 0)), 0);
         ok('C13', sumRaw === sumFold,
           `the progress fold changed sum(add) ${sumRaw} -> ${sumFold}. It is a FOLD `
           + '(hr_apply applies each op as progress += add against one keyed row), not a clamp.');
@@ -1282,7 +1282,7 @@ for (const raw of SESSIONS) {
     { kind: 'daily', key: 'ev:kill_any', period: '2026-3-14', add: 2, state: 'active' },
     { kind: 'daily', key: 'ev:kill_any', period: '2026-3-14', add: 5, state: 'done' },
   ];
-  const folded = M.noProgressFold ? ops : foldProgressOps(ops);
+  const folded = M.noProgressFold ? ops : coalesceProgress(ops);
   ok('C13', folded.length === 4,
     `the flush carried ${folded.length} progress ops where 5 windows' worth collapses `
     + 'to 4 distinct (kind, key, period, state) rows — hr_apply applies each op as '

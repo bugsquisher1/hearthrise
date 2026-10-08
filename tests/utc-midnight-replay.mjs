@@ -280,7 +280,11 @@ function probeFixtureDelay() {
 
 function firstGateLine(out) {
   const m = out.match(/GATE\([^)]*\)[^\n]*/);
-  return m ? m[0].slice(0, 160) : (out.trim().split('\n').pop() || '').slice(0, 160);
+  if (m) return m[0].slice(0, 160);
+  // No GATE line: the child could not replay at all. Its cause is usually a
+  // multi-line harness message (e.g. pglite not installed); the last line alone
+  // ("…a pass would be meaningless") hid it, so show the tail, collapsed.
+  return out.trim().split('\n').map((l) => l.trim()).filter(Boolean).slice(-3).join(' ').slice(0, 240);
 }
 
 async function base() {

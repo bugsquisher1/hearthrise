@@ -76,6 +76,10 @@
 //   F6  a SHADOW gather window never folds
 //   F7  MAX_FOLD_WINDOWS equals the CHECK
 //   F8  8c on a fold: past the cap nothing; inside it only windows inside it
+//   F9  ★ the PRESENCE HORIZON (8d): a fold crossing it is cut to exactly the
+//           windows single fires pay before parking (same pay, one row), the
+//           crossing is journalled once, and the parked character then leaves
+//           the roster (S1's parked skip)
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ============================================================================
@@ -125,7 +129,9 @@ function fnSource(name) {
 let RUN = 0;
 const U = (n) => `00000000-0000-4000-8000-${(0x7200 + RUN).toString(16).padStart(4, '0')}${n.toString(16).padStart(8, '0')}`;
 
-async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER } = {}) {
+/* `only` (a Set of section letters R/H/C/F) is the --mutate seam: a mutant runs
+   the sections its named arms live in, never fewer. */
+async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER, only = null } = {}) {
   RUN += 1;
   const red = [];
   const ok = (id, cond, okMsg, badMsg) => {
@@ -198,7 +204,7 @@ async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER } = 
   await db.exec("set track_functions = 'all'");
 
   // ── S1 ──────────────────────────────────────────────────────────────────
-  {
+  if (!only || only.has('R')) {
     const due = await char(U(1), { ageS: 600 });
     const fresh = await char(U(2), { ageS: 30 });
     const near = await char(U(3), { ageS: 89 });
@@ -273,7 +279,7 @@ async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER } = 
   }
 
   // ── S2 ──────────────────────────────────────────────────────────────────
-  {
+  if (!only || only.has('H')) {
     const lastNote = async () => (await one('select outcome, rostered, detail from public.hr_tick_cron_log order by id desc limit 1')) || {};
     const macOk = (p) => {
       const h = new Headers(Object.entries(p.headers || {}));
@@ -450,7 +456,7 @@ async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER } = 
   const tickRows = async (u) => q(`select meta from public.player_ledger
                                     where user_id = $1 and meta->>'src' = 'tick' order by id`, [u]);
   const capOf = async (u) => Number((await one('select public.hr_offline_cap_ms($1::uuid, 0) as c', [u])).c);
-  {
+  if (!only || only.has('C')) {
     await db.exec('delete from public.hr_tick_ownership;');
     const K = 10;
     // C0 the dial absent is one window per visit, and the summary has no catch-up key
@@ -610,7 +616,7 @@ async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER } = 
   }
 
   // ── S4 ──────────────────────────────────────────────────────────────────
-  {
+  if (!only || only.has('F')) {
     await db.exec('delete from public.hr_tick_ownership;');
     const F = 8;
     const gskill = (await one('select req_skill from public.hr_activities where activity_id = $1', [gact]))?.req_skill
@@ -797,6 +803,39 @@ async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER } = 
       `a fold one minute past the cap is refused fenced_cap and pays nothing; two minutes inside it pays ${F} `
       + `windows in ${fiRows.length} row(s), every one starting inside the cap`,
       JSON.stringify({ f8a: f8a.reasons, rowsPast: (await tickRows(fc)).length, f8b: f8b.catchup, rowsInside: fiRows.length }));
+
+    // F9 ★ THE HORIZON (presence-horizon (8d)) cuts a fold exactly where single fires park,
+    //     and the parked character then leaves the roster (S1's parked skip)
+    await db.exec('delete from public.hr_tick_ownership;');
+    await cfg(`catchup_windows = ${F}, fold_windows = ${F}`);
+    const hz = await char(U(760), { ageS: 1200 });
+    await setXp(hz, xpForLevel(60) + 1);
+    const capH = await capOf(hz);
+    /* The tick "has paid" since the last real return: the horizon falls 405 s
+       (4.5 flushes) past the mark, so four windows fit and the fifth crosses. */
+    await q(`update public.hr_return_anchor a set real_return_at = ps.accrued_to + interval '405 seconds'
+                                                                - make_interval(secs => $2::double precision)
+               from public.player_state ps where ps.user_id = a.user_id and ps.slot = a.slot and a.user_id = $1`,
+    [hz, capH / 1000]);
+    const horizon = new Date((await one(`select a.real_return_at + make_interval(secs => $2::double precision) as h
+                                           from public.hr_return_anchor a where a.user_id = $1`, [hz, capH / 1000])).h).getTime();
+    const servedBefore = (await roster(['gather'], 'hz-proof')).some((r) => String(r.user_id) === hz);
+    await q('update public.hr_tick_ownership set lease_holder = null, lease_until = null where user_id = $1', [hz]);
+    await leaseTo(hz);
+    const d9 = await differential(hz, F);
+    const f9 = await fireEdge(body1(hz, { catchup_windows: F, fold_windows: F }));
+    const hzRows = await tickRows(hz);
+    const parked = Number((await one('select count(*)::int as n from public.hr_tick_horizon_log where user_id = $1', [hz])).n);
+    await q('update public.hr_tick_ownership set lease_holder = null, lease_until = null where user_id = $1', [hz]);
+    const servedAfter = (await roster(['gather'], 'hz-proof-2')).some((r) => String(r.user_id) === hz);
+    await cfg('fold_windows = 1, catchup_windows = 1');
+    ok('F9', value(d9.A.snap) === value(d9.C.snap) && d9.a.length === 4 && d9.c.length === 1
+        && hzRows.length === 1 && Date.parse(hzRows[0].meta.to) <= horizon && (f9.catchup || {}).windows === 4
+        && parked === 1 && servedBefore && !servedAfter,
+      'the fold is cut at the presence horizon to the 4 windows single fires pay before parking (same pay, 1 row), '
+      + 'the crossing is journalled once, and the parked character then leaves the roster',
+      JSON.stringify({ same: value(d9.A.snap) === value(d9.C.snap), singles: d9.a.length, folds: d9.c.length,
+        rows: hzRows.length, f9: f9.catchup, reasons: f9.reasons, parked, servedBefore, servedAfter }));
   }
 
   return red;
@@ -940,6 +979,11 @@ const MUTANTS = [
   { name: 'foldInShadow', edge: 'tick.js', why: 'a SHADOW gather window folds (carrier and probes bypassed)', expect: /F6/,
     find: '  const foldN = (probe.shadow === false && channel === GATHER_CHANNEL && maxWindows > 1)',
     repl: '  const foldN = (channel === GATHER_CHANNEL && maxWindows > 1)' },
+  { name: 'parkedNotSkipped', fn: 'roster', why: 'a PARKED character (journalled horizon crossing) is rostered and refused every fire', expect: /F9/,
+    find: '       and not (a.armed and exists (\n', repl: '       and not (false and exists (\n' },
+  { name: 'foldNoHorizonTrim', edge: 'tick.js', why: 'a fold crossing the horizon is refused whole (the 4 payable windows are lost)', expect: /F9/,
+    find: "  if (res && res.ok !== true && res.error === 'past_horizon' && wins.length > 1 && res.horizon) {",
+    repl: '  if (false) {' },
   { name: 'foldCeiling', edge: 'tick.js', why: 'the edge fold ceiling drifts from the CHECK', expect: /F7/,
     find: 'export const MAX_FOLD_WINDOWS = 8;', repl: 'export const MAX_FOLD_WINDOWS = 16;' },
 ];
@@ -979,17 +1023,19 @@ console.log(`[mutants] ${MUTANTS.length}`);
 let survived = 0;
 for (const m of MUTANTS) {
   let red;
+  /* The sections the mutant's named arms live in (R1 -> R, F9 -> F, ...). */
+  const only = new Set((m.expect.source.match(/[RHCF](?=\d)/g) || []));
   let tmp = null;
   try {
     if (m.edge) {
       const c = await edgeCopy(m.edge, m.find, m.repl, m.and);
       tmp = c.base;
-      try { red = await arms(db, { log: false, tick: c.mod, tickGather: c.gather }); } catch (e) { red = [`threw: ${e.message}`]; }
+      try { red = await arms(db, { log: false, tick: c.mod, tickGather: c.gather, only }); } catch (e) { red = [`threw: ${e.message}`]; }
     } else if (m.raw) {
       if (!CONTROL) {
         try { await db.exec(m.sql); } catch (e) { console.error(`harness: ${m.name}: ${e.message}`); process.exit(2); }
       }
-      try { red = await arms(db, { log: false }); } catch (e) { red = [`threw: ${e.message}`]; }
+      try { red = await arms(db, { log: false, only }); } catch (e) { red = [`threw: ${e.message}`]; }
       try { await db.exec('rollback;'); } catch { /* not inside a transaction */ }
       if (!CONTROL) await db.exec(m.restore);
     } else {
@@ -1003,7 +1049,7 @@ for (const m of MUTANTS) {
       if (!CONTROL) {
         try { await db.exec(src); } catch (e) { console.error(`harness: ${m.name}: ${e.message}`); process.exit(2); }
       }
-      try { red = await arms(db, { log: false }); } catch (e) { red = [`threw: ${e.message}`]; }
+      try { red = await arms(db, { log: false, only }); } catch (e) { red = [`threw: ${e.message}`]; }
     }
   } catch (e) {
     if (e.harness) { console.error(`harness: ${m.name}: ${e.message}`); process.exit(2); }

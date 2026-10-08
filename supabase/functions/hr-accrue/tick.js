@@ -1187,22 +1187,42 @@ async function settleFolded(exec, holder, sel, body, driver, session0, probe, ma
     m = run.watermarkMs;
     session = Object.assign({}, run.char, { accruedToMs: m });
   }
-  const intent = wins.length === 1
-    ? wins[0]
-    : foldWindowIntents({ userId: sel.userId, slot: sel.slot, shard: 0, version: env.version, holder }, wins);
-  const a = intent.args;
-  const res = await fence(exec, {
-    holder,
-    user: sel.userId,
-    slot: sel.slot,
-    channel: driver.channel,
-    version: a.p_version,
-    windowFrom: fenceWindowFrom(a.p_window_from, markMs, probe.markText),
-    windowTo: a.p_window_to,
-    intentId: a.p_intent_id,
-    delta: JSON.stringify(a.p_delta),
-    shadowState: null,
-  });
+  const settleWins = async (ws) => {
+    const intent = ws.length === 1
+      ? ws[0]
+      : foldWindowIntents({ userId: sel.userId, slot: sel.slot, shard: 0, version: env.version, holder }, ws);
+    const a = intent.args;
+    return fence(exec, {
+      holder,
+      user: sel.userId,
+      slot: sel.slot,
+      channel: driver.channel,
+      version: a.p_version,
+      windowFrom: fenceWindowFrom(a.p_window_from, markMs, probe.markText),
+      windowTo: a.p_window_to,
+      intentId: a.p_intent_id,
+      delta: JSON.stringify(a.p_delta),
+      shadowState: null,
+    });
+  };
+  let res = await settleWins(wins);
+  /* THE PRESENCE HORIZON (2026-10-10-world-tick-presence-horizon.sql (8d)).
+     A fold whose END passes last-real-return + cap is refused whole, and the
+     refusal names the horizon. The windows that end at or before it are the
+     ones the single fires would have paid before parking, so the fold is cut
+     to them and offered ONCE more (fresh judgement under the lock; the
+     refusal wrote nothing but the once-per-absence horizon log row). Never
+     past the horizon: the fence still decides. */
+  if (res && res.ok !== true && res.error === 'past_horizon' && wins.length > 1 && res.horizon) {
+    const h = Date.parse(String(res.horizon));
+    const kept = Number.isFinite(h) ? wins.filter((w) => w.window.toMs <= h) : [];
+    if (kept.length > 0) {
+      res = await settleWins(kept);
+      if (res && res.ok === true) {
+        return { outcome: res.mode === 'shadow' ? 'shadowed' : 'processed', windows: kept.length };
+      }
+    }
+  }
   if (!res || res.ok !== true) {
     return { outcome: 'refused', reason: String((res && res.error) || 'no_answer') };
   }

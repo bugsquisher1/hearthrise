@@ -62,9 +62,9 @@ declare
 begin
   select md5(replace(p.prosrc, chr(13), '')) into v_roster from pg_proc p
    where p.oid = to_regprocedure('public.hr_tick_roster(text[],integer,integer,text,integer,timestamp with time zone,uuid,integer)');
-  if v_roster is null or v_roster not in ('c4f6acbc50f35d27c0db92a31a0ad95a', '0bed3ac09710473f55744dca09adf718') then
+  if v_roster is null or v_roster not in ('cd39a1e48c22cc90340ec3b1c975f2cb', '35cd86295e363fd253764c3a5f5794cc') then
     raise exception 'PRECONDITION: hr_tick_roster prosrc md5 is %, expected 2026-10-11-world-tick-due-roster.sql''s '
-                    'c4f6acbc50f35d27c0db92a31a0ad95a or this file''s 0bed3ac09710473f55744dca09adf718.', v_roster;
+                    'cd39a1e48c22cc90340ec3b1c975f2cb or this file''s 35cd86295e363fd253764c3a5f5794cc.', v_roster;
   end if;
   if not exists (select 1 from information_schema.columns
                   where table_schema = 'public' and table_name = 'hr_tick_config' and column_name = 'fold_windows')
@@ -245,6 +245,26 @@ begin
                        and not coalesce(ps.last_seen_at >  now() - interval '75 seconds'
                                     and ps.last_seen_at <= now() + interval '60 seconds', false)
                   then v_fold else 1 end)
+       -- ★ PARKED AT THE PRESENCE HORIZON (2026-10-10-world-tick-presence-
+       -- horizon.sql, (8d)). An ARMED window may end no later than the last
+       -- real return R + the offline cap; past it the fence refuses
+       -- `past_horizon` on EVERY fire until the player returns. The first
+       -- refusal per absence journals hr_tick_horizon_log (user, slot, R), so
+       -- that row IS "this character is parked": once it exists and the next
+       -- one-flush window would end past the horizon, the character is not
+       -- offered at all. Until it exists the character is served, so the
+       -- fence still refuses and journals the crossing exactly once. A
+       -- character with no anchor is served (the fence's loud
+       -- `no_return_anchor`). Shadow channels have no horizon.
+       and not (a.armed and exists (
+             select 1
+               from public.hr_return_anchor ra
+               join public.hr_tick_horizon_log hl
+                 on hl.user_id = ra.user_id and hl.slot = ra.slot
+                and hl.anchor_at = ra.real_return_at
+              where ra.user_id = o.user_id and ra.slot = o.slot
+                and m.mark + v_flush > ra.real_return_at
+                      + coalesce(public.hr_offline_cap_ms(o.user_id, o.slot), 0) * interval '1 millisecond'))
        -- INVARIANT 7 (M8 S2, Security S-8). POSITIVE AND DERIVED: a
        -- character in a party with a LIVE hunt is served by
        -- hr_party_roster and by NOTHING ELSE. Never a denormalised
@@ -402,7 +422,7 @@ begin
   begin
     if (select md5(replace(p.prosrc, chr(13), '')) from pg_proc p
          where p.oid = 'public.hr_tick_roster(text[],int,int,text,int,timestamptz,uuid,int)'::regprocedure)
-       <> '0bed3ac09710473f55744dca09adf718' then
+       <> '35cd86295e363fd253764c3a5f5794cc' then
       raise exception 'k0: the installed hr_tick_roster body is not the one this file states';
     end if;
     select * into v_cfg from public.hr_tick_config where id;

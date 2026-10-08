@@ -21,11 +21,18 @@
 --
 -- ── THE CONTRACT ────────────────────────────────────────────────────────────
 -- §1 hr_tick_roster, restated from LIVE (prosrc md5 a7cf559e, the 2026-10-06
---    channel-arm body) with TWO deltas and nothing else:
+--    channel-arm body) with THREE deltas and nothing else:
 --    (1) DUE ONLY: the claim adds `m.mark <= now() - flush_seconds`, on the
 --        SAME effective mark the fence compares and the edge probes. Every
 --        character it serves is due at the edge (whose now() is later).
 --    (2) `state` is NULL. The column stays (no caller breaks).
+--    (3) PARKED SKIP (2026-10-10-world-tick-presence-horizon.sql, (8d)): an
+--        ARMED character whose next one-flush window would end past its
+--        horizon (last real return + offline cap) AND whose crossing is
+--        already journalled in hr_tick_horizon_log for its current anchor is
+--        not offered: the fence would refuse it past_horizon on every fire
+--        until the player returns. The first crossing is still served, so
+--        the fence journals it exactly once.
 --    Signature, grants, ordering, keyset cursor, lease, admission, invariant
 --    7 and the seed column are unchanged in every term.
 -- §2 grants restated exactly as the chain left them (hr_tick only).
@@ -75,15 +82,19 @@ declare
 begin
   select md5(replace(p.prosrc, chr(13), '')) into v_roster from pg_proc p
    where p.oid = to_regprocedure('public.hr_tick_roster(text[],integer,integer,text,integer,timestamp with time zone,uuid,integer)');
-  if v_roster is null or v_roster not in ('a7cf559ec53b6a840dcd8bbbb9f1095f', 'c4f6acbc50f35d27c0db92a31a0ad95a') then
+  if v_roster is null or v_roster not in ('a7cf559ec53b6a840dcd8bbbb9f1095f', 'cd39a1e48c22cc90340ec3b1c975f2cb') then
     raise exception 'PRECONDITION: hr_tick_roster prosrc md5 is %, expected the live a7cf559e (2026-10-06 channel-arm) '
-                    'or this file''s c4f6acbc50f35d27c0db92a31a0ad95a. Re-cut this file against the live body.', v_roster;
+                    'or this file''s cd39a1e48c22cc90340ec3b1c975f2cb. Re-cut this file against the live body.', v_roster;
   end if;
   if to_regclass('public.hr_tick_config') is null
      or to_regprocedure('public.hr_tick_admit(boolean,timestamp with time zone,timestamp with time zone)') is null
      or to_regprocedure('public.hr_partied(uuid,integer)') is null
-     or to_regprocedure('public.hr_assert_grant_hygiene(boolean)') is null then
-    raise exception 'PRECONDITION: hr_tick_config, hr_tick_admit, hr_partied or hr_assert_grant_hygiene is absent.';
+     or to_regprocedure('public.hr_assert_grant_hygiene(boolean)') is null
+     or to_regclass('public.hr_return_anchor') is null
+     or to_regclass('public.hr_tick_horizon_log') is null
+     or to_regprocedure('public.hr_offline_cap_ms(uuid,integer)') is null then
+    raise exception 'PRECONDITION: hr_tick_config, hr_tick_admit, hr_partied, hr_assert_grant_hygiene, '
+                    'hr_offline_cap_ms or the presence horizon (2026-10-10-world-tick-presence-horizon.sql) is absent.';
   end if;
   if not exists (select 1 from information_schema.columns
                   where table_schema = 'public' and table_name = 'hr_tick_config'
@@ -239,6 +250,26 @@ begin
        -- the line. A plain column compare, so the planner applies it before
        -- the hr_partied / hr_tick_admit calls (cost 100) for anyone.
        and m.mark <= now() - v_flush
+       -- ★ PARKED AT THE PRESENCE HORIZON (2026-10-10-world-tick-presence-
+       -- horizon.sql, (8d)). An ARMED window may end no later than the last
+       -- real return R + the offline cap; past it the fence refuses
+       -- `past_horizon` on EVERY fire until the player returns. The first
+       -- refusal per absence journals hr_tick_horizon_log (user, slot, R), so
+       -- that row IS "this character is parked": once it exists and the next
+       -- one-flush window would end past the horizon, the character is not
+       -- offered at all. Until it exists the character is served, so the
+       -- fence still refuses and journals the crossing exactly once. A
+       -- character with no anchor is served (the fence's loud
+       -- `no_return_anchor`). Shadow channels have no horizon.
+       and not (a.armed and exists (
+             select 1
+               from public.hr_return_anchor ra
+               join public.hr_tick_horizon_log hl
+                 on hl.user_id = ra.user_id and hl.slot = ra.slot
+                and hl.anchor_at = ra.real_return_at
+              where ra.user_id = o.user_id and ra.slot = o.slot
+                and m.mark + v_flush > ra.real_return_at
+                      + coalesce(public.hr_offline_cap_ms(o.user_id, o.slot), 0) * interval '1 millisecond'))
        -- INVARIANT 7 (M8 S2, Security S-8). POSITIVE AND DERIVED: a
        -- character in a party with a LIVE hunt is served by
        -- hr_party_roster and by NOTHING ELSE. Never a denormalised
@@ -382,6 +413,9 @@ grant  execute on function public.hr_tick_roster(text[], int, int, text, int, ti
 --       one whose chain is 5 min old IS, and is served at the chain mark
 --   d5  the line follows the config: flush 600 s -> the 10 min gatherer is
 --       still due (600 s <= 10 min) and a 5 min one is not
+--   d7  ★ PARKED: an armed gatherer whose next window crosses its horizon is
+--       served while the crossing is unjournalled, and not once
+--       hr_tick_horizon_log holds its current anchor
 --   d6  grants: hr_tick executes the roster; anon, authenticated,
 --       service_role and hr_engine do not; hygiene STRICT
 --   kr  the config switches this block flipped are restored and read back
@@ -395,6 +429,8 @@ declare
   v_chf  uuid := '00000000-0000-4000-8000-0000000e7104';
   v_chd  uuid := '00000000-0000-4000-8000-0000000e7105';
   v_five uuid := '00000000-0000-4000-8000-0000000e7106';
+  v_park uuid := '00000000-0000-4000-8000-0000000e7107';
+  v_cap  bigint;
   v_all  uuid[];
   v_gact text;
   v_cact text;
@@ -408,7 +444,7 @@ begin
     -- ── k0
     if (select md5(replace(p.prosrc, chr(13), '')) from pg_proc p
          where p.oid = 'public.hr_tick_roster(text[],int,int,text,int,timestamptz,uuid,int)'::regprocedure)
-       <> 'c4f6acbc50f35d27c0db92a31a0ad95a' then
+       <> 'cd39a1e48c22cc90340ec3b1c975f2cb' then
       raise exception 'k0: the installed hr_tick_roster body is not the one this file states';
     end if;
 
@@ -486,6 +522,35 @@ begin
      where user_id = any (v_all);
     if v_n <> 1 or v_flush <> 0 then
       raise exception 'd5: at flush 600 s the 10 min gatherer must be due (%) and the 5 min one not (%)', v_n, v_flush;
+    end if;
+
+    -- ── d7 parked at the horizon
+    update public.hr_tick_config set flush_seconds = 90 where id;
+    insert into auth.users (id) values (v_park) on conflict do nothing;
+    insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version,
+                                     accrued_to, active_kind, active_id, active_since)
+    values (v_park, 0, 0, 0, 10, 10, 1, now() - interval '10 minutes', 'gather', v_gact, now() - interval '30 hours');
+    insert into public.hr_tick_ownership (user_id, slot, channel, owned) values (v_park, 0, 'gather', true);
+    v_cap := public.hr_offline_cap_ms(v_park, 0);
+    -- The tick has paid since R: R + cap is 9 min ago and the mark 10 min ago,
+    -- so the next 90 s window ends 30 s past the horizon.
+    insert into public.hr_return_anchor (user_id, slot, real_return_at)
+    values (v_park, 0, now() - interval '9 minutes' - v_cap * interval '1 millisecond')
+    on conflict (user_id, slot) do update set real_return_at = excluded.real_return_at;
+    if not exists (select 1 from public.hr_tick_roster(array['gather']::text[], 0, 500, 's1-park', 30000,
+                                                        null::timestamptz, null::uuid, null::int) r
+                    where r.user_id = v_park) then
+      raise exception 'd7: the first horizon crossing was not served (the fence must journal it once)';
+    end if;
+    update public.hr_tick_ownership set lease_holder = null, lease_until = null where user_id = v_park;
+    insert into public.hr_tick_horizon_log (user_id, slot, anchor_at, channel, horizon_at, cap_ms, mark)
+    select v_park, 0, a.real_return_at, 'gather', a.real_return_at + v_cap * interval '1 millisecond', v_cap,
+           now() - interval '10 minutes'
+      from public.hr_return_anchor a where a.user_id = v_park and a.slot = 0;
+    if exists (select 1 from public.hr_tick_roster(array['gather']::text[], 0, 500, 's1-park-2', 30000,
+                                                    null::timestamptz, null::uuid, null::int) r
+                where r.user_id = v_park) then
+      raise exception 'd7b: a PARKED character (journalled crossing for its anchor) was still served';
     end if;
 
     -- ── d6 grants

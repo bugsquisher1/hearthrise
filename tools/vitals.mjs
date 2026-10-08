@@ -391,10 +391,13 @@ select a.ch as channel,
            and not exists (select 1 from public.hr_tick_horizon_log h
                              join public.hr_return_anchor ra
                                on ra.user_id = h.user_id and ra.slot = h.slot and ra.real_return_at = h.anchor_at
-                            where h.user_id = o.user_id and h.slot = o.slot)) as stuck,
+                            where h.user_id = o.user_id and h.slot = o.slot
+                              -- ...whose mark has REACHED the horizon (within one flush)
+                              and ps.accrued_to + make_interval(secs => a.flush) > h.horizon_at)) as stuck,
        coalesce(floor(max(extract(epoch from (now() - ps.accrued_to)))), 0) as worst_s,
        coalesce(floor(percentile_cont(0.95) within group (order by extract(epoch from (now() - ps.accrued_to)))), 0) as p95_s
-  from (select distinct x as ch from public.hr_tick_config cfg cross join lateral unnest(cfg.armed_channels) x
+  from (select distinct x as ch, coalesce(cfg.flush_seconds, 90) as flush
+          from public.hr_tick_config cfg cross join lateral unnest(cfg.armed_channels) x
          where cfg.id and x = any (cfg.channels)) a
   left join public.hr_tick_ownership o on o.channel = a.ch and o.owned
   left join public.player_state ps on ps.user_id = o.user_id and ps.slot = o.slot and ps.active_kind = a.ch
@@ -424,7 +427,7 @@ select (select count(*) from public.party_hunt
 // here that the function does not share goes RED there by fixture name.
 const ARMED_TICK = `
 with c as (
-  select distinct a as ch, cfg.enabled
+  select distinct a as ch, cfg.enabled, coalesce(cfg.flush_seconds, 90) as flush
     from public.hr_tick_config cfg cross join lateral unnest(cfg.armed_channels) a
    where cfg.id and a = any (cfg.channels)),
 h as (
@@ -447,7 +450,8 @@ s as (
      and not exists (select 1 from public.hr_tick_horizon_log hz
                        join public.hr_return_anchor ra
                          on ra.user_id = hz.user_id and ra.slot = hz.slot and ra.real_return_at = hz.anchor_at
-                      where hz.user_id = o.user_id and hz.slot = o.slot)
+                      where hz.user_id = o.user_id and hz.slot = o.slot
+                        and ps.accrued_to + make_interval(secs => c.flush) > hz.horizon_at)
      and not exists (select 1 from public.party_member m
                        join public.party_hunt ph on ph.party_id = m.party_id
                       where m.user_id = o.user_id and m.slot = o.slot

@@ -40,6 +40,8 @@
 //   W12 tools/vitals.mjs ARMED_LAG (the V6 read a person sees) agrees with the
 //           DB lag judge on the same fixtures: stuck and judged counts equal
 //   W13 ★ a PARKED-only armed cohort reads NOT JUDGED, never STALLED (Security #1)
+//   W13b ★ logged past_horizon but still OWED windows: a sentinel, STALLED
+//           (parked requires the mark to have reached the horizon)
 //   W11 the staged kill file 2026-10-10-world-tick-gather-unwiden.sql runs and
 //           its own read-back assertions pass
 //
@@ -139,6 +141,20 @@ async function arms(db, { log = true } = {}) {
     'select to_jsonb(ps) as s from public.player_state ps where user_id = any($1::uuid[]) order by user_id', [us]));
   const stall = async () => (await one('select public.hr_tick_stall_status(now(), 2, 30) as s')).s;
   const lagOf = (s) => (s?.armed || []).find((a) => a.channel === 'gather')?.lag;
+  /** Log `u` as refused past_horizon for its current anchor, the horizon
+      `shortS` seconds AHEAD of its mark: 0 = the mark reached it (PARKED);
+      3600 = logged while still owed an hour of windows (NOT parked: Security,
+      scale review — a fold failing at the line must not be excused). */
+  const parkAt = async (u, shortS) => {
+    await q(`update public.hr_return_anchor a
+                set real_return_at = ps.accrued_to + make_interval(secs => $2) - interval '12 hours'
+               from public.player_state ps
+              where ps.user_id = a.user_id and ps.slot = a.slot and a.user_id = $1 and a.slot = 0`, [u, shortS]);
+    await q(`insert into public.hr_tick_horizon_log (user_id, slot, anchor_at, channel, horizon_at, cap_ms, mark)
+             select a.user_id, a.slot, a.real_return_at, 'gather', a.real_return_at + interval '12 hours', 43200000, ps.accrued_to
+               from public.hr_return_anchor a join public.player_state ps on ps.user_id = a.user_id and ps.slot = a.slot
+              where a.user_id = $1 and a.slot = 0`, [u]);
+  };
   const tickRow = (u, minsAgo) => q(`insert into public.player_ledger (user_id, slot, kind, intent, meta, at)
                                       values ($1, 0, 'gather', 'accrue', '{"src":"tick"}'::jsonb,
                                               now() - make_interval(mins => $2))`, [u, minsAgo]);
@@ -224,12 +240,12 @@ async function arms(db, { log = true } = {}) {
     // Parked (presence horizon): 30 min behind, unpaid, but refused
     // past_horizon for its current absence — waiting, not stuck.
     const K = await char(uidIn(true), { ago: 30 });
-    await own(Y); await own(Z); await own(K);
+    // Logged but still owed an hour: NOT parked, so it is stuck and named.
+    const KO = await char(uidIn(true), { ago: 30 });
+    await own(Y); await own(Z); await own(K); await own(KO);
     await tickRow(Z, 1);
-    await q(`insert into public.hr_tick_horizon_log (user_id, slot, anchor_at, channel, horizon_at, cap_ms, mark)
-             select a.user_id, a.slot, a.real_return_at, 'gather', a.real_return_at + interval '12 hours', 43200000,
-                    a.real_return_at
-               from public.hr_return_anchor a where a.user_id = $1 and a.slot = 0`, [K]);
+    await parkAt(K, 0);
+    await parkAt(KO, 3600);
     // Three healthy armed gatherers: fresh, and 35 tick windows in each of the
     // last two hours between them (the aggregate floor is 30/h).
     const H = [await char(uidIn(true), { ago: 0, since: 240 }), await char(uidIn(true), { ago: 0, since: 240 }),
@@ -241,9 +257,10 @@ async function arms(db, { log = true } = {}) {
     let s; try { s = await stall(); } catch (e) { s = { threw: e.message }; }
     const lag = lagOf(s) || {};
     const named = (u) => (lag.stuck_sample || []).some((x) => x.user_id === u);
-    ok('W6', lag.threshold_s === 900 && named(Y) && !named(Z) && !named(K) && lag.parked >= 1 && !named(A) && !H.some(named)
+    ok('W6', lag.threshold_s === 900 && named(Y) && !named(Z) && !named(K) && named(KO) && lag.parked >= 1 && !named(A) && !H.some(named)
       && lag.stuck >= 1 && Number(lag.worst_s) >= 1800 && lag.judged === true && lag.stalled === true,
-      'Y (30 min, unpaid) is STUCK and named; Z (30 min, paid a minute ago) is MOVING; fresh ones are not stuck',
+      'Y (30 min, unpaid) is STUCK and named; Z (30 min, paid a minute ago) is MOVING; K (mark AT its horizon) is '
+      + 'PARKED; KO (logged, still owed 1 h) is STUCK; fresh ones are not stuck',
       JSON.stringify(lag));
     const keys = ['ok', 'stalled', 'judged', 'shadow_stalled', 'armed_judged', 'armed_stalled', 'armed', 'mode',
       'armed_channels', 'watched_channels', 'sentinel', 'hours', 'min_rows_per_hour', 'at', 'buckets'];
@@ -256,7 +273,7 @@ async function arms(db, { log = true } = {}) {
       JSON.stringify({ armed_judged: s.armed_judged, armed_stalled: s.armed_stalled, lag_stalled: s.lag_stalled,
         buckets: g.buckets }));
     // Y, Z and the healthy three are operator-owned; leave them for W7.
-    arms.operator = [X, Y, Z, K, ...H];
+    arms.operator = [X, Y, Z, K, KO, ...H];
 
     // W12: vitals' restatement (runbook V6) reads the same stuck set as the DB.
     let v; try { v = await one(arms.lagSql || VITALS_LAG); } catch (e) { v = { threw: e.message }; }
@@ -352,10 +369,7 @@ async function arms(db, { log = true } = {}) {
     await db.exec("delete from public.hr_tick_ownership where channel = 'gather';");
     const P = await char(uidIn(true), { ago: 30, since: 600 });
     await own(P);
-    await q(`insert into public.hr_tick_horizon_log (user_id, slot, anchor_at, channel, horizon_at, cap_ms, mark)
-             select a.user_id, a.slot, a.real_return_at, 'gather', a.real_return_at + interval '12 hours', 43200000,
-                    a.real_return_at
-               from public.hr_return_anchor a where a.user_id = $1 and a.slot = 0`, [P]);
+    await parkAt(P, 0);
     await q(`insert into public.hr_tick_cron_log (at, outcome, rostered, ms)
              values (now() + interval '90 minutes', 'posted', 1, 50), (now() + interval '150 minutes', 'posted', 1, 50)`);
     let s; try { s = (await one("select public.hr_tick_stall_status(now() + interval '3 hours', 2, 30) as s")).s; }
@@ -365,6 +379,19 @@ async function arms(db, { log = true } = {}) {
       'a cohort whose only armed character is PARKED reads not judged, never STALLED',
       JSON.stringify({ sentinel: g.sentinel, judged: g.judged, stalled: g.stalled, buckets: g.buckets }));
     await q("update public.player_state set active_kind = 'combat', active_id = $2 where user_id = $1", [P, cact]);
+    // W13b: logged past_horizon but still owed an hour of windows — NOT parked,
+    // so it IS a sentinel and its zero windows read STALLED.
+    await db.exec("delete from public.hr_tick_ownership where channel = 'gather';");
+    const PO = await char(uidIn(true), { ago: 30, since: 600 });
+    await own(PO);
+    await parkAt(PO, 3600);
+    let s2; try { s2 = (await one("select public.hr_tick_stall_status(now() + interval '3 hours', 2, 30) as s")).s; }
+    catch (e) { s2 = { threw: e.message }; }
+    const g2 = (s2?.armed || []).find((a) => a.channel === 'gather') || {};
+    ok('W13b', g2.sentinel === true && g2.judged === true && g2.stalled === true,
+      'a character logged past_horizon but still OWED windows is a sentinel: zero windows read STALLED, never excused',
+      JSON.stringify({ sentinel: g2.sentinel, judged: g2.judged, stalled: g2.stalled }));
+    await q("update public.player_state set active_kind = 'combat', active_id = $2 where user_id = $1", [PO, cact]);
   }
 
   await cfg("armed_channels = '{}'");
@@ -487,10 +514,19 @@ const MUTANTS = [
   { name: 'vitalsLagIgnoresMoving', fn: 'vitals', why: 'vitals calls a catching-up character stuck', expect: /W12/,
     find: "                              and pl.meta ->> 'src' = 'tick')\n           -- PARKED", repl: "                              and false)\n           -- PARKED" },
   { name: 'vitalsParkedIsStuck', fn: 'vitals', why: 'vitals calls a parked gatherer stuck', expect: /W12/,
-    find: '                            where h.user_id = o.user_id and h.slot = o.slot)) as stuck,',
-    repl: '                            where false)) as stuck,' },
+    find: '                            where h.user_id = o.user_id and h.slot = o.slot\n',
+    repl: '                            where false\n' },
   { name: 'aggregateSentinelParked', fn: 'stall', why: 'a PARKED character is an aggregate sentinel (a parked-only cohort reads STALLED)', expect: /W13/,
-    find: '                where hz.user_id = o.user_id and hz.slot = o.slot));\n', repl: '                where false));\n' },
+    find: '                where hz.user_id = o.user_id and hz.slot = o.slot\n', repl: '                where false\n' },
+  { name: 'lagParkedNoMark', fn: 'stall', why: 'the lag judge excuses a LOGGED character still owed windows (no mark test)', expect: /W6/,
+    find: '                        and ps.accrued_to + make_interval(secs => coalesce(v_cfg.flush_seconds, 90)) > h.horizon_at) as parked\n',
+    repl: '                        and true) as parked\n' },
+  { name: 'sentinelParkedNoMark', fn: 'stall', why: 'the aggregate sentinel excuses a LOGGED character still owed windows', expect: /W13b/,
+    find: '                  and ps.accrued_to + make_interval(secs => coalesce(v_cfg.flush_seconds, 90)) > hz.horizon_at));\n',
+    repl: '                  and true));\n' },
+  { name: 'vitalsLagParkedNoMark', fn: 'vitals', why: 'vitals excuses a logged-but-owed character from the lag judge', expect: /W12/,
+    find: '                              and ps.accrued_to + make_interval(secs => a.flush) > h.horizon_at)) as stuck,',
+    repl: '                              and true)) as stuck,' },
   { name: 'grantEngine', fn: 'enrol', why: 'hr_engine is granted EXECUTE on enrol', expect: /W9/,
     find: null, repl: '\ngrant execute on function public.hr_tick_enrol(int) to hr_engine;' },
 ];

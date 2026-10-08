@@ -551,7 +551,7 @@ try{ window.HOUSE_THEMES = HOUSE_THEMES; }catch(_){}
       and worth renaming the table to SUPPLY_SHOP when this data leaves
       legacy.js — the generator anchor and the SQL offer ids move together. */
 const SEED_SHOP=[{id:'cooked_shrimp',qty:5,cost:150},{id:'cooked_trout',qty:5,cost:450},{id:'turnip_seed',qty:10,cost:50},{id:'carrot_seed',qty:10,cost:100},{id:'wheat_seed',qty:10,cost:150},{id:'potato_seed',qty:5,cost:100},{id:'tomato_seed',qty:5,cost:150},{id:'pumpkin_seed',qty:3,cost:150},{id:'goldenroot_seed',qty:3,cost:450},{id:'emberfruit_seed',qty:3,cost:900},{id:'moonbloom_seed',qty:2,cost:1600},{id:'rune_blank',qty:20,cost:140},{id:'cooked_lobster',qty:5,cost:2000}];
-const EQUIP_SHOP=[{id:'bronze_sword',cost:100},{id:'apprentice_staff',cost:120},{id:'shortbow',cost:120},{id:'stone_maul',cost:140},{id:'iron_sword',cost:500},{id:'oak_staff',cost:650},{id:'longbow',cost:650},{id:'iron_warhammer',cost:750},{id:'steel_sword',cost:2000},{id:'iron_helm',cost:300},{id:'iron_platebody',cost:800},{id:'steel_platebody',cost:1500},{id:'leather_boots',cost:250},{id:'traveler_cape',cost:400},{id:'copper_ring',cost:350},{id:'hunter_necklace',cost:500},{id:'leather_gloves',cost:225},{id:'bronze_belt',cost:300},{id:'fox_companion',cost:1200}];
+const EQUIP_SHOP=[{id:'bronze_sword',cost:100},{id:'apprentice_staff',cost:120},{id:'shortbow',cost:120},{id:'stone_maul',cost:140},{id:'iron_sword',cost:500},{id:'oak_staff',cost:650},{id:'longbow',cost:650},{id:'iron_warhammer',cost:750},{id:'steel_sword',cost:2000},{id:'iron_helm',cost:300},{id:'iron_platebody',cost:800},{id:'steel_platebody',cost:1500},{id:'leather_boots',cost:250},{id:'traveler_cape',cost:400},{id:'copper_ring',cost:350},{id:'hunter_necklace',cost:500},{id:'leather_gloves',cost:225},{id:'bronze_belt',cost:300}];
 
 /* b221: a top-level `const` in a classic script lives in the global LEXICAL
    scope, not on `window` — so `window.SEED_SHOP` / `window.EQUIP_SHOP` were
@@ -5015,7 +5015,7 @@ const QUEST_DEFS=[
      cannot drift from the counter it displays and it is correct on an account
      that did all its harvesting on another device. The claim is unchanged and
      still server-verified (hr_claim_quest reads ev:harvest >= 6). */
-  {id:'farmhand',type:'harvest',mirror:'stats.harvested',label:'Harvest 6 crops',goal:6,progress:0,reward:{gold:500,item:'wheat_seed',qty:5},done:false},
+  {id:'farmhand',type:'harvest',mirror:'stats.harvested',label:'Harvest 6 crops',goal:6,progress:0,reward:{gold:500,item:'carrot_seed',qty:5},done:false},
   /* ── THE HUNDRED-KILL MILESTONE ──────────────────────────────────────────
      b341 shipped this as the "Field Licence": a GATE that withheld away
      combat until it was earned. b343 removes the gate (see processOffline's
@@ -5624,7 +5624,8 @@ function hrQuestServerCount(q){
   return null;
 }
 function questComplete(q){ const n=hrQuestServerCount(q); return n!==null&&q.goal>0&&n>=q.goal; }
-function questServerPays(q){ const r=(q&&q.reward)||{}; return (r.gold||0)>0||hrQuestItemsAreServerCredited(q&&q.id); }
+function questServerPays(q){ const r=(q&&q.reward)||{}; return (r.gold||0)>0||hrQuestItemsAreServerCredited(q&&q.id)
+  ||!!(q&&window.HearthriseCore&&window.HearthriseCore.goalCatalogue&&window.HearthriseCore.goalCatalogue.questCombatXpIsServerCredited(q.id)); }   // 2026-10-10: hr_claim_quest pays combat XP
 function questClaimable(q){ return !!q&&!q.claimed&&questServerPays(q)&&questComplete(q); }
 window.hrQuestServerCount=hrQuestServerCount;
 window.questClaimable=questClaimable;
@@ -5654,6 +5655,9 @@ function hrFireQuestClaim(q){
           notify('Quest reward: '+applied[id]+'x '+((ITEMS[id]&&ITEMS[id].n)||id),'loot');
         });
       }
+      // 2026-10-10: the XP is already in player_skills; announce it, the envelope shows it.
+      if(res.credited===true&&res.xp&&typeof res.xp==='object'&&typeof notify==='function')
+        Object.keys(res.xp).forEach(function(sk){ notify('Quest reward: +'+res.xp[sk]+' '+sk+' XP','loot'); });
     } else if(res&&res.error==='already_claimed'){
       q.claimed=true;   // the server's once-guard is the memory; stop asking
     }
@@ -5728,7 +5732,8 @@ function completeQuest(q){
      Ranged and a Controlled sword user gets the same three-way split their
      fights pay. One routing table, not a second one that drifts.
      `authored:true` keeps PACE.xp off it: 1,500 means 1,500. */
-  if(r.combatXp>0){
+  // 2026-10-10: a catalogued quest's XP is hr_claim_quest's; addXp would queue it on hr_credit_combat_xp.
+  if(r.combatXp>0 && !(window.HearthriseCore&&window.HearthriseCore.goalCatalogue&&window.HearthriseCore.goalCatalogue.questCombatXpIsServerCredited(q.id))){
     const C=window.HearthriseCore;
     const style=(typeof getActiveCombatStyle==='function')?getActiveCombatStyle():null;
     const route=(C&&C.styles)?C.styles.killXpRoute(style,r.combatXp,1):[{skill:'attack',amount:r.combatXp}];
@@ -8367,7 +8372,7 @@ function renderInventory(){
   el.innerHTML=`<div class="item-grid">${items.map(([id,qty])=>{
     const d=ITEMS[id];if(!d)return'';
     const qShow=qty>=1000?(qty/1000).toFixed(1)+'k':qty;
-    return `<button class="item-slot" title="${d.n} ×${qty} · ${vendorPrice(id)}gp" onclick="onItemTap('${id}')">${itemArt(id,26)}<span class="qty">${qShow}</span><span class="nm">${d.n.split(' ')[0]}</span></button>`;
+    return `<button class="item-slot" title="${d.n} ×${qty} · ${vendorPrice(id)>0?vendorPrice(id)+'gp':window.VENDOR_WONT_BUY}" onclick="onItemTap('${id}')">${itemArt(id,26)}<span class="qty">${qShow}</span><span class="nm">${d.n.split(' ')[0]}</span></button>`;
   }).join('')}</div>
   <div class="muted tiny" style="margin-top:10px">Tap to use: equip, eat, plant, or sell. Long press for menu.</div>`;
 }
@@ -8394,7 +8399,7 @@ function onItemTap(id){
     G.foodSlot=id;notify(`Auto-eat: ${d.n}`,'info');return;
   }
   if(d.seed){showTab('farming');return;}
-  /* default: prompt to sell */
+  if(window.refuseUnbuyable&&window.refuseUnbuyable(id)) return;   /* default: prompt to sell — unless the vendor bids 0, which is said, never offered as "0 gold" */
   const _p=vendorPrice(id);
   /* b373: an in-game modal, never window.confirm — see src/utils/dialog.js.
      The sale moved INTO the answer rather than staying after a blocking call;
@@ -10041,7 +10046,7 @@ function openInvDetail(id){
       if(vendorPrice(id) > 0){
         acts.push(`<button class="btn" onclick="invSellOne('${id}');closeInvDetail()">Sell 1 · ${_gp(vendorPrice(id))}</button>`);
         const _sq = window.sellableCount ? window.sellableCount(id) : null; const _sb = window.sellAllPending && window.sellAllPending(id); if(_sb) acts.push(`<button class="btn btn-danger" disabled title="Waiting for the realm to answer your last Sell All">Sell All · selling…</button>`); else if(_sq === null ? qty > 1 : _sq > 1) acts.push(_sq === null ? `<button class="btn btn-danger" disabled title="${window.SELL_PENDING_TITLE}">Sell All · counting…</button>` : `<button class="btn btn-danger" onclick="invSellAll('${id}')"${_sq !== qty ? ` title="The realm has counted ${_sq.toLocaleString()} — Sell All sells what it has counted"` : ''}>Sell All ${_sq.toLocaleString()} · ${_gp(vendorPrice(id)*_sq)}</button>`); if(!_sb && _sq !== null && _sq > 1 && _sq !== qty) sellNote = `<div class="inv-detail-sellnote" role="note">The realm has counted ${_sq.toLocaleString()} of these — Sell All sells what it has counted.</div>`;   /* the display-vs-counted gap is said, not left to puzzle over. Sell All names the SERVER's stack (sellableCount); unstated = counting; a sent one = selling until its answer — all disabled */
-      }
+      } else acts.push(`<button class="btn" disabled title="${window.VENDOR_WONT_BUY}">${window.VENDOR_WONT_BUY}</button>`);   /* a 0 bid is said, never offered as Sell 0g */
       acts.push(`<button class="btn" onclick="toggleItemLock('${id}');openInvDetail('${id}')" title="Protect this item from being sold or listed on the market">${lockGlyph()} Lock</button>`);
     }
     /* b311: Buy-Back moved to the Local Shop (where you sell to the vendor) — it
@@ -17607,7 +17612,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
      desc:'Sixty pulls at the Forge. Bars are the bottleneck — smelt ahead of yourself.'},
     {id:'wk_craft',    glyph:'crafting', name:'Craft 60 items',    target:60,  source:'stats.crafted',         reward:{gold:2200, xp:{crafting:600}},
      desc:'Sixty turns at the bench. Runecrafting and Stonemason work counts here too.'},
-    {id:'wk_harvest',  glyph:'uiWheat', name:'Harvest 120 crops', target:120, source:'stats.cropsHarvested',  reward:{gold:2000, xp:{farming:600}},
+    {id:'wk_harvest',  glyph:'uiWheat', name:'Harvest 40 crops', target:40, source:'stats.cropsHarvested',  reward:{gold:2000, xp:{farming:600}},
      desc:'Crops pulled from your plots. They ripen while you are away — come back and gather.'},
     /* ── `blocked` MEANS "NOT DEALT", AND THE ROW STAYS PUT ────────────────
        This quest was dealt in 13 of any 52 weeks and its Claim button was DEAD:
@@ -17856,20 +17861,6 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
   window.__hrSyncServerGoals = syncServerGoals;   // test seam + manual refresh
   window.__hrSyncServerGoals.reset = function(){ _srvGoals = null; _srvGoalsAt = 0; _srvGoalsInflight = false; _srvGoalsForce = false; };
 
-  /* ── THE ONE READER OF startValues IN THIS IIFE ────────────────────────────
-     Delegates to block 16's goalBaselineOf (exported on window because this is
-     a different IIFE — the b224/b130 cross-scope trap). {known:false} means the
-     source is a SERVER-MIRRORED counter that has not arrived yet, and a goal
-     graded against a baseline nobody measured reads as instantly complete; see
-     the header on goalSourceMirrored.
-     FALLBACK, deliberately the OLD behaviour and not "unknown": if the export
-     ever goes missing, every goal reading 0 forever is a worse, louder bug than
-     the one this fixes, and tests/…/smoke asserts the export exists. */
-  function baselineOf(goal, isWeekly){
-    var stateObj = isWeekly ? G.weeklyGoals : G.dailyGoals;
-    if(typeof window.__hrGoalBaseline === 'function') return window.__hrGoalBaseline(stateObj, goal);
-    return {known: true, value: (stateObj && stateObj.startValues && stateObj.startValues[goal.id]) || 0};
-  }
   /* A goal whose server state is unknown shows the pending dash, never 0 and
      never the local count (the local count drives the BAR only). */
   function shownOr(g, isWeekly, d){ return srvGoal(g, isWeekly) ? d.shown : (window.HearthriseBalance?.countMarkup?.(null, {label:'Not counted yet'}) ?? '—'); }
@@ -17906,56 +17897,34 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
     return isComplete(goal, isWeekly) && !isClaimed(goal, isWeekly);
   }
 
-  /* ── R1/R5 — THE MONOTONIC PREDICTED-vs-CONFIRMED DISPLAY SEAM ──────────────
-     getProgress() returns the CONFIRMED value (the server's own count; 0 and
-     phase PENDING while that is unknown). localProgress() is always the LOCAL
-     OPTIMISTIC count — what the player just did this session, before the ~90s
-     span-sim has reported it. The display shows max(shownLastFrame, confirmed,
-     min(predicted, goal)) so a number, once on screen, only ever climbs; when
-     the server reconciles DOWN the bar HOLDS at its high-water and the row
-     enters "Confirming…" until server truth catches up. See src/core/goals.js.
-
-     The high-water and the one-shot celebration latch are keyed per PERIOD so a
-     daily/weekly reset (a new dayKey/weekKey) starts the counter fresh rather
-     than pinning a new day's bar at yesterday's goal. */
-  var _goalShown = Object.create(null);
+  /* ── THE BAR IS THE SERVER'S COUNT (whole-game review 2026-10-08, item 7) ──
+     The bar used to show max(shownLastFrame, confirmed, min(LOCAL, goal)) — a
+     browser tally (G.stats.* minus a start value) that could sit at 30 / 30
+     while hr_claim_goal, grading the server's own period counter, answered 27.
+     That is CLAUDE.md §6's "the browser says one thing, the server another", on
+     the surface a player acts on. hr_goal_state ALREADY projects the server's
+     `have` for every catalogued daily and weekly goal, so the fix is the
+     client's alone: the bar, its number and its phase all read getProgress()
+     (the server's count; the pending dash while unknown) and nothing else, and
+     each answer REPLACES the last — no high-water, no prediction.
+     goalDisplayState (src/core/goal-display.js) stays the one display rule; its
+     `predicted` input is simply the confirmed count now. The one-shot
+     celebration latch stays keyed per PERIOD, so a new day/week fires afresh. */
   var _goalCelebrated = Object.create(null);
-  function localProgress(goal, isWeekly){
-    var b = baselineOf(goal, isWeekly);
-    return b.known ? Math.max(0, src(goal.source) - b.value) : 0;
-  }
   function goalDisplayKey(goal, isWeekly){
     var stateObj = isWeekly ? G.weeklyGoals : G.dailyGoals;
     var per = isWeekly
       ? ('w' + ((stateObj && stateObj.weekKey) || 0))
       : ('d' + ((stateObj && stateObj.dayKey) || 0));
-    /* The BASELINE (startValue) is part of the key: a re-baseline is a new
-       counting epoch, so the monotonic high-water must NOT carry across it.
-       This is what keeps a reset counter (a new period, or a re-picked goal)
-       from being pinned at the prior instance's shown value — and it is exactly
-       the distinction between R1's "hold on a server reconcile-down" (baseline
-       unchanged, predicted still high) and a genuine restart (baseline moved). */
-    /* An UNKNOWN baseline is its own epoch: when the counter finally lands and
-       the baseline is taken, the key changes, so the monotonic high-water does
-       not pin the bar at a number that was only ever rendered as 0. */
-    var b = baselineOf(goal, isWeekly);
-    return per + ':' + goal.id + ':' + (b.known ? b.value : 'pending');
+    return per + ':' + goal.id;
   }
   function goalDisplay(goal, isWeekly){
     var confirmed = getProgress(goal, isWeekly);
-    var predicted = localProgress(goal, isWeekly);
     var k = goalDisplayKey(goal, isWeekly);
-    var prev = _goalShown[k] || 0;
     var GLS = window.HearthriseGoals && window.HearthriseGoals.goalDisplayState;
     var st = GLS
-      ? GLS({ goal: goal.target, confirmed: confirmed, predicted: predicted, prevShown: prev })
-      : (function(){
-          var pc = Math.min(predicted, goal.target);
-          var shown = Math.min(goal.target, Math.max(prev, confirmed, pc));
-          var phase = confirmed >= goal.target ? 'complete' : (shown >= goal.target ? 'confirming' : 'progress');
-          return { shown: shown, phase: phase, canClaim: confirmed >= goal.target };
-        })();
-    _goalShown[k] = st.shown;
+      ? GLS({ goal: goal.target, confirmed: confirmed, predicted: confirmed, prevShown: 0 })
+      : { shown: Math.min(goal.target, confirmed), phase: confirmed >= goal.target ? 'complete' : 'progress' };
     /* The phase and the claim come from the ONE predicate, never from the
        display maths: unknown server state is PENDING (dash, disabled Claim). */
     var phase = isComplete(goal, isWeekly) ? 'complete'
@@ -17963,8 +17932,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
       : (st.phase === 'complete' ? 'confirming' : st.phase);
     st = { shown: st.shown, phase: phase, canClaim: goalClaimable(goal, isWeekly), confirmed: confirmed, goal: goal.target };
     /* SERVER-GATED CELEBRATION: exactly one completion toast, fired the frame the
-       SERVER confirms the goal (phase COMPLETE) — never at predicted>=goal
-       (that is CONFIRMING, silent). Latched per period so it cannot repeat. */
+       SERVER confirms the goal (phase COMPLETE). Latched per period. */
     if(st.phase === 'complete' && !isClaimed(goal, isWeekly) && !_goalCelebrated[k]){
       _goalCelebrated[k] = true;
       if(typeof window.notify === 'function') notify('Quest complete: ' + goal.name + ' — reward ready to claim!', 'levelup');
@@ -17972,7 +17940,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
     return st;
   }
   window.__hrGoalDisplay = goalDisplay;   // test seam
-  window.__hrGoalDisplay.reset = function(){ _goalShown = Object.create(null); _goalCelebrated = Object.create(null); };
+  window.__hrGoalDisplay.reset = function(){ _goalCelebrated = Object.create(null); };
 
   /* b371 — THE TOPBAR QUEST BADGE READ A SENTENCE THAT STOPPED BEING WRITTEN.
      src/quests-topbar-button.js derived its count by running
@@ -18414,21 +18382,17 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
         var claimed = isClaimed(g, isWeekly);
         var complete = d.phase === 'complete';
         var confirming = d.phase === 'confirming';
-        var pendingFull = d.phase === 'pending' && d.shown >= g.target;
-        var done = complete || confirming || pendingFull;      // bar-full states
+        var done = complete || confirming;      // bar-full states (the bar is the server's count)
         var pct = Math.min(100, (d.shown/g.target)*100);
         var reward = rewardFor(g.id, isWeekly);
         var rewardHtml = '<div class="qm-q-reward"><div class="qm-r-label">Reward</div><div class="qm-r-val">'+rewardSummaryHTML(reward)+'</div></div>';
         var claimBtn = '';
         /* SERVER-GATED: Claim is OFFERED only when the SERVER confirms the goal
-           (phase COMPLETE). While predicted has hit the goal but the server
-           hasn't caught up (phase CONFIRMING) the row shows a non-alarming
-           "Confirming…" chip and NO claim button — R1's two-value contract. */
+           (phase COMPLETE). When the server's own count has reached the goal
+           but its verdict has not (phase CONFIRMING) the row shows a
+           non-alarming "Confirming…" chip and NO claim button. */
         if(claimed) claimBtn = '<span class="qm-q-claimed">✓ Claimed</span>';
         else if(d.canClaim) claimBtn = '<button class="qm-q-claim" data-hr-settle-latch data-qid="'+g.id+'" data-weekly="'+(isWeekly?1:0)+'">Claim</button>';
-        /* Server state unknown and the local bar full: the F2 latch's pending
-           Claim — disabled, marked, and not the settle latch's to lift. */
-        else if(pendingFull) claimBtn = '<button class="qm-q-claim" disabled aria-busy="true" data-hr-goal-pending data-qid="'+g.id+'" data-weekly="'+(isWeekly?1:0)+'">Claim</button>';
         else if(confirming) claimBtn = '<span class="qm-q-confirming">Confirming…</span>';
         /* b227 (audit finding #2) — "take me to the area the quest is asking
            me to complete". Until now this modal was a dead end: it told you to

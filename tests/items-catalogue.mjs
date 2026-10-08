@@ -87,6 +87,17 @@ export async function itemsCatalogueGuard(opts) {
     return { problems: [`${CATALOGUE_SQL}: ${parsed.why} — the guard could not see the catalogue and must not `
       + 'report green on nothing'], note: '' };
   }
+  /* The root catalogue is FROZEN applied history (tools/generated-freeze.mjs):
+     rows added after the freeze arrive in its append-only deltas, so the server's
+     allowlist is the base plus every catalogue delta in the tree. */
+  if (!o.sqlPath) {
+    const { readdir } = await import('node:fs/promises');
+    const dir = join(ROOT, 'supabase', 'migrations');
+    for (const f of (await readdir(dir)).filter((x) => /^\d{4}-\d{2}-\d{2}-catalogue\.delta\.generated\.sql$/.test(x)).sort()) {
+      const d = itemIdsInSql(await readFile(join(dir, f), 'utf8'));
+      if (d.ok) d.ids.forEach((id) => parsed.ids.add(id));
+    }
+  }
 
   const modUrl = o.itemsUrl || pathToFileURL(join(ROOT, 'src', 'data', 'items.js')).href;
   let ITEMS = null;

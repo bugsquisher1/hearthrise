@@ -37,6 +37,7 @@ import { indexArtisanRecipes, payableRecipeIndex } from '../../../src/core/artis
 import { SHOP_OFFERS } from '../../../src/data/shops.js';
 import { ITEMS } from '../../../src/data/items.js';
 import { catalogueGet } from './intents.js';
+import { vendorBidOf } from '../../../src/core/vendor.js';
 
 /**
  * `{ [nodeId]: { skill, node } }` over all 23 gathering nodes.
@@ -287,33 +288,20 @@ export const OFFER_REFUSALS = Object.freeze(offerRefusals);
 export const ALL_OFFER_IDS = Object.freeze(offerIds);
 
 /* ── WHAT THE VENDOR BIDS ───────────────────────────────────────────────────
-   `vendor.sell` is one of the six DERIVED_PRICES in src/data/shops.js — a
-   FORMULA rather than a row, so it is deliberately absent from SHOP_OFFERS and
-   the catalogue's own header says so: "DERIVABLE TODAY — needs `raw` added and
-   the rate as a constant. This is the cheapest of the six to close."
+   `vendor.sell` is one of the DERIVED_PRICES in src/data/shops.js — a FORMULA
+   rather than a row, so it is deliberately absent from SHOP_OFFERS.
 
-   It is closed here rather than in SQL because both inputs are already
-   vendored: `ITEMS[id].v` (book value) and `ITEMS[id].raw` (is it unprocessed
-   material), the latter DERIVED in items.js from every tree/rock/spot/crop
-   `prod` plus an explicit monster-drop list. Restating either in PL/pgSQL
-   would be the second copy this whole program exists to prevent.
+   The formula lives ONCE, in src/core/vendor.js, and the shop counter
+   (src/screens/shop-counter.js) calls the SAME function through
+   window.HearthriseCore.vendor — there is no second statement to drift. It is
+   computed here rather than in SQL because every input is already vendored:
+   `ITEMS[id].v`, `ITEMS[id].raw` and ARTISAN_RECIPES (the craft anchor).
 
-   ⚠ THIS CONSTANT IS THE ONE NUMBER IN THIS FILE THAT IS NOT IMPORTED, because
-     the authority for it is `VENDOR_RAW_RATE` in src/legacy.js — a classic
-     script that ESM and Deno cannot import, which is exactly why
-     src/data/shops.js exists as a generated second copy in the first place.
-     tests/gold-intents.mjs reads BOTH the rate and the formula out of
-     legacy.js's `vendorPrice()` and fails the build if either moves, so the
-     second statement is guarded rather than trusted — the same bargain
-     shops.js struck, mutation-proven the same way.
-
-   Why 20%: gathering throughput is roughly flat (~300 items/h at every tier)
-   while `v` climbs 2.77x per material tier, so a maxed miner vendoring
-   Dawnstone out-earned an entire renown rank every 32 minutes WHILE ASLEEP.
-   The rate puts gathering back to being the material faucet and the player
-   market back to being the best price for raws. It is a BALANCE number and it
-   belongs to the Game Designer; it is mirrored here, never chosen here. */
-export const VENDOR_RAW_RATE = 0.20;
+   b-craft-anchor (Game Designer ruling, 2026-10-08): a crafted item bids
+   min(book value, 1.5 × the summed bids of its cheapest recipe's inputs),
+   recursively. Raw rate unchanged at 20%. See src/core/vendor.js for the
+   rule, the cycle argument, the rounding and the dropped-and-crafted rule. */
+export { VENDOR_RAW_RATE, CRAFT_ANCHOR_BP } from '../../../src/core/vendor.js';
 
 /**
  * What the NPC vendor pays for ONE `id`. 0 means "the vendor does not buy it",
@@ -322,14 +310,11 @@ export const VENDOR_RAW_RATE = 0.20;
  * @param items  the item catalogue, passed in rather than closed over — the
  *               exploit surface of a pricing function is its inputs, and an
  *               input a reviewer can see in the signature is an input they can
- *               audit. Same rule computeAccrual follows.
+ *               audit. Same rule computeAccrual follows. The recipe catalogue
+ *               is the vendored ARTISAN_RECIPES (every authored bench, payable
+ *               or not: the anchor is a property of the item).
  */
 export function vendorPriceOf(items, id) {
-  const it = catalogueGet(items, id);
-  if (!it || typeof it !== 'object') return 0;
-  const v = Number(it.v) || 0;
-  if (!(v > 0)) return 0;
-  /* Floored at 1: a raw worth anything at all is still worth something, and a
-     0g bid reads as "this item is broken" rather than "this is cheap". */
-  return it.raw ? Math.max(1, Math.floor(v * VENDOR_RAW_RATE)) : v;
+  if (catalogueGet(items, id) === undefined) return 0;
+  return vendorBidOf(items, ARTISAN_RECIPES, id);
 }

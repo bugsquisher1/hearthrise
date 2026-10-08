@@ -2149,10 +2149,15 @@ export default [
       assert(/0\s*\/\s*30/.test(strip.innerText),
         'a freshly baselined quest should read 0 / 30, got: ' + strip.innerText);
 
-      G.stats.kills = 47;                        // seven kills later
+      // The SERVER's count: a local tally must NOT move it; the settle MUST.
+      G.stats.kills = 47;                        // seven kills later, not yet settled
+      repaint();
+      assert(/0\s*\/\s*30/.test(strip.innerText),
+        'a LOCAL tally moved the rendered number ahead of the server: ' + strip.innerText);
+      unfeed = await feedServerGoals([goalRow('kill_more', 7, 30)]);   // the settle lands
       repaint();
       assert(/7\s*\/\s*30/.test(strip.innerText),
-        'THE BUG: the Quests strip did not follow the counter — it still reads ' + strip.innerText);
+        'THE BUG: the Quests strip did not follow the server counter — it still reads ' + strip.innerText);
 
       window.openQuestsModal();
       const prog = document.querySelector('#quests-modal-overlay .qm-q-progtext');
@@ -4228,6 +4233,9 @@ export default [
     window.renderSocial();
     assert(!document.querySelector('#social-panel [onclick*="showTab(\'clan\')"]'),
       'Social still offers a button into the coming-soon Clan card');
+    const lone = window.HearthriseRaids._soloCardHtml();
+    assert(/Lone Hunt/.test(lone) && !/showTab\(\\?'clan/.test(lone) && !/join a clan/i.test(lone),
+      'the Lone Hunt chest card still points at the closed Clan tab: ' + lone.slice(0, 300));
   }),
 
   () => tryRun('FRONT-DOOR-5: the web build has no Premium Shop — no toggle, no pane, and its routes land on the Local Shop', () => {

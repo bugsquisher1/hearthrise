@@ -51,7 +51,6 @@
   var WINDOW_MIN      = 45;
   var GOAL_PER_PLAYER = 2000;
   var MIN_GOAL        = 6000;
-  var CALL_CLAMP      = 400;      // per contribution flush (mirrors the server)
   var TOTAL_CAP       = 6000;     // per muster    (mirrors the server)
   var FLUSH_MS        = 30000;
   var IMMINENT_MS     = 15 * 60000;
@@ -88,29 +87,29 @@
   // that happen to share a name.
   var EVENTS = [
     { id: 'ashen_horde',   name: 'The Ashen Horde',          glyph: 'uiFire',
-      what: 'combat',                       sources: { kill_any: 1 },
+      what: 'combat',
       desc: 'Cinder-wolves pour off the burnt ridge. The watch-fires are already lit.' },
     { id: 'long_harvest',  name: 'The Long Harvest',         glyph: 'uiWheat',
-      what: 'farming and gathering',        sources: { harvest: 1, gather: 1 },
+      what: 'farming and gathering',
       desc: 'Storm on the horizon. Every field must be cleared before dusk.' },
     { id: 'forge_levy',    name: 'The Forge Levy',           glyph: 'uiAnvil',
-      what: 'smithing and crafting',        sources: { smithed: 1, crafted: 1 },
+      what: 'smithing and crafting',
       desc: 'The realm has called for arms by nightfall. Every anvil in the valley answers.' },
     { id: 'deep_seam',     name: 'The Deep Seam',            glyph: 'uiPickaxe',
-      what: 'mining, woodcutting, fishing', sources: { gather: 1 },
+      what: 'mining, woodcutting, fishing',
       desc: 'A new vein opened under Ironvale, and it will not stay open.' },
     { id: 'keep_kitchens', name: 'The Kitchens of the Keep', glyph: 'uiPot',
-      what: 'cooking',                      sources: { cooked: 1 },
+      what: 'cooking',
       desc: 'Feed the rally or it marches hungry.' },
     { id: 'all_hands',     name: 'The Rally of All Hands',  glyph: 'uiBanner',
       what: 'every activity, at half rate',
-      sources: { kill_any: 0.5, gather: 0.5, harvest: 0.5, cooked: 0.5, smithed: 0.5, crafted: 0.5 },
       desc: 'Every hand in the realm, whatever it holds.' }
   ];
 
   // Points per unit of ordinary play. These piggyback the counters the game
   // ALREADY fires (updateDaily) — no new call sites, nothing to keep in sync.
-  var POINTS = { kill_any: null /* 10 x tier */, gather: 4, harvest: 6, cooked: 12, smithed: 12, crafted: 12 };
+  /* What a muster COUNTS (per-type points, per-event multipliers) is the SERVER's:
+     src/data/muster.js, carried by 2026-10-10-muster-server-points.sql. */
 
   // ════════════════════════════════════════════════════════════
   // 1b · THE THEMED CHEST  (b231 — Tyler: "Forge Levy pays smithing")
@@ -451,13 +450,13 @@
     var G = window.G || {};
     if (!G.muster || typeof G.muster !== 'object') {
       G.muster = { dayKey: null, eventKey: null, slot: null, startMs: 0, endMs: 0,
-                   points: 0, pending: 0, rallied: false, claimed: false, server: false };
+                   points: 0, claimed: false, server: false };
     }
     // The mirror only ever needs TODAY. Without this it grows a record per day
     // forever inside a save file that is already fragile.
     if (G.muster.dayKey && G.muster.dayKey !== todayKey()) {
       G.muster = { dayKey: null, eventKey: null, slot: null, startMs: 0, endMs: 0,
-                   points: 0, pending: 0, rallied: false, claimed: false, server: false };
+                   points: 0, claimed: false, server: false };
     }
     return G.muster;
   }
@@ -917,78 +916,42 @@
     return d;
   }
 
-  // ── Contribution: piggybacks the counters the game already fires ──
-  // updateDaily() is called from every meaningful player action already
-  // (kills, gathers, harvests, cooks, smiths, crafts). Wrapping it — the same
-  // thin additive pattern world-events.js uses on getBonus — means the muster
-  // scores real play with ZERO new call sites in the monolith to keep in sync.
-  function pointsFor(type, amt) {
-    var w = liveWindow(); if (!w) return 0;
+  // ── Contribution: THE SERVER COUNTS IT (2026-10-10-muster-server-points.sql) ──
+  // This file used to SCORE play itself (pointsFor: every updateDaily event x a
+  // weight x the event multiplier, plus a one-shot client-rolled "Rally") and
+  // send the number as `p_points` — a client value feeding the SHARED community
+  // bar and the chest band. Designer ruling 2026-10-08: points are derived on
+  // the server from the player's own counter deltas during the window; the
+  // client sends no number. So the client only ASKS: world_event_contribute
+  // (p_event_key) recomputes the caller's points from server counters since the
+  // join snapshot and answers the total, which REPLACES st.points (never merged).
+  //
+  // The updateDaily wrapper stays registered on the named chain (castle Labour
+  // shares it), but all it does now is mark the window dirty so the next tick
+  // asks the server promptly; a quiet window is still asked every SYNC_IDLE_MS,
+  // because away settles move the counters with no client event at all.
+  var SYNC_IDLE_MS = 60000;
+  var syncing = false, syncDirty = false, lastSyncAt = 0;
+  function markDirty() { if (joinedThisWindow()) syncDirty = true; }
+  async function sync(force) {
     var st = ensureState();
-    if (st.eventKey !== w.eventKey) return 0;
-    var mult = w.event.sources[type];
-    if (!mult) return 0;
-    var base;
-    if (type === 'kill_any') {
-      var mon = (window.MONSTERS && window.G && window.MONSTERS[window.G.activeMonster]) || null;
-      base = 10 * ((mon && mon.tier) || 1);
-    } else {
-      base = (POINTS[type] || 0) * Math.max(1, amt || 1);
-    }
-    return Math.max(0, Math.floor(base * mult));
-  }
-  function addPoints(n) {
-    if (!(n > 0)) return 0;
-    var st = ensureState();
-    var room = Math.max(0, TOTAL_CAP - st.points);
-    n = Math.min(n, room);
-    if (n <= 0) return 0;
-    st.points += n;
-    st.pending = (st.pending || 0) + n;
-    return n;
-  }
-
-  var flushing = false;
-  async function flush() {
-    var st = ensureState();
-    if (flushing || !(st.pending > 0)) return;
-    if (!st.server || !isSignedIn() || rpcMissing('world_event_contribute')) { st.pending = 0; persist(); return; }
-    var send = Math.min(CALL_CLAMP, st.pending);
-    flushing = true;
+    if (syncing || !joinedThisWindow()) return;
+    if (!force && !syncDirty && (Date.now() - lastSyncAt) < SYNC_IDLE_MS) return;
+    if (!st.server || !isSignedIn() || rpcMissing('world_event_contribute')) return;
+    syncing = true; syncDirty = false; lastSyncAt = Date.now();
     var r;
-    try { r = await rpc('world_event_contribute', { p_event_key: st.eventKey, p_points: send }); }
-    catch (e) { flushing = false; return; }               // keep pending, retry next tick
-    flushing = false;
+    try { r = await rpc('world_event_contribute', { p_event_key: st.eventKey }); }
+    catch (e) { syncing = false; syncDirty = true; return; }   // ask again next tick
+    syncing = false;
     var d = reduceContribute(r.status, r.json);
     noteRpc('world_event_contribute', d.action !== 'unsupported');
-    if (d.action === 'unsupported') { st.pending = 0; st.server = false; persist(); return; }
-    if (d.action === 'closed') { st.pending = 0; persist(); return; }
+    if (d.action === 'unsupported') { st.server = false; persist(); return; }
     if (d.action !== 'accept') return;
-    st.pending = Math.max(0, st.pending - send);
-    st.points = d.points || st.points;                    // the server's total wins
+    st.points = Math.max(0, Math.floor(Number(d.points) || 0));   // the server's total, verbatim
     community = { eventKey: st.eventKey, participants: (community && community.participants) || 0,
                   goal: d.goal || MIN_GOAL, progress: d.progress, met: d.met };
     persist();
     renderPanel();
-  }
-
-  // Rally — one large one-shot contribution, so a player with sixty free
-  // seconds can still take part meaningfully. One per muster.
-  function rally() {
-    var st = ensureState();
-    if (!joinedThisWindow()) { toast('Join the rally first', 'info'); return 0; }
-    if (st.rallied) { toast('You have already rallied at this event', 'info'); return 0; }
-    var R = window.HearthriseRaids;
-    var roll = (R && typeof R.simulateStrike === 'function')
-      ? R.simulateStrike({ def: 40, weak: 'sword' })
-      : 600;
-    var pts = Math.max(20, Math.floor(roll / 12));
-    st.rallied = true;
-    var got = addPoints(pts);
-    persist();
-    toast('You rally — +' + got.toLocaleString() + ' to the realm’s effort', 'loot');
-    flush(); renderAll();
-    return got;
   }
 
   async function claim() {
@@ -1008,7 +971,7 @@
        arrives on the next envelope. p_slot names the character to credit — the
        active slot, never a cross-player value. */
     if (st.server && isSignedIn() && !rpcMissing('world_event_claim')) {
-      await flush();
+      await sync(true);
       var r;
       var SF = window.HearthriseSettleFirst, claimBody = { p_day_key: st.dayKey, p_slot: activeSlot() };
       var send = function () { return rpc('world_event_claim', claimBody); };
@@ -1252,7 +1215,7 @@
   // call either hook, so `ambientPaused` is 0 for every real session.
   var ambientPaused = 0;
   function ambientOn() { return ambientPaused === 0; }
-  function flushTick() { return ambientOn() ? flush() : Promise.resolve(); }
+  function flushTick() { return ambientOn() ? sync(false) : Promise.resolve(); }
   async function pledgeTick() {
     if (!ambientOn()) return;
     try {
@@ -1593,8 +1556,6 @@
         body += '<div class="tiny" style="margin-top:8px">Your contribution: <b>' + st.points.toLocaleString() + '</b> points' +
           (st.server ? '' : ' <span class="muted">(solo muster)</span>') + '</div>';
         foot = '<div class="hr-mu-row">' +
-          (st.rallied ? '<button class="btn btn-sm" disabled>Rallied</button>'
-                      : '<button class="btn btn-primary btn-sm" data-mu="rally">Rally</button>') +
           '<button class="btn btn-sm" data-mu="events">Open Events</button></div>';
       } else if (st.dayKey === live.dayKey && st.eventKey) {
         body += '<div class="tiny muted" style="margin-top:8px">You already answered a muster today. ' +
@@ -1630,7 +1591,6 @@
       return;
     }
     if (a === 'join')   { closeModal(); join(false); }
-    if (a === 'rally')  { closeModal(); rally(); }
     if (a === 'claim')  { closeModal(); claim(); }
     if (a === 'events') { closeModal(); if (typeof window.showTab === 'function') window.showTab('events'); }
   }
@@ -1801,8 +1761,7 @@
     var head = live ? live.event : (nextWindow() ? nextWindow().event : EVENTS[0]);
     var cta = '';
     if (live && joinedThisWindow()) {
-      cta = (st.rallied ? '<button class="btn btn-sm" disabled>Rallied</button>'
-                        : '<button class="btn btn-primary btn-sm" data-mu="rally">Rally</button>');
+      cta = '<span class="tiny muted">' + st.points.toLocaleString() + ' / ' + TOTAL_CAP.toLocaleString() + ' points — counted by the realm</span>';
     } else if (live && !(st.dayKey === live.dayKey && st.eventKey)) {
       cta = '<button class="btn btn-primary btn-sm" data-mu="join">Join the muster</button>';
     }
@@ -1880,7 +1839,8 @@
     });
   }
 
-  // Contribution: wrap the counter the game already fires everywhere.
+  // Contribution: the counter the game fires everywhere only marks the window
+  // dirty now (2026-10-10) — the SERVER counts the points; see sync() above.
   //
   // b222: routed through window.wrapUpdateDaily('muster', …) — the named
   // wrapper chain (legacy.js SEAM 4). The chain owns the idempotency roster
@@ -1896,7 +1856,7 @@
     }
     window.__musterCountersHooked = true;
     window.wrapUpdateDaily('muster', function (type, amt) {
-      addPoints(pointsFor(type, amt));
+      markDirty();
     });
   }
 
@@ -1967,7 +1927,7 @@
     EVENTS: EVENTS,
     SLOT_UTC_HOURS: SLOT_UTC_HOURS, WINDOW_MIN: WINDOW_MIN,
     GOAL_PER_PLAYER: GOAL_PER_PLAYER, MIN_GOAL: MIN_GOAL,
-    CALL_CLAMP: CALL_CLAMP, TOTAL_CAP: TOTAL_CAP, LIVE_XP_AURA: LIVE_XP_AURA,
+    TOTAL_CAP: TOTAL_CAP, LIVE_XP_AURA: LIVE_XP_AURA,
     liveAura: liveAura,   // b228: what the aura pays right now, for power-budget.js
     SOLO_BAND: SOLO_BAND, ABSENT_BAND: ABSENT_BAND, ABSENT_SHARE: ABSENT_SHARE,
     // clock + schedule
@@ -1979,7 +1939,7 @@
     ensureState: ensureState, rewardReady: rewardReady, joinedThisWindow: joinedThisWindow,
     pillState: pillState, computeState: computeState,
     // actions
-    join: join, rally: rally, claim: claim, flush: flush,
+    join: join, claim: claim, sync: sync,
     // pre-selection
     pledge: pledge, settlePledge: settlePledge, getPledge: readPledge,
     hydratePledge: hydratePledge, canPledge: canPledge, pledgeSupported: pledgeSupported,
@@ -2003,7 +1963,7 @@
     _reducePledge: reducePledge, _reduceAbsence: reduceAbsence,
     _canPledge: canPledge, _pledgeOutcome: pledgeOutcome, _pledgeContext: pledgeContext,
     _writePledge: writePledge, _grantAbsent: grantAbsent, _adopt: adopt,
-    _pointsFor: pointsFor, _addPoints: addPoints,
+
     _setSkew: function (ms) { skewMs = ms | 0; },
     _skewState: function () { return skewState; },
     _resetProbes: _resetProbes,

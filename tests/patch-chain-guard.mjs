@@ -61,6 +61,12 @@
 //            — i.e. as progress. It is also what stops this guard going green on
 //            an empty supabase/migrations.
 //
+//   PATCH-6  a chain is deeper than its HARD CEILING (DEPTH_CEILINGS, default
+//            DEPTH_CEILING_DEFAULT). No waiver reaches it: RESTATEMENT-DEBT-ACK
+//            buys a patch on a deep chain, never one past the ceiling. Added
+//            2026-10-08 (Security A2 condition): hr_apply reached 14 under acks
+//            and may not take a 15th anchored edit without a restatement.
+//
 //   A chain that got SHALLOWER (slice 7 restating a body) is a NOTE telling you
 //   to re-run --write — never a failure.
 //
@@ -117,6 +123,12 @@ const BASELINE = join(ROOT, 'tests', 'patch-chain-guard.baseline.json');
 
 /** The audit's standing rule. A chain at or past this depth must be restated. */
 export const MAX_CHAIN_DEPTH = 2;
+/** PATCH-6: the depth no chain may exceed, waiver or not. Per function, with a
+    default for the rest. hr_apply sits AT its ceiling on 2026-10-08. */
+export const DEPTH_CEILING_DEFAULT = 14;
+export const DEPTH_CEILINGS = Object.freeze({ hr_apply: 14 });
+export const ceilingOf = (fn) => (Object.prototype.hasOwnProperty.call(DEPTH_CEILINGS, fn)
+  ? DEPTH_CEILINGS[fn] : DEPTH_CEILING_DEFAULT);
 /** The waiver, and the floor on how much of a reason counts as one. */
 const ACK_RE = /^\s*--\s*RESTATEMENT-DEBT-ACK:\s*(.+?)\s*$/m;
 const ACK_HEAD_LINES = 120;
@@ -415,6 +427,16 @@ export function compare(now, base) {
       + `(${r.files.join(', ')}). The rule is the same for a body the audit never saw: restate it.`);
   }
 
+  // PATCH-6 — the hard ceiling. Read off the census, not the new files, and
+  // consulted before nothing: an ack on any contributing file changes nothing.
+  for (const r of now.rows) {
+    const cap = ceilingOf(r.fn);
+    if (r.depth <= cap) continue;
+    fail('PATCH-6', `public.${r.fn}: chain is ${r.depth} deep, past its hard ceiling of ${cap} `
+      + `(last full restatement ${r.lastRestatement || 'none'}). No RESTATEMENT-DEBT-ACK reaches this `
+      + 'check: restate the body in full before adding another anchored edit.');
+  }
+
   // PATCH-5 — the census's own integrity. Every depth above is "since the last
   // restatement", which is a statement about a HISTORY. If a file that
   // contributed one of those patches is gone, the history is not the one the
@@ -679,7 +701,19 @@ function selftest() {
     return 2;
   }
 
+  /* PATCH-6 is planted on the chain closest to its ceiling, WITH a real ack, so
+     the arm proves the waiver does not reach it. */
+  const nearCap = real.rows.slice().sort((a, b) => (ceilingOf(a.fn) - a.depth) - (ceilingOf(b.fn) - b.depth))[0];
+  const roomy = real.rows.find((r) => r.depth >= MAX_CHAIN_DEPTH && r.depth + 1 <= ceilingOf(r.fn));
+  if (!roomy) {
+    console.error('SELFTEST HARNESS: no deep chain with headroom under its ceiling for the ALLOWED-ack arm.');
+    return 2;
+  }
+  const realAck = { reason: 'security hotfix on the money path; restatement is slice 7 and needs a GO', ok: true };
   const arms = [
+    [`an ACKED new migration takes public.${nearCap.fn} (chain ${nearCap.depth}) past its ceiling ${ceilingOf(nearCap.fn)}`,
+      'PATCH-6', () => withNewFile('2026-09-30-past-ceiling.sql', nearCap.fn,
+        ceilingOf(nearCap.fn) - nearCap.depth + 1, realAck)],
     [`a NEW migration patches public.${deepest.fn} (chain ${deepest.depth}) with no ack`, 'PATCH-1',
       () => withNewFile('2026-09-30-planted.sql', deepest.fn, 1, null)],
     /* ANCHORED ON A CHAIN WHOSE EVERY CONTRIBUTING FILE THE BASELINE ALREADY
@@ -744,9 +778,8 @@ function selftest() {
   const silent = [
     [`ALLOWED: a NEW migration patches public.${shallow.fn}, chain only ${shallow.depth} deep`,
       () => withNewFile('2026-09-30-shallow.sql', shallow.fn, 1, null)],
-    [`ALLOWED: the deep chain is patched WITH a real ack`,
-      () => withNewFile('2026-09-30-acked.sql', deepest.fn, 1,
-        { reason: 'security hotfix on the money path; restatement is slice 7 and needs a GO', ok: true })],
+    [`ALLOWED: a deep chain under its ceiling (public.${roomy.fn}, ${roomy.depth}) is patched WITH a real ack`,
+      () => withNewFile('2026-09-30-acked.sql', roomy.fn, 1, realAck)],
   ];
   for (const [label, mutate] of silent) {
     const got = mutate();

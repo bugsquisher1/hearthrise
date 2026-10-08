@@ -160,15 +160,41 @@
     return realmStatedTheCharacter();
   }
 
+  /* ══════════════════════════════════════════════════════════════════════════
+     THE LOG COUNTS ONLY WHAT A PLAYER CAN OBTAIN (content-holes, 2026-10-08).
+     The denominator was Object.keys(ITEMS) — every catalogued id, including the
+     ~28 rows the item-effects hatches deliberately keep OUT of the world (an
+     unbuilt effect, skill or system), the IAP Hearth Token, and the starter
+     fox's equip pointer. So "Items 212/550" could never reach 550, and the gap
+     was the one number on the screen a player could do nothing about.
+     collectable() is that list removed, through the SAME predicate the item
+     reachability guard exempts (HearthriseItemEffects.isItemDormant), so the
+     two can never disagree about what is obtainable. A held id is always
+     counted: if the realm says you own it, it is collectable by definition. */
+  function collectable(id, it, col) {
+    if (!it) return false;
+    if (col && col[id]) return true;
+    if (it.premium || it.retired || it.type === 'companion') return false;
+    if (it.recipe && !(window.ITEMS || {})[it.recipe]) return false;   // a scroll for nothing
+    var E = window.HearthriseItemEffects;
+    if (E && typeof E.isItemDormant === 'function' && E.isItemDormant(it, window.SKILLS_DEF || {})) return false;
+    return true;
+  }
+  function collectableIds(G) {
+    var ITEMS = window.ITEMS || {}, col = (G && G.collection) || {};
+    return Object.keys(ITEMS).filter(function (id) { return collectable(id, ITEMS[id], col); });
+  }
+
   function getStats(G) {
     G = G || window.G;
-    var MON = window.MONSTERS || {}, ITEMS = window.ITEMS || {};
+    var MON = window.MONSTERS || {};
     var monTotal = Object.keys(MON).length;
     var monFound = 0, best = G.bestiary || {};
     for (var m in MON) { if (best[m] && (best[m].kills || 0) > 0) monFound++; }
-    var itemTotal = Object.keys(ITEMS).length;
+    var ids = collectableIds(G);
+    var itemTotal = ids.length;
     var col = G.collection || {}, itemFound = 0;
-    for (var it in ITEMS) { if (col[it]) itemFound++; }
+    ids.forEach(function (it) { if (col[it]) itemFound++; });
     return {
       mon: { found: monFound, total: monTotal, pct: monTotal ? monFound / monTotal : 0 },
       item: { found: itemFound, total: itemTotal, pct: itemTotal ? itemFound / itemTotal : 0 },
@@ -613,7 +639,7 @@
     // group by simple category
     function catOf(it) { return it.slot || (it.heals ? 'Food' : it.buryXp ? 'Bones' : it.equip ? 'Equipment' : 'Materials'); }
     var byCat = {};
-    Object.keys(ITEMS).forEach(function (id) { var c = catOf(ITEMS[id]); (byCat[c] = byCat[c] || []).push(id); });
+    collectableIds(G).forEach(function (id) { var c = catOf(ITEMS[id]); (byCat[c] = byCat[c] || []).push(id); });
     return hfSection + Object.keys(byCat).sort().map(function (c) {
       var ids = byCat[c];
       var found = ids.filter(function (id) { return col[id]; }).length;

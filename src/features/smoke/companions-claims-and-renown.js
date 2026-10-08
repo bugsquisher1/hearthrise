@@ -191,6 +191,94 @@ export default [
     }
   }),
 
+  /* content-holes (2026-10-08) — THE EGG MOVES ONLY AS THE SERVER MOVED IT.
+     The hatch's callback decremented the bag unconditionally. hr_companion_grant
+     answers `already_owned:true` and consumes NOTHING when the server already
+     holds the Whelp (2026-09-06 hardening), so the bag said one fewer egg than
+     the server: the "browser says one thing" class. Drives the REAL tap path
+     (invItemTap → confirm → unlockCompanion → grant) twice: already-owned keeps
+     the egg, egg_consumed:true spends exactly one. MUTATION: restore the bare
+     `dragon_egg--` in wireDragonEggHatch → the first half goes red. */
+  () => tryRunAsync('HATCH-EGG-1: the bag spends a Dragon Egg only when the server says it consumed one', async () => {
+    const CO = window.HearthriseCompanions;
+    const Cap = window.HearthriseCapstone;
+    const D = window.HearthriseDialog;
+    if (!CO || !Cap || !Cap.__setBlobRetired || !D || typeof window.invItemTap !== 'function') return;
+    assert(window.ITEMS && window.ITEMS.dragon_egg, 'dragon_egg must be a real item (the Whelp hatches from it)');
+    const snap = snapshotG();
+    const origFetch = window.fetch, origNotify = window.notify, origConfirm = D.confirm;
+    let unstub = () => {}, wasParked = false, answer = null;
+    const until = async (pred) => { for (let i = 0; i < 100 && !pred(); i++) await new Promise((r) => setTimeout(r, 10)); };
+    try {
+      Cap.__setBlobRetired(true);
+      wasParked = CO.__parkGrants(false);
+      CO.__clearGrantBlocks();
+      CO.__setGrantRetryMs([0, 5]);
+      unstub = stubSignedIn(0);
+      window.notify = function () {};
+      D.confirm = () => Promise.resolve(true);
+      window.fetch = function (url) {
+        if (String(url).indexOf('hr_companion_grant') !== -1) {
+          return Promise.resolve(new Response(JSON.stringify(answer), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        }
+        return Promise.resolve(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      };
+      const owns = () => window.G.companions.ownedIds.indexOf('whelp') >= 0;
+
+      // (1) the server already had the Whelp — it consumed nothing.
+      window.G.companions = { ownedIds: [], xp: {}, equipped: null };
+      window.G.inventory = Object.assign({}, window.G.inventory, { dragon_egg: 2 });
+      answer = { ok: true, companion: 'whelp', already_owned: true };
+      window.invItemTap('dragon_egg');
+      await until(owns);
+      assert(owns(), 'the already-owned Whelp must appear in the stable');
+      assert(window.G.inventory.dragon_egg === 2,
+        'THE BUG: the server answered already_owned (no egg consumed) and the bag spent one anyway; have '
+        + window.G.inventory.dragon_egg);
+
+      // (2) a real hatch — the server consumed exactly one, and so does the bag.
+      CO.__clearGrantBlocks();
+      window.G.companions = { ownedIds: [], xp: {}, equipped: null };
+      answer = { ok: true, companion: 'whelp', egg_consumed: true };
+      window.invItemTap('dragon_egg');
+      await until(owns);
+      assert(owns(), 'the hatched Whelp must appear in the stable');
+      assert(window.G.inventory.dragon_egg === 1, 'a confirmed hatch must spend exactly one egg; have ' + window.G.inventory.dragon_egg);
+    } finally {
+      CO.__parkGrants(wasParked);
+      CO.__clearGrantBlocks();
+      CO.__setGrantRetryMs();
+      Cap.__setBlobRetired(null);
+      D.confirm = origConfirm;
+      window.fetch = origFetch; unstub(); window.notify = origNotify;
+      restoreG(snap);
+    }
+  }),
+
+  /* content-holes (2026-10-08) — THE COLLECTION LOG COUNTS ONLY WHAT CAN BE
+     OBTAINED. Its denominator was every catalogued id, including the items the
+     item-effects hatches deliberately keep out of the world, so the total was
+     unreachable. MUTATION: count Object.keys(ITEMS) again in getStats → red. */
+  () => tryRun('COLLECTION-TOTAL-1: the item total excludes hatched, premium and pointer items, and nothing else', () => {
+    const C = window.HearthriseCollection, E = window.HearthriseItemEffects;
+    if (!C || typeof C.getStats !== 'function' || !E || typeof E.isItemDormant !== 'function') return skip('collection/item-effects not loaded');
+    const I = window.ITEMS;
+    const st = C.getStats({ collection: {}, bestiary: {} });
+    const hidden = Object.keys(I).filter((id) => {
+      const it = I[id];
+      return it.premium || it.retired || it.type === 'companion' || (it.recipe && !I[it.recipe]) || E.isItemDormant(it, window.SKILLS_DEF || {});
+    });
+    assert(hidden.length > 0 && I.tithe_box && hidden.indexOf('tithe_box') >= 0,
+      'CONTROL: the dormant tithe_box must be one of the excluded ids');
+    assert(st.item.total === Object.keys(I).length - hidden.length,
+      'the item total is ' + st.item.total + '; obtainable items are ' + (Object.keys(I).length - hidden.length)
+      + ' (catalogue ' + Object.keys(I).length + ', hatched/premium/pointer ' + hidden.length + ')');
+    // A held id always counts, even one the log would otherwise hide.
+    const held = C.getStats({ collection: { tithe_box: 1 }, bestiary: {} });
+    assert(held.item.found === 1 && held.item.total === st.item.total + 1,
+      'an item the realm says you hold must count as found and in the total');
+  }),
+
   () => tryRunAsync('HATCH-REFUSE-2: a CONFIRMED grant delivers the companion exactly once and celebrates once', async () => {
     const CO = window.HearthriseCompanions;
     const Cap = window.HearthriseCapstone;
@@ -2372,12 +2460,11 @@ export default [
       window.claimQuestReward('kill_more', false);
       assert(toasts.length > 0, 'a missing transport must be surfaced, never silent');
 
-      // 5 — GOAL-STATE + R1: the SERVER GATES the claim, but the DISPLAY is the
-      // player's own monotonic predicted progress (ruling R1 supersedes b461's
-      // "server is display truth"). Local stats say 99/30; the server confirms
-      // only 4/30 — so the row shows the player's progress held at the goal in a
-      // "Confirming…" state, offers NO Claim, and nothing reads as claimable.
-      // Then the server says claimed → the row reads claimed.
+      // 5 — GOAL-STATE: the SERVER gates the claim AND owns the bar (whole-game
+      // review 2026-10-08, item 7, superseding ruling R1's predicted display).
+      // Local stats say 99/30; the server confirms only 4/30 — so the row shows
+      // 4 / 30, offers NO Claim, and nothing reads as claimable. Then the
+      // server says claimed → the row reads claimed.
       window.G.dailyGoals.claimed = {};
       window.__hrGoalDisplay && window.__hrGoalDisplay.reset();
       window.HearthriseGoalClaim = { isSignedIn: () => true,
@@ -2392,7 +2479,8 @@ export default [
       (document.querySelector('#quests-modal-overlay .qm-tab[data-tab="daily"]') || {click(){}}).click();
       await microtasks();
       const prog = document.querySelector('#quests-modal-overlay .qm-q-progtext');
-      assert(prog && /Confirming/i.test(prog.textContent), 'R1: the row must read Confirming… while the server has not confirmed, got: ' + (prog && prog.textContent));
+      assert(prog && /\b4\s*\/\s*30\b/.test(prog.textContent) && !/Confirming/i.test(prog.textContent),
+        'the row must show the SERVER count 4 / 30 (never a local 30 / 30 "Confirming"), got: ' + (prog && prog.textContent));
       assert(!document.querySelector('#quests-modal-overlay .qm-q-claim'), 'no Claim button when the server says incomplete');
       window.closeQuestsModal();
       window.HearthriseGoalClaim.goalState = () => Promise.resolve({ ok: true, goals: [
@@ -2500,7 +2588,51 @@ export default [
     assert(s.phase === 'progress' && s.canClaim === false, 'a 0-goal counter is never complete/claimable');
   }),
 
-  () => tryRunAsync('R1-CONFIRM (ruling R1): predicted-complete but server-incomplete shows "Confirming…", NO Claim, NO completion toast', async () => {
+  /* -- regression suite -- GOAL-BAR-SERVER (whole-game review 2026-10-08, item 7).
+     The daily/weekly bars read BROWSER counts (G.stats.* minus a start value,
+     held at a monotonic high-water) while hr_claim_goal graded the SERVER's
+     period counters: a weekly "Slay 100" could read 100 / 100 "Confirming…"
+     against a server 40. hr_goal_state already projects the server's `have`, so
+     the bar now reads it and nothing else. RED before the fix: the weekly row
+     printed "100 / 100 · Confirming…". */
+  () => tryRunAsync('GOAL-BAR-SERVER: the weekly AND daily bars print the SERVER count, never a local tally', async () => {
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField, origClaim = window.HearthriseGoalClaim;
+    const mt = () => new Promise((r) => setTimeout(r, 0));
+    try {
+      window.clientMayWriteRecordField = (f) => f !== 'gold';
+      window.__hrGoalDisplay.reset(); window.__hrSyncServerGoals.reset();
+      window.getWeeklyGoals(); window.getGoalsForToday();
+      const weekKey = window.G.weeklyGoals.weekKey, dayKey = window.G.dailyGoals.dayKey;
+      window.G.stats.kills = 999;   // the browser's own tally is far past both goals
+      window.G.weeklyGoals = { weekKey, picks: ['wk_kills'], startValues: { wk_kills: 0 }, claimed: {}, sv: 1 };
+      window.G.dailyGoals = { dayKey, picks: ['kill_more'], startValues: { kill_more: 0 }, claimed: {} };
+      window.HearthriseGoalClaim = { isSignedIn: () => true,
+        goalState: () => Promise.resolve({ ok: true, goals: [
+          { goal_id: 'wk_kills', weekly: true, target: 100, have: 40, complete: false, claimed: false },
+          { goal_id: 'kill_more', weekly: false, target: 30, have: 12, complete: false, claimed: false } ] }) };
+      await new Promise((r) => window.__hrSyncServerGoals((f) => r(f)));
+      for (const [tab, want] of [['weekly', /\b40\s*\/\s*100\b/], ['daily', /\b12\s*\/\s*30\b/]]) {
+        window.openQuestsModal();
+        (document.querySelector('#quests-modal-overlay .qm-tab[data-tab="' + tab + '"]') || { click() {} }).click();
+        await mt();
+        const prog = document.querySelector('#quests-modal-overlay .qm-q-progtext');
+        assert(prog && want.test(prog.textContent) && !/Confirming/i.test(prog.textContent),
+          tab + ': the bar must print the SERVER count, got: ' + (prog && prog.textContent));
+        assert(!document.querySelector('#quests-modal-overlay .qm-q-claim'), tab + ': no Claim while the server says incomplete');
+        window.closeQuestsModal();
+      }
+      const d = window.__hrGoalDisplay({ id: 'wk_kills', target: 100 }, true);
+      assert(d.shown === 40 && d.confirmed === 40, 'goalDisplay.shown is the server count (got ' + d.shown + ')');
+    } finally {
+      if (typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
+      window.__hrSyncServerGoals.reset(); window.__hrGoalDisplay.reset();
+      window.clientMayWriteRecordField = origMay; window.HearthriseGoalClaim = origClaim;
+      restoreG(snap);
+    }
+  }),
+
+  () => tryRunAsync('R1-CONFIRM (superseded by GOAL-BAR-SERVER): a local tally past the goal against server-incomplete shows the server count, NO Claim, NO completion toast', async () => {
     const snap = snapshotG();
     const origMay = window.clientMayWriteRecordField, origClaim = window.HearthriseGoalClaim, origNotify = window.notify;
     const toasts = [];
@@ -2522,11 +2654,11 @@ export default [
       (document.querySelector('#quests-modal-overlay .qm-tab[data-tab="daily"]') || { click() {} }).click();
       await mt();
       const prog = document.querySelector('#quests-modal-overlay .qm-q-progtext');
-      assert(prog && /Confirming/i.test(prog.textContent), 'the row must read "Confirming…" when predicted hit the goal but the server has not, got: ' + (prog && prog.textContent));
-      assert(prog && /30\s*\/\s*30/.test(prog.textContent), 'the bar is FULL (30 / 30) during Confirming, got: ' + (prog && prog.textContent));
+      assert(prog && /\b27\s*\/\s*30\b/.test(prog.textContent) && !/Confirming/i.test(prog.textContent),
+        'the row must show the SERVER 27 / 30, never a locally-full 30 / 30 "Confirming…", got: ' + (prog && prog.textContent));
       assert(!document.querySelector('#quests-modal-overlay .qm-q-claim'), 'NO Claim button while the server has not confirmed');
-      assert(document.querySelector('#quests-modal-overlay .qm-q-confirming'), 'a Confirming chip stands in for the Claim button');
-      assert(!toasts.some((t) => /Quest complete/i.test(t)), 'NO completion toast may fire while merely Confirming');
+      assert(!document.querySelector('#quests-modal-overlay .qm-q-confirming'), 'a local tally can no longer raise the Confirming chip');
+      assert(!toasts.some((t) => /Quest complete/i.test(t)), 'NO completion toast may fire before the server confirms');
     } finally {
       if (typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
       window.__hrSyncServerGoals.reset(); window.__hrGoalDisplay.reset();
@@ -2963,7 +3095,8 @@ export default [
     // (spellstone_diagram → spellstone_ring, gemcutter_note →
     // dragon_gem_earrings, both in src/data/slot-ladders.js), so they are
     // asserted the OTHER way round below. dragon_marrow_recipe's target
-    // (dragonbone_spear) still does not exist and stays suppressed. The rule is
+    // (dragonbone_spear) never shipped; the scroll is retired (kept, no source)
+    // and must stay out of every drop table. The rule is
     // now stated as a rule rather than as a hardcoded list, so it cannot rot:
     // EVERY scroll item is checked against whether its target exists.
     const all = Object.keys(M).reduce((a, k) => a.concat(dropsOf(k)), []);

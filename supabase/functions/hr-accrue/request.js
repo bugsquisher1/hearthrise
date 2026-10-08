@@ -139,8 +139,8 @@ export const VERBS = Object.freeze(
        next envelope — a free heal AND an effective dupe. See eat.js's header. */
     'eat',
     /* THE DUNGEON SETTLE VERB (dungeon-settlement.md §2). The wire carries a
-       `dungeon` object {id, mode, quality} and NOTHING ELSE — no loot id, no
-       quantity, no scrip amount, no key. hr_dungeon_settle consumes the entry
+       `dungeon` object {id, mode} and NOTHING ELSE — no loot id, no quantity, no
+       scrip amount, no key, no quality (readDungeon below). hr_dungeon_settle consumes the entry
        key, rolls loot from the server catalogue with the seeded PRNG, and credits
        scrip into player_state.dungeon_scrip; the client renders the returned
        envelope. Before this verb, scrip + run loot were minted CLIENT-only and
@@ -386,25 +386,27 @@ export function readAuto(body) {
 }
 
 /**
- * THE DUNGEON RUN DECLARATION. `{ id, mode, quality }`.
+ * THE DUNGEON RUN DECLARATION. `{ id, mode }` — and NOTHING ELSE.
  *
  * `id` is a dungeon id (a NAME — the server looks its req level, cooldown, entry
  * key, scrip base and loot table up in the client-unwritable hr_dungeons). `mode`
- * is one of DUNGEON_MODES (auto|manual|scavenger). `quality` is the client's
- * reported clear fraction — the ONE client-authored number this verb carries, and
- * it is CLAMPED to [0,1] server-side and scales SELF-ONLY scrip, never loot. No
- * loot id, no quantity, no chance, no key and no scrip amount cross: those are all
- * server-owned (dungeon-settlement.md §2 anti-forgery).
+ * is one of DUNGEON_MODES (auto|manual|scavenger). Both are lookup keys; neither
+ * is a number. No loot id, no quantity, no chance, no key, no scrip amount and —
+ * since 2026-10-10-dungeon-scrip-fixed-by-mode.sql — NO QUALITY cross: the scrip
+ * a mode pays is the server's fixed round(scrip_base / mode divisor).
+ *
+ * ⚠ `quality` IS NOT READ, ON PURPOSE. It used to be "the ONE client-authored
+ *   number this verb carries", and an omitted one was coalesced to a FULL CLEAR.
+ *   A field this parser never reads cannot reach the commit, whatever an old or
+ *   tampered client puts in it (tests/dungeon-scrip-fixed.mjs asserts the parsed
+ *   object has exactly these two keys).
  *
  * FIELD-WISE null, like readActivity: an unreadable field is null and the intent
  * layer names which one (`unknown_dungeon` / `bad_mode`) rather than collapsing
- * the whole gesture into "malformed request". `quality` is a REAL finite number
- * or null (a NaN/Infinity/string is null → the server coalesces null to a full
- * clear); the server clamps whatever survives to [0,1], so no bound is enforced
- * here beyond "it is a usable number".
+ * the whole gesture into "malformed request".
  *
- * @returns a null-prototype `{ id, mode, quality }`, or null when the `dungeon`
- *          field was absent or not an object.
+ * @returns a null-prototype `{ id, mode }`, or null when the `dungeon` field was
+ *          absent or not an object.
  */
 export function readDungeon(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return null;
@@ -414,16 +416,10 @@ export function readDungeon(body) {
 
   const idRaw = ownString(d, 'id');
   const modeRaw = ownString(d, 'mode');
-  let quality = null;
-  if (Object.prototype.hasOwnProperty.call(d, 'quality')) {
-    const q = d.quality;
-    if (typeof q === 'number' && Number.isFinite(q)) quality = q;
-  }
 
   const out = Object.create(null);
   out.id = (idRaw !== null && CATALOGUE_ID_RE.test(idRaw)) ? idRaw : null;
   out.mode = (modeRaw !== null && DUNGEON_MODES.includes(modeRaw)) ? modeRaw : null;
-  out.quality = quality;
   return out;
 }
 

@@ -236,7 +236,10 @@
          control you pressed. One price, one place. */
       var sellPrice = (typeof window.vendorPrice === 'function') ? window.vendorPrice(itemId) : Math.max(1, Math.floor(item.v * 0.5));
       var isNpcSold = isItemSoldByNpc(itemId);
-      if(isNpcSold){
+      if(!(sellPrice > 0) && !item.bop){
+        /* A 0 bid is a refusal, never "sells back 0g" (shop-counter VENDOR_WONT_BUY). */
+        marketBlock += '<div class="ttl-row-2"><span>' + _iuGly('shop',13) + '</span><b>Vendor</b><i>' + window.VENDOR_WONT_BUY + '</i></div>';
+      } else if(isNpcSold){
         marketBlock += '<div class="ttl-row-2"><span>' + _iuGly('shop',13) + '</span><b>NPC value</b><i>' + item.v + 'g · sells back ' + sellPrice + 'g</i></div>';
       } else if(!item.bop){
         // Item is not in any NPC shop, but is tradeable — just show vendor buyback.
@@ -525,7 +528,15 @@
     var sellEach = (typeof window.vendorPrice === 'function') ? window.vendorPrice(sliderState.id) : Math.max(1, Math.floor((item.v || 0) * 0.5));
     var totalSell = sellEach * qty;
     var lines = [];
-    lines.push('<div class="qs-sum-row">' + _iuGly('gold',13,'--gold-2') + ' Sell ' + qty + ' for <b>' + totalSell.toLocaleString() + 'g</b> <i>(' + sellEach + 'g each)</i></div>');
+    var sellBtn = document.getElementById('qs-sell');
+    if(sellEach > 0){
+      lines.push('<div class="qs-sum-row">' + _iuGly('gold',13,'--gold-2') + ' Sell ' + qty + ' for <b>' + totalSell.toLocaleString() + 'g</b> <i>(' + sellEach + 'g each)</i></div>');
+      if(sellBtn){ sellBtn.disabled = false; sellBtn.title = ''; }
+    } else {
+      /* A 0 bid is a refusal, never "Sell N for 0g" (shop-counter VENDOR_WONT_BUY). */
+      lines.push('<div class="qs-sum-row qs-wont-buy">' + _iuGly('shop',13) + ' ' + window.VENDOR_WONT_BUY + '</div>');
+      if(sellBtn){ sellBtn.disabled = true; sellBtn.title = window.VENDOR_WONT_BUY; }
+    }
     if(sliderState.action && sliderState.action.hint){
       /* An action that is a BENCH START or a deep-link has no quantity to state,
          and printing the slider's number next to it ("Bury 2027 — …") promises
@@ -575,6 +586,7 @@
        collects first, so a stack gathered since the last envelope sells on the server. */
     var held = (window.G.inventory[id] | 0);
     if(held <= 0){ if(typeof window.notify === 'function') window.notify('Nothing to sell', 'kill'); return; }
+    if(typeof window.refuseUnbuyable === 'function' && window.refuseUnbuyable(id)) return;
     qty = Math.min(qty, held);
     var unit = (typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : Math.max(1, Math.floor((item.v || 0) * 0.5));
     var goldGain = unit * qty;

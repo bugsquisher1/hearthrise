@@ -396,11 +396,13 @@ export default [
       assert(M._reduceContribute(404, { code: 'PGRST202' }, 0).action === 'unsupported',
         'a missing world_event_contribute RPC must degrade, not break play');
 
-      // Contribution clamps mirror the server's, so the UI can never promise
-      // points the server will refuse.
-      delete G.muster; M.ensureState();
-      assert(M._addPoints(999999) === M.TOTAL_CAP, 'the per-muster cap must clamp: ' + M.TOTAL_CAP);
-      assert(M._addPoints(500) === 0, 'past the cap, further play adds nothing');
+      /* 2026-10-10-muster-server-points.sql: the client no longer SCORES a muster.
+         There is no local points maths to clamp (pointsFor/addPoints/rally are
+         gone) — the server derives the points from its own counters. */
+      assert(typeof M._addPoints === 'undefined' && typeof M._pointsFor === 'undefined' && typeof M.rally === 'undefined',
+        'the client-side muster scorer is still exported — a client number can reach the shared bar again');
+      assert(M._reduceContribute(200, { ok: true, added: 0, points: 4321, progress: 9, goal: 6000 }).points === 4321,
+        'the contribute answer carries the SERVER total the card adopts');
     } finally {
       M._resetProbes();
       if (saved === undefined) delete G.muster; else G.muster = saved;

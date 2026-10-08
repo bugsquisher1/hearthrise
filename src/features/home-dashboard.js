@@ -1079,7 +1079,10 @@
     try {
       var gc = window.HearthriseCore && window.HearthriseCore.goalCatalogue;
       if (gc && typeof gc.questItemsAreServerCredited === 'function') {
-        return !!gc.questItemsAreServerCredited(q.id);
+        /* combat XP too (2026-10-10-quest-combat-xp.sql): hundred_kills pays
+           XP only, and the server's claim is what pays it. */
+        return !!gc.questItemsAreServerCredited(q.id)
+          || (typeof gc.questCombatXpIsServerCredited === 'function' && !!gc.questCombatXpIsServerCredited(q.id));
       }
     } catch (e) {}
     return false;

@@ -128,7 +128,7 @@ export const ENGINE_STATE_KEYS = Object.freeze([
   'toolCarry', 'ammoCarry', 'fight',
   'recoveringUntilMs', 'consecFalls',
   'deathsTodayBefore', 'deathsLifetimeBefore',
-  'hearthfindReady', 'combatXpAccruedToMs',
+  'hearthfindReady', 'petRollReady', 'combatXpAccruedToMs',
   /* THE HUNT'S FOUR (2026-09-22). They belong on THIS list and not in a field
      list at each call site for the reason the whole module exists: the accrue
      path, the collect and the world tick must price a hunt the same way, and
@@ -264,6 +264,10 @@ export function engineInputsFromEnvelope(env, nowMs) {
        migration is inert rather than 409-ing `unknown_delta_key` and costing a
        player their night. The switch is the ENVELOPE, never a deploy flag. */
     hearthfindReady: st.hearthfind_ready === true,
+    /* THE PET ROLL'S SWITCH (2026-10-10-pet-roll-server.sql), the hearthfind
+       idiom exactly: projected `true` only by a database whose hr_apply
+       allowlists `companion_finds`, so an edge deployed first proposes nothing. */
+    petRollReady: st.pet_roll_ready === true,
     /* THE COMBAT STYLE (2026-08-24-combat-style.sql). Projected INSIDE `state`,
        read off the row hr_apply locks — never from the request body, which
        carries no style field at all. It is what makes an away fight train the

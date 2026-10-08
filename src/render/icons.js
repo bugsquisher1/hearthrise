@@ -670,6 +670,8 @@ window._monsterIcon = window._monsterIcon || {};
        pack, so `basalt` stands in for the ore and steel's grey ingot for the
        bar. Three plates, a blade, a maul, an ore, a bar and a garnet is the
        re-shoot list if this band is ever painted. */
+    dawnbloom:      'assets/icons-bundle/hearthfire/food/moonbloom.png',      // content-holes: nearest sibling until painted (Art Director handoff)
+    dawnbloom_seed: 'assets/icons-bundle/hearthfire/food/moonbloom_seed.png', // same
     verdite_ore:  'assets/icons-bundle/hearthfire/items/basalt.png',
     flux_salt:    'assets/icons-bundle/hearthfire/items/rubble.png',
     heartgarnet:  'assets/icons-bundle/hearthfire/items/ruby.png',
@@ -792,7 +794,6 @@ window._monsterIcon = window._monsterIcon || {};
        further up; nothing is mapped here so that block wins. */
   };
 
-
   /* HEARTHFIRE ITEM ART — the applier only; the 386-entry manifest is data in
      `src/data/item-art.js`, which DERIVES `<id>.png` from the id so the map
      and the filenames cannot drift apart. What art exists is data; where it
@@ -818,7 +819,6 @@ window._monsterIcon = window._monsterIcon || {};
     });
     return n;
   };
-
 
   // House rooms — the ROOMS dict has 6 entries (kitchen, forge, library,
   // garden, trophy, cellar). We render these with a custom icon attribute

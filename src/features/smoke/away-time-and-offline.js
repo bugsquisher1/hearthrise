@@ -757,7 +757,7 @@ export default [
     try {
       G.bestiary = { goblin: { kills: 5, firstKill: 1700000000000 } };
       G.toolCarry = { woodcutting: 0.75 };
-      G.raids = { lastStrikeDay: '2026-08-24', solo: { week: 9, damage: 400, strikes: 2 }, claimed: { '9': true } };
+      G.raids = { lastStrikeDay: '2026-08-24', claimed: { '9': true } };
 
       // SAVE: what the client ships to client_state
       const patch = window.HearthriseCapstone.buildResiduePatch(G);
@@ -3701,18 +3701,10 @@ export default [
        addXp — three to five times per combat TICK). Memoised now. The risk a
        memo introduces is staleness, so that is what this asserts: swap the
        catalogue and the answer must change. */
-    const P = window.HearthrisePets;
+    /* The skill/boss pet table (pets.js) is gone: pets are rolled by the server
+       settle since 2026-10-10 (src/core/pet-roll.js, indexed once at module scope). */
     const realC = window.COMPANIONS;
     try {
-      if (P && typeof P.rollBossPet === 'function') {
-        /* A pet whose source names a monster that cannot exist: with a live
-           cache the roll finds it; after a swap to an empty table it must not. */
-        window.COMPANIONS = { __probe: { n: 'Probe', source: 'boss:__no_such_monster__:2', icon: '🐾' } };
-        assert(P.rollBossPet('__no_such_monster__', () => 1) === false, 'a guaranteed-miss roll must not unlock');
-        window.COMPANIONS = {};
-        assert(P.rollBossPet('__no_such_monster__', () => 0) === false,
-          'after the catalogue is emptied the memoised pet table must be rebuilt, not served stale');
-      }
       /* The companion drop index is internal; assert the observable contract —
          a kill against a monster with no companion source does no work and
          throws nothing, and the wrapper chain is still intact. */

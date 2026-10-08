@@ -59,7 +59,7 @@ export const PLOT_TIER_LORE = Object.freeze({
   2: 'Furrows ploughed straight enough for carrots and wheat, and a scarecrow that fools the crows about half of the time',
   3: 'Rows long enough to sell from, with potatoes swelling below the ground and tomatoes climbing their canes above it',
   4: 'A field that fills a cart each harvest, with pumpkins in the low ground and goldenroot wherever the sun lies longest',
-  5: 'The farthest acre, where emberfruit ripens warm to the touch and moonbloom opens only after the lamps are lit',
+  5: 'The farthest acre, where emberfruit ripens warm to the touch, moonbloom opens after the lamps are lit and dawnbloom before them',
 });
 
 const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

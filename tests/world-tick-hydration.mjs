@@ -182,7 +182,7 @@ async function seed(u, o) {
    in the ladder. Every one of those is a different COLUMN or a different TABLE,
    and `hr_state_of` puts them on two different LEVELS of one envelope — which
    is the whole point: the gather probe above can only see `skills` and
-   `inventory` move level, and the nine inputs a combat window is priced from
+   `inventory` move level, and the ten inputs a combat window is priced from
    are exactly the ones it cannot see (M1f F4).
 
    NOTHING here is a round default. `recovering_until` is a real instant rather
@@ -600,6 +600,7 @@ try {
       deathsLifetimeBefore: { from: 'deaths_lifetime', level: 'state', combat: true },
       combatXpAccruedToMs: { from: 'combat_xp_accrued_to', level: 'state', combat: true },
       hearthfindReady: { from: 'hearthfind_ready', level: 'state', combat: true },
+      petRollReady: { from: 'pet_roll_ready', level: 'state', combat: true },
       combatStyle: { from: 'combat_style', level: 'state', combat: true },
       /* THE FIVE PROJECTIONS. `enchant` and `buffs` are player_state COLUMNS
          and are still projected at the TOP level — which is exactly why the
@@ -623,7 +624,7 @@ try {
          player_state COLUMNS and sit inside `state`, while `traits` and
          `vigour` are built from other tables and sit at the TOP, one level up
          from where a reader looking at the names would reach. They are
-         deliberately NOT marked `combat` — H5d's nine are the nine a combat
+         deliberately NOT marked `combat` — H5d's ten are the ten a combat
          window is PRICED from (finding F4); these four reach the engine
          through the same session and are covered by H5d's whole-key sweep.
          The probe seeds a real `careful` stance and a real stop object
@@ -697,6 +698,7 @@ try {
       deathsLifetimeBefore: env.state.deaths_lifetime,
       combatXpAccruedToMs: Date.parse(env.state.combat_xp_accrued_to),
       hearthfindReady: env.state.hearthfind_ready,
+      petRollReady: env.state.pet_roll_ready,
       combatStyle: env.state.combat_style,
       /* `skills` is the ONE key the map reshapes: `{skill_id:{xp,level}}` on
          the wire, raw xp NUMBERS to the engine. Getting the level right and
@@ -763,9 +765,10 @@ try {
       `the probe's value equals the ABSENT answer for ${vacuous.join(', ')}, so the swap arm `
       + 'proves nothing. Give the probe a distinguishable value.');
 
-    // ── H5d: THE NINE COMBAT INPUTS, THROUGH combat.js's OWN SESSION ─────────
-    /* F4. The nine a combat window is priced from — auto-eat's trio, the two
-       death anchors, `combatXpAccruedToMs`, `hearthfindReady`, `enchant`,
+    // ── H5d: THE TEN COMBAT INPUTS, THROUGH combat.js's OWN SESSION ─────────
+    /* F4. The ten a combat window is priced from — auto-eat's trio, the two
+       death anchors, `combatXpAccruedToMs`, `hearthfindReady`, `petRollReady`
+       (2026-10-10-pet-roll-server.sql: the kill-pet roll), `enchant`,
        `combatStyle` — reach the engine through `sessionFromRoster`, which is
        where S-7 lived. H5b proves the MAP; this proves the CALLER. */
     const COMBAT_NINE = Object.entries(SOURCES)
@@ -780,9 +783,9 @@ try {
     }, MUTATE ? env.state : env);
     const lost = ENGINE_INPUT_KEYS.filter((k) => !same(csession[k], EXPECT[k])
       && !['accruedToMs', 'activeSinceMs', 'activeKind', 'activeId'].includes(k));
-    judge('H5d', COMBAT_NINE.length === 9,
-      `the nine inputs a combat window is priced from are named: ${COMBAT_NINE.join(', ')}`,
-      `expected nine combat inputs, the table names ${COMBAT_NINE.length}: `
+    judge('H5d', COMBAT_NINE.length === 10,
+      `the ten inputs a combat window is priced from are named: ${COMBAT_NINE.join(', ')}`,
+      `expected ten combat inputs, the table names ${COMBAT_NINE.length}: `
       + COMBAT_NINE.join(', '));
     judge('H5d', lost.length === 0,
       'and combat.js\'s own session carries every one of them, at the value the envelope holds '

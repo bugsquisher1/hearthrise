@@ -34,6 +34,7 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
    exemption hides the next typo, so keep this list at three-ish entries. */
 const KNOWN_ABSENT = {
   HearthriseLicence: 'AWAY-HONEST asserts the retired away-gate API is ABSENT — the read IS the assertion',
+  HearthrisePets: 'retired 2026-10-10 (pets are rolled by the server settle); PET-ROLL-SERVER asserts it is ABSENT — the read IS the assertion',
   HearthriseRecipes: 'optional namespace with an explicit `|| window` fallback in the suite',
   HearthriseTelemetry: 'optional analytics sink; client-state.js guards with `if (T && typeof T.event === "function")`',
 };

@@ -4524,9 +4524,9 @@ export default [
      1-in-2,500 and the Lichling's 1-in-200 are read from the live data. The
      proc counter reads the pet's OWN label out of COMPANIONS rather than
      hardcoding it, so a designer renaming a proc cannot rot this. */
-  () => tryRun('b345: the last three away rolls are SEEDED — a companion proc, a skill pet and a boss pet all replay from one seed', () => {
+  () => tryRun('b345: the away rolls are SEEDED — a companion proc replays from one seed, and the client rolls no skill or boss pet (2026-10-10)', () => {
     if (typeof window.simulateAwayCombat !== 'function' || typeof window.doSkillAction !== 'function'
-        || !window.HearthrisePets || !window.COMPANIONS || !window.MONSTERS.lich) {
+        || !window.COMPANIONS || !window.MONSTERS.lich) {
       skip('seam absent'); return;
     }
     const G = window.G, C = window.HearthriseCore, P = window.HearthrisePresence;
@@ -4693,23 +4693,15 @@ export default [
           },
           () => window.killMonster(window.MONSTERS.lich),
           () => unlockCalls.indexOf('lichling') >= 0, seamValue, globalValue);
-        assert(oneBossKill(0, 0.9999) === true,
-          'pets.js rollBossPet did not follow the SEEDED stream: the seam said hit (0 < 1/200) and the '
-          + 'global said miss, and no lichling was claimed');
-        assert(oneBossKill(0.9999, 0.0001) === false,
-          'pets.js rollBossPet followed Math.random(): the seam said miss and the global said hit, '
-          + 'and the lichling was claimed anyway');
+        assert(oneBossKill(0, 0) === false,
+          'a client lich kill claimed the lichling — the boss pet is the server settle\'s to roll');
 
         const oneGather = (seamValue, globalValue) => followsSeam(
           () => { gatherFixture(); unlockCalls = []; },
           () => window.doSkillAction(true),
           () => unlockCalls.indexOf('beaver') >= 0, seamValue, globalValue);
-        assert(oneGather(0, 0.9999) === true,
-          'pets.js rollSkillPet did not follow the SEEDED stream: the seam said hit (0 < 1/2500) and the '
-          + 'global said miss, and no beaver was claimed');
-        assert(oneGather(0.9999, 0.0001) === false,
-          'pets.js rollSkillPet followed Math.random(): the seam said miss and the global said hit, '
-          + 'and the beaver was claimed anyway');
+        assert(oneGather(0, 0) === false,
+          'a client woodcutting action claimed the beaver — the skill pet is the server settle\'s to roll');
       } finally {
         window.unlockCompanion = realUnlock;
         if (CO && typeof CO.__parkGrants === 'function') CO.__parkGrants(wasParked);

@@ -129,6 +129,7 @@ import { killBonusesFor } from '../../../src/core/botd.js';
    line of arithmetic each side gets to write for itself. */
 import { creditWindow, utcDaySegments, recoveryRefuses } from '../../../src/core/away.js';
 import { createRng } from '../../../src/core/rng.js';
+import { rollPets } from '../../../src/core/pet-roll.js';
 /* RESTED XP (b437), banked SERVER-SIDE. The SAME watermarked accrual the client
    runs (src/core/rested.js) — no second formula. It draws NO rng, so appending
    it moves no seeded roll and away == live stays byte-identical (AWAY-1). */
@@ -425,6 +426,23 @@ export const ATTENDED_RNG_SALT = 0x100d;
    move a span roll, and the same seed keeps a dispute replayable. Distinct from
    ATTENDED_RNG_SALT so the two post-span consumers cannot share draws. */
 export const VIGOUR_RNG_SALT = 0x7160;
+
+/* THE PET ROLL'S STREAM (2026-10-10, src/core/pet-roll.js). The pet roll runs
+   AFTER the span on the settle's own counts, one draw per eligible pet source,
+   on a stream no other consumer reads — so adding or removing a pet source
+   moves no gold, drop, XP or hearthfind roll anywhere, and the same seed still
+   replays the verdict for a dispute. Distinct from the other two salts. */
+export const PET_RNG_SALT = 0x9e75;
+
+/* The pet roll, proposed as a CLAIM. `inp.petRollReady` is the envelope's
+   self-configuring switch (hr_state_of projects `pet_roll_ready:true` only on a
+   database whose hr_apply allowlists `companion_finds`), so an edge deployed
+   before 2026-10-10-pet-roll-server.sql proposes nothing rather than 409-ing a
+   night. Empty counts or a cold switch → [] → no key at all. */
+function petFinds(inp, counts) {
+  if (!inp || inp.petRollReady !== true) return [];
+  return rollPets(counts, createRng((nat(inp.seed, 0) ^ PET_RNG_SALT) >>> 0));
+}
 
 /**
  * The attended input, NORMALISED. One reader, so nothing downstream re-decides.
@@ -2976,6 +2994,13 @@ export function computeAccrual(input) {
       ? { ...finds[0], dropped: Math.min(finds.length - 1, 99) }
       : finds[0];
   }
+  /* THE PET ROLL (2026-10-10) — boss and drop pets, on every kill this settle
+     PAID: the span's own kills plus the attended top-up's (the fights the player
+     watched). A claim; hr_apply re-derives and skips an owned pet. */
+  {
+    const pets = petFinds(inp, { kills: { [inp.activeId]: nat(summary.kills, 0) + attTopUp } });
+    if (pets.length) delta.companion_finds = pets;
+  }
 
   if (itemKinds > 0) delta.items = items_;
   if (Object.keys(xpDelta).length) delta.xp = xpDelta;
@@ -3809,6 +3834,12 @@ function accrueGather(inp, span) {
       ? { ...finds[0], dropped: Math.min(finds.length - 1, 99) }
       : finds[0];
   }
+  /* THE PET ROLL (2026-10-10) — the node's skill pet, once per yield ACTION
+     (the companion-XP basis above: the same count, one fact). A claim. */
+  {
+    const pets = petFinds(inp, { actions: { [summary.skill]: companionActions } });
+    if (pets.length) delta.companion_finds = pets;
+  }
   if (summary.stoppedBy === STOP_REASON.LEVEL) delta.activity = { kind: 'idle', id: null };
 
   return {
@@ -4251,6 +4282,13 @@ function accrueArtisan(inp, span) {
      statement and restating an unchanged pointer buys nothing but a catalogue
      lookup. */
   if (stopped) delta.activity = { kind: 'idle', id: null };
+  /* THE PET ROLL (2026-10-10) — the bench's skill pet (cooking, smithing,
+     crafting, prayer), once per produce ACTION: the companion-XP basis, one
+     fact. A claim; hr_apply re-derives it. */
+  {
+    const pets = petFinds(inp, { actions: { [summary.skill]: companionActions } });
+    if (pets.length) delta.companion_finds = pets;
+  }
 
   return {
     accrued: true,

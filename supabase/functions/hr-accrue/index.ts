@@ -540,11 +540,11 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
     }
 
     /* ── THE DUNGEON SETTLE VERB (dungeon-settlement.md §2). Same three lines
-       the others get. It forwards a DUNGEON object {id, mode, quality} and
-       nothing else — no loot, no scrip, no key. hr_dungeon_settle reads the loot
-       table, the scrip base and the entry key from the client-unwritable
-       catalogue and the caller's own inventory; p_quality is clamped to [0,1] and
-       scales SELF-ONLY scrip. Like unlock_buy, its commit point is not hr_apply
+       the others get. It forwards a DUNGEON object {id, mode} and nothing else
+       — no loot, no scrip, no key, no quality. hr_dungeon_settle reads the loot
+       table, the scrip base, the mode's confirmed-clear share and the entry key from the
+       client-unwritable catalogue and the caller's own inventory
+       (2026-10-10-dungeon-scrip-fixed-by-mode.sql). Like unlock_buy, its commit point is not hr_apply
        (a dedicated RPC), because a scrip credit + loot roll + key debit is one
        transaction with its own re-validation. */
     if (intent.verb === 'dungeon_settle') {

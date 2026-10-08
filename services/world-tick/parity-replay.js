@@ -132,23 +132,42 @@ export function replayStats(samples, reproduced) {
   return out;
 }
 
+/* Replica r of one probe: the one span and the shipped chain on replica r's
+   seed family, as bar fields. Deterministic in (p, r), so where it runs (this
+   thread or a worker) cannot change what it returns. */
+export function replicaSample(p, r) {
+  const seedOf = replicaSeedOf(p.input.userId, p.input.slot, r);
+  return {
+    one: fieldsOf(probeResultOf(
+      oneSpan('combat', p.input, p.fromMs, p.toMs, seedOf(p.fromMs, p.input.accruedToText)))),
+    chain: chainFields(shippedChain(p.input, p.fromMs, p.toMs, { seedOf }).windows),
+  };
+}
+
 /**
  * Replay one combat probe.
  * @param p { input, fromMs, toMs, seed?, result? }
  *   input   the stored snapshot (decodeProbeInput'd)
  *   seed    the probe's own one-span seed, if it can be known; null otherwise
  *   result  the stored one-span result (hr_tick_probe.result)
- * @param o { replicas }
+ * @param o { replicas, samples? }  samples: replicas 0..R-1 already run
+ *   through replicaSample (in order); the reproduction check still runs here
  * @returns { stats, samples, reproduced, reproduceDetail }
  */
 export function replayProbe(p, o) {
   const R = Math.max(0, Math.floor((o && o.replicas) || 0));
-  const samples = { one: [], chain: [] };
-  for (let r = 0; r < R; r++) {
-    const seedOf = replicaSeedOf(p.input.userId, p.input.slot, r);
-    samples.one.push(fieldsOf(probeResultOf(
-      oneSpan('combat', p.input, p.fromMs, p.toMs, seedOf(p.fromMs, p.input.accruedToText)))));
-    samples.chain.push(chainFields(shippedChain(p.input, p.fromMs, p.toMs, { seedOf }).windows));
+  /* `o.samples`: the same R replicas computed elsewhere (replicaSample, e.g.
+     across worker threads — tools/world-tick-replay-pool.mjs); index r must
+     be replica r. Anything else is refused, never re-shaped. */
+  const pre = o && o.samples;
+  if (pre && !(pre.one.length === R && pre.chain.length === R)) {
+    throw new Error(`replayProbe: ${pre.one.length}/${pre.chain.length} precomputed samples for ${R} replicas`);
+  }
+  const samples = pre || { one: [], chain: [] };
+  for (let r = 0; !pre && r < R; r++) {
+    const s = replicaSample(p, r);
+    samples.one.push(s.one);
+    samples.chain.push(s.chain);
   }
   let reproduced = null;
   let reproduceDetail = 'the probe\'s own seed is not known to this reader';

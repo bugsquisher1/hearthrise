@@ -56,6 +56,7 @@ import { join } from 'node:path';
 import { judgeRead } from '../services/world-tick/parity-bar.js';
 import { replayProbe, shippedChain, chainFields, fieldsOf, replayStats, REPLAY_FIELDS }
   from '../services/world-tick/parity-replay.js';
+import { poolMap } from './world-tick-replay-pool.mjs';
 import { oneSpan, probeResultOf, encodeProbeInput, decodeProbeInput }
   from '../supabase/functions/hr-accrue/tick-probe.js';
 import { offlineSeedFor, atSpan, loadCombatSessions } from '../services/world-tick/combat.js';
@@ -333,7 +334,7 @@ async function selftest() {
   expect('one probe at ~4 sd (+75 gold): inside the per-probe 4.3',
     readVerdict(heavy.map((r, i) => (i === 1 ? Object.assign({}, r, { gold: r.gold + 75 }) : r)), H, R0), 'PASS', 'combat');
 
-  bad += engineReplaySelftest(H);
+  bad += await engineReplaySelftest(H);
   if (bad) { console.error(`\nworld-tick-parity --selftest: ${bad} rule(s) did not bite`); process.exit(1); }
   console.log('\nworld-tick-parity --selftest: every eligibility rule and bar bites.');
   process.exit(0);
@@ -382,10 +383,21 @@ export function selftestProbes() {
   return out.map((p) => Object.assign(p, { input: decodeProbeInput(encodeProbeInput(p.input)) }));
 }
 
-function engineReplaySelftest(H) {
+async function engineReplaySelftest(H) {
   let bad = 0;
   const t0 = Date.now();
-  const probes = selftestProbes().map((p, i) => {
+  /* The 12 x SELFTEST_REPLICAS replicas, spread over cores: identical samples
+     in replica order (tools/world-tick-replay-pool.mjs). */
+  const sp = selftestProbes();
+  const tasks = sp.flatMap((p) => Array.from({ length: SELFTEST_REPLICAS },
+    (_, r) => [{ input: p.input, fromMs: p.fromMs, toMs: p.toMs }, r]));
+  const flat = await poolMap(new URL('../services/world-tick/parity-replay.js', import.meta.url).href,
+    'replicaSample', tasks);
+  const samplesOf = (i) => {
+    const mine = flat.slice(i * SELFTEST_REPLICAS, (i + 1) * SELFTEST_REPLICAS);
+    return { one: mine.map((x) => x.one), chain: mine.map((x) => x.chain) };
+  };
+  const probes = sp.map((p, i) => {
     const seed = offlineSeedFor(p.input.userId, p.input.slot, p.input.accruedToText);
     const result = probeResultOf(oneSpan('combat', p.input, p.fromMs, p.toMs, seed));
     const windows = shippedChain(p.input, p.fromMs, p.toMs).windows;
@@ -397,7 +409,7 @@ function engineReplaySelftest(H) {
       for (const k of Object.keys(it)) chain.items[k] = (chain.items[k] || 0) + it[k];
     }
     const replay = replayProbe({ input: p.input, fromMs: p.fromMs, toMs: p.toMs, seed, result },
-      { replicas: SELFTEST_REPLICAS });
+      { replicas: SELFTEST_REPLICAS, samples: samplesOf(i) });
     return { i, p, result, chain, replay };
   });
   const iso = (ms) => new Date(ms).toISOString().replace('Z', '+00:00');

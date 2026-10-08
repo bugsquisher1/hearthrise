@@ -54,22 +54,22 @@
 -- fighting, which an idle-combat player reaches in a few hours across the week
 -- (away accrual counts). It is the Designer's dial.
 --
--- ── RESIDUAL, NAMED FOR SECURITY ────────────────────────────────────────────
--- hr_credit_kills (authenticated, 60/min) has a BOUNTY-FREE branch that adds to
--- this same daily ev:kill_any row, bounded only by a physics cap
--- (2026-09-01-kill-daily-credit.sql). A scripted client can therefore reach 300
--- without fighting — exactly the accepted residual that already gates wk_kills
--- (2,500 gold + 3 gems/week) and the kill dailies on this row. The bound is
--- STRUCTURAL: one chest per account per hunt week (raid_claims PK), so the
--- reachable forgery is the same 1,120 gold + 2 gems + 2 mats an honest player
--- gets, once a week — never more than today's no-check body paid to everyone.
--- Strictly better than today; not airtight. Closing it fully means a daily
--- twin that excludes credited kills (the renown R5 discount, per day) — named
--- as follow-up, not smuggled in here.
+-- ── THE BOUNTY-FREE CREDIT IS DISCOUNTED (Security A1, 2026-10-08) ─────────
+-- hr_credit_kills (authenticated, 60/min) has a BOUNTY-FREE branch that adds a
+-- client-reported count (physics-capped, up to 10,000/day) to this same daily
+-- ev:kill_any row (2026-09-01-kill-daily-credit.sql). Every such credit is logged
+-- in hr_kill_credit_log with free = true and applied = exactly what it stamped,
+-- so the gate subtracts the week's sum(applied) and counts only what the
+-- server's own settle simulated. That log must therefore outlive the hunt week:
+-- 2026-10-10-kill-credit-prune-8d.sql raises its prune floor from 2 to 8 days.
+-- The residual is the one documented in 2026-09-01: a settle's kills landing
+-- before the day's first free credit can be under-subtracted (bounded by one
+-- settle, self-only, under-credits in the safe direction otherwise).
 --
 -- ── COST AT 100x PLAYERS ────────────────────────────────────────────────────
--- One indexed sum over ≤7 PK rows per solo claim (≤1 claim per account-week).
--- No new table, row, index or journal shape.
+-- One indexed sum over ≤7 PK rows plus one sum over the week's free credit rows
+-- (hr_kill_credit_log_free_day_idx: user_id, slot, created_at where free) per
+-- solo claim (≤1 claim per account-week). No new table, row, index or journal shape.
 --
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
 -- Anchored insert; revert by re-applying 2026-08-22-raid-chest-items.sql §2
@@ -90,6 +90,10 @@ begin
      or to_regprocedure('public.hr_utc_day_key(timestamptz)') is null then
     raise exception 'PRECONDITION: hr_week_start / hr_utc_day_key are absent';
   end if;
+  if not exists (select 1 from information_schema.columns where table_schema = 'public'
+                  and table_name = 'hr_kill_credit_log' and column_name = 'free') then
+    raise exception 'PRECONDITION: hr_kill_credit_log.free is absent - apply 2026-09-01-kill-daily-credit.sql first';
+  end if;
 end $$;
 
 -- ── 1. THE GATE — anchored, exactly once ────────────────────────────────────
@@ -102,11 +106,17 @@ declare
     -- THE LONE HUNT'S GATE (2026-10-10-lone-hunt-weekly-chest.sql). The chest
     -- opens on the SERVER's own count of this character's kills in the claimed
     -- hunt week: the kind='daily' ev:kill_any rows the accrual settle stamps,
-    -- summed over the week's seven UTC day keys. No client number is read.
+    -- summed over the week's seven UTC day keys, MINUS the week's bounty-free
+    -- credits (hr_kill_credit_log.free, sum(applied) = exactly what that branch
+    -- stamped onto the same daily rows). hr_credit_kills's bounty-free branch
+    -- takes a client-reported count up to 10,000/day, so it must not open a
+    -- chest; what remains is what the server's own settle simulated (Security
+    -- A1, 2026-10-08). No client number is read.
     -- Refused BEFORE the once-per-week consume, so a refusal costs nothing.
     declare
       c_lone_kills constant bigint := 300;   -- src/data/raid-bosses.js LONE_HUNT_CHEST.killsNeeded
       v_lone_have  bigint;
+      v_lone_free  bigint;
     begin
       select coalesce(sum(pp.value), 0) into v_lone_have
         from public.player_progress pp
@@ -115,6 +125,12 @@ declare
          and pp.period_key in (
                select public.hr_utc_day_key(public.hr_week_start(v_target) + make_interval(days => d))
                  from generate_series(0, 6) as d);
+      select coalesce(sum(kl.applied), 0) into v_lone_free
+        from public.hr_kill_credit_log kl
+       where kl.user_id = auth.uid() and kl.slot = v_slot and kl.free
+         and kl.created_at >= public.hr_week_start(v_target)
+         and kl.created_at <  public.hr_week_start(v_target) + interval '7 days';
+      v_lone_have := greatest(0, v_lone_have - v_lone_free);
       if v_lone_have < c_lone_kills then
         return jsonb_build_object('ok', false, 'error', 'not_eligible', 'week', v_target,
                                   'have', v_lone_have, 'need', c_lone_kills);
@@ -182,8 +198,20 @@ begin
     if v->>'error' <> 'not_eligible' then
       raise exception 'VERIFY(c): another character''s kills opened this character''s chest: %', v; end if;
 
-    -- (d) 300: pays EXACTLY the unchanged chest (1,120 gold + 2 gems), once.
+    -- (e) 300 BOUNTY-FREE CREDITED kills are refused (Security A1): the daily row
+    --     reads 300, but every one of them was stamped by hr_credit_kills's
+    --     bounty-free branch (a client-reported count), so the server count is 0.
     update public.player_progress set value = 300
+     where user_id = v_uid and slot = 0 and kind = 'daily' and period_key = v_day0;
+    insert into public.hr_kill_credit_log (user_id, slot, idem, target, claimed, credit, cap, applied, free)
+      values (v_uid, 0, 'lone-hunt-probe-free', 'goblin', 300, 300, 300, 300, true);
+    v := public.raid_claim__ungated('solo', null, v_week, 0);
+    if v->>'error' <> 'not_eligible' or (v->>'have')::bigint <> 0 then
+      raise exception 'VERIFY(e): 300 bounty-free credited kills opened the chest (or were not discounted): %', v; end if;
+
+    -- (d) 300 SETTLED kills on top of the 300 free ones: pays EXACTLY the
+    --     unchanged chest (1,120 gold + 2 gems), once.
+    update public.player_progress set value = 600
      where user_id = v_uid and slot = 0 and kind = 'daily' and period_key = v_day0;
     v := public.raid_claim__ungated('solo', null, v_week, 0);
     if coalesce(v->>'ok','') <> 'true' or (v->>'gold')::bigint <> 1120 or (v->>'gems')::int <> 2 then
@@ -204,9 +232,10 @@ begin
      or exists (select 1 from public.player_progress where user_id = v_uid)
      or exists (select 1 from public.player_inventory where user_id = v_uid)
      or exists (select 1 from public.raid_claims where user_id = v_uid)
+     or exists (select 1 from public.hr_kill_credit_log where user_id = v_uid)
      or exists (select 1 from auth.users where id = v_uid) then
     raise exception 'VERIFY: §4 LEAKED a probe row';
   end if;
-  raise notice 'lone-hunt: 0 / 299 / other-slot refused not_eligible without consuming the week, the '
-               'neighbouring day and the lifetime counter do not count, 300 pays the unchanged chest once — all green';
+  raise notice 'lone-hunt: 0 / 299 / other-slot / 300 bounty-free refused not_eligible without consuming the '
+               'week, the neighbouring day and the lifetime counter do not count, 300 settled pays the unchanged chest once — all green';
 end $$;

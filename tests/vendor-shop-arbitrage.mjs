@@ -66,7 +66,9 @@ function sqlTuple(body) {
 
 /** Literal `insert into public.hr_items (cols) values (...),(...);` */
 function literalInserts(sql, apply) {
-  const re = /insert\s+into\s+public\.hr_items\s*\(([^)]*)\)\s*values\s*([\s\S]*?);/gi;
+  /* `on conflict …` is not a tuple: a generated delta (tools/generated-freeze.mjs)
+     upserts, and its conflict list `(item_id)` would otherwise parse as a row. */
+  const re = /insert\s+into\s+public\.hr_items\s*\(([^)]*)\)\s*values\s*([\s\S]*?)(?:\bon\s+conflict\b[\s\S]*?)?;/gi;
   let m, n = 0;
   while ((m = re.exec(sql))) {
     const cols = m[1].split(',').map((c) => c.trim());

@@ -31,6 +31,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { RAID_BOSSES } from '../src/data/raid-bosses.js';
+import { emitGenerated } from './generated-freeze.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(ROOT, 'supabase', 'migrations', '2026-08-22-raid-boss-rewards.generated.sql');
@@ -138,15 +139,13 @@ end $$;
 }
 
 const wanted = render();
-if (process.argv.includes('--check')) {
-  const have = await readFile(OUT, 'utf8').catch(() => '');
-  if (have.replace(/\r\n/g, '\n') !== wanted.replace(/\r\n/g, '\n')) {
-    console.error('gen-raid-boss-rewards --check FAILED: '
-      + '2026-08-22-raid-boss-rewards.generated.sql is stale. Run: node tools/gen-raid-boss-rewards.mjs');
-    process.exit(1);
-  }
-  console.log('gen-raid-boss-rewards --check: catalogue matches src/data/raid-bosses.js');
-} else {
-  await writeFile(OUT, wanted);
-  console.log(`wrote ${OUT}`);
+/* Applied generated files are FROZEN (tools/generated-freeze.mjs): a data change
+   lands as an append-only delta migration, never as new bytes in history. */
+const CHECK_MODE = process.argv.includes('--check');
+const emitted = emitGenerated(OUT, wanted, CHECK_MODE);
+if (!emitted.ok) {
+  console.error('gen-raid-boss-rewards --check FAILED: ' + emitted.msg + '. Run: node tools/gen-raid-boss-rewards.mjs');
+  process.exit(1);
 }
+if (CHECK_MODE) console.log('gen-raid-boss-rewards --check: catalogue matches src/data/raid-bosses.js'.replace(/$/, '') + ' — ' + emitted.msg);
+else console.log(emitted.msg);

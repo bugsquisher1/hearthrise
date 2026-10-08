@@ -10,8 +10,8 @@
 --   `node tools/gen-dungeon-catalogue.mjs --check` (a preflight in
 --   tests/run-smoke.mjs).
 --
---   dungeon-catalogue digest: 3c73d040a4793c3088d1000db95062529f314518335555a159e3d82e364c4ad0
---   6 dungeons · 39 loot rows · 20 Quartermaster offers
+--   dungeon-catalogue digest: 91cb2e1e18a3213717f0c769326ee10f9c96f8d239aade9c8c611fb683fd8e68
+--   6 dungeons · 38 loot rows · 19 Quartermaster offers
 --   loot ord = src/data/dungeons.js loot index (the settle RPC salts each roll's
 --   PRNG with the ordinal -> replayable).
 --
@@ -83,8 +83,7 @@ insert into public.hr_dungeon_loot (dungeon_id, ord, item_id, qty_min, qty_max, 
   ('crypt_of_bones', 0, 'big_bones', 10, 30, 1, false),
   ('crypt_of_bones', 1, 'grave_dust', 1, 3, 0.85, false),
   ('crypt_of_bones', 2, 'kitchen_blueprint_t2', 1, 1, 0.12, false),
-  ('crypt_of_bones', 3, 'marrowbone_maul', 1, 1, 0.06, true),
-  ('crypt_of_bones', 4, 'farm_deed', 1, 1, 0.2, false),
+  ('crypt_of_bones', 3, 'farm_deed', 1, 1, 0.2, false),
   ('goblin_warcamp', 0, 'goblin_totem', 3, 8, 1, false),
   ('goblin_warcamp', 1, 'warlord_badge', 1, 2, 0.35, false),
   ('goblin_warcamp', 2, 'forge_blueprint_t2', 1, 1, 0.15, false),
@@ -134,7 +133,6 @@ insert into public.hr_qm_offers (offer_id, item_id, scrip_cost) values
   ('qm.forge_blueprint_t3', 'forge_blueprint_t3', 160),
   ('qm.library_blueprint_t3', 'library_blueprint_t3', 160),
   ('qm.trophy_blueprint_t3', 'trophy_blueprint_t3', 160),
-  ('qm.marrowbone_maul', 'marrowbone_maul', 110),
   ('qm.wartusk_cleaver', 'wartusk_cleaver', 150),
   ('qm.whispering_codex', 'whispering_codex', 180),
   ('qm.ashcrown_greatsword', 'ashcrown_greatsword', 340),
@@ -148,9 +146,9 @@ begin
   select count(*) into v_d from public.hr_dungeons;
   if v_d <> 6 then raise exception 'hr_dungeons has % rows, expected 6', v_d; end if;
   select count(*) into v_l from public.hr_dungeon_loot;
-  if v_l <> 39 then raise exception 'hr_dungeon_loot has % rows, expected 39', v_l; end if;
+  if v_l <> 38 then raise exception 'hr_dungeon_loot has % rows, expected 38', v_l; end if;
   select count(*) into v_q from public.hr_qm_offers;
-  if v_q <> 20 then raise exception 'hr_qm_offers has % rows, expected 20', v_q; end if;
+  if v_q <> 19 then raise exception 'hr_qm_offers has % rows, expected 19', v_q; end if;
 
   -- Every dungeon has at least one loot row and a positive scrip base.
   select count(*) into v_bad from public.hr_dungeons d

@@ -6,45 +6,38 @@
 --   §1(a) hr_quest_rewards — `farmhand` pays 5 carrot_seed, was 5 wheat_seed.
 --   §1(b) hr_goal_rewards  — `wk_harvest` target 120 → 40. Gold, gems, xp and
 --         items are UNTOUCHED.
---   §1(d) hr_items gates for alpha_cloak / chief_blade / captains_ribblade.
---   §1(c) the START KIT — hr_start_inventory carrot_seed 3 → gone, turnip_seed
---         5 → 8; hr_start_kit.farm_plots 4 → 2. Only NEW characters read these.
 --
--- (c) carrots need Farming 10, so a brand-new farmer opened the bag to three
---     seeds they could not plant. And hr_farm_plant caps a plot index at
---     (property tier + 1) x 2 = 2 at the camp, so the two extra player_farm
---     rows the kit seeded were plots the server refuses — the client drew four
---     plots and two of them answered `plot_cap`. Plots past the cap are created
---     on demand by the plant upsert when the property tier allows them. The
---     regenerated 2026-08-11-catalogue.generated.sql carries the same kit; this
---     moves only these rows so it can apply on its own at the cut.
+-- Everything else the content-holes lane moved on the server (new items and
+-- activities, the start kit, three wield gates, crop/plot-tier and dungeon
+-- rows) is DATA in a generated catalogue and ships in the three append-only
+-- generated deltas that follow this file in the apply order
+-- (2026-10-08-{catalogue,dungeon-catalogue,farm-catalogues}.delta.generated.sql).
+-- These two rows live here because their tables are hand-authored, not
+-- generated.
 --
 -- ── WHY (game-designer, content-holes lane, 2026-10-08) ────────────────────
 -- (a) farmhand completes after SIX harvests — around Farming 8 on the starting
 --     camp's two plots — and paid wheat seed, which needs Farming 20. The
 --     reward sat unplantable in the bag for days. Carrot (Farming 10) is the
---     next crop that player can actually sow; the start kit's three carrot
---     seeds (also unplantable on day one) became turnips in the same lane.
+--     next crop that player can actually sow.
 -- (b) "Harvest 120 crops" in a week is 60 harvests per plot on the camp's two
---     plots — a harvest every ~2.8 hours, day and night, for seven days. 40 is
---     roughly three harvest rounds a day, the cadence of a player who checks in
---     morning, noon and evening. The reward is unchanged, so the gold-per-week
---     a farmer can earn goes UP by exactly the difference between "never
---     finishes" and "finishes"; it is still one weekly, once per week.
+--     plots — one every ~2.8 hours, day and night, for seven days. 40 is about
+--     three harvest rounds a day. The reward is unchanged; it is still one
+--     weekly, once per week.
 --
 -- ── WHAT CANNOT BE MINTED (for the Security review) ────────────────────────
--- Neither row adds a faucet. (a) swaps the item of a ONCE-EVER quest reward for
--- one of the same quantity and a LOWER book value (carrot_seed 10 g vs
--- wheat_seed's), behind the unchanged once-guard in hr_claim_quest__ungated.
--- (b) lowers a weekly GATE; the payout is the catalogued amount and the
--- once-per-week guard in hr_claim_goal__ungated is unchanged, so a forged
--- counter is still a gate and never a multiplier. No client value is read.
+-- (a) swaps the item of a ONCE-EVER quest reward for one of the same quantity
+--     and a LOWER book value, behind the unchanged once-guard in
+--     hr_claim_quest__ungated. (b) lowers a weekly GATE; the payout is the
+--     catalogued amount and the once-per-week guard in hr_claim_goal__ungated
+--     is unchanged, so a forged counter is still a gate, never a multiplier.
+--     No client value is read.
 --
 -- ── OWNERSHIP ──────────────────────────────────────────────────────────────
 -- hr_quest_rewards: THIS FILE becomes the chain-end seed (delete + refill all
 -- eight rows, the 2026-09-28-journeymans-road.sql shape, byte-identical except
--- the farmhand tuple), because tests/quest-reward-parity.mjs reads the LAST
--- file in schema-apply-order.json that seeds the table.
+-- the farmhand tuple) — tests/quest-reward-parity.mjs reads the LAST file in
+-- tests/schema-apply-order.json that seeds the table.
 -- hr_goal_rewards: one row BY ID, accepting exactly the known-live (120) or the
 -- ruled (40) target and RAISING on a third, the 2026-09-04-goal-gold-retune.sql
 -- idiom. NEVER re-apply 2026-08-23-modal-goal-claims.sql to move it.
@@ -52,14 +45,10 @@
 -- ── REVERSIBILITY ──────────────────────────────────────────────────────────
 --   update public.hr_quest_rewards set items = '{"wheat_seed": 5}' where quest_id = 'farmhand';
 --   update public.hr_goal_rewards  set target = 120 where goal_id = 'wk_harvest';
---   update public.hr_start_kit set farm_plots = 4;
---   update public.hr_start_inventory set qty = 5 where item_id = 'turnip_seed';
---   insert into public.hr_start_inventory (item_id, qty) values ('carrot_seed', 3);
 -- Already-credited carrot seeds are ordinary player rows and are left alone.
 --
 -- ⚠ ORDER: apply BEFORE the client push (legacy.js QUEST_DEFS / WEEKLY_GOAL_POOL
---   and src/data/goal-catalogue.js carry the ruled numbers). Pushed first, the
---   weekly bar would read 40 against a server still grading 120.
+--   and src/data/goal-catalogue.js carry the ruled numbers).
 -- No begin/commit (CLAUDE.md §2 — tools/apply-migration.mjs sends one batch).
 -- ════════════════════════════════════════════════════════════════════════
 
@@ -83,13 +72,6 @@ begin
   if v_items is distinct from '{"wheat_seed": 5}'::jsonb and v_items is distinct from '{"carrot_seed": 5}'::jsonb then
     raise exception 'PRECONDITION: farmhand pays % - neither the known-live wheat nor the ruled carrot. '
                     'Production drifted; re-author rather than overwrite.', v_items;
-  end if;
-  if (select string_agg(item_id || ':' || qty::text, ',' order by item_id) from public.hr_start_inventory)
-     not in ('carrot_seed:3,cooked_shrimp:20,shrimp:10,turnip_seed:5', 'cooked_shrimp:20,shrimp:10,turnip_seed:8') then
-    raise exception 'PRECONDITION: hr_start_inventory is neither the known-live kit nor the ruled one - re-author';
-  end if;
-  if (select farm_plots from public.hr_start_kit) not in (4, 2) then
-    raise exception 'PRECONDITION: hr_start_kit.farm_plots is neither 4 (live) nor 2 (ruled) - re-author';
   end if;
   if not exists (select 1 from public.hr_items where item_id = 'carrot_seed') then
     raise exception 'PRECONDITION: carrot_seed is not in hr_items - apply the catalogue first';
@@ -120,30 +102,11 @@ update public.hr_goal_rewards
    set target = 40
  where goal_id = 'wk_harvest' and target is distinct from 40;
 
--- ── 1(c). THE START KIT ────────────────────────────────────────────────────
-delete from public.hr_start_inventory where item_id = 'carrot_seed';
-update public.hr_start_inventory set qty = 8 where item_id = 'turnip_seed' and qty is distinct from 8;
-update public.hr_start_kit set farm_plots = 2 where farm_plots is distinct from 2;
-
--- ── 1(d). THREE RE-STATTED GATES ───────────────────────────────────────────
--- The regenerated catalogue carries them too, but 2026-09-12-equippable-req-lv
--- and 2026-09-13-prayer-ladder-and-item-gates restate the OLD gates by id after
--- it in the chain, so the last word has to be this file's. alpha_cloak 30 -> 60,
--- chief_blade 15 -> 45, captains_ribblade 30 -> 60 (the rung each one's forge
--- opens at; see src/data/items.js).
-update public.hr_items i
-   set req_skill = x.req_skill, req_lv = x.req_lv
-  from (values ('alpha_cloak','defense',60), ('chief_blade','attack',45),
-               ('captains_ribblade','attack',60)) as x(item_id, req_skill, req_lv)
- where i.item_id = x.item_id
-   and (i.req_skill is distinct from x.req_skill or i.req_lv is distinct from x.req_lv);
-
 -- ── 4. SELF-VERIFYING COMMIT GATE (executed, not markers) ──────────────────
 do $$
 declare
   v_n int;
 begin
-  -- (a) the eight rows, exactly, and every granted id real.
   select count(*) into v_n from public.hr_quest_rewards;
   if v_n <> 8 then raise exception '§4(a): hr_quest_rewards holds % rows, expected 8', v_n; end if;
   if (select items from public.hr_quest_rewards where quest_id = 'farmhand') is distinct from '{"carrot_seed": 5}'::jsonb then
@@ -154,27 +117,10 @@ begin
   if v_n > 0 then raise exception '§4(a): % granted id(s) are not in hr_items', v_n; end if;
   select count(*) into v_n from public.hr_quest_rewards q where not public.hr_quest_rewards_items_ok(q.items);
   if v_n > 0 then raise exception '§4(a): % row(s) fail the items shape check', v_n; end if;
-  -- (b) wk_harvest moved ONLY its target.
   select count(*) into v_n from public.hr_goal_rewards
    where goal_id = 'wk_harvest' and target = 40 and gold = 2000 and gems = 0 and weekly
      and counter_key = 'ev:harvest' and xp = '{"farming":600}'::jsonb and items = '{}'::jsonb;
   if v_n <> 1 then raise exception '§4(b): wk_harvest is not target 40 with its payout untouched'; end if;
-  -- (c) the kit landed, every kit id is an item, and every kit seed is plantable
-  --     at Farming 1 on a plot index the camp allows.
-  if (select string_agg(item_id || ':' || qty::text, ',' order by item_id) from public.hr_start_inventory)
-     <> 'cooked_shrimp:20,shrimp:10,turnip_seed:8' then
-    raise exception '§4(c): the start inventory did not land';
-  end if;
-  if (select farm_plots from public.hr_start_kit) <> 2 then raise exception '§4(c): farm_plots is not 2'; end if;
-  select count(*) into v_n from public.hr_start_inventory s
-    join public.hr_crops c on c.seed_item = s.item_id
-   where c.req_lv > 1;
-  if v_n > 0 then raise exception '§4(c): the start kit carries % seed stack(s) a level-1 farmer cannot plant', v_n; end if;
-  select count(*) into v_n from public.hr_items
-   where (item_id, req_skill, req_lv) in (('alpha_cloak','defense',60), ('chief_blade','attack',45),
-                                          ('captains_ribblade','attack',60));
-  if v_n <> 3 then raise exception '§4(c2): % of the 3 re-statted gates landed', v_n; end if;
-  -- (d) the catalogue tables stay client-unwritable.
   if has_table_privilege('authenticated', 'public.hr_quest_rewards', 'INSERT,UPDATE,DELETE,TRUNCATE')
      or has_table_privilege('authenticated', 'public.hr_goal_rewards', 'INSERT,UPDATE,DELETE,TRUNCATE') then
     raise exception '§4(c): a client role can write a reward catalogue';

@@ -406,6 +406,9 @@ jobs:
           node tests/schema-drift.mjs
           node tests/schema-drift.mjs --mutate
           node tests/schema-drift.mjs --live-selftest
+          # Open catalogue deltas (tools/generated-freeze.mjs) re-apply byte-identically.
+          node tests/catalogue-delta-replay.mjs
+          node tests/catalogue-delta-replay.mjs --selftest
 
       # THE ABSENCE IS PRICED AT THE STATE THAT EXISTED DURING IT (Security F2/F3,
       # 2026-09-28, docs/planning/SEC_ABSENCE_PRICED_AT_RETURN_2026-09-28.md).
@@ -3140,6 +3143,9 @@ jobs:
           # An item id is a save key: never deleted, never re-tiered or re-slotted.
           node tests/item-identity.mjs
           node tests/item-identity.mjs --selftest
+          # Applied generated migrations never change bytes; growth goes to deltas.
+          node tests/generated-frozen.mjs
+          node tests/generated-frozen.mjs --selftest
           node tests/lore-notes.mjs
           node tests/lore-notes.mjs --selftest
           node tests/lifetime-tally.mjs

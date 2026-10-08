@@ -305,11 +305,7 @@ values
   ('wk_kills',    true,  'daily',       'ev:kill_any',   100,  2500, 3, '{"hitpoints":1000}', '{}'),
   ('wk_smith',    true,  'daily',       'ev:smithed',     60,  2200, 0, '{"smithing":600}',   '{}'),
   ('wk_craft',    true,  'daily',       'ev:crafted',     60,  2200, 0, '{"crafting":600}',   '{}'),
-  /* content-holes (2026-10-08): wk_harvest 120 -> 40 (two camp plots cannot
-     reach 120 in a week). AUTHORING copy, like the b497 rows above —
-     production is moved by 2026-10-08-content-holes.sql, never by
-     re-applying this file. */
-  ('wk_harvest',  true,  'daily',       'ev:harvest',     40,  2000, 0, '{"farming":600}',    '{}'),
+  ('wk_harvest',  true,  'daily',       'ev:harvest',    120,  2000, 0, '{"farming":600}',    '{}'),
   ('wk_rare',     true,  'daily',       'ev:rare_drops',    5,  3000, 4, '{}',                 '{}'),
   ('wk_gold',     true,  'ledger_gold', 'gold',        50000,  2500, 2, '{}',                 '{}'),
   ('wk_gather',   true,  'daily',       'ev:mined',      250,  2000, 0, '{"mining":500}',     '{}'),

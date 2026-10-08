@@ -67,7 +67,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createServer } from 'node:net';
-import { bootChain, ROOT } from './pglite-chain.mjs';
+import { bootChain, ROOT, catalogueDeltaExtra } from './pglite-chain.mjs';
 
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
 const FN = (f) => join(ROOT, 'supabase', 'functions', 'hr-accrue', f);
@@ -88,6 +88,7 @@ const EXTRA = [
   ['auto-eat', MIG('2026-08-15-auto-eat.sql')],
   ['tool-carry', MIG('2026-08-15-tool-carry.sql')],
   ['gold-intents', MIG('2026-08-15-gold-intents.sql')],
+  ...catalogueDeltaExtra(),   // the rows added after the catalogue froze
 ];
 
 /* ── THE MUTATION CATALOGUE ─────────────────────────────────────────────────

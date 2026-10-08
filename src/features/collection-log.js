@@ -167,7 +167,7 @@
      unbuilt effect, skill or system), the IAP Hearth Token, and the starter
      fox's equip pointer. So "Items 212/550" could never reach 550, and the gap
      was the one number on the screen a player could do nothing about.
-     collectable() is that list removed, through the SAME predicate the b243
+     collectable() is that list removed, through the SAME predicate the item
      reachability guard exempts (HearthriseItemEffects.isItemDormant), so the
      two can never disagree about what is obtainable. A held id is always
      counted: if the realm says you own it, it is collectable by definition. */

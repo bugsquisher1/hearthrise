@@ -191,7 +191,7 @@ export function dormantEffects(item) {
  * absent skill, or an unbuilt system? The ONE predicate for "catalogued, not
  * obtainable" (content-holes, 2026-10-08). The collection log counts only items
  * for which this is false, so its total is a number a player can actually reach;
- * the b243 reachability guard exempts exactly the same set.
+ * the in-page reachability guard exempts exactly the same set.
  * `skills` is SKILLS_DEF (passed in: this module stays data-only).
  */
 export function isItemDormant(item, skills) {

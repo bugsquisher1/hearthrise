@@ -588,7 +588,7 @@ export const MONSTERS = {
       { id: 'dragonrib_bow', ch: .0008, lucky: true }] },
     /* `dragon_marrow_recipe` (a scroll for a `dragonbone_spear` that never
        existed) was retired by the content-holes pass, 2026-10-08: a recipe
-       that unlocks nothing is a dead end, and its hook had waited since b145.
+       that unlocks nothing is a dead end, and its hook had waited long enough.
        Draconia's own prize is now Draconia's Jaw above. */
   ashwing: { name: 'Ashwing', icon: '🔥', tier: 6, cls: 'dragon', family: 'Dragon', boss: true,
     /* Draconia's opposite — one weekly rotation slot, two opposite loadouts. */

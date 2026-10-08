@@ -14344,7 +14344,6 @@ var NEW_ITEMS = {
   captain_recipe:        {n:"Captain's Ribblade Recipe",  icon:'📜', v:0, recipe:'captains_ribblade'},
   alpha_pattern:         {n:'Alpha Cloak Pattern',        icon:'📜', v:0, recipe:'alpha_cloak'},
   spellstone_diagram:    {n:'Spellstone Diagram',         icon:'📜', v:0, recipe:'spellstone_ring'},
-  dragon_marrow_recipe:  {n:'Dragon Marrow Recipe',       icon:'📜', v:0, recipe:'dragonbone_spear'},
   gemcutter_note:        {n:"Gemcutter's Note",           icon:'📜', v:0, recipe:'dragon_gem_earrings'},
   soul_recipe:           {n:'Soul Recipe Scroll',         icon:'📜', v:0, recipe:'lich_soul_soup'},
   marrow_cookbook:       {n:'Marrow Cookbook',            icon:'📜', v:0, recipe:'dragon_stew'},

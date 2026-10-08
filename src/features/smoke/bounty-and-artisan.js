@@ -637,7 +637,7 @@ export default [
 
   () => tryRun('b247: Wave 3 uniques — 14 curated items route orphan drops into craftable gear', () => {
     const ITEMS = window.ITEMS, R = window.ARTISAN_RECIPES;
-    const VALID_SLOTS = new Set(['helmet','necklace','earrings','cape','weapon','ammo','ring','body','gloves','belt','pants','boots','companion']);
+    const VALID_SLOTS = new Set(['helmet','necklace','earrings','cape','weapon','shield','ammo','ring','body','gloves','belt','pants','boots','companion']);
     const WAVE3 = ['dragonrend_greatblade','crown_of_the_fallen_king','emberfang_blade','demoncaller_staff',
       'panthers_eye_pendant','wraithsilk_shroud','widows_fang','plaguewarden_greaves','hollow_sigil_ring',
       'fangdart_recurve','alphaheart_longbow','nightstalker_pelt','warband_bulwark','chitinweave_cloak'];
@@ -891,13 +891,13 @@ export default [
     const filled = new Set();
     Object.values(ITEMS).forEach((it) => { if (it && it.slot) filled.add(it.slot); });
 
-    /* The ONE documented exception, asserted as an exact set so it can never
-       grow quietly. `shield` (Offhand) was added to EQUIP_SLOTS in b216 and has
-       never had an item. Filling it is NOT a data change: nothing in the engine
-       models weapon handedness, so a shield would hand every 2H warhammer, bow
-       and staff user free defence. That needs an engine seam first — raised as
-       a handoff, deliberately not papered over with items here. */
-    const KNOWN_EMPTY = ['shield'];
+    /* Exceptions, asserted as an exact set so the list can never grow quietly.
+       It held `shield` until the offhand line shipped (gear-tiers.js
+       OFFHAND_LINE). The offhand has NO handedness by design: a universal ward
+       on the smallest armour curve, no archetype penalty, outside every set
+       bucket, so "defence for every style" is budgeted, not an accident
+       (game-designer ruling, recorded on OFFHAND_LINE). */
+    const KNOWN_EMPTY = [];
 
     const empty = SLOTS.filter((s) => !filled.has(slotKey(s)));
     const unexpected = empty.filter((s) => KNOWN_EMPTY.indexOf(s) < 0);

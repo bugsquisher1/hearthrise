@@ -96,7 +96,7 @@ export const WEAPON_FAMILIES = [
 const round5 = (n) => Math.max(1, Math.round(n / 5) * 5);
 
 /* ── THE OFFHAND LINE (content-holes, game-designer 2026-10-08) ─────────
-   EQUIP_SLOTS has carried `shield` since b216 and the paper doll draws it,
+   EQUIP_SLOTS has carried `shield` for months and the paper doll draws it,
    but no item in the game could fill it — an empty socket on every
    character sheet. This is its ladder: one kiteshield per material tier,
    forged at the tier's bar like every plate piece, gated on Defence at the
@@ -419,7 +419,7 @@ export const GEAR_RECIPES = (() => {
   });
 
   /* The offhand lane, on the plate expression (smith + lvOff, the same xp and
-     duration shape) so the b348 ladder guard reads it like any other lane. */
+     duration shape) so the ladder-order guard reads it like any other lane. */
   const shieldLane = { key: 'shield/' + OFFHAND_LINE.key, label: OFFHAND_LINE.label, kind: 'armour', skill: 'smithing', rungs: [] };
   LADDERS.push(shieldLane);
   MATERIAL_TIERS.forEach((mat) => {

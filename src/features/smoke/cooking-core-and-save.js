@@ -8,6 +8,21 @@
 // ══════════════════════════════════════════════════════════════════════
 import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, awayArtisanSpan, withFightScreen, xpOf, xpZero, snapshotG, drain, restoreG, restoreGAndRecord, combatScreen, on, snapshot, decideRestore, decideLocalOwnership, withDesktopBanner, assertBannerReserved, phoneFrame, serverBagFixture } from './_harness.js?v=564';
 
+/* THE BALANCE THESE SAVE-CONTRACT TESTS READ IS STATED, NOT INHERITED. `gold` is
+   SERVER-OF-RECORD: every load deletes it off G until an envelope re-states it,
+   and the headless harness never runs a real hr_load. The b305/b319 tests below
+   used to pass only because an EARLIER test left a balance behind (they were red
+   under `--only` on main too); when that test was retired with its subject the
+   leak went with it. So each states the balance the way a load does —
+   applyRecord, the one writer — and restores through restoreGAndRecord. */
+const stateBalanceLikeLoad = (G, gold) => {
+  const R = window.HearthriseRecord;
+  assert(R && typeof R.applyRecord === 'function', 'HearthriseRecord.applyRecord is not published');
+  const v = Math.max(((G._record && Number(G._record.version)) || 0) + 1, Date.now());
+  R.applyRecord(G, { ok: true, version: v, now: new Date(v).toISOString(), state: { gold } });
+  assert(G.gold === gold, 'setup: the stated balance did not land (G.gold = ' + G.gold + ')');
+};
+
 export default [
 
   /* ══════════════════════════════════════════════════════════════════════
@@ -2905,7 +2920,9 @@ export default [
     assert(E && typeof E.snapshot === 'function', 'snapshot must be exposed');
     const G = window.G;
     const saved = { am:G.activeMonster, mh:G.monsterHp, cl:G.combatLog, as:G.activeSkill, sp:G.skillProgress, los:G.lastOfflineSummary };
+    const snapG = snapshotG();
     try {
+      stateBalanceLikeLoad(G, 4321);   // a character WITH progress — the thing that must be uploaded
       // Force transient state to be present so the exclusion is actually exercised.
       G.activeMonster = 'slime'; G.monsterHp = 7; G.combatLog = ['x']; G.activeSkill = 'woodcutting'; G.skillProgress = 0.5; G.lastOfflineSummary = { hrs:1 };
       const snap = E.snapshot(G);
@@ -2919,6 +2936,7 @@ export default [
       assert(rt.gold === snap.gold, 'snapshot must round-trip through JSON without loss');
     } finally {
       G.activeMonster = saved.am; G.monsterHp = saved.mh; G.combatLog = saved.cl; G.activeSkill = saved.as; G.skillProgress = saved.sp; G.lastOfflineSummary = saved.los;
+      restoreGAndRecord(snapG);
     }
   }),
 
@@ -3029,7 +3047,9 @@ export default [
     const saved = S.getEventBuffer(), wasEnabled = S.isEventLogEnabled();
     const wasPaused = S.isPaused(), wasHeld = S.isSnapshotHeld();
     const before = S.getConfig() || {};
+    const snapG = snapshotG();
     try {
+      stateBalanceLikeLoad(window.G, 4321);
       S.resetEventLimiter(); S.restoreEventBuffer([]);
       assert(S.setEventLogEnabled(false) === false && S.isEventLogEnabled() === false, 'the switch must actually turn off');
       ['companionLevelUp', 'questClaim', 'dungeonClear'].forEach((t) => E.emit(t, { smoke: true }));
@@ -3050,6 +3070,7 @@ export default [
       assert(S.getEventBuffer().length === 1, 'allowlisted events resume once re-enabled');
     } finally {
       S.resetEventLimiter(); S.restoreEventBuffer(saved); S.setEventLogEnabled(wasEnabled);
+      restoreGAndRecord(snapG);
     }
   }),
 
@@ -3080,7 +3101,9 @@ export default [
     const G = window.G;
     const save = { offlineBudget:G.offlineBudget, lastSeen:G.lastSeen, gold:G.gold, skills:G.skills, activeMonster:G.activeMonster, activeSkill:G.activeSkill };
     const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+    const snapG = snapshotG();
     try {
+      stateBalanceLikeLoad(G, 4321);   // a KNOWN balance, so "unchanged" is a number compared to a number
       Object.defineProperty(document, 'hidden', { configurable:true, get:()=>false });
       G.activeSkill = null; G.activeMonster = null;
       const now = Date.now();
@@ -3093,6 +3116,7 @@ export default [
     } finally {
       if(hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc); else { try{ delete document.hidden; }catch(e){} }
       Object.assign(G, { offlineBudget:save.offlineBudget, lastSeen:save.lastSeen, gold:save.gold, skills:save.skills, activeMonster:save.activeMonster, activeSkill:save.activeSkill });
+      restoreGAndRecord(snapG);
     }
   }),
 

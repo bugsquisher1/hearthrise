@@ -4287,13 +4287,18 @@ export default [
         'iap.' + p.sku + ' is ' + p.price + ' live but ' + cents + ' cents in the catalogue');
     }
 
-    /* The catalogue must never be mistaken for complete. Six spend sites
+    /* The catalogue must never be mistaken for complete. These spend sites
        compute their price at call time and are deliberately absent; a server
        that could not find an offer and invented a price is worse than one with
-       no catalogue at all. */
-    assert(Array.isArray(S.DERIVED_PRICES) && S.DERIVED_PRICES.length >= 6,
-      'DERIVED_PRICES lists ' + (S.DERIVED_PRICES || []).length + ' formula-priced sites; the '
-      + 'known set is 6, and dropping one hides a price the server cannot compute');
+       no catalogue at all. Pinned BY ID, not by count, so dropping one is named.
+       (`vendor.buyback` left the set on 2026-10-08 with the buy-back itself —
+       there is no repurchase site left to price.) */
+    const KNOWN_DERIVED = ['bank.gold', 'bounty.reroll', 'vendor.sell', 'clan_building.*', 'market.*'];
+    const derivedIds = new Set((S.DERIVED_PRICES || []).map((d) => d && d.id));
+    const lost = KNOWN_DERIVED.filter((id) => !derivedIds.has(id));
+    assert(Array.isArray(S.DERIVED_PRICES) && lost.length === 0,
+      'DERIVED_PRICES dropped ' + lost.join(', ') + ' — the known formula-priced set is '
+      + KNOWN_DERIVED.join(', ') + ', and dropping one hides a price the server cannot compute');
     for (const d of S.DERIVED_PRICES) {
       assert(!byId.has(d.id), 'offer "' + d.id + '" is in BOTH SHOP_OFFERS and DERIVED_PRICES');
       assert(d.where && d.formula && d.server_needs,

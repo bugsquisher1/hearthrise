@@ -25,3 +25,18 @@ Evidence: every staged migration replays via `tests/schema-drift.mjs` (exit 0 on
   - LOW, Designer's call: the whetstone display names shift one tier (`copper_whetstone` is now named "Iron Whetstone").
 - Pre-existing, not introduced here: bind-on-pickup quartermaster weapons sell to the vendor at full book value, so scrip converts to gold at up to 162 g/scrip (`dragonfang_pike`). A5's scrip rate feeds this directly.
 - A and C conflict in `tests/schema-apply-order.json` and `tools/gen-raid-boss-rewards.mjs`. The authoring lane must merge, and the deltas must stay last.
+
+## RE-VERIFY (2026-10-08, second pass)
+
+Covers B `a5eecbfd`, C `60da1fd4` (contains B a5eecbfd) and A `026781cd` (contains C 11aa9993, i.e. B 59c9f3bf, NOT B final). A merged with C 60da1fd4 is conflict-free (tree `fd836c33`). That tree is green on every guard below, so B final reaches A only through that merge, which has not happened yet.
+
+| Item | Verdict | Evidence (exit codes seen) |
+|---|---|---|
+| B craft anchor | GO | econ-sim `--selftest` 0. gold-intents 0, and its `--selftest` catches 29/29 mutants. vendor-shop-arbitrage 0, with 0 buy→craft→sell loops; its selftest flags the earth_rune loop by name under pre-anchor bids. Mutants: ignoring gearRate → RED (dawn_sword 2875 → 2875). Stale cache (`if (!hit)`) → RED (planted faucet invisible). Daily budget bypassed for `vendor_sell` only (tool-carry.sql:989) → G15 RED "39,000,000-gold sale was ACCEPTED". Neither rewritten test was weakened. Every bind-on-pickup scrip item bids 0, maul included. |
+| A1 Lone Hunt | GO | Removing the bounty-free subtraction → §4 RED. Prune floor 8 days covers the 7-day week plus the 24h grace. |
+| A2 pets | GO | PATCH-6 caps `hr_apply` at 14; its `--selftest` 0. |
+| A4 item 4 self-check | GO, not a loosening | Dropping "family row names a known item" is inert, because a row for a nonexistent item matches no equipment. The new check runs in the reverse direction (every catalogued weapon has a family) and is stronger. combat-style F binds the table to items.js both ways: a `marowbone_maul` typo → RED. |
+| A5 dungeon scrip | GO | Only `auto` pays; manual and scavenger pay 0. "Confirmed" here means the server's own level, cooldown and key gates; there is no fight simulation. Removing the mode check → §4 GATE(b) RED. |
+| C content holes | GO | `--pin` now refuses to replace a pin (my bypass repro exits 1, registry unchanged). No arbitrage loops. Deltas replay byte-identically. schema-drift 0. |
+
+**Apply order** (Coordinator, one file per call): dungeon-scrip-fixed-by-mode → quest-combat-xp → lone-hunt-weekly-chest → muster-server-points → pet-roll-server → kill-credit-prune-8d → content-holes → catalogue.delta → dungeon-catalogue.delta → farm-catalogues.delta. Then edge deploy (A + B), then the client cut. B has no migration. Its edge must deploy together with C's catalogue deltas, or before them.

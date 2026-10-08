@@ -37,6 +37,10 @@
 //       byte-identical whatever the XP sink does (carry, per-grant floor, none),
 //       AND equal to the digest measured on the pre-change engine (set/b565,
 //       3ea45544) — the carry consumes no draw.
+//   X7  THE NO-RESCALE RULING (c), 2026-10-08: constants 4 / 1.33 / 0.39 pinned;
+//       1.33 per 1-damage hit; 100 x 1.33 -> 51 r 0.87; 100 x 10.6 at +2% -> 1081
+//       (floor: 1000); 1 x N == N x 1; maxed goblin night 422,802 (old 361,187);
+//       L1 Controlled slime 8 x 1 h 1,024 (old 1,362, ratio 0.75, accepted).
 //   X5  CLAMPED AND SERVER-ONLY. A projected remainder outside [0,1) is clamped
 //       (a 900 cannot mint); the envelope reads it ONLY off skills.<id>.frac; the
 //       client residue does not carry it.
@@ -84,6 +88,12 @@ const JS_MUTANTS = [
       '  if (!Number.isFinite(n)) return 0;\n  return Math.round(n * XP_FRAC_SCALE);']] },
   { name: 'frac client-writable (residue)', arm: 'X5', file: 'src/net/client-state.js',
     edits: [["export const RESIDUE_FIELDS = Object.freeze([\n", "export const RESIDUE_FIELDS = Object.freeze([\n  '_xpFrac',\n"]] },
+  { name: 'PACE.xp rescaled', arm: 'X7', file: 'src/core/pacing.js',
+    edits: [['export const PACE = { xp: 0.39,', 'export const PACE = { xp: 0.34,']] },
+  { name: 'HIT_HP_XP_PER_DAMAGE rescaled', arm: 'X7', file: 'src/core/styles.js',
+    edits: [['export const HIT_HP_XP_PER_DAMAGE = 1.33;', 'export const HIT_HP_XP_PER_DAMAGE = 1.15;']] },
+  { name: 'hitpoints route floored again', arm: 'X7', file: 'src/core/styles.js',
+    edits: [["  out.push({ skill: 'hitpoints', amount: dmg * HIT_HP_XP_PER_DAMAGE });", "  out.push({ skill: 'hitpoints', amount: Math.floor(dmg * HIT_HP_XP_PER_DAMAGE) });"]] },
   { name: 'tick chain drops the remainder', arm: 'X3', file: 'supabase/functions/hr-accrue/tick-shadow.js',
     edits: [['    char.xpFrac = Object.assign({}, char.xpFrac, d.xp_frac);\n', '']] },
 ];
@@ -420,8 +430,75 @@ async function runArms(L) {
     ok('X5', !fields.some((f) => /frac/i.test(f) || f === 'skills'),
       `the client residue carries ${fields.filter((f) => /frac/i.test(f) || f === 'skills')} — the remainder must be server-only`);
   }
+  // X7 ─ THE DESIGNER'S RULING (c), 2026-10-08: ship the carry, NO rescale.
+  {
+    const C = L.styles; const P = L.pacing.PACE;
+    // (1) the three constants are unchanged
+    ok('X7', C.HIT_XP_PER_DAMAGE === 4 && C.HIT_HP_XP_PER_DAMAGE === 1.33 && P.xp === 0.39,
+      `(1) the ruling forbids a rescale: HIT_XP_PER_DAMAGE ${C.HIT_XP_PER_DAMAGE}, HIT_HP_XP_PER_DAMAGE `
+      + `${C.HIT_HP_XP_PER_DAMAGE}, PACE.xp ${P.xp} (want 4 / 1.33 / 0.39)`);
+    // (2) a 1-damage hit pays exactly 1.33 hitpoints XP into the grant, any style
+    for (const st of [null, C.COMBAT_STYLES.sword.controlled, C.COMBAT_STYLES.sword.aggressive]) {
+      const hp = C.hitXpRoute(st, 1).find((g) => g.skill === 'hitpoints');
+      ok('X7', hp && hp.amount === 1.33, `(2) hitXpRoute(${st ? st.name : 'null'}, 1) hitpoints = ${hp && hp.amount}, want 1.33 exactly`);
+    }
+    // (3) 100 x 1.33 hitpoints XP, carried: 100 x 0.5187 = 51.87
+    const s3 = { skills: {}, xpFrac: {} };
+    for (let i = 0; i < 100; i++) L.prog.grantXp(s3, 'hitpoints', 1.33, {});
+    ok('X7', s3.skills.hitpoints === 51 && units(s3.xpFrac.hitpoints) === 870000,
+      `(3) 100 x grantXp('hitpoints', 1.33) credited ${s3.skills.hitpoints} carry ${s3.xpFrac.hitpoints} (want 51 / 0.87)`);
+    // (4) 100 grants of 10.6 at +2%: 1081 carried; the per-grant floor paid 1000
+    const plus2 = (k) => (k === 'combatXP' ? 0.02 : 0);
+    const s4 = { skills: {}, xpFrac: {} };
+    const s4old = { skills: {} };
+    for (let i = 0; i < 100; i++) {
+      L.prog.grantXp(s4, 'attack', 10.6, { bonus: plus2, authored: true });
+      L.prog.grantXp(s4old, 'attack', 10.6, { bonus: plus2, authored: true });
+    }
+    ok('X7', s4.skills.attack === 1081 && s4old.skills.attack === 1000,
+      `(4) 100 x 10.6 at +2% credited ${s4.skills.attack} carried (want 1081) and ${s4old.skills.attack} floored (want 1000)`);
+    // (5) 1 x N == N x 1 to the unit (the authored path, so the sum is exact)
+    const one = { skills: {}, xpFrac: {} };
+    L.prog.grantXp(one, 'attack', 10.6 * 100, { bonus: plus2, authored: true });
+    ok('X7', one.skills.attack === s4.skills.attack && units(one.xpFrac.attack) === units(s4.xpFrac.attack),
+      `(5) one grant of 1060 credited ${one.skills.attack} (${one.xpFrac.attack}), 100 of 10.6 credited `
+      + `${s4.skills.attack} (${s4.xpFrac.attack}) — batching moved a unit`);
+    // (6) the seeded maxed goblin night (the P9 fixture), and new/old
+    const x99 = L.xp.xpForLevel(99);
+    const sumXp = (r) => Object.values((r.delta && r.delta.xp) || {}).reduce((a, b) => a + b, 0);
+    const night = sumXp(L.acc.computeAccrual({
+      userId: '00000000-0000-4000-8000-00000000b349', slot: 0,
+      nowMs: Date.UTC(2026, 2, 15, 12), accruedToMs: Date.UTC(2026, 2, 15), activeSinceMs: Date.UTC(2026, 2, 15),
+      activeKind: 'combat', activeId: 'goblin', capMs: 12 * 3600000, seed: 0x5eed1234,
+      hp: 990, maxHp: 990, gold: 0, skills: { attack: x99, strength: x99, defense: x99, hitpoints: x99 },
+      equipment: {}, inventory: {}, items: L.ITEMS, monsters: L.MONSTERS, nodes: {}, xpFrac: {}, perks: null }));
+    const r6 = night / OLD_GOBLIN_NIGHT;
+    ok('X7', night === 422802 && r6 >= 1.15 && r6 <= 1.19,
+      `(6) the maxed goblin night paid ${night} XP (want 422,802), new/old ${r6.toFixed(4)} (want [1.15, 1.19])`);
+    // (7) a level-1 Controlled hero (bare hands -> sword default) vs the slime,
+    //     8 seeded 1 h spans: the carry pays LESS than max(1, ...) did, accepted.
+    let l1 = 0;
+    for (let s = 1; s <= 8; s++) {
+      l1 += sumXp(L.acc.computeAccrual({
+        userId: '00000000-0000-4000-8000-0000000f7ac2', slot: 0,
+        nowMs: Date.UTC(2026, 2, 15, 1), accruedToMs: Date.UTC(2026, 2, 15), activeSinceMs: Date.UTC(2026, 2, 15),
+        activeKind: 'combat', activeId: 'slime', capMs: 12 * 3600000, seed: 0x5eed1234 + s,
+        hp: 10, maxHp: 10, gold: 0, skills: {}, equipment: {}, inventory: {},
+        items: L.ITEMS, monsters: L.MONSTERS, nodes: {}, xpFrac: {}, perks: null,
+        deathsTodayBefore: 0, deathsLifetimeBefore: 5 }));
+    }
+    const r7 = l1 / OLD_L1_SLIME;
+    ok('X7', l1 === 1024 && r7 >= 0.70 && r7 <= 0.82,
+      `(7) the level-1 Controlled slime hour paid ${l1} XP over 8 seeds (pinned 1,024), new/old ${r7.toFixed(4)} `
+      + '(want [0.70, 0.82], accepted: the old max(1, ...) overpaid 1-2 damage hits split three ways)');
+  }
   return fails;
 }
+
+/* THE PRE-CHANGE ENGINE'S ANSWERS for X7 (6) and (7), measured on set/b565
+   3ea45544 with the identical fixtures (that engine ignores `xpFrac`). */
+const OLD_GOBLIN_NIGHT = 361187;
+const OLD_L1_SLIME = 1362;
 
 function sortKeys(m) { const o = {}; for (const k of Object.keys(m).sort()) o[k] = m[k]; return o; }
 

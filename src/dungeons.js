@@ -217,9 +217,9 @@
      loot), instead of minting locally. Fire-and-reconcile — the server rolls the
      loot with its seeded PRNG and credits scrip; the client renders what returns.
      A no-op if the transport is not wired (dormant / unconfigured).
-     NO CLEAR FRACTION IS SENT: the server pays a FIXED share per mode
-     (2026-10-10-dungeon-scrip-fixed-by-mode.sql), so how well the browser thinks
-     the run went is display, never a reward input. */
+     NO CLEAR FRACTION IS SENT: scrip pays only on a clear the server confirms
+     (an Auto run; 2026-10-10-dungeon-scrip-fixed-by-mode.sql), so how well the
+     browser thinks the run went is display, never a reward input. */
   function settleRunServer(id, mode, onVerdict){
     var DS = window.HearthriseDungeonSettle;
     if(!DS || typeof DS.sendDungeonSettle !== 'function') return;
@@ -314,8 +314,9 @@
       html += '<div class="drm-reward-row spoils-chase">Still in the chest: ' + _dgnEsc(nameOf(chase.id))
         + (odds ? ', ' + _dgnEsc(odds) : '') + '.' + (qm ? ' Or buy it outright from the Quartermaster.' : '') + '</div>';
     }
-    return html + '<div class="drm-reward-row">Rewards settled — '
-      + _dgnEsc(s.scrip || 0) + ' Dungeon Scrip is in your purse.</div>';
+    return html + '<div class="drm-reward-row">Rewards settled — ' + (+s.scrip > 0
+      ? _dgnEsc(s.scrip) + ' Dungeon Scrip is in your purse.</div>'
+      : 'no Dungeon Scrip this run (scrip pays on an Auto clear).</div>');
   }
   window.dungeonSettleRowHtml = settleRowHtml;
 
@@ -956,8 +957,9 @@
     if(_dsArmed()){
       /* ARMED: the entry key was consumed at start (below, gated the same way),
          and the loot + scrip are server-owned. Send hr_dungeon_settle (mode
-         'manual') and reconcile. The phases-cleared fraction is NOT sent: the
-         server pays the manual mode's fixed share (2026-10-10), and loot is a
+         'manual') and reconcile. The phases-cleared fraction is NOT sent: a
+         manual run pays no scrip (its clear is judged here, not by the server;
+         2026-10-10), and loot is a
          pure server roll. No local mint → no double-credit. The bag re-renders
          from the reconcile; the modal shows the server-settled result. */
       settleRunServer(runState.dungeonId, 'manual', paintSettleRow);

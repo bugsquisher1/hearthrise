@@ -3018,6 +3018,20 @@ export default [
       bag.restore();
     }
   }),
+  // regression suite: scrip pays only on a server-confirmed clear (2026-10-10-dungeon-scrip-fixed-by-mode.sql)
+  () => tryRun('DUNGEON-CONFIRMED-CLEAR: a manual/scavenger settle paying 0 scrip says so; an Auto clear shows the server amount', () => {
+    const rows = window.dungeonSettleRowHtml;
+    assert(typeof rows === 'function', 'dungeonSettleRowHtml must be published');
+    const verdict = (mode, scrip) => ({ outcome: 'settled',
+      body: { ok: true, settled: { mode, scrip, items: {}, key_spent: 'bone_key' } } });
+    for (const mode of ['manual', 'scavenger']) {
+      const html = rows(verdict(mode, 0));
+      assert(!/Dungeon Scrip is in your purse/.test(html) && /no Dungeon Scrip this run/.test(html),
+        mode + ': an unconfirmed clear must not tell the player scrip landed (got ' + html + ')');
+    }
+    const auto = rows(verdict('auto', 15));
+    assert(/15 Dungeon Scrip is in your purse/.test(auto), 'auto: the server-settled amount must render (got ' + auto + ')');
+  }),
 
   /* DGN-KEY-SERVER-1 (regression, visual pass 5 on b560): with no server bag stated
      the Crypt card printed "Bone Key (have 3)" from the display bag while Home's

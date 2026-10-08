@@ -25,7 +25,7 @@
 // ── AND IT SENDS NO REWARD ──────────────────────────────────────────────────
 // The wire carries a DUNGEON ID and a MODE. It sends no loot id, no quantity, no
 // chance, no scrip amount, no key and — since 2026-10-10 — no quality. The loot
-// table and its rates, the scrip base, the mode's fixed share, the entry key, the
+// table and its rates, the scrip base, the confirmed-clear share, the entry key, the
 // cooldown and the per-day cap all live in the client-unwritable hr_dungeons /
 // hr_dungeon_loot / hr_dungeon_cooldown_modes and the append-only ledger;
 // hr_dungeon_settle reads them for itself and rolls loot with the seeded server

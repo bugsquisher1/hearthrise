@@ -1,6 +1,7 @@
 -- ════════════════════════════════════════════════════════════════════════
--- 2026-10-10-dungeon-scrip-fixed-by-mode.sql — DUNGEON SCRIP IS FIXED PER MODE.
---                                              THE CLIENT'S `quality` IS GONE.
+-- 2026-10-10-dungeon-scrip-fixed-by-mode.sql — DUNGEON SCRIP PAYS ONLY ON A CLEAR
+--                                              THE SERVER CONFIRMS. THE CLIENT'S
+--                                              `quality` IS GONE.
 --
 -- STAGED, NOT APPLIED - REVIEW ONLY. SECURITY GO REQUIRED BEFORE APPLY (lane C,
 --   it changes what a money-adjacent RPC pays). The Coordinator applies it with
@@ -26,49 +27,52 @@
 -- cheapest way to author the maximum was to say nothing at all. CLAUDE.md §1:
 -- the client never computes an authoritative number.
 --
--- ── THE RULING (Game Designer, final) ───────────────────────────────────────
--- "Fixed scrip per mode, with no client quality and null never a full clear."
+-- ── THE RULINGS (Game Designer, final) ──────────────────────────────────────
+--   2026-10-08: "Fixed scrip per mode, with no client quality and null never a
+--               full clear."
+--   2026-10-08 (second ruling, on this file's first draft, which paid manual a
+--               full base on any run): "Scrip pays only on a clear the SERVER can
+--               confirm from its own state. A run without a server-confirmed
+--               clear pays 0. If the server has no way to confirm a clear for
+--               manual/scavenger runs today, pay 0 for those modes until it does."
 --
--- ── THE FIXED SHARE IS DERIVED, NOT AUTHORED ────────────────────────────────
--- Each mode already has ONE server-owned number: how much of the dungeon's
--- re-entry window it consumes, public.hr_dungeon_cooldown_modes() =
--- {auto:1, manual:1, scavenger:4} (2026-09-12-dungeon-cooldown.sql, Designer
--- ruling 2026-09-12: "a scavenger run waits cooldown_s / 4"). The scrip a mode
--- pays is that same fact read the other way:
+-- ── WHICH CLEARS THE SERVER CAN CONFIRM TODAY ───────────────────────────────
+--   auto       YES. An auto run has no fight the browser plays: its outcome IS
+--              the server's verdict, decided inside this settle from the
+--              server's own rows — combat level from player_skills >= req_lv
+--              (gate b), the entry key held and debited (gate f), the re-entry
+--              window read from the ledger (gate c). The settle row this verb
+--              journals is the clear record. Pays the fixed share:
+--              round(scrip_base / hr_dungeon_cooldown_divisor('auto')) = base.
+--   manual     NO. The phase mini-game is played and judged in the browser
+--              (src/dungeons.js phaseResults); the server holds no phase, boss
+--              or kill row for it. Pays 0 scrip.
+--   scavenger  NO. Boss HP is the browser's (src/dungeon-scavenger.js); no
+--              server kill record exists. Pays 0 scrip.
+-- Both NO modes still cost the key and still roll the flat catalogue loot,
+-- exactly as an auto run does (loot was never quality-scaled, 2026-09-10
+-- §ANTI-FORGERY), so a manual/scavenger run is never better than an auto run
+-- and start-and-abandon earns no scrip. When a server-adjudicated manual or
+-- scavenger run exists (its encounters settled through the combat engine and
+-- journalled), its mode joins the CONFIRMED set in block (d) below.
 --
---     scrip = round(scrip_base / hr_dungeon_cooldown_divisor(mode))
---
---     auto        1/1  = scrip_base          (unchanged — auto always sent 1)
---     manual      1/1  = scrip_base          (a manual run costs the same key
---                                             and the same window as an auto run)
---     scavenger   1/4  = scrip_base / 4      (a quarter window, a quarter scrip)
---
--- One table of numbers, two readers (the cooldown gate and the scrip credit), so
--- the window a mode costs and the scrip it pays cannot drift apart. A mode that
--- table does not name is refused `bad_mode` here (fail closed) — a mode with no
--- window would otherwise be a mode with no price.
---
--- ⇒ GAME DESIGNER, the dial is yours and it is ONE function: change a divisor in
---   hr_dungeon_cooldown_modes() and the window AND the scrip move together. If
---   you ever want them to differ, that is a second table, added on purpose.
+-- The share is DERIVED from the one server table that already prices a mode,
+-- hr_dungeon_cooldown_modes() (2026-09-12-dungeon-cooldown.sql), so the window a
+-- mode costs and the scrip it pays cannot drift once a mode is confirmed. A mode
+-- that table does not name is refused `bad_mode` (fail closed).
 --
 -- ── WHAT MOVES FOR A PLAYER (measured against the shipped formula) ──────────
 --   auto       no change (auto runs always sent quality 1).
---   manual     an honest PERFECT run: no change. An honest PARTIAL/FAILED run:
---              now scrip_base instead of base x (phases cleared / total). This is
---              the same number a forged client already got for free, so the
---              exploit ceiling does not move; only honest players gain, up to the
---              same base, on a run that still costs a real server-held key and a
---              full re-entry window. Flagged for the Designer as the one place
---              the ruling RAISES an honest payout.
---   scavenger  base/4 always (was base x max(0.1, boss HP taken), i.e. up to the
---              FULL base on a quarter window). Strictly lower at the top.
--- Loot is untouched: it was never scaled by quality (2026-09-10 §ANTI-FORGERY).
---
+--   manual     0 scrip (was base x phases cleared / total). Loot unchanged.
+--   scavenger  0 scrip (was base x max(0.1, boss HP taken)). Loot unchanged.
+-- ⇒ GAME DESIGNER: manual and scavenger now pay loot only. If that empties the
+--   modes, the fix is a server-adjudicated run, not a client number.
+
 -- ── EXPLOIT-SURFACE DELTA ───────────────────────────────────────────────────
 -- Strictly NEGATIVE. The verb's caller-supplied surface shrinks from
 -- {dungeon id, mode, quality} to {dungeon id, mode}; both remaining values are
--- lookup keys into server catalogues. The signature keeps its seventh argument
+-- lookup keys into server catalogues, and the only mode that pays scrip is the
+-- one whose outcome the server decides. The signature keeps its seventh argument
 -- (hr_dungeon_settle(uuid,int,bigint,uuid,text,text,numeric)) so the engine
 -- allowlist, the grant hygiene baseline and every guard that names the
 -- signature are untouched — but the body never reads it, and §4(b) proves that
@@ -119,7 +123,7 @@ begin
   end if;
   -- Every mode the edge can name must have a divisor, or the derivation below has
   -- a hole. DUNGEON_MODES in supabase/functions/hr-accrue/request.js is
-  -- auto|manual|scavenger; tests/dungeon-scrip-fixed.mjs binds the two lists.
+  -- auto|manual|scavenger; tests/dungeon-settle.mjs (section 8) binds the two lists.
   if exists (select 1 from unnest(array['auto','manual','scavenger']) m
               where public.hr_dungeon_cooldown_divisor(m) is null
                  or public.hr_dungeon_cooldown_divisor(m) < 1) then
@@ -128,7 +132,7 @@ begin
   end if;
 end $$;
 
--- ── 1. hr_dungeon_settle — (d) SCRIP, FIXED PER MODE ────────────────────────
+-- ── 1. hr_dungeon_settle — (d) SCRIP, SERVER-CONFIRMED CLEARS ONLY ──────────
 -- ONE guarded, exactly-once anchor replace (the 2026-09-12-dungeon-cooldown.sql
 -- idiom: pg_get_functiondef, CR stripped, refuse unless the anchor matches once).
 -- `v_q` keeps its name and its place in the journal row (meta.quality), so no
@@ -141,25 +145,29 @@ declare
     --     formula, now server-owned.
     v_q := least(greatest(coalesce(p_quality, 1), 0), 1);
     v_scrip := round(v_dun.scrip_base * v_q)::bigint;$anc$;
-  c_new constant text := $new$    -- (d) SCRIP — FIXED PER MODE (2026-10-10-dungeon-scrip-fixed-by-mode.sql).
-    --     Designer ruling: "fixed scrip per mode, with no client quality and null
-    --     never a full clear". The share is DERIVED from the one server table that
-    --     already prices a mode — the share of the re-entry window it consumes
-    --     (hr_dungeon_cooldown_modes: auto 1, manual 1, scavenger 4) — so the
-    --     window a mode costs and the scrip it pays are one fact. The seventh
-    --     argument is NOT READ: no client number reaches this credit.
+  c_new constant text := $new$    -- (d) SCRIP — SERVER-CONFIRMED CLEARS ONLY (2026-10-10-dungeon-scrip-fixed-by-mode.sql).
+    --     Designer rulings 2026-10-08: no client quality; null is never a full
+    --     clear; scrip pays only on a clear the server confirms from its own
+    --     state, else 0. Only `auto` qualifies today: its outcome IS this
+    --     settle's verdict (gates b, c, f above). manual and scavenger are
+    --     played and judged in the browser, so they pay 0 until a
+    --     server-adjudicated run exists. The confirmed share is derived from
+    --     hr_dungeon_cooldown_modes. The seventh argument is NOT READ.
     v_q := 1.0 / nullif(public.hr_dungeon_cooldown_divisor(p_mode), 0);
     if v_q is null or v_q <= 0 or v_q > 1 then
       perform public.hr_reject('bad_mode',
         jsonb_build_object('mode', p_mode, 'dungeon', v_dun.dungeon_id,
                            'reason', 'no_scrip_share'));
     end if;
+    if p_mode is distinct from 'auto' then
+      v_q := 0;                                  -- no server-confirmed clear
+    end if;
     v_scrip := round(v_dun.scrip_base * v_q)::bigint;$new$;
 begin
   v_def := replace(pg_get_functiondef(
     'public.hr_dungeon_settle(uuid,int,bigint,uuid,text,text,numeric)'::regprocedure), chr(13), '');
-  if strpos(v_def, 'FIXED PER MODE (2026-10-10-dungeon-scrip-fixed-by-mode.sql)') > 0 then
-    raise notice 'hr_dungeon_settle already pays a fixed share per mode — patch skipped'; return;
+  if strpos(v_def, 'SERVER-CONFIRMED CLEARS ONLY (2026-10-10-dungeon-scrip-fixed-by-mode.sql)') > 0 then
+    raise notice 'hr_dungeon_settle already pays scrip on server-confirmed clears only — patch skipped'; return;
   end if;
   if (length(v_def) - length(replace(v_def, c_anchor, ''))) <> length(c_anchor) then
     raise exception 'the LIVE hr_dungeon_settle (d) SCRIP block did not match exactly once — its shape is '
@@ -234,7 +242,12 @@ begin
     --     ids, all swept by the leak check), so no re-entry window or daily
     --     fuse is in the way of the property under test.
     foreach v_mode in array array['auto','manual','scavenger'] loop
-      v_want := round(v_base * (1.0 / public.hr_dungeon_cooldown_divisor(v_mode)))::bigint;
+      -- auto: the server-confirmed clear, the fixed share. manual / scavenger:
+      -- no server-confirmed clear exists, so an abandoned, failed or "perfect"
+      -- run all pay exactly 0.
+      v_want := case when v_mode = 'auto'
+                     then round(v_base * (1.0 / public.hr_dungeon_cooldown_divisor(v_mode)))::bigint
+                     else 0 end;
       foreach v_q in array array[999::numeric, -5::numeric, null::numeric] loop
         v_seen := v_seen + 1;
         v_pid := md5('dungeon-scrip-fixed-probe-' || v_seen)::uuid;
@@ -263,19 +276,20 @@ begin
         -- The journal records the SERVER's share, never the client's float.
         select meta into v_led from public.player_ledger
          where user_id = v_pid and slot = v_slot and kind = 'dungeon' order by at desc limit 1;
-        if (v_led->>'quality')::numeric is distinct from (1.0 / public.hr_dungeon_cooldown_divisor(v_mode)) then
-          raise exception 'GATE(b): the journal recorded quality % for %, expected the mode share %',
-            v_led->>'quality', v_mode, 1.0 / public.hr_dungeon_cooldown_divisor(v_mode);
+        if (v_led->>'quality')::numeric is distinct from
+           (case when v_mode = 'auto' then 1.0 / public.hr_dungeon_cooldown_divisor(v_mode) else 0 end) then
+          raise exception 'GATE(b): the journal recorded quality % for %, expected the server share',
+            v_led->>'quality', v_mode;
         end if;
       end loop;
     end loop;
     perform set_config('request.jwt.claim.sub', v_uid::text, true);
 
-    -- (d) NULL IS NEVER A FULL CLEAR on the one mode that is not full: the
-    --     scavenger's fixed share is strictly below the base.
-    if round(v_base * (1.0 / public.hr_dungeon_cooldown_divisor('scavenger')))::bigint >= v_base then
-      raise exception 'GATE(d): the scavenger share is not below a full clear (divisor %)',
-        public.hr_dungeon_cooldown_divisor('scavenger');
+    -- (d) A CONFIRMED CLEAR PAYS SOMETHING: the auto share of the probe dungeon
+    --     is > 0, so (b)'s zeros for manual/scavenger are a rule, not a base of 0.
+    if round(v_base * (1.0 / public.hr_dungeon_cooldown_divisor('auto')))::bigint <= 0 then
+      raise exception 'GATE(d): the probe dungeon pays 0 on a confirmed clear (base %) — the zero arms prove nothing',
+        v_base;
     end if;
 
     -- (e) AN UNKNOWN MODE IS STILL REFUSED (by the existing mode gate or by the
@@ -307,6 +321,6 @@ begin
     raise exception 'GATE(f): hr_dungeon_settle is client-executable';
   end if;
 
-  raise notice 'dungeon-scrip-fixed: % settles across 3 modes x {999,-5,NULL} each paid round(base/divisor); '
-               'the body reads no client quality; unknown mode refused; engine-only — all green', v_seen;
+  raise notice 'dungeon-scrip-fixed: % settles across 3 modes x {999,-5,NULL}: auto paid round(base/divisor), '
+               'manual and scavenger paid 0; the body reads no client quality; unknown mode refused; engine-only — all green', v_seen;
 end $$;

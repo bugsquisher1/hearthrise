@@ -6,7 +6,7 @@
 // the scrip. This client sends a NAME + a MODE and reconciles whatever comes
 // back. It authors NO reward and NO number: the clear fraction it used to send
 // (`quality`) was retired by 2026-10-10-dungeon-scrip-fixed-by-mode.sql — the
-// server pays a fixed share per mode and never read a browser's opinion again.
+// server pays scrip only on a clear it confirms (Auto) and reads no browser opinion.
 //
 // Contract: supabase/functions/hr-accrue/dungeon-settle.js and ./intents.js.
 //

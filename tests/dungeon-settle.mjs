@@ -22,8 +22,10 @@
 //   5. a stale version is refused (version_conflict);
 //   6. the per-day scrip EARN cap is enforced (daily_cap:scrip), before any key;
 //   7. an underlevelled character is refused (level_locked);
-//   8. no client quality reaches the scrip credit: 999 / -5 / NULL all pay the
-//      FIXED round(base / mode divisor) (2026-10-10-dungeon-scrip-fixed-by-mode.sql);
+//   8. no client quality reaches the scrip credit, and scrip pays only on a clear
+//      the SERVER confirms (2026-10-10-dungeon-scrip-fixed-by-mode.sql): auto pays
+//      the fixed round(base / divisor) for 999 / -5 / NULL; an unconfirmed
+//      (manual / scavenger: abandoned, failed or claimed-perfect) run pays 0;
 //   9. the per-day SETTLE-COUNT cap (250/UTC-day) is enforced (daily_cap:count);
 //  10. the earn cap sums POSITIVE scrip only — a Quartermaster spend (negative
 //      meta.scrip, op='qm_buy') does NOT reduce the earn usage (Condition-3, no
@@ -152,6 +154,13 @@ const MUTATIONS = {
     find: '    v_q := 1.0 / nullif(public.hr_dungeon_cooldown_divisor(p_mode), 0);',
     repl: '    v_q := least(greatest(coalesce(p_quality, 1), 0), 1);',
   },
+  unconfirmed_clear_paid: {
+    file: '2026-10-10-dungeon-scrip-fixed-by-mode.sql',
+    why: 'a run the server cannot confirm as a clear (manual / scavenger, judged in the browser) is '
+       + 'paid its mode share again, so start-and-abandon mints scrip for the price of a key',
+    find: '      v_q := 0;                                  -- no server-confirmed clear',
+    repl: '      null;',
+  },
   level_gate_off: {
     file: '2026-09-10-dungeon-settle.sql',
     why: 'the req_lv gate is disarmed — a level-1 character clears a level-95 world boss',
@@ -268,26 +277,30 @@ async function runAll(db) {
   const rvc = await settle(db, A, { version: 999999, intent: uuid(), mode: 'auto' });
   ok(rvc && rvc.error === 'version_conflict', `stale version refused (got ${rvc && rvc.error})`);
 
-  // ── 8. NO CLIENT QUALITY (2026-10-10-dungeon-scrip-fixed-by-mode.sql). The
-  //    seventh argument is NOT READ: scrip is round(scrip_base / the mode's
-  //    divisor) whatever the caller sends. A forged 999, a forged -5 and an
-  //    omitted NULL on one mode must pay the SAME fixed number, and NULL must
-  //    never mean a full clear on the mode that is not one (scavenger). Stronger
-  //    than the clamp it replaces: the clamp bounded a client number; this
-  //    proves no client number reaches the credit at all.
-  for (const [mode, tag, want] of [['manual', 'a', SCRIP_BASE], ['scavenger', 'b', Math.round(SCRIP_BASE / 4)]]) {
+  // ── 8. NO CLIENT QUALITY, AND SCRIP ONLY ON A SERVER-CONFIRMED CLEAR
+  //    (2026-10-10-dungeon-scrip-fixed-by-mode.sql, Designer rulings 2026-10-08).
+  //    The seventh argument is NOT READ. auto — whose outcome IS the server's
+  //    verdict (level, key, window) — pays the fixed round(base / divisor) for a
+  //    forged 999, a forged -5 and an omitted NULL alike. manual and scavenger
+  //    are judged in the browser, so the server holds no clear for them: an
+  //    abandoned run (NULL), a failed one (-5) and a claimed-perfect one (999)
+  //    all pay 0 scrip and credit 0 to player_state.dungeon_scrip.
+  for (const [mode, tag, want] of [['auto', 'c', SCRIP_BASE], ['manual', 'a', 0], ['scavenger', 'b', 0]]) {
     const paid = [];
+    const held = [];
     for (const [i, quality] of [[7, 999], [8, -5], [9, null]]) {
       const U = uidFor(`${tag}${i}`);
       await seed(db, U);
       const r = await settle(db, U, { version: await versionOf(db, U), intent: uuid(), mode, quality });
       ok(r && r.ok === true, `${mode} settle with client quality ${quality} ok (got ${r && r.error})`);
       paid.push(Number(r && r.settled && r.settled.scrip));
+      held.push(await scripRow(db, U));
     }
-    ok(paid.every((x) => x === want),
-      `${mode}: client qualities 999 / -5 / NULL all pay the FIXED ${want} scrip (got ${paid.join(' / ')})`);
+    ok(paid.every((x) => x === want) && held.every((x) => x === want),
+      `${mode}: client qualities 999 / -5 / NULL all pay ${want} scrip `
+      + `(${want ? 'the confirmed clear' : 'no server-confirmed clear'}; got ${paid.join(' / ')}, held ${held.join(' / ')})`);
   }
-  ok(Math.round(SCRIP_BASE / 4) < SCRIP_BASE, 'NULL is never a full clear on the scavenger mode');
+  ok(SCRIP_BASE > 0, 'the confirmed clear pays something, so the zero arms are a rule, not a base of 0');
 
   // ── 7. LEVEL LOCKED (fresh, unlevelled character). ────────────────────────
   const D = uidFor('c4');
@@ -301,7 +314,7 @@ async function runAll(db) {
   await db.exec(`insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta)
                  values ('${E}', 0, 'dungeon', 'seed_cap', 0,0,0,0,0,
                          jsonb_build_object('dungeon','${CAP_SEED_DUNGEON}','mode','manual','scrip', 5000));`);
-  const rcap = await settle(db, E, { version: await versionOf(db, E), intent: uuid(), mode: 'manual', quality: 1 });
+  const rcap = await settle(db, E, { version: await versionOf(db, E), intent: uuid(), mode: 'auto' });
   ok(rcap && rcap.error === 'daily_cap', `at-cap run refused daily_cap (got ${rcap && rcap.error})`);
   ok(rcap && rcap.dim === 'scrip', `scrip-cap refusal carries dim=scrip (got ${rcap && rcap.dim})`);
   ok(await invQty(db, E, KEY) === 2, 'a capped run consumed NO key (rejected before the debit)');
@@ -332,7 +345,7 @@ async function runAll(db) {
                          jsonb_build_object('op','settle','dungeon','${CAP_SEED_DUNGEON}','mode','manual','scrip', 5000)),
                         ('${H}', 0, 'dungeon', 'seed_spend', 0,0,0,0,0,
                          jsonb_build_object('op','qm_buy','offer','${KEY}','item','${KEY}','scrip', -4000));`);
-  const rearn = await settle(db, H, { version: await versionOf(db, H), intent: uuid(), mode: 'manual', quality: 1 });
+  const rearn = await settle(db, H, { version: await versionOf(db, H), intent: uuid(), mode: 'auto' });
   ok(rearn && rearn.error === 'daily_cap' && rearn.dim === 'scrip',
      `earn cap counts POSITIVE scrip only — a -4000 spend does NOT free room (got ${rearn && rearn.error}/${rearn && rearn.dim})`);
 }
@@ -363,7 +376,7 @@ if (argv.includes('--selftest')) {
   await runAll(db);
   if (failed) { console.error(`\ndungeon-settle: ${failed} assertion(s) FAILED.`); process.exit(1); }
   console.log('dungeon-settle: all assertions passed (scrip credited + projected + survives, '
-    + 'idempotent replay, version_conflict, no client quality (fixed per mode), level_locked, scrip+count daily_cap, '
+    + 'idempotent replay, version_conflict, no client quality, scrip only on a server-confirmed clear, level_locked, scrip+count daily_cap, '
     + 'earn-cap excludes spends, key consumed).');
   process.exit(0);
 }

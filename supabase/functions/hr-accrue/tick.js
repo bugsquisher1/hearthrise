@@ -77,8 +77,10 @@ import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 
 import {
   CHANNEL as GATHER_CHANNEL, DEFAULT_CADENCE_MS, DEFAULT_FLUSH_MS,
-  sessionFromRoster as gatherSessionFromRoster, settleGatherSession,
+  sessionFromRoster as gatherSessionFromRoster, settleGatherSession, foldWindowIntents,
 } from './tick-gather.js';
+/* The level curve, for the fold's level-up stop (settleFolded). */
+import { levelFromXp } from '../../../src/core/xp.js';
 import {
   CHANNEL as COMBAT_CHANNEL,
   sessionFromRoster as combatSessionFromRoster, settleCombatSession,
@@ -239,6 +241,13 @@ export const MAX_CATCHUP_WINDOWS = 40;
    normal response inside pg_net's 9 s timeout (the harvest sees it) and every
    lease (30 s) alive. */
 export const CATCHUP_BUDGET_MS = 6000;
+
+/* ── THE LEDGER FOLD CEILING (2026-10-11, world-tick scale S4): the
+   `hr_tick_config_fold_ck` CHECK is `fold_windows between 1 and 8`, and the
+   8 is hr_tick_stall_status' 15 min per-character lag judge: an away character
+   waits fold x 90 s + one cadence between payments. tests/world-tick-scale.mjs
+   F6 compares the two. */
+export const MAX_FOLD_WINDOWS = 8;
 
 /* Engine polls per character per fire. `toMs` is already capped at one flush
    window below, so this is the second, independent bound — the one that still
@@ -544,6 +553,10 @@ export function parseTickBody(raw) {
      cadence/flush and clamped to the CHECK's range. Absent reads as 1: one
      window per visit, exactly the edge before this key existed. */
   out.catchupWindows = clampInt(b.catchup_windows, 1, MAX_CATCHUP_WINDOWS, 1);
+  /* THE FOLD DIAL (S4): how many of a visit's windows ONE settle may carry.
+     Clamped to the CHECK (1..8) and to the catch-up dial, as the CHECK holds
+     it; absent reads as 1, one settle per window. */
+  out.foldWindows = Math.min(clampInt(b.fold_windows, 1, MAX_FOLD_WINDOWS, 1), out.catchupWindows);
   out.roster = parseSelectors(b.roster);
   /* THE PARTY COHORT (M8 S2). Same rule as `roster`: SELECTORS, never
      authority. A unit names a party, a hunt, its monster and its members'
@@ -804,7 +817,10 @@ async function seedLadder(exec, sel, labels) {
 /* ── ONE CHARACTER, ONE FIRE ────────────────────────────────────────────────
    Returns a verdict, never a throw: a character that cannot be settled must not
    cost the rest of the batch its window. */
-async function tickOne(exec, holder, sel, body) {
+/* `maxWindows` (S4) is how many consecutive windows this ONE visit may fold into
+   one settle; 1 (the default, and every shadow or combat visit) is the
+   single-window visit, byte for byte. */
+async function tickOne(exec, holder, sel, body, maxWindows = 1) {
   /* (0) THE SERVER CLOCK. Every instant this function names comes from here or
          from the fence; none of them comes from the body. */
   const read0 = await exec('select now()::timestamptz as now', []);
@@ -989,6 +1005,19 @@ async function tickOne(exec, holder, sel, body) {
     holder,
   };
 
+  /* (5c) THE LEDGER FOLD (2026-10-11, world-tick scale S4). An ARMED GATHER
+          character that is two or more flushes behind, on a fire whose fold
+          dial is above 1, settles up to `maxWindows` consecutive windows in
+          ONE fenced settle — one hr_apply, one player_ledger row. Every window
+          is the one the next fire would have computed (settleFolded). Shadow
+          and combat never fold: their continuation is the carrier and the
+          probe, which this does not touch. */
+  const foldN = (probe.shadow === false && channel === GATHER_CHANNEL && maxWindows > 1)
+    ? Math.min(maxWindows, Math.floor((nowMs - markMs) / body.flushMs)) : 1;
+  if (foldN > 1) {
+    return settleFolded(exec, holder, sel, body, driver, session, probe, markMs, nowMs, foldN, env, geom);
+  }
+
   /* (6) THE SEEDS, THEN THE ONE REAL PASS. */
   const labels = planSeedLabels(driver.settle, session, markMs, toMs,
     Object.assign({}, geom, { markText: probe.markText }));
@@ -1094,7 +1123,90 @@ async function tickOne(exec, holder, sel, body) {
      fence, under the lease lock, for this character's channel, and this is
      what it decided. A summary that reported the body's flag would say
      "shadowed" about a fire that paid. */
-  return { outcome: res.mode === 'shadow' ? 'shadowed' : 'processed', probe: probed };
+  return { outcome: res.mode === 'shadow' ? 'shadowed' : 'processed', probe: probed, windows: 1 };
+}
+
+/* ── THE FOLD'S CHAIN RULES (S4) ────────────────────────────────────────────
+   A folded window i+1 is computed from the engine's OWN continuation state
+   after window i (`run.char`, the object `advance()` carries between polls)
+   instead of from `hr_state_of` after hr_apply wrote window i. The two are the
+   same object for every input a gather window reads, EXCEPT inputs that a
+   settle moves somewhere `advance()` does not model. So the chain ENDS (the
+   window is kept, the next one is the next visit's) after any window that:
+     · carries a delta key outside FOLD_CHAIN_KEYS — `activity` (the pointer
+       moved: a node ran out or hit its level gate), `hearthfind`, or any key a
+       future engine adds: state the next fire would read has moved;
+     · levels any skill — hr_renown_of is a function of skill levels and
+       hr_perks_of prices `renownAllXp` from it, so a level-up can move the
+       perk stack the next window is priced with.
+   Perks (`hr_perks_of`), the offline cap and the bestiary are read ONCE per
+   visit, exactly as a single window reads them once for its nine polls.
+   tests/world-tick-scale.mjs F1 proves the fold equal to the single fires. */
+export const FOLD_CHAIN_KEYS = Object.freeze(
+  ['accrued_to', 'items', 'xp', 'gold', 'progress', 'tool_carry', 'journal']);
+
+function levelledUp(before, after) {
+  for (const k of Object.keys(after || {})) {
+    if (levelFromXp(Number((before || {})[k]) || 0) !== levelFromXp(Number(after[k]) || 0)) return true;
+  }
+  return false;
+}
+
+/* Up to `n` consecutive flush windows, each planned, seeded and simulated
+   EXACTLY as the next fire would (window [mark, min(now, mark + flush)], its
+   own seed ladder resolved by Postgres, the same engine call), then ONE
+   settle. A fold of one window is the single-window settle byte for byte
+   (same intent, same arguments). The fence judges the folded settle like any
+   other: lease, watermark CAS, version CAS, 8b and 8c — and 8c on a span is
+   the check of its FIRST window, the strictest of the n. */
+async function settleFolded(exec, holder, sel, body, driver, session0, probe, markMs, nowMs, n, env, geom) {
+  const wins = [];
+  let session = session0;
+  let m = markMs;
+  for (let i = 0; i < n; i++) {
+    const to = Math.min(nowMs, m + body.flushMs);
+    if (to - m < body.flushMs) break;
+    const labels = planSeedLabels(driver.settle, session, m, to,
+      Object.assign({}, geom, { markText: i === 0 ? probe.markText : null }));
+    const seeds = await seedLadder(exec, sel, labels);
+    const run = driver.settle(session, m, to,
+      Object.assign({}, geom, { seedOf: (ms) => (seeds.has(ms) ? seeds.get(ms) : null) }));
+    if (i === 0) {
+      /* The first window's refusals, named exactly as the single path names them. */
+      if (run.intents.length === 0) return { outcome: 'skipped', reason: 'nothing_settled' };
+      if (run.intents[0].rehydrateBefore) return { outcome: 'skipped', reason: 'rehydrate_required' };
+    }
+    if (run.intents.length !== 1 || run.intents[0].rehydrateBefore) break;
+    const it = run.intents[0];
+    /* The carried state must be the state AT the window's end, or the next
+       window would start from a character the fence never stamped. */
+    if (run.watermarkMs !== Date.parse(it.args.p_window_to)) { wins.push(it); break; }
+    wins.push(it);
+    if (Object.keys(it.args.p_delta).some((k) => !FOLD_CHAIN_KEYS.includes(k))) break;
+    if (levelledUp(session.skills, run.char.skills)) break;
+    m = run.watermarkMs;
+    session = Object.assign({}, run.char, { accruedToMs: m });
+  }
+  const intent = wins.length === 1
+    ? wins[0]
+    : foldWindowIntents({ userId: sel.userId, slot: sel.slot, shard: 0, version: env.version, holder }, wins);
+  const a = intent.args;
+  const res = await fence(exec, {
+    holder,
+    user: sel.userId,
+    slot: sel.slot,
+    channel: driver.channel,
+    version: a.p_version,
+    windowFrom: fenceWindowFrom(a.p_window_from, markMs, probe.markText),
+    windowTo: a.p_window_to,
+    intentId: a.p_intent_id,
+    delta: JSON.stringify(a.p_delta),
+    shadowState: null,
+  });
+  if (!res || res.ok !== true) {
+    return { outcome: 'refused', reason: String((res && res.error) || 'no_answer') };
+  }
+  return { outcome: res.mode === 'shadow' ? 'shadowed' : 'processed', windows: wins.length };
 }
 
 /* THE PARTY'S SEED LADDER, PER MEMBER. The same two functions the solo path
@@ -1179,7 +1291,7 @@ export async function runTick(opts) {
   for (const sel of body.roster) {
     let v;
     try {
-      v = await tickOne(exec, holder, sel, body);
+      v = await tickOne(exec, holder, sel, body, body.foldWindows);
     } catch (e) {
       /* NO CHARACTER'S FAILURE COSTS ANOTHER ONE ITS WINDOW. The message is
          the engine's or the driver's; it is never built from a header and never
@@ -1199,19 +1311,24 @@ export async function runTick(opts) {
        fenced, a refusal, a version a player's own settle just moved — and
        that window is the next fire's, exactly as without the dial. */
     if (catchup && v.outcome === 'processed') {
-      catchup.windows += 1;
+      catchup.windows += v.windows || 1;
+      let left = body.catchupWindows - (v.windows || 1);
       let stop = 'dial';
-      for (let i = 1; i < body.catchupWindows; i++) {
+      while (left > 0) {
         if (now() >= deadline) { stop = 'budget'; break; }
         let w;
         try {
-          w = await tickOne(exec, holder, sel, body);
+          w = await tickOne(exec, holder, sel, body, Math.min(body.foldWindows, left));
         } catch (e) {
           w = { outcome: 'refused', reason: 'error:' + String((e && e.message) || e).slice(0, 64) };
         }
         if (w.outcome !== 'processed') { stop = String(w.reason || w.outcome); break; }
-        catchup.windows += 1;
-        catchup.extra += 1;
+        /* Every settled visit moves the mark by >= one window, so `left`
+           strictly falls and the loop is bounded by the dial. */
+        const won = Math.max(1, w.windows || 1);
+        catchup.windows += won;
+        catchup.extra += won;
+        left -= won;
       }
       catchup.stops[stop] = (catchup.stops[stop] || 0) + 1;
     }

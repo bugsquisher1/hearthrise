@@ -59,6 +59,24 @@
 //   C6  MAX_CATCHUP_WINDOWS equals the CHECK, and a body asking 1000 gets 40
 //   C7  the CHECKs hold fold <= 8 (the lag judge) and fold <= catch-up
 //
+//   S4 — supabase/migrations/2026-10-11-world-tick-ledger-fold.sql + tick.js
+//        settleFolded + tick-gather.js foldWindowIntents / coalesceProgress
+//   F1  ★ THE FOLD DIFFERENTIAL (AWAY): ONE folded settle of 8 windows vs 8
+//           single fires, same frozen clock: gold/xp/items (columns and
+//           meta.delta), ticks, qty, ms, inventory, skills, progress, tool
+//           carry and watermark identical; 1 ledger row instead of 8 over the
+//           same [from, to]; the version moves once instead of 8 times
+//   F2  8 windows file > 64 progress ops; the fold carries one per (kind,
+//           key, period), each the sum of its windows' adds
+//   F3  the roster holds an AWAY armed gatherer until a fold is due; an
+//           ONLINE one and a SHADOW one keep the one-flush line; fold 1 = S1
+//   F4  ★ ATTENDED: the player's own settle (hr_apply) lands between the
+//           fold's compute and its settle: the fold is refused, pays nothing
+//   F5  a level-up ends the fold chain (renown may move), pay still equal
+//   F6  a SHADOW gather window never folds
+//   F7  MAX_FOLD_WINDOWS equals the CHECK
+//   F8  8c on a fold: past the cap nothing; inside it only windows inside it
+//
 // Exit: 0 green · 1 red · 2 harness.
 // ============================================================================
 
@@ -68,6 +86,8 @@ import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { bootReplay, inventory, ROOT } from './schema-replay.mjs';
 import * as TICK from '../supabase/functions/hr-accrue/tick.js';
+import * as TICK_GATHER from '../supabase/functions/hr-accrue/tick-gather.js';
+import { xpForLevel } from '../src/core/xp.js';
 import { SHIM_CRYPTO, SHIM_VAULT, SHIM_NET, K_SECRET } from './world-tick-token-shims.mjs';
 
 const MUTATE = process.argv.includes('--mutate') || process.argv.includes('--selftest');
@@ -80,6 +100,7 @@ const LANE = [
   '2026-10-11-world-tick-due-roster.sql',
   '2026-10-11-world-tick-shards.sql',
   '2026-10-11-world-tick-catchup.sql',
+  '2026-10-11-world-tick-ledger-fold.sql',
 ];
 const read = async (f) => (await readFile(join(ROOT, 'supabase', 'migrations', f), 'utf8')).replace(/\r\n/g, '\n');
 const SQL = Object.fromEntries(await Promise.all(LANE.map(async (f) => [f, await read(f)])));
@@ -104,7 +125,7 @@ function fnSource(name) {
 let RUN = 0;
 const U = (n) => `00000000-0000-4000-8000-${(0x7200 + RUN).toString(16).padStart(4, '0')}${n.toString(16).padStart(8, '0')}`;
 
-async function arms(db, { log = true, tick = TICK } = {}) {
+async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER } = {}) {
   RUN += 1;
   const red = [];
   const ok = (id, cond, okMsg, badMsg) => {
@@ -588,6 +609,196 @@ async function arms(db, { log = true, tick = TICK } = {}) {
       JSON.stringify(c7));
   }
 
+  // ── S4 ──────────────────────────────────────────────────────────────────
+  {
+    await db.exec('delete from public.hr_tick_ownership;');
+    const F = 8;
+    const gskill = (await one('select req_skill from public.hr_activities where activity_id = $1', [gact]))?.req_skill
+      || 'woodcutting';
+    const setXp = (u, xp) => q(`insert into public.player_skills (user_id, slot, skill_id, xp) values ($1, 0, $2, $3)
+                                 on conflict (user_id, slot, skill_id) do update set xp = excluded.xp`, [u, gskill, xp]);
+    const sumOf = (rows) => {
+      const out = { gold_in: 0, xp_in: 0, qty_in: 0, qty: 0, ticks: 0, ms: 0, i: {}, x: {} };
+      for (const r of rows) {
+        out.gold_in += Number(r.gold_in || 0); out.xp_in += Number(r.xp_in || 0); out.qty_in += Number(r.qty_in || 0);
+        out.qty += Number(r.meta.qty || 0); out.ticks += Number(r.meta.ticks || 0); out.ms += Number(r.meta.ms || 0);
+        for (const [k, v] of Object.entries((r.meta.delta || {}).i || {})) out.i[k] = (out.i[k] || 0) + Number(v);
+        for (const [k, v] of Object.entries((r.meta.delta || {}).x || {})) out.x[k] = (out.x[k] || 0) + Number(v);
+      }
+      for (const m of [out.i, out.x]) for (const k of Object.keys(m)) if (m[k] === 0) delete m[k];
+      const sort = (m) => Object.fromEntries(Object.keys(m).sort().map((k) => [k, m[k]]));
+      out.i = sort(out.i); out.x = sort(out.x);
+      return out;
+    };
+    const tickOnly = (snap) => snap.ledger.filter((l) => l.meta && l.meta.src === 'tick');
+    /* The pay a fold must equal: everything but the version (K settles bump
+       it K times, one fold once) and the ledger's row count. */
+    const value = (snap) => JSON.stringify({ state: { ...snap.state, version: null }, inv: snap.inv, skills: snap.skills,
+      progress: snap.progress, ledger: sumOf(tickOnly(snap)) });
+    const differential = async (u, fold) => {
+      const A = await inTxn(u, async (sexec) => {
+        const fires = [];
+        for (let i = 0; i < F; i++) fires.push((await tick.runTick({ exec: sexec, probe: false, body: body1(u) })).body);
+        return fires;
+      });
+      const C = await inTxn(u, async (sexec) => [(await tick.runTick({ exec: sexec, probe: false, catchupBudgetMs: 120000,
+        body: body1(u, { catchup_windows: F, fold_windows: fold }) })).body]);
+      return { A, C, a: tickOnly(A.snap), c: tickOnly(C.snap) };
+    };
+
+    // F1 ★ THE FOLD DIFFERENTIAL (AWAY): one fold of 8 == 8 single fires
+    const fd = await char(U(700), { ageS: 1200 });
+    await setXp(fd, xpForLevel(60) + 1);
+    await leaseTo(fd);
+    const v0 = (await one('select version from public.player_state where user_id = $1', [fd])).version;
+    const d1 = await differential(fd, F);
+    const sameValue = value(d1.A.snap) === value(d1.C.snap);
+    const cf = d1.C.fires[0] || {};
+    ok('F1', sameValue && d1.a.length === F && d1.c.length === 1
+        && d1.c[0].meta.from === d1.a[0].meta.from && d1.c[0].meta.to === d1.a[F - 1].meta.to
+        && Number(d1.A.snap.state.version) === Number(v0) + F && Number(d1.C.snap.state.version) === Number(v0) + 1
+        && cf.processed === 1 && cf.catchup && cf.catchup.windows === F,
+      `AWAY: ONE folded settle paid exactly what ${F} single fires paid — gold/xp/items in and in meta.delta, `
+      + 'ticks, qty, ms, inventory, skills, progress, tool carry and watermark — in 1 ledger row instead of '
+      + `${F}, spanning the same [from, to]`,
+      sameValue ? JSON.stringify({ rowsA: d1.a.length, rowsC: d1.c.length, v0, vA: d1.A.snap.state.version,
+        vC: d1.C.snap.state.version, cf })
+        : `DIFFERENT:\n             A ${value(d1.A.snap).slice(0, 500)}\n             C ${value(d1.C.snap).slice(0, 500)}`);
+
+    // F2 the fold's progress ops are coalesced under hr_apply's 64
+    {
+      const J = JSON.parse(await readFile(join(ROOT, 'services', 'world-tick', 'fixtures', 'gather-sessions.json'), 'utf8'));
+      const s0 = Object.assign({ activeKind: 'gather' }, J.sessions[0]);
+      const from = Date.parse('2026-10-01T00:00:00.000Z');
+      s0.accruedToMs = from; s0.activeSinceMs = from;
+      const geom = { cadenceMs: 10000, flushMs: 90000, maxPolls: 64, holder: 'f2' };
+      let s = s0; let m = from; const wins = [];
+      for (let w = 0; w < F; w++) {
+        const run = tickGather.settleGatherSession(s, m, m + 90000, geom);
+        if (!run.intents[0]) break;
+        wins.push(run.intents[0]); m = Date.parse(run.intents[0].args.p_window_to);
+        s = Object.assign({}, run.char, { accruedToMs: m });
+      }
+      const folded = wins.length >= 2 ? tickGather.foldWindowIntents({ userId: s0.userId, slot: 0, shard: 0, version: 1, holder: 'f2' }, wins) : null;
+      const raw = wins.flatMap((w) => w.args.p_delta.progress || []);
+      const sumBy = (ops) => {
+        const out = {};
+        for (const o of ops) { const k = `${o.kind}|${o.key}|${o.period ?? ''}`; out[k] = (out[k] || 0) + Number(o.add); }
+        return JSON.stringify(Object.keys(out).sort().map((k) => [k, out[k]]));
+      };
+      const fp = (folded && folded.args.p_delta.progress) || [];
+      ok('F2', wins.length === F && raw.length > 64 && fp.length <= 64 && sumBy(fp) === sumBy(raw)
+          && fp.length === new Set(fp.map((o) => `${o.kind}|${o.key}|${o.period ?? ''}`)).size,
+        `${F} windows file ${raw.length} progress ops (hr_apply refuses > 64 per call); the fold carries `
+        + `${fp.length}, one per (kind, key, period), each the sum of its windows' adds`,
+        JSON.stringify({ windows: wins.length, raw: raw.length, folded: fp.length }));
+    }
+
+    // F3 the roster holds an AWAY gatherer for a fold; online and shadow keep one flush
+    await db.exec('delete from public.hr_tick_ownership;');
+    await cfg(`catchup_windows = ${F}, fold_windows = ${F}`);
+    const away3 = await char(U(710), { ageS: 270 });
+    const away8 = await char(U(711), { ageS: 721 });
+    const live = await char(U(712), { ageS: 95 });
+    await q("update public.player_state set last_seen_at = now() - interval '10 seconds' where user_id = $1", [live]);
+    const shadowG = await char(U(713), { ageS: 7200, kind: 'combat', chainS: 95 });
+    const served3 = (await roster(['gather', 'combat'], 'fold-proof')).map((r) => String(r.user_id));
+    await cfg('fold_windows = 1');
+    await db.exec('update public.hr_tick_ownership set lease_holder = null, lease_until = null;');
+    const served1 = (await roster(['gather'], 'fold-proof-1')).map((r) => String(r.user_id));
+    await cfg('fold_windows = 1, catchup_windows = 1');
+    ok('F3', !served3.includes(away3) && served3.includes(away8) && served3.includes(live)
+        && served3.includes(shadowG) && served1.includes(away3),
+      'fold 8: an AWAY gatherer 3 flushes behind waits, 8 flushes behind is served; an ONLINE one (heartbeat '
+      + '10 s ago) and a SHADOW combat one keep the one-flush line; fold 1 serves the 3-flush gatherer',
+      JSON.stringify({ away3: served3.includes(away3), away8: served3.includes(away8), live: served3.includes(live),
+        shadow: served3.includes(shadowG), away3AtFold1: served1.includes(away3) }));
+
+    // F4 ★ ATTENDED: the player's own settle lands between the fold's compute and its settle
+    const fa = await char(U(720), { ageS: 1200 });
+    await setXp(fa, xpForLevel(60) + 1);
+    await leaseTo(fa);
+    let raced = null;
+    const raceExec = async (text, params) => {
+      if (!raced && /hr_tick_settle/.test(text) && params && params[4] != null) {
+        const v = (await one('select version from public.player_state where user_id = $1', [fa])).version;
+        await db.exec('begin'); await db.exec('set local role hr_engine');
+        try {
+          raced = (await one(
+            "select public.hr_apply($1::uuid, 0, $2::bigint, gen_random_uuid(), jsonb_build_object('accrued_to', to_jsonb(now()))) as r",
+            [fa, v])).r;
+          await db.exec('commit');
+        } catch (e) { await db.exec('rollback'); raced = { threw: e.message }; }
+      }
+      return exec(text, params);
+    };
+    let f4;
+    try { f4 = (await tick.runTick({ exec: raceExec, probe: false, body: body1(fa, { catchup_windows: F, fold_windows: F }) })).body; }
+    catch (e) { f4 = { threw: e.message }; }
+    const f4rows = await tickRows(fa);
+    const f4mark = new Date((await one('select accrued_to from public.player_state where user_id = $1', [fa])).accrued_to).getTime();
+    const why4 = Object.keys(f4.reasons || {})[0] || '';
+    ok('F4', raced && raced.ok === true && f4.refused === 1 && /window_already_settled|version_conflict/.test(why4)
+        && f4rows.length === 0 && Math.abs(f4mark - Date.now()) < 120000,
+      `ATTENDED: the player's own settle landed first; the 8-window fold was refused (${why4}), paid nothing, `
+      + 'and the watermark is where the player put it',
+      JSON.stringify({ raced: raced && (raced.ok ?? raced), f4, rows: f4rows.length }));
+
+    // F5 a level-up ends the fold chain, and the pay is still the single fires'
+    const fl = await char(U(730), { ageS: 1200 });
+    await setXp(fl, xpForLevel(61) - 30);
+    await leaseTo(fl);
+    const d5 = await differential(fl, F);
+    ok('F5', value(d5.A.snap) === value(d5.C.snap) && d5.a.length === F && d5.c.length >= 2 && d5.c.length < F,
+      `a level-up inside the fold ends the chain (renown and the perk stack may move): ${d5.c.length} settles `
+      + `instead of 1, paying exactly what ${F} single fires paid`,
+      JSON.stringify({ rowsA: d5.a.length, rowsC: d5.c.length, same: value(d5.A.snap) === value(d5.C.snap) }));
+
+    // F6 a SHADOW gather window is never folded
+    await cfg("armed_channels = '{}'");
+    const sg = await char(U(740), { ageS: 1200 });
+    await setXp(sg, xpForLevel(60) + 1);   // no level-up: only the shadow rule can stop a fold
+    await leaseTo(sg);
+    const s0n = Number((await one('select count(*)::int as n from public.hr_tick_shadow where user_id = $1', [sg])).n);
+    const f6 = await fireEdge(body1(sg, { catchup_windows: F, fold_windows: F }));
+    const s1n = Number((await one('select count(*)::int as n from public.hr_tick_shadow where user_id = $1', [sg])).n);
+    const s6 = (await one('select extract(epoch from (window_to - window_from))::float8 as w from public.hr_tick_shadow where user_id = $1 order by id desc limit 1', [sg]));
+    await cfg("armed_channels = array['gather']");
+    const spanS = s6 && s6.w != null ? Number(s6.w) : null;
+    ok('F6', f6.shadowed === 1 && s1n - s0n === 1 && spanS !== null && spanS <= 90,
+      'SHADOW gather with fold 8: one shadow window of at most one flush (the carrier and probes untouched)',
+      JSON.stringify({ f6, rows: s1n - s0n, spanS }));
+
+    // F7 the edge's fold ceiling is the CHECK's
+    const ckf = (await one("select pg_get_constraintdef(oid) as d from pg_constraint where conname = 'hr_tick_config_fold_ck'"))?.d || '';
+    const hiF = Number((ckf.match(/fold_windows <= (\d+)/) || [])[1]);
+    ok('F7', hiF === tick.MAX_FOLD_WINDOWS,
+      `tick.js MAX_FOLD_WINDOWS ${tick.MAX_FOLD_WINDOWS} equals the CHECK ceiling (${ckf})`,
+      `MAX_FOLD_WINDOWS ${tick.MAX_FOLD_WINDOWS} vs ${ckf}`);
+
+    // F8 8c on a fold: past the cap nothing, inside it only windows that start inside it
+    const fc = await char(U(750), { ageS: 600, sinceS: 30 * 3600 });
+    const capF = await capOf(fc);
+    await q('update public.player_state set accrued_to = now() - make_interval(secs => $2::double precision) where user_id = $1',
+      [fc, capF / 1000 + 60]);
+    await leaseTo(fc);
+    const f8a = await fireEdge(body1(fc, { catchup_windows: F, fold_windows: F }));
+    const fi = await char(U(751), { ageS: 600, sinceS: 30 * 3600 });
+    await q('update public.player_state set accrued_to = now() - make_interval(secs => $2::double precision) where user_id = $1',
+      [fi, capF / 1000 - 120]);
+    await setXp(fi, xpForLevel(60) + 1);
+    await leaseTo(fi);
+    const n8 = new Date((await one('select now() as t')).t).getTime();
+    const f8b = await fireEdge(body1(fi, { catchup_windows: F, fold_windows: F }));
+    const fiRows = await tickRows(fi);
+    ok('F8', (f8a.reasons || {}).fenced_cap === 1 && (await tickRows(fc)).length === 0
+        && fiRows.length === 1 && fiRows.every((r) => Date.parse(r.meta.from) >= n8 - capF - 1000)
+        && (f8b.catchup || {}).windows === F,
+      `a fold one minute past the cap is refused fenced_cap and pays nothing; two minutes inside it pays ${F} `
+      + `windows in ${fiRows.length} row(s), every one starting inside the cap`,
+      JSON.stringify({ f8a: f8a.reasons, rowsPast: (await tickRows(fc)).length, f8b: f8b.catchup, rowsInside: fiRows.length }));
+  }
+
   return red;
 }
 
@@ -655,19 +866,20 @@ const RESTORE = [
 ].join('\n');
 const MUTANTS = [
   // S1
+  // (The due line's chain-end spelling is S4's `m.mark <= now() - v_flush * (<fold>)`.)
   { name: 'noDueLine', fn: 'roster', why: 'the roster serves every owned character again (8 of 9 visits wasted)', expect: /R2/,
-    find: '       and m.mark <= now() - v_flush\n', repl: '' },
+    find: '       and m.mark <= now() - v_flush * (\n', repl: "       and m.mark <= now() + interval '1 day' + v_flush * (\n" },
   { name: 'strictDueLine', fn: 'roster', why: 'a mark exactly one flush old waits a fire', expect: /R3/,
-    find: '       and m.mark <= now() - v_flush\n', repl: '       and m.mark < now() - v_flush\n' },
+    find: '       and m.mark <= now() - v_flush * (\n', repl: '       and m.mark < now() - v_flush * (\n' },
   { name: 'dueOnRawMark', fn: 'roster', why: 'the due line reads the raw accrued_to, not the chained mark the edge probes', expect: /R4/,
-    find: '       and m.mark <= now() - v_flush\n', repl: '       and ps.accrued_to <= now() - v_flush\n' },
+    find: '       and m.mark <= now() - v_flush * (\n', repl: '       and ps.accrued_to <= now() - v_flush * (\n' },
   { name: 'flushConstant', fn: 'roster', why: 'the due line ignores flush_seconds', expect: /R5/,
-    find: '       and m.mark <= now() - v_flush\n', repl: "       and m.mark <= now() - interval '90 seconds'\n" },
+    find: '       and m.mark <= now() - v_flush * (\n', repl: "       and m.mark <= now() - interval '90 seconds' * (\n" },
   { name: 'hydrates', fn: 'roster', why: 'the roster hydrates every row again (17 ms/row nobody reads)', expect: /R1|R7/,
     find: '         null::jsonb                                                     as state',
     repl: '         public.hr_state_of(ps.user_id, ps.slot)                        as state' },
   { name: 'dueTooLate', fn: 'roster', why: 'the due line is two flushes (a due character waits a whole extra flush)', expect: /R3|R6|R1/,
-    find: '       and m.mark <= now() - v_flush\n', repl: '       and m.mark <= now() - 2 * v_flush\n' },
+    find: '       and m.mark <= now() - v_flush * (\n', repl: '       and m.mark <= now() - 2 * v_flush * (\n' },
   { name: 'grantEngine', fn: 'roster', why: 'hr_engine is granted EXECUTE on the roster', expect: /R8/,
     find: null, repl: '\ngrant execute on function public.hr_tick_roster(text[], int, int, text, int, timestamptz, uuid, int) to hr_engine;' },
   // S2
@@ -704,15 +916,32 @@ const MUTANTS = [
     find: 'export const MAX_CATCHUP_WINDOWS = 40;', repl: 'export const MAX_CATCHUP_WINDOWS = 400;' },
   { name: 'catchupNoBudget', edge: 'tick.js', why: 'the extra windows ignore the time budget', expect: /C4/,
     find: "        if (now() >= deadline) { stop = 'budget'; break; }", repl: '' },
-  { name: 'catchupPastRefusal', edge: 'tick.js', why: 'a skip does not end the catch-up (the stop is mis-reported)', expect: /C2a|C3/,
-    find: "        if (w.outcome !== 'processed') { stop = String(w.reason || w.outcome); break; }",
-    repl: "        if (w.outcome === 'refused') { stop = String(w.reason || w.outcome); break; }\n"
-      + "        if (w.outcome !== 'processed') continue;" },
+  { name: 'catchupCountsSkips', edge: 'tick.js', why: 'a visit that did not pay is counted as a caught-up window', expect: /C2a|C3/,
+    find: "        if (w.outcome !== 'processed') { stop = String(w.reason || w.outcome); break; }\n", repl: '' },
   { name: 'cronDropsCatchup', fn: 'cron', why: 'the driver does not post the catch-up dial', expect: /C5/,
     find: "                                   'catchup_windows', v_cfg.catchup_windows,\n", repl: '' },
   { name: 'foldPastLagJudge', raw: true, why: 'the CHECK admits a fold past the 15 min lag judge', expect: /C7/,
     sql: 'alter table public.hr_tick_config drop constraint hr_tick_config_fold_ck; alter table public.hr_tick_config add constraint hr_tick_config_fold_ck check (fold_windows between 1 and 40 and fold_windows <= catchup_windows);',
     restore: 'alter table public.hr_tick_config drop constraint hr_tick_config_fold_ck; alter table public.hr_tick_config add constraint hr_tick_config_fold_ck check (fold_windows between 1 and 8 and fold_windows <= catchup_windows);' },
+  // S4
+  { name: 'foldsOnline', fn: 'roster', why: 'an ONLINE player is held for a fold (a watching player sees no progress for 12 min)', expect: /F3/,
+    find: "                       and not coalesce(ps.last_seen_at >  now() - interval '75 seconds'\n"
+      + "                                    and ps.last_seen_at <= now() + interval '60 seconds', false)\n", repl: '' },
+  { name: 'foldsShadow', fn: 'roster', why: 'a SHADOW combat character is held for a fold it will never get', expect: /F3/,
+    find: "             case when a.armed and o.channel = 'gather'\n", repl: "             case when o.channel in ('gather', 'combat')\n" },
+  { name: 'noFoldWait', fn: 'roster', why: 'an away character is visited every flush (no ledger saving)', expect: /F3/,
+    find: '                  then v_fold else 1 end)\n', repl: '                  then 1 else 1 end)\n' },
+  { name: 'foldNoCoalesce', edge: 'tick-gather.js', why: 'the fold concatenates progress ops (hr_apply refuses > 64)', expect: /F1|F2/,
+    find: '    it.args.p_delta.progress = coalesceProgress(it.args.p_delta.progress);\n', repl: '' },
+  { name: 'foldIgnoresLevelUp', edge: 'tick.js', why: 'the fold chain runs through a level-up (renown/perks may move)', expect: /F5/,
+    find: '    if (levelledUp(session.skills, run.char.skills)) break;\n', repl: '' },
+  { name: 'foldChainsOnClock', edge: 'tick.js', why: 'the next folded window starts at the clock, not at the settled watermark', expect: /F1|F5/,
+    find: '    m = run.watermarkMs;\n', repl: '    m = to;\n' },
+  { name: 'foldInShadow', edge: 'tick.js', why: 'a SHADOW gather window folds (carrier and probes bypassed)', expect: /F6/,
+    find: '  const foldN = (probe.shadow === false && channel === GATHER_CHANNEL && maxWindows > 1)',
+    repl: '  const foldN = (channel === GATHER_CHANNEL && maxWindows > 1)' },
+  { name: 'foldCeiling', edge: 'tick.js', why: 'the edge fold ceiling drifts from the CHECK', expect: /F7/,
+    find: 'export const MAX_FOLD_WINDOWS = 8;', repl: 'export const MAX_FOLD_WINDOWS = 16;' },
 ];
 
 /** A patched COPY of the edge, imported fresh. Returns the module and its temp root. */
@@ -737,7 +966,8 @@ async function edgeCopy(file, find, repl, and) {
     await writeFile(join(dir, file), out, 'utf8');
   }
   const mod = await import(pathToFileURL(join(dir, 'tick.js')).href);
-  return { mod, base };
+  const gather = await import(pathToFileURL(join(dir, 'tick-gather.js')).href);
+  return { mod, gather, base };
 }
 
 console.log('\nworld-tick-scale --mutate: every mutant must go RED on its named arm');
@@ -754,7 +984,7 @@ for (const m of MUTANTS) {
     if (m.edge) {
       const c = await edgeCopy(m.edge, m.find, m.repl, m.and);
       tmp = c.base;
-      try { red = await arms(db, { log: false, tick: c.mod }); } catch (e) { red = [`threw: ${e.message}`]; }
+      try { red = await arms(db, { log: false, tick: c.mod, tickGather: c.gather }); } catch (e) { red = [`threw: ${e.message}`]; }
     } else if (m.raw) {
       if (!CONTROL) {
         try { await db.exec(m.sql); } catch (e) { console.error(`harness: ${m.name}: ${e.message}`); process.exit(2); }

@@ -7027,236 +7027,11 @@ function renderProfile(){
   if(window.HearthrisePresence && window.HearthrisePresence.inOfflineReplay
      && window.HearthrisePresence.inOfflineReplay()) return;
   generateDailyTasks(false);
-  /* user card */
-  const cl=getCombatLevel(),tl=getTotalLevel();
-  // b119: defensive null guards — these elements only exist when the
-  // Profile panel template has rendered. onAuthStateChange can fire
-  // before the DOM is built, which crashed renderProfile in a loop on
-  // older builds (v=111) and broke the auth UI.
-  const subEl = document.getElementById('dash-user-sub');
-  const bodyEl = document.getElementById('dash-user-body');
-  if (!subEl || !bodyEl) return; // Profile panel not in DOM yet — bail
-  subEl.textContent = (window.hrRecordPending?window.hrRecordPending():true) ? 'Lv — · Total —' : `Lv ${cl} · Total ${Number(tl).toLocaleString()}`;
-  bodyEl.innerHTML=`
-    ${(()=>{
-      // Auth-state resolution for the Profile dashboard:
-      // 1) live Supabase session takes precedence (the actual cloud login)
-      // 2) legacy guest G.account record
-      // 3) offline / no auth at all
-      const liveSess = (window.HearthriseAuth && window.HearthriseAuth.getSession && window.HearthriseAuth.getSession()) || null;
-      const liveUser = liveSess && liveSess.user;
-      // b466: route through the server-authoritative identity seam. The old
-      // fallback derived the name from (liveUser.email).split('@')[0], which
-      // rendered "themphill22" — the account email local-part — as the player's
-      // name (privacy defect + third divergent name source). _hrDisplayName
-      // never reads email: confirmed server name → G.playerName → 'Adventurer'.
-      const acctName = _hrDisplayName();
-      const isOnline = !!(liveUser || G.account);
-      /* b224: the last branch used to read "Offline play · sign in to sync",
-         which advertised a mode the game no longer has. Reaching it now means
-         the session lapsed mid-play — so it reports the truth about the
-         player's progress rather than pitching account-less play. */
-      /* b371: "cloud save active" was asserted from the SESSION alone — being
-         signed in was treated as proof that saving works. It is not: a live
-         player watched this line through four consecutive failed game_saves
-         upserts while production PostgREST killed writes. The claim now comes
-         from sync.js's WRITE channel (last confirmed upsert), which is the only
-         fact it was ever about. Unknown/failing states say so, honestly:
-         writes are full-snapshot upserts and self-heal, so the word is
-         "retrying", never "lost". */
-      const subtitle = liveUser ? ('Online · ' + cloudSaveLine().text) : (G.account ? 'Online · '+G.account.displayName : 'Offline · reconnect to keep playing');  /* b465 — see home-dashboard.js: the server owns progress, not this device. */
-      // b373: the pencil opens the in-game name modal (identity.js), NOT a
-      // native prompt() — see HearthriseLaunchpad.openRename for why.
-      // b138 #5 / b139 (QA §2.1.2): inline rename pencil is now available
-      // for ALL players, including cloud-signed-in. setDisplayName updates
-      // G.playerName which the cloud sync layer round-trips through
-      // user_metadata. Hiding it from cloud users defeated the whole
-      // point of the feature for the most likely user.
-      const canRename = true;
-      const renameBtn = canRename
-        ? `<button class="btn btn-icon btn-ghost" title="Rename" data-rename="1" onclick="window.HearthriseLaunchpad && window.HearthriseLaunchpad.openRename()" style="margin-left:6px;padding:2px 6px;font-size:calc(14.5px * var(--ui-scale, 1));opacity:.7">${_hrGly('uiEdit',13)}</button>`
-        : '';
-      return `<div class="activity-card">
-      <div class="ac-icon">${_hrGly('navCharacter',26)}</div>
-      <div style="flex:1;min-width:0">
-        <b>${escapeHtml(acctName || G.playerName)}${(window.HearthriseHearthfind&&window.HearthriseHearthfind.titleBadgeHtml&&window.HearthriseHearthfind.titleBadgeHtml())||''/* the earned Hearthfind title, from hr_state_of's projection ONLY; '' when the server has granted none */}${renameBtn}</b>
-        <span>${subtitle}</span>
-      </div>
-      ${isOnline?'':'<button class="btn btn-sm btn-primary" onclick="openSettings()">Sign in</button>'}
-    </div>`;
-    })()}
-    <div class="kpi-row">
-      <div class="kpi"><b>${cl}</b><span>Combat</span></div>
-      <div class="kpi"><b>${tl}</b><span>Total Level</span></div>
-      <div class="kpi"><b>${balMarkup('gold')}</b><span>Gold</span></div>
-      <div class="kpi"><b>${G.stats.kills||0}</b><span>Kills</span></div>
-    </div>`;
-
-  /* current activity */
-  const activeName=G.activeMonster?MONSTERS[G.activeMonster]?.name:G.activeSkill?SKILLS_DEF[G.activeSkill]?.name:'Idle';
-  document.getElementById('dash-active-sub').textContent=activeName;
-  let activityHtml='';
-  if(G.activeMonster){
-    const m=MONSTERS[G.activeMonster];
-    const php=Math.max(0,(G.playerHp/G.playerMaxHp)*100),mhp=Math.max(0,(G.monsterHp/G.monsterMaxHp)*100);
-    activityHtml=`
-      <div class="arena" style="margin-bottom:8px">
-        <div class="fighter"><div class="portrait">${_hrGly('navCharacter',30)}</div><div class="fname">You</div><div class="fhp">${G.playerHp}/${G.playerMaxHp}</div><div class="bar hp"><i style="width:${php}%"></i></div></div>
-        <div class="vs">${_hrGly('navCombat',18)}</div>
-        <div class="fighter enemy"><div class="portrait">${monsterArt(G.activeMonster,30)}</div><div class="fname">${m.name}</div><div class="fhp">${G.monsterHp}/${G.monsterMaxHp}</div><div class="bar hp"><i style="width:${mhp}%"></i></div></div>
-      </div>
-      <button class="btn btn-block btn-danger" onclick="stopCombat()">Stop Combat</button>`;
-  } else if(G.activeSkill){
-    const sd=SKILLS_DEF[G.activeSkill];const lv=getLevel(G.activeSkill);const pct=xpPct(skillXp(G.activeSkill))*100;
-    activityHtml=`
-      <div class="activity-card">
-        <div class="ac-icon">${skillIconHTML(G.activeSkill,34)}</div>
-        <div style="flex:1"><b>Training ${sd.name}</b><span>Level ${lv}</span></div>
-      </div>
-      <div class="bar xp" style="margin:4px 0 8px"><i style="width:${pct.toFixed(1)}%"></i></div>
-      <button class="btn btn-block btn-danger" onclick="stopSkill()">Stop</button>`;
-  } else {
-    // b138 #1: Resume last activity. If we have a recent stop, surface
-    // a one-click resume button above the generic launchers.
-    let resumeHtml = '';
-    if(window.HearthriseLaunchpad && typeof window.HearthriseLaunchpad.getResumePayload === 'function'){
-      const payload = window.HearthriseLaunchpad.getResumePayload();
-      if(payload){
-        resumeHtml = `<div class="activity-card" style="margin-bottom:8px;border:1px solid var(--accent,#7f9a4f);background:rgba(127,154,79,0.06)">
-          <div class="ac-icon">${payload.iconHtml || _hrGly('uiIdle',22)}</div>
-          <div style="flex:1;min-width:0"><b>${escapeHtml(payload.label)}</b><span class="tiny muted">Pick up where you left off</span></div>
-          <button class="btn btn-sm btn-primary" onclick="window.HearthriseLaunchpad.resume()">Resume</button>
-        </div>`;
-      }
-    }
-    activityHtml=resumeHtml + `
-      <div class="empty"><span class="em-icon">${_hrGly('uiIdle',16)}</span>No active task. Pick something to do.</div>
-      <div class="kpi-row" style="margin-top:6px">
-        <button class="btn tap" onclick="showTab('combat')">${_hrGly('navCombat',15)} Combat</button>
-        <button class="btn tap" onclick="showTab('skills')">${_hrGly('navSkills',15)} Skills</button>
-        <button class="btn tap" onclick="showTab('farming')">${_hrGly('navFarm',15)} Farm</button>
-        <button class="btn tap" onclick="showTab('shops')">${_hrGly('navStore',15)} Store</button>
-      </div>`;
-  }
-  /* b227: says "base rate" out loud, for the same reason the welcome-back toast
-     does. NOTE (discovery, filed): this whole `#dash-active` block is
-     `display:none` on the live Home — home-dashboard.js replaced it in b219 —
-     so this line, b225's burn count and b226's budget readout are all currently
-     invisible. Kept correct rather than silently divergent; the visible surface
-     is the toast in processOffline(). */
-  if(G.lastOfflineSummary)activityHtml+=`<div class="muted tiny" style="margin-top:8px">Offline: ${G.lastOfflineSummary.hrs}h, +${G.lastOfflineSummary.gainedItems} items, +${G.lastOfflineSummary.gainedXp} XP${G.lastOfflineSummary.burnt?`, ${G.lastOfflineSummary.burnt} burnt on the fire`:''} · at the base rate. Blessings apply while online.</div>`;
-  document.getElementById('dash-active-body').innerHTML=activityHtml;
-
-  /* b138 #2 / b139 (QA §2.1.3): Today's progress card.
-     Layout note: the default `.kpi-row` is `repeat(2, 1fr)` which with
-     5-6 cells overflows the card body and forces internal scroll. We
-     override with a 3-column grid so 6 cells fit cleanly in 2 rows. */
-  const todayBody = document.getElementById('dash-today-body');
-  const todaySub = document.getElementById('dash-today-sub');
-  if(todayBody){
-    const d = (window.HearthriseLaunchpad && window.HearthriseLaunchpad.getTodayDelta)
-      ? window.HearthriseLaunchpad.getTodayDelta()
-      : null;
-    if(d){
-      const cells = [
-        {b: '+'+d.xpGained.toLocaleString(),    s:'XP'},
-        {b: '+'+d.goldEarned.toLocaleString(),  s:'Gold'},
-        {b: d.kills.toLocaleString(),           s:'Kills'},
-        {b: d.gathered.toLocaleString(),        s:'Gathered'},
-        {b: d.harvested.toLocaleString(),       s:'Harvested'},
-      ];
-      if(d.deedsDropped > 0) cells.push({b: '+'+d.deedsDropped, s:'Deeds'});
-      todayBody.innerHTML = `<div class="kpi-row" style="grid-template-columns:repeat(3,1fr)">${cells.map(c=>`<div class="kpi"><b>${c.b}</b><span>${c.s}</span></div>`).join('')}</div>`;
-      if(todaySub){
-        const total = d.xpGained + d.goldEarned + d.kills + d.gathered + d.harvested;
-        todaySub.textContent = total > 0 ? 'Live' : 'Quiet day so far';
-      }
-    } else {
-      todayBody.innerHTML = '<div class="empty"><span class="em-icon">'+_hrGly('uiTrend',16)+'</span>Stats start tomorrow</div>';
-    }
-  }
-
-  /* b138 #3: Next milestone card — closest skill or quest. */
-  const milestoneBody = document.getElementById('dash-milestone-body');
-  const milestoneSub = document.getElementById('dash-milestone-sub');
-  if(milestoneBody){
-    const m2 = (window.HearthriseLaunchpad && window.HearthriseLaunchpad.getNextMilestone)
-      ? window.HearthriseLaunchpad.getNextMilestone()
-      : null;
-    if(m2){
-      const pct = Math.floor((m2.pct||0) * 100);
-      const togo = Math.max(0, (m2.target|0) - (m2.current|0));
-      milestoneBody.innerHTML = `
-        <div class="activity-card" style="cursor:pointer" onclick="(${(m2.deepLink||function(){}).toString()})()">
-          <div class="ac-icon">${m2.icon}</div>
-          <div style="flex:1;min-width:0">
-            <b>${escapeHtml(m2.label)}</b>
-            <span>${togo.toLocaleString()} ${m2.kind==='skill'?'XP':''} to go · ${pct}%</span>
-            <div class="bar xp" style="margin-top:4px"><i style="width:${pct}%"></i></div>
-          </div>
-        </div>`;
-      if(milestoneSub) milestoneSub.textContent = m2.kind === 'skill' ? 'Skill' : 'Quest';
-    } else {
-      milestoneBody.innerHTML = '<div class="empty"><span class="em-icon">'+_hrGly('uiCheck',16)+'</span>All milestones cleared</div>';
-      if(milestoneSub) milestoneSub.textContent = '—';
-    }
-  }
-
-  /* objectives */
-  const all=[...(G.daily?.tasks||[]),...(G.quests||[])];
-  const open=all.filter(q=>!q.done),done=all.filter(q=>q.done);
-  /* A quest step's number is the server's count (CLAIM-FROM-SERVER), the
-     pending dash while unknown; daily tasks keep their own count. */
-  const objCount=q=>{
-    if(!(G.quests||[]).includes(q))return Math.min(q.progress||0,q.goal);
-    const n=hrQuestServerCount(q);
-    return n===null?(window.HearthriseBalance?.countMarkup?.(null,{label:'Not counted yet'})??'—'):Math.min(n,q.goal);
-  };
-  document.getElementById('dash-obj-sub').textContent=`${done.length}/${all.length} done`;
-  /* b215: Season Pass card removed along with the pass itself. */
-  document.getElementById('dash-objectives-body').innerHTML=`
-    <div class="objective-list">
-      ${open.slice(0,6).map(q=>`<div class="obj"><span>${_hrGly('uiScroll',13)} ${q.label}</span><b>${objCount(q)}/${q.goal}</b></div>`).join('')}
-      ${done.slice(0,3).map(q=>`<div class="obj done"><span>${_hrGly('uiCheck',13)} ${q.label}</span><b>Done</b></div>`).join('')}
-    </div>`;
-
-  /* skills board */
-  document.getElementById('dash-skills-sub').textContent=`Total: ${tl}`;
-  document.getElementById('dash-skills-body').innerHTML=`
-    <div class="skill-board">
-      ${Object.entries(SKILLS_DEF).map(([id,s])=>{
-        const xp=skillXp(id),lv=getLevel(id),pct=Math.floor(xpPct(xp)*100);
-        return `<button class="skill-tile ${G.activeSkill===id?'active':''}" onclick="showTab('skills');openSkillDetail('${id}')"><span class="sicon">${skillIconHTML(id,34)}</span><span class="slv">Lv ${lv}</span><div class="bar xp"><i style="width:${pct}%"></i></div><span class="snm">${s.name}</span></button>`;
-      }).join('')}
-    </div>`;
-
-  /* homestead */
-  const plots=Array.from({length:8}).map((_,i)=>{
-    /* blob-retire capstone: guard an undefined farm (armed, pre-first-envelope)
-       so the homestead render shows empty plots instead of throwing. */
-    const p=(G.farmPlots||[])[i];
-    if(!p)return `<div class="farm-tile empty"><span>${_hrGly('uiPlus',18)}</span><small>Empty</small></div>`;
-    const crop=CROPS[p.cropId];
-    /* b220: this second render site used to hide dry progress behind the word
-       "Water" exactly like the farm panel did. Both now read plotPct(). */
-    const ready=p.state==='ready'||plotIsReady(p);
-    const lab=ready?'Ready':`${plotPct(p)}%`;
-    /* was `crop.icon` — and the data proves why that layer had to go: turnip
-       and carrot both carry 🥕, so two different crops drew the same picture. */
-    return `<div class="farm-tile ${ready?'ready':''} ${!ready&&plotWindowMs(p)>0?'watered':''}"><span>${itemArt(crop.prod,26)}</span><small>${lab}</small></div>`;
-  }).join('');
-  const roomLevels=Object.values(roomsMapG()).reduce((a,b)=>a+(b||0),0);
-  document.getElementById('dash-homestead-body').innerHTML=`
-    <div class="hmstead-grid">
-      <div class="hmstead-col">
-        <div class="row between" style="margin-bottom:8px"><b>${_hrGly('navFarm',14)} Plots</b><button class="btn btn-sm" onclick="showTab('farming')">Open</button></div>
-        <div class="farm-mini" style="grid-template-columns:repeat(8,1fr)">${plots}</div>
-      </div>
-      <div class="hmstead-col">
-        <div class="row between" style="margin-bottom:8px"><b>${_hrGly('navHouse',14)} House</b><button class="btn btn-sm" onclick="showTab('house')">Open</button></div>
-        <div class="muted tiny" style="line-height:1.6">Theme: <b>${HOUSE_THEMES.find(t=>t.id===window.activeHouseTheme())?.name||'Cozy Cottage'}</b><br>${roomLevels} room levels · ${G.plotBuildings.length} plot builds</div>
-      </div>
-    </div>`;
+  /* The Home screen itself is src/features/home-dashboard.js (#hd-root), which
+     paints on showTab('profile') and on its own refresh tick. The legacy dash
+     cards this function used to fill are deleted (2026-10-08); it stays as the
+     hook the profile-scoped wrappers (companions, active effects, identity)
+     chain onto. */
 }
 
 /* ────────────────────────────────────────────────
@@ -15020,8 +14795,6 @@ console.log('UI rework v2 loaded');
 (function(){
 "use strict";
 
-document.body.classList.add('has-prof-toolbar');
-
 /* ═══ Tibia paper-doll builder ═══════════════════════════ */
 // b190: monochrome line-glyphs for EMPTY equipment slots. The old colorful
 // emoji placeholders (⛑️📿💎…) clashed hard with the painted dark theme —
@@ -15120,40 +14893,6 @@ function refreshAllDolls(){
   });
 }
 
-/* ═══ Profile: top toolbar with Objectives + Lifetime Stats + others ═══ */
-function buildProfileToolbar(){
-  var panel = document.getElementById('panel-profile');
-  if(!panel) return;
-  if(panel.querySelector('.prof-toolbar')) return;
-
-  /* Active objective count */
-  var quests = (G.quests && G.quests.list) || [];
-  var activeQuestCount = quests.filter(function(q){return !q.done;}).length;
-  var dailyCount = ((G.dailyTasks||{}).list||[]).filter(function(t){return !t.done;}).length;
-  var pendingObj = activeQuestCount + dailyCount;
-
-  var bar = document.createElement('div');
-  bar.className = 'prof-toolbar';
-  bar.innerHTML =
-    '<button class="tb-btn" id="tb-objectives">'+_hrGly('uiScroll',14)+' Objectives'+(pendingObj>0?' <span class="tb-badge">'+pendingObj+'</span>':'')+'</button>'+
-    '<button class="tb-btn" onclick="openAchievements()">'+_hrGly('uiTrophy',14)+' Achievements</button>'+
-    '<button class="tb-btn" onclick="openBestiary()">'+_hrGly('uiBook',14)+' Bestiary</button>'+
-    '<button class="tb-btn" onclick="openLifetimeStats && openLifetimeStats()">'+_hrGly('uiTrend',14)+' Lifetime</button><button class="tb-btn" id="tb-codex" onclick="window.HearthriseCodex&&HearthriseCodex.open()">'+_hrGly('uiScroll',14)+' Codex</button>';
-  panel.insertBefore(bar, panel.firstChild);
-  document.getElementById('tb-objectives').addEventListener('click', openObjectivesPopout);
-  /* Suppress old feat-buttons row since toolbar replaces it */
-  var featRow = panel.querySelector('.feat-buttons');
-  if(featRow) featRow.style.display = 'none';
-}
-/* b40x render-layer extraction: openObjectivesPopout — the Profile "Objectives"
-   popout overlay — moved VERBATIM to src/render/objectives-popout.js
-   (classic-script IIFE, loaded after legacy.js). Read-only: it mirrors the
-   #dash-objectives card innerHTML into a modal and writes no game state. Its sole
-   caller, buildProfileToolbar above, wires it via addEventListener with the bare
-   identifier, which resolves to window.openObjectivesPopout re-exported by the
-   module. Pure refactor, byte-identical DOM. See
-   docs/design/render-extraction-pattern.md. */
-
 /* Daily Goals → Daily Quests rename in DOM */
 function renameDailyGoals(){
   document.querySelectorAll('.card-title, h3, h4, b').forEach(function(el){
@@ -15251,7 +14990,6 @@ function patchSkillsViewing(){
 
 /* ═══ Boot — apply all patches ═══ */
 function applyAll(){
-  buildProfileToolbar();
   renameDailyGoals();
   patchCharacterPage();
   patchCombatPage();
@@ -15269,7 +15007,6 @@ setTimeout(applyAll, 1200);
   window[name] = function(){
     var r = orig.apply(this, arguments);
     setTimeout(function(){
-      buildProfileToolbar();
       renameDailyGoals();
       patchCharacterPage();
       patchCombatPage();
@@ -16066,7 +15803,7 @@ var TESTS = [
   function(){return tryRun('renders: profile', function(){
     showTab('profile');
     if(typeof renderProfile === 'function') renderProfile();
-    assert(document.getElementById('dash-user'), 'dash-user missing');
+    assert(document.getElementById('hd-root'), 'hd-root missing');
   });},
 
   function(){return tryRun('renders: farm + house', function(){

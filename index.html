@@ -396,57 +396,8 @@
     </header>
 
     <!-- ── PROFILE ── -->
+    <!-- Home is drawn by src/features/home-dashboard.js (#hd-root). -->
     <section class="panel active" id="panel-profile">
-      <div class="card dash-user" id="dash-user">
-        <div class="card-head">
-          <div class="card-title">Profile</div>
-          <span class="card-sub" id="dash-user-sub">Lv —</span>
-        </div>
-        <div class="card-body" id="dash-user-body"></div>
-      </div>
-      <!-- b138: Profile launchpad — Today's Progress + Next Milestone -->
-      <div class="card dash-today" id="dash-today">
-        <div class="card-head">
-          <div class="card-title">Today</div>
-          <span class="card-sub" id="dash-today-sub">Since midnight</span>
-        </div>
-        <div class="card-body" id="dash-today-body"></div>
-      </div>
-      <div class="card dash-milestone" id="dash-milestone">
-        <div class="card-head">
-          <div class="card-title">Next Milestone</div>
-          <span class="card-sub" id="dash-milestone-sub">—</span>
-        </div>
-        <div class="card-body" id="dash-milestone-body"></div>
-      </div>
-      <div class="card dash-active" id="dash-active">
-        <div class="card-head">
-          <div class="card-title">Current Activity</div>
-          <span class="card-sub" id="dash-active-sub">Idle</span>
-        </div>
-        <div class="card-body" id="dash-active-body"></div>
-      </div>
-      <div class="card dash-objectives" id="dash-objectives">
-        <div class="card-head">
-          <div class="card-title">Objectives</div>
-          <span class="card-sub" id="dash-obj-sub">Daily</span>
-        </div>
-        <div class="card-body" id="dash-objectives-body"></div>
-      </div>
-      <div class="card dash-skills" id="dash-skills">
-        <div class="card-head">
-          <div class="card-title">Skills</div>
-          <span class="card-sub" id="dash-skills-sub">Total: 19</span>
-        </div>
-        <div class="card-body" id="dash-skills-body"></div>
-      </div>
-      <div class="card dash-homestead" id="dash-homestead">
-        <div class="card-head">
-          <div class="card-title">Homestead</div>
-          <span class="card-sub">Farm + House</span>
-        </div>
-        <div class="card-body" id="dash-homestead-body"></div>
-      </div>
     </section>
 
     <!-- ── CHARACTER (skills + calculators) ── -->
@@ -1194,11 +1145,6 @@
        AND the Combat War Table both call it. State-mutating handlers (unequip/
        unequipCompanion) stay global in legacy.js. -->
   <script src="src/render/equipment-doll.js?v=564"></script>
-  <!-- Profile "Objectives" popout — render-layer extraction out of legacy.js;
-       read-only overlay that mirrors the #dash-objectives card into a modal.
-       Re-exports window.openObjectivesPopout (sole caller: buildProfileToolbar's
-       addEventListener in legacy.js). Writes no game state. -->
-  <script src="src/render/objectives-popout.js?v=564"></script>
   <!-- Shop / IAP store controller — 9th render-layer extraction out of
        legacy.js (task #129 Phase 3.5). Re-exports window.renderShop; paints
        #iap-panel + #shop-panel from G/catalogue data. Purchase handlers stay

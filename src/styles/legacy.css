@@ -322,11 +322,6 @@ img,svg{display:block;max-width:100%}
   gap:var(--gap);
   overflow-y:auto;
 }
-.dash-user{grid-column:1;grid-row:1}
-.dash-active{grid-column:2;grid-row:1}
-.dash-objectives{grid-column:3;grid-row:1 / span 2}
-.dash-skills{grid-column:1 / span 2;grid-row:2}
-.dash-homestead{grid-column:1 / span 3;grid-row:3}
 
 .kpi-row{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
 .kpi{
@@ -366,14 +361,6 @@ img,svg{display:block;max-width:100%}
 .activity-card b{font-size:calc(17px * var(--ui-scale, 1));display:block}
 .activity-card span{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-2);display:block}
 
-.objective-list{display:grid;gap:5px}
-.obj{
-  display:flex;align-items:center;justify-content:space-between;gap:8px;
-  background:rgba(255,255,255,.035);border:1px solid var(--line-soft);
-  border-radius:var(--r-sm);padding:7px 9px;font-size:calc(14.5px * var(--ui-scale, 1));
-}
-.obj.done{background:var(--green-bg);border-color:rgba(63,185,80,.32);color:#a6e0aa}
-.obj b{color:var(--ink-2);font-weight:700;font-size:calc(14.5px * var(--ui-scale, 1))}
 
 .farm-mini{
   display:grid;grid-template-columns:repeat(4,1fr);gap:5px;
@@ -674,11 +661,6 @@ img,svg{display:block;max-width:100%}
     grid-template-rows:auto auto auto auto;
     overflow-y:auto;
   }
-  .dash-user{grid-column:1;grid-row:1}
-  .dash-active{grid-column:2;grid-row:1}
-  .dash-skills{grid-column:1 / span 2;grid-row:2}
-  .dash-homestead{grid-column:1 / span 2;grid-row:3}
-  .dash-objectives{grid-column:1 / span 2;grid-row:4}
   #panel-combat.active{
     grid-template-columns:minmax(200px,240px) minmax(0,1fr);
   }
@@ -706,10 +688,6 @@ img,svg{display:block;max-width:100%}
   .card{margin-bottom:8px;max-height:none;overflow:visible}
   .card-body{overflow:visible}
 
-  /* profile becomes a stack */
-  .dash-user,.dash-active,.dash-objectives,.dash-skills,.dash-homestead{
-    grid-column:auto;grid-row:auto;
-  }
   .skill-board{grid-template-columns:repeat(auto-fill,minmax(82px,1fr))}
   .skill-tile{min-height:74px;padding:7px 4px}
   .skill-tile .sicon{font-size:calc(24.5px * var(--ui-scale, 1))}
@@ -1541,10 +1519,6 @@ body[data-theme="lane1"] .item-slot{color:#4d2613}
 body[data-theme="lane1"] .item-slot .qty,
 body[data-theme="lane1"] .inv-item .qty,
 body[data-theme="lane1"] .inv-slot .qty{color:#5b2618 !important;text-shadow:1px 1px 0 #fff;font-weight:800}
-body[data-theme="lane1"] .obj{color:#7a4623 !important}
-body[data-theme="lane1"] .obj b{color:#4d2613 !important}
-body[data-theme="lane1"] .obj.done{color:#5e9f4a !important;text-decoration:line-through;text-decoration-color:rgba(94,159,74,.5)}
-body[data-theme="lane1"] .obj.done b{color:#5e9f4a !important}
 body[data-theme="lane1"] .bounty-option{background:linear-gradient(180deg,#fdde98,#f8d878);border:2px solid #5b2618;color:#4d2613}
 body[data-theme="lane1"] .bounty-option:hover{background:#fff5d6;border-color:#e8a838}
 body[data-theme="lane1"] .bounty-reward{color:#5b2618 !important;font-weight:800}
@@ -1623,17 +1597,6 @@ body[data-theme="lane1"] .topbar .ab-name{color:#fdde98 !important;text-shadow:1
 body[data-theme="lane1"] .topbar small{color:#f9c54e !important;text-shadow:1px 1px 0 #3a1812}
 body[data-theme="lane1"] .idle-hint,
 body[data-theme="lane1"] .topbar .idle-hint{color:#fdde98 !important;text-shadow:1px 1px 0 #3a1812}
-
-/* ===== block 10: hmstead-widget ===== */
-.hmstead-grid{
-  display:grid;
-  grid-template-columns:minmax(0,2fr) minmax(220px,1fr);
-  gap:16px;align-items:start;
-}
-.hmstead-col{display:flex;flex-direction:column;min-width:0}
-@media (max-width: 900px), (max-height: 540px) and (max-width: 1024px) {
-  .hmstead-grid{grid-template-columns:1fr;gap:10px}
-}
 
 /* ===== block 11: cozy-dark-theme ===== */
 /* ═══ COZY DARK theme — mirrors warm cozy vocabulary on dark stained wood ═══
@@ -1903,10 +1866,6 @@ body[data-theme="dark"] .combat-log .rare,
 body[data-theme="dark"] .clog .rare{color:#f9c54e !important;font-weight:800;text-shadow:1px 1px 0 #2a1306}
 
 /* ─── Quest objectives ─── */
-body[data-theme="dark"] .obj{color:#e8c896 !important}
-body[data-theme="dark"] .obj b{color:#f9c54e !important}
-body[data-theme="dark"] .obj.done{color:#8bc26a !important;text-decoration:line-through;text-decoration-color:rgba(139,194,106,.5)}
-body[data-theme="dark"] .obj.done b{color:#8bc26a !important}
 
 /* ─── KPI / stat tiles ─── */
 body[data-theme="dark"] .kpi{background:linear-gradient(180deg,#4d2418,#3a1812);border-color:#2a1306}
@@ -2294,18 +2253,11 @@ body[data-theme="dark"] .lane1-toggle{
 .inv-slot,.inv-item{min-height:44px;padding:3px}
 .inv-slot .qty,.inv-item .qty{font-size:calc(14.5px * var(--ui-scale, 1))}
 
-/* ─── Hide Profile widgets that moved to Character ─── */
-body.hide-profile-overflow #dash-active,
-body.hide-profile-overflow #dash-skills,
-body.hide-profile-overflow #dash-homestead{display:none !important}
-
 /* Profile becomes a 2-column grid since we removed bottom widgets */
 body.hide-profile-overflow #panel-profile.active{
   grid-template-columns:minmax(280px,1fr) minmax(280px,1fr) !important;
   grid-template-rows:auto auto !important;
 }
-body.hide-profile-overflow .dash-user{grid-column:1;grid-row:1}
-body.hide-profile-overflow .dash-objectives{grid-column:2;grid-row:1 / span 2}
 body.hide-profile-overflow #daily-goals-host{grid-column:1;grid-row:2}
 
 /* ─── Character page additions ─── */
@@ -2450,36 +2402,6 @@ body.hide-profile-overflow #daily-goals-host{grid-column:1;grid-row:2}
    one of them was overridden by an inline style, so the block was a decoy that
    read like the source of truth. The positions come from
    src/render/doll-layout.js and are applied inline by the renderer. */
-
-/* ─────── PROFILE: toolbar popouts ─────── */
-.prof-toolbar{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
-.prof-toolbar .tb-btn{
-  padding:8px 12px;background:linear-gradient(180deg,rgba(243,209,129,.12),rgba(243,209,129,.04));
-  border:1px solid rgba(243,209,129,.30);border-radius:6px;color:var(--gold-2);
-  font-size:calc(14.5px * var(--ui-scale, 1));font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;
-  display:inline-flex;align-items:center;gap:6px;
-}
-.prof-toolbar .tb-btn:hover{background:rgba(243,209,129,.18);border-color:var(--gold-2)}
-.prof-toolbar .tb-btn .tb-badge{
-  background:#e8746a;color:#fff;font-size:calc(14.5px * var(--ui-scale, 1));border-radius:99px;padding:1px 6px;font-weight:800;
-}
-/* Popout overlay */
-.prof-popout{background:rgba(0,0,0,.6);z-index:9998;display:none;align-items:center;justify-content:center}
-.prof-popout.show{display:flex}
-.prof-popout-inner{max-width:600px;width:100%;background:var(--bg-card);border:3px solid var(--gold-2);border-radius:var(--r);padding:18px}
-.prof-popout-inner h3{margin:0 0 10px;font-family:var(--f-display);color:var(--gold-2);font-size:calc(21.5px * var(--ui-scale, 1))}
-.prof-popout-close{display:block;width:100%;padding:8px;background:transparent;border:1px solid var(--line);color:var(--ink-2);border-radius:6px;cursor:pointer;font-weight:700;margin-top:10px}
-
-/* Restructure profile grid since objectives is removed */
-body.hide-profile-overflow.has-prof-toolbar #panel-profile.active{
-  grid-template-columns:minmax(280px,1fr) minmax(280px,1fr) !important;
-  grid-template-rows:auto auto !important;
-}
-body.hide-profile-overflow.has-prof-toolbar .dash-objectives{display:none !important}
-body.hide-profile-overflow.has-prof-toolbar .dash-user{grid-column:1;grid-row:1}
-body.hide-profile-overflow.has-prof-toolbar #daily-goals-host{grid-column:2;grid-row:1}
-body.hide-profile-overflow.has-prof-toolbar #panel-active-effects,
-body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;grid-row:2}
 
 /* ─────── SKILLS PAGE: side-by-side ─────── */
 #panel-skills.active{
@@ -3043,18 +2965,6 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 .stable-card.equipped .sc-equip{background:rgba(198,58,58,.18);border-color:rgba(198,58,58,.35);color:#e88a8a}
 .stable-card .sc-source{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);font-style:italic;margin-top:auto}
 
-.companion-card{
-  display:flex;align-items:center;gap:12px;
-  padding:10px 14px;background:linear-gradient(180deg,rgba(127,154,79,.10),rgba(0,0,0,0));
-  border:1px solid rgba(127,154,79,.3);border-radius:8px;
-}
-.companion-card .cc-icon{font-size:calc(33px * var(--ui-scale, 1))}
-.companion-card .cc-info{flex:1;min-width:0}
-.companion-card .cc-name{font-family:var(--f-display);font-weight:800;color:var(--gold-2);font-size:calc(16px * var(--ui-scale, 1))}
-.companion-card .cc-meta{font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3);margin-top:2px}
-.companion-card .cc-bar{height:4px;background:rgba(0,0,0,.3);border-radius:2px;margin-top:4px;overflow:hidden}
-.companion-card .cc-bar i{display:block;height:100%;background:linear-gradient(90deg,#7f9a4f,#7f9a4f)}
-
 /* ===== block 26: visual-polish-v1 ===== */
 /* Activity tile icons — bigger */
 .act-tile .at-icon img{
@@ -3096,20 +3006,6 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
   object-fit:contain;
 }
 
-/* Trim profile placeholder cards — they're empty and way too tall */
-#panel-profile .card.dash-active,
-#panel-profile #dash-objectives,
-#panel-profile #dash-skills,
-#panel-profile #dash-homestead{
-  min-height:auto;
-}
-#panel-profile .dash-active .card-body:empty,
-#panel-profile #dash-objectives-body:empty,
-#panel-profile #dash-skills-body:empty,
-#panel-profile #dash-homestead-body:empty{
-  min-height:60px;
-}
-
 /* ===== block 27: visual-polish-v2 ===== */
 /* Skill nav icons — bigger and clearer at nav-tile size */
 .skill-tile img{
@@ -3122,13 +3018,6 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 }
 .skill-tile{
   min-height:130px;
-}
-
-/* Hide empty Profile dashboard placeholder cards (Objectives/Achievements/Bestiary/Lifetime stubs) */
-#dash-objectives:has(#dash-objectives-body:empty),
-#dash-skills:has(#dash-skills-body:empty),
-#dash-homestead:has(#dash-homestead-body:empty){
-  display:none !important;
 }
 
 /* b217: paired with the ::before removal above — the navy scrim went with it. */
@@ -3357,23 +3246,15 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
   align-content:start;
   gap:10px !important;
 }
-/* Profile card spans the left column */
-#panel-profile #dash-user{grid-column:1;grid-row:1}
-/* Daily goals stack BELOW profile (not on top of it) */
+/* Daily goals stack in the left column */
 #panel-profile #daily-goals-host{grid-column:1;grid-row:2}
-/* Right column: active activity at top, then objectives/skills/homestead/active-effects */
-#panel-profile #dash-active{grid-column:2;grid-row:1}
-#panel-profile #dash-objectives,
-#panel-profile #dash-skills,
-#panel-profile #dash-homestead,
+/* Right column: active effects */
 #panel-profile #active-effects-card{grid-column:2}
 #daily-goals-host{position:relative}
 /* Prevent the feat-buttons row + placeholder cards from overlapping */
 #panel-profile .feat-buttons{grid-column:1/-1}
 
 /* ===== block 31: quests-promotion-css ===== */
-/* Hide redundant placeholder cards on Profile */
-#dash-active, #dash-objectives, #dash-skills, #dash-homestead { display: none !important; }
 #panel-profile #daily-goals-host { display: none !important; }
 
 /* Global Quests strip — slim header, clickable to open modal */

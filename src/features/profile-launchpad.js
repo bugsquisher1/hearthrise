@@ -167,7 +167,7 @@
   function getResumePayload(){
     if(!window.G || !window.G.lastActivity) return null;
     // If something else is already running, hide the resume card — the
-    // dash-active panel will show the live status anyway.
+    // Home's current-activity row will show the live status anyway.
     if(window.G.activeSkill || window.G.activeMonster) return null;
     var la = window.G.lastActivity;
     if(la.kind === 'skill' && window.SKILLS_DEF && window.SKILLS_DEF[la.id]){

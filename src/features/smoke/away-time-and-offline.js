@@ -4046,18 +4046,6 @@ export default [
          paint. Every grant used to repaint this dashboard and the quest strip.
          The contract: inside the latch these are no-ops; processOffline()
          repaints once when it opens. */
-      const sub = document.getElementById('dash-user-sub');
-      if (sub) {
-        const before = sub.textContent;
-        sub.textContent = '__replay_probe__';
-        P._withOfflineReplay(() => { window.renderProfile(); });
-        assert(sub.textContent === '__replay_probe__',
-          'renderProfile must not repaint inside the away-replay latch');
-        window.renderProfile();
-        assert(sub.textContent !== '__replay_probe__',
-          'renderProfile must repaint normally once the latch opens — the skip must be lossless');
-        if (sub.textContent !== before) { /* recomputed from live state; fine */ }
-      }
       assert(typeof window.renderQuestStrip === 'function',
         'the quest strip must be published so processOffline can repaint it exactly once');
       const strip = document.getElementById('global-quests-strip');
@@ -5388,12 +5376,10 @@ export default [
          header with a stubbed session, because "the data is right" is precisely
          the assertion this repo keeps mistaking for "the player is told the
          truth". */
-      const body = document.getElementById('dash-user-body');
-      if (body && typeof window.renderProfile === 'function') {
-        window.HearthriseAuth = { ...(savedAuth || {}), getSession: () => ({ user: { email: 'probe@example.invalid' } }) };
-        try { window.renderProfile(); } catch (e) {}
-        assert(!/cloud save active/i.test(body.textContent),
-          'the header still says "cloud save active" with four failed upserts behind it: ' + body.textContent.slice(0, 160));
+      if (typeof window.cloudSaveLine === 'function') {
+        const head = window.cloudSaveLine().text;
+        assert(!/cloud save active/i.test(head),
+          'Home\'s save line (cloudSaveLine) still says "cloud save active" with four failed upserts behind it: ' + head);
       }
 
       /* SURFACE 2 — Settings > Account. This one was a HARDCODED string

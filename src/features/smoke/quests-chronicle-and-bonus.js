@@ -2410,17 +2410,22 @@ export default [
   }),
 
   () => tryRun('B373-1b: the Profile rename pencil is wired to openRename, not to a prompt()', () => {
-    if (typeof window.renderProfile !== 'function') return;
-    try { window.renderProfile(); } catch (e) {}
-    const body = document.getElementById('dash-user-body');
-    if (!body) return;
-    const pencil = body.querySelector('button[title="Rename"]');
-    assert(pencil != null, 'expected the rename pencil in dash-user-body, none found');
-    const onclick = pencil.getAttribute('onclick') || '';
-    assert(!/prompt\s*\(/.test(onclick),
-      'the pencil markup still calls prompt() inline — that is the exact b373 freeze, shipped in an attribute');
-    assert(/openRename/.test(onclick),
-      'the pencil no longer calls HearthriseLaunchpad.openRename() — it asks by some other means: ' + onclick);
+    window.showTab('profile');
+    window.HearthriseHome.render();
+    const pencil = document.querySelector('#hd-root .hd-rename[data-hd="rename"]');
+    assert(pencil != null, 'expected the rename pencil on Home, none found');
+    assert(!/prompt\s*\(/.test(pencil.getAttribute('onclick') || ''),
+      'the pencil markup calls prompt() inline — that is the exact b373 freeze, shipped in an attribute');
+    const LP = window.HearthriseLaunchpad;
+    const realRename = LP && LP.openRename, realPrompt = window.prompt;
+    let renamed = 0, prompted = 0;
+    try {
+      LP.openRename = () => { renamed++; };
+      window.prompt = () => { prompted++; return null; };
+      pencil.click();
+      assert(renamed === 1, 'the pencil did not call HearthriseLaunchpad.openRename() (called ' + renamed + 'x)');
+      assert(prompted === 0, 'the pencil raised a native prompt()');
+    } finally { LP.openRename = realRename; window.prompt = realPrompt; }
   }),
 
   /* The sweep is CLOSED (BULK-INTERIM-1), so there is no modal to answer.

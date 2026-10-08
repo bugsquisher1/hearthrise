@@ -840,31 +840,6 @@ function renderStable() {
   body.innerHTML = `<div class="stable-grid">${cards}</div>`;
 }
 
-function injectProfileCard() {
-  const dashUserBody = document.getElementById('dash-user-body');
-  if (!dashUserBody) return;
-  if (dashUserBody.querySelector('.companion-card')) return;
-  const G = window.G;
-  if (!G?.companions?.equipped) return;
-  const id = G.companions.equipped;
-  const def = COMPANIONS[id];
-  if (!def) return;
-  const xp = (G.companions.xp && G.companions.xp[id]) || 0;
-  const lv = companionLevelFromXp(xp);
-  const nextXp = companionXpToReach(lv + 1);
-  const thisLvXp = companionXpToReach(lv);
-  const pct = nextXp > thisLvXp ? Math.min(100, ((xp - thisLvXp) / (nextXp - thisLvXp)) * 100) : 100;
-  const card = document.createElement('div');
-  card.className = 'companion-card';
-  card.innerHTML = `<div class="cc-icon">${companionIconHtml(id, 32)}</div>
-    <div class="cc-info">
-      <div class="cc-name">${def.n} (Lv ${lv})</div>
-      <div class="cc-meta">${def.role} companion</div>
-      <div class="cc-bar"><i style="width:${pct.toFixed(1)}%"></i></div>
-    </div>`;
-  dashUserBody.appendChild(card);
-}
-
 // ── Boot ──
 
 export function setupCompanions() {
@@ -926,16 +901,6 @@ export function setupCompanions() {
   window.HearthriseShowTab.wrapShowTab('stable-render', function (name) {
     if (name === 'stable') setTimeout(renderStable, 30);
   });
-
-  // Hook renderProfile for companion card
-  if (typeof window.renderProfile === 'function') {
-    const orig = window.renderProfile;
-    window.renderProfile = function () {
-      const r = orig.apply(this, arguments);
-      setTimeout(injectProfileCard, 30);
-      return r;
-    };
-  }
 
   // Boot UI
   function boot() {

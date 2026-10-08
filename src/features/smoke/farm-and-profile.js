@@ -662,21 +662,15 @@ export default [
       'missing recipes: ' + missing.map(([s,id]) => s+':'+id).join(','));
   }),
 
-  // b139 §2.1.2: rename pencil should NOT be hidden for cloud-signed-in
-  // users. The fix changed `canRename = !liveUser && !G.account` to just
-  // `canRename = true`. Verify by rendering Profile and checking the
-  // pencil button exists in the dash-user body.
+  // b139 §2.1.2: the rename pencil is offered in every account state. Home is
+  // #hd-root (home-dashboard.js); its pencil is `.hd-rename[data-hd=rename]`.
   () => tryRun('b139: Profile rename pencil renders for all account states', () => {
-    if (typeof window.renderProfile !== 'function') return;
-    try { window.renderProfile(); } catch (e) {}
-    const body = document.getElementById('dash-user-body');
-    if (!body) return; // panel not in DOM yet — skip
-    // b373: the pencil now routes to HearthriseLaunchpad.openRename() (the
-    // in-game modal) instead of setDisplayName(prompt(...)); the affordance
-    // itself — "every account state gets a pencil" — is what this pins.
-    const pencil = body.querySelector('button[title="Rename"]');
-    assert(pencil != null,
-      'expected rename pencil button in dash-user-body, none found');
+    window.showTab('profile');
+    window.HearthriseHome.render();
+    const root = document.getElementById('hd-root');
+    assert(root, 'Home (#hd-root) did not paint');
+    assert(root.querySelector('.hd-rename[data-hd="rename"]') != null,
+      'expected the rename pencil on Home, none found');
   }),
 
   // b139 §2.3.1 / §2.6.1: paper-doll equipment slots no longer render

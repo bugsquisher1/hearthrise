@@ -205,7 +205,6 @@ body[data-theme="classic"] {
   .topbar h1,
   .topbar .player-name,
   .topbar #player-name,
-  #dash-user-sub,
   .activity-card b,
   .cr-name,
   .ss-card-title {
@@ -1414,11 +1413,6 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
  * ornamental gold rules. A wax seal sits bottom-right and four
  * corner flourishes frame the page.
  *
- * Why this approach: the original markup has 5 .card children
- * (#dash-user, #dash-active, #dash-objectives, #dash-skills,
- * #dash-homestead). Replacing that markup would break the engine's
- * render loop. Instead we suppress the card chrome via CSS and
- * unify them visually.
  * ============================================================ */
 /* Scope all panel-sheet styles to .active so we don't override
    legacy's `.panel { display: none }` for inactive tabs. */
@@ -2131,9 +2125,6 @@ body[data-theme="classic"] .modal-card {
  * theme-prefix selectors so specificity ties (last one wins).
  * ============================================================ */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
-  /* b124: keep .prof-toolbar HIDDEN on mobile — it's the desktop
-     duplicate. The visible mobile container is .feat-buttons. */
-
   /* Feat-buttons grid — themed selectors so specificity ties */
 
 
@@ -2371,7 +2362,6 @@ body[data-theme="hearthlight"] .invc-hero-stat {
   border-radius: var(--r-sm);
   box-shadow: inset 0 1px 2px rgba(0,0,0,.55);
 }
-body[data-theme="hearthlight"] .tb-btn { background: linear-gradient(180deg,#2f2418,#221a12) !important; border: 1px solid var(--line) !important; color: var(--ink) !important; }
 body[data-theme="hearthlight"] .activity-bar.v2 { background: var(--bg-card) !important; border-color: var(--line) !important; color: var(--ink) !important; }
 
 /* ------------------------------------------------------------------------
@@ -2423,8 +2413,7 @@ body[data-theme="hearthlight"] .panel.active { color: var(--ink); }
 body[data-theme="hearthlight"] .panel.active .card-title:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *),
 body[data-theme="hearthlight"] .panel.active [class*="-title"]:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *),
 body[data-theme="hearthlight"] .panel.active [class*="-name"]:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *),
-body[data-theme="hearthlight"] .panel.active .card-head:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *),
-body[data-theme="hearthlight"] .panel.active .dash-milestone b { color: var(--gold-2) !important; }
+body[data-theme="hearthlight"] .panel.active .card-head:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *) { color: var(--gold-2) !important; }
 /* b217: the gilt wash band + full-width underline made every card-head look
    like a table header, and there are ~30 of them across the game. A heading
    should read as a heading, not as chrome: art-direction.css gives it small

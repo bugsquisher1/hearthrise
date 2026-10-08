@@ -971,7 +971,32 @@ export default [
   () => tryRun('renders: profile', () => {
     window.showTab('profile');
     if (typeof window.renderProfile === 'function') window.renderProfile();
-    assert(document.getElementById('dash-user'), 'dash-user missing');
+    assert(document.getElementById('hd-root'), 'hd-root missing — Home did not paint on showTab(profile)');
+  }),
+
+  /* CLEANUP-HOME-1 (2026-10-08): the legacy dash cards, the .prof-toolbar and
+     the Objectives popout are DELETED. Home is #hd-root (home-dashboard.js)
+     and nothing else; the old cards had been display:none under it since b219,
+     so a card, a toolbar or a localStorage opt-out coming back is a second Home
+     painting behind the first. */
+  () => tryRun('CLEANUP-HOME-1: Home is #hd-root alone — no legacy dash card, toolbar, popout or opt-out', () => {
+    const panel = document.getElementById('panel-profile');
+    assert(panel, '#panel-profile is missing');
+    ['dash-user', 'dash-today', 'dash-milestone', 'dash-active', 'dash-objectives', 'dash-skills', 'dash-homestead']
+      .forEach((id) => assert(!document.getElementById(id), '#' + id + ' is back — the legacy Home card was deleted'));
+    let prior = null;
+    try { prior = localStorage.getItem('hearthrise:home-v2'); localStorage.setItem('hearthrise:home-v2', '0'); } catch (e) {}
+    try {
+      window.showTab('profile');
+      if (typeof window.renderProfile === 'function') window.renderProfile();
+      window.HearthriseHome.render();
+      assert(document.getElementById('hd-root'), 'Home did not paint with the retired home-v2=0 opt-out set — the opt-out is back');
+      assert(!panel.querySelector('.prof-toolbar'), 'a .prof-toolbar was injected into Home again');
+      assert(typeof window.openObjectivesPopout === 'undefined', 'openObjectivesPopout is published again');
+      assert(!document.body.classList.contains('has-prof-toolbar'), 'body still carries has-prof-toolbar');
+    } finally {
+      try { if (prior === null) localStorage.removeItem('hearthrise:home-v2'); else localStorage.setItem('hearthrise:home-v2', prior); } catch (e) {}
+    }
   }),
   () => tryRun('renders: farm + house', () => {
     // SA-013: was a no-op render (verified only "did not throw"). Now assert the
@@ -1163,33 +1188,6 @@ export default [
     assert(!modal.classList.contains('show'), 'ESC did not close the lifetime-stats modal');
   }),
 
-  // render-layer extraction: the Profile "Objectives" popout moved out of
-  // legacy.js to src/render/objectives-popout.js. Pure refactor —
-  // openObjectivesPopout must stay on window (buildProfileToolbar wires it via
-  // addEventListener with the bare global). Read-only: it mirrors the
-  // #dash-objectives card innerHTML into a modal and writes no game state.
-  () => tryRun('render: objectives popout (extracted surface)', () => {
-    assert(typeof window.openObjectivesPopout === 'function',
-      'openObjectivesPopout must stay on window (buildProfileToolbar addEventListener global)');
-    // Seed a source card with a known marker the popout should mirror.
-    let src = document.getElementById('dash-objectives');
-    const hadSrc = !!src;
-    if (!src) { src = document.createElement('div'); src.id = 'dash-objectives'; document.body.appendChild(src); }
-    const savedSrc = src.innerHTML;
-    src.innerHTML = '<div class="obj-marker">OBJECTIVE_SMOKE_MARKER</div>';
-    window.openObjectivesPopout();
-    const ov = document.getElementById('prof-pop-objectives');
-    assert(ov, 'prof-pop-objectives overlay not created');
-    assert(ov.classList.contains('show'), 'objectives popout did not open (missing .show)');
-    const body = document.getElementById('prof-pop-objectives-body');
-    assert(body && body.innerHTML.indexOf('OBJECTIVE_SMOKE_MARKER') >= 0,
-      'objectives popout did not mirror #dash-objectives content');
-    // Backdrop click (target === overlay) must close it.
-    ov.dispatchEvent(new MouseEvent('click'));
-    assert(!ov.classList.contains('show'), 'backdrop click did not close the objectives popout');
-    // Restore source card state.
-    if (hadSrc) src.innerHTML = savedSrc; else src.remove();
-  }),
 
   // 2nd render-layer extraction: the Active Effects panel (Profile card) moved
   // out of legacy.js block 8 to src/render/active-effects.js. Pure refactor —
@@ -1635,25 +1633,6 @@ export default [
   // Each test guards against a specific historical regression. If
   // any of these fail we're shipping a bug we already paid for once.
 
-  // b119: renderProfile crashed in a loop when onAuthStateChange fired
-  // before the Profile panel template was in the DOM. Null guards added.
-  () => tryRun('b119: renderProfile survives missing dash-user-sub', () => {
-    if (typeof window.renderProfile !== 'function') return;
-    const sub = document.getElementById('dash-user-sub');
-    const body = document.getElementById('dash-user-body');
-    if (!sub || !body) return; // can't simulate cleanly; skip silently
-    const subParent = sub.parentNode, bodyParent = body.parentNode;
-    sub.remove(); body.remove();
-    // SA-013: the whole point of the test is "renderProfile does NOT throw when
-    // these nodes are missing" — capture that and assert it, instead of letting
-    // a survived call and a thrown one both report PASS (a throw would surface
-    // via the global error log, but the test's own name promised the check).
-    let threw = null;
-    try { window.renderProfile(); }
-    catch (e) { threw = e; }
-    finally { subParent.appendChild(sub); bodyParent.appendChild(body); }
-    assert(!threw, 'renderProfile threw with dash-user-sub/body missing: ' + (threw && threw.message));
-  }),
 
   // b122: skill icons should fall back to emoji on every renderer.
   // If something re-populates _skillIcon with broken paths, renderers
@@ -1675,16 +1654,6 @@ export default [
     );
   }),
 
-  // b124: hide the duplicate prof-toolbar on mobile so we don't see
-  // both Achievements/Bestiary/LastSession/Lifetime AND Objectives/
-  // Achievements/Bestiary/Lifetime stacked on small viewports.
-  () => tryRun('b124: prof-toolbar hidden on mobile', () => {
-    if (window.innerWidth > 540) { skip('mobile-only rule; desktop viewport'); return; }
-    const pt = document.querySelector('#panel-profile .prof-toolbar');
-    if (!pt) { skip('prof-toolbar not in DOM'); return; }
-    const d = getComputedStyle(pt).display;
-    assert(d === 'none', 'prof-toolbar should be display:none on mobile, got ' + d);
-  }),
 
   // b123: feat-buttons must be a 2-column grid on mobile. Earlier they
   // stayed in a vertical flex stack because audit-overrides.css had

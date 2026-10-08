@@ -3654,6 +3654,13 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tests/guard-hygiene.mjs
 
+      # The gold-economy sim (tools/econ-sim.mjs) reads its caps out of the
+      # migration chain and its rates out of the edge engines; --selftest plants
+      # a gather faucet and fails if the sim cannot see it. ~4 s, pure node.
+      - name: Economy sim — planted faucet is seen, caps parse
+        if: ${{ !cancelled() }}
+        run: node tools/econ-sim.mjs --selftest
+
 
   # ── edge ── THE DEPLOYED GATEWAY. One read-only probe against the live Edge
   # Functions with a garbage token, plus its control. It is alone in a job on

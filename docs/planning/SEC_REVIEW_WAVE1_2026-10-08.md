@@ -54,3 +54,10 @@ Residual accepted for the first hunt week: credit-log rows older than 2 days wer
 | prune-8d cutoff | GO | `hr_kill_credit_prune_cutoff` is not SECURITY DEFINER, has no grant to anon, authenticated or service_role, and is not on the client RPC surface. The prune deletes only by it. Mutant: the floor removed → §4 VERIFY(b) RED. Mutant: the prune deletes by `now()-1h` → VERIFY(c) RED. schema-drift 0, selfcheck-no-global-dml 0, and its `--selftest` 0. |
 | pet-roll P5/P9 | GO | pet-roll 0; its `--selftest` 0 and catches "a roll channel shares the yield stream". |
 | TIMBERLINE-4 304→307 | GO when it lands (not on origin at review time) | A correction, not a loosening: the pin stays exact. Reproduced through the shared `simulateSkillSpan`, seed 0xC0FFEE, Elder Yew, 1h away: 307 yew_log. Adding one main-stream draw per XP grant (the deleted `pets.js` `C.rng.next()` roll) gives 304. |
+
+## RE-VERIFY 4 (A @dbccb170: 5c584a6f + dbccb170)
+
+| Item | Verdict | Evidence (exit codes seen) |
+|---|---|---|
+| pet-roll `select hr_state_of(..) into v_out` | GO, behaviour-neutral | A single-row SELECT INTO assigns the same jsonb as `:=`. Only the anchor text changed. schema-drift 0, hearthfind-authority 0, pet-roll 0. Mutant (ownership row written as 0) → §5 VERIFY(d) RED. |
+| catalogue-literal-drift arm (c) | GO, stricter | The count change applies to the selftest's in-memory patches only, never to a real migration. It lets the mutant chain replay, so the guard itself must report the drop instead of a replay cascade. The `--selftest` exits 0 with "caught: (c) … trollhide_cape repo=cape replay=ABSENT". |

@@ -1181,8 +1181,16 @@ async function settleFolded(exec, holder, sel, body, driver, session0, probe, ma
     /* The carried state must be the state AT the window's end, or the next
        window would start from a character the fence never stamped. */
     if (run.watermarkMs !== Date.parse(it.args.p_window_to)) { wins.push(it); break; }
+    /* A WINDOW THAT CARRIES AN UNMODELLED KEY IS SETTLED ALONE. Not folded
+       into the windows before it: `foldDeltas` would APPEND a `hearthfind`
+       into an array hr_apply refuses (one find per apply, an object), and the
+       same span would be refused on every visit. As window 0 it settles alone
+       now (exactly the single path); later, it is the next visit's window 0. */
+    if (Object.keys(it.args.p_delta).some((k) => !FOLD_CHAIN_KEYS.includes(k))) {
+      if (i === 0) wins.push(it);
+      break;
+    }
     wins.push(it);
-    if (Object.keys(it.args.p_delta).some((k) => !FOLD_CHAIN_KEYS.includes(k))) break;
     if (levelledUp(session.skills, run.char.skills)) break;
     m = run.watermarkMs;
     session = Object.assign({}, run.char, { accruedToMs: m });

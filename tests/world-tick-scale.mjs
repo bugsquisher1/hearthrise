@@ -24,6 +24,8 @@
 //   R7  ★ NO HYDRATION: a roster call over due characters calls hr_state_of
 //           zero times (pg_stat_user_functions)
 //   R8  grants: hr_tick only
+//   R9  ★ parked is per absence: a crossing logged under an OLDER anchor does
+//           not park the new absence's first crossing; the current one does
 //
 //   S2 — supabase/migrations/2026-10-11-world-tick-shards.sql + tick.js
 //        TICK_HOLDER_SQL (pg_net / Vault / pgcrypto stubbed by
@@ -80,6 +82,9 @@
 //           windows single fires pay before parking (same pay, one row), the
 //           crossing is journalled once, and the parked character then leaves
 //           the roster (S1's parked skip)
+//   F10 ★ a window carrying an unmodelled key (a real hearthfind, from a
+//           fixture engine whose copy rolls 1 in 25) is settled as its own row,
+//           never folded; pay equals 8 single fires
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ============================================================================
@@ -96,6 +101,22 @@ import { SHIM_CRYPTO, SHIM_VAULT, SHIM_NET, K_SECRET } from './world-tick-token-
 
 const MUTATE = process.argv.includes('--mutate') || process.argv.includes('--selftest');
 const CONTROL = Boolean(process.env.HR_MUTANT_CONTROL);
+const HF_FIND = '  if (!rng.chance(1 / row.oneIn)) return null;';
+const HF_REPL = '  if (!rng.chance(1 / 25)) return null;';
+/* ...and the hook. accrueGather's fx has NO onHearthfind today (gather never
+   proposes a hearthfind away or on the tick; combat does, accrual.js
+   computeAccrual). The fixture adds the combat path's own line, which is what
+   any change closing that gap will do; FOLD_CHAIN_KEYS must already hold then. */
+const HF_HOOK_FIND = '    /* Still deliberately ABSENT:';
+const HF_HOOK_REPL = '    onHearthfind(f) { if (f && f.item) finds.push({ item: f.item, source_kind: f.kind, source_id: f.id }); },\n'
+  + '    /* Still deliberately ABSENT:';
+/* ...and the one-per-window collapse the combat flush already does
+   (tick-combat.js foldCombatDelta / collapseHearthfind), in the window's own
+   poll fold, which is what that change would also need. */
+const HF_WIN_FIND = '  const folded = foldDeltas(deltas);\n';
+const HF_WIN_REPL = '  const folded = foldDeltas(deltas);\n'
+  + '  if (Array.isArray(folded.hearthfind)) { const l = folded.hearthfind; '
+  + 'folded.hearthfind = l.length > 1 ? { ...l[0], dropped: Math.min(99, l.length - 1) } : l[0]; }\n';
 
 /* This lane's files, OLDEST FIRST. The newest is the one P-IDEM re-applies
    (each file's §0 accepts its predecessor's body or its own, so an older file
@@ -131,7 +152,7 @@ const U = (n) => `00000000-0000-4000-8000-${(0x7200 + RUN).toString(16).padStart
 
 /* `only` (a Set of section letters R/H/C/F) is the --mutate seam: a mutant runs
    the sections its named arms live in, never fewer. */
-async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER, only = null } = {}) {
+async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER, hfTick = null, only = null } = {}) {
   RUN += 1;
   const red = [];
   const ok = (id, cond, okMsg, badMsg) => {
@@ -276,6 +297,31 @@ async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER, onl
     }
     ok('R8', g.hr_tick && !g.hr_engine && !g.anon && !g.authenticated && !g.service_role,
       'hr_tick_roster EXECUTE is hr_tick only among the request roles', JSON.stringify(g));
+
+    // R9 ★ PARKED IS PER ABSENCE: a crossing journalled under an OLDER anchor
+    //    does not park the new absence's first crossing; one under the CURRENT
+    //    anchor does (Security, secParkedAnyAnchor).
+    const pk = await char(U(8), { ageS: 600, sinceS: 30 * 3600 });
+    const capP = Number((await one('select public.hr_offline_cap_ms($1::uuid, 0) as c', [pk])).c);
+    await q(`insert into public.hr_return_anchor (user_id, slot, real_return_at)
+             values ($1, 0, now() - interval '9 minutes' - make_interval(secs => $2::double precision))
+             on conflict (user_id, slot) do update set real_return_at = excluded.real_return_at`, [pk, capP / 1000]);
+    const logAt = (anchorExpr) => q(`insert into public.hr_tick_horizon_log (user_id, slot, anchor_at, channel, horizon_at, cap_ms, mark)
+             select $1, 0, ${anchorExpr}, 'gather', ${anchorExpr} + make_interval(secs => $2::double precision), $3,
+                    now() - interval '10 minutes'
+               from public.hr_return_anchor a where a.user_id = $1 and a.slot = 0`, [pk, capP / 1000, capP]);
+    const servedPk = async (h) => {
+      await q('update public.hr_tick_ownership set lease_holder = null, lease_until = null where user_id = $1', [pk]);
+      return (await roster(['gather'], h)).some((r) => String(r.user_id) === pk);
+    };
+    await logAt("a.real_return_at - interval '1 day'");
+    const oldAnchorServed = await servedPk('r9-a');
+    await logAt('a.real_return_at');
+    const currentAnchorServed = await servedPk('r9-b');
+    ok('R9', oldAnchorServed && !currentAnchorServed,
+      'a horizon crossing logged under the previous absence\'s anchor leaves the new absence\'s first crossing '
+      + 'served; logged under the current anchor, the character is parked',
+      JSON.stringify({ oldAnchorServed, currentAnchorServed }));
   }
 
   // ── S2 ──────────────────────────────────────────────────────────────────
@@ -641,13 +687,13 @@ async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER, onl
        it K times, one fold once) and the ledger's row count. */
     const value = (snap) => JSON.stringify({ state: { ...snap.state, version: null }, inv: snap.inv, skills: snap.skills,
       progress: snap.progress, ledger: sumOf(tickOnly(snap)) });
-    const differential = async (u, fold) => {
+    const differential = async (u, fold, mod = tick) => {
       const A = await inTxn(u, async (sexec) => {
         const fires = [];
-        for (let i = 0; i < F; i++) fires.push((await tick.runTick({ exec: sexec, probe: false, body: body1(u) })).body);
+        for (let i = 0; i < F; i++) fires.push((await mod.runTick({ exec: sexec, probe: false, body: body1(u) })).body);
         return fires;
       });
-      const C = await inTxn(u, async (sexec) => [(await tick.runTick({ exec: sexec, probe: false, catchupBudgetMs: 120000,
+      const C = await inTxn(u, async (sexec) => [(await mod.runTick({ exec: sexec, probe: false, catchupBudgetMs: 120000,
         body: body1(u, { catchup_windows: F, fold_windows: fold }) })).body]);
       return { A, C, a: tickOnly(A.snap), c: tickOnly(C.snap) };
     };
@@ -836,6 +882,30 @@ async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER, onl
       + 'the crossing is journalled once, and the parked character then leaves the roster',
       JSON.stringify({ same: value(d9.A.snap) === value(d9.C.snap), singles: d9.a.length, folds: d9.c.length,
         rows: hzRows.length, f9: f9.catchup, reasons: f9.reasons, parked, servedBefore, servedAfter }));
+
+    // F10 ★ A WINDOW CARRYING AN UNMODELLED KEY (`hearthfind`) IS NEVER FOLDED
+    //     (Security, secFoldNoKeyStop). The fixture engine (hfTick) is the
+    //     shipped edge with ONE data change in its copy: the hearthfind odds
+    //     are 1 in 25 per action instead of 1 in 100-400 hours, so a real
+    //     `hearthfind` delta appears inside 8 windows. Pay must equal 8 single
+    //     fires, and the find window must be its own row.
+    if (!hfTick) throw Object.assign(new Error('F10 needs the hearthfind fixture engine'), { harness: true });
+    await db.exec('delete from public.hr_tick_ownership;');
+    const hf = await char(U(770), { ageS: 1200 });
+    await q("update public.player_state set active_id = 'normal_tree' where user_id = $1", [hf]);
+    await q(`insert into public.player_skills (user_id, slot, skill_id, xp) values ($1, 0, 'woodcutting', $2)
+             on conflict (user_id, slot, skill_id) do update set xp = excluded.xp`, [hf, xpForLevel(60) + 1]);
+    await leaseTo(hf);
+    const d10 = await differential(hf, F, hfTick);
+    const finds = (rows) => rows.filter((r) => ((r.meta.delta || {}).k || []).includes('hearthfind'));
+    const findsA = finds(d10.a); const findsC = finds(d10.c);
+    ok('F10', findsA.length >= 2 && value(d10.A.snap) === value(d10.C.snap)
+        && findsC.length === findsA.length && d10.c.length <= F
+        && JSON.stringify(findsC.map((r) => [r.meta.from, r.meta.to])) === JSON.stringify(findsA.map((r) => [r.meta.from, r.meta.to])),
+      `${findsA.length} hearthfind window(s) inside 8: each settled as its own row (same span as the single fire), `
+      + `${d10.c.length} rows in all, pay (trophies included, under the 3/day cap) identical to 8 single fires`,
+      JSON.stringify({ findsA: findsA.length, findsC: findsC.length, rowsA: d10.a.length, rowsC: d10.c.length,
+        same: value(d10.A.snap) === value(d10.C.snap), fires: d10.C.fires.map((f) => ({ c: f.catchup, r: f.reasons })) }));
   }
 
   return red;
@@ -871,10 +941,12 @@ if (!MUTATE) {
     ? `  ✓ P-IDEM — ${NEWEST} re-applied byte-identically (§0 accepted its own body, its self-check passed twice)`
     : `  ✗ P-IDEM — ${err || 'the re-apply moved the schema or a body'}`);
   let red;
-  try { red = await arms(db); } catch (e) {
+  const HF = await edgeCopy(null, null, null, null, true);
+  try { red = await arms(db, { hfTick: HF.mod }); } catch (e) {
     if (e.harness) { console.error(`harness: ${e.message}`); process.exit(2); }
     throw e;
   }
+  await rm(HF.base, { recursive: true, force: true });
   if (!idem) red.push('P-IDEM');
   console.log(red.length ? `\nRED: ${red.join(', ')}`
     : '\nGREEN: the roster serves only due characters without hydrating them; one fire fans out to disjoint, '
@@ -981,6 +1053,12 @@ const MUTANTS = [
     repl: '  const foldN = (channel === GATHER_CHANNEL && maxWindows > 1)' },
   { name: 'parkedNotSkipped', fn: 'roster', why: 'a PARKED character (journalled horizon crossing) is rostered and refused every fire', expect: /F9/,
     find: '       and not (a.armed and exists (\n', repl: '       and not (false and exists (\n' },
+  // Security's review mutants (2026-10-08), both SURVIVED @c34efa5f.
+  { name: 'secParkedAnyAnchor', fn: 'roster', why: 'a crossing logged under an OLDER anchor parks the new absence', expect: /R9/,
+    find: '                and hl.anchor_at = ra.real_return_at\n', repl: '' },
+  { name: 'secFoldNoKeyStop', edge: 'tick.js', why: 'a window carrying hearthfind/activity is folded with its neighbours', expect: /F10/,
+    find: '    if (Object.keys(it.args.p_delta).some((k) => !FOLD_CHAIN_KEYS.includes(k))) {\n      if (i === 0) wins.push(it);\n      break;\n    }\n',
+    repl: '' },
   { name: 'foldNoHorizonTrim', edge: 'tick.js', why: 'a fold crossing the horizon is refused whole (the 4 payable windows are lost)', expect: /F9/,
     find: "  if (res && res.ok !== true && res.error === 'past_horizon' && wins.length > 1 && res.horizon) {",
     repl: '  if (false) {' },
@@ -989,7 +1067,9 @@ const MUTANTS = [
 ];
 
 /** A patched COPY of the edge, imported fresh. Returns the module and its temp root. */
-async function edgeCopy(file, find, repl, and) {
+/* THE HEARTHFIND FIXTURE (F10): the one data change a copy may carry beyond its
+   mutant. Applied in the control run too, because it is the fixture, not a mutant. */
+async function edgeCopy(file, find, repl, and, hf = false) {
   const base = await mkdtemp(join(tmpdir(), 'hr-wts-'));
   const dir = join(base, 'supabase', 'functions', 'hr-accrue');
   await cp(join(ROOT, 'supabase', 'functions', 'hr-accrue'), dir, { recursive: true });
@@ -1009,6 +1089,20 @@ async function edgeCopy(file, find, repl, and) {
     }
     await writeFile(join(dir, file), out, 'utf8');
   }
+  if (hf) {
+    const p = join(base, 'src', 'core', 'hearthfind.js');
+    const src = (await readFile(p, 'utf8')).replace(/\r\n/g, '\n');
+    if (src.split(HF_FIND).length !== 2) throw Object.assign(new Error('hearthfind fixture anchor moved'), { harness: true });
+    await writeFile(p, src.replace(HF_FIND, () => HF_REPL), 'utf8');
+    const pa = join(dir, 'accrual.js');
+    const sa = (await readFile(pa, 'utf8')).replace(/\r\n/g, '\n');
+    if (sa.split(HF_HOOK_FIND).length !== 2) throw Object.assign(new Error('gather hearthfind hook anchor moved'), { harness: true });
+    await writeFile(pa, sa.replace(HF_HOOK_FIND, () => HF_HOOK_REPL), 'utf8');
+    const pg = join(dir, 'tick-gather.js');
+    const sg = (await readFile(pg, 'utf8')).replace(/\r\n/g, '\n');
+    if (sg.split(HF_WIN_FIND).length !== 2) throw Object.assign(new Error('gather window fold anchor moved'), { harness: true });
+    await writeFile(pg, sg.replace(HF_WIN_FIND, () => HF_WIN_REPL), 'utf8');
+  }
   const mod = await import(pathToFileURL(join(dir, 'tick.js')).href);
   const gather = await import(pathToFileURL(join(dir, 'tick-gather.js')).href);
   return { mod, gather, base };
@@ -1017,7 +1111,8 @@ async function edgeCopy(file, find, repl, and) {
 console.log('\nworld-tick-scale --mutate: every mutant must go RED on its named arm');
 let db;
 try { db = await boot(); } catch (e) { console.error(`harness: ${e.message}`); process.exit(2); }
-const control = await arms(db, { log: false });
+const HF0 = await edgeCopy(null, null, null, null, true);
+const control = await arms(db, { log: false, hfTick: HF0.mod });
 if (control.length) { console.error(`harness: the unmutated control is red (${control.join(', ')})`); process.exit(2); }
 console.log(`[mutants] ${MUTANTS.length}`);
 let survived = 0;
@@ -1026,16 +1121,19 @@ for (const m of MUTANTS) {
   /* The sections the mutant's named arms live in (R1 -> R, F9 -> F, ...). */
   const only = new Set((m.expect.source.match(/[RHCF](?=\d)/g) || []));
   let tmp = null;
+  let tmp2 = null;
   try {
     if (m.edge) {
       const c = await edgeCopy(m.edge, m.find, m.repl, m.and);
       tmp = c.base;
-      try { red = await arms(db, { log: false, tick: c.mod, tickGather: c.gather, only }); } catch (e) { red = [`threw: ${e.message}`]; }
+      const h = only.has('F') ? await edgeCopy(m.edge, m.find, m.repl, m.and, true) : null;
+      tmp2 = h && h.base;
+      try { red = await arms(db, { log: false, tick: c.mod, tickGather: c.gather, hfTick: h ? h.mod : HF0.mod, only }); } catch (e) { red = [`threw: ${e.message}`]; }
     } else if (m.raw) {
       if (!CONTROL) {
         try { await db.exec(m.sql); } catch (e) { console.error(`harness: ${m.name}: ${e.message}`); process.exit(2); }
       }
-      try { red = await arms(db, { log: false, only }); } catch (e) { red = [`threw: ${e.message}`]; }
+      try { red = await arms(db, { log: false, hfTick: HF0.mod, only }); } catch (e) { red = [`threw: ${e.message}`]; }
       try { await db.exec('rollback;'); } catch { /* not inside a transaction */ }
       if (!CONTROL) await db.exec(m.restore);
     } else {
@@ -1049,13 +1147,14 @@ for (const m of MUTANTS) {
       if (!CONTROL) {
         try { await db.exec(src); } catch (e) { console.error(`harness: ${m.name}: ${e.message}`); process.exit(2); }
       }
-      try { red = await arms(db, { log: false, only }); } catch (e) { red = [`threw: ${e.message}`]; }
+      try { red = await arms(db, { log: false, hfTick: HF0.mod, only }); } catch (e) { red = [`threw: ${e.message}`]; }
     }
   } catch (e) {
     if (e.harness) { console.error(`harness: ${m.name}: ${e.message}`); process.exit(2); }
     throw e;
   } finally {
     if (tmp) await rm(tmp, { recursive: true, force: true });
+    if (tmp2) await rm(tmp2, { recursive: true, force: true });
   }
   try { await db.exec('rollback;'); } catch { /* not inside a transaction */ }
   await db.exec(RESTORE);
@@ -1064,9 +1163,10 @@ for (const m of MUTANTS) {
   if (hit) console.log(`  ✓ ${m.name} — ${m.why}: RED via ${red.join(', ')}`);
   else { survived++; console.log(`  ✗ ${m.name} — ${m.why}: ${red.length ? `red only via ${red.join(', ')}` : 'SURVIVED'}`); }
 }
-const after = await arms(db, { log: false });
+const after = await arms(db, { log: false, hfTick: HF0.mod });
 if (after.length) { console.error(`harness: the restored bodies are red (${after.join(', ')})`); process.exit(2); }
 await db.close();
+await rm(HF0.base, { recursive: true, force: true });
 if (CONTROL) {
   console.log(`\nHR_MUTANT_CONTROL: nothing planted; ${MUTANTS.length - survived} arm(s) read caught`);
   process.exit(survived === MUTANTS.length ? 0 : 1);

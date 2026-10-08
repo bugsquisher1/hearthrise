@@ -191,13 +191,31 @@ const BASE_RECIPES = {
     {id:'forge_bronze_knife',  name:'Forge Bronze Knife',  icon:'🔪', inputs:{bronze_bar:1},  output:'bronze_knife',  xp:40,   req:5,  ms:2400},
     {id:'forge_steel_knife',   name:'Forge Steel Knife',   icon:'🔪', inputs:{steel_bar:1},   output:'steel_knife',   xp:320,  req:35, ms:3600},
     {id:'forge_rune_knife',    name:'Forge Rune Knife',    icon:'🔪', inputs:{rune_bar:1},    output:'rune_knife',    xp:1500, req:75, ms:5500},
+    /* content-holes (2026-10-08): the Stonemason tool ladder. The three rules
+       were catalogued with the skill (library2-items.js) and nothing could make
+       them — PENDING_SYSTEMS.tool_ladder called them "three rungs, no engine
+       work". They are the hammer/needle/knife ladder to the number: same rung
+       levels and xp, one tier bar each (the dawn rule takes two, which keeps
+       its 9,200 g book value inside the 2x anti-faucet rule). bestTool() is
+       keyed on toolSkill, so they apply to Stonemason with no code. */
+    {id:'forge_bronze_masons_rule', name:"Forge Bronze Mason's Rule",    icon:'📐', inputs:{bronze_bar:1}, output:'bronze_masons_rule', xp:40,   req:5,  ms:2400},
+    {id:'forge_steel_masons_rule',  name:"Forge Steel Mason's Rule",     icon:'📐', inputs:{steel_bar:1},  output:'steel_masons_rule',  xp:320,  req:35, ms:3600},
+    {id:'forge_dawn_masons_rule',   name:"Forge Dawnsteel Mason's Rule", icon:'📐', inputs:{dawn_bar:2},   output:'dawn_masons_rule',   xp:3000, req:90, ms:6000},
     // Forge weapons — use the new bars now that they exist
     {id:'forge_bronze_sword',  name:'Forge Bronze Sword',  icon:'⚔️', inputs:{bronze_bar:2, normal_plank:1},                output:'bronze_sword',  xp:60,    req:5,  ms:2500},
     {id:'forge_iron_sword',    name:'Forge Iron Sword',    icon:'⚔️', inputs:{iron_bar:3, oak_plank:1},                     output:'iron_sword',    xp:180,   req:20, ms:3000},
-    {id:'forge_steel_sword',   name:'Forge Steel Sword',   icon:'⚔️', inputs:{steel_bar:3, willow_plank:1},                 output:'steel_sword',   xp:400,   req:40, ms:3800},
-    {id:'forge_rune_sword',    name:'Forge Rune Sword',    icon:'⚔️', inputs:{rune_bar:3, magic_essence:2, maple_plank:1},  output:'rune_sword',    xp:1200,  req:75, ms:5500},
+    /* content-holes (2026-10-08) — THREE WEAPON FORGES OFF THEIR OWN LADDER.
+       These rows share an OUTPUT with a generated rung, so they replace it, and
+       their gates were set before the ladder existed: Steel Sword 40, Rune Sword
+       75 and Iron Warhammer 35 against the curve's 35 / 65 / 23 (smith + the
+       family's lvOff, gear-tiers.js). The Rune Sword at 75 opened on the SAME
+       level as the Emberforged one; the Iron Warhammer at 35 opened after the
+       Steel Warhammer (38) was nearly in reach. Gates move to the curve; bars,
+       xp and duration are untouched. The ladder-order guard pins the order. */
+    {id:'forge_steel_sword',   name:'Forge Steel Sword',   icon:'⚔️', inputs:{steel_bar:3, willow_plank:1},                 output:'steel_sword',   xp:400,   req:35, ms:3800},
+    {id:'forge_rune_sword',    name:'Forge Rune Sword',    icon:'⚔️', inputs:{rune_bar:3, magic_essence:2, maple_plank:1},  output:'rune_sword',    xp:1200,  req:65, ms:5500},
     {id:'forge_stone_maul',    name:'Forge Stone Maul',    icon:'🔨', inputs:{normal_plank:2, copper_ore:4},                output:'stone_maul',    xp:100,   req:10, ms:2700},
-    {id:'forge_iron_warhammer',name:'Forge Iron Warhammer',icon:'🔨', inputs:{iron_bar:4, oak_plank:2},                     output:'iron_warhammer',xp:350,   req:35, ms:3800},
+    {id:'forge_iron_warhammer',name:'Forge Iron Warhammer',icon:'🔨', inputs:{iron_bar:4, oak_plank:2},                     output:'iron_warhammer',xp:350,   req:23, ms:3800},
     /* Forge armor.
        ── b348 · THE LEVEL GATES BELOW ARE THE GENERATED CURVE, NOT GUESSES ──
        Xarn, live report: "Steel Platebody adds 22 Def requires 60 smithing;
@@ -239,8 +257,13 @@ const BASE_RECIPES = {
     {id:'forge_verdite_platebody', name:'Forge Verdite Platebody', icon:'🦺', inputs:{verdite_bar:5, flux_salt:2},                 output:'verdite_platebody', xp:400, req:50, ms:4400},
     {id:'forge_heartgarnet_maul',  name:'Forge Heartgarnet Maul',  icon:'🔨', inputs:{verdite_bar:3, heartgarnet:1, willow_plank:2}, output:'heartgarnet_maul', xp:480, req:52, ms:4600},
     // Gated forges (a recipe scroll is READ in the bag; hr_recipe_learn consumes it and writes the flag)
-    {id:'forge_chief_blade',   name:"Chief's Blade",       icon:'🗡️', inputs:{warlord_badge:1, iron_bar:4, oak_plank:2},    output:'chief_blade',       xp:600,  req:50, ms:5000, gated:'chief_blade_recipe'},
-    {id:'forge_captain_blade', name:"Captain's Ribblade",  icon:'🗡️', inputs:{captain_medal:1, steel_bar:4, maple_plank:2},output:'captains_ribblade', xp:1100, req:70, ms:6000, gated:'captain_recipe'},
+    /* content-holes (2026-10-08): both blades re-statted to the rung their forge
+       opens at (see items.js), and the forges now eat that rung's bar. */
+    {id:'forge_chief_blade',   name:"Chief's Blade",       icon:'🗡️', inputs:{warlord_badge:1, mithril_bar:3, maple_plank:1}, output:'chief_blade',     xp:700,  req:48, ms:5000, gated:'chief_blade_recipe'},
+    {id:'forge_captain_blade', name:"Captain's Ribblade",  icon:'🗡️', inputs:{captain_medal:1, rune_bar:3, yew_plank:1},    output:'captains_ribblade', xp:1300, req:66, ms:6000, gated:'captain_recipe'},
+    /* content-holes (2026-10-08): the raid materials' first sink — two offhands. */
+    {id:'forge_riftmaw_aegis',   name:'Forge Riftmaw Aegis',   icon:'🛡️', inputs:{riftmaw_husk:3, void_essence:1, ember_bar:4},     output:'riftmaw_aegis',   xp:2800, req:82, ms:6600},
+    {id:'forge_elderscale_aegis',name:'Forge Elderscale Aegis',icon:'🛡️', inputs:{elderscale_heart:1, dragon_scale:20, dawn_bar:4}, output:'elderscale_aegis',xp:3600, req:95, ms:7200},
     // Gathering tools (b201, SYS-3) — the OSRS tool ladder. Each tier speeds
     // its gathering skill (see items.js toolSpeed + features/tools.js).
     {id:'forge_bronze_axe',     name:'Forge Bronze Axe',      icon:'🪓', inputs:{bronze_bar:1, normal_plank:1},   output:'bronze_axe',      xp:40,   req:3,  ms:2500},
@@ -306,7 +329,11 @@ const BASE_RECIPES = {
        as "the same bow again, bigger". Plank count is unchanged (3 / 2). */
     {id:'carve_longbow',          name:'Carve Longbow',           icon:'🏹', inputs:{oak_plank:3, silk_thread:2},          output:'longbow',          xp:240, req:25, ms:3600},
     {id:'carve_apprentice_staff', name:'Carve Apprentice Staff',  icon:'🪄', inputs:{normal_plank:2, magic_essence:1},     output:'apprentice_staff', xp:120, req:12, ms:2800},
-    {id:'carve_oak_staff',        name:'Carve Oak Staff',         icon:'🪄', inputs:{willow_plank:3, magic_essence:2, ancient_rune:1}, output:'oak_staff', xp:300, req:30, ms:4000},
+    /* content-holes (2026-10-08): was Crafting 30 on willow planks + an ancient
+       rune — a tier-2 staff gated above the tier-3 Willow Staff's own rung (36
+       is close) and costing a tier-3 plank. Now the staff family's curve (21)
+       and its tier-2 shape (oak plank + essence), xp to match. */
+    {id:'carve_oak_staff',        name:'Carve Oak Staff',         icon:'🪄', inputs:{oak_plank:2, magic_essence:1}, output:'oak_staff', xp:135, req:21, ms:4000},
     /* ⚠ THE BATCH STAYS AT 50. DO NOT RAISE IT TO MATCH THE `fletch_*` LADDER.
        This was tried on 2026-08-18 and the accrual guard caught it: at ×500 a
        15-hour absence moves 4,821,000 units of one item against the server's
@@ -331,7 +358,11 @@ const BASE_RECIPES = {
     {id:'craft_iron_arrows',      name:'Craft Iron Arrows ×50',   icon:'🏹', inputs:{iron_bar:1, normal_plank:5},          output:'iron_arrows', outputQty:50, xp:120, req:20, ms:3500},
     // Tailoring
     {id:'tailor_leather_boots',   name:'Tailor Leather Boots',    icon:'🥾', inputs:{wolf_pelt:2},                          output:'leather_boots',  xp:80,  req:8,  ms:2400},
-    {id:'tailor_leather_gloves',  name:'Tailor Leather Gloves',   icon:'🧤', inputs:{wolf_pelt:1, silk_thread:1},           output:'leather_gloves', xp:120, req:12, ms:2800},
+    /* content-holes (2026-10-08): was Crafting 12 / 120 xp — the tier-1 leather
+       glove (Defence 1, def 1) gated above the tier-2 studded rung's own curve
+       and paying ten times its siblings. Now the leather lane's curve (2) and
+       the generated xp for a one-weight piece. */
+    {id:'tailor_leather_gloves',  name:'Tailor Leather Gloves',   icon:'🧤', inputs:{wolf_pelt:1, silk_thread:1},           output:'leather_gloves', xp:35, req:2, ms:2800},
     {id:'tailor_traveler_cape',   name:'Tailor Traveler Cape',    icon:'🦸', inputs:{silk_thread:3, wolf_pelt:2},           output:'traveler_cape',  xp:140, req:15, ms:3000},
     /* ── ELEMENTS v1 — RUNE BINDING: MOVED TO RUNECRAFTING (b432) ─────────
        The three `bind_*_rune` rows lived here, at Crafting 25, in a Crafting
@@ -350,7 +381,7 @@ const BASE_RECIPES = {
     {id:'jewel_copper_ring',      name:'Set Copper Ring',         icon:'💍', inputs:{copper_bar:1, magic_essence:1},        output:'copper_ring',     xp:180, req:20, ms:3000},
     {id:'jewel_hunter_necklace',  name:'String Hunter Necklace',  icon:'📿', inputs:{gold_bar:1, wolf_pelt:1},              output:'hunter_necklace', xp:240, req:25, ms:3500},
     // Gated crafts
-    {id:'craft_alpha_cloak',      name:'Craft Alpha Cloak',       icon:'🦸', inputs:{bear_pelt:2, silk_thread:3},           output:'alpha_cloak',     xp:1200, req:60, ms:5500, gated:'alpha_pattern'},
+    {id:'craft_alpha_cloak',      name:'Craft Alpha Cloak',       icon:'🦸', inputs:{bear_pelt:4, alpha_fang:2, silk_thread:6}, output:'alpha_cloak', xp:1200, req:60, ms:5500, gated:'alpha_pattern'},
     // Fishing rods (b201, SYS-3 tool ladder — crafted from planks + thread)
     {id:'carve_willow_rod',   name:'Carve Willow Rod',   icon:'🎣', inputs:{normal_plank:2, silk_thread:1},  output:'willow_rod',   xp:50,   req:3,  ms:2400},
     {id:'carve_oak_rod',      name:'Carve Oak Rod',      icon:'🎣', inputs:{oak_plank:2, silk_thread:1},     output:'oak_rod',      xp:150,  req:18, ms:3000},
@@ -438,7 +469,13 @@ const BASE_RECIPES = {
      so hr-accrue must be redeployed at the same cut. */
   prayer: [
     {id:'bury_bones',     name:'Bury Bones',         icon:'🦴', input:'bones',         output:null, xp:4.5, req:1,  ms:1200},
+    {id:'offer_rat_tail',         name:'Offer Rat Tails',          icon:'🐀',  input:'rat_tail',     output:null, xp:8,    req:8,  ms:1300},
     {id:'bury_big',       name:'Bury Big Bones',     icon:'🦴', input:'big_bones',     output:null, xp:15,  req:15, ms:1500},
+    /* content-holes (2026-10-08): Prayer had nothing new between 15 and 35. Two
+       offerings from the fangs a mid-teens fighter is already carrying home, and
+       one at 8 (rat tails) so the first fifteen levels are not one action. */
+    {id:'offer_small_fang',       name:'Offer Small Fang',         icon:'🦷',  input:'small_fang',   output:null, xp:26,   req:22, ms:1600},
+    {id:'consecrate_night_fang',  name:'Consecrate Night Fang',    icon:'🦇',  input:'night_fang',   output:null, xp:44,   req:29, ms:1800},
     {id:'bury_dragon',    name:'Bury Dragon Bones',  icon:'🦴', input:'dragon_bones',  output:null, xp:72,  req:35, ms:2000},
     {id:'bury_bone_chips',        name:'Sift Bone Chips',          icon:'🦴',  input:'bone_chips',   output:null, xp:105,  req:40, ms:2200},
     {id:'consecrate_grave_dust',  name:'Consecrate Grave Dust',    icon:'⚱️',  input:'grave_dust',   output:null, xp:155,  req:46, ms:2400},

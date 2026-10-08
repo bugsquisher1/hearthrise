@@ -22,7 +22,10 @@
 //   5. a stale version is refused (version_conflict);
 //   6. the per-day scrip EARN cap is enforced (daily_cap:scrip), before any key;
 //   7. an underlevelled character is refused (level_locked);
-//   8. a forged p_quality cannot inflate scrip beyond the server base band;
+//   8. no client quality reaches the scrip credit, and scrip pays only on a clear
+//      the SERVER confirms (2026-10-10-dungeon-scrip-fixed-by-mode.sql): auto pays
+//      the fixed round(base / divisor) for 999 / -5 / NULL; an unconfirmed
+//      (manual / scavenger: abandoned, failed or claimed-perfect) run pays 0;
 //   9. the per-day SETTLE-COUNT cap (250/UTC-day) is enforced (daily_cap:count);
 //  10. the earn cap sums POSITIVE scrip only — a Quartermaster spend (negative
 //      meta.scrip, op='qm_buy') does NOT reduce the earn usage (Condition-3, no
@@ -65,8 +68,12 @@ import { xpForLevel } from '../src/core/xp.js';
 /* A mutant replays UP TO the newest file this guard stands on, never past it, so a
    newer migration's lock or self-check cannot refuse first: its arms call the
    7-argument hr_dungeon_settle restated there. (tests/schema-replay.mjs
-   replayScopeError). The plain run is the whole chain. */
-const REPLAY_UPTO = '2026-09-12-dungeon-cooldown.sql';
+   replayScopeError). The plain run is the whole chain.
+   2026-10-10: the newest file this guard stands on is the fixed-per-mode scrip
+   patch — runAll's section 8 asserts the property it installs — so a mutant
+   stopping at 2026-09-12 would fail section 8 for a reason that is not its own
+   defect and be scored "caught" on someone else's assertion. */
+const REPLAY_UPTO = '2026-10-10-dungeon-scrip-fixed-by-mode.sql';
 
 // crypt_of_bones is the lowest-req dungeon (25) and costs a bone_key. big_bones
 // drops at chance 1.0 (>=10), so it is a deterministic loot assertion.
@@ -140,6 +147,20 @@ const MUTATIONS = {
     find: "       and (meta->>'scrip')::bigint > 0\n       and public.hr_utc_day_key(at) = v_day;",
     repl: "       and public.hr_utc_day_key(at) = v_day;",
   },
+  quality_read_again: {
+    file: '2026-10-10-dungeon-scrip-fixed-by-mode.sql',
+    why: 'the scrip credit reads the CLIENT quality again (the pre-2026-10-10 clamp), so a browser '
+       + 'that omits the field is paid a full clear on a quarter-window scavenger run',
+    find: '    v_q := 1.0 / nullif(public.hr_dungeon_cooldown_divisor(p_mode), 0);',
+    repl: '    v_q := least(greatest(coalesce(p_quality, 1), 0), 1);',
+  },
+  unconfirmed_clear_paid: {
+    file: '2026-10-10-dungeon-scrip-fixed-by-mode.sql',
+    why: 'a run the server cannot confirm as a clear (manual / scavenger, judged in the browser) is '
+       + 'paid its mode share again, so start-and-abandon mints scrip for the price of a key',
+    find: '      v_q := 0;                                  -- no server-confirmed clear',
+    repl: '      null;',
+  },
   level_gate_off: {
     file: '2026-09-10-dungeon-settle.sql',
     why: 'the req_lv gate is disarmed — a level-1 character clears a level-95 world boss',
@@ -211,7 +232,30 @@ const uuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) =
   const r = (Math.random() * 16) | 0; return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
 });
 
+/* ── THE EDGE HALF of section 8: the wire cannot carry a quality any more. ──
+   readDungeon is the ONLY parser of the `dungeon` field, so what it returns is
+   everything that can reach hr_dungeon_settle; and the commit statement binds a
+   LITERAL null for the retired seventh argument, so no caller can route a value
+   into it even by passing one. Behavioural for the parser, textual for the SQL
+   constant (it is a module-private string; the replay above proves the body
+   ignores the argument whatever is bound). */
+async function edgeHalf() {
+  const { readDungeon } = await import('../supabase/functions/hr-accrue/request.js');
+  for (const q of [999, -5, 0.4, null, 'full']) {
+    const d = readDungeon({ dungeon: { id: DUNGEON, mode: 'manual', quality: q } });
+    ok(d && Object.keys(d).sort().join(',') === 'id,mode',
+      `edge readDungeon keeps exactly {id, mode} and drops a client quality of ${JSON.stringify(q)} `
+      + `(got ${JSON.stringify(d && Object.keys(d))})`);
+  }
+  const src = (await import('node:fs')).readFileSync(
+    new URL('../supabase/functions/hr-accrue/dungeon-settle.js', import.meta.url), 'utf8');
+  const sql = (src.match(/const SETTLE_SQL = `([\s\S]*?)`;/) || [])[1] || '';
+  ok(/\$6::text, null::numeric\)/.test(sql) && !/\$7/.test(sql),
+    'edge SETTLE_SQL binds a literal NULL for the retired quality argument and has no $7 parameter');
+}
+
 async function runAll(db) {
+  await edgeHalf();
   // ── 1+2+3+4+5 on ONE character (happy → replay → version conflict). ────────
   const A = uidFor('a1');
   await seed(db, A);
@@ -233,17 +277,30 @@ async function runAll(db) {
   const rvc = await settle(db, A, { version: 999999, intent: uuid(), mode: 'auto' });
   ok(rvc && rvc.error === 'version_conflict', `stale version refused (got ${rvc && rvc.error})`);
 
-  // ── 8. FORGED QUALITY (own character): p_quality=999 clamps to 1. ──────────
-  const B = uidFor('b2');
-  await seed(db, B);
-  const rq = await settle(db, B, { version: await versionOf(db, B), intent: uuid(), mode: 'manual', quality: 999 });
-  ok(rq && rq.ok === true, `forged-quality manual settle ok (got ${rq && rq.error})`);
-  ok(rq.settled && Number(rq.settled.scrip) <= SCRIP_BASE, `forged p_quality=999 scrip <= base ${SCRIP_BASE} (got ${rq.settled && rq.settled.scrip})`);
-  // and a NEGATIVE quality clamps to 0 (no negative scrip).
-  const C = uidFor('b3');
-  await seed(db, C);
-  const rneg = await settle(db, C, { version: await versionOf(db, C), intent: uuid(), mode: 'manual', quality: -5 });
-  ok(rneg && rneg.ok === true && Number(rneg.settled.scrip) === 0, `p_quality=-5 clamps to 0 scrip (got ${rneg && rneg.settled && rneg.settled.scrip})`);
+  // ── 8. NO CLIENT QUALITY, AND SCRIP ONLY ON A SERVER-CONFIRMED CLEAR
+  //    (2026-10-10-dungeon-scrip-fixed-by-mode.sql, Designer rulings 2026-10-08).
+  //    The seventh argument is NOT READ. auto — whose outcome IS the server's
+  //    verdict (level, key, window) — pays the fixed round(base / divisor) for a
+  //    forged 999, a forged -5 and an omitted NULL alike. manual and scavenger
+  //    are judged in the browser, so the server holds no clear for them: an
+  //    abandoned run (NULL), a failed one (-5) and a claimed-perfect one (999)
+  //    all pay 0 scrip and credit 0 to player_state.dungeon_scrip.
+  for (const [mode, tag, want] of [['auto', 'c', SCRIP_BASE], ['manual', 'a', 0], ['scavenger', 'b', 0]]) {
+    const paid = [];
+    const held = [];
+    for (const [i, quality] of [[7, 999], [8, -5], [9, null]]) {
+      const U = uidFor(`${tag}${i}`);
+      await seed(db, U);
+      const r = await settle(db, U, { version: await versionOf(db, U), intent: uuid(), mode, quality });
+      ok(r && r.ok === true, `${mode} settle with client quality ${quality} ok (got ${r && r.error})`);
+      paid.push(Number(r && r.settled && r.settled.scrip));
+      held.push(await scripRow(db, U));
+    }
+    ok(paid.every((x) => x === want) && held.every((x) => x === want),
+      `${mode}: client qualities 999 / -5 / NULL all pay ${want} scrip `
+      + `(${want ? 'the confirmed clear' : 'no server-confirmed clear'}; got ${paid.join(' / ')}, held ${held.join(' / ')})`);
+  }
+  ok(SCRIP_BASE > 0, 'the confirmed clear pays something, so the zero arms are a rule, not a base of 0');
 
   // ── 7. LEVEL LOCKED (fresh, unlevelled character). ────────────────────────
   const D = uidFor('c4');
@@ -257,7 +314,7 @@ async function runAll(db) {
   await db.exec(`insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta)
                  values ('${E}', 0, 'dungeon', 'seed_cap', 0,0,0,0,0,
                          jsonb_build_object('dungeon','${CAP_SEED_DUNGEON}','mode','manual','scrip', 5000));`);
-  const rcap = await settle(db, E, { version: await versionOf(db, E), intent: uuid(), mode: 'manual', quality: 1 });
+  const rcap = await settle(db, E, { version: await versionOf(db, E), intent: uuid(), mode: 'auto' });
   ok(rcap && rcap.error === 'daily_cap', `at-cap run refused daily_cap (got ${rcap && rcap.error})`);
   ok(rcap && rcap.dim === 'scrip', `scrip-cap refusal carries dim=scrip (got ${rcap && rcap.dim})`);
   ok(await invQty(db, E, KEY) === 2, 'a capped run consumed NO key (rejected before the debit)');
@@ -288,7 +345,7 @@ async function runAll(db) {
                          jsonb_build_object('op','settle','dungeon','${CAP_SEED_DUNGEON}','mode','manual','scrip', 5000)),
                         ('${H}', 0, 'dungeon', 'seed_spend', 0,0,0,0,0,
                          jsonb_build_object('op','qm_buy','offer','${KEY}','item','${KEY}','scrip', -4000));`);
-  const rearn = await settle(db, H, { version: await versionOf(db, H), intent: uuid(), mode: 'manual', quality: 1 });
+  const rearn = await settle(db, H, { version: await versionOf(db, H), intent: uuid(), mode: 'auto' });
   ok(rearn && rearn.error === 'daily_cap' && rearn.dim === 'scrip',
      `earn cap counts POSITIVE scrip only — a -4000 spend does NOT free room (got ${rearn && rearn.error}/${rearn && rearn.dim})`);
 }
@@ -319,7 +376,7 @@ if (argv.includes('--selftest')) {
   await runAll(db);
   if (failed) { console.error(`\ndungeon-settle: ${failed} assertion(s) FAILED.`); process.exit(1); }
   console.log('dungeon-settle: all assertions passed (scrip credited + projected + survives, '
-    + 'idempotent replay, version_conflict, forged-quality clamp, level_locked, scrip+count daily_cap, '
+    + 'idempotent replay, version_conflict, no client quality, scrip only on a server-confirmed clear, level_locked, scrip+count daily_cap, '
     + 'earn-cap excludes spends, key consumed).');
   process.exit(0);
 }

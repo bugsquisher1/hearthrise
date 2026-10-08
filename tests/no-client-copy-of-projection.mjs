@@ -157,6 +157,7 @@ const STATE = {
   streak_day_key:        { kind: 'reconciled', client: ['_serverStreak'], reader: ['src/net/accrue.js', 'playStreakDays'], why: 'the UTC day the server counted, so the chip cannot double-count across a roll' },
   hearthfind_last:       { kind: 'reconciled', client: ['_hearthfind'], reader: ['src/features/hearthfind.js', 'noteEnvelope'], why: 'the trophy moment; deliberately NOT in G (hearthfind.js header)' },
   hearthfind_ready:      { kind: 'reconciled', client: ['_hearthfind'], reader: ['src/features/hearthfind.js', 'noteEnvelope'], why: 'the server decides when a find is ready' },
+  pet_roll_ready:        { kind: 'meta', why: 'the ENGINE\'s switch (2026-10-10-pet-roll-server.sql): hr_apply accepts companion_finds only once this is true, so the edge rolls pets only against a database that can bank them. No client reader — the browser rolls nothing' },
   hearthfind_plinth:     { kind: 'reconciled', client: ['_hearthfind'], reader: ['src/features/hearthfind.js', 'noteEnvelope'], why: 'what stands on the plinth is the server\'s' },
   hearthfind_titles:     { kind: 'reconciled', client: ['_hearthfind'], reader: ['src/features/hearthfind.js', 'noteEnvelope'], why: 'earned titles are server rows' },
   /* THE TWO STANDING ORDERS (2026-09-22). Read by PRESENCE in hydrateHunt():

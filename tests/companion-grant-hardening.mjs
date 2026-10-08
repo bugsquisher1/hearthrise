@@ -37,7 +37,7 @@
 // public.player_inventory actually carries. Nothing is assembled from a base
 // object. Two specific applications:
 //   · the ledger probe passes a claimed source that CONTRADICTS the catalogue
-//     ('boss:i_said_so' against badger's 'drop'), so `claimed_source` and
+//     ('boss:i_said_so' against bunny's 'quest'), so `claimed_source` and
 //     `catalogue_source` cannot be confused for one another — if they carried
 //     the same string the C3 assertion would pass on either field;
 //   · every refusal arm is paired with the SAME call succeeding once its
@@ -197,10 +197,17 @@ async function armConditions(db, tag = '') {
   const p = (s) => `${tag}${s}`;
 
   // ── C3. The claim CONTRADICTS the catalogue on purpose (see the fixture rule
-  //    note in the header): badger's catalogue source_kind is 'drop'.
-  let g = await grant(db, 'badger', 'boss:i_said_so');
+  //    note in the header): bunny's catalogue source_kind is 'quest'.
+  //    2026-10-10-pet-roll-server.sql: a ROLLED pet (badger, the old fixture)
+  //    is refused rolled_server_side before this verb writes anything, so the
+  //    ordinary grant is the one client-claimable, server-verifiable quest pet,
+  //    with its server counter (lifetime ev:harvest >= 100) seeded first.
+  await db.exec(`insert into public.player_progress (user_id, slot, kind, key, value, period_key, state)
+                 values ('${UID}', 0, 'stat', 'ev:harvest', 100, '', 'active')
+                 on conflict (user_id, slot, kind, key, period_key) do update set value = 100;`);
+  let g = await grant(db, 'bunny', 'boss:i_said_so');
   ok(p('control/ordinary-grant'), g.raised === false && g.r?.ok === true,
-    `an ordinary badger grant did not succeed: ${JSON.stringify(g)}. Everything below would then `
+    `an ordinary bunny grant did not succeed: ${JSON.stringify(g)}. Everything below would then `
     + 'be measuring a broken verb rather than the hardening.');
 
   const led = await one(db,
@@ -216,9 +223,9 @@ async function armConditions(db, tag = '') {
   ok(p('C3/claim-is-verbatim'), meta?.claimed_source === 'boss:i_said_so',
     `claimed_source is ${JSON.stringify(meta?.claimed_source)} — it must be the CLIENT's string, `
     + 'verbatim, or the ledger is not recording what was claimed');
-  ok(p('C3/catalogue-source-is-server-truth'), meta?.catalogue_source === 'drop',
-    `catalogue_source is ${JSON.stringify(meta?.catalogue_source)} — badger's allowlist row says `
-    + "'drop'. The client claimed 'boss:i_said_so' and must not have moved it.");
+  ok(p('C3/catalogue-source-is-server-truth'), meta?.catalogue_source === 'quest',
+    `catalogue_source is ${JSON.stringify(meta?.catalogue_source)} — bunny's allowlist row says `
+    + "'quest'. The client claimed 'boss:i_said_so' and must not have moved it.");
 
   // The same rename on the OTHER surface this verb writes. Nothing in §4 of the
   // migration checks this one.
@@ -309,14 +316,18 @@ async function armConditions(db, tag = '') {
   // ── NARROWNESS. The storage guard raises 23514 for SIX distinct messages and
   //    C1 owns exactly one of them. A flag-shaped catalogue row must still blow
   //    up, loudly, rather than be reported as a tidy unknown_unlock.
-  await db.exec(`update public.hr_unlocks set progress_kind='flag' where unlock_id='companion:heron';`);
-  g = await grant(db, 'heron', 'skill:fishing');
+  //    The bunny (owned since the C3 control above) is un-owned first so the
+  //    grant reaches the INSERT; a rolled pet (heron, the old fixture) stops at
+  //    rolled_server_side and would never reach the storage guard.
+  await db.exec(`delete from public.player_progress where user_id='${UID}' and key='companion:bunny';`);
+  await db.exec(`update public.hr_unlocks set progress_kind='flag' where unlock_id='companion:bunny';`);
+  g = await grant(db, 'bunny', 'quest:harvest100');
   ok(p('C1/narrow-catch-reraises'),
     g.raised === true && g.sqlstate === '23514' && /^unlock_wrong_kind/.test(g.message || ''),
     `a flag-shaped catalogue row did not propagate the storage guard's unlock_wrong_kind — the RPC `
     + `answered ${JSON.stringify(g)}. Catching 23514 without testing the message turns every model `
     + 'violation into a false refusal and silently disarms the trigger this translation sits on.');
-  await db.exec(`update public.hr_unlocks set progress_kind='unlock' where unlock_id='companion:heron';`);
+  await db.exec(`update public.hr_unlocks set progress_kind='unlock' where unlock_id='companion:bunny';`);
 }
 
 // ════════════════════════════════════════════════════════════════════════

@@ -79,6 +79,7 @@ import { SHOP_OFFERS } from '../src/data/shops.js';
 import { ARTISAN_RECIPES } from '../src/data/recipes.js';
 import { ITEMS } from '../src/data/items.js';
 import { ROOM_PERKS } from '../src/data/perks.js';
+import { emitGenerated } from './generated-freeze.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const OUT = join(ROOT, 'supabase', 'migrations', '2026-08-16-unlocks.generated.sql');
@@ -438,8 +439,9 @@ if (REPORT) {
     console.error(`unlock drift: ${OUT} is missing. Run: node tools/gen-unlocks.mjs`);
     process.exit(1);
   }
-  const norm = (s) => s.replace(/\r\n/g, '\n');
-  if (norm(existing) !== norm(file)) {
+  const emitted = emitGenerated(OUT, file, true);   // frozen-aware (tools/generated-freeze.mjs)
+  if (!emitted.ok) {
+    console.error('  ' + emitted.msg);
     const was = /unlock digest: ([0-9a-f]{64})/.exec(existing);
     const committed = was ? was[1] : '(none)';
     if (committed === DIGEST) {
@@ -459,8 +461,7 @@ if (REPORT) {
   console.log(`unlocks in sync (${rows.length} ids, ${Object.keys(byNs).length} namespaces, `
     + `digest ${DIGEST.slice(0, 12)}…)`);
 } else {
-  await writeFile(OUT, file, 'utf8');
-  console.log(`wrote ${OUT}`);
+  console.log(emitGenerated(OUT, file, false).msg);
   console.log(`  ${rows.length} ids · ${nsSummary}`);
   console.log(`  digest ${DIGEST}`);
 }

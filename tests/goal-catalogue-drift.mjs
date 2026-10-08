@@ -107,10 +107,21 @@ export async function goalCatalogueDriftGuard(over = {}) {
         const goalM = row.match(/goal:\s*(\d+)/);
         if (cat && goalM) ok(cat.goal === Number(goalM[1]),
           `QUEST_DEFS '${id}' goal=${goalM[1]} != catalogue ${cat.goal}`);
+      } else if (/reward:\s*\{[^}]*\bcombatXp:\s*\d+/.test(row)) {
+        /* 2026-10-10-quest-combat-xp.sql: a combat-XP quest (hundred_kills) is
+           SERVER-paid. It must be catalogued with the same goal and XP, or the
+           client would fall back to its own addXp — a client-reported XP mint. */
+        const cat = QUEST_REWARDS[id];
+        const xp = Number(row.match(/\bcombatXp:\s*(\d+)/)[1]);
+        ok(!!cat && cat.combatXp === xp && cat.gold === 0,
+          `QUEST_DEFS '${id}' pays ${xp} combat XP but QUEST_REWARDS does not carry {gold:0, combatXp:${xp}} `
+          + '— the server cannot pay it, so the client would author the XP.');
+        const goalM = row.match(/goal:\s*(\d+)/);
+        if (cat && goalM) ok(cat.goal === Number(goalM[1]), `QUEST_DEFS '${id}' goal=${goalM[1]} != catalogue ${cat.goal}`);
       } else {
-        // A no-gold quest (hundred_kills) must NOT be in the catalogue.
-        ok(!QUEST_REWARDS[id], `QUEST_DEFS '${id}' has no gold reward but IS in QUEST_REWARDS — `
-          + 'a non-gold quest never fires a claim; remove it from the catalogue.');
+        // A quest the server pays nothing for must NOT be in the catalogue.
+        ok(!QUEST_REWARDS[id], `QUEST_DEFS '${id}' has no gold or combat-XP reward but IS in QUEST_REWARDS — `
+          + 'a quest with nothing to pay never fires a claim; remove it from the catalogue.');
       }
     }
   }
@@ -162,6 +173,11 @@ export async function goalCatalogueDriftGuard(over = {}) {
       ok(m[1] === cat.checkKey, `chain-end SQL quest '${id}' checkKey '${m[1]}' != catalogue '${cat.checkKey}'`);
       ok(Number(m[2]) === cat.goal, `chain-end SQL quest '${id}' goal ${m[2]} != catalogue ${cat.goal}`);
       ok(Number(m[3]) === cat.gold, `chain-end SQL quest '${id}' gold ${m[3]} != catalogue ${cat.gold}`);
+      /* The combat-XP literal is bound too, both ways: an arm that pays XP the
+         catalogue does not name is a server mint nobody shows. */
+      const xm = questBodySql.match(new RegExp(`when\\s+'${id}'\\s+then[^\\n]*?v_cxp\\s*:=\\s*(\\d+);`));
+      ok((xm ? Number(xm[1]) : 0) === (cat.combatXp || 0),
+        `chain-end SQL quest '${id}' combat XP ${xm ? xm[1] : 0} != catalogue ${cat.combatXp || 0}`);
     }
   }
   for (const m of questBodySql.matchAll(/when\s+'([a-z0-9_]+)'\s+then\s+v_key/g)) {

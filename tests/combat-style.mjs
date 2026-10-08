@@ -182,6 +182,19 @@ const MUTATIONS = {
   },
 };
 
+MUTATIONS.quest_route_share_drift = {
+  file: 'quest-xp',
+  why: 'hr_style_xp_routes pays Controlled\'s quest XP 0.5 to attack where styles.js says 0.33',
+  find: "  ('sword', 'controlled', 'attack', 0.33),",
+  replace: "  ('sword', 'controlled', 'attack', 0.5),",
+};
+MUTATIONS.quest_weapon_family_drift = {
+  file: 'quest-xp',
+  why: 'a bow is filed under the sword family, so a ranged player\'s quest XP lands in melee skills',
+  find: "('shortbow', 'ranged')",
+  replace: "('shortbow', 'sword')",
+};
+
 const FILES = {
   'accrual.js':  join(ROOT, 'supabase', 'functions', 'hr-accrue', 'accrual.js'),
   'envelope.js': join(ROOT, 'supabase', 'functions', 'hr-accrue', 'envelope.js'),
@@ -191,7 +204,39 @@ const FILES = {
   'goal-claim.js': join(ROOT, 'src', 'net', 'goal-claim.js'),
   'legacy.js':   join(ROOT, 'src', 'legacy.js'),
   'migration':   MIG,
+  'quest-xp':    join(ROOT, 'supabase', 'migrations', '2026-10-10-quest-combat-xp.sql'),
 };
+
+// ════════════════════════════════════════════════════════════════════════
+// F. THE QUEST-XP ROUTE CATALOGUES ARE BOUND, BOTH WAYS (2026-10-10)
+// ════════════════════════════════════════════════════════════════════════
+/* hr_claim_quest routes hundred_kills' 1,500 XP through hr_style_xp_routes and
+   hr_weapon_families, which 2026-10-10-quest-combat-xp.sql types out as
+   ⟦DERIVED⟧ rows. Every (family, key, skill, share) must be exactly
+   COMBAT_STYLES[family][key].xp and every weapon row exactly ITEMS[id].weaponType
+   — in BOTH directions — or the server pays a quest's XP into a skill the
+   style picker never promised. */
+function sectionF(sql) {
+  const block = (t) => {
+    const at = sql.indexOf(`insert into public.${t}`);
+    return at < 0 ? '' : sql.slice(at, sql.indexOf(';', at));
+  };
+  const routes = new Set([...block('hr_style_xp_routes').matchAll(
+    /\(\s*'([a-z_]+)',\s*'([a-z_]+)',\s*'([a-z_]+)',\s*([0-9.]+)\s*\)/g)].map((m) => `${m[1]}/${m[2]}/${m[3]}=${Number(m[4])}`));
+  const want = new Set();
+  for (const f of Object.keys(COMBAT_STYLES)) for (const k of Object.keys(COMBAT_STYLES[f])) {
+    for (const [sk, sh] of Object.entries(COMBAT_STYLES[f][k].xp || {})) want.add(`${f}/${k}/${sk}=${sh}`);
+  }
+  ok(routes.size > 0, 'F: the quest-xp migration has no parseable hr_style_xp_routes rows');
+  for (const r of want) ok(routes.has(r), `F: src/core/styles.js routes ${r} and hr_style_xp_routes does NOT`);
+  for (const r of routes) ok(want.has(r), `F: hr_style_xp_routes routes ${r} and src/core/styles.js does NOT`);
+  const weapons = new Set([...block('hr_weapon_families').matchAll(/\('([a-z0-9_]+)',\s*'([a-z_]+)'\)/g)]
+    .map((m) => `${m[1]}=${m[2]}`));
+  const wantW = new Set(Object.keys(ITEMS).filter((id) => ITEMS[id].weaponType).map((id) => `${id}=${ITEMS[id].weaponType}`));
+  ok(weapons.size > 0, 'F: the quest-xp migration has no parseable hr_weapon_families rows');
+  for (const w of wantW) ok(weapons.has(w), `F: items.js weapon ${w} is missing from hr_weapon_families`);
+  for (const w of weapons) ok(wantW.has(w), `F: hr_weapon_families has ${w}, which items.js does not`);
+}
 
 // ════════════════════════════════════════════════════════════════════════
 // A. THE CATALOGUE IS BOUND TO src/core/styles.js, IN BOTH DIRECTIONS
@@ -752,6 +797,7 @@ export async function combatStyleGuard({ mutation = null, skipRuntime = false } 
   sectionC(src);
   sectionD(src['migration']);
   sectionE(src);
+  sectionF(src['quest-xp']);
   /* Section B imports the REAL module, so a source-text mutation cannot reach
      it — under --mutate the static sections are the graded ones. */
   if (!skipRuntime && !mutation) sectionB();

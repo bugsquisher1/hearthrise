@@ -53,9 +53,9 @@ export const COMPANIONS = {
 
   /* ── Skilling + boss pets (b202, SYS-4) — OSRS-style: every skill has a
      rare pet earned by DOING the skill (1-in-N actions, N large — these are
-     meant to be HARD), plus boss pets from boss kills. Rolled by
-     src/features/pets.js (source kinds 'skill:' and 'boss:' — the legacy
-     'drop:'/'shop:'/'quest:' kinds stay handled by companions.js). */
+     meant to be HARD), plus boss pets from boss kills. Rolled by the SERVER
+     since 2026-10-10 (src/core/pet-roll.js inside the accrual settle; hr_apply
+     re-validates the claim) — never by the browser. */
   beaver:       {n:'Beaver',        icon:'🦫', role:'gather',  bonus:{gatherSpeed:.01}, source:'skill:woodcutting:2500', proc:{trigger:'gather', chance:.03, effect:'instant', label:'Timber!'}},
   rock_golem:   {n:'Rock Golem',    icon:'🗿', role:'gather',  bonus:{gatherSpeed:.01}, source:'skill:mining:2500',      proc:{trigger:'gather', chance:.03, effect:'instant', label:'Shattered!'}},
   heron:        {n:'Heron',         icon:'🪿', role:'gather',  bonus:{gatherSpeed:.01}, source:'skill:fishing:2500',     proc:{trigger:'gather', chance:.03, effect:'instant', label:'Snap catch!'}},
@@ -67,3 +67,12 @@ export const COMPANIONS = {
   lichling:     {n:'Lichling',      icon:'💀', role:'utility', bonus:{allXP:.01},       source:'boss:lich:200',          proc:{trigger:'kill', chance:.02, effect:'extraGold', amount:25, label:'Soul tithe!'}},
   dragonling:   {n:'Dragonling',    icon:'🐲', role:'combat',  bonus:{rareDrop:.15, strB:5}, source:'boss:dragon:200',   proc:{trigger:'combatHit', chance:.02, effect:'fireDot', label:'Dragonfire!'}},
 };
+
+/* THE DROP-PET ODDS (moved here from src/features/companions.js, 2026-10-10).
+   A `drop:<monster>` companion is rolled PER KILL of that monster with this
+   chance. It is game data the SERVER now rolls with (src/core/pet-roll.js), so
+   it lives in the data layer beside the rows it prices; a drop pet with no row
+   here is a build failure in indexPetSources, never a silent 1%. */
+export const PET_DROP_CHANCES = Object.freeze({
+  wolf_pup: 0.01, badger: 0.005, hawk: 0.01, scorpion: 0.005, tortoise: 0.005,
+});

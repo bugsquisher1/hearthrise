@@ -100,7 +100,10 @@ export const ABSOLUTE = Object.freeze([
   'accrued_to', 'hp', 'fight', 'activity',
   'recovering_until', 'ammo_carry', 'tool_carry', 'consec_falls',
 ]);
-export const APPEND = Object.freeze(['deaths', 'progress', 'hearthfind']);
+/* `companion_finds` (2026-10-10): pet-roll claims. Concatenated across windows;
+   hr_apply dedupes by companion, skips an owned pet and re-checks its own
+   per-apply cap AFTER the fold, which is the APPEND rule above. */
+export const APPEND = Object.freeze(['deaths', 'progress', 'hearthfind', 'companion_finds']);
 
 export function foldDeltas(deltas) {
   const out = {};
@@ -255,6 +258,8 @@ export const ZERO_TIME = Object.freeze({ ticks: 0, recoverMs: 0, grantMs: 0 });
                        (2026-09-08-hearthfind.sql L466: "Always true once this
                        has run … not a feature flag"). There is nothing for
                        hr_apply to clear and so nothing to chain.
+     petRollReady      the same literal-`true` switch, for `companion_finds`
+                       (2026-10-10-pet-roll-server.sql). Nothing to chain.
      combatXpAccruedToMs  moved ONLY by hr_credit_combat_xp, never by a settle
                        delta. A tick cannot advance it and must not pretend to.
      buffs             the engine proposes no delta key: the queue is drained

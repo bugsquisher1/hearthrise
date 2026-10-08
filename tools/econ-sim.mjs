@@ -749,11 +749,14 @@ function selftest(caps) {
   const after = simulate(ARCHETYPES[0], 1, caps, {});
   ok(after.in.vendor === base.in.vendor, 'the plant leaked into a later run (catalogue not restored)');
   // the knobs move what they say they move (grinder, 7 days)
-  /* A knob's PRICE effect is asserted on the price; its effect on a whole run
-     is second-order (the archetype re-optimises) and is what --sweep reports. */
-  const gearId = [...CRAFTED].find((id) => isGear(ITEMS[id]) && vendorPriceOf(ITEMS, id) >= 100);
-  ok(makePricer(Object.assign({}, DEFAULT_KNOBS, { gearRate: 0.25 }))(gearId) < vendorPriceOf(ITEMS, gearId),
-    `gearRate=0.25 did not lower the bid on ${gearId}`);
+  /* Measured at the PRICE, not the grinder's income: since the craft anchor
+     (src/core/vendor.js) a crafted sword fetches at most 1.5x its inputs, so a
+     maxed grinder now vendors raw Dawnstone (92k/h) over any bench chain and
+     gearRate rightly no longer moves its income. The knob must still move the
+     bid it names. */
+  const p0 = makePricer(Object.assign({}, DEFAULT_KNOBS)), p1 = makePricer(Object.assign({}, DEFAULT_KNOBS, { gearRate: 0.25 }));
+  ok(p0('dawn_sword') > 0 && p1('dawn_sword') < p0('dawn_sword'),
+    `gearRate=0.25 did not lower the dawn_sword bid (${p0('dawn_sword')} -> ${p1('dawn_sword')})`);
   const c0 = simulate(ARCHETYPES[0], 14, caps, {});
   const c1 = simulate(ARCHETYPES[0], 14, caps, { workerEffPerLvl: 0 });
   ok(c1.in.vendor < c0.in.vendor, `a flat crew curve did not lower casual vendor gold (${c0.in.vendor} -> ${c1.in.vendor})`);

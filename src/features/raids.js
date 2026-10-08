@@ -149,17 +149,18 @@
   var ROMAN = ['', 'I', 'II', 'III', 'IV', 'V'];
   var MIN_TIER = 1, MAX_TIER = 5;
 
-  /* The Lone Hunt (§3.5). Solo has NO tiers — tiers are the clan's reward for
-     being a clan — and keeps the 0.4× chest, which is the social pull. */
-  var SOLO_CHEST = { gold: 2800, gems: 5, mats: 2 };
-  var SOLO_SCALE = 0.4;
-
-  // §3.5: solo_pool = clamp(5 × your first strike of the week, 20k, 200k),
-  // set on the first strike and frozen for the week. It calibrates to the
-  // player's ACTUAL measured power, so it always takes 5-6 strikes — a real
-  // weekly loop at CL 30 and at CL 99 alike. SOLO_POOL_HP is obsolete.
-  var SOLO_POOL_MULT = 5, SOLO_POOL_MIN = 20000, SOLO_POOL_MAX = 200000;
-  var SOLO_CLAMP_FRAC = 0.25;   // a one-tap is arithmetically impossible
+  /* THE LONE HUNT IS A WEEKLY CHEST (2026-10-10-lone-hunt-weekly-chest.sql).
+     It used to be a fight simulated HERE — a client-rolled strike against a
+     client-sized pool — and when this file said the boss fell, raid_claim paid
+     with no check at all. Designer ruling 2026-10-08: no client damage, boss or
+     limit. The chest opens when the SERVER's own count of this character's
+     kills in the hunt week reaches LONE_HUNT_CHEST.killsNeeded; the server
+     answers `not_eligible {have, need}` otherwise. The numbers are
+     src/data/raid-bosses.js LONE_HUNT_CHEST (published by main.js), read lazily
+     for the same reason BOSSES_() is. */
+  function LONE() {
+    return (typeof window !== 'undefined' && window.LONE_HUNT_CHEST) || null;   // no second copy
+  }
 
   // The pre-Hunt server's flat pool. Kept ONLY so a client talking to a
   // generation-1/2 server still renders a truthful bar (§2.1).
@@ -319,11 +320,6 @@
              partial: !o.downed, factor: f, share: share };
   }
 
-  // §3.5 — the solo pool, calibrated to the player's own measured power.
-  function soloPoolFor(firstStrike) {
-    var v = Math.max(0, Math.floor(Number(firstStrike) || 0)) * SOLO_POOL_MULT;
-    return Math.max(SOLO_POOL_MIN, Math.min(SOLO_POOL_MAX, v));
-  }
 
   function bossesForTier(tier) {
     var t = Math.max(MIN_TIER, Math.min(MAX_TIER, tier | 0));
@@ -368,12 +364,15 @@
              standing: d.standing, sigChance: d.sig, sigChampionOnly: d.sigChampionOnly,
              sig: b ? b.sig : null };
   }
+  /* The chest the SERVER pays (raid_claim__ungated's solo branch), described for
+     the card and the receipt toast — never a client credit decision. */
   function soloChestFor(boss) {
+    var L = LONE() || { gold: 0, gems: 0, mats: 0 };
     var b = boss || bossOfWeek();
-    var ids = Object.keys((b && b.reward && b.reward.items) || {}).slice(0, 2);
+    var ids = Object.keys((b && b.reward && b.reward.items) || {}).slice(0, L.mats);
     var items = {};
     ids.forEach(function (id) { items[id] = 1; });
-    return { tier: 0, name: 'Lone Hunt', gold: SOLO_CHEST.gold, gems: SOLO_CHEST.gems,
+    return { tier: 0, name: 'Lone Hunt', gold: L.gold, gems: L.gems,
              items: items, standing: 0, sigChance: 0, sig: null };
   }
 
@@ -445,16 +444,12 @@
 
   function ensureState() {
     var G = window.G || {};
-    if (!G.raids) G.raids = { lastStrikeDay: null, solo: null, claimed: {} };
+    if (!G.raids) G.raids = { lastStrikeDay: null, claimed: {} };
     if (!G.raids.claimed || typeof G.raids.claimed !== 'object') G.raids.claimed = {};
     var wk = weekKey();
-    /* The solo pool resets each week and is UNMEASURED until the first strike
-       (§3.5): hp/max stay null so the card can say so honestly instead of
-       inventing a number the player has not earned a reading for. */
-    if (!G.raids.solo || G.raids.solo.week !== wk) {
-      G.raids.solo = { week: wk, hp: null, max: null, damage: 0, strikes: 0 };
-    }
-    if (G.raids.solo.strikes == null) G.raids.solo.strikes = G.raids.solo.damage > 0 ? 1 : 0;
+    /* 2026-10-10: the client-held solo pool ({hp, max, damage, strikes}) is
+       retired with the client fight. A save that still carries it drops it. */
+    if (G.raids.solo !== undefined) delete G.raids.solo;
     /* The claim mirror needs the current week AND the one before it — §5.3's
        partial-credit grace runs for 24h after the roll, and a mirror that
        forgot last week would offer a chest that the server has already paid.
@@ -616,6 +611,14 @@
       var err = out.error || '';
       if (err === 'week_mismatch' && out.week && !attempt) return { action: 'retry', week: out.week };
       if (err === 'already_claimed') return { action: 'spent', message: claimErrorText(err) };
+      /* The Lone Hunt gate's own count (2026-10-10): the SERVER's kills this
+         hunt week against its threshold, carried so the card can say them. */
+      if (err === 'not_eligible') {
+        var have = Math.max(0, Math.floor(+out.have || 0)), need = Math.max(0, Math.floor(+out.need || 0));
+        return { action: 'fail', error: err, have: have, need: need, week: out.week || null,
+                 message: 'Slay ' + need.toLocaleString() + ' monsters this hunt week to open the chest — '
+                   + have.toLocaleString() + ' so far' };
+      }
       return { action: 'fail', error: err, message: claimErrorText(err) };
     }
     return {
@@ -790,17 +793,17 @@
   }
 
   async function strike() {
+    /* The Lone Hunt has no strike (2026-10-10): its chest opens on the
+       server's weekly kill count. Only a clan Hunt is struck. */
+    if (!inClan()) { notify('The Lone Hunt is a weekly chest — fight anywhere and claim it on the card', 'info'); return null; }
     var gate = canStrike();                 // fast local mirror — UX only
     if (!gate.ok) { notify(gate.message, 'kill'); return null; }
-    if (inClan()) {
-      var raid = await clanStatus(true);
-      var tier = raid && raid.tier != null ? (+raid.tier || 1) : null;
-      var pool = raid && +raid.max_hp ? +raid.max_hp : 0;
-      var boss = (raid && bossById(raid.boss_id)) || bossOfWeek(weekKey(), tier);
-      var dmg = simulateStrike(boss, { clamp: strikeClamp(pool) });
-      return await clanStrike(boss, dmg, 0);
-    }
-    return soloStrike();
+    var raid = await clanStatus(true);
+    var tier = raid && raid.tier != null ? (+raid.tier || 1) : null;
+    var pool = raid && +raid.max_hp ? +raid.max_hp : 0;
+    var boss = (raid && bossById(raid.boss_id)) || bossOfWeek(weekKey(), tier);
+    var dmg = simulateStrike(boss, { clamp: strikeClamp(pool) });
+    return await clanStrike(boss, dmg, 0);
   }
 
   async function clanStrike(boss, dmg, attempt) {
@@ -856,36 +859,6 @@
     return { dmg: dealt, downed: d.downed, tier: d.tier };
   }
 
-  /* Solo (§3.5). The pool is set by the FIRST strike of the week and frozen:
-     5× your own measured output, floored at 20,000 and capped at 200,000, so
-     the Lone Hunt is 5-6 strikes at CL 30 and at CL 99 alike. The strike clamp
-     is 25% of that pool, which makes a one-tap arithmetically impossible. */
-  function soloStrike() {
-    var st = ensureState();
-    var boss = bossOfWeek();
-    if (!st.solo.max) {
-      var first = simulateStrike(boss, { clamp: LEGACY_CLAMP });
-      st.solo.max = soloPoolFor(first);
-      st.solo.hp = st.solo.max;
-      var opening = Math.min(first, Math.floor(st.solo.max * SOLO_CLAMP_FRAC));
-      return applySolo(boss, opening);
-    }
-    var dmg = simulateStrike(boss, { clamp: Math.floor(st.solo.max * SOLO_CLAMP_FRAC) });
-    return applySolo(boss, dmg);
-  }
-  function applySolo(boss, dmg) {
-    var st = ensureState();
-    st.lastStrikeDay = dayKey();
-    st.solo.hp = Math.max(0, st.solo.hp - dmg);
-    st.solo.damage += dmg;
-    st.solo.strikes = (st.solo.strikes | 0) + 1;
-    var downed = st.solo.hp === 0;
-    notify('You dealt ' + dmg.toLocaleString() + ' to ' + boss.name + ' — ' +
-      (downed ? 'THE BOSS FALLS! Claim your chest.' : Math.round(100 * st.solo.hp / st.solo.max) + '% remains'),
-      downed ? 'levelup' : 'loot');
-    persist(); render();
-    return { dmg: dmg, downed: downed, tier: 0 };
-  }
 
   /* ══════════════════════════════════════════════════════════════
      10. THE CHEST
@@ -1078,9 +1051,15 @@
     return true;
   }
 
+  /* THE LONE HUNT CLAIM (2026-10-10). No local gate: the server decides from its
+     own weekly kill count and answers the chest, `not_eligible {have, need}`, or
+     `already_claimed`. Its count is kept in `loneSeen` (module scratch, never
+     persisted) so the card shows the SERVER's number — and is replaced by every
+     answer. A signed-out / server-less client gets NO chest: there is no solo
+     progression (CLAUDE.md §1), so 'unsupported' is a refusal, not a local mint. */
+  var loneSeen = null;   // { week, have, need } — the last server answer
   async function soloClaim(wk, attempt) {
     var st = ensureState(), boss = bossOfWeek(wk);
-    if (!st.solo.max || st.solo.hp > 0) { notify(CLAIM_ERRORS.not_downed, 'kill'); return false; }
     var d = await serverClaim('solo', null, wk, attempt);
 
     if (d.action === 'retry') { adoptWeek(d.week); return await soloClaim(weekKey(), attempt + 1); }
@@ -1088,12 +1067,16 @@
       st.claimed[wk] = true; persist(); render();
       notify(d.message, 'kill'); return false;
     }
-    // 'unsupported' = signed out, offline-only, or a server without the
-    // migration. That is the b209 behaviour: local ledger, local chest.
-    if (d.action !== 'accept' && d.action !== 'unsupported') { notify(d.message, 'kill'); return false; }
+    if (d.action === 'unsupported') { notify(CLAIM_ERRORS.not_signed_in, 'kill'); return false; }
+    if (d.action !== 'accept') {
+      if (d.error === 'not_eligible') { loneSeen = { week: wk, have: d.have, need: d.need }; render(); }
+      notify(d.message, 'kill'); return false;
+    }
 
     st.claimed[wk] = true;
-    grantReward(soloChestFor(boss), (d.action === 'accept' && d.scale) || SOLO_SCALE, false);
+    loneSeen = null;
+    var L = LONE();
+    grantReward(soloChestFor(boss), d.scale || (L && L.scale) || 0, false);
     render();
     return true;
   }
@@ -1321,30 +1304,27 @@
       '</div>';
   }
 
+  /* THE LONE HUNT CHEST CARD (2026-10-10). No bar, no strike, no client count:
+     the requirement is the authored threshold, and the only number shown is the
+     SERVER's own answer from the last claim (`loneSeen`), labelled as such. */
   function soloCardHtml(st, wk, struckToday, claimed) {
     var boss = bossOfWeek(wk);
-    var measured = !!st.solo.max;
-    var max = st.solo.max || 0;
-    var hp = measured ? st.solo.hp : 0;
-    var pct = measured && max > 0 ? Math.max(0, Math.min(100, Math.round(100 * hp / max))) : 100;
-    var downed = measured && hp === 0;
+    var L = LONE();
+    var need = L ? L.killsNeeded : 0;
+    var seen = (loneSeen && loneSeen.week === wk) ? loneSeen : null;
     return '<div class="card-head">' + bossPortraitHtml(boss) + '<div class="card-title">' + esc(boss.glyph + ' Lone Hunt — ' + boss.name) + '</div>' +
-      '<div class="card-sub">Solo hunt (join a clan for the tiered pool + a bigger chest)</div></div>' +
+      '<div class="card-sub">Weekly chest (join a clan for the tiered Hunt + a bigger chest)</div></div>' +
       '<div class="card-body" style="padding:12px 14px">' +
         '<div class="tiny muted" style="margin-bottom:8px">' + esc(boss.desc) +
-          ' Weak to <b style="color:var(--gold-2)">' + esc(boss.weak) + '</b>.</div>' +
-        '<div class="hunt-bar"><i style="width:' + pct + '%"></i></div>' +
-        '<div class="tiny muted" style="margin:4px 0 10px">' +
-          (measured
-            ? hp.toLocaleString() + ' / ' + max.toLocaleString() + ' HP · resets weekly'
-            : 'Unmeasured — your first strike of the week sets the quarry\'s size') + '</div>' +
-        (downed
-          ? (claimed
-            ? '<div class="tiny" style="color:var(--gold-2)">Chest claimed — a new quarry rises next week.</div>'
-            : '<button class="btn btn-primary btn-sm" data-hr-settle-latch onclick="window.HearthriseRaids.claim()">Claim raid chest</button>')
-          : '<button class="btn ' + (struckToday ? '' : 'btn-primary') + ' btn-sm" ' + (struckToday ? 'disabled' : '') +
-            ' onclick="window.HearthriseRaids.strike()">' +
-            (struckToday ? 'Struck today — return tomorrow' : 'Strike the boss (1/day)') + '</button>') +
+          ' Slay <b style="color:var(--gold-2)">' + need.toLocaleString() + '</b> monsters this hunt week' +
+          ' — anywhere, away or at the screen — and its chest is yours.</div>' +
+        (seen
+          ? '<div class="tiny muted" data-lone-seen style="margin:4px 0 10px">The realm counts ' +
+              seen.have.toLocaleString() + ' / ' + seen.need.toLocaleString() + ' this week</div>'
+          : '') +
+        (claimed
+          ? '<div class="tiny" style="color:var(--gold-2)">Chest claimed — a new quarry rises next week.</div>'
+          : '<button class="btn btn-primary btn-sm" data-hr-settle-latch onclick="window.HearthriseRaids.claim()">Claim weekly chest</button>') +
         /* b225 (#18): the card-sub above says "join a clan for the tiered pool"
            and then left the player to work out where. It has a destination
            now. */
@@ -1439,14 +1419,14 @@
     poolFor: poolFor, strikeClamp: strikeClamp, maxHuntTier: maxHuntTier,
     shareFor: shareFor, bandFor: bandFor, BANDS: BANDS,
     partialFactor: partialFactor, previewScale: previewScale,
-    soloPoolFor: soloPoolFor, chestFor: chestFor, soloChestFor: soloChestFor,
+    chestFor: chestFor, soloChestFor: soloChestFor,
     huntGateMet: huntGateMet,
     weekStartMs: weekStartMs, prevWeekKey: prevWeekKey, GRACE_MS: GRACE_MS,
     raidPower: raidPower, raidPowerMult: raidPowerMult,
     MIN_STRIKES_FOR_CHEST: MIN_STRIKES_FOR_CHEST,
-    PARTIAL_CAP: PARTIAL_CAP, SOLO_SCALE: SOLO_SCALE,
-    SOLO_POOL_MIN: SOLO_POOL_MIN, SOLO_POOL_MAX: SOLO_POOL_MAX, SOLO_POOL_MULT: SOLO_POOL_MULT,
-    SOLO_CLAMP_FRAC: SOLO_CLAMP_FRAC, HUNT_GATE_MS: HUNT_GATE_MS,
+    PARTIAL_CAP: PARTIAL_CAP, HUNT_GATE_MS: HUNT_GATE_MS,
+    // Test seam: the last server answer the Lone Hunt card renders (2026-10-10).
+    _loneSeen: function () { return loneSeen; },
     CLAN_POOL_HP: CLAN_POOL_HP,
     // Asset pass (b224+) — the six painted boss portraits + the render helper,
     // exposed so the suite can verify the wiring without needing a full DOM/

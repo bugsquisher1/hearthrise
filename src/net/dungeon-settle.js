@@ -3,14 +3,16 @@
 //
 // "I cleared the Crypt of Bones." — sent to the server, which consumes the entry
 // key, rolls the loot from its own catalogue with the seeded PRNG, and credits
-// the scrip. This client sends a NAME + a MODE + a clear fraction and reconciles
-// whatever comes back. It authors NO reward.
+// the scrip. This client sends a NAME + a MODE and reconciles whatever comes
+// back. It authors NO reward and NO number: the clear fraction it used to send
+// (`quality`) was retired by 2026-10-10-dungeon-scrip-fixed-by-mode.sql — the
+// server pays scrip only on a clear it confirms (Auto) and reads no browser opinion.
 //
 // Contract: supabase/functions/hr-accrue/dungeon-settle.js and ./intents.js.
 //
 //   POST <SUPABASE_URL>/functions/v1/hr-accrue
 //     {"verb":"dungeon_settle","slot":N,"intentId":"<uuid>",
-//      "dungeon":{"id":"crypt_of_bones","mode":"auto","quality":1}}
+//      "dungeon":{"id":"crypt_of_bones","mode":"auto"}}
 //   → 200 {ok:true, verb:'dungeon_settle', state:{dungeon_scrip,…}, inventory:{…},
 //          settled:{dungeon,mode,scrip,items,key_spent}|null, …env}
 //     409 {ok:false, error:'insufficient_item'|'on_cooldown'|'daily_cap'|
@@ -155,8 +157,8 @@ function tokenOf() {
 /* ── THE REQUEST, AS DATA — pure, so the suite asserts the LITERAL bytes ─────
    CONSTRUCTED field by field. There is no `...o` and there never will be: the
    field a future caller adds by accident is the field that turns a NAME into a
-   VALUE. In particular there is no loot, no scrip, no key, no qty. `quality` is
-   the ONE number and the server clamps it to [0,1]. */
+   VALUE. In particular there is no loot, no scrip, no key, no qty and no
+   quality: the dungeon object is exactly {id, mode}, two names. */
 export function buildDungeonSettleRequest(opts) {
   const o = opts || {};
   const headers = { 'Content-Type': 'application/json' };
@@ -164,7 +166,6 @@ export function buildDungeonSettleRequest(opts) {
   if (o.apiKey) headers['apikey'] = o.apiKey;
   const slot = Number.isInteger(o.slot) && o.slot >= 0 && o.slot <= MAX_SLOT ? o.slot : 0;
   const dungeon = { id: String(o.id == null ? '' : o.id), mode: String(o.mode == null ? '' : o.mode) };
-  if (typeof o.quality === 'number' && Number.isFinite(o.quality)) dungeon.quality = o.quality;
   return {
     url: accrueEndpoint(o.url),
     init: {
@@ -243,7 +244,8 @@ export function reconcileFromEnvelope(G, body) {
 /**
  * SEND ONE DUNGEON RUN AND RECONCILE.
  *
- * @param run  { id, mode, quality }
+ * @param run  { id, mode } — any other field (a stale caller's `quality`) is
+ *             ignored here and never reaches the wire.
  * @param o.key an idempotency key to REUSE (rule 1). Absent ⇒ a fresh one.
  * @returns a verdict from DUNGEON_OUTCOMES, with `key` so the caller can reuse it
  *          on a NOT-ANSWERED outcome.
@@ -252,7 +254,6 @@ export async function sendDungeonSettle(run, o = {}) {
   const r = run || {};
   const id = String(r.id == null ? '' : r.id);
   const mode = String(r.mode == null ? '' : r.mode);
-  const quality = (typeof r.quality === 'number' && Number.isFinite(r.quality)) ? r.quality : undefined;
 
   if (!isDungeonSettleEnabled()) return { outcome: 'switch-off', key: o.key || null };
   if (!config) return { outcome: 'unconfigured', reason: 'no_endpoint', key: o.key || null };
@@ -266,7 +267,7 @@ export async function sendDungeonSettle(run, o = {}) {
 
   const { url, init } = buildDungeonSettleRequest({
     url: config.url, apiKey: config.apiKey, token,
-    slot: resolveActiveSlot(config.slot), intentId: key, id, mode, quality,
+    slot: resolveActiveSlot(config.slot), intentId: key, id, mode,
   });
 
   let ac = null; let timer = null;

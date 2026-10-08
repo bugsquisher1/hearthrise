@@ -68,7 +68,9 @@ function companionIconHtml(id, px) {
    b499: hoisted to module scope (verbatim) because the REFUSAL copy needs the
    same item humaniser — `missing_req_item` names the item the server wanted,
    and `dragon_egg` is exactly the id with no ITEMS row. Two copies of this
-   would drift the moment one of them learned about a new catalogue. */
+   would drift the moment one of them learned about a new catalogue.
+   content-holes (2026-10-08): `dragon_egg` HAS an ITEMS row now (and a drop);
+   the fallback stays, because the next hatch source will start the same way. */
 const titleizeId = (id) => String(id || '')
   .split(/[_\-:]/).filter(Boolean)
   .map((w) => w[0].toUpperCase() + w.slice(1))
@@ -234,8 +236,8 @@ export function awardCompanionXp(amount) {
  * @param onUnlocked  OPTIONAL, called with (id) the moment the companion really
  *                    joins the stable — synchronously on the dormant path, and
  *                    only AFTER the server verdict under the capstone arm. Call
- *                    sites put their own celebration here (the drop's big toast,
- *                    pets.js's "a wild friend!", the hatch's egg consume) so a
+ *                    sites put their own celebration here (the hatch's egg
+ *                    consume) so a
  *                    refused acquisition never gets a party thrown for it.
  * @returns true only when the companion is in the local stable NOW. A dispatched
  *          (armed, awaiting verdict) grant returns false — it is not owned yet,
@@ -254,7 +256,7 @@ export function unlockCompanion(id, onUnlocked) {
 /* The local half of an acquisition — VERBATIM the body unlockCompanion used to
    have, minus the transport. Extracted so the armed path can run exactly the
    same writes a beat later, rather than growing a second (drifting) copy. */
-function applyUnlockLocally(id, onUnlocked) {
+function applyUnlockLocally(id, onUnlocked, res) {
   window.G.companions.ownedIds.push(id);
   window.G.companions.xp[id] = 0;
   if (typeof window.notify === 'function') {
@@ -264,13 +266,16 @@ function applyUnlockLocally(id, onUnlocked) {
     window.notify(`Companion unlocked: ${COMPANIONS[id].n}`, 'loot');
   }
   emit('companionUnlock', { id });
-  if (typeof onUnlocked === 'function') { try { onUnlocked(id); } catch (e) {} }
+  /* `res` is the server's verdict when there was one (armed path), so a
+     caller can mirror exactly what the server moved — never predict it. */
+  if (typeof onUnlocked === 'function') { try { onUnlocked(id, res || null); } catch (e) {} }
 }
 
 /* ── SERVER TRANSPORT (companion-grant) — persist a NON-SHOP acquisition ──────
    Every non-shop companion reaches G.companions.ownedIds through unlockCompanion
-   (drops + hatch here, the bunny quest here, and pets.js skill/boss pets all call
-   window.unlockCompanion). Under the blob-retire capstone arm the client stops
+   (the hatch here and the bunny quest here call window.unlockCompanion; rolled
+   skill/boss/drop pets are the SERVER settle's since 2026-10-10 and never come here).
+   Under the blob-retire capstone arm the client stops
    loading the save blob and reconcileCompanions (accrue.js) rebuilds G.companions
    from the SERVER owned-set (companion:<id> unlock rows), so a companion acquired
    with no server row is DROPPED on the next reload — a real player loss. This
@@ -507,7 +512,7 @@ export function requestServerUnlock(id, onUnlocked) {
       const owned = !!(w.G && w.G.companions
         && Array.isArray(w.G.companions.ownedIds)
         && w.G.companions.ownedIds.includes(id));
-      if (!owned) applyUnlockLocally(id, onUnlocked);
+      if (!owned) applyUnlockLocally(id, onUnlocked, res);
       return true;
     }
     /* REFUSED. Nothing was written: no ownedIds push, no xp row, no toast, no
@@ -582,36 +587,16 @@ export function unequipCompanion() {
   renderStable();
 }
 
-// ── Hooks (XP gain + procs + drops) ──
-
-const DROP_CHANCES = {
-  wolf_pup: 0.01, badger: 0.005, hawk: 0.01, scorpion: 0.005, tortoise: 0.005,
-};
-
-function parseSource(src) {
-  if (!src) return null;
-  const [kind, arg1, arg2] = src.split(':');
-  return { kind, arg1, arg2 };
-}
-
-/* monsterId -> [[companionId, def]] for every `drop:<monsterId>` source.
-   Built once, lazily, and keyed on the table's identity so a data reload or a
-   test substituting the catalogue invalidates it rather than serving a stale
-   index. Scales with content: adding fifty companions adds fifty rows here,
-   not fifty comparisons per kill. */
-let _dropIndex = null, _dropIndexFor = null;
-function dropSourcesFor(monsterId) {
-  if (_dropIndexFor !== COMPANIONS) {
-    _dropIndexFor = COMPANIONS;
-    _dropIndex = Object.create(null);
-    for (const [id, def] of Object.entries(COMPANIONS)) {
-      const src = parseSource(def.source);
-      if (src?.kind !== 'drop' || !src.arg1) continue;
-      (_dropIndex[src.arg1] || (_dropIndex[src.arg1] = [])).push([id, def]);
-    }
-  }
-  return _dropIndex[monsterId] || [];
-}
+// ── Hooks (XP gain + procs) ──
+//
+// THE DROP-PET ROLL IS GONE FROM HERE (2026-10-10-pet-roll-server.sql). It rolled
+// `drop:<monster>` companions on every kill in the BROWSER and claimed a hit
+// through hr_companion_grant on the client's word. Drop, boss and skill pets
+// are rolled by the server settle now (src/core/pet-roll.js; the odds live in
+// src/data/companions.js PET_DROP_CHANCES), hr_companion_grant refuses a client
+// claim for one, and the roster arrives through the envelope
+// (src/net/accrue.js reconcileCompanions) with the "wild friend" receipt.
+// What stays is the kill EVENT, which other listeners read.
 
 function wireKillHook() {
   if (typeof window.killMonster !== 'function') return;
@@ -624,46 +609,9 @@ function wireKillHook() {
         if (window.MONSTERS[k] === m) { monsterId = k; break; }
       }
     }
-    if (monsterId) {
-      /* Drop check, through a PREBUILT index. This used to walk the whole
-         COMPANIONS table (Object.entries + a string split per row) on every
-         kill; a 12-hour away catch-up is ~1,000 kills, and since the away
-         unification an away kill comes through this wrapper too. The index is
-         a pure lookup — same rows, same order, no behaviour change. */
-      for (const [id, def] of dropSourcesFor(monsterId)) {
-        if (window.G.companions?.ownedIds?.includes(id)) continue;
-        const chance = DROP_CHANCES[id] ?? 0.01;
-        /* Through the SEEDED session stream, not Math.random(): this roll is
-           part of what a kill pays, and a kill must be replayable end to end
-           or a server-side accrual dispute cannot be adjudicated. Falls back
-           only if the core has not booted. */
-        const C = window.HearthriseCore;
-        const hit = (C && C.rng) ? C.rng.chance(chance) : (Math.random() < chance);
-        /* b499: the celebration rides the unlock's own callback instead of the
-           next statement. Dormant that is the same order it always was (the
-           toast still fires straight after the emit); under the capstone arm it
-           waits for the server verdict, so a refused grant never shows a
-           "New companion unlocked!" banner for a companion the next envelope
-           is about to take away. */
-        if (hit) unlockCompanion(id, () => showCompanionUnlockedToast(def));
-      }
-      emit('kill', { monsterId });
-    }
+    if (monsterId) emit('kill', { monsterId });
     return r;
   };
-}
-
-function showCompanionUnlockedToast(def) {
-  try {
-    const t = document.createElement('div');
-    t.textContent = `New companion unlocked: ${def.n}!`;
-    t.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:99999;'
-      + 'background:linear-gradient(180deg,#7f9a4f,#3a8a52);color:#fff;padding:14px 22px;border-radius:8px;'
-      + 'font-weight:800;font-size:15px;box-shadow:0 8px 32px rgba(0,0,0,.5);'
-      + 'border:2px solid #f3d181;animation:bigtoast 4s ease-out forwards';
-    document.body.appendChild(t);
-    setTimeout(() => t.remove(), 4500);
-  } catch {}
 }
 
 function wireAddItemForGather() {
@@ -730,8 +678,16 @@ function wireDragonEggHatch() {
              same transaction in which the server consumes its own copy of the
              egg. It also stops a second egg being burnt for a Whelp already
              owned, which the old order did silently. */
-          unlockCompanion('whelp', function () {
-            if (window.G?.inventory?.dragon_egg > 0) window.G.inventory.dragon_egg--;
+          /* content-holes (2026-10-08) — THE EGG MOVES ONLY AS THE SERVER MOVED IT.
+             The callback used to decrement unconditionally. hr_companion_grant
+             answers `already_owned:true` WITHOUT consuming (2026-09-06 hardening:
+             "a success that consumes NO req_item"), so a Whelp the server already
+             had — granted from another tab, or reconciled in late — cost the bag
+             an egg the server still holds: the browser said 0, the server said 1.
+             The bag now mirrors the verdict's own `egg_consumed`, and the next
+             envelope restates the inventory either way. */
+          unlockCompanion('whelp', function (_id, res) {
+            if (res && res.egg_consumed === true && window.G?.inventory?.dragon_egg > 0) window.G.inventory.dragon_egg--;
             if (typeof window.renderInvFancy === 'function') window.renderInvFancy();
           });
         });

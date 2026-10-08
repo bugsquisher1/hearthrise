@@ -41,6 +41,9 @@
 //       1.33 per 1-damage hit; 100 x 1.33 -> 51 r 0.87; 100 x 10.6 at +2% -> 1081
 //       (floor: 1000); 1 x N == N x 1; maxed goblin night 422,802 (old 361,187);
 //       L1 Controlled slime 8 x 1 h 1,024 (old 1,362, ratio 0.75, accepted).
+//   X8  a window the live credit already paid proposes no xp / xp_frac (Security #2).
+//   X9  the world-tick S4 fold: xp_frac is a FOLD_CHAIN_KEY, folds per skill (last
+//       window wins) and equals the chain's carried remainder.
 //   X5  CLAMPED AND SERVER-ONLY. A projected remainder outside [0,1) is clamped
 //       (a 900 cannot mint); the envelope reads it ONLY off skills.<id>.frac; the
 //       client residue does not carry it.
@@ -97,6 +100,10 @@ const JS_MUTANTS = [
   /* Security 2026-10-08 #2: a grant the live credit already paid must not move the remainder. */
   { name: 'paid grant moves the remainder', arm: 'X8', file: 'supabase/functions/hr-accrue/accrual.js',
     edits: [['      if (curAtMs < xpEligibleFromMs && state.xpFrac) {\n', '      if (false) {\n']] },
+  { name: 'the S4 fold stops at xp_frac', arm: 'X9', file: 'supabase/functions/hr-accrue/tick.js',
+    edits: [["'xp', 'xp_frac', 'gold',", "'xp', 'gold',"]] },
+  { name: 'xp_frac folded whole-map last-wins', arm: 'X9', file: 'supabase/functions/hr-accrue/tick-contract.js',
+    edits: [['      if (ABSOLUTE_MAP.includes(k)) { out[k] = Object.assign(out[k] || {}, v || {}); continue; }', '      if (ABSOLUTE_MAP.includes(k)) { out[k] = v; continue; }']] },
   { name: 'tick chain drops the remainder', arm: 'X3', file: 'supabase/functions/hr-accrue/tick-shadow.js',
     edits: [['    char.xpFrac = Object.assign({}, char.xpFrac, d.xp_frac);\n', '']] },
 ];
@@ -127,9 +134,12 @@ async function load(base) {
     at('src/core/xp.js'), at('src/core/styles.js'),
   ]);
   const pacing = await at('src/core/pacing.js');
+  const tick = await at('supabase/functions/hr-accrue/tick.js');
+  const tg = await at('supabase/functions/hr-accrue/tick-gather.js');
+  const gatherFixture = JSON.parse(await readFile(join(ROOT, 'services', 'world-tick', 'fixtures', 'gather-sessions.json'), 'utf8')).sessions[0];
   const residueSrc = await readFile(join(base, 'src', 'net', 'client-state.js'), 'utf8');
   return { prog, acc, cmb, sim, rng, env, shadow, contract, MONSTERS: monsters.MONSTERS, ITEMS: items.ITEMS,
-    xp, styles, pacing, residueSrc };
+    xp, styles, pacing, tick, tg, gatherFixture, residueSrc };
 }
 
 async function mutantBase(m) {
@@ -515,6 +525,50 @@ async function runArms(L) {
     const unpaid = L.acc.computeAccrual(combatInput(L, { fromMs: FROM, toMs: FROM + SPAN, skills, xpFrac: F0, perks: RUNG2 }));
     ok('X8', unpaid.delta && unpaid.delta.xp_frac && Object.keys(unpaid.delta.xp_frac).length > 0,
       'CONTROL: the same window unpaid proposes no xp_frac, so the arm above proves nothing');
+  }
+  // X9 ─ THE SCALE FOLD (world-tick S4) CARRIES THE REMAINDER. Eight gather
+  //      flush windows chained exactly as settleFolded chains them, then ONE
+  //      foldWindowIntents: the folded xp is the sum, the folded xp_frac is each
+  //      skill's LAST remainder (ABSOLUTE_MAP) and equals the chain's carried one,
+  //      and every window's keys are FOLD_CHAIN_KEYS — or the fold would stop at
+  //      every window that moved a remainder and S4 would never fold again.
+  {
+    const s0 = Object.assign({ activeKind: 'gather' }, L.gatherFixture, { xpFrac: { ...F0 } });
+    const from = Date.parse('2026-10-01T00:00:00.000Z');
+    s0.accruedToMs = from; s0.activeSinceMs = from;
+    const geom = { cadenceMs: 10000, flushMs: 90000, maxPolls: 64, holder: 'x9' };
+    let s = s0; let m = from; const wins = []; let last = s0;
+    for (let w = 0; w < 8; w++) {
+      const run = L.tg.settleGatherSession(s, m, m + 90000, geom);
+      if (!run.intents[0]) break;
+      wins.push(run.intents[0]); m = Date.parse(run.intents[0].args.p_window_to);
+      last = run.char; s = Object.assign({}, run.char, { accruedToMs: m });
+    }
+    /* PER SKILL, NOT PER MAP: a window carries only the skills it moved, so a
+       later window that did not move `strength` must not erase its remainder. */
+    const pf = L.contract.foldDeltas([{ xp_frac: { attack: 0.1, strength: 0.2 } }, { xp_frac: { attack: 0.3 } }]);
+    ok('X9', JSON.stringify(sortKeys(pf.xp_frac || {})) === '{"attack":0.3,"strength":0.2}',
+      `foldDeltas folded xp_frac to ${JSON.stringify(pf.xp_frac)} — want each skill's last remainder {attack:0.3, strength:0.2}`);
+    const moved = wins.filter((w) => w.args.p_delta.xp_frac).length;
+    ok('X9', wins.length === 8 && moved >= 2, `the gather chain settled ${wins.length} windows, ${moved} moved a remainder — the fold arm tests nothing`);
+    const stray = wins.flatMap((w) => Object.keys(w.args.p_delta)).filter((k) => !L.tick.FOLD_CHAIN_KEYS.includes(k));
+    ok('X9', stray.length === 0, `window keys outside FOLD_CHAIN_KEYS: ${[...new Set(stray)]} — the S4 fold stops at every such window`);
+    if (wins.length >= 2) {
+      const f = L.tg.foldWindowIntents({ userId: s0.userId, slot: 0, shard: 0, version: 1, holder: 'x9' }, wins).args.p_delta;
+      const sumXp = {}; const lastFrac = {};
+      for (const w of wins) {
+        for (const [k, v] of Object.entries(w.args.p_delta.xp || {})) sumXp[k] = (sumXp[k] || 0) + v;
+        Object.assign(lastFrac, w.args.p_delta.xp_frac || {});
+      }
+      ok('X9', JSON.stringify(sortKeys(f.xp || {})) === JSON.stringify(sortKeys(sumXp)),
+        `the fold's xp ${JSON.stringify(f.xp)} != the windows' sum ${JSON.stringify(sumXp)}`);
+      ok('X9', JSON.stringify(sortKeys(f.xp_frac || {})) === JSON.stringify(sortKeys(lastFrac)),
+        `the fold's xp_frac ${JSON.stringify(f.xp_frac)} != each skill's last remainder ${JSON.stringify(lastFrac)}`);
+      for (const k of Object.keys(lastFrac)) {
+        ok('X9', units(f.xp_frac[k]) === units(last.xpFrac[k]),
+          `${k}: the folded remainder ${f.xp_frac[k]} != the chain's carried ${last.xpFrac[k]}`);
+      }
+    }
   }
   return fails;
 }

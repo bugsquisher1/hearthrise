@@ -34,6 +34,8 @@
 //   V13 sat out of the live hunt (latest row a drop)     a sentinel: judged, STALLED
 //   V14 the party hunt ended                             a sentinel: judged, STALLED
 //   V15 left the party (left_at)                         a sentinel: judged, STALLED
+//   V16 ★ PARKED (presence horizon)                      NOT judged
+//   V17 ★ logged past_horizon, mark still owed 1 h       a sentinel: judged, STALLED
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ============================================================================
@@ -183,6 +185,35 @@ async function arms(db, V, { log = true } = {}) {
   await fixture('V11', 'raw mark 25 h old (fenced_24h): not a sentinel', null, NOJ);
   await onlyOwners([]);
 
+  // V16 (presence horizon, Security #1 on widen): a PARKED gatherer — refused
+  // past_horizon for its CURRENT absence (hr_tick_horizon_log on its anchor) —
+  // is not a sentinel: paid in full and waiting.
+  await gatherer(U(90));
+  /* Logged past_horizon with the horizon `shortS` s ahead of the mark: 0 = the
+     mark reached it (PARKED); 3600 = still owed an hour (NOT parked). */
+  const parkAt = async (u, shortS) => {
+    await q(`update public.hr_return_anchor a
+                set real_return_at = ps.accrued_to + make_interval(secs => $2) - interval '12 hours'
+               from public.player_state ps
+              where ps.user_id = a.user_id and ps.slot = a.slot and a.user_id = $1 and a.slot = 0`, [u, shortS]);
+    await q(`insert into public.hr_tick_horizon_log (user_id, slot, anchor_at, channel, horizon_at, cap_ms, mark)
+             select a.user_id, a.slot, a.real_return_at, 'gather', a.real_return_at + interval '12 hours', 43200000, ps.accrued_to
+               from public.hr_return_anchor a join public.player_state ps on ps.user_id = a.user_id and ps.slot = a.slot
+              where a.user_id = $1 and a.slot = 0`, [u]);
+  };
+  await parkAt(U(90), 0);
+  await fires(T(2007));
+  await onlyOwners([U(90)]);
+  await fixture('V16', 'PARKED (refused past_horizon for its current absence): not a sentinel', T(2007), NOJ);
+  // V17 (Security, scale review): LOGGED past_horizon but still owed an hour
+  // of windows — not parked, a sentinel, STALLED.
+  await gatherer(U(91));
+  await parkAt(U(91), 3600);
+  await fires(T(2012));
+  await onlyOwners([U(91)]);
+  await fixture('V17', 'logged past_horizon but still OWED windows: a sentinel, STALLED (never excused)', T(2012), STALL);
+  await onlyOwners([]);
+
   // ── hr_partied (M4: combat armed). A combat character in a live party hunt
   //    is the party roster's, not a solo sentinel; sat out, left, or the hunt
   //    ended = solo again, so a sentinel.
@@ -278,6 +309,11 @@ const MUTANTS = [
     find: "and not coalesce((select r.event <> 'rejoin'", repl: 'and not coalesce((select false' },
   { name: 'endedHuntPartied', why: 'an ENDED hunt still makes its members partied', expect: /^V14$/,
     find: ' and ph.ended_at is null', repl: '' },
+  { name: 'parkedIsSentinel', why: 'a PARKED gatherer still counts as a sentinel (reads STALLED while waiting)', expect: /^V16$/,
+    find: '                      where hz.user_id = o.user_id and hz.slot = o.slot\n', repl: '                      where false\n' },
+  { name: 'parkedNoMark', why: 'a LOGGED character still owed windows is excused as parked (silent stall)', expect: /^V17$/,
+    find: '                        and ps.accrued_to + make_interval(secs => c.flush) > hz.horizon_at)\n',
+    repl: '                        and true)\n' },
   { name: 'leftMemberPartied', why: 'a member who LEFT still counts as partied', expect: /^V15$/,
     find: 'and m.left_at is null and ', repl: 'and ' },
   { name: 'enabledIgnored', why: 'the tick disabled still judges', expect: /^V10$/,

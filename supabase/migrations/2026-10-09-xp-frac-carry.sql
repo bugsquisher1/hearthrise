@@ -4,7 +4,8 @@
 -- STATUS: STAGED, NOT APPLIED - REVIEW ONLY. Moves XP, a RANKED surface, so it
 -- moves only on a Security GO and the Coordinator applies it (one file,
 -- tools/apply-migration.mjs). APPLY ORDER: last in the chain, after
--- 2026-10-09-frame-self-echo.sql, on which it does not depend (tests/schema-apply-order.json).
+-- 2026-10-11-world-tick-ledger-fold.sql; it depends on none of the 2026-10-09..11
+-- files and none of them restates hr_apply or hr_state_of (tests/schema-apply-order.json).
 -- EITHER ORDER WITH THE EDGE IS SAFE: the engine proposes `xp_frac` only when
 -- hr_state_of projects `frac` (envelope.js presence-of-key), which only this
 -- file makes it do — so an edge deployed first proposes nothing new, and this

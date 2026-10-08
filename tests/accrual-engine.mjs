@@ -3628,7 +3628,11 @@ async function shapeGuard() {
      parsed intent would be the same defect one field over. */
   ok(!/consecFalls\s*:\s*(intent|body|req|payload)\b/.test(shellCode),
     'SOURCE: index.ts seeds consecFalls from the request — the retreat counter is server-owned');
-  ok(/hr_offline_cap_ms\(/.test(shellCode), 'SOURCE: the cap must be read from Postgres, not computed in the engine');
+  /* 2026-10-10 presence horizon: the accrue span cap is hr_accrue_cap_ms — hr_offline_cap_ms
+     bounded by the last real return + cap (2026-10-10-world-tick-presence-horizon.sql). Reading
+     the raw cap here would pay a ticked absence twice, so the raw read is RED too. */
+  ok(/hr_accrue_cap_ms\(/.test(shellCode) && !/public\.hr_offline_cap_ms\([^)]*\)\s*as cap_ms/.test(shellCode),
+    'SOURCE: the cap must be read from Postgres (hr_accrue_cap_ms, the horizon-aware cap), not computed in the engine');
   ok(/hr_seed\(/.test(shellCode), 'SOURCE: the PRNG seed must come from hr_seed (server secret), never from visible values');
 }
 

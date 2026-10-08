@@ -36,23 +36,32 @@
 // replay EXPECTATION (±10 % and ≤ 3 se) and the realised read by z. Every
 // mutant now goes red on the replay aggregate itself.
 //
+// ── COST (2026-10-08) ───────────────────────────────────────────────────────
+// The replay made this guard ~2 500 chain runs (~0.25 s each): 12.75 min of
+// one core in CI (db-replay-5 cancelled at 20 min, run 37725703255). The
+// chains are pure functions of a plain spec (tests/_probe-bar-chains.mjs), so
+// each distinct one is computed ONCE — PB-1, PB-2 and PB-2p, and every mutant,
+// replay the same (fixture, start, span, seed family) runs — across worker
+// threads (tools/world-tick-replay-pool.mjs). Same replicas, same fixtures,
+// same bars; HR_REPLAY_THREADS=1 is the serial reference and prints the same
+// read. The reproduction check is the one thing never remembered: it re-runs
+// the one span (`again`) so a non-deterministic engine still reads red.
+//
 // No network, no database, no credential.
 // ============================================================================
 
-import { loadCombatSessions, atSpan, settleCombatSession, combatTick,
-  offlineSeedFor, seedLabelFor, pgTimestamptzText } from '../services/world-tick/combat.js';
+import { atSpan } from '../services/world-tick/combat.js';
 import { loadGatherSessions, atSpan as gatherAtSpan, settleGatherSession }
   from '../services/world-tick/gather.js';
-import { hydrate, advance, seedFor } from '../supabase/functions/hr-accrue/tick-shadow.js';
-import { shadowStateOf, applyShadowState } from '../supabase/functions/hr-accrue/tick-contract.js';
-import { oneSpan, probeResultOf, PROBE_SPAN_MS, encodeProbeInput, decodeProbeInput }
+import { hydrate, seedFor } from '../supabase/functions/hr-accrue/tick-shadow.js';
+import { oneSpan, PROBE_SPAN_MS, encodeProbeInput, decodeProbeInput }
   from '../supabase/functions/hr-accrue/tick-probe.js';
 import { judgeGroup } from '../services/world-tick/parity-bar.js';
-import { shippedChain, replicaSeedOf, replayStats, fieldsOf, canon }
-  from '../services/world-tick/parity-replay.js';
-import { hashSeed } from '../src/core/rng.js';
-import { levelFromXp } from '../src/core/xp.js';
+import { replayStats, fieldsOf, canon } from '../services/world-tick/parity-replay.js';
 import { MONSTERS } from '../src/data/monsters.js';
+import { poolMap } from '../tools/world-tick-replay-pool.mjs';
+import { FROM, START_STEP_MS, STARTS, CADENCE_MS, FLUSH_MS, combatFixtures, sumInto, zero,
+  shippedShadow, manualChain, MUTANTS } from './_probe-bar-chains.mjs';
 
 const ARGS = process.argv.slice(2);
 const MUTATE = ARGS.includes('--mutate');
@@ -67,12 +76,6 @@ const REPLICAS = 12;
 const MUTANT_REPLICAS = 8;
 const say = (s) => { if (VERBOSE) console.log(s); };
 
-const FROM = Date.UTC(2026, 2, 14, 20, 0, 0);
-const START_STEP_MS = 7 * 3600 * 1000;
-const STARTS = 3;
-const CADENCE_MS = 10000;      // production's cadence_seconds
-const FLUSH_MS = 90000;        // production's flush_seconds
-const MAX_POLLS = 64;          // tick.js MAX_POLLS
 const RARE_IDS = new Set(Object.values(MONSTERS)
   .flatMap((m) => (m.drops || []).filter((d) => d.lucky).map((d) => d.id)));
 
@@ -82,184 +85,79 @@ const judge = (id, ok, good, bad) => {
   else { console.log(`  ✗ ${id} — ${bad}`); problems++; }
 };
 
-/* ── THE FIXTURE SET ─────────────────────────────────────────────────────────
-   The C6 combat sessions, minus the two a probe can never close on (the
-   pointer ENDS inside the span — `seven falls deep` and `three falls, pulls
-   back` stop at 2.1 h and 3 min, so the roster drops the character and the
-   open probe is superseded, never read) and the ATTENDED one (the tick refuses
-   it by design, WORLD_TICK_DESIGN.md 16.6).
-   NORMALISED to the production invariant max_hp = hitpoints level
-   (2026-09-06-max-hp-tracks-hitpoints.sql). The raw fixtures carry max_hp 60
-   on hitpoints level 36; a one-span accrual drops that to 37 at the first
-   hitpoints level-up while a chain keeps 60, which is a fixture artefact and
-   not a property of either path. */
-function combatFixtures() {
-  const out = [];
-  for (const raw of loadCombatSessions()) {
-    if (/ATTENDED/.test(raw.name)) continue;
-    const s = JSON.parse(JSON.stringify(raw));
-    const lvl = Math.max(10, levelFromXp(Number((s.skills || {}).hitpoints) || 0));
-    s.hp = Math.max(1, Math.round((Number(s.hp) || 0) / (Number(s.maxHp) || lvl) * lvl));
-    s.maxHp = lvl;
-    s.version = 1;
-    out.push(s);
+/* ── EVERY CHAIN AND ONE SPAN, COMPUTED ONCE ────────────────────────────────
+   spec = { kind: 'chain' | 'one', chain: 'shipped' | 'manual', muts: [name],
+   fx, from, to, salt, again } — see tests/_probe-bar-chains.mjs `task`.
+   `again` marks the reproduction re-run: its own key, so it is computed
+   fresh and never answered from the memo. */
+const TASKS = new URL('./_probe-bar-chains.mjs', import.meta.url).href;
+const MEMO = new Map();
+const keyOf = (s) => JSON.stringify([s.kind, s.chain || '', s.muts || [], s.fx, s.from, s.to,
+  s.salt == null ? null : s.salt, !!s.again]);
+async function run(specs) {
+  const missing = new Map();
+  for (const s of specs) {
+    const k = keyOf(s);
+    if (!MEMO.has(k) && !missing.has(k)) missing.set(k, s);
   }
+  if (missing.size) {
+    const todo = [...missing.values()];
+    const out = await poolMap(TASKS, 'task', todo.map((s) => [s]));
+    todo.forEach((s, i) => MEMO.set(keyOf(s), out[i]));
+  }
+  return specs.map((s) => structuredClone(MEMO.get(keyOf(s))));
+}
+
+/* The (fixture, start) grid every read walks, in the guard's probe order. */
+function grid() {
+  const out = [];
+  combatFixtures().forEach((fx, f) => {
+    for (let i = 0; i < STARTS; i++) {
+      const from = FROM + i * START_STEP_MS;
+      out.push({ f, name: fx.name, i, from, to: from + PROBE_SPAN_MS });
+    }
+  });
   return out;
 }
 
-const sumInto = (acc, res) => {
-  if (!res || !res.accrued) return acc;
-  const p = probeResultOf(res);
-  for (const k of ['ticks', 'qty', 'gold', 'kills', 'ate', 'deaths']) acc[k] += p[k];
-  for (const k of Object.keys(p.xp)) acc.xp[k] = (acc.xp[k] || 0) + p.xp[k];
-  for (const k of Object.keys(p.items)) acc.items[k] = (acc.items[k] || 0) + p.items[k];
-  /* "recovering_until parseable on every death-bearing row": NULL is the
-     engine's own "already up" (a first-death grace, or a recovery that ended
-     inside the window); anything else must parse as an instant. */
-  if (p.deaths > 0 && p.recovering_until !== null && !Number.isFinite(Date.parse(p.recovering_until))) {
-    acc.recoverOk = false;
-  }
-  return acc;
-};
-const zero = () => ({ ticks: 0, qty: 0, gold: 0, kills: 0, ate: 0, deaths: 0, xp: {}, items: {}, recoverOk: true });
-
-/* ── THE SHIPPED SHADOW COMPOSITION ─────────────────────────────────────────
-   Exactly what production does across fires: each fire builds the session
-   from the FROZEN row (c0), lays the previous fire's carrier over it, and
-   settles ONE flush window through the shipped settler. No hook. The loop is
-   services/world-tick/parity-replay.js `shippedChain` — the one the
-   evaluator replays production probes with. `m.salt` picks a replica's seed
-   family (parity-replay.js replicaSeedOf); unset, the probe's own stream. */
-function shippedShadow(c0, from, to, m) {
-  const acc = zero();
-  const salt = m && m.salt;
-  const { windows, endMs } = shippedChain(c0, from, to,
-    salt == null ? {} : { seedOf: replicaSeedOf(c0.userId, c0.slot, salt) });
-  for (const res of windows) sumInto(acc, res);
-  return { acc, endMs };
-}
-
-/* ── THE SAME COMPOSITION, HAND-DRIVEN, WITH THE MUTATION SEAMS ──────────────
-   A mutation that had to be supported by the code under test is not a
-   mutation, so the seams live HERE (the tickChainManual pattern of
-   tests/world-tick-combat-parity.mjs). Fire by fire exactly as production
-   runs: the session rebuilt from the frozen row + the REAL carrier
-   (shadowStateOf → applyShadowState), a 10 s poll grid restarted at the mark,
-   at most MAX_POLLS polls. PB-0 asserts that with no mutation and no
-   derivation this loop and `shippedShadow` agree exactly.
-   `armedMaxHp` models the ARMED chain: each fire's row carries max_hp = the
-   hitpoints level of the XP settled so far, which is what
-   2026-09-06-max-hp-tracks-hitpoints.sql's trigger hands the next fire. */
-function manualChain(c0, from, to, m) {
-  const mut = m || {};
-  const acc = zero();
-  let carrier = null;
-  let mark = from;
-  let markText = c0.accruedToText;
-  let stopped = false;
-  let resumeLine = null;
-  while (mark < to && !stopped) {
-    const base = JSON.parse(JSON.stringify(c0));
-    base.accruedToMs = mark;
-    base.accruedToText = markText;
-    const sess = carrier ? applyShadowState(base, carrier) : base;
-    /* THE PB-2 DEFECT, RE-OPENED: the carrier forgets max_hp (every fire
-       rebuilds it from the frozen row) — PB-2's own mutant. */
-    if (mut.dropMaxHp) sess.maxHp = c0.maxHp;
-    if (mut.armedMaxHp) {
-      sess.maxHp = Math.max(Number(sess.maxHp) || 0,
-        levelFromXp(Number((sess.skills || {}).hitpoints) || 0));
+/* ONE READ: per (fixture, start), the chain under test over the span; the one
+   span over [from, chainEnd] on the span start's seed; and THE PROBE'S REPLAY —
+   `replicas` draws of (one span, chain) on replica seed families through the
+   same engine (`chain` + `muts`, mutant included), plus the reproduction check
+   (the one span re-run on the probe's own seed equals the stored result). */
+async function buildRead(chain, muts, replicas = REPLICAS) {
+  const cells = grid();
+  const mains = await run(cells.map((c) => ({ kind: 'chain', chain, muts, fx: c.f, from: c.from, to: c.to })));
+  /* A pointer that ENDS inside the span never closes a probe in
+     production (the roster drops the character), so it is not one here. */
+  const kept = [];
+  cells.forEach((c, j) => {
+    const { acc, endMs } = mains[j];
+    if (endMs - c.from < PROBE_SPAN_MS - FLUSH_MS) return;
+    kept.push(Object.assign({ acc, endMs }, c));
+  });
+  const specs = [];
+  for (const k of kept) {
+    const at = { fx: k.f, from: k.from, to: k.endMs };
+    specs.push({ kind: 'one', ...at }, { kind: 'one', ...at, again: true });
+    for (let r = 0; r < replicas; r++) {
+      specs.push({ kind: 'one', ...at, salt: r }, { kind: 'chain', chain, muts, ...at, salt: r });
     }
-    const char = hydrate(sess);
-    const fireEnd = Math.min(to, mark + FLUSH_MS);
-    let wm = mark;
-    let wmText = markText;
-    let clock = mark;
-    let polls = 0;
-    let settled = 0;
-    while (clock < fireEnd && polls < MAX_POLLS) {
-      clock = Math.min(clock + CADENCE_MS, fireEnd);
-      polls++;
-      /* RESUME MISALIGNMENT: the first window past the recovery line starts
-         `resumeMisalignMs` AFTER it, so that stretch of a standing,
-         fighting character is never simulated — a one-signed loss per fall. */
-      if (resumeLine !== null && clock > resumeLine) {
-        wm = Math.max(wm, resumeLine + mut.resumeMisalignMs);
-        wmText = pgTimestamptzText(wm);
-        resumeLine = null;
-      }
-      const start = wm + (mut.shiftMs || 0);
-      if (start >= clock) continue;
-      const label0 = mut.fixedLabel ? seedLabelFor(c0.accruedToText) : seedLabelFor(wmText);
-      /* A replica's seed family, spelled as parity-replay.js replicaSeedOf. */
-      const label = mut.salt == null ? label0 : `replay#${mut.salt}|${label0}`;
-      const res = combatTick(char, start, wmText, clock, {
-        seedOf: () => hashSeed(String(char.userId), String(char.slot), label),
-        perturb: mut.perturb,
-      });
-      if (res.accrued && mut.delta) res.delta = mut.delta(res.delta);
-      sumInto(acc, res);
-      if (res.accrued) {
-        settled++;
-        advance(char, res);
-        if (mut.afterWindow) mut.afterWindow(char, res);
-        wm = Date.parse(res.delta.accrued_to);
-        if (mut.resumeMisalignMs && res.summary && res.summary.deaths > 0) {
-          resumeLine = Math.max(wm, Number(char.recoveringUntilMs) || 0);
-        }
-        wmText = pgTimestamptzText(wm);
-        if (res.delta.activity) { stopped = true; break; }
-      }
-    }
-    if (settled === 0 && wm === mark) break;
-    if (settled > 0) carrier = shadowStateOf(char, { baseVersion: c0.version, atMs: wm });
-    mark = wm;
-    markText = wmText;
   }
-  return { acc, endMs: mark };
-}
-
-/* ONE PROBE: the one-span accrual over [from, chainEnd] from the SAME session
-   snapshot (round-tripped through the stored form) on the span start's seed. */
-function probeOf(c0, from, endMs, salt) {
-  const snap = decodeProbeInput(encodeProbeInput(c0));
-  const seed = salt == null ? offlineSeedFor(c0.userId, c0.slot, c0.accruedToText)
-    : replicaSeedOf(c0.userId, c0.slot, salt)(from, c0.accruedToText);
-  const res = oneSpan('combat', snap, from, endMs, seed);
-  return sumInto(zero(), res);
-}
-
-/* THE PROBE'S REPLAY: REPLICAS draws of (one span, chain) from the same input
-   through the same engine (`chainFn`, mutant included) on replica seed
-   families, and the reproduction check — the one span re-run on the probe's
-   own seed equals the stored result. */
-function replayOf(chainFn, mut, c0, from, endMs, stored, replicas) {
-  const samples = { one: [], chain: [] };
-  for (let r = 0; r < replicas; r++) {
-    samples.one.push(fieldsOf(probeOf(c0, from, endMs, r)));
-    samples.chain.push(fieldsOf(chainFn(c0, from, endMs, Object.assign({}, mut, { salt: r })).acc));
-  }
-  return replayStats(samples, canon(probeOf(c0, from, endMs)) === canon(stored));
-}
-
-function buildRead(chainFn, mut, replicas = REPLICAS) {
-  const probes = [];
+  const res = await run(specs);
+  let p = 0;
   let n = 0;
-  for (const fx of combatFixtures()) {
-    for (let i = 0; i < STARTS; i++) {
-      const from = FROM + i * START_STEP_MS;
-      const c0 = atSpan(fx, from);
-      const to = from + PROBE_SPAN_MS;
-      const { acc, endMs } = chainFn(c0, from, to, mut);
-      /* A pointer that ENDS inside the span never closes a probe in
-         production (the roster drops the character), so it is not one here. */
-      if (endMs - from < PROBE_SPAN_MS - FLUSH_MS) continue;
-      const one = probeOf(c0, from, endMs);
-      probes.push({ id: `${++n}:${fx.name.slice(0, 18)}@${i}`, spanMs: endMs - from, discard: null, one, chain: acc,
-        replay: replayOf(chainFn, mut, c0, from, endMs, one, replicas) });
+  return kept.map((k) => {
+    const one = res[p++];
+    const again = res[p++];
+    const samples = { one: [], chain: [] };
+    for (let r = 0; r < replicas; r++) {
+      samples.one.push(fieldsOf(res[p++]));
+      samples.chain.push(fieldsOf(res[p++].acc));
     }
-  }
-  return probes;
+    return { id: `${++n}:${k.name.slice(0, 18)}@${k.i}`, spanMs: k.endMs - k.from, discard: null, one, chain: k.acc,
+      replay: replayStats(samples, canon(again) === canon(one)) };
+  });
 }
 
 const sumXp = (m) => Object.values(m || {}).reduce((a, v) => a + v, 0);
@@ -297,9 +195,25 @@ console.log('world-tick-probe-bar: the probe comparator, calibrated on 4 h fixtu
     'the stored snapshot is NOT the engine input — a probe would price a different character');
 }
 
+// ── PB-0c A REMEMBERED OR WORKER-COMPUTED RUN IS THE SERIAL RUN ───────────
+/* The memo and the pool are only sound if `task(spec)` IS the inline
+   function: the shipped and hand-driven chains on a replica family and the
+   one span, through `run` (pool), equal the same calls made here. */
+{
+  const fx = combatFixtures()[2];
+  const c0 = atSpan(fx, FROM + START_STEP_MS);
+  const to = FROM + START_STEP_MS + PROBE_SPAN_MS;
+  const at = { fx: 2, from: FROM + START_STEP_MS, to };
+  const [s, m] = await run([{ kind: 'chain', chain: 'shipped', ...at, salt: 3 },
+    { kind: 'chain', chain: 'manual', muts: ['cal'], ...at, salt: 3 }]);
+  const same = canon(s) === canon(shippedShadow(c0, at.from, to, { salt: 3 }))
+    && canon(m) === canon(manualChain(c0, at.from, to, { armedMaxHp: true, salt: 3 }));
+  judge('PB-0c', same, 'a pooled chain run is byte-identical to the same call made inline',
+    'a pooled chain run DIFFERS from the inline call — the memo/pool would read another engine');
+}
+
 // ── PB-1 CALIBRATION: the armed-equivalent decomposition is GREEN ──────────
-const CAL = { armedMaxHp: true };
-const calProbes = buildRead(manualChain, CAL);
+const calProbes = await buildRead('manual', ['cal']);
 show(calProbes);
 const cal = judgeGroup('combat', calProbes, { rareIds: RARE_IDS });
 judge('PB-1', cal.verdict === 'PASS',
@@ -329,12 +243,12 @@ judge('PB-1', cal.verdict === 'PASS',
     for (let i = 0; i < STARTS; i++) {
       const from = FROM + i * START_STEP_MS;
       const c0 = gatherAtSpan(raw, from);
-      const run = settleGatherSession(c0, from, from + PROBE_SPAN_MS, { cadenceMs: CADENCE_MS, flushMs: FLUSH_MS });
+      const run1 = settleGatherSession(c0, from, from + PROBE_SPAN_MS, { cadenceMs: CADENCE_MS, flushMs: FLUSH_MS });
       const chain = zero();
-      for (const r of run.results) sumInto(chain, r.res);
+      for (const r of run1.results) sumInto(chain, r.res);
       const snap = decodeProbeInput(encodeProbeInput(c0));
-      const one = sumInto(zero(), oneSpan('gather', snap, from, run.watermarkMs, seedFor(c0.userId, c0.slot, from)));
-      probes.push({ id: `g${++n}`, spanMs: run.watermarkMs - from, discard: null, one, chain });
+      const one = sumInto(zero(), oneSpan('gather', snap, from, run1.watermarkMs, seedFor(c0.userId, c0.slot, from)));
+      probes.push({ id: `g${++n}`, spanMs: run1.watermarkMs - from, discard: null, one, chain });
     }
   }
   const g = judgeGroup('gather', probes, {});
@@ -352,8 +266,8 @@ judge('PB-1', cal.verdict === 'PASS',
    REPLICAS seed families (se ~0.3 %) is the quantity a carrier loss moves;
    the realised figure is still printed. --mutate proves the pin bites:
    `dropMaxHp` (the defect PB-2 was written for) must turn it red. */
-function pb2(chainFn, mut, replicas) {
-  const v = judgeGroup('combat', buildRead(chainFn, mut, replicas), { rareIds: RARE_IDS });
+async function pb2(chain, muts, replicas) {
+  const v = judgeGroup('combat', await buildRead(chain, muts, replicas), { rareIds: RARE_IDS });
   const t = v.stats.ticks || { one: 0, chain: 0 };
   const realised = t.one ? ((t.chain - t.one) / t.one) * 100 : NaN;
   const rp = (v.stats.replay || {}).ticks;
@@ -362,7 +276,7 @@ function pb2(chainFn, mut, replicas) {
   return { v, realised, rel, se, ok: v.verdict === 'PASS' && Math.abs(rel) <= 1 };
 }
 {
-  const r = pb2(shippedShadow);
+  const r = await pb2('shipped', []);
   judge('PB-2 (pinned)', r.ok,
     `the shipped shadow composition reads ${r.rel.toFixed(2)}% ± ${r.se.toFixed(2)}% ticks (replay expectation; `
     + `realised ${r.realised.toFixed(1)}%) and the bar is GREEN — the carrier carries max_hp `
@@ -379,19 +293,24 @@ function pb2(chainFn, mut, replicas) {
    noise both share cancels. Per replica, Δr = Σticks(shipped) / Σticks(armed)
    − 1 over every calibration probe; PB-2p requires |mean Δ| ≤ 3·se_paired,
    and --mutate requires `dropMaxHp` to read beyond 3·se_paired. */
-function pairedDelta(mut, replicas = REPLICAS) {
+async function pairedDelta(muts, replicas = REPLICAS) {
+  const cells = grid();
+  const specs = [];
+  for (let salt = 0; salt < replicas; salt++) {
+    for (const c of cells) {
+      const at = { fx: c.f, from: c.from, to: c.to, salt };
+      specs.push(muts ? { kind: 'chain', chain: 'manual', muts, ...at } : { kind: 'chain', chain: 'shipped', ...at },
+        { kind: 'chain', chain: 'manual', muts: ['cal'], ...at });
+    }
+  }
+  const res = await run(specs);
   const deltas = [];
+  let p = 0;
   for (let salt = 0; salt < replicas; salt++) {
     let a = 0; let b = 0;
-    for (const fx of combatFixtures()) {
-      for (let i = 0; i < STARTS; i++) {
-        const from = FROM + i * START_STEP_MS;
-        const c0 = atSpan(fx, from);
-        const to = from + PROBE_SPAN_MS;
-        const subject = mut ? manualChain(c0, from, to, Object.assign({ salt }, mut)) : shippedShadow(c0, from, to, { salt });
-        b += subject.acc.ticks;
-        a += manualChain(c0, from, to, { salt, armedMaxHp: true }).acc.ticks;
-      }
+    for (let c = 0; c < cells.length; c++) {
+      b += res[p++].acc.ticks;
+      a += res[p++].acc.ticks;
     }
     deltas.push(a ? b / a - 1 : 0);
   }
@@ -400,7 +319,7 @@ function pairedDelta(mut, replicas = REPLICAS) {
   return { mean: m * 100, se: (sd / Math.sqrt(deltas.length)) * 100, n: deltas.length };
 }
 if (!MUTATE) {
-  const d = pairedDelta(null);
+  const d = await pairedDelta(null);
   /* Capped as well as scaled: a noisy divergence must not pass on its own se
      (Security 2026-10-07); 0.25 % is well inside the −1.19 % dropMaxHp. */
   judge('PB-2p (paired)', Math.abs(d.mean) <= 3 * d.se && Math.abs(d.mean) <= 0.25,
@@ -409,43 +328,11 @@ if (!MUTATE) {
     + 'or beyond the 0.25 % cap: the shadow carrier diverges from the armed chain on the same dice');
 }
 
-// ── THE MUTANTS ────────────────────────────────────────────────────────────
-const MUTANTS = {
-  /* One constant instant seeds every window (the §11 shape). */
-  fixedSeed: { fixedLabel: true },
-  /* Every window starts one 2.4 s combat tick after the watermark: a
-     one-signed time loss. (A 1 s shift — the M3 guard's spelling — is
-     ABSORBED here: RULE-1 alignment snaps it back onto the tick grid and no
-     time is lost, so at probe grain it is not a defect and stays green.) */
-  shiftWindow: { shiftMs: 2400 },
-  /* The tick forgets the auto-eat inputs (M3's own P0). */
-  noAutoEat: { perturb: (inp) => { const o = { ...inp }; delete o.autoEatEnabled; delete o.autoEatFood; delete o.autoEatPct; return o; } },
-  /* A death at a window boundary is a full heal (b509). */
-  freeHeal: { afterWindow: (char, res) => { if (res.summary && res.summary.deaths > 0) char.hp = char.maxHp; } },
-  /* The meals happen; the debit never reaches the bag. */
-  skipFoodDebit: { delta: (d) => {
-    if (!d.items) return d;
-    const items = {};
-    for (const k of Object.keys(d.items)) if (d.items[k] > 0) items[k] = d.items[k];
-    const out = { ...d };
-    if (Object.keys(items).length) out.items = items; else delete out.items;
-    return out;
-  } },
-  /* COMBAT-PARITY-RC's hypothesis, at the magnitude it would need to explain
-     the production interval: −14.5 % of a 10 h interval over 9 falls is
-     ~10 min lost per resume. The first window past each recovery line starts
-     10 min after it. MEASURED DETECTION FLOOR (2026-10-05): a per-resume loss
-     of 4 min stays GREEN on this 15-probe set and 10 min is RED — the bar
-     cannot see a resume defect much smaller than the one it was written to
-     find, and a reader of a green production read should know that. */
-  resumeMisalign: { resumeMisalignMs: 600000 },
-};
-
 if (MUTATE) {
   console.log('\n  mutants (each must turn the calibrated PASS into FAIL)');
   let blind = 0;
-  for (const [name, m] of Object.entries(MUTANTS)) {
-    const probes = buildRead(manualChain, Object.assign({}, CAL, m), MUTANT_REPLICAS);
+  for (const name of Object.keys(MUTANTS)) {
+    const probes = await buildRead('manual', ['cal', name], MUTANT_REPLICAS);
     const v = judgeGroup('combat', probes, { rareIds: RARE_IDS });
     if (v.verdict === 'FAIL') console.log(`  ✓ --${name} RED: ${v.reasons[0]}`);
     else {
@@ -462,11 +349,11 @@ if (MUTATE) {
        the unpaired pin's margin is PRINTED, not barred — barring it at 2 se
        (Security's first ask) is red on the correct defect and would need
        ~300 replicas. The margin-bearing tooth is PB-2p below (paired seeds). */
-    const r = pb2(manualChain, { dropMaxHp: true }, REPLICAS);
+    const r = await pb2('manual', ['dropMaxHp'], REPLICAS);
     const margin = Math.abs(r.rel) - 1;
     if (!r.ok) console.log(`  ✓ --dropMaxHp RED on PB-2: ${r.v.verdict} at ${r.rel.toFixed(2)}% ± ${r.se.toFixed(2)}% ticks (past ±1 % by ${(margin / r.se).toFixed(1)} se — thin; PB-2p carries the margin)`);
     else { console.log(`  ✗ --dropMaxHp stayed green on PB-2 (${r.rel.toFixed(2)}% ± ${r.se.toFixed(2)}%) — the pin is blind to the defect it pins`); blind++; }
-    const d = pairedDelta({ dropMaxHp: true });
+    const d = await pairedDelta(['dropMaxHp']);
     if (Math.abs(d.mean) > 3 * d.se) console.log(`  ✓ --dropMaxHp RED on PB-2p: ${d.mean.toFixed(3)}% ± ${d.se.toFixed(3)}% (${(Math.abs(d.mean) / d.se).toFixed(1)} se)`);
     else { console.log(`  ✗ --dropMaxHp on PB-2p reads ${d.mean.toFixed(3)}% ± ${d.se.toFixed(3)}% — inside 3 se`); blind++; }
   }

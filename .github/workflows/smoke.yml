@@ -3146,6 +3146,9 @@ jobs:
           # Applied generated migrations never change bytes; growth goes to deltas.
           node tests/generated-frozen.mjs
           node tests/generated-frozen.mjs --selftest
+          # No buy-inputs -> craft -> vendor loop prints gold (Security, content-holes).
+          node tests/shop-craft-loop.mjs
+          node tests/shop-craft-loop.mjs --selftest
           node tests/lore-notes.mjs
           node tests/lore-notes.mjs --selftest
           node tests/lifetime-tally.mjs

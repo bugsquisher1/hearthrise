@@ -262,6 +262,8 @@
     "node tests/item-identity.mjs --selftest": "client-guards",
     "node tests/generated-frozen.mjs": "client-guards",
     "node tests/generated-frozen.mjs --selftest": "client-guards",
+    "node tests/shop-craft-loop.mjs": "client-guards",
+    "node tests/shop-craft-loop.mjs --selftest": "client-guards",
     "node tests/lore-notes.mjs": "client-guards",
     "node tests/lore-notes.mjs --selftest": "client-guards",
     "node tests/lifetime-tally.mjs": "client-guards",

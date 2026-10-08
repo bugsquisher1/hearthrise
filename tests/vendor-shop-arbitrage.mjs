@@ -171,7 +171,50 @@ export function findRecipeArbitrage({ recipes = ARTISAN_RECIPES, price = (id) =>
   return { bad, checked };
 }
 
-function report({ bad, priced, total }, recipe) {
+/* ── THE THIRD PROPERTY: NO BUY → CRAFT → SELL LOOP (Security wave-1 review) ──
+   The cheapest PURE-GOLD way to obtain each item — buy it from a gold shop, or
+   craft it from things that are themselves bought or crafted from bought
+   things, any depth — must cost at least what the vendor bids for it. On main
+   before the craft anchor, 7 shop rune blanks (49 g) bound into 58 Earth Runes
+   (58 g at 1 g each): a loop that needs no play. Computed as a least fixed
+   point from shop unit prices (decreasing from Infinity, so cycles settle);
+   costs are exact rationals compared with a 1e-9 tolerance. Items with no
+   pure-gold route (they need a gather or a drop) have infinite cost and are
+   not a loop. */
+export function findShopCraftLoops({ offers = GOLD_OFFERS, recipes = ARTISAN_RECIPES, price = (id) => vendorPriceOf(ITEMS, id) } = {}) {
+  const cost = new Map();
+  const via = new Map();
+  for (const id of Object.keys(offers)) {
+    const o = offers[id];
+    if (!o || o.grant.length !== 1 || !(o.grant[0].amount > 0)) continue;
+    const g = o.grant[0];
+    const unit = o.gold / g.amount;
+    if (!(unit >= (cost.get(g.id) ?? Infinity))) { cost.set(g.id, unit); via.set(g.id, `buy ${id}`); }
+  }
+  const paths = [];
+  for (const skill of Object.keys(recipes)) for (const r of recipes[skill] || []) {
+    if (!r || !r.output) continue;
+    const ins = recipeInputs(r);
+    if (Object.keys(ins).length) paths.push({ r, ins, q: r.outputQty || 1 });
+  }
+  for (let round = 0, moved = true; moved && round < 1000; round++) {
+    moved = false;
+    for (const { r, ins, q } of paths) {
+      let c = 0;
+      for (const k of Object.keys(ins)) c += ins[k] * (cost.get(k) ?? Infinity);
+      c /= q;
+      if (c < (cost.get(r.output) ?? Infinity) - 1e-9) { cost.set(r.output, c); via.set(r.output, `craft ${r.id}`); moved = true; }
+    }
+  }
+  const bad = [];
+  for (const [id, c] of cost) {
+    const bid = price(id);
+    if (bid > c + 1e-9) bad.push({ item: id, cost: c, bid, via: via.get(id) });
+  }
+  return { bad, reachable: cost.size };
+}
+
+function report({ bad, priced, total }, recipe, loops) {
   if (total === 0 || priced === 0) throw new HarnessError(`vacuous: ${total} gold offers, ${priced} with a vendor bid`);
   if (recipe.checked < 100) throw new HarnessError(`vacuous: only ${recipe.checked} recipes with inputs checked`);
   for (const b of bad) {
@@ -180,9 +223,14 @@ function report({ bad, priced, total }, recipe) {
   for (const b of recipe.bad) {
     console.log(`  ✗ recipe ${b.recipe}: ${b.out} vendors for ${b.outGold}g, its inputs for ${b.inGold}g (> 1.5x)`);
   }
+  if (loops.reachable < 10) throw new HarnessError(`vacuous: only ${loops.reachable} items have a pure-gold route`);
+  for (const b of loops.bad) {
+    console.log(`  ✗ loop ${b.item}: costs ${b.cost.toFixed(3)}g in pure gold (${b.via}) and vendors for ${b.bid}g`);
+  }
   console.log(`vendor-shop-arbitrage: ${total} gold offers, ${priced} vendorable, ${bad.length} violation(s); `
-    + `${recipe.checked} recipes, ${recipe.bad.length} over the 1.5x craft anchor`);
-  return bad.length || recipe.bad.length ? 1 : 0;
+    + `${recipe.checked} recipes, ${recipe.bad.length} over the 1.5x craft anchor; `
+    + `${loops.reachable} items buyable-or-craftable from gold, ${loops.bad.length} buy→craft→sell loop(s)`);
+  return bad.length || recipe.bad.length || loops.bad.length ? 1 : 0;
 }
 
 function selftest() {
@@ -231,15 +279,32 @@ function selftest() {
   const m5 = findRecipeArbitrage({ price: (id) => (id === 'dawn_platebody' ? 2 * 5 * vendorPriceOf(ITEMS, 'dawn_bar') : vendorPriceOf(ITEMS, id)) });
   if (!m5.bad.some((b) => b.recipe === 'forge_dawn_platebody')) fails.push('M5 2x markup on dawn_platebody: not caught by name');
 
+  // M6 — main's pre-anchor bids: shop rune blanks -> deepbind_earth -> 58 Earth
+  // Runes at 1 g must be caught as a buy→craft→sell loop, by name.
+  const lc = findShopCraftLoops();
+  if (lc.bad.length) fails.push(`control: buy→craft→sell loops (${lc.bad.slice(0, 3).map((b) => b.item).join(', ')})`);
+  const m6 = findShopCraftLoops({ price: (id) => baseVendorBid(Object.prototype.hasOwnProperty.call(ITEMS, id) ? ITEMS[id] : null) });
+  if (!m6.bad.some((b) => b.item === 'earth_rune')) fails.push('M6 pre-anchor bids: the rune-blank → earth_rune loop not caught by name');
+  // M7 — the CRAFT leg, two steps deep, against the shipped bids: a planted
+  // recipe binding shop rune blanks into an intermediate that crafts into
+  // something the vendor pays 5,000 g for. No shipped recipe is made purely of
+  // shop stock with a vendor-bought output (measured), so the link is planted.
+  const m7 = findShopCraftLoops({ recipes: { ...ARTISAN_RECIPES, __m7: [
+    { id: '__m7_a', inputs: { rune_blank: 2 }, output: '__m7_mid' },
+    { id: '__m7_b', inputs: { __m7_mid: 1 }, output: 'dragon_relic' },
+  ] } });
+  if (!(vendorPriceOf(ITEMS, 'dragon_relic') > 100)) throw new HarnessError('dragon_relic no longer bids > 100 g; pick another M7 target');
+  if (!m7.bad.some((b) => b.item === 'dragon_relic')) fails.push('M7 planted rune_blank → mid → dragon_relic: not caught by name');
+
   for (const f of fails) console.log(`  ✗ ${f}`);
-  console.log(`vendor-shop-arbitrage --selftest: control + 5 mutants on ${target.id} (${item}) and the recipe anchor, ${fails.length} failure(s)`);
+  console.log(`vendor-shop-arbitrage --selftest: control + 7 mutants on ${target.id} (${item}) and the recipe anchor, ${fails.length} failure(s)`);
   return fails.length ? 1 : 0;
 }
 
 try {
   process.exitCode = process.argv.includes('--selftest')
     ? selftest()
-    : report(findArbitrage({ sqlVal: sqlItemValues() }), findRecipeArbitrage());
+    : report(findArbitrage({ sqlVal: sqlItemValues() }), findRecipeArbitrage(), findShopCraftLoops());
 } catch (e) {
   console.error(`vendor-shop-arbitrage: HARNESS ${e instanceof HarnessError ? '' : 'CRASH '}${e.message}`);
   process.exitCode = 2;

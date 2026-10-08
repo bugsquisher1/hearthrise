@@ -167,10 +167,16 @@ function buyCosmetic(id,price){
    src/core-bridge.js from the same module). No core yet = 0, "the vendor does
    not buy it": a refused button is honest, a guessed price is not.
    ════════════════════════════════════════════════════════════════ */
+/* The validated table (src/core/vendor.js vendorBids — fingerprint-checked
+   against the live catalogues) is held for ONE task: a bag render prices every
+   slot against one validation instead of one each, and the next task
+   re-validates, so an edited catalogue is never quoted from stale bids. */
+let _bidTable = null;
 function vendorPrice(id){
   const core = window.HearthriseCore && window.HearthriseCore.vendor;
-  if(!core || typeof ITEMS!=='object' || !ITEMS) return 0;
-  return core.vendorBidOf(ITEMS, window.ARTISAN_RECIPES, id);
+  if(!core || typeof ITEMS!=='object' || !ITEMS || typeof id!=='string') return 0;
+  if(!_bidTable){ _bidTable = core.vendorBids(ITEMS, window.ARTISAN_RECIPES); queueMicrotask(() => { _bidTable = null; }); }
+  return Object.prototype.hasOwnProperty.call(_bidTable, id) ? _bidTable[id] : 0;
 }
 window.vendorPrice = vendorPrice;
 /* A 0 bid is a REFUSAL, never a "Sell 0g" (Game Designer ruling, craft-anchor

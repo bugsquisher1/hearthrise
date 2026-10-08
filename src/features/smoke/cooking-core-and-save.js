@@ -1380,8 +1380,8 @@ export default [
   () => tryRun('b231: starting a fight shows the arena on mobile (not a blank combat screen)', () => {
     // The bug (Tyler): on a phone, `body.in-combat` hid the monster picker AND
     // the "Foes" mobile sub-tab hid the arena, so clicking Fight from the default
-    // tab blanked the whole combat screen. The sub-tabs are gone (b362; the
-    // module was deleted 2026-10-08); the structural net is checked here.
+    // tab blanked the whole combat screen. The combat sub-tabs and their module
+    // are deleted; the structural net is checked here.
     const panel = document.getElementById('panel-combat');
     assert(panel, 'panel-combat must exist');
 

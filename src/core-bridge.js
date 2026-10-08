@@ -85,14 +85,9 @@ import * as autoEat from './core/auto-eat.js?v=564';
    other core module is: a core module the client cannot reach is a second
    implementation waiting to happen. */
 import * as perks from './core/perks.js?v=564';
-/* THE DAILY-TASK SELECTION, shared with the server. `src/data/goal-catalogue.js`
-   owns the date-seeded shuffle AND the eligibility filter that stops a level-1
-   account being dealt "Craft 8 items" behind a room it cannot build for two
-   property tiers. legacy.js is a classic script and cannot import it, so it is
-   published here and read at generateDailyTasks time — the alternative is a
-   second copy of the selection, which is exactly the drift the SQL port and
-   tests/goal-catalogue-drift.mjs exist to prevent. Note this is a `src/data`
-   module rather than `src/core`; the seam is the same. */
+/* THE DAILY BOARD's picker, shared with the server (hr_goal_board ports
+   `pickBoard`), and the quest catalogue. legacy.js is a classic script and
+   cannot import, so it reads both from here. */
 import * as goalCatalogue from './data/goal-catalogue.js?v=564';
 /* THE HIRED-CREW RATE MODEL (b497). src/features/workers.js is a classic script
    and cannot import, so it reads the crew's efficiency curve and tick interval

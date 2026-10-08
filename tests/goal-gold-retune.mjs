@@ -38,7 +38,8 @@
 //                   each of the three surfaces IN THE DATABASE, which is the
 //                   only place drift ever actually appears.
 //   B. BOUND        the numbers the migration installs are the numbers
-//                   src/data/goal-catalogue.js authors. A migration that agreed
+//                   the ruling authored (RULED_DAILY_TASKS below; the client
+//                   copy left with Daily Tasks, lane daily-board). A migration that agreed
 //                   with itself and not with the client would show one price
 //                   and pay another — the b487 defect, one layer down.
 //
@@ -51,7 +52,23 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, LAST_PATCHED, ROOT } from './schema-replay.mjs';
-import { DAILY_TASK_REWARDS, QUEST_REWARDS } from '../src/data/goal-catalogue.js';
+import { QUEST_REWARDS } from '../src/data/goal-catalogue.js';
+
+/* The b497 ruling this applied migration installs. Daily Tasks were retired for
+   the daily board (2026-10-12-retire-daily-tasks.sql revokes the claim), so the
+   numbers live here as the history this guard pins, not as client data. */
+const RULED_DAILY_TASKS = Object.freeze({
+  daily_kill: { type: 'kill_any', goal: 25, gold: 600 },
+  daily_kill_big: { type: 'kill_any', goal: 60, gold: 1400 },
+  daily_gather: { type: 'gather', goal: 50, gold: 400 },
+  daily_gather_big: { type: 'gather', goal: 120, gold: 800 },
+  daily_cook: { type: 'cooked', goal: 12, gold: 400 },
+  daily_smith: { type: 'smithed', goal: 40, gold: 500 },
+  daily_craft: { type: 'crafted', goal: 40, gold: 500 },
+});
+/* The plain run stops before the daily board, which deals hr_claim_goal's
+   goals and retires hr_claim_daily; tests/daily-board.mjs owns that state. */
+const PRE_BOARD = '2026-10-08-content-holes.sql';
 
 const MIG = '2026-09-04-goal-gold-retune.sql';
 const problems = [];
@@ -220,11 +237,10 @@ async function run(mutate) {
      fail-closed file is supposed to have. */
   const patches = new Map(PRE_RULING);
   if (mutate) patches.set(MIG, patchesOf(mutate));
-  /* PRE_RULING is a fixture, not a mutant: the plain run keeps the whole chain
-     over it, as before. A mutant stops at MIG so nothing newer judges it first
+  /* PRE_RULING is a fixture, not a mutant: the plain run keeps the chain up to
+     PRE_BOARD over it. A mutant stops at MIG so nothing newer judges it first
      (tests/schema-replay.mjs replayScopeError). */
-  const { db } = await bootReplay(mutate ? { patches, upTo: MIG }
-    : { patches, fullChain: 'PRE_RULING is a fixture: the plain run replays the whole chain over the reverted files' });
+  const { db } = await bootReplay({ patches, upTo: mutate ? MIG : PRE_BOARD });
 
   const q = async (sql, p) => (await db.query(sql, p)).rows;
   const asUser = async (uid, sql, p) => {
@@ -328,7 +344,7 @@ async function run(mutate) {
     await stampDay(key, 5000);
   }
   for (const task of offered) {
-    if (!DAILY_TASK_REWARDS[task]) continue;         // daily_harvest is not creditable
+    if (!RULED_DAILY_TASKS[task]) continue;         // daily_harvest is not creditable
     const before = await goldOf();
     await gate();
     const r = await asUser(uid, 'select public.hr_claim_daily($1,0) as r', [task]);
@@ -347,7 +363,7 @@ async function run(mutate) {
      planting it in an authoring file would test a differently-built chain
      instead of a drifted one. */
   const { db: db2 } = await bootReplay(
-    mutate ? { patches: new Map([[MIG, patchesOf(mutate)]]), upTo: LAST_PATCHED } : {});
+    mutate ? { patches: new Map([[MIG, patchesOf(mutate)]]), upTo: LAST_PATCHED } : { upTo: PRE_BOARD });
   const q2 = async (sql, p) => (await db2.query(sql, p)).rows;
   const apply = async () => {
     try { await db2.exec(`begin;\n${mig}\ncommit;`); return 'ok'; }
@@ -417,7 +433,7 @@ function grade(o) {
     + 'fixture for GATE(e)/C9 — this file must not touch it.');
   ok(o.rowCount === 19, `T1: hr_goal_rewards holds ${o.rowCount} rows, expected 19`);
 
-  for (const [id, cat] of Object.entries(DAILY_TASK_REWARDS)) {
+  for (const [id, cat] of Object.entries(RULED_DAILY_TASKS)) {
     ok(o.dailyDef.includes(
       `when '${id}' then v_type := '${cat.type}'; v_goal := ${cat.goal}; v_gold := ${cat.gold};`)
       || o.dailyDef.includes(
@@ -490,7 +506,7 @@ function grade(o) {
     `T3: today's slate (${(o.offered || []).join(',')}) offered no creditable daily task, so the `
     + 'daily half of the retune was not exercised at all.');
   for (const [task, r] of paid) {
-    const want = DAILY_TASK_REWARDS[task].gold;
+    const want = RULED_DAILY_TASKS[task].gold;
     ok(r.ok === true && r.gold === want && r.said === want,
       `T3: daily task '${task}' paid ${r.gold} gold (receipt said ${r.said}), expected the `
       + `catalogued ${want}. The server is paying a different number from the one the client shows.`);

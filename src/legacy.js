@@ -425,8 +425,8 @@ const EQUIP_SHOP=[{id:'bronze_sword',cost:100},{id:'apprentice_staff',cost:120},
    their own `|| []` fallbacks: item-ux.js's "buy another" affordance
    (item-ux.js:28-29), admin.js's obtainable-item audit (admin.js:458-459), and
    — worst — the b215 no-pay-to-win guard, which has been iterating an empty
-   IAP_CATALOG and passing vacuously since it was written. Publishing them the
-   way b220 published DAILY_TASK_POOL makes all three real again. */
+   IAP_CATALOG and passing vacuously since it was written. Publishing them on
+   window makes all three real again. */
 window.SEED_SHOP=SEED_SHOP;
 window.EQUIP_SHOP=EQUIP_SHOP;
 
@@ -4770,7 +4770,7 @@ function renderBountyPanel(){
    QUEST_DEFS — the onboarding chain, as DATA.
 
    b217 authored these inline inside ensureRetentionState(); b341 lifts them
-   out beside DAILY_TASK_POOL (the established pattern in this file: a data
+   out of it (the established pattern in this file: a data
    table next to the engine that consumes it, published on window so the suite
    can read the real rows instead of a copy). Adding a quest is now a ROW, and
    `docs/SYSTEMS_MAP.md`'s golden rule — grow by adding data, not code — holds
@@ -4822,7 +4822,7 @@ const QUEST_DEFS=[
      turnips take 4h and yield 2-4, so one full harvest round is ~6 produce and a
      goal of 10 was TWO grow cycles — ~8 wall-clock hours — parked in front of
      the fourth quest a new player ever sees. 6 = one harvest round at the
-     starting property, the identical derivation DAILY_TASK_POOL's floor uses.
+     starting property.
      The goal is BOUND SERVER-SIDE (hr_claim_quest reads ev:harvest >= 6), so it
      moves in three places at once — see src/data/goal-catalogue.js. */
   /* ⚠ MIRRORED, not counted — and that is the FIX, not a preference. As a
@@ -4920,8 +4920,8 @@ function syncMirroredQuests(){
 
 /* ─── retention ─── */
 function ensureRetentionState(){
-  if(!G.daily)G.daily={lastReset:null,tasks:[]};
-  if(!Array.isArray(G.daily.tasks))G.daily.tasks=[];
+  if(!G.daily||typeof G.daily!=='object')G.daily={};
+  delete G.daily.tasks;
   if(!G.collection)G.collection={};
   if(!G.stats)G.stats={kills:0,gathered:0,harvested:0,rareDrops:0};
   /* b341: quests are SEEDED BY ID from QUEST_DEFS, not "only when the array is
@@ -4984,283 +4984,11 @@ function ensureRetentionState(){
   });
   syncMirroredQuests();
 }
-/* Daily task pool — pick 3 per day for variety. Each entry is a template
-   factory that returns a fresh task object so we can adjust goals per
-   level/character later if we want. Deterministic seed = date string.
-   Only types with corresponding updateDaily() call sites are listed —
-   adding a new type requires hooking the source counter too. */
-/* ── b497 — THE GOLD-PER-EFFORT-MINUTE RETUNE (Designer, balance audit) ─────
-   The pool paid a 13:1 spread across gold-per-effort-minute and the FIGHTERS
-   sat at the bottom of it: killing 60 monsters is the longest task in the pool
-   and paid 900 g, while "Craft 8 items" — eight bench pulls, ~8 seconds of
-   actual input — paid 450. The ruled numbers below flatten that.
-   ⚠ EVERY NUMBER HERE IS ALSO SERVER-OWNED. hr_claim_daily credits the gold
-   from its own CASE catalogue, so a change here is a change in THREE places
-   (this table, src/data/goal-catalogue.js DAILY_TASK_REWARDS, and the SQL) and
-   tests/goal-catalogue-drift.mjs fails the build if only one of them moves. */
-const DAILY_TASK_POOL=[
-  ()=>({id:'daily_kill',     type:'kill_any', label:'Kill 25 monsters',         goal:25, progress:0, reward:600, done:false}),
-  ()=>({id:'daily_kill_big', type:'kill_any', label:'Kill 60 monsters',         goal:60, progress:0, reward:1400, done:false}),
-  ()=>({id:'daily_gather',   type:'gather',   label:'Gather 50 resources',      goal:50, progress:0, reward:400, done:false}),
-  ()=>({id:'daily_gather_big',type:'gather',  label:'Gather 120 resources',     goal:120,progress:0, reward:800, done:false}),
-  /* b220 (backlog #13): the harvest daily used to be a flat 25 while the farm
-     it measures varies 6× across the property ladder — at Wanderer's Camp
-     (2 plots of 4h turnips, ~6 produce a cycle) that was ~17 hours of
-     babysitting for 700g, and at the castle it was one harvest pass. These
-     entries are factories evaluated at generation time, so the goal can simply
-     scale with the plot cap. Reward scales with it too. */
-  /* b495 (balance audit): the FLOOR was 10 and the scaling term never reached
-     it at the starting property. Wanderer's Camp has TWO plots
-     (features/homestead.js TIERS[0].plots), turnips take 4h and yield 2-4, so
-     one full harvest round is ~6 produce and `max(10, 2*3)` clamped to 10 —
-     TWO grow cycles, ~8 wall-clock hours, for a daily that resets at UTC
-     midnight. A starter who logged in after noon could not finish it at all.
-     The floor is now 6 = ONE harvest round at the camp; every tier from
-     homestead (4 plots) up is governed by `n*3` exactly as before, so nothing
-     above the starting property moves by a single crop. */
-  ()=>{ const n=(typeof farmPlotCap==='function'?farmPlotCap():8);
-        const goal=Math.max(6,n*3);
-        return {id:'daily_harvest', type:'harvest', label:`Harvest ${goal} crops`,
-                goal, progress:0, reward:goal*30, done:false}; },
-  ()=>({id:'daily_cook',     type:'cooked',   label:'Cook 12 items',            goal:12, progress:0, reward:400, done:false}),
-  /* b497: 8 → 40. Eight bench pulls is ~8 SECONDS of the player's attention
-     (artisan actions are ~2.4-4.6 s and run unattended), which made these two
-     the cheapest gold in the game by an order of magnitude. 40 items ≈ 40
-     seconds of bench time and puts them on the same effort footing as the kill
-     and gather rows. The Workshop/Forge eligibility filter
-     (src/data/goal-catalogue.js DAILY_TASK_REQUIREMENTS) still keeps them away
-     from an account that cannot reach a bench at all. */
-  ()=>({id:'daily_smith',    type:'smithed',  label:'Smith 40 items',           goal:40, progress:0, reward:500, done:false}),
-  ()=>({id:'daily_craft',    type:'crafted',  label:'Craft 40 items',           goal:40, progress:0, reward:500, done:false}),
-];
-/* b220: exposed so the smoke suite can evaluate a factory deterministically
-   instead of depending on which 3 tasks today's date happens to draw. */
-window.DAILY_TASK_POOL = DAILY_TASK_POOL;
-/* Simple FNV-1a hash on a string so we can derive a deterministic
-   shuffle from the date — every player on the same day gets the same
-   3 tasks, but each new day rotates them. */
-/* b332: Math.imul, not `h*0x01000193` — the float multiply loses the low bits
-   past 2^53. The LCG shuffle below rescued COVERAGE (every task could still be
-   drawn) but not fairness: measured over 730 days, "Craft 8 items" appeared 20
-   times against "Gather 50 resources" 453 — a 22x skew a player would read as
-   a missing task. Reference implementation: src/core/rng.js hashSeed. */
-function dailySeed(s){
-  let h=0x811c9dc5;
-  s=String(s);
-  for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,0x01000193); }
-  return h>>>0;
-}
-/* b332: the date -> task-order draw, lifted out of generateDailyTasks so the
-   suite can sweep YEARS of date keys against the REAL shuffle instead of
-   trusting whatever today deals. Behaviour is unchanged; this is the same
-   Fisher-Yates over the same LCG, just callable. */
-function dailyTaskIndexes(dateStr){
-  let seed=dailySeed(dateStr);
-  const indexes=DAILY_TASK_POOL.map((_,i)=>i);
-  for(let i=indexes.length-1;i>0;i--){
-    seed=(seed*1664525+1013904223)>>>0;       // LCG step
-    const j=seed%(i+1);
-    [indexes[i],indexes[j]]=[indexes[j],indexes[i]];
-  }
-  return indexes;
-}
-window.dailyTaskIndexes=dailyTaskIndexes;
-/* THE DAILY DAY KEY — the UTC day key the SERVER seeds its selection from
-   (public.hr_utc_day_key / src/core/goals.js utcDayKey: no zero padding, e.g.
-   `2026-8-20`). b414: the daily task SET is now server-authoritative
-   (hr_daily_task_set + hr_claim_daily), so the client MUST seed the SAME string
-   the server does — it used to seed from `new Date().toDateString()` (a LOCAL
-   date), which desynced the offered set from the server across time zones and
-   let the audit flag client-owned selection. tests/goal-catalogue-drift.mjs
-   binds this to src/core/goals.js utcDayKey and to the SQL over a date sweep. */
-function hrGoalDayKey(nowMs){
-  const d=new Date(typeof nowMs==='number'?nowMs:Date.now());
-  return `${d.getUTCFullYear()}-${d.getUTCMonth()+1}-${d.getUTCDate()}`;
-}
-window.hrGoalDayKey=hrGoalDayKey;
-/* ── THE ELIGIBILITY CAPS (b45x, P0) ────────────────────────────────────────
-   What the daily-task filter in src/data/goal-catalogue.js is allowed to ask
-   about this character. Read through the SAME accessors the rest of the engine
-   uses — `HearthriseHomestead.roomLevel` (which routes through the rooms record,
-   so it becomes server-first the day that arm flips) and `skillXp` (the
-   record-first XP read) — because a second way of asking "do you own the Forge?"
-   is a second answer waiting to disagree with the server's.
-
-   FAIL CLOSED: if the homestead module is not up we report NOTHING unlocked, so
-   the worst case is a doable task instead of a padlocked one. The old behaviour
-   was the padlock. */
-function dailyTaskCaps(){
-  const rooms={}, sx={};
-  try{
-    const HH=window.HearthriseHomestead;
-    if(HH&&typeof HH.roomLevel==='function'){
-      rooms.workshop=HH.roomLevel('workshop')||0;
-      rooms.forge=HH.roomLevel('forge')||0;
-    }
-  }catch(e){}
-  try{
-    if(typeof skillXp==='function'){ sx.crafting=skillXp('crafting')||0; sx.smithing=skillXp('smithing')||0; }
-  }catch(e){}
-  return {rooms:rooms, skillXp:sx};
-}
-window.dailyTaskCaps=dailyTaskCaps;
-/* ── b497 — THE AUTHORED NUMBERS OF EVERY FIXED DAILY, BY ID ───────────────
-   `daily_harvest` is DELIBERATELY ABSENT: its factory reads farmPlotCap(), so
-   its goal is a function of the property the player owns rather than an
-   authored constant, and "differs from the factory" would mean "you upgraded
-   your homestead today" — which must not re-roll a slate mid-day.
-   Memoised on the POOL'S IDENTITY, not unconditionally: generateDailyTasks runs
-   on EVERY updateDaily (i.e. every kill), so calling eight factories per tick
-   would be real cost on the hot path — while a test that swaps the pool still
-   gets a fresh answer instead of a stale cache. */
-let _dailySpecPool=null, _dailySpecs=null;
-function dailyTaskSpecs(){
-  if(_dailySpecs&&_dailySpecPool===DAILY_TASK_POOL) return _dailySpecs;
-  const m={};
-  DAILY_TASK_POOL.forEach(function(f){
-    let t=null; try{ t=f(); }catch(e){}
-    if(t&&t.id&&t.id!=='daily_harvest') m[t.id]={goal:t.goal,reward:t.reward,label:t.label};
-  });
-  _dailySpecPool=DAILY_TASK_POOL; _dailySpecs=m;
-  return m;
-}
-function generateDailyTasks(notice=true){
-  ensureRetentionState();
-  /* window seam, not the local binding — same reason the caps read below goes
-     through window: DAILY-HEAL-1 sweeps the heal across 60 consecutive day keys,
-     and a roll-shape-dependent defect must not be able to hide behind "green
-     today". Identical in production (window.hrGoalDayKey IS hrGoalDayKey). */
-  const today=(typeof window.hrGoalDayKey==='function')?window.hrGoalDayKey():hrGoalDayKey();
-  if(G.daily.lastReset===today&&G.daily.tasks.length){
-    /* ── b461 — HEAL a pre-eligibility slate. The b459 eligibility filter
-       applies at GENERATION, so a slate rolled BEFORE the fix keeps its
-       impossible tasks all day (found live: Tyler's account still carried
-       Craft 8 + Smith 8 the morning after). If any UN-done task in today's
-       stored slate is ineligible NOW, rebuild the slate from the filtered
-       deterministic set. Safe by construction: eligibility only WIDENS during
-       a day (skills/rooms are never lost), so ineligible-now ⇒ ineligible at
-       roll ⇒ zero progress lost; and every eligible old member is necessarily
-       in the new set (same seeded order, bad members only free slots), so
-       progress/done on kept tasks is preserved via the id match below. */
-    try{
-      const GCat=window.HearthriseCore&&window.HearthriseCore.goalCatalogue;
-      if(GCat&&typeof GCat.dailyTaskEligible==='function'&&typeof GCat.dailyTaskSetIndexes==='function'){
-        /* window seam, not the local binding — DAILY-HEAL-1 stubs the caps. */
-        const caps=(typeof window.dailyTaskCaps==='function')?window.dailyTaskCaps():dailyTaskCaps();
-        const hasBad=G.daily.tasks.some(t=>t&&!t.done&&!GCat.dailyTaskEligible(t.id,caps));
-        if(hasBad){
-          const oldById={};
-          G.daily.tasks.forEach(t=>{ if(t&&t.id) oldById[t.id]=t; });
-          const fixed=GCat.dailyTaskSetIndexes(today,caps,G.daily.tasks.length);
-          if(Array.isArray(fixed)&&fixed.length){
-            G.daily.tasks=fixed.map(i=>{
-              const fresh=DAILY_TASK_POOL[i]();
-              const old=oldById[fresh.id];
-              if(old){ fresh.progress=old.progress||0; fresh.done=!!old.done; }
-              return fresh;
-            });
-          }
-        }
-      }
-    }catch(e){}
-    /* ── b497 — HEAL A SLATE WHOSE NUMBERS THE CATALOGUE HAS MOVED PAST ──────
-       The eligibility heal above is the same class one trigger over: a slate is
-       rolled ONCE a day and frozen in the save, so any change to the pool's
-       authored numbers is invisible until UTC midnight. That is not cosmetic
-       here, because the SERVER moved with the catalogue and the client did not:
-
-         · stored daily_smith says "Smith 8 items"; hr_claim_daily requires 40.
-         · the player smiths 8 → updateDaily latches `done` and fires
-           claimDaily ONCE, fire-and-forget.
-         · the server answers `incomplete`, the envelope is discarded, and
-           `done` means the task can never fire again.
-         · under the gold arm the local credit is a no-op.
-       Net: the daily is spent, nothing is paid, and the UI says it is finished.
-       Exactly the "fire-and-forget over a server verdict where the local state
-       is consumed" class the rank/milestone claims were fixed for.
-
-       TWO REPAIRS, deliberately separate, because they break in different ways:
-       (1) the NUMBERS are re-read from the authored pool;
-       (2) `done` is re-derived from `progress >= goal` UNCONDITIONALLY. (2) is
-           not a consequence of (1): the eligibility rebuild above already
-           produces the bad state on its own by copying an old `done` onto a
-           freshly-generated task, so a repair gated on "the numbers differ"
-           would walk straight past it. `done` unsupported by its own progress
-           is never legitimate — updateDaily only ever sets it at
-           progress >= goal — so this is an invariant of the structure and not a
-           guess about how it broke. */
-    try{
-      const spec=dailyTaskSpecs();
-      G.daily.tasks.forEach(function(t){
-        if(!t||!t.id)return;
-        const s=spec[t.id];
-        if(!s)return;                                   // daily_harvest: dynamic by design
-        if(t.goal!==s.goal||t.reward!==s.reward||t.label!==s.label){
-          t.goal=s.goal; t.reward=s.reward; t.label=s.label;
-        }
-        t.progress=Math.min(t.goal,Math.max(0,Number(t.progress)||0));
-        if(t.done&&t.progress<t.goal)t.done=false;
-      });
-    }catch(e){}
-    return;
-  }
-  G.daily.lastReset=today;
-  // Deterministic shuffle of pool by date seed
-  const indexes=dailyTaskIndexes(today);
-  /* Three tasks: the server's daily task set offers no more (not_offered). */
-  const taskCount=Math.min(DAILY_TASK_POOL.length, 3);
-  /* b45x (P0) — ELIGIBILITY. `indexes` is the raw date-seeded order; the offered
-     SET skips a task whose bench the player has not built and takes the next one
-     down the same order. The rule and the algorithm live in
-     src/data/goal-catalogue.js so the server's hr_daily_task_set_for is a port of
-     ONE implementation rather than a second one — see that file's header for the
-     ruling (a fresh account was dealt Craft 8 + Smith 8, 900 of 1300 daily gold,
-     against zero craftable recipes at level 1).
-     If the bridge is not up we fall back to the raw slice, which is exactly
-     today's behaviour — degraded, never broken, and never a second copy of the
-     filter. */
-  let chosen=null;
-  try{
-    const GC=window.HearthriseCore&&window.HearthriseCore.goalCatalogue;
-    if(GC&&typeof GC.dailyTaskSetIndexes==='function'){
-      chosen=GC.dailyTaskSetIndexes(today,dailyTaskCaps(),taskCount);
-    }
-  }catch(e){}
-  if(!Array.isArray(chosen)||chosen.length!==taskCount)chosen=indexes.slice(0,taskCount);
-  G.daily.tasks=chosen.map(i=>DAILY_TASK_POOL[i]());
-  if(notice)notify('New daily tasks!','info');
-}
-/* b228: exposed so the suite can prove the King's daily-task slot is really
-   read, rather than trusting a field that was declared and never granted. */
-window.generateDailyTasks=generateDailyTasks;
-function updateDaily(type,amt=1){
-  generateDailyTasks(false);
-  G.daily.tasks.forEach(t=>{
-    if(t.type===type&&!t.done){
-      t.progress=Math.min(t.goal,(t.progress||0)+amt);
-      if(t.progress>=t.goal){
-        /* b414: daily-task gold is now SERVER-CREDITED. hr_claim_daily
-           (2026-08-20-goal-reward-rpc-credit.sql) VERIFIES completion from the
-           server's own kind='daily' ev:<type> counter for today's UTC day, owns
-           the fixed gold amount, once-guards per (day, task) and journals it.
-           The local G.gold write is a GATED PREDICTION — pre-arm it credits
-           locally; under arm it no-ops and the server credit arrives on the next
-           envelope (identical to muster/raid chest crediting).
-           daily_harvest is the ONE exception: its goal/reward are dynamic
-           (farmPlotCap) with no server model yet, so it KEEPS the b411 defer —
-           it stays uncompleted under arm rather than paying nothing. */
-        const serverPays=(t.id!=='daily_harvest');
-        if(!serverPays && !clientMayWriteRecordField('gold'))return;   // harvest: defer under arm
-        t.done=true;
-        if(serverPays && window.HearthriseGoalClaim && typeof window.HearthriseGoalClaim.claimDaily==='function'){
-          const _p=window.HearthriseGoalClaim.claimDaily(t.id); if(_p&&_p.catch)_p.catch(()=>{});
-        }
-        if(clientMayWriteRecordField('gold'))G.gold+=t.reward;   // prediction; no-op under arm
-        notify(`Daily: ${t.label} (+${t.reward}g)`,'loot');
-      }
-    }
-  });
-}
+/* updateDaily — THE ACTION SEAM, no longer a task sheet. Daily Tasks were
+   retired for the one daily board (src/data/goal-catalogue.js THE DAILY BOARD),
+   which grades the server's own counters. Every action site still calls this and
+   the Muster / Work Order wrap it, so the name and the call stay. */
+function updateDaily(type,amt=1){}
 /* ════════════════════════════════════════════════════════════════
    b222 (SEAM 4) — the updateDaily wrapper chain, with names.
 
@@ -6855,7 +6583,6 @@ function renderProfile(){
      buffs read — there is exactly one "are we replaying?" oracle. */
   if(window.HearthrisePresence && window.HearthrisePresence.inOfflineReplay
      && window.HearthrisePresence.inOfflineReplay()) return;
-  generateDailyTasks(false);
   /* The Home screen itself is src/features/home-dashboard.js (#hd-root), which
      paints on showTab('profile') and on its own refresh tick. The legacy dash
      cards this function used to fill are deleted (2026-10-08); it stays as the
@@ -13120,25 +12847,43 @@ window.__hrTakeGoalBaseline = takeGoalBaseline;
 window.__hrRebaselineGoals = rebaselineGoals;
 window.__hrGoalSourceMirrored = goalSourceMirrored;
 
+/* THE BOARD'S IDS (lane daily-board). The server's board REPLACES any local
+   pick the moment hr_goal_state has answered it; until then the shared picker
+   paints the same set (src/data/goal-catalogue.js pickBoard, the function
+   hr_goal_board ports). Claim never reads this — it reads the server's row. */
+function goalBoardIds(weekly){
+  var S = window.HearthriseGoalState;
+  var b = (S && typeof S.board === 'function') ? S.board() : null;
+  var srv = b && (weekly ? b.weekly : b.daily);
+  if(Array.isArray(srv)) return { ids: srv.slice(), server: true };
+  var GC = window.HearthriseCore && window.HearthriseCore.goalCatalogue;
+  if(!GC || typeof GC.pickBoard !== 'function') return { ids: [], server: false };
+  var now = Date.now();
+  return { ids: weekly ? GC.pickBoard(GC.boardWeekKey(now), GC.WEEKLY_BOARD_POOL)
+                       : GC.pickBoard(GC.boardDayKey(now), GC.DAILY_BOARD_POOL), server: false };
+}
+window.__hrGoalBoardIds = goalBoardIds;
+/* Re-slate onto `ids`, carrying the baseline of every goal that survives. */
+function reslateGoals(stateObj, ids, pool){
+  var keepSv = stateObj.startValues || {}, keepCb = stateObj.counterBaselined || {};
+  stateObj.picks = ids.slice();
+  stateObj.startValues = {}; stateObj.counterBaselined = {};
+  ids.forEach(function(id){
+    if(Object.prototype.hasOwnProperty.call(keepSv, id)) stateObj.startValues[id] = keepSv[id];
+    if(keepCb[id]) stateObj.counterBaselined[id] = true;
+    var def = pool.find(function(p){ return p.id === id; });
+    if(def && !goalBaselineOf(stateObj, def).known) takeGoalBaseline(stateObj, def);
+  });
+}
+window.__hrReslateGoals = reslateGoals;
 function getGoalsForToday(){
   var key = todayKey();
-  if(!G.dailyGoals || G.dailyGoals.dayKey !== key){
-    // Pick 3 deterministic goals based on day
-    var seed = key;
-    var picks = []; var used = {};
-    for(var i = 0; i < 3; i++){
-      seed = (seed * 9301 + 49297) % 233280;
-      var idx = Math.floor((seed/233280) * DAILY_GOAL_POOL.length);
-      while(used[idx]) idx = (idx+1) % DAILY_GOAL_POOL.length;
-      used[idx] = true; picks.push(DAILY_GOAL_POOL[idx]);
-    }
-    G.dailyGoals = {dayKey: key, picks: picks.map(function(g){return g.id;}), startValues: {}};
-    picks.forEach(function(g){
-      /* Was an unconditional `startValues[id] = readSource(source)`. A mirrored
-         counter that has not arrived yet is now SKIPPED rather than baselined
-         at a 0 nobody measured — see the header above. */
-      takeGoalBaseline(G.dailyGoals, g);
-    });
+  var board = goalBoardIds(false);
+  if(!G.dailyGoals || G.dailyGoals.dayKey !== key || !Array.isArray(G.dailyGoals.picks)){
+    G.dailyGoals = {dayKey: key, picks: [], startValues: {}};
+    reslateGoals(G.dailyGoals, board.ids, DAILY_GOAL_POOL);
+  } else if(board.server && board.ids.join() !== G.dailyGoals.picks.join()){
+    reslateGoals(G.dailyGoals, board.ids, DAILY_GOAL_POOL);
   }
   var today = G.dailyGoals.picks.map(function(id){
     return DAILY_GOAL_POOL.find(function(p){return p.id===id;});
@@ -17013,103 +16758,34 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
       : null;
   }
 
-  /* b291 (paione, "the quests did not reset" — the REAL cause).
-     This bucketed weeks as `floor(daysSinceEpoch / 7)`. Epoch day 0 (1 Jan 1970) is a
-     THURSDAY, so the key rolled over every Thursday — while the panel tells the
-     player "Weekly quests refresh every Monday" and its countdown targets Monday.
-     So on Monday the timer reset to 7d and the quests did NOT change; they only
-     changed three days later. Offsetting by 3 days aligns the bucket to Monday UTC,
-     which is what we advertise. (b290 widened the goal pool, which was a real but
-     SEPARATE problem — it could never have fixed this.) */
+  /* The weekly bucket is Monday-aligned (b291): goalCatalogue.boardWeekKey, the
+     seed hr_goal_board uses, so the panel's "refreshes every Monday" is true. */
   function thisWeekKey(){
-    var d = new Date();
-    var ms = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
-    return Math.floor((ms / 86400000 + 3) / 7);   // +3: shift Thursday-epoch onto Monday
+    var GC = window.HearthriseCore && window.HearthriseCore.goalCatalogue;
+    return GC ? GC.boardWeekKey(Date.now()) : 0;
   }
   window.__thisWeekKey = thisWeekKey;   // test seam
-  /* b487 — THE DEAL FILTER. One expression, so "may this quest be offered?" has
-     exactly one answer and the picker below and the heal below it cannot drift.
-     A `blocked` row is skipped and the next id in the SAME shuffle order takes
-     the slot; nothing is re-seeded, so a week that offered no blocked quest is
-     byte-identical to before. See the note on wk_bury in WEEKLY_GOAL_POOL. */
+  /* `blocked` marks a row the board never deals (bound to goalCatalogue
+     BOARD_UNDEALT by tests/goal-catalogue-drift.mjs); the row keeps its index. */
   function goalDealable(def){ return !!def && !def.blocked; }
   window.__hrGoalDealable = goalDealable;   // test seam
-  function pickWeeklyIds(key){
-    var pool = WEEKLY_GOAL_POOL;
-    var seed = key; var picks = []; var used = {};
-    var offerable = pool.filter(goalDealable).length;
-    for(var i = 0; i < 3 && i < offerable; i++){
-      seed = (seed * 9301 + 49297) % 233280;
-      var idx = Math.floor((seed/233280) * pool.length);
-      /* The SAME walk the original had (`while(used[idx]) idx = (idx+1) % len`),
-         with one more reason to step. With nothing blocked the added term is
-         always false, so a week's picks are byte-identical to before — that
-         identity is what makes this safe to ship mid-week. The step count is
-         bounded by the pool length, so it terminates whatever the data says. */
-      for(var step = 0; step < pool.length && (used[idx] || !goalDealable(pool[idx])); step++){
-        idx = (idx+1) % pool.length;
-      }
-      if(used[idx] || !goalDealable(pool[idx])) break;   // pool exhausted
-      used[idx] = true; picks.push(pool[idx]);
-    }
-    return picks;
-  }
-  window.__hrPickWeeklyIds = function(key){ return pickWeeklyIds(key).map(function(g){return g.id;}); };
+  window.__hrPickWeeklyIds = function(key){
+    var GC = window.HearthriseCore && window.HearthriseCore.goalCatalogue;
+    return GC ? GC.pickBoard(key, GC.WEEKLY_BOARD_POOL) : [];
+  };
   window.getWeeklyGoals = function(){
     var key = thisWeekKey();
-    if(!G.weeklyGoals || G.weeklyGoals.weekKey !== key){
-      var picks = pickWeeklyIds(key);
-      G.weeklyGoals = {weekKey: key, picks: picks.map(function(g){return g.id;}), startValues: {}, claimed:{}, sv:1};
-      /* Same rule as the daily slate: a SERVER-MIRRORED counter that has not
-         arrived is not baselined at a 0 nobody measured. No weekly source is
-         mirrored today (wk_harvest reads stats.cropsHarvested, a local tally),
-         so this is by construction rather than for a live bug — the next
-         EVENT_COUNTER_PROJECTION row must not have to find this line. */
-      picks.forEach(function(g){
-        if(typeof window.__hrTakeGoalBaseline === 'function') window.__hrTakeGoalBaseline(G.weeklyGoals, g);
-        else G.weeklyGoals.startValues[g.id] = src(g.source);
-      });
-    } else if((G.weeklyGoals.picks||[]).some(function(id){
-        return !goalDealable(WEEKLY_GOAL_POOL.find(function(p){return p.id===id;}));
-      })){
-      /* ── HEAL A SLATE ROLLED BEFORE THE FILTER (the b461 daily-heal shape) ──
-         A player mid-week is holding a stored slate that still names the dead
-         quest; without this they keep it — and its dead Claim button — until
-         Monday. Re-pick from the same seed and CARRY FORWARD the baseline and
-         the claimed flag of every id that survives, so nothing already earned
-         is re-baselined. Safe by construction: `blocked` only ever removes
-         rows, so every kept member is necessarily in the new set. */
-      var keepSv = G.weeklyGoals.startValues || {};
-      var keepClaimed = G.weeklyGoals.claimed || {};
-      var fixed = pickWeeklyIds(key);
-      G.weeklyGoals.picks = fixed.map(function(g){ return g.id; });
-      G.weeklyGoals.startValues = {};
-      fixed.forEach(function(g){
-        G.weeklyGoals.startValues[g.id] = (typeof keepSv[g.id] === 'number') ? keepSv[g.id] : src(g.source);
-      });
-      G.weeklyGoals.claimed = keepClaimed;
-      G.weeklyGoals.sv = 1;
-    } else if(G.weeklyGoals.sv !== 1){
-      /* b224: every weekly baseline written before this build was captured
-         through the broken lookup, so it is 0 for every source. Reading those
-         zeroes with a WORKING readSource would hand a long-time player an
-         instantly-complete weekly ("Slay 100 monsters", "Cut 250 logs") and its
-         full reward — thousands of gold and gems nobody earned. Re-baseline
-         once, from now. Nothing real is lost: the panel showed 0 and could not
-         be claimed, so no weekly progress was ever actually tracked. */
-      G.weeklyGoals.startValues = {};
-      G.weeklyGoals.claimed = G.weeklyGoals.claimed || {};
-      (G.weeklyGoals.picks || []).forEach(function(id){
-        var def = WEEKLY_GOAL_POOL.find(function(p){ return p.id === id; });
-        if(def) G.weeklyGoals.startValues[id] = src(def.source);
-      });
-      G.weeklyGoals.sv = 1;
+    var board = window.__hrGoalBoardIds(true);
+    if(!G.weeklyGoals || G.weeklyGoals.weekKey !== key || !Array.isArray(G.weeklyGoals.picks)){
+      G.weeklyGoals = {weekKey: key, picks: [], startValues: {}, claimed: {}, sv: 1};
+      window.__hrReslateGoals(G.weeklyGoals, board.ids, WEEKLY_GOAL_POOL);
+    } else if((board.server && board.ids.join() !== G.weeklyGoals.picks.join())
+        || G.weeklyGoals.picks.some(function(id){ return !goalDealable(WEEKLY_GOAL_POOL.find(function(p){return p.id===id;})); })){
+      window.__hrReslateGoals(G.weeklyGoals, board.ids, WEEKLY_GOAL_POOL);
     }
     var week = G.weeklyGoals.picks.map(function(id){
       return WEEKLY_GOAL_POOL.find(function(p){return p.id===id;});
     }).filter(Boolean);
-    /* THE LATE BASELINE (the daily getter's twin) — a baseline that could not be
-       measured when the slate rolled is taken on the first paint after it can. */
     if(typeof window.__hrRebaselineGoals === 'function') window.__hrRebaselineGoals(G.weeklyGoals, week);
     return week;
   };
@@ -17129,6 +16805,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
   var _srvGoalsAt = 0;
   var _srvGoalsInflight = false;
   var _srvGoalsForce = false;  // re-read on the next sync WITHOUT dropping the known state
+  var _srvBoard = null;        // hr_goal_state's board {daily, weekly}
   function goalsArmed(){
     return typeof window.clientMayWriteRecordField === 'function'
       && !window.clientMayWriteRecordField('gold');
@@ -17155,6 +16832,9 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
           });
         });
         _srvGoals = Object.freeze(m); _srvGoalsAt = Date.now(); _srvGoalsForce = false;
+        var bd = res.board;
+        _srvBoard = (bd && Array.isArray(bd.daily) && Array.isArray(bd.weekly))
+          ? Object.freeze({ daily: bd.daily.slice(), weekly: bd.weekly.slice() }) : null;
         if(typeof done === 'function') done(true);
       } else if(typeof done === 'function') done(false);
     }).catch(function(){ _srvGoalsInflight = false; if(typeof done === 'function') done(false); });
@@ -17163,14 +16843,18 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
      answered yet, older than the peek window (stale), or the goal absent from
      the answer. Every claimability reader goes through goalClaimable() below,
      which reads ONLY this. */
-  window.HearthriseGoalState = { peek: function(){ return goalsArmed() && _srvGoals && (Date.now() - _srvGoalsAt) < 120000 ? _srvGoals : null; } };
+  window.HearthriseGoalState = {
+    peek: function(){ return goalsArmed() && _srvGoals && (Date.now() - _srvGoalsAt) < 120000 ? _srvGoals : null; },
+    /* The server's board {daily, weekly} under the same freshness window, or null. */
+    board: function(){ return window.HearthriseGoalState.peek() ? _srvBoard : null; }
+  };
   var peekSrvGoals = window.HearthriseGoalState.peek;   // the ONE freshness window (WEEK-9)
   function srvGoal(goal, isWeekly){
     var m = peekSrvGoals();
     return m ? (m[(isWeekly ? 'w:' : 'd:') + goal.id] || null) : null;
   }
   window.__hrSyncServerGoals = syncServerGoals;   // test seam + manual refresh
-  window.__hrSyncServerGoals.reset = function(){ _srvGoals = null; _srvGoalsAt = 0; _srvGoalsInflight = false; _srvGoalsForce = false; };
+  window.__hrSyncServerGoals.reset = function(){ _srvGoals = null; _srvBoard = null; _srvGoalsAt = 0; _srvGoalsInflight = false; _srvGoalsForce = false; };
 
   /* A goal whose server state is unknown shows the pending dash, never 0 and
      never the local count (the local count drives the BAR only). */
@@ -17281,6 +16965,22 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
       });
     } catch(e){}
     return out;
+  };
+  /* THE DAILY BOARD as rows, for Home's "Next up" (lane daily-board): the same
+     display, grader and claim the Quests modal uses, so the two cannot disagree. */
+  window.HearthriseDailyBoard = {
+    rows: function(){
+      var goals = (typeof window.getGoalsForToday === 'function') ? (window.getGoalsForToday() || []) : [];
+      if(!(window.__hrSyncServerGoals && window.__hrSyncServerGoals.parked)) syncServerGoals(null, 30000);
+      return goals.map(function(g){
+        var d = goalDisplay(g, false);
+        return { goal: g, id: g.id, name: g.name, glyph: g.glyph || 'uiTarget', target: g.target,
+          shownHtml: shownOr(g, false, d), pct: g.target ? Math.min(100, Math.round((d.shown / g.target) * 100)) : 0,
+          phase: d.phase, canClaim: d.canClaim, claimed: isClaimed(g, false),
+          rewardHtml: rewardSummaryHTML(rewardFor(g.id, false)), dest: destOf(g) };
+      });
+    },
+    claim: function(id){ return window.claimQuestReward(id, false); }
   };
   function rewardFor(goalId, isWeekly){
     if(isWeekly){
@@ -17475,6 +17175,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
           var msg = _sf ? _sf
                   : why === 'incomplete' ? 'The server hasn’t counted enough progress yet — give it a few seconds and try again'
                   : why === 'unknown_goal' ? 'This quest can’t be claimed yet — it has been reported'
+                  : why === 'not_offered' ? 'The board has turned over — today’s quests are ready'
                   : why === 'rpc_missing' ? 'Claiming is being upgraded — try again in a few minutes'
                   : why === 'reward_unavailable' ? 'This quest’s reward is being re-authored — nothing was spent, and we’ll make it good'
                   : why === 'network' ? 'Couldn’t reach the server — your progress is safe, try again in a moment'
@@ -17598,7 +17299,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
       + '<div class="qm-body">'
         + '<div class="qm-list" id="qm-list"></div>'
         + '<aside class="qm-aside">'
-          + '<div><h4>Quest Info</h4>'
+          + '<div><h4 id="qm-summary-h">Quest Info</h4>'
           + '<div class="qm-summary" id="qm-summary"></div></div>'
           + '<div><h4 style="font-size:calc(14.5px * var(--ui-scale, 1))">About Quests</h4>'
           /* b465: "…gold, XP, gems, and rare items" promised a category nothing
@@ -17744,7 +17445,16 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
     var completed = goals.filter(function(g){return isComplete(g,isWeekly);}).length;
     var claimable = goals.filter(function(g){return goalClaimable(g,isWeekly);}).length;
     var summary = overlay.querySelector('#qm-summary');
-    if(summary){
+    /* THE WEEK, ONE SURFACE (lane daily-board): the weekly tab's aside is the
+       "Your week" ledger (src/features/this-week.js) — the server's ISO-week
+       counts — where Home used to carry a second weekly card. */
+    var TWk = window.HearthriseThisWeek;
+    var weekHtml = (isWeekly && TWk && typeof TWk.ledgerHtml === 'function') ? TWk.ledgerHtml() : '';
+    var sumH = overlay.querySelector('#qm-summary-h');
+    if(sumH) sumH.textContent = weekHtml ? 'Your week' : 'Quest Info';
+    if(summary && weekHtml){
+      summary.innerHTML = weekHtml;
+    } else if(summary){
       summary.innerHTML =
         '<div class="qm-sum-row"><span>Total quests</span><b>'+totalQ+'</b></div>'
         +'<div class="qm-sum-row"><span>In progress</span><b>'+inProgress+'</b></div>'

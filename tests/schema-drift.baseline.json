@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-10-08",
- "digest": "875bce48df8154a7b0f2a15d50c364a8a4626953ba5d48c8935619cb3f366dfb",
+ "digest": "e7f7b026420f054bff1179923a9e0deedafd0668db78278015309333d0013915",
  "counts": {
   "relations": 142,
-  "functions": 355,
+  "functions": 356,
   "policies": 95,
   "indexes": 206,
   "triggers": 20,
@@ -333,6 +333,7 @@
    "hr_frame_wanted(p_user uuid, p_slot integer)",
    "hr_game_events_guard()",
    "hr_gem_unlocks_of(p_user uuid, p_slot integer)",
+   "hr_goal_board(p_weekly boolean, p_at timestamp with time zone)",
    "hr_goal_daily_seed(p_str text)",
    "hr_goal_period_start(p_weekly boolean, p_at timestamp with time zone)",
    "hr_goal_state(p_slot integer)",

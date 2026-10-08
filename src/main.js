@@ -487,6 +487,7 @@ import { setupVigourMount } from './features/vigour-mount.js?v=564';
 import { setupBarFit } from './render/bar-fit.js?v=564';
 import { setupHuntersLedger } from './features/hunters-ledger.js?v=564';
 import { setupDeeds } from './features/deeds.js?v=564';
+import { setupProgressSurfaces } from './features/progress-surfaces.js?v=564';
 import { setupClimbMarks } from './features/climb-marks.js?v=564';
 import { setupRecipeBook } from './features/recipe-book.js?v=564';
 import { setupItemIndex } from './features/item-index.js?v=564';
@@ -556,6 +557,7 @@ function tryBootFeatures() {
   boot('deeds', setupDeeds);
   boot('climb-marks', setupClimbMarks);
   boot('standings', setupStandings);
+  boot('progress-surfaces', setupProgressSurfaces);
   boot('come-back', setupComeBack);
   boot('recipe-book', setupRecipeBook);
   boot('item-index', setupItemIndex);

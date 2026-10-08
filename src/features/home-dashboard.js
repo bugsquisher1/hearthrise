@@ -1262,7 +1262,8 @@
     var mile = LP().getNextMilestone ? call(LP().getNextMilestone) : null;
     var today = LP().getTodayDelta ? call(LP().getTodayDelta) : null;
     var resume = LP().getResumePayload ? call(LP().getResumePayload) : null;
-    var tasks = (G.daily && Array.isArray(G.daily.tasks)) ? G.daily.tasks.filter(function (t) { return !t.done; }).slice(0, 3) : [];
+    var BD = window.HearthriseDailyBoard;
+    var board = (BD && typeof BD.rows === 'function') ? (call(BD.rows) || []) : [];
 
     // current activity
     var activeName = G.activeMonster ? (window.MONSTERS && window.MONSTERS[G.activeMonster] && window.MONSTERS[G.activeMonster].name)
@@ -1498,8 +1499,7 @@
     if (mile && mile.kind === 'quest' && mile.goal) {
       var mid = mile.goal.id;
       var inChain = !!(chainCard && mid && chainCard.steps.some(function (s) { return s.id === mid; }));
-      var inTasks = tasks.some(function (t) { return t === mile.goal || (mid && t && t.id === mid); });
-      mileWasDup = inChain || inTasks;
+      mileWasDup = inChain;
       if (mileWasDup) mile = null;
     }
 
@@ -1530,34 +1530,29 @@
         '<button class="hd-cta" data-hd="mile">' + esc(isQuest ? (mile.verb || 'Go') : 'Train') + '</button>' +
         '</div>';
     }
-    if (tasks.length) {
+    /* THE DAILY BOARD (lane daily-board): the three goals the server dealt today,
+       painted from HearthriseDailyBoard — the Quests modal's own rows, grader and
+       claim. The count is the server's; Claim appears only on its confirmed row. */
+    if (board.length) {
       anyNext = true;
-      tasks.forEach(function (t, i) {
-        var r = questRoute(t);
-        var pct = t.goal ? Math.round(((t.progress || 0) / t.goal) * 100) : 0;
-        // Rewards are plain numbers in the data ("400"). Pairing them with the
-        // gold glyph is what makes a number read as currency instead of as a
-        // second progress figure sitting next to "0 / 50".
-        var reward = t.reward != null ? String(t.reward) : (t.rewardText || '');
-        var rewardHtml = reward
-          ? (/^\d[\d,]*$/.test(reward.trim())
-              ? gly('gold', 13, '', 'var(--gold-2)') + '<span>' + esc(reward) + '</span>'
-              : '<span>' + esc(reward) + '</span>')
-          : '';
-        html += '<div class="hd-card hd-quest">' +
-          '<div class="hd-qic">' + gly(r.key, 22, '', 'var(--ink-2)') + '</div>' +
+      board.forEach(function (r) {
+        var act = r.claimed
+          ? '<span class="hd-cta ghost" aria-disabled="true">' + gly('uiCheck', 14, '', 'var(--green)') + ' Claimed</span>'
+          : r.canClaim
+            ? '<button class="hd-cta" data-hd="bclaim" data-id="' + esc(r.id) + '" data-hr-settle-latch>Claim</button>'
+            : '<button class="hd-cta ghost" data-hd="bgo" data-id="' + esc(r.id) + '"' +
+                (r.dest && r.dest.label ? ' title="' + esc(r.dest.label) + '"' : '') + '>' + esc((r.dest && r.dest.verb) || 'Go') + '</button>';
+        html += '<div class="hd-card hd-quest hd-board' + (r.claimed ? ' is-claimed' : '') + '">' +
+          '<div class="hd-qic">' + gly(r.glyph, 22, '', 'var(--ink-2)') + '</div>' +
           '<div class="hd-qbody">' +
-          '<div class="hd-qtitle">' + esc(t.label) + '</div>' +
-          '<div class="hd-qmeta"><span class="p">' + num(t.progress || 0) + ' / ' + num(t.goal || 0) + '</span>' +
-          (rewardHtml ? '<span class="r">' + rewardHtml + '</span>' : '') + '</div>' +
-          '<div class="hd-bar" style="--accent:var(--green)"><i style="width:' + pct + '%"></i></div>' +
-          '</div>' +
-          '<button class="hd-cta ghost" data-hd="q" data-i="' + i + '"' +
-            (r.label ? ' title="' + esc(r.label) + '"' : '') + '>' + esc(r.verb) + '</button>' +
-          '</div>';
+          '<div class="hd-qtitle">' + esc(r.name) + '</div>' +
+          '<div class="hd-qmeta"><span class="p">' + r.shownHtml + ' / ' + num(r.target) + '</span>' +
+          (r.rewardHtml ? '<span class="r">' + r.rewardHtml + '</span>' : '') + '</div>' +
+          '<div class="hd-bar" style="--accent:var(--green)"><i style="width:' + r.pct + '%"></i></div>' +
+          '</div>' + act + '</div>';
       });
     }
-    if (!anyNext && G.daily && Array.isArray(G.daily.tasks) && G.daily.tasks.length > 0 && window.HearthriseSignposts) {
+    if (board.length && board.every(function (r) { return r.claimed; }) && window.HearthriseSignposts) {
       html += '<div class="hd-card hd-mini"><div class="mi">' + gly('uiCheck', 20, '', 'var(--green)') +
         '</div><div>' + esc(window.HearthriseSignposts.fill('home.dailyDone')) + '</div></div>';
     }
@@ -1735,8 +1730,12 @@
           '</div></div>';
       } catch (e) { /* renown optional */ }
     }
-    try { var ST = window.HearthriseStandings; if (ST && typeof ST.card === 'function') html += ST.card(G); } catch (e) { /* display only */ }
-    try { var HL = window.HearthriseHuntersLedger; if (HL && typeof HL.card === 'function') html += HL.card(G); } catch (e) { /* display only */ }
+    /* HIDE-until-relevant (src/data/progress-surfaces.js): the realm's own number
+       decides when Home starts carrying these; until then they live elsewhere. */
+    var SF = window.HearthriseSurfaces;
+    var surfaceOn = function (id) { return !!(SF && typeof SF.shown === 'function' && SF.shown(id)); };
+    try { var ST = window.HearthriseStandings; if (surfaceOn('standings') && ST && typeof ST.card === 'function') html += ST.card(G); } catch (e) { /* display only */ }
+    try { var HL = window.HearthriseHuntersLedger; if (surfaceOn('hunters_ledger') && HL && typeof HL.card === 'function') html += HL.card(G); } catch (e) { /* display only */ }
 
     // The realm — world events: the day's and the week's blessing, named and
     // described in the realm's words. b560: no rate, yield or gold figure — the
@@ -1771,7 +1770,6 @@
       } catch (e) { /* world events optional */ }
     }
 
-    try { var TW2 = window.HearthriseThisWeek; if (TW2 && typeof TW2.card === 'function') html += TW2.card(); } catch (e) { /* display only */ }
     // Upkeep — buffs + collection progress. Two one-line facts, not two cards.
     /* THE BUFF LADDER — the only VISIBLE buff surface (the Active Effects card
        `__renderBuffsSection` draws into is display:none on Home), so each row states
@@ -1827,10 +1825,10 @@
     html += '</div></div></div>';
 
     root.innerHTML = html;
-    wire(root, tasks, mile, resume, chainCard);
+    wire(root, board, mile, resume, chainCard);
   }
 
-  function wire(root, tasks, mile, resume, chainCard) {
+  function wire(root, board, mile, resume, chainCard) {
     // Your heroes — switch / buy, both routed through the SHARED helpers so Home
     // and the drawer act identically (switchSlot → reload is preserved inside
     // selectSlot). Separate from the [data-hd] table below because these carry a
@@ -1882,7 +1880,12 @@
           else if (kind === 'renown') { if (window.HearthriseRenown) window.HearthriseRenown.openLadder(); }
           else if (kind === 'mile' && mile && mile.deepLink) { mile.deepLink(); }
           else if (kind === 'allquests') { openQuests(); }
-          else if (kind === 'q') { var i = +el.getAttribute('data-i'); var t = tasks[i]; if (t) questRoute(t).go(); }
+          else if (kind === 'bgo' || kind === 'bclaim') {
+            var bid = el.getAttribute('data-id');
+            var brow = (board || []).filter(function (r) { return r.id === bid; })[0];
+            if (brow && kind === 'bgo') questRoute(brow.goal).go();
+            else if (brow && window.HearthriseDailyBoard) window.HearthriseDailyBoard.claim(bid);
+          }
           /* First Light (and the Road — one card at a time). The ROW is the door on every step — its CTA carries no
              `data-hd`, so a click on the button bubbles to exactly this one
              handler — and it routes through the shared resolver, never a

@@ -19,7 +19,7 @@
 //   } | null
 //
 //   G.daily.snapshot = {
-//     dayKey:        'Sun May 03 2026',         // matches G.daily.lastReset
+//     dayKey:        'Sun May 03 2026',         // the local day string
 //     xpTotal:       <sum of all skill XP at midnight>,
 //     gold:          <G.gold at midnight>,
 //     kills:         <G.stats.kills at midnight>,
@@ -44,8 +44,8 @@
   'use strict';
 
   // ── Daily snapshot ────────────────────────────────────────
-  // Snapshots are keyed on the same dayString that generateDailyTasks
-  // uses (`new Date().toDateString()`). When the day rolls, we capture
+  // Snapshots are keyed on the local day string (`new Date().toDateString()`).
+  // When the day rolls, we capture
   // a fresh baseline so getTodayDelta() shows ONLY today's numbers.
 
   function todayKey(){ return new Date().toDateString(); }
@@ -70,7 +70,7 @@
 
   function ensureDailySnapshot(){
     if(!window.G) return null;
-    if(!window.G.daily) window.G.daily = { lastReset: null, tasks: [] };
+    if(!window.G.daily) window.G.daily = {};
     var key = todayKey();
     var snap = window.G.daily.snapshot;
     if(snap && snap.dayKey === key) return snap;
@@ -247,7 +247,8 @@
      progress" are both `pct === 0` on the nose (a level's floor is
      `xpForLevel(lv)`, so a fresh character's every skill is EXACTLY 0.0), so
      the ruling's case IS the tie; and the tie is broken toward the more
-     finishable candidate: chain quest (2) > daily task (1) > skill (0).
+     finishable candidate: chain quest (2) > skill (0). The daily board is
+     drawn on Home itself (lane daily-board), so it is not a candidate here.
 
      ⚠ THERE IS DELIBERATELY NO SEPARATE started/unstarted TERM. One was
        written (`_started`: rank a 0% skill below everything before comparing
@@ -261,7 +262,7 @@
      order — `gatherer` — which is also the first row of Home's "Your first
      day" card, so the two surfaces agree by construction, not by coincidence.
      ══════════════════════════════════════════════════════════════════════ */
-  var TIER_CHAIN = 2, TIER_DAILY = 1, TIER_SKILL = 0;
+  var TIER_CHAIN = 2, TIER_SKILL = 0;
   function _outranks(cand, best){
     if(!best) return true;
     if(cand._cmp !== best._cmp) return cand._cmp > best._cmp;
@@ -308,11 +309,7 @@
       }
     }
 
-    // Quests — pick the closest open one. Daily tasks count too.
-    /* The chain and the daily slate are collected separately so each candidate
-       can carry its own tie-break tier: a QUEST_DEFS row is the first-day
-       chain (the surface Home pins above "Next up"), a daily task resets at
-       midnight. Both are "open goals"; only their tie-break rank differs. */
+    // Quests — pick the closest open chain quest.
     /* A row with a `chain` (the Journeyman's Road) is a LATER line: it is not a
        candidate while any first-day row is still open, the same rule that keeps
        its card off Home (home-dashboard.js roadModel). Otherwise a day-one
@@ -323,15 +320,13 @@
       open = open.concat(window.G.quests.filter(q => q && !q.done && (!q.chain || !dayOpen))
         .map(q => ({ q: q, tier: TIER_CHAIN })));
     }
-    if(window.G.daily && Array.isArray(window.G.daily.tasks))
-      open = open.concat(window.G.daily.tasks.filter(t => !t.done).map(t => ({ q: t, tier: TIER_DAILY })));
     for(var j = 0; j < open.length; j++){
       let q = open[j].q;                     // per-iteration binding — see above
       let qtier = open[j].tier;
       if(!q.goal) continue;
       var pq = (q.progress || 0) / q.goal;
       /* b227 (audit finding #2): this deepLink opened the Quests modal, which
-         does not contain `G.quests` / `G.daily.tasks` at all — the milestone
+         does not contain `G.quests` at all — the milestone
          said "Gather 50 resources" and its button opened a window listing
          three different quests. It now goes where the quest is PLAYED, via the
          one shared resolver. `goal` is carried on the milestone so the

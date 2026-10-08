@@ -1,14 +1,13 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/data/goal-catalogue.js — THE SERVER-OWNED GOAL/REWARD CATALOGUE.
 //
-// The GOAL and the GOLD REWARD for every DAILY TASK and QUEST the server
-// credits under `hr_claim_daily` / `hr_claim_quest`
-// (supabase/migrations/2026-08-20-goal-reward-rpc-credit.sql). This is the
-// SINGLE SOURCE for those numbers; the SQL RPCs embed a copy and
-// tests/goal-catalogue-drift.mjs binds THREE sides so none can drift in
-// silence:
+// The GOAL and the GOLD REWARD for every QUEST the server credits under
+// `hr_claim_quest`, and THE DAILY BOARD's selection (which goals of
+// hr_goal_rewards are offered today / this week). This is the SINGLE SOURCE;
+// the SQL embeds a copy and tests/goal-catalogue-drift.mjs binds THREE sides:
 //   (1) this module,
-//   (2) the authored client rows in src/legacy.js (QUEST_DEFS / DAILY_TASK_POOL),
+//   (2) the authored client rows in src/legacy.js (QUEST_DEFS, DAILY_GOAL_POOL,
+//       WEEKLY_GOAL_POOL),
 //   (3) the server catalogue inside the migration SQL — for QUESTS, the LAST
 //       file in tests/schema-apply-order.json that restates
 //       hr_claim_quest__ungated / refills hr_quest_rewards (the chain end;
@@ -16,7 +15,7 @@
 //
 // ── WHY GOLD — AND, SINCE THE QUEST-ITEM SLICE, THE ITEM HALF TOO ───────
 // The gold-arming program moves ONE domain at a time (gold first). Under arm,
-// the client's `updateDaily`/`completeQuest` gold credit no-ops
+// the client's `completeQuest` gold credit no-ops
 // (clientMayWriteRecordField('gold') → false), so the reward has to be paid by
 // a server RPC.
 //
@@ -48,8 +47,7 @@
 //
 // A row lives here iff the server can BOTH (a) verify its completion from its
 // own `ev:<type>` counter (src/core/goals.js), and (b) own a FIXED gold amount.
-// Rows that fail either test are DELIBERATELY ABSENT and enumerated in
-// BLOCKED_* below with the reason — the "STOP and flag" rule, as data.
+// Rows that fail either test are DELIBERATELY ABSENT.
 //
 // PURE ESM. No DOM, no window, no I/O. Imports cleanly in Node and Deno.
 // ════════════════════════════════════════════════════════════════════════
@@ -167,232 +165,75 @@ export function questCombatXpIsServerCredited(questId) {
   return !!(row && row.combatXp > 0);
 }
 
-/* DAILY TASKS — the FIXED-reward rows of legacy.js DAILY_TASK_POOL. `type` is
-   the goal event; the server reads `ev:<type>` in the kind='daily' population
-   for TODAY's UTC day key and completes at `value >= goal`. Reward is pure gold.
-
-   `daily_harvest` is ABSENT — see BLOCKED_DAILY. */
-/* ── b497 — THE GOLD-PER-EFFORT-MINUTE RETUNE (Designer, balance audit) ─────
-   The pool paid a 13:1 spread across gold-per-effort-minute and FIGHTERS sat at
-   the bottom of it. Killing 60 monsters is the longest task in the pool and
-   paid 900 g; "Craft 8 items" is eight unattended bench pulls (~8 seconds of
-   the player's attention) and paid 450. Ruled: kills up, bench targets up 5×.
-   The pair that moved most is also the pair with a REQUIREMENT
-   (DAILY_TASK_REQUIREMENTS below), so the harder goal is only ever offered to
-   an account that owns the bench.
-   ⚠ THE SERVER PAYS THESE. Changing a number here is a change in FOUR places:
-   this table, src/legacy.js DAILY_TASK_POOL, and the embedded CASE catalogue in
-   BOTH 2026-08-20-goal-reward-rpc-credit.sql and its restatement in
-   2026-08-29-daily-task-eligibility.sql. tests/goal-catalogue-drift.mjs binds
-   all four; a production database additionally needs the forward migration
-   2026-09-04-goal-gold-retune.sql, because `create or replace` on prod is the
-   only thing that moves a body already installed there. */
-export const DAILY_TASK_REWARDS = Object.freeze({
-  daily_kill:       { type: 'kill_any', goal: 25,  gold: 600 },
-  daily_kill_big:   { type: 'kill_any', goal: 60,  gold: 1400 },
-  daily_gather:     { type: 'gather',   goal: 50,  gold: 400 },
-  daily_gather_big: { type: 'gather',   goal: 120, gold: 800 },
-  daily_cook:       { type: 'cooked',   goal: 12,  gold: 400 },
-  daily_smith:      { type: 'smithed',  goal: 40,  gold: 500 },
-  daily_craft:      { type: 'crafted',  goal: 40,  gold: 500 },
-});
-
-/* THE POOL ORDER — the EXACT authored order of legacy.js DAILY_TASK_POOL, so
-   the server's day-keyed selection (hr_daily_task_set) shuffles the SAME
-   index space the client does. `daily_harvest` occupies index 4 even though it
-   is not creditable: dropping it here would shift every index and desync the
-   selection from the client. The drift test asserts this order equals the
-   authored `id:` order in legacy.js. */
-export const DAILY_TASK_POOL_ORDER = Object.freeze([
-  'daily_kill',        // 0
-  'daily_kill_big',    // 1
-  'daily_gather',      // 2
-  'daily_gather_big',  // 3
-  'daily_harvest',     // 4  — BLOCKED (dynamic goal), still holds its slot
-  'daily_cook',        // 5
-  'daily_smith',       // 6
-  'daily_craft',       // 7
-]);
-
-/* The base number of daily tasks offered (indexes .slice(0, N) of the shuffle).
-   The King's Renown perk adds a 4th client-side; the server CANNOT see Renown
-   (RENOWN_MODEL is unbuilt), so it credits the base set only — see BLOCKED_DAILY. */
-export const DAILY_TASK_BASE_COUNT = 3;
-
-/* THE FLAGGED ROWS — server-authority gaps stated as data, not omitted in
-   silence. Each names the dependency that would let the server own it. */
-export const BLOCKED_DAILY = Object.freeze({
-  daily_harvest: 'DYNAMIC GOAL. legacy.js computes goal=max(10, farmPlotCap()*3) '
-    + 'and reward=goal*30 from the client farm-plot cap (homestead.maxPlots). The '
-    + 'server does not know the plot cap today. Unblock: read the farm_land unlock '
-    + 'rung from player_progress (kind=unlock, the seam:farm.build_plot ladder) and '
-    + 'derive the cap server-side, then this becomes a normal creditable row.',
-  king_fourth_slot: 'RENOWN-GATED SLOT. A King (Renown perk) is shown a 4th daily '
-    + 'task (index 3 of the shuffle). Renown has no server model (gold-sites B.RENOWN_'
-    + 'MODEL), so the server derives the base 3 only and refuses a 4th with not_offered. '
-    + 'Rides on the Renown server model.',
-});
-
 /* ════════════════════════════════════════════════════════════════════════
-   DAILY-TASK ELIGIBILITY — one predicate, evaluated on BOTH sides.
+   THE DAILY BOARD (lane daily-board, 2026-10-11) — ONE daily system.
 
-   ── THE P0 THIS CLOSES (2026-08-23) ─────────────────────────────────────
-   The date-seeded shuffle above is a pure 3-of-8 draw with no notion of what
-   the player can actually DO. On 2026-08-23 it dealt a fresh account
-   "Craft 8 items" + "Smith 8 items" — 900 of the day's 1300 gold — and at
-   level 1 there was not one craftable or smithable recipe in the game:
-   `hasWorkbench()` gated both behind rooms the Fieldworth Farmstead unlocks,
-   two property upgrades away. Home's "Next up" panel routed the player onto a
-   wall of padlocks on their first session. THAT BENCH GATE IS GONE (2026-09-07
-   — a room sells speed, a level sells permission), so the padlocks are not the
-   reason these two rows are still gated below; see that table's own note.
+   Daily Tasks (hr_claim_daily) and Daily Goals (hr_claim_goal) both asked a new
+   player to "kill N / gather N" on two screens. The Goals half survives: it has a
+   catalogue TABLE (hr_goal_rewards), a read RPC that projects the server's own
+   counts (hr_goal_state) and one claim RPC for daily and weekly alike. Daily
+   Tasks are retired (UI, local counting, claim path; the grant is revoked by
+   2026-10-12-retire-daily-tasks.sql once this client is live).
 
-   ── THE RULE ────────────────────────────────────────────────────────────
-   A task whose prerequisite is not met is SKIPPED and the next task in the
-   same shuffle order takes its slot. Not re-rolled, not re-seeded: the order
-   is the priority list, and skipping down it keeps the selection a pure
-   function of (day key, capabilities) on both sides.
+   What the board adds is the one thing the Goals half lacked: the SERVER decides
+   which three goals are offered. hr_goal_board (2026-10-11-daily-board.sql) is a
+   port of pickBoard below; hr_goal_state answers the board and hr_claim_goal
+   refuses an unoffered goal (`not_offered`). The client paints the server's
+   board and uses pickBoard only to paint before the first answer lands.
 
-   Three properties, each of which the shape was chosen for:
+   pickBoard is the historical client picker in exact integer form:
+   floor(seed*n/233280) equals the old floor((seed/233280)*n) for every seed
+   and n in 9..12 (tests/daily-board.mjs sweeps the whole seed space), so the
+   board a live client already shows IS the board the server enforces. */
+export const BOARD_SIZE = 3;
 
-     • IDENTITY FOR A FULLY-UNLOCKED ACCOUNT. Every requirement is satisfied,
-       so the filter is a no-op and the offered set is byte-identical to what
-       the unfiltered shuffle produced. An eligibility filter that changes what
-       an established player is offered is a balance change wearing a bug fix's
-       clothes; this one cannot be.
-     • ALWAYS A FULL SLATE. Six of the eight pool rows have no requirement at
-       all, so a base-3 (or King's-4) draw can always be filled from eligible
-       rows. The final back-fill loop exists for the day someone authors a
-       ninth row with a requirement — it must never be possible to hand a
-       player two tasks because the third was locked.
-     • DISJUNCTIVE, AND DELIBERATELY SO. "Room owned OR the skill already has
-       XP." You cannot earn crafting XP at a bench you never had, so the
-       second arm only ever ADDS eligibility — and it is what makes the two
-       sides agree for every player who has actually used the bench, which is
-       precisely the population a room-only predicate would falsely lock out
-       server-side (the server does not yet hold room ownership for a
-       pre-cutover character; the rooms record is dormant).
+/* The index spaces, in the authored order of legacy.js DAILY_GOAL_POOL and
+   WEEKLY_GOAL_POOL. A row is dealt only while it is catalogued in
+   hr_goal_rewards (wk_bury is not: burying has no server counter). */
+export const DAILY_BOARD_POOL = Object.freeze([
+  'kill_any', 'kill_more', 'gather_logs', 'mine_ore', 'cook', 'fish', 'gold_500', 'plant', 'level_up',
+]);
+export const WEEKLY_BOARD_POOL = Object.freeze([
+  'wk_kills', 'wk_smith', 'wk_craft', 'wk_harvest', 'wk_bury', 'wk_rare', 'wk_gold', 'wk_gather',
+  'wk_logs', 'wk_cook', 'wk_levels',
+]);
+export const BOARD_UNDEALT = Object.freeze(['wk_bury']);
 
-   ── HOW THE TWO SIDES AGREE ─────────────────────────────────────────────
-   Client: src/legacy.js `generateDailyTasks` calls `dailyTaskSetIndexes` via
-   window.HearthriseCore.goalCatalogue, with caps read from the homestead rooms
-   and G.skills.
-   Server: `hr_daily_task_set_for` in
-   supabase/migrations/2026-08-29-daily-task-eligibility.sql, a faithful port,
-   with caps read from player_progress (kind='unlock', key='room:<id>') and
-   player_skills.
-   The claim RPC accepts the UNION of the eligible set and the raw base-3 —
-   see that migration's header for why a widened accept is the only shape that
-   can never refuse a legitimate claim while the two stores can disagree.
-   tests/goal-catalogue-drift.mjs binds the JS to the SQL. ═══════════════ */
-
-/* Task id → what it needs. A row absent from here needs nothing.
-   `room` is the src/features/homestead.js WORKBENCH room id; `skill` is the
-   artisan skill that room SPEEDS UP. Adding a gated daily is a row here plus a
-   `when` arm in the SQL — the drift test fails the build if only one moves.
-
-   ⚠ THIS IS AN OFFER GATE, NOT A PERMISSION GATE, AND THE TWO NOW DIVERGE.
-   Since 2026-09-07 a level-1 smith may smith with no Forge at all; what the
-   Forge still decides is whether the 40-item DAILY is worth dealing to them.
-   The requirement is DELIBERATELY left standing (game-designer, same ruling):
-   its twin lives in 2026-08-29-daily-task-eligibility.sql, so relaxing it is a
-   migration, and a 40-item smith with no speed rungs is a bad deal, not a
-   padlock — the recipes themselves are open either way. */
-export const DAILY_TASK_REQUIREMENTS = Object.freeze({
-  daily_smith: Object.freeze({ room: 'forge', skill: 'smithing' }),
-  daily_craft: Object.freeze({ room: 'workshop', skill: 'crafting' }),
-});
-
-/* NOT gated, and each absence is a decision rather than an oversight:
-   • daily_cook — b225 retired the Kitchen as a permission gate (the campfire
-     ruling); cooking works from the tier-1 camp, and the Kitchen now sells
-     reliability (noBurn), not access.
-   • daily_harvest — the starting Wanderer's Camp has 2 plots and seeds are
-     shop-stocked, so farming is reachable on day one. Its goal SCALES with the
-     plot cap already (legacy.js b220), which is the right lever for that row.
-   • daily_kill / daily_gather (+ the _big pair) — no prerequisite exists. */
-
-/**
- * @param taskId one of DAILY_TASK_POOL_ORDER
- * @param caps { rooms: {<roomId>: level}, skillXp: {<skillId>: xp} }
- *        A MISSING caps object means "nothing unlocked" — fail closed, because
- *        the failure it guards against is offering a padlock, and the cost of
- *        being wrong in the other direction is a task the player cannot do.
- */
-export function dailyTaskEligible(taskId, caps) {
-  const req = DAILY_TASK_REQUIREMENTS[taskId];
-  if (!req) return true;
-  const c = caps || {};
-  const rooms = c.rooms || {};
-  const skillXp = c.skillXp || {};
-  if ((Number(rooms[req.room]) || 0) > 0) return true;
-  if ((Number(skillXp[req.skill]) || 0) > 0) return true;
-  return false;
+/** The UTC day as YYYYMMDD — the daily board's seed. */
+export function boardDayKey(ms) {
+  const d = new Date(ms);
+  return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate();
 }
 
-/* FNV-1a over the day key. THE REFERENCE IMPLEMENTATION — src/legacy.js
-   `dailySeed` and public.hr_goal_daily_seed are both ports of this, and
-   tests/goal-catalogue-drift.mjs executes the legacy copy against this one over
-   a date sweep rather than comparing the two by eye.
-   `Math.imul`, never `h * 0x01000193`: the float multiply loses the low bits
-   past 2^53, which measured as a 22× draw skew over 730 days (b332). */
-export function dailySeed(str) {
-  let h = 0x811c9dc5;
-  const s = String(str);
-  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
-  return h >>> 0;
+/** Monday-aligned week number (epoch day 0 was a Thursday) — the weekly seed. */
+export function boardWeekKey(ms) {
+  return Math.floor((Math.floor(ms / 86400000) + 3) / 7);
 }
 
-/** The date-seeded Fisher-Yates over the pool's index space. Unfiltered. */
-export function dailyTaskIndexes(dayKey) {
-  let seed = dailySeed(dayKey);
-  const indexes = DAILY_TASK_POOL_ORDER.map((_, i) => i);
-  for (let i = indexes.length - 1; i > 0; i--) {
-    seed = (seed * 1664525 + 1013904223) >>> 0;        // LCG step
-    const j = seed % (i + 1);
-    const t = indexes[i]; indexes[i] = indexes[j]; indexes[j] = t;
-  }
-  return indexes;
-}
-
-/**
- * TODAY'S OFFERED SET, as POOL INDEXES — the shape src/legacy.js needs, since
- * its pool is an array of factories addressed by index.
- * @param count defaults to DAILY_TASK_BASE_COUNT; the King's Renown perk asks
- *        for one more (legacy.js reads it) and it is bounded by the pool.
- */
-export function dailyTaskSetIndexes(dayKey, caps, count) {
-  const order = dailyTaskIndexes(dayKey);
-  const want = Math.max(0, Math.min(order.length,
-    (typeof count === 'number' && Number.isFinite(count)) ? Math.floor(count) : DAILY_TASK_BASE_COUNT));
+/** BOARD_SIZE ids of `pool`, seeded by `key`, skipping undealt rows. */
+export function pickBoard(key, pool, undealt = BOARD_UNDEALT) {
+  const n = pool.length;
+  const ok = (i) => undealt.indexOf(pool[i]) < 0;
+  let offerable = 0;
+  for (let i = 0; i < n; i++) if (ok(i)) offerable++;
+  let seed = Math.floor(Number(key)) || 0;
+  const used = {};
   const out = [];
-  for (const i of order) {
-    if (out.length >= want) break;
-    if (dailyTaskEligible(DAILY_TASK_POOL_ORDER[i], caps)) out.push(i);
-  }
-  /* THE BACK-FILL. Unreachable today (six pool rows are ungated, so a 3- or
-     4-slot draw always fills), and deliberately kept: the day someone authors a
-     ninth pool row with a requirement, the alternative is a player handed two
-     daily tasks and a silent hole where the third should be. Shuffle order is
-     preserved so the result stays a pure function of the inputs. */
-  if (out.length < want) {
-    for (const i of order) {
-      if (out.length >= want) break;
-      if (out.indexOf(i) < 0) out.push(i);
-    }
+  for (let k = 0; k < BOARD_SIZE && k < offerable; k++) {
+    seed = (seed * 9301 + 49297) % 233280;
+    let idx = Math.floor(seed * n / 233280);
+    for (let s = 0; s < n && (used[idx] || !ok(idx)); s++) idx = (idx + 1) % n;
+    if (used[idx] || !ok(idx)) break;
+    used[idx] = true;
+    out.push(pool[idx]);
   }
   return out;
 }
 
-/** The same selection as TASK IDS — what the server compares a claim against. */
-export function dailyTaskSet(dayKey, caps, count) {
-  return dailyTaskSetIndexes(dayKey, caps, count).map((i) => DAILY_TASK_POOL_ORDER[i]);
+/** The board at an instant: { daily: [ids], weekly: [ids] }. */
+export function boardAt(ms) {
+  return {
+    daily: pickBoard(boardDayKey(ms), DAILY_BOARD_POOL),
+    weekly: pickBoard(boardWeekKey(ms), WEEKLY_BOARD_POOL),
+  };
 }
-
-export const BLOCKED_GOAL_BOARD = 'THE DAILY/WEEKLY GOALS BOARD (legacy.js DAILY_GOAL_POOL / '
-  + 'WEEKLY_GOAL_POOL, claimQuestReward). A DIFFERENT tracking model: progress = readSource(stats.*) '
-  + '- baseline captured at day/week start. Most sources are NOT ev counters (stats.chopped, .mined, '
-  + '.fished, .planted, .levelups, _dailyGoldDelta) — the ev model emits only six AGGREGATE types, not '
-  + 'per-skill or derived ones — and the weekly delta-baseline cannot be reconstructed from ev daily '
-  + 'rows. Not server-verifiable from the ev counters; its b411 defer stays. Unblock: a server model '
-  + 'for per-skill/derived counters + a period baseline, or re-author the board onto the six ev types.';

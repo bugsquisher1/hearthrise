@@ -1,6 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/features/this-week.js — Home's "Your week" card and the hearth band's
-// realm cells (Kills today, Gold earned).
+// src/features/this-week.js — the Quests modal's "Your week" ledger (the
+// weekly tab's aside; lane daily-board folded Home's card into it) and the
+// hearth band's realm cells (Kills today, Gold earned).
 //
 // Every figure is the server's: window.HearthriseGoalState.peek() is the one
 // goal-state cache legacy.js fills (deep-frozen, null once it is 120 s old).
@@ -47,23 +48,13 @@ function view(map) {
   return { known: true, lead: lead, rows: rows };
 }
 
-function duo(label, html) {
-  return '<div class="hd-card hd-duo"><div class="bd"><div class="t">' + esc(label) + '</div></div>' +
-    '<div class="when">' + html + '</div></div>';
-}
-
-function cardHtml(v) {
-  var body = '<div class="hd-card hd-mini"><div>Since Monday, midnight UTC</div></div>';
-  if (!v || !v.known) body += duo('So far', count(null));
-  else {
-    body += '<div class="hd-card hd-duo"><div class="bd"><div class="s"><em>' + esc(v.lead) + '</em></div></div></div>';
-    v.rows.forEach(function (r) { body += duo(r.label, count(r.have)); });
-  }
-  return '<div><div class="hd-h"><h3>Your week</h3></div><div class="hd-rows">' + body + '</div></div>';
-}
-
-function card() {
-  try { return cardHtml(view(live())); } catch (e) { return ''; }
+/* The weekly tab's aside: the week's lead line, then one row per counter. */
+function ledgerHtml(v) {
+  if (v === undefined) { try { v = view(live()); } catch (e) { v = null; } }
+  if (!v || !v.known) return '<div class="qm-sum-row"><span>So far</span><b>' + count(null) + '</b></div>';
+  var out = '<p class="qm-info-text"><em>' + esc(v.lead) + '</em></p>';
+  v.rows.forEach(function (r) { out += '<div class="qm-sum-row"><span>' + esc(r.label) + '</span><b>' + count(r.have) + '</b></div>'; });
+  return out;
 }
 
 function todayCells(map) {
@@ -73,4 +64,4 @@ function todayCells(map) {
   });
 }
 
-window.HearthriseThisWeek = { live: live, view: view, cardHtml: cardHtml, card: card, todayCells: todayCells };
+window.HearthriseThisWeek = { live: live, view: view, ledgerHtml: ledgerHtml, todayCells: todayCells };

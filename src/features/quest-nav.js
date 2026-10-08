@@ -278,20 +278,13 @@
       return questDestination(g).via === 'fallback';
     });
   }
-  // Every goal-shaped thing the game currently ships, flattened. Factories in
-  // DAILY_TASK_POOL are evaluated here so the check covers what a player
-  // actually receives, not the factory object.
+  // Every goal-shaped thing the game currently ships, flattened.
   function livePools() {
     var out = [];
     function push(list) { if (Array.isArray(list)) out = out.concat(list.filter(Boolean)); }
     push(window.DAILY_GOAL_POOL);
     push(window.WEEKLY_GOAL_POOL);
-    if (Array.isArray(window.DAILY_TASK_POOL)) {
-      window.DAILY_TASK_POOL.forEach(function (f) {
-        try { out.push(typeof f === 'function' ? f() : f); } catch (e) { /* factory needs G */ }
-      });
-    }
-    if (window.G) { push(window.G.quests); push(window.G.daily && window.G.daily.tasks); }
+    if (window.G) push(window.G.quests);
     return out;
   }
 

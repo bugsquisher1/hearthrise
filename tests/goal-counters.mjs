@@ -270,7 +270,7 @@ async function run(patches) {
         + 'moves. See src/core/goals.js.');
     }
 
-    // The authored side: legacy.js's QUEST_DEFS + DAILY_TASK_POOL.
+    // The authored side: legacy.js's QUEST_DEFS (Daily Tasks retired, lane daily-board).
     const legacy = await readFile(join(ROOT, 'src', 'legacy.js'), 'utf8');
     const block = (name) => {
       const at = legacy.indexOf(`const ${name}=`);
@@ -283,7 +283,7 @@ async function run(patches) {
       }
       return null;
     };
-    for (const name of ['QUEST_DEFS', 'DAILY_TASK_POOL']) {
+    for (const name of ['QUEST_DEFS']) {
       const body = block(name);
       ok(!!body, `G2 CONTROL: ${name} could not be located in src/legacy.js by balanced-bracket `
         + 'scan. The authored side of the contract is unreadable, so (b) proves nothing. The '

@@ -1,13 +1,13 @@
 // ============================================================================
 // src/net/goal-claim.js — CLIENT TRANSPORT FOR THE DAILY/QUEST GOLD CLAIM RPCs.
 //
-// `window.HearthriseGoalClaim.claimDaily(taskId)` / `.claimQuest(questId)` post
+// `window.HearthriseGoalClaim.claimQuest(questId)` / `.claimGoal(goalId)` post
 // to the two SECURITY DEFINER RPCs added in
 // supabase/migrations/2026-08-20-goal-reward-rpc-credit.sql. The server VERIFIES
 // completion from its own ev:<type> counters and CREDITS the server-owned gold
 // into player_state; the client only fires the intent and lets the accrual
-// envelope reconcile the balance (see the gold-sites.js rows for updateDaily /
-// completeQuest — serverCredits mode).
+// envelope reconcile the balance (see the gold-sites.js row for completeQuest —
+// serverCredits mode).
 //
 // Same transport shape as src/features/muster.js: cfg()/session()/headers(),
 // the shared HearthriseRpc.mayCall() session guard (so a pre-auth boot call is
@@ -117,7 +117,7 @@
      silent — the settle still comes — and never turns a paid claim into an
      error the player sees. */
   var CREDIT_VERBS = {
-    hr_claim_daily: 1, hr_claim_quest: 1, hr_claim_goal: 1,
+    hr_claim_quest: 1, hr_claim_goal: 1,
     hr_claim_milestone: 1, hr_claim_rank: 1, hr_claim_bounty: 1
   };
 
@@ -198,7 +198,7 @@
      (src/net/settle-first.js): wait for the server's settle, re-send the SAME
      body (same key) once. Absent the module, the call goes out once, as before. */
   var SETTLE_GATED = {
-    hr_claim_daily: 1, hr_claim_quest: 1, hr_claim_goal: 1, hr_claim_milestone: 1,
+    hr_claim_quest: 1, hr_claim_goal: 1, hr_claim_milestone: 1,
     hr_claim_rank: 1, hr_credit_kills: 1, hr_set_auto_eat: 1
   };
   function call(name, body) {
@@ -314,11 +314,10 @@
     /* Test seam (tests/attended-fall.mjs ST-5): shorten the RPC deadline. */
     __setCallTimeoutMs: function (ms) { callTimeoutMs = Number(ms) > 0 ? Number(ms) : CALL_TIMEOUT_MS; },
     /** @returns Promise<jsonb> the RPC envelope: {ok, gold, ...} or {ok:false,error} */
-    claimDaily: function (taskId) { return call('hr_claim_daily', { p_task_id: String(taskId || ''), p_slot: activeSlot() }); },
     claimQuest: function (questId) { return call('hr_claim_quest', { p_quest_id: String(questId || ''), p_slot: activeSlot() }); },
     /* MODAL daily/weekly GOAL claim — supabase/migrations/2026-08-23-modal-goal-claims.sql
        (b461). The quest modal's pools (DAILY_GOAL_POOL / WEEKLY_GOAL_POOL) are a THIRD
-       goal system, distinct from QUEST_DEFS and DAILY_TASK_POOL; under the arm their
+       goal system, distinct from QUEST_DEFS; under the arm their
        claims were a silent no-op (the b411 defer predates the credit RPCs and was never
        rewired — found live by Tyler, 2026-08-23). hr_claim_goal verifies completion from
        the server's own period counters and credits the WHOLE reward server-side

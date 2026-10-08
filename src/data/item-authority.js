@@ -59,7 +59,7 @@ import { ITEMS } from './items.js?v=564';
    data, so the completeness check can simply read them. */
 import { QM_STOCK } from './dungeons.js?v=564';
 import { SHOP_OFFERS } from './shops.js?v=564';
-import { QUEST_REWARDS, DAILY_TASK_REWARDS } from './goal-catalogue.js?v=564';
+import { QUEST_REWARDS } from './goal-catalogue.js?v=564';
 import { RAID_BOSSES } from './raid-bosses.js?v=564';
 /* The BURN, from the one module that names it — src/core/artisan.js is the same
    dual-runtime code the edge cooks with, so there is no second copy of the id. */
@@ -377,14 +377,12 @@ export function shopGrantIds() {
   return s;
 }
 
-/** Every ITEM a goal / daily task pays out. */
+/** Every ITEM a quest pays out. */
 export function goalRewardIds() {
   const s = new Set();
-  for (const table of [QUEST_REWARDS, DAILY_TASK_REWARDS]) {
-    for (const k of Object.keys(table || {})) {
-      const items = table[k] && table[k].items;
-      if (items) for (const id of Object.keys(items)) if (id) s.add(id);
-    }
+  for (const k of Object.keys(QUEST_REWARDS || {})) {
+    const items = QUEST_REWARDS[k] && QUEST_REWARDS[k].items;
+    if (items) for (const id of Object.keys(items)) if (id) s.add(id);
   }
   return s;
 }

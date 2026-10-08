@@ -196,15 +196,10 @@ const B = Object.freeze({
   LIVE_ACTION_INTENTS: 'live-action intents. This fires inside the loop the server already '
     + 'simulates (`computeAccrual`), so it does not want a verb — it wants the accrual engine to '
     + 'pay it, and this client site is DELETED when live actions move server-side.',
-  DAILY_COUNTERS: 'a server model for the GOALS BOARD (DAILY_GOAL_POOL / WEEKLY_GOAL_POOL, '
-    + 'claimQuestReward). b414 moved the DAILY-TASK (updateDaily) and QUEST (completeQuest) payouts '
-    + 'onto hr_claim_daily / hr_claim_quest, which verify the src/core/goals.js ev:<type> counters. '
-    + 'This board is a DIFFERENT tracking model the ev counters cannot verify: progress = '
-    + 'readSource(stats.*) - a per-period baseline, and most sources (stats.chopped/.mined/.fished/'
-    + '.planted/.levelups, _dailyGoldDelta) are NOT ev types — the ev model emits only six AGGREGATE '
-    + 'types. The weekly delta-baseline cannot be reconstructed from ev daily rows either. Needs a '
-    + 'server per-skill/derived counter model + period baseline, or re-authoring the board onto the '
-    + 'six ev types. See src/data/goal-catalogue.js BLOCKED_GOAL_BOARD.',
+  DAILY_COUNTERS: 'nothing under arm: hr_claim_goal (2026-08-23-modal-goal-claims.sql) verifies the '
+    + 'server\'s own period counters and pays the WHOLE reward, and the board it pays is dealt by the '
+    + 'server (hr_goal_board, 2026-10-11-daily-board.sql). This row is the switch-OFF display path of '
+    + 'the one daily board; Daily Tasks (updateDaily / hr_claim_daily) are retired.',
   /* B.MARKS_COLUMN was RETIRED on 2026-08-23: player_state.marks now exists and the
      CULL bounty turn-in is server-credited (hr_claim_bounty, 2026-08-23-bounty.sql),
      so completeBounty carries a serverCredits flipGuard rather than this blocker. See
@@ -622,26 +617,6 @@ export const GOLD_SITE_LEDGER = Object.freeze({
       + 'display-only until a marks envelope key lands, and (c) proof/weapon/streak are not server-'
       + 'verifiable (loot-consume ruling / weapon-at-kill / death-streak are unmodelled).',
     site: 'the bounty turn-in payout (cull server-credited; other types client-deferred)',
-  },
-  'src/legacy.js#updateDaily': {
-    kind: 'grant', status: 'deferred',
-    /* SERVER-CREDITED (2026-08-20-goal-reward-rpc-credit.sql). hr_claim_daily
-       VERIFIES the fixed daily task from the server's own kind='daily'
-       ev:<type> counter for TODAY's UTC day, derives the offered SET server-side
-       (hr_daily_task_set, keyed on the UTC day key — the client seeds the same
-       string now), credits the server-owned gold into player_state once-guarded
-       per (day, task) and journals it (kind='daily'). updateDaily fires
-       HearthriseGoalClaim.claimDaily(t.id); the local G.gold write is a GATED
-       prediction the envelope reconciles. daily_harvest is EXCLUDED — dynamic
-       goal (farmPlotCap), keeps the clientMayWriteRecordField defer. */
-    flipGuard: { serverCredits: 'hr_claim_daily (2026-08-20-goal-reward-rpc-credit.sql) verifies the '
-      + 'kind=daily ev:<type> counter for the UTC day, owns the fixed gold amount, once-guards a '
-      + 'player_progress kind=daily claim row per (day, task), journals player_ledger kind=daily. '
-      + 'daily_harvest is server-BLOCKED (dynamic goal) and still gated on clientMayWriteRecordField.' },
-    blockedBy: 'nothing for the 7 FIXED tasks — hr_claim_daily credits them. daily_harvest is BLOCKED '
-      + '(dynamic goal, no server farm-plot-cap model) and a King\'s Renown 4th slot is refused '
-      + 'not_offered (no server Renown model). See src/data/goal-catalogue.js BLOCKED_DAILY.',
-    site: 'the daily-task payout',
   },
   'src/legacy.js#completeQuest': {
     kind: 'grant', status: 'deferred',

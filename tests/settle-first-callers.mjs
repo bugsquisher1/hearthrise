@@ -17,8 +17,9 @@
 // nothing in the in-page suite would notice (its RPCs are stubbed per test).
 // So this holds the SHAPE:
 //
-//   SF-1  the handler's list (SETTLE_GATED_RPCS) is exactly the twelve below.
-//   SF-2  every code (not comment) string literal naming one of the twelve lives
+//   SF-1  the handler's list (SETTLE_GATED_RPCS) is exactly the eleven below
+//         (hr_claim_daily left the client surface with the daily board).
+//   SF-2  every code (not comment) string literal naming one of the eleven lives
 //         in a registered sender file, the registered number of times. A new
 //         sender is red until it is wired and registered here.
 //   SF-3  every registered sender carries its wiring: the send sits inside the
@@ -37,7 +38,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 export const GATED = [
-  'hr_claim_quest', 'hr_claim_goal', 'hr_claim_daily', 'hr_claim_milestone', 'hr_claim_rank',
+  'hr_claim_quest', 'hr_claim_goal', 'hr_claim_milestone', 'hr_claim_rank',
   'hr_credit_kills', 'hr_trait_buy', 'raid_claim', 'world_event_claim',
   'hr_set_auto_eat', 'hr_bank_move', 'hr_farm_harvest',
 ];
@@ -46,7 +47,7 @@ export const GATED = [
 const count = (code, s) => code.split(s).length - 1;
 export const SENDERS = {
   'src/net/goal-claim.js': {
-    literals: { hr_claim_daily: 1, hr_claim_quest: 1, hr_claim_goal: 1, hr_claim_milestone: 1,
+    literals: { hr_claim_quest: 1, hr_claim_goal: 1, hr_claim_milestone: 1,
       hr_claim_rank: 1, hr_credit_kills: 1, hr_set_auto_eat: 1 },
     wire: [
       ['call() routes gated verbs through the handler',
@@ -54,7 +55,7 @@ export const SENDERS = {
       ['callOnce is reached only from call()', (c) => count(c, 'callOnce(') === 3],
       ['every gated verb is in SETTLE_GATED', (c) => {
         const m = c.match(/var SETTLE_GATED = \{([^}]*)\}/);
-        return !!m && ['hr_claim_daily', 'hr_claim_quest', 'hr_claim_goal', 'hr_claim_milestone',
+        return !!m && ['hr_claim_quest', 'hr_claim_goal', 'hr_claim_milestone',
           'hr_claim_rank', 'hr_credit_kills', 'hr_set_auto_eat'].every((n) => new RegExp('\\b' + n + ':').test(m[1]));
       }],
       ['no gated verb is sent through callOnce directly', (c) => !/callOnce\('/.test(c)],
@@ -160,7 +161,7 @@ export function check(files) {
   const m = sf.match(/SETTLE_GATED_RPCS = Object\.freeze\(\[([\s\S]*?)\]\)/);
   const listed = m ? [...m[1].matchAll(/'([a-z_]+)'/g)].map((x) => x[1]).sort() : [];
   if (JSON.stringify(listed) !== JSON.stringify([...GATED].sort())) {
-    red('SF-1', 'settle-first.js SETTLE_GATED_RPCS is ' + JSON.stringify(listed) + ', expected the twelve');
+    red('SF-1', 'settle-first.js SETTLE_GATED_RPCS is ' + JSON.stringify(listed) + ', expected the eleven');
   }
 
   const lit = new RegExp("['\"`](" + GATED.join('|') + ")['\"`]", 'g');
@@ -193,7 +194,7 @@ const PLANTS = [
   ['SF-2', 'a new bare sender', (t) => { t['src/features/new-thing.js'] = "fetch(u + '/rest/v1/rpc/' + 'hr_claim_rank', {});\n"; }],
   ['SF-2', 'a second send in a registered file', (t) => { t['src/net/bank-sync.js'] += "\nfetch('hr_bank_move');\n"; }],
   ['SF-3', 'goal-claim drops a verb from SETTLE_GATED', (t) => { t['src/net/goal-claim.js'] = t['src/net/goal-claim.js'].replace('hr_claim_rank: 1, hr_credit_kills', 'hr_credit_kills'); }],
-  ['SF-3', 'goal-claim sends a gated verb unwrapped', (t) => { t['src/net/goal-claim.js'] = t['src/net/goal-claim.js'].replace("return call('hr_claim_daily'", "return callOnce('hr_claim_daily'"); }],
+  ['SF-3', 'goal-claim sends a gated verb unwrapped', (t) => { t['src/net/goal-claim.js'] = t['src/net/goal-claim.js'].replace("return call('hr_claim_quest'", "return callOnce('hr_claim_quest'"); }],
   ['SF-3', 'bank-sync calls the primitive directly', (t) => { t['src/net/bank-sync.js'] = t['src/net/bank-sync.js'].replace('withSettleFirstRetry(() => postBankMove(f, cfg, body))', 'postBankMove(f, cfg, body)'); }],
   ['SF-3', 'gold.js buyTrait bypasses the handler', (t) => { t['src/net/gold.js'] = t['src/net/gold.js'].replace('withSettleFirstRetry(() => buyTraitOnce(traitId, key))', 'buyTraitOnce(traitId, key)'); }],
   ['SF-3', 'farm harvest sent bare', (t) => { t['src/net/farm-sync.js'] = t['src/net/farm-sync.js'].replace("withSettleFirstRetry(() => callFarmRpc('hr_farm_harvest', body, o))", "callFarmRpc('hr_farm_harvest', body, o)"); }],

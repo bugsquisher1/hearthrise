@@ -1175,7 +1175,7 @@
   "player_skills": {
    "class": "restore_only",
    "wiped_at_cutover": false,
-   "note": "PLAYER VALUE — XP per skill, the value every level and every leaderboard score is derived from. 595 rows across 35 characters. This is the single table a player would describe as 'my account'. A repo rebuild returns it empty."
+   "note": "PLAYER VALUE — XP per skill, the value every level and every leaderboard score is derived from. 595 rows across 35 characters. This is the single table a player would describe as 'my account'. Since 2026-10-09-xp-frac-carry.sql each row also carries xp_frac, the [0,1) remainder grantXp carries between grants (written only by hr_apply) — a restore without it costs under 1 XP per skill, never a level. A repo rebuild returns it empty."
   },
   "player_state": {
    "class": "restore_only",

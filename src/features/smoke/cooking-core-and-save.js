@@ -1064,8 +1064,8 @@ export default [
       const hit = C.styles.hitXpRoute(style, 5);
       assert(hit.length === 2 && hit[0].skill === 'strength' && hit[0].amount === 20,
         'an Aggressive hit for 5 must pay 20 Strength XP, got ' + JSON.stringify(hit));
-      assert(hit[1].skill === 'hitpoints' && hit[1].amount === 6,
-        'every landed hit pays floor(dmg x 1.33) Hitpoints XP, got ' + JSON.stringify(hit[1]));
+      assert(hit[1].skill === 'hitpoints' && Math.abs(hit[1].amount - 6.65) < 1e-9,
+        'every landed hit pays dmg x 1.33 Hitpoints XP, unfloored (grantXp carries the remainder), got ' + JSON.stringify(hit[1]));
 
       /* The kill route, and the Boss-of-the-Day multiplier the ruling says
          must also apply away. */

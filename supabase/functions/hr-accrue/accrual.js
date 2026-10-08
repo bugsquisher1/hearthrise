@@ -133,7 +133,7 @@ import { createRng } from '../../../src/core/rng.js';
    runs (src/core/rested.js) — no second formula. It draws NO rng, so appending
    it moves no seeded roll and away == live stays byte-identical (AWAY-1). */
 import { accrueRestedXp as coreAccrueRested } from '../../../src/core/rested.js';
-import { grantXp } from '../../../src/core/progression.js';
+import { grantXp, normaliseXpFrac, xpFracChanges } from '../../../src/core/progression.js';
 import { resolveStyle, normaliseStyleKeys } from '../../../src/core/styles.js';
 import { levelFromXp } from '../../../src/core/xp.js';
 /* THE PERMANENT PERK CHANNEL — the same module src/legacy.js getBonus is layer
@@ -1539,6 +1539,10 @@ export function computeAccrual(input) {
   // ── (2) The simulation state. Field by field, from server rows. ──────────
   const skills0 = {};
   for (const k in (inp.skills || {})) skills0[k] = nat(inp.skills[k], 0);
+  /* THE CARRIED XP REMAINDER (2026-10-09-xp-frac-carry.sql). `null` when the
+     projection has no `frac` — a database without the column — and then no
+     `xp_frac` key is proposed (hr_apply would refuse it as unknown). */
+  const xpFrac0 = normaliseXpFrac(inp.xpFrac);
 
   const items = inp.items || {};
   const equipment = inp.equipment || {};
@@ -1663,6 +1667,11 @@ export function computeAccrual(input) {
        correct so nothing looks wrong. Found by the parity test; it is exactly
        the always-null-probe shape this program has been bitten by four times. */
     skills: { ...skills0 },
+    /* A COPY, for the reason `skills` is one: grantXp carries the remainder
+       here in place, and the diff against `xpFrac0` is the delta. Undefined
+       when the database has no column: grantXp then keeps the per-grant floor
+       (its header), so a pre-migration window loses nothing it used to pay. */
+    xpFrac: xpFrac0 ? { ...xpFrac0 } : undefined,
     stats: {},
     combatKillsThisFoe: resumed ? resumed.kills : 0,
     /* ── THE BUFF QUEUE (2026-09-13) ───────────────────────────────────────
@@ -3024,6 +3033,12 @@ export function computeAccrual(input) {
 
   if (itemKinds > 0) delta.items = items_;
   if (Object.keys(xpDelta).length) delta.xp = xpDelta;
+  /* THE CARRIED REMAINDER, ABSOLUTE PER SKILL, only the skills that moved and
+     only when the server owns the column (`xpFrac0` non-null). */
+  if (xpFrac0) {
+    const fr = xpFracChanges(xpFrac0, state.xpFrac);
+    if (Object.keys(fr).length) delta.xp_frac = fr;
+  }
   /* ── THE VIGOUR CHARGE (design §4.1, §5) ─────────────────────────────────
      CHARGED FROM THE SAME `grantMs` THE PAYOUT WAS COMPUTED FROM, in the same
      delta, so a window cannot pay and not charge: there is ONE number. An
@@ -3595,6 +3610,10 @@ function accrueGather(inp, span) {
 
   const skills0 = {};
   for (const k in (inp.skills || {})) skills0[k] = nat(inp.skills[k], 0);
+  /* THE CARRIED XP REMAINDER (2026-10-09-xp-frac-carry.sql). `null` when the
+     projection has no `frac` — a database without the column — and then no
+     `xp_frac` key is proposed (hr_apply would refuse it as unknown). */
+  const xpFrac0 = normaliseXpFrac(inp.xpFrac);
 
   /* THE LIVE BAG, for the same reason the combat path keeps one: the tool
      lookup reads it, and the client's `addItem` mutates `G.inventory` during
@@ -3614,6 +3633,7 @@ function accrueGather(inp, span) {
        know, and the mismatch branch exists precisely to catch that. */
     skillTargetId: inp.activeId,
     skills: { ...skills0 },        // a COPY: grantXp mutates it, and the diff below is the delta
+    xpFrac: xpFrac0 ? { ...xpFrac0 } : undefined, // a COPY too; undefined = no column = per-grant floor
     inventory: bag,
     equipment,
     toolCarry: { ...(carry0 || {}) },
@@ -3832,6 +3852,12 @@ function accrueGather(inp, span) {
   };
   if (itemKinds > 0) delta.items = items_;
   if (Object.keys(xpDelta).length) delta.xp = xpDelta;
+  /* THE CARRIED REMAINDER, ABSOLUTE PER SKILL, only the skills that moved and
+     only when the server owns the column (`xpFrac0` non-null). */
+  if (xpFrac0) {
+    const fr = xpFracChanges(xpFrac0, state.xpFrac);
+    if (Object.keys(fr).length) delta.xp_frac = fr;
+  }
   if (progress.length) delta.progress = progress;
   /* THE CARRY, written back only when the server actually owns it. See the
      `toolCarry` note in computeAccrual's contract: a null input means the
@@ -3944,6 +3970,10 @@ function accrueArtisan(inp, span) {
 
   const skills0 = {};
   for (const k in (inp.skills || {})) skills0[k] = nat(inp.skills[k], 0);
+  /* THE CARRIED XP REMAINDER (2026-10-09-xp-frac-carry.sql). `null` when the
+     projection has no `frac` — a database without the column — and then no
+     `xp_frac` key is proposed (hr_apply would refuse it as unknown). */
+  const xpFrac0 = normaliseXpFrac(inp.xpFrac);
 
   /* THE LIVE BAG — and here it is the supply, not just a lookup table. Every
      quantity is coerced through nat() and floored because it arrives from a
@@ -3965,6 +3995,7 @@ function accrueArtisan(inp, span) {
        to catch a row where the two disagree. */
     skillTargetId: inp.activeId,
     skills: { ...skills0 },        // a COPY: grantXp mutates it, and the diff below is the delta
+    xpFrac: xpFrac0 ? { ...xpFrac0 } : undefined, // a COPY too; undefined = no column = per-grant floor
     inventory: bag,
     equipment,
     /* THE GATE, FAIL-CLOSED BY SHAPE. `null`/absent → `gateOk` false for any
@@ -4284,6 +4315,12 @@ function accrueArtisan(inp, span) {
   };
   if (itemKinds > 0) delta.items = items_;
   if (Object.keys(xpDelta).length) delta.xp = xpDelta;
+  /* THE CARRIED REMAINDER, ABSOLUTE PER SKILL, only the skills that moved and
+     only when the server owns the column (`xpFrac0` non-null). */
+  if (xpFrac0) {
+    const fr = xpFracChanges(xpFrac0, state.xpFrac);
+    if (Object.keys(fr).length) delta.xp_frac = fr;
+  }
   if (progress.length) delta.progress = progress;
   /* THE CARRY, written back only when the server actually owns it — see the
      `toolCarry` note in computeAccrual's contract. Artisan tools share the one

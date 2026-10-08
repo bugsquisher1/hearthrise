@@ -2119,9 +2119,11 @@ jobs:
   # + mutant-control 181 (goal-counters 137 + world-tick-token-failclosed 44,
   # each with nothing planted) + its selftest ~1 = 560 s, + verify ~64 + setup
   # ~11 = 635 s (10.6 min). Budget = x2 = 21.2, rounded up to 22.
+  # + xp-frac-carry (2026-10-08, measured locally): 3 s plain + 129 s mutate
+  # = 767 s (12.8 min). Budget = x2 = 25.6, rounded up to 26.
   db-replay-7:
     runs-on: ubuntu-latest
-    timeout-minutes: 22
+    timeout-minutes: 26
 
     steps:
       - uses: actions/checkout@v4
@@ -2162,6 +2164,17 @@ jobs:
       - name: Companion grant hardening — mutation proof
         if: ${{ !cancelled() }}
         run: node tests/companion-grant-hardening.mjs --selftest
+
+      # FRACTIONAL XP IS CARRIED (2026-10-09-xp-frac-carry.sql). Batching moves
+      # no unit, +2% pays on the slime, attended == away == world tick in XP AND
+      # remainder, the seeded draws are unchanged, the remainder is clamped and
+      # server-only. --mutate plants five JS defects in a copy of src/ and three
+      # SQL defects into the migration, each of which its arm / §4 must stop.
+      - name: XP fraction carry — exact under batching, AWAY-1 parity (base + mutate)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/xp-frac-carry.mjs
+          node tests/xp-frac-carry.mjs --mutate
 
       # THE CONTROL HALF OF A MUTATION PROOF. Every registered guard is re-run
       # with HR_MUTANT_CONTROL=1 (nothing planted, scope kept); any arm that

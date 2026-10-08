@@ -101,6 +101,11 @@ export const ABSOLUTE = Object.freeze([
   'recovering_until', 'ammo_carry', 'tool_carry', 'consec_falls',
 ]);
 export const APPEND = Object.freeze(['deaths', 'progress', 'hearthfind']);
+/* ABSOLUTE PER KEY: a map whose every entry is a checkpoint, folded "last
+   window wins" ENTRY BY ENTRY. `xp_frac` (2026-10-09-xp-frac-carry.sql) carries
+   only the skills a window moved, so a whole-map last-wins would drop the
+   remainder of a skill an earlier window moved and a later one did not. */
+export const ABSOLUTE_MAP = Object.freeze(['xp_frac']);
 
 export function foldDeltas(deltas) {
   const out = {};
@@ -116,6 +121,7 @@ export function foldDeltas(deltas) {
         continue;
       }
       if (ABSOLUTE.includes(k)) { out[k] = v; continue; }
+      if (ABSOLUTE_MAP.includes(k)) { out[k] = Object.assign(out[k] || {}, v || {}); continue; }
       if (APPEND.includes(k)) {
         const a = out[k] || (out[k] = []);
         if (Array.isArray(v)) a.push(...v); else a.push(v);
@@ -412,6 +418,13 @@ export function shadowStateOf(char, opts) {
   if (chain.activity) st.activity = chain.activity;
   if (chain.gold) st.gold = Math.floor(chain.gold);
   if (xp) st.xp = xp;
+  /* THE XP REMAINDER, a checkpoint per skill (ABSOLUTE_MAP), so a shadow chain
+     does not restart every skill's carry at the row's value on each fire. */
+  if (chain.xpFrac && Object.keys(chain.xpFrac).length) {
+    if (Object.keys(chain.xpFrac).length > MAX_SHADOW_XP_KEYS) return null;
+    st.xp_frac = {};
+    for (const k of Object.keys(chain.xpFrac).sort()) st.xp_frac[k] = Number(chain.xpFrac[k]) || 0;
+  }
   if (items) st.items = items;
   if (bestiary) st.bestiary_kills = bestiary;
   if (chain.deathsToday) st.deaths_today = Math.floor(chain.deathsToday);
@@ -464,6 +477,12 @@ export function applyShadowState(session, state) {
        it exactly as the fire that carried it did (raiseMaxHpToLevel). */
     if ('hitpoints' in st.xp) raiseMaxHpToLevel(s);
   }
+  /* PRESENCE OF KEY: only a session whose envelope projects the remainder
+     (`xpFrac` non-null) takes the carried one, so a database without the
+     column keeps reading as one. */
+  if (st.xp_frac && typeof st.xp_frac === 'object' && s.xpFrac && typeof s.xpFrac === 'object') {
+    s.xpFrac = Object.assign({}, s.xpFrac, st.xp_frac);
+  }
   if (st.items) {
     const inv = Object.assign({}, s.inventory);
     for (const k of Object.keys(st.items)) {
@@ -515,6 +534,7 @@ export function applyShadowState(session, state) {
   s._chain = {
     gold: Number(st.gold) || 0,
     xp: Object.assign({}, st.xp),
+    xpFrac: Object.assign({}, st.xp_frac),
     items: Object.assign({}, st.items),
     bestiaryKills: Object.assign({}, st.bestiary_kills),
     deathsToday: Number(st.deaths_today) || 0,

@@ -122,7 +122,7 @@ export { refusalCarriesState, STATELESS_REFUSALS };
    `hearthfindReady`, `enchant` and `combatStyle` invisible to a tick window. */
 export const ENGINE_STATE_KEYS = Object.freeze([
   'hp', 'maxHp', 'gold',
-  'skills', 'inventory', 'equipment',
+  'skills', 'xpFrac', 'inventory', 'equipment',
   'enchant', 'buffs', 'combatStyle',
   'autoEatEnabled', 'autoEatFood', 'autoEatPct',
   'toolCarry', 'ammoCarry', 'fight',
@@ -173,6 +173,16 @@ export function engineInputsFromEnvelope(env, nowMs) {
      loudly: `{}` is a perfectly good skills map that says level 0. */
   const skills = {};
   for (const k of Object.keys(e.skills || {})) skills[k] = Number(e.skills[k].xp) || 0;
+  /* THE CARRIED XP REMAINDER (2026-10-09-xp-frac-carry.sql), the third member
+     of each skill cell. PRESENCE OF KEY: a database without the column projects
+     no `frac`, `xpFrac` is null, and the engine proposes no `xp_frac` key
+     hr_apply would refuse as unknown — the edge is safe to deploy before the
+     migration. Read off the envelope ONLY; no request body carries it. */
+  let xpFrac = null;
+  for (const k of Object.keys(e.skills || {})) {
+    const cell = e.skills[k];
+    if (cell && typeof cell === 'object' && 'frac' in cell) (xpFrac || (xpFrac = {}))[k] = Number(cell.frac) || 0;
+  }
 
   return {
     /* ── THE POINTER AND THE TWO WATERMARKS ──────────────────────────────── */
@@ -200,6 +210,7 @@ export function engineInputsFromEnvelope(env, nowMs) {
 
     /* ── THE PROJECTIONS, WHICH LIVE AT THE ENVELOPE TOP LEVEL ───────────── */
     skills,
+    xpFrac,
     equipment: e.equipment || {},
     /* `inventory` is the first input the engine SPENDS rather than only reads —
        auto-eat consumes food — which is why the returned delta's `items` map is

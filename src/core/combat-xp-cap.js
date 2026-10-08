@@ -75,7 +75,8 @@ export const MAX_XP_PER_HP = (() => {
 })();
 
 /* Combined per-point-of-damage XP ceiling for ANY single skill: styled hit XP
-   (dmg x 4) OR the disjoint hitpoints share (floor(dmg x 1.33)) — bounded above
+   (dmg x 4) OR the disjoint hitpoints share (dmg x 1.33, unfloored since
+   2026-10-07 — the fractional-XP carry) — bounded above
    by their sum, integer-ceiled. */
 export const HIT_XP_CEIL_PER_DMG = HIT_XP_PER_DAMAGE + Math.ceil(HIT_HP_XP_PER_DAMAGE); // 6
 

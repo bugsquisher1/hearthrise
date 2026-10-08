@@ -264,9 +264,20 @@ export async function coreAnchorGuard() {
 
     const prog = await load('progression.js');
     const { createRng } = await load('rng.js');
-    /* The floor: a positive grant never rounds to zero. */
-    const tiny = { skills: {}, restedXp: 0 };
-    if (prog.grantXp(tiny, 'attack', 1, {}).gain !== 1) problems.push('a 1-XP grant must still pay 1');
+    /* THE CARRY (fractional-XP ruling, 2026-10-07): a grant worth less than a
+       whole XP pays 0 and CARRIES the rest, and the carry pays out when it
+       forms a unit — 1 XP x PACE 0.39 three times is 1.17: 0, 0, then 1 with
+       0.17 left. (Before the ruling a positive grant was floored to at least 1,
+       which over-paid the low end and swallowed every small multiplier.) The
+       carry is ON when the state holds an `xpFrac` map — the server owns the
+       column; WITHOUT one the pre-column floor stands, so an edge deployed
+       ahead of its migration pays exactly what it used to. */
+    if (prog.grantXp({ skills: {}, restedXp: 0 }, 'attack', 1, {}).gain !== 1) problems.push('with no xpFrac map (no column yet) a 1-XP grant must still pay 1');
+    const tiny = { skills: {}, xpFrac: {}, restedXp: 0 };
+    const t3 = [1, 2, 3].map(() => prog.grantXp(tiny, 'attack', 1, {}).gain);
+    if (JSON.stringify(t3) !== '[0,0,1]' || Math.abs(tiny.xpFrac.attack - 0.17) > 1e-9) {
+      problems.push('three 1-XP grants must pay 0,0,1 and carry 0.17, paid ' + JSON.stringify(t3) + ' carry ' + JSON.stringify(tiny.xpFrac));
+    }
     /* authored grants bypass PACE; earned grants do not. */
     const earned = prog.grantXp({ skills: {}, restedXp: 0 }, 'mining', 100, {});
     if (earned.gain !== 39) problems.push(`earned 100 XP should pay 39 after PACE, paid ${earned.gain}`);
@@ -332,7 +343,7 @@ export async function coreAnchorGuard() {
     if (stl.resolveStyle('slingshot', null).name !== 'Controlled') problems.push('an unknown weapon type must fall back to the SWORD DEFAULT (DEFAULT_STYLE_KEYS.sword, "controlled" since 2026-09-05)');
     if (stl.resolveStyle('sword', null) !== stl.COMBAT_STYLES.sword[stl.DEFAULT_STYLE_KEYS.sword]) problems.push('an unchosen sword style must resolve to DEFAULT_STYLE_KEYS.sword, not the first authored key');
     const hit = stl.hitXpRoute(stl.COMBAT_STYLES.sword.aggressive, 5);
-    if (JSON.stringify(hit) !== JSON.stringify([{ skill: 'strength', amount: 20 }, { skill: 'hitpoints', amount: 6 }])) {
+    if (JSON.stringify(hit) !== JSON.stringify([{ skill: 'strength', amount: 20 }, { skill: 'hitpoints', amount: 6.65 }])) {   // unfloored since the 2026-10-07 carry
       problems.push('hitXpRoute drifted: ' + JSON.stringify(hit));
     }
     if (stl.hitXpRoute(null, 0).length) problems.push('a miss must pay nothing');

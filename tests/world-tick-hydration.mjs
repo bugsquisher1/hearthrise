@@ -606,6 +606,10 @@ try {
          level is not guessable from the name, and why S-7 read five of them
          off `state` without anything going red. */
       skills: { from: 'skills', level: 'top' },
+      /* THE CARRIED XP REMAINDER (2026-10-09-xp-frac-carry.sql) rides INSIDE
+         each skills cell as `frac`, so its source is the same top-level
+         `skills` projection — moved to `state`, the map must lose it too. */
+      xpFrac: { from: 'skills', level: 'top' },
       inventory: { from: 'inventory', level: 'top' },
       equipment: { from: 'equipment', level: 'top' },
       enchant: { from: 'enchant', level: 'top', combat: true },
@@ -704,6 +708,8 @@ try {
          compare as NaN rather than as an error (S-7's third defect). */
       skills: Object.fromEntries(
         Object.keys(env.skills).map((k) => [k, Number(env.skills[k].xp) || 0])),
+      xpFrac: Object.fromEntries(
+        Object.keys(env.skills).map((k) => [k, Number(env.skills[k].frac) || 0])),
       inventory: env.inventory, equipment: env.equipment,
       enchant: env.enchant, buffs: env.buffs,
       ammoCarry: null,

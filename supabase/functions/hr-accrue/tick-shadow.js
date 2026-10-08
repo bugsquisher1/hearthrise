@@ -75,7 +75,7 @@ export function advance(char, res) {
      (which forwards exactly ENGINE_STATE_KEYS) can never hand it to the
      engine as an input. */
   const ch = char._chain || (char._chain = {
-    gold: 0, xp: {}, items: {}, bestiaryKills: {},
+    gold: 0, xp: {}, xpFrac: {}, items: {}, bestiaryKills: {},
     deathsToday: 0, deathsLifetime: 0, vigourMin: 0, vigourRemMs: 0, activity: null,
   });
   if (typeof d.gold === 'number') {
@@ -85,6 +85,14 @@ export function advance(char, res) {
   for (const k of Object.keys(d.xp || {})) {
     char.skills[k] = (char.skills[k] || 0) + Number(d.xp[k] || 0);
     ch.xp[k] = (ch.xp[k] || 0) + Number(d.xp[k] || 0);
+  }
+  /* THE XP REMAINDER IS A CHECKPOINT PER SKILL (tick-contract.js ABSOLUTE_MAP):
+     the next window must carry on from the remainder this one left, or a
+     10-second chain would restart every skill's carry and pay less than the
+     one-span accrue of the same fight. */
+  if (d.xp_frac && typeof d.xp_frac === 'object') {
+    char.xpFrac = Object.assign({}, char.xpFrac, d.xp_frac);
+    ch.xpFrac = Object.assign(ch.xpFrac || {}, d.xp_frac);
   }
   /* A Hitpoints level-up raises the ceiling the next window fights at, as the
      max_hp trigger does on the armed write (tick-contract.js raiseMaxHpToLevel).

@@ -165,6 +165,8 @@
     "node tests/cron-health.mjs --selftest": "db-replay-7",
     "node tests/artisan-progress-model.mjs --mutate": "db-replay-7",
     "node tests/companion-grant-hardening.mjs --selftest": "db-replay-7",
+    "node tests/xp-frac-carry.mjs": "db-replay-7",
+    "node tests/xp-frac-carry.mjs --mutate": "db-replay-7",
     "node tests/mutant-control.mjs": "db-replay-7",
     "node tests/mutant-control.mjs --selftest": "db-replay-7",
     "node tests/utc-midnight-replay.mjs": "utc-midnight-replay",

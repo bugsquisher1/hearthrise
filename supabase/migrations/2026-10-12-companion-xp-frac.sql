@@ -38,7 +38,7 @@
 --      VALIDATEd, so the scan holds SHARE UPDATE EXCLUSIVE, never blocking a
 --      settle; with a constant default every row passes.
 --   §2 hr_apply: (a) `companion_xp_frac` joins the delta-key allowlist;
---      (b) the declarations; (c) the cap clamp in the progress loop;
+--      (b) the declarations; (c) in the progress loop, a companion XP op (exact key prefix) must name the EQUIPPED pet (companion_not_equipped otherwise) and is clamped to the cap, the clamps journalled per key ACCUMULATED (Security 2026-10-13 #1, #2);
 --      (d) the remainder block after the progress loop — an object whose every
 --      key is the character's EQUIPPED companion (player_state.companion_equipped,
 --      version-bumped by hr_companion_equip, so the engine's read and this check
@@ -137,7 +137,7 @@ begin
       add constraint player_progress_xp_frac_ck check (
         xp_frac >= 0 and xp_frac < 1
         and (xp_frac = 0
-             or (kind = 'stat' and period_key = '' and key like 'companion_xp:%'))) not valid;
+             or (kind = 'stat' and period_key = '' and left(key, 13) = 'companion_xp:'))) not valid;
   end if;
 end $mig$;
 alter table public.player_progress validate constraint player_progress_xp_frac_ck;
@@ -177,6 +177,7 @@ $anc$);
   -- ledger row; v_cxp_have is the row's value before the op.
   c_companion_xp_cap constant bigint := 792783;
   v_cxp_have  bigint;
+  v_cxp_credit bigint;
   v_cxp_clamp jsonb;$anc$);
 
   -- (c) the cap clamp, per companion XP op, after the generic progress clamp
@@ -185,23 +186,45 @@ $anc$);
         end if;$anc$,
     $anc$          perform public.hr_reject('progress_clamp', jsonb_build_object('add', v_n));
         end if;
-        -- ── THE COMPANION XP CAP (2026-10-12-companion-xp-frac.sql) ─────────
-        --    CLAMPED, not refused, and journalled: the engine clamps to the
-        --    same headroom, so an honest op never reaches this, and refusing a
-        --    whole settle over the pet's last few XP would cost the player the
-        --    window's loot. `like` matches every row hr_state_of projects as a
-        --    companion's XP. A row already over the cap is never reduced here.
-        if v_prog->>'kind' = 'stat' and (v_prog->>'key') like 'companion_xp:%' then
+        -- ── COMPANION XP (2026-10-12-companion-xp-frac.sql) ─────────────────
+        --    An EXACT prefix, never `like` (`_` would match any character), and
+        --    hr_state_of projects companions with the same prefix (§3).
+        --    (1) ONLY THE EQUIPPED PET earns: the engine credits exactly
+        --        player_state.companion_equipped (version-bumped by
+        --        hr_companion_equip, so its read and this check see one pet);
+        --        an op for any other id has no honest source. REFUSED, as the
+        --        companion_xp_frac key is (Security, 2026-10-13 #2).
+        --    (2) THE CAP: CLAMPED, not refused, and journalled: the engine
+        --        clamps to the same headroom, so an honest op never reaches
+        --        this, and refusing a whole settle over the pet's last few XP
+        --        would cost the player the window's loot. A row already over
+        --        the cap is never reduced here. The journal ACCUMULATES per key
+        --        (proposed and credited summed, the first clamp's `had` kept):
+        --        a folded chain can cross the cap on its second op of the same
+        --        key, and a per-op overwrite would journal only the last
+        --        (Security, 2026-10-13 #1).
+        if v_prog->>'kind' = 'stat' and left(v_prog->>'key', 13) = 'companion_xp:' then
+          if substring(v_prog->>'key' from 14) is distinct from v_st.companion_equipped then
+            perform public.hr_reject('companion_not_equipped',
+              jsonb_build_object('companion_id', left(substring(v_prog->>'key' from 14), 64)));
+          end if;
           v_cxp_have := null;
           select pp.value into v_cxp_have from public.player_progress pp
            where pp.user_id = v_uid and pp.slot = v_slot and pp.kind = 'stat'
              and pp.key = v_prog->>'key' and pp.period_key = coalesce(v_prog->>'period', '');
           v_cxp_have := coalesce(v_cxp_have, 0);
           if v_cxp_have + v_n > c_companion_xp_cap then
+            v_cxp_credit := greatest(0, c_companion_xp_cap - v_cxp_have);
             v_cxp_clamp := coalesce(v_cxp_clamp, '{}'::jsonb) || jsonb_build_object(v_prog->>'key',
-              jsonb_build_object('proposed', v_n, 'had', v_cxp_have,
-                                 'credited', greatest(0, c_companion_xp_cap - v_cxp_have)));
-            v_n := greatest(0, c_companion_xp_cap - v_cxp_have);
+              case when coalesce(v_cxp_clamp ? (v_prog->>'key'), false) then
+                jsonb_build_object(
+                  'proposed', (v_cxp_clamp #>> array[v_prog->>'key', 'proposed'])::bigint + v_n,
+                  'had',      v_cxp_clamp #>  array[v_prog->>'key', 'had'],
+                  'credited', (v_cxp_clamp #>> array[v_prog->>'key', 'credited'])::bigint + v_cxp_credit)
+              else
+                jsonb_build_object('proposed', v_n, 'had', v_cxp_have, 'credited', v_cxp_credit)
+              end);
+            v_n := v_cxp_credit;
           end if;
         end if;$anc$);
 
@@ -276,7 +299,10 @@ begin
     raise notice 'hr_state_of already projects companions.frac — patch skipped'; return; end if;
   v_def := replace(v_def,
     $anc$           and pp.key like 'companion_xp:%'), '{}'::jsonb)),$anc$,
-    $anc$           and pp.key like 'companion_xp:%'), '{}'::jsonb),
+    $anc$           and left(pp.key, 13) = 'companion_xp:'), '{}'::jsonb),
+      -- ^ an EXACT prefix since 2026-10-12 (was `like`, whose `_` matched any
+      -- character): a row is projected as a pet's XP only under the key
+      -- hr_apply equipped-checks and caps.
       -- THE PET'S CARRIED XP REMAINDER (2026-10-12-companion-xp-frac.sql). The
       -- engine's input (envelope.js companionXpFrac); non-zero only, absent = 0.
       'frac', coalesce((
@@ -284,7 +310,7 @@ begin
           from public.player_progress pp
          where pp.user_id = p_user and pp.slot = v_st.slot
            and pp.kind = 'stat' and pp.period_key = ''
-           and pp.key like 'companion_xp:%' and pp.xp_frac > 0), '{}'::jsonb)),$anc$);
+           and left(pp.key, 13) = 'companion_xp:' and pp.xp_frac > 0), '{}'::jsonb)),$anc$);
   execute v_def;
   raise notice 'hr_state_of patched: companions project their carried remainder';
 end $mig$;
@@ -327,8 +353,15 @@ begin
   --     chain, where that allowlist already names both remainder keys.
   select string_agg(distinct p.proname, ',' order by p.proname) into v_names
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   cross join lateral (select regexp_replace(p.prosrc, '--[^\n]*', '', 'g') as code) c
    where n.nspname = 'public'
      and (case when p.proname = 'hr_party_tick_settle'
+                    -- the carve-out holds only while c_delta_ok is used in
+                    -- exactly two places, its declaration and the key check,
+                    -- so a writer that reads a name out of it (format %I) is
+                    -- scanned in full (Security, 2026-10-13 #4)
+                    and (length(c.code) - length(replace(c.code, 'c_delta_ok', ''))) / 10 = 2
+                    and strpos(c.code, 'k = any (c_delta_ok)') > 0
                then regexp_replace(p.prosrc, 'c_delta_ok\s+constant\s+text\[\]\s*:=\s*array\[[^]]*\];', '')
                else p.prosrc end) like '%xp\_frac%'
      and p.proname not in ('hr_apply', 'hr_state_of');
@@ -487,6 +520,56 @@ begin
     if coalesce(v_r->>'ok', 'false') <> 'true' or v_val is distinct from c_cap then
       raise exception 'companion-xp-frac self-check (i): a pet AT the cap moved to % (%)', v_val, v_r; end if;
 
+    -- (i2) A FOLDED CHAIN CROSSES THE CAP PARTWAY (Security 2026-10-13 #1):
+    --      three ops of 7 on one key from cap - 10. The first lands whole, the
+    --      second is clamped to 3, the third to 0 — and the journal carries
+    --      BOTH clamps, summed: proposed 14, credited 3, had = the first
+    --      clamp's (cap - 3). A per-op overwrite would journal 7 / 0 / cap.
+    update public.player_progress set value = c_cap - 10
+     where user_id = v_uid and slot = 0 and kind = 'stat' and key = 'companion_xp:fox' and period_key = '';
+    select version into v_ver from public.player_state where user_id = v_uid and slot = 0;
+    v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(),
+             '{"progress":[{"kind":"stat","key":"companion_xp:fox","period":"","add":7,"state":"active"},'
+             '{"kind":"stat","key":"companion_xp:fox","period":"","add":7,"state":"active"},'
+             '{"kind":"stat","key":"companion_xp:fox","period":"","add":7,"state":"active"}],'
+             '"journal":{"kind":"admin","intent":"cxf:probe:cap3"}}'::jsonb);
+    select value into v_val from public.player_progress
+     where user_id = v_uid and slot = 0 and kind = 'stat' and key = 'companion_xp:fox' and period_key = '';
+    select meta into v_meta from public.player_ledger
+     where user_id = v_uid and intent = 'cxf:probe:cap3' order by id desc limit 1;
+    if coalesce(v_r->>'ok', 'false') <> 'true' or v_val is distinct from c_cap
+       or (v_meta #>> '{delta,cxc,companion_xp:fox,proposed}')::bigint is distinct from 14
+       or (v_meta #>> '{delta,cxc,companion_xp:fox,credited}')::bigint is distinct from 3
+       or (v_meta #>> '{delta,cxc,companion_xp:fox,had}')::bigint is distinct from c_cap - 3 then
+      raise exception 'companion-xp-frac self-check (i2): three ops of 7 from cap - 10 left the pet at % and journalled % '
+                      '— expected the cap and {proposed 14, credited 3, had cap - 3} (%)', v_val, v_meta #> '{delta,cxc}', v_r; end if;
+
+    -- (j) ONLY THE EQUIPPED PET EARNS (Security 2026-10-13 #2). An XP op for a
+    --     pet that is not equipped is refused whole: no row, no version bump.
+    select version into v_ver from public.player_state where user_id = v_uid and slot = 0;
+    v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(),
+             '{"progress":[{"kind":"stat","key":"companion_xp:wolf_pup","period":"","add":5,"state":"active"}],'
+             '"journal":{"kind":"admin","intent":"cxf:probe:j"}}'::jsonb);
+    select version into v_ver2 from public.player_state where user_id = v_uid and slot = 0;
+    if v_r->>'error' is distinct from 'companion_not_equipped' or v_ver2 <> v_ver
+       or exists (select 1 from public.player_progress where user_id = v_uid and key = 'companion_xp:wolf_pup') then
+      raise exception 'companion-xp-frac self-check (j): an XP op for an UNEQUIPPED pet returned % (version % -> %)',
+                      v_r, v_ver, v_ver2; end if;
+
+    -- (k) THE PREFIX IS EXACT. `companionXxp:wolf_pup` is not a companion key:
+    --     it is an ordinary stat counter (accepted, as any stat key is), and it
+    --     is NOT projected as a pet's XP — under `like`, `_` matched the X, so
+    --     the check would have refused it and the projection would have shown
+    --     it as wolf_pup's XP.
+    select version into v_ver from public.player_state where user_id = v_uid and slot = 0;
+    v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(),
+             '{"progress":[{"kind":"stat","key":"companionXxp:wolf_pup","period":"","add":5,"state":"active"}],'
+             '"journal":{"kind":"admin","intent":"cxf:probe:k"}}'::jsonb);
+    v_env := public.hr_state_of(v_uid, 0);
+    if coalesce(v_r->>'ok', 'false') <> 'true' or (v_env #> '{companions,xp}') ? 'wolf_pup' then
+      raise exception 'companion-xp-frac self-check (k): a near-miss key was refused or projected as a pet''s XP: % / %',
+                      v_r, v_env #> '{companions,xp}'; end if;
+
     raise exception using errcode = 'HR947', message = 'companion-xp-frac §4 complete — rolling back';
   exception when sqlstate 'HR947' then null;
   end;
@@ -503,5 +586,5 @@ begin
                'role can write it and only hr_apply / hr_state_of name it; (c) a fresh character projects {}; (d) a '
                'remainder alone and beside an XP op round-trips; (e) an XP-only delta leaves it alone; (f) 1, 900, -0.1, '
                'a string, an array and an unequipped pet are refused without moving a row; (g) the CHECK bites on its '
-               'own; (h) the upsert overwrites; (i) the cap clamps on the server and the clamp is journalled';
+               'own; (h) the upsert overwrites; (i) the cap clamps on the server and the clamp is journalled; (i2) clamps on one key accumulate; (j) an unequipped pet earns nothing; (k) the prefix is exact';
 end $mig$;

@@ -31,7 +31,14 @@
 // accrueArtisan, plus tick-gather.js's own `p_delta.<key> =` rewrites.
 //
 // THE ARMS
-//   K0  the derivation is not vacuous (known keys of each engine are found)
+//   K0  the derivation is not vacuous (known keys of each engine are found),
+//       AND it is complete: every use of the engine's `delta` is its literal
+//       declaration (no computed key, no spread), a dotted `delta.<key>`, or the
+//       whole object handed back — a bracket write, Object.assign, a helper, an
+//       alias or a reassignment is RED by itself (Security 2026-10-13 #5), as
+//       is a bracket write / Object.assign on a delta in the tick layer
+//   KR  c_delta_ok is referenced only by its declaration and the key check, so
+//       no party-settle code reads a key name out of it (Security #4)
 //   KA  hr_apply's c_delta_keys covers every proposable key but the DORMANT ones
 //   KB  hr_party_tick_settle's c_delta_ok, plus its c_stamp, covers every COMBAT
 //       key but the dormant ones; c_stamp is STAMPING_DELTA_KEYS exactly
@@ -57,7 +64,7 @@
 // Exit: 0 green (or, under --mutate, every mutant caught) · 1 red · 2 harness.
 // ============================================================================
 
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, ROOT } from './schema-replay.mjs';
 import { STAMPING_DELTA_KEYS } from '../supabase/functions/hr-accrue/intents.js';
@@ -112,8 +119,10 @@ function fnBody(src, name) {
   }
   throw Object.assign(new Error(`accrual.js: function ${name} is unbalanced`), { harness: true });
 }
-/** Top-level keys of every `const delta = {…}` literal in `body`. */
-function literalKeys(body, varName) {
+/** Top-level keys of every `const delta = {…}` literal in `body`. A COMPUTED
+    key (`[k]:`) or a SPREAD (`...x`) at the top level is a key nobody can read
+    off the source, so it is a violation, never a guess. */
+function literalKeys(body, varName, bad) {
   const keys = new Set();
   const re = new RegExp(`(?:const|let)\\s+${varName}\\s*=\\s*\\{`, 'g');
   let m;
@@ -121,6 +130,10 @@ function literalKeys(body, varName) {
     let depth = 0; let expectKey = true;
     for (let i = m.index + m[0].length - 1; i < body.length; i++) {
       const c = body[i];
+      if (depth === 1 && expectKey && (c === '[' || body.startsWith('...', i))) {
+        bad.push(`a ${c === '[' ? 'computed key' : 'spread'} in the \`${varName}\` literal: ${body.slice(i, i + 40).split('\n')[0]}`);
+        expectKey = false;
+      }
       if ('{(['.includes(c)) { depth++; if (depth === 1) expectKey = true; continue; }
       if ('})]'.includes(c)) { if (--depth === 0) break; continue; }
       if (depth !== 1) continue;
@@ -128,6 +141,7 @@ function literalKeys(body, varName) {
       if (expectKey && /[A-Za-z_]/.test(c)) {
         const k = /^([A-Za-z_][A-Za-z0-9_]*)\s*:/.exec(body.slice(i));
         if (k) keys.add(k[1]);
+        else bad.push(`a shorthand or non-literal entry in the \`${varName}\` literal: ${body.slice(i, i + 40).split('\n')[0]}`);
         expectKey = false;
       } else if (!/\s/.test(c)) expectKey = false;
     }
@@ -139,17 +153,54 @@ function assignedKeys(body, varName) {
   for (const m of body.matchAll(new RegExp(`\\b${varName}\\.([a-z_][a-z0-9_]*)\\s*=(?!=)`, 'g'))) keys.add(m[1]);
   return keys;
 }
-export function proposable({ accrual, tickGather }) {
+/** EVERY use of the engine's `delta` must be one the derivation can read
+    (Security, 2026-10-13 #5): its `const delta = {` declaration, a dotted
+    `delta.<key>` (read or write — a write's key is collected), or the bare
+    `delta` handed back whole in the result object (a line that is `delta,`).
+    Anything else — `delta[k] =`, `Object.assign(delta, …)`, a helper called
+    with `delta`, an alias, a spread, a reassignment, `delta: …` — could add a
+    key this guard cannot see, and is RED by itself. */
+function escapes(body, varName, where, bad) {
+  for (const m of body.matchAll(new RegExp(`\\b${varName}\\b`, 'g'))) {
+    const i = m.index;
+    if (i > 0 && body[i - 1] === '.') continue;          // `x.delta` is another object's property
+    const after = body.slice(i + varName.length);
+    const lineStart = body.lastIndexOf('\n', i) + 1;
+    const lineEnd = body.indexOf('\n', i);
+    const line = body.slice(lineStart, lineEnd < 0 ? undefined : lineEnd).trim();
+    if (/^\s*\.\s*[A-Za-z_]/.test(after)) continue;                         // dotted
+    if (/(?:const|let)\s+$/.test(body.slice(lineStart, i)) && /^\s*=\s*\{/.test(after)) continue; // declaration
+    if (line === `${varName},` || line === varName) continue;              // handed back whole
+    bad.push(`${where}: a non-literal use of \`${varName}\`: ${line.slice(0, 80)}`);
+  }
+}
+export function proposable({ accrual, ticks }) {
   const src = stripComments(accrual);
+  const bad = [];
   const of = (name) => {
     const b = fnBody(src, name);
-    return new Set([...literalKeys(b, 'delta'), ...assignedKeys(b, 'delta')]);
+    escapes(b, 'delta', name, bad);
+    return new Set([...literalKeys(b, 'delta', bad), ...assignedKeys(b, 'delta')]);
   };
   const combat = of('computeAccrual');
   const gather = of('accrueGather');
   const artisan = of('accrueArtisan');
-  for (const k of assignedKeys(stripComments(tickGather), 'p_delta')) gather.add(k);
-  return { combat, gather, artisan, all: new Set([...combat, ...gather, ...artisan]) };
+  /* THE TICK LAYER rewrites a settled delta in place in two shapes —
+     `it.args.p_delta.<key> = ` (tick-gather's progress coalesce) and a local
+     copy's `delta.<key> = ` (tick-party's journal). Both keys are collected
+     into every set (conservative: a party is combat). A bracket write on
+     either is RED. foldDeltas, the only whole-delta builder there, throws on
+     an unclassified key (KD). */
+  for (const [file, text] of Object.entries(ticks)) {
+    const t = stripComments(text);
+    for (const k of [...assignedKeys(t, 'p_delta'), ...assignedKeys(t, 'delta')]) {
+      combat.add(k); gather.add(k); artisan.add(k);
+    }
+    for (const m of t.matchAll(/\b(?:p_)?delta\s*\[[^\]]*\]\s*=(?!=)|Object\.assign\(\s*[A-Za-z_.]*\b(?:p_)?delta\b/g)) {
+      bad.push(`${file}: a non-literal delta write: ${m[0].slice(0, 60)}`);
+    }
+  }
+  return { combat, gather, artisan, all: new Set([...combat, ...gather, ...artisan]), bad };
 }
 /** foldDeltas' classification, read from tick-contract.js's own source. */
 export function foldClassified(contract) {
@@ -187,6 +238,16 @@ function staticArms({ src, applyDef, settleDef, columns }) {
   for (const [eng, keys] of Object.entries(need)) {
     const miss = keys.filter((k) => !P[eng].has(k));
     if (miss.length) fail('K0', `the ${eng} derivation found no ${miss.join(', ')} — the parser is blind, not the engine`);
+  }
+  for (const b of P.bad) fail('K0', `${b} — a key written that way cannot be derived; write it as delta.<key> = …`);
+  /* KR (Security, 2026-10-13 #4): c_delta_ok is used in EXACTLY two places,
+     its declaration and the key check. A body that reads a name out of it
+     (`format('%I', c_delta_ok[n])`) is a writer the single-writer scan's
+     carve-out would otherwise hide. */
+  const code = settleDef.replace(/--[^\n]*/g, '');
+  const refs = (code.match(/c_delta_ok/g) || []).length;
+  if (refs !== 2 || !code.includes('k = any (c_delta_ok)') || !/c_delta_ok\s+constant\s+text\[\]\s*:=\s*array\[/.test(code)) {
+    fail('KR', `c_delta_ok is referenced ${refs} time(s); it may appear only in its declaration and the key check`);
   }
   const live = (k) => !(k in DORMANT);
   const missA = [...P.all].filter((k) => live(k) && !apply.has(k));
@@ -336,13 +397,22 @@ async function scanArm(db, fracSql) {
   const outside = await scan();
   await db.exec(def);
   if (outside !== 'hr_party_tick_settle') red.push(`KW: a party settle naming xp_frac OUTSIDE its allowlist was not caught (${outside})`);
+  /* Security 2026-10-13 #4: a writer that never SPELLS the key but reads it
+     out of the allowlist. The carve-out must not hold for that body. */
+  const dyn = def.replace("  v_role     text;", "  v_role     text; v_dyn_scan text := format('%I', c_delta_ok[14]);");
+  await db.exec(dyn);
+  const dynamic = await scan();
+  await db.exec(def);
+  if (dynamic !== 'hr_party_tick_settle') red.push(`KW: a party settle reading a name out of c_delta_ok (format %I) was not caught (${dynamic})`);
   return red;
 }
 
 async function readSources() {
   return {
     accrual: await readText(`${FN}/accrual.js`),
-    tickGather: await readText(`${FN}/tick-gather.js`),
+    ticks: Object.fromEntries(await Promise.all(
+      (await readdir(join(ROOT, FN))).filter((f) => /^tick.*\.js$/.test(f)).sort()
+        .map(async (f) => [f, await readText(`${FN}/${f}`)]))),
     contract: await readText(`${FN}/tick-contract.js`),
   };
 }
@@ -428,6 +498,25 @@ async function main() {
       plant: bodyMutant(applyDef, "    'companion_xp_frac',\n", '') },
     { name: 'a NEW combat key the allowlists do not know', arms: /^(KA|KB|KD):/,
       src: { accrual: src.accrual.replace('  if (goldDelta > 0) delta.gold = goldDelta;', '  if (goldDelta > 0) delta.gold = goldDelta;\n  delta.zz_new_key = 1;') } },
+    /* Security 2026-10-13 #5: every way to write a key the source does not spell. */
+    ...[
+      ['a bracket write', "  delta['zz' + 'k'] = 1;"],
+      ['Object.assign onto the delta', '  Object.assign(delta, { zz_key: 1 });'],
+      ['a helper handed the delta', '  addExtras(delta);'],
+      ['an alias of the delta', '  const d2 = delta; d2.zz_key = 1;'],
+      ['the delta reassigned', '  delta = Object.assign({}, delta, extras);'],
+    ].map(([what, line]) => ({ name: `non-literal key write: ${what}`, arms: /^K0:/,
+      src: { accrual: src.accrual.replace('  if (goldDelta > 0) delta.gold = goldDelta;', `  if (goldDelta > 0) delta.gold = goldDelta;\n${line}`) } })),
+    { name: 'non-literal key write: a computed key in the literal', arms: /^K0:/,
+      src: { accrual: src.accrual.replace('  const delta = {\n', "  const delta = {\n    ['zz' + 'k']: 1,\n") } },
+    { name: 'non-literal key write: a spread in the literal', arms: /^K0:/,
+      src: { accrual: src.accrual.replace('  const delta = {\n', '  const delta = {\n    ...extras,\n') } },
+    { name: 'non-literal key write: a bracket write in the tick layer', arms: /^K0:/,
+      src: { ticks: Object.assign({}, src.ticks, { 'tick-gather.js': src.ticks['tick-gather.js'].replace(
+        '    it.args.p_delta.progress = coalesceProgress(it.args.p_delta.progress);',
+        "    it.args.p_delta.progress = coalesceProgress(it.args.p_delta.progress);\n    it.args.p_delta['zz'] = 1;") }) } },
+    { name: 'a party settle reads a name out of c_delta_ok (format %I)', arms: /^(KR|KW):/,
+      plant: bodyMutant(settleDef, '  v_role     text;', "  v_role     text; v_dyn text := format('%I', c_delta_ok[14]);") },
     { name: 'foldDeltas stops classifying companion_xp_frac', arms: /^KD:/,
       src: { contract: src.contract.replace("export const ABSOLUTE_MAP = Object.freeze(['xp_frac', 'companion_xp_frac']);", "export const ABSOLUTE_MAP = Object.freeze(['xp_frac']);") } },
     { name: 'a dormant key\'s column appears', arms: /^KE:/,

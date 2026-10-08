@@ -2130,7 +2130,7 @@ jobs:
       # combat pet exactly what one span does (the Fox on mithril earns > 0),
       # attended == away, the remainder folds per key and is server-only, and
       # hr_apply clamps companion XP at the cap, journalled. --mutate plants six
-      # JS defects in a copy and six SQL defects into the migration's §4.
+      # JS defects in a copy and ten SQL defects into the migration's §4.
       - name: Companion XP fraction carry + server cap (base + mutate)
         if: ${{ !cancelled() }}
         run: |
@@ -2143,8 +2143,9 @@ jobs:
       # settle's c_delta_ok + c_stamp and foldDeltas must cover it, and an armed
       # party window carrying xp_frac + companion_xp_frac pays each member what
       # a solo hr_apply pays their twin (control: the pre-fix body refuses it
-      # unknown_delta_key). --mutate: 8 mutants, one per allowlist missing a key,
-      # a NEW engine key, a dormant key's column appearing, the scan narrowed.
+      # unknown_delta_key). --mutate: 17 mutants, one per allowlist missing a key,
+      # a NEW engine key, eight non-literal key writes (K0), a format(%I) reader
+      # of c_delta_ok (KR), a dormant key's column appearing, the scan narrowed.
       - name: Delta-key allowlists cover the engine (base + mutate)
         if: ${{ !cancelled() }}
         run: |

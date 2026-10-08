@@ -147,6 +147,7 @@ grant  execute on function public.hr_party_tick_settle(text, uuid, timestamptz, 
 --       ONLY by the two names (re-derived: undo the patch, compare md5)
 --   (b) S-1: every name in c_delta_ok is in hr_apply's c_delta_keys, and both
 --       remainder keys are in c_delta_ok
+--   (c2) c_delta_ok is referenced only by its declaration and the key check
 --   (c) the single-writer property, narrowed exactly as the two frac files'
 --       §4(b) now are: outside hr_party_tick_settle's c_delta_ok declaration no
 --       body but hr_apply / hr_state_of names xp_frac
@@ -201,8 +202,15 @@ begin
   -- (c)
   select string_agg(distinct p.proname, ',' order by p.proname) into v_names
     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   cross join lateral (select regexp_replace(p.prosrc, '--[^\n]*', '', 'g') as code) c
    where n.nspname = 'public'
      and (case when p.proname = 'hr_party_tick_settle'
+                    -- the carve-out holds only while c_delta_ok is used in
+                    -- exactly two places, its declaration and the key check,
+                    -- so a writer that reads a name out of it (format %I) is
+                    -- scanned in full (Security, 2026-10-13 #4)
+                    and (length(c.code) - length(replace(c.code, 'c_delta_ok', ''))) / 10 = 2
+                    and strpos(c.code, 'k = any (c_delta_ok)') > 0
                then regexp_replace(p.prosrc, 'c_delta_ok\s+constant\s+text\[\]\s*:=\s*array\[[^]]*\];', '')
                else p.prosrc end) like '%xp\_frac%'
      and p.proname not in ('hr_apply', 'hr_state_of');
@@ -211,6 +219,16 @@ begin
                     'name xp_frac: % — the remainder must have exactly one writer', v_names; end if;
   if strpos(regexp_replace(v_settle, 'c_delta_ok\s+constant\s+text\[\]\s*:=\s*array\[[^]]*\];', ''), 'xp_frac') > 0 then
     raise exception 'party-frac self-check (c): hr_party_tick_settle names xp_frac outside its c_delta_ok declaration'; end if;
+  -- (c2) c_delta_ok is used in EXACTLY two places — its declaration and the key
+  --      check — so no code reads a name out of it to write with (Security,
+  --      2026-10-13 #4: a `format('%I', c_delta_ok[n])` writer).
+  v_apply := regexp_replace(v_settle, '--[^\n]*', '', 'g');
+  if (length(v_apply) - length(replace(v_apply, 'c_delta_ok', ''))) / 10 <> 2
+     or strpos(v_apply, 'k = any (c_delta_ok)') = 0
+     or v_apply !~ 'c_delta_ok\s+constant\s+text\[\]\s*:=\s*array\[' then
+    raise exception 'party-frac self-check (c2): c_delta_ok is referenced outside its declaration and the key check'; end if;
+  v_apply := replace(pg_get_functiondef(
+    'public.hr_apply(uuid,int,bigint,uuid,jsonb)'::regprocedure), chr(13), '');
 
   -- (g)
   if has_function_privilege('anon', 'public.hr_party_tick_settle(text,uuid,timestamptz,timestamptz,uuid,jsonb)', 'execute')

@@ -229,6 +229,49 @@ const ARMOUR_SETS = {
 };
 
 /* ══════════════════════════════════════════════════════════════════════════
+   2b · IDENTITY GEAR ON A LIVE MECHANIC — ITEM-NEW-08/09/13/28/29/30/31/35
+                                                    STATE: PLAYABLE
+   CONTENT-HOLES RULING (game-designer, 2026-10-08). These eight cards were
+   catalogued in state 2: each declared a mechanic no engine reads (sunder,
+   regen, element immunity, an arena key …), so the hatch kept them out of the
+   world and the collection log counted eight items nobody could ever hold.
+   Every one of those cards was really promising "this piece is FOR one kind of
+   monster". `bane` (src/core/bane.js) is exactly that promise, it is LIVE on
+   every equipped slot, and the one combat engine reads it awake and away. So
+   the identity moves onto it instead of waiting for eight separate engines:
+     • ARMOUR_BANE 1.20 — under the weapon's 1.40, so a bane WEAPON stays the
+       bigger answer; baneIndex takes the per-class MAX (pieces never stack),
+       and MAX_COMBINED_DAMAGE_MULT stays the ceiling.
+     • stats are ~85% of the tier's generated rung (the BANE_GEAR rule above),
+       so each piece is a SECOND piece to swap in for its class and never a
+       strict upgrade over the craftable rung.
+     • each drops from the boss or monster its name already pointed at, at a
+       rate sized against that monster's kill rate (src/data/monsters.js).
+   Nothing here touches a governed getBonus key: net fuse cost stays 0.00.
+   ══════════════════════════════════════════════════════════════════════════ */
+const ARMOUR_BANE = 1.20;
+const ABANE = (cls) => ({ class: cls, mult: ARMOUR_BANE });
+const IDENTITY_GEAR = {
+  // ITEM-NEW-08 · necklace T3 · vs Mammal. Dire Wolf drop.
+  hunters_torc:    { n: "Hunter's Torc", icon: '📿', v: priced(150, 3), type: 'jewelry', slot: 'necklace', tier: 3, rarity: 'rare', reqSkill: 'defense', reqLv: 30, atkB: 3, strB: 2, bane: ABANE('mammal'), effects: ['bane'] },
+  // ITEM-NEW-09 · necklace T4 · vs Elemental. Ice Elemental drop.
+  frost_locket:    { n: 'Frost Locket', icon: '📿', v: priced(150, 4), type: 'jewelry', slot: 'necklace', tier: 4, rarity: 'epic', reqSkill: 'defense', reqLv: 45, defB: 3, magicAtkB: 4, bane: ABANE('elemental'), effects: ['bane'] },
+  // ITEM-NEW-13 · earrings T6 · vs Extra Dimensional. The Unlit drop.
+  unlit_earrings:  { n: 'Unlit Earrings', icon: '🌑', v: priced(130, 6), type: 'jewelry', slot: 'earrings', tier: 6, rarity: 'legendary', reqSkill: 'defense', reqLv: 75, defB: 3, critB: 0.02, bane: ABANE('extra_dimensional'), effects: ['bane'] },
+  // ITEM-NEW-28 · body T6 plate · vs Construct. Iron Colossus drop. 68 × 0.85.
+  colossus_plate:  { n: 'Colossus Plate', icon: '🛡️', v: priced(300, 6), type: 'armor', slot: 'body', defB: 58, armourClass: 'plate', rarity: 'legendary', tier: 6, reqSkill: 'defense', reqLv: 75, rangeAtkB: -15, magicAtkB: -29, bane: ABANE('construct'), effects: ['bane'] },
+  // ITEM-NEW-29 · cape T6 · vs Plant. Treant drop.
+  heartwood_cape:  { n: 'Heartwood Cape', icon: '🦸', v: priced(90, 6), type: 'armor', slot: 'cape', defB: 12, atkB: 5, rarity: 'legendary', tier: 6, reqSkill: 'defense', reqLv: 75, bane: ABANE('plant'), effects: ['bane'] },
+  // ITEM-NEW-30 · helmet T6 plate · vs Dragon. Draconia drop. 33 × 0.85.
+  draconias_jaw:   { n: "Draconia's Jaw", icon: '⛑️', v: priced(120, 6), type: 'armor', slot: 'helmet', defB: 28, armourClass: 'plate', rarity: 'legendary', tier: 6, reqSkill: 'defense', reqLv: 75, rangeAtkB: -7, magicAtkB: -14, bane: ABANE('dragon'), effects: ['bane'] },
+  // ITEM-NEW-31 · gloves T2 leather · vs Human. Cutpurse drop: the first build
+  // decision, at T2, exactly as the card asked.
+  cutpurse_gloves: { n: 'Cutpurse Gloves', icon: '🧤', v: priced(70, 2), type: 'armor', slot: 'gloves', defB: 2, armourClass: 'leather', rarity: 'uncommon', tier: 2, reqSkill: 'defense', reqLv: 15, bane: ABANE('human'), effects: ['bane'] },
+  // ITEM-NEW-35 · boots T6 plate · vs Demon. Vharek drop. 22 × 0.85.
+  pitlord_irons:   { n: 'Pitlord Irons', icon: '🥾', v: priced(80, 6), type: 'armor', slot: 'boots', defB: 19, armourClass: 'plate', rarity: 'legendary', tier: 6, reqSkill: 'defense', reqLv: 75, rangeAtkB: -5, magicAtkB: -9, bane: ABANE('demon'), effects: ['bane'] },
+};
+
+/* ══════════════════════════════════════════════════════════════════════════
    3 · CHARMS · CONSUMABLES · UTILITY · IDENTITY GEAR · COSMETICS
    ITEM-NEW-08..17, 20, 21, 23..26, 28..31, 35..40   STATE: CATALOGUED, NOT OBTAINABLE
 
@@ -255,24 +298,19 @@ const DORMANT = {
      standing ruling 1), EXCEPT where the item's whole effect feeds one other
      skill, and an item with no combat stat and no faucet takes reqLv 1, which is
      the data form of "no gate" rather than a silent NULL. */
-  // ITEM-NEW-08 · necklace T3.
-  hunters_torc:    { n: "Hunter's Torc", icon: '📿', v: priced(150, 3), type: 'jewelry', slot: 'necklace', tier: 3, rarity: 'rare', reqSkill: 'defense', reqLv: 30, effects: ['drop_band_vs_class'], baneClassHint: 'mammal' },
-  // ITEM-NEW-09 · necklace T4.
-  frost_locket:    { n: 'Frost Locket', icon: '📿', v: priced(150, 4), type: 'jewelry', slot: 'necklace', tier: 4, rarity: 'epic', reqSkill: 'defense', reqLv: 45, effects: ['element_pierce'] },
   // ITEM-NEW-10 · ring T2. Pure progression, zero combat power — no stats at all,
   // which is the point: it is the first item in Hearthrise that is worth wearing
   // and makes you no stronger. So its rung is 1, NOT tier 2's 15: `bestiary_rate`
   // is information, and gating information behind Defence 15 would gate the thing
   // that teaches a new player the bestiary exists.
   tally_ring:      { n: 'Tally Ring', icon: '💍', v: priced(140, 2), type: 'jewelry', slot: 'ring', tier: 2, rarity: 'uncommon', reqSkill: 'defense', reqLv: 1, effects: ['bestiary_rate'] },
-  // ITEM-NEW-11/12/13 · earrings T4/T3/T6 — the slot that was empty until b343.
+  // ITEM-NEW-11/12 · earrings T4/T3 (ITEM-NEW-13 moved to IDENTITY_GEAR above) — the slot that was empty until b343.
   // bone_earrings takes PRAYER, not Defence: `passive_bone_prayer` is a Prayer XP
   // faucet, so the skill its power serves is the skill it gates on.
   // pathfinder_studs is `ui_next_threshold` — information only, so rung 1 for the
   // same reason as tally_ring.
   bone_earrings:      { n: 'Bone Earrings', icon: '🦴', v: priced(130, 4), type: 'jewelry', slot: 'earrings', tier: 4, rarity: 'epic', reqSkill: 'prayer', reqLv: 45, effects: ['passive_bone_prayer'] },
   pathfinder_studs:   { n: 'Pathfinder Studs', icon: '🧭', v: priced(130, 3), type: 'jewelry', slot: 'earrings', tier: 3, rarity: 'rare', reqSkill: 'defense', reqLv: 1, effects: ['ui_next_threshold'] },
-  unlit_earrings:     { n: 'Unlit Earrings', icon: '🌑', v: priced(130, 6), type: 'jewelry', slot: 'earrings', tier: 6, rarity: 'legendary', reqSkill: 'defense', reqLv: 75, effects: ['reveal_hidden_weak'] },
 
   /* ── Consumables ── */
   // ITEM-NEW-14 · food T1. Heals over N swings instead of instantly. NO `heals`
@@ -304,17 +342,6 @@ const DORMANT = {
   surveyors_chain: { n: "Surveyor's Chain", icon: '⛓️', v: 12000, effects: ['byproduct_upgrade'] },
 
   /* ── Gear with identity ── */
-  // ITEM-NEW-28 · body T6 plate. A real trade, so it cannot ship on stats alone.
-  colossus_plate:  { n: 'Colossus Plate', icon: '🛡️', v: priced(300, 6), type: 'armor', slot: 'body', defB: 68, armourClass: 'plate', rarity: 'legendary', tier: 6, reqSkill: 'defense', reqLv: 75, rangeAtkB: -17, magicAtkB: -34, effects: ['sunder_vs_class'] },
-  // ITEM-NEW-29 · cape T6. defense 75 — the tier's rung, like every plate row in
-  // this block (b542: it was the one gear card here with a tier and no gate).
-  heartwood_cape:  { n: 'Heartwood Cape', icon: '🦸', v: priced(90, 6), type: 'armor', slot: 'cape', defB: 12, atkB: 5, rarity: 'legendary', tier: 6, reqSkill: 'defense', reqLv: 75, effects: ['regen_vs_class'] },
-  // ITEM-NEW-30 · helmet T6 plate.
-  draconias_jaw:   { n: "Draconia's Jaw", icon: '⛑️', v: priced(120, 6), type: 'armor', slot: 'helmet', defB: 33, armourClass: 'plate', rarity: 'legendary', tier: 6, reqSkill: 'defense', reqLv: 75, rangeAtkB: -8, magicAtkB: -17, effects: ['element_immunity'] },
-  // ITEM-NEW-31 · gloves T2. The first real build decision, at T2.
-  cutpurse_gloves: { n: 'Cutpurse Gloves', icon: '🧤', v: priced(70, 2), type: 'armor', slot: 'gloves', defB: 3, armourClass: 'leather', rarity: 'uncommon', tier: 2, reqSkill: 'defense', reqLv: 15, effects: ['gold_vs_class'] },
-  // ITEM-NEW-35 · boots T6. A gate key wearing armour.
-  pitlord_irons:   { n: 'Pitlord Irons', icon: '🥾', v: priced(80, 6), type: 'armor', slot: 'boots', defB: 22, armourClass: 'plate', rarity: 'legendary', tier: 6, reqSkill: 'defense', reqLv: 75, rangeAtkB: -6, magicAtkB: -11, effects: ['arena_key'] },
 
   /* ── Cosmetics with function ──
      ⚠ THESE TWO CARRY NO `tier`, NO `reqSkill` AND NO `reqLv`, DELIBERATELY. A
@@ -416,11 +443,11 @@ const SUPPLY_CHAINS = Object.fromEntries([
      derived band — the steel rung at 130 gives 10 × 130 / 660 = 1.97×, just
      inside the anti-faucet rule; 200 would have been a 3.03× faucet. */
   whet('coarse_whetstone',  'Coarse Whetstone',    0, 5),
-  whet('copper_whetstone',  'Copper Whetstone',    1, 20),
-  whet('iron_whetstone',    'Iron Whetstone',      2, 55),
-  whet('steel_whetstone',   'Steel Whetstone',     3, 130),
-  whet('mithril_whetstone', 'Mithril Whetstone',   4, 300),
-  whet('rune_whetstone',    'Rune Whetstone',      5, 700),
+  whet('iron_whetstone',    'Iron Whetstone',      1, 20),
+  whet('steel_whetstone',   'Steel Whetstone',     2, 55),
+  whet('mithril_whetstone', 'Mithril Whetstone',   3, 130),
+  whet('rune_whetstone',    'Rune Whetstone',      4, 300),
+  whet('ember_whetstone',   'Emberforged Whetstone', 5, 700),
   whet('dawn_whetstone',    'Dawnsteel Whetstone', 6, 1600),
 
   /* ITEM-PLAN-06 · phase two, 9 items and not 42 (§11.3). Elemental variants
@@ -478,7 +505,7 @@ const SUPPLY_CHAINS = Object.fromEntries([
 ]);
 
 export const LIB2_ITEMS = {
-  ...BANE_GEAR, ...ARMOUR_SETS, ...DORMANT, ...SUPPLY_CHAINS,
+  ...BANE_GEAR, ...ARMOUR_SETS, ...IDENTITY_GEAR, ...DORMANT, ...SUPPLY_CHAINS,
 };
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -649,11 +676,11 @@ export const LIB2_DESC = {
      through a glove" was good and the duplicate item was not. */
 
   coarse_whetstone: 'A rough field stone that puts an edge on anything and a good edge on nothing',
-  copper_whetstone: 'A copper-bound stone, the first one worth keeping in the pack',
-  iron_whetstone: 'An iron-backed whetstone with a groove worn down its centre',
+  iron_whetstone: 'An iron-backed whetstone with a groove worn down its centre, the first one worth keeping in the pack',
   steel_whetstone: 'A close-grained stone that leaves an edge you can hear',
   mithril_whetstone: 'A pale stone that takes almost nothing off and gives a great deal back',
   rune_whetstone: 'A marked whetstone that sharpens a little more than the honing accounts for',
+  ember_whetstone: 'A forge-dark stone, quenched in the same coals as Emberforged steel; it keeps an edge warm',
   dawn_whetstone: 'Dawnsteel grit bound in basalt — the last stone a blade will ever need',
   whetstone_of_ember: 'A whetstone that leaves the edge faintly warm',
   whetstone_of_frost: 'A whetstone that leaves frost along the blade for a breath after honing',

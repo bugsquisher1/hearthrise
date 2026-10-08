@@ -156,11 +156,11 @@ export const SHIPPED = Object.freeze({
     'bones', 'brute_plate', 'captain_medal', 'captain_recipe', 'captains_ribblade',
     'carters_strap', 'chaos_rune', 'chitinweave_cloak', 'choirbone', 'choirbone_gauntlets',
     'chronicle_ribbon', 'coal', 'coarse_whetstone', 'colossus_plate', 'colossus_seal',
-    'copper_ring', 'copper_studs', 'copper_whetstone',
+    'copper_ring', 'copper_studs',
     'cracked_spellstone', 'crown_of_the_fallen_king', 'cutpurse_gloves', 'dark_sigil',
     'dawn_bar', 'dawn_whetstone', 'dawnbound_amulet', 'dawnforged_signet', 'dawnlit_mantle',
     'dawnstone_ore', 'death_rune', 'death_steel', 'deep_rune_blank', 'demon_shard', 'dire_fang',
-    'draconias_jaw', 'dragon_bones', 'dragon_gem', 'dragon_gem_earrings', 'dragon_marrow_recipe',
+    'draconias_jaw', 'dragon_bones', 'dragon_gem', 'dragon_gem_earrings',
     'dragon_relic', 'dragon_scale', 'dragonfang_pike', 'dragonrend_greatblade',
     'dragonsbane_key', 'dressed_block', 'dungeon_scrip', 'duskwood_log',
     /* b432: `ember_rune` / `frost_rune` are the paintings delivered as

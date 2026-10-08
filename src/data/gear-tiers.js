@@ -95,6 +95,32 @@ export const WEAPON_FAMILIES = [
 
 const round5 = (n) => Math.max(1, Math.round(n / 5) * 5);
 
+/* ── THE OFFHAND LINE (content-holes, game-designer 2026-10-08) ─────────
+   EQUIP_SLOTS has carried `shield` since b216 and the paper doll draws it,
+   but no item in the game could fill it — an empty socket on every
+   character sheet. This is its ladder: one kiteshield per material tier,
+   forged at the tier's bar like every plate piece, gated on Defence at the
+   tier's rung (1/15/30/45/60/75/88).
+
+   WHY ONE LINE AND NOT A SEVENTH ARMOUR_SLOTS ROW. slot-ladders.js already
+   ruled this for capes, and the reasons carry over: an ARMOUR_SLOTS row
+   would generate 21 pieces (plate/leather/cloth) AND add a seventh slot to
+   armorSetBonus's 5-of-6 threshold, quietly making every set bonus in the
+   game easier. So the shield carries `armourClass: 'shield'` (outside every
+   set bucket) and NO archetype accuracy penalty: it is the one defence piece
+   a ranger or a mage can carry without paying the plate tax, which is the
+   answer to "why would I choose this" for all three styles.
+
+   THE CURVE is the boots/belt curve — the smallest armour curve in the game —
+   because this is new defence handed to every character at once and the
+   monster table was balanced without it. ~+12% on a full plate set, less on
+   leather and cloth. Uniques (Warband Bulwark, the two raid Aegises) sit a
+   step above their tier's rung. */
+const OFFHAND_LINE = Object.freeze({
+  key: 'kiteshield', slot: 'shield', label: 'Kiteshield', icon: '🛡️',
+  def: [2, 4, 7, 11, 16, 22, 30], bars: 3, vmul: 90, lvOff: 4,
+});
+
 /* ── Armour ARCHETYPES — the combat triangle (b278). ───────────────────────
 
    ── TWO STANDING RULINGS (Tyler, 2026-08-15). DO NOT RE-LITIGATE. ─────────
@@ -209,6 +235,23 @@ export const GEAR_ITEMS = (() => {
       if (fam.weaponType === 'magic')  { item.magicAtkB = fam.atk[i]; item.magicStrB = fam.str[i]; }
       out[fam.ids[i]] = item;
     });
+  });
+
+  // The offhand line — one kiteshield per tier (see OFFHAND_LINE).
+  MATERIAL_TIERS.forEach((mat, i) => {
+    out[mat.id + '_' + OFFHAND_LINE.key] = {
+      n: mat.name + ' ' + OFFHAND_LINE.label,
+      icon: OFFHAND_LINE.icon,
+      v: round5(OFFHAND_LINE.vmul * mat.value),
+      type: 'armor',
+      slot: OFFHAND_LINE.slot,
+      defB: OFFHAND_LINE.def[i],
+      armourClass: 'shield',
+      rarity: mat.rarity,
+      tier: mat.tier,
+      reqSkill: 'defense',
+      reqLv: mat.smith,
+    };
   });
 
   return out;
@@ -372,6 +415,24 @@ export const GEAR_RECIPES = (() => {
         ms: 2400 + mat.tier * 340,
       };
       (fam.mat === 'bar' ? smithing : crafting).push(recipe);
+    });
+  });
+
+  /* The offhand lane, on the plate expression (smith + lvOff, the same xp and
+     duration shape) so the b348 ladder guard reads it like any other lane. */
+  const shieldLane = { key: 'shield/' + OFFHAND_LINE.key, label: OFFHAND_LINE.label, kind: 'armour', skill: 'smithing', rungs: [] };
+  LADDERS.push(shieldLane);
+  MATERIAL_TIERS.forEach((mat) => {
+    const output = mat.id + '_' + OFFHAND_LINE.key;
+    const curveReq = Math.min(99, mat.smith + OFFHAND_LINE.lvOff);
+    shieldLane.rungs.push({ tier: mat.tier, material: mat.name, itemId: output, recipeId: 'forge_' + output, curveReq });
+    const inputs = {}; inputs[mat.bar] = OFFHAND_LINE.bars;
+    smithing.push({
+      id: 'forge_' + output, name: 'Forge ' + mat.name + ' ' + OFFHAND_LINE.label, icon: OFFHAND_LINE.icon,
+      inputs, output,
+      xp: Math.round(20 * OFFHAND_LINE.bars * (1 + mat.tier * 0.85)),
+      req: curveReq,
+      ms: 2400 + mat.tier * 320,
     });
   });
 

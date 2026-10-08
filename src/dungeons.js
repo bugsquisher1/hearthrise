@@ -40,6 +40,7 @@
         { id: 'big_bones', qty: [10, 30], chance: 1.0 },
         { id: 'grave_dust', qty: [1, 3], chance: .85 },
         { id: 'kitchen_blueprint_t2', qty: [1, 1], chance: .12 },
+        { id: 'marrowbone_maul', qty: [1, 1], chance: .06 },
         { id: 'farm_deed', qty: [1, 1], chance: .20 },
       ],
       phases: [
@@ -343,7 +344,7 @@
     { id:'obsidian_sigil', scrip:45 }, { id:'void_fragment', scrip:60 }, { id:'dragonsbane_key', scrip:85 },
     { id:'kitchen_blueprint_t2', scrip:55 }, { id:'forge_blueprint_t2', scrip:55 }, { id:'library_blueprint_t2', scrip:55 }, { id:'trophy_blueprint_t2', scrip:55 },
     { id:'kitchen_blueprint_t3', scrip:160 }, { id:'forge_blueprint_t3', scrip:160 }, { id:'library_blueprint_t3', scrip:160 }, { id:'trophy_blueprint_t3', scrip:160 },
-    { id:'wartusk_cleaver', scrip:150 }, { id:'whispering_codex', scrip:180 }, { id:'ashcrown_greatsword', scrip:340 }, { id:'voidmaw_scepter', scrip:500 }, { id:'dragonfang_pike', scrip:800 },
+    { id:'marrowbone_maul', scrip:110 }, { id:'wartusk_cleaver', scrip:150 }, { id:'whispering_codex', scrip:180 }, { id:'ashcrown_greatsword', scrip:340 }, { id:'voidmaw_scepter', scrip:500 }, { id:'dragonfang_pike', scrip:800 },
   ];
   window.QM_STOCK = QM_STOCK;
   /* Routes through scripOf so the read follows the arm: armed → the server's
@@ -464,7 +465,7 @@
     var groups = [
       { label:'Keys — re-run any dungeon', ids:['bone_key','goblin_seal','arcane_tome','obsidian_sigil','void_fragment','dragonsbane_key'] },
       { label:'Housing blueprints', ids:['kitchen_blueprint_t2','forge_blueprint_t2','library_blueprint_t2','trophy_blueprint_t2','kitchen_blueprint_t3','forge_blueprint_t3','library_blueprint_t3','trophy_blueprint_t3'] },
-      { label:'Signature boss weapons — guaranteed, no RNG', ids:['wartusk_cleaver','whispering_codex','ashcrown_greatsword','voidmaw_scepter','dragonfang_pike'] },
+      { label:'Signature boss weapons — guaranteed, no RNG', ids:['marrowbone_maul','wartusk_cleaver','whispering_codex','ashcrown_greatsword','voidmaw_scepter','dragonfang_pike'] },
     ];
     body.innerHTML = groups.map(function(g){
       var rows = g.ids.map(function(id){

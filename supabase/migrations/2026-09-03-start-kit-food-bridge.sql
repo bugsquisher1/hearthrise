@@ -97,10 +97,15 @@ declare
   v_now text;
   c_before constant text := 'carrot_seed:3,shrimp:8,turnip_seed:5';
   c_after  constant text := 'carrot_seed:3,cooked_shrimp:20,shrimp:10,turnip_seed:5';
+  -- content-holes (2026-10-08) moved the SEEDS (carrot 3 -> turnip +3) and left
+  -- this file's food bridge exactly as ruled. A rebuild applies the regenerated
+  -- catalogue first, so it arrives here already carrying that later kit: a
+  -- graded no-op, not drift. 2026-10-08-content-holes.sql moves production.
+  c_later  constant text := 'cooked_shrimp:20,shrimp:10,turnip_seed:8';
 begin
   select coalesce(string_agg(item_id || ':' || qty::text, ',' order by item_id), '(empty)')
     into v_now from public.hr_start_inventory;
-  if v_now = c_after then
+  if v_now = c_after or v_now = c_later then
     raise notice 'hr_start_inventory already carries the ruled kit — the update below is a no-op';
   elsif v_now <> c_before then
     raise exception 'hr_start_inventory is "%" — neither the pre-audit kit "%" nor the ruled kit "%". '
@@ -126,7 +131,8 @@ declare
 begin
   select coalesce(string_agg(item_id || ':' || qty::text, ',' order by item_id), '(empty)')
     into v_now from public.hr_start_inventory;
-  if v_now <> 'carrot_seed:3,cooked_shrimp:20,shrimp:10,turnip_seed:5' then
+  if v_now not in ('carrot_seed:3,cooked_shrimp:20,shrimp:10,turnip_seed:5',
+                   'cooked_shrimp:20,shrimp:10,turnip_seed:8') then
     raise exception 'VERIFY: the starting kit did not land — %', v_now;
   end if;
 

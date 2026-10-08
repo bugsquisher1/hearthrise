@@ -626,11 +626,11 @@ export default [
       'roasted_carrot','roasted_pumpkin','vegetable_stew',
       'bear_claw_pie','hunters_feast','dragon_stew','lich_soul_soup','void_banquet',
       'bronze_bar','steel_bar','rune_bar', 'chief_blade_recipe','captain_recipe','alpha_pattern',
-      'spellstone_diagram','dragon_marrow_recipe','gemcutter_note', 'soul_recipe','marrow_cookbook','field_cookbook',
+      'spellstone_diagram','gemcutter_note', 'soul_recipe','marrow_cookbook','field_cookbook',
     ];
     const missing = required.filter(id => !window.ITEMS || !window.ITEMS[id]);
     assert(missing.length === 0,
-      'expected all 26 Phase A.1 items present, missing: ' + missing.join(','));
+      'expected all 25 Phase A.1 items present (dragon_marrow_recipe retired 2026-10-08), missing: ' + missing.join(','));
     // Non-zero values where expected
     assert(window.ITEMS.bronze_bar.v > 0, 'bronze_bar.v should be > 0');
     assert(window.ITEMS.steel_bar.v > 0, 'steel_bar.v should be > 0');

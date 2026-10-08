@@ -259,11 +259,18 @@ export const STONECRAFT_ITEMS = {
 
      `strB` only — see the stat-curve note above. */
   coarse_whetstone:  { n: 'Coarse Whetstone',   icon: '🪨', v: 4,   type: 'ammo', slot: 'ammo', tier: 1, rarity: AMMO_RARITY[0], reqSkill: 'attack', reqLv: AMMO_REQ_LV[0], strB: AMMO_STAT[0], ammoPerShot: FREE },
-  copper_whetstone:  { n: 'Copper Whetstone',   icon: '🪨', v: 15,  type: 'ammo', slot: 'ammo', tier: 2, rarity: AMMO_RARITY[1], reqSkill: 'attack', reqLv: AMMO_REQ_LV[1], strB: AMMO_STAT[1], ammoPerShot: 0.02 },
-  iron_whetstone:    { n: 'Iron Whetstone',     icon: '🪨', v: 48,  type: 'ammo', slot: 'ammo', tier: 3, rarity: AMMO_RARITY[2], reqSkill: 'attack', reqLv: AMMO_REQ_LV[2], strB: AMMO_STAT[2], ammoPerShot: 0.02 },
-  steel_whetstone:   { n: 'Steel Whetstone',    icon: '🪨', v: 108, type: 'ammo', slot: 'ammo', tier: 4, rarity: AMMO_RARITY[3], reqSkill: 'attack', reqLv: AMMO_REQ_LV[3], strB: AMMO_STAT[3], ammoPerShot: 0.02 },
-  mithril_whetstone: { n: 'Mithril Whetstone',  icon: '🪨', v: 190, type: 'ammo', slot: 'ammo', tier: 5, rarity: AMMO_RARITY[4], reqSkill: 'attack', reqLv: AMMO_REQ_LV[4], strB: AMMO_STAT[4], ammoPerShot: 0.02 },
-  rune_whetstone:    { n: 'Rune Whetstone',     icon: '🪨', v: 365, type: 'ammo', slot: 'ammo', tier: 6, rarity: AMMO_RARITY[5], reqSkill: 'attack', reqLv: AMMO_REQ_LV[5], strB: AMMO_STAT[5], ammoPerShot: 0.02 },
+  /* content-holes (2026-10-08) — THE LADDER WAS ONE MATERIAL OFF. Tier 2 was
+     "Copper", tier 3 "Iron" … tier 6 "Rune", so every whetstone was named (and
+     forged) one rung below the sword it sharpens, and Emberforged — tier 6 of
+     every other ladder — was missing. The rungs now carry their tier's bar and
+     name: Iron 2, Steel 3, Mithril 4, Rune 5, Emberforged 6. The STAT and GATE
+     columns did not move (they are the tier's); values are re-derived on the
+     same 1.8-1.9x rule against the new bars. The Copper id is retired. */
+  iron_whetstone:    { n: 'Iron Whetstone',     icon: '🪨', v: 25,  type: 'ammo', slot: 'ammo', tier: 2, rarity: AMMO_RARITY[1], reqSkill: 'attack', reqLv: AMMO_REQ_LV[1], strB: AMMO_STAT[1], ammoPerShot: 0.02 },
+  steel_whetstone:   { n: 'Steel Whetstone',    icon: '🪨', v: 65,  type: 'ammo', slot: 'ammo', tier: 3, rarity: AMMO_RARITY[2], reqSkill: 'attack', reqLv: AMMO_REQ_LV[2], strB: AMMO_STAT[2], ammoPerShot: 0.02 },
+  mithril_whetstone: { n: 'Mithril Whetstone',  icon: '🪨', v: 160, type: 'ammo', slot: 'ammo', tier: 4, rarity: AMMO_RARITY[3], reqSkill: 'attack', reqLv: AMMO_REQ_LV[3], strB: AMMO_STAT[3], ammoPerShot: 0.02 },
+  rune_whetstone:    { n: 'Rune Whetstone',     icon: '🪨', v: 280, type: 'ammo', slot: 'ammo', tier: 5, rarity: AMMO_RARITY[4], reqSkill: 'attack', reqLv: AMMO_REQ_LV[4], strB: AMMO_STAT[4], ammoPerShot: 0.02 },
+  ember_whetstone:   { n: 'Emberforged Whetstone', icon: '🪨', v: 420, type: 'ammo', slot: 'ammo', tier: 6, rarity: AMMO_RARITY[5], reqSkill: 'attack', reqLv: AMMO_REQ_LV[5], strB: AMMO_STAT[5], ammoPerShot: 0.02 },
   dawn_whetstone:    { n: 'Dawnsteel Whetstone',icon: '🪨', v: 990, type: 'ammo', slot: 'ammo', tier: 7, rarity: AMMO_RARITY[6], reqSkill: 'attack', reqLv: AMMO_REQ_LV[6], strB: AMMO_STAT[6], ammoPerShot: 0.02 },
 
   /* ══ CASTLE — the other half of Stonemason, and why Tyler wanted it ══════
@@ -325,9 +332,14 @@ export const STONECRAFT_RECIPES = {
     { id: 'bind_water_runes',   name: 'Bind Water Runes',     icon: '💧', inputs: { rune_blank: 6, coal: 1 },     output: 'water_rune', outputQty: 48, xp: 185,  req: 30, ms: 3600 },
     { id: 'deepbind_water',     name: 'Deepbind Water Runes', icon: '💧', inputs: { rune_blank: 7, coal: 1 },     output: 'water_rune', outputQty: 60, xp: 330, req: 39, ms: 3800 },
     { id: 'bind_fire_runes',    name: 'Bind Fire Runes',      icon: '🔥', inputs: { fine_rune_blank: 6, coal: 1 },output: 'fire_rune',  outputQty: 50, xp: 500, req: 45, ms: 3800 },
+    /* content-holes (2026-10-08): Runecrafting was empty from 45 to 60 and from
+       75 to 88. Fire and Death get the "deepbind" rung earth, water, chaos and
+       blood already have (one more blank, ~20% more runes, more xp). */
+    { id: 'deepbind_fire',      name: 'Deepbind Fire Runes',  icon: '🔥', inputs: { fine_rune_blank: 7, coal: 1 },output: 'fire_rune',  outputQty: 61, xp: 720,  req: 52, ms: 4000 },
     { id: 'bind_chaos_runes',   name: 'Bind Chaos Runes',     icon: '🌪️', inputs: { fine_rune_blank: 6 },         output: 'chaos_rune', outputQty: 54, xp: 940, req: 60, ms: 4000 },
     { id: 'deepbind_chaos',     name: 'Deepbind Chaos Runes', icon: '🌪️', inputs: { fine_rune_blank: 7 },         output: 'chaos_rune', outputQty: 64, xp: 1400, req: 69, ms: 4200 },
     { id: 'bind_death_runes',   name: 'Bind Death Runes',     icon: '💀', inputs: { deep_rune_blank: 6 },         output: 'death_rune', outputQty: 56, xp: 1500, req: 75, ms: 4200 },
+    { id: 'deepbind_death',     name: 'Deepbind Death Runes', icon: '💀', inputs: { deep_rune_blank: 7 },         output: 'death_rune', outputQty: 66, xp: 1850, req: 81, ms: 4400 },
     { id: 'bind_blood_runes',   name: 'Bind Blood Runes',     icon: '🩸', inputs: { deep_rune_blank: 6 },         output: 'blood_rune', outputQty: 58, xp: 2200,req: 88, ms: 4400 },
     { id: 'deepbind_blood',     name: 'Deepbind Blood Runes', icon: '🩸', inputs: { deep_rune_blank: 7 },         output: 'blood_rune', outputQty: 68, xp: 2900,req: 93, ms: 4600 },
 
@@ -437,6 +449,12 @@ export const STONECRAFT_RECIPES = {
     { id: 'split_rune_blanks', name: 'Split Blank Runes',    icon: '⬜', inputs: { dressed_block: 3 },                       output: 'rune_blank',      outputQty: 20, xp: 92,  req: 22, ms: 3000 },
     { id: 'cut_fine_blanks',   name: 'Cut Fine Blank Runes', icon: '🔲', inputs: { granite_block: 2, dressed_block: 2 },     output: 'fine_rune_blank', outputQty: 14, xp: 400, req: 38, ms: 3400 },
     { id: 'cut_deep_blanks',   name: 'Cut Deep Blank Runes', icon: '🔳', inputs: { basalt_block: 3, magic_essence: 1 },      output: 'deep_rune_blank', outputQty: 20, xp: 1500, req: 74, ms: 4000 },
+    /* content-holes (2026-10-08): Stonemason had nothing new from 46 to 60 and
+       from 76 to 91. The base blank already has a "split" rung (22) that is
+       better per block and per action than the cut; the fine and deep blanks
+       now get theirs, at the middle of each empty stretch. */
+    { id: 'split_fine_blanks', name: 'Split Fine Blank Runes', icon: '🔲', inputs: { granite_block: 3, dressed_block: 3 },   output: 'fine_rune_blank', outputQty: 24, xp: 640,  req: 53, ms: 3600 },
+    { id: 'split_deep_blanks', name: 'Split Deep Blank Runes', icon: '🔳', inputs: { basalt_block: 4, magic_essence: 1 },    output: 'deep_rune_blank', outputQty: 30, xp: 2200, req: 84, ms: 4400 },
 
     /* ── THE WHETSTONE LANE — melee's supply. Batches of 10 against a burn of
        ~30/hour, so one action covers twenty minutes of swinging. Every rung's
@@ -445,11 +463,11 @@ export const STONECRAFT_RECIPES = {
        have been a 3.03x gold printer, and the constraint caught it, which is
        why it is written down as arithmetic rather than as a table. */
     { id: 'grind_coarse_whetstone',  name: 'Grind Coarse Whetstones',   icon: '🪨', inputs: { dressed_block: 1 },                      output: 'coarse_whetstone',  outputQty: 10, xp: 19,    req: 6,  ms: 2600 },
-    { id: 'grind_copper_whetstone',  name: 'Grind Copper Whetstones',   icon: '🪨', inputs: { dressed_block: 2, copper_bar: 1 },       output: 'copper_whetstone',  outputQty: 10, xp: 70,   req: 16, ms: 2900 },
-    { id: 'grind_iron_whetstone',    name: 'Grind Iron Whetstones',     icon: '🪨', inputs: { dressed_block: 3, iron_bar: 2 },         output: 'iron_whetstone',    outputQty: 10, xp: 168,   req: 31, ms: 3200 },
-    { id: 'grind_steel_whetstone',   name: 'Grind Steel Whetstones',    icon: '🪨', inputs: { granite_block: 3, steel_bar: 2 },        output: 'steel_whetstone',   outputQty: 10, xp: 500,  req: 46, ms: 3600 },
-    { id: 'grind_mithril_whetstone', name: 'Grind Mithril Whetstones',  icon: '🪨', inputs: { granite_block: 4, mithril_bar: 1 },      output: 'mithril_whetstone', outputQty: 10, xp: 1000,  req: 61, ms: 4000 },
-    { id: 'grind_rune_whetstone',    name: 'Grind Rune Whetstones',     icon: '🪨', inputs: { basalt_block: 3, rune_bar: 1 },          output: 'rune_whetstone',    outputQty: 10, xp: 1600,  req: 76, ms: 4400 },
+    { id: 'grind_iron_whetstone',    name: 'Grind Iron Whetstones',     icon: '🪨', inputs: { dressed_block: 2, iron_bar: 1 },         output: 'iron_whetstone',    outputQty: 10, xp: 70,   req: 16, ms: 2900 },
+    { id: 'grind_steel_whetstone',   name: 'Grind Steel Whetstones',    icon: '🪨', inputs: { dressed_block: 3, steel_bar: 2 },        output: 'steel_whetstone',   outputQty: 10, xp: 168,  req: 31, ms: 3200 },
+    { id: 'grind_mithril_whetstone', name: 'Grind Mithril Whetstones',  icon: '🪨', inputs: { granite_block: 3, mithril_bar: 1 },      output: 'mithril_whetstone', outputQty: 10, xp: 500,  req: 46, ms: 3600 },
+    { id: 'grind_rune_whetstone',    name: 'Grind Rune Whetstones',     icon: '🪨', inputs: { granite_block: 4, rune_bar: 1 },         output: 'rune_whetstone',    outputQty: 10, xp: 1000, req: 61, ms: 4000 },
+    { id: 'grind_ember_whetstone',   name: 'Grind Emberforged Whetstones', icon: '🪨', inputs: { basalt_block: 3, ember_bar: 1 },     output: 'ember_whetstone',   outputQty: 10, xp: 1600, req: 76, ms: 4400 },
     { id: 'grind_dawn_whetstone',    name: 'Grind Dawnsteel Whetstones',icon: '🪨', inputs: { basalt_block: 4, dawn_bar: 1 },          output: 'dawn_whetstone',    outputQty: 10, xp: 3000, req: 91, ms: 4800 },
 
     /* ── THE CASTLE LANE. `craft_keystone` is adopted here from Crafting with

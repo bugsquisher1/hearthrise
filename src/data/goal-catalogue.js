@@ -92,7 +92,11 @@ export const QUEST_REWARDS = Object.freeze({
      QUEST_DEFS at render/grade time, `progress` is the save field, and a save
      already carrying progress ≥ 6 completes on its next harvest tick rather
      than re-granting (ensureRetentionState merges BY ID and keeps `done`). */
-  farmhand:    { checkKey: 'ev:harvest',  goal: 6,  gold: 500, items: Object.freeze({ wheat_seed: 5 }) },
+  /* content-holes (2026-10-08): paid wheat_seed (Farming 20) to a player six
+     harvests in — around Farming 8 — so the reward sat in the bag for a week.
+     Carrot (Farming 10) is the next crop that player can actually plant, and it
+     is the rung the start kit no longer hands out early. */
+  farmhand:    { checkKey: 'ev:harvest',  goal: 6,  gold: 500, items: Object.freeze({ carrot_seed: 5 }) },
   /* ── JOURNEYMAN'S ROAD (content pack 7; 2026-09-28-journeymans-road.sql) ──
      The day-2 chain, legacy.js QUEST_DEFS `chain:'road'`. Same two tests as
      every row above: a lifetime ev:<type> the server already keeps, and a fixed

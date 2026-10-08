@@ -99,7 +99,9 @@ export const PENDING_SYSTEMS = Object.freeze({
         + 'storage" bug in a new coat.',
   },
   tool_ladder: {
-    live: false,
+    /* content-holes (2026-10-08): CLOSED — the three rules forge at Smithing
+       5 / 35 / 90 (src/data/recipes.js), on the hammer/needle/knife ladder. */
+    live: true,
     owner: 'game-designer',
     note: 'The Stonemason tool ladder (mason\'s rules) was catalogued with the '
         + 'item wave but its recipes were not authored with the skill. Three '
@@ -182,4 +184,19 @@ export function effectsAreLive(item) {
 /** Kinds an item declares that no engine reads yet. Empty = fully playable. */
 export function dormantEffects(item) {
   return ((item && item.effects) || []).filter((k) => !(EFFECT_KINDS[k] && EFFECT_KINDS[k].live));
+}
+
+/**
+ * Is this item held back by one of the three hatches — an unbuilt effect, an
+ * absent skill, or an unbuilt system? The ONE predicate for "catalogued, not
+ * obtainable" (content-holes, 2026-10-08). The collection log counts only items
+ * for which this is false, so its total is a number a player can actually reach;
+ * the b243 reachability guard exempts exactly the same set.
+ * `skills` is SKILLS_DEF (passed in: this module stays data-only).
+ */
+export function isItemDormant(item, skills) {
+  if (!item) return false;
+  if (item.pendingSkill && !(skills && skills[item.pendingSkill])) return true;
+  if (item.pendingSystem && PENDING_SYSTEMS[item.pendingSystem] && !PENDING_SYSTEMS[item.pendingSystem].live) return true;
+  return dormantEffects(item).length > 0;
 }

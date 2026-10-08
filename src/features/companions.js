@@ -68,7 +68,9 @@ function companionIconHtml(id, px) {
    b499: hoisted to module scope (verbatim) because the REFUSAL copy needs the
    same item humaniser — `missing_req_item` names the item the server wanted,
    and `dragon_egg` is exactly the id with no ITEMS row. Two copies of this
-   would drift the moment one of them learned about a new catalogue. */
+   would drift the moment one of them learned about a new catalogue.
+   content-holes (2026-10-08): `dragon_egg` HAS an ITEMS row now (and a drop);
+   the fallback stays, because the next hatch source will start the same way. */
 const titleizeId = (id) => String(id || '')
   .split(/[_\-:]/).filter(Boolean)
   .map((w) => w[0].toUpperCase() + w.slice(1))
@@ -254,7 +256,7 @@ export function unlockCompanion(id, onUnlocked) {
 /* The local half of an acquisition — VERBATIM the body unlockCompanion used to
    have, minus the transport. Extracted so the armed path can run exactly the
    same writes a beat later, rather than growing a second (drifting) copy. */
-function applyUnlockLocally(id, onUnlocked) {
+function applyUnlockLocally(id, onUnlocked, res) {
   window.G.companions.ownedIds.push(id);
   window.G.companions.xp[id] = 0;
   if (typeof window.notify === 'function') {
@@ -264,7 +266,9 @@ function applyUnlockLocally(id, onUnlocked) {
     window.notify(`Companion unlocked: ${COMPANIONS[id].n}`, 'loot');
   }
   emit('companionUnlock', { id });
-  if (typeof onUnlocked === 'function') { try { onUnlocked(id); } catch (e) {} }
+  /* `res` is the server's verdict when there was one (armed path), so a
+     caller can mirror exactly what the server moved — never predict it. */
+  if (typeof onUnlocked === 'function') { try { onUnlocked(id, res || null); } catch (e) {} }
 }
 
 /* ── SERVER TRANSPORT (companion-grant) — persist a NON-SHOP acquisition ──────
@@ -507,7 +511,7 @@ export function requestServerUnlock(id, onUnlocked) {
       const owned = !!(w.G && w.G.companions
         && Array.isArray(w.G.companions.ownedIds)
         && w.G.companions.ownedIds.includes(id));
-      if (!owned) applyUnlockLocally(id, onUnlocked);
+      if (!owned) applyUnlockLocally(id, onUnlocked, res);
       return true;
     }
     /* REFUSED. Nothing was written: no ownedIds push, no xp row, no toast, no
@@ -730,8 +734,16 @@ function wireDragonEggHatch() {
              same transaction in which the server consumes its own copy of the
              egg. It also stops a second egg being burnt for a Whelp already
              owned, which the old order did silently. */
-          unlockCompanion('whelp', function () {
-            if (window.G?.inventory?.dragon_egg > 0) window.G.inventory.dragon_egg--;
+          /* content-holes (2026-10-08) — THE EGG MOVES ONLY AS THE SERVER MOVED IT.
+             The callback used to decrement unconditionally. hr_companion_grant
+             answers `already_owned:true` WITHOUT consuming (2026-09-06 hardening:
+             "a success that consumes NO req_item"), so a Whelp the server already
+             had — granted from another tab, or reconciled in late — cost the bag
+             an egg the server still holds: the browser said 0, the server said 1.
+             The bag now mirrors the verdict's own `egg_consumed`, and the next
+             envelope restates the inventory either way. */
+          unlockCompanion('whelp', function (_id, res) {
+            if (res && res.egg_consumed === true && window.G?.inventory?.dragon_egg > 0) window.G.inventory.dragon_egg--;
             if (typeof window.renderInvFancy === 'function') window.renderInvFancy();
           });
         });

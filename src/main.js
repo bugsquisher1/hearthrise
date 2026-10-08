@@ -45,7 +45,7 @@ import { RAID_BOSSES } from './data/raid-bosses.js?v=564';
    what the reachability guard reads to decide whether an item is legitimately
    not-yet-obtainable; `LIB2_ICON_FILES` is the art batch's work order. Both are
    plain data with no legacy twin, so no unify is needed. */
-import { EFFECT_KINDS, PENDING_SYSTEMS, effectsAreLive, dormantEffects } from './data/item-effects.js?v=564';
+import { EFFECT_KINDS, PENDING_SYSTEMS, effectsAreLive, dormantEffects, isItemDormant } from './data/item-effects.js?v=564';
 import { LIB2_ICON_FILES } from './data/library2-items.js?v=564';
 import { BOSSES, BOSS_BY_DUNGEON } from './data/bosses.js?v=564';
 /* R1/R5 — the monotonic predicted-vs-confirmed DISPLAY seam. A CLIENT-display
@@ -142,7 +142,7 @@ Object.assign(window, {
   EQUIP_SLOTS:     unifyArray('EQUIP_SLOTS', EQUIP_SLOTS),
   ARTISAN_RECIPES, COMPANIONS,
   // b356 — see src/data/item-effects.js for what these guard.
-  HearthriseItemEffects: { EFFECT_KINDS, PENDING_SYSTEMS, effectsAreLive, dormantEffects, LIB2_ICON_FILES },
+  HearthriseItemEffects: { EFFECT_KINDS, PENDING_SYSTEMS, effectsAreLive, dormantEffects, isItemDormant, LIB2_ICON_FILES },
   // b281 — the canonical data-driven boss registry (data/bosses.js). A new global
   // object, so no merge needed; surfaces read boss identity/weakness/mechanic by id.
   BOSSES, BOSS_BY_DUNGEON,

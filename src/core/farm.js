@@ -36,7 +36,9 @@ export const PLOT_TIERS = [
      were in no tier, so farming's last 37 levels had nothing new to plant even
      at max plot level. Goldenroot lands at Lv 4; Lv 5 finally earns its 8 deeds. */
   { unlocks: ['turnip', 'carrot', 'wheat', 'potato', 'tomato', 'pumpkin', 'goldenroot'], cost: 5 },
-  { unlocks: ['turnip', 'carrot', 'wheat', 'potato', 'tomato', 'pumpkin', 'goldenroot', 'emberfruit', 'moonbloom'], cost: 8 },
+  /* content-holes (2026-10-08): Dawnbloom (Farming 95) joins the top tier
+     beside Moonbloom — the farm's last rung belongs on its last plot level. */
+  { unlocks: ['turnip', 'carrot', 'wheat', 'potato', 'tomato', 'pumpkin', 'goldenroot', 'emberfruit', 'moonbloom', 'dawnbloom'], cost: 8 },
 ];
 export const MAX_PLOT_LEVEL = PLOT_TIERS.length - 1; // 5
 

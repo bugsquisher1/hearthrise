@@ -7,8 +7,8 @@
 --   and FAILS `node tools/gen-farm-catalogues.mjs --check` (a preflight in
 --   tests/run-smoke.mjs).
 --
---   farm-catalogue digest: 9ecf382fe29a014be55a52f56a339566507c365e161d29822f450cf35262d768
---   9 crops (2 finite perennials) · 9 crop plot-tiers · 5 plot levels · 8 yield perks
+--   farm-catalogue digest: e628cd65282e752cf9893d341112e836c00079d83659fb18c95fc62444e304ab
+--   10 crops (2 finite perennials) · 10 crop plot-tiers · 5 plot levels · 8 yield perks
 --
 -- Read by hr_farm_plant / hr_farm_harvest / hr_farm_water / hr_farm_upgrade_plot
 -- (2026-08-22-server-farming-complete.sql). Numbers only; no client value
@@ -33,6 +33,7 @@ alter table public.hr_crops add column if not exists regrow_limit int not null d
 update public.hr_crops as k set regrow_limit = v.lim
   from (values
   ('carrot', 0),
+  ('dawnbloom', 0),
   ('emberfruit', 4),
   ('goldenroot', 0),
   ('moonbloom', 0),
@@ -85,6 +86,7 @@ end $$;
 truncate table public.hr_crop_plot_tier;
 insert into public.hr_crop_plot_tier (crop_id, plot_tier) values
   ('carrot', 2),
+  ('dawnbloom', 5),
   ('emberfruit', 5),
   ('goldenroot', 4),
   ('moonbloom', 5),
@@ -118,7 +120,7 @@ do $$
 declare v_n int; v_bad int;
 begin
   select count(*) into v_n from public.hr_crop_plot_tier;
-  if v_n <> 9 then raise exception 'hr_crop_plot_tier has % rows, expected 9', v_n; end if;
+  if v_n <> 10 then raise exception 'hr_crop_plot_tier has % rows, expected 10', v_n; end if;
   select count(*) into v_n from public.hr_plot_tier;
   if v_n <> 5 then raise exception 'hr_plot_tier has % rows, expected 5', v_n; end if;
   select count(*) into v_n from public.hr_farm_yield_perk;

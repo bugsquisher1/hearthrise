@@ -127,7 +127,7 @@ export const MONSTERS = {
       { id: 'adept_body', ch: .0006, lucky: true }] },
   cutpurse: { name: 'Cutpurse', icon: '🎭', tier: 1, cls: 'human', family: 'Human',
     hp: 11, atk: 4, def: 0, xp: 10, gp: [2, 6],
-    drops: [{ id: 'rat_tail', ch: .2 }, { id: 'copper_ore', ch: .2 }, { id: 'bones', ch: .4 },
+    drops: [{ id: 'rat_tail', ch: .2 }, { id: 'copper_ore', ch: .2 }, { id: 'bones', ch: .4 }, { id: 'cutpurse_gloves', ch: .003 },
       { id: 'apprentice_gloves', ch: .004, salvage: true }] },
   /* FOLD-05: display rename only. "Weak" is a stat; "Brittle" is a description
      a player reads as fragile without being told it is the tutorial version. */
@@ -253,7 +253,7 @@ export const MONSTERS = {
       { id: 'boarhide_belt', ch: .0035, salvage: true }] },
   dire_wolf: { name: 'Dire Wolf', icon: '🐺', tier: 3, cls: 'mammal', family: 'Mammal',
     hp: 62, atk: 19, def: 7, xp: 100, gp: [16, 40],
-    drops: [{ id: 'wolf_pelt', ch: .9 }, { id: 'dire_fang', ch: .35 }, { id: 'alpha_fang', ch: .015 }, { id: 'raw_wolf_meat', ch: .8 },
+    drops: [{ id: 'wolf_pelt', ch: .9 }, { id: 'dire_fang', ch: .35 }, { id: 'alpha_fang', ch: .015 }, { id: 'raw_wolf_meat', ch: .8 }, { id: 'hunters_torc', ch: .002 },
       { id: 'boarhide_boots', ch: .0035, salvage: true }] },
   bog_vine: { name: 'Bog Vine', icon: '🌿', tier: 3, cls: 'plant', family: 'Plant',
     hp: 70, atk: 16, def: 10, xp: 104, gp: [17, 42],
@@ -415,7 +415,7 @@ export const MONSTERS = {
   ice_elemental: { name: 'Ice Elemental', icon: '❄️', tier: 4, cls: 'elemental', family: 'Elemental',
     elementWeak: 'ember', elementImmune: ['frost'],
     hp: 128, atk: 33, def: 17, xp: 270, gp: [46, 100],
-    drops: [{ id: 'frostfin', ch: .5 }, { id: 'magic_essence', ch: .5 }, { id: 'mithril_ore', ch: .08 }] },
+    drops: [{ id: 'frostfin', ch: .5 }, { id: 'magic_essence', ch: .5 }, { id: 'mithril_ore', ch: .08 }, { id: 'frost_locket', ch: .002 }] },
   watchknight: { name: 'Watchknight', icon: '🛡️', tier: 4, cls: 'construct', family: 'Construct',
     /* empty armour: kill it and you get the armour. */
     hp: 164, atk: 27, def: 22, xp: 262, gp: [45, 98],
@@ -454,7 +454,7 @@ export const MONSTERS = {
        weakness at all, which is why the art carries no accent. */
     elementWeak: null, elementResist: ['ember', 'poison'],
     hp: 222, atk: 57, def: 30, xp: 548, gp: [110, 232],
-    drops: [{ id: 'yew_log', ch: .7 }, { id: 'moonbloom', ch: .5 }, { id: 'runewood_log', ch: .1 }, { id: 'goldenroot', ch: .55 }] },
+    drops: [{ id: 'yew_log', ch: .7 }, { id: 'moonbloom', ch: .5 }, { id: 'runewood_log', ch: .1 }, { id: 'goldenroot', ch: .55 }, { id: 'dawnbloom_seed', ch: .03 }] },
   warband_captain: { name: 'Warband Captain', icon: '🛡️', tier: 5, cls: 'humanoid', family: 'Humanoid',
     hp: 230, atk: 54, def: 34, xp: 540, gp: [110, 225],
     drops: [{ id: 'warlord_badge', ch: .4 }, { id: 'captain_medal', ch: .12 }, { id: 'rune_sword', ch: .006 }, { id: 'captain_recipe', ch: .03 }, { id: 'obsidian_sigil', ch: .07 }] },
@@ -505,7 +505,7 @@ export const MONSTERS = {
     /* breathes neither, so Poison is its answer (art sheet §0.2). */
     elementWeak: 'poison',
     hp: 234, atk: 58, def: 34, xp: 572, gp: [116, 240],
-    drops: [{ id: 'dragon_scale', ch: .8 }, { id: 'dragon_bones', ch: .6 }, { id: 'mithril_ore', ch: .3 }, { id: 'steel_bar', ch: .4 },
+    drops: [{ id: 'dragon_scale', ch: .8 }, { id: 'dragon_bones', ch: .6 }, { id: 'mithril_ore', ch: .3 }, { id: 'steel_bar', ch: .4 }, { id: 'dragon_egg', ch: .001 },
       { id: 'yew_bow', ch: .0006, lucky: true }] },
   magma_elemental: { name: 'Magma Elemental', icon: '🌋', tier: 5, cls: 'elemental', family: 'Elemental',
     elementWeak: 'frost', elementImmune: ['ember'],
@@ -540,7 +540,7 @@ export const MONSTERS = {
       { id: 'chitinweave_cloak', ch: .0007, lucky: true }] },
   treant: { name: 'Treant', icon: '🌲', tier: 6, cls: 'plant', family: 'Plant', boss: true,
     hp: 512, atk: 78, def: 60, xp: 1060, gp: [258, 528],
-    drops: [{ id: 'duskwood_log', ch: .6 }, { id: 'runewood_log', ch: .35 }, { id: 'timber_beam', ch: .3 }, { id: 'moonbloom', ch: .7 }, { id: 'yew_log', ch: 1 }] },
+    drops: [{ id: 'duskwood_log', ch: .6 }, { id: 'runewood_log', ch: .35 }, { id: 'timber_beam', ch: .3 }, { id: 'moonbloom', ch: .7 }, { id: 'yew_log', ch: 1 }, { id: 'dawnbloom_seed', ch: .25 }, { id: 'heartwood_cape', ch: .001 }] },
   war_king: { name: 'War King', icon: '👑', tier: 6, cls: 'humanoid', family: 'Humanoid',
     hp: 420, atk: 88, def: 58, xp: 1050, gp: [260, 520],
     drops: [{ id: 'captain_medal', ch: .35 }, { id: 'war_crown', ch: .08 }, { id: 'chief_blade', ch: .012 }] },
@@ -570,7 +570,7 @@ export const MONSTERS = {
     drops: [{ id: 'lich_soul', ch: .5 }, { id: 'death_steel', ch: .5 }, { id: 'hollow_sigil', ch: .06 }, { id: 'big_bones', ch: 1 }, { id: 'vamp_dust', ch: .4 }] },
   vharek: { name: 'Vharek', icon: '😈', tier: 6, cls: 'demon', family: 'Demon', boss: true,
     hp: 496, atk: 97, def: 57, xp: 1175, gp: [294, 620],
-    drops: [{ id: 'demon_shard', ch: 1 }, { id: 'hell_ember', ch: .3 }, { id: 'death_steel', ch: .35 }, { id: 'ember_bar', ch: .4 }, { id: 'hollow_sigil', ch: .04 }] },
+    drops: [{ id: 'demon_shard', ch: 1 }, { id: 'hell_ember', ch: .3 }, { id: 'death_steel', ch: .35 }, { id: 'ember_bar', ch: .4 }, { id: 'hollow_sigil', ch: .04 }, { id: 'pitlord_irons', ch: .001 }] },
   /* b343: `gemcutter_note` now drops — same b145 story as spellstone_diagram
      above. Its target, `dragon_gem_earrings`, is the first item in the game's
      history that can fill the `earrings` slot. */
@@ -579,18 +579,17 @@ export const MONSTERS = {
     elementWeak: 'frost', elementImmune: ['ember'],
     dropBonus: 1.15,
     hp: 520, atk: 105, def: 62, xp: 1250, gp: [320, 700],
-    drops: [{ id: 'dragon_bones', ch: 1 }, { id: 'dragon_scale', ch: .5 }, { id: 'dragon_gem', ch: .02 }, { id: 'ancient_claw', ch: .08 }, { id: 'marrow_cookbook', ch: .005 }, { id: 'gemcutter_note', ch: .005 }, { id: 'dragonsbane_key', ch: .30 }] },
+    drops: [{ id: 'dragon_bones', ch: 1 }, { id: 'dragon_scale', ch: .5 }, { id: 'dragon_gem', ch: .02 }, { id: 'ancient_claw', ch: .08 }, { id: 'marrow_cookbook', ch: .005 }, { id: 'gemcutter_note', ch: .005 }, { id: 'dragonsbane_key', ch: .30 }, { id: 'dragon_egg', ch: .002 }] },
   draconia: { name: 'Draconia', icon: '🐉', tier: 6, cls: 'dragon', family: 'Dragon', boss: true,
     /* breathes Frost: Frost-resistant, Ember-weak. Ashwing's mirror. */
     elementWeak: 'ember', elementResist: ['frost'],
     hp: 484, atk: 99, def: 55, xp: 1198, gp: [300, 646],
-    drops: [{ id: 'dragon_bones', ch: 1 }, { id: 'dragon_scale', ch: .8 }, { id: 'dragon_gem', ch: .05 }, { id: 'ancient_claw', ch: .2 }, { id: 'alpha_pattern', ch: .03 },
+    drops: [{ id: 'dragon_bones', ch: 1 }, { id: 'dragon_scale', ch: .8 }, { id: 'dragon_gem', ch: .05 }, { id: 'ancient_claw', ch: .2 }, { id: 'alpha_pattern', ch: .03 }, { id: 'draconias_jaw', ch: .001 },
       { id: 'dragonrib_bow', ch: .0008, lucky: true }] },
-    /* NOTE: `dragon_marrow_recipe` was the obvious flavour drop here and is
-       deliberately NOT wired — its target item (`dragonbone_spear`) does not
-       exist, and the b145 rule is that a recipe unlocking nothing is a
-       confusing dead end. It is a HOOK for the itemisation wave, not an
-       omission. The b227 guard fails the build if it is added early. */
+    /* `dragon_marrow_recipe` (a scroll for a `dragonbone_spear` that never
+       existed) was retired by the content-holes pass, 2026-10-08: a recipe
+       that unlocks nothing is a dead end, and its hook had waited since b145.
+       Draconia's own prize is now Draconia's Jaw above. */
   ashwing: { name: 'Ashwing', icon: '🔥', tier: 6, cls: 'dragon', family: 'Dragon', boss: true,
     /* Draconia's opposite — one weekly rotation slot, two opposite loadouts. */
     elementWeak: 'frost', elementResist: ['ember'],
@@ -610,7 +609,7 @@ export const MONSTERS = {
       { id: 'emberfang_blade', ch: .0008, lucky: true }] },
   iron_colossus: { name: 'Iron Colossus', icon: '⚙️', tier: 6, cls: 'construct', family: 'Construct', boss: true,
     hp: 518, atk: 80, def: 62, xp: 1075, gp: [264, 544],
-    drops: [{ id: 'rune_bar', ch: .35 }, { id: 'mithril_bar', ch: .7 }, { id: 'keystone', ch: .25 }, { id: 'iron_fitting', ch: 1 }, { id: 'death_steel', ch: .2 }] },
+    drops: [{ id: 'rune_bar', ch: .35 }, { id: 'mithril_bar', ch: .7 }, { id: 'keystone', ch: .25 }, { id: 'iron_fitting', ch: 1 }, { id: 'death_steel', ch: .2 }, { id: 'colossus_plate', ch: .001 }] },
   void_parasite: { name: 'Void Parasite', icon: '🪱', tier: 6, cls: 'extradimensional', family: 'Extra Dimensional',
     elementWeak: 'poison', elementResist: ['ember', 'frost'],
     hp: 340, atk: 82, def: 42, xp: 900, gp: [210, 420],
@@ -626,7 +625,7 @@ export const MONSTERS = {
     /* the endgame's actual final boss, which the game did not have. */
     elementWeak: 'ember', elementResist: ['frost', 'poison'],
     hp: 508, atk: 104, def: 59, xp: 1248, gp: [318, 698],
-    drops: [{ id: 'void_core', ch: .12 }, { id: 'void_chitin', ch: 1 }, { id: 'hollow_sigil', ch: .1 }, { id: 'ancient_rune', ch: .5 }, { id: 'dawnstone_ore', ch: .15 }] },
+    drops: [{ id: 'void_core', ch: .12 }, { id: 'void_chitin', ch: 1 }, { id: 'hollow_sigil', ch: .1 }, { id: 'ancient_rune', ch: .5 }, { id: 'dawnstone_ore', ch: .15 }, { id: 'unlit_earrings', ch: .001 }] },
 };
 
 /* SEAL: write each class's profile onto its members, so `m.weaponWeak` is a

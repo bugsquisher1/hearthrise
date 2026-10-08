@@ -2981,6 +2981,18 @@ export default [
       document.getElementById('qs-cancel').click();
       // The junk sweep never picks it.
       assert(window.HearthriseInvCtx.selectJunk(1e9).indexOf(id) < 0, 'the junk sweep would try to sell a 0-bid item');
+      /* SCRIP STOCK (Designer ruling, Security wave-1): bind-on-pickup
+         Quartermaster items bid 0 on the same path — dragonfang_pike (book
+         130,000, 800 scrip) used to convert scrip to gold at 162 g/scrip. */
+      G.inventory.dragonfang_pike = 1; bag.agree();
+      assert(window.vendorPrice('dragonfang_pike') === 0 && window.vendorWontBuy('dragonfang_pike'),
+        'dragonfang_pike bids ' + window.vendorPrice('dragonfang_pike') + ' — scrip stock must not vendor');
+      await withServerBacked({}, async (rig) => {
+        window.invSellOne('dragonfang_pike');
+        await rig.drain();
+        assert(rig.sent.length === 0, 'scrip stock reached the vendor verb: ' + JSON.stringify(rig.sent));
+      });
+      assert(G.inventory.dragonfang_pike === 1, 'a refused scrip-stock sale took the pike');
     } finally { restoreG(snap); }
   }),
 

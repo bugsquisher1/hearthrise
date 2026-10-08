@@ -140,6 +140,20 @@ const MUTATIONS = {
     find: "bids[id] = baseVendorBid(gathered[id] === true && it",
     repl: "bids[id] = baseVendorBid(false && it",
   },
+  vendor_scrip_stock_sells: {
+    file: CORE('vendor.js'),
+    why: 'bind-on-pickup Quartermaster stock vendors at book again — dragonfang_pike converts 800 '
+       + 'scrip into 130,000 gold (162 g/scrip)',
+    find: '    if (scripOnlyItem(id, it)) { bids[id] = 0; continue; }   // decision 8',
+    repl: '    /* mutated: scrip stock sells */',
+  },
+  vendor_cache_stale: {
+    file: CORE('vendor.js'),
+    why: 'the bid cache ignores an in-place catalogue edit — an item added or revalued after the '
+       + 'first sale is priced from stale bids (econ-sim --selftest\'s planted item, Security wave-1)',
+    find: '  if (!hit || hit.fp !== fp) {',
+    repl: '  if (!hit) {',
+  },
   vendor_zero_bid_credited: {
     file: FN('vendor-sell.js'),
     why: 'a 0-bid item is "sold" for 0 gold instead of refused by name — the player loses the stack',
@@ -582,9 +596,9 @@ async function run(mutate) {
     const counter = (await readFile(join(ROOT, 'src', 'screens', 'shop-counter.js'), 'utf8')).replace(/\r\n/g, '\n');
     const body = /function vendorPrice\(id\)\{([\s\S]*?)\n\}/.exec(counter);
     ok(!!body, 'G1-CONTROL: could not read vendorPrice() out of src/screens/shop-counter.js — the scan is blind');
-    ok(/HearthriseCore\.vendor/.test(body[1]) && /\.vendorBidOf\(\s*ITEMS\s*,\s*window\.ARTISAN_RECIPES\s*,\s*id\s*\)/.test(body[1]),
-      'G1: the shop counter\'s vendorPrice() no longer delegates to HearthriseCore.vendor.vendorBidOf(ITEMS, '
-      + 'window.ARTISAN_RECIPES, id) — the bag is quoting a price the server did not compute');
+    ok(/HearthriseCore\.vendor/.test(body[1]) && /\.vendorBids\(\s*ITEMS\s*,\s*window\.ARTISAN_RECIPES\s*\)/.test(body[1]),
+      'G1: the shop counter\'s vendorPrice() no longer delegates to HearthriseCore.vendor.vendorBids(ITEMS, '
+      + 'window.ARTISAN_RECIPES) — the bag is quoting a price the server did not compute');
     ok(!/VENDOR_RAW_RATE|Math\.floor|\.raw\b/.test(body[1]) && !/const VENDOR_RAW_RATE\s*=/.test(counter),
       'G1: the shop counter restates the vendor formula — a second copy is how the bag and the server '
       + 'come to disagree. Delete it; src/core/vendor.js is the formula.');
@@ -604,6 +618,8 @@ async function run(mutate) {
     const { ITEMS } = await import('../src/data/items.js');
     const { ARTISAN_RECIPES } = await import('../src/data/recipes.js');
     const { recipeInputs } = await import('../src/core/artisan.js');
+    const { QM_STOCK } = await import('../src/data/dungeons.js');
+    const scripStock = new Set(QM_STOCK.map((o) => o.id));   // BoP + sold for scrip → the vendor refuses (ruling)
     const byOut = new Map(); const gathered = new Set();
     for (const list of Object.values(ARTISAN_RECIPES)) for (const r of list) {
       if (!r.output) continue;
@@ -617,7 +633,7 @@ async function run(mutate) {
       if (memo.has(id)) return memo.get(id);
       const it = Object.prototype.hasOwnProperty.call(ITEMS, id) ? ITEMS[id] : null;
       const v = it ? Number(it.v) || 0 : 0;
-      let bid = v > 0 ? ((it.raw || gathered.has(id)) ? Math.max(1, Math.floor(v / 5)) : v) : 0;
+      let bid = (it && it.bop && scripStock.has(id)) ? 0 : v > 0 ? ((it.raw || gathered.has(id)) ? Math.max(1, Math.floor(v / 5)) : v) : 0;
       if (onStack.has(id)) { cyclic = true; return bid; }
       onStack.add(id);
       for (const p of byOut.get(id) || []) {
@@ -687,6 +703,14 @@ async function run(mutate) {
     ok(b('fromTypo') === 0, `G1-EDGE: an unknown input priced its output at ${b('fromTypo')} — must fail closed to 0`);
     ok(b('batch') === 9, `G1-EDGE: 10 out of one 60g bar bids ${b('batch')} each, want floor(90/10) = 9`);
     ok(b('constructor') === 0 && b('__proto__') === 0, 'G1-EDGE: a prototype member priced');
+    /* THE CACHE FOLLOWS AN IN-PLACE EDIT (Security wave-1): same objects,
+       mutated — an added item, a revalued input, a recipe edit. */
+    SI.planted = { v: 700 };
+    ok(b('planted') === 700, `G1-CACHE: an item added in place bids ${b('planted')}, want 700 — stale bids`);
+    SI.ore.v = 200;
+    ok(b('bar') === 120, `G1-CACHE: ore revalued in place to 200 but bar bids ${b('bar')}, want 120 — stale bids`);
+    SR.smithing[0].inputs.ore = 3;
+    ok(b('bar') === 180, `G1-CACHE: smelt now takes 3 ore but bar bids ${b('bar')}, want 180 — stale bids`);
   }
 
   // ── G2. THE PARSER, ON THE SHAPES AN ATTACKER SENDS ─────────────────────
@@ -1217,6 +1241,23 @@ async function run(mutate) {
         + 'a 0 bid must be refused BY NAME, not credited 0 gold');
     }
     ok(Number((await state(db, UID)).gold) === g0, 'G10: a refused 0-bid sale moved gold');
+
+    /* SCRIP STOCK (Designer ruling, Security wave-1): a bind-on-pickup item the
+       Quartermaster sells for scrip bids 0 — dragonfang_pike (book 130,000,
+       800 scrip) was a 162 g/scrip converter. Every bop QM item, by name. */
+    const { QM_STOCK } = await import('../src/data/dungeons.js');
+    const scripBop = QM_STOCK.map((o) => o.id).filter((id) => ITEMS[id] && ITEMS[id].bop && Number(ITEMS[id].v) > 0);
+    ok(scripBop.includes('dragonfang_pike') && scripBop.length >= 5,
+      `G10-CONTROL: only [${scripBop}] are bop QM items with a book value — the scrip refusal is barely exercised`);
+    for (const id of scripBop) {
+      ok(cat.vendorPriceOf(ITEMS, id) === 0, `G10: ${id} (bop, sold for scrip, book ${ITEMS[id].v}) bids ${cat.vendorPriceOf(ITEMS, id)} — scrip converts to gold`);
+    }
+    const pk = await doSell({ intentId: uuid(), item: 'dragonfang_pike', qty: 1 });
+    ok(pk.status === 409 && pk.body.error === 'item_not_sellable',
+      `G10: selling dragonfang_pike returned ${JSON.stringify(pk.body).slice(0, 200)} — must be refused by name`);
+    ok(cat.vendorPriceOf(ITEMS, 'dragon_relic') > 0, 'G10-CONTROL: a bop item NOT in the scrip stock (dragon_relic) stopped selling — the rule is too broad');
+    ok(cat.vendorPriceOf(ITEMS, 'forge_blueprint_t3') > 0, 'G10-CONTROL: tradeable QM stock (blueprints) stopped selling — the ruling is bop-only');
+    ok(Number((await state(db, UID)).gold) === g0, 'G10: a refused scrip-stock sale moved gold');
   }
 
   // ── G11. THE SHAPE CHECKS COST NO RATE BUDGET ───────────────────────────
@@ -1387,9 +1428,17 @@ async function run(mutate) {
     const dear = Object.keys(ITEMS)
       .sort((a, b) => cat.vendorPriceOf(ITEMS, b) - cat.vendorPriceOf(ITEMS, a))[0];
     const dearUnit = cat.vendorPriceOf(ITEMS, dear);
-    ok(dearUnit * req.MAX_QTY > clamp,
-      `G15-CONTROL: ${req.MAX_QTY} x ${dear} (${dearUnit}) is inside the clamp, so the refusal below `
-      + 'is not the one this assertion claims to measure');
+    /* Since the craft anchor the dearest bid (colossus_plate, 39,000) puts the
+       pathological sale UNDER the 50M clamp but over the daily ceiling, which
+       this chain installs (2026-08-11-daily-budget.sql) — so the control is the
+       LOWER of the two ceilings, both read rather than restated. */
+    const bsql = (await readFile(MIG('2026-08-11-daily-budget.sql'), 'utf8'));
+    const bm = /c_day_gold_budget\s+constant\s+bigint\s*:=\s*(\d+)/.exec(bsql);
+    ok(!!bm, 'G15-CONTROL: could not read c_day_gold_budget out of daily-budget.sql — the scan is blind');
+    const ceiling = Math.min(clamp, Number(bm[1]));
+    ok(dearUnit * req.MAX_QTY > ceiling,
+      `G15-CONTROL: ${req.MAX_QTY} x ${dear} (${dearUnit}) is inside both the clamp and the daily ceiling `
+      + `(${ceiling}), so the refusal below is not the one this assertion claims to measure`);
     await clearGate();
     await grant({ items: { [dear]: 1000 }, journal: { kind: 'admin', intent: 'fixture:dear' } });
     const before = await state(db, UID);

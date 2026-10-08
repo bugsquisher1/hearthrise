@@ -673,9 +673,14 @@ function selftest(caps) {
   const after = simulate(ARCHETYPES[0], 1, caps, {});
   ok(after.in.vendor === base.in.vendor, 'the plant leaked into a later run (catalogue not restored)');
   // the knobs move what they say they move (grinder, 7 days)
-  const g0 = simulate(ARCHETYPES[2], 7, caps, {});
-  const g1 = simulate(ARCHETYPES[2], 7, caps, { gearRate: 0.25 });
-  ok(g1.in.vendor < g0.in.vendor, `gearRate=0.25 did not lower grinder vendor gold (${g0.in.vendor} -> ${g1.in.vendor})`);
+  /* Measured at the PRICE, not the grinder's income: since the craft anchor
+     (src/core/vendor.js) a crafted sword fetches at most 1.5x its inputs, so a
+     maxed grinder now vendors raw Dawnstone (92k/h) over any bench chain and
+     gearRate rightly no longer moves its income. The knob must still move the
+     bid it names. */
+  const p0 = makePricer(Object.assign({}, DEFAULT_KNOBS)), p1 = makePricer(Object.assign({}, DEFAULT_KNOBS, { gearRate: 0.25 }));
+  ok(p0('dawn_sword') > 0 && p1('dawn_sword') < p0('dawn_sword'),
+    `gearRate=0.25 did not lower the dawn_sword bid (${p0('dawn_sword')} -> ${p1('dawn_sword')})`);
   const u1 = simulate(ARCHETYPES[2], 7, caps, { upkeepBp: 100 });
   ok(u1.out.upkeep > 0, 'upkeepBp=100 produced no upkeep sink');
   ok(base.in.login === DAILY_LOGIN_CYCLE[0].gold, `day-1 login paid ${base.in.login}, cycle says ${DAILY_LOGIN_CYCLE[0].gold}`);

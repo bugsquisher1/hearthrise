@@ -1061,6 +1061,9 @@
         }).join('');
   }
   function listHintHtml(have, vendor){
+    /* A 0 bid is said as a refusal, never "NPC vendor pays 0g" (shop-counter
+       VENDOR_WONT_BUY) — and other players are the only buyers, so no ask is suggested. */
+    if(!(vendor > 0)) return 'You have <b>' + have.toLocaleString() + '</b>. ' + window.VENDOR_WONT_BUY + ' — the market is its only buyer.';
     return 'You have <b>' + have.toLocaleString() + '</b>. NPC vendor pays <b>' + vendor.toLocaleString()
       + 'g</b> each. Suggested ask: <b>' + Math.max(1, Math.ceil(vendor * 1.5)).toLocaleString() + 'g</b>.';
   }

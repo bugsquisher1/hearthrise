@@ -207,6 +207,10 @@ export const CROPS={
   goldenroot:{name:'Goldenroot',icon:'🥕',hours:16,prod:'goldenroot',yield:[1,3],xp:1190,req:62,seed:'goldenroot_seed'},
   emberfruit:{name:'Emberfruit',icon:'🔥',hours:18,prod:'emberfruit',yield:[1,2],xp:1680,req:75,seed:'emberfruit_seed',regrows:true},
   moonbloom:{name:'Moonbloom',icon:'🌸',hours:22,prod:'moonbloom',yield:[1,2],xp:2380,req:88,seed:'moonbloom_seed'},
+  /* content-holes (2026-10-08): 88 → 99 was eleven levels with nothing new to
+     plant. Dawnbloom is the 95 rung; its seed drops from the Treant and the
+     Dryad (src/data/monsters.js), never a shop. */
+  dawnbloom:{name:'Dawnbloom',icon:'🌼',hours:24,prod:'dawnbloom',yield:[1,2],xp:3100,req:95,seed:'dawnbloom_seed'},
 };
 
 /* b216: 'shield' (offhand) added. Existing saves simply have no value for it —

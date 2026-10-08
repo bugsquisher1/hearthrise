@@ -106,10 +106,18 @@ export const ITEMS={
      their attack bonus already sits on — Ribblade attack 30 (atkB 19, between
      steel 12 and mithril 18), Chief's Blade attack 15 (atkB 13, iron's rung) —
      rather than inventing a tier, because `tier` also drives the rarity border
-     and the ladder guards, and these two are drops, not rungs. */
-  razor_claw:{n:'Razor Claw',icon:'爪',v:360},death_steel:{n:'Death Steel',icon:'⚙️',v:550},captains_ribblade:{n:"Captain's Ribblade",icon:'🗡️',v:1800,type:'weapon',slot:'weapon',weaponType:'sword',atkB:19,strB:15,reqSkill:'attack',reqLv:30},
+     and the ladder guards, and these two are drops, not rungs.
+     CONTENT-HOLES RE-STAT (game-designer, 2026-10-08). That ruling put each
+     blade on the rung of its STAT, but both are mostly FORGED, and the forge
+     opened at Smithing 50 / 70 — by which point a player's own sword was two
+     rungs past them, so the recipe scroll paid out an obsolete weapon. They now
+     sit on the rung their FORGE opens at, a step above the craftable sword with
+     a little crit as their identity: Chief's Blade at mithril's rung (attack
+     45, 18/16 vs 18/15), the Ribblade at rune's (attack 60, 27/22 vs 25/20).
+     The forges move to the matching bars in src/data/recipes.js. */
+  razor_claw:{n:'Razor Claw',icon:'爪',v:360},death_steel:{n:'Death Steel',icon:'⚙️',v:550},captains_ribblade:{n:"Captain's Ribblade",icon:'🗡️',v:5000,type:'weapon',slot:'weapon',weaponType:'sword',atkB:27,strB:22,critB:.03,reqSkill:'attack',reqLv:60},
   hollow_sigil:{n:'Hollow Sigil',icon:'🔯',v:1400},void_core:{n:'Void Core',icon:'⚫',v:2200},war_crown:{n:'War Crown',icon:'👑',v:2500},
-  ancient_claw:{n:'Ancient Claw',icon:'爪',v:1600},chief_blade:{n:"Chief's Blade",icon:'🗡️',v:900,type:'weapon',slot:'weapon',weaponType:'sword',atkB:13,strB:11,reqSkill:'attack',reqLv:15},alpha_cloak:{n:'Alpha Cloak',icon:'🦸',v:1500,type:'armor',slot:'cape',defB:5,atkB:2,reqSkill:'defense',reqLv:30},
+  ancient_claw:{n:'Ancient Claw',icon:'爪',v:1600},chief_blade:{n:"Chief's Blade",icon:'🗡️',v:1600,type:'weapon',slot:'weapon',weaponType:'sword',atkB:18,strB:16,critB:.02,reqSkill:'attack',reqLv:45},alpha_cloak:{n:'Alpha Cloak',icon:'🦸',v:9000,type:'armor',slot:'cape',defB:15,atkB:4,strB:2,reqSkill:'defense',reqLv:60},
   leather_boots:{n:'Leather Boots',icon:'🥾',v:90,type:'armor',slot:'boots',defB:2,spdB:.02},
   /* THE SEVEN LAST UNGATED EQUIPPABLES. The 2026-09-12 sweep closed the 34 rows that
      carried a `tier`; these seven carry none, so neither reader had anything to
@@ -122,6 +130,9 @@ export const ITEMS={
      than a tier, because these rows never sat on the tier ladder:
        alpha_cloak / gold_ring / gold_amulet → 30 (defB 5 / atkB+strB 3 / atkB 4
          +defB 2 — steel's rung, the strongest non-tier cape and jewelry shipped);
+         alpha_cloak since moved to 60 (content-holes, 2026-10-08): its pattern
+         is a tier-6 boss drop and its craft opens at Crafting 60, so it is now
+         a tier-5 cape (defB 15) rather than a reward the crafter has outgrown;
        fox_companion → 15 (strB 2 + 2% XP, iron's rung);
        copper_ring / hunter_necklace / traveler_cape → 1. reqLv 1 restricts
          nobody (the gate is `level < req_lv`); it is the data form of "belongs to
@@ -151,7 +162,8 @@ export const ITEMS={
      level 20.
 
      That is not cosmetic, because `vendorPriceOf` (supabase/functions/hr-accrue/
-     catalogue.js) pays FULL BOOK VALUE for a non-raw item — arrows are crafted,
+     catalogue.js) paid FULL BOOK VALUE for a non-raw item (until the
+     b-craft-anchor ruling capped crafted bids at 1.5x inputs) — arrows are crafted,
      so `raw` is false and the vendor paid 60g each. `craft_iron_arrows` turns
      180g of input into 50 arrows every 3.5 s:
 
@@ -235,7 +247,9 @@ export const ITEMS={
      runs on is a score, not a currency.
 
      ⚠ THE PRICES ARE PINNED TO THESE `v` VALUES AND MAY NOT BE READ ALONE.
-       Cooked food is not `raw`, so `vendorPriceOf` pays the FULL `v` back.
+       Cooked food is not `raw`, so `vendorPriceOf` pays up to the FULL `v`
+       back (since b-craft-anchor, min(v, 1.5x its raw catch's bid) — the
+       buyback can only have fallen, but the bound below is still on `v`).
        The shop prices (150 / 450 / 2000 per 5 shrimp / trout / lobster) sit
        ~40% above the buyback (90 / 275 / 1200): raising `v` past 30 / 90
        turns the counter into an infinite gold faucet, and
@@ -422,6 +436,12 @@ export const ITEMS={
   emberfruit_seed: {n:'Emberfruit Seed', icon:'🌱', v:160, seed:'emberfruit'},
   moonbloom:       {n:'Moonbloom', icon:'🌸', v:850, heals:20},
   moonbloom_seed:  {n:'Moonbloom Seed', icon:'🌱', v:280, seed:'moonbloom'},
+  /* CONTENT-HOLES (2026-10-08): Farming's last rung was Moonbloom at 88, so
+     88 → 99 was eleven levels of the same crop. Dawnbloom is the 95 rung. Its
+     seed is not sold: it drops from the Treant and the Dryad, so the top of
+     the farm reaches into the forest the woodcutter already walks. */
+  dawnbloom:       {n:'Dawnbloom', icon:'🌼', v:1250, heals:24},
+  dawnbloom_seed:  {n:'Dawnbloom Seed', icon:'🌱', v:420, seed:'dawnbloom'},
   /* Late-game cooking — gives the new crops a real sink */
   goldenroot_roast: {n:'Goldenroot Roast', icon:'🍠', v:700, heals:26, foodTier:3, foodClass:'buff',
     buff:{type:'gather_speed', magnitude:4, durationMs:360000}},
@@ -540,8 +560,10 @@ export const ITEMS={
   chief_blade_recipe:   {n:"Chief's Blade Recipe",      icon:'📜', v:0, recipe:'chief_blade'},
   captain_recipe:       {n:"Captain's Ribblade Recipe", icon:'📜', v:0, recipe:'captains_ribblade'},
   alpha_pattern:        {n:'Alpha Cloak Pattern',       icon:'📜', v:0, recipe:'alpha_cloak'},
+  /* RETIRED, NOT DELETED (content-holes 2026-10-08): its target never shipped and
+     it has no source; the id is kept because an id is a save key (item-identity). */
+  dragon_marrow_recipe: {n:'Dragon Marrow Recipe',      icon:'📜', v:0, recipe:'dragonbone_spear', retired:true},
   spellstone_diagram:   {n:'Spellstone Diagram',        icon:'📜', v:0, recipe:'spellstone_ring'},
-  dragon_marrow_recipe: {n:'Dragon Marrow Recipe',      icon:'📜', v:0, recipe:'dragonbone_spear'},
   gemcutter_note:       {n:"Gemcutter's Note",          icon:'📜', v:0, recipe:'dragon_gem_earrings'},
   soul_recipe:          {n:'Soul Recipe Scroll',        icon:'📜', v:0, recipe:'lich_soul_soup'},
   marrow_cookbook:      {n:'Marrow Cookbook',           icon:'📜', v:0, recipe:'dragon_stew'},
@@ -745,6 +767,13 @@ export const ITEMS={
      same-tier craftables and the next rung, with a distinct identity (Wartusk =
      strength, Codex = magic+crit, etc.) so they read as a reward, not a reskin. */
 
+  // crypt_of_bones — The Marrow King (Lv 25). CONTENT-HOLES (2026-10-08): the
+  // Crypt was the one dungeon with no signature prize, and bosses.js credited
+  // the Marrow King with Grimtusk's banner. A hammer, because he is weak to one;
+  // stats between the iron (7/12) and steel (9/19) warhammers, like every other
+  // dungeon weapon sits between its rungs.
+  marrowbone_maul:  {n:'Marrowbone Maul',  icon:'🔨', v:2500,  bop:true, type:'weapon', slot:'weapon', weaponType:'hammer', atkB:8, strB:16, critB:.01, reqSkill:'attack', reqLv:25, rarity:'unique'},
+
   // goblin_warcamp — Grimtusk, the Broken-Tusk Warlord (Lv 35)
   wartusk_cleaver:  {n:'Wartusk Cleaver',  icon:'🪓', v:4500,  bop:true, type:'weapon', slot:'weapon', weaponType:'sword', atkB:20, strB:24, critB:.02, reqSkill:'attack', reqLv:35, rarity:'unique'},
   warboss_standard: {n:'Warboss Standard', icon:'🚩', v:1200,  type:'trophy', tag:'cosmetic', rarity:'epic'},
@@ -760,6 +789,13 @@ export const ITEMS={
   voidmaw_scepter:  {n:'Voidmaw Scepter',  icon:'🔱', v:65000, bop:true, type:'weapon', slot:'weapon', weaponType:'magic', atkB:32, strB:30, magicAtkB:40, magicStrB:46, critB:.06, reqSkill:'magic', reqLv:80, rarity:'unique'},
   voidwoven_sigil:  {n:'Voidwoven Sigil',  icon:'🕸️', v:5000,  type:'trophy', tag:'cosmetic', rarity:'legendary'},
   riftmaw_husk:     {n:'Riftmaw Husk',     icon:'🐚', v:4200,  tag:'crafting-mat', rarity:'epic'},
+  /* CONTENT-HOLES (2026-10-08) — the two raid MATERIALS finally make something.
+     riftmaw_husk, void_essence and elderscale_heart dropped from the two top
+     instances and had no recipe, so the rarest loot in the game was vendor
+     stock. Each now forges an OFFHAND (the slot that was empty until this pass):
+     a step above the generated plate shield of its tier, plus a bane against
+     the thing that dropped it. Bind-on-pickup, like the boss weapons. */
+  riftmaw_aegis:    {n:'Riftmaw Aegis',    icon:'🛡️', v:30000, bop:true, type:'armor', slot:'shield', armourClass:'shield', defB:25, strB:3, reqSkill:'defense', reqLv:80, rarity:'unique', bane:{class:'extra_dimensional', mult:1.25}, effects:['bane']},
 
   /* b281 — DUNGEON SCRIP: the dungeon economy currency. Earned on every dungeon
      clear (scaled by the dungeon's level), spent at the Quartermaster for keys,
@@ -771,6 +807,14 @@ export const ITEMS={
   // ancient_wyrm — Elderscale, the Great Wyrm (Lv 95 capstone)
   dragonfang_pike:  {n:'Dragonfang Pike',  icon:'🐉', v:130000, bop:true, type:'weapon', slot:'weapon', weaponType:'sword', atkB:48, strB:46, critB:.06, spdB:.03, reqSkill:'attack', reqLv:95, rarity:'legendary'},
   elderscale_heart: {n:'Elderscale Heart', icon:'💠', v:9000,  tag:'crafting-mat', rarity:'legendary'},
+  elderscale_aegis: {n:'Elderscale Aegis', icon:'🛡️', v:70000, bop:true, type:'armor', slot:'shield', armourClass:'shield', defB:34, strB:4, reqSkill:'defense', reqLv:95, rarity:'legendary', bane:{class:'dragon', mult:1.25}, effects:['bane']},
+  /* CONTENT-HOLES (2026-10-08) — the Whelp's egg. COMPANIONS.whelp has always
+     said `hatch:dragon_egg`, and hr_companion_grant has enforced and consumed a
+     SERVER-HELD egg since 2026-09-06 — there was simply no egg. Drakes and the
+     Green Dragon now drop one (src/data/monsters.js). Tradeable on purpose: a
+     drop the server minted is a fair market good, and it lets a non-dragon
+     hunter buy their way to the pet with gold another player earned. */
+  dragon_egg:       {n:'Dragon Egg',       icon:'🥚', v:6000,  rarity:'legendary', tag:'companion-egg'},
 
   /* ── Bind-on-Pickup dungeon keys ──
      Replace gold entry costs. Drop from monsters whose family/tier match

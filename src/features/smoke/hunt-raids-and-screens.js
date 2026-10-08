@@ -2949,7 +2949,7 @@ export default [
   }),
 
   /* PRAYER-LADDER-1 — Prayer shipped with rungs at 1/15/35 and NOTHING from 36 to 99, on the one bench whose whole output is XP. Drives the REAL tile renderer at Prayer 39 and again at 40; the boundary IS the property, and it is the same one hr_apply's `activity_locked` arm enforces server-side.
-     `PAY` below is the literal (id, req, xp, ms) of all thirteen rungs: NOTHING else in the repo measures what a Prayer rung PAYS — hr_activities has no yield columns and the edge engine reads these very rows — so a typo (2400 → 24000) shipped green until it existed. Its 840 XP/s ceiling is MEASURED, just above the catalogue's own non-prayer maximum (forge_slagheart_platebody, 833.3): the one bench whose entire output is XP must never out-pay every other bench. */
+     `PAY` below is the literal (id, req, xp, ms) of every rung: NOTHING else in the repo measures what a Prayer rung PAYS — hr_activities has no yield columns and the edge engine reads these very rows — so a typo (2400 → 24000) shipped green until it existed. Its 840 XP/s ceiling is MEASURED, just above the catalogue's own non-prayer maximum (forge_slagheart_platebody, 833.3): the one bench whose entire output is XP must never out-pay every other bench. */
   () => tryRun('PRAYER-LADDER-1: the Prayer ladder reaches 99 — Prayer 40 sees Sift Bone Chips live, Prayer 39 sees it locked', () => {
     const snap = snapshotG();
     try {
@@ -2957,7 +2957,8 @@ export default [
       const first = rows.find((r) => r.id === 'bury_bone_chips');
       assert(first && first.req === 40 && first.input === 'bone_chips' && first.output == null,
         'bury_bone_chips must be the Prayer 40 pure sink fed by bone_chips, got ' + JSON.stringify(first));
-      const PAY = ('bury_bones 1 4.5 1200|bury_big 15 15 1500|bury_dragon 35 72 2000|'
+      const PAY = ('bury_bones 1 4.5 1200|offer_rat_tail 8 8 1300|bury_big 15 15 1500|'
+        + 'offer_small_fang 22 26 1600|consecrate_night_fang 29 44 1800|bury_dragon 35 72 2000|'
         + 'bury_bone_chips 40 105 2200|consecrate_grave_dust 46 155 2400|offer_razor_claw 52 212 2500|'
         + 'scatter_vamp_dust 58 295 2600|banish_demon_shard 65 420 2800|unbind_wraith_veil 72 600 3000|'
         + 'consecrate_dragon_scale 79 855 3200|release_lich_soul 86 1210 3400|offer_ancient_claw 92 1700 3600|'
@@ -2970,7 +2971,7 @@ export default [
         assert(window.ITEMS[r.input], id + ' consumes ' + r.input + ', which is not an item');
         assert(rate <= 840, id + ' pays ' + rate.toFixed(1) + ' XP/s, over the catalogue ceiling 840 (non-prayer max 833.3)');
       });
-      assert(rows[12].req === 99, 'the bench must reach Prayer 99, its top rung is ' + rows[12].req);
+      assert(rows[rows.length - 1].req === 99, 'the bench must reach Prayer 99, its top rung is ' + rows[rows.length - 1].req);
 
 
       G.inventory = { bone_chips: 5 };

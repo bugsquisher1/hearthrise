@@ -551,7 +551,7 @@ try{ window.HOUSE_THEMES = HOUSE_THEMES; }catch(_){}
       and worth renaming the table to SUPPLY_SHOP when this data leaves
       legacy.js — the generator anchor and the SQL offer ids move together. */
 const SEED_SHOP=[{id:'cooked_shrimp',qty:5,cost:150},{id:'cooked_trout',qty:5,cost:450},{id:'turnip_seed',qty:10,cost:50},{id:'carrot_seed',qty:10,cost:100},{id:'wheat_seed',qty:10,cost:150},{id:'potato_seed',qty:5,cost:100},{id:'tomato_seed',qty:5,cost:150},{id:'pumpkin_seed',qty:3,cost:150},{id:'goldenroot_seed',qty:3,cost:450},{id:'emberfruit_seed',qty:3,cost:900},{id:'moonbloom_seed',qty:2,cost:1600},{id:'rune_blank',qty:20,cost:140},{id:'cooked_lobster',qty:5,cost:2000}];
-const EQUIP_SHOP=[{id:'bronze_sword',cost:100},{id:'apprentice_staff',cost:120},{id:'shortbow',cost:120},{id:'stone_maul',cost:140},{id:'iron_sword',cost:500},{id:'oak_staff',cost:650},{id:'longbow',cost:650},{id:'iron_warhammer',cost:750},{id:'steel_sword',cost:2000},{id:'iron_helm',cost:300},{id:'iron_platebody',cost:800},{id:'steel_platebody',cost:1500},{id:'leather_boots',cost:250},{id:'traveler_cape',cost:400},{id:'copper_ring',cost:350},{id:'hunter_necklace',cost:500},{id:'leather_gloves',cost:225},{id:'bronze_belt',cost:300},{id:'fox_companion',cost:1200}];
+const EQUIP_SHOP=[{id:'bronze_sword',cost:100},{id:'apprentice_staff',cost:120},{id:'shortbow',cost:120},{id:'stone_maul',cost:140},{id:'iron_sword',cost:500},{id:'oak_staff',cost:650},{id:'longbow',cost:650},{id:'iron_warhammer',cost:750},{id:'steel_sword',cost:2000},{id:'iron_helm',cost:300},{id:'iron_platebody',cost:800},{id:'steel_platebody',cost:1500},{id:'leather_boots',cost:250},{id:'traveler_cape',cost:400},{id:'copper_ring',cost:350},{id:'hunter_necklace',cost:500},{id:'leather_gloves',cost:225},{id:'bronze_belt',cost:300}];
 
 /* b221: a top-level `const` in a classic script lives in the global LEXICAL
    scope, not on `window` — so `window.SEED_SHOP` / `window.EQUIP_SHOP` were
@@ -5015,7 +5015,7 @@ const QUEST_DEFS=[
      cannot drift from the counter it displays and it is correct on an account
      that did all its harvesting on another device. The claim is unchanged and
      still server-verified (hr_claim_quest reads ev:harvest >= 6). */
-  {id:'farmhand',type:'harvest',mirror:'stats.harvested',label:'Harvest 6 crops',goal:6,progress:0,reward:{gold:500,item:'wheat_seed',qty:5},done:false},
+  {id:'farmhand',type:'harvest',mirror:'stats.harvested',label:'Harvest 6 crops',goal:6,progress:0,reward:{gold:500,item:'carrot_seed',qty:5},done:false},
   /* ── THE HUNDRED-KILL MILESTONE ──────────────────────────────────────────
      b341 shipped this as the "Field Licence": a GATE that withheld away
      combat until it was earned. b343 removes the gate (see processOffline's
@@ -8372,7 +8372,7 @@ function renderInventory(){
   el.innerHTML=`<div class="item-grid">${items.map(([id,qty])=>{
     const d=ITEMS[id];if(!d)return'';
     const qShow=qty>=1000?(qty/1000).toFixed(1)+'k':qty;
-    return `<button class="item-slot" title="${d.n} ×${qty} · ${vendorPrice(id)}gp" onclick="onItemTap('${id}')">${itemArt(id,26)}<span class="qty">${qShow}</span><span class="nm">${d.n.split(' ')[0]}</span></button>`;
+    return `<button class="item-slot" title="${d.n} ×${qty} · ${vendorPrice(id)>0?vendorPrice(id)+'gp':window.VENDOR_WONT_BUY}" onclick="onItemTap('${id}')">${itemArt(id,26)}<span class="qty">${qShow}</span><span class="nm">${d.n.split(' ')[0]}</span></button>`;
   }).join('')}</div>
   <div class="muted tiny" style="margin-top:10px">Tap to use: equip, eat, plant, or sell. Long press for menu.</div>`;
 }
@@ -8399,7 +8399,7 @@ function onItemTap(id){
     G.foodSlot=id;notify(`Auto-eat: ${d.n}`,'info');return;
   }
   if(d.seed){showTab('farming');return;}
-  /* default: prompt to sell */
+  if(window.refuseUnbuyable&&window.refuseUnbuyable(id)) return;   /* default: prompt to sell — unless the vendor bids 0, which is said, never offered as "0 gold" */
   const _p=vendorPrice(id);
   /* b373: an in-game modal, never window.confirm — see src/utils/dialog.js.
      The sale moved INTO the answer rather than staying after a blocking call;
@@ -10046,7 +10046,7 @@ function openInvDetail(id){
       if(vendorPrice(id) > 0){
         acts.push(`<button class="btn" onclick="invSellOne('${id}');closeInvDetail()">Sell 1 · ${_gp(vendorPrice(id))}</button>`);
         const _sq = window.sellableCount ? window.sellableCount(id) : null; const _sb = window.sellAllPending && window.sellAllPending(id); if(_sb) acts.push(`<button class="btn btn-danger" disabled title="Waiting for the realm to answer your last Sell All">Sell All · selling…</button>`); else if(_sq === null ? qty > 1 : _sq > 1) acts.push(_sq === null ? `<button class="btn btn-danger" disabled title="${window.SELL_PENDING_TITLE}">Sell All · counting…</button>` : `<button class="btn btn-danger" onclick="invSellAll('${id}')"${_sq !== qty ? ` title="The realm has counted ${_sq.toLocaleString()} — Sell All sells what it has counted"` : ''}>Sell All ${_sq.toLocaleString()} · ${_gp(vendorPrice(id)*_sq)}</button>`); if(!_sb && _sq !== null && _sq > 1 && _sq !== qty) sellNote = `<div class="inv-detail-sellnote" role="note">The realm has counted ${_sq.toLocaleString()} of these — Sell All sells what it has counted.</div>`;   /* the display-vs-counted gap is said, not left to puzzle over. Sell All names the SERVER's stack (sellableCount); unstated = counting; a sent one = selling until its answer — all disabled */
-      }
+      } else acts.push(`<button class="btn" disabled title="${window.VENDOR_WONT_BUY}">${window.VENDOR_WONT_BUY}</button>`);   /* a 0 bid is said, never offered as Sell 0g */
       acts.push(`<button class="btn" onclick="toggleItemLock('${id}');openInvDetail('${id}')" title="Protect this item from being sold or listed on the market">${lockGlyph()} Lock</button>`);
     }
     /* b311: Buy-Back moved to the Local Shop (where you sell to the vendor) — it
@@ -17612,7 +17612,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
      desc:'Sixty pulls at the Forge. Bars are the bottleneck — smelt ahead of yourself.'},
     {id:'wk_craft',    glyph:'crafting', name:'Craft 60 items',    target:60,  source:'stats.crafted',         reward:{gold:2200, xp:{crafting:600}},
      desc:'Sixty turns at the bench. Runecrafting and Stonemason work counts here too.'},
-    {id:'wk_harvest',  glyph:'uiWheat', name:'Harvest 120 crops', target:120, source:'stats.cropsHarvested',  reward:{gold:2000, xp:{farming:600}},
+    {id:'wk_harvest',  glyph:'uiWheat', name:'Harvest 40 crops', target:40, source:'stats.cropsHarvested',  reward:{gold:2000, xp:{farming:600}},
      desc:'Crops pulled from your plots. They ripen while you are away — come back and gather.'},
     /* ── `blocked` MEANS "NOT DEALT", AND THE ROW STAYS PUT ────────────────
        This quest was dealt in 13 of any 52 weeks and its Claim button was DEAD:

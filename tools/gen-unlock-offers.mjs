@@ -68,6 +68,7 @@ import { ITEMS } from '../src/data/items.js';
 import {
   UNLOCK_OFFERS, UNLOCK_REFUSALS, ALL_UNLOCK_OFFER_IDS,
 } from '../supabase/functions/hr-accrue/unlock-catalogue.js';
+import { emitGenerated } from './generated-freeze.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const OUT = join(ROOT, 'supabase', 'migrations', '2026-08-16-unlock-offers.generated.sql');
@@ -477,8 +478,9 @@ if (REPORT) {
     console.error(`unlock-offer drift: ${OUT} is missing. Run: node tools/gen-unlock-offers.mjs`);
     process.exit(1);
   }
-  const norm = (s) => s.replace(/\r\n/g, '\n');
-  if (norm(existing) !== norm(file)) {
+  const emitted = emitGenerated(OUT, file, true);   // frozen-aware (tools/generated-freeze.mjs)
+  if (!emitted.ok) {
+    console.error('  ' + emitted.msg);
     const was = /offer digest: ([0-9a-f]{64})/.exec(existing);
     const committed = was ? was[1] : '(none)';
     if (committed === DIGEST) {
@@ -497,8 +499,7 @@ if (REPORT) {
   console.log(`unlock offers in sync (${rows.length} authored, ${sellableRows.length} sellable, `
     + `digest ${DIGEST.slice(0, 12)}…)`);
 } else {
-  await writeFile(OUT, file, 'utf8');
-  console.log(`wrote ${OUT}`);
+  console.log(emitGenerated(OUT, file, false).msg);
   console.log(`  ${rows.length} authored · ${sellableRows.length} sellable · ${tableSummary}`);
   console.log(`  digest ${DIGEST}`);
 }

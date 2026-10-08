@@ -5470,10 +5470,10 @@ export default [
         id + ': reqLv ' + I[id].reqLv + ' is outside the 1..' + LADDER[8] + ' ladder');
     });
     ('abyssal_greaves defense 88|apprentice_staff magic 1|bone_earrings prayer 45|'   /* the 41 ruled rows, id · skill · level, literal so a regeneration or a merge cannot move one off its rung. The last SEVEN carry NO `tier`, so they are absent from `tiered` above and this list is all that holds them: ungated on BOTH sides (gearWieldReq null AND hr_items.req_lv NULL), four of them TRADEABLE */
-      + 'alpha_cloak defense 30|gold_ring defense 30|gold_amulet defense 30|fox_companion defense 15|'
+      + 'alpha_cloak defense 60|gold_ring defense 30|gold_amulet defense 30|fox_companion defense 15|'
       + 'copper_ring defense 1|hunter_necklace defense 1|traveler_cape defense 1|'
-      + 'bronze_belt defense 1|bronze_sword attack 1|captains_ribblade attack 30|'
-      + 'chief_blade attack 15|choirbone_gauntlets defense 88|copper_studs defense 1|'
+      + 'bronze_belt defense 1|bronze_sword attack 1|captains_ribblade attack 60|'
+      + 'chief_blade attack 45|choirbone_gauntlets defense 88|copper_studs defense 1|'
       + 'frost_locket defense 45|heartwood_cape defense 75|hunters_torc defense 30|'
       + 'iron_arrows ranged 1|iron_helm defense 15|iron_platebody defense 15|iron_sword attack 15|'
       + 'iron_warhammer attack 15|leather_boots defense 1|leather_gloves defense 1|longbow ranged 15|'

@@ -49,9 +49,10 @@
 // wrong that no rule could. See CHECK 4, which caps the ratio PER LADDER RUNG
 // and caught exactly that recipe.
 //
-// Both sides are measured with `vendorPriceOf`, not with raw `.v`, because the
-// exploit is gather -> craft -> vendor and the vendor pays raw materials only
-// 40%. This is the FAUCET measure, and it deliberately differs from the "book
+// Both sides are measured with the PRE-ANCHOR vendor bid (src/core/vendor.js
+// `baseVendorBid`; see recipeYieldGuard for why not the anchored one), not with
+// raw `.v`, because the exploit is gather -> craft -> vendor and the vendor pays
+// raw materials only 20%. This is the FAUCET measure, and it deliberately differs from the "book
 // margin" the b222 castle-margin test in smoke-test.js asserts.
 //
 // ── CHECK 4: THE GEAR-LADDER COST CURVE (b497, the cloth faucet) ───────────
@@ -126,6 +127,9 @@ export const QTY_ALLOW = Object.freeze({
   deepbind_earth:          'runes: as above',
   bind_water_runes:        'runes: as above',
   deepbind_water:          'runes: as above',
+  deepbind_air:            'runes: as above (content-holes 2026-10-08: the 1-15 filler rung)',
+  deepbind_fire:           'runes: as above (content-holes: the 45-60 filler rung)',
+  deepbind_death:          'runes: as above (content-holes: the 75-88 filler rung)',
   bind_fire_runes:         'runes: as above',
   bind_chaos_runes:        'runes: as above',
   deepbind_chaos:          'runes: as above',
@@ -179,7 +183,19 @@ export async function recipeYieldGuard(overrides) {
   const { ITEMS } = overrides?.ITEMS ? { ITEMS: overrides.ITEMS } : await imp('src/data/items.js');
   const { ARTISAN_RECIPES } = overrides?.ARTISAN_RECIPES
     ? { ARTISAN_RECIPES: overrides.ARTISAN_RECIPES } : await imp('src/data/recipes.js');
-  const { vendorPriceOf } = await imp('supabase/functions/hr-accrue/catalogue.js');
+  /* PRE-ANCHOR BID, deliberately (b-craft-anchor, 2026-10-08). The live vendor
+     now bids a crafted item at most 1.5x its inputs (src/core/vendor.js), so
+     measured through `vendorPriceOf` every ratio below is <= 1.5 BY
+     CONSTRUCTION and this file could never go red again — which is how a guard
+     dies quietly. That bound is policed by tests/vendor-shop-arbitrage.mjs
+     findRecipeArbitrage. THIS file keeps policing what the anchor hides and
+     what book value `v` still drives (market listings, chest payouts, recipe
+     costing, the collection log): an AUTHORED curve where a recipe's book
+     output dwarfs its inputs. `baseVendorBid` is the same raw-discounted bid
+     the vendor paid before the anchor, from the same module. */
+  const { baseVendorBid } = await imp('src/core/vendor.js');
+  const vendorPriceOf = (items, id) => baseVendorBid(
+    Object.prototype.hasOwnProperty.call(items, id) ? items[id] : null);
 
   const problems = [];
   let batches = 0;

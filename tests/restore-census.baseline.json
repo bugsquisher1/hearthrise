@@ -33,7 +33,7 @@
   "Classifications are AUTHORED, never generated — deciding what a restore owes",
   "a table is a judgement, and --write preserves whatever is already here."
  ],
- "generated": "2026-10-06",
+ "generated": "2026-10-08",
  "production": {
   "measured": "2026-08-30",
   "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Micro compute)",
@@ -678,7 +678,7 @@
   },
   "hr_activities": {
    "class": "seeded",
-   "replay": 514,
+   "replay": 535,
    "note": "Generated from src/data/*.js by tools/gen-catalogues.mjs; content guarded by --check as a smoke preflight. 344 rows on 2026-08-15, 508 now. Rebuilt from repo, never restored."
   },
   "hr_bounty_monsters": {
@@ -748,12 +748,12 @@
   },
   "hr_crop_plot_tier": {
    "class": "seeded",
-   "replay": 9,
+   "replay": 10,
    "note": "Generated farm catalogue (2026-08-22-farm-catalogues.generated.sql, tools/gen-farm-catalogues.mjs --check): which crops each plot tier is allowed to grow. Rebuilt from repo, never restored."
   },
   "hr_crops": {
    "class": "seeded",
-   "replay": 9,
+   "replay": 10,
    "note": "Generated catalogue — crop growth times and yields, the numbers every harvest is priced by. Content guarded by tools/gen-catalogues.mjs --check. Rebuilt from repo, never restored."
   },
   "hr_db_samples": {
@@ -762,7 +762,7 @@
   },
   "hr_dungeon_loot": {
    "class": "seeded",
-   "replay": 38,
+   "replay": 39,
    "note": "Generated from src/data/dungeons.js by tools/gen-dungeon-catalogue.mjs (--check is a smoke preflight): the per-dungeon loot table (id, qty range, chance, bop) hr_dungeon_settle rolls from. Server-owned reference data, no player rows. Rebuilt from repo, never restored."
   },
   "hr_dungeons": {
@@ -870,12 +870,12 @@
   },
   "hr_item_slots": {
    "class": "seeded",
-   "replay": 280,
+   "replay": 291,
    "note": "Generated catalogue — which items may occupy which equipment slot. 222 rows on 2026-08-15, 275 now. Rebuilt from repo, never restored."
   },
   "hr_items": {
    "class": "seeded",
-   "replay": 538,
+   "replay": 552,
    "note": "Generated catalogue — the market tradeable allowlist and every item's server-side truth. 426 rows on 2026-08-15, 515 on 2026-09-06, 519 now (+4 Hearthfind trophies, 2026-09-08). Content digest guarded by tools/gen-catalogues.mjs --check as a smoke preflight."
   },
   "hr_kill_credit_log": {
@@ -922,7 +922,7 @@
   },
   "hr_qm_offers": {
    "class": "seeded",
-   "replay": 19,
+   "replay": 20,
    "note": "Generated from src/data/dungeons.js QM_STOCK by tools/gen-dungeon-catalogue.mjs (--check is a smoke preflight): the Quartermaster offers (offer_id qm.<item>, item_id, scrip_cost) hr_quartermaster_buy prices from. Server-owned reference data, no player rows. Rebuilt from repo, never restored."
   },
   "hr_quest_rewards": {
@@ -979,7 +979,7 @@
   },
   "hr_start_inventory": {
    "class": "seeded",
-   "replay": 4,
+   "replay": 3,
    "note": "Generated from src/data/start-kit.js — the items a fresh character is created holding. Three rows on 2026-08-15, four now. Rebuilt from repo, never restored."
   },
   "hr_start_kit": {

@@ -535,6 +535,20 @@ async function bindGuard(cat) {
       + 'number to verify it against.'],
   ]);
 
+  /* FORWARD FIXES. An applied file is history, so a later target move lives in
+     its own migration as `update public.hr_goal_rewards set target = N where
+     goal_id = 'x'` (2026-10-08-content-holes.sql). The player is graded on the
+     chain END, so those moves are folded over the authoring catalogue here, in
+     apply order, before the bind. */
+  const order = JSON.parse(await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+  for (const f of order.slice(order.indexOf(MIG) + 1)) {
+    const sql = await readFile(join(ROOT, 'supabase', 'migrations', f), 'utf8').catch(() => '');
+    for (const m of sql.matchAll(/update public\.hr_goal_rewards\s+set target = (\d+)\s+where goal_id = '([a-z0-9_]+)'/g)) {
+      const c = cat.get(m[2]);
+      if (c) cat.set(m[2], { ...c, target: m[1] });
+    }
+  }
+
   for (const r of [...dailyRows, ...weeklyRows]) {
     const c = cat.get(r.id);
     if (UNCATALOGUED.has(r.id)) {

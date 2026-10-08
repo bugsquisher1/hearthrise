@@ -37,6 +37,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { DUNGEONS, dungeonScripBase, QM_STOCK } from '../src/data/dungeons.js';
 import { ITEMS } from '../src/data/items.js';
+import { emitGenerated } from './generated-freeze.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(ROOT, 'supabase', 'migrations', '2026-09-10-dungeon-catalogue.generated.sql');
@@ -239,15 +240,13 @@ end $$;
 }
 
 const wanted = render();
-if (process.argv.includes('--check')) {
-  const have = await readFile(OUT, 'utf8').catch(() => '');
-  if (have.replace(/\r\n/g, '\n') !== wanted.replace(/\r\n/g, '\n')) {
-    console.error('gen-dungeon-catalogue --check FAILED: '
-      + '2026-09-10-dungeon-catalogue.generated.sql is stale. Run: node tools/gen-dungeon-catalogue.mjs');
-    process.exit(1);
-  }
-  console.log('gen-dungeon-catalogue --check: catalogue matches src/data/dungeons.js');
-} else {
-  await writeFile(OUT, wanted);
-  console.log(`wrote ${OUT}`);
+/* Applied generated files are FROZEN (tools/generated-freeze.mjs): a data change
+   lands as an append-only delta migration, never as new bytes in history. */
+const CHECK_MODE = process.argv.includes('--check');
+const emitted = emitGenerated(OUT, wanted, CHECK_MODE);
+if (!emitted.ok) {
+  console.error('gen-dungeon-catalogue --check FAILED: ' + emitted.msg + '. Run: node tools/gen-dungeon-catalogue.mjs');
+  process.exit(1);
 }
+if (CHECK_MODE) console.log('gen-dungeon-catalogue --check: catalogue matches src/data/dungeons.js'.replace(/$/, '') + ' — ' + emitted.msg);
+else console.log(emitted.msg);

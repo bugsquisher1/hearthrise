@@ -39,4 +39,10 @@ Covers B `a5eecbfd`, C `60da1fd4` (contains B a5eecbfd) and A `026781cd` (contai
 | A5 dungeon scrip | GO | Only `auto` pays; manual and scavenger pay 0. "Confirmed" here means the server's own level, cooldown and key gates; there is no fight simulation. Removing the mode check → §4 GATE(b) RED. |
 | C content holes | GO | `--pin` now refuses to replace a pin (my bypass repro exits 1, registry unchanged). No arbitrage loops. Deltas replay byte-identically. schema-drift 0. |
 
-**Apply order** (Coordinator, one file per call): dungeon-scrip-fixed-by-mode → quest-combat-xp → lone-hunt-weekly-chest → muster-server-points → pet-roll-server → kill-credit-prune-8d → content-holes → catalogue.delta → dungeon-catalogue.delta → farm-catalogues.delta. Then edge deploy (A + B), then the client cut. B has no migration. Its edge must deploy together with C's catalogue deltas, or before them.
+**FINAL (Coordinator's last heads).** A `f369c785` has tree `fd836c33`, the exact tree tested above. It contains B `a5eecbfd` and C `60da1fd4`, which are the heads covered here. `pack-edge --hash` on that tree = `7c66432265fe…9b9aea2f`, which matches.
+
+**Apply order: one change.** `schema-apply-order.json` lists kill-credit-prune-8d AFTER lone-hunt, but that file's own header says "apply BEFORE (or with) the lone-hunt file". Apply it FIRST. Correct order, one file per call: kill-credit-prune-8d → dungeon-scrip-fixed-by-mode → quest-combat-xp → lone-hunt-weekly-chest → muster-server-points → pet-roll-server → content-holes → catalogue.delta → dungeon-catalogue.delta → farm-catalogues.delta (deltas last). Run all ten outside 04:40 UTC (prune cron) and outside 00:00–00:10.
+
+Residual accepted for the first hunt week: credit-log rows older than 2 days were already pruned, so bounty-free credits from before that are not subtracted. That is at most one chest per account.
+
+**Edge: one deploy at `7c664322…` covers A + B + C**, but it must go AFTER all ten applies. The engine vendors C's new items and drops; proposing them to an hr_apply whose `hr_items` lacks them would refuse settles. The pet-roll and dungeon halves are safe in either order. After the deploy comes the client cut.

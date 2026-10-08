@@ -2571,10 +2571,7 @@ export function reconcileWorkers(G, res) {
       targetId: (sw.target_id != null ? sw.target_id : null),
       xp: Number(sw.xp) || 0,
       acc_ms: Number(sw.acc_ms) || 0,
-      /* SERVER-OWNED and REPLACED like the rest: the hire time is what orders
-         the crew's seats (src/core/workers.js crewSeats), so the pace shown
-         under a name is the pace the settle pays. Absent → null → that hand
-         reads as the newest (the settle pays a row with no hire time nothing). */
+      // Server-owned: orders the crew's seats (core/workers.js crewSeats); absent sits last.
       hired_at: (sw.hired_at != null ? String(sw.hired_at) : null)
     });
     if (!merged.lastCollect) merged.lastCollect = Date.now();

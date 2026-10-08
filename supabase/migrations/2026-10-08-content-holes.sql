@@ -6,6 +6,7 @@
 --   §1(a) hr_quest_rewards — `farmhand` pays 5 carrot_seed, was 5 wheat_seed.
 --   §1(b) hr_goal_rewards  — `wk_harvest` target 120 → 40. Gold, gems, xp and
 --         items are UNTOUCHED.
+--   §1(d) hr_items gates for alpha_cloak / chief_blade / captains_ribblade.
 --   §1(c) the START KIT — hr_start_inventory carrot_seed 3 → gone, turnip_seed
 --         5 → 8; hr_start_kit.farm_plots 4 → 2. Only NEW characters read these.
 --
@@ -124,6 +125,19 @@ delete from public.hr_start_inventory where item_id = 'carrot_seed';
 update public.hr_start_inventory set qty = 8 where item_id = 'turnip_seed' and qty is distinct from 8;
 update public.hr_start_kit set farm_plots = 2 where farm_plots is distinct from 2;
 
+-- ── 1(d). THREE RE-STATTED GATES ───────────────────────────────────────────
+-- The regenerated catalogue carries them too, but 2026-09-12-equippable-req-lv
+-- and 2026-09-13-prayer-ladder-and-item-gates restate the OLD gates by id after
+-- it in the chain, so the last word has to be this file's. alpha_cloak 30 -> 60,
+-- chief_blade 15 -> 45, captains_ribblade 30 -> 60 (the rung each one's forge
+-- opens at; see src/data/items.js).
+update public.hr_items i
+   set req_skill = x.req_skill, req_lv = x.req_lv
+  from (values ('alpha_cloak','defense',60), ('chief_blade','attack',45),
+               ('captains_ribblade','attack',60)) as x(item_id, req_skill, req_lv)
+ where i.item_id = x.item_id
+   and (i.req_skill is distinct from x.req_skill or i.req_lv is distinct from x.req_lv);
+
 -- ── 4. SELF-VERIFYING COMMIT GATE (executed, not markers) ──────────────────
 do $$
 declare
@@ -156,6 +170,10 @@ begin
     join public.hr_crops c on c.seed_item = s.item_id
    where c.req_lv > 1;
   if v_n > 0 then raise exception '§4(c): the start kit carries % seed stack(s) a level-1 farmer cannot plant', v_n; end if;
+  select count(*) into v_n from public.hr_items
+   where (item_id, req_skill, req_lv) in (('alpha_cloak','defense',60), ('chief_blade','attack',45),
+                                          ('captains_ribblade','attack',60));
+  if v_n <> 3 then raise exception '§4(c2): % of the 3 re-statted gates landed', v_n; end if;
   -- (d) the catalogue tables stay client-unwritable.
   if has_table_privilege('authenticated', 'public.hr_quest_rewards', 'INSERT,UPDATE,DELETE,TRUNCATE')
      or has_table_privilege('authenticated', 'public.hr_goal_rewards', 'INSERT,UPDATE,DELETE,TRUNCATE') then

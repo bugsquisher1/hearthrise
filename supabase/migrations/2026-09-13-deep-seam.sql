@@ -492,7 +492,10 @@ begin
   end if;
   select count(*) into v_n from public.hr_activities
    where kind = 'artisan' and req_skill = 'smithing';
-  if v_n <> 115 then
+  -- content-holes (2026-10-08) added 12 smithing rows through the regenerated
+  -- catalogue (7 kiteshields, 3 mason's rules, 2 raid aegises), which a rebuild
+  -- applies before this file. Either count is a ruled ladder; anything else is not.
+  if v_n not in (115, 127) then
     raise exception 'GATE(b3): the smithing bench holds % rows, the ruling leaves 115 (109 '
                     'shipped + 6 new — counted off the regenerated catalogue, which includes the '
                     'generated gear ladders, not only BASE_RECIPES.smithing)', v_n;

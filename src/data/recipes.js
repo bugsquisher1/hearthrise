@@ -262,8 +262,8 @@ const BASE_RECIPES = {
     {id:'forge_chief_blade',   name:"Chief's Blade",       icon:'🗡️', inputs:{warlord_badge:1, mithril_bar:3, maple_plank:1}, output:'chief_blade',     xp:700,  req:48, ms:5000, gated:'chief_blade_recipe'},
     {id:'forge_captain_blade', name:"Captain's Ribblade",  icon:'🗡️', inputs:{captain_medal:1, rune_bar:3, yew_plank:1},    output:'captains_ribblade', xp:1300, req:66, ms:6000, gated:'captain_recipe'},
     /* content-holes (2026-10-08): the raid materials' first sink — two offhands. */
-    {id:'forge_riftmaw_aegis',   name:'Forge Riftmaw Aegis',   icon:'🛡️', inputs:{riftmaw_husk:3, void_essence:1, ember_bar:4},     output:'riftmaw_aegis',   xp:4200, req:82, ms:6600},
-    {id:'forge_elderscale_aegis',name:'Forge Elderscale Aegis',icon:'🛡️', inputs:{elderscale_heart:1, dragon_scale:20, dawn_bar:4}, output:'elderscale_aegis',xp:6400, req:95, ms:7200},
+    {id:'forge_riftmaw_aegis',   name:'Forge Riftmaw Aegis',   icon:'🛡️', inputs:{riftmaw_husk:3, void_essence:1, ember_bar:4},     output:'riftmaw_aegis',   xp:2800, req:82, ms:6600},
+    {id:'forge_elderscale_aegis',name:'Forge Elderscale Aegis',icon:'🛡️', inputs:{elderscale_heart:1, dragon_scale:20, dawn_bar:4}, output:'elderscale_aegis',xp:3600, req:95, ms:7200},
     // Gathering tools (b201, SYS-3) — the OSRS tool ladder. Each tier speeds
     // its gathering skill (see items.js toolSpeed + features/tools.js).
     {id:'forge_bronze_axe',     name:'Forge Bronze Axe',      icon:'🪓', inputs:{bronze_bar:1, normal_plank:1},   output:'bronze_axe',      xp:40,   req:3,  ms:2500},

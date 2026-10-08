@@ -127,7 +127,7 @@ export const MONSTERS = {
       { id: 'adept_body', ch: .0006, lucky: true }] },
   cutpurse: { name: 'Cutpurse', icon: '🎭', tier: 1, cls: 'human', family: 'Human',
     hp: 11, atk: 4, def: 0, xp: 10, gp: [2, 6],
-    drops: [{ id: 'rat_tail', ch: .2 }, { id: 'copper_ore', ch: .2 }, { id: 'bones', ch: .4 }, { id: 'cutpurse_gloves', ch: .003 },
+    drops: [{ id: 'rat_tail', ch: .2 }, { id: 'copper_ore', ch: .2 }, { id: 'bones', ch: .4 }, { id: 'cutpurse_gloves', ch: .0008 },
       { id: 'apprentice_gloves', ch: .004, salvage: true }] },
   /* FOLD-05: display rename only. "Weak" is a stat; "Brittle" is a description
      a player reads as fragile without being told it is the tutorial version. */
@@ -253,7 +253,7 @@ export const MONSTERS = {
       { id: 'boarhide_belt', ch: .0035, salvage: true }] },
   dire_wolf: { name: 'Dire Wolf', icon: '🐺', tier: 3, cls: 'mammal', family: 'Mammal',
     hp: 62, atk: 19, def: 7, xp: 100, gp: [16, 40],
-    drops: [{ id: 'wolf_pelt', ch: .9 }, { id: 'dire_fang', ch: .35 }, { id: 'alpha_fang', ch: .015 }, { id: 'raw_wolf_meat', ch: .8 }, { id: 'hunters_torc', ch: .002 },
+    drops: [{ id: 'wolf_pelt', ch: .9 }, { id: 'dire_fang', ch: .35 }, { id: 'alpha_fang', ch: .015 }, { id: 'raw_wolf_meat', ch: .8 }, { id: 'hunters_torc', ch: .0005 },
       { id: 'boarhide_boots', ch: .0035, salvage: true }] },
   bog_vine: { name: 'Bog Vine', icon: '🌿', tier: 3, cls: 'plant', family: 'Plant',
     hp: 70, atk: 16, def: 10, xp: 104, gp: [17, 42],

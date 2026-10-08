@@ -510,7 +510,8 @@
   "world_finds",
   "party",
   "party_hunt_roster_log",
-  "party_member"
+  "party_member",
+  "hr_return_anchor"
  ],
  "_player_value_tables_why": [
   "THE CLASS OF THESE IS NOT NEGOTIABLE: restore_only, always. They hold a",
@@ -550,7 +551,8 @@
   "hr_tick_shadow": "A MEASUREMENT OF WHAT WAS NOT PAID. Every row is written on the branch of hr_tick_settle that returns BEFORE hr_apply — the shadow branch pays nothing, and the migration's self-check e13 asserts gold, version and accrued_to are all unmoved after one. No RPC reads this table, nothing joins to it, and no number a player can spend, rank or trade is derived from it. Losing every row costs re-running the 48 h parity window.",
   "party_invite": "M8 S1 party invites. Player-scoped, but every row expires fifteen minutes after it is written and grants nothing on its own — accepting one is a separate verb with its own checks, so a restored invite is not a restored membership. Losing them costs an inviter one tap. It carries no value in S1 and will carry none in S2 either: the card is an offer, the membership row is the fact.",
   "party_settle_boundary": "The bookkeeping of a CLAMP, not a quantity a player earned. Its user_id names who CHOSE a settle boundary (for a kick, the leader rather than the member removed), which makes it player-scoped for forensics and for nothing else. Losing every row costs no player anything: the party watermark lives on party_hunt, every member's own watermark on player_state, and §18.1 guarantees that past the eighth boundary a stop, a leave and a kick land immediately and are paid on the tick's own cadence anyway. What is lost is one UTC day's worth of a re-roll clamp — an anti-abuse budget resetting early, which is a loosening to notice and not a restoration to perform.",
-  "hr_tick_enrolment": "AN ENROLMENT JOURNAL, NOT A LEDGER. One row per automatic tick enrolment or rollback, keyed per (user, slot) because enrolment is per character. It records who the server put under tick ownership and is the rollback key for those hr_tick_ownership rows - and hr_tick_ownership is itself exempt and restores EMPTY (not owned, the fail-safe). With both empty after a restore every character is accrue-owned and settles from its own player_state.accrued_to, which is restore_only and is the only record of what has been paid. Losing every row costs history, never value: no double pay and no gap is possible, because the watermark is the correctness mechanism."
+  "hr_tick_enrolment": "AN ENROLMENT JOURNAL, NOT A LEDGER. One row per automatic tick enrolment or rollback, keyed per (user, slot) because enrolment is per character. It records who the server put under tick ownership and is the rollback key for those hr_tick_ownership rows - and hr_tick_ownership is itself exempt and restores EMPTY (not owned, the fail-safe). With both empty after a restore every character is accrue-owned and settles from its own player_state.accrued_to, which is restore_only and is the only record of what has been paid. Losing every row costs history, never value: no double pay and no gap is possible, because the watermark is the correctness mechanism.",
+  "hr_tick_horizon_log": "A PARKING JOURNAL, NOT A LEDGER. One row per absence that reached its presence horizon under the armed tick, keyed per (user, slot, anchor). No settle reads it to decide a number; only the lag judge reads it, to tell a parked character (paid in full, waiting) from a stuck one. Losing every row costs history and makes the lag judge call parked characters stuck until they return - loud, never value."
  },
  "tables": {
   "active_bounty": {
@@ -1248,6 +1250,16 @@
    "class": "operational",
    "wiped_at_cutover": false,
    "note": "APPEND-ONLY JOURNAL of every automatic tick enrolment and every rollback unenrolment (user, slot, channel, server time, permille, hash bucket, the accrued_to that qualified it) - created 2026-10-10-world-tick-gather-widen.sql, ships EMPTY. It is the audit trail of WHO the server put under tick ownership and the ROLLBACK KEY hr_tick_unenrol uses to remove exactly those rows. It is operational, not restore_only, because the rows it keys live in hr_tick_ownership, which is itself operational and comes back EMPTY: after a restore there is nothing enrolled to roll back, and the empty journal is consistent with it. Losing it loses enrolment history only; no credited time, no value (player_state.accrued_to is the truth of what has been paid). Written only by hr_tick_enrol / hr_tick_unenrol (SECURITY DEFINER, owner-only); RLS enabled AND forced, zero policies, zero grants; no function body updates or deletes it (the migration's §8 k0b asserts that)."
+  },
+  "hr_return_anchor": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "THE LAST REAL RETURN per character (presence horizon, 2026-10-10-world-tick-presence-horizon.sql): the accrued_to of its last NON-tick settle, stamped by the hr_return_anchor_ins/_upd triggers on player_state. Every settle, tick or accrue, may pay only up to real_return_at + hr_offline_cap_ms. restore_only and on player_value_tables because it is part of what has been paid: player_state.accrued_to says where the paid time ENDS, this says how much of the current absence the tick already spent. Lost while player_state survives, an owned character is refused by the tick (no_return_anchor, pays nothing) and its next accrue reads the full cap from its own accrued_to, so ONE absence could be paid up to one cap more than the ruling allows; every later settle restamps it. Backfilled once by the migration (accrued_to for un-owned characters, the last non-tick accrue ledger row for owned ones). RLS enabled AND forced, zero policies, zero grants."
+  },
+  "hr_tick_horizon_log": {
+   "class": "operational",
+   "wiped_at_cutover": false,
+   "note": "APPEND-ONLY: one row per absence whose armed tick reached last real return + cap and was refused past_horizon (2026-10-10-world-tick-presence-horizon.sql, the first refusal only). It marks the character PARKED for the per-character lag judge and is the audit trail of horizons reached. Ships EMPTY. Lost, the lag judge would call a parked character stuck until its return (loud, never a mint): no value, no pay decision reads it. Written only by hr_tick_settle; RLS enabled AND forced, zero policies, zero grants; never updated or deleted."
   }
  }
 }

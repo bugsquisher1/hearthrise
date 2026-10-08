@@ -1378,6 +1378,10 @@ end $$;
 -- ⟦/DERIVED hr_assert_grant_hygiene⟧
 
 -- ── §7 GRANTS — revoke from PUBLIC first ────────────────────────────────────
+revoke execute on function public.hr_assert_grant_hygiene(boolean) from public;
+revoke execute on function public.hr_assert_grant_hygiene(boolean)
+  from anon, authenticated, service_role;
+
 revoke all on table public.hr_return_anchor from public;
 revoke all on table public.hr_return_anchor from anon, authenticated, service_role, hr_engine, hr_tick;
 revoke all on table public.hr_tick_horizon_log from public;

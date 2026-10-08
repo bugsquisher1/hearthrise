@@ -140,6 +140,8 @@
     "node tests/world-tick-party-reaper.mjs --mutate": "db-replay-5",
     "node tests/party-hunt-start-gate.mjs": "db-replay-5",
     "node tests/party-hunt-start-gate.mjs --mutate": "db-replay-5",
+    "node tests/world-tick-presence-horizon.mjs": "db-replay-5",
+    "node tests/world-tick-presence-horizon.mjs --mutate": "db-replay-5",
     "node tests/world-tick-gather-widen.mjs": "db-replay-5",
     "node tests/world-tick-gather-widen.mjs --mutate": "db-replay-5",
     "node tests/world-tick-edge-contract.mjs --selftest": "db-replay-5",

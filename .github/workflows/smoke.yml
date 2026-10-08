@@ -1921,8 +1921,9 @@ jobs:
 
       # Security G1 (party-fences review): tools/vitals.mjs restates the armed
       # stall judge (the read-only role cannot execute hr_tick_stall_status).
-      # Both judges run on the same 11 replayed fixtures (F2b: online = not
-      # judged) and must agree; --mutate: 9 vitals mutants, each RED by name.
+      # Both judges run on the same 15 replayed fixtures (F2b: online = not
+      # judged; hr_partied: a live party hunt member is not a sentinel) and
+      # must agree; --mutate: 13 vitals mutants, each RED by name.
       - name: Vitals armed stall judge equals hr_tick_stall_status (G1)
         if: ${{ !cancelled() }}
         run: |

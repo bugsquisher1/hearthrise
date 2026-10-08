@@ -30,6 +30,10 @@
 //   V9  an hour with nothing rostered                    judged, not stalled
 //   V10 the tick disabled                                NOT judged
 //   V11 raw mark 25 h old (fenced_24h), at real now      NOT judged
+//   V12 ★ hr_partied: combat sentinel in a live hunt     NOT judged (combat armed, M4)
+//   V13 sat out of the live hunt (latest row a drop)     a sentinel: judged, STALLED
+//   V14 the party hunt ended                             a sentinel: judged, STALLED
+//   V15 left the party (left_at)                         a sentinel: judged, STALLED
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ============================================================================
@@ -103,10 +107,10 @@ async function arms(db, V, { log = true } = {}) {
       return { dbS, rows };
     } finally { await db.exec('commit;'); }
   };
-  const fixture = async (id, what, at, want) => {
+  const fixture = async (id, what, at, want, ch = 'gather') => {
     const { dbS, rows } = await judge(at);
-    const d = (dbS.armed || []).find((x) => x.channel === 'gather') || { judged: false, stalled: false };
-    const vr = rows.filter((r) => r.channel === 'gather').sort((x, y) => Number(x.i) - Number(y.i))
+    const d = (dbS.armed || []).find((x) => x.channel === ch) || { judged: false, stalled: false };
+    const vr = rows.filter((r) => r.channel === ch).sort((x, y) => Number(x.i) - Number(y.i))
       .map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, typeof v === 'bigint' ? Number(v) : v])));
     const v = vr.length ? V.armedStallVerdict(vr, V.rule) : { judged: false, stalled: false, verdict: 'NO ROW' };
     const dbAns = { judged: d.judged === true, stalled: d.stalled === true };
@@ -177,8 +181,57 @@ async function arms(db, V, { log = true } = {}) {
   await fires((await one('select now() as t')).t);
   await onlyOwners([U(21)]);
   await fixture('V11', 'raw mark 25 h old (fenced_24h): not a sentinel', null, NOJ);
-
   await onlyOwners([]);
+
+  // ── hr_partied (M4: combat armed). A combat character in a live party hunt
+  //    is the party roster's, not a solo sentinel; sat out, left, or the hunt
+  //    ended = solo again, so a sentinel.
+  const cact = (await one("select activity_id from public.hr_activities where kind = 'combat' order by activity_id limit 1"))?.activity_id;
+  if (!cact) throw harness('no combat activity in hr_activities');
+  await cfg("armed_channels = array['combat','gather']");
+  const fighter = async (u, owned) => {
+    await db.exec(`insert into auth.users (id) values ('${u}') on conflict do nothing;`);
+    await q(`insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version, accrued_to,
+                                              active_kind, active_id, active_since)
+             values ($1, 0, 0, 0, 10, 10, 1, now() - interval '5 minutes', 'combat', $2, '2000-01-01 00:00:00+00')`, [u, cact]);
+    await q("insert into public.hr_tick_ownership (user_id, slot, channel, owned) values ($1, 0, 'combat', $2)", [u, owned]);
+  };
+  const huntFor = async (leader, member = null) => {
+    const party = (await one('insert into public.party (leader_user, leader_slot) values ($1, 0) returning id', [leader])).id;
+    await q("insert into public.party_member (party_id, user_id, slot, role) values ($1, $2, 0, 'leader')", [party, leader]);
+    if (member) await q("insert into public.party_member (party_id, user_id, slot, role) values ($1, $2, 0, 'member')", [party, member]);
+    const hunt = (await one("insert into public.party_hunt (party_id, active_id, accrued_to) values ($1, $2, now() - interval '5 minutes') returning id",
+      [party, cact])).id;
+    return { party, hunt };
+  };
+  const combatOwners = (us) => q("update public.hr_tick_ownership set owned = (user_id = any($1::uuid[])) where channel = 'combat'", [us]);
+  for (const u of [U(30), U(31), U(32), U(33), U(34)]) await fighter(u, false);
+  await huntFor(U(30));
+  const satOut = await huntFor(U(31));
+  await q(`insert into public.party_hunt_roster_log (day_key, party_id, hunt_id, user_id, slot, event, reason, mark, hunters)
+           values ('2026-10-07', $1, $2, $3, 0, 'drop', 'fenced_24h', now() - interval '25 hours', 1)`, [satOut.party, satOut.hunt, U(31)]);
+  const ended = await huntFor(U(32));
+  await q("update public.party_hunt set ended_at = now(), stopped_by = 'stale_hunt' where id = $1", [ended.hunt]);
+  const left = await huntFor(U(34), U(33));
+  await q('update public.party_member set left_at = now() where party_id = $1 and user_id = $2', [left.party, U(33)]);
+
+  await fires(T(2020));
+  await combatOwners([U(30)]);
+  await fixture('V12', 'hr_partied: the only combat sentinel is in a live party hunt -> not judged', T(2020), NOJ, 'combat');
+
+  await fires(T(2021));
+  await combatOwners([U(31)]);
+  await fixture('V13', 'hr_partied: SAT OUT of the live hunt (latest roster row a drop) -> a sentinel, STALLED', T(2021), STALL, 'combat');
+
+  await fires(T(2022));
+  await combatOwners([U(32)]);
+  await fixture('V14', 'hr_partied: the party hunt ENDED -> a sentinel, STALLED', T(2022), STALL, 'combat');
+
+  await fires(T(2023));
+  await combatOwners([U(33)]);
+  await fixture('V15', 'hr_partied: LEFT the party (left_at) -> a sentinel, STALLED', T(2023), STALL, 'combat');
+
+  await combatOwners([]);
   return red;
 }
 
@@ -203,22 +256,30 @@ if (!MUTATE) {
 //    turn its named fixture RED. The DB side is never touched.
 const MUTANTS = [
   { name: 'noF2bInQuery', why: 'the online exclusion removed from ARMED_TICK (G1 as found)', expect: /^V2$/,
-    find: "and pl.meta ->> 'src' is distinct from 'tick')) as online_sentinels",
-    repl: "and false)) as online_sentinels" },
+    find: "and pl.meta ->> 'src' is distinct from 'tick') as online",
+    repl: "and false) as online" },
   { name: 'noF2bInRule', why: 'online sentinels not subtracted in armedStallVerdict', expect: /^V2$/,
     find: 'const offline = Number(win[0].sentinels) - Number(win[0].online_sentinels);',
     repl: 'const offline = Number(win[0].sentinels);' },
   { name: 'f2bAnyKind', why: 'a client row of any kind unseats the sentinel', expect: /^V5$/,
-    find: "                          and pl.kind = (case c.ch when 'artisan' then 'craft' else c.ch end)\n", repl: '' },
+    find: "                    and pl.kind = (case c.ch when 'artisan' then 'craft' else c.ch end)\n", repl: '' },
   { name: 'f2bUnbounded', why: 'client rows before the window still unseat the sentinel', expect: /^V6$/,
     find: "and pl.at >= now() - interval '2 hours' and pl.at < now()", repl: 'and true' },
   { name: 'f2bTickRowsUnseat', why: 'tick rows also unseat a sentinel', expect: /^V4$/,
-    find: "and pl.meta ->> 'src' is distinct from 'tick')) as online_sentinels", repl: ')) as online_sentinels' },
+    find: "and pl.meta ->> 'src' is distinct from 'tick') as online", repl: ') as online' },
   { name: 'noRestartFence', why: 'active_since ignored', expect: /^V7$/,
-    find: "           and ps.active_since <= now() - interval '2 hours'\n           and ps.accrued_to > now() - interval '24 hours') as sentinels,",
-    repl: "           and ps.accrued_to > now() - interval '24 hours') as sentinels," },
-  { name: 'no24hFence', why: 'the 24 h raw-mark fence dropped', expect: /^V11$/, all: true,
-    find: "           and ps.accrued_to > now() - interval '24 hours'", repl: '' },
+    find: "     and ps.active_since <= now() - interval '2 hours'\n", repl: '' },
+  { name: 'no24hFence', why: 'the 24 h raw-mark fence dropped', expect: /^V11$/,
+    find: "     and ps.accrued_to > now() - interval '24 hours'\n", repl: '' },
+  // hr_partied, inlined (M4).
+  { name: 'partiedDropped', why: 'a character in a live party hunt is a solo sentinel (hr_partied not mirrored)', expect: /^V12$/,
+    find: 'where m.user_id = o.user_id and m.slot = o.slot', repl: 'where false and m.user_id = o.user_id and m.slot = o.slot' },
+  { name: 'satOutIgnored', why: 'a member sat out of the hunt still counts as partied', expect: /^V13$/,
+    find: "and not coalesce((select r.event <> 'rejoin'", repl: 'and not coalesce((select false' },
+  { name: 'endedHuntPartied', why: 'an ENDED hunt still makes its members partied', expect: /^V14$/,
+    find: ' and ph.ended_at is null', repl: '' },
+  { name: 'leftMemberPartied', why: 'a member who LEFT still counts as partied', expect: /^V15$/,
+    find: 'and m.left_at is null and ', repl: 'and ' },
   { name: 'enabledIgnored', why: 'the tick disabled still judges', expect: /^V10$/,
     find: "history`);\n  if (String(win[0].enabled) !== 'true') return no('the tick is disabled (hr_tick_config.enabled)');",
     repl: 'history`);' },

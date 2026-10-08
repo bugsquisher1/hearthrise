@@ -910,7 +910,8 @@ function destinations() {
 
   // ── World event ────────────────────────────────────────────────────────
   const W = window.HearthriseWorldEvents;
-  if (W) {
+  /* no destination for a blessing the player cannot see (world-events.js shown()). */
+  if (W && typeof W.shown === 'function' && W.shown()) {
     let day = null;
     try { day = W.daily && W.daily(); } catch (e) { day = null; }
     out.push({

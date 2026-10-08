@@ -1321,15 +1321,24 @@
       '</div>';
   }
 
+  /* Front door: while the clan gate is shut the Clan tab has no door, so
+     the Lone Hunt neither sells a clan pool nor offers a button into a
+     coming-soon card. Reads the ONE switch (HearthriseClans.clanLaunched). */
+  function clansOpen() {
+    try { var C = window.HearthriseClans; return !!(C && typeof C.clanLaunched === 'function' && C.clanLaunched()); }
+    catch (e) { return false; }
+  }
+
   function soloCardHtml(st, wk, struckToday, claimed) {
     var boss = bossOfWeek(wk);
+    var clans = clansOpen();
     var measured = !!st.solo.max;
     var max = st.solo.max || 0;
     var hp = measured ? st.solo.hp : 0;
     var pct = measured && max > 0 ? Math.max(0, Math.min(100, Math.round(100 * hp / max))) : 100;
     var downed = measured && hp === 0;
     return '<div class="card-head">' + bossPortraitHtml(boss) + '<div class="card-title">' + esc(boss.glyph + ' Lone Hunt — ' + boss.name) + '</div>' +
-      '<div class="card-sub">Solo hunt (join a clan for the tiered pool + a bigger chest)</div></div>' +
+      '<div class="card-sub">' + (clans ? 'Solo hunt (join a clan for the tiered pool + a bigger chest)' : 'Solo hunt — one strike a day, one chest a week') + '</div></div>' +
       '<div class="card-body" style="padding:12px 14px">' +
         '<div class="tiny muted" style="margin-bottom:8px">' + esc(boss.desc) +
           ' Weak to <b style="color:var(--gold-2)">' + esc(boss.weak) + '</b>.</div>' +
@@ -1348,8 +1357,8 @@
         /* b225 (#18): the card-sub above says "join a clan for the tiered pool"
            and then left the player to work out where. It has a destination
            now. */
-        '<div style="margin-top:8px"><button class="btn btn-sm btn-ghost" ' +
-          'onclick="if(window.showTab)window.showTab(\'clan\')">Find a clan</button></div>' +
+        (clans ? '<div style="margin-top:8px"><button class="btn btn-sm btn-ghost" ' +
+          'onclick="if(window.showTab)window.showTab(\'clan\')">Find a clan</button></div>' : '') +
       '</div>';
   }
 

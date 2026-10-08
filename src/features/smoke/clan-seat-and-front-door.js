@@ -3586,7 +3586,7 @@ export default [
       'the name modal would still stack on the daily sheet: ' + I._FRONT_DOOR);
     assert(I._FRONT_DOOR.indexOf('.ftue-root') !== -1, 'the b224 FTUE guard must survive');
     // The live predicate, for each surface as the game builds it.
-    [['hr-id-scrim hr-scrim', null], ['hr-scrim', 'hr-post-signup-modal'], ['hr-scrim', 'hr-welcome-modal'], ['ftue-root', null]]
+    [['hr-id-scrim hr-scrim', null], ['hr-scrim', 'hr-welcome-modal'], ['ftue-root', null]]
       .forEach(([cls, id]) => {
         const n = document.createElement('div');
         n.className = cls;
@@ -4050,7 +4050,7 @@ export default [
     try { await rig.open(); } finally { rig.restore(); }
     assert(!added().length, 'the rig left a first-run sheet up: ' + added().join(', '));
     await new Promise((r) => setTimeout(r, 2500));
-    assert(!added().length, 'a first-run sheet opened 2.5 s after the arm — inside post-signup-welcome\'s '
+    assert(!added().length, 'a first-run sheet opened 2.5 s after the arm — inside the name prompt\'s '
       + 'own poll window, which is where it landed on CI: ' + added().join(', '));
   }),
 
@@ -4164,6 +4164,117 @@ export default [
       assert(/Wren/.test(rig.text()) && /1 of 4/.test(rig.text()), 'a failed read threw away the known roster: ' + rig.text().slice(0, 160));
     } finally {
       rig.restore();
+    }
+  }),
+
+  /* ══ regression suite — THE FRONT DOOR ══════════════════════════════
+     A first-hour review of a brand-new account found the tour teaching a night
+     the engine does not run, five first-run cards with five first
+     instructions, nav doors into "coming soon", a store that refuses every
+     sale, a blessing that pays nothing, and a changelog every day. Each arm
+     below is red before this lane and names the switch or constant it is bound to. */
+  () => tryRun('FRONT-DOOR-1: the tour states the Retreat, the away cap and the Vigour rate the engine runs', () => {
+    const F = window.HearthriseFTUE, AW = window.HearthriseCore && window.HearthriseCore.away;
+    const AM = window.HearthriseCore && window.HearthriseCore.ammo;
+    assert(F && AW && AM, 'CONTROL: the tour or the away/ammo bridge is not published');
+    const by = {}; F.steps().forEach((x) => { by[x.id] = String(x.body || ''); });
+    const all = Object.values(by).join(' ');
+    assert(!/Falling does not end the run|banks the whole time you are gone/.test(all),
+      'the tour still promises a run no fall can end, or a whole absence banked: ' + all);
+    const WORD = { 3: 'three', 6: 'six' };
+    assert(new RegExp('Fall ' + WORD[AW.RETREAT_FOODLESS_FALLS] + ' times without a kill and no food left, or '
+      + WORD[AW.RETREAT_ANY_FALLS] + ' times whatever you carry, and you retreat to camp').test(by.combat),
+      'the combat step does not state the Retreat at RETREAT_FOODLESS_FALLS=' + AW.RETREAT_FOODLESS_FALLS
+      + ' / RETREAT_ANY_FALLS=' + AW.RETREAT_ANY_FALLS + ': ' + by.combat);
+    assert(AM.AMMO_DRY_MULT === 0.25 && /once it runs out, a fight pays a quarter/.test(by.combat),
+      'the Vigour line must say "a quarter" while VIGOUR_DRY_MULT (= AMMO_DRY_MULT) is ' + AM.AMMO_DRY_MULT);
+    assert(/for up to twelve hours/.test(by.wrap), 'the wrap step must name the 12h away cap: ' + by.wrap);
+  }),
+
+  () => tryRun('FRONT-DOOR-2: a first session meets the tour alone — no welcome card, no beta banner, no daily sheet, no changelog', () => {
+    const F = window.HearthriseFTUE, K = F && F.__firstSessionKey;
+    assert(K && typeof F.isFirstSession === 'function', 'the first-session predicate is not published');
+    assert(!document.querySelector('script[src*="post-signup-welcome"]') && !document.getElementById('hr-post-signup-modal'),
+      'the cut post-signup card ("open Skills") is back — a second first instruction beside the tour');
+    const prev = sessionStorage.getItem(K), ack = localStorage.getItem('hearthrise:beta-ack');
+    const ftue = localStorage.getItem('hearthrise:ftue:completed');
+    try {
+      sessionStorage.setItem(K, '1');
+      localStorage.removeItem('hearthrise:beta-ack');
+      localStorage.setItem('hearthrise:ftue:completed', '1');   // the tour was skipped fast — the old ftueWillFire hole
+      const G = window.G, st = G.stats; G.stats = Object.assign({}, st, { kills: 0, gathered: 0, harvested: 0 });
+      try { window.HearthriseBetaBanner.__maybeShow(); } finally { G.stats = st; }
+      assert(!document.getElementById('beta-banner-overlay'), 'the beta banner opened on a first session');
+      assert(window.HearthriseDaily.__firstSession() === true, 'the daily sheet would auto-open on a first session');
+      assert(window.HearthriseWelcome.__suppressedBy() === 'first-session', 'the changelog would open on a first session');
+    } finally {
+      const o = document.getElementById('beta-banner-overlay'); if (o) o.remove();
+      if (prev === null) sessionStorage.removeItem(K); else sessionStorage.setItem(K, prev);
+      if (ack === null) localStorage.removeItem('hearthrise:beta-ack'); else localStorage.setItem('hearthrise:beta-ack', ack);
+      if (ftue === null) localStorage.removeItem('hearthrise:ftue:completed'); else localStorage.setItem('hearthrise:ftue:completed', ftue);
+    }
+  }),
+
+  () => tryRun('FRONT-DOOR-3: Clan and Party have no door anywhere while their launch switches are off', () => {
+    const Cl = window.HearthriseClans;
+    assert(Cl && Cl.clanLaunched() === false && window.partyLaunched() === false,
+      'CONTROL: this arm grades the switches OFF — flip it when a feature launches');
+    for (const tab of ['clan', 'party']) {
+      const doors = [...document.querySelectorAll('[data-tab="' + tab + '"]')];
+      assert(doors.length >= 2, 'CONTROL: expected the sidebar and the More sheet to carry ' + tab);
+      const open = doors.filter((d) => getComputedStyle(d).display !== 'none');
+      assert(!open.length, tab + ' still has a visible door: ' + open.map((d) => d.className).join(', '));
+    }
+    window.renderSocial();
+    assert(!document.querySelector('#social-panel [onclick*="showTab(\'clan\')"]'),
+      'Social still offers a button into the coming-soon Clan card');
+  }),
+
+  () => tryRun('FRONT-DOOR-5: the web build has no Premium Shop — no toggle, no pane, and its routes land on the Local Shop', () => {
+    const SH = window.HearthShops, prevTab = window.activeTab, prevPane = window._shopsPane;
+    assert(SH && SH.premiumOpen() === false && window.IAP.detectPlatform() === 'web',
+      'CONTROL: this arm must run on the web build');
+    try {
+      window.showTab('premium');
+      assert(window._shopsPane === 'local', 'showTab("premium") opened ' + window._shopsPane + ' on web');
+      const shown = [...document.querySelectorAll('.shops-tab[data-shops-pane="premium"], #shops-pane-premium')]
+        .filter((n) => getComputedStyle(n).display !== 'none');
+      assert(!shown.length, 'the web build still shows a Premium door: ' + shown.map((n) => n.id || n.className).join(', '));
+    } finally { window._shopsPane = prevPane; try { window.showTab(prevTab || 'profile'); } catch (e) {} }
+  }),
+
+  () => tryRun('FRONT-DOOR-6: blessings are out of view — no Events card, no Home block, no War Table row', () => {
+    const E = window.HearthriseWorldEvents, H = window.HearthriseHome, CS = window.HearthriseCombatScreens;
+    assert(E && E.shown() === false, 'CONTROL: BLESSINGS_SHOWN must be off for this arm');
+    E.renderBlessing();
+    assert(!document.getElementById('hr-worldevents'), 'the blessing card is still drawn');
+    const sec = document.getElementById('hr-ev-blessing');
+    assert(!sec || getComputedStyle(sec).display === 'none', 'the Events "Today\'s blessing" section still shows');
+    const prevTab = window.activeTab;
+    try {
+      window.showTab('profile'); if (H && H.render) H.render();
+      assert(![...document.querySelectorAll('#panel-profile h3')].some((x) => x.textContent === 'The realm'),
+        'Home still draws "The realm" blessing block');
+    } finally { try { window.showTab(prevTab || 'profile'); } catch (e) {} }
+    assert(!CS || !CS._destinations().some((d) => d.kick === 'World Event'), 'the War Table still lists a World Event');
+  }),
+
+  () => tryRun('FRONT-DOOR-7: the changelog opens at most once a week, and never on a first session', () => {
+    const W = window.HearthriseWelcome, F = window.HearthriseFTUE, K = F.__firstSessionKey;
+    const prev = sessionStorage.getItem(K), at = localStorage.getItem(W.__shownAtKey);
+    if (F.__accountIsNew()) { skip('this account is minutes old, so every session reads as its first'); return; }
+    try {
+      sessionStorage.removeItem(K);
+      const now = Date.UTC(2026, 9, 8, 12);
+      localStorage.setItem(W.__shownAtKey, String(now - 3 * 86400000));
+      assert(W.__suppressedBy(now) === 'shown-this-week', 'a changelog shown 3 days ago may open again');
+      localStorage.setItem(W.__shownAtKey, String(now - W.__minGapMs - 1));
+      assert(W.__suppressedBy(now) === null, 'a week after the last showing the changelog must be allowed');
+      localStorage.removeItem(W.__shownAtKey);
+      assert(W.__suppressedBy(now) === null, 'a browser that never saw one must be allowed');
+    } finally {
+      if (prev === null) sessionStorage.removeItem(K); else sessionStorage.setItem(K, prev);
+      if (at === null) localStorage.removeItem(W.__shownAtKey); else localStorage.setItem(W.__shownAtKey, at);
     }
   }),
 ];

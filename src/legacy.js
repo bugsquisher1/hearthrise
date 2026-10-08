@@ -8915,7 +8915,7 @@ async function renderSocial(){
      CLAN_LAUNCHED (features/clans.js), so the button took you to the honest
      "coming in Open Beta 1" card — but only AFTER telling you to go find one.
      The pitch is worth keeping; the verb is not. While the flag is down the
-     signpost says WHEN, and the button offers what it can actually do. Flip the
+     signpost says WHEN and offers no door into the closed tab. Flip the
      flag and both revert to the finding copy on their own. */
   const clanShut=(function(){
     try{ const C=window.HearthriseClans;
@@ -8931,8 +8931,8 @@ async function renderSocial(){
             ? `Clans open in Open Beta 1: a shared castle, its rooms, Work Orders and a weekly boss no one downs alone.`
             : `Clans build a castle together, with shared rooms, Work Orders and a weekly boss.`)+
       `</div>`+
-      `<button class="btn btn-sm btn-primary" onclick="showTab('clan')">`+
-        (inClan?'Open the Clan Seat':clanShut?'See what’s coming':'Find a clan')+`</button>`+
+      (clanShut&&!inClan?'':`<button class="btn btn-sm btn-primary" onclick="showTab('clan')">`+
+        (inClan?'Open the Clan Seat':'Find a clan')+`</button>`)+
     `</div>`;
 }
 /* The clan's name as the game currently knows it, whichever layer holds it:

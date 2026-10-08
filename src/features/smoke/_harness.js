@@ -62,8 +62,6 @@ export function closeOverlays() {
   t(() => window.closeQuestsModal && window.closeQuestsModal());
   t(() => window.HearthriseChronicle && window.HearthriseChronicle.close());
   t(() => window.HearthriseDeathSheet && window.HearthriseDeathSheet.close());
-  t(() => window.HearthriseAccrual && window.HearthriseAccrual.hideReplacementSheet
-    && window.HearthriseAccrual.hideReplacementSheet());
   /* The character picker's own close() is a closure over the overlay it built;
      what it does is drop `.open`, which is what returns the layer to
      `display:none`. Same effect, no node removed. */
@@ -1046,34 +1044,28 @@ export const withServerBacked = (opts, fn) => {
     Gd.resetGold();
     Gd.configureGold({ url: 'https://probe.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
   }
-  /* ── THE TWO GATES A REAL SESSION HAS ALREADY PASSED ──────────────────────
-     `applyGoldEnvelope` refuses to write for two reasons that have nothing to
-     do with the gesture under test, and BOTH are true of this harness and of no
+  /* ── THE GATE A REAL SESSION HAS ALREADY PASSED ───────────────────────────
+     `applyGoldEnvelope` refuses to write for a reason that has nothing to
+     do with the gesture under test, and it is true of this harness and of no
      real player:
 
        · isReconcilePending() — the b314 snapshot hold. It is held until the
          cloud reconcile settles, which never happens here because there is no
          cloud. Held, every verb envelope is DEFERRED and applies nothing.
-       · isReplacementAcknowledged() — the b366 first-contact consent. Any
-         envelope whose gold is LOWER than G's reads `destructive` on plain
-         arithmetic, and a purchase always lowers gold, so an unacknowledged
-         client refuses its own successful purchase.
+       (The first-contact consent that used to be the second reason was
+       deleted with the replacement sheet.)
 
-     Both are released for the duration and restored exactly as found, which is
-     the same pair B354-1 and the b371 sync tests already manage by hand. A test
-     ABOUT either gate must not use this fixture — `ACCRUE-REPLACE-HANDOFF` owns
+     It is released for the duration and restored exactly as found, which is
+     what B354-1 and the b371 sync tests already manage by hand. A test
+     ABOUT the gate must not use this fixture — `ACCRUE-REPLACE-HANDOFF` owns
      the deferral and drives it directly. */
-  const A = window.HearthriseAccrual;
   const Sy = window.HearthriseSync;
-  const wasAck = A ? A.isReplacementAcknowledged() : null;
   const wasHeld = (Sy && typeof Sy.isSnapshotHeld === 'function') ? Sy.isSnapshotHeld() : null;
-  if (A) A.acknowledgeReplacement(true);
   if (wasHeld === true) Sy.releaseSnapshots();
 
   const restore = () => {
     window.fetch = realFetch;
     if (Gd && typeof Gd.configureGold === 'function') { Gd.resetGold(); Gd.configureGold(hadGoldCfg || null); }
-    if (A && wasAck !== null) A.acknowledgeReplacement(wasAck);
     if (wasHeld === true) Sy.holdSnapshots();
   };
   let r;
@@ -1439,14 +1431,11 @@ export const applyAwayEnvelope = (away, opts) => {
   }, o.env);
   const realNotify = window.notify;
   const toasts = [];
-  const wasAck = A.isReplacementAcknowledged();
   try {
-    A.acknowledgeReplacement(true);
     window.notify = function (m) { toasts.push(String(m)); };
     window.applyServerEnvelope(env, { intent: false });
   } finally {
     window.notify = realNotify;
-    A.acknowledgeReplacement(wasAck);
   }
   return { toasts, last: toasts[toasts.length - 1] || '', rec: G.lastOfflineSummary, env };
 };
@@ -2034,21 +2023,20 @@ export const cameFromArc = async (cfg, body) => {
    successor, so no 2 s chain outlives the arm — including one an earlier test
    started. Returns the restore, which puts the sheet away through its own
    dismiss and both flags back exactly as found. */
+/* Front door: the post-signup welcome sheet was CUT (its one useful line,
+   "your hero lives on the server", now lives in the tour), so the name prompt is
+   the only first-run sheet a stubbed session can arm. */
 export const firstRunAnswered = (name) => {
-  const I = window.HearthriseIdentity, W = window.HearthrisePostSignup;
+  const I = window.HearthriseIdentity;
   /* ASSERTED, not shrugged at: a hook that quietly goes missing would turn this
-     into a no-op and hand the sheets back their opening, which is the whole bug. */
-  assert(I && I._installHarnessIdentity && W && W.markSeen, 'a first-run seam is gone from identity.js / post-signup-welcome.js');
-  const wasWelcomed = W.seen();
+     into a no-op and hand the sheet back its opening, which is the whole bug. */
+  assert(I && I._installHarnessIdentity, 'the first-run seam is gone from identity.js');
   /* `_clearHarnessIdentity()` blanks the record, so the real one is parked and
      put back field for field: this seam must cost the page nothing it owned. */
   const hadRec = JSON.parse(JSON.stringify(I._record()));
-  W.markSeen();
   I._installHarnessIdentity({ name: name || 'Adventurer' });
   return () => {
-    try { W.close(); } catch (e) {}
     try { I._clearHarnessIdentity(); Object.assign(I._record(), hadRec); I._persist(); I.applyAvatar(); } catch (e) {}
-    if (wasWelcomed) W.markSeen(); else W.forget();
   };
 };
 

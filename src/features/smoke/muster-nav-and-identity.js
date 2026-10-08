@@ -1087,11 +1087,17 @@ export default [
      a card at the bottom of Social, underneath the leaderboards. These two
      guards are the tripwires that failure never had: one for the entry, one for
      every route that leads to it. */
-  () => tryRun('b225: the Clan Seat is a real top-level destination and nothing hides it', () => {
+  () => tryRun('b225: the Clan Seat is a real top-level destination and only its launch switch hides it', () => {
     const nav = document.querySelector('.nav-btn[data-tab="clan"]');
     assert(nav, 'the top-level Clan nav entry is missing');
-    assert(getComputedStyle(nav).display !== 'none',
-      'something is hiding the Clan nav entry — this is backlog #18 recurring');
+    /* Front door: while CLAN_LAUNCHED is false the entry is hidden on
+       purpose (FRONT-DOOR-3 owns that direction); once it flips, nothing else
+       may hide it — which is the backlog #18 tripwire this test always was. */
+    const Cl = window.HearthriseClans;
+    if (Cl && typeof Cl.clanLaunched === 'function' && Cl.clanLaunched()) {
+      assert(getComputedStyle(nav).display !== 'none',
+        'something is hiding the Clan nav entry — this is backlog #18 recurring');
+    }
     assert(/clan/i.test(nav.textContent), 'the Clan nav entry lost its label');
     // b220's lesson: an injected-then-hidden entry is how a feature vanishes.
     assert(!nav.hasAttribute('data-injected'), 'the Clan entry must be static markup');
@@ -1266,6 +1272,7 @@ export default [
   () => tryRun('b230: every old route into the three shops still resolves, with the right toggle', () => {
     const prevTab = window.activeTab;
     const prevPane = window._shopsPane;
+    window.HearthShops.__forcePremium(true);   // Premium is a native-build pane
     try {
       const shopPanel = document.getElementById('panel-shop');
       const marketPanel = document.getElementById('panel-market');
@@ -1307,6 +1314,7 @@ export default [
       assert(document.querySelector('#panel-market .mk-block, #panel-market .mk-list-form'),
         'the Market toggle opened an empty panel — showTab must render it');
     } finally {
+      window.HearthShops.__forcePremium(null);
       window._shopsPane = prevPane;
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
     }
@@ -1315,6 +1323,7 @@ export default [
   () => tryRun('b230: three toggles, in both hosts, and the choice persists', () => {
     const prevTab = window.activeTab;
     const prevPane = window._shopsPane;
+    window.HearthShops.__forcePremium(true);   // Premium is a native-build pane
     try {
       ['panel-shop', 'panel-market'].forEach((id) => {
         const strip = document.querySelector('#' + id + ' .shops-tabs');
@@ -1351,6 +1360,7 @@ export default [
       assert(document.querySelector('#panel-shop .shops-tab[data-shops-pane="premium"]').classList.contains('active'),
         'the strip did not restore its selected state');
     } finally {
+      window.HearthShops.__forcePremium(null);
       window._shopsPane = prevPane;
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
     }
@@ -1359,6 +1369,7 @@ export default [
   () => tryRun('b230: the Premium toggle keeps the sapphire real-money role', () => {
     const prevTab = window.activeTab;
     const prevPane = window._shopsPane;
+    window.HearthShops.__forcePremium(true);   // Premium is a native-build pane
     try {
       window.showTab('shop');
       const strip = document.querySelector('#panel-shop .shops-tabs');
@@ -1389,6 +1400,7 @@ export default [
       assert(getComputedStyle(prem).color !== ink,
         'a readability blanket flattened the Premium toggle to --ink');
     } finally {
+      window.HearthShops.__forcePremium(null);
       window._shopsPane = prevPane;
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
     }
@@ -2537,47 +2549,21 @@ export default [
     }
   }),
 
-  /* ── regression suite — A STUBBED SESSION ARMS NEITHER FIRST-RUN SHEET ────
-     THE CLASS, not the arm above it: a session is the ONLY thing `maybeShow()`
-     and identity's `tick()` wait for, and both re-poll every 2 s, so the sheet
-     lands on whichever test is running when the poll comes round — never the one
-     that stubbed. The precondition belongs to `stubSignedIn` for that reason.
-     THE CONTROL COMES FIRST, or "no sheet" passes against a sheet that could not
-     have built here: `forget()` puts this browser back to never-welcomed and the
-     sheet MUST build under exactly this stub, then leaves through its own
-     `close()`. MUTATION: drop `firstRunAnswered` from `stubSignedIn` → RED on
-     the precondition line. */
-  () => tryRunAsync('SIGNED-IN-STUB: stubbing a session states the returning player, so neither first-run sheet arrives in the poll window', async () => {
-    const W = window.HearthrisePostSignup;
-    assert(W && W.seen && W.forget && W.close, 'post-signup-welcome.js lost the hooks a test states its precondition through');
+  /* ── regression suite — A STUBBED SESSION ARMS NO FIRST-RUN SHEET ─────────
+     A session is the only thing identity's `tick()` waits for, and it re-polls
+     every 2 s, so the name prompt would land on whichever test runs when the
+     poll comes round. The precondition belongs to `stubSignedIn`.
+     MUTATION: drop `firstRunAnswered` from `stubSignedIn` → RED. */
+  () => tryRunAsync('SIGNED-IN-STUB: stubbing a session states the returning player, so the name prompt never arrives in the poll window', async () => {
     const SHEETS = '.hr-id-scrim, #hr-post-signup-modal';
     const was = new Set(document.querySelectorAll(SHEETS));
     const added = () => [...document.querySelectorAll(SHEETS)].filter((e) => !was.has(e)).map((e) => e.id || e.className);
-    const wasWelcomed = W.seen();
     const unstub = stubSignedIn(0);
     try {
-      assert(W.seen(), 'stubSignedIn handed the page a session without stating the one thing every returning '
-        + "player's browser has already done — maybeShow() will fire inside its 2 s poll window and cover "
-        + 'whichever test is running by then');
-      /* `maybeShow()` also queues behind the front door, so the control parks
-         whatever is up for exactly as long as it needs and puts it back where it
-         stood — the same parking the whats-new stacking arm does. */
-      const parked = [...document.querySelectorAll('.ftue-root, .hr-id-scrim')]
-        .map((e) => ({ e, parent: e.parentNode, next: e.nextSibling }));
-      parked.forEach((p) => p.e.remove());
-      try {
-        W.show();
-        assert(document.getElementById('hr-post-signup-modal'),
-          'the sheet did NOT build under this stub — the assertions below would be proving nothing');
-        assert(W.close(), 'the sheet would not go away through its own dismiss');
-      } finally {
-        parked.forEach((p) => { try { p.parent.insertBefore(p.e, p.next); } catch (x) { document.body.appendChild(p.e); } });
-      }
       assert(!added().length, 'the stub left a first-run sheet up: ' + added().join(', '));
       await new Promise((r) => setTimeout(r, 2500));
       assert(!added().length, 'a first-run sheet opened inside the 2 s poll window: ' + added().join(', '));
     } finally { unstub(); }
-    assert(W.seen() === wasWelcomed, 'the stub left this browser\'s welcome flag somewhere it did not find it');
   }),
 
   /* CODEX-1 — the Hearth Codex (src/features/codex.js). The copy is bound to the

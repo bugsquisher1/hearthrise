@@ -608,6 +608,7 @@
     open: open,
     ensureState: ensureState,
     _anotherModalUp: function () { return anotherModalUp(); },
+    __firstSession: function () { return firstSession(); },
     /* THE MODULE'S OWN READING OF "WHAT DAY IS IT", exposed so a test can pin
        `lastClaimDay` to it and be deterministic on EVERY date. autoBoot()'s one
        irreversible decision is `if (!isClaimable(G)) return;`, and isClaimable
@@ -645,6 +646,10 @@
       return !!(armed && CS && typeof CS.isClientStateHydrated === 'function' && !CS.isClientStateHydrated());
     } catch (e) { return false; }
   }
+  function firstSession() {
+    try { var F = window.HearthriseFTUE; return !!(F && typeof F.isFirstSession === 'function' && F.isFirstSession()); }
+    catch (e) { return false; }
+  }
   function autoBoot(tries) {
     if (!window.G) { setTimeout(function () { autoBoot(tries); }, 500); return; }
     /* The character itself has not arrived: no bound, because opening
@@ -653,6 +658,12 @@
     if (residuePending() && tries < 40) { setTimeout(function () { autoBoot(tries + 1); }, 500); return; }
     ensureState(window.G);
     if (!isClaimable(window.G)) return;              // already claimed today
+    /* Front door: never on a brand-new account's first session. The
+       tour is the one voice of that minute, and a fifth card stacked behind it
+       — with its own "claim me" instruction — is what the first-hour review
+       found. Not a lost reward: the Home card ("Daily reward · Day N") is the
+       claim path all day, and tomorrow's login opens this sheet as normal. */
+    if (firstSession()) return;
     // Never stack onto another front-door overlay — keep waiting until it
     // clears. (The old 20-try cap force-opened this OVER the FTUE tour when
     // a new player took ~25s reading it.) The Home card remains the

@@ -2883,10 +2883,55 @@ export default [
     assert(window.vendorPrice('dawnstone_ore') === Math.floor(ITEMS.dawnstone_ore.v * 0.20),
       'the biggest faucet in the game must be throttled at the choke-point');
     assert(ITEMS.normal_log.v === 8, 'the item BOOK value must be untouched — only the vendor bid moves');
-    // A crafted item is not raw, so it keeps the full bid.
+    // A crafted item is not raw; since the craft anchor it bids at most 1.5x
+    // its inputs (the test below), never more than book.
     assert(!ITEMS.cooked_shrimp.raw, 'a cooked dish is not a raw material');
-    assert(window.vendorPrice('cooked_shrimp') === ITEMS.cooked_shrimp.v,
-      'a crafted/cooked item must still fetch full value');
+    assert(window.vendorPrice('cooked_shrimp') <= ITEMS.cooked_shrimp.v,
+      'a crafted/cooked item must never fetch more than book value');
+  }),
+
+  () => tryRun('b-craft-anchor: a crafted item bids min(book, 1.5x its cheapest inputs), on the client exactly as on the server', () => {
+    /* REGRESSION (econ-sim, 2026-10-08): crafted items bid 100% of book while
+       raw inputs bid 20%, so every bench was a x5 gold faucet — a grinder hit
+       the 25M/day cap from day 2. The server's half is pinned by
+       tests/gold-intents.mjs G1 against the SAME ruling oracle written below,
+       so client == ruling == server. Without the fix the bag quotes 108,000
+       for a Dawnsteel Platebody; with it, 1.5 x five bars. */
+    const ITEMS = window.ITEMS, R = window.ARTISAN_RECIPES;
+    const core = window.HearthriseCore && window.HearthriseCore.vendor;
+    assert(core && typeof core.vendorBidOf === 'function', 'HearthriseCore.vendor is not published — the bag bids 0 for everything');
+    const inputsOf = (r) => r.inputs || (r.input ? Object.assign({ [r.input]: r.inputQty || 1 }, r.secondary || {}) : {});
+    const byOut = {};
+    Object.keys(R).forEach((s) => (R[s] || []).forEach((r) => {
+      if (r.output && Object.keys(inputsOf(r)).length) (byOut[r.output] = byOut[r.output] || []).push(r);
+    }));
+    const memo = {};
+    const ruling = (id) => {
+      if (id in memo) return memo[id];
+      const it = Object.prototype.hasOwnProperty.call(ITEMS, id) ? ITEMS[id] : null;
+      const v = it ? Number(it.v) || 0 : 0;
+      let bid = v > 0 ? (it.raw ? Math.max(1, Math.floor(v / 5)) : v) : 0;
+      memo[id] = bid;   // a cycle reads the base bid; the shipped graph has none (gold-intents G1-CONTROL)
+      (byOut[id] || []).forEach((r) => {
+        const ins = inputsOf(r); let sum = 0;
+        Object.keys(ins).forEach((k) => { sum += ins[k] * ruling(k); });
+        bid = Math.min(bid, Math.floor((sum * 3) / (2 * (r.outputQty || 1))));
+      });
+      memo[id] = bid;
+      return bid;
+    };
+    ['dawn_platebody', 'dawn_bar', 'dressed_block', 'granite_block', 'cooked_shrimp'].forEach((id) => {
+      assert(ITEMS[id], id + ' is missing from ITEMS — the pin names a real item');
+      assert(window.vendorPrice(id) === ruling(id),
+        id + ': the bag bids ' + window.vendorPrice(id) + ' but the ruling (and the server) pays ' + ruling(id));
+    });
+    assert(window.vendorPrice('dawn_platebody') < ITEMS.dawn_platebody.v,
+      'dawn_platebody bids its full book value ' + ITEMS.dawn_platebody.v + ' — the craft anchor is not applied');
+    assert(window.vendorPrice('dressed_block') < ITEMS.dressed_block.v,
+      'dressed_block bids its full book value — the craft anchor is not applied');
+    // Raws are unchanged by the anchor.
+    assert(window.vendorPrice('rubble') === Math.max(1, Math.floor(ITEMS.rubble.v * 0.20)),
+      'rubble is raw and must still bid 20% of book');
   }),
 
   () => tryRun('b226: every gathering rung is strictly faster XP/sec than the one below it', () => {

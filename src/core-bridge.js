@@ -105,6 +105,10 @@ import * as workers from './core/workers.js?v=564';
    suite can derive "which sources pay which trophy" from the one catalogue
    instead of naming the four trophies by hand. */
 import * as hearthfind from './core/hearthfind.js?v=564';
+/* THE VENDOR BID (craft anchor). src/screens/shop-counter.js is a classic
+   script; it prices every Sell button through this module — the same
+   `vendorBidOf` hr-accrue/catalogue.js `vendorPriceOf` credits from. */
+import * as vendor from './core/vendor.js?v=564';
 
 /* One stream for the whole session, seeded from the platform RNG. Exposed
    as `reseed` so the smoke suite can pin it and assert determinism from
@@ -425,12 +429,16 @@ function xpGrantCtx(opts) {
   };
 }
 
+/* The raw rate, for the readers that name it (the in-page suite). Read off the
+   one module, never restated in the shop counter. */
+window.VENDOR_RAW_RATE = vendor.VENDOR_RAW_RATE;
+
 window.HearthriseCore = {
   /* The modules, verbatim — nothing is re-wrapped, so a caller reading
      this object is reading the same functions Deno will run. */
   rngMod, xp, combat, bane, elements, drops, pacing, rested, tools, farm, progression,
   styles, artisan, bounty, away, botd, buffs, combatSim, skillSim, artisanSim,
-  autoEat, perks, ammo, goalCatalogue, workers, hearthfind,
+  autoEat, perks, ammo, goalCatalogue, workers, hearthfind, vendor,
 
   /* The session RNG. */
   get rng() { return rng; },

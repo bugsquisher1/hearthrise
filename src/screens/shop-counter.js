@@ -157,18 +157,21 @@ function buyCosmetic(id,price){
    the bag's Sell 1 / Sell All / Sell Selected, the context menu, the quick-
    sell slider, the sell-junk sweep and the old inventory tap — reads this.
    A price that differs by which button you pressed is not a price.
+
+   b-craft-anchor: the FORMULA no longer lives here. It is src/core/vendor.js
+   `vendorBidOf` — the same function hr-accrue/catalogue.js `vendorPriceOf`
+   credits from — over the same two catalogues (ITEMS, ARTISAN_RECIPES), so
+   the bag cannot quote a price the server will not pay. Crafted items bid
+   min(book, 1.5 × their cheapest recipe's input bids), recursively; raws bid
+   VENDOR_RAW_RATE × book (window.VENDOR_RAW_RATE is published by
+   src/core-bridge.js from the same module). No core yet = 0, "the vendor does
+   not buy it": a refused button is honest, a guessed price is not.
    ════════════════════════════════════════════════════════════════ */
-const VENDOR_RAW_RATE = 0.20;
 function vendorPrice(id){
-  const it = (typeof ITEMS==='object' && ITEMS) ? ITEMS[id] : null;
-  if(!it) return 0;
-  const v = Number(it.v) || 0;
-  if(v <= 0) return 0;
-  /* Floored at 1: a raw worth anything at all is still worth something, and a
-     0g bid reads as "this item is broken" rather than "this is cheap". */
-  return it.raw ? Math.max(1, Math.floor(v * VENDOR_RAW_RATE)) : v;
+  const core = window.HearthriseCore && window.HearthriseCore.vendor;
+  if(!core || typeof ITEMS!=='object' || !ITEMS) return 0;
+  return core.vendorBidOf(ITEMS, window.ARTISAN_RECIPES, id);
 }
-window.VENDOR_RAW_RATE = VENDOR_RAW_RATE;
 window.vendorPrice = vendorPrice;
 
 /* Sell helpers — wrap existing logic if available, else simple */

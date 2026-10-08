@@ -73,7 +73,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
    trick is exactly when a helper stops being local. Moving it changed no
    behaviour, and `--check` passing is the proof: the catalogue digest hashes
    the extracted DATA, so any difference in the slicer moves it. */
-import { makeDie, sliceLiteral as sliceLiteral_, sliceNumber as sliceNumber_ }
+import { makeDie, sliceLiteral as sliceLiteral_ }
   from './lib/slice-literal.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
@@ -86,10 +86,9 @@ const die = makeDie('gen-shops');
 
 // ── 1. Slice a literal out of a classic script ───────────────────────────
 // Both helpers now live in tools/lib/slice-literal.mjs (shared with
-// tools/gen-perks.mjs); these two lines bind `die` so every call site below
+// tools/gen-perks.mjs); this line binds `die` so every call site below
 // reads exactly as it did before the move.
 const sliceLiteral = (src, anchor, where) => sliceLiteral_(src, anchor, where, die);
-const sliceNumber  = (src, decl, where)   => sliceNumber_(src, decl, where, die);
 
 // ── 2. THE COST SHAPE ────────────────────────────────────────────────────
 // One line shape, used on BOTH sides of every offer:
@@ -178,10 +177,10 @@ const BANK_SPACE = L('var BANK_SPACE = {');
 // (task #129 Phase 3.5), so the slice now reads from that file.
 const shopRenderSrc = await read('src/render/shop.js');
 const COSMETICS = sliceLiteral(shopRenderSrc, 'const cosmetics=[', 'src/render/shop.js');
-// The vendor bid left legacy.js for the shop SCREEN CONTROLLER with the rest of
-// the counter (task #129 phase 2, 2026-09-14) — same slice, new file.
-const shopCounterSrc = await read('src/screens/shop-counter.js');
-const VENDOR_RAW_RATE = sliceNumber(shopCounterSrc, 'const VENDOR_RAW_RATE', 'src/screens/shop-counter.js');
+// The vendor bid is ONE ESM module now (b-craft-anchor): src/core/vendor.js,
+// called by both hr-accrue/catalogue.js and the shop counter. Imported, not
+// sliced — there is no classic-script copy left to read.
+const { VENDOR_RAW_RATE, CRAFT_ANCHOR_BP } = await imp('src/core/vendor.js');
 
 const dungeonsSrc = await read('src/dungeons.js');
 const DUNGEONS = sliceLiteral(dungeonsSrc, 'var DUNGEONS = {', 'src/dungeons.js');
@@ -567,12 +566,13 @@ const DERIVED_PRICES = [
   {
     id: 'vendor.sell',
     name: 'Vendor sell-back price',
-    where: 'src/legacy.js vendorPrice()',
+    where: 'src/core/vendor.js vendorBidOf() (hr-accrue vendorPriceOf + shop-counter vendorPrice)',
     currency: 'gold',
-    formula: "ITEMS[id].raw ? max(1, floor(v * VENDOR_RAW_RATE)) : v",
-    params: { VENDOR_RAW_RATE },
-    server_needs: 'DERIVABLE TODAY — hr_items.value already carries v. Needs `raw` added to the '
-      + 'catalogue and the rate as a constant. This is the cheapest of the six to close.',
+    formula: 'min(raw ? max(1, floor(v * VENDOR_RAW_RATE)) : v, '
+      + 'min over recipes with inputs of floor(sum(qty * bid(input)) * CRAFT_ANCHOR_BP / (10000 * outputQty)))',
+    params: { VENDOR_RAW_RATE, CRAFT_ANCHOR_BP },
+    server_needs: 'CLOSED IN THE EDGE — hr-accrue/vendor-sell.js prices from ITEMS + ARTISAN_RECIPES '
+      + 'through the same src/core/vendor.js the client renders from; no SQL body prices a sale.',
   },
   {
     id: 'vendor.buyback',

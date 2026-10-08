@@ -25,6 +25,9 @@
 //   An `update public.hr_items` that writes `value` in a shape this parser does
 //   not understand FAILS CLOSED (exit 2) rather than being skipped.
 //
+// SECOND PROPERTY (b-craft-anchor): no recipe's outputs may vendor for more
+// than 1.5x its inputs (findRecipeArbitrage below).
+//
 // Equal prices are not a loop (zero profit); only vendor > shop is red.
 // Exit 0 clean, 1 on any violation (each named with both prices), 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -33,6 +36,9 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { GOLD_OFFERS, vendorPriceOf, VENDOR_RAW_RATE } from '../supabase/functions/hr-accrue/catalogue.js';
 import { ITEMS } from '../src/data/items.js';
+import { ARTISAN_RECIPES } from '../src/data/recipes.js';
+import { recipeInputs } from '../src/core/artisan.js';
+import { anchorPaths, baseVendorBid } from '../src/core/vendor.js';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 const MIG = join(ROOT, 'supabase', 'migrations');
@@ -139,13 +145,44 @@ export function findArbitrage({ offers = GOLD_OFFERS, items = ITEMS, sqlVal }) {
   return { bad, priced, total: Object.keys(offers).length };
 }
 
-function report({ bad, priced, total }) {
+/* ── THE SECOND PROPERTY: NO BENCH IS A GOLD PRINTER (b-craft-anchor) ───────
+   For every authored recipe with inputs, what its outputs fetch at the vendor
+   must not exceed 1.5x what its inputs fetch: outQty x bid(out) <= 1.5 x
+   sum(qty x bid(in)). Before the anchor, crafted items bid 100% of book while
+   their raw inputs bid 20%, so every bench multiplied gathering gold by ~5
+   (tools/econ-sim.mjs: a grinder on the 25M/day cap from day 2). A recipe with
+   NO inputs is a gather and is exempt. Integer form (x2 / x3) — no float. */
+export function findRecipeArbitrage({ recipes = ARTISAN_RECIPES, price = (id) => vendorPriceOf(ITEMS, id) } = {}) {
+  const bad = []; let checked = 0;
+  for (const skill of Object.keys(recipes)) {
+    for (const r of recipes[skill] || []) {
+      if (!r || !r.output) continue;
+      const ins = recipeInputs(r);
+      const keys = Object.keys(ins);
+      if (!keys.length) continue;
+      const q = r.outputQty || 1;
+      let inGold = 0;
+      for (const k of keys) inGold += ins[k] * price(k);
+      const outGold = q * price(r.output);
+      checked++;
+      if (outGold * 2 > inGold * 3) bad.push({ recipe: r.id, out: `${q}x${r.output}`, outGold, inGold });
+    }
+  }
+  return { bad, checked };
+}
+
+function report({ bad, priced, total }, recipe) {
   if (total === 0 || priced === 0) throw new HarnessError(`vacuous: ${total} gold offers, ${priced} with a vendor bid`);
+  if (recipe.checked < 100) throw new HarnessError(`vacuous: only ${recipe.checked} recipes with inputs checked`);
   for (const b of bad) {
     console.log(`  ✗ ${b.offer} (${b.items}): shop ${b.shop}g < vendor ${b.vendor}g (edge ${b.edge}g, hr_items ${b.db}g)`);
   }
-  console.log(`vendor-shop-arbitrage: ${total} gold offers, ${priced} vendorable, ${bad.length} violation(s)`);
-  return bad.length ? 1 : 0;
+  for (const b of recipe.bad) {
+    console.log(`  ✗ recipe ${b.recipe}: ${b.out} vendors for ${b.outGold}g, its inputs for ${b.inGold}g (> 1.5x)`);
+  }
+  console.log(`vendor-shop-arbitrage: ${total} gold offers, ${priced} vendorable, ${bad.length} violation(s); `
+    + `${recipe.checked} recipes, ${recipe.bad.length} over the 1.5x craft anchor`);
+  return bad.length || recipe.bad.length ? 1 : 0;
 }
 
 function selftest() {
@@ -153,8 +190,12 @@ function selftest() {
   const fails = [];
   const clean = findArbitrage({ sqlVal });
   if (clean.bad.length) fails.push(`control: tree is not clean (${clean.bad.map((b) => b.offer).join(', ')})`);
-  const target = Object.values(GOLD_OFFERS).find((o) => o.grant.length === 1);
-  if (!target) throw new HarnessError('no single-grant offer to mutate');
+  /* The target's item must NOT be craft-anchored: raising the book value of an
+     anchored item rightly does not raise its bid (the anchor caps it), so M2
+     would prove nothing about the edge half. */
+  const paths = anchorPaths(ARTISAN_RECIPES);
+  const target = Object.values(GOLD_OFFERS).find((o) => o.grant.length === 1 && !paths[o.grant[0].id]);
+  if (!target) throw new HarnessError('no single-grant offer of an un-anchored item to mutate');
   const item = target.grant[0].id;
   const high = target.gold * 10 + 10; // above the shop price even through the 20% raw rate
 
@@ -179,15 +220,26 @@ function selftest() {
     fails.push('M3 unparsed hr_items.value UPDATE: accepted silently');
   } catch (e) { if (!(e instanceof HarnessError)) throw e; }
 
+  // M4 — the craft anchor removed: every recipe priced at the pre-anchor bid
+  // (raw 20%, everything else book) must be caught, by a named recipe.
+  const rc = findRecipeArbitrage();
+  if (rc.bad.length) fails.push(`control: recipes over the anchor (${rc.bad.slice(0, 3).map((b) => b.recipe).join(', ')})`);
+  const m4 = findRecipeArbitrage({ price: (id) => baseVendorBid(Object.prototype.hasOwnProperty.call(ITEMS, id) ? ITEMS[id] : null) });
+  if (!m4.bad.some((b) => b.recipe === 'forge_dawn_platebody')) fails.push('M4 anchor removed: forge_dawn_platebody not caught by name');
+
+  // M5 — a 2x markup (one bench pays double its inputs) must be caught.
+  const m5 = findRecipeArbitrage({ price: (id) => (id === 'dawn_platebody' ? 2 * 5 * vendorPriceOf(ITEMS, 'dawn_bar') : vendorPriceOf(ITEMS, id)) });
+  if (!m5.bad.some((b) => b.recipe === 'forge_dawn_platebody')) fails.push('M5 2x markup on dawn_platebody: not caught by name');
+
   for (const f of fails) console.log(`  ✗ ${f}`);
-  console.log(`vendor-shop-arbitrage --selftest: control + 3 mutants on ${target.id} (${item}), ${fails.length} failure(s)`);
+  console.log(`vendor-shop-arbitrage --selftest: control + 5 mutants on ${target.id} (${item}) and the recipe anchor, ${fails.length} failure(s)`);
   return fails.length ? 1 : 0;
 }
 
 try {
   process.exitCode = process.argv.includes('--selftest')
     ? selftest()
-    : report(findArbitrage({ sqlVal: sqlItemValues() }));
+    : report(findArbitrage({ sqlVal: sqlItemValues() }), findRecipeArbitrage());
 } catch (e) {
   console.error(`vendor-shop-arbitrage: HARNESS ${e instanceof HarnessError ? '' : 'CRASH '}${e.message}`);
   process.exitCode = 2;

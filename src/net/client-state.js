@@ -328,8 +328,6 @@ export const RESIDUE_FIELDS = Object.freeze([
                     // 1000-row cap) and serves them from hr_bestiary_of instead — so this is a cache of a
                     // projection that does not exist on this call, not a shadow of one that does. It becomes a
                     // deletion the day the bestiary is read from its own RPC on the load path
-  'dropLog',        // client-only progress: per-monster drop discovery ("have I ever seen this drop?"); the
-                    // same `ev:loot:%` exclusion applies
   'collectionLog',  // {claimed:[]} — collection MILESTONE claims. NOT an alias of `collection`
                     // above: `collection` is {itemId:count} (what you have found),
                     // this is which milestone rewards you have taken. Both are real.
@@ -343,10 +341,6 @@ export const RESIDUE_FIELDS = Object.freeze([
      — the b443 nested-marks bug in a new costume — and would let a forged
      client_state key hydrate a trait the server never sold. It is registered in
      the guard's SERVER_MECHANISM_FIELDS instead. */
-  'lifetimeKills',  // client-only counter: the ratcheting all-time kill count. NOT a shadow — the
-                    // envelope projects no lifetime kill total (hr_state_of excludes `ev:kill_monster:%`
-                    // from `progress`; the per-monster rows are hr_bestiary_of's, a separate RPC), so
-                    // there is nothing to prefer. It fails closed to stats.kills, which under-counts.
   /* ⚠ `renownHigh` WAS HERE and is DELETED (2026-09-14). It was the CLIENT
      ratchet's high-water mark, and the client's ladder drifts ahead of the realm's
      BY CONSTRUCTION (2026-09-02-renown-kill-faucet scores a client kill at zero
@@ -875,7 +869,7 @@ export function __resetClientStateCapWarned() { _capWarned = false; }
    degrade. The residue patch is the WHOLE residue bag every save (see
    capstone.js buildResiduePatch — it is not a diff), and the server cap on that
    bag is 256 KiB, four times the keepalive ceiling, so an over-64-KiB body is
-   reachable for a mature account (bestiary + collection + dropLog + achievements
+   reachable for a mature account (bestiary + collection + achievements
    + quests). Over the ceiling we therefore send the SAME request WITHOUT
    keepalive rather than let it reject: a normal unload fetch is best-effort (the
    browser may still kill it) but it is strictly better than a guaranteed

@@ -649,8 +649,6 @@ export default [
         window.HearthriseFarm.normalizePlot(legacy);
         assert(legacy.waterings.length === 1 && legacy.waterings[0] === 1000,
           'the legacy watered→waterings conversion was removed — old saves would stall');
-        const M = (window.HEARTHRISE_MIGRATIONS || []).find((m) => m.from === 6 && m.to === 7);
-        assert(M, 'the v6 → v7 migration that reads `watered` must not be deleted');
       } finally { restoreG(snap); }
     })),
 

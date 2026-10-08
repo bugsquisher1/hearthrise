@@ -78,8 +78,7 @@ const NO_SYNC = new Set([
   // in-flight combat — belongs to the device you are fighting on
   'activeMonster', 'monsterHp', 'monsterMaxHp', 'playerHp', 'playerMaxHp',
   /* b466: the kill streak WITHIN the current fight. Per-fight, not per-account
-     (G.lifetimeKills + G.stats.kills are the persistent counters, both homed in
-     the residue) and re-supplied by the combat envelope on resume — so it is
+     (G.stats.kills is the persistent counter, homed in the residue) and re-supplied by the combat envelope on resume — so it is
      scratch of exactly the same kind as activeMonster above it. */
   'combatKillsThisFoe',
   // in-flight activity loop — same reason

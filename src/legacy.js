@@ -747,8 +747,7 @@ let G={
   lastOfflineSummary:null,
   lastSeen:Date.now(),
   /* b226: nothing ever stamped a creation date, which is why the Founder's
-     mark needed one. Existing saves get theirs backfilled from lastSeen by
-     save-migrations v7→v8. */
+     mark needed one. It rides the residue (client-state.js RESIDUE_FIELDS). */
   createdAt:Date.now(),
   /* online */
   account:null,           /* {id, displayName, avatar, provider} once signed in */
@@ -991,20 +990,6 @@ function remapItemIds(G){
   if(G.autoActions && G.autoActions.eat && G.autoActions.eat.foodId){
     const nid=_aliasId(G.autoActions.eat.foodId); G.autoActions.eat.foodId=ok(nid)?nid:null;
   }
-  /* b356: PRE-EXISTING GAP, found by the b342 monster audit — `G.dropLog` is
-     keyed by monster id but its `.drops` sub-object is keyed by ITEM id, and
-     this function never walked it. So an item rename has ALWAYS orphaned the
-     per-monster drop history, silently, since b244. Counts merge rather than
-     overwrite for the same reason the monster layer merges: a save can hold
-     both ids either side of a deploy. */
-  if(G.dropLog && typeof G.dropLog==='object'){
-    for(const mid in G.dropLog){
-      const rec=G.dropLog[mid]; if(!rec || typeof rec.drops!=='object' || !rec.drops) continue;
-      const next={};
-      for(const iid in rec.drops){ const nid=_aliasId(iid); if(ok(nid)) next[nid]=(next[nid]||0)+(rec.drops[iid]||0); }
-      rec.drops=next;
-    }
-  }
 }
 window.remapItemIds = remapItemIds;
 
@@ -1040,20 +1025,6 @@ window.MONSTER_ALIAS = window.MONSTER_ALIAS || {
   barn_rat: 'rat',
   jackal: 'wolf',
   cultist: 'dark_wizard',
-};
-
-/* `family` is not an id, so the 2026-08-16 folds (Beast->Mammal,
-   Arcane->Human, Goblinoid->Humanoid, Mythic->Demon, and the two Vermin that
-   left for Extra Dimensional) were free — EXCEPT that `family` is also the
-   key of `G.stats.killsByFamily`, a displayed lifetime counter. Without this
-   fold a veteran sees a dead "Beast" row beside a new "Mammal" row forever.
-
-   Mythic held exactly two monsters, lesser_demon (now Demon) and dragon (now
-   Dragon), and an aggregate cannot be split. RULING: fold Mythic into Demon.
-   Total kills stay exact; a small historical misattribution lands in one
-   display-only stat, which is strictly better than stranding the count. */
-window.FAMILY_ALIAS = window.FAMILY_ALIAS || {
-  Beast: 'Mammal', Arcane: 'Human', Goblinoid: 'Humanoid', Mythic: 'Demon',
 };
 
 /* b356: the drop-rate note that used to read "neutral · +15% drops". The
@@ -1097,7 +1068,7 @@ function remapMonsterIds(G){
   const A=window.MONSTER_ALIAS; if(!A || !Object.keys(A).length || !G) return;
   const live=(id)=>id && window.MONSTERS && window.MONSTERS[id];
 
-  /* bestiary + dropLog — keyed BY monster id. Counts MERGE rather than
+  /* bestiary — keyed BY monster id. Counts MERGE rather than
      overwrite: a save may legitimately hold both the old and the new id if a
      player fought the monster either side of a deploy. */
   /* Written as two explicit assignments rather than a `G[key]=` loop: the
@@ -1120,7 +1091,6 @@ function remapMonsterIds(G){
     return next;
   };
   G.bestiary = foldById(G.bestiary);
-  G.dropLog  = foldById(G.dropLog);
 
   /* bountyHunter — .target, .proofItem's owner, and the id STRING. */
   const bh=G.bountyHunter;
@@ -1153,16 +1123,6 @@ function remapMonsterIds(G){
   if(G.activeMonster){ const n=_monAliasId(G.activeMonster); G.activeMonster = live(n) ? n : null; }
 }
 window.remapMonsterIds = remapMonsterIds;
-
-/* Fold historical family labels. Unlike the id map this is NOT empty — the
-   2026-08-16 taxonomy renamed every family — so it runs on every load. */
-function remapMonsterFamilies(G){
-  const F=window.FAMILY_ALIAS; if(!F || !G || !G.stats || !G.stats.killsByFamily) return;
-  const src=G.stats.killsByFamily, next={};
-  for(const fam in src){ const nf=(fam in F)?F[fam]:fam; if(!nf) continue; next[nf]=(next[nf]||0)+(src[fam]||0); }
-  G.stats.killsByFamily=next;
-}
-window.remapMonsterFamilies = remapMonsterFamilies;
 
 function loadLocal(){
   /* THERE IS NO LOCAL SAVE TO LOAD. The character loads ENTIRELY from the server
@@ -3199,8 +3159,8 @@ window.restedCap = restedCap;
    game's history rather than a mistake being erased. An acknowledged change
    is a story; an unacknowledged one is a betrayal.
 
-   Gated on `G.createdAt`, which save-migrations v7→v8 backfills from the
-   save's own `lastSeen`; a save with neither is older still and qualifies.
+   Gated on `G.createdAt` (the residue's Founder date); an account with none
+   qualifies.
    RETUNE_EPOCH is the instant this build's pacing took effect, so it cannot
    be minted later by playing — only by having already been here.
    ════════════════════════════════════════════════════════════════ */
@@ -6133,11 +6093,6 @@ const COMBAT_FX={
        play queues nothing, so this is a null check on the live path. */
     drainBountySwitch();
     return info;
-  },
-  recordKill:function(id,dropped){
-    if(window.HearthriseDropLog&&typeof window.HearthriseDropLog.recordKill==='function'){
-      window.HearthriseDropLog.recordKill(id,dropped);
-    }
   },
   rollKillDeed:function(m){
     if(window.HearthriseFarm&&typeof window.HearthriseFarm.rollKillDeed==='function'){
@@ -12096,13 +12051,9 @@ console.log('Activity bar: loaded');
   G.stats.totalGoldEarned = G.stats.totalGoldEarned || 0;
   G.stats.totalGoldSpent  = G.stats.totalGoldSpent || 0;
   G.stats.deaths          = G.stats.deaths || 0;
-  G.stats.killStreak      = G.stats.killStreak || 0;
-  G.stats.bestKillStreak  = G.stats.bestKillStreak || 0;
-  G.stats.killsByFamily   = G.stats.killsByFamily || {};
-  G.stats.killsByTier     = G.stats.killsByTier || {1:0,2:0,3:0,4:0,5:0,6:0};
 })();
 
-/* Hook killMonster to track family/tier stats and gold earned */
+/* Hook killMonster to track gold earned */
 const _origKillMonsterStats = window.killMonster;
 if(typeof _origKillMonsterStats === 'function'){
   window.killMonster = function(m){
@@ -12115,14 +12066,10 @@ if(typeof _origKillMonsterStats === 'function'){
     const goldAfter = balNum('gold');
     const gained = (goldBefore===null || goldAfter===null) ? 0 : (goldAfter - goldBefore);
     if(gained > 0) G.stats.totalGoldEarned = (G.stats.totalGoldEarned||0) + gained;
-    if(m && m.family){ G.stats.killsByFamily[m.family] = (G.stats.killsByFamily[m.family]||0) + 1; }
-    if(m && m.tier){ G.stats.killsByTier[m.tier] = (G.stats.killsByTier[m.tier]||0) + 1; }
-    G.stats.killStreak = (G.stats.killStreak || 0) + 1;
-    if(G.stats.killStreak > (G.stats.bestKillStreak||0)) G.stats.bestKillStreak = G.stats.killStreak;
     return r;
   };
 }
-/* Death resets streak */
+/* A death counts into the lifetime tally */
 const _origStopCombatStats = window.stopCombat;
 if(typeof _origStopCombatStats === 'function'){
   /* Heuristic: when player dies, playerHp goes to 0 — we can't reliably catch that
@@ -12130,7 +12077,6 @@ if(typeof _origStopCombatStats === 'function'){
   window.stopCombat = function(){
     if((G.playerHp||0) <= 0){
       G.stats.deaths = (G.stats.deaths||0) + 1;
-      G.stats.killStreak = 0;
     }
     return _origStopCombatStats.apply(this, arguments);
   };
@@ -12968,7 +12914,6 @@ function migrate(){
      device counter that used to live here is deleted, not defaulted. */
   if(!G.dailyGoals || typeof G.dailyGoals !== 'object') G.dailyGoals = {dayKey: 0, progress: {}};
   if(typeof G.lastWelcome !== 'number') G.lastWelcome = 0;
-  if(typeof G.lifetimeKills !== 'number') G.lifetimeKills = G.stats?.kills || 0;
 }
 [0, 100, 500, 1500].forEach(function(t){ setTimeout(migrate, t); });
 

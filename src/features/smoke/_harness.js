@@ -1719,7 +1719,7 @@ export const snapshotG = () => {
     playerHp: G.playerHp,
     playerMaxHp: G.playerMaxHp,
     // b136: include the new fields so Batch C tests don't pollute
-    // the player's save when they mutate G.plotLevels / autoActions / dropLog.
+    // the player's save when they mutate G.plotLevels / autoActions.
     plotLevels: G.plotLevels,
     /* 2026-09-06 — the SERVER-mirrored plot tier (farm-progression.js
        getServerPlotLevel). It outranks plotLevels in the plant gate, so a test
@@ -1728,7 +1728,6 @@ export const snapshotG = () => {
        which is exactly "the server has not told us yet". */
     _serverPlotLevel: G._serverPlotLevel,
     autoActions: G.autoActions,
-    dropLog: G.dropLog,
     // b138: launchpad — Batch D's tests touch lastActivity + daily.snapshot.
     lastActivity: G.lastActivity,
     daily: G.daily,

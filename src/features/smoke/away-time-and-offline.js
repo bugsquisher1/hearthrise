@@ -722,7 +722,7 @@ export default [
     /* ⚠ `wieldGrandfather` was the sixteenth name here and is DELETED, not re-homed:
        every other field is self-only PROGRESS, that one was a client-held GEAR
        PERMISSION the realm never mirrored. Re-adding it re-opens §6 with a save. */
-    ['bestiary', 'dropLog', 'collectionLog', 'lifetimeKills', 'homestead',
+    ['bestiary', 'collectionLog', 'homestead',
       'currentCombatTier', 'buyback', 'dailyGoldStart', 'raids',
       'muster', 'rallyPledge', 'pendingItemSpends'].forEach((f) =>
       assert(RF.indexOf(f) >= 0, 'THE BUG: G.' + f + ' must be a residue field or every reload forgets it'));
@@ -791,7 +791,7 @@ export default [
       /* THE BAG HAS A HARD CEILING. hr_put_client_state refuses the whole patch
          over 256 KiB (state_too_large) — and a refused patch means EVERY residue
          field stops saving, not just the big one. The sweep just added the two
-         per-monster logs (bestiary, dropLog) next to `collection` and
+         per-monster log (bestiary) next to `collection` and
          `chronicle`, so the ceiling stopped being theoretical. Measured on the
          live G with a wide margin: this is a smoke alarm for a future field that
          grows without bound (a per-kill array, a full combat log), not a
@@ -2512,18 +2512,16 @@ export default [
     assert(E && E.isActive() === true, 'the calendar must agree with the latch outside a replay');
   }),
 
-  () => tryRun('AWAY-7: away kills feed the drop log, dailies, quests and rollKillDeed; an away death increments stats.deaths', () => {
+  () => tryRun('AWAY-7: away kills feed dailies, quests and rollKillDeed; an away death increments stats.deaths', () => {
     const G = window.G;
     const C = window.HearthriseCore;
     const P = window.HearthrisePresence;
     const snap = snapshotG();
-    const seen = { recordKill: 0, daily: 0, quest: 0, deed: 0 };
-    const realLog = window.HearthriseDropLog;
+    const seen = { daily: 0, quest: 0, deed: 0 };
     const realFarm = window.HearthriseFarm;
     const realDaily = window.updateDaily;
     const realQuest = window.updateQuest;
     try {
-      window.HearthriseDropLog = Object.assign({}, realLog, { recordKill: () => { seen.recordKill++; } });
       window.HearthriseFarm = Object.assign({}, realFarm, { rollKillDeed: () => { seen.deed++; } });
       window.updateDaily = function (t) { if (t === 'kill_any') seen.daily++; return realDaily.apply(this, arguments); };
       window.updateQuest = function (t) { if (t === 'kill_any' || t === 'kill_monster') seen.quest++; return realQuest.apply(this, arguments); };
@@ -2534,7 +2532,6 @@ export default [
       G.playerHp = 100; G.playerMaxHp = 100;
       P._withOfflineReplay(() => { window.killMonster(m); });
 
-      assert(seen.recordKill === 1, 'an away kill must reach HearthriseDropLog.recordKill (collection log under-reported every overnight)');
       assert(seen.daily === 1, 'an away kill must tick updateDaily("kill_any") — "Slay 10 monsters" made ZERO progress overnight');
       assert(seen.quest === 2, 'an away kill must tick both kill_any and kill_monster quests, got ' + seen.quest);
       assert(seen.deed === 1, 'an away kill must roll a Farmer\'s Deed');
@@ -2561,7 +2558,6 @@ export default [
          (measured on b513). One teardown, the same one every fall fixture
          uses. */
       try { window.HearthriseDeathSheet.__resetForTest(); } catch (e) {}
-      window.HearthriseDropLog = realLog;
       window.HearthriseFarm = realFarm;
       window.updateDaily = realDaily;
       window.updateQuest = realQuest;
@@ -2954,18 +2950,6 @@ export default [
       assert(patch && patch.toolCarry === undefined,
         'toolCarry must NOT ride the residue PUT any more — `state.tool_carry` is the one copy');
       assert(patch._toolCarry === undefined, 'the old underscored key must not be persisted');
-      /* And the migration that renames it is registered and idempotent. */
-      const MIG = window.HEARTHRISE_MIGRATIONS || [];
-      const step = MIG.find((s) => s.from === 12 && s.to === 13);
-      assert(step, 'the v12 -> v13 toolCarry migration must be registered');
-      const old = { v: 12, _toolCarry: { fishing: 0.7 } };
-      step.apply(old);
-      assert(old.toolCarry.fishing === 0.7 && old._toolCarry === undefined, 'the migration must move the carry and drop the old key');
-      step.apply(old);
-      assert(old.toolCarry.fishing === 0.7, 're-running the migration must be a no-op');
-      const fresh = { v: 12 };
-      step.apply(fresh);
-      assert(fresh.toolCarry && Object.keys(fresh.toolCarry).length === 0, 'a save with no carry must get an empty object, not undefined');
     } finally { restoreGAndRecord(snap); try { window.saveLocal(); } catch {} }
   }),
 

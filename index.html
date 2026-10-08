@@ -1075,11 +1075,9 @@
        the game's rules and never two. Placed before main.js so the core is up
        before any feature module boots. -->
   <script type="module" src="src/core-bridge.js?v=564"></script>
-  <script src="src/save-migrations.js?v=564"></script>
   <!-- b133: foundation APIs — load BEFORE legacy.js so killMonster() can call recordKill() -->
   <!-- b136: farm-progression sits next to the others (Plot Lv API + deed drop hooks) -->
   <script src="src/features/auto-actions.js?v=564"></script>
-  <script src="src/features/drop-log.js?v=564"></script>
   <script src="src/features/farm-progression.js?v=564"></script>
   <!-- b138: Profile launchpad (resume / today / milestone / rename) -->
   <script src="src/features/profile-launchpad.js?v=564"></script>

@@ -44,6 +44,17 @@ export function check({ reg, bytesOf, notes }) {
   return P;
 }
 
+/* --pin may only RECORD a file that has never been pinned. Re-pinning an
+   existing entry is how an edited applied file turns this guard green again
+   (Security, sec/wave1-review): refused, always. A pinned file's bytes are
+   history; history moves by a new delta, never by a new pin. */
+function pinDecision(reg, file, deltaOf) {
+  if (!file || !/\.generated\.sql$/.test(file)) return 'only a .generated.sql file can be pinned';
+  if (reg.files[file]) return `${file} is already pinned; an existing pin is NEVER replaced (its bytes are applied history, ship the change as a delta)`;
+  if (/\.delta\.generated\.sql$/.test(file) && !(deltaOf && reg.files[deltaOf])) return `${file} is a delta: --delta-of must name a pinned base`;
+  return null;
+}
+
 const reg = JSON.parse(readFileSync(REG, 'utf8'));
 const notes = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8'))._order_notes || {};
 const bytesOf = (f) => (existsSync(join(MIG, f)) ? readFileSync(join(MIG, f), 'utf8') : null);
@@ -54,6 +65,8 @@ if (argv.includes('--pin')) {
   const b = bytesOf(f);
   if (!f || b === null) { console.error('--pin needs an existing migration file name'); process.exit(2); }
   const deltaOf = argv.includes('--delta-of') ? argv[argv.indexOf('--delta-of') + 1] : undefined;
+  const refusal = pinDecision(reg, f, deltaOf);
+  if (refusal) { console.error('--pin REFUSED: ' + refusal); process.exit(1); }
   reg.files[f] = { sha256: sha(b), status: 'applied (pinned ' + new Date().toISOString().slice(0, 10) + ')', ...(deltaOf ? { deltaOf } : {}) };
   writeFileSync(REG, JSON.stringify(reg, null, 1) + '\n');
   console.log('pinned ' + f);
@@ -70,13 +83,26 @@ if (argv.includes('--pin')) {
     ['GF-3', 'a delta names an unpinned base', { reg: { ...reg, files: { ...reg.files, 'x.delta.generated.sql': { sha256: sha(''), deltaOf: 'nope.generated.sql' } } }, bytesOf: (f) => (f === 'x.delta.generated.sql' ? '' : bytesOf(f)) }],
   ];
   let missed = 0;
+  /* PIN-1 re-pinning an already-pinned (applied) file is refused; PIN-2 a
+     brand-new delta naming a pinned base is accepted (the control); PIN-3 a
+     new delta with no pinned base is refused. */
+  const pinned = Object.keys(reg.files)[0];
+  const r1 = pinDecision(reg, pinned);
+  console.log(`  ${r1 ? 'caught' : 'MISSED'}  PIN-1  --pin over the existing pin of ${pinned}`);
+  if (!r1) missed++;
+  const r2 = pinDecision(reg, '2099-01-01-catalogue.delta.generated.sql', '2026-08-11-catalogue.generated.sql');
+  console.log(`  ${r2 ? 'MISSED' : 'allowed'}  PIN-2  a brand-new delta of a pinned base`);
+  if (r2) missed++;
+  const r3 = pinDecision(reg, '2099-01-01-catalogue.delta.generated.sql');
+  console.log(`  ${r3 ? 'caught' : 'MISSED'}  PIN-3  a new delta with no pinned base`);
+  if (!r3) missed++;
   for (const [code, name, over] of M) {
     const hit = check({ ...base, ...over }).some((p) => p.startsWith(code + ' '));
     console.log(`  ${hit ? 'caught' : 'MISSED'}  ${code}  ${name}`);
     if (!hit) missed++;
   }
   if (missed) { console.error(`SELFTEST FAILED: ${missed} not caught`); process.exit(1); }
-  console.log(`SELFTEST PASS generated-frozen: all ${M.length} mutations caught.`);
+  console.log(`SELFTEST PASS generated-frozen: all ${M.length} mutations and 3 pin arms caught.`);
 } else {
   const p = check({ reg, bytesOf, notes });
   if (p.length) { console.error('✗ generated-frozen: ' + p.length + ' problem(s)\n  ' + p.join('\n  ')); process.exit(1); }

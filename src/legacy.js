@@ -5624,7 +5624,8 @@ function hrQuestServerCount(q){
   return null;
 }
 function questComplete(q){ const n=hrQuestServerCount(q); return n!==null&&q.goal>0&&n>=q.goal; }
-function questServerPays(q){ const r=(q&&q.reward)||{}; return (r.gold||0)>0||hrQuestItemsAreServerCredited(q&&q.id); }
+function questServerPays(q){ const r=(q&&q.reward)||{}; return (r.gold||0)>0||hrQuestItemsAreServerCredited(q&&q.id)
+  ||!!(q&&window.HearthriseCore&&window.HearthriseCore.goalCatalogue&&window.HearthriseCore.goalCatalogue.questCombatXpIsServerCredited(q.id)); }   // 2026-10-10: hr_claim_quest pays combat XP
 function questClaimable(q){ return !!q&&!q.claimed&&questServerPays(q)&&questComplete(q); }
 window.hrQuestServerCount=hrQuestServerCount;
 window.questClaimable=questClaimable;
@@ -5654,6 +5655,9 @@ function hrFireQuestClaim(q){
           notify('Quest reward: '+applied[id]+'x '+((ITEMS[id]&&ITEMS[id].n)||id),'loot');
         });
       }
+      // 2026-10-10: the XP is already in player_skills; announce it, the envelope shows it.
+      if(res.credited===true&&res.xp&&typeof res.xp==='object'&&typeof notify==='function')
+        Object.keys(res.xp).forEach(function(sk){ notify('Quest reward: +'+res.xp[sk]+' '+sk+' XP','loot'); });
     } else if(res&&res.error==='already_claimed'){
       q.claimed=true;   // the server's once-guard is the memory; stop asking
     }
@@ -5728,7 +5732,8 @@ function completeQuest(q){
      Ranged and a Controlled sword user gets the same three-way split their
      fights pay. One routing table, not a second one that drifts.
      `authored:true` keeps PACE.xp off it: 1,500 means 1,500. */
-  if(r.combatXp>0){
+  // 2026-10-10: a catalogued quest's XP is hr_claim_quest's; addXp would queue it on hr_credit_combat_xp.
+  if(r.combatXp>0 && !(window.HearthriseCore&&window.HearthriseCore.goalCatalogue&&window.HearthriseCore.goalCatalogue.questCombatXpIsServerCredited(q.id))){
     const C=window.HearthriseCore;
     const style=(typeof getActiveCombatStyle==='function')?getActiveCombatStyle():null;
     const route=(C&&C.styles)?C.styles.killXpRoute(style,r.combatXp,1):[{skill:'attack',amount:r.combatXp}];

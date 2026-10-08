@@ -58,11 +58,16 @@
    `checkKey` is the src/core/goals.js counter the server reads (a lifetime
    `stat` row, period_key=''); completion is `value >= goal`.
 
-   `hundred_kills` is ABSENT: its reward is combatXp only (no gold), so it never
-   defers under the gold arm and needs no server credit — the client pays its XP
-   exactly as before. It mirrors `stats.evKillAny`, the projection of
-   `ev:kill_any` (NOT the client-only `stats.kills`, which runs ahead). */
+   `combatXp` (2026-10-10-quest-combat-xp.sql) is the quest's COMBAT XP, paid by
+   hr_claim_quest and routed server-side by the character's stored combat style
+   (src/core/styles.js shares, generated into hr_style_xp_routes). The client
+   never adds it; tests/goal-catalogue-drift.mjs binds it to the SQL arm. */
 export const QUEST_REWARDS = Object.freeze({
+  /* The first-day combat quest. It used to be ABSENT ("combatXp only, the client
+     pays its XP") and that payment rode the attended-combat XP credit — a client
+     report. Whole-game review 2026-10-08, Designer ruling: paid by the server's
+     quest claim like every other first-day reward. Gold 0, XP only. */
+  hundred_kills: { checkKey: 'ev:kill_any', goal: 100, gold: 0, combatXp: 1500, items: Object.freeze({}) },
   gatherer:    { checkKey: 'ev:gather',   goal: 15, gold: 150, items: Object.freeze({}) },
   /* ── FIRST-NIGHT IDLE RESCUE, RESTORED ON THE SERVER SIDE ────────────────
      This row's 30 raw shrimp were WITHDRAWN under Security F2 (2026-09-06)
@@ -148,6 +153,14 @@ export function questRewardItems(reward) {
 export function questItemsAreServerCredited(questId) {
   const row = QUEST_REWARDS[questId];
   return !!(row && row.items && Object.keys(row.items).length > 0);
+}
+
+/* True iff the SERVER credits this quest's combat XP (2026-10-10). The client
+   reads it to decide that `completeQuest` must NOT call addXp — the claim pays
+   it, and a local addXp would also queue it on the attended-combat credit. */
+export function questCombatXpIsServerCredited(questId) {
+  const row = QUEST_REWARDS[questId];
+  return !!(row && row.combatXp > 0);
 }
 
 /* DAILY TASKS — the FIXED-reward rows of legacy.js DAILY_TASK_POOL. `type` is

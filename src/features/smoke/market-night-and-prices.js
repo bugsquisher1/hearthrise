@@ -2888,12 +2888,13 @@ export default [
     }
   }),
 
-  () => tryRun('QUEST-100: the hundred-kill milestone is an ordinary QUEST — it reaches an existing save, mirrors the server-projected stats.evKillAny, pays authored combat XP once, and never pays twice across the b343 rename', () => {
+  () => tryRun('QUEST-100: the hundred-kill milestone is an ordinary QUEST — it reaches an existing save, mirrors the server-projected stats.evKillAny, leaves its combat XP to the server claim (never a client addXp), and never pays twice across the b343 rename', () => {
     const G = window.G;
     const ID = 'hundred_kills';
     const snap = snapshotG();
     const origClaim = window.HearthriseGoalClaim;
-    window.HearthriseGoalClaim = { isSignedIn: () => false, claimQuest: () => Promise.resolve({ ok: false, error: 'test_stub_road_hunt_completes_past_500' }) };
+    const claims = [];
+    window.HearthriseGoalClaim = { isSignedIn: () => false, claimQuest: (id) => { claims.push(id); return Promise.resolve({ ok: false, error: 'test_stub_road_hunt_completes_past_500' }); } };
     try {
       const def = (window.QUEST_DEFS || []).find((q) => q.id === ID);
       assert(def, 'the hundred-kill milestone must be a QUEST_DEFS row, not bespoke UI');
@@ -2928,7 +2929,12 @@ export default [
         'the counter drifted from stats.evKillAny — it must READ, never count');
       assert(!G.quests.find((x) => x.id === ID).done, 'the quest completed below its goal');
 
-      /* (3) IT PAYS, ONCE, AS AN AUTHORED PAYOUT ROUTED LIKE A KILL. */
+      /* (3) THE SERVER PAYS IT (whole-game review 2026-10-08, item 4;
+         2026-10-10-quest-combat-xp.sql). The 1,500 XP is hr_claim_quest's,
+         routed by the server-held style. Completing the quest must FIRE the
+         claim and must NOT add the XP locally — a local addXp also queued it on
+         hr_credit_combat_xp, a client-reported channel. RED before the fix:
+         the route skills gained 1,500 and no claim was fired. */
       const origBonus = window.getBonus;
       window.getBonus = () => 0;
       try {
@@ -2936,19 +2942,23 @@ export default [
         const route = window.HearthriseCore.styles.killXpRoute(style, def.reward.combatXp, 1);
         assert(route.length > 0, 'the style must route the reward somewhere');
         const before = {}; route.forEach((r) => { before[r.skill] = xpOf(r.skill); });
+        const pendBefore = JSON.stringify(G._combatXpPending || {});
+        /* The step completes on the SERVER's projected count, which is only a
+           count once a complete progress statement has landed (questComplete).
+           Pinned here rather than inherited from whichever test ran first. */
+        G._eventCountersKnown = true;
         G.stats.evKillAny = 100;
         window.updateQuest('kill_any', 1);
         const done = G.quests.find((x) => x.id === ID);
         assert(done.done === true, 'the quest did not complete at 100 kills');
+        assert(claims.filter((c) => c === ID).length === 1,
+          'completing hundred_kills must fire hr_claim_quest exactly once, fired ' + JSON.stringify(claims));
         route.forEach((r) => {
-          const gained = xpOf(r.skill) - before[r.skill];
-          /* AUTHORED means PACE.xp does not scale it: 1,500 pays 1,500, not
-             1,500 x 0.39. pacing-overhaul.md §4.5 lists quest payouts as
-             authored, explicitly not rates. */
-          assert(gained === Math.max(1, Math.floor(r.amount)),
-            'the ' + r.skill + ' share paid ' + gained + ', expected the authored '
-            + Math.max(1, Math.floor(r.amount)) + ' — PACE.xp must not scale a quest payout');
+          assert(xpOf(r.skill) === before[r.skill],
+            'the client added ' + (xpOf(r.skill) - before[r.skill]) + ' ' + r.skill + ' XP itself — the server pays it');
         });
+        assert(JSON.stringify(G._combatXpPending || {}) === pendBefore,
+          'the quest XP was queued on the attended-combat credit: ' + JSON.stringify(G._combatXpPending));
         /* ONCE. Another 500 kills pays nothing more. */
         const after = {}; route.forEach((r) => { after[r.skill] = xpOf(r.skill); });
         G.stats.evKillAny += 500;

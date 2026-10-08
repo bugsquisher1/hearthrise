@@ -1203,6 +1203,14 @@ grant  execute on function public.hr_accrue_cap_ms(uuid, integer) to hr_engine;
 --       owned, the same call is not refused for the cohort
 --   m9  the frame CHECK refuses an inventory frame while combat is armed and
 --       admits it while combat is not
+--   m10 ★ THE GAME DESIGNER RULING (a), AWAY → RETURN: a hunter past R + cap
+--       is DROPPED (not zero-earned, not paused): the hunt continues for the
+--       live hunters, a split naming the dropped member is refused, the live
+--       two are paid, and the dropped member's own return reads exactly
+--       max(0, min(absence, cap) - tick-paid). (m2 is the ATTENDED half: after
+--       a real return the rejoin pays no back pay and carries hp / recovery /
+--       falls over unchanged.)
+--   m11 the 3/day drop clamp holds a returned member out of the rejoin
 -- Every fixture row is discarded by a sentinel raise (HR950); a leak check
 -- runs after it; the config row is read back.
 do $mig$
@@ -1365,8 +1373,13 @@ begin
       if coalesce(v_r->>'paid', 'false') <> 'true'
          or jsonb_array_length(coalesce(v_r->'rejoined', '[]'::jsonb)) <> 0 then
         raise exception 'm4-party-horizon self-check m2: a member outside the cohort REJOINED: %', v_r; end if;
-      -- Back in the cohort; the next paid window rejoins B.
+      -- Back in the cohort; the next paid window rejoins B — WITH NO BACK PAY
+      -- and carrying over hp / recovery / falls (Game Designer ruling (a)).
       update public.hr_tick_ownership set owned = true where user_id = v_b and slot = 0 and channel = 'combat';
+      update public.player_state set hp = 4, consec_falls = 2,
+             recovering_until = date_trunc('second', now()) + interval '10 minutes'
+       where user_id = v_b and slot = 0;
+      select count(*) into v_l0 from public.player_ledger where user_id = v_b;
       v_members := (select jsonb_agg(jsonb_set(jsonb_set(m, '{version}', to_jsonb(ps.version)),
                                                '{delta,accrued_to}', to_jsonb(v_to + interval '180 seconds')))
                       from jsonb_array_elements(v_members) m
@@ -1379,6 +1392,12 @@ begin
          or jsonb_array_length(coalesce(v_r->'rejoined', '[]'::jsonb)) <> 1
          or (v_r#>>'{rejoined,0,user}')::uuid is distinct from v_b then
         raise exception 'm4-party-horizon self-check m2: after a real return B was not rejoined: %', v_r; end if;
+      if (select jsonb_build_array(hp, consec_falls, recovering_until, gold, accrued_to)
+            from public.player_state where user_id = v_b and slot = 0)
+         is distinct from jsonb_build_array(4, 2, date_trunc('second', now()) + interval '10 minutes', 500,
+                                            v_to + interval '180 seconds')
+         or (select count(*) from public.player_ledger where user_id = v_b) <> v_l0 then
+        raise exception 'm4-party-horizon self-check m2: the rejoin back-paid, healed, or reset recovery/falls (ruling (a): no back pay, carry-over)'; end if;
       raise exception using errcode = 'HR951', message = 'm1/m2 done';
     exception when sqlstate 'HR951' then null;
     end;
@@ -1395,6 +1414,81 @@ begin
          or v_r#>>'{dropped,0,reason}' is distinct from 'no_return_anchor' then
         raise exception 'm4-party-horizon self-check m3: a hunter with no anchor was not dropped no_return_anchor: %', v_r; end if;
       raise exception using errcode = 'HR951', message = 'm3 done';
+    exception when sqlstate 'HR951' then null;
+    end;
+
+    -- ── m10 ★ THE RULING, AWAY THEN RETURN (Game Designer (a), per-member drop):
+    --    B's horizon passed 1 min ago while the party mark is 5 min old. B is
+    --    dropped, NOT zero-earned and NOT paused: the hunt goes on for A and C,
+    --    a declared set still naming B is refused (no split ever covers a
+    --    dropped member), and B's own return reads exactly
+    --    max(0, min(absence, cap) - tick-paid) = R + cap - mark = 4 min.
+    begin
+      update public.hr_return_anchor set real_return_at = now() - c_cap - interval '1 minute'
+       where user_id = v_b and slot = 0;
+      set local role hr_engine;
+      v_r := public.hr_party_tick_settle(c_h, v_party, v_mark - interval '90 seconds', v_mark,
+               gen_random_uuid(), jsonb_build_array(jsonb_build_object('user', v_a, 'slot', 0)));
+      reset role;
+      if v_r->>'error' is distinct from 'member_sat_out' or v_r#>>'{dropped,0,reason}' is distinct from 'past_horizon'
+         or (select ended_at from public.party_hunt where id = v_hunt) is not null
+         or public.hr_partied(v_b, 0) or not public.hr_partied(v_a, 0) then
+        raise exception 'm4-party-horizon self-check m10: the horizon did not DROP B while the hunt continued: %', v_r; end if;
+      v_members := (select jsonb_agg(jsonb_build_object('user', u, 'slot', 0, 'version', 1,
+                       'delta', jsonb_build_object('gold', 3, 'accrued_to', v_to,
+                         'journal', jsonb_build_object('kind', 'combat', 'intent', 'accrue',
+                           'meta', jsonb_build_object('src', 'tick', 'ticks', 1,
+                             'party', jsonb_build_object('id', v_party, 'hunt', v_hunt, 'dmg_bp', 3334,
+                               'xp_bp', 3334, 'floor', 0, 'fellow_bp', 0, 'roll', 1))))) order by u)
+                      from unnest(array[v_a, v_b, v_c]) u);
+      set local role hr_engine;
+      v_r := public.hr_party_tick_settle(c_h, v_party, v_mark, v_to, gen_random_uuid(), v_members);
+      reset role;
+      if v_r->>'why' is distinct from 'the declared member set is not the live member set' then
+        raise exception 'm4-party-horizon self-check m10: a split naming the dropped member was not refused: %', v_r; end if;
+      v_members := (select jsonb_agg(m) from jsonb_array_elements(v_members) m where (m->>'user')::uuid <> v_b);
+      set local role hr_engine;
+      v_r := public.hr_party_tick_settle(c_h, v_party, v_mark, v_to, gen_random_uuid(), v_members);
+      v_n := public.hr_accrue_cap_ms(v_b, 0);
+      reset role;
+      if coalesce(v_r->>'paid', 'false') <> 'true' or (v_r->>'members')::int <> 2 then
+        raise exception 'm4-party-horizon self-check m10: the live hunters were not paid after the drop (a pause): %', v_r; end if;
+      if (select gold from public.player_state where user_id = v_b and slot = 0) <> 500
+         or v_n <> floor(extract(epoch from ((now() - c_cap - interval '1 minute') + c_cap - v_mark)) * 1000)::bigint then
+        raise exception 'm4-party-horizon self-check m10: the dropped member''s return reads % ms, not min(absence, cap) - tick-paid', v_n; end if;
+      raise exception using errcode = 'HR951', message = 'm10 done';
+    exception when sqlstate 'HR951' then null;
+    end;
+
+    -- ── m11 THE 3/DAY CLAMP: B dropped three times today does not rejoin,
+    --    even returned, owned and inside their horizon.
+    begin
+      update public.hr_return_anchor set real_return_at = now() - c_cap - interval '1 hour'
+       where user_id = v_b and slot = 0;
+      set local role hr_engine;
+      v_r := public.hr_party_tick_settle(c_h, v_party, v_mark - interval '90 seconds', v_mark,
+               gen_random_uuid(), jsonb_build_array(jsonb_build_object('user', v_a, 'slot', 0)));
+      reset role;
+      insert into public.party_hunt_roster_log (day_key, party_id, hunt_id, user_id, slot, event, reason, mark, cap_ms, hunters)
+      select public.hr_utc_day_key(now()), v_party, v_hunt, v_b, 0, 'drop', 'past_horizon', v_mark, 43200000, 2
+        from generate_series(1, 2);
+      perform set_config('hr.frame_origin', 'tick', true);
+      update public.player_state set accrued_to = v_mark + interval '30 seconds' where user_id = v_b and slot = 0;
+      update public.hr_return_anchor set real_return_at = now() where user_id = v_b and slot = 0;
+      v_members := (select jsonb_agg(jsonb_build_object('user', u, 'slot', 0, 'version', 1,
+                       'delta', jsonb_build_object('gold', 3, 'accrued_to', v_to,
+                         'journal', jsonb_build_object('kind', 'combat', 'intent', 'accrue',
+                           'meta', jsonb_build_object('src', 'tick', 'ticks', 1,
+                             'party', jsonb_build_object('id', v_party, 'hunt', v_hunt, 'dmg_bp', 5000,
+                               'xp_bp', 5000, 'floor', 0, 'fellow_bp', 0, 'roll', 1))))) order by u)
+                      from unnest(array[v_a, v_c]) u);
+      set local role hr_engine;
+      v_r := public.hr_party_tick_settle(c_h, v_party, v_mark, v_to, gen_random_uuid(), v_members);
+      reset role;
+      if coalesce(v_r->>'paid', 'false') <> 'true'
+         or jsonb_array_length(coalesce(v_r->'rejoined', '[]'::jsonb)) <> 0 then
+        raise exception 'm4-party-horizon self-check m11: a member dropped 3 times today REJOINED (the 3/day clamp): %', v_r; end if;
+      raise exception using errcode = 'HR951', message = 'm11 done';
     exception when sqlstate 'HR951' then null;
     end;
 

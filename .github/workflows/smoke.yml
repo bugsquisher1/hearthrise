@@ -1834,7 +1834,7 @@ jobs:
       # stall judge (the read-only role cannot execute hr_tick_stall_status).
       # Both judges run on the same 15 replayed fixtures (F2b: online = not
       # judged; hr_partied: a live party hunt member is not a sentinel) and
-      # must agree; --mutate: 13 vitals mutants, each RED by name.
+      # must agree; --mutate: 15 vitals mutants (V16 parked, V17 logged-but-owed), each RED by name.
       - name: Vitals armed stall judge equals hr_tick_stall_status (G1)
         if: ${{ !cancelled() }}
         run: |
@@ -1871,6 +1871,39 @@ jobs:
         run: |
           node tests/party-hunt-start-gate.mjs
           node tests/party-hunt-start-gate.mjs --mutate
+
+      # Presence horizon (2026-10-10-world-tick-presence-horizon.sql, Game
+      # Designer ruling on B1): the armed tick pays nothing past last REAL
+      # return + hr_offline_cap_ms, and the return pays only the remainder.
+      # Away (tick) and attended (return) paths; one cap source; the edge reads
+      # hr_accrue_cap_ms at all four accrue-cap sites. --mutate: 13 mutants.
+      - name: World tick — presence horizon, no absence paid twice or past its cap
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-presence-horizon.mjs
+          node tests/world-tick-presence-horizon.mjs --mutate
+
+      # Gather widen, stage 1 (2026-10-10-world-tick-gather-widen.sql): the
+      # server enrols a RETURNING gatherer into tick ownership (hash bucket <
+      # permille, raw accrued_to inside 600 s, armed, unpartied, under the
+      # max_owned fuse), journalled, paying nothing; unenrol restores the
+      # operator cohort exactly; the stall judge names ONE stuck gatherer the
+      # aggregate floor hides; vitals' V6 restatement agrees; parked (mark at the horizon) is never a sentinel. --mutate: 25 mutants.
+      - name: World tick — gather widens by server enrolment; one stuck gatherer is named
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-gather-widen.mjs
+          node tests/world-tick-gather-widen.mjs --mutate
+
+      # World-tick scale (2026-10-11-world-tick-*.sql, the stage 2/3 gates of
+      # the gather widen): the roster serves only DUE characters and never
+      # hydrates them (counted calls), and the shipped runTick settles every one
+      # it serves. Arms grow with S2-S4. --mutate: every mutant red on its arm.
+      - name: World tick — scale (due-only roster, shards, catch-up, ledger fold)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-scale.mjs
+          node tests/world-tick-scale.mjs --mutate
 
       # EC-3d, the control, carries its own proof since 2026-09-22. It shipped
       # asserting the literal `+00:00` on the accrue path's rendering, which is

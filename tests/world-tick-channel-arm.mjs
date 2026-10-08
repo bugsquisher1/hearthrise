@@ -203,7 +203,10 @@ async function arms(db, { log = true } = {}) {
   // ── A5 shadow admission, and its loud end
   await cfg("armed_channels = '{}', edge_url = 'https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue'");
   {
-    await db.exec(`update public.hr_tick_ownership set shadow_accrued_to = now() - interval '1 minute' where user_id = '${UA}';`);
+    // The chain is 5 min old, not 1: since 2026-10-11-world-tick-due-roster.sql the
+    // roster serves only characters a full flush (90 s) behind, and this arm is
+    // about ADMISSION (a current chain admits a 25 h raw mark), not the due line.
+    await db.exec(`update public.hr_tick_ownership set shadow_accrued_to = now() - interval '5 minutes' where user_id = '${UA}';`);
     const r25 = await rostered(UA, 'gather');
     await db.exec(`update public.player_state set accrued_to = now() - interval '7 days' - interval '1 minute'
                     where user_id = '${UA}';`);
@@ -283,7 +286,10 @@ async function arms(db, { log = true } = {}) {
   await cfg("enabled = true, channels = array['combat','gather','artisan'], armed_channels = '{}'");
   {
     await makeChar(UG, 'gather', gact, "date_trunc('second', now()) - interval '25 hours'");
-    await db.exec(`update public.hr_tick_ownership set shadow_accrued_to = now() - interval '1 minute' where user_id = '${UG}';`);
+    // The chain is 5 min old, not 1: since 2026-10-11-world-tick-due-roster.sql the
+    // roster serves only characters a full flush (90 s) behind, and this arm is
+    // about ADMISSION (a current chain admits a 25 h raw mark), not the due line.
+    await db.exec(`update public.hr_tick_ownership set shadow_accrued_to = now() - interval '5 minutes' where user_id = '${UG}';`);
     const r25 = await rostered(UG, 'gather');           // admitted in SHADOW on its chain...
     await db.exec(`update public.hr_tick_ownership set lease_holder = '${HOLDER}', lease_until = now() + interval '10 minutes' where user_id = '${UG}';`);
     await cfg("armed_channels = array['gather']");      // ...then the operator arms

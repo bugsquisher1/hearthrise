@@ -438,6 +438,83 @@ export function writeIntent(who, deltas, metas, windowFromMs, windowToMs, seq) {
   };
 }
 
+/* ── THE LEDGER FOLD (2026-10-11, world-tick scale S4) ──────────────────────
+   K consecutive flush windows, each computed EXACTLY as a single-window fire
+   would compute it (tick.js settleFolded: same [mark, mark + flush] geometry,
+   same per-window seed ladder, the engine's own continuation state carried
+   between them), collapsed into ONE settle and so ONE `player_ledger` row.
+
+   The value is the sum of the windows' values, key by key, by the same
+   `foldDeltas` contract a flush already folds its polls with: `gold`/`xp`/
+   `items` add, the ABSOLUTE checkpoints (`tool_carry`, `accrued_to`,
+   `activity`) are the last window's, `progress` concatenates — and is then
+   COALESCED (coalesceProgress), because hr_apply refuses more than
+   `c_max_progress_ops` = 64 ops per call and one gather window already files
+   ~6 per poll. The journal row is `foldGatherMeta` over the windows' own
+   metas: the shape of an accrue row (the receipt cannot tell), covering the
+   span the watermark actually moved. Every value movement stays journalled;
+   only the row count drops, by K.
+
+   ONLY K >= 2 COMES HERE. One window keeps `writeIntent`'s output byte for
+   byte (no coalescing), so a deploy at fold_windows = 1 is the old pack's
+   intent, exactly — the gather differential the runbook demands of every
+   deploy stays byte-identical. */
+export function foldWindowIntents(who, windowIntents) {
+  const wins = windowIntents || [];
+  if (wins.length < 2) throw new Error('foldWindowIntents: a fold needs two or more windows');
+  for (let i = 1; i < wins.length; i++) {
+    /* CONTIGUOUS OR NOTHING. Each window must start where the previous one's
+       watermark ended, exactly as the next fire's would; a gap or an overlap
+       is a bug in the caller and must never reach the fence as one span. */
+    if (wins[i].window.fromMs !== wins[i - 1].window.toMs) {
+      throw new Error(`foldWindowIntents: window ${i} starts at ${wins[i].window.fromMs}, `
+        + `not at the previous window's end ${wins[i - 1].window.toMs}`);
+    }
+  }
+  const deltas = wins.map((w) => w.args.p_delta);
+  const metas = deltas.map((d) => (d.journal && d.journal.meta) || {});
+  const fromMs = wins[0].window.fromMs;
+  const toMs = wins[wins.length - 1].window.toMs;
+  const it = writeIntent(who, deltas, metas, fromMs, toMs, 0);
+  if (Array.isArray(it.args.p_delta.progress)) {
+    it.args.p_delta.progress = coalesceProgress(it.args.p_delta.progress);
+  }
+  it.window.folded = wins.length;
+  return it;
+}
+
+/* ONE OP PER (kind, key, period), `add` summed, the LAST op's `state`, in
+   first-seen order. hr_apply applies each op as
+       insert ... value = add ... on conflict do update set value = value + add,
+       state = case when claimed then claimed else coalesce(op.state, state) end
+   so N ops on one row and one op carrying their sum land the same value, and
+   the last state wins either way (no tick op can be 'claimed'; hr_apply
+   refuses it from this block). A daily op carries its UTC day in `period`, so
+   a fold across midnight keeps the two days apart. Any key other than
+   kind/key/period/add/state is refused loudly rather than merged by guess. */
+export function coalesceProgress(ops) {
+  const out = [];
+  const at = new Map();
+  for (const op of ops || []) {
+    if (!op || typeof op !== 'object') throw new Error('coalesceProgress: a progress op is not an object');
+    for (const k of Object.keys(op)) {
+      if (!['kind', 'key', 'period', 'add', 'state'].includes(k)) {
+        throw new Error(`coalesceProgress: unknown progress-op key "${k}" — classify it before folding`);
+      }
+    }
+    const id = `${op.kind}\u0000${op.key}\u0000${op.period ?? ''}`;
+    if (!at.has(id)) {
+      at.set(id, out.length);
+      out.push(Object.assign({}, op));
+      continue;
+    }
+    const prev = out[at.get(id)];
+    prev.add = Number(prev.add || 0) + Number(op.add || 0);
+    if ('state' in op) prev.state = op.state;
+  }
+  return out;
+}
+
 /* The value a shadow run is compared on. Deliberately not the whole intent:
    the idempotency key is a function of the window, not of the value, and the
    version is a concurrency token. Everything a player can SPEND or RANK is

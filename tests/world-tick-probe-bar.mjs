@@ -401,10 +401,12 @@ function pairedDelta(mut, replicas = REPLICAS) {
 }
 if (!MUTATE) {
   const d = pairedDelta(null);
-  judge('PB-2p (paired)', Math.abs(d.mean) <= 3 * d.se,
+  /* Capped as well as scaled: a noisy divergence must not pass on its own se
+     (Security 2026-10-07); 0.25 % is well inside the −1.19 % dropMaxHp. */
+  judge('PB-2p (paired)', Math.abs(d.mean) <= 3 * d.se && Math.abs(d.mean) <= 0.25,
     `shipped − armed ${d.mean.toFixed(3)}% ± ${d.se.toFixed(3)}% ticks over ${d.n} paired seed families (inside 3 se)`,
     `shipped − armed ${d.mean.toFixed(3)}% ± ${d.se.toFixed(3)}% ticks over ${d.n} paired seed families — outside 3 se: `
-    + 'the shadow carrier diverges from the armed chain on the same dice');
+    + 'or beyond the 0.25 % cap: the shadow carrier diverges from the armed chain on the same dice');
 }
 
 // ── THE MUTANTS ────────────────────────────────────────────────────────────

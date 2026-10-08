@@ -4093,11 +4093,10 @@ export default [
   }),
 
   () => tryRun('M8 PARTY-5: the three columns S2 owns are NOT drawn while they are NULL', () => {
-    /* hr_party_view carried share_bp / xp / gold as NULL until
-       2026-10-15-party-hunt-view.sql retired them (the hunt's numbers are
-       hr_party_hunt_view's). The roster panel must still never draw them if a
-       stale server sends the keys: a column of em-dashes is a worse lie than an
-       absent column, and the hunt card is the one place a split belongs. */
+    /* hr_party_view carried share_bp / xp / gold as NULL until 2026-10-15-party-
+       hunt-view.sql retired them (the hunt card owns them). The roster panel must
+       still never draw them if a stale server sends the keys: a column of
+       em-dashes is a worse lie than an absent column. */
     const html = window.partyPanelHtml({ known: true, partyId: 'P1', role: 'leader', invites: [],
       members: [{ name: 'Nia', combat_level: 51, hp: 44, hp_max: 58, share_bp: null, xp: null, gold: null }] }, { nowMs: 0 });
     assert(!/share|bp|\bxp\b|gold/i.test(html), 'slice 1 rendered a settle column it has no value for: ' + html.slice(0, 200));

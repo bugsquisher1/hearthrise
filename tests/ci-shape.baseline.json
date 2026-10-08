@@ -149,6 +149,8 @@
     "node tests/world-tick-m4-party-horizon.mjs --mutate": "db-replay-6",
     "node tests/world-tick-arm-combat.mjs": "db-replay-6",
     "node tests/world-tick-arm-combat.mjs --mutate": "db-replay-6",
+    "node tests/party-hunt-view.mjs": "db-replay-6",
+    "node tests/party-hunt-view.mjs --mutate": "db-replay-6",
     "node tests/frame-self-echo.mjs": "db-replay-6",
     "node tests/frame-self-echo.mjs --mutate": "db-replay-6",
     "node tests/pglite-template.mjs --verify --for=db-replay-7": "db-replay-7",

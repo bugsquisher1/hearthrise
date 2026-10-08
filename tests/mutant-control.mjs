@@ -40,6 +40,7 @@ export const REGISTERED = [
   ['tests/world-tick-token-failclosed.mjs', '--selftest'],
   ['tests/world-tick-gather-widen.mjs', '--mutate'],
   ['tests/world-tick-presence-horizon.mjs', '--mutate'],
+  ['tests/world-tick-presence-signal.mjs', '--mutate'],
   ['tests/world-tick-scale.mjs', '--mutate'],
   ['tests/companion-equip-version-bump.mjs', '--mutate'],
 ];

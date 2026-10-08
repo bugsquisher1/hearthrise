@@ -1278,7 +1278,6 @@ export default [
     const toast = toasts[toasts.length - 1];
     assert(toast.innerHTML.indexOf('Smoke Test Trophy') >= 0, 'toast did not render the achievement name');
     toast.remove(); // don't leave it lingering for the 4.2s timer
-    // The list: the Collection Log's Deeds tab (lane daily-board), one row per deed.
     assert(Array.isArray(window.ACHIEVEMENTS) && window.ACHIEVEMENTS.length > 0,
       'ACHIEVEMENTS catalogue must be published for the Deeds tab to read');
     window.openAchievements();

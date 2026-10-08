@@ -15,7 +15,7 @@ import { PROGRESS_SURFACES } from '../data/progress-surfaces.js?v=564';
 const BY_ID = Object.freeze(Object.fromEntries(PROGRESS_SURFACES.map((r) => [r.id, r])));
 
 /** The reveal's number, or null when the realm has not said it. */
-export function revealValue(reveal, readers) {
+function revealValue(reveal, readers) {
   if (!reveal || !readers) return null;
   if (reveal.kind === 'lifetime') return readers.lifetime(reveal.key);
   if (reveal.kind === 'totalLevel') return readers.totalLevel();

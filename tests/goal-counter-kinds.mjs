@@ -92,7 +92,7 @@ const PAYING_KINDS = ['daily', 'ledger_gold'];
    stopped running. Each defect is therefore caught twice: once by the gate,
    once by the guard standing alone. */
 /* A LIST of [file, find, replace]: 2026-09-07's whole Sec 4, and the quest
-   chain end's OWN ev:planted gate (Journeyman's Road §4(c)), which would
+   chain end's OWN ev:planted gate (2026-10-10-quest-combat-xp.sql VERIFY(b)), which would
    otherwise refuse the quest_reads_planted mutation at apply time and leave the
    gate-blind arm proving that file's gate instead of this guard. */
 const GATE_BLIND = [
@@ -104,16 +104,12 @@ const GATE_BLIND = [
   return;
   -- (a) A validated check constraint pins the column, whatever its name.`],
   [QUEST_MIG,
-    `  if position('ev:planted' in v_src) > 0 then
-    raise exception 'VERIFY(c): hr_claim_quest__ungated names ev:planted`,
-    `  if false then
-    raise exception 'VERIFY(c): hr_claim_quest__ungated names ev:planted`],
-  /* …and its exact-arm-count check, which a FIFTH-style extra arm also trips. */
+    "  if position('ev:planted' in v_src) > 0 then raise exception 'VERIFY(b): the body names ev:planted'; end if;",
+    "  if false then raise exception 'VERIFY(b): the body names ev:planted'; end if;"],
+  /* …and its exact-arm-count check, which an extra arm also trips. */
   [QUEST_MIG,
-    `  if v_n <> 10 then
-    raise exception 'VERIFY(c): the body has % quest arm(s), expected 10', v_n;`,
-    `  if false then
-    raise exception 'VERIFY(c): the body has % quest arm(s), expected 10', v_n;`],
+    "  if v_n <> 11 then raise exception 'VERIFY(b): % quest arm(s), expected 11', v_n; end if;",
+    "  if false then raise exception 'VERIFY(b): % quest arm(s), expected 11', v_n; end if;"],
 ];
 
 /* ── MUTATIONS ─────────────────────────────────────────────────────────────
@@ -204,7 +200,9 @@ async function boot(name, gateBlind) {
      chain end (QUEST_MIG, after MIG) — never past it (replayScopeError). Not
      LAST_PATCHED: the negative control patches only the older CREATE and needs
      MIG's ADD path and the quest body to run. */
-  const { db } = await bootReplay(map.size ? { patches: map, upTo: QUEST_MIG } : undefined);
+  /* The plain run stops before 2026-10-11-daily-board.sql, which would refuse
+     `plant` not_offered on most days; its GATE(d) re-proves period scoping. */
+  const { db } = await bootReplay(map.size ? { patches: map, upTo: QUEST_MIG } : { upTo: '2026-10-08-content-holes.sql' });
   return db;
 }
 

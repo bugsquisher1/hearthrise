@@ -292,6 +292,16 @@ begin
     if v_off is null or v_on is null then
       raise exception 'GATE(d): today''s board % leaves no offered and unoffered daily-counter goal to probe', v_b;
     end if;
+    -- The restated projection stays PERIOD-scoped: a lifetime row counts for nothing.
+    insert into public.player_progress (user_id, slot, kind, key, value, period_key, state)
+      select distinct v_uid, v_slot, 'stat', g.counter_key, 999999, '', 'active'
+        from public.hr_goal_rewards g where g.counter_kind = 'daily';
+    v := public.hr_goal_state__ungated(v_slot);
+    if exists (select 1 from jsonb_array_elements(v->'goals') e
+                where (e->>'have')::bigint <> 0 and (e->>'goal_id') not in
+                      (select goal_id from public.hr_goal_rewards where counter_kind = 'ledger_gold')) then
+      raise exception 'GATE(d): hr_goal_state graded a LIFETIME counter: %', v->'goals';
+    end if;
     insert into public.player_progress (user_id, slot, kind, key, value, period_key, state)
       select v_uid, v_slot, 'daily', g.counter_key, max(g.target), v_day, 'active'
         from public.hr_goal_rewards g

@@ -748,6 +748,17 @@ export default [
         'a 3,500-day streak proposes a x' + far.mult + ' multiplier — the cap is not applied');
       assert(R.priceDailyLogin(8).gold > R.priceDailyLogin(1).gold,
         'CONTROL: week 2 pays the same as week 1, so the cap assertion above is vacuous');
+      /* RULING 2026-10-08 (whole-game review): the cap is x3 and gems stay on the
+         week-1 schedule. The sheet renders a far week's day 7 straight from the
+         data the server prices with, so this is what a long-streak player SEES. */
+      seedPlayStreak(7 * 20 + 7);
+      const day7far = D.rewardFor(G) || {};
+      assert((day7far.gems || 0) === R.DAILY_LOGIN_CYCLE[6].gems,
+        'a week-21 day 7 shows ' + day7far.gems + ' gems; gems must not grow past the week-1 schedule ('
+        + R.DAILY_LOGIN_CYCLE[6].gems + ')');
+      assert((day7far.gold || 0) === R.DAILY_LOGIN_CYCLE[6].gold * 3,
+        'a week-21 day 7 shows ' + day7far.gold + ' gold; the ruled ceiling is x3 ('
+        + R.DAILY_LOGIN_CYCLE[6].gold * 3 + ')');
 
       /* ⚠ AND IT FAILS LOUD RATHER THAN PAYING AN INVENTED NUMBER. A fallback
          cycle in daily-reward.js would be exactly the second copy this move

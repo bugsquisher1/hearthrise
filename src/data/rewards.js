@@ -51,14 +51,23 @@ export const DAILY_LOGIN_WEEK_BONUS = 0.5;
    number — every other value the engine proposes has a blast radius, and this
    one had none.
 
-   26 is chosen to be NON-BINDING for any reachable player: it is a full YEAR of
-   perfect attendance (52 completed weeks would be x27), so nothing anyone can
-   have today changes, and the beta is four days old. It is a fuse, not a dial.
+   ── THE DIAL WAS TURNED (Game Designer ruling, whole-game review 2026-10-08) ──
+   26 was a fuse sized to be non-binding, and it was the wrong number: week 1
+   alone pays 43,000 gold + 45 gems, and the multiplier grows +50% a week, so a
+   steady player's login sheet became the largest faucet in the game by month
+   two (x26 = 1,118,000 gold + 1,170 gems per week). RULING: the cycle
+   multiplier caps at x3 (reached after four completed weeks) and GEMS DO NOT
+   GROW AT ALL — they pay the week-1 schedule forever (DAILY_LOGIN_GEMS_GROW).
 
-   ⇒ GAME DESIGNER: the DIAL is yours. If a x26 day-7 claim (520,000 gold) is
-     too much, lower this number — it is data, and both halves read it. What is
-     NOT negotiable is that some finite number lives here. */
-export const DAILY_LOGIN_MAX_WEEK_MULT = 26;
+   ONE SOURCE, BOTH HALVES. The server prices a claim with priceDailyLogin()
+   below, vendored into supabase/functions/hr-accrue by the packer
+   (claim-reward.js imports this file); the sheet renders from the same call.
+   There is no SQL copy of these numbers to keep in step. tests/claim-intent.mjs
+   pins the ruled values (cap x3, gems flat) so a later edit is a red build. */
+export const DAILY_LOGIN_MAX_WEEK_MULT = 3;
+
+/** Gems pay the week-1 schedule on every week: the multiplier is gold-only. */
+export const DAILY_LOGIN_GEMS_GROW = false;
 
 export const DAILY_LOGIN_CYCLE_DAYS = DAILY_LOGIN_CYCLE.length;
 
@@ -80,7 +89,7 @@ export function priceDailyLogin(streak) {
   const base = DAILY_LOGIN_CYCLE[cycleDay - 1] || DAILY_LOGIN_CYCLE[0];
   return {
     gold: Math.round((base.gold || 0) * mult),
-    gems: Math.round((base.gems || 0) * mult),
+    gems: Math.round((base.gems || 0) * (DAILY_LOGIN_GEMS_GROW ? mult : 1)),
     cycleDay,
     weeksDone,
     mult,

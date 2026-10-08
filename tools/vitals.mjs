@@ -343,6 +343,21 @@ function partyStaleVerdict(row) {
   if (stale > 0) return { verdict: 'ALARM', why: `${stale} live party hunt(s) > 24 h behind: members refused every accrue (PD1; is hr-party-reap running?)` };
   return { verdict: 'OK', why: 'no live party hunt > 24 h behind' };
 }
+// ONE STUCK ARMED CHARACTER (2026-10-10-world-tick-gather-widen.sql, runbook
+// V6): hr_tick_stall_status's per-character lag judge, restated for ONE armed
+// channel. `row` carries `judged` (owned, on the channel; minus hr_partied,
+// not executable here — gather is never partied) and `stuck` (of those, raw
+// accrued_to more than 15 min behind AND no tick payment for that character in
+// the last 15 min). Lagging but paid = catching up, never STUCK. The aggregate
+// rule above cannot see one stuck character once two or more are armed.
+function armedLagVerdict(row) {
+  const judged = Number(row?.judged);
+  const stuck = Number(row?.stuck);
+  if (!Number.isFinite(judged) || !Number.isFinite(stuck)) return { verdict: 'UNREAD', why: 'no count' };
+  if (!(judged >= 1)) return { verdict: 'NO VERDICT', why: 'no owned character on the armed channel' };
+  if (stuck >= 1) return { verdict: 'STUCK', why: `${stuck} of ${judged} armed character(s) > 15 min behind with no tick payment in 15 min` };
+  return { verdict: 'OK', why: `${judged} armed character(s), none stuck` };
+}
 // ── STALL RULE END ───────────────────────────────────────────────────────────
 const STALL_RULE = { hours: 2, minRowsPerHour: 30 };
 const STALL_RULE_TEXT = `STALL = tick in SHADOW mode and EACH of the last ${STALL_RULE.hours} whole hours ending now had`
@@ -359,6 +374,36 @@ const SLOT_HEALTH = 'select public.hr_slot_health() as h';
 
 // ── PARTY HUNTS > 24 h BEHIND (Security PD1) ────────────────────────────────
 // The interim operator check, verbatim, plus what the reaper ended in 7 days.
+// ── ONE STUCK ARMED CHARACTER (runbook V6) ──────────────────────────────────
+// hr_tick_stall_status() is owner-only, so its per-character lag judge is
+// restated here, per armed channel; the verdict is armedLagVerdict() above.
+const ARMED_LAG = `
+select a.ch as channel,
+       count(ps.user_id) as judged,
+       count(ps.user_id) filter (
+         where ps.accrued_to < now() - interval '15 minutes'
+           and not exists (select 1 from public.player_ledger pl
+                            where pl.user_id = o.user_id and pl.slot = o.slot
+                              and pl.at > now() - interval '15 minutes' and pl.at <= now()
+                              and pl.kind = (case a.ch when 'artisan' then 'craft' else a.ch end)
+                              and pl.meta ->> 'src' = 'tick')
+           -- PARKED (presence horizon): paid in full for this absence, waiting.
+           and not exists (select 1 from public.hr_tick_horizon_log h
+                             join public.hr_return_anchor ra
+                               on ra.user_id = h.user_id and ra.slot = h.slot and ra.real_return_at = h.anchor_at
+                            where h.user_id = o.user_id and h.slot = o.slot
+                              -- ...whose mark has REACHED the horizon (within one flush)
+                              and ps.accrued_to + make_interval(secs => a.flush) > h.horizon_at)) as stuck,
+       coalesce(floor(max(extract(epoch from (now() - ps.accrued_to)))), 0) as worst_s,
+       coalesce(floor(percentile_cont(0.95) within group (order by extract(epoch from (now() - ps.accrued_to)))), 0) as p95_s
+  from (select distinct x as ch, coalesce(cfg.flush_seconds, 90) as flush
+          from public.hr_tick_config cfg cross join lateral unnest(cfg.armed_channels) x
+         where cfg.id and x = any (cfg.channels)) a
+  left join public.hr_tick_ownership o on o.channel = a.ch and o.owned
+  left join public.player_state ps on ps.user_id = o.user_id and ps.slot = o.slot and ps.active_kind = a.ch
+ group by a.ch
+ order by a.ch`;
+
 const PARTY_STALE = `
 select (select count(*) from public.party_hunt
          where ended_at is null and accrued_to < now() - interval '24 hours') as stale,
@@ -382,7 +427,7 @@ select (select count(*) from public.party_hunt
 // here that the function does not share goes RED there by fixture name.
 const ARMED_TICK = `
 with c as (
-  select distinct a as ch, cfg.enabled
+  select distinct a as ch, cfg.enabled, coalesce(cfg.flush_seconds, 90) as flush
     from public.hr_tick_config cfg cross join lateral unnest(cfg.armed_channels) a
    where cfg.id and a = any (cfg.channels)),
 h as (
@@ -401,6 +446,12 @@ s as (
    where ps.active_kind = c.ch
      and ps.active_since <= now() - interval '2 hours'
      and ps.accrued_to > now() - interval '24 hours'
+     -- PARKED (presence horizon) is not a sentinel: paid in full, waiting.
+     and not exists (select 1 from public.hr_tick_horizon_log hz
+                       join public.hr_return_anchor ra
+                         on ra.user_id = hz.user_id and ra.slot = hz.slot and ra.real_return_at = hz.anchor_at
+                      where hz.user_id = o.user_id and hz.slot = o.slot
+                        and ps.accrued_to + make_interval(secs => c.flush) > hz.horizon_at)
      and not exists (select 1 from public.party_member m
                        join public.party_hunt ph on ph.party_id = m.party_id
                       where m.user_id = o.user_id and m.slot = o.slot
@@ -422,6 +473,15 @@ select c.ch as channel, h.i, coalesce(c.enabled, false) as enabled,
        (select count(*) from s where s.ch = c.ch and s.online) as online_sentinels
   from c cross join h
  order by c.ch, h.i`;
+/* Runbook V6: one line per armed channel; a STUCK character sets the exit code. */
+const lagLines = (rows) => {
+  if (!rows.length) return ['armed lag: nothing armed'];
+  return rows.map((r) => {
+    const v = armedLagVerdict(r);
+    if (v.verdict === 'STUCK' || v.verdict === 'UNREAD') process.exitCode = 1;
+    return `armed ${r.channel} lag: ${v.verdict} — ${v.why} | worst ${r.worst_s} s, p95 ${r.p95_s} s (want stuck 0)`;
+  });
+};
 const armedLines = (rows) => {
   const by = new Map();
   for (const r of rows) by.set(r.channel, [...(by.get(r.channel) || []), r]);
@@ -442,7 +502,7 @@ const chosen = refusalsMode ? REFUSALS : worldTickMode ? WORLD_TICK : QUERY;
 // send is checked, not just the one the flag selected. A second query added
 // later must not be able to ride in unchecked behind the first one's clearance.
 const selectOnly = (sql) => !/\b(insert|update|delete|create|alter|drop|grant|revoke|truncate|call|do)\b/i.test(sql);
-for (const sql of [QUERY, REFUSALS, REFUSAL_TABS, WORLD_TICK, WORLD_TICK_MODE, SLOT_HEALTH, ARMED_TICK, PARTY_STALE]) {
+for (const sql of [QUERY, REFUSALS, REFUSAL_TABS, WORLD_TICK, WORLD_TICK_MODE, SLOT_HEALTH, ARMED_TICK, ARMED_LAG, PARTY_STALE]) {
   if (!selectOnly(sql)) {
     console.error('vitals: refusing — query is not SELECT-only'); process.exitCode = 2; throw new Error('not select-only');
   }
@@ -511,7 +571,7 @@ async function selftest() {
   const b = SRC.indexOf('// ── STALL RULE END');
   if (a < 0 || b < 0) { console.error('vitals --selftest: the STALL RULE markers are gone'); return 2; }
   const RULE_SRC = SRC.slice(a, b);
-  const lift = (src) => new Function(`${src}\nreturn { tickStallVerdict, tickDayRollup, armedStallVerdict, partyStaleVerdict };`)();
+  const lift = (src) => new Function(`${src}\nreturn { tickStallVerdict, tickDayRollup, armedStallVerdict, partyStaleVerdict, armedLagVerdict };`)();
 
   const hour = (o) => ({ day: '2026-09-28', fires: 360, rost_fires: 360, rostered: 1, shadow_rows: 0, refused: 0, ...o });
   const checks = (L) => {
@@ -569,6 +629,14 @@ async function selftest() {
     t('P2 one stale party hunt -> ALARM', PV({ stale: 1, reaped_7d: 0 }), 'ALARM');
     t('P3 the count as the endpoint returns it (a string) -> ALARM', PV({ stale: '2' }), 'ALARM');
     t('P4 no count -> UNREAD, never OK', PV({}), 'UNREAD');
+    // Runbook V6 (gather widen): one stuck armed character, named even when
+    // the aggregate rule above reads OK.
+    const LV = (row) => L.armedLagVerdict(row).verdict;
+    t('L1 five armed, none stuck -> OK', LV({ judged: 5, stuck: 0 }), 'OK');
+    t('L2 five armed, one stuck -> STUCK (the aggregate cannot see it)', LV({ judged: 5, stuck: 1 }), 'STUCK');
+    t('L3 the counts as the endpoint returns them (strings) -> STUCK', LV({ judged: '3', stuck: '1' }), 'STUCK');
+    t('L4 nobody armed-owned -> NO VERDICT, never STUCK', LV({ judged: 0, stuck: 0 }), 'NO VERDICT');
+    t('L5 no counts -> UNREAD, never OK', LV({}), 'UNREAD');
     return out;
   };
 
@@ -602,6 +670,9 @@ async function selftest() {
     { name: 'armedAnyHourStalls', find: 'win.every((r) => Number(r.tick_rows)', repl: 'win.some((r) => Number(r.tick_rows)' },
     { name: 'partyStaleTolerated', find: 'if (stale > 0) return', repl: 'if (stale > 1) return' },
     { name: 'partyStaleUnreadIsOk', find: "if (!Number.isFinite(stale)) return { verdict: 'UNREAD', why: 'no count' };", repl: '' },
+    { name: 'lagOneStuckTolerated', find: 'if (stuck >= 1) return', repl: 'if (stuck >= 2) return' },
+    { name: 'lagNobodyIsOk', find: "if (!(judged >= 1)) return { verdict: 'NO VERDICT'", repl: "if (false) return { verdict: 'NO VERDICT'" },
+    { name: 'lagUnreadIsOk', find: "if (!Number.isFinite(judged) || !Number.isFinite(stuck)) return { verdict: 'UNREAD', why: 'no count' };", repl: '' },
   ];
   let missed = 0;
   for (const m of MUTANTS) {
@@ -626,6 +697,8 @@ if (selftestMode) {
   printWorldTick(buckets, await readTickMode());
   try { for (const l of armedLines(await ask(ARMED_TICK, { soft: true }))) console.log(l); }
   catch (e) { console.log(`armed channels: UNREAD — ${e.message}`); process.exitCode = 1; }
+  try { for (const l of lagLines(await ask(ARMED_LAG, { soft: true }))) console.log(l); }
+  catch (e) { console.log(`armed lag: UNREAD — ${e.message}`); process.exitCode = 1; }
 } else {
   const rows = await ask(chosen);
 
@@ -699,6 +772,12 @@ if (selftestMode) {
       for (const l of armedLines(await ask(ARMED_TICK))) console.log(l);
     } catch (e) {
       console.log(`armed channels: UNREAD — ${e.message} (the exit code says so)`);
+    }
+    // Runbook V6: the aggregate line above cannot see ONE stuck character.
+    try {
+      for (const l of lagLines(await ask(ARMED_LAG))) console.log(l);
+    } catch (e) {
+      console.log(`armed lag: UNREAD — ${e.message} (the exit code says so)`);
     }
     // Security PD1: a party hunt nobody can tick. Must read 0.
     try {

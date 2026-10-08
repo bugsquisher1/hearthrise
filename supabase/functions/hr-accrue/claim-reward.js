@@ -485,7 +485,7 @@ const READ_SQL = `
          case when g.allowed then public.hr_state_of($1::uuid, $2::int) end   as state,
          case when g.allowed
               then public.hr_claim_lookup($1::uuid, $2::int, $4::text, $5::text) end as lookup,
-         case when g.allowed then public.hr_offline_cap_ms($1::uuid, $2::int) end as cap_ms,
+         case when g.allowed then public.hr_accrue_cap_ms($1::uuid, $2::int) end as cap_ms,
          now()                                                               as now
     from g`;
 

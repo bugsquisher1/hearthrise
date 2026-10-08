@@ -61,7 +61,7 @@ const READ_SQL = `
   with g as (select public.hr_rate_gate($1::uuid, $2::int, $3::text) as allowed)
   select g.allowed                                                         as allowed,
          case when g.allowed then public.hr_state_of($1::uuid, $2::int) end as state,
-         case when g.allowed then public.hr_offline_cap_ms($1::uuid, $2::int) end as cap_ms,
+         case when g.allowed then public.hr_accrue_cap_ms($1::uuid, $2::int) end as cap_ms,
          now()                                                             as now
     from g`;
 

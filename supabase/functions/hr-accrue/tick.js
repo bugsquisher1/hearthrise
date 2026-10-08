@@ -77,8 +77,10 @@ import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 
 import {
   CHANNEL as GATHER_CHANNEL, DEFAULT_CADENCE_MS, DEFAULT_FLUSH_MS,
-  sessionFromRoster as gatherSessionFromRoster, settleGatherSession,
+  sessionFromRoster as gatherSessionFromRoster, settleGatherSession, foldWindowIntents,
 } from './tick-gather.js';
+/* The level curve, for the fold's level-up stop (settleFolded). */
+import { levelFromXp } from '../../../src/core/xp.js';
 import {
   CHANNEL as COMBAT_CHANNEL,
   sessionFromRoster as combatSessionFromRoster, settleCombatSession,
@@ -197,6 +199,55 @@ export const MAX_ROSTER = 500;
    omits it, so the bytes are counted as they arrive and the read is ABORTED at
    the same ceiling. A header check alone is not a cap. */
 export const MAX_BODY_BYTES = 4 * 1024 * 1024;
+
+/* THE FAN-OUT CEILING (2026-10-11, world-tick scale S2): the
+   `hr_tick_config_shards_ck` CHECK is `shards between 1 and 16`, restated here
+   because the edge cannot read that table. tests/world-tick-scale.mjs H5 reads
+   the CHECK out of the catalogue and fails if the two disagree. */
+export const MAX_SHARDS = 16;
+
+/* THE LEASE-HOLDER NAME, SPELLED BY POSTGRES, ONE EXPRESSION FOR BOTH SIDES.
+   `hr_tick_cron_run` stamps shard k's leases with exactly this expression
+   (2026-10-11-world-tick-shards.sql §4) and the fence compares
+   `lease_holder = p_holder`, so any drift is a `no_lease` refusal on every
+   character — the safe direction, and loud. Shard 0 is the single-POST
+   driver's `left('cron:' || db, 64)`, so an edge deployed before the
+   migration, or a database at `shards = 1`, sees the holder it always saw.
+   Shard k > 0 cuts the prefix to 58 so ':s<k>' always fits in 64 and can
+   never truncate into shard 0's name. tests/world-tick-scale.mjs H1 drives a
+   real fire's bodies through runTick, so the two spellings are compared by
+   the lease they must both name, not by reading the text. */
+export const TICK_HOLDER_SQL = "select case when $1::int = 0"
+  + " then left('cron:' || coalesce(current_database(), 'db'), 64)"
+  + " else left('cron:' || coalesce(current_database(), 'db'), 58) || ':s' || $1::int end as holder";
+
+/* ── MULTI-WINDOW CATCH-UP (2026-10-11, world-tick scale S3) ─────────────────
+   How many consecutive flush windows ONE visit may settle for an ARMED
+   character that is still a full flush behind after its first window. The
+   ceiling is `hr_tick_config_catchup_ck` (1..40), restated because the edge
+   cannot read that table (tests/world-tick-scale.mjs C6 compares them). Each
+   extra window is a whole visit — `tickOne` again: a fresh now(), a fresh
+   hr_state_of, the fence's own mark, its own seed ladder, its own settle — so
+   it is byte for byte the window the next fire would have settled, and every
+   money fence (lease, watermark CAS, version CAS, 8b, 8c) runs for it under
+   the player lock exactly as it would then. SHADOW windows are never caught
+   up: one per visit, so the parity probes and their counts do not move. */
+export const MAX_CATCHUP_WINDOWS = 40;
+
+/* THE EXTRA WINDOWS' TIME BUDGET, per fire, from the fire's start. Every
+   character's FIRST window is attempted whatever the clock says (today's
+   behaviour, byte for byte); only the extra windows stop here, so one far-behind
+   character can never cost the rest of the batch its visit. 6 s keeps a
+   normal response inside pg_net's 9 s timeout (the harvest sees it) and every
+   lease (30 s) alive. */
+export const CATCHUP_BUDGET_MS = 6000;
+
+/* ── THE LEDGER FOLD CEILING (2026-10-11, world-tick scale S4): the
+   `hr_tick_config_fold_ck` CHECK is `fold_windows between 1 and 8`, and the
+   8 is hr_tick_stall_status' 15 min per-character lag judge: an away character
+   waits fold x 90 s + one cadence between payments. tests/world-tick-scale.mjs
+   F6 compares the two. */
+export const MAX_FOLD_WINDOWS = 8;
 
 /* Engine polls per character per fire. `toMs` is already capped at one flush
    window below, so this is the second, independent bound — the one that still
@@ -491,6 +542,21 @@ export function parseTickBody(raw) {
      a flush shorter than the cadence is the ledger-volume failure §15c prices,
      and it must not be reachable by naming two numbers in a body. */
   if (out.flushMs < out.cadenceMs) out.flushMs = out.cadenceMs;
+  /* THE SHARD (2026-10-11, world-tick scale S2). A SELECTOR, like `roster`:
+     it names which of the fire's N bodies this is, and so which lease-holder
+     name this invocation settles under (TICK_HOLDER_SQL). It buys nothing a
+     shard's own fire would not get: the fence refuses every character whose
+     lease is not that holder's. Absent, malformed or out of range reads as
+     shard 0 — the single-POST driver's holder, byte for byte. */
+  out.shard = clampInt(b.shard, 0, MAX_SHARDS - 1, 0);
+  /* THE CATCH-UP DIAL (S3). Geometry, couriered from hr_tick_config like
+     cadence/flush and clamped to the CHECK's range. Absent reads as 1: one
+     window per visit, exactly the edge before this key existed. */
+  out.catchupWindows = clampInt(b.catchup_windows, 1, MAX_CATCHUP_WINDOWS, 1);
+  /* THE FOLD DIAL (S4): how many of a visit's windows ONE settle may carry.
+     Clamped to the CHECK (1..8) and to the catch-up dial, as the CHECK holds
+     it; absent reads as 1, one settle per window. */
+  out.foldWindows = Math.min(clampInt(b.fold_windows, 1, MAX_FOLD_WINDOWS, 1), out.catchupWindows);
   out.roster = parseSelectors(b.roster);
   /* THE PARTY COHORT (M8 S2). Same rule as `roster`: SELECTORS, never
      authority. A unit names a party, a hunt, its monster and its members'
@@ -751,7 +817,10 @@ async function seedLadder(exec, sel, labels) {
 /* ── ONE CHARACTER, ONE FIRE ────────────────────────────────────────────────
    Returns a verdict, never a throw: a character that cannot be settled must not
    cost the rest of the batch its window. */
-async function tickOne(exec, holder, sel, body) {
+/* `maxWindows` (S4) is how many consecutive windows this ONE visit may fold into
+   one settle; 1 (the default, and every shadow or combat visit) is the
+   single-window visit, byte for byte. */
+async function tickOne(exec, holder, sel, body, maxWindows = 1) {
   /* (0) THE SERVER CLOCK. Every instant this function names comes from here or
          from the fence; none of them comes from the body. */
   const read0 = await exec('select now()::timestamptz as now', []);
@@ -936,6 +1005,19 @@ async function tickOne(exec, holder, sel, body) {
     holder,
   };
 
+  /* (5c) THE LEDGER FOLD (2026-10-11, world-tick scale S4). An ARMED GATHER
+          character that is two or more flushes behind, on a fire whose fold
+          dial is above 1, settles up to `maxWindows` consecutive windows in
+          ONE fenced settle — one hr_apply, one player_ledger row. Every window
+          is the one the next fire would have computed (settleFolded). Shadow
+          and combat never fold: their continuation is the carrier and the
+          probe, which this does not touch. */
+  const foldN = (probe.shadow === false && channel === GATHER_CHANNEL && maxWindows > 1)
+    ? Math.min(maxWindows, Math.floor((nowMs - markMs) / body.flushMs)) : 1;
+  if (foldN > 1) {
+    return settleFolded(exec, holder, sel, body, driver, session, probe, markMs, nowMs, foldN, env, geom);
+  }
+
   /* (6) THE SEEDS, THEN THE ONE REAL PASS. */
   const labels = planSeedLabels(driver.settle, session, markMs, toMs,
     Object.assign({}, geom, { markText: probe.markText }));
@@ -1041,7 +1123,118 @@ async function tickOne(exec, holder, sel, body) {
      fence, under the lease lock, for this character's channel, and this is
      what it decided. A summary that reported the body's flag would say
      "shadowed" about a fire that paid. */
-  return { outcome: res.mode === 'shadow' ? 'shadowed' : 'processed', probe: probed };
+  return { outcome: res.mode === 'shadow' ? 'shadowed' : 'processed', probe: probed, windows: 1 };
+}
+
+/* ── THE FOLD'S CHAIN RULES (S4) ────────────────────────────────────────────
+   A folded window i+1 is computed from the engine's OWN continuation state
+   after window i (`run.char`, the object `advance()` carries between polls)
+   instead of from `hr_state_of` after hr_apply wrote window i. The two are the
+   same object for every input a gather window reads, EXCEPT inputs that a
+   settle moves somewhere `advance()` does not model. So the chain ENDS (the
+   window is kept, the next one is the next visit's) after any window that:
+     · carries a delta key outside FOLD_CHAIN_KEYS — `activity` (the pointer
+       moved: a node ran out or hit its level gate), `hearthfind`, or any key a
+       future engine adds: state the next fire would read has moved;
+     · levels any skill — hr_renown_of is a function of skill levels and
+       hr_perks_of prices `renownAllXp` from it, so a level-up can move the
+       perk stack the next window is priced with.
+   Perks (`hr_perks_of`), the offline cap and the bestiary are read ONCE per
+   visit, exactly as a single window reads them once for its nine polls.
+   tests/world-tick-scale.mjs F1 proves the fold equal to the single fires. */
+export const FOLD_CHAIN_KEYS = Object.freeze(
+  ['accrued_to', 'items', 'xp', 'gold', 'progress', 'tool_carry', 'journal']);
+
+function levelledUp(before, after) {
+  for (const k of Object.keys(after || {})) {
+    if (levelFromXp(Number((before || {})[k]) || 0) !== levelFromXp(Number(after[k]) || 0)) return true;
+  }
+  return false;
+}
+
+/* Up to `n` consecutive flush windows, each planned, seeded and simulated
+   EXACTLY as the next fire would (window [mark, min(now, mark + flush)], its
+   own seed ladder resolved by Postgres, the same engine call), then ONE
+   settle. A fold of one window is the single-window settle byte for byte
+   (same intent, same arguments). The fence judges the folded settle like any
+   other: lease, watermark CAS, version CAS, 8b and 8c — and 8c on a span is
+   the check of its FIRST window, the strictest of the n. */
+async function settleFolded(exec, holder, sel, body, driver, session0, probe, markMs, nowMs, n, env, geom) {
+  const wins = [];
+  let session = session0;
+  let m = markMs;
+  for (let i = 0; i < n; i++) {
+    const to = Math.min(nowMs, m + body.flushMs);
+    if (to - m < body.flushMs) break;
+    const labels = planSeedLabels(driver.settle, session, m, to,
+      Object.assign({}, geom, { markText: i === 0 ? probe.markText : null }));
+    const seeds = await seedLadder(exec, sel, labels);
+    const run = driver.settle(session, m, to,
+      Object.assign({}, geom, { seedOf: (ms) => (seeds.has(ms) ? seeds.get(ms) : null) }));
+    if (i === 0) {
+      /* The first window's refusals, named exactly as the single path names them. */
+      if (run.intents.length === 0) return { outcome: 'skipped', reason: 'nothing_settled' };
+      if (run.intents[0].rehydrateBefore) return { outcome: 'skipped', reason: 'rehydrate_required' };
+    }
+    if (run.intents.length !== 1 || run.intents[0].rehydrateBefore) break;
+    const it = run.intents[0];
+    /* The carried state must be the state AT the window's end, or the next
+       window would start from a character the fence never stamped. */
+    if (run.watermarkMs !== Date.parse(it.args.p_window_to)) { wins.push(it); break; }
+    /* A WINDOW THAT CARRIES AN UNMODELLED KEY IS SETTLED ALONE. Not folded
+       into the windows before it: `foldDeltas` would APPEND a `hearthfind`
+       into an array hr_apply refuses (one find per apply, an object), and the
+       same span would be refused on every visit. As window 0 it settles alone
+       now (exactly the single path); later, it is the next visit's window 0. */
+    if (Object.keys(it.args.p_delta).some((k) => !FOLD_CHAIN_KEYS.includes(k))) {
+      if (i === 0) wins.push(it);
+      break;
+    }
+    wins.push(it);
+    if (levelledUp(session.skills, run.char.skills)) break;
+    m = run.watermarkMs;
+    session = Object.assign({}, run.char, { accruedToMs: m });
+  }
+  const settleWins = async (ws) => {
+    const intent = ws.length === 1
+      ? ws[0]
+      : foldWindowIntents({ userId: sel.userId, slot: sel.slot, shard: 0, version: env.version, holder }, ws);
+    const a = intent.args;
+    return fence(exec, {
+      holder,
+      user: sel.userId,
+      slot: sel.slot,
+      channel: driver.channel,
+      version: a.p_version,
+      windowFrom: fenceWindowFrom(a.p_window_from, markMs, probe.markText),
+      windowTo: a.p_window_to,
+      intentId: a.p_intent_id,
+      delta: JSON.stringify(a.p_delta),
+      shadowState: null,
+    });
+  };
+  let res = await settleWins(wins);
+  /* THE PRESENCE HORIZON (2026-10-10-world-tick-presence-horizon.sql (8d)).
+     A fold whose END passes last-real-return + cap is refused whole, and the
+     refusal names the horizon. The windows that end at or before it are the
+     ones the single fires would have paid before parking, so the fold is cut
+     to them and offered ONCE more (fresh judgement under the lock; the
+     refusal wrote nothing but the once-per-absence horizon log row). Never
+     past the horizon: the fence still decides. */
+  if (res && res.ok !== true && res.error === 'past_horizon' && wins.length > 1 && res.horizon) {
+    const h = Date.parse(String(res.horizon));
+    const kept = Number.isFinite(h) ? wins.filter((w) => w.window.toMs <= h) : [];
+    if (kept.length > 0) {
+      res = await settleWins(kept);
+      if (res && res.ok === true) {
+        return { outcome: res.mode === 'shadow' ? 'shadowed' : 'processed', windows: kept.length };
+      }
+    }
+  }
+  if (!res || res.ok !== true) {
+    return { outcome: 'refused', reason: String((res && res.error) || 'no_answer') };
+  }
+  return { outcome: res.mode === 'shadow' ? 'shadowed' : 'processed', windows: wins.length };
 }
 
 /* THE PARTY'S SEED LADDER, PER MEMBER. The same two functions the solo path
@@ -1074,13 +1267,13 @@ export async function runTick(opts) {
     return { status: 400, body: summary({ ok: false, error: 'unknown_op' }) };
   }
 
-  /* THE HOLDER, DERIVED SERVER-SIDE. `left('cron:' || coalesce(
-     current_database(),'db'), 64)` is the expression `hr_tick_cron_run` stamps
-     its lease with, written out here so the two cannot be compared favourably
-     by accident — if they ever drift, every settle is refused `no_lease`, which
-     is the safe direction and is loud in the summary. */
-  const [h] = await exec(
-    "select left('cron:' || coalesce(current_database(), 'db'), 64) as holder", []);
+  /* THE HOLDER, DERIVED SERVER-SIDE. TICK_HOLDER_SQL is the expression
+     `hr_tick_cron_run` stamps shard k's leases with (shard 0: the original
+     `left('cron:' || coalesce(current_database(),'db'), 64)`), written out
+     here so the two cannot be compared favourably by accident — if they ever
+     drift, every settle is refused `no_lease`, which is the safe direction and
+     is loud in the summary. The shard is the body's selector (parseTickBody). */
+  const [h] = await exec(TICK_HOLDER_SQL, [body.shard]);
   const holder = String((h && h.holder) || '');
 
   const ks = await probeKillSwitch(exec, holder);
@@ -1115,10 +1308,18 @@ export async function runTick(opts) {
     if (v.reason) reasons[v.reason] = (reasons[v.reason] || 0) + 1;
   }
 
+  /* THE CATCH-UP LEDGER (S3), reported only when the dial is above 1 so a
+     one-window fire's summary is byte-identical to before the dial existed. */
+  const catchup = body.catchupWindows > 1
+    ? { windows: 0, extra: 0, stops: Object.create(null) } : null;
+  /* `opts.catchupBudgetMs` is the guard's clock seam (C4); index.ts never
+     passes it. */
+  const deadline = t0 + (Number.isFinite(opts.catchupBudgetMs) ? opts.catchupBudgetMs : CATCHUP_BUDGET_MS);
+
   for (const sel of body.roster) {
     let v;
     try {
-      v = await tickOne(exec, holder, sel, body);
+      v = await tickOne(exec, holder, sel, body, body.foldWindows);
     } catch (e) {
       /* NO CHARACTER'S FAILURE COSTS ANOTHER ONE ITS WINDOW. The message is
          the engine's or the driver's; it is never built from a header and never
@@ -1128,10 +1329,42 @@ export async function runTick(opts) {
     counts[v.outcome] = (counts[v.outcome] || 0) + 1;
     if (v.reason) reasons[v.reason] = (reasons[v.reason] || 0) + 1;
     if (v.probe) probes[v.probe] = (probes[v.probe] || 0) + 1;
+
+    /* ── THE CATCH-UP (S3). ARMED ONLY: `processed` is the fence's own answer
+       that this window PAID through hr_apply (a shadow window answers
+       `shadowed` and stops here). Each extra window is another whole visit,
+       so it re-reads the clock, the envelope, the version and the mark, and
+       the fence re-judges lease, CAS, 8b and 8c for it under the player lock.
+       It stops at the first window that does not pay — below the flush line,
+       fenced, a refusal, a version a player's own settle just moved — and
+       that window is the next fire's, exactly as without the dial. */
+    if (catchup && v.outcome === 'processed') {
+      catchup.windows += v.windows || 1;
+      let left = body.catchupWindows - (v.windows || 1);
+      let stop = 'dial';
+      while (left > 0) {
+        if (now() >= deadline) { stop = 'budget'; break; }
+        let w;
+        try {
+          w = await tickOne(exec, holder, sel, body, Math.min(body.foldWindows, left));
+        } catch (e) {
+          w = { outcome: 'refused', reason: 'error:' + String((e && e.message) || e).slice(0, 64) };
+        }
+        if (w.outcome !== 'processed') { stop = String(w.reason || w.outcome); break; }
+        /* Every settled visit moves the mark by >= one window, so `left`
+           strictly falls and the loop is bounded by the dial. */
+        const won = Math.max(1, w.windows || 1);
+        catchup.windows += won;
+        catchup.extra += won;
+        left -= won;
+      }
+      catchup.stops[stop] = (catchup.stops[stop] || 0) + 1;
+    }
   }
 
   /* `probes` is present only on a fire that met a probe boundary, so every
      other fire's summary is byte-identical to before this step existed. */
   const extra = Object.keys(probes).length ? { reasons, probes } : { reasons };
+  if (catchup) extra.catchup = catchup;
   return { status: 200, body: summary(Object.assign({}, counts, extra)) };
 }

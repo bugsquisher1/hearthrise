@@ -288,7 +288,9 @@ function editEv(edits) {
 /* A mutated evaluator, importable from the OS temp dir (relative imports made absolute). */
 function evModule(src, tag) {
   const base = pathToFileURL(ROOT).href.replace(/\/$/, '');
-  const abs = src.split("'../").join(`'${base}/`).split("'./pack-edge.mjs'").join(`'${base}/tools/pack-edge.mjs'`);
+  /* Every relative import made absolute: '../x' from the repo root, './x'
+     (pack-edge.mjs, world-tick-replay-pool.mjs) from tools/. */
+  const abs = src.split("'../").join(`'${base}/`).split("'./").join(`'${base}/tools/`);
   const p = join(tmpdir(), `hr-seed-leak-${process.pid}-${tag}.mjs`);
   writeFileSync(p, abs, 'utf8');
   return { url: pathToFileURL(p).href, done: () => { try { unlinkSync(p); } catch { /* gone */ } } };

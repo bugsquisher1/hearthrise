@@ -65,7 +65,7 @@
 -- hr_claim_goal XP precedent, 2026-08-23-modal-goal-claims.sql).
 --
 -- ── COST AT 100x PLAYERS ────────────────────────────────────────────────────
--- Two small catalogue tables (19 + 48 rows, no growth with players). One extra
+-- Two small catalogue tables (19 + 49 rows, no growth with players). One extra
 -- arm and at most three player_skills upserts on ONE claim per character ever.
 --
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
@@ -164,7 +164,8 @@ insert into public.hr_weapon_families (item_id, family) values
   ('ember_sword', 'sword'), ('ember_warhammer', 'hammer'), ('emberfang_blade', 'sword'),
   ('fangdart_recurve', 'ranged'), ('heartgarnet_maul', 'hammer'), ('iron_sword', 'sword'),
   ('iron_warhammer', 'hammer'), ('lazlos_maul', 'hammer'), ('longbow', 'ranged'),
-  ('maple_bow', 'ranged'), ('maple_staff', 'magic'), ('mithril_sword', 'sword'),
+  ('maple_bow', 'ranged'), ('maple_staff', 'magic'), ('marrowbone_maul', 'hammer'),
+  ('mithril_sword', 'sword'),
   ('mithril_warhammer', 'hammer'), ('oak_staff', 'magic'), ('rat_stick', 'hammer'),
   ('rune_sword', 'sword'), ('rune_warhammer', 'hammer'), ('runewood_bow', 'ranged'),
   ('runewood_staff', 'magic'), ('shortbow', 'ranged'), ('steel_sword', 'sword'),
@@ -356,10 +357,17 @@ begin
   select count(*) into v_n from public.hr_style_xp_routes r
    where not exists (select 1 from public.hr_skills s where s.skill_id = r.skill_id) or r.skill_id = 'hitpoints';
   if v_n > 0 then raise exception 'VERIFY(a): % route row(s) name an unknown skill or hitpoints', v_n; end if;
+  -- Families must be real; COVERAGE runs from the server's items to this table
+  -- (every catalogued weapon has a family, or its kills fall to the default
+  -- route). A row for a weapon a LATER catalogue delta adds is allowed: the
+  -- content lane's generated deltas apply after this file (items.js parity is
+  -- tests/combat-style.mjs section F).
   select count(*) into v_n from public.hr_weapon_families w
-   where not exists (select 1 from public.hr_items i where i.item_id = w.item_id)
-      or w.family not in (select distinct family from public.hr_combat_styles);
-  if v_n > 0 then raise exception 'VERIFY(a): % weapon row(s) name an unknown item or family', v_n; end if;
+   where w.family not in (select distinct family from public.hr_combat_styles);
+  if v_n > 0 then raise exception 'VERIFY(a): % weapon row(s) name an unknown family', v_n; end if;
+  select count(*) into v_n from public.hr_items i
+   where i.kind = 'weapon' and not exists (select 1 from public.hr_weapon_families w where w.item_id = i.item_id);
+  if v_n > 0 then raise exception 'VERIFY(a): % catalogued weapon(s) have no family row', v_n; end if;
   select coalesce(string_agg(t || ':' || gg || ':' || pv, ', '), '') into v_g
     from unnest(array['hr_style_xp_routes','hr_weapon_families']) t
     cross join unnest(array['anon','authenticated','service_role','hr_engine']) gg

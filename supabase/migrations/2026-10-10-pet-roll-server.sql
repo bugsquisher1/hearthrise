@@ -280,7 +280,10 @@ $anc$);
       if jsonb_array_length(v_cf_out) > 0 then
         -- Re-project so the envelope already shows the new owner, then re-attach
         -- the receipts this apply carries (the hearthfind's, then this one).
-        v_out := public.hr_state_of(v_uid, v_slot);
+        -- SELECT ... INTO, never the `v_out := hr_state_of` line: three earlier
+        -- patchers anchor on that text EXACTLY ONCE, so a second copy made
+        -- their re-apply raise (tests/hearthfind-authority.mjs section 9).
+        select public.hr_state_of(v_uid, v_slot) into v_out;
         if v_hf_out is not null then
           v_out := jsonb_set(v_out, '{hearthfind}', v_hf_out);
         end if;

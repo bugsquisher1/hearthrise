@@ -24,3 +24,21 @@ Residual risks, accepted, all self-only:
 - (a) A worker assignment applies to the whole unsettled window (`hr_worker_assign` does not settle first). This predates this branch and is the `assigned_at` lane-C item. The seats add no new gain from it.
 - (b) Renown's goldLog term drops as gold is spent: 101 → 94 for the full room. The Game Designer should note that the "prestige" sink lowers renown. §4(f) measures xp, items and gems, but not renown or perks.
 - (c) When the Art Director's profile/inspect handoff shows the hall name to other players, it must read the other player's rung from a server projection, never from a value their client sends. That surface needs its own review.
+
+## RE-VERIFY: ca0ce896 (`2026-10-08-renown-throne-room.sql`), verdict **GO**
+
+Reviewed: `origin/lane/econ-crew-and-sink` @ **ca0ce8963dc3c01bb58d8e652d1f8c1cae27689b**. The edge hash is unchanged: 8cbd84b0…5079e40 (pack-edge exit 0).
+
+- **Byte-identical apart from the term: CONFIRMED.** I diffed `pg_get_functiondef(hr_renown_of)` on the replay at the chain end before this file and after it. There are exactly two hunks: the `tr`/`gw` CTEs, and the goldLog term reading `gw.g`. The R5 kill discounts, every weight, the declared zeroes and the engine-only ACL are unchanged.
+- **Inflation: none found.**
+  - The rung comes only from `player_progress` with `period_key=''`. `hr_unlock_buy` is its only writer, and the storage guard is raise-only. The `player_progress_unlock_shape` check refuses a period row; my probe tried one and was refused.
+  - Prices are read only from `hr_unlock_offers` where `source='gen-throne-room'`. The table is engine-written, the values 1..30 are distinct, and the throne-room §3 asserts all of that.
+  - No refund or sell-back path exists.
+  - My mutants: counting the room twice → §4(b) RED ("101 → 104"); scoring held gold only → §4(b) RED ("piece 21 LOWERED 101 → 100").
+- **Bound:** the term only puts back renown the spent gold scored while held, so it can never exceed what earning and holding that gold would score. The maximum is a full room with 0 gold held: +43 renown (58 → 101 measured), equal to 8·(log10 265,153,000 − 3).
+- **Guards:** `throne-room` exit 0, `--selftest` exit 0 (10/10 mutants caught), `schema-drift` exit 0.
+
+**Conditions:**
+- (1) Any future re-price of the Throne Room catalogue now also moves renown retroactively. That makes it a ranked-surface change and needs a Security GO.
+- (2) For the Coordinator, after the apply: `hr_renown_of` gets a new last toucher, so re-measure `live-hash-drift`.
+- (3) The client twin in `src/features/renown.js` is display-only and reads the server rung, consistent with §6.

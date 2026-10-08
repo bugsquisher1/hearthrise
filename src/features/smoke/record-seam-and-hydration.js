@@ -7929,7 +7929,15 @@ export default [
         + 'the server path under test never runs');
       window.HearthriseSupabase = { getConfig: () => ({ url: 'https://probe.supabase.co', anonKey: 'anon' }) };
       window.HearthriseAuth = { getSession: () => ({ user: { id: 'qa' }, access_token: 'jwt' }) };
+      /* configureRecord replays a latched boot load (record.js wantedBootLoad): stub it and await it. */
+      window.fetch = function (u) {
+        if (/rpc\/hr_load/.test(String(u))) {
+          return Promise.resolve(new Response(JSON.stringify({ ok: false, error: 'probe_boot' }), { status: 200 }));
+        }
+        return realFetch.apply(this, arguments);
+      };
       R.configureRecord({ url: 'https://probe.supabase.co', apiKey: 'anon', authToken: () => 'jwt', slot: 0 });
+      await R.requestRecord().catch(() => null);
       window.notify = (m) => { said.push(String(m)); };
       window.__hrSyncServerGoals.reset();
 

@@ -1141,28 +1141,45 @@ export default [
     assert(typeof cfg.onSyncFailure === 'function', 'sync config missing onSyncFailure — save failures stay invisible');
   }),
 
-  // b150: hearthlight theme (the revamp preview) is registered and applies its
-  // deep-dark ground token without disturbing the default. Restores after.
-  () => tryRun('b150: hearthlight theme registers + applies', () => {
-    const T = window.HearthriseTheme;
-    if (!T || !T.list) return; // theme system not present
-    assert(T.list().some(function(t){ return t.id === 'hearthlight'; }), 'hearthlight not in theme list');
-    // b163: API is setTheme(), not set() — the old test called T.set() which
-    // never existed, so this test had been throwing "T.set is not a function".
-    assert(typeof T.setTheme === 'function', 'HearthriseTheme.setTheme missing');
-    const prev = (T.getTheme && T.getTheme()) || 'hearthlight';
+  // b150: hearthlight is the one theme, stamped on <body> before paint, and its
+  // ground token is a DARK surface. (The picker API that used to front it had
+  // one option and is deleted — CLEANUP-SETTINGS-1 below.)
+  () => tryRun('b150: hearthlight theme applies', () => {
+    assert(document.body.getAttribute('data-theme') === 'hearthlight',
+      'body[data-theme] is "' + document.body.getAttribute('data-theme') + '", not hearthlight');
+    const bg = getComputedStyle(document.body).getPropertyValue('--bg-0').trim().toLowerCase();
+    // Don't pin the exact hex — the palette evolves. Accepts #rgb or #rrggbb.
+    const hx = bg.replace('#', '');
+    const full = hx.length === 3 ? hx.replace(/(.)/g, '$1$1') : hx;
+    assert(/^[0-9a-f]{6}$/i.test(full) && parseInt(full, 16) < 0x333333,
+      'hearthlight --bg-0 should be a dark surface, got "' + bg + '"');
+  }),
+
+  /* CLEANUP-SETTINGS-1 (2026-10-08): Settings carries no pre-cutover control.
+     "Sync now" pushed a save the server already holds, "Auto-syncing every 60s"
+     advertised a cadence no player acts on, the Theme row offered ONE theme, and
+     the self-hoster Supabase form let a localStorage value choose the server.
+     "Verify cloud save" stays: it asks the realm. */
+  () => tryRun('CLEANUP-SETTINGS-1: Settings has Verify cloud save and none of the retired controls', () => {
+    assert(typeof window.openSettings === 'function', 'openSettings missing');
     try {
-      T.setTheme('hearthlight');
-      assert(document.body.getAttribute('data-theme') === 'hearthlight', 'setting hearthlight did not apply data-theme');
-      const bg = getComputedStyle(document.body).getPropertyValue('--bg-0').trim().toLowerCase();
-      // Don't pin the exact hex — the palette evolves. Assert bg-0 is a DARK
-      // surface (Hearthlight is a dark theme). Accepts #rgb or #rrggbb.
-      const hx = bg.replace('#', '');
-      const full = hx.length === 3 ? hx.replace(/(.)/g, '$1$1') : hx;
-      assert(/^[0-9a-f]{6}$/i.test(full) && parseInt(full, 16) < 0x333333,
-        'hearthlight --bg-0 should be a dark surface, got "' + bg + '"');
+      window.openSettings();
+      const body = document.getElementById('settings-body');
+      assert(body, 'Settings did not render a body');
+      const text = body.textContent;
+      const verify = body.querySelector('#set-cloud-verify');
+      assert(verify && /Verify cloud save/.test(verify.textContent), 'the "Verify cloud save" control is missing');
+      assert(!body.querySelector('#set-cloud-sync') && !/\bSync now\b/.test(text), 'a "Sync now" control is back');
+      assert(!/Auto-syncing|syncing every \d+s —/i.test(text), 'the "Auto-syncing every Ns" hint is back');
+      assert(!body.querySelector('[data-theme-id], .ss-theme-card'), 'the one-option Theme picker is back');
+      assert(!body.querySelector('#set-sb-url, #set-sb-key, #set-sb-connect'), 'the Supabase paste form is back');
+      assert(typeof window.HearthriseTheme === 'undefined', 'window.HearthriseTheme (the picker API) is published again');
+      const S = window.HearthriseSupabase;
+      assert(!S || (typeof S.configure === 'undefined' && typeof S.reset === 'undefined'),
+        'HearthriseSupabase exposes configure/reset again — a device-stored realm override is back');
     } finally {
-      T.setTheme(prev); // never leave the tester on a different theme than they picked
+      const modal = document.getElementById('settings-modal');
+      if (modal) modal.classList.remove('show');
     }
   }),
 

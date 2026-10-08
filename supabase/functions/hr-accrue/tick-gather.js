@@ -463,9 +463,9 @@ export function writeIntent(who, deltas, metas, windowFromMs, windowToMs, seq) {
    ONLY K >= 2 COMES HERE. One window is `writeIntent`'s output as is.
    ⚠ Since 2026-10-08 that output is COALESCED too (RULE 2b), so the runbook's
      deploy differential (old pack vs new pack) is byte-identical on every key
-     but `progress`, whose ops are compared as the rows hr_apply writes:
-     tests/progress-coalesce.mjs D1 applies both through the replayed hr_apply
-     and requires the state and ledger byte-identical. */
+     but `progress`, where coalesceProgress(old) must deep-equal new, and the
+     replayed state and ledger must be identical: tools/deploy-differential.mjs,
+     one command per deploy (Security, 2026-10-08). */
 export function foldWindowIntents(who, windowIntents) {
   const wins = windowIntents || [];
   if (wins.length < 2) throw new Error('foldWindowIntents: a fold needs two or more windows');

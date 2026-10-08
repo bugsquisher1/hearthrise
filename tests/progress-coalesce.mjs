@@ -123,10 +123,10 @@ async function copyTree(mut) {
 
 async function load(base) {
   const at = (p) => import(pathToFileURL(join(base, p)).href);
-  const [contract, gather, combat, xp] = await Promise.all([
-    at(C), at(G), at('supabase/functions/hr-accrue/tick-combat.js'), at('src/core/xp.js'),
+  const [contract, gather, combat, xp, cxp] = await Promise.all([
+    at(C), at(G), at('supabase/functions/hr-accrue/tick-combat.js'), at('src/core/xp.js'), at('src/core/companion-xp.js'),
   ]);
-  return { contract, gather, combat, xp };
+  return { contract, gather, combat, xp, cxp };
 }
 
 // ── FIXTURES ───────────────────────────────────────────────────────────────
@@ -461,6 +461,49 @@ async function dbArms(db, Ms, ok, log, run) {
     }
   }
   if (log) log(`  · D1 replayed ${FIXTURES.length} fixtures through hr_apply`);
+
+  /* U1 AT THE CAP (Security P3, 2026-10-08). hr_apply clamps `stat
+     companion_xp:<id>` at c_companion_xp_cap PER OP and journals the clamp
+     (`cxc`: proposed / had / credited, accumulated per key). Two ops that
+     together cross the cap, raw vs coalesced into one: the CREDITED value and
+     the OVERAGE (proposed - credited) must be the same. The credited value is
+     read off the ROW: the journal's `credited` and `had` cover only the op
+     that hit the clamp (the raw pair's second), so those two differ by design. */
+  {
+    const M = Ms.main;
+    const cap = Number(M.cxp.COMPANION_XP_CAP);
+    const key = 'companion_xp:fox';
+    const raw = [{ kind: 'stat', key, period: '', add: 3, state: 'active' },
+      { kind: 'stat', key, period: '', add: 4, state: 'active' }];
+    const coal = M.contract.coalesceProgress(raw);
+    const [uRaw, uCoal] = [uid(++n + 500), uid(++n + 500)];
+    const s0 = { hp: 10, maxHp: 10, accruedToMs: t0, activeSinceMs: t0, activeKind: 'gather', activeId: 'normal_tree' };
+    const [rR, rC] = await clock(async () => {
+      for (const u of [uRaw, uCoal]) {
+        await mkChar(s0, 'fox', u);
+        await q(`insert into public.player_progress (user_id, slot, kind, key, period_key, value, state)
+                 values ($1, 0, 'stat', $2, '', $3, 'active')`, [u, key, cap - 5]);
+      }
+      const iid = intentId();
+      return [await apply(uRaw, { progress: raw }, iid), await apply(uCoal, { progress: coal }, iid)];
+    });
+    const valueOf = async (u) => Number((await q(
+      "select value from public.player_progress where user_id = $1 and kind = 'stat' and key = $2 and period_key = ''", [u, key]))[0]?.value);
+    const cxcOf = async (u) => {
+      const m = (await q("select meta from public.player_ledger where user_id = $1 and meta->'delta' ? 'cxc' order by id desc limit 1",
+        [u]))[0]?.meta || {};
+      return ((m.delta && m.delta.cxc) || {})[key] || null;
+    };
+    const [vR, vC, cR, cC] = [await valueOf(uRaw), await valueOf(uCoal), await cxcOf(uRaw), await cxcOf(uCoal)];
+    const over = (c) => (c ? Number(c.proposed) - Number(c.credited) : null);
+    const credited = (c) => (c ? Number(c.credited) : null);
+    ok('U1', coal.length === 1 && rR.ok === true && rC.ok === true && vR === cap && vC === cap
+        && cR && cC && over(cR) === over(cC) && over(cR) === 2 && vR - (cap - 5) === vC - (cap - 5),
+      `at the companion cap: raw [3, 4] and coalesced [7] both credit ${vC - (cap - 5)} (row = cap ${cap}) `
+      + `and journal the same overage ${over(cC)}`,
+      `at the companion cap: raw ${JSON.stringify({ ok: rR.ok, value: vR, cxc: cR })} vs coalesced `
+      + `${JSON.stringify({ ok: rC.ok, value: vC, cxc: cC })} (cap ${cap}; credited ${credited(cR)} / ${credited(cC)})`);
+  }
 }
 
 // ── RUN ────────────────────────────────────────────────────────────────────

@@ -92,7 +92,8 @@ const PAYING_KINDS = ['daily', 'ledger_gold'];
    stopped running. Each defect is therefore caught twice: once by the gate,
    once by the guard standing alone. */
 /* A LIST of [file, find, replace]: 2026-09-07's whole Sec 4, and the quest
-   chain end's OWN ev:planted gate (2026-10-10-quest-combat-xp.sql VERIFY(b)), which would
+   chain end's OWN ev:planted gate (2026-10-10-quest-combat-xp.sql §4(b); it was
+   Journeyman's Road §4(c) until that restatement), which would
    otherwise refuse the quest_reads_planted mutation at apply time and leave the
    gate-blind arm proving that file's gate instead of this guard. */
 const GATE_BLIND = [
@@ -104,12 +105,12 @@ const GATE_BLIND = [
   return;
   -- (a) A validated check constraint pins the column, whatever its name.`],
   [QUEST_MIG,
-    "  if position('ev:planted' in v_src) > 0 then raise exception 'VERIFY(b): the body names ev:planted'; end if;",
-    "  if false then raise exception 'VERIFY(b): the body names ev:planted'; end if;"],
-  /* …and its exact-arm-count check, which an extra arm also trips. */
+    `  if position('ev:planted' in v_src) > 0 then raise exception 'VERIFY(b): the body names ev:planted'; end if;`,
+    `  if false then raise exception 'VERIFY(b): the body names ev:planted'; end if;`],
+  /* …and its exact-arm-count check, which a FIFTH-style extra arm also trips. */
   [QUEST_MIG,
-    "  if v_n <> 11 then raise exception 'VERIFY(b): % quest arm(s), expected 11', v_n; end if;",
-    "  if false then raise exception 'VERIFY(b): % quest arm(s), expected 11', v_n; end if;"],
+    `  if v_n <> 11 then raise exception 'VERIFY(b): % quest arm(s), expected 11', v_n; end if;`,
+    `  if false then raise exception 'VERIFY(b): % quest arm(s), expected 11', v_n; end if;`],
 ];
 
 /* ── MUTATIONS ─────────────────────────────────────────────────────────────

@@ -53,6 +53,8 @@
 --        kind 'accrue' / intent 'horizon_forfeit' (idempotency key derived from
 --        (user, slot, R), so a replay is a no-op). Version-bumped, so a stale
 --        computation in the same request is refused by the CAS, never paid.
+--        That request is answered 1 ms (it computed on a stale read); the
+--        next read answers the full cap for the new absence.
 --        A partied character is never forfeited here (invariant 8: its mark
 --        is the hunt's); the party path is M4's (see LIMITATIONS).
 --
@@ -305,16 +307,16 @@ begin
                    'from', v_st.accrued_to,
                    'cap_ms', v_cap,
                    'forfeit_ms', floor(extract(epoch from (now() - v_st.accrued_to)) * 1000)::bigint))));
-  if coalesce((v_out->>'ok')::boolean, false) then
-    return v_cap;
-  end if;
-  return greatest(v_left, 1);
+  -- 1 ms EITHER WAY (Security #5, defence in depth): the request that
+  -- forfeited computed on a stale read, so it must not be handed a full cap to
+  -- price with. The NEXT read sees accrued_to = R = now() and the full cap.
+  return 1;
 end $$;
 comment on function public.hr_accrue_cap_ms(uuid, integer) is
   '2026-10-10 (presence horizon). The accrue span''s cap: least(hr_offline_cap_ms, '
   'last real return + cap - accrued_to). When that is spent and now() is past the '
   'horizon it forfeits the absence itself (one hr_apply, intent horizon_forfeit, '
-  'key derived from the anchor) and returns the full cap for the next. hr_engine only.';
+  'key derived from the anchor) and answers 1 ms; the next read is the full cap. hr_engine only.';
 
 -- ── §5 hr_tick_settle — live (armed-cap e00dbf9f) + (8d) the horizon ────────
 create or replace function public.hr_tick_settle(p_holder text, p_user uuid, p_slot integer, p_channel text, p_version bigint, p_window_from timestamp with time zone, p_window_to timestamp with time zone, p_intent_id uuid, p_delta jsonb, p_shadow_state jsonb DEFAULT NULL::jsonb)
@@ -1414,8 +1416,8 @@ grant  execute on function public.hr_tick_settle(text, uuid, int, text, bigint, 
 --       past_horizon and journalled ONCE (a second refusal adds nothing,
 --       moves nothing)
 --   h2  ★ RETURN (G): hr_accrue_cap_ms forfeits the spent absence (accrued_to
---       -> now, intent horizon_forfeit, forfeit 8 h) and answers the full cap
---       for the next absence; anchor -> now. Paid for the 20 h absence:
+--       -> now, intent horizon_forfeit, forfeit 8 h) and answers 1 ms; the
+--       NEXT read is the full cap for the next absence; anchor -> now. Paid for the 20 h absence:
 --       tick 12 h + accrue 0 = 12 h
 --   h3  ★ PARTIAL (P): tick paid 5 h of a 20 h absence; the return's cap is
 --       exactly the 7 h remainder and nothing is forfeited
@@ -1456,7 +1458,7 @@ begin
          <> '512cdc6596865e87cceed8416a283d05'
        or (select md5(replace(p.prosrc, chr(13), '')) from pg_proc p
          where p.oid = 'public.hr_accrue_cap_ms(uuid,integer)'::regprocedure)
-         <> '6bcea506a192abd1e0bc5d86f0c8a7c6' then
+         <> '21625137f8c739e86bef35fccda84059' then
       raise exception 'k0: the installed bodies are not the ones this file states';
     end if;
     if (select count(*) from pg_proc p
@@ -1556,7 +1558,7 @@ begin
     set local role hr_engine;
     v_c := public.hr_accrue_cap_ms(v_g, 0);
     reset role;
-    if v_c <> v_cap
+    if v_c <> 1
        or (select accrued_to from public.player_state where user_id = v_g and slot = 0) <> now()
        or (select real_return_at from public.hr_return_anchor where user_id = v_g and slot = 0) <> now()
        or (select count(*) from public.player_ledger
@@ -1565,6 +1567,12 @@ begin
               and (meta->>'anchor')::timestamptz = v_r0) <> 1
        or (select count(*) from public.player_ledger where user_id = v_g) <> v_l0 + 1 then
       raise exception 'h2: the return did not forfeit the spent 20 h absence exactly once (cap read %)', v_c;
+    end if;
+    set local role hr_engine;
+    v_c := public.hr_accrue_cap_ms(v_g, 0);
+    reset role;
+    if v_c <> v_cap then
+      raise exception 'h2c: the read after the forfeit is % ms, not the full cap %', v_c, v_cap;
     end if;
     -- Paid for that absence: tick v_t - v_r0 = cap; accrue 0.
     if extract(epoch from (v_t - v_r0)) * 1000 <> v_cap then

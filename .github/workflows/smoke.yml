@@ -1923,7 +1923,7 @@ jobs:
       # stall judge (the read-only role cannot execute hr_tick_stall_status).
       # Both judges run on the same 15 replayed fixtures (F2b: online = not
       # judged; hr_partied: a live party hunt member is not a sentinel) and
-      # must agree; --mutate: 13 vitals mutants, each RED by name.
+      # must agree; --mutate: 14 vitals mutants (V16: parked is not a sentinel), each RED by name.
       - name: Vitals armed stall judge equals hr_tick_stall_status (G1)
         if: ${{ !cancelled() }}
         run: |
@@ -1965,7 +1965,7 @@ jobs:
       # Designer ruling on B1): the armed tick pays nothing past last REAL
       # return + hr_offline_cap_ms, and the return pays only the remainder.
       # Away (tick) and attended (return) paths; one cap source; the edge reads
-      # hr_accrue_cap_ms at all four accrue-cap sites. --mutate: 11 mutants.
+      # hr_accrue_cap_ms at all four accrue-cap sites. --mutate: 13 mutants.
       - name: World tick — presence horizon, no absence paid twice or past its cap
         if: ${{ !cancelled() }}
         run: |
@@ -1977,7 +1977,7 @@ jobs:
       # permille, raw accrued_to inside 600 s, armed, unpartied, under the
       # max_owned fuse), journalled, paying nothing; unenrol restores the
       # operator cohort exactly; the stall judge names ONE stuck gatherer the
-      # aggregate floor hides; vitals' V6 restatement agrees. --mutate: 21 mutants.
+      # aggregate floor hides; vitals' V6 restatement agrees; parked is never a sentinel. --mutate: 22 mutants.
       - name: World tick — gather widens by server enrolment; one stuck gatherer is named
         if: ${{ !cancelled() }}
         run: |

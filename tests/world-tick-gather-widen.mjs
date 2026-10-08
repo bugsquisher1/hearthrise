@@ -39,6 +39,7 @@
 //   W10 the cron job hr-tick-enrol is scheduled every minute with its command
 //   W12 tools/vitals.mjs ARMED_LAG (the V6 read a person sees) agrees with the
 //           DB lag judge on the same fixtures: stuck and judged counts equal
+//   W13 ★ a PARKED-only armed cohort reads NOT JUDGED, never STALLED (Security #1)
 //   W11 the staged kill file 2026-10-10-world-tick-gather-unwiden.sql runs and
 //           its own read-back assertions pass
 //
@@ -343,6 +344,29 @@ async function arms(db, { log = true } = {}) {
     await q("update public.player_state set active_kind = 'combat', active_id = $2 where user_id = $1", [K, cact]);
   }
 
+  // ── W13 a PARKED-only cohort is not judged (Security #1) ───────────────
+  // Judged 3 h ahead of now, so no earlier run's tick rows fall in its two
+  // hours: posted fires in both, zero tick windows. A parked sentinel would
+  // read that as STALLED; the horizon says it is waiting.
+  {
+    await db.exec("delete from public.hr_tick_ownership where channel = 'gather';");
+    const P = await char(uidIn(true), { ago: 30, since: 600 });
+    await own(P);
+    await q(`insert into public.hr_tick_horizon_log (user_id, slot, anchor_at, channel, horizon_at, cap_ms, mark)
+             select a.user_id, a.slot, a.real_return_at, 'gather', a.real_return_at + interval '12 hours', 43200000,
+                    a.real_return_at
+               from public.hr_return_anchor a where a.user_id = $1 and a.slot = 0`, [P]);
+    await q(`insert into public.hr_tick_cron_log (at, outcome, rostered, ms)
+             values (now() + interval '90 minutes', 'posted', 1, 50), (now() + interval '150 minutes', 'posted', 1, 50)`);
+    let s; try { s = (await one("select public.hr_tick_stall_status(now() + interval '3 hours', 2, 30) as s")).s; }
+    catch (e) { s = { threw: e.message }; }
+    const g = (s?.armed || []).find((a) => a.channel === 'gather') || {};
+    ok('W13', g.sentinel === false && g.judged === false && g.stalled === false && s.armed_stalled === false,
+      'a cohort whose only armed character is PARKED reads not judged, never STALLED',
+      JSON.stringify({ sentinel: g.sentinel, judged: g.judged, stalled: g.stalled, buckets: g.buckets }));
+    await q("update public.player_state set active_kind = 'combat', active_id = $2 where user_id = $1", [P, cact]);
+  }
+
   await cfg("armed_channels = '{}'");
   await coh(`permille = ${PERMILLE}, max_owned = 100`);
   return red;
@@ -465,6 +489,8 @@ const MUTANTS = [
   { name: 'vitalsParkedIsStuck', fn: 'vitals', why: 'vitals calls a parked gatherer stuck', expect: /W12/,
     find: '                            where h.user_id = o.user_id and h.slot = o.slot)) as stuck,',
     repl: '                            where false)) as stuck,' },
+  { name: 'aggregateSentinelParked', fn: 'stall', why: 'a PARKED character is an aggregate sentinel (a parked-only cohort reads STALLED)', expect: /W13/,
+    find: '                where hz.user_id = o.user_id and hz.slot = o.slot));\n', repl: '                where false));\n' },
   { name: 'grantEngine', fn: 'enrol', why: 'hr_engine is granted EXECUTE on enrol', expect: /W9/,
     find: null, repl: '\ngrant execute on function public.hr_tick_enrol(int) to hr_engine;' },
 ];

@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
-// tests/this-week.mjs — THE HOME "YOUR WEEK" CARD AND THE REALM'S TODAY CELLS
+// tests/this-week.mjs — THE "YOUR WEEK" LEDGER AND THE REALM'S TODAY CELLS
 //
 //   node tests/this-week.mjs             gate
 //   node tests/this-week.mjs --selftest  mutation proof (clean arm + 10 plants
 //                                        + 2 negative controls)
 //
-// src/data/this-week.js names the server's weekly goal counters the card
-// shows; src/features/this-week.js renders them from the one goal-state cache
+// src/data/this-week.js names the server's weekly goal counters the ledger
+// shows (the Quests modal's weekly aside; lane daily-board folded Home's card in); src/features/this-week.js renders them from the one goal-state cache
 // (window.HearthriseGoalState.peek), never from G. The hearth band's Kills and
 // Harvest were residue deltas; they are now the realm's daily counters.
 //   WEEK-1  THIS_WEEK ids == the weekly ids of the hr_goal_rewards insert
@@ -20,6 +20,7 @@
 //   WEEK-7  the feature never reads G or a predicted/display seam
 //   WEEK-8  the hearth band reads no residue delta and prints the realm cells
 //   WEEK-9  the legacy cache is deep-frozen and peek() expires at 120 s
+//   WEEK-10 ONE weekly surface: Home draws no week card; the weekly tab draws the ledger
 // Never imports another tests/*.mjs: a guard that runs its own gate at module
 // top level would exit this process with ITS code.
 //
@@ -133,10 +134,13 @@ export function check(d) {
     add('WEEK-8', 'realmLeds() does not read todayCells');
   }
 
-  const peek = d.legacy.split('\n').find((l) => l.includes('window.HearthriseGoalState ='));
+  const gsAt = d.legacy.indexOf('window.HearthriseGoalState =');
+  const peek = gsAt < 0 ? '' : d.legacy.slice(gsAt, d.legacy.indexOf('};', gsAt));
   if (!peek || !peek.includes('_srvGoalsAt') || !peek.includes('120000')) add('WEEK-9', 'HearthriseGoalState.peek does not expire at 120000 ms of _srvGoalsAt');
   if (!d.legacy.includes('_srvGoals = Object.freeze(m)')) add('WEEK-9', 'the goal map is not frozen');
   if (!/\+ g\.goal_id\] = Object\.freeze\(\{/.test(d.legacy)) add('WEEK-9', 'a goal entry is not frozen');
+  if (/HearthriseThisWeek[^\n]*\.card\(|>Your week</.test(stripJs(d.home))) add('WEEK-10', 'Home draws a second weekly card');
+  if (!/TWk\.ledgerHtml\(\)/.test(d.legacy)) add('WEEK-10', "the Quests modal's weekly tab does not draw the ledger");
   return problems;
 }
 
@@ -206,7 +210,8 @@ function fixture() {
       + "    html += '<div class=\"hd-ledger\">' + xpLed + realmLeds() + '</div>';\n"
       + "    html += '<div class=\"hd-ledger-m\">' + xpLed + realmLeds() + '</div>';\n",
     legacy: "m[(g.weekly ? 'w:' : 'd:') + g.goal_id] = Object.freeze({\n_srvGoals = Object.freeze(m); _srvGoalsAt = Date.now();\n"
-      + 'window.HearthriseGoalState = { peek: function(){ return (Date.now() - _srvGoalsAt) < 120000 ? _srvGoals : null; } };\n',
+      + 'window.HearthriseGoalState = { peek: function(){ return (Date.now() - _srvGoalsAt) < 120000 ? _srvGoals : null; } };\n'
+      + "var weekHtml = (isWeekly && TWk && typeof TWk.ledgerHtml === 'function') ? TWk.ledgerHtml() : '';\n",
   };
 }
 
@@ -226,6 +231,8 @@ function selftest() {
     ["feature 'G.stats'", 'WEEK-7', (f) => { f.feature += 'var k = G.stats.kills;\n'; }],
     ["home 'today.kills'", 'WEEK-8', (f) => { f.home += 'var kills = today.kills;\n'; }],
     ['legacy without 120000', 'WEEK-9', (f) => { f.legacy = f.legacy.replace('120000', '999999'); }],
+    ['Home draws the week card again', 'WEEK-10', (f) => { f.home += "html += window.HearthriseThisWeek.card();\n"; }],
+    ['the weekly tab drops the ledger', 'WEEK-10', (f) => { f.legacy = f.legacy.replace('TWk.ledgerHtml()', "''"); }],
   ];
   for (const [label, want, mutate] of arms) {
     const f = fixture(); mutate(f);

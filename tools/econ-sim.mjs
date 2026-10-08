@@ -94,6 +94,19 @@ function must(re, text, what) {
   if (!m) throw new Error(`econ-sim: could not read ${what} — the source moved; re-point the parser`);
   return m;
 }
+/* Whether the newest grant statement on hr_claim_daily is a revoke from
+   authenticated (2026-10-12-retire-daily-tasks.sql): the task claim is retired. */
+function dailyTasksRetired() {
+  const files = readdirSync(MIG_DIR).filter((f) => f.endsWith('.sql')).sort();
+  const re = /^(grant execute on function public\.hr_claim_daily\(text, int\) to authenticated|revoke execute on function public\.hr_claim_daily\(text, int\) from [^;]*authenticated)/gm;
+  let last = null;
+  for (const f of files) for (const m of readFileSync(join(MIG_DIR, f), 'utf8').matchAll(re)) last = m[1];
+  return !!last && last.startsWith('revoke');
+}
+function hasDefinition(fn) {
+  try { latestDefinition(fn); return true; } catch { return false; }
+}
+
 function latestFileMatching(re) {
   const files = readdirSync(MIG_DIR).filter((f) => f.endsWith('.sql')).sort();
   for (let i = files.length - 1; i >= 0; i--) {
@@ -111,7 +124,8 @@ export function readServerCaps() {
   const daily = latestDefinition('hr_claim_daily__ungated');
   const quest = latestDefinition('hr_claim_quest__ungated');
   const tax = latestFileMatching(/house_tax_bp\s+int\s+not null default (\d+)/);
-  const goals = latestFileMatching(/insert into public\.hr_goal_rewards[\s\S]*?;\n/);
+  /* Column 0: the catalogue seed, not a self-check probe row inside a do-block. */
+  const goals = latestFileMatching(/^insert into public\.hr_goal_rewards\s*\(goal_id[\s\S]*?;\n/m);
 
   const dailyGold = {};
   for (const m of daily.body.matchAll(/when '(\w+)'\s+then v_type := '\w+';\s*v_goal := \d+;\s*v_gold := (\d+);/g)) {
@@ -134,6 +148,10 @@ export function readServerCaps() {
     marketTaxBp: Number(tax.m[1]),
     dailyTasksOffered: Number(must(/for k in 1\.\.(\d+) loop/, taskSet.body, 'the daily task count')[1]),
     dailyPool, dailyGold, questGold, goalRows,
+    /* The daily board (2026-10-11-daily-board.sql) deals BOARD_DEALT of the
+       catalogued rows per period; before it, hr_claim_goal paid every row. */
+    boardDealt: hasDefinition('hr_goal_board') ? 3 : 0,
+    dailyTasksRetired: dailyTasksRetired(),
     sources: {
       dayGoldBudget: budget.file, offlineCap: cap.file, marketTax: tax.file,
       dailyTasks: daily.file, taskSet: taskSet.file, quests: quest.file, goalBoard: goals.file,
@@ -496,12 +514,16 @@ export function simulate(arch, days, caps, knobsIn) {
     dayAttr[k] = (dayAttr[k] || 0) + g;
   };
   const awayH = arch.absences.reduce((s, a) => s + Math.min(a, caps.offlineBaseH), 0);
-  const tasksGold = (() => {
+  const tasksGold = caps.dailyTasksRetired ? 0 : (() => {
     const g = caps.dailyPool.map((t) => caps.dailyGold[t]).filter((x) => x > 0);
     return g.reduce((s, x) => s + x, 0) / g.length * caps.dailyTasksOffered;   // expected over the seeded draw
   })();
-  const boardDaily = caps.goalRows.filter((r) => !r.weekly).reduce((s, r) => s + r.gold, 0);
-  const boardWeekly = caps.goalRows.filter((r) => r.weekly).reduce((s, r) => s + r.gold, 0);
+  const boardGold = (rows) => {
+    const sum = rows.reduce((s, r) => s + r.gold, 0);
+    return caps.boardDealt && rows.length ? sum / rows.length * Math.min(caps.boardDealt, rows.length) : sum;
+  };
+  const boardDaily = boardGold(caps.goalRows.filter((r) => !r.weekly));
+  const boardWeekly = boardGold(caps.goalRows.filter((r) => r.weekly));
   const questOnce = Object.values(caps.questGold).reduce((s, x) => s + x, 0);
   const monsterIds = Object.keys(MONSTERS);
   /* Tools start EMPTY for a fresh character and are re-derived each day from
@@ -860,7 +882,8 @@ if (import.meta.url === `file://${process.argv[1]}` || process.argv[1].endsWith(
   const res = runAll(caps, knobs);
   if (argv.includes('--json')) { console.log(JSON.stringify({ caps, knobs, res }, null, 1)); process.exit(0); }
   console.log(`caps: day gold budget ${fmt(caps.dayGoldBudget)} (${caps.sources.dayGoldBudget}); offline cap ${caps.offlineBaseH}h (fuse ${caps.offlineCeilingMs / H}h); `
-    + `market tax ${caps.marketTaxBp}bp; ${caps.dailyTasksOffered} daily tasks/day; login x${Math.min(DEFAULT_KNOBS.loginMaxMult, knobs.loginMaxMult || 99)} cap (repo constant x${DAILY_LOGIN_MAX_WEEK_MULT})`);
+    + `market tax ${caps.marketTaxBp}bp; ${caps.dailyTasksRetired ? 'daily tasks retired' : caps.dailyTasksOffered + ' daily tasks/day'}; `
+    + `goal board ${caps.boardDealt ? caps.boardDealt + ' dealt/period' : 'every row'}; login x${Math.min(DEFAULT_KNOBS.loginMaxMult, knobs.loginMaxMult || 99)} cap (repo constant x${DAILY_LOGIN_MAX_WEEK_MULT})`);
   printTable(res, `knobs: ${JSON.stringify(Object.assign({}, DEFAULT_KNOBS, knobs))}`);
   console.log(`\n(${Date.now() - t0} ms)`);
 }

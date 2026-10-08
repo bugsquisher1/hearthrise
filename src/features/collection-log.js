@@ -491,6 +491,7 @@
       '.hr-cl-tab{flex:1;text-align:center;padding:8px;border-radius:9px 9px 0 0;border:1px solid transparent;cursor:pointer;font-weight:700;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3,#a5896a)}',
       '.hr-cl-tab.on{color:var(--ink,#e9e2cf);background:color-mix(in srgb,var(--gold,#e0a64a) 10%,transparent);border-color:var(--line-soft,rgba(122,94,58,.25))}',
       '.hr-cl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:7px;padding:12px}',
+      '.hr-cl-deeds{padding:8px 12px 14px}',
       '.hr-cl-cell{aspect-ratio:1;border-radius:9px;border:1px solid var(--line-soft,rgba(122,94,58,.25));background:var(--bg-2,#2c2216);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:3px;text-align:center;overflow:hidden}',
       '.hr-cl-cell.miss{opacity:.4;filter:grayscale(1)}',
       '.hr-cl-ic{font-size:calc(25px * var(--ui-scale, 1));line-height:1}',
@@ -603,7 +604,7 @@
   function renderBody(G) {
     /* DEEDS, folded in (lane daily-board): the realm-graded long goals live
        beside the bestiary and the items they overlap. */
-    if (activeTab === 'deeds') return (typeof window.deedsListHtml === 'function') ? window.deedsListHtml() : '';
+    if (activeTab === 'deeds') return '<div class="hr-cl-deeds">' + ((typeof window.deedsListHtml === 'function') ? window.deedsListHtml() : '') + '</div>';
     var MON = window.MONSTERS || {}, ITEMS = window.ITEMS || {};
     var best = G.bestiary || {}, col = G.collection || {};
     if (activeTab === 'bestiary') {

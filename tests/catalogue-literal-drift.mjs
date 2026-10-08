@@ -57,7 +57,9 @@
 // Exit: 0 in sync · 1 drift · 2 harness problem.
 // ════════════════════════════════════════════════════════════════════════
 
-import { bootReplay } from './schema-replay.mjs';
+import { readdir, readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { bootReplay, ROOT } from './schema-replay.mjs';
 import { deriveCatalogueRows } from '../tools/catalogue-rows.mjs';
 
 /* The fields compared per table. Adding a column to a catalogue table means
@@ -195,6 +197,19 @@ export async function catalogueLiteralDrift(opts = {}) {
 const DEEP = '2026-09-13-deep-seam.sql';
 const GEN = '2026-08-11-catalogue.generated.sql';
 
+/* Patches moving every delta's `hr_item_slots holds % rows` assertion by `by`. */
+async function slotCountRestatements(by) {
+  const dir = join(ROOT, 'supabase', 'migrations');
+  const re = /if v_n <> (\d+) then raise exception 'delta: hr_item_slots holds % rows, the catalogue has \1'/g;
+  const out = [];
+  for (const f of (await readdir(dir)).filter((n) => n.endsWith('.sql')).sort()) {
+    const text = await readFile(join(dir, f), 'utf8');
+    const pairs = [...text.matchAll(re)].map(([s, n]) => [s, s.replaceAll(n, String(Number(n) + by))]);
+    if (pairs.length) out.push([f, pairs]);
+  }
+  return out;
+}
+
 async function selftest() {
   const arms = [
     ['control (unmutated chain)', {}, false],
@@ -240,10 +255,13 @@ async function selftest() {
     //     measured — the first draft of this arm was a no-op that read as a
     //     miss). A pair only ONE file in the chain seeds is what a drop can
     //     actually remove, and `trollhide_cape/cape` is such a pair.
+    //     Every frozen delta's chain-end count is restated one lower too (as
+    //     arm (a) moves both copies): left at 291 it aborts the replay, and an
+    //     arm that "passes" on a cascade proves nothing about THIS guard.
     ['(c) a slot pair is dropped from a seeding migration', {
       patches: new Map([[GEN, [[
         "  ('trollhide_cape','cape'),\n", '',
-      ]]]]),
+      ]]], ...await slotCountRestatements(-1)]),
     }, true],
 
     // (d) a new activity is authored in src/data and no migration seeds it —

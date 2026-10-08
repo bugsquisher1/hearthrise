@@ -358,7 +358,11 @@ const BASE_RECIPES = {
     {id:'craft_iron_arrows',      name:'Craft Iron Arrows ×50',   icon:'🏹', inputs:{iron_bar:1, normal_plank:5},          output:'iron_arrows', outputQty:50, xp:120, req:20, ms:3500},
     // Tailoring
     {id:'tailor_leather_boots',   name:'Tailor Leather Boots',    icon:'🥾', inputs:{wolf_pelt:2},                          output:'leather_boots',  xp:80,  req:8,  ms:2400},
-    {id:'tailor_leather_gloves',  name:'Tailor Leather Gloves',   icon:'🧤', inputs:{wolf_pelt:1, silk_thread:1},           output:'leather_gloves', xp:120, req:12, ms:2800},
+    /* content-holes (2026-10-08): was Crafting 12 / 120 xp — the tier-1 leather
+       glove (Defence 1, def 1) gated above the tier-2 studded rung's own curve
+       and paying ten times its siblings. Now the leather lane's curve (2) and
+       the generated xp for a one-weight piece. */
+    {id:'tailor_leather_gloves',  name:'Tailor Leather Gloves',   icon:'🧤', inputs:{wolf_pelt:1, silk_thread:1},           output:'leather_gloves', xp:35, req:2, ms:2800},
     {id:'tailor_traveler_cape',   name:'Tailor Traveler Cape',    icon:'🦸', inputs:{silk_thread:3, wolf_pelt:2},           output:'traveler_cape',  xp:140, req:15, ms:3000},
     /* ── ELEMENTS v1 — RUNE BINDING: MOVED TO RUNECRAFTING (b432) ─────────
        The three `bind_*_rune` rows lived here, at Crafting 25, in a Crafting
@@ -465,9 +469,11 @@ const BASE_RECIPES = {
      so hr-accrue must be redeployed at the same cut. */
   prayer: [
     {id:'bury_bones',     name:'Bury Bones',         icon:'🦴', input:'bones',         output:null, xp:4.5, req:1,  ms:1200},
+    {id:'offer_rat_tail',         name:'Offer Rat Tails',          icon:'🐀',  input:'rat_tail',     output:null, xp:8,    req:8,  ms:1300},
     {id:'bury_big',       name:'Bury Big Bones',     icon:'🦴', input:'big_bones',     output:null, xp:15,  req:15, ms:1500},
     /* content-holes (2026-10-08): Prayer had nothing new between 15 and 35. Two
-       offerings from the fangs a mid-teens fighter is already carrying home. */
+       offerings from the fangs a mid-teens fighter is already carrying home, and
+       one at 8 (rat tails) so the first fifteen levels are not one action. */
     {id:'offer_small_fang',       name:'Offer Small Fang',         icon:'🦷',  input:'small_fang',   output:null, xp:26,   req:22, ms:1600},
     {id:'consecrate_night_fang',  name:'Consecrate Night Fang',    icon:'🦇',  input:'night_fang',   output:null, xp:44,   req:29, ms:1800},
     {id:'bury_dragon',    name:'Bury Dragon Bones',  icon:'🦴', input:'dragon_bones',  output:null, xp:72,  req:35, ms:2000},

@@ -191,6 +191,94 @@ export default [
     }
   }),
 
+  /* content-holes (2026-10-08) — THE EGG MOVES ONLY AS THE SERVER MOVED IT.
+     The hatch's callback decremented the bag unconditionally. hr_companion_grant
+     answers `already_owned:true` and consumes NOTHING when the server already
+     holds the Whelp (2026-09-06 hardening), so the bag said one fewer egg than
+     the server: the "browser says one thing" class. Drives the REAL tap path
+     (invItemTap → confirm → unlockCompanion → grant) twice: already-owned keeps
+     the egg, egg_consumed:true spends exactly one. MUTATION: restore the bare
+     `dragon_egg--` in wireDragonEggHatch → the first half goes red. */
+  () => tryRunAsync('HATCH-EGG-1: the bag spends a Dragon Egg only when the server says it consumed one', async () => {
+    const CO = window.HearthriseCompanions;
+    const Cap = window.HearthriseCapstone;
+    const D = window.HearthriseDialog;
+    if (!CO || !Cap || !Cap.__setBlobRetired || !D || typeof window.invItemTap !== 'function') return;
+    assert(window.ITEMS && window.ITEMS.dragon_egg, 'dragon_egg must be a real item (the Whelp hatches from it)');
+    const snap = snapshotG();
+    const origFetch = window.fetch, origNotify = window.notify, origConfirm = D.confirm;
+    let unstub = () => {}, wasParked = false, answer = null;
+    const until = async (pred) => { for (let i = 0; i < 100 && !pred(); i++) await new Promise((r) => setTimeout(r, 10)); };
+    try {
+      Cap.__setBlobRetired(true);
+      wasParked = CO.__parkGrants(false);
+      CO.__clearGrantBlocks();
+      CO.__setGrantRetryMs([0, 5]);
+      unstub = stubSignedIn(0);
+      window.notify = function () {};
+      D.confirm = () => Promise.resolve(true);
+      window.fetch = function (url) {
+        if (String(url).indexOf('hr_companion_grant') !== -1) {
+          return Promise.resolve(new Response(JSON.stringify(answer), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        }
+        return Promise.resolve(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      };
+      const owns = () => window.G.companions.ownedIds.indexOf('whelp') >= 0;
+
+      // (1) the server already had the Whelp — it consumed nothing.
+      window.G.companions = { ownedIds: [], xp: {}, equipped: null };
+      window.G.inventory = Object.assign({}, window.G.inventory, { dragon_egg: 2 });
+      answer = { ok: true, companion: 'whelp', already_owned: true };
+      window.invItemTap('dragon_egg');
+      await until(owns);
+      assert(owns(), 'the already-owned Whelp must appear in the stable');
+      assert(window.G.inventory.dragon_egg === 2,
+        'THE BUG: the server answered already_owned (no egg consumed) and the bag spent one anyway; have '
+        + window.G.inventory.dragon_egg);
+
+      // (2) a real hatch — the server consumed exactly one, and so does the bag.
+      CO.__clearGrantBlocks();
+      window.G.companions = { ownedIds: [], xp: {}, equipped: null };
+      answer = { ok: true, companion: 'whelp', egg_consumed: true };
+      window.invItemTap('dragon_egg');
+      await until(owns);
+      assert(owns(), 'the hatched Whelp must appear in the stable');
+      assert(window.G.inventory.dragon_egg === 1, 'a confirmed hatch must spend exactly one egg; have ' + window.G.inventory.dragon_egg);
+    } finally {
+      CO.__parkGrants(wasParked);
+      CO.__clearGrantBlocks();
+      CO.__setGrantRetryMs();
+      Cap.__setBlobRetired(null);
+      D.confirm = origConfirm;
+      window.fetch = origFetch; unstub(); window.notify = origNotify;
+      restoreG(snap);
+    }
+  }),
+
+  /* content-holes (2026-10-08) — THE COLLECTION LOG COUNTS ONLY WHAT CAN BE
+     OBTAINED. Its denominator was every catalogued id, including the items the
+     item-effects hatches deliberately keep out of the world, so the total was
+     unreachable. MUTATION: count Object.keys(ITEMS) again in getStats → red. */
+  () => tryRun('COLLECTION-TOTAL-1: the item total excludes hatched, premium and pointer items, and nothing else', () => {
+    const C = window.HearthriseCollection, E = window.HearthriseItemEffects;
+    if (!C || typeof C.getStats !== 'function' || !E || typeof E.isItemDormant !== 'function') return skip('collection/item-effects not loaded');
+    const I = window.ITEMS;
+    const st = C.getStats({ collection: {}, bestiary: {} });
+    const hidden = Object.keys(I).filter((id) => {
+      const it = I[id];
+      return it.premium || it.type === 'companion' || (it.recipe && !I[it.recipe]) || E.isItemDormant(it, window.SKILLS_DEF || {});
+    });
+    assert(hidden.length > 0 && I.tithe_box && hidden.indexOf('tithe_box') >= 0,
+      'CONTROL: the dormant tithe_box must be one of the excluded ids');
+    assert(st.item.total === Object.keys(I).length - hidden.length,
+      'the item total is ' + st.item.total + '; obtainable items are ' + (Object.keys(I).length - hidden.length)
+      + ' (catalogue ' + Object.keys(I).length + ', hatched/premium/pointer ' + hidden.length + ')');
+    // A held id always counts, even one the log would otherwise hide.
+    const held = C.getStats({ collection: { tithe_box: 1 }, bestiary: {} });
+    assert(held.item.found === 1 && held.item.total === st.item.total + 1,
+      'an item the realm says you hold must count as found and in the total');
+  }),
+
   () => tryRunAsync('HATCH-REFUSE-2: a CONFIRMED grant delivers the companion exactly once and celebrates once', async () => {
     const CO = window.HearthriseCompanions;
     const Cap = window.HearthriseCapstone;

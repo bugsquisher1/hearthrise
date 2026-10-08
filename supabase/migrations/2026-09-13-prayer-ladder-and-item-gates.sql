@@ -272,9 +272,10 @@ begin
   end if;
   select count(*) into v_n from public.hr_activities
    where kind = 'artisan' and req_skill = 'prayer';
-  -- content-holes (2026-10-08) re-read the ladder and added two rungs (22, 29)
-  -- through the regenerated catalogue, which a rebuild applies before this file.
-  if v_n not in (13, 15) then
+  -- content-holes (2026-10-08) re-read the ladder and added rungs
+  -- through the regenerated catalogue, which a rebuild applies before this file
+  -- (three rungs: 8, 22, 29).
+  if v_n not in (13, 16) then
     raise exception 'GATE(a3): the prayer bench holds % rungs, the ruling leaves 13 (3 shipped + '
                     '10 new). A 14th means a row was added without the ladder being re-read', v_n;
   end if;

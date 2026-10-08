@@ -327,6 +327,8 @@ export const STONECRAFT_RECIPES = {
        change expressed as data. Left alone here because that same field routes
        BOWS to Fletching and that agent owns the change.) */
     { id: 'bind_air_runes',     name: 'Bind Air Runes',       icon: '🌀', inputs: { rune_blank: 6 },              output: 'air_rune',   outputQty: 42, xp: 9,   req: 1,  ms: 3200 },
+    /* content-holes (2026-10-08): 1 → 15 was a single action. */
+    { id: 'deepbind_air',       name: 'Deepbind Air Runes',   icon: '🌀', inputs: { rune_blank: 7 },              output: 'air_rune',   outputQty: 52, xp: 22,  req: 8,  ms: 3400 },
     { id: 'bind_earth_runes',   name: 'Bind Earth Runes',     icon: '🌍', inputs: { rune_blank: 6 },              output: 'earth_rune', outputQty: 45, xp: 50,  req: 15, ms: 3400 },
     { id: 'deepbind_earth',     name: 'Deepbind Earth Runes', icon: '🌍', inputs: { rune_blank: 7 },              output: 'earth_rune', outputQty: 58, xp: 105,  req: 24, ms: 3600 },
     { id: 'bind_water_runes',   name: 'Bind Water Runes',     icon: '💧', inputs: { rune_blank: 6, coal: 1 },     output: 'water_rune', outputQty: 48, xp: 185,  req: 30, ms: 3600 },

@@ -254,6 +254,8 @@
     "node tests/this-week.mjs --selftest": "client-guards",
     "node tests/item-flavour-coverage.mjs": "client-guards",
     "node tests/item-flavour-coverage.mjs --selftest": "client-guards",
+    "node tests/content-holes.mjs": "client-guards",
+    "node tests/content-holes.mjs --selftest": "client-guards",
     "node tests/lore-notes.mjs": "client-guards",
     "node tests/lore-notes.mjs --selftest": "client-guards",
     "node tests/lifetime-tally.mjs": "client-guards",

@@ -6,10 +6,10 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: b1f9038257402147327a572cfcb707ca0a35d705d1dfda1e93e8cbb7d33ed1ca
---   rows: 550 items (23 untradeable) ·
---         290 item-slot pairs · 15 equip slots ·
---         17 skills · 10 crops · 532 activities ·
+--   catalogue digest: a7727957c945de02e145040ee7518ce231f1fcc34092d76d5c5b11e7aaaa8adf
+--   rows: 551 items (23 untradeable) ·
+--         291 item-slot pairs · 15 equip slots ·
+--         17 skills · 10 crops · 535 activities ·
 --         3 runes
 --
 -- APPLY ORDER: 2026-08-11-player-state.sql → THIS FILE → 2026-08-11-apply-engine.sql
@@ -228,6 +228,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('boarhide_boots','Boarhide Boots',true,'armor',280,'defense',30,null,false),
   ('boarhide_gloves','Boarhide Vambraces',true,'armor',245,'defense',30,null,false),
   ('boarhide_helmet','Boarhide Coif',true,'armor',420,'defense',30,null,false),
+  ('boarhide_mantle','Boarhide Mantle',true,'armor',1200,'defense',38,null,false),
   ('boarhide_pants','Boarhide Chaps',true,'armor',770,'defense',30,null,false),
   ('bone_chips','Bone Chips',true,null,10,null,null,null,false),
   ('bone_earrings','Bone Earrings',true,'jewelry',1950,'prayer',45,null,false),
@@ -765,6 +766,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('boarhide_boots','boots'),
   ('boarhide_gloves','gloves'),
   ('boarhide_helmet','helmet'),
+  ('boarhide_mantle','cape'),
   ('boarhide_pants','pants'),
   ('bone_earrings','earrings'),
   ('bramble_blade','weapon'),
@@ -1245,6 +1247,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','cut_deep_blanks','stonemason',74,null,false),
   ('artisan','cut_fine_blanks','stonemason',38,null,false),
   ('artisan','cut_rune_blanks','stonemason',1,null,false),
+  ('artisan','deepbind_air','runecrafting',8,null,false),
   ('artisan','deepbind_blood','runecrafting',93,null,false),
   ('artisan','deepbind_chaos','runecrafting',69,null,false),
   ('artisan','deepbind_death','runecrafting',81,null,false),
@@ -1410,6 +1413,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','make_yew_bow','crafting',65,null,false),
   ('artisan','make_yew_staff','crafting',66,null,false),
   ('artisan','offer_ancient_claw','prayer',92,null,false),
+  ('artisan','offer_rat_tail','prayer',8,null,false),
   ('artisan','offer_razor_claw','prayer',52,null,false),
   ('artisan','offer_small_fang','prayer',22,null,false),
   ('artisan','purge_void_chitin','prayer',99,null,false),
@@ -1440,10 +1444,11 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','split_deep_blanks','stonemason',84,null,false),
   ('artisan','split_fine_blanks','stonemason',53,null,false),
   ('artisan','split_rune_blanks','stonemason',22,null,false),
+  ('artisan','tailor_boarhide_mantle','crafting',38,null,false),
   ('artisan','tailor_dawnlit_mantle','crafting',91,null,false),
   ('artisan','tailor_houndskin_cloak','crafting',28,null,false),
   ('artisan','tailor_leather_boots','crafting',8,null,false),
-  ('artisan','tailor_leather_gloves','crafting',12,null,false),
+  ('artisan','tailor_leather_gloves','crafting',2,null,false),
   ('artisan','tailor_shadowsilk_cape','crafting',63,null,false),
   ('artisan','tailor_traveler_cape','crafting',15,null,false),
   ('artisan','tailor_trollhide_cape','crafting',50,null,false),
@@ -1630,7 +1635,7 @@ insert into public.hr_runes (rune_id, element) values
   ('poison_rune','poison');
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, 'b1f9038257402147327a572cfcb707ca0a35d705d1dfda1e93e8cbb7d33ed1ca', now())
+  values (true, 'a7727957c945de02e145040ee7518ce231f1fcc34092d76d5c5b11e7aaaa8adf', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1658,13 +1663,13 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 550 then raise exception 'hr_items has % rows, generator emitted 550', v_n; end if;
+  if v_n <> 551 then raise exception 'hr_items has % rows, generator emitted 551', v_n; end if;
   select count(*) into v_n from public.hr_items where not tradeable;
   if v_n <> 23 then
     raise exception 'untradeable count is %, generator emitted 23', v_n;
   end if;
   select count(*) into v_n from public.hr_activities;
-  if v_n <> 532 then raise exception 'hr_activities has % rows, expected 532', v_n; end if;
+  if v_n <> 535 then raise exception 'hr_activities has % rows, expected 535', v_n; end if;
 
   -- MONSTER HP. The count is asserted for the same reason auto_eatable's is: a
   -- re-apply against a database that created hr_activities before the column
@@ -1795,7 +1800,7 @@ begin
   select count(*) into v_n from public.hr_runes;
   if v_n <> 3 then raise exception 'hr_runes has % rows, generator emitted 3', v_n; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest b1f9038257402147327a572cfcb707ca0a35d705d1dfda1e93e8cbb7d33ed1ca',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest a7727957c945de02e145040ee7518ce231f1fcc34092d76d5c5b11e7aaaa8adf',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

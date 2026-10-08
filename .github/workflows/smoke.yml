@@ -3132,6 +3132,11 @@ jobs:
         run: |
           node tests/item-flavour-coverage.mjs
           node tests/item-flavour-coverage.mjs --selftest
+          # content-holes (2026-10-08): every item sourced or a declared hatch,
+          # every gear slot filled at every tier, ladders on curve, no dead
+          # skill stretch, first-hour seeds plantable. Pure data, milliseconds.
+          node tests/content-holes.mjs
+          node tests/content-holes.mjs --selftest
           node tests/lore-notes.mjs
           node tests/lore-notes.mjs --selftest
           node tests/lifetime-tally.mjs

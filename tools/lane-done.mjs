@@ -4,6 +4,7 @@
 // first red. It is a runner, not a guard: it adds no rule of its own, and it prints each
 // guard's own first failing lines so the lane fixes the cause where the code was written.
 import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 const STEPS = [
   ['bash', ['./bump-version.sh', '--check']],
   ['node', ['tests/monolith-ratchet.mjs']],
@@ -94,14 +95,24 @@ const STEPS = [
   ['node', ['tests/snapshot-allowlist-guard.mjs', '--selftest']],
 ];
 let red = 0;
+// Preflight, not a skip: every step still runs and still counts. The chain-replay guards
+// need the locked devDependencies; say so once instead of leaving four bare REDs.
+if (!existsSync('node_modules/@electric-sql/pglite/package.json')) {
+  console.log('  NOTE  node_modules/@electric-sql/pglite is missing — run `npm ci` in this worktree;'
+    + ' the chain-replay guards below cannot run without it and will be RED.');
+}
 for (const [cmd, args] of STEPS) {
   const label = `${cmd} ${args.join(' ')}`;
   const r = spawnSync(cmd, args, { encoding: 'utf8', shell: process.platform === 'win32' });
   if (r.status === 0) { console.log(`  ok    ${label}`); continue; }
   red++;
   console.log(`  RED   ${label}`);
-  const out = `${r.stdout || ''}\n${r.stderr || ''}`.split('\n').filter((l) => /✗|RED|FAIL |MONO-|CR-|TF-|PATCH-|XP-|not classified|ORPHAN/.test(l)).slice(0, 4);
-  for (const l of out) console.log('        ' + l.trim().slice(0, 160));
+  const lines = `${r.stdout || ''}\n${r.stderr || ''}`.split('\n').map((l) => l.trim()).filter(Boolean);
+  // HARNESS / "not installed" are how the replay guards say they could not run at all
+  // (e.g. no `npm ci` in a fresh worktree). Without them a red printed no cause.
+  let out = lines.filter((l) => /✗|RED|FAIL |HARNESS|not installed|MONO-|CR-|TF-|PATCH-|XP-|not classified|ORPHAN/.test(l)).slice(0, 4);
+  if (!out.length) out = lines.slice(-3);
+  for (const l of out) console.log('        ' + l.slice(0, 160));
   if (process.argv.includes('--fail-fast')) break;
 }
 console.log(red ? `\n${red} guard(s) red — the lane is not done.` : '\nlane-done: all green.');

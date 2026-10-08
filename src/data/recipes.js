@@ -211,7 +211,7 @@ const BASE_RECIPES = {
        family's lvOff, gear-tiers.js). The Rune Sword at 75 opened on the SAME
        level as the Emberforged one; the Iron Warhammer at 35 opened after the
        Steel Warhammer (38) was nearly in reach. Gates move to the curve; bars,
-       xp and duration are untouched. The ladder-order guard pins the order. *
+       xp and duration are untouched. The ladder-order guard pins the order. */
     {id:'forge_steel_sword',   name:'Forge Steel Sword',   icon:'⚔️', inputs:{steel_bar:3, willow_plank:1},                 output:'steel_sword',   xp:400,   req:35, ms:3800},
     {id:'forge_rune_sword',    name:'Forge Rune Sword',    icon:'⚔️', inputs:{rune_bar:3, magic_essence:2, maple_plank:1},  output:'rune_sword',    xp:1200,  req:65, ms:5500},
     {id:'forge_stone_maul',    name:'Forge Stone Maul',    icon:'🔨', inputs:{normal_plank:2, copper_ore:4},                output:'stone_maul',    xp:100,   req:10, ms:2700},

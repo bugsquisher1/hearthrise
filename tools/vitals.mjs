@@ -386,7 +386,12 @@ select a.ch as channel,
                             where pl.user_id = o.user_id and pl.slot = o.slot
                               and pl.at > now() - interval '15 minutes' and pl.at <= now()
                               and pl.kind = (case a.ch when 'artisan' then 'craft' else a.ch end)
-                              and pl.meta ->> 'src' = 'tick')) as stuck,
+                              and pl.meta ->> 'src' = 'tick')
+           -- PARKED (presence horizon): paid in full for this absence, waiting.
+           and not exists (select 1 from public.hr_tick_horizon_log h
+                             join public.hr_return_anchor ra
+                               on ra.user_id = h.user_id and ra.slot = h.slot and ra.real_return_at = h.anchor_at
+                            where h.user_id = o.user_id and h.slot = o.slot)) as stuck,
        coalesce(floor(max(extract(epoch from (now() - ps.accrued_to)))), 0) as worst_s,
        coalesce(floor(percentile_cont(0.95) within group (order by extract(epoch from (now() - ps.accrued_to)))), 0) as p95_s
   from (select distinct x as ch from public.hr_tick_config cfg cross join lateral unnest(cfg.armed_channels) x

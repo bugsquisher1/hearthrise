@@ -145,7 +145,20 @@ declare
   v_roster  text;
   v_partied text;
   v_admit   text;
+  v_settle  text;
 begin
+  -- THE PRESENCE HORIZON FIRST (Game Designer ruling on B1: it lands before
+  -- stage 1). hr_tick_settle must be 2026-10-10-world-tick-presence-horizon.sql's
+  -- body, with (8d); a widen without it would enrol players into an uncapped
+  -- tick.
+  select md5(replace(p.prosrc, chr(13), '')) into v_settle from pg_proc p
+   where p.oid = to_regprocedure('public.hr_tick_settle(text,uuid,integer,text,bigint,timestamp with time zone,timestamp with time zone,uuid,jsonb,jsonb)');
+  if v_settle is distinct from '512cdc6596865e87cceed8416a283d05'
+     or to_regclass('public.hr_tick_horizon_log') is null
+     or to_regclass('public.hr_return_anchor') is null then
+    raise exception 'PRECONDITION: the presence horizon is not installed (hr_tick_settle md5 %). '
+                    'Apply 2026-10-10-world-tick-presence-horizon.sql first.', v_settle;
+  end if;
   select md5(replace(p.prosrc, chr(13), '')) into v_stall from pg_proc p
    where p.oid = to_regprocedure('public.hr_tick_stall_status(timestamp with time zone,integer,integer)');
   select md5(replace(p.prosrc, chr(13), '')) into v_roster from pg_proc p
@@ -154,9 +167,9 @@ begin
    where p.oid = to_regprocedure('public.hr_partied(uuid,integer)');
   select md5(replace(p.prosrc, chr(13), '')) into v_admit from pg_proc p
    where p.oid = to_regprocedure('public.hr_tick_admit(boolean,timestamp with time zone,timestamp with time zone)');
-  if v_stall is null or v_stall not in ('5bad87a19c5b14b1a5f39e559d251435', '6d9141779f2dc9988784491e2d1f1033') then
+  if v_stall is null or v_stall not in ('5bad87a19c5b14b1a5f39e559d251435', 'd9a30e8e40ebd06ee497204743f1ba5b') then
     raise exception 'PRECONDITION: hr_tick_stall_status prosrc md5 is %, expected the live 5bad87a1 '
-                    '(party-fences) or this file''s 6d9141779f2dc9988784491e2d1f1033. Re-cut this file against the live body.', v_stall;
+                    '(party-fences) or this file''s d9a30e8e40ebd06ee497204743f1ba5b. Re-cut this file against the live body.', v_stall;
   end if;
   if v_roster is distinct from 'a7cf559ec53b6a840dcd8bbbb9f1095f'
      or v_partied is distinct from '3ae4b07cb060fcf0815eeaecca6dad98'
@@ -613,7 +626,9 @@ begin
     --    fire) from reading as a stall: a catching-up character is far behind
     --    but MOVING. An online character settles itself (client accrue moves
     --    accrued_to), so its lag stays small and F2b needs no special case
-    --    here. c_lag is 10 flush windows at the 90 s flush.
+    --    here. c_lag is 10 flush windows at the 90 s flush. A PARKED
+    --    character (refused past_horizon for its current absence, journalled
+    --    in hr_tick_horizon_log) is paid in full and waiting: never stuck.
     --    NOT FOLDED INTO ok / stalled / armed_stalled: the arm file's S2 reads
     --    those at the arm instant, when every boundary character is far behind
     --    and not yet moving (the same reasoning that kept armed_judged out of
@@ -627,7 +642,13 @@ begin
                       where pl.user_id = o.user_id and pl.slot = o.slot
                         and pl.at > p_now - c_lag and pl.at <= p_now
                         and pl.kind = v_kind
-                        and pl.meta->>'src' = 'tick') as moving
+                        and pl.meta->>'src' = 'tick') as moving,
+             -- PARKED (presence horizon): its tick was refused past_horizon for
+             -- its CURRENT absence — paid in full, waiting for its return.
+             exists (select 1 from public.hr_tick_horizon_log h
+                       join public.hr_return_anchor a
+                         on a.user_id = h.user_id and a.slot = h.slot and a.real_return_at = h.anchor_at
+                      where h.user_id = o.user_id and h.slot = o.slot) as parked
         from public.hr_tick_ownership o
         join public.player_state ps on ps.user_id = o.user_id and ps.slot = o.slot
        where o.owned
@@ -637,7 +658,8 @@ begin
     select jsonb_build_object(
              'threshold_s', extract(epoch from c_lag)::int,
              'characters',  count(*),
-             'stuck',       count(*) filter (where j.lag_s > extract(epoch from c_lag) and not j.moving),
+             'stuck',       count(*) filter (where j.lag_s > extract(epoch from c_lag) and not j.moving and not j.parked),
+             'parked',      count(*) filter (where j.parked),
              'worst_s',     coalesce(floor(max(j.lag_s)), 0)::bigint,
              'p50_s',       coalesce(floor(percentile_cont(0.5) within group (order by j.lag_s)), 0)::bigint,
              'p95_s',       coalesce(floor(percentile_cont(0.95) within group (order by j.lag_s)), 0)::bigint,
@@ -645,7 +667,7 @@ begin
                                          'user_id', x.user_id, 'slot', x.slot, 'lag_s', floor(x.lag_s)::bigint)
                                          order by x.lag_s desc, x.user_id, x.slot)
                                         from (select * from j j2
-                                               where j2.lag_s > extract(epoch from c_lag) and not j2.moving
+                                               where j2.lag_s > extract(epoch from c_lag) and not j2.moving and not j2.parked
                                                order by j2.lag_s desc, j2.user_id, j2.slot
                                                limit 10) x), '[]'::jsonb))
       into v_lag
@@ -785,7 +807,7 @@ begin
     -- ── k0
     if (select md5(replace(p.prosrc, chr(13), '')) from pg_proc p
          where p.oid = 'public.hr_tick_stall_status(timestamptz,int,int)'::regprocedure)
-         <> '6d9141779f2dc9988784491e2d1f1033'
+         <> 'd9a30e8e40ebd06ee497204743f1ba5b'
        or (select md5(replace(p.prosrc, chr(13), '')) from pg_proc p
          where p.oid = 'public.hr_tick_enrol(int)'::regprocedure)
          <> '869059c824160b990dc9813be53bea0f'

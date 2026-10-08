@@ -27,6 +27,9 @@
 //       does not exist; NOTHING but gold and the rung moves (xp, items, gems).
 //   T4  RE-APPLY IS A NO-OP. Applying the migration a second time leaves both
 //       catalogues byte-identical.
+//   T5  A PRESTIGE SINK NEVER COSTS PRESTIGE (2026-10-08-renown-throne-room.sql).
+//       A 300M castle owner buys all thirty pieces: hr_renown_of never drops at
+//       any step and ends where it began (it was 101 -> 94 before the ruling).
 //
 // WHAT IT CANNOT PROVE: concurrency (PGlite is one backend), the PostgREST /
 // Deno path, or anything about production rows.
@@ -44,6 +47,7 @@ import { COMPANION_OFFER_IDS } from '../src/data/companion-unlocks.js';
 import { isGoldLadderOffer } from '../supabase/functions/hr-accrue/gold-ladder-catalogue.js';
 
 const MIG = '2026-10-08-throne-room.sql';
+const RENOWN_MIG = '2026-10-08-renown-throne-room.sql';
 
 /* The migration's own §3/§4 self-checks, short-circuited, so a mutant that they
    would ALSO catch is caught here by THIS guard and not by them. */
@@ -79,6 +83,15 @@ const MUTATIONS = {
     repl: "'throne_room', 3, 673000, '{\"gold_bar\":1}'::jsonb,",
   },
 };
+MUTATIONS.renown_reads_held_gold_only = {
+  why: 'hr_renown_of scores goldLog on HELD gold again, so furnishing the Throne Room LOWERS '
+     + 'renown (101 -> 94 for the full room) — a prestige sink that costs prestige',
+  file: RENOWN_MIG,
+  find: '    + case when (select g from gw) > 1000\n           then (ln((select g from gw)) / ln(10::float8) - 3::float8) * 8::float8',
+  repl: '    + case when coalesce((select gold from ps), 0) > 1000\n           then (ln((select gold from ps)::float8) / ln(10::float8) - 3::float8) * 8::float8',
+  gate: [["    v_r0 := public.hr_renown_of(v_uid, 0);\n",
+          "    v_r0 := public.hr_renown_of(v_uid, 0);\n    raise exception using errcode = 'HRB20', message = 'selftest: §2 skipped';\n"]],
+};
 for (const id of Object.keys(MUTATIONS)) {
   if (id.endsWith('_blind')) continue;
   MUTATIONS[`${id}_gate_blind`] = { ...MUTATIONS[id], why: `${MUTATIONS[id].why} — with the migration's own §3/§4 short-circuited`, blind: true };
@@ -91,7 +104,7 @@ function patchesFor(mutate) {
   if (!mutate) return undefined;
   const m = MUTATIONS[mutate];
   if (!m) { const e = new Error(`unknown mutation: ${mutate}`); e.harness = true; throw e; }
-  return new Map([[MIG, [[m.find, m.repl], ...(m.blind ? GATE_BLIND : [])]]]);
+  return new Map([[m.file || MIG, [[m.find, m.repl], ...(m.blind ? (m.gate || GATE_BLIND) : [])]]]);
 }
 
 // ── T1 / T2 — pure data and the Edge forward set ────────────────────────────
@@ -123,8 +136,9 @@ function dataArms() {
 }
 
 // ── T3 / T4 — the real RPC on the replayed chain ────────────────────────────
+let t5 = null;
 async function dbArms(mutate) {
-  const { db } = await bootReplay({ patches: patchesFor(mutate), upTo: mutate ? LAST_PATCHED : MIG });
+  const { db } = await bootReplay({ patches: patchesFor(mutate), upTo: mutate ? LAST_PATCHED : RENOWN_MIG });
   try {
     const q = async (sql, p) => (await db.query(sql, p)).rows;
     const asEngine = async (sql, p) => {
@@ -182,7 +196,33 @@ async function dbArms(mutate) {
     ok(led.n === 30 && Number(led.g) === -total, `T3: ledger has ${led.n} throne-room rows summing ${led.g}, expected 30 / -${total}`);
     ok(await measure() === before, 'T3: a furnishing moved xp, items or gems');
 
-    // (c) there is no thirty-first piece.
+    // (c) T5 — a second castle owner with 300M buys the whole room; renown is
+    //     read as the engine reads it after every piece.
+    {
+      const u2 = (await q('select gen_random_uuid() as i'))[0].i;
+      await q('insert into auth.users (id) values ($1)', [u2]);
+      await gate();
+      await q("select set_config('request.jwt.claim.sub',$1,false)", [u2]);
+      await q('select public.hr_create_character(0)');
+      await q('update public.player_state set gold = 300000000 where user_id = $1 and slot = 0', [u2]);
+      await q("insert into public.player_progress (user_id, slot, kind, key, period_key, value) values ($1,0,'unlock','property:castle','',5)", [u2]);
+      const renown = async () => Number((await asEngine('select public.hr_renown_of($1::uuid, 0)::text as r', [u2]))[0].r);
+      const r0 = await renown(); let prevR = r0; let worst = 0;
+      for (const o of THRONE_ROOM_OFFERS) {
+        await gate();
+        const v = Number((await q('select version::text v from public.player_state where user_id=$1 and slot=0', [u2]))[0].v);
+        const rr = (await asEngine('select public.hr_unlock_buy($1::uuid, 0, $2::bigint, gen_random_uuid(), $3::text) as r', [u2, v, o.offer_id]))[0].r;
+        if (!(rr && rr.ok === true)) { ok(false, `T5: ${o.offer_id} refused: ${JSON.stringify(rr && rr.error)}`); break; }
+        const r = await renown();
+        if (r < prevR) worst = Math.min(worst, r - prevR);
+        prevR = r;
+      }
+      ok(worst === 0, `T5: furnishing LOWERED renown (worst step ${worst}; ${r0} -> ${prevR} for the full room)`);
+      ok(prevR === r0, `T5: the full room moved renown ${r0} -> ${prevR} (expected unchanged)`);
+      t5 = { before: r0, after: prevR };
+    }
+
+    // (d) there is no thirty-first piece.
     r = await buy('throne_room.31');
     ok(r && r.error === 'unknown_offer', `T3: throne_room.31 answered ${JSON.stringify(r)}`);
 
@@ -233,6 +273,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   }
   const p = await throneRoomGuard();
   if (p.length) { console.error('throne-room RED:\n  ' + p.join('\n  ')); process.exit(1); }
+  console.log(`T5 renown, 300M castle owner, full room: ${t5 && t5.before} -> ${t5 && t5.after}`);
   console.log('throne-room green: 30 castle-gated gold-only pieces, sold at the data\'s price through the real '
     + 'hr_unlock_buy, journalled once each, nothing else moves, re-apply is a no-op, the Edge forwards exactly the 30.');
 }

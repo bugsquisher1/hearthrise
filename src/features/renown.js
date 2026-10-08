@@ -232,6 +232,14 @@
        that safe: `renownHigh` is a high-water mark, so a term that momentarily
        reads as absent can never demote a rank the player has already earned. */
     var gold = (typeof window.balOr === 'function') ? window.balOr('gold', 0) : (G.gold || 0);
+    /* 2026-10-08 — gold furnished into the Throne Room still counts (the server's
+       hr_renown_of, 2026-10-08-renown-throne-room.sql): a prestige sink never
+       costs prestige. The server's rung, the catalogue's prices; unknown → 0. */
+    var _PR = window.HearthriseProperty, _TR = window.THRONE_ROOM;
+    var _tn = (_PR && typeof _PR.serverThroneRung === 'function') ? _PR.serverThroneRung() : null;
+    if (_TR && _TR.PIECES && typeof _tn === 'number' && _tn > 0) {
+      for (var _i = 0; _i < Math.min(_tn, _TR.PIECES.length); _i++) gold += _TR.PIECES[_i].gold;
+    }
     if (gold > 1000) r += (Math.log(gold) / Math.LN10 - 3) * W.goldLog;
 
     return Math.floor(r);

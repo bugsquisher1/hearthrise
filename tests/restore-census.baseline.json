@@ -410,6 +410,7 @@
    "hr-rejections-prune | 35 4 * * * | select public.hr_rejections_prune()",
    "hr-slot-health | */5 * * * * | select public.hr_slot_health_alert()",
    "hr-tick-cron-log-prune | 37 * * * * | select public.hr_tick_cron_log_prune(20000)",
+   "hr-tick-enrol | * * * * * | select public.hr_tick_enrol(200)",
    "hr-tick-probe-prune | 29 * * * * | select public.hr_tick_probe_prune(20000)",
    "hr-tick-run | 10 seconds | select public.hr_tick_cron_run()",
    "hr-tick-shadow-prune | 27 * * * * | select public.hr_tick_shadow_prune(20000)",
@@ -548,7 +549,8 @@
   "hr_tick_probe": "A MEASUREMENT OF A MEASUREMENT. One row per character per 4 h: the single-span accrual the world tick would have paid over a span its shadow windows tiled, written ONLY by hr_tick_probe_commit (2026-10-06-world-tick-parity-probe.sql), whose self-check proves by execution that it writes no other table. Nothing reads it but tools/world-tick-parity.mjs; no number a player can spend, rank or trade is derived from it. Losing every row costs re-running the probe read (the next probe opens within 4 h).",
   "hr_tick_shadow": "A MEASUREMENT OF WHAT WAS NOT PAID. Every row is written on the branch of hr_tick_settle that returns BEFORE hr_apply — the shadow branch pays nothing, and the migration's self-check e13 asserts gold, version and accrued_to are all unmoved after one. No RPC reads this table, nothing joins to it, and no number a player can spend, rank or trade is derived from it. Losing every row costs re-running the 48 h parity window.",
   "party_invite": "M8 S1 party invites. Player-scoped, but every row expires fifteen minutes after it is written and grants nothing on its own — accepting one is a separate verb with its own checks, so a restored invite is not a restored membership. Losing them costs an inviter one tap. It carries no value in S1 and will carry none in S2 either: the card is an offer, the membership row is the fact.",
-  "party_settle_boundary": "The bookkeeping of a CLAMP, not a quantity a player earned. Its user_id names who CHOSE a settle boundary (for a kick, the leader rather than the member removed), which makes it player-scoped for forensics and for nothing else. Losing every row costs no player anything: the party watermark lives on party_hunt, every member's own watermark on player_state, and §18.1 guarantees that past the eighth boundary a stop, a leave and a kick land immediately and are paid on the tick's own cadence anyway. What is lost is one UTC day's worth of a re-roll clamp — an anti-abuse budget resetting early, which is a loosening to notice and not a restoration to perform."
+  "party_settle_boundary": "The bookkeeping of a CLAMP, not a quantity a player earned. Its user_id names who CHOSE a settle boundary (for a kick, the leader rather than the member removed), which makes it player-scoped for forensics and for nothing else. Losing every row costs no player anything: the party watermark lives on party_hunt, every member's own watermark on player_state, and §18.1 guarantees that past the eighth boundary a stop, a leave and a kick land immediately and are paid on the tick's own cadence anyway. What is lost is one UTC day's worth of a re-roll clamp — an anti-abuse budget resetting early, which is a loosening to notice and not a restoration to perform.",
+  "hr_tick_enrolment": "AN ENROLMENT JOURNAL, NOT A LEDGER. One row per automatic tick enrolment or rollback, keyed per (user, slot) because enrolment is per character. It records who the server put under tick ownership and is the rollback key for those hr_tick_ownership rows - and hr_tick_ownership is itself exempt and restores EMPTY (not owned, the fail-safe). With both empty after a restore every character is accrue-owned and settles from its own player_state.accrued_to, which is restore_only and is the only record of what has been paid. Losing every row costs history, never value: no double pay and no gap is possible, because the watermark is the correctness mechanism."
  },
  "tables": {
   "active_bounty": {
@@ -1231,6 +1233,21 @@
    "class": "restore_only",
    "wiped_at_cutover": false,
    "note": "PLAYER VALUE. One row per Hearthfind find a character has ever made (user_id, find id, found_at, nth ever) — the shared world feed and the source of the Emberborn/Rootwarden/Deepdelver/Tidesworn/Wonderkeeper titles. Written only by hr_apply (SECURITY DEFINER, 3/day + 30 s clamps), pruned by hr_world_finds_prune; anon/authenticated SELECT only. Losing it silently un-earns titles and erases the feed. 0 rows at classification (2026-09-08, feature just applied)."
+  },
+  "hr_tick_cohort": {
+   "class": "operator_tunable",
+   "replay": 1,
+   "wiped_at_cutover": false,
+   "note": "THE WORLD TICK ROLLOUT DIAL for automatic ownership, per channel (gather only, CHECK) - created 2026-10-10-world-tick-gather-widen.sql and seeded ONCE (on conflict do nothing) at stage 1: gather permille 100, max_owned 20, fresh_s 600. A rebuild therefore reproduces the STAGE-1 dial, never an operator's later stage; and enrolment needs gather ARMED, which a rebuild never is (the arm file is excluded from the chain), so a rebuilt database enrols nobody whatever this row says. No player value: it decides only which returning gatherers the tick (rather than accrue-on-return) settles, at the same price. Coming back EMPTY is the safe direction too: hr_tick_enrol loops over its rows and enrols nothing. What is lost is the rollout stage, one UPDATE in a staged migration. max_owned is CHECKed <= 100 (the measured capacity fuse). RLS enabled and forced, zero policies, zero grants.",
+   "live_value": {
+    "measured": "2026-10-08",
+    "value": "ABSENT on production: the table is created by 2026-10-10-world-tick-gather-widen.sql (STAGED, NOT APPLIED). After apply the expected live row is the seed, [{channel:gather, permille:100, max_owned:20, fresh_s:600}]; re-measure then, and at every later stage file."
+   }
+  },
+  "hr_tick_enrolment": {
+   "class": "operational",
+   "wiped_at_cutover": false,
+   "note": "APPEND-ONLY JOURNAL of every automatic tick enrolment and every rollback unenrolment (user, slot, channel, server time, permille, hash bucket, the accrued_to that qualified it) - created 2026-10-10-world-tick-gather-widen.sql, ships EMPTY. It is the audit trail of WHO the server put under tick ownership and the ROLLBACK KEY hr_tick_unenrol uses to remove exactly those rows. It is operational, not restore_only, because the rows it keys live in hr_tick_ownership, which is itself operational and comes back EMPTY: after a restore there is nothing enrolled to roll back, and the empty journal is consistent with it. Losing it loses enrolment history only; no credited time, no value (player_state.accrued_to is the truth of what has been paid). Written only by hr_tick_enrol / hr_tick_unenrol (SECURITY DEFINER, owner-only); RLS enabled AND forced, zero policies, zero grants; no function body updates or deletes it (the migration's §8 k0b asserts that)."
   }
  }
 }

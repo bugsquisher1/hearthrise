@@ -711,9 +711,14 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       const [gate] = await tx`select public.hr_rate_gate(${user}::uuid, ${slot}::int,
                                                          ${rateBucketFor('accrue')}::text) as allowed`;
       if (!gate?.allowed) return { limited: true } as Row;
+      /* THE PRESENCE HORIZON (2026-10-10-world-tick-presence-horizon.sql):
+         the span cap is hr_accrue_cap_ms — hr_offline_cap_ms bounded by the
+         last real return + cap, so a ticked absence is never paid twice. The
+         same read in set-activity.js, claim-reward.js and spend.js;
+         tests/world-tick-presence-horizon.mjs E1 pins all four. */
       const [row] = await tx`
         select public.hr_state_of(${user}::uuid, ${slot}::int)      as state,
-               public.hr_offline_cap_ms(${user}::uuid, ${slot}::int) as cap_ms,
+               public.hr_accrue_cap_ms(${user}::uuid, ${slot}::int)  as cap_ms,
                now()                                                as now`;
       /* ── THE BESTIARY COUNTERS RIDE THIS TRANSACTION (charms phase 1) ──────
          `hr_bestiary_of` (2026-08-20-bestiary.sql) is the dedicated read over

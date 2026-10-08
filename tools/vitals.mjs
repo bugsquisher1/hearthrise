@@ -386,7 +386,12 @@ select a.ch as channel,
                             where pl.user_id = o.user_id and pl.slot = o.slot
                               and pl.at > now() - interval '15 minutes' and pl.at <= now()
                               and pl.kind = (case a.ch when 'artisan' then 'craft' else a.ch end)
-                              and pl.meta ->> 'src' = 'tick')) as stuck,
+                              and pl.meta ->> 'src' = 'tick')
+           -- PARKED (presence horizon): paid in full for this absence, waiting.
+           and not exists (select 1 from public.hr_tick_horizon_log h
+                             join public.hr_return_anchor ra
+                               on ra.user_id = h.user_id and ra.slot = h.slot and ra.real_return_at = h.anchor_at
+                            where h.user_id = o.user_id and h.slot = o.slot)) as stuck,
        coalesce(floor(max(extract(epoch from (now() - ps.accrued_to)))), 0) as worst_s,
        coalesce(floor(percentile_cont(0.95) within group (order by extract(epoch from (now() - ps.accrued_to)))), 0) as p95_s
   from (select distinct x as ch from public.hr_tick_config cfg cross join lateral unnest(cfg.armed_channels) x
@@ -406,8 +411,11 @@ select (select count(*) from public.party_hunt
 // hr_tick_stall_status() is owner-only (42501 for this endpoint), so its armed
 // judge is restated here over the same three tables, per armed channel, for the
 // last 2 whole hours ending now, newest first (i = 0). The sentinel is the
-// function's, minus hr_partied (not executable here): a partied character is
-// combat, and only matters once combat is armed. Its F2b half (online = not a
+// function's: hr_partied is not executable here either, so its body (live
+// member of a live hunt and not sat out, i.e. the latest roster-log row for
+// that hunt is not a drop; event is drop|rejoin by CHECK, so "<> 'rejoin'" is
+// the drop test without the keyword selectOnly() refuses) is inlined in `s`,
+// with party-drop's hr_party_sat_out. Its F2b half (online = not a
 // sentinel) is counted here as `online_sentinels` and subtracted in
 // armedStallVerdict() above, so the rule — not this query — is what the
 // --selftest mutants bite. An artisan window journals as 'craft'.
@@ -421,7 +429,28 @@ with c as (
    where cfg.id and a = any (cfg.channels)),
 h as (
   select g as i, now() - make_interval(hours => g + 1) as lo, now() - make_interval(hours => g) as hi
-    from generate_series(0, 1) g)
+    from generate_series(0, 1) g),
+s as (
+  select c.ch,
+         exists (select 1 from public.player_ledger pl
+                  where pl.user_id = o.user_id and pl.slot = o.slot
+                    and pl.at >= now() - interval '2 hours' and pl.at < now()
+                    and pl.kind = (case c.ch when 'artisan' then 'craft' else c.ch end)
+                    and pl.meta ->> 'src' is distinct from 'tick') as online
+    from c
+    join public.hr_tick_ownership o on o.owned and o.channel = c.ch
+    join public.player_state ps on ps.user_id = o.user_id and ps.slot = o.slot
+   where ps.active_kind = c.ch
+     and ps.active_since <= now() - interval '2 hours'
+     and ps.accrued_to > now() - interval '24 hours'
+     and not exists (select 1 from public.party_member m
+                       join public.party_hunt ph on ph.party_id = m.party_id
+                      where m.user_id = o.user_id and m.slot = o.slot
+                        and m.left_at is null and ph.ended_at is null
+                        and not coalesce((select r.event <> 'rejoin'
+                                            from public.party_hunt_roster_log r
+                                           where r.hunt_id = ph.id and r.user_id = m.user_id and r.slot = m.slot
+                                           order by r.id desc limit 1), false)))
 select c.ch as channel, h.i, coalesce(c.enabled, false) as enabled,
        (select count(*) from public.hr_tick_cron_log l
          where l.at >= h.lo and l.at < h.hi and l.outcome = 'posted' and l.rostered >= 1) as rost_fires,
@@ -431,21 +460,8 @@ select c.ch as channel, h.i, coalesce(c.enabled, false) as enabled,
            and pl.meta ->> 'src' = 'tick') as tick_rows,
        (select count(*) from public.hr_tick_shadow s
          where s.at >= h.lo and s.at < h.hi and s.channel = c.ch) as shadow_rows,
-       (select count(*) from public.hr_tick_ownership o
-          join public.player_state ps on ps.user_id = o.user_id and ps.slot = o.slot
-         where o.owned and o.channel = c.ch and ps.active_kind = c.ch
-           and ps.active_since <= now() - interval '2 hours'
-           and ps.accrued_to > now() - interval '24 hours') as sentinels,
-       (select count(*) from public.hr_tick_ownership o
-          join public.player_state ps on ps.user_id = o.user_id and ps.slot = o.slot
-         where o.owned and o.channel = c.ch and ps.active_kind = c.ch
-           and ps.active_since <= now() - interval '2 hours'
-           and ps.accrued_to > now() - interval '24 hours'
-           and exists (select 1 from public.player_ledger pl
-                        where pl.user_id = o.user_id and pl.slot = o.slot
-                          and pl.at >= now() - interval '2 hours' and pl.at < now()
-                          and pl.kind = (case c.ch when 'artisan' then 'craft' else c.ch end)
-                          and pl.meta ->> 'src' is distinct from 'tick')) as online_sentinels
+       (select count(*) from s where s.ch = c.ch) as sentinels,
+       (select count(*) from s where s.ch = c.ch and s.online) as online_sentinels
   from c cross join h
  order by c.ch, h.i`;
 /* Runbook V6: one line per armed channel; a STUCK character sets the exit code. */

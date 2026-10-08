@@ -220,8 +220,15 @@ async function arms(db, { log = true } = {}) {
   {
     const Y = await char(uidIn(true), { ago: 30 });        // stuck: 30 min, never paid
     const Z = await char(uidIn(true), { ago: 30 });        // moving: 30 min, paid 1 min ago
-    await own(Y); await own(Z);
+    // Parked (presence horizon): 30 min behind, unpaid, but refused
+    // past_horizon for its current absence — waiting, not stuck.
+    const K = await char(uidIn(true), { ago: 30 });
+    await own(Y); await own(Z); await own(K);
     await tickRow(Z, 1);
+    await q(`insert into public.hr_tick_horizon_log (user_id, slot, anchor_at, channel, horizon_at, cap_ms, mark)
+             select a.user_id, a.slot, a.real_return_at, 'gather', a.real_return_at + interval '12 hours', 43200000,
+                    a.real_return_at
+               from public.hr_return_anchor a where a.user_id = $1 and a.slot = 0`, [K]);
     // Three healthy armed gatherers: fresh, and 35 tick windows in each of the
     // last two hours between them (the aggregate floor is 30/h).
     const H = [await char(uidIn(true), { ago: 0, since: 240 }), await char(uidIn(true), { ago: 0, since: 240 }),
@@ -233,7 +240,7 @@ async function arms(db, { log = true } = {}) {
     let s; try { s = await stall(); } catch (e) { s = { threw: e.message }; }
     const lag = lagOf(s) || {};
     const named = (u) => (lag.stuck_sample || []).some((x) => x.user_id === u);
-    ok('W6', lag.threshold_s === 900 && named(Y) && !named(Z) && !named(A) && !H.some(named)
+    ok('W6', lag.threshold_s === 900 && named(Y) && !named(Z) && !named(K) && lag.parked >= 1 && !named(A) && !H.some(named)
       && lag.stuck >= 1 && Number(lag.worst_s) >= 1800 && lag.judged === true && lag.stalled === true,
       'Y (30 min, unpaid) is STUCK and named; Z (30 min, paid a minute ago) is MOVING; fresh ones are not stuck',
       JSON.stringify(lag));
@@ -248,7 +255,7 @@ async function arms(db, { log = true } = {}) {
       JSON.stringify({ armed_judged: s.armed_judged, armed_stalled: s.armed_stalled, lag_stalled: s.lag_stalled,
         buckets: g.buckets }));
     // Y, Z and the healthy three are operator-owned; leave them for W7.
-    arms.operator = [X, Y, Z, ...H];
+    arms.operator = [X, Y, Z, K, ...H];
 
     // W12: vitals' restatement (runbook V6) reads the same stuck set as the DB.
     let v; try { v = await one(arms.lagSql || VITALS_LAG); } catch (e) { v = { threw: e.message }; }
@@ -436,10 +443,15 @@ const MUTANTS = [
   { name: 'unenrolKeepsDial', fn: 'unenrol', why: 'unenrol leaves permille up, so the cron re-enrols behind it', expect: /W7|W11/,
     find: '  update public.hr_tick_cohort set permille = 0, updated_at = now()\n   where channel = p_channel;\n', repl: '' },
   { name: 'lagIgnoresMoving', fn: 'stall', why: 'a catching-up (moving) gatherer reads as stuck', expect: /W6/,
-    find: "             'stuck',       count(*) filter (where j.lag_s > extract(epoch from c_lag) and not j.moving),",
-    repl: "             'stuck',       count(*) filter (where j.lag_s > extract(epoch from c_lag)),",
-    and: ['               where j2.lag_s > extract(epoch from c_lag) and not j2.moving\n',
-      '               where j2.lag_s > extract(epoch from c_lag)\n'] },
+    find: "             'stuck',       count(*) filter (where j.lag_s > extract(epoch from c_lag) and not j.moving and not j.parked),",
+    repl: "             'stuck',       count(*) filter (where j.lag_s > extract(epoch from c_lag) and not j.parked),",
+    and: ['               where j2.lag_s > extract(epoch from c_lag) and not j2.moving and not j2.parked\n',
+      '               where j2.lag_s > extract(epoch from c_lag) and not j2.parked\n'] },
+  { name: 'lagParkedIsStuck', fn: 'stall', why: 'a PARKED gatherer (paid to its horizon, waiting) reads as stuck', expect: /W6/,
+    find: "             'stuck',       count(*) filter (where j.lag_s > extract(epoch from c_lag) and not j.moving and not j.parked),",
+    repl: "             'stuck',       count(*) filter (where j.lag_s > extract(epoch from c_lag) and not j.moving),",
+    and: ['               where j2.lag_s > extract(epoch from c_lag) and not j2.moving and not j2.parked\n',
+      '               where j2.lag_s > extract(epoch from c_lag) and not j2.moving\n'] },
   { name: 'lagThresholdHour', fn: 'stall', why: 'the lag threshold is an hour (a 30-minute stall is invisible)', expect: /W6|W8/,
     find: "  c_lag      constant interval := interval '15 minutes';", repl: "  c_lag      constant interval := interval '60 minutes';" },
   { name: 'lagFoldedIntoArmedStalled', fn: 'stall', why: 'the lag verdict is folded into armed_stalled (the arm file reads it)', expect: /W8/,
@@ -449,7 +461,10 @@ const MUTANTS = [
   { name: 'vitalsLagHour', fn: 'vitals', why: 'vitals restates the lag rule at 60 min (the person reads OK while the DB reads STUCK)', expect: /W12/,
     find: "         where ps.accrued_to < now() - interval '15 minutes'\n", repl: "         where ps.accrued_to < now() - interval '60 minutes'\n" },
   { name: 'vitalsLagIgnoresMoving', fn: 'vitals', why: 'vitals calls a catching-up character stuck', expect: /W12/,
-    find: "                              and pl.meta ->> 'src' = 'tick')) as stuck,", repl: "                              and false)) as stuck," },
+    find: "                              and pl.meta ->> 'src' = 'tick')\n           -- PARKED", repl: "                              and false)\n           -- PARKED" },
+  { name: 'vitalsParkedIsStuck', fn: 'vitals', why: 'vitals calls a parked gatherer stuck', expect: /W12/,
+    find: '                            where h.user_id = o.user_id and h.slot = o.slot)) as stuck,',
+    repl: '                            where false)) as stuck,' },
   { name: 'grantEngine', fn: 'enrol', why: 'hr_engine is granted EXECUTE on enrol', expect: /W9/,
     find: null, repl: '\ngrant execute on function public.hr_tick_enrol(int) to hr_engine;' },
 ];

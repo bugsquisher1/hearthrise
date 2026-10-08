@@ -723,7 +723,7 @@ export default [
        every other field is self-only PROGRESS, that one was a client-held GEAR
        PERMISSION the realm never mirrored. Re-adding it re-opens §6 with a save. */
     ['bestiary', 'collectionLog', 'homestead',
-      'currentCombatTier', 'buyback', 'dailyGoldStart', 'raids',
+      'currentCombatTier', 'dailyGoldStart', 'raids',
       'muster', 'rallyPledge', 'pendingItemSpends'].forEach((f) =>
       assert(RF.indexOf(f) >= 0, 'THE BUG: G.' + f + ' must be a residue field or every reload forgets it'));
     /* ⚠ `renownHigh` and `toolCarry` LEFT THIS LIST on 2026-09-14 and must NOT

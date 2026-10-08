@@ -952,7 +952,7 @@ window.currentSaveOwnerId=currentSaveOwnerId;
    The rework will RENAME and RETIRE item ids (Wave 3 routes the orphan drops
    into real lines; a cut item is aliased to null). Without this, a rename
    silently vaporises a player's inventory / equipment / collection / locks /
-   buy-back / auto-eat food. ITEM_ALIAS maps oldId→newId (or →null to remove)
+   auto-eat food. ITEM_ALIAS maps oldId→newId (or →null to remove)
    and is applied on EVERY load — aliases accumulate, and a veteran's save may
    carry any historical id. This is the "SAFE TO EXTEND" prerequisite: a rename
    becomes editing one map, not surgery, and it's covered by a round-trip test.
@@ -982,10 +982,6 @@ function remapItemIds(G){
   }
   if(G.lockedItems && typeof G.lockedItems==='object'){
     const next={}; for(const id in G.lockedItems){ const nid=_aliasId(id); if(ok(nid)) next[nid]=G.lockedItems[id]; } G.lockedItems=next;
-  }
-  if(Array.isArray(G.buyback)){
-    G.buyback.forEach(b=>{ if(b&&b.id) b.id=_aliasId(b.id); });
-    G.buyback=G.buyback.filter(b=>b&&ok(b.id));
   }
   if(G.autoActions && G.autoActions.eat && G.autoActions.eat.foodId){
     const nid=_aliasId(G.autoActions.eat.foodId); G.autoActions.eat.foodId=ok(nid)?nid:null;
@@ -10077,16 +10073,10 @@ window.hrUnlockRefusalMessage=hrUnlockRefusalMessage;
 
 /* ── The VENDOR COUNTER → src/screens/shop-counter.js ───────────────────────
    vendorPrice (with its b226 doc block, finally reunited with it),
-   VENDOR_RAW_RATE, vendorSellChunked, Sell 1 / Sell All / Sell Selected, the
-   sell-lock, recordVendorSale and buy-back repurchase moved to the shop screen
-   controller (task #129). Every name is still a global, published there; the
+   VENDOR_RAW_RATE, vendorSellChunked, Sell 1 / Sell All / Sell Selected and the
+   sell-lock moved to the shop screen controller (task #129). Every name is still a global, published there; the
    gold ledger's seam keys are the goldSettle site strings and travelled with
    the code. Pure refactor — identical behaviour. */
-
-/* renderBuyback + openBuyback extracted to src/render/buyback.js (render-layer
-   strangler-fig, task #129). Both remain global via window.* there; repurchase()
-   above calls renderBuyback() bare (resolves to the global) and shop.js's inline
-   onclick="openBuyback()" is unchanged. Pure refactor — identical DOM. */
 
 /* ───── Inventory: ONE renderer ─────
    What stood here was a SECOND bag + paper-doll renderer (~150 lines) that

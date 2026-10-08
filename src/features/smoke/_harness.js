@@ -1643,7 +1643,7 @@ export const gemsOf = () => {
    (MEASURED 2026-09-12 via `buyback` and `rooms`). The fix is not 26 guessed empties — one is
    state a later test reads as real (`skills: {}` is a level-1 character) — so absence is
    RECORDED as the `SNAP_ABSENT` sentinel and `restoreG` `delete`s that key. WHICH 26 and why:
-   snapshot-allowlist-guard §1b. UNRESOLVED: none; the 13 pre-seal empties stand, pinned. */
+   snapshot-allowlist-guard §1b. UNRESOLVED: none; the 12 pre-seal empties stand, pinned. */
 const SNAP_ABSENT = ' HR_SNAP_ABSENT ';
 /* ⚠ NOT one JSON round trip over the whole object — that IS the bug. The literal is built
    first (it keeps an `undefined`-valued key, which is how the absent fields stay
@@ -1789,11 +1789,10 @@ export const snapshotG = () => {
        test pinning it pins the bag for the rest of the run. `?? null`: no envelope
        yet = no key, and JSON drops undefined (SNAP-2). */
     _bankCap: G._bankCap ?? null,
-    /* b4xx (gold slices 2-3): the WORKERS crew and the HOUSE theme/buyback state.
-       The slice-2/3 tests drive hire() (which pushes a worker + debits gold),
-       buyTheme() (equips a theme) and repurchase() (spends the buy-back list), so
-       without these four fields a suite run would gift the player a worker, an
-       equipped theme, or an emptied/edited buy-back list they never chose. */
+    /* b4xx (gold slices 2-3): the WORKERS crew and the HOUSE theme.
+       The slice-2/3 tests drive hire() (which pushes a worker + debits gold) and
+       buyTheme() (equips a theme), so without these fields a suite run would
+       gift the player a worker or an equipped theme they never chose. */
     workers: G.workers,
     houseTheme: G.houseTheme,
     /* ⚠ `ownedThemes` / `ownedCosmetics` WERE HERE AND ARE GONE WITH THE FIELDS
@@ -1822,10 +1821,6 @@ export const snapshotG = () => {
     _serverBag: G._serverBag,
     _bagFromServerAt: G._bagFromServerAt,
     _startKitHintAt: G._startKitHintAt,
-    /* ⚠ `?? []`, NOT bare — SNAP-2, and this one BIT: a character who never sold has
-       no key, JSON drops it, restoreG cannot put back what it has not got, and a test
-       that made a REAL sale left an entry render/shop.js paints as an extra row. */
-    buyback: G.buyback ?? [],
     /* b487: the QUEST MODAL's two slates. `G.daily` (the DAILY_TASK_POOL tasks)
        has been on this list since b138 — its two SIBLINGS never were, and they
        are the ones the goal tests actually drive. GOAL-CLAIM-1 assigns
@@ -2249,13 +2244,13 @@ export const restoreGAndRecord = (snap) => {
 /* SNAP-2's PROBE. Walked once per property test below, so a red names WHICH half of the
    seal broke. Per field: a character that does NOT own it (snapshot → write what a test
    writes → restore) and one that DOES. A swap onto a DETACHED copy, synchronous, so the
-   live G is never written. DECLARED_EMPTY is the 13 pre-seal `?? <empty>` entries PINNED
+   live G is never written. DECLARED_EMPTY is the 12 pre-seal `?? <empty>` entries PINNED
    BY VALUE — a field may decline the sentinel only if named here with its exact value, so
    the count can only fall; a made-up empty is worse than the leak it replaces. */
 const SNAP_DECLARED_EMPTY = {
   activeArtisanRecipe: null, activeArtisanSkill: null, activeAction: null, _dungeonCooldowns: null,
   traits: null, _bankCap: null, heroSlotsUnlocked: null, _heroSlots: null, lockedItems: null,
-  lootFilter: null, lastWelcome: 0, recoveringUntilMs: 0, buyback: [],
+  lootFilter: null, lastWelcome: 0, recoveringUntilMs: 0,
 };
 export const snapRoundTrip = () => {
   const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k), J = (v) => String(JSON.stringify(v)).slice(0, 50);

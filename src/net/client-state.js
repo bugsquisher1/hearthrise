@@ -391,8 +391,6 @@ export const RESIDUE_FIELDS = Object.freeze([
        `player_state.ammo_carry` lands, the server's copy becomes authority and
        this one becomes the prediction, exactly as `toolCarry` did. */
   'ammoCarry',
-  'buyback',        // client-only display state: the 15-entry recently-sold list. The BUY-BACK itself is a
-                    // normal server purchase; losing the list only costs a misclick its undo
   'dailyGoldStart', // {day,gold,earned} — the day's gold baseline the daily goals measure against;
                     // reset on reload = the gold-earned goal restarts from the current balance
   'raids',          // client-held markers for a surface with no projection yet: {lastStrikeDay, solo:{week,…},

@@ -1571,50 +1571,13 @@ export default [
     }
   }),
 
-  // 10th render-layer extraction: the vendor Buy Back modal moved out of
-  // legacy.js to src/render/buyback.js. openBuyback + renderBuyback must stay on
-  // window (repurchase() and repaintBalanceSurfaces() call renderBuyback bare).
-  () => tryRun('render: buy back modal (extracted surface)', () => {
-    assert(typeof window.openBuyback === 'function', 'openBuyback must stay on window');
-    assert(typeof window.renderBuyback === 'function', 'renderBuyback must stay on window');
-    window.openBuyback();
-    const m = document.getElementById('bb-modal');
-    assert(m && m.classList.contains('show'), 'buy-back modal did not open (missing .show)');
-    m.classList.remove('show');
-  }),
-
-  () => tryRun('BUYBACK-FAIL-CLOSED-1: Buy Back offers no enabled buy control while the server has no buy-back verb', () => {
-    // Every repurchase() tap failed closed under armed gold while the sheet painted
-    // enabled 'Buy back · N gp' buttons and the More sheet carried a door to it.
-    const sites = window.HearthriseGoldSites;
-    assert(sites && !sites.isWiredSite('src/screens/shop-counter.js#repurchase'),
-      'repurchase is wired now — reopen the counter from the server list and retire this test');
-    try {
-      window.openBuyback();
-      const body = document.getElementById('bb-modal-body');
-      assert(/The realm keeps no buy-back counter yet/.test(body.textContent), 'the closed reason is missing');
-      const live = [...body.querySelectorAll('button')].filter((b) => !b.disabled);
-      assert(live.length === 0, live.length + ' enabled buy-back control(s) rendered');
-      const door = [...document.querySelectorAll('#more-modal button')].filter((b) => /buy\s*back/i.test(b.textContent) && !b.disabled);
-      assert(door.length === 0, 'the More sheet still opens the buy-back counter');
-    } finally {
-      window.closeAllModals();
-    }
-  }),
-
   () => tryRun('MODAL-BACKDROP-1: a .modal built after boot closes on its backdrop, and the block list never duplicates', () => {
-    // The backdrop listener bound only to boot-time .modal nodes, so buy-back and
-    // the block list ignored a backdrop click; the block list's Escape left a
-    // hidden #blocklist-modal that the next open duplicated.
-    const savedBuyback = window.G.buyback;
+    // The backdrop listener bound only to boot-time .modal nodes, so the block
+    // list ignored a backdrop click; its Escape left a hidden #blocklist-modal
+    // that the next open duplicated.
     const backdrop = (el) => el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     const manage = () => { window.openSettings(); document.querySelector('#settings-body #set-show-blocklist').click(); };
     try {
-      window.G.buyback = [];
-      window.openBuyback();
-      const bb = document.getElementById('bb-modal');
-      backdrop(bb);
-      assert(!bb.classList.contains('show'), 'a backdrop click did not close the buy-back sheet');
       manage();
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       manage();
@@ -1623,7 +1586,6 @@ export default [
       backdrop(document.getElementById('blocklist-modal'));
       assert(!document.querySelector('#blocklist-modal.show'), 'a backdrop click did not close the block list');
     } finally {
-      window.G.buyback = savedBuyback;
       document.querySelectorAll('#blocklist-modal').forEach((el) => el.remove());
       window.closeAllModals();
     }

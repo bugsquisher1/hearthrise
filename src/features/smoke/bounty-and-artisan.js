@@ -827,7 +827,6 @@ export default [
       G.equipment = { weapon: 'copper_ore' };
       G.collection = { copper_ore: true };
       G.lockedItems = { copper_ore: true };
-      G.buyback = [{ id: 'copper_ore', qty: 1, unit: 10 }];
       G.autoActions = { eat: { foodId: 'copper_ore' } };
       window.remapItemIds(G);
       assert(G.inventory.iron_ore === 7 && !('copper_ore' in G.inventory), 'inventory must merge the qty under the new id');
@@ -846,7 +845,6 @@ export default [
       }
       assert(G.collection.iron_ore && !G.collection.copper_ore, 'collection must remap');
       assert(G.lockedItems.iron_ore && !G.lockedItems.copper_ore, 'locks must remap');
-      assert(G.buyback[0] && G.buyback[0].id === 'iron_ore', 'buy-back entries must remap');
       assert(G.autoActions.eat.foodId === 'iron_ore', 'auto-eat food id must remap');
       // A cut item (aliased to null) is dropped safely, not left as a ghost.
       window.ITEM_ALIAS.iron_ore = null;
@@ -2227,14 +2225,14 @@ export default [
     assert(tip.style.display === 'none', 'a touch anywhere must clear a stray tooltip (it used to stick until you scrolled)');
   }),
 
-  () => tryRunAsync('b240: sell-lock protects items from selling + vendor buy-back undoes a sale', async () => {
+  () => tryRunAsync('b240: sell-lock protects items from selling', async () => {
     const G = window.G;
     const snap = snapshotG(), bag = serverBagFixture();
     try {
       const id = 'normal_log';
       G.inventory = G.inventory || {}; G.inventory[id] = 100;
       bag.agree();   // the sell counts the SERVER's bag (sellableCount)
-      G.gold = 100000; G.buyback = []; G.lockedItems = {};
+      G.gold = 100000; G.lockedItems = {};
       stampBalanceLikeLoad(G);
       // LOCK — a locked item cannot be sold, and must not cost a round trip.
       window.toggleItemLock(id);
@@ -2246,7 +2244,7 @@ export default [
         assert(rig.sent.length === 0,
           'a locked item still reached the vendor verb: ' + JSON.stringify(rig.sent));
       });
-      // UNLOCK + sell — the sale is recorded for buy-back.
+      // UNLOCK + sell.
       window.toggleItemLock(id);
       assert(window.isItemLocked(id) === false, 'toggleItemLock must unlock');
       /* ── b515 — "SELLING PAYS GOLD" IS THE SERVER'S SENTENCE NOW. `invSellOne`
@@ -2274,49 +2272,6 @@ export default [
           'the sale left a prediction the answer did not retire: '
           + JSON.stringify(window.HearthriseGold.goldPredictions()));
       });
-      assert(G.buyback.length === 1 && G.buyback[0].id === id, 'the sale must be recorded for buy-back');
-      assert(G.buyback[0].unit === price && G.buyback[0].qty === 1,
-        'the buy-back entry must record the price you were PAID, or the undo is not an undo: '
-        + JSON.stringify(G.buyback[0]));
-
-      /* ── BUY BACK: REFUSED, AND THAT IS THE FIX. `repurchase` re-buys at the
-         EXACT price the vendor paid, read off a 15-entry LOCAL list — a
-         client-supplied PAST PRICE. The moment `gold` joined SERVER_OF_RECORD
-         that became a mint (the client naming a price that crosses into an
-         armed balance), and there is no server verb for it yet, so legacy.js
-         fails CLOSED by name. This test used to assert the debit; asserting it
-         now would be asserting the mint.
-
-         ⚠ A REAL PRODUCT GAP, named rather than tested away: buy-back is OFF
-           for every player until a `BUYBACK_LEDGER` verb exists (the vendor's
-           own ledger, priced server-side). Filed with the gem-purchase family
-           in HANDOFFS.md. What must hold while it is off is that the refusal
-           costs the player NOTHING and SAYS so — a silent no-op on an undo
-           button is how a player concludes the item is gone for good.
-           MUTATION: drop the `clientMayWriteRecordField('gold')` gate from
-           repurchase → the "authored" assertion goes red. */
-      const goldAfterSell = goldOf();
-      const heldAfterSell = G.inventory[id];
-      const toasts = [];
-      const realNotify = window.notify;
-      window.notify = function (m) { toasts.push(String(m)); };
-      try { window.repurchase(0); } finally { window.notify = realNotify; }
-      if (window.clientMayWriteRecordField('gold')) {
-        const cost = G.buyback[0].unit * G.buyback[0].qty;
-        assert(G.inventory[id] === 100, 'buy-back must restore the item');
-        assert(goldOf() === goldAfterSell - cost, 'buy-back costs exactly what you were paid (no minting)');
-        assert(G.buyback.length === 0, 'the buy-back entry is consumed');
-      } else {
-        assert(goldOf() === goldAfterSell,
-          'buy-back DEBITED an armed balance from a client-supplied past price (' + goldAfterSell + ' -> '
-          + goldOf() + ') — that price never crossed a server and the entry is a 15-item local list');
-        assert(G.inventory[id] === heldAfterSell,
-          'buy-back handed back the item without a server verb behind it: ' + G.inventory[id]);
-        assert(G.buyback.length === 1,
-          'a REFUSED buy-back consumed its entry — the undo is gone and nothing was undone');
-        assert(toasts.length >= 1 && !/bought back/i.test(toasts.join(' ')),
-          'the refusal was silent, or claimed the buy-back happened: ' + JSON.stringify(toasts));
-      }
     } finally { restoreGAndRecord(snap); bag.restore(); }
   }),
 

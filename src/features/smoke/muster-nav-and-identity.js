@@ -1935,7 +1935,7 @@ export default [
   () => tryRun('SNAP-2a: snapshotG produces a KEY for every field it names, even on a character that owns none of them', () => {
     const r = snapRoundTrip();
     assert(r.fields.length >= 55, 'CONTROL: snapshotG named ' + r.fields.length + ' field(s) — it is not snapshotting the live character, so SNAP-2a/b/c are all vacuous');
-    ['buyback', 'recoveringUntilMs', 'heroSlotsUnlocked', '_bankCap', 'traits', 'rooms', 'skills', 'gold', '_serverBag', '_bagFromServerAt', '_startKitHintAt']
+    ['recoveringUntilMs', 'heroSlotsUnlocked', '_bankCap', 'traits', 'rooms', 'skills', 'gold', '_serverBag', '_bagFromServerAt', '_startKitHintAt']
       .forEach((k) => assert(r.fields.indexOf(k) >= 0, k + ' is not on the snapshot list at all, so no test can put it back — it leaks for the rest of the run'));
     assert(!r.noKey.length, 'snapshotG produced NO KEY for ' + r.noKey.join(', ') + ' on a character that does not own it. JSON.stringify drops '
       + 'undefined and restoreG walks Object.keys(snap), so it puts nothing back and whatever a test writes there is inherited by every test '

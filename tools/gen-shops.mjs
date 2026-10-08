@@ -575,17 +575,6 @@ const DERIVED_PRICES = [
       + 'catalogue and the rate as a constant. This is the cheapest of the six to close.',
   },
   {
-    id: 'vendor.buyback',
-    name: 'Vendor buy-back price',
-    where: 'src/legacy.js repurchase()',
-    currency: 'gold',
-    formula: 'buyback[i].unit * buyback[i].qty — the unit price RECORDED at sale time',
-    params: {},
-    server_needs: 'a server-side buyback ledger. The price is a property of a past transaction, '
-      + 'not of the catalogue, so it can never be a static row — and a client-supplied unit '
-      + 'price is a mint.',
-  },
-  {
     id: 'clan_building.*',
     name: 'Clan seat building costs',
     where: 'src/features/clan-seat-ui.js BUILDINGS + materialScale()',

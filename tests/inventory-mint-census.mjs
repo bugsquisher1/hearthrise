@@ -141,21 +141,19 @@ const BASELINE = {
   /* 2026-09-14 (screen-controller extraction): `b.id` LEFT this lane. It was
      `addItem(b.id, b.qty)` in `repurchase` — the vendor BUY-BACK, which returns
      an item the player just sold at the price they got — and it moved, verbatim,
-     to src/screens/shop-counter.js together with the whole vendor counter. It is
-     baselined there, under the same rules; nothing about the mint changed. `id`
-     stays here because several other legacy.js sites still use that token. */
+     to src/screens/shop-counter.js together with the whole vendor counter, where
+     it was DELETED with the buy-back (2026-10-08). `id` stays here because
+     several other legacy.js sites still use that token. */
   'src/legacy.js': [
     "'hearth_token'", 'cur', 'id', 'kv[0]',
     'r.item', 'res.produced.id',
     'inv:id', 'inv:old',
   ],
-  /* THE SHOP COUNTER. Two mints, both a PURCHASE the player just paid for:
+  /* THE SHOP COUNTER. One mint, a PURCHASE the player just paid for:
      `id` = buyShopItem (the Equip/Seed shop rows, routed through the
-     `seam:shop.buy` gold site) and `b.id` = repurchase (the vendor buy-back,
-     `src/screens/shop-counter.js#repurchase` in the gold ledger, deferred behind
-     B.BUYBACK_LEDGER). Neither is a new lane — both are the same rows they were
-     in the monolith, now readable in the file that owns the gesture. */
-  'src/screens/shop-counter.js': ['b.id', 'id'],
+     `seam:shop.buy` gold site). `b.id` (the vendor buy-back's repurchase) is
+     DELETED with the buy-back (2026-10-08). */
+  'src/screens/shop-counter.js': ['id'],
   'src/features/muster.js': ["'muster_seal'", 'it.id'],
   'src/features/raids.js': ['chest.sig', 'id'],
   'src/features/renown.js': ['rw.item'],

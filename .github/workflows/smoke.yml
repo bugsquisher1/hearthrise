@@ -50,7 +50,7 @@ permissions:
 # and the second time this workflow has raised that number rather than the
 # question underneath it.
 #
-# The steps are now partitioned by what they NEED, into TWELVE jobs that run in
+# The steps are now partitioned by what they NEED, into THIRTEEN jobs that run in
 # parallel, so the wall clock is the slowest family rather than the sum:
 #
 #   job                  needs                      MEASURED   timeout (= x2)
@@ -60,9 +60,10 @@ permissions:
 #   db-replay-4          an applied migration chain   6.9 min  16 [5]
 #   db-replay-2          an applied migration chain  10.8 min  19 [1][4]
 #   db-replay-3          an applied migration chain  10.4 min  21 [4][6]
-#   db-replay-5          an applied migration chain  10.0 min  20 [6]
+#   db-replay-5          an applied migration chain   9.7 min  20 [6][8]
 #   db-replay-6          an applied migration chain  10.0 min  21 [7]
 #   db-replay-7          an applied migration chain  10.6 min  22 [7]
+#   db-replay-8          an applied migration chain   9.0 min  20 [8]
 #   utc-midnight-replay  an applied migration chain   6.85 min 14 [2]
 #   client-guards        nothing but this repo        4.3 min   9 [3]
 #   edge                 the live gateway              0.5 s    5 (floor)
@@ -129,6 +130,13 @@ permissions:
 #     1105 s on other runs today) — the table lines above for those jobs are
 #     STALE and every one of them is past x2 of its timeout; they are not
 #     re-stated here (not moved by this split) and are owed a re-measure.
+# [8] db-replay-5 SPLIT IN TWO 2026-10-08 (CI-SPLIT-6): run 37725703255
+#     (next@3ea45544) CANCELLED db-replay-5 at 20 min; the probe step took
+#     765 s (42 s on main@e6a12d3a) — single-core replay bars, fixed in the
+#     same lane (see db-replay-8's header). The pricing family moved to
+#     db-replay-8. db-replay-5 keeps the write-safety family: 313 s on the
+#     green run 37722343238, x1.86 for the slow run's variance = 582 s
+#     (9.7 min), inside its unchanged 20-min budget.
 # [7] NEW 2026-10-07 (lane b564-hollow-mutants): thirteen mutation proofs that
 #     no step ran, plus tests/mutant-control.mjs. Measured locally; see the
 #     jobs' own header for the per-step sums.
@@ -2097,10 +2105,19 @@ jobs:
   # scale and line, max HP carry) moved here whole; db-replay-5 keeps the
   # write-safety family.
   #
-  # MEASURED: __MEASURE8__
+  # MEASURED locally 2026-10-08 (`run-ci-local --job db-replay-8`,
+  # HR_REPLAY_THREADS=4 = the runner's cores, on a dev box ~67 % busy with
+  # other lanes): 1160 s. The same box ran the UNCHANGED steps 1.5-3.6x
+  # slower than GitHub (verify 112 vs 36-68 s, vigour-scale 58 vs 18-40,
+  # max-hp 29 vs 8), and the OLD serial probe step 1356-2034 s locally vs
+  # 367-899 s on GitHub (x2.26 on the slow pair). Scaled by that slow-pair
+  # factor: probe step 599 -> ~265 s, vigour-line 334 -> ~134 s; plus
+  # GitHub's own slowest observed verify 68 + resume 4 + perks/bestiary 10 +
+  # vigour-scale 40 + max-hp 8 + setup ~11 = ~540 s (9.0 min). Budget = x2
+  # rounded up = 20 min. Re-measure from the first GitHub run and tighten.
   db-replay-8:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4

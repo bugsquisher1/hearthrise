@@ -32,9 +32,9 @@
 // roster settle — is slices 2 to 5 and does not exist for a player today. The
 // panel says so in one line rather than implying it with a greyed-out button,
 // because a disabled control is a promise with a date attached and this one has
-// no date. `share_bp`, `xp` and `gold` arrive from the frozen view as NULL and
-// are deliberately not rendered at all: a column of em-dashes is a worse lie
-// than an absent column.
+// no date. `share_bp`, `xp` and `gold` are not in the roster read at all
+// (retired from hr_party_view by 2026-10-15-party-hunt-view.sql); the hunt's
+// numbers are hr_party_hunt_view's, rendered by the hunt card's own lane.
 //
 // No hardcoded colours — every colour is a token (CLAUDE.md §7); the rules live
 // in src/styles/legacy.css under THE PARTY PANEL. No new breakpoint: the frozen

@@ -1992,6 +1992,8 @@ jobs:
   #     sweep-5 17 + gem-daily-budget 2 plain + 16 mutate = 528 s, + verify
   #     ~64 + setup ~11 = 603 s (10.05 min). Budget = x2 = 20.1, rounded up to 21.
   #     + frame-self-echo (2026-10-07, measured locally): 2 s plain + 45 s mutate.
+  #     + party-hunt-view (2026-10-15, measured locally): ~30 s plain + ~30 s
+  #     mutate cold (2 s + 6 s template-warm). Job total NOT re-measured here.
   db-replay-6:
     runs-on: ubuntu-latest
     timeout-minutes: 21
@@ -2076,6 +2078,31 @@ jobs:
           node tests/world-tick-m4-party-horizon.mjs --mutate
           node tests/world-tick-arm-combat.mjs
           node tests/world-tick-arm-combat.mjs --mutate
+
+      # Party hunt view (2026-10-15-party-hunt-view.sql, Game Designer A1-A3):
+      # the member-only read of the party hunt, keyed on (JWT uid, own slot),
+      # names never ids, its own 20/min bucket; the per-(hunt, member) tally is
+      # the ledger; hr_party_view retires share_bp/xp/gold. §7 drives the REAL
+      # settle: ATTENDED (a present hunter's windows) and AWAY (camping →
+      # rejoining → hunting, camping_today at the clamp). --mutate: 18 mutants
+      # (non-member reads, ids leak, another party's hunt/events, rate gate
+      # bypassed, ...). Measured locally 2026-10-15: 2 s plain + 6 s mutate
+      # template-warm (~30 s each cold).
+      - name: Party hunt view — members read their own hunt by name, nobody else reads it
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/party-hunt-view.mjs
+          node tests/party-hunt-view.mjs --mutate
+
+      # party_hunt SELECT lockdown (2026-10-15-party-hunt-select-lockdown.sql,
+      # Security GO-WITH-CHANGES #2): stopped_by can carry a co-member uuid, so
+      # no client reads party_hunt directly — zero policies, no client grant,
+      # a grep proof over src/** + supabase/functions/**. --mutate: 3 mutants.
+      - name: Party hunt — no client reads the table directly
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/party-hunt-select-lockdown.mjs
+          node tests/party-hunt-select-lockdown.mjs --mutate
 
       # NO SELF-ECHO FRAMES (2026-10-09-frame-self-echo.sql). A player's own
       # HTTP write is not pushed back to their own topic; another character's

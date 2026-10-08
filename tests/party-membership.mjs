@@ -617,12 +617,18 @@ try {
     await as(C);
     const denied = await call(`public.hr_party_view('${p2.p}'::uuid)`);
     const keys = view?.members?.[0] ? Object.keys(view.members[0]).sort() : [];
-    const FROZEN = ['combat_level', 'gold', 'hp', 'hp_max', 'name',
-      'recovering_until', 'share_bp', 'xp'];
+    // FIVE once 2026-10-15-party-hunt-view.sql is in the replay (A2: share_bp /
+    // xp / gold retired in favour of hr_party_hunt_view); EIGHT in a replay that
+    // stops before it (--mutate stops at the patched S1 file). Either way an
+    // EQUALITY, and the file that changed it is the one that must be present.
+    const retired = (await q("select to_regprocedure('public.hr_party_hunt_view(integer)') is not null as x"))[0].x;
+    const FROZEN = retired
+      ? ['combat_level', 'hp', 'hp_max', 'name', 'recovering_until']
+      : ['combat_level', 'gold', 'hp', 'hp_max', 'name', 'recovering_until', 'share_bp', 'xp'];
     judge('P-VIEW', view?.ok === true
       && JSON.stringify(keys) === JSON.stringify(FROZEN)
       && denied?.error === 'not_in_party' && !('members' in (denied || {})),
-      'hr_party_view answers a member with the FROZEN eight-key shape and refuses a non-member '
+      'hr_party_view answers a member with the FROZEN key shape (five after party-hunt-view) and refuses a non-member '
       + 'with not_in_party carrying no roster — the one cross-user read M8 adds, and the one '
       + 'place a column would have to be argued for',
       `member shape ${JSON.stringify(keys)} (want ${JSON.stringify(FROZEN)}); `
@@ -726,6 +732,6 @@ if (MUTATE) {
     + 'spread is re-checked on accept; a party a character LEFT can be rejoined and an expired '
     + 'card is not a permanent lock on the door; the policies neither recurse nor need a '
     + 'predicate grant; '
-    + 'hr_party_view is frozen at eight keys and refuses a non-member; and S-11 refuses an accept '
+    + 'hr_party_view is frozen (five keys after party-hunt-view) and refuses a non-member; and S-11 refuses an accept '
     + 'the day hr_party_hunt_live starts answering TRUE.');
 }

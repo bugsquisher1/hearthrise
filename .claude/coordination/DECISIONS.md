@@ -4,6 +4,19 @@ _Team-wide decisions and their rationale. Append newest at top. Every entry: DEC
 
 ---
 
+### 2026-10-08 — THE CREW SHARES ONE HEARTH; THE CASTLE GETS A THRONE ROOM (lane econ-crew-and-sink)
+**Game Designer, acting under design authority. Binding until superseded. Measured with `tools/econ-sim.mjs` over the real engines.**
+
+**1 · CREW → seats + a gentler curve, NOT a flat curve.** Hired hands earned 60-71% of casual/engaged gold by day 90 (casual 38.4M, engaged 91.6M banked) because the crew settles 24h a day and every hand is Lv10 inside a week. Ruling: +0.5%/level (10% → 14.5%, a trained hand still +45%), and the first three WORKING hands keep full pace while the 4th/5th/6th work at 50/35/25% (oldest hire first; a parked hand frees its seat). Day 90: casual 15.0M, engaged 58.7M; day 1-7 income -4% / -3%. A full Lv10 castle crew = 0.59 active-equivalents. REJECTED: zeroing the step (deletes worker levelling), crediting the crew only up to the 12h offline cap (casual day 1-7 income -23%, engaged untouched). One model, `src/core/workers.js`, for the settle and the crew screen.
+
+**2 · RECURRING SINK → the Throne Room.** After the castle you furnish it: 30 named pieces, 500k rising 16% a rung (265M in all), ending on The Throne. Gold only, prestige only — no xp, yield, speed, renown or offline time (PROG-08: a gold sink must not sell throughput; gold never becomes renown). Sold by the unchanged `hr_unlock_buy` (server price, castle gate, one rung per call, 32/namespace/day, ledger). Sim: the grinder buys 27 of 30 by day 90, five of them in days 61-90; casual and engaged buy their first pieces after day 30.
+
+**Player-facing changelog lines:** "**Hired hands share one hearth.** Your first three workers keep full pace; a fourth, fifth and sixth work at half, a third and a quarter pace, and a worker's training is worth a little less per level (14.5% of your pace at level 10, was 17.2%). Park a hand and the next one moves up." · "**The Throne Room.** Your castle is no longer the end of the road: furnish its great hall piece by piece, thirty pieces in all, from swept flagstones to the Throne itself."
+
+**AFFECTED:** Systems (engine carry now stored as full-pace progress — W13), Security (GO on `2026-10-08-throne-room.sql`), Coordinator (apply, then hr-accrue deploy), Art Director (handoff below).
+
+---
+
 ### 2026-09-26 — FIELD SALVAGE (content pack 6): the collection faucet, the rows, the reveal
 **Game Designer, acting under design authority. Binding until superseded.**
 

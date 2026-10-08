@@ -103,7 +103,7 @@
 // a test's override IS the transport (accrue.js's rule, same reason).
 // ============================================================================
 
-import { isServerAccrualEnabled, resolveActiveSlot, isInventoryAbsolute, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileWorkers, reconcileHeroSlots, reconcilePlayStreak, reconcileToolCarry, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileHp, reconcileFall, announceFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=564';
+import { isServerAccrualEnabled, resolveActiveSlot, isInventoryAbsolute, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, reconcileInventory, reconcileBank, reconcileBankRungs, reconcileThroneRoom, reconcileWorkers, reconcileHeroSlots, reconcilePlayStreak, reconcileToolCarry, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileHp, reconcileFall, announceFall, reconcileEventCounters, reconcileAwayReceipt } from './accrue.js?v=564';
 /* THE CAPSTONE RESIDUE FEED (blob-retire). One hr_load envelope populates BOTH
    the authority record (applyRecord) and the self-only residue bag
    (applyClientState). No cycle: client-state.js does not import record.js. */
@@ -1766,6 +1766,9 @@ function settle(verdict) {
          of the ladder this session will see. Fail-closed on a missing `progress`
          array (leaves G.bank alone) and idempotent on a non-idle boot. */
       reconcileBankRungs(G, verdict.body);
+      /* The Throne Room rung — same idle-boot class: hr_load is the only
+         statement of it an idle boot sees. */
+      reconcileThroneRoom(G, verdict.body);
       reconcileInventory(G, verdict.body);  // merge-ratchets the full server bag in
       /* b477 — SAME IDLE-BOOT CLASS FOR THE CREW. The worker roster hydrated ONLY
          via applyEnvelopeState (accrue.js), which runs ONLY on accrued:true. On an

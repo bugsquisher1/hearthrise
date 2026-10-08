@@ -3181,3 +3181,11 @@ session dismissal is set) and `__hrDesktopModeHideBanner()`. They exist because 
 only ever be inspected on a real phone in desktop mode, which is why it shipped covering the top bar
 for 250 builds. If you add chrome that also needs to move out from under it, read the CSS variable
 rather than re-measuring the element.
+
+
+## 2026-10-08 · game-designer -> art-director / coordinator · the Throne Room and the crew seat
+
+**Art Director.** The castle card now ends on a functional but plain Throne Room panel (`src/features/homestead.js` `throneRoomHtml`, tokens only): hall name, "n of 30 pieces furnished", the last piece's lore, the next piece + price, a Furnish button, the owned list. It deserves a room-modal treatment like the other rooms, and the hall name (`window.THRONE_ROOM.hallName(n)`, "A Worthy Hall" / "A Grand Hall" / "A Throne Room") should be visible to OTHER players on profile/inspect — that visibility is the reason a prestige sink is wanted in a shared world. The crew row now says " · 4th hand, 50% pace" for a hand outside the first three seats; read it on the 922x423 layout.
+
+**Coordinator.** Lane C order: Security GO on `supabase/migrations/2026-10-08-throne-room.sql` → apply → hr-accrue deploy (`src/core/workers.js` seats + `gold-ladder-catalogue.js` forwards `throne_room.*`) → client half rides the cut. Until the deploy, the Edge refuses `throne_room.*` by shape and the old crew pace is paid; the crew screen would quote the new (lower) pace a few hours early — deploy the edge with the client.
+

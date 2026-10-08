@@ -87,6 +87,7 @@ const REPAIR_AFTER_WIPE = [
   '2026-08-22-companion-grant.sql',                    // the 17 non-shop companions
   '2026-09-05-companion-unlock-catalogue-reseed.sql',  // the 17 again, derived from the allowlist
   '2026-09-18-retired-iap-catalogue-removal.sql',      // seeds nothing: removes the two retired entitlement:* rows b505 stopped generating. After a wipe + regen its targets are absent and it is a guarded no-op, but it WRITES hr_unlocks, so it is listed.
+  '2026-10-08-throne-room.sql',                        // throne_room — the castle's 30-rung recurring gold sink (upsert, idempotent)
 ];
 
 /** The seventeen ids the 2026-08-23 refill destroyed, pinned BY VALUE (b493:

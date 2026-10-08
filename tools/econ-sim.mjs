@@ -53,6 +53,7 @@ import { MATERIAL_TIERS } from '../src/data/gear-tiers.js';
 import { EQUIP_SLOTS, expandItemSlot } from '../src/data/gathering.js';
 import { GOLD_LADDER_OFFERS } from '../src/data/gold-ladders.js';
 import { COMPANION_OFFERS } from '../src/data/companion-unlocks.js';
+import { THRONE_ROOM_OFFERS } from '../src/data/throne-room.js';
 import {
   priceDailyLogin, DAILY_LOGIN_CYCLE, DAILY_LOGIN_MAX_WEEK_MULT,
 } from '../src/data/rewards.js';
@@ -154,6 +155,7 @@ export const DEFAULT_KNOBS = Object.freeze({
   marketMarkup: 2,      // an unmakeable sink item is bought from players at this x its vendor bid
   greedy: 0,            // 1 = fresh archetypes put every away hour on the single best option
   dayBudget: 0,         // override of the server's daily gold budget (0 = the migration's value)
+  throneRoom: 1,        // 1 = the Throne Room ladder is on sale (src/data/throne-room.js); 0 = without it
   upkeepBp: 0,          // recurring sink: bp/day of the gold already sunk into rooms+property+workers
   workerMult: 1,        // crew output multiplier (anchor tightening)
   workerEffPerLvl: WORKER_EFF_PER_LVL, // the crew curve's per-level step (src/core/workers.js)
@@ -431,7 +433,7 @@ function runChain(chain, hours, stock) {
 }
 
 // ── 6. SINKS ───────────────────────────────────────────────────────────────
-function sinkCatalogue() {
+function sinkCatalogue(knobs) {
   /* Every ONE-TIME gold purchase the server sells: the unlock catalogue
      (rooms, property — castle included), the gold ladders (crew, farm land,
      bank), the companions. A row is buyable only when every ITEM it costs is
@@ -448,6 +450,15 @@ function sinkCatalogue() {
   for (const o of COMPANION_OFFERS) {
     rows.push({ id: o.offer_id, cat: 'companions', ladder: o.unlock_id, rung: o.value, gold: o.gold, reqTier: o.req_property_tier || 0,
       items: Object.assign({}, o.items, o.req_item ? { [o.req_item]: 1 } : {}), reqSkill: o.req_skill, reqSkillLv: o.req_skill_level || 0 });
+  }
+  /* THE RECURRING SINK (src/data/throne-room.js): prestige, not throughput, so
+     a player buys it LAST — only on a day when no functional sink is on offer
+     (`luxury`). That is the honest model of a player who will not furnish a
+     throne room while a worker or a bank rung is still for sale. */
+  if (knobs.throneRoom) {
+    for (const o of THRONE_ROOM_OFFERS) {
+      rows.push({ id: o.offer_id, cat: 'throne', ladder: o.unlock_id, rung: o.value, gold: o.gold, reqTier: o.req_property_tier, items: o.items, luxury: true });
+    }
   }
   return rows;
 }
@@ -477,8 +488,8 @@ export function simulate(arch, days, caps, knobsIn) {
   const price = makePricer(knobs);
   const skills = startSkills(arch.start);
   const inn = { kills: 0, bounties: 0, vendor: 0, login: 0, quests: 0, market: 0 };
-  const out = { rooms: 0, property: 0, workers: 0, companions: 0, bank: 0, plots: 0, tax: 0, upkeep: 0, mktbuy: 0 };
-  const sinks = sinkCatalogue();
+  const out = { rooms: 0, property: 0, workers: 0, companions: 0, bank: 0, plots: 0, tax: 0, upkeep: 0, mktbuy: 0, throne: 0 };
+  const sinks = sinkCatalogue(knobs);
   const owned = new Set();
   const crew = [];
   const stock = {};
@@ -487,6 +498,9 @@ export function simulate(arch, days, caps, knobsIn) {
   let cappedDays = 0;
   let sellerTax = 0;
   let exhaustedDay = null;
+  let throneRungs = 0;       // Throne Room pieces bought (the recurring sink)
+  let throneLastDay = null;  // the last day one was bought — "still spending at day N"
+  const throneDays = [];     // every day a piece was bought
   const daily = [];
   /* WHO MADE IT: gold by (source | actor | item | activity), per day, so a
      total can be traced to the thing producing it. actor = active (player at
@@ -662,9 +676,11 @@ export function simulate(arch, days, caps, knobsIn) {
          pace is gated by gold, not by a skill the archetype never trains. */
       const mkt = (s) => Object.entries(s.items || {})
         .reduce((x, [it, q]) => x + (obtainable(it) ? 0 : q * Math.max(1, price(it)) * knobs.marketMarkup), 0);
-      const avail = sinks.filter((s) => !owned.has(s.id) && s.reqTier <= t
+      const open = sinks.filter((s) => !owned.has(s.id) && s.reqTier <= t
         && (!s.reqSkill || lv(skills, s.reqSkill) >= s.reqSkillLv)
-        && sinks.every((p) => p.ladder !== s.ladder || p.rung >= s.rung || owned.has(p.id)))
+        && sinks.every((p) => p.ladder !== s.ladder || p.rung >= s.rung || owned.has(p.id)));
+      const needs = open.filter((s) => !s.luxury);
+      const avail = (needs.length ? needs : open)
         .map((s) => ({ s, m: mkt(s) }))
         .sort((a, b) => (a.s.gold + a.m) - (b.s.gold + b.m));
       const pick = avail[0];
@@ -673,9 +689,10 @@ export function simulate(arch, days, caps, knobsIn) {
       gold -= s.gold + pick.m; out[s.cat] += s.gold; owned.add(s.id);
       out.mktbuy += pick.m;
       sellerTax += pick.m * caps.marketTaxBp / 10000;   // burned out of the SELLER's proceeds, not ours
+      if (s.cat === 'throne') { throneRungs++; throneLastDay = d + 1; throneDays.push(d + 1); }
       if (s.cat === 'workers') crew.push({ xp: 0, node: chain ? Object.keys(chain.nodeUnits)[0] : (sell && sell.node) });
     }
-    if (exhaustedDay === null && owned.size === sinks.length) exhaustedDay = d + 1;
+    if (exhaustedDay === null && sinks.every((s) => s.luxury || owned.has(s.id))) exhaustedDay = d + 1;
     daily.push({ day: d + 1, gold, taxSoFar: Math.floor(out.tax), chain: chain && chain.out, cl, crew: crew.length,
       crewLv: crew.map((w) => workerLevel(w.xp / knobs.workerXpMult)),
       levels: { mining: lv(skills, 'mining'), woodcutting: lv(skills, 'woodcutting'), smithing: lv(skills, 'smithing'), stonemason: lv(skills, 'stonemason'), combat: cl } });
@@ -687,6 +704,7 @@ export function simulate(arch, days, caps, knobsIn) {
     archetype: arch.id, days, in: inn, out: mapFloor(out), totIn, totOut, net: totIn - totOut, gold,
     goldPerDayLast: days > 1 ? last.gold - daily[daily.length - 2].gold + 0 : last.gold,
     sellerTax: Math.floor(sellerTax), exhaustedDay, sinksOwned: owned.size, sinksTotal: sinks.length, cappedDays,
+    throneRungs, throneLastDay, throneDays,
     combatLevel: last.cl, chain: last.chain, crew: crew.length, attrib,
     trace: daily.map((x) => ({ day: x.day, gold: x.gold, crew: x.crew, crewLv: x.crewLv, levels: x.levels })),
   };
@@ -712,11 +730,11 @@ export function runAll(caps, knobs, horizons = HORIZONS) {
 }
 function printTable(res, title) {
   console.log(`\n${title}`);
-  console.log('archetype  days |   kills  bounty  vendor   login  quests  market |  sunk(rooms/prop/crew/comp/bank/plot/tax/upkeep/mkt-buys) |      net  balance  nothing-left-day  chain');
+  console.log('archetype  days |   kills  bounty  vendor   login  quests  market |  sunk(rooms/prop/crew/comp/bank/plot/tax/upkeep/mkt-buys/throne) |      net  balance  needs-done-day  throne(last buy)  chain');
   for (const r of res) {
     const i = r.in; const o = r.out;
     console.log(`${r.archetype.padEnd(9)} ${String(r.days).padStart(5)} | ${[i.kills, i.bounties, i.vendor, i.login, i.quests, i.market].map((x) => fmt(x).padStart(7)).join(' ')} | `
-      + `${[o.rooms, o.property, o.workers, o.companions, o.bank, o.plots, o.tax, o.upkeep, o.mktbuy].map(fmt).join('/').padEnd(52)} | ${fmt(r.net).padStart(8)} ${fmt(r.gold).padStart(8)} ${String(r.exhaustedDay ?? '—').padStart(8)} (${r.sinksOwned}/${r.sinksTotal})  ${r.chain || '-'}${r.cappedDays ? ` [budget-capped ${r.cappedDays}d]` : ''}`);
+      + `${[o.rooms, o.property, o.workers, o.companions, o.bank, o.plots, o.tax, o.upkeep, o.mktbuy, o.throne].map(fmt).join('/').padEnd(59)} | ${fmt(r.net).padStart(8)} ${fmt(r.gold).padStart(8)} ${String(r.exhaustedDay ?? '—').padStart(8)} (${r.sinksOwned}/${r.sinksTotal})  ${String(r.throneRungs).padStart(2)}/30 (d${r.throneLastDay ?? '-'})  ${r.chain || '-'}${r.cappedDays ? ` [budget-capped ${r.cappedDays}d]` : ''}`);
   }
 }
 
@@ -770,6 +788,18 @@ function selftest(caps) {
   const u1 = simulate(ARCHETYPES[2], 7, caps, { upkeepBp: 100 });
   ok(u1.out.upkeep > 0, 'upkeepBp=100 produced no upkeep sink');
   ok(base.in.login === DAILY_LOGIN_CYCLE[0].gold, `day-1 login paid ${base.in.login}, cycle says ${DAILY_LOGIN_CYCLE[0].gold}`);
+  /* THE SEATS ARE READ FROM THE SHIPPED MODEL: six full-pace hands (the what-if
+     override) must out-earn the default, or the sim is not pricing the seat. */
+  const s0 = simulate(ARCHETYPES[1], 30, caps, { throneRoom: 0 });
+  const s1 = simulate(ARCHETYPES[1], 30, caps, { throneRoom: 0, crewWeights: [1, 1, 1, 1, 1, 1] });
+  ok(s1.in.vendor > s0.in.vendor, `six full-pace hands did not out-earn the seated crew (${s0.in.vendor} vs ${s1.in.vendor}) — seats not applied`);
+  /* THE RECURRING SINK IS ON SALE, BOUGHT LAST, AND STILL BEING BOUGHT LATE. */
+  const g0 = simulate(ARCHETYPES[2], 60, caps, { throneRoom: 0 });
+  const g1 = simulate(ARCHETYPES[2], 60, caps, {});
+  ok(g0.out.throne === 0 && g1.out.throne > 0, `throneRoom knob does not bite (${g0.out.throne} / ${g1.out.throne})`);
+  ok(g1.exhaustedDay !== null && g1.throneDays.length && g1.throneDays[0] >= g1.exhaustedDay,
+    `a Throne Room piece was bought (day ${g1.throneDays[0]}) before the functional sinks were done (day ${g1.exhaustedDay})`);
+  ok(g1.throneDays.some((d) => d > 45), 'the grinder stopped buying Throne Room pieces before day 45 — the sink is not recurring');
   if (problems.length) { console.error('econ-sim --selftest RED:\n  ' + problems.join('\n  ')); return 1; }
   console.log(`econ-sim --selftest green: planted faucet seen (+${fmt(planted.in.vendor - base.in.vendor)}), knobs bite, caps from ${caps.sources.dayGoldBudget}`);
   return 0;
@@ -835,30 +865,33 @@ if (import.meta.url === `file://${process.argv[1]}` || process.argv[1].endsWith(
     /* The recommendation's evidence: each candidate change, re-simulated, read
        at 30 and 90 days. Balance at the horizon and the day the last sink is
        bought are the two numbers "is gold still meaningful" turns on. */
+    /* `b564` reproduces the build before this lane (six full-pace hands at
+       +0.8%/level, no Throne Room) through the knobs, so the ruling is read
+       against the same baseline the brief measured. */
+    const B564 = { workerEffPerLvl: 0.008, crewWeights: [1, 1, 1, 1, 1, 1], throneRoom: 0 };
     const CANDIDATES = [
-      ['today (shipped craft anchor)', {}],
-      ['today, greedy one-skill archetype', { greedy: 1 }],
-      ['crew credited only up to the offline cap', { crewCapH: caps.offlineBaseH }],
-      ['crew output x0.5', { workerMult: 0.5 }],
-      ['crew output x0.4', { workerMult: 0.4 }],
-      ['crew output x0.6', { workerMult: 0.6 }],
-      ['crew curve flat: every level at base 0.10', { workerEffPerLvl: 0 }],
-      ['crew curve half-step 0.004/level', { workerEffPerLvl: 0.004 }],
-      ['crew x0.5 + crew offline-capped', { workerMult: 0.5, crewCapH: caps.offlineBaseH }],
-      ['upkeep 1%/day of rooms+property+crew', { upkeepBp: 100 }],
-      ['all bench output at 20% (raw rate)', { craftedRate: 0.2 }],
-      ['daily gold budget 5M', { dayBudget: 5000000 }],
+      ['b564: 6 full-pace hands, +0.8%/lvl', B564],
+      ['proposed: crew curve flat (0.10 every lvl)', { ...B564, workerEffPerLvl: 0 }],
+      ['crew credited only up to the offline cap', { ...B564, crewCapH: caps.offlineBaseH }],
+      ['crew curve half-step 0.004/level', { ...B564, workerEffPerLvl: 0.004 }],
+      ['crew output x0.6', { ...B564, workerMult: 0.6 }],
+      ['RULED crew: seats 100/100/100/50/35/25, +0.5%', { throneRoom: 0 }],
+      ['RULED crew + Throne Room (shipped knobs)', {}],
+      ['RULED crew + Throne Room, greedy archetype', { greedy: 1 }],
+      ['upkeep 1%/day of rooms+property+crew', { ...B564, upkeepBp: 100 }],
+      ['daily gold budget 5M', { ...B564, dayBudget: 5000000 }],
     ];
-    console.log('candidate                                 | ' + ARCHETYPES.map((a) => `${a.id}: d1-7 in/day  d30 bal  d90 bal  all-bought`).join(' | '));
+    console.log('candidate                                       | ' + ARCHETYPES.map((a) => `${a.id}: d1-7 in/day  d30 bal  d90 bal needs-done throne@90 (last buy, buys d61-90)`).join(' | '));
     for (const [label, k] of CANDIDATES) {
       const cells = ARCHETYPES.map((a) => {
         const kk = Object.assign({}, knobs, k);
         const r7 = simulate(a, 7, caps, kk);
         const r30 = simulate(a, 30, caps, kk);
         const r90 = simulate(a, 90, caps, kk);
-        return `${fmt(r7.totIn / 7).padStart(7)} ${fmt(r30.gold).padStart(8)} ${fmt(r90.gold).padStart(8)} ${String(r90.exhaustedDay ?? '>90').padStart(4)}`;
+        return `${fmt(r7.totIn / 7).padStart(7)} ${fmt(r30.gold).padStart(8)} ${fmt(r90.gold).padStart(8)} ${String(r90.exhaustedDay ?? '>90').padStart(4)} `
+          + `${String(r90.throneRungs).padStart(2)}/30 (d${r90.throneLastDay ?? '-'}, ${r90.throneDays.filter((x) => x > 60).length} in d61-90)`;
       });
-      console.log(`${label.padEnd(41)} | ${cells.join(' | ')}`);
+      console.log(`${label.padEnd(47)} | ${cells.join(' | ')}`);
     }
     process.exit(0);
   }

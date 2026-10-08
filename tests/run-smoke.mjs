@@ -2013,6 +2013,14 @@ async function unlockModelPreflight() {
        DERIVED from 2026-08-16-unlock-buy.sql plus one skill gate. A companion
        price/skill edit, a new shop companion, OR a hand-edit of the restated body
        fails here — hr_unlock_buy both charges out of that table and runs that body. */
+    /* The Throne Room (2026-10-08, the castle's recurring gold sink) is generated
+       from src/data/throne-room.js, drift-guarded against homestead.js TIERS
+       (the castle gate) and its own price curve. A price edit, a moved castle or
+       a hand-edit of the migration fails here — hr_unlock_buy charges out of
+       that table. */
+    ['gen-throne-room.mjs', 'Throne Room preflight',
+      'a Throne Room price, the castle tier or the ladder moved and the generated migration no '
+      + 'longer matches src/data/throne-room.js — hr_unlock_buy charges out of that table'],
     ['gen-companion-unlocks.mjs', 'Companion-unlock preflight',
       'a companion price or skill requirement moved, a shop companion was added, or the derived '
       + 'hr_unlock_buy is no longer unlock-buy.sql’s body plus the one declared skill gate'],

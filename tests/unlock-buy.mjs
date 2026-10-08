@@ -541,8 +541,14 @@ async function run(mutate) {
        union the SQL sellable set is measured against. */
     const { COMPANION_OFFERS } = await import(
       pathToFileURL(join(ROOT, 'src', 'data', 'companion-unlocks.js')).href);
+    /* 2026-10-08 — the Throne Room's thirty rungs, forwarded by the SAME
+       isGoldLadderOffer (gold-ladder-catalogue.js) out of src/data/throne-room.js
+       and seeded by 2026-10-08-throne-room.sql. Same rule again: as buyable as a
+       bank rung, so it is in the union. */
+    const { THRONE_ROOM_OFFERS } = await import(
+      pathToFileURL(join(ROOT, 'src', 'data', 'throne-room.js')).href);
     const edgeById = Object.create(null);
-    for (const r of [...GOLD_LADDER_OFFERS, ...COMPANION_OFFERS]) {
+    for (const r of [...GOLD_LADDER_OFFERS, ...COMPANION_OFFERS, ...THRONE_ROOM_OFFERS]) {
       edgeById[r.offer_id] = { gold: r.gold, value: r.value, unlockId: r.unlock_id };
     }
     for (const id of Object.keys(cat.UNLOCK_OFFERS)) edgeById[id] = cat.UNLOCK_OFFERS[id];

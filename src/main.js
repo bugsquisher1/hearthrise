@@ -41,6 +41,7 @@ import { ARTISAN_RECIPES, ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes,
 import { GEAR_LADDERS, MATERIAL_TIERS } from './data/gear-tiers.js?v=564';
 import { COMPANIONS } from './data/companions.js?v=564';
 import { RAID_BOSSES } from './data/raid-bosses.js?v=564';
+import { THRONE_ROOM_PIECES, THRONE_ROOM_RUNGS, throneRoomHallName } from './data/throne-room.js?v=564';
 /* b356 — the review-book catalogue's two published seams. `EFFECT_KINDS` is
    what the reachability guard reads to decide whether an item is legitimately
    not-yet-obtainable; `LIB2_ICON_FILES` is the art batch's work order. Both are
@@ -150,6 +151,10 @@ Object.assign(window, {
   // (which reads window.RAID_BOSSES lazily), the inventory-authority partition and
   // the server-mint catalogue generator (tools/gen-raid-boss-rewards.mjs).
   RAID_BOSSES,
+  // 2026-10-08 — the castle's recurring gold sink (src/data/throne-room.js), read by
+  // src/features/homestead.js to draw the room and quote the next piece. Display
+  // only: hr_unlock_buy re-reads the price it charges out of hr_unlock_offers.
+  THRONE_ROOM: Object.freeze({ PIECES: THRONE_ROOM_PIECES, RUNGS: THRONE_ROOM_RUNGS, hallName: throneRoomHallName }),
   // b220 — artisan taxonomy + food classification, published for the classic
   // scripts (legacy.js renderer, features/auto-actions.js) that cannot import.
   ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes, foodClassOf, isAutoEatable,

@@ -169,6 +169,11 @@ const WORKER_UNLOCK = 'worker_hire';
    BANK_SPACE.gold.slots. See pickBankRung below. */
 const BANK_UNLOCK = 'bank';
 
+/* The Throne Room ladder (src/data/throne-room.js, unlock_id 'throne_room' —
+   30 rungs, the castle's recurring gold sink). Its value IS the number of
+   pieces furnished. See pickThroneRung below. */
+const THRONE_UNLOCK = 'throne_room';
+
 /** Is this a PERMANENT unlock row (period_key = '')? Period rows are dailies /
  *  weeklies and are pruned at 31 days — a rung must never be read out of one.
  *  An ABSENT `period` is treated as permanent: hr_state_of always projects the
@@ -238,6 +243,14 @@ export function pickWorkerRung(res) {
  *  array with no bank row — a real "has bought none yet". */
 export function pickBankRung(res) {
   return highestRung(res, (k) => k === BANK_UNLOCK);
+}
+
+/** The Throne Room rung the SERVER states (pieces furnished, 0..30), or null
+ *  when the envelope does not say. A fourth flat ladder out of the same
+ *  `progress` array, read here for the reason pickBankRung is: one
+ *  `highestRung` / `isPermanentUnlock`, one answer to "what does this player own". */
+export function pickThroneRung(res) {
+  return highestRung(res, (k) => k === THRONE_UNLOCK);
 }
 
 /* ── THE SESSION RECORD: A VALUE **AND** WHAT KIND OF CLAIM IT IS ─────────────
@@ -533,7 +546,7 @@ export function __resetPropertyRecord(tier, workers) {
 
 if (typeof window !== 'undefined') {
   window.HearthriseProperty = {
-    pickPropertyTier, pickWorkerRung, pickBankRung, isCompleteProgressStatement,
+    pickPropertyTier, pickWorkerRung, pickBankRung, pickThroneRung, isCompleteProgressStatement,
     notePropertyUnlocks,
     notePropertyGranted, notePropertyRefusalTier,
     serverPropertyTier, propertyTierKnown, propertyTierExact,

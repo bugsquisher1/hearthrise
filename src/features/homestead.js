@@ -451,6 +451,116 @@
     return true;
   }
 
+  // ════════════════════════════════════════════════════════════════════
+  // 2026-10-08 · THE THRONE ROOM — the castle's recurring gold sink
+  // ════════════════════════════════════════════════════════════════════
+  // The castle card used to end on "The realm is yours." — the end of the
+  // personal spine with a full purse and nothing to want (tools/econ-sim.mjs: a
+  // maxed player owns every sink by day 15-17). After the castle you FURNISH it:
+  // thirty pieces (src/data/throne-room.js, published as window.THRONE_ROOM),
+  // gold only, prestige only, ending on The Throne.
+  //
+  // NOTHING HERE IS AUTHORED BY THE CLIENT. The pieces owned are the SERVER's
+  // `throne_room` rung (reconciled onto the scratch field G._throneRung by
+  // src/net/accrue.js reconcileThroneRoom on every envelope); the purchase is
+  // the offer id `throne_room.<n>` sent through HearthriseGold.buyUnlock, which
+  // hr_unlock_buy prices, gates on the castle and journals. There is NO
+  // client-authoritative fallback: signed out, nothing is sold. An UNKNOWN rung
+  // shows "being counted" and no button, never a guess.
+  function throneRung() {
+    var n = Number(G_()._throneRung);
+    return (isFinite(n) && n >= 0) ? Math.floor(n) : null;
+  }
+  function throneLatch() {
+    var L = window.HearthriseIntentLatch;
+    return (L && typeof L.namedLatch === 'function') ? L.namedLatch('throne_room') : null;
+  }
+  /* (`esc` is the file's own, declared with the room modal below and hoisted.) */
+
+  function throneRoomHtml() {
+    var TR = window.THRONE_ROOM;
+    if (!TR || !TR.PIECES) return '<div class="tiny" style="color:var(--gold-2)">The realm is yours.</div>';
+    var n = throneRung();
+    var head = '<div class="hh-throne" style="border-top:1px solid var(--line-soft);padding-top:8px;margin-top:6px">' +
+      '<div class="hr-label" style="margin-bottom:4px">The Throne Room</div>';
+    if (n === null) {
+      return head + '<div class="tiny muted">Your hall is still being counted…</div></div>';
+    }
+    var hall = TR.hallName(n);
+    var line = '<div class="tiny" style="color:var(--ink-2);margin-bottom:4px">' +
+      (hall ? '<b style="color:var(--gold-2)">' + esc(hall) + '</b> · ' : (n ? '' : 'The great hall stands bare. ')) +
+      n + ' of ' + TR.RUNGS + ' pieces furnished</div>';
+    var last = n > 0 ? '<div class="tiny muted" style="font-style:italic;margin-bottom:6px">' + esc(TR.PIECES[n - 1].lore) + '</div>' : '';
+    var next = '';
+    if (n < TR.RUNGS) {
+      var p = TR.PIECES[n];
+      next = '<div class="tiny" style="margin-bottom:4px;color:var(--ink-2)">Next: <b style="color:var(--gold-2)">' + esc(p.name) +
+        '</b> — ' + p.gold.toLocaleString() + ' gold</div>' +
+        '<button class="btn btn-primary btn-sm" onclick="window.HearthriseHomestead.furnishThroneRoom()">Furnish</button>';
+    } else {
+      next = '<div class="tiny" style="color:var(--gold-2)">The Throne is yours. You have risen.</div>';
+    }
+    var owned = n > 0
+      ? '<div class="tiny muted" style="margin-top:6px">' + TR.PIECES.slice(0, n).map(function (q) { return esc(q.name); }).join(' · ') + '</div>'
+      : '';
+    return head + line + last + next + owned + '</div>';
+  }
+
+  function furnishThroneRoom() {
+    ensureState();
+    var TR = window.THRONE_ROOM;
+    if (!TR || !TR.PIECES || !isCastle()) return false;
+    var n = throneRung();
+    if (n === null) { if (window.notify) notify('Your hall is still being counted — try again in a moment.', 'info'); return false; }
+    if (n >= TR.RUNGS) { if (window.notify) notify('The Throne Room is complete.', 'info'); return false; }
+    var piece = TR.PIECES[n];
+    var h = heldOf('gold');
+    if (!h.known) { if (window.notify) notify('Gold still being counted — try again in a moment.', 'info'); return false; }
+    if (h.have < piece.gold) {
+      if (window.notify) notify(piece.name + ' costs ' + piece.gold.toLocaleString() + ' gold.', 'kill');
+      return false;
+    }
+    var GLD = window.HearthriseGold;
+    var key = (typeof window.goldIntentKey === 'function') ? window.goldIntentKey() : null;
+    if (!(key && GLD && typeof GLD.buyUnlock === 'function')) {
+      if (window.notify) notify('The Throne Room is furnished through the realm — it is not reachable right now.', 'kill');
+      return false;
+    }
+    var latch = throneLatch();
+    if (!latch || latch.held('throne_room')) return false;   // one piece in flight; a held press is silent
+    latch.run('throne_room', function (idem) {
+      return Promise.resolve(GLD.buyUnlock(piece.offer_id, idem));
+    }, { scope: piece.offer_id }).then(function (v) {
+      var c = (typeof window.hrClassifyUnlock === 'function')
+        ? window.hrClassifyUnlock(v)
+        : { ok: !!(v && (v.outcome === 'applied' || v.outcome === 'replayed')), owned: false,
+            reason: (v && v.reason) || 'network' };
+      if (c.ok) {
+        /* The confirm envelope has already been applied (reconcileThroneRoom
+           wrote the server's rung); raising to the rung THIS press bought is
+           idempotent and catches a lean answer up. Never above it. */
+        var G = G_(); var cur = throneRung();
+        G._throneRung = Math.max(cur === null ? 0 : cur, piece.n);
+        if (window.notify) {
+          notify(c.owned ? (piece.name + ' is already in your hall.')
+            : (piece.name + ' — ' + piece.lore + '.'), c.owned ? 'info' : 'levelup');
+        }
+        if (typeof window.refreshAll === 'function') window.refreshAll();
+        renderCard();
+      } else {
+        if (window.notify) {
+          notify((typeof window.hrUnlockRefusalMessage === 'function')
+            ? window.hrUnlockRefusalMessage(c, 'the ' + piece.name)
+            : ('The realm couldn’t record the ' + piece.name + ' — nothing was spent.'), 'kill');
+        }
+        renderCard();
+      }
+    }).catch(function () {
+      if (window.notify) notify('The realm couldn’t record the ' + piece.name + ' right now — nothing was spent. Try again in a moment.', 'kill');
+    });
+    return true;
+  }
+
   // ---------- UI: property card injected at the top of the House panel ----------
   function fmtCostRow(cost) {
     return Object.keys(cost).map(function (k) {
@@ -554,7 +664,7 @@
               '<div class="hh-reqs">' + fmtCostRow(nxt.cost) + '</div>' +
               '<button class="btn btn-primary btn-sm" onclick="window.HearthriseHomestead.upgradeProperty()">Upgrade Property</button>' +
             '</div>'
-          : '<div class="tiny" style="color:var(--gold-2)">The realm is yours. (Clan castles come next.)</div>') +
+          : throneRoomHtml()) +
         '<div id="hh-workers-host"></div>' +
       '</div>';
     host.innerHTML = body;
@@ -1402,6 +1512,8 @@
 
   window.HearthriseHomestead = {
     TIERS: TIERS,
+    furnishThroneRoom: furnishThroneRoom,
+    throneRoomHtml: throneRoomHtml,
     WORKBENCH: WORKBENCH,
     UNGATED: UNGATED,
     ensureState: ensureState,

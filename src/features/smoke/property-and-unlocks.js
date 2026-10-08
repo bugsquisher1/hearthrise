@@ -1162,6 +1162,89 @@ export default [
     }
   }),
 
+  /* 2026-10-08 — THE THRONE ROOM (the castle's recurring gold sink). The player
+     action, played: a castle owner opens the House card, sees the room the SERVER
+     says they own, presses Furnish, and the next piece is bought by OFFER ID ONLY;
+     the room grows only on the server's ok, a refusal moves nothing and says why,
+     and an unknown rung shows no button. MUTATIONS: (a) drop reconcileThroneRoom
+     from applyEnvelopeState → the card never learns the rung → RED; (b) advance
+     G._throneRung before the buy resolves → the refused press shows a piece → RED;
+     (c) send `throne_room.1` regardless of the rung → the offer check is RED. */
+  () => tryRunAsync('THRONE-1 (2026-10-08): Furnish buys the NEXT piece by offer id; the room grows only on the server ok', async () => {
+    const H = window.HearthriseHomestead, P = window.HearthriseProperty, A = window.HearthriseAccrual;
+    assert(H && typeof H.furnishThroneRoom === 'function' && typeof H.throneRoomHtml === 'function',
+      'HearthriseHomestead.furnishThroneRoom / throneRoomHtml are not published');
+    assert(window.THRONE_ROOM && window.THRONE_ROOM.PIECES && window.THRONE_ROOM.PIECES.length === 30,
+      'window.THRONE_ROOM (src/data/throne-room.js) is not published by main.js');
+    assert(A && typeof A.reconcileThroneRoom === 'function', 'HearthriseAccrual.reconcileThroneRoom is not published');
+    const snap = snapshotG();
+    const origGold = window.HearthriseGold, origNotify = window.notify;
+    const prev = P.__resetPropertyRecord();
+    const said = []; const sent = [];
+    let verdict = null;
+    try {
+      // THE SERVER says: a castle, and three pieces furnished.
+      const env = { ok: true, progress_truncated: false, progress: [
+        { kind: 'unlock', key: 'property:castle', value: 5, period: '' },
+        { kind: 'unlock', key: 'throne_room', value: 3, period: '' },
+      ] };
+      delete window.G._throneRung;
+      assert(/still being counted/.test(H.throneRoomHtml()) && !/Furnish/.test(H.throneRoomHtml()),
+        'an UNKNOWN room must read "being counted" with no Furnish button; got ' + H.throneRoomHtml());
+      P.notePropertyUnlocks(env);
+      A.reconcileThroneRoom(window.G, env);
+      assert(window.G._throneRung === 3, 'reconcileThroneRoom did not mirror the server rung: ' + window.G._throneRung);
+      assert(H.getTier() === 5, 'SETUP: the property record should read the castle, got tier ' + H.getTier());
+      const html = H.throneRoomHtml();
+      const fourth = window.THRONE_ROOM.PIECES[3];
+      assert(/3 of 30 pieces furnished/.test(html) && html.indexOf(fourth.name) >= 0 && /Furnish/.test(html),
+        'the card must show 3 of 30 and offer the 4th piece (' + fourth.name + '); got ' + html);
+
+      window.G.gold = 50000000;
+      stampBalanceLikeLoad(window.G);
+      window.notify = function (m, k) { said.push({ m: String(m), k: k }); };
+      window.HearthriseGold = Object.assign({}, origGold, {
+        isGoldIntentEnabled: function () { return true; },
+        newIntentKey: function () { return 'k-throne-' + sent.length; },
+        buyUnlock: function (offer, key) { sent.push(offer); return Promise.resolve(verdict(offer, key)); },
+      });
+
+      // (1) A REFUSAL moves nothing and is spoken as a sentence.
+      verdict = function (offer, key) {
+        return { outcome: 'refused', reason: 'insufficient_gold', verb: 'unlock_buy', key: key,
+          body: { ok: false, error: 'insufficient_gold', detail: { have: 1, need: fourth.gold } } };
+      };
+      assert(H.furnishThroneRoom() === true, 'Furnish did not dispatch at the castle with gold on hand');
+      await new Promise(function (r) { setTimeout(r, 40); });
+      assert(sent[0] === fourth.offer_id, 'Furnish must send the NEXT piece’s offer id ' + fourth.offer_id + '; sent ' + sent[0]);
+      assert(window.G._throneRung === 3, 'a REFUSED piece was shown furnished (rung ' + window.G._throneRung + ')');
+      assert(said.some(function (x) { return x.k === 'kill'; }) && !said.some(function (x) { return /insufficient_gold/.test(x.m); }),
+        'a refusal must be a sentence, not an error code: ' + JSON.stringify(said));
+
+      // (2) THE SERVER OK grows the room by exactly one piece.
+      verdict = function (offer, key) { return { outcome: 'applied', verb: 'unlock_buy', key: key, body: { ok: true } }; };
+      await new Promise(function (r) { setTimeout(r, 700); });   // the latch holds answer + 600 ms
+      assert(H.furnishThroneRoom() === true, 'the second press did not dispatch');
+      await new Promise(function (r) { setTimeout(r, 40); });
+      assert(sent[1] === fourth.offer_id, 'the retry must still buy ' + fourth.offer_id + '; sent ' + sent[1]);
+      assert(window.G._throneRung === 4, 'a CONFIRMED piece did not grow the room by one: rung ' + window.G._throneRung);
+      assert(H.throneRoomHtml().indexOf(window.THRONE_ROOM.PIECES[4].name) >= 0,
+        'after the 4th piece the card must offer the 5th');
+
+      // (3) NOT A CASTLE → nothing is sold, nothing is sent.
+      P.notePropertyUnlocks({ ok: true, progress_truncated: false, progress: [
+        { kind: 'unlock', key: 'property:keep', value: 4, period: '' }] });
+      const n = sent.length;
+      await new Promise(function (r) { setTimeout(r, 700); });
+      assert(H.furnishThroneRoom() === false && sent.length === n, 'a keep was offered a Throne Room piece');
+    } finally {
+      window.HearthriseGold = origGold; window.notify = origNotify;
+      P.__resetPropertyRecord(prev.tier, prev.workers);
+      restoreG(snap);
+      delete window.G._throneRung;
+    }
+  }),
+
   () => tryRunAsync('PROP-OK-1 (b500): a server-CONFIRMED property upgrade advances the tier EXACTLY once', async () => {
     const H = window.HearthriseHomestead;
     if (!H || typeof H.upgradeProperty !== 'function') return;

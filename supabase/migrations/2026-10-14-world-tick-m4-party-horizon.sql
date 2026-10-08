@@ -1525,10 +1525,14 @@ begin
     exception when sqlstate 'HR951' then null;
     end;
 
-    -- ── m5 (3a): C leaves the cohort. The probe ENDS the hunt.
+    -- ── m5 (3a): C leaves the cohort. The probe ENDS the hunt. C still holds
+    --    an OWNED *gather* row, so a channel-agnostic cohort check goes red
+    --    (Security #4).
     begin
       update public.hr_tick_ownership set owned = false
        where user_id = v_c and slot = 0 and channel = 'combat';
+      insert into public.hr_tick_ownership (user_id, slot, channel, owned) values (v_c, 0, 'gather', true)
+      on conflict (user_id, slot, channel) do update set owned = true;
       select count(*) into v_l0 from public.player_ledger where user_id in (v_a, v_b, v_c);
       select coalesce(sum(version), 0) into v_v from public.player_state where user_id in (v_a, v_b, v_c);
       set local role hr_engine;
@@ -1595,11 +1599,14 @@ begin
     exception when sqlstate 'HR951' then null;
     end;
 
-    -- ── m8: the start gate. End the fixture hunt; C is un-owned.
+    -- ── m8: the start gate. End the fixture hunt; C is un-owned for COMBAT
+    --    but holds an owned gather row (a channel-agnostic gate goes red).
     begin
       update public.party_hunt set ended_at = now(), stopped_by = 'gate' where id = v_hunt;
       update public.hr_tick_ownership set owned = false
        where user_id = v_c and slot = 0 and channel = 'combat';
+      insert into public.hr_tick_ownership (user_id, slot, channel, owned) values (v_c, 0, 'gather', true)
+      on conflict (user_id, slot, channel) do update set owned = true;
       perform set_config('request.jwt.claim.sub', v_a::text, true);
       delete from public.hr_rate_counters where user_id in (v_a, v_b, v_c);
       v_r := public.hr_party_hunt_start(0, v_cact, 'steady', '{}'::jsonb, gen_random_uuid());

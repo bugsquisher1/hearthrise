@@ -22,6 +22,10 @@
 //   C4  return 4 h 05 ago: ARM-P3 freshness
 //   C5  eleven probes of 6 h (66 h): ARM-P2 on the count
 //   C19 eleven probes of 4 h (44 h): ARM-P2
+//   C20 the frac-keys party settle (no cohort, no party 8d): ARM-P4
+//   C21 the start-gate hunt start (no cohort gate): ARM-P4
+//   The committed file may carry the placeholder OR the Security-filled pin;
+//   C1 always runs with the placeholder put back.
 //   C6  twelve probes, one CLOSED on another payload (a deploy mid-probe):
 //       11 counted, ARM-P2. (A 48 h shortfall at 12 probes is unconstructible:
 //       hr_tick_probe_span_ck holds every span to 4-6 h, so the file's 48 h
@@ -51,22 +55,43 @@ const CONTROL = Boolean(process.env.HR_MUTANT_CONTROL);
 const ARM = '2026-10-14-world-tick-arm-combat.sql';
 const ARM_SQL = (await readFile(join(ROOT, 'supabase', 'migrations', ARM), 'utf8')).replace(/\r\n/g, '\n');
 const HORIZON_SQL = (await readFile(join(ROOT, 'supabase', 'migrations', '2026-10-10-world-tick-presence-horizon.sql'), 'utf8')).replace(/\r\n/g, '\n');
+const DROP_SQL = (await readFile(join(ROOT, 'supabase', 'migrations', '2026-10-08-world-tick-party-drop.sql'), 'utf8')).replace(/\r\n/g, '\n');
+const GATE_SQL = (await readFile(join(ROOT, 'supabase', 'migrations', '2026-10-09-party-hunt-start-gate.sql'), 'utf8')).replace(/\r\n/g, '\n');
 const PLACEHOLDER = "c_pin   constant text := 'SET-AT-SECURITY-GO';";
 const PIN = 'c0b4a7'.padEnd(64, 'e');
 const OFFPIN = 'bb1c64e2'.padEnd(64, '0');
-if (ARM_SQL.split(PLACEHOLDER).length !== 2) {
-  console.error('harness: the committed arm file does not carry the placeholder pin exactly once'); process.exit(2);
+/* The committed file carries EITHER the placeholder (staged) OR a real 64-hex
+   pin (the Security GO commit fills it — Security #2: the guard must stay green
+   on that commit). Every case runs with the test pin; C1 runs with the
+   placeholder put back, so "an unfilled file never arms" is proven either way. */
+const PIN_LINE = /c_pin   constant text := '(SET-AT-SECURITY-GO|[0-9a-f]{64})';/g;
+if ((ARM_SQL.match(PIN_LINE) || []).length !== 1) {
+  console.error('harness: the arm file does not carry exactly one c_pin line (placeholder or a 64-hex pin)'); process.exit(2);
 }
-const withPin = (sql) => sql.replace(PLACEHOLDER, () => `c_pin   constant text := '${PIN}';`);
+const withPin = (sql) => sql.replace(PIN_LINE, () => `c_pin   constant text := '${PIN}';`);
+const asCommittedUnfilled = (sql) => sql.replace(PIN_LINE, () => PLACEHOLDER);
 
-/** The presence-horizon body of hr_accrue_cap_ms (with the partied short-circuit) — C15. */
-function capWithShortCircuit() {
-  const start = HORIZON_SQL.indexOf('create or replace function public.hr_accrue_cap_ms(');
-  const as = HORIZON_SQL.indexOf('\nas $$', start);
-  const end = HORIZON_SQL.indexOf('$$;', as + 6);
-  if (start < 0 || as < 0 || end < 0) throw Object.assign(new Error('presence-horizon hr_accrue_cap_ms not found'), { harness: true });
-  return HORIZON_SQL.slice(start, end + 3);
+/** A whole `create or replace function public.<name>(` statement out of a migration, any dollar tag. */
+function fnStatement(sql, name) {
+  const start = sql.indexOf(`create or replace function public.${name}(`);
+  const tag = start < 0 ? null : sql.slice(start).match(/\sas (\$[a-z_]*\$)/i);
+  if (!tag) throw Object.assign(new Error(`${name} not found`), { harness: true });
+  const bodyAt = start + tag.index + tag[0].length;
+  const end = sql.indexOf(`${tag[1]};`, bodyAt);
+  if (end < 0) throw Object.assign(new Error(`${name}: no closing ${tag[1]}`), { harness: true });
+  return sql.slice(start, end + tag[1].length + 1);
 }
+/** The presence-horizon body of hr_accrue_cap_ms (with the partied short-circuit) — C15. */
+const capWithShortCircuit = () => fnStatement(HORIZON_SQL, 'hr_accrue_cap_ms');
+/** The frac-keys party settle (party-drop's body + the two remainder keys): no cohort, no (8d) — C20. */
+function settleWithoutCohort() {
+  const anchor = "    'consec_falls','deaths','progress','hearthfind','tool_carry','journal'];";
+  const s = fnStatement(DROP_SQL, 'hr_party_tick_settle');
+  if (s.split(anchor).length !== 2) throw Object.assign(new Error('party-drop c_delta_ok anchor'), { harness: true });
+  return s.replace(anchor, () => "    'consec_falls','deaths','progress','hearthfind','tool_carry','journal','xp_frac','companion_xp_frac'];");
+}
+/** The live start-gate hr_party_hunt_start: armed gate, no cohort gate — C21. */
+const startWithoutCohort = () => fnStatement(GATE_SQL, 'hr_party_hunt_start');
 
 const UC = '00000000-0000-4000-8000-0000000c4101';
 const UC2 = '00000000-0000-4000-8000-0000000c4102';
@@ -149,6 +174,8 @@ async function attempt(db, sql, f) {
       await q('insert into public.party_hunt (party_id, active_id, accrued_to) values ($1, $2, now() - interval \'1 minute\')', [p, cact]);
     }
     if (f.capShort) await db.exec(capWithShortCircuit());
+    if (f.settleNoCohort) await db.exec(settleWithoutCohort());
+    if (f.startNoCohort) await db.exec(startWithoutCohort());
     // 2 h of rostered fires, one per 10 s, and the combat shadow every 90 s (thin: every 700 s).
     await db.exec(`insert into public.hr_tick_cron_log (at, outcome, ms, rostered, effective_cadence_seconds)
                    select now() - make_interval(secs => g * 10), 'posted', 5, 2, 10 from generate_series(1, 719) g;`);
@@ -184,6 +211,10 @@ const CASES = [
   { id: 'C4', f: { ret: '4 hours 5 minutes' }, want: /^ARM-P3: .*older than 4 h/, what: 'return 4 h 05 ago: refused at P3b (4 h bound)' },
   { id: 'C5', f: { ret: QUIET, probes: 11, spanH: 6 }, want: /^ARM-P2: 11 closed combat probes with retained input \/ 66/,
     what: 'eleven probes of 6 h (66 h): refused at P2 on the COUNT' },
+  { id: 'C20', f: { ret: QUIET, settleNoCohort: true }, want: /^ARM-P4: hr_party_tick_settle lacks the M4 cohort\/horizon fences/,
+    what: 'the frac-keys party settle (no cohort, no party 8d) is installed: refused at P4 (Security #3)' },
+  { id: 'C21', f: { ret: QUIET, startNoCohort: true }, want: /^ARM-P4: hr_party_hunt_start lacks the armed gate or the cohort gate/,
+    what: 'the start-gate hr_party_hunt_start (no cohort gate) is installed: refused at P4 (Security #3)' },
   { id: 'C19', f: { ret: QUIET, probes: 11 }, want: /^ARM-P2: 11 closed combat probes with retained input \/ 44/,
     what: 'eleven probes of 4 h (44 h): refused at P2' },
   { id: 'C6', f: { ret: QUIET, probes: 12, closeOffPin: true }, want: /^ARM-P2: 11 closed combat probes with retained input/,
@@ -211,7 +242,7 @@ const CASES = [
 async function arms(db, sql, { log = true } = {}) {
   const red = [];
   for (const c of CASES) {
-    const got = await attempt(db, c.committed ? sql : withPin(sql), c.f);
+    const got = await attempt(db, c.committed ? asCommittedUnfilled(sql) : withPin(sql), c.f);
     const pass = c.want.test(got);
     if (!pass) red.push(c.id);
     if (log) console.log(`  ${pass ? '✓' : '✗'} ${c.id} — ${c.what}${pass ? '' : `: got ${got}`}`);
@@ -281,6 +312,12 @@ const MUTANTS = [
     repl: '  if false then',
     then: ["  if v_ent is null\n     or coalesce((v_ent->>'judged')::boolean, false) is not true\n     or coalesce((v_ent->>'stalled')::boolean, true) is not false then",
       '  if false then'] },
+  { name: 'noPartySettleBodyCheck', why: 'P4 accepts a party settle without the cohort / party 8d (Security #3: `<> 1` -> `< 0`)', expect: /C20/,
+    find: "             > position($q$then 'no_return_anchor' else 'past_horizon' end$q$ in p.prosrc)) <> 1 then",
+    repl: "             > position($q$then 'no_return_anchor' else 'past_horizon' end$q$ in p.prosrc)) < 0 then" },
+  { name: 'noStartBodyCheck', why: 'P4 accepts a hunt start without the cohort gate (Security #3: `<> 1` -> `< 0`)', expect: /C21/,
+    find: "         and position('hunt_not_in_cohort' in p.prosrc) > 0) <> 1 then",
+    repl: "         and position('hunt_not_in_cohort' in p.prosrc) > 0) < 0 then" },
   { name: 'noFramePushCheck', why: 'P1 arms with frame_push on', expect: /C12/,
     find: "  if v_cfg.frame_push then raise exception 'ARM-P1: frame_push is on'; end if;\n", repl: '' },
 ];

@@ -52,3 +52,13 @@ Method: read every grant and body; replayed the chain in PGlite; ran exploit cal
 - Nothing else regressed. All of the following exited 0: schema-drift; daily-board `--selftest` (9/9); goal-catalogue-drift `--selftest` (10/10); goal-counter-kinds plain and `--selftest` (11 arms); goal-gold-retune plain and `--selftest` (6/6); intent-mismatch; modal-goal-claim; rejections-journal; lane-done.
 - DAILY-BOARD-3 (client Claim gate) is sound. It reads the server's `offered` and `day_key`, and the unpadded `Y-M-D` comparison matches the format `hr_utc_day_key` returns. It is display-only, and the server still refuses.
 - The record-seam smoke fix is test-only: it stubs `hr_load` and awaits it.
+
+## FINAL — `origin/lane/daily-board` @ `6ba7f4e4afe7aa4bed1b5a621aabf839ccc89d0d`
+
+**Verdict: GO.** C1b is closed.
+
+- Mutant E (claim adds lifetime stock to the daily count) was planted at the chain end, replayed on a day with fish, cook and gold_500 dealt. `goal-counter-kinds` is now **RED**: the dealt goal `fish` paid 300 g on 120 lifetime `ev:fished`.
+- On the unmutated branch, `goal-counter-kinds` exits 0 and its `--selftest` exits 0 with 13 arms, including `claim_adds_lifetime`.
+- The diff since 95b877df touches only `tests/goal-counter-kinds.mjs`.
+
+**Apply order:** wave 1 → econ set (either order) → `2026-10-11-daily-board` → client cut → `2026-10-12-retire-daily-tasks`.

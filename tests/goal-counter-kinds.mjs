@@ -344,7 +344,9 @@ async function runAll(db) {
   /* 'not_complete' is hr_claim_goal's refusal code (hr_claim_QUEST's is
      'incomplete'). On a day the board does not deal `plant` the refusal is
      'not_offered' (2026-10-11-daily-board.sql); either way nothing pays. */
-  const offered = (await db.query(
+  const hasBoard = (await db.query(
+    `select to_regprocedure('public.hr_goal_board(boolean,timestamptz)') is not null as b`)).rows[0].b;
+  const offered = !hasBoard || (await db.query(
     `select 'plant' = any (public.hr_goal_board(false, now())) as o`)).rows[0].o;
   ok(claim && claim.ok === false && (offered
     ? (claim.error === 'not_complete' && Number(claim.have) === 0) : claim.error === 'not_offered'),

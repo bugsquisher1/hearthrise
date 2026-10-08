@@ -12850,10 +12850,8 @@ window.__hrTakeGoalBaseline = takeGoalBaseline;
 window.__hrRebaselineGoals = rebaselineGoals;
 window.__hrGoalSourceMirrored = goalSourceMirrored;
 
-/* THE BOARD'S IDS (lane daily-board). The server's board REPLACES any local
-   pick the moment hr_goal_state has answered it; until then the shared picker
-   paints the same set (src/data/goal-catalogue.js pickBoard, the function
-   hr_goal_board ports). Claim never reads this — it reads the server's row. */
+/* THE BOARD'S IDS: the server's board REPLACES any local pick once hr_goal_state
+   answers; before that goalCatalogue.pickBoard (hr_goal_board's source) paints it. */
 function goalBoardIds(weekly){
   var S = window.HearthriseGoalState;
   var b = (S && typeof S.board === 'function') ? S.board() : null;
@@ -16814,8 +16812,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
   var _srvGoalsAt = 0;
   var _srvGoalsInflight = false;
   var _srvGoalsForce = false;  // re-read on the next sync WITHOUT dropping the known state
-  var _srvBoard = null;        // hr_goal_state's board {daily, weekly}
-  var _srvDayKey = '';         // the UTC day that answer was graded on
+  var _srvBoard = null, _srvDayKey = '';   // hr_goal_state's board {daily, weekly} and its UTC day
   function goalsArmed(){
     return typeof window.clientMayWriteRecordField === 'function'
       && !window.clientMayWriteRecordField('gold');
@@ -16843,9 +16840,8 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
         });
         _srvGoals = Object.freeze(m); _srvGoalsAt = Date.now(); _srvGoalsForce = false;
         _srvDayKey = String(res.day_key || '');
-        var bd = res.board;
-        _srvBoard = (bd && Array.isArray(bd.daily) && Array.isArray(bd.weekly))
-          ? Object.freeze({ daily: bd.daily.slice(), weekly: bd.weekly.slice() }) : null;
+        var bd = res.board;   // {daily, weekly} ids, or absent from a pre-board server
+        _srvBoard = (bd && Array.isArray(bd.daily) && Array.isArray(bd.weekly)) ? Object.freeze({ daily: bd.daily.slice(), weekly: bd.weekly.slice() }) : null;
         if(typeof done === 'function') done(true);
       } else if(typeof done === 'function') done(false);
     }).catch(function(){ _srvGoalsInflight = false; if(typeof done === 'function') done(false); });
@@ -16856,8 +16852,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
      which reads ONLY this. */
   window.HearthriseGoalState = {
     peek: function(){ return goalsArmed() && _srvGoals && (Date.now() - _srvGoalsAt) < 120000 ? _srvGoals : null; },
-    /* The server's board {daily, weekly} under the same freshness window, or null. */
-    board: function(){ return window.HearthriseGoalState.peek() ? _srvBoard : null; }
+    board: function(){ /* the server's board, same freshness window */ return window.HearthriseGoalState.peek() ? _srvBoard : null; }
   };
   var peekSrvGoals = window.HearthriseGoalState.peek;   // the ONE freshness window (WEEK-9)
   function srvGoal(goal, isWeekly){
@@ -16899,18 +16894,11 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
     var t = sg && (sg.target > 0 ? sg.target : goal.target);
     return !!sg && sg.complete === true && t > 0 && sg.have >= t;
   }
-  /* THE SERVER'S `offered`, AND ITS DAY. A row the server will not pay — not
-     on its board, or graded on a UTC day that has since rolled (the cache lives
-     120 s past midnight) — never offers Claim; the next answer re-grades it. */
-  function srvPeriodCurrent(){
-    if(!_srvDayKey) return true;
-    var d = new Date();
-    return _srvDayKey === d.getUTCFullYear() + '-' + (d.getUTCMonth() + 1) + '-' + d.getUTCDate();
-  }
+  /* No Claim on a row the server will not pay: off its board, or graded on a UTC day since rolled. */
   function goalClaimable(goal, isWeekly){
-    var sg = srvGoal(goal, isWeekly);
-    return isComplete(goal, isWeekly) && !isClaimed(goal, isWeekly)
-      && !!sg && sg.offered !== false && srvPeriodCurrent();
+    var sg = srvGoal(goal, isWeekly), d = new Date();
+    return isComplete(goal, isWeekly) && !isClaimed(goal, isWeekly) && !!sg && sg.offered !== false
+      && (!_srvDayKey || _srvDayKey === d.getUTCFullYear() + '-' + (d.getUTCMonth() + 1) + '-' + d.getUTCDate());
   }
 
   /* ── THE BAR IS THE SERVER'S COUNT (whole-game review 2026-10-08, item 7) ──

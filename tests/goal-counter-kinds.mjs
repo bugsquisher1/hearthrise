@@ -225,8 +225,7 @@ async function boot(name, gateBlind) {
      chain end (QUEST_MIG, after MIG) — never past it (replayScopeError). Not
      LAST_PATCHED: the negative control patches only the older CREATE and needs
      MIG's ADD path and the quest body to run. */
-  const upTo = (name && MUTATIONS[name].upTo) || QUEST_MIG;
-  const { db } = await bootReplay(map.size ? { patches: map, upTo } : undefined);
+  const { db } = await bootReplay(map.size ? { patches: map, upTo: (name && MUTATIONS[name].upTo) || QUEST_MIG } : undefined);
   return db;
 }
 

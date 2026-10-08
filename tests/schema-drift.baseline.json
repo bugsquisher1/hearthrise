@@ -7,7 +7,7 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-10-08",
- "digest": "3d615aecaed423b269ac1a27bc96614b8d7f17e639a807d544b906cce5204820",
+ "digest": "bb1fd032c2a8d5052b2abd0a1d9c07669f9e629a767c4bde224dfcc396db1466",
  "counts": {
   "relations": 142,
   "functions": 354,
@@ -15,7 +15,7 @@
   "indexes": 206,
   "triggers": 20,
   "constraints": 396,
-  "columns": 863,
+  "columns": 864,
   "rls": 123,
   "event_triggers": 1
  },
@@ -1496,6 +1496,7 @@
    "hr_combat_xp_credit_log.user_id uuid NOT NULL",
    "hr_companion_grants.companion_id text NOT NULL",
    "hr_companion_grants.req_item text",
+   "hr_companion_grants.source_id text",
    "hr_companion_grants.source_kind text NOT NULL",
    "hr_crop_plot_tier.crop_id text NOT NULL",
    "hr_crop_plot_tier.plot_tier integer NOT NULL",

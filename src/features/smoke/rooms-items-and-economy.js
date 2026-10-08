@@ -525,94 +525,41 @@ export default [
       assert(craft.includes('carve_runewood_rod'), 'crafting recipe missing: carve_runewood_rod');
     } finally { G.inventory = savedInv; }
   }),
-  () => tryRun('b202: pets — skill/boss sources parse, forced roll unlocks, owned pets skip', () => {
-    const P = window.HearthrisePets;
-    assert(P, 'HearthrisePets present');
-    const skillPets = P._parse('skill'), bossPets = P._parse('boss');
-    assert(skillPets.length >= 8, 'expected 8+ skilling pets, got ' + skillPets.length);
-    assert(bossPets.length >= 2, 'expected 2+ boss pets, got ' + bossPets.length);
-    skillPets.concat(bossPets).forEach(p => {
-      assert(window.COMPANIONS[p.petId], 'pet def missing: ' + p.petId);
-      assert(p.n >= 200, p.petId + ' should be HARD to get (n>=200), got ' + p.n);
-    });
-    const G = window.G;
-    const saved = G.companions ? JSON.parse(JSON.stringify(G.companions)) : undefined;
-    /* ── RE-POINTED (b515). THE ROLL IS SYNCHRONOUS; THE OWNERSHIP IS NOT. ────
-       This block asserts pets.js's ROLL MATHS — forced win claims, owned pets
-       skip, forced loss does not. It used to read `ownedIds` on the line after
-       the roll, which stopped being possible when the capstone armed: a
-       skill/boss pet is a non-shop acquisition, so `unlockCompanion` waits for
-       hr_companion_grant and `ownedIds` is legitimately still empty one line
-       later.
-
-       b499 handled that by PINNING THE CAPSTONE OFF for the roll maths. b515
-       removed that position: `companions.js blobRetired()` is now the literal
-       `true`, so `__setBlobRetired(false)` selects nothing and the pin would
-       have been grading the armed path under a dormant name — a green that says
-       something false, which is worse than a red.
-
-       So the roll is read through what it DECIDES rather than through what
-       happens next: a hit calls `unlockCompanion`, a miss does not, and an
-       already-owned pet never even draws. Grants are parked, so the ladder
-       cannot leave a retry ticking through the rest of the suite (which is
-       exactly what this test used to do, twice, before the runner learned to
-       park it). */
-    const Cap = window.HearthriseCapstone;
+  /* -- regression suite -- PET-ROLL-SERVER (whole-game review 2026-10-08, item 2;
+     2026-10-10-pet-roll-server.sql). Skill, boss and drop pets were ROLLED IN THE
+     BROWSER (pets.js on addXp/killMonster, companions.js on every kill) and a
+     hit was claimed through hr_companion_grant on the client's word. The roll is
+     the server's now (src/core/pet-roll.js inside the accrual settle). RED
+     before the fix: a seam forced to "hit" claimed the lichling on one lich kill
+     and the beaver on one woodcutting action. */
+  () => tryRun('PET-ROLL-SERVER: the browser rolls no pet — a forced-hit stream on a boss kill and a skill action claims nothing', () => {
+    const G = window.G, C = window.HearthriseCore;
+    assert(typeof window.HearthrisePets === 'undefined', 'window.HearthrisePets is back — the browser rolls skill/boss pets again');
+    assert(C && C.rngMod && typeof window.killMonster === 'function' && typeof window.doSkillAction === 'function',
+      'FIXTURE: the kill and gather seams must exist or this test is vacuous');
+    const snap = snapshotG();
     const CO = window.HearthriseCompanions;
-    const realUnlock = window.unlockCompanion;
     const wasParked = (CO && typeof CO.__parkGrants === 'function') ? CO.__parkGrants(true) : false;
-    let claims = [];
+    const realUnlock = window.unlockCompanion;
+    const claims = [];
     try {
       window.unlockCompanion = function (id) { claims.push(id); return false; };
       G.companions = { ownedIds: [], equipped: null, xp: {} };
-      // forced win (rng → 0) CLAIMS the woodcutting pet
-      claims = [];
-      assert(P.rollSkillPet('woodcutting', () => 0) === true, 'forced roll should report a hit on beaver');
-      assert(claims.indexOf('beaver') >= 0,
-        'a winning roll did not route through unlockCompanion — nothing asks the server, so the pet is '
-        + 'never granted: ' + JSON.stringify(claims));
-      // owned pets never re-roll — and never claim
-      claims = [];
-      G.companions.ownedIds.push('beaver');
-      assert(P.rollSkillPet('woodcutting', () => 0) === false, 'owned pet must not unlock twice');
-      assert(claims.length === 0, 'an owned pet was claimed again: ' + JSON.stringify(claims));
-      G.companions.ownedIds = [];
-      // forced loss (rng → 1) never unlocks, and never claims
-      claims = [];
-      assert(P.rollBossPet('lich', () => 0.999999) === false, 'losing roll should not unlock');
-      assert(claims.length === 0, 'a LOSING roll claimed a pet: ' + JSON.stringify(claims));
-      assert(P.rollBossPet('lich', () => 0) === true, 'forced boss roll should report a hit on lichling');
-      assert(claims.indexOf('lichling') >= 0,
-        'a winning boss roll did not route through unlockCompanion: ' + JSON.stringify(claims));
-      window.unlockCompanion = realUnlock;
-
-      /* THE ARMED CONTRACT, stated rather than assumed: the roll still FIRES (a
-         hit is a hit), and the pet does NOT appear locally until the server has
-         recorded it. Without this the re-pin above would be a hole. Parked, so
-         the dispatch happens without leaving a live retry ladder running
-         through the rest of the suite — which is exactly what this test used to
-         do, twice, before the runner learned to park it. */
-      if (Cap && Cap.__setBlobRetired && CO && typeof CO.needsServerConfirm === 'function') {
-        Cap.__setBlobRetired(true);
-        if (Cap.isBlobRetired() === true && CO.needsServerConfirm('beaver') === true) {
-          const wasParked = CO.__parkGrants(true);
-          try {
-            G.companions = { ownedIds: [], equipped: null, xp: {} };
-            assert(P.rollSkillPet('woodcutting', () => 0) === true,
-              'ARMED: a forced roll must still report a HIT — ownership arriving a round trip later '
-              + 'is not a miss');
-            assert(!G.companions.ownedIds.includes('beaver'),
-              'ARMED: the pet appeared BEFORE the server recorded it — reconcileCompanions rebuilds '
-              + 'the roster from the server owned-set, so the player would watch it vanish');
-          } finally { CO.__parkGrants(wasParked); }
-        }
+      G.monsterHp = 999999; G.monsterMaxHp = 999999;
+      C.setRng(C.rngMod.rngFrom(() => 0));                     // every roll the client could make HITS
+      for (const id of ['lich', 'dragon', 'small_wolf', 'bear']) {
+        if (window.MONSTERS[id]) window.killMonster(window.MONSTERS[id]);
       }
+      G.activeMonster = null; G.activeArtisanRecipe = null;
+      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
+      window.doSkillAction(true);
+      assert(claims.length === 0,
+        'the browser claimed rolled pet(s) ' + JSON.stringify(claims) + ' — only the server settle may roll them');
     } finally {
+      C.setRng(null);
       window.unlockCompanion = realUnlock;
       if (CO && typeof CO.__parkGrants === 'function') CO.__parkGrants(wasParked);
-      if (Cap && Cap.__setBlobRetired) Cap.__setBlobRetired(null);
-      if (CO && CO.__clearGrantBlocks) CO.__clearGrantBlocks();
-      if (saved === undefined) delete G.companions; else G.companions = saved;
+      restoreG(snap);
     }
   }),
   () => tryRun('b204/b229/b560: world events — deterministic by date, active while online, paying nothing', () => {

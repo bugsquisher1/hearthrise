@@ -16,8 +16,8 @@
 //   hand-authored source, tools/gen-shops.mjs is deleted, and the preflight
 //   goes with it. The filename does not change, so nothing downstream moves.
 //
-//   catalogue digest: 059d6635a8b0d283518994fa910adfd9564259bb43e31ef53f849f0861e3840d
-//   129 offers · 225 cost lines · 5 prices that are formulas, not data
+//   catalogue digest: 1fbb112f1a44a5dc9f7b5eafa0d428f19e72c205c72e67ca6ca0382ceeccaf1f
+//   129 offers · 225 cost lines · 6 prices that are formulas, not data
 //
 // EXTRACTED FROM
 //   room              40  src/legacy.js
@@ -65,7 +65,7 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-export const SHOPS_DIGEST = "059d6635a8b0d283518994fa910adfd9564259bb43e31ef53f849f0861e3840d";
+export const SHOPS_DIGEST = "1fbb112f1a44a5dc9f7b5eafa0d428f19e72c205c72e67ca6ca0382ceeccaf1f";
 
 /** Every offer whose price is fully known as data. */
 export const SHOP_OFFERS = [
@@ -1025,7 +1025,7 @@ export const SHOP_TABLES = [
     "table": "character_slot",
     "origin": "src/multi-character.js",
     "anchor": "const SLOT_COSTS_GEMS = [",
-    "spends_at": "multi-character.js buySlot() → hr_buy_hero_slot",
+    "spends_at": "multi-character.js unlockSlot()",
     "note": "Hearth Hall Premium grants slots 1-3 free — an entitlement waiver, not a price",
     "count": 4
   },
@@ -1096,6 +1096,15 @@ export const DERIVED_PRICES = [
       "VENDOR_RAW_RATE": 0.2
     },
     "server_needs": "DERIVABLE TODAY — hr_items.value already carries v. Needs `raw` added to the catalogue and the rate as a constant. This is the cheapest of the six to close."
+  },
+  {
+    "id": "vendor.buyback",
+    "name": "Vendor buy-back price",
+    "where": "src/legacy.js repurchase()",
+    "currency": "gold",
+    "formula": "buyback[i].unit * buyback[i].qty — the unit price RECORDED at sale time",
+    "params": {},
+    "server_needs": "a server-side buyback ledger. The price is a property of a past transaction, not of the catalogue, so it can never be a static row — and a client-supplied unit price is a mint."
   },
   {
     "id": "clan_building.*",

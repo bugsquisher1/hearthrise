@@ -148,9 +148,14 @@ function literalKeys(body, varName, bad) {
   }
   return keys;
 }
+/** Every `<var>.<key> =` write. The dot may carry whitespace on either side
+    (`delta . k`, a split `delta\n.k`) and the key may be any identifier case
+    (`delta.zzDyn`): escapes() accepts all three as "dotted", so a narrower
+    pattern here let them through underived (Security residual, 2026-10-14;
+    mutants "key write: camelCase / spaced dot / split dot"). */
 function assignedKeys(body, varName) {
   const keys = new Set();
-  for (const m of body.matchAll(new RegExp(`\\b${varName}\\.([a-z_][a-z0-9_]*)\\s*=(?!=)`, 'g'))) keys.add(m[1]);
+  for (const m of body.matchAll(new RegExp(`\\b${varName}\\s*\\.\\s*([A-Za-z_$][\\w$]*)\\s*=(?![=>])`, 'g'))) keys.add(m[1]);
   return keys;
 }
 /** EVERY use of the engine's `delta` must be one the derivation can read
@@ -498,6 +503,13 @@ async function main() {
       plant: bodyMutant(applyDef, "    'companion_xp_frac',\n", '') },
     { name: 'a NEW combat key the allowlists do not know', arms: /^(KA|KB|KD):/,
       src: { accrual: src.accrual.replace('  if (goldDelta > 0) delta.gold = goldDelta;', '  if (goldDelta > 0) delta.gold = goldDelta;\n  delta.zz_new_key = 1;') } },
+    /* Security residual 2026-10-14: dotted writes assignedKeys once could not read. */
+    ...[
+      ['camelCase', '  delta.zzDyn = 1;'],
+      ['spaced dot', '  delta . zz_spaced = 1;'],
+      ['split dot', '  delta\n    .zz_split = 1;'],
+    ].map(([what, line]) => ({ name: `key write: ${what}`, arms: /^(KA|KB|KD):/,
+      src: { accrual: src.accrual.replace('  if (goldDelta > 0) delta.gold = goldDelta;', `  if (goldDelta > 0) delta.gold = goldDelta;\n${line}`) } })),
     /* Security 2026-10-13 #5: every way to write a key the source does not spell. */
     ...[
       ['a bracket write', "  delta['zz' + 'k'] = 1;"],

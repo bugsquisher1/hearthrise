@@ -17,9 +17,10 @@
 //   H1  ★ AWAY, 20 h, cap 12 h: tick writes never move the anchor; the window
 //           ending AT the horizon pays; the next is refused past_horizon and
 //           journalled ONCE; refusals move nothing
+//   H1b ★ a window starting before the horizon and ending after it is refused
 //   H2  ★ RETURN after it: the spent absence is forfeited (intent
-//           horizon_forfeit), the anchor moves to the return, the read is the
-//           full cap for the NEXT absence. Paid for the 20 h: tick 12 h +
+//           horizon_forfeit), the anchor moves to the return; that read answers
+//           1 ms (Security #5), the next one the full cap. Paid for the 20 h: tick 12 h +
 //           accrue 0 = 12 h
 //   H3  ★ PARTIAL: tick paid 5 h, then stopped; the return reads exactly the
 //           7 h remainder (no double pay), nothing forfeited
@@ -140,6 +141,13 @@ async function arms(db, { log = true, edge = EDGE } = {}) {
     const Hz = R0 + cap;
     const pre = await tickPaid(G, Hz - 90000);
     const anchorAfterTick = await anchor(G);
+    // H1b: a window that STARTS before the horizon and ENDS after it is refused
+    // (the fence judges the window's END, never its start).
+    const straddle = await settle(G, Hz - 90000, Hz + 60000);
+    const sStr = await st(G);
+    ok('H1b', straddle?.error === 'past_horizon' && ms(sStr.accrued_to) === Hz - 90000,
+      'a window starting before R + cap and ending after it is refused past_horizon and moves nothing',
+      JSON.stringify({ straddle, sStr }));
     const paid = await settle(G, Hz - 90000, Hz);
     const l0 = await ledger(G);
     const r1 = await settle(G, Hz, Hz + 90000);
@@ -157,12 +165,13 @@ async function arms(db, { log = true, edge = EDGE } = {}) {
     const s2 = await st(G);
     const now2 = ms((await one('select now() as t')).t);
     const forfeit = await q(`select meta from public.player_ledger where user_id = $1 and intent = 'horizon_forfeit'`, [G]);
-    ok('H2', c === cap && forfeit.length === 1 && ms(forfeit[0].meta.anchor) === R0
+    const cNext = await capRead(G);
+    ok('H2', c === 1 && cNext === cap && forfeit.length === 1 && ms(forfeit[0].meta.anchor) === R0
       && Math.abs(ms(s2.accrued_to) - now2) < 5000 && Math.abs(ms(await anchor(G)) - ms(s2.accrued_to)) === 0
       && Hz - R0 === cap,
-      `the return forfeits the spent absence and reads the full cap for the next; the 20 h absence was paid ${cap / H} h `
+      `the return forfeits the spent absence and answers 1 ms (Security #5); the next read is the full cap; the 20 h absence was paid ${cap / H} h `
       + '(tick) + 0 (accrue)',
-      JSON.stringify({ c, cap, forfeit, s2 }));
+      JSON.stringify({ c, cNext, cap, forfeit, s2 }));
   }
 
   // ── H3 / H4 ─────────────────────────────────────────────────────────────
@@ -316,6 +325,10 @@ const RESTORE = `${SRC.settle}\n${SRC.cap}\n${SRC.stamp}\n`
   + 'revoke execute on function public.hr_return_anchor_stamp() from public;\n'
   + 'revoke execute on function public.hr_return_anchor_stamp() from anon, authenticated, service_role, hr_engine, hr_tick;';
 const MUTANTS = [
+  { name: 'horizonJudgesWindowStart', fn: 'settle', why: 'the fence judges the window START (a window straddling the horizon pays past it)', expect: /H1b/,
+    find: '  if p_window_to > v_horizon then\n', repl: '  if p_window_from >= v_horizon then\n' },
+  { name: 'forfeitHandsFullCap', fn: 'cap', why: 'the forfeiting (stale) request is handed the full cap to price with', expect: /H2/,
+    find: '  return 1;\nend $$;', repl: '  return v_cap;\nend $$;' },
   { name: 'noHorizon', fn: 'settle', why: 'the tick pays past last real return + cap', expect: /H1|H6/,
     find: '  if p_window_to > v_horizon then\n', repl: '  if false then\n' },
   { name: 'anchorFromLastTick', fn: 'stamp', why: 'the horizon is measured from the last TICK, not the last real return', expect: /H1/,

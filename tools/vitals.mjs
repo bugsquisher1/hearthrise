@@ -443,6 +443,11 @@ s as (
    where ps.active_kind = c.ch
      and ps.active_since <= now() - interval '2 hours'
      and ps.accrued_to > now() - interval '24 hours'
+     -- PARKED (presence horizon) is not a sentinel: paid in full, waiting.
+     and not exists (select 1 from public.hr_tick_horizon_log hz
+                       join public.hr_return_anchor ra
+                         on ra.user_id = hz.user_id and ra.slot = hz.slot and ra.real_return_at = hz.anchor_at
+                      where hz.user_id = o.user_id and hz.slot = o.slot)
      and not exists (select 1 from public.party_member m
                        join public.party_hunt ph on ph.party_id = m.party_id
                       where m.user_id = o.user_id and m.slot = o.slot

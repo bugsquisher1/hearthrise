@@ -167,9 +167,9 @@ begin
    where p.oid = to_regprocedure('public.hr_partied(uuid,integer)');
   select md5(replace(p.prosrc, chr(13), '')) into v_admit from pg_proc p
    where p.oid = to_regprocedure('public.hr_tick_admit(boolean,timestamp with time zone,timestamp with time zone)');
-  if v_stall is null or v_stall not in ('5bad87a19c5b14b1a5f39e559d251435', 'd9a30e8e40ebd06ee497204743f1ba5b') then
+  if v_stall is null or v_stall not in ('5bad87a19c5b14b1a5f39e559d251435', 'e3b83b4f597290c7dce5813d268620fd') then
     raise exception 'PRECONDITION: hr_tick_stall_status prosrc md5 is %, expected the live 5bad87a1 '
-                    '(party-fences) or this file''s d9a30e8e40ebd06ee497204743f1ba5b. Re-cut this file against the live body.', v_stall;
+                    '(party-fences) or this file''s e3b83b4f597290c7dce5813d268620fd. Re-cut this file against the live body.', v_stall;
   end if;
   if v_roster is distinct from 'a7cf559ec53b6a840dcd8bbbb9f1095f'
      or v_partied is distinct from '3ae4b07cb060fcf0815eeaecca6dad98'
@@ -587,7 +587,17 @@ begin
                   and pl.at >= p_now - make_interval(hours => v_hours)
                   and pl.at < p_now
                   and pl.kind = v_kind
-                  and pl.meta->>'src' is distinct from 'tick'));
+                  and pl.meta->>'src' is distinct from 'tick')
+         -- ★ PARKED IS NOT A SENTINEL (2026-10-10 presence horizon, Security #1
+         --   on the widen review): a character refused past_horizon for its
+         --   CURRENT absence is paid in full and waiting, so zero tick windows
+         --   from it is the horizon working, not a stall. A parked-only cohort
+         --   reads NOT JUDGED, never STALLED. Same predicate as the lag judge.
+         and not exists (
+               select 1 from public.hr_tick_horizon_log hz
+                 join public.hr_return_anchor ra
+                   on ra.user_id = hz.user_id and ra.slot = hz.slot and ra.real_return_at = hz.anchor_at
+                where hz.user_id = o.user_id and hz.slot = o.slot));
     v_ajudged := coalesce(v_cfg.enabled, false) and v_asent;
     with b as (
       select g as i,
@@ -807,7 +817,7 @@ begin
     -- ── k0
     if (select md5(replace(p.prosrc, chr(13), '')) from pg_proc p
          where p.oid = 'public.hr_tick_stall_status(timestamptz,int,int)'::regprocedure)
-         <> 'd9a30e8e40ebd06ee497204743f1ba5b'
+         <> 'e3b83b4f597290c7dce5813d268620fd'
        or (select md5(replace(p.prosrc, chr(13), '')) from pg_proc p
          where p.oid = 'public.hr_tick_enrol(int)'::regprocedure)
          <> '869059c824160b990dc9813be53bea0f'

@@ -34,6 +34,7 @@
 //   V13 sat out of the live hunt (latest row a drop)     a sentinel: judged, STALLED
 //   V14 the party hunt ended                             a sentinel: judged, STALLED
 //   V15 left the party (left_at)                         a sentinel: judged, STALLED
+//   V16 ★ PARKED (presence horizon)                      NOT judged
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ============================================================================
@@ -183,6 +184,18 @@ async function arms(db, V, { log = true } = {}) {
   await fixture('V11', 'raw mark 25 h old (fenced_24h): not a sentinel', null, NOJ);
   await onlyOwners([]);
 
+  // V16 (presence horizon, Security #1 on widen): a PARKED gatherer — refused
+  // past_horizon for its CURRENT absence (hr_tick_horizon_log on its anchor) —
+  // is not a sentinel: paid in full and waiting.
+  await gatherer(U(90));
+  await q(`insert into public.hr_tick_horizon_log (user_id, slot, anchor_at, channel, horizon_at, cap_ms, mark)
+           select a.user_id, a.slot, a.real_return_at, 'gather', a.real_return_at + interval '12 hours', 43200000, a.real_return_at
+             from public.hr_return_anchor a where a.user_id = $1 and a.slot = 0`, [U(90)]);
+  await fires(T(2007));
+  await onlyOwners([U(90)]);
+  await fixture('V16', 'PARKED (refused past_horizon for its current absence): not a sentinel', T(2007), NOJ);
+  await onlyOwners([]);
+
   // ── hr_partied (M4: combat armed). A combat character in a live party hunt
   //    is the party roster's, not a solo sentinel; sat out, left, or the hunt
   //    ended = solo again, so a sentinel.
@@ -278,6 +291,8 @@ const MUTANTS = [
     find: "and not coalesce((select r.event <> 'rejoin'", repl: 'and not coalesce((select false' },
   { name: 'endedHuntPartied', why: 'an ENDED hunt still makes its members partied', expect: /^V14$/,
     find: ' and ph.ended_at is null', repl: '' },
+  { name: 'parkedIsSentinel', why: 'a PARKED gatherer still counts as a sentinel (reads STALLED while waiting)', expect: /^V16$/,
+    find: '                      where hz.user_id = o.user_id and hz.slot = o.slot)\n', repl: '                      where false)\n' },
   { name: 'leftMemberPartied', why: 'a member who LEFT still counts as partied', expect: /^V15$/,
     find: 'and m.left_at is null and ', repl: 'and ' },
   { name: 'enabledIgnored', why: 'the tick disabled still judges', expect: /^V10$/,

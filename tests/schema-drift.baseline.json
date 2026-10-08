@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-10-08",
- "digest": "bb1fd032c2a8d5052b2abd0a1d9c07669f9e629a767c4bde224dfcc396db1466",
+ "digest": "875bce48df8154a7b0f2a15d50c364a8a4626953ba5d48c8935619cb3f366dfb",
  "counts": {
   "relations": 142,
-  "functions": 354,
+  "functions": 355,
   "policies": 95,
   "indexes": 206,
   "triggers": 20,
@@ -354,6 +354,7 @@
    "hr_intents_prune(p_older interval)",
    "hr_iso_week_key(p_at timestamp with time zone)",
    "hr_kill_credit_prune(p_older interval)",
+   "hr_kill_credit_prune_cutoff(p_older interval)",
    "hr_lb_boards()",
    "hr_lb_combat_level(p_attack integer, p_strength integer, p_defense integer, p_hitpoints integer, p_prayer integer, p_ranged integer, p_magic integer)",
    "hr_lb_num(p_obj jsonb, p_key text)",

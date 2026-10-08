@@ -3642,11 +3642,23 @@ export default [
       assert(summary && summary.ticks === 208, 'the 1 h away span ran ' + (summary && summary.ticks) + ' actions, not 208 (' + (summary && summary.stoppedBy) + ')');
       const gained = xpView() - xp0;
       assert(gained === 48 * 208 && gained === 9984, 'the away span paid ' + gained + ' woodcutting XP, the ruling is 48 × 208 = 9,984');
-      /* Measured once on the 0xC0FFEE stream; pinned, never banded. */
-      const SEEDED_YEW = 304;
+      /* The shared engine's output on the 0xC0FFEE stream (src/core/skill-sim.js,
+         the code the edge runs): pinned, never banded. Was 304 while pets.js
+         drew from this stream on every addXp, which broke AWAY-1 parity. */
+      const SEEDED_YEW = 307;
       const yew = G.inventory.yew_log || 0;
       assert(yew >= 208 && yew <= 416, 'the away span banked ' + yew + ' yew_log, outside the [1,2] × 208 envelope [208, 416]');
-      assert(yew === SEEDED_YEW, 'the seeded away span banked ' + yew + ' yew_log, the 0xC0FFEE stream pins exactly ' + SEEDED_YEW + ' — a changed count is a changed draw order or yield');
+      assert(yew === SEEDED_YEW, 'the seeded away span banked ' + yew + ' yew_log; the shared engine pays exactly ' + SEEDED_YEW + ' on the 0xC0FFEE stream — a changed count is a changed draw order or yield');
+      /* BITE: one extra draw per addXp on the MAIN stream (the old pets.js) moves the count off the pin. */
+      const ctl = { skillTargetId: node.id, activeSkill: 'woodcutting', skills: { woodcutting: window.xpForLevel(node.req) },
+        inventory: {}, equipment: {}, toolCarry: {}, stats: { gathered: 0, chopped: 0 }, buffs: [] };
+      const ctlRng = C.reseed(0xC0FFEE);
+      let ctlYew = 0;
+      C.skillSim.simulateSkillSpan(ctl, { away: true, fromMs: 0, toMs: 3600000, rng: ctlRng, items: window.ITEMS, nodes, bonus: () => 0,
+        fx: { addItem: (id, q) => { if (id === 'yew_log') ctlYew += q; }, addXp: () => { ctlRng.next(); },
+              updateDaily: () => {}, updateQuest: () => {}, onStop: () => {} } });
+      assert(ctlYew !== SEEDED_YEW && ctlYew === 304,
+        'CONTROL: a roll on the yield stream banked ' + ctlYew + ' (expected 304, off the ' + SEEDED_YEW + ' pin) — the pin cannot see a shared stream');
     } finally { window.getBonus = real.getBonus; window.restedQuantum = real.restedQuantum; window.getEquipmentStats = real.getEquipmentStats; G._pred = real.pred; restoreG(snap); }
   }),
 

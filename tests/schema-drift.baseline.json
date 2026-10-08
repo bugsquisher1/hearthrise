@@ -7,13 +7,13 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-10-08",
- "digest": "bd054f1a9bb61348d13033167f7ed8f7ff2685fa67679264627e289f41a0f8c9",
+ "digest": "a8923a1a16392faf8e32e8d1b480d16f26d79c4bca21b8b734c97b773f0b1af9",
  "counts": {
   "relations": 146,
-  "functions": 356,
+  "functions": 357,
   "policies": 95,
   "indexes": 210,
-  "triggers": 22,
+  "triggers": 23,
   "constraints": 415,
   "columns": 894,
   "rls": 126,
@@ -441,6 +441,7 @@
    "hr_request_ip()",
    "hr_require_settled(p_user uuid, p_slot integer)",
    "hr_rest(p_slot integer, p_intent_id uuid)",
+   "hr_return_anchor_presence()",
    "hr_return_anchor_stamp()",
    "hr_rpc_gate(p_bucket text)",
    "hr_seed(p_user uuid, p_slot integer, p_label text)",
@@ -858,6 +859,7 @@
    "player_progress :: player_progress_unlock_guard",
    "player_skills :: hr_player_skills_max_hp",
    "player_state :: hr_return_anchor_ins",
+   "player_state :: hr_return_anchor_seen",
    "player_state :: hr_return_anchor_upd"
   ],
   "constraints": [

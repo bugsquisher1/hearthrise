@@ -1883,6 +1883,19 @@ jobs:
           node tests/world-tick-presence-horizon.mjs
           node tests/world-tick-presence-horizon.mjs --mutate
 
+      # Presence signal (2026-10-14-world-tick-presence-signal.sql, Game
+      # Designer precondition B3): a stamped hr_heartbeat (JWT uid, server
+      # clock, 20 s floor, 6/min bucket) raises the return anchor inside the
+      # horizon, so a partied online player who only beats is never dropped,
+      # an offline one still parks/drops at R + cap, and a beat after a spent
+      # horizon pays nothing back. --mutate: 10 mutants. Measured locally
+      # 2026-10-14: 2 s plain + 4 s mutate template-warm (~35 s each cold).
+      - name: World tick — presence signal, the heartbeat carries the horizon
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-presence-signal.mjs
+          node tests/world-tick-presence-signal.mjs --mutate
+
       # Gather widen, stage 1 (2026-10-10-world-tick-gather-widen.sql): the
       # server enrols a RETURNING gatherer into tick ownership (hash bucket <
       # permille, raw accrued_to inside 600 s, armed, unpartied, under the

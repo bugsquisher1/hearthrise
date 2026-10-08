@@ -30,7 +30,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { RAID_BOSSES } from '../src/data/raid-bosses.js';
+import { RAID_BOSSES, LONE_HUNT_CHEST } from '../src/data/raid-bosses.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(ROOT, 'supabase', 'migrations', '2026-08-22-raid-boss-rewards.generated.sql');
@@ -137,6 +137,41 @@ end $$;
 `;
 }
 
+/** Every Lone Hunt literal in the two SQL files vs LONE_HUNT_CHEST. Pure. */
+function lonelyDrift(gateSql, chestSql) {
+  const out = [];
+  const num = (sql, re) => { const m = sql.match(re); return m ? Number(m[1]) : NaN; };
+  const pairs = [
+    [num(gateSql, /c_lone_kills constant bigint := (\d+);/), LONE_HUNT_CHEST.killsNeeded, 'gate c_lone_kills'],
+    [num(chestSql, /c_solo_gold constant bigint := (\d+);/), LONE_HUNT_CHEST.gold, 'c_solo_gold'],
+    [num(chestSql, /c_solo_gems constant int\s+:= (\d+);/), LONE_HUNT_CHEST.gems, 'c_solo_gems'],
+    [num(chestSql, /c_solo_scale constant numeric := ([0-9.]+);/), LONE_HUNT_CHEST.scale, 'c_solo_scale'],
+    [num(chestSql, /c_solo_mats\s+constant int := (\d+);/), LONE_HUNT_CHEST.mats, 'c_solo_mats'],
+  ];
+  for (const [have, want, what] of pairs) {
+    if (have !== want) out.push(`${what} is ${have} in SQL, LONE_HUNT_CHEST says ${want}`);
+  }
+  return out;
+}
+
+if (process.argv.includes('--selftest-lone')) {
+  const mig = (n) => readFile(join(ROOT, 'supabase', 'migrations', n), 'utf8');
+  const g = await mig('2026-10-10-lone-hunt-weekly-chest.sql'), c = await mig('2026-08-22-raid-chest-items.sql');
+  const arms = [
+    ['clean', g, c, 0],
+    ['gate lowered to 30', g.replace('c_lone_kills constant bigint := 300;', 'c_lone_kills constant bigint := 30;'), c, 1],
+    ['solo gold raised', g, c.replace('c_solo_gold constant bigint := 2800;', 'c_solo_gold constant bigint := 9800;'), 1],
+  ];
+  let bad = 0;
+  for (const [name, gs, cs, want] of arms) {
+    const n = lonelyDrift(gs, cs).length;
+    const okArm = want ? n > 0 : n === 0;
+    console.log(`${okArm ? 'ok  ' : 'FAIL'} ${name} (${n} drift)`);
+    if (!okArm) bad++;
+  }
+  process.exit(bad ? 1 : 0);
+}
+
 const wanted = render();
 if (process.argv.includes('--check')) {
   const have = await readFile(OUT, 'utf8').catch(() => '');
@@ -145,7 +180,18 @@ if (process.argv.includes('--check')) {
       + '2026-08-22-raid-boss-rewards.generated.sql is stale. Run: node tools/gen-raid-boss-rewards.mjs');
     process.exit(1);
   }
-  console.log('gen-raid-boss-rewards --check: catalogue matches src/data/raid-bosses.js');
+  /* THE LONE HUNT LITERALS (2026-10-10). The solo chest's gate and payout are
+     typed into raid_claim__ungated (the static 2026-08-22 body + the 2026-10-10
+     gate); each must equal LONE_HUNT_CHEST, or the card promises one chest and
+     the server pays another. `--check-lone=<sql>` lets a selftest feed text. */
+  const mig = (n) => readFile(join(ROOT, 'supabase', 'migrations', n), 'utf8').catch(() => '');
+  const lone = await lonelyDrift(await mig('2026-10-10-lone-hunt-weekly-chest.sql'),
+                                 await mig('2026-08-22-raid-chest-items.sql'));
+  if (lone.length) {
+    console.error('gen-raid-boss-rewards --check FAILED (Lone Hunt):\n  ' + lone.join('\n  '));
+    process.exit(1);
+  }
+  console.log('gen-raid-boss-rewards --check: catalogue + Lone Hunt literals match src/data/raid-bosses.js');
 } else {
   await writeFile(OUT, wanted);
   console.log(`wrote ${OUT}`);

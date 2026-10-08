@@ -757,7 +757,7 @@ export default [
     try {
       G.bestiary = { goblin: { kills: 5, firstKill: 1700000000000 } };
       G.toolCarry = { woodcutting: 0.75 };
-      G.raids = { lastStrikeDay: '2026-08-24', solo: { week: 9, damage: 400, strikes: 2 }, claimed: { '9': true } };
+      G.raids = { lastStrikeDay: '2026-08-24', claimed: { '9': true } };
 
       // SAVE: what the client ships to client_state
       const patch = window.HearthriseCapstone.buildResiduePatch(G);

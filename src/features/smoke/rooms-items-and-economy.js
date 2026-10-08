@@ -3911,7 +3911,7 @@ export default [
       try { window.showTab('profile'); } catch (e) {}
     }
   }),
-  () => tryRun('b209: raids — weekly boss rotation, clamped real-roll strikes, solo pool state', () => {
+  () => tryRun('b209: raids — weekly boss rotation, clamped real-roll strikes, no client solo pool', () => {
     const R = window.HearthriseRaids;
     assert(R && R.BOSSES.length >= 3, 'raid bosses present');
     R.BOSSES.forEach(b => assert(b.reward && b.reward.gold > 0 && b.def > 0, 'boss ' + b.id + ' has real stats + reward'));
@@ -3924,17 +3924,10 @@ export default [
     try {
       delete G.raids;
       const st = R.ensureState();
-      // b223 (§3.5): the flat SOLO_POOL_HP is obsolete. The Lone Hunt's pool is
-      // UNMEASURED until the week's first strike, which is what lets it be
-      // 5-6 strikes at CL 30 and at CL 99 alike instead of impossible below 61.
-      assert(st.solo && st.solo.max == null && st.solo.hp == null,
-        'the solo pool starts unmeasured — it calibrates to the first strike');
-      assert(st.solo.week && typeof st.claimed === 'object', 'weekly key + claim ledger present');
-      // weekly reset invariant: stale week re-rolls the pool
-      st.solo = { week: 'w-stale', hp: 5, max: 10, damage: 999, strikes: 4 };
-      const st2 = R.ensureState();
-      assert(st2.solo.week !== 'w-stale' && st2.solo.max == null && st2.solo.damage === 0,
-        'stale week resets the solo pool');
+      // 2026-10-10: the Lone Hunt is a server-gated weekly chest; there is no
+      // client-held solo pool to measure, reset or down.
+      assert(st.solo === undefined, 'the retired client solo pool must not be recreated');
+      assert(typeof st.claimed === 'object', 'the weekly claim ledger is present');
     } finally { if (saved === undefined) delete G.raids; else G.raids = saved; }
   }),
   // b224 (Asset pass): the six Hunt bosses rendered as a typographic glyph
@@ -4072,18 +4065,16 @@ export default [
       const _launched = _CL && typeof _CL.clanLaunched === 'function' && _CL.clanLaunched();
       const panel = _launched && document.getElementById('panel-dungeons');
       if (panel) {
-        // b223: a downed solo pool is `max` set AND `hp` at zero — an
-        // unmeasured pool (max null) is not downed, it has never been fought.
-        st.solo.max = 20000;
-        st.solo.hp = 0;
+        // 2026-10-10: the Lone Hunt card always offers the weekly chest until it
+        // is taken — the SERVER decides eligibility from its kill count.
         delete st.claimed[R.weekKey()];
         const p1 = R.render(); if (p1 && p1.catch) p1.catch(() => {});
         let html = (document.getElementById('hr-raid-card') || {}).innerHTML || '';
-        assert(/Claim raid chest/.test(html), 'a downed solo pool should offer the chest');
+        assert(/Claim weekly chest/.test(html), 'an unclaimed week should offer the chest');
         st.claimed[R.weekKey()] = true;
         const p2 = R.render(); if (p2 && p2.catch) p2.catch(() => {});
         html = (document.getElementById('hr-raid-card') || {}).innerHTML || '';
-        assert(!/Claim raid chest/.test(html) && /Chest claimed/.test(html),
+        assert(!/Claim weekly chest/.test(html) && /Chest claimed/.test(html),
           'a claimed chest must not be offered again');
       }
     } finally {

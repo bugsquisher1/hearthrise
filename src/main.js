@@ -40,7 +40,7 @@ import { ARTISAN_RECIPES, ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes,
 // hand-authored recipe wins the merge, so the two can disagree; see gear-tiers).
 import { GEAR_LADDERS, MATERIAL_TIERS } from './data/gear-tiers.js?v=564';
 import { COMPANIONS } from './data/companions.js?v=564';
-import { RAID_BOSSES } from './data/raid-bosses.js?v=564';
+import { RAID_BOSSES, LONE_HUNT_CHEST } from './data/raid-bosses.js?v=564';
 /* b356 — the review-book catalogue's two published seams. `EFFECT_KINDS` is
    what the reachability guard reads to decide whether an item is legitimately
    not-yet-obtainable; `LIB2_ICON_FILES` is the art batch's work order. Both are
@@ -149,7 +149,7 @@ Object.assign(window, {
   // The weekly Hunt (raid) boss registry — single source for src/features/raids.js
   // (which reads window.RAID_BOSSES lazily), the inventory-authority partition and
   // the server-mint catalogue generator (tools/gen-raid-boss-rewards.mjs).
-  RAID_BOSSES,
+  RAID_BOSSES, LONE_HUNT_CHEST,
   // b220 — artisan taxonomy + food classification, published for the classic
   // scripts (legacy.js renderer, features/auto-actions.js) that cannot import.
   ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes, foodClassOf, isAutoEatable,

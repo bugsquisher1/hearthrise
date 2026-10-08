@@ -72,6 +72,7 @@ import {
   computeAccrual, accrueRested, CALLER_AUTHORITY, PAYABLE_KINDS, MAX_DEATH_ROWS,
 } from '../supabase/functions/hr-accrue/accrual.js';
 import { RESTED_CHARGE_MS, RESTED_CAP } from '../src/core/rested.js';
+import { COMPANION_XP_SERVER_BACKED } from '../src/core/companion-xp.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ARGS = process.argv.slice(2);
@@ -427,7 +428,11 @@ function accrueInput(c, fromMs, toMs, o) {
     /* Not envelope keys, named here exactly as the tick names them, so the two
        objects are comparable key for key (C1's reference-builder arm). */
     perks: c.perks,
-    companionXpBacked: c.companionXpBacked,
+    /* The deploy constant index.ts threads — NOT `c.companionXpBacked`, which
+       no session ever carried: copying the tick's own spelling made this
+       reference agree with the 2026-10-08 companion-XP underpay
+       (tests/world-tick-companion-xp.mjs). */
+    companionXpBacked: COMPANION_XP_SERVER_BACKED,
     attended: opt.attended ?? null,
     caller: opt.caller || 'accrue',
     callerAuthority: CALLER_AUTHORITY,

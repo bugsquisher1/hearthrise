@@ -19,6 +19,7 @@ import { computeAccrual, CALLER_AUTHORITY } from './accrual.js';
 import { hashSeed } from '../../../src/core/rng.js';
 import { planWindows, countersFromProgress, chainSpentMin, raiseMaxHpToLevel } from './tick-contract.js';
 import { engineStateOf } from './envelope.js';
+import { COMPANION_XP_SERVER_BACKED } from '../../../src/core/companion-xp.js';
 
 /* ── THE SEED, PER WINDOW, FROM THE WATERMARK ───────────────────────────────
    Production does NOT hand the engine a constant. `hr-accrue/index.ts` (~L641)
@@ -108,6 +109,25 @@ export function advance(char, res) {
     ch.activity = { kind: d.activity.kind, id: d.activity.id ?? null };
   }
   if (d.accrued_to) char.accruedToMs = Date.parse(d.accrued_to);
+  /* ── THE COMPANION'S XP, FOR THE NEXT WINDOW'S CAP CLAMP (2026-10-08) ────
+     `companionSpanXp` clamps each grant to COMPANION_XP_CAP − `perks.companion.xp`.
+     hr_apply adds the engine's own `stat companion_xp:<id>` op to the row
+     `hr_perks_of` reads back, so an accrue span sees ONE clamp over the whole
+     window; a chain must see the xp each earlier window already credited or
+     its windows would each clamp against the stale starting value and pay
+     past the cap. An assignment of the engine's own op, never a rule. A new
+     object, because `perks` is the visit's shared `hr_perks_of` answer. */
+  const comp = char.perks && char.perks.companion;
+  if (comp && typeof comp.id === 'string' && Array.isArray(d.progress)) {
+    let add = 0;
+    for (const op of d.progress) {
+      if (op && op.kind === 'stat' && op.key === 'companion_xp:' + comp.id) add += Number(op.add) || 0;
+    }
+    if (add > 0) {
+      char.perks = Object.assign({}, char.perks,
+        { companion: Object.assign({}, comp, { xp: (Number(comp.xp) || 0) + add }) });
+    }
+  }
   /* The bestiary counters the charm index reads. Server-owned rows in
      production (`hr_bestiary_of`); here, the kills the window just proposed. */
   if (res.summary && res.summary.kills > 0 && char.activeKind === 'combat' && char.activeId) {
@@ -265,9 +285,20 @@ export function shadowTick(char, fromMs, toMs, catalogues, opts) {
        closes the class STRUCTURALLY: it derives the accrue path's key set from
        `hr-accrue/index.ts`'s own source and requires this object to match it,
        so a key added there and not here is red on that commit. */
-    /* NOT an envelope key and NOT in ENGINE_STATE_KEYS: `hr_companion_xp_of`
-       is its own read, exactly as `perks` above. Named at every call site. */
-    companionXpBacked: char.companionXpBacked,
+    /* THE COMPANION-XP ARM SWITCH — the SAME deploy-time constant index.ts and
+       set-activity.js thread (A14), NOT a character field.
+
+       ⚠ THIS WAS `char.companionXpBacked` AND NOTHING EVER SET IT (fixed
+         2026-10-08, Security-confirmed underpay). The comment above it claimed
+         an `hr_companion_xp_of` read that has never existed; no session builder
+         (tick-gather / tick-combat sessionFromRoster) wrote the field, so every
+         tick window handed the engine `undefined`, `companionXpOps` returned
+         [], and the watermark advanced past the actions anyway — the pet's XP
+         for that span was gone for good. C1 stayed green because it compares
+         key NAMES, and the name was there. tests/world-tick-companion-xp.mjs
+         pins the value (tick chain == one accrue span) and its --mutate puts
+         `char.companionXpBacked` back and must go red by name. */
+    companionXpBacked: COMPANION_XP_SERVER_BACKED,
     /* ── THE ATTENDED TOP-UP IS STRUCTURALLY ABSENT, NOT FORGOTTEN ─────────
        Every term of `min(claimed, attendedKillCap, MAX_FIDELITY x sim) - sim`
        is priced against the SPAN. Hand sixty windows the same claim and it is

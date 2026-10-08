@@ -2883,10 +2883,105 @@ export default [
     assert(window.vendorPrice('dawnstone_ore') === Math.floor(ITEMS.dawnstone_ore.v * 0.20),
       'the biggest faucet in the game must be throttled at the choke-point');
     assert(ITEMS.normal_log.v === 8, 'the item BOOK value must be untouched — only the vendor bid moves');
-    // A crafted item is not raw, so it keeps the full bid.
+    // A crafted item is not raw; since the craft anchor it bids at most 1.5x
+    // its inputs (the test below), never more than book.
     assert(!ITEMS.cooked_shrimp.raw, 'a cooked dish is not a raw material');
-    assert(window.vendorPrice('cooked_shrimp') === ITEMS.cooked_shrimp.v,
-      'a crafted/cooked item must still fetch full value');
+    assert(window.vendorPrice('cooked_shrimp') <= ITEMS.cooked_shrimp.v,
+      'a crafted/cooked item must never fetch more than book value');
+  }),
+
+  () => tryRun('b-craft-anchor: a crafted item bids min(book, 1.5x its cheapest inputs), on the client exactly as on the server', () => {
+    /* REGRESSION (econ-sim, 2026-10-08): crafted items bid 100% of book while
+       raw inputs bid 20%, so every bench was a x5 gold faucet — a grinder hit
+       the 25M/day cap from day 2. The server's half is pinned by
+       tests/gold-intents.mjs G1 against the SAME ruling oracle written below,
+       so client == ruling == server. Without the fix the bag quotes 108,000
+       for a Dawnsteel Platebody; with it, 1.5 x five bars. */
+    const ITEMS = window.ITEMS, R = window.ARTISAN_RECIPES;
+    const core = window.HearthriseCore && window.HearthriseCore.vendor;
+    assert(core && typeof core.vendorBidOf === 'function', 'HearthriseCore.vendor is not published — the bag bids 0 for everything');
+    const inputsOf = (r) => r.inputs || (r.input ? Object.assign({ [r.input]: r.inputQty || 1 }, r.secondary || {}) : {});
+    const byOut = {}, gathered = {};
+    Object.keys(R).forEach((s) => (R[s] || []).forEach((r) => {
+      if (!r.output) return;
+      if (Object.keys(inputsOf(r)).length) (byOut[r.output] = byOut[r.output] || []).push(r);
+      else gathered[r.output] = true;   // a quarry bids as a raw gather
+    }));
+    const memo = {};
+    const ruling = (id) => {
+      if (id in memo) return memo[id];
+      const it = Object.prototype.hasOwnProperty.call(ITEMS, id) ? ITEMS[id] : null;
+      const v = it ? Number(it.v) || 0 : 0;
+      let bid = v > 0 ? ((it.raw || gathered[id]) ? Math.max(1, Math.floor(v / 5)) : v) : 0;
+      memo[id] = bid;   // a cycle reads the base bid; the shipped graph has none (gold-intents G1-CONTROL)
+      (byOut[id] || []).forEach((r) => {
+        const ins = inputsOf(r); let sum = 0;
+        Object.keys(ins).forEach((k) => { sum += ins[k] * ruling(k); });
+        bid = Math.min(bid, Math.floor((sum * 3) / (2 * (r.outputQty || 1))));
+      });
+      memo[id] = bid;
+      return bid;
+    };
+    ['dawn_platebody', 'dawn_bar', 'dressed_block', 'granite_block', 'cooked_shrimp'].forEach((id) => {
+      assert(ITEMS[id], id + ' is missing from ITEMS — the pin names a real item');
+      assert(window.vendorPrice(id) === ruling(id),
+        id + ': the bag bids ' + window.vendorPrice(id) + ' but the ruling (and the server) pays ' + ruling(id));
+    });
+    assert(window.vendorPrice('dawn_platebody') < ITEMS.dawn_platebody.v,
+      'dawn_platebody bids its full book value ' + ITEMS.dawn_platebody.v + ' — the craft anchor is not applied');
+    assert(window.vendorPrice('dressed_block') < ITEMS.dressed_block.v,
+      'dressed_block bids its full book value — the craft anchor is not applied');
+    // Raws are unchanged by the anchor.
+    assert(window.vendorPrice('rubble') === Math.max(1, Math.floor(ITEMS.rubble.v * 0.20)),
+      'rubble is raw and must still bid 20% of book');
+  }),
+
+  () => tryRunAsync('craft-anchor: a 0-bid item is SAID to be unsellable on every sell surface and never sent', async () => {
+    /* REGRESSION (Game Designer ruling, craft-anchor follow-up): runes, rune
+       blanks, whetstone and arrow batches anchor to a 0 bid. Before the fix the
+       bag offered "Sell 1 · 0", the quick-sell said "Sell N for 0g" and a
+       vendor_sell went out for a credit of nothing. The server half (refused BY
+       NAME as item_not_sellable) is tests/gold-intents.mjs G10. */
+    const G = window.G, id = 'earth_rune', W = window.VENDOR_WONT_BUY;
+    assert(typeof W === 'string' && W.length > 0, 'VENDOR_WONT_BUY is not published by the shop counter');
+    assert(window.vendorPrice(id) === 0 && window.vendorWontBuy(id) === true,
+      id + ' bids ' + window.vendorPrice(id) + ' — the fixture needs an anchored-zero item');
+    const snap = snapshotG(), bag = serverBagFixture();
+    try {
+      G.inventory = G.inventory || {}; G.inventory[id] = 50; G.lockedItems = {};
+      bag.agree();
+      G.gold = 1000; stampBalanceLikeLoad(G);
+      const gold0 = goldOf();
+      await withServerBacked({}, async (rig) => {
+        window.invSellOne(id);
+        window.invSellAll(id);
+        await rig.drain();
+        assert(rig.sent.length === 0, 'a 0-bid item reached the vendor verb: ' + JSON.stringify(rig.sent));
+      });
+      assert(G.inventory[id] === 50, 'a 0-bid sell removed ' + (50 - (G.inventory[id] | 0)) + ' from the bag');
+      assert(goldOf() === gold0, 'a 0-bid sell moved gold');
+      // The bag flyout says it, and offers no Sell button.
+      window.openInvDetail(id);
+      const fly = document.getElementById('inv-detail-overlay');
+      const acts = fly ? fly.querySelector('.inv-detail-actions') : null;
+      assert(acts && acts.textContent.indexOf(W) >= 0, 'the bag flyout does not say "' + W + '"');
+      assert(!/Sell 1|Sell All/.test(acts.textContent), 'the bag flyout still offers to sell a 0-bid item: ' + acts.textContent.slice(0, 160));
+      window.closeInvDetail();
+      // The context menu says it, disabled, with no Sell N….
+      window.HearthriseInvCtx.open(id, 10, 10);
+      const menu = document.getElementById('inv-ctx-menu');
+      assert(menu && menu.textContent.indexOf(W) >= 0 && !/Sell 1|Sell N/.test(menu.textContent),
+        'the context menu does not refuse a 0-bid item by name: ' + (menu ? menu.textContent.slice(0, 160) : 'no menu'));
+      window.HearthriseInvCtx.close();
+      // The quick-sell slider says it and its Sell button is disabled.
+      window.openQtySlider(id);
+      const sum = document.getElementById('qs-summary'), btn = document.getElementById('qs-sell');
+      assert(sum && sum.textContent.indexOf(W) >= 0 && !/0g/.test(sum.textContent), 'quick-sell quotes "' + (sum && sum.textContent) + '"');
+      assert(btn && btn.disabled === true, 'quick-sell leaves Sell enabled for a 0-bid item');
+      document.getElementById('qs-cancel').click();
+      // The junk sweep never picks it.
+      assert(window.HearthriseInvCtx.selectJunk(1e9).indexOf(id) < 0, 'the junk sweep would try to sell a 0-bid item');
+    } finally { restoreG(snap); }
   }),
 
   () => tryRun('b226: every gathering rung is strictly faster XP/sec than the one below it', () => {

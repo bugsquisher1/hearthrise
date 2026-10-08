@@ -162,7 +162,8 @@ export const ITEMS={
      level 20.
 
      That is not cosmetic, because `vendorPriceOf` (supabase/functions/hr-accrue/
-     catalogue.js) pays FULL BOOK VALUE for a non-raw item — arrows are crafted,
+     catalogue.js) paid FULL BOOK VALUE for a non-raw item (until the
+     b-craft-anchor ruling capped crafted bids at 1.5x inputs) — arrows are crafted,
      so `raw` is false and the vendor paid 60g each. `craft_iron_arrows` turns
      180g of input into 50 arrows every 3.5 s:
 
@@ -246,7 +247,9 @@ export const ITEMS={
      runs on is a score, not a currency.
 
      ⚠ THE PRICES ARE PINNED TO THESE `v` VALUES AND MAY NOT BE READ ALONE.
-       Cooked food is not `raw`, so `vendorPriceOf` pays the FULL `v` back.
+       Cooked food is not `raw`, so `vendorPriceOf` pays up to the FULL `v`
+       back (since b-craft-anchor, min(v, 1.5x its raw catch's bid) — the
+       buyback can only have fallen, but the bound below is still on `v`).
        The shop prices (150 / 450 / 2000 per 5 shrimp / trout / lobster) sit
        ~40% above the buyback (90 / 275 / 1200): raising `v` past 30 / 90
        turns the counter into an infinite gold faucet, and

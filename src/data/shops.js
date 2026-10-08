@@ -16,7 +16,7 @@
 //   hand-authored source, tools/gen-shops.mjs is deleted, and the preflight
 //   goes with it. The filename does not change, so nothing downstream moves.
 //
-//   catalogue digest: 2bdb11e69355ce1ca99fe0d5fab4f46dbb06708d17dbd0aac0dddb86e02c297e
+//   catalogue digest: f9f1aa0d01800a65c65527ec99ac751c5c1314ed1f2fa884f4be50881c763987
 //   128 offers · 224 cost lines · 6 prices that are formulas, not data
 //
 // EXTRACTED FROM
@@ -65,7 +65,7 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-export const SHOPS_DIGEST = "2bdb11e69355ce1ca99fe0d5fab4f46dbb06708d17dbd0aac0dddb86e02c297e";
+export const SHOPS_DIGEST = "f9f1aa0d01800a65c65527ec99ac751c5c1314ed1f2fa884f4be50881c763987";
 
 /** Every offer whose price is fully known as data. */
 export const SHOP_OFFERS = [
@@ -1082,13 +1082,14 @@ export const DERIVED_PRICES = [
   {
     "id": "vendor.sell",
     "name": "Vendor sell-back price",
-    "where": "src/legacy.js vendorPrice()",
+    "where": "src/core/vendor.js vendorBidOf() (hr-accrue vendorPriceOf + shop-counter vendorPrice)",
     "currency": "gold",
-    "formula": "ITEMS[id].raw ? max(1, floor(v * VENDOR_RAW_RATE)) : v",
+    "formula": "min(raw ? max(1, floor(v * VENDOR_RAW_RATE)) : v, min over recipes with inputs of floor(sum(qty * bid(input)) * CRAFT_ANCHOR_BP / (10000 * outputQty)))",
     "params": {
-      "VENDOR_RAW_RATE": 0.2
+      "VENDOR_RAW_RATE": 0.2,
+      "CRAFT_ANCHOR_BP": 15000
     },
-    "server_needs": "DERIVABLE TODAY — hr_items.value already carries v. Needs `raw` added to the catalogue and the rate as a constant. This is the cheapest of the six to close."
+    "server_needs": "CLOSED IN THE EDGE — hr-accrue/vendor-sell.js prices from ITEMS + ARTISAN_RECIPES through the same src/core/vendor.js the client renders from; no SQL body prices a sale."
   },
   {
     "id": "vendor.buyback",

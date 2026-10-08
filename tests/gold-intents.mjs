@@ -65,12 +65,13 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { createServer } from 'node:net';
 import { bootChain, ROOT, catalogueDeltaExtra } from './pglite-chain.mjs';
 
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
 const FN = (f) => join(ROOT, 'supabase', 'functions', 'hr-accrue', f);
+const CORE = (f) => join(ROOT, 'src', 'core', f);
 
 /* The same EXTRA chain tests/activity-intent.mjs appends, plus this slice's own
    staged migration LAST — it is the third file to `create or replace`
@@ -99,18 +100,58 @@ const EXTRA = [
 const MUTATIONS = {
   // ── the price is the server's ───────────────────────────────────────────
   vendor_rate_drift: {
-    file: FN('catalogue.js'),
-    why: 'the vendor rate drifts away from src/legacy.js VENDOR_RAW_RATE — the server pays 25% for '
-       + 'raws while the shop UI promises 20%, silently, on every sale in the game',
+    file: CORE('vendor.js'),
+    why: 'the vendor rate drifts away from the Designer\'s 20% — the server (and, through the one '
+       + 'module, the shop UI) pays 25% for raws, silently, on every sale in the game',
     find: 'export const VENDOR_RAW_RATE = 0.20;',
     repl: 'export const VENDOR_RAW_RATE = 0.25;',
   },
   vendor_ignores_raw: {
-    file: FN('catalogue.js'),
+    file: CORE('vendor.js'),
     why: 'the raw-material discount vanishes, so a maxed gatherer vendors at 5x the intended rate — '
        + 'the exact inflation b226 was written to close',
-    find: '  return it.raw ? Math.max(1, Math.floor(v * VENDOR_RAW_RATE)) : v;',
-    repl: '  return v;',
+    find: '  return item.raw ? Math.max(1, Math.floor(v * VENDOR_RAW_RATE)) : Math.floor(v);',
+    repl: '  return Math.floor(v);',
+  },
+  vendor_craft_anchor_dropped: {
+    file: CORE('vendor.js'),
+    why: 'crafted items bid full book value again — every bench is a x5 gold multiplier on '
+       + 'gathering (econ-sim: a grinder on the 25M/day cap from day 2)',
+    find: '        if (anchored < best) best = anchored;',
+    repl: '        /* mutated: anchor ignored */',
+  },
+  vendor_craft_anchor_markup: {
+    file: CORE('vendor.js'),
+    why: 'the anchor markup drifts from 1.5x to 2x — every craft adds +100% instead of +50%',
+    find: 'export const CRAFT_ANCHOR_BP = 15000;',
+    repl: 'export const CRAFT_ANCHOR_BP = 20000;',
+  },
+  vendor_anchor_first_recipe_only: {
+    file: CORE('vendor.js'),
+    why: 'an item with two recipes is anchored to the FIRST authored, not the CHEAPEST — the '
+       + 'expensive path sets the bid and the cheap path becomes a margin',
+    find: '      for (const p of paths[id]) {',
+    repl: '      for (const p of paths[id].slice(0, 1)) {',
+  },
+  vendor_quarry_at_book: {
+    file: CORE('vendor.js'),
+    why: 'a no-input (quarry) recipe output bids book value instead of the raw rate — the casual '
+       + 'player\'s main income is 5x the ruling',
+    find: "bids[id] = baseVendorBid(gathered[id] === true && it",
+    repl: "bids[id] = baseVendorBid(false && it",
+  },
+  vendor_zero_bid_credited: {
+    file: FN('vendor-sell.js'),
+    why: 'a 0-bid item is "sold" for 0 gold instead of refused by name — the player loses the stack',
+    find: '  if (!(unit > 0)) {',
+    repl: '  if (false) {',
+  },
+  vendor_floor_at_one: {
+    file: CORE('vendor.js'),
+    why: 'an anchor that floors to 0 is lifted to 1 — 10 whetstones out of one 3g block sell for '
+       + '10g, a craft that pays 3x its inputs',
+    find: '        const anchored = Math.floor((sum * CRAFT_ANCHOR_BP) / (BP * p.outQty));',
+    repl: '        const anchored = Math.max(1, Math.floor((sum * CRAFT_ANCHOR_BP) / (BP * p.outQty)));',
   },
   buy_price_invented: {
     file: FN('shop-buy.js'),
@@ -340,6 +381,7 @@ async function loadModules(patched) {
       cat: await import(pathToFileURL(join(dir, 'catalogue.js')).href + bust),
       req: await import(pathToFileURL(join(dir, 'request.js')).href + bust),
       sp: await import(pathToFileURL(join(dir, 'spend.js')).href + bust),
+      vendor: await import(pathToFileURL(join(dir, '..', '..', '..', 'src', 'core', 'vendor.js')).href + bust),
       fnDir: dir,
     };
   };
@@ -359,7 +401,11 @@ async function loadModules(patched) {
   await cp(FN(''), dir, { recursive: true });
   await cp(join(ROOT, 'src'), join(base, 'src'), { recursive: true });
   for (const [file, text] of patched) {
-    await writeFile(join(dir, file.split(/[\\/]/).pop()), text, 'utf8');
+    /* src/** files (src/core/vendor.js) land at their own path in the copy, so
+       catalogue.js's ../../../src/core import reaches the PATCHED text. */
+    const rel = relative(ROOT, file);
+    const target = rel.split(/[\\/]/)[0] === 'src' ? join(base, rel) : join(dir, file.split(/[\\/]/).pop());
+    await writeFile(target, text, 'utf8');
   }
   return importAll(dir);
 }
@@ -412,7 +458,7 @@ function freePort() {
 // ════════════════════════════════════════════════════════════════════════
 async function run(mutate) {
   fails.length = 0;
-  const { db, buy, sell, it, cat, req, sp, fnDir } = await boot(mutate);
+  const { db, buy, sell, it, cat, req, sp, vendor, fnDir } = await boot(mutate);
   const exec = makeExec(db);
   const doBuy = (o) => buy.runShopBuy({ exec, user: UID, slot: 0, ...o });
   const doSell = (o) => sell.runVendorSell({ exec, user: UID, slot: 0, ...o });
@@ -523,67 +569,124 @@ async function run(mutate) {
       + 'not enforced is not a cap');
   }
 
-  // ── G1. THE VENDOR BID IS legacy.js's, NOT A SECOND OPINION ─────────────
-  // src/data/shops.js exists BECAUSE legacy.js cannot be imported by ESM, and it
-  // is defensible only because a guard proves the copy has not diverged. The
-  // vendor formula is the same bargain — one more number that lives in two
-  // places — so it gets the same treatment.
+  // ── G1. THE VENDOR BID: ONE FORMULA, AND IT IS THE DESIGNER'S ───────────
+  // b-craft-anchor (Game Designer ruling 2026-10-08): a crafted item bids
+  // min(book, 1.5 x the summed bids of its cheapest recipe's inputs),
+  // recursively; raws bid 20% of book. The formula lives ONCE in
+  // src/core/vendor.js; the server's vendorPriceOf and the shop counter's
+  // vendorPrice both call it. G1 proves (a) both sides call it and neither
+  // restates it, (b) it equals an INDEPENDENT oracle of the ruling over the whole
+  // catalogue, (c) the edge cases the ruling names, on a synthetic catalogue.
   {
-    /* 2026-09-14: the vendor counter moved out of the monolith into the shop
-       SCREEN CONTROLLER (task #129 phase 2). The path follows the code — the two
-       CONTROLs below go red on a blind scan, which is how this pin was found
-       rather than passing quietly over a file that no longer holds the rate. */
-    const legacy = (await readFile(join(ROOT, 'src', 'screens', 'shop-counter.js'), 'utf8')).replace(/\r\n/g, '\n');
-    const rate = /const VENDOR_RAW_RATE\s*=\s*([0-9.]+)\s*;/.exec(legacy);
-    ok(!!rate,
-      'G1-CONTROL: no `const VENDOR_RAW_RATE = …` in src/screens/shop-counter.js — this scan is '
-      + 'blind, so a green run says nothing about whether the server pays what the shop promises');
-    ok(Number(rate[1]) === cat.VENDOR_RAW_RATE,
-      `G1: the shop counter pays raws at ${rate[1]} and the server pays ${cat.VENDOR_RAW_RATE}. The `
-      + 'client renders one number in the bag and the server credits another — on every sale in '
-      + 'the game, silently. Change it in the screen AND here, or move the rate into src/data.');
-
-    const body = /function vendorPrice\(id\)\{([\s\S]*?)\n\}/.exec(legacy);
+    /* (a) ONE FORMULA. The client must DELEGATE, not restate. */
+    const counter = (await readFile(join(ROOT, 'src', 'screens', 'shop-counter.js'), 'utf8')).replace(/\r\n/g, '\n');
+    const body = /function vendorPrice\(id\)\{([\s\S]*?)\n\}/.exec(counter);
     ok(!!body, 'G1-CONTROL: could not read vendorPrice() out of src/screens/shop-counter.js — the scan is blind');
-    ok(/it\.raw\s*\?\s*Math\.max\(1,\s*Math\.floor\(v\s*\*\s*VENDOR_RAW_RATE\)\)\s*:\s*v/.test(body[1]),
-      'G1: the shop counter\'s vendorPrice() formula has changed shape. The server\'s vendorPriceOf mirrors '
-      + '`raw ? max(1, floor(v * rate)) : v`; if the client\'s has moved, one of them is now wrong.');
+    ok(/HearthriseCore\.vendor/.test(body[1]) && /\.vendorBidOf\(\s*ITEMS\s*,\s*window\.ARTISAN_RECIPES\s*,\s*id\s*\)/.test(body[1]),
+      'G1: the shop counter\'s vendorPrice() no longer delegates to HearthriseCore.vendor.vendorBidOf(ITEMS, '
+      + 'window.ARTISAN_RECIPES, id) — the bag is quoting a price the server did not compute');
+    ok(!/VENDOR_RAW_RATE|Math\.floor|\.raw\b/.test(body[1]) && !/const VENDOR_RAW_RATE\s*=/.test(counter),
+      'G1: the shop counter restates the vendor formula — a second copy is how the bag and the server '
+      + 'come to disagree. Delete it; src/core/vendor.js is the formula.');
+    const bridge = await readFile(join(ROOT, 'src', 'core-bridge.js'), 'utf8');
+    ok(/import \* as vendor from '\.\/core\/vendor\.js\?v=\d+';/.test(bridge) && /\bhearthfind, vendor,/.test(bridge),
+      'G1: src/core-bridge.js does not publish src/core/vendor.js as HearthriseCore.vendor — the shop '
+      + 'counter would bid 0 for everything');
+    const catSrc = await readFile(join(fnDir, 'catalogue.js'), 'utf8');
+    ok(/return vendorBidOf\(items, ARTISAN_RECIPES, id\);/.test(catSrc),
+      'G1: hr-accrue vendorPriceOf no longer prices through src/core/vendor.js vendorBidOf over '
+      + 'ARTISAN_RECIPES — the server and the bag now run different formulas');
 
-    /* BEHAVIOURAL PARITY over the whole catalogue, computed from the legacy
-       formula rather than restated: every one of the 426 items, not a sample. */
+    /* (b) THE RULING, AS AN INDEPENDENT ORACLE. Deliberately a different
+       algorithm (memoised DFS with exact 3/2 integer arithmetic) from the
+       module's fixed-point sweep, and the rates are the Designer's numbers
+       written here — a drift in vendor.js is a disagreement with this. */
     const { ITEMS } = await import('../src/data/items.js');
-    const legacyPrice = (id) => {
-      const item = ITEMS[id];
-      if (!item) return 0;
-      const v = Number(item.v) || 0;
-      if (v <= 0) return 0;
-      return item.raw ? Math.max(1, Math.floor(v * Number(rate[1]))) : v;
-    };
-    const wrong = Object.keys(ITEMS)
-      .filter((id) => cat.vendorPriceOf(ITEMS, id) !== legacyPrice(id)).slice(0, 5);
-    ok(wrong.length === 0,
-      `G1: the server and the client disagree on the vendor bid for [${wrong}] — e.g. ${wrong[0]}: `
-      + `server ${cat.vendorPriceOf(ITEMS, wrong[0])}, client ${legacyPrice(wrong[0])}`);
-    /* THE DISCOUNT IS ACTUALLY BEING APPLIED. Sampled at v >= 10 deliberately:
-       below that the `max(1, …)` floor makes the discounted price equal the book
-       value, so a cheap raw is a control that cannot fail. Found the hard way —
-       the first version of this line picked `bones` (v = 1) and reported the
-       formula as absent when it was working. */
-    const raws = Object.keys(ITEMS).filter((id) => ITEMS[id].raw && Number(ITEMS[id].v) >= 10);
-    ok(raws.length > 20,
-      `G1-CONTROL: only ${raws.length} raw items are worth 10+, so the discount half of the formula `
-      + 'is barely exercised and the comparison above is close to vacuous');
-    for (const id of raws.slice(0, 5)) {
-      ok(cat.vendorPriceOf(ITEMS, id) < Number(ITEMS[id].v),
-        `G1-CONTROL: ${id} is raw (v=${ITEMS[id].v}) but the server bids full book value — the `
-        + 'discount is not being applied at all, so "the two agree" would only mean they are both wrong');
+    const { ARTISAN_RECIPES } = await import('../src/data/recipes.js');
+    const { recipeInputs } = await import('../src/core/artisan.js');
+    const byOut = new Map(); const gathered = new Set();
+    for (const list of Object.values(ARTISAN_RECIPES)) for (const r of list) {
+      if (!r.output) continue;
+      const ins = recipeInputs(r);
+      if (!Object.keys(ins).length) { gathered.add(r.output); continue; }   // a quarry: bids as a raw gather
+      if (!byOut.has(r.output)) byOut.set(r.output, []);
+      byOut.get(r.output).push({ ins, q: r.outputQty || 1 });
     }
-    const plain = Object.keys(ITEMS).find((id) => !ITEMS[id].raw && Number(ITEMS[id].v) >= 10);
+    const memo = new Map(); const onStack = new Set(); let cyclic = false;
+    const oracle = (id) => {
+      if (memo.has(id)) return memo.get(id);
+      const it = Object.prototype.hasOwnProperty.call(ITEMS, id) ? ITEMS[id] : null;
+      const v = it ? Number(it.v) || 0 : 0;
+      let bid = v > 0 ? ((it.raw || gathered.has(id)) ? Math.max(1, Math.floor(v / 5)) : v) : 0;
+      if (onStack.has(id)) { cyclic = true; return bid; }
+      onStack.add(id);
+      for (const p of byOut.get(id) || []) {
+        let sum = 0;
+        for (const k of Object.keys(p.ins)) sum += p.ins[k] * oracle(k);
+        bid = Math.min(bid, Math.floor((sum * 3) / (2 * p.q)));
+      }
+      onStack.delete(id);
+      memo.set(id, bid);
+      return bid;
+    };
+    for (const id of Object.keys(ITEMS)) oracle(id);
+    ok(!cyclic, 'G1-CONTROL: the shipped recipe graph has a cycle, so the DFS oracle is not exact — '
+      + 'extend it before trusting the comparison below');
+    const wrong = Object.keys(ITEMS).filter((id) => cat.vendorPriceOf(ITEMS, id) !== oracle(id)).slice(0, 5);
+    ok(wrong.length === 0,
+      `G1: the server's vendor bid departs from the ruling for [${wrong}] — e.g. ${wrong[0]}: `
+      + `server ${cat.vendorPriceOf(ITEMS, wrong[0])}, ruling ${oracle(wrong[0])}`);
+    /* Named pins, so a red line says which economy moved. */
+    ok(cat.vendorPriceOf(ITEMS, 'dawn_platebody') === Math.min(ITEMS.dawn_platebody.v, Math.floor(5 * oracle('dawn_bar') * 1.5))
+      && cat.vendorPriceOf(ITEMS, 'dawn_platebody') < ITEMS.dawn_platebody.v,
+      `G1: dawn_platebody bids ${cat.vendorPriceOf(ITEMS, 'dawn_platebody')} (book ${ITEMS.dawn_platebody.v}) — `
+      + 'it must be anchored to 1.5 x five Dawnsteel bars');
+    ok(cat.vendorPriceOf(ITEMS, 'dressed_block') === Math.floor((4 * oracle('rubble') * 3) / (2 * 2)),
+      `G1: dressed_block (2 out of 4 rubble) bids ${cat.vendorPriceOf(ITEMS, 'dressed_block')} — not anchored to its rubble`);
+    const raws = Object.keys(ITEMS).filter((id) => ITEMS[id].raw && Number(ITEMS[id].v) >= 10);
+    ok(raws.length > 20, `G1-CONTROL: only ${raws.length} raw items are worth 10+ — the raw half is barely exercised`);
+    for (const id of raws.slice(0, 5)) {
+      ok(cat.vendorPriceOf(ITEMS, id) === Math.floor(Number(ITEMS[id].v) / 5),
+        `G1: ${id} is raw (v=${ITEMS[id].v}) and bids ${cat.vendorPriceOf(ITEMS, id)} — not 20% of book`);
+    }
+    const plain = Object.keys(ITEMS).find((id) => !ITEMS[id].raw && !byOut.has(id) && Number(ITEMS[id].v) >= 10);
     ok(plain && cat.vendorPriceOf(ITEMS, plain) === Number(ITEMS[plain].v),
-      `G1-CONTROL: ${plain} is NOT raw and the server does not bid book value — the discount is `
-      + 'being applied to everything, which the comparison above would not distinguish');
-    ok(cat.vendorPriceOf({}, 'constructor') === 0,
+      `G1-CONTROL: ${plain} is neither raw nor craftable and does not bid book value`);
+    ok(cat.vendorPriceOf({}, 'constructor') === 0 && cat.vendorPriceOf(ITEMS, 'constructor') === 0,
       'G1: vendorPriceOf priced a prototype member — `ITEMS[\'constructor\']` must not resolve');
+
+    /* (c) THE EDGE CASES THE RULING NAMES, on a catalogue small enough to
+       compute by hand. */
+    const SI = {
+      ore: { v: 100, raw: true }, bar: { v: 1000 }, plate: { v: 100000 },
+      loopA: { v: 1000 }, loopB: { v: 1000 }, sinkE: { v: 1000 }, sinkF: { v: 1000 },
+      quarry: { v: 999 }, worthless: { v: 0 }, fromWorthless: { v: 500 }, fromTypo: { v: 500 },
+      batch: { v: 50 },
+    };
+    const SR = { smithing: [
+      { id: 'smelt', inputs: { ore: 2 }, output: 'bar' },
+      { id: 'forge_dear', inputs: { bar: 5 }, output: 'plate' },
+      { id: 'forge_cheap', inputs: { ore: 1 }, output: 'plate' },
+      { id: 'a_from_b', inputs: { loopB: 1 }, output: 'loopA' },
+      { id: 'b_from_a', inputs: { loopA: 1 }, output: 'loopB' },
+      { id: 'e_from_f', inputs: { sinkF: 1 }, output: 'sinkE', outputQty: 2 },
+      { id: 'f_from_e', inputs: { sinkE: 1 }, output: 'sinkF', outputQty: 2 },
+      { id: 'dig', output: 'quarry' },
+      { id: 'free_lunch', inputs: { worthless: 3 }, output: 'fromWorthless' },
+      { id: 'typo', inputs: { no_such_item: 1 }, output: 'fromTypo' },
+      { id: 'tenfold', inputs: { bar: 1 }, output: 'batch', outputQty: 10 },
+    ] };
+    const b = (id) => vendor.vendorBidOf(SI, SR, id);
+    ok(b('ore') === 20, `G1-EDGE: raw ore bids ${b('ore')}, want 20 (20% of 100)`);
+    ok(b('bar') === 60, `G1-EDGE: bar from 2 ore bids ${b('bar')}, want 60 (1.5 x 40)`);
+    ok(b('plate') === 30, `G1-EDGE: plate bids ${b('plate')}, want 30 — the CHEAPEST recipe (1 ore) sets it, not 5 bars (450)`);
+    ok(b('loopA') === 1000 && b('loopB') === 1000, `G1-EDGE: a 1:1 cycle moved off book (${b('loopA')}/${b('loopB')})`);
+    ok(b('sinkE') === 0 && b('sinkF') === 0, `G1-EDGE: a shrinking cycle did not settle at 0 (${b('sinkE')}/${b('sinkF')})`);
+    ok(b('quarry') === 199, `G1-EDGE: a no-input recipe's output (book 999, not flagged raw) bids ${b('quarry')}, want 199 — a quarry is a gather and bids the raw rate`);
+    ok(b('fromWorthless') === 0, `G1-EDGE: a recipe that is FREE to make sells for ${b('fromWorthless')}`);
+    ok(b('fromTypo') === 0, `G1-EDGE: an unknown input priced its output at ${b('fromTypo')} — must fail closed to 0`);
+    ok(b('batch') === 9, `G1-EDGE: 10 out of one 60g bar bids ${b('batch')} each, want floor(90/10) = 9`);
+    ok(b('constructor') === 0 && b('__proto__') === 0, 'G1-EDGE: a prototype member priced');
   }
 
   // ── G2. THE PARSER, ON THE SHAPES AN ATTACKER SENDS ─────────────────────
@@ -1099,6 +1202,21 @@ async function run(mutate) {
     ok(ns.status === 409 && ns.body.error === 'item_not_sellable',
       `G10: '${worthless}' (vendor bid 0) returned ${JSON.stringify(ns.body).slice(0, 200)} — it is a `
       + 'REAL item, and "unknown_item" would tell the player their quest key does not exist');
+
+    /* CRAFT-ANCHORED TO ZERO (craft-anchor follow-up ruling): an item with a
+       real book value whose anchor floors to 0 (earth_rune: 45 out of 6 blanks)
+       is REFUSED by name, never credited 0 and never priced at book. */
+    const anchoredZero = Object.keys(ITEMS).filter((id) => Number(ITEMS[id].v) > 0 && cat.vendorPriceOf(ITEMS, id) === 0);
+    ok(anchoredZero.includes('earth_rune') && anchoredZero.includes('rune_blank'),
+      `G10: earth_rune / rune_blank no longer anchor to a 0 bid (zero-bid set: [${anchoredZero}]) — the refusal below is unexercised`);
+    const g0 = Number((await state(db, UID)).gold);
+    for (const id of ['earth_rune', 'rune_blank']) {
+      const z = await doSell({ intentId: uuid(), item: id, qty: 5 });
+      ok(z.status === 409 && z.body.error === 'item_not_sellable',
+        `G10: selling ${id} (book ${ITEMS[id].v}, anchored bid 0) returned ${JSON.stringify(z.body).slice(0, 200)} — `
+        + 'a 0 bid must be refused BY NAME, not credited 0 gold');
+    }
+    ok(Number((await state(db, UID)).gold) === g0, 'G10: a refused 0-bid sale moved gold');
   }
 
   // ── G11. THE SHAPE CHECKS COST NO RATE BUDGET ───────────────────────────
@@ -1443,7 +1561,7 @@ async function run(mutate) {
     for (const f of clean) console.log('  ✗ ' + f);
     process.exit(1);
   }
-  console.log('gold-intents: OK — catalogue derivation, vendor-price parity with legacy.js, hostile '
+  console.log('gold-intents: OK — catalogue derivation, one vendor formula = the craft-anchor ruling, hostile '
     + 'bodies, buy/sell happy paths, the no-confiscation invariant, replay, one-key-one-purchase, '
     + 'insufficient gold, unknown vs unsupported, prototype names, unowned stock, budget-free shape '
     + 'refusals, the rate bucket, the registry, the taxonomy, clamp headroom, catalogue containment, '

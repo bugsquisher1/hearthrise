@@ -157,19 +157,37 @@ function buyCosmetic(id,price){
    the bag's Sell 1 / Sell All / Sell Selected, the context menu, the quick-
    sell slider, the sell-junk sweep and the old inventory tap — reads this.
    A price that differs by which button you pressed is not a price.
+
+   b-craft-anchor: the FORMULA no longer lives here. It is src/core/vendor.js
+   `vendorBidOf` — the same function hr-accrue/catalogue.js `vendorPriceOf`
+   credits from — over the same two catalogues (ITEMS, ARTISAN_RECIPES), so
+   the bag cannot quote a price the server will not pay. Crafted items bid
+   min(book, 1.5 × their cheapest recipe's input bids), recursively; raws bid
+   VENDOR_RAW_RATE × book (window.VENDOR_RAW_RATE is published by
+   src/core-bridge.js from the same module). No core yet = 0, "the vendor does
+   not buy it": a refused button is honest, a guessed price is not.
    ════════════════════════════════════════════════════════════════ */
-const VENDOR_RAW_RATE = 0.20;
 function vendorPrice(id){
-  const it = (typeof ITEMS==='object' && ITEMS) ? ITEMS[id] : null;
-  if(!it) return 0;
-  const v = Number(it.v) || 0;
-  if(v <= 0) return 0;
-  /* Floored at 1: a raw worth anything at all is still worth something, and a
-     0g bid reads as "this item is broken" rather than "this is cheap". */
-  return it.raw ? Math.max(1, Math.floor(v * VENDOR_RAW_RATE)) : v;
+  const core = window.HearthriseCore && window.HearthriseCore.vendor;
+  if(!core || typeof ITEMS!=='object' || !ITEMS) return 0;
+  return core.vendorBidOf(ITEMS, window.ARTISAN_RECIPES, id);
 }
-window.VENDOR_RAW_RATE = VENDOR_RAW_RATE;
 window.vendorPrice = vendorPrice;
+/* A 0 bid is a REFUSAL, never a "Sell 0g" (Game Designer ruling, craft-anchor
+   follow-up): runes, rune blanks, whetstone and arrow batches anchor to 0. Every
+   sell surface reads these two names, and the server refuses the same sale by
+   name (vendor-sell.js `item_not_sellable`) rather than crediting 0. */
+const VENDOR_WONT_BUY = "The shop won't buy this";
+function vendorWontBuy(id){ return !(vendorPrice(id) > 0); }
+window.VENDOR_WONT_BUY = VENDOR_WONT_BUY;
+window.vendorWontBuy = vendorWontBuy;
+function refuseUnbuyable(id){
+  if(!vendorWontBuy(id)) return false;
+  const it = ITEMS[id] || { n: id };
+  notify(`The shop won't buy ${it.n}`,'info');
+  return true;
+}
+window.refuseUnbuyable = refuseUnbuyable;
 
 /* Sell helpers — wrap existing logic if available, else simple */
 /* ══════════════════════════════════════════════════════════════════════
@@ -194,6 +212,7 @@ function vendorSellChunked(id, qty, site, sent){
   const S = window.HearthriseGold;
   const MAXQ = (S && S.MAX_QTY) || 1000;
   const price = vendorPrice(id);
+  if(!(price > 0)) return 0;   // the vendor does not buy it: nothing is sent, nothing predicted
   let remaining = qty;
   while(remaining > 0){
     const chunk = Math.min(remaining, MAXQ);
@@ -250,6 +269,7 @@ function invSellOne(id){
   /* DISPLAY-BOUNDED, the server answers (see sellableCount): a log gathered
      since the last envelope is real on the server and sells. */
   if((G.inventory[id]||0) <= 0){ notify('Nothing to sell','kill'); return; }
+  if(refuseUnbuyable(id)) return;
   const price = vendorPrice(id);
   const _k = goldIntentKey();
   goldSettle(price, 'vendor.sell_one', _k);
@@ -263,6 +283,7 @@ function invSellOne(id){
 function invSellAll(id){
   const it = ITEMS[id]; if(!it) return;
   if(isItemLocked(id)){ notify(`${it.n} is locked — unlock it in your bag first`,'kill'); return; }
+  if(refuseUnbuyable(id)) return;
   /* Game Designer ruling: Sell All sells the stack the server last confirmed. */
   const qty = sellableCount(id);
   if(qty === null){ notify(SELL_PENDING_TITLE,'info'); return; }

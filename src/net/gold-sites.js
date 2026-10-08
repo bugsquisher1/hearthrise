@@ -225,9 +225,6 @@ const B = Object.freeze({
     + 'escalates from, plus a cap the client does not have.',
   DUNGEON_ENTRY: 'a dungeon-entry verb. The six dungeon offers price an ENTRY, not an item — the '
     + 'grant is a run, which has no delta shape in hr_apply. Sits with the live-action intents.',
-  BUYBACK_LEDGER: '`G.buyback` becoming server state. Buy-back re-purchases at the exact price the '
-    + 'vendor paid, off a 15-entry local list; a server that authorises it must own that list, or '
-    + 'the price is client-supplied — which is the one thing that may never happen.',
   IAP_RECEIPT: 'platform receipt verification. This is real money and wants a store receipt check, '
     + 'not a progression intent. Disabled in the web beta.',
 });
@@ -733,14 +730,6 @@ export const GOLD_SITE_LEDGER = Object.freeze({
      longer writes `.gold` raw, so the scanner reports it under the seam id. b420:
      the arm-gate is LIFTED (the pet EFFECT is server-owned now) — see the seam row
      above. Companion procs no longer exist on the client. */
-  /* 2026-09-14: the vendor counter moved out of the monolith into the shop
-     screen controller (task #129). The row follows the code — the census fails
-     BOTH ways on a stale path (undeclared site here, missing site there), which
-     is how this rename was found rather than assumed. */
-  'src/screens/shop-counter.js#repurchase': {
-    kind: 'spend', status: 'deferred', blockedBy: B.BUYBACK_LEDGER,
-  },
-
   // ══ TRANSFERS — value crossing to another player ══════════════════════════
   'src/features/clans.js#contribute': {
     kind: 'transfer', status: 'deferred', blockedBy: B.CLAN_DEPOSIT_GOLD,

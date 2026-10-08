@@ -188,9 +188,8 @@ export default [
   /* -- regression suite -- LONE-HUNT-CHEST (whole-game review 2026-10-08, item 1;
      2026-10-10-lone-hunt-weekly-chest.sql). The solo fight was simulated in the
      browser and raid_claim('solo') paid with no check. The Lone Hunt is now a
-     weekly chest the SERVER opens on its own kill count: no strike, no pool, and
-     the only number on the card is the server's answer. RED before the fix: a
-     solo strike() rolled client damage and the card drew a client HP bar. */
+     weekly chest the SERVER opens on its own kill count; the card shows only the
+     server's answer. RED before: strike() rolled client damage into a client HP bar. */
   () => tryRunAsync('LONE-HUNT-CHEST: no client fight — the chest is claimed from the server and the card shows only the server count', async () => {
     const R = window.HearthriseRaids;
     const G = window.G;
@@ -1016,7 +1015,32 @@ export default [
   () => tryRun('renders: profile', () => {
     window.showTab('profile');
     if (typeof window.renderProfile === 'function') window.renderProfile();
-    assert(document.getElementById('dash-user'), 'dash-user missing');
+    assert(document.getElementById('hd-root'), 'hd-root missing — Home did not paint on showTab(profile)');
+  }),
+
+  /* CLEANUP-HOME-1 (2026-10-08): the legacy dash cards, the .prof-toolbar and
+     the Objectives popout are DELETED. Home is #hd-root (home-dashboard.js)
+     and nothing else; the old cards had been display:none under it since b219,
+     so a card, a toolbar or a localStorage opt-out coming back is a second Home
+     painting behind the first. */
+  () => tryRun('CLEANUP-HOME-1: Home is #hd-root alone — no legacy dash card, toolbar, popout or opt-out', () => {
+    const panel = document.getElementById('panel-profile');
+    assert(panel, '#panel-profile is missing');
+    ['dash-user', 'dash-today', 'dash-milestone', 'dash-active', 'dash-objectives', 'dash-skills', 'dash-homestead']
+      .forEach((id) => assert(!document.getElementById(id), '#' + id + ' is back — the legacy Home card was deleted'));
+    let prior = null;
+    try { prior = localStorage.getItem('hearthrise:home-v2'); localStorage.setItem('hearthrise:home-v2', '0'); } catch (e) {}
+    try {
+      window.showTab('profile');
+      if (typeof window.renderProfile === 'function') window.renderProfile();
+      window.HearthriseHome.render();
+      assert(document.getElementById('hd-root'), 'Home did not paint with the retired home-v2=0 opt-out set — the opt-out is back');
+      assert(!panel.querySelector('.prof-toolbar'), 'a .prof-toolbar was injected into Home again');
+      assert(typeof window.openObjectivesPopout === 'undefined', 'openObjectivesPopout is published again');
+      assert(!document.body.classList.contains('has-prof-toolbar'), 'body still carries has-prof-toolbar');
+    } finally {
+      try { if (prior === null) localStorage.removeItem('hearthrise:home-v2'); else localStorage.setItem('hearthrise:home-v2', prior); } catch (e) {}
+    }
   }),
   () => tryRun('renders: farm + house', () => {
     // SA-013: was a no-op render (verified only "did not throw"). Now assert the
@@ -1208,33 +1232,6 @@ export default [
     assert(!modal.classList.contains('show'), 'ESC did not close the lifetime-stats modal');
   }),
 
-  // render-layer extraction: the Profile "Objectives" popout moved out of
-  // legacy.js to src/render/objectives-popout.js. Pure refactor —
-  // openObjectivesPopout must stay on window (buildProfileToolbar wires it via
-  // addEventListener with the bare global). Read-only: it mirrors the
-  // #dash-objectives card innerHTML into a modal and writes no game state.
-  () => tryRun('render: objectives popout (extracted surface)', () => {
-    assert(typeof window.openObjectivesPopout === 'function',
-      'openObjectivesPopout must stay on window (buildProfileToolbar addEventListener global)');
-    // Seed a source card with a known marker the popout should mirror.
-    let src = document.getElementById('dash-objectives');
-    const hadSrc = !!src;
-    if (!src) { src = document.createElement('div'); src.id = 'dash-objectives'; document.body.appendChild(src); }
-    const savedSrc = src.innerHTML;
-    src.innerHTML = '<div class="obj-marker">OBJECTIVE_SMOKE_MARKER</div>';
-    window.openObjectivesPopout();
-    const ov = document.getElementById('prof-pop-objectives');
-    assert(ov, 'prof-pop-objectives overlay not created');
-    assert(ov.classList.contains('show'), 'objectives popout did not open (missing .show)');
-    const body = document.getElementById('prof-pop-objectives-body');
-    assert(body && body.innerHTML.indexOf('OBJECTIVE_SMOKE_MARKER') >= 0,
-      'objectives popout did not mirror #dash-objectives content');
-    // Backdrop click (target === overlay) must close it.
-    ov.dispatchEvent(new MouseEvent('click'));
-    assert(!ov.classList.contains('show'), 'backdrop click did not close the objectives popout');
-    // Restore source card state.
-    if (hadSrc) src.innerHTML = savedSrc; else src.remove();
-  }),
 
   // 2nd render-layer extraction: the Active Effects panel (Profile card) moved
   // out of legacy.js block 8 to src/render/active-effects.js. Pure refactor —
@@ -1618,50 +1615,13 @@ export default [
     }
   }),
 
-  // 10th render-layer extraction: the vendor Buy Back modal moved out of
-  // legacy.js to src/render/buyback.js. openBuyback + renderBuyback must stay on
-  // window (repurchase() and repaintBalanceSurfaces() call renderBuyback bare).
-  () => tryRun('render: buy back modal (extracted surface)', () => {
-    assert(typeof window.openBuyback === 'function', 'openBuyback must stay on window');
-    assert(typeof window.renderBuyback === 'function', 'renderBuyback must stay on window');
-    window.openBuyback();
-    const m = document.getElementById('bb-modal');
-    assert(m && m.classList.contains('show'), 'buy-back modal did not open (missing .show)');
-    m.classList.remove('show');
-  }),
-
-  () => tryRun('BUYBACK-FAIL-CLOSED-1: Buy Back offers no enabled buy control while the server has no buy-back verb', () => {
-    // Every repurchase() tap failed closed under armed gold while the sheet painted
-    // enabled 'Buy back · N gp' buttons and the More sheet carried a door to it.
-    const sites = window.HearthriseGoldSites;
-    assert(sites && !sites.isWiredSite('src/screens/shop-counter.js#repurchase'),
-      'repurchase is wired now — reopen the counter from the server list and retire this test');
-    try {
-      window.openBuyback();
-      const body = document.getElementById('bb-modal-body');
-      assert(/The realm keeps no buy-back counter yet/.test(body.textContent), 'the closed reason is missing');
-      const live = [...body.querySelectorAll('button')].filter((b) => !b.disabled);
-      assert(live.length === 0, live.length + ' enabled buy-back control(s) rendered');
-      const door = [...document.querySelectorAll('#more-modal button')].filter((b) => /buy\s*back/i.test(b.textContent) && !b.disabled);
-      assert(door.length === 0, 'the More sheet still opens the buy-back counter');
-    } finally {
-      window.closeAllModals();
-    }
-  }),
-
   () => tryRun('MODAL-BACKDROP-1: a .modal built after boot closes on its backdrop, and the block list never duplicates', () => {
-    // The backdrop listener bound only to boot-time .modal nodes, so buy-back and
-    // the block list ignored a backdrop click; the block list's Escape left a
-    // hidden #blocklist-modal that the next open duplicated.
-    const savedBuyback = window.G.buyback;
+    // The backdrop listener bound only to boot-time .modal nodes, so the block
+    // list ignored a backdrop click; its Escape left a hidden #blocklist-modal
+    // that the next open duplicated.
     const backdrop = (el) => el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     const manage = () => { window.openSettings(); document.querySelector('#settings-body #set-show-blocklist').click(); };
     try {
-      window.G.buyback = [];
-      window.openBuyback();
-      const bb = document.getElementById('bb-modal');
-      backdrop(bb);
-      assert(!bb.classList.contains('show'), 'a backdrop click did not close the buy-back sheet');
       manage();
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       manage();
@@ -1670,7 +1630,6 @@ export default [
       backdrop(document.getElementById('blocklist-modal'));
       assert(!document.querySelector('#blocklist-modal.show'), 'a backdrop click did not close the block list');
     } finally {
-      window.G.buyback = savedBuyback;
       document.querySelectorAll('#blocklist-modal').forEach((el) => el.remove());
       window.closeAllModals();
     }
@@ -1680,25 +1639,6 @@ export default [
   // Each test guards against a specific historical regression. If
   // any of these fail we're shipping a bug we already paid for once.
 
-  // b119: renderProfile crashed in a loop when onAuthStateChange fired
-  // before the Profile panel template was in the DOM. Null guards added.
-  () => tryRun('b119: renderProfile survives missing dash-user-sub', () => {
-    if (typeof window.renderProfile !== 'function') return;
-    const sub = document.getElementById('dash-user-sub');
-    const body = document.getElementById('dash-user-body');
-    if (!sub || !body) return; // can't simulate cleanly; skip silently
-    const subParent = sub.parentNode, bodyParent = body.parentNode;
-    sub.remove(); body.remove();
-    // SA-013: the whole point of the test is "renderProfile does NOT throw when
-    // these nodes are missing" — capture that and assert it, instead of letting
-    // a survived call and a thrown one both report PASS (a throw would surface
-    // via the global error log, but the test's own name promised the check).
-    let threw = null;
-    try { window.renderProfile(); }
-    catch (e) { threw = e; }
-    finally { subParent.appendChild(sub); bodyParent.appendChild(body); }
-    assert(!threw, 'renderProfile threw with dash-user-sub/body missing: ' + (threw && threw.message));
-  }),
 
   // b122: skill icons should fall back to emoji on every renderer.
   // If something re-populates _skillIcon with broken paths, renderers
@@ -1720,16 +1660,6 @@ export default [
     );
   }),
 
-  // b124: hide the duplicate prof-toolbar on mobile so we don't see
-  // both Achievements/Bestiary/LastSession/Lifetime AND Objectives/
-  // Achievements/Bestiary/Lifetime stacked on small viewports.
-  () => tryRun('b124: prof-toolbar hidden on mobile', () => {
-    if (window.innerWidth > 540) { skip('mobile-only rule; desktop viewport'); return; }
-    const pt = document.querySelector('#panel-profile .prof-toolbar');
-    if (!pt) { skip('prof-toolbar not in DOM'); return; }
-    const d = getComputedStyle(pt).display;
-    assert(d === 'none', 'prof-toolbar should be display:none on mobile, got ' + d);
-  }),
 
   // b123: feat-buttons must be a 2-column grid on mobile. Earlier they
   // stayed in a vertical flex stack because audit-overrides.css had
@@ -3642,11 +3572,23 @@ export default [
       assert(summary && summary.ticks === 208, 'the 1 h away span ran ' + (summary && summary.ticks) + ' actions, not 208 (' + (summary && summary.stoppedBy) + ')');
       const gained = xpView() - xp0;
       assert(gained === 48 * 208 && gained === 9984, 'the away span paid ' + gained + ' woodcutting XP, the ruling is 48 × 208 = 9,984');
-      /* Measured once on the 0xC0FFEE stream; pinned, never banded. */
-      const SEEDED_YEW = 304;
+      /* The shared engine's output on the 0xC0FFEE stream (src/core/skill-sim.js,
+         the code the edge runs): pinned, never banded. Was 304 while pets.js
+         drew from this stream on every addXp, which broke AWAY-1 parity. */
+      const SEEDED_YEW = 307;
       const yew = G.inventory.yew_log || 0;
       assert(yew >= 208 && yew <= 416, 'the away span banked ' + yew + ' yew_log, outside the [1,2] × 208 envelope [208, 416]');
-      assert(yew === SEEDED_YEW, 'the seeded away span banked ' + yew + ' yew_log, the 0xC0FFEE stream pins exactly ' + SEEDED_YEW + ' — a changed count is a changed draw order or yield');
+      assert(yew === SEEDED_YEW, 'the seeded away span banked ' + yew + ' yew_log; the shared engine pays exactly ' + SEEDED_YEW + ' on the 0xC0FFEE stream — a changed count is a changed draw order or yield');
+      /* BITE: one extra draw per addXp on the MAIN stream (the old pets.js) moves the count off the pin. */
+      const ctl = { skillTargetId: node.id, activeSkill: 'woodcutting', skills: { woodcutting: window.xpForLevel(node.req) },
+        inventory: {}, equipment: {}, toolCarry: {}, stats: { gathered: 0, chopped: 0 }, buffs: [] };
+      const ctlRng = C.reseed(0xC0FFEE);
+      let ctlYew = 0;
+      C.skillSim.simulateSkillSpan(ctl, { away: true, fromMs: 0, toMs: 3600000, rng: ctlRng, items: window.ITEMS, nodes, bonus: () => 0,
+        fx: { addItem: (id, q) => { if (id === 'yew_log') ctlYew += q; }, addXp: () => { ctlRng.next(); },
+              updateDaily: () => {}, updateQuest: () => {}, onStop: () => {} } });
+      assert(ctlYew !== SEEDED_YEW && ctlYew === 304,
+        'CONTROL: a roll on the yield stream banked ' + ctlYew + ' (expected 304, off the ' + SEEDED_YEW + ' pin) — the pin cannot see a shared stream');
     } finally { window.getBonus = real.getBonus; window.restedQuantum = real.restedQuantum; window.getEquipmentStats = real.getEquipmentStats; G._pred = real.pred; restoreG(snap); }
   }),
 

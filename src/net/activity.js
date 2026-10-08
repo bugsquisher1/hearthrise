@@ -69,7 +69,7 @@
 // CONSTRUCTED field by field (accrue.js's rule): a body assembled by spreading
 // is a body a future field rides into.
 //
-// DOM-free apart from the replacement sheet it delegates to accrue.js.
+// DOM-free.
 // Node-importable. No fetch seam — `fetch` resolves at call time, so a test's
 // override IS the transport, and the suite asserts the literal bytes.
 // ============================================================================
@@ -77,7 +77,7 @@
 import {
   isServerAccrualEnabled, resolveActiveSlot, accrueEndpoint, MAX_SLOT,
   applyEnvelopeState, holdFallAnnounce, describeReplacement,
-  isReplacementAcknowledged, showReplacementSheet, beginServerAccrual,
+  beginServerAccrual,
   isReconcilePending, isAccrualFailure, awaitSettleRaceClear, flushAttendedCredits,
   /* THE FRAME GATE (WORLD_TICK_DESIGN.md §7.1), imported — this module is the
      THIRD applier of a server envelope and it had no monotonic rule at all. */
@@ -792,13 +792,10 @@ export function applyIntentEnvelope(G, body) {
       + 'so the local save being compared against may not be the one that wins.');
     return null;
   }
-  if (loss.destructive && !isReplacementAcknowledged()) {
-    console.warn('[activity] REFUSING to overwrite local progress with the server character '
-      + 'until the player confirms — would lose ' + loss.gold + ' gold, ' + loss.skillXp
-      + ' skill XP and ' + loss.items + ' item(s). This is permanent and there is no merge.');
-    showReplacementSheet(loss, G, env, (g, e) => applyIntentEnvelope(g, { ...body, ...e }));
-    return null;
-  }
+  /* no consent gate after the deferral. The old consent
+     sheet asked the player to approve the server's character over a local
+     copy the cutover retired; refusing kept the browser showing numbers the
+     server had already replaced (CLAUDE.md §6). The envelope is the truth. */
 
   /* ONE announcement for the state AND the collect receipt below, at the tail. */
   const release = holdFallAnnounce();

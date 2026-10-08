@@ -16,15 +16,6 @@
   var STYLE_ID = 'home-dashboard-css';
   var ROOT_ID = 'hd-root';
 
-  // Gate: the new Home is ON by default (solo build weekend — Tyler is the only
-  // player). Easy opt-out if it misbehaves:
-  //   localStorage.setItem('hearthrise:home-v2','0')   → old Home back
-  //   localStorage.removeItem('hearthrise:home-v2')    → new Home again
-  function enabled() {
-    try { return localStorage.getItem('hearthrise:home-v2') !== '0'; }
-    catch (e) { return true; }
-  }
-
   function css() {
     // Every rule is prefixed with #hd-root and uses !important on colour /
     // background / border, so the legacy sheets' broad !important rules can't
@@ -38,7 +29,6 @@
     return [
       '#panel-profile.active:has(#' + ROOT_ID + ') > .card,',
       '#panel-profile.active:has(#' + ROOT_ID + ') > .feat-buttons,',
-      '#panel-profile.active:has(#' + ROOT_ID + ') > .prof-toolbar,',
       '#panel-profile.active:has(#' + ROOT_ID + ') > .dash-grid{display:none !important}',
       /* b213 (phase 2): legacy "block 30" forces the profile panel into a
          two-column dashboard grid (450px cells). This component owns the
@@ -1253,7 +1243,6 @@
   }
 
   function render() {
-    if (!enabled()) return;
     var panel = document.getElementById('panel-profile');
     if (!panel || !panel.classList.contains('active') || !window.G) return;
     ensureStyle();
@@ -1753,7 +1742,8 @@
     // described in the realm's words. b560: no rate, yield or gold figure — the
     // engine pays no blessing layer (CONFLICTS.md 2026-09-28).
     var WE = window.HearthriseWorldEvents;
-    if (WE && WE.daily) {
+    /* only while the blessing switch is on (world-events.js shown()). */
+    if (WE && WE.daily && typeof WE.shown === 'function' && WE.shown()) {
       try {
         var wd = WE.daily(), ww = WE.weekly && WE.weekly();
         // b227: read the world-events module's own glyph map when it has one,

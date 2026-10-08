@@ -62,8 +62,6 @@ export function closeOverlays() {
   t(() => window.closeQuestsModal && window.closeQuestsModal());
   t(() => window.HearthriseChronicle && window.HearthriseChronicle.close());
   t(() => window.HearthriseDeathSheet && window.HearthriseDeathSheet.close());
-  t(() => window.HearthriseAccrual && window.HearthriseAccrual.hideReplacementSheet
-    && window.HearthriseAccrual.hideReplacementSheet());
   /* The character picker's own close() is a closure over the overlay it built;
      what it does is drop `.open`, which is what returns the layer to
      `display:none`. Same effect, no node removed. */
@@ -734,46 +732,6 @@ const withLocalBlobAsync = async (fn) => {
   try { return await fn(); } finally { unpinLocalBlob(C); }
 };
 
-/* ── 2026-09-08 — THE SAME PROBLEM FOR THE HERO-SLOT ENTITLEMENT ─────────────
-   `hr_buy_hero_slot` moved hero-slot ownership to the server: hr_state_of
-   projects the account's owned set, src/net/accrue.js reconcileHeroSlots lands
-   it in `G._heroSlots`, and multi-character.js `ownsSlot`/`unlockedCount` prefer
-   it over the `G.heroSlotsUnlocked` residue — which is the whole fix, because
-   the residue is the store a cloud restore can rewind while the entitlement it
-   paid for stays granted (the b371 dupe).
-
-   Four tests below are ABOUT the CLIENT-OWNED path (`unlockSlot`, kept verbatim
-   as the pre-arm branch and unreachable from any UI once gems are armed). Signed
-   in against a server that carries the projection, `G._heroSlots` is populated,
-   so those tests would be asserting the residue against a server answer that
-   correctly disagrees with it — a green-today, red-on-apply trap, which is worse
-   than a failure. So they run in the position they are ABOUT: server answer
-   ABSENT, residue authoritative, restored afterwards.
-
-   ⚠ A TEST WRAPPED HERE DOES **NOT** COVER THE ARMED PATH. That is SLOT-SRV-*,
-   which drives the server verb and asserts the residue is NOT believed. */
-export const withClientOwnedSlots = (fn) => {
-  const G = window.G;
-  const had = !!(G && Object.prototype.hasOwnProperty.call(G, '_heroSlots'));
-  const prev = had ? G._heroSlots : undefined;
-  /* AND IT HAS TO SAY WHO OWNS THE GEMS, which is what "client-owned" means:
-     residueCount() now fails safe to slot 0 unless `clientMayWriteRecordField
-     ('gems')` is TRUE, because "no projection AND the server owns the gems" is
-     the boot state a stale residue was opening slots in — the defect itself, not
-     a state to test in. Other fields pass through (a blanket `() => true` would
-     hand four unrelated subsystems a client writer). */
-  const origMay = window.clientMayWriteRecordField;
-  try {
-    if (G) delete G._heroSlots;
-    window.clientMayWriteRecordField = (f) => (f === 'gems' ? true
-      : (typeof origMay === 'function' ? origMay(f) : true));
-  } catch (e) {}
-  try { return fn(); } finally {
-    window.clientMayWriteRecordField = origMay;
-    try { if (G) { if (had) G._heroSlots = prev; else delete G._heroSlots; } } catch (e) {}
-  }
-};
-
 /* ── b514 (cleanup slice 4) — THE FARM IS DRIVEN AGAINST A STUBBED SERVER ────
    b456 tested the farm by turning the SERVER ROUTING OFF (`withLocalFarm`) and
    measuring the client-authored twin underneath. That twin is now DELETED —
@@ -1046,34 +1004,28 @@ export const withServerBacked = (opts, fn) => {
     Gd.resetGold();
     Gd.configureGold({ url: 'https://probe.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
   }
-  /* ── THE TWO GATES A REAL SESSION HAS ALREADY PASSED ──────────────────────
-     `applyGoldEnvelope` refuses to write for two reasons that have nothing to
-     do with the gesture under test, and BOTH are true of this harness and of no
+  /* ── THE GATE A REAL SESSION HAS ALREADY PASSED ───────────────────────────
+     `applyGoldEnvelope` refuses to write for a reason that has nothing to
+     do with the gesture under test, and it is true of this harness and of no
      real player:
 
        · isReconcilePending() — the b314 snapshot hold. It is held until the
          cloud reconcile settles, which never happens here because there is no
          cloud. Held, every verb envelope is DEFERRED and applies nothing.
-       · isReplacementAcknowledged() — the b366 first-contact consent. Any
-         envelope whose gold is LOWER than G's reads `destructive` on plain
-         arithmetic, and a purchase always lowers gold, so an unacknowledged
-         client refuses its own successful purchase.
+       (The first-contact consent that used to be the second reason was
+       deleted with the replacement sheet.)
 
-     Both are released for the duration and restored exactly as found, which is
-     the same pair B354-1 and the b371 sync tests already manage by hand. A test
-     ABOUT either gate must not use this fixture — `ACCRUE-REPLACE-HANDOFF` owns
+     It is released for the duration and restored exactly as found, which is
+     what B354-1 and the b371 sync tests already manage by hand. A test
+     ABOUT the gate must not use this fixture — `ACCRUE-REPLACE-HANDOFF` owns
      the deferral and drives it directly. */
-  const A = window.HearthriseAccrual;
   const Sy = window.HearthriseSync;
-  const wasAck = A ? A.isReplacementAcknowledged() : null;
   const wasHeld = (Sy && typeof Sy.isSnapshotHeld === 'function') ? Sy.isSnapshotHeld() : null;
-  if (A) A.acknowledgeReplacement(true);
   if (wasHeld === true) Sy.releaseSnapshots();
 
   const restore = () => {
     window.fetch = realFetch;
     if (Gd && typeof Gd.configureGold === 'function') { Gd.resetGold(); Gd.configureGold(hadGoldCfg || null); }
-    if (A && wasAck !== null) A.acknowledgeReplacement(wasAck);
     if (wasHeld === true) Sy.holdSnapshots();
   };
   let r;
@@ -1439,14 +1391,11 @@ export const applyAwayEnvelope = (away, opts) => {
   }, o.env);
   const realNotify = window.notify;
   const toasts = [];
-  const wasAck = A.isReplacementAcknowledged();
   try {
-    A.acknowledgeReplacement(true);
     window.notify = function (m) { toasts.push(String(m)); };
     window.applyServerEnvelope(env, { intent: false });
   } finally {
     window.notify = realNotify;
-    A.acknowledgeReplacement(wasAck);
   }
   return { toasts, last: toasts[toasts.length - 1] || '', rec: G.lastOfflineSummary, env };
 };
@@ -1683,7 +1632,7 @@ export const gemsOf = () => {
    (MEASURED 2026-09-12 via `buyback` and `rooms`). The fix is not 26 guessed empties — one is
    state a later test reads as real (`skills: {}` is a level-1 character) — so absence is
    RECORDED as the `SNAP_ABSENT` sentinel and `restoreG` `delete`s that key. WHICH 26 and why:
-   snapshot-allowlist-guard §1b. UNRESOLVED: none; the 13 pre-seal empties stand, pinned. */
+   snapshot-allowlist-guard §1b. UNRESOLVED: none; the 12 pre-seal empties stand, pinned. */
 const SNAP_ABSENT = ' HR_SNAP_ABSENT ';
 /* ⚠ NOT one JSON round trip over the whole object — that IS the bug. The literal is built
    first (it keeps an `undefined`-valued key, which is how the absent fields stay
@@ -1719,7 +1668,7 @@ export const snapshotG = () => {
     playerHp: G.playerHp,
     playerMaxHp: G.playerMaxHp,
     // b136: include the new fields so Batch C tests don't pollute
-    // the player's save when they mutate G.plotLevels / autoActions / dropLog.
+    // the player's save when they mutate G.plotLevels / autoActions.
     plotLevels: G.plotLevels,
     /* 2026-09-06 — the SERVER-mirrored plot tier (farm-progression.js
        getServerPlotLevel). It outranks plotLevels in the plant gate, so a test
@@ -1728,7 +1677,6 @@ export const snapshotG = () => {
        which is exactly "the server has not told us yet". */
     _serverPlotLevel: G._serverPlotLevel,
     autoActions: G.autoActions,
-    dropLog: G.dropLog,
     // b138: launchpad — Batch D's tests touch lastActivity + daily.snapshot.
     lastActivity: G.lastActivity,
     daily: G.daily,
@@ -1830,11 +1778,10 @@ export const snapshotG = () => {
        test pinning it pins the bag for the rest of the run. `?? null`: no envelope
        yet = no key, and JSON drops undefined (SNAP-2). */
     _bankCap: G._bankCap ?? null,
-    /* b4xx (gold slices 2-3): the WORKERS crew and the HOUSE theme/buyback state.
-       The slice-2/3 tests drive hire() (which pushes a worker + debits gold),
-       buyTheme() (equips a theme) and repurchase() (spends the buy-back list), so
-       without these four fields a suite run would gift the player a worker, an
-       equipped theme, or an emptied/edited buy-back list they never chose. */
+    /* b4xx (gold slices 2-3): the WORKERS crew and the HOUSE theme.
+       The slice-2/3 tests drive hire() (which pushes a worker + debits gold) and
+       buyTheme() (equips a theme), so without these fields a suite run would
+       gift the player a worker or an equipped theme they never chose. */
     workers: G.workers,
     houseTheme: G.houseTheme,
     /* ⚠ `ownedThemes` / `ownedCosmetics` WERE HERE AND ARE GONE WITH THE FIELDS
@@ -1863,10 +1810,6 @@ export const snapshotG = () => {
     _serverBag: G._serverBag,
     _bagFromServerAt: G._bagFromServerAt,
     _startKitHintAt: G._startKitHintAt,
-    /* ⚠ `?? []`, NOT bare — SNAP-2, and this one BIT: a character who never sold has
-       no key, JSON drops it, restoreG cannot put back what it has not got, and a test
-       that made a REAL sale left an entry render/shop.js paints as an extra row. */
-    buyback: G.buyback ?? [],
     /* b487: the QUEST MODAL's two slates. `G.daily` (the DAILY_TASK_POOL tasks)
        has been on this list since b138 — its two SIBLINGS never were, and they
        are the ones the goal tests actually drive. GOAL-CLAIM-1 assigns
@@ -2034,21 +1977,20 @@ export const cameFromArc = async (cfg, body) => {
    successor, so no 2 s chain outlives the arm — including one an earlier test
    started. Returns the restore, which puts the sheet away through its own
    dismiss and both flags back exactly as found. */
+/* Front door: the post-signup welcome sheet was CUT (its one useful line,
+   "your hero lives on the server", now lives in the tour), so the name prompt is
+   the only first-run sheet a stubbed session can arm. */
 export const firstRunAnswered = (name) => {
-  const I = window.HearthriseIdentity, W = window.HearthrisePostSignup;
+  const I = window.HearthriseIdentity;
   /* ASSERTED, not shrugged at: a hook that quietly goes missing would turn this
-     into a no-op and hand the sheets back their opening, which is the whole bug. */
-  assert(I && I._installHarnessIdentity && W && W.markSeen, 'a first-run seam is gone from identity.js / post-signup-welcome.js');
-  const wasWelcomed = W.seen();
+     into a no-op and hand the sheet back its opening, which is the whole bug. */
+  assert(I && I._installHarnessIdentity, 'the first-run seam is gone from identity.js');
   /* `_clearHarnessIdentity()` blanks the record, so the real one is parked and
      put back field for field: this seam must cost the page nothing it owned. */
   const hadRec = JSON.parse(JSON.stringify(I._record()));
-  W.markSeen();
   I._installHarnessIdentity({ name: name || 'Adventurer' });
   return () => {
-    try { W.close(); } catch (e) {}
     try { I._clearHarnessIdentity(); Object.assign(I._record(), hadRec); I._persist(); I.applyAvatar(); } catch (e) {}
-    if (wasWelcomed) W.markSeen(); else W.forget();
   };
 };
 
@@ -2290,13 +2232,13 @@ export const restoreGAndRecord = (snap) => {
 /* SNAP-2's PROBE. Walked once per property test below, so a red names WHICH half of the
    seal broke. Per field: a character that does NOT own it (snapshot → write what a test
    writes → restore) and one that DOES. A swap onto a DETACHED copy, synchronous, so the
-   live G is never written. DECLARED_EMPTY is the 13 pre-seal `?? <empty>` entries PINNED
+   live G is never written. DECLARED_EMPTY is the 12 pre-seal `?? <empty>` entries PINNED
    BY VALUE — a field may decline the sentinel only if named here with its exact value, so
    the count can only fall; a made-up empty is worse than the leak it replaces. */
 const SNAP_DECLARED_EMPTY = {
   activeArtisanRecipe: null, activeArtisanSkill: null, activeAction: null, _dungeonCooldowns: null,
   traits: null, _bankCap: null, heroSlotsUnlocked: null, _heroSlots: null, lockedItems: null,
-  lootFilter: null, lastWelcome: 0, recoveringUntilMs: 0, buyback: [],
+  lootFilter: null, lastWelcome: 0, recoveringUntilMs: 0,
 };
 export const snapRoundTrip = () => {
   const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k), J = (v) => String(JSON.stringify(v)).slice(0, 50);

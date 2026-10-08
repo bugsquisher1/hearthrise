@@ -1308,7 +1308,7 @@
   // queue rather than jumping it, because a lapsed token is never more urgent
   // than the tutorial the player is in the middle of.
   var BLOCKING = '.ftue-root .ftue-card.show, .hr-id-scrim, .hr-dl-scrim, ' +
-                 '#beta-banner-overlay, #hr-welcome-modal, #hr-post-signup-modal';
+                 '#beta-banner-overlay, #hr-welcome-modal';
 
   var reauthUp = false;
   function promptReauth() {

@@ -45,16 +45,11 @@ const RETIRED = [
 const RETIRED_KEYS = /hearthbound-save-v2|hearthrise:save-backup:|hearthrise:char:/g;
 
 /* Every entry: where (repo path), match (regex over ~120 chars of context), reason. */
-const DEFERRED = 'C1 deferred: consent gate pending owner decision';
 const PLUMBING = 'dead blob plumbing, follow-up';
 const ALLOW = [
-  { where: 'src/net/accrue.js', match: /replace your local progress/, reason: DEFERRED },
-  { where: 'src/net/accrue.js', match: /Keep my local save/, reason: DEFERRED },
   { where: 'src/legacy.js', match: /SAVE_KEY\s*=\s*'hearthbound-save-v2'/, reason: 'the key the loadLocal purge removes' },
   { where: 'src/legacy.js', match: /RETIRED_PREFIXES=\[/, reason: 'the loadLocal purge of the retired prefixes' },
   { where: 'src/legacy.js', match: /PARK_PREFIX\s*=/, reason: PLUMBING + ' (park helpers, pinned by b318)' },
-  { where: 'src/multi-character.js', match: /SAVE_KEY = 'hearthbound-save-v2'/, reason: PLUMBING + ' (slot copy)' },
-  { where: 'src/multi-character.js', match: /function charKey/, reason: PLUMBING + ' (slot copy)' },
   { where: 'src/net/client-state.js', match: /too much local progress to store/, reason: 'residue PUT size warning, not a save promise' },
 ];
 

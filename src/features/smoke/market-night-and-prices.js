@@ -28,7 +28,6 @@ export default [
     const D = window.HearthriseDaily;
     const realFetch = window.fetch;
     const wasOn = A.isServerAccrualEnabled();
-    const wasAck = A.isReplacementAcknowledged();
     const save = { gold: G.gold, gems: G.gems, streak: G.streak, dailyReward: G.dailyReward,
       lockedItems: G.lockedItems,
       skills: JSON.parse(JSON.stringify(G.skills)), inventory: JSON.parse(JSON.stringify(G.inventory)) };
@@ -41,7 +40,6 @@ export default [
     const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       A.setServerAccrualEnabled(true);
-      A.acknowledgeReplacement(true);
       Gd.configureGold({ url: 'https://probe.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
       G.lockedItems = {};
 
@@ -75,65 +73,28 @@ export default [
       assert(Gd.getGoldState().pending.length === 0,
         'a prediction survived both answers: ' + JSON.stringify(Gd.getGoldState().pending));
 
-      /* ── B354-11 — F3: THE REPLACEMENT GATE, DISMISSED, THEN ACKNOWLEDGED ──
-         A destructive envelope with no acknowledgement writes NOTHING and shows a
-         sheet. The call is still over. Leaving the entry INFLIGHT makes it
-         immortal for every player who dismisses that sheet.
-         MUTATION: remove `abandonPrediction(ownKey)` from the gate branch → RED. */
+      /* ── B354-11 — F3, RE-SPECIFIED BY FRONT-DOOR-4 ──────────────────
+         This arm used to grade the old consent gate: a "destructive" envelope
+         (server gold far below local) wrote NOTHING and raised a "Keep my local
+         save" sheet, and the prediction had to be abandoned on that exit. The
+         gate and the sheet are deleted — the server's gold is the truth — so the
+         same envelope now LANDS on the first answer and leaves no prediction.
+         MUTATION: restore the `!isReplacementAcknowledged()` branch in
+         gold.js applyGoldEnvelope → RED. */
       Gd.resetGold();
-      A.acknowledgeReplacement(false);
-      try { A.hideReplacementSheet(); } catch (e) {}
       G.gold = 100000; G.inventory = { normal_log: 50 }; bagHeld.agree();
       window.fetch = function (u, init) {
         if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
-        /* Server gold FAR below local ⇒ destructive ⇒ the gate refuses. */
+        /* Server gold FAR below local — the shape the deleted gate refused. */
         return Promise.resolve(new Response(JSON.stringify(envelope(1, 0, 20)), { status: 200 }));
       };
       window.invSellOne('normal_log');
       await drain();
-      const gated = Gd.getGoldState();
-      assert(gated.pending.length === 1 && gated.inflight === 0 && gated.abandoned === 1,
-        'the replacement gate refused the envelope and left the prediction INFLIGHT ('
-        + JSON.stringify(gated.pending) + '). No second envelope is coming for that key, so it is '
-        + 'carried onto every future envelope for the rest of the session — F1 wearing a consent '
-        + 'dialog (F3).');
-      try { A.hideReplacementSheet(); } catch (e) {}
-
-      /* ⚠ AND ASSERTED AGAIN, DIRECTLY, BECAUSE THE GESTURE-LEVEL CHECK ABOVE
-         CANNOT SEE IT. Mutation run: deleting `abandonPrediction(ownKey)` from
-         the gate branch SLIPPED. `settleVerdict` reads a null return from the
-         applier as "nothing was written" and abandons there too, so through the
-         transport the two defences are indistinguishable — and the day the
-         transport's shape changes, the gate is the only one left. The sheet's
-         own re-apply callback and any future direct caller reach
-         `applyGoldEnvelope` WITHOUT going through settleVerdict, which is
-         exactly the path this covers. Same failure the kill-switch check had in
-         B354-5, same fix: drive the function, not the gesture. */
-      Gd.resetGold();
-      A.acknowledgeReplacement(false);
-      G.gold = 100000;
-      const gk = Gd.newIntentKey();
-      Gd.settle(G, 250, 'vendor.sell_one', gk);
-      const refused = Gd.applyGoldEnvelope(G, envelope(1, 0, 21), gk);
-      try { A.hideReplacementSheet(); } catch (e) {}
-      assert(refused === null, 'B354-11-CONTROL: the replacement gate did NOT refuse a destructive '
-        + 'envelope (' + JSON.stringify(refused) + '), so this assertion has no subject');
-      const direct = Gd.getGoldState();
-      assert(direct.inflight === 0 && direct.abandoned === 1,
-        'applyGoldEnvelope returned from the replacement gate without accounting for THIS call\'s '
-        + 'prediction (' + JSON.stringify(direct.pending) + '). Every exit from that function must '
-        + 'account for `ownKey`; the gate is the one that looks like an early return rather than '
-        + 'like an answer (F3).');
-      A.acknowledgeReplacement(true);
-
-      /* And once acknowledged, the next envelope drops it and gold is the server's. */
-      A.acknowledgeReplacement(true);
-      G.inventory = { normal_log: 50 }; bagHeld.agree();
-      window.invSellOne('normal_log');
-      await drain();
       assert(G.gold === 1 && Gd.getGoldState().pending.length === 0,
-        'after acknowledgement gold is ' + G.gold + ' with ' + Gd.getGoldState().pending.length
-        + ' prediction(s) left — expected the server\'s 1 and none');
+        'a sell answered by the server left gold at ' + G.gold + ' with ' + Gd.getGoldState().pending.length
+        + ' prediction(s) — expected the server\'s 1 and none (the browser must never keep its own number)');
+      assert(!document.getElementById('hr-accrual-replace-gate'),
+        'the retired "Keep my local save" sheet was raised by a gold verb');
 
       /* ── B354-12 — F4: AN AWAY ENVELOPE MUST ACCOUNT FOR GOLD PREDICTIONS ──
          accrue.js and activity.js write `G.gold` absolutely through
@@ -168,7 +129,6 @@ export default [
          second claim under a lock.
          MUTATION: put `G.gems = (G.gems||0) + rw.gems` back in daily-reward → RED. */
       Gd.resetGold();
-      A.acknowledgeReplacement(true);
       seedPlayStreak(7);
       G.dailyReward = { lastClaimDay: 0 };
       G.gold = 0; G.gems = 0;
@@ -253,7 +213,6 @@ export default [
          written to prevent one. Those two ABANDON instead.
          MUTATION: put 'unavailable' back in PROVABLY_UNWRITTEN → RED. */
       Gd.resetGold();
-      A.acknowledgeReplacement(true);
       G.gold = 1000; G.inventory = { normal_log: 50 }; bagHeld.agree(); G.lockedItems = {};
       const bid = window.vendorPrice('normal_log');
       assert(bid > 0, 'B354-F7-CONTROL: normal_log has no vendor bid, so nothing would move');
@@ -297,9 +256,7 @@ export default [
         + Gd.predictedGold() + ') — from here every comparison against gold answers false (F8)');
     } finally {
       window.fetch = realFetch;
-      try { A.hideReplacementSheet(); } catch (e) {}
       Gd.resetGold(); Gd.configureGold(null);
-      A.acknowledgeReplacement(wasAck);
       restoreAccrualSwitch(wasOn);
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
@@ -408,9 +365,7 @@ export default [
     const A = window.HearthriseAccrual;
     const G = window.G;
     const snap = snapshotG();
-    const wasAck = A.isReplacementAcknowledged();
     try {
-      A.acknowledgeReplacement(true);
       /* A REAL span, not a hand-written one: the numbers on the envelope are
          what the SERVER's copy of this engine would have produced, so the
          fixture cannot drift from the thing it stands for. */
@@ -450,7 +405,6 @@ export default [
         'the caller added the away payload to the absolute balance: gold is ' + G.gold + ', the server '
         + 'said ' + env.state.gold + ' — that is the b354 double-pay shape, one settle at a time');
     } finally {
-      A.acknowledgeReplacement(wasAck);
       restoreGAndRecord(snap);
     }
   }),
@@ -2960,74 +2914,6 @@ export default [
           assert(xpOf(r.skill) === after[r.skill], 'the milestone paid twice on ' + r.skill);
         });
 
-        /* (4) THE RENAME IS A MIGRATION, NOT A NEW QUEST. Every live beta save
-           carries this row under its b341 id. Renaming without moving them
-           would leave the retired LABEL on screen and seed the new id fresh —
-           re-granting 1,500 XP to everyone who had already finished it.
-           MUTATION PROVEN: empty `QUEST_ID_RENAMES` and the first assertion
-           fails on a duplicated row; drop the `done`/`progress` carry-over in
-           `migrateQuestIds` and the pay-again assertion fails. */
-        const paid = {}; route.forEach((r) => { paid[r.skill] = xpOf(r.skill); });
-        G.quests = [
-          { id: 'gatherer', type: 'gather', label: 'old', goal: 15, progress: 15, reward: { gold: 150 }, done: true },
-          { id: 'field_licence', type: 'kill_any', mirror: 'stats.kills', label: 'Field Licence — defeat 100 monsters',
-            goal: 100, progress: 100, reward: { combatXp: 1500 }, done: true },
-        ];
-        G.stats.evKillAny = 4000;
-        window.ensureRetentionState();
-        window.updateQuest('kill_any', 1);
-        const rows = G.quests.filter((x) => x.id === ID || x.id === 'field_licence');
-        assert(rows.length === 1 && rows[0].id === ID,
-          'the b341 quest id survived the rename (' + rows.map((r) => r.id).join(',') + ') — '
-          + 'the player keeps reading the retired label');
-        assert(rows[0].done === true, 'a completed milestone came back unfinished through the rename');
-        route.forEach((r) => {
-          assert(xpOf(r.skill) === paid[r.skill],
-            'the rename re-granted the milestone on ' + r.skill + ': +'
-            + (xpOf(r.skill) - paid[r.skill]) + ' XP');
-        });
-
-        /* An IN-FLIGHT row keeps its place too, and is still payable. */
-        G.quests = [{ id: 'field_licence', type: 'kill_any', mirror: 'stats.kills', label: 'old',
-          goal: 100, progress: 62, reward: { combatXp: 1500 }, done: false }];
-        G.stats.evKillAny = 62;
-        window.ensureRetentionState();
-        const mid = G.quests.filter((x) => x.id === ID);
-        assert(mid.length === 1 && mid[0].done === false && mid[0].progress === 62,
-          'an in-flight milestone lost its progress in the rename: ' + JSON.stringify(mid));
-
-        /* (5) BOTH IDS IN ONE SAVE — the one state a rename can produce, and
-           the reason the migration dedupes rather than only renaming. Two rows
-           under one id both complete and both PAY. Asserted in BOTH orders,
-           because which row the merge meets first decides which one survives
-           and only one of the two orders exercises the carry-over.
-           MUTATION PROVEN: drop the `prev.done || q.done` term in
-           `migrateQuestIds` and the fresh-row-first order fails on a finished
-           milestone coming back unfinished — and then paying again. */
-        const oldRow = () => ({ id: 'field_licence', type: 'kill_any', mirror: 'stats.kills',
-          label: 'Field Licence — defeat 100 monsters', goal: 100, progress: 100,
-          reward: { combatXp: 1500 }, done: true });
-        const newRow = () => ({ id: ID, type: 'kill_any', mirror: 'stats.kills',
-          label: 'Defeat 100 monsters', goal: 100, progress: 0,
-          reward: { combatXp: 1500 }, done: false });
-        [['old first', [oldRow(), newRow()]], ['fresh first', [newRow(), oldRow()]]].forEach(([label, rows2]) => {
-          G.quests = rows2;
-          G.stats.evKillAny = 4000;
-          const held = {}; route.forEach((r) => { held[r.skill] = G.skills[r.skill] || 0; });
-          window.ensureRetentionState();
-          window.updateQuest('kill_any', 1);
-          const merged = G.quests.filter((x) => x.id === ID || x.id === 'field_licence');
-          assert(merged.length === 1 && merged[0].id === ID,
-            label + ': the duplicate survived (' + merged.map((r) => r.id).join(',') + ') — two rows '
-            + 'under one id complete twice and pay twice');
-          assert(merged[0].done === true,
-            label + ': a finished milestone came back unfinished through the merge');
-          route.forEach((r) => {
-            assert((G.skills[r.skill] || 0) === held[r.skill],
-              label + ': the merge re-granted the milestone on ' + r.skill + ': +'
-              + ((G.skills[r.skill] || 0) - held[r.skill]) + ' XP');
-          });
-        });
       } finally { window.getBonus = origBonus; }
     } finally { window.HearthriseGoalClaim = origClaim; restoreG(snap); }
   }),
@@ -3041,7 +2927,7 @@ export default [
      falls — a player is promised a NIGHT, not a constant. FIRST-LIGHT-4 pins the RETIRED sentences
      OUT; this pins the REPLACEMENT in and ties it to the payout.
      MUTATIONS PROVEN 2026-09-07, six, each RED with the clause named:
-       copy   wrap "…picks itself back up and carries on" → "…banks only until you fall"  → clause 3
+       copy   combat "…carry on with the same fight" → "…the fight ends"                  → clause 3
        engine combat-sim ends the run on a fall                                           → clause 2
        engine away.js `RESUME_HP_FRACTION = 1.00` (the free full heal security BLOCKED)   → clause 5
        engine away.js `recoveryFor` charges the day's first fall                          → clause 4
@@ -3093,9 +2979,11 @@ export default [
       'CONTROL: this fixture must both kill and fall or nothing below is measuring the rule — '
       + JSON.stringify({ kills: night.out.kills, deaths: night.out.deaths }));
 
-    /* CLAUSE 2 · "it banks the whole time you are gone" — THE ACCOUNTING IDENTITY: every ms either
-       EARNED (`survivedMs`) or was a recovery clock (`recoverMs`). "The run ended" is a remainder. */
-    assert(/banks the whole time you are gone/i.test(wrapBody),
+    /* CLAUSE 2 · "it keeps going while you are away" — THE ACCOUNTING IDENTITY: every ms either
+       EARNED (`survivedMs`) or was a recovery clock (`recoverMs`). "The run ended" is a remainder.
+       (Front door: the old "banks the whole time you are gone" ignored the 12h cap; the copy now
+       names the cap, and the cap lives in the credit window, outside the span measured here.) */
+    assert(/keeps going while you are away, for up to twelve hours/i.test(wrapBody),
       'the wrap step no longer states the deal it is being held to here: ' + wrapBody);
     assert(night.out.survivedMs + night.out.recoverMs === NIGHT_MS,
       'the tour says the night banks whole; the engine accounted for only '
@@ -3106,8 +2994,8 @@ export default [
     /* CLAUSE 3 · "a fight that falls picks itself back up and carries on" — a DELTA against the
        identical span truncated at the first fall, because "kills > 0" passes on a run that STOPPED
        there. The difference IS what resuming is worth. */
-    assert(/picks itself back up/i.test(wrapBody),
-      'the wrap step dropped the resume promise this test binds: ' + wrapBody);
+    assert(/carry on with the same fight/i.test(combatBody),
+      'the combat step dropped the resume promise this test binds: ' + combatBody);
     const firstFall = night.out.deathLog[0];
     assert(firstFall, 'CONTROL: the night recorded no fall, so the resume below is unmeasured');
     const upToTheFall = awaySpan({ ...fixture, spanMs: firstFall.atMs - FROM });
@@ -4355,13 +4243,16 @@ export default [
         'iap.' + p.sku + ' is ' + p.price + ' live but ' + cents + ' cents in the catalogue');
     }
 
-    /* The catalogue must never be mistaken for complete. Six spend sites
+    /* The catalogue must never be mistaken for complete. These spend sites
        compute their price at call time and are deliberately absent; a server
        that could not find an offer and invented a price is worse than one with
-       no catalogue at all. */
-    assert(Array.isArray(S.DERIVED_PRICES) && S.DERIVED_PRICES.length >= 6,
-      'DERIVED_PRICES lists ' + (S.DERIVED_PRICES || []).length + ' formula-priced sites; the '
-      + 'known set is 6, and dropping one hides a price the server cannot compute');
+       no catalogue at all. Pinned BY ID, so dropping one is named. */
+    const KNOWN_DERIVED = ['bank.gold', 'bounty.reroll', 'vendor.sell', 'clan_building.*', 'market.*'];
+    const derivedIds = new Set((S.DERIVED_PRICES || []).map((d) => d && d.id));
+    const lost = KNOWN_DERIVED.filter((id) => !derivedIds.has(id));
+    assert(Array.isArray(S.DERIVED_PRICES) && lost.length === 0,
+      'DERIVED_PRICES dropped ' + lost.join(', ') + ' — the known formula-priced set is '
+      + KNOWN_DERIVED.join(', ') + ', and dropping one hides a price the server cannot compute');
     for (const d of S.DERIVED_PRICES) {
       assert(!byId.has(d.id), 'offer "' + d.id + '" is in BOTH SHOP_OFFERS and DERIVED_PRICES');
       assert(d.where && d.formula && d.server_needs,

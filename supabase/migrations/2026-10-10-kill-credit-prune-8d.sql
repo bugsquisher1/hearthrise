@@ -25,7 +25,8 @@
 -- two indexes for 600 characters, versus ~240k at 2 days. Still pruned daily.
 --
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
--- Re-run §1 of 2026-09-01-kill-daily-credit.sql (the 2-day body). Nothing is
+-- Re-run §1 of 2026-09-01-kill-daily-credit.sql (the 2-day body), then
+-- `drop function public.hr_kill_credit_prune_cutoff(interval);`. Nothing is
 -- written; rows simply live 6 days longer.
 -- ════════════════════════════════════════════════════════════════════════
 
@@ -39,53 +40,55 @@ begin
 end $$;
 
 -- ── 1. THE PRUNE, 8-DAY FLOOR ───────────────────────────────────────────────
+-- The cutoff is its own function so §4 can EXECUTE the floor without running a
+-- table-wide delete on production (tests/selfcheck-no-global-dml.mjs): the
+-- prune deletes exactly `created_at < hr_kill_credit_prune_cutoff(p_older)`.
+create or replace function public.hr_kill_credit_prune_cutoff(p_older interval default interval '8 days')
+returns timestamptz language sql stable set search_path = public as $$
+  -- The floor is 8 days: the Lone Hunt gate (2026-10-10-lone-hunt-weekly-chest.sql)
+  -- subtracts a whole hunt week of bounty-free credits read from this log.
+  select now() - greatest(interval '8 days', coalesce(p_older, interval '8 days'))
+$$;
+revoke execute on function public.hr_kill_credit_prune_cutoff(interval) from public, anon, authenticated, service_role;
+
 create or replace function public.hr_kill_credit_prune(p_older interval default interval '8 days')
 returns int language plpgsql security definer set search_path = public as $$
 declare v_n int;
 begin
-  -- The floor is 8 days: the Lone Hunt gate (2026-10-10-lone-hunt-weekly-chest.sql)
-  -- subtracts a whole hunt week of bounty-free credits read from this log.
   delete from public.hr_kill_credit_log
-   where created_at < now() - greatest(interval '8 days', coalesce(p_older, interval '8 days'));
+   where created_at < public.hr_kill_credit_prune_cutoff(p_older);
   get diagnostics v_n = row_count;
   return v_n;
 end $$;
 revoke execute on function public.hr_kill_credit_prune(interval) from public, anon, authenticated, service_role;
 
--- ── 4. SELF-CHECK — executed, net-zero (sentinel HR8A9) ─────────────────────
+-- ── 4. SELF-CHECK — executed, no DML (the prune itself is never run here) ───
 do $$
 declare
-  v_uid constant uuid := '000000c0-0000-0000-0000-00000000a109';
-  v_n   int;
+  v_body text;
 begin
   if has_function_privilege('authenticated', 'public.hr_kill_credit_prune(interval)', 'execute')
-     or has_function_privilege('anon', 'public.hr_kill_credit_prune(interval)', 'execute') then
-    raise exception 'VERIFY: hr_kill_credit_prune is client-executable';
+     or has_function_privilege('anon', 'public.hr_kill_credit_prune(interval)', 'execute')
+     or has_function_privilege('authenticated', 'public.hr_kill_credit_prune_cutoff(interval)', 'execute')
+     or has_function_privilege('anon', 'public.hr_kill_credit_prune_cutoff(interval)', 'execute') then
+    raise exception 'VERIFY: the kill-credit prune or its cutoff is client-executable';
   end if;
-  begin
-    insert into auth.users (id) values (v_uid) on conflict (id) do nothing;
-    insert into public.hr_kill_credit_log (user_id, slot, idem, target, claimed, credit, cap, applied, free, created_at)
-      values (v_uid, 0, 'prune-probe-3d', 'goblin', 1, 1, 1, 1, true, now() - interval '3 days'),
-             (v_uid, 0, 'prune-probe-7d', 'goblin', 1, 1, 1, 1, true, now() - interval '7 days'),
-             (v_uid, 0, 'prune-probe-9d', 'goblin', 1, 1, 1, 1, true, now() - interval '9 days');
-    -- (a) the scheduled call (default) keeps a whole hunt week, drops older.
-    perform public.hr_kill_credit_prune();
-    select count(*) into v_n from public.hr_kill_credit_log where user_id = v_uid;
-    if v_n <> 2 or exists (select 1 from public.hr_kill_credit_log where user_id = v_uid and idem = 'prune-probe-9d') then
-      raise exception 'VERIFY(a): the default prune kept % probe rows (expected the 3d and 7d rows only)', v_n;
-    end if;
-    -- (b) a caller asking for a SHORTER window cannot go under the floor.
-    perform public.hr_kill_credit_prune(interval '1 hour');
-    select count(*) into v_n from public.hr_kill_credit_log where user_id = v_uid;
-    if v_n <> 2 then
-      raise exception 'VERIFY(b): a 1-hour prune went under the 8-day floor (% probe rows left)', v_n;
-    end if;
-    raise exception using errcode = 'HR8A9', message = 'kill-credit-prune-8d §4 complete - rolling back';
-  exception when sqlstate 'HR8A9' then null;
-  end;
-  if exists (select 1 from public.hr_kill_credit_log where user_id = v_uid)
-     or exists (select 1 from auth.users where id = v_uid) then
-    raise exception 'VERIFY: §4 LEAKED a probe row';
+  -- (a) the scheduled call's window keeps a whole hunt week: a 7-day-old row
+  --     survives, a 9-day-old row does not.
+  if not (now() - interval '7 days' >= public.hr_kill_credit_prune_cutoff())
+     or not (now() - interval '9 days' < public.hr_kill_credit_prune_cutoff()) then
+    raise exception 'VERIFY(a): the default cutoff % does not keep 7 days and drop 9', public.hr_kill_credit_prune_cutoff();
   end if;
-  raise notice 'kill-credit-prune-8d: default prune keeps 8 days, a shorter request cannot go under it, owner-only - all green';
+  -- (b) a caller asking for a SHORTER window, or NULL, cannot go under the floor.
+  if public.hr_kill_credit_prune_cutoff(interval '1 hour') <> public.hr_kill_credit_prune_cutoff()
+     or public.hr_kill_credit_prune_cutoff(null) <> public.hr_kill_credit_prune_cutoff() then
+    raise exception 'VERIFY(b): a 1-hour or NULL request moved the cutoff under the 8-day floor';
+  end if;
+  -- (c) the prune deletes by THAT cutoff and nothing else.
+  select regexp_replace(prosrc, '\s+', ' ', 'g') into v_body from pg_proc
+   where oid = 'public.hr_kill_credit_prune(interval)'::regprocedure;
+  if strpos(v_body, 'where created_at < public.hr_kill_credit_prune_cutoff(p_older)') = 0 then
+    raise exception 'VERIFY(c): hr_kill_credit_prune does not delete by hr_kill_credit_prune_cutoff(p_older)';
+  end if;
+  raise notice 'kill-credit-prune-8d: the cutoff keeps 8 days, a shorter or NULL request cannot go under it, the prune deletes by it, owner-only - all green';
 end $$;

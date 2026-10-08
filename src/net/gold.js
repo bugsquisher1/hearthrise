@@ -107,15 +107,15 @@
 //    if it later answers. The late answer's envelope is absolute, so the outcome
 //    is correct; the display simply stops being optimistic sooner.
 //
-// DOM-free apart from the replacement sheet it delegates to accrue.js.
+// DOM-free.
 // Node-importable. No fetch seam — `fetch` resolves at call time, so a test's
 // override IS the transport and the suite asserts the literal bytes.
 // ============================================================================
 
 import {
   isServerAccrualEnabled, resolveActiveSlot, accrueEndpoint, MAX_SLOT,
-  applyEnvelopeState, describeReplacement, isReplacementAcknowledged,
-  showReplacementSheet, registerPredictionSeam, isReconcilePending,
+  applyEnvelopeState, describeReplacement,
+  registerPredictionSeam, isReconcilePending,
   classifyFrame, commitFrame, resetFrameGate, getAppliedFrame, noteFrameDrop,   // the frame gate, §7.1
   applyCollectedReceipt,   // a verb that settled first hands its `collected` to the welcome card
 } from './accrue.js?v=564';
@@ -626,23 +626,9 @@ export function applyGoldEnvelope(G, body, ownKey) {
     abandonPrediction(ownKey);
     return null;
   }
-  if (loss.destructive && !isReplacementAcknowledged()) {
-    console.warn('[gold] REFUSING to overwrite local progress with the server character '
-      + 'until the player confirms — would lose ' + loss.gold + ' gold, ' + loss.skillXp
-      + ' skill XP and ' + loss.items + ' item(s). This is permanent and there is no merge.');
-    /* ⚠ F3 — ABANDONED, NOT LEFT INFLIGHT. Nothing is written here, so the local
-       value stands and rolling back would be wrong (the intent may well have
-       landed — this refusal is about CONSENT, not about the server). But the
-       call is over: its envelope came and went, and no second one is coming for
-       this key. Leaving it INFLIGHT makes it immortal for any player who
-       dismisses the sheet, which is the F1 offset wearing a consent dialog.
-       ABANDONED keeps the display honest and guarantees the first envelope
-       after the acknowledgement drops it. The re-apply below is absolute and
-       needs no prediction to be correct. */
-    abandonPrediction(ownKey);
-    showReplacementSheet(loss, G, env, (g, e) => applyGoldEnvelope(g, { ...body, ...e }, ownKey));
-    return null;
-  }
+  /* no consent gate after the deferral — the same deletion as
+     activity.js. A refused envelope left this browser's gold ahead of the
+     server's for as long as the player kept declining the old consent sheet. */
 
   /* ABSOLUTE, never additive — and the prediction sweep now happens INSIDE this
      call, through the seam registered at the bottom of this file, so the away

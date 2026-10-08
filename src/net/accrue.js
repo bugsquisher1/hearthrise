@@ -1239,31 +1239,14 @@ function settle(verdict, now) {
 
    Pure in the sense that matters: it takes the target object explicitly and
    returns what it wrote, so the suite can drive it without a live G. */
-/* ── THE REPLACEMENT IS DESTRUCTIVE, AND IT MUST BE SAID OUT LOUD (b339) ────
-   `applyEnvelope` rebuilds `G.skills` and `G.inventory` from the envelope
-   ALONE. `saveLocal()` then stamps `lastSeen`, and "newest wins" makes that the
-   authoritative save — cloud included. The server character is DELIBERATELY
-   fresh (`hr_create_character` never reads `game_saves.snapshot`; see the
-   migration header for why importing a client-authored blob would launder the
-   exploit the whole program exists to close). So the first successful accrual
-   on a device holding real beta progress REPLACES IT WITH A STARTING KIT,
-   permanently.
-
-   THAT IS THE DESIGNED BEHAVIOUR AND IT IS NOT CHANGED HERE. A merge would put
-   the client's numbers back in charge, which is the one thing server authority
-   removes. The beta is being wiped at cutover, so the loss is already sunk.
-
-   What is NOT acceptable is that it happens SILENTLY. So the first replacement
-   that would actually destroy something asks, once, in words that name the
-   consequence. Everything after the acknowledgement is silent, because by then
-   the player has been told.
-
-   Reachability, stated honestly: today this cannot fire, because accrual.js
-   refuses any `activeKind !== 'combat'` and a fresh character is idle. That is
-   an argument for building the confirmation NOW, while it costs nothing, not
-   for leaving it out. */
-export const ACCRUE_REPLACE_ACK_KEY = 'hr:serverAccrual:replaceAck';
-export const ACCRUE_REPLACE_SHEET_ID = 'hr-accrual-replace-gate';
+/* ── THE REPLACEMENT IS THE LOAD ──────────────────────────────
+   A consent sheet once sat in front of an envelope that
+   would overwrite a richer local copy. The cutover retired the rival local
+   character, so there is nothing for the envelope to overwrite but a display
+   cache: applying it IS the load. the sheet left applyEnvelope first;
+   then the last two appliers (activity.js, gold.js) and deleted
+   it, with the acknowledgement key it read. `describeReplacement` survives as
+   a MEASURE — the reconcile-pending deferral and the drift counter read it. */
 
 /**
  * b366 — is the cloud reconcile (pull → decideRestore) still unresolved? That is
@@ -1277,18 +1260,6 @@ export function isReconcilePending() {
     const S = (typeof window !== 'undefined') ? window.HearthriseSync : null;
     return !!(S && typeof S.isSnapshotHeld === 'function' && S.isSnapshotHeld());
   } catch (e) { return false; }
-}
-
-export function isReplacementAcknowledged() {
-  try { return localStorage.getItem(ACCRUE_REPLACE_ACK_KEY) === 'yes'; } catch (e) { return false; }
-}
-
-export function acknowledgeReplacement(on) {
-  try {
-    if (on === false) localStorage.removeItem(ACCRUE_REPLACE_ACK_KEY);
-    else localStorage.setItem(ACCRUE_REPLACE_ACK_KEY, 'yes');
-  } catch (e) {}
-  return isReplacementAcknowledged();
 }
 
 /**
@@ -5267,9 +5238,8 @@ export function applyEnvelope(G, res) {
   /* THE REPLACEMENT SHEET IS GONE, NOT GATED. It asked the player to confirm
      before the server envelope "replaced" a rival local character; the capstone
      retired that rival — there is no locally-authored character left for an
-     envelope to overwrite, so applying it IS the load. `describeReplacement` /
-     `showReplacementSheet` remain exported for the tests that pin the copy;
-     nothing calls the sheet on the load path any more. */
+     envelope to overwrite, so applying it IS the load. `describeReplacement`
+     and now the sheet itself is deleted — no applier may ask. */
   const release = holdFallAnnounce();
   try { return applyAcceptedEnvelope(G, res); } finally { release(); }
 }
@@ -6656,92 +6626,6 @@ export function showAccrualHaltedSheet(outcome) {
   return el;
 }
 
-/* ── THE REPLACEMENT SHEET (b339) ───────────────────────────────────────────
-   Deliberately NOT dismissible-by-default the way the halted sheet is: the
-   halted sheet reports a non-event ("nothing was credited"), this one asks for
-   consent to an irreversible one. It still defers to b302/b331, because a
-   player who has been evicted or signed out has a more urgent problem and two
-   sheets arguing is worse than either.
-
-   It states NUMBERS, not adjectives. "Your local progress will be replaced" is
-   a sentence somebody clicks through; "1,240 gold, 3 skills and 27 items will
-   be gone" is one they read. */
-/* 5000000 is a number a player skims; 5,000,000 is one they read. Grouped with
-   the page's locale, and never used for anything but display. */
-function num(v) {
-  const n = Math.round(Number(v) || 0);
-  try { return n.toLocaleString(); } catch (e) { return String(n); }
-}
-
-/* `onConfirm` (b347) is how a SECOND applier gets its consent honoured. The
-   hook path below re-runs `applyEnvelope`, which is the away verb's applier and
-   correctly refuses an intent envelope (no `away` block) — so without this the
-   activity intent's player would click "Use the server's character" and nothing
-   at all would happen. One sheet, one acknowledgement key, two appliers. */
-export function showReplacementSheet(loss, G, res, onConfirm) {
-  if (typeof document === 'undefined' || !document.body) return null;
-  if (document.getElementById('hr-evicted-gate')) return null;        // b302 wins
-  if (document.getElementById('hr-auth-expired-gate')) return null;   // b331 wins
-  const existing = document.getElementById(ACCRUE_REPLACE_SHEET_ID);
-  if (existing) return existing;
-  const l = loss || { gold: 0, skillXp: 0, items: 0 };
-  const el = document.createElement('div');
-  el.id = ACCRUE_REPLACE_SHEET_ID;
-  el.className = 'hr-scrim';   // layout: art-direction.css; no backdrop close on a consent sheet
-  el.style.cssText = 'z-index:2147483646;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6)';
-  el.innerHTML = '<div class="hr-sheet" role="dialog"></div>';
-  el.firstChild.style.cssText = [
-    'max-width:460px', 'width:100%',
-    'background:rgba(9,12,17,.98)', 'color:#f2e9d8', 'border:1px solid #d9a441',
-    'border-radius:12px', 'padding:18px 20px', 'box-sizing:border-box',
-    /* b353: 15px, not 14px. The suite's legibility floor is 14.5px and both of
-       these sheets sat under it — invisible while they only rendered for an armed
-       tester, and a real failure the moment the switch defaulted on. */
-    'font:400 15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif',
-    'box-shadow:0 10px 40px rgba(0,0,0,.65)',
-  ].join(';');
-  el.firstChild.innerHTML =
-    '<div class="hr-sheet-head" style="font:700 16px/1.3 system-ui,sans-serif;margin-bottom:8px">⚠️ This will replace your local progress</div>'
-    + '<div class="hr-sheet-body"><p style="margin:0 0 8px">Away time is now credited by the progress server, and the server keeps '
-    + 'its own copy of your character. Applying it <strong>replaces what is saved on this device</strong> — '
-    + 'the two are not merged.</p>'
-    + '<p style="margin:0 0 8px">Compared with the server\'s character, this device is currently ahead by '
-    + '<strong>' + num(l.gold) + ' gold</strong>, <strong>' + num(l.skillXp)
-    + ' skill XP</strong> and <strong>' + num(l.items) + ' item(s)</strong>. '
-    + 'That difference will be <strong>permanently gone</strong>.</p>'
-    + '<p style="margin:0 0 12px;opacity:.75">If this is not what you expected, choose “Keep my local save”. '
-    + 'Nothing is credited until you decide, and you can ask again at any time.</p></div>'
-    + '<div class="hr-sheet-foot" style="display:flex;gap:8px;flex-wrap:wrap">'
-    + '<button id="hr-accrue-replace" style="flex:1;min-width:180px;font:600 15px/1 system-ui,sans-serif;background:#d9a441;color:#1a130a;border:0;border-radius:8px;padding:11px 16px;cursor:pointer">Use the server’s character</button>'
-    + '<button id="hr-accrue-keep" data-hr-dismiss style="font:500 15px/1 system-ui,sans-serif;background:transparent;color:#c9c2b4;border:1px solid #3a4154;border-radius:8px;padding:11px 14px;cursor:pointer">Keep my local save</button>'
-    + '</div>';
-  document.body.appendChild(el);
-  const go = el.querySelector('#hr-accrue-replace');
-  if (go) go.addEventListener('click', () => {
-    acknowledgeReplacement(true);
-    hideReplacementSheet();
-    /* Replay the SAME envelope the player just saw the numbers for — not a
-       fresh request, whose answer could differ from what was consented to.
-       Through the HOOK, so the save + repaint + receipt that legacy.js owns all
-       happen exactly as they would have on the original apply. Only if nothing
-       is wired does this apply the envelope itself. */
-    try {
-      if (typeof onConfirm === 'function') onConfirm(G, res);
-      else if (typeof (hooks && hooks.onApplied) === 'function') fire('onApplied', res);
-      else applyEnvelope(G, res);
-    } catch (e) { console.warn('[accrue] replacement apply failed:', e && e.message); }
-  });
-  const keep = el.querySelector('#hr-accrue-keep');
-  if (keep) keep.addEventListener('click', () => hideReplacementSheet());
-  return el;
-}
-
-export function hideReplacementSheet() {
-  if (typeof document === 'undefined') return;
-  const el = document.getElementById(ACCRUE_REPLACE_SHEET_ID);
-  if (el) el.remove();
-}
-
 export function hideAccrualHaltedSheet() {
   if (typeof document === 'undefined') return;
   const el = document.getElementById(ACCRUE_SHEET_ID);
@@ -6799,7 +6683,7 @@ export function beginServerAccrual(opts) {
 if (typeof window !== 'undefined') {
   window.HearthriseAccrual = {
     ACCRUE_OUTCOMES, ACCRUE_SHEET_ID,
-    ACCRUE_REPLACE_ACK_KEY, ACCRUE_REPLACE_SHEET_ID, MAX_SLOT,
+    MAX_SLOT,
     isServerAccrualEnabled, setServerAccrualEnabled, __clearAccrualOverride,
     clampSlot, resolveActiveSlot, mayClientWrite,
     /* THE RECOVERY LINE, read-only. A function rather than a value so a caller
@@ -6819,7 +6703,7 @@ if (typeof window !== 'undefined') {
     /* THE SERVER-PRICED ABSENCE, for every "welcome back" surface. Read it;
        never re-derive one from `G.lastSeen` (b514). */
     bootAccruedToMs, serverAwaySpanMs, __setBootAccruedToForTest,
-    describeReplacement, isReplacementAcknowledged, acknowledgeReplacement, isReconcilePending,
+    describeReplacement, isReconcilePending,
     isEnvelopeAbsolute, ENVELOPE_MERGE_KEY, envelopeDrift, noteEnvelopeDrift,
     resetEnvelopeDrift, inventoryFlipReadiness,
     flipDriftSummary, reportFlipDrift, startFlipDriftReporter, __resetFlipDriftReport, noteArmTransition,
@@ -6863,7 +6747,6 @@ if (typeof window !== 'undefined') {
     decideSettle, settleTick, startSettleLoop, stopSettleLoop, resetSettleLoop,
     newSettleState, getSettleState, setSettleEnv, noteSettleEvent,
     buildKeepaliveRequest, settleOnUnload, settleBeforeIntent, wireSettleTriggers,
-    showReplacementSheet, hideReplacementSheet,
     configureAccrual, getAccrualConfig, accrueEndpoint,
     buildAccrueRequest, classifyAccrueResponse, isEnvelopeApplicable,
     /* THE FRAME GATE (WORLD_TICK_DESIGN.md §7.1). */

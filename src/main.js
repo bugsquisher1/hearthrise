@@ -429,10 +429,9 @@ import './net/build-watch.js?v=564';
 
 // 2.5 Utilities — shared helpers + boot-time integrity checks. Importing
 // these for side effects:
-//   • exposes window.HearthriseDom / HearthriseSafe / HearthriseConfig /
-//     HearthriseIdentity for classic-script modules to consume,
+//   • exposes window.HearthriseDom / HearthriseSafe / HearthriseIdentity for
+//     classic-script modules to consume,
 //   • runs the ITEMS-divergence check ~1.5s after boot.
-import './config.js?v=564';
 import './utils/dom.js?v=564';
 import './utils/safe.js?v=564';
 import './utils/profile.js?v=564';

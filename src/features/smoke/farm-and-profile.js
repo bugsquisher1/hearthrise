@@ -464,9 +464,6 @@ export default [
       assert(typeof window.HearthriseLaunchpad[fn] === 'function',
         'HearthriseLaunchpad.' + fn + ' missing');
     }
-    // schema v5 ran
-    assert(window.HEARTHRISE_SCHEMA_VERSION >= 5,
-      'CURRENT_SCHEMA_VERSION should be >=5, got ' + window.HEARTHRISE_SCHEMA_VERSION);
   }),
 
   // b138: recordStop populates G.lastActivity correctly.
@@ -637,17 +634,16 @@ export default [
     assert(window.ITEMS.rune_bar.v > 0, 'rune_bar.v should be > 0');
   }),
 
-  // b139 §1.1: ITEMS divergence count should be 0 (or negligible) now.
-  // This is the integrity check itself running explicitly. Catches the
-  // moment someone adds an item to legacy.js without mirroring it.
-  () => tryRun('b139: ITEMS divergence between legacy + ESM is zero', () => {
-    const legacy = window.__LEGACY_INLINE_ITEMS;
-    const esm = window.ITEMS;
-    if (!legacy || !esm) return; // skip on builds without snapshot
-    const legacyKeys = Object.keys(legacy);
-    const onlyLegacy = legacyKeys.filter(k => !esm[k]);
-    assert(onlyLegacy.length === 0,
-      onlyLegacy.length + ' items still legacy-only: ' + onlyLegacy.slice(0,5).join(',') + (onlyLegacy.length>5?',…':''));
+  // ITEM-ONECOPY-1 (was b139's divergence check, which read a REFERENCE to the
+  // merged object and so compared the data against itself): legacy.js declares
+  // NO item of its own — the count is captured eagerly, before main.js merges
+  // src/data/items.js in — and the merged catalogue is the full one. The static
+  // half is tests/legacy-data-onecopy.mjs.
+  () => tryRun('ITEM-ONECOPY-1: legacy.js declares no second item catalogue', () => {
+    assert(window.__LEGACY_INLINE_ITEM_COUNT === 0,
+      'legacy.js re-declared ' + window.__LEGACY_INLINE_ITEM_COUNT + ' items — src/data/items.js is the only copy');
+    assert(Object.keys(window.ITEMS).length >= 300,
+      'the merged catalogue must still be the full one, got ' + Object.keys(window.ITEMS).length);
   }),
 
   // b139 §1.1: the smelting + cooking + gated recipe chains are reachable
@@ -665,21 +661,15 @@ export default [
       'missing recipes: ' + missing.map(([s,id]) => s+':'+id).join(','));
   }),
 
-  // b139 §2.1.2: rename pencil should NOT be hidden for cloud-signed-in
-  // users. The fix changed `canRename = !liveUser && !G.account` to just
-  // `canRename = true`. Verify by rendering Profile and checking the
-  // pencil button exists in the dash-user body.
+  // b139 §2.1.2: the rename pencil is offered in every account state. Home is
+  // #hd-root (home-dashboard.js); its pencil is `.hd-rename[data-hd=rename]`.
   () => tryRun('b139: Profile rename pencil renders for all account states', () => {
-    if (typeof window.renderProfile !== 'function') return;
-    try { window.renderProfile(); } catch (e) {}
-    const body = document.getElementById('dash-user-body');
-    if (!body) return; // panel not in DOM yet — skip
-    // b373: the pencil now routes to HearthriseLaunchpad.openRename() (the
-    // in-game modal) instead of setDisplayName(prompt(...)); the affordance
-    // itself — "every account state gets a pencil" — is what this pins.
-    const pencil = body.querySelector('button[title="Rename"]');
-    assert(pencil != null,
-      'expected rename pencil button in dash-user-body, none found');
+    window.showTab('profile');
+    window.HearthriseHome.render();
+    const root = document.getElementById('hd-root');
+    assert(root, 'Home (#hd-root) did not paint');
+    assert(root.querySelector('.hd-rename[data-hd="rename"]') != null,
+      'expected the rename pencil on Home, none found');
   }),
 
   // b139 §2.3.1 / §2.6.1: paper-doll equipment slots no longer render
@@ -1150,28 +1140,45 @@ export default [
     assert(typeof cfg.onSyncFailure === 'function', 'sync config missing onSyncFailure — save failures stay invisible');
   }),
 
-  // b150: hearthlight theme (the revamp preview) is registered and applies its
-  // deep-dark ground token without disturbing the default. Restores after.
-  () => tryRun('b150: hearthlight theme registers + applies', () => {
-    const T = window.HearthriseTheme;
-    if (!T || !T.list) return; // theme system not present
-    assert(T.list().some(function(t){ return t.id === 'hearthlight'; }), 'hearthlight not in theme list');
-    // b163: API is setTheme(), not set() — the old test called T.set() which
-    // never existed, so this test had been throwing "T.set is not a function".
-    assert(typeof T.setTheme === 'function', 'HearthriseTheme.setTheme missing');
-    const prev = (T.getTheme && T.getTheme()) || 'hearthlight';
+  // b150: hearthlight is the one theme, stamped on <body> before paint, and its
+  // ground token is a DARK surface. (The picker API that used to front it had
+  // one option and is deleted — CLEANUP-SETTINGS-1 below.)
+  () => tryRun('b150: hearthlight theme applies', () => {
+    assert(document.body.getAttribute('data-theme') === 'hearthlight',
+      'body[data-theme] is "' + document.body.getAttribute('data-theme') + '", not hearthlight');
+    const bg = getComputedStyle(document.body).getPropertyValue('--bg-0').trim().toLowerCase();
+    // Don't pin the exact hex — the palette evolves. Accepts #rgb or #rrggbb.
+    const hx = bg.replace('#', '');
+    const full = hx.length === 3 ? hx.replace(/(.)/g, '$1$1') : hx;
+    assert(/^[0-9a-f]{6}$/i.test(full) && parseInt(full, 16) < 0x333333,
+      'hearthlight --bg-0 should be a dark surface, got "' + bg + '"');
+  }),
+
+  /* CLEANUP-SETTINGS-1 (2026-10-08): Settings carries no pre-cutover control.
+     "Sync now" pushed a save the server already holds, "Auto-syncing every 60s"
+     advertised a cadence no player acts on, the Theme row offered ONE theme, and
+     the self-hoster Supabase form let a localStorage value choose the server.
+     "Verify cloud save" stays: it asks the realm. */
+  () => tryRun('CLEANUP-SETTINGS-1: Settings has Verify cloud save and none of the retired controls', () => {
+    assert(typeof window.openSettings === 'function', 'openSettings missing');
     try {
-      T.setTheme('hearthlight');
-      assert(document.body.getAttribute('data-theme') === 'hearthlight', 'setting hearthlight did not apply data-theme');
-      const bg = getComputedStyle(document.body).getPropertyValue('--bg-0').trim().toLowerCase();
-      // Don't pin the exact hex — the palette evolves. Assert bg-0 is a DARK
-      // surface (Hearthlight is a dark theme). Accepts #rgb or #rrggbb.
-      const hx = bg.replace('#', '');
-      const full = hx.length === 3 ? hx.replace(/(.)/g, '$1$1') : hx;
-      assert(/^[0-9a-f]{6}$/i.test(full) && parseInt(full, 16) < 0x333333,
-        'hearthlight --bg-0 should be a dark surface, got "' + bg + '"');
+      window.openSettings();
+      const body = document.getElementById('settings-body');
+      assert(body, 'Settings did not render a body');
+      const text = body.textContent;
+      const verify = body.querySelector('#set-cloud-verify');
+      assert(verify && /Verify cloud save/.test(verify.textContent), 'the "Verify cloud save" control is missing');
+      assert(!body.querySelector('#set-cloud-sync') && !/\bSync now\b/.test(text), 'a "Sync now" control is back');
+      assert(!/Auto-syncing|syncing every \d+s —/i.test(text), 'the "Auto-syncing every Ns" hint is back');
+      assert(!body.querySelector('[data-theme-id], .ss-theme-card'), 'the one-option Theme picker is back');
+      assert(!body.querySelector('#set-sb-url, #set-sb-key, #set-sb-connect'), 'the Supabase paste form is back');
+      assert(typeof window.HearthriseTheme === 'undefined', 'window.HearthriseTheme (the picker API) is published again');
+      const S = window.HearthriseSupabase;
+      assert(!S || (typeof S.configure === 'undefined' && typeof S.reset === 'undefined'),
+        'HearthriseSupabase exposes configure/reset again — a device-stored realm override is back');
     } finally {
-      T.setTheme(prev); // never leave the tester on a different theme than they picked
+      const modal = document.getElementById('settings-modal');
+      if (modal) modal.classList.remove('show');
     }
   }),
 
@@ -1825,9 +1832,7 @@ export default [
        applies (floor sets hp=10, hook must restore 4); restore the ack + tear
        down any sheet in finally. */
     const A = window.HearthriseAccrual;
-    const wasAck = !!(A && A.isReplacementAcknowledged && A.isReplacementAcknowledged());
     try {
-      if (A && A.acknowledgeReplacement) A.acknowledgeReplacement(true);
       // Model a live client fight at LOW combat hp; the server (envelope) reads FULL.
       G.activeMonster = 'goblin'; G.playerMaxHp = 10; G.playerHp = 4; G.gold = 0;
       const env = { ok: true, version: 999999999, now: new Date().toISOString(),
@@ -1839,8 +1844,6 @@ export default [
         'EAT-COMBAT-HP: the envelope SNAPPED live combat hp to the stale-full server value ('
         + G.playerHp + ' — expected the preserved 4). Paione\'s live-combat symptom is back.');
     } finally {
-      if (A && A.acknowledgeReplacement) A.acknowledgeReplacement(wasAck);
-      if (A && A.hideReplacementSheet) A.hideReplacementSheet();
       restoreG(snap);
       /* hook(env) → applyServerEnvelope → refreshAll(), and this test set
          activeMonster='goblin', so the hook re-rendered the COMBAT view. restoreG
@@ -2486,35 +2489,6 @@ export default [
       } finally { restoreG(snap); }
     })),
 
-  // The migration is what un-sticks every plot broken on live right now.
-  () => tryRun('b220: save migration un-sticks stalled plots', () => {
-    const M = (window.HEARTHRISE_MIGRATIONS || []).find((m) => m.from === 6 && m.to === 7);
-    assert(M, 'the v6 → v7 farming migration is missing from the registry');
-    assert(window.HEARTHRISE_SCHEMA_VERSION >= 7, 'CURRENT_SCHEMA_VERSION was not bumped to 7');
-    const F = window.HearthriseFarm;
-    const stalledAt = Date.now() - (window.CROPS.turnip.hours + 5) * 3600000;
-    const save = { v: 6, farmPlots: [
-      { cropId: 'turnip', plantedAt: stalledAt, watered: false, state: 'growing' },  // the auto-replant victim
-      { cropId: 'turnip', plantedAt: stalledAt, watered: true,  state: 'growing' },
-      { cropId: 'turnip', plantedAt: 'corrupt', watered: false, state: 'growing' },
-      null,
-    ] };
-    M.apply(save);
-    assert(Array.isArray(save.farmPlots[0].waterings) && save.farmPlots[0].waterings.length === 0,
-      'watered:false must migrate to waterings: []');
-    assert(save.farmPlots[1].waterings.length === 1 && save.farmPlots[1].waterings[0] === stalledAt,
-      'watered:true must retro-credit one window at plantedAt');
-    assert(typeof save.farmPlots[2].plantedAt === 'number' && save.farmPlots[2].waterings.length === 0,
-      'a corrupt plantedAt must be repaired, not crash the pipeline');
-    // THE point: both old plots now finish.
-    assert(F.isReady(save.farmPlots[0]) === true,
-      'the migrated dry plot must be ready — it was frozen forever on b219');
-    assert(F.isReady(save.farmPlots[1]) === true, 'the migrated watered plot must be ready');
-    assert(F.isReady(save.farmPlots[2]) === false, 'the repaired plot restarts its clock');
-    const before = JSON.stringify(save.farmPlots);
-    M.apply(save);
-    assert(JSON.stringify(save.farmPlots) === before, 'the migration must be idempotent');
-  }),
 
   /* ⚠ THE INTENT IS ANSWERED HERE, NOT BY THE REALM (2026-10-06). maybeReplant
      sends a REAL hr_farm_plant through plantCrop; unstubbed, that request left the

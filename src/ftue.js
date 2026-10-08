@@ -74,7 +74,7 @@
          mentions the shop at all: the answer to "why do I keep dying on my
          first night" is 700g of starter armour, and nothing in the game says
          so. Point the number at what it buys. */
-      body: 'Combat level, total level, gold and gems. Gold is your first upgrade — a few hundred buys boots and gloves at Shops, and armour turns aside some of the blows aimed at you. Progress saves itself to your account as you play.',
+      body: 'Combat level, total level, gold and gems. Gold is your first upgrade — a few hundred buys boots and gloves at Shops, and armour turns aside some of the blows aimed at you. Your hero lives on the server: progress saves itself as you play and is waiting on any device you sign in on.',
       primary: 'Got it',
     },
     {
@@ -116,7 +116,15 @@
          as this player's switch, which they may have turned off. Guards:
          FIRST-LIGHT-4 (in-page, against the live constants) and
          tests/screen-primers.mjs G8 (the retired sentences stay out). */
-      body: 'Combat is the part you play with your hands. Monsters hit back, so you eat between kills: new heroes start with Auto-Eat switched on, which eats from your bag when your health runs low, and food comes from Cooking. Falling does not end the run: you are knocked out for a spell, stand back up on part of your health and carry on with the same fight, and the first fall of each day costs you no time at all. Your fights keep going while you are away under exactly the same rule.',
+      /* Front door: "Falling does not end the run" was false since
+         Recovery Rule rev.3 — The Retreat (src/core/away.js RETREAT_FOODLESS_FALLS
+         / RETREAT_ANY_FALLS) pulls a hero back to camp after three falls in a
+         row with an empty bag, or six whatever the bag holds, and a kill resets
+         the count. That is the rule a new player meets on night one, so the
+         tour states it, along with the Vigour line (src/core/hunt.js): past the
+         day's budget a fight pays VIGOUR_DRY_MULT. FIRST-LIGHT-4 and
+         FRONT-DOOR-1 bind each number here to its constant. */
+      body: 'Monsters hit back, so you eat between kills: new heroes start with Auto-Eat switched on, eating from your bag when your health runs low, and food comes from Cooking. A fall leaves you knocked out for a spell, then you stand back up on part of your health and carry on with the same fight; the first fall of each day costs you no time at all. Fall three times without a kill and no food left, or six times whatever you carry, and you retreat to camp. Fights run while you are away under exactly the same rule, and spend Vigour, your daily hunting budget: once it runs out, a fight pays a quarter.',
       primary: 'Next',
       autoAdvanceOnClick: true,
     },
@@ -161,11 +169,47 @@
          audience this sentence is written for. It names both, in that order,
          so a returning player whose chain is finished still reads a true
          sentence about the surface they DO have. */
-      body: 'Start on the Home screen: "Your first day" lists the steps in front of you, and "Next up" is there when they are done — every row takes you straight to where it is played. Set a skill or a fight running before you close the tab and it banks the whole time you are gone; a fight that falls picks itself back up and carries on. Good luck out there.',
+      body: 'Start on the Home screen: "Your first day" lists the steps in front of you, and "Next up" is there when they are done — every row takes you straight to where it is played. Set a skill or a fight running before you close the tab and it keeps going while you are away, for up to twelve hours to start. Good luck out there.',
       primary: 'Start playing',
       onPrimary: function(){ endFTUE(true); },
     },
   ];
+
+  // ── The first session (the front door) ────────────────────
+  // A brand-new player used to meet five cards in a row on their first
+  // minute — the tour, a "Welcome, traveler" sheet telling them to open
+  // Skills, a beta banner also titled "Welcome to Hearthrise", the daily
+  // reward and, one build later, a changelog — each with its own first
+  // instruction. The tour is the ONE voice of the first session; everything
+  // else asks this predicate and waits for the next one (the daily reward
+  // stays claimable on Home the whole time).
+  //
+  // "First session" is this TAB's session (sessionStorage survives a reload,
+  // dies with the tab), latched the moment it is recognised so the tour
+  // finishing — which flips the completed flag — cannot end it early. It is
+  // recognised by either: the tour being owed at the gate, or the signed-in
+  // account having been created moments ago (server-stamped `created_at`, so
+  // a second account on a browser that already finished the tour counts too).
+  var FIRST_SESSION_KEY = 'hearthrise:first-session';
+  var NEW_ACCOUNT_MS = 2 * 3600000;
+  function accountIsNew(nowMs){
+    try {
+      var A = window.HearthriseAuth;
+      var sess = A && typeof A.getSession === 'function' ? A.getSession() : null;
+      var at = sess && sess.user ? Date.parse(sess.user.created_at) : NaN;
+      if(!isFinite(at)) return false;
+      var now = typeof nowMs === 'number' ? nowMs : Date.now();
+      return now - at >= 0 && now - at < NEW_ACCOUNT_MS;
+    } catch(e){ return false; }
+  }
+  function markFirstSession(){
+    try { sessionStorage.setItem(FIRST_SESSION_KEY, '1'); } catch(e){}
+  }
+  function isFirstSession(){
+    try { if(sessionStorage.getItem(FIRST_SESSION_KEY) === '1') return true; } catch(e){}
+    if(accountIsNew()){ markFirstSession(); return true; }
+    return false;
+  }
 
   // ── State ──────────────────────────────────────────────────
   var stepIndex = 0;
@@ -539,7 +583,12 @@
      step used to sell an away-combat night the engine does not deliver. A
      promise nothing reads cannot be tested, so the steps are published and
      AWAY-HONEST-5 asserts the copy against what the engine actually pays. */
-  window.HearthriseFTUE = { steps: function(){ return STEPS.slice(); } };
+  window.HearthriseFTUE = {
+    steps: function(){ return STEPS.slice(); },
+    isFirstSession: isFirstSession,
+    __firstSessionKey: FIRST_SESSION_KEY,
+    __accountIsNew: accountIsNew,
+  };
 
   // ── Auto-boot ───────────────────────────────────────────────
   // b224: the tour is the SECOND thing a new player meets, not the first.
@@ -549,6 +598,7 @@
   // queues behind `.ftue-root .ftue-card.show`), then the welcome sheets.
   function maybeStart(){
     if(!isNewPlayer()) return;
+    markFirstSession();
     setTimeout(startFTUE, STEP_DELAY_MS);
   }
   function armStart(){

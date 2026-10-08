@@ -1298,37 +1298,10 @@ async function saveSlotGuard(browser, url) {
          reconcile went with it), so the read half is asserted ABSENT instead —
          a returning GET on game_saves would mean the reconcile is back. */
       // Become a player with three characters, on the third — through the REAL
-      // slot API (unlockSlot/switchSlot), not by writing the profile record.
+      // slot API: `adoptServerSlots` is the door the hr_state_of `hero_slots`
+      // projection comes in (this page is signed out, so it is the only way to
+      // state what that projection would say), and switchSlot moves the pointer.
       P.init();
-      window.G.gems = 5000;
-      // gold-arm: gems is a SERVER_OF_RECORD field, so unlockSlot's affordability
-      // read is fail-closed until the balance is stamped the way hr_load does. Go
-      // through the REAL applyRecord path (never poke _record) so this still proves
-      // the armed read path works. Each unlockSlot debits gems (a raw client write),
-      // which staleness-invalidates the stamp — so RE-STAMP (with a monotonic
-      // version) before each buy, exactly as a fresh envelope would in production.
-      let stampV = Date.now();
-      const stampGems = () => {
-        if (!window.HearthriseRecord) return;
-        try {
-          window.HearthriseRecord.applyRecord(window.G, {
-            ok: true, version: ++stampV, now: new Date().toISOString(),
-            state: { gold: window.G.gold, gems: window.G.gems },
-          });
-        } catch (e) {}
-      };
-      stampGems(); P.unlockSlot(1);
-      /* b537 — AND THE SERVER IS THE ONE WHO SAYS WHAT IS OWNED. `unlockSlot`
-         writes the `G.heroSlotsUnlocked` RESIDUE, and since 2026-09-11
-         multi-character.js refuses to gate a switch on it: with hr_state_of
-         silent the fail-safe is slot 0 alone, so both the second unlock and
-         `switchSlot(2)` would be refused and every assertion below would read as
-         a b342 regression against a switch that never happened.
-         `adoptServerSlots` is the door the hr_state_of projection comes in (the
-         b372 test states its fixture the same way); this page is signed out, so
-         it is the only way to state what that projection would say. The SUBJECT
-         is unchanged: the periodic save must address the character being
-         PLAYED. */
       P.adoptServerSlots([0, 1, 2]);
       P.switchSlot(2);
       const activeSlot = P.activeSlot();
@@ -1481,19 +1454,8 @@ async function landscapeGuard(browser, url) {
         await new Promise((r) => setTimeout(r, 100));
       }
       if (!panel.classList.contains('active')) return { err: 'the combat panel never opened' };
-      /* The picker lives on the phone Combat panel's dedicated Style sub-tab,
-         and it is reached BY TAPPING IT — which is also the only correct way,
-         because the seeded save above is mid-fight and combat-mobile-tabs.js
-         steers a live fight to the Arena until the player chooses for
-         themselves (b334). Writing `dataset.mobileSub` directly is silently
-         undone by that steer within 1.5s; the tap sets `_playerChose` and
-         sticks, exactly as a player's does. */
-      const tab = panel.querySelector('#cmb-mob-tabs .cmt-btn[data-sub="style"]');
-      if (tab) tab.click(); else panel.dataset.mobileSub = 'style';
-      await new Promise((r) => setTimeout(r, 150));
-      if (panel.dataset.mobileSub !== 'style') {
-        return { err: 'tapping the Style sub-tab did not open it (sub=' + panel.dataset.mobileSub + ')' };
-      }
+      /* The picker is a row on the Fight stage (b362): there are no combat
+         sub-tabs to reach it through, so a live fight shows it as it is. */
       if (typeof window.renderStyleSelector === 'function') window.renderStyleSelector();
       await new Promise((r) => setTimeout(r, 200));
       const block = document.querySelector('.combat-style-block');

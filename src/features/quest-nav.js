@@ -106,8 +106,7 @@
   // Counters that are not a gathering skill's output. Each entry is the place
   // the counter is MOVED, which is the only question the player is asking.
   var COUNTER_DEST = {
-    kills: COMBAT, killStreak: COMBAT, bestKillStreak: COMBAT,
-    killsByTier: COMBAT, killsByFamily: COMBAT, deaths: COMBAT,
+    kills: COMBAT, deaths: COMBAT,
     rareDrops: COMBAT,
     cooked: function () { return SKILL('cooking'); },
     burnt: function () { return SKILL('cooking'); },

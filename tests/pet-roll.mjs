@@ -26,10 +26,19 @@
 //   P6  gather and artisan propose rollPets(…, the settle's companionActions);
 //   P7  the switch: with `petRollReady` absent the key is never proposed;
 //   P8  the client rolls nothing: src/features/pets.js is gone and
-//       src/features/companions.js has no drop roll.
+//       src/features/companions.js has no drop roll;
+//   P9  A ROLL CHANNEL NEVER MOVES A YIELD DRAW (AWAY-1 parity): a seeded
+//       gather span, attended and away, banks byte-identical items and XP
+//       whether or not a roll channel draws per action from its own
+//       seed^salt stream. CONTROL: the same channel drawing from the MAIN
+//       stream (what the deleted pets.js did, one draw per addXp) must move
+//       the yield, or the arm proves nothing.
 // NO ?v= on the imports (tests/** — b332).
 // ════════════════════════════════════════════════════════════════════════
 import { readFile, access } from 'node:fs/promises';
+import { simulateSkillSpan, indexGatherNodes } from '../src/core/skill-sim.js';
+import { xpForLevel } from '../src/core/xp.js';
+import { TREES, ROCKS, FISH_SPOTS } from '../src/data/gathering.js';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -138,6 +147,36 @@ async function petRollGuard(over = {}) {
     ok(JSON.stringify(g.delta.companion_finds || []) === JSON.stringify(want), `P6 gather: ${JSON.stringify(g.delta.companion_finds)} vs ${JSON.stringify(want)}`);
     ok(g.companionActions > 0, 'P6 gather CONTROL: no actions');
   } else ok(false, 'P6 gather: no settle');
+  const gOff = computeAccrual({ ...BASE, activeKind: 'gather', activeId: node, skills: { ...MAX_SKILLS }, away: true });
+  if (g && g.delta && gOff && gOff.delta) {
+    const strip = (d) => { const c = { ...d }; delete c.companion_finds; return JSON.stringify(c); };
+    ok(strip(g.delta) === strip(gOff.delta), 'P5 gather: the pet roll moved the main stream — the delta differs beyond the key');
+  }
+
+  // P9 — a roll channel never moves a yield draw, attended and away.
+  const gNodes = indexGatherNodes({ woodcutting: TREES, mining: ROCKS, fishing: FISH_SPOTS });
+  const yewHour = (away, channel) => {
+    const state = { skillTargetId: 'elder_yew_tree', activeSkill: 'woodcutting',
+      skills: { woodcutting: xpForLevel(68) }, inventory: {}, equipment: {}, toolCarry: {},
+      stats: { gathered: 0, chopped: 0 }, buffs: [] };
+    const main = createRng(SEED);
+    const side = petRng(SEED);
+    const items = {}; let xp = 0;
+    simulateSkillSpan(state, { away, fromMs: 0, toMs: 3600000, rng: main, items: ITEMS, nodes: gNodes,
+      bonus: () => 0,
+      fx: { addItem: (id, q) => { items[id] = (items[id] || 0) + q; },
+            addXp: (sk, n) => { xp += n; if (channel === 'side') side.next(); if (channel === 'main') main.next(); },
+            updateDaily() {}, updateQuest() {}, onStop() {} } });
+    return JSON.stringify({ items, xp });
+  };
+  for (const away of [true, false]) {
+    const path = away ? 'AWAY' : 'ATTENDED';
+    const none = yewHour(away, null);
+    ok(yewHour(away, 'side') === none, `P9 ${path}: a roll channel on its own seed^salt stream moved the yield: ${yewHour(away, 'side')} vs ${none}`);
+    ok(yewHour(away, 'main') !== none,
+      `P9 ${path} CONTROL: a roll channel on the MAIN stream left the yield unchanged — the arm cannot see a shared stream`);
+    if (over.sharedStream) ok(yewHour(away, 'main') === none, `P9 ${path}: a roll channel shares the yield stream`);
+  }
 
   // P8 — the client rolls nothing.
   const pets = await access(join(ROOT, 'src', 'features', 'pets.js')).then(() => true, () => false);
@@ -159,6 +198,7 @@ if (isMain) {
       ['lichling odds x10', { index: fewer }],
       ['client drop roll back', { companionsJs: 'const DROP_CHANCES = {}; C.rng.chance(chance);' }],
       ['pets.js back', { petsFile: true }],
+      ['a roll channel shares the yield stream', { sharedStream: true }],
     ];
     let miss = 0;
     for (const [name, over] of arms) {

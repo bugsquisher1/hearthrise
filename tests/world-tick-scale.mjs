@@ -318,10 +318,24 @@ async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER, hfT
     const oldAnchorServed = await servedPk('r9-a');
     await logAt('a.real_return_at');
     const currentAnchorServed = await servedPk('r9-b');
-    ok('R9', oldAnchorServed && !currentAnchorServed,
+    /* The widen's parked definition (lag judge, vitals): logged AND the mark
+       has reached the logged horizon. A logged character whose mark is still
+       5 min short of it is owed windows and must be served. */
+    await q(`update public.player_state ps set accrued_to = h.horizon_at - interval '5 minutes'
+               from public.hr_tick_horizon_log h, public.hr_return_anchor a
+              where ps.user_id = $1 and h.user_id = ps.user_id and a.user_id = ps.user_id
+                and h.anchor_at = a.real_return_at`, [pk]);
+    /* That write is not the tick, so the anchor trigger restamped R; put the
+       absence's anchor back (the logged one), so only the mark has moved. */
+    await q(`update public.hr_return_anchor set real_return_at =
+               (select max(anchor_at) from public.hr_tick_horizon_log where user_id = $1)
+              where user_id = $1`, [pk]);
+    const owedServed = await servedPk('r9-c');
+    ok('R9', oldAnchorServed && !currentAnchorServed && owedServed,
       'a horizon crossing logged under the previous absence\'s anchor leaves the new absence\'s first crossing '
-      + 'served; logged under the current anchor, the character is parked',
-      JSON.stringify({ oldAnchorServed, currentAnchorServed }));
+      + 'served; logged under the current anchor with the mark at the horizon, the character is parked; logged '
+      + 'but with windows still owed below the horizon, it is served (the widen\'s parked definition)',
+      JSON.stringify({ oldAnchorServed, currentAnchorServed, owedServed }));
   }
 
   // ── S2 ──────────────────────────────────────────────────────────────────
@@ -1056,6 +1070,8 @@ const MUTANTS = [
   // Security's review mutants (2026-10-08), both SURVIVED @c34efa5f.
   { name: 'secParkedAnyAnchor', fn: 'roster', why: 'a crossing logged under an OLDER anchor parks the new absence', expect: /R9/,
     find: '                and hl.anchor_at = ra.real_return_at\n', repl: '' },
+  { name: 'parkedIgnoresMark', fn: 'roster', why: 'a logged character still owed windows below its horizon is parked', expect: /R9/,
+    find: '                and m.mark + v_flush > hl.horizon_at))\n', repl: '                and true))\n' },
   { name: 'secFoldNoKeyStop', edge: 'tick.js', why: 'a window carrying hearthfind/activity is folded with its neighbours', expect: /F10/,
     find: '    if (Object.keys(it.args.p_delta).some((k) => !FOLD_CHAIN_KEYS.includes(k))) {\n      if (i === 0) wins.push(it);\n      break;\n    }\n',
     repl: '' },

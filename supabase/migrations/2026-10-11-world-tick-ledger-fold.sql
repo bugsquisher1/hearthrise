@@ -62,9 +62,9 @@ declare
 begin
   select md5(replace(p.prosrc, chr(13), '')) into v_roster from pg_proc p
    where p.oid = to_regprocedure('public.hr_tick_roster(text[],integer,integer,text,integer,timestamp with time zone,uuid,integer)');
-  if v_roster is null or v_roster not in ('cd39a1e48c22cc90340ec3b1c975f2cb', '35cd86295e363fd253764c3a5f5794cc') then
+  if v_roster is null or v_roster not in ('28e005c072f0d23f854b3c3ce3cede23', '01b51f60baf96b8397d5458ba322d261') then
     raise exception 'PRECONDITION: hr_tick_roster prosrc md5 is %, expected 2026-10-11-world-tick-due-roster.sql''s '
-                    'cd39a1e48c22cc90340ec3b1c975f2cb or this file''s 35cd86295e363fd253764c3a5f5794cc.', v_roster;
+                    '28e005c072f0d23f854b3c3ce3cede23 or this file''s 01b51f60baf96b8397d5458ba322d261.', v_roster;
   end if;
   if not exists (select 1 from information_schema.columns
                   where table_schema = 'public' and table_name = 'hr_tick_config' and column_name = 'fold_windows')
@@ -263,8 +263,10 @@ begin
                  on hl.user_id = ra.user_id and hl.slot = ra.slot
                 and hl.anchor_at = ra.real_return_at
               where ra.user_id = o.user_id and ra.slot = o.slot
-                and m.mark + v_flush > ra.real_return_at
-                      + coalesce(public.hr_offline_cap_ms(o.user_id, o.slot), 0) * interval '1 millisecond'))
+                -- The logged horizon, exactly as the lag judge and vitals read
+                -- "parked" (2026-10-10-world-tick-gather-widen.sql, Security
+                -- scale review): the fence's own horizon at the crossing.
+                and m.mark + v_flush > hl.horizon_at))
        -- INVARIANT 7 (M8 S2, Security S-8). POSITIVE AND DERIVED: a
        -- character in a party with a LIVE hunt is served by
        -- hr_party_roster and by NOTHING ELSE. Never a denormalised
@@ -422,7 +424,7 @@ begin
   begin
     if (select md5(replace(p.prosrc, chr(13), '')) from pg_proc p
          where p.oid = 'public.hr_tick_roster(text[],int,int,text,int,timestamptz,uuid,int)'::regprocedure)
-       <> '35cd86295e363fd253764c3a5f5794cc' then
+       <> '01b51f60baf96b8397d5458ba322d261' then
       raise exception 'k0: the installed hr_tick_roster body is not the one this file states';
     end if;
     select * into v_cfg from public.hr_tick_config where id;

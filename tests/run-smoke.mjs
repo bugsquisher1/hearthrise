@@ -1454,19 +1454,8 @@ async function landscapeGuard(browser, url) {
         await new Promise((r) => setTimeout(r, 100));
       }
       if (!panel.classList.contains('active')) return { err: 'the combat panel never opened' };
-      /* The picker lives on the phone Combat panel's dedicated Style sub-tab,
-         and it is reached BY TAPPING IT — which is also the only correct way,
-         because the seeded save above is mid-fight and combat-mobile-tabs.js
-         steers a live fight to the Arena until the player chooses for
-         themselves (b334). Writing `dataset.mobileSub` directly is silently
-         undone by that steer within 1.5s; the tap sets `_playerChose` and
-         sticks, exactly as a player's does. */
-      const tab = panel.querySelector('#cmb-mob-tabs .cmt-btn[data-sub="style"]');
-      if (tab) tab.click(); else panel.dataset.mobileSub = 'style';
-      await new Promise((r) => setTimeout(r, 150));
-      if (panel.dataset.mobileSub !== 'style') {
-        return { err: 'tapping the Style sub-tab did not open it (sub=' + panel.dataset.mobileSub + ')' };
-      }
+      /* The picker is a row on the Fight stage (b362): there are no combat
+         sub-tabs to reach it through, so a live fight shows it as it is. */
       if (typeof window.renderStyleSelector === 'function') window.renderStyleSelector();
       await new Promise((r) => setTimeout(r, 200));
       const block = document.querySelector('.combat-style-block');

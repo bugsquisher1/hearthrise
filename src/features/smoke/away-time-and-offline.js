@@ -6573,8 +6573,7 @@ export default [
        arena card inside the Fight view, the one style block adopted onto the
        stage. A probe that models the OLD markup would pass forever. */
     const panelInner =
-      '<div id="cmb-mob-tabs" class="cmb-mob-tabs"><button class="cmt-btn" data-sub="style">Style</button></div>'
-      + '<div class="cbt-views">'
+      '<div class="cbt-views">'
       + '<section class="wt-view"><div class="combat-picker"><div class="monster-row">Goblin</div></div>'
       + '<div class="wt-grid"><button class="wt-card"><span class="wtc-name">Goblin</span></button></div></section>'
       + '<section class="fs-view"><div class="fs-top"><button class="fs-back">Back</button></div>'
@@ -6644,49 +6643,6 @@ export default [
     }
   }),
 
-  () => tryRun('b334: tapping a combat sub-tab mid-fight is not undone by the 1500ms sync poll', () => {
-    const panel = document.getElementById('panel-combat');
-    assert(panel, 'panel-combat must exist');
-    assert(typeof window.__cmbSyncCombatSub === 'function', 'combat sub-tab sync seam missing');
-    const styleTab = panel.querySelector('#cmb-mob-tabs .cmt-btn[data-sub="style"]');
-    assert(styleTab, 'the mobile Style sub-tab button is gone — there is no way to reach the picker on a phone');
-
-    const hadInCombat = document.body.classList.contains('in-combat');
-    const priorSub = panel.dataset.mobileSub;
-    try {
-      // Fight starts: the sync correctly puts the player on the arena (b230).
-      document.body.classList.remove('in-combat');
-      window.__cmbSyncCombatSub(panel);
-      panel.dataset.mobileSub = 'monsters';
-      document.body.classList.add('in-combat');
-      window.__cmbSyncCombatSub(panel);
-      assert(panel.dataset.mobileSub === 'arena', 'fight start must still open the arena (b230)');
-
-      // The player taps Style. THREE poll ticks then go by.
-      styleTab.click();
-      assert(panel.dataset.mobileSub === 'style', 'tapping Style did not switch the sub-tab');
-      window.__cmbSyncCombatSub(panel);
-      window.__cmbSyncCombatSub(panel);
-      window.__cmbSyncCombatSub(panel);
-      assert(panel.dataset.mobileSub === 'style',
-        'the poll dragged the player back to ' + panel.dataset.mobileSub
-        + ' — they get at most 1.5s to pick a style, which reads as "you cannot"');
-
-      // The NEXT fight still opens on the arena: the override is per fight, not
-      // a permanent surrender of the auto-steer.
-      document.body.classList.remove('in-combat');
-      window.__cmbSyncCombatSub(panel);
-      panel.dataset.mobileSub = 'monsters';
-      document.body.classList.add('in-combat');
-      window.__cmbSyncCombatSub(panel);
-      assert(panel.dataset.mobileSub === 'arena',
-        'the manual override leaked into the next fight — every later fight would open on the wrong tab');
-    } finally {
-      document.body.classList.toggle('in-combat', hadInCombat);
-      window.__cmbSyncCombatSub(panel);
-      if (priorSub) panel.dataset.mobileSub = priorSub;
-    }
-  }),
 
   /* ── b334 regression suite — THE CANCEL THAT WENT NOWHERE ──────────────────
      SYMPTOM (live, b333): `[error-boundary] wrapped render functions ×0`

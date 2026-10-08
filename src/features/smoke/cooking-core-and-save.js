@@ -1380,9 +1380,8 @@ export default [
   () => tryRun('b231: starting a fight shows the arena on mobile (not a blank combat screen)', () => {
     // The bug (Tyler): on a phone, `body.in-combat` hid the monster picker AND
     // the "Foes" mobile sub-tab hid the arena, so clicking Fight from the default
-    // tab blanked the whole combat screen. Two guards: (1) the CSS safety net
-    // shows the arena during any live fight; (2) combat-mobile-tabs.js flips the
-    // sub-tab to 'arena' on fight start. Both are checked here.
+    // tab blanked the whole combat screen. The sub-tabs are gone (b362; the
+    // module was deleted 2026-10-08); the structural net is checked here.
     const panel = document.getElementById('panel-combat');
     assert(panel, 'panel-combat must exist');
 
@@ -1412,23 +1411,6 @@ export default [
     } finally {
       try { window.stopCombat(); } catch (e) {}
       if (wasFighting) { try { window.startCombat(wasFighting); } catch (e) {} }
-    }
-
-    // (2) Behavioural — the sub-tab follows combat state.
-    assert(typeof window.__cmbSyncCombatSub === 'function', 'combat sub-tab sync seam missing');
-    const hadInCombat = document.body.classList.contains('in-combat');
-    const priorSub = panel.dataset.mobileSub;
-    try {
-      panel.dataset.mobileSub = 'monsters';
-      document.body.classList.add('in-combat');
-      window.__cmbSyncCombatSub(panel);
-      assert(panel.dataset.mobileSub === 'arena', 'fight start must switch the mobile sub-tab to arena, got ' + panel.dataset.mobileSub);
-      document.body.classList.remove('in-combat');
-      window.__cmbSyncCombatSub(panel);
-      assert(panel.dataset.mobileSub === 'monsters', 'fight end must return the mobile sub-tab to foes, got ' + panel.dataset.mobileSub);
-    } finally {
-      document.body.classList.toggle('in-combat', hadInCombat);
-      if (priorSub) panel.dataset.mobileSub = priorSub;
     }
   }),
 

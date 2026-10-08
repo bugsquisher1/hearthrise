@@ -589,12 +589,6 @@ body[data-theme="classic"] {
     padding-bottom: max(10px, var(--safe-b, 0px)) !important;
   }
 
-  /* Combat sub-tab strip + DUNGEONS share a single row in landscape */
-  #panel-combat .cmb-mob-tabs {
-    margin: -6px -8px 6px !important;
-    padding: 4px !important;
-  }
-
   /* Bug-report FAB = the rail's FOOT. b317 tucked it into the content column's
    * bottom-left corner, which is the first 36px of every panel (it sat on
    * LOADOUT, the first bag tile, the first node column). Persistent chrome
@@ -675,17 +669,16 @@ body[data-theme="classic"] {
    * the rail to a tiny strip with only the first button visible. */
 
   /* Sub-tab strips — slimmer */
-  .cmb-mob-tabs, .inv-mob-tabs, .act-mob-strip {
+  .inv-mob-tabs, .act-mob-strip {
     padding: 3px 4px !important;
     margin: calc(-1 * var(--hr-panel-pad-t)) -8px 4px !important;
   }
   /* b285 (player's-eye QA): these sub-tab strips are the PRIMARY in-screen
-     navigation (Foes/Arena/Style, Wood/Mine/Fish, Bag/Equip) and were 32px — too
+     navigation (Wood/Mine/Fish, Bag/Equip) and were 32px — too
      small for a thumb. b285 stopped at 40px to save height; b554 raises every
      floor in this block to `--tap` (44px) — the phone tap floor audit-overrides.css
      already declares for .btn/.chip, which these !important 40s were undercutting.
      tests/visual-qa-gate.mjs ratchets the per-screen count of sub-44px hit areas. */
-  .cmb-mob-tabs .cmt-btn,
   .inv-mob-tabs .imt-btn,
   .act-mob-strip .ams-btn {
     min-height: var(--tap) !important;
@@ -709,7 +702,6 @@ body[data-theme="classic"] {
   .invc-topbar .invc-actions .btn {
     min-height: var(--tap) !important;
   }
-  .cmb-mob-tabs .cmt-btn .cmt-ic,
   .inv-mob-tabs .imt-btn .imt-ic { font-size:calc(14.5px * var(--ui-scale, 1)) !important; }
   .act-mob-strip .ams-btn .ams-ic { font-size:calc(16px * var(--ui-scale, 1)) !important; }
 
@@ -878,45 +870,7 @@ body[data-theme="classic"] {
  * top of every panel.
  * ============================================================ */
 
-/* Sub-tab strip above the combat panel — visible on mobile only */
-.cmb-mob-tabs {
-  display: none;
-}
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
-  /* b218: STRUCTURE un-prefixed so all themes render the STYLE/FOES/ARENA bar
-   * (see inv note — this was the P0: the bar was cozy-light-only, invisible on
-   * the live hearthlight theme, so combat sub-sections never showed on phones). */
-  .cmb-mob-tabs {
-    display: flex !important;
-    position: sticky;
-    top: 0;
-    z-index: 5;
-    gap: 4px;
-    padding: 6px 4px;
-    margin: -8px -8px 8px;
-  }
-  .cmb-mob-tabs .cmt-btn {
-    flex: 1 1 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-    padding: 6px 4px;
-    border-radius: 6px;
-    font-family: 'Cinzel', serif;
-    font-size:calc(14.5px * var(--ui-scale, 1));
-    font-weight: 600;
-    letter-spacing: .08em;
-    text-transform: uppercase;
-    cursor: pointer;
-    min-height: 44px;
-  }
-  /* Colour/background/border only — per-theme. */
-
-
-  .cmb-mob-tabs .cmt-btn .cmt-ic { font-size:calc(17px * var(--ui-scale, 1)); }
-
-
   /* b362 — THE COMBAT SUB-TAB RULES ARE GONE. THE INVENTORY ONES ARE NOT.
      These three said "show only the section matching the active sub-tab", and
      the arena appeared in two of them. Combined with the picker hide during a
@@ -926,27 +880,9 @@ body[data-theme="classic"] {
      third thing to fall back to.
      The two-screen split removes the machine: the Fight screen has no sub-tabs,
      the stage IS the screen, and the style picker is a row on that stage. What
-     remains of `data-mobile-sub` on this panel is a hidden tab bar and an
-     attribute nobody reads, so leaving these rules in place would only mean the
-     next person to set that attribute blanks the combat screen again.
-     (`#cmb-mob-tabs` itself is hidden by combat-screens.css; the module stays
-     because its sync seam is still asserted.) */
-  /* b256: the Boss of the Day card belongs to the "choose a fight" context — it
-     lives ONLY on the Foes (monsters) sub-tab. Without this it sat at the panel
-     top on every sub-tab and dropped into the middle of an active fight on the
-     Arena tab (paione). */
-  #panel-combat[data-mobile-sub="style"] #hr-botd-card,
-  #panel-combat[data-mobile-sub="arena"] #hr-botd-card,
-  #panel-combat[data-mobile-sub="style"] #hr-weekly-card,
-  #panel-combat[data-mobile-sub="arena"] #hr-weekly-card {
-    display: none !important;
-  }
-  /* DUNGEONS button always visible regardless of sub-tab */
-
-  /* Style sub-tab — keep the picker compact */
-  #panel-combat[data-mobile-sub="style"] .combat-style-block {
-    margin-top: 8px;
-  }
+     next person to set that attribute would blank the combat screen again.
+     The sub-tab module itself (combat-mobile-tabs.js) is deleted (2026-10-08),
+     and nothing sets `data-mobile-sub` on #panel-combat any more. */
 
 
   #panel-combat .monster-row > img,
@@ -1071,15 +1007,6 @@ body[data-theme="classic"] {
 #panel-combat .combat-style-block .csb-meta,
 #panel-combat .combat-style-block p {
     display: none !important;
-  }
-  /* b348 — …EXCEPT on the dedicated Style sub-tab, where the picker IS the
-     whole screen and the line naming the XP split is precisely what belongs
-     there. The hide above was written when this block sat inline under the
-     monster list; the sub-tabs (b256) gave it a room of its own. Measured at
-     922x423 and 500x900: the block is 109px/126px tall with the meta shown and
-     nothing spills sideways. */
-  #panel-combat[data-mobile-sub="style"] .combat-style-block .csb-meta {
-    display: block !important;
   }
   /* Combat-style buttons in a tight 4-up grid */
   #panel-combat .combat-style-buttons {
@@ -2075,11 +2002,7 @@ body[data-theme="classic"] .modal-card {
   .topbar img[src=""],
   .topbar .icon-broken { display: none !important; }
 
-  /* --- Combat: FOES sub-tab DUNGEONS button --- */
-#panel-combat [data-mobile-sub] .header {
-    flex-wrap: wrap !important;
-    gap: 6px !important;
-  }
+  /* --- Combat: DUNGEONS button --- */
   #panel-combat [onclick*="ungeon"],
 #panel-combat button:has(> .em-icon) {
     flex: 0 1 auto !important;
@@ -2930,23 +2853,20 @@ body[data-theme="hearthlight"] #hr-quests-btn.no-active .hr-q-count {
   background: rgba(0,0,0,.32);
   color: #fdf3e2;
 }
-/* Mobile sub-tab strips (inventory / activities / combat) */
+/* Mobile sub-tab strips (inventory / activities) */
 body[data-theme="hearthlight"] .inv-mob-tabs,
-body[data-theme="hearthlight"] .act-mob-strip,
-body[data-theme="hearthlight"] .cmb-mob-tabs {
+body[data-theme="hearthlight"] .act-mob-strip {
   background: linear-gradient(180deg, var(--bg-2), var(--bg-1)) !important;
   border-bottom: 1px solid var(--line) !important;
 }
 body[data-theme="hearthlight"] .inv-mob-tabs .imt-btn,
-body[data-theme="hearthlight"] .act-mob-strip .ams-btn,
-body[data-theme="hearthlight"] .cmb-mob-tabs .cmt-btn {
+body[data-theme="hearthlight"] .act-mob-strip .ams-btn {
   background: transparent !important;
   color: var(--ink-2) !important;
   border: 1px solid transparent !important;
 }
 body[data-theme="hearthlight"] .inv-mob-tabs .imt-btn.active,
-body[data-theme="hearthlight"] .act-mob-strip .ams-btn.active,
-body[data-theme="hearthlight"] .cmb-mob-tabs .cmt-btn.active {
+body[data-theme="hearthlight"] .act-mob-strip .ams-btn.active {
   background: var(--gold-bg) !important;
   color: var(--gold-2) !important;
   border-color: var(--line-strong) !important;

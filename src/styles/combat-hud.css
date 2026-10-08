@@ -293,8 +293,7 @@ body.in-combat #combat-area > .cbt-food { flex: 0 0 auto; }
      are hidden → blank combat screen. The arena IS the screen once a fight is
      live, so force it visible regardless of the last-selected sub-tab. This
      out-specifies the sub-tab hide (adds body.in-combat + .active) and is the
-     core-loop safety net; combat-mobile-tabs.js also flips the sub-tab to
-     'arena' on fight start so the tab highlight agrees. */
+     core-loop safety net. */
   /* b334 (player report, "Combat style can't be chosen while in combat"): the
      rule below used to hide `.combat-style-block` for EVERY sub-tab during a
      fight, including the Style sub-tab whose entire job is showing it. The

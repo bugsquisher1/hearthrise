@@ -393,8 +393,8 @@ try {
       + 'STATEFUL, so it is not on STATELESS_REFUSALS)',
       `a recovering member answered ${JSON.stringify(rec)}`);
     /* ★ Security E2 — AND IT NAMES THE MEMBER, NEVER THE ACCOUNT. hr_party_view's
-       column set is FROZEN at name, combat_level, hp, hp_max, recovering_until,
-       share_bp, xp, gold — no user_id, no slot — and S1 resolves a kick by name
+       column set is FROZEN at name, combat_level, hp, hp_max, recovering_until
+       (share_bp/xp/gold retired 2026-10-15) — no user_id, no slot — and S1 resolves a kick by name
        "and not by user id" for that reason. An auth.users id handed to a client
        is a stable cross-account handle: it survives a rename, carries the slot
        with it, and is the ready-made argument for every (user, slot) predicate

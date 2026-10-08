@@ -709,6 +709,7 @@ insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note
 --               (own mark moved, anchor now) → 'rejoining'; the next paid
 --               window rejoins → 'hunting'; events, newest first, as names
 --   v-clamp     dropped 3 times today → 'camping_today'
+--   v-failsafe  an overflowing party ledger row COMMITS, tally untouched
 --   v-conserve  every member's tally equals Σ xp_in / gold_in / meta.kills of
 --               their ledger rows for the hunt; a row naming another party's
 --               hunt is not tallied anywhere
@@ -1009,6 +1010,28 @@ begin
           where (coalesce(t.xp, 0), coalesce(t.gold, 0), coalesce(t.kills, 0), coalesce(t.windows, 0))
                 is distinct from (s.xp, s.gold, s.kills, s.n)) then
       raise exception 'party-hunt-view §7 v-conserve: party_hunt_tally disagrees with the ledger for this hunt'; end if;
+    -- ── v-failsafe (Security GO-WITH-CHANGES #1): an engine-authored party row
+    --    whose kills / xp_bp overflow every integer type must still COMMIT —
+    --    the tally is display data and may never refuse a payout — and leave
+    --    the tally untouched (the overflowing row is skipped, not half-folded).
+    select to_jsonb(tt) into v_row from public.party_hunt_tally tt
+     where tt.hunt_id = v_hunt and tt.user_id = v_a and tt.slot = 0;
+    select count(*) into v_n from public.player_ledger where user_id = v_a;
+    begin
+      insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, meta)
+      values (v_a, 0, 'combat', 'accrue', 5, 5, 5, 0,
+              jsonb_build_object('src', 'tick', 'kills', 1e30::numeric,
+                'party', jsonb_build_object('id', v_party, 'hunt', v_hunt, 'dmg_bp', 0,
+                  'xp_bp', 1e30::numeric, 'floor', 0, 'fellow_bp', 0, 'roll', 1)));
+    exception when others then
+      raise exception 'party-hunt-view §7 v-failsafe: a party ledger row with overflowing kills/xp_bp was REFUSED (%: %) — the tally trigger would fail the whole settle payout', sqlstate, sqlerrm;
+    end;
+    if (select count(*) from public.player_ledger where user_id = v_a) <> v_n + 1 then
+      raise exception 'party-hunt-view §7 v-failsafe: the overflowing party ledger row did not commit'; end if;
+    if (select to_jsonb(tt) from public.party_hunt_tally tt
+         where tt.hunt_id = v_hunt and tt.user_id = v_a and tt.slot = 0) is distinct from v_row then
+      raise exception 'party-hunt-view §7 v-failsafe: the overflowing row moved the tally (it must be skipped whole)'; end if;
+
     -- A ledger row naming ANOTHER party's hunt is tallied nowhere.
     insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, meta)
     values (v_a, 0, 'combat', 'accrue', 7, 7, 7, 0,
@@ -1134,5 +1157,5 @@ begin
   raise notice 'party-hunt-view self-check PASSED: k1 view grants/volatility/baseline; k2 roster log zero-policy; '
                'k3 tally sealed + trigger attached; k4 own 20/min bucket, party still 12, gate first; k5 hr_party_view '
                'five keys; k6 hygiene; v-start, v-attended, v-away (camping → rejoining → hunting), v-clamp, '
-               'v-conserve, v-ended, v-isolate, v-nonmember, v-ids, v-rate';
+               'v-failsafe, v-conserve, v-ended, v-isolate, v-nonmember, v-ids, v-rate';
 end $chk$;

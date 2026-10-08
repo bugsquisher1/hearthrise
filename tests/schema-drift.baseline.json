@@ -7,11 +7,11 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-10-08",
- "digest": "43805d2409b0ee1ef41897ee34373cbf5b0f38562b9823e5d74f284d130c0d8d",
+ "digest": "01b1f2b6bc6d24f7c2c457cd6247dca49c234b4ea423ac32682976f49d41fcb2",
  "counts": {
   "relations": 147,
   "functions": 359,
-  "policies": 95,
+  "policies": 94,
   "indexes": 212,
   "triggers": 24,
   "constraints": 424,
@@ -602,7 +602,6 @@
    "market_listings :: listings readable",
    "market_sales :: own sales readable",
    "party :: party readable by live members",
-   "party_hunt :: party hunt readable by live members",
    "party_invite :: own party invites readable",
    "party_member :: party members readable by the party",
    "player_bank :: player_bank own read",

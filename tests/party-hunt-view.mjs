@@ -164,6 +164,9 @@ const MUTANTS = [
     find: '                    where h.id = v_hunt and h.party_id = v_party) then\n', repl: '                    where h.id = v_hunt) then\n' },
   { name: 'tallyNotFolded', why: 'the tally overwrites instead of summing (the view under-reports a long hunt)', expect: /§7 v-conserve/,
     find: '       set xp       = t.xp + excluded.xp,\n', repl: '       set xp       = excluded.xp,\n' },
+  { name: 'failsafeNarrowed', why: 'Security\'s mutant: the trigger\'s fail-safe catches one sqlstate, so an overflowing engine-authored row refuses the whole settle payout', expect: /§7 v-failsafe/,
+    find: '  exception when others then\n    raise warning \'party_hunt_tally skipped',
+    repl: '  exception when division_by_zero then\n    raise warning \'party_hunt_tally skipped' },
   // ── grants, policies, key set ──
   { name: 'viewGrantedAnon', why: 'hr_party_hunt_view is executable by anon', expect: /§7 k1/,
     find: 'grant execute on function public.hr_party_hunt_view(integer) to authenticated;\n',

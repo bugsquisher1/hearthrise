@@ -734,46 +734,6 @@ const withLocalBlobAsync = async (fn) => {
   try { return await fn(); } finally { unpinLocalBlob(C); }
 };
 
-/* ── 2026-09-08 — THE SAME PROBLEM FOR THE HERO-SLOT ENTITLEMENT ─────────────
-   `hr_buy_hero_slot` moved hero-slot ownership to the server: hr_state_of
-   projects the account's owned set, src/net/accrue.js reconcileHeroSlots lands
-   it in `G._heroSlots`, and multi-character.js `ownsSlot`/`unlockedCount` prefer
-   it over the `G.heroSlotsUnlocked` residue — which is the whole fix, because
-   the residue is the store a cloud restore can rewind while the entitlement it
-   paid for stays granted (the b371 dupe).
-
-   Four tests below are ABOUT the CLIENT-OWNED path (`unlockSlot`, kept verbatim
-   as the pre-arm branch and unreachable from any UI once gems are armed). Signed
-   in against a server that carries the projection, `G._heroSlots` is populated,
-   so those tests would be asserting the residue against a server answer that
-   correctly disagrees with it — a green-today, red-on-apply trap, which is worse
-   than a failure. So they run in the position they are ABOUT: server answer
-   ABSENT, residue authoritative, restored afterwards.
-
-   ⚠ A TEST WRAPPED HERE DOES **NOT** COVER THE ARMED PATH. That is SLOT-SRV-*,
-   which drives the server verb and asserts the residue is NOT believed. */
-export const withClientOwnedSlots = (fn) => {
-  const G = window.G;
-  const had = !!(G && Object.prototype.hasOwnProperty.call(G, '_heroSlots'));
-  const prev = had ? G._heroSlots : undefined;
-  /* AND IT HAS TO SAY WHO OWNS THE GEMS, which is what "client-owned" means:
-     residueCount() now fails safe to slot 0 unless `clientMayWriteRecordField
-     ('gems')` is TRUE, because "no projection AND the server owns the gems" is
-     the boot state a stale residue was opening slots in — the defect itself, not
-     a state to test in. Other fields pass through (a blanket `() => true` would
-     hand four unrelated subsystems a client writer). */
-  const origMay = window.clientMayWriteRecordField;
-  try {
-    if (G) delete G._heroSlots;
-    window.clientMayWriteRecordField = (f) => (f === 'gems' ? true
-      : (typeof origMay === 'function' ? origMay(f) : true));
-  } catch (e) {}
-  try { return fn(); } finally {
-    window.clientMayWriteRecordField = origMay;
-    try { if (G) { if (had) G._heroSlots = prev; else delete G._heroSlots; } } catch (e) {}
-  }
-};
-
 /* ── b514 (cleanup slice 4) — THE FARM IS DRIVEN AGAINST A STUBBED SERVER ────
    b456 tested the farm by turning the SERVER ROUTING OFF (`withLocalFarm`) and
    measuring the client-authored twin underneath. That twin is now DELETED —

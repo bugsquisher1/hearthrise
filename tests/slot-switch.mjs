@@ -145,18 +145,11 @@ async function pagehideRaceGuard(browser, url, opts = {}) {
     const setup = await page.evaluate(async ({ mutate, LOG, MARK }) => {
       const P = window.HearthriseProfile;
       P.init();
-      window.G.gems = 5000;
-      // gold-arm: stamp the armed balance via the REAL applyRecord path so
-      // unlockSlot's affordability read is KNOWN (as it is post-hr_load in prod).
-      if (window.HearthriseRecord) { try { window.HearthriseRecord.applyRecord(window.G, { ok: true, version: Date.now(), now: new Date().toISOString(), state: { gold: window.G.gold, gems: window.G.gems } }); } catch (e) {} }
-      const r = P.unlockSlot(1);
-      /* b537 — AND THE SERVER'S OWN ANSWER, because the residue `unlockSlot`
-         writes is no longer allowed to gate a switch (multi-character.js
-         residueCount() fails safe to slot 0 while hr_state_of is silent, which
-         it always is on this signed-out harness). Without this the switch under
-         test is refused as 'unconfirmed' and every assertion below passes or
-         fails for the wrong reason. */
-      if (typeof P.adoptServerSlots === 'function') P.adoptServerSlots([0, 1]);
+      /* THE SERVER'S ANSWER is the only thing that opens a slot (multi-character.js
+         ownsSlot reads `hero_slots`; residueCount() fails safe to slot 0 while
+         hr_state_of is silent, which it always is on this signed-out harness).
+         adoptServerSlots is the door that projection comes in. */
+      const r = { ok: typeof P.adoptServerSlots === 'function' && P.adoptServerSlots([0, 1]) };
 
       /* ── THE WIRE RECORDER ────────────────────────────────────────────────
          Written through localStorage, not a JS variable, because the page under
@@ -374,12 +367,8 @@ export async function slotSwitchGuard(browser, url, opts = {}) {
     const setup = await page.evaluate(() => {
       const P = window.HearthriseProfile;
       P.init();
-      window.G.gems = 5000;
-      // gold-arm: stamp the armed balance via the REAL applyRecord path (see above).
-      if (window.HearthriseRecord) { try { window.HearthriseRecord.applyRecord(window.G, { ok: true, version: Date.now(), now: new Date().toISOString(), state: { gold: window.G.gold, gems: window.G.gems } }); } catch (e) {} }
-      const r = P.unlockSlot(1);                      // direct: the buy dialog is tested separately
-      // b537: the server projection is the switch gate now — state it (see the first check).
-      if (typeof P.adoptServerSlots === 'function') P.adoptServerSlots([0, 1]);
+      // The server projection is the switch gate — state it (see the first check).
+      const r = { ok: typeof P.adoptServerSlots === 'function' && P.adoptServerSlots([0, 1]) };
       return { ok: !!(r && r.ok), active: P.activeSlot(), rows: P.slotRows().length };
     });
     if (!setup.ok || setup.active !== 0) {

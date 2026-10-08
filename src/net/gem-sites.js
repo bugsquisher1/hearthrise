@@ -231,23 +231,8 @@ export const GEM_SITE_LEDGER = Object.freeze([
       + 'to a client that cannot record the trade.',
   },
 
-  /* ── THE FIFTH: THE HERO SLOT. ALREADY CORRECT — KEPT SO IT STAYS THAT WAY ── */
-  {
-    id: 'src/multi-character.js#unlockSlot',
-    kind: 'spend', status: 'deferred',
-    armGuard: { gated: 'clientMayWriteRecordField', where: 'buySlot' },
-    blockedBy: 'supabase/migrations/2026-09-08-hero-slot-buy.sql — WRITTEN, REVIEW-ONLY, NOT '
-      + 'APPLIED. The client half already landed: buySlot() forks to serverBuySlot() and '
-      + 'goal-claim.js buyHeroSlot() calls hr_buy_hero_slot, which answers `rpc_missing` until the '
-      + 'migration is applied.',
-    why: 'THE ROW THAT PROVES THE `where` FIELD EARNS ITS KEEP. The debit is here, in unlockSlot, '
-      + 'and the arm check is in its ONLY caller, buySlot — deliberately: that module\'s header '
-      + 'calls unlockSlot "the PRE-ARM path and only the pre-arm path" and says "Do NOT wire a new '
-      + 'caller to this". Probing unlockSlot\'s own body would report a false RED on correct code; '
-      + 'probing nothing would let the whole class through. So the row names the caller and the '
-      + 'census verifies THAT body instead. ⚠ If a second caller is ever added, this row becomes a '
-      + 'lie and nothing will catch it — which is why the module says not to.',
-  },
+  /* ── THE FIFTH, THE HERO SLOT, IS GONE (2026-10-08). `unlockSlot` — the pre-arm
+     client debit — is deleted; buySlot() sends hr_buy_hero_slot and writes no gems. */
 
   /* ── GRANTS: value appears. All four already gated, all four deferred ──── */
   {

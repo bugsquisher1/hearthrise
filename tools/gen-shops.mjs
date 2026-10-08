@@ -443,7 +443,7 @@ const addTable = (meta, offers) => { tables.push({ ...meta, offers }); };
   });
   addTable({
     table: 'character_slot', origin: 'src/multi-character.js', anchor: 'const SLOT_COSTS_GEMS = [',
-    spends_at: 'multi-character.js unlockSlot()',
+    spends_at: 'multi-character.js buySlot() → hr_buy_hero_slot',
     note: 'Hearth Hall Premium grants slots 1-3 free — an entitlement waiver, not a price',
   }, offers);
 }

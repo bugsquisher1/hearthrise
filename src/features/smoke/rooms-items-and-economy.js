@@ -2866,6 +2866,8 @@ export default [
       if (it.heals || it.buff || it.buryXp) return true;
       if (['key', 'currency', 'housing', 'cosmetic', 'castle', 'crafting-mat'].includes(it.tag)) return true;
       if (it.unlocks || it.recipe || it.premium || it.musterOnly) return true;
+      if (it.seed && (window.CROPS || {})[it.seed]) return true;               // planted
+      if (Object.values(window.COMPANIONS || {}).some((c) => c && c.source === 'hatch:' + id)) return true;   // hatched
       return false;
     };
     // Known, intentional vendor-trash (sold for gold) — an EXPLICIT exemption so the

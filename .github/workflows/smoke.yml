@@ -50,7 +50,7 @@ permissions:
 # and the second time this workflow has raised that number rather than the
 # question underneath it.
 #
-# The steps are now partitioned by what they NEED, into TWELVE jobs that run in
+# The steps are now partitioned by what they NEED, into THIRTEEN jobs that run in
 # parallel, so the wall clock is the slowest family rather than the sum:
 #
 #   job                  needs                      MEASURED   timeout (= x2)
@@ -60,9 +60,10 @@ permissions:
 #   db-replay-4          an applied migration chain   6.9 min  16 [5]
 #   db-replay-2          an applied migration chain  10.8 min  19 [1][4]
 #   db-replay-3          an applied migration chain  10.4 min  21 [4][6]
-#   db-replay-5          an applied migration chain  10.0 min  20 [6]
+#   db-replay-5          an applied migration chain   9.7 min  20 [6][8]
 #   db-replay-6          an applied migration chain  10.0 min  21 [7]
 #   db-replay-7          an applied migration chain  10.6 min  22 [7]
+#   db-replay-8          an applied migration chain   9.0 min  20 [8]
 #   utc-midnight-replay  an applied migration chain   6.85 min 14 [2]
 #   client-guards        nothing but this repo        4.3 min   9 [3]
 #   edge                 the live gateway              0.5 s    5 (floor)
@@ -129,6 +130,13 @@ permissions:
 #     1105 s on other runs today) — the table lines above for those jobs are
 #     STALE and every one of them is past x2 of its timeout; they are not
 #     re-stated here (not moved by this split) and are owed a re-measure.
+# [8] db-replay-5 SPLIT IN TWO 2026-10-08 (CI-SPLIT-6): run 37725703255
+#     (next@3ea45544) CANCELLED db-replay-5 at 20 min; the probe step took
+#     765 s (42 s on main@e6a12d3a) — single-core replay bars, fixed in the
+#     same lane (see db-replay-8's header). The pricing family moved to
+#     db-replay-8. db-replay-5 keeps the write-safety family: 313 s on the
+#     green run 37722343238, x1.86 for the slow run's variance = 582 s
+#     (9.7 min), inside its unchanged 20-min budget.
 # [7] NEW 2026-10-07 (lane b564-hollow-mutants): thirteen mutation proofs that
 #     no step ran, plus tests/mutant-control.mjs. Measured locally; see the
 #     jobs' own header for the per-step sums.
@@ -1762,51 +1770,6 @@ jobs:
           node tests/world-tick-stall-after-repoint.mjs
           node tests/world-tick-stall-after-repoint.mjs --mutate
 
-      # THE SHADOW PARITY PROBE (Security ruling 1, 2026-10-05). Every 4 h per
-      # rostered shadow character the tick runs ONE single-span accrual over
-      # the span its windows tiled and stores it in hr_tick_probe — and nothing
-      # else. world-tick-parity-probe drives the shipped runTick on the replayed
-      # chain: the span tiles real windows, the stored input IS the opening
-      # window's session, the chain is byte-identical with and without the
-      # probe, and an open+close moves zero tuples in every other user table.
-      # --mutate plants a player_state write, a shadow_accrued_to advance, a
-      # shadow-journal insert, a dropped lease and a dropped chain-head check,
-      # and requires each RED by name at apply AND in the guard.
-      # world-tick-probe-bar calibrates the ruling's bar on 4 h fixture spans
-      # (green) and pins the max_hp shadow-carrier finding; --mutate requires
-      # fixedSeed/shiftWindow/noAutoEat/freeHeal/skipFoodDebit/resumeMisalign
-      # red. tools/world-tick-parity.mjs --selftest proves the evaluator's
-      # eligibility rules on planted rows, and the COMBAT REPLAY BAR
-      # (SEC_VIGOUR_LINE_SPLIT_2026-10-06 "Bar ruling": ±10 % and ≤ 3 se on
-      # the seeded replay expectation, realised read by z ≤ 3.29, every probe
-      # |z| ≤ 4.3) on the no-food fixture through the shipped engine at 120
-      # replicas: correct PASS, +12 % FAIL. world-tick-seed-no-leak holds the
-      # probe's stored seed (secret-equivalent, SEC_PROBE_RETAIN_2026-10-06)
-      # out of every print, export, fixture and CI read; --mutate plants seven.
-      - name: World tick — the parity probe writes its own rows and the bar bites
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/world-tick-parity-probe.mjs
-          node tests/world-tick-parity-probe.mjs --mutate
-          node tests/world-tick-probe-bar.mjs
-          node tests/world-tick-probe-bar.mjs --mutate
-          node tools/world-tick-parity.mjs --selftest
-          node tests/world-tick-seed-no-leak.mjs
-          node tests/world-tick-seed-no-leak.mjs --mutate
-
-      # THE RESUME LINE, TO THE TICK (SEC_WORLD_TICK_PROBE_2026-10-05.md (c)).
-      # The probe bar cannot see a resume defect under ~4 min per fall, so the
-      # resume is pinned deterministically: after a knockout the first swing
-      # lands exactly on recovering_until, attended and away, in a window,
-      # across a carrier boundary and through the 10 s settler. --mutate
-      # requires three one-tick-off mutants (late gate, early stamp, late
-      # carrier) RED on the assertion each names.
-      - name: World tick — the first swing after a knockout lands on the recovery line
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/world-tick-resume-alignment.mjs
-          node tests/world-tick-resume-alignment.mjs --mutate
-
       # A STALLED TICK IS RED FROM THE DATABASE ALONE (2026-09-28). The 22 h
       # stall above read green on every cron-grain query because the edge's
       # verdict lived only in pg_net's ~6 h response table.
@@ -1816,58 +1779,6 @@ jobs:
       # both on planted histories plus a byte-identical second apply;
       # --selftest re-creates one function at a time with a load-bearing line
       # broken and requires its arm red.
-      # THE PERK STACK (2026-09-28). hr_perks_of is not an envelope field, so
-      # the tick priced every window at zero perks — the standing -2.56% XP gap.
-      # tick.js (1b) now makes the accrue path's read; this fires the shipped
-      # runTick for a Library-5 character and requires its shadow XP to equal
-      # the accrue path's over the same window, seed and perks. --mutate
-      # removes the read in a temp copy and requires P3 red.
-      # THE BESTIARY (2026-09-28, Security N4). hr_bestiary_of is not an
-      # envelope field either, so every combat window priced with no charm and
-      # no trophy. tick.js (4b) makes the collect path's BESTIARY_SQL read; this
-      # fires twelve 20,000-kill goblin fighters and requires each shadow delta
-      # to equal the accrue path's. --mutate plants "read dropped" and "wrong
-      # fold" in temp copies and requires B3 red for each.
-      - name: World tick — a tick window prices the perks and bestiary an accrue prices
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/world-tick-perks-parity.mjs
-          node tests/world-tick-perks-parity.mjs --mutate
-          node tests/world-tick-bestiary-parity.mjs
-          node tests/world-tick-bestiary-parity.mjs --mutate
-
-      # VIGOUR UNDER SUBDIVISION (2026-10-05, the 09-29 combat parity read:
-      # gold -71.8%, xp -35.5%). A tired payout was floored per settle window
-      # and a chain of 10 s windows never spent its own budget. Replays the real
-      # 09-29 span both ways; --mutate reverts each fix in a temp copy.
-      - name: World tick — a tired hunt pays the same however often it is settled
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/world-tick-vigour-scale.mjs
-          node tests/world-tick-vigour-scale.mjs --mutate
-
-      # THE VIGOUR LINE IS AN INSTANT, NOT A BLEND (2026-10-06, probes 8/10 on
-      # edge 6205e4e0). A span crossing the budget paid ONE blended multiplier:
-      # +17.6% ticks / +15% gold+xp chain over the one-span accrue on probe 8's
-      # exact input. Probe 10 (wholly tired) is parity and its +42% is chance.
-      # VL3: wholly tired pays [0.22, 0.28] of rested per kill and a crossing
-      # span sits between (catches the 4x overpay mutants the parity arms
-      # miss); VL4 pins AWAY_RATE_MULT === 1 (the line is a wall-clock instant).
-      - name: World tick — a span crossing the Vigour line pays in time order
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/world-tick-vigour-line.mjs
-          node tests/world-tick-vigour-line.mjs --mutate
-
-      # MAX HP FOLLOWS A MID-CHAIN HITPOINTS LEVEL-UP (2026-10-05, probe-bar
-      # PB-2: the shadow chain fought at the frozen ceiling, -14% ticks). Both
-      # chain shapes against the one-span accrue; --mutate drops each half.
-      - name: World tick — a Hitpoints level-up inside the chain raises max HP
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/world-tick-maxhp-carry.mjs
-          node tests/world-tick-maxhp-carry.mjs --mutate
-
       - name: World tick — a stall is red from the database alone
         if: ${{ !cancelled() }}
         run: |
@@ -2173,6 +2084,155 @@ jobs:
         run: |
           node tests/mutant-control.mjs
           node tests/mutant-control.mjs --selftest
+
+
+  # ── db-replay-8 ── SPLIT OUT OF db-replay-5 2026-10-08 (CI-SPLIT-6). The
+  # GitHub run for 3ea45544 (set/b565 on next, run 37725703255) CANCELLED
+  # db-replay-5 at its own 20-min timeout: "the parity probe writes its own
+  # rows and the bar bites" took 765 s (42 s on main@e6a12d3a the day before),
+  # "a span crossing the Vigour line" was cut off at 292 s, 14 steps never ran.
+  # ROOT CAUSE (not runner variance): the seeded replay bar (210c1065) and
+  # SELFTEST_REPLICAS 40 -> 120 (d051c835) made probe-bar + the evaluator's
+  # --selftest ~4 000 chain replays, and world-tick-vigour-line 300 seeds per
+  # side, all on ONE core of a four-core runner, with PB-1/PB-2/PB-2p and every
+  # mutant re-running the same (fixture, start, span, seed) chains. Fixed in the
+  # same lane WITHOUT touching a replica count, a fixture or a bar: the
+  # replicas run across worker threads (tools/world-tick-replay-pool.mjs) and
+  # probe-bar computes each distinct chain once (tests/_probe-bar-chains.mjs);
+  # every read prints byte-identically to the serial code (diffed: probe-bar
+  # plain and --mutate, the evaluator's --selftest, vigour-line plain and
+  # --mutate). The pricing family (probe, resume line, perks/bestiary, Vigour
+  # scale and line, max HP carry) moved here whole; db-replay-5 keeps the
+  # write-safety family.
+  #
+  # MEASURED locally 2026-10-08 (`run-ci-local --job db-replay-8`,
+  # HR_REPLAY_THREADS=4 = the runner's cores, on a dev box ~67 % busy with
+  # other lanes): 1160 s. The same box ran the UNCHANGED steps 1.5-3.6x
+  # slower than GitHub (verify 112 vs 36-68 s, vigour-scale 58 vs 18-40,
+  # max-hp 29 vs 8), and the OLD serial probe step 1356-2034 s locally vs
+  # 367-899 s on GitHub (x2.26 on the slow pair). Scaled by that slow-pair
+  # factor: probe step 599 -> ~265 s, vigour-line 334 -> ~134 s; plus
+  # GitHub's own slowest observed verify 68 + resume 4 + perks/bestiary 10 +
+  # vigour-scale 40 + max-hp 8 + setup ~11 = ~540 s (9.0 min). Budget = x2
+  # rounded up = 20 min. Re-measure from the first GitHub run and tighten.
+  db-replay-8:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      # THE SNAPSHOT CACHE'S OWN PROOF, AGAIN — fresh runner, no shared snapshot;
+      # nothing measured after it means anything if it is red.
+      - name: PGlite snapshot cache - restored == replayed, corruption refused
+        if: ${{ !cancelled() }}
+        run: node tests/pglite-template.mjs --verify --for=db-replay-8
+
+      # THE SHADOW PARITY PROBE (Security ruling 1, 2026-10-05). Every 4 h per
+      # rostered shadow character the tick runs ONE single-span accrual over
+      # the span its windows tiled and stores it in hr_tick_probe — and nothing
+      # else. world-tick-parity-probe drives the shipped runTick on the replayed
+      # chain: the span tiles real windows, the stored input IS the opening
+      # window's session, the chain is byte-identical with and without the
+      # probe, and an open+close moves zero tuples in every other user table.
+      # --mutate plants a player_state write, a shadow_accrued_to advance, a
+      # shadow-journal insert, a dropped lease and a dropped chain-head check,
+      # and requires each RED by name at apply AND in the guard.
+      # world-tick-probe-bar calibrates the ruling's bar on 4 h fixture spans
+      # (green) and pins the max_hp shadow-carrier finding; --mutate requires
+      # fixedSeed/shiftWindow/noAutoEat/freeHeal/skipFoodDebit/resumeMisalign
+      # red. tools/world-tick-parity.mjs --selftest proves the evaluator's
+      # eligibility rules on planted rows, and the COMBAT REPLAY BAR
+      # (SEC_VIGOUR_LINE_SPLIT_2026-10-06 "Bar ruling": ±10 % and ≤ 3 se on
+      # the seeded replay expectation, realised read by z ≤ 3.29, every probe
+      # |z| ≤ 4.3) on the no-food fixture through the shipped engine at 120
+      # replicas: correct PASS, +12 % FAIL. world-tick-seed-no-leak holds the
+      # probe's stored seed (secret-equivalent, SEC_PROBE_RETAIN_2026-10-06)
+      # out of every print, export, fixture and CI read; --mutate plants seven.
+      - name: World tick — the parity probe writes its own rows and the bar bites
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-parity-probe.mjs
+          node tests/world-tick-parity-probe.mjs --mutate
+          node tests/world-tick-probe-bar.mjs
+          node tests/world-tick-probe-bar.mjs --mutate
+          node tools/world-tick-parity.mjs --selftest
+          node tests/world-tick-seed-no-leak.mjs
+          node tests/world-tick-seed-no-leak.mjs --mutate
+
+      # THE RESUME LINE, TO THE TICK (SEC_WORLD_TICK_PROBE_2026-10-05.md (c)).
+      # The probe bar cannot see a resume defect under ~4 min per fall, so the
+      # resume is pinned deterministically: after a knockout the first swing
+      # lands exactly on recovering_until, attended and away, in a window,
+      # across a carrier boundary and through the 10 s settler. --mutate
+      # requires three one-tick-off mutants (late gate, early stamp, late
+      # carrier) RED on the assertion each names.
+      - name: World tick — the first swing after a knockout lands on the recovery line
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-resume-alignment.mjs
+          node tests/world-tick-resume-alignment.mjs --mutate
+
+      # THE PERK STACK (2026-09-28). hr_perks_of is not an envelope field, so
+      # the tick priced every window at zero perks — the standing -2.56% XP gap.
+      # tick.js (1b) now makes the accrue path's read; this fires the shipped
+      # runTick for a Library-5 character and requires its shadow XP to equal
+      # the accrue path's over the same window, seed and perks. --mutate
+      # removes the read in a temp copy and requires P3 red.
+      # THE BESTIARY (2026-09-28, Security N4). hr_bestiary_of is not an
+      # envelope field either, so every combat window priced with no charm and
+      # no trophy. tick.js (4b) makes the collect path's BESTIARY_SQL read; this
+      # fires twelve 20,000-kill goblin fighters and requires each shadow delta
+      # to equal the accrue path's. --mutate plants "read dropped" and "wrong
+      # fold" in temp copies and requires B3 red for each.
+      - name: World tick — a tick window prices the perks and bestiary an accrue prices
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-perks-parity.mjs
+          node tests/world-tick-perks-parity.mjs --mutate
+          node tests/world-tick-bestiary-parity.mjs
+          node tests/world-tick-bestiary-parity.mjs --mutate
+
+      # VIGOUR UNDER SUBDIVISION (2026-10-05, the 09-29 combat parity read:
+      # gold -71.8%, xp -35.5%). A tired payout was floored per settle window
+      # and a chain of 10 s windows never spent its own budget. Replays the real
+      # 09-29 span both ways; --mutate reverts each fix in a temp copy.
+      - name: World tick — a tired hunt pays the same however often it is settled
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-vigour-scale.mjs
+          node tests/world-tick-vigour-scale.mjs --mutate
+
+      # THE VIGOUR LINE IS AN INSTANT, NOT A BLEND (2026-10-06, probes 8/10 on
+      # edge 6205e4e0). A span crossing the budget paid ONE blended multiplier:
+      # +17.6% ticks / +15% gold+xp chain over the one-span accrue on probe 8's
+      # exact input. Probe 10 (wholly tired) is parity and its +42% is chance.
+      # VL3: wholly tired pays [0.22, 0.28] of rested per kill and a crossing
+      # span sits between (catches the 4x overpay mutants the parity arms
+      # miss); VL4 pins AWAY_RATE_MULT === 1 (the line is a wall-clock instant).
+      - name: World tick — a span crossing the Vigour line pays in time order
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-vigour-line.mjs
+          node tests/world-tick-vigour-line.mjs --mutate
+
+      # MAX HP FOLLOWS A MID-CHAIN HITPOINTS LEVEL-UP (2026-10-05, probe-bar
+      # PB-2: the shadow chain fought at the frozen ceiling, -14% ticks). Both
+      # chain shapes against the one-span accrue; --mutate drops each half.
+      - name: World tick — a Hitpoints level-up inside the chain raises max HP
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/world-tick-maxhp-carry.mjs
+          node tests/world-tick-maxhp-carry.mjs --mutate
 
 
   # ── utc-midnight-replay ── SPLIT OUT OF db-replay 2026-09-19 (b550). The

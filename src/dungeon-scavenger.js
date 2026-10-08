@@ -563,15 +563,16 @@
       var quality = Math.max(0.1, 1 - bossHp / bossMaxHp);
       if(_armed){
         /* ARMED: loot + scrip are SERVER-OWNED (docs/design/dungeon-settlement.md
-           §2). Send hr_dungeon_settle (mode 'scavenger', quality = boss HP taken
-           down) and reconcile the returned envelope; the server consumes the entry
-           key, rolls loot with its seeded PRNG and credits scrip. No local mint →
-           no double-credit. The scavenger run's own boss-fight loot rolls
-           (`awarded`) become DISPLAY-ONLY preview under arm — the server decides
-           the real loot. */
+           §2). Send hr_dungeon_settle (mode 'scavenger') and reconcile the
+           returned envelope; the server consumes the entry key, rolls loot with
+           its seeded PRNG and credits the scavenger mode's FIXED scrip share
+           (2026-10-10). The boss HP taken (`quality`) is NOT sent — it only feeds
+           the dormant local path below. No local mint → no double-credit. The
+           scavenger run's own boss-fight loot rolls (`awarded`) become
+           DISPLAY-ONLY preview under arm — the server decides the real loot. */
         var DS = window.HearthriseDungeonSettle;
         if(DS && typeof DS.sendDungeonSettle === 'function'){
-          DS.sendDungeonSettle({ id: run.dungeonId, mode: 'scavenger', quality: quality }).then(function(v){
+          DS.sendDungeonSettle({ id: run.dungeonId, mode: 'scavenger' }).then(function(v){
             settleV = v;
             var spoils = document.getElementById('scv-spoils');
             if(spoils && v && (v.outcome === 'settled' || v.outcome === 'replayed' || v.outcome === 'refused')) spoils.innerHTML = window.dungeonSettleRowHtml(v);

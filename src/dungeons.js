@@ -216,11 +216,14 @@
   /* ARMED: send hr_dungeon_settle and reconcile the returned envelope (scrip +
      loot), instead of minting locally. Fire-and-reconcile — the server rolls the
      loot with its seeded PRNG and credits scrip; the client renders what returns.
-     A no-op if the transport is not wired (dormant / unconfigured). */
-  function settleRunServer(id, mode, quality, onVerdict){
+     A no-op if the transport is not wired (dormant / unconfigured).
+     NO CLEAR FRACTION IS SENT: the server pays a FIXED share per mode
+     (2026-10-10-dungeon-scrip-fixed-by-mode.sql), so how well the browser thinks
+     the run went is display, never a reward input. */
+  function settleRunServer(id, mode, onVerdict){
     var DS = window.HearthriseDungeonSettle;
     if(!DS || typeof DS.sendDungeonSettle !== 'function') return;
-    DS.sendDungeonSettle({ id: id, mode: mode, quality: quality }).then(function(v){
+    DS.sendDungeonSettle({ id: id, mode: mode }).then(function(v){
       /* THE RE-ENTRY WINDOW IS THE SERVER'S, and this answer is the freshest
          statement of it in existence: a 200 carries the whole projection, a
          refusal carries the one window it refused on, and ONE seam reads both
@@ -592,7 +595,7 @@
        Send hr_dungeon_settle (mode 'auto', full clear) and reconcile the returned
        envelope; the server consumes the key, rolls loot with its seeded PRNG and
        credits scrip. No local mint → no double-credit. */
-    if(_dsArmed()){ settleRunServer(id, 'auto', 1); return true; }
+    if(_dsArmed()){ settleRunServer(id, 'auto'); return true; }
     // Pay cost
     if(d.cost.key){
       if(typeof window.removeItem === 'function') window.removeItem(d.cost.key, 1);
@@ -953,11 +956,11 @@
     if(_dsArmed()){
       /* ARMED: the entry key was consumed at start (below, gated the same way),
          and the loot + scrip are server-owned. Send hr_dungeon_settle (mode
-         'manual', quality = fraction of phases cleared) and reconcile. p_quality
-         is CLAMPED to [0,1] server-side and scales SELF-ONLY scrip; loot is a pure
-         server roll. No local mint → no double-credit. The bag re-renders from the
-         reconcile; the modal shows the server-settled result. */
-      settleRunServer(runState.dungeonId, 'manual', pct, paintSettleRow);
+         'manual') and reconcile. The phases-cleared fraction is NOT sent: the
+         server pays the manual mode's fixed share (2026-10-10), and loot is a
+         pure server roll. No local mint → no double-credit. The bag re-renders
+         from the reconcile; the modal shows the server-settled result. */
+      settleRunServer(runState.dungeonId, 'manual', paintSettleRow);
     } else {
       awarded = awardLoot(runState.dungeonId, mult, bop);
       awardDungeonScrip(runState.dungeonId, pct);   // b281: scrip scales with phases cleared

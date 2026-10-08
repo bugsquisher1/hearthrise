@@ -3045,8 +3045,13 @@ export default [
       assert(window.runDungeon(dId) === true, 'armed: the run must be accepted');
       await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
 
-      assert(sent && sent.id === dId && sent.mode === 'auto' && sent.quality === 1,
+      assert(sent && sent.id === dId && sent.mode === 'auto',
         'armed: the clear must SEND the settle intent (got ' + JSON.stringify(sent) + ')');
+      /* 2026-10-10-dungeon-scrip-fixed-by-mode.sql: the run carries two NAMES and
+         no number. A `quality` here would be a client-authored reward input the
+         server no longer reads — sending it is the defect, not a harmless extra. */
+      assert(Object.keys(sent).sort().join(',') === 'id,mode',
+        'armed: the settle intent must carry exactly {id, mode} — no client quality (got ' + JSON.stringify(sent) + ')');
       assert(minted.filter((m) => m.indexOf('dungeon_scrip') === 0).length === 0,
         'armed: the clear must NOT addItem("dungeon_scrip") - that mint is what the reload erased');
       assert(minted.length === 0, 'armed: no loot may be minted client-side either (minted: ' + minted + ')');

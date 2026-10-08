@@ -870,6 +870,17 @@
         text: (atCap ? 'Capped at your ' + capH + 'h away limit' : 'Capped at your away limit') + unpaid });
     }
 
+    /* THE PARTY BLOCK (party-hunt spec §5): ONE line, from the hunt read taken
+       once for THIS receipt (keyed on its `at`), never a poll. Muted, never red
+       — making camp is not a failure. '' for a player in no party. */
+    try {
+      var PH = window.HearthriseParty;
+      var partyView = (PH && typeof PH.huntForReceipt === 'function') ? PH.huntForReceipt(off.at) : null;
+      var partyLine = (partyView && typeof window.partyReceiptLine === 'function')
+        ? window.partyReceiptLine(partyView, off, Date.now()) : '';
+      if (partyLine) notes.push({ tone: 'base', icon: 'uiSword', text: partyLine });
+    } catch (e) { /* never load-bearing */ }
+
     var noteHtml = notes.map(function (n) {
       return '<div class="hd-away-note is-' + n.tone + '">' +
         '<span class="ic">' + gly(n.icon, 13, '', 'currentColor') + '</span>' +

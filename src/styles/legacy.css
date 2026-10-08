@@ -3913,6 +3913,52 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 .party-empty { margin: 0; font-size: var(--t-small); color: var(--ink-2); line-height: 1.5; }
 .party-later { margin: 0; font-size: var(--t-micro); color: var(--ink-3); }
 
+/* G. THE HUNT CARD (stage 2). One section under the roster: the leader's Start
+   (the solo monster list and the solo stance buttons), or the live hunt — a
+   header line, one row per member, and the five-line event strip. Camping is
+   MUTED, never red: making camp is not a failure. Tokens only. */
+.party-hunt {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 10px 12px; border-radius: var(--r-sm);
+  background: var(--surf-sunken); border: 1px solid var(--line-soft);
+}
+.party-hunt.is-busy button, .party-hunt.is-busy select { pointer-events: none; opacity: .6; }
+.party-h-head { margin: 0; font-size: var(--t-small); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.party-h-start { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.party-h-select {
+  flex: 1 1 160px; min-width: 0; min-height: var(--tap); padding: 0 10px;
+  font: inherit; font-size: var(--t-small); border-radius: var(--r-sm);
+  background: var(--field-sunk); color: var(--ink); border: 1px solid var(--line);
+}
+/* The solo stance buttons keep their look and gain the tap floor here, where
+   they sit beside the party's other controls. */
+.party-h-stances .hunt-stance-btn { min-height: var(--tap); }
+.party-h-roster { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.party-h-member {
+  display: grid; grid-template-columns: 1fr auto;
+  grid-template-areas: "line split" "hp hp" "earn earn" "today today";
+  align-items: center; gap: 3px 10px;
+  padding: 8px 10px; border-radius: var(--r-sm);
+  background: var(--bg-1); border: 1px solid var(--line-soft);
+}
+.party-h-member.is-you { border-color: var(--line-strong); }
+.party-h-member.is-camping, .party-h-member.is-camping_today { opacity: .7; }
+.party-h-split { grid-area: split; font-size: var(--t-small); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.party-h-earn { grid-area: earn; font-size: var(--t-micro); color: var(--gold-2); font-variant-numeric: tabular-nums; }
+.party-h-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: var(--t-micro); text-transform: uppercase; letter-spacing: .06em;
+  color: var(--ink-3); background: var(--bg-2); border-radius: var(--r-sm); padding: 1px 7px;
+}
+.party-h-tag.is-rejoining { color: var(--gold); background: var(--gold-bg); }
+.party-camp-ic { display: inline-flex; }
+.party-h-when { font-size: var(--t-micro); color: var(--ink-3); }
+.party-h-today { grid-area: today; margin: 0; font-size: var(--t-micro); color: var(--ink-2); }
+.party-h-events { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.party-h-ev { display: flex; gap: 8px; font-size: var(--t-micro); color: var(--ink-2); }
+.party-h-ev-at { margin-left: auto; color: var(--ink-3); white-space: nowrap; }
+.party-h-foot { display: flex; }
+
 /* F. THE LANDSCAPE PHONE. The rail layout is already the desktop one at scale
    (§7 — phones are landscape-only and never get the bottom nav), so this is a
    DENSITY pass and not a second layout: the kick control leaves the grid's
@@ -3933,4 +3979,6 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
   .party-member { grid-template-areas: "line lvl kick" "hp hp hp"; padding: 7px 10px; gap: 2px 8px; }
   .party-inv { padding: 7px 10px; }
   .party-invite-row { flex-wrap: nowrap; }
+  .party-hunt { padding: 7px 10px; gap: 6px; }
+  .party-h-member { padding: 6px 8px; gap: 2px 8px; }
 }

@@ -27,14 +27,20 @@
 // authority (the same exception src/render/hunt-panel.js takes for its elapsed
 // clock, and for the same reason).
 //
-// ── WHAT THIS SCREEN HONESTLY IS NOT ────────────────────────────────────────
-// Slice 1 is MEMBERSHIP. Hunting together — the shared window, the split, the
-// roster settle — is slices 2 to 5 and does not exist for a player today. The
-// panel says so in one line rather than implying it with a greyed-out button,
-// because a disabled control is a promise with a date attached and this one has
-// no date. `share_bp`, `xp` and `gold` are not in the roster read at all
-// (retired from hr_party_view by 2026-10-15-party-hunt-view.sql); the hunt's
-// numbers are hr_party_hunt_view's, rendered by the hunt card's own lane.
+// ── THE HUNT CARD (stage 2) ─────────────────────────────────────────────────
+// The Game Designer's "Party hunt as the player sees it" (docs/planning/
+// SEC_GATHER_ARM_RUNBOOK_2026-10-06.md), every sentence verbatim. The card is
+// drawn ONLY from hr_party_hunt_view's answer (`G._partyHunt.view`): kills, xp,
+// gold, split, hp and every member's state are printed as the read sent them,
+// and nothing is extrapolated between reads. The two wall clocks it adds are
+// the hunt's "{h:mm} so far" (from the server's `started_at`) and "made camp
+// {ago}" — durations, not game values, and nothing reads them. The split is
+// `share_bp` written as a percent, a unit change of one server number.
+// Whether [Start hunt] is drawn at all is the view's `channel_open`, with a
+// fail-safe of "not open" until a read says otherwise (§6, residue-ahead).
+// There is NO [Rejoin hunt] button: the return itself rejoins (ruling B3).
+// `share_bp`, `xp` and `gold` are not in the ROSTER read (retired from
+// hr_party_view by 2026-10-15-party-hunt-view.sql); they are the hunt view's.
 //
 // No hardcoded colours — every colour is a token (CLAUDE.md §7); the rules live
 // in src/styles/legacy.css under THE PARTY PANEL. No new breakpoint: the frozen
@@ -142,12 +148,15 @@
 
   /* The leave confirm is TWO STEPS IN THE PANEL, not a browser dialog: leaving
      a party is cheap to redo and a modal for it is heavier than the act. */
-  function leaveControl(asking) {
+  function leaveControl(asking, hunting) {
     if (!asking) {
       return '<button type="button" class="party-btn is-quiet" data-party-act="leave-ask">Leave party</button>';
     }
+    /* §3: during a live hunt, leaving IS "stop for me" — say what it costs. */
     return '<div class="party-confirm">'
-      + '<span class="party-confirm-q">Leave this party?</span>'
+      + '<span class="party-confirm-q">' + (hunting
+          ? 'You\'ll stop earning from this hunt; the others keep going.'
+          : 'Leave this party?') + '</span>'
       + '<button type="button" class="party-btn is-danger" data-party-act="leave-yes">Leave</button>'
       + '<button type="button" class="party-btn is-quiet" data-party-act="leave-no">Stay</button>'
       + '</div>';
@@ -164,6 +173,255 @@
       + '<button type="button" class="party-btn is-primary" data-party-act="accept" data-party-invite="'
       +   esc(inv && inv.id) + '">Accept</button>'
       + '</li>';
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     THE HUNT CARD. Pure: (hunt projection, party projection, opts) -> HTML.
+     ══════════════════════════════════════════════════════════════════════ */
+  var CLOSED_LINE = 'Party hunting isn\'t open yet. It switches on during the beta.';
+
+  function huntIsLive(h) { return !!(h && h.view && h.view.hunt && h.view.hunt.live === true); }
+
+  /** "{h:mm}" of a span — the hunt's elapsed WALL clock, display only. */
+  function hmm(ms) {
+    var v = Number(ms);
+    if (!isFinite(v) || v < 0) v = 0;
+    var m = Math.floor(v / 60000);
+    var mm = m % 60;
+    return Math.floor(m / 60) + ':' + (mm < 10 ? '0' : '') + mm;
+  }
+  /** "just now" under a minute, else minutes/hours — a duration, never a value. */
+  function ago(iso, nowMs) {
+    var t = Date.parse(String(iso || ''));
+    if (!isFinite(t)) return '';
+    var mins = Math.floor(Math.max(0, nowMs - t) / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + ' min ago';
+    return Math.floor(mins / 60) + ' h ago';
+  }
+  function monsterName(id) {
+    var M = window.MONSTERS || {};
+    return (id && Object.prototype.hasOwnProperty.call(M, id) && M[id] && M[id].name) || (id ? String(id) : 'a monster');
+  }
+  function stanceWord(k) {
+    var f = window.huntStanceWord;
+    return (typeof f === 'function' && f(k)) || (k ? String(k) : '');
+  }
+  /** share_bp as a percent: a unit change of one server number, never a sum. */
+  function pctOfBp(bp) {
+    var v = Number(bp);
+    if (bp === null || typeof bp === 'undefined' || !isFinite(v)) return '—';
+    return String(Math.round(v) / 100) + '%';
+  }
+
+  /* §6, the hunt-ended sentences by `stopped_by` (the view already cut any id
+     off at ':'). The view names no leader, so the leader's line says "The
+     leader" rather than inventing a name. */
+  var ENDED = {
+    leader:          'The leader ended the hunt.',
+    too_few_hunters: 'The hunt ended: everyone else made camp or left. You\'re back to solo.',
+    not_in_cohort:   'The hunt ended: party hunting was paused on the server. Nothing was lost.',
+    gate:            'The hunt ended: party hunting was paused on the server. Nothing was lost.',
+    stale_hunt:      'The hunt ended after going quiet.'
+  };
+  function endedSentence(by) { return ENDED[String(by || '')] || 'The hunt ended.'; }
+  /* The receipt's "{why}" — the same reasons, as a clause. */
+  var WHY = {
+    leader:          'the leader ended it',
+    too_few_hunters: 'everyone else made camp or left',
+    not_in_cohort:   'party hunting was paused on the server',
+    gate:            'party hunting was paused on the server',
+    stale_hunt:      'it went quiet'
+  };
+
+  /** One event-strip line, §6 wording. A `stop` row is the hunt ending. */
+  function eventLine(e) {
+    if (!e) return '';
+    var n = e.name || 'Adventurer';
+    if (e.kind === 'drop') return n + ' made camp.';
+    if (e.kind === 'rejoin') return n + ' rejoined the hunt.';
+    if (e.kind === 'stop') return endedSentence(e.reason);
+    return '';
+  }
+
+  /* The three tags (§2, §4). Hunting is the default and draws no tag. Camping
+     is never red: it is not shame copy. */
+  var STATE_TAG = {
+    camping:       'Camping',
+    rejoining:     'Rejoining',
+    camping_today: 'Camping for today'
+  };
+  function campGlyph() {
+    var H = window.HR;
+    var svg = (H && typeof H.icon === 'function') ? H.icon('uiFlame', 12, 'currentColor') : '';
+    return svg ? '<span class="party-camp-ic" aria-hidden="true">' + svg + '</span>' : '';
+  }
+
+  function huntMemberRow(m, nowMs) {
+    var st = String((m && m.state) || 'hunting');
+    var camping = st === 'camping' || st === 'camping_today';
+    var tag = STATE_TAG[st]
+      ? '<span class="party-h-tag is-' + esc(st) + '">' + (camping ? campGlyph() : '') + esc(STATE_TAG[st]) + '</span>' : '';
+    var when = (camping || st === 'rejoining') && m.camped_at
+      ? '<span class="party-h-when">made camp ' + esc(ago(m.camped_at, nowMs)) + '</span>' : '';
+    var split = st === 'hunting' ? pctOfBp(m.share_bp) : '—';
+    var today = (st === 'camping_today' && m.me === true)
+      ? '<p class="party-h-today">You\'ve made camp 3 times today. You can rejoin tomorrow, or hunt solo.</p>' : '';
+    return '<li class="party-h-member is-' + esc(st) + (m.me === true ? ' is-you' : '') + '">'
+      + '<div class="party-m-line">'
+      +   '<span class="party-m-name">' + esc((m && m.name) || 'Adventurer') + '</span>'
+      +   (m.me === true ? '<span class="party-m-you">you</span>' : '') + tag + when
+      + '</div>'
+      + '<span class="party-h-split">' + esc(split) + '</span>'
+      + '<div class="party-hp">'
+      +   '<span class="party-hp-track"><span class="party-hp-fill" style="width:' + hpPct(m.hp, m.hp_max) + '%"></span></span>'
+      +   '<span class="party-hp-num">' + num(m.hp) + ' / ' + num(m.hp_max) + '</span>'
+      + '</div>'
+      + '<span class="party-h-earn">+' + num(m.xp) + ' XP · +' + num(m.gold) + 'g this hunt</span>'
+      + today
+      + '</li>';
+  }
+
+  /* The five newest lines, newest first (the view already orders them), with a
+     run of identical lines collapsed — the reaper writes one `stop` row per
+     hunter, and "The hunt ended" four times over is one fact. */
+  function eventStrip(events, nowMs) {
+    var out = [];
+    var last = null;
+    (Array.isArray(events) ? events : []).forEach(function (e) {
+      var line = eventLine(e);
+      if (!line || line === last || out.length >= 5) return;
+      last = line;
+      out.push('<li class="party-h-ev"><span class="party-h-ev-t">' + esc(line) + '</span>'
+        + '<span class="party-h-ev-at">' + esc(ago(e.at, nowMs)) + '</span></li>');
+    });
+    return out.length ? '<ul class="party-h-events">' + out.join('') + '</ul>' : '';
+  }
+
+  /** THE LEADER'S START: the solo picker's list by the solo picker's own reach
+      rule (HearthriseMonsterPick, src/features/combat-render.js), filtered to
+      the LOWEST member's server-stated combat level, and the solo stance
+      picker's buttons (src/render/hunt-panel.js). No stop-rule picker: `stop`
+      is the solo default, run until stopped. */
+  function startControls(h, party, o, nowMs) {
+    var MP = window.HearthriseMonsterPick;
+    var levels = (Array.isArray(party.members) ? party.members : [])
+      .map(function (m) { return Number(m && m.combat_level); })
+      .filter(function (n) { return isFinite(n) && n > 0; });
+    var low = levels.length ? Math.min.apply(null, levels) : 1;
+    var list = (MP && typeof MP.inReach === 'function') ? MP.inReach(low) : [];
+    var pick = o.pick || {};
+    var chosen = pick.monster && list.some(function (x) { return x.id === pick.monster; })
+      ? pick.monster : (list[0] && list[0].id);
+    var stance = pick.stance || 'steady';
+    var opts = list.map(function (x) {
+      return '<option value="' + esc(x.id) + '"' + (x.id === chosen ? ' selected' : '') + '>'
+        + esc(x.name) + '</option>';
+    }).join('');
+    var waiting = h.waitUntilMs && h.waitUntilMs > nowMs;
+    var disabled = (waiting || !chosen) ? ' disabled' : '';
+    var stances = (typeof window.huntStanceButtonsHtml === 'function') ? window.huntStanceButtonsHtml(stance) : '';
+    return '<div class="party-h-start">'
+      + '<label class="party-invite-lab" for="party-hunt-monster">Monster</label>'
+      + '<select id="party-hunt-monster" class="party-h-select">' + opts + '</select>'
+      + '<span class="party-invite-lab">Stance</span>'
+      + '<span class="hunt-stance-buttons party-h-stances">' + stances + '</span>'
+      + '<button type="button" class="party-btn is-primary" data-party-act="hunt-start"'
+      +   (chosen ? ' data-party-monster="' + esc(chosen) + '"' : '') + ' data-party-stance="' + esc(stance) + '"'
+      +   disabled + '>Start hunt</button>'
+      + '</div>';
+  }
+
+  /** The inline sentence under the button — never a toast (§1). A recovering
+      wait restates its own countdown from the server's remaining_ms on every
+      repaint, and says nothing once it reaches 0. */
+  function huntNotice(h, nowMs) {
+    var text = h.notice;
+    if (h.waitUntilMs) {
+      var P = window.HearthriseParty;
+      text = (h.waitUntilMs > nowMs && P && typeof P.huntRefusalSentence === 'function')
+        ? P.huntRefusalSentence('party_member_recovering', { member: h.waitMember, remaining_ms: h.waitUntilMs - nowMs })
+        : null;
+    }
+    return text ? '<p class="party-notice party-h-notice" role="status">' + esc(text) + '</p>' : '';
+  }
+
+  function stopControl(asking) {
+    if (!asking) {
+      return '<button type="button" class="party-btn is-quiet" data-party-act="hunt-stop-ask">Stop hunt</button>';
+    }
+    return '<div class="party-confirm">'
+      + '<span class="party-confirm-q">Stop the hunt for everyone? Everyone keeps what\'s earned.</span>'
+      + '<button type="button" class="party-btn is-danger" data-party-act="hunt-stop-yes">Stop</button>'
+      + '<button type="button" class="party-btn is-quiet" data-party-act="hunt-stop-no">Keep hunting</button>'
+      + '</div>';
+  }
+
+  function huntCardHtml(h, party, o) {
+    var nowMs = isFinite(o.nowMs) ? o.nowMs : Date.now();
+    var hh = h || {};
+    var view = hh.view || null;
+    var hunt = view && view.hunt;
+    var leader = party.role === 'leader';
+    var body;
+    if (hunt && hunt.live === true) {
+      var started = Date.parse(String(hunt.started_at || ''));
+      var head = '<p class="party-h-head">Hunting ' + esc(monsterName(hunt.active_id))
+        + ' · ' + esc(stanceWord(hunt.stance))
+        + ' · <span class="party-h-clock">' + esc(isFinite(started) ? hmm(nowMs - started) : '—') + '</span> so far'
+        + ' · ' + num(hunt.kills) + ' kills</p>';
+      var rows = (Array.isArray(view.members) ? view.members : []).map(function (m) { return huntMemberRow(m, nowMs); }).join('');
+      body = head + '<ul class="party-h-roster">' + rows + '</ul>' + eventStrip(view.events, nowMs)
+        + huntNotice(hh, nowMs)
+        + (leader ? '<div class="party-h-foot">' + stopControl(!!o.stopAsking) + '</div>' : '');
+    } else {
+      var ended = hunt && hunt.ended_at ? '<p class="party-empty">' + esc(endedSentence(hunt.stopped_by)) + '</p>' : '';
+      if (!view || view.channel_open !== true) {
+        /* The resting state while the channel is closed — and before any read
+           has said it is open (fail-safe "not unlocked"). No Start button. */
+        body = ended + '<p class="party-empty">' + esc(CLOSED_LINE) + '</p>';
+      } else if (leader) {
+        body = ended + startControls(hh, party, o, nowMs) + huntNotice(hh, nowMs);
+      } else {
+        body = ended + '<p class="party-empty">Waiting for the leader to start a hunt.</p>';
+      }
+    }
+    return '<section class="party-hunt' + (hh.busy ? ' is-busy' : '') + '">'
+      + '<h3 class="party-sub">Hunt</h3>' + body + '</section>';
+  }
+
+  /* ── §5 THE RETURN RECEIPT'S PARTY LINE ──────────────────────────────────
+     ONE sentence for the Home "While you were away" card, from the hunt read
+     taken for this receipt (HearthriseParty.huntForReceipt). Every amount is
+     the view's own per-hunt ledger sum for MY row, never recomputed; `off` is
+     the solo receipt, whose `at` and `awayMs` place the absence. */
+  function partyReceiptLine(view, off, nowMs) {
+    if (!view || view.ok !== true || !view.hunt || !Array.isArray(view.members)) return '';
+    var now = isFinite(nowMs) ? nowMs : Date.now();
+    var me = null;
+    view.members.forEach(function (m) { if (m && m.me === true) me = m; });
+    if (!me) return '';
+    var hunt = view.hunt;
+    var awayFrom = (Number(off && off.at) || now) - (Number(off && off.awayMs) || 0);
+    var endedMs = Date.parse(String(hunt.ended_at || ''));
+    var startMs = Date.parse(String(hunt.started_at || ''));
+    if (hunt.live !== true) {
+      if (!isFinite(endedMs) || endedMs < awayFrom) return '';
+      return 'The hunt ended ' + ago(hunt.ended_at, now) + ': ' + (WHY[String(hunt.stopped_by || '')] || 'it ended')
+        + '. You earned +' + num(me.xp) + ' XP · +' + num(me.gold) + 'g with the party before it ended.';
+    }
+    var myDrop = null;
+    (Array.isArray(view.events) ? view.events : []).forEach(function (e) {
+      if (!myDrop && e && e.kind === 'drop' && e.name === me.name && Date.parse(String(e.at || '')) >= awayFrom) myDrop = e;
+    });
+    if (me.state === 'camping_today') return 'You made camp. The party is still hunting; you can rejoin tomorrow.';
+    if (me.state === 'rejoining' || me.state === 'camping' || myDrop) {
+      return 'You made camp ' + ago(me.camped_at || (myDrop && myDrop.at), now) + ' after your offline limit. '
+        + 'The party kept hunting ' + monsterName(hunt.active_id) + '.'
+        + (me.state === 'camping' ? '' : ' You\'re back in the hunt.');
+    }
+    return 'Party hunt: +' + num(me.xp) + ' XP · +' + num(me.gold) + 'g · ' + num(me.kills) + ' kills '
+      + (isFinite(startMs) && startMs >= awayFrom ? 'while you were away.' : 'this hunt.');
   }
 
   /* ── THE WHOLE SCREEN ────────────────────────────────────────────────────
@@ -195,9 +453,9 @@
        refusal for doing nothing wrong. The fence belongs on the gesture. */
     var busy = v.busy ? ' is-busy' : '';
 
-    /* SLICE 1 SAYS WHAT IT IS. One line, always, in both states — a player who
-       forms a party must not spend an evening looking for the hunt button. */
-    var later = '<p class="party-later">Hunting together arrives in a later build.</p>';
+    /* OUT OF A PARTY THE HUNT IS ONE LINE AWAY: the card itself is drawn only
+       for a member, because there is no hunt to view without a party. */
+    var later = '<p class="party-later">Form a party to hunt together.</p>';
 
     if (v.signedOut) {
       return '<div class="party-panel">'
@@ -243,9 +501,9 @@
       + '<ul class="party-roster">'
       +   members.map(function (m) { return memberRow(m, rowOpts); }).join('')
       + '</ul>'
+      + huntCardHtml(o.hunt || null, v, o)
       + (v.role === 'leader' ? inviteBox(o.draft || '') : '')
-      + '<div class="party-foot">' + leaveControl(!!o.asking) + '</div>'
-      + later
+      + '<div class="party-foot">' + leaveControl(!!o.asking, huntIsLive(o.hunt)) + '</div>'
       + '</div>';
   }
 
@@ -256,6 +514,9 @@
      ══════════════════════════════════════════════════════════════════════ */
   var draft = '';
   var asking = false;
+  var stopAsking = false;
+  var pick = { monster: null, stance: null };   // the leader's unsent choice
+  var countdown = null;
 
   function host() { return document.getElementById('party-panel'); }
 
@@ -265,14 +526,30 @@
     var P = window.HearthriseParty;
     var view = (P && typeof P.getState === 'function') ? P.getState() : null;
     var I = window.HearthriseIdentity;
+    var hunt = (P && typeof P.getHunt === 'function') ? P.getHunt() : null;
+    var G = window.G;
+    if (!pick.stance) {
+      /* The solo stance the SERVER holds for this character, else the default. */
+      pick.stance = (G && G._hunt && typeof G._hunt.stance === 'string') ? G._hunt.stance : 'steady';
+    }
+    if (!pick.monster && G && typeof G.activeMonster === 'string') pick.monster = G.activeMonster;
+    var nowMs = Date.now();
     el.innerHTML = partyPanelHtml(view, {
-      nowMs: Date.now(),
+      nowMs: nowMs,
       you: (I && typeof I.displayName === 'function') ? I.displayName() : null,
       canon: (I && typeof I.canon === 'function') ? I.canon : null,
       asking: asking,
+      stopAsking: stopAsking,
+      pick: pick,
+      hunt: hunt,
       draft: draft,
-      town: window.G && window.G._town
+      town: G && G._town
     });
+    /* party_member_recovering's countdown repaints once a second while it runs
+       and stops at 0 — no retry loop, the button simply comes back. */
+    var waiting = !!(hunt && hunt.waitUntilMs && hunt.waitUntilMs > nowMs);
+    if (waiting && !countdown) countdown = setInterval(renderParty, 1000);
+    if (!waiting && countdown) { clearInterval(countdown); countdown = null; }
     return el;
   }
 
@@ -285,6 +562,13 @@
     if (name === 'leave-yes') { asking = false; P.leave(); return; }
     if (name === 'kick') { P.kick(el.getAttribute('data-party-name')); return; }
     if (name === 'accept') { P.accept(el.getAttribute('data-party-invite')); return; }
+    if (name === 'hunt-start') {
+      P.startHunt(el.getAttribute('data-party-monster'), el.getAttribute('data-party-stance'));
+      return;
+    }
+    if (name === 'hunt-stop-ask') { stopAsking = true; renderParty(); return; }
+    if (name === 'hunt-stop-no') { stopAsking = false; renderParty(); return; }
+    if (name === 'hunt-stop-yes') { stopAsking = false; P.stopHunt(); return; }
   }
 
   /* ONE delegated listener on the host, wired once. The panel's innards are
@@ -296,6 +580,9 @@
     el.dataset.partyWired = '1';
 
     el.addEventListener('click', function (ev) {
+      /* The solo stance picker's buttons carry `data-stance`, not an act. */
+      var st = ev.target && ev.target.closest ? ev.target.closest('[data-stance]') : null;
+      if (st) { ev.preventDefault(); pick.stance = st.getAttribute('data-stance'); renderParty(); return; }
       var btn = ev.target && ev.target.closest ? ev.target.closest('[data-party-act]') : null;
       if (!btn || btn.tagName === 'FORM') return;
       ev.preventDefault();
@@ -305,6 +592,9 @@
        roster can land mid-sentence and must not eat what was typed. */
     el.addEventListener('input', function (ev) {
       if (ev.target && ev.target.id === 'party-invite-name') draft = ev.target.value;
+    });
+    el.addEventListener('change', function (ev) {
+      if (ev.target && ev.target.id === 'party-hunt-monster') { pick.monster = ev.target.value; renderParty(); }
     });
     el.addEventListener('submit', function (ev) {
       var f = ev.target && ev.target.closest ? ev.target.closest('form[data-party-act="invite"]') : null;
@@ -325,7 +615,7 @@
         var P = window.HearthriseParty;
         if (!P) return;
         if (tab === 'party') {
-          asking = false; renderParty(); P.setVisible(true);
+          asking = false; stopAsking = false; renderParty(); P.setVisible(true);
           var T = window.HearthriseTown;
           if (T && typeof T.refreshTown === 'function') {
             T.refreshTown().then(function () {
@@ -334,12 +624,16 @@
             }).catch(function () {});
           }
         }
-        else P.setVisible(false);
+        else {
+          P.setVisible(false);
+          if (countdown) { clearInterval(countdown); countdown = null; }
+        }
       });
     }
   }
 
   window.partyPanelHtml = partyPanelHtml;
+  window.partyReceiptLine = partyReceiptLine;
   window.renderParty = renderParty;
   window.setupPartyPanel = setupPartyPanel;
 

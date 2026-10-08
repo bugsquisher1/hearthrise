@@ -2331,41 +2331,6 @@ export default [
     } finally { restoreG(snap); }
   }),
 
-  () => tryRun('slice 7: buyback is gated on the record seam — works UNARMED, fails CLOSED when gold is armed', () => {
-    if (typeof window.repurchase !== 'function' || !window.ITEMS || !window.ITEMS.copper_ore) return;
-    /* A leftover entry here draws an extra Vendor-buy-back row in the seed shop and fails
-       b221 — `buyback` used to need a hand-restore for that; sealSnapshot does it now. */
-    const snap = snapshotG();
-    const origMay = window.clientMayWriteRecordField;
-    try {
-      // UNARMED (today): clientMayWriteRecordField('gold') is true → the buy-back works.
-      window.clientMayWriteRecordField = function () { return true; };
-      window.G.buyback = [{ id: 'copper_ore', qty: 2, unit: 3, at: Date.now() }];
-      window.G.gold = 1000;
-      /* armed: gold is registry-first, so the affordability read is UNKNOWN until
-         stamped the way hr_load does — even though the WRITE gate is stubbed open.
-         The ARMED half below is deliberately left UNSTAMPED so the genuine
-         fail-closed refusal is measured. */
-      stampBalanceLikeLoad(window.G);
-      window.G.inventory = Object.assign({}, window.G.inventory);
-      const before = window.G.gold;
-      window.repurchase(0);
-      assert(window.G.gold === before - 6, 'unarmed buy-back must debit 2×3 gold; got -' + (before - window.G.gold));
-      assert(window.G.buyback.length === 0, 'a completed buy-back removes the entry');
-
-      // ARMED: clientMayWriteRecordField('gold') is false → refused, no debit, entry kept.
-      window.clientMayWriteRecordField = function (f) { return f !== 'gold'; };
-      window.G.buyback = [{ id: 'copper_ore', qty: 2, unit: 3, at: Date.now() }];
-      window.G.gold = 1000;
-      const g2 = window.G.gold;
-      window.repurchase(0);
-      assert(window.G.gold === g2, 'armed buy-back must NOT debit gold (a client past-price is a mint); got -' + (g2 - window.G.gold));
-      assert(window.G.buyback.length === 1, 'a refused buy-back keeps the entry');
-    } finally {
-      window.clientMayWriteRecordField = origMay;
-      restoreG(snap);
-    }
-  }),
 
   () => tryRun('slice 4: buying a shop companion sends offer companion.<id> (offer-id only) and debits via the seam', () => {
     // With the accrual switch ON (pristine default), _buyCompanion fires

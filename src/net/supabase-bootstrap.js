@@ -16,13 +16,13 @@
 // sync.js buffers events to localStorage for later replay).
 //
 // Public API (all on `window.HearthriseSupabase`):
-//   configure({url, anonKey})  — persist + boot
 //   isConfigured()             — boolean
 //   getConfig()                — {url, anonKey} | null
-//   reset()                    — wipe local config (does NOT sign out)
 //
-// The Settings → Account "Cloud setup" form calls configure() with
-// what the player pastes in.
+// The realm is DEFAULT_CONFIG and nothing else. The device-stored override
+// (`hearthrise:supabase:config`) and the configure()/reset() pair that wrote it
+// were the backend of the Settings "Cloud setup" paste form, deleted 2026-10-08:
+// a localStorage value must never choose which server a client talks to.
 // ============================================================
 
 import { setupAuth } from './auth.js?v=564';
@@ -45,78 +45,16 @@ import { setupAuth } from './auth.js?v=564';
 // in SUPABASE_SETUP.md). Never paste the SERVICE ROLE key here — that
 // one is admin and must stay server-side.
 //
-// To run a self-hosted / dev fork against a different project, leave
-// these blank and add `?cloudConfig=1` to the URL — the in-game paste
-// form will appear in Settings → Account.
+// A dev fork points at a different project by editing DEFAULT_CONFIG (the
+// in-game `?cloudConfig=1` paste form in Settings was deleted 2026-10-08).
 const DEFAULT_CONFIG = {
   url: 'https://nezapsylztqbbwuwembx.supabase.co',
   anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lemFwc3lsenRxYmJ3dXdlbWJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4MzM0NzYsImV4cCI6MjA5MzQwOTQ3Nn0.pd7ZT9M7dd8CtyQPLafCNib9m3S6BSVLRCfvZgql1MM',
 };
 
-const CONFIG_KEY = 'hearthrise:supabase:config';
-
-function loadStoredConfig() {
-  try {
-    const raw = localStorage.getItem(CONFIG_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {}
-  return null;
-}
-
-function saveStoredConfig(cfg) {
-  try {
-    localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg));
-    return true;
-  } catch (e) {
-    console.warn('[supabase-bootstrap] failed to save config:', e.message);
-    return false;
-  }
-}
-
-function clearStoredConfig() {
-  try { localStorage.removeItem(CONFIG_KEY); } catch (e) {}
-}
-
 function pickConfig() {
-  const stored = loadStoredConfig();
-  if (stored && stored.url && stored.anonKey) return stored;
   if (DEFAULT_CONFIG.url && DEFAULT_CONFIG.anonKey) return DEFAULT_CONFIG;
   return null;
-}
-
-/**
- * Persist credentials and (re)initialise auth + cloud sync.
- * On a fresh first call this triggers Supabase client load + session
- * restore. Subsequent calls update the stored config but require a
- * page reload to take full effect (the client we already loaded keeps
- * its in-memory state).
- *
- * @param {{url:string, anonKey:string}} cfg
- * @returns {{ok: boolean, reason?: string, requiresReload?: boolean}}
- */
-export async function configure(cfg) {
-  if (!cfg || !cfg.url || !cfg.anonKey) {
-    return { ok: false, reason: 'Both URL and anon key are required.' };
-  }
-  // Light validation — Supabase URLs always end in .supabase.co; anon keys are
-  // JWTs so they always start with 'eyJ'. Saves a wasted boot if something's
-  // obviously wrong.
-  if (!/\.supabase\.co\/?$/.test(cfg.url.replace(/\/$/, ''))) {
-    console.warn('[supabase-bootstrap] URL doesn\'t look like a Supabase URL:', cfg.url);
-  }
-  if (cfg.anonKey.indexOf('eyJ') !== 0) {
-    return { ok: false, reason: 'Anon key should start with "eyJ" (JWT format).' };
-  }
-  const had = !!loadStoredConfig();
-  saveStoredConfig({ url: cfg.url.replace(/\/$/, ''), anonKey: cfg.anonKey });
-  if (had) {
-    return { ok: true, requiresReload: true };
-  }
-  // First-time configuration — boot live without reload.
-  await setupAuth(cfg);
-  // Lazy-load the realtime backends now that we have a client.
-  await importBackendsLazily();
-  return { ok: true };
 }
 
 /**
@@ -142,15 +80,6 @@ export function getConfig() {
   return pickConfig();
 }
 
-/**
- * Wipe stored credentials. Intentionally does NOT sign the player
- * out (signOut() is a separate auth.js call). Useful when the player
- * wants to point the game at a different Supabase project.
- */
-export function reset() {
-  clearStoredConfig();
-}
-
 // ── Auto-boot on module load ────────────────────────────────
 // If credentials are already stored, fire the auth init now so
 // session restoration + cloud-save pull happen during boot.
@@ -164,5 +93,5 @@ if (cfg) {
 
 // Expose for the Settings UI + devtools.
 if (typeof window !== 'undefined') {
-  window.HearthriseSupabase = { configure, isConfigured, getConfig, reset };
+  window.HearthriseSupabase = { isConfigured, getConfig };
 }

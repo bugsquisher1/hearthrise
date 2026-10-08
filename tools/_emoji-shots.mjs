@@ -182,7 +182,6 @@ const MODALS = [
   ['achievements', () => { (window.openAchievements || function () {})(); }],
   ['lifetime-stats', () => { (window.openLifetimeStats || function () {})(); }],
   ['equip-bonuses', () => { (window.openEquipmentBonuses || function () {})(); }],
-  ['objectives', () => { (window.openObjectivesPopout || function () {})(); }],
   ['quartermaster', () => { (window.openQuartermaster || function () {})(); }],
   ['settings', () => { (window.openSettings || function () {})(); }],
   ['skill-detail', () => { window.showTab && window.showTab('skills'); (window.openSkillDetail || function () {})('runecrafting'); }],

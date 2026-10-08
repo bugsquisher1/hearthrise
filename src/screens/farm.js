@@ -129,10 +129,9 @@ function farmCheckTick(){
        so a rollback to b219 would read a sane value; b220 shipped, b221
        shipped, and a write-only field that no reader consumes is the exact
        shape of state that drifts and then gets trusted by accident. The one
-       surviving reader is the legacy-save migration
-       (HearthriseFarm.normalizePlot / save-migrations v6→v7), which converts
-       `watered` INTO `waterings[]` and must stay — old saves still carry it.
-       Nothing writes it any more; `waterings[]` is the only source. */
+       surviving reader is HearthriseFarm.normalizePlot, which converts
+       `watered` INTO `waterings[]`. Nothing writes it any more; `waterings[]`
+       is the only source. */
   });
   /* Drop notified keys whose plot is no longer ready/present (harvested/cleared)
      so the set stays bounded and a replant at the same index re-toasts. */

@@ -152,13 +152,12 @@ export default [
     assert(typeof window.remapMonsterIds === 'function', 'remapMonsterIds must exist');
     assert(window.MONSTER_ALIAS && typeof window.MONSTER_ALIAS === 'object',
       'MONSTER_ALIAS must exist — it is the prerequisite for ever renaming a monster');
-    assert(typeof window.remapMonsterFamilies === 'function', 'remapMonsterFamilies must exist');
   }),
 
-  () => tryRun('MON-ALIAS-2: a rename folds every save surface (bestiary, dropLog, bounty, chronicle, resume)', () => {
+  () => tryRun('MON-ALIAS-2: a rename folds every save surface (bestiary, bounty, chronicle, resume)', () => {
     const G = window.G;
     const snap = {
-      bestiary: G.bestiary, dropLog: G.dropLog, bountyHunter: G.bountyHunter,
+      bestiary: G.bestiary, bountyHunter: G.bountyHunter,
       chronicle: G.chronicle, lastActivity: G.lastActivity, activeMonster: G.activeMonster,
     };
     const alias = window.MONSTER_ALIAS;
@@ -167,7 +166,6 @@ export default [
          b342 audit measured 200 Renown against. */
       window.MONSTER_ALIAS = { old_wyrm_id: 'dragon' };
       G.bestiary = { old_wyrm_id: { kills: 40, first: 5 }, dragon: { kills: 2, first: 9 } };
-      G.dropLog = { old_wyrm_id: { kills: 40, drops: { dragon_bones: 12 } } };
       G.bountyHunter = {
         board: [{ id: 'cull_old_wyrm_id_1700_42', target: 'old_wyrm_id', type: 'cull' }],
         active: { id: 'cull_old_wyrm_id_1700_42', target: 'old_wyrm_id', type: 'cull' },
@@ -182,7 +180,6 @@ export default [
       assert(G.bestiary.dragon && G.bestiary.dragon.kills === 42,
         'bestiary kills must MERGE (40+2), not overwrite — got ' + JSON.stringify(G.bestiary.dragon));
       assert(G.bestiary.dragon.first === 5, 'the earlier first-kill timestamp must win');
-      assert(G.dropLog.dragon && G.dropLog.dragon.drops.dragon_bones === 12, 'dropLog must fold');
       assert(G.bountyHunter.board[0].target === 'dragon', 'the bounty target must fold');
       assert(G.bountyHunter.board[0].id === 'cull_dragon_1700_42',
         'the id STRING embeds the monster id — an accepted bounty can never complete otherwise; got '
@@ -215,33 +212,7 @@ export default [
     } finally { window.MONSTER_ALIAS = alias; Object.assign(G, snap); }
   }),
 
-  () => tryRun('MON-ALIAS-4: killsByFamily folds the taxonomy renames instead of stranding them', () => {
-    const G = window.G;
-    const snap = G.stats.killsByFamily;
-    try {
-      G.stats.killsByFamily = { Beast: 100, Goblinoid: 50, Mammal: 5, Vermin: 7 };
-      window.remapMonsterFamilies(G);
-      assert(!G.stats.killsByFamily.Beast, 'the retired "Beast" label must not linger beside "Mammal"');
-      assert(G.stats.killsByFamily.Mammal === 105, 'Beast must fold INTO Mammal (100+5), got '
-        + G.stats.killsByFamily.Mammal);
-      assert(G.stats.killsByFamily.Humanoid === 50, 'Goblinoid must fold into Humanoid');
-      assert(G.stats.killsByFamily.Vermin === 7, 'an unchanged family must be untouched');
-    } finally { G.stats.killsByFamily = snap; }
-  }),
 
-  () => tryRun('MON-ALIAS-5: remapItemIds also folds dropLog[monster].drops[item] (the b244 gap)', () => {
-    const G = window.G;
-    const snap = { dropLog: G.dropLog };
-    const alias = window.ITEM_ALIAS;
-    try {
-      window.ITEM_ALIAS = { old_pelt_id: 'wolf_pelt' };
-      G.dropLog = { wolf: { kills: 3, drops: { old_pelt_id: 4, wolf_pelt: 1 } } };
-      window.remapItemIds(G);
-      assert(!G.dropLog.wolf.drops.old_pelt_id, 'the renamed item must not stay in the drop log');
-      assert(G.dropLog.wolf.drops.wolf_pelt === 5,
-        'per-monster drop counts must MERGE (4+1), got ' + G.dropLog.wolf.drops.wolf_pelt);
-    } finally { window.ITEM_ALIAS = alias; Object.assign(G, snap); }
-  }),
 
   /* ══════════════════════════════════════════════════════════════════════
      b362 — THE FOLD AUDIT and THE TWO SCREENS
@@ -269,12 +240,11 @@ export default [
     });
 
     const G = window.G;
-    const snap = { bestiary: G.bestiary, dropLog: G.dropLog, bountyHunter: G.bountyHunter,
+    const snap = { bestiary: G.bestiary, bountyHunter: G.bountyHunter,
       activeMonster: G.activeMonster, lastActivity: G.lastActivity };
     try {
       G.bestiary = { barn_rat: { kills: 204, first: 5 }, rat: { kills: 12, first: 9 },
         jackal: { kills: 30 }, cultist: { kills: 7 } };
-      G.dropLog = { barn_rat: { kills: 204, drops: { rat_tail: 88 } } };
       G.bountyHunter = { board: [], active: { id: 'cull_barn_rat_1700_42', target: 'barn_rat', type: 'cull' } };
       G.activeMonster = 'jackal';
       G.lastActivity = { kind: 'monster', id: 'cultist' };
@@ -288,7 +258,6 @@ export default [
       assert(G.bestiary.rat.first === 5, 'the earlier first-kill timestamp must win the merge');
       assert(G.bestiary.wolf && G.bestiary.wolf.kills === 30, 'jackal kills must land on wolf');
       assert(G.bestiary.dark_wizard && G.bestiary.dark_wizard.kills === 7, 'cultist kills must land on dark_wizard');
-      assert(G.dropLog.rat && G.dropLog.rat.drops.rat_tail === 88, 'the drop history must fold too');
       assert(G.bountyHunter.active.target === 'rat' && G.bountyHunter.active.id === 'cull_rat_1700_42',
         'an accepted bounty for a merged monster must fold, or it can never be completed: '
         + JSON.stringify(G.bountyHunter.active));
@@ -6311,31 +6280,6 @@ export default [
     }
   }),
 
-  () => tryRun('F7-3: the v5→v6 grandfather must switch auto-eat ON, not just grant the trait', () => {
-    assert(typeof window.applyMigrations === 'function', 'applyMigrations is not published');
-    /* The `foodSlot` arm of the migration matches saves whose
-       `autoActions.eat.enabled` is FALSE. Granting the trait alone left those
-       players with a 100-mark feature and an off switch that had no UI — the
-       exact state F7 was reported from. */
-    const legacy = window.applyMigrations({
-      v: 5, foodSlot: 'cooked_shrimp',
-      autoActions: { eat: { enabled: false, threshold: 0.3, foodId: null, pctSynced: true } },
-    });
-    assert(legacy.traits && legacy.traits.auto_eat === true, 'the trait was not grandfathered');
-    assert(legacy.autoActions.eat.enabled === true,
-      'THE F7-3 BUG: the trait was granted but auto-eat stayed switched off');
-    assert(legacy.autoActions.eat.foodId === 'cooked_shrimp',
-      'the legacy foodSlot choice was dropped: ' + legacy.autoActions.eat.foodId);
-    assert(legacy.autoActions.eat.threshold === 0.3,
-      'the migration overwrote a threshold the player had already chosen');
-    /* And it must stay a MIGRATION: a fresh save never enters this branch, so
-       a new player still has to buy the trait. */
-    const fresh = window.applyMigrations({ v: 5, autoActions: { eat: { enabled: false, threshold: 0.5, foodId: null } } });
-    assert(!(fresh.traits && fresh.traits.auto_eat),
-      'a save with no auto-eat history was handed the trait for free');
-    assert(!(fresh.autoActions && fresh.autoActions.eat && fresh.autoActions.eat.enabled),
-      'a save with no auto-eat history was switched on');
-  }),
 
   () => tryRun('F18-1: fightOf() reads the server carry, and refuses everything it is unsure of', () => {
     const M = window.HearthriseActivity;
@@ -9135,7 +9079,7 @@ export default [
     const row = m.drops[m.drops.length - 1];
     assert(row && row.lucky && row.id === 'wolfbone_torc', 'setup: small_wolf\'s lucky row is not wolfbone_torc: ' + JSON.stringify(row));
     const { restore } = combatScreen();
-    const keep = JSON.stringify({ collection: G.collection || null, dropLog: G.dropLog || null });
+    const keep = JSON.stringify({ collection: G.collection || null });
     const realNotify = window.notify; const toasts = [];
     const realCh = row.ch;
     try {
@@ -9145,7 +9089,6 @@ export default [
       G.combatLog = [];
       if (G.collection) delete G.collection.wolfbone_torc;
       const bag0 = G.inventory.wolfbone_torc || 0;
-      const dl0 = (G.dropLog && G.dropLog.small_wolf && G.dropLog.small_wolf.drops.wolfbone_torc) || 0;
       window.__hrCombatCredits = {};
       G.stats = G.stats || {};
       const rare0 = G.stats.rareDrops || 0;
@@ -9160,21 +9103,19 @@ export default [
       assert((G.inventory.wolfbone_torc || 0) === bag0, 'a client-dice lucky roll reached the bag: ' + (G.inventory.wolfbone_torc || 0));
       assert(!(window.__hrCombatCredits || {}).wolfbone_torc, 'a client-dice lucky roll reached the fight rail');
       assert(!(G.collection && G.collection.wolfbone_torc), 'a client-dice lucky roll was written into the collection log');
-      assert(((G.dropLog && G.dropLog.small_wolf && G.dropLog.small_wolf.drops.wolfbone_torc) || 0) === dl0, 'a client-dice lucky roll was counted in the drop log');
       const log = (G.combatLog || []).join(' | ');
       assert(!/Wolfbone Torc|VERY RARE/.test(log), 'a client-dice lucky roll was narrated in the combat log: ' + log);
       assert(!toasts.some((t) => /Wolfbone Torc/.test(t)), 'a client-dice lucky roll raised a toast: ' + toasts.join(' | '));
       assert((G.stats.rareDrops || 0) === rare0, 'a client-dice lucky roll was counted in stats.rareDrops (' + rare0 + ' -> ' + G.stats.rareDrops + ')');
       /* CONTROL: the same kills still credit an ordinary drop, so the silence
          above is the hook and not a fight that never happened. */
-      assert((G.dropLog && G.dropLog.small_wolf && G.dropLog.small_wolf.drops.bones) > 0, 'control: the kills credited no ordinary drop (bones is ch 1)');
+      assert(((window.__hrCombatCredits || {}).bones || 0) > 0, 'control: the kills credited no ordinary drop (bones is ch 1)');
     } finally {
       row.ch = realCh;
       window.notify = realNotify;
       try { delete window.__hrCombatCredits; } catch (e) {}
       const k = JSON.parse(keep);
       if (k.collection === null) delete G.collection; else G.collection = k.collection;
-      if (k.dropLog === null) delete G.dropLog; else G.dropLog = k.dropLog;
       C.randomSeed();
       restore();
     }
@@ -9408,13 +9349,12 @@ export default [
     const row = m.drops[m.drops.length - 1];
     assert(row && row.salvage && row.id === 'leather_belt', 'setup: wild_boar\'s salvage row is not leather_belt: ' + JSON.stringify(row));
     const { restore } = combatScreen();
-    const keep = JSON.stringify({ collection: G.collection || null, dropLog: G.dropLog || null });
+    const keep = JSON.stringify({ collection: G.collection || null });
     const realNotify = window.notify; const toasts = [];
     try {
       G.combatLog = [];
       if (G.collection) delete G.collection.leather_belt;
       const bag0 = G.inventory.leather_belt || 0;
-      const dl0 = (G.dropLog && G.dropLog.wild_boar && G.dropLog.wild_boar.drops.leather_belt) || 0;
       window.__hrCombatCredits = {};
       G.stats = G.stats || {};
       const rare0 = G.stats.rareDrops || 0;
@@ -9431,19 +9371,17 @@ export default [
       assert((G.inventory.leather_belt || 0) === bag0, 'a client-dice salvage roll reached the bag: ' + (G.inventory.leather_belt || 0));
       assert(!(window.__hrCombatCredits || {}).leather_belt, 'a client-dice salvage roll reached the fight rail');
       assert(!(G.collection && G.collection.leather_belt), 'a client-dice salvage roll was written into the collection log');
-      assert(((G.dropLog && G.dropLog.wild_boar && G.dropLog.wild_boar.drops.leather_belt) || 0) === dl0, 'a client-dice salvage roll was counted in the drop log');
       const log = (G.combatLog || []).join(' | ');
       assert(!/Leather Belt/.test(log), 'a client-dice salvage roll was narrated in the combat log: ' + log);
       assert(!toasts.some((t) => /Leather Belt/.test(t)), 'a client-dice salvage roll raised a toast: ' + toasts.join(' | '));
       assert((G.stats.rareDrops || 0) === rare0, 'a client-dice salvage roll was counted in stats.rareDrops (' + rare0 + ' -> ' + G.stats.rareDrops + ')');
       /* CONTROL: the same kills still credit an ordinary drop (bones, ch 1). */
-      assert((G.dropLog && G.dropLog.wild_boar && G.dropLog.wild_boar.drops.bones) > 0, 'control: the kills credited no ordinary drop (bones is ch 1)');
+      assert(((window.__hrCombatCredits || {}).bones || 0) > 0, 'control: the kills credited no ordinary drop (bones is ch 1)');
     } finally {
       window.notify = realNotify;
       try { delete window.__hrCombatCredits; } catch (e) {}
       const k = JSON.parse(keep);
       if (k.collection === null) delete G.collection; else G.collection = k.collection;
-      if (k.dropLog === null) delete G.dropLog; else G.dropLog = k.dropLog;
       C.randomSeed();
       restore();
     }

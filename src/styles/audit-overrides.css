@@ -95,40 +95,6 @@
   max-width: min(280px, calc(100vw - 40px)) !important;
   font-size:calc(14.5px * var(--ui-scale, 1)) !important;
 }
-/* ---------- Profile dashboard cleanups -------------------------- */
-
-#panel-profile #dash-objectives:not(:has(#dash-objectives-body > *)),
-#panel-profile #dash-skills:not(:has(#dash-skills-body > *)),
-#panel-profile #dash-homestead:not(:has(#dash-homestead-body > *)) {
-  display: none !important;
-}
-#panel-profile .prof-toolbar { display: none !important; }
-
-/* ─── Profile dashboard polish ───
-   Discovered during the May usability bug bash:
-     • feat-buttons row was split (Achievements/Bestiary on the left,
-       Lifetime Stats / Last Session on the right with a giant gap)
-     • Active Effects card was visually unbalanced vs Profile card
-     • Bottom 2/3 of the screen was dead space — the Daily Goals,
-       Skills, and Homestead cards already existed with rich content
-       but were hidden by `legacy.css#3294 (display:none !important)`.
-   Fix: re-enable those cards and lay them out in a 3-column grid
-   below the Profile + Active Effects row to use the full viewport.
-   The Current Activity card (#dash-active) stays hidden — the
-   topbar activity bar already covers that real estate.
-*/
-
-/* Profile dashboard fill — REVERTED.
-   I tried to surface the hidden Daily Goals / Skills / Homestead cards
-   to fill the bottom 60% of the screen. The cards have grid-row
-   placements baked in by old CSS that fight with my new placements,
-   and the .card overflow rules clip Profile content when the row
-   sizes are constrained. Three rounds of attempts produced overlap
-   regressions worse than the original empty-space problem.
-   Leaving the original layout in place — the empty bottom is a
-   known issue (see CODE_AUDIT.md "Remaining Issues") and the right
-   fix is post-beta after the legacy.js split surfaces a proper
-   render tree we control. */
 /* Two-column grid below the feat-buttons row. Rows are sized to
    their tallest cell (auto), and each card aligns to the start of
    its row so the column doesn't pad short cards out to match the

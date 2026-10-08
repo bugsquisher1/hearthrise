@@ -115,156 +115,23 @@ function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
    ══════════════════════════════════════════════════════════════════════ */
 const MONSTERS={};
 
-const ITEMS={
-  bones:{n:'Bones',icon:'🦴',v:1,buryXp:4.5},big_bones:{n:'Big Bones',icon:'🦴',v:3,buryXp:15},
-  dragon_bones:{n:'Dragon Bones',icon:'🦴',v:10,buryXp:72},
-  slime_gel:{n:'Slime Gel',icon:'🟢',v:5},goblin_ear:{n:'Goblin Ear',icon:'👂',v:8},
-  bat_wing:{n:'Bat Wing',icon:'🦇',v:12},wolf_pelt:{n:'Wolf Pelt',icon:'🐺',v:35},
-  troll_hide:{n:'Troll Hide',icon:'🟤',v:80},vamp_dust:{n:'Vampire Dust',icon:'💜',v:120},
-  demon_shard:{n:'Demon Shard',icon:'🔴',v:200},dragon_scale:{n:'Dragon Scale',icon:'🐲',v:500},
-  lich_soul:{n:'Lich Soul',icon:'☠️',v:800},magic_essence:{n:'Magic Essence',icon:'✨',v:50},
-  rune_frag:{n:'Rune Fragment',icon:'🔷',v:30},ancient_rune:{n:'Ancient Rune',icon:'🔮',v:300},
-  dragon_gem:{n:'Dragon Gem',icon:'💎',v:2000},ruby:{n:'Ruby',icon:'❤️',v:400},
-  sticky_core:{n:'Sticky Core',icon:'🟢',v:35},rat_tail:{n:'Rat Tail',icon:'🐀',v:6},small_fang:{n:'Small Fang',icon:'🦷',v:15},
-  bone_chips:{n:'Bone Chips',icon:'🦴',v:10},ancient_fragment:{n:'Ancient Fragment',icon:'🏺',v:85},goblin_totem:{n:'Goblin Totem',icon:'🗿',v:120},
-  night_fang:{n:'Night Fang',icon:'🦇',v:90},dark_sigil:{n:'Dark Sigil',icon:'🔯',v:180},venom_sac:{n:'Venom Sac',icon:'🟣',v:75},
-  silk_thread:{n:'Silk Thread',icon:'🧵',v:55},spider_eye:{n:'Spider Eye',icon:'👁️',v:220},brute_plate:{n:'Brute Plate',icon:'🛡️',v:130},
-  dire_fang:{n:'Dire Fang',icon:'🦷',v:150},alpha_fang:{n:'Alpha Fang',icon:'🦷',v:450},grave_dust:{n:'Grave Dust',icon:'⚱️',v:95},
-  cracked_spellstone:{n:'Cracked Spellstone',icon:'🔮',v:260},plague_ichor:{n:'Plague Ichor',icon:'🧪',v:180},swarm_heart:{n:'Swarm Heart',icon:'💚',v:650},
-  warlord_badge:{n:'Warlord Badge',icon:'🎖️',v:350},bear_pelt:{n:'Bear Pelt',icon:'🐻',v:260},bear_claw:{n:'Bear Claw',icon:'爪',v:180},
-  wraith_veil:{n:'Wraith Veil',icon:'👻',v:420},hell_ember:{n:'Hell Ember',icon:'🔥',v:600},shadow_thread:{n:'Shadow Thread',icon:'🧵',v:320},
-  void_chitin:{n:'Void Chitin',icon:'🪲',v:800},captain_medal:{n:'Captain Medal',icon:'🏅',v:700},shadow_pelt:{n:'Shadow Pelt',icon:'🐈‍⬛',v:480},
-  razor_claw:{n:'Razor Claw',icon:'爪',v:360},death_steel:{n:'Death Steel',icon:'⚙️',v:550},captains_ribblade:{n:"Captain's Ribblade",icon:'🗡️',v:1800,type:'weapon',slot:'weapon',weaponType:'sword',atkB:19,strB:15},
-  hollow_sigil:{n:'Hollow Sigil',icon:'🔯',v:1400},void_core:{n:'Void Core',icon:'⚫',v:2200},war_crown:{n:'War Crown',icon:'👑',v:2500},
-  ancient_claw:{n:'Ancient Claw',icon:'爪',v:1600},chief_blade:{n:"Chief's Blade",icon:'🗡️',v:900,type:'weapon',slot:'weapon',weaponType:'sword',atkB:13,strB:11},alpha_cloak:{n:'Alpha Cloak',icon:'🦸',v:1500,type:'armor',slot:'cape',defB:5,atkB:2},
-  leather_boots:{n:'Leather Boots',icon:'🥾',v:90,type:'armor',slot:'boots',defB:2,spdB:.02},
-  traveler_cape:{n:'Traveler Cape',icon:'🦸',v:150,type:'armor',slot:'cape',defB:1,xpB:.01},
-  copper_ring:{n:'Copper Ring',icon:'💍',v:120,type:'jewelry',slot:'ring',atkB:1,strB:1},
-  hunter_necklace:{n:'Hunter Necklace',icon:'📿',v:180,type:'jewelry',slot:'necklace',atkB:2},
-  leather_gloves:{n:'Leather Gloves',icon:'🧤',v:80,type:'armor',slot:'gloves',atkB:1,defB:1},
-  bronze_belt:{n:'Bronze Belt',icon:'🟫',v:110,type:'armor',slot:'belt',defB:2},
-  /* v:1 + ammoPerShot:1 — MUST MATCH src/data/items.js, which carries the full
-     reasoning (the v:60 book value was a ~2.9M gold/hour vendor faucet). This
-     inline copy is the b137 divergence snapshot; data-integrity.js compares the
-     two and the ammo-ladder guard fails the build if they drift apart again. */
-  iron_arrows:{n:'Iron Arrows',icon:'🏹',v:1,type:'ammo',slot:'ammo',atkB:2,critB:.01,ammoPerShot:1},
-  fox_companion:{n:'Fox Companion',icon:'🦊',v:600,type:'companion',slot:'companion',strB:2,xpB:.02},
-  iron_ore:{n:'Iron Ore',icon:'⬜',v:25},
-  normal_log:{n:'Normal Log',icon:'🪵',v:8},oak_log:{n:'Oak Log',icon:'🪵',v:20},
-  willow_log:{n:'Willow Log',icon:'🪵',v:40},maple_log:{n:'Maple Log',icon:'🪵',v:80},
-  yew_log:{n:'Yew Log',icon:'🪵',v:200},
-  copper_ore:{n:'Copper Ore',icon:'🟤',v:10},coal:{n:'Coal',icon:'⬛',v:40},
-  gold_ore:{n:'Gold Ore',icon:'🟡',v:100},mithril_ore:{n:'Mithril Ore',icon:'🔵',v:200},
-  shrimp:{n:'Raw Shrimp',icon:'🦐',v:5,heals:3},trout:{n:'Raw Trout',icon:'🐟',v:20,heals:7},
-  lobster:{n:'Raw Lobster',icon:'🦞',v:100,heals:12},shark:{n:'Raw Shark',icon:'🦈',v:400,heals:20},
-  turnip:{n:'Turnip',icon:'🥕',v:20,heals:2},carrot:{n:'Carrot',icon:'🥕',v:35,heals:3},
-  wheat:{n:'Wheat',icon:'🌾',v:50,heals:1},potato:{n:'Potato',icon:'🥔',v:65,heals:5},
-  tomato:{n:'Tomato',icon:'🍅',v:90,heals:4},pumpkin:{n:'Pumpkin',icon:'🎃',v:150,heals:8},
-  turnip_seed:{n:'Turnip Seed',icon:'🌱',v:5,seed:'turnip'},carrot_seed:{n:'Carrot Seed',icon:'🌱',v:10,seed:'carrot'},
-  wheat_seed:{n:'Wheat Seed',icon:'🌱',v:15,seed:'wheat'},potato_seed:{n:'Potato Seed',icon:'🌱',v:20,seed:'potato'},
-  tomato_seed:{n:'Tomato Seed',icon:'🌱',v:30,seed:'tomato'},pumpkin_seed:{n:'Pumpkin Seed',icon:'🌱',v:50,seed:'pumpkin'},
-  bronze_sword:{n:'Bronze Sword',icon:'⚔️',v:50,type:'weapon',slot:'weapon',weaponType:'sword',atkB:4,strB:3},
-  iron_sword:{n:'Iron Sword',icon:'⚔️',v:200,type:'weapon',slot:'weapon',weaponType:'sword',atkB:7,strB:6},
-  steel_sword:{n:'Steel Sword',icon:'⚔️',v:800,type:'weapon',slot:'weapon',weaponType:'sword',atkB:12,strB:10},
-  rune_sword:{n:'Rune Sword',icon:'⚔️',v:5000,type:'weapon',slot:'weapon',weaponType:'sword',atkB:25,strB:20},
-  apprentice_staff:{n:'Apprentice Staff',icon:'🔮',v:80,type:'weapon',slot:'weapon',weaponType:'magic',atkB:3,strB:5,magicAtkB:3,magicStrB:5},
-  oak_staff:{n:'Oak Staff',icon:'🪄',v:300,type:'weapon',slot:'weapon',weaponType:'magic',atkB:6,strB:9,magicAtkB:6,magicStrB:9},
-  shortbow:{n:'Shortbow',icon:'🏹',v:90,type:'weapon',slot:'weapon',weaponType:'ranged',atkB:5,strB:3,rangeAtkB:5,rangeStrB:3},
-  longbow:{n:'Longbow',icon:'🏹',v:400,type:'weapon',slot:'weapon',weaponType:'ranged',atkB:9,strB:6,rangeAtkB:9,rangeStrB:6},
-  stone_maul:{n:'Stone Maul',icon:'🔨',v:110,type:'weapon',slot:'weapon',weaponType:'hammer',atkB:3,strB:7},
-  iron_warhammer:{n:'Iron Warhammer',icon:'🔨',v:550,type:'weapon',slot:'weapon',weaponType:'hammer',atkB:7,strB:12},
-  iron_helm:{n:'Iron Helm',icon:'⛑️',v:150,type:'armor',slot:'helmet',defB:5},
-  steel_helm:{n:'Steel Helm',icon:'⛑️',v:600,type:'armor',slot:'helmet',defB:10},
-  iron_platebody:{n:'Iron Platebody',icon:'🦺',v:400,type:'armor',slot:'body',defB:12},
-  steel_platebody:{n:'Steel Platebody',icon:'🦺',v:1500,type:'armor',slot:'body',defB:22},
+/* ══════════════════════════════════════════════════════════════════════
+   THE SECOND ITEMS COPY IS GONE (2026-10-08), for the reason the MONSTERS one
+   above went. main.js `unifyObject` merges src/data/items.js into THIS object
+   (same identity, ESM winning per key), so the 153-entry literal that stood
+   here was never read — it only drifted (19 values disagreed with
+   src/data/* when it was cut). The binding must still EXIST, because this
+   classic script reads bare `ITEMS[...]` everywhere; it starts empty and
+   main.js fills it. tests/legacy-data-onecopy.mjs refuses an item or recipe
+   literal coming back anywhere in this file.
+   ══════════════════════════════════════════════════════════════════════ */
+const ITEMS={};
 
-  // ── Recipe outputs: cooked foods, bars, planks ──
-  // Mirrors src/data/items.js — keep both in sync until legacy.js's inline
-  // ITEMS const is removed (it shadows window.ITEMS for fns inside legacy.js).
-  cooked_shrimp: {n:'Cooked Shrimp',icon:'🍤',v:18,heals:8,foodTier:1,buff:{type:'gather_speed',magnitude:5,durationMs:120000}},
-  cooked_trout: {n:'Cooked Trout',icon:'🐠',v:55,heals:14,foodTier:2,buff:{type:'all_xp',magnitude:5,durationMs:180000}},
-  cooked_lobster: {n:'Cooked Lobster',icon:'🦞',v:240,heals:25,foodTier:3,buff:{type:'drop_rate',magnitude:8,durationMs:300000}},
-  cooked_shark: {n:'Cooked Shark',icon:'🍣',v:900,heals:44,foodTier:4,buff:{type:'damage',magnitude:12,durationMs:360000}},
-  copper_bar: {n:'Copper Bar',icon:'🟫',v:35},
-  iron_bar: {n:'Iron Bar',icon:'⬛',v:90},
-  gold_bar: {n:'Gold Bar',icon:'🟨',v:280},
-  mithril_bar: {n:'Mithril Bar',icon:'🟦',v:650},
-  normal_plank: {n:'Normal Plank',icon:'🪵',v:18},
-  oak_plank: {n:'Oak Plank',icon:'🪵',v:55},
-  willow_plank: {n:'Willow Plank',icon:'🪵',v:120},
-  maple_plank: {n:'Maple Plank',icon:'🍁',v:240},
-  yew_plank: {n:'Yew Plank',icon:'🌲',v:520},
-  baked_potato: {n:'Baked Potato',icon:'🥔',v:150,heals:20,foodTier:2,buff:{type:'gather_speed',magnitude:10,durationMs:240000}},
-  pumpkin_pie: {n:'Pumpkin Pie',icon:'🥧',v:420,heals:35,foodTier:3,buff:{type:'all_xp',magnitude:10,durationMs:300000}},
-  carrot_stew: {n:'Carrot Stew',icon:'🍲',v:200,heals:24,foodTier:2,buff:{type:'farm_yield',magnitude:15,durationMs:360000}},
-  tomato_soup: {n:'Tomato Soup',icon:'🍅',v:260,heals:28,foodTier:2,buff:{type:'drop_rate',magnitude:2,durationMs:240000}}, // b238: stale twin — items.js is authoritative; kept in sync
-  wheat_bread: {n:'Wheat Bread',icon:'🍞',v:120,heals:18,foodTier:1,buff:{type:'drop_rate',magnitude:5,durationMs:180000}},
-
-  // b225 — the open fire's failure state. Kept in sync with src/data/items.js
-  // (the source of truth) so the data-integrity divergence check stays clean.
-  // No heals / no foodClass on purpose: foodClassOf() → null, so auto-eat can
-  // never spend one and it is not edible. See features/cooking-fire.js.
-  burnt_food: {n:'Burnt Food', icon:'🔥', v:1, note:'Charcoal with ambitions. Nobody will eat this — sell it and cook better.'},
-
-  // ── Farmer's Deed (b136 — Batch C) ──
-  // Drops from Tier-2+ kills (0.1%) and bounty completions (0.5%).
-  // Spent at House → Plot tab to upgrade Farm Plot tier and unlock crops.
-  // Explicitly NOT bind-on-pickup — tradable on the player market.
-  // Drop hooks live in src/features/farm-progression.js (HearthriseFarm.rollKillDeed / rollBountyDeed).
-  farm_deed: {n:"Farmer's Deed", icon:'📜', v:250, rarity:'rare', tag:'housing'},
-
-  // Bind-on-Pickup housing blueprints (drop from quests/monsters/dungeons)
-  kitchen_blueprint_t2: {n:'Kitchen Blueprint II',icon:'📜',v:500,rarity:'rare',tag:'housing',unlocks:'kitchen.2'},
-  kitchen_blueprint_t3: {n:'Kitchen Blueprint III',icon:'📜',v:2000,rarity:'epic',tag:'housing',unlocks:'kitchen.3'},
-  forge_blueprint_t2:   {n:'Forge Blueprint II',icon:'📜',v:500,rarity:'rare',tag:'housing',unlocks:'forge.2'},
-  forge_blueprint_t3:   {n:'Forge Blueprint III',icon:'📜',v:2000,rarity:'epic',tag:'housing',unlocks:'forge.3'},
-  library_blueprint_t2: {n:'Library Blueprint II',icon:'📜',v:500,rarity:'rare',tag:'housing',unlocks:'library.2'},
-  library_blueprint_t3: {n:'Library Blueprint III',icon:'📜',v:2000,rarity:'epic',tag:'housing',unlocks:'library.3'},
-  trophy_blueprint_t2:  {n:'Trophy Blueprint II',icon:'📜',v:500,rarity:'rare',tag:'housing',unlocks:'trophy.2'},
-  trophy_blueprint_t3:  {n:'Trophy Blueprint III',icon:'📜',v:2000,rarity:'epic',tag:'housing',unlocks:'trophy.3'},
-
-  // Bind-on-Pickup raid/world-boss rewards
-  dragon_relic: {n:'Dragon Relic',icon:'🐲',v:5000,bop:true,rarity:'legendary',tag:'cosmetic'},
-  void_essence: {n:'Void Essence',icon:'🌌',v:3000,bop:true,rarity:'epic',tag:'crafting-mat'},
-  hearth_token: {n:'Hearth Token',icon:'🪙',v:25000,premium:true,rarity:'currency',tag:'currency'}, /* b206: tradable bond (data/items.js is canonical) */
-
-  // ── Bind-on-Pickup dungeon keys ──
-  // Replace gold entry costs. Drop from monsters whose family/tier matches
-  // the dungeon (set in MONSTERS.drops). Untradeable so the economy can't
-  // shortcut dungeon access.
-  bone_key:        {n:'Bone Key',         icon:'🦴', v:0, bop:true, rarity:'uncommon', tag:'key', unlocks:'crypt_of_bones'},
-  goblin_seal:     {n:'Goblin Seal',      icon:'🗝️', v:0, bop:true, rarity:'uncommon', tag:'key', unlocks:'goblin_warcamp'},
-  arcane_tome:     {n:'Arcane Tome',      icon:'📕', v:0, bop:true, rarity:'rare',     tag:'key', unlocks:'haunted_archive'},
-  obsidian_sigil:  {n:'Obsidian Sigil',   icon:'⬛', v:0, bop:true, rarity:'epic',     tag:'key', unlocks:'obsidian_keep'},
-  void_fragment:   {n:'Void Fragment',    icon:'🌑', v:0, bop:true, rarity:'epic',     tag:'key', unlocks:'voidbringer'},
-  dragonsbane_key: {n:'Dragonsbane Key',  icon:'🗡️', v:0, bop:true, rarity:'legendary',tag:'key', unlocks:'ancient_wyrm'},
-  /* ── Gathering tools (b201, SYS-3) — mirrored from src/data/items.js so the
-     legacy lexical ITEMS const stays in sync (data-integrity check). ── */
-  bronze_axe:{n:'Bronze Axe',icon:'🪓',v:60,type:'tool',toolSkill:'woodcutting',toolTier:1,toolSpeed:.05},
-  iron_axe:{n:'Iron Axe',icon:'🪓',v:250,type:'tool',toolSkill:'woodcutting',toolTier:2,toolSpeed:.10},
-  steel_axe:{n:'Steel Axe',icon:'🪓',v:900,type:'tool',toolSkill:'woodcutting',toolTier:3,toolSpeed:.15},
-  mithril_axe:{n:'Mithril Axe',icon:'🪓',v:3200,type:'tool',toolSkill:'woodcutting',toolTier:4,toolSpeed:.20},
-  rune_axe:{n:'Rune Axe',icon:'🪓',v:9000,type:'tool',toolSkill:'woodcutting',toolTier:5,toolSpeed:.25},
-  bronze_pickaxe:{n:'Bronze Pickaxe',icon:'⛏️',v:60,type:'tool',toolSkill:'mining',toolTier:1,toolSpeed:.05},
-  iron_pickaxe:{n:'Iron Pickaxe',icon:'⛏️',v:250,type:'tool',toolSkill:'mining',toolTier:2,toolSpeed:.10},
-  steel_pickaxe:{n:'Steel Pickaxe',icon:'⛏️',v:900,type:'tool',toolSkill:'mining',toolTier:3,toolSpeed:.15},
-  mithril_pickaxe:{n:'Mithril Pickaxe',icon:'⛏️',v:3200,type:'tool',toolSkill:'mining',toolTier:4,toolSpeed:.20},
-  rune_pickaxe:{n:'Rune Pickaxe',icon:'⛏️',v:9000,type:'tool',toolSkill:'mining',toolTier:5,toolSpeed:.25},
-  willow_rod:{n:'Willow Rod',icon:'🎣',v:80,type:'tool',toolSkill:'fishing',toolTier:1,toolSpeed:.05},
-  oak_rod:{n:'Oak Rod',icon:'🎣',v:300,type:'tool',toolSkill:'fishing',toolTier:2,toolSpeed:.10},
-  maple_rod:{n:'Maple Rod',icon:'🎣',v:1000,type:'tool',toolSkill:'fishing',toolTier:3,toolSpeed:.15},
-  yew_rod:{n:'Yew Rod',icon:'🎣',v:3500,type:'tool',toolSkill:'fishing',toolTier:4,toolSpeed:.20},
-  runewood_rod:{n:'Runewood Rod',icon:'🎣',v:9500,type:'tool',toolSkill:'fishing',toolTier:5,toolSpeed:.25},
-};
-
-// b137: publish the legacy inline ITEMS under a distinct global so the
-// boot-time integrity check can compare it against src/data/items.js.
-// main.js later overwrites window.ITEMS with the ESM version, but the
-// snapshot here preserves what legacy.js originally defined. Any divergence
-// between the two surfaces — items added to one and not the other — fires
-// a console warning + Sentry capture from src/utils/data-integrity.js.
+// b137: publish what legacy.js itself declares, for src/utils/data-integrity.js.
 if (typeof window !== 'undefined') {
-  try { window.__LEGACY_INLINE_ITEMS = ITEMS; } catch (e) {}
+  /* An eagerly-evaluated COUNT, like the MONSTERS one below: a number cannot be
+     mutated by main.js's merge, so data-integrity.js can assert it stays 0. */
+  try { window.__LEGACY_INLINE_ITEM_COUNT = Object.keys(ITEMS).length; } catch (e) {}
   /* b214: same snapshot for MONSTERS so the integrity check can compare it
      against src/data/monsters.js (mountain_troll was legacy-only and no
      warning fired, because the check only ever looked at ITEMS). */
@@ -279,8 +146,7 @@ if (typeof window !== 'undefined') {
      The MONSTERS half is now fixed at the source instead: legacy carries no
      roster at all, and this eagerly-evaluated COUNT (a number, so it cannot
      be mutated by the merge) is what data-integrity.js asserts stays 0. The
-     ITEMS half still has the aliasing defect — flagged, not fixed here,
-     because reconciling the inline ITEMS literal is its own change. */
+     ITEMS half went the same way on 2026-10-08. */
   try { window.__LEGACY_INLINE_MONSTER_COUNT = Object.keys(MONSTERS).length; } catch (e) {}
 }
 
@@ -747,8 +613,7 @@ let G={
   lastOfflineSummary:null,
   lastSeen:Date.now(),
   /* b226: nothing ever stamped a creation date, which is why the Founder's
-     mark needed one. Existing saves get theirs backfilled from lastSeen by
-     save-migrations v7→v8. */
+     mark needed one. It rides the residue (client-state.js RESIDUE_FIELDS). */
   createdAt:Date.now(),
   /* online */
   account:null,           /* {id, displayName, avatar, provider} once signed in */
@@ -953,7 +818,7 @@ window.currentSaveOwnerId=currentSaveOwnerId;
    The rework will RENAME and RETIRE item ids (Wave 3 routes the orphan drops
    into real lines; a cut item is aliased to null). Without this, a rename
    silently vaporises a player's inventory / equipment / collection / locks /
-   buy-back / auto-eat food. ITEM_ALIAS maps oldId→newId (or →null to remove)
+   auto-eat food. ITEM_ALIAS maps oldId→newId (or →null to remove)
    and is applied on EVERY load — aliases accumulate, and a veteran's save may
    carry any historical id. This is the "SAFE TO EXTEND" prerequisite: a rename
    becomes editing one map, not surgery, and it's covered by a round-trip test.
@@ -984,26 +849,8 @@ function remapItemIds(G){
   if(G.lockedItems && typeof G.lockedItems==='object'){
     const next={}; for(const id in G.lockedItems){ const nid=_aliasId(id); if(ok(nid)) next[nid]=G.lockedItems[id]; } G.lockedItems=next;
   }
-  if(Array.isArray(G.buyback)){
-    G.buyback.forEach(b=>{ if(b&&b.id) b.id=_aliasId(b.id); });
-    G.buyback=G.buyback.filter(b=>b&&ok(b.id));
-  }
   if(G.autoActions && G.autoActions.eat && G.autoActions.eat.foodId){
     const nid=_aliasId(G.autoActions.eat.foodId); G.autoActions.eat.foodId=ok(nid)?nid:null;
-  }
-  /* b356: PRE-EXISTING GAP, found by the b342 monster audit — `G.dropLog` is
-     keyed by monster id but its `.drops` sub-object is keyed by ITEM id, and
-     this function never walked it. So an item rename has ALWAYS orphaned the
-     per-monster drop history, silently, since b244. Counts merge rather than
-     overwrite for the same reason the monster layer merges: a save can hold
-     both ids either side of a deploy. */
-  if(G.dropLog && typeof G.dropLog==='object'){
-    for(const mid in G.dropLog){
-      const rec=G.dropLog[mid]; if(!rec || typeof rec.drops!=='object' || !rec.drops) continue;
-      const next={};
-      for(const iid in rec.drops){ const nid=_aliasId(iid); if(ok(nid)) next[nid]=(next[nid]||0)+(rec.drops[iid]||0); }
-      rec.drops=next;
-    }
   }
 }
 window.remapItemIds = remapItemIds;
@@ -1040,20 +887,6 @@ window.MONSTER_ALIAS = window.MONSTER_ALIAS || {
   barn_rat: 'rat',
   jackal: 'wolf',
   cultist: 'dark_wizard',
-};
-
-/* `family` is not an id, so the 2026-08-16 folds (Beast->Mammal,
-   Arcane->Human, Goblinoid->Humanoid, Mythic->Demon, and the two Vermin that
-   left for Extra Dimensional) were free — EXCEPT that `family` is also the
-   key of `G.stats.killsByFamily`, a displayed lifetime counter. Without this
-   fold a veteran sees a dead "Beast" row beside a new "Mammal" row forever.
-
-   Mythic held exactly two monsters, lesser_demon (now Demon) and dragon (now
-   Dragon), and an aggregate cannot be split. RULING: fold Mythic into Demon.
-   Total kills stay exact; a small historical misattribution lands in one
-   display-only stat, which is strictly better than stranding the count. */
-window.FAMILY_ALIAS = window.FAMILY_ALIAS || {
-  Beast: 'Mammal', Arcane: 'Human', Goblinoid: 'Humanoid', Mythic: 'Demon',
 };
 
 /* b356: the drop-rate note that used to read "neutral · +15% drops". The
@@ -1097,7 +930,7 @@ function remapMonsterIds(G){
   const A=window.MONSTER_ALIAS; if(!A || !Object.keys(A).length || !G) return;
   const live=(id)=>id && window.MONSTERS && window.MONSTERS[id];
 
-  /* bestiary + dropLog — keyed BY monster id. Counts MERGE rather than
+  /* bestiary — keyed BY monster id. Counts MERGE rather than
      overwrite: a save may legitimately hold both the old and the new id if a
      player fought the monster either side of a deploy. */
   /* Written as two explicit assignments rather than a `G[key]=` loop: the
@@ -1120,7 +953,6 @@ function remapMonsterIds(G){
     return next;
   };
   G.bestiary = foldById(G.bestiary);
-  G.dropLog  = foldById(G.dropLog);
 
   /* bountyHunter — .target, .proofItem's owner, and the id STRING. */
   const bh=G.bountyHunter;
@@ -1153,16 +985,6 @@ function remapMonsterIds(G){
   if(G.activeMonster){ const n=_monAliasId(G.activeMonster); G.activeMonster = live(n) ? n : null; }
 }
 window.remapMonsterIds = remapMonsterIds;
-
-/* Fold historical family labels. Unlike the id map this is NOT empty — the
-   2026-08-16 taxonomy renamed every family — so it runs on every load. */
-function remapMonsterFamilies(G){
-  const F=window.FAMILY_ALIAS; if(!F || !G || !G.stats || !G.stats.killsByFamily) return;
-  const src=G.stats.killsByFamily, next={};
-  for(const fam in src){ const nf=(fam in F)?F[fam]:fam; if(!nf) continue; next[nf]=(next[nf]||0)+(src[fam]||0); }
-  G.stats.killsByFamily=next;
-}
-window.remapMonsterFamilies = remapMonsterFamilies;
 
 function loadLocal(){
   /* THERE IS NO LOCAL SAVE TO LOAD. The character loads ENTIRELY from the server
@@ -3199,8 +3021,8 @@ window.restedCap = restedCap;
    game's history rather than a mistake being erased. An acknowledged change
    is a story; an unacknowledged one is a betrayal.
 
-   Gated on `G.createdAt`, which save-migrations v7→v8 backfills from the
-   save's own `lastSeen`; a save with neither is older still and qualifies.
+   Gated on `G.createdAt` (the residue's Founder date); an account with none
+   qualifies.
    RETUNE_EPOCH is the instant this build's pacing took effect, so it cannot
    be minted later by playing — only by having already been here.
    ════════════════════════════════════════════════════════════════ */
@@ -5064,40 +4886,6 @@ const QUEST_DEFS=[
 ];
 window.QUEST_DEFS=QUEST_DEFS;
 
-/* ── RENAMED QUEST IDS — a TABLE, because a rename is save state ───────────
-   A quest id is the merge key AND the save key, so renaming a row without
-   moving the saves that hold it does two bad things at once: the old row
-   survives under its old LABEL (the player keeps reading the retired copy)
-   and the new row is seeded fresh, re-granting a reward that was already
-   paid. `hundred_kills` was `field_licence` until b343, and ~every live beta
-   save carries it — a 1,500 XP double-pay for anyone who had finished it.
-
-   A row here renames in place, keeping `done` and `progress`. Deduping is
-   part of the same pass because "both ids present" is the one state a rename
-   can produce, and two rows with one id would complete — and PAY — twice. */
-const QUEST_ID_RENAMES={ field_licence:'hundred_kills' };
-function migrateQuestIds(){
-  if(!Array.isArray(G.quests)) return;
-  /* Cheap pre-check: this runs on every ensureRetentionState (which runs on
-     every kill), and the answer is `false` for every save written after this
-     build ships. No allocation on the hot path. */
-  if(!G.quests.some(function(q){ return q && QUEST_ID_RENAMES[q.id]; })) return;
-  const byId={};
-  G.quests=G.quests.filter(function(q){
-    if(!q||!q.id) return false;
-    q.id=QUEST_ID_RENAMES[q.id]||q.id;
-    const prev=byId[q.id];
-    if(prev){
-      /* Keep the furthest-along truth from both rows, drop the duplicate. */
-      prev.done=!!(prev.done||q.done);
-      prev.progress=Math.max(prev.progress||0,q.progress||0);
-      return false;
-    }
-    byId[q.id]=q;
-    return true;
-  });
-}
-
 /* Where a mirrored quest reads its progress from. A TABLE, so a second
    mirrored quest is a row here plus a row above — never a branch in
    updateQuest(). Every reader is defensive: a save missing `stats` reads 0,
@@ -5144,9 +4932,6 @@ function ensureRetentionState(){
      idempotent: a completed quest keeps its `done`, an in-flight one keeps its
      `progress`, and nothing is ever re-granted. */
   if(!Array.isArray(G.quests))G.quests=[];
-  /* Renames run BEFORE the merge, or the merge would seed the new id beside
-     the old row and pay its reward a second time. */
-  migrateQuestIds();
   /* ── b497: THE MERGE NOW REFRESHES THE DEFINITION, NOT JUST THE ROW SET ───
      b341 fixed "a new quest never reaches an existing save". It did not fix the
      other half, and the b497 farmhand retune walked straight into it: a quest
@@ -5184,8 +4969,7 @@ function ensureRetentionState(){
        and `label` are the two fields a retune moves, and `mirror` is the one
        whose staleness changes behaviour — three comparisons in the steady
        state, and the answer is `false` for every save written after this build
-       ships. No allocation and no key sweep on the hot path. (Same discipline
-       as migrateQuestIds' own pre-check, six lines up.) */
+       ships. No allocation and no key sweep on the hot path. */
     if(row.goal===def.goal && row.label===def.label && row.type===def.type
        && row.mirror===def.mirror && row.target===def.target
        && (row.reward&&row.reward.gold)===(def.reward&&def.reward.gold)
@@ -6139,11 +5923,6 @@ const COMBAT_FX={
     drainBountySwitch();
     return info;
   },
-  recordKill:function(id,dropped){
-    if(window.HearthriseDropLog&&typeof window.HearthriseDropLog.recordKill==='function'){
-      window.HearthriseDropLog.recordKill(id,dropped);
-    }
-  },
   rollKillDeed:function(m){
     if(window.HearthriseFarm&&typeof window.HearthriseFarm.rollKillDeed==='function'){
       window.HearthriseFarm.rollKillDeed(m);
@@ -7077,236 +6856,11 @@ function renderProfile(){
   if(window.HearthrisePresence && window.HearthrisePresence.inOfflineReplay
      && window.HearthrisePresence.inOfflineReplay()) return;
   generateDailyTasks(false);
-  /* user card */
-  const cl=getCombatLevel(),tl=getTotalLevel();
-  // b119: defensive null guards — these elements only exist when the
-  // Profile panel template has rendered. onAuthStateChange can fire
-  // before the DOM is built, which crashed renderProfile in a loop on
-  // older builds (v=111) and broke the auth UI.
-  const subEl = document.getElementById('dash-user-sub');
-  const bodyEl = document.getElementById('dash-user-body');
-  if (!subEl || !bodyEl) return; // Profile panel not in DOM yet — bail
-  subEl.textContent = (window.hrRecordPending?window.hrRecordPending():true) ? 'Lv — · Total —' : `Lv ${cl} · Total ${Number(tl).toLocaleString()}`;
-  bodyEl.innerHTML=`
-    ${(()=>{
-      // Auth-state resolution for the Profile dashboard:
-      // 1) live Supabase session takes precedence (the actual cloud login)
-      // 2) legacy guest G.account record
-      // 3) offline / no auth at all
-      const liveSess = (window.HearthriseAuth && window.HearthriseAuth.getSession && window.HearthriseAuth.getSession()) || null;
-      const liveUser = liveSess && liveSess.user;
-      // b466: route through the server-authoritative identity seam. The old
-      // fallback derived the name from (liveUser.email).split('@')[0], which
-      // rendered "themphill22" — the account email local-part — as the player's
-      // name (privacy defect + third divergent name source). _hrDisplayName
-      // never reads email: confirmed server name → G.playerName → 'Adventurer'.
-      const acctName = _hrDisplayName();
-      const isOnline = !!(liveUser || G.account);
-      /* b224: the last branch used to read "Offline play · sign in to sync",
-         which advertised a mode the game no longer has. Reaching it now means
-         the session lapsed mid-play — so it reports the truth about the
-         player's progress rather than pitching account-less play. */
-      /* b371: "cloud save active" was asserted from the SESSION alone — being
-         signed in was treated as proof that saving works. It is not: a live
-         player watched this line through four consecutive failed game_saves
-         upserts while production PostgREST killed writes. The claim now comes
-         from sync.js's WRITE channel (last confirmed upsert), which is the only
-         fact it was ever about. Unknown/failing states say so, honestly:
-         writes are full-snapshot upserts and self-heal, so the word is
-         "retrying", never "lost". */
-      const subtitle = liveUser ? ('Online · ' + cloudSaveLine().text) : (G.account ? 'Online · '+G.account.displayName : 'Offline · reconnect to keep playing');  /* b465 — see home-dashboard.js: the server owns progress, not this device. */
-      // b373: the pencil opens the in-game name modal (identity.js), NOT a
-      // native prompt() — see HearthriseLaunchpad.openRename for why.
-      // b138 #5 / b139 (QA §2.1.2): inline rename pencil is now available
-      // for ALL players, including cloud-signed-in. setDisplayName updates
-      // G.playerName which the cloud sync layer round-trips through
-      // user_metadata. Hiding it from cloud users defeated the whole
-      // point of the feature for the most likely user.
-      const canRename = true;
-      const renameBtn = canRename
-        ? `<button class="btn btn-icon btn-ghost" title="Rename" data-rename="1" onclick="window.HearthriseLaunchpad && window.HearthriseLaunchpad.openRename()" style="margin-left:6px;padding:2px 6px;font-size:calc(14.5px * var(--ui-scale, 1));opacity:.7">${_hrGly('uiEdit',13)}</button>`
-        : '';
-      return `<div class="activity-card">
-      <div class="ac-icon">${_hrGly('navCharacter',26)}</div>
-      <div style="flex:1;min-width:0">
-        <b>${escapeHtml(acctName || G.playerName)}${(window.HearthriseHearthfind&&window.HearthriseHearthfind.titleBadgeHtml&&window.HearthriseHearthfind.titleBadgeHtml())||''/* the earned Hearthfind title, from hr_state_of's projection ONLY; '' when the server has granted none */}${renameBtn}</b>
-        <span>${subtitle}</span>
-      </div>
-      ${isOnline?'':'<button class="btn btn-sm btn-primary" onclick="openSettings()">Sign in</button>'}
-    </div>`;
-    })()}
-    <div class="kpi-row">
-      <div class="kpi"><b>${cl}</b><span>Combat</span></div>
-      <div class="kpi"><b>${tl}</b><span>Total Level</span></div>
-      <div class="kpi"><b>${balMarkup('gold')}</b><span>Gold</span></div>
-      <div class="kpi"><b>${G.stats.kills||0}</b><span>Kills</span></div>
-    </div>`;
-
-  /* current activity */
-  const activeName=G.activeMonster?MONSTERS[G.activeMonster]?.name:G.activeSkill?SKILLS_DEF[G.activeSkill]?.name:'Idle';
-  document.getElementById('dash-active-sub').textContent=activeName;
-  let activityHtml='';
-  if(G.activeMonster){
-    const m=MONSTERS[G.activeMonster];
-    const php=Math.max(0,(G.playerHp/G.playerMaxHp)*100),mhp=Math.max(0,(G.monsterHp/G.monsterMaxHp)*100);
-    activityHtml=`
-      <div class="arena" style="margin-bottom:8px">
-        <div class="fighter"><div class="portrait">${_hrGly('navCharacter',30)}</div><div class="fname">You</div><div class="fhp">${G.playerHp}/${G.playerMaxHp}</div><div class="bar hp"><i style="width:${php}%"></i></div></div>
-        <div class="vs">${_hrGly('navCombat',18)}</div>
-        <div class="fighter enemy"><div class="portrait">${monsterArt(G.activeMonster,30)}</div><div class="fname">${m.name}</div><div class="fhp">${G.monsterHp}/${G.monsterMaxHp}</div><div class="bar hp"><i style="width:${mhp}%"></i></div></div>
-      </div>
-      <button class="btn btn-block btn-danger" onclick="stopCombat()">Stop Combat</button>`;
-  } else if(G.activeSkill){
-    const sd=SKILLS_DEF[G.activeSkill];const lv=getLevel(G.activeSkill);const pct=xpPct(skillXp(G.activeSkill))*100;
-    activityHtml=`
-      <div class="activity-card">
-        <div class="ac-icon">${skillIconHTML(G.activeSkill,34)}</div>
-        <div style="flex:1"><b>Training ${sd.name}</b><span>Level ${lv}</span></div>
-      </div>
-      <div class="bar xp" style="margin:4px 0 8px"><i style="width:${pct.toFixed(1)}%"></i></div>
-      <button class="btn btn-block btn-danger" onclick="stopSkill()">Stop</button>`;
-  } else {
-    // b138 #1: Resume last activity. If we have a recent stop, surface
-    // a one-click resume button above the generic launchers.
-    let resumeHtml = '';
-    if(window.HearthriseLaunchpad && typeof window.HearthriseLaunchpad.getResumePayload === 'function'){
-      const payload = window.HearthriseLaunchpad.getResumePayload();
-      if(payload){
-        resumeHtml = `<div class="activity-card" style="margin-bottom:8px;border:1px solid var(--accent,#7f9a4f);background:rgba(127,154,79,0.06)">
-          <div class="ac-icon">${payload.iconHtml || _hrGly('uiIdle',22)}</div>
-          <div style="flex:1;min-width:0"><b>${escapeHtml(payload.label)}</b><span class="tiny muted">Pick up where you left off</span></div>
-          <button class="btn btn-sm btn-primary" onclick="window.HearthriseLaunchpad.resume()">Resume</button>
-        </div>`;
-      }
-    }
-    activityHtml=resumeHtml + `
-      <div class="empty"><span class="em-icon">${_hrGly('uiIdle',16)}</span>No active task. Pick something to do.</div>
-      <div class="kpi-row" style="margin-top:6px">
-        <button class="btn tap" onclick="showTab('combat')">${_hrGly('navCombat',15)} Combat</button>
-        <button class="btn tap" onclick="showTab('skills')">${_hrGly('navSkills',15)} Skills</button>
-        <button class="btn tap" onclick="showTab('farming')">${_hrGly('navFarm',15)} Farm</button>
-        <button class="btn tap" onclick="showTab('shops')">${_hrGly('navStore',15)} Store</button>
-      </div>`;
-  }
-  /* b227: says "base rate" out loud, for the same reason the welcome-back toast
-     does. NOTE (discovery, filed): this whole `#dash-active` block is
-     `display:none` on the live Home — home-dashboard.js replaced it in b219 —
-     so this line, b225's burn count and b226's budget readout are all currently
-     invisible. Kept correct rather than silently divergent; the visible surface
-     is the toast in processOffline(). */
-  if(G.lastOfflineSummary)activityHtml+=`<div class="muted tiny" style="margin-top:8px">Offline: ${G.lastOfflineSummary.hrs}h, +${G.lastOfflineSummary.gainedItems} items, +${G.lastOfflineSummary.gainedXp} XP${G.lastOfflineSummary.burnt?`, ${G.lastOfflineSummary.burnt} burnt on the fire`:''} · at the base rate. Blessings apply while online.</div>`;
-  document.getElementById('dash-active-body').innerHTML=activityHtml;
-
-  /* b138 #2 / b139 (QA §2.1.3): Today's progress card.
-     Layout note: the default `.kpi-row` is `repeat(2, 1fr)` which with
-     5-6 cells overflows the card body and forces internal scroll. We
-     override with a 3-column grid so 6 cells fit cleanly in 2 rows. */
-  const todayBody = document.getElementById('dash-today-body');
-  const todaySub = document.getElementById('dash-today-sub');
-  if(todayBody){
-    const d = (window.HearthriseLaunchpad && window.HearthriseLaunchpad.getTodayDelta)
-      ? window.HearthriseLaunchpad.getTodayDelta()
-      : null;
-    if(d){
-      const cells = [
-        {b: '+'+d.xpGained.toLocaleString(),    s:'XP'},
-        {b: '+'+d.goldEarned.toLocaleString(),  s:'Gold'},
-        {b: d.kills.toLocaleString(),           s:'Kills'},
-        {b: d.gathered.toLocaleString(),        s:'Gathered'},
-        {b: d.harvested.toLocaleString(),       s:'Harvested'},
-      ];
-      if(d.deedsDropped > 0) cells.push({b: '+'+d.deedsDropped, s:'Deeds'});
-      todayBody.innerHTML = `<div class="kpi-row" style="grid-template-columns:repeat(3,1fr)">${cells.map(c=>`<div class="kpi"><b>${c.b}</b><span>${c.s}</span></div>`).join('')}</div>`;
-      if(todaySub){
-        const total = d.xpGained + d.goldEarned + d.kills + d.gathered + d.harvested;
-        todaySub.textContent = total > 0 ? 'Live' : 'Quiet day so far';
-      }
-    } else {
-      todayBody.innerHTML = '<div class="empty"><span class="em-icon">'+_hrGly('uiTrend',16)+'</span>Stats start tomorrow</div>';
-    }
-  }
-
-  /* b138 #3: Next milestone card — closest skill or quest. */
-  const milestoneBody = document.getElementById('dash-milestone-body');
-  const milestoneSub = document.getElementById('dash-milestone-sub');
-  if(milestoneBody){
-    const m2 = (window.HearthriseLaunchpad && window.HearthriseLaunchpad.getNextMilestone)
-      ? window.HearthriseLaunchpad.getNextMilestone()
-      : null;
-    if(m2){
-      const pct = Math.floor((m2.pct||0) * 100);
-      const togo = Math.max(0, (m2.target|0) - (m2.current|0));
-      milestoneBody.innerHTML = `
-        <div class="activity-card" style="cursor:pointer" onclick="(${(m2.deepLink||function(){}).toString()})()">
-          <div class="ac-icon">${m2.icon}</div>
-          <div style="flex:1;min-width:0">
-            <b>${escapeHtml(m2.label)}</b>
-            <span>${togo.toLocaleString()} ${m2.kind==='skill'?'XP':''} to go · ${pct}%</span>
-            <div class="bar xp" style="margin-top:4px"><i style="width:${pct}%"></i></div>
-          </div>
-        </div>`;
-      if(milestoneSub) milestoneSub.textContent = m2.kind === 'skill' ? 'Skill' : 'Quest';
-    } else {
-      milestoneBody.innerHTML = '<div class="empty"><span class="em-icon">'+_hrGly('uiCheck',16)+'</span>All milestones cleared</div>';
-      if(milestoneSub) milestoneSub.textContent = '—';
-    }
-  }
-
-  /* objectives */
-  const all=[...(G.daily?.tasks||[]),...(G.quests||[])];
-  const open=all.filter(q=>!q.done),done=all.filter(q=>q.done);
-  /* A quest step's number is the server's count (CLAIM-FROM-SERVER), the
-     pending dash while unknown; daily tasks keep their own count. */
-  const objCount=q=>{
-    if(!(G.quests||[]).includes(q))return Math.min(q.progress||0,q.goal);
-    const n=hrQuestServerCount(q);
-    return n===null?(window.HearthriseBalance?.countMarkup?.(null,{label:'Not counted yet'})??'—'):Math.min(n,q.goal);
-  };
-  document.getElementById('dash-obj-sub').textContent=`${done.length}/${all.length} done`;
-  /* b215: Season Pass card removed along with the pass itself. */
-  document.getElementById('dash-objectives-body').innerHTML=`
-    <div class="objective-list">
-      ${open.slice(0,6).map(q=>`<div class="obj"><span>${_hrGly('uiScroll',13)} ${q.label}</span><b>${objCount(q)}/${q.goal}</b></div>`).join('')}
-      ${done.slice(0,3).map(q=>`<div class="obj done"><span>${_hrGly('uiCheck',13)} ${q.label}</span><b>Done</b></div>`).join('')}
-    </div>`;
-
-  /* skills board */
-  document.getElementById('dash-skills-sub').textContent=`Total: ${tl}`;
-  document.getElementById('dash-skills-body').innerHTML=`
-    <div class="skill-board">
-      ${Object.entries(SKILLS_DEF).map(([id,s])=>{
-        const xp=skillXp(id),lv=getLevel(id),pct=Math.floor(xpPct(xp)*100);
-        return `<button class="skill-tile ${G.activeSkill===id?'active':''}" onclick="showTab('skills');openSkillDetail('${id}')"><span class="sicon">${skillIconHTML(id,34)}</span><span class="slv">Lv ${lv}</span><div class="bar xp"><i style="width:${pct}%"></i></div><span class="snm">${s.name}</span></button>`;
-      }).join('')}
-    </div>`;
-
-  /* homestead */
-  const plots=Array.from({length:8}).map((_,i)=>{
-    /* blob-retire capstone: guard an undefined farm (armed, pre-first-envelope)
-       so the homestead render shows empty plots instead of throwing. */
-    const p=(G.farmPlots||[])[i];
-    if(!p)return `<div class="farm-tile empty"><span>${_hrGly('uiPlus',18)}</span><small>Empty</small></div>`;
-    const crop=CROPS[p.cropId];
-    /* b220: this second render site used to hide dry progress behind the word
-       "Water" exactly like the farm panel did. Both now read plotPct(). */
-    const ready=p.state==='ready'||plotIsReady(p);
-    const lab=ready?'Ready':`${plotPct(p)}%`;
-    /* was `crop.icon` — and the data proves why that layer had to go: turnip
-       and carrot both carry 🥕, so two different crops drew the same picture. */
-    return `<div class="farm-tile ${ready?'ready':''} ${!ready&&plotWindowMs(p)>0?'watered':''}"><span>${itemArt(crop.prod,26)}</span><small>${lab}</small></div>`;
-  }).join('');
-  const roomLevels=Object.values(roomsMapG()).reduce((a,b)=>a+(b||0),0);
-  document.getElementById('dash-homestead-body').innerHTML=`
-    <div class="hmstead-grid">
-      <div class="hmstead-col">
-        <div class="row between" style="margin-bottom:8px"><b>${_hrGly('navFarm',14)} Plots</b><button class="btn btn-sm" onclick="showTab('farming')">Open</button></div>
-        <div class="farm-mini" style="grid-template-columns:repeat(8,1fr)">${plots}</div>
-      </div>
-      <div class="hmstead-col">
-        <div class="row between" style="margin-bottom:8px"><b>${_hrGly('navHouse',14)} House</b><button class="btn btn-sm" onclick="showTab('house')">Open</button></div>
-        <div class="muted tiny" style="line-height:1.6">Theme: <b>${HOUSE_THEMES.find(t=>t.id===window.activeHouseTheme())?.name||'Cozy Cottage'}</b><br>${roomLevels} room levels · ${G.plotBuildings.length} plot builds</div>
-      </div>
-    </div>`;
+  /* The Home screen itself is src/features/home-dashboard.js (#hd-root), which
+     paints on showTab('profile') and on its own refresh tick. The legacy dash
+     cards this function used to fill are deleted (2026-10-08); it stays as the
+     hook the profile-scoped wrappers (companions, active effects, identity)
+     chain onto. */
 }
 
 /* ────────────────────────────────────────────────
@@ -10390,16 +9944,10 @@ window.hrUnlockRefusalMessage=hrUnlockRefusalMessage;
 
 /* ── The VENDOR COUNTER → src/screens/shop-counter.js ───────────────────────
    vendorPrice (with its b226 doc block, finally reunited with it),
-   VENDOR_RAW_RATE, vendorSellChunked, Sell 1 / Sell All / Sell Selected, the
-   sell-lock, recordVendorSale and buy-back repurchase moved to the shop screen
-   controller (task #129). Every name is still a global, published there; the
+   VENDOR_RAW_RATE, vendorSellChunked, Sell 1 / Sell All / Sell Selected and the
+   sell-lock moved to the shop screen controller (task #129). Every name is still a global, published there; the
    gold ledger's seam keys are the goldSettle site strings and travelled with
    the code. Pure refactor — identical behaviour. */
-
-/* renderBuyback + openBuyback extracted to src/render/buyback.js (render-layer
-   strangler-fig, task #129). Both remain global via window.* there; repurchase()
-   above calls renderBuyback() bare (resolves to the global) and shop.js's inline
-   onclick="openBuyback()" is unchanged. Pure refactor — identical DOM. */
 
 /* ───── Inventory: ONE renderer ─────
    What stood here was a SECOND bag + paper-doll renderer (~150 lines) that
@@ -12101,13 +11649,9 @@ console.log('Activity bar: loaded');
   G.stats.totalGoldEarned = G.stats.totalGoldEarned || 0;
   G.stats.totalGoldSpent  = G.stats.totalGoldSpent || 0;
   G.stats.deaths          = G.stats.deaths || 0;
-  G.stats.killStreak      = G.stats.killStreak || 0;
-  G.stats.bestKillStreak  = G.stats.bestKillStreak || 0;
-  G.stats.killsByFamily   = G.stats.killsByFamily || {};
-  G.stats.killsByTier     = G.stats.killsByTier || {1:0,2:0,3:0,4:0,5:0,6:0};
 })();
 
-/* Hook killMonster to track family/tier stats and gold earned */
+/* Hook killMonster to track gold earned */
 const _origKillMonsterStats = window.killMonster;
 if(typeof _origKillMonsterStats === 'function'){
   window.killMonster = function(m){
@@ -12120,14 +11664,10 @@ if(typeof _origKillMonsterStats === 'function'){
     const goldAfter = balNum('gold');
     const gained = (goldBefore===null || goldAfter===null) ? 0 : (goldAfter - goldBefore);
     if(gained > 0) G.stats.totalGoldEarned = (G.stats.totalGoldEarned||0) + gained;
-    if(m && m.family){ G.stats.killsByFamily[m.family] = (G.stats.killsByFamily[m.family]||0) + 1; }
-    if(m && m.tier){ G.stats.killsByTier[m.tier] = (G.stats.killsByTier[m.tier]||0) + 1; }
-    G.stats.killStreak = (G.stats.killStreak || 0) + 1;
-    if(G.stats.killStreak > (G.stats.bestKillStreak||0)) G.stats.bestKillStreak = G.stats.killStreak;
     return r;
   };
 }
-/* Death resets streak */
+/* A death counts into the lifetime tally */
 const _origStopCombatStats = window.stopCombat;
 if(typeof _origStopCombatStats === 'function'){
   /* Heuristic: when player dies, playerHp goes to 0 — we can't reliably catch that
@@ -12135,7 +11675,6 @@ if(typeof _origStopCombatStats === 'function'){
   window.stopCombat = function(){
     if((G.playerHp||0) <= 0){
       G.stats.deaths = (G.stats.deaths||0) + 1;
-      G.stats.killStreak = 0;
     }
     return _origStopCombatStats.apply(this, arguments);
   };
@@ -12973,7 +12512,6 @@ function migrate(){
      device counter that used to live here is deleted, not defaulted. */
   if(!G.dailyGoals || typeof G.dailyGoals !== 'object') G.dailyGoals = {dayKey: 0, progress: {}};
   if(typeof G.lastWelcome !== 'number') G.lastWelcome = 0;
-  if(typeof G.lifetimeKills !== 'number') G.lifetimeKills = G.stats?.kills || 0;
 }
 [0, 100, 500, 1500].forEach(function(t){ setTimeout(migrate, t); });
 
@@ -14054,29 +13592,6 @@ console.log('5 retention features loaded');
 })();
 
 // ===== block 18: artisans-js =====
-/* ─── New artisan ITEMS — cooked food + smelted bars + planks ─── */
-(function(){
-  if(typeof ITEMS === 'undefined') return;
-  var added = {
-    /* Cooked food (heals + sometimes a buff) */
-    cooked_shrimp:  {n:'Cooked Shrimp',  icon:'🦐', v:8,  heals:5,  cookedFrom:'shrimp'},
-    cooked_trout:   {n:'Cooked Trout',   icon:'🐟', v:30, heals:10, cookedFrom:'trout'},
-    cooked_lobster: {n:'Cooked Lobster', icon:'🦞', v:140,heals:18, cookedFrom:'lobster'},
-    cooked_shark:   {n:'Cooked Shark',   icon:'🦈', v:600,heals:28, cookedFrom:'shark'},
-    /* Smelted bars */
-    copper_bar:     {n:'Copper Bar',     icon:'🟤', v:25},
-    iron_bar:       {n:'Iron Bar',       icon:'⬜', v:60},
-    gold_bar:       {n:'Gold Bar',       icon:'🟡', v:240},
-    mithril_bar:    {n:'Mithril Bar',    icon:'🔵', v:480},
-    /* Planks */
-    normal_plank:   {n:'Normal Plank',   icon:'🪵', v:18},
-    oak_plank:      {n:'Oak Plank',      icon:'🪵', v:48},
-    willow_plank:   {n:'Willow Plank',   icon:'🪵', v:96},
-    maple_plank:    {n:'Maple Plank',    icon:'🍁', v:192},
-    yew_plank:      {n:'Yew Plank',      icon:'🌲', v:480},
-  };
-  Object.keys(added).forEach(function(k){ if(!ITEMS[k]) ITEMS[k] = added[k]; });
-})();
 
 /* b127: Removed icons3/* paths for cooked fish + bars + planks.
  * Bars and planks are properly mapped in LOCAL_ITEM_ICON at the
@@ -14084,61 +13599,9 @@ console.log('5 retention features loaded');
  * items fall back to their emoji glyph (🦐 🐟 🦞 🦈) which matches
  * the cozy theme. The smoke test asserts no icons3/* leakage. */
 
-/* ─── ARTISAN recipe tables ─── */
-window.ARTISAN_RECIPES = {
-  cooking: [
-    {id:'cook_shrimp',  name:'Cook Shrimp',  icon:'🦐', input:'shrimp',  output:'cooked_shrimp',  xp:30,  req:1,  ms:2400},
-    {id:'cook_trout',   name:'Cook Trout',   icon:'🐟', input:'trout',   output:'cooked_trout',   xp:50,  req:15, ms:3000},
-    {id:'cook_lobster', name:'Cook Lobster', icon:'🦞', input:'lobster', output:'cooked_lobster', xp:100, req:30, ms:3600},
-    {id:'cook_shark',   name:'Cook Shark',   icon:'🦈', input:'shark',   output:'cooked_shark',   xp:200, req:60, ms:5000},
-  ],
-  smithing: [
-    // Smelt ore → bar
-    {id:'smelt_copper',  name:'Copper Bar',  icon:'🟤', input:'copper_ore',  output:'copper_bar',  xp:15,  req:1,  ms:2400},
-    {id:'smelt_iron',    name:'Iron Bar',    icon:'⬜', input:'iron_ore',    output:'iron_bar',    xp:30,  req:15, ms:3000, secondary:{coal:1}},
-    {id:'smelt_gold',    name:'Gold Bar',    icon:'🟡', input:'gold_ore',    output:'gold_bar',    xp:60,  req:40, ms:4000, secondary:{coal:2}},
-    {id:'smelt_mithril', name:'Mithril Bar', icon:'🔵', input:'mithril_ore', output:'mithril_bar', xp:120, req:55, ms:5000, secondary:{coal:3}},
-    // Forge bar + plank → weapon. Each consumes input + secondary, mirrors monster drops.
-    {id:'forge_bronze_sword',    name:'Forge Bronze Sword',    icon:'⚔️', input:'copper_bar',  output:'bronze_sword',    xp:55,  req:5,  ms:4000, secondary:{copper_bar:1, normal_plank:1}},
-    {id:'forge_iron_sword',      name:'Forge Iron Sword',      icon:'⚔️', input:'iron_bar',    output:'iron_sword',      xp:120, req:30, ms:5000, secondary:{iron_bar:1, oak_plank:1}},
-    {id:'forge_steel_sword',     name:'Forge Steel Sword',     icon:'⚔️', input:'iron_bar',    output:'steel_sword',     xp:240, req:55, ms:6000, secondary:{iron_bar:2, willow_plank:1, coal:2}},
-    {id:'forge_rune_sword',      name:'Forge Rune Sword',      icon:'⚔️', input:'mithril_bar', output:'rune_sword',      xp:520, req:80, ms:7500, secondary:{mithril_bar:2, maple_plank:1, gold_bar:1}},
-    // Forge armor
-    {id:'forge_iron_helm',       name:'Forge Iron Helm',       icon:'⛑️', input:'iron_bar',    output:'iron_helm',       xp:80,  req:25, ms:4500, secondary:{iron_bar:1}},
-    {id:'forge_iron_platebody',  name:'Forge Iron Platebody',  icon:'🦺', input:'iron_bar',    output:'iron_platebody',  xp:200, req:35, ms:5500, secondary:{iron_bar:3}},
-    {id:'forge_steel_helm',      name:'Forge Steel Helm',      icon:'⛑️', input:'iron_bar',    output:'steel_helm',      xp:160, req:50, ms:5500, secondary:{iron_bar:2, coal:1}},
-    {id:'forge_steel_platebody', name:'Forge Steel Plate',     icon:'🦺', input:'iron_bar',    output:'steel_platebody', xp:380, req:65, ms:6500, secondary:{iron_bar:5, coal:3}},
-    // Hammers + warhammers
-    {id:'forge_iron_warhammer',  name:'Forge Iron Warhammer',  icon:'🔨', input:'iron_bar',    output:'iron_warhammer',  xp:140, req:35, ms:5500, secondary:{iron_bar:2, oak_plank:1}},
-  ],
-  crafting: [
-    // Saw log → plank
-    {id:'saw_normal', name:'Normal Plank', icon:'🪵', input:'normal_log', output:'normal_plank', xp:10,  req:1,  ms:2400},
-    {id:'saw_oak',    name:'Oak Plank',    icon:'🪵', input:'oak_log',    output:'oak_plank',    xp:25,  req:15, ms:3000},
-    {id:'saw_willow', name:'Willow Plank', icon:'🪵', input:'willow_log', output:'willow_plank', xp:50,  req:30, ms:3600},
-    {id:'saw_maple',  name:'Maple Plank',  icon:'🍁', input:'maple_log',  output:'maple_plank',  xp:90,  req:45, ms:4500},
-    {id:'saw_yew',    name:'Yew Plank',    icon:'🌲', input:'yew_log',    output:'yew_plank',    xp:160, req:60, ms:6000},
-    // Plank + thread → bow
-    {id:'craft_shortbow',       name:'Craft Shortbow',       icon:'🏹', input:'normal_plank', output:'shortbow',         xp:50,  req:5,  ms:4000, secondary:{silk_thread:1}},
-    {id:'craft_longbow',        name:'Craft Longbow',        icon:'🏹', input:'oak_plank',    output:'longbow',          xp:120, req:30, ms:5000, secondary:{silk_thread:2}},
-    // Plank + magic essence → staff
-    {id:'craft_apprentice_staff', name:'Craft Apprentice Staff', icon:'🪄', input:'oak_plank',    output:'apprentice_staff', xp:75,  req:15, ms:4500, secondary:{magic_essence:1}},
-    {id:'craft_oak_staff',        name:'Craft Oak Staff',        icon:'🪄', input:'maple_plank',  output:'oak_staff',        xp:180, req:35, ms:5500, secondary:{magic_essence:3, silk_thread:1}},
-    // Plank + iron → arrows (qty 5 per craft; engine grants 1, but we override via output count)
-    // For now produces a single iron_arrows item (stack); future iteration could make these multi-output.
-    {id:'craft_iron_arrows',    name:'Craft Iron Arrows',    icon:'🏹', input:'iron_bar',    output:'iron_arrows',      xp:60,  req:25, ms:4000, secondary:{willow_plank:1}},
-    // Light armor + accessories (cape, gloves, boots, belt)
-    {id:'craft_traveler_cape',  name:'Craft Traveler Cape',  icon:'🦸', input:'willow_plank', output:'traveler_cape',    xp:100, req:20, ms:4500, secondary:{wolf_pelt:1, silk_thread:1}},
-    {id:'craft_leather_boots',  name:'Craft Leather Boots',  icon:'🥾', input:'normal_plank', output:'leather_boots',    xp:65,  req:8,  ms:3500, secondary:{wolf_pelt:1}},
-    {id:'craft_leather_gloves', name:'Craft Leather Gloves', icon:'🧤', input:'normal_plank', output:'leather_gloves',   xp:55,  req:6,  ms:3500, secondary:{wolf_pelt:1}},
-    {id:'craft_bronze_belt',    name:'Craft Bronze Belt',    icon:'🟫', input:'normal_plank', output:'bronze_belt',      xp:75,  req:12, ms:3800, secondary:{copper_bar:1, silk_thread:1}},
-  ],
-  prayer: [
-    {id:'bury_bones',     name:'Bury Bones',         icon:'🦴', input:'bones',         output:null, xp:4.5, req:1,  ms:1200},
-    {id:'bury_big',       name:'Bury Big Bones',     icon:'🦴', input:'big_bones',     output:null, xp:15,  req:15, ms:1500},
-    {id:'bury_dragon',    name:'Bury Dragon Bones',  icon:'🦴', input:'dragon_bones',  output:null, xp:72,  req:35, ms:2000},
-  ]
-};
+/* ─── ARTISAN recipe tables: src/data/recipes.js, published by main.js. The
+   inline copy that stood here was replaced wholesale by that publish and is
+   deleted (2026-10-08). ─── */
 
 /* ─── Artisan render: replaces 'Train by fighting' empty state ─── */
 window.renderArtisanActivities = function(skillId){
@@ -14315,47 +13778,6 @@ window._stopArtisan = function(){
 "use strict";
 if(typeof ITEMS === 'undefined') return;
 
-/* ─── Phase A.1: NEW ITEMS ─────────────────────────────── */
-var NEW_ITEMS = {
-  /* Tier 1 cooked from combat meat */
-  raw_wolf_meat:   {n:'Raw Wolf Meat',    icon:'🍖', v:5,  cookedFrom:null},
-  raw_panther_meat:{n:'Raw Panther Meat', icon:'🍖', v:8,  cookedFrom:null},
-  raw_bear_meat:   {n:'Raw Bear Meat',    icon:'🍖', v:15, cookedFrom:null},
-  cooked_wolf_meat:   {n:'Cooked Wolf Meat',    icon:'🥩', v:12, heals:6,  cookedFrom:'raw_wolf_meat'},
-  cooked_panther_meat:{n:'Cooked Panther Meat', icon:'🥩', v:22, heals:9,  cookedFrom:'raw_panther_meat'},
-  cooked_bear_meat:   {n:'Cooked Bear Meat',    icon:'🥩', v:42, heals:13, cookedFrom:'raw_bear_meat'},
-
-  /* Tier 2 buff foods */
-  roasted_carrot: {n:'Roasted Carrot', icon:'🥕', v:12,  heals:5,  buff:{type:'gather_speed', magnitude:1,  durationMs:180000}},
-  wheat_bread:    {n:'Wheat Bread',    icon:'🍞', v:35,  heals:14, buff:{type:'all_xp',       magnitude:2,  durationMs:300000}},
-  tomato_soup:    {n:'Tomato Soup',    icon:'🥣', v:60,  heals:16, buff:{type:'drop_rate',    magnitude:3,  durationMs:480000}},
-  roasted_pumpkin:{n:'Roasted Pumpkin',icon:'🎃', v:90,  heals:22, buff:{type:'farm_yield',   magnitude:5,  durationMs:600000}},
-  vegetable_stew: {n:'Vegetable Stew', icon:'🍲', v:140, heals:24, buff:{type:'all_xp',       magnitude:3,  durationMs:900000}},
-
-  /* Tier 3 (most are gated by Phase B per the doc, but we can add the data now) */
-  bear_claw_pie:  {n:'Bear Claw Pie',  icon:'🥧', v:280, heals:32, buff:{type:'damage',          magnitude:5,  durationMs:600000}},
-  hunters_feast:  {n:"Hunter's Feast", icon:'🍱', v:420, heals:35, buff:{type:'drop_rate', magnitude:5, durationMs:900000}}, // b238: stale twin — items.js authoritative; kept in sync
-  dragon_stew:    {n:'Dragon Stew',    icon:'🍜', v:780, heals:45, buff:{type:'combat_xp',       magnitude:10, durationMs:1200000}},
-  lich_soul_soup: {n:'Lich Soul Soup', icon:'🥣', v:1100,heals:50, buff:{type:'gold_find',       magnitude:50, durationMs:300000}},
-  void_banquet:   {n:'Void Banquet',   icon:'🎂', v:2400,heals:60, buff:{type:'damage_crit',     magnitude:5,  durationMs:900000}},
-
-  /* New bars */
-  bronze_bar: {n:'Bronze Bar', icon:'🟫', v:32},
-  steel_bar:  {n:'Steel Bar',  icon:'⬜', v:150},
-  rune_bar:   {n:'Rune Bar',   icon:'🔷', v:1200},
-
-  /* Recipe scrolls — drops from named bosses, single-use unlocks */
-  chief_blade_recipe:    {n:"Chief's Blade Recipe",       icon:'📜', v:0, recipe:'chief_blade'},
-  captain_recipe:        {n:"Captain's Ribblade Recipe",  icon:'📜', v:0, recipe:'captains_ribblade'},
-  alpha_pattern:         {n:'Alpha Cloak Pattern',        icon:'📜', v:0, recipe:'alpha_cloak'},
-  spellstone_diagram:    {n:'Spellstone Diagram',         icon:'📜', v:0, recipe:'spellstone_ring'},
-  dragon_marrow_recipe:  {n:'Dragon Marrow Recipe',       icon:'📜', v:0, recipe:'dragonbone_spear'},
-  gemcutter_note:        {n:"Gemcutter's Note",           icon:'📜', v:0, recipe:'dragon_gem_earrings'},
-  soul_recipe:           {n:'Soul Recipe Scroll',         icon:'📜', v:0, recipe:'lich_soul_soup'},
-  marrow_cookbook:       {n:'Marrow Cookbook',            icon:'📜', v:0, recipe:'dragon_stew'},
-  field_cookbook:        {n:'Field Cookbook',             icon:'📜', v:0, recipe:'hunters_feast'},
-};
-Object.keys(NEW_ITEMS).forEach(function(k){ if(!ITEMS[k]) ITEMS[k] = NEW_ITEMS[k]; });
 
 /* b127: Removed icons3/* paths for raw meats + recipe scrolls + the
  * three extra bars (bronze_bar / steel_bar / rune_bar). All these
@@ -14365,80 +13787,10 @@ Object.keys(NEW_ITEMS).forEach(function(k){ if(!ITEMS[k]) ITEMS[k] = NEW_ITEMS[k
 window._itemPath = window._itemPath || {};
 window._itemSVG = window._itemSVG || {};
 
-/* ─── Phase A.1: ARTISAN_RECIPES additions ─────────────── */
-window.ARTISAN_RECIPES = window.ARTISAN_RECIPES || {cooking:[], smithing:[], crafting:[], prayer:[], runecrafting:[], stonemason:[]};
-function add(skill, recipe){ window.ARTISAN_RECIPES[skill].push(recipe); }
-function has(skill, id){ return (window.ARTISAN_RECIPES[skill]||[]).some(function(r){return r.id===id;}); }
-
-/* COOKING — extend existing 4 (shrimp/trout/lobster/shark) with the rest */
-[
-  /* Combat-meat chain */
-  {id:'cook_wolf_meat',    name:'Cook Wolf Meat',    icon:'🥩', inputs:{raw_wolf_meat:1},    output:'cooked_wolf_meat',    xp:35,  req:5,  ms:2400},
-  {id:'cook_panther_meat', name:'Cook Panther Meat', icon:'🥩', inputs:{raw_panther_meat:1}, output:'cooked_panther_meat', xp:60,  req:25, ms:2800},
-  {id:'cook_bear_meat',    name:'Cook Bear Meat',    icon:'🥩', inputs:{raw_bear_meat:1},    output:'cooked_bear_meat',    xp:120, req:40, ms:3400},
-  /* Tier 2 buff foods */
-  {id:'cook_carrot',       name:'Roast Carrot',     icon:'🥕', inputs:{carrot:1},            output:'roasted_carrot', xp:20,  req:5,  ms:1500},
-  {id:'cook_wheat_bread',  name:'Bake Wheat Bread', icon:'🍞', inputs:{wheat:3},             output:'wheat_bread',    xp:55,  req:20, ms:3000},
-  {id:'cook_tomato_soup',  name:'Tomato Soup',      icon:'🥣', inputs:{tomato:3, carrot:1},  output:'tomato_soup',    xp:120, req:35, ms:3600},
-  {id:'cook_pumpkin',      name:'Roast Pumpkin',    icon:'🎃', inputs:{pumpkin:1},           output:'roasted_pumpkin',xp:140, req:40, ms:4000},
-  {id:'cook_veg_stew',     name:'Vegetable Stew',   icon:'🍲', inputs:{potato:2, carrot:2, tomato:1}, output:'vegetable_stew', xp:180, req:50, ms:4500},
-  /* Farm-crop intermediates — fill the mid-cooking gap so vegetable XP gain isn't a dead end */
-  {id:'cook_baked_potato', name:'Baked Potato',     icon:'🥔', inputs:{potato:2},                output:'baked_potato',    xp:90,  req:25, ms:3200},
-  {id:'cook_carrot_stew',  name:'Carrot Stew',      icon:'🍲', inputs:{carrot:3, potato:1},      output:'carrot_stew',     xp:150, req:45, ms:4000},
-  {id:'cook_pumpkin_pie',  name:'Pumpkin Pie',      icon:'🥧', inputs:{pumpkin:1, wheat:2},      output:'pumpkin_pie',     xp:240, req:60, ms:4800},
-  /* Tier 3 — unlocked by recipe scrolls (handled by gated check at runtime) */
-  {id:'cook_bear_pie',     name:'Bear Claw Pie',    icon:'🥧', inputs:{bear_claw:1, wheat:3}, output:'bear_claw_pie',  xp:280, req:70, ms:5000},
-  {id:'cook_hunters_feast',name:"Hunter's Feast",   icon:'🍱', inputs:{troll_hide:1, bear_pelt:1, cooked_trout:2}, output:'hunters_feast', xp:320, req:75, ms:5500, gated:'field_cookbook'},
-  {id:'cook_dragon_stew',  name:'Dragon Stew',      icon:'🍜', inputs:{dragon_scale:1, carrot:1, tomato:1, pumpkin:1, potato:1}, output:'dragon_stew', xp:450, req:85, ms:6000, gated:'marrow_cookbook'},
-  {id:'cook_lich_soup',    name:'Lich Soul Soup',   icon:'🥣', inputs:{lich_soul:1, wheat:1}, output:'lich_soul_soup', xp:600, req:90, ms:6500, gated:'soul_recipe'},
-  {id:'cook_void_banquet', name:'Void Banquet',     icon:'🎂', inputs:{void_core:1, dragon_bones:1, cooked_shark:3}, output:'void_banquet', xp:900, req:99, ms:7000},
-].forEach(function(r){ if(!has('cooking', r.id)) add('cooking', r); });
-
-/* SMITHING — extend with bronze/steel/rune bars + forge weapons + forge armor + gated */
-[
-  /* New bars */
-  {id:'smelt_bronze',  name:'Bronze Bar',  icon:'🟫', inputs:{copper_ore:2, coal:1},          output:'bronze_bar',  xp:20,  req:8,  ms:2600},
-  {id:'smelt_steel',   name:'Steel Bar',   icon:'⬜', inputs:{iron_bar:1, coal:2},            output:'steel_bar',   xp:70,  req:35, ms:3600},
-  {id:'smelt_rune',    name:'Rune Bar',    icon:'🔷', inputs:{mithril_bar:1, magic_essence:1, coal:4}, output:'rune_bar', xp:240, req:75, ms:6000},
-  /* Forge weapons */
-  {id:'forge_bronze_sword',  name:'Forge Bronze Sword',  icon:'⚔️', inputs:{bronze_bar:2, normal_plank:1}, output:'bronze_sword',  xp:60,    req:5,  ms:2500},
-  {id:'forge_iron_sword',    name:'Forge Iron Sword',    icon:'⚔️', inputs:{iron_bar:3, oak_plank:1},      output:'iron_sword',    xp:180,   req:20, ms:3000},
-  {id:'forge_steel_sword',   name:'Forge Steel Sword',   icon:'⚔️', inputs:{steel_bar:3, willow_plank:1},  output:'steel_sword',   xp:400,   req:40, ms:3800},
-  {id:'forge_rune_sword',    name:'Forge Rune Sword',    icon:'⚔️', inputs:{rune_bar:3, magic_essence:2, maple_plank:1}, output:'rune_sword', xp:1200, req:75, ms:5500},
-  {id:'forge_stone_maul',    name:'Forge Stone Maul',    icon:'🔨', inputs:{normal_plank:2, copper_ore:4}, output:'stone_maul',    xp:100,   req:10, ms:2700},
-  {id:'forge_iron_warhammer',name:'Forge Iron Warhammer',icon:'🔨', inputs:{iron_bar:4, oak_plank:2},      output:'iron_warhammer',xp:350,   req:35, ms:3800},
-  /* Forge armor */
-  {id:'forge_iron_helm',     name:'Forge Iron Helm',     icon:'⛑️', inputs:{iron_bar:2},  output:'iron_helm',      xp:200, req:25, ms:3000},
-  {id:'forge_iron_platebody',name:'Forge Iron Platebody',icon:'🦺', inputs:{iron_bar:5},  output:'iron_platebody', xp:350, req:35, ms:3800},
-  {id:'forge_steel_helm',    name:'Forge Steel Helm',    icon:'⛑️', inputs:{steel_bar:3}, output:'steel_helm',     xp:600, req:50, ms:4500},
-  {id:'forge_steel_platebody',name:'Forge Steel Platebody',icon:'🦺',inputs:{steel_bar:7},output:'steel_platebody',xp:900, req:60, ms:5000},
-  {id:'forge_bronze_belt',   name:'Forge Bronze Belt',   icon:'🟫', inputs:{bronze_bar:2, wolf_pelt:1}, output:'bronze_belt', xp:120, req:18, ms:2800},
-  /* Gated forges */
-  {id:'forge_chief_blade',   name:"Chief's Blade",       icon:'🗡️', inputs:{warlord_badge:1, iron_bar:4, oak_plank:2},    output:'chief_blade',       xp:600,  req:50, ms:5000, gated:'chief_blade_recipe'},
-  {id:'forge_captain_blade', name:"Captain's Ribblade",  icon:'🗡️', inputs:{captain_medal:1, steel_bar:4, maple_plank:2},output:'captains_ribblade', xp:1100, req:70, ms:6000, gated:'captain_recipe'},
-  /* Phase B note: dragonbone_spear could be added later; output item not in ITEMS yet */
-].forEach(function(r){ if(!has('smithing', r.id)) add('smithing', r); });
-
-/* CRAFTING — extend with carved weapons, tailoring, jewelry, gated */
-[
-  /* Carved weapons */
-  {id:'carve_shortbow',         name:'Carve Shortbow',          icon:'🏹', inputs:{normal_plank:2, silk_thread:1}, output:'shortbow',         xp:60,  req:5,  ms:2400},
-  {id:'carve_longbow',          name:'Carve Longbow',           icon:'🏹', inputs:{willow_plank:3, silk_thread:2}, output:'longbow',          xp:240, req:25, ms:3600},
-  {id:'carve_apprentice_staff', name:'Carve Apprentice Staff',  icon:'🪄', inputs:{oak_plank:2, magic_essence:1},  output:'apprentice_staff', xp:120, req:12, ms:2800},
-  {id:'carve_oak_staff',        name:'Carve Oak Staff',         icon:'🪄', inputs:{willow_plank:3, magic_essence:2, ancient_rune:1}, output:'oak_staff', xp:300, req:30, ms:4000},
-  /* ×50 — MUST MATCH src/data/recipes.js, which carries the reasoning (raising
-     this to 500 trips the server's c_max_item_delta clamp on honest away play). */
-  {id:'craft_iron_arrows',      name:'Craft Iron Arrows ×50',   icon:'🏹', inputs:{iron_bar:1, normal_plank:5},    output:'iron_arrows', outputQty:50, xp:120, req:20, ms:3500},
-  /* Tailoring */
-  {id:'tailor_leather_boots',   name:'Tailor Leather Boots',    icon:'🥾', inputs:{wolf_pelt:2}, output:'leather_boots', xp:80, req:8, ms:2400},
-  {id:'tailor_leather_gloves',  name:'Tailor Leather Gloves',   icon:'🧤', inputs:{wolf_pelt:1, silk_thread:1}, output:'leather_gloves', xp:120, req:12, ms:2800},
-  {id:'tailor_traveler_cape',   name:'Tailor Traveler Cape',    icon:'🦸', inputs:{silk_thread:3, wolf_pelt:2},  output:'traveler_cape',  xp:140, req:15, ms:3000},
-  /* Jewelry */
-  {id:'jewel_copper_ring',      name:'Set Copper Ring',         icon:'💍', inputs:{copper_bar:1, magic_essence:1}, output:'copper_ring', xp:180, req:20, ms:3000},
-  {id:'jewel_hunter_necklace',  name:'String Hunter Necklace',  icon:'📿', inputs:{gold_bar:1, wolf_pelt:1}, output:'hunter_necklace', xp:240, req:25, ms:3500},
-  /* Gated crafts */
-  {id:'craft_alpha_cloak',      name:'Craft Alpha Cloak',       icon:'🦸', inputs:{bear_pelt:2, silk_thread:3}, output:'alpha_cloak', xp:1200, req:60, ms:5500, gated:'alpha_pattern'},
-].forEach(function(r){ if(!has('crafting', r.id)) add('crafting', r); });
+/* The Phase A.1 item and recipe additions that stood here are deleted
+   (2026-10-08): items live in src/data/items.js, recipes in
+   src/data/recipes.js, and main.js publishes both over anything this block
+   could have added. */
 
 /* ─── Patch artisan loop to support multi-input recipes (inputs dict) ─── */
 /* PHASE A: the recipe-shape readers live in src/core/artisan.js now — one
@@ -14760,9 +14112,6 @@ window.renderArtisanActivities = function(skillId){
    recipe. Reading a scroll is now a gesture with a server verb; the whole story
    and the code are in src/features/recipe-scrolls.js. Nothing wraps addItem. */
 
-console.log('Phase A.1 recipe set loaded:',
-  Object.values(window.ARTISAN_RECIPES).reduce(function(a,arr){return a+arr.length;},0), 'total recipes,',
-  Object.keys(NEW_ITEMS).length, 'new items');
 })();
 
 // ===== block 22: activity-mutex =====
@@ -15080,8 +14429,6 @@ console.log('UI rework v2 loaded');
 (function(){
 "use strict";
 
-document.body.classList.add('has-prof-toolbar');
-
 /* ═══ Tibia paper-doll builder ═══════════════════════════ */
 // b190: monochrome line-glyphs for EMPTY equipment slots. The old colorful
 // emoji placeholders (⛑️📿💎…) clashed hard with the painted dark theme —
@@ -15180,40 +14527,6 @@ function refreshAllDolls(){
   });
 }
 
-/* ═══ Profile: top toolbar with Objectives + Lifetime Stats + others ═══ */
-function buildProfileToolbar(){
-  var panel = document.getElementById('panel-profile');
-  if(!panel) return;
-  if(panel.querySelector('.prof-toolbar')) return;
-
-  /* Active objective count */
-  var quests = (G.quests && G.quests.list) || [];
-  var activeQuestCount = quests.filter(function(q){return !q.done;}).length;
-  var dailyCount = ((G.dailyTasks||{}).list||[]).filter(function(t){return !t.done;}).length;
-  var pendingObj = activeQuestCount + dailyCount;
-
-  var bar = document.createElement('div');
-  bar.className = 'prof-toolbar';
-  bar.innerHTML =
-    '<button class="tb-btn" id="tb-objectives">'+_hrGly('uiScroll',14)+' Objectives'+(pendingObj>0?' <span class="tb-badge">'+pendingObj+'</span>':'')+'</button>'+
-    '<button class="tb-btn" onclick="openAchievements()">'+_hrGly('uiTrophy',14)+' Achievements</button>'+
-    '<button class="tb-btn" onclick="openBestiary()">'+_hrGly('uiBook',14)+' Bestiary</button>'+
-    '<button class="tb-btn" onclick="openLifetimeStats && openLifetimeStats()">'+_hrGly('uiTrend',14)+' Lifetime</button><button class="tb-btn" id="tb-codex" onclick="window.HearthriseCodex&&HearthriseCodex.open()">'+_hrGly('uiScroll',14)+' Codex</button>';
-  panel.insertBefore(bar, panel.firstChild);
-  document.getElementById('tb-objectives').addEventListener('click', openObjectivesPopout);
-  /* Suppress old feat-buttons row since toolbar replaces it */
-  var featRow = panel.querySelector('.feat-buttons');
-  if(featRow) featRow.style.display = 'none';
-}
-/* b40x render-layer extraction: openObjectivesPopout — the Profile "Objectives"
-   popout overlay — moved VERBATIM to src/render/objectives-popout.js
-   (classic-script IIFE, loaded after legacy.js). Read-only: it mirrors the
-   #dash-objectives card innerHTML into a modal and writes no game state. Its sole
-   caller, buildProfileToolbar above, wires it via addEventListener with the bare
-   identifier, which resolves to window.openObjectivesPopout re-exported by the
-   module. Pure refactor, byte-identical DOM. See
-   docs/design/render-extraction-pattern.md. */
-
 /* Daily Goals → Daily Quests rename in DOM */
 function renameDailyGoals(){
   document.querySelectorAll('.card-title, h3, h4, b').forEach(function(el){
@@ -15311,7 +14624,6 @@ function patchSkillsViewing(){
 
 /* ═══ Boot — apply all patches ═══ */
 function applyAll(){
-  buildProfileToolbar();
   renameDailyGoals();
   patchCharacterPage();
   patchCombatPage();
@@ -15329,7 +14641,6 @@ setTimeout(applyAll, 1200);
   window[name] = function(){
     var r = orig.apply(this, arguments);
     setTimeout(function(){
-      buildProfileToolbar();
       renameDailyGoals();
       patchCharacterPage();
       patchCombatPage();
@@ -16126,7 +15437,7 @@ var TESTS = [
   function(){return tryRun('renders: profile', function(){
     showTab('profile');
     if(typeof renderProfile === 'function') renderProfile();
-    assert(document.getElementById('dash-user'), 'dash-user missing');
+    assert(document.getElementById('hd-root'), 'hd-root missing');
   });},
 
   function(){return tryRun('renders: farm + house', function(){

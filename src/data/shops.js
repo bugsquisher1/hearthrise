@@ -16,8 +16,8 @@
 //   hand-authored source, tools/gen-shops.mjs is deleted, and the preflight
 //   goes with it. The filename does not change, so nothing downstream moves.
 //
-//   catalogue digest: f9f1aa0d01800a65c65527ec99ac751c5c1314ed1f2fa884f4be50881c763987
-//   128 offers · 224 cost lines · 6 prices that are formulas, not data
+//   catalogue digest: 42f8dc034c836c4bb1a74defbb73e44cf851b0b8bcfd24892ab464d9a909191c
+//   128 offers · 224 cost lines · 5 prices that are formulas, not data
 //
 // EXTRACTED FROM
 //   room              40  src/legacy.js
@@ -52,7 +52,7 @@
 //   debit every cost line, credit every grant line, one transaction. The
 //   client sends an OFFER ID and never a price.
 //
-// ⚠ DERIVED_PRICES IS NOT DECORATION. Six spend sites compute their price at
+// ⚠ DERIVED_PRICES IS NOT DECORATION. Five spend sites compute their price at
 //   call time and are NOT in SHOP_OFFERS. A consumer that cannot find an
 //   offer id must REFUSE, never default — a server that invents a price is
 //   worse than a server that has none.
@@ -61,11 +61,11 @@
 //   gold           player_state.gold
 //   gems           player_state.gems
 //   hearth_tokens  player_state.hearth_tokens   (IAP-only; never PvE-minted)
-//   marks          NOWHERE — Bounty Marks have no server column today
+//   marks          player_state.marks           (projected by hr_state_of; spent by hr_bounty_spend)
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-export const SHOPS_DIGEST = "f9f1aa0d01800a65c65527ec99ac751c5c1314ed1f2fa884f4be50881c763987";
+export const SHOPS_DIGEST = "42f8dc034c836c4bb1a74defbb73e44cf851b0b8bcfd24892ab464d9a909191c";
 
 /** Every offer whose price is fully known as data. */
 export const SHOP_OFFERS = [
@@ -1018,7 +1018,7 @@ export const SHOP_TABLES = [
     "table": "character_slot",
     "origin": "src/multi-character.js",
     "anchor": "const SLOT_COSTS_GEMS = [",
-    "spends_at": "multi-character.js unlockSlot()",
+    "spends_at": "multi-character.js buySlot() → hr_buy_hero_slot",
     "note": "Hearth Hall Premium grants slots 1-3 free — an entitlement waiver, not a price",
     "count": 4
   },
@@ -1065,7 +1065,7 @@ export const DERIVED_PRICES = [
       "growth": 1.32,
       "slots": 20
     },
-    "server_needs": "player_state must hold the purchase COUNT; the server recomputes the price from it. Unbounded — the client has no cap, so the server needs one before it authorises this."
+    "server_needs": "BUILT — a 30-rung ladder in public.hr_unlock_offers (bank.0…bank.29, tools/gen-gold-ladders.mjs); hr_unlock_buy prices each rung, merges GREATEST and enforces the 30-rung cap. The client sends the offer id, never a price."
   },
   {
     "id": "bounty.reroll",
@@ -1077,7 +1077,7 @@ export const DERIVED_PRICES = [
       "base": 5,
       "step": 5
     },
-    "server_needs": "a per-UTC-day reroll counter, plus the free-reroll grant from bounty.free_reroll_2. Marks have no server column at all today."
+    "server_needs": "BUILT — hr_bounty_spend (2026-08-26-marks-record.sql) derives 5 + N*5 from the paid rerolls in today's player_ledger and debits player_state.marks. Free rerolls never reach it."
   },
   {
     "id": "vendor.sell",
@@ -1090,15 +1090,6 @@ export const DERIVED_PRICES = [
       "CRAFT_ANCHOR_BP": 15000
     },
     "server_needs": "CLOSED IN THE EDGE — hr-accrue/vendor-sell.js prices from ITEMS + ARTISAN_RECIPES through the same src/core/vendor.js the client renders from; no SQL body prices a sale."
-  },
-  {
-    "id": "vendor.buyback",
-    "name": "Vendor buy-back price",
-    "where": "src/legacy.js repurchase()",
-    "currency": "gold",
-    "formula": "buyback[i].unit * buyback[i].qty — the unit price RECORDED at sale time",
-    "params": {},
-    "server_needs": "a server-side buyback ledger. The price is a property of a past transaction, not of the catalogue, so it can never be a static row — and a client-supplied unit price is a mint."
   },
   {
     "id": "clan_building.*",

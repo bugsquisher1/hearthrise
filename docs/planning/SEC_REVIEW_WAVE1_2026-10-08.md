@@ -46,3 +46,11 @@ Covers B `a5eecbfd`, C `60da1fd4` (contains B a5eecbfd) and A `026781cd` (contai
 Residual accepted for the first hunt week: credit-log rows older than 2 days were already pruned, so bounty-free credits from before that are not subtracted. That is at most one chest per account.
 
 **Edge: one deploy at `7c664322…` covers A + B + C**, but it must go AFTER all ten applies. The engine vendors C's new items and drops; proposing them to an hr_apply whose `hr_items` lacks them would refuse settles. The pet-roll and dungeon halves are safe in either order. After the deploy comes the client cut.
+
+## RE-VERIFY 3 (A after c527eafe; head 6276f56a)
+
+| Item | Verdict | Evidence (exit codes seen) |
+|---|---|---|
+| prune-8d cutoff | GO | `hr_kill_credit_prune_cutoff` is not SECURITY DEFINER, has no grant to anon, authenticated or service_role, and is not on the client RPC surface. The prune deletes only by it. Mutant: the floor removed → §4 VERIFY(b) RED. Mutant: the prune deletes by `now()-1h` → VERIFY(c) RED. schema-drift 0, selfcheck-no-global-dml 0, and its `--selftest` 0. |
+| pet-roll P5/P9 | GO | pet-roll 0; its `--selftest` 0 and catches "a roll channel shares the yield stream". |
+| TIMBERLINE-4 304→307 | GO when it lands (not on origin at review time) | A correction, not a loosening: the pin stays exact. Reproduced through the shared `simulateSkillSpan`, seed 0xC0FFEE, Elder Yew, 1h away: 307 yew_log. Adding one main-stream draw per XP grant (the deleted `pets.js` `C.rng.next()` roll) gives 304. |

@@ -72,6 +72,15 @@ const STEPS = [
   ['node', ['tests/this-week.mjs', '--selftest']],
   ['node', ['tests/quest-reward-parity.mjs']],
   ['node', ['tests/quest-reward-parity.mjs', '--selftest']],
+  // An item id is a save key (content-holes, 2026-10-08): never deleted, never re-tiered or re-slotted. ms.
+  ['node', ['tests/item-identity.mjs']],
+  ['node', ['tests/item-identity.mjs', '--selftest']],
+  // Applied generated migrations are frozen; catalogue growth is an append-only delta. ms.
+  ['node', ['tests/generated-frozen.mjs']],
+  ['node', ['tests/generated-frozen.mjs', '--selftest']],
+  // No shop -> craft -> vendor gold loop (content-holes Security review). ms.
+  ['node', ['tests/shop-craft-loop.mjs']],
+  ['node', ['tests/shop-craft-loop.mjs', '--selftest']],
   ['node', ['tests/ci-shape.mjs']],
   ['node', ['tests/guard-hygiene.mjs']],
   // A new guard's mutant replay must declare its scope (upTo / fullChain) where

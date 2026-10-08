@@ -56,12 +56,23 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { readFile } from 'node:fs/promises';
+import { readdirSync } from 'node:fs';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { bootTemplated, prefixLength, MIN_PREFIX_FILES } from './pglite-template.mjs';
 
 export const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
+
+/* The root catalogue (2026-08-11-catalogue.generated.sql) is FROZEN applied
+   history; rows the data added after the freeze live in its append-only deltas
+   (tools/generated-freeze.mjs). A guard that boots the catalogue as an `extra`
+   and needs the CURRENT rows appends these LAST, after its own files. */
+export function catalogueDeltaExtra() {
+  return readdirSync(join(ROOT, 'supabase', 'migrations'))
+    .filter((f) => /^\d{4}-\d{2}-\d{2}-catalogue\.delta\.generated\.sql$/.test(f)).sort()
+    .map((f, i) => ['catalogue-delta-' + i, MIG(f)]);
+}
 
 // Dependency order, NOT filename order — filename order does not apply
 // (clan-write-policy-pin asserts against a policy clan-membership-authority

@@ -23,14 +23,13 @@
 // are the SAME implementations the gold verbs use.
 //
 // ── AND IT SENDS NO REWARD ──────────────────────────────────────────────────
-// The wire carries a DUNGEON ID, a MODE and a clear-fraction QUALITY. It sends
-// no loot id, no quantity, no chance, no scrip amount and no key. The loot table
-// and its rates, the scrip base, the entry key, the cooldown and the per-day cap
-// all live in the client-unwritable hr_dungeons / hr_dungeon_loot and the
-// append-only ledger; hr_dungeon_settle reads them for itself and rolls loot with
-// the seeded server PRNG. p_quality is the ONE client value, CLAMPED to [0,1]
-// server-side, and it scales SELF-ONLY scrip — never loot. Edge decides WHAT
-// SHOULD HAPPEN; Postgres decides WHETHER IT MAY.
+// The wire carries a DUNGEON ID and a MODE. It sends no loot id, no quantity, no
+// chance, no scrip amount, no key and — since 2026-10-10 — no quality. The loot
+// table and its rates, the scrip base, the confirmed-clear share, the entry key, the
+// cooldown and the per-day cap all live in the client-unwritable hr_dungeons /
+// hr_dungeon_loot / hr_dungeon_cooldown_modes and the append-only ledger;
+// hr_dungeon_settle reads them for itself and rolls loot with the seeded server
+// PRNG. Edge decides WHAT SHOULD HAPPEN; Postgres decides WHETHER IT MAY.
 //
 // ⚠ WHICH IS WHY THERE IS NO hr_apply CALL SITE HERE, exactly as in
 //   unlock-buy.js: the statement below binds SEVEN scalars and no jsonb, so the
@@ -49,18 +48,21 @@ import { gateAndRead, refusalBody, shapeRefusal } from './spend.js';
 export const VERB = 'dungeon_settle';
 
 /* THE COMMIT POINT. One statement, its own transaction, run as `hr_engine`.
-   SEVEN SCALARS: no jsonb parameter, therefore no pre-stringified payload and no
-   double-encoding hazard.
+   SIX BOUND SCALARS and a literal NULL: no jsonb parameter, therefore no
+   pre-stringified payload and no double-encoding hazard.
 
-   $5 dungeon id, $6 mode, $7 quality are the whole of this verb's caller-supplied
-   surface. hr_dungeon_settle looks up the loot table, the scrip base, the entry
+   $5 dungeon id and $6 mode are the whole of this verb's caller-supplied
+   surface. The function's seventh argument (the retired client `quality`) is
+   bound to a LITERAL NULL in the SQL text, not to a parameter, so no code path
+   in this file can forward a client number into it — and the body ignores it
+   anyway (2026-10-10-dungeon-scrip-fixed-by-mode.sql). hr_dungeon_settle looks up the loot table, the scrip base, the entry
    key, the cooldown and the per-day cap for itself, takes the per-character
    advisory lock, refuses a stale version, consumes the key, rolls loot with the
    seeded PRNG, credits scrip, journals and returns hr_state_of + a `settled`
    receipt. */
 const SETTLE_SQL = `
   select public.hr_dungeon_settle($1::uuid, $2::int, $3::bigint, $4::uuid,
-                                  $5::text, $6::text, $7::numeric) as res`;
+                                  $5::text, $6::text, null::numeric) as res`;
 
 /**
  * THE INTENT.
@@ -70,7 +72,7 @@ const SETTLE_SQL = `
  * @param o.slot      the only request-derived value that reaches a query, and it
  *                    selects a row the caller already owns.
  * @param o.intentId  the caller's canonical-uuid idempotency key
- * @param o.dungeon   { id, mode, quality } from request.js, or null
+ * @param o.dungeon   { id, mode } from request.js, or null
  * @returns { status, body } — the HTTP answer, built here so the test asserts the
  *          same object the shell serialises.
  */
@@ -113,11 +115,11 @@ export async function runDungeonSettle(o) {
   /* (3) THE COMMIT. `env.version` is the version THIS call read; hr_dungeon_settle
          refuses a stale one, which is the whole of our concurrency control. The
          key is the CLIENT's — a run is a gesture, and the client is the only party
-         that knows which retry is which. `quality` may be null (the server
-         coalesces null to a full clear and clamps whatever survives to [0,1]). */
+         that knows which retry is which. NO QUALITY IS BOUND: SETTLE_SQL passes
+         a literal NULL for the seventh argument and hr_dungeon_settle reads it
+         nowhere (2026-10-10-dungeon-scrip-fixed-by-mode.sql). */
   const [row] = await exec(SETTLE_SQL, [
     user, slot, settled.version, intentId, dungeon.id, dungeon.mode,
-    dungeon.quality === null || dungeon.quality === undefined ? null : dungeon.quality,
   ]);
   const res = (row && row.res) || null;
   if (!res || res.ok !== true) {

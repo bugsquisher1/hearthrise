@@ -70,6 +70,7 @@
       "last_away_receipt",
       "marks",
       "max_hp",
+      "pet_roll_ready",
       "plot_level",
       "recovering_until",
       "rested_at",
@@ -81,5 +82,5 @@
       "workers_accrued_to"
     ]
   },
-  "generatedAt": "2026-09-27"
+  "generatedAt": "2026-10-08"
 }

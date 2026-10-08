@@ -1,0 +1,56 @@
+{
+ "_readme": [
+  "FROZEN GENERATED MIGRATIONS (tools/generated-freeze.mjs, guard tests/generated-frozen.mjs).",
+  "Every file here is applied history: its bytes may never change. A gen-* tool whose data moves",
+  "writes an append-only DELTA instead (<date>-<stem>.delta.generated.sql, last in the apply order).",
+  "When the Coordinator applies a delta, pin it here with \"deltaOf\": \"<base file>\" and its sha256",
+  "(node tests/generated-frozen.mjs --pin <file>). Cut 2026-10-08 from origin/main @ e6a12d3a:",
+  "all eleven generated files then in the chain are frozen, a superset of the ones noted APPLIED."
+ ],
+ "files": {
+  "2026-08-11-catalogue.generated.sql": {
+   "sha256": "740fd9519b02e0edb1f2e1e377c004bd9d2cbba6a8818fd08c9166ea1215c9ea",
+   "status": "applied (the chain root; tools/gen-catalogues.mjs header: \"already APPLIED to production\")"
+  },
+  "2026-08-16-unlock-offers.generated.sql": {
+   "sha256": "ccbd892c72576e49a9b0fbc102cfcb61a38579afc5e2446a2362066765b78255",
+   "status": "frozen at the 2026-10-08 cut (in the live chain; note: STAGED, NOT APPLIED (the Coordinator app…)"
+  },
+  "2026-08-16-unlocks.generated.sql": {
+   "sha256": "211a772b324765fdf832d3c7a78028da3cc10531b696fc2d4cf18d3c1e7832cd",
+   "status": "frozen at the 2026-10-08 cut (in the live chain; note: STAGED, NOT APPLIED (the Coordinator app…)"
+  },
+  "2026-08-22-farm-catalogues.generated.sql": {
+   "sha256": "afe3eeabcc61499e5a1dd90baee0859ff33daa00ce6cfc434fe495a98970fc12",
+   "status": "applied (schema-apply-order note)"
+  },
+  "2026-08-22-raid-boss-rewards.generated.sql": {
+   "sha256": "1fa90b001cdc98e24a040b5e6536482f749619dc5a448eeab1939df847049747",
+   "status": "applied (schema-apply-order note)"
+  },
+  "2026-08-23-bounty-monsters.generated.sql": {
+   "sha256": "6c9b322b5d4c79d59d8064bd3fbf4b66769cef094ab6472907f3cd25d8854449",
+   "status": "frozen at the 2026-10-08 cut (in the live chain; note: none)"
+  },
+  "2026-09-08-hearthfind-catalogue.generated.sql": {
+   "sha256": "22964da7b516140052d94d34b85852cecaec03d4299fa16240bf25f01825ace6",
+   "status": "applied (schema-apply-order note)"
+  },
+  "2026-09-10-dungeon-catalogue.generated.sql": {
+   "sha256": "0edf9743c29b9a01aea3468d4408629de2bd3410a1c3d983432e63c68a4f67b6",
+   "status": "applied (schema-apply-order note)"
+  },
+  "2026-09-13-item-buffs-catalogue.generated.sql": {
+   "sha256": "ef2a50c8a361cdeee11389828e23fee36e0c9eca27997f92244471786f77d235",
+   "status": "applied (schema-apply-order note)"
+  },
+  "2026-09-13-room-perks-catalogue.generated.sql": {
+   "sha256": "a01e69ce00085677eda233e782f755ebbc43752ab00e4454721e1a1e7f20ceed",
+   "status": "applied (schema-apply-order note)"
+  },
+  "2026-09-14-gem-unlocks-catalogue.generated.sql": {
+   "sha256": "37c954e3c3d9ddf20dcf1f6dbfdacb54a2b46fe4362e1f113e3ca0a6e38cc013",
+   "status": "applied (schema-apply-order note)"
+  }
+ }
+}

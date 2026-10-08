@@ -3910,6 +3910,18 @@ function applyEnvelopeStateBody(G, res, ownKey) {
     if (w && w.HearthriseHearthfind && typeof w.HearthriseHearthfind.noteEnvelope === 'function') {
       w.HearthriseHearthfind.noteEnvelope(res);
     }
+    /* THE PET ROLL'S RECEIPT (2026-10-10-pet-roll-server.sql) — hr_apply's own
+       `companion_finds`, present only on the response that granted them. The
+       roster itself arrives through reconcileCompanions; this is only the
+       moment. The browser never rolls a pet any more, so this is the ONLY
+       "a wild friend" announcement there is. */
+    if (w && Array.isArray(res.companion_finds) && typeof w.notify === 'function') {
+      for (const f of res.companion_finds) {
+        const id = f && typeof f.companion === 'string' ? f.companion : null;
+        const def = id && w.COMPANIONS && w.COMPANIONS[id];
+        if (def) w.notify('A wild friend! ' + (def.n || id) + ' now follows you!', 'levelup');
+      }
+    }
     /* LUCKY FINDS (content pack 1) — the server's `away.events` rare_drop is the
        ONLY reveal of a lucky row; the client's own dice never announce one. */
     if (w && w.HearthriseLuckyFinds && typeof w.HearthriseLuckyFinds.noteEnvelope === 'function') {

@@ -401,7 +401,7 @@ export const RESIDUE_FIELDS = Object.freeze([
                     // normal server purchase; losing the list only costs a misclick its undo
   'dailyGoldStart', // {day,gold,earned} — the day's gold baseline the daily goals measure against;
                     // reset on reload = the gold-earned goal restarts from the current balance
-  'raids',          // client-held markers for a surface with no projection yet: {lastStrikeDay, solo:{week,…},
+  'raids',          // client-held markers for a surface with no projection yet: {lastStrikeDay,
                     // claimed:{}}. The PAY is server once-guarded; the cooldown is the part with no server
                     // clock behind it, so this stays until one exists (b288: a forgotten cooldown is a faucet)
   'muster',         // client-only marker: the day/slot/claimed state the player has already been SHOWN.

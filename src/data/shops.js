@@ -16,15 +16,15 @@
 //   hand-authored source, tools/gen-shops.mjs is deleted, and the preflight
 //   goes with it. The filename does not change, so nothing downstream moves.
 //
-//   catalogue digest: 9ae0e117076c94190571541728d73592a211d79990f4b6c05869cac674fdc611
-//   129 offers · 225 cost lines · 6 prices that are formulas, not data
+//   catalogue digest: f9f1aa0d01800a65c65527ec99ac751c5c1314ed1f2fa884f4be50881c763987
+//   128 offers · 224 cost lines · 6 prices that are formulas, not data
 //
 // EXTRACTED FROM
 //   room              40  src/legacy.js
 //   plot               4  src/legacy.js
 //   theme              6  src/legacy.js
 //   seed              13  src/legacy.js
-//   equip             19  src/legacy.js
+//   equip             18  src/legacy.js
 //   bounty             5  src/legacy.js
 //   trait              2  src/legacy.js
 //   cosmetic           4  src/render/shop.js
@@ -65,7 +65,7 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-export const SHOPS_DIGEST = "9ae0e117076c94190571541728d73592a211d79990f4b6c05869cac674fdc611";
+export const SHOPS_DIGEST = "f9f1aa0d01800a65c65527ec99ac751c5c1314ed1f2fa884f4be50881c763987";
 
 /** Every offer whose price is fully known as data. */
 export const SHOP_OFFERS = [
@@ -255,13 +255,6 @@ export const SHOP_OFFERS = [
     name: "Copper Ring",
     cost: [{ kind: "currency", id: "gold", amount: 350 }],
     grant: [{ kind: "item", id: "copper_ring", amount: 1 }],
-    repeatable: true,
-  },
-  {
-    id: "equip.fox_companion", table: "equip",
-    name: "Fox Companion",
-    cost: [{ kind: "currency", id: "gold", amount: 1200 }],
-    grant: [{ kind: "item", id: "fox_companion", amount: 1 }],
     repeatable: true,
   },
   {
@@ -965,7 +958,7 @@ export const SHOP_TABLES = [
     "origin": "src/legacy.js",
     "anchor": "const EQUIP_SHOP=[",
     "spends_at": "legacy.js buyShopItem(id, qty, cost)",
-    "count": 19
+    "count": 18
   },
   {
     "table": "bounty",

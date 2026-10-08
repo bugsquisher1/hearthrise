@@ -59,6 +59,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { join } from 'node:path';
+import { readFileSync, readdirSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { bootChain, ROOT } from './pglite-chain.mjs';
 
@@ -71,14 +72,33 @@ const argOf = (n, d) => {
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
 // Appended to the shared chain rather than added to it — see bootChain's
 // `extra` docs. The catalogue is a hard dependency of the file under test.
+/* The root catalogue is FROZEN applied history (tools/generated-freeze.mjs);
+   what the data wants NOW is that file plus its append-only deltas, applied in
+   name order. A start kit that moved after the freeze lives in a delta, so the
+   kit this guard checks is the one the chain END grants. */
+const CATALOGUE_DELTAS = readdirSync(join(ROOT, 'supabase', 'migrations'))
+  .filter((f) => /^\d{4}-\d{2}-\d{2}-catalogue\.delta\.generated\.sql$/.test(f)).sort();
 const EXTRA = [
   ['catalogue', MIG('2026-08-11-catalogue.generated.sql')],
   ['character-bootstrap', MIG('2026-08-14-character-bootstrap.sql')],
+  ...CATALOGUE_DELTAS.map((f, i) => ['catalogue-delta-' + i, MIG(f)]),
 ];
+/* A mutation must land in the LAST file that states the row, or a later delta
+   silently corrects it and the arm proves nothing. */
+const lastStating = (needle, fallback) => {
+  for (let i = CATALOGUE_DELTAS.length - 1; i >= 0; i--) {
+    if (readFileSync(MIG(CATALOGUE_DELTAS[i]), 'utf8').includes(needle)) return 'catalogue-delta-' + i;
+  }
+  return fallback;
+};
 
 // THE JS SIDE OF THE BOUNDARY. Imported, never restated — a test that retypes
 // the constants cannot detect the constants being wrong.
 const KIT = await import(pathToFileURL(join(ROOT, 'src', 'data', 'start-kit.js')).href);
+const GOLD_ANCHOR = `  values (true, ${KIT.START_CURRENCY.gold}, `;
+const TURNIP_DELTA = `  ('turnip_seed', ${KIT.START_INVENTORY.turnip_seed})`;
+const TURNIP_LABEL = lastStating(TURNIP_DELTA, 'catalogue');
+const TURNIP_ANCHOR = TURNIP_LABEL === 'catalogue' ? `  ('turnip_seed',${KIT.START_INVENTORY.turnip_seed});` : TURNIP_DELTA;
 
 const UID = '00000000-0000-4000-b338-000000000001';
 const UID2 = '00000000-0000-4000-b338-000000000002';
@@ -448,19 +468,28 @@ end $planted$;
   catalogue_gold_drift: {
     what: 'the catalogue grants different starting gold than src/data/start-kit.js',
     where: 'runtime',
-    patches: [['catalogue', [[
-      `  values (true, ${KIT.START_CURRENCY.gold}, `,
+    /* In a delta the row is also restated by the delta's own self-check, so the
+       mutant moves both — the drift under test is SQL-vs-start-kit.js, which only
+       C2/C3 can see. */
+    patches: [[lastStating(GOLD_ANCHOR, 'catalogue'), [[
+      GOLD_ANCHOR,
       `  values (true, ${KIT.START_CURRENCY.gold + 1}, `,
-    ]]]],
+    ], ...(lastStating(GOLD_ANCHOR, 'catalogue') === 'catalogue' ? [] : [[
+      `gold is not distinct from ${KIT.START_CURRENCY.gold} `,
+      `gold is not distinct from ${KIT.START_CURRENCY.gold + 1} `,
+    ]])]]],
   },
 
   catalogue_inventory_drift: {
     what: 'the catalogue grants a different starting quantity than src/data/start-kit.js',
     where: 'runtime',
-    patches: [['catalogue', [[
-      `  ('turnip_seed',${KIT.START_INVENTORY.turnip_seed});`,
-      `  ('turnip_seed',${KIT.START_INVENTORY.turnip_seed + 1});`,
-    ]]]],
+    patches: [[TURNIP_LABEL, [[
+      TURNIP_ANCHOR,
+      TURNIP_ANCHOR.replace(String(KIT.START_INVENTORY.turnip_seed), String(KIT.START_INVENTORY.turnip_seed + 1)),
+    ], ...(TURNIP_LABEL === 'catalogue' ? [] : [[
+      `item_id is not distinct from 'turnip_seed' and qty is not distinct from ${KIT.START_INVENTORY.turnip_seed})`,
+      `item_id is not distinct from 'turnip_seed' and qty is not distinct from ${KIT.START_INVENTORY.turnip_seed + 1})`,
+    ]])]]],
   },
 };
 

@@ -47,11 +47,28 @@
 //      than the inputs fetch.
 //   7. FAIL CLOSED. A recipe input missing from the catalogue is worth 0, so a
 //      data typo makes an output cheaper, never dearer.
+//   8. SCRIP STOCK (Game Designer ruling, Security wave-1 review): a
+//      bind-on-pickup item the Quartermaster sells for dungeon scrip bids 0,
+//      wherever it came from — otherwise the vendor converts scrip to gold (up
+//      to 162 g/scrip on dragonfang_pike). Derived from QM_STOCK + `bop`, never
+//      a hand list; tradeable QM stock (blueprints) is unaffected.
+//   9. THE CACHE IS VALIDATED, NOT TRUSTED. Bids are memoised per catalogue
+//      identity AND a fingerprint of every field the rule reads (item ids, v,
+//      raw, bop; recipe outputs, outputQty, inputs), so a catalogue mutated in
+//      place is re-priced on the next call rather than answered from stale bids.
 //
 // The two rates are BALANCE numbers owned by the Game Designer.
 // ============================================================
 
 import { recipeInputs } from './artisan.js?v=564';
+import { QM_STOCK } from '../data/dungeons.js?v=564';
+
+/** Item ids the Quartermaster sells for scrip (decision 8). */
+const SCRIP_STOCK = Object.freeze(Object.fromEntries((QM_STOCK || []).map((o) => [o.id, true])));
+/** Does the vendor refuse this item record as scrip-bought, bind-on-pickup stock? */
+export function scripOnlyItem(id, item) {
+  return !!(item && item.bop && hasOwn(SCRIP_STOCK, id));
+}
 
 /** Raw materials vendor at this share of book value (pacing overhaul §6.1). */
 export const VENDOR_RAW_RATE = 0.20;
@@ -123,6 +140,7 @@ export function computeVendorBids(items, sources) {
   const gathered = gatheredOutputs(sources);
   for (const id of Object.keys(items)) {
     const it = items[id];
+    if (scripOnlyItem(id, it)) { bids[id] = 0; continue; }   // decision 8
     bids[id] = baseVendorBid(gathered[id] === true && it && typeof it === 'object' ? { v: it.v, raw: true } : it);
   }
   const paths = anchorPaths(sources);
@@ -145,19 +163,69 @@ export function computeVendorBids(items, sources) {
   return bids;
 }
 
-/* Memoised on the two catalogue IDENTITIES (the gatherNodes/artisanRecipes
-   contract in src/core-bridge.js): a mutated copy passed by a test is a new
-   identity and is priced fresh. */
+/**
+ * A fingerprint of every catalogue field the rule reads (decision 9): two
+ * independent 32-bit mixes plus the counts, so an in-place edit — an item
+ * added, a `v`/`raw`/`bop` changed, a recipe input or outputQty moved —
+ * changes it. ~0.1 ms over the shipped catalogue, against ~1.7 ms to re-price.
+ */
+export function catalogueFingerprint(items, sources) {
+  let a = 0x811c9dc5, b = 0x9e3779b9, n = 0;
+  const num = (x) => {
+    const c = (Number(x) * 1000) | 0;
+    a ^= c; a = Math.imul(a, 0x01000193);
+    b = Math.imul(b + c, 0x85ebca6b) ^ (b >>> 13);
+  };
+  /* Every character of every id: an id renamed in place must move it. */
+  const mix = (s) => {
+    const t = typeof s === 'string' ? s : String(s);
+    for (let i = 0; i < t.length; i++) num(t.charCodeAt(i));
+    num(-1);
+  };
+  for (const id of Object.keys(items || {})) {
+    const it = items[id];
+    n++;
+    mix(id);
+    if (it && typeof it === 'object') { num(it.v); num(it.raw ? 1 : 0); num(it.bop ? 1 : 0); } else num(-2);
+  }
+  for (const skill of Object.keys(sources || {})) {
+    const list = sources[skill];
+    if (!Array.isArray(list)) continue;
+    for (const r of list) {
+      if (!r || typeof r.output !== 'string') continue;
+      n++;
+      mix(r.output); num(r.outputQty == null ? 1 : r.outputQty);
+      const ins = recipeInputs(r) || {};
+      for (const k of Object.keys(ins)) { mix(k); num(ins[k]); }
+    }
+  }
+  return `${n}:${(a >>> 0).toString(36)}:${(b >>> 0).toString(36)}`;
+}
+
+/* Memoised on the two catalogue IDENTITIES and validated by the fingerprint
+   (decision 9). A copy passed by a test is a new identity; an in-place edit
+   (econ-sim --selftest plants an item in the live ITEMS) is a new fingerprint. */
 const memo = new WeakMap();
 function bidsFor(items, sources) {
   let inner = memo.get(items);
   if (!inner) { inner = new WeakMap(); memo.set(items, inner); }
   const key = sources && typeof sources === 'object' ? sources : NO_SOURCES;
-  let bids = inner.get(key);
-  if (!bids) { bids = computeVendorBids(items, key); inner.set(key, bids); }
-  return bids;
+  const fp = catalogueFingerprint(items, key);
+  let hit = inner.get(key);
+  if (!hit || hit.fp !== fp) { hit = { fp, bids: Object.freeze(computeVendorBids(items, key)) }; inner.set(key, hit); }
+  return hit.bids;
 }
 const NO_SOURCES = Object.freeze({});
+
+/**
+ * The whole validated bid table (frozen, null-prototype) — for a caller that
+ * prices MANY items in one pass (the bag render), so it pays the fingerprint
+ * once instead of per item. Same rule, same cache as vendorBidOf.
+ */
+export function vendorBids(items, sources) {
+  if (!items || typeof items !== 'object') return Object.freeze(Object.create(null));
+  return bidsFor(items, sources);
+}
 
 /**
  * What the NPC vendor pays for ONE `id`. 0 means "the vendor does not buy it",

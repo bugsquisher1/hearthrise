@@ -46,6 +46,7 @@ import { ROOM_PERKS } from '../src/data/perks.js';
 import { PLOT_PERKS } from '../src/core/perks.js';
 import { COMPANIONS } from '../src/data/companions.js';
 import { CROPS } from '../src/data/gathering.js';
+import { emitGenerated } from './generated-freeze.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(ROOT, 'supabase', 'migrations', '2026-08-22-farm-catalogues.generated.sql');
@@ -256,15 +257,13 @@ end $$;
 }
 
 const wanted = render();
-if (process.argv.includes('--check')) {
-  const have = await readFile(OUT, 'utf8').catch(() => '');
-  if (have.replace(/\r\n/g, '\n') !== wanted.replace(/\r\n/g, '\n')) {
-    console.error('gen-farm-catalogues --check FAILED: '
-      + '2026-08-22-farm-catalogues.generated.sql is stale. Run: node tools/gen-farm-catalogues.mjs');
-    process.exit(1);
-  }
-  console.log('gen-farm-catalogues --check: catalogues match src/core/farm.js + gathering + perks + companions');
-} else {
-  await writeFile(OUT, wanted);
-  console.log(`wrote ${OUT}`);
+/* Applied generated files are FROZEN (tools/generated-freeze.mjs): a data change
+   lands as an append-only delta migration, never as new bytes in history. */
+const CHECK_MODE = process.argv.includes('--check');
+const emitted = emitGenerated(OUT, wanted, CHECK_MODE);
+if (!emitted.ok) {
+  console.error('gen-farm-catalogues --check FAILED: ' + emitted.msg + '. Run: node tools/gen-farm-catalogues.mjs');
+  process.exit(1);
 }
+if (CHECK_MODE) console.log('gen-farm-catalogues --check: catalogues match src/core/farm.js + gathering + perks + companions'.replace(/$/, '') + ' — ' + emitted.msg);
+else console.log(emitted.msg);

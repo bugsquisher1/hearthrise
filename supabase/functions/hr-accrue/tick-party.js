@@ -391,6 +391,12 @@ export async function settleParty(exec, holder, unit, body, deps) {
        PARTY_JOURNAL_KEYS (B-A5). `hr_apply` merges `journal.meta` at the TOP of
        `player_ledger.meta`, so the party read is `meta->'party'`. */
     const delta = Object.assign({}, a.p_delta);
+    /* ⚠ NO PET CLAIM ON A PARTY SETTLE (2026-10-10). hr_party_tick_settle's
+       c_delta_ok vocabulary predates `companion_finds` and refuses an unknown
+       key — refusing would cost four players their window. A party kill rolls
+       no pet until that vocabulary is widened in its own reviewed slice; named
+       in 2026-10-10-pet-roll-server.sql as a known limitation. */
+    delete delta.companion_finds;
     const journal = Object.assign({}, delta.journal);
     journal.meta = Object.assign({}, journal.meta, { party: partyJournal(split, i) });
     delta.journal = journal;

@@ -40,13 +40,13 @@ import { ARTISAN_RECIPES, ARTISAN_CATEGORIES, recipeCategory, categorizeRecipes,
 // hand-authored recipe wins the merge, so the two can disagree; see gear-tiers).
 import { GEAR_LADDERS, MATERIAL_TIERS } from './data/gear-tiers.js?v=564';
 import { COMPANIONS } from './data/companions.js?v=564';
-import { RAID_BOSSES } from './data/raid-bosses.js?v=564';
+import { RAID_BOSSES, LONE_HUNT_CHEST } from './data/raid-bosses.js?v=564';
 import { THRONE_ROOM_PIECES, THRONE_ROOM_RUNGS, throneRoomHallName } from './data/throne-room.js?v=564';
 /* b356 — the review-book catalogue's two published seams. `EFFECT_KINDS` is
    what the reachability guard reads to decide whether an item is legitimately
    not-yet-obtainable; `LIB2_ICON_FILES` is the art batch's work order. Both are
    plain data with no legacy twin, so no unify is needed. */
-import { EFFECT_KINDS, PENDING_SYSTEMS, effectsAreLive, dormantEffects } from './data/item-effects.js?v=564';
+import { EFFECT_KINDS, PENDING_SYSTEMS, effectsAreLive, dormantEffects, isItemDormant } from './data/item-effects.js?v=564';
 import { LIB2_ICON_FILES } from './data/library2-items.js?v=564';
 import { BOSSES, BOSS_BY_DUNGEON } from './data/bosses.js?v=564';
 /* R1/R5 — the monotonic predicted-vs-confirmed DISPLAY seam. A CLIENT-display
@@ -143,14 +143,14 @@ Object.assign(window, {
   EQUIP_SLOTS:     unifyArray('EQUIP_SLOTS', EQUIP_SLOTS),
   ARTISAN_RECIPES, COMPANIONS,
   // b356 — see src/data/item-effects.js for what these guard.
-  HearthriseItemEffects: { EFFECT_KINDS, PENDING_SYSTEMS, effectsAreLive, dormantEffects, LIB2_ICON_FILES },
+  HearthriseItemEffects: { EFFECT_KINDS, PENDING_SYSTEMS, effectsAreLive, dormantEffects, isItemDormant, LIB2_ICON_FILES },
   // b281 — the canonical data-driven boss registry (data/bosses.js). A new global
   // object, so no merge needed; surfaces read boss identity/weakness/mechanic by id.
   BOSSES, BOSS_BY_DUNGEON,
   // The weekly Hunt (raid) boss registry — single source for src/features/raids.js
   // (which reads window.RAID_BOSSES lazily), the inventory-authority partition and
   // the server-mint catalogue generator (tools/gen-raid-boss-rewards.mjs).
-  RAID_BOSSES,
+  RAID_BOSSES, LONE_HUNT_CHEST,
   // 2026-10-08 — the castle's recurring gold sink (src/data/throne-room.js), read by
   // src/features/homestead.js to draw the room and quote the next piece. Display
   // only: hr_unlock_buy re-reads the price it charges out of hr_unlock_offers.

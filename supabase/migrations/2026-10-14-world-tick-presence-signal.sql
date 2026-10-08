@@ -26,8 +26,12 @@
 -- own row, server clock, 20 s floor, 6/min bucket) raises R to now() — but only
 -- when doing so cannot pay any time past the CURRENT horizon:
 --
---     stamp  iff  anchor exists  and  now() > R
+--     stamp  iff  anchor exists  and  now() - R >= 5 min
 --                 and  now() <= greatest(accrued_to, R + cap)
+--
+--   The 5-min write floor (Security GO-WITH-CHANGES, cost): at most one anchor
+--   write per 5 min per online character; the horizon lags the last beat by
+--   at most 5 min (pays less, bounded).
 --
 --   cap = hr_offline_cap_ms(user, slot), the ONE cap source the tick's (8d),
 --   hr_accrue_cap_ms and M4's (3c)/(8d)/(10) all read. Every reader of R is
@@ -76,6 +80,10 @@
 --   · RATE: hr_heartbeat's hr_rpc_gate bucket (hr_rate_ok, 6/min per uid) and
 --     its 20 s floor (a throttled beat writes nothing, so it stamps nothing):
 --     at most one anchor write per 20 s per character.
+--   · SLOT: the trigger reads and writes only (NEW.user_id, NEW.slot); a beat
+--     on slot 0 leaves the same account's slot 1 untouched (§4 s6). Accepted
+--     residual (Security): a crafted client can beat its OWN other slots, so
+--     they stay present too; tying the beat to the active slot is future work.
 --   · THE ACCEPTED RESIDUAL, STATED EXACTLY: a script holding the player's own
 --     session that keeps calling hr_heartbeat keeps that character "present".
 --     That is precisely the online-idle case — a player who leaves the tab
@@ -97,8 +105,9 @@
 --
 -- ── COST (100x players) ─────────────────────────────────────────────────────
 --   Per STAMPED beat (<= 1 per 20 s per online character): one pk read of
---   hr_return_anchor, at most one hr_offline_cap_ms (one clan join; skipped when
---   accrued_to >= now()), one pk UPDATE. Throttled beats do not write
+--   hr_return_anchor; only when R is >= 5 min old (<= 1 per 5 min) at most one
+--   hr_offline_cap_ms (one clan join; skipped when accrued_to >= now()) and
+--   one pk UPDATE. Throttled beats do not write
 --   last_seen_at, so the WHEN clause skips them entirely. Nothing per tick.
 --
 -- ── EXPLOIT SURFACE DELTA ───────────────────────────────────────────────────
@@ -177,8 +186,14 @@ begin
   select a.real_return_at into v_anchor from public.hr_return_anchor a
    where a.user_id = new.user_id and a.slot = new.slot;
   -- NO ANCHOR: never created here (the first real settle stamps it).
-  -- RAISE-ONLY: an anchor at or ahead of now() is left alone.
-  if v_anchor is null or v_now <= v_anchor then
+  if v_anchor is null then
+    return null;
+  end if;
+  -- THE WRITE FLOOR (Security, cost), WHICH IS ALSO RAISE-ONLY: a beat less
+  -- than 5 min after the anchor — or before it — writes nothing. The horizon
+  -- is then at most 5 min behind the last beat (pays less, bounded), and an
+  -- anchor a settle put ahead of now() is never lowered.
+  if v_now - v_anchor < interval '5 minutes' then
     return null;
   end if;
   -- NO BACK PAY: the unpaid span [accrued_to, now()] must lie inside the
@@ -238,6 +253,8 @@ revoke execute on function public.hr_return_anchor_presence()
 --       a throttled beat (20 s floor) and a rate-limited beat stamp nothing
 --   s5  a beat from A moves nothing of B's; a forged last_seen_at a day ahead
 --       stamps the SERVER clock
+--   s6  same uid, two slots: a beat on slot 0 leaves slot 1's anchor alone
+--   s7  the 5-min write floor: a beat 4 min after R writes nothing; 6 min stamps
 do $$
 declare
   c_h    constant text := 'hr1014p-selfcheck';
@@ -266,7 +283,7 @@ begin
     -- ── k0
     if (select md5(replace(p.prosrc, chr(13), '')) from pg_proc p
          where p.oid = 'public.hr_return_anchor_presence()'::regprocedure)
-         <> '97144f1463ded795d2e411a93c8c7a96' then
+         <> '1afa4c8111a6775b73823821c5c4d895' then
       raise exception 'k0: the installed hr_return_anchor_presence is not the one this file states';
     end if;
     if not exists (select 1 from pg_trigger t
@@ -569,6 +586,54 @@ begin
     update public.player_state set last_seen_at = v_now + interval '1 day' where user_id = v_b and slot = 0;
     if (select real_return_at from public.hr_return_anchor where user_id = v_b) <> v_now then
       raise exception 's5b: a forged last_seen_at a day ahead did not stamp the SERVER clock';
+    end if;
+
+    -- ── s6 same uid, two slots: a beat on slot 0 leaves slot 1's anchor alone.
+    insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version,
+                                     accrued_to, active_kind, active_id, active_since)
+    values (v_b, 1, 0, 0, 10, 10, 1, v_now - interval '10 seconds', 'gather', v_gact, '2000-01-01 00:00:00+00');
+    perform set_config('hr.frame_origin', 'tick', true);
+    update public.hr_return_anchor set real_return_at = v_now - interval '1 hour' where user_id = v_b and slot in (0, 1);
+    update public.player_state set last_seen_at = v_now - interval '1 hour' where user_id = v_b and slot = 0;
+    perform set_config('hr.frame_origin', '', true);
+    delete from public.hr_rate_counters where user_id = v_b;
+    perform set_config('request.jwt.claim.sub', v_b::text, true);
+    set local role authenticated;
+    v_r := public.hr_heartbeat(0);
+    reset role;
+    perform set_config('request.jwt.claim.sub', '', true);
+    if (select real_return_at from public.hr_return_anchor where user_id = v_b and slot = 0) <> v_now
+       or (select real_return_at from public.hr_return_anchor where user_id = v_b and slot = 1) <> v_now - interval '1 hour' then
+      raise exception 's6: a beat on slot 0 did not move slot 0, or moved the same account''s slot 1: %', v_r;
+    end if;
+
+    -- ── s7 the 5-min write floor: inside it a beat writes nothing; past it, it stamps.
+    perform set_config('hr.frame_origin', 'tick', true);
+    update public.hr_return_anchor set real_return_at = v_now - interval '4 minutes' where user_id = v_b and slot = 0;
+    update public.player_state set last_seen_at = v_now - interval '1 hour' where user_id = v_b and slot = 0;
+    perform set_config('hr.frame_origin', '', true);
+    delete from public.hr_rate_counters where user_id = v_b;
+    perform set_config('request.jwt.claim.sub', v_b::text, true);
+    set local role authenticated;
+    v_r := public.hr_heartbeat(0);
+    reset role;
+    perform set_config('request.jwt.claim.sub', '', true);
+    if coalesce((v_r->>'stamped')::boolean, false) is not true
+       or (select real_return_at from public.hr_return_anchor where user_id = v_b and slot = 0) <> v_now - interval '4 minutes' then
+      raise exception 's7a: a beat 4 min after the anchor wrote it (the 5-min floor is gone): %', v_r;
+    end if;
+    perform set_config('hr.frame_origin', 'tick', true);
+    update public.hr_return_anchor set real_return_at = v_now - interval '6 minutes' where user_id = v_b and slot = 0;
+    update public.player_state set last_seen_at = v_now - interval '1 hour' where user_id = v_b and slot = 0;
+    perform set_config('hr.frame_origin', '', true);
+    delete from public.hr_rate_counters where user_id = v_b;
+    perform set_config('request.jwt.claim.sub', v_b::text, true);
+    set local role authenticated;
+    v_r := public.hr_heartbeat(0);
+    reset role;
+    perform set_config('request.jwt.claim.sub', '', true);
+    if (select real_return_at from public.hr_return_anchor where user_id = v_b and slot = 0) <> v_now then
+      raise exception 's7b: a beat 6 min after the anchor did not stamp it: %', v_r;
     end if;
 
     update public.hr_tick_config set armed_channels = v_cfg_ar, enabled = v_cfg_en, channels = v_cfg_ch where id;

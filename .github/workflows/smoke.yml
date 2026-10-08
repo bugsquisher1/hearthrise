@@ -1888,7 +1888,7 @@ jobs:
       # clock, 20 s floor, 6/min bucket) raises the return anchor inside the
       # horizon, so a partied online player who only beats is never dropped,
       # an offline one still parks/drops at R + cap, and a beat after a spent
-      # horizon pays nothing back. --mutate: 8 mutants. Measured locally
+      # horizon pays nothing back. --mutate: 10 mutants. Measured locally
       # 2026-10-14: 2 s plain + 4 s mutate template-warm (~35 s each cold).
       - name: World tick — presence signal, the heartbeat carries the horizon
         if: ${{ !cancelled() }}

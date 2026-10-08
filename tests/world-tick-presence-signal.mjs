@@ -32,6 +32,8 @@
 //           rate-limited beat (hr_rate_ok bucket) stamp nothing
 //   S5  ★ a beat from A moves A's anchor and nothing of B's; a forged
 //           last_seen_at a day ahead stamps the SERVER clock
+//   S7  ★ same uid, two slots: a beat on slot 0 leaves slot 1 alone
+//   S8  the 5-min write floor: a beat 4 min after R writes nothing, 6 min stamps
 //   S6  catalogue: hr_heartbeat is one overload taking only p_slot;
 //           authenticated cannot UPDATE player_state; hr_heartbeat__ungated is
 //           the only body that SETs last_seen_at; the trigger is AFTER UPDATE OF
@@ -272,6 +274,41 @@ async function arms(db, { log = true } = {}) {
       JSON.stringify({ r, aA, aB, bB0, aBf, n2 }));
   }
 
+  // ── S7 same uid, two slots ──────────────────────────────────────────────
+  {
+    const U = await char();
+    await q(`insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version, accrued_to, active_kind, active_id, active_since)
+             values ($1, 1, 0, 0, 10, 10, 1, now() - interval '10 seconds', 'gather', $2, '2000-01-01 00:00:00+00')`, [U, gact]);
+    await tickWrite("update public.hr_return_anchor set real_return_at = now() - interval '1 hour' where user_id = $1 and slot in (0, 1)", [U]);
+    await tickWrite("update public.player_state set last_seen_at = now() - interval '1 hour' where user_id = $1 and slot = 0", [U]);
+    const s1Before = ms((await one('select real_return_at from public.hr_return_anchor where user_id = $1 and slot = 1', [U])).real_return_at);
+    const r = await beat(U);
+    const n = await nowMs();
+    const a0 = await anchor(U);
+    const a1 = ms((await one('select real_return_at from public.hr_return_anchor where user_id = $1 and slot = 1', [U])).real_return_at);
+    ok('S7', r?.stamped === true && Math.abs(a0 - n) < 5000 && a1 === s1Before,
+      "a beat on slot 0 moves slot 0's anchor and leaves the same account's slot 1 alone",
+      JSON.stringify({ r, a0, a1, s1Before }));
+  }
+
+  // ── S8 the 5-min write floor ────────────────────────────────────────────
+  {
+    const F = await char();
+    await tickWrite("update public.hr_return_anchor set real_return_at = now() - interval '4 minutes' where user_id = $1 and slot = 0", [F]);
+    await tickWrite("update public.player_state set last_seen_at = now() - interval '1 hour' where user_id = $1 and slot = 0", [F]);
+    const inside0 = await anchor(F);
+    const rIn = await beat(F);
+    const inside1 = await anchor(F);
+    await tickWrite("update public.hr_return_anchor set real_return_at = now() - interval '6 minutes' where user_id = $1 and slot = 0", [F]);
+    await tickWrite("update public.player_state set last_seen_at = now() - interval '1 hour' where user_id = $1 and slot = 0", [F]);
+    const rOut = await beat(F);
+    const n = await nowMs();
+    const outside = await anchor(F);
+    ok('S8', rIn?.stamped === true && inside1 === inside0 && rOut?.stamped === true && Math.abs(outside - n) < 5000,
+      'a beat 4 min after the anchor writes nothing; one 6 min after stamps now()',
+      JSON.stringify({ rIn, inside0, inside1, rOut, outside, n }));
+  }
+
   // ── S6 catalogue ────────────────────────────────────────────────────────
   {
     const bad = [];
@@ -344,14 +381,20 @@ const MUTANTS = [
   { name: 'otherUidMoves', why: "the stamp loses its user predicate (one player's beat moves every anchor)", expect: /S5/,
     find: '   where user_id = new.user_id and slot = new.slot;\n  return null;\nend $$;',
     repl: '   where slot = new.slot;\n  return null;\nend $$;' },
+  { name: 'slotBlind', why: "the stamp loses its slot predicate (a beat on one slot moves the account's other slots)", expect: /S7/,
+    find: '   where user_id = new.user_id and slot = new.slot;\n  return null;\nend $$;',
+    repl: '   where user_id = new.user_id;\n  return null;\nend $$;' },
+  { name: 'noWriteFloor', why: 'every beat writes the anchor (the 5-min write floor is gone)', expect: /S8/,
+    find: "  if v_now - v_anchor < interval '5 minutes' then\n    return null;\n  end if;\n", repl: '' },
   { name: 'stampsPastHorizon', why: 'a beat after a spent horizon moves R (the gap past R + cap is paid back)', expect: /S3/,
     find: "    if v_cap <= 0 or v_now > v_anchor + v_cap * interval '1 millisecond' then\n      return null;\n    end if;\n", repl: '' },
   { name: 'createsAnchor', why: 'a beat creates an anchor (a character no real settle anchored is paid by the tick)', expect: /S4/,
-    find: '  if v_anchor is null or v_now <= v_anchor then\n    return null;\n  end if;',
+    find: '  if v_anchor is null then\n    return null;\n  end if;',
     repl: '  if v_anchor is null then\n    insert into public.hr_return_anchor (user_id, slot, real_return_at) values (new.user_id, new.slot, v_now);\n'
-      + '    return null;\n  end if;\n  if v_now <= v_anchor then\n    return null;\n  end if;' },
-  { name: 'lowersAnchor', why: 'a beat lowers an anchor that a settle put ahead of now() (not raise-only)', expect: /S4/,
-    find: '  if v_anchor is null or v_now <= v_anchor then', repl: '  if v_anchor is null then' },
+      + '    return null;\n  end if;' },
+  { name: 'lowersAnchor', why: 'the write floor is one-sided, so a beat lowers an anchor a settle put ahead of now() (not raise-only)', expect: /S4/,
+    find: "  if v_now - v_anchor < interval '5 minutes' then",
+    repl: "  if v_now - v_anchor between interval '0 seconds' and interval '5 minutes' then" },
   { name: 'tickIsPresence', why: 'a world-tick write of last_seen_at counts as presence', expect: /S4/,
     find: "  if coalesce(current_setting('hr.frame_origin', true), '') = 'tick' then\n    return null;\n  end if;\n", repl: '' },
   { name: 'grantAuthenticated', why: 'the stamp is executable by authenticated', expect: /S6/,

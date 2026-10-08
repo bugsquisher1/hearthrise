@@ -492,6 +492,18 @@
   }
   function combatKey(f) {
     var deaths = Number(f.deaths) || 0, eaten = Number(f.foodEaten) || 0;
+    /* AUTO-EAT OFF LEADS (designer ruling). Live: 31 of 44 characters own
+       the trait with the server's switch off. Food in the bag that the night
+       will not eat is the one fact that changes what the player does next, so
+       every falling night with food in the bag says it first — before the
+       uncounted, retreat and fall-once sentences, which would otherwise read
+       as if the bag had been tried and failed. `autoEatOff` is the server's
+       `auto_eat_enabled === false` on an owned trait (autoEatOff above). */
+    if (f.autoEatOff && Number(f.foodQty) > 0 && f.foodName && (deaths >= 1 || f.stoppedBy === 'retreat')) {
+      if (!f.numeric) return 'night.fallsOffUncounted';
+      if (f.stoppedBy === 'retreat') return 'night.retreatOff';
+      return deaths >= 2 ? 'night.fallsOff' : 'night.fallsOffUncounted';
+    }
     if (!f.numeric && (deaths >= 1 || f.stoppedBy === 'retreat')) return 'night.fallsUncounted';
     /* A fed night that holds is a NUMBER the player can go and get: say it
        Only where the engine proved it (`needQty`, see nightNeed). */
@@ -502,7 +514,6 @@
     if (deaths === 1) return 'night.fallsOnce';
     if (eaten > 0) return 'night.fallsFed';
     if (!(f.foodQty > 0)) return 'night.fallsHungry';
-    if (f.autoEatOff) return 'night.fallsOff';
     return 'night.fallsUncounted';
   }
   function sentence(f) {
@@ -604,6 +615,22 @@
      or '' when there is nothing running to forecast. Tokens only, no colour
      literals — the tone rides on `--gold` / `--ink-3`, which is the same
      ladder the banking row beside it uses. */
+  /* THE ONE-TAP WAY BACK (designer ruling): a forecast that says
+     "Auto-Eat is off" offers the switch right there. The button is night-plan's
+     own `data-night-act="autoeat"` door (document-level handler → the
+     ownership-gated hr_set_auto_eat via HearthriseAuto.setEat). Gated on the
+     server's switch READ NOW, not on the memo's copy, so the door is gone the
+     envelope after the tap even while the memo is still inside its 30 s. */
+  function autoEatDoor(G, f, esc) {
+    if (!f || f.kind !== 'combat' || !f.autoEatOff || !(Number(f.foodQty) > 0)) return '';
+    if (!((Number(f.deaths) || 0) >= 1 || f.stoppedBy === 'retreat')) return '';
+    if (!G || !autoEatOff(G)) return '';
+    var SP = window.HearthriseSignposts;
+    var text = SP && SP.SIGNPOSTS && SP.SIGNPOSTS.labels && SP.SIGNPOSTS.labels['night.autoEat'];
+    if (!text) return '';
+    return '<div class="np-door-row"><button type="button" class="btn btn-sm np-door" data-night-act="autoeat">'
+      + esc(text) + '</button></div>';
+  }
   function strip(G) {
     var f = memo(G || window.G);
     if (!f) return '';
@@ -630,7 +657,7 @@
     } catch (e) {}
     return '<div class="hd-card hd-mini hd-night" data-night="' + esc(f.kind) + '">'
       + '<div class="mi">' + glyph + '</div>'
-      + '<div class="hd-night-txt">' + esc(txt) + '</div></div>';
+      + '<div class="hd-night-txt">' + esc(txt) + autoEatDoor(G || window.G, f, esc) + '</div></div>';
   }
 
   // ── WIRING ────────────────────────────────────────────────────────────
@@ -659,6 +686,7 @@
     _forecastFx: forecastFx,
     sentence: sentence,
     strip: strip,
+    _autoEatDoor: autoEatDoor,
     remember: remember,
     recall: recall,
     forget: forget,

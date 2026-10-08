@@ -2919,6 +2919,60 @@ export default [
     } finally { window.showTab = realTab; window.setShopTab = realShop; host.remove(); }
   }),
 
+  () => tryRun('NIGHT-PLAN-OFF-1: Auto-Eat OFF with food in the bag says so first, offers the switch, and "You last" counts no food', () => {
+    /* Designer ruling: 31 of 44 live characters own Auto-Eat with the
+       server's switch off. Every falling night with food in the bag must say
+       the food stays in the bag (not the retreat / fall-once / uncounted
+       sentences, which read as if the bag had been tried), the Home strip
+       offers the one-tap switch, and the Fight HUD's survival estimate must
+       not price food the night will never eat. */
+    const S = window.HearthriseSetTheNight;
+    const base = { kind: 'combat', numeric: true, deaths: 4, downMs: 3600000, foodQty: 20, foodId: 'cooked_shrimp',
+      foodName: 'Cooked Shrimp', foodEaten: 0, autoEatOff: true, targetName: 'Slime', spanMs: 600000 };
+    const offRe = /Auto-Eat is off: your 20 Cooked Shrimp stay in the bag/;
+    const cases = {
+      falls: base,
+      retreat: Object.assign({}, base, { stoppedBy: 'retreat', retreatFalls: 3, retreatMs: 1200000 }),
+      once: Object.assign({}, base, { deaths: 1 }),
+      uncounted: Object.assign({}, base, { numeric: false }),
+    };
+    for (const k of Object.keys(cases)) {
+      const t = S.sentence(cases[k]);
+      assert(offRe.test(String(t)), 'an Auto-Eat-off night (' + k + ') does not say the food stays in the bag: ' + t);
+    }
+    assert(/pull back to camp/.test(S.sentence(cases.retreat)), 'the off retreat night lost the retreat');
+    assert(!offRe.test(String(S.sentence(Object.assign({}, base, { autoEatOff: false })))), 'an ON night said Auto-Eat is off');
+    assert(!/Auto-Eat is off/.test(String(S.sentence(Object.assign({}, base, { foodQty: 0, foodName: null })))), 'an empty bag was told its food stays in it');
+
+    // ── the one-tap door, gated on the server's switch read NOW
+    const AC = window.HearthriseAccrual, realSettings = AC.serverAutoEatSettings;
+    const owner = { traits: { auto_eat: true } };
+    const esc = (x) => String(x);
+    try {
+      AC.serverAutoEatSettings = () => ({ enabled: false, food: null, pct: 25 });
+      assert(/data-night-act="autoeat"/.test(S._autoEatDoor(owner, base, esc)), 'the off forecast offers no switch');
+      assert(S._autoEatDoor(owner, Object.assign({}, base, { deaths: 0 }), esc) === '', 'a night that holds was offered the switch');
+      AC.serverAutoEatSettings = () => ({ enabled: true, food: null, pct: 25 });
+      assert(S._autoEatDoor(owner, base, esc) === '', 'the door outlived the server turning the switch back on');
+    } finally { AC.serverAutoEatSettings = realSettings; }
+
+    // ── "You last" (estimateSurvival): the switch, not just the trait, decides the food pool
+    const G = window.G, snap = snapshotG(), has = window.hasTrait, food = window.autoEatFoodId, realAuto = window.HearthriseAuto;
+    try {
+      window.hasTrait = function (id) { return id === 'auto_eat' || has.apply(this, arguments); };
+      window.autoEatFoodId = () => 'cooked_shrimp';
+      G.playerMaxHp = 10; G.playerHp = 10;
+      G.inventory = Object.assign({}, G.inventory, { cooked_shrimp: 20 });
+      const est = (on) => { window.HearthriseAuto = Object.assign({}, realAuto, { eatEnabled: () => on }); return window._hrEstimateCombat(window.MONSTERS.slime); };
+      const on = est(true), off = est(false);
+      G.inventory.cooked_shrimp = 0;
+      const empty = est(true);
+      assert(on.survivalSeconds > off.survivalSeconds, 'switch on should outlast switch off: ' + on.survivalSeconds + ' vs ' + off.survivalSeconds);
+      assert(Math.abs(off.survivalSeconds - empty.survivalSeconds) < 1e-6,
+        'Auto-Eat OFF priced food into "You last": ' + off.survivalSeconds + 's vs ' + empty.survivalSeconds + 's on an empty bag');
+    } finally { window.HearthriseAuto = realAuto; window.hasTrait = has; window.autoEatFoodId = food; restoreG(snap); }
+  }),
+
   () => tryRun('NIGHT-PLAN-5: the forecast prices the Recovery ladder off the SERVER counters, not the residue tally', () => {
     const S = window.HearthriseSetTheNight;
     const clone = S.cloneForForecast({ stats: { deaths: 20 }, playerHp: 0, playerMaxHp: 30, inventory: {} },

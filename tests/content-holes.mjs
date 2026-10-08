@@ -112,6 +112,9 @@ export function check(d) {
     if (exempt(it)) continue;
     const dormant = isItemDormant(it, d.SKILLS_DEF);
     const has = src.has(id);
+    /* `retired: true` — an id kept as a save key with no source left on purpose
+       (never delete an id a player may own). It must STAY sourceless. */
+    if (it.retired) { if (has) add('CH-2', `"${id}" is retired but enters the world via ${src.get(id).join(', ')}`); continue; }
     if (!has && !dormant) add('CH-1', `"${id}" has no source (drop, recipe, shop, dungeon, quest, gather) and is not a declared hatch`);
     if (has && dormant) add('CH-2', `"${id}" is a dormant hatch item but enters the world via ${src.get(id).join(', ')}`);
   }

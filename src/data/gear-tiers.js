@@ -114,7 +114,7 @@ const round5 = (n) => Math.max(1, Math.round(n / 5) * 5);
    THE CURVE is the boots/belt curve — the smallest armour curve in the game —
    because this is new defence handed to every character at once and the
    monster table was balanced without it. ~+12% on a full plate set, less on
-   leather and cloth. Uniques (Warband Bulwark, the two raid Aegises) sit a
+   leather and cloth. Uniques (the two raid Aegises) sit a
    step above their tier's rung. */
 const OFFHAND_LINE = Object.freeze({
   key: 'kiteshield', slot: 'shield', label: 'Kiteshield', icon: '🛡️',

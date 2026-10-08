@@ -5,8 +5,8 @@
 --   perks}.js. Any hand edit here is reverted by the next generation and FAILS
 --   `node tools/gen-unlocks.mjs --check`, a preflight in tests/run-smoke.mjs.
 --
---   unlock digest: ed4535b8d78c07d139472e234ac5b6832dabb8994cac0115c0910e170bfe51e5
---   59 unlock ids · bounty=5 · character_slot=4 · companion=4 · cosmetic=4 · dungeon_run=6 · entitlement=1 · farm_plot_tier=1 · plot=4 · property=5 · recipe=8 · room=8 · theme=6 · trait=2 · worker=1
+--   unlock digest: 95226a62dea14db3aa6b910768c18c721bbe704ce1b048dab28911a331ee8e90
+--   60 unlock ids · bounty=5 · character_slot=4 · companion=4 · cosmetic=4 · dungeon_run=6 · entitlement=1 · farm_plot_tier=1 · plot=4 · property=5 · recipe=9 · room=8 · theme=6 · trait=2 · worker=1
 --
 -- ⚠⚠⚠ DO NOT RE-APPLY THIS FILE STANDALONE — IT DESTROYS OTHER SEEDERS' ROWS.
 --   Its seed block opens with an UNSCOPED `delete from public.hr_unlocks` and
@@ -146,6 +146,7 @@ values
   ('recipe:alpha_pattern', 'recipe', 'flag', 'flag', null, null),
   ('recipe:captain_recipe', 'recipe', 'flag', 'flag', null, null),
   ('recipe:chief_blade_recipe', 'recipe', 'flag', 'flag', null, null),
+  ('recipe:dragon_marrow_recipe', 'recipe', 'flag', 'flag', null, null),
   ('recipe:field_cookbook', 'recipe', 'flag', 'flag', null, null),
   ('recipe:gemcutter_note', 'recipe', 'flag', 'flag', null, null),
   ('recipe:marrow_cookbook', 'recipe', 'flag', 'flag', null, null),
@@ -174,8 +175,8 @@ do $$
 declare v_n int; v_bad text;
 begin
   select count(*) into v_n from public.hr_unlocks;
-  if v_n <> 59 then
-    raise exception 'hr_unlocks holds % rows, expected 59 — the insert was partial', v_n;
+  if v_n <> 60 then
+    raise exception 'hr_unlocks holds % rows, expected 60 — the insert was partial', v_n;
   end if;
 
   -- Every level has a ladder, every ladder is inside its ceiling, and no ladder
@@ -201,9 +202,9 @@ begin
   -- and every gated recipe would be permanently unreachable server-side.
   select count(*) into v_n from public.hr_unlocks
    where namespace = 'recipe' and progress_kind = 'flag' and merge = 'flag';
-  if v_n < 8 then
-    raise exception 'the recipe namespace lost its flag storage — % of 8 rows', v_n;
+  if v_n < 9 then
+    raise exception 'the recipe namespace lost its flag storage — % of 9 rows', v_n;
   end if;
 
-  raise notice 'hr_unlocks OK — % ids, bounty=5 · character_slot=4 · companion=4 · cosmetic=4 · dungeon_run=6 · entitlement=1 · farm_plot_tier=1 · plot=4 · property=5 · recipe=8 · room=8 · theme=6 · trait=2 · worker=1', 59;
+  raise notice 'hr_unlocks OK — % ids, bounty=5 · character_slot=4 · companion=4 · cosmetic=4 · dungeon_run=6 · entitlement=1 · farm_plot_tier=1 · plot=4 · property=5 · recipe=9 · room=8 · theme=6 · trait=2 · worker=1', 60;
 end $$;

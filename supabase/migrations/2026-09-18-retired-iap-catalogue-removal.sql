@@ -218,9 +218,7 @@ begin
   select count(*) into v_n from public.hr_unlock_offers;
   if v_n <> 139 then raise exception 'e5: hr_unlock_offers = %, expected 139', v_n; end if;
   select count(*) into v_n from public.hr_unlocks;
-  -- content-holes (2026-10-08) retired recipe:dragon_marrow_recipe (its scroll
-  -- named an item that never existed); a rebuild's regenerated unlocks carry 79.
-  if v_n not in (79, 80) then raise exception 'e6: hr_unlocks = %, expected 80 (79 after content-holes)', v_n; end if;
+  if v_n <> 80 then raise exception 'e6: hr_unlocks = %, expected 80', v_n; end if;
 
   -- (d) no offer is left pointing at an unlock that no longer exists
   select count(*) into v_n from public.hr_unlock_offers o

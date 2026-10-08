@@ -118,9 +118,9 @@ export const SLOT_ITEMS = {
      them as PLATE today. Raised as a handoff; not changed here.             */
   woolen_cloak:    { n: 'Woollen Cloak',   icon: '🦸', v: priced(240, 1), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 1, rarity: 'common',    reqSkill: 'defense', reqLv: 12, defB: 2 },
   houndskin_cloak: { n: 'Houndskin Cloak', icon: '🦸', v: priced(240, 2), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 2, rarity: 'uncommon',  reqSkill: 'defense', reqLv: 28, defB: 4,  strB: 1 },
-  /* content-holes (2026-10-08): tier 3 was the Warband Bulwark, which is a
-     SHIELD and moved to the offhand slot the same day. This closes the hole it
-     left, on the curve between Houndskin (4) and Trollhide (11). */
+  /* content-holes (2026-10-08): the only tier-3 cape was the Warband Bulwark,
+     a boss unique. This is the craftable rung, on the curve between Houndskin
+     (4) and Trollhide (11). */
   boarhide_mantle: { n: 'Boarhide Mantle', icon: '🦸', v: priced(240, 3), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 3, rarity: 'rare',      reqSkill: 'defense', reqLv: 38, defB: 7,  strB: 1 },
   trollhide_cape:  { n: 'Trollhide Cape',  icon: '🦸', v: priced(240, 4), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 4, rarity: 'epic',      reqSkill: 'defense', reqLv: 50, defB: 11, strB: 2 },
   shadowsilk_cape: { n: 'Shadowsilk Cape', icon: '🦸', v: priced(240, 5), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 5, rarity: 'legendary', reqSkill: 'defense', reqLv: 63, defB: 16, strB: 3 },

@@ -587,7 +587,7 @@ export const MONSTERS = {
     drops: [{ id: 'dragon_bones', ch: 1 }, { id: 'dragon_scale', ch: .8 }, { id: 'dragon_gem', ch: .05 }, { id: 'ancient_claw', ch: .2 }, { id: 'alpha_pattern', ch: .03 }, { id: 'draconias_jaw', ch: .001 },
       { id: 'dragonrib_bow', ch: .0008, lucky: true }] },
     /* `dragon_marrow_recipe` (a scroll for a `dragonbone_spear` that never
-       existed) was retired by the content-holes pass, 2026-10-08: a recipe
+       existed) is retired, kept but sourceless, since 2026-10-08: a recipe
        that unlocks nothing is a dead end, and its hook had waited long enough.
        Draconia's own prize is now Draconia's Jaw above. */
   ashwing: { name: 'Ashwing', icon: '🔥', tier: 6, cls: 'dragon', family: 'Dragon', boss: true,

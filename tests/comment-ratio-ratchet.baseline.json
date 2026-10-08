@@ -6,9 +6,9 @@
   "bnumTotal": 4068,
   "files": {
     "src/legacy.js": {
-      "total": 18575,
+      "total": 18576,
       "comment": 7770,
-      "code": 9880,
+      "code": 9881,
       "ratio": 0.6985252179581195,
       "bnum": 743
     },
@@ -76,10 +76,10 @@
       "bnum": 74
     },
     "src/features/smoke/companions-claims-and-renown.js": {
-      "total": 3923,
-      "comment": 772,
+      "total": 3922,
+      "comment": 771,
       "code": 2944,
-      "ratio": 0.26222826086956524,
+      "ratio": 0.26188858695652173,
       "bnum": 36
     },
     "src/features/clan-seat-ui.js": {

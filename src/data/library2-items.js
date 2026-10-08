@@ -443,11 +443,11 @@ const SUPPLY_CHAINS = Object.fromEntries([
      derived band — the steel rung at 130 gives 10 × 130 / 660 = 1.97×, just
      inside the anti-faucet rule; 200 would have been a 3.03× faucet. */
   whet('coarse_whetstone',  'Coarse Whetstone',    0, 5),
-  whet('iron_whetstone',    'Iron Whetstone',      1, 20),
-  whet('steel_whetstone',   'Steel Whetstone',     2, 55),
-  whet('mithril_whetstone', 'Mithril Whetstone',   3, 130),
-  whet('rune_whetstone',    'Rune Whetstone',      4, 300),
-  whet('ember_whetstone',   'Emberforged Whetstone', 5, 700),
+  whet('copper_whetstone',  'Iron Whetstone',    1, 20),
+  whet('iron_whetstone',    'Steel Whetstone',      2, 55),
+  whet('steel_whetstone',   'Mithril Whetstone',     3, 130),
+  whet('mithril_whetstone', 'Rune Whetstone',   4, 300),
+  whet('rune_whetstone',    'Emberforged Whetstone',      5, 700),
   whet('dawn_whetstone',    'Dawnsteel Whetstone', 6, 1600),
 
   /* ITEM-PLAN-06 · phase two, 9 items and not 42 (§11.3). Elemental variants
@@ -676,11 +676,11 @@ export const LIB2_DESC = {
      through a glove" was good and the duplicate item was not. */
 
   coarse_whetstone: 'A rough field stone that puts an edge on anything and a good edge on nothing',
-  iron_whetstone: 'An iron-backed whetstone with a groove worn down its centre, the first one worth keeping in the pack',
-  steel_whetstone: 'A close-grained stone that leaves an edge you can hear',
+  copper_whetstone: 'An iron-bound stone, the first one worth keeping in the pack',
+  iron_whetstone: 'A steel-backed whetstone with a groove worn down its centre',
+  steel_whetstone: 'A close-grained stone banded in mithril that leaves an edge you can hear',
   mithril_whetstone: 'A pale stone that takes almost nothing off and gives a great deal back',
-  rune_whetstone: 'A marked whetstone that sharpens a little more than the honing accounts for',
-  ember_whetstone: 'A forge-dark stone, quenched in the same coals as Emberforged steel; it keeps an edge warm',
+  rune_whetstone: 'A forge-dark stone quenched with Emberforged steel; it sharpens more than the honing accounts for',
   dawn_whetstone: 'Dawnsteel grit bound in basalt — the last stone a blade will ever need',
   whetstone_of_ember: 'A whetstone that leaves the edge faintly warm',
   whetstone_of_frost: 'A whetstone that leaves frost along the blade for a breath after honing',

@@ -16,8 +16,7 @@ export const WAVE3_ITEMS = {
   fangdart_recurve: {n:'Fangdart Recurve',icon:'🏹',v:7200,type:'weapon',slot:'weapon',weaponType:'ranged',rangeAtkB:15,rangeStrB:10,critB:0.04,spdB:0.02,rarity:'rare',tier:3,reqSkill:'ranged',reqLv:36},
   alphaheart_longbow: {n:'Alphaheart Longbow',icon:'🏹',v:10000,type:'weapon',slot:'weapon',weaponType:'ranged',rangeAtkB:24,rangeStrB:18,critB:0.05,rarity:'epic',tier:4,reqSkill:'ranged',reqLv:50},
   nightstalker_pelt: {n:'Nightstalker\'s Pelt',icon:'🛡️',v:12400,type:'armor',slot:'body',defB:18,rangeAtkB:8,rangeStrB:6,spdB:0.04,critB:0.02,rarity:'unique',tier:5,reqSkill:'defense',reqLv:62},
-  /* content-holes (2026-10-08): a bulwark is a SHIELD. It sat in the cape slot because the offhand slot had no items at all; it now leads the offhand it was always drawn as. Stats unchanged. */
-  warband_bulwark: {n:'Warband Bulwark',icon:'🛡️',v:7000,type:'armor',slot:'shield',armourClass:'shield',defB:14,strB:3,rarity:'rare',tier:3,reqSkill:'defense',reqLv:35},
+  warband_bulwark: {n:'Warband Bulwark',icon:'🛡️',v:7000,type:'armor',slot:'cape',defB:14,strB:3,rarity:'rare',tier:3,reqSkill:'defense',reqLv:35},
   chitinweave_cloak: {n:'Chitinweave Cloak',icon:'🧥',v:15200,type:'armor',slot:'cape',defB:8,spdB:0.03,critB:0.02,xpB:0.01,rarity:'epic',tier:6,reqSkill:'defense',reqLv:76},
 };
 

@@ -3137,6 +3137,9 @@ jobs:
           # skill stretch, first-hour seeds plantable. Pure data, milliseconds.
           node tests/content-holes.mjs
           node tests/content-holes.mjs --selftest
+          # An item id is a save key: never deleted, never re-tiered or re-slotted.
+          node tests/item-identity.mjs
+          node tests/item-identity.mjs --selftest
           node tests/lore-notes.mjs
           node tests/lore-notes.mjs --selftest
           node tests/lifetime-tally.mjs

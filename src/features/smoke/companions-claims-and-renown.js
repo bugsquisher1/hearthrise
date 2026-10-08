@@ -266,7 +266,7 @@ export default [
     const st = C.getStats({ collection: {}, bestiary: {} });
     const hidden = Object.keys(I).filter((id) => {
       const it = I[id];
-      return it.premium || it.type === 'companion' || (it.recipe && !I[it.recipe]) || E.isItemDormant(it, window.SKILLS_DEF || {});
+      return it.premium || it.retired || it.type === 'companion' || (it.recipe && !I[it.recipe]) || E.isItemDormant(it, window.SKILLS_DEF || {});
     });
     assert(hidden.length > 0 && I.tithe_box && hidden.indexOf('tithe_box') >= 0,
       'CONTROL: the dormant tithe_box must be one of the excluded ids');
@@ -3051,9 +3051,8 @@ export default [
     // (spellstone_diagram → spellstone_ring, gemcutter_note →
     // dragon_gem_earrings, both in src/data/slot-ladders.js), so they are
     // asserted the OTHER way round below. dragon_marrow_recipe's target
-    // (dragonbone_spear) never shipped; the scroll was retired 2026-10-08 and
-    // must stay out of every drop table (the legacy literal may still carry
-    // the id until the legacy-item lane deletes it). The rule is
+    // (dragonbone_spear) never shipped; the scroll is retired (kept, no source)
+    // and must stay out of every drop table. The rule is
     // now stated as a rule rather than as a hardcoded list, so it cannot rot:
     // EVERY scroll item is checked against whether its target exists.
     const all = Object.keys(M).reduce((a, k) => a.concat(dropsOf(k)), []);

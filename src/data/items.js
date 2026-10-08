@@ -557,6 +557,9 @@ export const ITEMS={
   chief_blade_recipe:   {n:"Chief's Blade Recipe",      icon:'📜', v:0, recipe:'chief_blade'},
   captain_recipe:       {n:"Captain's Ribblade Recipe", icon:'📜', v:0, recipe:'captains_ribblade'},
   alpha_pattern:        {n:'Alpha Cloak Pattern',       icon:'📜', v:0, recipe:'alpha_cloak'},
+  /* RETIRED, NOT DELETED (content-holes 2026-10-08): its target never shipped and
+     it has no source; the id is kept because an id is a save key (item-identity). */
+  dragon_marrow_recipe: {n:'Dragon Marrow Recipe',      icon:'📜', v:0, recipe:'dragonbone_spear', retired:true},
   spellstone_diagram:   {n:'Spellstone Diagram',        icon:'📜', v:0, recipe:'spellstone_ring'},
   gemcutter_note:       {n:"Gemcutter's Note",          icon:'📜', v:0, recipe:'dragon_gem_earrings'},
   soul_recipe:          {n:'Soul Recipe Scroll',        icon:'📜', v:0, recipe:'lich_soul_soup'},

@@ -6,8 +6,8 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: a7727957c945de02e145040ee7518ce231f1fcc34092d76d5c5b11e7aaaa8adf
---   rows: 551 items (23 untradeable) ·
+--   catalogue digest: 731a4babe5af33f07fcfae651568f3732036a3aa9332397145d1ab18bc0fc708
+--   rows: 552 items (23 untradeable) ·
 --         291 item-slot pairs · 15 equip slots ·
 --         17 skills · 10 crops · 535 activities ·
 --         3 runes
@@ -298,6 +298,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('copper_ore','Copper Ore',true,null,10,null,null,null,false),
   ('copper_ring','Copper Ring',true,'jewelry',120,'defense',1,null,false),
   ('copper_studs','Copper Studs',true,'jewelry',60,'defense',1,null,false),
+  ('copper_whetstone','Iron Whetstone',true,'ammo',15,'attack',15,null,false),
   ('cracked_spellstone','Cracked Spellstone',true,null,260,null,null,null,false),
   ('crown_of_the_fallen_king','Crown of the Fallen King',true,'armor',17000,'defense',85,null,false),
   ('cutpurse_gloves','Cutpurse Gloves',true,'armor',90,'defense',15,null,false),
@@ -338,6 +339,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('dragon_egg','Dragon Egg',true,null,6000,null,null,null,false),
   ('dragon_gem','Dragon Gem',true,null,2000,null,null,null,false),
   ('dragon_gem_earrings','Dragon Gem Earrings',true,'jewelry',24000,'defense',82,null,false),
+  ('dragon_marrow_recipe','Dragon Marrow Recipe',true,null,0,null,null,null,false),
   ('dragon_relic','Dragon Relic',false,null,5000,null,null,null,false),
   ('dragon_scale','Dragon Scale',true,null,500,null,null,null,false),
   ('dragon_stew','Dragon Stew',true,null,780,null,null,45,false),
@@ -376,7 +378,6 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('ember_sword','Emberforged Sword',true,'weapon',13000,'attack',75,null,false),
   ('ember_tart','Ember Tart',true,null,1300,null,null,30,false),
   ('ember_warhammer','Emberforged Warhammer',true,'weapon',14300,'attack',75,null,false),
-  ('ember_whetstone','Emberforged Whetstone',true,'ammo',420,'attack',75,null,false),
   ('emberfang_blade','Emberfang',true,'weapon',14400,'attack',72,null,false),
   ('emberfruit','Emberfruit',true,null,480,null,null,16,true),
   ('emberfruit_seed','Emberfruit Seed',true,null,160,null,null,null,false),
@@ -445,7 +446,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('iron_platelegs','Iron Platelegs',true,'armor',285,'defense',15,null,false),
   ('iron_sword','Iron Sword',true,'weapon',200,'attack',15,null,false),
   ('iron_warhammer','Iron Warhammer',true,'weapon',550,'attack',15,null,false),
-  ('iron_whetstone','Iron Whetstone',true,'ammo',25,'attack',15,null,false),
+  ('iron_whetstone','Steel Whetstone',true,'ammo',48,'attack',30,null,false),
   ('kettle_tea','Kettle Tea',true,null,200,null,null,null,false),
   ('keystone','Keystone',true,null,3000,null,null,null,false),
   ('kitchen_blueprint_t2','Kitchen Blueprint II',true,null,500,null,null,null,false),
@@ -486,7 +487,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('mithril_platelegs','Mithril Platelegs',true,'armor',3300,'defense',45,null,false),
   ('mithril_sword','Mithril Sword',true,'weapon',1500,'attack',45,null,false),
   ('mithril_warhammer','Mithril Warhammer',true,'weapon',1650,'attack',45,null,false),
-  ('mithril_whetstone','Mithril Whetstone',true,'ammo',160,'attack',45,null,false),
+  ('mithril_whetstone','Rune Whetstone',true,'ammo',190,'attack',60,null,false),
   ('moonbloom','Moonbloom',true,null,850,null,null,20,true),
   ('moonbloom_elixir','Moonbloom Elixir',true,null,2600,null,null,40,false),
   ('moonbloom_seed','Moonbloom Seed',true,null,280,null,null,null,false),
@@ -550,7 +551,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('rune_platelegs','Rune Platelegs',true,'armor',9900,'defense',60,null,false),
   ('rune_sword','Rune Sword',true,'weapon',5000,'attack',60,null,false),
   ('rune_warhammer','Rune Warhammer',true,'weapon',4950,'attack',60,null,false),
-  ('rune_whetstone','Rune Whetstone',true,'ammo',280,'attack',60,null,false),
+  ('rune_whetstone','Emberforged Whetstone',true,'ammo',365,'attack',75,null,false),
   ('runewood_bow','Runewood Bow',true,'weapon',13650,'ranged',75,null,false),
   ('runewood_log','Runewood Log',true,null,480,null,null,null,false),
   ('runewood_plank','Runewood Plank',true,null,1150,null,null,null,false),
@@ -610,7 +611,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('steel_platelegs','Steel Platelegs',true,'armor',1100,'defense',30,null,false),
   ('steel_sword','Steel Sword',true,'weapon',800,'attack',30,null,false),
   ('steel_warhammer','Steel Warhammer',true,'weapon',550,'attack',30,null,false),
-  ('steel_whetstone','Steel Whetstone',true,'ammo',65,'attack',30,null,false),
+  ('steel_whetstone','Mithril Whetstone',true,'ammo',108,'attack',45,null,false),
   ('sticky_core','Sticky Core',true,null,35,null,null,null,false),
   ('stone_maul','Stone Maul',true,'weapon',110,'attack',1,null,false),
   ('studded_belt','Studded Leather Belt',true,'armor',75,'defense',15,null,false),
@@ -795,6 +796,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('copper_ring','ring1'),
   ('copper_ring','ring2'),
   ('copper_studs','earrings'),
+  ('copper_whetstone','ammo'),
   ('crown_of_the_fallen_king','helmet'),
   ('cutpurse_gloves','gloves'),
   ('dawn_belt','belt'),
@@ -838,7 +840,6 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('ember_platelegs','pants'),
   ('ember_sword','weapon'),
   ('ember_warhammer','weapon'),
-  ('ember_whetstone','ammo'),
   ('emberfang_blade','weapon'),
   ('emberhead_arrows','ammo'),
   ('fang_studs','earrings'),
@@ -983,7 +984,7 @@ insert into public.hr_item_slots (item_id, equip_slot) values
   ('voidweave_gloves','gloves'),
   ('voidweave_helmet','helmet'),
   ('voidweave_pants','pants'),
-  ('warband_bulwark','shield'),
+  ('warband_bulwark','cape'),
   ('warden_girdle','belt'),
   ('warlock_belt','belt'),
   ('warlock_body','body'),
@@ -1372,12 +1373,12 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','forge_watchknight_pants','smithing',68,null,false),
   ('artisan','forge_widows_fang','smithing',38,null,false),
   ('artisan','grind_coarse_whetstone','stonemason',6,null,false),
+  ('artisan','grind_copper_whetstone','stonemason',16,null,false),
   ('artisan','grind_dawn_whetstone','stonemason',91,null,false),
-  ('artisan','grind_ember_whetstone','stonemason',76,null,false),
-  ('artisan','grind_iron_whetstone','stonemason',16,null,false),
-  ('artisan','grind_mithril_whetstone','stonemason',46,null,false),
-  ('artisan','grind_rune_whetstone','stonemason',61,null,false),
-  ('artisan','grind_steel_whetstone','stonemason',31,null,false),
+  ('artisan','grind_iron_whetstone','stonemason',31,null,false),
+  ('artisan','grind_mithril_whetstone','stonemason',61,null,false),
+  ('artisan','grind_rune_whetstone','stonemason',76,null,false),
+  ('artisan','grind_steel_whetstone','stonemason',46,null,false),
   ('artisan','jewel_banded_signet','crafting',22,null,false),
   ('artisan','jewel_copper_ring','crafting',20,null,false),
   ('artisan','jewel_copper_studs','crafting',10,null,false),
@@ -1635,7 +1636,7 @@ insert into public.hr_runes (rune_id, element) values
   ('poison_rune','poison');
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, 'a7727957c945de02e145040ee7518ce231f1fcc34092d76d5c5b11e7aaaa8adf', now())
+  values (true, '731a4babe5af33f07fcfae651568f3732036a3aa9332397145d1ab18bc0fc708', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1663,7 +1664,7 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 551 then raise exception 'hr_items has % rows, generator emitted 551', v_n; end if;
+  if v_n <> 552 then raise exception 'hr_items has % rows, generator emitted 552', v_n; end if;
   select count(*) into v_n from public.hr_items where not tradeable;
   if v_n <> 23 then
     raise exception 'untradeable count is %, generator emitted 23', v_n;
@@ -1800,7 +1801,7 @@ begin
   select count(*) into v_n from public.hr_runes;
   if v_n <> 3 then raise exception 'hr_runes has % rows, generator emitted 3', v_n; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest a7727957c945de02e145040ee7518ce231f1fcc34092d76d5c5b11e7aaaa8adf',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 731a4babe5af33f07fcfae651568f3732036a3aa9332397145d1ab18bc0fc708',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

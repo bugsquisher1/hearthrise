@@ -174,7 +174,7 @@
   function collectable(id, it, col) {
     if (!it) return false;
     if (col && col[id]) return true;
-    if (it.premium || it.type === 'companion') return false;
+    if (it.premium || it.retired || it.type === 'companion') return false;
     if (it.recipe && !(window.ITEMS || {})[it.recipe]) return false;   // a scroll for nothing
     var E = window.HearthriseItemEffects;
     if (E && typeof E.isItemDormant === 'function' && E.isItemDormant(it, window.SKILLS_DEF || {})) return false;

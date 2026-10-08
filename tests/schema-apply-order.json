@@ -310,6 +310,7 @@
     "2026-10-08-world-tick-party-reaper.sql",
     "2026-10-09-party-hunt-start-gate.sql",
     "2026-10-09-frame-self-echo.sql",
+    "2026-10-10-world-tick-presence-horizon.sql",
     "2026-10-10-world-tick-gather-widen.sql"
   ],
   "_order_notes": {
@@ -585,6 +586,7 @@
     "2026-10-08-world-tick-party-reaper.sql": "APPLIED 2026-10-07 02:56 UTC by the Coordinator from a detached checkout of 34de61e3 (sha256 a85838ea). Security APPLY GO (SEC_GATHER_ARM_RUNBOOK e44527a0). Landed hr_party_reap_stale a85cd02f; cron hr-party-reap */10 active; strict hygiene clean.",
     "2026-10-09-party-hunt-start-gate.sql": "APPLIED 2026-10-07 05:44 UTC by the Coordinator from a detached checkout of 9f57c632 (sha256 be626e9b). Security APPLY GO (SEC_GATHER_ARM_RUNBOOK 81e004c2). Landed hr_party_hunt_start 7b3a81ab; strict hygiene clean.",
     "2026-10-09-frame-self-echo.sql": "STAGED, NOT APPLIED (lane/b565-frame-origin-marker). Restates hr_frame_wanted with the self-echo branch: a non-tick frame addressed to the engine requester's own (user, slot), marked by the edge with hr.frame_self, is not sent. Security GO required before apply. After apply: live-hash-drift wants ONE entry (RED untracked hr_frame_wanted, measured pre-apply on the branch).",
+    "2026-10-10-world-tick-presence-horizon.sql": "STAGED, NOT APPLIED (lane/b566-gather-widen). The PRESENCE HORIZON (Game Designer ruling on B1): hr_return_anchor (last real return, stamped by AFTER triggers on player_state for every non-tick accrued_to move), hr_tick_horizon_log (one row per absence parked at its horizon), hr_accrue_cap_ms (hr_engine; the accrue span cap = least(hr_offline_cap_ms, R + cap - accrued_to), forfeiting a spent absence through hr_apply), hr_tick_settle restated from live e00dbf9f + (8d) past_horizon, and hr_assert_grant_hygiene link 17. EDGE HALF: hr-accrue reads hr_accrue_cap_ms at its four accrue-cap sites; apply this file FIRST, deploy that bundle after, never the reverse. Security GO required (ranked XP/yield credit). Must apply BEFORE 2026-10-10-world-tick-gather-widen.sql (its 0 refuses otherwise).",
     "2026-10-10-world-tick-gather-widen.sql": "STAGED, NOT APPLIED (lane/b566-gather-widen). Stage 1 of widening armed gather: hr_tick_cohort (the dial, gather 100 permille / max_owned 20 / fresh 600 s; max_owned CHECK <= 100), hr_tick_enrolment (append-only enrol/unenrol journal), hr_tick_cohort_bucket, hr_tick_enrol (owner-only, pg_cron hr-tick-enrol every minute; enrols only while gather is ARMED), hr_tick_unenrol (the cohort half of the kill), and hr_tick_stall_status restated from live 5bad87a1 + the per-character lag judge (new keys lag_judged / lag_stalled / armed[].lag only). Security GO required before apply; Game Designer ruling B1 (uncapped away pay for tick-owned gatherers) is a stage-1 gate. After apply: live-hash-drift wants hr_tick_stall_status + 3 new functions; restore-census classifies the two tables and the cron job."
   },
   "excluded": {

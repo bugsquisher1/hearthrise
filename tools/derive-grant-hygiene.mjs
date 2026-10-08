@@ -318,6 +318,18 @@ export const LINKS = [
     target: '2026-10-06-world-tick-parity-probe.sql',
     patchIds: ['tick_probe'],
   },
+  /* Link 17 (Game Designer ruling on B1, 2026-10-08) — THE PRESENCE HORIZON.
+     2026-10-10-world-tick-presence-horizon.sql grants hr_engine EXECUTE on
+     hr_accrue_cap_ms, the accrue span's horizon-aware cap the edge reads where
+     it read hr_offline_cap_ms. One entry at the HEAD of c_engine_allow, an
+     INSERTION, so its declared-removals list in tests/run-sql-tests.mjs PART
+     1f-ii is EMPTY. Its base is link 16's TARGET. The grant and this link land
+     in ONE file. It is the new last toucher. */
+  {
+    base: '2026-10-06-world-tick-parity-probe.sql',
+    target: '2026-10-10-world-tick-presence-horizon.sql',
+    patchIds: ['presence_horizon'],
+  },
 ];
 
 const OPEN = 'create or replace function public.hr_assert_grant_hygiene(';
@@ -351,6 +363,25 @@ export function innerBody(block) {
    already authorised for." Both justifications below re-derive that claim
    rather than asserting it — see the migration header for the long form. */
 export const PATCHES = [
+  {
+    id: 'presence_horizon',
+    name: 'the c_engine_allow array head (link 17)',
+    find: '  c_engine_allow constant text[] := array[\n',
+    add: `    -- ── ADDED 2026-10-10 — THE PRESENCE HORIZON (Game Designer ruling on B1) ──
+    -- At the HEAD, an INSERTION: it removes nothing, so PART 1f-ii grades this
+    -- link with an EMPTY declared-removals list.
+    --
+    -- NOT READ-ONLY, and the claim rests on SELF-VALIDATING: the caller names
+    -- only (p_user, p_slot), the pair it already passes to hr_state_of. The
+    -- answer is hr_offline_cap_ms bounded by the character's own
+    -- hr_return_anchor; its ONE write is a forfeit of an absence whose horizon
+    -- is spent and past, made THROUGH hr_apply (version CAS, journalled
+    -- intent horizon_forfeit, key derived from the anchor) and moving only
+    -- accrued_to forward to now(). It can pay nothing: no gold, no item, no XP.
+    'hr_accrue_cap_ms(uuid,integer)',
+`,
+    where: 'after',
+  },
   {
     id: 'claim_perks',
     name: 'the c_engine_allow array head',

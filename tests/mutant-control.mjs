@@ -39,6 +39,7 @@ export const REGISTERED = [
   ['tests/goal-counters.mjs', '--mutate'],
   ['tests/world-tick-token-failclosed.mjs', '--selftest'],
   ['tests/world-tick-gather-widen.mjs', '--mutate'],
+  ['tests/world-tick-presence-horizon.mjs', '--mutate'],
 ];
 
 /** Parse a guard's control-run output. Returns the list of problems (empty = honest). */

@@ -6726,6 +6726,7 @@ export default [
     const realFetch = window.fetch;
     const wasOn = A.isServerAccrualEnabled();
     const seen = [];
+    const bagHeld = serverBagFixture();   // the switch envelope now applies, bag included
     try {
       window.fetch = function (u, init) {
         const s = String(u);
@@ -6795,6 +6796,7 @@ export default [
         + 'the player');
     } finally {
       window.fetch = realFetch;
+      bagHeld.restore();
       restoreAccrualSwitch(wasOn);
       M.resetActivity(); M.configureActivity(null);
       try { window.stopSkill(); } catch (e) {}
@@ -7273,6 +7275,7 @@ export default [
       offlineBudget: G.offlineBudget, restedAt: G.restedAt, _serverAccrual: G._serverAccrual };
     const realFetch = window.fetch;
     const wasOn = A.isServerAccrualEnabled();
+    const bagHeld = serverBagFixture();   // the applied envelope states a bag
     try {
       freshFrameGate();                                      // version 11 must not meet an earlier test's floor
       G.gold = 999999;                                       // far ahead of the server
@@ -7310,6 +7313,7 @@ export default [
         'the seam reported an envelope it did not apply: ' + JSON.stringify(st.last && st.last.applied));
     } finally {
       window.fetch = realFetch;
+      bagHeld.restore();
       restoreAccrualSwitch(wasOn);
       M.resetActivity(); M.configureActivity(null);
       try { window.stopSkill(); } catch (e) {}

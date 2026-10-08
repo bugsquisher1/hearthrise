@@ -1153,7 +1153,9 @@ export default [
       window.showTab('social');
       const soc = document.getElementById('panel-social');
       assert(soc.classList.contains('active'), 'showTab("social") stopped resolving');
-      const sign = document.querySelector('#social-panel .soc-signpost [onclick*="clan"]');
+      // While the clan gate is shut the signpost says WHEN, with no door (FRONT-DOOR-3).
+      const shut = !window.HearthriseClans.clanLaunched();
+      const sign = document.querySelector(shut ? '#social-panel .soc-signpost' : '#social-panel .soc-signpost [onclick*="clan"]');
       assert(sign, 'Social has no signpost to the hold for players arriving on muscle memory');
       // The topbar clan tag is the second door.
       const tag = document.getElementById('clan-tag');

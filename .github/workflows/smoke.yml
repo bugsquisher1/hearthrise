@@ -2070,9 +2070,12 @@ jobs:
   # + delta-key-allowlists (2026-10-13, measured locally): 29 s plain + 3 s
   # mutate (template-warm; ~30 s cold) = 1040 s (17.3 min). Budget = x2 = 34.7,
   # rounded up to 35.
+  # + companion-equip-version-bump (2026-10-14, measured locally): 2 s plain +
+  # 2 s mutate template-warm (~30 s each cold) + its mutant-control re-run
+  # ~30 s = ~1130 s (18.8 min). Budget = x2 = 37.7, rounded up to 38.
   db-replay-7:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 38
 
     steps:
       - uses: actions/checkout@v4
@@ -2143,14 +2146,28 @@ jobs:
       # settle's c_delta_ok + c_stamp and foldDeltas must cover it, and an armed
       # party window carrying xp_frac + companion_xp_frac pays each member what
       # a solo hr_apply pays their twin (control: the pre-fix body refuses it
-      # unknown_delta_key). --mutate: 17 mutants, one per allowlist missing a key,
-      # a NEW engine key, eight non-literal key writes (K0), a format(%I) reader
+      # unknown_delta_key). --mutate: 20 mutants, one per allowlist missing a key,
+      # a NEW engine key and three dotted spellings of one (camelCase, spaced,
+      # split), eight non-literal key writes (K0), a format(%I) reader
       # of c_delta_ok (KR), a dormant key's column appearing, the scan narrowed.
       - name: Delta-key allowlists cover the engine (base + mutate)
         if: ${{ !cancelled() }}
         run: |
           node tests/delta-key-allowlists.mjs
           node tests/delta-key-allowlists.mjs --mutate
+
+      # EVERY WRITE OF THE EQUIPPED PET BUMPS THE ROW VERSION. hr_apply's
+      # companion_not_equipped refusal is a stall, not a bug, only because a
+      # swap turns an in-flight settle into version_conflict. CE0 the scan sees
+      # hr_companion_equip; CE1 every UPDATE/upsert SET of companion_equipped
+      # carries version = version + 1 in the same statement; CE2 no record-field,
+      # dynamic-SQL or MERGE write; CE3 no client role holds UPDATE on the column;
+      # CE4 a real equip moves version by exactly 1. --mutate: 10 mutants.
+      - name: Companion equip bumps version (base + mutate)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/companion-equip-version-bump.mjs
+          node tests/companion-equip-version-bump.mjs --mutate
 
       # THE CONTROL HALF OF A MUTATION PROOF. Every registered guard is re-run
       # with HR_MUTANT_CONTROL=1 (nothing planted, scope kept); any arm that

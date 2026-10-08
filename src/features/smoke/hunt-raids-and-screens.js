@@ -188,9 +188,8 @@ export default [
   /* -- regression suite -- LONE-HUNT-CHEST (whole-game review 2026-10-08, item 1;
      2026-10-10-lone-hunt-weekly-chest.sql). The solo fight was simulated in the
      browser and raid_claim('solo') paid with no check. The Lone Hunt is now a
-     weekly chest the SERVER opens on its own kill count: no strike, no pool, and
-     the only number on the card is the server's answer. RED before the fix: a
-     solo strike() rolled client damage and the card drew a client HP bar. */
+     weekly chest the SERVER opens on its own kill count; the card shows only the
+     server's answer. RED before: strike() rolled client damage into a client HP bar. */
   () => tryRunAsync('LONE-HUNT-CHEST: no client fight — the chest is claimed from the server and the card shows only the server count', async () => {
     const R = window.HearthriseRaids;
     const G = window.G;

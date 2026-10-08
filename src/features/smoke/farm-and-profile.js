@@ -1832,9 +1832,7 @@ export default [
        applies (floor sets hp=10, hook must restore 4); restore the ack + tear
        down any sheet in finally. */
     const A = window.HearthriseAccrual;
-    const wasAck = !!(A && A.isReplacementAcknowledged && A.isReplacementAcknowledged());
     try {
-      if (A && A.acknowledgeReplacement) A.acknowledgeReplacement(true);
       // Model a live client fight at LOW combat hp; the server (envelope) reads FULL.
       G.activeMonster = 'goblin'; G.playerMaxHp = 10; G.playerHp = 4; G.gold = 0;
       const env = { ok: true, version: 999999999, now: new Date().toISOString(),
@@ -1846,8 +1844,6 @@ export default [
         'EAT-COMBAT-HP: the envelope SNAPPED live combat hp to the stale-full server value ('
         + G.playerHp + ' — expected the preserved 4). Paione\'s live-combat symptom is back.');
     } finally {
-      if (A && A.acknowledgeReplacement) A.acknowledgeReplacement(wasAck);
-      if (A && A.hideReplacementSheet) A.hideReplacementSheet();
       restoreG(snap);
       /* hook(env) → applyServerEnvelope → refreshAll(), and this test set
          activeMonster='goblin', so the hook re-rendered the COMBAT view. restoreG

@@ -100,14 +100,14 @@
        the ladybug was also just wrong. Plain words + the game's own line-art
        glyph carry it instead. */
     card.innerHTML =
-      '<h2 class="hr-sheet-head" style="margin:0 0 10px;font-size:var(--t-h2,22px);font-family:var(--f-display,inherit);color:var(--gold-2,#f3d181)">Welcome to Hearthrise</h2>'+
+      '<h2 class="hr-sheet-head" style="margin:0 0 10px;font-size:var(--t-h2,22px);font-family:var(--f-display,inherit);color:var(--gold-2,#f3d181)">Hearthrise is in open beta</h2>'+
       /* b46x — OPEN BETA. This card is shown to a player who has ALREADY made
          an account (it boots behind the gate), so it carries the half of the
          open-beta line that still applies to them: it is rough, tell us. The
          "make an account and play" half belongs on the account wall, where
          there is an account to make. */
       '<div class="hr-sheet-body">'+
-      '<p style="margin:0 0 12px;font-size:var(--t-small,14px)"><b>Hearthrise is in open beta.</b> It\'s rough in places — things will break, balance will change, and your save may need to be reset between major updates. Tell us in Discord; your feedback shapes the game.</p>'+
+      '<p style="margin:0 0 12px;font-size:var(--t-small,14px)">It\'s rough in places — things will break, balance will change, and your save may need to be reset between major updates. Tell us in Discord; your feedback shapes the game.</p>'+
       '<ul style="margin:0 0 14px;padding-left:18px;font-size:var(--t-small,14px)">'+
       '  <li>Found a bug? Use the <b>Report</b> button in the bottom-right corner — it goes straight to the dev Discord.</li>'+
       '  <li>Have ideas, want to chat, or just say hi? Join the Discord below.</li>'+
@@ -136,6 +136,11 @@
     catch (e) { return false; }
   }
 
+  function firstSession(){
+    try { var F = window.HearthriseFTUE; return !!(F && typeof F.isFirstSession === 'function' && F.isFirstSession()); }
+    catch (e) { return false; }
+  }
+
   function maybeShow(){
     if(alreadyAcked()) return;
     if(isAdmin()) return;
@@ -153,6 +158,11 @@
     // player completes (or skips) FTUE, the flag flips and we can show on
     // the NEXT reload.
     if(ftueWillFire()) return;
+    // Front door: the tour is the one voice of a new player's first
+    // session. This card used to be a second "Welcome to Hearthrise" on the
+    // same minute (whenever the tour was skipped fast, or the account was new
+    // on a browser that had toured before). It waits for the next session.
+    if(firstSession()) return;
     if(modalAlreadyOpen()){
       // Try again in 2s — let the other modal close first
       setTimeout(maybeShow, 2000);
@@ -219,6 +229,7 @@
        the original selector would have failed for four builds. */
     __modalAlreadyOpen: modalAlreadyOpen,
     __blockingModals: BLOCKING_MODALS,
+    __maybeShow: maybeShow,
   };
 
   console.log('[beta-banner] loaded');

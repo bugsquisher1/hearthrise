@@ -1,15 +1,17 @@
 // ============================================================
 // src/welcome-modal.js
 //
-// Shows a "what's new" modal once per build version. Reads
+// Shows a "what's new" modal at most once a week. Reads
 // CHANGELOG.md, parses out the latest section, displays it.
 //
 // Trigger:
 //   • Player opens the game
 //   • localStorage shows they last saw a version != current build
+//   • the last automatic showing was 7+ days ago 
 //
 // Skipped:
 //   • First-ever load (FTUE handles welcome)
+//   • A brand-new account's first session (HearthriseFTUE.isFirstSession)
 //   • Same build seen already
 //   • If FTUE is currently running (don't stack modals)
 // ============================================================
@@ -136,16 +138,51 @@
     return !!document.querySelector(BLOCKING_OVERLAYS);
   }
 
-  async function maybeShow() {
+  /* Front door: AT MOST ONCE A WEEK, NEVER ON A FIRST SESSION.
+     With one release a day (CLAUDE.md §3.3a) "once per build" became a modal
+     every single login — the same daily interruption the daily reward
+     already is, stacked on it. The changelog is news for a player who comes
+     back; a weekly cadence keeps it news. And a brand-new account's first
+     session belongs to the tour alone (HearthriseFTUE.isFirstSession), even on
+     a browser that has seen an older build. The clock here is the browser's
+     because this is a display preference, never a number anything spends.
+     Settings → "Show what's new" (`force`) is a player asking: it bypasses both. */
+  const SHOWN_AT_KEY = 'hearthrise:changelog:shownAt';
+  const MIN_GAP_MS = 7 * 24 * 3600000;
+  function lastShownAt() {
+    try { const n = Number(localStorage.getItem(SHOWN_AT_KEY)); return Number.isFinite(n) ? n : 0; } catch { return 0; }
+  }
+  function firstSession() {
+    try { const F = window.HearthriseFTUE; return !!(F && typeof F.isFirstSession === 'function' && F.isFirstSession()); }
+    catch { return false; }
+  }
+  /** Why the automatic popup would NOT show right now, or null when it would. */
+  function suppressedBy(nowMs) {
+    const now = typeof nowMs === 'number' ? nowMs : Date.now();
+    if (firstSession()) return 'first-session';
+    const at = lastShownAt();
+    if (at > 0 && now - at >= 0 && now - at < MIN_GAP_MS) return 'shown-this-week';
+    return null;
+  }
+
+  async function maybeShow(forced) {
     // Don't stack on FTUE / the name modal / the daily-reward sheet.
     if (anotherModalUp()) {
-      setTimeout(maybeShow, 2000);
+      setTimeout(() => maybeShow(forced), 2000);
       return;
     }
     const cur = currentBuildKey();
     const prev = lastSeen();
-    if (prev === cur) return;          // already saw this build
-    if (!prev) { markSeen(cur); return; } // first-ever load — skip, FTUE has them
+    if (forced !== true) {
+      if (prev === cur) return;          // already saw this build
+      if (!prev) { markSeen(cur); return; } // first-ever load — skip, FTUE has them
+      // First session: the build counts as seen (the player never met the old
+      // game). This week: leave it unseen, so the first load after the gap
+      // shows the newest notes.
+      const why = suppressedBy();
+      if (why === 'first-session') { markSeen(cur); return; }
+      if (why) return;
+    }
 
     try {
       const res = await fetch(CHANGELOG_URL + '?t=' + Date.now());
@@ -155,6 +192,7 @@
       if (!section) { markSeen(cur); return; } // malformed changelog — never show raw file
       render({ title: section.title, body: section.body, version: cur });
       markSeen(cur);
+      try { localStorage.setItem(SHOWN_AT_KEY, String(Date.now())); } catch {}
     } catch (e) {
       // No CHANGELOG, no problem — just mark seen so we don't retry every load
       markSeen(cur);
@@ -165,7 +203,13 @@
   // force(): removing the key made maybeShow() take the "first-ever load" skip
   // branch — Settings → "Show what's new" never showed anything. Set a stale
   // sentinel instead so the "already saw this build" check misses.
-  window.HearthriseWelcome = { show: maybeShow, force: () => { try { localStorage.setItem(SEEN_KEY, '__force__'); } catch{} maybeShow(); } };
+  window.HearthriseWelcome = {
+    show: () => maybeShow(false),
+    force: () => { try { localStorage.setItem(SEEN_KEY, '__force__'); } catch{} return maybeShow(true); },
+    __suppressedBy: suppressedBy,
+    __shownAtKey: SHOWN_AT_KEY,
+    __minGapMs: MIN_GAP_MS,
+  };
   // Test seam (smoke suite asserts CRLF parsing + emoji stripping, and that
   // the front-door guard matches the overlays that actually exist)
   window.__hrWelcomeParse = { parseFirstSection, mdToHtml, anotherModalUp, BLOCKING_OVERLAYS };
@@ -173,7 +217,7 @@
   // Run on DOM ready, slight delay so FTUE / build-info finish booting first.
   // b224: and behind the account wall — the What's-New sheet is news for a
   // player who is IN, not a thing to stack on the front door.
-  function boot() { setTimeout(maybeShow, 1500); }
+  function boot() { setTimeout(() => maybeShow(false), 1500); }
   function arm() {
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
     else boot();

@@ -1322,7 +1322,7 @@ export default [
     if (typeof window.startArtisan !== 'function') { skip('no artisan bench'); return; }
     const G = window.G, M = window.HearthriseActivity, A = window.HearthriseAccrual, inputsOf = window.HearthriseCore.artisan.recipeInputs;
     const snap = snapshotG(), bag = serverBagFixture(), realFetch = window.fetch, realNotify = window.notify;
-    const wasOn = A.isServerAccrualEnabled(), wasAck = A.isReplacementAcknowledged();
+    const wasOn = A.isServerAccrualEnabled();
     const said = [], sent = []; let answerBag = {};
     const list = window.ARTISAN_RECIPES.smithing || [];
     const r = list.find((x) => x.req <= 1 && !x.gated && Object.keys(inputsOf(x)).length);
@@ -1343,7 +1343,7 @@ export default [
           skills: Object.keys(G.skills || {}).reduce((o, k) => { o[k] = { xp: G.skills[k] }; return o; }, {}),
           inventory: Object.assign({}, answerBag) }), { status: 200 }));
       };
-      armActivityTransport(); A.acknowledgeReplacement(true);
+      armActivityTransport();
       G.skills = Object.assign({}, G.skills, { smithing: 100000 });
       G.inventory = Object.assign({}, G.inventory, feed);
       stampRecordLikeLoad(G);
@@ -1377,7 +1377,7 @@ export default [
       window.notify = realNotify;
       try { window.stopSkill(); } catch (e) {}
       window._benchCounting = null; await settle();   // the stop's idle envelope lands while the stub and the ack still stand
-      window.fetch = realFetch; A.acknowledgeReplacement(wasAck);
+      window.fetch = realFetch;
       restoreAccrualSwitch(wasOn); M.resetActivity(); M.configureActivity(null);
       bag.restore(); restoreGAndRecord(snap); closeOverlays();
     }
@@ -1393,7 +1393,7 @@ export default [
     if (typeof window.startArtisan !== 'function') { skip('no artisan bench'); return; }
     const G = window.G, M = window.HearthriseActivity, A = window.HearthriseAccrual, inputsOf = window.HearthriseCore.artisan.recipeInputs;
     const snap = snapshotG(), bag = serverBagFixture(), realFetch = window.fetch, realNotify = window.notify;
-    const wasOn = A.isServerAccrualEnabled(), wasAck = A.isReplacementAcknowledged();
+    const wasOn = A.isServerAccrualEnabled();
     const said = [], sent = []; let mode = 'ok', answerBag = {}, hold = null;
     const r = (window.ARTISAN_RECIPES.smithing || []).find((x) => x.req <= 1 && !x.gated && Object.keys(inputsOf(x)).length);
     const tree = (window.TREES || []).find((t) => t.id === 'normal_tree') || (window.TREES || [])[0];
@@ -1418,7 +1418,7 @@ export default [
         if (mode === 'held' && act.kind === 'gather') return new Promise((res) => { hold = () => res(reply(act)); });
         return Promise.resolve(reply(act));
       };
-      armActivityTransport(); A.acknowledgeReplacement(true);
+      armActivityTransport();
       G.skills = Object.assign({}, G.skills, { smithing: 100000 });
       G.inventory = Object.assign({}, G.inventory, feed);
       stampRecordLikeLoad(G);
@@ -1462,7 +1462,7 @@ export default [
       window.notify = realNotify;
       try { window.stopSkill(); } catch (e) {}
       window._benchCounting = null; await settle();
-      window.fetch = realFetch; A.acknowledgeReplacement(wasAck);
+      window.fetch = realFetch;
       restoreAccrualSwitch(wasOn); M.resetActivity(); M.configureActivity(null);
       bag.restore(); restoreGAndRecord(snap); closeOverlays();
     }

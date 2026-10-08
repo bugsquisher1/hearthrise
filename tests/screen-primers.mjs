@@ -34,7 +34,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DATA = 'src/data/screen-primers.js';
 const RETIRED = /15 Marks|until you own Auto-Eat|stops you dying|no save button/;
-const LIVE_RULE = ['knocked out', 'carry on with the same fight', 'first fall of each day costs you no time at all'];
+const LIVE_RULE = ['knocked out', 'carry on with the same fight', 'first fall of each day costs you no time at all', 'retreat to camp'];
 const posix = (p) => p.split(sep).join('/');
 
 function jsFiles(dir, out = []) {
@@ -145,8 +145,8 @@ async function selftest() {
       ['G5', 'an unfrozen row', () => edit(DATA, (s) => s.replace('Object.freeze({ title, body })', '({ title, body })')), null],
       ['G6', 'a src/data import of the table', () => edit('src/data/items.js', (s) => "import { SCREEN_PRIMERS } from './screen-primers.js';\n" + s), null],
       ['G6', 'a screen-primers origin in the edge bundle', () => () => {}, [...origins, DATA]],
-      ['G7', 'an Events row naming the muster', () => edit(DATA, (s) => s.replace('and so do the dungeons', 'and so does the muster')), null],
-      ['G7', 'a Shop row promising real-money buys', () => edit(DATA, (s) => s.replace('the web beta cannot buy them yet', 'buy them for real money')), null],
+      ['G7', 'an Events row naming the muster', () => edit(DATA, (s) => s.replace('The dungeons live here.', 'The muster and the dungeons live here.')), null],
+      ['G7', 'a Shop row promising real-money buys', () => edit(DATA, (s) => s.replace('the web beta cannot buy them.', 'buy them for real money.')), null],
       ['G8', 'the retired Auto-Eat price', () => edit('src/ftue.js', (s) => s + '\n// 15 Marks\n'), null],
       ['G8', 'the combat step dropping the live rule', () => edit('src/ftue.js', (s) => s.replace('carry on with the same fight', 'start over')), null],
     ];

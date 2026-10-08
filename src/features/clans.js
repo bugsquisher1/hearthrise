@@ -58,6 +58,12 @@
      Flip ONE flag to re-enable everything when clan pass-2 lands. */
   var CLAN_LAUNCHED = false;
   function clanLaunched() { return CLAN_LAUNCHED; }
+  /* Front door: the nav tab is now HIDDEN while the gate is shut (the
+     2026-08-17 "keep it visible" call is superseded — a first-hour review found
+     new players opening a tab whose whole content is "coming soon"). Every
+     door hangs off this one flag: art-direction.css hides each [data-tab="clan"]
+     while <html> carries the attribute stamped here. */
+  try { document.documentElement.toggleAttribute('data-hr-off-clan', !CLAN_LAUNCHED); } catch (e) {}
 
   var PERKS = [
     null,                                                       // Lv1 — founding

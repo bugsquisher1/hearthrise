@@ -47,13 +47,35 @@
   // in-game shop was impossible to find, so it is the front door,
   // and a player who browsed the Market last session must not have
   // that front door silently replaced the next time they log in.
+  /* THE PREMIUM PANE IS A NATIVE-BUILD SURFACE (the front door).
+     On the web build every pack showed a $ price and every Buy answered "not
+     available in the web beta" (legacy.js IAP.buy) — a shop that refuses each
+     sale is a dead door, met in a new player's first look at Shops. So the
+     toggle and the pane exist only where IAP.detectPlatform() names a store
+     (Steam / iOS / Android). Fail-safe is CLOSED: no IAP module yet reads as
+     web. `data-hr-off-premium` on <html> is the one switch art-direction.css
+     reads; a remembered or linked 'premium' falls back to the Local Shop. */
+  var _forcePremium = null;   // test seam only (__forcePremium)
+  function premiumOpen(){
+    if (_forcePremium !== null) return _forcePremium;
+    try {
+      var I = window.IAP;
+      return !!(I && typeof I.detectPlatform === 'function' && I.detectPlatform() !== 'web');
+    } catch (e) { return false; }
+  }
+  function stampPremium(){
+    try { document.documentElement.toggleAttribute('data-hr-off-premium', !premiumOpen()); } catch (e) {}
+  }
+  stampPremium();
   function currentPane(){
-    return PANES.indexOf(window._shopsPane) >= 0 ? window._shopsPane : 'local';
+    var p = PANES.indexOf(window._shopsPane) >= 0 ? window._shopsPane : 'local';
+    return (p === 'premium' && !premiumOpen()) ? 'local' : p;
   }
   function paneFor(tab){
     var key = String(tab || '').toLowerCase();
     var p = Object.prototype.hasOwnProperty.call(PANE_ALIAS, key) ? PANE_ALIAS[key] : undefined;
     if (p === null) return currentPane();          // 'shops' → remembered
+    if (p === 'premium' && !premiumOpen()) return 'local';
     if (PANES.indexOf(p) >= 0) return p;
     return 'local';
   }
@@ -75,7 +97,9 @@
     });
   }
   function apply(pane){
+    stampPremium();
     if (PANES.indexOf(pane) < 0) pane = 'local';
+    if (pane === 'premium' && !premiumOpen()) pane = 'local';
     window._shopsPane = pane;
     var shopPanel = document.getElementById('panel-shop');
     if (shopPanel) shopPanel.setAttribute('data-shops-pane', pane === 'market' ? currentLocalSide() : pane);
@@ -102,7 +126,10 @@
     var v = el && el.getAttribute('data-shops-pane');
     return v === 'premium' ? 'premium' : 'local';
   }
-  window.HearthShops = { paneFor: paneFor, apply: apply, panes: PANES, repaint: paintStrips };
+  window.HearthShops = { paneFor: paneFor, apply: apply, panes: PANES, repaint: paintStrips,
+    premiumOpen: premiumOpen,
+    /* Suite seam: `true` plays a native build, `null` hands back to the platform. */
+    __forcePremium: function (on) { _forcePremium = (on === null || on === undefined) ? null : !!on; stampPremium(); } };
 
   // One delegated listener for both copies of the strip.
   document.addEventListener('click', function(e){
@@ -110,6 +137,7 @@
     if (!btn) return;
     var pane = btn.getAttribute('data-shops-pane');
     if (PANES.indexOf(pane) < 0) return;
+    if (pane === 'premium' && !premiumOpen()) return;
     e.preventDefault();
     if (typeof window.showTab === 'function') window.showTab(pane === 'local' ? 'shop' : pane);
   });

@@ -2364,6 +2364,7 @@ export default [
     const pick = { daily: E.DAILY.find((d) => d.id === 'open_coffers'), weekly: E.WEEKLY.find((w) => w.id === 'deep_veins') };
     const keys = ['gatherSpeed', 'goldFind', 'farmYield', 'allXP', 'cookSpeed'];
     try {
+      E._show(true);   // the surfaces are switched off for players; grade their copy switched on
       E._force({ daily: E.QUIET, weekly: E.QUIET });
       const quiet = keys.map((k) => window.getBonus(k));
       E._force(pick);
@@ -2381,7 +2382,7 @@ export default [
       const realm = h3 ? h3.parentNode.parentNode.textContent : '';
       assert(realm.indexOf(pick.weekly.name) >= 0 && !PROMISE.test(realm), 'Home "The realm" promises: ' + realm);
       E.DAILY.concat(E.WEEKLY).forEach((ev) => assert(!ev.bonus && !PROMISE.test(ev.desc), ev.id + ' promises: ' + ev.desc));
-    } finally { E._force(null); }
+    } finally { E._force(null); E._show(null); }
   }),
 
   () => tryRun('b229: a genuine mid-session disconnect dims the blessing honestly', () => {
@@ -2396,6 +2397,7 @@ export default [
       G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
       /* The blessing pays nothing (BLESSING-HONESTY), so the CARD is the
          surface that states the condition; the activity note no longer names it. */
+      E._show(true);   // grade the card switched on
       E._force({ daily: E.DAILY[0], weekly: E.QUIET });
       const cardText = () => { E.renderBlessing(); return (document.getElementById('hr-worldevents') || {}).textContent || ''; };
       const liveCard = cardText();
@@ -2412,7 +2414,7 @@ export default [
       NS.setMode('ok');
       assert(P.blessingsApply() === true, 'reconnecting restores the blessing');
       assert(E.isActive() === true, 'on the card too');
-    } finally { E._force(null); NS.setMode('ok'); restoreG(snap); }
+    } finally { E._force(null); E._show(null); NS.setMode('ok'); restoreG(snap); }
   }),
 
   () => tryRun('b227/b560: span output is byte-identical with and without an active blessing, away AND online', () => {
@@ -2740,6 +2742,7 @@ export default [
     const snap = snapshotG();
     try {
       G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree'; G.activeMonster = null;
+      E._show(true);   // grade the surfaces switched on
       E._force({ daily: E.DAILY[0], weekly: E.QUIET });
 
       // 1 — the Events-panel blessing card (rendered wherever it is hosted).
@@ -2798,7 +2801,7 @@ export default [
         assert(!/\bidle\b/.test(String(s)), 'no blessing surface may call an online player idle: ' + s);
       });
       assert(homeTxt.indexOf('this tab') < 0, 'Home must not mention a tab either');
-    } finally { E._force(null); restoreG(snap); }
+    } finally { E._force(null); E._show(null); restoreG(snap); }
   }),
 
   () => tryRun('b226/b505: the offline cap is EARNED — no entitlement may raise it', () => withCap(720, () => {

@@ -81,10 +81,10 @@ const benchSwitchArc = async (body) => {
 const marketListArc = async (respond, srvBag) => {
   const G = window.G, A = window.HearthriseAccrual, Gd = window.HearthriseGold, M = window.HearthriseMarket;
   const snap = snapshotG(), realFetch = window.fetch, realNotify = window.notify, wasOn = A.isServerAccrualEnabled(), bagWas = G._serverBag;
-  const wasAck = A.isReplacementAcknowledged(), KEY = 'hearthrise:market:listings', saved = localStorage.getItem(KEY);
+  const KEY = 'hearthrise:market:listings', saved = localStorage.getItem(KEY);
   const said = [];
   try {
-    A.setServerAccrualEnabled(true); A.acknowledgeReplacement(true);
+    A.setServerAccrualEnabled(true);
     Gd.resetGold(); Gd.configureGold({ url: 'https://probe.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
     localStorage.setItem(KEY, '[]');
     window.notify = (m) => { said.push(String(m)); };
@@ -98,7 +98,7 @@ const marketListArc = async (respond, srvBag) => {
     return { r, before, have: G.inventory.normal_log || 0, rows, said };
   } finally {
     window.fetch = realFetch; window.notify = realNotify;
-    Gd.resetGold(); Gd.configureGold(null); A.acknowledgeReplacement(wasAck); restoreAccrualSwitch(wasOn);
+    Gd.resetGold(); Gd.configureGold(null); restoreAccrualSwitch(wasOn);
     if (saved === null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, saved);
     restoreG(snap); if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
   }
@@ -2257,7 +2257,6 @@ export default [
         gold: 400, xp: { attack: 900, hitpoints: 300 }, items: { rat_tail: 3 }, levelUps: [], events: [] },
     };
     const wasParked = window.__saveParked;
-    const wasAcked = A.isReplacementAcknowledged();
     const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       /* The applied envelope is a FIXTURE, and the hook that applies it calls
@@ -2269,7 +2268,6 @@ export default [
          see B339-5. NOTHING BELOW IS WEAKENED: the consent gate is orthogonal
          to the replacement semantics this test pins, and B339-5 asserts the
          un-acknowledged case refuses. Standing in for the player's click. */
-      A.acknowledgeReplacement(true);
       Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
       window.fetch = function (u) {
         if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
@@ -2372,8 +2370,6 @@ export default [
         playerMaxHp: save.playerMaxHp, activeSkill: save.activeSkill, activeMonster: save.activeMonster,
         activeArtisanRecipe: save.activeArtisanRecipe, offlineBudget: save.offlineBudget, lastSeen: save.lastSeen,
         lastOfflineSummary: save.los });
-      A.acknowledgeReplacement(wasAcked);
-      A.hideReplacementSheet();
       window.__saveParked = wasParked;
       try { if (typeof window.refreshAll === 'function') window.refreshAll(); } catch (e) {}
       bagHeld.restore();
@@ -3658,11 +3654,7 @@ export default [
        See SERVER-OWNED-3. */
     const veteran = () => ({ gold: 900000, skills: { woodcutting: 5000000, hitpoints: 1154 },
       inventory: { normal_log: 400, turnip_seed: 3 } });
-    const wasAcked = A.isReplacementAcknowledged();
     try {
-      A.acknowledgeReplacement(false);
-      A.hideReplacementSheet();
-
       const loss = A.describeReplacement(veteran(), envelope);
       assert(loss.destructive === true, 'a 900k-gold, 5M-XP save is not counted as a destructive replacement');
       assert(loss.gold === 899500 && loss.skillXp === 5000000 - 0 && loss.items === 400,
@@ -3699,8 +3691,6 @@ export default [
          inventory-arm decision reads) is built on it.
          MUTATION: make `applyEnvelope` return null when `loss.destructive` →
          'ARMED: the envelope was refused' goes red. */
-      A.acknowledgeReplacement(false);
-      A.hideReplacementSheet();
       /* THREE PROBE CHARACTERS, ONE FIXTURE ENVELOPE (M5). `veteran()`, `G2` and
          `fresh` below are three different people in production, each receiving
          their own first frame; here they share a version, so each one is told
@@ -3711,22 +3701,7 @@ export default [
       assert(wroteArmed, 'ARMED: the envelope was refused even though the local blob is retired — there is no '
         + 'rival copy to protect, so this is a load the player can never get past');
       assert(GArmed.gold === 500, 'ARMED: the server gold did not land: ' + GArmed.gold);
-      assert(!document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
-        'ARMED: the replacement consent sheet was shown with the blob retired — under the capstone this '
-        + 'fires on a normal load and the only way through it is to consent, so it protects nothing '
-        + 'while making the game unusable');
-      /* AND THE COPY IS STILL RIGHT, because `showReplacementSheet` remains
-         exported and a future caller must not find a sheet that lies. Driven
-         directly — it has no load-path caller left to reach it through. */
-      A.showReplacementSheet(loss, veteran(), envelope, () => {});
-      const sheet = document.getElementById(A.ACCRUE_REPLACE_SHEET_ID);
-      assert(sheet, 'showReplacementSheet renders nothing at all');
-      const copy = sheet.textContent;
-      assert(/899500|899,500/.test(copy) && /permanently/i.test(copy),
-        'the sheet does not state what is lost, in numbers: ' + copy.slice(0, 200));
-      A.hideReplacementSheet();
-
-      /* …and once acknowledged it applies, silently, forever after.
+      /* …and it applies, silently, every time.
          b359 — WHAT "APPLIES" MEANS NARROWED, AND THE OLD MEANING WAS THE P0.
          This asserted `skills.woodcutting === 0` and `inventory.logs ===
          undefined`: the envelope had to ZERO a veteran's live-earned skill and
@@ -3735,32 +3710,25 @@ export default [
          envelope that omits them is silent, not authoritative.
          What still must hold — and is what the consent sheet is actually
          warning about — is that the server's GOLD lands (its writer HAS
-         moved), and that a contest the server enters, it wins. The sheet's
-         own copy is asserted above and is unchanged. */
-      A.acknowledgeReplacement(true);
+         moved), and that a contest the server enters, it wins. (The front door deleted the
+         sheet itself; this half no longer needs an acknowledgement first.) */
       freshFrameGate();
       const G2 = veteran();
       const written = A.applyEnvelope(G2, envelope);
       assert(written && G2.gold === 500,
-        'the acknowledged replacement did not apply — ' + JSON.stringify({ written, G2 }));
+        'the replacement did not apply — ' + JSON.stringify({ written, G2 }));
       assert(G2.skills.woodcutting === 5000000 && G2.inventory.normal_log === 400,
         'live-earned XP/items the envelope omits must SURVIVE it — ' + JSON.stringify({ skills: G2.skills, inv: G2.inventory }));
 
       /* CONTROL: a device with NOTHING to lose must never see the sheet. A gate
          that fires on every player is a gate nobody reads. */
-      A.acknowledgeReplacement(false);
-      A.hideReplacementSheet();
       freshFrameGate();
       const fresh = { gold: 0, skills: {}, inventory: {} };
       assert(A.describeReplacement(fresh, envelope).destructive === false,
         'a brand-new device is treated as a destructive replacement');
       assert(A.applyEnvelope(fresh, envelope) && fresh.gold === 500,
         'a non-destructive envelope was refused');
-      assert(!document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
-        'the sheet was shown to a player with nothing to lose');
     } finally {
-      A.hideReplacementSheet();
-      A.acknowledgeReplacement(wasAcked);
     }
   }),
 
@@ -3988,11 +3956,8 @@ export default [
     };
     const stalePhoneSave = () => ({ gold: 12000, skills: { woodcutting: 90000 }, inventory: { logs: 60 } });
 
-    const wasAck = A.isReplacementAcknowledged();
     const wasHeld = S.isSnapshotHeld();
     try {
-      A.acknowledgeReplacement(false);
-      A.hideReplacementSheet();
       /* M5: two probe phones, one fixture envelope — and the FIRST apply must
          reach the deferral rather than being turned away by a floor an earlier
          test left standing, or "a deferred envelope must write nothing" would
@@ -4008,8 +3973,6 @@ export default [
       assert(A.applyEnvelope(G1, envelope) === null, 'a deferred envelope must write nothing');
       assert(G1.gold === 12000 && G1.skills.woodcutting === 90000 && G1.inventory.logs === 60,
         'the save was mutated during the deferral: ' + JSON.stringify(G1));
-      assert(!document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
-        'the "permanently gone" sheet was shown mid-handoff, before the reconcile decided which save wins');
 
       // ── reconcile SETTLED — the gate is NOT softened, only re-ordered ──────
       S.releaseSnapshots();
@@ -4024,18 +3987,11 @@ export default [
          resolves the same envelope lands.
          MUTATION: remove the `isReconcilePending()` branch from applyEnvelope →
          the 'deferred envelope must write nothing' assertion above goes red. */
-      A.hideReplacementSheet();
-      A.acknowledgeReplacement(false);
       const G3 = stalePhoneSave();
       assert(A.applyEnvelope(G3, envelope) && G3.gold === 40,
         'a post-reconcile envelope was refused — the deferral became a permanent block and the player '
         + 'cannot get past it');
-      assert(!document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
-        'the load path raised the "permanently gone" sheet — it is deleted, and a normal load must never '
-        + 'ask the player to approve their own save file loading');
     } finally {
-      A.hideReplacementSheet();
-      A.acknowledgeReplacement(wasAck);
       if (wasHeld) S.holdSnapshots(); else S.releaseSnapshots();
     }
   }),
@@ -4050,7 +4006,7 @@ export default [
      a handoff at the time; this is it being paid.
      MUTATION for each: remove the isReconcilePending() branch from the named
      function → RED. */
-  () => tryRun('ACCRUE-REPLACE-HANDOFF-2: the ACTIVITY envelope defers the same sheet mid-reconcile', () => {
+  () => tryRun('ACCRUE-REPLACE-HANDOFF-2 / FRONT-DOOR-4: the ACTIVITY envelope defers mid-reconcile, then applies with no consent sheet', () => {
     const A = window.HearthriseAccrual;
     const S = window.HearthriseSync;
     const M = window.HearthriseActivity;
@@ -4061,12 +4017,9 @@ export default [
       skills: { woodcutting: { xp: 10, level: 2 } }, inventory: {},
     };
     const stalePhoneSave = () => ({ gold: 12000, skills: { woodcutting: 90000 }, inventory: { logs: 60 } });
-    const wasAck = A.isReplacementAcknowledged();
     const wasHeld = S.isSnapshotHeld();
     try {
-      A.acknowledgeReplacement(false);
-      A.hideReplacementSheet();
-      /* M5, as in the accrue twin above: the deferral and the consent sheet are
+      /* M5, as in the accrue twin above: the deferral and the settled apply are
          what this test grades, so neither apply may be turned away by a stale
          frame floor before it reaches them. */
       freshFrameGate();
@@ -4078,18 +4031,19 @@ export default [
       assert(M.applyIntentEnvelope(G1, body) === null, 'a deferred switch envelope must write nothing');
       assert(G1.gold === 12000 && G1.skills.woodcutting === 90000,
         'the save was mutated during the deferral: ' + JSON.stringify(G1));
-      assert(!document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
-        'the "permanently gone" sheet was shown by the ACTIVITY verb mid-handoff');
 
-      /* ORDERING, NOT AMNESTY — the same proof the accrue twin carries. */
+      /* ORDERING, NOT AMNESTY, NOT CONSENT (FRONT-DOOR-4): once settled the
+         envelope lands — the deleted consent gate kept the browser's 12000.
+         MUTATION: restore the `!isReplacementAcknowledged()` branch → RED. */
       S.releaseSnapshots();
+      freshFrameGate();
       const G2 = stalePhoneSave();
-      assert(M.applyIntentEnvelope(G2, body) === null, 'a genuinely destructive switch envelope must still refuse');
-      assert(document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
-        'once reconcile has settled the activity verb must STILL ask the player');
+      assert(M.applyIntentEnvelope(G2, body) && G2.gold === 40,
+        'FRONT-DOOR-4: a settled activity envelope was refused — the browser still says ' + G2.gold
+        + ' gold while the server says 40');
+      assert(!document.getElementById('hr-accrual-replace-gate'),
+        'FRONT-DOOR-4: the retired "Keep my local save" sheet was raised by the activity verb');
     } finally {
-      A.hideReplacementSheet();
-      A.acknowledgeReplacement(wasAck);
       if (wasHeld) S.holdSnapshots(); else S.releaseSnapshots();
     }
   }),
@@ -4105,12 +4059,9 @@ export default [
       skills: { woodcutting: { xp: 10, level: 2 } }, inventory: {},
     };
     const stalePhoneSave = () => ({ gold: 12000, skills: { woodcutting: 90000 }, inventory: { logs: 60 } });
-    const wasAck = A.isReplacementAcknowledged();
     const wasHeld = S.isSnapshotHeld();
     try {
       Gd.resetGold();
-      A.acknowledgeReplacement(false);
-      A.hideReplacementSheet();
       S.holdSnapshots();
 
       const G1 = stalePhoneSave();
@@ -4118,17 +4069,25 @@ export default [
       Gd.settle(G1, 250, 'vendor.sell_one', key);
       assert(Gd.getGoldState().inflight === 1, 'the fixture must have an outstanding prediction');
       assert(Gd.applyGoldEnvelope(G1, body, key) === null, 'a deferred gold envelope must write nothing');
-      assert(!document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
-        'the "permanently gone" sheet was shown by a GOLD verb mid-handoff');
       /* ⚠ EVERY EXIT MUST ACCOUNT FOR `ownKey`. A deferral that left the
          prediction INFLIGHT would carry it onto every future envelope for the
          rest of the session — F1 wearing a deferral instead of a dialog. */
       const st = Gd.getGoldState();
       assert(st.inflight === 0 && st.abandoned === 1,
         'the deferral left the prediction inflight (' + JSON.stringify(st.pending) + ')');
+
+      /* FRONT-DOOR-4: once settled the GOLD envelope lands too, no sheet.
+         MUTATION: restore the `!isReplacementAcknowledged()` branch → RED. */
+      S.releaseSnapshots();
+      freshFrameGate();
+      Gd.resetGold();
+      const G2 = stalePhoneSave();
+      assert(Gd.applyGoldEnvelope(G2, body, Gd.newIntentKey()) && G2.gold === 40,
+        'FRONT-DOOR-4: a settled gold envelope was refused — the browser still says ' + G2.gold
+        + ' gold while the server says 40');
+      assert(!document.getElementById('hr-accrual-replace-gate'),
+        'FRONT-DOOR-4: the retired "Keep my local save" sheet was raised by a gold verb');
     } finally {
-      A.hideReplacementSheet();
-      A.acknowledgeReplacement(wasAck);
       Gd.resetGold();
       if (wasHeld) S.holdSnapshots(); else S.releaseSnapshots();
     }
@@ -6767,6 +6726,7 @@ export default [
     const realFetch = window.fetch;
     const wasOn = A.isServerAccrualEnabled();
     const seen = [];
+    const bagHeld = serverBagFixture();   // the switch envelope now applies, bag included
     try {
       window.fetch = function (u, init) {
         const s = String(u);
@@ -6836,6 +6796,7 @@ export default [
         + 'the player');
     } finally {
       window.fetch = realFetch;
+      bagHeld.restore();
       restoreAccrualSwitch(wasOn);
       M.resetActivity(); M.configureActivity(null);
       try { window.stopSkill(); } catch (e) {}
@@ -7303,7 +7264,7 @@ export default [
     }
   }),
 
-  () => tryRunAsync('B348-8: b339 is NOT reopened — a gated envelope moves the loops and moves no gold', async () => {
+  () => tryRunAsync('B348-8 / FRONT-DOOR-4: a switch envelope moves the loops AND lands the server\'s gold — no consent sheet', async () => {
     const A = window.HearthriseAccrual;
     const M = window.HearthriseActivity;
     const G = window.G;
@@ -7312,12 +7273,11 @@ export default [
       activeMonster: G.activeMonster, gold: G.gold,
       skills: JSON.parse(JSON.stringify(G.skills)), inventory: JSON.parse(JSON.stringify(G.inventory)),
       offlineBudget: G.offlineBudget, restedAt: G.restedAt, _serverAccrual: G._serverAccrual };
-    const hadAck = A.isReplacementAcknowledged();
     const realFetch = window.fetch;
     const wasOn = A.isServerAccrualEnabled();
+    const bagHeld = serverBagFixture();   // the applied envelope states a bag
     try {
-      A.acknowledgeReplacement(false);                       // the gate is ARMED
-      try { A.hideReplacementSheet(); } catch (e) {}
+      freshFrameGate();                                      // version 11 must not meet an earlier test's floor
       G.gold = 999999;                                       // far ahead of the server
       G.skills = Object.assign({}, G.skills, { woodcutting: 500000 });
 
@@ -7338,29 +7298,22 @@ export default [
       await new Promise((r) => setTimeout(r, 0));
       for (let i = 0; i < 60; i++) await Promise.resolve();
 
-      /* THE PROPERTY. The declaration LANDED (the server switched), the pointer
-         is reconciled, and NOT ONE game value moved — because the replacement
-         gate is on the ENVELOPE and b348 does not touch it. The failure this
-         guards against is the tempting simplification "we are reconciling
-         anyway, just apply the state": that is the b339 clobber, silently, on
-         every tap of a tree. */
-      assert(G.gold === 999999,
-        'the server character was applied over local progress with the replacement gate ARMED — gold went '
-        + G.gold + ' instead of 999999. b339 exists because that write is permanent and there is no merge');
-      assert((G.skills.woodcutting || 0) === 500000, 'skills were replaced behind the gate: ' + G.skills.woodcutting);
-      assert(!!document.getElementById(A.ACCRUE_REPLACE_SHEET_ID),
-        'the replacement was refused and the player was never asked — a silent refusal is how a switch that '
-        + 'pays real gold ends up reporting nothing');
+      /* THE PROPERTY, RE-SPECIFIED BY FRONT-DOOR-4: the consent gate that kept
+         999999 here is deleted (CLAUDE.md §6) — the envelope applies whole.
+         MUTATION: restore the gate in activity.js → the gold assertion goes RED. */
+      assert(G.gold === 500,
+        'the switch envelope was withheld — the browser says ' + G.gold + ' gold while the server says 500');
+      assert(!document.getElementById('hr-accrual-replace-gate'),
+        'the retired "Keep my local save" sheet was raised by an activity switch');
       assert(G.activeSkill === 'woodcutting' && G.skillTargetId === tree.id,
-        'the gated envelope also lost the POINTER — the server did switch, and only the state application '
-        + 'was withheld; conflating the two would stop the run the player is watching');
+        'the applied envelope lost the POINTER — the server switched to this tree and the run the player is '
+        + 'watching must keep going');
       const st = M.getActivityState();
-      assert(st.last && st.last.applied && st.last.applied.envelope === false,
+      assert(st.last && st.last.applied && st.last.applied.envelope !== false,
         'the seam reported an envelope it did not apply: ' + JSON.stringify(st.last && st.last.applied));
     } finally {
       window.fetch = realFetch;
-      try { A.hideReplacementSheet(); } catch (e) {}
-      A.acknowledgeReplacement(hadAck ? true : false);
+      bagHeld.restore();
       restoreAccrualSwitch(wasOn);
       M.resetActivity(); M.configureActivity(null);
       try { window.stopSkill(); } catch (e) {}
@@ -7482,7 +7435,6 @@ export default [
 
     const realFetch = window.fetch;
     const wasOn = A.isServerAccrualEnabled();
-    const wasAck = A.isReplacementAcknowledged();
     /* ⚠ A MICROTASK DRAIN IS NOT ENOUGH, and the first run proved it. The stub
        returns a real `Response`, and `res.json()` resolves on a TASK rather
        than a microtask — so 80 `await Promise.resolve()`s asserted on a balance
@@ -7508,7 +7460,6 @@ export default [
     const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       A.setServerAccrualEnabled(true);
-      A.acknowledgeReplacement(true);
       Gd.resetGold();
       Gd.configureGold({ url: 'https://probe.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
       seedPlayStreak(1);
@@ -7647,7 +7598,6 @@ export default [
     } finally {
       window.fetch = realFetch;
       Gd.resetGold(); Gd.configureGold(null);
-      A.acknowledgeReplacement(wasAck);
       restoreAccrualSwitch(wasOn);
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
@@ -7697,14 +7647,12 @@ export default [
 
     const realFetch = window.fetch;
     const wasOn = A.isServerAccrualEnabled();
-    const wasAck = A.isReplacementAcknowledged();
     const save = { gold: G.gold, gems: G.gems, streak: G.streak, dailyReward: G.dailyReward,
       skills: JSON.parse(JSON.stringify(G.skills)), inventory: JSON.parse(JSON.stringify(G.inventory)) };
 
     const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       A.setServerAccrualEnabled(true);
-      A.acknowledgeReplacement(true);
       Gd.resetGold();
       Gd.configureGold({ url: 'https://probe.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
       seedPlayStreak(1);
@@ -7754,7 +7702,6 @@ export default [
     } finally {
       window.fetch = realFetch;
       Gd.resetGold(); Gd.configureGold(null);
-      A.acknowledgeReplacement(wasAck);
       restoreAccrualSwitch(wasOn);
       Object.assign(G, save);
       stampBalanceLikeLoad(G);
@@ -7968,7 +7915,6 @@ export default [
 
     const realFetch = window.fetch;
     const wasOn = A.isServerAccrualEnabled();
-    const wasAck = A.isReplacementAcknowledged();
     const origSb = window.HearthriseSupabase, origAuth = window.HearthriseAuth;
     const origNotify = window.notify, origCfg = R.getRecordConfig();
     const save = { gold: G.gold, gems: G.gems, dailyGoals: G.dailyGoals,
@@ -7978,7 +7924,6 @@ export default [
     const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       A.setServerAccrualEnabled(true);
-      A.acknowledgeReplacement(true);
       assert(window.clientMayWriteRecordField('gold') === false,
         'CONTROL: gold is not armed in this fixture, so claimQuestReward takes its DORMANT branch and '
         + 'the server path under test never runs');
@@ -8074,7 +8019,6 @@ export default [
       window.HearthriseAuth = origAuth;
       R.configureRecord(origCfg);
       window.__hrSyncServerGoals.reset();
-      A.acknowledgeReplacement(wasAck);
       restoreAccrualSwitch(wasOn);
       Object.assign(G, save);
       stampBalanceLikeLoad(G);
@@ -8161,7 +8105,6 @@ export default [
     const G = window.G;
     const realFetch = window.fetch;
     const wasOn = A.isServerAccrualEnabled();
-    const wasAck = A.isReplacementAcknowledged();
     const snap = snapshotG(), bag = serverBagFixture();   /* gold/inventory/skills/lockedItems are all named by the allowlist now */
     let ver = 40;
     let sent = [];
@@ -8173,7 +8116,6 @@ export default [
     };
     try {
       A.setServerAccrualEnabled(true);
-      A.acknowledgeReplacement(true);
       Gd.resetGold();
       Gd.configureGold({ url: 'https://probe.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
       window.fetch = function (u, init) {
@@ -8260,7 +8202,6 @@ export default [
     } finally {
       window.fetch = realFetch;
       Gd.resetGold(); Gd.configureGold(null);
-      A.acknowledgeReplacement(wasAck);
       restoreAccrualSwitch(wasOn);
       restoreG(snap); bag.restore();
     }
@@ -8291,7 +8232,6 @@ export default [
 
     const realFetch = window.fetch;
     const wasOn = A.isServerAccrualEnabled();
-    const wasAck = A.isReplacementAcknowledged();
     const save = { gold: G.gold, gems: G.gems,
       skills: JSON.parse(JSON.stringify(G.skills)), inventory: JSON.parse(JSON.stringify(G.inventory)) };
     const savedListings = localStorage.getItem('hearthrise:market:listings');
@@ -8321,7 +8261,6 @@ export default [
     const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       A.setServerAccrualEnabled(true);
-      A.acknowledgeReplacement(true);
       Gd.resetGold();
       Gd.configureGold({ url: 'https://probe.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
 
@@ -8416,7 +8355,6 @@ export default [
     } finally {
       window.fetch = realFetch;
       Gd.resetGold(); Gd.configureGold(null);
-      A.acknowledgeReplacement(wasAck);
       restoreAccrualSwitch(wasOn);
       if (savedListings === null) localStorage.removeItem('hearthrise:market:listings');
       else localStorage.setItem('hearthrise:market:listings', savedListings);
@@ -8769,9 +8707,7 @@ const m5Gate = () => {
 function m5FrameGateTests() { return [
   () => tryRun('M5 regression: a reordered frame writes NOTHING — whole frame or nothing', () => {
     const A = m5Gate();
-    const wasAcked = A.isReplacementAcknowledged();
     try {
-      A.acknowledgeReplacement(true);
       A.resetFrameGate();
       const G = { gold: 0, gems: 0, skills: {}, inventory: {} };
       assert(A.applyEnvelope(G, m5Env(200, 500)) && G.gold === 500,
@@ -8787,14 +8723,12 @@ function m5FrameGateTests() { return [
       assert(A.getAppliedFrame() === 200, 'a refused frame moved the floor');
       assert(A.classifyFrame(199).verdict === 'reorder',
         'a frame below the floor did not classify as `reorder`: ' + A.classifyFrame(199).verdict);
-    } finally { A.acknowledgeReplacement(wasAcked); A.resetFrameGate(); }
+    } finally { A.resetFrameGate(); }
   }),
 
   () => tryRun('M5 regression: a duplicate frame is refused — strictly greater, not >=', () => {
     const A = m5Gate();
-    const wasAcked = A.isReplacementAcknowledged();
     try {
-      A.acknowledgeReplacement(true);
       A.resetFrameGate();
       const G = { gold: 0, gems: 0, skills: {}, inventory: {} };
       assert(A.applyEnvelope(G, m5Env(200, 500)) && G.gold === 500, 'the first envelope was refused');
@@ -8803,7 +8737,7 @@ function m5FrameGateTests() { return [
         + 'again OUT OF ORDER" are one code path.');
       assert(A.classifyFrame(200).verdict === 'duplicate',
         'an equal frame did not classify as `duplicate`: ' + A.classifyFrame(200).verdict);
-    } finally { A.acknowledgeReplacement(wasAcked); A.resetFrameGate(); }
+    } finally { A.resetFrameGate(); }
   }),
 
   () => tryRun('M5 regression: ONE frame floor, shared by all three appliers', () => {
@@ -8816,9 +8750,7 @@ function m5FrameGateTests() { return [
     assert(Gd && typeof Gd.applyGoldEnvelope === 'function' && typeof Gd.getGoldState === 'function'
       && M && typeof M.applyIntentEnvelope === 'function',
       'gold.js and activity.js — the second and third appliers — must be published');
-    const wasAcked = A.isReplacementAcknowledged();
     try {
-      A.acknowledgeReplacement(true);
       A.resetFrameGate();
       const G = { gold: 0, gems: 0, skills: {}, inventory: {} };
       assert(A.applyEnvelope(G, m5Env(200, 500)) && G.gold === 500, 'the accrue envelope was refused');
@@ -8839,14 +8771,12 @@ function m5FrameGateTests() { return [
         'activity.js applied an envelope BELOW the shared floor — an applier that ignores the '
         + 'floor leaves it below the state in G, after which an older frame reads as fresh.');
       assert(Ga.gold === 500, 'the stale switch envelope wrote the balance anyway: ' + Ga.gold);
-    } finally { A.acknowledgeReplacement(wasAcked); A.resetFrameGate(); Gd.resetGold(); }
+    } finally { A.resetFrameGate(); Gd.resetGold(); }
   }),
 
   () => tryRun('M5 regression: the hello heals in one step, and a garbage frame cannot latch the gate', () => {
     const A = m5Gate();
-    const wasAcked = A.isReplacementAcknowledged();
     try {
-      A.acknowledgeReplacement(true);
       A.resetFrameGate();
       A.commitFrame(200);
       /* §7.1: a dropped frame is not a hole to be patched. A client that wants
@@ -8871,7 +8801,7 @@ function m5FrameGateTests() { return [
       assert(A.getAppliedFrame() === 50, 'a garbage frame moved the floor');
       assert(A.applyEnvelope({ gold: 0 }, m5Env(51, 3)) !== null,
         'the gate latched shut behind a garbage frame');
-    } finally { A.acknowledgeReplacement(wasAcked); A.resetFrameGate(); }
+    } finally { A.resetFrameGate(); }
   }),
 
   /* ── SEC S1 — A REFUSAL MUST STILL CORRECT THE BROWSER ────────────────────
@@ -8904,9 +8834,7 @@ function m5FrameGateTests() { return [
       equipment: {}, bank: {},
     });
 
-    const wasAcked = A.isReplacementAcknowledged();
     try {
-      A.acknowledgeReplacement(true);
       A.resetFrameGate();
       const G = { gold: 0, gems: 0, skills: {}, inventory: {} };
       assert(M.applyIntentEnvelope(G, intentAt(77, 100)) && G.gold === 100
@@ -8940,7 +8868,7 @@ function m5FrameGateTests() { return [
         'a REORDERED intent envelope (70 < 77) was applied. The correction arm is for an EQUAL '
         + 'frame only. G.gold=' + G.gold);
       assert(A.getAppliedFrame() === 77, 'a reordered intent envelope moved the floor');
-    } finally { A.acknowledgeReplacement(wasAcked); A.resetFrameGate(); }
+    } finally { A.resetFrameGate(); }
   }),
   /* ── SEC S2 — THE IDENTITY CHANGE CLEARS THE FLOOR ────────────────────────
      docs/planning/SEC_PUSH_CHANNEL_M5_2026-09-23.md S2 (HIGH, CONFIRMED).
@@ -8961,9 +8889,7 @@ function m5FrameGateTests() { return [
     assert(typeof A.resetAccrualIdentity === 'function',
       'accrue.js must publish resetAccrualIdentity — it is the identity teardown both the '
       + 'sign-out and the slot switch already call, and the floor rides on it');
-    const wasAcked = A.isReplacementAcknowledged();
     try {
-      A.acknowledgeReplacement(true);
       A.resetFrameGate();
 
       /* (1) THE OUTGOING CHARACTER, far along. */
@@ -8984,7 +8910,7 @@ function m5FrameGateTests() { return [
         + '4200. Every envelope for this player is now dropped whole, invisibly, until their '
         + 'version passes 4200.');
       assert(A.getAppliedFrame() === 37, 'the floor did not follow the new character');
-    } finally { A.acknowledgeReplacement(wasAcked); A.resetFrameGate(); }
+    } finally { A.resetFrameGate(); }
   }),
   /* ── SEC S3 — A CLIENT WHOSE FRAMES ARE ALL REFUSED MUST SAY SO ───────────
      docs/planning/SEC_PUSH_CHANNEL_M5_2026-09-23.md S3 (MEDIUM).
@@ -8998,9 +8924,7 @@ function m5FrameGateTests() { return [
      RED WITHOUT THE FIX at (1): getAccrualState() carries no streak at all. */
   () => tryRun('M5 regression: the frame-drop streak is counted and published (SEC S3)', () => {
     const A = m5Gate();
-    const wasAcked = A.isReplacementAcknowledged();
     try {
-      A.acknowledgeReplacement(true);
       A.resetFrameGate();
       A.commitFrame(500);
 
@@ -9031,7 +8955,7 @@ function m5FrameGateTests() { return [
       assert(A.getAccrualState().drops === 0,
         'the healer left the streak at ' + A.getAccrualState().drops + ', so the sheet keeps '
         + 'reporting an outage that is over');
-    } finally { A.acknowledgeReplacement(wasAcked); A.resetFrameGate(); }
+    } finally { A.resetFrameGate(); }
   }),
 ]; }
 
@@ -9078,11 +9002,10 @@ const m5WithLive = (opts, fn) => {
     L.setLiveEnv(null); L.__resetLive(); A.resetFrameGate(); A.__resetAwaySettleLatch(wasClosed);
   }
 };
-/* Private-G arms share the replacement acknowledgement dance. */
+/* Private-G arms share the frame-gate reset. */
 const m5Acked = (fn) => {
   const A = window.HearthriseAccrual;
-  const was = A.isReplacementAcknowledged();
-  try { A.acknowledgeReplacement(true); return fn(A); } finally { A.acknowledgeReplacement(was); A.resetFrameGate(); }
+  try { return fn(A); } finally { A.resetFrameGate(); }
 };
 
 function m5LiveSubscribeTests() { return [

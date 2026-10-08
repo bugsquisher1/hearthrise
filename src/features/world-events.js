@@ -19,7 +19,7 @@
 // one. tests/blessing-promise-honesty.mjs keeps it that way.
 //
 // UI: the blessing card in the Events panel (Home hosts it only as a
-// fallback) + a login toast. Daily events rotate at UTC midnight; weekly at
+// fallback) + a login toast — all behind BLESSINGS_SHOWN (off). Daily events rotate at UTC midnight; weekly at
 // the UTC week index (same weekly key scheme as the quest system).
 // ============================================================
 (function () {
@@ -95,6 +95,19 @@
   // every gate test needs, so an assertion never depends on today's date.
   var QUIET = { id: 'quiet_season', name: 'A Quiet Season', desc: 'no blessing' };
 
+  /* ── THE SWITCH: BLESSINGS ARE OUT OF THE PLAYER'S VIEW (the front door) ──
+     The effects were withdrawn earlier, and what was left — an Events card, a Home
+     "The realm" block, a War Table destination and a login toast — told a new
+     player each day that something was blessed when nothing was. A name with
+     no consequence is a promise with nothing behind it (Game Designer ruling,
+     2026-10-08), so every player-facing surface reads this ONE flag and draws
+     nothing while it is false. The calendar itself (daily/weekly/hash/day keys)
+     stays: Boss of the Day, raids and the muster share its clock. Flip it to
+     true the day a server blessing layer pays something. */
+  var BLESSINGS_SHOWN = false;
+  var _showOverride = null;   // suite seam (_show) — never called by the game
+  function shown() { return _showOverride !== null ? _showOverride : BLESSINGS_SHOWN; }
+
   // ── THE GATE ──────────────────────────────────────────────────────────────
   // "Is the day's blessing active for this player?" — the line the card prints.
   // It pays nothing (see the header); it defers to legacy.js's session layer
@@ -166,6 +179,14 @@
     return document.getElementById('hr-ev-blessing') || document.getElementById('panel-profile');
   }
   function injectBanner() {
+    var sec = document.getElementById('hr-ev-blessing');
+    if (!shown()) {
+      var old = document.getElementById('hr-worldevents');
+      if (old && old.parentNode) old.parentNode.removeChild(old);
+      if (sec) sec.style.display = 'none';
+      return;
+    }
+    if (sec) sec.style.display = '';
     var host = bannerHost();
     if (!host) return;
     var el = document.getElementById('hr-worldevents');
@@ -191,7 +212,7 @@
       var d = daily(), w = weekly();
       var seenKey = 'hr-event-seen';
       var today = utcDayKey();
-      if (localStorage.getItem(seenKey) !== today) {
+      if (shown() && localStorage.getItem(seenKey) !== today) {
         localStorage.setItem(seenKey, today);
         // Toasts render with textContent, so a glyph here can only ever be a
         // raw emoji character. Say it in words instead.
@@ -209,12 +230,14 @@
     DAILY: DAILY, WEEKLY: WEEKLY,
     daily: daily, weekly: weekly,
     isActive: blessingActive,
+    shown: shown,
     EVENT_GLYPH: EVENT_GLYPH,
     utcDayKey: utcDayKey, utcWeekKey: utcWeekKey,
     renderBlessing: injectBanner,
     /* harness seams — see forceEvents() above */
     QUIET: QUIET,
     _force: forceEvents,
+    _show: function (on) { _showOverride = (on === null || on === undefined) ? null : !!on; injectBanner(); },
     _hash: hash
   };
 })();

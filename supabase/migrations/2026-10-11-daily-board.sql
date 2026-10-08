@@ -19,7 +19,7 @@
 -- ── WHY THE LIVE CLIENT IS UNAFFECTED BY THE APPLY ─────────────────────────
 -- pickBoard is the client's historical picker in exact integer form;
 -- floor(seed*n/233280) equals the old floor((seed/233280)*n) for every seed
--- and every n in 9..12 (tests/daily-board.mjs sweeps the whole seed space). The
+-- and every n in 9..12 (tests/goal-catalogue-drift.mjs sweeps the whole seed space). The
 -- goals a live client already shows are exactly the ones §3 accepts.
 --
 -- ── WHAT CANNOT BE MINTED (for the Security review) ────────────────────────
@@ -215,7 +215,7 @@ declare
   v_bad  int := 0;
   v_at   timestamptz;
 begin
-  -- (a) PINNED VECTORS from src/data/goal-catalogue.js boardAt (tests/daily-board.mjs
+  -- (a) PINNED VECTORS from src/data/goal-catalogue.js boardAt (tests/goal-catalogue-drift.mjs
   --     re-derives them), so the SQL port and the JS picker are bound by execution.
   if public.hr_goal_board(false, timestamptz '2026-10-11 00:00:00+00') is distinct from array['gold_500','kill_any','level_up']
      or public.hr_goal_board(false, timestamptz '2026-10-11 23:59:59+00') is distinct from array['gold_500','kill_any','level_up']

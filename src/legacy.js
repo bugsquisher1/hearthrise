@@ -16815,6 +16815,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
   var _srvGoalsInflight = false;
   var _srvGoalsForce = false;  // re-read on the next sync WITHOUT dropping the known state
   var _srvBoard = null;        // hr_goal_state's board {daily, weekly}
+  var _srvDayKey = '';         // the UTC day that answer was graded on
   function goalsArmed(){
     return typeof window.clientMayWriteRecordField === 'function'
       && !window.clientMayWriteRecordField('gold');
@@ -16837,10 +16838,11 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
           if(!g || !g.goal_id) return;
           m[(g.weekly ? 'w:' : 'd:') + g.goal_id] = Object.freeze({
             have: Math.max(0, Number(g.have) || 0), target: Number(g.target) || 0,
-            complete: !!g.complete, claimed: !!g.claimed
+            complete: !!g.complete, claimed: !!g.claimed, offered: g.offered !== false
           });
         });
         _srvGoals = Object.freeze(m); _srvGoalsAt = Date.now(); _srvGoalsForce = false;
+        _srvDayKey = String(res.day_key || '');
         var bd = res.board;
         _srvBoard = (bd && Array.isArray(bd.daily) && Array.isArray(bd.weekly))
           ? Object.freeze({ daily: bd.daily.slice(), weekly: bd.weekly.slice() }) : null;
@@ -16863,7 +16865,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
     return m ? (m[(isWeekly ? 'w:' : 'd:') + goal.id] || null) : null;
   }
   window.__hrSyncServerGoals = syncServerGoals;   // test seam + manual refresh
-  window.__hrSyncServerGoals.reset = function(){ _srvGoals = null; _srvBoard = null; _srvGoalsAt = 0; _srvGoalsInflight = false; _srvGoalsForce = false; };
+  window.__hrSyncServerGoals.reset = function(){ _srvGoals = null; _srvBoard = null; _srvDayKey = ''; _srvGoalsAt = 0; _srvGoalsInflight = false; _srvGoalsForce = false; };
 
   /* A goal whose server state is unknown shows the pending dash, never 0 and
      never the local count (the local count drives the BAR only). */
@@ -16897,8 +16899,18 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
     var t = sg && (sg.target > 0 ? sg.target : goal.target);
     return !!sg && sg.complete === true && t > 0 && sg.have >= t;
   }
+  /* THE SERVER'S `offered`, AND ITS DAY. A row the server will not pay — not
+     on its board, or graded on a UTC day that has since rolled (the cache lives
+     120 s past midnight) — never offers Claim; the next answer re-grades it. */
+  function srvPeriodCurrent(){
+    if(!_srvDayKey) return true;
+    var d = new Date();
+    return _srvDayKey === d.getUTCFullYear() + '-' + (d.getUTCMonth() + 1) + '-' + d.getUTCDate();
+  }
   function goalClaimable(goal, isWeekly){
-    return isComplete(goal, isWeekly) && !isClaimed(goal, isWeekly);
+    var sg = srvGoal(goal, isWeekly);
+    return isComplete(goal, isWeekly) && !isClaimed(goal, isWeekly)
+      && !!sg && sg.offered !== false && srvPeriodCurrent();
   }
 
   /* ── THE BAR IS THE SERVER'S COUNT (whole-game review 2026-10-08, item 7) ──

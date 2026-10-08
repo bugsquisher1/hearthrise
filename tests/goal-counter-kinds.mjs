@@ -76,6 +76,8 @@ const QUEST_END = await chainEndMigration(/create\s+or\s+replace\s+function\s+pu
 if (!QUEST_END) { console.error('goal-counter-kinds: no file in the apply order creates hr_claim_quest__ungated'); process.exit(2); }
 const QUEST_MIG = QUEST_END.file;
 const STAGED_PREFIX = 'STAGED, NOT APPLIED - REVIEW ONLY; ';
+/* The chain end of hr_goal_state__ungated (the daily board restates it). */
+const BOARD_MIG = '2026-10-11-daily-board.sql';
 
 const UID = '000000f8-0000-0000-0000-0000000000c1';
 
@@ -104,6 +106,13 @@ const GATE_BLIND = [
   raise notice 'SEC 4 SHORT-CIRCUITED FOR THE MUTATION PROOF';
   return;
   -- (a) A validated check constraint pins the column, whatever its name.`],
+  [BOARD_MIG,
+    `begin
+  -- (a) PINNED VECTORS`,
+    `begin
+  raise notice 'SEC 4 SHORT-CIRCUITED FOR THE MUTATION PROOF';
+  return;
+  -- (a) PINNED VECTORS`],
   [QUEST_MIG,
     `  if position('ev:planted' in v_src) > 0 then raise exception 'VERIFY(b): the body names ev:planted'; end if;`,
     `  if false then raise exception 'VERIFY(b): the body names ev:planted'; end if;`],
@@ -174,6 +183,21 @@ const MUTATIONS = {
        where user_id = v_uid and slot = v_slot and kind = 'stat'
          and key = r.counter_key and period_key = '';`]],
   },
+  /* The same defect in the CHAIN-END body: the board migration restates
+     hr_goal_state__ungated, so the plain run must judge that restatement. */
+  board_state_reads_lifetime: {
+    expect: 'red',
+    upTo: BOARD_MIG,
+    why: 'the restated chain-end goal state grades the LIFETIME row — a later restatement that '
+       + 'drops period scoping must turn this guard red, not only the apply-time GATE(d)',
+    patches: [[BOARD_MIG,
+      `      select coalesce(value, 0) into v_have from public.player_progress
+       where user_id = v_uid and slot = v_slot and kind = 'daily'
+         and key = r.counter_key and period_key = v_day;`,
+      `      select coalesce(value, 0) into v_have from public.player_progress
+       where user_id = v_uid and slot = v_slot and kind = 'stat'
+         and key = r.counter_key and period_key = '';`]],
+  },
   inline_check_deleted_add_path: {
     expect: 'green',
     why: 'THE NEGATIVE CONTROL. With the inline check deleted the new migration must take its ADD '
@@ -201,9 +225,8 @@ async function boot(name, gateBlind) {
      chain end (QUEST_MIG, after MIG) — never past it (replayScopeError). Not
      LAST_PATCHED: the negative control patches only the older CREATE and needs
      MIG's ADD path and the quest body to run. */
-  /* The plain run stops before 2026-10-11-daily-board.sql, which would refuse
-     `plant` not_offered on most days; its GATE(d) re-proves period scoping. */
-  const { db } = await bootReplay(map.size ? { patches: map, upTo: QUEST_MIG } : { upTo: '2026-10-08-content-holes.sql' });
+  const upTo = (name && MUTATIONS[name].upTo) || QUEST_MIG;
+  const { db } = await bootReplay(map.size ? { patches: map, upTo } : undefined);
   return db;
 }
 
@@ -319,11 +342,14 @@ async function runAll(db) {
     `select public.hr_claim_goal__ungated('plant', false, 0, '000000f8-0000-0000-0000-0000000000d1'::uuid) as r`
   )).rows[0].r;
   /* 'not_complete' is hr_claim_goal's refusal code (hr_claim_QUEST's is
-     'incomplete' — two different RPCs, two different vocabularies; asserting
-     the wrong one here would have made this check silently vacuous). */
-  ok(claim && claim.ok === false && claim.error === 'not_complete' && Number(claim.have) === 0,
-     `hr_claim_goal REFUSES the plant goal as 'not_complete' with have=0 for that character (got `
-     + `${JSON.stringify(claim)}) — the server, not the client, is what makes the backfill unpayable`);
+     'incomplete'). On a day the board does not deal `plant` the refusal is
+     'not_offered' (2026-10-11-daily-board.sql); either way nothing pays. */
+  const offered = (await db.query(
+    `select 'plant' = any (public.hr_goal_board(false, now())) as o`)).rows[0].o;
+  ok(claim && claim.ok === false && (offered
+    ? (claim.error === 'not_complete' && Number(claim.have) === 0) : claim.error === 'not_offered'),
+     `hr_claim_goal REFUSES the plant goal (${offered ? "'not_complete' with have=0" : "'not_offered'"}) for that `
+     + `character (got ${JSON.stringify(claim)}) — the server, not the client, is what makes the backfill unpayable`);
 
   // NON-VACUITY: the same reads must be able to say YES. Without this, a goal
   // board that answered "0, incomplete" for every goal in the game would pass.

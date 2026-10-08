@@ -183,7 +183,7 @@ export function questCombatXpIsServerCredited(questId) {
 
    pickBoard is the historical client picker in exact integer form:
    floor(seed*n/233280) equals the old floor((seed/233280)*n) for every seed
-   and n in 9..12 (tests/daily-board.mjs sweeps the whole seed space), so the
+   and n in 9..12 (tests/goal-catalogue-drift.mjs sweeps the whole seed space), so the
    board a live client already shows IS the board the server enforces. */
 export const BOARD_SIZE = 3;
 

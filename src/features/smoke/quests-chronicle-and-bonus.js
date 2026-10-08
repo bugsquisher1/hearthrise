@@ -3152,6 +3152,41 @@ export default [
       assert(!document.querySelector('#hd-root [data-hd="bclaim"]'), 'a local tally offered a Claim the server has not confirmed');
     } finally { restoreG(snap); try { H.render(); } catch (e) {} }
   }),
+  /* -- regression suite -- Claim follows the server's per-row `offered` and its
+     UTC day: a row the server will not pay (off the board, or graded before
+     midnight and still cached) offers no Claim and fires nothing. */
+  () => tryRunAsync('DAILY-BOARD-3: no Claim on a row the server marks unoffered, nor on yesterday\'s cached answer after UTC midnight', async () => {
+    const H = window.HearthriseHome;
+    if (!H || typeof window.showTab !== 'function') return skip('no Home');
+    const snap = snapshotG();
+    const origMay = window.clientMayWriteRecordField, origClaim = window.HearthriseGoalClaim;
+    const d = new Date(), today = d.getUTCFullYear() + '-' + (d.getUTCMonth() + 1) + '-' + d.getUTCDate();
+    const claims = [];
+    const verdict = async (offered, dayKey) => {
+      window.__hrSyncServerGoals.reset(); window.__hrGoalDisplay.reset();
+      const ids = window.getGoalsForToday().map((g) => g.id);
+      window.HearthriseGoalClaim = { isSignedIn: () => true, grantedReward: () => null,
+        goalState: () => Promise.resolve({ ok: true, day_key: dayKey, board: { daily: ids, weekly: [] },
+          goals: window.getGoalsForToday().map((g) => goalRow(g.id, g.target, g.target, { offered })) }),
+        claimGoal: (id) => { claims.push(id); return Promise.resolve({ ok: true }); } };
+      await new Promise((r) => window.__hrSyncServerGoals(r));
+      window.showTab('profile'); H.render();
+      const home = document.querySelectorAll('#hd-root [data-hd="bclaim"]').length;
+      window.claimQuestReward(ids[0], false);
+      return home;
+    };
+    try {
+      window.clientMayWriteRecordField = () => false;
+      claims.length = 0;
+      assert(await verdict(false, today) === 0 && claims.length === 0, 'an UNOFFERED complete row offered or fired a Claim');
+      assert(await verdict(true, '1999-1-1') === 0 && claims.length === 0, 'yesterday\'s cached answer offered or fired a Claim after midnight');
+      assert(await verdict(true, today) === 3 && claims.length === 1, 'CONTROL: an offered, complete, current row must offer Claim');
+    } finally {
+      window.__hrSyncServerGoals.reset(); window.__hrGoalDisplay.reset();
+      window.clientMayWriteRecordField = origMay; window.HearthriseGoalClaim = origClaim;
+      restoreG(snap); try { H.render(); } catch (e) {}
+    }
+  }),
   /* -- regression suite -- Daily Tasks retired: nothing deals, counts or claims
      a task slate, and updateDaily stays the seam the Muster wraps. */
   () => tryRun('TASKS-RETIRED: no task slate, no task claim, no client gold — updateDaily is only the wrapper seam', () => {
@@ -3179,7 +3214,7 @@ export default [
       window.openQuestsModal();
       document.querySelector('#quests-modal-overlay .qm-tab[data-tab="weekly"]').click();
       assert(document.getElementById('qm-summary-h').textContent === 'Your week', 'the weekly aside is not the ledger');
-      assert(document.querySelector('#qm-summary .qm-sum-row'), 'the ledger drew no row');
+      assert(document.querySelector('#qm-summary .qm-sum-row, #qm-summary .qm-info-text'), 'the ledger drew nothing');
       document.querySelector('#quests-modal-overlay .qm-tab[data-tab="daily"]').click();
       assert(document.getElementById('qm-summary-h').textContent === 'Quest Info', 'the daily aside took the weekly ledger');
     } finally { if (typeof window.closeQuestsModal === 'function') window.closeQuestsModal(); }

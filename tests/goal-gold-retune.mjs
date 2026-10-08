@@ -66,9 +66,15 @@ const RULED_DAILY_TASKS = Object.freeze({
   daily_smith: { type: 'smithed', goal: 40, gold: 500 },
   daily_craft: { type: 'crafted', goal: 40, gold: 500 },
 });
-/* The plain run stops before the daily board, which deals hr_claim_goal's
-   goals and retires hr_claim_daily; tests/daily-board.mjs owns that state. */
-const PRE_BOARD = '2026-10-08-content-holes.sql';
+/* THE CHAIN END RETIRED hr_claim_daily (2026-10-12-retire-daily-tasks.sql).
+   This migration's VERIFY asserts the grant it was written against, so a
+   re-apply on a retired database restores that precondition for its own
+   transaction only — the bodies it patches are what the re-apply proves. */
+const DAILY_GRANT = 'public.hr_claim_daily(text, int)';
+const withDailyGrant = (sql, retired) => (retired
+  ? `grant execute on function ${DAILY_GRANT} to authenticated;\n${sql}\nrevoke execute on function ${DAILY_GRANT} from authenticated;`
+  : sql);
+const retiredSql = `select not has_function_privilege('authenticated', 'public.hr_claim_daily(text,integer)', 'execute') as r`;
 
 const MIG = '2026-09-04-goal-gold-retune.sql';
 const problems = [];
@@ -237,10 +243,11 @@ async function run(mutate) {
      fail-closed file is supposed to have. */
   const patches = new Map(PRE_RULING);
   if (mutate) patches.set(MIG, patchesOf(mutate));
-  /* PRE_RULING is a fixture, not a mutant: the plain run keeps the chain up to
-     PRE_BOARD over it. A mutant stops at MIG so nothing newer judges it first
-     (tests/schema-replay.mjs replayScopeError). */
-  const { db } = await bootReplay({ patches, upTo: mutate ? MIG : PRE_BOARD });
+  /* PRE_RULING is a fixture, not a mutant: the plain run keeps the WHOLE chain
+     over it, so the chain-end claim bodies are what it grades. A mutant stops at
+     MIG so nothing newer judges it first (tests/schema-replay.mjs replayScopeError). */
+  const { db } = await bootReplay(mutate ? { patches, upTo: MIG }
+    : { patches, fullChain: 'PRE_RULING is a fixture: the plain run replays the whole chain over the reverted files' });
 
   const q = async (sql, p) => (await db.query(sql, p)).rows;
   const asUser = async (uid, sql, p) => {
@@ -264,8 +271,10 @@ async function run(mutate) {
   obs.questDef = await defOf('public.hr_claim_quest__ungated(text,integer)');
 
   // ── T2/I1. RE-APPLYING IT ON THE TRANSITIONED DATABASE IS A NO-OP ─────
+  const retired = (await q(retiredSql))[0].r;
+  obs.retired = retired;
   try {
-    await db.exec(`begin;\n${mig}\ncommit;`);
+    await db.exec(`begin;\n${withDailyGrant(mig, retired)}\ncommit;`);
     obs.reapply = 'ok';
   } catch (e) { await db.exec('rollback').catch(() => {}); obs.reapply = String(e.message || e).split('\n')[0]; }
   obs.dailyDefAfter = await defOf('public.hr_claim_daily__ungated(text,integer)');
@@ -298,6 +307,15 @@ async function run(mutate) {
      on conflict (user_id, slot, kind, key, period_key)
        do update set value = excluded.value`, [uid, key, n]);
 
+  /* THE DAILY BOARD (2026-10-11-daily-board.sql) pays only the goals it dealt
+     today, so each probe is graded against the server's own board: an offered
+     goal must pay the ruled number, an unoffered one must refuse not_offered. */
+  const boardDaily = (await q(`select case when to_regprocedure('public.hr_goal_board(boolean,timestamptz)') is null
+    then null else public.hr_goal_board(false, now()) end as r`))[0].r;
+  obs.board = boardDaily;
+  const dealt = (id) => !boardDaily || boardDaily.includes(id);
+  obs.dealt = { gather_logs: dealt('gather_logs'), plant: dealt('plant') };
+
   /* (a) THE MODAL BOARD, BOTH DIRECTIONS OF THE RULING.
      gather_logs went UP (25 -> 60 @ 250 -> 300): 59 must be REFUSED and 60 must
      pay 300. The refusal is the half that proves the TARGET moved — a gold-only
@@ -318,6 +336,22 @@ async function run(mutate) {
   await gate();
   obs.plant3 = await asUser(uid, 'select public.hr_claim_goal($1,$2,0,$3) as r', ['plant', false, null]);
   obs.plantGold = (await goldOf()) - g0;
+
+  /* …and whatever the board dealt today pays its catalogued gold at target. */
+  if (boardDaily) {
+    const pick = (await q(`select g.goal_id, g.counter_key, g.target::int t, g.gold::int gold
+      from unnest($1::text[]) with ordinality b(id, n) join public.hr_goal_rewards g on g.goal_id = b.id
+      where g.counter_kind = 'daily' and g.gold > 0 and g.goal_id not in ('gather_logs','plant')
+      order by b.n limit 1`, [boardDaily]))[0];
+    if (pick) {
+      await stampDay(pick.counter_key, pick.t);
+      g0 = await goldOf();
+      await gate();
+      obs.boardPick = { id: pick.goal_id, want: pick.gold,
+        r: await asUser(uid, 'select public.hr_claim_goal($1,$2,0,$3) as r', [pick.goal_id, false, null]) };
+      obs.boardPick.gold = (await goldOf()) - g0;
+    }
+  }
 
   /* (b) THE ONBOARDING QUEST. 5 harvests must be refused, 6 must pay. */
   await stampLifetime('ev:harvest', 5);
@@ -343,11 +377,22 @@ async function run(mutate) {
   for (const key of ['ev:kill_any', 'ev:gather', 'ev:cooked', 'ev:smithed', 'ev:crafted']) {
     await stampDay(key, 5000);
   }
+  /* Retired at the chain end: the player is refused, and the installed body
+     (reached as its owner, with the player's subject) still prices the ruling. */
+  const asOwner = async (sql, p) => {
+    await q("select set_config('request.jwt.claim.sub',$1,false)", [uid]);
+    return (await db.query(sql, p)).rows[0]?.r;
+  };
+  if (retired) {
+    try { await asUser(uid, 'select public.hr_claim_daily($1,0) as r', [offered[0] || 'daily_kill']); obs.retiredRefused = false; }
+    catch (e) { obs.retiredRefused = /permission denied/.test(String(e.message || e)); }
+  }
   for (const task of offered) {
     if (!RULED_DAILY_TASKS[task]) continue;         // daily_harvest is not creditable
     const before = await goldOf();
     await gate();
-    const r = await asUser(uid, 'select public.hr_claim_daily($1,0) as r', [task]);
+    const r = retired ? await asOwner('select public.hr_claim_daily__ungated($1,0) as r', [task])
+      : await asUser(uid, 'select public.hr_claim_daily($1,0) as r', [task]);
     obs.dailyPaid[task] = { ok: r?.ok === true, gold: (await goldOf()) - before, said: Number(r?.gold) };
   }
   obs.retunedExecuted = Object.keys(obs.dailyPaid)
@@ -363,10 +408,11 @@ async function run(mutate) {
      planting it in an authoring file would test a differently-built chain
      instead of a drifted one. */
   const { db: db2 } = await bootReplay(
-    mutate ? { patches: new Map([[MIG, patchesOf(mutate)]]), upTo: LAST_PATCHED } : { upTo: PRE_BOARD });
+    mutate ? { patches: new Map([[MIG, patchesOf(mutate)]]), upTo: LAST_PATCHED } : {});
   const q2 = async (sql, p) => (await db2.query(sql, p)).rows;
+  const retired2 = (await q2(retiredSql))[0].r;
   const apply = async () => {
-    try { await db2.exec(`begin;\n${mig}\ncommit;`); return 'ok'; }
+    try { await db2.exec(`begin;\n${withDailyGrant(mig, retired2)}\ncommit;`); return 'ok'; }
     catch (e) { await db2.exec('rollback').catch(() => {}); return String(e.message || e).split('\n')[0]; }
   };
 
@@ -486,14 +532,30 @@ function grade(o) {
 
   // ── T3. THE PLAYER IS REALLY PAID THE RULED NUMBERS ───────────────────
   ok(o.created?.ok === true, `FIXTURE: hr_create_character refused: ${JSON.stringify(o.created)}`);
-  ok(o.logs59?.error === 'not_complete',
-    `T3: 59 logs CLAIMED "Gather 60 logs" (${JSON.stringify(o.logs59)}) — the TARGET did not move, `
-    + 'only the gold. A gold-only check would have passed this.');
-  ok(o.logs60?.ok === true && o.logsGold === 300,
-    `T3: 60 logs paid ${o.logsGold} gold (${JSON.stringify(o.logs60)}), expected the ruled 300.`);
-  ok(o.plant3?.ok === true && o.plantGold === 150,
-    `T3: "Plant 3 crops" paid ${o.plantGold} gold (${JSON.stringify(o.plant3)}), expected the ruled `
-    + '150. This is the goal the ruling moved DOWN — a retune that only ever loosens is not one.');
+  if (o.dealt.gather_logs) {
+    ok(o.logs59?.error === 'not_complete',
+      `T3: 59 logs CLAIMED "Gather 60 logs" (${JSON.stringify(o.logs59)}) — the TARGET did not move, `
+      + 'only the gold. A gold-only check would have passed this.');
+    ok(o.logs60?.ok === true && o.logsGold === 300,
+      `T3: 60 logs paid ${o.logsGold} gold (${JSON.stringify(o.logs60)}), expected the ruled 300.`);
+  } else {
+    ok(o.logs60?.error === 'not_offered' && o.logsGold === 0,
+      `T3: gather_logs is not on today's board (${o.board}) yet the claim answered ${JSON.stringify(o.logs60)} (+${o.logsGold} g).`);
+  }
+  if (o.dealt.plant) {
+    ok(o.plant3?.ok === true && o.plantGold === 150,
+      `T3: "Plant 3 crops" paid ${o.plantGold} gold (${JSON.stringify(o.plant3)}), expected the ruled `
+      + '150. This is the goal the ruling moved DOWN — a retune that only ever loosens is not one.');
+  } else {
+    ok(o.plant3?.error === 'not_offered' && o.plantGold === 0,
+      `T3: plant is not on today's board (${o.board}) yet the claim answered ${JSON.stringify(o.plant3)} (+${o.plantGold} g).`);
+  }
+  if (o.board) {
+    ok(!o.boardPick || (o.boardPick.r?.ok === true && o.boardPick.gold === o.boardPick.want),
+      `T3: today's board goal ${o.boardPick?.id} paid ${o.boardPick?.gold} gold (${JSON.stringify(o.boardPick?.r)}), `
+      + `expected its catalogued ${o.boardPick?.want} — the chain-end claim body pays a different number.`);
+  }
+  if (o.retired) ok(o.retiredRefused === true, 'T3: hr_claim_daily is retired at the chain end but a player could still call it.');
   ok(o.farm5?.error === 'incomplete',
     `T3: 5 harvests completed the farmhand quest (${JSON.stringify(o.farm5)}) — the goal is below `
     + 'the ruled 6.');
@@ -519,7 +581,7 @@ export async function goalGoldRetuneGuard() {
   const o = grade(await run());
   const out = [...problems];
   out.coverage = `retune: 3 surfaces transitioned + re-applied clean; drift refused on all three; `
-    + `player paid 60-logs@300, plant-3@150, farmhand@6; daily tasks executed `
+    + `player paid on today's board [${o.board || 'pre-board'}], farmhand@6; daily tasks executed `
     + `[${Object.keys(o.dailyPaid || {}).join(',') || 'none offered'}]`
     + `${o.retunedExecuted?.length ? ` (retuned: ${o.retunedExecuted.join(',')})` : ' (no RETUNED task in today\'s slate — pins carry it)'}`;
   return out;

@@ -525,94 +525,41 @@ export default [
       assert(craft.includes('carve_runewood_rod'), 'crafting recipe missing: carve_runewood_rod');
     } finally { G.inventory = savedInv; }
   }),
-  () => tryRun('b202: pets — skill/boss sources parse, forced roll unlocks, owned pets skip', () => {
-    const P = window.HearthrisePets;
-    assert(P, 'HearthrisePets present');
-    const skillPets = P._parse('skill'), bossPets = P._parse('boss');
-    assert(skillPets.length >= 8, 'expected 8+ skilling pets, got ' + skillPets.length);
-    assert(bossPets.length >= 2, 'expected 2+ boss pets, got ' + bossPets.length);
-    skillPets.concat(bossPets).forEach(p => {
-      assert(window.COMPANIONS[p.petId], 'pet def missing: ' + p.petId);
-      assert(p.n >= 200, p.petId + ' should be HARD to get (n>=200), got ' + p.n);
-    });
-    const G = window.G;
-    const saved = G.companions ? JSON.parse(JSON.stringify(G.companions)) : undefined;
-    /* ── RE-POINTED (b515). THE ROLL IS SYNCHRONOUS; THE OWNERSHIP IS NOT. ────
-       This block asserts pets.js's ROLL MATHS — forced win claims, owned pets
-       skip, forced loss does not. It used to read `ownedIds` on the line after
-       the roll, which stopped being possible when the capstone armed: a
-       skill/boss pet is a non-shop acquisition, so `unlockCompanion` waits for
-       hr_companion_grant and `ownedIds` is legitimately still empty one line
-       later.
-
-       b499 handled that by PINNING THE CAPSTONE OFF for the roll maths. b515
-       removed that position: `companions.js blobRetired()` is now the literal
-       `true`, so `__setBlobRetired(false)` selects nothing and the pin would
-       have been grading the armed path under a dormant name — a green that says
-       something false, which is worse than a red.
-
-       So the roll is read through what it DECIDES rather than through what
-       happens next: a hit calls `unlockCompanion`, a miss does not, and an
-       already-owned pet never even draws. Grants are parked, so the ladder
-       cannot leave a retry ticking through the rest of the suite (which is
-       exactly what this test used to do, twice, before the runner learned to
-       park it). */
-    const Cap = window.HearthriseCapstone;
+  /* -- regression suite -- PET-ROLL-SERVER (whole-game review 2026-10-08, item 2;
+     2026-10-10-pet-roll-server.sql). Skill, boss and drop pets were ROLLED IN THE
+     BROWSER (pets.js on addXp/killMonster, companions.js on every kill) and a
+     hit was claimed through hr_companion_grant on the client's word. The roll is
+     the server's now (src/core/pet-roll.js inside the accrual settle). RED
+     before the fix: a seam forced to "hit" claimed the lichling on one lich kill
+     and the beaver on one woodcutting action. */
+  () => tryRun('PET-ROLL-SERVER: the browser rolls no pet — a forced-hit stream on a boss kill and a skill action claims nothing', () => {
+    const G = window.G, C = window.HearthriseCore;
+    assert(typeof window.HearthrisePets === 'undefined', 'window.HearthrisePets is back — the browser rolls skill/boss pets again');
+    assert(C && C.rngMod && typeof window.killMonster === 'function' && typeof window.doSkillAction === 'function',
+      'FIXTURE: the kill and gather seams must exist or this test is vacuous');
+    const snap = snapshotG();
     const CO = window.HearthriseCompanions;
-    const realUnlock = window.unlockCompanion;
     const wasParked = (CO && typeof CO.__parkGrants === 'function') ? CO.__parkGrants(true) : false;
-    let claims = [];
+    const realUnlock = window.unlockCompanion;
+    const claims = [];
     try {
       window.unlockCompanion = function (id) { claims.push(id); return false; };
       G.companions = { ownedIds: [], equipped: null, xp: {} };
-      // forced win (rng → 0) CLAIMS the woodcutting pet
-      claims = [];
-      assert(P.rollSkillPet('woodcutting', () => 0) === true, 'forced roll should report a hit on beaver');
-      assert(claims.indexOf('beaver') >= 0,
-        'a winning roll did not route through unlockCompanion — nothing asks the server, so the pet is '
-        + 'never granted: ' + JSON.stringify(claims));
-      // owned pets never re-roll — and never claim
-      claims = [];
-      G.companions.ownedIds.push('beaver');
-      assert(P.rollSkillPet('woodcutting', () => 0) === false, 'owned pet must not unlock twice');
-      assert(claims.length === 0, 'an owned pet was claimed again: ' + JSON.stringify(claims));
-      G.companions.ownedIds = [];
-      // forced loss (rng → 1) never unlocks, and never claims
-      claims = [];
-      assert(P.rollBossPet('lich', () => 0.999999) === false, 'losing roll should not unlock');
-      assert(claims.length === 0, 'a LOSING roll claimed a pet: ' + JSON.stringify(claims));
-      assert(P.rollBossPet('lich', () => 0) === true, 'forced boss roll should report a hit on lichling');
-      assert(claims.indexOf('lichling') >= 0,
-        'a winning boss roll did not route through unlockCompanion: ' + JSON.stringify(claims));
-      window.unlockCompanion = realUnlock;
-
-      /* THE ARMED CONTRACT, stated rather than assumed: the roll still FIRES (a
-         hit is a hit), and the pet does NOT appear locally until the server has
-         recorded it. Without this the re-pin above would be a hole. Parked, so
-         the dispatch happens without leaving a live retry ladder running
-         through the rest of the suite — which is exactly what this test used to
-         do, twice, before the runner learned to park it. */
-      if (Cap && Cap.__setBlobRetired && CO && typeof CO.needsServerConfirm === 'function') {
-        Cap.__setBlobRetired(true);
-        if (Cap.isBlobRetired() === true && CO.needsServerConfirm('beaver') === true) {
-          const wasParked = CO.__parkGrants(true);
-          try {
-            G.companions = { ownedIds: [], equipped: null, xp: {} };
-            assert(P.rollSkillPet('woodcutting', () => 0) === true,
-              'ARMED: a forced roll must still report a HIT — ownership arriving a round trip later '
-              + 'is not a miss');
-            assert(!G.companions.ownedIds.includes('beaver'),
-              'ARMED: the pet appeared BEFORE the server recorded it — reconcileCompanions rebuilds '
-              + 'the roster from the server owned-set, so the player would watch it vanish');
-          } finally { CO.__parkGrants(wasParked); }
-        }
+      G.monsterHp = 999999; G.monsterMaxHp = 999999;
+      C.setRng(C.rngMod.rngFrom(() => 0));                     // every roll the client could make HITS
+      for (const id of ['lich', 'dragon', 'small_wolf', 'bear']) {
+        if (window.MONSTERS[id]) window.killMonster(window.MONSTERS[id]);
       }
+      G.activeMonster = null; G.activeArtisanRecipe = null;
+      G.activeSkill = 'woodcutting'; G.skillTargetId = 'normal_tree';
+      window.doSkillAction(true);
+      assert(claims.length === 0,
+        'the browser claimed rolled pet(s) ' + JSON.stringify(claims) + ' — only the server settle may roll them');
     } finally {
+      C.setRng(null);
       window.unlockCompanion = realUnlock;
       if (CO && typeof CO.__parkGrants === 'function') CO.__parkGrants(wasParked);
-      if (Cap && Cap.__setBlobRetired) Cap.__setBlobRetired(null);
-      if (CO && CO.__clearGrantBlocks) CO.__clearGrantBlocks();
-      if (saved === undefined) delete G.companions; else G.companions = saved;
+      restoreG(snap);
     }
   }),
   () => tryRun('b204/b229/b560: world events — deterministic by date, active while online, paying nothing', () => {
@@ -2843,6 +2790,8 @@ export default [
       if (it.heals || it.buff || it.buryXp) return true;
       if (['key', 'currency', 'housing', 'cosmetic', 'castle', 'crafting-mat'].includes(it.tag)) return true;
       if (it.unlocks || it.recipe || it.premium || it.musterOnly) return true;
+      if (it.seed && (window.CROPS || {})[it.seed]) return true;               // planted
+      if (Object.values(window.COMPANIONS || {}).some((c) => c && c.source === 'hatch:' + id)) return true;   // hatched
       return false;
     };
     // Known, intentional vendor-trash (sold for gold) — an EXPLICIT exemption so the
@@ -3022,8 +2971,13 @@ export default [
       assert(window.runDungeon(dId) === true, 'armed: the run must be accepted');
       await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
 
-      assert(sent && sent.id === dId && sent.mode === 'auto' && sent.quality === 1,
+      assert(sent && sent.id === dId && sent.mode === 'auto',
         'armed: the clear must SEND the settle intent (got ' + JSON.stringify(sent) + ')');
+      /* 2026-10-10-dungeon-scrip-fixed-by-mode.sql: the run carries two NAMES and
+         no number. A `quality` here would be a client-authored reward input the
+         server no longer reads — sending it is the defect, not a harmless extra. */
+      assert(Object.keys(sent).sort().join(',') === 'id,mode',
+        'armed: the settle intent must carry exactly {id, mode} — no client quality (got ' + JSON.stringify(sent) + ')');
       assert(minted.filter((m) => m.indexOf('dungeon_scrip') === 0).length === 0,
         'armed: the clear must NOT addItem("dungeon_scrip") - that mint is what the reload erased');
       assert(minted.length === 0, 'armed: no loot may be minted client-side either (minted: ' + minted + ')');
@@ -3042,6 +2996,20 @@ export default [
       G.inventory = snap.inv; G.dungeonScrip = snap.scrip; G._dungeonCooldowns = snap.cd;
       bag.restore();
     }
+  }),
+  // regression suite: scrip pays only on a server-confirmed clear (2026-10-10-dungeon-scrip-fixed-by-mode.sql)
+  () => tryRun('DUNGEON-CONFIRMED-CLEAR: a manual/scavenger settle paying 0 scrip says so; an Auto clear shows the server amount', () => {
+    const rows = window.dungeonSettleRowHtml;
+    assert(typeof rows === 'function', 'dungeonSettleRowHtml must be published');
+    const verdict = (mode, scrip) => ({ outcome: 'settled',
+      body: { ok: true, settled: { mode, scrip, items: {}, key_spent: 'bone_key' } } });
+    for (const mode of ['manual', 'scavenger']) {
+      const html = rows(verdict(mode, 0));
+      assert(!/Dungeon Scrip is in your purse/.test(html) && /no Dungeon Scrip this run/.test(html),
+        mode + ': an unconfirmed clear must not tell the player scrip landed (got ' + html + ')');
+    }
+    const auto = rows(verdict('auto', 15));
+    assert(/15 Dungeon Scrip is in your purse/.test(auto), 'auto: the server-settled amount must render (got ' + auto + ')');
   }),
 
   /* DGN-KEY-SERVER-1 (regression, visual pass 5 on b560): with no server bag stated
@@ -3655,7 +3623,7 @@ export default [
     const G = window.G, snap = snapshotG(), bagWas = G._serverBag, hintWas = G._startKitHintAt;
     try {
       /* A BOOT: the factory literal, and the hint has not been discarded yet. */
-      G.inventory = { turnip_seed: 5, carrot_seed: 3, shrimp: 10, cooked_shrimp: 20 };
+      G.inventory = { turnip_seed: 8, shrimp: 10, cooked_shrimp: 20 };
       delete G._serverBag; delete G._startKitHintAt;
       /* THE REALM: a veteran slot that spent the kit long ago and holds its own
          goods, on a projection the server certifies COMPLETE. */
@@ -3663,11 +3631,11 @@ export default [
       // (a) the realm's own goods land, and a kit id the realm DOES name keeps its figure.
       assert((G.inventory.maple_log || 0) === 7027 && (G.inventory.cooked_shrimp || 0) === 20,
         'the realm\'s own bag must land untouched: ' + JSON.stringify(G.inventory));
-      // (b) THE BUG: the two seeds the realm has no row for are GONE, not ratcheted.
-      assert(!G.inventory.turnip_seed && !G.inventory.carrot_seed,
+      // (b) THE BUG: the seeds the realm has no row for are GONE, not ratcheted.
+      assert(!G.inventory.turnip_seed,
         'THE BUG: the start-kit hint survived the realm\'s own complete statement of the bag, so the grid paints '
         + 'seeds hr_farm_plant refuses: '
-        + JSON.stringify({ turnip_seed: G.inventory.turnip_seed, carrot_seed: G.inventory.carrot_seed }));
+        + JSON.stringify({ turnip_seed: G.inventory.turnip_seed }));
       // (c) ONCE PER LOAD: a LATER envelope leaves the merge rule (never delete) in charge.
       G.inventory.turnip_seed = 5;
       A.applyEnvelopeState(G, { state: {}, inventory: { maple_log: 7027 }, inventory_complete: true });
@@ -3691,12 +3659,12 @@ export default [
     if (!A || typeof A.applyEnvelopeState !== 'function') return;
     const G = window.G, snap = snapshotG(), bagWas = G._serverBag, hintWas = G._startKitHintAt;
     try {
-      G.inventory = { turnip_seed: 7, carrot_seed: 3 };   // 7 != the hint's 5 -- somebody bought seeds
+      G.inventory = { turnip_seed: 10, shrimp: 10 };   // 10 != the hint's 8 -- somebody bought seeds
       delete G._serverBag; delete G._startKitHintAt;
       A.applyEnvelopeState(G, { state: {}, inventory: { maple_log: 1 }, inventory_complete: true });
-      assert((G.inventory.turnip_seed || 0) === 7 && !G.inventory.carrot_seed,
-        'a TOUCHED figure must survive (7) while the untouched hint (3 carrot seeds) is discarded: '
-        + JSON.stringify({ turnip_seed: G.inventory.turnip_seed, carrot_seed: G.inventory.carrot_seed }));
+      assert((G.inventory.turnip_seed || 0) === 10 && !G.inventory.shrimp,
+        'a TOUCHED figure must survive (10) while the untouched hint (10 shrimp) is discarded: '
+        + JSON.stringify({ turnip_seed: G.inventory.turnip_seed, shrimp: G.inventory.shrimp }));
     } finally {
       if (bagWas === undefined) delete G._serverBag; else G._serverBag = bagWas;
       if (hintWas === undefined) delete G._startKitHintAt; else G._startKitHintAt = hintWas;
@@ -3883,7 +3851,7 @@ export default [
       try { window.showTab('profile'); } catch (e) {}
     }
   }),
-  () => tryRun('b209: raids — weekly boss rotation, clamped real-roll strikes, solo pool state', () => {
+  () => tryRun('b209: raids — weekly boss rotation, clamped real-roll strikes, no client solo pool', () => {
     const R = window.HearthriseRaids;
     assert(R && R.BOSSES.length >= 3, 'raid bosses present');
     R.BOSSES.forEach(b => assert(b.reward && b.reward.gold > 0 && b.def > 0, 'boss ' + b.id + ' has real stats + reward'));
@@ -3896,17 +3864,10 @@ export default [
     try {
       delete G.raids;
       const st = R.ensureState();
-      // b223 (§3.5): the flat SOLO_POOL_HP is obsolete. The Lone Hunt's pool is
-      // UNMEASURED until the week's first strike, which is what lets it be
-      // 5-6 strikes at CL 30 and at CL 99 alike instead of impossible below 61.
-      assert(st.solo && st.solo.max == null && st.solo.hp == null,
-        'the solo pool starts unmeasured — it calibrates to the first strike');
-      assert(st.solo.week && typeof st.claimed === 'object', 'weekly key + claim ledger present');
-      // weekly reset invariant: stale week re-rolls the pool
-      st.solo = { week: 'w-stale', hp: 5, max: 10, damage: 999, strikes: 4 };
-      const st2 = R.ensureState();
-      assert(st2.solo.week !== 'w-stale' && st2.solo.max == null && st2.solo.damage === 0,
-        'stale week resets the solo pool');
+      // 2026-10-10: the Lone Hunt is a server-gated weekly chest; there is no
+      // client-held solo pool to measure, reset or down.
+      assert(st.solo === undefined, 'the retired client solo pool must not be recreated');
+      assert(typeof st.claimed === 'object', 'the weekly claim ledger is present');
     } finally { if (saved === undefined) delete G.raids; else G.raids = saved; }
   }),
   // b224 (Asset pass): the six Hunt bosses rendered as a typographic glyph
@@ -4044,18 +4005,16 @@ export default [
       const _launched = _CL && typeof _CL.clanLaunched === 'function' && _CL.clanLaunched();
       const panel = _launched && document.getElementById('panel-dungeons');
       if (panel) {
-        // b223: a downed solo pool is `max` set AND `hp` at zero — an
-        // unmeasured pool (max null) is not downed, it has never been fought.
-        st.solo.max = 20000;
-        st.solo.hp = 0;
+        // 2026-10-10: the Lone Hunt card always offers the weekly chest until it
+        // is taken — the SERVER decides eligibility from its kill count.
         delete st.claimed[R.weekKey()];
         const p1 = R.render(); if (p1 && p1.catch) p1.catch(() => {});
         let html = (document.getElementById('hr-raid-card') || {}).innerHTML || '';
-        assert(/Claim raid chest/.test(html), 'a downed solo pool should offer the chest');
+        assert(/Claim weekly chest/.test(html), 'an unclaimed week should offer the chest');
         st.claimed[R.weekKey()] = true;
         const p2 = R.render(); if (p2 && p2.catch) p2.catch(() => {});
         html = (document.getElementById('hr-raid-card') || {}).innerHTML || '';
-        assert(!/Claim raid chest/.test(html) && /Chest claimed/.test(html),
+        assert(!/Claim weekly chest/.test(html) && /Chest claimed/.test(html),
           'a claimed chest must not be offered again');
       }
     } finally {

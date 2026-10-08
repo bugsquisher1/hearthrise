@@ -45,6 +45,9 @@ export const DUNGEONS = {
       { id: 'big_bones', qty: [10, 30], chance: 1.0 },
       { id: 'grave_dust', qty: [1, 3], chance: .85 },
       { id: 'kitchen_blueprint_t2', qty: [1, 1], chance: .12 },
+      /* content-holes (2026-10-08): the Crypt's signature prize — it was the
+         only dungeon without one. Same 6% as the Warcamp's cleaver. */
+      { id: 'marrowbone_maul', qty: [1, 1], chance: .06 },
       { id: 'farm_deed', qty: [1, 1], chance: .20 },
     ],
     phases: [
@@ -242,6 +245,7 @@ export const QM_STOCK = Object.freeze([
   { id: 'forge_blueprint_t3', scrip: 160 },
   { id: 'library_blueprint_t3', scrip: 160 },
   { id: 'trophy_blueprint_t3', scrip: 160 },
+  { id: 'marrowbone_maul', scrip: 110 },
   { id: 'wartusk_cleaver', scrip: 150 },
   { id: 'whispering_codex', scrip: 180 },
   { id: 'ashcrown_greatsword', scrip: 340 },

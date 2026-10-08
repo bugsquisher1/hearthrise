@@ -35,7 +35,9 @@ export const BOSSES = {
     dungeon: 'crypt_of_bones', tier: 2, reqLv: 25, style: 'melee',
     weakness: 'hammer', resist: ['ranged'],
     mechanic: 'Raises skeletons as it fights — bring burst before the swarm builds.',
-    signature: ['warboss_standard'],
+    /* content-holes (2026-10-08): was ['warboss_standard'] — Grimtusk's banner,
+       which the Crypt never drops. The Marrow King's own prize is the maul. */
+    signature: ['marrowbone_maul'],
   },
   grimtusk: {
     id: 'grimtusk', name: 'Grimtusk', title: 'Warlord of the Broken Tusk',

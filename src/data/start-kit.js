@@ -50,7 +50,12 @@ export const START_CURRENCY = Object.freeze({
   hp: 10,
   maxHp: 10,
   bankCap: 100,
-  farmPlots: 4,
+  /* content-holes (2026-10-08): 4 → 2. hr_farm_plant caps a plot index at
+     (property tier + 1) × 2, so a Wanderer's Camp has TWO usable plots and the
+     two extra rows this seeded were plots the server refuses — a "the browser
+     says one thing" class. Plots past the cap are created on demand by the
+     plant upsert once the property tier allows them. */
+  farmPlots: 2,
 });
 
 /* Skill XP. Absent = 0. `hitpoints` is the only non-zero, the OSRS-lineage
@@ -106,9 +111,11 @@ export const START_SKILL_XP = Object.freeze({
    `first_cook` quest asks for 5 dishes and `cook_shrimp` is the level-1 recipe.
    A kit with only cooked food would hand the player the output and hide the
    verb. */
+/* content-holes (2026-10-08): `carrot_seed: 3` → turnips. Carrots need Farming
+   10, so a brand-new farmer opened the bag to three seeds they could not plant;
+   the farmhand quest now pays the carrots at the point they unlock. */
 export const START_INVENTORY = Object.freeze({
-  turnip_seed: 5,
-  carrot_seed: 3,
+  turnip_seed: 8,
   shrimp: 10,
   cooked_shrimp: 20,
 });

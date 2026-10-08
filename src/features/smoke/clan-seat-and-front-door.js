@@ -2147,10 +2147,15 @@ export default [
       assert(/0\s*\/\s*30/.test(strip.innerText),
         'a freshly baselined quest should read 0 / 30, got: ' + strip.innerText);
 
-      G.stats.kills = 47;                        // seven kills later
+      // The SERVER's count: a local tally must NOT move it; the settle MUST.
+      G.stats.kills = 47;                        // seven kills later, not yet settled
+      repaint();
+      assert(/0\s*\/\s*30/.test(strip.innerText),
+        'a LOCAL tally moved the rendered number ahead of the server: ' + strip.innerText);
+      unfeed = await feedServerGoals([goalRow('kill_more', 7, 30)]);   // the settle lands
       repaint();
       assert(/7\s*\/\s*30/.test(strip.innerText),
-        'THE BUG: the Quests strip did not follow the counter — it still reads ' + strip.innerText);
+        'THE BUG: the Quests strip did not follow the server counter — it still reads ' + strip.innerText);
 
       window.openQuestsModal();
       const prog = document.querySelector('#quests-modal-overlay .qm-q-progtext');

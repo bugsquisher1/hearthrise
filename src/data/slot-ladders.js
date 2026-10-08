@@ -118,6 +118,10 @@ export const SLOT_ITEMS = {
      them as PLATE today. Raised as a handoff; not changed here.             */
   woolen_cloak:    { n: 'Woollen Cloak',   icon: '🦸', v: priced(240, 1), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 1, rarity: 'common',    reqSkill: 'defense', reqLv: 12, defB: 2 },
   houndskin_cloak: { n: 'Houndskin Cloak', icon: '🦸', v: priced(240, 2), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 2, rarity: 'uncommon',  reqSkill: 'defense', reqLv: 28, defB: 4,  strB: 1 },
+  /* content-holes (2026-10-08): the only tier-3 cape was the Warband Bulwark,
+     a boss unique. This is the craftable rung, on the curve between Houndskin
+     (4) and Trollhide (11). */
+  boarhide_mantle: { n: 'Boarhide Mantle', icon: '🦸', v: priced(240, 3), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 3, rarity: 'rare',      reqSkill: 'defense', reqLv: 38, defB: 7,  strB: 1 },
   trollhide_cape:  { n: 'Trollhide Cape',  icon: '🦸', v: priced(240, 4), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 4, rarity: 'epic',      reqSkill: 'defense', reqLv: 50, defB: 11, strB: 2 },
   shadowsilk_cape: { n: 'Shadowsilk Cape', icon: '🦸', v: priced(240, 5), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 5, rarity: 'legendary', reqSkill: 'defense', reqLv: 63, defB: 16, strB: 3 },
   dawnlit_mantle:  { n: 'Dawnlit Mantle',  icon: '🦸', v: priced(240, 7), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 7, rarity: 'mythic',    reqSkill: 'defense', reqLv: 88, defB: 30, strB: 3, critB: 0.01 },
@@ -210,6 +214,7 @@ export const SLOT_RECIPES = {
     /* ── capes ── */
     { id: 'tailor_woolen_cloak',    name: 'Tailor Woollen Cloak',   icon: '🦸', inputs: { wolf_pelt: 3, bone_chips: 2 },                                 output: 'woolen_cloak',    xp: 110,  req: 12, ms: 2800 },
     { id: 'tailor_houndskin_cloak', name: 'Tailor Houndskin Cloak', icon: '🦸', inputs: { wolf_pelt: 5, bat_wing: 4 },                                   output: 'houndskin_cloak', xp: 260,  req: 28, ms: 3400 },
+    { id: 'tailor_boarhide_mantle', name: 'Tailor Boarhide Mantle', icon: '🦸', inputs: { wolf_pelt: 6, dire_fang: 2, silk_thread: 3 },               output: 'boarhide_mantle', xp: 520,  req: 38, ms: 3900 },
     { id: 'tailor_trollhide_cape',  name: 'Tailor Trollhide Cape',  icon: '🦸', inputs: { troll_hide: 4, bear_pelt: 4, silk_thread: 4 },                 output: 'trollhide_cape',  xp: 940,  req: 50, ms: 4400 },
     { id: 'tailor_shadowsilk_cape', name: 'Tailor Shadowsilk Cape', icon: '🦸', inputs: { shadow_pelt: 4, shadow_thread: 6, silk_thread: 8 },            output: 'shadowsilk_cape', xp: 1900, req: 63, ms: 5000 },
     { id: 'tailor_dawnlit_mantle',  name: 'Tailor Dawnlit Mantle',  icon: '🦸', inputs: { duskwood_plank: 4, dawn_bar: 8, silk_thread: 12 },             output: 'dawnlit_mantle',  xp: 4600, req: 91, ms: 6600 },
@@ -273,6 +278,7 @@ export const SLOT_DESC = {
 
   woolen_cloak: 'Honest wool against honest weather — the first cloak that is warmer than a rumour',
   houndskin_cloak: 'Hound-pelt lined with bat-leather, cut short so it never catches on a swing',
+  boarhide_mantle: 'Bristled boarhide over a wool lining, heavy at the shoulders and quiet everywhere else',
   trollhide_cape: 'Troll hide over bear pelt, thick enough to blunt a blade and heavy enough to notice',
   shadowsilk_cape: 'Panther-shadow woven on a spider\'s loom — it hangs perfectly still even when you do not',
   dawnlit_mantle: 'Duskwood thread shot through with dawnsteel, so the hem catches first light before you do',

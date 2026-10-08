@@ -30,6 +30,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { join, normalize } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { emitGenerated } from './generated-freeze.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const OUT = join(ROOT, 'supabase', 'migrations', '2026-08-11-catalogue.generated.sql');
@@ -1218,7 +1219,9 @@ if (CHECK) {
   // A guard that cries wolf on a whole platform is a guard people learn to skip,
   // which is worse than not having it. Content is what this check is about.
   const norm = (s) => s.replace(/\r\n/g, '\n');
-  if (norm(existing) !== norm(sql)) {
+  const emitted_existing = emitGenerated(OUT, sql, true);   // frozen-aware (tools/generated-freeze.mjs)
+  if (!emitted_existing.ok) {
+    console.error('  ' + emitted_existing.msg);
     console.error('catalogue drift: src/data/*.js no longer matches the generated SQL.');
     console.error(`  expected digest ${DIGEST}`);
     console.error('  Run: node tools/gen-catalogues.mjs   (and re-apply the migration)');
@@ -1233,7 +1236,9 @@ if (CHECK) {
       + 'Run: node tools/gen-catalogues.mjs');
     process.exit(1);
   }
-  if (norm(existingBuffs) !== norm(sqlItemBuffs)) {
+  const emitted_existingBuffs = emitGenerated(OUT_ITEM_BUFFS, sqlItemBuffs, true);   // frozen-aware (tools/generated-freeze.mjs)
+  if (!emitted_existingBuffs.ok) {
+    console.error('  ' + emitted_existingBuffs.msg);
     console.error('item-buff catalogue drift: the `buff` blocks in src/data/items.js no longer match '
       + 'the generated SQL.');
     console.error(`  expected digest ${BUFF_DIGEST}`);
@@ -1249,7 +1254,9 @@ if (CHECK) {
       + 'Run: node tools/gen-catalogues.mjs');
     process.exit(1);
   }
-  if (norm(existingRoomPerks) !== norm(sqlRoomPerks)) {
+  const emitted_existingRoomPerks = emitGenerated(OUT_ROOM_PERKS, sqlRoomPerks, true);   // frozen-aware (tools/generated-freeze.mjs)
+  if (!emitted_existingRoomPerks.ok) {
+    console.error('  ' + emitted_existingRoomPerks.msg);
     console.error('room-perk catalogue drift: src/data/perks.js no longer matches the generated SQL.');
     console.error(`  expected digest ${ROOM_PERK_DIGEST}`);
     console.error('  Run: node tools/gen-catalogues.mjs   (and re-apply the migration)');
@@ -1265,7 +1272,9 @@ if (CHECK) {
       + 'Run: node tools/gen-catalogues.mjs');
     process.exit(1);
   }
-  if (norm(existingGemUnlocks) !== norm(sqlGemUnlocks)) {
+  const emitted_existingGemUnlocks = emitGenerated(OUT_GEM_UNLOCKS, sqlGemUnlocks, true);   // frozen-aware (tools/generated-freeze.mjs)
+  if (!emitted_existingGemUnlocks.ok) {
+    console.error('  ' + emitted_existingGemUnlocks.msg);
     console.error('gem-unlock catalogue drift: the theme/cosmetic offers in src/data/shops.js no '
       + 'longer match the generated SQL.');
     console.error(`  expected digest ${GEM_UNLOCK_DIGEST}`);
@@ -1277,20 +1286,16 @@ if (CHECK) {
   console.log(`room perks in sync (${roomPerks.length} rungs, digest ${ROOM_PERK_DIGEST.slice(0, 12)}…)`);
   console.log(`gem unlocks in sync (${gemUnlocks.length} offers, digest ${GEM_UNLOCK_DIGEST.slice(0, 12)}…)`);
 } else {
-  await writeFile(OUT, sql, 'utf8');
-  console.log(`wrote ${OUT}`);
+  console.log(emitGenerated(OUT, sql, false).msg);
   console.log(`  ${items.length} items · ${itemSlots.length} slot pairs · ${activities.length} activities`);
   console.log(`  digest ${DIGEST}`);
-  await writeFile(OUT_ITEM_BUFFS, sqlItemBuffs, 'utf8');
-  console.log(`wrote ${OUT_ITEM_BUFFS}`);
+  console.log(emitGenerated(OUT_ITEM_BUFFS, sqlItemBuffs, false).msg);
   console.log(`  ${itemBuffs.length} buff foods · types ${BUFF_TYPES.join(', ')}`);
   console.log(`  digest ${BUFF_DIGEST}`);
-  await writeFile(OUT_GEM_UNLOCKS, sqlGemUnlocks, 'utf8');
-  console.log(`wrote ${OUT_GEM_UNLOCKS}`);
+  console.log(emitGenerated(OUT_GEM_UNLOCKS, sqlGemUnlocks, false).msg);
   console.log(`  ${gemUnlocks.length} gem unlocks (${gemUnlocks.filter((r) => !r.free).length} priced) · namespaces ${GEM_UNLOCK_NS.join(', ')}`);
   console.log(`  digest ${GEM_UNLOCK_DIGEST}`);
-  await writeFile(OUT_ROOM_PERKS, sqlRoomPerks, 'utf8');
-  console.log(`wrote ${OUT_ROOM_PERKS}`);
+  console.log(emitGenerated(OUT_ROOM_PERKS, sqlRoomPerks, false).msg);
   console.log(`  ${roomPerks.length} rung payloads · rooms ${ROOM_IDS.join(', ')}`);
   console.log(`  digest ${ROOM_PERK_DIGEST}`);
 }

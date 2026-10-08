@@ -2888,12 +2888,13 @@ export default [
     }
   }),
 
-  () => tryRun('QUEST-100: the hundred-kill milestone is an ordinary QUEST — it reaches an existing save, mirrors the server-projected stats.evKillAny, pays authored combat XP once, and never pays twice across the b343 rename', () => {
+  () => tryRun('QUEST-100: the hundred-kill milestone is an ordinary QUEST — it reaches an existing save, mirrors the server-projected stats.evKillAny, leaves its combat XP to the server claim (never a client addXp), and never pays twice across the b343 rename', () => {
     const G = window.G;
     const ID = 'hundred_kills';
     const snap = snapshotG();
     const origClaim = window.HearthriseGoalClaim;
-    window.HearthriseGoalClaim = { isSignedIn: () => false, claimQuest: () => Promise.resolve({ ok: false, error: 'test_stub_road_hunt_completes_past_500' }) };
+    const claims = [];
+    window.HearthriseGoalClaim = { isSignedIn: () => false, claimQuest: (id) => { claims.push(id); return Promise.resolve({ ok: false, error: 'test_stub_road_hunt_completes_past_500' }); } };
     try {
       const def = (window.QUEST_DEFS || []).find((q) => q.id === ID);
       assert(def, 'the hundred-kill milestone must be a QUEST_DEFS row, not bespoke UI');
@@ -2928,7 +2929,8 @@ export default [
         'the counter drifted from stats.evKillAny — it must READ, never count');
       assert(!G.quests.find((x) => x.id === ID).done, 'the quest completed below its goal');
 
-      /* (3) IT PAYS, ONCE, AS AN AUTHORED PAYOUT ROUTED LIKE A KILL. */
+      /* (3) THE SERVER PAYS IT (2026-10-10-quest-combat-xp.sql): completing fires
+         the claim and adds no XP locally (that queued it on hr_credit_combat_xp). */
       const origBonus = window.getBonus;
       window.getBonus = () => 0;
       try {
@@ -2936,19 +2938,20 @@ export default [
         const route = window.HearthriseCore.styles.killXpRoute(style, def.reward.combatXp, 1);
         assert(route.length > 0, 'the style must route the reward somewhere');
         const before = {}; route.forEach((r) => { before[r.skill] = xpOf(r.skill); });
+        const pendBefore = JSON.stringify(G._combatXpPending || {});
+        G._eventCountersKnown = true;      // pinned: the server count is authoritative (questComplete)
         G.stats.evKillAny = 100;
         window.updateQuest('kill_any', 1);
         const done = G.quests.find((x) => x.id === ID);
         assert(done.done === true, 'the quest did not complete at 100 kills');
+        assert(claims.filter((c) => c === ID).length === 1,
+          'completing hundred_kills must fire hr_claim_quest exactly once, fired ' + JSON.stringify(claims));
         route.forEach((r) => {
-          const gained = xpOf(r.skill) - before[r.skill];
-          /* AUTHORED means PACE.xp does not scale it: 1,500 pays 1,500, not
-             1,500 x 0.39. pacing-overhaul.md §4.5 lists quest payouts as
-             authored, explicitly not rates. */
-          assert(gained === Math.max(1, Math.floor(r.amount)),
-            'the ' + r.skill + ' share paid ' + gained + ', expected the authored '
-            + Math.max(1, Math.floor(r.amount)) + ' — PACE.xp must not scale a quest payout');
+          assert(xpOf(r.skill) === before[r.skill],
+            'the client added ' + (xpOf(r.skill) - before[r.skill]) + ' ' + r.skill + ' XP itself — the server pays it');
         });
+        assert(JSON.stringify(G._combatXpPending || {}) === pendBefore,
+          'the quest XP was queued on the attended-combat credit: ' + JSON.stringify(G._combatXpPending));
         /* ONCE. Another 500 kills pays nothing more. */
         const after = {}; route.forEach((r) => { after[r.skill] = xpOf(r.skill); });
         G.stats.evKillAny += 500;
@@ -5399,10 +5402,10 @@ export default [
         id + ': reqLv ' + I[id].reqLv + ' is outside the 1..' + LADDER[8] + ' ladder');
     });
     ('abyssal_greaves defense 88|apprentice_staff magic 1|bone_earrings prayer 45|'   /* the 41 ruled rows, id · skill · level, literal so a regeneration or a merge cannot move one off its rung. The last SEVEN carry NO `tier`, so they are absent from `tiered` above and this list is all that holds them: ungated on BOTH sides (gearWieldReq null AND hr_items.req_lv NULL), four of them TRADEABLE */
-      + 'alpha_cloak defense 30|gold_ring defense 30|gold_amulet defense 30|fox_companion defense 15|'
+      + 'alpha_cloak defense 60|gold_ring defense 30|gold_amulet defense 30|fox_companion defense 15|'
       + 'copper_ring defense 1|hunter_necklace defense 1|traveler_cape defense 1|'
-      + 'bronze_belt defense 1|bronze_sword attack 1|captains_ribblade attack 30|'
-      + 'chief_blade attack 15|choirbone_gauntlets defense 88|copper_studs defense 1|'
+      + 'bronze_belt defense 1|bronze_sword attack 1|captains_ribblade attack 60|'
+      + 'chief_blade attack 45|choirbone_gauntlets defense 88|copper_studs defense 1|'
       + 'frost_locket defense 45|heartwood_cape defense 75|hunters_torc defense 30|'
       + 'iron_arrows ranged 1|iron_helm defense 15|iron_platebody defense 15|iron_sword attack 15|'
       + 'iron_warhammer attack 15|leather_boots defense 1|leather_gloves defense 1|longbow ranged 15|'

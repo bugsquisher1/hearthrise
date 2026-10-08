@@ -3551,7 +3551,7 @@ export default [
     assert(!(dish.startKitHintDropped > 0),
       '(a) the start-kit hint discard claimed a NON-OWNED id (' + dish.startKitHintDropped + ') — it runs on '
       + 'the merge path, which may never delete, and an excluded id has no business in it');
-    const G = { inventory: { turnip_seed: 5 } };
+    const G = { inventory: { turnip_seed: 8 } };   // the kit's hint (content-holes 2026-10-08)
     const seed = A.reconcileInventory(G, { inventory: { maple_log: 3 }, inventory_complete: true }, false, true);
     assert(seed.startKitHintDropped === 1 && !G.inventory.turnip_seed,
       '(b) …and it must still discard the OWNED half, or the phantom-seed bug it was written for is back: '

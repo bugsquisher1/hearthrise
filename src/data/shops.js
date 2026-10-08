@@ -16,15 +16,15 @@
 //   hand-authored source, tools/gen-shops.mjs is deleted, and the preflight
 //   goes with it. The filename does not change, so nothing downstream moves.
 //
-//   catalogue digest: 75ca9c0cf458224ce5a9e30acc72c78fa048f5466c126e9b60d778fb2bddf037
-//   129 offers · 225 cost lines · 5 prices that are formulas, not data
+//   catalogue digest: 42f8dc034c836c4bb1a74defbb73e44cf851b0b8bcfd24892ab464d9a909191c
+//   128 offers · 224 cost lines · 5 prices that are formulas, not data
 //
 // EXTRACTED FROM
 //   room              40  src/legacy.js
 //   plot               4  src/legacy.js
 //   theme              6  src/legacy.js
 //   seed              13  src/legacy.js
-//   equip             19  src/legacy.js
+//   equip             18  src/legacy.js
 //   bounty             5  src/legacy.js
 //   trait              2  src/legacy.js
 //   cosmetic           4  src/render/shop.js
@@ -65,7 +65,7 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-export const SHOPS_DIGEST = "75ca9c0cf458224ce5a9e30acc72c78fa048f5466c126e9b60d778fb2bddf037";
+export const SHOPS_DIGEST = "42f8dc034c836c4bb1a74defbb73e44cf851b0b8bcfd24892ab464d9a909191c";
 
 /** Every offer whose price is fully known as data. */
 export const SHOP_OFFERS = [
@@ -255,13 +255,6 @@ export const SHOP_OFFERS = [
     name: "Copper Ring",
     cost: [{ kind: "currency", id: "gold", amount: 350 }],
     grant: [{ kind: "item", id: "copper_ring", amount: 1 }],
-    repeatable: true,
-  },
-  {
-    id: "equip.fox_companion", table: "equip",
-    name: "Fox Companion",
-    cost: [{ kind: "currency", id: "gold", amount: 1200 }],
-    grant: [{ kind: "item", id: "fox_companion", amount: 1 }],
     repeatable: true,
   },
   {
@@ -965,7 +958,7 @@ export const SHOP_TABLES = [
     "origin": "src/legacy.js",
     "anchor": "const EQUIP_SHOP=[",
     "spends_at": "legacy.js buyShopItem(id, qty, cost)",
-    "count": 19
+    "count": 18
   },
   {
     "table": "bounty",
@@ -1089,13 +1082,14 @@ export const DERIVED_PRICES = [
   {
     "id": "vendor.sell",
     "name": "Vendor sell-back price",
-    "where": "src/legacy.js vendorPrice()",
+    "where": "src/core/vendor.js vendorBidOf() (hr-accrue vendorPriceOf + shop-counter vendorPrice)",
     "currency": "gold",
-    "formula": "ITEMS[id].raw ? max(1, floor(v * VENDOR_RAW_RATE)) : v",
+    "formula": "min(raw ? max(1, floor(v * VENDOR_RAW_RATE)) : v, min over recipes with inputs of floor(sum(qty * bid(input)) * CRAFT_ANCHOR_BP / (10000 * outputQty)))",
     "params": {
-      "VENDOR_RAW_RATE": 0.2
+      "VENDOR_RAW_RATE": 0.2,
+      "CRAFT_ANCHOR_BP": 15000
     },
-    "server_needs": "DERIVABLE TODAY — hr_items.value already carries v. Needs `raw` added to the catalogue and the rate as a constant. This is the cheapest of the five to close."
+    "server_needs": "CLOSED IN THE EDGE — hr-accrue/vendor-sell.js prices from ITEMS + ARTISAN_RECIPES through the same src/core/vendor.js the client renders from; no SQL body prices a sale."
   },
   {
     "id": "clan_building.*",

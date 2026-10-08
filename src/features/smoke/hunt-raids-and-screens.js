@@ -185,23 +185,57 @@ export default [
     assert(Math.abs(champ.scale - 1.3 * 0.5) < 1e-9, 'band × factor, got ' + champ.scale);
   }),
 
-  () => tryRun('b223: the Lone Hunt calibrates to the player, and cannot be one-tapped', () => {
+  /* -- regression suite -- LONE-HUNT-CHEST (whole-game review 2026-10-08, item 1;
+     2026-10-10-lone-hunt-weekly-chest.sql). The solo fight was simulated in the
+     browser and raid_claim('solo') paid with no check. The Lone Hunt is now a
+     weekly chest the SERVER opens on its own kill count: no strike, no pool, and
+     the only number on the card is the server's answer. RED before the fix: a
+     solo strike() rolled client damage and the card drew a client HP bar. */
+  () => tryRunAsync('LONE-HUNT-CHEST: no client fight — the chest is claimed from the server and the card shows only the server count', async () => {
     const R = window.HearthriseRaids;
-    // §8.8 — the spec's worked assertions.
-    assert(R.soloPoolFor(1200) === 20000, 'a 1,200 first strike floors the pool at 20,000');
-    assert(R.soloPoolFor(8000) === 40000, 'an 8,000 first strike sets a 40,000 pool');
-    assert(R.soloPoolFor(60000) === R.SOLO_POOL_MAX, 'the pool is capped at 200,000');
-    assert(R.soloPoolFor(0) === R.SOLO_POOL_MIN, 'a zero reading still yields the floor');
-    // The clamp makes a one-tap arithmetically impossible at every level —
-    // this is the correction to the old "solo pool one-tap chest" note: the
-    // real bug was the opposite, honest players could not finish either pool.
-    [1200, 3000, 8000, 40000].forEach((first) => {
-      const pool = R.soloPoolFor(first);
-      const clamp = Math.floor(pool * R.SOLO_CLAMP_FRAC);
-      assert(clamp * 4 <= pool, 'no single solo strike may exceed a quarter of the pool');
-      assert(pool / clamp >= 4, 'the Lone Hunt must take at least four strikes');
-    });
-    assert(R.SOLO_SCALE === 0.4, 'solo still pays 0.4× — joining a clan is the social pull');
+    const G = window.G;
+    const snap = snapshotG();
+    const origClaim = window.HearthriseGoalClaim;
+    const realFetch = window.fetch;
+    const sent = [];
+    try {
+      assert(window.LONE_HUNT_CHEST && window.LONE_HUNT_CHEST.killsNeeded > 0,
+        'window.LONE_HUNT_CHEST must be published from src/data/raid-bosses.js');
+      assert(typeof R.soloPoolFor === 'undefined' && typeof R.SOLO_POOL_MAX === 'undefined',
+        'the client-sized solo pool is still exported — the fake fight is back');
+      G.raids = { lastStrikeDay: null, solo: { week: R.weekKey(), hp: 0, max: 20000 }, claimed: {} };
+      R.ensureState();
+      assert(G.raids.solo === undefined, 'a save carrying the retired solo pool must drop it');
+      const r = await R.strike();
+      assert(r === null, 'a solo strike must do nothing — there is no client damage any more');
+      // The SERVER refuses: the card must print ITS count, labelled.
+      window.fetch = (url, init) => {
+        if (String(url).indexOf('/rpc/raid_claim') !== -1) {
+          sent.push(JSON.parse(init.body));
+          return Promise.resolve(new Response(JSON.stringify(
+            { ok: false, error: 'not_eligible', week: R.weekKey(), have: 120, need: window.LONE_HUNT_CHEST.killsNeeded }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        }
+        return realFetch.apply(window, arguments);
+      };
+      const goldBefore = G.gold;
+      const got = await R.claim();
+      assert(got === false, 'a solo claim the server did not pay must report false, got ' + got);
+      assert(G.gold === goldBefore && !G.raids.claimed[R.weekKey()],
+        'no server answer must mean NO chest — the old signed-out path minted one locally');
+      if (sent.length) {
+        assert(sent[0].p_scope === 'solo' && !('p_damage' in sent[0]),
+          'the solo claim must name its scope and carry no number: ' + JSON.stringify(sent[0]));
+        const seen = R._loneSeen();
+        assert(seen && seen.have === 120 && seen.need === window.LONE_HUNT_CHEST.killsNeeded,
+          'the card must hold the SERVER\'s count after a refusal, got ' + JSON.stringify(seen));
+        assert(!G.raids.claimed[R.weekKey()], 'a refused claim must not mark the week claimed');
+      }
+    } finally {
+      window.fetch = realFetch;
+      window.HearthriseGoalClaim = origClaim;
+      restoreG(snap);
+    }
   }),
 
   () => tryRun('b223: raidPower reaches the strike — the War Room finally buffs something', () => {
@@ -464,7 +498,7 @@ export default [
     try {
       window.showTab('events');
       // Offline / signed-out is the DEGRADED path, and it must be a real card
-      // rather than an error: the Lone Hunt is playable with no server at all.
+      // rather than an error (its CLAIM needs the server; the card does not).
       const p = R.render(); if (p && p.catch) p.catch(() => {});
       const card = document.getElementById('hr-raid-card');
       assert(card && card.parentElement && card.parentElement.id === 'hr-events-raid',
@@ -478,8 +512,8 @@ export default [
       const _launched0 = _CL0 && typeof _CL0.clanLaunched === 'function' && _CL0.clanLaunched();
       if (_launched0) {
         assert(/Lone Hunt/.test(card.innerHTML), 'signed out, the card must offer the Lone Hunt');
-        assert(/Unmeasured/.test(card.innerHTML),
-          'an unstruck solo pool must say so, not invent a number it has not measured');
+        assert(/monsters this hunt week/.test(card.innerHTML) && !/data-lone-seen/.test(card.innerHTML),
+          'the Lone Hunt card states the rule and invents no count before the server has given one');
         assert(!/NaN|undefined|\[object/.test(card.innerHTML), 'the card rendered a hole');
         assert(card.getBoundingClientRect().height > 60,
           'the Hunt card collapsed again — this is the b220 grid bug recurring');
@@ -748,6 +782,17 @@ export default [
         'a 3,500-day streak proposes a x' + far.mult + ' multiplier — the cap is not applied');
       assert(R.priceDailyLogin(8).gold > R.priceDailyLogin(1).gold,
         'CONTROL: week 2 pays the same as week 1, so the cap assertion above is vacuous');
+      /* RULING 2026-10-08 (whole-game review): the cap is x3 and gems stay on the
+         week-1 schedule. The sheet renders a far week's day 7 straight from the
+         data the server prices with, so this is what a long-streak player SEES. */
+      seedPlayStreak(7 * 20 + 7);
+      const day7far = D.rewardFor(G) || {};
+      assert((day7far.gems || 0) === R.DAILY_LOGIN_CYCLE[6].gems,
+        'a week-21 day 7 shows ' + day7far.gems + ' gems; gems must not grow past the week-1 schedule ('
+        + R.DAILY_LOGIN_CYCLE[6].gems + ')');
+      assert((day7far.gold || 0) === R.DAILY_LOGIN_CYCLE[6].gold * 3,
+        'a week-21 day 7 shows ' + day7far.gold + ' gold; the ruled ceiling is x3 ('
+        + R.DAILY_LOGIN_CYCLE[6].gold * 3 + ')');
 
       /* ⚠ AND IT FAILS LOUD RATHER THAN PAYING AN INVENTED NUMBER. A fallback
          cycle in daily-reward.js would be exactly the second copy this move
@@ -2835,7 +2880,7 @@ export default [
   }),
 
   /* PRAYER-LADDER-1 — Prayer shipped with rungs at 1/15/35 and NOTHING from 36 to 99, on the one bench whose whole output is XP. Drives the REAL tile renderer at Prayer 39 and again at 40; the boundary IS the property, and it is the same one hr_apply's `activity_locked` arm enforces server-side.
-     `PAY` below is the literal (id, req, xp, ms) of all thirteen rungs: NOTHING else in the repo measures what a Prayer rung PAYS — hr_activities has no yield columns and the edge engine reads these very rows — so a typo (2400 → 24000) shipped green until it existed. Its 840 XP/s ceiling is MEASURED, just above the catalogue's own non-prayer maximum (forge_slagheart_platebody, 833.3): the one bench whose entire output is XP must never out-pay every other bench. */
+     `PAY` below is the literal (id, req, xp, ms) of every rung: NOTHING else in the repo measures what a Prayer rung PAYS — hr_activities has no yield columns and the edge engine reads these very rows — so a typo (2400 → 24000) shipped green until it existed. Its 840 XP/s ceiling is MEASURED, just above the catalogue's own non-prayer maximum (forge_slagheart_platebody, 833.3): the one bench whose entire output is XP must never out-pay every other bench. */
   () => tryRun('PRAYER-LADDER-1: the Prayer ladder reaches 99 — Prayer 40 sees Sift Bone Chips live, Prayer 39 sees it locked', () => {
     const snap = snapshotG();
     try {
@@ -2843,7 +2888,8 @@ export default [
       const first = rows.find((r) => r.id === 'bury_bone_chips');
       assert(first && first.req === 40 && first.input === 'bone_chips' && first.output == null,
         'bury_bone_chips must be the Prayer 40 pure sink fed by bone_chips, got ' + JSON.stringify(first));
-      const PAY = ('bury_bones 1 4.5 1200|bury_big 15 15 1500|bury_dragon 35 72 2000|'
+      const PAY = ('bury_bones 1 4.5 1200|offer_rat_tail 8 8 1300|bury_big 15 15 1500|'
+        + 'offer_small_fang 22 26 1600|consecrate_night_fang 29 44 1800|bury_dragon 35 72 2000|'
         + 'bury_bone_chips 40 105 2200|consecrate_grave_dust 46 155 2400|offer_razor_claw 52 212 2500|'
         + 'scatter_vamp_dust 58 295 2600|banish_demon_shard 65 420 2800|unbind_wraith_veil 72 600 3000|'
         + 'consecrate_dragon_scale 79 855 3200|release_lich_soul 86 1210 3400|offer_ancient_claw 92 1700 3600|'
@@ -2856,7 +2902,7 @@ export default [
         assert(window.ITEMS[r.input], id + ' consumes ' + r.input + ', which is not an item');
         assert(rate <= 840, id + ' pays ' + rate.toFixed(1) + ' XP/s, over the catalogue ceiling 840 (non-prayer max 833.3)');
       });
-      assert(rows[12].req === 99, 'the bench must reach Prayer 99, its top rung is ' + rows[12].req);
+      assert(rows[rows.length - 1].req === 99, 'the bench must reach Prayer 99, its top rung is ' + rows[rows.length - 1].req);
 
 
       G.inventory = { bone_chips: 5 };

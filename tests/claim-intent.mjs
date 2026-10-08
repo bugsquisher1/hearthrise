@@ -153,6 +153,19 @@ const MUTATIONS = {
     find: '  const mult = Math.min(DAILY_LOGIN_MAX_WEEK_MULT, 1 + weeksDone * DAILY_LOGIN_WEEK_BONUS);',
     repl: '  const mult = 1 + weeksDone * DAILY_LOGIN_WEEK_BONUS;',
   },
+  gems_grow_again: {
+    file: DATA('rewards.js'),
+    why: 'RULING 2026-10-08 — gems scale with the week multiplier again, so the login sheet '
+       + 'mints x3 premium currency from week four on',
+    find: '    gems: Math.round((base.gems || 0) * (DAILY_LOGIN_GEMS_GROW ? mult : 1)),',
+    repl: '    gems: Math.round((base.gems || 0) * mult),',
+  },
+  cap_back_to_fuse: {
+    file: DATA('rewards.js'),
+    why: 'RULING 2026-10-08 — the cap is relaxed back to the x26 fuse, the faucet the review found',
+    find: 'export const DAILY_LOGIN_MAX_WEEK_MULT = 3;',
+    repl: 'export const DAILY_LOGIN_MAX_WEEK_MULT = 26;',
+  },
   price_from_thin_air: {
     file: FN('claim-reward.js'),
     why: 'INVARIANT 2 — the payout stops coming from the catalogue',
@@ -1180,6 +1193,24 @@ async function run(mutate) {
       'C12-CONTROL: week 2 pays the same as week 1, so the cap assertion is vacuous');
     ok(rw.priceDailyLogin(1).gold === rw.DAILY_LOGIN_CYCLE[0].gold,
       'C12-CONTROL: day 1 does not pay the cycle\'s first entry');
+
+    // C12b. THE RULED NUMBERS (Game Designer, whole-game review 2026-10-08):
+    // the cycle multiplier caps at x3 and GEMS DO NOT GROW. Pinned by value,
+    // not by "<= the constant", because the faucet was the constant itself —
+    // x26 passed every assertion above while paying 1.1M gold a week.
+    ok(rw.DAILY_LOGIN_MAX_WEEK_MULT === 3,
+      `C12b: the week multiplier cap is x${rw.DAILY_LOGIN_MAX_WEEK_MULT}, ruled x3`);
+    const wk1 = Array.from({ length: rw.DAILY_LOGIN_CYCLE_DAYS }, (_, i) => rw.priceDailyLogin(i + 1));
+    ok(wk1.reduce((s, p) => s + p.gold, 0) === 43000 && wk1.reduce((s, p) => s + p.gems, 0) === 45,
+      'C12b: week 1 no longer pays 43,000 gold + 45 gems — the cycle itself moved, re-rule it');
+    for (const wk of [1, 2, 4, 10, 100]) {
+      const days = Array.from({ length: rw.DAILY_LOGIN_CYCLE_DAYS },
+        (_, i) => rw.priceDailyLogin(wk * rw.DAILY_LOGIN_CYCLE_DAYS + i + 1));
+      const gems = days.reduce((s, p) => s + p.gems, 0);
+      const gold = days.reduce((s, p) => s + p.gold, 0);
+      ok(gems === 45, `C12b: week ${wk + 1} pays ${gems} gems — gems must stay on the week-1 schedule (45)`);
+      ok(gold <= 43000 * 3, `C12b: week ${wk + 1} pays ${gold} gold, above the x3 ceiling (129,000)`);
+    }
   }
 
   // ── C13. THE WINDOW-CLOSING CHECK IS ARMED ──────────────────────────────

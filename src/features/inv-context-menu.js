@@ -276,12 +276,13 @@
       if(!locked){
         // b240: route Sell 1 through the guarded, buy-back-recorded path so it
         // respects the lock AND becomes undoable — one sell choke-point.
-        opts.push({ label: 'Sell 1 (' + price.toLocaleString() + 'g)',
+        /* A 0 bid is a refusal, said as one — never "Sell 1 (0g)". */
+        opts.push({ label: price > 0 ? 'Sell 1 (' + price.toLocaleString() + 'g)' : window.VENDOR_WONT_BUY,
           disabled: qty < 1 || price <= 0,
           action: function(){ if(typeof window.invSellOne === 'function') window.invSellOne(id); }
         });
         // Sell N… defers to item-ux's qty slider for the actual UX
-        if(isStack){
+        if(isStack && price > 0){
           opts.push({ label: 'Sell N…  (stack: ' + qty.toLocaleString() + ')', action: function(){
             if(typeof window.openInvQtySlider === 'function') window.openInvQtySlider(id);
             else if(typeof window.openInvDetail === 'function') window.openInvDetail(id);
@@ -389,6 +390,7 @@
       if(def.type === 'weapon' || def.type === 'armor') return; // keep gear
       if(def.type === 'jewelry' || def.type === 'companion' || def.type === 'ammo') return;
       if((def.v|0) <= 0) return;
+      if(typeof window.vendorWontBuy === 'function' && window.vendorWontBuy(id)) return;   // a 0 bid is not junk to sell, it is unsellable
       // Per-stack value cap — let the player keep stacks worth a lot.
       var stackValue = qty * ((typeof window.vendorPrice === 'function') ? window.vendorPrice(id) : (def.v|0));
       if(stackValue > th * Math.max(1, qty)) return;   // single-item value > threshold → keep

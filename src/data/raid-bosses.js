@@ -31,6 +31,18 @@
 // PURE ESM. No DOM. Imports cleanly in Node and Deno.
 // ============================================================================
 
+/* THE LONE HUNT CHEST (2026-10-10-lone-hunt-weekly-chest.sql). The solo Hunt is
+   a weekly chest, not a fight: it opens when the SERVER's own count of this
+   character's kills in the hunt week (daily ev:kill_any rows) reaches
+   `killsNeeded`. The payout is the pre-existing solo chest, unchanged
+   (Designer ruling 2026-10-08: keep it or lower it, never raise it):
+   floor(gold x scale) gold, floor(gems x scale) gems and the first `mats`
+   materials of the week's boss at 1 each. raid_claim__ungated carries these as
+   literals; tools/gen-raid-boss-rewards.mjs --check binds them to this row. */
+export const LONE_HUNT_CHEST = Object.freeze({
+  killsNeeded: 300, gold: 2800, gems: 5, scale: 0.4, mats: 2,
+});
+
 export const RAID_BOSSES = [
   { id: 'emberclad_tyrant', name: 'The Emberclad Tyrant', glyph: '☲',
     desc: 'A furnace given a crown. Its slag-armor weeps molten iron.',

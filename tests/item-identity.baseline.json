@@ -1,0 +1,2213 @@
+{
+ "_readme": "Item identity baseline for tests/item-identity.mjs. Cut from origin/main @ e6a12d3a (b564, 538 ids) on 2026-10-08; grows only (--write adds new ids). Grown by --write.",
+ "items": {
+  "abyssal_greaves": {
+   "tier": 8,
+   "slot": "pants"
+  },
+  "abyssal_pearl": {
+   "tier": 6,
+   "slot": null
+  },
+  "adept_belt": {
+   "tier": 2,
+   "slot": "belt"
+  },
+  "adept_body": {
+   "tier": 2,
+   "slot": "body"
+  },
+  "adept_boots": {
+   "tier": 2,
+   "slot": "boots"
+  },
+  "adept_gloves": {
+   "tier": 2,
+   "slot": "gloves"
+  },
+  "adept_helmet": {
+   "tier": 2,
+   "slot": "helmet"
+  },
+  "adept_pants": {
+   "tier": 2,
+   "slot": "pants"
+  },
+  "air_rune": {
+   "tier": 1,
+   "slot": "ammo"
+  },
+  "alpha_cloak": {
+   "tier": null,
+   "slot": "cape"
+  },
+  "alpha_fang": {
+   "tier": null,
+   "slot": null
+  },
+  "alpha_pattern": {
+   "tier": null,
+   "slot": null
+  },
+  "alphaheart_longbow": {
+   "tier": 4,
+   "slot": "weapon"
+  },
+  "ancient_claw": {
+   "tier": null,
+   "slot": null
+  },
+  "ancient_fragment": {
+   "tier": null,
+   "slot": null
+  },
+  "ancient_rune": {
+   "tier": null,
+   "slot": null
+  },
+  "apprentice_belt": {
+   "tier": 1,
+   "slot": "belt"
+  },
+  "apprentice_body": {
+   "tier": 1,
+   "slot": "body"
+  },
+  "apprentice_boots": {
+   "tier": 1,
+   "slot": "boots"
+  },
+  "apprentice_gloves": {
+   "tier": 1,
+   "slot": "gloves"
+  },
+  "apprentice_helmet": {
+   "tier": 1,
+   "slot": "helmet"
+  },
+  "apprentice_pants": {
+   "tier": 1,
+   "slot": "pants"
+  },
+  "apprentice_staff": {
+   "tier": 1,
+   "slot": "weapon"
+  },
+  "arcane_tome": {
+   "tier": null,
+   "slot": null
+  },
+  "archmage_belt": {
+   "tier": 6,
+   "slot": "belt"
+  },
+  "archmage_body": {
+   "tier": 6,
+   "slot": "body"
+  },
+  "archmage_boots": {
+   "tier": 6,
+   "slot": "boots"
+  },
+  "archmage_gloves": {
+   "tier": 6,
+   "slot": "gloves"
+  },
+  "archmage_helmet": {
+   "tier": 6,
+   "slot": "helmet"
+  },
+  "archmage_pants": {
+   "tier": 6,
+   "slot": "pants"
+  },
+  "arrows_of_ember": {
+   "tier": 6,
+   "slot": "ammo"
+  },
+  "arrows_of_frost": {
+   "tier": 6,
+   "slot": "ammo"
+  },
+  "arrows_of_poison": {
+   "tier": 6,
+   "slot": "ammo"
+  },
+  "ashcrown_greatsword": {
+   "tier": null,
+   "slot": "weapon"
+  },
+  "ashlar": {
+   "tier": 3,
+   "slot": null
+  },
+  "baked_potato": {
+   "tier": null,
+   "slot": null
+  },
+  "banded_signet": {
+   "tier": 2,
+   "slot": "ring"
+  },
+  "barbed_arrows": {
+   "tier": 2,
+   "slot": "ammo"
+  },
+  "basalt": {
+   "tier": 5,
+   "slot": null
+  },
+  "basalt_block": {
+   "tier": 5,
+   "slot": null
+  },
+  "bat_wing": {
+   "tier": null,
+   "slot": null
+  },
+  "bear_claw": {
+   "tier": null,
+   "slot": null
+  },
+  "bear_claw_pie": {
+   "tier": null,
+   "slot": null
+  },
+  "bear_pelt": {
+   "tier": null,
+   "slot": null
+  },
+  "bestiary_cloak": {
+   "tier": null,
+   "slot": "cape"
+  },
+  "big_bones": {
+   "tier": null,
+   "slot": null
+  },
+  "blood_rune": {
+   "tier": 7,
+   "slot": "ammo"
+  },
+  "boarhide_belt": {
+   "tier": 3,
+   "slot": "belt"
+  },
+  "boarhide_body": {
+   "tier": 3,
+   "slot": "body"
+  },
+  "boarhide_boots": {
+   "tier": 3,
+   "slot": "boots"
+  },
+  "boarhide_gloves": {
+   "tier": 3,
+   "slot": "gloves"
+  },
+  "boarhide_helmet": {
+   "tier": 3,
+   "slot": "helmet"
+  },
+  "boarhide_mantle": {
+   "tier": 3,
+   "slot": "cape"
+  },
+  "boarhide_pants": {
+   "tier": 3,
+   "slot": "pants"
+  },
+  "bone_chips": {
+   "tier": null,
+   "slot": null
+  },
+  "bone_earrings": {
+   "tier": 4,
+   "slot": "earrings"
+  },
+  "bone_fletching_knife": {
+   "tier": null,
+   "slot": null
+  },
+  "bone_key": {
+   "tier": null,
+   "slot": null
+  },
+  "bone_needle": {
+   "tier": null,
+   "slot": null
+  },
+  "bones": {
+   "tier": null,
+   "slot": null
+  },
+  "bramble_blade": {
+   "tier": 2,
+   "slot": "weapon"
+  },
+  "bronze_arrows": {
+   "tier": 1,
+   "slot": "ammo"
+  },
+  "bronze_axe": {
+   "tier": null,
+   "slot": null
+  },
+  "bronze_bar": {
+   "tier": null,
+   "slot": null
+  },
+  "bronze_belt": {
+   "tier": 1,
+   "slot": "belt"
+  },
+  "bronze_boots": {
+   "tier": 1,
+   "slot": "boots"
+  },
+  "bronze_gauntlets": {
+   "tier": 1,
+   "slot": "gloves"
+  },
+  "bronze_hammer": {
+   "tier": null,
+   "slot": null
+  },
+  "bronze_helm": {
+   "tier": 1,
+   "slot": "helmet"
+  },
+  "bronze_kiteshield": {
+   "tier": 1,
+   "slot": "shield"
+  },
+  "bronze_knife": {
+   "tier": null,
+   "slot": null
+  },
+  "bronze_masons_rule": {
+   "tier": null,
+   "slot": null
+  },
+  "bronze_pickaxe": {
+   "tier": null,
+   "slot": null
+  },
+  "bronze_platebody": {
+   "tier": 1,
+   "slot": "body"
+  },
+  "bronze_platelegs": {
+   "tier": 1,
+   "slot": "pants"
+  },
+  "bronze_sword": {
+   "tier": 1,
+   "slot": "weapon"
+  },
+  "brute_plate": {
+   "tier": null,
+   "slot": null
+  },
+  "burnt_food": {
+   "tier": null,
+   "slot": null
+  },
+  "captain_medal": {
+   "tier": null,
+   "slot": null
+  },
+  "captain_recipe": {
+   "tier": null,
+   "slot": null
+  },
+  "captains_ribblade": {
+   "tier": null,
+   "slot": "weapon"
+  },
+  "carrot": {
+   "tier": null,
+   "slot": null
+  },
+  "carrot_seed": {
+   "tier": null,
+   "slot": null
+  },
+  "carrot_stew": {
+   "tier": null,
+   "slot": null
+  },
+  "carters_strap": {
+   "tier": null,
+   "slot": null
+  },
+  "chaos_rune": {
+   "tier": 5,
+   "slot": "ammo"
+  },
+  "chief_blade": {
+   "tier": null,
+   "slot": "weapon"
+  },
+  "chief_blade_recipe": {
+   "tier": null,
+   "slot": null
+  },
+  "chitin_belt": {
+   "tier": 4,
+   "slot": "belt"
+  },
+  "chitin_body": {
+   "tier": 4,
+   "slot": "body"
+  },
+  "chitin_boots": {
+   "tier": 4,
+   "slot": "boots"
+  },
+  "chitin_gloves": {
+   "tier": 4,
+   "slot": "gloves"
+  },
+  "chitin_helmet": {
+   "tier": 4,
+   "slot": "helmet"
+  },
+  "chitin_pants": {
+   "tier": 4,
+   "slot": "pants"
+  },
+  "chitinweave_cloak": {
+   "tier": 6,
+   "slot": "cape"
+  },
+  "choirbone": {
+   "tier": 6,
+   "slot": null
+  },
+  "choirbone_gauntlets": {
+   "tier": 8,
+   "slot": "gloves"
+  },
+  "chronicle_ribbon": {
+   "tier": null,
+   "slot": null
+  },
+  "coal": {
+   "tier": null,
+   "slot": null
+  },
+  "coarse_whetstone": {
+   "tier": 1,
+   "slot": "ammo"
+  },
+  "colossus_plate": {
+   "tier": 6,
+   "slot": "body"
+  },
+  "colossus_seal": {
+   "tier": null,
+   "slot": null
+  },
+  "cooked_bear_meat": {
+   "tier": null,
+   "slot": null
+  },
+  "cooked_copper_crab": {
+   "tier": null,
+   "slot": null
+  },
+  "cooked_frostfin": {
+   "tier": null,
+   "slot": null
+  },
+  "cooked_goldgill": {
+   "tier": null,
+   "slot": null
+  },
+  "cooked_herring": {
+   "tier": null,
+   "slot": null
+  },
+  "cooked_lobster": {
+   "tier": null,
+   "slot": null
+  },
+  "cooked_moonfish": {
+   "tier": null,
+   "slot": null
+  },
+  "cooked_panther_meat": {
+   "tier": null,
+   "slot": null
+  },
+  "cooked_pikeperch": {
+   "tier": null,
+   "slot": null
+  },
+  "cooked_shark": {
+   "tier": null,
+   "slot": null
+  },
+  "cooked_shrimp": {
+   "tier": null,
+   "slot": null
+  },
+  "cooked_silverfin": {
+   "tier": null,
+   "slot": null
+  },
+  "cooked_swordfish": {
+   "tier": null,
+   "slot": null
+  },
+  "cooked_trout": {
+   "tier": null,
+   "slot": null
+  },
+  "cooked_wolf_meat": {
+   "tier": null,
+   "slot": null
+  },
+  "copper_bar": {
+   "tier": null,
+   "slot": null
+  },
+  "copper_crab": {
+   "tier": null,
+   "slot": null
+  },
+  "copper_ore": {
+   "tier": null,
+   "slot": null
+  },
+  "copper_ring": {
+   "tier": null,
+   "slot": "ring"
+  },
+  "copper_studs": {
+   "tier": 1,
+   "slot": "earrings"
+  },
+  "copper_whetstone": {
+   "tier": 2,
+   "slot": "ammo"
+  },
+  "cracked_spellstone": {
+   "tier": null,
+   "slot": null
+  },
+  "crown_of_the_fallen_king": {
+   "tier": 7,
+   "slot": "helmet"
+  },
+  "cutpurse_gloves": {
+   "tier": 2,
+   "slot": "gloves"
+  },
+  "dark_sigil": {
+   "tier": null,
+   "slot": null
+  },
+  "dawn_axe": {
+   "tier": null,
+   "slot": null
+  },
+  "dawn_bar": {
+   "tier": null,
+   "slot": null
+  },
+  "dawn_belt": {
+   "tier": 7,
+   "slot": "belt"
+  },
+  "dawn_boots": {
+   "tier": 7,
+   "slot": "boots"
+  },
+  "dawn_fletching_knife": {
+   "tier": null,
+   "slot": null
+  },
+  "dawn_gauntlets": {
+   "tier": 7,
+   "slot": "gloves"
+  },
+  "dawn_helm": {
+   "tier": 7,
+   "slot": "helmet"
+  },
+  "dawn_kiteshield": {
+   "tier": 7,
+   "slot": "shield"
+  },
+  "dawn_masons_rule": {
+   "tier": null,
+   "slot": null
+  },
+  "dawn_pickaxe": {
+   "tier": null,
+   "slot": null
+  },
+  "dawn_platebody": {
+   "tier": 7,
+   "slot": "body"
+  },
+  "dawn_platelegs": {
+   "tier": 7,
+   "slot": "pants"
+  },
+  "dawn_sword": {
+   "tier": 7,
+   "slot": "weapon"
+  },
+  "dawn_warhammer": {
+   "tier": 7,
+   "slot": "weapon"
+  },
+  "dawn_whetstone": {
+   "tier": 7,
+   "slot": "ammo"
+  },
+  "dawnbloom": {
+   "tier": null,
+   "slot": null
+  },
+  "dawnbloom_seed": {
+   "tier": null,
+   "slot": null
+  },
+  "dawnbound_amulet": {
+   "tier": 7,
+   "slot": "necklace"
+  },
+  "dawnforged_signet": {
+   "tier": 7,
+   "slot": "ring"
+  },
+  "dawnlit_mantle": {
+   "tier": 7,
+   "slot": "cape"
+  },
+  "dawnpoint_arrows": {
+   "tier": 7,
+   "slot": "ammo"
+  },
+  "dawnsteel_rod": {
+   "tier": null,
+   "slot": null
+  },
+  "dawnstone_ore": {
+   "tier": null,
+   "slot": null
+  },
+  "death_rune": {
+   "tier": 6,
+   "slot": "ammo"
+  },
+  "death_steel": {
+   "tier": null,
+   "slot": null
+  },
+  "deathsteel_bar": {
+   "tier": 5,
+   "slot": null
+  },
+  "deep_rune_blank": {
+   "tier": 5,
+   "slot": null
+  },
+  "deepvein_lodestar": {
+   "tier": null,
+   "slot": null
+  },
+  "demon_shard": {
+   "tier": null,
+   "slot": null
+  },
+  "demoncaller_staff": {
+   "tier": 6,
+   "slot": "weapon"
+  },
+  "dire_fang": {
+   "tier": null,
+   "slot": null
+  },
+  "draconias_jaw": {
+   "tier": 6,
+   "slot": "helmet"
+  },
+  "dragon_bones": {
+   "tier": null,
+   "slot": null
+  },
+  "dragon_egg": {
+   "tier": null,
+   "slot": null
+  },
+  "dragon_gem": {
+   "tier": null,
+   "slot": null
+  },
+  "dragon_gem_earrings": {
+   "tier": 8,
+   "slot": "earrings"
+  },
+  "dragon_marrow_recipe": {
+   "tier": null,
+   "slot": null
+  },
+  "dragon_relic": {
+   "tier": null,
+   "slot": null
+  },
+  "dragon_scale": {
+   "tier": null,
+   "slot": null
+  },
+  "dragon_stew": {
+   "tier": null,
+   "slot": null
+  },
+  "dragonfang_pike": {
+   "tier": null,
+   "slot": "weapon"
+  },
+  "dragonhide_belt": {
+   "tier": 6,
+   "slot": "belt"
+  },
+  "dragonhide_body": {
+   "tier": 6,
+   "slot": "body"
+  },
+  "dragonhide_boots": {
+   "tier": 6,
+   "slot": "boots"
+  },
+  "dragonhide_gloves": {
+   "tier": 6,
+   "slot": "gloves"
+  },
+  "dragonhide_helmet": {
+   "tier": 6,
+   "slot": "helmet"
+  },
+  "dragonhide_pants": {
+   "tier": 6,
+   "slot": "pants"
+  },
+  "dragonrend_greatblade": {
+   "tier": 8,
+   "slot": "weapon"
+  },
+  "dragonrib_bow": {
+   "tier": 6,
+   "slot": "weapon"
+  },
+  "dragonsbane_key": {
+   "tier": null,
+   "slot": null
+  },
+  "dressed_block": {
+   "tier": 1,
+   "slot": null
+  },
+  "dungeon_scrip": {
+   "tier": null,
+   "slot": null
+  },
+  "duskwood_bow": {
+   "tier": 7,
+   "slot": "weapon"
+  },
+  "duskwood_log": {
+   "tier": null,
+   "slot": null
+  },
+  "duskwood_plank": {
+   "tier": null,
+   "slot": null
+  },
+  "duskwood_rod": {
+   "tier": null,
+   "slot": null
+  },
+  "duskwood_staff": {
+   "tier": 7,
+   "slot": "weapon"
+  },
+  "earth_rune": {
+   "tier": 2,
+   "slot": "ammo"
+  },
+  "elderscale_aegis": {
+   "tier": null,
+   "slot": "shield"
+  },
+  "elderscale_heart": {
+   "tier": null,
+   "slot": null
+  },
+  "ember_axe": {
+   "tier": null,
+   "slot": null
+  },
+  "ember_bar": {
+   "tier": null,
+   "slot": null
+  },
+  "ember_belt": {
+   "tier": 6,
+   "slot": "belt"
+  },
+  "ember_boots": {
+   "tier": 6,
+   "slot": "boots"
+  },
+  "ember_essence": {
+   "tier": null,
+   "slot": null
+  },
+  "ember_gauntlets": {
+   "tier": 6,
+   "slot": "gloves"
+  },
+  "ember_helm": {
+   "tier": 6,
+   "slot": "helmet"
+  },
+  "ember_kiteshield": {
+   "tier": 6,
+   "slot": "shield"
+  },
+  "ember_pickaxe": {
+   "tier": null,
+   "slot": null
+  },
+  "ember_platebody": {
+   "tier": 6,
+   "slot": "body"
+  },
+  "ember_platelegs": {
+   "tier": 6,
+   "slot": "pants"
+  },
+  "ember_rune": {
+   "tier": null,
+   "slot": null
+  },
+  "ember_sword": {
+   "tier": 6,
+   "slot": "weapon"
+  },
+  "ember_tart": {
+   "tier": null,
+   "slot": null
+  },
+  "ember_warhammer": {
+   "tier": 6,
+   "slot": "weapon"
+  },
+  "emberfang_blade": {
+   "tier": 6,
+   "slot": "weapon"
+  },
+  "emberfruit": {
+   "tier": null,
+   "slot": null
+  },
+  "emberfruit_seed": {
+   "tier": null,
+   "slot": null
+  },
+  "emberhead_arrows": {
+   "tier": 6,
+   "slot": "ammo"
+  },
+  "emberheart": {
+   "tier": null,
+   "slot": null
+  },
+  "emberstone_ore": {
+   "tier": null,
+   "slot": null
+  },
+  "fang_studs": {
+   "tier": 2,
+   "slot": "earrings"
+  },
+  "fangdart_recurve": {
+   "tier": 3,
+   "slot": "weapon"
+  },
+  "farm_deed": {
+   "tier": null,
+   "slot": null
+  },
+  "field_cookbook": {
+   "tier": null,
+   "slot": null
+  },
+  "field_ledger": {
+   "tier": null,
+   "slot": null
+  },
+  "field_ration": {
+   "tier": 1,
+   "slot": null
+  },
+  "fine_rune_blank": {
+   "tier": 3,
+   "slot": null
+  },
+  "fire_rune": {
+   "tier": 4,
+   "slot": "ammo"
+  },
+  "fishers_pie": {
+   "tier": null,
+   "slot": null
+  },
+  "flux_salt": {
+   "tier": null,
+   "slot": null
+  },
+  "forge_blueprint_t2": {
+   "tier": null,
+   "slot": null
+  },
+  "forge_blueprint_t3": {
+   "tier": null,
+   "slot": null
+  },
+  "fox_companion": {
+   "tier": null,
+   "slot": "companion"
+  },
+  "frost_essence": {
+   "tier": null,
+   "slot": null
+  },
+  "frost_locket": {
+   "tier": 4,
+   "slot": "necklace"
+  },
+  "frost_rune": {
+   "tier": null,
+   "slot": null
+  },
+  "frostfin": {
+   "tier": null,
+   "slot": null
+  },
+  "gemcutter_note": {
+   "tier": null,
+   "slot": null
+  },
+  "goblin_ear": {
+   "tier": null,
+   "slot": null
+  },
+  "goblin_seal": {
+   "tier": null,
+   "slot": null
+  },
+  "goblin_totem": {
+   "tier": null,
+   "slot": null
+  },
+  "gold_amulet": {
+   "tier": null,
+   "slot": "necklace"
+  },
+  "gold_bar": {
+   "tier": null,
+   "slot": null
+  },
+  "gold_ore": {
+   "tier": null,
+   "slot": null
+  },
+  "gold_ring": {
+   "tier": null,
+   "slot": "ring"
+  },
+  "goldenroot": {
+   "tier": null,
+   "slot": null
+  },
+  "goldenroot_roast": {
+   "tier": null,
+   "slot": null
+  },
+  "goldenroot_seed": {
+   "tier": null,
+   "slot": null
+  },
+  "goldgill": {
+   "tier": null,
+   "slot": null
+  },
+  "granite": {
+   "tier": 3,
+   "slot": null
+  },
+  "granite_block": {
+   "tier": 3,
+   "slot": null
+  },
+  "grave_dust": {
+   "tier": null,
+   "slot": null
+  },
+  "grave_salt": {
+   "tier": null,
+   "slot": null
+  },
+  "heartgarnet": {
+   "tier": null,
+   "slot": null
+  },
+  "heartgarnet_maul": {
+   "tier": 4,
+   "slot": "weapon"
+  },
+  "hearth_token": {
+   "tier": null,
+   "slot": null
+  },
+  "hearthbread": {
+   "tier": null,
+   "slot": null
+  },
+  "hearthstone_signet": {
+   "tier": null,
+   "slot": "ring"
+  },
+  "heartwood_cape": {
+   "tier": 6,
+   "slot": "cape"
+  },
+  "hell_ember": {
+   "tier": null,
+   "slot": null
+  },
+  "herring": {
+   "tier": null,
+   "slot": null
+  },
+  "hollow_sigil": {
+   "tier": null,
+   "slot": null
+  },
+  "hollow_sigil_ring": {
+   "tier": 3,
+   "slot": "ring"
+  },
+  "houndskin_cloak": {
+   "tier": 2,
+   "slot": "cape"
+  },
+  "hunter_necklace": {
+   "tier": null,
+   "slot": "necklace"
+  },
+  "hunters_feast": {
+   "tier": null,
+   "slot": null
+  },
+  "hunters_torc": {
+   "tier": 3,
+   "slot": "necklace"
+  },
+  "iron_arrows": {
+   "tier": null,
+   "slot": "ammo"
+  },
+  "iron_axe": {
+   "tier": null,
+   "slot": null
+  },
+  "iron_bar": {
+   "tier": null,
+   "slot": null
+  },
+  "iron_belt": {
+   "tier": 2,
+   "slot": "belt"
+  },
+  "iron_boots": {
+   "tier": 2,
+   "slot": "boots"
+  },
+  "iron_fitting": {
+   "tier": 2,
+   "slot": null
+  },
+  "iron_gauntlets": {
+   "tier": 2,
+   "slot": "gloves"
+  },
+  "iron_helm": {
+   "tier": 2,
+   "slot": "helmet"
+  },
+  "iron_kiteshield": {
+   "tier": 2,
+   "slot": "shield"
+  },
+  "iron_ore": {
+   "tier": null,
+   "slot": null
+  },
+  "iron_pickaxe": {
+   "tier": null,
+   "slot": null
+  },
+  "iron_platebody": {
+   "tier": 2,
+   "slot": "body"
+  },
+  "iron_platelegs": {
+   "tier": 2,
+   "slot": "pants"
+  },
+  "iron_sword": {
+   "tier": 2,
+   "slot": "weapon"
+  },
+  "iron_warhammer": {
+   "tier": 2,
+   "slot": "weapon"
+  },
+  "iron_whetstone": {
+   "tier": 3,
+   "slot": "ammo"
+  },
+  "kettle_tea": {
+   "tier": null,
+   "slot": null
+  },
+  "keystone": {
+   "tier": 5,
+   "slot": null
+  },
+  "kitchen_blueprint_t2": {
+   "tier": null,
+   "slot": null
+  },
+  "kitchen_blueprint_t3": {
+   "tier": null,
+   "slot": null
+  },
+  "lazlos_maul": {
+   "tier": 4,
+   "slot": "weapon"
+  },
+  "leather_belt": {
+   "tier": 1,
+   "slot": "belt"
+  },
+  "leather_body": {
+   "tier": 1,
+   "slot": "body"
+  },
+  "leather_boots": {
+   "tier": 1,
+   "slot": "boots"
+  },
+  "leather_gloves": {
+   "tier": 1,
+   "slot": "gloves"
+  },
+  "leather_helmet": {
+   "tier": 1,
+   "slot": "helmet"
+  },
+  "leather_pants": {
+   "tier": 1,
+   "slot": "pants"
+  },
+  "lexarch_seal": {
+   "tier": null,
+   "slot": null
+  },
+  "library_blueprint_t2": {
+   "tier": null,
+   "slot": null
+  },
+  "library_blueprint_t3": {
+   "tier": null,
+   "slot": null
+  },
+  "lich_soul": {
+   "tier": null,
+   "slot": null
+  },
+  "lich_soul_soup": {
+   "tier": null,
+   "slot": null
+  },
+  "lobster": {
+   "tier": null,
+   "slot": null
+  },
+  "longbow": {
+   "tier": 2,
+   "slot": "weapon"
+  },
+  "magic_essence": {
+   "tier": null,
+   "slot": null
+  },
+  "maple_bow": {
+   "tier": 4,
+   "slot": "weapon"
+  },
+  "maple_log": {
+   "tier": null,
+   "slot": null
+  },
+  "maple_plank": {
+   "tier": null,
+   "slot": null
+  },
+  "maple_rod": {
+   "tier": null,
+   "slot": null
+  },
+  "maple_staff": {
+   "tier": 4,
+   "slot": "weapon"
+  },
+  "marrow_cookbook": {
+   "tier": null,
+   "slot": null
+  },
+  "marrowbone_maul": {
+   "tier": null,
+   "slot": "weapon"
+  },
+  "mithril_arrows": {
+   "tier": 4,
+   "slot": "ammo"
+  },
+  "mithril_axe": {
+   "tier": null,
+   "slot": null
+  },
+  "mithril_bar": {
+   "tier": null,
+   "slot": null
+  },
+  "mithril_belt": {
+   "tier": 4,
+   "slot": "belt"
+  },
+  "mithril_boots": {
+   "tier": 4,
+   "slot": "boots"
+  },
+  "mithril_gauntlets": {
+   "tier": 4,
+   "slot": "gloves"
+  },
+  "mithril_helm": {
+   "tier": 4,
+   "slot": "helmet"
+  },
+  "mithril_kiteshield": {
+   "tier": 4,
+   "slot": "shield"
+  },
+  "mithril_ore": {
+   "tier": null,
+   "slot": null
+  },
+  "mithril_pickaxe": {
+   "tier": null,
+   "slot": null
+  },
+  "mithril_platebody": {
+   "tier": 4,
+   "slot": "body"
+  },
+  "mithril_platelegs": {
+   "tier": 4,
+   "slot": "pants"
+  },
+  "mithril_sword": {
+   "tier": 4,
+   "slot": "weapon"
+  },
+  "mithril_warhammer": {
+   "tier": 4,
+   "slot": "weapon"
+  },
+  "mithril_whetstone": {
+   "tier": 5,
+   "slot": "ammo"
+  },
+  "moonbloom": {
+   "tier": null,
+   "slot": null
+  },
+  "moonbloom_elixir": {
+   "tier": null,
+   "slot": null
+  },
+  "moonbloom_seed": {
+   "tier": null,
+   "slot": null
+  },
+  "moonfish": {
+   "tier": null,
+   "slot": null
+  },
+  "muster_seal": {
+   "tier": null,
+   "slot": null
+  },
+  "night_fang": {
+   "tier": null,
+   "slot": null
+  },
+  "nightstalker_pelt": {
+   "tier": 5,
+   "slot": "body"
+  },
+  "normal_log": {
+   "tier": null,
+   "slot": null
+  },
+  "normal_plank": {
+   "tier": null,
+   "slot": null
+  },
+  "oak_log": {
+   "tier": null,
+   "slot": null
+  },
+  "oak_plank": {
+   "tier": null,
+   "slot": null
+  },
+  "oak_rod": {
+   "tier": null,
+   "slot": null
+  },
+  "oak_staff": {
+   "tier": 2,
+   "slot": "weapon"
+  },
+  "obsidian_sigil": {
+   "tier": null,
+   "slot": null
+  },
+  "panthers_eye_pendant": {
+   "tier": 5,
+   "slot": "necklace"
+  },
+  "pathfinder_studs": {
+   "tier": 3,
+   "slot": "earrings"
+  },
+  "pikeperch": {
+   "tier": null,
+   "slot": null
+  },
+  "pitlord_irons": {
+   "tier": 6,
+   "slot": "boots"
+  },
+  "plague_ichor": {
+   "tier": null,
+   "slot": null
+  },
+  "plaguewarden_greaves": {
+   "tier": 5,
+   "slot": "pants"
+  },
+  "poison_essence": {
+   "tier": null,
+   "slot": null
+  },
+  "poison_rune": {
+   "tier": null,
+   "slot": null
+  },
+  "potato": {
+   "tier": null,
+   "slot": null
+  },
+  "potato_seed": {
+   "tier": null,
+   "slot": null
+  },
+  "pumpkin": {
+   "tier": null,
+   "slot": null
+  },
+  "pumpkin_pie": {
+   "tier": null,
+   "slot": null
+  },
+  "pumpkin_seed": {
+   "tier": null,
+   "slot": null
+  },
+  "quiet_coat": {
+   "tier": 6,
+   "slot": "body"
+  },
+  "rat_stick": {
+   "tier": 3,
+   "slot": "weapon"
+  },
+  "rat_tail": {
+   "tier": null,
+   "slot": null
+  },
+  "ratters_bait": {
+   "tier": null,
+   "slot": null
+  },
+  "raw_bear_meat": {
+   "tier": null,
+   "slot": null
+  },
+  "raw_panther_meat": {
+   "tier": null,
+   "slot": null
+  },
+  "raw_wolf_meat": {
+   "tier": null,
+   "slot": null
+  },
+  "razor_claw": {
+   "tier": null,
+   "slot": null
+  },
+  "regent_helm": {
+   "tier": 8,
+   "slot": "helmet"
+  },
+  "riftmaw_aegis": {
+   "tier": null,
+   "slot": "shield"
+  },
+  "riftmaw_husk": {
+   "tier": null,
+   "slot": null
+  },
+  "river_chowder": {
+   "tier": null,
+   "slot": null
+  },
+  "roasted_carrot": {
+   "tier": null,
+   "slot": null
+  },
+  "roasted_pumpkin": {
+   "tier": null,
+   "slot": null
+  },
+  "rubble": {
+   "tier": 1,
+   "slot": null
+  },
+  "ruby": {
+   "tier": null,
+   "slot": null
+  },
+  "ruby_signet": {
+   "tier": 5,
+   "slot": "ring"
+  },
+  "rubyfire_studs": {
+   "tier": 5,
+   "slot": "earrings"
+  },
+  "rune_arrows": {
+   "tier": 5,
+   "slot": "ammo"
+  },
+  "rune_axe": {
+   "tier": null,
+   "slot": null
+  },
+  "rune_bar": {
+   "tier": null,
+   "slot": null
+  },
+  "rune_belt": {
+   "tier": 5,
+   "slot": "belt"
+  },
+  "rune_blank": {
+   "tier": 1,
+   "slot": null
+  },
+  "rune_boots": {
+   "tier": 5,
+   "slot": "boots"
+  },
+  "rune_frag": {
+   "tier": null,
+   "slot": null
+  },
+  "rune_gauntlets": {
+   "tier": 5,
+   "slot": "gloves"
+  },
+  "rune_hammer": {
+   "tier": null,
+   "slot": null
+  },
+  "rune_helm": {
+   "tier": 5,
+   "slot": "helmet"
+  },
+  "rune_kiteshield": {
+   "tier": 5,
+   "slot": "shield"
+  },
+  "rune_knife": {
+   "tier": null,
+   "slot": null
+  },
+  "rune_needle": {
+   "tier": null,
+   "slot": null
+  },
+  "rune_pickaxe": {
+   "tier": null,
+   "slot": null
+  },
+  "rune_platebody": {
+   "tier": 5,
+   "slot": "body"
+  },
+  "rune_platelegs": {
+   "tier": 5,
+   "slot": "pants"
+  },
+  "rune_sword": {
+   "tier": 5,
+   "slot": "weapon"
+  },
+  "rune_warhammer": {
+   "tier": 5,
+   "slot": "weapon"
+  },
+  "rune_whetstone": {
+   "tier": 6,
+   "slot": "ammo"
+  },
+  "runewood_bow": {
+   "tier": 6,
+   "slot": "weapon"
+  },
+  "runewood_log": {
+   "tier": null,
+   "slot": null
+  },
+  "runewood_plank": {
+   "tier": null,
+   "slot": null
+  },
+  "runewood_rod": {
+   "tier": null,
+   "slot": null
+  },
+  "runewood_staff": {
+   "tier": 6,
+   "slot": "weapon"
+  },
+  "scholar_belt": {
+   "tier": 3,
+   "slot": "belt"
+  },
+  "scholar_body": {
+   "tier": 3,
+   "slot": "body"
+  },
+  "scholar_boots": {
+   "tier": 3,
+   "slot": "boots"
+  },
+  "scholar_gloves": {
+   "tier": 3,
+   "slot": "gloves"
+  },
+  "scholar_helmet": {
+   "tier": 3,
+   "slot": "helmet"
+  },
+  "scholar_pants": {
+   "tier": 3,
+   "slot": "pants"
+  },
+  "shadow_pelt": {
+   "tier": null,
+   "slot": null
+  },
+  "shadow_thread": {
+   "tier": null,
+   "slot": null
+  },
+  "shadowsilk_cape": {
+   "tier": 5,
+   "slot": "cape"
+  },
+  "shark": {
+   "tier": null,
+   "slot": null
+  },
+  "shortbow": {
+   "tier": 1,
+   "slot": "weapon"
+  },
+  "shrimp": {
+   "tier": null,
+   "slot": null
+  },
+  "silk_thread": {
+   "tier": null,
+   "slot": null
+  },
+  "silverfin": {
+   "tier": null,
+   "slot": null
+  },
+  "slagheart_core": {
+   "tier": 6,
+   "slot": null
+  },
+  "slagheart_platebody": {
+   "tier": 8,
+   "slot": "body"
+  },
+  "slime_gel": {
+   "tier": null,
+   "slot": null
+  },
+  "small_fang": {
+   "tier": null,
+   "slot": null
+  },
+  "snakeskin_belt": {
+   "tier": 4,
+   "slot": "belt"
+  },
+  "snakeskin_body": {
+   "tier": 4,
+   "slot": "body"
+  },
+  "snakeskin_boots": {
+   "tier": 4,
+   "slot": "boots"
+  },
+  "snakeskin_gloves": {
+   "tier": 4,
+   "slot": "gloves"
+  },
+  "snakeskin_helmet": {
+   "tier": 4,
+   "slot": "helmet"
+  },
+  "snakeskin_pants": {
+   "tier": 4,
+   "slot": "pants"
+  },
+  "sorcerer_belt": {
+   "tier": 5,
+   "slot": "belt"
+  },
+  "sorcerer_body": {
+   "tier": 5,
+   "slot": "body"
+  },
+  "sorcerer_boots": {
+   "tier": 5,
+   "slot": "boots"
+  },
+  "sorcerer_gloves": {
+   "tier": 5,
+   "slot": "gloves"
+  },
+  "sorcerer_helmet": {
+   "tier": 5,
+   "slot": "helmet"
+  },
+  "sorcerer_pants": {
+   "tier": 5,
+   "slot": "pants"
+  },
+  "soul_recipe": {
+   "tier": null,
+   "slot": null
+  },
+  "spellstone_diagram": {
+   "tier": null,
+   "slot": null
+  },
+  "spellstone_ring": {
+   "tier": 6,
+   "slot": "ring"
+  },
+  "spider_eye": {
+   "tier": null,
+   "slot": null
+  },
+  "spidereye_studs": {
+   "tier": 3,
+   "slot": "earrings"
+  },
+  "spidersilk_choker": {
+   "tier": 3,
+   "slot": "necklace"
+  },
+  "steel_arrows": {
+   "tier": 3,
+   "slot": "ammo"
+  },
+  "steel_axe": {
+   "tier": null,
+   "slot": null
+  },
+  "steel_bar": {
+   "tier": null,
+   "slot": null
+  },
+  "steel_belt": {
+   "tier": 3,
+   "slot": "belt"
+  },
+  "steel_boots": {
+   "tier": 3,
+   "slot": "boots"
+  },
+  "steel_fletching_knife": {
+   "tier": null,
+   "slot": null
+  },
+  "steel_gauntlets": {
+   "tier": 3,
+   "slot": "gloves"
+  },
+  "steel_hammer": {
+   "tier": null,
+   "slot": null
+  },
+  "steel_helm": {
+   "tier": 3,
+   "slot": "helmet"
+  },
+  "steel_kiteshield": {
+   "tier": 3,
+   "slot": "shield"
+  },
+  "steel_knife": {
+   "tier": null,
+   "slot": null
+  },
+  "steel_masons_rule": {
+   "tier": null,
+   "slot": null
+  },
+  "steel_needle": {
+   "tier": null,
+   "slot": null
+  },
+  "steel_pickaxe": {
+   "tier": null,
+   "slot": null
+  },
+  "steel_platebody": {
+   "tier": 3,
+   "slot": "body"
+  },
+  "steel_platelegs": {
+   "tier": 3,
+   "slot": "pants"
+  },
+  "steel_sword": {
+   "tier": 3,
+   "slot": "weapon"
+  },
+  "steel_warhammer": {
+   "tier": 3,
+   "slot": "weapon"
+  },
+  "steel_whetstone": {
+   "tier": 4,
+   "slot": "ammo"
+  },
+  "sticky_core": {
+   "tier": null,
+   "slot": null
+  },
+  "stone_maul": {
+   "tier": 1,
+   "slot": "weapon"
+  },
+  "studded_belt": {
+   "tier": 2,
+   "slot": "belt"
+  },
+  "studded_body": {
+   "tier": 2,
+   "slot": "body"
+  },
+  "studded_boots": {
+   "tier": 2,
+   "slot": "boots"
+  },
+  "studded_gloves": {
+   "tier": 2,
+   "slot": "gloves"
+  },
+  "studded_helmet": {
+   "tier": 2,
+   "slot": "helmet"
+  },
+  "studded_pants": {
+   "tier": 2,
+   "slot": "pants"
+  },
+  "surveyors_chain": {
+   "tier": null,
+   "slot": null
+  },
+  "swarm_heart": {
+   "tier": null,
+   "slot": null
+  },
+  "swordfish": {
+   "tier": null,
+   "slot": null
+  },
+  "tally_ring": {
+   "tier": 2,
+   "slot": "ring"
+  },
+  "tidecallers_pearl": {
+   "tier": null,
+   "slot": null
+  },
+  "timber_beam": {
+   "tier": 2,
+   "slot": null
+  },
+  "tithe_box": {
+   "tier": null,
+   "slot": null
+  },
+  "tomato": {
+   "tier": null,
+   "slot": null
+  },
+  "tomato_seed": {
+   "tier": null,
+   "slot": null
+  },
+  "tomato_soup": {
+   "tier": null,
+   "slot": null
+  },
+  "traveler_cape": {
+   "tier": null,
+   "slot": "cape"
+  },
+  "travellers_stew": {
+   "tier": null,
+   "slot": null
+  },
+  "troll_hide": {
+   "tier": null,
+   "slot": null
+  },
+  "trollhide_cape": {
+   "tier": 4,
+   "slot": "cape"
+  },
+  "trophy_blueprint_t2": {
+   "tier": null,
+   "slot": null
+  },
+  "trophy_blueprint_t3": {
+   "tier": null,
+   "slot": null
+  },
+  "trout": {
+   "tier": null,
+   "slot": null
+  },
+  "turnip": {
+   "tier": null,
+   "slot": null
+  },
+  "turnip_mash": {
+   "tier": null,
+   "slot": null
+  },
+  "turnip_seed": {
+   "tier": null,
+   "slot": null
+  },
+  "unlit_earrings": {
+   "tier": 6,
+   "slot": "earrings"
+  },
+  "vamp_dust": {
+   "tier": null,
+   "slot": null
+  },
+  "vaultstone": {
+   "tier": 7,
+   "slot": null
+  },
+  "vegetable_stew": {
+   "tier": null,
+   "slot": null
+  },
+  "venom_sac": {
+   "tier": null,
+   "slot": null
+  },
+  "verdite_bar": {
+   "tier": null,
+   "slot": null
+  },
+  "verdite_blade": {
+   "tier": 4,
+   "slot": "weapon"
+  },
+  "verdite_helm": {
+   "tier": 4,
+   "slot": "helmet"
+  },
+  "verdite_ore": {
+   "tier": null,
+   "slot": null
+  },
+  "verdite_platebody": {
+   "tier": 4,
+   "slot": "body"
+  },
+  "verdite_platelegs": {
+   "tier": 4,
+   "slot": "pants"
+  },
+  "void_banquet": {
+   "tier": null,
+   "slot": null
+  },
+  "void_censer": {
+   "tier": 5,
+   "slot": "weapon"
+  },
+  "void_chitin": {
+   "tier": null,
+   "slot": null
+  },
+  "void_core": {
+   "tier": null,
+   "slot": null
+  },
+  "void_essence": {
+   "tier": null,
+   "slot": null
+  },
+  "void_fragment": {
+   "tier": null,
+   "slot": null
+  },
+  "voidchitin_weave": {
+   "tier": 6,
+   "slot": null
+  },
+  "voidhide_belt": {
+   "tier": 7,
+   "slot": "belt"
+  },
+  "voidhide_body": {
+   "tier": 7,
+   "slot": "body"
+  },
+  "voidhide_boots": {
+   "tier": 7,
+   "slot": "boots"
+  },
+  "voidhide_gloves": {
+   "tier": 7,
+   "slot": "gloves"
+  },
+  "voidhide_helmet": {
+   "tier": 7,
+   "slot": "helmet"
+  },
+  "voidhide_pants": {
+   "tier": 7,
+   "slot": "pants"
+  },
+  "voidmaw_scepter": {
+   "tier": null,
+   "slot": "weapon"
+  },
+  "voidweave_belt": {
+   "tier": 7,
+   "slot": "belt"
+  },
+  "voidweave_body": {
+   "tier": 7,
+   "slot": "body"
+  },
+  "voidweave_boots": {
+   "tier": 7,
+   "slot": "boots"
+  },
+  "voidweave_gloves": {
+   "tier": 7,
+   "slot": "gloves"
+  },
+  "voidweave_helmet": {
+   "tier": 7,
+   "slot": "helmet"
+  },
+  "voidweave_pants": {
+   "tier": 7,
+   "slot": "pants"
+  },
+  "voidwoven_sigil": {
+   "tier": null,
+   "slot": null
+  },
+  "war_crown": {
+   "tier": null,
+   "slot": null
+  },
+  "warband_bulwark": {
+   "tier": 3,
+   "slot": "cape"
+  },
+  "warboss_standard": {
+   "tier": null,
+   "slot": null
+  },
+  "warden_girdle": {
+   "tier": 8,
+   "slot": "belt"
+  },
+  "warden_seal": {
+   "tier": 7,
+   "slot": null
+  },
+  "warlock_belt": {
+   "tier": 4,
+   "slot": "belt"
+  },
+  "warlock_body": {
+   "tier": 4,
+   "slot": "body"
+  },
+  "warlock_boots": {
+   "tier": 4,
+   "slot": "boots"
+  },
+  "warlock_gloves": {
+   "tier": 4,
+   "slot": "gloves"
+  },
+  "warlock_helmet": {
+   "tier": 4,
+   "slot": "helmet"
+  },
+  "warlock_pants": {
+   "tier": 4,
+   "slot": "pants"
+  },
+  "warlord_badge": {
+   "tier": null,
+   "slot": null
+  },
+  "warlords_torc": {
+   "tier": 4,
+   "slot": "necklace"
+  },
+  "wartusk_cleaver": {
+   "tier": null,
+   "slot": "weapon"
+  },
+  "watchknight_belt": {
+   "tier": 5,
+   "slot": "belt"
+  },
+  "watchknight_body": {
+   "tier": 5,
+   "slot": "body"
+  },
+  "watchknight_boots": {
+   "tier": 5,
+   "slot": "boots"
+  },
+  "watchknight_gloves": {
+   "tier": 5,
+   "slot": "gloves"
+  },
+  "watchknight_helmet": {
+   "tier": 5,
+   "slot": "helmet"
+  },
+  "watchknight_pants": {
+   "tier": 5,
+   "slot": "pants"
+  },
+  "water_rune": {
+   "tier": 3,
+   "slot": "ammo"
+  },
+  "weathervane": {
+   "tier": null,
+   "slot": null
+  },
+  "wheat": {
+   "tier": null,
+   "slot": null
+  },
+  "wheat_bread": {
+   "tier": null,
+   "slot": null
+  },
+  "wheat_seed": {
+   "tier": null,
+   "slot": null
+  },
+  "whetstone_of_ember": {
+   "tier": 6,
+   "slot": "ammo"
+  },
+  "whetstone_of_frost": {
+   "tier": 6,
+   "slot": "ammo"
+  },
+  "whetstone_of_poison": {
+   "tier": 6,
+   "slot": "ammo"
+  },
+  "whispering_codex": {
+   "tier": null,
+   "slot": "weapon"
+  },
+  "widows_fang": {
+   "tier": 3,
+   "slot": "weapon"
+  },
+  "willow_log": {
+   "tier": null,
+   "slot": null
+  },
+  "willow_longbow": {
+   "tier": 3,
+   "slot": "weapon"
+  },
+  "willow_plank": {
+   "tier": null,
+   "slot": null
+  },
+  "willow_rod": {
+   "tier": null,
+   "slot": null
+  },
+  "willow_staff": {
+   "tier": 3,
+   "slot": "weapon"
+  },
+  "winterdraught": {
+   "tier": null,
+   "slot": null
+  },
+  "wolf_pelt": {
+   "tier": null,
+   "slot": null
+  },
+  "wolfbone_torc": {
+   "tier": 2,
+   "slot": "necklace"
+  },
+  "woolen_cloak": {
+   "tier": 1,
+   "slot": "cape"
+  },
+  "worldroot_seed": {
+   "tier": null,
+   "slot": null
+  },
+  "wraith_veil": {
+   "tier": null,
+   "slot": null
+  },
+  "wraithglass_drops": {
+   "tier": 4,
+   "slot": "earrings"
+  },
+  "wraithsilk_shroud": {
+   "tier": 5,
+   "slot": "body"
+  },
+  "wyrm_gilding": {
+   "tier": 7,
+   "slot": null
+  },
+  "wyrmgilt_mantle": {
+   "tier": 8,
+   "slot": "cape"
+  },
+  "wyvernhide_belt": {
+   "tier": 5,
+   "slot": "belt"
+  },
+  "wyvernhide_body": {
+   "tier": 5,
+   "slot": "body"
+  },
+  "wyvernhide_boots": {
+   "tier": 5,
+   "slot": "boots"
+  },
+  "wyvernhide_gloves": {
+   "tier": 5,
+   "slot": "gloves"
+  },
+  "wyvernhide_helmet": {
+   "tier": 5,
+   "slot": "helmet"
+  },
+  "wyvernhide_pants": {
+   "tier": 5,
+   "slot": "pants"
+  },
+  "yew_bow": {
+   "tier": 5,
+   "slot": "weapon"
+  },
+  "yew_log": {
+   "tier": null,
+   "slot": null
+  },
+  "yew_plank": {
+   "tier": null,
+   "slot": null
+  },
+  "yew_rod": {
+   "tier": null,
+   "slot": null
+  },
+  "yew_staff": {
+   "tier": 5,
+   "slot": "weapon"
+  }
+ }
+}

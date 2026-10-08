@@ -215,8 +215,8 @@ import { catalogueHas } from './intents.js';
    One module owns it now. See src/core/workers.js for the full account. */
 import {
   WORKER_BASE_EFF, WORKER_EFF_PER_LVL, WORKER_MAX_LVL,
-  WORKER_ACCRUE_CAP_MS, WORKER_MAX_ACC_MS,
-  workerLevel, workerEff, workerEffE, workerAnchorMs,
+  WORKER_ACCRUE_CAP_MS, WORKER_MAX_ACC_MS, WORKER_SEAT_PCT,
+  workerLevel, workerEff, workerEffE, workerAnchorMs, workerSeatPct, crewSeats,
 } from '../../../src/core/workers.js';
 
 /* The floor on an accrual. Below this nothing is simulated and — unlike the
@@ -4388,15 +4388,18 @@ export function levelsOf(skills) {
 // header for the measurement and for why the player's own perks/tools are
 // deliberately not in the anchor.
 //
-// EXACTNESS — away == live byte-identical. `eff` is EXACTLY rational with
-// denominator 1000: eff = (100 + 8·(lvl-1)) / 1000, and the anchor is an INTEGER
-// number of ms (pacedActionMs floors). So perTickMs = anchorMs·1000/E with
-// E = 100+8·(lvl-1) an integer, and the whole-ticks / leftover split is exact
+// EXACTNESS — away == live byte-identical. A hand's pace is EXACTLY rational
+// with denominator 100000: workerEffE (per-mille, 100 + 5·(lvl-1)) times its
+// seat's whole per-cent (WORKER_SEAT_PCT), and the anchor is an INTEGER number of
+// ms (pacedActionMs floors). So perTickMs = anchorMs·100000/E with E =
+// workerEffE·seat% an integer, and the whole-ticks / leftover split is exact
 // integer arithmetic (no float remainder to drift). For a worker at a FIXED level
-// (E constant) one 24h settle and N small settles produce byte-identical totals —
-// proven in tests/worker-accrual.mjs. (For a worker CROSSING a level boundary the
-// two genuinely differ, exactly as the pre-flip client's online vs offline did,
-// because eff changes mid-span; that is a property of the rate curve, not a bug.)
+// AND seat (E constant) one 24h settle and N small settles produce byte-identical
+// totals — proven in tests/worker-accrual.mjs. (For a worker CROSSING a level
+// boundary, or moving seat because a hand was hired or parked, the two genuinely
+// differ, exactly as the pre-flip client's online vs offline did, because the
+// pace changes mid-span; that is a property of the rate curve, not a bug. The
+// banked carry is TIME, so a seat change re-prices it and never confiscates it.)
 //
 // ── THE DEPLOY BOUNDARY (a rate change with money in the bank) ───────────────
 // `acc_ms` is banked TIME, not banked output, and the anchor only ever makes a
@@ -4410,8 +4413,8 @@ export function levelsOf(skills) {
    definition and no mirror to drift. */
 export {
   WORKER_BASE_EFF, WORKER_EFF_PER_LVL, WORKER_MAX_LVL,
-  WORKER_ACCRUE_CAP_MS, WORKER_MAX_ACC_MS,
-  workerLevel, workerEff, workerEffE, workerAnchorMs,
+  WORKER_ACCRUE_CAP_MS, WORKER_MAX_ACC_MS, WORKER_SEAT_PCT,
+  workerLevel, workerEff, workerEffE, workerAnchorMs, workerSeatPct, crewSeats,
 };
 
 /**
@@ -4465,6 +4468,12 @@ export function accrueWorkers(input) {
   // R1 (2026-09-08 security review): wrong-order visibility. See the warn below.
   let missingHiredAt = 0;
 
+  /* WHO IS WORKING, decided BEFORE anyone is paid, because a hand's SEAT
+     (src/core/workers.js WORKER_SEAT_PCT — the first three hands at full pace,
+     then 50/35/25%) is its rank among the hands that are working. The filter is
+     the one the loop always applied; it is hoisted so the seat order and the
+     pay loop cannot disagree about who is in the crew. */
+  const working = [];
   for (const w of crew) {
     if (!w || typeof w.uid !== 'string' || !/^[a-z0-9_]{1,64}$/.test(w.uid)) continue;
     // OWN-PROPERTY lookup on the null-prototype index (see accrueGather). An
@@ -4473,9 +4482,18 @@ export function accrueWorkers(input) {
     if (!w.target_id || !catalogueHas(nodes, w.target_id)) continue;
     const entry = nodes[w.target_id];
     if (!entry || !entry.node || !w.skill || entry.skill !== w.skill) continue;
-    const node = entry.node;
+    if (!(nat(entry.node.ms, 0) > 0)) continue;
+    working.push({ w, node: entry.node });
+  }
+  const seats = crewSeats(working.map((x) => x.w));
+
+  for (const { w, node } of working) {
     const ms = nat(node.ms, 0);
-    if (!(ms > 0)) continue;
+    /* THE SEAT. 0 only past the end of the table (no property tier grants a
+       seventh hand): such a hand is paid NOTHING and its stored carry is left
+       untouched — defer, never mint. */
+    const seatPct = workerSeatPct(seats[w.uid]);
+    if (!(seatPct > 0)) continue;
 
     /* ── A WORKER IS NEVER PAID FOR TIME BEFORE IT EXISTED (2026-09-08, P0) ──
        `workers_accrued_to` is a SHARED watermark that rule 1 above deliberately
@@ -4522,27 +4540,40 @@ export function accrueWorkers(input) {
     const payFromMs = Number.isFinite(hiredAtMs) ? Math.max(fromMs, hiredAtMs) : nowMs;
     const spanMs = Math.min(Math.max(0, nowMs - payFromMs), WORKER_ACCRUE_CAP_MS);
 
-    // EXACT-ARITHMETIC TICK SPLIT. eff = E/1000 with E an integer and the anchor
-    // is integer ms, so perTickMs = anchorMs·1000/E and the whole-tick / leftover
-    // split is done in INTEGER units of (ms·E) — no float remainder to drift, so N
-    // small settles and one big settle land on the SAME tick boundaries for a
-    // constant-eff worker (W8). The carry is stored as milliseconds
-    // (leftoverScaled/E) as a float8; re-reading it and multiplying by E recovers
-    // the exact integer remainder, because the value is an integer/E and float8
-    // round-trips it well inside 0.5. The carry read from the row is clamped
-    // defensively (hr_apply already refuses an out-of-range write).
-    const E = workerEffE(w.xp);
+    // EXACT-ARITHMETIC TICK SPLIT. A hand's pace is E/100000 of the active
+    // rate, E = workerEffE (per-mille) x its seat's whole per-cent — an integer
+    // — and the anchor is integer ms, so perTickMs = anchorMs·100000/E and the
+    // whole-tick / leftover split is done in INTEGER units of (ms·E): no float
+    // remainder to drift, so N small settles and one big settle land on the SAME
+    // tick boundaries for a hand at a constant level and seat (W8, W15).
+    //
+    // THE CARRY IS BANKED PROGRESS, STORED IN FULL-PACE MILLISECONDS
+    // (remScaled / (workerEffE·100)): the time a hand of this level would need in
+    // one of the first three seats to bank the same fraction of a tick. For a
+    // full-pace hand that is exactly the wall-clock carry this column has always
+    // held, so no stored value changes meaning. For a hand in a slower seat it
+    // keeps the stored number under one FULL-PACE tick (<= 224,000 ms on the
+    // real catalogue, W13) instead of one slow-seat tick (up to 4x that), so the
+    // 900,000 ms ceiling hr_apply enforces (c_max_worker_acc) keeps its headroom
+    // and no SQL moves. It also makes a seat change re-price nothing: banked
+    // progress is the same progress in any seat. Re-reading it and multiplying by
+    // workerEffE·100 recovers the exact integer remainder, because the value is an
+    // integer over that and float8 round-trips it well inside 0.5. The carry read
+    // from the row is clamped defensively (hr_apply already refuses an
+    // out-of-range write).
+    const ePm = workerEffE(w.xp);
+    const E = ePm * seatPct;                            // pace, 1/100000 of active
     const accMs = Math.min(Math.max(0, Number(w.acc_ms) || 0), WORKER_MAX_ACC_MS);
     /* THE ANCHOR — the PACED interval an active player takes at this node, not
        the raw catalogue `ms`. src/core/workers.js owns the formula and the
        client reads the same function, so a display and this settle cannot
        disagree. Integer, so the split below stays exact. */
-    const divScaled = workerAnchorMs(ms) * 1000;       // perTick in (ms·E) units
-    const carryScaled = Math.round(accMs * E);         // exact remainder, (ms·E) units
-    const nScaled = spanMs * E + carryScaled;          // total available, (ms·E) units
+    const divScaled = workerAnchorMs(ms) * 100000;      // perTick in (ms·E) units
+    const carryScaled = Math.round(accMs * ePm * 100);  // banked progress, (ms·E) units
+    const nScaled = spanMs * E + carryScaled;           // total available, (ms·E) units
     const ticks = Math.floor(nScaled / divScaled);
-    const remScaled = nScaled - ticks * divScaled;     // leftover, (ms·E) units, < divScaled
-    const newAccMs = remScaled / E;                    // back to ms (the stored carry)
+    const remScaled = nScaled - ticks * divScaled;      // leftover, (ms·E) units, < divScaled
+    const newAccMs = remScaled / (ePm * 100);           // back to full-pace ms (the stored carry)
     const out = { acc_ms: newAccMs > 0 ? newAccMs : 0 };
 
     if (ticks > 0) {

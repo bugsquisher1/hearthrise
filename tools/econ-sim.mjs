@@ -59,7 +59,7 @@ import {
 import { bountyRewards, bountyCountRange, unlockedTier } from '../src/core/bounty.js';
 import { xpForLevel, levelFromXp, combatLevel } from '../src/core/xp.js';
 import {
-  workerAnchorMs, workerTickMs, workerLevel, WORKER_BASE_EFF, WORKER_EFF_PER_LVL,
+  workerAnchorMs, workerTickMs, workerLevel, workerSeatPct, WORKER_BASE_EFF, WORKER_EFF_PER_LVL,
 } from '../src/core/workers.js';
 import { recipeInputs } from '../src/core/artisan.js';
 
@@ -157,6 +157,9 @@ export const DEFAULT_KNOBS = Object.freeze({
   upkeepBp: 0,          // recurring sink: bp/day of the gold already sunk into rooms+property+workers
   workerMult: 1,        // crew output multiplier (anchor tightening)
   workerEffPerLvl: WORKER_EFF_PER_LVL, // the crew curve's per-level step (src/core/workers.js)
+  workerBaseEff: WORKER_BASE_EFF,       // the crew curve's Lv1 efficiency (src/core/workers.js)
+  workerXpMult: 1,
+  crewWeights: null,    // what-if: per-hand pace by hire rank, e.g. [1,1,1,1,1,1] (null = WORKER_SEAT_PCT today)      // what-if: a worker needs this x the xp per level (1 = workerLevel() today)
   crewCapH: 24,         // hours of one absence the crew is paid for (24 = WORKER_ACCRUE_CAP_MS today)
   loginMaxMult: 3,      // the backend lane's x3 login cap ...
   loginGemGrowth: false, // ... with no gem growth
@@ -302,7 +305,7 @@ function workerDay(nodeId, workerXp, knobs) {
   /* What-if on the Designer's efficiency curve, applied as the RATIO of the
      two curves at this worker's level — the engine still produced the base. */
   const lvl = workerLevel(workerXp);
-  const effRatio = (WORKER_BASE_EFF + knobs.workerEffPerLvl * (lvl - 1)) / (WORKER_BASE_EFF + WORKER_EFF_PER_LVL * (lvl - 1));
+  const effRatio = (knobs.workerBaseEff + knobs.workerEffPerLvl * (lvl - 1)) / (WORKER_BASE_EFF + WORKER_EFF_PER_LVL * (lvl - 1));
   const items = {}; for (const k in r.items) items[k] = r.items[k] * knobs.workerMult * effRatio;
   return { items, xp: r.xp };
 }
@@ -530,10 +533,15 @@ export function simulate(arch, days, caps, knobsIn) {
     book('quests', 'claim', 'gold', 'tasks+board', dayIn.quests);
 
     // (b) the crew's day, through accrueWorkers
-    for (const w of crew) {
+    for (const [i, w] of crew.entries()) {
       if (!w.node) continue;
-      const r = workerDay(w.node, w.xp, knobs);
-      for (const it in r.items) stock[it] = (stock[it] || 0) + r.items[it] * crewShare;
+      const r = workerDay(w.node, w.xp / knobs.workerXpMult, knobs);
+      /* THE SEAT (src/core/workers.js WORKER_SEAT_PCT): hands are pushed in hire
+         order and every one is assigned, so hand i sits in seat i — exactly what
+         crewSeats() gives the engine. workerDay prices ONE hand alone (seat 0),
+         so the seat is applied here; `crewWeights` is the what-if override. */
+      const wt = knobs.crewWeights ? (knobs.crewWeights[i] ?? 0) : workerSeatPct(i) / 100;
+      for (const it in r.items) stock[it] = (stock[it] || 0) + r.items[it] * crewShare * wt;
       w.xp += r.xp;
     }
 
@@ -669,6 +677,7 @@ export function simulate(arch, days, caps, knobsIn) {
     }
     if (exhaustedDay === null && owned.size === sinks.length) exhaustedDay = d + 1;
     daily.push({ day: d + 1, gold, taxSoFar: Math.floor(out.tax), chain: chain && chain.out, cl, crew: crew.length,
+      crewLv: crew.map((w) => workerLevel(w.xp / knobs.workerXpMult)),
       levels: { mining: lv(skills, 'mining'), woodcutting: lv(skills, 'woodcutting'), smithing: lv(skills, 'smithing'), stonemason: lv(skills, 'stonemason'), combat: cl } });
   }
   const totIn = Object.values(inn).reduce((s, x) => s + x, 0);
@@ -679,7 +688,7 @@ export function simulate(arch, days, caps, knobsIn) {
     goldPerDayLast: days > 1 ? last.gold - daily[daily.length - 2].gold + 0 : last.gold,
     sellerTax: Math.floor(sellerTax), exhaustedDay, sinksOwned: owned.size, sinksTotal: sinks.length, cappedDays,
     combatLevel: last.cl, chain: last.chain, crew: crew.length, attrib,
-    trace: daily.map((x) => ({ day: x.day, gold: x.gold, crew: x.crew, levels: x.levels })),
+    trace: daily.map((x) => ({ day: x.day, gold: x.gold, crew: x.crew, crewLv: x.crewLv, levels: x.levels })),
   };
 }
 function mapFloor(o) { const x = {}; for (const k in o) x[k] = Math.floor(o[k]); return x; }
@@ -771,9 +780,9 @@ function parseKnobs(argv) {
   const k = {};
   if (argv.includes('--greedy')) k.greedy = 1;
   for (const a of argv) {
-    const m = /^--(gear-rate|crafted-rate|crew-cap-h|worker-eff-per-lvl|day-budget|upkeep-bp|worker-mult|login-max-mult|market-share)=([\d.]+)$/.exec(a);
+    const m = /^--(gear-rate|crafted-rate|crew-cap-h|worker-eff-per-lvl|worker-base-eff|worker-xp-mult|day-budget|upkeep-bp|worker-mult|login-max-mult|market-share)=([\d.]+)$/.exec(a);
     if (m) {
-      k[{ 'gear-rate': 'gearRate', 'crafted-rate': 'craftedRate', 'crew-cap-h': 'crewCapH', 'worker-eff-per-lvl': 'workerEffPerLvl', 'day-budget': 'dayBudget', 'upkeep-bp': 'upkeepBp',
+      k[{ 'gear-rate': 'gearRate', 'crafted-rate': 'craftedRate', 'crew-cap-h': 'crewCapH', 'worker-eff-per-lvl': 'workerEffPerLvl', 'worker-base-eff': 'workerBaseEff', 'worker-xp-mult': 'workerXpMult', 'day-budget': 'dayBudget', 'upkeep-bp': 'upkeepBp',
         'worker-mult': 'workerMult', 'login-max-mult': 'loginMaxMult', 'market-share': 'marketShare' }[m[1]]] = Number(m[2]);
     } else if (/^--(?!selftest$|json$|sweep$|greedy$|explain=|breakdown=)/.test(a)) throw new Error(`econ-sim: unknown flag ${a}`);
   }

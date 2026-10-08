@@ -22,12 +22,17 @@
 //   W12 the deploy boundary: a carry banked under the OLD (faster) anchor cannot
 //       mint a burst under the new one, and is not confiscated either
 //   W13 the largest carry the real node catalogue can produce stays inside
-//       WORKER_MAX_ACC_MS (the value hr_apply REFUSES outside)
+//       WORKER_MAX_ACC_MS (the value hr_apply REFUSES outside) — in EVERY seat,
+//       measured through the engine's own stored carry
+//   W15 ONE HEARTH, SIX HANDS (2026-10-08): the first three working hands at
+//       full pace, then 50/35/25%; seats go oldest-hire-first among the hands
+//       that are WORKING; a parked hand frees its seat; attended (many small
+//       settles) == away (one settle) byte-identical with seats in play
 // ============================================================================
 import {
   accrueWorkers, workerLevel, workerEff, workerAnchorMs,
   WORKER_BASE_EFF, WORKER_EFF_PER_LVL, WORKER_MAX_LVL, WORKER_ACCRUE_CAP_MS,
-  WORKER_MAX_ACC_MS,
+  WORKER_MAX_ACC_MS, WORKER_SEAT_PCT, workerSeatPct, crewSeats,
 } from '../supabase/functions/hr-accrue/accrual.js';
 import { GATHER_NODES } from '../supabase/functions/hr-accrue/catalogue.js';
 import { ITEMS } from '../src/data/items.js';
@@ -63,11 +68,11 @@ function nodeById(skill, id) {
   const t = { woodcutting: TREES, mining: ROCKS, fishing: FISH_SPOTS }[skill] || [];
   return t.find((n) => n.id === id) || null;
 }
-function clientAccrue(w, spanMs) {
+function clientAccrue(w, spanMs, seatPct = 100) {
   const act = w.target_id && nodeById(w.skill, w.target_id);
   if (!act) return { qty: 0, id: null, xp: 0 };
   const elapsed = Math.min(Math.max(0, spanMs), CAP);
-  const perTickMs = workerTickMs(act.ms, w.xp);       // features/workers.js tickMs()
+  const perTickMs = workerTickMs(act.ms, w.xp, seatPct);  // features/workers.js tickMs()
   const ticks = Math.floor(elapsed / perTickMs);
   if (ticks <= 0) return { qty: 0, id: act.prod, xp: 0 };
   const avgQty = (act.qty[0] + act.qty[1]) / 2;
@@ -95,8 +100,9 @@ ok(WORKER_BASE_EFF === CORE_BASE_EFF, 'the engine re-exports core WORKER_BASE_EF
 {
   const engineSrc = readFileSync(new URL('../supabase/functions/hr-accrue/accrual.js', import.meta.url), 'utf8');
   const SHARED = ['WORKER_BASE_EFF', 'WORKER_EFF_PER_LVL', 'WORKER_MAX_LVL',
-                  'WORKER_ACCRUE_CAP_MS', 'WORKER_MAX_ACC_MS',
-                  'workerLevel', 'workerEff', 'workerEffE', 'workerAnchorMs'];
+                  'WORKER_ACCRUE_CAP_MS', 'WORKER_MAX_ACC_MS', 'WORKER_SEAT_PCT',
+                  'workerLevel', 'workerEff', 'workerEffE', 'workerAnchorMs',
+                  'workerSeatPct', 'crewSeats'];
   /* `[^}]*` and not `[\s\S]*?`: a lazy any-char run starts at the FIRST `import
      {` in the file and swallows every import before this one, so the first name
      in the real list arrives glued to the previous statement and never matches.
@@ -119,11 +125,20 @@ ok(WORKER_BASE_EFF === CORE_BASE_EFF, 'the engine re-exports core WORKER_BASE_EF
   }
 }
 eq([WORKER_BASE_EFF, WORKER_EFF_PER_LVL, WORKER_MAX_LVL, WORKER_ACCRUE_CAP_MS],
-   [0.10, 0.008, 10, 24 * 3600000], 'the rate curve is the b389 ruling: 10% at Lv1, +0.8%/lvl, cap Lv10, 24h');
+   [0.10, 0.005, 10, 24 * 3600000],
+   'the rate curve is the 2026-10-08 ruling: 10% at Lv1, +0.5%/lvl, cap Lv10, 24h');
+eq([...WORKER_SEAT_PCT], [100, 100, 100, 50, 35, 25],
+   'the seat table is the 2026-10-08 ruling: three hands at full pace, then 50/35/25%');
 for (const [xp, lvl] of [[0, 1], [1999, 1], [2000, 2], [8000, 3], [18000, 4], [200000, 10], [1e9, 10]]) {
   ok(workerLevel(xp) === lvl, `workerLevel(${xp}) == ${lvl}`);
-  ok(Math.abs(workerEff(xp) - (0.10 + 0.008 * (lvl - 1))) < 1e-12, `workerEff(${xp}) == 0.10 + 0.008*${lvl - 1}`);
+  ok(Math.abs(workerEff(xp) - (0.10 + 0.005 * (lvl - 1))) < 1e-12, `workerEff(${xp}) == 0.10 + 0.005*${lvl - 1}`);
 }
+/* LEVELLING STAYS A PROGRESSION. Zeroing the step was the cheap way to the gold
+   target and was rejected for exactly this: a trained hand must stay worth
+   training. Asserted on the RATIO so a "flatten it a bit more" edit has to face
+   the ruling, not a constant. */
+ok(workerEff(1e9) / workerEff(0) >= 1.4,
+   `a Lv10 hand out-works a Lv1 hand by ${((workerEff(1e9) / workerEff(0) - 1) * 100).toFixed(0)}% (ruling: >= 40%)`);
 
 /* EVERY CREW ROW CARRIES A HIRE TIME, because every row in player_workers does
    (`hired_at timestamptz not null default now()`) and since the CREW-BACKLOG fix
@@ -320,16 +335,21 @@ wlog('W11 — THE ANCHOR: a worker is exactly `eff` of an ACTIVE player at the s
   ok(worst < 1e-9,
      `every node pays exactly workerEff() of the active rate (worst drift ${worst.toExponential(2)} at ${worstId})`);
 
-  // The DESIGN NUMBER, stated as the ruling states it. b389: "crew of 6 at Lv10
-  // = 6 x 0.172 = 1.03 active-equivalents (≈ ONE extra gatherer while you're
-  // away)". Measured on a real node, not asserted on the constant.
+  // The DESIGN NUMBER, stated as the ruling states it. 2026-10-08 (b389's 1.03
+  // re-ruled after the economy sim): "a Lv10 castle crew of six = 0.145 x
+  // (1+1+1+0.5+0.35+0.25) = 0.59 active-equivalents — about half an extra
+  // gatherer". Measured on a real node THROUGH THE SEATS (each hand's own
+  // tick at its own seat), not asserted on the constant.
   const CREW = 6, MAXED = 1e9;
   const node = TREES.find((n) => n.id === 'normal_tree');
-  const crewEquivalents = CREW * (actionIntervalMs('woodcutting', node.ms, {}) / workerTickMs(node.ms, MAXED));
-  ok(Math.abs(crewEquivalents - 1.032) < 0.005,
-     `a Lv10 castle crew of six = ${crewEquivalents.toFixed(3)} active-player-equivalents (b389 ruling: 1.03)`);
-  ok(crewEquivalents <= 1.1,
-     'the anti-faucet ceiling holds: a full crew is never more than ~1 active gatherer');
+  let crewEquivalents = 0;
+  for (let seat = 0; seat < CREW; seat++) {
+    crewEquivalents += actionIntervalMs('woodcutting', node.ms, {}) / workerTickMs(node.ms, MAXED, workerSeatPct(seat));
+  }
+  ok(Math.abs(crewEquivalents - 0.5945) < 0.005,
+     `a Lv10 castle crew of six = ${crewEquivalents.toFixed(3)} active-player-equivalents (2026-10-08 ruling: 0.59)`);
+  ok(crewEquivalents <= 0.6,
+     'the anti-faucet ceiling holds: a full crew is never more than about half an active gatherer');
 
   // And the anchor is the PACED interval, named — so a future PACE.actionMs move
   // carries the crew with it instead of silently re-scaling the whole design.
@@ -404,6 +424,23 @@ wlog('W13 — the largest carry the real node catalogue can produce fits inside 
      + `under the ${WORKER_MAX_ACC_MS}ms refusal ceiling`);
   ok(ceiling * 2 < WORKER_MAX_ACC_MS,
      `and it keeps ${(WORKER_MAX_ACC_MS / ceiling).toFixed(1)}x headroom, so the constant is not on a knife edge`);
+
+  /* …AND IN EVERY SEAT, measured through the engine's own STORED carry. A hand
+     in the 6th seat takes 4x as long per tick, so a carry stored as wall-clock
+     time would reach ~896,000 ms — one slow tick short of hr_apply's 900,000 ms
+     refusal, and over it the day a seat drops below 25%. The engine stores
+     banked PROGRESS in full-pace milliseconds instead, which this measures: six
+     Lv1 hands at the slowest node, settled for one millisecond short of the
+     slowest seat's tick, so the 6th hand banks the largest remainder it can. */
+  const skill = TREES.includes(slowest) ? 'woodcutting' : ROCKS.includes(slowest) ? 'mining' : 'fishing';
+  const six = Array.from({ length: 6 }, (_, i) => ({
+    uid: 'c' + i, skill, target_id: slowest.id, xp: 0, acc_ms: 0, hired_at: new Date(1000 * (i + 1)).toISOString() }));
+  const span = Math.floor(workerTickMs(slowest.ms, 0, workerSeatPct(5))) - 1;
+  const probe = accrueWorkers({ nowMs: span + 10000, workersAccruedToMs: 10000, crew: six, nodes: GATHER_NODES, items: ITEMS });
+  ok(probe.accrued === true, 'the probe settle produced (the full-pace hands ticked), so every carry was written');
+  const worst = Math.max(...Object.values(probe.accrued ? probe.workers : {}).map((o) => o.acc_ms));
+  ok(worst < ceiling,
+     `the largest STORED carry in any seat (${Math.round(worst)}ms) is under one full-pace tick (${Math.round(ceiling)}ms)`);
 }
 
 // ============================================================================
@@ -465,6 +502,73 @@ wlog('W14 — the HIRE FLOOR: a worker is never paid for time before it existed'
     + 'is deployed, and an under-paying crew is a redeploy where a faucet is a wipe.');
 }
 
+
+// ── W15 — ONE HEARTH, SIX HANDS (2026-10-08 economy ruling). The crew used to be
+//    six full-pace hands, which the economy sim measured at 60-71% of a casual
+//    or engaged player's gold by day 90. The first three WORKING hands keep full
+//    pace; the 4th/5th/6th work at 50/35/25%. This proves the seat is real in
+//    the engine (not just the display), that the order is a pure function of
+//    server-owned columns, and that it holds on BOTH paths — attended (a settle
+//    every few seconds) and away (one long settle) — byte-identical.
+wlog('W15 — one hearth, six hands: seat pace, seat order, parked hands, attended == away');
+{
+  const at = (s) => new Date(s * 1000 - 3600000).toISOString();   // all before the settle window opens
+  // (a) THE ORDER — oldest hire first, uid breaks a tie, unreadable hire time last.
+  const seats = crewSeats([
+    { uid: 'late', hired_at: at(30) }, { uid: 'b', hired_at: at(10) }, { uid: 'a', hired_at: at(10) },
+    { uid: 'nohire' }, { uid: 'first', hired_at: at(1) },
+  ]);
+  eq({ ...seats }, { first: 0, a: 1, b: 2, late: 3, nohire: 4 },
+    'seats go oldest hire first, uid breaks a tie, and a row with no hire time sits last');
+  ok(workerSeatPct(6) === 0 && workerSeatPct(-1) === 0 && workerSeatPct('x') === 0,
+    'a seat the table does not have pays 0 (defer, never mint)');
+
+  // (b) THE ENGINE PAYS THE SEAT. Six Lv10 hands on one node, hired in order;
+  //     per-hand worker xp is floor(ticks * node.xp * 0.5), so the xp RATIO
+  //     between hands is the tick ratio is the seat ratio.
+  const NODE = 'coal_rock', MAXED = 200000, DAY = 24 * 3600000;
+  const six = Array.from({ length: 6 }, (_, i) => ({
+    uid: 'h' + (i + 1), skill: 'mining', target_id: NODE, xp: MAXED, acc_ms: 0, hired_at: at(i + 1) }));
+  const day = accrueWorkers({ nowMs: DAY, workersAccruedToMs: 0, crew: six, nodes: GATHER_NODES, items: ITEMS });
+  const xp = six.map((w) => day.workers[w.uid].xp);
+  const ratio = xp.map((x) => x / xp[0]);
+  ok(ratio.every((r, i) => Math.abs(r - WORKER_SEAT_PCT[i] / 100) < 0.01),
+    `each hand works at its seat's pace (${ratio.map((r) => r.toFixed(2)).join('/')} vs 1/1/1/0.5/0.35/0.25)`);
+  // ...and the HAUL matches the client's readout of the same six seats.
+  const coalMs = nodeById('mining', NODE);
+  let clientQty = 0;
+  six.forEach((w, i) => { clientQty += clientAccrue(w, DAY, WORKER_SEAT_PCT[i]).qty; });
+  eq(day.items, { coal: clientQty }, 'the server haul == the client per-seat readout summed (one model, two consumers)');
+  ok(coalMs && day.items.coal < 6 * clientAccrue(six[0], DAY, 100).qty,
+    'a full crew earns LESS than six full-pace hands — the seat is not decorative');
+
+  // (c) A PARKED HAND FREES ITS SEAT. Park h1: h4 is now the third working hand
+  //     and works at full pace; total crew output cannot exceed three full hands
+  //     + the remaining seats.
+  const parked = six.map((w) => (w.uid === 'h1' ? { ...w, target_id: null, skill: null } : w));
+  const p = accrueWorkers({ nowMs: DAY, workersAccruedToMs: 0, crew: parked, nodes: GATHER_NODES, items: ITEMS });
+  ok(!('h1' in p.workers), 'a parked hand is not settled at all (no carry rewritten, no seat held)');
+  eq(p.workers.h4.xp, day.workers.h1.xp, 'with h1 parked, h4 takes a full-pace seat (its xp == a full-pace hand)');
+  eq(p.workers.h6.xp, day.workers.h5.xp, 'and h6 moves up to the 35% seat');
+
+  // (d) A SEVENTH HAND (no tier grants one) is paid nothing and its carry is untouched.
+  const seven = [...six, { uid: 'h7', skill: 'mining', target_id: NODE, xp: MAXED, acc_ms: 1234, hired_at: at(7) }];
+  const s7 = accrueWorkers({ nowMs: DAY, workersAccruedToMs: 0, crew: seven, nodes: GATHER_NODES, items: ITEMS });
+  ok(!('h7' in s7.workers), 'a hand past the seat table earns nothing and its stored carry is left as it was');
+  eq(s7.items, day.items, 'and the crew haul is exactly the six-hand haul');
+
+  // (e) BOTH PATHS. Attended = the client's few-second accrue cadence; away =
+  //     one settle on return. Same span, same seats → byte-identical items, and
+  //     worker xp only ever under-pays on the attended path (W8's bound).
+  const away = accrueWorkers({ nowMs: DAY, workersAccruedToMs: 0, crew: six, nodes: GATHER_NODES, items: ITEMS });
+  const attended = runLoop(six, 0, DAY, 7000);
+  eq(attended.items, away.items, 'ATTENDED (7s settles) == AWAY (one 24h settle), byte-identical, with all six seats in play');
+  const attended2 = runLoop(six, 0, DAY, 91000);
+  eq(attended2.items, away.items, 'and at a 91s cadence too');
+  ok(six.every((w) => (attended.xp[w.uid] || 0) <= away.workers[w.uid].xp),
+    'attended worker xp never exceeds the away settle in any seat (under-pay only)');
+}
+
 const WA_MUTATIONS = [
   { id: 'WA7-hire-floor-removed',
     why: 'THE 2026-09-09 MINT: pay the crew from the SHARED watermark again. It is stale by '
@@ -480,15 +584,15 @@ const WA_MUTATIONS = [
     why: 'THE b389 SHAPE: the efficiency curve is edited in one place and not the other, so the '
        + 'engine and the shared rate model disagree and a crew silently pays the wrong rate',
     file: 'src/core/workers.js',
-    from: 'export const WORKER_EFF_PER_LVL = 0.008;',
-    to:   'export const WORKER_EFF_PER_LVL = 0.012;' },
+    from: 'export const WORKER_EFF_STEP_PM = 5;',
+    to:   'export const WORKER_EFF_STEP_PM = 8;' },
 
   { id: 'WA2-base-efficiency-buffed',
-    why: 'a "small" buff to the starting efficiency. The b389 ruling is 10% at Lv1; a crew that '
+    why: 'a "small" buff to the starting efficiency. The ruling is 10% at Lv1; a crew that '
        + 'pays more than the ruling is an economy faucet nobody voted for',
     file: 'src/core/workers.js',
-    from: 'export const WORKER_BASE_EFF = 0.10;',
-    to:   'export const WORKER_BASE_EFF = 0.16;' },
+    from: 'export const WORKER_BASE_EFF_PM = 100;',
+    to:   'export const WORKER_BASE_EFF_PM = 160;' },
 
   { id: 'WA3-24h-rest-cap-lifted',
     why: 'the "workers rest" cap is raised, so one settle after a long absence pays an unbounded '
@@ -523,6 +627,35 @@ const WA_MUTATIONS = [
        module and not a value comparison. */
     from: 'export {\n  WORKER_BASE_EFF, WORKER_EFF_PER_LVL, WORKER_MAX_LVL,',
     to:   'const WORKER_BASE_EFF_MIRROR = 0.10;\nexport {\n  WORKER_BASE_EFF_MIRROR as WORKER_BASE_EFF, WORKER_EFF_PER_LVL, WORKER_MAX_LVL,' },
+
+  { id: 'WA8-seat-table-flattened',
+    why: 'THE 2026-10-08 SHAPE OF b389: "every hand at full pace again" is one array edit, and it '
+       + 'puts the castle crew back to 0.87 active-equivalents — the faucet the economy sim measured',
+    file: 'src/core/workers.js',
+    from: 'export const WORKER_SEAT_PCT = Object.freeze([100, 100, 100, 50, 35, 25]);',
+    to:   'export const WORKER_SEAT_PCT = Object.freeze([100, 100, 100, 100, 100, 100]);' },
+
+  { id: 'WA9-engine-ignores-the-seat',
+    why: 'the DISPLAY honours the seat and the SETTLE does not — the client says 50%, the server '
+       + 'pays 100%: the browser-says-one-thing class CLAUDE.md §6 names',
+    file: 'supabase/functions/hr-accrue/accrual.js',
+    from: 'const seatPct = workerSeatPct(seats[w.uid]);',
+    to:   'const seatPct = 100;' },
+
+  { id: 'WA10-carry-stored-as-slow-seat-wall-time',
+    why: 'store the carry in the hand\'s own wall-clock time: a 6th-seat Lv1 hand at the slowest node '
+       + 'banks ~896,000 ms against hr_apply\'s 900,000 ms refusal — one seat-table edit from an '
+       + 'intermittent bad_worker_carry that rejects the WHOLE accrue',
+    file: 'supabase/functions/hr-accrue/accrual.js',
+    from: 'const newAccMs = remScaled / (ePm * 100);',
+    to:   'const newAccMs = remScaled / E;' },
+
+  { id: 'WA11-seat-order-newest-first',
+    why: 'seats handed out newest-hire-first: a fresh Lv1 hire would bump a trained Lv10 hand into '
+       + 'the 25% seat, and the order would disagree with the readout every player was shown',
+    file: 'src/core/workers.js',
+    from: 'rows.sort((a, b) => (a.t !== b.t ? (a.t < b.t ? -1 : 1)',
+    to:   'rows.sort((a, b) => (a.t !== b.t ? (a.t > b.t ? -1 : 1)' },
 ];
 
 if (process.argv.includes('--list')) {

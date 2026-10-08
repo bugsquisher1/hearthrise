@@ -2541,7 +2541,7 @@ import { capHoursFromVigour } from './offline-cap.js?v=564';
 
 /* ── THE HIRED CREW, RECONCILED FROM THE ENVELOPE (worker-settlement slice) ──
    `hr_state_of` projects the server-owned crew (player_workers — no client write
-   policy) at `res.workers`: an array of {uid,name,skill,target_id,xp,acc_ms}. The
+   policy) at `res.workers`: an array of {uid,name,skill,target_id,xp,acc_ms,hired_at}. The
    client renders G.workers.hired, whose shape uses `targetId` and carries a
    DISPLAY-ONLY ledger (collected/collectedTotal/collectedSince/lastCollect) that
    is not server-owned. So the reconcile is ABSOLUTE for the server-owned fields
@@ -2570,7 +2570,12 @@ export function reconcileWorkers(G, res) {
       skill: sw.skill || null,
       targetId: (sw.target_id != null ? sw.target_id : null),
       xp: Number(sw.xp) || 0,
-      acc_ms: Number(sw.acc_ms) || 0
+      acc_ms: Number(sw.acc_ms) || 0,
+      /* SERVER-OWNED and REPLACED like the rest: the hire time is what orders
+         the crew's seats (src/core/workers.js crewSeats), so the pace shown
+         under a name is the pace the settle pays. Absent → null → that hand
+         reads as the newest (the settle pays a row with no hire time nothing). */
+      hired_at: (sw.hired_at != null ? String(sw.hired_at) : null)
     });
     if (!merged.lastCollect) merged.lastCollect = Date.now();
     return merged;

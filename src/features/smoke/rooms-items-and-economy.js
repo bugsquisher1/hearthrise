@@ -368,35 +368,82 @@ export default [
       G.inventory = saved.inv; G.skills = saved.skills;
     }
   }),
-  () => tryRun('b389/b497: worker rebalance — a full castle crew ≤ ~1 active-equivalent, MEASURED as a ratio', () => {
+  () => tryRun('b389/b497/2026-10-08: a full castle crew is ≤ 0.6 active-equivalents, MEASURED through the seats the screen shows', () => {
     const W = window.HearthriseWorkers;
-    assert(W && typeof W.eff === 'function' && typeof W.ratePerHour === 'function', 'workers module + eff + ratePerHour present');
+    assert(W && typeof W.eff === 'function' && typeof W.ratePerHour === 'function' && typeof W.seatPct === 'function',
+      'workers module + eff + seatPct + ratePerHour present');
     assert(typeof window.pacedActionMs === 'function' && Array.isArray(window.TREES), 'pacedActionMs + TREES available');
-    /* A max-level worker's output × the 6-slot castle crew must stay ≈ ONE active
-       gatherer — never the pre-b389 3.12x free-24/7 faucet that defeated the b226
-       vendor ceiling (~6.3M gold/day passive).
+    /* The crew screen's per-hand readout, summed over a real six-hand castle crew,
+       must be about HALF an active gatherer (2026-10-08 ruling, from the economy
+       sim: hired hands were 60-71% of a casual/engaged player's gold by day 90).
 
        ⚠ THIS GUARD USED TO ASSERT `6 * W.eff(...) <= 1.1` AND IT WAS GREEN FOR THE
-       ENTIRE TIME THE RULE WAS BROKEN. `eff` is one HALF of a ratio; the engine
-       divided the RAW `node.ms` while a player gathers at `pacedActionMs(node.ms)`,
-       so the shipped crew was 6 x 0.172 x 1.60 = 1.65 equivalents against the 1.03
-       b389 ruled — and a guard that measures a proxy cannot see that. It measures
+       ENTIRE TIME THE RULE WAS BROKEN. `eff` is one HALF of a ratio; it measures
        the RATIO now, through the two functions that actually produce it:
-         • `W.ratePerHour(worker)`  — what the crew screen promises and the settle pays;
+         • `W.ratePerHour(worker)`  — what the crew screen promises and the settle pays
+           (seat included — the 4th/5th/6th working hands at 50/35/25%);
          • `pacedActionMs(node.ms)` — what an active, perkless player takes.
-       Neither can be edited alone to satisfy it. Same shape as W11 in
-       tests/worker-accrual.mjs, which proves the server half. */
-    const node = window.TREES.find((t) => t.id === 'normal_tree');
-    assert(node, 'normal_tree present in TREES');
-    const avgQty = (node.qty[0] + node.qty[1]) / 2;
-    const activePerHour = 3600000 / window.pacedActionMs(node.ms) * avgQty;
-    const maxed = { xp: 1e12, skill: 'woodcutting', targetId: node.id };   // level 10
-    const equivalents = W.ratePerHour(maxed) / activePerHour;
-    const crew = 6 * equivalents;                                          // castle = 6 slots
-    assert(Math.abs(equivalents - W.eff(maxed)) < 1e-6,
-      'a worker produces exactly eff x the ACTIVE paced rate — got ' + equivalents + ' vs eff ' + W.eff(maxed));
-    assert(equivalents <= 0.20, 'a maxed worker must be ≤ 20% of an active gatherer, got ' + equivalents);
-    assert(crew <= 1.1, 'a full 6-worker castle crew must be ≤ 1.1 active-equivalents, got ' + crew);
+       Same shape as W11/W15 in tests/worker-accrual.mjs, which prove the server half.
+       MUTATION: drop seatPct() from tickMs() in src/features/workers.js — the screen
+       quotes six full-pace hands (0.87) and this goes RED. */
+    const G = window.G;
+    const saved = G.workers;
+    try {
+      const node = window.TREES.find((t) => t.id === 'normal_tree');
+      assert(node, 'normal_tree present in TREES');
+      const avgQty = (node.qty[0] + node.qty[1]) / 2;
+      const activePerHour = 3600000 / window.pacedActionMs(node.ms) * avgQty;
+      const hired = [];
+      for (let i = 0; i < 6; i++) {
+        hired.push({ uid: 'sm_w' + i, name: 'Hand ' + i, skill: 'woodcutting', targetId: node.id, xp: 1e12,
+          hired_at: new Date(Date.UTC(2026, 0, 1, 0, i)).toISOString(), lastCollect: Date.now() });
+      }
+      G.workers = { hired };
+      const per = hired.map((w) => W.ratePerHour(w) / activePerHour);
+      const crew = per.reduce((a, b) => a + b, 0);
+      assert(Math.abs(per[0] - W.eff(hired[0])) < 0.01,
+        'a first-seat hand produces eff x the ACTIVE paced rate — got ' + per[0] + ' vs eff ' + W.eff(hired[0]));
+      assert(per[0] <= 0.15, 'a maxed hand must be ≤ 15% of an active gatherer, got ' + per[0]);
+      assert(per[5] < per[3] && per[3] < per[2], 'the 4th and 6th hands must read slower than the 3rd: ' + per.join('/'));
+      assert(crew <= 0.6, 'a full 6-hand castle crew must be ≤ 0.6 active-equivalents, got ' + crew);
+      assert([0, 1, 2, 3, 4, 5].map((i) => W.seatPct(hired[i])).join(',') === '100,100,100,50,35,25',
+        'seat paces by hire order: ' + hired.map((w) => W.seatPct(w)).join(','));
+      /* A PARKED HAND FREES ITS SEAT, on screen exactly as in the settle. */
+      hired[0].skill = null; hired[0].targetId = null;
+      assert(W.seatPct(hired[3]) === 100, 'with the oldest hand parked, the 4th hand must read full pace, got ' + W.seatPct(hired[3]));
+      assert(W.seatPct(hired[5]) === 35, 'and the 6th hand moves up to 35%, got ' + W.seatPct(hired[5]));
+    } finally {
+      G.workers = saved;
+    }
+  }),
+  /* 2026-10-08 — THE SEAT ORDER COMES FROM THE SERVER'S hired_at. reconcileWorkers
+     must carry hired_at through, or every hand reads as "newest" and the pace
+     under each name stops matching the pace the settle pays (CLAUDE.md §6: the
+     browser never says one thing while the server says another).
+     MUTATION: drop `hired_at` from reconcileWorkers in src/net/accrue.js → the
+     uid tiebreak reorders the crew and the trained hand reads 25% → RED. */
+  () => tryRun('2026-10-08: the crew’s seats follow the SERVER hire order after an envelope', () => {
+    const A = window.HearthriseAccrual, W = window.HearthriseWorkers, G = window.G;
+    assert(A && typeof A.reconcileWorkers === 'function', 'HearthriseAccrual.reconcileWorkers is not published');
+    const saved = G.workers;
+    try {
+      G.workers = { hired: [] };
+      const t = (m) => new Date(Date.UTC(2026, 0, 1, 0, m)).toISOString();
+      // uids chosen so that a uid-only order would be the REVERSE of the hire order.
+      A.reconcileWorkers(G, { workers: [
+        { uid: 'zz_old', name: 'Aldric', skill: 'woodcutting', target_id: 'normal_tree', xp: 1e9, acc_ms: 0, hired_at: t(1) },
+        { uid: 'yy', name: 'Berta', skill: 'woodcutting', target_id: 'normal_tree', xp: 0, acc_ms: 0, hired_at: t(2) },
+        { uid: 'xx', name: 'Cedric', skill: 'woodcutting', target_id: 'normal_tree', xp: 0, acc_ms: 0, hired_at: t(3) },
+        { uid: 'ww', name: 'Dagny', skill: 'woodcutting', target_id: 'normal_tree', xp: 0, acc_ms: 0, hired_at: t(4) },
+        { uid: 'aa_new', name: 'Edwin', skill: 'woodcutting', target_id: 'normal_tree', xp: 0, acc_ms: 0, hired_at: t(5) },
+      ] });
+      const byUid = (u) => G.workers.hired.find((w) => w.uid === u);
+      assert(byUid('zz_old').hired_at === t(1), 'reconcileWorkers dropped hired_at: ' + byUid('zz_old').hired_at);
+      assert(W.seatPct(byUid('zz_old')) === 100, 'the oldest hire must hold a full-pace seat, got ' + W.seatPct(byUid('zz_old')));
+      assert(W.seatPct(byUid('aa_new')) === 35, 'the newest of five must sit in the 35% seat, got ' + W.seatPct(byUid('aa_new')));
+    } finally {
+      G.workers = saved;
+    }
   }),
   /* worker-settlement slice — THE CLIENT WIRING. With the crew server-owned
      (WORKER_PRODUCTION_SERVER_BACKED), hire() and assign() must send INTENTS to

@@ -10,7 +10,8 @@
 //   • Slots come from the property tier (features/homestead.js): 0 at
 //     the camp → 6 at the castle. Hiring costs gold, escalating.
 //   • Efficiency: a fraction of the ACTIVE PLAYER's rate at the same node —
-//     10% at worker Lv1, +0.8%/level to 17.2% at Lv10 (b389). Workers level by
+//     10% at worker Lv1, +0.5%/level to 14.5% at Lv10, and the first three
+//     working hands at full pace, the 4th/5th/6th at 50/35/25% (2026-10-08). Workers level by
 //     working (slowly — days, not minutes). The curve and the paced anchor it
 //     is a fraction of are authored ONCE, in src/core/workers.js; this file no
 //     longer owns a rate number. (This line read "25% … to 52%" for four builds
@@ -151,10 +152,33 @@
 
   function level(w) { var K = CW(); return K ? K.workerLevel(w && w.xp) : 1; }
   function eff(w) { var K = CW(); return K ? K.workerEff(w && w.xp) : 0; }
+
+  /* ── ONE HEARTH, SIX HANDS (2026-10-08) ─────────────────────────────────
+     The first three WORKING hands keep full pace; the 4th/5th/6th work at
+     50/35/25% (src/core/workers.js WORKER_SEAT_PCT). Seats go oldest hire
+     first among the hands that are working, by the SAME core function the
+     server settle calls (crewSeats over `hired_at`, projected by hr_state_of),
+     so the rate under a name is the rate the settle pays. A hand that is not
+     on the crew yet (a preview) is read as the next hire: the honest answer to
+     "what would this one make". Core absent → seat 0% → no rate, never a guess. */
+  function isWorking(w) { return !!(w && w.skill && actFor(w.skill, w.targetId)); }
+  function seatOf(w) {
+    var K = CW();
+    if (!K || !w) return -1;
+    var crew = ((G_().workers && G_().workers.hired) || []).filter(isWorking);
+    var inCrew = crew.some(function (x) { return x && x.uid === w.uid; });
+    if (!inCrew) crew = crew.concat([{ uid: w.uid || '~preview', hired_at: null }]);
+    var seats = K.crewSeats(crew);
+    var k = w.uid && Object.prototype.hasOwnProperty.call(seats, w.uid) ? seats[w.uid] : seats['~preview'];
+    return typeof k === 'number' ? k : -1;
+  }
+  function seatPct(w) { var K = CW(); return K ? K.workerSeatPct(seatOf(w)) : 0; }
   /* The interval between this worker's productions — the PACED action interval
-     at the node divided by the worker's efficiency. One expression, shared with
-     the server settle (which evaluates the same rational in exact integers). */
-  function tickMs(w, act) { var K = CW(); return K ? K.workerTickMs(act.ms, w && w.xp) : Infinity; }
+     at the node divided by the worker's efficiency and its seat's pace. One
+     expression, shared with the server settle (which evaluates the same
+     rational in exact integers). */
+  function tickMs(w, act) { var K = CW(); return K ? K.workerTickMs(act.ms, w && w.xp, seatPct(w)) : Infinity; }
+  var ORD = ['1st', '2nd', '3rd', '4th', '5th', '6th'];
   function accrueCapMs() { var K = CW(); return K ? K.WORKER_ACCRUE_CAP_MS : 24 * 3600000; }
 
   function hire() {
@@ -530,6 +554,15 @@
     if (host) renderInto(host);
   }
 
+  /* " · 4th hand, half pace" — said only for a hand that is NOT at full pace,
+     so a crew of three reads exactly as before. */
+  function paceNote(w) {
+    var pct = seatPct(w), k = seatOf(w);
+    if (!(pct > 0) || pct >= 100 || k < 0) return '';
+    return ' · <span title="The first three hands at work keep full pace; the 4th, 5th and 6th work at 50%, 35% and 25%. Park a hand and the next one moves up.">'
+      + (ORD[k] || ((k + 1) + 'th')) + ' hand, ' + pct + '% pace</span>';
+  }
+
   function renderInto(host) {
     if (!host) return;
     ensureState();
@@ -550,7 +583,7 @@
           : '<span class="hh-worker-glyph">' + ((window.HR && window.HR.icon) ? (window.HR.icon('uiWorker', 20, '--gold-2') || '') : '') + '</span>') +
         '<div style="flex:1;min-width:0">' +
           '<div style="font-size:calc(14.5px * var(--ui-scale, 1))"><b>' + w.name + '</b> <span class="tiny muted">Lv ' + level(w) + '</span></div>' +
-          '<div class="tiny muted">' + (act ? (act.name + ' · ~' + rph + '/hr') : 'Idle — assign a task') + haul + '</div>' +
+          '<div class="tiny muted">' + (act ? (act.name + ' · ~' + rph + '/hr' + paceNote(w)) : 'Idle — assign a task') + haul + '</div>' +
         '</div>' +
         '<select style="max-width:150px;font-size:calc(14.5px * var(--ui-scale, 1));background:rgba(0,0,0,.25);color:var(--ink);border:1px solid var(--line);border-radius:5px;padding:3px 6px" ' +
           'onchange="window.HearthriseWorkers._onAssign(\'' + w.uid + '\', this.value)">' + taskOptions(w) + '</select>' +
@@ -568,7 +601,7 @@
         (s > 0 && canHire
           ? '<button class="btn btn-sm" style="margin-top:8px" onclick="window.HearthriseWorkers.hire()">Hire worker — ' + hireCost().toLocaleString() + 'g</button>'
           : '') +
-        (s > 0 ? '<div class="tiny muted" style="margin-top:6px">Workers gather while you\'re away (up to 24h). They only do what you\'ve mastered yourself.</div>' : '') +
+        (s > 0 ? '<div class="tiny muted" style="margin-top:6px">Workers gather while you\'re away (up to 24h). They only do what you\'ve mastered yourself. Your first three hands at work keep full pace.</div>' : '') +
         ledgerHtml() +
       '</div>';
   }
@@ -582,6 +615,7 @@
     accrueAll: accrueAll,
     level: level,
     eff: eff,
+    seatPct: seatPct,
     ratePerHour: ratePerHour,
     ledger: ledger,
     ledgerTop: ledgerTop,

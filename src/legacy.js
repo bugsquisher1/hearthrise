@@ -16690,8 +16690,8 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
 
        WHY A MARKER AND NOT A DELETION. The weekly picker indexes into THIS
        array, so removing the row would shift every later index and re-deal the
-       whole game's mid-week slate — the exact hazard DAILY_TASK_POOL_ORDER
-       warns about. Marking it keeps every week that did NOT pick it
+       whole game's mid-week slate (goalCatalogue.WEEKLY_BOARD_POOL is the same
+       index space hr_goal_board deals from). Marking it keeps every week that did NOT pick it
        byte-identical, and a week that DID pick it takes the next id in the same
        shuffle order. tests/modal-goal-claim.mjs binds the two, so it can never
        be dealt while it cannot pay. */

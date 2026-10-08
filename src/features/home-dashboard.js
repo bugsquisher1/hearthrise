@@ -1049,8 +1049,8 @@
      screen at a time — the first day always wins — so a veteran never reads
      "Step 7 of 11" under "Your first day". A new line is a new `chain` value
      plus a row in CHAIN_CARDS below; never a thirtieth row in someone else's
-     card. A quest that is not a line at all belongs in a pool (DAILY_TASK_POOL,
-     the goal catalogue) with its own surface.
+     card. A quest that is not a line at all belongs on the daily board (the
+     goal catalogue) with its own surface.
 
      WHAT THIS MAY NOT DO: grant, complete, claim or persist anything.
      `completeQuest` fires the claim; `hrSweepUnclaimedQuests` recovers a dropped

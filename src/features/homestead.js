@@ -81,8 +81,7 @@
   /* ONE RULE FOR ALL FOUR (game-designer, 2026-09-07): a LEVEL grants
      permission, a ROOM grants speed and quality. Kept as an exemption SET
      rather than by deleting WORKBENCH, because that mapping is still the data
-     — which room speeds which skill — and goal-catalogue's
-     DAILY_TASK_REQUIREMENTS is authored against it.
+     — which room speeds which skill.
 
      The evidence is in the schema, not in taste: `hr_activities` gates an
      activity on (req_skill, req_lv) and has NO room column, and hr_apply

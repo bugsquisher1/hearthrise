@@ -311,21 +311,26 @@ function tickDayRollup(buckets, rule, verdict) {
 // aside; 2026-10-08-world-tick-party-fences.sql F2b, mirrored here per the
 // Security review's G1). STALL when an OFFLINE sentinel exists and EVERY hour
 // had >= 1 rostered fire and fewer than minRowsPerHour tick + shadow windows.
-// No offline sentinel / no roster = NO VERDICT.
+// No offline sentinel / no roster / tick disabled = NO VERDICT. `judged` and
+// `stalled` are the function's `armed[].judged` / `armed[].stalled`, verbatim:
+// tests/vitals-armed-parity.mjs runs ARMED_TICK + this rule and the DB judge on
+// the same replayed fixtures and goes RED on any disagreement.
 function armedStallVerdict(rows, rule) {
   const win = rows.slice(0, rule.hours);
-  if (win.length < rule.hours) return { verdict: 'NO VERDICT', why: `under ${rule.hours} h of history` };
+  const no = (why, judged = false) => ({ verdict: 'NO VERDICT', why, judged, stalled: false });
+  if (win.length < rule.hours) return no(`under ${rule.hours} h of history`);
+  if (String(win[0].enabled) !== 'true') return no('the tick is disabled (hr_tick_config.enabled)');
   const offline = Number(win[0].sentinels) - Number(win[0].online_sentinels);
   if (!(offline >= 1)) {
-    return { verdict: 'NO VERDICT', why: Number(win[0].sentinels) >= 1
+    return no(Number(win[0].sentinels) >= 1
       ? 'every armed sentinel is ONLINE (client settles in the window): not a stall (F2b)'
-      : 'no armed sentinel (owned, on the channel 2 h+, raw mark < 24 h)' };
+      : 'no armed sentinel (owned, on the channel 2 h+, raw mark < 24 h)');
   }
-  if (win.some((r) => Number(r.rost_fires) < 1)) return { verdict: 'NO VERDICT', why: 'an hour with nothing rostered' };
+  if (win.some((r) => Number(r.rost_fires) < 1)) return no('an hour with nothing rostered', true);
   const stalled = win.every((r) => Number(r.tick_rows) + Number(r.shadow_rows) < rule.minRowsPerHour);
   return stalled
-    ? { verdict: 'STALL', why: `${rule.hours} h rostered with < ${rule.minRowsPerHour} tick+shadow windows/h` }
-    : { verdict: 'OK', why: `an hour with >= ${rule.minRowsPerHour} tick+shadow windows` };
+    ? { verdict: 'STALL', why: `${rule.hours} h rostered with < ${rule.minRowsPerHour} tick+shadow windows/h`, judged: true, stalled: true }
+    : { verdict: 'OK', why: `an hour with >= ${rule.minRowsPerHour} tick+shadow windows`, judged: true, stalled: false };
 }
 // PARTY HUNTS NOBODY CAN TICK (Security PD1, 2026-10-08-world-tick-party-reaper.sql):
 // a live party_hunt whose mark is > 24 h behind is never rostered, so its
@@ -406,15 +411,18 @@ select (select count(*) from public.party_hunt
 // sentinel) is counted here as `online_sentinels` and subtracted in
 // armedStallVerdict() above, so the rule — not this query — is what the
 // --selftest mutants bite. An artisan window journals as 'craft'.
+// PARITY: tests/vitals-armed-parity.mjs runs this text (now() bound to the
+// judged instant) beside hr_tick_stall_status on the replayed chain; an edit
+// here that the function does not share goes RED there by fixture name.
 const ARMED_TICK = `
 with c as (
-  select distinct a as ch
+  select distinct a as ch, cfg.enabled
     from public.hr_tick_config cfg cross join lateral unnest(cfg.armed_channels) a
    where cfg.id and a = any (cfg.channels)),
 h as (
   select g as i, now() - make_interval(hours => g + 1) as lo, now() - make_interval(hours => g) as hi
     from generate_series(0, 1) g)
-select c.ch as channel, h.i,
+select c.ch as channel, h.i, coalesce(c.enabled, false) as enabled,
        (select count(*) from public.hr_tick_cron_log l
          where l.at >= h.lo and l.at < h.hi and l.outcome = 'posted' and l.rostered >= 1) as rost_fires,
        (select count(*) from public.player_ledger pl
@@ -572,7 +580,7 @@ async function selftest() {
     const quiet = L.tickDayRollup(Array.from({ length: 24 }, () => hour({ rost_fires: 0, rostered: 0 })), STALL_RULE, L.tickStallVerdict)[0] || {};
     t('D6 a day with nothing rostered reads no verdict', quiet.stall, 'no verdict');
     // The ARMED judge: rows newest first, one channel.
-    const arm = (o) => ({ channel: 'gather', rost_fires: 360, tick_rows: 0, shadow_rows: 0, sentinels: 1, online_sentinels: 0, ...o });
+    const arm = (o) => ({ channel: 'gather', enabled: true, rost_fires: 360, tick_rows: 0, shadow_rows: 0, sentinels: 1, online_sentinels: 0, ...o });
     const AV = (rs) => L.armedStallVerdict(rs, STALL_RULE).verdict;
     t('A1 armed, 2 h rostered, 0 windows, sentinel -> STALL', AV([arm({}), arm({})]), 'STALL');
     t('A2 40 tick rows/h -> OK', AV([arm({ tick_rows: 40 }), arm({ tick_rows: 40 })]), 'OK');
@@ -586,6 +594,7 @@ async function selftest() {
       AV([arm({ online_sentinels: 1 }), arm({ online_sentinels: 1 })]), 'NO VERDICT');
     t('A10 one online + one offline sentinel, 0 windows -> STALL (the offline one is still judged)',
       AV([arm({ sentinels: 2, online_sentinels: 1 }), arm({ sentinels: 2, online_sentinels: 1 })]), 'STALL');
+    t('A11 the tick disabled -> NO VERDICT, never STALL', AV([arm({ enabled: false }), arm({ enabled: false })]), 'NO VERDICT');
     t('A6 an hour with nothing rostered -> NO VERDICT', AV([arm({ rost_fires: 0 }), arm({})]), 'NO VERDICT');
     t('A7 one hour of history -> NO VERDICT', AV([arm({})]), 'NO VERDICT');
     t('A8 a stalled newest hour after a healthy one -> OK', AV([arm({}), arm({ tick_rows: 40 })]), 'OK');
@@ -629,7 +638,9 @@ async function selftest() {
       repl: 'Number(win[0].sentinels)' },
     { name: 'armedAnyOnlineUnjudges', find: 'Number(win[0].sentinels) - Number(win[0].online_sentinels)',
       repl: '(Number(win[0].online_sentinels) > 0 ? 0 : Number(win[0].sentinels))' },
-    { name: 'armedRosterIgnored', find: "if (win.some((r) => Number(r.rost_fires) < 1)) return { verdict: 'NO VERDICT', why: 'an hour with nothing rostered' };",
+    { name: 'armedRosterIgnored', find: "if (win.some((r) => Number(r.rost_fires) < 1)) return no('an hour with nothing rostered', true);",
+      repl: '' },
+    { name: 'armedDisabledJudged', find: "if (String(win[0].enabled) !== 'true') return no('the tick is disabled (hr_tick_config.enabled)');",
       repl: '' },
     { name: 'armedAnyHourStalls', find: 'win.every((r) => Number(r.tick_rows)', repl: 'win.some((r) => Number(r.tick_rows)' },
     { name: 'partyStaleTolerated', find: 'if (stale > 0) return', repl: 'if (stale > 1) return' },

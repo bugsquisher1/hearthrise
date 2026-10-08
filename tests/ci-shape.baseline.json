@@ -132,6 +132,8 @@
     "node tests/world-tick-armed-cap.mjs --mutate": "db-replay-5",
     "node tests/world-tick-party-fences.mjs": "db-replay-5",
     "node tests/world-tick-party-fences.mjs --mutate": "db-replay-5",
+    "node tests/vitals-armed-parity.mjs": "db-replay-5",
+    "node tests/vitals-armed-parity.mjs --mutate": "db-replay-5",
     "node tests/world-tick-party-drop.mjs": "db-replay-5",
     "node tests/world-tick-party-drop.mjs --mutate": "db-replay-5",
     "node tests/world-tick-party-reaper.mjs": "db-replay-5",

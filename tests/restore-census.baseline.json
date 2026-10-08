@@ -1248,6 +1248,11 @@
    "class": "operational",
    "wiped_at_cutover": false,
    "note": "APPEND-ONLY JOURNAL of every automatic tick enrolment and every rollback unenrolment (user, slot, channel, server time, permille, hash bucket, the accrued_to that qualified it) - created 2026-10-10-world-tick-gather-widen.sql, ships EMPTY. It is the audit trail of WHO the server put under tick ownership and the ROLLBACK KEY hr_tick_unenrol uses to remove exactly those rows. It is operational, not restore_only, because the rows it keys live in hr_tick_ownership, which is itself operational and comes back EMPTY: after a restore there is nothing enrolled to roll back, and the empty journal is consistent with it. Losing it loses enrolment history only; no credited time, no value (player_state.accrued_to is the truth of what has been paid). Written only by hr_tick_enrol / hr_tick_unenrol (SECURITY DEFINER, owner-only); RLS enabled AND forced, zero policies, zero grants; no function body updates or deletes it (the migration's §8 k0b asserts that)."
+  },
+  "hr_tick_shard_cursor": {
+   "class": "operational",
+   "wiped_at_cutover": false,
+   "note": "THE WORLD TICK ROSTER CURSOR, ONE ROW PER SHARD - created 2026-10-11-world-tick-shards.sql, ships EMPTY. Where the next fire resumes when a shard's due set exceeds batch_limit (the keyset that used to be three columns on hr_tick_config). Written only by hr_tick_cron_run (SECURITY DEFINER, owner-only). No player value: who is due is read from player_state.accrued_to and hr_tick_ownership every fire, and the fence decides every payment. Coming back EMPTY costs one pass from the start of each shard's roster (every character is still served, furthest-behind first). RLS enabled AND forced, zero policies, zero grants."
   }
  }
 }

@@ -198,6 +198,27 @@ export const MAX_ROSTER = 500;
    the same ceiling. A header check alone is not a cap. */
 export const MAX_BODY_BYTES = 4 * 1024 * 1024;
 
+/* THE FAN-OUT CEILING (2026-10-11, world-tick scale S2): the
+   `hr_tick_config_shards_ck` CHECK is `shards between 1 and 16`, restated here
+   because the edge cannot read that table. tests/world-tick-scale.mjs H5 reads
+   the CHECK out of the catalogue and fails if the two disagree. */
+export const MAX_SHARDS = 16;
+
+/* THE LEASE-HOLDER NAME, SPELLED BY POSTGRES, ONE EXPRESSION FOR BOTH SIDES.
+   `hr_tick_cron_run` stamps shard k's leases with exactly this expression
+   (2026-10-11-world-tick-shards.sql §4) and the fence compares
+   `lease_holder = p_holder`, so any drift is a `no_lease` refusal on every
+   character — the safe direction, and loud. Shard 0 is the single-POST
+   driver's `left('cron:' || db, 64)`, so an edge deployed before the
+   migration, or a database at `shards = 1`, sees the holder it always saw.
+   Shard k > 0 cuts the prefix to 58 so ':s<k>' always fits in 64 and can
+   never truncate into shard 0's name. tests/world-tick-scale.mjs H1 drives a
+   real fire's bodies through runTick, so the two spellings are compared by
+   the lease they must both name, not by reading the text. */
+export const TICK_HOLDER_SQL = "select case when $1::int = 0"
+  + " then left('cron:' || coalesce(current_database(), 'db'), 64)"
+  + " else left('cron:' || coalesce(current_database(), 'db'), 58) || ':s' || $1::int end as holder";
+
 /* Engine polls per character per fire. `toMs` is already capped at one flush
    window below, so this is the second, independent bound — the one that still
    holds if a future caller widens the first. */
@@ -491,6 +512,13 @@ export function parseTickBody(raw) {
      a flush shorter than the cadence is the ledger-volume failure §15c prices,
      and it must not be reachable by naming two numbers in a body. */
   if (out.flushMs < out.cadenceMs) out.flushMs = out.cadenceMs;
+  /* THE SHARD (2026-10-11, world-tick scale S2). A SELECTOR, like `roster`:
+     it names which of the fire's N bodies this is, and so which lease-holder
+     name this invocation settles under (TICK_HOLDER_SQL). It buys nothing a
+     shard's own fire would not get: the fence refuses every character whose
+     lease is not that holder's. Absent, malformed or out of range reads as
+     shard 0 — the single-POST driver's holder, byte for byte. */
+  out.shard = clampInt(b.shard, 0, MAX_SHARDS - 1, 0);
   out.roster = parseSelectors(b.roster);
   /* THE PARTY COHORT (M8 S2). Same rule as `roster`: SELECTORS, never
      authority. A unit names a party, a hunt, its monster and its members'
@@ -1074,13 +1102,13 @@ export async function runTick(opts) {
     return { status: 400, body: summary({ ok: false, error: 'unknown_op' }) };
   }
 
-  /* THE HOLDER, DERIVED SERVER-SIDE. `left('cron:' || coalesce(
-     current_database(),'db'), 64)` is the expression `hr_tick_cron_run` stamps
-     its lease with, written out here so the two cannot be compared favourably
-     by accident — if they ever drift, every settle is refused `no_lease`, which
-     is the safe direction and is loud in the summary. */
-  const [h] = await exec(
-    "select left('cron:' || coalesce(current_database(), 'db'), 64) as holder", []);
+  /* THE HOLDER, DERIVED SERVER-SIDE. TICK_HOLDER_SQL is the expression
+     `hr_tick_cron_run` stamps shard k's leases with (shard 0: the original
+     `left('cron:' || coalesce(current_database(),'db'), 64)`), written out
+     here so the two cannot be compared favourably by accident — if they ever
+     drift, every settle is refused `no_lease`, which is the safe direction and
+     is loud in the summary. The shard is the body's selector (parseTickBody). */
+  const [h] = await exec(TICK_HOLDER_SQL, [body.shard]);
   const holder = String((h && h.holder) || '');
 
   const ks = await probeKillSwitch(exec, holder);

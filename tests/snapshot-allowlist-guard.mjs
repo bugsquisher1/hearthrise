@@ -308,10 +308,10 @@ const readAllowlist = (code, lines) => {
        offlineBudget off the live G at the end of EVERY load, so each is absent
        until an envelope re-states it. `gold` IS in the fresh-character literal and
        is gone anyway, which is why the literal alone is not the evidence (M6).
-     • 17 that are not depth-1 keys of `let G={…}` (src/legacy.js) — homestead,
+     • 16 that are not depth-1 keys of `let G={…}` (src/legacy.js) — homestead,
        buffs, companions, bestiary, plotLevels, _serverPlotLevel, chronicle,
        toolCarry, autoActions, workers, lastActivity, renown, renownHigh,
-       collectionLog, dailyGoals, weeklyGoals, dropLog. Each is created only by the
+       collectionLog, dailyGoals, weeklyGoals. Each is created only by the
        path that first needs it (`bestiary` by killMonster, `workers` by the first
        hire, `traits` by applyTraitUnlock), so the bare entry protected nothing on
        exactly the accounts where a test's write matters most — F7-1 after B495-4.

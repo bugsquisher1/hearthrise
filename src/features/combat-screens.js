@@ -1721,7 +1721,7 @@ export function setupCombatScreens() {
      The edge is what matters: the camera moves when a fight BEGINS, and after
      that the player is free to walk to the War Table and stay there — leaving
      The Fight never stops the fight, and being dragged back every 200ms would
-     be the same steering bug combat-mobile-tabs learned in b334. */
+     be the same steering bug the (deleted) combat sub-tabs learned in b334. */
   const rc = window.renderCombat;
   if (typeof rc === 'function' && !rc.__hrCombatScreens) {
     let lastLive = !!(G() && G().activeMonster);

@@ -7,10 +7,10 @@
 // Switching characters serializes the active slot back to storage,
 // then loads the chosen slot.
 //
-// Storage layout (localStorage):
+// Storage layout (localStorage, DEVICE-LOCAL METADATA ONLY):
 //   hearthrise:profile = {
-//     activeSlot:    0,                              // 0..4
-//     unlockedSlots: 1,                              // 1..MAX_SLOTS
+//     activeSlot:    0,                              // 0..4 — which server character this tab addresses
+//     unlockedSlots: 1,                              // a pre-envelope render cache, never an entitlement
 //     slots: [
 //       {id:0, name:'...', combatLv:..., totalLv:..., createdAt:..., lastSeen:...},
 //       ...
@@ -20,16 +20,10 @@
 //      — hr_state_of `gem_unlocks`, read through legacy.js ownsGemUnlock. A copy
 //      here would be a second answer to one question, in a store a console edits.)
 //   }
-//   hearthrise:char:0 = full G snapshot for slot 0
-//   hearthrise:char:1 = full G snapshot for slot 1
-//   ...
+// Every character's progress is the server's (hr_state_of, addressed by slot).
+// The owned slot set is the server's too (hr_buy_hero_slot / `hero_slots`).
 //
 // HARD CAP: 5 slots. Pricing: slot 1 free, slots 2-5 escalating gems.
-// Hearth Hall Premium unlocks 3 of the 4 paid slots automatically.
-//
-// Migrating an existing single-save player: on first run with this
-// module loaded, copy 'hearthbound-save-v2' → 'hearthrise:char:0'
-// and create a profile with 1 unlocked slot pointing at that data.
 // ============================================================
 
 (function(){
@@ -38,7 +32,6 @@
   const MAX_SLOTS = 5;
   const SLOT_COSTS_GEMS = [0, 200, 500, 900, 1500];   // index = slotIndex (0..4)
   const PROFILE_KEY = 'hearthrise:profile';
-  const SAVE_KEY = 'hearthbound-save-v2';
 
   /* b371 — how long the switch waits for the CURRENT character's cloud flush
      before it gives up and tells the player. Any wait at all has to be bounded:
@@ -46,8 +39,6 @@
      player's chair. Six seconds is long enough for a slow-but-alive server and
      short enough that nobody thinks the tab has died. */
   const SWITCH_FLUSH_TIMEOUT_MS = 6000;
-
-  function charKey(slot){ return 'hearthrise:char:' + slot; }
 
   // A character name can arrive over the network on a cloud restore, and both
   // the drawer and Home interpolate it into innerHTML — escape at the boundary.
@@ -69,43 +60,14 @@
     try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); }
     catch(e){ console.warn('[multi-char] profile save failed', e); }
   }
-  function migrateLegacySave(){
-    // First time loading the multi-char system: copy the existing single
-    // save (if any) into slot 0 and create a profile.
-    var legacy = localStorage.getItem(SAVE_KEY);
+  function freshProfile(){
     var profile = {
       activeSlot: 0,
       unlockedSlots: 1,
-      slots: [],
+      slots: [{ id:0, name:'Adventurer', combatLv:1, totalLv:1, createdAt:Date.now(), lastSeen:Date.now() }],
       entitlements: {},
       version: 1,
     };
-    if(legacy){
-      // Stash legacy save into slot 0.
-      localStorage.setItem(charKey(0), legacy);
-      // Crack open the save to populate slot meta.
-      try {
-        var d = JSON.parse(legacy);
-        profile.slots.push({
-          id: 0,
-          name: d.playerName || 'Adventurer',
-          combatLv: 1, // recalc on next load
-          totalLv: 1,
-          createdAt: d.createdAt || Date.now(),
-          lastSeen: d.lastSeen || Date.now(),
-        });
-        // Pull account-level fields out of the legacy save into the profile.
-        if(d.entitlements) profile.entitlements = d.entitlements;
-        /* ownedThemes / ownedCosmetics are deliberately NOT carried up
-           (2026-09-14): they were write-only here — nothing has ever read either
-           back — and ownership of a gem unlock is the realm's projected set. */
-      } catch(e){
-        profile.slots.push({ id:0, name:'Adventurer', combatLv:1, totalLv:1, createdAt:Date.now(), lastSeen:Date.now() });
-      }
-    } else {
-      // Empty profile, slot 0 will be created as a fresh character.
-      profile.slots.push({ id:0, name:'Adventurer', combatLv:1, totalLv:1, createdAt:Date.now(), lastSeen:Date.now() });
-    }
     saveProfile(profile);
     return profile;
   }
@@ -233,13 +195,11 @@
      a COPY of the slot-0 character in slot 1, and destroyed the save that had
      been there. Three writes, one race:
 
-       1. switchSlot() copies the outgoing character into charKey(outgoing),
-          MOVES profile.activeSlot to the target, and — for an empty target —
-          REMOVES SAVE_KEY so the engine boots a fresh character.
+       1. switchSlot() MOVES profile.activeSlot to the target (in b372 it also
+          shuffled a local save blob; that blob is retired and the shuffle is
+          deleted).
        2. location.reload() then fires `pagehide`, and the page still holds the
           OUTGOING character in memory as `window.G`:
-            · legacy.js  pagehide -> saveLocal()            rewrites SAVE_KEY
-              with the outgoing G — the removal in (1) is undone;
             · net/sync.js pagehide -> snapshotIfDue(true,true) uploads that same
               outgoing G, and buildSnapshotRequest resolves the slot LIVE, so it
               lands on the TARGET slot's game_saves row.
@@ -381,30 +341,16 @@
        player just played showing whatever levels it had the last time that hook
        happened to fire — days stale, or never written at all. */
     try { refreshActiveMeta(); } catch(e){}
-    // Snapshot current character.
-    if(typeof window.G !== 'undefined' && typeof window.saveLocal === 'function'){
-      window.saveLocal();
-      // saveLocal writes to SAVE_KEY; copy that into the active slot.
-      var snap = localStorage.getItem(SAVE_KEY);
-      if(snap) localStorage.setItem(charKey(profile.activeSlot), snap);
-    }
     /* BEFORE THE POINTER MOVES. Anything the accrual module is still holding
        for the outgoing character — a deferred combat-XP snapshot above all —
        resolves against whoever is active when the answer lands, and one line
        below that is somebody else. The reload underneath is a race, not a
        guarantee, and the `noReload` path has no reload at all. */
     try { window.HearthriseAccrual && window.HearthriseAccrual.resetAccrualIdentity && window.HearthriseAccrual.resetAccrualIdentity(); } catch(e){}
+    /* The pointer is the whole swap: the incoming character loads from the
+       server (hr_state_of addressed by this slot) on the reload. */
     profile.activeSlot = slotId;
     saveProfile(profile);
-    // Now load the new slot's data into SAVE_KEY so the engine picks
-    // it up on reload.
-    var nextSnap = localStorage.getItem(charKey(slotId));
-    if(nextSnap){
-      localStorage.setItem(SAVE_KEY, nextSnap);
-    } else {
-      // First time activating this slot — clear so engine creates fresh.
-      localStorage.removeItem(SAVE_KEY);
-    }
     return profile;
   }
 
@@ -608,82 +554,13 @@
      adoption was written for is covered by the server's own set. */
 
   // ── Slot purchases ────────────────────────────────────────────
-  /* ⚠ unlockSlot IS THE PRE-ARM PATH AND ONLY THE PRE-ARM PATH.
-     It is left byte-for-byte as it was, for the same reason legacy.js buyTrait()
-     keeps its local branch: it is what runs on a build where the client still
-     owns `gems` (clientMayWriteRecordField('gems') === true), and it is what the
-     b371 atomicity regressions grade. Under the LIVE gems arm nothing reaches it
-     — buySlot() routes to the server verb instead — and even if something did, it
-     no longer writes an entitlement into G at all: ownsSlot() reads the server's
-     own `hero_slots` set. Do NOT wire a new caller to this. */
-  function unlockSlot(slotId){
-    var profile = window.HearthriseProfile.profile;
-    var owned = unlockedCount();
-    if(slotId !== owned) return { ok:false, reason:'Must unlock slots in order' };
-    if(slotId >= MAX_SLOTS) return { ok:false, reason:'Max slots reached (' + MAX_SLOTS + ')' };
-    var G = window.G;
-    if(!G) return { ok:false, reason:'The game is still loading — try again in a moment' };
-    var cost = SLOT_COSTS_GEMS[slotId] || 0;
-    // Hearth Hall Premium grants 3 of the 4 paid slots free (slots 1, 2, 3).
-    var hasPremium = profile.entitlements && profile.entitlements.hearthHall;
-    var freeFromPremium = hasPremium && slotId >= 1 && slotId <= 3;
-    if(!freeFromPremium && !window.balCanAfford(cost, 'gems')){
-      return { ok:false, reason: window.balKnown('gems') ? ('Need ' + cost + ' gems')
-        : window.balShortfall(cost, 'gems') };
-    }
-
-    // ── 1. debit + entitlement, TOGETHER, in the one store that restores ──
-    if(!freeFromPremium) G.gems -= cost;
-    /* NOT INTO G. The entitlement is the server's (`hero_slots`); this pre-arm
-       path records only the device's own metadata below. */
-    var nowUnlocked = slotId + 1;
-
-    /* ── 2. PROVE IT LANDED. Not "call saveLocal and hope": read the blob back
-           and check BOTH halves are in it. Production was failing saves when
-           this dupe was reported — a write we did not verify is exactly how the
-           entitlement outlived the payment. */
-    /* b515 — THE PROOF IS MOOT, AND SAYING SO IS THE POINT. Under the capstone
-       the local blob is retired: saveLocal is a no-op and a read-back could never
-       succeed, which made EVERY slot purchase roll back ("Couldn't save your
-       purchase") when the capstone first armed (b459). The durable store is the
-       SERVER: the owned slot set is projected by hr_state_of (`hero_slots`) and
-       gems are a record field whose spend is reconciled by the envelope. The b371 dupe this proof stopped was a
-       LOCAL-blob split and the armed model cannot express that split.
-       Until b515 this read `if (isBlobRetired()) durable = true; else <read the
-       blob back>`, and that else was reachable on any device holding the retired
-       `hr:serverAccrual=off` — i.e. a gem spend proved against a local file. */
-    /* No rollback arm: there is no local write that can fail. The gem debit is
-       the SERVER's (reconciled from the envelope) and the entitlement rides the
-       residue save. b515 deleted the `if(!durable)` refund arm with the blob
-       read-back that was its only trigger. */
-
-    // ── 3. ONLY NOW the device-local metadata record ──────────────────────
-    profile.unlockedSlots = nowUnlocked;              // cache, not authority
-    if(!profile.slots.some(function(s){ return s.id === slotId; })){
-      profile.slots.push({
-        id: slotId,
-        name: 'Adventurer ' + (slotId + 1),
-        combatLv: 1, totalLv: 1,
-        createdAt: Date.now(), lastSeen: Date.now(),
-      });
-    }
-    saveProfile(profile);
-    /* b371 — AND REPAINT. The header gem chip used to keep showing the
-       pre-purchase number until a full reload (reported: chip 1006, G.gems 806)
-       because nothing told the topbar its balance had changed. Same two-line
-       pairing every other gem sink already does — see buyCosmetic in legacy.js. */
-    try { if(typeof window.updateTopbar === 'function') window.updateTopbar(); } catch(e){}
-    if(typeof window.notify === 'function') window.notify('Unlocked slot ' + (slotId+1) + (freeFromPremium ? ' (Premium)' : ' for ' + cost + ' gems'), 'levelup');
-    return { ok: true };
-  }
-
   /* ── THE BUY ACTION, SHARED (b371) ─────────────────────────────────────
      A premium-currency spend with no confirmation step was a misclick away from
      costing a player 1,500 gems. Both surfaces that can buy a slot (the topbar
      drawer and Home's "Your heroes") route through THIS, for the same reason
      slotRows()/selectSlot() are shared: two copies of a confirmation are two
      things that drift, and the one that drifts is the one that stops asking.
-     Returns the unlockSlot verdict, plus {cancelled:true} when the player
+     Returns the server verdict, plus {cancelled:true} when the player
      declined — so a caller can tell "no" apart from "failed". */
   function buySlot(slotId){
     var P = window.HearthriseProfile;
@@ -704,18 +581,11 @@
           confirmLabel:'Buy slot ' + n, cancelLabel:'Not now' };
     return confirmDialog(opts).then(function(yes){
       if(!yes) return { ok:false, cancelled:true, reason:'cancelled' };
-      /* ── THE FORK (2026-09-08-hero-slot-buy.sql) ────────────────────────
-         `mayWrite === false` means the gem balance has MOVED HOME: it is
-         player_state.gems, and a local `G.gems -= cost` would be a
-         client-authored debit the next envelope reconciles away while the slot
-         stayed granted — which is the b371 dupe, and which is exactly what this
-         path has been doing in production since gems were armed. The server verb
-         is hr_buy_hero_slot; the confirm above still runs first, because a
-         premium spend is never one click. */
-      var mayWrite = (typeof window.clientMayWriteRecordField !== 'function')
-        || window.clientMayWriteRecordField('gems');
-      if(!mayWrite) return serverBuySlot(slotId);
-      return unlockSlot(slotId);
+      /* THE SERVER VERB (2026-09-08-hero-slot-buy.sql). The gem balance is
+         player_state.gems; hr_buy_hero_slot debits it and records the slot in
+         ONE transaction. The confirm above still runs first, because a premium
+         spend is never one click. */
+      return serverBuySlot(slotId);
     });
   }
 
@@ -957,10 +827,8 @@
     SLOT_COSTS_GEMS: SLOT_COSTS_GEMS,
     init: function(){
       var p = loadProfile();
-      if(!p) p = migrateLegacySave();
+      if(!p) p = freshProfile();
       this.profile = p;
-      /* b371 — move the entitlement into the save on first sight, so that from
-         here on gems and hero slots rewind together. See unlockSlot's block. */
       // Keep the slot meta fresh on every save tick.
       var origSave = window.saveLocal;
       if(typeof origSave === 'function' && !window.__profileSaveHooked){
@@ -1021,7 +889,6 @@
     confirmDialog: confirmDialog,
     flushCurrentCharacter: flushCurrentCharacter,
     SWITCH_FLUSH_TIMEOUT_MS: SWITCH_FLUSH_TIMEOUT_MS,
-    unlockSlot: unlockSlot,
     buySlot: buySlot,
     /* b371 — CLAMPED. `p.slots` is device-local metadata that a cloud restore
        cannot rewind; the entitlement in the save can. A character row for a slot
@@ -1206,8 +1073,8 @@
   // Initialize on DOMContentLoaded so legacy.js has loaded first.
   //
   // b224 ACCOUNT WALL: init() is not read-only. With no `hearthrise:profile`
-  // present it runs migrateLegacySave(), which WRITES a profile and copies the
-  // save into slot 0 — character-slot creation, on a device whose visitor has
+  // present it runs freshProfile(), which WRITES a profile — character-slot
+  // creation, on a device whose visitor has
   // not proved they own an account. Slots belong to an account now, so the
   // whole module (init, the migration, and the slot-select UI that can buy a
   // slot with gems) waits for the gate. Nothing here is deleted: signed in,

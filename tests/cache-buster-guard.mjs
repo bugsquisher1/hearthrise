@@ -67,10 +67,9 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 /* Every quoted string in a shipped source that ends in `.js?v=<n>`. That shape
    is the whole population of browser-loaded JS cache-busters: static imports,
    dynamic `import()`, and the suite's own `fetch('src/x.js?v=n')` source reads.
-   Anchoring on `.js` before the query is what keeps the two legitimate
-   non-module pins out of it — icon-swap.js's sprite pin ?v=88 is a bare query
-   concatenated onto a filename, and legacy.js's `legacy.js?v=111` is prose in a
-   comment, not a quoted specifier. Both are correct to leave frozen. */
+   Anchoring on `.js` before the query is what keeps the legitimate non-module
+   pin out of it — legacy.js's `legacy.js?v=111` is prose in a comment, not a
+   quoted specifier, and is correct to leave frozen. */
 const SPEC_RE = /['"`]([^'"`\s]+\.js)\?v=(\d+)['"`]/g;
 
 /* index.html's own tags. The extension is required so the comment on line 12,
@@ -231,7 +230,7 @@ export async function cacheBusterMutationGuard() {
     }
   }
 
-  /* THE ON-DISK HALF. Four real files, each carrying a shape that MUST NOT be
+  /* THE ON-DISK HALF. Three real files, each carrying a shape that MUST NOT be
      reported. `trigger` keeps the check from going vacuous: if the line these
      exist to protect is ever removed, the control says so instead of passing
      because there was nothing left to find. */
@@ -239,8 +238,6 @@ export async function cacheBusterMutationGuard() {
     /* SPEC_RE cases: the file may hold ordinary versioned imports, which the
        pattern is RIGHT to match. What it must never report is the pinned
        version — so the assertion is on the number, not on the hit count. */
-    { file: 'src/icon-swap.js', re: SPEC_RE, trigger: 'v=88', forbidVersion: '88',
-      why: "icon-swap's sprite pin is a bare query concatenated onto a filename, not a module specifier" },
     { file: 'src/legacy.js', re: SPEC_RE, trigger: 'v=111', forbidVersion: '111',
       why: "legacy.js's kill-switch prose is an unquoted example in a comment" },
     /* MISSING_RE cases: these two files must yield NO hit at all. Both were real

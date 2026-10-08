@@ -442,7 +442,7 @@ const addTable = (meta, offers) => { tables.push({ ...meta, offers }); };
   });
   addTable({
     table: 'character_slot', origin: 'src/multi-character.js', anchor: 'const SLOT_COSTS_GEMS = [',
-    spends_at: 'multi-character.js unlockSlot()',
+    spends_at: 'multi-character.js buySlot() → hr_buy_hero_slot',
     note: 'Hearth Hall Premium grants slots 1-3 free — an entitlement waiver, not a price',
   }, offers);
 }
@@ -537,7 +537,7 @@ const addTable = (meta, offers) => { tables.push({ ...meta, offers }); };
 
 // ── 4. THE HARD CASES — declared, never invented ─────────────────────────
 // A price that a regex cannot see is not a price that stops existing. These
-// six spend sites compute their cost at call time. They are emitted as DATA,
+// five spend sites compute their cost at call time. They are emitted as DATA,
 // with the formula written out, so a server implementer reading shops.js is
 // told plainly that these are missing rather than being handed a catalogue
 // that looks complete. hr_shop_buy() must REFUSE an offer id it cannot find;
@@ -550,8 +550,9 @@ const DERIVED_PRICES = [
     currency: 'gold',
     formula: 'round(BANK_SPACE.gold.base * BANK_SPACE.gold.growth ^ G.bank.goldBuys)',
     params: { base: BANK_SPACE.gold.base, growth: BANK_SPACE.gold.growth, slots: BANK_SPACE.gold.slots },
-    server_needs: 'player_state must hold the purchase COUNT; the server recomputes the price from it. '
-      + 'Unbounded — the client has no cap, so the server needs one before it authorises this.',
+    server_needs: 'BUILT — a 30-rung ladder in public.hr_unlock_offers (bank.0…bank.29, '
+      + 'tools/gen-gold-ladders.mjs); hr_unlock_buy prices each rung, merges GREATEST and enforces the '
+      + '30-rung cap. The client sends the offer id, never a price.',
   },
   {
     id: 'bounty.reroll',
@@ -560,8 +561,8 @@ const DERIVED_PRICES = [
     currency: 'marks',
     formula: '5 + 5 * G.bountyHunter.rerollsToday   (free while freeRerolls remain)',
     params: { base: 5, step: 5 },
-    server_needs: 'a per-UTC-day reroll counter, plus the free-reroll grant from bounty.free_reroll_2. '
-      + 'Marks have no server column at all today.',
+    server_needs: 'BUILT — hr_bounty_spend (2026-08-26-marks-record.sql) derives 5 + N*5 from the '
+      + 'paid rerolls in today\'s player_ledger and debits player_state.marks. Free rerolls never reach it.',
   },
   {
     id: 'vendor.sell',
@@ -573,17 +574,6 @@ const DERIVED_PRICES = [
     params: { VENDOR_RAW_RATE, CRAFT_ANCHOR_BP },
     server_needs: 'CLOSED IN THE EDGE — hr-accrue/vendor-sell.js prices from ITEMS + ARTISAN_RECIPES '
       + 'through the same src/core/vendor.js the client renders from; no SQL body prices a sale.',
-  },
-  {
-    id: 'vendor.buyback',
-    name: 'Vendor buy-back price',
-    where: 'src/legacy.js repurchase()',
-    currency: 'gold',
-    formula: 'buyback[i].unit * buyback[i].qty — the unit price RECORDED at sale time',
-    params: {},
-    server_needs: 'a server-side buyback ledger. The price is a property of a past transaction, '
-      + 'not of the catalogue, so it can never be a static row — and a client-supplied unit '
-      + 'price is a mint.',
   },
   {
     id: 'clan_building.*',
@@ -715,7 +705,7 @@ ${byTable.join('\n').replace(/^--/gm, '//')}
 //   debit every cost line, credit every grant line, one transaction. The
 //   client sends an OFFER ID and never a price.
 //
-// ⚠ DERIVED_PRICES IS NOT DECORATION. Six spend sites compute their price at
+// ⚠ DERIVED_PRICES IS NOT DECORATION. Five spend sites compute their price at
 //   call time and are NOT in SHOP_OFFERS. A consumer that cannot find an
 //   offer id must REFUSE, never default — a server that invents a price is
 //   worse than a server that has none.
@@ -724,7 +714,7 @@ ${byTable.join('\n').replace(/^--/gm, '//')}
 //   gold           player_state.gold
 //   gems           player_state.gems
 //   hearth_tokens  player_state.hearth_tokens   (IAP-only; never PvE-minted)
-//   marks          NOWHERE — Bounty Marks have no server column today
+//   marks          player_state.marks           (projected by hr_state_of; spent by hr_bounty_spend)
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 

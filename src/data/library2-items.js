@@ -34,7 +34,8 @@
 //                   src/data/item-effects.js for the guard that inverts the day
 //                   the engine lands.
 //   3. `pendingSkill:` — the item belongs to a skill that does not exist yet
-//                   (Fletching / Runecrafting / Stonemason). Same treatment,
+//                   (Fletching today; the Runecrafting and Stonemason tags
+//                   were removed when those skills shipped). Same treatment,
 //                   different axis, same self-closing guard.
 //
 // States 2 and 3 are worth landing precisely because the id is the SAVE KEY and
@@ -361,7 +362,7 @@ const DORMANT = {
 
 /* ══════════════════════════════════════════════════════════════════════════
    4 · THE THREE CONSUMABLE SUPPLY CHAINS — ITEM-PLAN-02/03/04/05/06
-                                                    STATE: pendingSkill
+                                    STATE: live (Runecrafting + Stonemason shipped)
 
    Every id, stat, level gate and value below is TAKEN FROM
    docs/design/consumable-economy.md §6.2 (runes), §6.3 (whetstones), §8.2
@@ -373,9 +374,9 @@ const DORMANT = {
    ⚠ LANE NOTE (parallel work, 2026-08-16): the SKILLS workstream owns the
    Runecrafting and Stonemason RECIPES in src/data/recipes.js and the
    SKILLS_DEF rows. This file lands the ITEM rows only — no recipe below
-   produces any of them. When `stonemason` / `runecrafting` / `fletching` enter
-   SKILLS_DEF, the `pendingSkill` exemption expires automatically and the
-   reachability guard will demand the recipes. That is the handshake.
+   produces any of them. `stonemason` and `runecrafting` are in SKILLS_DEF, so
+   their `pendingSkill` tags are gone (2026-10-08) and the reachability guard
+   reads these rows like any other; `fletching` keeps its tag until it ships.
 
    One rename applied from the review book: the Designer's `rune_of_blight`
    becomes `rune_of_poison` — "*Blight* is **Poison** throughout" (§2C taxonomy
@@ -395,7 +396,6 @@ const rune = (id, name, i) => [id, {
   n: name, icon: '🔷', v: AMMO_VALUE[i], type: 'ammo', slot: 'ammo', tier: i + 1,
   rarity: AMMO_RARITY[i], reqSkill: 'magic', reqLv: AMMO_REQ[i],
   magicStrB: AMMO_STR[i], ammoPerShot: i === 0 ? 0 : 1,
-  pendingSkill: 'runecrafting',
 }];
 /* Whetstones burn 0.02/swing (§7.2 — charges on the consumption channel, not a
    timer) and carry `strB` ONLY: critB would leak to every style through
@@ -404,7 +404,6 @@ const whet = (id, name, i, v) => [id, {
   n: name, icon: '🪨', v, type: 'ammo', slot: 'ammo', tier: i + 1,
   rarity: AMMO_RARITY[i], reqSkill: 'attack', reqLv: AMMO_REQ[i],
   strB: AMMO_STR[i], ammoPerShot: i === 0 ? 0 : 0.02,
-  pendingSkill: 'stonemason',
 }];
 
 const SUPPLY_CHAINS = Object.fromEntries([
@@ -413,15 +412,15 @@ const SUPPLY_CHAINS = Object.fromEntries([
      walks `prod` on the gathering rows, and a by-product is not a `prod`. That
      gap is exactly the faucet §8.4 warned about (vendoring at 100% instead of
      20%), so it is closed at the point of authorship. */
-  ['rubble',  { n: 'Rubble',  icon: '🪨', v: 6,  tier: 1, raw: true, pendingSkill: 'stonemason' }],
-  ['granite', { n: 'Granite', icon: '🪨', v: 22, tier: 3, raw: true, pendingSkill: 'stonemason' }],
-  ['basalt',  { n: 'Basalt',  icon: '🪨', v: 60, tier: 5, raw: true, pendingSkill: 'stonemason' }],
-  ['dressed_block', { n: 'Stone Block', icon: '🧱', v: 20,  tier: 1, pendingSkill: 'stonemason' }],
-  ['granite_block', { n: 'Granite Block', icon: '🧱', v: 120, tier: 3, pendingSkill: 'stonemason' }],
-  ['basalt_block',  { n: 'Basalt Block',  icon: '🧱', v: 300, tier: 5, pendingSkill: 'stonemason' }],
-  ['rune_blank',      { n: 'Blank Rune',      icon: '⬜', v: 5,  tier: 1, pendingSkill: 'stonemason' }],
-  ['fine_rune_blank', { n: 'Fine Blank Rune', icon: '⬜', v: 24, tier: 3, pendingSkill: 'stonemason' }],
-  ['deep_rune_blank', { n: 'Deep Blank Rune', icon: '⬜', v: 60, tier: 5, pendingSkill: 'stonemason' }],
+  ['rubble',  { n: 'Rubble',  icon: '🪨', v: 6,  tier: 1, raw: true }],
+  ['granite', { n: 'Granite', icon: '🪨', v: 22, tier: 3, raw: true }],
+  ['basalt',  { n: 'Basalt',  icon: '🪨', v: 60, tier: 5, raw: true }],
+  ['dressed_block', { n: 'Stone Block', icon: '🧱', v: 20,  tier: 1 }],
+  ['granite_block', { n: 'Granite Block', icon: '🧱', v: 120, tier: 3 }],
+  ['basalt_block',  { n: 'Basalt Block',  icon: '🧱', v: 300, tier: 5 }],
+  ['rune_blank',      { n: 'Blank Rune',      icon: '⬜', v: 5,  tier: 1 }],
+  ['fine_rune_blank', { n: 'Fine Blank Rune', icon: '⬜', v: 24, tier: 3 }],
+  ['deep_rune_blank', { n: 'Deep Blank Rune', icon: '⬜', v: 60, tier: 5 }],
 
   /* ITEM-PLAN-05 · the castle goods. `keystone` already exists (items.js, b222)
      and is NOT re-declared here — it is adopted by Stonemason, recipe and cost
@@ -429,8 +428,8 @@ const SUPPLY_CHAINS = Object.fromEntries([
      PERSONAL sink = ashlar (property tiers 4-6 + room rungs L4).
      CLAN sink     = vaultstone (hr_castle_tiers 4-5). They must not share a
      good, or a player chooses between their house and their clan's wall. */
-  ['ashlar',     { n: 'Ashlar',     icon: '🧱', v: 1200, tier: 4, tag: 'castle', pendingSkill: 'stonemason' }],
-  ['vaultstone', { n: 'Vaultstone', icon: '🧱', v: 9000, tier: 7, tag: 'castle', pendingSkill: 'stonemason', pendingSystem: 'castle_tiers' }],
+  ['ashlar',     { n: 'Ashlar',     icon: '🧱', v: 1200, tier: 4, tag: 'castle' }],
+  ['vaultstone', { n: 'Vaultstone', icon: '🧱', v: 9000, tier: 7, tag: 'castle', pendingSystem: 'castle_tiers' }],
 
   /* ITEM-PLAN-02 · the bound rune ladder (§6.2). Rune values equal arrow values
      exactly, which is what makes magic's and ranged's supply cost comparable. */
@@ -487,9 +486,9 @@ const SUPPLY_CHAINS = Object.fromEntries([
   ['arrows_of_ember',  { n: 'Ember Arrows',  icon: '🏹', v: 11, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'ranged', reqLv: 75, rangeStrB: 14, critB: 0.02, ammoPerShot: 1, element: 'ember',  pendingSkill: 'fletching', pendingSystem: 'elemental_variants' }],
   ['arrows_of_frost',  { n: 'Frost Arrows',  icon: '🏹', v: 11, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'ranged', reqLv: 75, rangeStrB: 14, critB: 0.02, ammoPerShot: 1, element: 'frost',  pendingSkill: 'fletching', pendingSystem: 'elemental_variants' }],
   ['arrows_of_poison', { n: 'Poison Arrows', icon: '🏹', v: 11, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'ranged', reqLv: 75, rangeStrB: 14, critB: 0.02, ammoPerShot: 1, element: 'poison', pendingSkill: 'fletching', pendingSystem: 'elemental_variants' }],
-  ['whetstone_of_ember',  { n: 'Ember Whetstone',  icon: '🔥', v: 850, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'attack', reqLv: 75, strB: 14, ammoPerShot: 0.02, element: 'ember',  pendingSkill: 'stonemason', pendingSystem: 'elemental_variants' }],
-  ['whetstone_of_frost',  { n: 'Frost Whetstone',  icon: '❄️', v: 850, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'attack', reqLv: 75, strB: 14, ammoPerShot: 0.02, element: 'frost',  pendingSkill: 'stonemason', pendingSystem: 'elemental_variants' }],
-  ['whetstone_of_poison', { n: 'Poison Whetstone', icon: '🟣', v: 850, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'attack', reqLv: 75, strB: 14, ammoPerShot: 0.02, element: 'poison', pendingSkill: 'stonemason', pendingSystem: 'elemental_variants' }],
+  ['whetstone_of_ember',  { n: 'Ember Whetstone',  icon: '🔥', v: 850, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'attack', reqLv: 75, strB: 14, ammoPerShot: 0.02, element: 'ember', pendingSystem: 'elemental_variants' }],
+  ['whetstone_of_frost',  { n: 'Frost Whetstone',  icon: '❄️', v: 850, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'attack', reqLv: 75, strB: 14, ammoPerShot: 0.02, element: 'frost', pendingSystem: 'elemental_variants' }],
+  ['whetstone_of_poison', { n: 'Poison Whetstone', icon: '🟣', v: 850, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'attack', reqLv: 75, strB: 14, ammoPerShot: 0.02, element: 'poison', pendingSystem: 'elemental_variants' }],
 
   /* ITEM-NEW-41/42 · the two artisan TOOL ladders. Artisan skills get 3 rungs
      where gathering gets 7 (the live shape: bronze/steel/rune hammer at
@@ -499,9 +498,9 @@ const SUPPLY_CHAINS = Object.fromEntries([
   ['bone_fletching_knife',  { n: 'Bone Fletching Knife',  icon: '🔪', v: 70,   type: 'tool', toolSkill: 'fletching',  toolTier: 1, toolSpeed: 0.05, pendingSkill: 'fletching' }],
   ['steel_fletching_knife', { n: 'Steel Fletching Knife', icon: '🔪', v: 950,  type: 'tool', toolSkill: 'fletching',  toolTier: 3, toolSpeed: 0.15, pendingSkill: 'fletching' }],
   ['dawn_fletching_knife',  { n: 'Dawnsteel Fletching Knife', icon: '🔪', v: 9200, type: 'tool', toolSkill: 'fletching', toolTier: 5, toolSpeed: 0.25, pendingSkill: 'fletching' }],
-  ['bronze_masons_rule', { n: "Bronze Mason's Rule", icon: '📐', v: 70,   type: 'tool', toolSkill: 'stonemason', toolTier: 1, toolSpeed: 0.05, pendingSkill: 'stonemason', pendingSystem: 'tool_ladder' }],
-  ['steel_masons_rule',  { n: "Steel Mason's Rule",  icon: '📐', v: 950,  type: 'tool', toolSkill: 'stonemason', toolTier: 3, toolSpeed: 0.15, pendingSkill: 'stonemason', pendingSystem: 'tool_ladder' }],
-  ['dawn_masons_rule',   { n: "Dawnsteel Mason's Rule", icon: '📐', v: 9200, type: 'tool', toolSkill: 'stonemason', toolTier: 5, toolSpeed: 0.25, pendingSkill: 'stonemason', pendingSystem: 'tool_ladder' }],
+  ['bronze_masons_rule', { n: "Bronze Mason's Rule", icon: '📐', v: 70,   type: 'tool', toolSkill: 'stonemason', toolTier: 1, toolSpeed: 0.05, pendingSystem: 'tool_ladder' }],
+  ['steel_masons_rule',  { n: "Steel Mason's Rule",  icon: '📐', v: 950,  type: 'tool', toolSkill: 'stonemason', toolTier: 3, toolSpeed: 0.15, pendingSystem: 'tool_ladder' }],
+  ['dawn_masons_rule',   { n: "Dawnsteel Mason's Rule", icon: '📐', v: 9200, type: 'tool', toolSkill: 'stonemason', toolTier: 5, toolSpeed: 0.25, pendingSystem: 'tool_ladder' }],
 ]);
 
 export const LIB2_ITEMS = {

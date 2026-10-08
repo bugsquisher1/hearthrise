@@ -335,6 +335,8 @@
     "node tests/no-blob-branches.mjs": "client-guards",
     "node tests/window-globals-exist.mjs --selftest": "client-guards",
     "node tests/window-globals-exist.mjs": "client-guards",
+    "node tests/legacy-data-onecopy.mjs --selftest": "client-guards",
+    "node tests/legacy-data-onecopy.mjs": "client-guards",
     "node tests/signup-door.mjs --selftest": "client-guards",
     "node tests/signup-door.mjs": "client-guards",
     "node tests/monolith-ratchet.mjs --selftest": "client-guards",

@@ -186,8 +186,8 @@ export function deriveLoginStreak(lookup) {
        legacy.js:3463  completeQuest       accrual delta when live combat moves
                                            server-side, and the client sites are
                                            deleted then (HANDOFF ordering, step 5).
-       ⚠ completeBounty ALSO pays Bounty Marks, and `marks` has NO server home —
-         see the `bounty:turnin` row below.
+       ⚠ completeBounty ALSO pays Bounty Marks. Marks now live in
+         player_state.marks (2026-08-23-bounty.sql) — see `bounty:turnin` below.
 
      CLAIM-SHAPED (6)      a discrete "I claim X" gesture. These ARE the grant
        intents, and they are the rows in this registry.
@@ -272,26 +272,27 @@ export const CLAIMABLES = Object.freeze({
     periodic: false,
     site: 'src/features/collection-log.js:64 claimMilestone()',
     ledgerKind: 'quest',
-    needs: 'a server collection model. Eligibility tests how many of 31 monsters '
-         + 'and 426 items the character has ever seen; the server records neither.',
+    needs: 'a server collection model. Eligibility tests how many monsters and '
+         + 'items the character has ever seen; the server records neither.',
   }),
   'flag:renown_rank': Object.freeze({
     status: 'blocked',
     periodic: false,
     site: 'src/features/renown.js:308 claimRank()',
     ledgerKind: 'quest',
-    needs: 'server-side Renown. effectiveRenown(G) is computed entirely from the '
-         + 'client save and has no column, table or RPC.',
+    needs: 'nothing on this verb: Renown rank rewards are paid by their own RPC '
+         + '(2026-08-22-renown-claim.sql, player_state.renown_high). Kept blocked so '
+         + 'the generic claim verb can never pay a rank a second time.',
   }),
   'bounty:turnin': Object.freeze({
     status: 'blocked',
     periodic: false,
     site: 'src/legacy.js:2902 completeBounty()',
     ledgerKind: 'quest',
-    needs: 'player_state.marks (IN FLIGHT, another workstream) AND a server '
-         + 'bounty board. The gold half alone would pay a turn-in while '
-         + 'silently dropping the Marks, which is worse than refusing. Note the '
-         + 'turn-in is ALSO kill-driven today, so part of it belongs to accrual.',
+    needs: 'nothing on this verb: a turn-in is paid by hr_claim_bounty '
+         + '(2026-08-23-bounty.sql), which credits gold AND player_state.marks '
+         + 'against a server kill baseline. Kept blocked so the generic claim verb '
+         + 'can never pay a bounty a second time.',
   }),
 });
 

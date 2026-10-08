@@ -53,8 +53,6 @@ const ALLOW = [
   { where: 'src/legacy.js', match: /SAVE_KEY\s*=\s*'hearthbound-save-v2'/, reason: 'the key the loadLocal purge removes' },
   { where: 'src/legacy.js', match: /RETIRED_PREFIXES=\[/, reason: 'the loadLocal purge of the retired prefixes' },
   { where: 'src/legacy.js', match: /PARK_PREFIX\s*=/, reason: PLUMBING + ' (park helpers, pinned by b318)' },
-  { where: 'src/multi-character.js', match: /SAVE_KEY = 'hearthbound-save-v2'/, reason: PLUMBING + ' (slot copy)' },
-  { where: 'src/multi-character.js', match: /function charKey/, reason: PLUMBING + ' (slot copy)' },
   { where: 'src/net/client-state.js', match: /too much local progress to store/, reason: 'residue PUT size warning, not a save promise' },
 ];
 

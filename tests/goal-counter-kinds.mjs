@@ -183,6 +183,27 @@ const MUTATIONS = {
        where user_id = v_uid and slot = v_slot and kind = 'stat'
          and key = r.counter_key and period_key = '';`]],
   },
+  /* Security C1b, mutant E: the CLAIM adds the lifetime stock to the daily count. */
+  claim_adds_lifetime: {
+    expect: 'red',
+    upTo: BOARD_MIG,
+    why: 'hr_claim_goal sums the LIFETIME stat row into the daily count — the backfill exposure on '
+       + 'the claim path, whichever goal the board deals that day',
+    patches: [[CATALOGUE_MIG,
+      `  else
+    select coalesce(value, 0) into v_have
+      from public.player_progress
+     where user_id = v_uid and slot = v_slot
+       and kind = 'daily' and key = v_cat.counter_key
+       and period_key = v_period;
+  end if;`,
+      `  else
+    select coalesce(sum(value), 0) into v_have
+      from public.player_progress
+     where user_id = v_uid and slot = v_slot and key = v_cat.counter_key
+       and ((kind = 'daily' and period_key = v_period) or (kind = 'stat' and period_key = ''));
+  end if;`]],
+  },
   /* The same defect in the CHAIN-END body: the board migration restates
      hr_goal_state__ungated, so the plain run must judge that restatement. */
   board_state_reads_lifetime: {
@@ -351,6 +372,25 @@ async function runAll(db) {
     ? (claim.error === 'not_complete' && Number(claim.have) === 0) : claim.error === 'not_offered'),
      `hr_claim_goal REFUSES the plant goal (${offered ? "'not_complete' with have=0" : "'not_offered'"}) for that `
      + `character (got ${JSON.stringify(claim)}) — the server, not the client, is what makes the backfill unpayable`);
+
+  /* WHATEVER THE DAY: a goal the board DEALS, holding only lifetime stock, must
+     refuse not_complete with have=0 — `plant` is off the board most days. */
+  const dealt = (await db.query(hasBoard
+    ? `select g.goal_id, g.counter_key from unnest(public.hr_goal_board(false, now())) with ordinality b(id, n)
+         join public.hr_goal_rewards g on g.goal_id = b.id where g.counter_kind = 'daily' order by b.n limit 1`
+    : `select goal_id, counter_key from public.hr_goal_rewards where goal_id = 'plant'`)).rows[0];
+  ok(!!dealt, 'CONTROL: the board deals no counter-graded daily goal to probe');
+  if (dealt) {
+    await db.exec(`insert into public.player_progress (user_id, slot, kind, key, value, period_key, state)
+                   values ('${UID}', 0, 'stat', '${dealt.counter_key}', ${stock}, '', 'active')
+                   on conflict (user_id, slot, kind, key, period_key) do update set value = ${stock};`);
+    const c2 = (await asUser(db, UID,
+      `select public.hr_claim_goal__ungated('${dealt.goal_id}', false, 0, '000000f8-0000-0000-0000-0000000000d2'::uuid) as r`
+    )).rows[0].r;
+    ok(c2 && c2.ok === false && c2.error === 'not_complete' && Number(c2.have) === 0,
+       `a DEALT goal (${dealt.goal_id}) with ${stock} lifetime ${dealt.counter_key} and no daily row must refuse `
+       + `not_complete with have=0 (got ${JSON.stringify(c2)}) — the claim counts the period, never the lifetime stock`);
+  }
 
   // NON-VACUITY: the same reads must be able to say YES. Without this, a goal
   // board that answered "0, incomplete" for every goal in the game would pass.

@@ -863,10 +863,6 @@ body[data-theme] .at-inputs {
 body[data-theme] .at-inputs .at-have { color: var(--ink-2); font-weight: 700; opacity: 1; }
 body[data-theme] .at-inputs .at-have.low { color: var(--danger, #d9534f); }
 
-/* b240 — Buy-Back window. Closed (no server buy-back verb): the empty/closed line only. */
-#bb-modal .bb-body { max-height: 60vh; overflow-y: auto; }
-#bb-modal .bb-empty { color: var(--ink-3); padding: 24px 6px; text-align: center; font-size: calc(14.5px * var(--ui-scale, 1)); }
-
 /* b242 — the item flyout's "explain everything" lines: flavour + source + used-in. */
 body[data-theme] .inv-detail-desc {
   color: var(--ink-2); font-size: calc(14.5px * var(--ui-scale, 1)); font-style: italic;

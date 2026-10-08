@@ -2764,36 +2764,6 @@ export default [
     }
   }),
 
-  () => tryRun('b227: the save migration clamps room levels to the live ladder', () => {
-    // Insurance, not a repair — no live writer can produce an out-of-range
-    // level (upgradeRoom advances by one only when levels[lv] exists, and the
-    // grandfather pass writes the literal 1). The clamp exists so the
-    // invariant is ENFORCED at load rather than true by inspection.
-    const M = window.HEARTHRISE_MIGRATIONS || window.__migrations;
-    const run = (save) => {
-      const list = (M && (M.list || M)) || null;
-      const m = (Array.isArray(list) ? list : []).find((x) => x && x.from === 8 && x.to === 9);
-      assert(m, 'the v8 → v9 room clamp migration is not registered');
-      m.apply(save);
-      return save;
-    };
-    const cap = window.ROOMS.forge.levels.length;
-    const out = run({ rooms: { forge: 99, kitchen: -2, library: 2.7, garden: NaN, workshop: '3', mystery_room: 4 } });
-    assert(out.rooms.forge === cap, 'a level past the ladder must clamp to the cap, got ' + out.rooms.forge);
-    assert(out.rooms.kitchen === 0, 'a negative level must clamp to 0');
-    assert(out.rooms.library === 2, 'a fractional level must floor');
-    assert(out.rooms.garden === 0, 'NaN must become 0, never propagate');
-    assert(out.rooms.workshop === 3, 'a numeric string must coerce');
-    // A room this build does not know keeps its level: we cannot know its cap,
-    // and deleting it would lose a feature during a staged rollout.
-    assert(out.rooms.mystery_room === 4, 'an unknown room id must be left alone');
-    // …and a legitimate save must come out untouched.
-    const clean = run({ rooms: { forge: 2, kitchen: cap } });
-    assert(clean.rooms.forge === 2 && clean.rooms.kitchen === cap, 'a valid save must be unchanged by the clamp');
-    // Idempotent, as every migration in this registry must be.
-    assert(JSON.stringify(run({ rooms: { forge: 2 } })) === JSON.stringify({ rooms: { forge: 2 } }),
-      'the clamp must be idempotent');
-  }),
 
   () => tryRun('b227: every room has a five-rung ladder with real, reachable costs', () => {
     // The b213 deadlock rule, re-run against the rungs this wave added: no

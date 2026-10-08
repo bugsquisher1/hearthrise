@@ -11,7 +11,7 @@
 //           buyCosmetic. The handlers src/render/shop.js's rendered buttons call.
 //   SELLING (legacy.js 10691–10856) — vendorPrice (the ONE vendor bid in the
 //           game), vendorSellChunked, Sell 1 / Sell All / Sell Selected, the
-//           sell-lock, the vendor-sale record and buy-back repurchase.
+//           sell-lock.
 //
 // They belong together: `vendorPrice` is what the NPC pays and `buyShopItem` is
 // what the NPC charges, and every argument about one is an argument about both.
@@ -34,7 +34,7 @@
 // flyout, `src/features/inv-context-menu.js` and the smoke suite all reached it.
 // Inside an IIFE that is no longer true, so every name with a proven caller is
 // said out loud below. `vendorPrice`, `vendorSellChunked`, `isItemLocked`,
-// `toggleItemLock`, `recordVendorSale`, `repurchase` and `VENDOR_RAW_RATE`
+// `toggleItemLock` and `VENDOR_RAW_RATE`
 // already published themselves in the monolith and still do, on their own lines.
 //
 // ── WHAT THE GOLD/GEM LEDGERS SEE ───────────────────────────────────────────
@@ -55,7 +55,7 @@
 // necessary for nothing in particular, which is why it is grouped with farm.js
 // rather than given its own rule: no other file reads any of these names at
 // evaluation time, and every global this file uses (`G`, `ITEMS`, `notify`,
-// `goldSettle`, `removeItem`, `renderShop`, `renderInvFancy`, `renderBuyback`)
+// `goldSettle`, `removeItem`, `renderShop`, `renderInvFancy`)
 // is resolved at CALL time.
 // ============================================================
 
@@ -282,7 +282,6 @@ function invSellOne(id){
   removeItem(id, 1);
   const sent = [];
   if(_k && window.HearthriseGold){ const _p = window.HearthriseGold.sellItem(id, 1, _k); if(_p && _p.catch) _p.catch(()=>{}); if(_p) sent.push({ p: _p, qty: 1 }); }
-  recordVendorSale(id, 1, price);   // b240: undoable
   sellReceipt(id, 1, price, sent);
   updateTopbar(); renderInvNew();
 }
@@ -306,7 +305,6 @@ function invSellAll(id){
      consequence removeItem() owns — including the tool retime (#33: "sold the
      pickaxe, the boost still applied"). Same result on the bag, one writer. */
   removeItem(id, qty);
-  recordVendorSale(id, qty, price);   // b240: undoable
   sellReceipt(id, qty, price, sent);
   updateTopbar(); renderInvNew(); closeInvDetail();
 }
@@ -331,14 +329,11 @@ function invSellSelected(){
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   b240 (Tyler) — SELL-LOCK + VENDOR BUY-BACK.
-   Two safety nets around the vendor so an accidental tap never loses a thing:
-   • Lock an item and it cannot be sold until you unlock it (a padlock in the
-     flyout; every sell path checks isItemLocked first).
-   • Every vendor sale is noted in G.buyback (client residue, never shown). The
-     buy-back itself is CLOSED: gold is server-armed and there is no server
-     verb (gold-sites BUYBACK_LEDGER), so repurchase() fails closed and the
-     Buy-Back window says so (2026-09-28). ═════════════════════════════════ */
+   b240 (Tyler) — SELL-LOCK.
+   Lock an item and it cannot be sold until you unlock it (a padlock in the
+   flyout; every sell path checks isItemLocked first). The vendor BUY-BACK that
+   sat beside it is deleted (2026-10-08): there is no server buy-back verb, so
+   it was a closed counter over a client-only list. ══════════════════════════ */
 function isItemLocked(id){ return !!(G.lockedItems && G.lockedItems[id]); }
 function toggleItemLock(id){
   G.lockedItems = G.lockedItems || {};
@@ -355,45 +350,8 @@ function toggleItemLock(id){
   try{ if(typeof renderInvNew==='function') renderInvNew(); }catch(e){}
   try{ if(typeof openInvDetail==='function' && window._invDetailId===id) openInvDetail(id); }catch(e){}
 }
-function recordVendorSale(id, qty, unit){
-  if(!qty || unit==null) return;
-  G.buyback = Array.isArray(G.buyback) ? G.buyback : [];
-  const ex = G.buyback.find(b => b.id===id && b.unit===unit);
-  if(ex){ ex.qty += qty; ex.at = Date.now(); }
-  else { G.buyback.unshift({ id, qty, unit, at: Date.now() }); }
-  if(G.buyback.length > 15) G.buyback.length = 15;
-}
-function repurchase(idx){
-  G.buyback = Array.isArray(G.buyback) ? G.buyback : [];
-  const b = G.buyback[idx]; if(!b) return;
-  const it = ITEMS[b.id]; if(!it){ G.buyback.splice(idx,1); return; }
-  const cost = b.unit * b.qty;
-  /* ── b4xx — GATED ON THE RECORD SEAM (designer ruling, slice 7). ─────────────
-     Buy-back re-purchases at the EXACT price the vendor paid, off a 15-entry
-     LOCAL list — a client-supplied PAST PRICE. While gold is UNARMED (today)
-     clientMayWriteRecordField('gold') is true and this is the plain debit that
-     shipped before. The instant gold joins SERVER_OF_RECORD and is armed it
-     returns false and this fails CLOSED: a client past-price crossing into an
-     armed balance is a mint, and buy-back has no server verb yet (BUYBACK_LEDGER).
-     The gate is a no-op today; it becomes the guard the moment gold flips. */
-  if(typeof window.clientMayWriteRecordField==='function' && !window.clientMayWriteRecordField('gold')){
-    if(typeof notify==='function')notify('The realm keeps no buy-back counter yet','kill');
-    return;
-  }
-  if(!balCanAfford(cost,'gold')){ notify(balKnown('gold')?'Not enough gold to buy it back':balShortfall(cost,'gold'),'kill'); return; }
-  G.gold -= cost;
-  addItem(b.id, b.qty);
-  G.buyback.splice(idx, 1);
-  notify(`Bought back ${Number(b.qty).toLocaleString()}× ${it.n} for ${cost.toLocaleString()} gold`,'loot');
-  try{ saveLocal(); }catch(e){}
-  updateTopbar();
-  renderBuyback();
-  try{ if(typeof renderInvFancy==='function') renderInvFancy(); }catch(e){}
-}
 window.isItemLocked = isItemLocked;
 window.toggleItemLock = toggleItemLock;
-window.recordVendorSale = recordVendorSale;
-window.repurchase = repurchase;
 
 /* ── THE BUY-SPACE DIALOG (legacy.js 9173–9215, moved verbatim 2026-09-14).
    It is a PURCHASE COUNTER — "how much does the next rung of bag space cost,
@@ -475,7 +433,7 @@ window.invSellAll      = invSellAll;
 window.invSellSelected = invSellSelected;
 
 /* REPAINT WHAT GATED ON THE BALANCE WHEN THE SERVER RESOLVES IT. Every
-   Buy / Build / Buy-back button here is painted from balCanAfford, which
+   Buy / Build button here is painted from balCanAfford, which
    fail-closes while a gesture's own prediction is in flight — so the gesture's
    repaint paints them disabled and, before this, nothing lit them again when the
    answer landed. src/net/gold.js announces `hr:balance-resolved` from its two
@@ -485,7 +443,6 @@ function repaintBalanceSurfaces(){
   try{ updateTopbar(); }catch(e){}
   try{ if(activeTab==='shop') renderShop(); }catch(e){}
   try{ if(activeTab==='house') window.renderHouseSurfaces(); }catch(e){}
-  try{ var bb=document.getElementById('bb-modal'); if(bb&&bb.classList.contains('show')) window.renderBuyback(); }catch(e){}
   try{ _renderBankModal(); }catch(e){}
 }
 window.addEventListener('hr:balance-resolved', repaintBalanceSurfaces);

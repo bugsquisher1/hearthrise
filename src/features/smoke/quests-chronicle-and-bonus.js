@@ -1130,23 +1130,6 @@ export default [
     assert(!/NaN|Invalid/.test(ago(400 * 86400000)), 'a year-old entry must still format, got ' + ago(400 * 86400000));
   }),
 
-  () => tryRun('b228: the save migration reserves the Chronicle without inventing history', () => {
-    // b228 merge: homestead's room clamp took v9, so the Chronicle is v9 → v10.
-    const M = (window.HEARTHRISE_MIGRATIONS || []).find((m) => m.from === 9 && m.to === 10);
-    assert(M, 'the v9 → v10 Chronicle migration is missing');
-    assert(window.HEARTHRISE_SCHEMA_VERSION >= 10, 'CURRENT_SCHEMA_VERSION was not bumped to 10');
-    const save = { v: 9, skills: { woodcutting: 999999 } };
-    M.apply(save);
-    assert(save.chronicle && Array.isArray(save.chronicle.entries), 'the migration must reserve the shape');
-    assert(save.chronicle.entries.length === 0,
-      'the migration must NOT write entries — the runtime seeds them with the live tables in front of it');
-    assert(save.chronicle.seeded === 0, 'seeded must stay 0 so chronicle.js knows to seed');
-    // Idempotent, and it repairs a half-written record rather than clobbering it.
-    const kept = { v: 8, chronicle: { v: 1, entries: [{ id: 'rank:baron', kind: 'rank', text: 'Rose to Baron', ts: 5, dated: 1 }] } };
-    M.apply(kept); M.apply(kept);
-    assert(kept.chronicle.entries.length === 1, 're-running the migration must never drop recorded history');
-    assert(kept.chronicle.seenAt === 0 && kept.chronicle.seeded === 0, 'missing fields must be repaired, not ignored');
-  }),
 
   // b228 (Tyler): "Need an indication that I have chosen a bounty" — accept
   // repainted combat, never the board. And renderBountyTab lived in another
@@ -2427,17 +2410,22 @@ export default [
   }),
 
   () => tryRun('B373-1b: the Profile rename pencil is wired to openRename, not to a prompt()', () => {
-    if (typeof window.renderProfile !== 'function') return;
-    try { window.renderProfile(); } catch (e) {}
-    const body = document.getElementById('dash-user-body');
-    if (!body) return;
-    const pencil = body.querySelector('button[title="Rename"]');
-    assert(pencil != null, 'expected the rename pencil in dash-user-body, none found');
-    const onclick = pencil.getAttribute('onclick') || '';
-    assert(!/prompt\s*\(/.test(onclick),
-      'the pencil markup still calls prompt() inline — that is the exact b373 freeze, shipped in an attribute');
-    assert(/openRename/.test(onclick),
-      'the pencil no longer calls HearthriseLaunchpad.openRename() — it asks by some other means: ' + onclick);
+    window.showTab('profile');
+    window.HearthriseHome.render();
+    const pencil = document.querySelector('#hd-root .hd-rename[data-hd="rename"]');
+    assert(pencil != null, 'expected the rename pencil on Home, none found');
+    assert(!/prompt\s*\(/.test(pencil.getAttribute('onclick') || ''),
+      'the pencil markup calls prompt() inline — that is the exact b373 freeze, shipped in an attribute');
+    const LP = window.HearthriseLaunchpad;
+    const realRename = LP && LP.openRename, realPrompt = window.prompt;
+    let renamed = 0, prompted = 0;
+    try {
+      LP.openRename = () => { renamed++; };
+      window.prompt = () => { prompted++; return null; };
+      pencil.click();
+      assert(renamed === 1, 'the pencil did not call HearthriseLaunchpad.openRename() (called ' + renamed + 'x)');
+      assert(prompted === 0, 'the pencil raised a native prompt()');
+    } finally { LP.openRename = realRename; window.prompt = realPrompt; }
   }),
 
   /* The sweep is CLOSED (BULK-INTERIM-1), so there is no modal to answer.

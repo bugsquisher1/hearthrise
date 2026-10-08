@@ -42,14 +42,13 @@
  *   .combat-loadout     → the quick-swap strip        (still owns #loadout-panel)
  *   .combat-style-block → the on-stage style selector
  *   #hr-botd-card / #hr-weekly-card → destination cards
- *   #cmb-mob-tabs       → the split itself; the Fight has no sub-tabs, which is
- *                         what retires the b230 / b334 blank-screen trap class */
+ *   (the old #cmb-mob-tabs bar is deleted: the Fight has no sub-tabs, which is
+ *    what retires the b230 / b334 blank-screen trap class) */
 #panel-combat.active .combat-picker,
 #panel-combat.active .combat-loadout,
 #panel-combat.active > .combat-style-block,
 #panel-combat.active #hr-botd-card,
-#panel-combat.active #hr-weekly-card,
-#panel-combat.active #cmb-mob-tabs {
+#panel-combat.active #hr-weekly-card {
   display: none !important;
 }
 

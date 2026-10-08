@@ -6,11 +6,11 @@
 //
 // Categories:
 //   • Audio          — master / music / sfx volumes, mute on blur
-//   • Display        — UI scale, theme, reduce motion, damage numbers
+//   • Display        — UI scale, reduce motion, damage numbers
 //   • Gameplay       — left-hand, auto-eat threshold, food slot
 //   • Chat & Privacy — profanity filter, timestamps, mention sound,
 //                      whisper permission, block list
-//   • Account        — display name, sign in/out, cloud sync
+//   • Account        — display name, sign in/out, verify cloud save
 //
 // Implementation:
 //   • Overrides window.openSettings.
@@ -431,27 +431,8 @@
       + '<div class="ss-hint">Sets the size of all text in the game. Changes apply as you drag,'
       +   ' and follow your account to any device.</div>';
 
-    // Theme picker — driven by HearthriseTheme (theme-picker.js).
-    var current = (window.HearthriseTheme && window.HearthriseTheme.getTheme && window.HearthriseTheme.getTheme()) || 'hearthlight';
-    var themes = (window.HearthriseTheme && window.HearthriseTheme.list && window.HearthriseTheme.list()) || [
-      { id:'hearthlight', label:'Hearthlight', desc:'Candle-lit hall — deep warm dark + gilt' },
-    ];
-    var themeCards = themes.map(function(t){
-      var active = (t.id === current);
-      return ''
-        + '<button class="btn btn-sm ss-theme-card' + (active ? ' active' : '') + '" '
-        +   'data-theme-id="' + esc(t.id) + '" '
-        +   'style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;flex:1;text-align:left;padding:10px 12px;'
-        +   (active ? 'border-color:var(--gold);background:var(--gold-bg);' : '') + '">'
-        +   '<span style="font-weight:700;font-size:calc(14.5px * var(--ui-scale, 1))">' + esc(t.label) + (active ? ' ✓' : '') + '</span>'
-        +   '<span style="font-size:calc(14.5px * var(--ui-scale, 1));opacity:.75">' + esc(t.desc) + '</span>'
-        + '</button>';
-    }).join('');
     return ''
       + scaleRow
-      + '<div class="ss-row" style="flex-direction:column;align-items:stretch;gap:8px"><div class="ss-label">Theme</div>'
-      +   '<div style="display:flex;gap:8px;flex-wrap:wrap">' + themeCards + '</div>'
-      + '</div>'
       + row('Reduce motion / visual effects', toggle('reduceFx', d.reduceFx))
       + row('Show damage numbers', toggle('showDamage', d.showDamage));
   }
@@ -713,50 +694,6 @@
           +   '<div class="ss-card-meta">This build has no realm configured, so nothing can be played or saved.</div>'
           + '</div>');
     }
-    // Cloud sync status copy. Three states:
-    //   • Have a recorded sync timestamp → show it
-    //   • Live session, no sync yet → "Auto-syncing — waiting for first round-trip"
-    //   • No session at all → "Offline (sign in to enable)"
-    // Previously the "Never synced." string was shown even while signed in
-    // and auto-syncing every 30s, which directly contradicted the auth
-    // banner above and made it look like cloud was broken.
-    var cloudMeta;
-    if (G.cloudSyncedAt) {
-      cloudMeta = 'Last synced: ' + new Date(G.cloudSyncedAt).toLocaleString();
-    } else if (liveSession && liveSession.user) {
-      cloudMeta = 'Auto-syncing every 60s — waiting for first round-trip.';
-    } else {
-      cloudMeta = 'Not signed in — nothing is being saved.';
-    }
-
-    // ── Cloud setup (Supabase credentials) ──
-    // Only shown for self-hosters / dev forks. Actual players never see
-    // this — credentials are baked into supabase-bootstrap.js DEFAULT_CONFIG.
-    // To reveal for debugging, append ?cloudConfig=1 to the URL.
-    var sbConfig = (window.HearthriseSupabase && window.HearthriseSupabase.getConfig())
-      || { url: '', anonKey: '' };
-    var hasCloud = !!sbConfig.url && !!sbConfig.anonKey;
-    var showCloudSetup = (typeof location !== 'undefined' && /[?&]cloudConfig=1/.test(location.search))
-      && !(window.HearthriseGate && window.HearthriseGate.isPlayerOrigin && window.HearthriseGate.isPlayerOrigin(location.hostname));
-    var cloudSetup = !showCloudSetup ? '' : ''
-      + '<div class="ss-card" style="display:block">'
-      +   '<div class="ss-card-title">Cloud setup (developer)</div>'
-      +   '<div class="ss-card-meta">' + (hasCloud
-              ? 'Connected to ' + esc(sbConfig.url.replace(/^https?:\/\//, ''))
-              : 'Self-hoster paste form. Production builds ship with credentials baked in.') + '</div>'
-      +   '<div class="ss-row" style="margin-top:8px"><div class="ss-label">Supabase URL</div>'
-      +     '<input type="text" id="set-sb-url" placeholder="https://xxxx.supabase.co" value="' + esc(sbConfig.url || '') + '" />'
-      +   '</div>'
-      +   '<div class="ss-row"><div class="ss-label">Anon key</div>'
-      +     '<input type="text" id="set-sb-key" placeholder="eyJhbG..." value="' + esc(sbConfig.anonKey || '') + '" style="font-family:monospace;font-size:calc(14.5px * var(--ui-scale, 1))" />'
-      +   '</div>'
-      +   '<div class="ss-row" style="justify-content:flex-end;gap:8px">'
-      +     (hasCloud ? '<button class="btn btn-sm btn-danger" id="set-sb-disconnect">Disconnect</button>' : '')
-      +     '<button class="btn btn-sm" id="set-sb-connect">' + (hasCloud ? 'Update' : 'Connect') + '</button>'
-      +   '</div>'
-      +   '<div class="ss-hint">See <code>src/net/SUPABASE_SETUP.md</code> for the schema setup. Anon keys are public by design.</div>'
-      + '</div>';
-
     // ── Beta tester block — discord, bug report, build version, what's new ──
     var DISCORD_INVITE = 'https://discord.gg/eJrUSUJM3M';
     var build = (window.HearthriseBuild && window.HearthriseBuild.buildString && window.HearthriseBuild.buildString()) || 'unknown';
@@ -775,16 +712,16 @@
     return ''
       + nameInput
       + auth
-      + '<div class="ss-row"><div class="ss-label">Cloud sync</div>'
-      +   '<div style="display:flex;gap:8px">'
-      +     '<button class="btn btn-sm" id="set-cloud-sync">Sync now</button>'
-      +     '<button class="btn btn-sm" id="set-cloud-verify">Verify</button>'
-      +   '</div>'
+      /* "Verify cloud save" ASKS THE REALM (HearthriseSync.verifyCloudSave reads
+         the hr_state_of projection and the residue). "Sync now" and the
+         "Auto-syncing every 60s" hint are gone (2026-10-08): progress is the
+         server's, written by every settle, so there is nothing for a player to
+         push and no cadence worth advertising. */
+      + '<div class="ss-row"><div class="ss-label">Cloud save</div>'
+      +   '<button class="btn btn-sm" id="set-cloud-verify">Verify cloud save</button>'
       + '</div>'
-      + '<div class="ss-hint">' + esc(cloudMeta) + '</div>'
       + '<div class="ss-hint" id="set-cloud-verify-out" style="white-space:pre-line"></div>'
-      + beta
-      + cloudSetup;
+      + beta;
   }
 
   // ── Helpers ────────────────────────────────────────────────
@@ -963,19 +900,6 @@
       }
     });
     var vout = root.querySelector('#set-cloud-verify-out');
-    var cloud = root.querySelector('#set-cloud-sync');
-    if(cloud) cloud.addEventListener('click', async function(){
-      // b299: use the REAL sync (snapshotIfDue), not the dead mock window.cloudSync
-      // (legacy NetClient, no endpoint) that this button used to call.
-      var old = cloud.textContent; cloud.disabled = true; cloud.textContent = 'Syncing…';
-      var ok = false;
-      try { if(window.HearthriseSync && window.HearthriseSync.snapshotIfDue) ok = await window.HearthriseSync.snapshotIfDue(true); }
-      catch(e){}
-      cloud.textContent = old; cloud.disabled = false;
-      if(vout) vout.textContent = ok
-        ? '✓ Synced to the cloud just now.'
-        : '✗ Sync did not complete (offline, not signed in, or a server hiccup).';
-    });
     var verify = root.querySelector('#set-cloud-verify');
     if(verify) verify.addEventListener('click', async function(){
       var old = verify.textContent; verify.disabled = true; verify.textContent = 'Testing…';
@@ -1004,14 +928,6 @@
       (r.lines || []).forEach(function(l){ out.push((l.ok ? '✓ ' : '✗ ') + l.text); });
       if(!out.length) out.push(r.ok ? '✓ Your save is healthy.' : '✗ Cloud save could not be checked.');
       vout.textContent = out.join('\n') + devLine;
-    });
-
-    // ── Theme picker ──
-    root.querySelectorAll('[data-theme-id]').forEach(function(btn){
-      btn.addEventListener('click', function(){
-        var id = btn.getAttribute('data-theme-id');
-        if(window.HearthriseTheme && window.HearthriseTheme.setTheme) window.HearthriseTheme.setTheme(id);
-      });
     });
 
     // ── Beta tester buttons ──
@@ -1047,56 +963,6 @@
       } catch(e){
         if(typeof window.notify === 'function') window.notify('Sign-out failed: ' + (e.message || e), 'warn');
       }
-    });
-
-    // ── Cloud setup (Supabase config) ──
-    var sbConnect = root.querySelector('#set-sb-connect');
-    if(sbConnect) sbConnect.addEventListener('click', async function(){
-      var url = (root.querySelector('#set-sb-url').value || '').trim();
-      var key = (root.querySelector('#set-sb-key').value || '').trim();
-      if(!url || !key){
-        if(typeof window.notify === 'function') window.notify('Both URL and anon key are required.', 'kill');
-        return;
-      }
-      if(!window.HearthriseSupabase){
-        if(typeof window.notify === 'function') window.notify('Supabase bootstrap not loaded — try a hard refresh.', 'kill');
-        return;
-      }
-      sbConnect.disabled = true;
-      sbConnect.textContent = 'Connecting…';
-      try {
-        var r = await window.HearthriseSupabase.configure({ url: url, anonKey: key });
-        if(!r.ok){
-          if(typeof window.notify === 'function') window.notify(r.reason || 'Connect failed', 'kill');
-          sbConnect.disabled = false;
-          sbConnect.textContent = 'Connect';
-          return;
-        }
-        if(typeof window.notify === 'function'){
-          window.notify(r.requiresReload
-            ? 'Cloud config updated — reload to apply.'
-            : 'Cloud connected. Sign in to start syncing.',
-            'levelup');
-        }
-        // Reload after a short pause so the user sees the toast
-        if(r.requiresReload) setTimeout(function(){ location.reload(); }, 1200);
-        else window.openSettings();
-      } catch(e){
-        if(typeof window.notify === 'function') window.notify('Connect error: ' + e.message, 'kill');
-        sbConnect.disabled = false;
-        sbConnect.textContent = 'Connect';
-      }
-    });
-    var sbDisconnect = root.querySelector('#set-sb-disconnect');
-    if(sbDisconnect) sbDisconnect.addEventListener('click', function(){
-      ask({ title:'Disconnect from cloud?',
-        body:'This build will stop talking to the realm: no play, no saving, no chat until you reconnect.',
-        confirmLabel:'Disconnect', danger:true }).then(function(ok){
-        if(!ok) return;
-        if(window.HearthriseSupabase) window.HearthriseSupabase.reset();
-        if(typeof window.notify === 'function') window.notify('Disconnected. Reload to apply.', 'info');
-        setTimeout(function(){ location.reload(); }, 1000);
-      });
     });
 
     /* Tutorial replay.

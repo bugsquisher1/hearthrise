@@ -3496,6 +3496,18 @@ jobs:
           node tests/window-globals-exist.mjs --selftest
           node tests/window-globals-exist.mjs
 
+      # ONE COPY OF THE DATA (2026-10-08). src/legacy.js authors no item or
+      # recipe: main.js merges src/data/items.js into its empty ITEMS binding and
+      # publishes src/data/recipes.js, so a literal in legacy.js is never read and
+      # only drifts (the four copies cut that day disagreed in 19 values). The
+      # static twin of the in-page MON-ONECOPY-1 / ITEM-ONECOPY-1 counts; red on
+      # the pre-cut tree with 252 findings. Text scan, ~0.1 s.
+      - name: Legacy data one-copy guard (no item/recipe literal in legacy.js)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/legacy-data-onecopy.mjs --selftest
+          node tests/legacy-data-onecopy.mjs
+
       # ORPHAN ADOPTED. The sign-up door rules (emailRedirectTo, the resend, the
       # refusal vocabulary, the invite link) live as pure functions in
       # src/net/signup-door.js and are graded against 21 mutations. beta-2 lost

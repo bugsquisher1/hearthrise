@@ -396,57 +396,8 @@
     </header>
 
     <!-- ── PROFILE ── -->
+    <!-- Home is drawn by src/features/home-dashboard.js (#hd-root). -->
     <section class="panel active" id="panel-profile">
-      <div class="card dash-user" id="dash-user">
-        <div class="card-head">
-          <div class="card-title">Profile</div>
-          <span class="card-sub" id="dash-user-sub">Lv —</span>
-        </div>
-        <div class="card-body" id="dash-user-body"></div>
-      </div>
-      <!-- b138: Profile launchpad — Today's Progress + Next Milestone -->
-      <div class="card dash-today" id="dash-today">
-        <div class="card-head">
-          <div class="card-title">Today</div>
-          <span class="card-sub" id="dash-today-sub">Since midnight</span>
-        </div>
-        <div class="card-body" id="dash-today-body"></div>
-      </div>
-      <div class="card dash-milestone" id="dash-milestone">
-        <div class="card-head">
-          <div class="card-title">Next Milestone</div>
-          <span class="card-sub" id="dash-milestone-sub">—</span>
-        </div>
-        <div class="card-body" id="dash-milestone-body"></div>
-      </div>
-      <div class="card dash-active" id="dash-active">
-        <div class="card-head">
-          <div class="card-title">Current Activity</div>
-          <span class="card-sub" id="dash-active-sub">Idle</span>
-        </div>
-        <div class="card-body" id="dash-active-body"></div>
-      </div>
-      <div class="card dash-objectives" id="dash-objectives">
-        <div class="card-head">
-          <div class="card-title">Objectives</div>
-          <span class="card-sub" id="dash-obj-sub">Daily</span>
-        </div>
-        <div class="card-body" id="dash-objectives-body"></div>
-      </div>
-      <div class="card dash-skills" id="dash-skills">
-        <div class="card-head">
-          <div class="card-title">Skills</div>
-          <span class="card-sub" id="dash-skills-sub">Total: 19</span>
-        </div>
-        <div class="card-body" id="dash-skills-body"></div>
-      </div>
-      <div class="card dash-homestead" id="dash-homestead">
-        <div class="card-head">
-          <div class="card-title">Homestead</div>
-          <span class="card-sub">Farm + House</span>
-        </div>
-        <div class="card-body" id="dash-homestead-body"></div>
-      </div>
     </section>
 
     <!-- ── CHARACTER (skills + calculators) ── -->
@@ -1003,7 +954,7 @@
   <script src="src/vendor/supabase-js-2.103.0.umd.js?v=564"></script>
   <!-- build-info loads as a module (exports BUILD constant) -->
   <script type="module" src="src/build-info.js?v=564"></script>
-  <!-- theme-picker boots first so cozy-light applies before paint and avoids FOUC -->
+  <!-- theme-picker boots first so data-theme="hearthlight" applies before paint and avoids FOUC -->
   <script src="src/theme-picker.js?v=564"></script>
   <script src="src/observability.js?v=564"></script>
   <!-- showTab tap registry — single owner for window.showTab. Loads BEFORE
@@ -1075,11 +1026,9 @@
        the game's rules and never two. Placed before main.js so the core is up
        before any feature module boots. -->
   <script type="module" src="src/core-bridge.js?v=564"></script>
-  <script src="src/save-migrations.js?v=564"></script>
   <!-- b133: foundation APIs — load BEFORE legacy.js so killMonster() can call recordKill() -->
   <!-- b136: farm-progression sits next to the others (Plot Lv API + deed drop hooks) -->
   <script src="src/features/auto-actions.js?v=564"></script>
-  <script src="src/features/drop-log.js?v=564"></script>
   <script src="src/features/farm-progression.js?v=564"></script>
   <!-- b138: Profile launchpad (resume / today / milestone / rename) -->
   <script src="src/features/profile-launchpad.js?v=564"></script>
@@ -1196,20 +1145,11 @@
        AND the Combat War Table both call it. State-mutating handlers (unequip/
        unequipCompanion) stay global in legacy.js. -->
   <script src="src/render/equipment-doll.js?v=564"></script>
-  <!-- Profile "Objectives" popout — render-layer extraction out of legacy.js;
-       read-only overlay that mirrors the #dash-objectives card into a modal.
-       Re-exports window.openObjectivesPopout (sole caller: buildProfileToolbar's
-       addEventListener in legacy.js). Writes no game state. -->
-  <script src="src/render/objectives-popout.js?v=564"></script>
   <!-- Shop / IAP store controller — 9th render-layer extraction out of
        legacy.js (task #129 Phase 3.5). Re-exports window.renderShop; paints
        #iap-panel + #shop-panel from G/catalogue data. Purchase handlers stay
        global in legacy.js; shop tab-state is window.shopTab. -->
   <script src="src/render/shop.js?v=564"></script>
-  <!-- Vendor Buy Back modal — 10th render-layer extraction out of legacy.js
-       (task #129 Phase 3.5). Re-exports window.renderBuyback + window.openBuyback;
-       paints the closed counter (no server buy-back verb yet). -->
-  <script src="src/render/buyback.js?v=564"></script>
   <script src="src/render/away-ledger.js?v=564"></script>
   <!-- b154: rebuilt Home dashboard (revamp) — loads AFTER legacy.js so
        window.showTab / getTotalLevel / MONSTERS exist when it wraps them -->
@@ -1295,15 +1235,10 @@
   <!-- Beta-tester loop tighteners -->
   <script src="src/quests-topbar-button.js?v=564"></script>
   <script src="src/nav-consolidation.js?v=564"></script>
-  <!-- b210: icon-swap.js RETIRED — it fought icon-set.js over the same nav/
-       topbar slots with a different icon vocabulary (nondeterministic icons
-       by timing). icon-set.js gilt glyphs are the single chrome-icon system;
-       it now also covers bell/save/settings + strips chip/sub-tab emoji. -->
 
   <script src="src/activity-bar-clickable.js?v=564"></script>
   <script src="src/post-signup-welcome.js?v=564"></script>
   <script src="src/mobile-keyboard.js?v=564"></script>
-  <script src="src/combat-mobile-tabs.js?v=564"></script>
   <script src="src/mobile-more-chat.js?v=564"></script>
   <script src="src/inventory-mobile-tabs.js?v=564"></script>
   <script src="src/activities-mobile-tabs.js?v=564"></script>

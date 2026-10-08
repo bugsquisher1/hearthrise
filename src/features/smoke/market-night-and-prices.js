@@ -2960,74 +2960,6 @@ export default [
           assert(xpOf(r.skill) === after[r.skill], 'the milestone paid twice on ' + r.skill);
         });
 
-        /* (4) THE RENAME IS A MIGRATION, NOT A NEW QUEST. Every live beta save
-           carries this row under its b341 id. Renaming without moving them
-           would leave the retired LABEL on screen and seed the new id fresh —
-           re-granting 1,500 XP to everyone who had already finished it.
-           MUTATION PROVEN: empty `QUEST_ID_RENAMES` and the first assertion
-           fails on a duplicated row; drop the `done`/`progress` carry-over in
-           `migrateQuestIds` and the pay-again assertion fails. */
-        const paid = {}; route.forEach((r) => { paid[r.skill] = xpOf(r.skill); });
-        G.quests = [
-          { id: 'gatherer', type: 'gather', label: 'old', goal: 15, progress: 15, reward: { gold: 150 }, done: true },
-          { id: 'field_licence', type: 'kill_any', mirror: 'stats.kills', label: 'Field Licence — defeat 100 monsters',
-            goal: 100, progress: 100, reward: { combatXp: 1500 }, done: true },
-        ];
-        G.stats.evKillAny = 4000;
-        window.ensureRetentionState();
-        window.updateQuest('kill_any', 1);
-        const rows = G.quests.filter((x) => x.id === ID || x.id === 'field_licence');
-        assert(rows.length === 1 && rows[0].id === ID,
-          'the b341 quest id survived the rename (' + rows.map((r) => r.id).join(',') + ') — '
-          + 'the player keeps reading the retired label');
-        assert(rows[0].done === true, 'a completed milestone came back unfinished through the rename');
-        route.forEach((r) => {
-          assert(xpOf(r.skill) === paid[r.skill],
-            'the rename re-granted the milestone on ' + r.skill + ': +'
-            + (xpOf(r.skill) - paid[r.skill]) + ' XP');
-        });
-
-        /* An IN-FLIGHT row keeps its place too, and is still payable. */
-        G.quests = [{ id: 'field_licence', type: 'kill_any', mirror: 'stats.kills', label: 'old',
-          goal: 100, progress: 62, reward: { combatXp: 1500 }, done: false }];
-        G.stats.evKillAny = 62;
-        window.ensureRetentionState();
-        const mid = G.quests.filter((x) => x.id === ID);
-        assert(mid.length === 1 && mid[0].done === false && mid[0].progress === 62,
-          'an in-flight milestone lost its progress in the rename: ' + JSON.stringify(mid));
-
-        /* (5) BOTH IDS IN ONE SAVE — the one state a rename can produce, and
-           the reason the migration dedupes rather than only renaming. Two rows
-           under one id both complete and both PAY. Asserted in BOTH orders,
-           because which row the merge meets first decides which one survives
-           and only one of the two orders exercises the carry-over.
-           MUTATION PROVEN: drop the `prev.done || q.done` term in
-           `migrateQuestIds` and the fresh-row-first order fails on a finished
-           milestone coming back unfinished — and then paying again. */
-        const oldRow = () => ({ id: 'field_licence', type: 'kill_any', mirror: 'stats.kills',
-          label: 'Field Licence — defeat 100 monsters', goal: 100, progress: 100,
-          reward: { combatXp: 1500 }, done: true });
-        const newRow = () => ({ id: ID, type: 'kill_any', mirror: 'stats.kills',
-          label: 'Defeat 100 monsters', goal: 100, progress: 0,
-          reward: { combatXp: 1500 }, done: false });
-        [['old first', [oldRow(), newRow()]], ['fresh first', [newRow(), oldRow()]]].forEach(([label, rows2]) => {
-          G.quests = rows2;
-          G.stats.evKillAny = 4000;
-          const held = {}; route.forEach((r) => { held[r.skill] = G.skills[r.skill] || 0; });
-          window.ensureRetentionState();
-          window.updateQuest('kill_any', 1);
-          const merged = G.quests.filter((x) => x.id === ID || x.id === 'field_licence');
-          assert(merged.length === 1 && merged[0].id === ID,
-            label + ': the duplicate survived (' + merged.map((r) => r.id).join(',') + ') — two rows '
-            + 'under one id complete twice and pay twice');
-          assert(merged[0].done === true,
-            label + ': a finished milestone came back unfinished through the merge');
-          route.forEach((r) => {
-            assert((G.skills[r.skill] || 0) === held[r.skill],
-              label + ': the merge re-granted the milestone on ' + r.skill + ': +'
-              + ((G.skills[r.skill] || 0) - held[r.skill]) + ' XP');
-          });
-        });
       } finally { window.getBonus = origBonus; }
     } finally { window.HearthriseGoalClaim = origClaim; restoreG(snap); }
   }),
@@ -4355,13 +4287,16 @@ export default [
         'iap.' + p.sku + ' is ' + p.price + ' live but ' + cents + ' cents in the catalogue');
     }
 
-    /* The catalogue must never be mistaken for complete. Six spend sites
+    /* The catalogue must never be mistaken for complete. These spend sites
        compute their price at call time and are deliberately absent; a server
        that could not find an offer and invented a price is worse than one with
-       no catalogue at all. */
-    assert(Array.isArray(S.DERIVED_PRICES) && S.DERIVED_PRICES.length >= 6,
-      'DERIVED_PRICES lists ' + (S.DERIVED_PRICES || []).length + ' formula-priced sites; the '
-      + 'known set is 6, and dropping one hides a price the server cannot compute');
+       no catalogue at all. Pinned BY ID, so dropping one is named. */
+    const KNOWN_DERIVED = ['bank.gold', 'bounty.reroll', 'vendor.sell', 'clan_building.*', 'market.*'];
+    const derivedIds = new Set((S.DERIVED_PRICES || []).map((d) => d && d.id));
+    const lost = KNOWN_DERIVED.filter((id) => !derivedIds.has(id));
+    assert(Array.isArray(S.DERIVED_PRICES) && lost.length === 0,
+      'DERIVED_PRICES dropped ' + lost.join(', ') + ' — the known formula-priced set is '
+      + KNOWN_DERIVED.join(', ') + ', and dropping one hides a price the server cannot compute');
     for (const d of S.DERIVED_PRICES) {
       assert(!byId.has(d.id), 'offer "' + d.id + '" is in BOTH SHOP_OFFERS and DERIVED_PRICES');
       assert(d.where && d.formula && d.server_needs,

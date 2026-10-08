@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 116 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withClientOwnedSlots, awaySpan, tryRunRestampingBalance, xpOf, xpMap, predZero, goldOf, snapshotG, onFeet, drain, withResidueWire, seedPlayStreak, residuePurgeSnap, residuePurgeRestore, restoreG, restoreGAndRecord, autoEatMirrorReady, autoEatMirrorFixture, withCap, withStockedFight, on, snapshot, decideRestore, freshFrameGate } from './_harness.js?v=564';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, awaySpan, tryRunRestampingBalance, xpOf, xpMap, predZero, goldOf, snapshotG, onFeet, drain, withResidueWire, seedPlayStreak, residuePurgeSnap, residuePurgeRestore, restoreG, restoreGAndRecord, autoEatMirrorReady, autoEatMirrorFixture, withCap, withStockedFight, on, snapshot, decideRestore, freshFrameGate } from './_harness.js?v=564';
 
 /* MODAL-FIT-1's probes. `mfClear` parks every layer that can sit above a sheet
    (scrims DETACHED, so no "another modal is up" check defers; toasts hidden) and
@@ -722,8 +722,8 @@ export default [
     /* ⚠ `wieldGrandfather` was the sixteenth name here and is DELETED, not re-homed:
        every other field is self-only PROGRESS, that one was a client-held GEAR
        PERMISSION the realm never mirrored. Re-adding it re-opens §6 with a save. */
-    ['bestiary', 'dropLog', 'collectionLog', 'lifetimeKills', 'homestead',
-      'currentCombatTier', 'buyback', 'dailyGoldStart', 'raids',
+    ['bestiary', 'collectionLog', 'homestead',
+      'currentCombatTier', 'dailyGoldStart', 'raids',
       'muster', 'rallyPledge', 'pendingItemSpends'].forEach((f) =>
       assert(RF.indexOf(f) >= 0, 'THE BUG: G.' + f + ' must be a residue field or every reload forgets it'));
     /* ⚠ `renownHigh` and `toolCarry` LEFT THIS LIST on 2026-09-14 and must NOT
@@ -791,7 +791,7 @@ export default [
       /* THE BAG HAS A HARD CEILING. hr_put_client_state refuses the whole patch
          over 256 KiB (state_too_large) — and a refused patch means EVERY residue
          field stops saving, not just the big one. The sweep just added the two
-         per-monster logs (bestiary, dropLog) next to `collection` and
+         per-monster log (bestiary) next to `collection` and
          `chronicle`, so the ceiling stopped being theoretical. Measured on the
          live G with a wide margin: this is a smoke alarm for a future field that
          grows without bound (a per-kill array, a full combat log), not a
@@ -858,182 +858,7 @@ export default [
     }
   }),
 
-  () => tryRun('b371: the slot purchase repaints the gem chip and persists the spend immediately', () => withClientOwnedSlots(() => withLocalBlob(() => {
-    /* ⚠ b456 — DRIVEN WITH THE BLOB LIVE, AND THE REASON IS A REAL SHIPPED BUG,
-       NOT A HARNESS GAP. `unlockSlot` proves durability by calling saveLocal()
-       and READING THE BLOB BACK (multi-character.js): if the readback does not
-       show both the gem debit and the entitlement it rolls the purchase back.
-       The b455 capstone retires the blob, so saveLocal writes nothing, the
-       readback is null, and EVERY hero-slot purchase now fails with "Couldn't
-       save your purchase, so nothing was charged." Measured live in this build.
-       Filed as a P1 for the Systems Engineer (SLOT-BUY-1 below is the red guard
-       that states it). Nothing is charged, so it is a hard block rather than a
-       loss — but a premium-currency purchase is dead.
-       These two tests are about the PURCHASE MECHANICS (the chip repaint, the
-       atomic revert), which are unchanged and still ship, so they run in the
-       position where a purchase can complete. */
-    const HP = window.HearthriseProfile;
-    if (!HP || !HP.profile) return;
-    const next = HP.canUnlockNext();
-    if (!next || next.free) return;                 // only a real gem spend proves this
-    const G = window.G;
-    const prevGems = G.gems;
-    const prevProfile = JSON.parse(JSON.stringify(HP.profile));
-    const chip = document.getElementById('top-gems');
-    try {
-      G.gems = next.cost + 1000;
-      stampBalanceLikeLoad(G);   // armed: the starting balance is KNOWN the way hr_load leaves it before render
-      window.updateTopbar();
-      const before = chip ? chip.textContent : '';
-      const hadDigits = /\d/.test(before);
-      const r = HP.unlockSlot(next.slotId);
-      assert(r && r.ok, 'unlockSlot must succeed when the player can afford it: ' + (r && r.reason));
-      assert(G.gems === 1000, 'the gems were not actually spent');
-      if (chip && hadDigits) {
-        /* gold-arm: gems is a SERVER_OF_RECORD field and unlockSlot is an UNWIRED
-           gem sink (raw debit, no server verb → no reconciling envelope), so after
-           the spend the balance is UNKNOWN until the next hr_load and the chip
-           renders the honest PENDING state. The b371 regression this guards —
-           the chip left showing the STALE pre-purchase number — is still caught:
-           the chip must REPAINT (pending ≠ the old number). What arming changes is
-           that the post-spend chip is pending, not the live figure; asserting the
-           live figure here would require faking a reconcile the server never sends. */
-        assert(chip.textContent !== before,
-          'the header gem chip still shows the pre-purchase balance — the spend never repainted the topbar, so '
-          + 'the player sees a stale number until they reload (b371 P2)');
-        const B = window.HearthriseBalance;
-        const pending = !!(chip.classList && B && chip.classList.contains(B.PENDING_CLASS));
-        assert(pending || chip.textContent.replace(/[^0-9]/g, '') === String(G.gems),
-          'after an armed gem spend the chip must show either the live balance (reconciled) or the honest '
-          + 'PENDING state — never a stale formatted number');
-      }
-      const raw = localStorage.getItem('hearthbound-save-v2');
-      if (raw) {
-        const d = JSON.parse(raw);
-        assert(d.gems === G.gems,
-          'the gem spend was not persisted — a reload before the next autosave refunds the gems and KEEPS the '
-          + 'slot, because the profile record is written immediately and the save is not');
-      }
-    } finally {
-      G.gems = prevGems;
-      HP.profile = prevProfile;
-      try { localStorage.setItem('hearthrise:profile', JSON.stringify(prevProfile)); } catch (e) {}
-      try { window.saveLocal(); } catch (e) {}
-      try { window.updateTopbar(); } catch (e) {}
-      stampRecordLikeLoad(G);
-    }
-  }))),
 
-  /* ── b371 P1 — THE GEM DUPE ────────────────────────────────────────────
-     REPORTED LIVE: a 200-gem purchase of slot 2 debited the gems, a cloud
-     restore then handed them back — AND THE SLOT STAYED UNLOCKED. Free slot.
-     The cause was two stores with two lifetimes: gems in the save (restorable),
-     the unlock in localStorage['hearthrise:profile'] (never uploaded, never
-     rolled back). This asserts they are now ONE record, by doing the thing the
-     restore does and demanding both halves rewind. */
-  () => tryRun('b371: a slot purchase and its gem debit revert TOGETHER on a save restore (no free slot)', () => withClientOwnedSlots(() => withLocalBlob(() => {
-    /* ⚠ b456 — DRIVEN WITH THE BLOB LIVE, AND THE REASON IS A REAL SHIPPED BUG,
-       NOT A HARNESS GAP. `unlockSlot` proves durability by calling saveLocal()
-       and READING THE BLOB BACK (multi-character.js): if the readback does not
-       show both the gem debit and the entitlement it rolls the purchase back.
-       The b455 capstone retires the blob, so saveLocal writes nothing, the
-       readback is null, and EVERY hero-slot purchase now fails with "Couldn't
-       save your purchase, so nothing was charged." Measured live in this build.
-       Filed as a P1 for the Systems Engineer (SLOT-BUY-1 below is the red guard
-       that states it). Nothing is charged, so it is a hard block rather than a
-       loss — but a premium-currency purchase is dead.
-       These two tests are about the PURCHASE MECHANICS (the chip repaint, the
-       atomic revert), which are unchanged and still ship, so they run in the
-       position where a purchase can complete. */
-    const HP = window.HearthriseProfile, G = window.G;
-    if (!HP || !HP.profile) return;
-    assert(typeof HP.unlockedCount === 'function',
-      'HearthriseProfile.unlockedCount() must be the ONE answer to how many slots are owned');
-    const next = HP.canUnlockNext();
-    if (!next || next.free) return;                 // only a real gem spend proves this
-    const prevGems = G.gems;
-    const prevProfile = JSON.parse(JSON.stringify(HP.profile));
-    const hadSlots = Object.prototype.hasOwnProperty.call(G, '_heroSlots');
-    const prevSlots = G._heroSlots;
-    try {
-      G.gems = next.cost + 1000;
-      stampBalanceLikeLoad(G);   // armed: unlockSlot reads gems via canAfford
-      // The cloud snapshot as it stood BEFORE the purchase.
-      const older = { gems: G.gems };
-      const r = HP.unlockSlot(next.slotId);
-      assert(r && r.ok, 'the purchase should succeed here: ' + (r && r.reason));
-      assert(G.gems === 1000, 'the gems were not debited');
-      assert(HP.unlockedCount() === next.slotId + 1, 'the slot was not unlocked');
-      /* ⚠ 2026-09-14 — THE ENTITLEMENT IS NO LONGER IN ANY CLIENT STORE. It used
-         to be asserted here as `G.heroSlotsUnlocked` (residue), on the reasoning
-         that gems and slot had to rewind together because they were the same
-         bytes. hr_buy_hero_slot + the `hero_slots` projection made that obsolete:
-         the entitlement is a server row and the residue copy was deleted, so the
-         dupe is not "reverted together", it is UNREACHABLE. The purchase path
-         writes only the device's own metadata cache. */
-      assert(HP.profile.unlockedSlots === next.slotId + 1,
-        'the pre-arm purchase must still record the device metadata cache');
-
-      // THE RESTORE. decideRestore replaces the fields the snapshot carries.
-      G.gems = older.gems;
-
-      /* AND THE REALM SPEAKS: its set is the authority, so a restored balance
-         with a server that never sold the slot leaves the player owning nothing
-         — whatever any client store says. THIS is what killed the b371 dupe. */
-      window.HearthriseAccrual.reconcileHeroSlots(G, { ok: true, hero_slots: [0] });
-      assert(HP.unlockedCount() === 1 && HP.ownsSlot(next.slotId) === false,
-        'THE b371 GEM DUPE: the gems came back and the slot stayed unlocked against a server set that '
-        + 'does not carry it — the purchase was free');
-      /* THE STATEMENT STANDS for the rest of the test: the realm's set is the
-         authority on every question below (what is listed, what is buyable, what
-         a device-local cache may re-grant). */
-      const rows = HP.slotRows();
-      assert(!rows.some((row) => row.kind === 'char' && row.id === next.slotId),
-        'the reverted slot is still listed as a playable character');
-      const nx = HP.canUnlockNext();
-      assert(nx && nx.slotId === next.slotId,
-        'the reverted slot must be buyable again — the player has their gems back and owns nothing');
-      // …and the device-local record may not re-grant what the save took away.
-      HP.profile.unlockedSlots = 5;
-      assert(HP.unlockedCount() === next.slotId,
-        'localStorage["hearthrise:profile"] re-granted the slot — it is a metadata CACHE, not the authority');
-      assert(HP.switchSlot(next.slotId) === null,
-        'a slot the account no longer owns can still be switched to');
-    } finally {
-      G.gems = prevGems;
-      if (hadSlots) G._heroSlots = prevSlots; else delete G._heroSlots;
-      HP.profile = prevProfile;
-      try { localStorage.setItem('hearthrise:profile', JSON.stringify(prevProfile)); } catch (e) {}
-      try { window.saveLocal(); } catch (e) {}
-      try { window.updateTopbar(); } catch (e) {}
-      stampRecordLikeLoad(G);
-    }
-  }))),
-
-  /* ══════════════════════════════════════════════════════════════════════════
-     ⚠ SLOT-BUY-1 (b456) — RED ON PURPOSE: A PREMIUM PURCHASE IS DEAD UNDER THE
-     SHIPPED CAPSTONE. Report, do not silence.
-     ══════════════════════════════════════════════════════════════════════════
-     multi-character.js `unlockSlot` earns its atomicity by PROVING the write:
-     it calls saveLocal() and reads `hearthbound-save-v2` back, requiring both
-     `gems` and `heroSlotsUnlocked` to be in the blob before it hands over the
-     entitlement. That proof was exactly right when the blob was the store.
-
-     The b455 capstone retires the blob: saveLocal returns before writing, and
-     loadLocal removes any leftover on the way past. So the readback is `null`,
-     `durable` is false, and the purchase ROLLS BACK — every time, for everyone.
-     MEASURED in this build: `unlockSlot(1)` → {ok:false, reason:"Couldn't save
-     your purchase, so nothing was charged."}, gems untouched, slot not granted.
-
-     Nothing is charged, so this is a hard block rather than a gem loss — but a
-     200/400/1500-gem premium purchase cannot be completed at all.
-
-     THE FIX IS NOT TO DELETE THE PROOF. The proof is what stopped the b371 dupe
-     (entitlement outliving the payment). It has to move to a store that still
-     exists under the capstone — the server (a slot-purchase verb) or, at
-     minimum, the durable profile/client_state record — so the purchase stays
-     atomic-or-nothing. Owner: Systems Engineer.
-     ══════════════════════════════════════════════════════════════════════════ */
   () => tryRunAsync('HIRE-OWNED-1 (b463): an already_owned rung is a RECEIPT — the hire proceeds to materialise the paid crew', async () => {
     /* Three live players paid worker_hire.1 during the offers-wipe window, got
        no crew, and every retry died on "Could not complete the hire — already
@@ -1157,95 +982,7 @@ export default [
     } finally { G.lastSeen = prev; }
   }),
 
-  () => tryRun('SLOT-BUY-1: a hero slot can actually be bought under the shipped capstone', () => withClientOwnedSlots(() => {
-    const HP = window.HearthriseProfile, G = window.G;
-    if (!HP || !HP.profile) return;
-    const C = window.HearthriseCapstone;
-    if (!C || !C.isBlobRetired()) return;             // only meaningful with the capstone armed
-    const next = HP.canUnlockNext();
-    if (!next || next.free) return;                   // only a real gem spend proves this
-    const prevGems = G.gems, prevUnlocked = G.heroSlotsUnlocked;
-    const prevProfile = JSON.parse(JSON.stringify(HP.profile));
-    try {
-      G.gems = next.cost + 1000;
-      stampRecordLikeLoad(G);                         // a genuinely KNOWN, sufficient balance
-      const r = HP.unlockSlot(next.slotId);
-      assert(r && r.ok,
-        'a player who can afford a hero slot cannot buy one: unlockSlot answered "'
-        + (r && r.reason) + '". `unlockSlot` proves durability by reading the local save blob back, and the '
-        + 'b455 capstone retires that blob — so the readback is null, `durable` is false and the purchase '
-        + 'rolls back for every player, every time. The durability proof has to move to a store that still '
-        + 'exists (a server slot-purchase verb, or the durable profile/client_state record); deleting the '
-        + 'proof would bring back the b371 dupe.');
-      assert(G.gems === 1000, 'the gems were not actually spent');
-      assert(HP.unlockedCount() === next.slotId + 1, 'the slot was not unlocked');
-    } finally {
-      G.gems = prevGems;
-      G.heroSlotsUnlocked = prevUnlocked;
-      HP.profile = prevProfile;
-      try { localStorage.setItem('hearthrise:profile', JSON.stringify(prevProfile)); } catch (e) {}
-      try { window.updateTopbar(); } catch (e) {}
-      stampRecordLikeLoad(G);
-    }
-  })),
 
-  () => tryRun('b371: a slot purchase survives a save that throws — the durable store is the server, not a local file', () => withClientOwnedSlots(() => {
-    const HP = window.HearthriseProfile, G = window.G;
-    if (!HP || !HP.profile) return;
-    const next = HP.canUnlockNext();
-    if (!next || next.free) return;
-    const prevGems = G.gems, prevUnlocked = G.heroSlotsUnlocked;
-    const prevProfile = JSON.parse(JSON.stringify(HP.profile));
-    const realSave = window.saveLocal;
-    try {
-      G.gems = next.cost + 1000;
-      stampBalanceLikeLoad(G);   // armed: unlockSlot's affordability read must be KNOWN so it reaches the save step
-      /* b515 — THE DORMANT HALF IS RETIRED AND THE PROPERTY INVERTED. This test
-         used to grade two positions. DORMANT: `unlockSlot` read the save blob
-         back and refused the purchase ("Couldn't save your purchase") if both
-         halves were not in it — atomic-or-nothing against a local file. ARMED:
-         the same forced save failure must NOT block the purchase.
-
-         b515 deleted the read-back proof and its refund arm from
-         multi-character.js, because the else-arm that reached it was live only
-         on a device holding the retired `hr:serverAccrual=off` — i.e. a GEM
-         SPEND proved against a local file. There is one position now and it is
-         the armed one, so that is what is asserted, unconditionally.
-
-         WHAT REPLACED THE PROOF, and why this is not a weakening: the b371 dupe
-         was a LOCAL-BLOB SPLIT (the entitlement outlived the payment because the
-         two halves landed in one file and only one of them was written). The
-         armed model cannot express that split — the entitlement rides the
-         residue PUT and the gem debit is a SERVER record field reconciled by the
-         next envelope — and the ownership half is asserted against the server by
-         the SLOT-SRV battery below. What must hold HERE is that a throwing
-         `saveLocal` (a full disk, a private-mode quota) can no longer take a
-         purchase down with it, because it is no longer on the path.
-         MUTATION: re-introduce a `try{saveLocal()}catch{ return {ok:false} }`
-         around the grant → red on the first assertion. */
-      window.saveLocal = function () { throw new Error('quota exceeded'); };
-      const r = HP.unlockSlot(next.slotId);
-      assert(r && r.ok,
-        'a throwing saveLocal blocked the purchase: ' + JSON.stringify(r) + ' — the local blob is retired, '
-        + 'so a local write failure is not evidence about a purchase and must not brick one (b459)');
-      assert(HP.unlockedCount() === next.slotId + 1,
-        'the purchase reported ok but the slot was not granted: ' + HP.unlockedCount());
-      /* AND NOTHING WAS PROVED AGAINST A LOCAL FILE. The refusal vocabulary that
-         only the deleted read-back could produce must never come back — a gem
-         spend adjudicated by localStorage is the shape b515 removed. */
-      assert(!/couldn.t save/i.test(r.reason || ''),
-        'the local-blob read-back proof is back: ' + r.reason);
-    } finally {
-      try { if (window.HearthriseCapstone && window.HearthriseCapstone.__setBlobRetired) window.HearthriseCapstone.__setBlobRetired(null); } catch (e) {}
-      window.saveLocal = realSave;
-      G.gems = prevGems;
-      G.heroSlotsUnlocked = prevUnlocked;
-      HP.profile = prevProfile;
-      try { localStorage.setItem('hearthrise:profile', JSON.stringify(prevProfile)); } catch (e) {}
-      try { window.saveLocal(); } catch (e) {}
-      try { window.updateTopbar(); } catch (e) {}
-    }
-  })),
 
   /* ══════════════════════════════════════════════════════════════════════════
      SLOT-SRV — THE HERO SLOT IS THE SERVER'S NOW
@@ -1254,7 +991,7 @@ export default [
      THE TWO DEFECTS THE PLAY-GATE FOUND ON PRODUCTION, from the client side:
        1. THE BUY BUTTON WAS LIT AND DEAD. hr_unlock_offers refuses the
           character_slot namespace by construction, and the only other path
-          (unlockSlot's `G.gems -= cost`) is reconciled away by the next envelope
+          (a client `G.gems -= cost`, since deleted) is reconciled away by the next envelope
           because gems are SERVER-OF-RECORD and ARMED. So the click went through
           a confirm modal and produced nothing a player could see.
        2. OWNERSHIP WAS CLIENT-AUTHORED. `G.heroSlotsUnlocked` is residue; a
@@ -2512,18 +2249,16 @@ export default [
     assert(E && E.isActive() === true, 'the calendar must agree with the latch outside a replay');
   }),
 
-  () => tryRun('AWAY-7: away kills feed the drop log, dailies, quests and rollKillDeed; an away death increments stats.deaths', () => {
+  () => tryRun('AWAY-7: away kills feed dailies, quests and rollKillDeed; an away death increments stats.deaths', () => {
     const G = window.G;
     const C = window.HearthriseCore;
     const P = window.HearthrisePresence;
     const snap = snapshotG();
-    const seen = { recordKill: 0, daily: 0, quest: 0, deed: 0 };
-    const realLog = window.HearthriseDropLog;
+    const seen = { daily: 0, quest: 0, deed: 0 };
     const realFarm = window.HearthriseFarm;
     const realDaily = window.updateDaily;
     const realQuest = window.updateQuest;
     try {
-      window.HearthriseDropLog = Object.assign({}, realLog, { recordKill: () => { seen.recordKill++; } });
       window.HearthriseFarm = Object.assign({}, realFarm, { rollKillDeed: () => { seen.deed++; } });
       window.updateDaily = function (t) { if (t === 'kill_any') seen.daily++; return realDaily.apply(this, arguments); };
       window.updateQuest = function (t) { if (t === 'kill_any' || t === 'kill_monster') seen.quest++; return realQuest.apply(this, arguments); };
@@ -2534,7 +2269,6 @@ export default [
       G.playerHp = 100; G.playerMaxHp = 100;
       P._withOfflineReplay(() => { window.killMonster(m); });
 
-      assert(seen.recordKill === 1, 'an away kill must reach HearthriseDropLog.recordKill (collection log under-reported every overnight)');
       assert(seen.daily === 1, 'an away kill must tick updateDaily("kill_any") — "Slay 10 monsters" made ZERO progress overnight');
       assert(seen.quest === 2, 'an away kill must tick both kill_any and kill_monster quests, got ' + seen.quest);
       assert(seen.deed === 1, 'an away kill must roll a Farmer\'s Deed');
@@ -2561,7 +2295,6 @@ export default [
          (measured on b513). One teardown, the same one every fall fixture
          uses. */
       try { window.HearthriseDeathSheet.__resetForTest(); } catch (e) {}
-      window.HearthriseDropLog = realLog;
       window.HearthriseFarm = realFarm;
       window.updateDaily = realDaily;
       window.updateQuest = realQuest;
@@ -2954,18 +2687,6 @@ export default [
       assert(patch && patch.toolCarry === undefined,
         'toolCarry must NOT ride the residue PUT any more — `state.tool_carry` is the one copy');
       assert(patch._toolCarry === undefined, 'the old underscored key must not be persisted');
-      /* And the migration that renames it is registered and idempotent. */
-      const MIG = window.HEARTHRISE_MIGRATIONS || [];
-      const step = MIG.find((s) => s.from === 12 && s.to === 13);
-      assert(step, 'the v12 -> v13 toolCarry migration must be registered');
-      const old = { v: 12, _toolCarry: { fishing: 0.7 } };
-      step.apply(old);
-      assert(old.toolCarry.fishing === 0.7 && old._toolCarry === undefined, 'the migration must move the carry and drop the old key');
-      step.apply(old);
-      assert(old.toolCarry.fishing === 0.7, 're-running the migration must be a no-op');
-      const fresh = { v: 12 };
-      step.apply(fresh);
-      assert(fresh.toolCarry && Object.keys(fresh.toolCarry).length === 0, 'a save with no carry must get an empty object, not undefined');
     } finally { restoreGAndRecord(snap); try { window.saveLocal(); } catch {} }
   }),
 
@@ -4317,18 +4038,6 @@ export default [
          paint. Every grant used to repaint this dashboard and the quest strip.
          The contract: inside the latch these are no-ops; processOffline()
          repaints once when it opens. */
-      const sub = document.getElementById('dash-user-sub');
-      if (sub) {
-        const before = sub.textContent;
-        sub.textContent = '__replay_probe__';
-        P._withOfflineReplay(() => { window.renderProfile(); });
-        assert(sub.textContent === '__replay_probe__',
-          'renderProfile must not repaint inside the away-replay latch');
-        window.renderProfile();
-        assert(sub.textContent !== '__replay_probe__',
-          'renderProfile must repaint normally once the latch opens — the skip must be lossless');
-        if (sub.textContent !== before) { /* recomputed from live state; fine */ }
-      }
       assert(typeof window.renderQuestStrip === 'function',
         'the quest strip must be published so processOffline can repaint it exactly once');
       const strip = document.getElementById('global-quests-strip');
@@ -5659,12 +5368,10 @@ export default [
          header with a stubbed session, because "the data is right" is precisely
          the assertion this repo keeps mistaking for "the player is told the
          truth". */
-      const body = document.getElementById('dash-user-body');
-      if (body && typeof window.renderProfile === 'function') {
-        window.HearthriseAuth = { ...(savedAuth || {}), getSession: () => ({ user: { email: 'probe@example.invalid' } }) };
-        try { window.renderProfile(); } catch (e) {}
-        assert(!/cloud save active/i.test(body.textContent),
-          'the header still says "cloud save active" with four failed upserts behind it: ' + body.textContent.slice(0, 160));
+      if (typeof window.cloudSaveLine === 'function') {
+        const head = window.cloudSaveLine().text;
+        assert(!/cloud save active/i.test(head),
+          'Home\'s save line (cloudSaveLine) still says "cloud save active" with four failed upserts behind it: ' + head);
       }
 
       /* SURFACE 2 — Settings > Account. This one was a HARDCODED string
@@ -6858,8 +6565,7 @@ export default [
        arena card inside the Fight view, the one style block adopted onto the
        stage. A probe that models the OLD markup would pass forever. */
     const panelInner =
-      '<div id="cmb-mob-tabs" class="cmb-mob-tabs"><button class="cmt-btn" data-sub="style">Style</button></div>'
-      + '<div class="cbt-views">'
+      '<div class="cbt-views">'
       + '<section class="wt-view"><div class="combat-picker"><div class="monster-row">Goblin</div></div>'
       + '<div class="wt-grid"><button class="wt-card"><span class="wtc-name">Goblin</span></button></div></section>'
       + '<section class="fs-view"><div class="fs-top"><button class="fs-back">Back</button></div>'
@@ -6929,49 +6635,6 @@ export default [
     }
   }),
 
-  () => tryRun('b334: tapping a combat sub-tab mid-fight is not undone by the 1500ms sync poll', () => {
-    const panel = document.getElementById('panel-combat');
-    assert(panel, 'panel-combat must exist');
-    assert(typeof window.__cmbSyncCombatSub === 'function', 'combat sub-tab sync seam missing');
-    const styleTab = panel.querySelector('#cmb-mob-tabs .cmt-btn[data-sub="style"]');
-    assert(styleTab, 'the mobile Style sub-tab button is gone — there is no way to reach the picker on a phone');
-
-    const hadInCombat = document.body.classList.contains('in-combat');
-    const priorSub = panel.dataset.mobileSub;
-    try {
-      // Fight starts: the sync correctly puts the player on the arena (b230).
-      document.body.classList.remove('in-combat');
-      window.__cmbSyncCombatSub(panel);
-      panel.dataset.mobileSub = 'monsters';
-      document.body.classList.add('in-combat');
-      window.__cmbSyncCombatSub(panel);
-      assert(panel.dataset.mobileSub === 'arena', 'fight start must still open the arena (b230)');
-
-      // The player taps Style. THREE poll ticks then go by.
-      styleTab.click();
-      assert(panel.dataset.mobileSub === 'style', 'tapping Style did not switch the sub-tab');
-      window.__cmbSyncCombatSub(panel);
-      window.__cmbSyncCombatSub(panel);
-      window.__cmbSyncCombatSub(panel);
-      assert(panel.dataset.mobileSub === 'style',
-        'the poll dragged the player back to ' + panel.dataset.mobileSub
-        + ' — they get at most 1.5s to pick a style, which reads as "you cannot"');
-
-      // The NEXT fight still opens on the arena: the override is per fight, not
-      // a permanent surrender of the auto-steer.
-      document.body.classList.remove('in-combat');
-      window.__cmbSyncCombatSub(panel);
-      panel.dataset.mobileSub = 'monsters';
-      document.body.classList.add('in-combat');
-      window.__cmbSyncCombatSub(panel);
-      assert(panel.dataset.mobileSub === 'arena',
-        'the manual override leaked into the next fight — every later fight would open on the wrong tab');
-    } finally {
-      document.body.classList.toggle('in-combat', hadInCombat);
-      window.__cmbSyncCombatSub(panel);
-      if (priorSub) panel.dataset.mobileSub = priorSub;
-    }
-  }),
 
   /* ── b334 regression suite — THE CANCEL THAT WENT NOWHERE ──────────────────
      SYMPTOM (live, b333): `[error-boundary] wrapped render functions ×0`

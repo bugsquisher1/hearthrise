@@ -8,6 +8,17 @@
 // ══════════════════════════════════════════════════════════════════════
 import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, awayArtisanSpan, withFightScreen, xpOf, xpZero, snapshotG, drain, restoreG, restoreGAndRecord, combatScreen, on, snapshot, decideRestore, decideLocalOwnership, withDesktopBanner, assertBannerReserved, phoneFrame, serverBagFixture } from './_harness.js?v=564';
 
+/* The balance the save-contract tests below read is STATED, never inherited:
+   `gold` is server-of-record and absent until a load states it, so each test
+   states it through applyRecord (the one writer) and restores after. */
+const stateBalanceLikeLoad = (G, gold) => {
+  const R = window.HearthriseRecord;
+  assert(R && typeof R.applyRecord === 'function', 'HearthriseRecord.applyRecord is not published');
+  const v = Math.max(((G._record && Number(G._record.version)) || 0) + 1, Date.now());
+  R.applyRecord(G, { ok: true, version: v, now: new Date(v).toISOString(), state: { gold } });
+  assert(G.gold === gold, 'setup: the stated balance did not land (G.gold = ' + G.gold + ')');
+};
+
 export default [
 
   /* ══════════════════════════════════════════════════════════════════════
@@ -1380,9 +1391,8 @@ export default [
   () => tryRun('b231: starting a fight shows the arena on mobile (not a blank combat screen)', () => {
     // The bug (Tyler): on a phone, `body.in-combat` hid the monster picker AND
     // the "Foes" mobile sub-tab hid the arena, so clicking Fight from the default
-    // tab blanked the whole combat screen. Two guards: (1) the CSS safety net
-    // shows the arena during any live fight; (2) combat-mobile-tabs.js flips the
-    // sub-tab to 'arena' on fight start. Both are checked here.
+    // tab blanked the whole combat screen. The combat sub-tabs and their module
+    // are deleted; the structural net is checked here.
     const panel = document.getElementById('panel-combat');
     assert(panel, 'panel-combat must exist');
 
@@ -1412,23 +1422,6 @@ export default [
     } finally {
       try { window.stopCombat(); } catch (e) {}
       if (wasFighting) { try { window.startCombat(wasFighting); } catch (e) {} }
-    }
-
-    // (2) Behavioural — the sub-tab follows combat state.
-    assert(typeof window.__cmbSyncCombatSub === 'function', 'combat sub-tab sync seam missing');
-    const hadInCombat = document.body.classList.contains('in-combat');
-    const priorSub = panel.dataset.mobileSub;
-    try {
-      panel.dataset.mobileSub = 'monsters';
-      document.body.classList.add('in-combat');
-      window.__cmbSyncCombatSub(panel);
-      assert(panel.dataset.mobileSub === 'arena', 'fight start must switch the mobile sub-tab to arena, got ' + panel.dataset.mobileSub);
-      document.body.classList.remove('in-combat');
-      window.__cmbSyncCombatSub(panel);
-      assert(panel.dataset.mobileSub === 'monsters', 'fight end must return the mobile sub-tab to foes, got ' + panel.dataset.mobileSub);
-    } finally {
-      document.body.classList.toggle('in-combat', hadInCombat);
-      if (priorSub) panel.dataset.mobileSub = priorSub;
     }
   }),
 
@@ -2923,7 +2916,9 @@ export default [
     assert(E && typeof E.snapshot === 'function', 'snapshot must be exposed');
     const G = window.G;
     const saved = { am:G.activeMonster, mh:G.monsterHp, cl:G.combatLog, as:G.activeSkill, sp:G.skillProgress, los:G.lastOfflineSummary };
+    const snapG = snapshotG();
     try {
+      stateBalanceLikeLoad(G, 4321);   // a character WITH progress — the thing that must be uploaded
       // Force transient state to be present so the exclusion is actually exercised.
       G.activeMonster = 'slime'; G.monsterHp = 7; G.combatLog = ['x']; G.activeSkill = 'woodcutting'; G.skillProgress = 0.5; G.lastOfflineSummary = { hrs:1 };
       const snap = E.snapshot(G);
@@ -2937,6 +2932,7 @@ export default [
       assert(rt.gold === snap.gold, 'snapshot must round-trip through JSON without loss');
     } finally {
       G.activeMonster = saved.am; G.monsterHp = saved.mh; G.combatLog = saved.cl; G.activeSkill = saved.as; G.skillProgress = saved.sp; G.lastOfflineSummary = saved.los;
+      restoreGAndRecord(snapG);
     }
   }),
 
@@ -3047,7 +3043,9 @@ export default [
     const saved = S.getEventBuffer(), wasEnabled = S.isEventLogEnabled();
     const wasPaused = S.isPaused(), wasHeld = S.isSnapshotHeld();
     const before = S.getConfig() || {};
+    const snapG = snapshotG();
     try {
+      stateBalanceLikeLoad(window.G, 4321);
       S.resetEventLimiter(); S.restoreEventBuffer([]);
       assert(S.setEventLogEnabled(false) === false && S.isEventLogEnabled() === false, 'the switch must actually turn off');
       ['companionLevelUp', 'questClaim', 'dungeonClear'].forEach((t) => E.emit(t, { smoke: true }));
@@ -3068,6 +3066,7 @@ export default [
       assert(S.getEventBuffer().length === 1, 'allowlisted events resume once re-enabled');
     } finally {
       S.resetEventLimiter(); S.restoreEventBuffer(saved); S.setEventLogEnabled(wasEnabled);
+      restoreGAndRecord(snapG);
     }
   }),
 
@@ -3098,7 +3097,9 @@ export default [
     const G = window.G;
     const save = { offlineBudget:G.offlineBudget, lastSeen:G.lastSeen, gold:G.gold, skills:G.skills, activeMonster:G.activeMonster, activeSkill:G.activeSkill };
     const hiddenDesc = Object.getOwnPropertyDescriptor(document, 'hidden');
+    const snapG = snapshotG();
     try {
+      stateBalanceLikeLoad(G, 4321);   // a KNOWN balance, so "unchanged" is a number compared to a number
       Object.defineProperty(document, 'hidden', { configurable:true, get:()=>false });
       G.activeSkill = null; G.activeMonster = null;
       const now = Date.now();
@@ -3111,6 +3112,7 @@ export default [
     } finally {
       if(hiddenDesc) Object.defineProperty(document, 'hidden', hiddenDesc); else { try{ delete document.hidden; }catch(e){} }
       Object.assign(G, { offlineBudget:save.offlineBudget, lastSeen:save.lastSeen, gold:save.gold, skills:save.skills, activeMonster:save.activeMonster, activeSkill:save.activeSkill });
+      restoreGAndRecord(snapG);
     }
   }),
 

@@ -386,7 +386,7 @@ Pro also gives you 100 GB egress, 8 GB DB, 100K MAU, daily backups, and removes 
 ## 8. Day-2 ops
 
 - **Backups**: Supabase auto-backs up daily on Pro; on free tier you get 7-day point-in-time recovery only. Click **Database → Backups** to restore.
-- **Migrations**: when you add a new column to `game_saves.snapshot`, you don't need to migrate the table — the JSONB snapshot accepts new fields automatically. The client-side `save-migrations.js` handles per-version normalization.
+- **Migrations**: when you add a new column to `game_saves.snapshot`, you don't need to migrate the table — the JSONB snapshot accepts new fields automatically.
 - **Anti-abuse**: monitor `chat_messages` for spam in the SQL editor. Add a rate-limit RPC if needed.
 - **Privacy**: GDPR right-to-delete = `delete from auth.users where id = ?` — RLS cascades clean up everything else.
 

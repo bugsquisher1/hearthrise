@@ -43,6 +43,22 @@
 //   H6  the keyset cursor is per shard: a full batch resumes, a short one
 //           resets, and the config row's retired cursor stays NULL
 //
+//   S3 — supabase/migrations/2026-10-11-world-tick-catchup.sql + tick.js catch-up
+//   C0  no dial in the body: one window per visit, the old summary shape
+//   C1  ★ THE DIFFERENTIAL (AWAY): ONE visit with catch-up 10 vs 10 single
+//           fires, same frozen clock, same starting row: ledger rows, intent
+//           keys, inventory, skills, progress and watermark byte-identical
+//   C2  the bounds: stops at the flush line (a); one minute past the offline
+//           cap pays nothing (b); two minutes inside it pays only windows that
+//           start inside it (c, 8c per settle); a SHADOW character is never
+//           caught up (d)
+//   C3  ★ ATTENDED: the player's own settle (hr_apply) after window 2 ends the
+//           catch-up: 2 contiguous tick windows, none past the player's stamp
+//   C4  the time budget stops the extra windows, never the first
+//   C5  the driver posts both dials in every body
+//   C6  MAX_CATCHUP_WINDOWS equals the CHECK, and a body asking 1000 gets 40
+//   C7  the CHECKs hold fold <= 8 (the lag judge) and fold <= catch-up
+//
 // Exit: 0 green · 1 red · 2 harness.
 // ============================================================================
 
@@ -63,6 +79,7 @@ const CONTROL = Boolean(process.env.HR_MUTANT_CONTROL);
 const LANE = [
   '2026-10-11-world-tick-due-roster.sql',
   '2026-10-11-world-tick-shards.sql',
+  '2026-10-11-world-tick-catchup.sql',
 ];
 const read = async (f) => (await readFile(join(ROOT, 'supabase', 'migrations', f), 'utf8')).replace(/\r\n/g, '\n');
 const SQL = Object.fromEntries(await Promise.all(LANE.map(async (f) => [f, await read(f)])));
@@ -97,7 +114,10 @@ async function arms(db, { log = true, tick = TICK } = {}) {
   const q = async (sql, p) => (await db.query(sql, p)).rows;
   const one = async (sql, p) => (await q(sql, p))[0];
   const cfg = (set) => db.exec(`update public.hr_tick_config set ${set} where id;`);
-  const gact = (await one("select activity_id from public.hr_activities where kind = 'gather' order by activity_id limit 1"))?.activity_id;
+  /* A node a level-1 character can work (no level gate): a gated node answers
+     the engine's level stop, which ENDS the activity and would make every
+     catch-up arm below measure an idle transition instead of a yield. */
+  const gact = (await one("select activity_id from public.hr_activities where kind = 'gather' and coalesce(req_lv, 1) <= 1 order by activity_id limit 1"))?.activity_id;
   const cact = (await one("select activity_id from public.hr_activities where kind = 'combat' order by activity_id limit 1"))?.activity_id;
   if (!gact || !cact) throw Object.assign(new Error('hr_activities lacks a gather or combat row'), { harness: true });
   const HOLDER = (await one("select left('cron:' || coalesce(current_database(), 'db'), 64) as h")).h;
@@ -110,16 +130,16 @@ async function arms(db, { log = true, tick = TICK } = {}) {
     + " edge_url = 'https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue'");
 
   /** A character `ageS` seconds behind; owned on its channel; optional shadow chain age. */
-  const char = async (u, { ageS = 600, kind = 'gather', chainS = null } = {}) => {
+  const char = async (u, { ageS = 600, kind = 'gather', chainS = null, sinceS = 10800 } = {}) => {
     await q('insert into auth.users (id) values ($1) on conflict do nothing', [u]);
     await q(`insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version, accrued_to,
                                               active_kind, active_id, active_since)
              values ($1, 0, 0, 0, 10, 10, 1, date_trunc('milliseconds', now()) - make_interval(secs => $2), $3, $4,
-                     now() - interval '3 hours')
+                     now() - make_interval(secs => $5))
              on conflict (user_id, slot) do update set version = 1, gold = 0,
                accrued_to = excluded.accrued_to, active_kind = excluded.active_kind,
                active_id = excluded.active_id, active_since = excluded.active_since`,
-    [u, ageS, kind, kind === 'combat' ? cact : gact]);
+    [u, ageS, kind, kind === 'combat' ? cact : gact, Math.max(sinceS, ageS + 3600)]);
     await q(`insert into public.hr_tick_ownership (user_id, slot, channel, owned, shadow_accrued_to)
              values ($1, 0, $2, true, case when $3::int is null then null
                                            else date_trunc('milliseconds', now()) - make_interval(secs => $3::int) end)`,
@@ -147,6 +167,13 @@ async function arms(db, { log = true, tick = TICK } = {}) {
   const holderOf = async (k) => (await one(
     "select case when $1::int = 0 then left('cron:' || coalesce(current_database(), 'db'), 64)"
     + " else left('cron:' || coalesce(current_database(), 'db'), 58) || ':s' || $1::int end as h", [k])).h;
+  const queue = async () => (await q(`select id, headers, convert_from(body, 'UTF8') as body
+                                        from net.http_request_queue order by id`))
+    .map((r) => ({ id: r.id, headers: r.headers, raw: r.body, j: JSON.parse(r.body) }));
+  const cronFire = async () => {
+    await q('delete from net.http_request_queue');
+    return (await one('select public.hr_tick_cron_run() as r')).r;
+  };
   await db.exec("set track_functions = 'all'");
 
   // ── S1 ──────────────────────────────────────────────────────────────────
@@ -226,13 +253,6 @@ async function arms(db, { log = true, tick = TICK } = {}) {
 
   // ── S2 ──────────────────────────────────────────────────────────────────
   {
-    const queue = async () => (await q(`select id, headers, convert_from(body, 'UTF8') as body
-                                          from net.http_request_queue order by id`))
-      .map((r) => ({ id: r.id, headers: r.headers, raw: r.body, j: JSON.parse(r.body) }));
-    const cronFire = async () => {
-      await q('delete from net.http_request_queue');
-      return (await one('select public.hr_tick_cron_run() as r')).r;
-    };
     const lastNote = async () => (await one('select outcome, rostered, detail from public.hr_tick_cron_log order by id desc limit 1')) || {};
     const macOk = (p) => {
       const h = new Headers(Object.entries(p.headers || {}));
@@ -371,6 +391,203 @@ async function arms(db, { log = true, tick = TICK } = {}) {
     await cfg('shards = 1');
   }
 
+  // ── S3 ──────────────────────────────────────────────────────────────────
+  const body1 = (u, extra = {}) => Object.assign({ op: 'tick', roster: [{ user_id: u, slot: 0 }],
+    cadence_ms: 10000, flush_ms: 90000 }, extra);
+  const leaseTo = (u, h = HOLDER) => q(
+    "update public.hr_tick_ownership set lease_holder = $2, lease_until = now() + interval '10 minutes' where user_id = $1", [u, h]);
+  /* Everything a window can move, minus the clock columns. Two paths that pay
+     the same windows produce this byte for byte. */
+  const snapshot = async (u) => ({
+    ledger: await q(`select kind, intent, item_id, qty, gold, skill_id, xp, gold_in, xp_in, qty_in, gems_in, meta
+                       from public.player_ledger where user_id = $1 order by id`, [u]),
+    state: await one('select gold, gems, version, accrued_to, tool_carry, hp from public.player_state where user_id = $1', [u]),
+    inv: await q('select item_id, qty from public.player_inventory where user_id = $1 order by item_id', [u]),
+    skills: await q('select skill_id, xp from public.player_skills where user_id = $1 order by skill_id', [u]),
+    progress: await q(`select kind, key, period_key, value, state from public.player_progress
+                        where user_id = $1 order by kind, key, period_key`, [u]),
+    intents: await q('select intent_id, intent from public.player_intents where user_id = $1 order by intent_id', [u]),
+  });
+  /* ONE outer transaction = ONE frozen now(), so two paths see the same clock;
+     each statement still runs as hr_engine in its own savepoint (a refusal
+     must not abort the path); everything is rolled back after the snapshot. */
+  const inTxn = async (u, fn) => {
+    await db.exec('begin');
+    try {
+      const sexec = async (text, params) => {
+        await db.exec('savepoint s'); await db.exec('set role hr_engine');
+        try {
+          const r = (await db.query(text, params)).rows;
+          await db.exec('reset role'); await db.exec('release savepoint s');
+          return r;
+        } catch (e) { await db.exec('rollback to savepoint s'); await db.exec('reset role'); throw e; }
+      };
+      const fires = await fn(sexec);
+      return { fires, snap: await snapshot(u) };
+    } finally { await db.exec('rollback'); }
+  };
+  const tickRows = async (u) => q(`select meta from public.player_ledger
+                                    where user_id = $1 and meta->>'src' = 'tick' order by id`, [u]);
+  const capOf = async (u) => Number((await one('select public.hr_offline_cap_ms($1::uuid, 0) as c', [u])).c);
+  {
+    await db.exec('delete from public.hr_tick_ownership;');
+    const K = 10;
+    // C0 the dial absent is one window per visit, and the summary has no catch-up key
+    const z = await char(U(600), { ageS: 1200 });
+    await leaseTo(z);
+    const f0 = await fireEdge(body1(z));
+    ok('C0', f0.processed === 1 && (await tickRows(z)).length === 1 && !('catchup' in f0),
+      'no catch_up_windows in the body: one window, one ledger row, and the fire summary is the old shape',
+      JSON.stringify({ f0, rows: (await tickRows(z)).length }));
+
+    // C1 ★ THE DIFFERENTIAL (AWAY): one visit with catch-up K == K single fires, byte for byte
+    const d = await char(U(601), { ageS: 1200 });
+    await leaseTo(d);
+    const A = await inTxn(d, async (sexec) => {
+      const fires = [];
+      for (let i = 0; i < K; i++) fires.push((await tick.runTick({ exec: sexec, probe: false, body: body1(d) })).body);
+      return fires;
+    });
+    const B = await inTxn(d, async (sexec) => [(await tick.runTick({ exec: sexec, probe: false, catchupBudgetMs: 120000,
+      body: body1(d, { catchup_windows: K }) })).body]);
+    const same = JSON.stringify(A.snap) === JSON.stringify(B.snap);
+    const bf = B.fires[0] || {};
+    const tickA = A.snap.ledger.filter((l) => l.meta && l.meta.src === 'tick').length;
+    ok('C1', same && tickA === K && A.fires.every((f) => f.processed === 1)
+        && bf.processed === 1 && bf.catchup && bf.catchup.windows === K && bf.catchup.stops.dial === 1,
+      `ONE visit with catch-up ${K} settled the same ${K} windows as ${K} single fires: ledger rows, `
+      + 'intent keys, inventory, skills, progress and the watermark identical byte for byte',
+      same ? `tick rows A ${tickA} (ledger ${A.snap.ledger.length}); fires ${JSON.stringify(A.fires.map((f) => f.processed))}; B ${JSON.stringify(bf)}`
+        : `DIFFERENT: A ${JSON.stringify(A.snap).slice(0, 400)}\n             B ${JSON.stringify(B.snap).slice(0, 400)}`);
+
+    // C2 the bounds: the flush line, the cap, and the armed-only rule
+    const five = await char(U(602), { ageS: 300 });
+    await leaseTo(five);
+    const f2a = await fireEdge(body1(five, { catchup_windows: K }));
+    const capped = await char(U(603), { ageS: 600, sinceS: 30 * 3600 });
+    const cap = await capOf(capped);
+    await q('update public.player_state set accrued_to = now() - make_interval(secs => $2::double precision) where user_id = $1',
+      [capped, cap / 1000 + 60]);
+    await leaseTo(capped);
+    const f2b = await fireEdge(body1(capped, { catchup_windows: K }));
+    const inside = await char(U(604), { ageS: 600, sinceS: 30 * 3600 });
+    await q('update public.player_state set accrued_to = now() - make_interval(secs => $2::double precision) where user_id = $1',
+      [inside, cap / 1000 - 120]);
+    await leaseTo(inside);
+    const nowMs = new Date((await one('select now() as t')).t).getTime();
+    const f2c = await fireEdge(body1(inside, { catchup_windows: K, }));
+    const inRows = await tickRows(inside);
+    const earliest = Math.min(...inRows.map((r) => Date.parse(r.meta.from)));
+    const shadowC = await char(U(605), { ageS: 1800, kind: 'combat', chainS: 1200 });
+    await leaseTo(shadowC);
+    const sh0 = Number((await one('select count(*)::int as n from public.hr_tick_shadow where user_id = $1', [shadowC])).n);
+    const f2d = await fireEdge(body1(shadowC, { catchup_windows: K }));
+    const sh1 = Number((await one('select count(*)::int as n from public.hr_tick_shadow where user_id = $1', [shadowC])).n);
+    const lag5 = Number((await one('select extract(epoch from (now() - accrued_to)) as s from public.player_state where user_id = $1', [five])).s);
+    ok('C2a', (await tickRows(five)).length >= 2 && lag5 < 90 && f2a.catchup && f2a.catchup.stops.below_flush === 1,
+      `a character 5 min behind catches up ${(await tickRows(five)).length} full windows and stops at the flush line (lag now ${Math.round(lag5)} s)`,
+      JSON.stringify({ rows: (await tickRows(five)).length, lag5, catchup: f2a.catchup }));
+    ok('C2b', f2b.refused === 1 && (f2b.reasons || {}).fenced_cap === 1 && (await tickRows(capped)).length === 0,
+      'one minute past the offline cap: the first window is refused fenced_cap, nothing is paid, no extra visit',
+      JSON.stringify({ f2b, rows: (await tickRows(capped)).length }));
+    ok('C2c', inRows.length === K && earliest >= nowMs - cap - 1000,
+      `two minutes inside the cap: ${inRows.length} windows paid, every one starting inside the cap (8c per settle)`,
+      JSON.stringify({ rows: inRows.length, earliestBehindS: Math.round((nowMs - earliest) / 1000), capS: cap / 1000 }));
+    ok('C2d', f2d.shadowed === 1 && sh1 - sh0 === 1 && (f2d.catchup || {}).windows === 0,
+      'a SHADOW character is never caught up: one shadow window per visit (probes and their counts untouched)',
+      JSON.stringify({ f2d, shadowRows: sh1 - sh0 }));
+
+    // C3 ★ ATTENDED: the player's own settle lands mid catch-up
+    const att = await char(U(606), { ageS: 1200 });
+    await leaseTo(att);
+    let paid = 0; let stamp = null; let how = null;
+    const attExec = async (text, params) => {
+      const rows = await exec(text, params);
+      const r = rows && rows[0] && rows[0].res;
+      if (/hr_tick_settle/.test(text) && params && params[4] != null && r && r.ok === true && r.paid === true) {
+        paid += 1;
+        if (paid === 2) {
+          /* A REAL RETURN, through hr_apply as the engine (the accrue path's
+             writer): accrued_to is server-clamped to now() and the version moves. */
+          try {
+            const v = (await one('select version from public.player_state where user_id = $1', [att])).version;
+            await db.exec('begin'); await db.exec('set local role hr_engine');
+            const res = (await one(
+              "select public.hr_apply($1::uuid, 0, $2::bigint, gen_random_uuid(), jsonb_build_object('accrued_to', to_jsonb(now()))) as r",
+              [att, v])).r;
+            await db.exec('commit');
+            how = res && res.ok ? 'hr_apply' : `hr_apply refused: ${JSON.stringify(res).slice(0, 80)}`;
+          } catch (e) { try { await db.exec('rollback'); } catch { /* none */ } how = `hr_apply threw: ${e.message.slice(0, 80)}`; }
+          stamp = new Date((await one('select accrued_to from public.player_state where user_id = $1', [att])).accrued_to).getTime();
+        }
+      }
+      return rows;
+    };
+    let f3;
+    try {
+      f3 = (await tick.runTick({ exec: attExec, probe: false, catchupBudgetMs: 120000,
+        body: body1(att, { catchup_windows: K }) })).body;
+    } catch (e) { f3 = { threw: e.message }; }
+    const aRows = await tickRows(att);
+    const aEnd = aRows.length ? Date.parse(aRows[aRows.length - 1].meta.to) : null;
+    const contiguous = aRows.every((r, i) => i === 0 || r.meta.from === aRows[i - 1].meta.to);
+    const finalMark = new Date((await one('select accrued_to from public.player_state where user_id = $1', [att])).accrued_to).getTime();
+    ok('C3', how === 'hr_apply' && aRows.length === 2 && contiguous && aEnd <= stamp && finalMark === stamp
+        && f3.catchup && f3.catchup.windows === 2 && (f3.catchup.stops.below_flush === 1),
+      'ATTENDED: the player\'s own settle (hr_apply, accrued_to -> now()) after the 2nd window ends the catch-up: '
+      + '2 contiguous tick windows, none past the player\'s stamp, the watermark left where the player put it',
+      JSON.stringify({ how, rows: aRows.length, contiguous, aEnd, stamp, finalMark, catchup: f3.catchup }));
+
+    // C4 the budget bounds the extra windows, never the first
+    const bud = await char(U(607), { ageS: 1200 });
+    await leaseTo(bud);
+    let f4;
+    try { f4 = (await tick.runTick({ exec, probe: false, catchupBudgetMs: 0, body: body1(bud, { catchup_windows: K }) })).body; }
+    catch (e) { f4 = { threw: e.message }; }
+    ok('C4', f4.processed === 1 && (await tickRows(bud)).length === 1 && f4.catchup && f4.catchup.stops.budget === 1,
+      'a spent budget still settles the first window and stops the extra ones (stops.budget)',
+      JSON.stringify({ f4, rows: (await tickRows(bud)).length }));
+
+    // C5 the driver posts both dials
+    await db.exec('delete from public.hr_tick_ownership;');
+    await char(U(608), { ageS: 600 });
+    await cfg('catchup_windows = 10');
+    const o5 = await cronFire();
+    const p5 = (await queue())[0];
+    await cfg('catchup_windows = 1');
+    ok('C5', o5.outcome === 'posted' && p5 && p5.j.catchup_windows === 10 && p5.j.fold_windows === 1,
+      'the driver posts catchup_windows and fold_windows from the config in every body',
+      JSON.stringify({ o5, body: p5 && { catchup: p5.j.catchup_windows, fold: p5.j.fold_windows } }));
+
+    // C6 the edge's ceiling is the CHECK's, and it holds
+    const ck = (await one("select pg_get_constraintdef(oid) as d from pg_constraint where conname = 'hr_tick_config_catchup_ck'"))?.d || '';
+    const hi = Number((ck.match(/catchup_windows <= (\d+)/) || [])[1]);
+    const far = await char(U(609), { ageS: 7200 });
+    await leaseTo(far);
+    let f6;
+    try { f6 = (await tick.runTick({ exec, probe: false, catchupBudgetMs: 600000, body: body1(far, { catchup_windows: 1000 }) })).body; }
+    catch (e) { f6 = { threw: e.message }; }
+    ok('C6', hi === tick.MAX_CATCHUP_WINDOWS && f6.catchup && f6.catchup.windows === hi
+        && (await tickRows(far)).length === hi,
+      `MAX_CATCHUP_WINDOWS ${tick.MAX_CATCHUP_WINDOWS} equals the CHECK (${ck}); a body asking 1000 settles exactly ${hi}`,
+      JSON.stringify({ ck, max: tick.MAX_CATCHUP_WINDOWS, catchup: f6.catchup, rows: (await tickRows(far)).length }));
+
+    // C7 the fold dial is held to the lag judge and to the visit budget
+    const refused = async (set) => {
+      await db.exec('savepoint c7');
+      try { await cfg(set); await db.exec('rollback to savepoint c7'); return false; }
+      catch (e) { await db.exec('rollback to savepoint c7'); return e.code === '23514'; }
+    };
+    await db.exec('begin');
+    const c7 = { fold9: await refused('catchup_windows = 40, fold_windows = 9'),
+      foldOverCatchup: await refused('catchup_windows = 4, fold_windows = 8'),
+      catchup41: await refused('catchup_windows = 41') };
+    await db.exec('rollback');
+    ok('C7', c7.fold9 && c7.foldOverCatchup && c7.catchup41,
+      'the CHECKs refuse fold 9 (past the 15 min lag judge), fold > catch-up, and catch-up 41',
+      JSON.stringify(c7));
+  }
+
   return red;
 }
 
@@ -474,10 +691,32 @@ const MUTANTS = [
     repl: " + \" else left('cron:' || coalesce(current_database(), 'db'), 58) || '-s' || $1::int end as holder\";" },
   { name: 'edgeMaxShards', edge: 'tick.js', why: 'the edge ceiling drifts from the CHECK', expect: /H5/,
     find: 'export const MAX_SHARDS = 16;', repl: 'export const MAX_SHARDS = 8;' },
+  // S3
+  { name: 'catchupDefaultTwo', edge: 'tick.js', why: 'a body with no dial catches up anyway', expect: /C0/,
+    find: '  out.catchupWindows = clampInt(b.catchup_windows, 1, MAX_CATCHUP_WINDOWS, 1);',
+    repl: '  out.catchupWindows = clampInt(b.catchup_windows, 1, MAX_CATCHUP_WINDOWS, 2);' },
+  { name: 'catchupShadow', edge: 'tick.js', why: 'a SHADOW character is caught up (probe counts move)', expect: /C2d/,
+    find: "    if (catchup && v.outcome === 'processed') {",
+    repl: "    if (catchup && (v.outcome === 'processed' || v.outcome === 'shadowed')) {",
+    and: ["        if (w.outcome !== 'processed') { stop = String(w.reason || w.outcome); break; }",
+      "        if (w.outcome !== 'processed' && w.outcome !== 'shadowed') { stop = String(w.reason || w.outcome); break; }"] },
+  { name: 'catchupNoCeiling', edge: 'tick.js', why: 'the edge ceiling drifts above the CHECK', expect: /C6/,
+    find: 'export const MAX_CATCHUP_WINDOWS = 40;', repl: 'export const MAX_CATCHUP_WINDOWS = 400;' },
+  { name: 'catchupNoBudget', edge: 'tick.js', why: 'the extra windows ignore the time budget', expect: /C4/,
+    find: "        if (now() >= deadline) { stop = 'budget'; break; }", repl: '' },
+  { name: 'catchupPastRefusal', edge: 'tick.js', why: 'a skip does not end the catch-up (the stop is mis-reported)', expect: /C2a|C3/,
+    find: "        if (w.outcome !== 'processed') { stop = String(w.reason || w.outcome); break; }",
+    repl: "        if (w.outcome === 'refused') { stop = String(w.reason || w.outcome); break; }\n"
+      + "        if (w.outcome !== 'processed') continue;" },
+  { name: 'cronDropsCatchup', fn: 'cron', why: 'the driver does not post the catch-up dial', expect: /C5/,
+    find: "                                   'catchup_windows', v_cfg.catchup_windows,\n", repl: '' },
+  { name: 'foldPastLagJudge', raw: true, why: 'the CHECK admits a fold past the 15 min lag judge', expect: /C7/,
+    sql: 'alter table public.hr_tick_config drop constraint hr_tick_config_fold_ck; alter table public.hr_tick_config add constraint hr_tick_config_fold_ck check (fold_windows between 1 and 40 and fold_windows <= catchup_windows);',
+    restore: 'alter table public.hr_tick_config drop constraint hr_tick_config_fold_ck; alter table public.hr_tick_config add constraint hr_tick_config_fold_ck check (fold_windows between 1 and 8 and fold_windows <= catchup_windows);' },
 ];
 
 /** A patched COPY of the edge, imported fresh. Returns the module and its temp root. */
-async function edgeCopy(file, find, repl) {
+async function edgeCopy(file, find, repl, and) {
   const base = await mkdtemp(join(tmpdir(), 'hr-wts-'));
   const dir = join(base, 'supabase', 'functions', 'hr-accrue');
   await cp(join(ROOT, 'supabase', 'functions', 'hr-accrue'), dir, { recursive: true });
@@ -488,7 +727,14 @@ async function edgeCopy(file, find, repl) {
     if (src.split(find).length !== 2) {
       throw Object.assign(new Error(`edge anchor matched ${src.split(find).length - 1}x in ${file}`), { harness: true });
     }
-    await writeFile(join(dir, file), src.replace(find, () => repl), 'utf8');
+    let out = src.replace(find, () => repl);
+    if (and) {
+      if (out.split(and[0]).length !== 2) {
+        throw Object.assign(new Error(`second edge anchor matched ${out.split(and[0]).length - 1}x in ${file}`), { harness: true });
+      }
+      out = out.replace(and[0], () => and[1]);
+    }
+    await writeFile(join(dir, file), out, 'utf8');
   }
   const mod = await import(pathToFileURL(join(dir, 'tick.js')).href);
   return { mod, base };
@@ -506,9 +752,16 @@ for (const m of MUTANTS) {
   let tmp = null;
   try {
     if (m.edge) {
-      const c = await edgeCopy(m.edge, m.find, m.repl);
+      const c = await edgeCopy(m.edge, m.find, m.repl, m.and);
       tmp = c.base;
       try { red = await arms(db, { log: false, tick: c.mod }); } catch (e) { red = [`threw: ${e.message}`]; }
+    } else if (m.raw) {
+      if (!CONTROL) {
+        try { await db.exec(m.sql); } catch (e) { console.error(`harness: ${m.name}: ${e.message}`); process.exit(2); }
+      }
+      try { red = await arms(db, { log: false }); } catch (e) { red = [`threw: ${e.message}`]; }
+      try { await db.exec('rollback;'); } catch { /* not inside a transaction */ }
+      if (!CONTROL) await db.exec(m.restore);
     } else {
       const base = SRC[m.fn];
       let src;

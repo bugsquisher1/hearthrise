@@ -219,6 +219,27 @@ export const TICK_HOLDER_SQL = "select case when $1::int = 0"
   + " then left('cron:' || coalesce(current_database(), 'db'), 64)"
   + " else left('cron:' || coalesce(current_database(), 'db'), 58) || ':s' || $1::int end as holder";
 
+/* ── MULTI-WINDOW CATCH-UP (2026-10-11, world-tick scale S3) ─────────────────
+   How many consecutive flush windows ONE visit may settle for an ARMED
+   character that is still a full flush behind after its first window. The
+   ceiling is `hr_tick_config_catchup_ck` (1..40), restated because the edge
+   cannot read that table (tests/world-tick-scale.mjs C6 compares them). Each
+   extra window is a whole visit — `tickOne` again: a fresh now(), a fresh
+   hr_state_of, the fence's own mark, its own seed ladder, its own settle — so
+   it is byte for byte the window the next fire would have settled, and every
+   money fence (lease, watermark CAS, version CAS, 8b, 8c) runs for it under
+   the player lock exactly as it would then. SHADOW windows are never caught
+   up: one per visit, so the parity probes and their counts do not move. */
+export const MAX_CATCHUP_WINDOWS = 40;
+
+/* THE EXTRA WINDOWS' TIME BUDGET, per fire, from the fire's start. Every
+   character's FIRST window is attempted whatever the clock says (today's
+   behaviour, byte for byte); only the extra windows stop here, so one far-behind
+   character can never cost the rest of the batch its visit. 6 s keeps a
+   normal response inside pg_net's 9 s timeout (the harvest sees it) and every
+   lease (30 s) alive. */
+export const CATCHUP_BUDGET_MS = 6000;
+
 /* Engine polls per character per fire. `toMs` is already capped at one flush
    window below, so this is the second, independent bound — the one that still
    holds if a future caller widens the first. */
@@ -519,6 +540,10 @@ export function parseTickBody(raw) {
      lease is not that holder's. Absent, malformed or out of range reads as
      shard 0 — the single-POST driver's holder, byte for byte. */
   out.shard = clampInt(b.shard, 0, MAX_SHARDS - 1, 0);
+  /* THE CATCH-UP DIAL (S3). Geometry, couriered from hr_tick_config like
+     cadence/flush and clamped to the CHECK's range. Absent reads as 1: one
+     window per visit, exactly the edge before this key existed. */
+  out.catchupWindows = clampInt(b.catchup_windows, 1, MAX_CATCHUP_WINDOWS, 1);
   out.roster = parseSelectors(b.roster);
   /* THE PARTY COHORT (M8 S2). Same rule as `roster`: SELECTORS, never
      authority. A unit names a party, a hunt, its monster and its members'
@@ -1143,6 +1168,14 @@ export async function runTick(opts) {
     if (v.reason) reasons[v.reason] = (reasons[v.reason] || 0) + 1;
   }
 
+  /* THE CATCH-UP LEDGER (S3), reported only when the dial is above 1 so a
+     one-window fire's summary is byte-identical to before the dial existed. */
+  const catchup = body.catchupWindows > 1
+    ? { windows: 0, extra: 0, stops: Object.create(null) } : null;
+  /* `opts.catchupBudgetMs` is the guard's clock seam (C4); index.ts never
+     passes it. */
+  const deadline = t0 + (Number.isFinite(opts.catchupBudgetMs) ? opts.catchupBudgetMs : CATCHUP_BUDGET_MS);
+
   for (const sel of body.roster) {
     let v;
     try {
@@ -1156,10 +1189,37 @@ export async function runTick(opts) {
     counts[v.outcome] = (counts[v.outcome] || 0) + 1;
     if (v.reason) reasons[v.reason] = (reasons[v.reason] || 0) + 1;
     if (v.probe) probes[v.probe] = (probes[v.probe] || 0) + 1;
+
+    /* ── THE CATCH-UP (S3). ARMED ONLY: `processed` is the fence's own answer
+       that this window PAID through hr_apply (a shadow window answers
+       `shadowed` and stops here). Each extra window is another whole visit,
+       so it re-reads the clock, the envelope, the version and the mark, and
+       the fence re-judges lease, CAS, 8b and 8c for it under the player lock.
+       It stops at the first window that does not pay — below the flush line,
+       fenced, a refusal, a version a player's own settle just moved — and
+       that window is the next fire's, exactly as without the dial. */
+    if (catchup && v.outcome === 'processed') {
+      catchup.windows += 1;
+      let stop = 'dial';
+      for (let i = 1; i < body.catchupWindows; i++) {
+        if (now() >= deadline) { stop = 'budget'; break; }
+        let w;
+        try {
+          w = await tickOne(exec, holder, sel, body);
+        } catch (e) {
+          w = { outcome: 'refused', reason: 'error:' + String((e && e.message) || e).slice(0, 64) };
+        }
+        if (w.outcome !== 'processed') { stop = String(w.reason || w.outcome); break; }
+        catchup.windows += 1;
+        catchup.extra += 1;
+      }
+      catchup.stops[stop] = (catchup.stops[stop] || 0) + 1;
+    }
   }
 
   /* `probes` is present only on a fire that met a probe boundary, so every
      other fire's summary is byte-identical to before this step existed. */
   const extra = Object.keys(probes).length ? { reasons, probes } : { reasons };
+  if (catchup) extra.catchup = catchup;
   return { status: 200, body: summary(Object.assign({}, counts, extra)) };
 }

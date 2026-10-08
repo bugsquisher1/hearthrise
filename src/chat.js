@@ -643,10 +643,8 @@
         _clanShut = !!(_C && typeof _C.clanLaunched === 'function' && !_C.clanLaunched()); } catch(e){}
       msgsEl.innerHTML = (channel === 'clan' && !clanOf())
         ? (_clanShut
-          ? '<div class="chat-empty">Clan chat opens with clans, in Open Beta 1.'
-            + '<div style="margin-top:10px"><button class="btn btn-sm btn-primary" '
-            + 'onclick="if(window.Chat)window.Chat.close();'
-            + 'if(window.showTab)window.showTab(\'clan\')">See what’s coming</button></div></div>'
+          /* and no button — the Clan tab has no door while the gate is shut. */
+          ? '<div class="chat-empty">Clan chat opens with clans, in Open Beta 1.</div>'
           : '<div class="chat-empty">Join a clan to unlock this channel.'
             + '<div style="margin-top:10px"><button class="btn btn-sm btn-primary" '
             + 'onclick="if(window.Chat)window.Chat.close();'

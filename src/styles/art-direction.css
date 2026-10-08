@@ -2694,3 +2694,17 @@ body[data-hr-desktop-mode] .hr-scrim { top: var(--hr-dm-banner-h, 0px); }
    lives here, not inline, so this can. */
 #hr-net-banner { z-index: 99997; }
 body:has(.modal.show, .stats-modal.show, .hr-scrim) #hr-net-banner { z-index: 1; }
+
+/* ── UNLAUNCHED FEATURES HAVE NO DOOR (the front door) ────────────────────
+   A tab that opens a "coming soon" card is a dead end a new player walks into
+   on their first tour of the nav. Each feature's ONE launch switch
+   (CLAN_LAUNCHED in src/features/clans.js, PARTY_LAUNCHED in
+   src/render/party-panel.js) stamps `data-hr-off-<feature>` on <html> while it
+   is off, and this rule removes every nav door to it — sidebar, bottom nav,
+   the More sheet and any later clone — because they all carry `data-tab`.
+   Flipping the switch removes the attribute; nothing here needs editing. */
+html[data-hr-off-clan] [data-tab="clan"],
+html[data-hr-off-party] [data-tab="party"],
+/* The Premium Shop toggle: native builds only (nav-consolidation.js
+   premiumOpen; its pane never opens on web, so it needs no rule). */
+html[data-hr-off-premium] .shops-tab[data-shops-pane="premium"] { display: none; }

@@ -4175,7 +4175,6 @@ export default [
     const S = window.HearthriseSync;
     const prevCfg = E.getEquipConfig();
     const realFetch = window.fetch;
-    const wasAck = A.isReplacementAcknowledged();
     const wasHeld = S.isSnapshotHeld();
     const savedInv = { ...G.inventory }, savedEq = { ...G.equipment }, savedGold = G.gold;
     const notified = [];
@@ -4184,7 +4183,6 @@ export default [
     const drain = () => new Promise((r) => setTimeout(r, 60));
     const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
-      A.acknowledgeReplacement(true);
       /* The handoff deferral is a REAL branch on this path now (b366): with the
          reconcile unresolved a destructive-looking envelope writes nothing, and
          a live harness may legitimately be holding. Release it so this test
@@ -4263,7 +4261,6 @@ export default [
       window.notify = realNotify;
       E.resetEquip();
       if (prevCfg) E.configureEquip(prevCfg);
-      A.acknowledgeReplacement(wasAck);
       if (wasHeld) S.holdSnapshots(); else S.releaseSnapshots();
       G.inventory = savedInv; G.equipment = savedEq; G.gold = savedGold;
       bagHeld.restore();
@@ -4286,7 +4283,6 @@ export default [
     const prevCfg = E.getEquipConfig();
     const realFetch = window.fetch;
     const realNotify = window.notify;
-    const wasAck = A.isReplacementAcknowledged();
     const wasHeld = S.isSnapshotHeld();
     const savedInv = { ...G.inventory }, savedEq = { ...G.equipment }, savedGold = G.gold;
     let sent = [];
@@ -4301,7 +4297,6 @@ export default [
     const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     try {
       window.__resetEquipAssertion();
-      A.acknowledgeReplacement(true);
       S.releaseSnapshots();
       window.notify = function () {};
       /* b369: the self-heal only runs under the ABSOLUTE envelope, and absolute
@@ -4407,7 +4402,6 @@ export default [
       window.__resetEquipAssertion();
       E.resetEquip();
       if (prevCfg) E.configureEquip(prevCfg);
-      A.acknowledgeReplacement(wasAck);
       if (wasHeld) S.holdSnapshots(); else S.releaseSnapshots();
       G.inventory = savedInv; G.equipment = savedEq; G.gold = savedGold;
       bagHeld.restore();
@@ -4425,14 +4419,12 @@ export default [
     const prevCfg = E.getEquipConfig();
     const realFetch = window.fetch;
     const realNotify = window.notify;
-    const wasAck = A.isReplacementAcknowledged();
     const wasHeld = S.isSnapshotHeld();
     const savedInv = { ...G.inventory }, savedEq = { ...G.equipment }, savedGold = G.gold;
     const savedLoadouts = G.loadouts, bag = serverBagFixture();
     let sent = [];
     const drain = () => new Promise((r) => setTimeout(r, 60));
     try {
-      A.acknowledgeReplacement(true);
       S.releaseSnapshots();
       window.notify = function () {};
       await armEquipFlipForTest(E,
@@ -4481,7 +4473,6 @@ export default [
       window.notify = realNotify;
       E.resetEquip();
       if (prevCfg) E.configureEquip(prevCfg);
-      A.acknowledgeReplacement(wasAck);
       if (wasHeld) S.holdSnapshots(); else S.releaseSnapshots();
       G.inventory = savedInv; G.equipment = savedEq; G.gold = savedGold; G.loadouts = savedLoadouts; bag.restore();
     }
@@ -6669,6 +6660,8 @@ export default [
      periwinkle #5f6fc4 and a retired cyan #7dd3fc), and a theme blanket painted
      --bg-2 slabs behind every product icon. Both are structural. */
   () => tryRun('b371 (F24): the premium store is token-driven and its icons are unslabbed', () => {
+    window.HearthShops.__forcePremium(true);   // the Premium pane is native-only: play a native build
+    try {
     showTab('premium');
     const card = document.querySelector('#iap-panel .iap-card');
     assert(card, 'the premium store rendered no product cards');
@@ -6703,6 +6696,7 @@ export default [
         try { return Array.from(s.cssRules).map((x) => x.cssText).join(''); } catch (e) { return ''; }
       }).join('')),
       'a retired blue literal is still authored in a stylesheet');
+    } finally { window.HearthShops.__forcePremium(null); }
   }),
 
   /* The leaderboard rebuild ships boards with no server source as

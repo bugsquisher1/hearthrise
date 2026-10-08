@@ -1304,16 +1304,25 @@
       '</div>';
   }
 
+  /* Front door: while the clan gate is shut the Clan tab has no door, so
+     the Lone Hunt neither sells a clan Hunt nor offers a button into a
+     coming-soon card. Reads the ONE switch (HearthriseClans.clanLaunched). */
+  function clansOpen() {
+    try { var C = window.HearthriseClans; return !!(C && typeof C.clanLaunched === 'function' && C.clanLaunched()); }
+    catch (e) { return false; }
+  }
+
   /* THE LONE HUNT CHEST CARD (2026-10-10). No bar, no strike, no client count:
      the requirement is the authored threshold, and the only number shown is the
      SERVER's own answer from the last claim (`loneSeen`), labelled as such. */
   function soloCardHtml(st, wk, struckToday, claimed) {
     var boss = bossOfWeek(wk);
+    var clans = clansOpen();
     var L = LONE();
     var need = L ? L.killsNeeded : 0;
     var seen = (loneSeen && loneSeen.week === wk) ? loneSeen : null;
     return '<div class="card-head">' + bossPortraitHtml(boss) + '<div class="card-title">' + esc(boss.glyph + ' Lone Hunt — ' + boss.name) + '</div>' +
-      '<div class="card-sub">Weekly chest (join a clan for the tiered Hunt + a bigger chest)</div></div>' +
+      '<div class="card-sub">' + (clans ? 'Weekly chest (join a clan for the tiered Hunt + a bigger chest)' : 'Weekly chest') + '</div></div>' +
       '<div class="card-body" style="padding:12px 14px">' +
         '<div class="tiny muted" style="margin-bottom:8px">' + esc(boss.desc) +
           ' Slay <b style="color:var(--gold-2)">' + need.toLocaleString() + '</b> monsters this hunt week' +
@@ -1328,8 +1337,8 @@
         /* b225 (#18): the card-sub above says "join a clan for the tiered pool"
            and then left the player to work out where. It has a destination
            now. */
-        '<div style="margin-top:8px"><button class="btn btn-sm btn-ghost" ' +
-          'onclick="if(window.showTab)window.showTab(\'clan\')">Find a clan</button></div>' +
+        (clans ? '<div style="margin-top:8px"><button class="btn btn-sm btn-ghost" ' +
+          'onclick="if(window.showTab)window.showTab(\'clan\')">Find a clan</button></div>' : '') +
       '</div>';
   }
 
@@ -1427,6 +1436,7 @@
     PARTIAL_CAP: PARTIAL_CAP, HUNT_GATE_MS: HUNT_GATE_MS,
     // Test seam: the last server answer the Lone Hunt card renders (2026-10-10).
     _loneSeen: function () { return loneSeen; },
+    _soloCardHtml: function () { var st = ensureState(), wk = weekKey(); return soloCardHtml(st, wk, false, false); },
     CLAN_POOL_HP: CLAN_POOL_HP,
     // Asset pass (b224+) — the six painted boss portraits + the render helper,
     // exposed so the suite can verify the wiring without needing a full DOM/

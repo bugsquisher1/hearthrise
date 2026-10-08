@@ -1742,7 +1742,8 @@
     // described in the realm's words. b560: no rate, yield or gold figure — the
     // engine pays no blessing layer (CONFLICTS.md 2026-09-28).
     var WE = window.HearthriseWorldEvents;
-    if (WE && WE.daily) {
+    /* only while the blessing switch is on (world-events.js shown()). */
+    if (WE && WE.daily && typeof WE.shown === 'function' && WE.shown()) {
       try {
         var wd = WE.daily(), ww = WE.weekly && WE.weekly();
         // b227: read the world-events module's own glyph map when it has one,

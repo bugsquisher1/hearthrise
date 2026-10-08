@@ -47,6 +47,14 @@
 (function () {
   'use strict';
 
+  /* ── THE LAUNCH SWITCH (the front door) ───────────────────────────────
+     Slice 1 is membership only — a party cannot hunt together yet — so a new
+     player who opens the tab finds a roster with nothing to do in it. Until the
+     shared hunt ships, every nav door to Party is hidden (art-direction.css
+     reads the attribute stamped below). Flip this ONE flag to open it. */
+  var PARTY_LAUNCHED = false;
+  try { document.documentElement.toggleAttribute('data-hr-off-party', !PARTY_LAUNCHED); } catch (e) {}
+
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -340,6 +348,7 @@
   }
 
   window.partyPanelHtml = partyPanelHtml;
+  window.partyLaunched = function () { return PARTY_LAUNCHED; };
   window.renderParty = renderParty;
   window.setupPartyPanel = setupPartyPanel;
 

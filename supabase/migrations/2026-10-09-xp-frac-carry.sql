@@ -325,6 +325,25 @@ begin
     exception when check_violation then null;
     end;
 
+    -- (h) THE WRITE IS AN OVERWRITE, NEVER AN ADDITION (Security, 2026-10-08).
+    --     The engine proposes the ABSOLUTE remainder; an additive upsert would
+    --     mint a unit's worth of carry per settle. 0.6 then 0.3 must read 0.3.
+    --     (d) alone cannot see this: it writes onto rows still at 0.
+    select version into v_ver from public.player_state where user_id = v_uid and slot = 0;
+    v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(),
+             '{"xp_frac":{"defense":0.6},"journal":{"kind":"admin","intent":"xp-frac:probe:h1"}}'::jsonb);
+    if coalesce(v_r->>'ok', 'false') <> 'true' then
+      raise exception 'xp-frac self-check (h): the first remainder was refused (%)', v_r; end if;
+    select version into v_ver from public.player_state where user_id = v_uid and slot = 0;
+    v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(),
+             '{"xp_frac":{"defense":0.3},"journal":{"kind":"admin","intent":"xp-frac:probe:h2"}}'::jsonb);
+    if coalesce(v_r->>'ok', 'false') <> 'true' then
+      raise exception 'xp-frac self-check (h): the second remainder was refused (%)', v_r; end if;
+    select xp_frac into v_got from public.player_skills
+     where user_id = v_uid and slot = 0 and skill_id = 'defense';
+    if v_got is distinct from 0.3 then
+      raise exception 'xp-frac self-check (h): 0.6 then 0.3 stored % — the upsert is not an overwrite', v_got; end if;
+
     raise exception using errcode = 'HR946', message = 'xp-frac-carry §4 complete — rolling back';
   exception when sqlstate 'HR946' then null;
   end;
@@ -341,5 +360,5 @@ begin
                'can write it and only hr_apply / hr_state_of name it; (c) a fresh character projects 0; '
                '(d) a remainder round-trips beside XP; (e) an XP-only delta leaves it alone; (f) 1, 900, '
                '-0.1, a string, an array and an unknown skill are refused without moving the row; (g) the '
-               'CHECK bites on its own';
+               'CHECK bites on its own; (h) the upsert overwrites';
 end $mig$;

@@ -2079,6 +2079,7 @@ export function computeAccrual(input) {
        be a second XP formula. */
     addXp(skillId, amt) {
       const before = Number(state.skills[skillId]) || 0;
+      const fracBefore = state.xpFrac ? state.xpFrac[skillId] : undefined;
       const res = grantXp(state, skillId, amt, {
         bonus,
         xpB: eq.xpB || 0,
@@ -2089,6 +2090,13 @@ export function computeAccrual(input) {
          at a tick the live credit already paid (curAtMs < xpEligibleFromMs) still
          happens in the simulation but is not re-proposed here. */
       const applied = (Number(state.skills[skillId]) || 0) - before;
+      /* A grant the live credit already PAID (hr_credit_combat_xp) does not
+         touch the server's remainder: the settle must not write a carry out of
+         fights another channel paid (Security, 2026-10-08). */
+      if (curAtMs < xpEligibleFromMs && state.xpFrac) {
+        if (fracBefore === undefined) delete state.xpFrac[skillId];
+        else state.xpFrac[skillId] = fracBefore;
+      }
       if (curAtMs >= xpEligibleFromMs && applied > 0) {
         eligibleXp[skillId] = (eligibleXp[skillId] || 0) + applied;
         /* Earned past the Vigour line: the part of this skill's delta that is

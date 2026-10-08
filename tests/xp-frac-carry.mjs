@@ -94,6 +94,9 @@ const JS_MUTANTS = [
     edits: [['export const HIT_HP_XP_PER_DAMAGE = 1.33;', 'export const HIT_HP_XP_PER_DAMAGE = 1.15;']] },
   { name: 'hitpoints route floored again', arm: 'X7', file: 'src/core/styles.js',
     edits: [["  out.push({ skill: 'hitpoints', amount: dmg * HIT_HP_XP_PER_DAMAGE });", "  out.push({ skill: 'hitpoints', amount: Math.floor(dmg * HIT_HP_XP_PER_DAMAGE) });"]] },
+  /* Security 2026-10-08 #2: a grant the live credit already paid must not move the remainder. */
+  { name: 'paid grant moves the remainder', arm: 'X8', file: 'supabase/functions/hr-accrue/accrual.js',
+    edits: [['      if (curAtMs < xpEligibleFromMs && state.xpFrac) {\n', '      if (false) {\n']] },
   { name: 'tick chain drops the remainder', arm: 'X3', file: 'supabase/functions/hr-accrue/tick-shadow.js',
     edits: [['    char.xpFrac = Object.assign({}, char.xpFrac, d.xp_frac);\n', '']] },
 ];
@@ -105,6 +108,10 @@ const SQL_MUTANTS = [
   { name: 'frac unclamped (range refusal gone)', expect: /self-check \(f\)/,
     from: "           or (p_delta->'xp_frac'->>k)::numeric < 0 or (p_delta->'xp_frac'->>k)::numeric >= 1 then",
     to: "           or false then" },
+  /* Security 2026-10-08 #1: the upsert must OVERWRITE; an additive one mints. */
+  { name: 'additive upsert (xp_frac accumulates)', expect: /self-check \(h\)/,
+    from: "          do update set xp_frac = excluded.xp_frac;",
+    to: "          do update set xp_frac = least(0.999999, player_skills.xp_frac + excluded.xp_frac);" },
   { name: 'the [0,1) CHECK gone', expect: /self-check \(a\)/,
     from: "      add constraint player_skills_xp_frac_range_ck check (xp_frac >= 0 and xp_frac < 1);",
     to: "      add constraint player_skills_xp_frac_range_ck check (xp_frac >= 0 and xp_frac < 900) not valid;" },
@@ -491,6 +498,23 @@ async function runArms(L) {
     ok('X7', l1 === 1024 && r7 >= 0.70 && r7 <= 0.82,
       `(7) the level-1 Controlled slime hour paid ${l1} XP over 8 seeds (pinned 1,024), new/old ${r7.toFixed(4)} `
       + '(want [0.70, 0.82], accepted: the old max(1, ...) overpaid 1-2 damage hits split three ways)');
+  }
+  // X8 ─ A WINDOW THE LIVE CREDIT ALREADY PAID WRITES NO REMAINDER (Security
+  //      2026-10-08 #2). hr_credit_combat_xp advanced combat_xp_accrued_to to the
+  //      window's end, so every grant in it is another channel's; the settle must
+  //      propose neither XP nor an xp_frac out of those fights.
+  {
+    const SPAN = 3600000;
+    const skills = maxed(L);
+    const paid = L.acc.computeAccrual({ ...combatInput(L, { fromMs: FROM, toMs: FROM + SPAN, skills, xpFrac: F0, perks: RUNG2 }),
+      combatXpAccruedToMs: FROM + SPAN });
+    ok('X8', paid.accrued === true && paid.summary.kills > 0, `the paid window did not run a fight (${paid.reason})`);
+    ok('X8', !('xp_frac' in (paid.delta || {})) && !('xp' in (paid.delta || {})),
+      `a window fully paid by hr_credit_combat_xp proposed xp ${JSON.stringify(paid.delta && paid.delta.xp)} and `
+      + `xp_frac ${JSON.stringify(paid.delta && paid.delta.xp_frac)} — a remainder from fights another channel paid`);
+    const unpaid = L.acc.computeAccrual(combatInput(L, { fromMs: FROM, toMs: FROM + SPAN, skills, xpFrac: F0, perks: RUNG2 }));
+    ok('X8', unpaid.delta && unpaid.delta.xp_frac && Object.keys(unpaid.delta.xp_frac).length > 0,
+      'CONTROL: the same window unpaid proposes no xp_frac, so the arm above proves nothing');
   }
   return fails;
 }

@@ -37,8 +37,27 @@ const partyRig = () => {
                 expires_at: new Date(Date.now() + 11 * 60000).toISOString() }],
     inviteAnswer: { ok: false, error: 'invite_target_unavailable' },
     deadView: null,   // PARTY-8: when set, every roster read answers this instead
+    /* THE PARTY HUNT (stage 2). Absent on a local realm that has not applied
+       2026-10-15-party-hunt-view.sql, so the rig answers the way the staged
+       bodies do: the view's shape, and start/stop's refusals by code. */
+    huntView: null,                 // hr_party_hunt_view's answer; null -> not_in_party
+    startAnswer: { ok: true, hunt_id: 'H1', party_id: 'P1' },
+    stopAnswer: { ok: true, stopped: true, hunt_id: 'H1' },
+    onStart: null,                  // (body) -> void: the realm's side effect of an accepted start
   };
-  const answer = (u) => {
+  const answer = (u, body) => {
+    if (u.indexOf('/rpc/hr_party_hunt_start') !== -1) {
+      if (world.startAnswer.ok && world.onStart) world.onStart(body);
+      return world.startAnswer;
+    }
+    if (u.indexOf('/rpc/hr_party_hunt_stop') !== -1) {
+      if (world.stopAnswer.ok && world.huntView && world.huntView.hunt) {
+        world.huntView = { ...world.huntView, hunt: { ...world.huntView.hunt, live: false,
+          ended_at: new Date().toISOString(), stopped_by: 'leader' } };
+      }
+      return world.stopAnswer;
+    }
+    if (u.indexOf('/rpc/hr_party_hunt_view') !== -1) return world.huntView || { ok: false, error: 'not_in_party' };
     if (u.indexOf('/rpc/hr_party_create') !== -1) {
       world.member = [{ party_id: 'P1', role: 'leader' }];
       world.view = { ok: true, party_id: 'P1', members: [WREN] };
@@ -73,7 +92,7 @@ const partyRig = () => {
     let body = null;
     try { body = (init && init.body) ? JSON.parse(init.body) : null; } catch (e) { body = null; }
     calls.push({ url: u, method, body });
-    const payload = answer(u);
+    const payload = answer(u, body);
     // `{ __http, body }` answers a non-200 the way PostgREST does (PARTY-8).
     if (payload && payload.__http) {
       return Promise.resolve({ ok: false, status: payload.__http, json: () => Promise.resolve(payload.body) });
@@ -3617,8 +3636,8 @@ export default [
       // 1. THE EMPTY STATE, and the one honest line about what slice 1 is not.
       await rig.open();
       assert(/not in a party/i.test(rig.text()), 'the empty state is missing: ' + rig.text().slice(0, 120));
-      assert(/Hunting together arrives in a later build/.test(rig.text()),
-        'the panel must say that hunting together is not here yet');
+      assert(/Form a party to hunt together/.test(rig.text()),
+        'out of a party the panel must say a party is how you hunt together');
       // An invitation the player has received is offered where they can act on it.
       assert(rig.el('[data-party-act="accept"]'), 'the received invite has no Accept control');
       assert(/expires in 11 min/.test(rig.text()), 'the invite must print the SERVER\'s expiry: ' + rig.text());
@@ -3819,8 +3838,12 @@ export default [
     cases.forEach(([v, re]) => {
       const html = H(v, { nowMs: 0 });
       assert(re.test(html), 'state did not render ' + re + ': ' + html.slice(0, 120));
-      assert(/Hunting together arrives in a later build/.test(html),
-        'the slice-1 honesty line was dropped from a state — it is never optional');
+      /* Every state says how hunting together is reached: out of a party, one
+         line; in one, the hunt card (closed until a view read says open). */
+      assert(v.partyId ? /class="party-hunt/.test(html) && /Party hunting isn(&#39;|')t open yet/.test(html)
+                       : /Form a party to hunt together/.test(html),
+        'a state dropped its line about hunting together: ' + html.slice(0, 200));
+      assert(!/later build/.test(html), 'the retired "later build" line is back');
     });
   }),
 
@@ -3913,5 +3936,297 @@ export default [
     } finally {
       rig.restore();
     }
+  }),
+  // ══════════════════════════════════════════════════════════════════
+  // M8 STAGE 2 — THE PARTY HUNT (player actions). The Game Designer's spec,
+  // docs/planning/SEC_GATHER_ARM_RUNBOOK_2026-10-06.md "Party hunt as the
+  // player sees it". Every number asserted below is one the stubbed realm
+  // sent and the client could not derive (kills 731, xp 4417, gold 2903 ...).
+  // ══════════════════════════════════════════════════════════════════
+
+  /* PARTY-H1 — START, THROUGH THE REAL SCREEN. The leader picks the solo
+     picker's monster and the solo stance, presses Start hunt, and the live card
+     that appears is the RE-READ's — the start's own answer is never painted. */
+  () => tryRunAsync('M8 PARTY-H1: the leader starts a hunt (monster + stance), and the live card is the view\'s re-read', async () => {
+    const P = window.HearthriseParty;
+    assert(P && typeof P.startHunt === 'function', 'HearthriseParty.startHunt missing');
+    const MP = window.HearthriseMonsterPick;
+    assert(MP && MP.inReach(1).length, 'the solo picker\'s list is not published (HearthriseMonsterPick)');
+    const rig = partyRig();
+    try {
+      rig.joinAs('leader');
+      rig.world.huntView = { ok: true, channel_open: true, hunt: null, members: [], events: [] };
+      await rig.open(); await drain();
+      const start = rig.el('[data-party-act="hunt-start"]');
+      assert(start && !start.disabled, 'the leader has no enabled Start hunt: ' + rig.text().slice(0, 240));
+      assert(!/later build/.test(rig.text()), 'the retired "later build" line is still drawn');
+      assert(rig.el('.hunt-stance-btn[data-stance="reckless"]'), 'the solo stance picker is not offered');
+      const sel = rig.el('#party-hunt-monster');
+      assert(sel && sel.options.length >= 1, 'the solo monster list is not offered');
+      const mon = sel.options[sel.options.length - 1].value;
+      sel.value = mon; sel.dispatchEvent(new Event('change', { bubbles: true }));
+      rig.el('.hunt-stance-btn[data-stance="reckless"]').click();
+      assert(/is-on" data-stance="reckless"/.test(rig.el('.party-h-stances').innerHTML), 'the chosen stance is not shown as chosen');
+      const started = new Date(Date.now() - 65 * 60000).toISOString();
+      rig.world.onStart = () => {
+        rig.world.huntView = { ok: true, channel_open: true,
+          hunt: { active_id: mon, stance: 'reckless', stop: {}, started_at: started, kills: 731, live: true, ended_at: null, stopped_by: null },
+          members: [{ name: 'Wren', me: true, state: 'hunting', camped_at: null, hp: 38, hp_max: 61, share_bp: 5000, xp: 4417, gold: 2903, kills: 400 }],
+          events: [] };
+      };
+      // The START's own answer carries a hunt id and no numbers; if the card
+      // showed kills before the re-read it would have had to invent them.
+      rig.el('[data-party-act="hunt-start"]').click();
+      await drain(); await drain();
+      const s = rig.rpcs('hr_party_hunt_start');
+      assert(s.length === 1, 'Start fired ' + s.length + ' times');
+      const b = s[0].body;
+      assert(b.p_active_id === mon && b.p_stance === 'reckless', 'Start sent ' + JSON.stringify(b) + ' — not the picked monster and stance');
+      assert(JSON.stringify(b.p_stop) === '{}' && /^[0-9a-f-]{36}$/i.test(String(b.p_idem)) && b.p_slot === 0,
+        'Start must send the solo default stop {}, the slot and a uuid idem: ' + JSON.stringify(b));
+      assert(rig.rpcs('hr_party_hunt_view').length >= 2, 'the start was not reconciled through a view re-read');
+      const t = rig.text();
+      assert(/Hunting .+ · Reckless · 1:05 so far · 731 kills/.test(t), 'the live header is not the view\'s: ' + t.slice(0, 300));
+      assert(/\+4,417 XP · \+2,903g this hunt/.test(t) && /50%/.test(t), 'the member row is not the view\'s numbers: ' + t.slice(0, 300));
+      assert(rig.el('[data-party-act="hunt-stop-ask"]'), 'the leader has no Stop hunt');
+      assert(!/Rejoin/.test(t), 'there is NO Rejoin button (ruling B3)');
+    } finally {
+      rig.restore();
+    }
+  }),
+
+  /* PARTY-H2 — EVERY STATE, EVERY WORD (§2, §4, §6). Pure renders of the card. */
+  () => tryRun('M8 PARTY-H2: the live view draws each member state and the event strip in the spec\'s words', () => {
+    const H = window.partyPanelHtml;
+    const now = Date.parse('2026-10-08T12:00:00Z');
+    const iso = (minsAgo) => new Date(now - minsAgo * 60000).toISOString();
+    const party = { known: true, partyId: 'P1', role: 'member', invites: [],
+      members: [{ name: 'Ash', combat_level: 30, hp: 1, hp_max: 1 }] };
+    const view = { ok: true, channel_open: true,
+      hunt: { active_id: 'no_such_mon', stance: 'steady', started_at: iso(0), kills: 12, live: true },
+      members: [
+        { name: 'Ash',  me: false, state: 'hunting',       hp: 30, hp_max: 40, share_bp: 6667, xp: 70, gold: 11, kills: 8 },
+        { name: 'Bram', me: true,  state: 'camping_today', camped_at: iso(42), hp: 9, hp_max: 50, share_bp: 0, xp: 5, gold: 2, kills: 1 },
+        { name: 'Cora', me: false, state: 'rejoining',     camped_at: iso(3),  hp: 20, hp_max: 20, share_bp: 0, xp: 6, gold: 3, kills: 2 },
+        { name: 'Dax',  me: false, state: 'camping',       camped_at: iso(125), hp: 4, hp_max: 4, share_bp: 0, xp: 7, gold: 4, kills: 1 },
+      ],
+      events: [
+        { kind: 'rejoin', name: 'Cora', at: iso(0.2) }, { kind: 'drop', name: 'Dax', at: iso(125) },
+        { kind: 'stop', reason: 'stale_hunt', name: 'X', at: iso(1) }, { kind: 'stop', reason: 'stale_hunt', name: 'Y', at: iso(1) },
+      ] };
+    const html = H(party, { nowMs: now, hunt: { view } });
+    const tx = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+    assert(/Hunting no_such_mon · Steady · 0:00 so far · 12 kills/.test(tx), 'header: ' + tx.slice(0, 200));
+    assert(!/>Hunting<\/span>/.test(html), 'Hunting is the default and draws NO tag');
+    assert(/Camping for today/.test(tx) && /You've made camp 3 times today\. You can rejoin tomorrow, or hunt solo\./.test(tx),
+      'camping_today must carry its tag and, on my row, the clamp line');
+    assert(/Rejoining/.test(tx) && /Camping\b/.test(tx), 'Rejoining / Camping tags missing');
+    assert(/made camp 42 min ago/.test(tx) && /made camp 2 h ago/.test(tx), 'made camp {ago} missing');
+    assert(/66\.67%/.test(tx), 'a hunting member\'s split is share_bp as a percent');
+    assert((tx.match(/—/g) || []).length >= 3, 'a camping or rejoining member\'s split is "—"');
+    assert(/Cora rejoined the hunt\./.test(tx) && /Dax made camp\./.test(tx), 'event strip wording');
+    assert((tx.match(/The hunt ended after going quiet\./g) || []).length === 1, 'a run of identical stop rows is ONE line');
+    assert(/just now/.test(tx), 'an event under a minute old reads "just now"');
+    assert(/Waiting for the leader to start a hunt\./.test(H(party, { nowMs: now,
+      hunt: { view: { ok: true, channel_open: true, hunt: null, members: [], events: [] } } })), 'a member\'s idle line');
+    const closed = H({ ...party, role: 'leader' }, { nowMs: now, hunt: { view: { ok: true, channel_open: false, hunt: null, members: [], events: [] } } });
+    assert(/Party hunting isn(&#39;|')t open yet\. It switches on during the beta\./.test(closed) && !/hunt-start/.test(closed),
+      'a closed channel rests on its sentence with Start HIDDEN');
+    const unread = H({ ...party, role: 'leader' }, { nowMs: now, hunt: null });
+    assert(!/hunt-start/.test(unread), 'before any view read, Start is hidden (fail-safe "not open")');
+    [['leader', 'The leader ended the hunt.'],
+     ['too_few_hunters', 'The hunt ended: everyone else made camp or left. You\'re back to solo.'],
+     ['not_in_cohort', 'The hunt ended: party hunting was paused on the server. Nothing was lost.'],
+     ['gate', 'The hunt ended: party hunting was paused on the server. Nothing was lost.'],
+     ['stale_hunt', 'The hunt ended after going quiet.']].forEach(([by, line]) => {
+      const e = H(party, { nowMs: now, hunt: { view: { ok: true, channel_open: true, members: [], events: [],
+        hunt: { active_id: 'x', live: false, ended_at: iso(5), stopped_by: by } } } }).replace(/&#39;/g, "'");
+      assert(e.indexOf(line) !== -1, 'stopped_by ' + by + ' must read "' + line + '"');
+    });
+  }),
+
+  /* PARTY-H3 — STOP (leader, two steps) and LEAVE (anyone) during a hunt. */
+  () => tryRunAsync('M8 PARTY-H3: Stop is two steps and re-reads; Leave says what it costs mid-hunt', async () => {
+    const rig = partyRig();
+    const live = () => ({ ok: true, channel_open: true,
+      hunt: { active_id: 'x', stance: 'steady', started_at: new Date().toISOString(), kills: 3, live: true },
+      members: [{ name: 'Wren', me: true, state: 'hunting', hp: 1, hp_max: 1, share_bp: 10000, xp: 1, gold: 1, kills: 3 }], events: [] });
+    try {
+      rig.joinAs('leader');
+      rig.world.huntView = live();
+      await rig.open(); await drain();
+      rig.el('[data-party-act="hunt-stop-ask"]').click();
+      assert(/Stop the hunt for everyone\? Everyone keeps what's earned\./.test(rig.text()), 'the stop confirm sentence');
+      assert(rig.el('[data-party-act="hunt-stop-no"]').textContent === 'Keep hunting', 'the cancel reads Keep hunting');
+      assert(rig.rpcs('hr_party_hunt_stop').length === 0, 'asking must not already have stopped');
+      rig.el('[data-party-act="hunt-stop-yes"]').click();
+      await drain(); await drain();
+      const st = rig.rpcs('hr_party_hunt_stop');
+      assert(st.length === 1 && Object.keys(st[0].body).sort().join(',') === 'p_idem,p_slot', 'Stop must send slot + idem only: ' + JSON.stringify(st[0] && st[0].body));
+      assert(/The leader ended the hunt\./.test(rig.text()), 'after Stop the card is the re-read\'s ended state: ' + rig.text().slice(0, 240));
+      // no_party_hunt refreshes SILENTLY.
+      rig.world.huntView = live(); await window.HearthriseParty.refreshHunt('t'); await drain();
+      rig.world.stopAnswer = { ok: false, error: 'no_party_hunt' };
+      await window.HearthriseParty.stopHunt(); await drain();
+      assert(!rig.el('.party-h-notice'), 'no_party_hunt must refresh silently, not print a refusal');
+      // A MEMBER gets no Stop, and Leave says what leaving mid-hunt costs.
+      rig.world.stopAnswer = { ok: true, stopped: true };
+      rig.joinAs('member'); rig.world.huntView = live();
+      await window.HearthriseParty.refresh('t'); await window.HearthriseParty.refreshHunt('t'); await drain();
+      assert(!rig.el('[data-party-act^="hunt-stop"]'), 'a member was offered Stop');
+      rig.el('[data-party-act="leave-ask"]').click();
+      assert(/You'll stop earning from this hunt; the others keep going\./.test(rig.text()), 'the mid-hunt leave line');
+    } finally {
+      rig.restore();
+    }
+  }),
+
+  /* PARTY-H4 — EVERY START REFUSAL, INLINE, IN THE SPEC'S WORDS (§1). */
+  () => tryRunAsync('M8 PARTY-H4: every start refusal prints the spec\'s sentence under the button, and recovering counts down', async () => {
+    const P = window.HearthriseParty;
+    const S = (c, d) => P.huntRefusalSentence(c, d);
+    const want = {
+      party_too_small: 'You need at least 2 in the party to hunt together. Invite someone.',
+      party_full: 'Too many in the party. Hunts take up to 4.',
+      party_hunt_running: 'Your party is already hunting.',
+      not_party_leader: 'Only the party leader can start a hunt.',
+      hunt_channel_disarmed: 'Party hunting isn\'t open yet. It switches on during the beta.',
+      hunt_not_in_cohort: 'Party hunting isn\'t open yet. It switches on during the beta.',
+      unknown_activity: 'Couldn\'t start the hunt. Refresh and try again.',
+      bad_stance: 'Couldn\'t start the hunt. Refresh and try again.',
+      bad_stop: 'Couldn\'t start the hunt. Refresh and try again.',
+      bad_slot: 'Couldn\'t start the hunt. Refresh and try again.',
+      intent_mismatch: 'Couldn\'t start the hunt. Refresh and try again.',
+      not_in_party: 'Couldn\'t start the hunt. Refresh and try again.',
+      party_settle_churn: 'Lots of party changes today. Hunts may settle a little later.',
+    };
+    Object.keys(want).forEach((c) => assert(S(c, {}) === want[c], c + ' reads "' + S(c, {}) + '"'));
+    assert(S('party_level_spread', { low: 12, high: 31, max: 10 }) === 'Levels are too far apart (12–31). Hunts allow a gap of 10.',
+      'party_level_spread fills the server\'s low/high/max: ' + S('party_level_spread', { low: 12, high: 31, max: 10 }));
+    assert(S('party_member_recovering', { member: 'Ilse', remaining_ms: 125000 }) === 'Ilse is still recovering. Ready in 2:05.',
+      'party_member_recovering: ' + S('party_member_recovering', { member: 'Ilse', remaining_ms: 125000 }));
+
+    // Through the screen: the three the brief names, inline and never a toast.
+    const rig = partyRig();
+    try {
+      rig.joinAs('leader');
+      rig.world.huntView = { ok: true, channel_open: true, hunt: null, members: [], events: [] };
+      await rig.open(); await drain();
+      for (const [code, detail, line] of [
+        ['party_too_small', { members: 1, min: 2 }, want.party_too_small],
+        ['hunt_channel_disarmed', null, want.hunt_channel_disarmed],
+        ['party_member_recovering', { member: 'Ilse', remaining_ms: 90000 }, 'Ilse is still recovering. Ready in 1:30.'],
+      ]) {
+        rig.world.startAnswer = detail ? { ok: false, error: code, detail } : { ok: false, error: code };
+        const btn = rig.el('[data-party-act="hunt-start"]');
+        assert(btn && !btn.disabled, code + ': Start is not available to press');
+        btn.click(); await drain(); await drain();
+        const n = rig.el('.party-hunt .party-h-notice');
+        assert(n && n.textContent.indexOf(line) !== -1, code + ' did not print "' + line + '" under the button: ' + (n ? n.textContent : rig.text().slice(0, 240)));
+      }
+      assert(rig.el('[data-party-act="hunt-start"]').disabled, 'Start must stay disabled while a member recovers');
+      // At 0 it re-enables with no retry loop.
+      const starts = rig.rpcs('hr_party_hunt_start').length;
+      P.getHunt().waitUntilMs = Date.now() - 1;
+      window.renderParty();
+      assert(!rig.el('[data-party-act="hunt-start"]').disabled, 'Start did not re-enable at 0');
+      assert(!rig.el('.party-h-notice'), 'the countdown sentence outlived 0');
+      assert(rig.rpcs('hr_party_hunt_start').length === starts, 'the countdown retried the start by itself');
+    } finally {
+      rig.restore();
+    }
+  }),
+
+  /* PARTY-H5 — THE CADENCE (A3): 10 s while live, 60 s idle, NOTHING when
+     closed, and the view's own bucket. Measured on the recorded requests. */
+  () => tryRunAsync('M8 PARTY-H5: the hunt view polls at 10 s live / 60 s idle while visible, and never while closed', async () => {
+    const P = window.HearthriseParty;
+    assert(P.HUNT_LIVE_MS === 10000 && P.HUNT_IDLE_MS === 60000, 'cadence is ' + P.HUNT_LIVE_MS + '/' + P.HUNT_IDLE_MS);
+    const rig = partyRig();
+    try {
+      rig.joinAs('member');
+      rig.world.huntView = { ok: true, channel_open: true, hunt: null, members: [], events: [] };
+      await rig.open(); await drain();
+      const v = () => rig.rpcs('hr_party_hunt_view').length;
+      assert(v() === 1, 'opening read the hunt view ' + v() + ' times');
+      rig.rpcs('hr_party_hunt_view').forEach((c) => assert(c.method === 'POST' && Object.keys(c.body).join(',') === 'p_slot', 'the view read must POST {p_slot}'));
+      for (let i = 0; i < 5; i++) { P.pollHuntNow(); await drain(); }
+      assert(v() === 1, 'idle polls inside 60 s spent ' + (v() - 1) + ' reads');
+      const realNow = Date.now;
+      try {
+        let t = realNow();
+        Date.now = () => t;
+        t += 60001; P.pollHuntNow(); await drain();
+        assert(v() === 2, 'an idle panel did not re-read after 60 s');
+        rig.world.huntView = { ok: true, channel_open: true, members: [], events: [],
+          hunt: { active_id: 'x', stance: 'steady', started_at: new Date(t).toISOString(), kills: 0, live: true } };
+        t += 60001; P.pollHuntNow(); await drain();
+        assert(v() === 3 && P.getHunt().view.hunt.live, 'the live view did not land');
+        t += 9000; P.pollHuntNow(); await drain();
+        assert(v() === 3, 'a live hunt re-read before 10 s');
+        t += 1001; P.pollHuntNow(); await drain();
+        assert(v() === 4, 'a live hunt did not re-read at 10 s');
+        P.setVisible(false);
+        t += 120000; P.pollHuntNow(); await drain();
+        assert(v() === 4, 'a CLOSED panel read the hunt view');
+      } finally { Date.now = realNow; }
+    } finally {
+      rig.restore();
+    }
+  }),
+
+  /* PARTY-H6 — regression suite — THE CARD NEVER RENDERS A NUMBER THE VIEW DID
+     NOT SEND (CLAUDE.md §6). Every digit run in the hunt card's text must be a
+     view value (grouped), share_bp as a percent, or the copy's own "3"/"2"/"4";
+     the elapsed clock is the one wall clock and is pinned to 0:00 here.
+     MUTATION: render kills as `hunt.kills + members.length` -> RED. */
+  () => tryRun('M8 PARTY-H6: the hunt card prints no number that did not come off the view', () => {
+    const now = Date.parse('2026-10-08T12:00:00Z');
+    const view = { ok: true, channel_open: true,
+      hunt: { active_id: 'x', stance: 'careful', started_at: new Date(now).toISOString(), kills: 98317, live: true },
+      members: [
+        { name: 'Ash', me: true, state: 'hunting', hp: 613, hp_max: 977, share_bp: 7213, xp: 51239, gold: 8861, kills: 7001 },
+        { name: 'Bo', me: false, state: 'rejoining', camped_at: new Date(now).toISOString(), hp: 59, hp_max: 433, share_bp: 0, xp: 4127, gold: 2287, kills: 97 },
+      ],
+      events: [{ kind: 'drop', name: 'Bo', at: new Date(now).toISOString() }] };
+    const html = window.partyPanelHtml({ known: true, partyId: 'P1', role: 'leader', invites: [],
+      members: [{ name: 'Ash', combat_level: 1, hp: 1, hp_max: 1 }, { name: 'Bo', combat_level: 1, hp: 1, hp_max: 1 }] },
+      { nowMs: now, hunt: { view } });
+    const card = (html.match(/<section class="party-hunt[\s\S]*?<\/section>/) || [''])[0];
+    assert(card, 'no hunt card rendered');
+    const text = card.replace(/<[^>]+>/g, ' ').replace(/&#39;/g, "'");
+    const allowed = new Set(['0:00', '72.13%', '0']);
+    const add = (n) => { allowed.add(String(n)); allowed.add(Number(n).toLocaleString('en-US')); };
+    add(view.hunt.kills);
+    view.members.forEach((m) => [m.hp, m.hp_max, m.xp, m.gold].forEach(add));
+    const tokens = text.match(/\d[\d,.:]*%?/g) || [];
+    const stray = tokens.filter((t) => !allowed.has(t.replace(/[.,]$/, '')));
+    assert(!stray.length, 'the card printed number(s) the view never sent: ' + stray.join(', ') + ' in: ' + text.replace(/\s+/g, ' ').slice(0, 300));
+    assert(tokens.indexOf('98,317') !== -1 && tokens.indexOf('51,239') !== -1, 'the view\'s own numbers are missing — the arm is vacuous');
+  }),
+
+  /* PARTY-H7 — THE RETURN RECEIPT'S PARTY LINE (§5), every case, from the view. */
+  () => tryRun('M8 PARTY-H7: the away receipt gains the one party line, in the spec\'s words', () => {
+    const L = window.partyReceiptLine;
+    assert(typeof L === 'function', 'partyReceiptLine is not published');
+    const now = Date.parse('2026-10-08T12:00:00Z');
+    const off = { at: now, awayMs: 8 * 3600000 };
+    const iso = (minsAgo) => new Date(now - minsAgo * 60000).toISOString();
+    const v = (hunt, me, events) => ({ ok: true, channel_open: true, hunt, events: events || [],
+      members: [{ name: 'Ash', me: false, state: 'hunting' }, Object.assign({ name: 'Bo', me: true }, me)] });
+    const live = { active_id: 'no_such_mon', live: true, started_at: iso(600), kills: 50 };
+    assert(L(v(live, { state: 'hunting', xp: 1234, gold: 56, kills: 78 }), off, now)
+      === 'Party hunt: +1,234 XP · +56g · 78 kills this hunt.', 'never dropped (hunt began before I left)');
+    assert(L(v({ ...live, started_at: iso(60) }, { state: 'hunting', xp: 1, gold: 2, kills: 3 }), off, now)
+      === 'Party hunt: +1 XP · +2g · 3 kills while you were away.', 'never dropped (hunt began while I was away)');
+    assert(L(v(live, { state: 'rejoining', camped_at: iso(90) }), off, now)
+      === 'You made camp 1 h ago after your offline limit. The party kept hunting no_such_mon. You\'re back in the hunt.', 'dropped and rejoined');
+    assert(L(v(live, { state: 'camping_today', camped_at: iso(90) }), off, now)
+      === 'You made camp. The party is still hunting; you can rejoin tomorrow.', 'clamped');
+    assert(L(v({ active_id: 'x', live: false, ended_at: iso(30), stopped_by: 'too_few_hunters' }, { state: 'ended', xp: 900, gold: 40 }), off, now)
+      === 'The hunt ended 30 min ago: everyone else made camp or left. You earned +900 XP · +40g with the party before it ended.', 'ended while away');
+    assert(L(v({ active_id: 'x', live: false, ended_at: iso(9 * 60), stopped_by: 'leader' }, { state: 'ended' }), off, now) === '',
+      'a hunt that ended BEFORE I left is not this absence\'s news');
+    assert(L({ ok: false, error: 'not_in_party' }, off, now) === '' && L(null, off, now) === '', 'no party, no line');
   }),
 ];

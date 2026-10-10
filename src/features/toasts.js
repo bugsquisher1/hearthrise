@@ -110,7 +110,7 @@
   // the corner when the last one closes. Toggled scrims stay in the DOM, so
   // they count only with .open/.show. A match must also render and take input:
   // a closed .inv-detail scrim stays laid out at opacity 0, pointer-events none.
-  var SHEET_SEL = '.modal.show, .stats-modal.show, .hr-scrim:is(.open, .show), .hr-scrim:not(.welcome-overlay, '
+  var SHEET_SEL = '.modal.show, .hr-scrim:is(.open, .show), .hr-scrim:not(.welcome-overlay, '
     + '.char-select-overlay, .dgn-run-overlay, .scv-overlay, .mob-preview-overlay, .acq-overlay, .ach-overlay, '
     + '[hidden], [style*="display: none"])';
   function sheetOpen() {

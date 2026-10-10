@@ -6,9 +6,9 @@
 // for the playbook every extraction follows.
 //
 // WHAT THIS IS: the two presentation surfaces of the Deeds of the Realm — the
-// "Achievement unlocked!" toast (showAchToast) and the Achievements sheet
-// (openAchievements) — plus the one resolver for their art
-// (achievementGlyphHTML), so the list and the toast can never disagree.
+// "Achievement unlocked!" toast (showAchToast) and the deeds list the Journal's
+// Deeds tab paints (HearthriseDeedsList.html) — plus the one resolver for their
+// art (achievementGlyphHTML), so the list and the toast can never disagree.
 //
 // NOTHING HERE OWNS A NUMBER (CLAUDE.md §6). The catalogue and every grade come
 // from window.HearthriseDeeds (src/features/deeds.js), which reads the realm's
@@ -20,10 +20,7 @@
 // .ach-* selectors in src/styles/*.css own the look.
 //
 // Globals are read via window.* at call time, so this classic script may load in
-// any order after legacy.js. BOTH functions are re-exported onto window:
-// showAchToast because the deeds watcher opens it on a crossing, and
-// openAchievements because the inline onclick="openAchievements()" handlers
-// (the profile button row and the toolbar) invoke it from template strings.
+// any order after legacy.js.
 // ============================================================
 (function () {
   'use strict';
@@ -47,20 +44,12 @@
   }
   window.showAchToast = showAchToast;
 
-  function openAchievements() {
+  /* The deeds, grouped under DEED_GROUPS headings in catalogue order. */
+  function listHtml() {
     var D = window.HearthriseDeeds;
-
-    var ov = document.getElementById('ach-overlay');
-    if (!ov) {
-      ov = document.createElement('div'); ov.id = 'ach-overlay'; ov.className = 'ach-overlay hr-scrim';
-      ov.innerHTML = '<div class="ach-modal hr-sheet" onclick="event.stopPropagation()"><h2 class="hr-sheet-head">Achievements</h2><div id="ach-list" class="ach-list hr-sheet-body"></div><button class="btn hr-sheet-foot" data-hr-dismiss onclick="document.getElementById(\'ach-overlay\').classList.remove(\'show\')" style="margin-top:12px;width:100%">Close</button></div>';
-      ov.addEventListener('click', function (e) { if (e.target === ov) ov.classList.remove('show'); });
-      document.body.appendChild(ov);
-    }
-    var list = document.getElementById('ach-list');
-    if (!D) { list.innerHTML = ''; ov.classList.add('show'); list.scrollTop = 0; return; }
+    if (!D) return '';
     var readers = D.readers();
-    list.innerHTML = D.groups.map(function (g) {
+    return '<div class="ach-list">' + D.groups.map(function (g) {
       var rows = D.rows.filter(function (a) { return a.group === g[0]; });
       return '<h4 class="muted">' + g[1] + '</h4>' + rows.map(function (a) {
         var p = D.progressOf(a, readers);
@@ -70,12 +59,9 @@
           '<div class="ach-progress">' + p.html + '</div>' +
         '</div>';
       }).join('');
-    }).join('');
-    ov.classList.add('show');
-    // The sheet is reused: every open starts at the top, never where the last one left off.
-    list.scrollTop = 0;
+    }).join('') + '</div>';
   }
-  window.openAchievements = openAchievements;
+  window.HearthriseDeedsList = { html: listHtml };
 
   console.log('Achievements panel: loaded');
 })();

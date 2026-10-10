@@ -742,32 +742,7 @@ function wireDragonEggHatch() {
   };
 }
 
-// ── UI: Stable panel, profile card, sidebar nav ──
-
-function injectNavButton() {
-  const sidebar = document.querySelector('.sidebar') || document.querySelector('aside');
-  if (!sidebar || document.querySelector('[data-tab="stable"]')) return;
-  // b269: the Stable belongs under Homestead (Tyler) — pets are a homestead
-  // fixture, not an adventuring activity. Final placement (incl. timing retries)
-  // is owned by legacy.js moveStableNav(); this just creates the button under
-  // Homestead when the label is present.
-  const labels = sidebar.querySelectorAll('.nav-group-label');
-  let groupLabel = null;
-  labels.forEach((l) => { if (l.textContent.trim() === 'Homestead') groupLabel = l; });
-  const btn = document.createElement('button');
-  btn.className = 'nav-btn';
-  btn.dataset.tab = 'stable';
-  btn.innerHTML = '<span class="ic">' + ((window.HR && window.HR.icon) ? (window.HR.icon('navStable', 19, 'currentColor') || '') : '') + '</span><span class="lbl">Stable</span>';
-  btn.addEventListener('click', () => window.showTab && window.showTab('stable'));
-  if (groupLabel) {
-    let next = groupLabel.nextElementSibling;
-    while (next && !next.classList.contains('nav-group-label')) next = next.nextElementSibling;
-    if (next) sidebar.insertBefore(btn, next);
-    else sidebar.appendChild(btn);
-  } else {
-    sidebar.appendChild(btn);
-  }
-}
+// ── UI: Stable panel and profile card (the door is Homestead, src/nav-consolidation.js) ──
 
 function injectPanel() {
   if (document.getElementById('panel-stable')) return;
@@ -939,7 +914,6 @@ export function setupCompanions() {
 
   // Boot UI
   function boot() {
-    injectNavButton();
     injectPanel();
     ensureState();
   }

@@ -880,7 +880,7 @@ function destinations() {
     });
   }
 
-  // ── Clan raid ──────────────────────────────────────────────────────────
+  // ── The Clan Hunt ──────────────────────────────────────────────────────
   const R = window.HearthriseRaids;
   if (R) {
     let boss = null;
@@ -900,10 +900,10 @@ function destinations() {
       return !!(CL && typeof CL.clanLaunched === 'function' && !CL.clanLaunched());
     }());
     out.push({
-      kick: 'Clan Raid', glyph: 'uiShield',
-      name: (boss && (boss.name || boss.n)) || 'Weekly Hunt',
+      kick: 'Clan Hunt', glyph: 'uiShield',
+      name: (boss && (boss.name || boss.n)) || 'Clan Hunt',
       meta: clanShut ? 'a weekly boss no one downs alone' : 'strike with your clan',
-      verb: 'Join ▸', go: 'tab', tab: 'clan',
+      verb: 'Join ▸', go: 'tab', tab: 'events',
       locked: clanShut ? SIGNPOSTS.labels['war.clanClosed'] : null,
     });
   }

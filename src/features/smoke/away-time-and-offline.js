@@ -420,18 +420,17 @@ export default [
          count, and any streak on a stats screen is read against the topbar
          flame. The sheet shows only the realm's lifetime counts, so it names
          no streak at all. */
-      assert(typeof window.openLifetimeStats === 'function',
-        'openLifetimeStats must be on window (it is the only door to the Lifetime Stats copy)');
-      window.openLifetimeStats();
-      const ls = document.getElementById('lifetime-stats');
-      assert(!!ls, 'the Lifetime Stats modal must build');
+      assert(window.HearthriseJournal, 'the Journal must be published (it holds the lifetime stats)');
+      window.HearthriseJournal.open('stats');
+      const ls = document.querySelector('#panel-journal .jr-stats');
+      assert(!!ls, 'the Journal\'s Stats tab must build');
       const lsText = ls.textContent || '';
       assert(/Monsters slain/.test(lsText),
         'CONTROL: Lifetime Stats must actually be rendering its Monsters slain row');
       assert(!/streak/i.test(lsText),
         'Lifetime Stats names a streak — it shows the realm\'s lifetime counts only, and a streak '
         + 'there is read against the topbar flame, which counts something else.');
-      ls.classList.remove('show');
+      window.showTab('profile');
     } finally {
       const el = document.getElementById('hr-dl-modal'); if (el) el.remove();
       const ov = document.getElementById('welcome-overlay'); if (ov) ov.classList.remove('show');

@@ -60,7 +60,6 @@ export function closeOverlays() {
   const t = (fn) => { try { fn(); } catch (e) {} };
   t(() => window.closeAllModals && window.closeAllModals());
   t(() => window.closeQuestsModal && window.closeQuestsModal());
-  t(() => window.HearthriseChronicle && window.HearthriseChronicle.close());
   t(() => window.HearthriseDeathSheet && window.HearthriseDeathSheet.close());
   t(() => window.HearthriseAccrual && window.HearthriseAccrual.hideReplacementSheet
     && window.HearthriseAccrual.hideReplacementSheet());
@@ -147,7 +146,7 @@ export function overlayResidue() {
        leaves #hr-death-scrim in the DOM at display:none, still carrying
        role=dialog. A node that paints nothing covers nothing, and counting it
        would make the correct teardown look like a dirty one. */
-    document.querySelectorAll('.modal.show,.modal.open,.ach-overlay.show,.stats-modal.show,'
+    document.querySelectorAll('.modal.show,.modal.open,.ach-overlay.show,'
       + '#quests-modal-overlay,dialog[open],[role=dialog]:not([hidden])')
       .forEach((e) => {
         const cs = getComputedStyle(e);
@@ -461,7 +460,7 @@ export function bountyRig(opts) {
       const chip = document.querySelector('#ab-meta .ab-bounty b');
       out.chip = add(chip && chip.textContent);
       window.updateTopbar(); await new Promise((r) => setTimeout(r, 0));
-      out.badge = !!document.querySelector('.nav-btn[data-tab=bounty] .nav-badge:not(.hide)');
+      out.badge = !!(window.HearthriseNav && window.HearthriseNav.badgeOf('bounty'));
       return out;
     },
     /* A RELOAD'S IDLE BOOT (retreatReload's shape): a fresh G holding only this

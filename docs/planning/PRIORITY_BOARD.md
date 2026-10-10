@@ -22,6 +22,161 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 | Last five merges | 59a05973 merge: lane/b564-local-ci-reds (seed-label session pinned UTC; raid-card reads after the icon sweep) into set/b564<br>edca6c1f merge: sec/gather-arm-s2 (arm file P3b/P3c, APPLIED 18:36 UTC; world-tick-arm-gather guard) into set/b564<br>c894abf3 Merge remote-tracking branch 'origin/next' into sec/gather-arm-s2<br>6cca7fc0 merge: lane/b564-guard-upto (bank-cap-rungs + bh-clamp mutants bite again; meta-guard refuses bare upTo) into set/b564<br>23810f16 merge: lane/b564-hollow-mutants (goal-counters/token-failclosed mutants bite; mutant-control; 13 proofs wired in db-replay-6/7) into set/b564 |
 <!-- END GENERATED -->
 
+## 2026-10-09 — COHERENCE AUDIT: does Hearthrise make sense, and is it fun? (Game Designer, final design authority)
+
+Tyler asked me to "start from the beginning and make sure the game makes sense", "get rid of old stuff", and check that the skills form a fun loop. Early Access is in the first half of December, and the wipe means nothing old needs protecting. **How I did it:** I walked the new-player path through the code and data in order, and ran every item, recipe, drop, shop row and skill through a script that asks where each thing comes from and who uses it. I saw the live sign-in screen. I did **not** play a brand-new account end to end: creating one on the live server is outside what I may do, and there is no local server. Every number below comes from the real data rows. None of it was measured on a played account.
+
+### The short answer
+
+**Yes, at its core.** The loop is real and it closes: you gather, make food and gear, fight for loot, and spend all of it on a home that grows from a camp to a castle, while the server keeps your hero working when you are away. The first ten minutes are well scripted (chop, cook, fight, plant). The away receipt is honest and itemised. The rare-drop moments (Hearthfinds, lucky finds) are exactly what the genre needs.
+
+**What does not make sense is the layer on top.** Four years of builds left too many doors, too many trackers and a handful of ideas that never finished:
+- 14 menu entries.
+- Two separate daily-quest lists.
+- Eleven different "records" screens.
+- A Party screen that says "later".
+- A Premium shop that cannot sell.
+- Ammo you are better off not using.
+- Runecrafting, whose first hour makes a rune nothing ever spends.
+- A Prayer skill that does nothing in a fight.
+- A shop that sells better gear than the first 30 levels of Smithing make.
+- A Collection Log that can never be finished, because 40 of its items cannot be obtained.
+
+None of this is deep. Most of it is S-sized data or copy work, and the wipe makes cutting safe.
+
+### The new player's path, step by step
+
+| Step | What the player is told | What they can do | Is the next step obvious? |
+|---|---|---|---|
+| Sign-in screen | "Open beta… rough in places, tell us in Discord", plus an invite-code link | Make an account | Yes, but the copy is beta-era. **FIX** for Steam EA. |
+| Right after sign-up | Up to five intro layers: a welcome pop-up ("Train your first skill"), a name and portrait picker, a six-card tour, a "what is this screen" note per screen, and the "Your first day" card | Everything at once | Too many voices. **MERGE** to name picker → tour → first-day card. **CUT** the extra welcome pop-up. |
+| First 5 min | First day, step 1: gather 15 (about 70 seconds at a tree). Step 2: cook 5 (the kit has 10 raw shrimp; about 20 seconds). | Chop, fish, cook | Yes. This works. |
+| 5–15 min | Step 3: defeat 5 monsters. The kit has a Bronze Sword and 20 cooked shrimp. | Fight slimes and goblins, with Auto-Eat on | Yes |
+| 15–30 min | Step 4: harvest 6 crops. Turnips take 4 hours, or about 2 if watered. The kit also hands over **3 carrot seeds that need Farming 10 and a plot upgrade**. | Plant, then wait | The wait is a good come-back hook. The carrot seeds are a dead item on day 1. |
+| 30–60 min | Step 5: defeat 100 monsters, for 1,500 combat XP | Fight | Yes, but this is where the scripted path thins out. **Nothing in the first day points at the House**, even though "Upgrade camp to Homestead" (400 gold, 20 copper ore, 30 logs) is the most satisfying first goal in the game. |
+| First day | The Journeyman's Road: smith 60, craft 60, cook 60, gather 500, kill 500, harvest 40. Each step pays a tool, a key or seeds. | All skills | Yes. This is a good second chain. |
+| First week | The first dungeon at combat 25 (the Bone Key comes from the Road), property tiers, rooms, bounties, renown ranks, the clan | Many | Good goals, but scattered across 14 menu entries and 11 record screens |
+
+### Verdict on every system
+
+| System | Verdict | Why | Effort |
+|---|---|---|---|
+| Sign-in / first screen copy | **FIX** | Still says "open beta", "invite code" and "tell us in Discord". On Steam, sign-in should come through Steam. | S |
+| Intro layers (welcome pop-up, tour, primers, first-day card, what's-new) | **MERGE** | Five voices in the first minute. Keep the tour, the first-day card and the per-screen notes. Cut the post-signup pop-up, and hold "what's new" for the first day. | S |
+| First-day chain | **FIX** | Add "Upgrade to a Homestead" as a step, before the crop wait. Swap the kit's carrot seeds for turnip seeds. Step 4's reward should be carrot seeds, not wheat seeds that need Farming 20. | S (the quest rewards are server-paid, so this goes through a database review) |
+| Journeyman's Road | KEEP | A good day-2 spine, and every reward opens a next place to go | — |
+| Two daily lists (server-paid "daily quests" and the older "daily/weekly goals" board) | **MERGE → CUT the goals board** | Two daily lists with different counters. The goals board counts in the browser and the server cannot verify it. Keep one list, the server-paid one. | M |
+| Daily login reward | **FIX** | The first week pays 43,000 gold, which dwarfs everything a new player earns by playing. The multiplier then climbs to ×26 (520,000 gold on day 7), and **one missed day resets it all**, which is the wrong message in a game about stepping away. Pay supplies (food, seeds, keys) plus modest gold, cap the multiplier around ×3, and make a missed day cost one step, not everything. | M (economy; needs a Security review) |
+| Renown ladder | KEEP + **FIX** | A good meta spine. One perk (the King's 4th daily task) is shown but refused by the server, so remove it or build it. | S |
+| Combat in the field (weaknesses, elements, Auto-Eat, falls) | KEEP | Clear, readable choices, and it pays both while watching and while away | — |
+| Ammo: arrows, runes, whetstones | **FIX** | Today **having no arrows or runes equipped beats running out** (the code measures 3.4×), so the smart player never uses ammo, and Fletching and Runecrafting have no buyer. An empty slot should count as "run dry". Keep the first tier of each ammo free and sell it in the shop, so no new player is punished. | M (combat engine, server-shared; Security) |
+| Bounty Board + Bounty Hunter skill | KEEP, **MERGE** the tab into Combat | Contracts are good online decisions. The board is a separate top-level menu entry that belongs beside the fight. | S–M (layout: Art Director) |
+| Vigour (daily full-rate hunting) and the 12-hour away limit | **MERGE** | Two different clocks limit the same thing (idle time). In a world-tick game the hero's limit should be supplies and one daily allowance, not two. | M |
+| Dungeons (6) | KEEP; **FIX** where they live and what they drop | They sit under "Events", but they are not events, so move them to Combat. Three boss materials (Void Essence, Riftmaw Husk, Elderscale Heart) **craft nothing**. Four boss trophies (Warboss Standard, Archivist Seal, Voidwoven Sigil, Dragon Relic) do nothing, and should hang in the House trophy room. | M |
+| Scavenger dungeon mode | KEEP | It is a genuine reason to play by hand | — |
+| Clan Hunt (weekly clan raid) | KEEP, **FIX** names | "Raid" also labels two dungeons, and the "world boss" is a solo dungeon. One word per thing. | S |
+| Muster (twice-daily rally) | **FIX** | Rally Seals are earned and **nothing spends them**. The leftover "solo muster if there's no server" code is from before online-only. Give the seal a small shop or cut it, and size the community bar to whoever turns up (EA population will be small). | S–M |
+| Blessing, Boss of the Day | KEEP | Cheap, fair, no login required | — |
+| Hearthfinds, lucky finds | KEEP | The "WOW, rare" moments. This is the right design. | — |
+| Farm | KEEP, **FIX** pace and naming | Farming 99 takes about **300+ days** of tending, against about 44 days of nonstop action for any gathering skill. Roughly triple crop XP. "Plot" means three different things (land count, plot tier, plot buildings), so name them apart. | S (data) + database review |
+| House, property tiers, rooms | KEEP; make it the first-hour goal | It is the best "I built this" loop in the game, and new players are never pointed at it | S (signposting) |
+| Hired workers | KEEP | They fit the loop (they feed build costs). The help text still describes the old "banked when you open the House" model; the server works them now. | S (copy) |
+| Stable: companions and pets | KEEP | 22 companions, each found its own way. Flag for Systems: confirm the server, not the browser, rolls skill and boss pets. | — |
+| Clan seat / castle | KEEP, **FIX** copy | It shows "Tiers 6 to 10 are not yet tuned", which is a half-built promise. Hide the line until they exist. | S |
+| Party | KEEP, **hide** until shared hunting ships | The screen and the codex both say "Hunting together arrives in a later build". Shared hunting is being built now, so either ship it or keep the door shut for EA. | S |
+| Local Shop | **FIX** | It sells Iron and Steel gear (helm 300g, platebody 800–1,500g, sword 500–2,000g). That **undercuts Smithing levels 20–35** and makes early crafted gear pointless. The shop should sell starter pieces only. | S |
+| Market | KEEP | Player trade. It will be thin at EA population, but it is the right long-term spine. | — |
+| Premium shop | **CUT for EA** | Its own help text says the web build "cannot buy them yet". Bring it back when Steam purchases work. Hearth Tokens stay designed (tradeable bond, never earned in play). | S |
+| Gems | KEEP | Cosmetics, character slots and bank space only. Never power. | — |
+| Records: Collection Log, Deeds, bestiary trophies and charms, lifetime stats, lifetime tally, Chronicle, Hunter's Ledger, drop log, luck ledger, standings, "your week" | **MERGE** into one Journal | Eleven places to look at your own history. One Journal with tabs (Collection, Bestiary, Deeds, Stats) is what a new player can hold in their head. | M (Art Director) |
+| Collection Log | **FIX** | It counts all 538 items, and **40 of them cannot be obtained**, so 100% is impossible. Count only obtainable items. | S |
+| Codex (glossary) | KEEP | Good. Update the Party line. | S |
+| The Common (who is about) | KEEP | This is the shared-world feeling, and the world tick makes it truer | — |
+| Leaderboards / Social / Chat | KEEP | — | — |
+| The menu itself (14 entries) | **MERGE** to about 9 | Home · Character (with Bag) · Skills · Combat (with Bounty and Dungeons) · Homestead (Farm, House, Stable) · Clan (with Party) · Events · Market · Social | M (Art Director) |
+
+### Skills, one by one (numbers from the data rows; "time" = nonstop action at today's pace)
+
+| Skill | What it is for | First real unlock | Who uses what it makes | Fun to level? |
+|---|---|---|---|---|
+| Woodcutting | Logs | Oak at 15, about 33 minutes | Planks (Crafting), house and room costs, farm plots | Yes: 12 trees, steady. 99 takes about 44 days. |
+| Mining | Ore | Iron at 15, about 24 minutes | Bars (Smithing), house costs | Yes: 14 rocks. 99 takes about 43 days. |
+| Fishing | Raw fish | Herring at 10, about 25 minutes | Cooking, which feeds every fighter | Yes: 16 spots, the densest ladder |
+| Farming | Crops | Carrot at 10: about 7 hours of tended turnips on 2 plots, plus a 500-gold plot upgrade | Cooking, house, rooms | The rhythm fits ("set before bed"), but **99 is about 300+ days. FIX the pace.** |
+| Cooking | Food | Wolf meat at 5, about 2 minutes, then a new dish every few levels | Every fight (Auto-Eat), buffs | Yes |
+| Smithing | Bars, armour, weapons, tools | Bronze helm at 6, about 3 minutes | Your gear, house costs | Yes: 115 recipes. **But the shop undercuts it (FIX).** |
+| Crafting | Planks, leather, cloth, jewellery, bows, staves, arrows | Shortbow at 5. Most early recipes need **silk thread, which only drops from wasps and spiders**. | Gear for every style | Yes, but sprawling. The fight→craft link is good; say so on the screen. |
+| Prayer | Burying bones | Big bones at 15, about 44 minutes | **Nothing.** It only adds half its level to combat level, so you can raise combat level without fighting. | **No: a bar that fills. FIX** so each Prayer tier gives a passive protection in fights. |
+| Runecrafting | Magic runes, plus element runes that brand weapons | Earth runes at 15, after **about an hour of making Air runes that are never used up** | Magic (ammo nobody needs today) and element brands (good) | **No, today.** See the ruling below. |
+| Stonemason | Stone for the house and castle, rune blanks, whetstones | Whetstones at 6, about 3 minutes | House tiers 4–6, rooms, clan castle, Runecrafting | It works, but its purpose is invisible until the Manor. Pitch it as "the builder's skill". |
+| Attack / Strength / Defence / Hitpoints | Melee | Gear: 189 items need Defence, 38 need Attack, **none need Strength** | — | Yes. Strength only raises damage, which is fine but quiet. |
+| Ranged / Magic | The other two styles | 21 bows and 20 staves gate on them | — | They work, but their supply skills feed nothing until the ammo fix lands |
+| Bounty Hunter | Contracts | Higher-tier boards | Marks buy Auto-Eat II, Auto-Accept, rerolls | Yes. Check: Auto-Eat I is still for sale while the codex says every hero starts owning it. |
+
+**Runecrafting ruling (this answers Tyler's "it doesn't make sense"):**
+1. Runecrafting makes the runes Magic spends. Its first action must make a rune that **is spent**.
+2. Air runes come with the starter staff and are sold in the shop. Runecrafting starts on Earth runes, at level 1.
+3. Runecrafting cuts its own blank stones from a level-1 "rune essence" Mining rock, so it does not need a second skill (Stonemason) to start.
+4. Element runes (ember, frost, poison) stay at 25. They are the skill's best idea.
+5. Stonemason keeps quarrying, whetstones and castle stone.
+
+Together with the ammo fix, this gives every combat style one supply skill: Fletching for Ranged, Runecrafting for Magic, whetstones for Melee.
+
+### The loop as fun
+
+- **First hour.** The player chases the first-day card, and it is good. Missing: a "you built something" moment, because the House is never pointed at. Missing: a first gear upgrade you *made*, because the shop sells better for 300 gold, and day 2's login reward is 1,000 gold.
+- **First day.** The player chases the Road, the first property tiers and combat 25 for the Crypt. There is a dead stretch for anyone who only fights: the field pays the same monsters over and over until combat 25, with nothing new between.
+- **First week.** The player chases dungeons, renown ranks, room rungs, the clan and rare drops. Rewards feel earned. The exceptions are that boss materials craft nothing and gold from logging in outweighs gold from playing.
+
+### The semi-idle rhythm
+
+- **Setting it up works.** One activity runs while you are away, and the "Tonight" forecast tells you whether your food lasts.
+- **The return is honest:** an itemised ledger, "how right was the forecast", and reasons to come back (ripe crops, the dungeon window, Boss of the Day).
+- **The gap is that the return is mostly numbers.** It never says "you now have enough to build your Homestead" or "enough bars for an Iron Helm". The link from haul to next goal is the missing half.
+- **Online decisions exist,** in weakness and element matching, food, contracts, hand-played dungeons and the muster.
+
+### Old stuff to cut before EA (safe because of the wipe)
+
+- **21 items with no source and no use:** 10 dormant foods and trinkets waiting on effects that were never built (Hearthbread, Kettle Tea, Field Ledger and others), 6 fletching and mason tools for skills that took other shapes, Vaultstone, Weathervane, Colossus Seal, Chronicle Ribbon and the Dragon Marrow Recipe.
+- **19 equippable items no one can get** (gear waiting on effects that were never built). Either build the effects or remove the items. Either way, take all 40 out of the Collection Log.
+- **Rally Seal**, a currency nobody spends.
+- **The second daily list** (the goals board).
+- **The old save-upgrade code** (loaded on every boot, never called).
+- **The quest-rename table** for pre-wipe saves.
+- **Muster's offline "solo" fallback.**
+- **Leftover duplicate item and skill tables** inside the old monolith. Systems owns this cleanup.
+- **The beta banner and invite-code copy.**
+- **Copy that describes old behaviour:** "Hunting together arrives in a later build", "Tiers 6 to 10 not yet tuned", "the web beta cannot buy them yet", and the workers' old banking line.
+
+### Top 10 changes, ranked by how much they help a new Steam player in the first hour
+
+1. **Point the first hour at the House:** a first-day step "Upgrade to a Homestead", and a return card line "you can now build / afford X". (S–M)
+2. **Shop sells starter gear only,** so the first upgrade is one you smith or craft. (S)
+3. **One intro, not five:** cut the extra welcome pop-up, hold "what's new", and replace the beta and invite-code copy on the sign-in screen. (S)
+4. **Fix the kit and the first-day rewards:** turnip seeds, not carrot; carrot seeds, not wheat. (S, plus a database review for the reward)
+5. **One daily list,** server-paid; cut the goals board. (M)
+6. **Fewer doors:** 14 menu entries become about 9 (Bounty and Dungeons into Combat; Party hidden until shared hunting ships; Premium hidden for EA). (M, Art Director)
+7. **Runecrafting makes sense from level 1,** and ammo is something you use (the ruling above). (M, Security)
+8. **Prayer does something in a fight.** (M, Systems)
+9. **Daily login reward:** supplies plus modest gold, and no reset-to-zero for one missed day. (M, Security)
+10. **The Collection Log can be finished:** remove the 40 unobtainable items. (S)
+
+### What would make it MORE fun (ranked, separate from the cuts)
+
+1. **A "what your haul unlocks" return card:** "400 logs home: your Homestead is ready to build." It closes gather → build every time you come back. (S–M)
+2. **Shared hunting for parties** (being built). The social reason to log in together. (L)
+3. **Boss materials craft the best gear,** and boss trophies hang in your trophy room. Every dungeon clear then feeds a visible chase. (M)
+4. **Farming 99 within an EA season,** with crop XP roughly tripled. (S)
+5. **A fight-only player meets something new before combat 25:** a named elite or a mini-boss per tier in the field. (M)
+6. **Workers you notice:** today they gather at 10–17% of your pace, which is invisible. Make them meaningful, but cap the total so it is not a new money faucet. (S, economy review)
+7. **A muster that works at 20 players:** the bar sizes to whoever turns up, and seals buy something. (S–M)
+8. **One Journal for every record,** with a single "what's next to chase" line. (M)
+
+**Handoffs:**
+- Art Director: the menu merge, the Journal, and the five intro layers.
+- Systems and Security: the ammo-as-dry rule, Prayer in combat, the login reward, the farming pace, and confirming the server (not the browser) rolls skill and boss pets.
+- Coordinator: these are all EA-scope rulings. Nothing here asks Tyler to decide.
+
 ## 2026-09-29 20:00 UTC — b560 CUT from the set head c608502d: the pending-state class-kill (gates, words, toasts), one answer about a foe, and the visual-gate residue of b559, all found and fixed by twelve assembled visual passes (Coordinator)
 
 - **Shipped:** eleven lanes on set/b561 — HR_CHROME resolver for the page runners; pending states say a word ("away: counting…", one dash on the scrip line); four visual P3s (fight log clears the FABs, "(have —)" never splits, inventory names whole-word); dungeon Run/Auto-Run, the Auto-Run picker, farm Plant and Plant all PENDING while the bag is unstated (gateItemCount tri-state; the fail-open assertions retired); toasts HELD under a sheet and replayed one at a time, the phone column clear of Home's CTAs; "Counting keys…" labels that fit every card in both font sets; a foe is named once (foe-family composer, incl. the swing line); one source for a foe's weakness across five surfaces.

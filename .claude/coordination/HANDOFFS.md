@@ -3181,3 +3181,18 @@ session dismissal is set) and `__hrDesktopModeHideBanner()`. They exist because 
 only ever be inspected on a real phone in desktop mode, which is why it shipped covering the top bar
 for 250 builds. If you add chrome that also needs to move out from under it, read the CSS variable
 rather than re-measuring the element.
+
+## 2026-10-10 · art-director -> W0 shop lane, b569 party lane, data lane · the nine-door menu landed (lane/w0d-menu-and-journal)
+
+The menu is `HUBS` in `src/nav-consolidation.js` (window.HearthriseNav): nine rail doors, every old
+screen a pane of exactly one door, drawn by the pane strip `#hub-tabs`. Adding a screen is a row there.
+- **Shop lane:** Premium has no door for EA (`PREMIUM_OPEN=false`; every premium route opens the Local
+  Shop, the topbar gem counter opens Cosmetics). The Cosmetics list in `src/render/shop.js` still ends in
+  a "Need gems? Get Gems" `IAP.buy` button, which is a premium door by another route. Yours to cut.
+- **Party lane (b569):** Party is the second pane of the Clan door (`#hub-tabs [data-hub-pane="party"]`);
+  `#panel-party` / `#party-panel` and its internals are untouched. The codex "Parties" line ("hunting
+  together arrives in a later build") is yours to update when the hunt card ships.
+- **Data lane:** one copy edit in `src/data/item-descriptions.js` (`dragon_relic`: "prize of the greatest
+  raids" -> "prize of the deepest dungeons") so "raid" names nothing but the Clan Hunt. Dungeon `kind`
+  ids (`raid`, `worldboss`) are catalogue keys in a generated migration and were left alone; only the
+  section labels changed (Dungeons / Epic Dungeons / Legendary Dungeons).

@@ -366,7 +366,8 @@
       'background:var(--panel-2,rgba(0,0,0,.22));',
       'border:1px solid var(--line-soft,rgba(255,255,255,.10))}',
       '.hr-hf-cl-row.found{box-shadow:0 0 18px -6px var(--rr-glow,transparent)}',
-      '.hr-hf-cl-row.miss{opacity:.62}',
+      /* An unfound find does not glow: the rarity ring is a reward, not a hint. */
+      '.hr-hf-cl-row.miss{opacity:.62;box-shadow:none}',
       '.hr-hf-cl-ic{flex:0 0 auto;width:30px;height:30px;display:flex;align-items:center;justify-content:center}',
       '.hr-hf-cl-tx{flex:1;font-size:var(--t-micro);color:var(--ink,currentColor)}',
       '.hr-hf-cl-sub{font-size:var(--t-micro);color:var(--ink-2,currentColor);margin-top:3px}',
@@ -546,6 +547,7 @@
     });
   }
   function collectionSection(G) {
+    ensureStyle();   // the Journal may draw this before any reveal has
     var rows = collectionRows(G);
     var found = rows.filter(function (r) { return r.found; }).length;
     return '<div class="hr-cl-sec">The Four Hearthfinds · ' + found + '/' + rows.length + '</div>'

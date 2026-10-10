@@ -1,11 +1,11 @@
 // ============================================================
-// src/render/lifetime-stats.js — Lifetime Stats modal (render layer)
+// src/render/lifetime-stats.js — Lifetime stats (render layer, the Journal's Stats tab)
 //
 // FIRST render-layer strangler-fig extraction out of src/legacy.js
 // (structural track, 2026-08-18). See docs/design/render-extraction-pattern.md
 // for the playbook every subsequent extraction follows.
 //
-// WHAT THIS IS: the read-only "Lifetime Stats" sheet. Every count on it is the
+// WHAT THIS IS: the read-only lifetime stats, painted in the Journal's Stats tab. Every count on it is the
 // REALM's: the lifetime `stat` rows the server projects on every envelope,
 // folded by src/features/lifetime-tally.js (window.HearthriseLifetime), plus the
 // existing server mirrors (charms, trophies, skill xp, balances, marks). A count
@@ -14,8 +14,7 @@
 //
 // `sectionsHtml(view, readers)` is pure over its inputs so the suite can paint a
 // known, a floor and an unknown view with stub readers (TALLY-B); a reader that
-// answers null is UNKNOWN. openLifetimeStats() feeds it the live readers. The
-// doors are the Hero tab foot row (character-page.js) and the More sheet.
+// answers null is UNKNOWN. html() feeds it the live readers.
 //
 // Globals are read via window.* (the established src/features/* convention),
 // resolved at call time so this script may load in any order after legacy.js.
@@ -145,35 +144,10 @@
     };
   }
 
-  function openLifetimeStats() {
-    var m = document.getElementById('lifetime-stats') || (function () {
-      var el = document.createElement('div');
-      el.id = 'lifetime-stats';
-      el.className = 'stats-modal hr-scrim';   // layout: art-direction.css
-      el.addEventListener('click', function (e) { if (e.target === el) el.classList.remove('show'); });
-      document.body.appendChild(el);
-      return el;
-    })();
-    m.innerHTML = '<div class="stats-card hr-sheet">' +
-      '<div class="stats-close" data-hr-dismiss onclick="document.getElementById(\'lifetime-stats\').classList.remove(\'show\')">✕</div>' +
-      '<div class="stats-head hr-sheet-head">' +
-        '<div class="stats-title">' + _lsGly('uiTrend', 15) + ' Lifetime Stats</div>' +
-        '<div class="muted tiny">Counted by the realm. A dash is a count still on its way.</div>' +
-      '</div>' +
-      '<div class="hr-sheet-body">' + sectionsHtml(undefined, liveReaders()) + '</div>' +
-    '</div>';
-    m.classList.add('show');
-  }
-  window.openLifetimeStats = openLifetimeStats;
-  window.HearthriseLifetimeSheet = { sectionsHtml: sectionsHtml };
-
-  /* ESC closes */
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') {
-      var el = document.getElementById('lifetime-stats');
-      if (el) el.classList.remove('show');
-    }
-  });
+  window.HearthriseLifetimeSheet = {
+    sectionsHtml: sectionsHtml,
+    html: function () { return sectionsHtml(undefined, liveReaders()); }
+  };
 
   console.log('Lifetime stats: loaded');
 })();

@@ -6856,10 +6856,8 @@ let activeTab='profile';
 function closeAllModals(){
   // Pattern A: .modal.show (settings, more, monster preview, etc.)
   document.querySelectorAll('.modal.show').forEach(m=>m.classList.remove('show'));
-  // Pattern B: .ach-overlay.show (achievements, bestiary)
+  // Pattern B: .ach-overlay.show (the lucky-find sheet)
   document.querySelectorAll('.ach-overlay.show').forEach(o=>o.classList.remove('show'));
-  // Pattern C: .stats-modal.show (lifetime stats)
-  document.querySelectorAll('.stats-modal.show').forEach(o=>o.classList.remove('show'));
   // Pattern D: #quests-modal-overlay — element-removal pattern
   if(typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
   // Pattern E: legacy fixed-position dim layers tagged by id
@@ -6907,43 +6905,20 @@ function showTab(tab){
     };
   }
   if(tab==='more'){document.getElementById('more-modal').classList.add('show');return;}
-  /* b225 (#18): the Clan Seat left Social for its own destination. Every name
-     the castle has been called by in code, a deep link or a chat message lands
-     on the same panel — a route that used to work must never stop working just
-     because a screen moved. showTab('social') is deliberately NOT rewritten:
-     Social still exists, still opens, and now carries a signpost to the hold. */
+  /* Route aliases: a route that used to work never stops working because a
+     screen moved. A door id that is not itself a screen opens its front pane
+     (HearthriseNav.resolve: 'homestead' → 'farming'). */
   if(tab==='castle'||tab==='clanseat'||tab==='clan-seat'||tab==='clans')tab='clan';
-  /* b405 (showTab tap-registry): 'dungeons' is no longer its own destination —
-     it is a SECTION of the Events screen (muster.js relocates #panel-dungeons
-     inside #panel-events). This alias used to live in muster.js's showTab
-     wrapper, which REMAPPED the argument BEFORE the base ran — the one site in
-     the whole chain that transformed its input rather than reacting to it, so
-     it could not become a post-tap. It belongs here in the alias table with the
-     other route remaps (castle→clan, shops→shop): the single home, so a route
-     that used to work never stops working just because a screen moved. Net
-     behaviour is identical — #panel-events is created at muster boot and
-     persists, so the base always finds it; muster's tap still repaints it and
-     dungeons.js's tap still renders the dungeon list on 'dungeons'/'events'. */
-  if(tab==='dungeons')tab='events';
-  /* b230 (Tyler): Shops is ONE destination with three toggles — Local Shop,
-     Market, Premium Shop. Every name any of the three has ever been called by
-     in a deep link, a CTA or a chat message resolves here and pre-selects the
-     right toggle, because a route that used to work must never stop working
-     just because a screen moved. `store` in particular was already BROKEN:
-     the item flyout's "Buy from Seed Shop" / "Buy from Equipment Shop" called
-     showTab('store'), there has never been a #panel-store, and showTab bailed
-     on the missing element — those two buttons did nothing at all.
-     Resolution is here in the base function rather than in a wrapper so it
-     cannot be bypassed, and so the alias table has exactly one home. */
+  if(tab==='records'||tab==='achievements'||tab==='bestiary'||tab==='collection'||tab==='chronicle'){
+    if(window.HearthriseJournal){window.HearthriseJournal.open(tab);return;}
+    tab='journal';
+  }
+  if(window.HearthriseNav)tab=window.HearthriseNav.resolve(tab);
   var _shopsPane = null;
   if(tab==='shops'||tab==='shop'||tab==='store'||tab==='stores'||tab==='localshop'||tab==='local-shop'||tab==='seedshop'||tab==='shopfront'
      ||tab==='market'||tab==='exchange'||tab==='marketplace'
      ||tab==='premium'||tab==='premiumshop'||tab==='premium-shop'||tab==='gems'||tab==='iap'){
-    _shopsPane = (window.HearthShops && window.HearthShops.paneFor)
-      ? window.HearthShops.paneFor(tab)
-      : ((tab==='market'||tab==='exchange'||tab==='marketplace') ? 'market'
-        : (tab==='premium'||tab==='premiumshop'||tab==='premium-shop'||tab==='gems'||tab==='iap') ? 'premium'
-        : 'local');
+    _shopsPane = window.HearthShops ? window.HearthShops.paneFor(tab) : 'local';
     tab = (_shopsPane==='market') ? 'market' : 'shop';
   }
   // b127: dismiss every modal before changing panel — fixes the
@@ -6951,7 +6926,8 @@ function showTab(tab){
   // the Quests overlay floating on top of every subsequent panel.
   closeAllModals();
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.nav-btn,.bn-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+  const hub=(window.HearthriseNav&&window.HearthriseNav.hubOf(tab))||tab;
+  document.querySelectorAll('.nav-btn,.bn-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===hub));
   const panel=document.getElementById('panel-'+tab);if(!panel)return;
   panel.classList.add('active');
   activeTab=tab;
@@ -6965,11 +6941,8 @@ function showTab(tab){
   if(tab==='social')renderSocial();
   if(tab==='clan')renderClan();
   if(tab==='shop')renderShop();
-  /* b230: apply the toggle AFTER the panel is active — the strip lives inside
-     both hosts, and the Shops nav button has to light up even though the panel
-     that opened is #panel-shop or #panel-market. Market renders through its own
-     published seam (window.renderMarket, market.js:1037) so this does not
-     depend on any showTab wrapper having been installed yet. */
+  /* The shop pane is applied AFTER the panel is active; the Market renders
+     through its own published seam (window.renderMarket). */
   if(_shopsPane){
     if(window.HearthShops && window.HearthShops.apply) window.HearthShops.apply(_shopsPane);
     if(_shopsPane==='market' && typeof window.renderMarket==='function') window.renderMarket();
@@ -9260,9 +9233,9 @@ function bindEvents(){
      only Settings door that exists in the landscape-phone left-rail layout. */
   ['btn-settings-rail','btn-settings-rail-m'].forEach(id=>document.getElementById(id)?.addEventListener('click',()=>window.openSettings&&window.openSettings()));
   document.getElementById('combat-gear-btn').addEventListener('click',()=>showTab('inventory'));
-  /* b230: the topbar gem counter means "I want gems" — it opens the Premium
-     Shop toggle directly, not the shop's front door. */
-  document.getElementById('top-gem-btn').addEventListener('click',()=>showTab('premium'));
+  /* The topbar gem counter means "what do gems buy": the Premium Shop when it has a
+     door, and in Early Access (no premium door) the Local Shop's gem-priced Cosmetics. */
+  document.getElementById('top-gem-btn').addEventListener('click',()=>{showTab('premium');if(!(window.HearthriseNav&&window.HearthriseNav.premiumOpen)){const c=document.querySelector('#panel-shop .chip[data-shop="cosmetics"]');if(c)c.click();}});
   /* modals close; the backdrop is DELEGATED so a .modal built after boot (buy-back, block list) closes too */
   document.querySelectorAll('[data-close-modal]').forEach(b=>b.addEventListener('click',()=>document.getElementById(b.dataset.closeModal).classList.remove('show')));
   document.addEventListener('click',e=>{if(e.target.classList&&e.target.classList.contains('modal'))e.target.classList.remove('show');});
@@ -10911,19 +10884,6 @@ window.renderBountyPanel = function(){
   </div>`;
 };
 
-/* Inject corresponding mobile bottom-nav entry too (Bounty as a More item) */
-(function patchMobileMore(){
-  const moreModal = document.getElementById('more-modal');
-  if(!moreModal) return;
-  const grid = moreModal.querySelector('div[style*="grid"]');
-  if(!grid || grid.querySelector('[data-tab="bounty"]')) return;
-  const btn = document.createElement('button');
-  btn.className = 'btn tap';
-  btn.dataset.tab = 'bounty';
-  btn.textContent = 'Bounty Board';
-  btn.addEventListener('click', ()=>showTab('bounty'));
-  grid.appendChild(btn);
-})();
 
 console.log('Bounty tab + sidebar groups: loaded');
 
@@ -13831,27 +13791,16 @@ window._renderInvSummary = function(){
   if(slot) slot.textContent = count.toLocaleString() + ' items · ' + total.toLocaleString() + ' gp';
 };
 
-/* ─── Sidebar nav notification badges ─── */
+/* ─── Nav notification badges: one dot per screen; the menu lights the door ─── */
 function paintNavBadges(){
-  function setBadge(tab, show){
-    var btn = document.querySelector('.nav-btn[data-tab="'+tab+'"]');
-    if(!btn) return;
-    var dot = btn.querySelector('.nav-badge');
-    if(!dot){ dot = document.createElement('span'); dot.className='nav-badge'; btn.appendChild(dot); }
-    dot.classList.toggle('hide', !show);
-  }
-  if(typeof G !== 'object' || !G) return;
-  // Bounty ready
-  var bRdy = !!(window.hrBountyView && G.bountyHunter && G.bountyHunter.active && window.hrBountyView(G.bountyHunter.active).claimable);
-  setBadge('bounty', bRdy);
-  // Farm plot ready
-  var fRdy = (G.farmPlots||[]).some(function(p){return p && p.state==='ready';});
-  setBadge('farming', fRdy);
-  // Inventory near full
+  if(typeof G !== 'object' || !G || !window.HearthriseNav) return;
   var invCount = Object.values(G.inventory||{}).reduce(function(a,b){return a+(b||0);},0);
-  setBadge('inventory', invCount > 250);
-  // Combat: active fight
-  setBadge('combat', !!G.activeMonster);
+  window.HearthriseNav.badges({
+    bounty: !!(window.hrBountyView && G.bountyHunter && G.bountyHunter.active && window.hrBountyView(G.bountyHunter.active).claimable),
+    farming: (G.farmPlots||[]).some(function(p){return p && p.state==='ready';}),
+    inventory: invCount > 250,
+    combat: !!G.activeMonster
+  });
 }
 
 /* ─── Hooks ─── */
@@ -13987,10 +13936,8 @@ console.log('UI overhaul loaded');
     return orig.apply(this, arguments);
   };
 })();
-/* window.openBestiary — the Bestiary MODAL RENDER moved to
-   src/render/bestiary.js (b397, 4th render-layer extraction). The kill-tracking
-   LOGIC above (the killMonster wrapper that writes G.bestiary) stays here on
-   purpose: render/logic seam, same as Achievements. */
+/* The Bestiary renders in the Journal (src/render/bestiary.js); the kill-tracking
+   logic above stays here: render/logic seam. */
 
 /* =========================================================
    5. FRIENDS LIST STUB (in Social panel)
@@ -14029,7 +13976,7 @@ window.HearthriseShowTab.wrapShowTab('clan-activity', function(tab){
    measurement live where the rows are built (the b342 block inside maybeShowWelcome);
    the estimator itself is gone (b516 tombstone, section 3). */
 
-/* Add Achievements + Bestiary buttons to the Profile panel */
+/* The Profile panel's record doors (the phone's row; .prof-toolbar is the desktop's) */
 function injectProfileButtons(){
   var panel = document.getElementById('panel-profile');
   if(!panel) return;
@@ -14037,8 +13984,8 @@ function injectProfileButtons(){
   var row = document.createElement('div');
   row.className = 'feat-buttons';
   row.style.cssText = 'display:flex;gap:8px;margin:8px 0;grid-column:1 / -1';
-  row.innerHTML = '<button class="btn" onclick="openAchievements()">'+_hrGly('uiTrophy',14)+' Achievements</button>'+
-                  '<button class="btn" onclick="openBestiary()">'+_hrGly('uiBook',14)+' Bestiary</button><button class="btn" onclick="window.HearthriseCodex&&HearthriseCodex.open()">'+_hrGly('uiScroll',14)+' Codex</button>';
+  row.innerHTML = '<button class="btn" onclick="window.HearthriseJournal&&HearthriseJournal.open()">'+_hrGly('uiBook',14)+' Journal</button>'+
+                  '<button class="btn" onclick="window.HearthriseCodex&&HearthriseCodex.open()">'+_hrGly('uiScroll',14)+' Codex</button>';
   panel.insertBefore(row, panel.firstChild);
 }
 
@@ -15191,9 +15138,8 @@ function buildProfileToolbar(){
   bar.className = 'prof-toolbar';
   bar.innerHTML =
     '<button class="tb-btn" id="tb-objectives">'+_hrGly('uiScroll',14)+' Objectives'+(pendingObj>0?' <span class="tb-badge">'+pendingObj+'</span>':'')+'</button>'+
-    '<button class="tb-btn" onclick="openAchievements()">'+_hrGly('uiTrophy',14)+' Achievements</button>'+
-    '<button class="tb-btn" onclick="openBestiary()">'+_hrGly('uiBook',14)+' Bestiary</button>'+
-    '<button class="tb-btn" onclick="openLifetimeStats && openLifetimeStats()">'+_hrGly('uiTrend',14)+' Lifetime</button><button class="tb-btn" id="tb-codex" onclick="window.HearthriseCodex&&HearthriseCodex.open()">'+_hrGly('uiScroll',14)+' Codex</button>';
+    '<button class="tb-btn" id="tb-journal" onclick="window.HearthriseJournal&&HearthriseJournal.open()">'+_hrGly('uiBook',14)+' Journal</button>'+
+    '<button class="tb-btn" id="tb-codex" onclick="window.HearthriseCodex&&HearthriseCodex.open()">'+_hrGly('uiScroll',14)+' Codex</button>';
   panel.insertBefore(bar, panel.firstChild);
   document.getElementById('tb-objectives').addEventListener('click', openObjectivesPopout);
   /* Suppress old feat-buttons row since toolbar replaces it */
@@ -16485,65 +16431,8 @@ console.log('[Companions A: logic] loaded — table owned by data/companions.js 
 })();
 
 // ===== block 32: companions-ui-js — REMOVED (bug-duty, Stable single-owner) =====
-/* The Stable nav button, #panel-stable, renderStable and the profile-card /
-   showTab hooks that lived here were an exact DUPLICATE of the same functions in
-   src/features/companions.js (the canonical owner, booted via main.js
-   setupCompanions). Two owners both guarded on [data-tab="stable"] existence, so
-   whichever ran first won and the other silently no-opped — and the legacy copy
-   bailed entirely unless a literal Homestead label was present, which is why the
-   Stable tab was effectively unreachable. companions.js is now the SINGLE owner;
-   the nav entry is first-class static markup in index.html (desktop rail +
-   mobile More sheet). Do not reintroduce a second Stable injector here. */
-
-// ===== block 33: visual-polish-v2-js =====
-(function(){
-"use strict";
-
-/* b269 (Tyler): place the Stable nav button in the HOMESTEAD group — pets are a
-   homestead fixture. This function was the real authority (it runs last, with
-   retries) and used to force the button INTO Adventure, overriding both
-   injectNavButton placements — which is why every earlier attempt to move it
-   failed. Now it anchors to Homestead. */
-function moveStableNav(){
-  var btn = document.querySelector('[data-tab="stable"]');
-  if(!btn) return;
-  var sidebar = btn.closest('.sidebar') || btn.parentElement;
-  if(!sidebar) return;
-  /* Find Homestead group label */
-  var labels = sidebar.querySelectorAll('.nav-group-label');
-  var homeLabel = null;
-  labels.forEach(function(l){ if(l.textContent.trim()==='Homestead') homeLabel = l; });
-  if(!homeLabel) return;
-  /* Find the position right BEFORE the next group label after Homestead */
-  var insertBefore = homeLabel.nextElementSibling;
-  while(insertBefore && !insertBefore.classList.contains('nav-group-label')){
-    insertBefore = insertBefore.nextElementSibling;
-  }
-  /* Insert Stable button at the end of the Homestead group */
-  if(insertBefore && insertBefore.parentNode){
-    insertBefore.parentNode.insertBefore(btn, insertBefore);
-  } else {
-    sidebar.appendChild(btn);
-  }
-}
-
-/* Stable might inject after polish runs; observe and re-place if needed */
-function ensureStablePosition(){
-  moveStableNav();
-  /* Try a few times in case nav is async */
-  setTimeout(moveStableNav, 500);
-  setTimeout(moveStableNav, 1500);
-}
-
-if(document.readyState === 'loading'){
-  document.addEventListener('DOMContentLoaded', function(){ setTimeout(ensureStablePosition, 600); });
-} else {
-  setTimeout(ensureStablePosition, 600);
-}
-
-
-console.log('[Visual Polish v2] applied');
-})();
+/* The Stable's panel and renderer live in src/features/companions.js (single owner);
+   its door is the Homestead entry in the menu (src/nav-consolidation.js). */
 
 // ===== block 34: character-rebuild-js =====
 (function(){

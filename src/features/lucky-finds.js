@@ -265,7 +265,7 @@
     var wb = document.getElementById('welcome-overlay');
     var wd = wb && wb.classList.contains('show') && wb.querySelector('[data-hr-dismiss]');
     if (wd) wd.click();
-    if (typeof window.openBestiary === 'function') window.openBestiary();
+    if (window.HearthriseJournal) window.HearthriseJournal.open('collection');
     var d = document.getElementById('best-luck');
     if (d) { d.open = true; if (d.scrollIntoView) d.scrollIntoView({ block: 'start' }); }
     pump();

@@ -2775,3 +2775,20 @@ compacted chip's title carries the full figure; the XP chip's "STR" becomes the 
 compactNumber picks its unit on the rounded figure (no "1000K"). The FIGHT-PHONE-DENSITY flake was a
 real bug: the retired Events shortcut raced the boot into the stance ribbon (see DISCOVERIES).
 Lesson: a layout flake is a layout that differs between loads - dump and diff the subtree first.
+
+### 2026-10-10 · lane/w0d-menu-and-journal: nine doors, one Journal (coherence audit #6 + the records merge)
+
+The rail is nine doors (Home, Character, Skills, Combat, Homestead, Clan, Events, Market, Social) and
+every old screen is a pane of exactly one door: `HUBS` in src/nav-consolidation.js is the whole menu,
+and the pane strip `#hub-tabs` is drawn from it above the open screen. The strip is the QUIET level: a
+line of labelled glyphs on the seam with one gilt rule, never boxes, so it cannot be confused with the
+folder tabs a screen draws inside itself (Character's three, the Journal's four). Dungeons left Events
+for Combat; Premium has no door for EA; the More sheet holds utilities only; the rail badge went gilt
+(red is lethal-only) to match the pane dot.
+Eleven record screens became the Journal (Collection, Bestiary, Deeds, Stats). Their modals are
+deleted, their renderers paint into the tab, and every count is the server's or the pending dash -
+which surfaced three residue reads the modals had carried (DISCOVERIES 2026-10-10). Wide tabs got
+columns (Chronicle beside Deeds, stats in two flowing columns) because a label 1,200px from its
+number is not a table.
+Lesson: the screens a merge deletes are where old shortcuts hide - the bestiary `×` silently fell back
+to the client's own count, and only rendering it in a new host with the mirror absent showed it.

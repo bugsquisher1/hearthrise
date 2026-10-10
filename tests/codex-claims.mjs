@@ -519,7 +519,13 @@ export function check(w) {
     }
   }
 
-  const tabs = new Set([...w.indexHtml.matchAll(/data-tab="([a-z_-]+)"/g)].map((m) => m[1]));
+  // A door is a rail entry (index.html), a pane of one (the menu's HUBS rows) or a
+  // Journal tab (the showTab record routes): every one of them is a showTab name.
+  const tabs = new Set([
+    ...[...w.indexHtml.matchAll(/data-tab="([a-z_-]+)"/g)].map((m) => m[1]),
+    ...[...(w.src['src/nav-consolidation.js'] || '').matchAll(/\btab: '([a-z_-]+)'/g)].map((m) => m[1]),
+    ...[...(w.src['src/features/journal.js'] || '').matchAll(/\bid: '([a-z_-]+)'/g)].map((m) => m[1]),
+  ]);
   const allSrc = Object.entries(w.src);
   for (const e of E) {
     const d = e.door;

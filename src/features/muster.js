@@ -1419,13 +1419,11 @@
       /* ── the Events panel ──
          .panel.active is display:grid with no template, which sizes injected
          cards as implicit rows against a fixed-height container — that is what
-         collapsed #hr-raid-card to 16px inside #panel-dungeons. This panel is a
-         BLOCK column that scrolls, so every card gets its natural height. */
+         once collapsed #hr-raid-card to 16px. This panel is a BLOCK column that
+         scrolls, so every card gets its natural height. */
       '#panel-events.active{display:block;overflow-y:auto;padding:var(--gap);padding-bottom:78px}',
       '#panel-events .ev-sec{margin-bottom:14px}',
-      '#panel-events #panel-dungeons{display:block;padding:0;overflow:visible;min-height:0;flex:none}',
       '#panel-events #hr-raid-card{display:block;height:auto;min-height:0;margin-bottom:0}',
-      '#panel-events #hr-dungeons-back{display:none}',
       '.ev-eyebrow{font-family:var(--f-display,inherit);font-size:calc(14.5px * var(--ui-scale, 1));font-weight:800;color:var(--gold-2);',
       '  letter-spacing:.14em;text-transform:uppercase;margin:0 0 8px}',
       '.mu-bar{height:10px;background:rgba(0,0,0,.35);border-radius:99px;overflow:hidden;border:1px solid var(--line-soft)}',
@@ -1735,12 +1733,9 @@
   // ════════════════════════════════════════════════════════════
   // 7 · DISCOVERABILITY — the Events destination (backlog #14)
   // ════════════════════════════════════════════════════════════
-  // Everything scheduled or instanced lives in ONE top-level place: the muster,
-  // the Blessing, the weekly clan boss and the dungeons. Before this, dungeons
-  // were reachable only through a secondary button in the combat ribbon, and
-  // the flagship SOCIAL feature — the weekly clan raid — was rendered inside
-  // that same hidden combat sub-panel. A player could be in a clan for a month
-  // and never learn raids exist.
+  // Everything SCHEDULED lives here: the muster, the day's Blessing and the
+  // Clan Hunt. The dungeons are instanced, not scheduled, so they are a pane
+  // of the Combat door (src/nav-consolidation.js), beside the fight.
   function ensurePanel() {
     var main = document.querySelector('main.main');
     if (!main) return null;
@@ -1753,27 +1748,9 @@
       p.innerHTML =
         '<div class="ev-sec" id="hr-muster-card"></div>' +
         '<div class="ev-sec" id="hr-ev-blessing"><div class="ev-eyebrow">Today’s blessing</div></div>' +
-        '<div class="ev-sec" id="hr-events-raid"><div class="ev-eyebrow">Weekly clan boss</div></div>' +
-        // No eyebrow here: the dungeon list brings its own three section
-        // headings ("Dungeons (Solo)" …), and a label above a label is noise.
-        '<div class="ev-sec" id="hr-events-dungeons"></div>';
+        '<div class="ev-sec" id="hr-events-raid"><div class="ev-eyebrow">The Clan Hunt</div></div>';
       main.appendChild(p);
     }
-    // Relocate the dungeon list into Events. It stops being a PANEL (it has no
-    // nav entry of its own any more) and becomes a section of this one, which
-    // is also what frees #hr-raid-card from the grid that collapsed it.
-    var dgn = document.getElementById('panel-dungeons');
-    var host = document.getElementById('hr-events-dungeons');
-    if (dgn && host && dgn.parentNode !== host) {
-      dgn.classList.remove('panel', 'active');
-      host.appendChild(dgn);
-    }
-    // nav-consolidation.js boots ~120ms before this module, so on a cold load
-    // it can inject its "← Back to Combat" escape hatch into a panel that is
-    // about to stop being a dead end. Remove it once; its own guard keeps it
-    // from coming back now that #panel-events exists.
-    var back = document.getElementById('hr-dungeons-back');
-    if (back) back.remove();
     return p;
   }
 
@@ -1837,7 +1814,6 @@
     if (window.HearthriseRaids && typeof window.HearthriseRaids.render === 'function') {
       try { var r = window.HearthriseRaids.render(); if (r && r.catch) r.catch(function () {}); } catch (e) {}
     }
-    if (typeof window.renderDungeons === 'function') { try { window.renderDungeons(); } catch (e) {} }
   }
   function renderAll() { tickPill(); renderPanel(); }
 
@@ -1847,15 +1823,9 @@
   // 8 · BOOT
   // ════════════════════════════════════════════════════════════
   function wireShowTab() {
-    // b405: the 'dungeons' → 'events' ROUTE REMAP used to live here, transforming
-    // showTab's argument BEFORE the base ran — the one wrapper in the whole chain
-    // that mutated its input, which a post-tap cannot do. It now lives in the base
-    // showTab alias table (legacy.js), the single home for route remaps, so every
-    // legacy caller (combat ribbon, scavenger, deep links) still lands on Events.
-    // This tap only ensures the panel exists and repaints it; it fires on both the
-    // 'dungeons' and 'events' entry names (the tap sees the ORIGINAL argument).
+    // This tap only ensures the panel exists and repaints it.
     window.HearthriseShowTab.wrapShowTab('muster-events', function (name) {
-      if (name === 'events' || name === 'dungeons') { ensurePanel(); setTimeout(renderPanel, 0); }
+      if (name === 'events') { ensurePanel(); setTimeout(renderPanel, 0); }
     });
   }
 

@@ -1486,7 +1486,7 @@ export default [
        to fall back on, so each one is a real test of the recipe path. */
     const CASES = [
       ['dressed_block', 'Stonemason'],
-      ['rune_blank', 'Stonemason'],
+      ['rune_blank', 'Runecrafting'],   // W0: the base blank cuts moved to Runecrafting
       ['normal_plank', 'Crafting'],
       ['ember_rune', 'Runecrafting'],
     ];

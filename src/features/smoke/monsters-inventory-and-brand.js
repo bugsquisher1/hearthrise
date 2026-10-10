@@ -1512,11 +1512,13 @@ export default [
         'a Runecrafting recipe landed in no lane: ' + rc.uncategorized.map((r) => r.id).join(', '));
       const laneOf = (k) => (rc.groups.find((g) => g.key === k) || { recipes: [] }).recipes;
       assert(laneOf('enchant').length === 3, 'Weapon Enchants must hold exactly the three element runes, got ' + laneOf('enchant').length);
-      assert(laneOf('staff').length >= 11, 'Staff Runes must still hold the whole air→blood ladder, got ' + laneOf('staff').length);
+      // W0: air runes are kit + shop only, so the bench ladder is earth→blood (10 rungs).
+      assert(laneOf('staff').length >= 10, 'Staff Runes must still hold the whole earth→blood ladder, got ' + laneOf('staff').length);
+      assert(laneOf('essence').length === 3, 'Essence & Blanks must hold mine + two cuts, got ' + laneOf('essence').length);
       /* BOTH lanes must actually RENDER — `groups` drops an empty key, so two
          groups is the proof that the strip is a real choice and not a label. */
-      assert(rc.groups.length === 2,
-        'the Runecrafting strip must show both lanes, got: ' + rc.groups.map((g) => g.label).join(' | '));
+      assert(rc.groups.length === 3,
+        'the Runecrafting strip must show all three lanes (W0 adds Essence & Blanks), got: ' + rc.groups.map((g) => g.label).join(' | '));
       assert(R.categorizeRecipes('crafting').uncategorized.length === 0,
         'moving the runes out must not strand a crafting recipe uncategorized');
     }

@@ -145,7 +145,7 @@ async function selftest() {
       ['G5', 'an unfrozen row', () => edit(DATA, (s) => s.replace('Object.freeze({ title, body })', '({ title, body })')), null],
       ['G6', 'a src/data import of the table', () => edit('src/data/items.js', (s) => "import { SCREEN_PRIMERS } from './screen-primers.js';\n" + s), null],
       ['G6', 'a screen-primers origin in the edge bundle', () => () => {}, [...origins, DATA]],
-      ['G7', 'an Events row naming the muster', () => edit(DATA, (s) => s.replace('and so do the dungeons', 'and so does the muster')), null],
+      ['G7', 'an Events row naming the muster', () => edit(DATA, (s) => s.replace('The realm\\\'s calendar lives here', 'The muster lives here')), null],
       ['G7', 'a Shop row promising real-money buys', () => edit(DATA, (s) => s.replace('the web beta cannot buy them yet', 'buy them for real money')), null],
       ['G8', 'the retired Auto-Eat price', () => edit('src/ftue.js', (s) => s + '\n// 15 Marks\n'), null],
       ['G8', 'the combat step dropping the live rule', () => edit('src/ftue.js', (s) => s.replace('carry on with the same fight', 'start over')), null],

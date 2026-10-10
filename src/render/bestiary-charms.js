@@ -93,8 +93,8 @@ export function noteEnvelope(res) {
   G._bestiaryCharms = { killsByClass: clean, index: charmIndex(clean) || Object.create(null) };
   out.noted = true;
   /* An open Bestiary showing the pending line resolves in place. */
-  if (typeof document !== 'undefined' && document.querySelector('#best-overlay.show #best-charms [data-charm-pending]')) {
-    try { w().openBestiary(); } catch (e) { /* display only */ }
+  if (typeof document !== 'undefined' && document.querySelector('#panel-journal.active .charm-strip [data-charm-pending]')) {
+    try { w().HearthriseJournal.repaint('bestiary'); } catch (e) { /* display only */ }
   }
   return out;
 }

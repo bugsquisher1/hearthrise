@@ -30,6 +30,23 @@ function getMonsterIconHtml(id) {
   return window.monsterFallbackIcon ? window.monsterFallbackIcon(id, 32) : '';
 }
 
+/** THE SOLO PICKER'S REACH RULE, published once so the party hunt card offers
+    the same list by the same rule (src/render/party-panel.js, filtered to the
+    party's LOWEST member's server-stated level). A tier more than one above
+    the level's own decade is "too high". Presentation only: the server catalogue
+    (`hr_activities`) is what a start is validated against. */
+function monsterTooHigh(m, lv) {
+  return !!m && m.tier > Math.ceil((Number(lv) || 1) / 10) + 1;
+}
+/** Every monster the solo picker would show NOT flagged too high for `lv`, in
+    tier then catalogue order: `[{id, name, tier}]`. */
+function monstersInReach(lv) {
+  return Object.entries(MONSTERS)
+    .filter(([, m]) => m && typeof m.tier === 'number' && !monsterTooHigh(m, lv))
+    .sort((a, b) => a[1].tier - b[1].tier)
+    .map(([id, m]) => ({ id, name: m.name || id, tier: m.tier }));
+}
+
 function renderMonsterList() {
   const el = document.getElementById('monster-list');
   if (!el) return;
@@ -39,7 +56,7 @@ function renderMonsterList() {
   const list = Object.entries(MONSTERS)
     .filter(([, m]) => m.tier === tier)
     .map(([id, m]) => {
-      const tooHigh = m.tier > Math.ceil(playerLv / 10) + 1;
+      const tooHigh = monsterTooHigh(m, playerLv);
       /* b217: the second line was one dot-separated dev string —
          "Vermin · Weak: sword · HP 8 · ATK 2". It reads as a debug printout,
          and it buries HP and ATK (the only two numbers a player compares
@@ -555,6 +572,7 @@ function setupArenaHud() {
 export function setupCombatRender() {
   // Replace the legacy renderer
   window.renderMonsterList = renderMonsterList;
+  window.HearthriseMonsterPick = Object.freeze({ tooHigh: monsterTooHigh, inReach: monstersInReach });
   setupArenaHud();
 
   // Wire tier chips on first combat tab activation

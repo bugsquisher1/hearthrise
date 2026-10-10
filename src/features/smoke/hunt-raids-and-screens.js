@@ -1143,24 +1143,23 @@ export default [
     window.G.companions = JSON.parse(snap);
   }),
 
-  // The Lifetime Stats sheet (src/render/lifetime-stats.js) prints only the
+  // The Journal's Stats tab (src/render/lifetime-stats.js) prints only the
   // realm's counts: every value cell is a figure or the pending dash, never a
-  // client-kept number, and its wired ESC handler closes it.
-  () => tryRun('render: lifetime stats modal (extracted surface)', () => {
-    assert(typeof window.openLifetimeStats === 'function',
-      'openLifetimeStats must stay on window (invoked by inline onclick handlers)');
-    window.openLifetimeStats();
-    const modal = document.getElementById('lifetime-stats');
-    assert(modal, 'lifetime-stats modal element not created');
-    assert(modal.classList.contains('show'), 'lifetime-stats modal did not open (missing .show)');
-    const html = modal.innerHTML;
-    ['Lifetime Stats', 'Fighting', 'Gathering', 'At the bench', 'Purse']
-      .forEach(h => assert(html.indexOf(h) >= 0, 'lifetime stats missing section: ' + h));
-    const bad = [...modal.querySelectorAll('.stats-row .val, .stat-tile b')]
-      .filter((el) => !el.querySelector('.bal-pending') && !el.classList.contains('bal-pending') && !/\d/.test(el.textContent));
-    assert(bad.length === 0, 'a value cell is neither a figure nor the pending dash: ' + bad.map((el) => el.textContent).join(' | '));
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-    assert(!modal.classList.contains('show'), 'ESC did not close the lifetime-stats modal');
+  // client-kept number.
+  () => tryRun('render: lifetime stats in the Journal (extracted surface)', () => {
+    try {
+      window.HearthriseJournal.open('stats');
+      const host = document.querySelector('#panel-journal .jr-stats');
+      assert(host, 'the Journal has no Stats tab body');
+      const html = host.innerHTML;
+      ['Fighting', 'Gathering', 'At the bench', 'Purse']
+        .forEach(h => assert(html.indexOf(h) >= 0, 'lifetime stats missing section: ' + h));
+      const bad = [...host.querySelectorAll('.stats-row .val, .stat-tile b')]
+        .filter((el) => !el.querySelector('.bal-pending') && !el.classList.contains('bal-pending') && !/\d/.test(el.textContent));
+      assert(bad.length === 0, 'a value cell is neither a figure nor the pending dash: ' + bad.map((el) => el.textContent).join(' | '));
+    } finally {
+      try { window.showTab('profile'); } catch (e) {}
+    }
   }),
 
   // render-layer extraction: the Profile "Objectives" popout moved out of
@@ -1218,16 +1217,13 @@ export default [
     }
   }),
 
-  // The Achievements presentation (unlock toast + sheet) lives in
-  // src/render/achievements.js. Both fns must stay on window: showAchToast (the
-  // deeds watcher opens it on a crossing) and openAchievements (inline onclick in
-  // the achievements button row + profile toolbar). Read-only surface: the
-  // grades come from HearthriseDeeds, never a record in G.
-  () => tryRun('render: achievements toast + modal (extracted surface)', () => {
+  // The Achievements presentation (unlock toast + the Journal's deeds list)
+  // lives in src/render/achievements.js. showAchToast stays on window (the
+  // deeds watcher opens it on a crossing). Read-only surface: the grades come
+  // from HearthriseDeeds, never a record in G.
+  () => tryRun('render: achievements toast + the Journal deeds list (extracted surface)', () => {
     assert(typeof window.showAchToast === 'function',
       'showAchToast must stay on window (the deeds watcher calls it on a crossing)');
-    assert(typeof window.openAchievements === 'function',
-      'openAchievements must stay on window (invoked by inline onclick handlers)');
     // Toast: paints from the def it is handed, appends to body, auto-removes.
     const beforeToasts = document.querySelectorAll('.ach-toast').length;
     window.showAchToast({ icon: '🏆', name: 'Smoke Test Trophy' });
@@ -1236,17 +1232,17 @@ export default [
     const toast = toasts[toasts.length - 1];
     assert(toast.innerHTML.indexOf('Smoke Test Trophy') >= 0, 'toast did not render the achievement name');
     toast.remove(); // don't leave it lingering for the 4.2s timer
-    // Sheet: reads the deeds catalogue and paints one row per deed, headings apart.
+    // List: reads the deeds catalogue and paints one row per deed, headings apart.
     assert(Array.isArray(window.ACHIEVEMENTS) && window.ACHIEVEMENTS.length > 0,
-      'ACHIEVEMENTS catalogue must be published for the modal to read');
-    window.openAchievements();
-    const ov = document.getElementById('ach-overlay');
-    assert(ov, 'ach-overlay element not created');
-    assert(ov.classList.contains('show'), 'achievements modal did not open (missing .show)');
-    const list = document.getElementById('ach-list');
-    assert(list && list.querySelectorAll('.ach-row').length === window.ACHIEVEMENTS.length,
-      'modal must render one .ach-row per catalogue entry');
-    ov.classList.remove('show');
+      'ACHIEVEMENTS catalogue must be published for the list to read');
+    try {
+      window.HearthriseJournal.open('deeds');
+      const list = document.querySelector('#panel-journal .ach-list');
+      assert(list && list.querySelectorAll('.ach-row').length === window.ACHIEVEMENTS.length,
+        'the Deeds tab must render one .ach-row per catalogue entry');
+    } finally {
+      try { window.showTab('profile'); } catch (e) {}
+    }
   }),
 
   /* ── regression suite — DEEDS-POLISH: THE DEED SURFACES, MEASURED ──────────
@@ -1257,7 +1253,7 @@ export default [
      (4) the fixed bug-report fab and chat pill sat over the right end of the
      Character > Lifetime Stats door. Rects are read in 1280x800 and 922x423
      frames (phoneFrame: media queries grade against the frame's own viewport). */
-  () => tryRun('DEEDS-POLISH: one-line toast title, one toast at a time, the sheet opens at the top, the Lifetime Stats door clears the fabs', () => {
+  () => tryRun('DEEDS-POLISH: one-line toast title, one toast at a time, the Journal opens at the top, the Journal door clears the fabs', () => {
     const SIZES = [[1280, 800], [922, 423]];
     const hits = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
     const bad = [];
@@ -1283,33 +1279,32 @@ export default [
         if (b.getClientRects().length > 1 || bh > 1.5 * lh(b)) bad.push(w + 'x' + h + ': the toast title wraps (' + b.getClientRects().length + ' lines, ' + Math.round(bh) + 'px)');
         if (sh > 2.5 * lh(sm)) bad.push(w + 'x' + h + ': the toast name takes ' + Math.round(sh / lh(sm)) + ' lines');
       });
-      // (3) the reused sheet reopens at the top.
-      window.openAchievements();
-      const list = document.getElementById('ach-list');
+      // (3) the Journal reopens at the top.
+      window.HearthriseJournal.open('deeds');
+      const list = document.getElementById('panel-journal');
       list.scrollTop = 2000;
-      assert(list.scrollTop > 0, 'the probe could not scroll #ach-list (scrollHeight ' + list.scrollHeight + ', clientHeight ' + list.clientHeight + ') — the reopen check would prove nothing');
-      document.getElementById('ach-overlay').classList.remove('show');
-      window.openAchievements();
-      if (list.scrollTop !== 0) bad.push('the Achievements sheet reopened at scrollTop ' + list.scrollTop);
-      document.getElementById('ach-overlay').classList.remove('show');
+      assert(list.scrollTop > 0, 'the probe could not scroll #panel-journal (scrollHeight ' + list.scrollHeight + ', clientHeight ' + list.clientHeight + ') — the reopen check would prove nothing');
+      window.showTab('profile');
+      window.HearthriseJournal.open('deeds');
+      if (list.scrollTop !== 0) bad.push('the Journal reopened at scrollTop ' + list.scrollTop);
       // (4) the door and the fixed fabs. y is the player's scroll, so the door must
       // be clear of every fab's COLUMN, which is no rect overlap at any scroll.
       window.showTab('character');
       const app = document.getElementById('app'), bug = document.getElementById('hr-bug-btn'), dock = document.getElementById('chat-dock');
-      assert(app && document.querySelector('#app .cr-acct-foot .btn'), 'Character > Hero drew no Lifetime Stats door');
+      assert(app && document.querySelector('#app .cr-acct-foot .btn'), 'Character > Hero drew no Journal door');
       assert(bug, 'the bug-report fab (#hr-bug-btn) is not mounted');
       const nav = document.getElementById('bottom-nav');
       const chrome = app.outerHTML.replace(/<script[\s\S]*?<\/script>/gi, '') + bug.outerHTML + (dock ? dock.outerHTML : '')
         + (nav && !app.contains(nav) ? nav.outerHTML : '');
       for (const [w, h] of SIZES) phoneFrame(w, h, chrome, (doc) => {
         const door = doc.querySelector('.cr-acct-foot .btn').getBoundingClientRect();
-        assert(door.width > 0, 'the ' + w + 'x' + h + ' frame drew no Lifetime Stats door');
+        assert(door.width > 0, 'the ' + w + 'x' + h + ' frame drew no Journal door');
         const fabs = [['#hr-bug-btn', doc.getElementById('hr-bug-btn')], ['#chat-dock-min', doc.getElementById('chat-dock-min')], ['#btn-chat-mobile', doc.getElementById('btn-chat-mobile')]];
         for (const [name, el] of fabs) {
           const f = el ? el.getBoundingClientRect() : null;
           if (!f || !f.width || !f.height) continue;
           const column = { left: f.left, right: f.right, top: -1e6, bottom: 1e6 };
-          if (hits(door, column)) bad.push(w + 'x' + h + ': the Lifetime Stats door (x ' + Math.round(door.left) + '–' + Math.round(door.right) + ') runs under ' + name + ' (x ' + Math.round(f.left) + '–' + Math.round(f.right) + ')');
+          if (hits(door, column)) bad.push(w + 'x' + h + ': the Journal door (x ' + Math.round(door.left) + '–' + Math.round(door.right) + ') runs under ' + name + ' (x ' + Math.round(f.left) + '–' + Math.round(f.right) + ')');
         }
       });
     } finally {
@@ -1321,18 +1316,17 @@ export default [
   }),
 
   /* ── regression suite — SHEET-HEAD-STICKY (visual gate finding):
-     scrolling the Codex / Settings / Lifetime Stats body carried the title and
+     scrolling the Codex / Settings body carried the title and
      Close off screen. Each sheet, as painted, padded so it must scroll, then
      scrolled 2000 in 1280x800 and 922x423 frames: title and Close stay whole,
      on screen, at the sheet's top. */
-  () => tryRunAsync('SHEET-HEAD-STICKY: the Codex, Settings and Lifetime Stats heads stay pinned while the body scrolls', async () => {
+  () => tryRunAsync('SHEET-HEAD-STICKY: the Codex and Settings heads stay pinned while the body scrolls', async () => {
     const bad = [], sheets = [];
     try {
       sheets.push([await window.HearthriseCodex.open(), '.modal-title', '.modal-head button']);
       window.openSettings(); sheets.push([document.getElementById('settings-modal'), '.modal-title', '[data-close-modal]']);
-      window.openLifetimeStats(); sheets.push([document.getElementById('lifetime-stats'), '.stats-title', '.stats-close']);
       for (const [m, tSel, cSel] of sheets) for (const [w, h] of [[1280, 800], [922, 423]]) phoneFrame(w, h, m.outerHTML, (doc) => {
-        const card = doc.querySelector(tSel).closest('.modal-card, .stats-card');
+        const card = doc.querySelector(tSel).closest('.modal-card');
         (card.querySelector('.hr-sheet-body') || card).insertAdjacentHTML('beforeend', '<div style="height:3000px"></div>');
         let moved = 0;
         card.querySelectorAll('*').forEach((e) => { e.scrollTop += 2000; moved += e.scrollTop; }); card.scrollTop += 2000; moved += card.scrollTop;
@@ -1412,30 +1406,24 @@ export default [
       'slot 1 must seed its own record');
   }),
 
-  () => tryRun('render: bestiary modal (extracted surface)', () => {
-    assert(typeof window.openBestiary === 'function',
-      'openBestiary must stay on window (invoked by inline onclick handlers)');
-    assert(window.MONSTERS && typeof window.MONSTERS === 'object' &&
-      Object.keys(window.MONSTERS).length > 0,
-      'MONSTERS catalogue must be published for the modal to read');
+  () => tryRun('render: the Journal bestiary (extracted surface)', () => {
+    assert(window.MONSTERS && Object.keys(window.MONSTERS).length > 0,
+      'MONSTERS catalogue must be published for the Bestiary to read');
     const snap = JSON.stringify(window.G.bestiary || {});
-    // Seed one discovered monster so we exercise the discovered branch too.
     const firstId = Object.keys(window.MONSTERS)[0];
-    window.G.bestiary = window.G.bestiary || {};
-    window.G.bestiary[firstId] = { kills: 7, firstKill: Date.now() };
-    window.openBestiary();
-    const ov = document.getElementById('best-overlay');
-    assert(ov, 'best-overlay element not created');
-    assert(ov.classList.contains('show'), 'bestiary modal did not open (missing .show)');
-    const list = document.getElementById('best-list');
-    assert(list && list.querySelectorAll('.bestiary-row').length === Object.keys(window.MONSTERS).length,
-      'modal must render one .bestiary-row per monster in the catalogue');
-    const discovered = list.querySelector('.bestiary-row.discovered');
-    assert(discovered, 'seeded (killed) monster must render as a .discovered row');
-    assert(discovered.querySelector('.br-kills').textContent.indexOf('7') >= 0,
-      'discovered row must show the kill count');
-    ov.classList.remove('show');
-    window.G.bestiary = JSON.parse(snap);
+    try {
+      // Seed one discovered monster so the named branch is exercised too.
+      window.G.bestiary = Object.assign({}, window.G.bestiary, { [firstId]: { kills: 7, firstKill: Date.now() } });
+      window.HearthriseJournal.open('bestiary');
+      const list = document.querySelector('#panel-journal .bestiary-list');
+      assert(list && list.querySelectorAll('.bestiary-row').length === Object.keys(window.MONSTERS).length,
+        'the Bestiary tab must render one .bestiary-row per monster in the catalogue');
+      const named = list.querySelector('.bestiary-row.discovered[data-jr-mon="' + firstId + '"]');
+      assert(named, 'a killed monster must render as a named, tappable row');
+    } finally {
+      window.G.bestiary = JSON.parse(snap);
+      try { window.showTab('profile'); } catch (e) {}
+    }
   }),
 
   () => tryRun('render: equipment bonuses stats renderer (extracted surface)', () => {
@@ -1795,14 +1783,15 @@ export default [
   // Helper-driven walk: simulates a real click on each element in
   // a query selector, swallowing the action result, asserting no
   // errors thrown + element stayed in DOM. Returns count clicked.
-  () => tryRun('clicks: every bottom-nav tab activates its panel', () => {
-    const tabs = ['profile', 'character', 'combat', 'skills', 'farming'];
-    for (const t of tabs) {
-      const el = document.querySelector(`.bottom-nav [data-tab="${t}"]`);
-      if (!el) continue; // mobile only — desktop hides
+  () => tryRun('clicks: every bottom-nav door activates its front pane', () => {
+    const N = window.HearthriseNav;
+    for (const el of document.querySelectorAll('.bottom-nav .bn-btn[data-tab]')) {
+      const t = el.dataset.tab;
+      if (t === 'more' || t === 'shops') continue;   // the More sheet; Shops is covered by NAV-MARKET-1
       try { el.click(); } catch (e) { throw new Error(`bottom-nav ${t} click threw: ${e.message}`); }
-      const panel = document.getElementById('panel-' + t);
-      assert(panel && panel.classList.contains('active'), `panel-${t} did not activate after bottom-nav click`);
+      const pane = N ? N.resolve(t) : t;
+      const panel = document.getElementById('panel-' + pane);
+      assert(panel && panel.classList.contains('active'), `panel-${pane} did not activate after the bottom-nav ${t} click`);
     }
     window.showTab('profile');
   }),
@@ -1851,7 +1840,7 @@ export default [
     }
   }),
 
-  () => tryRun('clicks: profile feat-buttons (achievements/bestiary/etc)', () => {
+  () => tryRun('clicks: profile feat-buttons (journal/codex)', () => {
     window.showTab('profile');
     const btns = document.querySelectorAll('#panel-profile .feat-buttons button');
     /* This was a bare `>= 4`, which silently encoded a FOURTH button that
@@ -1859,14 +1848,13 @@ export default [
        Set the Night, FEATURE_SLATE.md §3). A count threshold cannot tell "the row
        shrank by ruling" from "a button was dropped by accident", so it is now the
        NAMED census of the surviving row:
-         · Achievements + Bestiary — injectProfileButtons(), src/legacy.js
-         (Lifetime Stats' doors are the Hero tab foot row and the More sheet.)
+         · Journal — injectProfileButtons(), src/legacy.js (every record lives there)
          · Codex                   — injectProfileButtons(); its open() awaits a
            dynamic import, so it is clicked through by CODEX-1 (which awaits and
            closes it), not by this synchronous loop.
        Both directions bite: a missing entry is a lost button, an unexpected entry
        is a button added without being clicked-through here. */
-    const EXPECT_FEATS = ['achievements', 'bestiary', 'codex'];
+    const EXPECT_FEATS = ['journal', 'codex'];
     const labels = [...btns].map((b) => (b.textContent || '').trim().toLowerCase());
     const missing = EXPECT_FEATS.filter((n) => !labels.some((l) => l.includes(n)));
     assert(missing.length === 0, 'profile feat button(s) missing from the row: ' + missing.join(', ') + ' (present: ' + labels.join(' | ') + ')');
@@ -1878,10 +1866,8 @@ export default [
         try { b.click(); } catch (e) { throw new Error(`feat button "${b.textContent.trim()}" threw: ${e.message}`); }
       }
     } finally {
-      /* Lifetime Stats is `.stats-modal`, Achievements and Bestiary are
-         `.ach-overlay` — the `.modal.show` sweep that used to sit inside this
-         loop closed none of the three. */
       closeOverlays();
+      try { window.showTab('profile'); } catch (e) {}
     }
   }),
 
@@ -2013,26 +1999,23 @@ export default [
   // at runtime by TWO competing owners (legacy.js block-32 + companions.js),
   // both guarded on [data-tab="stable"] existence, so whichever ran first won
   // and the legacy one bailed unless a literal 'Homestead' label was present —
-  // the button was effectively unreachable, and never existed on mobile at all.
-  // Collapsed to ONE owner (companions.js) with FIRST-CLASS STATIC nav entries
-  // in index.html: one in the desktop rail, one in the mobile More sheet.
-  () => tryRun('BUG4: Stable is a single-owner, first-class nav entry (desktop + mobile)', () => {
-    // Single owner in the desktop rail: exactly one, no runtime duplicate.
-    const railBtns = document.querySelectorAll('.sidebar [data-tab="stable"]');
-    assert(railBtns.length === 1, 'expected exactly ONE Stable button in the rail, found ' + railBtns.length + ' (duplicate injector regression)');
-    // Mobile reachability: a route in the More sheet (wired by muster wireMoreSheet).
-    const moreBtn = document.querySelector('#more-modal [data-tab="stable"]');
-    assert(moreBtn, 'Stable has no route in the mobile More sheet');
-    // The panel exists and showTab reveals it (viewport-independent path).
-    window.showTab('stable');
-    const panel = document.getElementById('panel-stable');
-    assert(panel, '#panel-stable missing from DOM');
-    assert(panel.classList.contains('active'), 'showTab("stable") did not activate #panel-stable');
-    // The mobile route resolves to the same panel: click it, panel stays active.
-    window.showTab('profile');
-    try { moreBtn.click(); } catch (e) { throw new Error('mobile More Stable button threw: ' + e.message); }
-    assert(document.getElementById('panel-stable').classList.contains('active'),
-      'mobile More → Stable did not open #panel-stable');
+  // the button was effectively unreachable. ONE owner (companions.js) draws the
+  // panel; the door is Homestead, and the Stable is its third pane.
+  () => tryRun('BUG4: the Stable has one owner and one door (Homestead), on both rails', () => {
+    assert(!document.querySelector('.sidebar [data-tab="stable"], #bottom-nav [data-tab="stable"]'),
+      'a Stable rail entry is back — the Stable is a Homestead pane (duplicate injector regression)');
+    try {
+      for (const rail of ['.sidebar .nav-btn', '#bottom-nav .bn-btn']) {
+        window.showTab('profile');
+        document.querySelector(rail + '[data-tab="homestead"]').click();
+        const pane = document.querySelector('#hub-tabs [data-hub-pane="stable"]');
+        assert(pane, rail + ': the Homestead door offers no Stable pane');
+        pane.click();
+        assert(document.getElementById('panel-stable').classList.contains('active'), rail + ': the Stable pane did not open #panel-stable');
+      }
+    } finally {
+      try { window.showTab('profile'); } catch (e) {}
+    }
   }),
 
   // BUG 5 (Tyler): the War Table BROWSE card used to teaser only the top 2 drops
@@ -2249,7 +2232,7 @@ export default [
       assert(none && none.outcome === 'nothing', 'the idle envelope classified as ' + (none && none.outcome) + ', not "nothing" — the arm below is not testing the boot path');
       assert(C.noteEnvelope({ ok: true }).reason === 'no_key' && C.rankOfClass('vermin') === 0 && C.badgeHtml('vermin') === '', 'an envelope with no bestiary block produced a rank — the fail-safe must be "not studied", never a charm the server does not believe in');
       G.bestiary = { rat: { kills: 9 }, void_mote: { kills: 2 } };
-      window.openBestiary();
+      window.HearthriseJournal.open('bestiary');
       assert(!/charm-chip/.test(chips()) && /charm-pending/.test(chips()) && !/charm-empty/.test(chips()) && !/charm-element/.test(listHtml()), 'with no server counters the strip must read pending, never a chip, "No charms" or an element line: ' + chips().slice(0, 120));
       /* ARM 2 — THE COUNTERS ARRIVE ON THE IDLE REPLY. */
       const got = await drive({ kills_by_class: { vermin: 25, extra_dimensional: 3, not_a_class: 500, constructor: 7 } });
@@ -2258,7 +2241,7 @@ export default [
       assert(C.rankOfClass('vermin') === 1 && C.rankOfClass('extra_dimensional') === 0, 'vermin 25 kills read rank ' + C.rankOfClass('vermin') + ' and extra_dimensional 3 kills read rank ' + C.rankOfClass('extra_dimensional') + ' — the first rung is 25 and nothing below it ranks');
       const nx = C.nextOfClass('vermin');
       assert(nx && nx.at === 100 && nx.remaining === 75, 'the next threshold said ' + JSON.stringify(nx) + ' — it must name the next rung and the kills left, derived, never stored');
-      window.openBestiary();
+      window.HearthriseJournal.open('bestiary');
       assert(/charm-chip/.test(chips()) && /Vermin/.test(chips()) && /Studied/.test(chips()) && /Next charm at 100/.test(chips()), 'the Vermin chip did not paint its badge and threshold: ' + chips().slice(0, 240));
       assert(/charm-element/.test(listHtml()) && /weak to frost/.test(listHtml()), 'a Studied class did not print its element weakness — that reveal IS rank 1\'s reward');
       const vmRowAt3 = voidMoteRow();
@@ -2266,7 +2249,7 @@ export default [
       /* ARM 3 — THE HIDDEN ELEMENT, REVEALED BY THE CHARM AND NOTHING ELSE. */
       await drive({ kills_by_class: { vermin: 2000, extra_dimensional: 25 } });
       assert(C.rankOfClass('vermin') === 4 && C.rankOfClass('extra_dimensional') === 1, 'the ladder top read ' + C.rankOfClass('vermin') + ' at 2000 kills');
-      window.openBestiary();
+      window.HearthriseJournal.open('bestiary');
       assert(/Banesworn/.test(chips()) && /Ladder complete/.test(chips()), 'the top rung did not paint as complete: ' + chips().slice(0, 240));
       const vmRowAt25 = voidMoteRow();
       const vmElementAt25 = vmRowAt25 && vmRowAt25.querySelector('.charm-element');
@@ -2274,7 +2257,7 @@ export default [
     } finally {
       window.fetch = realFetch;
       try { A.resetAccrualGate(); A.configureAccrual(null); } catch (e) {}
-      const ov = document.getElementById('best-overlay'); if (ov) ov.classList.remove('show');
+      try { window.showTab('profile'); } catch (e) {}
       if (prevCharms === undefined) delete G._bestiaryCharms; else G._bestiaryCharms = prevCharms;
       restoreG(snap);
     }
@@ -2517,19 +2500,19 @@ export default [
     const G = window.G; const snap = snapshotG(); const prev = G._bestiaryCharms; const rig = hrCharmDriver();
     const strip = () => document.getElementById('best-charms') || { innerHTML: '', querySelector: () => null };
     try {
-      delete G._bestiaryCharms; window.openBestiary();
+      delete G._bestiaryCharms; window.HearthriseJournal.open('bestiary');
       assert(strip().querySelector('[data-charm-pending] .bal-pending') && !/charm-empty/.test(strip().innerHTML), 'unknown counters did not read pending: ' + strip().innerHTML.slice(0, 160));
       await rig.drive({ kills_by_class: {}, kills_by_monster: {} });
-      window.openBestiary();
+      window.HearthriseJournal.open('bestiary');
       assert(/charm-empty/.test(strip().innerHTML) && !strip().querySelector('[data-charm-pending]'), 'a KNOWN empty statement did not read empty: ' + strip().innerHTML.slice(0, 160));
-      delete G._bestiaryCharms; window.openBestiary();
+      delete G._bestiaryCharms; window.HearthriseJournal.open('bestiary');
       await rig.drive({ kills_by_class: { vermin: 25 } });
       assert(/charm-chip/.test(strip().innerHTML) && /Vermin/.test(strip().innerHTML), 'the open Bestiary did not resolve in place: ' + strip().innerHTML.slice(0, 160));
     } finally {
       rig.restore();
       if (prev === undefined) delete G._bestiaryCharms; else G._bestiaryCharms = prev;
       restoreG(snap);
-      const ov = document.getElementById('best-overlay'); if (ov) ov.classList.remove('show');
+      try { window.showTab('profile'); } catch (e) {}
     }
   }),
 
@@ -2560,7 +2543,7 @@ export default [
       assert(T.noteEnvelope({ ok: true }).reason === 'no_key' && T.stageOfMonster('goblin') === 0
         && T.badgeHtml('goblin') === '' && T.claimButtonHtml('goblin') === '',
         'an envelope with no bestiary block produced a stage off 99,999 LOCAL kills — the residue must buy nothing');
-      window.openBestiary();
+      window.HearthriseJournal.open('bestiary');
       assert(!/trophy-claim/.test(listHtml()), 'a Claim button painted with no server counters: ' + listHtml().slice(0, 200));
       /* ARM 2 — THE COUNTERS ARRIVE, AND THE LADDER PAINTS FROM THEM. */
       const got = await rig.drive({ kills_by_class: {}, kills_by_monster: { goblin: 2500, slime: 12, not_a_monster: 99999 }, trophies: [] });
@@ -2573,12 +2556,12 @@ export default [
       const nx = T.nextOfMonster('goblin');
       assert(nx && nx.row.at === 5000 && nx.remaining === 2500,
         'the next threshold said ' + JSON.stringify(nx && { at: nx.row.at, r: nx.remaining }) + ' — it must name the next rung and the kills left, derived, never stored');
-      window.openBestiary();
+      window.HearthriseJournal.open('bestiary');
       assert(/trophy-badge/.test(listHtml()) && /Quarry/.test(listHtml()) && /2,500 more to Stalker/.test(listHtml()),
         'the goblin row did not paint its badge and the number a player can act on: ' + listHtml().slice(0, 300));
     } finally {
       rig.restore();
-      const ov = document.getElementById('best-overlay'); if (ov) ov.classList.remove('show');
+      try { window.showTab('profile'); } catch (e) {}
       if (prev === undefined) delete G._bestiaryTrophies; else G._bestiaryTrophies = prev;
       restoreG(snap);
     }
@@ -2595,17 +2578,17 @@ export default [
       await rig.drive({ kills_by_class: {}, kills_by_monster: { goblin: 2500 }, trophies: [] });
       assert(T.isClaimable('goblin', 1) === true && T.isClaimed('goblin', 1) === false,
         'a reached, unclaimed trophy did not read claimable');
-      window.openBestiary();
+      window.HearthriseJournal.open('bestiary');
       assert(/trophy-claim/.test(listHtml()) && /Claim Quarry/.test(listHtml()), 'no Claim button on a reached, unclaimed trophy');
       await rig.drive({ kills_by_class: {}, kills_by_monster: { goblin: 2500 }, trophies: [{ monster: 'goblin', stage: 1 }] });
       assert(T.isClaimed('goblin', 1) === true && T.isClaimable('goblin', 1) === false,
         'the server listed the trophy as claimed and the client still offered it');
-      window.openBestiary();
+      window.HearthriseJournal.open('bestiary');
       assert(!/trophy-claim/.test(listHtml()) && /is-claimed/.test(listHtml()),
         'a claimed trophy still painted a Claim button: ' + listHtml().slice(0, 300));
     } finally {
       rig.restore();
-      const ov = document.getElementById('best-overlay'); if (ov) ov.classList.remove('show');
+      try { window.showTab('profile'); } catch (e) {}
       if (prev === undefined) delete G._bestiaryTrophies; else G._bestiaryTrophies = prev;
       restoreG(snap);
     }
@@ -2652,7 +2635,7 @@ export default [
     } finally {
       window.fetch = realFetch;
       try { TC.configureTrophyClaim(prevCfg); } catch (e) {}
-      const ov = document.getElementById('best-overlay'); if (ov) ov.classList.remove('show');
+      try { window.showTab('profile'); } catch (e) {}
       if (prev === undefined) delete G._bestiaryTrophies; else G._bestiaryTrophies = prev;
       restoreG(snap);
     }

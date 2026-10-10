@@ -8,6 +8,13 @@
 // ══════════════════════════════════════════════════════════════════════
 import { pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, stampRecordLikeLoad, withFarmServer, farmReplantFixtureG, farmHarvestThenPlant, withDeferredFarmPlant, goldOf, gemsOf, snapshotG, restoreG, snapRoundTrip, on, snapshot, serverBagFixture } from './_harness.js?v=564';
 
+/* The server mirrors snapshotG does not carry: put them back exactly, absent stays absent. */
+const keepServerMirrors = () => {
+  const G = window.G, keys = ['_bestiaryTrophies', '_bestiaryCharms', '_collectionServer', '_collectionServerClaimed'];
+  const had = keys.map((k) => [k, Object.prototype.hasOwnProperty.call(G, k), G[k]]);
+  return () => had.forEach(([k, has, v]) => { if (has) G[k] = v; else delete G[k]; });
+};
+
 export default [
 
   /* ══ FARM-TIER-1..3 — THE FLEET-WIDE PLANT CLIFF (P1, Paione 2026-09-06:
@@ -1027,58 +1034,218 @@ export default [
     }
   }),
 
-  // #14: discoverability. THIS is the tripwire the original bug never had —
-  // the Dungeons entry was injected and then hidden in CSS, which is exactly
-  // the failure mode that made dungeons, and the clan raid nested inside them,
-  // impossible to find.
-  () => tryRun('b220: Events is a real top-level destination and nothing hides it', () => {
-    const nav = document.querySelector('.nav-btn[data-tab="events"]');
-    assert(nav, 'the top-level Events nav entry is missing');
-    assert(getComputedStyle(nav).display !== 'none',
-      'something is hiding the Events nav entry — this is backlog #14 recurring');
-    assert(/events/i.test(nav.textContent), 'the Events nav entry lost its label');
-    assert(!document.querySelector('.nav-btn[data-tab="dungeons"]'),
-      'the injected-then-hidden Dungeons nav entry came back');
-    assert(document.querySelector('#more-modal [data-tab="events"]'),
-      'mobile has no route to Events — the More sheet is the only spare surface');
-    const panel = document.getElementById('panel-events');
-    assert(panel, '#panel-events was never built');
-    ['hr-muster-card', 'hr-ev-blessing', 'hr-events-raid', 'hr-events-dungeons'].forEach((id) =>
-      assert(panel.querySelector('#' + id), 'Events panel is missing its ' + id + ' section'));
-    // The dungeon list lives here now, and showTab('dungeons') still resolves.
-    assert(document.querySelector('#panel-events #panel-dungeons'),
-      'the dungeon list did not move into Events');
+  /* ══ NAV-DOORS — the menu is nine doors (coherence audit 2026-10-09) ══════
+     Home · Character · Skills · Combat · Homestead · Clan · Events · Market ·
+     Social. Every old destination is a PANE of exactly one door, drawn by the
+     pane strip from HUBS (src/nav-consolidation.js). The b220 lesson still
+     stands: every door is static markup that nothing hides. */
+  () => tryRun('NAV-DOORS-1: the menu is nine static doors in the audit\'s order, on both rails', () => {
+    const N = window.HearthriseNav;
+    assert(N && Array.isArray(N.hubs), 'window.HearthriseNav is not published');
+    const want = ['profile', 'character', 'skills', 'combat', 'homestead', 'clan', 'events', 'shops', 'social'];
+    const labels = ['Home', 'Character', 'Skills', 'Combat', 'Homestead', 'Clan', 'Events', 'Market', 'Social'];
+    assert(N.hubs.map((h) => h.id).join() === want.join(), 'HUBS order is ' + N.hubs.map((h) => h.id).join());
+    const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/u;
+    for (const [host, cls] of [['#sidebar', 'nav-btn'], ['#bottom-nav', 'bn-btn']]) {
+      const btns = [...document.querySelectorAll(host + ' .' + cls + '[data-tab]')].filter((b) => b.dataset.tab !== 'more');
+      assert(btns.map((b) => b.dataset.tab).join() === want.join(), host + ' doors are ' + btns.map((b) => b.dataset.tab).join());
+      btns.forEach((b, i) => {
+        assert(b.textContent.trim() === labels[i], host + ' door ' + i + ' reads "' + b.textContent.trim() + '", expected ' + labels[i]);
+        assert(!EMOJI.test(b.textContent), host + ' door ' + labels[i] + ' carries emoji');
+        assert(!b.hasAttribute('data-injected'), host + ' door ' + labels[i] + ' was injected');
+      });
+    }
+    document.querySelectorAll('#sidebar .nav-btn[data-tab]').forEach((b) => {
+      assert(getComputedStyle(b).display !== 'none', 'something hides the ' + b.dataset.tab + ' door');
+      assert(b.querySelector('.ic .hr-glyph svg'), 'the ' + b.dataset.tab + ' door has no atlas glyph');
+    });
+    const seen = {};
+    N.hubs.forEach((h) => h.panes.forEach((p) => {
+      assert(!seen[p.tab], p.tab + ' is a pane of two doors (' + seen[p.tab] + ', ' + h.id + ')');
+      seen[p.tab] = h.id;
+      assert(document.getElementById('panel-' + p.tab), 'pane ' + p.tab + ' has no #panel-' + p.tab);
+    }));
+    assert(!N.premiumOpen && !Object.keys(seen).some((t) => /premium|iap/.test(t)), 'Premium has a door in Early Access');
+    assert(!document.querySelector('#more-modal [data-tab]'), 'the More sheet still duplicates a door — it carries utilities only');
   }),
 
-  () => tryRun('b220: the raid card renders at full height in its new home', () => {
+  /* The tripwire for the merge itself: everything a player could reach from
+     the old fourteen entries is reached here by GESTURES — a click on the rail,
+     then a click on the pane strip — and lands on its real content. */
+  () => tryRunAsync('NAV-DOORS-2: every old menu entry\'s screen is one door and one pane away', async () => {
+    const OLD = [
+      ['Home', 'profile', 'profile', '#dash-user'],
+      ['Character', 'character', 'character', '#char-shell'],
+      ['Inventory', 'character', 'inventory', '#panel-inventory > *'],
+      ['Skills', 'skills', 'skills', '#panel-skills > *'],
+      ['Combat', 'combat', 'combat', '#panel-combat .combat-picker'],
+      ['Bounty', 'combat', 'bounty', '#panel-bounty > *'],
+      ['Dungeons', 'combat', 'dungeons', '#panel-dungeons .dgn-section'],
+      ['Farm', 'homestead', 'farming', '#farm-panel'],
+      ['House', 'homestead', 'house', '#house-panel'],
+      ['Stable', 'homestead', 'stable', '#stable-body'],
+      ['Clan', 'clan', 'clan', '#clan-panel'],
+      ['Party', 'clan', 'party', '#party-panel'],
+      ['Events', 'events', 'events', '#hr-muster-card'],
+      ['Shops: Local Shop', 'shops', 'shop', '#shop-panel'],
+      ['Shops: Market', 'shops', 'market', '#market-root > *'],
+      ['Social', 'social', 'social', '#leaderboard'],
+    ];
+    const tick = () => new Promise((r) => setTimeout(r, 60));
+    try {
+      for (const [old, door, pane, marker] of OLD) {
+        document.querySelector('#sidebar .nav-btn[data-tab="' + door + '"]').click();
+        await tick();
+        const strip = document.getElementById('hub-tabs');
+        const tab = strip.querySelector('[data-hub-pane="' + pane + '"]');
+        if (tab) { tab.click(); await tick(); }
+        else assert(document.getElementById('panel-' + pane).classList.contains('active'),
+          old + ': the ' + door + ' door neither opens ' + pane + ' nor offers it on the strip');
+        const panel = document.getElementById('panel-' + pane);
+        assert(panel.classList.contains('active'), old + ': #panel-' + pane + ' did not open');
+        assert(document.querySelector('#panel-' + pane + ' ' + marker.replace('#panel-' + pane + ' ', '')) || document.querySelector(marker),
+          old + ': #panel-' + pane + ' opened without its content (' + marker + ')');
+        assert(document.querySelector('#sidebar .nav-btn[data-tab="' + door + '"]').classList.contains('active'),
+          old + ': the ' + door + ' door is not lit while ' + pane + ' is open');
+        if (tab) assert(strip.querySelector('.hub-tab.active[data-hub-pane="' + pane + '"]'), old + ': the strip does not mark ' + pane);
+      }
+    } finally {
+      try { window.showTab('profile'); } catch (e) {}
+    }
+  }),
+
+  /* The eleven record screens became four Journal tabs. Each old screen's
+     content is reached from the menu by gestures alone. */
+  () => tryRunAsync('NAV-DOORS-3: every old record screen is in the Journal, reached from the menu', async () => {
+    const tick = () => new Promise((r) => setTimeout(r, 40));
+    const ST = window.HearthriseStandings, HL = window.HearthriseHuntersLedger;
+    const ids = Object.keys(window.MONSTERS || {});
+    const snap = snapshotG(), putBack = keepServerMirrors();
+    try {
+      // Standings and the Hunter's Ledger draw nothing when the realm has nothing
+      // to say (signed out / known-empty); prove the tabs ask them.
+      if (ST) window.HearthriseStandings = Object.assign({}, ST, { card: () => '<div data-test-standings>standings</div>' });
+      if (HL) window.HearthriseHuntersLedger = Object.assign({}, HL, { card: () => '<div class="hl-card" data-test-ledger>ledger</div>' });
+      // The realm counts one kill, so the row is named and opens its drop table.
+      window.HearthriseTrophies.noteEnvelope({ bestiary: { kills_by_monster: { [ids[0]]: 1 } } });
+      document.querySelector('#sidebar .nav-btn[data-tab="character"]').click(); await tick();
+      document.querySelector('#hub-tabs [data-hub-pane="journal"]').click(); await tick();
+      assert(document.getElementById('panel-journal').classList.contains('active'), 'the Journal pane did not open');
+      const SCREENS = [
+        ['Collection Log', 'collection', '.hr-cl-top'],
+        ['luck ledger', 'collection', '#best-luck summary'],
+        ['Hearthfinds', 'collection', '.hr-hf-cl'],
+        ['Bestiary', 'bestiary', '.bestiary-list .bestiary-row'],
+        ['charms', 'bestiary', '.charm-strip'],
+        ["Hunter's Ledger", 'bestiary', '[data-test-ledger]'],
+        ['Chronicle', 'deeds', '.jr-chronicle .hr-ch-sec'],
+        ['Deeds', 'deeds', '.ach-list .ach-row'],
+        ['lifetime stats', 'stats', '.stats-grid .stat-tile'],
+        ['lifetime tally', 'stats', '.stats-section'],
+        ['your week', 'stats', '.jr-week'],
+        ['standings', 'stats', '[data-test-standings]'],
+      ];
+      for (const [old, tab, marker] of SCREENS) {
+        document.querySelector('#panel-journal .jr-tab[data-jr-tab="' + tab + '"]').click(); await tick();
+        assert(document.querySelector('#panel-journal .jr-tab.active[data-jr-tab="' + tab + '"]'), old + ': the ' + tab + ' tab did not select');
+        assert(document.querySelector('#panel-journal ' + marker), old + ': not in the Journal\'s ' + tab + ' tab (' + marker + ')');
+      }
+      // The drop table: a named bestiary row opens it, and Back returns.
+      document.querySelector('#panel-journal .jr-tab[data-jr-tab="bestiary"]').click(); await tick();
+      const row = document.querySelector('#panel-journal [data-jr-mon="' + ids[0] + '"]');
+      assert(row, 'a named bestiary row is not tappable');
+      row.click(); await tick();
+      assert(/Drop table/.test(document.querySelector('#panel-journal .hr-cl-detail').textContent), 'the drop table did not open');
+      document.querySelector('#panel-journal [data-jr-back]').click(); await tick();
+      assert(document.querySelector('#panel-journal .bestiary-list'), 'Back did not return to the Bestiary');
+      // The bell opens the Chronicle where it now lives.
+      window.showTab('profile');
+      document.getElementById('btn-notif').click(); await tick();
+      assert(document.querySelector('#panel-journal.active .jr-tab.active[data-jr-tab="deeds"]'), 'the bell did not open the Journal on Deeds');
+      // Every old record route still lands.
+      for (const [route, tab] of [['achievements', 'deeds'], ['bestiary', 'bestiary'], ['collection', 'collection'], ['chronicle', 'deeds']]) {
+        window.showTab('profile');
+        window.showTab(route); await tick();
+        assert(document.querySelector('#panel-journal.active .jr-tab.active[data-jr-tab="' + tab + '"]'), 'showTab("' + route + '") did not land on Journal ' + tab);
+      }
+      ['best-overlay', 'ach-overlay', 'hr-cl-modal', 'hr-ch-modal', 'lifetime-stats'].forEach((id) =>
+        assert(!document.getElementById(id), '#' + id + ' exists — the old record screen came back'));
+      ['openBestiary', 'openAchievements', 'openLifetimeStats'].forEach((fn) =>
+        assert(typeof window[fn] !== 'function', 'window.' + fn + ' is back — the Journal replaced it'));
+    } finally {
+      if (ST) window.HearthriseStandings = ST;
+      if (HL) window.HearthriseHuntersLedger = HL;
+      restoreG(snap); putBack();
+      try { window.showTab('profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('JOURNAL-SERVER-1: the Journal prints the realm\'s counts or the pending dash, never the residue', () => {
+    const G = window.G, T = window.HearthriseTrophies, C = window.HearthriseCollection;
+    const ids = Object.keys(window.MONSTERS || {});
+    const snap = snapshotG(), putBack = keepServerMirrors();
+    try {
+      G.bestiary = { [ids[0]]: { kills: 7777 } };   // the client's own residue: the belief under test
+      delete G._bestiaryTrophies; delete G._collectionServer;
+      window.HearthriseJournal.open('bestiary');
+      let row = document.querySelector('#panel-journal [data-jr-mon="' + ids[0] + '"]');
+      assert(row, 'the residue-named row is missing');
+      assert(!/7,?777/.test(row.textContent), 'the Bestiary printed the residue kill count 7777');
+      assert(row.querySelector('.br-kills .bal-pending'), 'an unknown server count must be the pending dash');
+      row.click();
+      assert(!/7,?777/.test(document.querySelector('#panel-journal .hr-cl-detail').textContent), 'the drop table printed the residue count');
+      window.HearthriseJournal.open('collection');
+      const top = document.querySelector('#panel-journal .hr-cl-top');
+      assert(top && top.querySelectorAll('.bal-pending').length >= 2, 'unknown server counts must print pending in the Collection head');
+      // Once the realm states them (the envelope seams), its numbers are what show.
+      T.noteEnvelope({ bestiary: { kills_by_monster: { [ids[0]]: 42 } } });
+      C.noteServerCounts({ collection: { found: 3 } });
+      window.HearthriseJournal.open('bestiary');
+      row = document.querySelector('#panel-journal [data-jr-mon="' + ids[0] + '"]');
+      assert(/42×/.test(row.querySelector('.br-kills').textContent), 'the Bestiary did not print the server count, got ' + row.querySelector('.br-kills').textContent);
+      window.HearthriseJournal.open('collection');
+      assert(/Items 3\//.test(document.querySelector('#panel-journal .hr-cl-top').textContent), 'the Collection head did not print the server item count');
+    } finally {
+      restoreG(snap); putBack();
+      try { window.showTab('profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRun('b220: the Clan Hunt card renders at full height in Events, and Events holds no dungeons', () => {
     const R = window.HearthriseRaids;
-    const prevTab = window.activeTab;
     try {
       window.showTab('events');
       const p = R.render(); if (p && p.catch) p.catch(() => {});
       const card = document.getElementById('hr-raid-card');
-      assert(card, 'the raid card is missing');
-      assert(card.closest('#panel-events'),
-        'the raid card is still outside Events — the flagship social feature must be findable');
-      // Above the dungeon list, under its own "Weekly clan boss" heading: the
-      // weekly SOCIAL boss must not read as one more solo dungeon.
+      assert(card, 'the Clan Hunt card is missing');
       assert(card.parentElement && card.parentElement.id === 'hr-events-raid',
-        'the raid card drifted out of its own section, into ' + (card.parentElement && card.parentElement.id));
-      const dgnSec = document.getElementById('hr-events-dungeons');
-      assert(card.compareDocumentPosition(dgnSec) & Node.DOCUMENT_POSITION_FOLLOWING,
-        'the clan boss must come before the solo dungeon list');
+        'the Clan Hunt card drifted out of its own section, into ' + (card.parentElement && card.parentElement.id));
+      assert(/Clan Hunt/.test(document.getElementById('hr-events-raid').textContent), 'the Events section does not call it the Clan Hunt');
+      assert(!/raid|weekly clan boss/i.test(card.textContent), 'the Clan Hunt card still says raid / weekly clan boss');
       const box = card.getBoundingClientRect();
-      // It rendered 16px tall inside #panel-dungeons: `.panel.active` is
-      // display:grid with no row template, so an injected card became an
-      // implicit row in a fixed-height container and collapsed.
-      assert(box.height > 60, 'the raid card collapsed again — height ' + Math.round(box.height) + 'px');
-      assert(box.width > 60, 'the raid card has no width');
+      assert(box.height > 60, 'the Clan Hunt card collapsed — height ' + Math.round(box.height) + 'px');
       assert(getComputedStyle(document.getElementById('panel-events')).display === 'block',
-        'the Events panel must be a block column, not a grid — that grid is what collapsed the card');
-      assert(!document.getElementById('hr-dungeons-back'),
-        'the "Back to Combat" escape hatch belongs to the old dead-end panel');
+        'the Events panel must be a block column, not a grid');
+      assert(!document.querySelector('#panel-events #panel-dungeons, #hr-events-dungeons'),
+        'the dungeons are back inside Events — they are a Combat pane');
     } finally {
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+      try { window.showTab('profile'); } catch (e) {}
+    }
+  }),
+
+  () => tryRunAsync('NAV-NAMES-1: one word per thing — dungeons are dungeons, the Hunt is the clan\'s', async () => {
+    try {
+      window.showTab('dungeons');
+      await new Promise((r) => setTimeout(r, 80));
+      const heads = [...document.querySelectorAll('#panel-dungeons .dgn-section h3')].map((h) => h.textContent.trim());
+      assert(heads.length >= 3, 'the dungeon list rendered ' + heads.length + ' sections');
+      heads.forEach((h) => assert(/Dungeons$/.test(h) && !/hunt|raid|boss/i.test(h), 'a dungeon section is called "' + h + '"'));
+      window.showTab('combat');
+      const kicks = [...document.querySelectorAll('#wt-dests .wtd-kick')].map((k) => k.textContent.trim());
+      assert(!kicks.some((k) => /raid/i.test(k)), 'a combat destination still says raid: ' + kicks.join(', '));
+      if (window.HearthriseRaids) assert(kicks.includes('Clan Hunt'), 'the combat destinations do not name the Clan Hunt: ' + kicks.join(', '));
+    } finally {
+      try { window.showTab('profile'); } catch (e) {}
     }
   }),
 
@@ -1098,10 +1265,10 @@ export default [
     // No emoji anywhere in the chrome this feature added (Final Directive).
     const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/u;
     assert(!EMOJI.test(nav.textContent), 'the Clan nav entry contains emoji');
-    // The 6-slot bottom nav is full, so mobile's route is the More sheet.
-    const more = document.querySelector('#more-modal [data-tab="clan"]');
-    assert(more, 'mobile has no route to the Clan Seat — the More sheet is the only spare surface');
-    assert(!EMOJI.test(more.textContent), 'the mobile Clan entry contains emoji');
+    // The landscape rail carries every door, the Clan among them.
+    const rail = document.querySelector('#bottom-nav .bn-btn[data-tab="clan"]');
+    assert(rail, 'the landscape rail has no Clan door');
+    assert(!EMOJI.test(rail.textContent), 'the landscape Clan door contains emoji');
     // The panel and its host exist in the markup, not at the mercy of a boot order.
     const panel = document.getElementById('panel-clan');
     assert(panel, '#panel-clan was never built');
@@ -1160,63 +1327,6 @@ export default [
     }
   }),
 
-  /* ── b230 regression suite (Tyler: "Market tabs need some organization.
-     Right now it's hard to find the in-game shop.") ────────────────────────
-     The in-game shop had NO visible door: theme-cozy.css set
-     `.nav-btn[data-tab="shop"]{display:none!important}` and the only commerce
-     entry a player could see was the Market button market.js injected at
-     runtime. Commerce is now one static `Shops` destination under Realm with
-     three toggles, Inventory moved to the character block, and the Economy
-     group is gone. Five guards: the shape, the routes, the toggle, the colour
-     role, and the self-deleting button that started this. */
-  () => tryRun('b230: the nav shape — Economy is gone, Inventory is a character entry, Shops is a Realm entry', () => {
-    const sidebar = document.getElementById('sidebar');
-    assert(sidebar, 'no sidebar');
-    const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/u;
-    const labels = Array.from(sidebar.querySelectorAll('.nav-group-label')).map((l) => l.textContent.trim());
-    assert(!labels.some((t) => /economy/i.test(t)),
-      'the Economy group is back — Tyler asked for it removed');
-
-    // Which labelled group a nav entry sits in = its nearest PRECEDING label.
-    const groupOf = (el) => {
-      let n = el.previousElementSibling;
-      while (n) { if (n.classList.contains('nav-group-label')) return n.textContent.trim(); n = n.previousElementSibling; }
-      return null; // the unlabelled head block
-    };
-
-    // Inventory belongs to the character, and sits directly under Character.
-    const character = sidebar.querySelector('.nav-btn[data-tab="character"]');
-    const inv = sidebar.querySelector('.nav-btn[data-tab="inventory"]');
-    assert(character && inv, 'Character or Inventory is missing from the rail');
-    assert(character.nextElementSibling === inv,
-      'Inventory is not directly under Character (Tyler: "Inventory should be under Character")');
-    assert(groupOf(inv) === null, 'Inventory drifted into a labelled group');
-
-    // Shops is a real, visible, static Realm entry.
-    const shops = sidebar.querySelector('.nav-btn[data-tab="shops"]');
-    assert(shops, 'the top-level Shops nav entry is missing');
-    assert(groupOf(shops) === 'Realm',
-      'Shops is not under Realm (Tyler: "\'shops\' should be under Realm") — it is under ' + groupOf(shops));
-    assert(getComputedStyle(shops).display !== 'none',
-      'something is hiding the Shops entry — that is exactly how the in-game shop vanished');
-    assert(/shops/i.test(shops.textContent), 'the Shops nav entry lost its label');
-    assert(!EMOJI.test(shops.textContent), 'the Shops nav entry contains emoji');
-    assert(shops.querySelector('.ic .hr-glyph svg'), 'the Shops entry has no atlas glyph');
-
-    // The entries it replaced must NOT come back as hidden strays.
-    assert(!sidebar.querySelector('.nav-btn[data-tab="shop"]'),
-      'the old hidden Store entry is back in the rail');
-    assert(!sidebar.querySelector('.nav-btn[data-tab="market"]'),
-      'market.js is injecting a Market nav button again — commerce is one entry now');
-
-    // Mobile: the More sheet is the phone route (the 6-slot bottom nav is full).
-    const more = document.querySelector('#more-modal [data-tab="shops"]');
-    assert(more, 'mobile has no route to Shops');
-    assert(!EMOJI.test(more.textContent), 'the mobile Shops entry contains emoji');
-    assert(!document.querySelector('#more-modal [data-tab="shop"]'),
-      'the More sheet still points at the old Store-only destination');
-  }),
-
   /* b316: Settings must be REACHABLE FROM THE RAIL. The only two doors were
      the topbar gear (clips off a narrow landscape phone's right edge) and the
      More sheet's button (does not exist in the left-rail layout a landscape
@@ -1263,167 +1373,69 @@ export default [
     }
   }),
 
-  () => tryRun('b230: every old route into the three shops still resolves, with the right toggle', () => {
-    const prevTab = window.activeTab;
+  () => tryRun('b230: every old route into the shops still resolves, with the right pane', () => {
     const prevPane = window._shopsPane;
     try {
       const shopPanel = document.getElementById('panel-shop');
       const marketPanel = document.getElementById('panel-market');
-      assert(shopPanel && marketPanel, 'a Shops host is missing from the markup');
-      // `store` is in here on purpose: the item flyout's "Buy from Seed Shop"
-      // and "Buy from Equipment Shop" have always called showTab('store'),
-      // there has never been a #panel-store, and showTab bailed on the missing
-      // element — those two buttons did nothing at all until b230.
+      assert(shopPanel && marketPanel, 'a Market host is missing from the markup');
+      // Premium has no door in Early Access: every premium route opens the Local Shop.
       const ROUTES = {
         shops: null, shop: 'local', store: 'local', stores: 'local',
         localshop: 'local', 'local-shop': 'local', seedshop: 'local', shopfront: 'local',
         market: 'market', exchange: 'market', marketplace: 'market',
-        premium: 'premium', premiumshop: 'premium', 'premium-shop': 'premium',
-        gems: 'premium', iap: 'premium',
+        premium: 'local', premiumshop: 'local', 'premium-shop': 'local', gems: 'local', iap: 'local',
       };
       Object.keys(ROUTES).forEach((route) => {
         const want = ROUTES[route];
         window.showTab('profile');
-        if (want) window._shopsPane = want === 'local' ? 'premium' : 'local'; // force a real switch
+        if (want) window._shopsPane = want === 'local' ? 'market' : 'local'; // force a real switch
         window.showTab(route);
         const host = (want || window._shopsPane) === 'market' ? marketPanel : shopPanel;
-        assert(host.classList.contains('active'),
-          'showTab("' + route + '") did not open a Shops host');
-        if (want) {
-          assert(window._shopsPane === want,
-            'showTab("' + route + '") selected the ' + window._shopsPane + ' toggle, expected ' + want);
-        }
+        assert(host.classList.contains('active'), 'showTab("' + route + '") did not open a Market pane');
+        if (want) assert(window._shopsPane === want, 'showTab("' + route + '") selected ' + window._shopsPane + ', expected ' + want);
         assert(document.querySelector('.nav-btn[data-tab="shops"]').classList.contains('active'),
-          'showTab("' + route + '") left the Shops rail entry unlit');
+          'showTab("' + route + '") left the Market door unlit');
+        assert(shopPanel.getAttribute('data-shops-pane') !== 'premium', 'showTab("' + route + '") showed the Premium pane');
       });
-      // Local Shop is the front door on a fresh session (Tyler: it is the thing
-      // that was hard to find). `shops` with nothing remembered must be local.
       delete window._shopsPane;
-      assert(window.HearthShops.paneFor('shops') === 'local',
-        'a fresh session must open Shops on the Local Shop');
-      // The Market's own renderer still owns its container and nothing else.
+      assert(window.HearthShops.paneFor('shops') === 'local', 'a fresh session must open the Market door on the Local Shop');
       window.showTab('market');
-      assert(document.getElementById('market-root'), 'the market lost its render container');
       assert(document.querySelector('#panel-market .mk-block, #panel-market .mk-list-form'),
-        'the Market toggle opened an empty panel — showTab must render it');
+        'the Player Market opened an empty panel — showTab must render it');
     } finally {
       window._shopsPane = prevPane;
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+      try { window.showTab('profile'); } catch (e) {}
     }
   }),
 
-  () => tryRun('b230: three toggles, in both hosts, and the choice persists', () => {
-    const prevTab = window.activeTab;
+  () => tryRun('NAV-MARKET-1: the Market door\'s two panes are on the strip, survive a re-render, and the choice persists', () => {
     const prevPane = window._shopsPane;
     try {
-      ['panel-shop', 'panel-market'].forEach((id) => {
-        const strip = document.querySelector('#' + id + ' .shops-tabs');
-        assert(strip, id + ' has no Shops toggle strip');
-        const tabs = strip.querySelectorAll('.shops-tab');
-        assert(tabs.length === 3, id + ' shows ' + tabs.length + ' toggles, expected 3');
-        const labels = Array.from(tabs).map((t) => t.textContent.trim());
-        ['Local Shop', 'Market', 'Premium Shop'].forEach((want, i) => {
-          assert(labels[i] === want, id + ' toggle ' + i + ' reads "' + labels[i] + '", expected "' + want + '"');
-        });
-        tabs.forEach((t) => assert(t.querySelector('.ic .hr-glyph svg'), 'a Shops toggle has no atlas glyph'));
-      });
-      // Clicking a toggle is real navigation, from either host.
       window.showTab('shop');
-      document.querySelector('#panel-shop .shops-tab[data-shops-pane="market"]').click();
-      assert(document.getElementById('panel-market').classList.contains('active'),
-        'the Market toggle did not navigate');
-      document.querySelector('#panel-market .shops-tab[data-shops-pane="premium"]').click();
-      const shopPanel = document.getElementById('panel-shop');
-      assert(shopPanel.classList.contains('active') && shopPanel.getAttribute('data-shops-pane') === 'premium',
-        'the Premium toggle did not switch the pane');
-      assert(getComputedStyle(document.getElementById('shops-pane-local')).display === 'none',
-        'the Local Shop pane is still showing under the Premium toggle');
-      assert(getComputedStyle(document.getElementById('shops-pane-premium')).display !== 'none',
-        'the Premium pane did not show');
-      // Persist across a re-render AND a trip away — the window._tdPane
-      // convention. A panel rebuilt by an idle tick must not snap the player
-      // back to a toggle they did not pick.
-      window.renderShop();
+      const strip = document.getElementById('hub-tabs');
+      assert(!strip.hidden, 'the Market door shows no pane strip');
+      const tabs = [...strip.querySelectorAll('.hub-tab')];
+      assert(tabs.map((t) => t.textContent.trim()).join('|') === 'Local Shop|Player Market',
+        'the Market strip reads ' + tabs.map((t) => t.textContent.trim()).join('|'));
+      tabs.forEach((t) => assert(t.querySelector('.ic .hr-glyph svg'), 'a Market pane tab has no atlas glyph'));
+      assert(!document.querySelector('.shops-tabs, .shops-tab'), 'the old in-panel shop toggles are back beside the pane strip');
+      strip.querySelector('[data-hub-pane="market"]').click();
+      assert(document.getElementById('panel-market').classList.contains('active'), 'the Player Market pane did not open');
+      // The strip is outside the panel, so no market re-render can eat it.
+      for (let i = 0; i < 4; i++) window.renderMarket();
+      assert(document.querySelector('#hub-tabs .hub-tab.active[data-hub-pane="market"]'), 'a market re-render cost the strip its state');
+      assert(document.getElementById('market-root') && document.getElementById('market-root').parentElement.id === 'panel-market',
+        '#market-root is not the market renderer\'s host');
       window.showTab('profile');
       window.showTab('shops');
-      assert(shopPanel.getAttribute('data-shops-pane') === 'premium' && window._shopsPane === 'premium',
-        'the Shops toggle did not survive a re-render + a trip away');
-      assert(document.querySelector('#panel-shop .shops-tab[data-shops-pane="premium"]').classList.contains('active'),
-        'the strip did not restore its selected state');
+      assert(document.getElementById('panel-market').classList.contains('active') && window._shopsPane === 'market',
+        'the Market door did not remember the Player Market across a trip away');
+      document.querySelector('#hub-tabs [data-hub-pane="shop"]').click();
+      assert(document.getElementById('panel-shop').classList.contains('active'), 'the Local Shop pane did not open from the strip');
     } finally {
       window._shopsPane = prevPane;
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
-    }
-  }),
-
-  () => tryRun('b230: the Premium toggle keeps the sapphire real-money role', () => {
-    const prevTab = window.activeTab;
-    const prevPane = window._shopsPane;
-    try {
-      window.showTab('shop');
-      const strip = document.querySelector('#panel-shop .shops-tabs');
-      const local = strip.querySelector('.shops-tab[data-shops-pane="local"]');
-      const market = strip.querySelector('.shops-tab[data-shops-pane="market"]');
-      const prem = strip.querySelector('.shops-tab[data-shops-pane="premium"]');
-      assert(prem.classList.contains('is-premium'), 'the Premium toggle lost its role class');
-      const rgb = (el) => (getComputedStyle(el).color.match(/\d+/g) || []).map(Number);
-      // The glyph inherits the segment's colour, so it must be sapphire too —
-      // a gold coin icon over a sapphire label is a control disagreeing with
-      // itself about which currency it wants.
-      const gly = prem.querySelector('.ic .hr-glyph');
-      assert(gly, 'the Premium toggle has no glyph');
-      const gc = rgb(gly);
-      assert(gc[2] > gc[0], 'the Premium toggle glyph is not sapphire (it reads ' + getComputedStyle(gly).color + ')');
-      const localGly = rgb(local.querySelector('.ic .hr-glyph'));
-      assert(localGly[0] >= localGly[2], 'the Local Shop glyph stopped being gilt');
-      const p = rgb(prem), l = rgb(local), m = rgb(market);
-      assert(p.join() !== l.join() && p.join() !== m.join(),
-        'the Premium toggle reads the same colour as the gold ones — a player cannot see which one charges a card');
-      assert(p[2] > p[0], 'the Premium toggle is not blue-dominant (sapphire is the real-money role)');
-      // …in both selected states, and it must not have been flattened by the
-      // theme readability blankets (they are carved out in theme-cozy.css).
-      prem.click();
-      const pOn = rgb(prem);
-      assert(pOn[2] > pOn[0], 'the SELECTED Premium toggle lost sapphire');
-      const ink = (getComputedStyle(document.body).getPropertyValue('--ink') || '').trim();
-      assert(getComputedStyle(prem).color !== ink,
-        'a readability blanket flattened the Premium toggle to --ink');
-    } finally {
-      window._shopsPane = prevPane;
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
-    }
-  }),
-
-  () => tryRun('b230: the market renderer owns a container, not the panel (the self-deleting button)', () => {
-    const prevTab = window.activeTab;
-    const prevPane = window._shopsPane;
-    try {
-      window.showTab('market');
-      const panel = document.getElementById('panel-market');
-      const root = document.getElementById('market-root');
-      assert(root && root.parentElement === panel, '#market-root is not the market renderer\'s host');
-      // The bug: nav-consolidation.js appended a "Premium Store" button to
-      // #panel-market and market.js then assigned panel.innerHTML on EVERY
-      // re-render — search keystroke, sort change, listing, cancellation — so
-      // the only route to the premium store deleted itself and came back only
-      // because a 500ms interval kept re-adding it. Re-render hard and prove
-      // the navigation survives.
-      for (let i = 0; i < 4; i++) window.renderMarket();
-      assert(panel.querySelector('.shops-tabs'),
-        'a market re-render destroyed the Shops toggle — the b230 bug is back');
-      assert(panel.querySelectorAll('.shops-tab').length === 3,
-        'a market re-render ate part of the toggle strip');
-      assert(document.getElementById('market-root'),
-        'a market re-render replaced its own host');
-      assert(!panel.querySelector('#hr-store-link, #hr-shop-back'),
-        'an injected corner shortcut is back — the toggle strip replaced both');
-      // And the strip still works after all that.
-      panel.querySelector('.shops-tab[data-shops-pane="local"]').click();
-      assert(document.getElementById('panel-shop').classList.contains('active'),
-        'the toggle stopped navigating after a re-render');
-    } finally {
-      window._shopsPane = prevPane;
-      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+      try { window.showTab('profile'); } catch (e) {}
     }
   }),
 

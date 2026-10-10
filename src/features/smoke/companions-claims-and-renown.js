@@ -608,15 +608,15 @@ export default [
       const nx = C.nextRungs(window.G).filter((r) => r.m.domain === 'items')[0];
       assert(nx && nx.m.id === 'collect25' && nx.have === 10 && nx.goal === 25,
         'the next items rung must read collect25 10/25; got ' + JSON.stringify(nx && { id: nx.m.id, have: nx.have, goal: nx.goal }));
-      C.open();
-      const line = document.querySelector('#hr-cl-modal [data-cl-next="collect25"]');
+      window.HearthriseJournal.open('collection');
+      const line = document.querySelector('#panel-journal [data-cl-next="collect25"]');
       assert(line && /Magpie: 10\/25 combat drops/.test(line.textContent || ''),
         'the log must render the next rung "Magpie: 10/25 combat drops"; got ' + (line && line.textContent));
-      assert(!document.querySelector('#hr-cl-modal [data-cl-claim="collect25"]'), 'an unearned rung rendered a Claim button');
+      assert(!document.querySelector('#panel-journal [data-cl-claim="collect25"]'), 'an unearned rung rendered a Claim button');
       C.noteServerCounts({ ok: true, collection: { found: 25 } });
       assert(C.claimable(window.G).some((m) => m.id === 'collect25'), 'collect25 must be claimable at server found 25');
     } finally {
-      const m = document.getElementById('hr-cl-modal'); if (m) m.remove();
+      window.showTab('profile');
       if (sCol === undefined) delete window.G.collection; else window.G.collection = sCol;
       restoreMirrors(mirrors);
       restoreG(snap);
@@ -670,18 +670,18 @@ export default [
     const snap = snapshotG(); const mirrors = saveMirrors(); const rig = hrCharmDriver(); const realFetch = window.fetch;
     const eight = {}; Object.keys(window.MONSTERS).slice(0, 8).forEach((m) => { eight[m] = 1; });
     const bestiary = { kills_by_monster: eight, kills_by_class: {} };
-    const line = (id) => { const e = document.querySelector('#hr-cl-modal [data-cl-next="' + id + '"]'); return e ? e.textContent || '' : null; };
+    const line = (id) => { const e = document.querySelector('#panel-journal [data-cl-next="' + id + '"]'); return e ? e.textContent || '' : null; };
     const unknown = () => { delete window.G._bestiaryTrophies; delete window.G._collectionServer; delete window.G._collectionServerClaimed; window.G.collectionLog = { claimed: [] }; };
     const resolved = (arm) => {
       assert(/Novice Hunter: 8\/10 monsters/.test(line('hunter10') || ''), arm + ': monsters line reads ' + line('hunter10'));
       assert(/Magpie: 21\/25 combat drops/.test(line('collect25') || ''), arm + ': items line reads ' + line('collect25'));
-      assert(!document.querySelector('#hr-cl-modal .bal-pending'), arm + ': a pending mark survived the settle');
+      assert(!document.querySelector('#panel-journal .hr-cl-top .bal-pending, #panel-journal [data-cl-next] .bal-pending'), arm + ': a pending mark survived the settle');
       assert(C.tileLine(window.G).text === 'Next: Magpie 21/25', arm + ': tile reads ' + JSON.stringify(C.tileLine(window.G)));
     };
     try {
       // UNKNOWN: no mirror at all.
-      unknown(); C.open();
-      const rows = [...document.querySelectorAll('#hr-cl-modal [data-cl-next]')];
+      unknown(); window.HearthriseJournal.open('collection');
+      const rows = [...document.querySelectorAll('#panel-journal [data-cl-next]')];
       assert(rows.map((r) => r.getAttribute('data-cl-next')).join() === 'hunter10,collect25', 'next rungs: ' + rows.map((r) => r.getAttribute('data-cl-next')));
       rows.forEach((r) => {
         assert(!/(^|\D)0\/\d/.test(r.textContent || ''), 'an unknown count rendered as 0: ' + r.textContent);
@@ -689,14 +689,14 @@ export default [
       });
       const tl = C.tileLine(window.G);
       assert(tl && tl.pending === true && !/\b0\//.test(tl.text), 'tile: ' + JSON.stringify(tl));
-      C.noteServerClaims([{ kind: 'collection', key: 'hunter10', period: '', state: 'claimed' }]); C.open();
-      assert(line('hunter25') !== null && document.querySelector('#hr-cl-modal [data-cl-next="hunter25"] .bal-pending'), 'a claimed rung was named next: ' + line('hunter10'));
+      C.noteServerClaims([{ kind: 'collection', key: 'hunter10', period: '', state: 'claimed' }]); window.HearthriseJournal.open('collection');
+      assert(line('hunter25') !== null && document.querySelector('#panel-journal [data-cl-next="hunter25"] .bal-pending'), 'a claimed rung was named next: ' + line('hunter10'));
       // ATTENDED/IDLE: the accrued:false reply a reloading player gets; the OPEN log resolves in place.
-      unknown(); C.open();
+      unknown(); window.HearthriseJournal.open('collection');
       const idle = await rig.drive(bestiary, { collection: { found: 21 } });
       assert(idle && idle.outcome === 'nothing', 'idle settle: ' + JSON.stringify(idle));
       resolved('idle, same open modal');
-      C.open(); resolved('idle, re-opened');
+      window.HearthriseJournal.open('collection'); resolved('idle, re-opened');
       // AWAY: an accrued:true envelope through settle().
       unknown(); rig.restore();
       A.configureAccrual({ url: 'https://proj.supabase.co', apiKey: 'anon-key', authToken: () => 'jwt-token', slot: 0 });
@@ -704,17 +704,17 @@ export default [
         const away = await A.requestAccrual({ force: true });
         assert(away && away.outcome === 'accrued', 'away settle: ' + JSON.stringify(away && away.outcome));
       });
-      C.open(); resolved('away');
+      window.HearthriseJournal.open('collection'); resolved('away');
       // REFUSED: a 503 writes no mirror; the line stays pending.
       unknown(); A.resetAccrualGate();
       window.fetch = (u, init) => (/hr-accrue/.test(String(u)) ? Promise.resolve(new Response('{"error":"down"}', { status: 503 })) : realFetch.call(window, u, init));
       const down = await A.requestAccrual({ force: true });
       assert(down && down.outcome === 'unavailable', 'refused settle: ' + JSON.stringify(down && down.outcome));
-      C.open();
-      assert(document.querySelector('#hr-cl-modal [data-cl-next="hunter10"] .bal-pending') && !window.G._bestiaryTrophies && !window.G._collectionServer, 'a refused settle resolved the count');
+      window.HearthriseJournal.open('collection');
+      assert(document.querySelector('#panel-journal [data-cl-next="hunter10"] .bal-pending') && !window.G._bestiaryTrophies && !window.G._collectionServer, 'a refused settle resolved the count');
     } finally {
       window.fetch = realFetch; rig.restore();
-      const m = document.getElementById('hr-cl-modal'); if (m) m.remove();
+      window.showTab('profile');
       restoreG(snap); try { A.__resetAwayReceipt(); } catch (e) {}
       restoreMirrors(mirrors);
     }
@@ -1163,7 +1163,6 @@ export default [
         ['recipe book', () => window.HearthriseRecipeBook.open(), () => window.HearthriseRecipeBook.close(), () => byId('rb-overlay')],
         ['welcome-back', () => { G.lastSeen = Date.now() - 8 * 3600000; G.lastWelcome = 0; window.__maybeShowWelcome(); },
           () => document.querySelector('#welcome-overlay .wb-claim').click(), () => byId('welcome-overlay')],
-        ['achievements', () => window.openAchievements(), () => document.querySelector('#ach-overlay [data-hr-dismiss]').click(), () => byId('ach-overlay')],
         ['acquisition tip', () => window.showAcquisitionTip('x'), () => window.hideAcquisitionTip(), () => byId('acq-overlay')],
         ['name modal (plant)', () => plants.push(plant('hr-id-scrim hr-scrim')), () => plants.pop().remove(), () => true],
         ['post-signup sheet (plant)', () => plants.push(plant('hr-scrim', 'hr-post-signup-modal')), () => plants.pop().remove(), () => true],
@@ -1213,7 +1212,7 @@ export default [
     } finally {
       try { const c = byId('hr-rn-cele'); if (c) c.remove(); koOff(); } catch (e) {}
       A.setServerAccrualEnabled(!!wasOn);
-      ['welcome-overlay', 'ach-overlay', 'acq-overlay', 'more-modal'].forEach((id) => { const n = byId(id); if (n) n.classList.remove('show'); });
+      ['welcome-overlay', 'acq-overlay', 'more-modal'].forEach((id) => { const n = byId(id); if (n) n.classList.remove('show'); });
       try { window.HearthriseRecipeBook.close(); } catch (e) {}
       plants.forEach((n) => n.remove());
       const dl = byId('hr-dl-modal'); if (dl) dl.remove();

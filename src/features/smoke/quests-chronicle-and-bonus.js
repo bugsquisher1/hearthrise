@@ -263,9 +263,9 @@ export default [
     //     `locked` field the dungeon and boss cards already use.
     const CS = window.HearthriseCombatScreens;
     if (CS && typeof CS._destinations === 'function') {
-      const raid = CS._destinations().find((d) => d.kick === 'Clan Raid');
+      const raid = CS._destinations().find((d) => d.kick === 'Clan Hunt');
       if (raid) {
-        assert(raid.locked, 'the Clan Raid card offers a lit CTA to a gated feature');
+        assert(raid.locked, 'the Clan Hunt card offers a lit CTA to a gated feature');
         assert(!/^Join/.test(String(raid.locked)), 'a gated card must name the gate, not repeat the invitation');
       }
     }
@@ -731,26 +731,19 @@ export default [
        4. nothing here is invented: an undated entry says so.
      ══════════════════════════════════════════════════════════════════════ */
 
-  () => tryRun('b228: the topbar bell opens (and closes) the Chronicle', () => {
+  () => tryRun('b228: the topbar bell opens the Chronicle, in the Journal\'s Deeds tab', () => {
     const C = window.HearthriseChronicle;
-    assert(C && typeof C.open === 'function', 'HearthriseChronicle missing');
+    assert(C && typeof C.paint === 'function', 'HearthriseChronicle missing');
     const bell = document.getElementById('btn-notif');
     assert(bell, '#btn-notif is gone from the topbar');
     const snap = snapshotG();
     try {
-      C.close();
+      window.showTab('profile');
       bell.click();
-      assert(document.getElementById('hr-ch-modal'), 'clicking the bell did not open the Chronicle');
-      assert(C.isOpen(), 'isOpen() disagrees with the DOM');
-      bell.click();
-      assert(!document.getElementById('hr-ch-modal'), 'clicking the bell again did not close the Chronicle');
-      // Escape must work too — audit finding #10 is that the newer scrim
-      // family binds Escape to itself and never takes focus, so it can never
-      // fire. This one binds at the document, in capture.
-      C.open();
-      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-      assert(!document.getElementById('hr-ch-modal'), 'Escape did not close the Chronicle');
-    } finally { C.close(); restoreG(snap); try { window.saveLocal(); } catch {} }
+      assert(document.querySelector('#panel-journal.active .jr-tab.active[data-jr-tab="deeds"]'), 'clicking the bell did not open the Journal on Deeds');
+      const host = document.querySelector('#panel-journal .jr-chronicle');
+      assert(host && /Milestones/.test(host.textContent) && /This session/.test(host.textContent), 'the bell opened a Journal without the Chronicle');
+    } finally { window.showTab('profile'); restoreG(snap); try { window.saveLocal(); } catch {} }
   }),
 
   () => tryRun('b228: record → render round-trip (the entry reaches the panel, with its age)', () => {
@@ -763,13 +756,13 @@ export default [
       assert(r.added, 'record() refused a fresh milestone');
       assert(r.entry.dated === 1 && r.entry.ts === twoDays, 'a recorded milestone must keep its timestamp');
 
-      const modal = C.open();
+      window.HearthriseJournal.open('deeds'); const modal = document.querySelector('#panel-journal .jr-chronicle');
       const txt = modal.textContent;
       assert(txt.indexOf('Reached Woodcutting 50') >= 0, 'the milestone is not rendered in the panel');
       assert(txt.indexOf('2 days ago') >= 0, 'the panel must render the age, got: ' + txt.slice(0, 200));
       assert(txt.indexOf('Milestones') >= 0 && txt.indexOf('This session') >= 0,
         'both sections must be labelled');
-    } finally { C.close(); restoreG(snap); try { window.saveLocal(); } catch {} }
+    } finally { window.showTab('profile'); restoreG(snap); try { window.saveLocal(); } catch {} }
   }),
 
   () => tryRun('b228: record() is idempotent on id — a hook and reconcile cannot double-log', () => {
@@ -802,12 +795,12 @@ export default [
       assert(!dot.classList.contains('hide'), 'the badge must be visible when something is unread');
       assert(dot.textContent === '2', 'the badge should read 2, got "' + dot.textContent + '"');
 
-      C.open();
+      window.HearthriseJournal.open('deeds');
       assert(C.unseen() === 0, 'opening the Chronicle must clear the unseen count');
-      C.close();
+      window.showTab('profile');
       C.updateBadge();
       assert(dot.classList.contains('hide'), 'the badge must hide again once read');
-    } finally { C.close(); restoreG(snap); try { window.saveLocal(); } catch {} window.HearthriseChronicle.updateBadge(); }
+    } finally { window.showTab('profile'); restoreG(snap); try { window.saveLocal(); } catch {} window.HearthriseChronicle.updateBadge(); }
   }),
 
   () => tryRun('b228: the badge ignores toasts and undated history — it can never be permanent noise', () => {
@@ -826,7 +819,7 @@ export default [
       C.record('hunt', 'Cleared the Keep Hunt', { id: 'hunt:b228probe' });
       assert(C.unseen() === 1, 'a genuinely new milestone must light the badge');
     } finally {
-      C.close(); C.clearRecent();
+      window.showTab('profile'); C.clearRecent();
       try { window.HearthriseToasts.clear(); } catch {}
       restoreG(snap); try { window.saveLocal(); } catch {} C.updateBadge();
     }
@@ -951,7 +944,7 @@ export default [
       assert(later[0].dated === 1 && later[0].ts >= t0,
         'a change reconcile OBSERVED may be dated — it saw the lower value last sweep');
       assert(C.unseen() === 1, 'an observed milestone is news and must light the badge');
-    } finally { C.close(); restoreG(snap); try { window.saveLocal(); } catch {} C.updateBadge(); }
+    } finally { window.showTab('profile'); restoreG(snap); try { window.saveLocal(); } catch {} C.updateBadge(); }
   }),
 
   () => tryRun('b228: the level-marks rule fires only on the published marks', () => {
@@ -1018,20 +1011,18 @@ export default [
     }
   }),
 
-  () => tryRun('b228: the Chronicle is EVENTS — it does not duplicate the Collection Log, it links to it', () => {
+  () => tryRun('b228: the Chronicle is EVENTS — the Collection is its own Journal tab', () => {
     const C = window.HearthriseChronicle;
     const kinds = Object.keys(C.MILESTONE_KINDS);
     assert(kinds.indexOf('item') < 0 && kinds.indexOf('collection') < 0,
-      'item discovery belongs to the Collection Log, not the Chronicle');
-    const snap = snapshotG();
+      'item discovery belongs to the Collection, not the Chronicle');
     try {
-      const modal = C.open();
-      const link = [...modal.querySelectorAll('button')]
-        .find((b) => /collection log/i.test(b.textContent || ''));
-      assert(link, 'the Chronicle must offer the route to the Collection Log');
-      assert(typeof window.HearthriseCollection.open === 'function',
-        'the link has nowhere to go — HearthriseCollection.open is missing');
-    } finally { C.close(); restoreG(snap); try { window.saveLocal(); } catch {} }
+      window.HearthriseJournal.open('deeds');
+      const tab = document.querySelector('#panel-journal .jr-tab[data-jr-tab="collection"]');
+      assert(tab, 'the Journal holding the Chronicle offers no Collection tab beside it');
+      tab.click();
+      assert(document.querySelector('#panel-journal .hr-cl-top'), 'the Collection tab did not open the collection');
+    } finally { window.showTab('profile'); }
   }),
 
   () => tryRun('b228: the Chronicle panel renders no emoji and nothing under the reading floor', () => {
@@ -1046,7 +1037,7 @@ export default [
         ],
       };
       window.notify('b228 render probe', 'info');
-      const modal = C.open();
+      window.HearthriseJournal.open('deeds'); const modal = document.querySelector('#panel-journal .jr-chronicle');
       const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{231A}-\u{23FF}]/u;
       const hit = EMOJI.exec(modal.textContent || '');
       assert(!hit, 'the Chronicle renders an emoji: "' + (hit && hit[0]) + '" (Final Directive)');
@@ -1067,7 +1058,7 @@ export default [
       assert(modal.textContent.indexOf('Before the Chronicle') >= 0,
         'undated history needs its own honest heading');
       assert(modal.textContent.indexOf('undated') >= 0, 'an undated entry must be labelled undated');
-    } finally { C.close(); C.clearRecent(); try { window.HearthriseToasts.clear(); } catch {} restoreG(snap); try { window.saveLocal(); } catch {} }
+    } finally { window.showTab('profile'); C.clearRecent(); try { window.HearthriseToasts.clear(); } catch {} restoreG(snap); try { window.saveLocal(); } catch {} }
   }),
 
   () => tryRun('b228: a brand-new player opening the bell gets an honest empty state', () => {
@@ -1093,14 +1084,13 @@ export default [
       C.clearRecent();
       try { window.HearthriseToasts.clear(); } catch {}
 
-      const modal = C.open();
+      window.HearthriseJournal.open('deeds'); const modal = document.querySelector('#panel-journal .jr-chronicle');
       const txt = modal.textContent;
       assert(C.entries().length === 0,
         'a fresh account derives nothing, got: ' + C.entries().map((e) => e.id).join(', '));
       const SP = window.HearthriseSignposts;
       const none = SP && SP.fill('chronicle.milestonesNone'), recent = SP && SP.fill('chronicle.recentEmpty');
-      assert(none && txt.indexOf(none) >= 0, 'the header must state the empty case');
-      assert(txt.indexOf('Nothing recorded yet') >= 0, 'the Milestones section needs an empty state');
+      assert(none && txt.indexOf(none) >= 0, 'the Milestones section needs an empty state');
       assert(recent && txt.indexOf(recent) >= 0, 'the Recent section needs an empty state');
       assert(!/coming soon|coming in|not yet available|todo/i.test(txt),
         'an empty state describes the state, never the roadmap');
@@ -1108,7 +1098,7 @@ export default [
         'a player with no history must not be shown the undated heading');
       assert(C.unseen() === 0, 'a fresh account has nothing unread');
     } finally {
-      C.close(); C.clearRecent();
+      window.showTab('profile'); C.clearRecent();
       window.G.bestiary = bestBefore;
       window.G.collection = colBefore;
       restoreRenownTerms(window.G, termsBefore2);
@@ -2680,33 +2670,29 @@ export default [
     }
   }),
 
-  () => tryRunAsync('FIELDNOTES-2: the collection log plays a found monster\'s note in its detail, and leaks nothing to an undiscovered cell', async () => {
-    const G = window.G, HC = window.HearthriseCollection;
+  () => tryRunAsync('FIELDNOTES-2: the Journal plays a found monster\'s note in its drop table, and leaks nothing to an undiscovered row', async () => {
+    const G = window.G;
     const NOTES = window.HearthriseMonsterNotes || {};
-    assert(HC && typeof HC.open === 'function', 'HearthriseCollection.open is unpublished');
+    assert(window.HearthriseJournal, 'the Journal is unpublished');
     const snap = snapshotG();
     try {
       G.bestiary = { kobold: { kills: 1 } };
-      HC.open();
-      let tab = document.querySelector('[data-cl-tab="bestiary"]');
-      assert(tab, 'no Bestiary tab painted in the collection log');
-      tab.click();
-      const monCell = document.querySelector('[data-mon="kobold"]');
-      assert(monCell, 'no clickable kobold cell after switching to the Bestiary tab');
-      monCell.click();
-      const body = document.getElementById('hr-cl-body');
+      window.HearthriseJournal.open('bestiary');
+      const row = document.querySelector('#panel-journal [data-jr-mon="kobold"]');
+      assert(row, 'no tappable kobold row in the Bestiary');
+      row.click();
+      const body = document.querySelector('#panel-journal .hr-cl-detail');
       assert(body && body.innerHTML.indexOf(NOTES.kobold) >= 0,
-        '#hr-cl-body does not contain the kobold note: ' + (body && body.innerHTML.slice(0, 200)));
-      const back = document.querySelector('[data-cl-back]');
-      assert(back, 'no Back to log control in the detail view');
+        'the drop table does not contain the kobold note: ' + (body && body.innerHTML.slice(0, 200)));
+      const back = document.querySelector('#panel-journal [data-jr-back]');
+      assert(back, 'no Back control in the drop table');
       back.click();
-      const slimeCell = document.querySelector('[data-mon="slime"]');
-      assert(!slimeCell, 'an undiscovered slime cell still carries a data-mon handler');
-      const modal = document.getElementById('hr-cl-modal');
-      assert(modal && modal.innerHTML.indexOf(NOTES.slime) === -1,
-        'the slime note leaked into the collection log while slime is undiscovered');
+      assert(!document.querySelector('#panel-journal [data-jr-mon="slime"]'), 'an undiscovered slime row is tappable');
+      const panel = document.getElementById('panel-journal');
+      assert(panel && panel.innerHTML.indexOf(NOTES.slime) === -1,
+        'the slime note leaked into the Bestiary while slime is undiscovered');
     } finally {
-      const el = document.getElementById('hr-cl-modal'); if (el) el.remove();
+      window.showTab('profile');
       restoreG(snap);
       try { window.saveLocal(); } catch (e) {}
     }
@@ -2723,20 +2709,20 @@ export default [
     try {
       G.bestiary = {};
       await rig.drive({ kills_by_class: {}, kills_by_monster: { goblin: 12 }, trophies: [] });
-      window.openBestiary();
+      window.HearthriseJournal.open('bestiary');
       assert(listHtml().indexOf(NOTES.goblin) >= 0,
         'an away-only goblin kill count did not paint the goblin note in the Bestiary: ' + listHtml().slice(0, 300));
       assert(listHtml().indexOf(NOTES.slime) === -1, 'the undiscovered slime note leaked into the Bestiary list');
       // FAIL-SAFE ARM: the namespace disappears — the name must still render and no row may print "undefined".
       const stashed = window.HearthriseMonsterNotes;
       delete window.HearthriseMonsterNotes;
-      window.openBestiary();
+      window.HearthriseJournal.open('bestiary');
       assert(/Goblin/.test(listHtml()), 'the goblin name stopped rendering once HearthriseMonsterNotes was removed');
       assert(!/undefined/.test(listHtml()), 'a missing note namespace printed the literal string "undefined": ' + listHtml().slice(0, 300));
       window.HearthriseMonsterNotes = stashed;
     } finally {
       rig.restore();
-      const ov = document.getElementById('best-overlay'); if (ov) ov.classList.remove('show');
+      try { window.showTab('profile'); } catch (e) {}
       if (prev === undefined) delete G._bestiaryTrophies; else G._bestiaryTrophies = prev;
       restoreG(snap);
     }
@@ -2751,7 +2737,7 @@ export default [
     const snap = snapshotG();
     try {
       G.bestiary = { slime: { kills: 12 } };
-      window.openBestiary();
+      window.HearthriseJournal.open('bestiary');
       const rows = Array.from(document.querySelectorAll('#best-list .bestiary-row'));
       const found = rows.find((r) => r.classList.contains('discovered'));
       assert(found, 'no discovered bestiary row painted for slime');
@@ -2766,7 +2752,7 @@ export default [
       assert(base > 0 && h <= base * 2.25, 'discovered card ' + h.toFixed(0) + 'px vs undiscovered ' + base.toFixed(0) + 'px (> 2.25x; the glued note made it ~5x): the note stretches the card');
       assert(note.getAttribute('title') === NOTES.slime, 'the full note is not reachable via title: ' + note.getAttribute('title'));
     } finally {
-      const ov = document.getElementById('best-overlay'); if (ov) ov.classList.remove('show');
+      try { window.showTab('profile'); } catch (e) {}
       restoreG(snap);
     }
   }),

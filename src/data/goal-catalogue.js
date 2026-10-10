@@ -154,7 +154,8 @@ export function questItemsAreServerCredited(questId) {
    the goal event; the server reads `ev:<type>` in the kind='daily' population
    for TODAY's UTC day key and completes at `value >= goal`. Reward is pure gold.
 
-   `daily_harvest` is ABSENT — see BLOCKED_DAILY. */
+   `daily_harvest` became a fixed row on 2026-10-16 (it was offered and never
+   paid while its goal scaled with the client's plot cap). */
 /* ── b497 — THE GOLD-PER-EFFORT-MINUTE RETUNE (Designer, balance audit) ─────
    The pool paid a 13:1 spread across gold-per-effort-minute and FIGHTERS sat at
    the bottom of it. Killing 60 monsters is the longest task in the pool and
@@ -178,20 +179,20 @@ export const DAILY_TASK_REWARDS = Object.freeze({
   daily_cook:       { type: 'cooked',   goal: 12,  gold: 400 },
   daily_smith:      { type: 'smithed',  goal: 40,  gold: 500 },
   daily_craft:      { type: 'crafted',  goal: 40,  gold: 500 },
+  daily_harvest:    { type: 'harvest',  goal: 6,   gold: 300 },   // fixed since 2026-10-16-daily-harvest-credit.sql
 });
 
 /* THE POOL ORDER — the EXACT authored order of legacy.js DAILY_TASK_POOL, so
    the server's day-keyed selection (hr_daily_task_set) shuffles the SAME
-   index space the client does. `daily_harvest` occupies index 4 even though it
-   is not creditable: dropping it here would shift every index and desync the
-   selection from the client. The drift test asserts this order equals the
+   index space the client does. Dropping or reordering a row would shift every
+   index and desync the selection from the client. The drift test asserts this order equals the
    authored `id:` order in legacy.js. */
 export const DAILY_TASK_POOL_ORDER = Object.freeze([
   'daily_kill',        // 0
   'daily_kill_big',    // 1
   'daily_gather',      // 2
   'daily_gather_big',  // 3
-  'daily_harvest',     // 4  — BLOCKED (dynamic goal), still holds its slot
+  'daily_harvest',     // 4
   'daily_cook',        // 5
   'daily_smith',       // 6
   'daily_craft',       // 7
@@ -201,15 +202,6 @@ export const DAILY_TASK_POOL_ORDER = Object.freeze([
    King's 4th task was retired (it was shown and never paid); three is the set. */
 export const DAILY_TASK_BASE_COUNT = 3;
 
-/* THE FLAGGED ROWS — server-authority gaps stated as data, not omitted in
-   silence. Each names the dependency that would let the server own it. */
-export const BLOCKED_DAILY = Object.freeze({
-  daily_harvest: 'DYNAMIC GOAL. legacy.js computes goal=max(10, farmPlotCap()*3) '
-    + 'and reward=goal*30 from the client farm-plot cap (homestead.maxPlots). The '
-    + 'server does not know the plot cap today. Unblock: read the farm_land unlock '
-    + 'rung from player_progress (kind=unlock, the seam:farm.build_plot ladder) and '
-    + 'derive the cap server-side, then this becomes a normal creditable row.',
-});
 
 /* ════════════════════════════════════════════════════════════════════════
    DAILY-TASK ELIGIBILITY — one predicate, evaluated on BOTH sides.

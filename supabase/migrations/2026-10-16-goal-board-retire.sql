@@ -180,6 +180,7 @@ insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note
 do $$
 declare
   v_uid  constant uuid := '00000000-0000-4000-c000-0000010a1d02';
+  v_uid2 constant uuid := '00000000-0000-4000-c000-0000010a1d03';
   v_day  text := public.hr_utc_day_key(now());
   v_t    jsonb;
   v_days text[] := public.hr_goal_week_days(now());
@@ -235,11 +236,15 @@ begin
        or (v_t #>> '{week,ev:kill_any}')::bigint is distinct from 40
        or v_t->'paid' <> '["daily_kill"]'::jsonb then
       raise exception 'goal-board-retire self-check (c): expected day kill 31 / gather 7, week kill 40, paid [daily_kill]; got %', v_t; end if;
-    -- another character's rows are not this one's
-    perform set_config('request.jwt.claim.sub', '00000000-0000-4000-c000-0000010a1d03', true);
+    -- ISOLATION: a second user WITH a character reads only their own rows —
+    -- none of the first player's counters, gold or paid quests.
+    insert into auth.users (id) values (v_uid2) on conflict (id) do nothing;
+    perform set_config('request.jwt.claim.sub', v_uid2::text, true);
+    perform public.hr_create_character(0);
     v_t := public.hr_tally_state(0);
-    if v_t->>'error' is distinct from 'no_character' then
-      raise exception 'goal-board-retire self-check (c): another user read a tally: %', v_t; end if;
+    if coalesce(v_t->>'ok', 'false') <> 'true' or v_t->'day' <> '{}'::jsonb or v_t->'week' <> '{}'::jsonb
+       or v_t->'paid' <> '[]'::jsonb then
+      raise exception 'goal-board-retire self-check (c): a second player read another player''s tally: %', v_t; end if;
     perform set_config('request.jwt.claim.sub', '', true);
     v_t := public.hr_tally_state(0);
     if v_t->>'error' is distinct from 'not_signed_in' then
@@ -249,9 +254,9 @@ begin
   end;
 
   perform set_config('request.jwt.claim.sub', '', true);
-  if exists (select 1 from public.player_progress where user_id = v_uid)
-     or exists (select 1 from public.player_state where user_id = v_uid)
-     or exists (select 1 from auth.users where id = v_uid) then
+  if exists (select 1 from public.player_progress where user_id in (v_uid, v_uid2))
+     or exists (select 1 from public.player_state where user_id in (v_uid, v_uid2))
+     or exists (select 1 from auth.users where id in (v_uid, v_uid2)) then
     raise exception 'goal-board-retire self-check: §4 LEAKED a probe row'; end if;
 
   raise notice 'goal-board-retire self-check PASSED: (a) the board''s two RPCs, their ungated bodies, the '

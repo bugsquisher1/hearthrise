@@ -5234,10 +5234,10 @@ const DAILY_TASK_POOL=[
      The floor is now 6 = ONE harvest round at the camp; every tier from
      homestead (4 plots) up is governed by `n*3` exactly as before, so nothing
      above the starting property moves by a single crop. */
-  ()=>{ const n=(typeof farmPlotCap==='function'?farmPlotCap():8);
-        const goal=Math.max(6,n*3);
-        return {id:'daily_harvest', type:'harvest', label:`Harvest ${goal} crops`,
-                goal, progress:0, reward:goal*30, done:false}; },
+  /* W0: a FIXED goal (one harvest round at the camp's two plots), so the
+     server can grade and pay it (2026-10-16-daily-harvest-credit.sql). The
+     plot-cap-scaled goal was offered and never paid. */
+  ()=>({id:'daily_harvest',  type:'harvest',  label:'Harvest 6 crops',          goal:6,  progress:0, reward:300, done:false}),
   ()=>({id:'daily_cook',     type:'cooked',   label:'Cook 12 items',            goal:12, progress:0, reward:400, done:false}),
   /* b497: 8 → 40. Eight bench pulls is ~8 SECONDS of the player's attention
      (artisan actions are ~2.4-4.6 s and run unattended), which made these two
@@ -5320,11 +5320,7 @@ function dailyTaskCaps(){
   return {rooms:rooms, skillXp:sx};
 }
 window.dailyTaskCaps=dailyTaskCaps;
-/* ── b497 — THE AUTHORED NUMBERS OF EVERY FIXED DAILY, BY ID ───────────────
-   `daily_harvest` is DELIBERATELY ABSENT: its factory reads farmPlotCap(), so
-   its goal is a function of the property the player owns rather than an
-   authored constant, and "differs from the factory" would mean "you upgraded
-   your homestead today" — which must not re-roll a slate mid-day.
+/* ── b497 — THE AUTHORED NUMBERS OF EVERY DAILY, BY ID (all fixed since W0).
    Memoised on the POOL'S IDENTITY, not unconditionally: generateDailyTasks runs
    on EVERY updateDaily (i.e. every kill), so calling eight factories per tick
    would be real cost on the hot path — while a test that swaps the pool still
@@ -5335,7 +5331,7 @@ function dailyTaskSpecs(){
   const m={};
   DAILY_TASK_POOL.forEach(function(f){
     let t=null; try{ t=f(); }catch(e){}
-    if(t&&t.id&&t.id!=='daily_harvest') m[t.id]={goal:t.goal,reward:t.reward,label:t.label};
+    if(t&&t.id) m[t.id]={goal:t.goal,reward:t.reward,label:t.label};
   });
   _dailySpecPool=DAILY_TASK_POOL; _dailySpecs=m;
   return m;
@@ -5410,7 +5406,7 @@ function generateDailyTasks(notice=true){
       G.daily.tasks.forEach(function(t){
         if(!t||!t.id)return;
         const s=spec[t.id];
-        if(!s)return;                                   // daily_harvest: dynamic by design
+        if(!s)return;
         if(t.goal!==s.goal||t.reward!==s.reward||t.label!==s.label){
           t.goal=s.goal; t.reward=s.reward; t.label=s.label;
         }
@@ -5461,14 +5457,10 @@ function updateDaily(type,amt=1){
            the fixed gold amount, once-guards per (day, task) and journals it.
            The local G.gold write is a GATED PREDICTION — pre-arm it credits
            locally; under arm it no-ops and the server credit arrives on the next
-           envelope (identical to muster/raid chest crediting).
-           daily_harvest is the ONE exception: its goal/reward are dynamic
-           (farmPlotCap) with no server model yet, so it KEEPS the b411 defer —
-           it stays uncompleted under arm rather than paying nothing. */
-        const serverPays=(t.id!=='daily_harvest');
-        if(!serverPays && !clientMayWriteRecordField('gold'))return;   // harvest: defer under arm
+           envelope (identical to muster/raid chest crediting). Every pool
+           task is server-paid (daily_harvest since 2026-10-16). */
         t.done=true;
-        if(serverPays && window.HearthriseGoalClaim && typeof window.HearthriseGoalClaim.claimDaily==='function'){
+        if(window.HearthriseGoalClaim && typeof window.HearthriseGoalClaim.claimDaily==='function'){
           const _p=window.HearthriseGoalClaim.claimDaily(t.id); if(_p&&_p.catch)_p.catch(()=>{});
         }
         if(clientMayWriteRecordField('gold'))G.gold+=t.reward;   // prediction; no-op under arm

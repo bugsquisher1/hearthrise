@@ -637,14 +637,13 @@ export const GOLD_SITE_LEDGER = Object.freeze({
        string now), credits the server-owned gold into player_state once-guarded
        per (day, task) and journals it (kind='daily'). updateDaily fires
        HearthriseGoalClaim.claimDaily(t.id); the local G.gold write is a GATED
-       prediction the envelope reconciles. daily_harvest is EXCLUDED — dynamic
-       goal (farmPlotCap), keeps the clientMayWriteRecordField defer. */
+       prediction the envelope reconciles. All eight tasks are fixed rows
+       (daily_harvest since 2026-10-16-daily-harvest-credit.sql). */
     flipGuard: { serverCredits: 'hr_claim_daily (2026-08-20-goal-reward-rpc-credit.sql) verifies the '
       + 'kind=daily ev:<type> counter for the UTC day, owns the fixed gold amount, once-guards a '
       + 'player_progress kind=daily claim row per (day, task), journals player_ledger kind=daily. '
-      + 'daily_harvest is server-BLOCKED (dynamic goal) and still gated on clientMayWriteRecordField.' },
-    blockedBy: 'nothing for the 7 FIXED tasks — hr_claim_daily credits them. daily_harvest is BLOCKED '
-      + '(dynamic goal, no server farm-plot-cap model). See src/data/goal-catalogue.js BLOCKED_DAILY.',
+      + 'daily_harvest is a fixed row since 2026-10-16-daily-harvest-credit.sql.' },
+    blockedBy: 'nothing — hr_claim_daily credits all eight tasks.',
     site: 'the daily-task payout',
   },
   'src/legacy.js#completeQuest': {

@@ -1281,7 +1281,11 @@
     var mile = LP().getNextMilestone ? call(LP().getNextMilestone) : null;
     var today = LP().getTodayDelta ? call(LP().getTodayDelta) : null;
     var resume = LP().getResumePayload ? call(LP().getResumePayload) : null;
-    var tasks = (G.daily && Array.isArray(G.daily.tasks)) ? G.daily.tasks.filter(function (t) { return !t.done; }).slice(0, 3) : [];
+    /* The one daily list, on the SERVER's tally (src/features/daily-quests.js):
+       which quests are still unpaid and how far the realm has counted them —
+       never the browser's own done/progress (CLAUDE.md §6). */
+    var DQ = window.HearthriseDailyQuests;
+    var tasks = DQ ? DQ.tasks().filter(function (t) { return !DQ.isPaid(t); }).slice(0, 3) : [];
 
     // current activity
     var activeName = G.activeMonster ? (window.MONSTERS && window.MONSTERS[G.activeMonster] && window.MONSTERS[G.activeMonster].name)
@@ -1557,7 +1561,10 @@
       anyNext = true;
       tasks.forEach(function (t, i) {
         var r = questRoute(t);
-        var pct = t.goal ? Math.round(((t.progress || 0) / t.goal) * 100) : 0;
+        var n = DQ.serverCount(t);
+        var pct = (t.goal && n !== null) ? Math.round((n / t.goal) * 100) : 0;
+        var shown = n === null ? ((window.HearthriseBalance && window.HearthriseBalance.countMarkup)
+          ? window.HearthriseBalance.countMarkup(null, { label: 'Not counted yet' }) : '—') : num(n);
         // Rewards are plain numbers in the data ("400"). Pairing them with the
         // gold glyph is what makes a number read as currency instead of as a
         // second progress figure sitting next to "0 / 50".
@@ -1571,7 +1578,7 @@
           '<div class="hd-qic">' + gly(r.key, 22, '', 'var(--ink-2)') + '</div>' +
           '<div class="hd-qbody">' +
           '<div class="hd-qtitle">' + esc(t.label) + '</div>' +
-          '<div class="hd-qmeta"><span class="p">' + num(t.progress || 0) + ' / ' + num(t.goal || 0) + '</span>' +
+          '<div class="hd-qmeta"><span class="p">' + shown + ' / ' + num(t.goal || 0) + '</span>' +
           (rewardHtml ? '<span class="r">' + rewardHtml + '</span>' : '') + '</div>' +
           '<div class="hd-bar" style="--accent:var(--green)"><i style="width:' + pct + '%"></i></div>' +
           '</div>' +
@@ -1580,7 +1587,7 @@
           '</div>';
       });
     }
-    if (!anyNext && G.daily && Array.isArray(G.daily.tasks) && G.daily.tasks.length > 0 && window.HearthriseSignposts) {
+    if (!anyNext && DQ && DQ.tasks().length > 0 && window.HearthriseSignposts) {
       html += '<div class="hd-card hd-mini"><div class="mi">' + gly('uiCheck', 20, '', 'var(--green)') +
         '</div><div>' + esc(window.HearthriseSignposts.fill('home.dailyDone')) + '</div></div>';
     }

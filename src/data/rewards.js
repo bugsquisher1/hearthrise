@@ -32,31 +32,31 @@
    gold in week one (day 7 alone 20,000), climbed to x26 and reset on one missed
    day: logging in out-earned playing, and stepping away cost everything.
 
-   THE NUMBERS, MEASURED AGAINST WHAT A NEW PLAYER EARNS BY PLAYING
-   (src/data/goal-catalogue.js, src/data/monsters.js):
-     · the three daily quests pay 400-1,400 gold each, about 2,000 a day and
-       14,000 a week;
-     · a goblin drops 2-8 gold, so a first hour of fighting is a few hundred;
-     · the first House upgrade costs 400 gold, a shop weapon about 300.
-   Week one below pays 2,250 gold (about 16% of the daily quests), 25 cooked
-   shrimp and 10 cooked herring for Auto-Eat, 25 turnip and 10 carrot seeds for
-   the plots (turnip is farming 1, carrot farming 10), one Bone Key (the first
-   dungeon, the Crypt of Bones, opens at combat 25) and 2 gems. Day 2 is 200
-   gold, below the price of a shop weapon, so the first gear upgrade is still
-   one you earn.
+   THE NUMBERS, MEASURED ON PRODUCTION (Security review, 2026-10-10): the
+   median first week earns about 950 gold from play and 450 from the daily
+   quests. Week one below pays 1,000 gold (60, 80, 100, 130, 160, 200, 270), so
+   logging in never out-earns playing, plus 25 cooked shrimp and 10 cooked
+   herring for Auto-Eat, 25 turnip and 10 carrot seeds for the plots (turnip is
+   farming 1, carrot farming 10), one Bone Key (the first dungeon, the Crypt of
+   Bones, opens at combat 25) and 2 gems.
 
    `items` are SUPPLIES: they scale with the week multiplier like gold does.
    `keys` and `gems` are FIXED: one Bone Key a week, never three, because a key
    is a dungeon run and the multiplier is a loyalty bonus, not a loot table.
+   And they pay only on a STRAIGHT arrival — a claim whose last claim was
+   yesterday (loginClaimIsStraight). Without that, a missed day costing one
+   step would let a player sit on day 7 by claiming every other day and take a
+   key each time (Security, 2026-10-10: 11 keys in 28 days against a daily
+   player's 4). A straight arrival at day 7 needs the six days before it.
    Every id is a real ITEMS row; tests/login-reward.mjs asserts it. */
 export const DAILY_LOGIN_CYCLE = Object.freeze([
-  Object.freeze({ gold: 150, items: Object.freeze({ cooked_shrimp: 10 }) }),
-  Object.freeze({ gold: 200, items: Object.freeze({ turnip_seed: 10 }) }),
-  Object.freeze({ gold: 250, items: Object.freeze({ cooked_shrimp: 15 }) }),
-  Object.freeze({ gold: 300, items: Object.freeze({ carrot_seed: 10 }) }),
-  Object.freeze({ gold: 350, items: Object.freeze({ cooked_herring: 10 }) }),
-  Object.freeze({ gold: 400, items: Object.freeze({ turnip_seed: 15 }) }),
-  Object.freeze({ gold: 600, gems: 2, keys: Object.freeze({ bone_key: 1 }) }),   // Day 7
+  Object.freeze({ gold: 60, items: Object.freeze({ cooked_shrimp: 10 }) }),
+  Object.freeze({ gold: 80, items: Object.freeze({ turnip_seed: 10 }) }),
+  Object.freeze({ gold: 100, items: Object.freeze({ cooked_shrimp: 15 }) }),
+  Object.freeze({ gold: 130, items: Object.freeze({ carrot_seed: 10 }) }),
+  Object.freeze({ gold: 160, items: Object.freeze({ cooked_herring: 10 }) }),
+  Object.freeze({ gold: 200, items: Object.freeze({ turnip_seed: 15 }) }),
+  Object.freeze({ gold: 270, gems: 2, keys: Object.freeze({ bone_key: 1 }) }),   // Day 7
 ]);
 
 /** Each COMPLETED week scales gold and supplies by this much again... */
@@ -64,7 +64,7 @@ export const DAILY_LOGIN_WEEK_BONUS = 0.5;
 
 /* ...up to x3, reached in week five (x1, x1.5, x2, x2.5, x3). The old cap was
    x26, a fuse rather than a dial; this one is the dial. At the cap the richest
-   claim is day 7: 1,800 gold, one Bone Key, 2 gems; a capped week pays 6,750
+   claim is day 7: 810 gold, one Bone Key, 2 gems; a capped week pays 3,000
    gold. The SERVER re-derives this price and refuses any other
    (2026-10-16-login-reward.sql, hr_login_price), so this number and that one
    are bound by tests/login-reward.mjs, which runs both over every streak. */
@@ -87,12 +87,16 @@ export const DAILY_LOGIN_STREAK_CAP = DAILY_LOGIN_CYCLE_DAYS
  *
  * @param streak  the claimer's streak position, 1-based. The server derives it
  *                from its own claim history; the client renders a preview.
+ * @param opts.straight  true when the last claim was yesterday. Keys and gems
+ *                pay only then; absent means NOT straight (the preview can only
+ *                under-promise).
  * @returns {{gold:number, gems:number, items:Object<string,number>,
  *            cycleDay:number, weeksDone:number, mult:number}}
  *          `items` merges the scaled supplies and the fixed keys; it is `{}` on
  *          a day that pays none. `mult` is post-cap.
  */
-export function priceDailyLogin(streak) {
+export function priceDailyLogin(streak, opts) {
+  const straight = !!(opts && opts.straight === true);
   const s = Number.isFinite(Number(streak)) && Number(streak) > 0 ? Math.floor(Number(streak)) : 1;
   const cycleDay = ((s - 1) % DAILY_LOGIN_CYCLE_DAYS) + 1;
   const weeksDone = Math.floor((s - 1) / DAILY_LOGIN_CYCLE_DAYS);
@@ -103,12 +107,14 @@ export function priceDailyLogin(streak) {
     const n = Math.round(q * mult);
     if (n > 0) items[id] = (items[id] || 0) + n;
   }
-  for (const [id, q] of Object.entries(base.keys || {})) {
-    if (q > 0) items[id] = (items[id] || 0) + q;
+  if (straight) {
+    for (const [id, q] of Object.entries(base.keys || {})) {
+      if (q > 0) items[id] = (items[id] || 0) + q;
+    }
   }
   return {
     gold: Math.round((base.gold || 0) * mult),
-    gems: base.gems || 0,
+    gems: straight ? (base.gems || 0) : 0,
     items,
     cycleDay,
     weeksDone,
@@ -145,6 +151,12 @@ export function priceDailyLogin(streak) {
    @param lookup  { last: { value, state, gap } | null }
    @returns the 1-based streak position.
 */
+export function loginClaimIsStraight(lookup) {
+  const last = lookup && lookup.last;
+  return !!(last && typeof last === 'object' && last.state === 'claimed'
+    && Math.floor(Number(last.value)) >= 1 && Math.floor(Number(last.gap)) === 1);
+}
+
 export function deriveLoginStreak(lookup) {
   const last = lookup && lookup.last;
   if (!last || typeof last !== 'object' || last.state !== 'claimed') return 1;

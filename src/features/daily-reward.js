@@ -201,7 +201,17 @@
       if (!Number.isFinite(n) || B.utcDayKey(n * 86400000) !== period || n >= dayN) return;
       if (!last || n > last.n) last = { n: n, value: row.value, state: row.state, gap: dayN - n };
     });
+    _serverLast = last;
     return R.deriveLoginStreak({ last: last });
+  }
+  /* The last claim the server streak was read from (set by serverClaimStreak). */
+  var _serverLast = null;
+  /* Keys and gems pay only on a straight arrival; known only from the server's
+     rows, so with none the preview under-promises (false). */
+  function straightNow() {
+    var R = REWARDS(); if (!R || typeof R.loginClaimIsStraight !== 'function') return false;
+    var srv = serverClaimStreak();
+    return (typeof srv === 'number') ? R.loginClaimIsStraight({ last: _serverLast }) : false;
   }
 
   /**
@@ -255,7 +265,7 @@
      longer disagree about which day it is or what it is worth. */
   function priced(G) {
     var R = REWARDS(); if (!R) return null;
-    return R.priceDailyLogin(streakCount(G));
+    return R.priceDailyLogin(streakCount(G), { straight: straightNow() });
   }
   // 1-based day within the current 7-day cycle.
   function cycleDay(G) { var p = priced(G); return p ? p.cycleDay : 0; }
@@ -455,7 +465,7 @@
        worse than not opening one — REWARDS() has already logged the wiring
        break loudly. */
     if (!R) return;
-    var p = R.priceDailyLogin(streakCount(G));
+    var p = priced(G);
     var day = p.cycleDay, wk = p.weeksDone;
     var pending = recordPending();
     var claimable = !pending && isClaimable(G);
@@ -465,7 +475,8 @@
     var week = R.DAILY_LOGIN_CYCLE.map(function (_r, i) {
       var d = i + 1;
       /* Position d of the CURRENT week: same weeksDone, day d. */
-      var q = R.priceDailyLogin(wk * R.DAILY_LOGIN_CYCLE_DAYS + d);
+      /* The ladder as a straight run pays it (day 7 shows its gems). */
+      var q = R.priceDailyLogin(wk * R.DAILY_LOGIN_CYCLE_DAYS + d, { straight: true });
       var val = q.gems
         ? amountHtml('gems', q.gems, 'gems', 10)
         : (q.gold >= 1000

@@ -35,15 +35,21 @@
 //   L5  THE DATABASE REFUSES ANY OTHER PRICE. After the miss, the old rule's
 //       reset-to-day-1 price, an uncapped week-15 price and a forged extra item
 //       are each refused login_price_mismatch by hr_apply and move nothing.
+//   L7  THE SKIP PATTERN (Security, 2026-10-10). Keys and gems pay only on a
+//       STRAIGHT arrival (the last claim yesterday): over 28 days, claiming every
+//       other day earns no more keys or gems than claiming daily, in JS (a full
+//       simulation) and in the database (day 7 reached by a step back pays gold
+//       only, through the edge, and a forged key or gems on it is refused).
 //   L6  BOTH W0 FILES RE-APPLY BYTE-IDENTICALLY on the chain end (this file and
 //       2026-10-16-goal-board-retire.sql), their own §4 passing a second time.
 //
 // THE MUTANTS (--mutate)
 //   JS  a missed day resets the streak -> L3 · the multiplier loses its cap
-//       (overflow) -> L2 · the streak never wraps -> L3 · an unclaimed row
+//       (overflow) -> L2 · keys pay on any arrival -> L7 · the streak never wraps -> L3 · an unclaimed row
 //       counts -> L3 · the edge stops sending the supplies -> L4
 //   SQL a missed day resets the streak · the multiplier loses its cap · the
-//       verify is unwired from hr_apply -> the migration's own §4 refuses
+//       verify is unwired from hr_apply · the gems check is dropped · keys pay
+//       on any arrival -> the migration's own §4 refuses
 //
 // Exit: 0 green (or, under --mutate, every mutant caught) · 1 red · 2 harness.
 // NO ?v= on the imports (tests/**, b332).
@@ -70,6 +76,8 @@ const JS_MUTANTS = [
   { name: 'an unclaimed last row continues the streak', arm: 'L3', file: 'src/data/rewards.js',
     edits: [["  if (!last || typeof last !== 'object' || last.state !== 'claimed') return 1;",
       "  if (!last || typeof last !== 'object') return 1;"]] },
+  { name: 'keys and gems pay on any arrival (the skip exploit)', arm: 'L7', file: 'src/data/rewards.js',
+    edits: [['  const straight = !!(opts && opts.straight === true);', '  const straight = true;']] },
   { name: 'the edge stops sending the supplies', arm: 'L4', file: 'supabase/functions/hr-accrue/claim-reward.js',
     edits: [['  if (priced.items && Object.keys(priced.items).length) delta.items = { ...priced.items };', '']] },
 ];
@@ -80,6 +88,11 @@ const SQL_MUTANTS = [
   { name: 'the multiplier loses its cap (hr_login_price)', expect: /self-check \(a\)/,
     from: "  v_mult  := least((c_cat->>'max_mult')::numeric, 1 + v_weeks * (c_cat->>'week_bonus')::numeric);",
     to: "  v_mult  := 1 + v_weeks * (c_cat->>'week_bonus')::numeric;" },
+  { name: 'the verify stops checking gems', expect: /self-check \(d\)/,
+    from: '     or v_gems <> (v_q->>\'gems\')::bigint\n', to: '' },
+  { name: 'keys and gems pay on any arrival (hr_login_price)', expect: /self-check \((a|i)\)/,
+    from: "      case when coalesce(p_straight, false) then coalesce(v_row->'keys', '{}'::jsonb) else '{}'::jsonb end) loop",
+    to: "      coalesce(v_row->'keys', '{}'::jsonb)) loop" },
   { name: 'the re-price is unwired from hr_apply', expect: /self-check \((b|d)\)/,
     from: "          perform public.hr_login_claim_verify(v_uid, v_slot, coalesce(v_prog->>'period', ''), p_delta);",
     to: '          null;' },
@@ -148,12 +161,13 @@ async function runArms(db, mods) {
   }
 
   // L2 — price parity over every streak, and the cap holds.
-  for (let s = 1; s <= 120; s++) {
-    const js = rw.priceDailyLogin(s);
-    const sq = (await one('select public.hr_login_price($1::int) as p', [s])).p;
+  for (let i = 0; i < 240; i++) {
+    const s = (i % 120) + 1, straight = i >= 120;
+    const js = rw.priceDailyLogin(s, { straight });
+    const sq = (await one('select public.hr_login_price($1::int, $2::boolean) as p', [s, straight])).p;
     if (Number(sq.gold) !== js.gold || Number(sq.gems) !== js.gems || !sameItems(sq.items, js.items)
         || Number(sq.cycle_day) !== js.cycleDay || Number(sq.weeks) !== js.weeksDone || Number(sq.mult) !== js.mult) {
-      fail('L2', `streak ${s}: SQL ${JSON.stringify(sq)} vs JS ${JSON.stringify(js)}`);
+      fail('L2', `streak ${s} straight ${straight}: SQL ${JSON.stringify(sq)} vs JS ${JSON.stringify(js)}`);
       break;
     }
     if (js.mult > 3 || Number(sq.mult) > 3) { fail('L2', `streak ${s} multiplies x${js.mult} / x${sq.mult}, past x3`); break; }
@@ -269,12 +283,12 @@ async function runArms(db, mods) {
   {
     await clearLogin();
     await putRow(2, 5, 'claimed');                     // day 5 two days ago: today is day 5
-    const forge = async (label, gold, items, add) => {
+    const forge = async (label, gold, items, add, gems) => {
       const before = await wallet();
       const v = (await one('select version from public.player_state where user_id = $1 and slot = 0', [UID])).version;
       const day = (await one('select public.hr_utc_day_key(now()) as d')).d;
       const delta = {
-        gold, ...(Object.keys(items).length ? { items } : {}),
+        gold, ...(gems ? { gems } : {}), ...(Object.keys(items).length ? { items } : {}),
         progress: [{ kind: 'daily', key: 'login', period: day, add, state: 'done' }],
         progress_claim: [{ kind: 'daily', key: 'login', period: day }],
         journal: { kind: 'quest', intent: `claim_reward:daily:login:${day}` },
@@ -295,6 +309,7 @@ async function runArms(db, mods) {
     await forge('an uncapped week-15 price', uncapped, rw.priceDailyLogin(5).items, 5);
     const p5 = rw.priceDailyLogin(5);
     await forge('an extra Bone Key on the honest price', p5.gold, { ...p5.items, bone_key: 1 }, 5);
+    await forge('two forged gems on the honest price', p5.gold, p5.items, 5, 2);
     // CONTROL: the honest price for the same state is paid.
     const before = await wallet();
     const ok5 = await claim();
@@ -303,6 +318,37 @@ async function runArms(db, mods) {
       fail('L5', `CONTROL: the honest day-5 claim after the miss was not paid (${JSON.stringify(ok5.body).slice(0, 200)})`);
     }
   }
+  // L7 — the skip pattern pays nothing extra, in JS and in the database.
+  {
+    const sim = (every) => {
+      let last = null, keys = 0, gems = 0;
+      for (let d = 1; d <= 28; d++) {
+        if ((d - 1) % every) continue;
+        const lookup = { last: last ? { value: last.v, state: 'claimed', gap: d - last.d } : null };
+        const st = rw.deriveLoginStreak(lookup);
+        const p = rw.priceDailyLogin(st, { straight: rw.loginClaimIsStraight(lookup) });
+        keys += (p.items.bone_key || 0); gems += p.gems;
+        last = { v: st, d };
+      }
+      return { keys, gems };
+    };
+    const daily = sim(1), skip = sim(2);
+    if (daily.keys !== 4 || daily.gems !== 8) fail('L7', `CONTROL: a daily player over 28 days earns ${JSON.stringify(daily)}, expected 4 keys / 8 gems`);
+    if (skip.keys > daily.keys || skip.gems > daily.gems) {
+      fail('L7', `claiming every other day earns ${JSON.stringify(skip)} against a daily player's ${JSON.stringify(daily)} — skipping beats logging in`);
+    }
+    await clearLogin();
+    await putRow(2, 7, 'claimed');                     // day 7 two days ago, yesterday skipped
+    const before = await wallet();
+    const r = await claim();
+    const got = paid(before, await wallet());
+    const want = rw.priceDailyLogin(7, { straight: false });
+    if (!(r.body && r.body.ok === true && r.body.granted.streak === 7)) fail('L7', `the step-back day 7 claim was refused: ${JSON.stringify(r.body).slice(0, 200)}`);
+    else if (got.gold !== want.gold || got.gems !== 0 || got.items.bone_key) {
+      fail('L7', `a day 7 reached by skipping paid ${JSON.stringify(got)} — keys and gems are for a straight arrival only`);
+    }
+  }
+
   // L6 — both W0 files re-apply byte-identically on the chain end (§4 runs again).
   if (mods.secondApply) {
     const snap = async () => (await db.query(`select string_agg(p.proname || ':' || md5(pg_get_functiondef(p.oid)), ',' order by p.proname) s

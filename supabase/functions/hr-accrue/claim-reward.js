@@ -178,7 +178,7 @@ import {
 import { refusalBody } from './envelope.js';
 import { settleBeforeMutate } from './settle-first.js';
 import {
-  CLAIMABLES, claimableFor, claimableId, priceDailyLogin, deriveLoginStreak,
+  CLAIMABLES, claimableFor, claimableId, priceDailyLogin, deriveLoginStreak, loginClaimIsStraight,
 } from '../../../src/data/rewards.js';
 
 /** The verb's own name — used to build `journal.intent` and to read the
@@ -351,7 +351,8 @@ export function priceLoginClaim(o) {
   const gate = resolveClaimPeriod({ spec, lookup });
   if (gate.error) return gate;
   const streak = deriveLoginStreak(lookup);
-  const p = priceDailyLogin(streak);
+  /* Keys and gems only on a straight arrival (rewards.js loginClaimIsStraight). */
+  const p = priceDailyLogin(streak, { straight: loginClaimIsStraight(lookup) });
   return {
     gold: p.gold,
     gems: p.gems,

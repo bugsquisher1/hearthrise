@@ -108,8 +108,8 @@ function serverCount(task) {
   var n = Number(t.day['ev:' + task.type]);
   return Math.min(Number(task.goal) || 0, Number.isFinite(n) && n > 0 ? Math.floor(n) : 0);
 }
-/** Is a task's payout the server's? daily_harvest has a dynamic goal and no server row. */
-function serverPays(task) { return !!task && task.id !== 'daily_harvest'; }
+/** Every daily quest is server-paid (daily_harvest since 2026-10-16-daily-harvest-credit.sql). */
+function serverPays(task) { return !!task && !!task.id; }
 function isPaid(task) { var t = peek(); return !!(t && task && t.paid.indexOf(task.id) >= 0); }
 function isComplete(task) { var n = serverCount(task); return n !== null && n >= (Number(task.goal) || 0) && task.goal > 0; }
 function isClaimable(task) { return serverPays(task) && isComplete(task) && !isPaid(task); }

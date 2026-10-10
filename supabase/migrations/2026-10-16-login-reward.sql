@@ -20,11 +20,13 @@
 -- missed day reset the streak to day 1. Logging in out-earned playing, and
 -- stepping away — the thing an idle game is about — cost everything. The new
 -- cycle (src/data/rewards.js DAILY_LOGIN_CYCLE) pays supplies (cooked food,
--- seeds, one Bone Key a week) plus modest gold: 2,250 gold in week one, about
--- 16% of the ~14,000 the three daily quests pay. Gold and supplies scale +50%
--- per completed week to a cap of x3 (week five); keys and gems never scale. A
--- missed day costs one step: a player on day 5 who misses a day claims day 5
--- again, not day 1.
+-- seeds, one Bone Key a week) plus modest gold: 1,000 gold in week one (the
+-- measured median first week earns ~950 from play and ~450 from the daily
+-- quests). Gold and supplies scale +50% per completed week to a cap of x3
+-- (week five); keys and gems never scale and pay ONLY on a straight arrival
+-- (the last claim was yesterday), so claiming every other day cannot sit on
+-- day 7 and take its key each time (Security, 2026-10-10). A missed day costs
+-- one step: a player on day 5 who misses a day claims day 5 again, not day 1.
 --
 -- ── WHAT THIS FILE DOES ─────────────────────────────────────────────────────
 --   §1 hr_login_catalogue(): the cycle, the week bonus, the cap and the streak
@@ -103,7 +105,7 @@ create or replace function public.hr_login_catalogue()
 returns jsonb language sql immutable set search_path = pg_catalog as $fn$
   select
   -- BEGIN GENERATED login-catalogue (src/data/rewards.js; tests/login-reward.mjs)
-  '{"cycle":[{"gold":150,"items":{"cooked_shrimp":10}},{"gold":200,"items":{"turnip_seed":10}},{"gold":250,"items":{"cooked_shrimp":15}},{"gold":300,"items":{"carrot_seed":10}},{"gold":350,"items":{"cooked_herring":10}},{"gold":400,"items":{"turnip_seed":15}},{"gold":600,"gems":2,"keys":{"bone_key":1}}],"week_bonus":0.5,"max_mult":3,"streak_cap":35}'
+  '{"cycle":[{"gold":60,"items":{"cooked_shrimp":10}},{"gold":80,"items":{"turnip_seed":10}},{"gold":100,"items":{"cooked_shrimp":15}},{"gold":130,"items":{"carrot_seed":10}},{"gold":160,"items":{"cooked_herring":10}},{"gold":200,"items":{"turnip_seed":15}},{"gold":270,"gems":2,"keys":{"bone_key":1}}],"week_bonus":0.5,"max_mult":3,"streak_cap":35}'
   -- END GENERATED login-catalogue
   ::jsonb
 $fn$;
@@ -113,7 +115,8 @@ revoke execute on function public.hr_login_catalogue() from public, anon, authen
 -- priceDailyLogin, in SQL. round() on numeric rounds half away from zero, which
 -- for these positive amounts is Math.round's half-up; the parity sweep in
 -- tests/login-reward.mjs is what holds that true, not this sentence.
-create or replace function public.hr_login_price(p_streak int)
+drop function if exists public.hr_login_price(int);
+create or replace function public.hr_login_price(p_streak int, p_straight boolean)
 returns jsonb language plpgsql immutable set search_path = public, pg_catalog as $fn$
 declare
   c_cat   constant jsonb := public.hr_login_catalogue();
@@ -131,17 +134,19 @@ begin
     if v_n > 0 then
       v_items := v_items || jsonb_build_object(v_id, coalesce((v_items->>v_id)::bigint, 0) + v_n); end if;
   end loop;
-  for v_id, v_q in select key, value::numeric from jsonb_each_text(coalesce(v_row->'keys', '{}'::jsonb)) loop
+  -- keys (and gems, below) only on a straight arrival: the last claim yesterday
+  for v_id, v_q in select key, value::numeric from jsonb_each_text(
+      case when coalesce(p_straight, false) then coalesce(v_row->'keys', '{}'::jsonb) else '{}'::jsonb end) loop
     if v_q > 0 then
       v_items := v_items || jsonb_build_object(v_id, coalesce((v_items->>v_id)::bigint, 0) + v_q::bigint); end if;
   end loop;
   return jsonb_build_object(
     'streak', v_s, 'cycle_day', v_day, 'weeks', v_weeks, 'mult', v_mult,
     'gold', round(coalesce((v_row->>'gold')::numeric, 0) * v_mult)::bigint,
-    'gems', coalesce((v_row->>'gems')::bigint, 0),
+    'gems', case when coalesce(p_straight, false) then coalesce((v_row->>'gems')::bigint, 0) else 0 end,
     'items', v_items);
 end $fn$;
-revoke execute on function public.hr_login_price(int) from public, anon, authenticated, service_role;
+revoke execute on function public.hr_login_price(int, boolean) from public, anon, authenticated, service_role;
 
 -- The most recent CLAIMED row of (kind, key) before today, and how many whole
 -- UTC days ago it was. The key is hr_utc_day_key's 'YYYY-M-D'; a row whose key
@@ -230,6 +235,7 @@ returns void language plpgsql stable set search_path = public, pg_catalog as $fn
 declare
   v_today  text := public.hr_utc_day_key(now());
   v_streak int;
+  v_last   jsonb;
   v_q      jsonb;
   v_val    bigint;
   v_gold   bigint := coalesce((p_delta->>'gold')::bigint, 0);
@@ -240,7 +246,10 @@ begin
     perform public.hr_reject('login_price_mismatch',
       jsonb_build_object('why', 'period', 'period', p_period, 'today', v_today)); end if;
   v_streak := public.hr_login_streak(p_uid, p_slot);
-  v_q := public.hr_login_price(v_streak);
+  v_last := public.hr_claim_last(p_uid, p_slot, 'daily', 'login');
+  v_q := public.hr_login_price(v_streak,
+    v_last is not null and v_last->>'state' = 'claimed'
+    and (v_last->>'value')::bigint >= 1 and (v_last->>'gap')::int = 1);
   select value into v_val from public.player_progress
    where user_id = p_uid and slot = p_slot and kind = 'daily' and key = 'login'
      and period_key = v_today and state = 'claimed';
@@ -298,14 +307,17 @@ begin
      or (public.hr_login_catalogue()->>'max_mult')::numeric <> 3
      or (public.hr_login_catalogue()->>'streak_cap')::int <> 35 then
     raise exception 'login-reward self-check (a): the catalogue is not the 7-day, x3, cap-35 cycle: %', public.hr_login_catalogue(); end if;
-  v_q := public.hr_login_price(1);
-  if (v_q->>'gold')::bigint <> 150 or v_q->'items' <> '{"cooked_shrimp":10}'::jsonb or (v_q->>'gems')::int <> 0 then
+  v_q := public.hr_login_price(1, false);
+  if (v_q->>'gold')::bigint <> 60 or v_q->'items' <> '{"cooked_shrimp":10}'::jsonb or (v_q->>'gems')::int <> 0 then
     raise exception 'login-reward self-check (a): day 1 prices %', v_q; end if;
-  v_q := public.hr_login_price(35);
-  if (v_q->>'gold')::bigint <> 1800 or v_q->'items' <> '{"bone_key":1}'::jsonb or (v_q->>'gems')::int <> 2 then
-    raise exception 'login-reward self-check (a): day 35 (x3, day 7) prices %', v_q; end if;
-  if (public.hr_login_price(100000)->>'mult')::numeric <> 3 then
-    raise exception 'login-reward self-check (a): the multiplier is not capped at x3 (%)', public.hr_login_price(100000); end if;
+  v_q := public.hr_login_price(35, true);
+  if (v_q->>'gold')::bigint <> 810 or v_q->'items' <> '{"bone_key":1}'::jsonb or (v_q->>'gems')::int <> 2 then
+    raise exception 'login-reward self-check (a): a straight day 35 (x3, day 7) prices %', v_q; end if;
+  v_q := public.hr_login_price(7, false);
+  if v_q->'items' <> '{}'::jsonb or (v_q->>'gems')::int <> 0 or (v_q->>'gold')::bigint <> 270 then
+    raise exception 'login-reward self-check (a): a day 7 reached by a step back pays % — keys and gems are for a straight arrival only', v_q; end if;
+  if (public.hr_login_price(100000, true)->>'mult')::numeric <> 3 then
+    raise exception 'login-reward self-check (a): the multiplier is not capped at x3 (%)', public.hr_login_price(100000, true); end if;
   -- Every id the cycle pays is a catalogued item, or hr_apply would refuse the
   -- honest claim `unknown_item`.
   select string_agg(distinct k, ',') into v_missing
@@ -316,7 +328,7 @@ begin
     raise exception 'login-reward self-check (a): the cycle pays uncatalogued item(s): %', v_missing; end if;
 
   -- (b) NO CLIENT PATH.
-  foreach v_fn in array array['public.hr_login_catalogue()', 'public.hr_login_price(int)',
+  foreach v_fn in array array['public.hr_login_catalogue()', 'public.hr_login_price(int,boolean)',
       'public.hr_claim_last(uuid,int,text,text)', 'public.hr_login_streak(uuid,int)',
       'public.hr_login_claim_verify(uuid,int,text,jsonb)', 'public.hr_claim_lookup(uuid,int,text,text)',
       'public.hr_apply(uuid,int,bigint,uuid,jsonb)'] loop
@@ -346,28 +358,35 @@ begin
     --     extra item, a streak of 2 on day 1, and yesterday's period.
     select version, gold into v_ver, v_g0 from public.player_state where user_id = v_uid and slot = 0;
     v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(), jsonb_build_object(
-      'gold', 151, 'items', '{"cooked_shrimp":10}'::jsonb,
+      'gold', 61, 'items', '{"cooked_shrimp":10}'::jsonb,
       'progress', jsonb_build_array(jsonb_build_object('kind','daily','key','login','period',v_today,'add',1,'state','done')),
       'progress_claim', jsonb_build_array(jsonb_build_object('kind','daily','key','login','period',v_today)),
       'journal', jsonb_build_object('kind','quest','intent','lr:probe:gold')));
     if v_r->>'error' is distinct from 'login_price_mismatch' then
-      raise exception 'login-reward self-check (d): 151 gold on day 1 returned %', v_r; end if;
+      raise exception 'login-reward self-check (d): 61 gold on day 1 returned %', v_r; end if;
     v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(), jsonb_build_object(
-      'gold', 150, 'items', '{"cooked_shrimp":10,"bone_key":1}'::jsonb,
+      'gold', 60, 'gems', 2, 'items', '{"cooked_shrimp":10}'::jsonb,
+      'progress', jsonb_build_array(jsonb_build_object('kind','daily','key','login','period',v_today,'add',1,'state','done')),
+      'progress_claim', jsonb_build_array(jsonb_build_object('kind','daily','key','login','period',v_today)),
+      'journal', jsonb_build_object('kind','quest','intent','lr:probe:gems')));
+    if v_r->>'error' is distinct from 'login_price_mismatch' then
+      raise exception 'login-reward self-check (d): 2 forged gems on day 1 returned %', v_r; end if;
+    v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(), jsonb_build_object(
+      'gold', 60, 'items', '{"cooked_shrimp":10,"bone_key":1}'::jsonb,
       'progress', jsonb_build_array(jsonb_build_object('kind','daily','key','login','period',v_today,'add',1,'state','done')),
       'progress_claim', jsonb_build_array(jsonb_build_object('kind','daily','key','login','period',v_today)),
       'journal', jsonb_build_object('kind','quest','intent','lr:probe:items')));
     if v_r->>'error' is distinct from 'login_price_mismatch' then
       raise exception 'login-reward self-check (d): an extra Bone Key returned %', v_r; end if;
     v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(), jsonb_build_object(
-      'gold', 200, 'items', '{"turnip_seed":10}'::jsonb,
+      'gold', 80, 'items', '{"turnip_seed":10}'::jsonb,
       'progress', jsonb_build_array(jsonb_build_object('kind','daily','key','login','period',v_today,'add',2,'state','done')),
       'progress_claim', jsonb_build_array(jsonb_build_object('kind','daily','key','login','period',v_today)),
       'journal', jsonb_build_object('kind','quest','intent','lr:probe:streak')));
     if v_r->>'error' is distinct from 'login_price_mismatch' then
       raise exception 'login-reward self-check (d): a forged day-2 streak on a fresh character returned %', v_r; end if;
     v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(), jsonb_build_object(
-      'gold', 150, 'items', '{"cooked_shrimp":10}'::jsonb,
+      'gold', 60, 'items', '{"cooked_shrimp":10}'::jsonb,
       'progress', jsonb_build_array(jsonb_build_object('kind','daily','key','login',
                     'period', public.hr_utc_day_key(now() - interval '1 day'),'add',1,'state','done')),
       'progress_claim', jsonb_build_array(jsonb_build_object('kind','daily','key','login',
@@ -382,12 +401,12 @@ begin
 
     -- (e) THE HONEST DAY-1 CLAIM PAYS EXACTLY THE PRICE.
     v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(), jsonb_build_object(
-      'gold', 150, 'items', '{"cooked_shrimp":10}'::jsonb,
+      'gold', 60, 'items', '{"cooked_shrimp":10}'::jsonb,
       'progress', jsonb_build_array(jsonb_build_object('kind','daily','key','login','period',v_today,'add',1,'state','done')),
       'progress_claim', jsonb_build_array(jsonb_build_object('kind','daily','key','login','period',v_today)),
       'journal', jsonb_build_object('kind','quest','intent','lr:probe:e')));
     select gold into v_g1 from public.player_state where user_id = v_uid and slot = 0;
-    if coalesce(v_r->>'ok', 'false') <> 'true' or v_g1 - v_g0 <> 150 then
+    if coalesce(v_r->>'ok', 'false') <> 'true' or v_g1 - v_g0 <> 60 then
       raise exception 'login-reward self-check (e): the honest day-1 claim returned % and moved % gold', v_r, v_g1 - v_g0; end if;
 
     -- (f) A MISSED DAY COSTS ONE STEP. The last claim was day 5, three days
@@ -411,7 +430,7 @@ begin
       values (v_uid, 0, 'daily', 'login', public.hr_utc_day_key(now() - interval '1 day'), 30, 'done');
     if public.hr_login_streak(v_uid, 0) <> 4 then
       raise exception 'login-reward self-check (f): an unclaimed row moved the streak to %', public.hr_login_streak(v_uid, 0); end if;
-    v_q := public.hr_login_price(4);
+    v_q := public.hr_login_price(4, false);
     select version, gold into v_ver, v_g0 from public.player_state where user_id = v_uid and slot = 0;
     v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(), jsonb_build_object(
       'gold', (v_q->>'gold')::bigint, 'items', v_q->'items',
@@ -426,7 +445,7 @@ begin
     delete from public.player_progress where user_id = v_uid and key = 'login' and period_key = v_today;
     select version into v_ver from public.player_state where user_id = v_uid and slot = 0;
     v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(), jsonb_build_object(
-      'gold', 150, 'items', '{"cooked_shrimp":10}'::jsonb,
+      'gold', 60, 'items', '{"cooked_shrimp":10}'::jsonb,
       'progress', jsonb_build_array(jsonb_build_object('kind','daily','key','login','period',v_today,'add',1,'state','done')),
       'progress_claim', jsonb_build_array(jsonb_build_object('kind','daily','key','login','period',v_today)),
       'journal', jsonb_build_object('kind','quest','intent','lr:probe:g')));
@@ -437,7 +456,7 @@ begin
     delete from public.player_progress where user_id = v_uid and key = 'login';
     insert into public.player_progress (user_id, slot, kind, key, period_key, value, state)
       values (v_uid, 0, 'daily', 'login', public.hr_utc_day_key(now() - interval '1 day'), 6, 'claimed');
-    v_q := public.hr_login_price(public.hr_login_streak(v_uid, 0));
+    v_q := public.hr_login_price(public.hr_login_streak(v_uid, 0), true);
     select version into v_ver from public.player_state where user_id = v_uid and slot = 0;
     v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(), jsonb_build_object(
       'gold', (v_q->>'gold')::bigint, 'gems', (v_q->>'gems')::bigint, 'items', v_q->'items',
@@ -447,6 +466,26 @@ begin
     if coalesce(v_r->>'ok', 'false') <> 'true'
        or not exists (select 1 from public.player_inventory where user_id = v_uid and item_id = 'bone_key' and qty >= 1) then
       raise exception 'login-reward self-check (h): the day-7 claim returned % or paid no Bone Key', v_r; end if;
+    -- (i) THE SKIP PATTERN: day 7 claimed two days ago, yesterday skipped. The
+    --     step back lands on day 7 again, and it pays NO key and NO gems.
+    delete from public.player_progress where user_id = v_uid and key = 'login';
+    insert into public.player_progress (user_id, slot, kind, key, period_key, value, state)
+      values (v_uid, 0, 'daily', 'login', public.hr_utc_day_key(now() - interval '2 days'), 7, 'claimed');
+    select version into v_ver from public.player_state where user_id = v_uid and slot = 0;
+    v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(), jsonb_build_object(
+      'gold', 270, 'gems', 2, 'items', '{"bone_key":1}'::jsonb,
+      'progress', jsonb_build_array(jsonb_build_object('kind','daily','key','login','period',v_today,'add',7,'state','done')),
+      'progress_claim', jsonb_build_array(jsonb_build_object('kind','daily','key','login','period',v_today)),
+      'journal', jsonb_build_object('kind','quest','intent','lr:probe:skip')));
+    if v_r->>'error' is distinct from 'login_price_mismatch' then
+      raise exception 'login-reward self-check (i): a day 7 reached by skipping paid its key and gems (%)', v_r; end if;
+    v_r := public.hr_apply(v_uid, 0, v_ver, gen_random_uuid(), jsonb_build_object(
+      'gold', 270,
+      'progress', jsonb_build_array(jsonb_build_object('kind','daily','key','login','period',v_today,'add',7,'state','done')),
+      'progress_claim', jsonb_build_array(jsonb_build_object('kind','daily','key','login','period',v_today)),
+      'journal', jsonb_build_object('kind','quest','intent','lr:probe:skip2')));
+    if coalesce(v_r->>'ok', 'false') <> 'true' then
+      raise exception 'login-reward self-check (i): the gold-only day 7 after a skip was refused (%)', v_r; end if;
     delete from public.player_progress where user_id = v_uid and key = 'login';
     insert into public.player_progress (user_id, slot, kind, key, period_key, value, state)
       values (v_uid, 0, 'daily', 'login', public.hr_utc_day_key(now() - interval '1 day'), 35, 'claimed');
@@ -472,5 +511,5 @@ begin
                're-prices once; (c) a fresh character is day 1; (d) a forged gold, item, streak or period is refused '
                'and moves nothing; (e) the honest claim pays the price; (f) a missed day costs one step and an '
                'unclaimed row does not count; (g) the old reset-to-day-1 price is refused; (h) day 7 pays the key '
-               'and the ceiling wraps';
+               'and the ceiling wraps; (i) a day 7 reached by skipping pays no key and no gems';
 end $$;

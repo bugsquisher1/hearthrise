@@ -323,8 +323,12 @@
       open = open.concat(window.G.quests.filter(q => q && !q.done && (!q.chain || !dayOpen))
         .map(q => ({ q: q, tier: TIER_CHAIN })));
     }
-    if(window.G.daily && Array.isArray(window.G.daily.tasks))
-      open = open.concat(window.G.daily.tasks.filter(t => !t.done).map(t => ({ q: t, tier: TIER_DAILY })));
+    /* Daily quests: the server's list, unpaid ones only, at the server's count
+       (src/features/daily-quests.js) — never the browser's done/progress. */
+    var DQ = window.HearthriseDailyQuests;
+    if(DQ)
+      open = open.concat(DQ.tasks().filter(t => !DQ.isPaid(t))
+        .map(t => ({ q: Object.assign({}, t, { progress: DQ.serverCount(t) || 0 }), tier: TIER_DAILY })));
     for(var j = 0; j < open.length; j++){
       let q = open[j].q;                     // per-iteration binding — see above
       let qtier = open[j].tier;

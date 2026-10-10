@@ -2453,10 +2453,8 @@ export default [
     }
   }),
 
-  // b133: schema migration v3 → v4 ran. New fields exist with safe defaults.
-  () => tryRun('b133: v3→v4 migration applied — autoActions + dropLog + plotLevels', () => {
-    assert(window.HEARTHRISE_SCHEMA_VERSION >= 4,
-      'CURRENT_SCHEMA_VERSION should be >=4, got ' + window.HEARTHRISE_SCHEMA_VERSION);
+  // b133: the boot shape carries autoActions + dropLog with safe defaults.
+  () => tryRun('b133: boot shape — autoActions + dropLog + plotLevels', () => {
     assert(window.G.autoActions, 'G.autoActions missing — migration v3→v4 not applied');
     assert(window.G.autoActions.eat,
       'G.autoActions.eat missing');

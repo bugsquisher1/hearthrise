@@ -464,9 +464,6 @@ export default [
       assert(typeof window.HearthriseLaunchpad[fn] === 'function',
         'HearthriseLaunchpad.' + fn + ' missing');
     }
-    // schema v5 ran
-    assert(window.HEARTHRISE_SCHEMA_VERSION >= 5,
-      'CURRENT_SCHEMA_VERSION should be >=5, got ' + window.HEARTHRISE_SCHEMA_VERSION);
   }),
 
   // b138: recordStop populates G.lastActivity correctly.
@@ -2486,35 +2483,6 @@ export default [
       } finally { restoreG(snap); }
     })),
 
-  // The migration is what un-sticks every plot broken on live right now.
-  () => tryRun('b220: save migration un-sticks stalled plots', () => {
-    const M = (window.HEARTHRISE_MIGRATIONS || []).find((m) => m.from === 6 && m.to === 7);
-    assert(M, 'the v6 → v7 farming migration is missing from the registry');
-    assert(window.HEARTHRISE_SCHEMA_VERSION >= 7, 'CURRENT_SCHEMA_VERSION was not bumped to 7');
-    const F = window.HearthriseFarm;
-    const stalledAt = Date.now() - (window.CROPS.turnip.hours + 5) * 3600000;
-    const save = { v: 6, farmPlots: [
-      { cropId: 'turnip', plantedAt: stalledAt, watered: false, state: 'growing' },  // the auto-replant victim
-      { cropId: 'turnip', plantedAt: stalledAt, watered: true,  state: 'growing' },
-      { cropId: 'turnip', plantedAt: 'corrupt', watered: false, state: 'growing' },
-      null,
-    ] };
-    M.apply(save);
-    assert(Array.isArray(save.farmPlots[0].waterings) && save.farmPlots[0].waterings.length === 0,
-      'watered:false must migrate to waterings: []');
-    assert(save.farmPlots[1].waterings.length === 1 && save.farmPlots[1].waterings[0] === stalledAt,
-      'watered:true must retro-credit one window at plantedAt');
-    assert(typeof save.farmPlots[2].plantedAt === 'number' && save.farmPlots[2].waterings.length === 0,
-      'a corrupt plantedAt must be repaired, not crash the pipeline');
-    // THE point: both old plots now finish.
-    assert(F.isReady(save.farmPlots[0]) === true,
-      'the migrated dry plot must be ready — it was frozen forever on b219');
-    assert(F.isReady(save.farmPlots[1]) === true, 'the migrated watered plot must be ready');
-    assert(F.isReady(save.farmPlots[2]) === false, 'the repaired plot restarts its clock');
-    const before = JSON.stringify(save.farmPlots);
-    M.apply(save);
-    assert(JSON.stringify(save.farmPlots) === before, 'the migration must be idempotent');
-  }),
 
   /* ⚠ THE INTENT IS ANSWERED HERE, NOT BY THE REALM (2026-10-06). maybeReplant
      sends a REAL hr_farm_plant through plantCrop; unstubbed, that request left the

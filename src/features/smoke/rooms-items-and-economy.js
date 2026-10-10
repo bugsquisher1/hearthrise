@@ -1481,29 +1481,6 @@ export default [
       assert(window.addItem(ids[1], 1) === true && G.inventory[ids[1]] === 1, 'new stack fits after expansion');
     } finally { G.inventory = saved.inv; G.bank = saved.bank; restoreBankCap(saved.cap); }
   }),
-  () => tryRun('b269: v10→v11 migration grandfathers cap above existing distinct stacks', () => {
-    assert(typeof window.applyMigrations === 'function', 'applyMigrations missing');
-    const inv = {}; for (let i = 0; i < 260; i++) inv['probe_item_' + i] = 1; // 260 stacks > BASE_CAP
-    const out = window.applyMigrations({ v: 10, inventory: inv });
-    assert(out.bank && typeof out.bank.grandfather === 'number', 'migration must seed G.bank');
-    const cap = window.BANK_SPACE.BASE_CAP + out.bank.goldBuys * window.BANK_SPACE.gold.slots
-      + out.bank.gemBuys * window.BANK_SPACE.gem.slots + out.bank.grandfather;
-    assert(cap >= 260, 'grandfathered cap (' + cap + ') must cover existing 260 stacks — nobody worse off');
-    // Idempotent: re-running must not inflate the cap further.
-    const out2 = window.applyMigrations(out);
-    assert(out2.bank.grandfather === out.bank.grandfather, 'migration must be idempotent');
-  }),
-  () => tryRun('b217: migration grandfathers pre-v6 saves that already had auto-eat', () => {
-    assert(typeof window.applyMigrations === 'function', 'window.applyMigrations missing');
-    // A pre-v6 save with auto-eat enabled must come out with the trait granted.
-    const legacy = window.applyMigrations({ v: 5, autoActions: { eat: { enabled: true, threshold: 0.5, foodId: 'cooked_shrimp' } } });
-    assert(legacy.traits && legacy.traits.auto_eat === true,
-      'existing players with auto-eat enabled must be grandfathered the trait on load');
-    // A pre-v6 save that never used auto-eat must NOT get it for free.
-    const clean = window.applyMigrations({ v: 5, autoActions: { eat: { enabled: false, threshold: 0.5, foodId: null } } });
-    assert(!(clean.traits && clean.traits.auto_eat),
-      'players who never enabled auto-eat must not be granted the trait');
-  }),
   // b206 wrote this test against the ORIGINAL ladder (+25% allXP, +8% gather,
   // +5% artisan, +3h offline, all earned by banking gold). b223 re-scoped that
   // ladder to a membership BASELINE — clan-overhaul §8.3 — because with the

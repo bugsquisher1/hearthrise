@@ -336,20 +336,6 @@ export const GEM_SITE_LEDGER = Object.freeze([
       + 'undeclared spend is refunded rather than merely untidy.',
   },
   {
-    id: 'src/save-migrations.js#apply',
-    kind: 'migration', status: 'none',
-    why: '`save.gems = Math.max(0, Math.floor(save.gems))` — a SANITISER on the save BLOB, not the '
-      + 'live balance, and it can only clamp downward toward a non-negative integer. Under '
-      + 'BLOB_RETIRED the blob is not read for authority at all.',
-  },
-  {
-    id: 'src/save-migrations.js#apply@2',
-    kind: 'migration', status: 'none',
-    why: 'The `else save.gems = 0` half of the same sanitiser: a save with a non-numeric gems field '
-      + 'is normalised to zero rather than left to poison a toLocaleString. Same blob, same '
-      + 'reasoning.',
-  },
-  {
     id: 'src/features/daily-reward.js#rewardFor',
     kind: 'false-positive', status: 'none',
     why: 'NOT A BALANCE. `out.gems = p.gems` builds the reward DESCRIPTOR the sheet renders; `out` '

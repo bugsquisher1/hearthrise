@@ -3074,18 +3074,6 @@ export default [
       assert(patch && patch.toolCarry === undefined,
         'toolCarry must NOT ride the residue PUT any more — `state.tool_carry` is the one copy');
       assert(patch._toolCarry === undefined, 'the old underscored key must not be persisted');
-      /* And the migration that renames it is registered and idempotent. */
-      const MIG = window.HEARTHRISE_MIGRATIONS || [];
-      const step = MIG.find((s) => s.from === 12 && s.to === 13);
-      assert(step, 'the v12 -> v13 toolCarry migration must be registered');
-      const old = { v: 12, _toolCarry: { fishing: 0.7 } };
-      step.apply(old);
-      assert(old.toolCarry.fishing === 0.7 && old._toolCarry === undefined, 'the migration must move the carry and drop the old key');
-      step.apply(old);
-      assert(old.toolCarry.fishing === 0.7, 're-running the migration must be a no-op');
-      const fresh = { v: 12 };
-      step.apply(fresh);
-      assert(fresh.toolCarry && Object.keys(fresh.toolCarry).length === 0, 'a save with no carry must get an empty object, not undefined');
     } finally { restoreGAndRecord(snap); try { window.saveLocal(); } catch {} }
   }),
 

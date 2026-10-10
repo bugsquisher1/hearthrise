@@ -6320,31 +6320,6 @@ export default [
     }
   }),
 
-  () => tryRun('F7-3: the v5→v6 grandfather must switch auto-eat ON, not just grant the trait', () => {
-    assert(typeof window.applyMigrations === 'function', 'applyMigrations is not published');
-    /* The `foodSlot` arm of the migration matches saves whose
-       `autoActions.eat.enabled` is FALSE. Granting the trait alone left those
-       players with a 100-mark feature and an off switch that had no UI — the
-       exact state F7 was reported from. */
-    const legacy = window.applyMigrations({
-      v: 5, foodSlot: 'cooked_shrimp',
-      autoActions: { eat: { enabled: false, threshold: 0.3, foodId: null, pctSynced: true } },
-    });
-    assert(legacy.traits && legacy.traits.auto_eat === true, 'the trait was not grandfathered');
-    assert(legacy.autoActions.eat.enabled === true,
-      'THE F7-3 BUG: the trait was granted but auto-eat stayed switched off');
-    assert(legacy.autoActions.eat.foodId === 'cooked_shrimp',
-      'the legacy foodSlot choice was dropped: ' + legacy.autoActions.eat.foodId);
-    assert(legacy.autoActions.eat.threshold === 0.3,
-      'the migration overwrote a threshold the player had already chosen');
-    /* And it must stay a MIGRATION: a fresh save never enters this branch, so
-       a new player still has to buy the trait. */
-    const fresh = window.applyMigrations({ v: 5, autoActions: { eat: { enabled: false, threshold: 0.5, foodId: null } } });
-    assert(!(fresh.traits && fresh.traits.auto_eat),
-      'a save with no auto-eat history was handed the trait for free');
-    assert(!(fresh.autoActions && fresh.autoActions.eat && fresh.autoActions.eat.enabled),
-      'a save with no auto-eat history was switched on');
-  }),
 
   () => tryRun('F18-1: fightOf() reads the server carry, and refuses everything it is unsure of', () => {
     const M = window.HearthriseActivity;

@@ -491,7 +491,7 @@ const ROOMS={
 };
 window.ROOMS = ROOMS; /* b201: expose for features/homestead.js workbench checks */
 const PLOT_BUILDINGS={
-  farm_plot:{name:'Farm Plot',icon:'🌾',cost:{gold:100,normal_log:5},desc:'Grow crops.',max:12},
+  farm_plot:{name:'Farm Plot',icon:'🌾',cost:{gold:100,normal_log:5},desc:'One more plot to plant, up to what your home can farm.',max:12},
   /* b228: the Scarecrow's copy said "+10% yield" and it granted +0.1 farmYield,
      which harvestPlot floored to zero — the description and the grant were
      both wrong, in different ways. It is +1 crop now, and it says so. */
@@ -8512,12 +8512,12 @@ function renderHouse(){
         <span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center">${_hrGly('navFarm',30)}</span>
         <div class="info">
           ${window.HearthriseFarm.tierHeadHtml()}${window.HearthriseFarm.tierLoreHtml()}
-          <span${plotPending?' class="bal-pending" role="status"':''}>${plotPending ? 'Your plot tier is still being counted' : lv >= max ? 'Maxed — all crops unlocked' : `Next tier unlocks: ${newCropsLabel}`}</span>
+          <span${plotPending?' class="bal-pending" role="status"':''}>${plotPending ? 'Your soil level is still being counted' : lv >= max ? 'Your soil is at its richest — every crop grows here' : `Richer soil grows: ${newCropsLabel}`}</span>
           ${priceLine?`<span class="tiny">${priceLine}</span>`:''}
           ${haveLine?`<span class="tiny muted">${haveLine}</span>`:''}
         </div>
         ${plotPending || lv < max
-          ? `<button class="btn btn-sm ${canUpgrade?'btn-primary':''}" ${canUpgrade?'':'disabled'}${plotPending?' data-pending="plot-level" title="Your plot tier is still being counted"':''} onclick="window.HearthriseFarm.upgradePlot()">${btnLabel}</button>`
+          ? `<button class="btn btn-sm ${canUpgrade?'btn-primary':''}" ${canUpgrade?'':'disabled'}${plotPending?' data-pending="plot-level" title="Your soil level is still being counted"':''} onclick="window.HearthriseFarm.upgradePlot()">${btnLabel}</button>`
           : '<span class="tag">MAX</span>'}
       </div>`;
     }
@@ -9056,8 +9056,13 @@ const TRAITS={
      numbers live in src/core/auto-eat.js AUTO_EAT_TIERS, shared with the
      server's away simulation, and tests/auto-eat-authority.mjs binds these
      prices to that table. */
-  auto_eat:{name:'Auto-Eat I',cost:15,currency:'marks',glyph:'meat',desc:'Eats for you the moment your health drops below a quarter, INCLUDING while you\'re away — your fights stop being ninety seconds long.'},
-  auto_eat_2:{name:'Auto-Eat II',cost:100,currency:'marks',glyph:'meat',req:'auto_eat',desc:'Eat sooner, and choose exactly when — unlocks the full threshold slider in Settings → Gameplay instead of the fixed quarter. Requires Auto-Eat I.'},
+  /* W0 (game-designer, 2026-10-10): `starter` — every character is GRANTED
+     this tier at creation (2026-09-04-auto-eat-at-creation.sql), so it is a
+     starting right, not merchandise. bountyShopOffers() leaves a starter trait
+     off the shop; the price stays authored because the server catalogue, the
+     death sheet and tests/auto-eat-authority.mjs all bind it. */
+  auto_eat:{name:'Auto-Eat I',cost:15,currency:'marks',glyph:'meat',starter:true,desc:'Eats for you the moment your health drops below a quarter, INCLUDING while you\'re away — your fights stop being ninety seconds long.'},
+  auto_eat_2:{name:'Auto-Eat II',cost:100,currency:'marks',glyph:'meat',req:'auto_eat',desc:'Eat sooner, and choose exactly when — upgrades the Auto-Eat every hero starts with, unlocking the full threshold slider in Settings → Gameplay instead of the fixed quarter.'},
 };
 window.TRAITS=TRAITS;
 function hasTrait(id){return !!(G.traits&&G.traits[id]);}
@@ -10753,8 +10758,9 @@ const BOUNTY_SHOP = [
    price, the debit and G.traits. This list never owns state. */
 function bountyShopOffers(){
   const T = window.TRAITS || {};
+  /* W0: a `starter` trait is granted at creation — never a shop row. */
   const marksTraits = Object.keys(T)
-    .filter(function(id){ return T[id] && T[id].currency === 'marks'; })
+    .filter(function(id){ return T[id] && T[id].currency === 'marks' && !T[id].starter; })
     .map(function(id){
       return { id:'trait_'+id, trait:id, name:T[id].name, glyph:T[id].glyph,
                cost:T[id].cost, desc:T[id].desc };

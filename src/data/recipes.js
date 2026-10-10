@@ -22,6 +22,8 @@ import { SLOT_RECIPES } from './slot-ladders.js?v=564';
 import { LIB2_RECIPES } from './library2-items.js?v=564';
 import { ITEMS, foodClassOf } from './items.js?v=564';
 import { STONECRAFT_RECIPES } from './stonecraft.js?v=564';
+/* W0 (2026-10-10): the boss materials' recipes — src/data/boss-forge.js. */
+import { BOSS_FORGE_RECIPES } from './boss-forge.js?v=564';
 
 const BASE_RECIPES = {
   cooking: [
@@ -485,8 +487,8 @@ function mergeGenerated(base, generated) {
 
 export const ARTISAN_RECIPES = {
   cooking:  BASE_RECIPES.cooking.slice().sort((a, b) => (a.req || 0) - (b.req || 0)),
-  smithing: mergeGenerated(BASE_RECIPES.smithing, GEAR_RECIPES.smithing.concat(WAVE3_RECIPES.smithing, SLOT_RECIPES.smithing, LIB2_RECIPES.smithing)),
-  crafting: mergeGenerated(BASE_RECIPES.crafting, GEAR_RECIPES.crafting.concat(WAVE3_RECIPES.crafting, SLOT_RECIPES.crafting, LIB2_RECIPES.crafting)),
+  smithing: mergeGenerated(BASE_RECIPES.smithing, GEAR_RECIPES.smithing.concat(WAVE3_RECIPES.smithing, SLOT_RECIPES.smithing, LIB2_RECIPES.smithing, BOSS_FORGE_RECIPES.smithing)),
+  crafting: mergeGenerated(BASE_RECIPES.crafting, GEAR_RECIPES.crafting.concat(WAVE3_RECIPES.crafting, SLOT_RECIPES.crafting, LIB2_RECIPES.crafting, BOSS_FORGE_RECIPES.crafting)),
   prayer:   BASE_RECIPES.prayer,
   /* The consumable economy's two new benches (R6). Sorted by req like every
      other lane so each panel reads as a ladder rather than as authoring order.

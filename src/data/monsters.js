@@ -627,6 +627,41 @@ export const MONSTERS = {
     elementWeak: 'ember', elementResist: ['frost', 'poison'],
     hp: 508, atk: 104, def: 59, xp: 1248, gp: [318, 698],
     drops: [{ id: 'void_core', ch: .12 }, { id: 'void_chitin', ch: 1 }, { id: 'hollow_sigil', ch: .1 }, { id: 'ancient_rune', ch: .5 }, { id: 'dawnstone_ore', ch: .15 }] },
+
+  /* ══ FIELD CHAMPIONS (W0, 2026-10-10) — one named foe per tier 1–5 ═══════
+     The ruling and the relics are in src/data/champions.js. APPENDED AFTER
+     EVERY EXISTING ROW on purpose: index-based picks and seeded fixtures walk
+     this object in order, and a row added at the end moves none of them.
+     `champion: true` on the MONSTER swaps auditRoster's tier band for
+     championBand (own floor .. next tier's ceiling) and keeps it off the
+     bounty board; `champion: true` on the relic's DROP ROW makes it
+     server-revealed (src/features/lucky-finds.js). The relic row is LAST. */
+  old_tusker: { name: 'Old Tusker', icon: '🐗', tier: 1, cls: 'mammal', family: 'Mammal', champion: true,
+    /* the boar every tier-1 hunter has heard about: bigger, meaner, older. */
+    hp: 30, atk: 8, def: 3, xp: 34, gp: [6, 15],
+    drops: [{ id: 'bones', ch: 1 }, { id: 'raw_wolf_meat', ch: .9 }, { id: 'wolf_pelt', ch: .6 }, { id: 'small_fang', ch: .4 },
+      { id: 'tusker_charm', ch: .0035, champion: true }] },
+  gnoll_packlord: { name: 'Gnoll Packlord', icon: '🐺', tier: 2, cls: 'humanoid', family: 'Humanoid', champion: true,
+    /* the scavengers' chief, and the first foe that hits like a tier-3. */
+    hp: 62, atk: 16, def: 7, xp: 92, gp: [16, 40],
+    drops: [{ id: 'bones', ch: 1 }, { id: 'goblin_ear', ch: .8 }, { id: 'wolf_pelt', ch: .5 }, { id: 'iron_ore', ch: .3 },
+      { id: 'packlord_band', ch: .0028, champion: true }] },
+  mire_witch: { name: 'The Mire Witch', icon: '🧹', tier: 3, cls: 'human', family: 'Human', champion: true,
+    /* the bog's hermit, who taught the warlocks everything they know. */
+    hp: 115, atk: 30, def: 14, xp: 240, gp: [40, 90],
+    drops: [{ id: 'magic_essence', ch: .9 }, { id: 'rune_frag', ch: .6 }, { id: 'cracked_spellstone', ch: .05 },
+      { id: 'mirewort_drops', ch: .0038, champion: true }] },
+  barrow_king: { name: 'The Barrow King', icon: '👑', tier: 4, cls: 'undead', family: 'Undead', champion: true,
+    /* the barrow knights' liege, risen in his rusted crown. */
+    hp: 205, atk: 52, def: 26, xp: 520, gp: [95, 200],
+    drops: [{ id: 'big_bones', ch: 1 }, { id: 'steel_bar', ch: .5 }, { id: 'iron_fitting', ch: .5 }, { id: 'ancient_fragment', ch: .12 },
+      { id: 'barrowking_mantle', ch: .0043, champion: true }] },
+  frost_jarl: { name: 'The Frost Jarl', icon: '🧊', tier: 5, cls: 'humanoid', family: 'Humanoid', champion: true,
+    /* one override (element), the same as the giants he rules: Ember answers. */
+    elementWeak: 'ember', elementResist: ['frost'],
+    hp: 360, atk: 70, def: 38, xp: 880, gp: [210, 430],
+    drops: [{ id: 'troll_hide', ch: 1 }, { id: 'big_bones', ch: 1 }, { id: 'mithril_ore', ch: .5 }, { id: 'frostfin', ch: .5 },
+      { id: 'jarls_rimetorc', ch: .0048, champion: true }] },
 };
 
 /* SEAL: write each class's profile onto its members, so `m.weaponWeak` is a

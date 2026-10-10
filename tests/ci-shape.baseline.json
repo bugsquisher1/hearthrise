@@ -377,6 +377,8 @@
     "node tests/selfcheck-no-global-dml.mjs --selftest": "client-guards",
     "node tests/selfcheck-no-global-dml.mjs": "client-guards",
     "node tests/selfcheck-no-global-dml.bypass.mjs": "client-guards",
+    "node tests/w0f-fun-content.mjs": "client-guards",
+    "node tests/w0f-fun-content.mjs --selftest": "client-guards",
     "node tests/signposts.mjs --selftest": "client-guards",
     "node tests/signposts.mjs": "client-guards",
     "node tests/settle-first-callers.mjs --selftest": "client-guards",

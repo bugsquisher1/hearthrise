@@ -49,7 +49,9 @@
     if (!ms) return {};
     var out = {};
     Object.keys(ms).forEach(function (mid) {
-      (ms[mid].drops || []).forEach(function (d) { if (d && (d.lucky || d.salvage)) out[d.id] = { mid: mid, row: d }; });
+      /* W0: a field champion's relic row (`champion: true`, src/data/champions.js)
+         is server-revealed too, and reads like salvage: RARE with base odds. */
+      (ms[mid].drops || []).forEach(function (d) { if (d && (d.lucky || d.salvage || d.champion)) out[d.id] = { mid: mid, row: d }; });
     });
     _index = out;
     return out;

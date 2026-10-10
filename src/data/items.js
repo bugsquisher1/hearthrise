@@ -6,6 +6,8 @@ import { SLOT_ITEMS } from './slot-ladders.js?v=564';
 import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=564';
 import { LIB2_ITEMS } from './library2-items.js?v=564';
 import { STONECRAFT_ITEMS } from './stonecraft.js?v=564';
+import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=564';
+import { CHAMPION_ITEMS } from './champions.js?v=564';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -32,6 +34,10 @@ export const ITEMS={
      the 7-tier rune ladder, the 7-tier whetstone ladder and `ashlar`.
      New ids only. See src/data/stonecraft.js for every ruling behind them. */
   ...STONECRAFT_ITEMS,
+  /* W0 (2026-10-10): the three boss-forged body pieces (src/data/boss-forge.js)
+     and the five field champions' relics (src/data/champions.js). New ids only. */
+  ...BOSS_FORGE_ITEMS,
+  ...CHAMPION_ITEMS,
 
   /* ── Gathering tools (b201, SYS-3) — OSRS-style tool ladder. ──
      type:'tool' + toolSkill + toolTier + toolSpeed. The best owned tool
@@ -495,7 +501,7 @@ export const ITEMS={
 
   /* ── Farmer's Deed (b136 — Batch C) ────────────────────────────
      Drops from Tier-2+ kills (0.1%) and bounty completions (0.5%).
-     Spent at House → Plot tab to upgrade Farm Plot tier and unlock crops.
+     Spent at House → Farm tab to enrich the Soil (the plot tier) and unlock crops.
      Explicitly NOT bind-on-pickup — tradable on the player market.
      Drop hooks live in src/features/farm-progression.js. Keep this in sync
      with the inline ITEMS const in src/legacy.js. */

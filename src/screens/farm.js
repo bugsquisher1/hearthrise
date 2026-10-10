@@ -366,12 +366,12 @@ function plantCrop(plotIdx,cropId){
       const need = (typeof window.HearthriseFarm.requiredPlotLevel==='function')
         ? window.HearthriseFarm.requiredPlotLevel(cropId) : 0;
       notify(need
-        ? `${crop.name} needs Farm Plot Lv ${need} — upgrade in House → Plot (you have Lv ${lv})`
-        : `${crop.name} can't be planted yet — no plot tier unlocks it`,'kill');
+        ? `${crop.name} needs Soil Lv ${need} — improve it in House → Farm (you have Lv ${lv})`
+        : `${crop.name} can't be planted yet — no soil level grows it`,'kill');
       return;
     }
   } else if(cropId !== 'turnip'){
-    notify('Crop locked — upgrade Farm Plot in House → Plot','kill');
+    notify('Crop locked — improve your Soil in House → Farm','kill');
     return;
   }
   /* Server-authority routing: the server owns the seed debit, the plant XP and
@@ -488,7 +488,7 @@ function renderFarm(){
           : `<button class="btn btn-sm" onclick="window.plantAllEmpty()" ${plantable?'':'disabled'} title="${plantable?'Plant configured/best seed in every empty plot':'Every plot is already planted'}">${plantable?`Plant all (${plantable})`:'Plant all'}</button>`}
         <button class="btn btn-sm" onclick="window.waterAllPlots()" ${waterable?'':'disabled'} title="${waterable?'Watering doubles growth speed for 2 hours':farmNextWaterText()}">${waterable?`Water all (${waterable})`:'Water all'}</button>
         <button class="btn btn-sm" onclick="window.toggleAutoReplant()" title="Auto-replant after harvest">${replant.enabled?'Auto-replant: on':'Auto-replant: off'}</button>
-        <button class="btn btn-sm" onclick="showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Buy the next plot tier with gold (or a Farmer's Deed) in House → Plot">Upgrade Plot</button>
+        <button class="btn btn-sm" onclick="showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Richer soil grows new crops — pay gold or a Farmer's Deed in House → Farm">Improve Soil</button>
       </div>
     </div>`;
   el.innerHTML = header + `<div class="farm-mini" style="grid-template-columns:repeat(4,1fr)">
@@ -537,7 +537,7 @@ function cropGuideRowHtml(id){
      the default state and does not need a label. Only the GATE is news. */
   if(lvOk && plotOk) badge = '';
   else if(!lvOk) badge = `<span class="mr-lock">${lockGlyph()}Level ${c.req}</span>`;
-  else badge = `<span class="mr-lock" style="cursor:pointer" onclick="showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Upgrade Farm Plot in House → Plot">${lockGlyph()}Bigger plot</span>`;
+  else badge = `<span class="mr-lock" style="cursor:pointer" onclick="showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Improve your Soil in House → Farm">${lockGlyph()}Richer soil</span>`;
   const peren = c.regrows ? ` · <b>perennial</b> (regrows ×${c.regrowLimit||'∞'})` : '';
   const desc = typeof window.itemDesc === 'function' ? window.itemDesc(c.prod) : '';
   const used = typeof window.itemUsedInLine === 'function' ? window.itemUsedInLine(c.prod) : '';
@@ -633,14 +633,14 @@ function openSeedPicker(i){
   const needLv = (id)=> (window.HearthriseFarm && typeof window.HearthriseFarm.requiredPlotLevel==='function')
     ? window.HearthriseFarm.requiredPlotLevel(id) : 0;
   const havePlotLv = (window.HearthriseFarm && window.HearthriseFarm.getPlotLevel) ? window.HearthriseFarm.getPlotLevel() : 1;
-  const lockedBtn = ([id,c])=>`<button class="shop-row" style="width:100%;cursor:pointer;opacity:.6" onclick="document.getElementById('settings-modal').classList.remove('show');showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Locked — upgrade Farm Plot to unlock"><span class="si">${itemArt(c.prod)}</span><div class="info"><b>${c.name}</b><span>${needLv(id)?`Needs Farm Plot Lv ${needLv(id)} (you have Lv ${havePlotLv}) — House → Plot`:'No plot tier unlocks this crop'}</span></div><span class="muted tiny">x${heldByServer(c.seed)}</span></button>`;
+  const lockedBtn = ([id,c])=>`<button class="shop-row" style="width:100%;cursor:pointer;opacity:.6" onclick="document.getElementById('settings-modal').classList.remove('show');showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Locked — improve your Soil to grow it"><span class="si">${itemArt(c.prod)}</span><div class="info"><b>${c.name}</b><span>${needLv(id)?`Needs Soil Lv ${needLv(id)} (you have Lv ${havePlotLv}) — House → Farm`:'No soil level grows this crop'}</span></div><span class="muted tiny">x${heldByServer(c.seed)}</span></button>`;
   /* The picker borrows the settings modal, whose heading is the static word
      "Settings" — so the dialog asking which seed to plant was titled SETTINGS
      (live 2026-09-13). Every opener of the shared shell states its own title. */
   m.querySelector('.modal-title').textContent='Pick a seed';
   let html = `<h3 style="margin-bottom:10px">Pick a seed</h3>`;
   if(plantable.length) html += plantable.map(plantBtn).join('');
-  if(lockedByPlot.length) html += `<div class="tiny muted" style="margin:10px 0 6px">${lockGlyph()} Locked by Farm Plot tier</div>` + lockedByPlot.map(lockedBtn).join('');
+  if(lockedByPlot.length) html += `<div class="tiny muted" style="margin:10px 0 6px">${lockGlyph()} Needs richer soil</div>` + lockedByPlot.map(lockedBtn).join('');
   document.getElementById('settings-body').innerHTML = html;
   m.classList.add('show');
 }

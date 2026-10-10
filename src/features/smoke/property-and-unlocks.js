@@ -2513,7 +2513,7 @@ export default [
     const sword = window.gearWieldReq(window.ITEMS.iron_sword);
     assert(SG.nextUnlock('attack', 1).lv === sword.lv, 'Attack 1 must point at the first gear rung, Lv ' + sword.lv);
     assert(SG.opensAt('cooking', 75).indexOf("Hunter's Feast") < 0, 'a scroll-gated recipe must never be promised by a level');
-    assert(SG.opensAt('farming', 10).some((x) => /Carrot \(plot tier 2\)/.test(x)), 'Carrot must name its plot tier');
+    assert(SG.opensAt('farming', 10).some((x) => /Carrot \(Soil Lv 2\)/.test(x)), 'Carrot must name its plot tier');
     window.showTab('skills');
     window.renderSkillDetail('woodcutting');
     const d = document.getElementById('skill-detail');

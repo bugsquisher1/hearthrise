@@ -367,7 +367,13 @@ export function pickBountyMonster(tier, mode, avoid, monsters, rng) {
       : [tier, Math.max(1, tier - 1), Math.max(1, tier - 2)];
   const avoidSet = new Set(avoid || []);
   const all = Object.keys(monsters || {}).map((id) => [id, monsters[id]]);
-  let pool = all.filter((e) => tiers.indexOf(e[1].tier) >= 0 && !avoidSet.has(e[0]) && !e[1].boss);
+  /* W0: a field CHAMPION (src/data/champions.js) is kept off the board the same
+     way a boss is — a contract for thirty of a monster that takes three times as
+     long to fell is a chore, not a hunt. Champions are APPENDED to the roster,
+     so excluding them leaves every existing pool, and the seeded stream that
+     indexes it, byte-identical. */
+  const offBoard = (e) => !!(e[1].boss || e[1].champion);
+  let pool = all.filter((e) => tiers.indexOf(e[1].tier) >= 0 && !avoidSet.has(e[0]) && !offBoard(e));
   if (m === 'interesting') {
     /* b356: was `weaponWeak === 'neutral'` — the monsters that opted OUT of
        the triangle. `neutral` is retired (DEC-NEUT-01), so that predicate is
@@ -382,7 +388,7 @@ export function pickBountyMonster(tier, mode, avoid, monsters, rng) {
       || ((b[1].tier || 0) - (a[1].tier || 0)));
     pool = pool.slice(0, Math.max(3, pool.length));
   }
-  if (!pool.length) pool = all.filter((e) => e[1].tier <= tier && !e[1].boss && !avoidSet.has(e[0]));
+  if (!pool.length) pool = all.filter((e) => e[1].tier <= tier && !offBoard(e) && !avoidSet.has(e[0]));
   const hit = pool[rng.int(0, pool.length - 1)];
   return (hit && hit[0]) || 'goblin';
 }

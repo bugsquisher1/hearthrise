@@ -3912,6 +3912,22 @@ jobs:
           node tests/selfcheck-no-global-dml.mjs
           node tests/selfcheck-no-global-dml.bypass.mjs
 
+      # W0 FUN LIST (game-designer, 2026-10-10; lane w0f). Crop XP x42 and the
+      # staged migration moving hr_crops.xp to exactly those numbers; the three
+      # boss materials each crafted into BoP body armour that beats its
+      # Dawnsteel twin at <= twin value x 1.1; the four wall trophies drop from
+      # the dungeon their row names; one champion per tier 1-5 (never a boss,
+      # roster audit clean, relic LAST + server-revealed + rare band + sole
+      # source, <= 5% gp-mid faucet, 1-4 MEASURED hours with no death at the
+      # tier loadout, never picked by 2,000 bounty boards); every new row
+      # literal-matched against 2026-10-16-w0f-fun-content.sql. 14 mutations +
+      # a clean control, no credentials, no DB.
+      - name: W0 fun content - boss forge, trophies, champions, crop XP
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/w0f-fun-content.mjs
+          node tests/w0f-fun-content.mjs --selftest
+
       # Dead-end copy (src/data/signposts.js): every key used, doors real,
       # lengths and placeholders sane, never packed into the edge (SIGN-7).
       - name: Signposts - mutation proof

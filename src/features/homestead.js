@@ -1006,6 +1006,26 @@
     }
   };
 
+  /* W0 — THE BOSS TROPHY LAMPS. One lamp per boss trophy held, at a fixed
+     place on the Trophy Room wall (order = BOSS_TROPHIES order). A display
+     only: theme classes, no colour literal, no stat. */
+  var TROPHY_LAMPS = [[109, 96, 20], [511, 96, 20], [160, 46, 16], [460, 46, 16]];
+  function heldBossTrophies() {
+    var BT = window.HearthriseBossTrophies;
+    if (!BT || typeof BT.held !== 'function') return [];
+    var G = window.G || {};
+    return BT.held(G.inventory || {}, (G.bank && typeof G.bank === 'object') ? G.bank : {});
+  }
+  function trophyLampArt(lit) {
+    var BT = window.HearthriseBossTrophies;
+    if (!lit || !BT) return '';
+    var held = heldBossTrophies();
+    return (BT.list || []).map(function (t, i) {
+      var p = TROPHY_LAMPS[i];
+      return (p && held.indexOf(t.item) >= 0) ? glow(p[0], p[1], p[2], 1) : '';
+    }).join('');
+  }
+
   function roomScene(id, lit) {
     var s = SCENES[id] || SCENES.kitchen;
     var art = s.art;
@@ -1013,6 +1033,7 @@
       art = art.replace('{L' + i + '}', lit ? glow(L[0], L[1], L[2], L[3]) : '');
     });
     art = art.replace(/\{L\d\}/g, '');
+    if (id === 'trophy') art += trophyLampArt(lit);
     var wall = s.wall === 'none' ? ''
       : '<rect class="hrcs-wall-2" x="0" y="0" width="' + RW + '" height="' + RF + '"/>' +
         (s.wall === 'timber' ? planks(7) : courses(5));
@@ -1054,6 +1075,33 @@
     return out;
   }
 
+  /* W0 — THE BOSS TROPHIES (src/data/boss-forge.js BOSS_TROPHIES). Each one a
+     player holds — bag or depot, both server-projected — HANGS: the room names
+     it with its line and lights a lamp in the scene. Each one still missing
+     says where it comes from, so the wall is a chase list, not a museum. */
+  function bossTrophySections() {
+    var BT = window.HearthriseBossTrophies;
+    if (!BT || !Array.isArray(BT.list) || !BT.list.length) return [];
+    var held = heldBossTrophies();
+    var D = window.DUNGEONS || {};
+    var rows = BT.list.map(function (t) {
+      var it = (window.ITEMS || {})[t.item] || {};
+      var name = it.n || t.item;
+      if (held.indexOf(t.item) >= 0) {
+        return { name: '<b>' + esc(name) + '</b> <span class="hh-rung-lore">' + esc(t.line) + '</span>',
+                 right: '<span class="hr-cs-val"><b>Hung</b></span>' };
+      }
+      var dn = (D[t.dungeon] && D[t.dungeon].name) || t.dungeon;
+      return { name: esc(name), right: '<span class="hr-cs-val">' + esc(t.boss) + ' &middot; ' + esc(dn) + '</span>' };
+    });
+    return [{
+      kind: 'rows',
+      title: 'Boss trophies &mdash; ' + held.length + ' of ' + BT.list.length + ' hung',
+      rows: rows,
+      empty: ''
+    }];
+  }
+
   /* Descriptor → the seam's section list. This is the ONLY place that knows
      the RoomModal's vocabulary, and it never asks the renderer for anything
      pillar-specific — `theme` is a class suffix and the rest is the published
@@ -1080,7 +1128,7 @@
         empty: 'This rung grants no passive bonus.'
       });
       if (d.currentLine) sections.push({ kind: 'note', html: '<span class="hh-rung-lore">' + esc(d.currentLine) + '</span>' });
-      if (id === 'trophy') sections = sections.concat(trophyWallSections());
+      if (id === 'trophy') sections = sections.concat(trophyWallSections(), bossTrophySections());
     }
 
     /* The FULL ladder, owned rungs included (spec §5 rule 3). A ladder that
@@ -1427,6 +1475,7 @@
     roomDescriptor: roomDescriptor,
     modalDescriptor: modalDescriptor,
     trophyWallSections: trophyWallSections,
+    bossTrophySections: bossTrophySections,
     roomScene: roomScene,
     renderRoomGrid: renderRoomGrid,
     openRoom: openRoom,

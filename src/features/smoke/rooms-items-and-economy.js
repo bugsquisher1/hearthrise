@@ -4246,7 +4246,64 @@ export default [
       const status = document.querySelector('#farm-panel .farm-status');
       assert(status && status.innerHTML.includes(head), 'the farm header must render the builder output');
       F.getServerPlotLevel = () => 3;
-      assert(/The Market Rows · Plot Lv 3\/5/.test(F.tierHeadHtml()) && F.tierLoreHtml().includes(L.plot(3).line), 'tier 3: ' + F.tierHeadHtml());
+      assert(/The Market Rows · Soil Lv 3\/5/.test(F.tierHeadHtml()) && F.tierLoreHtml().includes(L.plot(3).line), 'tier 3: ' + F.tierHeadHtml());
     } finally { F.getServerPlotLevel = sv; window.renderFarm(); }
+  }),
+
+  /* ══ W0 (game-designer, 2026-10-10) — the fun list, played through the page ══
+     The data rules live in tests/w0f-fun-content.mjs; these drive the three
+     surfaces a player meets. */
+  () => tryRun('W0-TROPHY-1: boss trophies hang in the Trophy Room from bag AND depot, and each one held lights a lamp', () => {
+    const H = window.HearthriseHomestead, BT = window.HearthriseBossTrophies;
+    assert(H && typeof H.bossTrophySections === 'function' && typeof H.roomScene === 'function', 'trophy wall seam absent');
+    assert(BT && Array.isArray(BT.list) && BT.list.length === 4, 'HearthriseBossTrophies must publish the four boss trophies');
+    const snap = snapshotG();
+    try {
+      const G = window.G;
+      G.inventory = Object.assign({}, G.inventory, { warboss_standard: 0, lexarch_seal: 0, voidwoven_sigil: 0, dragon_relic: 0 });
+      G.bank = Object.assign({}, G.bank, { warboss_standard: 0, lexarch_seal: 0, voidwoven_sigil: 0, dragon_relic: 0 });
+      const bare = H.bossTrophySections()[0];
+      assert(bare && /0 of 4 hung/.test(bare.title), 'an empty wall must read 0 of 4: ' + (bare && bare.title));
+      assert(bare.rows.every((r) => !/Hung/.test(r.right)), 'nothing held, nothing hung');
+      assert(bare.rows.some((r) => /Goblin Warcamp/.test(r.right)), 'a missing trophy must say where it comes from');
+      const sceneBare = H.roomScene('trophy', true);
+      G.inventory.warboss_standard = 1;   // in the bag
+      G.bank.dragon_relic = 1;            // in the depot — still hung
+      const two = H.bossTrophySections()[0];
+      assert(/2 of 4 hung/.test(two.title), 'bag + depot must both hang: ' + two.title);
+      assert(two.rows.filter((r) => /Hung/.test(r.right)).length === 2, 'exactly the two held trophies read Hung');
+      const sceneTwo = H.roomScene('trophy', true);
+      const lamps = (h) => (h.match(/<ellipse/g) || []).length;
+      assert(lamps(sceneTwo) === lamps(sceneBare) + 2, 'each held trophy lights one lamp (' + lamps(sceneBare) + ' -> ' + lamps(sceneTwo) + ')');
+      assert(lamps(H.roomScene('trophy', false)) === 0, 'an unbuilt (unlit) room lights nothing');
+    } finally { restoreG(snap); }
+  }),
+
+  () => tryRun('W0-CHAMP-1: each tier 1-5 has a champion on the Fight list, its relic is server-revealed, and the board never offers one', () => {
+    const M = window.MONSTERS, LF = window.HearthriseLuckyFinds;
+    assert(M && LF && typeof LF.isRevealed === 'function', 'roster or lucky-finds seam absent');
+    const champs = Object.keys(M).filter((id) => M[id].champion === true);
+    assert(champs.length === 5, 'five champions expected, got ' + champs.length);
+    [1, 2, 3, 4, 5].forEach((t) => assert(champs.some((id) => M[id].tier === t), 'tier ' + t + ' has no champion'));
+    champs.forEach((id) => {
+      const relic = M[id].drops[M[id].drops.length - 1];
+      assert(relic && relic.champion === true && LF.isRevealed(relic.id),
+        id + ': the relic row must be server-revealed — the client must never show its own dice for it');
+      assert(!M[id].boss, id + ': a champion is never a boss');
+      assert(window.ITEMS[relic.id] && window.itemDesc(relic.id), id + ': the relic must be a described item');
+    });
+    // A tier-1 champion is meetable from combat level 0 — the whole point.
+    assert((M.old_tusker.tier - 1) * 15 === 0, 'the tier-1 champion must be open to a fresh hero');
+    const B = window.HearthriseCore && window.HearthriseCore.bounty;
+    const RM = window.HearthriseCore && window.HearthriseCore.rngMod;
+    assert(B && typeof B.pickBountyMonster === 'function' && RM && typeof RM.createRng === 'function', 'bounty picker or rng module absent');
+    {
+      let hit = 0;
+      for (let s = 1; s <= 300; s++) {
+        const id = B.pickBountyMonster(1 + (s % 5), 'normal', [], M, RM.createRng(s));
+        if (M[id] && M[id].champion) hit++;
+      }
+      assert(hit === 0, 'the bounty board offered a champion ' + hit + ' time(s)');
+    }
   }),
 ];

@@ -52,7 +52,7 @@
     { id: 'hunter40',   label: 'Tracker',             domain: 'monsters', goal: 40,  reward: { gold: 8000 } },
     { id: 'hunter60',   label: 'Beastwise',           domain: 'monsters', goal: 60,  reward: { gold: 15000 } },
     { id: 'hunter85',   label: 'Warden of the Wilds', domain: 'monsters', goal: 85,  reward: { gold: 25000 } },
-    { id: 'hunterAll',  label: 'Bestiary Master',     domain: 'monsters', goal: 108, reward: { gold: 50000, gems: 25 } },
+    { id: 'hunterAll',  label: 'Bestiary Master',     domain: 'monsters', goal: 113, reward: { gold: 50000, gems: 25 } },
     { id: 'collect25',  label: 'Magpie',              domain: 'items',    goal: 25,  reward: { gold: 1000 } },
     { id: 'collect50',  label: 'Collector',           domain: 'items',    goal: 50,  reward: { gold: 5000 } },
     { id: 'collect75',  label: 'Curator',             domain: 'items',    goal: 75,  reward: { gold: 10000 } },

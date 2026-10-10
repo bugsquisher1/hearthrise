@@ -194,19 +194,30 @@ export const FISH_SPOTS=[
    wall-clock (HearthriseFarm.growthHours), so PACE.actionMs cannot touch it
    and PACE.xp would only deepen the hole; the fix has to be in the crop XP.
    These are the FINAL grant values — addXp() applies no pace multiplier to
-   farming. Watering XP is derived (ceil(xp/4)) and scales with them. */
+   farming. Watering XP is derived (ceil(xp/4)) and scales with them.
+
+   W0 (game-designer ruling, 2026-10-10 coherence audit): ×3 AGAIN, every crop.
+   At ×14 a player who tends the farm two or three times a day reached 99 in
+   ~220–280 days even with a castle's 12 plots (measured on these rows, best
+   crop per level, one watering per visit) — longer than any Early Access
+   season, while every gathering skill reaches 99 in ~44 days of play. At ×42
+   the same player reaches 99 in ~75–95 days and 75 in ~2–3 weeks: a season's
+   chase that still runs at "set it before bed" pace, never faster than the
+   actively-played skills. Moonbloom's harvest at 12 plots stays far inside
+   hr_day_budget's 40M XP/day. The server reads hr_crops.xp (the W0 patch
+   migration moves the same nine numbers). */
 export const CROPS={
-  turnip:{name:'Turnip',icon:'🥕',hours:4,prod:'turnip',yield:[2,4],xp:112,req:1,seed:'turnip_seed'},
-  carrot:{name:'Carrot',icon:'🥕',hours:6,prod:'carrot',yield:[2,4],xp:168,req:10,seed:'carrot_seed'},
-  wheat:{name:'Wheat',icon:'🌾',hours:8,prod:'wheat',yield:[3,5],xp:252,req:20,seed:'wheat_seed'},
-  potato:{name:'Potato',icon:'🥔',hours:10,prod:'potato',yield:[2,4],xp:350,req:30,seed:'potato_seed'},
-  tomato:{name:'Tomato',icon:'🍅',hours:8,prod:'tomato',yield:[2,3],xp:490,req:40,seed:'tomato_seed',regrows:true},
-  pumpkin:{name:'Pumpkin',icon:'🎃',hours:14,prod:'pumpkin',yield:[1,2],xp:840,req:50,seed:'pumpkin_seed'},
+  turnip:{name:'Turnip',icon:'🥕',hours:4,prod:'turnip',yield:[2,4],xp:336,req:1,seed:'turnip_seed'},
+  carrot:{name:'Carrot',icon:'🥕',hours:6,prod:'carrot',yield:[2,4],xp:504,req:10,seed:'carrot_seed'},
+  wheat:{name:'Wheat',icon:'🌾',hours:8,prod:'wheat',yield:[3,5],xp:756,req:20,seed:'wheat_seed'},
+  potato:{name:'Potato',icon:'🥔',hours:10,prod:'potato',yield:[2,4],xp:1050,req:30,seed:'potato_seed'},
+  tomato:{name:'Tomato',icon:'🍅',hours:8,prod:'tomato',yield:[2,3],xp:1470,req:40,seed:'tomato_seed',regrows:true},
+  pumpkin:{name:'Pumpkin',icon:'🎃',hours:14,prod:'pumpkin',yield:[1,2],xp:2520,req:50,seed:'pumpkin_seed'},
   /* b215: farming used to end at 50. Longer grows, bigger XP — the late-game
      crops are a deliberate "set it before bed" cadence. */
-  goldenroot:{name:'Goldenroot',icon:'🥕',hours:16,prod:'goldenroot',yield:[1,3],xp:1190,req:62,seed:'goldenroot_seed'},
-  emberfruit:{name:'Emberfruit',icon:'🔥',hours:18,prod:'emberfruit',yield:[1,2],xp:1680,req:75,seed:'emberfruit_seed',regrows:true},
-  moonbloom:{name:'Moonbloom',icon:'🌸',hours:22,prod:'moonbloom',yield:[1,2],xp:2380,req:88,seed:'moonbloom_seed'},
+  goldenroot:{name:'Goldenroot',icon:'🥕',hours:16,prod:'goldenroot',yield:[1,3],xp:3570,req:62,seed:'goldenroot_seed'},
+  emberfruit:{name:'Emberfruit',icon:'🔥',hours:18,prod:'emberfruit',yield:[1,2],xp:5040,req:75,seed:'emberfruit_seed',regrows:true},
+  moonbloom:{name:'Moonbloom',icon:'🌸',hours:22,prod:'moonbloom',yield:[1,2],xp:7140,req:88,seed:'moonbloom_seed'},
 };
 
 /* b216: 'shield' (offhand) added. Existing saves simply have no value for it —

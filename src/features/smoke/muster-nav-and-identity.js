@@ -30,7 +30,7 @@ export default [
     const t = (res) => FS.farmPlantRefusalText(res, ctx);
 
     const locked = t({ ok: false, error: 'plot_tier_locked', need_plot_level: 2, have_plot_level: 1 });
-    assert(/Carrot/.test(locked) && /Farm Plot Lv 2/.test(locked) && /House/.test(locked) && /Lv 1/.test(locked),
+    assert(/Carrot/.test(locked) && /Soil Lv 2/.test(locked) && /House/.test(locked) && /Lv 1/.test(locked),
       'plot_tier_locked must name the crop, the tier it needs, where to get it and the tier you have, got: ' + locked);
 
     const lvl = t({ ok: false, error: 'level_too_low', req_lv: 30 });

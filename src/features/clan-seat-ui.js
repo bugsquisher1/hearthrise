@@ -2620,8 +2620,11 @@
     } else {
       html += '<div class="hr-cs-line"><span class="hr-cs-label">Standing</span>' +
         '<span class="hr-cs-val"><b>' + n(standing) + '</b></span></div>' +
-        '<div class="hr-cs-foot">The Fortified Keep is the summit of Phase A. Tiers 6 to 10 are not yet tuned &mdash; ' +
-        'and will not be until a hold has stood here.</div>';
+        /* W0 (game-designer, 2026-10-10): the top tier is stated as the top. The
+           old line promised "tiers 6 to 10, not yet tuned" — a half-built
+           promise on a live screen. When a sixth tier exists it is a data row
+           in the ladder above, and this line is simply not reached. */
+        '<div class="hr-cs-foot">The Fortified Keep is the highest a hold can stand.</div>';
     }
 
     // ── the "this week" strip ──
@@ -2879,8 +2882,7 @@
         }], note: isLeader() ? '' : 'Only the leader can raise the hold.' });
       } else {
         sections.push({ kind: 'note', html:
-          'The Fortified Keep is the summit of Phase A. Tiers 6 to 10 are deliberately untuned &mdash; ' +
-          'tuning a tier-9 bundle before a single hold has reached tier 2 would be fiction.' });
+          'The Fortified Keep is the highest a hold can stand.' });
       }
 
       var orders = openOrders();

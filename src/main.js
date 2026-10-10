@@ -31,6 +31,8 @@ import { MONSTER_NOTES } from './data/monster-notes.js?v=564';
 import { companionLore, rankLore, trophyLore } from './data/lore-notes.js?v=564';
 import { LUCKY_RUMOURS } from './data/lucky-rumours.js?v=564';
 import { roomRungLore, plotTier } from './data/homestead-lore.js?v=564';
+/* W0: the boss trophies the House Trophy Room hangs (a display, no stat). */
+import { BOSS_TROPHIES, bossTrophiesHeld } from './data/boss-forge.js?v=564';
 import * as ItemArt from './data/item-art.js?v=564';
 import { ITEMS, foodClassOf, isAutoEatable, foodKindOf, FOOD_KIND_META } from './data/items.js?v=564';
 import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS, EQUIP_SLOT_META } from './data/gathering.js?v=564';
@@ -119,6 +121,7 @@ window.HearthriseMonsterArt = { expected: MONSTER_ART_EXPECTED, pending: pending
 window.HearthriseMonsterNotes = MONSTER_NOTES;
 window.HearthriseLore = Object.freeze({ companion: companionLore, rank: rankLore, trophy: trophyLore, room: roomRungLore, plot: plotTier });
 window.HearthriseLuckyRumours = LUCKY_RUMOURS;
+window.HearthriseBossTrophies = Object.freeze({ list: BOSS_TROPHIES, held: bossTrophiesHeld });
 /* The shop buy-back cap's input: the cheapest gold price of one unit of
    every item the NPC shop sells, from the generated catalogue through the SAME
    pure derivation the edge's vendorPriceOf imports. shop-counter.js

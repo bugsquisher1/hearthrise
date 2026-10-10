@@ -5872,22 +5872,35 @@ export default [
      authored row, so there is exactly one offer id for one purchase and the
      generated server catalogue is untouched.
      ══════════════════════════════════════════════════════════════════════ */
-  () => tryRunAsync('b354: the Bounty Shop sells Auto-Eat at 100 Marks, through the ONE writer of the trait', async () => {
+  /* W0 (game-designer, 2026-10-10): every hero is GRANTED Auto-Eat I at
+     creation, so it is no longer merchandise — the shop's trait row is now
+     Auto-Eat II, and the starter tier must NOT be offered. The contract below is
+     unchanged in every other respect (one offer id, the trait's own price, one
+     owner of the flag, charged exactly once) and is now driven on the tier a
+     player can actually buy. */
+  () => tryRunAsync('b354/W0: the Bounty Shop sells Auto-Eat II (never the starter tier), through the ONE writer of the trait', async () => {
     assert(typeof window.bountyShopOffers === 'function',
       'bountyShopOffers() is not published — this test must read the REAL offer list the panel '
       + 'renders from, never a copy of it');
     const SHOP = window.bountyShopOffers();
     assert(Array.isArray(SHOP) && SHOP.length >= 6, 'the composed offer list is ' + SHOP.length + ' long');
 
+    /* (0) W0 REGRESSION: the starter tier every hero already owns is not sold. */
+    assert(window.TRAITS && window.TRAITS.auto_eat && window.TRAITS.auto_eat.starter === true,
+      'TRAITS.auto_eat must be marked starter — every character is granted it at creation');
+    assert(!SHOP.some((r) => r.trait === 'auto_eat'),
+      'the Bounty Shop still offers Auto-Eat I, which every hero starts owning — a row that can only '
+      + 'ever read Owned is a shop selling the player their own boots');
+
     /* (1) THE ROW, in the real list, at the ruled price. */
-    const row = SHOP.filter((r) => r.trait === 'auto_eat')[0];
-    assert(row, 'the Bounty Shop has no auto-eat offer — a player with 100 marks has nothing to '
+    const row = SHOP.filter((r) => r.trait === 'auto_eat_2')[0];
+    assert(row, 'the Bounty Shop has no Auto-Eat II offer — a player with marks has nothing to '
       + 'spend them on that they came for');
     /* b459: the designer re-ruled the 2026-08-09 price — Auto-Eat I is the
        15-Mark entry tier (auto_eat_2 carries the old 100). The contract is now
        "the row charges the trait's OWN price", derived, not a literal. */
-    assert(row.cost === ((window.TRAITS && window.TRAITS.auto_eat && window.TRAITS.auto_eat.cost) || 15),
-      'the Auto-Eat row must charge TRAITS.auto_eat.cost, the row says ' + row.cost);
+    assert(row.cost === ((window.TRAITS && window.TRAITS.auto_eat_2 && window.TRAITS.auto_eat_2.cost) || 100),
+      'the Auto-Eat II row must charge TRAITS.auto_eat_2.cost, the row says ' + row.cost);
     assert(!row.flag, 'a delegating row must not also carry a `flag` — that is the second owner');
     assert(!row.repeatable, 'a permanent trait is not a repeatable purchase');
     assert(window.BOUNTY_SHOP.every((r) => !r.trait),
@@ -5897,14 +5910,14 @@ export default [
     /* (2) THE PRICE HAS ONE SOURCE — the row IS the trait's own price, so the
        shop cannot advertise 100 and charge 250. Asserted against TRAITS
        directly, because the composition is exactly what would hide a drift. */
-    const T = (window.TRAITS || {}).auto_eat;
+    const T = (window.TRAITS || {}).auto_eat_2;
     assert(T && T.currency === 'marks' && T.cost === row.cost,
-      'TRAITS.auto_eat charges ' + (T && T.cost) + ' ' + (T && T.currency)
+      'TRAITS.auto_eat_2 charges ' + (T && T.cost) + ' ' + (T && T.currency)
       + ' while the Bounty Shop advertises ' + row.cost + ' marks');
     /* THE RULE, not the row: every marks-priced trait reaches this screen. A
        future one that did not would repeat the whole bug. */
     Object.keys(window.TRAITS).forEach((id) => {
-      if (window.TRAITS[id].currency !== 'marks') return;
+      if (window.TRAITS[id].currency !== 'marks' || window.TRAITS[id].starter) return;
       assert(SHOP.some((r) => r.trait === id),
         'TRAITS.' + id + ' is priced in Bounty Marks but is not sold on the Bounty Shop');
     });
@@ -5912,14 +5925,14 @@ export default [
     /* (3) THE GENERATED CATALOGUE the server reads is UNCHANGED by this: one
        purchase, one offer id, priced in marks, granting the trait unlock. */
     const S = await import('../../data/shops.js?v=564');
-    const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat')).map((o) => o.id);
-    assert(ids.length === 1 && ids[0] === 'trait.auto_eat',
-      'trait:auto_eat is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
+    const ids = S.SHOP_OFFERS.filter((o) => o.grant.some((g) => g.id === 'trait:auto_eat_2')).map((o) => o.id);
+    assert(ids.length === 1 && ids[0] === 'trait.auto_eat_2',
+      'trait:auto_eat_2 is granted by ' + ids.length + ' offer(s) (' + ids.join(', ') + ') — a second '
       + 'storefront must not become a second offer id the server would have to bookkeep separately');
-    const off = S.SHOP_OFFERS.filter((o) => o.id === 'trait.auto_eat')[0];
+    const off = S.SHOP_OFFERS.filter((o) => o.id === 'trait.auto_eat_2')[0];
     assert(off.cost.length === 1 && off.cost[0].kind === 'currency'
       && off.cost[0].id === 'marks' && off.cost[0].amount === row.cost,
-      'trait.auto_eat is priced ' + JSON.stringify(off.cost) + ' in the catalogue, not '
+      'trait.auto_eat_2 is priced ' + JSON.stringify(off.cost) + ' in the catalogue, not '
       + row.cost + ' marks');
 
     /* (4) THE PLAYER'S PATH, driven end to end.
@@ -5943,11 +5956,12 @@ export default [
     const _R = window.HearthriseRecord;
     try {
       if (_R && typeof _R.__setMarksRecordArm === 'function') _R.__setMarksRecordArm(false);
-      window.G.traits = {};
+      /* Every hero owns the starter tier (granted at creation); II is the purchase. */
+      window.G.traits = { auto_eat: true };
       window.ensureBountyState && window.ensureBountyState();
-      /* b459: the price is DATA (TRAITS.auto_eat.cost — now the 15-Mark tier I),
-         so every phase derives from it instead of hardcoding the old 100. */
-      const _aeC = (window.TRAITS && window.TRAITS.auto_eat && window.TRAITS.auto_eat.cost) || 15;
+      /* b459: the price is DATA (TRAITS.auto_eat_2.cost), so every phase derives
+         from it instead of hardcoding a literal. */
+      const _aeC = (window.TRAITS && window.TRAITS.auto_eat_2 && window.TRAITS.auto_eat_2.cost) || 100;
       window.G.marks = _aeC - 5;   // top-level record-field home; too poor by 5
       window.showTab('bounty');
       window.renderBountyTab();
@@ -5964,16 +5978,16 @@ export default [
       window.spendMarks(row.id);
       assert(window.G.marks === _aeC - 5,
         'a refused purchase took marks anyway (' + window.G.marks + ')');
-      assert(!window.hasTrait('auto_eat'), 'a refused purchase granted the trait');
+      assert(!window.hasTrait('auto_eat_2'), 'a refused purchase granted the trait');
 
       // Affordable: charged EXACTLY once, and by the trait's own price.
       window.G.marks = _aeC + 37;
       window.spendMarks(row.id);
-      assert(window.hasTrait('auto_eat'), 'buying auto-eat in the Bounty Shop did not unlock it');
+      assert(window.hasTrait('auto_eat_2'), 'buying Auto-Eat II in the Bounty Shop did not unlock it');
       assert(window.G.marks === 37,
         'the purchase debited ' + (_aeC + 37 - window.G.marks) + ' marks, not ' + _aeC + ' — the shop '
         + 'row is charging on top of buyTrait()');
-      assert(!(window.G.bountyHunter.upgrades || {}).auto_eat
+      assert(!(window.G.bountyHunter.upgrades || {}).auto_eat_2
         && !(window.G.bountyHunter.upgrades || {}).autoEat,
         'the bounty shop wrote its own ownership key — hasTrait() and upgrades are now two answers');
 

@@ -142,7 +142,7 @@ export const CODEX_ENTRIES = f([
     { tab: 'profile' },
     [[0, 'commonShowsActivity'], [1, 'commonQuietHidesYou']]),
   entry('parties', 'realm', 'Parties',
-    'A party is a small band you form on the Party screen, inviting adventurers by their name. Today a party shows who is in it and how each of them is faring, and hunting together arrives in a later build.',
+    'A party is a small band you form on the Party screen, inviting adventurers by their name. Its leader picks a monster and a stance to start a hunt, and every member sees the kills and what each one earned. Whoever is away too long makes camp and rejoins by coming back. Party hunting switches on during the beta.',
     { tab: 'party' },
-    [[0, 'partyInviteByName'], [1, 'partyHuntNotCalled']]),
+    [[0, 'partyInviteByName'], [1, 'partyHuntLeaderStarts'], [2, 'partyCampRejoinsOnReturn'], [3, 'partyHuntGated']]),
 ]);

@@ -480,12 +480,34 @@ export const BINDS = {
       need(b && /\bp_name\b/.test(stripSqlComments(b.text)), 'hr_party_invite no longer invites by name'),
       need(/p_name:\s*String\(name/.test(w.src['src/net/party.js'] || ''), 'the client no longer sends the invitee by name'));
   },
-  partyHuntNotCalled: (w) => {
-    const hit = Object.keys(w.src).filter((f) => /hr_party_hunt_(start|stop)/.test(stripJs(w.src[f])));
+  /* The party hunt (stage 2): the leader starts it with the solo pickers'
+     monster and stance, and every member reads the same per-hunt kills and
+     earnings from the one member-only view. */
+  partyHuntLeaderStarts: (w) => {
+    const st = w.fnBody('hr_party_hunt_start'), v = w.fnBody('hr_party_hunt_view');
+    const sc = st ? sqlCode(st.text) : '', vc = v ? sqlCode(v.text) : '';
+    const net = stripJs(w.src['src/net/party.js'] || ''), pp = stripJs(w.src['src/render/party-panel.js'] || '');
+    return all(
+      need(sc.includes("'not_party_leader'") && /\bp_active_id\b/.test(sc) && /\bp_stance\b/.test(sc), 'hr_party_hunt_start no longer takes a leader\'s monster and stance'),
+      need(vc.includes("'kills'") && vc.includes("'xp'") && vc.includes("'gold'") && vc.includes("'members'"), 'hr_party_hunt_view no longer gives every member the kills and each one\'s earnings'),
+      need(net.includes("'hr_party_hunt_start'") && net.includes("'hr_party_hunt_view'"), 'the client no longer starts or views a party hunt'),
+      need(pp.includes('huntStanceButtonsHtml') && pp.includes('HearthriseMonsterPick') && pp.includes('hunt-start'), 'the Party screen no longer offers the leader a monster and a stance to start a hunt'));
+  },
+  /* Camping and the rejoin: the view judges camping/rejoining on the settle's
+     own rows, and the client has NO rejoin control or verb (ruling B3). */
+  partyCampRejoinsOnReturn: (w) => {
+    const v = w.fnBody('hr_party_hunt_view'), vc = v ? sqlCode(v.text) : '';
+    const hit = Object.keys(w.src).filter((f) => /hr_party_hunt_rejoin|hunt-rejoin|Rejoin hunt/.test(stripJs(w.src[f])));
+    return all(
+      need(vc.includes("'camping'") && vc.includes("'rejoining'") && vc.includes('real_return_at'), 'hr_party_hunt_view no longer judges camping and the rejoin on return'),
+      need(!hit.length, 'a rejoin control or verb exists in ' + hit.join(', ') + ' — the return itself rejoins'));
+  },
+  partyHuntGated: (w) => {
+    const st = w.fnBody('hr_party_hunt_start'), sc = st ? sqlCode(st.text) : '';
     const pp = w.src['src/render/party-panel.js'] || '';
     return all(
-      need(!hit.length, 'a party hunt verb is called from ' + hit.join(', ')),
-      need(pp.includes('Hunting together arrives in a later build.') && pp.includes('party-hp-fill'), 'the Party screen no longer says hunting together is later, or no longer shows how members fare'));
+      need(sc.includes("'hunt_channel_disarmed'"), 'hr_party_hunt_start is no longer gated on the channel being switched on'),
+      need(pp.includes("Party hunting isn\\'t open yet") && pp.includes('channel_open'), 'the Party screen no longer says party hunting is not open yet when the view reports it closed'));
   },
 };
 
@@ -610,7 +632,8 @@ async function selftest() {
     ['M12 plant a "Reward multiplier" label', 'CODEX-6', (w) => { w.src['src/dungeons.js'] = "var _m = 'Reward multiplier: ';\n" + w.src['src/dungeons.js']; }, 'dungeonChest'],
     ['M13 hit XP scaled by the featured bonus', 'CODEX-6', (w) => { w.combatSimJs = w.combatSimJs.replace('hitXpRoute(ctx.style, xpDmg)', 'hitXpRoute(ctx.style, xpDmg * feat.xpMult)'); }, 'botdBonus'],
     ['M14 hr_town_refresh lists quiet heroes', 'CODEX-6', (w) => { const fb = w.fnBody; w.fnBody = (fn) => { const b = fb(fn); return fn === 'hr_town_refresh' && b ? { ...b, text: b.text.replace('not coalesce(ps.presence_quiet, false)', 'true') } : b; }; }, 'commonQuietHidesYou'],
-    ['M15 the Party screen calls a hunt verb', 'CODEX-6', (w) => { w.src['src/render/party-panel.js'] += "\nrpcPost('hr_party_hunt_start', {});"; }, 'partyHuntNotCalled'],
+    ['M15 the Party screen grows a Rejoin hunt button', 'CODEX-6', (w) => { w.src['src/render/party-panel.js'] += "\nvar x = '<button data-party-act=\"hunt-rejoin\">Rejoin hunt</button>';"; }, 'partyCampRejoinsOnReturn'],
+    ['M16 the Party screen loses the solo stance picker', 'CODEX-6', (w) => { w.src['src/render/party-panel.js'] = w.src['src/render/party-panel.js'].split('huntStanceButtonsHtml').join('ownStanceButtons'); }, 'partyHuntLeaderStarts'],
   ];
   for (const [label, want, mutate, bindName] of arms) {
     const w = clone();

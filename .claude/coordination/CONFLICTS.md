@@ -1611,3 +1611,7 @@ tests/accrual-engine.mjs CHARM-W4 byte-compares 32 forged input shapes against t
 **RESOLVED 2026-09-14 (Security condition 8), narrowly:** the block now opens with `if (!serverOwnedItem(id)) continue;`, so it can no longer reach an EXCLUDED id — `cooked_shrimp` was the live case, and deleting a dish on an omission is the loss the exclusion exists for. The block is kept, not retired: its owned half (the seeds, `shrimp`) is still the narrowest fix for a server row that is DELETED at zero. `INV-STAGE-10` measures the block's own receipt (`written.startKitHintDropped`) rather than the bag, because a dish also leaves the bag by the phantom-food rule and that would have made the test pass for the wrong reason.
 
 **Also recorded:** `INVENTORY_ARM_STAGE` ships `'off'`, so none of the above changes behaviour for a live player today.
+
+## 2026-10-10 — W0a vs w0e/w0f (Systems Engineer)
+
+**Semantic overlap, not a git conflict.** tests/catalogue-coherence.mjs holds a shrink-only PENDING list: w0f (boss materials void_essence/riftmaw_husk/elderscale_heart; trophies warboss_standard/lexarch_seal/voidwoven_sigil/dragon_relic) and w0e (Prayer has no consumer). When those lanes give each a use, they must delete the row in the same commit, or C2/C4 fails as stale. w0a also cut the six elemental arrows/whetstones and the fletching/mason tool ladders from library2-items.js SUPPLY_CHAINS — w0e (ammo/Runecrafting) should merge on top of that, not re-add them.

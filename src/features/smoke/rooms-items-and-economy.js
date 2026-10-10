@@ -4104,18 +4104,22 @@ export default [
      (catalogue.js vendorPriceOf); the bag must show exactly them (CLAUDE.md §6). */
   () => tryRun('b565 regression: the vendor pays at most half the cheapest shop unit price', () => {
     assert(window.SHOP_BUYBACK_RATE === 0.5, 'SHOP_BUYBACK_RATE must be 0.5, got ' + window.SHOP_BUYBACK_RATE);
-    assert(window.SHOP_UNIT_PRICE && window.SHOP_UNIT_PRICE.steel_platebody === 1500,
+    assert(window.SHOP_UNIT_PRICE && window.SHOP_UNIT_PRICE.stone_maul === 140,
       'window.SHOP_UNIT_PRICE is not published from the catalogue — vendorPrice bids nothing without it');
     const EXPECT = {
-      steel_platebody: 750, carrot_seed: 5, potato_seed: 10, pumpkin_seed: 25, turnip_seed: 2,
+      carrot_seed: 5, potato_seed: 10, pumpkin_seed: 25, turnip_seed: 2,
       wheat_seed: 7, tomato_seed: 15, stone_maul: 70, shortbow: 60, apprentice_staff: 60,
-      iron_warhammer: 375, longbow: 325, rune_blank: 3, goldenroot_seed: 75, emberfruit_seed: 150,
+      rune_blank: 3, goldenroot_seed: 75, emberfruit_seed: 150,
       cooked_lobster: 200, cooked_trout: 45, cooked_shrimp: 15,
     };
     const wrong = Object.keys(EXPECT).filter((id) => window.vendorPrice(id) !== EXPECT[id])
       .map((id) => id + ' shows ' + window.vendorPrice(id) + ', server pays ' + EXPECT[id]);
     assert(wrong.length === 0, 'the bag disagrees with the server buy-back: ' + wrong.join('; '));
     assert(window.ITEMS.steel_platebody.v === 1500, 'steel_platebody book value moved');
+    /* W0: the shop sells starter gear only, so steel_platebody has no shop unit
+       price and the cap does not apply — it vends at book, exactly as the edge pays. */
+    assert(!('steel_platebody' in window.SHOP_UNIT_PRICE) && window.vendorPrice('steel_platebody') === 1500,
+      'an item the shop no longer sells must bid its full book value, got ' + window.vendorPrice('steel_platebody'));
   }),
 
   /* ── regression suite — ONE BUY GREYED EVERY BUY (live, QA account) ──

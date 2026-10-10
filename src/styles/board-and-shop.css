@@ -617,6 +617,10 @@ body[data-theme] #panel-shop .sc-token-card { margin-top: 12px; }
   min-width: 0;
   transition: color .12s ease, background .12s ease;
 }
+/* W0: a toggle whose door is shut (the Premium Shop for Early Access,
+   nav-consolidation.js PREMIUM_OPEN) carries `hidden`; the inline-flex above
+   would otherwise outrank the UA rule and draw it anyway. */
+.shops-tabs .shops-tab[hidden] { display: none; }
 .shops-tab + .shops-tab { margin-left: 2px; }
 .shops-tab:hover { color: var(--ink); }
 .shops-tab .ic {

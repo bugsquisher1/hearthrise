@@ -2760,8 +2760,10 @@ export default [
         assert(buy && /Buy/i.test(buy.textContent),
           'the row stopped offering the purchase — b341 informs, it does not block ' + name);
       }
-      assert(gatedSeen >= 4,
-        'the fixture found only ' + gatedSeen + ' level-gated items in EQUIP_SHOP; the test is no longer measuring anything');
+      /* W0: the shop sells starter gear only (tier 1), so the one level-gated
+         piece left is the Fox Companion (Defence 15). One is still a subject. */
+      assert(gatedSeen >= 1,
+        'the fixture found ' + gatedSeen + ' level-gated items in EQUIP_SHOP; the test is no longer measuring anything');
     } finally {
       restoreG(snap);
       try { window.setShopTab('seeds'); } catch (e) {}

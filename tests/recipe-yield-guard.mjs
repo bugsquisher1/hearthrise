@@ -81,15 +81,14 @@
 // blind spot GEAR_LADDERS was published to close.
 //
 // ── CHECK 3: THE AMMO LADDER (the specific regression) ─────────────────────
-// Every ammo-slot item's book value must sit inside the ladder's band, and the
-// two copies of `iron_arrows` (src/data/items.js and the inline table in
-// src/legacy.js) must agree — this repo has been burned by data double-copies.
+// Every ammo-slot item's book value must sit inside the ladder's band. (The old
+// second half — legacy.js's inline copy of `iron_arrows` agreeing with items.js
+// — retired in W0 with the copy itself.)
 //
 //   node tests/recipe-yield-guard.mjs            → run standalone
 //   node tests/recipe-yield-guard.mjs --mutate   → prove the guard sees failure
 // ============================================================================
 
-import { readFile } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -306,21 +305,9 @@ export async function recipeYieldGuard(overrides) {
     }
   }
 
-  // ── CHECK 3b: the double copy. src/legacy.js carries an inline ITEMS table.
-  const legacy = await readFile(join(ROOT, 'src', 'legacy.js'), 'utf8');
-  const m = legacy.match(/\n\s*iron_arrows:\s*\{([^}]*)\}/);
-  if (!m) {
-    problems.push('src/legacy.js no longer defines an inline `iron_arrows` — if the inline '
-      + 'ITEMS table was removed on purpose, delete this check with it.');
-  } else {
-    const lv = m[1].match(/\bv:\s*([0-9.]+)/);
-    const dv = Number(ITEMS.iron_arrows?.v);
-    if (!lv || Number(lv[1]) !== dv) {
-      problems.push(`iron_arrows book value has DIVERGED between its two copies: `
-        + `src/legacy.js says ${lv ? lv[1] : '(none)'}, src/data/items.js says ${dv}. `
-        + `Fix both or delete one.`);
-    }
-  }
+  // CHECK 3b (the legacy.js double copy of iron_arrows) is RETIRED with the copy:
+  // W0 (2026-10-10) emptied legacy.js ITEMS; LEGACY-ONECOPY-1 (in-page) and
+  // src/utils/data-integrity.js now hold "there is one copy" for every table.
 
   return {
     problems,

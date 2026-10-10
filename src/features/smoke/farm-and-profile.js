@@ -634,17 +634,24 @@ export default [
     assert(window.ITEMS.rune_bar.v > 0, 'rune_bar.v should be > 0');
   }),
 
-  // b139 §1.1: ITEMS divergence count should be 0 (or negligible) now.
-  // This is the integrity check itself running explicitly. Catches the
-  // moment someone adds an item to legacy.js without mirroring it.
-  () => tryRun('b139: ITEMS divergence between legacy + ESM is zero', () => {
-    const legacy = window.__LEGACY_INLINE_ITEMS;
-    const esm = window.ITEMS;
-    if (!legacy || !esm) return; // skip on builds without snapshot
-    const legacyKeys = Object.keys(legacy);
-    const onlyLegacy = legacyKeys.filter(k => !esm[k]);
-    assert(onlyLegacy.length === 0,
-      onlyLegacy.length + ' items still legacy-only: ' + onlyLegacy.slice(0,5).join(',') + (onlyLegacy.length>5?',…':''));
+  // LEGACY-ONECOPY-1 (W0, 2026-10-10): legacy.js authors NO second copy of
+  // ITEMS / SKILLS_DEF / TREES / ROCKS / FISH_SPOTS / CROPS. Each binding starts
+  // empty and main.js fills it from src/data/* — the b356 MONSTERS rule, applied
+  // to every table. The counts are numbers captured at legacy publish time, so
+  // the merge cannot hide a re-introduced literal. MUTATION: put one item back in
+  // `const ITEMS={}` and the first assertion names it.
+  () => tryRun('LEGACY-ONECOPY-1: legacy.js declares no second copy of any authored table', () => {
+    const C = window.__LEGACY_INLINE_COUNTS;
+    assert(C && typeof C === 'object', 'legacy.js did not publish __LEGACY_INLINE_COUNTS — the guard is blind');
+    const copies = Object.keys(C).filter((k) => C[k] !== 0).map((k) => k + '=' + C[k]);
+    assert(copies.length === 0, 'legacy.js re-declared a second copy of: ' + copies.join(', ')
+      + ' — author content once, in src/data/*');
+    assert(Object.keys(window.ITEMS).length > 400 && Object.keys(window.SKILLS_DEF).length >= 17
+      && window.TREES.length >= 5 && window.ROCKS.length >= 5 && window.FISH_SPOTS.length >= 4
+      && Object.keys(window.CROPS).length >= 6,
+      'the merged tables must still be the full ESM ones');
+    assert(window.ARTISAN_RECIPES && window.ARTISAN_RECIPES.cooking && window.ARTISAN_RECIPES.cooking.length > 10,
+      'ARTISAN_RECIPES must be the ESM table (legacy no longer seeds one)');
   }),
 
   // b139 §1.1: the smelting + cooking + gated recipe chains are reachable

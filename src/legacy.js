@@ -63,22 +63,17 @@ window.xpForLevel=xpForLevel;
 function xpToNext(xp){return window.HearthriseCore.xp.xpToNext(xp);}
 function xpPct(xp){return window.HearthriseCore.xp.xpPct(xp);}
 
-const SKILLS_DEF={
-  attack:{name:'Attack',icon:'⚔️',cat:'combat'},strength:{name:'Strength',icon:'💪',cat:'combat'},
-  defense:{name:'Defense',icon:'🛡️',cat:'combat'},hitpoints:{name:'Hitpoints',icon:'❤️',cat:'combat'},
-  prayer:{name:'Prayer',icon:'🙏',cat:'combat'},magic:{name:'Magic',icon:'🔮',cat:'combat'},
-  ranged:{name:'Ranged',icon:'🏹',cat:'combat'},
-  woodcutting:{name:'Woodcutting',icon:'🪓',cat:'gather'},mining:{name:'Mining',icon:'⛏️',cat:'gather'},
-  fishing:{name:'Fishing',icon:'🎣',cat:'gather'},farming:{name:'Farming',icon:'🌾',cat:'gather'},
-  cooking:{name:'Cooking',icon:'🍳',cat:'artisan'},crafting:{name:'Crafting',icon:'🔨',cat:'artisan'},
-  smithing:{name:'Smithing',icon:'🔩',cat:'artisan'},
-  /* Kept in lockstep with src/data/skills.js, which is the AUTHORING copy —
-     main.js merges the two into one identity. This inline table is what the
-     monolith reads before the merge lands. */
-  runecrafting:{name:'Runecrafting',icon:'🔮',cat:'artisan'},
-  stonemason:{name:'Stonemason',icon:'🧱',cat:'artisan'},
-  bountyHunter:{name:'Bounty Hunter',icon:'🎯',cat:'combat'},
-};
+/* ══════════════════════════════════════════════════════════════════════
+   W0 (2026-10-10) — THE SECOND COPIES OF ITEMS / SKILLS_DEF / TREES / ROCKS /
+   FISH_SPOTS / CROPS ARE GONE, exactly as b356 retired the MONSTERS copy.
+   main.js `unifyObject`/`unifyArray` fill these bindings from src/data/* (one
+   identity), and a whole-entry merge meant every legacy literal here was
+   either shadowed (ESM wins per key) or drift waiting to happen. The
+   bindings must still EXIST — this classic script reads the bare names in
+   hundreds of places — but they start empty. Guarded by LEGACY-ONECOPY-1:
+   every count published below must be 0 at publish time, forever.
+   ══════════════════════════════════════════════════════════════════════ */
+const SKILLS_DEF={};
 
 /* Wave 4: ONE definition of what a drop's chance means, so "rare" is the same
    number in the combat loop, the drop log and the loot preview. The bands now
@@ -109,203 +104,25 @@ function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
    ══════════════════════════════════════════════════════════════════════ */
 const MONSTERS={};
 
-const ITEMS={
-  bones:{n:'Bones',icon:'🦴',v:1,buryXp:4.5},big_bones:{n:'Big Bones',icon:'🦴',v:3,buryXp:15},
-  dragon_bones:{n:'Dragon Bones',icon:'🦴',v:10,buryXp:72},
-  slime_gel:{n:'Slime Gel',icon:'🟢',v:5},goblin_ear:{n:'Goblin Ear',icon:'👂',v:8},
-  bat_wing:{n:'Bat Wing',icon:'🦇',v:12},wolf_pelt:{n:'Wolf Pelt',icon:'🐺',v:35},
-  troll_hide:{n:'Troll Hide',icon:'🟤',v:80},vamp_dust:{n:'Vampire Dust',icon:'💜',v:120},
-  demon_shard:{n:'Demon Shard',icon:'🔴',v:200},dragon_scale:{n:'Dragon Scale',icon:'🐲',v:500},
-  lich_soul:{n:'Lich Soul',icon:'☠️',v:800},magic_essence:{n:'Magic Essence',icon:'✨',v:50},
-  rune_frag:{n:'Rune Fragment',icon:'🔷',v:30},ancient_rune:{n:'Ancient Rune',icon:'🔮',v:300},
-  dragon_gem:{n:'Dragon Gem',icon:'💎',v:2000},ruby:{n:'Ruby',icon:'❤️',v:400},
-  sticky_core:{n:'Sticky Core',icon:'🟢',v:35},rat_tail:{n:'Rat Tail',icon:'🐀',v:6},small_fang:{n:'Small Fang',icon:'🦷',v:15},
-  bone_chips:{n:'Bone Chips',icon:'🦴',v:10},ancient_fragment:{n:'Ancient Fragment',icon:'🏺',v:85},goblin_totem:{n:'Goblin Totem',icon:'🗿',v:120},
-  night_fang:{n:'Night Fang',icon:'🦇',v:90},dark_sigil:{n:'Dark Sigil',icon:'🔯',v:180},venom_sac:{n:'Venom Sac',icon:'🟣',v:75},
-  silk_thread:{n:'Silk Thread',icon:'🧵',v:55},spider_eye:{n:'Spider Eye',icon:'👁️',v:220},brute_plate:{n:'Brute Plate',icon:'🛡️',v:130},
-  dire_fang:{n:'Dire Fang',icon:'🦷',v:150},alpha_fang:{n:'Alpha Fang',icon:'🦷',v:450},grave_dust:{n:'Grave Dust',icon:'⚱️',v:95},
-  cracked_spellstone:{n:'Cracked Spellstone',icon:'🔮',v:260},plague_ichor:{n:'Plague Ichor',icon:'🧪',v:180},swarm_heart:{n:'Swarm Heart',icon:'💚',v:650},
-  warlord_badge:{n:'Warlord Badge',icon:'🎖️',v:350},bear_pelt:{n:'Bear Pelt',icon:'🐻',v:260},bear_claw:{n:'Bear Claw',icon:'爪',v:180},
-  wraith_veil:{n:'Wraith Veil',icon:'👻',v:420},hell_ember:{n:'Hell Ember',icon:'🔥',v:600},shadow_thread:{n:'Shadow Thread',icon:'🧵',v:320},
-  void_chitin:{n:'Void Chitin',icon:'🪲',v:800},captain_medal:{n:'Captain Medal',icon:'🏅',v:700},shadow_pelt:{n:'Shadow Pelt',icon:'🐈‍⬛',v:480},
-  razor_claw:{n:'Razor Claw',icon:'爪',v:360},death_steel:{n:'Death Steel',icon:'⚙️',v:550},captains_ribblade:{n:"Captain's Ribblade",icon:'🗡️',v:1800,type:'weapon',slot:'weapon',weaponType:'sword',atkB:19,strB:15},
-  hollow_sigil:{n:'Hollow Sigil',icon:'🔯',v:1400},void_core:{n:'Void Core',icon:'⚫',v:2200},war_crown:{n:'War Crown',icon:'👑',v:2500},
-  ancient_claw:{n:'Ancient Claw',icon:'爪',v:1600},chief_blade:{n:"Chief's Blade",icon:'🗡️',v:900,type:'weapon',slot:'weapon',weaponType:'sword',atkB:13,strB:11},alpha_cloak:{n:'Alpha Cloak',icon:'🦸',v:1500,type:'armor',slot:'cape',defB:5,atkB:2},
-  leather_boots:{n:'Leather Boots',icon:'🥾',v:90,type:'armor',slot:'boots',defB:2,spdB:.02},
-  traveler_cape:{n:'Traveler Cape',icon:'🦸',v:150,type:'armor',slot:'cape',defB:1,xpB:.01},
-  copper_ring:{n:'Copper Ring',icon:'💍',v:120,type:'jewelry',slot:'ring',atkB:1,strB:1},
-  hunter_necklace:{n:'Hunter Necklace',icon:'📿',v:180,type:'jewelry',slot:'necklace',atkB:2},
-  leather_gloves:{n:'Leather Gloves',icon:'🧤',v:80,type:'armor',slot:'gloves',atkB:1,defB:1},
-  bronze_belt:{n:'Bronze Belt',icon:'🟫',v:110,type:'armor',slot:'belt',defB:2},
-  /* v:1 + ammoPerShot:1 — MUST MATCH src/data/items.js, which carries the full
-     reasoning (the v:60 book value was a ~2.9M gold/hour vendor faucet). This
-     inline copy is the b137 divergence snapshot; data-integrity.js compares the
-     two and the ammo-ladder guard fails the build if they drift apart again. */
-  iron_arrows:{n:'Iron Arrows',icon:'🏹',v:1,type:'ammo',slot:'ammo',atkB:2,critB:.01,ammoPerShot:1},
-  fox_companion:{n:'Fox Companion',icon:'🦊',v:600,type:'companion',slot:'companion',strB:2,xpB:.02},
-  iron_ore:{n:'Iron Ore',icon:'⬜',v:25},
-  normal_log:{n:'Normal Log',icon:'🪵',v:8},oak_log:{n:'Oak Log',icon:'🪵',v:20},
-  willow_log:{n:'Willow Log',icon:'🪵',v:40},maple_log:{n:'Maple Log',icon:'🪵',v:80},
-  yew_log:{n:'Yew Log',icon:'🪵',v:200},
-  copper_ore:{n:'Copper Ore',icon:'🟤',v:10},coal:{n:'Coal',icon:'⬛',v:40},
-  gold_ore:{n:'Gold Ore',icon:'🟡',v:100},mithril_ore:{n:'Mithril Ore',icon:'🔵',v:200},
-  shrimp:{n:'Raw Shrimp',icon:'🦐',v:5,heals:3},trout:{n:'Raw Trout',icon:'🐟',v:20,heals:7},
-  lobster:{n:'Raw Lobster',icon:'🦞',v:100,heals:12},shark:{n:'Raw Shark',icon:'🦈',v:400,heals:20},
-  turnip:{n:'Turnip',icon:'🥕',v:20,heals:2},carrot:{n:'Carrot',icon:'🥕',v:35,heals:3},
-  wheat:{n:'Wheat',icon:'🌾',v:50,heals:1},potato:{n:'Potato',icon:'🥔',v:65,heals:5},
-  tomato:{n:'Tomato',icon:'🍅',v:90,heals:4},pumpkin:{n:'Pumpkin',icon:'🎃',v:150,heals:8},
-  turnip_seed:{n:'Turnip Seed',icon:'🌱',v:5,seed:'turnip'},carrot_seed:{n:'Carrot Seed',icon:'🌱',v:10,seed:'carrot'},
-  wheat_seed:{n:'Wheat Seed',icon:'🌱',v:15,seed:'wheat'},potato_seed:{n:'Potato Seed',icon:'🌱',v:20,seed:'potato'},
-  tomato_seed:{n:'Tomato Seed',icon:'🌱',v:30,seed:'tomato'},pumpkin_seed:{n:'Pumpkin Seed',icon:'🌱',v:50,seed:'pumpkin'},
-  bronze_sword:{n:'Bronze Sword',icon:'⚔️',v:50,type:'weapon',slot:'weapon',weaponType:'sword',atkB:4,strB:3},
-  iron_sword:{n:'Iron Sword',icon:'⚔️',v:200,type:'weapon',slot:'weapon',weaponType:'sword',atkB:7,strB:6},
-  steel_sword:{n:'Steel Sword',icon:'⚔️',v:800,type:'weapon',slot:'weapon',weaponType:'sword',atkB:12,strB:10},
-  rune_sword:{n:'Rune Sword',icon:'⚔️',v:5000,type:'weapon',slot:'weapon',weaponType:'sword',atkB:25,strB:20},
-  apprentice_staff:{n:'Apprentice Staff',icon:'🔮',v:80,type:'weapon',slot:'weapon',weaponType:'magic',atkB:3,strB:5,magicAtkB:3,magicStrB:5},
-  oak_staff:{n:'Oak Staff',icon:'🪄',v:300,type:'weapon',slot:'weapon',weaponType:'magic',atkB:6,strB:9,magicAtkB:6,magicStrB:9},
-  shortbow:{n:'Shortbow',icon:'🏹',v:90,type:'weapon',slot:'weapon',weaponType:'ranged',atkB:5,strB:3,rangeAtkB:5,rangeStrB:3},
-  longbow:{n:'Longbow',icon:'🏹',v:400,type:'weapon',slot:'weapon',weaponType:'ranged',atkB:9,strB:6,rangeAtkB:9,rangeStrB:6},
-  stone_maul:{n:'Stone Maul',icon:'🔨',v:110,type:'weapon',slot:'weapon',weaponType:'hammer',atkB:3,strB:7},
-  iron_warhammer:{n:'Iron Warhammer',icon:'🔨',v:550,type:'weapon',slot:'weapon',weaponType:'hammer',atkB:7,strB:12},
-  iron_helm:{n:'Iron Helm',icon:'⛑️',v:150,type:'armor',slot:'helmet',defB:5},
-  steel_helm:{n:'Steel Helm',icon:'⛑️',v:600,type:'armor',slot:'helmet',defB:10},
-  iron_platebody:{n:'Iron Platebody',icon:'🦺',v:400,type:'armor',slot:'body',defB:12},
-  steel_platebody:{n:'Steel Platebody',icon:'🦺',v:1500,type:'armor',slot:'body',defB:22},
+const ITEMS={};
 
-  // ── Recipe outputs: cooked foods, bars, planks ──
-  // Mirrors src/data/items.js — keep both in sync until legacy.js's inline
-  // ITEMS const is removed (it shadows window.ITEMS for fns inside legacy.js).
-  cooked_shrimp: {n:'Cooked Shrimp',icon:'🍤',v:18,heals:8,foodTier:1,buff:{type:'gather_speed',magnitude:5,durationMs:120000}},
-  cooked_trout: {n:'Cooked Trout',icon:'🐠',v:55,heals:14,foodTier:2,buff:{type:'all_xp',magnitude:5,durationMs:180000}},
-  cooked_lobster: {n:'Cooked Lobster',icon:'🦞',v:240,heals:25,foodTier:3,buff:{type:'drop_rate',magnitude:8,durationMs:300000}},
-  cooked_shark: {n:'Cooked Shark',icon:'🍣',v:900,heals:44,foodTier:4,buff:{type:'damage',magnitude:12,durationMs:360000}},
-  copper_bar: {n:'Copper Bar',icon:'🟫',v:35},
-  iron_bar: {n:'Iron Bar',icon:'⬛',v:90},
-  gold_bar: {n:'Gold Bar',icon:'🟨',v:280},
-  mithril_bar: {n:'Mithril Bar',icon:'🟦',v:650},
-  normal_plank: {n:'Normal Plank',icon:'🪵',v:18},
-  oak_plank: {n:'Oak Plank',icon:'🪵',v:55},
-  willow_plank: {n:'Willow Plank',icon:'🪵',v:120},
-  maple_plank: {n:'Maple Plank',icon:'🍁',v:240},
-  yew_plank: {n:'Yew Plank',icon:'🌲',v:520},
-  baked_potato: {n:'Baked Potato',icon:'🥔',v:150,heals:20,foodTier:2,buff:{type:'gather_speed',magnitude:10,durationMs:240000}},
-  pumpkin_pie: {n:'Pumpkin Pie',icon:'🥧',v:420,heals:35,foodTier:3,buff:{type:'all_xp',magnitude:10,durationMs:300000}},
-  carrot_stew: {n:'Carrot Stew',icon:'🍲',v:200,heals:24,foodTier:2,buff:{type:'farm_yield',magnitude:15,durationMs:360000}},
-  tomato_soup: {n:'Tomato Soup',icon:'🍅',v:260,heals:28,foodTier:2,buff:{type:'drop_rate',magnitude:2,durationMs:240000}}, // b238: stale twin — items.js is authoritative; kept in sync
-  wheat_bread: {n:'Wheat Bread',icon:'🍞',v:120,heals:18,foodTier:1,buff:{type:'drop_rate',magnitude:5,durationMs:180000}},
-
-  // b225 — the open fire's failure state. Kept in sync with src/data/items.js
-  // (the source of truth) so the data-integrity divergence check stays clean.
-  // No heals / no foodClass on purpose: foodClassOf() → null, so auto-eat can
-  // never spend one and it is not edible. See features/cooking-fire.js.
-  burnt_food: {n:'Burnt Food', icon:'🔥', v:1, note:'Charcoal with ambitions. Nobody will eat this — sell it and cook better.'},
-
-  // ── Farmer's Deed (b136 — Batch C) ──
-  // Drops from Tier-2+ kills (0.1%) and bounty completions (0.5%).
-  // Spent at House → Plot tab to upgrade Farm Plot tier and unlock crops.
-  // Explicitly NOT bind-on-pickup — tradable on the player market.
-  // Drop hooks live in src/features/farm-progression.js (HearthriseFarm.rollKillDeed / rollBountyDeed).
-  farm_deed: {n:"Farmer's Deed", icon:'📜', v:250, rarity:'rare', tag:'housing'},
-
-  // Bind-on-Pickup housing blueprints (drop from quests/monsters/dungeons)
-  kitchen_blueprint_t2: {n:'Kitchen Blueprint II',icon:'📜',v:500,rarity:'rare',tag:'housing',unlocks:'kitchen.2'},
-  kitchen_blueprint_t3: {n:'Kitchen Blueprint III',icon:'📜',v:2000,rarity:'epic',tag:'housing',unlocks:'kitchen.3'},
-  forge_blueprint_t2:   {n:'Forge Blueprint II',icon:'📜',v:500,rarity:'rare',tag:'housing',unlocks:'forge.2'},
-  forge_blueprint_t3:   {n:'Forge Blueprint III',icon:'📜',v:2000,rarity:'epic',tag:'housing',unlocks:'forge.3'},
-  library_blueprint_t2: {n:'Library Blueprint II',icon:'📜',v:500,rarity:'rare',tag:'housing',unlocks:'library.2'},
-  library_blueprint_t3: {n:'Library Blueprint III',icon:'📜',v:2000,rarity:'epic',tag:'housing',unlocks:'library.3'},
-  trophy_blueprint_t2:  {n:'Trophy Blueprint II',icon:'📜',v:500,rarity:'rare',tag:'housing',unlocks:'trophy.2'},
-  trophy_blueprint_t3:  {n:'Trophy Blueprint III',icon:'📜',v:2000,rarity:'epic',tag:'housing',unlocks:'trophy.3'},
-
-  // Bind-on-Pickup raid/world-boss rewards
-  dragon_relic: {n:'Dragon Relic',icon:'🐲',v:5000,bop:true,rarity:'legendary',tag:'cosmetic'},
-  void_essence: {n:'Void Essence',icon:'🌌',v:3000,bop:true,rarity:'epic',tag:'crafting-mat'},
-  hearth_token: {n:'Hearth Token',icon:'🪙',v:25000,premium:true,rarity:'currency',tag:'currency'}, /* b206: tradable bond (data/items.js is canonical) */
-
-  // ── Bind-on-Pickup dungeon keys ──
-  // Replace gold entry costs. Drop from monsters whose family/tier matches
-  // the dungeon (set in MONSTERS.drops). Untradeable so the economy can't
-  // shortcut dungeon access.
-  bone_key:        {n:'Bone Key',         icon:'🦴', v:0, bop:true, rarity:'uncommon', tag:'key', unlocks:'crypt_of_bones'},
-  goblin_seal:     {n:'Goblin Seal',      icon:'🗝️', v:0, bop:true, rarity:'uncommon', tag:'key', unlocks:'goblin_warcamp'},
-  arcane_tome:     {n:'Arcane Tome',      icon:'📕', v:0, bop:true, rarity:'rare',     tag:'key', unlocks:'haunted_archive'},
-  obsidian_sigil:  {n:'Obsidian Sigil',   icon:'⬛', v:0, bop:true, rarity:'epic',     tag:'key', unlocks:'obsidian_keep'},
-  void_fragment:   {n:'Void Fragment',    icon:'🌑', v:0, bop:true, rarity:'epic',     tag:'key', unlocks:'voidbringer'},
-  dragonsbane_key: {n:'Dragonsbane Key',  icon:'🗡️', v:0, bop:true, rarity:'legendary',tag:'key', unlocks:'ancient_wyrm'},
-  /* ── Gathering tools (b201, SYS-3) — mirrored from src/data/items.js so the
-     legacy lexical ITEMS const stays in sync (data-integrity check). ── */
-  bronze_axe:{n:'Bronze Axe',icon:'🪓',v:60,type:'tool',toolSkill:'woodcutting',toolTier:1,toolSpeed:.05},
-  iron_axe:{n:'Iron Axe',icon:'🪓',v:250,type:'tool',toolSkill:'woodcutting',toolTier:2,toolSpeed:.10},
-  steel_axe:{n:'Steel Axe',icon:'🪓',v:900,type:'tool',toolSkill:'woodcutting',toolTier:3,toolSpeed:.15},
-  mithril_axe:{n:'Mithril Axe',icon:'🪓',v:3200,type:'tool',toolSkill:'woodcutting',toolTier:4,toolSpeed:.20},
-  rune_axe:{n:'Rune Axe',icon:'🪓',v:9000,type:'tool',toolSkill:'woodcutting',toolTier:5,toolSpeed:.25},
-  bronze_pickaxe:{n:'Bronze Pickaxe',icon:'⛏️',v:60,type:'tool',toolSkill:'mining',toolTier:1,toolSpeed:.05},
-  iron_pickaxe:{n:'Iron Pickaxe',icon:'⛏️',v:250,type:'tool',toolSkill:'mining',toolTier:2,toolSpeed:.10},
-  steel_pickaxe:{n:'Steel Pickaxe',icon:'⛏️',v:900,type:'tool',toolSkill:'mining',toolTier:3,toolSpeed:.15},
-  mithril_pickaxe:{n:'Mithril Pickaxe',icon:'⛏️',v:3200,type:'tool',toolSkill:'mining',toolTier:4,toolSpeed:.20},
-  rune_pickaxe:{n:'Rune Pickaxe',icon:'⛏️',v:9000,type:'tool',toolSkill:'mining',toolTier:5,toolSpeed:.25},
-  willow_rod:{n:'Willow Rod',icon:'🎣',v:80,type:'tool',toolSkill:'fishing',toolTier:1,toolSpeed:.05},
-  oak_rod:{n:'Oak Rod',icon:'🎣',v:300,type:'tool',toolSkill:'fishing',toolTier:2,toolSpeed:.10},
-  maple_rod:{n:'Maple Rod',icon:'🎣',v:1000,type:'tool',toolSkill:'fishing',toolTier:3,toolSpeed:.15},
-  yew_rod:{n:'Yew Rod',icon:'🎣',v:3500,type:'tool',toolSkill:'fishing',toolTier:4,toolSpeed:.20},
-  runewood_rod:{n:'Runewood Rod',icon:'🎣',v:9500,type:'tool',toolSkill:'fishing',toolTier:5,toolSpeed:.25},
-};
-
-// b137: publish the legacy inline ITEMS under a distinct global so the
-// boot-time integrity check can compare it against src/data/items.js.
-// main.js later overwrites window.ITEMS with the ESM version, but the
-// snapshot here preserves what legacy.js originally defined. Any divergence
-// between the two surfaces — items added to one and not the other — fires
-// a console warning + Sentry capture from src/utils/data-integrity.js.
+/* The eager COUNT data-integrity.js and MON-ONECOPY-1 assert stays 0 (a number,
+   so the main.js merge cannot mutate it; the old by-reference snapshots compared
+   the merged object against itself and were retired in W0). */
 if (typeof window !== 'undefined') {
-  try { window.__LEGACY_INLINE_ITEMS = ITEMS; } catch (e) {}
-  /* b214: same snapshot for MONSTERS so the integrity check can compare it
-     against src/data/monsters.js (mountain_troll was legacy-only and no
-     warning fired, because the check only ever looked at ITEMS). */
-  try { window.__LEGACY_INLINE_MONSTERS = MONSTERS; } catch (e) {}
-  /* b356: the two lines above publish a REFERENCE, not a copy. main.js merges
-     the ESM data INTO these same objects, so by the time data-integrity.js
-     runs (1500 ms later) it compares the merged object against ESM — i.e.
-     against itself — and can never report a divergence. That is the exact
-     b137 bug the snapshot was introduced to prevent, reintroduced by aliasing.
-     It is why the b214 `troll_hide` divergence sat live and silent.
-
-     The MONSTERS half is now fixed at the source instead: legacy carries no
-     roster at all, and this eagerly-evaluated COUNT (a number, so it cannot
-     be mutated by the merge) is what data-integrity.js asserts stays 0. The
-     ITEMS half still has the aliasing defect — flagged, not fixed here,
-     because reconciling the inline ITEMS literal is its own change. */
   try { window.__LEGACY_INLINE_MONSTER_COUNT = Object.keys(MONSTERS).length; } catch (e) {}
 }
 
-const TREES=[
-  {id:'normal_tree',name:'Normal Tree',icon:'🌳',req:1,xp:25,ms:3000,prod:'normal_log',qty:[1,2]},
-  {id:'oak_tree',name:'Oak Tree',icon:'🌳',req:15,xp:38,ms:4000,prod:'oak_log',qty:[1,2]},
-  {id:'willow_tree',name:'Willow',icon:'🌿',req:30,xp:68,ms:5500,prod:'willow_log',qty:[1,2]},
-  {id:'maple_tree',name:'Maple Tree',icon:'🍁',req:45,xp:100,ms:7000,prod:'maple_log',qty:[1,2]},
-  {id:'yew_tree',name:'Yew Tree',icon:'🌲',req:60,xp:175,ms:10000,prod:'yew_log',qty:[1,1]},
-];
-const ROCKS=[
-  {id:'copper_rock',name:'Copper Rock',icon:'🟤',req:1,xp:18,ms:3000,prod:'copper_ore',qty:[1,2]},
-  {id:'iron_rock',name:'Iron Rock',icon:'⬜',req:15,xp:35,ms:4500,prod:'iron_ore',qty:[1,2]},
-  {id:'coal_rock',name:'Coal Rock',icon:'⬛',req:30,xp:50,ms:5500,prod:'coal',qty:[1,2]},
-  {id:'gold_rock',name:'Gold Rock',icon:'🟡',req:45,xp:65,ms:7000,prod:'gold_ore',qty:[1,1]},
-  {id:'mithril_rock',name:'Mithril Rock',icon:'🔵',req:60,xp:80,ms:9000,prod:'mithril_ore',qty:[1,1]},
-];
-const FISH_SPOTS=[
-  {id:'shrimp_s',name:'Shrimp Spot',icon:'🦐',req:1,xp:10,ms:3500,prod:'shrimp',qty:[1,3]},
-  {id:'trout_s',name:'Trout Spot',icon:'🐟',req:20,xp:30,ms:5000,prod:'trout',qty:[1,2]},
-  {id:'lobster_s',name:'Lobster Spot',icon:'🦞',req:40,xp:80,ms:8000,prod:'lobster',qty:[1,1]},
-  {id:'shark_s',name:'Shark Spot',icon:'🦈',req:76,xp:150,ms:13000,prod:'shark',qty:[1,1]},
-];
-const CROPS={
-  turnip:{name:'Turnip',icon:'🥕',hours:4,prod:'turnip',yield:[2,4],xp:8,req:1,seed:'turnip_seed'},
-  carrot:{name:'Carrot',icon:'🥕',hours:6,prod:'carrot',yield:[2,4],xp:12,req:10,seed:'carrot_seed'},
-  wheat:{name:'Wheat',icon:'🌾',hours:8,prod:'wheat',yield:[3,5],xp:18,req:20,seed:'wheat_seed'},
-  potato:{name:'Potato',icon:'🥔',hours:10,prod:'potato',yield:[2,4],xp:25,req:30,seed:'potato_seed'},
-  tomato:{name:'Tomato',icon:'🍅',hours:8,prod:'tomato',yield:[2,3],xp:35,req:40,seed:'tomato_seed',regrows:true},
-  pumpkin:{name:'Pumpkin',icon:'🎃',hours:14,prod:'pumpkin',yield:[1,2],xp:60,req:50,seed:'pumpkin_seed'},
-};
+const TREES=[];
+const ROCKS=[];
+const FISH_SPOTS=[];
+const CROPS={};
+/* W0: the same eager COUNT for every authored table this file used to copy
+   (numbers, so the merge cannot mutate them). LEGACY-ONECOPY-1 asserts 0. */
+if (typeof window !== 'undefined') {
+  window.__LEGACY_INLINE_COUNTS = { ITEMS: Object.keys(ITEMS).length, SKILLS_DEF: Object.keys(SKILLS_DEF).length,
+    CROPS: Object.keys(CROPS).length, TREES: TREES.length, ROCKS: ROCKS.length, FISH_SPOTS: FISH_SPOTS.length };
+}
 const ROOMS={
   /* b225 — the Kitchen finally produces `noBurn`, the ghost bonus key that
      has been listed in the House buff panel and produced by NOTHING since the
@@ -14007,29 +13824,9 @@ console.log('5 retention features loaded');
 })();
 
 // ===== block 18: artisans-js =====
-/* ─── New artisan ITEMS — cooked food + smelted bars + planks ─── */
-(function(){
-  if(typeof ITEMS === 'undefined') return;
-  var added = {
-    /* Cooked food (heals + sometimes a buff) */
-    cooked_shrimp:  {n:'Cooked Shrimp',  icon:'🦐', v:8,  heals:5,  cookedFrom:'shrimp'},
-    cooked_trout:   {n:'Cooked Trout',   icon:'🐟', v:30, heals:10, cookedFrom:'trout'},
-    cooked_lobster: {n:'Cooked Lobster', icon:'🦞', v:140,heals:18, cookedFrom:'lobster'},
-    cooked_shark:   {n:'Cooked Shark',   icon:'🦈', v:600,heals:28, cookedFrom:'shark'},
-    /* Smelted bars */
-    copper_bar:     {n:'Copper Bar',     icon:'🟤', v:25},
-    iron_bar:       {n:'Iron Bar',       icon:'⬜', v:60},
-    gold_bar:       {n:'Gold Bar',       icon:'🟡', v:240},
-    mithril_bar:    {n:'Mithril Bar',    icon:'🔵', v:480},
-    /* Planks */
-    normal_plank:   {n:'Normal Plank',   icon:'🪵', v:18},
-    oak_plank:      {n:'Oak Plank',      icon:'🪵', v:48},
-    willow_plank:   {n:'Willow Plank',   icon:'🪵', v:96},
-    maple_plank:    {n:'Maple Plank',    icon:'🍁', v:192},
-    yew_plank:      {n:'Yew Plank',      icon:'🌲', v:480},
-  };
-  Object.keys(added).forEach(function(k){ if(!ITEMS[k]) ITEMS[k] = added[k]; });
-})();
+/* W0: the cooked-food/bar/plank item copies and the ARTISAN_RECIPES literal that
+   lived here were dead on arrival — src/data/items.js and src/data/recipes.js are
+   the only authors, and main.js publishes window.ARTISAN_RECIPES. */
 
 /* b127: Removed icons3/* paths for cooked fish + bars + planks.
  * Bars and planks are properly mapped in LOCAL_ITEM_ICON at the
@@ -14037,61 +13834,6 @@ console.log('5 retention features loaded');
  * items fall back to their emoji glyph (🦐 🐟 🦞 🦈) which matches
  * the cozy theme. The smoke test asserts no icons3/* leakage. */
 
-/* ─── ARTISAN recipe tables ─── */
-window.ARTISAN_RECIPES = {
-  cooking: [
-    {id:'cook_shrimp',  name:'Cook Shrimp',  icon:'🦐', input:'shrimp',  output:'cooked_shrimp',  xp:30,  req:1,  ms:2400},
-    {id:'cook_trout',   name:'Cook Trout',   icon:'🐟', input:'trout',   output:'cooked_trout',   xp:50,  req:15, ms:3000},
-    {id:'cook_lobster', name:'Cook Lobster', icon:'🦞', input:'lobster', output:'cooked_lobster', xp:100, req:30, ms:3600},
-    {id:'cook_shark',   name:'Cook Shark',   icon:'🦈', input:'shark',   output:'cooked_shark',   xp:200, req:60, ms:5000},
-  ],
-  smithing: [
-    // Smelt ore → bar
-    {id:'smelt_copper',  name:'Copper Bar',  icon:'🟤', input:'copper_ore',  output:'copper_bar',  xp:15,  req:1,  ms:2400},
-    {id:'smelt_iron',    name:'Iron Bar',    icon:'⬜', input:'iron_ore',    output:'iron_bar',    xp:30,  req:15, ms:3000, secondary:{coal:1}},
-    {id:'smelt_gold',    name:'Gold Bar',    icon:'🟡', input:'gold_ore',    output:'gold_bar',    xp:60,  req:40, ms:4000, secondary:{coal:2}},
-    {id:'smelt_mithril', name:'Mithril Bar', icon:'🔵', input:'mithril_ore', output:'mithril_bar', xp:120, req:55, ms:5000, secondary:{coal:3}},
-    // Forge bar + plank → weapon. Each consumes input + secondary, mirrors monster drops.
-    {id:'forge_bronze_sword',    name:'Forge Bronze Sword',    icon:'⚔️', input:'copper_bar',  output:'bronze_sword',    xp:55,  req:5,  ms:4000, secondary:{copper_bar:1, normal_plank:1}},
-    {id:'forge_iron_sword',      name:'Forge Iron Sword',      icon:'⚔️', input:'iron_bar',    output:'iron_sword',      xp:120, req:30, ms:5000, secondary:{iron_bar:1, oak_plank:1}},
-    {id:'forge_steel_sword',     name:'Forge Steel Sword',     icon:'⚔️', input:'iron_bar',    output:'steel_sword',     xp:240, req:55, ms:6000, secondary:{iron_bar:2, willow_plank:1, coal:2}},
-    {id:'forge_rune_sword',      name:'Forge Rune Sword',      icon:'⚔️', input:'mithril_bar', output:'rune_sword',      xp:520, req:80, ms:7500, secondary:{mithril_bar:2, maple_plank:1, gold_bar:1}},
-    // Forge armor
-    {id:'forge_iron_helm',       name:'Forge Iron Helm',       icon:'⛑️', input:'iron_bar',    output:'iron_helm',       xp:80,  req:25, ms:4500, secondary:{iron_bar:1}},
-    {id:'forge_iron_platebody',  name:'Forge Iron Platebody',  icon:'🦺', input:'iron_bar',    output:'iron_platebody',  xp:200, req:35, ms:5500, secondary:{iron_bar:3}},
-    {id:'forge_steel_helm',      name:'Forge Steel Helm',      icon:'⛑️', input:'iron_bar',    output:'steel_helm',      xp:160, req:50, ms:5500, secondary:{iron_bar:2, coal:1}},
-    {id:'forge_steel_platebody', name:'Forge Steel Plate',     icon:'🦺', input:'iron_bar',    output:'steel_platebody', xp:380, req:65, ms:6500, secondary:{iron_bar:5, coal:3}},
-    // Hammers + warhammers
-    {id:'forge_iron_warhammer',  name:'Forge Iron Warhammer',  icon:'🔨', input:'iron_bar',    output:'iron_warhammer',  xp:140, req:35, ms:5500, secondary:{iron_bar:2, oak_plank:1}},
-  ],
-  crafting: [
-    // Saw log → plank
-    {id:'saw_normal', name:'Normal Plank', icon:'🪵', input:'normal_log', output:'normal_plank', xp:10,  req:1,  ms:2400},
-    {id:'saw_oak',    name:'Oak Plank',    icon:'🪵', input:'oak_log',    output:'oak_plank',    xp:25,  req:15, ms:3000},
-    {id:'saw_willow', name:'Willow Plank', icon:'🪵', input:'willow_log', output:'willow_plank', xp:50,  req:30, ms:3600},
-    {id:'saw_maple',  name:'Maple Plank',  icon:'🍁', input:'maple_log',  output:'maple_plank',  xp:90,  req:45, ms:4500},
-    {id:'saw_yew',    name:'Yew Plank',    icon:'🌲', input:'yew_log',    output:'yew_plank',    xp:160, req:60, ms:6000},
-    // Plank + thread → bow
-    {id:'craft_shortbow',       name:'Craft Shortbow',       icon:'🏹', input:'normal_plank', output:'shortbow',         xp:50,  req:5,  ms:4000, secondary:{silk_thread:1}},
-    {id:'craft_longbow',        name:'Craft Longbow',        icon:'🏹', input:'oak_plank',    output:'longbow',          xp:120, req:30, ms:5000, secondary:{silk_thread:2}},
-    // Plank + magic essence → staff
-    {id:'craft_apprentice_staff', name:'Craft Apprentice Staff', icon:'🪄', input:'oak_plank',    output:'apprentice_staff', xp:75,  req:15, ms:4500, secondary:{magic_essence:1}},
-    {id:'craft_oak_staff',        name:'Craft Oak Staff',        icon:'🪄', input:'maple_plank',  output:'oak_staff',        xp:180, req:35, ms:5500, secondary:{magic_essence:3, silk_thread:1}},
-    // Plank + iron → arrows (qty 5 per craft; engine grants 1, but we override via output count)
-    // For now produces a single iron_arrows item (stack); future iteration could make these multi-output.
-    {id:'craft_iron_arrows',    name:'Craft Iron Arrows',    icon:'🏹', input:'iron_bar',    output:'iron_arrows',      xp:60,  req:25, ms:4000, secondary:{willow_plank:1}},
-    // Light armor + accessories (cape, gloves, boots, belt)
-    {id:'craft_traveler_cape',  name:'Craft Traveler Cape',  icon:'🦸', input:'willow_plank', output:'traveler_cape',    xp:100, req:20, ms:4500, secondary:{wolf_pelt:1, silk_thread:1}},
-    {id:'craft_leather_boots',  name:'Craft Leather Boots',  icon:'🥾', input:'normal_plank', output:'leather_boots',    xp:65,  req:8,  ms:3500, secondary:{wolf_pelt:1}},
-    {id:'craft_leather_gloves', name:'Craft Leather Gloves', icon:'🧤', input:'normal_plank', output:'leather_gloves',   xp:55,  req:6,  ms:3500, secondary:{wolf_pelt:1}},
-    {id:'craft_bronze_belt',    name:'Craft Bronze Belt',    icon:'🟫', input:'normal_plank', output:'bronze_belt',      xp:75,  req:12, ms:3800, secondary:{copper_bar:1, silk_thread:1}},
-  ],
-  prayer: [
-    {id:'bury_bones',     name:'Bury Bones',         icon:'🦴', input:'bones',         output:null, xp:4.5, req:1,  ms:1200},
-    {id:'bury_big',       name:'Bury Big Bones',     icon:'🦴', input:'big_bones',     output:null, xp:15,  req:15, ms:1500},
-    {id:'bury_dragon',    name:'Bury Dragon Bones',  icon:'🦴', input:'dragon_bones',  output:null, xp:72,  req:35, ms:2000},
-  ]
-};
 
 /* ─── Artisan render: replaces 'Train by fighting' empty state ─── */
 window.renderArtisanActivities = function(skillId){
@@ -14268,47 +14010,6 @@ window._stopArtisan = function(){
 "use strict";
 if(typeof ITEMS === 'undefined') return;
 
-/* ─── Phase A.1: NEW ITEMS ─────────────────────────────── */
-var NEW_ITEMS = {
-  /* Tier 1 cooked from combat meat */
-  raw_wolf_meat:   {n:'Raw Wolf Meat',    icon:'🍖', v:5,  cookedFrom:null},
-  raw_panther_meat:{n:'Raw Panther Meat', icon:'🍖', v:8,  cookedFrom:null},
-  raw_bear_meat:   {n:'Raw Bear Meat',    icon:'🍖', v:15, cookedFrom:null},
-  cooked_wolf_meat:   {n:'Cooked Wolf Meat',    icon:'🥩', v:12, heals:6,  cookedFrom:'raw_wolf_meat'},
-  cooked_panther_meat:{n:'Cooked Panther Meat', icon:'🥩', v:22, heals:9,  cookedFrom:'raw_panther_meat'},
-  cooked_bear_meat:   {n:'Cooked Bear Meat',    icon:'🥩', v:42, heals:13, cookedFrom:'raw_bear_meat'},
-
-  /* Tier 2 buff foods */
-  roasted_carrot: {n:'Roasted Carrot', icon:'🥕', v:12,  heals:5,  buff:{type:'gather_speed', magnitude:1,  durationMs:180000}},
-  wheat_bread:    {n:'Wheat Bread',    icon:'🍞', v:35,  heals:14, buff:{type:'all_xp',       magnitude:2,  durationMs:300000}},
-  tomato_soup:    {n:'Tomato Soup',    icon:'🥣', v:60,  heals:16, buff:{type:'drop_rate',    magnitude:3,  durationMs:480000}},
-  roasted_pumpkin:{n:'Roasted Pumpkin',icon:'🎃', v:90,  heals:22, buff:{type:'farm_yield',   magnitude:5,  durationMs:600000}},
-  vegetable_stew: {n:'Vegetable Stew', icon:'🍲', v:140, heals:24, buff:{type:'all_xp',       magnitude:3,  durationMs:900000}},
-
-  /* Tier 3 (most are gated by Phase B per the doc, but we can add the data now) */
-  bear_claw_pie:  {n:'Bear Claw Pie',  icon:'🥧', v:280, heals:32, buff:{type:'damage',          magnitude:5,  durationMs:600000}},
-  hunters_feast:  {n:"Hunter's Feast", icon:'🍱', v:420, heals:35, buff:{type:'drop_rate', magnitude:5, durationMs:900000}}, // b238: stale twin — items.js authoritative; kept in sync
-  dragon_stew:    {n:'Dragon Stew',    icon:'🍜', v:780, heals:45, buff:{type:'combat_xp',       magnitude:10, durationMs:1200000}},
-  lich_soul_soup: {n:'Lich Soul Soup', icon:'🥣', v:1100,heals:50, buff:{type:'gold_find',       magnitude:50, durationMs:300000}},
-  void_banquet:   {n:'Void Banquet',   icon:'🎂', v:2400,heals:60, buff:{type:'damage_crit',     magnitude:5,  durationMs:900000}},
-
-  /* New bars */
-  bronze_bar: {n:'Bronze Bar', icon:'🟫', v:32},
-  steel_bar:  {n:'Steel Bar',  icon:'⬜', v:150},
-  rune_bar:   {n:'Rune Bar',   icon:'🔷', v:1200},
-
-  /* Recipe scrolls — drops from named bosses, single-use unlocks */
-  chief_blade_recipe:    {n:"Chief's Blade Recipe",       icon:'📜', v:0, recipe:'chief_blade'},
-  captain_recipe:        {n:"Captain's Ribblade Recipe",  icon:'📜', v:0, recipe:'captains_ribblade'},
-  alpha_pattern:         {n:'Alpha Cloak Pattern',        icon:'📜', v:0, recipe:'alpha_cloak'},
-  spellstone_diagram:    {n:'Spellstone Diagram',         icon:'📜', v:0, recipe:'spellstone_ring'},
-  dragon_marrow_recipe:  {n:'Dragon Marrow Recipe',       icon:'📜', v:0, recipe:'dragonbone_spear'},
-  gemcutter_note:        {n:"Gemcutter's Note",           icon:'📜', v:0, recipe:'dragon_gem_earrings'},
-  soul_recipe:           {n:'Soul Recipe Scroll',         icon:'📜', v:0, recipe:'lich_soul_soup'},
-  marrow_cookbook:       {n:'Marrow Cookbook',            icon:'📜', v:0, recipe:'dragon_stew'},
-  field_cookbook:        {n:'Field Cookbook',             icon:'📜', v:0, recipe:'hunters_feast'},
-};
-Object.keys(NEW_ITEMS).forEach(function(k){ if(!ITEMS[k]) ITEMS[k] = NEW_ITEMS[k]; });
 
 /* b127: Removed icons3/* paths for raw meats + recipe scrolls + the
  * three extra bars (bronze_bar / steel_bar / rune_bar). All these
@@ -14318,80 +14019,6 @@ Object.keys(NEW_ITEMS).forEach(function(k){ if(!ITEMS[k]) ITEMS[k] = NEW_ITEMS[k
 window._itemPath = window._itemPath || {};
 window._itemSVG = window._itemSVG || {};
 
-/* ─── Phase A.1: ARTISAN_RECIPES additions ─────────────── */
-window.ARTISAN_RECIPES = window.ARTISAN_RECIPES || {cooking:[], smithing:[], crafting:[], prayer:[], runecrafting:[], stonemason:[]};
-function add(skill, recipe){ window.ARTISAN_RECIPES[skill].push(recipe); }
-function has(skill, id){ return (window.ARTISAN_RECIPES[skill]||[]).some(function(r){return r.id===id;}); }
-
-/* COOKING — extend existing 4 (shrimp/trout/lobster/shark) with the rest */
-[
-  /* Combat-meat chain */
-  {id:'cook_wolf_meat',    name:'Cook Wolf Meat',    icon:'🥩', inputs:{raw_wolf_meat:1},    output:'cooked_wolf_meat',    xp:35,  req:5,  ms:2400},
-  {id:'cook_panther_meat', name:'Cook Panther Meat', icon:'🥩', inputs:{raw_panther_meat:1}, output:'cooked_panther_meat', xp:60,  req:25, ms:2800},
-  {id:'cook_bear_meat',    name:'Cook Bear Meat',    icon:'🥩', inputs:{raw_bear_meat:1},    output:'cooked_bear_meat',    xp:120, req:40, ms:3400},
-  /* Tier 2 buff foods */
-  {id:'cook_carrot',       name:'Roast Carrot',     icon:'🥕', inputs:{carrot:1},            output:'roasted_carrot', xp:20,  req:5,  ms:1500},
-  {id:'cook_wheat_bread',  name:'Bake Wheat Bread', icon:'🍞', inputs:{wheat:3},             output:'wheat_bread',    xp:55,  req:20, ms:3000},
-  {id:'cook_tomato_soup',  name:'Tomato Soup',      icon:'🥣', inputs:{tomato:3, carrot:1},  output:'tomato_soup',    xp:120, req:35, ms:3600},
-  {id:'cook_pumpkin',      name:'Roast Pumpkin',    icon:'🎃', inputs:{pumpkin:1},           output:'roasted_pumpkin',xp:140, req:40, ms:4000},
-  {id:'cook_veg_stew',     name:'Vegetable Stew',   icon:'🍲', inputs:{potato:2, carrot:2, tomato:1}, output:'vegetable_stew', xp:180, req:50, ms:4500},
-  /* Farm-crop intermediates — fill the mid-cooking gap so vegetable XP gain isn't a dead end */
-  {id:'cook_baked_potato', name:'Baked Potato',     icon:'🥔', inputs:{potato:2},                output:'baked_potato',    xp:90,  req:25, ms:3200},
-  {id:'cook_carrot_stew',  name:'Carrot Stew',      icon:'🍲', inputs:{carrot:3, potato:1},      output:'carrot_stew',     xp:150, req:45, ms:4000},
-  {id:'cook_pumpkin_pie',  name:'Pumpkin Pie',      icon:'🥧', inputs:{pumpkin:1, wheat:2},      output:'pumpkin_pie',     xp:240, req:60, ms:4800},
-  /* Tier 3 — unlocked by recipe scrolls (handled by gated check at runtime) */
-  {id:'cook_bear_pie',     name:'Bear Claw Pie',    icon:'🥧', inputs:{bear_claw:1, wheat:3}, output:'bear_claw_pie',  xp:280, req:70, ms:5000},
-  {id:'cook_hunters_feast',name:"Hunter's Feast",   icon:'🍱', inputs:{troll_hide:1, bear_pelt:1, cooked_trout:2}, output:'hunters_feast', xp:320, req:75, ms:5500, gated:'field_cookbook'},
-  {id:'cook_dragon_stew',  name:'Dragon Stew',      icon:'🍜', inputs:{dragon_scale:1, carrot:1, tomato:1, pumpkin:1, potato:1}, output:'dragon_stew', xp:450, req:85, ms:6000, gated:'marrow_cookbook'},
-  {id:'cook_lich_soup',    name:'Lich Soul Soup',   icon:'🥣', inputs:{lich_soul:1, wheat:1}, output:'lich_soul_soup', xp:600, req:90, ms:6500, gated:'soul_recipe'},
-  {id:'cook_void_banquet', name:'Void Banquet',     icon:'🎂', inputs:{void_core:1, dragon_bones:1, cooked_shark:3}, output:'void_banquet', xp:900, req:99, ms:7000},
-].forEach(function(r){ if(!has('cooking', r.id)) add('cooking', r); });
-
-/* SMITHING — extend with bronze/steel/rune bars + forge weapons + forge armor + gated */
-[
-  /* New bars */
-  {id:'smelt_bronze',  name:'Bronze Bar',  icon:'🟫', inputs:{copper_ore:2, coal:1},          output:'bronze_bar',  xp:20,  req:8,  ms:2600},
-  {id:'smelt_steel',   name:'Steel Bar',   icon:'⬜', inputs:{iron_bar:1, coal:2},            output:'steel_bar',   xp:70,  req:35, ms:3600},
-  {id:'smelt_rune',    name:'Rune Bar',    icon:'🔷', inputs:{mithril_bar:1, magic_essence:1, coal:4}, output:'rune_bar', xp:240, req:75, ms:6000},
-  /* Forge weapons */
-  {id:'forge_bronze_sword',  name:'Forge Bronze Sword',  icon:'⚔️', inputs:{bronze_bar:2, normal_plank:1}, output:'bronze_sword',  xp:60,    req:5,  ms:2500},
-  {id:'forge_iron_sword',    name:'Forge Iron Sword',    icon:'⚔️', inputs:{iron_bar:3, oak_plank:1},      output:'iron_sword',    xp:180,   req:20, ms:3000},
-  {id:'forge_steel_sword',   name:'Forge Steel Sword',   icon:'⚔️', inputs:{steel_bar:3, willow_plank:1},  output:'steel_sword',   xp:400,   req:40, ms:3800},
-  {id:'forge_rune_sword',    name:'Forge Rune Sword',    icon:'⚔️', inputs:{rune_bar:3, magic_essence:2, maple_plank:1}, output:'rune_sword', xp:1200, req:75, ms:5500},
-  {id:'forge_stone_maul',    name:'Forge Stone Maul',    icon:'🔨', inputs:{normal_plank:2, copper_ore:4}, output:'stone_maul',    xp:100,   req:10, ms:2700},
-  {id:'forge_iron_warhammer',name:'Forge Iron Warhammer',icon:'🔨', inputs:{iron_bar:4, oak_plank:2},      output:'iron_warhammer',xp:350,   req:35, ms:3800},
-  /* Forge armor */
-  {id:'forge_iron_helm',     name:'Forge Iron Helm',     icon:'⛑️', inputs:{iron_bar:2},  output:'iron_helm',      xp:200, req:25, ms:3000},
-  {id:'forge_iron_platebody',name:'Forge Iron Platebody',icon:'🦺', inputs:{iron_bar:5},  output:'iron_platebody', xp:350, req:35, ms:3800},
-  {id:'forge_steel_helm',    name:'Forge Steel Helm',    icon:'⛑️', inputs:{steel_bar:3}, output:'steel_helm',     xp:600, req:50, ms:4500},
-  {id:'forge_steel_platebody',name:'Forge Steel Platebody',icon:'🦺',inputs:{steel_bar:7},output:'steel_platebody',xp:900, req:60, ms:5000},
-  {id:'forge_bronze_belt',   name:'Forge Bronze Belt',   icon:'🟫', inputs:{bronze_bar:2, wolf_pelt:1}, output:'bronze_belt', xp:120, req:18, ms:2800},
-  /* Gated forges */
-  {id:'forge_chief_blade',   name:"Chief's Blade",       icon:'🗡️', inputs:{warlord_badge:1, iron_bar:4, oak_plank:2},    output:'chief_blade',       xp:600,  req:50, ms:5000, gated:'chief_blade_recipe'},
-  {id:'forge_captain_blade', name:"Captain's Ribblade",  icon:'🗡️', inputs:{captain_medal:1, steel_bar:4, maple_plank:2},output:'captains_ribblade', xp:1100, req:70, ms:6000, gated:'captain_recipe'},
-  /* Phase B note: dragonbone_spear could be added later; output item not in ITEMS yet */
-].forEach(function(r){ if(!has('smithing', r.id)) add('smithing', r); });
-
-/* CRAFTING — extend with carved weapons, tailoring, jewelry, gated */
-[
-  /* Carved weapons */
-  {id:'carve_shortbow',         name:'Carve Shortbow',          icon:'🏹', inputs:{normal_plank:2, silk_thread:1}, output:'shortbow',         xp:60,  req:5,  ms:2400},
-  {id:'carve_longbow',          name:'Carve Longbow',           icon:'🏹', inputs:{willow_plank:3, silk_thread:2}, output:'longbow',          xp:240, req:25, ms:3600},
-  {id:'carve_apprentice_staff', name:'Carve Apprentice Staff',  icon:'🪄', inputs:{oak_plank:2, magic_essence:1},  output:'apprentice_staff', xp:120, req:12, ms:2800},
-  {id:'carve_oak_staff',        name:'Carve Oak Staff',         icon:'🪄', inputs:{willow_plank:3, magic_essence:2, ancient_rune:1}, output:'oak_staff', xp:300, req:30, ms:4000},
-  /* ×50 — MUST MATCH src/data/recipes.js, which carries the reasoning (raising
-     this to 500 trips the server's c_max_item_delta clamp on honest away play). */
-  {id:'craft_iron_arrows',      name:'Craft Iron Arrows ×50',   icon:'🏹', inputs:{iron_bar:1, normal_plank:5},    output:'iron_arrows', outputQty:50, xp:120, req:20, ms:3500},
-  /* Tailoring */
-  {id:'tailor_leather_boots',   name:'Tailor Leather Boots',    icon:'🥾', inputs:{wolf_pelt:2}, output:'leather_boots', xp:80, req:8, ms:2400},
-  {id:'tailor_leather_gloves',  name:'Tailor Leather Gloves',   icon:'🧤', inputs:{wolf_pelt:1, silk_thread:1}, output:'leather_gloves', xp:120, req:12, ms:2800},
-  {id:'tailor_traveler_cape',   name:'Tailor Traveler Cape',    icon:'🦸', inputs:{silk_thread:3, wolf_pelt:2},  output:'traveler_cape',  xp:140, req:15, ms:3000},
-  /* Jewelry */
-  {id:'jewel_copper_ring',      name:'Set Copper Ring',         icon:'💍', inputs:{copper_bar:1, magic_essence:1}, output:'copper_ring', xp:180, req:20, ms:3000},
-  {id:'jewel_hunter_necklace',  name:'String Hunter Necklace',  icon:'📿', inputs:{gold_bar:1, wolf_pelt:1}, output:'hunter_necklace', xp:240, req:25, ms:3500},
-  /* Gated crafts */
-  {id:'craft_alpha_cloak',      name:'Craft Alpha Cloak',       icon:'🦸', inputs:{bear_pelt:2, silk_thread:3}, output:'alpha_cloak', xp:1200, req:60, ms:5500, gated:'alpha_pattern'},
-].forEach(function(r){ if(!has('crafting', r.id)) add('crafting', r); });
 
 /* ─── Patch artisan loop to support multi-input recipes (inputs dict) ─── */
 /* PHASE A: the recipe-shape readers live in src/core/artisan.js now — one
@@ -14713,9 +14340,6 @@ window.renderArtisanActivities = function(skillId){
    recipe. Reading a scroll is now a gesture with a server verb; the whole story
    and the code are in src/features/recipe-scrolls.js. Nothing wraps addItem. */
 
-console.log('Phase A.1 recipe set loaded:',
-  Object.values(window.ARTISAN_RECIPES).reduce(function(a,arr){return a+arr.length;},0), 'total recipes,',
-  Object.keys(NEW_ITEMS).length, 'new items');
 })();
 
 // ===== block 22: activity-mutex =====

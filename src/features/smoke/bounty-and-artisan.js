@@ -1249,31 +1249,41 @@ export default [
       assert(have('rubble') === rubbleBefore - 400, 'dressing must consume 4 rubble per action');
       assert(xpOfSkill('stonemason') > 0, 'dressing (refining) must pay Stonemason XP (b374)');
 
-      /* ── 3. CUT BLANKS — the Stonemason → Runecrafting seam. */
-      const b = work('cut_rune_blanks', 50);
-      assert(b.ticks === 50 && b.stoppedBy === null, 'blank-cutting stopped early: ' + b.stoppedBy);
-      assert(have('rune_blank') === 600, 'expected 600 rune blanks, got ' + have('rune_blank'));
+      /* ── 3. W0 RUNECRAFTING RULING (2026-10-09): the skill supplies ITSELF.
+         Mine Rune Essence on the Runecrafting bench (input-free, pays MINING
+         like the quarry), then cut it to blanks — no Stonemason block in the
+         chain any more. */
+      const mineBefore = xpOfSkill('mining');
+      const e = work('mine_rune_essence', 60);
+      assert(e.skill === 'runecrafting', 'essence is mined on the Runecrafting bench, got ' + e.skill);
+      assert(e.ticks === 60 && e.stoppedBy === null, 'essence mining stopped early: ' + e.stoppedBy);
+      assert(have('rune_essence') === 120, 'expected 120 rune essence, got ' + have('rune_essence'));
+      assert(xpOfSkill('mining') > mineBefore, 'mining essence must pay MINING XP (the quarry pattern)');
+      const blocksBefore = have('dressed_block');
+      const b = work('cut_rune_blanks', 30);
+      assert(b.skill === 'runecrafting', 'blanks are cut on the Runecrafting bench now, got ' + b.skill);
+      assert(b.ticks === 30 && b.stoppedBy === null, 'blank-cutting stopped early: ' + b.stoppedBy);
+      assert(have('rune_blank') === 360, 'expected 360 rune blanks, got ' + have('rune_blank'));
+      assert(have('rune_essence') === 0, 'cutting must consume 4 essence per action');
+      assert(have('dressed_block') === blocksBefore, 'the level-1 blank cut must not eat Stonemason blocks');
 
-      /* ── 4. BIND. The bench CHANGES here — Runecrafting, a different skill,
-         paid out of a different XP pool. `simulateArtisanSpan` derives the
-         bench from the recipe index rather than the pointer, so this is also a
-         check that the new lane is actually indexed. */
+      /* ── 4. BIND EARTH — the first rung, at level 1, of a rune that is SPENT. */
       const rcBefore = xpOfSkill('runecrafting');
-      const r = work('bind_air_runes', 40);
+      const r = work('bind_earth_runes', 40);
       assert(r.skill === 'runecrafting',
         'binding runes must pay the runecrafting bench, got ' + r.skill);
       assert(r.ticks === 40 && r.stoppedBy === null, 'binding stopped early: ' + r.stoppedBy);
-      assert(have('air_rune') === 40 * 42, 'expected 1680 air runes, got ' + have('air_rune'));
+      assert(have('earth_rune') === 40 * 45, 'expected 1800 earth runes, got ' + have('earth_rune'));
       assert(xpOfSkill('runecrafting') > rcBefore, 'binding must pay Runecrafting XP');
-      assert(have('rune_blank') === 600 - 40 * 6, 'binding must consume 6 blanks per action');
+      assert(have('rune_blank') === 360 - 40 * 6, 'binding must consume 6 blanks per action');
 
       /* ── 5. THE THING IT WAS ALL FOR: the rune is equippable ammo that a
-         mage can actually socket. A supply chain that ends in an item nothing
-         can equip is four rungs of busywork. */
-      const rune = window.ITEMS.air_rune;
+         mage can actually socket, and that a cast actually SPENDS. */
+      const rune = window.ITEMS.earth_rune;
       assert(rune && rune.slot === 'ammo' && rune.type === 'ammo',
         'a bound rune must be ammo-slot equipment');
       assert(rune.magicStrB > 0, 'a bound rune must pay the magic damage stat');
+      assert(rune.ammoPerShot > 0, 'the level-1 rune must be SPENT per cast — W0 ruling');
       assert(window.EQUIP_SLOTS.indexOf('ammo') >= 0, 'the ammo slot must exist on the doll');
     } finally { window.notify = realNotify; restoreG(snap); }
   }),
@@ -1384,7 +1394,11 @@ export default [
       assert(openers.length > 0,
         'Runecrafting has no rung at level 1 — a skill whose first action is gated is a skill '
         + 'a new player cannot start');
-      const rung = openers[0];
+      /* W0: the bench now opens with `mine_rune_essence` (input-free, pays
+         Mining). This test is the GOLD on-ramp — the player who buys blanks
+         instead of mining — so it takes the level-1 rung that eats them. */
+      const rung = openers.find((x) => (x.inputs || {}).rune_blank > 0);
+      assert(rung, 'no level-1 Runecrafting rung eats Blank Runes — the shop counter is not an on-ramp');
       const inputs = rung.inputs || (rung.input ? { [rung.input]: 1 } : {});
       Object.keys(inputs).forEach((id) => {
         assert(id === 'rune_blank',
@@ -1491,7 +1505,8 @@ export default [
        Same ruling as item-index.js's source line. The level below is DERIVED from
        the recipe table rather than typed, because the typed `4` went stale the
        first time a balance ruling moved that rung. */
-    const blankReqs = (window.ARTISAN_RECIPES.stonemason || [])
+    /* W0: both base blank cuts live on the RUNECRAFTING bench now. */
+    const blankReqs = (window.ARTISAN_RECIPES.runecrafting || [])
       .filter((r) => r.output === 'rune_blank').map((r) => r.req || 1);
     assert(blankReqs.length >= 2, 'the fixture needs an item with TWO recipes to measure anything');
     const lowest = Math.min.apply(null, blankReqs);
@@ -1503,7 +1518,7 @@ export default [
       'the tip quoted the hardest rung (Lv ' + highest + ') — the answer to "how do I get this" must be '
       + 'the gate the player can reach first');
     /* The same rule, on the other surface that answers this question. */
-    assert(new RegExp('Stonemason Lv ' + lowest).test(window.itemSourceLine('rune_blank')),
+    assert(new RegExp('Runecrafting Lv ' + lowest).test(window.itemSourceLine('rune_blank')),
       'the item flyout source line must also name the easiest recipe, got: ' + window.itemSourceLine('rune_blank'));
   }),
 
@@ -1623,6 +1638,27 @@ export default [
       'an unsharpened sword must swing at full strength (R5)');
     assert(A.ammoDamageMult({ weaponType: 'hammer', perShot: 0, stock: 0 }) === 1,
       'an unsharpened hammer must swing at full strength');
+
+    /* W0 (coherence audit Top-10 #7): an EMPTY slot on a bow or a staff is run
+       dry. Before W0 it fought at full strength — 3.4x a dry quiver — so the
+       smart play was to equip nothing and Fletching/Runecrafting had no buyer. */
+    assert(A.AMMO_EMPTY_SLOT_IS_DRY === true, 'W0: the empty-slot-is-dry flag is off');
+    assert(A.ammoDamageMult({ weaponType: 'ranged', perShot: 0, stock: 0, equipped: false }) === 0.25,
+      'W0: a bow with NOTHING in the ammo slot must fight as run dry (x0.25)');
+    assert(A.ammoDamageMult({ weaponType: 'magic', perShot: 0, stock: 0, equipped: false }) === 0.25,
+      'W0: a staff with nothing in the ammo slot must fight as run dry (x0.25)');
+    assert(A.ammoDamageMult({ weaponType: 'sword', perShot: 0, stock: 0, equipped: false }) === 1,
+      'W0: melee with an empty slot is still not penalised (R5)');
+    const rd = A.readAmmo({ equipment: { weapon: 'shortbow' }, inventory: {} }, { items: window.ITEMS });
+    assert(rd.dry === true, 'W0: readAmmo must call an empty bow slot dry, or the combat rail never shows why');
+    /* …and nobody is put there by default: the free tier-1 rung of every
+       ladder is on the counter (and in the server-built starter kit). */
+    ['bronze_arrows', 'air_rune', 'coarse_whetstone'].forEach((id) => {
+      const o = (window.SEED_SHOP || []).find((s) => s.id === id);
+      assert(o && o.qty > 0, 'W0: the Local Shop does not stock the free rung ' + id);
+      assert(o.cost > o.qty * window.ITEMS[id].v, 'W0: ' + id + ' sells at or below book value — a vendor loop');
+      assert(window.ITEMS[id].ammoPerShot === 0, 'W0: ' + id + ' must be the free (never-spent) rung');
+    });
     assert(A.styleNeedsAmmo('ranged') && A.styleNeedsAmmo('magic'), 'ranged and magic spend ammo');
     assert(!A.styleNeedsAmmo('sword') && !A.styleNeedsAmmo('hammer') && !A.styleNeedsAmmo('neutral'),
       'no melee family — and not an unarmed player — may take the depletion penalty');
@@ -1634,6 +1670,29 @@ export default [
       'a free tier-1 rung must never put a player into the penalty state');
     assert(window.ITEMS.air_rune.ammoPerShot === 0 && window.ITEMS.coarse_whetstone.ammoPerShot === 0,
       'the tier-1 rung of each new ladder must be free to fire');
+  }),
+
+  /* W0 (coherence audit Top-10 #8): PRAYER WARDS. Prayer used to do nothing in
+     a fight. Each Prayer tier now turns a share of monster blows aside, priced
+     inside `monsterCombatRolls` — the ONE function the live tick (this page's
+     getMonsterCombatRolls), the away accrual and the world tick all call — so
+     the attended surface must apply exactly the core ward to the skills it
+     displays. tests/w0e-ammo-runecraft-prayer.mjs proves away and tick. */
+  () => tryRun('W0 PRAYER: the live monster roll carries the Prayer ward the engine applies away', () => {
+    const C = window.HearthriseCore;
+    const m = window.MONSTERS.goblin;
+    const S = window.hrDisplaySkills();
+    const eq = window.getEquipmentStats();
+    const ward = C.combat.prayerWardPct(S);
+    const bare = C.combat.monsterCombatRolls(m, { eq, skills: Object.assign({}, S, { prayer: 0 }), bonus: C.bonus });
+    const live = window.getMonsterCombatRolls(m, eq);
+    assert(Math.abs(live.accuracy - bare.accuracy * (1 - ward / 100)) < 1e-12,
+      'the live tick prices a goblin swing at ' + live.accuracy + ', but the core ward (' + ward
+      + '%) on the displayed skills says ' + bare.accuracy * (1 - ward / 100));
+    const hi = C.combat.monsterCombatRolls(m, { eq, skills: Object.assign({}, S, { prayer: window.xpForLevel(99) }), bonus: C.bonus });
+    assert(C.combat.prayerWardPct({ prayer: window.xpForLevel(99) }) > 0 && hi.accuracy < bare.accuracy,
+      'Prayer 99 turns no blow aside — Prayer is a combat-level padder again');
+    assert(hi.maxHit === bare.maxHit, 'the ward must not touch max hit (it is a share of blows)');
   }),
 
   () => tryRun('b357 AMMO-2: burn is deterministic, time-only, and the projection matches the outcome', () => {
@@ -1890,7 +1949,7 @@ export default [
         id + ' must pay Mining XP (gathering rock is mining), got xpSkill=' + r.xpSkill);
     });
     // Refine lanes must NOT carry an xpSkill override — they pay the bench (Stonemason).
-    ['dress_rubble', 'dress_granite', 'dress_basalt', 'grind_coarse_whetstone', 'cut_rune_blanks'].forEach((id) => {
+    ['dress_rubble', 'dress_granite', 'dress_basalt', 'grind_coarse_whetstone', 'cut_fine_blanks'].forEach((id) => {
       const r = find(id);
       assert(r && !r.xpSkill, id + ' (refining) must pay Stonemason, but carries xpSkill=' + (r && r.xpSkill));
     });

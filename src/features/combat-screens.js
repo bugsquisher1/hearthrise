@@ -1122,6 +1122,23 @@ function itemImg(id, cls) {
   return path ? `<span class="${cls}"><img src="${path}" alt="" /></span>` : `<span class="${cls}"></span>`;
 }
 
+/* THE EMPTY-QUIVER INDICATOR (src/core/ammo.js, AMMO_EMPTY_SLOT_IS_DRY's
+   coupling). A bow or a staff with nothing to loose fights at a quarter max
+   hit, and a player who cannot see why is a support ticket — so the ammo slot
+   says so. The answer comes from core's ONE reader (`readAmmo`), off the
+   server-projected equipment and bag, never re-derived here. Returns the
+   sentence to show, or '' when the swing is supplied. */
+function ammoDryInfo(g) {
+  const A = window.HearthriseCore && window.HearthriseCore.ammo;
+  if (!A || typeof A.readAmmo !== 'function' || !g) return '';
+  const r = A.readAmmo({ equipment: g.equipment || {}, inventory: g.inventory || {} }, { items: ITEMS });
+  if (!r || !r.dry) return '';
+  const what = r.weaponType === 'magic' ? 'runes' : 'arrows';
+  return r.id
+    ? `out of ${what}: you hit at a quarter strength until you restock`
+    : `no ${what} loaded: you hit at a quarter strength. Equip ${what} (the first tier never runs out)`;
+}
+
 function renderDoll() {
   const host = document.getElementById('fsm-doll');
   if (!host) return;
@@ -1131,16 +1148,20 @@ function renderDoll() {
   const plan = DL && typeof DL.place === 'function'
     ? DL.place(MANAGE_SLOTS)
     : { pos: {}, order: MANAGE_SLOTS, rows: 0 };
+  const dry = ammoDryInfo(g);
   const html = plan.order.map((slot) => {
     const id = eqp[slot];
     const def = id && ITEMS[id];
     const meta = slotMeta(slot);
     const pos = plan.pos[slot];
     const style = pos ? ` style="grid-column:${pos[0]};grid-row:${pos[1]}"` : '';
-    const title = def ? `${meta.label}: ${def.n} — click to change` : `${meta.label} — empty, click to equip`;
-    return `<button type="button" class="fsm-slot${def ? '' : ' is-empty'}" data-cs-act="slot"` +
+    const isDry = slot === 'ammo' && dry;
+    let title = def ? `${meta.label}: ${def.n} — click to change` : `${meta.label} — empty, click to equip`;
+    if (isDry) title = `${meta.label} — ${dry}`;
+    return `<button type="button" class="fsm-slot${def ? '' : ' is-empty'}${isDry ? ' hr-ammo-dry' : ''}" data-cs-act="slot"` +
       ` data-slot="${esc(slot)}" title="${esc(title)}" aria-label="${esc(title)}"${style}>` +
       (def ? itemImg(id, 'fsm-slot-art') : `<span class="fsm-slot-gly">${slotGlyph(slot)}</span>`) +
+      (isDry ? '<i class="fsm-ammo-dry-tag">Dry</i>' : '') +
       `<em>${esc(meta.label)}</em></button>`;
   }).join('');
   if (host.dataset.sig === html) return;

@@ -3525,6 +3525,19 @@ jobs:
           node tests/attended-fall.mjs
           node tests/attended-fall.mjs --selftest
 
+      # W0 COHERENCE AUDIT, TOP-10 #7 / #8 + THE RUNECRAFTING RULING.
+      # An empty bow/staff slot is "run dry" (never better than running out),
+      # attended and away; the free tier-1 rung of every ammo ladder is in the
+      # starter kit and the shop; Runecrafting's level-1 loop (mine essence ->
+      # cut blanks -> bind Earth -> spend it casting) closes with nothing else
+      # trained; the Prayer ward lands identically attended, away and on the
+      # 10 s world tick. 8 mutations, credential-free, seconds.
+      - name: W0 - ammo runs dry, Runecrafting starts alone, Prayer wards every path
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/w0e-ammo-runecraft-prayer.mjs
+          node tests/w0e-ammo-runecraft-prayer.mjs --selftest
+
       # -- THE PRESENTATION-LAYER FLOOR (cleanup slice 1) --------------------
       # Three ratchets on the things CLAUDE.md has asserted for months while
       # nothing measured them. None of them asks for the existing debt to be paid

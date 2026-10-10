@@ -615,6 +615,7 @@ export const LIB2_DESC = {
   dressed_block: 'A rough block squared on all six faces — the mason\'s first honest day',
   granite_block: 'A dressed granite block, heavy enough that two men set it and one man regrets it',
   basalt_block: 'A dressed basalt block, dark as a well and twice as cold',
+  rune_essence: 'Pale humming stone off the essence face, the raw stuff every blank rune is cut out of',
   rune_blank: 'A blank stone chip, cut square and waiting for a mark',
   fine_rune_blank: 'A finely cut blank of granite, smooth enough to take a small and complicated mark',
   deep_rune_blank: 'A basalt blank cut deep, for marks that must not wear away',
@@ -636,8 +637,8 @@ export const LIB2_DESC = {
        surface shows the remaining count teaches the mechanic in the worst
        possible order. These seven lines are the one place the wording changes
        when that indicator lands. */
-  air_rune: 'Socketed in a staff for a first thread of Magic strength — barely a whisper, and a student\'s whole arsenal',
-  earth_rune: 'Socketed for Magic strength; a stone rune heavy in the palm out of all proportion to its size',
+  air_rune: 'Socketed in a staff for a first thread of Magic strength, and it never runs out — a student\'s whole arsenal',
+  earth_rune: 'Socketed for Magic strength and spent one per cast; a stone rune heavy in the palm out of all proportion to its size',
   water_rune: 'Socketed for Magic strength; a rune that beads with moisture in a dry room',
   fire_rune: 'Socketed for Magic strength; a rune warm enough to find in a dark pack',
   chaos_rune: 'Socketed for Magic strength; its mark will not stay quite the same shape between glances',

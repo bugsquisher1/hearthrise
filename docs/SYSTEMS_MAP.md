@@ -103,6 +103,23 @@ Rungs 40–99 are the 2026-09-12 ruling; before it the bench stopped at 35 and h
 no action for 64 levels. The ladder is asserted strictly increasing and
 reaching 99 by `PRAYER-LADDER-1` in the in-page suite.
 
+**Prayer wards (W0, 2026-10-10).** `PRAYER_WARDS` in `src/data/skills.js`
+(`{lv, pct}` rows, capped by `PRAYER_WARD_MAX_PCT`) is read by
+`prayerWardPct()` inside `monsterCombatRolls` (src/core/combat.js): the monster's
+landed-hit chance is multiplied by `1 - pct/100` after its clamp. That one
+function prices every monster swing on the live tick, the away accrual and the
+world tick, so a row edit moves all three (edge redeploy). Guard:
+`tests/w0e-ammo-runecraft-prayer.mjs`.
+
+**Runecrafting supplies itself (W0).** `mine_rune_essence` (input-free,
+`xpSkill: 'mining'`, the quarry pattern) → `cut_rune_blanks` / `split_rune_blanks`
+(essence → blanks) → `bind_earth_runes` at level 1. Air runes (the free tier-1
+rung) are starter kit + shop only. Fine/deep blanks stay on Stonemason.
+
+**Ammo (W0).** `AMMO_EMPTY_SLOT_IS_DRY` (src/core/ammo.js) makes an empty
+bow/staff slot fight at x0.25; the free tier-1 rung of every ladder is in
+`START_INVENTORY` and `SEED_SHOP`; the combat rail marks the slot `hr-ammo-dry`.
+
 ### 4. Gathering nodes — data
 `src/data/gathering.js` → `TREES` / `ROCKS` / `FISH_SPOTS` (arrays of
 `{id,name,icon,req,xp,ms,prod,qty}`) and `CROPS` (farming). Add a row = a new

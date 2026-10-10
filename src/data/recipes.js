@@ -574,7 +574,11 @@ export const ARTISAN_CATEGORIES = {
 
      Two labels, one derivation each, no hand-tagging — and the answer to "why
      would I choose this one" is finally on the screen. */
+  /* W0 (2026-10-09): a third lane, FIRST, because the skill now supplies
+     itself — mine Rune Essence, cut it to blanks, then bind. The lane holds
+     the input-free essence rung and both essence->blank cuts. */
   runecrafting: [
+    { key: 'essence', label: 'Essence & Blanks' },
     { key: 'staff',   label: 'Staff Runes' },
     { key: 'enchant', label: 'Weapon Enchants' },
   ],
@@ -643,6 +647,11 @@ export function recipeCategory(skillId, recipe, items = ITEMS) {
        can only enchant with it once. */
     if (out && out.tag === 'rune') return 'enchant';
     if (type === 'ammo') return 'staff';
+    /* W0: the self-supply lane — the input-free essence rung and the blank
+       cuts, derived from the same two properties Stonemason's quarry and
+       blank lanes use. */
+    const rcInputs = recipe.inputs || (recipe.input ? { [recipe.input]: 1 } : {});
+    if (Object.keys(rcInputs).length === 0 || /_blank$/.test(outId)) return 'essence';
     return null;
   }
 

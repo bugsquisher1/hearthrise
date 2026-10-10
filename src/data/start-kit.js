@@ -105,12 +105,24 @@ export const START_SKILL_XP = Object.freeze({
    `shrimp` stays (8 -> 10) because it is the INPUT half of that lesson: the
    `first_cook` quest asks for 5 dishes and `cook_shrimp` is the level-1 recipe.
    A kit with only cooked food would hand the player the output and hide the
-   verb. */
+   verb.
+
+   ── W0 · EVERY STYLE STARTS SUPPLIED (coherence audit Top-10 #7, 2026-10-09) ──
+   An empty ammo slot on a bow or a staff now counts as "run dry" (x0.25 max
+   hit, src/core/ammo.js AMMO_EMPTY_SLOT_IS_DRY), so the kit carries the FREE
+   tier-1 rung of all three ladders. Each is `ammoPerShot: 0` and never
+   depletes, so the quantity is a stack that reads as a supply, not a clock:
+   whichever weapon the player picks up first, its ammo is already in the bag.
+   The same three are on the Local Shop counter (legacy.js SEED_SHOP), so a
+   player who sells them is never locked out. */
 export const START_INVENTORY = Object.freeze({
   turnip_seed: 5,
   carrot_seed: 3,
   shrimp: 10,
   cooked_shrimp: 20,
+  bronze_arrows: 50,
+  air_rune: 50,
+  coarse_whetstone: 10,
 });
 
 /* Equipment. equip_slot -> item_id. Every pair must exist in

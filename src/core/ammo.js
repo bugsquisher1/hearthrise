@@ -136,7 +136,16 @@ export function styleNeedsAmmo(weaponType) {
    the other way — "you can still train ranged or magic with NO arrows/runes,
    it is just very very weak."
 
-   It is a DATA FLIP rather than a fix here, and it is left FALSE.
+   FLIPPED TO TRUE — W0 coherence audit, Top-10 #7 (Game Designer, 2026-10-09;
+   Tyler: "do it all"). An empty ammo slot on a bow or a staff is now "run
+   dry", so the empty quiver stops being the dominant play and Fletching and
+   Runecrafting get a buyer. What keeps it from punishing a new player: the
+   tier-1 rung of every ladder is free (`ammoPerShot: 0`, never depletes), it
+   is in the starter kit (src/data/start-kit.js) and it is on the Local Shop
+   counter, so "supplied" costs a brand-new character nothing. And the floor
+   argument below still holds: at low levels x0.25 and x1 are the same max hit.
+   The indicator the coupling below demands ships in the same build: the
+   combat rail's ammo slot carries `hr-ammo-dry` (src/features/combat-screens.js).
 
    ⚠⚠ THE HARD COUPLING — THIS FLAG MAY NOT FLIP TO TRUE WITHOUT THE
        EMPTY-QUIVER INDICATOR IN THE SAME BUILD. Not a preference; a
@@ -171,7 +180,7 @@ export function styleNeedsAmmo(weaponType) {
    even while the penalty is off), so a UI-without-flag build stays green. Only
    the dangerous ordering — penalty without sign — goes red, and it goes red
    with the reason attached. */
-export const AMMO_EMPTY_SLOT_IS_DRY = false;
+export const AMMO_EMPTY_SLOT_IS_DRY = true;
 
 /** The greppable proof that the empty-quiver indicator exists. See the block
  *  above: `AMMO_EMPTY_SLOT_IS_DRY` may not be true unless this token appears in
@@ -396,9 +405,11 @@ export function readAmmo(state, ctx) {
        questions the split tables answer — melee says yes here and no to
        `needed`, which is R5 in two booleans. */
     spends: styleSpendsAmmo(weaponType),
-    /* `dry` means "this style wants ammo, this rung costs ammo, and there is
-       none" — the only combination that pays the penalty. */
-    dry: styleNeedsAmmo(weaponType) && perShot > 0 && stock <= 0,
+    /* `dry` means "this style wants ammo and the swing is unsupplied": either
+       a paid rung with none left, or (AMMO_EMPTY_SLOT_IS_DRY) nothing in the
+       slot at all. Derived from `mult` so the flag and the penalty are one
+       statement and cannot disagree. */
+    dry: mult < 1,
     mult,
   };
 }
@@ -469,6 +480,7 @@ export function spendForSwings(state, swings, ctx) {
   if (spent > 0 && typeof c.fx?.removeItem === 'function') c.fx.removeItem(info.id, spent);
 
   const after = info.stock - spent;
+  const restMult = ammoDamageMult({ weaponType: info.weaponType, perShot: info.perShot, stock: after, equipped: !!info.id });
   return {
     id: info.id,
     spent,
@@ -490,7 +502,7 @@ export function spendForSwings(state, swings, ctx) {
          reached nothing today (the fight reads `startMult`), which is exactly
          the kind of latent wrong answer the next consumer inherits. One
          expression, asked twice. */
-    mult: ammoDamageMult({ weaponType: info.weaponType, perShot: info.perShot, stock: after, equipped: !!info.id }),
-    dry: info.needed && after <= 0,
+    mult: restMult,
+    dry: restMult < 1,
   };
 }

@@ -6,8 +6,8 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 235d6a1646672e176de12a59da3761519f8d972f0335f1a850b42b30217a31d6
---   rows: 538 items (20 untradeable) ·
+--   catalogue digest: ae113c399a0f85cb7fd52ced3742d147c726c4bc9e34747d383a626d932bb23b
+--   rows: 539 items (20 untradeable) ·
 --         280 item-slot pairs · 15 equip slots ·
 --         17 skills · 9 crops · 514 activities ·
 --         3 runes
@@ -527,6 +527,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('rune_belt','Rune Belt',true,'armor',3600,'defense',60,null,false),
   ('rune_blank','Blank Rune',true,null,5,null,null,null,false),
   ('rune_boots','Rune Boots',true,'armor',3600,'defense',60,null,false),
+  ('rune_essence','Rune Essence',true,null,15,null,null,null,false),
   ('rune_frag','Rune Fragment',true,null,30,null,null,null,false),
   ('rune_gauntlets','Rune Gauntlets',true,'armor',3150,'defense',60,null,false),
   ('rune_hammer','Rune Hammer',true,'tool',9200,null,null,null,false),
@@ -1046,11 +1047,10 @@ insert into public.hr_crops (crop_id, seed_item, prod_item, base_hours, req_lv, 
 
 insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, is_boss) values
   ('artisan','banish_demon_shard','prayer',65,null,false),
-  ('artisan','bind_air_runes','runecrafting',1,null,false),
   ('artisan','bind_blood_runes','runecrafting',88,null,false),
   ('artisan','bind_chaos_runes','runecrafting',60,null,false),
   ('artisan','bind_death_runes','runecrafting',75,null,false),
-  ('artisan','bind_earth_runes','runecrafting',15,null,false),
+  ('artisan','bind_earth_runes','runecrafting',1,null,false),
   ('artisan','bind_ember_rune','runecrafting',25,null,false),
   ('artisan','bind_fire_runes','runecrafting',45,null,false),
   ('artisan','bind_frost_rune','runecrafting',25,null,false),
@@ -1220,7 +1220,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','cut_ashlar','stonemason',45,null,false),
   ('artisan','cut_deep_blanks','stonemason',74,null,false),
   ('artisan','cut_fine_blanks','stonemason',38,null,false),
-  ('artisan','cut_rune_blanks','stonemason',1,null,false),
+  ('artisan','cut_rune_blanks','runecrafting',1,null,false),
   ('artisan','deepbind_blood','runecrafting',93,null,false),
   ('artisan','deepbind_chaos','runecrafting',69,null,false),
   ('artisan','deepbind_earth','runecrafting',24,null,false),
@@ -1371,6 +1371,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','make_willow_staff','crafting',36,null,false),
   ('artisan','make_yew_bow','crafting',65,null,false),
   ('artisan','make_yew_staff','crafting',66,null,false),
+  ('artisan','mine_rune_essence','runecrafting',1,null,false),
   ('artisan','offer_ancient_claw','prayer',92,null,false),
   ('artisan','offer_razor_claw','prayer',52,null,false),
   ('artisan','purge_void_chitin','prayer',99,null,false),
@@ -1398,7 +1399,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','smelt_steel','smithing',30,null,false),
   ('artisan','smelt_verdite','smithing',42,null,false),
   ('artisan','smith_iron_fitting','smithing',25,null,false),
-  ('artisan','split_rune_blanks','stonemason',22,null,false),
+  ('artisan','split_rune_blanks','runecrafting',12,null,false),
   ('artisan','tailor_dawnlit_mantle','crafting',91,null,false),
   ('artisan','tailor_houndskin_cloak','crafting',28,null,false),
   ('artisan','tailor_leather_boots','crafting',8,null,false),
@@ -1576,7 +1577,10 @@ insert into public.hr_start_skill_xp (skill_id, xp) values
   ('hitpoints',1154);
 
 insert into public.hr_start_inventory (item_id, qty) values
+  ('air_rune',50),
+  ('bronze_arrows',50),
   ('carrot_seed',3),
+  ('coarse_whetstone',10),
   ('cooked_shrimp',20),
   ('shrimp',10),
   ('turnip_seed',5);
@@ -1590,7 +1594,7 @@ insert into public.hr_runes (rune_id, element) values
   ('poison_rune','poison');
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '235d6a1646672e176de12a59da3761519f8d972f0335f1a850b42b30217a31d6', now())
+  values (true, 'ae113c399a0f85cb7fd52ced3742d147c726c4bc9e34747d383a626d932bb23b', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1618,7 +1622,7 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 538 then raise exception 'hr_items has % rows, generator emitted 538', v_n; end if;
+  if v_n <> 539 then raise exception 'hr_items has % rows, generator emitted 539', v_n; end if;
   select count(*) into v_n from public.hr_items where not tradeable;
   if v_n <> 20 then
     raise exception 'untradeable count is %, generator emitted 20', v_n;
@@ -1755,7 +1759,7 @@ begin
   select count(*) into v_n from public.hr_runes;
   if v_n <> 3 then raise exception 'hr_runes has % rows, generator emitted 3', v_n; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 235d6a1646672e176de12a59da3761519f8d972f0335f1a850b42b30217a31d6',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest ae113c399a0f85cb7fd52ced3742d147c726c4bc9e34747d383a626d932bb23b',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

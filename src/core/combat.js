@@ -18,6 +18,7 @@
 // ============================================================
 
 import { levelOf } from './xp.js?v=564';
+import { PRAYER_WARDS, PRAYER_WARD_MAX_PCT } from '../data/skills.js?v=564';
 import {
   baneIndex, baneMultFor, classOfMonster, MAX_COMBINED_DAMAGE_MULT,
 } from './bane.js?v=564';
@@ -532,16 +533,37 @@ export function playerCombatRolls(monster, ctx) {
 /**
  * @param ctx { eq, skills, bonus }
  */
+/**
+ * The Prayer ward, in percent, for a skills map ({ skillId: xp }). The highest
+ * PRAYER_WARDS row whose `lv` the Prayer level reaches; 0 below the first row.
+ * Clamped to [0, PRAYER_WARD_MAX_PCT] so a bad data row cannot buy immunity.
+ * Exported so the UI quotes the same number the fight applies.
+ */
+export function prayerWardPct(skills) {
+  const lv = levelOf(skills || {}, 'prayer');
+  let pct = 0;
+  for (const row of PRAYER_WARDS) if (lv >= row.lv) pct = Number(row.pct) || 0;
+  return Math.max(0, Math.min(PRAYER_WARD_MAX_PCT, pct));
+}
+
 export function monsterCombatRolls(monster, ctx) {
   const c = ctx || {};
   const b = COMBAT_BALANCE;
   const eq = c.eq || {};
   const bonus = typeof c.bonus === 'function' ? c.bonus : () => 0;
   const playerDefense = levelOf(c.skills || {}, 'defense') + (eq.defB || 0) + (bonus('defense') || 0);
-  const accuracy = clamp(
+  const landed = clamp(
     b.monsterBaseAccuracy + ((((monster && monster.atk) || 1) - playerDefense) * b.monsterAccuracyPerPoint),
     b.monsterMinAccuracy, b.monsterMaxAccuracy,
   );
+  /* THE PRAYER WARD (W0, Top-10 #8). Applied AFTER the clamp, as a share of
+     blows turned aside, so expected damage taken falls by exactly `ward`% at
+     every monster size and the min-accuracy floor cannot swallow it. This is
+     the ONE function every path prices a monster swing through (legacy
+     getMonsterCombatRolls, hr-accrue accrual.js -> world tick), so attended,
+     away and tick apply the same ward from the same skills map. No RNG draw. */
+  const ward = prayerWardPct(c.skills);
+  const accuracy = ward > 0 ? landed * (1 - ward / 100) : landed;
   const maxHit = Math.max(1, Math.floor(((monster && monster.atk) || 1) * b.monsterAttackDamageScale));
   return { accuracy, maxHit };
 }

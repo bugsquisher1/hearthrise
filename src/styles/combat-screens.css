@@ -449,6 +449,15 @@
 }
 #panel-combat .fsm-slot:hover, #panel-combat .fsm-slot:focus-visible { border-color: var(--gold-2); }
 #panel-combat .fsm-slot.is-empty { border-style: dashed; }
+/* The empty-quiver indicator (src/core/ammo.js AMMO_DRY_UI_MARKER): a bow or a
+ * staff with nothing to loose hits at x0.25, and the slot has to say so. */
+#panel-combat .fsm-slot.hr-ammo-dry { border-color: var(--red); border-style: solid; }
+#panel-combat .fsm-ammo-dry-tag {
+  position: absolute; top: 1px; right: 2px;
+  font-style: normal; font-family: var(--f-label, var(--f-ui));
+  font-size: var(--t-micro, 11px); line-height: 1;
+  color: var(--red);
+}
 #panel-combat .fsm-slot-art { display: flex; width: 100%; height: 100%; }
 #panel-combat .fsm-slot-art img { width: 100%; height: 100%; object-fit: contain; }
 #panel-combat .fsm-slot-gly { display: block; width: 46%; height: 46%; color: var(--gold-2); opacity: .55; }

@@ -670,6 +670,9 @@ window._monsterIcon = window._monsterIcon || {};
        pack, so `basalt` stands in for the ore and steel's grey ingot for the
        bar. Three plates, a blade, a maul, an ore, a bar and a garnet is the
        re-shoot list if this band is ever painted. */
+    /* W0: Rune Essence borrows the pale granite chunk until it is painted
+       (owed to the Art Director with the rest of the W0 ammo lane). */
+    rune_essence: 'assets/icons-bundle/hearthfire/items/granite.png',
     verdite_ore:  'assets/icons-bundle/hearthfire/items/basalt.png',
     flux_salt:    'assets/icons-bundle/hearthfire/items/rubble.png',
     heartgarnet:  'assets/icons-bundle/hearthfire/items/ruby.png',

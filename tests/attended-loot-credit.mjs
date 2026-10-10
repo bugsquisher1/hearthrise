@@ -746,8 +746,13 @@ function a8_hostile() {
 function a9_unsurvivable() {
   const FROM = Date.UTC(2026, 8, 4, 0, 0, 0);
   const span = 24 * 3600000;
+  /* W0 (2026-10-10): PRAYER IS LEFT AT 1. Prayer now wards a share of monster
+     blows (src/data/skills.js PRAYER_WARDS), so a Prayer-99 body survives long
+     enough to land one kill on the_silence in 24 h and the fixture stopped
+     reproducing the case it exists for. The property is "the sim cannot
+     survive"; a 0-Prayer maxed fighter is the same unsurvivable matchup. */
   const MAXED_SKILLS = {};
-  for (const k of ['attack', 'strength', 'defense', 'hitpoints', 'ranged', 'magic', 'prayer']) {
+  for (const k of ['attack', 'strength', 'defense', 'hitpoints', 'ranged', 'magic']) {
     MAXED_SKILLS[k] = 13034431;
   }
   const out = engine({

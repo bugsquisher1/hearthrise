@@ -167,7 +167,12 @@ begin
       ('smelt_mithril','smithing',45),         ('smelt_rune','smithing',60),
       ('smelt_deathsteel_ingot','smithing',60),('smelt_ember','smithing',75),
       ('smelt_dawn','smithing',88),            ('saw_duskwood','crafting',88),
-      ('cut_rune_blanks','stonemason',1),      ('craft_demoncaller_staff','crafting',75),
+      -- POST-APPLY AMENDMENT (self-check ONLY, no body/data; W0 2026-10-16):
+      -- cut_rune_blanks moved to the RUNECRAFTING bench at the same level 1
+      -- (2026-10-16-w0e-ammo-runecraft.sql). The regenerated catalogue replays
+      -- before this file and carries that move, so the restated bench reads
+      -- runecrafting; the req_lv this ruling set (1) is unchanged.
+      ('cut_rune_blanks','runecrafting',1),    ('craft_demoncaller_staff','crafting',75),
       ('forge_crown_of_the_fallen_king','smithing',88),
       ('jewel_dawnbound_amulet','crafting',88),('jewel_dawnforged_signet','crafting',88),
       ('jewel_dragon_gem_earrings','crafting',88)
@@ -204,7 +209,9 @@ begin
       ('smelt_dawn',             'forge_dawn_gauntlets'),
       ('smelt_deathsteel_ingot', 'forge_watchknight_gloves'),
       ('saw_duskwood',           'craft_voidhide_gloves'),
-      ('cut_rune_blanks',        'bind_air_runes'),
+      -- POST-APPLY AMENDMENT (W0 2026-10-16): bind_air_runes is retired; the
+      -- first rung that eats a blank is now bind_earth_runes (Runecrafting 1).
+      ('cut_rune_blanks',        'bind_earth_runes'),
       ('saw_oak',                'carve_longbow'),
       ('saw_normal',             'carve_apprentice_staff'),
       ('saw_runewood',           'craft_demoncaller_staff'),

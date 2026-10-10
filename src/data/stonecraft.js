@@ -209,15 +209,8 @@ export const STONECRAFT_ITEMS = {
      That is paid for by magic's 2,520 ms cast interval — it burns 16% fewer
      consumables per hour than a bow at identical item values (§6.2). The
      deeper chain buys the cheaper burn. */
-  /* W0 RUNECRAFTING RULING (2026-10-09, coherence audit): Runecrafting cuts
-     its own blanks from RUNE ESSENCE, mined at level 1 on its own bench
-     (`mine_rune_essence`, below — paid to MINING, the quarry pattern), so the
-     skill no longer needs a second skill (Stonemason) to start. It mints from
-     nothing, so items.js lists it in RAW_QUARRIED and the vendor bids the 20%
-     raw rate (3 g). v 15 is set by the VENDOR side (tests/recipe-yield-guard
-     RATIO_CAP 5x): four essences bid 12 g and cut twelve blanks that vendor
-     for 36 g (3.0x); six bid 18 g and split twenty for 60 g (3.3x). At book
-     value the cuts are 1.0x / 1.11x, so the blank lane mints no gold. */
+  /* W0: Runecrafting's own blank stock, mined on its bench (RAW_QUARRIED).
+     v 15 keeps the essence->blank cuts at 3.0x/3.3x vendor, 1.0x/1.1x book. */
   rune_essence:    { n: 'Rune Essence',    icon: '🪨', v: 15, tier: 1, rarity: 'common' },
   rune_blank:      { n: 'Blank Rune',      icon: '⬜', v: 5,  tier: 1, rarity: 'common' },
   fine_rune_blank: { n: 'Fine Blank Rune', icon: '🔲', v: 28, tier: 3, rarity: 'uncommon' },
@@ -329,29 +322,11 @@ export const STONECRAFT_RECIPES = {
        ignores it, so moving staves to Runecrafting is a two-line generator
        change expressed as data. Left alone here because that same field routes
        BOWS to Fletching and that agent owns the change.) */
-    /* ── W0 RUNECRAFTING RULING (Game Designer, 2026-10-09 coherence audit) ──
-       Tyler: "it doesn't make sense". The first hour made AIR runes, which are
-       the free tier-1 rung (`ammoPerShot: 0`) — one is a permanent supply, so
-       an hour of the skill produced a rune nothing ever spent.
-         1. The first action makes a rune that IS spent: EARTH runes, at 1.
-         2. Air runes come in the starter kit and on the shop counter, so
-            `bind_air_runes` is retired (nothing to make that you do not own).
-         3. The skill cuts its own blanks from Rune Essence, mined on this
-            bench at level 1 and paid to Mining, so it starts with no second
-            skill trained.
-       WHY THE ESSENCE "ROCK" IS A BENCH ROW AND NOT A ROCKS NODE: the same
-       reason as Stonemason's quarry lane (header, §8.4 reason 1). A level-1
-       node in ROCKS would sit beside Copper at Mining 1 and break the standing
-       "one node per level" bench gate (deep-seam / deep-waters GATE b2) and
-       re-pin the gathering engine; an input-free artisan row with
-       `xpSkill: 'mining'` is legal server-side today and opens the bench with
-       the whole chain on one screen: mine -> cut -> bind -> cast.
-         4. The element runes stay at 25.
-         5. Stonemason keeps quarrying, whetstones and castle stone; the fine
-            and deep blanks stay on its bench because they are cut from its
-            granite and basalt blocks.
-       Earth's book XP drops 50 -> 12 because it is now the level-1 rung (air
-       paid 9); its batch and inputs are unchanged. */
+    /* W0 RUNECRAFTING RULING (2026-10-09): the first rung makes a SPENT rune
+       (Earth, at 1); air runes are kit + shop only; the skill mines its own
+       essence (a bench row paid to Mining, the quarry pattern: a level-1 ROCKS
+       node would break the one-node-per-level bench gate) and cuts its own
+       blanks. Elements stay at 25; fine/deep blanks stay with Stonemason. */
     { id: 'mine_rune_essence',  name: 'Mine Rune Essence',    icon: '🪨', inputs: {},                             output: 'rune_essence', outputQty: 2, xp: 6, req: 1, ms: 3000, xpSkill: 'mining' },
     { id: 'cut_rune_blanks',    name: 'Cut Blank Runes',      icon: '⬜', inputs: { rune_essence: 4 },            output: 'rune_blank', outputQty: 12, xp: 8,   req: 1,  ms: 2800 },
     { id: 'bind_earth_runes',   name: 'Bind Earth Runes',     icon: '🌍', inputs: { rune_blank: 6 },              output: 'earth_rune', outputQty: 45, xp: 12,  req: 1,  ms: 3400 },
@@ -468,10 +443,7 @@ export const STONECRAFT_RECIPES = {
        (a blank costs 2 dressed blocks, and dressing is the level-1 rung), and the
        gold route stays the lazy route at 400 g per 50. A player who picks
        Runecrafting first is now self-supplying at level 1 of both skills. */
-    /* W0: the two BASE blank rungs (`cut_rune_blanks`, `split_rune_blanks`)
-       moved to Runecrafting above, cut from Rune Essence — Runecrafting no
-       longer needs this bench to start. The fine and deep blanks stay: they
-       are cut from this skill's own granite and basalt. */
+    /* W0: the two base blank cuts moved to Runecrafting (from essence). */
     { id: 'cut_fine_blanks',   name: 'Cut Fine Blank Runes', icon: '🔲', inputs: { granite_block: 2, dressed_block: 2 },     output: 'fine_rune_blank', outputQty: 14, xp: 400, req: 38, ms: 3400 },
     { id: 'cut_deep_blanks',   name: 'Cut Deep Blank Runes', icon: '🔳', inputs: { basalt_block: 3, magic_essence: 1 },      output: 'deep_rune_blank', outputQty: 20, xp: 1500, req: 74, ms: 4000 },
 

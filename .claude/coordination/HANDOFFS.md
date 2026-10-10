@@ -3,6 +3,18 @@
 _The primary agent-to-agent teaching mechanism. When your work affects another specialist, write a handoff here. Append newest at top._
 
 
+### 2026-10-10 · FROM Systems Engineer → TO Game Designer + Art Director + Security · **W0 ammo / Runecrafting / Prayer (lane/w0e-ammo-runecraft-prayer)**
+
+**Game Designer — proposed numbers, all data rows (retune a row, not a branch):**
+- `PRAYER_WARDS` (src/data/skills.js): 2% per decade of Prayer, 20% at 99, cap 25%. A share of monster blows turned aside (landed chance x (1 - pct/100) after the clamp), so expected damage taken falls exactly pct% on the live tick, away and the world tick.
+- Runecrafting: `mine_rune_essence` (input-free, 2 per 3.0 s, pays Mining xp 6), `cut_rune_blanks` 4 essence → 12 blanks (xp 8, req 1), `split_rune_blanks` 6 → 20 (xp 40, req 12), `bind_earth_runes` req 15 → 1 and xp 50 → 12; `bind_air_runes` retired. `rune_essence` v 15 (fixed by recipe-yield-guard's 5x vendor ratio).
+- Starter kit + Local Shop: bronze_arrows 50, air_rune 50, coarse_whetstone 10 (60 g per bundle).
+
+**Art Director:** the empty-quiver indicator is a minimal token-only mark on the combat rail's ammo slot (`.fsm-slot.hr-ammo-dry`, `--red` border + "Dry" tag + title). The Character > Equipment doll does not show it yet. Rune Essence borrows `granite.png`.
+
+**Security:** staged `2026-10-16-w0e-ammo-runecraft.sql`, plus POST-APPLY AMENDMENTS (self-check literals only) in `2026-09-13-self-supply-ladder.sql` and `2026-09-03-start-kit-food-bridge.sql`. The engine half (edge payload) is the empty-slot x0.25 and the Prayer ward in `monsterCombatRolls`.
+
+
 ### 2026-10-06 · FROM Game Designer → TO Systems Engineer + Security (lane C/edge) · **b563: an outclassed foe still bleeds a hero dry — the fix is in src/core, not data**
 
 **Live finding.** QA Hero 2 (Combat 25, Slime, auto-eat Cooked Shrimp) ate 20 bought shrimp before

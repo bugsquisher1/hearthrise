@@ -549,11 +549,7 @@ try{ window.HOUSE_THEMES = HOUSE_THEMES; }catch(_){}
    ⏳ FOLLOW-UP FOR SYSTEMS: the generated offer ids read `seed.rune_blank`
       (tools/gen-shops.mjs keys them off the table name). Harmless, internal,
       and worth renaming the table to SUPPLY_SHOP when this data leaves
-      legacy.js — the generator anchor and the SQL offer ids move together.
-   W0 (coherence audit Top-10 #7): the FREE tier-1 rung of every ammo ladder
-   (Bronze Arrows, Air Runes, Coarse Whetstones) is on the counter, because an
-   empty bow/staff slot now fights at x0.25. They never deplete, so one bundle
-   is a permanent supply; priced above book value (no vendor arbitrage). */
+      legacy.js — the generator anchor and the SQL offer ids move together. */
 const SEED_SHOP=[{id:'bronze_arrows',qty:50,cost:60},{id:'air_rune',qty:50,cost:60},{id:'coarse_whetstone',qty:10,cost:60},{id:'cooked_shrimp',qty:5,cost:150},{id:'cooked_trout',qty:5,cost:450},{id:'turnip_seed',qty:10,cost:50},{id:'carrot_seed',qty:10,cost:100},{id:'wheat_seed',qty:10,cost:150},{id:'potato_seed',qty:5,cost:100},{id:'tomato_seed',qty:5,cost:150},{id:'pumpkin_seed',qty:3,cost:150},{id:'goldenroot_seed',qty:3,cost:450},{id:'emberfruit_seed',qty:3,cost:900},{id:'moonbloom_seed',qty:2,cost:1600},{id:'rune_blank',qty:20,cost:140},{id:'cooked_lobster',qty:5,cost:2000}];
 const EQUIP_SHOP=[{id:'bronze_sword',cost:100},{id:'apprentice_staff',cost:120},{id:'shortbow',cost:120},{id:'stone_maul',cost:140},{id:'iron_sword',cost:500},{id:'oak_staff',cost:650},{id:'longbow',cost:650},{id:'iron_warhammer',cost:750},{id:'steel_sword',cost:2000},{id:'iron_helm',cost:300},{id:'iron_platebody',cost:800},{id:'steel_platebody',cost:1500},{id:'leather_boots',cost:250},{id:'traveler_cape',cost:400},{id:'copper_ring',cost:350},{id:'hunter_necklace',cost:500},{id:'leather_gloves',cost:225},{id:'bronze_belt',cost:300},{id:'fox_companion',cost:1200}];
 

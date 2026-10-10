@@ -1461,10 +1461,10 @@
     var _hold = (_A && typeof _A.getLastAwayReceipt === 'function') ? _A.getLastAwayReceipt() : null;
     if (!_isAway(_off)) _off = null;
     if (_isAway(_hold) && (!_off || (Number(_hold.at) || 0) > (Number(_off.at) || 0))) _off = _hold;
-    var awayShown = false;
+    var awaySaidHaul = false;   // the away card already named what its haul unlocks
     if (_off && _off.at && (Date.now() - _off.at) < 30 * 60000) {
       html += awayCardHtml(_off);
-      awayShown = true;
+      try { awaySaidHaul = !!(_off.serverAuthoritative === true && _off.itemsIn && window.HearthriseHaulUnlocks.line(_off.itemsIn)); } catch (e) {}
     }
 
     /* THE COMMON — its OWN row, above the working grid and below the night's
@@ -1509,9 +1509,9 @@
     var chainCard = firstDay || roadModel();
     html += firstDayHtml(chainCard);
     /* W0 — "you have enough to build your Hearthside Homestead": the standing
-       Home line, from the server's holdings. Not drawn under a fresh away card,
-       which already says what the haul unlocks. */
-    if (!awayShown) html += haulUnlocksRow();
+       Home line, from the server's holdings. Not drawn when the away card above
+       has just said what the haul unlocks. */
+    if (!awaySaidHaul) html += haulUnlocksRow();
 
     /* ── AND THEN "NEXT UP" MUST NOT SAY IT AGAIN ──────────────────────────
        IT IS A CLASS, NOT ONE ROW. `getNextMilestone()` picks the closest OPEN

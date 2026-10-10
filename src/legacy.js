@@ -5095,7 +5095,7 @@ const MIRRORED_QUEST_SOURCES={
      so this reads a number hr_claim_quest can and does verify. */
   'stats.harvested':function(g){ var n=Number((g&&g.stats&&g.stats.harvested)||0); return (isFinite(n)&&n>0)?Math.floor(n):0; },
 };
-/* Counts that are a server STATE, not an ev: counter (src/core/goals.js STATE_GOAL_TYPES): the answer or null. */
+/* Counts that are a server STATE, not an ev: counter (src/data/goal-catalogue.js STATE_GOAL_TYPES): the answer or null. */
 const SERVER_QUEST_COUNTS={ property:function(){ var P=window.HearthriseProperty; return (P&&typeof P.serverPropertyTier==='function')?P.serverPropertyTier():null; } };
 MIRRORED_QUEST_SOURCES['property.tier']=function(){ return SERVER_QUEST_COUNTS.property()||0; };
 /* Journeyman's Road: dedicated projections (see EVENT_COUNTER_PROJECTION), same defensive shape. */

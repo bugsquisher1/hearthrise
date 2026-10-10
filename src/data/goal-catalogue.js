@@ -115,6 +115,18 @@ export const QUEST_REWARDS = Object.freeze({
   road_harvest: { checkKey: 'ev:harvest',  goal: 40,  gold: 1500, items: Object.freeze({ potato_seed: 10 }) },
 });
 
+/* QUEST TYPES THAT READ A SERVER *STATE*, NOT AN `ev:` COUNTER (W0, 2026-10-10).
+   "Upgrade to a Homestead" is done when the server's property rung >= the goal:
+   hr_unlock_buy writes the rung, hr_state_of projects it, net/property-record.js
+   serverPropertyTier reads it, so it needs no counter and no emit site. Such a row
+   pays nothing (no server claim), so it is absent from QUEST_REWARDS. A type here
+   must have a reader in legacy.js SERVER_QUEST_COUNTS; tests/goal-counters.mjs
+   G2(b) checks both halves. Lives here, not in src/core/goals.js, so the edge
+   payload does not move for a client-only reader. Value = what it reads. */
+export const STATE_GOAL_TYPES = Object.freeze({
+  property: 'the server property rung (net/property-record.js serverPropertyTier)',
+});
+
 /* ── THE ONE NORMALISER FOR A QUEST'S ITEM REWARD ────────────────────────
    legacy.js authors a quest reward as `{gold, item, qty, combatXp}` — ONE item,
    because that is all any quest has ever paid. The server catalogue is a MAP,

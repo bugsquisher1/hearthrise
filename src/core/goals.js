@@ -189,17 +189,6 @@ export const GOAL_EVENTS = Object.freeze([
                     re-opened by name rather than by a wrong counter. */
 export const UNCOUNTED_EVENTS = Object.freeze(['kill_monster']);
 
-/* GOAL TYPES THAT READ A SERVER *STATE*, NOT AN EVENT COUNTER (W0, 2026-10-10).
-   "Upgrade to a Homestead" is not N of anything: it is done when the server's
-   property rung is >= the goal. The rung is a server fact already (hr_unlock_buy
-   writes it; hr_state_of projects it; src/net/property-record.js
-   serverPropertyTier reads it), so it needs no `ev:` key and no emit site.
-   A type here must have a reader in legacy.js SERVER_QUEST_COUNTS — the guard
-   (tests/goal-counters.mjs G2(b)) checks both halves. Value = what it reads. */
-export const STATE_GOAL_TYPES = Object.freeze({
-  property: 'the server property rung (net/property-record.js serverPropertyTier)',
-});
-
 /* The key namespace. `ev:` mirrors the `recipe:` / `room:` / `plot:`
    convention 2026-08-16-artisan-progress-model.sql landed, so a reader of
    player_progress can tell at a glance which model wrote a row — and so an

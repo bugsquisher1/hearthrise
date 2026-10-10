@@ -16,15 +16,15 @@
 //   hand-authored source, tools/gen-shops.mjs is deleted, and the preflight
 //   goes with it. The filename does not change, so nothing downstream moves.
 //
-//   catalogue digest: d5e67957083c322c4e9a17f97d8065901630606f913947dba919249380242688
-//   129 offers · 225 cost lines · 6 prices that are formulas, not data
+//   catalogue digest: d155035845080c54891a51302b8056db7a7ed9be4af6971e8e5284dfcb168440
+//   121 offers · 217 cost lines · 6 prices that are formulas, not data
 //
 // EXTRACTED FROM
 //   room              40  src/legacy.js
 //   plot               4  src/legacy.js
 //   theme              6  src/legacy.js
 //   seed              13  src/legacy.js
-//   equip             19  src/legacy.js
+//   equip             11  src/legacy.js
 //   bounty             5  src/legacy.js
 //   trait              2  src/legacy.js
 //   cosmetic           4  src/render/shop.js
@@ -65,7 +65,7 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-export const SHOPS_DIGEST = "d5e67957083c322c4e9a17f97d8065901630606f913947dba919249380242688";
+export const SHOPS_DIGEST = "d155035845080c54891a51302b8056db7a7ed9be4af6971e8e5284dfcb168440";
 
 /** Every offer whose price is fully known as data. */
 export const SHOP_OFFERS = [
@@ -272,34 +272,6 @@ export const SHOP_OFFERS = [
     repeatable: true,
   },
   {
-    id: "equip.iron_helm", table: "equip",
-    name: "Iron Helm",
-    cost: [{ kind: "currency", id: "gold", amount: 300 }],
-    grant: [{ kind: "item", id: "iron_helm", amount: 1 }],
-    repeatable: true,
-  },
-  {
-    id: "equip.iron_platebody", table: "equip",
-    name: "Iron Platebody",
-    cost: [{ kind: "currency", id: "gold", amount: 800 }],
-    grant: [{ kind: "item", id: "iron_platebody", amount: 1 }],
-    repeatable: true,
-  },
-  {
-    id: "equip.iron_sword", table: "equip",
-    name: "Iron Sword",
-    cost: [{ kind: "currency", id: "gold", amount: 500 }],
-    grant: [{ kind: "item", id: "iron_sword", amount: 1 }],
-    repeatable: true,
-  },
-  {
-    id: "equip.iron_warhammer", table: "equip",
-    name: "Iron Warhammer",
-    cost: [{ kind: "currency", id: "gold", amount: 750 }],
-    grant: [{ kind: "item", id: "iron_warhammer", amount: 1 }],
-    repeatable: true,
-  },
-  {
     id: "equip.leather_boots", table: "equip",
     name: "Leather Boots",
     cost: [{ kind: "currency", id: "gold", amount: 250 }],
@@ -314,38 +286,10 @@ export const SHOP_OFFERS = [
     repeatable: true,
   },
   {
-    id: "equip.longbow", table: "equip",
-    name: "Longbow",
-    cost: [{ kind: "currency", id: "gold", amount: 650 }],
-    grant: [{ kind: "item", id: "longbow", amount: 1 }],
-    repeatable: true,
-  },
-  {
-    id: "equip.oak_staff", table: "equip",
-    name: "Oak Staff",
-    cost: [{ kind: "currency", id: "gold", amount: 650 }],
-    grant: [{ kind: "item", id: "oak_staff", amount: 1 }],
-    repeatable: true,
-  },
-  {
     id: "equip.shortbow", table: "equip",
     name: "Shortbow",
     cost: [{ kind: "currency", id: "gold", amount: 120 }],
     grant: [{ kind: "item", id: "shortbow", amount: 1 }],
-    repeatable: true,
-  },
-  {
-    id: "equip.steel_platebody", table: "equip",
-    name: "Steel Platebody",
-    cost: [{ kind: "currency", id: "gold", amount: 1500 }],
-    grant: [{ kind: "item", id: "steel_platebody", amount: 1 }],
-    repeatable: true,
-  },
-  {
-    id: "equip.steel_sword", table: "equip",
-    name: "Steel Sword",
-    cost: [{ kind: "currency", id: "gold", amount: 2000 }],
-    grant: [{ kind: "item", id: "steel_sword", amount: 1 }],
     repeatable: true,
   },
   {
@@ -965,7 +909,7 @@ export const SHOP_TABLES = [
     "origin": "src/legacy.js",
     "anchor": "const EQUIP_SHOP=[",
     "spends_at": "legacy.js buyShopItem(id, qty, cost)",
-    "count": 19
+    "count": 11
   },
   {
     "table": "bounty",

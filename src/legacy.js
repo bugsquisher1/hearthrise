@@ -551,7 +551,11 @@ try{ window.HOUSE_THEMES = HOUSE_THEMES; }catch(_){}
       and worth renaming the table to SUPPLY_SHOP when this data leaves
       legacy.js — the generator anchor and the SQL offer ids move together. */
 const SEED_SHOP=[{id:'cooked_shrimp',qty:5,cost:150},{id:'cooked_trout',qty:5,cost:450},{id:'turnip_seed',qty:10,cost:50},{id:'carrot_seed',qty:10,cost:100},{id:'wheat_seed',qty:10,cost:150},{id:'potato_seed',qty:5,cost:100},{id:'tomato_seed',qty:5,cost:150},{id:'pumpkin_seed',qty:3,cost:150},{id:'goldenroot_seed',qty:3,cost:450},{id:'emberfruit_seed',qty:3,cost:900},{id:'moonbloom_seed',qty:2,cost:1600},{id:'rune_blank',qty:20,cost:140},{id:'cooked_lobster',qty:5,cost:2000}];
-const EQUIP_SHOP=[{id:'bronze_sword',cost:100},{id:'apprentice_staff',cost:120},{id:'shortbow',cost:120},{id:'stone_maul',cost:140},{id:'iron_sword',cost:500},{id:'oak_staff',cost:650},{id:'longbow',cost:650},{id:'iron_warhammer',cost:750},{id:'steel_sword',cost:2000},{id:'iron_helm',cost:300},{id:'iron_platebody',cost:800},{id:'steel_platebody',cost:1500},{id:'leather_boots',cost:250},{id:'traveler_cape',cost:400},{id:'copper_ring',cost:350},{id:'hunter_necklace',cost:500},{id:'leather_gloves',cost:225},{id:'bronze_belt',cost:300},{id:'fox_companion',cost:1200}];
+/* W0 (coherence audit, top-10 #2): the Local Shop sells STARTER gear only — no
+   tier-2+ piece. Iron/Steel armour and weapons, the Longbow and the Oak Staff
+   undercut Smithing and Crafting 15-35, so the first upgrade a player wears is
+   one they made. Guarded by SHOP-STARTER-1 (every equip offer is tier <= 1). */
+const EQUIP_SHOP=[{id:'bronze_sword',cost:100},{id:'apprentice_staff',cost:120},{id:'shortbow',cost:120},{id:'stone_maul',cost:140},{id:'leather_boots',cost:250},{id:'traveler_cape',cost:400},{id:'copper_ring',cost:350},{id:'hunter_necklace',cost:500},{id:'leather_gloves',cost:225},{id:'bronze_belt',cost:300},{id:'fox_companion',cost:1200}];
 
 /* b221: a top-level `const` in a classic script lives in the global LEXICAL
    scope, not on `window` — so `window.SEED_SHOP` / `window.EQUIP_SHOP` were

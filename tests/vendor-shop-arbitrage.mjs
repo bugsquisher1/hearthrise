@@ -174,9 +174,9 @@ async function selftest() {
   const fails = [];
   const clean = findArbitrage({ sqlVal });
   if (clean.bad.length) fails.push(`control: tree is not clean (${clean.bad.map((b) => b.offer).join(', ')})`);
-  /* The planted victim: the offer that sat at exactly 1.00 before b565. */
-  const target = GOLD_OFFERS['equip.steel_platebody'];
-  if (!target || target.grant.length !== 1) throw new HarnessError('equip.steel_platebody is not a single-grant gold offer');
+  /* The planted victim: a starter offer whose book value (110g) is well above the half-price bid (W0: steel_platebody, the b565 victim, left the shop). */
+  const target = GOLD_OFFERS['equip.stone_maul'];
+  if (!target || target.grant.length !== 1) throw new HarnessError('equip.stone_maul is not a single-grant gold offer');
   const caught = (r) => r.bad.some((b) => b.offer === target.id);
 
   // M1 — the edge cap removed: vendorPriceOf bids book value again.
@@ -192,8 +192,8 @@ async function selftest() {
   // M3 — the cheapest-unit index loses the item (cap silently skipped).
   const m3 = await mutantCatalogue(
     '  const unit = catalogueGet(SHOP_UNIT_PRICE, id);',
-    "  const unit = id === 'steel_platebody' ? 0 : catalogueGet(SHOP_UNIT_PRICE, id);");
-  if (!caught(findArbitrage({ sqlVal, vendorPriceOf: m3.vendorPriceOf }))) fails.push('M3 unit index drops steel_platebody: not caught by name');
+    "  const unit = id === 'stone_maul' ? 0 : catalogueGet(SHOP_UNIT_PRICE, id);");
+  if (!caught(findArbitrage({ sqlVal, vendorPriceOf: m3.vendorPriceOf }))) fails.push('M3 unit index drops stone_maul: not caught by name');
 
   // M4 — an unparseable later write to hr_items.value must fail closed.
   const item = target.grant[0].id;

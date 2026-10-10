@@ -590,7 +590,7 @@ async function run(mutate) {
     const { cheapestShopUnitPrice } = await import('../src/core/shop-buyback.js');
     const { SHOP_OFFERS } = await import('../src/data/shops.js');
     const U = cheapestShopUnitPrice(SHOP_OFFERS);
-    ok(U.steel_platebody === 1500 && Object.keys(U).length > 20,
+    ok(U.stone_maul === 140 && Object.keys(U).length > 20,
       `G1-CONTROL: the client unit-price index is vacuous (${Object.keys(U).length} items) — the cap comparison proves nothing`);
     const legacyPrice = (id) => {
       const item = ITEMS[id];
@@ -611,20 +611,20 @@ async function run(mutate) {
       vm.runInContext(legacy, ctx);
       ok(typeof win.vendorPrice === 'function', 'G1-CONTROL: shop-counter.js did not publish vendorPrice in the vm');
       let pre;
-      try { pre = win.vendorPrice('steel_platebody'); } catch (e) { pre = `a throw (${e.message})`; }
+      try { pre = win.vendorPrice('stone_maul'); } catch (e) { pre = `a throw (${e.message})`; }
       ok(pre === 0,
-        `G1: vendorPrice('steel_platebody') answered ${pre} with no SHOP_UNIT_PRICE `
+        `G1: vendorPrice('stone_maul') answered ${pre} with no SHOP_UNIT_PRICE `
         + 'published — before boot the bag must bid nothing, not an uncapped price the server never pays');
       win.SHOP_UNIT_PRICE = U;
-      ok(win.vendorPrice('steel_platebody') === cat.vendorPriceOf(ITEMS, 'steel_platebody'),
-        `G1-CONTROL: the vm vendorPrice bid ${win.vendorPrice('steel_platebody')} once published, the server `
-        + `${cat.vendorPriceOf(ITEMS, 'steel_platebody')} — the fail-closed check is measuring the wrong function`);
+      ok(win.vendorPrice('stone_maul') === cat.vendorPriceOf(ITEMS, 'stone_maul'),
+        `G1-CONTROL: the vm vendorPrice bid ${win.vendorPrice('stone_maul')} once published, the server `
+        + `${cat.vendorPriceOf(ITEMS, 'stone_maul')} — the fail-closed check is measuring the wrong function`);
     }
     /* THE RULING'S NUMBERS, per unit, as the server pays them. */
     const BUYBACK_EXPECT = {
-      steel_platebody: 750, carrot_seed: 5, potato_seed: 10, pumpkin_seed: 25, turnip_seed: 2,
+      carrot_seed: 5, potato_seed: 10, pumpkin_seed: 25, turnip_seed: 2,
       wheat_seed: 7, tomato_seed: 15, stone_maul: 70, shortbow: 60, apprentice_staff: 60,
-      iron_warhammer: 375, longbow: 325, rune_blank: 3, goldenroot_seed: 75, emberfruit_seed: 150,
+      rune_blank: 3, goldenroot_seed: 75, emberfruit_seed: 150,
       cooked_lobster: 200, cooked_trout: 45, cooked_shrimp: 15,
     };
     const offRuling = Object.keys(BUYBACK_EXPECT)
@@ -663,14 +663,14 @@ async function run(mutate) {
   {
     const hostile = [
       null, 0, 'offer', [], {},
-      { verb: 'shop_buy', offer: 'equip.iron_sword', qty: 5, price: 1, gold: 1e12, unit: 0 },
+      { verb: 'shop_buy', offer: 'equip.bronze_sword', qty: 5, price: 1, gold: 1e12, unit: 0 },
       { qty: '5' }, { qty: 0 }, { qty: -1 }, { qty: 1.5 }, { qty: 1e999 }, { qty: NaN },
       { qty: req.MAX_QTY + 1 }, { qty: Number.MAX_SAFE_INTEGER },
       { qty: { valueOf: () => 5 } }, { qty: [5] },
       { offer: 'constructor' }, { offer: '__proto__' }, { offer: 'a'.repeat(200) },
       { offer: 'EQUIP.IRON_SWORD' }, { offer: "equip.x'; drop table player_state; --" },
       { item: 'constructor' }, { item: '__proto__' }, { item: 'normal_log; drop table x' },
-      JSON.parse('{"__proto__":{"qty":9999},"offer":"equip.iron_sword"}'),
+      JSON.parse('{"__proto__":{"qty":9999},"offer":"equip.bronze_sword"}'),
     ];
     for (const b of hostile) {
       const r = req.parseIntent(b);
@@ -711,9 +711,9 @@ async function run(mutate) {
        "always null". */
     const good = req.parseIntent({
       slot: 2, verb: 'shop_buy', intentId: '11111111-2222-4333-8444-555555555555',
-      offer: 'equip.iron_sword', qty: 5,
+      offer: 'equip.bronze_sword', qty: 5,
     });
-    ok(good.verb === 'shop_buy' && good.offer === 'equip.iron_sword' && good.qty === 5 && good.slot === 2,
+    ok(good.verb === 'shop_buy' && good.offer === 'equip.bronze_sword' && good.qty === 5 && good.slot === 2,
       `G2-CONTROL: a legitimate request was mangled: ${JSON.stringify(good)}`);
     const good2 = req.parseIntent({ verb: 'vendor_sell', item: 'normal_log', qty: 1 });
     ok(good2.verb === 'vendor_sell' && good2.item === 'normal_log' && good2.qty === 1,
@@ -724,7 +724,7 @@ async function run(mutate) {
 
   // ── G3. NO CHARACTER, then the happy path ────────────────────────────────
   {
-    const r = await doBuy({ intentId: uuid(), offer: 'equip.iron_sword', qty: 1 });
+    const r = await doBuy({ intentId: uuid(), offer: 'equip.bronze_sword', qty: 1 });
     ok(r.status === 409 && r.body.error === 'no_character',
       `G3: an empty slot returned ${r.status} ${JSON.stringify(r.body)}`);
     ok(r.body.verb === 'shop_buy', 'G3: the refusal does not name its verb');
@@ -735,7 +735,7 @@ async function run(mutate) {
     await grant({ gold: 100000, journal: { kind: 'admin', intent: 'fixture:seed' } });
   }
 
-  const OFFER = 'equip.iron_sword';
+  const OFFER = 'equip.hunter_necklace';
   let unitGold;
   {
     unitGold = cat.GOLD_OFFERS[OFFER].gold;
@@ -750,8 +750,8 @@ async function run(mutate) {
     const st = await state(db, UID);
     ok(Number(before.gold) - Number(st.gold) === unitGold * 5,
       `G3: five swords at ${unitGold} cost ${Number(before.gold) - Number(st.gold)} gold`);
-    ok(await invOf(db, UID, 'iron_sword') === 5,
-      `G3: the bag holds ${await invOf(db, UID, 'iron_sword')} iron_sword, expected 5`);
+    ok(await invOf(db, UID, 'hunter_necklace') === 5,
+      `G3: the bag holds ${await invOf(db, UID, 'hunter_necklace')} hunter_necklace, expected 5`);
     ok(Number(st.version) === Number(before.version) + 1,
       `G3: version ${before.version} → ${st.version}, expected exactly one bump`);
 
@@ -761,7 +761,7 @@ async function run(mutate) {
     ok(r.body.receipt && r.body.receipt.gold === -(unitGold * 5) && r.body.receipt.qty === 5,
       `G3: the receipt reads ${JSON.stringify(r.body.receipt)} — it must state what the SERVER `
       + 'charged, with the sign the delta carried');
-    ok(r.body.receipt.items.iron_sword === 5, 'G3: the receipt does not state what was delivered');
+    ok(r.body.receipt.items.hunter_necklace === 5, 'G3: the receipt does not state what was delivered');
 
     const rows = (await ledger(db, UID)).slice(beforeLedger);
     ok(rows.length === 1, `G3: ${rows.length} ledger rows for one purchase, expected 1`);
@@ -807,7 +807,7 @@ async function run(mutate) {
     ok(new Date(after.active_since).getTime() === new Date(before.active_since).getTime(),
       'G4: the purchase moved active_since — the second watermark');
 
-    const sr = await doSell({ intentId: uuid(), item: 'iron_sword', qty: 1 });
+    const sr = await doSell({ intentId: uuid(), item: 'hunter_necklace', qty: 1 });
     ok(sr.body.ok === true, `G4-CONTROL: the sale failed: ${JSON.stringify(sr.body).slice(0, 200)}`);
     const after2 = await state(db, UID);
     ok(new Date(after2.accrued_to).getTime() === new Date(after.accrued_to).getTime()
@@ -894,7 +894,7 @@ async function run(mutate) {
     ok(first.body.receipt && first.body.receipt.qty === 2, 'G5-CONTROL: the first call reported no receipt');
     const mid = await state(db, UID);
     const midLedger = (await ledger(db, UID)).length;
-    const midStock = await invOf(db, UID, 'iron_sword');
+    const midStock = await invOf(db, UID, 'hunter_necklace');
 
     const again = await doBuy({ intentId: key, offer: OFFER, qty: 2 });
     ok(again.body.ok === true, `G5: the replay was not ok:true: ${JSON.stringify(again.body).slice(0, 200)}`);
@@ -903,7 +903,7 @@ async function run(mutate) {
     ok(Number(after.gold) === Number(mid.gold),
       `G5: THE REPLAY CHARGED AGAIN (${mid.gold} → ${after.gold}) — a dropped socket would cost the `
       + 'player twice, which is the entire reason an idempotency key exists');
-    ok(await invOf(db, UID, 'iron_sword') === midStock, 'G5: the replay delivered a second time');
+    ok(await invOf(db, UID, 'hunter_necklace') === midStock, 'G5: the replay delivered a second time');
     ok(Number(after.version) === Number(mid.version), 'G5: the replay bumped version');
     ok((await ledger(db, UID)).length === midLedger, 'G5: the replay wrote a ledger row');
     ok(again.body.receipt === null,
@@ -928,10 +928,10 @@ async function run(mutate) {
       `G6: the SAME key with a different COUNT returned ${JSON.stringify(otherQty.body).slice(0, 200)} `
       + '— expected intent_mismatch. A silent replay here charges for one sword while the client '
       + 'believes it bought five.');
-    const otherOffer = await doBuy({ intentId: key, offer: 'equip.bronze_sword', qty: 1 });
+    const otherOffer = await doBuy({ intentId: key, offer: 'equip.shortbow', qty: 1 });
     ok(otherOffer.body.ok === false && otherOffer.body.error === 'intent_mismatch',
       `G6: the SAME key on a different OFFER returned ${JSON.stringify(otherOffer.body).slice(0, 200)}`);
-    const crossVerb = await doSell({ intentId: key, item: 'iron_sword', qty: 1 });
+    const crossVerb = await doSell({ intentId: key, item: 'hunter_necklace', qty: 1 });
     ok(crossVerb.body.ok === false && crossVerb.body.error === 'intent_mismatch',
       `G6: the SAME key across VERBS returned ${JSON.stringify(crossVerb.body).slice(0, 200)} — a buy `
       + 'key reused for a sale must not hand back the buy\'s decision');
@@ -944,8 +944,8 @@ async function run(mutate) {
     ok(it.intentNameOf('set_activity', 'combat', 'goblin') === it.intentNameFor('set_activity', 'combat', 'goblin'),
       'G6: intentNameOf and intentNameFor disagree on the activity shape — two namers producing '
       + 'different strings is how hr_apply\'s comparison stops meaning one thing');
-    ok(it.intentNameOf('shop_buy', 'equip.iron_sword', 5) === 'shop_buy:equip.iron_sword:5',
-      `G6: intentNameOf produced '${it.intentNameOf('shop_buy', 'equip.iron_sword', 5)}'`);
+    ok(it.intentNameOf('shop_buy', 'equip.hunter_necklace', 5) === 'shop_buy:equip.hunter_necklace:5',
+      `G6: intentNameOf produced '${it.intentNameOf('shop_buy', 'equip.hunter_necklace', 5)}'`);
     ok(it.intentNameOf('shop_buy', 'x', 1) !== it.intentNameOf('shop_buy', 'x', 2),
       'G6: the intent name does not distinguish two different counts');
   }
@@ -958,7 +958,7 @@ async function run(mutate) {
     const st = await state(db, UID);
     const afford = Math.floor(Number(st.gold) / unitGold);
     ok(afford >= 0 && afford < req.MAX_QTY,
-      `G7-CONTROL: the probe can afford ${afford} swords, which is outside the count this verb can `
+      `G7-CONTROL: the probe can afford ${afford} necklaces, which is outside the count this verb can `
       + 'name — the overspend below would be refused as bad_qty instead');
     const r = await doBuy({ intentId: uuid(), offer: OFFER, qty: afford + 1 });
     ok(r.status === 409 && r.body.error === 'insufficient_gold',
@@ -969,7 +969,7 @@ async function run(mutate) {
     const after = await state(db, UID);
     ok(Number(after.gold) === Number(st.gold) && Number(after.version) === Number(st.version),
       `G7: the refused purchase still moved state (gold ${st.gold} → ${after.gold})`);
-    ok(await invOf(db, UID, 'iron_sword') > 0, 'G7-CONTROL: the bag is empty, so nothing was delivered ever');
+    ok(await invOf(db, UID, 'hunter_necklace') > 0, 'G7-CONTROL: the bag is empty, so nothing was delivered ever');
     /* C2 — a refusal that reached the database carries the envelope. */
     ok(r.body.state && typeof r.body.state === 'object' && Number.isFinite(Number(r.body.version)),
       'G7: the insufficient_gold refusal carries no state envelope, so the client cannot reconcile '

@@ -869,7 +869,7 @@ async function run(mutate) {
       'room.kitchen.1 ', ' room.kitchen.1', 'ROOM.KITCHEN.1',
       "room.kitchen.1'; drop table player_state; --",
       'room.kitchen.99', 'room.not_a_room.1', 'x'.repeat(500),
-      'theme.winter', 'equip.iron_sword', 'plot.scarecrow',
+      'theme.winter', 'equip.bronze_sword', 'plot.scarecrow',
     ];
     for (const h of hostile) {
       await clearGate();

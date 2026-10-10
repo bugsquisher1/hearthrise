@@ -8185,16 +8185,16 @@ export default [
 
       // ── B354-7: the shop button. The offer id is DERIVED, never typed.
       const idx = Gd.shopOfferIndex();
-      assert(idx.iron_sword && idx.iron_sword.offer === 'equip.iron_sword',
-        'the item→offer index does not resolve iron_sword (' + JSON.stringify(idx.iron_sword) + '). It is '
+      assert(idx.bronze_sword && idx.bronze_sword.offer === 'equip.bronze_sword',
+        'the item→offer index does not resolve bronze_sword (' + JSON.stringify(idx.bronze_sword) + '). It is '
         + 'derived from src/data/shops.js so a new shop row is sellable the moment the generator runs — a '
         + 'broken index means every purchase answers `no_offer` and silently stops reaching the server');
       G.gold = 100000; G.inventory = {}; sent = []; stampBalanceLikeLoad(G);
-      window.buyShopItem('iron_sword', 1, idx.iron_sword.gold);
+      window.buyShopItem('bronze_sword', 1, idx.bronze_sword.gold);
       await drain();
       assert(sent.length === 1 && sent[0].verb === 'shop_buy',
         'the shop button sent ' + JSON.stringify(sent));
-      assert(sent[0].offer === 'equip.iron_sword' && sent[0].qty === 1,
+      assert(sent[0].offer === 'equip.bronze_sword' && sent[0].qty === 1,
         'the purchase named ' + JSON.stringify({ offer: sent[0].offer, qty: sent[0].qty })
         + ' — it must name the catalogue OFFER and a count of offers, never an item and a price');
       for (const forbidden of ['price', 'cost', 'gold', 'unit', 'total']) {
@@ -8211,7 +8211,7 @@ export default [
          it costs CONFIDENCE, and a button that says 500 while the balance drops
          by 2,000 is indistinguishable from theft. */
       G.gold = 100000; sent = []; stampBalanceLikeLoad(G);
-      window.buyShopItem('iron_sword', 1, 7);
+      window.buyShopItem('bronze_sword', 1, 7);
       await drain();
       assert(sent.length === 0,
         'a purchase whose client price (7) disagrees with the catalogue was still sent: ' + JSON.stringify(sent));

@@ -44,19 +44,19 @@ export const BOSS_FORGE_ITEMS = {
     n: 'Elderscale Platebody', icon: '🛡️', v: 118800, bop: true,
     type: 'armor', slot: 'body', armourClass: 'plate',
     defB: 104, strB: 4, rangeAtkB: -26, magicAtkB: -52,
-    rarity: 'unique', tier: 8, reqSkill: 'defense', reqLv: 95,
+    rarity: 'unique', reqSkill: 'defense', reqLv: 95,
   },
   riftmaw_carapace: {
     n: 'Riftmaw Carapace', icon: '🎽', v: 83160, bop: true,
     type: 'armor', slot: 'body', armourClass: 'leather',
     defB: 56, rangeAtkB: 52, critB: 0.035, magicAtkB: -15,
-    rarity: 'unique', tier: 8, reqSkill: 'defense', reqLv: 90,
+    rarity: 'unique', reqSkill: 'defense', reqLv: 90,
   },
   voidheart_robe: {
     n: 'Voidheart Robe', icon: '🧥', v: 83160, bop: true,
     type: 'armor', slot: 'body', armourClass: 'cloth',
     defB: 30, magicAtkB: 62, magicStrB: 42, atkB: -23, rangeAtkB: -18,
-    rarity: 'unique', tier: 8, reqSkill: 'defense', reqLv: 90,
+    rarity: 'unique', reqSkill: 'defense', reqLv: 90,
   },
 };
 

@@ -6,10 +6,10 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 131 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays, phoneFrame, withStockedFight, serverBagFixture } from './_harness.js?v=564';
-import { weaknessOf, weaknessWords } from '../../render/foe-weakness.js?v=564';
-import { fitBar, xpChip } from '../../render/bar-fit.js?v=564';
-import { weaknessInfo, WEAPON_TYPES } from '../../core/combat.js?v=564';
+import { errorLog, pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, drain, callOk, clickOk, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withFarmServer, withServerBacked, withRoomServer, withClaimServer, withCompanionRoster, withCap, feedServerQuests, armEquipFlipForTest, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, hrCharmFixture, hrCharmDriver, on, snapshot, findUiOverlaps, CHARM_RANKS, closeOverlays, phoneFrame, withStockedFight, serverBagFixture } from './_harness.js?v=565';
+import { weaknessOf, weaknessWords } from '../../render/foe-weakness.js?v=565';
+import { fitBar, xpChip } from '../../render/bar-fit.js?v=565';
+import { weaknessInfo, WEAPON_TYPES } from '../../core/combat.js?v=565';
 
 /* DEEPWATERS fixture (content pack 8). Bonus-free and gear-free — getBonus and
    the rested quantum pinned to 0 and an EMPTY equipment stat block (Timberline
@@ -4964,7 +4964,7 @@ export default [
           const b = r.host.querySelector('[data-codex="vigour"]');
           assert(b, 'the dry line has no "What is Vigour?" button: ' + r.text());
           b.click();
-          await import('../../data/codex.js?v=564');
+          await import('../../data/codex.js?v=565');
           for (let i = 0; i < 10 && !document.querySelector('#codex-modal.show'); i++) await drain();
           assert(document.querySelector('#codex-modal.show'), 'the Codex did not open');
           assert(document.querySelector('#cx-vigour[open]'), 'the Codex did not open at the Vigour entry');
@@ -5785,7 +5785,7 @@ export default [
   // restated its own copy on every declaration is how a stale client value ends
   // up overwriting a server one.
   () => tryRunAsync('hunt panel: set_activity carries stance/stop only when named', async () => {
-    const mod = await import('../../net/activity.js?v=564');
+    const mod = await import('../../net/activity.js?v=565');
     const bodyOf = (o) => JSON.parse(mod.buildActivityRequest(
       Object.assign({ kind: 'combat', id: 'goblin', intentId: 'k' }, o)).init.body);
     const bare = bodyOf({});

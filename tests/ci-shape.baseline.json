@@ -318,6 +318,8 @@
     "node tests/recovery-relief-guard.mjs --selftest": "client-guards",
     "node tests/attended-fall.mjs": "client-guards",
     "node tests/attended-fall.mjs --selftest": "client-guards",
+    "node tests/w0e-ammo-runecraft-prayer.mjs": "client-guards",
+    "node tests/w0e-ammo-runecraft-prayer.mjs --selftest": "client-guards",
     "node tests/css-literal-ratchet.mjs --report": "client-guards",
     "node tests/css-literal-ratchet.mjs --selftest": "client-guards",
     "node tests/breakpoint-guard.mjs --report": "client-guards",

@@ -403,5 +403,6 @@ if (typeof window !== 'undefined') {
     /* Test teardown only: drop every hold, so a suite that abandons a fake
        transport mid-flight cannot leave the next test's tap swallowed. */
     __resetFarmLatch() { farmLatch.reset(); },
+    __useFarmLatchClock(c) { farmLatch.reset(); farmLatch.useClock(c); },
   };
 }

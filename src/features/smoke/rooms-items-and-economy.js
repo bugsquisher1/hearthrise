@@ -1508,7 +1508,7 @@ export default [
     assert(window.IAP && typeof window.IAP.buy === 'function', 'window.IAP.buy exposed');
     const src = window.IAP.buy.toString();
     assert(src.indexOf('mock:true') === -1, 'web branch must not mint a mock receipt');
-    assert(/not available in the web beta/.test(src), 'web branch should refuse honestly');
+    assert(/not available in this build/.test(src), 'web branch should refuse honestly');
     assert(window.IAP.detectPlatform() === 'web', 'test env detects web platform');
   }),
   /* CLIENT-AUTHORITATIVE, deliberately. This test's subject is the redemption

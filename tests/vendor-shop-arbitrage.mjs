@@ -26,6 +26,12 @@
 //   An `update public.hr_items` that writes `value` in a shape this parser does
 //   not understand FAILS CLOSED (exit 2) rather than being skipped.
 //
+// THE CRAFT LOOP (W0 Security follow-up, 2026-10-10). A recipe whose inputs can
+// ALL be bought for gold is a second buy -> craft -> sell loop: its output's
+// vendor bid (x outputQty) must not exceed MARGIN x the gold cost of buying its
+// inputs at the cheapest shop unit price. Security's mutant — a 200g Steel Bar
+// offer, a +100 loop through the platebody — stayed green before this arm.
+//
 // Only vendor > SHOP_BUYBACK_RATE × shop is red; exactly half is the ruling.
 // Exit 0 clean, 1 on any violation (each named with both prices), 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -37,6 +43,8 @@ import { writeFileSync, unlinkSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 const { GOLD_OFFERS, VENDOR_RAW_RATE, SHOP_BUYBACK_RATE, SHOP_UNIT_PRICE } = CAT;
 import { ITEMS } from '../src/data/items.js';
+import { ARTISAN_RECIPES } from '../src/data/recipes.js';
+import { recipeInputs } from '../src/core/artisan.js';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 const MIG = join(ROOT, 'supabase', 'migrations');
@@ -149,6 +157,73 @@ export function findArbitrage({ offers = GOLD_OFFERS, items = ITEMS, sqlVal, ven
   return { bad, priced, total: Object.keys(offers).length };
 }
 
+/* KNOWN CRAFT LOOPS — found by this arm the day it landed (W0, 2026-10-10), held
+   at their MEASURED numbers and SHRINK-ONLY. Blank Runes are sold 20 for 140g,
+   and binding them returns 100% (air) to 107-118% (earth) of the gold spent at
+   book value: the Runecrafting first rungs are a tiny faucet. Owner: lane w0e
+   (Runecrafting from level 1 / ammo rework) with the Game Designer's values.
+   A row whose loop GROWS (vendor or cost moves) fails; a row that is no longer
+   a loop fails as stale until deleted; anything not listed fails outright. */
+const KNOWN_CRAFT_LOOPS = Object.freeze({
+  bind_air_runes:   { vendor: 42, cost: 42 },
+  bind_earth_runes: { vendor: 45, cost: 42 },
+  deepbind_earth:   { vendor: 58, cost: 49 },
+});
+
+/** Cheapest gold price of ONE unit of each item, over single-item gold offers. */
+function unitPrices(offers) {
+  const unit = Object.create(null);
+  for (const id of Object.keys(offers)) {
+    const o = offers[id];
+    if (!o || !Array.isArray(o.grant) || o.grant.length !== 1 || !(o.gold > 0)) continue;
+    const g = o.grant[0]; const each = o.gold / g.amount;
+    if (!(g.amount > 0)) continue;
+    if (!(g.id in unit) || each < unit[g.id]) unit[g.id] = each;
+  }
+  return unit;
+}
+
+/** Pure: every recipe whose inputs are all shop-buyable and whose output sells
+    for more than MARGIN x the inputs' gold cost. */
+export function findCraftArbitrage({ offers = GOLD_OFFERS, items = ITEMS, recipes = ARTISAN_RECIPES, sqlVal, vendorPriceOf = CAT.vendorPriceOf }) {
+  const unit = unitPrices(offers);
+  const bad = []; let buyable = 0;
+  for (const skill of Object.keys(recipes)) {
+    for (const rcp of recipes[skill] || []) {
+      if (!rcp || !rcp.output) continue;
+      const inp = recipeInputs(rcp);
+      const ids = Object.keys(inp);
+      if (!ids.length || !ids.every((id) => id in unit)) continue;
+      buyable++;
+      const cost = ids.reduce((t, id) => t + inp[id] * unit[id], 0);
+      const qty = Math.max(1, Number(rcp.outputQty) || 1);
+      const sell = qty * Math.max(vendorPriceOf(items, rcp.output), sqlBid(sqlVal, items, rcp.output));
+      if (sell > MARGIN * cost) bad.push({ recipe: rcp.id, output: rcp.output, cost, vendor: sell });
+    }
+  }
+  return { bad, buyable };
+}
+
+/** Splits the craft findings against KNOWN_CRAFT_LOOPS. */
+export function judgeCraft({ bad }, known = KNOWN_CRAFT_LOOPS) {
+  const fails = [], held = [];
+  for (const b of bad) {
+    const k = Object.prototype.hasOwnProperty.call(known, b.recipe) ? known[b.recipe] : null;
+    if (k && b.vendor <= k.vendor && b.cost >= k.cost) held.push(b);
+    else fails.push(`craft loop ${b.recipe} -> ${b.output}: vendor ${b.vendor}g > ${MARGIN} × inputs ${b.cost}g bought for gold`
+      + (k ? ` (GREW past the held ${k.vendor}g/${k.cost}g)` : ''));
+  }
+  for (const id of Object.keys(known)) if (!bad.some((b) => b.recipe === id)) fails.push(`stale KNOWN_CRAFT_LOOPS row ${id} — no longer a loop, delete it`);
+  return { fails, held };
+}
+
+function reportCraft(found) {
+  const { fails, held } = judgeCraft(found);
+  for (const f of fails) console.log(`  ✗ ${f}`);
+  console.log(`vendor-shop-arbitrage: ${found.buyable} recipe(s) with every input shop-buyable, ${fails.length} craft-loop violation(s), ${held.length} known loop(s) held (w0e)`);
+  return fails.length ? 1 : 0;
+}
+
 function report({ bad, priced, total }) {
   if (total === 0 || priced === 0) throw new HarnessError(`vacuous: ${total} gold offers, ${priced} with a vendor bid`);
   for (const b of bad) {
@@ -205,15 +280,28 @@ update public.hr_items set value = 1 where item_id = '${item}';
     fails.push('M4 unparsed hr_items.value UPDATE: accepted silently');
   } catch (e) { if (!(e instanceof HarnessError)) throw e; }
 
+  // M5 — Security's mutant: a 200g Steel Bar gold offer opens buy-bars -> forge
+  //      platebody -> vendor. The craft arm must name the recipe.
+  const cleanCraft = findCraftArbitrage({ sqlVal });
+  if (judgeCraft(cleanCraft).fails.length) fails.push(`craft control: tree is not clean (${judgeCraft(cleanCraft).fails.join('; ')})`);
+  const mutOffers = Object.assign(Object.create(null), GOLD_OFFERS, {
+    'equip.__mut_steel_bar': { id: 'equip.__mut_steel_bar', gold: 200, grant: [{ id: 'steel_bar', amount: 1 }] } });
+  const m5 = findCraftArbitrage({ offers: mutOffers, sqlVal });
+  if (!judgeCraft(m5).fails.some((f) => / -> steel_platebody:/.test(f))) fails.push('M5 200g Steel Bar offer (platebody loop): not caught');
+  // M6 — a held loop that GROWS (the blank-rune offer halves in price) must go red.
+  const cheapBlanks = Object.assign(Object.create(null), GOLD_OFFERS);
+  cheapBlanks['seed.rune_blank'] = Object.assign({}, GOLD_OFFERS['seed.rune_blank'], { gold: 70 });
+  if (!judgeCraft(findCraftArbitrage({ offers: cheapBlanks, sqlVal })).fails.some((f) => /GREW/.test(f))) fails.push('M6 a held rune loop grew: not caught');
+
   for (const f of fails) console.log(`  ✗ ${f}`);
-  console.log(`vendor-shop-arbitrage --selftest: control + 4 mutants on ${target.id} (${item}), ${fails.length} failure(s)`);
+  console.log(`vendor-shop-arbitrage --selftest: control + 6 mutants on ${target.id} (${item}), ${fails.length} failure(s)`);
   return fails.length ? 1 : 0;
 }
 
 try {
   process.exitCode = process.argv.includes('--selftest')
     ? await selftest()
-    : report(findArbitrage({ sqlVal: sqlItemValues() }));
+    : (() => { const sv = sqlItemValues(); return report(findArbitrage({ sqlVal: sv })) | reportCraft(findCraftArbitrage({ sqlVal: sv })); })();
 } catch (e) {
   console.error(`vendor-shop-arbitrage: HARNESS ${e instanceof HarnessError ? '' : 'CRASH '}${e.message}`);
   process.exitCode = 2;

@@ -141,6 +141,14 @@
 #panel-journal .ach-row { background: transparent; border: 0; border-bottom: 1px solid var(--line-soft); border-radius: 0; padding: 9px 2px; }
 #panel-journal .ach-row.unlocked { background: transparent; }
 
+/* The collection grid was sized for a 520px modal: 64px cells cut every
+   two-word name to "Raw Shr…". On a page the cells take the room they need
+   and a name wraps instead of being cut. */
+#panel-journal .hr-cl-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; padding: 10px 2px; }
+#panel-journal .hr-cl-cell { aspect-ratio: auto; min-height: 88px; justify-content: flex-start; gap: 6px; padding: 10px 4px 8px; }
+#panel-journal .hr-cl-nm { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.15; }
+#panel-journal .hr-cl-sec { padding: 14px 2px 2px; }
+
 /* A named bestiary row opens its drop table. */
 #panel-journal .bestiary-row[data-jr-mon] { cursor: pointer; }
 #panel-journal .bestiary-row[data-jr-mon]:hover { border-color: var(--line-strong); }
@@ -172,7 +180,7 @@
   .hub-tabs { padding: 0 6px; gap: 2px; }
   .hub-tab { min-height: 36px; padding: 0 10px; gap: 6px; font-size: calc(14.5px * var(--ui-scale, 1)); }
   .jr-tabs { flex-wrap: wrap; margin-bottom: 10px; }
-  .jr-tab { padding: 9px 12px; }
+  .jr-tab { padding: 0 12px; min-height: var(--tap); }
   .jr-body[data-jr-tab="deeds"], .jr-week { grid-template-columns: minmax(0, 1fr); }
   .jr-stats { column-count: 1; }
 }

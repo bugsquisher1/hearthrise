@@ -1475,7 +1475,7 @@
     if (kind !== 'rest') close();
     try {
       /* After close(): the Bestiary overlay sits below this scrim. */
-      if (kind === 'notes') { if (window.HearthriseJournal) window.HearthriseJournal.open('bestiary'); return; }
+      if (kind === 'notes') { if (window.HearthriseJournal) window.HearthriseJournal.open('bestiary', moment && moment.monsterId); return; }
       if (kind === 'again' && moment && moment.monsterId && typeof window.startCombat === 'function') {
         window.startCombat(moment.monsterId);
         return;

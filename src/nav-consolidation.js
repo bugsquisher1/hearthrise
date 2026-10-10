@@ -112,7 +112,7 @@
       return '<button type="button" role="tab" class="hub-tab' + (on ? ' active' : '') + '" aria-selected="' + on + '"' +
         ' data-hub-pane="' + p.tab + '"><span class="ic" aria-hidden="true">' + glyphHtml(p.glyph) + '</span>' +
         '<span class="lbl">' + p.label + '</span>' +
-        (paneBadge[p.tab] ? '<span class="hub-dot" aria-label="needs you"></span>' : '') + '</button>';
+        (paneBadge[p.tab] ? '<span class="hub-dot" role="img" aria-label="needs you"></span>' : '') + '</button>';
     }).join('');
   }
 

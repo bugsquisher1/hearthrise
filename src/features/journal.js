@@ -13,7 +13,8 @@
 // owns no number: every count is drawn by the module that reads the
 // server's projection, and a count not yet stated is the pending dash.
 //
-//   open(tab)     go to the Journal on a tab ('records' keeps the last)
+//   open(tab, id) go to the Journal on a tab ('records' keeps the last);
+//                 open('bestiary', monsterId) opens that monster's drop table
 //   repaint(tab)  redraw if the Journal is showing that tab
 // ============================================================
 (function () {
@@ -122,9 +123,11 @@
     if (p) p.scrollTop = 0;
   }
 
-  function open(name) {
+  function open(name, monsterId) {
     var tab = tabOf(name);
-    if (tab) { if (tab !== current()) detailMon = null; window._journalTab = tab; }
+    if (tab) window._journalTab = tab;
+    // Every open starts on the tab's list; only a named monster opens its drop table.
+    detailMon = (tab === 'bestiary' && monsterId && (window.MONSTERS || {})[monsterId]) ? monsterId : null;
     if (isShowing()) { paint(); scrollTop(); return; }
     if (typeof window.showTab === 'function') window.showTab('journal');
     scrollTop();

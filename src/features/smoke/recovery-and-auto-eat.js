@@ -3016,6 +3016,7 @@ export default [
       document.querySelector('#hr-death-scrim [data-act="notes"]').click();
       assert(!document.getElementById('hr-death-scrim').classList.contains('show'), 'the sheet stayed over the Bestiary');
       assert(document.querySelector('#panel-journal.active .jr-tab.active[data-jr-tab="bestiary"]'), 'the Bestiary did not open');
+      assert(/Goblin/.test((document.querySelector('#panel-journal .hr-cl-detail') || {}).textContent || ''), 'Field notes did not open the goblin\'s own drop table');
     } finally {
       try { window.showTab('profile'); } catch (e) {}
       D.__resetForTest();

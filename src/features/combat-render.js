@@ -63,7 +63,7 @@ function renderMonsterList() {
       return `<button class="monster-row ${tooHigh ? 'too-high' : ''} ${fighting ? 'fighting' : ''}" data-monster="${id}" title="${m.name}">
         <span class="mi">${getMonsterIconHtml(id)}</span>
         <div style="flex:1;min-width:0">
-          <span class="mn">${m.name}${m.boss ? ' <span class="tag">Boss</span>' : ''}</span>
+          <span class="mn">${m.name}${m.boss ? ' <span class="tag">Boss</span>' : m.champion ? ' <span class="tag">Champion</span>' : ''}</span>
           <span class="ms">${meta}</span>
         </div>
         ${right}

@@ -4,6 +4,18 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-10-10 · game-designer · W0 fun list (lane w0f): art owed, and the Vigour ruling (handoff: Asset Director)
+
+Eight new items and five new monsters ship on fallbacks (the renderer draws a medallion, never an
+emoji): elderscale_platebody, riftmaw_carapace, voidheart_robe, tusker_charm, packlord_band,
+mirewort_drops, barrowking_mantle, jarls_rimetorc; old_tusker, gnoll_packlord, mire_witch,
+barrow_king, frost_jarl. REQUIRED ACTION: asset-director paints them (item-art.js / monster-art.js).
+VIGOUR vs the away limit, final ruling: BOTH STAY. The away limit bounds one absence for every
+activity; Vigour bounds one day of hunting, watched or away, and is the only bound on attended
+combat. Merging would either uncap attended combat or cap honest gathering per day. The free grant
+already equals the away limit (vigourGrantMin), so the Codex teaches them as one length (bind
+vigourMatchesAwayCap). No backend lane is owed.
+
 ## 2026-10-08 · qa-engineer · the replay bars ran ~4 000 engine chains on one core; db-replay-5 timed out (lane b565-ci-replay5-split)
 
 CI db-replay-5 (set/b565 @3ea45544, run 37725703255) was CANCELLED at 20 min: the parity-probe step went 42 s (main@e6a12d3a) → 367–899 s across today's next runs with NO code change between the 367 s and 765 s runs, so the cost was structural and the spread was runner variance. Root cause: 210c1065 put a seeded replay behind every combat probe (probe-bar: 12 replicas × 15 probes per read, PB-1/PB-2/PB-2p/every mutant re-running the same chains) and d051c835 took the evaluator's --selftest to 120 replicas × 12 probes; world-tick-vigour-line added 300 seeds per side; one shadow chain of a 4 h span is ~0.2 s, all on one core. Fixed without touching a replica count, fixture or bar: `tools/world-tick-replay-pool.mjs` runs the pure replica tasks across worker threads (results in task order; `HR_REPLAY_THREADS=1` = serial reference), probe-bar computes each distinct (chain, mutation, fixture, start, span, seed) once (`tests/_probe-bar-chains.mjs`; the reproduction re-run is never memoised; PB-0c proves pooled == inline). Every read diffs byte-identical to the serial code. The pricing family moved to a new `db-replay-8`. **Lead, not fixed (P3, route Systems Engineer):** in one process the engine gets ~2.5× slower per chain after the first ~25 replays at constant work — `--trace-deopt` shows `computeAccrual` (supabase/functions/hr-accrue/accrual.js) deopt-looping on "unexpected name in keyed access" / "wrong map". The live edge runs the same function per settle; worth a look for edge CPU, not changed here (it moves the payload hash).

@@ -1038,7 +1038,7 @@ function renderGrid() {
     const badge = fighting ? '<span class="wtc-kills is-live">Fighting</span>'
       : locked ? `<span class="wtc-kills is-locked">Lv ${req}</span>`
       : k > 0 ? `<span class="wtc-kills">×${num(k)}</span>`
-      : '<span class="wtc-kills is-new">NEW</span>';
+      : `<span class="wtc-kills is-new">${m.champion ? 'CHAMPION' : 'NEW'}</span>`;
     return `<button type="button" class="wt-card${locked ? ' is-locked' : ''}${fighting ? ' is-live' : ''}"` +
       /* b432 (new-player audit): the card prints "2H Hammer · 8 HP" and the
          `title` said only "Slime" — a duplicate of the name already rendered

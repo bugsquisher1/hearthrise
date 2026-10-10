@@ -218,7 +218,11 @@ begin
   select count(*) into v_n from public.hr_unlock_offers;
   if v_n <> 139 then raise exception 'e5: hr_unlock_offers = %, expected 139', v_n; end if;
   select count(*) into v_n from public.hr_unlocks;
-  if v_n <> 80 then raise exception 'e6: hr_unlocks = %, expected 80', v_n; end if;
+  -- POST-APPLY AMENDMENT (W0, 2026-10-10, replay only): 80 at apply time; the
+  -- coherence audit cut recipe:dragon_marrow_recipe (a scroll for an item that
+  -- never shipped) from the generated unlock catalogue, so a rebuild holds 79
+  -- here and 2026-10-10-w0a-catalogue-cuts.sql brings production to the same 79.
+  if v_n <> 79 then raise exception 'e6: hr_unlocks = %, expected 79', v_n; end if;
 
   -- (d) no offer is left pointing at an unlock that no longer exists
   select count(*) into v_n from public.hr_unlock_offers o

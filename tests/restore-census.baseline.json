@@ -33,7 +33,7 @@
   "Classifications are AUTHORED, never generated — deciding what a restore owes",
   "a table is a judgement, and --write preserves whatever is already here."
  ],
- "generated": "2026-10-06",
+ "generated": "2026-10-10",
  "production": {
   "measured": "2026-08-30",
   "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Micro compute)",
@@ -865,12 +865,12 @@
   },
   "hr_item_slots": {
    "class": "seeded",
-   "replay": 280,
+   "replay": 259,
    "note": "Generated catalogue — which items may occupy which equipment slot. 222 rows on 2026-08-15, 275 now. Rebuilt from repo, never restored."
   },
   "hr_items": {
    "class": "seeded",
-   "replay": 538,
+   "replay": 497,
    "note": "Generated catalogue — the market tradeable allowlist and every item's server-side truth. 426 rows on 2026-08-15, 515 on 2026-09-06, 519 now (+4 Hearthfind trophies, 2026-09-08). Content digest guarded by tools/gen-catalogues.mjs --check as a smoke preflight."
   },
   "hr_kill_credit_log": {
@@ -933,6 +933,11 @@
    "class": "operational",
    "note": "Sampled hr_apply rejections, pruned nightly by hr-rejections-prune. 128 rows. Anomaly-detection history only: it records that a call was refused, never that anyone was owed anything."
   },
+  "hr_return_anchor": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "THE LAST REAL RETURN per character (presence horizon, 2026-10-10-world-tick-presence-horizon.sql): the accrued_to of its last NON-tick settle, stamped by the hr_return_anchor_ins/_upd triggers on player_state. Every settle, tick or accrue, may pay only up to real_return_at + hr_offline_cap_ms. restore_only and on player_value_tables because it is part of what has been paid: player_state.accrued_to says where the paid time ENDS, this says how much of the current absence the tick already spent. Lost while player_state survives, an owned character is refused by the tick (no_return_anchor, pays nothing) and its next accrue reads the full cap from its own accrued_to, so ONE absence could be paid up to one cap more than the ruling allows; every later settle restamps it. Backfilled once by the migration (accrued_to for un-owned characters, the last non-tick accrue ledger row for owned ones). RLS enabled AND forced, zero policies, zero grants."
+  },
   "hr_room_perks": {
    "class": "seeded",
    "replay": 40,
@@ -987,6 +992,16 @@
    "replay": 1,
    "note": "Generated from src/data/start-kit.js — the XP a fresh character starts each skill at. Rebuilt from repo, never restored."
   },
+  "hr_tick_cohort": {
+   "class": "operator_tunable",
+   "replay": 1,
+   "wiped_at_cutover": false,
+   "note": "THE WORLD TICK ROLLOUT DIAL for automatic ownership, per channel (gather only, CHECK) - created 2026-10-10-world-tick-gather-widen.sql and seeded ONCE (on conflict do nothing) at stage 1: gather permille 100, max_owned 20, fresh_s 600. A rebuild therefore reproduces the STAGE-1 dial, never an operator's later stage; and enrolment needs gather ARMED, which a rebuild never is (the arm file is excluded from the chain), so a rebuilt database enrols nobody whatever this row says. No player value: it decides only which returning gatherers the tick (rather than accrue-on-return) settles, at the same price. Coming back EMPTY is the safe direction too: hr_tick_enrol loops over its rows and enrols nothing. What is lost is the rollout stage, one UPDATE in a staged migration. max_owned is CHECKed <= 100 (the measured capacity fuse). RLS enabled and forced, zero policies, zero grants.",
+   "live_value": {
+    "measured": "2026-10-08",
+    "value": "ABSENT on production: the table is created by 2026-10-10-world-tick-gather-widen.sql (STAGED, NOT APPLIED). After apply the expected live row is the seed, [{channel:gather, permille:100, max_owned:20, fresh_s:600}]; re-measure then, and at every later stage file."
+   }
+  },
   "hr_tick_config": {
    "class": "operator_tunable",
    "wiped_at_cutover": false,
@@ -1018,6 +1033,16 @@
    "wiped_at_cutover": false,
    "note": "ONE ROW PER TICK-DRIVER FIRE — created 2026-09-21-world-tick-cron.sql. Outcome, rostered count, duration and the effective per-character cadence; never one row per character and never a secret (c8b asserts nothing bearer-shaped reaches `detail`). It is the only window an operator has into a job nobody watches — the hr_ledger_prune lesson, where the cron row existed and the retention still did not work for weeks. Losing it costs the last 7 days of that visibility and nothing else; the next fire writes a new row. Pruned hourly to 7 days by hr-tick-cron-log-prune."
   },
+  "hr_tick_enrolment": {
+   "class": "operational",
+   "wiped_at_cutover": false,
+   "note": "APPEND-ONLY JOURNAL of every automatic tick enrolment and every rollback unenrolment (user, slot, channel, server time, permille, hash bucket, the accrued_to that qualified it) - created 2026-10-10-world-tick-gather-widen.sql, ships EMPTY. It is the audit trail of WHO the server put under tick ownership and the ROLLBACK KEY hr_tick_unenrol uses to remove exactly those rows. It is operational, not restore_only, because the rows it keys live in hr_tick_ownership, which is itself operational and comes back EMPTY: after a restore there is nothing enrolled to roll back, and the empty journal is consistent with it. Losing it loses enrolment history only; no credited time, no value (player_state.accrued_to is the truth of what has been paid). Written only by hr_tick_enrol / hr_tick_unenrol (SECURITY DEFINER, owner-only); RLS enabled AND forced, zero policies, zero grants; no function body updates or deletes it (the migration's §8 k0b asserts that)."
+  },
+  "hr_tick_horizon_log": {
+   "class": "operational",
+   "wiped_at_cutover": false,
+   "note": "APPEND-ONLY: one row per absence whose armed tick reached last real return + cap and was refused past_horizon (2026-10-10-world-tick-presence-horizon.sql, the first refusal only). It marks the character PARKED for the per-character lag judge and is the audit trail of horizons reached. Ships EMPTY. Lost, the lag judge would call a parked character stuck until its return (loud, never a mint): no value, no pay decision reads it. Written only by hr_tick_settle; RLS enabled AND forced, zero policies, zero grants; never updated or deleted."
+  },
   "hr_tick_ownership": {
    "class": "operational",
    "wiped_at_cutover": false,
@@ -1033,6 +1058,11 @@
    "wiped_at_cutover": false,
    "note": "WHAT THE WORLD TICK WOULD HAVE PAID, and never what it did — created 2026-09-21-world-tick-settle-fence.sql. It is written ONLY on the shadow branch of hr_tick_settle, which returns before hr_apply is called; nothing reads it to decide a number a player can spend, rank or trade, and no RPC joins to it. It exists so the 48 h production parity window of LIVE_WORLD_BRIEF.md step 1 can be measured against what the accrual path actually wrote. Losing every row costs a MEASUREMENT — the parity run is repeated — and costs no player anything. Pruned hourly to 14 days by hr-tick-shadow-prune; budgeted at 48,000 rows/day at 50 active characters on the shipped 90 s flush. RLS enabled and forced, zero policies, zero grants."
   },
+  "hr_tick_shard_cursor": {
+   "class": "operational",
+   "wiped_at_cutover": false,
+   "note": "THE WORLD TICK ROSTER CURSOR, ONE ROW PER SHARD - created 2026-10-11-world-tick-shards.sql, ships EMPTY. Where the next fire resumes when a shard's due set exceeds batch_limit (the keyset that used to be three columns on hr_tick_config). Written only by hr_tick_cron_run (SECURITY DEFINER, owner-only). No player value: who is due is read from player_state.accrued_to and hr_tick_ownership every fire, and the fence decides every payment. Coming back EMPTY costs one pass from the start of each shard's roster (every character is still served, furthest-behind first). RLS enabled AND forced, zero policies, zero grants."
+  },
   "hr_traits": {
    "class": "seeded",
    "replay": 2,
@@ -1045,7 +1075,7 @@
   },
   "hr_unlocks": {
    "class": "seeded",
-   "replay": 80,
+   "replay": 79,
    "note": "Generated unlock catalogue (2026-08-16-unlocks.generated.sql, by tools/gen-unlocks.mjs --check): merge rule, storage kind, ceiling, rung ladder per namespace. Rebuilt from repo, never restored. ⚠ PRODUCTION RUNS 65 AND A REBUILD PRODUCES 82 — see production.divergence_vs_repo; the whole delta is namespace='companion' (4 vs 21) and it is an apply-state issue, not a DR one. RULED 2026-08-30: a wholesale `delete from public.hr_unlocks;` in this very file destroyed the 17 rows 2026-08-22-companion-grant.sql had added when it was regenerated and re-applied on 2026-08-23. The fix is forward — supabase/migrations/2026-09-05-companion-unlock-catalogue-reseed.sql, STAGED/REVIEW-ONLY — and the replay pin stays 82 because the rebuild already produced them. ⚠ NEVER re-apply this file to production to 'refresh' the catalogue: it deletes 20 rows it does not own and silently flag-shapes the four shop companions. tests/unlock-catalogue-ownership.mjs measures that and proves the declared repair."
   },
   "hr_vigour_price_rule": {
@@ -1240,36 +1270,6 @@
    "class": "restore_only",
    "wiped_at_cutover": false,
    "note": "PLAYER VALUE. One row per Hearthfind find a character has ever made (user_id, find id, found_at, nth ever) — the shared world feed and the source of the Emberborn/Rootwarden/Deepdelver/Tidesworn/Wonderkeeper titles. Written only by hr_apply (SECURITY DEFINER, 3/day + 30 s clamps), pruned by hr_world_finds_prune; anon/authenticated SELECT only. Losing it silently un-earns titles and erases the feed. 0 rows at classification (2026-09-08, feature just applied)."
-  },
-  "hr_tick_cohort": {
-   "class": "operator_tunable",
-   "replay": 1,
-   "wiped_at_cutover": false,
-   "note": "THE WORLD TICK ROLLOUT DIAL for automatic ownership, per channel (gather only, CHECK) - created 2026-10-10-world-tick-gather-widen.sql and seeded ONCE (on conflict do nothing) at stage 1: gather permille 100, max_owned 20, fresh_s 600. A rebuild therefore reproduces the STAGE-1 dial, never an operator's later stage; and enrolment needs gather ARMED, which a rebuild never is (the arm file is excluded from the chain), so a rebuilt database enrols nobody whatever this row says. No player value: it decides only which returning gatherers the tick (rather than accrue-on-return) settles, at the same price. Coming back EMPTY is the safe direction too: hr_tick_enrol loops over its rows and enrols nothing. What is lost is the rollout stage, one UPDATE in a staged migration. max_owned is CHECKed <= 100 (the measured capacity fuse). RLS enabled and forced, zero policies, zero grants.",
-   "live_value": {
-    "measured": "2026-10-08",
-    "value": "ABSENT on production: the table is created by 2026-10-10-world-tick-gather-widen.sql (STAGED, NOT APPLIED). After apply the expected live row is the seed, [{channel:gather, permille:100, max_owned:20, fresh_s:600}]; re-measure then, and at every later stage file."
-   }
-  },
-  "hr_tick_enrolment": {
-   "class": "operational",
-   "wiped_at_cutover": false,
-   "note": "APPEND-ONLY JOURNAL of every automatic tick enrolment and every rollback unenrolment (user, slot, channel, server time, permille, hash bucket, the accrued_to that qualified it) - created 2026-10-10-world-tick-gather-widen.sql, ships EMPTY. It is the audit trail of WHO the server put under tick ownership and the ROLLBACK KEY hr_tick_unenrol uses to remove exactly those rows. It is operational, not restore_only, because the rows it keys live in hr_tick_ownership, which is itself operational and comes back EMPTY: after a restore there is nothing enrolled to roll back, and the empty journal is consistent with it. Losing it loses enrolment history only; no credited time, no value (player_state.accrued_to is the truth of what has been paid). Written only by hr_tick_enrol / hr_tick_unenrol (SECURITY DEFINER, owner-only); RLS enabled AND forced, zero policies, zero grants; no function body updates or deletes it (the migration's §8 k0b asserts that)."
-  },
-  "hr_tick_shard_cursor": {
-   "class": "operational",
-   "wiped_at_cutover": false,
-   "note": "THE WORLD TICK ROSTER CURSOR, ONE ROW PER SHARD - created 2026-10-11-world-tick-shards.sql, ships EMPTY. Where the next fire resumes when a shard's due set exceeds batch_limit (the keyset that used to be three columns on hr_tick_config). Written only by hr_tick_cron_run (SECURITY DEFINER, owner-only). No player value: who is due is read from player_state.accrued_to and hr_tick_ownership every fire, and the fence decides every payment. Coming back EMPTY costs one pass from the start of each shard's roster (every character is still served, furthest-behind first). RLS enabled AND forced, zero policies, zero grants."
-  },
-  "hr_return_anchor": {
-   "class": "restore_only",
-   "wiped_at_cutover": false,
-   "note": "THE LAST REAL RETURN per character (presence horizon, 2026-10-10-world-tick-presence-horizon.sql): the accrued_to of its last NON-tick settle, stamped by the hr_return_anchor_ins/_upd triggers on player_state. Every settle, tick or accrue, may pay only up to real_return_at + hr_offline_cap_ms. restore_only and on player_value_tables because it is part of what has been paid: player_state.accrued_to says where the paid time ENDS, this says how much of the current absence the tick already spent. Lost while player_state survives, an owned character is refused by the tick (no_return_anchor, pays nothing) and its next accrue reads the full cap from its own accrued_to, so ONE absence could be paid up to one cap more than the ruling allows; every later settle restamps it. Backfilled once by the migration (accrued_to for un-owned characters, the last non-tick accrue ledger row for owned ones). RLS enabled AND forced, zero policies, zero grants."
-  },
-  "hr_tick_horizon_log": {
-   "class": "operational",
-   "wiped_at_cutover": false,
-   "note": "APPEND-ONLY: one row per absence whose armed tick reached last real return + cap and was refused past_horizon (2026-10-10-world-tick-presence-horizon.sql, the first refusal only). It marks the character PARKED for the per-character lag judge and is the audit trail of horizons reached. Ships EMPTY. Lost, the lag judge would call a parked character stuck until its return (loud, never a mint): no value, no pay decision reads it. Written only by hr_tick_settle; RLS enabled AND forced, zero policies, zero grants; never updated or deleted."
   }
  }
 }

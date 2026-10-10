@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 235d6a1646672e176de12a59da3761519f8d972f0335f1a850b42b30217a31d6
+--   catalogue digest: 22690d7683b4794decaf1f32a8d1e5f7047e34dcebdac39d0bda991b6cc91af0
 --   rows: 538 items (20 untradeable) ·
 --         280 item-slot pairs · 15 equip slots ·
 --         17 skills · 9 crops · 514 activities ·
@@ -1576,10 +1576,9 @@ insert into public.hr_start_skill_xp (skill_id, xp) values
   ('hitpoints',1154);
 
 insert into public.hr_start_inventory (item_id, qty) values
-  ('carrot_seed',3),
   ('cooked_shrimp',20),
   ('shrimp',10),
-  ('turnip_seed',5);
+  ('turnip_seed',8);
 
 insert into public.hr_start_equipment (equip_slot, item_id) values
   ('weapon','bronze_sword');
@@ -1590,7 +1589,7 @@ insert into public.hr_runes (rune_id, element) values
   ('poison_rune','poison');
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '235d6a1646672e176de12a59da3761519f8d972f0335f1a850b42b30217a31d6', now())
+  values (true, '22690d7683b4794decaf1f32a8d1e5f7047e34dcebdac39d0bda991b6cc91af0', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1755,7 +1754,7 @@ begin
   select count(*) into v_n from public.hr_runes;
   if v_n <> 3 then raise exception 'hr_runes has % rows, generator emitted 3', v_n; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 235d6a1646672e176de12a59da3761519f8d972f0335f1a850b42b30217a31d6',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 22690d7683b4794decaf1f32a8d1e5f7047e34dcebdac39d0bda991b6cc91af0',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

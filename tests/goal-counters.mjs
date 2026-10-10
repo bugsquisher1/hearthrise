@@ -49,7 +49,7 @@ import { pathToFileURL } from 'node:url';
 import { bootReplay, LAST_PATCHED, ROOT } from './schema-replay.mjs';
 import { computeAccrual } from '../supabase/functions/hr-accrue/accrual.js';
 import {
-  GOAL_EVENTS, UNCOUNTED_EVENTS, GOAL_KEY_PREFIX, MAX_GOAL_ADD,
+  GOAL_EVENTS, UNCOUNTED_EVENTS, STATE_GOAL_TYPES, GOAL_KEY_PREFIX, MAX_GOAL_ADD,
   goalKey, utcDayKey, makeGoalCounter, goalProgressOps,
   BESTIARY_EVENT, BESTIARY_KEY_PREFIX, BESTIARY_ID_RE,
   bestiaryKey, makeBestiaryCounter, bestiaryProgressOps,
@@ -73,7 +73,7 @@ let computeAccrualFn = computeAccrual;
 /* src/core/goals.js, likewise — M7-M9 plant defects in the contract module
    itself, and the engine mutants must then load THAT copy, so both are
    rebound through one loader. */
-let goalsMod = { GOAL_EVENTS, UNCOUNTED_EVENTS, MAX_GOAL_ADD, utcDayKey, makeGoalCounter, goalProgressOps,
+let goalsMod = { GOAL_EVENTS, UNCOUNTED_EVENTS, STATE_GOAL_TYPES, MAX_GOAL_ADD, utcDayKey, makeGoalCounter, goalProgressOps,
   BESTIARY_EVENT, BESTIARY_KEY_PREFIX, BESTIARY_ID_RE, bestiaryKey, makeBestiaryCounter, bestiaryProgressOps,
   COLLECTION_KEY_PREFIX, COLLECTION_ID_RE, lootKey, makeCollectionCounter, collectionProgressOps };
 
@@ -292,11 +292,21 @@ async function run(patches) {
       const types = [...body.matchAll(/\btype:\s*'([a-z_]+)'/g)].map((m) => m[1]);
       ok(types.length >= 4,
         `G2 CONTROL: ${name} yielded ${types.length} authored types, expected at least 4`);
+      const stateTypes = (G.STATE_GOAL_TYPES && typeof G.STATE_GOAL_TYPES === 'object') ? G.STATE_GOAL_TYPES : {};
       for (const t of types) {
-        ok(G.GOAL_EVENTS.includes(t),
+        /* A STATE goal (goals.js STATE_GOAL_TYPES) reads a server fact instead of an
+           `ev:` counter — legal only when legacy.js SERVER_QUEST_COUNTS reads it, so
+           the step cannot sit at 0 for want of a reader either. */
+        const isState = Object.prototype.hasOwnProperty.call(stateTypes, t);
+        ok(G.GOAL_EVENTS.includes(t) || isState,
           `G2(b): ${name} authors a goal of type '${t}', which is NOT in GOAL_EVENTS — the server `
           + 'can never mint a counter for it, so that goal would sit at 0 forever on an away '
           + 'night. Add it to src/core/goals.js (and check an emit site exists).');
+        if (isState) {
+          ok(new RegExp('const SERVER_QUEST_COUNTS=\\{[^}]*\\b' + t + ':').test(legacy),
+            `G2(b): '${t}' is a STATE goal type but legacy.js SERVER_QUEST_COUNTS has no reader for it — `
+            + 'hrQuestServerCount would answer null forever and the step could never complete.');
+        }
       }
       // No authored goal may be target-scoped: the counter key carries no
       // target, so a targeted goal would read a number that counts every foe.
@@ -1003,6 +1013,11 @@ const MUTATIONS = [
   { name: 'M12 combat: the COLLECTION listener is removed (loot vanishes from the log)',
     file: 'accrual', from: "      collection.record(id, n);          // Slice 2: the per-item loot counter\n",
     to: "" },
+  /* W0: a STATE goal type is legal only while goals.js declares it. Drop the
+     declaration and the authored 'property' step must turn G2(b) red. */
+  { name: 'M14 goals: the property STATE goal type is undeclared',
+    file: 'goals', from: "  property: 'the server property rung",
+    to: "  propertyX: 'the server property rung" },
   { name: 'M13 combat: the collection ops never reach the delta',
     file: 'accrual', from: "  for (const op of collectionProgressOps(collection, events)) progress.push(op);\n",
     to: "" },

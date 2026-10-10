@@ -355,6 +355,7 @@
       R + '.hd-bank.is-on b{color:var(--green) !important}',
       R + '.hd-bank .hd-bank-txt{color:var(--ink-2) !important;line-height:1.35}',
       R + '.hd-bank.is-off .hd-bank-txt{color:var(--ink-3) !important}',
+      R + '.hd-unlocks .hd-bank-txt{flex:1;min-width:0;color:var(--ink-2);line-height:1.35}',
       R + '.hd-away-notes{flex:1 1 300px;min-width:0;display:flex;flex-direction:column;gap:4px}',
       R + '.hd-away-note{display:flex;align-items:flex-start;gap:7px;line-height:1.35;',
       'font-size:calc(14.5px * var(--ui-scale, 1))}',
@@ -828,6 +829,14 @@
       if (charmLine) notes.push({ tone: 'good', icon: 'uiMedal', text: charmLine });
     } catch (e) { /* a card line is never load-bearing */ }
     try { var SG = window.HearthriseSkillGuide; var t = SG ? SG.awayLevelsLine(off.levelUps) : ''; if (t) notes.push({ tone: 'good', icon: 'uiXp', text: t }); } catch (e) { /* never load-bearing */ }
+    /* W0 — WHAT THE HAUL UNLOCKS: the bag turned into the next goal, from the
+       server's own holdings (render/haul-unlocks.js). Only a server receipt's
+       `itemsIn` is a haul; with none, there is nothing to attribute. */
+    try {
+      var HU = window.HearthriseHaulUnlocks;
+      var hu = (HU && off.serverAuthoritative === true && off.itemsIn) ? HU.line(off.itemsIn) : '';
+      if (hu) notes.push({ tone: 'good', icon: 'uiHome', text: hu });
+    } catch (e) { /* never load-bearing */ }
     if (off.buffsPaused) {
       notes.push({ tone: 'held', icon: 'uiHourglass',
         text: 'Food buffs paused — their time was kept, not spent.' });
@@ -930,6 +939,15 @@
          false there, which is the truth home-dashboard must tell — see b388);
        • idle banks nothing.
      The cap is the server's (offlineCapHours), or null until it is known. */
+  function haulUnlocksRow() {
+    var HU = window.HearthriseHaulUnlocks, list = [], t = '';
+    try { list = HU ? HU.pick(HU.context(null)) : []; t = HU ? HU.lineFrom(list, null) : ''; } catch (e) { t = ''; }
+    if (!t) return '';
+    var build = list.some(function (u) { return u.kind === 'property'; });
+    return '<div class="hd-card hd-mini hd-unlocks"><div class="mi">' + gly('uiHome', 20, '', 'var(--gold-2)') +
+      '</div><div class="hd-bank-txt">' + esc(t) + '</div>' +
+      (build ? '<button class="hd-cta ghost go" data-hd="house">Go build</button>' : '') + '</div>';
+  }
   function awayCapHours() {
     try { if (typeof window.offlineCapHours === 'function') return window.offlineCapHours(); } catch (e) {}
     return null;
@@ -1443,8 +1461,10 @@
     var _hold = (_A && typeof _A.getLastAwayReceipt === 'function') ? _A.getLastAwayReceipt() : null;
     if (!_isAway(_off)) _off = null;
     if (_isAway(_hold) && (!_off || (Number(_hold.at) || 0) > (Number(_off.at) || 0))) _off = _hold;
+    var awayShown = false;
     if (_off && _off.at && (Date.now() - _off.at) < 30 * 60000) {
       html += awayCardHtml(_off);
+      awayShown = true;
     }
 
     /* THE COMMON — its OWN row, above the working grid and below the night's
@@ -1488,6 +1508,10 @@
     var firstDay = firstDayModel();
     var chainCard = firstDay || roadModel();
     html += firstDayHtml(chainCard);
+    /* W0 — "you have enough to build your Hearthside Homestead": the standing
+       Home line, from the server's holdings. Not drawn under a fresh away card,
+       which already says what the haul unlocks. */
+    if (!awayShown) html += haulUnlocksRow();
 
     /* ── AND THEN "NEXT UP" MUST NOT SAY IT AGAIN ──────────────────────────
        IT IS A CLASS, NOT ONE ROW. `getNextMilestone()` picks the closest OPEN
@@ -1953,6 +1977,7 @@
   window.HearthriseHome = {
     render: render,
     __awayCardHtml: awayCardHtml,
+    __haulUnlocksRow: haulUnlocksRow,
     __awayBankingRow: awayBankingRow,
     __firstDayModel: firstDayModel,
     __roadModel: roadModel,

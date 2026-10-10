@@ -92,7 +92,10 @@ export const QUEST_REWARDS = Object.freeze({
      QUEST_DEFS at render/grade time, `progress` is the save field, and a save
      already carrying progress ≥ 6 completes on its next harvest tick rather
      than re-granting (ensureRetentionState merges BY ID and keeps `done`). */
-  farmhand:    { checkKey: 'ev:harvest',  goal: 6,  gold: 500, items: Object.freeze({ wheat_seed: 5 }) },
+  /* W0 (coherence audit 2026-10-09): wheat_seed -> carrot_seed. Wheat needs
+     Farming 20; carrots (Farming 10) are the next rung after the kit's turnips.
+     Server seed: 2026-10-16-first-day-seeds.sql, which now owns hr_quest_rewards. */
+  farmhand:    { checkKey: 'ev:harvest',  goal: 6,  gold: 500, items: Object.freeze({ carrot_seed: 5 }) },
   /* ── JOURNEYMAN'S ROAD (content pack 7; 2026-09-28-journeymans-road.sql) ──
      The day-2 chain, legacy.js QUEST_DEFS `chain:'road'`. Same two tests as
      every row above: a lifetime ev:<type> the server already keeps, and a fixed

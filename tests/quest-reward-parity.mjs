@@ -305,10 +305,10 @@ const MUTATIONS = [
   { name: 'sql seed row removed (server pays gold only)',
     apply: (s) => ({ sql: s.sql.replace("('first_blood', '{\"turnip_seed\": 5}'),\n", '') }) },
   { name: 'sql seed grants an id that exists nowhere (the small_bones class)',
-    /* Anchored on the SEED TUPLE, not the bare `"wheat_seed": 5`: the chain-end
+    /* Anchored on the SEED TUPLE, not the bare `"wheat_seed": 5` (now carrot_seed): the chain-end
        file also quotes the pre-state rows in its §0 precondition, and a bare
        anchor mutated that copy — changing text, proving nothing. */
-    apply: (s) => ({ sql: s.sql.replace("('farmhand',    '{\"wheat_seed\": 5}')", "('farmhand',    '{\"small_bones\": 5}')") }) },
+    apply: (s) => ({ sql: s.sql.replace("('farmhand',    '{\"carrot_seed\": 5}')", "('farmhand',    '{\"small_bones\": 5}')") }) },
   { name: 'catalogue item map emptied (the client stops asking the server for it)',
     apply: (s, cat) => ({ QUEST_REWARDS: { ...cat, first_cook: { ...cat.first_cook, items: {} } } }) },
   { name: 'catalogue qty drift against both other sides',

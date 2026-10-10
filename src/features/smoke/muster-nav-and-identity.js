@@ -1403,7 +1403,9 @@ export default [
       });
       window.showTab('profile');
       document.getElementById('top-gem-btn').click();
-      assert(window.activeTab === 'profile', 'the gem counter is still a door into a shop that cannot sell');
+      assert(document.getElementById('panel-profile').classList.contains('active')
+        && !document.getElementById('panel-shop').classList.contains('active'),
+        'the gem counter is still a door into a shop that cannot sell');
       const primer = JSON.stringify(window.HearthriseScreenPrimers || '') + document.body.textContent;
       assert(!/cannot buy them yet/i.test(primer), 'the "web beta cannot buy them yet" copy is back');
     } finally {

@@ -73,8 +73,9 @@
   // other day". Half of the base band is 750g + 1 gem against a live chest that
   // starts at 1,500g + 2 gems and reaches the 7,500g / 10 gems ceiling
   // when the realm holds — so answering in absence is worth 50% of the FLOOR
-  // and 20% of the CEILING. It never draws on the community bar, because that
-  // cannot be honest without someone actually being there. It is a consolation, not an alternative.
+  // and 10% of the CEILING. It never draws on the community bar, because that
+  // cannot be honest without someone actually being there. It is a
+  // consolation, not an alternative.
   var ABSENT_SHARE = 0.5;
   var ABSENT_BAND  = { gold:  Math.round(BASE_BAND.gold * ABSENT_SHARE),
                        gems:  Math.floor(BASE_BAND.gems * ABSENT_SHARE),

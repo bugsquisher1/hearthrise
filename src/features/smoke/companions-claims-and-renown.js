@@ -58,7 +58,9 @@ const withDailyList = async (tally, fn) => {
     window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: [Object.assign({}, task, { progress: task.goal })] };
     window.HearthriseGoalClaim = {
       isSignedIn: () => true,
-      claimDaily: (id) => { calls.push(id); return new Promise(() => {}); },
+      /* answered (a refusal), so the module's in-flight latch is released before
+         the next test: a never-settling stub would hold it for the whole suite */
+      claimDaily: (id) => { calls.push(id); return Promise.resolve({ ok: false, error: 'test_stub' }); },
       tallyState: () => Promise.resolve({ ok: false, error: 'test_stub' }),
     };
     feed(tally);

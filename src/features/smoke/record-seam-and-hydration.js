@@ -8034,7 +8034,7 @@ export default [
       /* Claimable ONLY because the server's tally says so (CLAIM-FROM-SERVER). */
       TL.__feed({ day: { 'ev:kill_any': 25 }, week: {}, paid: [], offered: ['daily_kill'] });
 
-      DQ.claim('daily_kill');
+      await DQ.claim('daily_kill');
       await drain(); await drain();
 
       assert(seen.indexOf('claim') !== -1,

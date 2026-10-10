@@ -121,6 +121,7 @@ function claim(id) {
   if (!task || !isClaimable(task) || _claiming[id]) return null;
   if (!(GC && typeof GC.claimDaily === 'function')) return null;
   _claiming[id] = true;
+  var heldAt = _tallyAt;
   var p = GC.claimDaily(id);
   return Promise.resolve(p).then(function (res) {
     delete _claiming[id];
@@ -134,7 +135,7 @@ function claim(id) {
       var sf = window.HearthriseSettleFirst && window.HearthriseSettleFirst.settleRefusalText(res);
       notify(sf || 'That claim did not go through — your progress is safe, try again in a moment', 'kill');
     }
-    _tallyAt = 0;   // any verdict moves the server's picture: read it again
+    if (_tallyAt === heldAt) _tallyAt = 0;   // the verdict stales THIS picture (a newer one stands)
     refresh(function () { render(); });
     return res;
   }, function () { delete _claiming[id]; render(); return null; });

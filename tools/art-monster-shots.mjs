@@ -247,7 +247,7 @@ async function arena(page, id, name) {
   const bestiary = await page.evaluate(() => {
     const b = [...document.querySelectorAll('button, .btn, a, .tab')].find((n) => /bestiary/i.test(n.textContent || ''));
     if (b) { b.click(); return 'clicked'; }
-    try { if (window.openBestiary) { window.openBestiary(); return 'openBestiary()'; } } catch (e) {}
+    try { if (window.HearthriseJournal) { window.HearthriseJournal.open('bestiary'); return 'Journal.open(bestiary)'; } } catch (e) {}
     return 'NOT FOUND';
   });
   /* NO dismiss() here. The Bestiary IS a full-screen overlay and dismiss()
@@ -306,7 +306,7 @@ async function arena(page, id, name) {
   const mb = await page.evaluate(() => {
     const b = [...document.querySelectorAll('button, .btn, a, .tab')].find((n) => /bestiary/i.test(n.textContent || ''));
     if (b) { b.click(); return 'clicked'; }
-    try { if (window.openBestiary) { window.openBestiary(); return 'openBestiary()'; } } catch (e) {}
+    try { if (window.HearthriseJournal) { window.HearthriseJournal.open('bestiary'); return 'Journal.open(bestiary)'; } } catch (e) {}
     return 'NOT FOUND';
   });
   await page.waitForTimeout(1800);

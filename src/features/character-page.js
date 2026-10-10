@@ -224,7 +224,7 @@ function buildHeroCard() {
    survives the 2s auto-refresh. Quests and Bounties are the realm's lifetime
    counts, Achievements the deeds the realm's counts have met, and Days running
    is the server's play streak, each a pending dash until stated; Collections is
-   still read from the client's own record. The foot row is the Lifetime Stats door. */
+   the realm's completion. The foot row is the Journal's door. */
 function buildAccountStatGrid() {
   const G = window.G || {};
   const clv = typeof window.getCombatLevel === 'function' ? window.getCombatLevel() : '?';
@@ -236,11 +236,11 @@ function buildAccountStatGrid() {
   const ach = Array.isArray(window.ACHIEVEMENTS) ? window.ACHIEVEMENTS : [];
   const D = window.HearthriseDeeds;
   const achN = D ? D.doneCount(D.readers()) : null;
-  let colPct = '0%';
+  let colPct = countMarkup(null);
   try {
-    if (window.HearthriseCollection && window.HearthriseCollection.getStats) {
-      colPct = Math.round(window.HearthriseCollection.getStats(G).overall * 100) + '%';
-    }
+    const o = window.HearthriseCollection && window.HearthriseCollection.serverStats
+      ? window.HearthriseCollection.serverStats(G).overall : null;
+    if (o != null) colPct = Math.round(o * 100) + '%';
   } catch (e) { /* collection optional */ }
   let rank = '—';
   try {
@@ -268,7 +268,7 @@ function buildAccountStatGrid() {
       ${cell(esc(rank), 'Renown')}
       ${cell(days, 'Days running')}
     </div>
-    <div class="cr-acct-foot"><button class="btn" type="button" onclick="window.openLifetimeStats&&window.openLifetimeStats()">${crGlyph('uiTrend')}Lifetime Stats</button></div></div>`;
+    <div class="cr-acct-foot"><button class="btn" type="button" onclick="window.HearthriseJournal&&window.HearthriseJournal.open('stats')">${crGlyph('uiBook')}Journal</button></div></div>`;
 }
 
 function buildCombatCard() {

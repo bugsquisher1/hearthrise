@@ -1126,16 +1126,7 @@ img,svg{display:block;max-width:100%}
 .eff-empty{padding:6px 0;color:var(--ink-3);font-size:calc(14.5px * var(--ui-scale, 1))}
 
 /* ===== block 6: style-6 ===== */
-/* ─── Lifetime stats modal ─── */
-.stats-modal{z-index:1500;background:rgba(0,0,0,.7);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center}
-.stats-modal.show{display:flex}
-.stats-card{
-  width:min(680px,96vw);
-  background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-lg);padding:24px;
-  position:relative;
-}
-.stats-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 12px;margin-bottom:16px;padding-right:40px}
-.stats-title{font-family:var(--f-display);font-size:calc(21.5px * var(--ui-scale, 1));color:var(--gold-2);font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+/* ─── Lifetime stats (the Journal's Stats tab) ─── */
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:14px}
 .stat-tile{padding:10px 12px;border-radius:var(--r-sm);background:rgba(255,255,255,.04);border:1px solid var(--line-soft)}
 .stat-tile b{display:block;font-size:calc(21.5px * var(--ui-scale, 1));font-weight:800;color:var(--ink);line-height:1.1}
@@ -1147,7 +1138,6 @@ img,svg{display:block;max-width:100%}
 .stats-row:nth-child(odd){background:rgba(255,255,255,.025)}
 .stats-row .lbl{color:var(--ink-2)}
 .stats-row .val{color:var(--ink);font-weight:700}
-.stats-close{position:absolute;top:14px;right:16px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.05);border:1px solid var(--line-soft);display:flex;align-items:center;justify-content:center;color:var(--ink-2);font-size:calc(17px * var(--ui-scale, 1));cursor:pointer}
 
 /* ===== block 7: style-7 ===== */
 .combat-style-block{margin:10px 0;padding:10px 12px;background:rgba(229,189,108,.08);
@@ -2102,7 +2092,7 @@ body[data-theme="dark"] .lane1-toggle{
 
 /* Sidebar notification dots */
 .nav-btn{position:relative}
-.nav-btn .nav-badge{position:absolute;top:6px;right:8px;width:8px;height:8px;background:#e8746a;border-radius:50%;box-shadow:0 0 4px rgba(232,116,106,.7);animation:nav-pulse 1.6s ease-in-out infinite}
+.nav-btn .nav-badge{position:absolute;top:6px;right:8px;width:8px;height:8px;background:var(--gold-2);border-radius:50%;box-shadow:0 0 4px color-mix(in srgb,var(--gold-2) 70%,transparent);animation:nav-pulse 1.6s ease-in-out infinite}
 .nav-btn .nav-badge.hide{display:none}
 @keyframes nav-pulse{0%,100%{opacity:.7}50%{opacity:1}}
 

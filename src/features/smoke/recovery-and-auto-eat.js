@@ -3015,10 +3015,9 @@ export default [
       D._render(Object.assign({}, base, { actions: [] }), { monsterId: 'goblin' });
       document.querySelector('#hr-death-scrim [data-act="notes"]').click();
       assert(!document.getElementById('hr-death-scrim').classList.contains('show'), 'the sheet stayed over the Bestiary');
-      const ov = document.getElementById('best-overlay');
-      assert(ov && ov.classList.contains('show'), 'the Bestiary did not open');
+      assert(document.querySelector('#panel-journal.active .jr-tab.active[data-jr-tab="bestiary"]'), 'the Bestiary did not open');
     } finally {
-      const ov = document.getElementById('best-overlay'); if (ov) ov.classList.remove('show');
+      try { window.showTab('profile'); } catch (e) {}
       D.__resetForTest();
     }
   }),

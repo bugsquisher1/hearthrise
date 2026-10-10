@@ -278,6 +278,19 @@
     return '<div class="hunt-evidence">' + html + '</div>';
   }
 
+  /** THE STANCE PICKER — three buttons, one visibly selected. The solo panel
+      and the party hunt card (src/render/party-panel.js) draw the SAME picker
+      from here, so a fourth stance is one row in STANCE_WORDS for both. */
+  function stanceButtonsHtml(stance) {
+    var buttons = '';
+    for (var k in STANCE_WORDS) {
+      if (!Object.prototype.hasOwnProperty.call(STANCE_WORDS, k)) continue;
+      buttons += '<button type="button" class="hunt-stance-btn' + (k === stance ? ' is-on' : '')
+        + '" data-stance="' + esc(k) + '">' + esc(STANCE_WORDS[k]) + '</button>';
+    }
+    return buttons;
+  }
+
   /**
    * THE WHOLE PANEL, as a string. PURE: it takes the three server-projected
    * blocks and returns HTML. It reads no globals and writes none, which is what
@@ -315,12 +328,7 @@
        a sentence. Selection is read from the SERVER's projection with a
        fail-safe of the default — never from a click this panel remembers
        (CLAUDE.md §6, residue-ahead). */
-    var buttons = '';
-    for (var k in STANCE_WORDS) {
-      if (!Object.prototype.hasOwnProperty.call(STANCE_WORDS, k)) continue;
-      buttons += '<button type="button" class="hunt-stance-btn' + (k === stance ? ' is-on' : '')
-        + '" data-stance="' + esc(k) + '">' + esc(STANCE_WORDS[k]) + '</button>';
-    }
+    var buttons = stanceButtonsHtml(stance);
     var setup = '<div class="hunt-setup">'
       + '<div class="hunt-setup-row"><span class="hunt-key">STANCE</span>'
       + '<span class="hunt-stance-buttons">' + buttons + '</span></div>'
@@ -466,4 +474,6 @@
   window.vigourChipHtml = vigourChipHtml;
   window.vigourRenewText = vigourRenewText;
   window.huntStopSentence = stopSentence;
+  window.huntStanceButtonsHtml = stanceButtonsHtml;
+  window.huntStanceWord = function (k) { return Object.prototype.hasOwnProperty.call(STANCE_WORDS, k) ? STANCE_WORDS[k] : null; };
 }());

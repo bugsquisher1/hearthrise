@@ -6700,9 +6700,6 @@ export default [
      periwinkle #5f6fc4 and a retired cyan #7dd3fc), and a theme blanket painted
      --bg-2 slabs behind every product icon. Both are structural. */
   () => tryRun('b371 (F24): the premium store is token-driven and its icons are unslabbed', () => {
-    /* W0: the door is shut for Early Access; the dormant store keeps this test. */
-    window.HearthShops._setPremiumOpen(true);
-    try {
     showTab('premium');
     const card = document.querySelector('#iap-panel .iap-card');
     assert(card, 'the premium store rendered no product cards');
@@ -6737,7 +6734,6 @@ export default [
         try { return Array.from(s.cssRules).map((x) => x.cssText).join(''); } catch (e) { return ''; }
       }).join('')),
       'a retired blue literal is still authored in a stylesheet');
-    } finally { window.HearthShops._setPremiumOpen(false); showTab('profile'); }
   }),
 
   /* The leaderboard rebuild ships boards with no server source as
@@ -9369,26 +9365,22 @@ export default [
       restoreG(snap);
       restore();
     }
-    /* Collection log detail: '<1%', its own established rule. */
-    const CL = window.HearthriseCollection;
+    /* The Journal's drop table: '<1%', its own established rule. */
     const prev = { bestiary: G.bestiary };
     try {
       G.bestiary = Object.assign({}, G.bestiary, { small_wolf: Object.assign({ kills: 1 }, (G.bestiary || {}).small_wolf) });
-      assert(CL && typeof CL.open === 'function', 'setup: the collection log is unpublished');
-      CL.open();
-      const tab = document.querySelector('#hr-cl-modal [data-cl-tab="bestiary"]');
-      if (tab) tab.click();                      // the log remembers its last tab
-      const cell = document.querySelector('#hr-cl-modal [data-mon="small_wolf"]');
-      assert(cell, 'the collection log has no small_wolf cell');
+      assert(window.HearthriseJournal, 'setup: the Journal is unpublished');
+      window.HearthriseJournal.open('bestiary');
+      const cell = document.querySelector('#panel-journal [data-jr-mon="small_wolf"]');
+      assert(cell, 'the Bestiary has no small_wolf row');
       cell.click();
-      const rowEl = [...document.querySelectorAll('.hr-cl-drop')].find((el) => /Wolfbone Torc/.test(el.textContent));
-      assert(rowEl && /<1%/.test(rowEl.textContent), 'the collection-log detail does not list Wolfbone Torc at <1%: ' + (rowEl ? rowEl.textContent : 'no row'));
-      const back = document.querySelector('#hr-cl-modal [data-cl-back]');
-      if (back) back.click();                    // leave the log on its grid, as found
+      const rowEl = [...document.querySelectorAll('#panel-journal .hr-cl-drop')].find((el) => /Wolfbone Torc/.test(el.textContent));
+      assert(rowEl && /<1%/.test(rowEl.textContent), 'the drop table does not list Wolfbone Torc at <1%: ' + (rowEl ? rowEl.textContent : 'no row'));
+      const back = document.querySelector('#panel-journal [data-jr-back]');
+      if (back) back.click();                    // leave the Bestiary on its list, as found
     } finally {
       G.bestiary = prev.bestiary;
-      const modal = document.getElementById('hr-cl-modal');
-      if (modal) modal.remove();
+      try { window.showTab('profile'); } catch (e) {}
       closeOverlays();
     }
   }),
@@ -9601,7 +9593,7 @@ export default [
     const run = CHARM_RANK_LORE.marked.split(' ').pop() + ' ' + CHARM_CLASS_LORE.undead.split(' ')[0];
     assert(!box.textContent.includes(run), 'the sheet reads "' + run + '"');
   }),
-  () => tryRun('HLEDGER-4: the Home card is pending while unknown, never 0, and absent when empty', () => {
+  () => tryRun('HLEDGER-4: the Bestiary head is pending while unknown, never 0, and absent when empty', () => {
     const HL = window.HearthriseHuntersLedger;
     if (!HL) { skip('seam absent'); return; }
     const unk = HL.cardHtml(null);

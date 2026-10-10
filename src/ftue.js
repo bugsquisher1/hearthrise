@@ -122,7 +122,7 @@
     },
     {
       id: 'inventory',
-      target: 'button[data-tab="inventory"]',
+      target: 'button[data-tab="character"]',
       placement: 'right',
       /* b432: this step opened on "drag items onto the equipment doll", which
          is a mechanic a brand-new player cannot try — a day-one bag holds two
@@ -131,8 +131,8 @@
          bag, keep the equip instruction as the second half for when there IS
          gear, and answer the question every RPG player has already asked
          themselves by this point: what happens to my stuff when I die. */
-      title: 'Your loot lives here',
-      body: 'Everything you gather, cook and kill for lands in your bag. Right-click any item, or press and hold it on a phone, to eat it, equip it, bury bones or see what it is for — and once you own gear, drag it onto the doll beside your bag to wear it. Nothing here is lost when you fall.',
+      title: 'Your hero and your loot',
+      body: 'Everything you gather, cook and kill for lands in your Bag, one tab over on your Character screen. Right-click any item, or press and hold it on a phone, to eat it, equip it, bury bones or see what it is for — and once you own gear, drag it onto the doll beside your bag to wear it. Nothing here is lost when you fall.',
       primary: 'Next',
       autoAdvanceOnClick: true,
     },

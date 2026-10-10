@@ -136,9 +136,9 @@ function rowHtml(r) {
     + '</div>';
 }
 
-/** Home's status-rail card. Unknown ⇒ pending marks, never 0; known and empty ⇒ ''. */
+/** The Journal's Bestiary head. Unknown ⇒ pending marks, never 0; known and empty ⇒ ''. */
 export function cardHtml(snap) {
-  const head = '<div class="hd-h"><h3>Hunter\'s ledger</h3><a data-hl-open="bestiary">Bestiary →</a></div>';
+  const head = '<div class="hd-h"><h3>Hunter\'s ledger</h3></div>';
   if (!snap) {
     return '<div class="hl-card">' + head + '<div class="hd-card hl-rows">'
       + '<div class="hl-row"><div class="hd-mile-title">Nearest charm</div><div class="hd-mile-sub">' + PENDING + '</div></div>'
@@ -273,7 +273,7 @@ function openMoment(ups) {
     const b = e.target.closest && e.target.closest('[data-hl-moment]');
     if (!b) return;
     scrim.remove();
-    if (b.getAttribute('data-hl-moment') === 'open' && typeof window.openBestiary === 'function') window.openBestiary();
+    if (b.getAttribute('data-hl-moment') === 'open' && window.HearthriseJournal) window.HearthriseJournal.open('bestiary');
   });
   document.body.appendChild(scrim);
   const primary = scrim.querySelector('[data-hl-moment="open"]');
@@ -344,7 +344,7 @@ export function setupHuntersLedger() {
   };
   document.addEventListener('click', (e) => {
     const a = e.target && e.target.closest && e.target.closest('[data-hl-open="bestiary"]');
-    if (a && typeof window.openBestiary === 'function') window.openBestiary();
+    if (a && window.HearthriseJournal) window.HearthriseJournal.open('bestiary');
   });
   setInterval(() => { try { liveTick(); } catch (e) { /* display only */ } }, 1000);
 }

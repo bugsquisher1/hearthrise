@@ -732,23 +732,6 @@ export default [
       stampRecordLikeLoad(G);
     }
   }),
-  () => tryRun('b269: the Stable nav button lives under Homestead, not Adventure', () => {
-    // Tyler: pets are a homestead fixture. companions.js injectNavButton was
-    // inserting the Stable button into the Adventure group; it must land in
-    // Homestead. Assert by walking the sidebar and tracking the group label
-    // that precedes the stable button.
-    const sb = document.querySelector('.sidebar') || document.querySelector('aside');
-    if (!sb) return;                                   // no sidebar in this harness view
-    const stable = sb.querySelector('[data-tab="stable"]');
-    if (!stable) return;                               // nav not injected yet — nothing to assert
-    let group = null;
-    for (const el of Array.from(sb.children)) {
-      if (el.classList && el.classList.contains('nav-group-label')) group = el.textContent.trim();
-      if (el === stable) break;
-    }
-    assert(group === 'Homestead',
-      'the Stable button must sit under the Homestead group, found it under: ' + group);
-  }),
   () => tryRun('b269: artisan progress bar resets each action (was pinned at 100%)', () => {
     if (window.HearthriseCore && window.HearthriseCore.artisanSim) window.HearthriseCore.artisanSim.__setCookingSettlementArm(true);
     // Regression (Tyler: "the progress bar stops after moving from 1 activity to

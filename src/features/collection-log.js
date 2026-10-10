@@ -1,5 +1,6 @@
 // ============================================================
-// src/features/collection-log.js  — Collection Log (completionism)
+// src/features/collection-log.js  — Collection Log (completionism), painted in
+// the Journal's Collection tab (HearthriseCollection.paint(host)).
 //
 // The classic long-tail retention engine (Melvor/OSRS): a browsable record
 // of every monster you've slain and every item you've found, with a running
@@ -190,6 +191,21 @@
     };
   }
 
+  /* The completion the REALM states: found counts are the server's (null until
+     mirrored), totals are the catalogue. What the Journal and the Character
+     sheet print; getStats() is the residue view the grid draws from. */
+  function serverStats(G) {
+    var c = serverCounts(G);
+    var monTotal = Object.keys(window.MONSTERS || {}).length;
+    var itemTotal = Object.keys(window.ITEMS || {}).length;
+    var known = c.monsters != null && c.items != null && (monTotal + itemTotal) > 0;
+    return {
+      mon: { found: c.monsters, total: monTotal },
+      item: { found: c.items, total: itemTotal },
+      overall: known ? Math.min(1, (c.monsters + c.items) / (monTotal + itemTotal)) : null
+    };
+  }
+
   /* ══════════════════════════════════════════════════════════════════════════
      THE SERVER'S COUNTS ARE THE ONLY THING THAT EARNS A RUNG.
      hr_claim_milestone re-derives the DISTINCT count from hr_bestiary_of /
@@ -254,7 +270,7 @@
      90 s settle must not reset the scroll of a resolved log. */
   function repaintIfPending() {
     if (typeof document === 'undefined') return;
-    if (document.querySelector('#hr-cl-modal .bal-pending')) open();
+    if (host && host.isConnected && host.querySelector('.hr-cl-top .bal-pending, [data-cl-next] .bal-pending')) paint(host);
   }
   function isClaimed(G, id) {
     var s = ensureState(G); if (!s) return false;
@@ -467,17 +483,11 @@
     var s = document.createElement('style');
     s.id = 'hr-cl-css';
     s.textContent = [
-      '.hr-cl-scrim{z-index:100000;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center}',
-      '.hr-cl-wrap{background:var(--bg-1,#1a1f2e);border:1px solid var(--line,#b8893e);border-radius:14px;width:100%;max-width:520px;color:var(--ink,#e9e2cf);box-shadow:0 18px 50px -12px rgba(0,0,0,.7);font-family:var(--f-ui,system-ui,sans-serif)}',
-      '.hr-cl-top{padding:16px 18px 12px;position:relative;background:var(--bg-1,#1a1f2e);border-bottom:1px solid var(--line-soft,rgba(122,94,58,.2))}',
+      '.hr-cl-top{padding:4px 2px 12px;border-bottom:1px solid var(--line-soft)}',
       '.hr-cl-hn{font-family:var(--f-display,serif);font-size:calc(21px * var(--ui-scale, 1));font-weight:800;color:var(--gold,#e0a64a)}',
       '.hr-cl-eyebrow{font-size:calc(14.5px * var(--ui-scale, 1));letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3,#a5896a)}',
-      '.hr-cl-x{position:absolute;top:12px;right:14px;background:var(--bg-0,#0f1320);border:1px solid var(--line-soft,rgba(122,94,58,.25));color:var(--ink-2,#cbb890);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:calc(16px * var(--ui-scale, 1))}',
       '.hr-cl-bar{height:8px;border-radius:99px;background:var(--bg-0,#0f1320);border:1px solid var(--line-soft,rgba(122,94,58,.25));overflow:hidden;margin:9px 0 3px}',
       '.hr-cl-bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--gold-2,#c8862a),var(--gold,#e0a64a))}',
-      '.hr-cl-tabs{display:flex;gap:6px;padding:10px 12px 0}',
-      '.hr-cl-tab{flex:1;text-align:center;padding:8px;border-radius:9px 9px 0 0;border:1px solid transparent;cursor:pointer;font-weight:700;font-size:calc(14.5px * var(--ui-scale, 1));color:var(--ink-3,#a5896a)}',
-      '.hr-cl-tab.on{color:var(--ink,#e9e2cf);background:color-mix(in srgb,var(--gold,#e0a64a) 10%,transparent);border-color:var(--line-soft,rgba(122,94,58,.25))}',
       '.hr-cl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:7px;padding:12px}',
       '.hr-cl-cell{aspect-ratio:1;border-radius:9px;border:1px solid var(--line-soft,rgba(122,94,58,.25));background:var(--bg-2,#2c2216);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:3px;text-align:center;overflow:hidden}',
       '.hr-cl-cell.miss{opacity:.4;filter:grayscale(1)}',
@@ -514,15 +524,16 @@
       '<div class="hr-cl-ic">' + (found ? (icon || _clGly('uiChest', 22)) : _clGly('uiSearch', 22)) + '</div>' +
       '<div class="hr-cl-nm">' + (found ? name : '???') + '</div></div>';
   }
-  // Bestiary cell — clickable into a drop-table detail when discovered.
-  function cellMon(id, icon, name, found) {
-    return '<div class="hr-cl-cell' + (found ? '' : ' miss') + '"' + (found ? ' data-mon="' + id + '" style="cursor:pointer"' : '') + ' title="' + (name || '') + '">' +
-      '<div class="hr-cl-ic">' + (found ? (icon || _clGly('uiChest', 22)) : _clGly('uiSearch', 22)) + '</div>' +
-      '<div class="hr-cl-nm">' + (found ? name : '???') + '</div></div>';
-  }
+  // A monster's drop table, opened from the Journal's Bestiary rows.
   function monDetailHtml(id) {
     var M = (window.MONSTERS || {})[id]; if (!M) return '';
-    var b = (window.G.bestiary || {})[id] || {};
+    ensureStyle();   // the Bestiary may open a drop table before the Collection tab ever painted
+    /* Slain: the SERVER's count, or the pending dash — never the residue. */
+    var T = window.HearthriseTrophies;
+    var HB = window.HearthriseBalance;
+    var slain = (T && typeof T.countsKnown === 'function' && T.countsKnown())
+      ? fmt(T.killsOfMonster(id))
+      : ((HB && HB.countMarkup) ? HB.countMarkup(null) : '—');
     var note = (window.HearthriseMonsterNotes || {})[id];
     var noteHtml = (typeof note === 'string') ? '<div class="hr-cl-stats hr-cl-note">' + note + '</div>' : '';
     var drops = (M.drops || []).map(function (d) {
@@ -539,10 +550,10 @@
       return '<div class="hr-cl-drop"><span>' + window.itemArt(d.id, 18) + ' ' + (it ? it.n : d.id) + mark + '</span><b>' + (pct < 1 ? '<1' : Math.round(pct)) + '%</b></div>';
     }).join('') || '<div class="hr-cl-drop"><span>No drops</span></div>';
     return '<div class="hr-cl-detail">' +
-      '<button class="hr-cl-claim" data-cl-back="1" style="margin-bottom:12px">← Back to log</button>' +
+      '<button class="btn btn-sm" data-jr-back="1" style="margin-bottom:12px">← Back to the Bestiary</button>' +
       '<div style="text-align:center"><div class="hr-cl-hero">' + window.monsterArt(id, 46) + '</div>' +
       '<div class="hr-cl-hn" style="font-size:calc(23px * var(--ui-scale, 1))">' + M.name + '</div>' +
-      '<div class="hr-cl-eyebrow">Tier ' + (M.tier || 1) + ' · ' + (M.family || '') + ' · ' + fmt(b.kills || 0) + ' slain</div></div>' +
+      '<div class="hr-cl-eyebrow">Tier ' + (M.tier || 1) + ' · ' + (M.family || '') + ' · ' + slain + ' slain</div></div>' +
       noteHtml +
       '<div class="hr-cl-sec">Combat</div>' +
       '<div class="hr-cl-stats">' + M.hp + ' HP · ' + M.atk + ' ATK · ' + M.def + ' DEF · ' + M.xp + ' xp · weak to ' + (M.weaponWeak || '—') + '</div>' +
@@ -575,7 +586,7 @@
     var src = itemSources(id);
     var have = (window.G.collection || {})[id];
     return '<div class="hr-cl-detail">' +
-      '<button class="hr-cl-claim" data-cl-back="1" style="margin-bottom:12px">← Back to log</button>' +
+      '<button class="btn btn-sm" data-cl-back="1" style="margin-bottom:12px">← Back to the collection</button>' +
       '<div style="text-align:center"><div class="hr-cl-hero">' + window.itemArt(id, 46) + '</div>' +
       '<div class="hr-cl-hn" style="font-size:calc(23px * var(--ui-scale, 1))">' + it.n + '</div>' +
       '<div class="hr-cl-eyebrow">Worth ' + fmt(it.v || 0) + ' gold' + (have ? ' · discovered' : '') + '</div></div>' +
@@ -584,28 +595,12 @@
     '</div>';
   }
 
-  var activeTab = 'bestiary';
-  var detailMon = null;
   var detailItem = null;
+  var host = null;
 
   function renderBody(G) {
-    var MON = window.MONSTERS || {}, ITEMS = window.ITEMS || {};
-    var best = G.bestiary || {}, col = G.collection || {};
-    if (activeTab === 'bestiary') {
-      // drilled into a specific monster's drop table
-      if (detailMon && MON[detailMon] && best[detailMon] && (best[detailMon].kills || 0) > 0) return monDetailHtml(detailMon);
-      // group monsters by tier
-      var byTier = {};
-      Object.keys(MON).forEach(function (id) { var t = MON[id].tier || 1; (byTier[t] = byTier[t] || []).push(id); });
-      var tiers = Object.keys(byTier).map(Number).sort(function (a, b) { return a - b; });
-      return tiers.map(function (t) {
-        var cells = byTier[t].map(function (id) {
-          var found = best[id] && (best[id].kills || 0) > 0;
-          return cellMon(id, window.monsterArt(id, 30), MON[id].name, found);
-        }).join('');
-        return '<div class="hr-cl-sec">Tier ' + t + '</div><div class="hr-cl-grid">' + cells + '</div>';
-      }).join('');
-    }
+    var ITEMS = window.ITEMS || {};
+    var col = G.collection || {};
     // items — drilled into one item's detail?
     if (detailItem && ITEMS[detailItem] && col[detailItem]) return itemDetailHtml(detailItem);
     /* THE FOUR HEARTHFINDS lead the items tab (slate §2). The section is
@@ -630,14 +625,14 @@
     obtainableIds().forEach(function (id) { var c = catOf(ITEMS[id]); (byCat[c] = byCat[c] || []).push(id); });
     return hfSection + Object.keys(byCat).sort().map(function (c) {
       var ids = byCat[c];
-      var found = ids.filter(function (id) { return col[id]; }).length;
       var cells = ids.map(function (id) { return cellItem(id, window.itemArt(id, 26), ITEMS[id].n, !!col[id]); }).join('');
-      return '<div class="hr-cl-sec">' + c + ' · ' + found + '/' + ids.length + '</div><div class="hr-cl-grid">' + cells + '</div>';
+      return '<div class="hr-cl-sec">' + c + '</div><div class="hr-cl-grid">' + cells + '</div>';
     }).join('');
   }
 
-  function open() {
-    if (document.getElementById('hr-cl-modal')) document.getElementById('hr-cl-modal').remove();
+  function paint(h) {
+    host = h;
+    if (!host) return;
     ensureStyle();
     var G = window.G;
     /* LEVEL WITH THE BAG BEFORE ANYTHING IS COUNTED OR DRAWN. The toast was only
@@ -645,7 +640,11 @@
        as "???" and the header's "% Complete" under-reported to match. Both read
        G.collection, and both read it from here. */
     reconcileHeld(G);
-    var st = getStats(G);
+    var st = serverStats(G);
+    var HB = window.HearthriseBalance;
+    var pend = function () { return (HB && HB.countMarkup) ? HB.countMarkup(null, { label: 'Not counted yet' }) : '—'; };
+    var n = function (v) { return v == null ? pend() : fmt(v); };
+    var pct = st.overall == null ? null : Math.round(st.overall * 100);
     var claims = claimable(G);
     var msHtml = claims.map(function (m) {
       var rw = []; if (m.reward.gold) rw.push(_clGly('gold',13,'--gold-2') + ' ' + fmt(m.reward.gold)); if (m.reward.gems) rw.push(_clGly('gems',13,'--gem') + ' ' + fmt(m.reward.gems));
@@ -663,66 +662,49 @@
     }).join('');
     /* THE NEXT RUNG, per domain, from the SERVER's count — what the player is
        chasing, with its reward. Never a button: it is not earned. */
-    var HB = window.HearthriseBalance;
     msHtml += nextRungs(G).map(function (r) {
       var have = r.known ? fmt(r.have) : ((HB && HB.countMarkup) ? HB.countMarkup(null, { label: 'Not counted yet' }) : '—');
       return '<div class="hr-cl-next" data-cl-next="' + r.m.id + '"><div class="hr-cl-msb"><b>' + r.m.label + ': ' +
         have + '/' + fmt(r.goal) + ' ' + domainNoun(r.m.domain) + '</b> · ' + msRewardText(r.m.reward) + '</div></div>';
     }).join('');
 
-    var scrim = document.createElement('div');
-    scrim.className = 'hr-cl-scrim hr-scrim'; scrim.id = 'hr-cl-modal';   // layout: art-direction.css
-    scrim.innerHTML =
-      '<div class="hr-cl-wrap hr-sheet">' +
-        '<div class="hr-cl-top hr-sheet-head">' +
-          '<button class="hr-cl-x" data-cl-close="1" data-hr-dismiss>✕</button>' +
-          '<div class="hr-cl-eyebrow">Collection Log</div>' +
-          '<div class="hr-cl-hn">' + Math.round(st.overall * 100) + '% Complete</div>' +
-          '<div class="hr-cl-bar"><i style="width:' + Math.round(st.overall * 100) + '%"></i></div>' +
-          '<div class="hr-cl-eyebrow">Bestiary ' + st.mon.found + '/' + st.mon.total + ' · Items ' + st.item.found + '/' + st.item.total + '</div>' +
-        '</div>' +
-        '<div class="hr-sheet-body">' + msHtml +
-        '<div class="hr-cl-tabs">' +
-          '<div class="hr-cl-tab' + (activeTab === 'bestiary' ? ' on' : '') + '" data-cl-tab="bestiary">Bestiary</div>' +
-          '<div class="hr-cl-tab' + (activeTab === 'items' ? ' on' : '') + '" data-cl-tab="items">Items</div>' +
-        '</div>' +
-        '<div id="hr-cl-body">' + renderBody(G) + '</div></div>' +
-      '</div>';
-    scrim.addEventListener('click', function (e) {
+    host.innerHTML =
+      '<div class="hr-cl-top">' +
+        '<div class="hr-cl-hn">' + (pct == null ? pend() : pct + '%') + ' complete</div>' +
+        '<div class="hr-cl-bar"><i style="width:' + (pct || 0) + '%"></i></div>' +
+        '<div class="hr-cl-eyebrow">Monsters ' + n(st.mon.found) + '/' + st.mon.total + ' · Items ' + n(st.item.found) + '/' + st.item.total + '</div>' +
+      '</div>' + msHtml +
+      '<div id="hr-cl-body">' + renderBody(G) + '</div>' +
+      '<details class="luck-ledger" id="best-luck">' + (window.HearthriseLuckLedger ? window.HearthriseLuckLedger.html() : '') + '</details>';
+    if (host.__clWired) return;
+    host.__clWired = true;
+    host.addEventListener('click', function (e) {
       var t = e.target;
-      if (t === scrim || t.getAttribute('data-cl-close')) { scrim.remove(); return; }
-      if (t.getAttribute('data-cl-back')) { detailMon = null; detailItem = null; open(); return; }
-      var tab = t.getAttribute('data-cl-tab');
-      if (tab) { activeTab = tab; detailMon = null; detailItem = null; open(); return; }
-      /* THE TITLE CHIPS. Checked BEFORE the item/monster cells because the
-         chooser sits inside the items tab; hearthfind.js validates the code
-         against the server projection and owns the repaint, this file only
-         re-draws the log so the pressed state is honest. */
+      if (t.getAttribute('data-cl-back')) { detailItem = null; paint(host); return; }
+      /* THE TITLE CHIPS. Checked BEFORE the item cells because the chooser sits
+         inside the items grid; hearthfind.js validates the code against the
+         server projection and owns the repaint, this file only re-draws the log
+         so the pressed state is honest. */
       var chip = t.closest && t.closest('[data-hf-title]');
       if (chip) {
         try {
           if (window.HearthriseHearthfind && typeof window.HearthriseHearthfind.chooseTitle === 'function')
             window.HearthriseHearthfind.chooseTitle(chip.getAttribute('data-hf-title'));
         } catch (e) {}
-        open();
+        paint(host);
         return;
       }
-      var monCell = t.closest && t.closest('[data-mon]');
-      if (monCell) { detailMon = monCell.getAttribute('data-mon'); open(); return; }
       var itemCell = t.closest && t.closest('[data-item]');
-      if (itemCell) { detailItem = itemCell.getAttribute('data-item'); open(); return; }
+      if (itemCell) { detailItem = itemCell.getAttribute('data-item'); paint(host); return; }
       var cid = t.getAttribute('data-cl-claim');
       if (cid) {
-        /* claimMilestone owns the toast for EVERY outcome; a call site that only
-           reacted to success is how the refusal used to be silent. Re-render on
-           any verdict — but only if the log is still on screen, so a verdict
-           arriving after the player closed it never re-opens a modal at them. */
+        /* claimMilestone owns the toast for EVERY outcome. Re-render on any
+           verdict, but only while the log is still on screen. */
         claimMilestone(cid, G).then(function () {
-          if (document.getElementById('hr-cl-modal')) open();
+          if (host && host.isConnected) paint(host);
         });
       }
     });
-    document.body.appendChild(scrim);
   }
 
   window.HearthriseCollection = {
@@ -745,7 +727,9 @@
        re-credits it. Published so the suite can assert it directly. */
     reconcileHeld: reconcileHeld,
     __setRealmStated: __setRealmStated,
-    open: open,
+    serverStats: serverStats,
+    monsterDetailHtml: monDetailHtml,
+    paint: paint,
     ensureState: ensureState
   };
 

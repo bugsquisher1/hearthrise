@@ -870,6 +870,17 @@
         text: (atCap ? 'Capped at your ' + capH + 'h away limit' : 'Capped at your away limit') + unpaid });
     }
 
+    /* THE PARTY BLOCK (party-hunt spec §5): ONE line, from the hunt read taken
+       once for THIS receipt (keyed on its `at`), never a poll. Muted, never red
+       — making camp is not a failure. '' for a player in no party. */
+    try {
+      var PH = window.HearthriseParty;
+      var partyView = (PH && typeof PH.huntForReceipt === 'function') ? PH.huntForReceipt(off.at) : null;
+      var partyLine = (partyView && typeof window.partyReceiptLine === 'function')
+        ? window.partyReceiptLine(partyView, off, Date.now()) : '';
+      if (partyLine) notes.push({ tone: 'base', icon: 'uiSword', text: partyLine });
+    } catch (e) { /* never load-bearing */ }
+
     var noteHtml = notes.map(function (n) {
       return '<div class="hd-away-note is-' + n.tone + '">' +
         '<span class="ic">' + gly(n.icon, 13, '', 'currentColor') + '</span>' +
@@ -1743,8 +1754,6 @@
           '</div></div>';
       } catch (e) { /* renown optional */ }
     }
-    try { var ST = window.HearthriseStandings; if (ST && typeof ST.card === 'function') html += ST.card(G); } catch (e) { /* display only */ }
-    try { var HL = window.HearthriseHuntersLedger; if (HL && typeof HL.card === 'function') html += HL.card(G); } catch (e) { /* display only */ }
 
     // The realm — world events: the day's and the week's blessing, named and
     // described in the realm's words. b560: no rate, yield or gold figure — the
@@ -1778,7 +1787,6 @@
       } catch (e) { /* world events optional */ }
     }
 
-    try { var TW2 = window.HearthriseThisWeek; if (TW2 && typeof TW2.card === 'function') html += TW2.card(); } catch (e) { /* display only */ }
     // Upkeep — buffs + collection progress. Two one-line facts, not two cards.
     /* THE BUFF LADDER — the only VISIBLE buff surface (the Active Effects card
        `__renderBuffsSection` draws into is display:none on Home), so each row states
@@ -1815,18 +1823,19 @@
         gly('uiHourglass', 20, '', 'var(--ink-3)') + '</div>' +
         '<div>Real time — buff clocks run down whether you are here or away.</div></div>';
     }
-    if (window.HearthriseCollection && window.HearthriseCollection.getStats) {
+    if (window.HearthriseCollection && window.HearthriseCollection.serverStats) {
       try {
-        var _clp = Math.round(window.HearthriseCollection.getStats(G).overall * 100);
+        var _clo = window.HearthriseCollection.serverStats(G).overall;
+        var _clp = _clo == null ? pend() : Math.round(_clo * 100) + '%';
         /* LEDGER OF FIRSTS: 'Claim ready' or the nearest next rung, from the
            SERVER's counts (tileLine) — never a claim the server refuses. */
         var _cln = (typeof window.HearthriseCollection.tileLine === 'function')
           ? window.HearthriseCollection.tileLine(G) : null;
         html += '<div class="hd-card hd-mini" data-hd="collection" style="cursor:pointer">' +
           '<div class="mi">' + gly('uiBook', 20, '', 'var(--ink-2)') + '</div>' +
-          '<div>Collection log' + (_cln ? '<span class="hd-cl-next' + (_cln.ready ? ' ready' : '') + '"' + (_cln.pending ? ' data-pending="1"' : '') + '>' +
+          '<div>Journal · Collection' + (_cln ? '<span class="hd-cl-next' + (_cln.ready ? ' ready' : '') + '"' + (_cln.pending ? ' data-pending="1"' : '') + '>' +
             esc(_cln.text) + '</span>' : '') + '</div>' +
-          '<b class="go" style="font-variant-numeric:tabular-nums">' + _clp + '%</b></div>';
+          '<b class="go" style="font-variant-numeric:tabular-nums">' + _clp + '</b></div>';
       } catch (e) {}
     }
     html += '</div></div>';
@@ -1884,7 +1893,7 @@
             var lp = LP();
             if (lp && lp.openRename) lp.openRename();
             else if (window.HearthriseIdentity && window.HearthriseIdentity.openNameModal) window.HearthriseIdentity.openNameModal();
-          } else if (kind === 'collection') { if (window.HearthriseCollection) window.HearthriseCollection.open(); }
+          } else if (kind === 'collection') { if (window.HearthriseJournal) window.HearthriseJournal.open('collection'); }
           else if (kind === 'daily') { if (window.HearthriseDaily) window.HearthriseDaily.open(); }
           else if (kind === 'renown') { if (window.HearthriseRenown) window.HearthriseRenown.openLadder(); }
           else if (kind === 'mile' && mile && mile.deepLink) { mile.deepLink(); }

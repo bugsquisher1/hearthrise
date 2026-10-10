@@ -2620,10 +2620,6 @@
     } else {
       html += '<div class="hr-cs-line"><span class="hr-cs-label">Standing</span>' +
         '<span class="hr-cs-val"><b>' + n(standing) + '</b></span></div>' +
-        /* W0 (game-designer, 2026-10-10): the top tier is stated as the top. The
-           old line promised "tiers 6 to 10, not yet tuned" — a half-built
-           promise on a live screen. When a sixth tier exists it is a data row
-           in the ladder above, and this line is simply not reached. */
         '<div class="hr-cs-foot">The Fortified Keep is the highest a hold can stand.</div>';
     }
 

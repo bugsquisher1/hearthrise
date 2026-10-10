@@ -1306,7 +1306,6 @@ export default [
       assert(/dormant/.test(html), 'the upkeep state must be named when it is not Active');
       assert(/keeps every level it has earned/.test(html), 'dormancy must promise what it promises');
       assert(/highest a hold can stand/.test(html), 'tier 5 must not invent a tier 6 gate');
-      // W0 regression: the top tier is never sold as an unfinished roadmap.
       assert(!/not yet tuned|untuned|Tiers 6 to 10|Phase A/.test(html), 'the keep panel must not promise unbuilt tiers');
 
       // The Hunt column is a STATEMENT, not an empty boss bar — the Hunt owns

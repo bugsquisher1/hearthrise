@@ -5872,12 +5872,7 @@ export default [
      authored row, so there is exactly one offer id for one purchase and the
      generated server catalogue is untouched.
      ══════════════════════════════════════════════════════════════════════ */
-  /* W0 (game-designer, 2026-10-10): every hero is GRANTED Auto-Eat I at
-     creation, so it is no longer merchandise — the shop's trait row is now
-     Auto-Eat II, and the starter tier must NOT be offered. The contract below is
-     unchanged in every other respect (one offer id, the trait's own price, one
-     owner of the flag, charged exactly once) and is now driven on the tier a
-     player can actually buy. */
+  // Auto-Eat I is granted at creation, so the purchasable trait row is Auto-Eat II.
   () => tryRunAsync('b354/W0: the Bounty Shop sells Auto-Eat II (never the starter tier), through the ONE writer of the trait', async () => {
     assert(typeof window.bountyShopOffers === 'function',
       'bountyShopOffers() is not published — this test must read the REAL offer list the panel '
@@ -5956,7 +5951,6 @@ export default [
     const _R = window.HearthriseRecord;
     try {
       if (_R && typeof _R.__setMarksRecordArm === 'function') _R.__setMarksRecordArm(false);
-      /* Every hero owns the starter tier (granted at creation); II is the purchase. */
       window.G.traits = { auto_eat: true };
       window.ensureBountyState && window.ensureBountyState();
       /* b459: the price is DATA (TRAITS.auto_eat_2.cost), so every phase derives

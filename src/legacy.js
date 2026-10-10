@@ -8503,10 +8503,10 @@ function renderHouse(){
                   ? ` — <b>${_gp(price.gold - goldNow)} short</b>`
                   : ''))
         : '';
-      const btnLabel = plotPending ? 'Upgrade · counting…' : price
+      const btnLabel = plotPending ? 'Improve · counting…' : price
         ? (chk && chk.ok && chk.pay === 'deeds'
             ? `Spend ${price.deeds.toLocaleString()} Deed${price.deeds===1?'':'s'}`
-            : `Upgrade · ${_gp(price.gold)}`)
+            : `Improve · ${_gp(price.gold)}`)
         : '';
       plotCard = `<div class="shop-row" style="border:1px solid var(--accent,#7f9a4f);background:rgba(127,154,79,0.05)">
         <span class="si" style="width:56px;height:56px;display:flex;align-items:center;justify-content:center">${_hrGly('navFarm',30)}</span>
@@ -9042,8 +9042,8 @@ window.redeemHearthToken=redeemHearthToken;
    toggle. Data-driven so more QoL traits can be added later. */
 const TRAITS={
   /* b227 (Tyler): auto-eat is earned at the bounty board, not bought with gold.
-     b354: and it is now SOLD at the bounty board too — bountyShopOffers() lifts
-     every marks-priced trait onto the Bounty Shop panel. `desc` is therefore
+     b354: SOLD at the bounty board too — bountyShopOffers() lifts every marks-
+     priced trait that is not `starter` (granted at creation) onto it. `desc` is
      read on two screens; the old copy ended "Earned with Bounty Marks", which
      was a signpost to a currency the reader is now standing in. */
   /* b45x (Designer ruling 2026-08-23) — TWO TIERS. The death sheet teaches
@@ -9056,11 +9056,6 @@ const TRAITS={
      numbers live in src/core/auto-eat.js AUTO_EAT_TIERS, shared with the
      server's away simulation, and tests/auto-eat-authority.mjs binds these
      prices to that table. */
-  /* W0 (game-designer, 2026-10-10): `starter` — every character is GRANTED
-     this tier at creation (2026-09-04-auto-eat-at-creation.sql), so it is a
-     starting right, not merchandise. bountyShopOffers() leaves a starter trait
-     off the shop; the price stays authored because the server catalogue, the
-     death sheet and tests/auto-eat-authority.mjs all bind it. */
   auto_eat:{name:'Auto-Eat I',cost:15,currency:'marks',glyph:'meat',starter:true,desc:'Eats for you the moment your health drops below a quarter, INCLUDING while you\'re away — your fights stop being ninety seconds long.'},
   auto_eat_2:{name:'Auto-Eat II',cost:100,currency:'marks',glyph:'meat',req:'auto_eat',desc:'Eat sooner, and choose exactly when — upgrades the Auto-Eat every hero starts with, unlocking the full threshold slider in Settings → Gameplay instead of the fixed quarter.'},
 };
@@ -10758,7 +10753,6 @@ const BOUNTY_SHOP = [
    price, the debit and G.traits. This list never owns state. */
 function bountyShopOffers(){
   const T = window.TRAITS || {};
-  /* W0: a `starter` trait is granted at creation — never a shop row. */
   const marksTraits = Object.keys(T)
     .filter(function(id){ return T[id] && T[id].currency === 'marks' && !T[id].starter; })
     .map(function(id){

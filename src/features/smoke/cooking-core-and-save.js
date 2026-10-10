@@ -518,7 +518,7 @@ export default [
         'farming must ignore PACE.xp entirely (farming ' + xpOf('farming') + ' vs mining ' + xpOf('mining') + ')');
       assert(window.pacedXp('farming', 500) === 500, 'pacedXp must pass farming through untouched');
       assert(window.pacedXp('mining', 500) === 5, 'but every other skill goes through the dial');
-      // Growth is wall-clock, so the multiplier has to live in the crop data (b226 ×14, W0 ×3).
+      // Growth is wall-clock, so the multiplier has to live in the crop data.
       assert(window.CROPS.turnip.xp === 336, 'Turnip must grant the ×42 harvest XP (8 → 336)');
       assert(window.CROPS.moonbloom.xp === 7140, 'Moonbloom must grant the ×42 harvest XP (170 → 7140)');
     } finally { PACE.xp = realXp; restoreG(snap); }

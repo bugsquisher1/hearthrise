@@ -1344,7 +1344,7 @@ export default [
     /* The currency guard, restated for the new rows: PvE must never mint the
        IAP-only bond. */
     const mints = Object.keys(window.MONSTERS).filter((id) =>
-      (window.MONSTERS[id].drops || []).some((d) => d.id === 'hearth_token' || d.id === 'muster_seal'));
+      (window.MONSTERS[id].drops || []).some((d) => d.id === 'hearth_token'));
     assert(mints.length === 0, 'monsters minting a protected currency: ' + mints.join(', '));
   }),
 
@@ -1701,7 +1701,7 @@ export default [
     });
     /* No essence/rune drop mints the IAP-only currencies. */
     const bad = Object.keys(MONSTERS).filter((id) => (MONSTERS[id].drops || [])
-      .some((d) => (d.id === 'hearth_token' || d.id === 'muster_seal')));
+      .some((d) => d.id === 'hearth_token'));
     assert(bad.length === 0, 'a monster mints a protected currency: ' + bad.join(', '));
   }),
 

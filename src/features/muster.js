@@ -29,14 +29,13 @@
 //                              median of real contributors)
 // Everything here is a MIRROR for UX. See supabase/migrations/2026-08-08-muster.sql.
 //
-// ── CLIENT-FIRST COMPATIBILITY ──────────────────────────────
-// This file ships BEFORE the migration is applied and must work anyway. Every
-// RPC is FEATURE-DETECTED (404 / PGRST202 → 'unsupported') with a negative
-// probe that expires after ten minutes, so a session left open across the
-// migration heals itself without a reload. With no server the muster degrades
-// to a SOLO muster: the player still joins, still plays, still takes the
-// "Answered the call" band — but there is no shared community bar and no
-// Muster Seal, because neither of those can be honest without a server.
+// ── ONLINE-ONLY (W0, 2026-10-10) ────────────────────────────
+// The muster is a shared, server-run event, so it exists only with the realm.
+// The old "solo muster" (join, play and take a client-computed chest with no
+// server) and the Rally Seal currency were cut in the coherence audit: a
+// payout no server backs is not a payout, and the Seal had no spend. Every
+// RPC is still FEATURE-DETECTED (404 / PGRST202 -> 'unsupported'), but an
+// unsupported or signed-out muster now says so and pays nothing.
 //
 // ── THE CLOCK ───────────────────────────────────────────────
 // HearthriseWorldEvents is the shared clock utility every timed system reads
@@ -61,7 +60,7 @@
      window. +2% is the wide-key step, and the muster's real reward has always
      been its band payout, not its aura. */
   var LIVE_XP_AURA    = 0.02;     // +2% all XP while mustered
-  var SOLO_BAND       = { gold: 1500, gems: 2, seals: 0, band: 'answered' };
+  var BASE_BAND       = { gold: 1500, gems: 2, band: 'answered' };   // the server's 'answered' floor
 
   // ── Pre-selection: "I'll answer this one" (b228) ────────────
   // A player may mark ONE of the day's two rallies as the one they intend to
@@ -72,15 +71,14 @@
   // WHY HALF, AND WHY ONLY THE BASE BAND
   // Presence has to keep winning or the feature quietly becomes "log in every
   // other day". Half of the base band is 750g + 1 gem against a live chest that
-  // starts at 1,500g + 2 gems and reaches the 7,500g / 10 gems / 1 Seal ceiling
+  // starts at 1,500g + 2 gems and reaches the 7,500g / 10 gems ceiling
   // when the realm holds — so answering in absence is worth 50% of the FLOOR
-  // and 10% of the CEILING. It never pays a Rally Seal and never draws on the
-  // community bar, because neither can be honest without someone actually
-  // being there. It is a consolation, not an alternative.
+  // and 20% of the CEILING. It never draws on the community bar, because that
+  // cannot be honest without someone actually being there. It is a consolation, not an alternative.
   var ABSENT_SHARE = 0.5;
-  var ABSENT_BAND  = { gold:  Math.round(SOLO_BAND.gold * ABSENT_SHARE),
-                       gems:  Math.floor(SOLO_BAND.gems * ABSENT_SHARE),
-                       seals: 0, band: 'absent' };
+  var ABSENT_BAND  = { gold:  Math.round(BASE_BAND.gold * ABSENT_SHARE),
+                       gems:  Math.floor(BASE_BAND.gems * ABSENT_SHARE),
+                       band: 'absent' };
 
   // ── The muster pool (original content · Forge & Stone · no emoji) ──
   // Each muster carries its own ambient Blessing theme, so the two layers of a
@@ -130,7 +128,6 @@
   // across every event at both the floor and the ceiling.
   //
   //   gems  — untouched, still the same small constant per band.
-  //   seals — untouched. A Rally Seal still means only "the realm held".
   //
   // ── THE TWO CONVERSION CONSTANTS (Designer owns both) ───────
   // XP_PER_GOLD is anchored on the game's own economy rather than invented:
@@ -184,12 +181,11 @@
    * An unknown event (a save from a future pool, a malformed key) falls back to
    * plain gold rather than paying nothing — degrade poorer, never emptier.
    */
-  function themedChest(eventId, gold, gems, seals) {
+  function themedChest(eventId, gold, gems) {
     gold  = Math.max(0, Math.min(CHEST_GOLD_CEIL, Math.floor(+gold || 0)));
     gems  = Math.max(0, Math.min(CHEST_GEM_CEIL,  Math.floor(+gems || 0)));
-    seals = Math.max(0, Math.min(1, Math.floor(+seals || 0)));
     var t = themeFor(eventId);
-    if (!t) return { eventId: eventId || null, gold: gold, gems: gems, seals: seals, xp: [], items: [] };
+    if (!t) return { eventId: eventId || null, gold: gold, gems: gems, xp: [], items: [] };
 
     var itemBudget = Math.floor(gold * CHEST_ITEM_SHARE);
     var xpBudget   = Math.floor(gold * CHEST_XP_SHARE);
@@ -204,7 +200,7 @@
     var per = Math.floor((xpBudget * XP_PER_GOLD) / t.skills.length);
     var xp = t.skills.map(function (s) { return { skill: s, amount: per }; });
     var goldOut = Math.max(0, gold - spent - xpBudget);
-    return { eventId: eventId, gold: goldOut, gems: gems, seals: seals, xp: xp, items: items };
+    return { eventId: eventId, gold: goldOut, gems: gems, xp: xp, items: items };
   }
 
   // The audit function. What a chest is actually worth, in gold, by the same
@@ -227,7 +223,6 @@
     if (xp.length) {
       bits.push(xp.map(function (x) { return x.amount.toLocaleString() + ' ' + skillName(x.skill); }).join(', ') + ' XP');
     }
-    if (c.seals > 0) bits.push(c.seals + ' Rally Seal');
     return bits.join(', ');
   }
   function itemName(id) {
@@ -542,7 +537,7 @@
     // consolation is not owed and never was.
     if (o.joinedThatDay) return { action: 'forfeit', reason: 'answered_live' };
     return { action: 'pay', reason: 'absent',
-             gold: ABSENT_BAND.gold, gems: ABSENT_BAND.gems, seals: 0 };
+             gold: ABSENT_BAND.gold, gems: ABSENT_BAND.gems };
   }
 
   // ════════════════════════════════════════════════════════════
@@ -621,7 +616,8 @@
     not_live:       'No rally is live right now',
     stale_event:    'That rally has already closed',
     not_signed_in:  'Sign in to join the realm’s rally',
-    network:        'Could not reach the server — try again in a moment'
+    network:        'Could not reach the server — try again in a moment',
+    needs_realm:    'The muster is the realm’s — sign in and stay connected to answer it'
   };
   var CLAIM_ERRORS = {
     already_claimed: 'You have already taken today’s rally chest',
@@ -706,19 +702,16 @@
     return {
       action: 'accept', band: out.band || 'answered', held: !!out.held,
       // Server caps, mirrored so a compromised server cannot mint either.
-      // A Muster Seal is only ever awarded when the realm held the line.
       gold:  Math.max(0, Math.min(7500, +out.gold || 0)),
       gems:  Math.max(0, Math.min(10,   +out.gems || 0)),
-      seals: out.held ? Math.max(0, Math.min(1, +out.seals || 0)) : 0,
       /* SERVER-AUTHORITATIVE THEMED CHEST (2026-08-20). When the RPC returns an
          `items` array it has ALREADY computed the themed chest server-side
          (hr_rally_chest) and WRITTEN the materials into player_inventory — `gold`
          above is then the REDUCED goldOut, not the full band. The client renders
          these instead of re-deriving its own chest (which would double-reduce).
-         When `items` is absent (an un-migrated server, or the solo fall-through)
-         the client keeps computing the chest from the full band gold — the
-         legacy path. Item ids/qtys are sanitised but ORIGINATE server-side; the
-         client never sends them. */
+         Item ids/qtys are sanitised but ORIGINATE server-side; the client never
+         sends them. A response with no list pays no items (W0: the client never
+         computes a chest of its own). */
       items: sanitizeServerChest(out.items),
       xp:    sanitizeServerXp(out.xp)
     };
@@ -762,9 +755,7 @@
   }
 
   // Half honors. The client mirrors the server's ceiling for the same reason
-  // reduceClaim does — so a compromised or confused server cannot mint — and it
-  // hard-zeroes seals here rather than trusting a field: absence never earns a
-  // Rally Seal, so there is no number the server could send that would pay one.
+  // reduceClaim does — so a compromised or confused server cannot mint.
   function reduceAbsence(status, out) {
     if (isMissingRpc(status, out)) return { action: 'unsupported' };
     if (status >= 400 || !out || typeof out !== 'object' || typeof out.ok !== 'boolean') {
@@ -783,14 +774,13 @@
     return { action: 'accept',
              gold:  Math.max(0, Math.min(ABSENT_BAND.gold, +out.gold || 0)),
              gems:  Math.max(0, Math.min(ABSENT_BAND.gems, +out.gems || 0)),
-             seals: 0,
              /* SERVER-AUTHORITATIVE ABSENCE ITEMS (2026-08-22). When the RPC
                 returns an `items` array it has ALREADY written those materials
                 into player_inventory (2026-08-22-absence-chest-items.sql), exactly
                 like the online claim path. grantAbsent renders this list and gates
                 its local addItem on the inventory record seam so the credit is not
-                doubled once the inventory flip arms. Absent (legacy server) → the
-                client falls back to computing absentChest itself. */
+                doubled once the inventory flip arms. Absent → no items are paid
+                (W0: the client never computes a chest of its own). */
              items: Array.isArray(out.items) ? out.items : null };
   }
 
@@ -860,17 +850,11 @@
         announceJoin(w);
         renderAll(); return true;
       }
-      // 'unsupported' falls through to the solo path below.
     }
-    // Degraded path: no server (signed out, offline, or pre-migration). A solo
-    // muster — real join, real contribution, real chest, but no community bar
-    // and no Muster Seal, because neither would be true.
-    adopt({ dayKey: w.dayKey, eventKey: w.eventKey, slot: w.slot,
-            startMs: w.startMs, endMs: w.endMs, server: false });
-    community = null;
-    announceJoin(w);
-    renderAll();
-    return true;
+    // ONLINE-ONLY (W0): signed out, offline or un-migrated — the muster cannot be
+    // joined, and the player is told so instead of being handed a local copy.
+    toast(JOIN_ERRORS.needs_realm, 'info');
+    return false;
   }
 
   function adopt(o) {
@@ -1019,34 +1003,22 @@
       if (d.action === 'spent') { st.claimed = true; persist(); renderAll(); toast(d.message, 'info'); return false; }
       if (d.action === 'fail')  { toast(d.message, 'kill'); return false; }
       if (d.action === 'accept') { grant(d); return true; }
-      // 'unsupported' → the migration is not applied. Fall through to solo.
     }
-    grant(SOLO_BAND);
-    return true;
+    // ONLINE-ONLY (W0): no server, no chest. Nothing is paid that the realm did not.
+    toast(claimErrorText('network'), 'kill');
+    return false;
   }
 
-  // The reward. Gold, gems, the rally's own materials and XP, and AT MOST ONE
-  // Muster Seal. There is no branch here that can produce a hearth_token — the
-  // IAP bond is never PvE-minted.
+  // The reward. Gold, gems, and the rally's own materials and XP — all of it
+  // priced and written by world_event_claim. There is no branch here that can
+  // produce a hearth_token — the IAP bond is never PvE-minted.
   function grant(d) {
     var st = ensureState();
     st.claimed = true;
     var ev = eventForKey(st.eventKey);
-    var chest, serverItems = false;
-    if (d && Array.isArray(d.items)) {
-      /* SERVER-AUTHORITATIVE (2026-08-20): the RPC already computed the themed
-         chest AND wrote its materials into player_inventory. d.gold is the
-         reduced goldOut. Render the server's list; do NOT re-derive it (that
-         would convert goldOut a second time and under-pay). */
-      chest = { eventId: ev ? ev.id : null, gold: d.gold, gems: d.gems,
-                seals: d.seals, items: d.items, xp: d.xp || [] };
-      serverItems = true;
-    } else {
-      /* LEGACY / SOLO: no server chest in the response — compute it client-side
-         from the full band gold, exactly as before. */
-      chest = themedChest(ev ? ev.id : null, d.gold, d.gems, d.seals);
-    }
-    payChest(chest, { serverItems: serverItems });
+    var chest = { eventId: ev ? ev.id : null, gold: d.gold, gems: d.gems,
+                  items: Array.isArray(d.items) ? d.items : [], xp: d.xp || [] };
+    payChest(chest);
     toast('Rally chest: ' + chestSummary(chest) + (d.held ? ' — the realm held.' : ''), 'levelup');
     persist();
     if (typeof window.updateTopbar === 'function') try { window.updateTopbar(); } catch (e) {}
@@ -1056,8 +1028,7 @@
   // The ONE payout path, shared by the live chest and half honors. XP goes
   // through addXp so PACE, the fuse and the day's blessing all apply — a rally
   // must never be a way to inject XP the rest of the game cannot see.
-  function payChest(c, opts) {
-    opts = opts || {};
+  function payChest(c) {
     var G = window.G;
     /* SECURITY (gold record-flip, Finding #2): world_event_claim PRICES the
        chest server-side (v_gold/v_gems in 2026-08-08-muster.sql) and is the
@@ -1066,28 +1037,22 @@
        joins SERVER_OF_RECORD this local grant would be ERASED by the next
        absolute envelope. Gate it on the record seam so a number the server will
        overwrite is never minted; the gate is a no-op until gold is armed, so
-       today's behaviour is byte-identical. Items/seals/XP are NOT on the record
+       today's behaviour is byte-identical. Items/XP are NOT on the record
        and stay client-authored. */
     var _mayGold = !window.clientMayWriteRecordField || window.clientMayWriteRecordField('gold');
     var _mayGems = !window.clientMayWriteRecordField || window.clientMayWriteRecordField('gems');
     if (_mayGold) G.gold = (G.gold || 0) + (c.gold || 0);
     if (_mayGems) G.gems = (G.gems || 0) + (c.gems || 0);
-    /* ITEMS (2026-08-20). When opts.serverItems is set the RPC has already
-       written these materials into player_inventory (the record). Gate the local
+    /* ITEMS (2026-08-20). The RPC has ALWAYS already written these materials into player_inventory (the record). Gate the local
        addItem on the inventory record seam exactly as gold is gated: pre-arm the
        server write is dark, so credit locally for display; post-arm the absolute
-       envelope carries the rows, so skip to avoid a double. The LEGACY/SOLO path
-       (serverItems false) still addItems unconditionally — nothing wrote them
-       server-side. Seals + XP are NOT server-owned (muster_seal is excluded from
-       item-authority; XP flows through addXp so PACE/fuse/blessing apply) and
-       stay client-authored on every path. */
-    var _mayInv = !opts.serverItems
-      || !window.clientMayWriteRecordField
+       envelope carries the rows, so skip to avoid a double. XP flows through
+       addXp so PACE/fuse/blessing apply. */
+    var _mayInv = !window.clientMayWriteRecordField
       || window.clientMayWriteRecordField('inventory');
     (c.items || []).forEach(function (it) {
       if (it.qty > 0 && _mayInv && typeof window.addItem === 'function') window.addItem(it.id, it.qty);
     });
-    if (c.seals > 0 && typeof window.addItem === 'function') window.addItem('muster_seal', c.seals);
     (c.xp || []).forEach(function (x) {
       if (x.amount > 0 && typeof window.addXp === 'function') window.addXp(x.skill, x.amount);
     });
@@ -1181,37 +1146,35 @@
         writePledge(null);
         return d;
       }
-      grantAbsent(p, ABSENT_BAND);
+      // A provisional (local-only) pledge predates b231; there is no server
+      // answer behind it, so it closes and pays nothing (W0: online-only).
       writePledge(null);
-      return { action: 'accept', gold: ABSENT_BAND.gold, gems: ABSENT_BAND.gems, seals: 0, provisional: true };
+      return { action: 'forfeit', reason: 'provisional' };
     } finally { settling = false; }
   }
 
   // Half honors — the SAME themed table, on half the band. That is what makes
   // the consolation legible: a Forge Levy you missed still pays bars and
-  // smithing, just half of it. No Rally Seal, no community share, and no branch
+  // smithing, just half of it. No community share, and no branch
   // that could name the IAP-only Hearth Token.
   function absentChest(eventKey, gold, gems) {
     var ev = eventForKey(eventKey);
     return themedChest(ev ? ev.id : null,
       Math.max(0, Math.min(ABSENT_BAND.gold, Math.floor(+gold || 0))),
-      Math.max(0, Math.min(ABSENT_BAND.gems, Math.floor(+gems || 0))), 0);
+      Math.max(0, Math.min(ABSENT_BAND.gems, Math.floor(+gems || 0))));
   }
   function grantAbsent(p, d) {
     var ev = eventForKey(p.eventKey);
     /* SERVER-AUTHORITATIVE (2026-08-22): if the RPC returned a server-computed
        item list, the RPC already WROTE those materials into player_inventory
-       (2026-08-22-absence-chest-items.sql). Render that list and mark serverItems
-       so payChest gates the local addItem on the inventory record seam — pre-arm
+       (2026-08-22-absence-chest-items.sql). Render that list;
+       payChest gates the local addItem on the inventory record seam — pre-arm
        it credits locally for display (server write is dark), post-arm it no-ops
-       and the absolute envelope carries the rows. No server list (legacy server)
-       → compute the chest client-side as before. Mirrors the online grant(). */
-    var serverItems = Array.isArray(d.items);
-    var chest = serverItems
-      ? { eventId: ev ? ev.id : null, gold: d.gold, gems: d.gems, seals: 0,
-          items: d.items, xp: [] }
-      : absentChest(p.eventKey, d.gold, d.gems);
-    payChest(chest, { serverItems: serverItems });
+       and the absolute envelope carries the rows. No list → no items (W0).
+       Mirrors the online grant(). */
+    var chest = { eventId: ev ? ev.id : null, gold: d.gold, gems: d.gems,
+                  items: Array.isArray(d.items) ? d.items : [], xp: [] };
+    payChest(chest);
     toast('You answered ' + (ev ? ev.name : 'the rally') + ' in absence — half honors: ' +
           chestSummary(chest), 'levelup');
     if (typeof window.updateTopbar === 'function') try { window.updateTopbar(); } catch (e) {}
@@ -1590,8 +1553,7 @@
         '<div class="tiny" style="margin-bottom:10px">Contributes: <b style="color:var(--gold-2)">' + esc(ev.what) + '</b> · ' +
         fmtClock(live.endMs - now()) + ' left</div>' + communityHtml();
       if (joinedThisWindow()) {
-        body += '<div class="tiny" style="margin-top:8px">Your contribution: <b>' + st.points.toLocaleString() + '</b> points' +
-          (st.server ? '' : ' <span class="muted">(solo muster)</span>') + '</div>';
+        body += '<div class="tiny" style="margin-top:8px">Your contribution: <b>' + st.points.toLocaleString() + '</b> points</div>';
         foot = '<div class="hr-mu-row">' +
           (st.rallied ? '<button class="btn btn-sm" disabled>Rallied</button>'
                       : '<button class="btn btn-primary btn-sm" data-mu="rally">Rally</button>') +
@@ -1602,7 +1564,6 @@
       } else {
         foot = '<div class="hr-mu-row"><button class="btn btn-primary btn-sm" data-mu="join">Join the muster</button>' +
           '<button class="btn btn-sm" data-mu="events">Open Events</button></div>';
-        body += (isSignedIn() ? '' : '<div class="tiny muted" style="margin-top:8px">Sign in for the realm’s shared goal and the Rally Seal.</div>');
       }
     } else {
       body = '<h3>The Rally</h3>' +
@@ -1637,7 +1598,7 @@
 
   function communityHtml() {
     if (!community || !community.goal) {
-      return '<div class="tiny muted">Solo muster — the shared community bar needs a signed-in session.</div>';
+      return '<div class="tiny muted">The realm’s bar fills as the muster reports in.</div>';
     }
     var pct = Math.max(0, Math.min(100, Math.round(100 * community.progress / community.goal)));
     return '<div class="mu-bar"><i style="width:' + pct + '%"></i></div>' +
@@ -1909,17 +1870,6 @@
       wireShowTab();
       wireCounters();
       wireMoreSheet();
-      // The Muster Seal has no drop table, so nothing else registers its art.
-      window._itemPath = window._itemPath || {};
-      if (!window._itemPath.muster_seal) window._itemPath.muster_seal = 'assets/icons-bundle/medieval/muster-seal.svg';
-      var origGlyphKey = window.itemGlyphKey;
-      if (typeof origGlyphKey === 'function' && !window.__musterGlyphHooked) {
-        window.__musterGlyphHooked = true;
-        window.itemGlyphKey = function (id) {
-          if (id === 'muster_seal') return 'uiMedal';
-          return origGlyphKey.apply(this, arguments);
-        };
-      }
       // pledgeTick's first pass hydrates, which is also what PROBES the pledge
       // RPCs. Re-render once it settles so an un-migrated project drops the
       // affordance on its own rather than after the player's first click.
@@ -1969,7 +1919,7 @@
     GOAL_PER_PLAYER: GOAL_PER_PLAYER, MIN_GOAL: MIN_GOAL,
     CALL_CLAMP: CALL_CLAMP, TOTAL_CAP: TOTAL_CAP, LIVE_XP_AURA: LIVE_XP_AURA,
     liveAura: liveAura,   // b228: what the aura pays right now, for power-budget.js
-    SOLO_BAND: SOLO_BAND, ABSENT_BAND: ABSENT_BAND, ABSENT_SHARE: ABSENT_SHARE,
+    BASE_BAND: BASE_BAND, ABSENT_BAND: ABSENT_BAND, ABSENT_SHARE: ABSENT_SHARE,
     // clock + schedule
     now: now, serverSkewMs: serverSkewMs, syncClock: syncClock, dayCloseMs: dayCloseMs,
     eventFor: eventFor, eventForKey: eventForKey, eventIndex: eventIndex,

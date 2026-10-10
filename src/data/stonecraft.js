@@ -285,11 +285,8 @@ export const STONECRAFT_ITEMS = {
      the `fletch_*` rows: written where a skill existed, waiting for the skill
      that should own it.
 
-     `vaultstone` — the CLAN castle good — is DELIBERATELY NOT IN THIS FILE.
-     §8.2 records the dependency: its numbers for `hr_castle_tiers` 4-5 must be
-     set AFTER the `clan_power` treasury-term fix lands, or they will be tuned
-     against a ranking that is about to change. Shipping the item now with no
-     sink would be the Cellar's "+500 storage" bug wearing a new hat. */
+     The clan twin, `vaultstone`, was cut in W0 (2026-10-10): it waited on
+     castle tiers that were never tuned, so it had no source and no use. */
   ashlar: { n: 'Ashlar', icon: '🧱', v: 1500, tier: 3, tag: 'castle' },
 };
 

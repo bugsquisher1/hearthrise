@@ -20,27 +20,14 @@
 // six because these ~86 rows were approved as ONE decision and share one power
 // budget; splitting them would put the budget argument in no file at all.
 //
-// ── THE THREE LANDING STATES (read this before adding a row) ───────────────
-// Not every approved item can be PLAYED today; several need engines that are
-// separate workstreams. Each row is therefore in exactly one state, and the
-// state is data, not a comment:
-//
-//   1. PLAYABLE   — has a faucet (a recipe below) and every effect it declares
-//                   is live. A player can get it and it does what it says.
-//   2. `effects:` with a non-live kind → CATALOGUED, NOT OBTAINABLE. No recipe,
-//                   no drop, no shop. The id, stats, value, description, server
-//                   catalogue row and icon slot all exist; the item does not
-//                   enter the world until its engine does. See
-//                   src/data/item-effects.js for the guard that inverts the day
-//                   the engine lands.
-//   3. `pendingSkill:` — the item belongs to a skill that does not exist yet
-//                   (Fletching / Runecrafting / Stonemason). Same treatment,
-//                   different axis, same self-closing guard.
-//
-// States 2 and 3 are worth landing precisely because the id is the SAVE KEY and
-// the server catalogue is generated from this table: getting the ids and the
-// stat curves right ONCE, now, is what stops a later content wave from being a
-// migration.
+// ── EVERY ROW IS PLAYABLE (W0, 2026-10-10) ─────────────────────────────────
+// This file used to carry two "catalogued, not obtainable" states — rows whose
+// `effects` no engine read, and rows waiting on a skill or system. 40 such rows
+// sat in the catalogue for two months with no source and no use, and made the
+// Collection Log impossible to finish. The wipe made cutting them free, so they
+// were cut. The rule now is the one tests/catalogue-coherence.mjs enforces for
+// the WHOLE catalogue: every item has a source and a use. An item whose engine
+// does not exist yet is not authored until it does.
 //
 // ── THE POWER FUSE ─────────────────────────────────────────────────────────
 // docs/design/pacing-overhaul.md's permanent stack is +52% (fuse ≤ 0.60), and
@@ -51,12 +38,9 @@
 //     outside the fuse by construction, and scoped to one class;
 //   • the armour sets carry defB and the triangle fields, which are combat
 //     stats, not throughput multipliers;
-//   • the tool ladders carry toolSpeed, which src/core/tools.js applies
-//     directly and which has never been inside getBonus;
-//   • every "costs budget" card in the review book (Traveller's Stew, Kettle
-//     Tea, Surveyor's Chain, the two tool ladders) lands in state 2 or 3, so it
-//     spends NOTHING today and its magnitude is the Designer's call on the day
-//     its engine ships.
+//   • the "costs budget" cards in the review book (Traveller's Stew, Kettle
+//     Tea, Surveyor's Chain, the two tool ladders) were cut in W0 with the
+//     other unbuilt rows, so they spend nothing.
 // Net permanent budget consumed by this landing: **0.00 of the +52%.**
 //
 // ── STAT DERIVATION ────────────────────────────────────────────────────────
@@ -229,110 +213,6 @@ const ARMOUR_SETS = {
 };
 
 /* ══════════════════════════════════════════════════════════════════════════
-   3 · CHARMS · CONSUMABLES · UTILITY · IDENTITY GEAR · COSMETICS
-   ITEM-NEW-08..17, 20, 21, 23..26, 28..31, 35..40   STATE: CATALOGUED, NOT OBTAINABLE
-
-   Every row here declares an `effects` kind that no engine reads yet, so the
-   reachability guard requires it to have NO faucet and the effect guard
-   requires that to stay true until the engine lands. The stats and values are
-   still derived properly, because the ID IS THE SAVE KEY and the server
-   catalogue is generated from this table — doing it right once now is what
-   stops the engine wave from also being a migration.
-   ══════════════════════════════════════════════════════════════════════════ */
-const DORMANT = {
-  /* ── Charms & amulets (Tibia's bestiary-charm idea as equipment) ──
-
-     ⚠ b542 — THE SEVEN ROWS IN THIS FILE'S JEWELRY/CAPE BLOCK SHIPPED WITH A
-     `tier` AND NO `reqSkill`/`reqLv`, while their neighbours four cards down
-     (colossus_plate, draconias_jaw, cutpurse_gloves, pitlord_irons) all author
-     both. The omission was invisible because the CLIENT derives a gate from the
-     tier (legacy.js `_TIER_WIELD_LV`) — but the SERVER reads only hr_items.req_lv,
-     which tools/gen-catalogues.mjs mirrors from THESE fields, so hr_apply
-     §EQUIPMENT refused nothing. Ruling 2026-09-12: reqLv = the shipped ladder
-     rung for the tier (1/15/30/45/60/75/88/88) and reqSkill = the skill the
-     item's power serves — jewelry is `defense` like the earring lane it sits in
-     (defence-only gating is what keeps mix-and-match viable, gear-tiers.js
-     standing ruling 1), EXCEPT where the item's whole effect feeds one other
-     skill, and an item with no combat stat and no faucet takes reqLv 1, which is
-     the data form of "no gate" rather than a silent NULL. */
-  // ITEM-NEW-08 · necklace T3.
-  hunters_torc:    { n: "Hunter's Torc", icon: '📿', v: priced(150, 3), type: 'jewelry', slot: 'necklace', tier: 3, rarity: 'rare', reqSkill: 'defense', reqLv: 30, effects: ['drop_band_vs_class'], baneClassHint: 'mammal' },
-  // ITEM-NEW-09 · necklace T4.
-  frost_locket:    { n: 'Frost Locket', icon: '📿', v: priced(150, 4), type: 'jewelry', slot: 'necklace', tier: 4, rarity: 'epic', reqSkill: 'defense', reqLv: 45, effects: ['element_pierce'] },
-  // ITEM-NEW-10 · ring T2. Pure progression, zero combat power — no stats at all,
-  // which is the point: it is the first item in Hearthrise that is worth wearing
-  // and makes you no stronger. So its rung is 1, NOT tier 2's 15: `bestiary_rate`
-  // is information, and gating information behind Defence 15 would gate the thing
-  // that teaches a new player the bestiary exists.
-  tally_ring:      { n: 'Tally Ring', icon: '💍', v: priced(140, 2), type: 'jewelry', slot: 'ring', tier: 2, rarity: 'uncommon', reqSkill: 'defense', reqLv: 1, effects: ['bestiary_rate'] },
-  // ITEM-NEW-11/12/13 · earrings T4/T3/T6 — the slot that was empty until b343.
-  // bone_earrings takes PRAYER, not Defence: `passive_bone_prayer` is a Prayer XP
-  // faucet, so the skill its power serves is the skill it gates on.
-  // pathfinder_studs is `ui_next_threshold` — information only, so rung 1 for the
-  // same reason as tally_ring.
-  bone_earrings:      { n: 'Bone Earrings', icon: '🦴', v: priced(130, 4), type: 'jewelry', slot: 'earrings', tier: 4, rarity: 'epic', reqSkill: 'prayer', reqLv: 45, effects: ['passive_bone_prayer'] },
-  pathfinder_studs:   { n: 'Pathfinder Studs', icon: '🧭', v: priced(130, 3), type: 'jewelry', slot: 'earrings', tier: 3, rarity: 'rare', reqSkill: 'defense', reqLv: 1, effects: ['ui_next_threshold'] },
-  unlit_earrings:     { n: 'Unlit Earrings', icon: '🌑', v: priced(130, 6), type: 'jewelry', slot: 'earrings', tier: 6, rarity: 'legendary', reqSkill: 'defense', reqLv: 75, effects: ['reveal_hidden_weak'] },
-
-  /* ── Consumables ── */
-  // ITEM-NEW-14 · food T1. Heals over N swings instead of instantly. NO `heals`
-  // field: a `heals` value would make foodClassOf() answer 'healing' and let
-  // auto-eat spend it as an ordinary heal, which is the opposite of the design.
-  hearthbread:     { n: 'Hearthbread', icon: '🍞', v: 30, foodTier: 1, effects: ['heal_over_swings'] },
-  // ITEM-NEW-15 · food (buff) T2. "costs (small)" in the review book — it spends
-  // nothing today because next_tier_yield is an output proc, and §2.5 of the
-  // bonus grammar puts output procs outside the governed keys regardless.
-  travellers_stew: { n: "Traveller's Stew", icon: '🍲', v: 180, foodTier: 2, foodClass: 'buff', effects: ['next_tier_yield'] },
-  // ITEM-NEW-16 · consumable T4. CHARGES, not a timer (the b336 rule).
-  winterdraught:   { n: 'Winterdraught', icon: '🍶', v: 900, charges: 1, effects: ['element_pierce'] },
-  // ITEM-NEW-17 · utility T1. Turns a farm plot into a combat faucet.
-  ratters_bait:    { n: "Ratter's Bait", icon: '🧀', v: 40, effects: ['spawn_class_local'], baneClassHint: 'vermin' },
-  // ITEM-NEW-20 · consumable T4. Hard-capped at once per real day, and that cap
-  // MUST be a server ledger — a client-side daily counter is a forged value.
-  grave_salt:      { n: 'Grave Salt', icon: '🧂', v: 1200, charges: 1, effects: ['guaranteed_rare'] },
-  // ITEM-NEW-21 · food (buff) T2. "costs (2%)" — adds to whichever blessing is
-  // ACTIVE, which is why it cannot be a fixed getBonus key.
-  kettle_tea:      { n: 'Kettle Tea', icon: '🍵', v: 200, foodTier: 2, foodClass: 'buff', effects: ['blessing_amplify'] },
-
-  /* ── Utility — items that change what you can DO ── */
-  field_ledger:    { n: 'Field Ledger', icon: '📒', v: 600, effects: ['queue_slot'] },              // ITEM-NEW-23 · T2
-  tithe_box:       { n: 'Tithe Box', icon: '🧰', v: 6000, effects: ['auto_vendor_marked'] },        // ITEM-NEW-24 · T4
-  carters_strap:   { n: "Carter's Strap", icon: '🎒', v: 2500, effects: ['market_slot'] },          // ITEM-NEW-25 · T3
-  // ITEM-NEW-26 · tool T5. `type:'tool'` is withheld deliberately: a tool row is
-  // picked up by bestTool() the moment it is in the bag, and this one has no
-  // toolSkill an engine serves. It becomes a tool when byproduct_upgrade ships.
-  surveyors_chain: { n: "Surveyor's Chain", icon: '⛓️', v: 12000, effects: ['byproduct_upgrade'] },
-
-  /* ── Gear with identity ── */
-  // ITEM-NEW-28 · body T6 plate. A real trade, so it cannot ship on stats alone.
-  colossus_plate:  { n: 'Colossus Plate', icon: '🛡️', v: priced(300, 6), type: 'armor', slot: 'body', defB: 68, armourClass: 'plate', rarity: 'legendary', tier: 6, reqSkill: 'defense', reqLv: 75, rangeAtkB: -17, magicAtkB: -34, effects: ['sunder_vs_class'] },
-  // ITEM-NEW-29 · cape T6. defense 75 — the tier's rung, like every plate row in
-  // this block (b542: it was the one gear card here with a tier and no gate).
-  heartwood_cape:  { n: 'Heartwood Cape', icon: '🦸', v: priced(90, 6), type: 'armor', slot: 'cape', defB: 12, atkB: 5, rarity: 'legendary', tier: 6, reqSkill: 'defense', reqLv: 75, effects: ['regen_vs_class'] },
-  // ITEM-NEW-30 · helmet T6 plate.
-  draconias_jaw:   { n: "Draconia's Jaw", icon: '⛑️', v: priced(120, 6), type: 'armor', slot: 'helmet', defB: 33, armourClass: 'plate', rarity: 'legendary', tier: 6, reqSkill: 'defense', reqLv: 75, rangeAtkB: -8, magicAtkB: -17, effects: ['element_immunity'] },
-  // ITEM-NEW-31 · gloves T2. The first real build decision, at T2.
-  cutpurse_gloves: { n: 'Cutpurse Gloves', icon: '🧤', v: priced(70, 2), type: 'armor', slot: 'gloves', defB: 3, armourClass: 'leather', rarity: 'uncommon', tier: 2, reqSkill: 'defense', reqLv: 15, effects: ['gold_vs_class'] },
-  // ITEM-NEW-35 · boots T6. A gate key wearing armour.
-  pitlord_irons:   { n: 'Pitlord Irons', icon: '🥾', v: priced(80, 6), type: 'armor', slot: 'boots', defB: 22, armourClass: 'plate', rarity: 'legendary', tier: 6, reqSkill: 'defense', reqLv: 75, rangeAtkB: -6, magicAtkB: -11, effects: ['arena_key'] },
-
-  /* ── Cosmetics with function ──
-     ⚠ THESE TWO CARRY NO `tier`, NO `reqSkill` AND NO `reqLv`, DELIBERATELY. A
-     cosmetic is earned, not out-levelled: gating it would mean a player who
-     earns a cloak cannot wear it. b542's sweep skipped them for that reason and
-     the regression test in src/features/smoke-test.js asserts they stay ungated,
-     so a future "fill in the NULLs" pass cannot quietly gate a reward. */
-  bestiary_cloak:    { n: 'Bestiary Cloak', icon: '🦸', v: 0, type: 'armor', slot: 'cape', defB: 0, tag: 'cosmetic', rarity: 'epic', effects: ['cosmetic_dyed'] },       // ITEM-NEW-36
-  hearthstone_signet:{ n: 'Hearthstone Signet', icon: '💍', v: 0, type: 'jewelry', slot: 'ring', tag: 'cosmetic', rarity: 'epic', effects: ['cosmetic_profile'] },      // ITEM-NEW-37
-  chronicle_ribbon:  { n: 'Chronicle Ribbon', icon: '🎗️', v: 0, type: 'trophy', tag: 'cosmetic', rarity: 'epic', effects: ['cosmetic_pin'] },                          // ITEM-NEW-38
-  // ITEM-NEW-39 · cosmetic AND the Iron Colossus's dungeon key. `unlocks` is the
-  // established key field (bone_key, obsidian_sigil …); the dungeon does not
-  // exist yet, so the id it names is reserved here and nothing consumes it.
-  colossus_seal:     { n: 'Colossus Seal', icon: '🔱', v: 0, bop: true, tag: 'cosmetic', rarity: 'legendary', unlocks: 'iron_colossus', effects: ['dungeon_key'] },      // ITEM-NEW-39
-  weathervane:       { n: 'Weathervane', icon: '🧭', v: 3000, tag: 'housing', rarity: 'rare', effects: ['cosmetic_homestead'] },                                         // ITEM-NEW-40
-};
-
-/* ══════════════════════════════════════════════════════════════════════════
    4 · THE THREE CONSUMABLE SUPPLY CHAINS — ITEM-PLAN-02/03/04/05/06
                                                     STATE: pendingSkill
 
@@ -396,14 +276,12 @@ const SUPPLY_CHAINS = Object.fromEntries([
   ['fine_rune_blank', { n: 'Fine Blank Rune', icon: '⬜', v: 24, tier: 3, pendingSkill: 'stonemason' }],
   ['deep_rune_blank', { n: 'Deep Blank Rune', icon: '⬜', v: 60, tier: 5, pendingSkill: 'stonemason' }],
 
-  /* ITEM-PLAN-05 · the castle goods. `keystone` already exists (items.js, b222)
+  /* ITEM-PLAN-05 · the castle good. `keystone` already exists (items.js, b222)
      and is NOT re-declared here — it is adopted by Stonemason, recipe and cost
-     unchanged (§8.2). Only the two new ones land.
-     PERSONAL sink = ashlar (property tiers 4-6 + room rungs L4).
-     CLAN sink     = vaultstone (hr_castle_tiers 4-5). They must not share a
-     good, or a player chooses between their house and their clan's wall. */
+     unchanged (§8.2). Ashlar is the PERSONAL sink (property tiers 4-6 + room
+     rungs L4). The clan twin, Vaultstone, was cut in W0 (2026-10-10): it waited
+     on castle tiers that were never tuned, so it had no source and no use. */
   ['ashlar',     { n: 'Ashlar',     icon: '🧱', v: 1200, tier: 4, tag: 'castle', pendingSkill: 'stonemason' }],
-  ['vaultstone', { n: 'Vaultstone', icon: '🧱', v: 9000, tier: 7, tag: 'castle', pendingSkill: 'stonemason', pendingSystem: 'castle_tiers' }],
 
   /* ITEM-PLAN-02 · the bound rune ladder (§6.2). Rune values equal arrow values
      exactly, which is what makes magic's and ranged's supply cost comparable. */
@@ -423,62 +301,15 @@ const SUPPLY_CHAINS = Object.fromEntries([
   whet('rune_whetstone',    'Rune Whetstone',      5, 700),
   whet('dawn_whetstone',    'Dawnsteel Whetstone', 6, 1600),
 
-  /* ITEM-PLAN-06 · phase two, 9 items and not 42 (§11.3). Elemental variants
-     exist at ONE high tier band only. `element` is authored now so the element
-     axis, when it ships, is a read and not a re-tag.
-
-     ══ b432 — THE THREE `rune_of_*` ROWS ARE RETIRED (Designer ruling) ══════
-     `rune_of_ember` / `rune_of_frost` / `rune_of_poison` were authored here on
-     2026-08-16 against §11.2, and Elements v1 then shipped `ember_rune` /
-     `frost_rune` / `poison_rune` in items.js against the SAME three elements.
-     Two authorings of one idea is exactly the drift this file's header warns
-     about, and it is the fourth limb of Tyler's "runecrafting doesn't make
-     sense": a player could meet an Ember Rune, a Fire Rune and a Rune of Ember
-     and be expected to hold three ideas where the game has one.
-
-     The LIVE ids win, and not on taste: `ember_rune` is seeded in the server
-     catalogue, is the id the enchant verb debits, and is named in
-     tests/enchant-intent.mjs. Renaming a live economy id to match a dormant
-     row would be churn a player cannot see. So the dormant rows go, and the
-     PAINTED ART GOES WITH THEM — `rune_of_ember.png` / `rune_of_frost.png` are
-     renamed to `ember_rune.png` / `frost_rune.png` in the same commit
-     (item-art.js SHIPPED), which is a strict upgrade: two live, player-facing
-     items that were rendering an emoji now render the painting that was made
-     for them, and nothing on disk is thrown away.
-
-     §11.2's dual use (an enchanting rune that is ALSO castable at its own
-     tier) is NOT lost — it becomes ammo fields on those three live ids when
-     the elemental-variant work lands, which is one edit to three rows instead
-     of a six-item merge. See PENDING_SYSTEMS.elemental_variants.
-
-     The six arrow/whetstone variants below STAY dormant, but their blocker is
-     re-pointed: `elements` is LIVE (elementMultFor is inside weaknessInfo and
-     has been since Elements v1), so an exemption resting on it was asserting
-     nothing. Their real blocker is that the §11.2 transfer recipes were never
-     authored — `elemental_variants`. An exemption that expires against the
-     wrong event is worse than none; item-effects.js says which event. */
-  ['arrows_of_ember',  { n: 'Ember Arrows',  icon: '🏹', v: 11, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'ranged', reqLv: 75, rangeStrB: 14, critB: 0.02, ammoPerShot: 1, element: 'ember',  pendingSkill: 'fletching', pendingSystem: 'elemental_variants' }],
-  ['arrows_of_frost',  { n: 'Frost Arrows',  icon: '🏹', v: 11, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'ranged', reqLv: 75, rangeStrB: 14, critB: 0.02, ammoPerShot: 1, element: 'frost',  pendingSkill: 'fletching', pendingSystem: 'elemental_variants' }],
-  ['arrows_of_poison', { n: 'Poison Arrows', icon: '🏹', v: 11, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'ranged', reqLv: 75, rangeStrB: 14, critB: 0.02, ammoPerShot: 1, element: 'poison', pendingSkill: 'fletching', pendingSystem: 'elemental_variants' }],
-  ['whetstone_of_ember',  { n: 'Ember Whetstone',  icon: '🔥', v: 850, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'attack', reqLv: 75, strB: 14, ammoPerShot: 0.02, element: 'ember',  pendingSkill: 'stonemason', pendingSystem: 'elemental_variants' }],
-  ['whetstone_of_frost',  { n: 'Frost Whetstone',  icon: '❄️', v: 850, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'attack', reqLv: 75, strB: 14, ammoPerShot: 0.02, element: 'frost',  pendingSkill: 'stonemason', pendingSystem: 'elemental_variants' }],
-  ['whetstone_of_poison', { n: 'Poison Whetstone', icon: '🟣', v: 850, type: 'ammo', slot: 'ammo', tier: 6, rarity: 'legendary', reqSkill: 'attack', reqLv: 75, strB: 14, ammoPerShot: 0.02, element: 'poison', pendingSkill: 'stonemason', pendingSystem: 'elemental_variants' }],
-
-  /* ITEM-NEW-41/42 · the two artisan TOOL ladders. Artisan skills get 3 rungs
-     where gathering gets 7 (the live shape: bronze/steel/rune hammer at
-     .05/.15/.25), and these two are needed the day their skills ship. Values
-     and speeds are the existing artisan-tool ladder to the number — a new
-     skill's tools must not be a different economy. */
-  ['bone_fletching_knife',  { n: 'Bone Fletching Knife',  icon: '🔪', v: 70,   type: 'tool', toolSkill: 'fletching',  toolTier: 1, toolSpeed: 0.05, pendingSkill: 'fletching' }],
-  ['steel_fletching_knife', { n: 'Steel Fletching Knife', icon: '🔪', v: 950,  type: 'tool', toolSkill: 'fletching',  toolTier: 3, toolSpeed: 0.15, pendingSkill: 'fletching' }],
-  ['dawn_fletching_knife',  { n: 'Dawnsteel Fletching Knife', icon: '🔪', v: 9200, type: 'tool', toolSkill: 'fletching', toolTier: 5, toolSpeed: 0.25, pendingSkill: 'fletching' }],
-  ['bronze_masons_rule', { n: "Bronze Mason's Rule", icon: '📐', v: 70,   type: 'tool', toolSkill: 'stonemason', toolTier: 1, toolSpeed: 0.05, pendingSkill: 'stonemason', pendingSystem: 'tool_ladder' }],
-  ['steel_masons_rule',  { n: "Steel Mason's Rule",  icon: '📐', v: 950,  type: 'tool', toolSkill: 'stonemason', toolTier: 3, toolSpeed: 0.15, pendingSkill: 'stonemason', pendingSystem: 'tool_ladder' }],
-  ['dawn_masons_rule',   { n: "Dawnsteel Mason's Rule", icon: '📐', v: 9200, type: 'tool', toolSkill: 'stonemason', toolTier: 5, toolSpeed: 0.25, pendingSkill: 'stonemason', pendingSystem: 'tool_ladder' }],
+  /* W0 (2026-10-10): the six elemental arrow/whetstone variants and the two
+     artisan tool ladders (fletching knives, mason's rules) were CUT. Their
+     transfer recipes and their skills never landed, so they had no source and
+     no use; the wipe made removing them free. Elements live on the three
+     enchanting runes (ember_rune / frost_rune / poison_rune, items.js). */
 ]);
 
 export const LIB2_ITEMS = {
-  ...BANE_GEAR, ...ARMOUR_SETS, ...DORMANT, ...SUPPLY_CHAINS,
+  ...BANE_GEAR, ...ARMOUR_SETS, ...SUPPLY_CHAINS,
 };
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -578,37 +409,6 @@ export const LIB2_DESC = {
   deathsteel_bar: 'Death Knight steel, smelted down and poured honest, still holding the cold of wherever it was dug up',
   voidchitin_weave: 'Chitin, ember and gold beaten into one dark cloth — three trophies nobody knew what to do with, made into something',
 
-  hunters_torc: 'A torc of braided sinew and tooth, worn by trackers who counted their kills in fur',
-  frost_locket: 'A locket cold enough to ache, holding a single unmelting flake',
-  tally_ring: 'A plain band notched once for every beast; it makes you no stronger and you will never take it off',
-  bone_earrings: 'Bone studs carved with a prayer so small only the wearer can read it',
-  pathfinder_studs: 'Small brass studs a surveyor wore, forever pointing at the next thing worth doing',
-  unlit_earrings: 'Earrings of unlit stone that darken further near things which do not belong here',
-
-  hearthbread: 'A dense dark loaf baked to be eaten slowly on the road, a corner at a time',
-  travellers_stew: 'Whatever the pot had, cooked long enough that nobody asks',
-  winterdraught: 'A single draught of meltwater from a peak that has never thawed',
-  ratters_bait: 'Rank cheese and rendered fat, wrapped in cloth and best carried at arm\'s length',
-  grave_salt: 'Coarse grey salt taken from a barrow floor; gravediggers swear by it and will not say why',
-  kettle_tea: 'Strong black tea from a kettle that has never once been fully emptied',
-
-  field_ledger: 'A ruled ledger for keeping two jobs straight when one pair of hands must do both',
-  tithe_box: 'A locked collection box with a slot in the lid and an honest reckoning inside',
-  carters_strap: 'A carter\'s broad shoulder strap, cut for one more crate than is sensible',
-  surveyors_chain: 'A hundred links of measured iron, and the eye to know which stone is worth cutting',
-
-  colossus_plate: 'Plate cut from the shell of something that was built rather than born',
-  heartwood_cape: 'A cape of living heartwood grain that greens faintly in the presence of growing things',
-  draconias_jaw: 'A helm shaped from a great wyrm\'s lower jaw, still warm along the teeth',
-  cutpurse_gloves: 'Thin gloves with the fingertips worn through, cut for pockets rather than for fighting',
-  pitlord_irons: 'Boots banded in black iron that has stood in fire long enough to stop caring',
-
-  bestiary_cloak: 'A scholar\'s cloak dyed by what its wearer has studied to the end',
-  hearthstone_signet: 'A signet cut with the shape of your own hearth, for pressing into wax',
-  chronicle_ribbon: 'A single ribbon pinned to name the one deed you would be remembered by',
-  colossus_seal: 'A heavy seal of grooved bronze that is worn as an ornament and turned as a key',
-  weathervane: 'A rooftop vane that reads more than the wind',
-
   rubble: 'Broken stone struck loose alongside the ore, worth carrying only in quantity',
   granite: 'Hard speckled granite, the stone that outlasts the mason who cut it',
   basalt: 'Black basalt, dense and close-grained, cooled from something that was once moving',
@@ -619,7 +419,6 @@ export const LIB2_DESC = {
   fine_rune_blank: 'A finely cut blank of granite, smooth enough to take a small and complicated mark',
   deep_rune_blank: 'A basalt blank cut deep, for marks that must not wear away',
   ashlar: 'Squared facing stone, laid so precisely that no mortar shows',
-  vaultstone: 'The stone a vault closes on, cut once and never cut again',
 
   /* ── STAFF RUNES: SAY THE MECHANIC, THEN THE FLAVOUR (b432) ──────────────
      These were pure atmosphere, on the one screen where a player is looking at
@@ -655,32 +454,4 @@ export const LIB2_DESC = {
   mithril_whetstone: 'A pale stone that takes almost nothing off and gives a great deal back',
   rune_whetstone: 'A marked whetstone that sharpens a little more than the honing accounts for',
   dawn_whetstone: 'Dawnsteel grit bound in basalt — the last stone a blade will ever need',
-  whetstone_of_ember: 'A whetstone that leaves the edge faintly warm',
-  whetstone_of_frost: 'A whetstone that leaves frost along the blade for a breath after honing',
-  whetstone_of_poison: 'A whetstone honed dark, and one does not lick the thumb after using it',
-
-  arrows_of_ember: 'Arrowheads quenched in something still burning',
-  arrows_of_frost: 'Arrowheads that fog in warm air and sting the fingers through the glove',
-  arrows_of_poison: 'Arrowheads grooved to carry what the groove is for',
-
-  bone_fletching_knife: 'A bone-handled knife ground thin for splitting shafts and trimming vane',
-  steel_fletching_knife: 'A steel fletching knife with a hooked point for the nock',
-  dawn_fletching_knife: 'A dawnsteel blade so fine it parts a feather without bending it',
-  bronze_masons_rule: 'A folding bronze rule, dented at every joint',
-  steel_masons_rule: 'A steel mason\'s rule, true enough to argue with',
-  dawn_masons_rule: 'A dawnsteel rule that has never been out by the width of a hair',
 };
-
-/* ══════════════════════════════════════════════════════════════════════════
-   7 · THE ART MANIFEST — id → expected filename, one per new item.
-   `assets/icons-bundle/<folder>/<id>.png`, generated by the art batch later.
-
-   NOTHING IS WIRED INTO `LOCAL_ITEM_ICON` YET, and that is the graceful
-   degradation: `_itemPath[id]` is only consulted if present, and every render
-   site falls back to the item's emoji `icon`. Wiring a path to a file that does
-   not exist yet would produce a broken-image box on every one of these rows —
-   strictly worse than the fallback. The art workstream wires the map in the
-   same commit that lands the files; this manifest is the work order.
-   ══════════════════════════════════════════════════════════════════════════ */
-export const LIB2_ICON_FILES = Object.keys(LIB2_ITEMS)
-  .reduce((m, id) => { m[id] = id + '.png'; return m; }, {});

@@ -86,12 +86,6 @@ const SKILLS_DEF={
    the bridge), so the server's offline-kill payout uses the same definition. */
 function dropBand(ch){ return window.HearthriseCore.drops.dropBand(ch); }
 window.dropBand = dropBand;
-/* Wave 4b (audit — sink-side reachability): these four early drops have no craft
-   use ON PURPOSE — they are vendor-trash whose job is to sell for a little gold, a
-   deliberate early gold faucet (slime/rat/goblin tier). The smoke guard exempts
-   exactly this list so that any NEW dead-end drop fails the test. Route a drop into
-   a recipe or use rather than growing this list. */
-window.__DROP_SINK_EXEMPT = ['sticky_core', 'rat_tail', 'goblin_ear', 'goblin_totem'];
 function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
 
 /* ══════════════════════════════════════════════════════════════════════

@@ -2865,15 +2865,15 @@ export default [
       if (['weapon', 'armor', 'jewelry', 'tool', 'ammo', 'companion'].includes(it.type)) return true;
       if (it.heals || it.buff || it.buryXp) return true;
       if (['key', 'currency', 'housing', 'cosmetic', 'castle', 'crafting-mat'].includes(it.tag)) return true;
-      if (it.unlocks || it.recipe || it.premium || it.musterOnly) return true;
+      if (it.unlocks || it.recipe || it.premium) return true;
       return false;
     };
     // Known, intentional vendor-trash (sold for gold) — an EXPLICIT exemption so the
     // guard is a tripwire for NEW dead-ends, not a demand to route every legacy drop.
-    const VENDOR_TRASH = window.__DROP_SINK_EXEMPT || [];
+    const VENDOR_TRASH = (window.HearthriseCatalogue && window.HearthriseCatalogue.VENDOR_TRASH) || [];
     const orphans = [...drops].filter(id => I[id] && !hasUse(id) && !VENDOR_TRASH.includes(id));
     assert(orphans.length === 0,
-      orphans.length + ' drop(s) go nowhere (no recipe/use). Route them or add to __DROP_SINK_EXEMPT: ' + orphans.slice(0, 30).join(', '));
+      orphans.length + ' drop(s) go nowhere (no recipe/use). Route them or add to VENDOR_TRASH (src/data/catalogue-coherence.js): ' + orphans.slice(0, 30).join(', '));
   }),
 
   () => tryRun('WAVE6b: every dungeon has a real encounter, not a bare loot roll', () => {

@@ -599,7 +599,7 @@ async function runAll(db) {
   await db.exec(
     `insert into public.world_finds (user_id, slot, item_id, source_kind, source_id, one_in)
      values ('${A}', 0, 'wyrmgilt_mantle', 'monster', 'ancient_wyrm', 30000),
-            ('${Q}', 0, 'hearthstone_signet', 'node', 'oak_tree', 200000);`);
+            ('${Q}', 0, 'tidecallers_pearl', 'node', 'oak_tree', 200000);`);
 
   // ── (9) AN UNCATALOGUED ACTIVITY IS NOT BROADCASTABLE ───────────────────
   const act = await one(db,
@@ -651,7 +651,7 @@ async function runAll(db) {
   // ── (6b) QUIET IS HONOURED IN BOTH HALVES ───────────────────────────────
   ok(!blob.includes('PlazaHush'),
     'the QUIET character is absent from the peer list — the opt-out is not decoration');
-  ok(!town.crier.some((c) => c.item_id === 'hearthstone_signet'),
+  ok(!town.crier.some((c) => c.item_id === 'tidecallers_pearl'),
     "the QUIET character's find is absent from the NAMED crier feed (the anonymous public board row "
     + 'is untouched)');
   ok(town.crier.some((c) => c.item_id === 'wyrmgilt_mantle' && c.name === 'PlazaAnn'),

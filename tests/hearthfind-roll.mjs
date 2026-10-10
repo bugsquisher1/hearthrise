@@ -126,7 +126,7 @@ const MUTATIONS = {
   },
   trophy_tradeable: {
     why: 'a trophy becomes tradeable — the rarest event in the game turns into a second gold bridge '
-       + 'on the player market, exactly what the muster_seal rule exists to prevent',
+       + 'on the player market, exactly what bind-on-pickup exists to prevent',
     items: (items) => ({ ...items, [HEARTHFIND_ITEMS[0]]: { ...items[HEARTHFIND_ITEMS[0]], bop: false } }),
   },
   trophy_vendorable: {
@@ -325,11 +325,11 @@ async function runAll(mut) {
         `${id} is TRADEABLE — a hearthfind on the player market is a second gold bridge`);
       ok(Number(it.v || 0) === 0,
         `${id} has vendor value ${it.v} — a find would mint gold`);
-      ok(it.tag !== 'currency' && !it.premium && !it.musterOnly,
-        `${id} is a priced/earned CURRENCY — a hearthfind must never mint hearth_token, muster_seal `
+      ok(it.tag !== 'currency' && !it.premium,
+        `${id} is a priced/earned CURRENCY — a hearthfind must never mint hearth_token `
         + 'or anything else with a price attached');
     }
-    ok(!V.ids.includes('hearth_token') && !V.ids.includes('muster_seal')
+    ok(!V.ids.includes('hearth_token')
        && !V.ids.includes('dungeon_scrip'),
       'a priced currency is on the hearthfind allowlist');
 

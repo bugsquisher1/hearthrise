@@ -3649,6 +3649,19 @@ jobs:
           node tests/vendor-shop-arbitrage.mjs --selftest
           node tests/vendor-shop-arbitrage.mjs
 
+      # CATALOGUE COHERENCE (W0.4, coherence audit 2026-10-10): every item has a
+      # source AND a use, every declared effect kind is live, every skill has a
+      # consumer, the Local Shop sells starter gear only, and the Collection Log
+      # counts obtainableItemIds(). --mutate plants nine defects on the live data
+      # objects (orphan item, dead drop, lost use, stale pending row, dormant
+      # effect, idle skill, stale coded source, Iron in the shop, raw-ITEMS log)
+      # and requires each CAUGHT by its own arm.
+      - name: Catalogue coherence - every item has a source and a use
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/catalogue-coherence.mjs --mutate
+          node tests/catalogue-coherence.mjs
+
       # NO CLIENT FARM MINT (cleanup slice 4, b514): plantCrop / waterPlot /
       # waterAllPlots / harvestPlot / upgradePlot may only SEND AN INTENT. Their
       # client-authored twins — the yield roll, the perennial ladder, the seed

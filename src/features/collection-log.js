@@ -160,15 +160,29 @@
     return realmStatedTheCharacter();
   }
 
+  /* W0 (coherence audit #10): the log counts only what a player can OBTAIN.
+     src/data/catalogue-coherence.js derives that set from the data modules and
+     main.js publishes it as HearthriseCatalogue.obtainable; the standing guard
+     (tests/catalogue-coherence.mjs) holds it equal to the whole catalogue, so
+     100% is always reachable. Until it is published (pre-boot), nothing is
+     countable — never the raw ITEMS table, which is what made 100% impossible. */
+  function obtainableIds() {
+    var C = window.HearthriseCatalogue, ITEMS = window.ITEMS || {};
+    var set = C && C.obtainable;
+    if (!set || typeof set.has !== 'function') return [];
+    return Object.keys(ITEMS).filter(function (id) { return set.has(id); });
+  }
+
   function getStats(G) {
     G = G || window.G;
-    var MON = window.MONSTERS || {}, ITEMS = window.ITEMS || {};
+    var MON = window.MONSTERS || {};
     var monTotal = Object.keys(MON).length;
     var monFound = 0, best = G.bestiary || {};
     for (var m in MON) { if (best[m] && (best[m].kills || 0) > 0) monFound++; }
-    var itemTotal = Object.keys(ITEMS).length;
+    var countable = obtainableIds();
+    var itemTotal = countable.length;
     var col = G.collection || {}, itemFound = 0;
-    for (var it in ITEMS) { if (col[it]) itemFound++; }
+    countable.forEach(function (id) { if (col[id]) itemFound++; });
     return {
       mon: { found: monFound, total: monTotal, pct: monTotal ? monFound / monTotal : 0 },
       item: { found: itemFound, total: itemTotal, pct: itemTotal ? itemFound / itemTotal : 0 },
@@ -613,7 +627,7 @@
     // group by simple category
     function catOf(it) { return it.slot || (it.heals ? 'Food' : it.buryXp ? 'Bones' : it.equip ? 'Equipment' : 'Materials'); }
     var byCat = {};
-    Object.keys(ITEMS).forEach(function (id) { var c = catOf(ITEMS[id]); (byCat[c] = byCat[c] || []).push(id); });
+    obtainableIds().forEach(function (id) { var c = catOf(ITEMS[id]); (byCat[c] = byCat[c] || []).push(id); });
     return hfSection + Object.keys(byCat).sort().map(function (c) {
       var ids = byCat[c];
       var found = ids.filter(function (id) { return col[id]; }).length;

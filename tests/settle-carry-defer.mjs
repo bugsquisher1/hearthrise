@@ -95,10 +95,10 @@ function baseChar(over) {
     skills: { attack: MAXED, strength: MAXED, defense: MAXED, hitpoints: MAXED,
               ranged: MAXED, magic: 1000, prayer: 1000,
               woodcutting: MAXED, mining: MAXED, fishing: MAXED },
-    inventory: { hearthbread: 50000 },
+    inventory: { cooked_shark: 50000 },
     equipment: { weapon: 'dragonfang_pike' },
     fight: {}, consecFalls: 0, recoveringUntilMs: 0, bestiaryKills: {},
-    autoEatEnabled: true, autoEatPct: 50, autoEatFood: 'hearthbread',
+    autoEatEnabled: true, autoEatPct: 50, autoEatFood: 'cooked_shark',
     ...over,
   };
 }

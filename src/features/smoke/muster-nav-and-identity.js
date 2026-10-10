@@ -388,7 +388,8 @@ export default [
       // Nothing that is not the RPC's own envelope may read as a join.
       assert(M._reduceJoin(200, null, 0).action === 'fail', 'a null body must never read as a join');
       assert(M._reduceJoin(401, { code: 'PGRST301' }, 0).action === 'fail', 'an auth error must never read as a join');
-      // CLIENT-FIRST: no migration yet → 404/PGRST202 → the solo muster path.
+      // A missing RPC (404/PGRST202) reads as 'unsupported' — W0: the muster then
+      // says it needs the realm and pays nothing (no solo path).
       assert(M._reduceJoin(404, { code: 'PGRST202' }, 0).action === 'unsupported',
         'a missing world_event_join RPC must degrade, not break the feature');
       assert(M._reduceClaim(404, { code: 'PGRST202' }, 0).action === 'unsupported',
@@ -407,50 +408,62 @@ export default [
     }
   }),
 
-  // #15d: the Muster Seal is PvE-internal and single-sourced. This is an
-  // ECONOMY guard, not a UI one — and it also re-asserts the Final Directive
-  // rule that no world-event band can ever mint the IAP-only Hearth Token.
-  () => tryRun('b220: the Muster Seal has exactly one source, and no band mints a Hearth Token', () => {
+  // W0 (2026-10-10): the Rally Seal was CUT (it had no spend). This keeps the
+  // economy half of the old #15d guard — no band mints the IAP-only Hearth
+  // Token, the ceiling is mirrored client-side — and proves the Seal is gone
+  // from the catalogue AND from the reward shape, whatever the server sends.
+  () => tryRun('W0: the Rally Seal is gone, and no muster band mints a Hearth Token', () => {
     const M = window.HearthriseMuster;
-    const seal = window.ITEMS && window.ITEMS.muster_seal;
-    assert(seal, 'muster_seal missing from ITEMS');
-    assert(seal.bop === true, 'the Muster Seal must be bind-on-pickup — it must never reach the player market');
-    assert(!seal.premium, 'the Muster Seal is PvE-internal, never a premium currency');
-    assert(window._itemPath && /muster-seal\.svg$/.test(window._itemPath.muster_seal || ''),
-      'the Muster Seal has no shipped art — it would render as a blank or a "?"');
-    assert(!/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u.test(seal.icon || ''),
-      'the Muster Seal fell back to an emoji glyph');
-
-    // No OTHER system may hand one out: not a drop table, not a dungeon chest,
-    // not a recipe, not a raid boss.
-    const offenders = [];
-    Object.entries(window.MONSTERS || {}).forEach(([id, m]) =>
-      (m.drops || []).forEach((d) => { if (d.id === 'muster_seal') offenders.push('monster ' + id); }));
-    Object.entries(window.DUNGEONS || {}).forEach(([id, d]) =>
-      (d.loot || []).forEach((l) => { if (l.id === 'muster_seal') offenders.push('dungeon ' + id); }));
-    Object.values(window.ARTISAN_RECIPES || {}).forEach((list) =>
-      (list || []).forEach((r) => { if (r.out === 'muster_seal' || r.id === 'muster_seal') offenders.push('recipe ' + (r.id || r.out)); }));
-    ((window.HearthriseRaids && window.HearthriseRaids.BOSSES) || []).forEach((b) => {
-      if (b.reward && b.reward.items && b.reward.items.muster_seal) offenders.push('raid boss ' + b.id);
-    });
-    assert(offenders.length === 0, 'the Muster Seal leaked into: ' + offenders.join(', '));
-
-    // A Seal only exists when the community goal was met. Server says otherwise
-    // → no Seal, whatever number it sent.
-    const held = M._reduceClaim(200, { ok: true, band: 'gold', held: true, gold: 7500, gems: 10, seals: 1 });
-    assert(held.action === 'accept' && held.seals === 1, 'the realm holding should pay a Seal');
-    const notHeld = M._reduceClaim(200, { ok: true, band: 'gold', held: false, gold: 5000, gems: 6, seals: 9 });
-    assert(notHeld.seals === 0, 'no Seal unless the community goal was met, got ' + notHeld.seals);
-    // The spec's daily ceiling is enforced on BOTH sides of the wire.
+    assert(!(window.ITEMS || {}).muster_seal, 'muster_seal is back in ITEMS — the cut currency returned');
+    assert(!('muster_seal' in ((window._itemPath) || {})), 'muster.js still registers Rally Seal art');
     const greedy = M._reduceClaim(200, { ok: true, band: 'gold', held: true, gold: 9e9, gems: 9e9, seals: 9e9 });
-    assert(greedy.gold === 7500 && greedy.gems === 10 && greedy.seals === 1,
+    assert(greedy.gold === 7500 && greedy.gems === 10,
       'the daily chest ceiling must be mirrored client-side: ' + JSON.stringify(greedy));
-    // And nothing in the reward shape can carry the bond.
-    assert(!('hearth_token' in greedy) && JSON.stringify(greedy).indexOf('hearth_token') === -1,
+    assert(!('seals' in greedy), 'a server `seals` field still reaches the payout shape: ' + JSON.stringify(greedy));
+    assert(!('seals' in M.themedChest('forge_levy', 7500, 10)), 'themedChest still carries a seals field');
+    assert(M.chestSummary ? M.chestSummary({ gold: 1, seals: 1 }).indexOf('Seal') === -1 : true,
+      'the chest summary still names a Rally Seal');
+    assert(JSON.stringify(greedy).indexOf('hearth_token') === -1,
       'a muster chest must never reference the IAP-only Hearth Token');
-    // Replays and errors pay nothing.
     assert(M._reduceClaim(200, { ok: false, error: 'already_claimed' }).action === 'spent', 'a replayed claim must be refused');
     assert(M._reduceClaim(500, null).action === 'fail', 'a server error must never award a chest');
+  }),
+
+  // W0: the offline 'solo muster' is gone. Signed out (no server), a join is
+  // refused with a sentence and a claim pays NOTHING — before W0 the claim
+  // fell through to grant(SOLO_BAND) and minted a client-computed chest.
+  // MUTATION: restore `grant(SOLO_BAND)` at the end of claim() -> the bag
+  // assertion goes red; restore the solo adopt() in join() -> the join one does.
+  () => tryRunAsync('W0: the muster is online-only — a signed-out join and claim pay nothing', async () => {
+    const M = window.HearthriseMuster, G = window.G;
+    const savedMuster = G.muster ? JSON.parse(JSON.stringify(G.muster)) : undefined;
+    const inv0 = JSON.stringify(G.inventory || {});
+    const origAdd = window.addItem, origXp = window.addXp;
+    let minted = 0;
+    try {
+      window.addItem = function () { minted++; };
+      window.addXp = function () { minted++; };
+      assert(!(window.HearthriseAuth && window.HearthriseAuth.getSession && window.HearthriseAuth.getSession()),
+        'CONTROL: the suite is signed in, so this cannot measure the signed-out path');
+      const w = M.liveWindow() || M.todaysWindows()[0];
+      const before = M.ensureState().eventKey;
+      if (M.liveWindow()) {
+        const joined = await M.join(true);
+        assert(joined === false, 'a signed-out join was ACCEPTED — the solo muster is back');
+        assert(M.ensureState().eventKey === before, 'a signed-out join still adopted a muster locally');
+      }
+      /* A day already joined, window closed, contribution made: the shape that
+         used to fall through to the solo chest. */
+      G.muster = { dayKey: M.todayKey(), eventKey: w ? w.eventKey : 'x#0', slot: 0, startMs: 0, endMs: 1,
+                   points: 500, pending: 0, rallied: false, claimed: false, server: false };
+      const paid = await M.claim();
+      assert(paid === false, 'a signed-out claim returned true — a chest was paid with no server');
+      assert(minted === 0, 'a signed-out claim minted ' + minted + ' item/XP grant(s) client-side');
+      assert(JSON.stringify(G.inventory || {}) === inv0, 'a signed-out claim moved the bag');
+    } finally {
+      window.addItem = origAdd; window.addXp = origXp;
+      if (savedMuster === undefined) delete G.muster; else G.muster = savedMuster;
+    }
   }),
 
   // ── b228 regression suite (rally pre-selection + the 50% absence band) ──
@@ -507,20 +520,19 @@ export default [
       'pre-selecting must not change the pill’s precedence');
   }),
 
-  // #2: the economy. 50% of the BASE band and nothing else — never a Seal,
+  // #2: the economy. 50% of the BASE band and nothing else —
   // never the community share, never twice, and never before the day is over.
   // gold-arm: the half-honors payout credits gold client-side via a
   // clientMayWriteRecordField-gated grant — switch-OFF position.
   () => tryRun('b228: answering in absence pays exactly half the base band, once, and only after the day closes', () => {
     const M = window.HearthriseMuster, G = window.G;
     assert(M.ABSENT_SHARE === 0.5, 'the consolation share drifted: ' + M.ABSENT_SHARE);
-    assert(M.ABSENT_BAND.gold === Math.round(M.SOLO_BAND.gold * 0.5) && M.ABSENT_BAND.gold === 750,
+    assert(M.ABSENT_BAND.gold === Math.round(M.BASE_BAND.gold * 0.5) && M.ABSENT_BAND.gold === 750,
       'half honors must be 750g against the 1,500g base band, got ' + M.ABSENT_BAND.gold);
     assert(M.ABSENT_BAND.gems === 1, 'half honors must be 1 gem against the base band’s 2, got ' + M.ABSENT_BAND.gems);
-    assert(M.ABSENT_BAND.seals === 0, 'absence must never earn a Rally Seal — the Seal means the realm held');
     // Presence has to keep winning, or this quietly becomes "log in every other
     // day". 750g is half the FLOOR and a tenth of the 7,500g ceiling.
-    assert(M.ABSENT_BAND.gold * 2 === M.SOLO_BAND.gold, 'absence must be worth exactly half of live participation');
+    assert(M.ABSENT_BAND.gold * 2 === M.BASE_BAND.gold, 'absence must be worth exactly half of live participation');
     assert(M.ABSENT_BAND.gold <= 7500 * 0.2, 'absence must stay far under the live ceiling');
 
     // The day closes at the END of the LAST window — 13:45 UTC, not 01:45.
@@ -535,7 +547,7 @@ export default [
     assert(O(P, { nowMs: close - 1, joinedThatDay: false }).action === 'hold',
       'nothing is owed while the day can still be joined');
     const paid = O(P, { nowMs: close, joinedThatDay: false });
-    assert(paid.action === 'pay' && paid.gold === 750 && paid.gems === 1 && paid.seals === 0,
+    assert(paid.action === 'pay' && paid.gold === 750 && paid.gems === 1 && !('seals' in paid),
       'the absent payout drifted: ' + JSON.stringify(paid));
     assert(O(P, { nowMs: close + 9e8, joinedThatDay: true }).action === 'forfeit',
       'a pledge answered live must forfeit the consolation, not add to it');
@@ -544,7 +556,7 @@ export default [
     // The wire contract. A greedy or confused server cannot mint.
     const A = M._reduceAbsence;
     const greedy = A(200, { ok: true, gold: 9e9, gems: 9e9, seals: 9e9 });
-    assert(greedy.action === 'accept' && greedy.gold === 750 && greedy.gems === 1 && greedy.seals === 0,
+    assert(greedy.action === 'accept' && greedy.gold === 750 && greedy.gems === 1 && !('seals' in greedy),
       'the half-honors ceiling must be mirrored client-side: ' + JSON.stringify(greedy));
     assert(JSON.stringify(greedy).indexOf('hearth_token') === -1,
       'the absence band must never reference the IAP-only Hearth Token');
@@ -552,63 +564,33 @@ export default [
     assert(A(500, null).action === 'fail' && A(200, null).action === 'fail',
       'a server error must never pay half honors');
 
-    // End to end on the local (un-migrated) path. settlePledge() is async, but
-    // that path contains no await, so its whole body runs before it returns —
-    // which is what lets a synchronous suite drive the real function.
+    // End to end on a PROVISIONAL (local-only) pledge. W0: there is no server
+    // answer behind one, so it closes and pays NOTHING — before W0 it paid half
+    // honors out of a client-computed chest. settlePledge() is async, but that
+    // path contains no await, so its whole body runs before it returns.
     const savedMuster = G.muster ? JSON.parse(JSON.stringify(G.muster)) : undefined;
     const savedPledge = G.rallyPledge ? JSON.parse(JSON.stringify(G.rallyPledge)) : undefined;
     const gold0 = G.gold, gems0 = G.gems;
+    const origAdd = window.addItem, origXp = window.addXp;
+    let minted = 0;
     try {
+      window.addItem = function () { minted++; };
+      window.addXp = function () { minted++; };
       delete G.muster; M.ensureState();
       const past = new Date(M.now() - 3 * 86400000);
       const pastKey = past.getUTCFullYear() + '-' + (past.getUTCMonth() + 1) + '-' + past.getUTCDate();
       M._writePledge({ dayKey: pastKey, eventKey: pastKey + '#1', slot: 1, startMs: 0,
                        at: 0, joined: false, provisional: true });
-      // b231: the 750g band is now paid in that rally's OWN currency — some of
-      // it as domain materials and XP — so the gold delta is the themed
-      // remainder, and the whole chest is still worth no more than the band.
-      const expect = M.absentChest(pastKey + '#1', M.ABSENT_BAND.gold, M.ABSENT_BAND.gems);
-      assert(M.chestValue(expect) <= M.ABSENT_BAND.gold, 'half honors exceeded its band');
-      /* ── b515 — WHAT "LANDS" MEANS, NOW THAT THE CURRENCY IS THE SERVER'S ───
-         This asserted `G.gold` and `G.gems` went up. `payChest` gates BOTH on
-         the record seam, and muster.js says why at the line: world_event_claim
-         PRICES the chest server-side but does not credit `player_state.gold`,
-         so a local grant would be erased by the next absolute envelope. Under
-         the shipping arm both gates are closed and the balances correctly do
-         not move.
-
-         The chest's OTHER halves are not server-owned and still land — seals
-         and XP are excluded from item-authority on purpose — so those are what
-         "the chest was paid" is measured on, and the ONCE-NESS (the whole point
-         of the test: a pledge that is not consumed pays every boot) is measured
-         on the pledge and on those same halves.
-         MUTATION: drop the `_mayGold` gate in payChest → the "authored nothing"
-         assertion goes red; drop the pledge clear in settlePledge → the
-         paid-twice assertions do. */
-      const sealsOf = () => (G.inventory && G.inventory.muster_seal) || 0;
-      const seals0 = sealsOf();
       const goldKnown0 = goldOf(), gemsKnown0 = gemsOf();
       M.settlePledge();
-      assert(M.getPledge() === null, 'a settled pledge must be cleared, or it pays again on the next boot');
-      assert(goldOf() === goldKnown0 && gemsOf() === gemsKnown0,
-        'the client AUTHORED half honors in a currency the server owns (' + goldKnown0 + ' -> ' + goldOf()
-        + ' gold, ' + gemsKnown0 + ' -> ' + gemsOf() + ' gems) — world_event_claim prices the chest but '
-        + 'does not credit player_state, so the next envelope erases this and the player watches it go');
-      /* The client-owned halves of the same chest DID land — otherwise the
-         assertion above is satisfied by a settle that did nothing at all. */
-      const paidSomething = sealsOf() > seals0
-        || (expect.items || []).some((it) => (G.inventory[it.id] || 0) > 0)
-        || (expect.xp || []).length > 0;
-      assert(paidSomething || (expect.items || []).length === 0,
-        'the settle paid NOTHING at all — the currency gate is doing the work of the whole function, and '
-        + 'the assertion above would then be vacuous');
-      const sealsAfter = sealsOf();
-      M.settlePledge();
-      assert(sealsOf() === sealsAfter,
-        'half honors paid twice — the pledge was not consumed (seals ' + sealsAfter + ' -> ' + sealsOf() + ')');
-      assert(goldOf() === goldKnown0 && gemsOf() === gemsKnown0,
-        'the second settle authored a currency the server owns');
+      assert(M.getPledge() === null, 'a settled pledge must be cleared, or it is re-asked on every boot');
+      assert(minted === 0, 'a provisional pledge minted ' + minted + ' client-side grant(s) — the solo half-honors path is back');
+      assert(goldOf() === goldKnown0 && gemsOf() === gemsKnown0, 'a provisional pledge moved a server-owned balance');
+      // And the server-registered half of the same function is still the ceiling-mirrored one above.
+      const expect = M.absentChest(pastKey + '#1', M.ABSENT_BAND.gold, M.ABSENT_BAND.gems);
+      assert(M.chestValue(expect) <= M.ABSENT_BAND.gold, 'half honors exceeded its band');
     } finally {
+      window.addItem = origAdd; window.addXp = origXp;
       G.gold = gold0; G.gems = gems0;
       if (savedMuster === undefined) delete G.muster; else G.muster = savedMuster;
       if (savedPledge === undefined) delete G.rallyPledge; else G.rallyPledge = savedPledge;
@@ -925,32 +907,31 @@ export default [
     });
 
     // Tyler's own example, spelled out: the Forge Levy pays the forge.
-    const forge = M.themedChest('forge_levy', 7500, 10, 1);
+    const forge = M.themedChest('forge_levy', 7500, 10);
     assert(forge.xp.map((x) => x.skill).join() === 'smithing,crafting',
       'the Forge Levy must pay smithing and crafting XP, got ' + JSON.stringify(forge.xp));
     assert(forge.items.map((i) => i.id).join() === 'iron_bar,coal',
       'the Forge Levy must pay forge materials, got ' + JSON.stringify(forge.items));
-    assert(forge.gems === 10 && forge.seals === 1,
-      'theming must leave gems and the Rally Seal exactly as the band set them');
+    assert(forge.gems === 10,
+      'theming must leave gems exactly as the band set them');
     assert(M.themedChest('forge_levy', 9e9, 9e9, 9e9).gold <= 7500,
       'the 7,500g ceiling must survive theming');
-    assert(M.themedChest('forge_levy', 7500, 9e9, 9e9).gems === 10 &&
-           M.themedChest('forge_levy', 7500, 10, 9e9).seals === 1,
-      'the gem and Seal ceilings must survive theming');
+    assert(M.themedChest('forge_levy', 7500, 9e9).gems === 10,
+      'the gem ceiling must survive theming');
 
     // Half honors is 50% of the SAME table, not a different reward.
     const half = M.absentChest('2026-8-9#1', M.ABSENT_BAND.gold, M.ABSENT_BAND.gems);
-    const full = M.themedChest(half.eventId, M.SOLO_BAND.gold, M.SOLO_BAND.gems, 0);
-    assert(half.eventId === full.eventId && half.seals === 0,
-      'absence must draw on the same rally table and never earn a Rally Seal');
+    const full = M.themedChest(half.eventId, M.BASE_BAND.gold, M.BASE_BAND.gems);
+    assert(half.eventId === full.eventId,
+      'absence must draw on the same rally table');
     assert(M.chestValue(half) <= M.ABSENT_BAND.gold, 'half honors exceeded its band');
-    assert(M.chestValue(half) * 2 <= M.SOLO_BAND.gold + 1,
+    assert(M.chestValue(half) * 2 <= M.BASE_BAND.gold + 1,
       'half honors must stay at half the floor band');
     assert(half.xp.map((x) => x.skill).join() === full.xp.map((x) => x.skill).join(),
       'half honors must pay the same domain as the rally it was pledged to');
 
     // An unknown rally degrades to plain gold — poorer, never emptier.
-    const unknown = M.themedChest('no_such_rally', 1500, 2, 0);
+    const unknown = M.themedChest('no_such_rally', 1500, 2);
     assert(unknown.gold === 1500 && unknown.items.length === 0 && unknown.xp.length === 0,
       'an unknown rally must fall back to plain gold, got ' + JSON.stringify(unknown));
 

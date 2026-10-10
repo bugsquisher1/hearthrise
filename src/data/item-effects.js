@@ -1,41 +1,22 @@
 // ============================================================
-// src/data/item-effects.js — THE EFFECT REGISTRY, and the two self-closing
-// hatches that stop an unbuilt mechanic from becoming permanent debt.
+// src/data/item-effects.js — THE EFFECT REGISTRY.
 //
-// ── THE PROBLEM THIS SOLVES ────────────────────────────────────────────────
-// Library 2 of the review book approves ~50 items whose whole point is a
-// mechanic ("Constructs' defence is halved against you", "adds a second
-// auto-action queue slot", "Prayer XP from every bone you would have buried").
-// The ITEM ROWS are worth landing now — the id is the SAVE KEY, the stats have
-// to sit on a curve someone derived, the server catalogue has to know them, the
-// art batch needs a manifest — but the ENGINES are separate workstreams across
-// three domains.
+// An item may declare `effects: ['<kind>', …]` — a mechanic beyond its stats
+// that some engine reads. Every kind an item names must appear below, and must
+// be LIVE: an engine in this repo reads it today and a test proves it.
 //
-// The naive answers are both bad:
-//   • ship the item with its stats and no mechanic → the player holds an object
-//     that lies about itself. "No placeholders or fakes" (the Final Directive).
-//   • hold the whole catalogue until every engine exists → one 50-item big-bang
-//     landing, which is the shape this codebase has been burned by before.
+// ── WHAT THIS FILE USED TO BE (and why it is short now) ────────────────────
+// Until W0 (2026-10-10) it also held ~30 DECLARED-BUT-UNBUILT kinds and a
+// PENDING_SYSTEMS table: self-closing "hatches" that let an item sit in the
+// catalogue with no source while its engine was a separate workstream. 40
+// items lived behind them for two months, none of the engines landed, and the
+// Collection Log counted all 40 so it could never be finished. With the
+// Early Access wipe ahead, the coherence audit ruled to cut the rows rather
+// than build the effects, and the hatches went with them.
 //
-// ── THE ANSWER: DECLARE THE EFFECT, AND LET THE GUARD CLOSE THE HATCH ──────
-// An item declares `effects: ['construct_sunder', …]`. Every kind must appear
-// below with an explicit `live` flag. Two smoke guards then hold the line:
-//
-//   1. an item carrying a NON-live effect kind must have **no faucet** — no
-//      recipe, no drop, no shop offer. It exists in the catalogue and in the
-//      server's item table; no player can hold one. Nothing lies.
-//   2. the moment a kind is flipped to `live: true`, guard 1 inverts: its items
-//      must become reachable or the suite goes RED.
-//
-// That second half is what makes this a hatch rather than a hole. A normal
-// "TODO" exemption rots because nothing ever asks about it again; this one
-// fails the build the day it is satisfied, which is the only kind of exemption
-// worth writing.
-//
-// `pendingSkill` on an item is the same device for the other axis — an item
-// whose SKILL does not exist yet (Fletching, Runecrafting, Stonemason). Guard:
-// `pendingSkill` must name a skill that is NOT in SKILLS_DEF. Add the skill and
-// the exemption expires in the same commit.
+// THE RULE NOW: an item that needs an engine is authored in the same change as
+// its engine. tests/catalogue-coherence.mjs fails on any item that names a kind
+// this table does not mark live, and on any item with no source or no use.
 //
 // PURE ESM. Data only.
 // ============================================================
@@ -44,71 +25,9 @@
  * kind → { live, owner, note }
  *
  * `live: true` means an engine in this repo actually reads it TODAY, and a
- * test proves it. Exactly one kind qualifies right now.
+ * test proves it.
  */
-/**
- * THE THIRD HATCH — a system that is not built yet (b357).
- *
- * `pendingSkill` said "nothing can produce this because its SKILL is absent".
- * Runecrafting and Stonemason then shipped, that hatch closed correctly, and
- * ten items fell through it — not because their skill is missing but because
- * the SYSTEM their top rungs belong to is. An item whose blocker is named
- * wrongly is worse than one with no name: the exemption expires against the
- * wrong event, so it either fails the build early (this) or, worse, lifts
- * silently while the item is still unobtainable.
- *
- * Same self-closing contract as `EFFECT_KINDS`: flip `live` when the system
- * lands and the b243 reachability guard immediately demands a real recipe.
- * Nothing here may stay `live:false` and unowned.
- */
-export const PENDING_SYSTEMS = Object.freeze({
-  /* b432 — FLIPPED LIVE, because it already was and the note had gone stale.
-     "no combat term reads it yet" stopped being true when Elements v1 shipped:
-     src/core/combat.js imports `elementMultFor` and applies it inside
-     `weaknessInfo`, the `enchant` verb debits a rune server-side, and
-     `ember_rune` / `frost_rune` / `poison_rune` are live, craftable items. An
-     exemption resting on a false premise is the "assertion that asserts
-     nothing" family, so it is corrected rather than left comfortable. */
-  elements: {
-    live: true,
-    owner: 'game-designer',
-    note: 'Elemental weapon enchants — SHIPPED (Elements v1). core/elements.js '
-        + 'runeElement + elementMultFor, applied inside weaknessInfo and '
-        + 'clamped by MAX_TOTAL_DAMAGE_MULT; the `enchant` intent debits one '
-        + 'rune server-side. The three runes are Runecrafting 25 (b432). '
-        + 'Nothing is blocked on this key any more — kept so the note is '
-        + 'findable from the six variants that name its successor.',
-  },
-  elemental_variants: {
-    live: false,
-    owner: 'game-designer',
-    note: 'The §11.2 ELEMENT-TRANSFER recipes: 500 arrows + 1 enchanting rune '
-        + '-> 500 elemental arrows (Fletching), 10 whetstones + 1 rune -> 10 '
-        + 'elemental whetstones (Stonemason). Blocks arrows_of_* and '
-        + 'whetstone_of_*. Magic needs no variant item at all — it sockets the '
-        + 'enchanting rune itself, which is why the rune half of this set was '
-        + 'retired in b432 rather than built twice. Fletching must land first; '
-        + 'the whetstone half is authorable today and is the cheaper of the two.',
-  },
-  castle_tiers: {
-    live: false,
-    owner: 'systems',
-    note: 'hr_castle_tiers numbers are set only AFTER the clan_power treasury '
-        + 'fix (consumable-economy §8.2). Blocks `vaultstone`: shipping a '
-        + 'top-tier building stone with no sink repeats the Cellar "+500 '
-        + 'storage" bug in a new coat.',
-  },
-  tool_ladder: {
-    live: false,
-    owner: 'game-designer',
-    note: 'The Stonemason tool ladder (mason\'s rules) was catalogued with the '
-        + 'item wave but its recipes were not authored with the skill. Three '
-        + 'rungs, no engine work — the cheapest of the three to close.',
-  },
-});
-
 export const EFFECT_KINDS = Object.freeze({
-  /* ── LIVE ───────────────────────────────────────────────────────────── */
   bane: {
     live: true,
     owner: 'systems',
@@ -116,60 +35,6 @@ export const EFFECT_KINDS = Object.freeze({
         + 'weaknessInfo().damageMult. Read identically by the live tick and by '
         + 'the Edge accrual engine. Clamped by MAX_BANE_MULT.',
   },
-
-  /* ── DECLARED, NOT YET BUILT ─────────────────────────────────────────
-     Each names the owning domain so the handoff is unambiguous, and states
-     the seam the engine will have to touch. Items carrying these are, by
-     guard, unobtainable. */
-  drop_band_vs_class:  { live: false, owner: 'systems',  note: 'src/core/drops.js — shift the drop band by one tier for one monster class.' },
-  element_pierce:      { live: false, owner: 'systems',  note: 'Needs the element axis (elementWeak / ELEMENT_BONUS / MAX_WEAKNESS_MULT) which is NOT built. Monster workstream owns elementWeak.' },
-  element_immunity:    { live: false, owner: 'systems',  note: 'Same dependency as element_pierce.' },
-  /* STAYS FALSE, and the note is corrected rather than left stale (charms
-     phase 1, 2026-09-13). Both of its stated dependencies now EXIST: the
-     element axis shipped with Elements v1, and the bestiary reveal shipped as
-     Bestiary Charms rank 1 — src/render/bestiary-charms.js `elementLineHtml`
-     prints the element weakness (including Extra Dimensional's `hiddenElement`
-     one) once a class is Studied. What this KIND means is the different, ITEM
-     half: jewelry that reveals the same line WITHOUT the 25 kills. That is
-     unbuilt, and flipping `live` would immediately (and correctly) turn the
-     reachability guard at the top of this file RED, because its only carrier —
-     `unlit_earrings`, the single item in the catalogue declaring it — has no
-     recipe, no drop and no shop offer. Measured, not assumed: grepped for both the kind and the
-     item id. The hatch is doing exactly its job; do not flip it until the
-     earrings have a faucet and the effect has a reader. */
-  reveal_hidden_weak:  { live: false, owner: 'systems',  note: 'Jewelry that reveals a hidden element weakness WITHOUT the kills. The bestiary half of this shipped (Bestiary Charms rank 1 prints the element line, hiddenElement included) and the element axis shipped with Elements v1 — what is left is an item-side reader plus a faucet for unlit_earrings, its only carrier.' },
-  /* STAYS FALSE, AND THE NOTE IS CORRECTED RATHER THAN LEFT STALE (charms
-     phase 2, 2026-09-13). The CHARM's own drop bonus is now armed —
-     `charmDropMultFor` is read inside `weaknessInfo`, so a studied class pays a
-     better drop rate awake and asleep alike. This KIND is the different, ITEM
-     half: `tally_ring` (its only carrier, src/data/library2-items.js) promising a
-     bonus of its own ON TOP of the ladder. That reader does not exist, and
-     flipping `live` would correctly turn the reachability guard at the top of
-     this file RED, because the ring has no recipe, no drop and no shop offer.
-     Measured, not assumed: grepped for the kind and the item id. */
-  bestiary_rate:       { live: false, owner: 'systems',  note: 'An ITEM that adds a class drop-rate bonus on top of the bestiary charm ladder. The ladder itself is LIVE as of charms phase 2 (charmDropMultFor inside weaknessInfo, clamped by MAX_CHARM_DROP_MULT, same expression the away replay calls); what is missing is an item-side reader for `tally_ring` plus a faucet for it.' },
-  passive_bone_prayer: { live: false, owner: 'systems',  note: 'Grant buryXp on kill without consuming the bone. Touches src/core/drops.js + the away replay.' },
-  ui_next_threshold:   { live: false, owner: 'art',      note: 'Activity tile affordance. Presentation, not power.' },
-  regen_vs_class:      { live: false, owner: 'systems',  note: 'Per-swing HP regen gated on monster class. src/core/combat-sim.js.' },
-  sunder_vs_class:     { live: false, owner: 'systems',  note: 'Halve one class defScore, raise every other. A real trade; needs weaknessInfo to carry a defence axis.' },
-  gold_vs_class:       { live: false, owner: 'systems',  note: 'Class-scoped gold multiplier. Deliberately NOT a goldFind getBonus key (would hit the fuse and read zero on the server).' },
-  first_strike_deny:   { live: false, owner: 'systems',  note: 'Extra Dimensional opens the fight. There is no first-strike model yet.' },
-  away_mitigation:     { live: false, owner: 'systems',  note: 'Reduce damage taken during away accrual only. MUST go through src/core/away.js AWAY_SCOPE, not a second code path (b325).' },
-  arena_key:           { live: false, owner: 'systems',  note: 'A gate key wearing armour. Needs the arena it gates.' },
-  heal_over_swings:    { live: false, owner: 'systems',  note: 'Regen-style food. src/core/auto-eat.js + the away replay.' },
-  next_tier_yield:     { live: false, owner: 'systems',  note: 'Gathering rolls the next tier material. src/core/skill-sim.js. Output proc — outside the throughput fuse by §2.5.' },
-  byproduct_upgrade:   { live: false, owner: 'systems',  note: 'Mining stone by-product one grade up. Depends on the by-product itself (consumable-economy §8.4 P1), unbuilt.' },
-  blessing_amplify:    { live: false, owner: 'systems',  note: 'Add to whichever blessing is active rather than a fixed key. Needs world-events to expose the active key.' },
-  guaranteed_rare:     { live: false, owner: 'systems',  note: 'One guaranteed rarest drop per UTC day. Needs a server-side daily ledger — this one CANNOT be client-side.' },
-  spawn_class_local:   { live: false, owner: 'systems',  note: 'Farm plot as a combat faucet. Crosses farm + combat.' },
-  queue_slot:          { live: false, owner: 'systems',  note: 'A second auto-action queue slot. There is no action queue yet.' },
-  auto_vendor_marked:  { live: false, owner: 'systems',  note: 'Away auto-vendor of trash-marked items. Gold is server-owned — must be an Edge grant, never a client credit.' },
-  market_slot:         { live: false, owner: 'systems',  note: '+1 market listing slot. SERVER-SIDE: the slot cap is enforced by market_list, so this is a migration, not a client change.' },
-  cosmetic_dyed:       { live: false, owner: 'art',      note: 'Colour derived from most-completed bestiary class.' },
-  cosmetic_profile:    { live: false, owner: 'art',      note: 'Shows a value on the public profile / clan list.' },
-  cosmetic_pin:        { live: false, owner: 'art',      note: 'Pin one Chronicle entry to the public profile.' },
-  cosmetic_homestead:  { live: false, owner: 'art',      note: 'Homestead art reads the active world blessing.' },
-  dungeon_key:         { live: false, owner: 'systems',  note: 'Doubles as a dungeon key. The `unlocks` field already does this — wire on the day the dungeon exists.' },
 });
 
 /** Is every kind on this item known, and are they all live? */
@@ -177,9 +42,4 @@ export function effectsAreLive(item) {
   const list = (item && item.effects) || [];
   if (!list.length) return true;
   return list.every((k) => EFFECT_KINDS[k] && EFFECT_KINDS[k].live);
-}
-
-/** Kinds an item declares that no engine reads yet. Empty = fully playable. */
-export function dormantEffects(item) {
-  return ((item && item.effects) || []).filter((k) => !(EFFECT_KINDS[k] && EFFECT_KINDS[k].live));
 }

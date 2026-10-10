@@ -5466,28 +5466,21 @@ export default [
       assert(I[id].reqLv >= 1 && I[id].reqLv <= LADDER[8],
         id + ': reqLv ' + I[id].reqLv + ' is outside the 1..' + LADDER[8] + ' ladder');
     });
-    ('abyssal_greaves defense 88|apprentice_staff magic 1|bone_earrings prayer 45|'   /* the 41 ruled rows, id · skill · level, literal so a regeneration or a merge cannot move one off its rung. The last SEVEN carry NO `tier`, so they are absent from `tiered` above and this list is all that holds them: ungated on BOTH sides (gearWieldReq null AND hr_items.req_lv NULL), four of them TRADEABLE */
+    ('abyssal_greaves defense 88|apprentice_staff magic 1|'   /* the ruled rows (34 since W0 cut seven unobtainable ones), id · skill · level, literal so a regeneration or a merge cannot move one off its rung. The last SEVEN carry NO `tier`, so they are absent from `tiered` above and this list is all that holds them: ungated on BOTH sides (gearWieldReq null AND hr_items.req_lv NULL), four of them TRADEABLE */
       + 'alpha_cloak defense 30|gold_ring defense 30|gold_amulet defense 30|fox_companion defense 15|'
       + 'copper_ring defense 1|hunter_necklace defense 1|traveler_cape defense 1|'
       + 'bronze_belt defense 1|bronze_sword attack 1|captains_ribblade attack 30|'
       + 'chief_blade attack 15|choirbone_gauntlets defense 88|copper_studs defense 1|'
-      + 'frost_locket defense 45|heartwood_cape defense 75|hunters_torc defense 30|'
       + 'iron_arrows ranged 1|iron_helm defense 15|iron_platebody defense 15|iron_sword attack 15|'
       + 'iron_warhammer attack 15|leather_boots defense 1|leather_gloves defense 1|longbow ranged 15|'
-      + 'oak_staff magic 15|pathfinder_studs defense 1|regent_helm defense 88|rune_sword attack 60|'
+      + 'oak_staff magic 15|regent_helm defense 88|rune_sword attack 60|'
       + 'shortbow ranged 1|slagheart_platebody defense 88|steel_helm defense 30|'
-      + 'steel_platebody defense 30|steel_sword attack 30|stone_maul attack 1|tally_ring defense 1|'
-      + 'unlit_earrings defense 75|warden_girdle defense 88|wyrmgilt_mantle defense 88'
+      + 'steel_platebody defense 30|steel_sword attack 30|stone_maul attack 1|'
+      + 'warden_girdle defense 88|wyrmgilt_mantle defense 88'
     ).split('|').forEach((row) => {
       const p = row.split(' '), it = I[p[0]] || {};
       assert(it.reqSkill === p[1] && it.reqLv === Number(p[2]), p[0] + ' must gate on ' + p[1] + ' Lv ' + p[2]
         + ', got ' + it.reqSkill + ' Lv ' + it.reqLv);
-    });
-    /* A cosmetic is EARNED, not out-levelled — no tier and no gate, on both sides. */
-    ['bestiary_cloak', 'hearthstone_signet'].forEach((id) => {
-      const it = I[id] || {};
-      assert(it.tier == null && it.reqSkill == null && it.reqLv == null && window.gearWieldReq(it) == null,
-        id + ' is a cosmetic and must stay ungated, got ' + JSON.stringify(window.gearWieldReq(it)));
     });
     assert(JSON.stringify(window.gearWieldReq(I.fox_companion)) === '{"skill":"defense","lv":15}',   /* `companion` is a TYPE the authority returned null for, so the fox carried a gate hr_apply enforced and the UI never painted. reqLv 1 still yields NO gate on purpose (`lv<=1`) — the data form of "belongs to Defence", which keeps hr_items.req_lv non-NULL across the slot */
       'the fox must paint Defence 15 — `companion` has to be a gated type or the server refuses a wield '

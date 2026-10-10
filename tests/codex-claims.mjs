@@ -171,7 +171,9 @@ export const BINDS = {
       need(R.DAILY_LOGIN_CYCLE_DAYS === 7, 'the daily cycle is no longer a week'),
       need(golds.every((g, i) => i === 0 || g > golds[i - 1]), 'the daily gold no longer climbs through the week'),
       need(R.priceDailyLogin(8).gold > R.priceDailyLogin(1).gold, 'a finished week no longer makes the next one richer'),
-      need(R.deriveLoginStreak({ prev: 'x', rows: {} }) === 1, 'a missed day no longer starts the streak over'));
+      need(R.priceDailyLogin(7).items.bone_key === 1, 'day 7 no longer pays a Bone Key'),
+      need(R.priceDailyLogin(7 * 100).mult === 3 && R.DAILY_LOGIN_MAX_WEEK_MULT === 3, 'a finished week no longer stops at three times the first'),
+      need(R.deriveLoginStreak({ last: { value: 5, gap: 2, state: 'claimed' } }) === 5, 'a missed day no longer steps back exactly one day'));
   },
   renownTerms: (w) => {
     const b = w.fnBody('hr_renown_of');

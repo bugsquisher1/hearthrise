@@ -830,7 +830,7 @@ async function run(mutate) {
         + 'this response the client renders, and null here means the player is paid with no '
         + 'explanation of what for');
       {
-        const want = ['cycle_day', 'gems', 'gold', 'kind', 'key', 'mult', 'period', 'streak', 'weeks']
+        const want = ['cycle_day', 'gems', 'gold', 'items', 'kind', 'key', 'mult', 'period', 'streak', 'weeks']
           .sort().join(',');
         const have = Object.keys(g).sort().join(',');
         note(have === want,

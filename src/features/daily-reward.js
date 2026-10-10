@@ -7,13 +7,12 @@
 // the play streak and a different quantity. See the b498 block below.
 //
 // How it works:
-//   • A 7-day escalating cycle (Day 1 small → Day 7 jackpot).
-//   • Which day you're on = your current streak position, so a longer streak
-//     keeps landing bigger days; each COMPLETED week scales the whole cycle up
-//     (+50% per week) so veterans still care.
-//   • Claim once per UTC day. Miss a day → streak resets to Day 1 (you lose
-//     nothing you had — just the escalation restarts. Loss aversion, the kind
-//     that doesn't punish).
+//   • A 7-day cycle of supplies plus modest gold (food, seeds, a Bone Key on
+//     Day 7), authored in src/data/rewards.js.
+//   • Which day you're on = your current streak position; each COMPLETED week
+//     scales gold and supplies +50%, up to x3 in week five.
+//   • Claim once per UTC day. Miss a day → you step back ONE day, never to
+//     Day 1 (W0: stepping away is what an idle game is for).
 //   • Surfaced as a prominent Home card AND a gentle once-per-day popup that
 //     waits for any other modal to clear (so it never stacks onto the welcome
 //     /beta/rank-up modals — the game already has too many front-door popups).
@@ -187,12 +186,22 @@
        becomes a wrong promise. Act only on certainty (save-invariant #2). */
     var dayN = B.utcDayNumber(Date.now());
     if (dayN < serverClaim.dayN || dayN > serverClaim.dayN + 1) return null;
-    /* `utcDayKey` is src/core/botd.js's — the ONE JS spelling of
-       `public.hr_utc_day_key`, bound to the SQL by tests/claim-intent.mjs C13d.
-       src/data/rewards.js deliberately holds no day-key function; see the block
-       at the foot of that file for why a fourth one must never be written. */
-    var prev = B.utcDayKey((dayN - 1) * 86400000);
-    return R.deriveLoginStreak({ prev: prev, rows: serverClaim.rows });
+    /* `last` in the server's own shape (hr_claim_lookup): the most recent
+       CLAIMED row before the day asked about, and its gap in whole UTC days.
+       The key is parsed against `utcDayKey` (src/core/botd.js, the one JS
+       spelling of hr_utc_day_key) rather than split by hand, so a key this
+       client cannot read is skipped, never guessed. */
+    var today = B.utcDayKey(dayN * 86400000);
+    var last = null;
+    Object.keys(serverClaim.rows).forEach(function (period) {
+      var row = serverClaim.rows[period];
+      if (period === today || !row || row.state !== 'claimed') return;
+      var p = period.split('-');
+      var n = p.length === 3 ? B.utcDayNumber(Date.UTC(+p[0], +p[1] - 1, +p[2])) : NaN;
+      if (!Number.isFinite(n) || B.utcDayKey(n * 86400000) !== period || n >= dayN) return;
+      if (!last || n > last.n) last = { n: n, value: row.value, state: row.state, gap: dayN - n };
+    });
+    return R.deriveLoginStreak({ last: last });
   }
 
   /**
@@ -259,6 +268,7 @@
     var out = {};
     if (p.gold) out.gold = p.gold;
     if (p.gems) out.gems = p.gems;
+    if (p.items && Object.keys(p.items).length) out.items = Object.assign({}, p.items);
     return out;
   }
 
@@ -370,6 +380,8 @@
     var p = [];
     if (rw.gold) p.push(amountHtml('gold', rw.gold, 'gold'));
     if (rw.gems) p.push(amountHtml('gems', rw.gems, 'gems'));
+    var it = itemsPlain(rw.items);
+    if (it) p.push(it);
     return p.join('  ');
   }
   /* b219: rewardText() returns MARKUP (inline <svg> glyphs) for the claim
@@ -382,7 +394,18 @@
     var p = [];
     if (rw.gold) p.push(fmt(rw.gold) + ' Gold');
     if (rw.gems) p.push(fmt(rw.gems) + ' Gems');
+    var it = itemsPlain(rw.items);
+    if (it) p.push(it);
     return p.join(', ');
+  }
+  /* Supplies by their ITEMS name, never a raw id; an id ITEMS lacks is titled. */
+  function itemsPlain(items) {
+    if (!items) return '';
+    var I = window.ITEMS || {};
+    return Object.keys(items).map(function (id) {
+      var n = (I[id] && (I[id].n || I[id].name)) || id.replace(/_/g, ' ');
+      return fmt(items[id]) + ' ' + n;
+    }).join(', ');
   }
 
   function ensureStyle() {
@@ -483,7 +506,9 @@
         '<div class="hr-dl-eyebrow">Daily reward · Day ' + day + ' of ' + R.DAILY_LOGIN_CYCLE_DAYS
           + (wk ? ' · week ' + (wk + 1) : '') + '</div>' +
         '<div class="hr-dl-h">' + (streakCount(G) > 1 ? 'Welcome back!' : 'Your daily reward') + '</div></div>' +
-        '<div class="hr-sheet-body"><div class="hr-dl-week">' + week + '</div></div>' +
+        '<div class="hr-sheet-body"><div class="hr-dl-week">' + week + '</div>' +
+        '<div class="hr-dl-hint">Food, seeds and gold every day, a Bone Key on Day ' + R.DAILY_LOGIN_CYCLE_DAYS +
+        '. Miss a day and you step back one day, never to the start.</div></div>' +
         '<div class="hr-sheet-foot">' + (pending
           ? '<button class="hr-dl-claim" disabled aria-disabled="true" title="Waiting for the server">Checking your reward…</button>'
           : claimable

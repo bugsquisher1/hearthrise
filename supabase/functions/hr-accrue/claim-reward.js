@@ -92,7 +92,7 @@
 //
 //   200 {ok:true, verb, version, now, state, skills, inventory, equipment,
 //        farm, progress, total_level,
-//        granted:{kind,key,period,gold,gems,streak,cycle_day,weeks,mult} | null}
+//        granted:{kind,key,period,gold,gems,items,streak,cycle_day,weeks,mult} | null}
 //        ⚠ snake_case, and that is not a style choice — the four trailing fields
 //          are SPREAD from the pricer's `meta`, so whatever a pricer spells is
 //          what reaches the wire. The first revision of this header said
@@ -356,6 +356,7 @@ export function priceLoginClaim(o) {
   return {
     gold: p.gold,
     gems: p.gems,
+    items: p.items,
     add: streak,
     meta: { streak, cycle_day: p.cycleDay, weeks: p.weeksDone, mult: p.mult },
   };
@@ -461,6 +462,10 @@ export function claimDelta(o) {
        the guard is right and the prose is what moves. Do not widen the regex —
        its own header explains why a five-second regex beats a parser here. */
   if (priced.gems) delta.gems = priced.gems;
+  /* Supplies and keys (the W0 login cycle). Omitted when empty for the same
+     reason as gems; hr_apply credits them through its items block, and for a
+     daily:login claim refuses any map but the one hr_login_price states. */
+  if (priced.items && Object.keys(priced.items).length) delta.items = { ...priced.items };
   return delta;
 }
 
@@ -678,6 +683,7 @@ export async function runClaimReward(o) {
         period: v.spec.periodic ? (gate.period ?? null) : null,
         gold: priced.gold,
         gems: priced.gems || 0,
+        items: { ...(priced.items || {}) },
         ...(priced.meta || {}),
       },
       /* The settle's receipt: the window paid BEFORE the grant, by this call. */

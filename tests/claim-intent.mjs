@@ -109,6 +109,8 @@ const EXTRA = [
   ['gold-intents', MIG('2026-08-15-gold-intents.sql')],
   ['gem-daily-budget', MIG('2026-08-15-gem-daily-budget.sql')],
   ['claim-reward', MIG('2026-08-16-claim-reward.sql')],
+  /* the W0 login reward: hr_claim_lookup's `last` and hr_apply's re-price */
+  ['login-reward', MIG('2026-10-16-login-reward.sql')],
 ];
 
 /* ── THE MUTATION CATALOGUE ─────────────────────────────────────────────────
@@ -177,22 +179,16 @@ const MUTATIONS = {
     repl: '  return base;',
   },
   streak_ignores_state: {
-    /* ⚠ src/data/rewards.js, NOT claim-reward.js — deriveLoginStreak MOVED in
-       4cc7d6cd ('the sheet advertised a day the server would not pay — TWO
-       STREAKS, one name'), which put the client preview and the server pricer on
-       ONE implementation and left claim-reward.js merely importing and
-       re-exporting it (its lines 183 and 244). This mutation stayed pointed at
-       the old home, so from that commit --selftest exited 2 on
-       "anchor matched 0 times" — a HARNESS verdict, so nothing was ever
-       silently graded as a catch, but the run STOPPED there and the twenty
-       mutations declared after it never executed at all. That is the CI
-       claim-intent red. The anchor TEXT is unchanged because the line is
-       unchanged; only the file it lives in moved. */
-    file: DATA('rewards.js'),
-    why: 'INVARIANT 4 — the streak counts yesterday\'s row whatever state it is in, so an '
+    /* Planted where the server's `last` comes from since
+       2026-10-16-login-reward.sql: hr_claim_last's state filter. The JS
+       deriveLoginStreak keeps its own state check as defence in depth, and
+       tests/login-reward.mjs pins that one directly. */
+    file: MIG('2026-10-16-login-reward.sql'),
+    migration: 'login-reward',
+    why: 'INVARIANT 4 — the streak counts the last row whatever state it is in, so an '
        + 'unclaimed row inflates today\'s reward',
-    find: "  if (!row || row.state !== 'claimed') return 1;",
-    repl: '  if (!row) return 1;',
+    find: "     and pp.state = 'claimed'\n",
+    repl: "     and pp.state is not null\n",
   },
   streak_always_one: {
     file: FN('claim-reward.js'),
@@ -338,8 +334,8 @@ const MUTATIONS = {
     why: 'the documented receipt goes back to the camelCase spelling the server does not emit '
        + '(`cycleDay,weeksDone`, no `mult`) — the literal G3 defect, which no behavioural '
        + 'assertion can see because a comment does not run',
-    find: '//        granted:{kind,key,period,gold,gems,streak,cycle_day,weeks,mult} | null}',
-    repl: '//        granted:{kind,key,period,gold,gems,streak,cycleDay,weeksDone} | null}',
+    find: '//        granted:{kind,key,period,gold,gems,items,streak,cycle_day,weeks,mult} | null}',
+    repl: '//        granted:{kind,key,period,gold,gems,items,streak,cycleDay,weeksDone} | null}',
   },
   /* Security G6, both halves, planted. */
   gate_skips_empty_period: {
@@ -366,17 +362,20 @@ const MUTATIONS = {
     find: "    when 'claim'    then v_limit := 20; v_window := interval '1 minute';",
     repl: '    -- mutated: bucket removed',
   },
+  /* hr_claim_lookup's CHAIN-END body is 2026-10-16-login-reward.sql's, so the two
+     lookup mutations are planted there; planted in the 2026-08-16 file they are
+     overwritten by the restatement and prove nothing. */
   lookup_widens: {
-    file: MIG('2026-08-16-claim-reward.sql'),
-    migration: 'claim-reward',
+    file: MIG('2026-10-16-login-reward.sql'),
+    migration: 'login-reward',
     why: 'hr_claim_lookup stops bounding itself to three period keys, so one call can scan a '
        + 'character\'s whole claim history',
-    find: "         and period_key in ('', v_today, v_prev)), '{}'::jsonb));",
-    repl: "         ), '{}'::jsonb));",
+    find: "         and period_key in ('', v_today, v_prev)), '{}'::jsonb),",
+    repl: "         ), '{}'::jsonb),",
   },
   lookup_takes_the_day: {
-    file: MIG('2026-08-16-claim-reward.sql'),
-    migration: 'claim-reward',
+    file: MIG('2026-10-16-login-reward.sql'),
+    migration: 'login-reward',
     why: 'the day key stops being the server\'s — hr_claim_lookup reports yesterday as today, '
        + 'which is the shape of any caller-supplied period',
     find: '  v_today := public.hr_utc_day_key(now());',
@@ -854,7 +853,7 @@ async function run(mutate) {
        until the header names it, and a removed one is red until the client
        stops expecting it. */
     {
-      const want = ['kind', 'key', 'period', 'gold', 'gems', 'streak', 'cycle_day', 'weeks', 'mult']
+      const want = ['kind', 'key', 'period', 'gold', 'gems', 'items', 'streak', 'cycle_day', 'weeks', 'mult']
         .sort().join(',');
       const have = Object.keys(r.body.granted).sort().join(',');
       ok(have === want,
@@ -1101,18 +1100,23 @@ async function run(mutate) {
       + 'paid nothing, silently.');
     ok(Number((await state(db, UID)).gold) === Number(before.gold), 'C9: the mismatched call moved gold');
 
-    // ...and a FRESH key on the same simulated tomorrow SUCCEEDS, which is the
-    // contract's own recovery ("a rejected intent is retried with a NEW key").
-    // Without this control the refusal above could be about anything.
+    // ...and a FRESH key on the same simulated tomorrow gets PAST the key check,
+    // so the refusal above was about the key. Since 2026-10-16-login-reward.sql
+    // it does not get further: the tomorrow is simulated at the EDGE only, and
+    // hr_apply re-prices the login claim against the DATABASE clock, which
+    // refuses a claim filed under a day that is not today. That refusal is the
+    // stronger property (an edge with a wrong clock cannot pay a day early), and
+    // it is a different error from intent_mismatch, which is all this control
+    // needs.
     const fresh = await cr.runClaimReward({
       exec: makeExec(db, { after: tomorrow }), user: UID, slot: 0, intentId: uuid(), reward: login(),
     });
-    ok(fresh.body.ok === true,
-      `C9-CONTROL: a fresh key was refused too (${JSON.stringify(fresh.body).slice(0, 200)}) — the `
-      + 'refusal above would then be about something other than the key');
-    ok(fresh.body.granted.period === next && fresh.body.granted.streak === 2,
-      `C9-CONTROL: tomorrow's claim reported ${JSON.stringify(fresh.body.granted)} — expected `
-      + `period ${next} and streak 2`);
+    ok(fresh.body.ok === false && fresh.body.error === 'login_price_mismatch',
+      `C9-CONTROL: a fresh key on the edge's simulated tomorrow returned `
+      + `${JSON.stringify(fresh.body).slice(0, 200)} — expected the database to refuse the period `
+      + '(login_price_mismatch), i.e. a refusal that is not about the key');
+    ok(Number((await state(db, UID)).gold) === Number(before.gold),
+      'C9-CONTROL: the period-refused claim moved gold');
     await db.query('delete from public.player_progress where user_id = $1', [UID]);
   }
 

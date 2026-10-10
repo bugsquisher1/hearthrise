@@ -733,6 +733,8 @@ export default [
           'streak ' + streak + ': the sheet says ' + got.gold + ' gold, the data says ' + want.gold);
         assert((got.gems || 0) === want.gems,
           'streak ' + streak + ': the sheet says ' + got.gems + ' gems, the data says ' + want.gems);
+        assert(JSON.stringify(got.items || {}) === JSON.stringify(want.items),
+          'streak ' + streak + ': the sheet previews supplies ' + JSON.stringify(got.items) + ', the data says ' + JSON.stringify(want.items));
         assert(D.cycleDay(G) === want.cycleDay,
           'streak ' + streak + ': cycleDay disagrees (' + D.cycleDay(G) + ' vs ' + want.cycleDay + ')');
       }

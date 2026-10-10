@@ -1467,6 +1467,10 @@
         var dlt = [];
         if (dlrw.gold) dlt.push(gly('gold', 13, '', 'var(--gold-2)') + ' ' + num(dlrw.gold) + (gly('gold', 1) ? '' : ' gold'));
         if (dlrw.gems) dlt.push(gly('gems', 13, '', 'var(--gem)') + ' ' + num(dlrw.gems) + (gly('gems', 1) ? '' : ' gems'));
+        Object.keys(dlrw.items || {}).forEach(function (id) {
+          var it = window.ITEMS && window.ITEMS[id];
+          dlt.push(num(dlrw.items[id]) + ' ' + esc((it && (it.n || it.name)) || id.replace(/_/g, ' ')));
+        });
         html += '<div class="hd-card hd-mile hd-daily is-title" data-hd="daily">' +
           '<div class="hd-mile-badge">' + gly('uiGift', 22, '', '#f0dfb8') + '</div>' +
           '<div class="hd-mile-body">' +

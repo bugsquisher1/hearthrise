@@ -2462,9 +2462,11 @@ jobs:
   # shared input) and worker-accrual --selftest + base run (6.2 s, a pure engine
   # harness but an ECONOMY faucet) — taking the family to 950.6 s (15.8 min).
   # Budget RAISED 30 -> 32, still measured x2.
+  # + login-reward (2026-10-10, measured locally): 6 s plain + 315 s mutate =
+  # 321 s (5.4 min); budget x2 = +11, so 32 -> 43.
   economy-selftests:
     runs-on: ubuntu-latest
-    timeout-minutes: 32
+    timeout-minutes: 43
 
     steps:
       - uses: actions/checkout@v4
@@ -2954,6 +2956,19 @@ jobs:
         run: |
           node tests/claim-intent.mjs
           node tests/claim-intent.mjs --selftest
+
+      # THE DAILY LOGIN REWARD (2026-10-16-login-reward.sql, W0 #9). The
+      # generated SQL catalogue is rewards.js byte for byte; SQL and JS price
+      # and streak alike over every case; a played claim, a missed day (one step
+      # back, never day 1) and the claim after it pay exactly the catalogue; and
+      # hr_apply refuses any other price. --mutate: five JS defects (reset on a
+      # miss, multiplier overflow, no wrap, unclaimed row counts, supplies
+      # dropped) and three SQL defects the migration's §4 must stop.
+      - name: Daily login reward — one step per missed day, x3 cap, server re-price (base + mutate)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/login-reward.mjs
+          node tests/login-reward.mjs --mutate
 
       # THE CLAN JOURNAL INVARIANT (F1 + F3, 2026-08-13). "Every RPC that writes
       # a shared table emits a clan_ledger row in the same transaction" — proven

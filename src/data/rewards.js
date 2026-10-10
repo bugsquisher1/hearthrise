@@ -26,51 +26,71 @@
 // timestamp — use now()").
 // ============================================================================
 
-/* ── THE DAILY LOGIN CYCLE ──────────────────────────────────────────────────
-   Seven escalating days; which day you land on is your streak position, so a
-   longer streak keeps landing bigger days. Authored by the Designer — moved
-   here verbatim from src/features/daily-reward.js, value for value. */
+/* ── THE DAILY LOGIN CYCLE (W0, 2026-10-10 — the coherence audit's #9) ──────
+   Seven days; which day you land on is your streak position. Re-authored from
+   gold-only to SUPPLIES PLUS MODEST GOLD, because the old cycle paid 43,000
+   gold in week one (day 7 alone 20,000), climbed to x26 and reset on one missed
+   day: logging in out-earned playing, and stepping away cost everything.
+
+   THE NUMBERS, MEASURED AGAINST WHAT A NEW PLAYER EARNS BY PLAYING
+   (src/data/goal-catalogue.js, src/data/monsters.js):
+     · the three daily quests pay 400-1,400 gold each, about 2,000 a day and
+       14,000 a week;
+     · a goblin drops 2-8 gold, so a first hour of fighting is a few hundred;
+     · the first House upgrade costs 400 gold, a shop weapon about 300.
+   Week one below pays 2,250 gold (about 16% of the daily quests), 25 cooked
+   shrimp and 10 cooked herring for Auto-Eat, 25 turnip and 10 carrot seeds for
+   the plots (turnip is farming 1, carrot farming 10), one Bone Key (the first
+   dungeon, the Crypt of Bones, opens at combat 25) and 2 gems. Day 2 is 200
+   gold, below the price of a shop weapon, so the first gear upgrade is still
+   one you earn.
+
+   `items` are SUPPLIES: they scale with the week multiplier like gold does.
+   `keys` and `gems` are FIXED: one Bone Key a week, never three, because a key
+   is a dungeon run and the multiplier is a loyalty bonus, not a loot table.
+   Every id is a real ITEMS row; tests/login-reward.mjs asserts it. */
 export const DAILY_LOGIN_CYCLE = Object.freeze([
-  Object.freeze({ gold: 500 }),
-  Object.freeze({ gold: 1000 }),
-  Object.freeze({ gold: 2000, gems: 5 }),
-  Object.freeze({ gold: 3500 }),
-  Object.freeze({ gold: 6000, gems: 10 }),
-  Object.freeze({ gold: 10000 }),
-  Object.freeze({ gold: 20000, gems: 30 }),   // Day 7 jackpot
+  Object.freeze({ gold: 150, items: Object.freeze({ cooked_shrimp: 10 }) }),
+  Object.freeze({ gold: 200, items: Object.freeze({ turnip_seed: 10 }) }),
+  Object.freeze({ gold: 250, items: Object.freeze({ cooked_shrimp: 15 }) }),
+  Object.freeze({ gold: 300, items: Object.freeze({ carrot_seed: 10 }) }),
+  Object.freeze({ gold: 350, items: Object.freeze({ cooked_herring: 10 }) }),
+  Object.freeze({ gold: 400, items: Object.freeze({ turnip_seed: 15 }) }),
+  Object.freeze({ gold: 600, gems: 2, keys: Object.freeze({ bone_key: 1 }) }),   // Day 7
 ]);
 
-/** Each COMPLETED week scales the whole cycle by this much again. */
+/** Each COMPLETED week scales gold and supplies by this much again... */
 export const DAILY_LOGIN_WEEK_BONUS = 0.5;
 
-/* ⚠ THE CAP IS NEW, AND IT IS A BOUND RATHER THAN A BALANCE CHANGE.
-   `1 + weeksDone * 0.5` is UNBOUNDED, and the client has been paying it that
-   way. Measured against the shipped cycle: a two-year perfect streak reaches
-   weeksDone = 104, i.e. x53, i.e. 1,060,000 gold from ONE day-7 claim; three
-   years is x79. A server that authorises a payout may not propose an unbounded
-   number — every other value the engine proposes has a blast radius, and this
-   one had none.
-
-   26 is chosen to be NON-BINDING for any reachable player: it is a full YEAR of
-   perfect attendance (52 completed weeks would be x27), so nothing anyone can
-   have today changes, and the beta is four days old. It is a fuse, not a dial.
-
-   ⇒ GAME DESIGNER: the DIAL is yours. If a x26 day-7 claim (520,000 gold) is
-     too much, lower this number — it is data, and both halves read it. What is
-     NOT negotiable is that some finite number lives here. */
-export const DAILY_LOGIN_MAX_WEEK_MULT = 26;
+/* ...up to x3, reached in week five (x1, x1.5, x2, x2.5, x3). The old cap was
+   x26, a fuse rather than a dial; this one is the dial. At the cap the richest
+   claim is day 7: 1,800 gold, one Bone Key, 2 gems; a capped week pays 6,750
+   gold. The SERVER re-derives this price and refuses any other
+   (2026-10-16-login-reward.sql, hr_login_price), so this number and that one
+   are bound by tests/login-reward.mjs, which runs both over every streak. */
+export const DAILY_LOGIN_MAX_WEEK_MULT = 3;
 
 export const DAILY_LOGIN_CYCLE_DAYS = DAILY_LOGIN_CYCLE.length;
 
+/* THE STORED STREAK IS BOUNDED. Once the multiplier is capped, a longer streak
+   changes nothing but the cycle day, so the streak wraps one week back past
+   this ceiling (36 → 29: day 1, week 5, still x3). The value in a claim row can
+   therefore never grow without limit, and a long absence decays from at most
+   this. Derived, never typed: the first week the cap applies, plus that week. */
+export const DAILY_LOGIN_STREAK_CAP = DAILY_LOGIN_CYCLE_DAYS
+  * (Math.ceil((DAILY_LOGIN_MAX_WEEK_MULT - 1) / DAILY_LOGIN_WEEK_BONUS) + 1);
+
 /**
- * PRICE ONE DAILY-LOGIN CLAIM. The one implementation, called by the client
- * renderer, by the server's claim intent and by the tests.
+ * PRICE ONE DAILY-LOGIN CLAIM. The one JS implementation, called by the client
+ * renderer, by the server's claim intent and by the tests. Postgres holds the
+ * one SQL implementation and refuses a claim this does not equal.
  *
- * @param streak  the claimer's CONSECUTIVE-DAY count, 1-based. The server
- *                derives it from its own claim history; the client renders a
- *                preview from its local copy and is never believed.
- * @returns {{gold:number, gems:number, cycleDay:number, weeksDone:number, mult:number}}
- *          `cycleDay` is 1-based for display. `mult` is post-cap.
+ * @param streak  the claimer's streak position, 1-based. The server derives it
+ *                from its own claim history; the client renders a preview.
+ * @returns {{gold:number, gems:number, items:Object<string,number>,
+ *            cycleDay:number, weeksDone:number, mult:number}}
+ *          `items` merges the scaled supplies and the fixed keys; it is `{}` on
+ *          a day that pays none. `mult` is post-cap.
  */
 export function priceDailyLogin(streak) {
   const s = Number.isFinite(Number(streak)) && Number(streak) > 0 ? Math.floor(Number(streak)) : 1;
@@ -78,85 +98,63 @@ export function priceDailyLogin(streak) {
   const weeksDone = Math.floor((s - 1) / DAILY_LOGIN_CYCLE_DAYS);
   const mult = Math.min(DAILY_LOGIN_MAX_WEEK_MULT, 1 + weeksDone * DAILY_LOGIN_WEEK_BONUS);
   const base = DAILY_LOGIN_CYCLE[cycleDay - 1] || DAILY_LOGIN_CYCLE[0];
+  const items = {};
+  for (const [id, q] of Object.entries(base.items || {})) {
+    const n = Math.round(q * mult);
+    if (n > 0) items[id] = (items[id] || 0) + n;
+  }
+  for (const [id, q] of Object.entries(base.keys || {})) {
+    if (q > 0) items[id] = (items[id] || 0) + q;
+  }
   return {
     gold: Math.round((base.gold || 0) * mult),
-    gems: Math.round((base.gems || 0) * mult),
+    gems: base.gems || 0,
+    items,
     cycleDay,
     weeksDone,
     mult,
   };
 }
 
-/* ── THE LOGIN STREAK, DERIVED FROM A CLAIM HISTORY ─────────────────────────
-   MOVED HERE FROM supabase/functions/hr-accrue/claim-reward.js (b498). It is
-   the same function, verbatim; what changed is that it is now readable by the
-   BROWSER as well as by Deno, through `window.HearthriseRewards`.
+/* ── THE LOGIN STREAK, DERIVED FROM THE LAST CLAIM ──────────────────────────
+   ONE function, read by the browser (window.HearthriseRewards) and by the Edge
+   Function (vendored), over the SERVER's own claim rows. b498 put it here
+   because the sheet once rendered a different streak from the one the payout
+   used; that rule stands.
 
-   ⚠ THE MOVE IS THE BUG FIX, and the bug is worth stating because it is the
-     same shape as the one `priceDailyLogin` was moved here to end.
+   THE RULE (W0): a missed day costs ONE step, never the whole streak.
 
-     LIVE, 2026-08-31 (b497 play-gate): the sheet advertised "DAILY REWARD ·
-     3-DAY STREAK / Claim Day 3 · 2,000 gold · 5 gems" and the server paid Day
-     1's 500 gold and no gems. Nothing was lost, but the modal promised 4x what
-     it paid — the "feels like theft" class.
+       last claim yesterday (gap 1)       ⇒  streak = last + 1
+       last claim g days ago (g ≥ 2)      ⇒  streak = last + 1 − (g − 1)
+                                              (one step lost per missed day)
+       floored at 1, wrapped past DAILY_LOGIN_STREAK_CAP one week at a time
 
-     The cause was NOT arithmetic drift. It was that the client was rendering a
-     DIFFERENT QUANTITY and calling it the same thing. There are two streaks on
-     the server and they answer two different questions:
+   So a player on day 5 who misses a day comes back to day 5, not day 1; a
+   week away costs a week of steps. `hr_claim_lookup` returns `last` — the most
+   recent CLAIMED row before today and how many UTC days ago it was, measured
+   on the server's clock — so nothing here reads a clock or parses a day key
+   (see the foot of this file). Only a 'claimed' row continues a streak: any
+   other row is one this engine did not finish, and counting it would let a
+   stray write inflate the reward.
 
-       player_state.streak_days   consecutive UTC days the player SETTLED
-         (hr_apply §4c, 2026-08-21-streak-state.sql) — advanced by any delta
-         carrying `accrued_to`, i.e. by PLAYING. Projected on every envelope as
-         `state.streak_days`, which is what b475 taught the sheet to read.
+   ⚠ A ROW OLDER THAN THE PROGRESS RETENTION (31 days, hr_progress_prune) IS
+     GONE, so an absence longer than that starts at day 1. The decay has
+     already taken a capped streak (at most 35) to day 5 or below by then, so
+     the two rules differ by at most four steps, only past a month away.
 
-       deriveLoginStreak (this)   consecutive UTC days the player CLAIMED the
-         login reward — the only one the PAYOUT is a function of.
-
-     They agree exactly while every played day is also a claimed day, which is
-     why b475 looked right for three weeks. Play a day without claiming — or
-     merely open the game before the day's first settle has reset the settle
-     streak — and the sheet promises a day the server will not pay.
-
-     A drift GUARD between two copies would not have caught that: neither copy
-     was wrong. One implementation, read by both halves, is the only shape in
-     which the question "which day will I be paid?" has one answer.
-
-   `player_progress.value` on a `daily:login` row is THE STREAK LENGTH ON THAT
-   DAY — unusual for that column, which is normally a counter, and stated here
-   because the shape is what makes the rule one lookup instead of a scan:
-
-       yesterday's row exists and is 'claimed'  ⇒  streak = its value + 1
-       anything else                            ⇒  streak = 1
-
-   Nothing walks a history, nothing depends on a retention window, and a player
-   who misses a day resets by ARITHMETIC rather than by a reset that has to be
-   remembered. It also means the 31-day `hr_progress_prune` cannot silently
-   shorten a streak: only yesterday is ever read, and yesterday is never pruned.
-
-   PURE, and it takes the day from its caller — this file holds no clock and no
-   day-key function (see the block at the foot of this file for why). The SERVER
-   passes `hr_claim_lookup`'s answer; the CLIENT builds the same shape out of the
-   `daily`/`login` rows on its envelope. Both hand it `{ prev, rows }` and
-   neither computes what "yesterday" means twice.
-
-   ⚠ THE STREAK IS NEVER READ FROM THE CLIENT ON THE SERVER'S SIDE.
-     `G.streak.count` exists and is forgeable; it is not an input to the pricer
-     and there is no field through which it could become one. The client calling
-     this function is rendering a PREVIEW of the server's own arithmetic over the
-     server's own rows — it is not proposing a number.
-
-   @param lookup  { prev: <day key>, rows: { <day key>: {value, state} } }
-   @returns the 1-based consecutive-day count, floored at 1.
+   @param lookup  { last: { value, state, gap } | null }
+   @returns the 1-based streak position.
 */
 export function deriveLoginStreak(lookup) {
-  const rows = (lookup && lookup.rows) || {};
-  const prev = lookup && lookup.prev;
-  if (typeof prev !== 'string') return 1;
-  if (!Object.prototype.hasOwnProperty.call(rows, prev)) return 1;
-  const row = rows[prev];
-  if (!row || row.state !== 'claimed') return 1;
-  const v = Number(row.value);
-  return Number.isFinite(v) && v >= 1 ? Math.floor(v) + 1 : 1;
+  const last = lookup && lookup.last;
+  if (!last || typeof last !== 'object' || last.state !== 'claimed') return 1;
+  const v = Math.floor(Number(last.value));
+  const gap = Math.floor(Number(last.gap));
+  if (!Number.isFinite(v) || v < 1 || !Number.isFinite(gap) || gap < 1) return 1;
+  const s = v + 1 - (gap - 1);
+  if (s < 1) return 1;
+  if (s <= DAILY_LOGIN_STREAK_CAP) return s;
+  return DAILY_LOGIN_STREAK_CAP - DAILY_LOGIN_CYCLE_DAYS + ((s - 1) % DAILY_LOGIN_CYCLE_DAYS) + 1;
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -234,7 +232,7 @@ export const CLAIMABLES = Object.freeze({
     periodic: true,
     site: 'src/features/daily-reward.js:76 claim()',
     ledgerKind: 'quest',
-    note: 'streak derived server-side from the previous day\'s own claim row',
+    note: 'streak derived server-side from the last claim row; a missed day costs one step',
   }),
 
   /* ── BLOCKED, each on a NAMED capability ────────────────────────────────
@@ -333,7 +331,9 @@ export function claimableFor(kind, key) {
    that already existed, and every consumer uses the STRING it returns. The Edge
    Function never computes a day and never parses one. `hr_claim_lookup`
    (2026-08-16-claim-reward.sql) returns `today` and `prev` alongside the rows,
-   which is why it returns them at all rather than just the rows.
+   which is why it returns them at all rather than just the rows; since
+   2026-10-16-login-reward.sql it also returns `last`, with the gap in whole
+   UTC days measured in SQL, so the streak rule never parses a key either.
 
    ⚠ AND THERE IS ALREADY A JS ONE — `utcDayKey` in src/core/botd.js, which
      world-events and raids have used for months. It produces 'YYYY-M-D', which

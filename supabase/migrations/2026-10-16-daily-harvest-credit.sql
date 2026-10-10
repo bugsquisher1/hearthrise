@@ -102,7 +102,7 @@ begin
     when 'daily_craft'      then v_type := 'crafted';  v_goal := 40;  v_gold := 500;
     -- W0 (2026-10-16-daily-harvest-credit.sql): a FIXED goal, graded on the
     -- daily ev:harvest counter hr_farm_harvest stamps. It was offered and never
-    -- paid (not_creditable) because its goal scaled with the client's plot cap.
+    -- paid, because its goal scaled with the client's plot cap.
     when 'daily_harvest'    then v_type := 'harvest';  v_goal := 6;   v_gold := 300;
     else return jsonb_build_object('ok', false, 'error', 'unknown_task', 'task', p_task_id);
   end case;

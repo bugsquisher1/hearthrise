@@ -37,21 +37,21 @@ export const SKILLS_DEF={
    small hitters a low-Prayer player actually fights. It spends no RNG draw, so
    seeded replays are unchanged in shape.
 
-   NUMBERS ARE A PROPOSAL FOR DESIGNER REVIEW (Systems, W0): 2% per decade of
-   Prayer, 20% at 99. Pitched below a defence tier's worth so Prayer is a real
+   GAME DESIGNER RULING (W0, 2026-10-10): front-loaded so early levels are felt,
+   3% at 10 then +2% per decade, 20% at 99. Below a defence tier's worth: a real
    but secondary survival stat — a Prayer-99 hero eats about a fifth less food,
    never fights for free. Retune a row, never a branch. Ascending by `lv`; a
    guard asserts the order and the cap. */
 export const PRAYER_WARDS = Object.freeze([
-  Object.freeze({ lv: 10, pct: 2 }),
-  Object.freeze({ lv: 20, pct: 4 }),
-  Object.freeze({ lv: 30, pct: 6 }),
-  Object.freeze({ lv: 40, pct: 8 }),
-  Object.freeze({ lv: 50, pct: 10 }),
-  Object.freeze({ lv: 60, pct: 12 }),
-  Object.freeze({ lv: 70, pct: 14 }),
-  Object.freeze({ lv: 80, pct: 16 }),
-  Object.freeze({ lv: 90, pct: 18 }),
+  Object.freeze({ lv: 10, pct: 3 }),
+  Object.freeze({ lv: 20, pct: 5 }),
+  Object.freeze({ lv: 30, pct: 7 }),
+  Object.freeze({ lv: 40, pct: 9 }),
+  Object.freeze({ lv: 50, pct: 11 }),
+  Object.freeze({ lv: 60, pct: 13 }),
+  Object.freeze({ lv: 70, pct: 15 }),
+  Object.freeze({ lv: 80, pct: 17 }),
+  Object.freeze({ lv: 90, pct: 19 }),
   Object.freeze({ lv: 99, pct: 20 }),
 ]);
 /* The ceiling no row may exceed. A ward is a share of blows turned aside; at

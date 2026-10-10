@@ -76,6 +76,13 @@ const MUTATIONS = {
     find: "inputs: { rune_essence: 4 },",
     repl: "inputs: { dressed_block: 2 },",
   },
+  ward_not_front_loaded: {
+    file: 'src/data/skills.js',
+    why: 'the first ward is back to the linear 2% — the early Prayer levels the designer ruled '
+       + 'must be felt are not',
+    find: 'Object.freeze({ lv: 10, pct: 3 }),',
+    repl: 'Object.freeze({ lv: 10, pct: 2 }),',
+  },
   ward_off: {
     file: 'src/core/combat.js',
     why: 'Prayer does nothing in a fight again — a combat-level padder',
@@ -329,6 +336,13 @@ export async function runAll({ mutate } = {}) {
           `P1: PRAYER_WARDS row ${JSON.stringify(row)} is not strictly above the last and within ${PRAYER_WARD_MAX_PCT}%`);
         prev = row.pct; prevLv = row.lv;
       }
+      /* The Game Designer's ruled table (2026-10-10): front-loaded, same cap. */
+      const RULED = '10:3,20:5,30:7,40:9,50:11,60:13,70:15,80:17,90:19,99:20';
+      ok(PRAYER_WARDS.map((r) => r.lv + ':' + r.pct).join(',') === RULED && PRAYER_WARD_MAX_PCT === 25,
+        `P1: PRAYER_WARDS is not the ruled table ${RULED} (cap 25) — got `
+        + PRAYER_WARDS.map((r) => r.lv + ':' + r.pct).join(',') + ` cap ${PRAYER_WARD_MAX_PCT}`);
+      ok(C.prayerWardPct({ prayer: xpAt(10) }) === 3 && C.prayerWardPct({ prayer: xpAt(9) }) === 0,
+        'P1: the first ward must land at exactly Prayer 10 (3%) and not before');
       ok(C.prayerWardPct({ prayer: 0 }) === 0, 'P1: Prayer 1 has a ward');
       ok(C.prayerWardPct({ prayer: MAX_XP }) === PRAYER_WARDS[PRAYER_WARDS.length - 1].pct,
         'P1: Prayer 99 does not read the top ward');

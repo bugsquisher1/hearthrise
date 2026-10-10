@@ -35,6 +35,8 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const KNOWN_ABSENT = {
   HearthriseLicence: 'AWAY-HONEST asserts the retired away-gate API is ABSENT — the read IS the assertion',
   HearthriseRecipes: 'optional namespace with an explicit `|| window` fallback in the suite',
+  HearthrisePostSignup: 'W0-INTRO-1 asserts the cut post-signup welcome is ABSENT — the read IS the assertion',
+  HearthriseBetaBanner: 'W0-INTRO-1 asserts the cut open-beta welcome card is ABSENT — the read IS the assertion',
   HearthriseTelemetry: 'optional analytics sink; client-state.js guards with `if (T && typeof T.event === "function")`',
 };
 

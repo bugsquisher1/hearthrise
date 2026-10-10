@@ -436,7 +436,7 @@ export default [
   // assertion goes red; restore the solo adopt() in join() -> the join one does.
   () => tryRunAsync('W0: the muster is online-only — a signed-out join and claim pay nothing', async () => {
     const M = window.HearthriseMuster, G = window.G;
-    const savedMuster = G.muster ? JSON.parse(JSON.stringify(G.muster)) : undefined;
+    const snap = snapshotG();
     const inv0 = JSON.stringify(G.inventory || {});
     const origAdd = window.addItem, origXp = window.addXp;
     let minted = 0;
@@ -454,15 +454,15 @@ export default [
       }
       /* A day already joined, window closed, contribution made: the shape that
          used to fall through to the solo chest. */
-      G.muster = { dayKey: M.todayKey(), eventKey: w ? w.eventKey : 'x#0', slot: 0, startMs: 0, endMs: 1,
-                   points: 500, pending: 0, rallied: false, claimed: false, server: false };
+      Object.assign(M.ensureState(), { dayKey: M.todayKey(), eventKey: w ? w.eventKey : 'x#0', slot: 0, startMs: 0,
+        endMs: 1, points: 500, pending: 0, rallied: false, claimed: false, server: false });
       const paid = await M.claim();
       assert(paid === false, 'a signed-out claim returned true — a chest was paid with no server');
       assert(minted === 0, 'a signed-out claim minted ' + minted + ' item/XP grant(s) client-side');
       assert(JSON.stringify(G.inventory || {}) === inv0, 'a signed-out claim moved the bag');
     } finally {
       window.addItem = origAdd; window.addXp = origXp;
-      if (savedMuster === undefined) delete G.muster; else G.muster = savedMuster;
+      restoreG(snap);
     }
   }),
 
@@ -568,9 +568,7 @@ export default [
     // answer behind one, so it closes and pays NOTHING — before W0 it paid half
     // honors out of a client-computed chest. settlePledge() is async, but that
     // path contains no await, so its whole body runs before it returns.
-    const savedMuster = G.muster ? JSON.parse(JSON.stringify(G.muster)) : undefined;
-    const savedPledge = G.rallyPledge ? JSON.parse(JSON.stringify(G.rallyPledge)) : undefined;
-    const gold0 = G.gold, gems0 = G.gems;
+    const snap = snapshotG();
     const origAdd = window.addItem, origXp = window.addXp;
     let minted = 0;
     try {
@@ -591,9 +589,7 @@ export default [
       assert(M.chestValue(expect) <= M.ABSENT_BAND.gold, 'half honors exceeded its band');
     } finally {
       window.addItem = origAdd; window.addXp = origXp;
-      G.gold = gold0; G.gems = gems0;
-      if (savedMuster === undefined) delete G.muster; else G.muster = savedMuster;
-      if (savedPledge === undefined) delete G.rallyPledge; else G.rallyPledge = savedPledge;
+      restoreG(snap);
     }
   }),
 

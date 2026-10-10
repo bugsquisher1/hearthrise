@@ -313,7 +313,7 @@ async function wallGuard(browser, url) {
       wroteSave: localStorage.getItem('hearthbound-save-v2') !== null,
       wroteProfile: localStorage.getItem('hearthrise:profile') !== null,
       modals: document.querySelectorAll(
-        '.ftue-root, #beta-banner-overlay, #hr-welcome-modal, .hr-id-scrim, .hr-dl-scrim, #hr-post-signup-modal'
+        '.ftue-root, #hr-welcome-modal, .hr-id-scrim, .hr-dl-scrim'
       ).length,
       hasEmail: !!document.querySelector('#hr-account-gate input[type="email"]'),
       hasPassword: !!document.querySelector('#hr-account-gate input[type="password"]'),

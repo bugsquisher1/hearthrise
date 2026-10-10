@@ -6717,7 +6717,6 @@ function showTab(tab){
     _shopsPane = (window.HearthShops && window.HearthShops.paneFor)
       ? window.HearthShops.paneFor(tab)
       : ((tab==='market'||tab==='exchange'||tab==='marketplace') ? 'market'
-        : (tab==='premium'||tab==='premiumshop'||tab==='premium-shop'||tab==='gems'||tab==='iap') ? 'premium'
         : 'local');
     tab = (_shopsPane==='market') ? 'market' : 'shop';
   }
@@ -9036,8 +9035,9 @@ function bindEvents(){
   ['btn-settings-rail','btn-settings-rail-m'].forEach(id=>document.getElementById(id)?.addEventListener('click',()=>window.openSettings&&window.openSettings()));
   document.getElementById('combat-gear-btn').addEventListener('click',()=>showTab('inventory'));
   /* b230: the topbar gem counter means "I want gems" — it opens the Premium
-     Shop toggle directly, not the shop's front door. */
-  document.getElementById('top-gem-btn').addEventListener('click',()=>showTab('premium'));
+     Shop toggle directly, not the shop's front door. W0: only while that door is
+     open (HearthShops.premiumOpen) — for Early Access it is a counter, not a link. */
+  document.getElementById('top-gem-btn').addEventListener('click',()=>{ if(window.HearthShops&&window.HearthShops.premiumOpen&&window.HearthShops.premiumOpen()) showTab('premium'); });
   /* modals close; the backdrop is DELEGATED so a .modal built after boot (buy-back, block list) closes too */
   document.querySelectorAll('[data-close-modal]').forEach(b=>b.addEventListener('click',()=>document.getElementById(b.dataset.closeModal).classList.remove('show')));
   document.addEventListener('click',e=>{if(e.target.classList&&e.target.classList.contains('modal'))e.target.classList.remove('show');});

@@ -2620,8 +2620,7 @@
     } else {
       html += '<div class="hr-cs-line"><span class="hr-cs-label">Standing</span>' +
         '<span class="hr-cs-val"><b>' + n(standing) + '</b></span></div>' +
-        '<div class="hr-cs-foot">The Fortified Keep is the summit of Phase A. Tiers 6 to 10 are not yet tuned &mdash; ' +
-        'and will not be until a hold has stood here.</div>';
+        '<div class="hr-cs-foot">The Fortified Keep is the highest a hold can rise.</div>';
     }
 
     // ── the "this week" strip ──
@@ -2879,8 +2878,7 @@
         }], note: isLeader() ? '' : 'Only the leader can raise the hold.' });
       } else {
         sections.push({ kind: 'note', html:
-          'The Fortified Keep is the summit of Phase A. Tiers 6 to 10 are deliberately untuned &mdash; ' +
-          'tuning a tier-9 bundle before a single hold has reached tier 2 would be fiction.' });
+          'The Fortified Keep is the highest a hold can rise.' });
       }
 
       var orders = openOrders();

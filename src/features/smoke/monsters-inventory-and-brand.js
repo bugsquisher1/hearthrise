@@ -6700,6 +6700,9 @@ export default [
      periwinkle #5f6fc4 and a retired cyan #7dd3fc), and a theme blanket painted
      --bg-2 slabs behind every product icon. Both are structural. */
   () => tryRun('b371 (F24): the premium store is token-driven and its icons are unslabbed', () => {
+    /* W0: the door is shut for Early Access; the dormant store keeps this test. */
+    window.HearthShops._setPremiumOpen(true);
+    try {
     showTab('premium');
     const card = document.querySelector('#iap-panel .iap-card');
     assert(card, 'the premium store rendered no product cards');
@@ -6734,6 +6737,7 @@ export default [
         try { return Array.from(s.cssRules).map((x) => x.cssText).join(''); } catch (e) { return ''; }
       }).join('')),
       'a retired blue literal is still authored in a stylesheet');
+    } finally { window.HearthShops._setPremiumOpen(false); showTab('profile'); }
   }),
 
   /* The leaderboard rebuild ships boards with no server source as

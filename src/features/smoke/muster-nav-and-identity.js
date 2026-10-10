@@ -1259,13 +1259,14 @@ export default [
         shops: null, shop: 'local', store: 'local', stores: 'local',
         localshop: 'local', 'local-shop': 'local', seedshop: 'local', shopfront: 'local',
         market: 'market', exchange: 'market', marketplace: 'market',
-        premium: 'premium', premiumshop: 'premium', 'premium-shop': 'premium',
-        gems: 'premium', iap: 'premium',
+        // W0: the Premium door is shut for Early Access — its routes land on the Local Shop.
+        premium: 'local', premiumshop: 'local', 'premium-shop': 'local',
+        gems: 'local', iap: 'local',
       };
       Object.keys(ROUTES).forEach((route) => {
         const want = ROUTES[route];
         window.showTab('profile');
-        if (want) window._shopsPane = want === 'local' ? 'premium' : 'local'; // force a real switch
+        if (want) window._shopsPane = want === 'local' ? 'market' : 'local'; // force a real switch
         window.showTab(route);
         const host = (want || window._shopsPane) === 'market' ? marketPanel : shopPanel;
         assert(host.classList.contains('active'),
@@ -1296,6 +1297,9 @@ export default [
   () => tryRun('b230: three toggles, in both hosts, and the choice persists', () => {
     const prevTab = window.activeTab;
     const prevPane = window._shopsPane;
+    /* W0: Premium is shut for Early Access; the surface keeps its test by
+       opening the door through the suite seam for exactly this test. */
+    window.HearthShops._setPremiumOpen(true);
     try {
       ['panel-shop', 'panel-market'].forEach((id) => {
         const strip = document.querySelector('#' + id + ' .shops-tabs');
@@ -1332,6 +1336,7 @@ export default [
       assert(document.querySelector('#panel-shop .shops-tab[data-shops-pane="premium"]').classList.contains('active'),
         'the strip did not restore its selected state');
     } finally {
+      window.HearthShops._setPremiumOpen(false);
       window._shopsPane = prevPane;
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
     }
@@ -1340,6 +1345,7 @@ export default [
   () => tryRun('b230: the Premium toggle keeps the sapphire real-money role', () => {
     const prevTab = window.activeTab;
     const prevPane = window._shopsPane;
+    window.HearthShops._setPremiumOpen(true);   // W0: dormant for EA, still tested
     try {
       window.showTab('shop');
       const strip = document.querySelector('#panel-shop .shops-tabs');
@@ -1369,6 +1375,37 @@ export default [
       const ink = (getComputedStyle(document.body).getPropertyValue('--ink') || '').trim();
       assert(getComputedStyle(prem).color !== ink,
         'a readability blanket flattened the Premium toggle to --ink');
+    } finally {
+      window.HearthShops._setPremiumOpen(false);
+      window._shopsPane = prevPane;
+      try { window.showTab(prevTab || 'profile'); } catch (e) {}
+    }
+  }),
+
+  /* W0-PREMIUM-1 — the Premium shop is HIDDEN for Early Access (coherence audit:
+     "its own help text says the web build cannot buy them yet"). No visible
+     Premium toggle in either strip, every premium route opens the Local Shop,
+     the gem counter is not a link, and the primer no longer apologises for a
+     shop that cannot sell. MUTATION: set PREMIUM_OPEN = true in
+     nav-consolidation.js -> RED on the first assertion. */
+  () => tryRun('W0-PREMIUM-1: the Premium shop door is shut for Early Access', () => {
+    const prevTab = window.activeTab, prevPane = window._shopsPane;
+    try {
+      assert(window.HearthShops.premiumOpen() === false, 'the Premium door is open in an Early Access build');
+      window.showTab('shop');
+      document.querySelectorAll('.shops-tab[data-shops-pane="premium"]').forEach((b) => {
+        assert(b.hidden && getComputedStyle(b).display === 'none', 'a Premium toggle is visible');
+      });
+      ['premium', 'gems', 'iap', 'premium-shop'].forEach((route) => {
+        window.showTab(route);
+        assert(window._shopsPane === 'local' && document.getElementById('panel-shop').getAttribute('data-shops-pane') === 'local',
+          'showTab("' + route + '") opened ' + window._shopsPane + ', expected the Local Shop');
+      });
+      window.showTab('profile');
+      document.getElementById('top-gem-btn').click();
+      assert(window.activeTab === 'profile', 'the gem counter is still a door into a shop that cannot sell');
+      const primer = JSON.stringify(window.HearthriseScreenPrimers || '') + document.body.textContent;
+      assert(!/cannot buy them yet/i.test(primer), 'the "web beta cannot buy them yet" copy is back');
     } finally {
       window._shopsPane = prevPane;
       try { window.showTab(prevTab || 'profile'); } catch (e) {}
@@ -2518,47 +2555,24 @@ export default [
     }
   }),
 
-  /* ── regression suite — A STUBBED SESSION ARMS NEITHER FIRST-RUN SHEET ────
-     THE CLASS, not the arm above it: a session is the ONLY thing `maybeShow()`
-     and identity's `tick()` wait for, and both re-poll every 2 s, so the sheet
-     lands on whichever test is running when the poll comes round — never the one
-     that stubbed. The precondition belongs to `stubSignedIn` for that reason.
-     THE CONTROL COMES FIRST, or "no sheet" passes against a sheet that could not
-     have built here: `forget()` puts this browser back to never-welcomed and the
-     sheet MUST build under exactly this stub, then leaves through its own
-     `close()`. MUTATION: drop `firstRunAnswered` from `stubSignedIn` → RED on
-     the precondition line. */
-  () => tryRunAsync('SIGNED-IN-STUB: stubbing a session states the returning player, so neither first-run sheet arrives in the poll window', async () => {
-    const W = window.HearthrisePostSignup;
-    assert(W && W.seen && W.forget && W.close, 'post-signup-welcome.js lost the hooks a test states its precondition through');
-    const SHEETS = '.hr-id-scrim, #hr-post-signup-modal';
-    const was = new Set(document.querySelectorAll(SHEETS));
-    const added = () => [...document.querySelectorAll(SHEETS)].filter((e) => !was.has(e)).map((e) => e.id || e.className);
-    const wasWelcomed = W.seen();
+  /* ── W0 regression — ONE INTRO, NOT FIVE (coherence audit top-10 #3) ──────
+     The post-signup welcome sheet ('Train your first skill') was cut: the name
+     picker, the tour and the first-day card already say it. Proven by absence at
+     RUNTIME, not by grep: no module publishes it, and a stubbed sign-in (the one
+     thing it waited for) raises no such sheet inside its old 2 s poll window.
+     MUTATION: restore src/post-signup-welcome.js in index.html -> RED on the
+     first assertion. */
+  () => tryRunAsync('W0-INTRO-1: there is no post-signup welcome sheet — a stubbed sign-in raises none', async () => {
+    assert(window.HearthrisePostSignup === undefined, 'the post-signup welcome is loaded again — the cut intro layer is back');
+    assert(window.HearthriseBetaBanner === undefined && !document.getElementById('beta-banner-overlay'),
+      'the open-beta welcome card is loaded again — W0 cut it with the beta copy');
+    const was = new Set(document.querySelectorAll('#hr-post-signup-modal'));
     const unstub = stubSignedIn(0);
     try {
-      assert(W.seen(), 'stubSignedIn handed the page a session without stating the one thing every returning '
-        + "player's browser has already done — maybeShow() will fire inside its 2 s poll window and cover "
-        + 'whichever test is running by then');
-      /* `maybeShow()` also queues behind the front door, so the control parks
-         whatever is up for exactly as long as it needs and puts it back where it
-         stood — the same parking the whats-new stacking arm does. */
-      const parked = [...document.querySelectorAll('.ftue-root, .hr-id-scrim')]
-        .map((e) => ({ e, parent: e.parentNode, next: e.nextSibling }));
-      parked.forEach((p) => p.e.remove());
-      try {
-        W.show();
-        assert(document.getElementById('hr-post-signup-modal'),
-          'the sheet did NOT build under this stub — the assertions below would be proving nothing');
-        assert(W.close(), 'the sheet would not go away through its own dismiss');
-      } finally {
-        parked.forEach((p) => { try { p.parent.insertBefore(p.e, p.next); } catch (x) { document.body.appendChild(p.e); } });
-      }
-      assert(!added().length, 'the stub left a first-run sheet up: ' + added().join(', '));
       await new Promise((r) => setTimeout(r, 2500));
-      assert(!added().length, 'a first-run sheet opened inside the 2 s poll window: ' + added().join(', '));
+      const added = [...document.querySelectorAll('#hr-post-signup-modal')].filter((e) => !was.has(e));
+      assert(!added.length, 'a post-signup welcome sheet opened after sign-in');
     } finally { unstub(); }
-    assert(W.seen() === wasWelcomed, 'the stub left this browser\'s welcome flag somewhere it did not find it');
   }),
 
   /* CODEX-1 — the Hearth Codex (src/features/codex.js). The copy is bound to the

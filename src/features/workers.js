@@ -18,11 +18,12 @@
 //   • Workers produce RESOURCES ONLY, never player XP — your 99s stay
 //     yours; workers feed the castle build costs. That's the loop:
 //     workers gather → you upgrade property → more workers.
-//   • LAZY ACCRUAL: no background sim. Each worker stores lastCollect;
-//     on boot / House render / a 60s tick we bank elapsed×rate. This
-//     makes offline production free and exact. Accrual caps at 24h
-//     ("workers rest without direction") — log in daily to keep them
-//     at it, which is the retention hook.
+//   • SERVER-SETTLED (since b454): the realm works the crew. hr-accrue
+//     `accrueWorkers` prices each settle window and hr_apply credits the
+//     haul to player_inventory; this file renders what the envelope says
+//     and never banks anything on boot or on a House visit (W0 retired the
+//     old "banked when you open the House" description). One settle is
+//     bounded at 24h ("workers rest without direction").
 // ============================================================
 (function () {
   'use strict';

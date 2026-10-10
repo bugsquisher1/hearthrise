@@ -136,6 +136,27 @@
     return !!document.querySelector(BLOCKING_OVERLAYS);
   }
 
+  /* W0 (coherence audit top-10 #3: one intro, not five) — "what's new" is HELD
+     for an account's first day. A new player is being taught the game by the
+     name picker, the tour and the first-day card; patch notes about systems they
+     have never seen are a fifth voice. The age comes from the AUTH SERVER's
+     `created_at` on the session (never the device clock or a residue field), so
+     a fresh browser on an old account still gets its news. Pure, for the test:
+       true  → hold (day one)   false → show   null → not known yet (wait). */
+  const DAY_ONE_MS = 24 * 3600 * 1000;
+  function holdsForDayOne(ageMs) {
+    if (ageMs == null || !isFinite(ageMs)) return null;
+    return ageMs < DAY_ONE_MS;
+  }
+  function accountAgeMs() {
+    const A = window.HearthriseAuth;
+    const s = A && typeof A.getSession === 'function' ? A.getSession() : null;
+    const t = s && s.user ? Date.parse(s.user.created_at) : NaN;
+    return isFinite(t) ? Date.now() - t : null;
+  }
+  let ageWaits = 0;
+  let forced = false;   // Settings → "Show what's new" is the player ASKING; it is never held
+
   async function maybeShow() {
     // Don't stack on FTUE / the name modal / the daily-reward sheet.
     if (anotherModalUp()) {
@@ -146,6 +167,9 @@
     const prev = lastSeen();
     if (prev === cur) return;          // already saw this build
     if (!prev) { markSeen(cur); return; } // first-ever load — skip, FTUE has them
+    const hold = forced ? false : holdsForDayOne(accountAgeMs());
+    if (hold === null && ageWaits++ < 15) { setTimeout(maybeShow, 2000); return; }
+    if (hold !== false) { markSeen(cur); return; }   // day one (or never known): no patch notes
 
     try {
       const res = await fetch(CHANGELOG_URL + '?t=' + Date.now());
@@ -165,10 +189,10 @@
   // force(): removing the key made maybeShow() take the "first-ever load" skip
   // branch — Settings → "Show what's new" never showed anything. Set a stale
   // sentinel instead so the "already saw this build" check misses.
-  window.HearthriseWelcome = { show: maybeShow, force: () => { try { localStorage.setItem(SEEN_KEY, '__force__'); } catch{} maybeShow(); } };
+  window.HearthriseWelcome = { show: maybeShow, force: () => { forced = true; try { localStorage.setItem(SEEN_KEY, '__force__'); } catch{} maybeShow(); } };
   // Test seam (smoke suite asserts CRLF parsing + emoji stripping, and that
   // the front-door guard matches the overlays that actually exist)
-  window.__hrWelcomeParse = { parseFirstSection, mdToHtml, anotherModalUp, BLOCKING_OVERLAYS };
+  window.__hrWelcomeParse = { parseFirstSection, mdToHtml, anotherModalUp, BLOCKING_OVERLAYS, holdsForDayOne };
 
   // Run on DOM ready, slight delay so FTUE / build-info finish booting first.
   // b224: and behind the account wall — the What's-New sheet is news for a

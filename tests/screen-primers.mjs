@@ -17,8 +17,8 @@
 //   G4  bodies are unique
 //   G5  the table and every row are frozen
 //   G6  the edge bundle never carries it; no src/core or src/data file imports it
-//   G7  the Shop row says the web beta cannot buy while legacy.js refuses every
-//       purchase; the Events row names no muster/rally/clan boss while
+//   G7  the Shop row never names the Premium Shop while its door is shut
+//       (nav-consolidation.js PREMIUM_OPEN = false, W0 Early Access); the Events row names no muster/rally/clan boss while
 //       CLAN_LAUNCHED = false
 //   G8  src/ftue.js carries none of the retired sentences, and the combat step
 //       keeps the live Recovery Rule clauses
@@ -94,10 +94,10 @@ async function check(root, origins) {
     if (/from\s*['"][^'"]*screen-primers\.js/.test(readFileSync(f, 'utf8'))) fail('G6', `${posix(relative(root, f))} imports the primer table`);
   }
 
-  const legacy = readFileSync(join(root, 'src', 'legacy.js'), 'utf8');
   const clans = readFileSync(join(root, 'src', 'features', 'clans.js'), 'utf8');
-  if (legacy.includes('not available in the web beta') && !/the web beta cannot buy/.test((P['panel-shop'] || {}).body || '')) {
-    fail('G7', 'the web beta refuses every purchase (legacy.js) and the Shop primer does not say so');
+  const nav = readFileSync(join(root, 'src', 'nav-consolidation.js'), 'utf8');
+  if (/var PREMIUM_OPEN\s*=\s*false/.test(nav) && /premium|gem pack|hearth token|cannot buy/i.test((P['panel-shop'] || {}).body || '')) {
+    fail('G7', 'the Premium Shop door is shut (PREMIUM_OPEN = false) and the Shop primer still talks about it');
   }
   if (/CLAN_LAUNCHED\s*=\s*false/.test(clans) && /muster|rally|clan boss/i.test((P['panel-events'] || {}).body || '')) {
     fail('G7', 'CLAN_LAUNCHED is false and the Events primer names a clan feature');
@@ -146,7 +146,7 @@ async function selftest() {
       ['G6', 'a src/data import of the table', () => edit('src/data/items.js', (s) => "import { SCREEN_PRIMERS } from './screen-primers.js';\n" + s), null],
       ['G6', 'a screen-primers origin in the edge bundle', () => () => {}, [...origins, DATA]],
       ['G7', 'an Events row naming the muster', () => edit(DATA, (s) => s.replace('and so do the dungeons', 'and so does the muster')), null],
-      ['G7', 'a Shop row promising real-money buys', () => edit(DATA, (s) => s.replace('the web beta cannot buy them yet', 'buy them for real money')), null],
+      ['G7', 'a Shop row naming the shut Premium Shop', () => edit(DATA, (s) => s.replace('is where players trade.', 'is where players trade, and the Premium Shop sells gem packs.')), null],
       ['G8', 'the retired Auto-Eat price', () => edit('src/ftue.js', (s) => s + '\n// 15 Marks\n'), null],
       ['G8', 'the combat step dropping the live rule', () => edit('src/ftue.js', (s) => s.replace('carry on with the same fight', 'start over')), null],
     ];

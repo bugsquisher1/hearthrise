@@ -31,7 +31,21 @@
   // written for them), #panel-market carries Market. The strip is
   // duplicated into both hosts as static markup rather than moved
   // or injected, so no re-render can destroy it.
+  /* THE PREMIUM DOOR IS SHUT FOR EARLY ACCESS (W0, coherence audit: "its own
+     help text says the web build cannot buy them yet"). The pane, the IAP
+     catalogue and the Hearth Token design all stay; only the DOOR closes:
+     the two Premium toggles ship with `hidden` in index.html and are
+     un-hidden only while this is true, every premium alias resolves to the
+     Local Shop, and the gem counter stops being a link to a shop that cannot
+     sell. Flip to true in the build where Steam purchases work.
+     `_setPremiumOpen` exists for the suite, so the dormant surface keeps its
+     tests until it opens. */
+  var PREMIUM_OPEN = false;
   var PANES = ['local', 'market', 'premium'];
+  function livePanes() { return PREMIUM_OPEN ? PANES : ['local', 'market']; }
+  function applyPremiumDoor() {
+    document.querySelectorAll('.shops-tab[data-shops-pane="premium"]').forEach(function (b) { b.hidden = !PREMIUM_OPEN; });
+  }
   var PANE_ALIAS = {
     shops: null,            // null → "whatever was last chosen"
     shop: 'local', store: 'local', stores: 'local', localshop: 'local',
@@ -48,13 +62,13 @@
   // and a player who browsed the Market last session must not have
   // that front door silently replaced the next time they log in.
   function currentPane(){
-    return PANES.indexOf(window._shopsPane) >= 0 ? window._shopsPane : 'local';
+    return livePanes().indexOf(window._shopsPane) >= 0 ? window._shopsPane : 'local';
   }
   function paneFor(tab){
     var key = String(tab || '').toLowerCase();
     var p = Object.prototype.hasOwnProperty.call(PANE_ALIAS, key) ? PANE_ALIAS[key] : undefined;
     if (p === null) return currentPane();          // 'shops' → remembered
-    if (PANES.indexOf(p) >= 0) return p;
+    if (livePanes().indexOf(p) >= 0) return p;
     return 'local';
   }
   var TAB_GLYPH = { local: 'navStore', market: 'navMarket', premium: 'gems' };
@@ -75,7 +89,7 @@
     });
   }
   function apply(pane){
-    if (PANES.indexOf(pane) < 0) pane = 'local';
+    if (livePanes().indexOf(pane) < 0) pane = 'local';
     window._shopsPane = pane;
     var shopPanel = document.getElementById('panel-shop');
     if (shopPanel) shopPanel.setAttribute('data-shops-pane', pane === 'market' ? currentLocalSide() : pane);
@@ -100,16 +114,18 @@
   function currentLocalSide(){
     var el = document.getElementById('panel-shop');
     var v = el && el.getAttribute('data-shops-pane');
-    return v === 'premium' ? 'premium' : 'local';
+    return (v === 'premium' && PREMIUM_OPEN) ? 'premium' : 'local';
   }
-  window.HearthShops = { paneFor: paneFor, apply: apply, panes: PANES, repaint: paintStrips };
+  window.HearthShops = { paneFor: paneFor, apply: apply, panes: PANES, repaint: paintStrips,
+    premiumOpen: function () { return PREMIUM_OPEN; },
+    _setPremiumOpen: function (on) { PREMIUM_OPEN = !!on; applyPremiumDoor(); if (!PREMIUM_OPEN && window._shopsPane === 'premium') window._shopsPane = 'local'; } };
 
   // One delegated listener for both copies of the strip.
   document.addEventListener('click', function(e){
     var btn = e.target && e.target.closest && e.target.closest('.shops-tab');
     if (!btn) return;
     var pane = btn.getAttribute('data-shops-pane');
-    if (PANES.indexOf(pane) < 0) return;
+    if (livePanes().indexOf(pane) < 0) return;
     e.preventDefault();
     if (typeof window.showTab === 'function') window.showTab(pane === 'local' ? 'shop' : pane);
   });
@@ -158,6 +174,7 @@
 
   function bootAll() {
     injectDungeonsBackLink();
+    applyPremiumDoor();
     paintStrips();
   }
 

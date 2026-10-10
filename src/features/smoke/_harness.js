@@ -2011,8 +2011,10 @@ export const cameFromArc = async (cfg, body) => {
   }
 };
 /* ── THE FIRST-RUN SHEETS, ALREADY ANSWERED ──────────────────────────────────
-   `stubSignedIn` hands the page the one thing both first-run flows wait for: a
-   session. Neither of them asks anything else. So a test that stubs a session
+   W0 (2026-10-10): the post-signup welcome sheet was CUT (one intro, not five),
+   so the name modal is the only first-run sheet left; the history below is why
+   this seam exists. `stubSignedIn` hands the page the one thing both first-run
+   flows waited for: a session. Neither of them asks anything else. So a test that stubs a session
    has also, silently, armed the name modal (identity.js `tick()`, every 2 s)
    and the post-signup welcome (post-signup-welcome.js `maybeShow()`, which
    RE-POLLS every 2 s for as long as it is made to wait) — and whichever of them
@@ -2035,20 +2037,16 @@ export const cameFromArc = async (cfg, body) => {
    started. Returns the restore, which puts the sheet away through its own
    dismiss and both flags back exactly as found. */
 export const firstRunAnswered = (name) => {
-  const I = window.HearthriseIdentity, W = window.HearthrisePostSignup;
+  const I = window.HearthriseIdentity;
   /* ASSERTED, not shrugged at: a hook that quietly goes missing would turn this
      into a no-op and hand the sheets back their opening, which is the whole bug. */
-  assert(I && I._installHarnessIdentity && W && W.markSeen, 'a first-run seam is gone from identity.js / post-signup-welcome.js');
-  const wasWelcomed = W.seen();
+  assert(I && I._installHarnessIdentity, 'the first-run seam is gone from identity.js');
   /* `_clearHarnessIdentity()` blanks the record, so the real one is parked and
      put back field for field: this seam must cost the page nothing it owned. */
   const hadRec = JSON.parse(JSON.stringify(I._record()));
-  W.markSeen();
   I._installHarnessIdentity({ name: name || 'Adventurer' });
   return () => {
-    try { W.close(); } catch (e) {}
     try { I._clearHarnessIdentity(); Object.assign(I._record(), hadRec); I._persist(); I.applyAvatar(); } catch (e) {}
-    if (wasWelcomed) W.markSeen(); else W.forget();
   };
 };
 

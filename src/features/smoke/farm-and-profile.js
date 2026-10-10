@@ -826,33 +826,7 @@ export default [
   // b141 — Beta launch prep
   // ════════════════════════════════════════════════════════════
 
-  // b141: HearthriseBetaBanner API exists.
-  () => tryRun('b141: HearthriseBetaBanner API loaded', () => {
-    assert(window.HearthriseBetaBanner, 'HearthriseBetaBanner missing');
-    const required = ['show','ack','reset','DISCORD_INVITE'];
-    for (const k of required) {
-      assert(window.HearthriseBetaBanner[k] !== undefined,
-        'HearthriseBetaBanner.' + k + ' missing');
-    }
-    assert(typeof window.HearthriseBetaBanner.DISCORD_INVITE === 'string',
-      'DISCORD_INVITE should be a string');
-  }),
 
-  // b141: ack flag round-trips through localStorage.
-  () => tryRun('b141: BetaBanner ack persists in localStorage', () => {
-    if (!window.HearthriseBetaBanner) return;
-    const KEY = 'hearthrise:beta-ack';
-    const orig = localStorage.getItem(KEY);
-    try {
-      window.HearthriseBetaBanner.reset();
-      assert(localStorage.getItem(KEY) !== '1', 'reset should clear ack flag');
-      window.HearthriseBetaBanner.ack();
-      assert(localStorage.getItem(KEY) === '1', 'ack should set flag to "1"');
-    } finally {
-      if (orig === null) localStorage.removeItem(KEY);
-      else localStorage.setItem(KEY, orig);
-    }
-  }),
 
   // b141: the 🧪 button appears only when localStorage hearthrise:admin === '1'.
   // SA-013 (increment 2): this WAS `assert(true, 'gate verified in source')` — a
@@ -912,56 +886,7 @@ export default [
   // b142 — FTUE walkthrough hotfixes
   // ════════════════════════════════════════════════════════════
 
-  // b142: beta banner's modal-stacking guard now sees FTUE properly.
-  // The FTUE overlay uses `.ftue-shade` and `.ftue-card`, not the old
-  // `#ftue-overlay`. Verify the betaBanner only shows when no FTUE is up.
-  () => tryRun('b142: BetaBanner suppresses while FTUE overlay is up', () => {
-    if (!window.HearthriseBetaBanner) return;
-    // Synthesize an FTUE shade
-    const shade = document.createElement('div');
-    shade.className = 'ftue-shade show';
-    document.body.appendChild(shade);
-    try {
-      // Walk the same DOM check the module uses
-      const blocked = !!document.querySelector(
-        '.modal.show, #wbv-overlay.show, .ach-overlay.show, ' +
-        '.ftue-shade.show, .ftue-card.show, ' +
-        '#welcome-modal.show'
-      );
-      assert(blocked, 'modalAlreadyOpen should detect a live .ftue-shade.show');
-    } finally {
-      shade.remove();
-    }
-  }),
 
-  // b143: BetaBanner defers entirely while FTUE is pending so they don't
-  // stack on first load. The check is `localStorage.hearthrise:ftue:completed === '1'`.
-  () => tryRun('b143: BetaBanner suppresses while FTUE pending', () => {
-    if (!window.HearthriseBetaBanner) return;
-    const FK = 'hearthrise:ftue:completed';
-    const AK = 'hearthrise:beta-ack';
-    const origF = localStorage.getItem(FK);
-    const origA = localStorage.getItem(AK);
-    try {
-      // Simulate a brand-new player: no FTUE complete, no banner ack
-      localStorage.removeItem(FK);
-      localStorage.removeItem(AK);
-      // Tear down any open banner instance from a prior test
-      const ex = document.getElementById('beta-banner-overlay');
-      if (ex) ex.remove();
-      // The banner module's maybeShow() is private; we replicate the
-      // ftueWillFire() logic inline. Real fix is verified by integration.
-      const ftueWillFire = localStorage.getItem(FK) !== '1';
-      assert(ftueWillFire === true, 'FTUE should be pending in test setup');
-      // Now simulate FTUE completed
-      localStorage.setItem(FK, '1');
-      const ftueWillFire2 = localStorage.getItem(FK) !== '1';
-      assert(ftueWillFire2 === false, 'FTUE should be complete after flag set');
-    } finally {
-      if (origF === null) localStorage.removeItem(FK); else localStorage.setItem(FK, origF);
-      if (origA === null) localStorage.removeItem(AK); else localStorage.setItem(AK, origA);
-    }
-  }),
 
   // b142: defensive smoke-test button guard removes #smoke-test-btn for
   // non-admin players, even if a cached old smoke-test.js added one.
@@ -1414,36 +1339,6 @@ export default [
     }
   }),
 
-  // b219 (beta modal): the first screen a new player sees rendered literal
-  // emoji in its copy (a seedling in the heading, a ladybug for the Report
-  // button, a speech balloon on the Discord link). Emoji-as-art is banned
-  // project-wide. Guard the rendered DOM, not the source.
-  () => tryRun('b219: beta welcome modal renders zero emoji', () => {
-    const B = window.HearthriseBetaBanner;
-    if (!B || typeof B.show !== 'function') throw new Error('HearthriseBetaBanner missing');
-    const existing = document.getElementById('beta-banner-overlay');
-    const wasOpen = !!existing;
-    const acked = (() => { try { return localStorage.getItem('hearthrise:beta-ack'); } catch (e) { return null; } })();
-    try {
-      B.show();
-      const overlay = document.getElementById('beta-banner-overlay');
-      assert(overlay, 'beta banner did not render');
-      const text = overlay.textContent || '';
-      const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{231A}-\u{23FF}]/u;
-      const hit = text.match(EMOJI);
-      assert(!hit, 'beta welcome modal still renders emoji: "' + (hit && hit[0]) + '"');
-    } finally {
-      if (!wasOpen) {
-        const o = document.getElementById('beta-banner-overlay');
-        if (o && o.parentNode) o.parentNode.removeChild(o);
-      }
-      // B.show() is side-effect-free, but ack state is restored defensively.
-      try {
-        if (acked === null) localStorage.removeItem('hearthrise:beta-ack');
-        else localStorage.setItem('hearthrise:beta-ack', acked);
-      } catch (e) {}
-    }
-  }),
 
   // b219: the What's New modal fetched CHANGELOG.md and, when the parse regex
   // missed (CRLF line endings — `.` can't cross `\r`), fell back to rendering
@@ -1472,9 +1367,24 @@ export default [
   // full-screen scrim the tour's spotlight could not punch through.
   // Repro: finish one load (marks changelog seen), abandon the tour without
   // answering it, ship a new build, return — both modals on screen at once.
-  // post-signup-welcome.js and identity.js were corrected in b221; this file
+  // identity.js (and the since-cut post-signup sheet) were corrected in b221; this file
   // was the last straggler. Guard the BEHAVIOUR, not the string: build the
   // real FTUE DOM shape and assert the guard sees it.
+  /* W0-INTRO-2 — "what's new" is HELD on an account's first day (coherence
+     audit top-10 #3). The verdict reads the auth server's created_at age; an
+     unknown age waits rather than guessing. MUTATION: make holdsForDayOne
+     return false → the 1-hour assertion goes red. */
+  () => tryRun('W0-INTRO-2: whats-new is held for an account’s first day, shown after it', () => {
+    const P = window.__hrWelcomeParse;
+    assert(P && typeof P.holdsForDayOne === 'function', '__hrWelcomeParse.holdsForDayOne seam missing');
+    assert(P.holdsForDayOne(3600e3) === true, 'a one-hour-old account was shown patch notes on day one');
+    assert(P.holdsForDayOne(23.9 * 3600e3) === true, 'the hold ended before the first day did');
+    assert(P.holdsForDayOne(24 * 3600e3) === false, 'a day-old account is still being held');
+    assert(P.holdsForDayOne(30 * 86400e3) === false, 'a returning player is not shown the news');
+    assert(P.holdsForDayOne(null) === null && P.holdsForDayOne(NaN) === null,
+      'an unknown account age must WAIT (null), never decide');
+  }),
+
   () => tryRun('b223: whats-new never stacks on the FTUE tour / name modal', () => {
     const P = window.__hrWelcomeParse;
     if (!P || typeof P.anotherModalUp !== 'function') {

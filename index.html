@@ -86,14 +86,14 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Hearthrise">
 <meta property="og:title" content="Hearthrise — cozy multiplayer idle RPG">
-<meta property="og:description" content="Fight, gather, craft and build your homestead in a shared, server-run world. Free, in your browser, progresses while you're away. Open beta.">
+<meta property="og:description" content="Fight, gather, craft and build your homestead in a shared, server-run world. Free, in your browser, progresses while you're away. Early Access.">
 <meta property="og:url" content="https://hearthrise.net/">
 <meta property="og:image" content="https://hearthrise.net/assets/brand/og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Hearthrise — cozy multiplayer idle RPG">
-<meta name="twitter:description" content="Fight, gather, craft and build your homestead in a shared, server-run world. Free, in your browser. Open beta.">
+<meta name="twitter:description" content="Fight, gather, craft and build your homestead in a shared, server-run world. Free, in your browser. Early Access.">
 <meta name="twitter:image" content="https://hearthrise.net/assets/brand/og-image.png">
 <!-- ══ CONTENT SECURITY POLICY (2026-08-23, open-beta hardening) ═════════════
      GitHub Pages cannot set response headers, so this is a <meta> policy. It is
@@ -634,7 +634,7 @@
       <div class="shops-tabs" role="tablist" aria-label="Shops">
         <button class="shops-tab active" role="tab" aria-selected="true" data-shops-pane="local"><span class="ic"></span><span class="lbl">Local Shop</span></button>
         <button class="shops-tab" role="tab" aria-selected="false" data-shops-pane="market"><span class="ic"></span><span class="lbl">Market</span></button>
-        <button class="shops-tab is-premium" role="tab" aria-selected="false" data-shops-pane="premium"><span class="ic"></span><span class="lbl">Premium Shop</span></button>
+        <button class="shops-tab is-premium" role="tab" aria-selected="false" data-shops-pane="premium" hidden><span class="ic"></span><span class="lbl">Premium Shop</span></button>
       </div>
       <!-- b230: the card head used to read "In-Game Shop" directly under a
            panel that is now titled "Local Shop" by the toggle above it. Two
@@ -671,7 +671,7 @@
       <div class="shops-tabs" role="tablist" aria-label="Shops">
         <button class="shops-tab" role="tab" aria-selected="false" data-shops-pane="local"><span class="ic"></span><span class="lbl">Local Shop</span></button>
         <button class="shops-tab active" role="tab" aria-selected="true" data-shops-pane="market"><span class="ic"></span><span class="lbl">Market</span></button>
-        <button class="shops-tab is-premium" role="tab" aria-selected="false" data-shops-pane="premium"><span class="ic"></span><span class="lbl">Premium Shop</span></button>
+        <button class="shops-tab is-premium" role="tab" aria-selected="false" data-shops-pane="premium" hidden><span class="ic"></span><span class="lbl">Premium Shop</span></button>
       </div>
       <div id="market-root"></div>
     </section>
@@ -1302,7 +1302,6 @@
        it now also covers bell/save/settings + strips chip/sub-tab emoji. -->
 
   <script src="src/activity-bar-clickable.js?v=564"></script>
-  <script src="src/post-signup-welcome.js?v=564"></script>
   <script src="src/mobile-keyboard.js?v=564"></script>
   <script src="src/combat-mobile-tabs.js?v=564"></script>
   <script src="src/mobile-more-chat.js?v=564"></script>
@@ -1311,7 +1310,6 @@
   <script src="src/bug-report.js?v=564"></script>
   <script src="src/welcome-modal.js?v=564"></script>
   <!-- b141 — beta launch prep: one-time disclaimer + Discord invite for new players -->
-  <script src="src/beta-banner.js?v=564"></script>
   <script src="src/network-status.js?v=564"></script>
   <script src="src/desktop-mode-detector.js?v=564"></script>
   <script src="src/error-boundary.js?v=564"></script>

@@ -18,7 +18,7 @@ export const SCREEN_PRIMERS = Object.freeze({
   'panel-stable': row('The Stable',
     'Companions travel with you one at a time. The one you equip lends you its bonus and earns experience of its own, and every locked card says where the others are found.'),
   'panel-shop': row('Shops',
-    'The Local Shop sells starter gear, seeds and supplies for gold, and the Market beside it is where players trade. The Premium Shop lists gem packs, Hearth Tokens and Hearth Hall Premium; the web beta cannot buy them yet.'),
+    'The Local Shop sells starter gear, seeds and supplies for gold; the first real upgrade is one you make. The Market beside it is where players trade.'),
   'panel-market': row('The Market',
     'Every listing here was put up by a player, and every sale is settled by the realm rather than by either side. What you list stays up while you are away, until it sells or its time runs out.'),
   'panel-bounty': row('The Bounty Board',

@@ -1303,7 +1303,7 @@ export default [
       assert((html.match(/is-dorm/g) || []).length >= 5, 'a dormant hold must dim every wing');
       assert(/dormant/.test(html), 'the upkeep state must be named when it is not Active');
       assert(/keeps every level it has earned/.test(html), 'dormancy must promise what it promises');
-      assert(/summit of Phase A/.test(html), 'tier 5 must not invent a tier 6 gate');
+      assert(/highest a hold can rise/.test(html) && !/not yet tuned|untuned/.test(html), 'tier 5 must not invent a tier 6 gate or promise untuned tiers');
 
       // The Hunt column is a STATEMENT, not an empty boss bar — the Hunt owns
       // that meter and it is being rebuilt elsewhere.
@@ -2579,7 +2579,7 @@ export default [
      ═══════════════════════════════════════════════════════════════════════ */
 
   // O1 — the code is collapsed, and the disclosure actually discloses.
-  () => tryRun('b46x OPEN-1: the wall asks for no invite code, and one link reveals it', () => {
+  () => tryRun('b46x OPEN-1 (W0): the wall shows no invite code at all, and a link-borne code still reveals the field', () => {
     const gate = window.HearthriseGate;
     const ui = gate._buildGate({});
     try {
@@ -2589,9 +2589,9 @@ export default [
         'the invite field must be HIDDEN by default: a visible one reads as a closed door however it is labelled');
       assert(ui.invite.required !== true, 'the invite field must not be required');
       assert(ui.inviteReveal && ui.inviteAside, 'the disclosure that reveals the code is missing');
-      assert(/have an invite code/i.test(ui.inviteReveal.textContent),
-        'the disclosure must say what it opens, got: ' + ui.inviteReveal.textContent);
-      assert(ui.inviteAside.style.display !== 'none', 'the disclosure itself must be visible in signup mode');
+      assert(ui.inviteAside.style.display === 'none',
+        'W0: Early Access has no invite codes — the "Have an invite code?" line must not show');
+      assert(!/invite code/i.test(ui.lead.textContent), 'the wall still talks about invite codes');
       // A real disclosure, not a div that toggles.
       assert(ui.inviteReveal.getAttribute('aria-expanded') === 'false',
         'the disclosure must report its collapsed state to assistive tech');
@@ -2615,19 +2615,19 @@ export default [
     }
   }),
 
-  // O1b — the copy. "open beta" is the promise; the Discord link is the door.
-  () => tryRun('b46x OPEN-2: the wall says open beta, invites the player in, and links Discord', () => {
+  // O1b — the copy (W0): Early Access, not open beta; the Discord link stays as the help door.
+  () => tryRun('b46x OPEN-2 (W0): the wall says Early Access, invites the player in, and keeps a Discord help link', () => {
     const gate = window.HearthriseGate;
     const ui = gate._buildGate({});
     try {
       const text = ui.root.textContent;
-      assert(/open beta/i.test(text), 'the wall must say the beta is OPEN: ' + text.slice(0, 220));
-      assert(!/closed beta/i.test(text), 'the wall still calls the beta closed');
-      assert(/make an account and play/i.test(text),
-        'the wall must tell the player what to do, not just what state the beta is in');
-      assert(/rough in places/i.test(text), 'the wall must be honest that it is rough');
+      assert(/early access/i.test(ui.lead.textContent), 'the wall must say Early Access: ' + ui.lead.textContent.slice(0, 220));
+      assert(!/\bbeta\b/i.test(ui.lead.textContent), 'the wall still says beta: ' + ui.lead.textContent.slice(0, 220));
+      assert(!/tell us in/i.test(ui.lead.textContent), 'the beta-era "tell us in Discord" line is back');
+      assert(/make an account/i.test(ui.lead.textContent),
+        'the wall must tell the player what to do, not just what state the game is in');
       const dc = [...ui.root.querySelectorAll('a[href*="discord.gg"]')];
-      assert(dc.length >= 1, 'the open-beta line points at Discord and there must be a link to click');
+      assert(dc.length >= 1, 'a player who cannot sign in must still have the Discord door to click');
       dc.forEach((a) => {
         assert(a.href.indexOf('discord.gg/eJrUSUJM3M') !== -1, 'wrong Discord invite: ' + a.href);
         assert(a.rel === 'noopener', 'a target=_blank link without rel=noopener is a tabnabbing hole');
@@ -2635,7 +2635,7 @@ export default [
       // The b224 rule survives the copy change: still no account-less escape.
       const words = text.toLowerCase();
       ['continue offline', 'play offline', 'without an account'].forEach((s) => {
-        assert(words.indexOf(s) === -1, 'the open-beta copy re-opened an account-less escape: ' + s);
+        assert(words.indexOf(s) === -1, 'the Early Access copy re-opened an account-less escape: ' + s);
       });
     } finally {
       if (ui.root.parentNode) ui.root.parentNode.removeChild(ui.root);
@@ -2751,7 +2751,7 @@ export default [
         'the check-your-email panel is not painting (inline display=' + JSON.stringify(a.sent.style.display)
         + '; an empty string falls back to the sheet’s display:none)');
       assert(a.lead.style.display === 'none',
-        'the open-beta pitch is still above the panel — two screens at once');
+        'the front-door pitch is still above the panel — two screens at once');
       assert(/check your email/i.test(aText) && /confirmation link/i.test(aText),
         'the panel must say what we actually did: ' + aText.slice(0, 200));
       assert(aText.indexOf('open@example.com') !== -1,
@@ -2803,8 +2803,8 @@ export default [
     const codeless = H(dbErr, true, false);
     assert(!/invite code/i.test(codeless) || /if you have one/i.test(codeless),
       'a player who gave no code must not be told their code is bad: ' + codeless);
-    assert(/open beta/i.test(codeless) && /try again/i.test(codeless),
-      'the switch-over message must name the cause and offer the retry: ' + codeless);
+    assert(/not open/i.test(codeless) && /try again/i.test(codeless) && !/beta/i.test(codeless),
+      'the refusal must say sign-ups are not open and offer the retry, without beta copy: ' + codeless);
 
     const coded = H(dbErr, true, true);
     assert(/invite code cannot be used/i.test(coded),
@@ -3309,7 +3309,7 @@ export default [
     gate.whenOpen(null);                              // must not throw
     assert(ran === 1, 'a non-function must be ignored, not queued');
     // The modules that must be behind it are all present and gated.
-    ['startFTUE', 'HearthriseProfile', 'HearthriseBetaBanner', 'HearthriseWelcome']
+    ['startFTUE', 'HearthriseProfile', 'HearthriseWelcome']
       .forEach((k) => assert(k in window, 'gated module vanished: ' + k));
   }),
 
@@ -3347,10 +3347,10 @@ export default [
   () => tryRun('b224: the re-prompt refuses to stack on a front-door overlay', () => {
     const gate = window.HearthriseGate;
     const blocker = document.createElement('div');
-    blocker.id = 'beta-banner-overlay';
+    blocker.id = 'hr-welcome-modal';
     document.body.appendChild(blocker);
     try {
-      assert(gate.promptReauth() === null, 'the re-prompt opened on top of the beta banner');
+      assert(gate.promptReauth() === null, 'the re-prompt opened on top of the what\'s-new sheet');
       assert(!document.querySelector('.hr-gate.reauth'), 'a re-prompt sheet was mounted anyway');
     } finally {
       blocker.remove();

@@ -86,7 +86,7 @@ export const BOSS_FORGE_DESC = {
 /* THE TROPHY WALL'S BOSS ROW. Order is the order a player meets the bosses.
    `dungeon` is the DUNGEONS id the trophy drops from (asserted against the
    chest tables by tests/w0f-fun-content.mjs, so a moved row cannot leave the
-   "where from" line lying). `line` is the one sentence the room shows once it
+   source line lying). `line` is the one sentence the room shows once it
    hangs. No numbers, no effect fields: this is a display. */
 export const BOSS_TROPHIES = Object.freeze([
   Object.freeze({ item: 'warboss_standard', dungeon: 'goblin_warcamp', boss: 'Grimtusk',

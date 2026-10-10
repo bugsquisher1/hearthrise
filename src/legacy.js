@@ -5446,8 +5446,8 @@ function generateDailyTasks(notice=true){
   G.daily.tasks=chosen.map(i=>DAILY_TASK_POOL[i]());
   if(notice)notify('New daily tasks!','info');
 }
-/* b228: exposed so the suite can prove the King's daily-task slot is really
-   read, rather than trusting a field that was declared and never granted. */
+/* Exposed so the suite can roll and heal a slate deterministically. (The King's
+   4th task this once proved was retired: the server never paid it.) */
 window.generateDailyTasks=generateDailyTasks;
 function updateDaily(type,amt=1){
   generateDailyTasks(false);

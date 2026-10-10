@@ -26,6 +26,7 @@ var AMBIENT_MS = 30000;        // the strip's gesture-less refresh, at most this
 var _tally = null;
 var _tallyAt = 0;
 var _inflight = false;
+var _triedAt = 0;              // the last read sent, answered or not
 var _claiming = Object.create(null);
 
 function deepFreeze(o) {
@@ -53,10 +54,14 @@ function peek() {
 function refresh(done, maxAgeMs) {
   var cb = typeof done === 'function' ? done : function () {};
   var GC = transport();
-  if (!GC || _inflight || (typeof maxAgeMs === 'number' && peek() && (Date.now() - _tallyAt) < maxAgeMs)) {
+  /* An ambient read (maxAgeMs given) waits that long after the last read SENT,
+     answered or not, so a refusing server is asked twice a minute, never every
+     repaint. A gesture (no maxAgeMs) always asks. */
+  if (!GC || _inflight || (typeof maxAgeMs === 'number' && (Date.now() - _triedAt) < maxAgeMs)) {
     cb(false); return;
   }
   _inflight = true;
+  _triedAt = Date.now();
   GC.tallyState().then(function (res) {
     _inflight = false;
     if (res && res.ok === true && res.day && typeof res.day === 'object') {
@@ -307,7 +312,7 @@ window.HearthriseTally = {
   /* Test seams: feed a tally in the server's shape (null forgets it), and park
      the strip's gesture-less read for the suite's run. */
   __feed: function (res) {
-    if (res === null) { _tally = null; _tallyAt = 0; return; }
+    if (res === null) { _tally = null; _tallyAt = 0; _triedAt = 0; return; }
     _tally = deepFreeze({
       day: res.day || {}, week: res.week || {}, goldDay: Number(res.gold_day) || 0,
       goldWeek: Number(res.gold_week) || 0, paid: (res.paid || []).slice(),

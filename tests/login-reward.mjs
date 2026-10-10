@@ -35,6 +35,8 @@
 //   L5  THE DATABASE REFUSES ANY OTHER PRICE. After the miss, the old rule's
 //       reset-to-day-1 price, an uncapped week-15 price and a forged extra item
 //       are each refused login_price_mismatch by hr_apply and move nothing.
+//   L6  BOTH W0 FILES RE-APPLY BYTE-IDENTICALLY on the chain end (this file and
+//       2026-10-16-goal-board-retire.sql), their own §4 passing a second time.
 //
 // THE MUTANTS (--mutate)
 //   JS  a missed day resets the streak -> L3 · the multiplier loses its cap
@@ -301,6 +303,20 @@ async function runArms(db, mods) {
       fail('L5', `CONTROL: the honest day-5 claim after the miss was not paid (${JSON.stringify(ok5.body).slice(0, 200)})`);
     }
   }
+  // L6 — both W0 files re-apply byte-identically on the chain end (§4 runs again).
+  if (mods.secondApply) {
+    const snap = async () => (await db.query(`select string_agg(p.proname || ':' || md5(pg_get_functiondef(p.oid)), ',' order by p.proname) s
+        from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public' and p.proname in ('hr_apply', 'hr_claim_lookup', 'hr_rpc_gate', 'hr_tally_state',
+         'hr_login_catalogue', 'hr_login_price', 'hr_claim_last', 'hr_login_streak', 'hr_login_claim_verify')`)).rows[0].s;
+    const before = await snap();
+    for (const file of [OWN_SQL, '2026-10-16-goal-board-retire.sql']) {
+      const sql = (await readFile(join(ROOT, 'supabase', 'migrations', file), 'utf8')).replace(/\r\n/g, '\n');
+      try { await db.exec(sql); } catch (e) { fail('L6', `a second apply of ${file} RAISED: ${String(e.message).split('\n')[0]}`); }
+    }
+    const after = await snap();
+    if (before !== after) fail('L6', `a second apply changed a body:\n      ${before}\n   -> ${after}`);
+  }
   return fails;
 }
 
@@ -316,7 +332,7 @@ async function main() {
       console.log(`  ✗ the chain does not replay: ${failures.map((f) => `${f.file}: ${String(f.error).split('\n')[0]}`).join('; ')}`);
       process.exit(1);
     }
-    const fails = await runArms(db, await load(ROOT));
+    const fails = await runArms(db, { ...(await load(ROOT)), secondApply: true });
     try { await db.close(); } catch { /* the replay owns its lifetime */ }
     for (const f of fails) console.log(`  ✗ ${f}`);
     console.log(fails.length ? `login-reward: RED (${fails.length})`

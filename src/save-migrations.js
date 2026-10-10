@@ -289,9 +289,6 @@
         if(typeof save.createdAt !== 'number' || !isFinite(save.createdAt)){
           save.createdAt = (typeof save.lastSeen === 'number' && isFinite(save.lastSeen)) ? save.lastSeen : 1;
         }
-
-        if(save.dailyGoals) delete save.dailyGoals;
-        if(save.weeklyGoals) delete save.weeklyGoals;
       },
     },
     {

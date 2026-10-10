@@ -138,14 +138,13 @@
 //         `not_claimable`, which is the only answer that survives a second
 //         device.
 //
-//   The other five are wired the SAME way and each answers
+//   The others are wired the SAME way and each answers
 //   `reward_unavailable` with its own `needs` until its dependency lands. Wiring
 //   them now is not wasted: the refusal is renderable, so the surface is honest
-//   ("not yet") instead of paying a client-authored number.
+//   ("not yet") instead of paying a client-authored number. (The goals board's
+//   daily:goal / quest:weekly rows left with the board, 2026-10-16.)
 //
-//   src/legacy.js:16101 claimQuestReward()   → {kind:'daily',      key:'goal'}
-//                       (weekly tab)         → {kind:'quest',      key:'weekly'}
-//   src/features/collection-log.js:64        → {kind:'collection', key:'milestone'}
+//   src/features/collection-log.js:64       → {kind:'collection', key:'milestone'}
 //   src/features/renown.js:308               → {kind:'flag',       key:'renown_rank'}
 //   src/legacy.js:2902 completeBounty()      → {kind:'bounty',     key:'turnin'}
 //       ⚠ BLOCKED ON THE MARKS COLUMN, which another workstream is building.

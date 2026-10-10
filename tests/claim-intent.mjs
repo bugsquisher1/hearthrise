@@ -622,9 +622,9 @@ async function run(mutate) {
         + 'It was renamed or removed and the registry still points at it.');
       seen.push(id);
     }
-    ok(seen.length === Object.keys(rw.CLAIMABLES).length && seen.length >= 6,
+    ok(seen.length === Object.keys(rw.CLAIMABLES).length && seen.length >= 4,
       `C0b-CONTROL: ${seen.length} sites were read, and the registry has `
-      + `${Object.keys(rw.CLAIMABLES).length} rows (expected at least the six claim-shaped grants). `
+      + `${Object.keys(rw.CLAIMABLES).length} rows (expected at least the four claim-shaped grants left once the goals board was cut). `
       + 'A reader that reads nothing is the decoration this assertion exists to end.');
     /* And the field is REQUIRED, which is the half of G4 that makes the reader
        load-bearing rather than opportunistic: an optional field read by a guard

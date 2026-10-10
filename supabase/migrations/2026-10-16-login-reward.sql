@@ -284,7 +284,7 @@ grant  execute on function public.hr_apply(uuid, int, bigint, uuid, jsonb) to hr
 -- Every arm drives the REAL hr_apply against a fabricated character inside a
 -- subtransaction discarded by a sentinel raise (HR948), so the block is
 -- net-zero; a leak check runs after it.
-do $mig$
+do $$
 declare
   v_uid   constant uuid := '00000000-0000-4000-c000-0000010a1d01';
   v_today text := public.hr_utc_day_key(now());
@@ -473,4 +473,4 @@ begin
                'and moves nothing; (e) the honest claim pays the price; (f) a missed day costs one step and an '
                'unclaimed row does not count; (g) the old reset-to-day-1 price is refused; (h) day 7 pays the key '
                'and the ceiling wraps';
-end $mig$;
+end $$;

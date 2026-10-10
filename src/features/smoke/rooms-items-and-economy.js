@@ -2518,56 +2518,6 @@ export default [
     }
   }),
 
-  () => tryRun('b292: "Earn 500 gold" counts INCOME, not net balance (paione: sold 10k, no credit)', () => {
-    // paione sold ~10k in items and the daily never moved. It measured
-    // G.gold - goldAtDayStart — a NET BALANCE delta — so earning then spending
-    // scored zero. It must count income.
-    const G = window.G;
-    if (typeof window._dailyGoldDelta !== 'function') return;
-    const saved = { dgs: JSON.parse(JSON.stringify(G.dailyGoldStart || {})), gold: G.gold };
-    try {
-      const day = (new Date()).getUTCFullYear() * 10000 + ((new Date()).getUTCMonth() + 1) * 100 + (new Date()).getUTCDate();
-      // Earned 10,000 today, then spent nearly all of it: balance is flat, income is not.
-      G.dailyGoldStart = { day: day, gold: 5000, earned: 10000 };
-      G.gold = 5200;
-      stampBalanceLikeLoad(G);   // gold is armed: a directly-set balance reads UNKNOWN until stamped
-      assert(window._dailyGoldDelta() === 10000,
-        'income must be 10000 even though the balance barely moved, got ' + window._dailyGoldDelta());
-      // and the goal reader must agree (three copies of this maths existed)
-      if (typeof window.readSource === 'function') {
-        assert(window.readSource('_dailyGoldDelta') === 10000, 'the goal reader must use the same income figure');
-      }
-      // a save with no counter yet falls back to the old maths rather than breaking
-      G.dailyGoldStart = { day: day, gold: 1000 }; G.gold = 1600;
-      stampBalanceLikeLoad(G);
-      assert(window._dailyGoldDelta() === 600, 'legacy saves must still report something sane');
-    } finally { G.dailyGoldStart = saved.dgs; G.gold = saved.gold; }
-  }),
-
-  () => tryRun('b291: weekly quests reset on MONDAY, matching what the panel promises (paione)', () => {
-    // paione: "the quests did not reset" — with the panel showing "Resets in 7d
-    // (Monday UTC)" while all three sat Claimed. The key bucketed weeks as
-    // floor(daysSinceEpoch/7); epoch day 0 is a THURSDAY, so it rolled over on
-    // Thursdays while the UI (and its countdown) promised Monday.
-    const wk = window.__thisWeekKey;
-    if (typeof wk !== 'function') return;
-    // Pure re-implementation of the shipped formula, evaluated across a fortnight.
-    const keyFor = (y, m, d) => Math.floor((Date.UTC(y, m, d) / 86400000 + 3) / 7);
-    let rollovers = [];
-    for (let i = 0; i < 21; i++) {
-      const d = new Date(Date.UTC(2026, 7, 3 + i));
-      if (i > 0) {
-        const prev = new Date(Date.UTC(2026, 7, 3 + i - 1));
-        if (keyFor(2026, 7, 3 + i) !== keyFor(2026, 7, 3 + i - 1)) rollovers.push(d.getUTCDay());
-      }
-    }
-    assert(rollovers.length >= 2, 'the weekly key must roll over at least twice in three weeks');
-    assert(rollovers.every((day) => day === 1), 'every weekly rollover must land on a MONDAY (got days ' + rollovers.join(',') + ')');
-    // and the live function must use that same formula
-    assert(wk() === keyFor(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()),
-      'the shipped thisWeekKey must match the Monday-aligned formula');
-  }),
-
   () => tryRun('b289: CROSS-DEVICE ROUND TRIP — save on device A, restore on device B, nothing lost or re-granted', () => {
     // The definitive test for paione's report. Simulates the actual journey:
     // play on phone -> snapshot to cloud -> sign in on tablet (fresh G) -> restore

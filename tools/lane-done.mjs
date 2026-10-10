@@ -72,6 +72,9 @@ const STEPS = [
   ['node', ['tests/this-week.mjs', '--selftest']],
   ['node', ['tests/quest-reward-parity.mjs']],
   ['node', ['tests/quest-reward-parity.mjs', '--selftest']],
+  // W0: the goals board stays cut and the one daily list reads the server. Milliseconds.
+  ['node', ['tests/goal-board-gone.mjs']],
+  ['node', ['tests/goal-board-gone.mjs', '--selftest']],
   ['node', ['tests/ci-shape.mjs']],
   ['node', ['tests/guard-hygiene.mjs']],
   // A new guard's mutant replay must declare its scope (upTo / fullChain) where

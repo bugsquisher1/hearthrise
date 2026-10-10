@@ -40,10 +40,11 @@ export const SETTLE_REFUSAL_WORDS = Object.freeze({
   party_hunt_running: 'Your party hunt is still running',
 });
 
-/* The client-direct callers of these twelve route through withSettleFirstRetry;
-   tests/settle-first-callers.mjs holds every sender to it. */
+/* The client-direct callers of these eleven route through withSettleFirstRetry;
+   tests/settle-first-callers.mjs holds every sender to it. (hr_claim_goal left
+   with the goals board, 2026-10-16-goal-board-retire.sql.) */
 export const SETTLE_GATED_RPCS = Object.freeze([
-  'hr_claim_quest', 'hr_claim_goal', 'hr_claim_daily', 'hr_claim_milestone', 'hr_claim_rank',
+  'hr_claim_quest', 'hr_claim_daily', 'hr_claim_milestone', 'hr_claim_rank',
   'hr_credit_kills', 'hr_trait_buy', 'raid_claim', 'world_event_claim',
   'hr_set_auto_eat', 'hr_bank_move', 'hr_farm_harvest',
 ]);

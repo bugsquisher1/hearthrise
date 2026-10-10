@@ -14,7 +14,7 @@
 // No pool entry grows a `destination:` field. Instead the resolver reads the
 // fields a goal already carries, strongest signal first:
 //
-//   1. `goal.source`  — 'stats.fished', '_dailyGoldDelta', … This is what the
+//   1. `goal.source`  — 'stats.kills', 'stats.fished', … This is what the
 //      goal literally MEASURES, so it is the most honest routing key there is.
 //      Its gathering third is inverted from `window.SKILL_ACTION_STAT`, the
 //      same map `doSkillAction()` writes those counters through — add a
@@ -125,7 +125,6 @@
 
   function fromSource(source) {
     if (typeof source !== 'string' || !source) return null;
-    if (source === '_dailyGoldDelta') return MARKET();
     var counter = source.indexOf('.') >= 0 ? source.split('.').pop() : source;
     var gathered = gatherSkillByCounter()[counter];
     if (gathered) return SKILL(gathered);
@@ -285,8 +284,6 @@
   function livePools() {
     var out = [];
     function push(list) { if (Array.isArray(list)) out = out.concat(list.filter(Boolean)); }
-    push(window.DAILY_GOAL_POOL);
-    push(window.WEEKLY_GOAL_POOL);
     if (Array.isArray(window.DAILY_TASK_POOL)) {
       window.DAILY_TASK_POOL.forEach(function (f) {
         try { out.push(typeof f === 'function' ? f() : f); } catch (e) { /* factory needs G */ }

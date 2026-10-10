@@ -587,6 +587,12 @@ const ALSO_LINTED = [
      for exactly that) and so the grant lints see its create-or-replace and its
      revoke-then-grant. */
   '2026-09-14-hr-state-of-restatement.sql',
+  /* W0 (2026-10-16). login-reward creates five privileged helpers (none client-
+     reachable) and patches hr_apply at one anchor; goal-board-retire creates
+     the client read hr_tally_state and drops the board's two RPCs. Both are
+     here so the grant lints read their revoke-then-grant. */
+  '2026-10-16-login-reward.sql',
+  '2026-10-16-goal-board-retire.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────
@@ -1077,6 +1083,13 @@ const CLIENT_CALLABLE = new Map([
      records both in hr_client_rpc_baseline. */
   ['hr_claim_goal', ['authenticated']],
   ['hr_goal_state', ['authenticated']],
+  /* 2026-10-16-goal-board-retire.sql (W0) — the two entries above are DROPPED
+     at the chain end (the goals board is cut; older files still grant them at
+     creation, which is why they stay listed). Their replacement is the one
+     read of the server's period counters for the daily-quest sheet and Home's
+     Your week card: own character only, rate-gated (hr_tally_state 120/min),
+     baselined, NOT granted to hr_engine. */
+  ['hr_tally_state', ['authenticated']],
   /* 2026-08-23-trait-buy.sql — the permanent-TRAIT purchase. The caller sends a
      trait id and a slot and NOTHING else: price, currency and prerequisite are
      read from the server-side public.hr_traits catalogue, the balance from the

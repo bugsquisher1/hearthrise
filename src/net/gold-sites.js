@@ -196,15 +196,6 @@ const B = Object.freeze({
   LIVE_ACTION_INTENTS: 'live-action intents. This fires inside the loop the server already '
     + 'simulates (`computeAccrual`), so it does not want a verb — it wants the accrual engine to '
     + 'pay it, and this client site is DELETED when live actions move server-side.',
-  DAILY_COUNTERS: 'a server model for the GOALS BOARD (DAILY_GOAL_POOL / WEEKLY_GOAL_POOL, '
-    + 'claimQuestReward). b414 moved the DAILY-TASK (updateDaily) and QUEST (completeQuest) payouts '
-    + 'onto hr_claim_daily / hr_claim_quest, which verify the src/core/goals.js ev:<type> counters. '
-    + 'This board is a DIFFERENT tracking model the ev counters cannot verify: progress = '
-    + 'readSource(stats.*) - a per-period baseline, and most sources (stats.chopped/.mined/.fished/'
-    + '.planted/.levelups, _dailyGoldDelta) are NOT ev types — the ev model emits only six AGGREGATE '
-    + 'types. The weekly delta-baseline cannot be reconstructed from ev daily rows either. Needs a '
-    + 'server per-skill/derived counter model + period baseline, or re-authoring the board onto the '
-    + 'six ev types. See src/data/goal-catalogue.js BLOCKED_GOAL_BOARD.',
   /* B.MARKS_COLUMN was RETIRED on 2026-08-23: player_state.marks now exists and the
      CULL bounty turn-in is server-credited (hr_claim_bounty, 2026-08-23-bounty.sql),
      so completeBounty carries a serverCredits flipGuard rather than this blocker. See
@@ -653,8 +644,7 @@ export const GOLD_SITE_LEDGER = Object.freeze({
       + 'player_progress kind=daily claim row per (day, task), journals player_ledger kind=daily. '
       + 'daily_harvest is server-BLOCKED (dynamic goal) and still gated on clientMayWriteRecordField.' },
     blockedBy: 'nothing for the 7 FIXED tasks — hr_claim_daily credits them. daily_harvest is BLOCKED '
-      + '(dynamic goal, no server farm-plot-cap model) and a King\'s Renown 4th slot is refused '
-      + 'not_offered (no server Renown model). See src/data/goal-catalogue.js BLOCKED_DAILY.',
+      + '(dynamic goal, no server farm-plot-cap model). See src/data/goal-catalogue.js BLOCKED_DAILY.',
     site: 'the daily-task payout',
   },
   'src/legacy.js#completeQuest': {
@@ -677,12 +667,6 @@ export const GOLD_SITE_LEDGER = Object.freeze({
       + 'transaction, on one once-guard. Only the combat-XP reward (hundred_kills) stays client-applied '
       + 'until the XP arming slice; that is a display grant, not a value that crosses to another player.',
     site: 'the quest payout',
-  },
-  'src/legacy.js#claimQuestReward': {
-    kind: 'grant', status: 'deferred', blockedBy: B.DAILY_COUNTERS,
-    flipGuard: { gated: 'clientMayWriteRecordField' },
-    site: 'claim_reward {kind:"daily", key:"goal"} and {kind:"quest", key:"weekly"} — both registry '
-      + 'rows exist, both status blocked',
   },
 
   // ══ SPENDS WITH NO VERB YET ═══════════════════════════════════════════════

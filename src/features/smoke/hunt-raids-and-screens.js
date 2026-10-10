@@ -4537,18 +4537,6 @@ export default [
     window.showTab('profile');
   }),
 
-  // ── b130 regression suite ──
-
-  // b130: getGoalsForToday must be on window so the Quests modal can find
-  // it. Same pattern as b127's hoursTillUTCMidnight — top-level function
-  // declarations don't reach window from inside the modal IIFE.
-  () => tryRun('b130: getGoalsForToday exposed on window', () => {
-    assert(typeof window.getGoalsForToday === 'function',
-      'window.getGoalsForToday missing — Quests modal will show "No daily quests"');
-    const goals = window.getGoalsForToday();
-    assert(Array.isArray(goals), 'getGoalsForToday should return an array, got ' + typeof goals);
-  }),
-
   // b130: openSkillDetail on mobile must scroll the detail into view.
   // Hard to verify without real layout — we check the wrapper invokes
   // scrollIntoView when called below 540px width. The code path uses

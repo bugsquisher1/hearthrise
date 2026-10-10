@@ -246,6 +246,47 @@ export default [
     }
   }),
 
+  () => tryRun('DAILY-SHEET-6 (W0): the sheet names the SUPPLIES the server will pay, by item name, and predicts only gold and gems', () => {
+    /* The W0 cycle pays food, seeds and a Bone Key beside modest gold. The sheet
+       previews the server's own price (one function, src/data/rewards.js), so
+       day 7 must read the key by its ITEMS name on the claim button. The local prediction stays currency-only: items arrive with the
+       envelope, so a forged preview can never put a key in the bag. */
+    const D = window.HearthriseDaily, G = window.G, R = window.HearthriseRewards;
+    const B = window.HearthriseCore && window.HearthriseCore.botd;
+    assert(D && R && B && window.ITEMS, 'HearthriseDaily / HearthriseRewards / botd / ITEMS must be present');
+    const snap = snapshotG();
+    const sDR = G.dailyReward;
+    try {
+      const now = Date.now();
+      const dayN = B.utcDayNumber(now);
+      const yLocal = ((d) => d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate())(new Date(now - 86400000));
+      G.dailyReward = { lastClaimDay: yLocal };
+      D.noteServerStreak({ now: new Date(now).toISOString(), state: {},
+        progress: [{ kind: 'daily', key: 'login', period: B.utcDayKey((dayN - 1) * 86400000), value: 6, state: 'claimed' }] });
+      const want = R.priceDailyLogin(7), rw = D.rewardFor(G);
+      assert(D.cycleDay(G) === 7, 'claimed day 6 yesterday must preview day 7, got ' + D.cycleDay(G));
+      assert(JSON.stringify(rw.items || {}) === JSON.stringify(want.items) && want.items.bone_key === 1,
+        'day 7 must preview the server\'s supplies ' + JSON.stringify(want.items) + ', got ' + JSON.stringify(rw.items));
+      assert(rw.gold === want.gold && rw.gems === want.gems, 'the currency preview is not the server\'s price');
+      const old = document.getElementById('hr-dl-modal'); if (old) old.remove();
+      D.open();
+      const btn = document.querySelector('#hr-dl-modal .hr-dl-claim');
+      const keyName = window.ITEMS.bone_key.n || window.ITEMS.bone_key.name;
+      assert(btn && btn.textContent.includes(keyName) && !/bone_key/.test(btn.textContent),
+        'the claim button must name the ' + keyName + ', never its id: ' + (btn && btn.textContent));
+      document.getElementById('hr-dl-modal').remove();
+      /* The prediction: the claim seam is handed gold and gems, never items. */
+      const src = String(window.HearthriseDaily.claim);
+      assert(/goldSettleCurrency\(\{ gold: rw\.gold \|\| 0, gems: rw\.gems \|\| 0 \}/.test(src),
+        'the claim must predict exactly gold + gems through goldSettleCurrency');
+    } finally {
+      const el = document.getElementById('hr-dl-modal'); if (el) el.remove();
+      D.noteServerStreak(null);
+      restoreG(snap);
+      if (sDR === undefined) delete G.dailyReward; else G.dailyReward = sDR;
+    }
+  }),
+
   () => tryRun('DAILY-SHEET-5 (b499): TWO true streaks may not share one word — the reward sheet owns "Day", the play streak owns "running"', () => {
     /* THE DEFECT THIS PINS, MEASURED on b498 in a headless boot of the real
        client (play streak 3, last claim two days ago, i.e. a missed day):
@@ -684,7 +725,7 @@ export default [
        every other field is self-only PROGRESS, that one was a client-held GEAR
        PERMISSION the realm never mirrored. Re-adding it re-opens §6 with a save. */
     ['bestiary', 'dropLog', 'collectionLog', 'lifetimeKills', 'homestead',
-      'currentCombatTier', 'buyback', 'dailyGoldStart', 'raids',
+      'currentCombatTier', 'buyback', 'raids',
       'muster', 'rallyPledge', 'pendingItemSpends'].forEach((f) =>
       assert(RF.indexOf(f) >= 0, 'THE BUG: G.' + f + ' must be a residue field or every reload forgets it'));
     /* ⚠ `renownHigh` and `toolCarry` LEFT THIS LIST on 2026-09-14 and must NOT
@@ -784,10 +825,14 @@ export default [
     assert(Array.isArray(RF), 'RESIDUE_FIELDS must be exported');
     /* ⚠ `streak` LEFT THIS LIST on 2026-09-14: the play streak is the server's
        `streak_days` (reconcilePlayStreak → playStreakDays), and a device-clock
-       copy in the bag is what painted 1 over the realm's 3. The other three are
-       genuine shown-today markers with no projection behind them. */
-    ['dailyReward', 'dailyGoals', 'weeklyGoals'].forEach((f) =>
+       copy in the bag is what painted 1 over the realm's 3. dailyReward is a
+       genuine shown-today marker with no projection behind it. */
+    ['dailyReward'].forEach((f) =>
       assert(RF.includes(f), 'THE BUG: ' + f + ' must be a residue field or every reload forgets it'));
+    /* W0: the goals board is cut, so its two slates and its gold watermark are
+       gone from the bag, not merely unread. */
+    ['dailyGoals', 'weeklyGoals', 'dailyGoldStart'].forEach((f) =>
+      assert(!RF.includes(f), f + ' is still on RESIDUE_FIELDS — the goals board it served is retired'));
     assert(!RF.includes('streak'),
       'the play-streak residue is back — the day the sheet shows must come from the server, not a device clock');
     const G = window.G;

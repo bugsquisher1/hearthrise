@@ -1115,25 +1115,6 @@ export const withRoomServer = (owned, gold, fn) => {
   }, fn);
 };
 
-/* THE SERVER GOAL-STATE SEAM (CLAIM-FROM-SERVER, 2026-09-28). A goal's number
-   and its Claim come ONLY from hr_goal_state; local counters (G.stats.*,
-   startValues) move the bar and nothing else. So the one way a test or a QA
-   pass (the pass-3 visual gate) states "this goal is 7/10" or "this goal is
-   claimable" is to FEED that state: `rows` in the hr_goal_state shape
-   ({goal_id, weekly, target, have, complete, claimed}), synced through the real
-   reader. Needs gold armed (goalsArmed). A re-feed replaces the last feed (it
-   never stacks on it), so restore() always lands on the real transport. */
-export const goalRow = (id, have, target, o) => Object.assign({ goal_id: id, weekly: false, target, have, complete: have >= target, claimed: false }, o || {});
-export const feedServerGoals = async (rows) => {
-  const was = window.HearthriseGoalClaim;
-  const base = (was && was.__hrFedBase !== undefined) ? was.__hrFedBase : was;
-  window.HearthriseGoalClaim = Object.assign(Object.create(base || null), { __hrFedBase: base,
-    isSignedIn: () => true, goalState: () => Promise.resolve({ ok: true, goals: rows }) });
-  window.__hrSyncServerGoals.reset();
-  await new Promise((r) => window.__hrSyncServerGoals(r));
-  const fed = window.HearthriseGoalClaim;
-  return () => { if (window.HearthriseGoalClaim === fed) window.HearthriseGoalClaim = base; window.__hrSyncServerGoals.reset(); };
-};
 
 /* THE SERVER QUEST-COUNTER SEAM (CLAIM-FROM-SERVER-3/-4, 2026-09-28). A quest
    step's count and its claim come ONLY from the server's lifetime ev:<type>
@@ -1158,9 +1139,8 @@ export const feedServerQuests = (counts) => {
    of those four is SERVER-OF-RECORD and armed. So each claim site makes the
    SAME test ("is any component of this reward server-owned?") and takes the same
    branch when the answer is yes: send the intent, WAIT for the verdict, and
-   write NOTHING locally except the once-guard mark. `renown.js claimRank`,
-   `collection-log.js claimMilestone` and `legacy.js claimQuestReward` all say so
-   in those words at their call sites.
+   write NOTHING locally except the once-guard mark. `renown.js claimRank` and
+   `collection-log.js claimMilestone` say so in those words at their call sites.
 
    The tests for those sites used to run client-authoritative, where the local
    grant WAS the payout, and asserted `G.gold` went up. That is now the one thing
@@ -1179,7 +1159,7 @@ export const feedServerQuests = (counts) => {
 export const withClaimServer = (answer, fn) => {
   const GC = window.HearthriseGoalClaim;
   if (!GC) return fn({ calls: [], reply: () => {}, credit: () => {} });
-  const VERBS = ['claimDaily', 'claimQuest', 'claimMilestone', 'claimRank', 'claimGoal', 'grantCompanion'];
+  const VERBS = ['claimDaily', 'claimQuest', 'claimMilestone', 'claimRank', 'grantCompanion'];
   const saved = {};
   const calls = [];
   let replyFn = null;
@@ -1867,19 +1847,6 @@ export const snapshotG = () => {
        no key, JSON drops it, restoreG cannot put back what it has not got, and a test
        that made a REAL sale left an entry render/shop.js paints as an extra row. */
     buyback: G.buyback ?? [],
-    /* b487: the QUEST MODAL's two slates. `G.daily` (the DAILY_TASK_POOL tasks)
-       has been on this list since b138 — its two SIBLINGS never were, and they
-       are the ones the goal tests actually drive. GOAL-CLAIM-1 assigns
-       `G.dailyGoals = {dayKey, picks:['kill_more'], startValues:{kill_more:0},
-       claimed:{}}` and the b487 wk_bury heal test assigns `G.weeklyGoals` —
-       both wrote straight through to the player's save, replacing today's real
-       three dailies with one synthetic goal and forging a `claimed` flag on a
-       weekly reward. A forged claimed flag is not cosmetic: the modal reads it
-       as "already taken" and the player never presses Claim, so the reward is
-       silently forfeited for the period. Same reason `bank` and `bestiary` are
-       here — a suite run must never edit progression it did not earn. */
-    dailyGoals: G.dailyGoals,
-    weeklyGoals: G.weeklyGoals,
     /* RECOVERY (rev. 2) — the ABSOLUTE instant this character gets back up.
        `simulateSpan` WRITES it on the live G (src/core/combat-sim.js), and it
        is the most contagious field this list has ever been missing: a test that
@@ -2132,7 +2099,7 @@ export const stubSignedIn = (slot, name) => {
        · GitHub set/b563 @d09be9d5 caught muster.js's 60 s pledge pass
          (hr_rally_pledge_state) inside SIGNED-IN-STUB's 2.5 s wait; the sweep
          (a stub held 130 s, every request counted) added hearthfind.js's 90 s
-         board poll (hr_world_finds_of). hr_goal_state, the third, is parked
+         board poll (hr_world_finds_of). hr_tally_state, the third, is parked
          suite-wide by smoke-test.js.
      Regression: STUB-ORIGIN-1. */
   const CHANNELS = [window.HearthriseTown, window.HearthriseNetStatus, window.HearthriseLive,

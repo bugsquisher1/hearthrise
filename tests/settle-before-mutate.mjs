@@ -18,7 +18,7 @@
 //      road_forge (it grants the iron pickaxe) as `authenticated`. The answer is
 //      settle_first and the character — bag, gold, version, accrued_to, progress,
 //      ledger, intents — is byte-identical afterwards; the same holds for
-//      hr_set_auto_eat, hr_credit_kills and hr_claim_goal, and for hr_apply (as
+//      hr_set_auto_eat, hr_credit_kills and hr_claim_daily, and for hr_apply (as
 //      hr_engine) with a non-stamping items:+1 or a buff_apply. Once the row is
 //      settled the SAME claim pays, so the refusal is not vacuous.
 //      `--mutate=staleMs12h` raises the threshold to 12 h (§4 blinded) → RED.
@@ -136,7 +136,7 @@ async function r5(db) {
   const others = [
     ['hr_set_auto_eat', 'select public.hr_set_auto_eat(0, true, null, null, false) r'],
     ['hr_credit_kills', `select public.hr_credit_kills(0, 'slime', 1, '${crypto.randomUUID()}') r`],
-    ['hr_claim_goal', `select public.hr_claim_goal('first_blood', false, 0, '${crypto.randomUUID()}') r`],
+    ['hr_claim_daily', "select public.hr_claim_daily('daily_kill', 0) r"],
   ];
   for (const [fn, sql] of others) {
     const r = await client(sql);
@@ -189,7 +189,7 @@ async function r6(db) {
   const client = async (sql) => (await asRole(db, 'authenticated', sql))[0].r;
   for (const [fn, sql] of [
     ['hr_set_auto_eat', 'select public.hr_set_auto_eat(0, false, null, null, false) r'],
-    ['hr_claim_goal', `select public.hr_claim_goal('first_blood', false, 0, '${crypto.randomUUID()}') r`],
+    ['hr_claim_daily', "select public.hr_claim_daily('daily_kill', 0) r"],
   ]) {
     const r = await client(sql);
     ok(r && r.ok === false && r.error === 'party_hunt_running',
@@ -218,6 +218,9 @@ const TOUCHED = [
   'public.hr_apply(uuid,int,bigint,uuid,jsonb)', 'public.hr_state_of(uuid,int)',
   'public.hr_settle_first_of(uuid,int)', 'public.hr_require_settled(uuid,int)',
   'public.hr_settle_first_noted(text,uuid,int)',
+  /* hr_claim_goal(text,boolean,int,uuid) was wired here too and left with the
+     goals board (2026-10-16-goal-board-retire.sql); S1 re-applies on a replay
+     that stops before that file, so the second apply still meets it. */
   'public.hr_claim_quest(text,int)', 'public.hr_claim_goal(text,boolean,int,uuid)',
   'public.hr_claim_daily(text,int)', 'public.hr_claim_milestone(text,int)', 'public.hr_claim_rank(text,int)',
   'public.hr_credit_kills(int,text,bigint,text)', 'public.hr_trait_buy(text,int,uuid)',
@@ -357,8 +360,17 @@ async function run(mutate, { only } = {}) {
   }
   await r5(db);
   await r6(db);
-  if (!only && !mutate) { await s1(db); await s2(); }
   await db.close?.();
+  if (!only && !mutate) {
+    /* The second apply runs on the chain AS OF these two files: a later file
+       (2026-10-16-goal-board-retire.sql) drops hr_claim_goal, which the first
+       file wires, so re-applying it at the chain end would test that drop, not
+       this file's idempotency. */
+    const { db: db1 } = await bootReplay({ upTo: MIG_FROM });
+    await s1(db1);
+    await db1.close?.();
+    await s2();
+  }
   return failed;
 }
 

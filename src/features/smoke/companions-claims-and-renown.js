@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 43 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, errorLog, stampBalanceLikeLoad, stampRecordLikeLoad, predZero, snapshotG, drain, stubSignedIn, restoreG, zeroRenownTerms, restoreRenownTerms, on, withClaimServer, goldOf, withServerBacked, hrCharmDriver, feedServerGoals, goalRow, feedServerQuests, serverBagFixture } from './_harness.js?v=564';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, errorLog, stampBalanceLikeLoad, stampRecordLikeLoad, predZero, snapshotG, drain, stubSignedIn, restoreG, zeroRenownTerms, restoreRenownTerms, on, withClaimServer, goldOf, withServerBacked, hrCharmDriver, feedServerQuests, serverBagFixture } from './_harness.js?v=564';
 
 /* LEDGER OF FIRSTS — the collection-log rungs read the SERVER mirrors, which
    are `_` scratch outside snapshotG. Each test saves and restores them by
@@ -42,33 +42,35 @@ const withQuestServer = async (counts, fn) => {
     await fn(q, () => calls.filter((id) => id === 'first_cook').length, step, (c) => { unfeed(); unfeed = feedServerQuests(c); });
   } finally { unfeed(); window.HearthriseGoalClaim = GC; window.notify = note; restoreG(snap); }
 };
-/* CLAIM-FROM-SERVER rig: an armed, signed-in goal claim whose LOCAL counters
-   read kill_any 10/10 and whose SERVER goal state is `rows` (null = never
-   answered). `rig.open(rows?)` re-feeds the server seam and returns the row. */
-const withGoalServer = async (rows, fn) => {
-  const snap = snapshotG(), may = window.clientMayWriteRecordField, GC = window.HearthriseGoalClaim, note = window.notify;
+/* THE ONE DAILY LIST rig (W0): today's slate is the daily quest `daily_kill`
+   (goal 25), the claim transport is a signed-in stub that records every
+   claimDaily, and the SERVER's tally is `tally` (null = never answered), fed
+   through the real cache seam. `rig.open(tally?)` re-feeds and returns the
+   sheet's row. The browser's own count (G.daily.tasks[0].progress) is set to
+   the goal on purpose: nothing on the sheet may read it. */
+const withDailyList = async (tally, fn) => {
+  const snap = snapshotG(), GC = window.HearthriseGoalClaim, note = window.notify, TL = window.HearthriseTally;
   const calls = [];
-  let unfeed = null;
-  const feed = async (r) => {
-    if (unfeed) unfeed(); unfeed = null; window.__hrSyncServerGoals.reset(); window.__hrGoalDisplay.reset();
-    if (r) unfeed = await feedServerGoals(r);
-  };
+  const feed = (t) => TL.__feed(t ? Object.assign({ offered: ['daily_kill'], paid: [], week: {} }, t) : null);
   try {
-    window.clientMayWriteRecordField = (f) => f !== 'gold'; window.notify = () => {};
-    window.getGoalsForToday();
-    window.G.stats.kills = 10;
-    window.G.dailyGoals = { dayKey: window.G.dailyGoals.dayKey, picks: ['kill_any'], startValues: { kill_any: 0 }, claimed: {} };
-    window._goalClaimsInFlight = {};
-    window.HearthriseGoalClaim = { isSignedIn: () => true, claimGoal: (id) => { calls.push(id); return new Promise(() => {}); } };
-    await feed(rows);
-    await fn(calls, { open: async (r) => { if (r) await feed(r); window.openQuestsModal();
-      (document.querySelector('#quests-modal-overlay .qm-tab[data-tab="daily"]') || { click() {} }).click();
-      await new Promise((res) => setTimeout(res, 0));   // the modal's own sync repaint lands first
-      return document.querySelector('#quests-modal-overlay .qm-quest'); } });
+    window.notify = () => {};
+    const task = window.DAILY_TASK_POOL.map((f) => f()).find((t) => t.id === 'daily_kill');
+    window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: [Object.assign({}, task, { progress: task.goal })] };
+    window.HearthriseGoalClaim = {
+      isSignedIn: () => true,
+      claimDaily: (id) => { calls.push(id); return new Promise(() => {}); },
+      tallyState: () => Promise.resolve({ ok: false, error: 'test_stub' }),
+    };
+    feed(tally);
+    await fn(calls, { open: async (t) => {
+      if (t !== undefined) feed(t);
+      window.openQuestsModal();
+      await new Promise((res) => setTimeout(res, 0));
+      return document.querySelector('#quests-modal-overlay .qm-quest');
+    } });
   } finally {
-    window.closeQuestsModal(); if (unfeed) unfeed(); window.__hrSyncServerGoals.reset(); window.__hrGoalDisplay.reset();
-    window.clientMayWriteRecordField = may; window.HearthriseGoalClaim = GC; window.notify = note;
-    window._goalClaimsInFlight = {}; restoreG(snap);
+    window.closeQuestsModal(); TL.__feed(null);
+    window.HearthriseGoalClaim = GC; window.notify = note; restoreG(snap);
   }
 };
 /* The hr_bestiary_of mirror the settle writes, seeded directly: `ids` killed once. */
@@ -2308,146 +2310,40 @@ export default [
     }
   }),
 
-  () => tryRunAsync('GOAL-CLAIM-1 (b461): under arm a MODAL goal claim fires hr_claim_goal and surfaces every outcome — never a silent no-op', async () => {
-    // The beta-morning regression: the quest modal's daily/weekly pools are a
-    // THIRD goal system (≠ QUEST_DEFS, ≠ DAILY_TASK_POOL) and their
-    // claimQuestReward carried the b411 bare-return defer — every Claim button
-    // was a silent no-op under the arm (no RPC, no toast, no error). Found live
-    // by Tyler. The contract now: armed claims go through
-    // HearthriseGoalClaim.claimGoal, and ok / already_claimed / refusal /
-    // missing-transport ALL surface to the player.
-    const snap = snapshotG();
-    const origMay = window.clientMayWriteRecordField;
-    const origClaim = window.HearthriseGoalClaim;
-    const origNotify = window.notify;
-    const calls = []; const toasts = [];
-    const microtasks = () => new Promise((r) => setTimeout(r, 0));
-    try {
-      window.clientMayWriteRecordField = (f) => f !== 'gold';
-      window.notify = (m) => { toasts.push(String(m)); };
-      window.getGoalsForToday();
-      const dayKey = window.G.dailyGoals.dayKey;
-      window.G.stats.kills = 99;
-      window.G.dailyGoals = { dayKey, picks: ['kill_more'], startValues: { kill_more: 0 }, claimed: {} };
-      window.G._goalClaimsInFlight = null; window._goalClaimsInFlight = {};
-      await feedServerGoals([goalRow('kill_more', 30, 30)]);   // claimable = the SERVER says so
-
-      // 1 — ok:true → RPC fired with the id, claimed marked, toast shown, no local gold
-      window.HearthriseGoalClaim = { isSignedIn: () => true,
-        claimGoal: (id, weekly) => { calls.push([id, !!weekly]); return Promise.resolve({ ok: true, gold: 400 }); } };
-      const goldBefore = window.G.gold;
-      window.claimQuestReward('kill_more', false);
-      assert(calls.length === 1 && calls[0][0] === 'kill_more' && calls[0][1] === false,
-        'THE BUG: an armed modal claim must FIRE claimGoal (was a silent bare return)');
-      await microtasks();
-      assert(window.G.dailyGoals.claimed && window.G.dailyGoals.claimed.kill_more === true,
-        'an ok claim must mark the goal claimed');
-      assert(toasts.some((t) => /claimed/i.test(t)), 'an ok claim must toast the player');
-      assert(window.G.gold === goldBefore, 'armed claim must NOT credit gold locally (server credits it)');
-
-      // 2 — already_claimed → marked claimed + honest toast (reload forgot the flag; server remembered)
-      toasts.length = 0;
-      window.G.dailyGoals.claimed = {};
-      window.HearthriseGoalClaim = { isSignedIn: () => true,
-        claimGoal: () => Promise.resolve({ ok: false, error: 'already_claimed' }) };
-      window.claimQuestReward('kill_more', false);
-      await microtasks();
-      assert(window.G.dailyGoals.claimed.kill_more === true, 'already_claimed must mark the goal claimed');
-      assert(toasts.some((t) => /already claimed/i.test(t)), 'already_claimed must be surfaced');
-
-      // 3 — refusal (incomplete) → NOT claimed, honest toast
-      toasts.length = 0;
-      window.G.dailyGoals.claimed = {};
-      window.HearthriseGoalClaim = { isSignedIn: () => true,
-        claimGoal: () => Promise.resolve({ ok: false, error: 'incomplete' }) };
-      window.claimQuestReward('kill_more', false);
-      await microtasks();
-      assert(!window.G.dailyGoals.claimed.kill_more, 'a refused claim must stay claimable');
-      assert(toasts.length > 0, 'a refusal must be surfaced, never silent');
-
-      // 4 — no transport → honest toast, no crash (the refusal above dropped the stale state)
-      await feedServerGoals([goalRow('kill_more', 30, 30)]);
-      toasts.length = 0;
-      window.HearthriseGoalClaim = null;
-      window.claimQuestReward('kill_more', false);
-      assert(toasts.length > 0, 'a missing transport must be surfaced, never silent');
-
-      // 5 — GOAL-STATE + R1: the SERVER GATES the claim, but the DISPLAY is the
-      // player's own monotonic predicted progress (ruling R1 supersedes b461's
-      // "server is display truth"). Local stats say 99/30; the server confirms
-      // only 4/30 — so the row shows the player's progress held at the goal in a
-      // "Confirming…" state, offers NO Claim, and nothing reads as claimable.
-      // Then the server says claimed → the row reads claimed.
-      window.G.dailyGoals.claimed = {};
-      window.__hrGoalDisplay && window.__hrGoalDisplay.reset();
-      window.HearthriseGoalClaim = { isSignedIn: () => true,
-        claimGoal: () => Promise.resolve({ ok: false, error: 'incomplete' }),
-        goalState: () => Promise.resolve({ ok: true, day_key: 'x', week_key: 'y', goals: [
-          { goal_id: 'kill_more', weekly: false, target: 30, have: 4, complete: false, claimed: false },
-        ] }) };
-      await new Promise((r) => window.__hrSyncServerGoals((fresh) => r(fresh)));
-      let badge = window.questBadgeState();
-      assert(badge.claimable === 0, 'server says incomplete → nothing may read as claimable (local stats said 99/30)');
-      window.openQuestsModal();
-      (document.querySelector('#quests-modal-overlay .qm-tab[data-tab="daily"]') || {click(){}}).click();
-      await microtasks();
-      const prog = document.querySelector('#quests-modal-overlay .qm-q-progtext');
-      assert(prog && /Confirming/i.test(prog.textContent), 'R1: the row must read Confirming… while the server has not confirmed, got: ' + (prog && prog.textContent));
-      assert(!document.querySelector('#quests-modal-overlay .qm-q-claim'), 'no Claim button when the server says incomplete');
-      window.closeQuestsModal();
-      window.HearthriseGoalClaim.goalState = () => Promise.resolve({ ok: true, goals: [
-        { goal_id: 'kill_more', weekly: false, target: 30, have: 30, complete: true, claimed: true } ] });
-      await new Promise((r) => window.__hrSyncServerGoals((fresh) => r(fresh)));
-      window.openQuestsModal();
-      (document.querySelector('#quests-modal-overlay .qm-tab[data-tab="daily"]') || {click(){}}).click();
-      await microtasks();
-      assert(document.querySelector('#quests-modal-overlay .qm-q-claimed'),
-        'server says claimed → the row reads "Claimed" even with no local flag');
-      window.closeQuestsModal();
-    } finally {
-      // drop the stubbed server picture so later tests read local again
-      window.__hrSyncServerGoals.reset();
-      if (typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
-      window.clientMayWriteRecordField = origMay;
-      window.HearthriseGoalClaim = origClaim;
-      window.notify = origNotify;
-      window._goalClaimsInFlight = {};
-      window._goalRetry = {}; window._goalSyncNotice = {};
-      if (window.__hrGoalDisplay) window.__hrGoalDisplay.reset();
-      restoreG(snap);
-    }
-  }),
-
-  /* -- regression suite -- CLAIM-FROM-SERVER: A CLAIM IS OFFERED ONLY FROM THE SERVER'S GOAL STATE.
-     vitals 2026-09-28: hr_claim_* refused `incomplete` because the modal graded
-     local counters (G.stats.kills - startValues) when hr_goal_state had not
-     answered. THE QA SEAM for a claimable goal: stub HearthriseGoalClaim.goalState
-     and run window.__hrSyncServerGoals — local counters can no longer do it. */
-  () => tryRunAsync('CLAIM-FROM-SERVER-1: local 10/10 against server 7/10 offers no Claim and fires nothing; server 10/10 enables it', async () => {
-    await withGoalServer([goalRow('kill_any', 7, 10)], async (calls, rig) => {
+  /* -- regression suite -- CLAIM-FROM-SERVER: A CLAIM IS OFFERED ONLY FROM THE SERVER'S COUNT.
+     vitals 2026-09-28: hr_claim_* refused `incomplete` because a list graded
+     local counters. THE QA SEAM for a claimable daily quest is the tally cache
+     (HearthriseTally.__feed) — local counters can no longer do it. */
+  () => tryRunAsync('DAILY-LIST-1 (W0): the one daily list claims on the SERVER count — local 25/25 against server 7/25 offers nothing; server 25/25 enables Claim once; a server-paid quest reads Paid', async () => {
+    await withDailyList({ day: { 'ev:kill_any': 7 } }, async (calls, rig) => {
       let row = await rig.open();
-      assert(row && !row.classList.contains('claimable'), 'THE BUG: local 10/10 made the row claimable against server 7/10');
-      assert(!row.querySelector('.qm-q-claim:not([disabled])'), 'no enabled Claim on a server-incomplete goal');
-      assert(window.questBadgeState().claimable === 0, 'the badge counts server-claimable goals only');
-      window.claimQuestReward('kill_any', false);
-      assert(calls.length === 0, 'the claim handler must not call the transport (calls=' + calls.length + ')');
-      row = await rig.open([goalRow('kill_any', 10, 10)]);
-      const btn = row && row.querySelector('.qm-q-claim:not([disabled])');
-      assert(btn && row.classList.contains('claimable'), 'server 10/10 → the Claim control enables');
-      btn.click();
-      assert(calls.length === 1 && calls[0] === 'kill_any', 'Claim fires the transport exactly once (calls=' + calls.length + ')');
+      assert(row && !row.classList.contains('claimable'), 'THE BUG: the browser\'s 25/25 made the row claimable against server 7/25');
+      assert(!row.querySelector('.qm-q-claim'), 'no Claim on a server-incomplete quest');
+      assert(/7 \/ 25/.test(row.querySelector('.qm-q-progtext').textContent), 'the row reads the server 7 / 25, got ' + row.textContent);
+      assert(window.questBadgeState().claimable === 0 && window.questBadgeState().active === 1, 'the badge counts the server\'s picture');
+      window.HearthriseDailyQuests.claim('daily_kill');
+      assert(calls.length === 0, 'a claim on a server-incomplete quest must not reach the transport (calls=' + calls.length + ')');
+      row = await rig.open({ day: { 'ev:kill_any': 31 } });
+      const btn = row && row.querySelector('.qm-q-claim');
+      assert(btn && row.classList.contains('claimable') && /25 \/ 25/.test(row.textContent), 'server 31 (capped 25 / 25) → Claim enables');
+      btn.click(); btn.click();
+      assert(calls.length === 1 && calls[0] === 'daily_kill', 'Claim fires hr_claim_daily exactly once (calls=' + calls.length + ')');
+      row = await rig.open({ day: { 'ev:kill_any': 31 }, paid: ['daily_kill'] });
+      assert(row && /Paid/.test(row.textContent) && !row.querySelector('.qm-q-claim'), 'a quest the server paid reads Paid and offers nothing');
+      assert(window.questBadgeState().active === 0, 'a paid quest leaves the badge');
+      assert(!document.querySelector('#quests-modal-overlay .qm-tab[data-tab="weekly"]'), 'the weekly goals tab is gone with the board');
     });
   }),
 
-  () => tryRunAsync('CLAIM-FROM-SERVER-2: server goal state ABSENT → progress is the pending dash and Claim is disabled', async () => {
-    await withGoalServer(null, async (calls, rig) => {
+  () => tryRunAsync('DAILY-LIST-2 (W0): no server tally → the pending dash on the sheet and the strip, and nothing claims', async () => {
+    await withDailyList(null, async (calls, rig) => {
       const row = await rig.open();
       const prog = row && row.querySelector('.qm-q-progtext');
-      assert(prog && prog.textContent.trim().startsWith('—') && !/\b10 \/ 10\b/.test(prog.textContent), 'unknown state shows the dash, got: ' + (prog && prog.textContent));
-      assert(!row.querySelector('.qm-q-claim:not([disabled])') && !row.classList.contains('claimable'), 'unknown state: Claim disabled');
+      assert(prog && prog.textContent.trim().startsWith('—') && !/25 \/ 25/.test(prog.textContent), 'unknown state shows the dash, got: ' + (prog && prog.textContent));
+      assert(!row.querySelector('.qm-q-claim') && !row.classList.contains('claimable'), 'unknown state: no Claim');
       const chip = (window.renderQuestStrip(), document.querySelector('#global-quests-strip .gq-prog'));
       assert(!chip || chip.textContent.trim().startsWith('—'), 'the strip chip shows the dash too, got: ' + (chip && chip.textContent));
-      window.claimQuestReward('kill_any', false);
+      window.HearthriseDailyQuests.claim('daily_kill');
       assert(calls.length === 0 && window.questBadgeState().claimable === 0, 'nothing claims from unknown state');
     });
   }),
@@ -2470,166 +2366,6 @@ export default [
       assert(st.s.count === null && p && p.textContent.trim().startsWith('—') && !/^0\b/.test(p.textContent.trim()), 'unknown state shows the dash, got: ' + (p && p.textContent));
       assert(!q.done && calls() === 0 && st.s.state !== 'claimable' && !window.questClaimable(q), 'nothing claims from unknown state');
     });
-  }),
-
-  () => tryRunAsync('R1-MONO (ruling R1): the predicted display is MONOTONIC — a server reconcile DOWN never decrements the shown count', async () => {
-    // The counter under server-authority is server-truth fed by a ~90s span-sim
-    // that undercounts live actions. R1: shown = max(shownLastFrame, confirmed,
-    // min(predicted, goal)) — once on screen a number only ever climbs; a
-    // down-reconcile HOLDS at the high-water. Tested against the ONE published
-    // implementation the render layer reads, so the rule and the display cannot
-    // drift. RED before the fix: window.HearthriseGoals is undefined.
-    const GLS = window.HearthriseGoals && window.HearthriseGoals.goalDisplayState;
-    assert(typeof GLS === 'function', 'window.HearthriseGoals.goalDisplayState must be published for the render layer + tests');
-    // predicted 30/30 while the server confirms only 27 → shown reaches 30
-    let s = GLS({ goal: 30, confirmed: 27, predicted: 30, prevShown: 0 });
-    assert(s.shown === 30, 'predicted 30/30 must show 30 even while the server confirms 27, got ' + s.shown);
-    assert(s.phase === 'confirming' && s.canClaim === false, 'predicted-complete + server-incomplete is CONFIRMING, not claimable');
-    // a settle that keeps confirmed at 27 must HOLD the shown high-water at 30
-    s = GLS({ goal: 30, confirmed: 27, predicted: 30, prevShown: s.shown });
-    assert(s.shown === 30, 'a settle must never drop the shown count below its high-water (30), got ' + s.shown);
-    // even a hard down-reconcile (server 5) holds at the shown high-water
-    s = GLS({ goal: 30, confirmed: 5, predicted: 5, prevShown: 30 });
-    assert(s.shown === 30, 'even a hard down-reconcile holds at 30 (no decrement ever), got ' + s.shown);
-    // shown never over-fills the bar; a server that counted MORE (away night) is honoured
-    s = GLS({ goal: 30, confirmed: 40, predicted: 99, prevShown: 0 });
-    assert(s.shown === 30, 'shown clamps to the goal (never > 100%), got ' + s.shown);
-    assert(s.phase === 'complete' && s.canClaim === true, 'a server-confirmed >= goal is COMPLETE + claimable');
-    // a goal-less counter can never complete
-    s = GLS({ goal: 0, confirmed: 9, predicted: 9, prevShown: 0 });
-    assert(s.phase === 'progress' && s.canClaim === false, 'a 0-goal counter is never complete/claimable');
-  }),
-
-  () => tryRunAsync('R1-CONFIRM (ruling R1): predicted-complete but server-incomplete shows "Confirming…", NO Claim, NO completion toast', async () => {
-    const snap = snapshotG();
-    const origMay = window.clientMayWriteRecordField, origClaim = window.HearthriseGoalClaim, origNotify = window.notify;
-    const toasts = [];
-    const mt = () => new Promise((r) => setTimeout(r, 0));
-    try {
-      window.clientMayWriteRecordField = (f) => f !== 'gold';   // armed: server owns the counter
-      window.notify = (m) => toasts.push(String(m));
-      window.__hrGoalDisplay.reset(); window.__hrSyncServerGoals.reset();
-      window.getGoalsForToday();
-      const dayKey = window.G.dailyGoals.dayKey;
-      window.G.stats.kills = 999;   // local optimistic is well past the goal
-      window.G.dailyGoals = { dayKey, picks: ['kill_more'], startValues: { kill_more: 0 }, claimed: {} };
-      // The server has only counted 27 of the 30 — CONFIRMING, not complete.
-      window.HearthriseGoalClaim = { isSignedIn: () => true,
-        goalState: () => Promise.resolve({ ok: true, goals: [
-          { goal_id: 'kill_more', weekly: false, target: 30, have: 27, complete: false, claimed: false } ] }) };
-      await new Promise((r) => window.__hrSyncServerGoals((f) => r(f)));
-      window.openQuestsModal();
-      (document.querySelector('#quests-modal-overlay .qm-tab[data-tab="daily"]') || { click() {} }).click();
-      await mt();
-      const prog = document.querySelector('#quests-modal-overlay .qm-q-progtext');
-      assert(prog && /Confirming/i.test(prog.textContent), 'the row must read "Confirming…" when predicted hit the goal but the server has not, got: ' + (prog && prog.textContent));
-      assert(prog && /30\s*\/\s*30/.test(prog.textContent), 'the bar is FULL (30 / 30) during Confirming, got: ' + (prog && prog.textContent));
-      assert(!document.querySelector('#quests-modal-overlay .qm-q-claim'), 'NO Claim button while the server has not confirmed');
-      assert(document.querySelector('#quests-modal-overlay .qm-q-confirming'), 'a Confirming chip stands in for the Claim button');
-      assert(!toasts.some((t) => /Quest complete/i.test(t)), 'NO completion toast may fire while merely Confirming');
-    } finally {
-      if (typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
-      window.__hrSyncServerGoals.reset(); window.__hrGoalDisplay.reset();
-      window.clientMayWriteRecordField = origMay; window.HearthriseGoalClaim = origClaim; window.notify = origNotify;
-      restoreG(snap);
-    }
-  }),
-
-  () => tryRunAsync('R1-COMPLETE (ruling R1): when the SERVER confirms >= goal, EXACTLY ONE completion toast fires and Claim is enabled', async () => {
-    const snap = snapshotG();
-    const origMay = window.clientMayWriteRecordField, origClaim = window.HearthriseGoalClaim, origNotify = window.notify;
-    const toasts = [];
-    const mt = () => new Promise((r) => setTimeout(r, 0));
-    let have = 27, complete = false;
-    try {
-      window.clientMayWriteRecordField = (f) => f !== 'gold';
-      window.notify = (m) => toasts.push(String(m));
-      window.__hrGoalDisplay.reset(); window.__hrSyncServerGoals.reset();
-      window.getGoalsForToday();
-      const dayKey = window.G.dailyGoals.dayKey;
-      window.G.stats.kills = 999;
-      window.G.dailyGoals = { dayKey, picks: ['kill_more'], startValues: { kill_more: 0 }, claimed: {} };
-      window.HearthriseGoalClaim = { isSignedIn: () => true,
-        goalState: () => Promise.resolve({ ok: true, goals: [
-          { goal_id: 'kill_more', weekly: false, target: 30, have, complete, claimed: false } ] }) };
-      // Phase 1 — server incomplete: render must NOT celebrate.
-      await new Promise((r) => window.__hrSyncServerGoals((f) => r(f)));
-      window.openQuestsModal();
-      (document.querySelector('#quests-modal-overlay .qm-tab[data-tab="daily"]') || { click() {} }).click();
-      await mt();
-      assert(toasts.filter((t) => /Quest complete/i.test(t)).length === 0, 'no completion toast before the server confirms');
-      // Phase 2 — the server catches up.
-      have = 30; complete = true;
-      window.__hrSyncServerGoals.reset();
-      await new Promise((r) => window.__hrSyncServerGoals((f) => r(f)));
-      window.closeQuestsModal(); window.openQuestsModal();
-      (document.querySelector('#quests-modal-overlay .qm-tab[data-tab="daily"]') || { click() {} }).click();
-      await mt();
-      const completeToasts = toasts.filter((t) => /Quest complete/i.test(t));
-      assert(completeToasts.length === 1, 'exactly ONE completion toast on the server confirm, got ' + completeToasts.length);
-      assert(document.querySelector('#quests-modal-overlay .qm-q-claim'), 'Claim must be enabled once the server confirms');
-      assert(!document.querySelector('#quests-modal-overlay .qm-q-confirming'), 'the Confirming chip is gone once complete');
-    } finally {
-      if (typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
-      window.__hrSyncServerGoals.reset(); window.__hrGoalDisplay.reset();
-      window.clientMayWriteRecordField = origMay; window.HearthriseGoalClaim = origClaim; window.notify = origNotify;
-      restoreG(snap);
-    }
-  }),
-
-  () => tryRunAsync('R5-TWOPHASE (ruling R5): a server-DENIED claim never reads "failed"/"0 reward"/consumed — it holds Confirming and auto-retries to pay EXACTLY once', async () => {
-    const snap = snapshotG();
-    const origMay = window.clientMayWriteRecordField, origClaim = window.HearthriseGoalClaim, origNotify = window.notify;
-    const toasts = []; const okCalls = [];
-    const mt = () => new Promise((r) => setTimeout(r, 0));
-    let denyClaim = true;
-    try {
-      window.clientMayWriteRecordField = (f) => f !== 'gold';
-      window.notify = (m) => toasts.push(String(m));
-      window.__hrGoalDisplay.reset(); window.__hrSyncServerGoals.reset();
-      window._goalRetry = {}; window._goalSyncNotice = {}; window._goalClaimsInFlight = {};
-      window.getGoalsForToday();
-      const dayKey = window.G.dailyGoals.dayKey;
-      window.G.stats.kills = 999;
-      window.G.dailyGoals = { dayKey, picks: ['kill_more'], startValues: { kill_more: 0 }, claimed: {} };
-      // The server's projection SAYS complete (so Claim is offered), but the
-      // claim RPC's own counter lags and denies 'incomplete' — the exact race.
-      window.HearthriseGoalClaim = { isSignedIn: () => true,
-        goalState: () => Promise.resolve({ ok: true, goals: [
-          { goal_id: 'kill_more', weekly: false, target: 30, have: 30, complete: true, claimed: false } ] }),
-        claimGoal: (id, w) => {
-          if (denyClaim) return Promise.resolve({ ok: false, error: 'incomplete' });
-          okCalls.push([id, !!w]); return Promise.resolve({ ok: true, gold: 600 });
-        } };
-      await new Promise((r) => window.__hrSyncServerGoals((f) => r(f)));
-      const goldBefore = window.G.gold;
-      // Two RAPID claims — the in-flight latch must collapse them to one fire.
-      window.claimQuestReward('kill_more', false);
-      window.claimQuestReward('kill_more', false);
-      await mt(); await mt();
-      // Denial handled as two-phase, NOT failure.
-      assert(!(window.G.dailyGoals.claimed && window.G.dailyGoals.claimed.kill_more), 'a denied claim must NOT mark the goal claimed/consumed');
-      assert(window.G.gold === goldBefore, 'a denied claim must credit NO reward (never "0 reward" either)');
-      assert(!toasts.some((t) => /fail|failed|0 reward|error|couldn.t pay|didn.t go through/i.test(t)), 'a denied claim must NEVER read as failed / 0-reward, got: ' + JSON.stringify(toasts));
-      assert(toasts.some((t) => /syncing/i.test(t)), 'a denied claim shows the calm "still syncing…" notice');
-      assert(window._goalRetry && window._goalRetry['d:kill_more'], 'the denied claim parks an auto-retry');
-      // The server catches up; the auto-retry drives EXACTLY one payment.
-      denyClaim = false;
-      window.__hrDriveGoalRetries();
-      await mt(); await mt(); await mt(); await mt();
-      assert(okCalls.length === 1, 'the auto-retry must pay EXACTLY once, fired ' + okCalls.length);
-      assert(window.G.dailyGoals.claimed && window.G.dailyGoals.claimed.kill_more === true, 'after the server confirms, the goal is claimed');
-      // A second drive must not double-pay (the once-guard + cleared retry).
-      window.__hrDriveGoalRetries();
-      await mt(); await mt();
-      assert(okCalls.length === 1, 'a second drive must not re-pay, fired ' + okCalls.length);
-    } finally {
-      if (typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
-      window.__hrSyncServerGoals.reset(); window.__hrGoalDisplay.reset();
-      window._goalRetry = {}; window._goalSyncNotice = {}; window._goalClaimsInFlight = {};
-      window.clientMayWriteRecordField = origMay; window.HearthriseGoalClaim = origClaim; window.notify = origNotify;
-      restoreG(snap);
-    }
   }),
 
   () => tryRun('b227: the save migration clamps room levels to the live ladder', () => {

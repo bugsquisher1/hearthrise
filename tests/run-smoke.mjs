@@ -101,10 +101,9 @@ import { clanDepositOwnershipGuard } from './clan-deposit-ownership.mjs';
 import { clanEconomySinksGuard } from './clan-economy-sinks.mjs';
 import { feastCatalogueDriftGuard } from './clan-feast-catalogue-drift.mjs';
 import { rpcGateBucketGuard } from './rpc-gate-bucket-guard.mjs';
-/* b461 — the quest MODAL's server credit path, and the catalogue-refill
-   ownership interlock that stops a regen wiping another migration's offers.
-   Both replay the real migration chain into PGlite and drive real RPCs. */
-import { modalGoalClaimGuard } from './modal-goal-claim.mjs';
+/* The catalogue-refill ownership interlock that stops a regen wiping another
+   migration's offers. Replays the real migration chain into PGlite and drives
+   real RPCs. */
 import { traitBuyGuard } from './trait-buy.mjs';
 /* The HERO-SLOT purchase — the same shape as trait-buy and for the same reason:
    a premium-currency spend whose only working path is a server verb, plus the
@@ -3386,28 +3385,6 @@ const run = async () => {
       console.log(`\nCron-health guard — ${e.harness ? 'HARNESS FAULT (nothing graded)' : 'FAILED'}:\n`
         + String(e.message || e));
       exitCode = e.harness ? 2 : 1;
-    }
-
-    /* ── The quest-MODAL claim guard (b461) ──────────────────────────────
-       Hearthrise has THREE goal systems; b414 gave two of them a server credit
-       path and the modal's Daily/Weekly tabs never got one, so under the live
-       gold arm every Claim button in it was silently dead. The guard drives a
-       real player through the real rate-gated hr_claim_goal on a fully replayed
-       PGlite chain — complete/incomplete, replay, idempotency key, weekly summed
-       over the ISO week, another week's counter kept out, an empty reward
-       refused before the consume — and BINDS legacy.js's authored pools to the
-       server catalogue and to the counters the accrual engine stamps, so a goal
-       nothing grades (or a counter nothing reads) fails the build by name.
-       `--selftest` plants seven real defects; every one must read RED. */
-    const modalGoalProblems = await modalGoalClaimGuard();
-    if (modalGoalProblems.length) {
-      console.log('\nQuest-modal goal claim — FAILED:');
-      for (const p of modalGoalProblems) console.log(`  ✗ ${p}`);
-      exitCode = 1;
-    } else {
-      console.log('\nQuest-modal goal claim guard — completion read from the server\'s own counters, '
-        + 'credited once, idempotent on replay, weekly derived from the ISO week, whole reward '
-        + '(gold + gems + XP + items) server-applied.');
     }
 
     /* ── The b497 goal-gold retune guard ─────────────────────────────────

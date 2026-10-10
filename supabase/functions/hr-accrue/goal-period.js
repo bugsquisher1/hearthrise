@@ -49,10 +49,9 @@
 //
 // ── THE VOCABULARY IS CLOSED ────────────────────────────────────────────
 // An unknown counter name is DROPPED with a receipt, never minted into a key.
-// The catalogue that reads these rows (public.hr_goal_rewards) is asserted
-// against this list by tests/modal-goal-claim.mjs, in both directions: a key
-// here with no goal reading it, or a goal naming a key nothing writes, fails
-// the build BY NAME rather than becoming a counter that ticks into the void.
+// The goals board that first read these rows is retired
+// (2026-10-16-goal-board-retire.sql); hr_tally_state now reads them for Home's
+// Your week card, whose guard requires a card row for every counter here.
 //
 // PURE ESM. No DOM, no window, no timers, no Math.random, no I/O. Runs in Node
 // and in Deno. Relative imports carry NO `?v=` (b332).
@@ -79,15 +78,15 @@ import { utcDayKey, MAX_GOAL_ADD, GOAL_KEY_PREFIX } from '../../../src/core/goal
      kind='daily' period_key='<day>' — and the `ev:` prefix marks them as GOAL
      counters either way. */
 export const MODAL_GOAL_COUNTERS = Object.freeze([
-  'chopped',     // stats.chopped   → daily gather_logs (25) · weekly wk_logs (250)
-  'fished',      // stats.fished    → daily fish (15)
-  'levelups',    // stats.levelups  → daily level_up (1)     · weekly wk_levels (5)
-  'mined',       // stats.mined     → daily mine_ore (25)    · weekly wk_gather (250)
-  'rare_drops',  // stats.rareDrops → weekly wk_rare (5)
+  'chopped',     // Your week: Logs cut
+  'fished',      // Your week: Fish caught
+  'levelups',    // Your week: Levels gained
+  'mined',       // Your week: Ore mined
+  'rare_drops',  // Your week: Rare drops
 ]);
-/* NOTE `planted` (daily plant, 5) follows the same rule but is stamped in SQL,
-   by hr_farm_plant — planting is settled entirely by the farm RPC and never
-   passes through this engine. See 2026-08-23-modal-goal-claims.sql §5. */
+/* NOTE `planted` follows the same rule but is stamped in SQL, by hr_farm_plant —
+   planting is settled entirely by the farm RPC and never passes through this
+   engine. See 2026-08-23-modal-goal-claims.sql §5. */
 
 /** The player_progress key for a modal-goal counter. One expression, one reader. */
 export function modalGoalKey(counter) { return GOAL_KEY_PREFIX + counter; }

@@ -2,8 +2,9 @@
 // src/features/this-week.js — Home's "Your week" card and the hearth band's
 // realm cells (Kills today, Gold earned).
 //
-// Every figure is the server's: window.HearthriseGoalState.peek() is the one
-// goal-state cache legacy.js fills (deep-frozen, null once it is 120 s old).
+// Every figure is the server's: window.HearthriseTally.peek() is the one tally
+// cache src/features/daily-quests.js fills from hr_tally_state (deep-frozen,
+// null once it is 120 s old).
 // This module never fetches, never reads the player record, and a count it
 // does not have renders the pending dash, never 0 (CLAUDE.md §6).
 // ════════════════════════════════════════════════════════════════════════
@@ -24,13 +25,22 @@ function count(n) {
   return (n != null && isFinite(n)) ? esc(Math.max(0, Math.floor(n)).toLocaleString()) : '<span class="bal-pending">—</span>';
 }
 
-function haveOf(map, key) {
-  var e = map && map[key];
-  return (e && typeof e.have === 'number' && isFinite(e.have)) ? e : null;
+/* A counter's value in a KNOWN tally: an absent ev: key is the server saying
+   none; a gold figure it did not state is unknown (null, the pending dash). */
+function haveOf(map, counter, weekly) {
+  if (!map) return null;
+  if (counter === 'gold') {
+    var g = Number(weekly ? map.goldWeek : map.goldDay);
+    return isFinite(g) ? Math.max(0, g) : null;
+  }
+  var bag = weekly ? map.week : map.day;
+  if (!bag || typeof bag !== 'object') return null;
+  var n = Number(bag[counter]);
+  return isFinite(n) && n > 0 ? n : 0;
 }
 
 function live() {
-  var S = window.HearthriseGoalState;
+  var S = window.HearthriseTally;
   try { return (S && typeof S.peek === 'function') ? S.peek() : null; } catch (e) { return null; }
 }
 
@@ -38,8 +48,8 @@ function view(map) {
   if (!map) return { known: false };
   var rows = [];
   THIS_WEEK.forEach(function (r, i) {
-    var e = haveOf(map, 'w:' + r.goal);
-    if (e && e.have > 0 && e.target > 0) rows.push({ goal: r.goal, label: r.label, lead: r.lead, have: e.have, ratio: e.have / e.target, i: i });
+    var have = haveOf(map, r.counter, true);
+    if (have > 0 && r.par > 0) rows.push({ counter: r.counter, label: r.label, lead: r.lead, have: have, ratio: have / r.par, i: i });
   });
   rows.sort(function (a, b) { return (b.ratio - a.ratio) || (a.i - b.i); });
   rows = rows.slice(0, MAX_ROWS);
@@ -68,8 +78,7 @@ function card() {
 
 function todayCells(map) {
   return THIS_WEEK_TODAY.map(function (r) {
-    var e = haveOf(map, 'd:' + r.goal);
-    return { label: r.label, title: r.title, html: count(e ? e.have : null) };
+    return { label: r.label, title: r.title, html: count(haveOf(map, r.counter, false)) };
   });
 }
 

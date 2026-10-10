@@ -204,7 +204,12 @@ async function boot(name, gateBlind) {
      chain end (QUEST_MIG, after MIG) — never past it (replayScopeError). Not
      LAST_PATCHED: the negative control patches only the older CREATE and needs
      MIG's ADD path and the quest body to run. */
-  const { db } = await bootReplay(map.size ? { patches: map, upTo: QUEST_MIG } : undefined);
+  /* The plain run stops there too: the goals board this guard grades
+     (hr_goal_rewards, hr_goal_state, hr_claim_goal) is RETIRED at the chain end
+     by 2026-10-16-goal-board-retire.sql, which removes the catalogue the
+     backfill could have become payable through. QUEST_MIG is still the chain-end
+     body of hr_claim_quest__ungated, so the quest half is graded as it ships. */
+  const { db } = await bootReplay({ ...(map.size ? { patches: map } : {}), upTo: QUEST_MIG });
   return db;
 }
 

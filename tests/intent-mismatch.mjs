@@ -31,7 +31,8 @@
 // into PGlite (real PostgreSQL, in process), then a real player through the REAL
 // rate-gated RPCs as `authenticated` with a JWT subject set.
 //
-// ⚠ IT REPLAYS THE **WHOLE** CHAIN — no `upTo` — ON PURPOSE. The migration is a
+// ⚠ P6 REPLAYS THE **WHOLE** CHAIN — no `upTo` — ON PURPOSE (the probes stop at
+//   PRE_RETIRE, where hr_claim_goal still exists; see below). The migration is a
 //   PATCHER: it rewrites twelve bodies it does not own. A later migration that
 //   restates any of them from a template silently deletes the hardening, and
 //   that is not a hypothetical (it is the b484–b487 wave). CHAIN-END is the only
@@ -57,6 +58,15 @@ const REPLAY_UPTO = '2026-10-04-bounty-abandon-server-fee.sql';
 
 const MIG = '2026-09-03-intent-mismatch-class.sql';
 
+/* THE GOALS BOARD IS RETIRED (2026-10-16-goal-board-retire.sql), and with it
+   hr_claim_goal — the verb this file's finding was named for. The behavioural
+   probes (P1-P5) still drive that verb, on a replay that stops just BEFORE the
+   retirement; P6's sweep runs at the TRUE chain end over the guarded bodies
+   that still exist there, and asserts the board's body is GONE rather than
+   left unguarded. */
+const PRE_RETIRE = '2026-10-16-login-reward.sql';
+const GOAL_BODY = 'public.hr_claim_goal__ungated(text,boolean,int,uuid)';
+
 /* THE TWELVE — now THIRTEEN. Named here as well as in the migration on purpose:
    this list is what a chain-end sweep checks, so a body quietly dropped from the
    migration's own values list still fails here.
@@ -75,7 +85,6 @@ export const GUARDED = [
   'public.hr_bank_move(int,text,bigint,text,uuid)',
   'public.hr_bounty_spend__ungated(int,text,text,uuid)',     // 4-arg since 2026-10-04-bounty-abandon-server-fee.sql (guard carried from birth)
   'public.hr_buy_hero_slot__ungated(int,int,uuid)',
-  'public.hr_claim_goal__ungated(text,boolean,int,uuid)',
   'public.hr_farm_harvest(int,int,uuid)',
   'public.hr_farm_plant(int,int,text,uuid)',
   /* (int,uuid,int) since 2026-10-04-expected-level-idempotency.sql, which RESTATES
@@ -291,8 +300,9 @@ async function run(mutate) {
   const patches = mutate
     ? new Map([[mutationFile(mutate), mutationPairs(mutate)]])
     : undefined;
-  /* NO `upTo` — see the header. The property must hold at the END of the chain. */
-  const { db } = await bootReplay(patches ? { patches, upTo: REPLAY_UPTO } : {});
+  /* The probes stop before the board's retirement (see PRE_RETIRE); P6 below
+     replays to the END of the chain on the plain run — see the header. */
+  const { db } = await bootReplay(patches ? { patches, upTo: REPLAY_UPTO } : { upTo: PRE_RETIRE });
 
   const q = async (sql, p) => (await db.query(sql, p)).rows;
   /* SESSION-SCOPED (`is_local = false`): PGlite runs each query in its own
@@ -436,10 +446,14 @@ async function run(mutate) {
   // ── P6. CHAIN-END: EVERY GUARDED BODY IS STILL GUARDED, AND THE GUARD
   //        STILL DESCRIBES WHAT THAT BODY WRITES ────────────────────────────
   obs.p6 = [];
-  for (const sig of GUARDED) {
+  const chainEnd = patches ? null : (await bootReplay({})).db;
+  const p6q = chainEnd ? async (sql, p) => (await chainEnd.query(sql, p)).rows : q;
+  obs.p6_goal_gone = chainEnd
+    ? (await p6q('select to_regprocedure($1) is null as gone', [GOAL_BODY]))[0].gone : true;
+  for (const sig of (chainEnd ? GUARDED : [...GUARDED, GOAL_BODY])) {
     let row = null;
     try {
-      row = (await q(
+      row = (await p6q(
         `select (length(src) - length(replace(src,'hr_intent_replay(','')))
                   / length('hr_intent_replay(')          as guards,
                 position('from public.player_intents' in src) as raw,
@@ -529,6 +543,9 @@ function grade(o) {
     + 'it is an intent-cache read oracle for anyone who ever gets a grant on it.');
 
   // ── P6 ────────────────────────────────────────────────────────────────
+  ok(o.p6_goal_gone === true,
+    'P6 CHAIN-END: hr_claim_goal__ungated still exists after 2026-10-16-goal-board-retire.sql — the '
+    + 'goals board must be retired, not left in place outside this sweep');
   for (const r of o.p6) {
     ok(Number(r.guards) === 1,
       `P6 CHAIN-END: ${r.sig} carries ${r.guards} hr_intent_replay call(s), expected exactly 1`

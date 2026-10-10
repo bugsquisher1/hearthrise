@@ -37,7 +37,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 export const GATED = [
-  'hr_claim_quest', 'hr_claim_goal', 'hr_claim_daily', 'hr_claim_milestone', 'hr_claim_rank',
+  'hr_claim_quest', 'hr_claim_daily', 'hr_claim_milestone', 'hr_claim_rank',
   'hr_credit_kills', 'hr_trait_buy', 'raid_claim', 'world_event_claim',
   'hr_set_auto_eat', 'hr_bank_move', 'hr_farm_harvest',
 ];
@@ -46,7 +46,7 @@ export const GATED = [
 const count = (code, s) => code.split(s).length - 1;
 export const SENDERS = {
   'src/net/goal-claim.js': {
-    literals: { hr_claim_daily: 1, hr_claim_quest: 1, hr_claim_goal: 1, hr_claim_milestone: 1,
+    literals: { hr_claim_daily: 1, hr_claim_quest: 1, hr_claim_milestone: 1,
       hr_claim_rank: 1, hr_credit_kills: 1, hr_set_auto_eat: 1 },
     wire: [
       ['call() routes gated verbs through the handler',
@@ -54,7 +54,7 @@ export const SENDERS = {
       ['callOnce is reached only from call()', (c) => count(c, 'callOnce(') === 3],
       ['every gated verb is in SETTLE_GATED', (c) => {
         const m = c.match(/var SETTLE_GATED = \{([^}]*)\}/);
-        return !!m && ['hr_claim_daily', 'hr_claim_quest', 'hr_claim_goal', 'hr_claim_milestone',
+        return !!m && ['hr_claim_daily', 'hr_claim_quest', 'hr_claim_milestone',
           'hr_claim_rank', 'hr_credit_kills', 'hr_set_auto_eat'].every((n) => new RegExp('\\b' + n + ':').test(m[1]));
       }],
       ['no gated verb is sent through callOnce directly', (c) => !/callOnce\('/.test(c)],

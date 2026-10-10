@@ -240,22 +240,6 @@ export const CLAIMABLES = Object.freeze({
      is stated, and the verb answers `reward_unavailable` with it attached — so
      the client can render "not yet" and a reader can tell what would unblock
      it. */
-  'daily:goal': Object.freeze({
-    status: 'blocked',
-    periodic: true,
-    site: 'src/legacy.js:16101 claimQuestReward()',
-    ledgerKind: 'quest',
-    needs: 'server-side daily-goal counters. The goals read stats.* out of the '
-         + 'client save (kills, smithed, cropsHarvested…); nothing writes a '
-         + 'player_progress row for any of them. Lands with live-action intents.',
-  }),
-  'quest:weekly': Object.freeze({
-    status: 'blocked',
-    periodic: true,
-    site: 'src/legacy.js:16101 claimQuestReward(isWeekly)',
-    ledgerKind: 'quest',
-    needs: 'the same stats.* counters as daily:goal, over a 7-day period key.',
-  }),
   'collection:milestone': Object.freeze({
     status: 'blocked',
     periodic: false,

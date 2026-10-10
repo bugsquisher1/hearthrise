@@ -152,7 +152,7 @@ export const RESIDUE_FIELDS = Object.freeze([
   'plotBuildings',  // client-only display state: which building art sits on which yard tile
   'daily',          // client-only marker: the day's shown task sheet; the PAY is server once-guarded
   'collection',     // client-only progress: {itemId:count}, "have I ever held this". No projection
-  'quests',         // client-only display state: the quest sheet's local picks (hr_goal_state pays)
+  'quests',         // client-only display state: the quest chain's local marks (hr_claim_quest pays)
   'entitlements',   // {hearthHall:true,…} convenience flags with no projection yet (hr_unlocks has an
                     // `entitlement` namespace; when hr_state_of projects it, this goes too)
   'playerName',     // the player's OWN copy; cross-player name is server-derived
@@ -183,8 +183,8 @@ export const RESIDUE_FIELDS = Object.freeze([
      (claim_reward refuses the second claim — those were the not_claimable
      blips) so no gold moved twice, but the player was shown a reward that did
      not land, every time. None of these is an authority field: the server
-     derives the real streak from its own claim rows and the quest modal reads
-     hr_goal_state under arm; these are "what have I already been shown". */
+     derives the real streak from its own claim rows; these are "what have I
+     already been shown". */
   'dailyReward',    // client-only marker: { lastClaimDay } — "has today's sheet been SHOWN".
                     // The PAY is server-once-guarded (hr_claim_reward refuses the second claim),
                     // so a forged or lost marker moves no gold; it only re-opens a sheet.
@@ -199,9 +199,6 @@ export const RESIDUE_FIELDS = Object.freeze([
      goes through; src/render/streak-chip.js no longer counts anything. Fails closed
      to 0 before the first envelope — an honest "not counted yet", never a local 1
      painted over a server 3. */
-  'dailyGoals',     // client-only display state: which goals the quest modal picked for the day and
-                    // what it has already shown as claimed (hr_goal_state is the truth for the pay)
-  'weeklyGoals',    // same, weekly
   /* b462 — THE SWEEP (CLAUDE.md session criterion 3: kill the class). Every
      `G.<field>` the game writes, minus record ∪ residue ∪ NO_SYNC, classified.
      These twelve are self-only prefs/markers the blob used to carry and nothing
@@ -399,8 +396,6 @@ export const RESIDUE_FIELDS = Object.freeze([
   'ammoCarry',
   'buyback',        // client-only display state: the 15-entry recently-sold list. The BUY-BACK itself is a
                     // normal server purchase; losing the list only costs a misclick its undo
-  'dailyGoldStart', // {day,gold,earned} — the day's gold baseline the daily goals measure against;
-                    // reset on reload = the gold-earned goal restarts from the current balance
   'raids',          // client-held markers for a surface with no projection yet: {lastStrikeDay, solo:{week,…},
                     // claimed:{}}. The PAY is server once-guarded; the cooldown is the part with no server
                     // clock behind it, so this stays until one exists (b288: a forgotten cooldown is a faucet)

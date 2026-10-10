@@ -296,16 +296,6 @@ export const GEM_SITE_LEDGER = Object.freeze([
       + 'the raid_claims once-guard — again the twin of the gold row already in gold-sites.js.',
     why: 'Weekly raid / clan-hunt chest.',
   },
-  {
-    id: 'src/legacy.js#claimQuestReward',
-    kind: 'grant', status: 'deferred',
-    armGuard: { gated: 'clientMayWriteRecordField' },
-    blockedBy: 'nothing — hr_claim_goal already pays this server-side. The local branch is the '
-      + 'switch-OFF fallback and is unreachable while any reward field is armed (the guard above it '
-      + 'routes the WHOLE claim to the server if gold, gems, xp OR items are record-owned).',
-    why: 'Daily/weekly quest reward. The strongest gate in this file: it does not gate the gem '
-      + 'write, it gates the entire claim path.',
-  },
 
   /* ── NOT MOVEMENTS ─────────────────────────────────────────────────────── */
   {

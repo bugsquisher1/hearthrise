@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 67 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, xpOf, predZero, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, zeroRenownTerms, restoreRenownTerms, on, snapshot, closeOverlays, hrCharmDriver, phoneFrame, feedServerGoals, goalRow, serverBagFixture, armActivityTransport, drain, restoreAccrualSwitch } from './_harness.js?v=564';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, xpOf, predZero, goldOf, snapshotG, seedPlayStreak, restoreG, restoreGAndRecord, zeroRenownTerms, restoreRenownTerms, on, snapshot, closeOverlays, hrCharmDriver, phoneFrame, serverBagFixture, armActivityTransport, drain, restoreAccrualSwitch } from './_harness.js?v=564';
 import { THIS_WEEK, THIS_WEEK_QUIET } from '../../data/this-week.js?v=564';
 
 export default [
@@ -23,8 +23,8 @@ export default [
     const QN = window.HearthriseQuestNav;
     assert(QN && typeof QN.destination === 'function', 'HearthriseQuestNav missing — quest rows cannot route');
     const live = QN.livePools();
-    assert(live.length >= 20,
-      'expected the daily + weekly + task pools + starter quests, got ' + live.length);
+    assert(live.length >= 8,
+      'expected the daily-task pool + the quest chain, got ' + live.length);
     // The fallback exists so a click is never dead. It must never be the
     // answer for shipped content — that is how "every card is a door" rots
     // into "every card is the skills grid".
@@ -41,24 +41,16 @@ export default [
   () => tryRun('b227: the type -> destination table, as shipped', () => {
     const QN = window.HearthriseQuestNav;
     const at = (goal) => { const d = QN.destination(goal); return d.tab + (d.skillId ? '/' + d.skillId : ''); };
-    const byId = (pool, id) => (window[pool] || []).find((g) => g.id === id);
-
-    // Daily goals route on what they MEASURE (`source`).
-    assert(at(byId('DAILY_GOAL_POOL', 'fish')) === 'skills/fishing', 'Catch 50 fish -> fishing');
-    assert(at(byId('DAILY_GOAL_POOL', 'gather_logs')) === 'skills/woodcutting', 'Gather 60 logs -> woodcutting');
-    assert(at(byId('DAILY_GOAL_POOL', 'mine_ore')) === 'skills/mining', 'Mine 60 ores -> mining');
-    assert(at(byId('DAILY_GOAL_POOL', 'cook')) === 'skills/cooking', 'Cook 25 dishes -> cooking');
-    assert(at(byId('DAILY_GOAL_POOL', 'kill_any')) === 'combat', 'Slay 10 monsters -> combat');
-    assert(at(byId('DAILY_GOAL_POOL', 'plant')) === 'farming', 'Plant 3 crops -> the farm');
-    /* b465: `gold_500` is WITHDRAWN from DAILY_GOAL_POOL (unpayable reward — see
-       the ruling at the pool row). Its ROUTING is still asserted, off a literal,
-       so the market arm of the table stays covered and the row can be restored
-       without re-deriving it. */
-    assert(at({ id: 'gold_500', name: 'Earn 500 gold', source: '_dailyGoldDelta' }) === 'market',
-      'Earn 500 gold -> the market');
-    assert(at(byId('DAILY_GOAL_POOL', 'level_up')) === 'skills', 'Gain a level -> the skills grid (any skill will do)');
-    assert(at(byId('WEEKLY_GOAL_POOL', 'wk_logs')) === 'skills/woodcutting', 'Cut 250 logs -> woodcutting');
-    assert(at(byId('WEEKLY_GOAL_POOL', 'wk_gather')) === 'skills/mining', 'Gather 250 ores -> mining (it reads stats.mined)');
+    /* A goal that names its counter routes on what it MEASURES (`source`). The
+       goals board that authored most of these is retired (W0); the table is the
+       resolver's, so it is held on literal goals. */
+    const FISH = { name: 'Catch 50 fish', source: 'stats.fished' };
+    assert(at(FISH) === 'skills/fishing', 'a fishing counter -> fishing');
+    assert(at({ name: 'Cut 60 logs', source: 'stats.chopped' }) === 'skills/woodcutting', 'a log counter -> woodcutting');
+    assert(at({ name: 'Mine 60 ores', source: 'stats.mined' }) === 'skills/mining', 'an ore counter -> mining');
+    assert(at({ name: 'Plant 3 crops', source: 'stats.planted' }) === 'farming', 'a planting counter -> the farm');
+    assert(at({ name: 'Earn gold', source: 'stats.totalGoldEarned' }) === 'market', 'a gold counter -> the market');
+    assert(at({ name: 'Gain a skill level', source: 'stats.levelups' }) === 'skills', 'a level counter -> the skills grid (any skill will do)');
 
     // Daily TASKS route on `type` — updateDaily()'s own action vocabulary.
     assert(at({ type: 'smithed', label: 'Smith 40 items' }) === 'skills/smithing', 'smithed -> smithing');
@@ -76,7 +68,7 @@ export default [
       'a bounty contract -> the bounty board');
 
     // Copy honesty: a goal that names a thing gets a button that names it.
-    assert(QN.destination(byId('DAILY_GOAL_POOL', 'fish')).verb === 'Go fish', 'the fish daily should say Go fish');
+    assert(QN.destination(FISH).verb === 'Go fish', 'a fishing goal should say Go fish');
     const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u;
     QN.livePools().forEach((g) => {
       const d = QN.destination(g);
@@ -110,7 +102,7 @@ export default [
       });
       // The daily "Gather N resources" tasks share the door and the word.
       assert(QN.destination({ type: 'gather', label: 'Gather 120 resources' }).verb === 'Go gather', 'the gather daily task still says Go train');
-      const lvl = (window.DAILY_GOAL_POOL || []).find((g) => g.id === 'level_up');
+      const lvl = { id: 'level_up', name: 'Gain a skill level', source: 'stats.levelups' };
       assert(lvl && QN.destination(lvl).verb === 'Go train', '"Gain a level" is a TRAIN goal and must keep its verb: ' + (lvl && QN.destination(lvl).verb));
       // Press it: the door is still the skills grid (any gathering skill counts).
       const d = QN.go(m.steps[i].goalRow);
@@ -124,121 +116,14 @@ export default [
 
   /* ══════════════════════════════════════════════════════════════════════════
      VOICE — b465. THE COPY PASS, AS A GATE.
-     Three defects, each of which shipped and each of which is invisible to
-     every other guard in this suite, because the suite reads state and this
-     class of bug is entirely in the WORDS:
-       VOICE-1  the quests modal printed one filler sentence on every row
+     Defects that shipped and are invisible to every other guard in this
+     suite, because the suite reads state and this class of bug is entirely in
+     the WORDS (VOICE-1, the goals board's filler line, left with the board):
        VOICE-2  the topbar counted down to a feature the player cannot open
        VOICE-3  a price was allowed to be a literal instead of derived
      Each test names the exact defect it re-plants, so a future edit that
      reintroduces it fails here rather than in a store screenshot.
      ══════════════════════════════════════════════════════════════════════ */
-
-  /* The modal's Daily/Weekly tab is MODULE state that outlives the overlay:
-     clicking Weekly here and walking away left the next test (b227's Go-button
-     guard) reading a weekly row out of the daily pool. Any test that switches
-     tabs puts it back. */
-  () => tryRun('VOICE-1 (b465): no quest row prints the generic filler line', () => {
-    /* THE DEFECT: `g.desc || 'Complete this objective to claim your reward.'`
-       with not one pool row carrying a `desc`, so all three rows of a 3-row
-       modal printed the same content-free sentence. It is in our own store
-       screenshots. */
-    const FILLER = 'Complete this objective to claim your reward';
-
-    // (a) EVERY authored row carries its own description. This is the fix; the
-    //     fallback below is only the floor.
-    const pools = [['DAILY_GOAL_POOL', window.DAILY_GOAL_POOL], ['WEEKLY_GOAL_POOL', window.WEEKLY_GOAL_POOL]];
-    pools.forEach(([name, pool]) => {
-      assert(Array.isArray(pool) && pool.length, name + ' must exist');
-      pool.forEach((g) => {
-        assert(typeof g.desc === 'string' && g.desc.trim().length >= 20,
-          name + '/' + g.id + ' needs a real one-line description (got ' + JSON.stringify(g.desc) + ')');
-        assert(g.desc.indexOf(FILLER) < 0, name + '/' + g.id + ' is printing the filler line');
-        // A description earns its space by saying something the NAME does not.
-        assert(g.desc.trim().toLowerCase() !== String(g.name || '').trim().toLowerCase(),
-          name + '/' + g.id + ' description just repeats the name');
-      });
-    });
-
-    // (b) THE RENDERED MODAL — what the player actually reads. Zero instances,
-    //     on both tabs, not "the pool looks fine".
-    const wasOpen = !!document.getElementById('quests-modal-overlay');
-    try {
-      window.openQuestsModal();
-      const ov = document.getElementById('quests-modal-overlay');
-      assert(ov, 'the quests modal must open');
-      const readAll = () => (ov.innerText || ov.textContent || '');
-      assert(readAll().indexOf(FILLER) < 0, 'the DAILY tab still renders the filler line');
-      const wk = ov.querySelector('.qm-tab[data-tab="weekly"]');
-      if (wk) { wk.click(); assert(readAll().indexOf(FILLER) < 0, 'the WEEKLY tab still renders the filler line'); }
-      // And the rows really did render a description each (not an empty div).
-      const descs = [...ov.querySelectorAll('.qm-q-desc')];
-      assert(descs.length > 0, 'no quest rows rendered — the test proved nothing');
-      descs.forEach((d) => assert((d.textContent || '').trim().length >= 20,
-        'a quest row rendered an empty/stub description'));
-    } finally {
-      try { const d = document.querySelector('#quests-modal-overlay .qm-tab[data-tab="daily"]'); if (d) d.click(); } catch (e) {}
-      if (!wasOpen && typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
-    }
-  }),
-
-  () => tryRun('VOICE-1b (b465): the reward summary speaks names, never item ids', () => {
-    /* THE DEFECT: rewardSummary pushed `qty + 'x ' + itemId`, so the "Earn 500
-       gold" daily advertised "5x small_bones". The renderer is block-scoped, so
-       this reads what it PRODUCES, through the modal. */
-    const wasOpen = !!document.getElementById('quests-modal-overlay');
-    try {
-      window.openQuestsModal();
-      const ov = document.getElementById('quests-modal-overlay');
-      assert(ov, 'the quests modal must open');
-      const scan = () => [...ov.querySelectorAll('.qm-r-val')].map((e) => (e.textContent || '').trim());
-      const ID_SHAPED = /\b[a-z][a-z0-9]*_[a-z0-9_]+\b/;
-      const bad = [];
-      const sweep = () => scan().forEach((t) => { if (ID_SHAPED.test(t)) bad.push(t); });
-      sweep();
-      const wk = ov.querySelector('.qm-tab[data-tab="weekly"]');
-      if (wk) { wk.click(); sweep(); }
-      assert(!bad.length, 'a reward summary printed a raw id: ' + JSON.stringify(bad.slice(0, 3)));
-      // The gem glyph was a pictogram standing in for a noun ("1💎").
-      const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/u;
-      scan().forEach((t) => assert(!EMOJI.test(t), 'a reward summary is using an emoji as a word: ' + t));
-    } finally {
-      try { const d = document.querySelector('#quests-modal-overlay .qm-tab[data-tab="daily"]'); if (d) d.click(); } catch (e) {}
-      if (!wasOpen && typeof window.closeQuestsModal === 'function') window.closeQuestsModal();
-    }
-  }),
-
-  () => tryRun('VOICE-1c (b465): every offered goal has a payable reward', () => {
-    /* THE DEFECT: `gold_500` was dealt to players with `{gold:0, item:
-       'starter_bundle_token', items:{small_bones:5}}` — zero gold and two ids
-       that exist nowhere in the game, so hr_claim_goal answered
-       `reward_unavailable` and the Claim button could never succeed. It is
-       withdrawn from the pool; this stops it (or a successor) coming back
-       unnoticed. Items are checked against ITEMS, which is the same table the
-       claim path pays out of. */
-    const ITEMS = window.ITEMS || {};
-    const check = (label, g, reward) => {
-      assert(reward, label + ' has no reward table entry at all');
-      const items = Object.keys(reward.items || {});
-      items.forEach((id) => assert(ITEMS[id], label + ' promises item "' + id + '", which is not in ITEMS'));
-      const pays = (reward.gold > 0) || (reward.gems > 0)
-        || Object.keys(reward.xp || {}).length > 0 || items.length > 0;
-      assert(pays, label + ' pays nothing a claim can actually grant');
-    };
-    (window.WEEKLY_GOAL_POOL || []).forEach((g) => check('WEEKLY_GOAL_POOL/' + g.id, g, g.reward));
-    // The daily rewards table is block-scoped; reach it the way the modal does.
-    const daily = (typeof window.getGoalsForToday === 'function') ? window.getGoalsForToday() : [];
-    assert(daily.length, 'no daily goals were offered — the test proved nothing');
-    /* b464 — gold_500 is BACK, because its withdrawal's premise closed: the
-       reward is authored on both sides now ({gems:1, items:{bones:5}} here,
-       the hr_goal_rewards row updated on production the same hour). The
-       Designer's rule survives as the GENERAL clause above — every offered
-       goal must be payable, items checked against ITEMS — which is what
-       actually guards this, id by id, forever. Assert the specific row is
-       payable rather than absent. */
-    const g500 = (window.DAILY_GOAL_POOL || []).find((g) => g.id === 'gold_500');
-    assert(g500, 'gold_500 must be dealt again — its reward pays now');
-  }),
 
   () => tryRun('VOICE-2 (b465): no gated surface advertises a countdown or a lit door', () => {
     /* THE DEFECT: the Events screen honestly said the muster is "coming in Open
@@ -429,8 +314,7 @@ export default [
       assert(window.__viewedSkillId === 'mining',
         'openSkillDetail must set __viewedSkillId synchronously (got ' + window.__viewedSkillId + ')');
       // 1 — a gathering daily opens the SKILL's detail, not the grid.
-      const fish = (window.DAILY_GOAL_POOL || []).find((g) => g.id === 'fish');
-      QN.go(fish);
+      QN.go({ name: 'Catch 50 fish', source: 'stats.fished' });
       // b232: Skills is a standalone Adventure screen again — a gathering goal
       // lands on #panel-skills (the activity screen), NOT the Character overview.
       assert(document.getElementById('panel-skills').classList.contains('active'),
@@ -470,61 +354,47 @@ export default [
     }
   }),
 
-  () => tryRun('b227: the Quests modal row Go button navigates and closes', () => {
+  () => tryRun('b227: the Quests sheet row Go button navigates and closes', () => {
     const startTab = window.activeTab || 'profile';
     const prevViewed = window.__viewedSkillId;
-    // Test isolation: earlier player-action tests inflate G's lifetime counters,
-    // which can complete AND claim every one of today's three daily goals — a
-    // finished/claimed row shows Claim, not Go, so the modal would offer no Go
-    // button and this test would fail on cumulative state rather than on the Go
-    // path it exists to prove. Force today's dailies to a fresh, unclaimed,
-    // 0-progress baseline before opening the modal, then restore.
-    const dg = window.G && window.G.dailyGoals;
-    const prevStart = dg && dg.startValues ? JSON.parse(JSON.stringify(dg.startValues)) : null;
-    const prevClaimed = dg && dg.claimed ? JSON.parse(JSON.stringify(dg.claimed)) : null;
+    const TL = window.HearthriseTally;
+    const snap = snapshotG();
+    /* Isolation: today's slate is three known daily quests and the SERVER has
+       counted none of them, so every row is unfinished and offers Go. A paid or
+       claimable row shows Paid/Claim instead — one primary action per row. */
     try {
-      const today = window.getGoalsForToday() || [];
-      if (dg) {
-        dg.startValues = dg.startValues || {};
-        dg.claimed = dg.claimed || {};
-        // startValue >= current source ⇒ getProgress() clamps to 0 ⇒ unfinished.
-        today.forEach((g) => { dg.startValues[g.id] = Number.MAX_SAFE_INTEGER; delete dg.claimed[g.id]; });
-      }
+      const pool = window.DAILY_TASK_POOL.map((f) => f());
+      const ids = ['daily_kill', 'daily_gather', 'daily_cook'];
+      window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: ids.map((id) => pool.find((t) => t.id === id)) };
+      TL.__feed({ day: {}, week: {}, paid: [], offered: ids });
       window.showTab('profile');
       window.openQuestsModal();
       const overlay = document.getElementById('quests-modal-overlay');
-      assert(overlay, 'the quests modal did not open');
+      assert(overlay, 'the quests sheet did not open');
       const gos = overlay.querySelectorAll('.qm-q-go');
-      assert(gos.length > 0,
-        'no Go button on any unfinished quest row — the modal is a dead end again');
-      // Claim must stay the only action on a finished row.
+      assert(gos.length === 3,
+        'every unfinished daily quest must offer Go (got ' + gos.length + ') — the sheet is a dead end again');
       overlay.querySelectorAll('.qm-quest').forEach((row) => {
         if (row.querySelector('.qm-q-claim') || row.querySelector('.qm-q-claimed')) {
           assert(!row.querySelector('.qm-q-go'),
-            'a claimable/claimed row must not also offer Go — one primary action per row');
+            'a claimable/paid row must not also offer Go — one primary action per row');
         }
       });
-      const btn = gos[0];
-      const goal = (window.getGoalsForToday() || []).find((g) => g.id === btn.dataset.goto);
-      assert(goal, 'the Go button points at a quest id the pool does not know: ' + btn.dataset.goto);
-      const want = window.HearthriseQuestNav.destination(goal);
+      const btn = [...gos].find((b) => b.dataset.goto === 'daily_cook');
+      assert(btn, 'the cooking quest offers no Go button');
+      const want = window.HearthriseQuestNav.destination(window.G.daily.tasks[2]);
       btn.click();
       assert(!document.getElementById('quests-modal-overlay'),
-        'the modal must close on Go — an overlay over the destination is the same dead end');
-      // `activeTab` is a legacy `let`, so it is NOT on window — read the DOM,
-      // which is what the player sees anyway. b232: a 'skills' destination
-      // resolves to the standalone #panel-skills activity screen again.
-      const wantPanel = want.tab;
-      const landed = document.getElementById('panel-' + wantPanel);
+        'the sheet must close on Go — an overlay over the destination is the same dead end');
+      const landed = document.getElementById('panel-' + want.tab);
       assert(landed && landed.classList.contains('active'),
-        'Go did not land on the ' + wantPanel + ' panel for "' + goal.name + '"');
-      if (want.skillId) {
-        assert(window.__viewedSkillId === want.skillId,
-          'Go landed on the ' + want.tab + ' tab but did not open ' + want.skillId);
-      }
+        'Go did not land on the ' + want.tab + ' panel for "Cook 12 items"');
+      assert(want.skillId === 'cooking' && window.__viewedSkillId === 'cooking',
+        'Go landed on the ' + want.tab + ' tab but did not open cooking');
     } finally {
       try { window.closeQuestsModal(); } catch (e) {}
-      if (dg) { dg.startValues = prevStart || {}; dg.claimed = prevClaimed || {}; }
+      TL.__feed(null);
+      restoreG(snap);
       window.__viewedSkillId = prevViewed;
       try { window.showTab(startTab); } catch (e) {}
     }
@@ -3007,29 +2877,45 @@ export default [
   () => tryRun('WEEK-B: the card leads with the week the server counted, and QUIET when nothing leads', () => {
     const TW = window.HearthriseThisWeek;
     if (!TW) return skip('no this-week module');
-    const m = { 'w:wk_logs': { have: 180, target: 250 }, 'w:wk_kills': { have: 30, target: 100 },
-      'd:kill_any': { have: 12, target: 10 }, 'd:gold_500': { have: 1520, target: 500 } };
+    /* The tally's shape (src/features/daily-quests.js): today's and the week's
+       ev:<type> counters and the gold earned. 180 of a 250 par leads over 30 of
+       100; an absent counter in a KNOWN tally is the server saying none. */
+    const m = { day: { 'ev:kill_any': 12 }, week: { 'ev:chopped': 180, 'ev:kill_any': 30 }, goldDay: 1520, goldWeek: 1520 };
     const v = TW.view(m);
-    assert(v.lead === THIS_WEEK.find((r) => r.goal === 'wk_logs').lead, 'lead: ' + v.lead);
-    assert(v.rows.map((r) => r.goal).join() === 'wk_logs,wk_kills', 'rows: ' + v.rows.map((r) => r.goal));
+    assert(v.lead === THIS_WEEK.find((r) => r.counter === 'ev:chopped').lead, 'lead: ' + v.lead);
+    assert(v.rows.map((r) => r.counter).join() === 'ev:chopped,ev:kill_any,gold', 'rows: ' + v.rows.map((r) => r.counter));
     const c = TW.todayCells(m);
     assert(c[0].html === (12).toLocaleString() && c[1].html === (1520).toLocaleString(), 'cells: ' + JSON.stringify(c));
-    assert(TW.view({ 'w:wk_rare': { have: 1, target: 5 } }).lead === THIS_WEEK_QUIET, 'a 20% week must read QUIET');
+    assert(TW.view({ day: {}, week: { 'ev:rare_drops': 1 }, goldDay: 0, goldWeek: 0 }).lead === THIS_WEEK_QUIET, 'a 20% week must read QUIET');
+  }),
+  () => tryRun('WEEK-E (W0): a fisher\'s week leads the card — every counter the server stamps has a row, fishing included', () => {
+    /* The goals board this card once borrowed its rows from had no weekly
+       fishing goal, so a week spent at the water read QUIET. The card's rows
+       are now the server's own counters (hr_tally_state), and ev:fished is one. */
+    const TW = window.HearthriseThisWeek;
+    if (!TW) return skip('no this-week module');
+    const v = TW.view({ day: {}, week: { 'ev:fished': 200, 'ev:kill_any': 10 }, goldDay: 0, goldWeek: 0 });
+    const fish = THIS_WEEK.find((r) => r.counter === 'ev:fished');
+    assert(fish, 'THIS_WEEK has no fishing row');
+    assert(v.lead === fish.lead && v.rows[0].counter === 'ev:fished' && v.rows[0].have === 200,
+      'a week of fishing must lead with the fisher\'s line: ' + JSON.stringify(v.rows.map((r) => [r.counter, r.have])));
+    const html = TW.cardHtml(v);
+    assert(html.includes(fish.label) && html.includes((200).toLocaleString()), 'the card does not print the fishing row: ' + html.slice(0, 200));
   }),
   () => tryRun('WEEK-C: the hearth band shows the realm\'s Kills today, pending when unknown, and no residue Harvest', () => {
-    const H = window.HearthriseHome, was = window.HearthriseGoalState;
+    const H = window.HearthriseHome, was = window.HearthriseTally;
     if (!H || typeof window.showTab !== 'function') return skip('no Home');
     const leds = () => Array.from(document.querySelectorAll('#panel-profile .hd-ledger .hd-led'));
     const cell = () => leds().find((n) => /Kills today/.test(n.textContent)) || null;
     try {
-      window.HearthriseGoalState = { peek: () => null };
+      window.HearthriseTally = { peek: () => null };
       window.showTab('profile'); H.render();
       assert(cell() && cell().querySelector('.bal-pending'), 'an unknown Kills today must be the pending dash');
       assert(!leds().some((n) => /Harvest/.test(n.textContent)), 'the residue Harvest cell is back');
-      window.HearthriseGoalState = { peek: () => ({ 'd:kill_any': { have: 12, target: 10 } }) };
+      window.HearthriseTally = { peek: () => ({ day: { 'ev:kill_any': 12 }, week: {} }) };
       H.render();
       assert(cell().querySelector('b').textContent === (12).toLocaleString(), 'Kills today: ' + cell().textContent);
-    } finally { window.HearthriseGoalState = was; try { H.render(); } catch (e) {} }
+    } finally { window.HearthriseTally = was; try { H.render(); } catch (e) {} }
   }),
   /* HOME-BAND-922 — the b560 visual gate: on a 922x423 landscape phone the
      hearth band collapses to a 56px strip, and its content (name + 44px rename
@@ -3037,11 +2923,12 @@ export default [
      the name hid under the activity bar and the figures were cut top and
      bottom. Renders the real #app at each size and measures the band. */
   () => tryRun('HOME-BAND-922: the hearth band holds its name and every realm cell at 922x423 and 1280x800', () => {
-    const H = window.HearthriseHome, was = window.HearthriseGoalState;
+    const H = window.HearthriseHome, was = window.HearthriseTally;
     if (!H || typeof window.showTab !== 'function') return skip('no Home');
     const prevTab = window.activeTab, bad = [];
     try {
-      window.HearthriseGoalState = { peek: () => ({ 'd:kill_any': { have: 12, target: 10 } }) };
+      /* Kills counted, gold not stated: one known cell and one pending. */
+      window.HearthriseTally = { peek: () => ({ day: { 'ev:kill_any': 12 }, week: {} }) };
       window.showTab('profile'); H.render();
       const app = document.getElementById('app').outerHTML;
       for (const [w, h] of [[922, 423], [1280, 800]]) {
@@ -3070,7 +2957,7 @@ export default [
         });
       }
     } finally {
-      window.HearthriseGoalState = was;
+      window.HearthriseTally = was;
       try { window.showTab(prevTab || 'profile'); H.render(); } catch (e) {}
     }
     assert(bad.length === 0, 'THE b560 BAND BUG: ' + bad.join('; '));
@@ -3137,49 +3024,43 @@ export default [
       assert(!bad.length, 'broken clocks: ' + bad.join(' | '));
     } finally { try { window.showTab(prevTab || 'profile'); H.render(); } catch (e) {} }
   }),
-  () => tryRunAsync('WEEK-D: the goal-state cache is deep-frozen and peek() expires at 120 s', async () => {
-    const S = window.__hrSyncServerGoals, GS = window.HearthriseGoalState;
-    if (!S || !GS) return skip('no goal-state seam');
-    const may = window.clientMayWriteRecordField, gc = window.HearthriseGoalClaim, now = Date.now;
+  () => tryRunAsync('WEEK-D: the tally cache is deep-frozen and peek() expires at 120 s', async () => {
+    const TL = window.HearthriseTally;
+    if (!TL || typeof TL.refresh !== 'function') return skip('no tally seam');
+    const gc = window.HearthriseGoalClaim, now = Date.now;
     try {
-      window.clientMayWriteRecordField = (f) => f !== 'gold' && f !== 'gems';
-      window.HearthriseGoalClaim = { isSignedIn: () => true, goalState: () => Promise.resolve({ ok: true, goals: [
-        { goal_id: 'wk_logs', weekly: true, target: 250, have: 180, complete: false, claimed: false }] }) };
-      S.reset();
-      await new Promise((r) => S((fresh) => r(fresh)));
-      const m = GS.peek();
-      assert(m && Object.isFrozen(m) && Object.isFrozen(m['w:wk_logs']), 'the cache or its entry is not frozen');
+      window.HearthriseGoalClaim = { isSignedIn: () => true, tallyState: () => Promise.resolve({ ok: true,
+        day: { 'ev:kill_any': 4 }, week: { 'ev:chopped': 180 }, gold_day: 10, gold_week: 90, paid: [], offered: ['daily_kill'] }) };
+      TL.__feed(null);
+      await new Promise((r) => TL.refresh((fresh) => r(fresh)));
+      const m = TL.peek();
+      assert(m && Object.isFrozen(m) && Object.isFrozen(m.week) && m.week['ev:chopped'] === 180, 'the cache or its counters are not frozen');
       const t = now.call(Date); Date.now = () => t + 121000;
-      assert(GS.peek() === null, 'a 121 s old cache must read unknown');
-      Date.now = now; S.reset();
-      assert(GS.peek() === null, 'a reset cache must read unknown');
-    } finally { Date.now = now; window.clientMayWriteRecordField = may; window.HearthriseGoalClaim = gc; S.reset(); }
+      assert(TL.peek() === null, 'a 121 s old cache must read unknown');
+      Date.now = now; TL.__feed(null);
+      assert(TL.peek() === null, 'a reset cache must read unknown');
+    } finally { Date.now = now; window.HearthriseGoalClaim = gc; TL.__feed(null); }
   }),
-  /* QUEST-PENDING — the strip draws the pending dash, never "0 / N", while
-     neither hr_goal_state nor a measured baseline has spoken (CLAUDE.md §6). */
-  () => tryRunAsync('QUEST-PENDING: an unmeasured quest reads pending on the strip; the server goal state turns it into a number', async () => {
-    const A = window.HearthriseAccrual;
-    if (!A || typeof window.renderQuestStrip !== 'function' || !window.__hrSyncServerGoals) return skip('no quest strip');
-    const snap = snapshotG(); const knownWas = window.G._eventCountersKnown;
+  /* QUEST-PENDING — the strip draws the pending dash, never "0 / N", until the
+     server's tally has spoken (CLAUDE.md §6); then it draws the server's count,
+     never the browser's. */
+  () => tryRun('QUEST-PENDING: an unmeasured daily quest reads pending on the strip; the server tally turns it into the server\'s number', () => {
+    const TL = window.HearthriseTally;
+    if (!TL || typeof window.renderQuestStrip !== 'function') return skip('no quest strip');
+    const snap = snapshotG();
     const prog = () => { window.renderQuestStrip(); const el = document.querySelector('#global-quests-strip .gq-quest .gq-prog'); return el || { textContent: '', querySelector: () => null }; };
-    let unfeed = null;
     try {
-      window.__hrSyncServerGoals.reset();
-      window.getGoalsForToday();
-      window.G.stats = Object.assign({}, window.G.stats); delete window.G.stats.planted; delete window.G._eventCountersKnown;
-      window.G.dailyGoals = { dayKey: window.G.dailyGoals.dayKey, picks: ['plant'], startValues: {}, claimed: {} };
+      const task = window.DAILY_TASK_POOL.map((fn) => fn()).find((t) => t.id === 'daily_kill');
+      window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: [Object.assign({}, task, { progress: 20 })] };
+      TL.__feed(null);
       let p = prog();
-      assert(p.querySelector('.bal-pending') && !/\b0 \/ \d/.test(p.textContent), 'an unmeasured quest rendered ' + p.textContent);
-      A.reconcileEventCounters(window.G, { progress_truncated: false, progress: [{ kind: 'stat', key: 'ev:planted', period: '', value: 40, state: 'active' }] });
+      assert(p.querySelector('.bal-pending') && !/\b\d+ \/ \d/.test(p.textContent), 'an unmeasured quest rendered ' + p.textContent);
+      TL.__feed({ day: { 'ev:kill_any': 3 }, week: {}, paid: [], offered: ['daily_kill'] });
       p = prog();
-      assert(p.querySelector('.bal-pending'), 'a local baseline alone is not the server count (CLAIM-FROM-SERVER): ' + p.textContent);
-      unfeed = await feedServerGoals([goalRow('plant', 0, (window.getGoalsForToday()[0] || {}).target || 1)]);
-      p = prog();
-      assert(!p.querySelector('.bal-pending') && /^0 \/ \d+$/.test(p.textContent.trim()), 'a server-counted quest rendered ' + p.textContent);
+      assert(!p.querySelector('.bal-pending') && /^3 \/ 25$/.test(p.textContent.trim()),
+        'a server-counted quest must read the server 3 / 25, never the browser\'s 20 — got ' + p.textContent);
     } finally {
-      if (unfeed) unfeed();
-      if (knownWas === undefined) delete window.G._eventCountersKnown; else window.G._eventCountersKnown = knownWas;
-      restoreG(snap); try { window.renderQuestStrip(); } catch (e) {}
+      TL.__feed(null); restoreG(snap); try { window.renderQuestStrip(); } catch (e) {}
     }
   }),
 ];

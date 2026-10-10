@@ -220,11 +220,11 @@ async function run(mutate) {
      fail-closed file is supposed to have. */
   const patches = new Map(PRE_RULING);
   if (mutate) patches.set(MIG, patchesOf(mutate));
-  /* PRE_RULING is a fixture, not a mutant: the plain run keeps the whole chain
-     over it, as before. A mutant stops at MIG so nothing newer judges it first
-     (tests/schema-replay.mjs replayScopeError). */
-  const { db } = await bootReplay(mutate ? { patches, upTo: MIG }
-    : { patches, fullChain: 'PRE_RULING is a fixture: the plain run replays the whole chain over the reverted files' });
+  /* Both runs stop at MIG. The surfaces it re-prices are graded as of the file
+     itself: the goals board (hr_goal_rewards, hr_claim_goal) is retired at the
+     chain end by 2026-10-16-goal-board-retire.sql, and a mutant must not be
+     judged by anything newer (tests/schema-replay.mjs replayScopeError). */
+  const { db } = await bootReplay({ patches, upTo: MIG });
 
   const q = async (sql, p) => (await db.query(sql, p)).rows;
   const asUser = async (uid, sql, p) => {
@@ -347,7 +347,7 @@ async function run(mutate) {
      planting it in an authoring file would test a differently-built chain
      instead of a drifted one. */
   const { db: db2 } = await bootReplay(
-    mutate ? { patches: new Map([[MIG, patchesOf(mutate)]]), upTo: LAST_PATCHED } : {});
+    mutate ? { patches: new Map([[MIG, patchesOf(mutate)]]), upTo: LAST_PATCHED } : { upTo: MIG });
   const q2 = async (sql, p) => (await db2.query(sql, p)).rows;
   const apply = async () => {
     try { await db2.exec(`begin;\n${mig}\ncommit;`); return 'ok'; }

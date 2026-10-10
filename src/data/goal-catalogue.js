@@ -197,9 +197,8 @@ export const DAILY_TASK_POOL_ORDER = Object.freeze([
   'daily_craft',       // 7
 ]);
 
-/* The base number of daily tasks offered (indexes .slice(0, N) of the shuffle).
-   The King's Renown perk adds a 4th client-side; the server CANNOT see Renown
-   (RENOWN_MODEL is unbuilt), so it credits the base set only — see BLOCKED_DAILY. */
+/* The number of daily tasks offered (indexes .slice(0, N) of the shuffle). The
+   King's 4th task was retired (it was shown and never paid); three is the set. */
 export const DAILY_TASK_BASE_COUNT = 3;
 
 /* THE FLAGGED ROWS — server-authority gaps stated as data, not omitted in
@@ -210,10 +209,6 @@ export const BLOCKED_DAILY = Object.freeze({
     + 'server does not know the plot cap today. Unblock: read the farm_land unlock '
     + 'rung from player_progress (kind=unlock, the seam:farm.build_plot ladder) and '
     + 'derive the cap server-side, then this becomes a normal creditable row.',
-  king_fourth_slot: 'RENOWN-GATED SLOT. A King (Renown perk) is shown a 4th daily '
-    + 'task (index 3 of the shuffle). Renown has no server model (gold-sites B.RENOWN_'
-    + 'MODEL), so the server derives the base 3 only and refuses a 4th with not_offered. '
-    + 'Rides on the Renown server model.',
 });
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -341,8 +336,7 @@ export function dailyTaskIndexes(dayKey) {
 /**
  * TODAY'S OFFERED SET, as POOL INDEXES — the shape src/legacy.js needs, since
  * its pool is an array of factories addressed by index.
- * @param count defaults to DAILY_TASK_BASE_COUNT; the King's Renown perk asks
- *        for one more (legacy.js reads it) and it is bounded by the pool.
+ * @param count defaults to DAILY_TASK_BASE_COUNT, bounded by the pool.
  */
 export function dailyTaskSetIndexes(dayKey, caps, count) {
   const order = dailyTaskIndexes(dayKey);
@@ -371,11 +365,3 @@ export function dailyTaskSetIndexes(dayKey, caps, count) {
 export function dailyTaskSet(dayKey, caps, count) {
   return dailyTaskSetIndexes(dayKey, caps, count).map((i) => DAILY_TASK_POOL_ORDER[i]);
 }
-
-export const BLOCKED_GOAL_BOARD = 'THE DAILY/WEEKLY GOALS BOARD (legacy.js DAILY_GOAL_POOL / '
-  + 'WEEKLY_GOAL_POOL, claimQuestReward). A DIFFERENT tracking model: progress = readSource(stats.*) '
-  + '- baseline captured at day/week start. Most sources are NOT ev counters (stats.chopped, .mined, '
-  + '.fished, .planted, .levelups, _dailyGoldDelta) — the ev model emits only six AGGREGATE types, not '
-  + 'per-skill or derived ones — and the weekly delta-baseline cannot be reconstructed from ev daily '
-  + 'rows. Not server-verifiable from the ev counters; its b411 defer stays. Unblock: a server model '
-  + 'for per-skill/derived counters + a period baseline, or re-author the board onto the six ev types.';

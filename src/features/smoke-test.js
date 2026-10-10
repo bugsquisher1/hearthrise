@@ -114,14 +114,14 @@ export async function runSmokeTest(opts = {}) {
   const _Comp = window.HearthriseCompanions;
   let _grantsWereParked = false;
   try { if (_Comp && typeof _Comp.__parkGrants === 'function') _grantsWereParked = _Comp.__parkGrants(true); } catch (e) {}
-  /* ── AND THE QUEST STRIP'S GESTURE-LESS hr_goal_state READ ──────────
+  /* ── AND THE QUEST STRIP'S GESTURE-LESS hr_tally_state READ ─────────
      renderStrip() rides Events.on('*'); its session is Auth.getSession(), which
-     tests stub to hand THEMSELVES one, so the read lands in their fetch stub —
-     B349-R3 measured `hr_goal_state + hr_server_now` for a one-call subject,
-     park off/on flips it 4-vs-1. Gesture reads untouched. */
+     tests stub to hand THEMSELVES one, so the read would land in their fetch
+     stub (B349-R3 measured the same for the retired hr_goal_state). Gesture
+     reads (opening the sheet, a claim) are untouched. */
   let _ambientGoalsWereParked = false;
-  const _SG = window.__hrSyncServerGoals;
-  try { if (_SG) { _ambientGoalsWereParked = !!_SG.parked; _SG.parked = true; } } catch (e) {}
+  const _TL = window.HearthriseTally;
+  try { if (_TL && _TL.__park) _ambientGoalsWereParked = _TL.__park(true); } catch (e) {}
   /* ── THE ONE hr_load THE HARNESS PERFORMS (gold-arm) ─────────────────────
      With gold/gems ARMED, `balanceOf` reads a number only when `G._record`
      vouches for it — the provenance stamp that in production `hr_load` writes
@@ -278,7 +278,7 @@ export async function runSmokeTest(opts = {}) {
     try { if (_Auto && typeof _Auto._parkEatSync === 'function') _Auto._parkEatSync(_eatSyncWasParked); } catch (e) {}
     try { if (_Auto && typeof _Auto._parkAutoEatMirror === 'function') _Auto._parkAutoEatMirror(_pctMirrorWasParked); } catch (e) {}
     try { if (_Comp && typeof _Comp.__parkGrants === 'function') _Comp.__parkGrants(_grantsWereParked); } catch (e) {}
-    try { if (_SG) _SG.parked = _ambientGoalsWereParked; } catch (e) {}
+    try { if (_TL && _TL.__park) _TL.__park(_ambientGoalsWereParked); } catch (e) {}
     try { if (_Comp && typeof _Comp.__clearGrantBlocks === 'function') _Comp.__clearGrantBlocks(); } catch (e) {}
     try { if (_Rn && typeof _Rn.__setPollEnabled === 'function') _Rn.__setPollEnabled(_rnPollWasOn); } catch (e) {}
     try { if (_SP && typeof _SP._park === 'function') _SP._park(_primersWereParked); } catch (e) {}

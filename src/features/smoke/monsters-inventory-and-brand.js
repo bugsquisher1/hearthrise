@@ -1512,8 +1512,7 @@ export default [
         'a Runecrafting recipe landed in no lane: ' + rc.uncategorized.map((r) => r.id).join(', '));
       const laneOf = (k) => (rc.groups.find((g) => g.key === k) || { recipes: [] }).recipes;
       assert(laneOf('enchant').length === 3, 'Weapon Enchants must hold exactly the three element runes, got ' + laneOf('enchant').length);
-      // W0: air runes are kit + shop only, so the bench ladder is earth→blood (10 rungs).
-      assert(laneOf('staff').length >= 10, 'Staff Runes must still hold the whole earth→blood ladder, got ' + laneOf('staff').length);
+      assert(laneOf('staff').length >= 10, 'Staff Runes must still hold the whole earth→blood ladder (W0: air is kit + shop only), got ' + laneOf('staff').length);
       assert(laneOf('essence').length === 3, 'Essence & Blanks must hold mine + two cuts, got ' + laneOf('essence').length);
       /* BOTH lanes must actually RENDER — `groups` drops an empty key, so two
          groups is the proof that the strip is a real choice and not a label. */

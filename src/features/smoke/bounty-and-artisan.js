@@ -3151,7 +3151,7 @@ export default [
   }),
 
   /* ══════════════════════════════════════════════════════════════════════════
-     EVEN-CARDS (b568). Tyler, on Skills → Smithing → Smelting: "there's still
+     EVEN-CARDS. Tyler, on Skills → Smithing → Smelting: "there's still
      some unevenness on these squares". Measured on the real grid: open bars
      194px tall beside locked bars 222.6px (the lock line was an extra line and
      the grid was `align-items:start`); three-input recipes taller still; the

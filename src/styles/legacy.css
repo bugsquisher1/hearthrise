@@ -2817,7 +2817,7 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 
 .act-grid{
   display:grid;
-  /* b568: auto-FILL, not auto-fit — auto-fit collapsed the empty tracks and a
+  /* auto-FILL, not auto-fit — auto-fit collapsed the empty tracks and a
      one-card lane drew its card the width of the panel. */
   grid-template-columns:repeat(auto-fill,minmax(186px,1fr));
   /* b215: rows size to their CONTENT and the grid scrolls.
@@ -3053,7 +3053,7 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 
 /* ===== block 26: visual-polish-v1 ===== */
 /* Activity tile icons: the box and the fit are owned by art-direction.css
-   (b568, one fixed art box per card); the old 78%/!important sizing that lived
+   (one fixed art box per card); the old 78%/!important sizing that lived
    here made every sprite's own canvas margin show through. */
 
 /* Skill nav tiles — make icons proper size */

@@ -824,8 +824,8 @@ body[data-theme] .act-tile.active {
   background: linear-gradient(180deg, rgba(201, 162, 74, .16), rgba(201, 162, 74, .03));
   box-shadow: inset 0 1px 0 rgba(255, 246, 220, .18);
 }
-/* b568 — ONE CARD, ONE SHAPE (Tyler, on Smelting: "there's still some
- * unevenness on these squares"). b2xx had set `align-items:start` so a 120px
+/* ONE CARD, ONE SHAPE (Tyler, on Smelting: "there's still some
+ * unevenness on these squares"). The grid had been `align-items:start` so a 120px
  * tile would not stretch to 230px; the side effect was that a locked card (one
  * line longer) stood taller than its open neighbours in the SAME row. The card
  * is now a fixed set of slots — art box, name, xp · time, inputs (two lines,
@@ -833,13 +833,10 @@ body[data-theme] .act-tile.active {
  * same height by construction, and the row stretches the rare extra line
  * (wear gate, burn risk, tool) instead of letting it stagger the row. */
 body[data-theme] .act-grid { align-content: start; align-items: stretch; }
-body[data-theme] .act-tile {
-  --at-art: 64px;
-}
 body[data-theme] .act-tile .at-icon {
   flex: 0 0 auto;
-  width: var(--at-art);
-  height: var(--at-art);
+  width: 64px;
+  height: 64px;
   margin: 0 auto 10px;
 }
 body[data-theme] .act-tile .at-icon img {
@@ -907,7 +904,7 @@ body[data-theme] .act-tile .at-status .at-make {
 body[data-theme] .act-tile .at-status .at-qty.muted { color: var(--ink-3); }
 body[data-theme] .act-tile .at-status .at-make.low { color: var(--ink-3); }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
-  body[data-theme] .act-tile { --at-art: 52px; }
+  body[data-theme] .act-tile .at-icon { width: 52px; height: 52px; }
 }
 /* The lane strip's badge is one thing on every chip: the lane's recipe count.
  * A shut lane adds the padlock (its opening level is the chip's title). */

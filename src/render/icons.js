@@ -241,7 +241,7 @@ function setActivityIcon(el, glyphKey, color){
   el.innerHTML = g || '';
 }
 
-/* ── ART FIT (b568) ─────────────────────────────────────────────────────────
+/* ── ART FIT ───────────────────────────────────────────────────────────────
    Tyler, on Smelting: the copper and bronze ingots were small and the iron,
    gold and steel art was large, with a stray "…" in its corner. Every icon box
    was already the same size; the SPRITES are not. The packs ship their art on
@@ -323,7 +323,7 @@ function actIconHtml(prod, fallbackSkillId){
   var path = prod && window._itemPath && window._itemPath[prod];
   if(path){
     /* b217: tier tint (window.itemTintClass) so ladders that share one sprite
-       still read as distinct materials. b568: `hr-fit` crops the canvas to the
+       still read as distinct materials. `hr-fit` crops the canvas to the
        art (artFitBox below); a known box is written inline so a repaint never
        flashes the padded sprite first. */
     var tint = (typeof window.itemTintClass === 'function') ? window.itemTintClass(prod) : '';

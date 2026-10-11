@@ -194,7 +194,8 @@ comment on column public.world_event_joins.char_slot is
   'hr_rally_pledge_char (2026-10-10-rally-points-server.sql). `slot` is the rally WINDOW (1|13).';
 comment on column public.world_event_joins.bonus is
   'The server-granted join bonus (hr_rally_point_rules weights.join_bonus), written only by the '
-  'insert that creates the day''s join and journalled as rally_join_bonus:<day> (2026-10-10-rally-points-server.sql).';
+  'insert that creates the day''s join and journalled as rally_join_bonus:<day> (2026-10-10-rally-points-server.sql). '
+  'It counts toward the player''s own band only, never the shared bar.';
 
 -- ── 2. THE ONE WEIGHTS TABLE (pure; no client grant) ───────────────────────
 -- Game Designer owns every number here (ruling 2026-10-10). A balance change is
@@ -499,9 +500,13 @@ begin
   insert into public.world_event_totals (event_key, participants, goal, goal_frozen_at)
     values (w.event_key, 0, c_min_goal, w.started_at + make_interval(mins => c_freeze_min))
     on conflict (event_key) do nothing;
+  -- The bonus counts toward the player's OWN band only, never the shared bar
+  -- (Security C1, rev.3): a bar that moved on a bare join could be filled by
+  -- alt accounts with no play, paying every participant the held x1.5. The
+  -- bar is the sum of (points - bonus); hr_rally_refresh moves it by
+  -- differences only.
   update public.world_event_totals
      set participants = participants + 1,
-         progress = progress + v_bonus,
          goal = case when now() < goal_frozen_at
                      then greatest(c_min_goal, c_goal_per_player * (participants + 1))
                      else goal end
@@ -839,16 +844,19 @@ begin
     end if;
 
     -- (d) A FORGED STORED TALLY is corrected by the refresh (+ the join's own
-    --     bonus), and the bar moves by the difference.
+    --     bonus), and the bar moves by the difference. The bar holds the sum of
+    --     (points - bonus): the forged row contributed 6000 - 300, and after the
+    --     correction it contributes the activity alone, never the bonus.
     insert into public.world_event_totals (event_key, participants, goal, progress)
-      values (v_ek, 1, 6000, 6000) on conflict (event_key) do update set progress = 6000, met_at = null;
+      values (v_ek, 1, 6000, 5700) on conflict (event_key) do update set progress = 5700, met_at = null;
     insert into public.world_event_joins (day_key, user_id, event_key, slot, joined_at, window_end, points, char_slot, bonus)
       values (v_today, v_uid, v_ek, 13, v_from, v_to, 6000, 0, 300);
     v_r := public.world_event_contribute(v_ek);
     if coalesce(v_r->>'ok', '') <> 'true' or (v_r->>'points')::bigint <> v_want + 300
        or (select points from public.world_event_joins where user_id = v_uid) <> v_want + 300
-       or (select progress from public.world_event_totals where event_key = v_ek) <> v_want + 300 then
-      raise exception 'GATE(d): the refresh did not SET the forged 6000 to the derived % + 300: %', v_want, v_r;
+       or (select progress from public.world_event_totals where event_key = v_ek) <> v_want then
+      raise exception 'GATE(d): the refresh did not SET the forged 6000 to the derived % + 300 (bar: % without the bonus): %',
+        v_want, v_want, v_r;
     end if;
     v_r := public.world_event_contribute(v_ek);
     if (v_r->>'added')::bigint <> 0 then

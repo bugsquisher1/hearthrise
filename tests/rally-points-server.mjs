@@ -151,6 +151,11 @@ const MUTATIONS = {
     find: '  values (w.day_key, auth.uid(), w.event_key, w.slot, w.ends_at, v_char, v_bonus, v_bonus)\n  on conflict',
     repl: '  values (w.day_key, auth.uid(), w.event_key, w.slot, w.ends_at, null, v_bonus, v_bonus)\n  on conflict',
   },
+  bonus_on_bar: {
+    why: 'Security C1 (rev.3): the join bonus is added to the SHARED bar — alts fill the goal with no play',
+    find: '     set participants = participants + 1,\n',
+    repl: '     set participants = participants + 1,\n         progress = progress + v_bonus,\n',
+  },
   bonus_twice: {
     why: 'the +300 is granted again by a repeated join',
     find: '  if v_rows = 0 then\n    select * into v_existing from public.world_event_joins\n',
@@ -376,10 +381,14 @@ export async function run(mutate) {
     await q(`create function public.hr_muster_window(p_at timestamptz default now())
              returns table (day_key text, slot int, event_key text, started_at timestamptz, ends_at timestamptz)
              language sql stable as $f$
-               select public.hr_utc_day_key(p_at), 13, public.hr_utc_day_key(p_at) || '#13',
+               select public.hr_utc_day_key(p_at), s.slot, public.hr_utc_day_key(p_at) || '#' || s.slot,
                       p_at - interval '5 minutes', p_at + interval '40 minutes'
+                 from (select coalesce(nullif(current_setting('rps.slot', true), ''), '13')::int as slot) s
              $f$`);
+    await q("select set_config('rps.slot', '13', false)");
     const G = await mkPlayer();
+    const evk = today + '#13';
+    const p0 = await progress(evk);
     const bonusRows = async () => N((await q(
       "select count(*)::text n from public.player_ledger where user_id=$1 and kind='rally' and intent like 'rally_join_bonus:%'", [G]))[0].n);
     const r = await asUser(G, 'select public.world_event_join($1) as r', [today + '#13']);
@@ -389,11 +398,29 @@ export async function run(mutate) {
       `RPS-5: the real join recorded char_slot ${row.char_slot} (response ${JSON.stringify(r)}) — expected 0, the character in play`);
     ok(N(r?.bonus) === 300 && row.bonus === 300 && N(row.p) === 300 && await bonusRows() === 1,
       `RPS-5: the join bonus is not +300 once and journalled (row ${JSON.stringify(row)}, ledger ${await bonusRows()})`);
+    // Security C1 (rev.3): a join ALONE moves the shared bar by 0 — the bonus is
+    // the player's own band, never the realm's. Twenty alts must not fill a goal.
+    ok(await progress(evk) - p0 === 0 && N(r?.progress) === p0,
+      `RPS-5: a bare join moved the shared bar ${p0} -> ${await progress(evk)} (response progress ${r?.progress})`);
+    const alt = await mkPlayer();
+    const ra = await asUser(alt, 'select public.world_event_join($1) as r', [evk]);
+    const ref0 = await contribute(alt, evk);
+    ok(ra?.ok === true && N(ref0?.points) === 300 && await progress(evk) - p0 === 0,
+      `RPS-5: a second account's bare join + refresh moved the bar to ${await progress(evk)} (tally ${ref0?.points})`);
     const r2 = await asUser(G, 'select public.world_event_join($1) as r', [today + '#13']);
     const ref = await contribute(G, today + '#13');
     const row2 = await joinRow(G);
     ok(r2?.error === 'already_joined' && row2.bonus === 300 && N(ref?.points) === 300 && await bonusRows() === 1,
       `RPS-5: a second join granted the bonus again (row ${JSON.stringify(row2)}, tally ${ref?.points}, ledger ${await bonusRows()})`);
+    // REPLAY, and the day's OTHER window: still one bonus per user per day.
+    const r2b = await asUser(G, 'select public.world_event_join($1) as r', [evk]);
+    await q("select set_config('rps.slot', '1', false)");
+    const r2c = await asUser(G, 'select public.world_event_join($1) as r', [today + '#1']);
+    await q("select set_config('rps.slot', '13', false)");
+    const row3 = await joinRow(G);
+    ok(r2b?.error === 'already_joined' && r2c?.error === 'already_joined' && row3.bonus === 300
+       && N((await contribute(G, evk))?.points) === 300 && await bonusRows() === 1 && await progress(evk) - p0 === 0,
+      `RPS-5: a replayed join or the day's other window granted the bonus again (${JSON.stringify([r2b?.error, r2c?.error, row3])}, ledger ${await bonusRows()})`);
     const nobody = await mkUser();
     const r3 = await asUser(nobody, 'select public.world_event_join($1) as r', [today + '#13']);
     ok(r3?.error === 'no_character', `RPS-5: a caller with no character joined: ${JSON.stringify(r3)}`);

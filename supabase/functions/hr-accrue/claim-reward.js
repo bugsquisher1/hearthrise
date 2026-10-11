@@ -92,7 +92,7 @@
 //
 //   200 {ok:true, verb, version, now, state, skills, inventory, equipment,
 //        farm, progress, total_level,
-//        granted:{kind,key,period,gold,gems,streak,cycle_day,weeks,mult} | null}
+//        granted:{kind,key,period,gold,gems,items,streak,cycle_day,weeks,mult} | null}
 //        ⚠ snake_case, and that is not a style choice — the four trailing fields
 //          are SPREAD from the pricer's `meta`, so whatever a pricer spells is
 //          what reaches the wire. The first revision of this header said
@@ -138,14 +138,13 @@
 //         `not_claimable`, which is the only answer that survives a second
 //         device.
 //
-//   The other five are wired the SAME way and each answers
+//   The others are wired the SAME way and each answers
 //   `reward_unavailable` with its own `needs` until its dependency lands. Wiring
 //   them now is not wasted: the refusal is renderable, so the surface is honest
-//   ("not yet") instead of paying a client-authored number.
+//   ("not yet") instead of paying a client-authored number. (The goals board's
+//   daily:goal / quest:weekly rows left with the board, 2026-10-16.)
 //
-//   src/legacy.js:16101 claimQuestReward()   → {kind:'daily',      key:'goal'}
-//                       (weekly tab)         → {kind:'quest',      key:'weekly'}
-//   src/features/collection-log.js:64        → {kind:'collection', key:'milestone'}
+//   src/features/collection-log.js:64       → {kind:'collection', key:'milestone'}
 //   src/features/renown.js:308               → {kind:'flag',       key:'renown_rank'}
 //   src/legacy.js:2902 completeBounty()      → {kind:'bounty',     key:'turnin'}
 //       ⚠ BLOCKED ON THE MARKS COLUMN, which another workstream is building.
@@ -179,7 +178,7 @@ import {
 import { refusalBody } from './envelope.js';
 import { settleBeforeMutate } from './settle-first.js';
 import {
-  CLAIMABLES, claimableFor, claimableId, priceDailyLogin, deriveLoginStreak,
+  CLAIMABLES, claimableFor, claimableId, priceDailyLogin, deriveLoginStreak, loginBonusDue,
 } from '../../../src/data/rewards.js';
 
 /** The verb's own name — used to build `journal.intent` and to read the
@@ -352,10 +351,13 @@ export function priceLoginClaim(o) {
   const gate = resolveClaimPeriod({ spec, lookup });
   if (gate.error) return gate;
   const streak = deriveLoginStreak(lookup);
-  const p = priceDailyLogin(streak);
+  /* Keys and gems only when due: straight, and none in the last six server
+     days (rewards.js loginBonusDue; the verify in hr_apply demands the same). */
+  const p = priceDailyLogin(streak, { bonus: loginBonusDue(lookup) });
   return {
     gold: p.gold,
     gems: p.gems,
+    items: p.items,
     add: streak,
     meta: { streak, cycle_day: p.cycleDay, weeks: p.weeksDone, mult: p.mult },
   };
@@ -461,6 +463,10 @@ export function claimDelta(o) {
        the guard is right and the prose is what moves. Do not widen the regex —
        its own header explains why a five-second regex beats a parser here. */
   if (priced.gems) delta.gems = priced.gems;
+  /* Supplies and keys (the W0 login cycle). Omitted when empty for the same
+     reason as gems; hr_apply credits them through its items block, and for a
+     daily:login claim refuses any map but the one hr_login_price states. */
+  if (priced.items && Object.keys(priced.items).length) delta.items = { ...priced.items };
   return delta;
 }
 
@@ -685,6 +691,7 @@ export async function runClaimReward(o) {
            predates the wallet (which paid the price per hero) — the price is
            the truth in both, so it is the fallback and never the override. */
         gems: ('gems_paid' in res) ? Number(res.gems_paid) || 0 : (priced.gems || 0),
+        items: { ...(priced.items || {}) },
         ...(priced.meta || {}),
       },
       /* The settle's receipt: the window paid BEFORE the grant, by this call. */

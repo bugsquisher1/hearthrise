@@ -136,8 +136,6 @@ export async function goalCatalogueDriftGuard(over = {}) {
       + `[${DAILY_TASK_POOL_ORDER.join(',')}] — the server selection (hr_daily_task_set) would offer a `
       + 'different set than the client shows, refusing legitimate claims. Keep the two in lockstep.');
     for (const id of ids) {
-      if (id === 'daily_harvest') { ok(!DAILY_TASK_REWARDS[id],
-        'daily_harvest is dynamic (farmPlotCap) and must NOT be in DAILY_TASK_REWARDS.'); continue; }
       ok(!!DAILY_TASK_REWARDS[id], `DAILY_TASK_POOL row '${id}' is ABSENT from DAILY_TASK_REWARDS — `
         + 'a fixed daily whose gold the server cannot credit. Add it here AND to the SQL CASE.');
     }
@@ -179,10 +177,22 @@ export async function goalCatalogueDriftGuard(over = {}) {
       + 'QUEST_REWARDS does not know — gold for a quest the client never offers.');
   }
 
-  // Daily CASE arms: when '<id>' then v_type := '<type>'; v_goal := N; v_gold := M;
+  /* Daily CASE arms: when '<id>' then v_type := '<type>'; v_goal := N; v_gold := M;
+     read at the CHAIN END — the last file in the apply order that creates
+     hr_claim_daily__ungated (2026-10-16-daily-harvest-credit.sql today, which
+     made daily_harvest a fixed row) — and bound in BOTH directions, as the
+     quest CASE above is. */
+  const dailyEnd = over.dailySql != null ? { sql: over.dailySql, file: '(override)' }
+    : await chainEndMigration(/create\s+or\s+replace\s+function\s+public\.hr_claim_daily__ungated\b/i);
+  ok(!!dailyEnd, 'CONTROL: no file in schema-apply-order.json `order` creates hr_claim_daily__ungated.');
+  const dailySql = dailyEnd ? dailyEnd.sql : '';
+  for (const m of dailySql.matchAll(/when\s+'([a-z0-9_]+)'\s+then\s+v_type/g)) {
+    ok(!!DAILY_TASK_REWARDS[m[1]], `chain-end SQL (${dailyEnd.file}) pays daily '${m[1]}', which `
+      + 'DAILY_TASK_REWARDS does not know.');
+  }
   for (const [id, cat] of Object.entries(DAILY_TASK_REWARDS)) {
     const re = new RegExp(`when\\s+'${id}'\\s+then\\s+v_type\\s*:=\\s*'([a-z_]+)';\\s*v_goal\\s*:=\\s*(\\d+);\\s*v_gold\\s*:=\\s*(\\d+);`);
-    const m = sql.match(re);
+    const m = dailySql.match(re);
     ok(!!m, `SQL hr_claim_daily is missing/misshapen CASE arm for task '${id}'.`);
     if (m) {
       ok(m[1] === cat.type, `SQL daily '${id}' type '${m[1]}' != catalogue '${cat.type}'`);
@@ -203,6 +213,7 @@ export async function goalCatalogueDriftGuard(over = {}) {
     const elig4 = await readFile(
       join(ROOT, 'supabase', 'migrations', '2026-08-29-daily-task-eligibility.sql'), 'utf8');
     for (const [id, cat] of Object.entries(DAILY_TASK_REWARDS)) {
+      if (id === 'daily_harvest') continue;   // fixed only since 2026-10-16: graded at the chain end above
       const re = new RegExp(`when\\s+'${id}'\\s+then\\s+v_type\\s*:=\\s*'([a-z_]+)';\\s*v_goal\\s*:=\\s*(\\d+);\\s*v_gold\\s*:=\\s*(\\d+);`);
       const m = elig4.match(re);
       ok(!!m, `2026-08-29-daily-task-eligibility.sql RESTATES hr_claim_daily__ungated but has no `
@@ -294,6 +305,32 @@ export async function goalCatalogueDriftGuard(over = {}) {
         `eligibility SQL c_pool [${p.join(',')}] != DAILY_TASK_POOL_ORDER.`);
     }
 
+    // (ii-b) THE INSTALLED SHUFFLE is the 6-arg form (2026-10-16-daily-harvest-
+    //        eligibility.sql): its pool is the same index space, the harvest gate
+    //        stands in BOTH passes, the offered set reads it, and the JS twin
+    //        gates the same row. tests/daily-harvest-eligibility.mjs runs both.
+    {
+      const hv = await readFile(
+        join(ROOT, 'supabase', 'migrations', '2026-10-16-daily-harvest-eligibility.sql'), 'utf8');
+      const p6 = hv.match(/c_pool\s+constant\s+text\[\]\s*:=\s*array\[([^\]]+)\]/);
+      const ids = p6 ? [...p6[1].matchAll(/'([a-z_]+)'/g)].map((x) => x[1]) : [];
+      ok(ids.length === DAILY_TASK_POOL_ORDER.length && ids.every((id, i) => id === DAILY_TASK_POOL_ORDER[i]),
+        `harvest-eligibility SQL c_pool [${ids.join(',')}] != DAILY_TASK_POOL_ORDER.`);
+      ok((hv.match(/v_id <> 'daily_harvest' or coalesce\(p_harvest, false\)/g) || []).length === 2,
+        'the 6-arg hr_daily_task_set_caps must skip daily_harvest in pass 1 AND the back-fill.');
+      ok(/public\.hr_daily_harvest_ready\(p_day_key, p_user, p_slot\)\);/.test(hv),
+        'hr_daily_task_set_for must pass hr_daily_harvest_ready — the offer would ignore the gate.');
+      ok(/drop function if exists public\.hr_daily_task_set_caps\(text, bigint, bigint, bigint, bigint\);/.test(hv),
+        'the ungated 5-arg shuffle must be dropped.');
+      ok(!dailyTaskEligible('daily_harvest', { rooms: {}, skillXp: {} })
+         && dailyTaskEligible('daily_harvest', { farm: { plots: 2, plantable: true } }),
+        'goal-catalogue dailyTaskEligible must gate daily_harvest on caps.farm (no seeds -> out, seeds + plot -> in).');
+      const capsAt = legacy.indexOf('function dailyTaskCaps(');
+      const capsSrc = capsAt >= 0 ? legacy.slice(capsAt, legacy.indexOf('\n}', capsAt)) : '';
+      ok(/farm:farm\}/.test(capsSrc) && /pickSeedToPlant/.test(capsSrc) && /heldByServer/.test(capsSrc),
+        'legacy.js dailyTaskCaps must hand the harvest gate its farm caps from the SERVER bag (heldByServer + pickSeedToPlant).');
+    }
+
     // (iii) The CLAIM GATE is the UNION. Narrowing it to the eligible set would
     //       refuse a legitimate claim from a client whose room ownership the
     //       server cannot yet see (rooms record is dormant; production holds ZERO
@@ -349,7 +386,8 @@ export async function goalCatalogueDriftGuard(over = {}) {
   // ── (3d) The eligibility CONTRACT, swept ───────────────────────────────
   {
     const FRESH = { rooms: {}, skillXp: {} };
-    const FULL = { rooms: { workshop: 1, forge: 1 }, skillXp: {} };
+    const FULL = { rooms: { workshop: 1, forge: 1 }, skillXp: {},
+      farm: { plots: 2, plantable: true, growing: 0, today: 0 } };
     let shortSlate = 0; let bench = 0; let notIdentity = 0;
     for (const k of daySweep(730)) {
       const fresh = dailyTaskSet(k, FRESH);
@@ -397,6 +435,9 @@ export async function goalCatalogueDriftGuard(over = {}) {
    chain-end quest SQL; each must turn the guard RED. The base run must be clean
    first, and a mutation whose anchor matched nothing is itself a failure. */
 const MUTATIONS = [
+  { name: "chain-end DAILY gold drift (daily_harvest 300 -> 3000)",
+    apply: (b) => ({ dailySql: b.dailySql.replace(
+      "v_type := 'harvest';  v_goal := 6;   v_gold := 300;", "v_type := 'harvest';  v_goal := 6;   v_gold := 3000;") }) },
   { name: 'chain-end gold drift (road_hunt 1500 -> 1501)',
     apply: (b) => ({ questSql: b.questSql.replace(
       "when 'road_hunt' then v_key := 'ev:kill_any'; v_goal := 500; v_gold := 1500;",
@@ -429,7 +470,8 @@ async function selftest() {
   const end = await chainEndMigration(QUEST_BODY_RE);
   if (!end) { console.log('  x CONTROL: no chain-end quest body.'); return 2; }
   console.log(`  chain-end quest body: ${end.file}`);
-  const base = { legacy: await readFile(join(ROOT, 'src', 'legacy.js'), 'utf8'), questSql: end.sql };
+  const dEnd = await chainEndMigration(/create\s+or\s+replace\s+function\s+public\.hr_claim_daily__ungated\b/i);
+  const base = { legacy: await readFile(join(ROOT, 'src', 'legacy.js'), 'utf8'), questSql: end.sql, dailySql: dEnd ? dEnd.sql : '' };
   const clean = await goalCatalogueDriftGuard(base);
   if (clean.length) {
     for (const x of clean) console.log(`  x ${x}`);
@@ -440,7 +482,7 @@ async function selftest() {
   let missed = 0;
   for (const m of MUTATIONS) {
     const over = { ...base, ...m.apply(base) };
-    if (over.legacy === base.legacy && over.questSql === base.questSql) {
+    if (over.legacy === base.legacy && over.questSql === base.questSql && over.dailySql === base.dailySql) {
       console.log(`  x "${m.name}" changed NOTHING — its anchor moved, it proves nothing.`); missed++; continue;
     }
     const found = await goalCatalogueDriftGuard(over);

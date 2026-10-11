@@ -146,30 +146,21 @@ export default [
     }
   }),
 
-  () => tryRun('DAILY-SHEET-4 (b497): a MISSED day resets the advertised day — the sheet may never promise a day the server will not pay', () => {
-    /* LIVE, 2026-08-31, prod, QA account (b497 play-gate):
-         G.dailyReward.lastClaimDay = 20260829; Aug 30 went unclaimed; on Aug 31
-         the sheet advertised "DAILY REWARD · 3-DAY STREAK / Claim Day 3 · 2,000
-         gold · 5 gems" with D3 highlighted — and the SERVER paid Day 1's 500
-         gold and NO gems. Nothing was lost; the modal promised 4x what it paid.
-
-       ROOT CAUSE: two different streaks, one name. The payout is priced from
-       `deriveLoginStreak` (consecutive days CLAIMED, off the character's own
-       daily/login rows). The sheet rendered `state.streak_days` — hr_apply §4c's
-       SETTLE streak (consecutive days PLAYED, 2026-08-21-streak-state.sql).
-       They agree only while every played day is also a claimed day.
-
-       This test drives BOTH doors, because the bug is reachable through both:
-       the server-row path (a played-but-unclaimed day) and the pre-envelope
-       fallback (the residue play-streak, which is not a claim history at all).
-       Each RED case is paired with a CONTROL that fails if the fix degenerated
-       into "always answer Day 1". */
+  () => tryRun('DAILY-SHEET-4 (W0): a MISSED day steps the advertised day back ONE, never to Day 1 — and the sheet never promises a day the server will not pay', () => {
+    /* The server prices a claim from the LAST claimed row and its gap
+       (2026-10-16-login-reward.sql, hr_login_streak; src/data/rewards.js
+       deriveLoginStreak): last + 1 − missed days. The sheet runs the same
+       function over the same rows off the envelope, so this drives the
+       envelope door with a missed day, a claimed day, an unclaimed row and a
+       stale capture, and the residue door before any envelope. Each case is
+       paired with a control that fails if the rule degenerated into a constant. */
     const D = window.HearthriseDaily, G = window.G, R = window.HearthriseRewards;
     const B = window.HearthriseCore && window.HearthriseCore.botd;
     assert(D && R && B, 'HearthriseDaily / HearthriseRewards / HearthriseCore.botd must be present');
     const snap = snapshotG();
     const sStreak = G.streak, sDR = G.dailyReward;
     const dayLocal = (ms) => { const d = new Date(ms); return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate(); };
+    const key = (n) => B.utcDayKey(n * 86400000);
     const openSheet = () => {
       const old = document.getElementById('hr-dl-modal'); if (old) old.remove();
       D.open();
@@ -178,109 +169,120 @@ export default [
     try {
       const now = Date.now();
       const dayN = B.utcDayNumber(now);
-      const yKey = B.utcDayKey((dayN - 1) * 86400000);      // yesterday, server spelling
-      const y2Key = B.utcDayKey((dayN - 2) * 86400000);     // the day before that
       const y2Local = dayLocal(now - 2 * 86400000);
       const yLocal = dayLocal(now - 86400000);
-      const day1 = R.priceDailyLogin(1), day3 = R.priceDailyLogin(3);
-      assert(day1.gold !== day3.gold && (day3.gems || 0) !== (day1.gems || 0),
-        'CONTROL: Day 1 and Day 3 pay the same, so every assertion below is vacuous');
-
-      // ── (A) THE LIVE CASE. Claimed two days ago, NOTHING for yesterday. ────
-      seedPlayStreak(3);                              // the play streak kept running
-      G.dailyReward = { lastClaimDay: y2Local };
-      D.noteServerStreak({
-        now: new Date(now).toISOString(),
-        // The exact field b475 read, carrying the exact number it read live.
-        state: { streak_days: 3 },
-        progress: [{ kind: 'daily', key: 'login', period: y2Key, value: 2, state: 'claimed' }],
+      const day3 = R.priceDailyLogin(3), day4 = R.priceDailyLogin(4), day1 = R.priceDailyLogin(1);
+      assert(day3.gold !== day4.gold && day3.gold !== day1.gold,
+        'CONTROL: Days 1, 3 and 4 pay the same gold, so every assertion below is vacuous');
+      const env = (rows, atMs) => D.noteServerStreak({
+        now: new Date(atMs == null ? now : atMs).toISOString(),
+        state: { streak_days: 9 },            // the SETTLE streak: the wrong quantity, a control
+        progress: rows,
       });
-      assert(D.cycleDay(G) === 1,
-        'THE BUG: a missed day must reset the advertised day to 1, got Day ' + D.cycleDay(G)
-        + ' — the sheet is promising a day the server will price at 1');
-      const rwA = D.rewardFor(G);
-      assert((rwA.gold || 0) === day1.gold,
-        'THE BUG: the advertised gold is ' + rwA.gold + ', the server will pay ' + day1.gold);
-      assert(!rwA.gems,
-        'THE BUG: the sheet advertised ' + rwA.gems + ' gems on a broken streak; Day 1 pays none');
+
+      // ── (A) Day 3 claimed two days ago, yesterday missed → Day 3 again. ────
+      seedPlayStreak(3);
+      G.dailyReward = { lastClaimDay: y2Local };
+      env([{ kind: 'daily', key: 'login', period: key(dayN - 2), value: 3, state: 'claimed' }]);
+      assert(D.cycleDay(G) === 3,
+        'a missed day must cost ONE step (Day 3 again), got Day ' + D.cycleDay(G)
+        + (D.cycleDay(G) === 1 ? ' — the old reset-to-Day-1 rule' : ''));
+      assert((D.rewardFor(G).gold || 0) === day3.gold,
+        'the advertised gold is ' + D.rewardFor(G).gold + ', the server will pay ' + day3.gold);
       const mA = openSheet();
-      assert(!!mA, 'the sheet must open');
-      /* b499: the eyebrow no longer says "streak" at all — it says the CYCLE
-         POSITION, which is the quantity this sheet actually owns. */
-      assert(/Day 1 of 7/.test(mA.textContent),
-        'eyebrow must read "Day 1 of 7", got: ' + mA.textContent.slice(0, 80));
-      assert(/Claim Day 1/.test(mA.textContent),
-        'claim button must read "Claim Day 1", got: ' + mA.textContent.slice(0, 120));
+      assert(!!mA && /Day 3 of 7/.test(mA.textContent) && /Claim Day 3/.test(mA.textContent),
+        'the sheet must read "Day 3 of 7" / "Claim Day 3", got: ' + (mA && mA.textContent.slice(0, 140)));
+      assert(/step back one day/.test(mA.textContent),
+        'the sheet must say what a missed day costs, got: ' + mA.textContent.slice(0, 200));
       const tileA = mA.querySelector('.hr-dl-day.today');
-      assert(tileA && /^D1/.test(tileA.textContent),
-        'the highlighted tile must be D1, got: ' + (tileA && tileA.textContent));
+      assert(tileA && /^D3/.test(tileA.textContent), 'the highlighted tile must be D3, got: ' + (tileA && tileA.textContent));
       mA.remove();
 
-      // ── (B) CONTROL. Same shape, but yesterday IS claimed → the day advances.
-      D.noteServerStreak({
-        now: new Date(now).toISOString(),
-        state: { streak_days: 3 },
-        progress: [{ kind: 'daily', key: 'login', period: yKey, value: 2, state: 'claimed' }],
-      });
-      assert(D.cycleDay(G) === 3,
-        'CONTROL: an unbroken streak must still advance to Day 3, got Day ' + D.cycleDay(G)
-        + ' — the fix has degenerated into "always Day 1"');
-      assert((D.rewardFor(G).gems || 0) === (day3.gems || 0),
-        'CONTROL: an unbroken streak must still preview the Day-3 gems');
+      // ── (B) CONTROL: claimed yesterday → the day advances to 4. ───────────
+      env([{ kind: 'daily', key: 'login', period: key(dayN - 1), value: 3, state: 'claimed' }]);
+      assert(D.cycleDay(G) === 4, 'CONTROL: an unbroken streak must advance to Day 4, got Day ' + D.cycleDay(G));
 
-      // ── (C) CONTROL. A row for yesterday that was never CLAIMED is a break.
-      D.noteServerStreak({
-        now: new Date(now).toISOString(),
-        progress: [{ kind: 'daily', key: 'login', period: yKey, value: 2, state: 'done' }],
-      });
-      assert(D.cycleDay(G) === 1,
-        'a yesterday row in state "done" is not a claim — the server prices that at Day 1, got Day '
-        + D.cycleDay(G));
+      // ── (C) Three missed days from Day 5 → Day 3; only the LAST claim counts.
+      env([
+        { kind: 'daily', key: 'login', period: key(dayN - 9), value: 20, state: 'claimed' },
+        { kind: 'daily', key: 'login', period: key(dayN - 4), value: 5, state: 'claimed' },
+      ]);
+      assert(D.cycleDay(G) === 3, 'Day 5 four days ago (three missed) must be Day 3, got Day ' + D.cycleDay(G));
 
-      // ── (D) THE PRE-ENVELOPE FALLBACK, same bug through the other door. ────
-      /* Before the first envelope lands (boot, or a client-authoritative build)
-         the sheet has only the residue — and `G.streak.count` is the PLAY streak.
-         The same reset rule must apply to the only claim history it holds. */
+      // ── (D) An unclaimed row is not a claim. ──────────────────────────────
+      env([
+        { kind: 'daily', key: 'login', period: key(dayN - 2), value: 3, state: 'claimed' },
+        { kind: 'daily', key: 'login', period: key(dayN - 1), value: 9, state: 'done' },
+      ]);
+      assert(D.cycleDay(G) === 3, 'a "done" row yesterday must not continue the streak, got Day ' + D.cycleDay(G));
+      env([{ kind: 'daily', key: 'login', period: key(dayN - 1), value: 9, state: 'done' }]);
+      assert(D.cycleDay(G) === 1, 'with no claimed row the server prices Day 1, got Day ' + D.cycleDay(G));
+
+      // ── (E) THE PRE-ENVELOPE FALLBACK may only UNDER-state. ───────────────
+      /* With no envelope the sheet holds only lastClaimDay and the play streak,
+         neither of which is the claim history, so after any gap it answers
+         Day 1 — below or equal to anything the server can pay, never above. */
       D.noteServerStreak(null);
       seedPlayStreak(3);
       G.dailyReward = { lastClaimDay: y2Local };
-      assert(D.cycleDay(G) === 1,
-        'THE BUG, pre-envelope: lastClaimDay two days ago must advertise Day 1, got Day '
-        + D.cycleDay(G));
-      assert(!D.rewardFor(G).gems, 'THE BUG, pre-envelope: a broken streak advertised gems');
-
-      // CONTROL: claimed yesterday → the residue's day is preserved.
+      assert(D.cycleDay(G) === 1, 'pre-envelope, a gap must answer Day 1 (an understatement), got Day ' + D.cycleDay(G));
       G.dailyReward = { lastClaimDay: yLocal };
-      assert(D.cycleDay(G) === 3,
-        'CONTROL: claimed yesterday must still advertise Day 3, got Day ' + D.cycleDay(G));
-
-      /* CONTROL: lastClaimDay 0 is the ABSENCE of a claim history, not a gap.
-         Reading it as a break would be acting without certainty in the other
-         direction — and it is the state every fresh character boots in. */
+      assert(D.cycleDay(G) === 3, 'CONTROL: claimed yesterday must still advertise the residue Day 3, got Day ' + D.cycleDay(G));
       G.dailyReward = { lastClaimDay: 0 };
-      assert(D.cycleDay(G) === 3,
-        'CONTROL: an empty claim history must not be read as a broken streak, got Day '
-        + D.cycleDay(G));
+      assert(D.cycleDay(G) === 3, 'CONTROL: an empty claim history is not a gap, got Day ' + D.cycleDay(G));
 
-      // ── (E) A STALE CAPTURE MUST NOT ANSWER FOR TODAY. ────────────────────
-      /* The rows we hold describe the day the envelope was built for. A capture
-         from three days ago says nothing about now; answering from it anyway is
-         how a wrong clock becomes a wrong promise. */
+      // ── (F) A STALE CAPTURE MUST NOT ANSWER FOR TODAY. ────────────────────
       G.dailyReward = { lastClaimDay: y2Local };
-      seedPlayStreak(3);
-      D.noteServerStreak({
-        now: new Date(now - 3 * 86400000).toISOString(),
-        progress: [{ kind: 'daily', key: 'login', period: B.utcDayKey((dayN - 4) * 86400000), value: 6, state: 'claimed' }],
-      });
+      env([{ kind: 'daily', key: 'login', period: key(dayN - 4), value: 6, state: 'claimed' }], now - 3 * 86400000);
       assert(D.cycleDay(G) === 1,
-        'a three-day-old envelope must not price today — the local rule (missed day) must answer, got Day '
-        + D.cycleDay(G));
+        'a three-day-old envelope must not price today — the local rule must answer, got Day ' + D.cycleDay(G));
     } finally {
       const el = document.getElementById('hr-dl-modal'); if (el) el.remove();
       D.noteServerStreak(null);
       restoreG(snap);
       if (sStreak === undefined) delete G.streak; else G.streak = sStreak;
       seedPlayStreak(null);
+      if (sDR === undefined) delete G.dailyReward; else G.dailyReward = sDR;
+    }
+  }),
+
+  () => tryRun('DAILY-SHEET-6 (W0): the sheet names the SUPPLIES the server will pay, by item name, and predicts only gold and gems', () => {
+    /* The W0 cycle pays food, seeds and a Bone Key beside modest gold. The sheet
+       previews the server's own price (one function, src/data/rewards.js), so
+       day 7 must read the key by its ITEMS name on the claim button. The local prediction stays currency-only: items arrive with the
+       envelope, so a forged preview can never put a key in the bag. */
+    const D = window.HearthriseDaily, G = window.G, R = window.HearthriseRewards;
+    const B = window.HearthriseCore && window.HearthriseCore.botd;
+    assert(D && R && B && window.ITEMS, 'HearthriseDaily / HearthriseRewards / botd / ITEMS must be present');
+    const snap = snapshotG();
+    const sDR = G.dailyReward;
+    try {
+      const now = Date.now();
+      const dayN = B.utcDayNumber(now);
+      const yLocal = ((d) => d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate())(new Date(now - 86400000));
+      G.dailyReward = { lastClaimDay: yLocal };
+      D.noteServerStreak({ now: new Date(now).toISOString(), state: {},
+        progress: [{ kind: 'daily', key: 'login', period: B.utcDayKey((dayN - 1) * 86400000), value: 6, state: 'claimed' }] });
+      const want = R.priceDailyLogin(7, { bonus: true }), rw = D.rewardFor(G);
+      assert(D.cycleDay(G) === 7, 'claimed day 6 yesterday must preview day 7, got ' + D.cycleDay(G));
+      assert(JSON.stringify(rw.items || {}) === JSON.stringify(want.items) && want.items.bone_key === 1,
+        'day 7 must preview the server\'s supplies ' + JSON.stringify(want.items) + ', got ' + JSON.stringify(rw.items));
+      assert(rw.gold === want.gold && rw.gems === want.gems, 'the currency preview is not the server\'s price');
+      const old = document.getElementById('hr-dl-modal'); if (old) old.remove();
+      D.open();
+      const btn = document.querySelector('#hr-dl-modal .hr-dl-claim');
+      const keyName = window.ITEMS.bone_key.n || window.ITEMS.bone_key.name;
+      assert(btn && btn.textContent.includes(keyName) && !/bone_key/.test(btn.textContent),
+        'the claim button must name the ' + keyName + ', never its id: ' + (btn && btn.textContent));
+      document.getElementById('hr-dl-modal').remove();
+      /* The prediction: the claim seam is handed gold and gems, never items. */
+      const src = String(window.HearthriseDaily.claim);
+      assert(/goldSettleCurrency\(\{ gold: rw\.gold \|\| 0, gems: rw\.gems \|\| 0 \}/.test(src),
+        'the claim must predict exactly gold + gems through goldSettleCurrency');
+    } finally {
+      const el = document.getElementById('hr-dl-modal'); if (el) el.remove();
+      D.noteServerStreak(null);
+      restoreG(snap);
       if (sDR === undefined) delete G.dailyReward; else G.dailyReward = sDR;
     }
   }),
@@ -722,7 +724,7 @@ export default [
        every other field is self-only PROGRESS, that one was a client-held GEAR
        PERMISSION the realm never mirrored. Re-adding it re-opens §6 with a save. */
     ['bestiary', 'dropLog', 'collectionLog', 'lifetimeKills', 'homestead',
-      'currentCombatTier', 'buyback', 'dailyGoldStart', 'raids',
+      'currentCombatTier', 'buyback', 'raids',
       'muster', 'rallyPledge', 'pendingItemSpends'].forEach((f) =>
       assert(RF.indexOf(f) >= 0, 'THE BUG: G.' + f + ' must be a residue field or every reload forgets it'));
     /* ⚠ `renownHigh` and `toolCarry` LEFT THIS LIST on 2026-09-14 and must NOT
@@ -822,10 +824,14 @@ export default [
     assert(Array.isArray(RF), 'RESIDUE_FIELDS must be exported');
     /* ⚠ `streak` LEFT THIS LIST on 2026-09-14: the play streak is the server's
        `streak_days` (reconcilePlayStreak → playStreakDays), and a device-clock
-       copy in the bag is what painted 1 over the realm's 3. The other three are
-       genuine shown-today markers with no projection behind them. */
-    ['dailyReward', 'dailyGoals', 'weeklyGoals'].forEach((f) =>
+       copy in the bag is what painted 1 over the realm's 3. dailyReward is a
+       genuine shown-today marker with no projection behind it. */
+    ['dailyReward'].forEach((f) =>
       assert(RF.includes(f), 'THE BUG: ' + f + ' must be a residue field or every reload forgets it'));
+    /* W0: the goals board is cut, so its two slates and its gold watermark are
+       gone from the bag, not merely unread. */
+    ['dailyGoals', 'weeklyGoals', 'dailyGoldStart'].forEach((f) =>
+      assert(!RF.includes(f), f + ' is still on RESIDUE_FIELDS — the goals board it served is retired'));
     assert(!RF.includes('streak'),
       'the play-streak residue is back — the day the sheet shows must come from the server, not a device clock');
     const G = window.G;

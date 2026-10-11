@@ -45,13 +45,6 @@ import { BOSSES, BOSS_BY_DUNGEON } from './data/bosses.js?v=564';
 /* W0 — where every item comes from and who uses it (the Collection Log's
    denominator, and the vendor-trash list the drop-sink smoke guard reads). */
 import { obtainableItemIds, VENDOR_TRASH } from './data/catalogue-coherence.js?v=564';
-/* R1/R5 — the monotonic predicted-vs-confirmed DISPLAY seam. A CLIENT-display
-   sibling of src/core/goals.js (kept OUT of goals.js so the hr-accrue edge
-   payload stays byte-identical — see goal-display.js's header). The classic-
-   script render layer (legacy.js: the quest strip, the Quests modal, the bounty
-   board) cannot import, so it is republished on window here — ONE implementation
-   the render sites and the smoke tests both read. */
-import { goalDisplayState, GOAL_PHASE } from './core/goal-display.js?v=569';
 import { cheapestShopUnitPrice } from './core/shop-buyback.js?v=569';
 import { SHOP_OFFERS } from './data/shops.js?v=569';
 /* b349 — CLAIMABLE REWARDS. The daily-login cycle used to be a literal inside
@@ -63,8 +56,8 @@ import { SHOP_OFFERS } from './data/shops.js?v=569';
 import {
   DAILY_LOGIN_CYCLE, DAILY_LOGIN_CYCLE_DAYS, DAILY_LOGIN_WEEK_BONUS,
   DAILY_LOGIN_MAX_WEEK_MULT, CLAIMABLES, claimableFor, claimableId,
-  priceDailyLogin, deriveLoginStreak,
-} from './data/rewards.js?v=569';
+  priceDailyLogin, deriveLoginStreak, loginBonusDue,
+} from './data/rewards.js?v=567';
 
 // b215: MERGE the ESM data into legacy.js's lexical objects rather than just
 // shadowing them on window.
@@ -212,13 +205,8 @@ window.__hrIconsReady?.();
 window.HearthriseRewards = Object.freeze({
   DAILY_LOGIN_CYCLE, DAILY_LOGIN_CYCLE_DAYS, DAILY_LOGIN_WEEK_BONUS,
   DAILY_LOGIN_MAX_WEEK_MULT, CLAIMABLES,
-  claimableFor, claimableId, priceDailyLogin, deriveLoginStreak,
+  claimableFor, claimableId, priceDailyLogin, deriveLoginStreak, loginBonusDue,
 });
-
-/* R1/R5 — the monotonic display seam, published for legacy.js's render layer
-   (quest strip, Quests modal, bounty board) and the smoke suite. See the header
-   in src/core/goals.js for the rule. */
-window.HearthriseGoals = Object.freeze({ goalDisplayState, GOAL_PHASE });
 
 // 2. Network — auto-boots in offline mode, ready to upgrade to Supabase later.
 //    The bootstrap module reads stored credentials from localStorage and
@@ -473,9 +461,12 @@ import { setupComeBack } from './features/come-back.js?v=569';
    able to call them; net/bank-sync.js is the transport and render/bank-panel.js
    the screen, reached from the Inventory toolbar. Neither authors a quantity:
    every move is an intent, and the paint comes from the envelope that follows. */
-import './net/bank-sync.js?v=569';
-import { setupBankPanel } from './render/bank-panel.js?v=569';
-import './features/this-week.js?v=569';
+import './net/bank-sync.js?v=567';
+import { setupBankPanel } from './render/bank-panel.js?v=567';
+/* THE ONE DAILY LIST (W0): the Quests sheet, strip and badge over the server's
+   tally; Your week below reads the same cache. */
+import './features/daily-quests.js?v=567';
+import './features/this-week.js?v=567';
 /* b535 - THE SUITE IS NOT PART OF THE GAME. This line used to pull
    features/smoke-test.js in STATICALLY: a 3.75 MB test suite, 36% of the
    10.28 MB of JavaScript a cold boot delivered, paid by every player before the

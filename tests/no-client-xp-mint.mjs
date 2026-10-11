@@ -108,11 +108,6 @@ export const ALLOWED = [
     'copies plant_xp / water_xp / xp out of the hr_farm_* RESPONSE exactly once. '
     + 'Proven by tests/farm-sync.mjs; the gesture half is proven by tests/no-client-farm-mint.mjs.',
     ['hr_farm_plant', 'hr_farm_water', 'hr_farm_harvest']],
-  ['src/legacy.js', 'claimQuestReward', '(b)',
-    'the daily/weekly goal claim. The server verdict (hr_claim_goal) is taken FIRST and this branch '
-    + 'only runs for a reward it accepted; an uncataloguable goal carries `blocked:` and is never '
-    + 'dealt (tests/modal-goal-claim.mjs binds the two).',
-    ['hr_claim_goal']],
 
   // ── (c) CLIENT-AUTHORED — A DEBT REGISTER, NOT AN ENDORSEMENT ─────────────
   // EMPTY since 2026-10-10-quest-xp-absence-pay.sql. The last entry was

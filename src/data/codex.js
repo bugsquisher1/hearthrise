@@ -50,7 +50,7 @@ export const CODEX_ENTRIES = f([
     { tab: 'character' },
     [[0, 'totalLevelSum'], [1, 'totalLevel']]),
   entry('daily-reward', 'first', 'Daily reward',
-    'Claim one reward each day from the Home screen. The rewards climb through the week and each finished week makes the next one richer, but a missed day starts the streak over from the beginning.',
+    'Claim one reward each day from the Home screen: food, seeds and gold, with a Bone Key to end each week. Each finished week makes the next one richer up to a fixed ceiling, and a missed day steps you back one day, never to the start.',
     { tab: 'profile' },
     [[0, 'daily'], [1, 'daily']]),
   entry('renown', 'first', 'Renown',

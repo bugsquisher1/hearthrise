@@ -193,7 +193,8 @@ export function questXpIsServerCredited(questId) {
    the goal event; the server reads `ev:<type>` in the kind='daily' population
    for TODAY's UTC day key and completes at `value >= goal`. Reward is pure gold.
 
-   `daily_harvest` is ABSENT — see BLOCKED_DAILY. */
+   `daily_harvest` became a fixed row on 2026-10-16 (it was offered and never
+   paid while its goal scaled with the client's plot cap). */
 /* ── b497 — THE GOLD-PER-EFFORT-MINUTE RETUNE (Designer, balance audit) ─────
    The pool paid a 13:1 spread across gold-per-effort-minute and FIGHTERS sat at
    the bottom of it. Killing 60 monsters is the longest task in the pool and
@@ -217,43 +218,29 @@ export const DAILY_TASK_REWARDS = Object.freeze({
   daily_cook:       { type: 'cooked',   goal: 12,  gold: 400 },
   daily_smith:      { type: 'smithed',  goal: 40,  gold: 500 },
   daily_craft:      { type: 'crafted',  goal: 40,  gold: 500 },
+  daily_harvest:    { type: 'harvest',  goal: 6,   gold: 300 },   // fixed since 2026-10-16-daily-harvest-credit.sql
 });
 
 /* THE POOL ORDER — the EXACT authored order of legacy.js DAILY_TASK_POOL, so
    the server's day-keyed selection (hr_daily_task_set) shuffles the SAME
-   index space the client does. `daily_harvest` occupies index 4 even though it
-   is not creditable: dropping it here would shift every index and desync the
-   selection from the client. The drift test asserts this order equals the
+   index space the client does. Dropping or reordering a row would shift every
+   index and desync the selection from the client. The drift test asserts this order equals the
    authored `id:` order in legacy.js. */
 export const DAILY_TASK_POOL_ORDER = Object.freeze([
   'daily_kill',        // 0
   'daily_kill_big',    // 1
   'daily_gather',      // 2
   'daily_gather_big',  // 3
-  'daily_harvest',     // 4  — BLOCKED (dynamic goal), still holds its slot
+  'daily_harvest',     // 4
   'daily_cook',        // 5
   'daily_smith',       // 6
   'daily_craft',       // 7
 ]);
 
-/* The base number of daily tasks offered (indexes .slice(0, N) of the shuffle).
-   The King's Renown perk adds a 4th client-side; the server CANNOT see Renown
-   (RENOWN_MODEL is unbuilt), so it credits the base set only — see BLOCKED_DAILY. */
+/* The number of daily tasks offered (indexes .slice(0, N) of the shuffle). The
+   King's 4th task was retired (it was shown and never paid); three is the set. */
 export const DAILY_TASK_BASE_COUNT = 3;
 
-/* THE FLAGGED ROWS — server-authority gaps stated as data, not omitted in
-   silence. Each names the dependency that would let the server own it. */
-export const BLOCKED_DAILY = Object.freeze({
-  daily_harvest: 'DYNAMIC GOAL. legacy.js computes goal=max(10, farmPlotCap()*3) '
-    + 'and reward=goal*30 from the client farm-plot cap (homestead.maxPlots). The '
-    + 'server does not know the plot cap today. Unblock: read the farm_land unlock '
-    + 'rung from player_progress (kind=unlock, the seam:farm.build_plot ladder) and '
-    + 'derive the cap server-side, then this becomes a normal creditable row.',
-  king_fourth_slot: 'RENOWN-GATED SLOT. A King (Renown perk) is shown a 4th daily '
-    + 'task (index 3 of the shuffle). Renown has no server model (gold-sites B.RENOWN_'
-    + 'MODEL), so the server derives the base 3 only and refuses a 4th with not_offered. '
-    + 'Rides on the Renown server model.',
-});
 
 /* ════════════════════════════════════════════════════════════════════════
    DAILY-TASK ELIGIBILITY — one predicate, evaluated on BOTH sides.
@@ -282,7 +269,7 @@ export const BLOCKED_DAILY = Object.freeze({
        the unfiltered shuffle produced. An eligibility filter that changes what
        an established player is offered is a balance change wearing a bug fix's
        clothes; this one cannot be.
-     • ALWAYS A FULL SLATE. Six of the eight pool rows have no requirement at
+     • ALWAYS A FULL SLATE. Five of the eight pool rows have no requirement at
        all, so a base-3 (or King's-4) draw can always be filled from eligible
        rows. The final back-fill loop exists for the day someone authors a
        ninth row with a requirement — it must never be possible to hand a
@@ -329,19 +316,35 @@ export const DAILY_TASK_REQUIREMENTS = Object.freeze({
    • daily_cook — b225 retired the Kitchen as a permission gate (the campfire
      ruling); cooking works from the tier-1 camp, and the Kitchen now sells
      reliability (noBurn), not access.
-   • daily_harvest — the starting Wanderer's Camp has 2 plots and seeds are
-     shop-stocked, so farming is reachable on day one. Its goal SCALES with the
-     plot cap already (legacy.js b220), which is the right lever for that row.
    • daily_kill / daily_gather (+ the _big pair) — no prerequisite exists. */
+
+/* daily_harvest IS gated, by a different kind of rule (game-designer,
+   2026-10-10): "offered only when the character holds plantable seeds AND has
+   a plot — a quest that can't be done is the 2026-08-23 wall again." The
+   server port is public.hr_daily_harvest_ready in
+   supabase/migrations/2026-10-16-daily-harvest-eligibility.sql, read from
+   server rows only. A crop already in the ground, or a plant/harvest counted
+   today, keeps the row dealt: planting the last seed, or harvesting the last
+   crop with the bag empty, must not pull a half-done quest off the sheet.
+   caps.farm = { plots, plantable, growing, today } — every field from the
+   server projection (the client builds it in legacy.js dailyTaskCaps). */
+export const HARVEST_DAILY = 'daily_harvest';
+function harvestReady(caps) {
+  const f = (caps && caps.farm) || {};
+  if (!((Number(f.plots) || 0) > 0)) return false;
+  return f.plantable === true || (Number(f.growing) || 0) > 0 || (Number(f.today) || 0) > 0;
+}
 
 /**
  * @param taskId one of DAILY_TASK_POOL_ORDER
- * @param caps { rooms: {<roomId>: level}, skillXp: {<skillId>: xp} }
+ * @param caps { rooms: {<roomId>: level}, skillXp: {<skillId>: xp},
+ *        farm: {plots, plantable, growing, today} }
  *        A MISSING caps object means "nothing unlocked" — fail closed, because
  *        the failure it guards against is offering a padlock, and the cost of
  *        being wrong in the other direction is a task the player cannot do.
  */
 export function dailyTaskEligible(taskId, caps) {
+  if (taskId === HARVEST_DAILY) return harvestReady(caps);
   const req = DAILY_TASK_REQUIREMENTS[taskId];
   if (!req) return true;
   const c = caps || {};
@@ -380,8 +383,7 @@ export function dailyTaskIndexes(dayKey) {
 /**
  * TODAY'S OFFERED SET, as POOL INDEXES — the shape src/legacy.js needs, since
  * its pool is an array of factories addressed by index.
- * @param count defaults to DAILY_TASK_BASE_COUNT; the King's Renown perk asks
- *        for one more (legacy.js reads it) and it is bounded by the pool.
+ * @param count defaults to DAILY_TASK_BASE_COUNT, bounded by the pool.
  */
 export function dailyTaskSetIndexes(dayKey, caps, count) {
   const order = dailyTaskIndexes(dayKey);
@@ -392,7 +394,7 @@ export function dailyTaskSetIndexes(dayKey, caps, count) {
     if (out.length >= want) break;
     if (dailyTaskEligible(DAILY_TASK_POOL_ORDER[i], caps)) out.push(i);
   }
-  /* THE BACK-FILL. Unreachable today (six pool rows are ungated, so a 3- or
+  /* THE BACK-FILL. Unreachable today (five pool rows are ungated, so a 3- or
      4-slot draw always fills), and deliberately kept: the day someone authors a
      ninth pool row with a requirement, the alternative is a player handed two
      daily tasks and a silent hole where the third should be. Shuffle order is
@@ -400,7 +402,9 @@ export function dailyTaskSetIndexes(dayKey, caps, count) {
   if (out.length < want) {
     for (const i of order) {
       if (out.length >= want) break;
-      if (out.indexOf(i) < 0) out.push(i);
+      /* A back-filled wall is still a wall: harvest stays out unless ready. */
+      if (out.indexOf(i) < 0
+          && (DAILY_TASK_POOL_ORDER[i] !== HARVEST_DAILY || harvestReady(caps))) out.push(i);
     }
   }
   return out;
@@ -410,11 +414,3 @@ export function dailyTaskSetIndexes(dayKey, caps, count) {
 export function dailyTaskSet(dayKey, caps, count) {
   return dailyTaskSetIndexes(dayKey, caps, count).map((i) => DAILY_TASK_POOL_ORDER[i]);
 }
-
-export const BLOCKED_GOAL_BOARD = 'THE DAILY/WEEKLY GOALS BOARD (legacy.js DAILY_GOAL_POOL / '
-  + 'WEEKLY_GOAL_POOL, claimQuestReward). A DIFFERENT tracking model: progress = readSource(stats.*) '
-  + '- baseline captured at day/week start. Most sources are NOT ev counters (stats.chopped, .mined, '
-  + '.fished, .planted, .levelups, _dailyGoldDelta) — the ev model emits only six AGGREGATE types, not '
-  + 'per-skill or derived ones — and the weekly delta-baseline cannot be reconstructed from ev daily '
-  + 'rows. Not server-verifiable from the ev counters; its b411 defer stays. Unblock: a server model '
-  + 'for per-skill/derived counters + a period baseline, or re-author the board onto the six ev types.';

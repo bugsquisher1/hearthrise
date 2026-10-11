@@ -3368,5 +3368,10 @@ export default [
     assert(window.withArticle('Copper Studs') === 'Copper Studs', 'a plural item took an article: ' + window.withArticle('Copper Studs'));
     assert(window.withArticle('Bone Key') === 'a Bone Key' && window.withArticle('Arcane Tome') === 'an Arcane Tome',
       'singular items lost their article: ' + window.withArticle('Bone Key') + ' / ' + window.withArticle('Arcane Tome'));
+    const P = window.pluralName;
+    assert(typeof P === 'function', 'pluralName is unpublished');
+    [['Wolf', 3, 'Wolves'], ['Ancient Lich', 2, 'Ancient Liches'], ['Wolf Pelt', 5, 'Wolf Pelts'], ['Bones', 3, 'Bones'],
+      ['Grave Dust', 4, 'Grave Dust'], ['Goblin Ear', 1, 'Goblin Ear']].forEach(([n, k, want]) =>
+      assert(P(n, k) === want, 'pluralName(' + n + ', ' + k + ') = ' + P(n, k) + ', want ' + want));
   }),
 ];

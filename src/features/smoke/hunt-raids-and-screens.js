@@ -733,6 +733,8 @@ export default [
           'streak ' + streak + ': the sheet says ' + got.gold + ' gold, the data says ' + want.gold);
         assert((got.gems || 0) === want.gems,
           'streak ' + streak + ': the sheet says ' + got.gems + ' gems, the data says ' + want.gems);
+        assert(JSON.stringify(got.items || {}) === JSON.stringify(want.items),
+          'streak ' + streak + ': the sheet previews supplies ' + JSON.stringify(got.items) + ', the data says ' + JSON.stringify(want.items));
         assert(D.cycleDay(G) === want.cycleDay,
           'streak ' + streak + ': cycleDay disagrees (' + D.cycleDay(G) + ' vs ' + want.cycleDay + ')');
       }
@@ -4516,18 +4518,6 @@ export default [
     assert(dead === 0,
       dead + ' of ' + lockedTiles.length + ' locked tiles have empty onclick — players get no feedback');
     window.showTab('profile');
-  }),
-
-  // ── b130 regression suite ──
-
-  // b130: getGoalsForToday must be on window so the Quests modal can find
-  // it. Same pattern as b127's hoursTillUTCMidnight — top-level function
-  // declarations don't reach window from inside the modal IIFE.
-  () => tryRun('b130: getGoalsForToday exposed on window', () => {
-    assert(typeof window.getGoalsForToday === 'function',
-      'window.getGoalsForToday missing — Quests modal will show "No daily quests"');
-    const goals = window.getGoalsForToday();
-    assert(Array.isArray(goals), 'getGoalsForToday should return an array, got ' + typeof goals);
   }),
 
   // b130: openSkillDetail on mobile must scroll the detail into view.

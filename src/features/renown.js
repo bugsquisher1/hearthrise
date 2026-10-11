@@ -446,8 +446,7 @@
      and any client-vs-server score divergence makes it bite HONEST players.
 
      ── THE HOUSE PATTERN, APPLIED ────────────────────────────────────────────
-     Same shape as the modal goal claim (legacy.js claimQuestReward, b461) and
-     the cull bounty turn-in (legacy.js completeBounty, R1/R5): under the ARM
+     Same shape as the cull bounty turn-in (legacy.js completeBounty, R1/R5): under the ARM
      the claim is AWAITED and NOTHING is written until the server says ok — no
      `claimed` mark, no prediction, no save. A refusal leaves the rank exactly
      as claimable as it was and says so in a sentence, never a raw code (b465).
@@ -566,7 +565,7 @@
     if (!hasReward(rank)) return Promise.resolve(null);
 
     /* ARMED = at least one reward component whose record the SERVER owns. The
-       same test claimQuestReward makes, per component, so a partially-armed
+       same test every claim site makes, per component, so a partially-armed
        reward routes through the server rather than half-paying itself. */
     var armed = !!((rw.gold && !mayWrite('gold'))
                 || (rw.gems && !mayWrite('gems'))
@@ -649,8 +648,8 @@
      it on a short score would remove the only thing that moves it).
 
      FOLLOW-UP, filed not hidden: the correct end-state is the ladder painting
-     the SERVER's score continuously, the way the quest modal paints
-     hr_goal_state. That needs a projection — `renown_high` (and ideally the
+     the SERVER's score continuously, the way the Quests sheet paints
+     hr_tally_state. That needs a projection — `renown_high` (and ideally the
      live hr_renown_of read) on the hr_state_of envelope, or a small read-only
      hr_renown_state RPC. hr_renown_of is revoked from `authenticated` on
      purpose, so it is a migration and a security review, and hr_state_of is the

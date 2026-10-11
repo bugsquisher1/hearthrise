@@ -117,7 +117,7 @@
      silent — the settle still comes — and never turns a paid claim into an
      error the player sees. */
   var CREDIT_VERBS = {
-    hr_claim_daily: 1, hr_claim_quest: 1, hr_claim_goal: 1,
+    hr_claim_daily: 1, hr_claim_quest: 1,
     hr_claim_milestone: 1, hr_claim_rank: 1, hr_claim_bounty: 1
   };
 
@@ -159,14 +159,10 @@
   /* WHAT THE SERVER SAYS IT PAID, as a reward-shaped object the claim surfaces
      can render — or null when the answer names no payout.
 
-     THE TOAST IS A RECEIPT, NOT A PRICE LIST (§6). legacy.js claimQuestReward
-     used to quote its own DAILY_REWARDS table at the player for a payout the
-     server owns: it reads right only while the two catalogues agree, and on
-     the day they do not (a retune that lands in one of the three homes, or a
-     reward component the server could not credit and returned in skipped_xp /
-     skipped_items) the player is told a figure their balance never moved by.
-     hr_claim_goal answers with the gold and gems its OWN catalogue priced and
-     the xp/items it actually credited, so that is what the sentence quotes.
+     THE TOAST IS A RECEIPT, NOT A PRICE LIST (§6). A claim toast quotes what
+     the server says it credited (gold, gems and any xp/items in its answer),
+     never a client table: a client price reads right only while the two
+     catalogues agree.
 
      ONE OBJECT LITERAL, no `out.gold = …` anywhere: this builds a DISPLAY
      summary, never a balance, and the gold/gem censuses match on the SHAPE of
@@ -198,7 +194,7 @@
      (src/net/settle-first.js): wait for the server's settle, re-send the SAME
      body (same key) once. Absent the module, the call goes out once, as before. */
   var SETTLE_GATED = {
-    hr_claim_daily: 1, hr_claim_quest: 1, hr_claim_goal: 1, hr_claim_milestone: 1,
+    hr_claim_daily: 1, hr_claim_quest: 1, hr_claim_milestone: 1,
     hr_claim_rank: 1, hr_credit_kills: 1, hr_set_auto_eat: 1
   };
   function call(name, body) {
@@ -316,23 +312,14 @@
     /** @returns Promise<jsonb> the RPC envelope: {ok, gold, ...} or {ok:false,error} */
     claimDaily: function (taskId) { return call('hr_claim_daily', { p_task_id: String(taskId || ''), p_slot: activeSlot() }); },
     claimQuest: function (questId) { return call('hr_claim_quest', { p_quest_id: String(questId || ''), p_slot: activeSlot() }); },
-    /* MODAL daily/weekly GOAL claim — supabase/migrations/2026-08-23-modal-goal-claims.sql
-       (b461). The quest modal's pools (DAILY_GOAL_POOL / WEEKLY_GOAL_POOL) are a THIRD
-       goal system, distinct from QUEST_DEFS and DAILY_TASK_POOL; under the arm their
-       claims were a silent no-op (the b411 defer predates the credit RPCs and was never
-       rewired — found live by Tyler, 2026-08-23). hr_claim_goal verifies completion from
-       the server's own period counters and credits the WHOLE reward server-side
-       (gold+gems+xp+items — client-applied xp/items would be retired at the next settle
-       under the skills/inventory arms). NOT fire-and-forget: claimQuestReward awaits the
-       verdict and surfaces refusals honestly. */
-    claimGoal: function (goalId, weekly) {
-      return call('hr_claim_goal', { p_goal_id: String(goalId || ''), p_weekly: !!weekly, p_slot: activeSlot(), p_idem: newIdem() });
-    },
-    /* The server's projection of every catalogued modal goal for the current
-       day / ISO week — {ok, day_key, week_key, goals:[{goal_id, weekly, target,
-       have, complete, claimed, ...}]}. Under arm the modal/strip paint THIS, so
-       a Claim button only appears when hr_claim_goal will honor it. */
-    goalState: function () { return call('hr_goal_state', { p_slot: activeSlot() }); },
+    /* THE ONE READ OF THE SERVER'S PERIOD COUNTERS —
+       supabase/migrations/2026-10-16-goal-board-retire.sql. {ok, day_key,
+       week_key, day:{ev:<type>:n}, week:{ev:<type>:n}, gold_day, gold_week,
+       paid:[task ids], offered:[task ids]}. src/features/daily-quests.js is its
+       one caller (the daily-quest sheet and Home's Your week card read its
+       cache); the old goals board and its hr_claim_goal / hr_goal_state are
+       retired. */
+    tallyState: function () { return call('hr_tally_state', { p_slot: activeSlot() }); },
     /* Collection-Log MILESTONE credit — supabase/migrations/2026-08-22-collection-claim.sql.
        The server re-derives the DISTINCT count from hr_bestiary_of / hr_collection_of and
        credits the server-owned gold+gems once-guarded per milestone. Fire-and-forget. */
@@ -346,7 +333,7 @@
        is RESIDUE, so a fire-and-forget claim marked a REFUSED rank claimed
        forever and the player permanently lost a rank worth real gold+gems.
        src/features/renown.js claimRank AWAITS this verdict and writes nothing
-       until ok — the same rule as claimGoal above. Envelope: {ok, rank, gold,
+       until ok — never fire-and-forget. Envelope: {ok, rank, gold,
        gems, renown_high, credited} or {ok:false, error: not_reached |
        already_claimed | unknown_rank | rate_limited | no_character |
        not_signed_in, renown_high?, min?}. */

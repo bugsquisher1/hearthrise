@@ -2948,35 +2948,6 @@ export default [
       'tier-1 may not out-produce tier-7 more than 5:1, got ' + (perHour(t1) / perHour(t7)).toFixed(1) + ':1');
   }),
 
-  () => tryRun('b226: gathering dailies read per-SKILL counters, not one item id', () => {
-    // "Gather 25 logs" watched collection.normal_log, so a level-90 woodcutter
-    // cutting Duskwood made zero progress and the goal got HARDER the better
-    // they were. The counters are seeded from the collection log on migration,
-    // so nobody's achievement progress was zeroed to fix it.
-    const G = window.G;
-    const pool = window.DAILY_GOAL_POOL || [];
-    const byId = (id) => pool.find((g) => g.id === id);
-    ['gather_logs', 'mine_ore', 'fish'].forEach((id) => {
-      const g = byId(id);
-      assert(g, 'daily goal ' + id + ' should exist');
-      assert(g.source.indexOf('collection.') !== 0,
-        id + ' must not read an item-specific collection counter (got ' + g.source + ')');
-    });
-    assert(byId('gather_logs').source === 'stats.chopped');
-    assert(byId('mine_ore').source === 'stats.mined');
-    assert(byId('fish').source === 'stats.fished');
-    // And the counter actually moves on a high-tier rung.
-    const snap = snapshotG();
-    try {
-      G.skills = Object.assign({}, G.skills, { woodcutting: window.XP_TABLE[89] });   // Lv 90
-      G.stats = Object.assign({}, G.stats, { chopped: 0 });
-      G.activeSkill = 'woodcutting'; G.skillTargetId = 'duskwood_tree';
-      window.doSkillAction(true);
-      assert((G.stats.chopped || 0) > 0,
-        'chopping Duskwood must tick the log counter, got ' + G.stats.chopped);
-    } finally { try { window.stopSkill(); } catch {} restoreG(snap); }
-  }),
-
   () => tryRun('b228: renown weights came down, thresholds did NOT, and the ratchet still holds', () => {
     /* Tyler, 2026-08-09: *"It also seems to be going way too fast."* Every W
        weight is retuned toward Serf day 1-2 / Squire week 1 / Knight week 3-4 /

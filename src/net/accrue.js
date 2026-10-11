@@ -3650,8 +3650,7 @@ export function reconcileBuffs(G, res) {
 
 /* ── THE LIFETIME EVENT COUNTERS ARE THE SERVER'S (dead-counter class) ────────
    THE DEFECT THIS CLOSES. `G.stats.harvested` / `G.stats.planted` are read by
-   the goal engine (legacy.js DAILY_GOAL_POOL `source:`, ACHIEVEMENTS `src:`,
-   MIRRORED_QUEST_SOURCES) and, since the b454 farm cutover, were written by
+   the goal engine (ACHIEVEMENTS `src:`, MIRRORED_QUEST_SOURCES) and, since the b454 farm cutover, were written by
    NOBODY. The only writers were the client-side increments inside plantCrop /
    harvestPlot, and both sit AFTER `if(farmSyncArmed()){ …; return; }` — dead in
    the shipped build. So "Harvest 100 crops" (Green Thumb), the farmhand quest
@@ -3691,8 +3690,6 @@ export function reconcileBuffs(G, res) {
    it now has. Papering over the gap with a client increment was refused
    throughout — that is the forged-counter direction, and a client-minted goal
    counter is a client-authored reward.
-   (The QUEST-MODAL plant goal is unaffected: hr_claim_goal verifies it against
-   the daily row directly and never reads G.)
 
    DIRECTION, and why it is not a plain assignment. These are LIFETIME, monotone
    server counters, so:
@@ -3724,12 +3721,10 @@ export const EVENT_COUNTER_PROJECTION = Object.freeze([
      The road quests mirror these (legacy.js QUEST_DEFS chain:'road', plus
      hundred_kills on evKillAny) and hr_claim_quest grades the same lifetime
      keys. They land on NEW `ev*` leaves on purpose: stats.gathered / cooked /
-     smithed / crafted / kills already have live readers (DAILY_GOAL_POOL 'cook',
-     weeklies wk_smith / wk_craft / wk_cook, achievement cook_100, the
-     profile-launchpad day delta) and measured client/server divergence, and a
+     smithed / crafted / kills already have live readers (achievement cook_100,
+     the profile-launchpad day delta) and measured client/server divergence, and a
      row here SETS its target — downward included — on a complete statement.
-     Projecting onto them would quietly re-baseline four goal-board fallbacks
-     (goalSourceMirrored derives from this table). ⚠ NEVER re-point one of
+     ⚠ NEVER re-point one of
      these at an existing stats field; add a new leaf. */
   Object.freeze({ key: 'ev:gather',   stat: 'evGather' }),
   Object.freeze({ key: 'ev:cooked',   stat: 'evCooked' }),

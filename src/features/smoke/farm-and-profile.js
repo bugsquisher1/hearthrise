@@ -2552,38 +2552,29 @@ export default [
     } finally { restoreG(snap); }
   })),
 
-  () => tryRun('b220: the harvest daily scales with the farm it measures', () => {
+  () => tryRun('b220 (re-ruled W0): the harvest daily is ONE harvest round at the camp, a fixed row the server pays', () => {
+    /* It used to scale with the client's plot cap, which the server cannot see,
+       so hr_claim_daily answered it not_creditable on every day it was dealt
+       (Security, 2026-10-10: 17 of 31 days). It is a fixed row now, priced by
+       src/data/goal-catalogue.js and 2026-10-16-daily-harvest-credit.sql. The
+       b495 floor still holds: the camp's one harvest round finishes it. */
     const snap = snapshotG();
     try {
       const pool = window.DAILY_TASK_POOL;
       assert(Array.isArray(pool), 'DAILY_TASK_POOL is not exposed for testing');
       assert(pool.map((f) => f()).filter((t) => t.type === 'harvest').length === 1,
-        'expected exactly one harvest daily after folding daily_harvest_big away');
-      window.G.homestead = { tier: 0 };                    // Wanderer's Camp — 2 plots
-      const small = pool.map((f) => f()).find((t) => t.type === 'harvest');
-      /* b495 (balance audit): the floor was 10 and it was UNREACHABLE at the
-         starting property. Two plots of 4h turnips yielding 2-4 is ~6 produce a
-         cycle, so a floor of 10 meant TWO grow cycles — ~8 wall-clock hours —
-         for a daily that resets at UTC midnight. The floor is now 6 = ONE
-         harvest round at the camp. Derived, not copied: the expectation below is
-         computed from the crop the camp actually grows, so a change to turnip's
-         yield moves the test with the game rather than against it. */
+        'expected exactly one harvest daily');
+      const cat = window.HearthriseCore && window.HearthriseCore.goalCatalogue;
+      const row = cat && cat.DAILY_TASK_REWARDS && cat.DAILY_TASK_REWARDS.daily_harvest;
+      for (const tier of [0, 5]) {
+        window.G.homestead = { tier };
+        const t = pool.map((f) => f()).find((x) => x.type === 'harvest');
+        assert(t.goal === 6 && t.reward === 300, 'tier ' + tier + ': the harvest daily is ' + t.goal + ' crops / ' + t.reward + 'g, not the fixed 6 / 300');
+        if (row) assert(row.goal === t.goal && row.gold === t.reward, 'the client row and the server catalogue disagree');
+      }
       const camp = 2;
       const perRound = camp * ((window.CROPS.turnip.yield[0] + window.CROPS.turnip.yield[1]) / 2);
-      assert(small.goal === 6,
-        'a 2-plot camp goal must floor at 6, got ' + small.goal);
-      assert(small.goal <= perRound,
-        'the camp harvest daily asks for ' + small.goal + ' crops but ONE full harvest round at the '
-        + 'starting property yields ~' + perRound + ' — that is more than one 4h grow cycle, which is '
-        + 'the b495 defect (a same-day daily that needs two cycles cannot be finished after noon)');
-      assert(small.reward === small.goal * 30,
-        'the camp reward must scale with the goal, got ' + small.reward);
-      window.G.homestead = { tier: 5 };                    // Hearthrise Castle — 12 plots
-      const big = pool.map((f) => f()).find((t) => t.type === 'harvest');
-      assert(big.goal === 36, 'a 12-plot castle goal must be 3 x 12 = 36, got ' + big.goal);
-      assert(big.reward === big.goal * 30, 'the reward must scale with the goal, got ' + big.reward);
-      assert(!/Harvest 25 crops/.test(small.label + '|' + big.label),
-        'the fixed "Harvest 25 crops" daily must be gone');
+      assert(6 <= perRound, 'one harvest round at the camp (~' + perRound + ') no longer finishes the 6-crop daily (b495)');
     } finally { restoreG(snap); }
   }),
 
@@ -2813,117 +2804,6 @@ export default [
       assert(!window.G.farmPlots[0], 'a refused plant left a phantom crop in the plot');
     } finally {
       window.HearthriseFarmSync = prevSync;
-      restoreG(snap);
-    }
-  }),
-
-  /* ── EV-COUNTER-2: THE GOAL BASELINE MUST NOT BE TAKEN AGAINST AN UNKNOWN
-        COUNTER (Security P2 on the 2026-09-07 lifetime-plant backfill) ────────
-     THE BUG, display-only but player-visible on the FIRST boot after that
-     migration. The daily goal grades `readSource(source) - startValues[id]` and
-     the baseline was captured once, at slate-roll, for every source — including
-     `stats.planted`, which is MIRRORED from the server's lifetime `ev:planted`
-     row and reads 0 through `cur || 0` until the first complete `progress`
-     statement lands. So: baseline 0 (unknown, not zero) → envelope lands with a
-     backfilled lifetime count of 120 → the strip renders "Plant 3 crops —
-     Complete!" for work done days ago, offering a Claim the server refuses by
-     name (`not_complete`). Same class as the day-start gold watermark that
-     `balKnown('gold')` gates, and as b224's weekly re-baseline.
-     THE FIX IS "A BASELINE NOBODY CAN MEASURE IS NOT TAKEN AT ALL": it is taken
-     on the first paint after the counter is known, and the goal reads 0 until
-     then. This drives the REAL strip renderer and asserts the RENDERED number —
-     an internal predicate would pass on a fix that never reached the DOM. */
-  () => tryRun('EV-COUNTER-2: an unknown lifetime counter never baselines a daily goal at 0', () => {
-    const A = window.HearthriseAccrual;
-    if (!A || typeof A.reconcileEventCounters !== 'function'
-        || typeof window.renderDailyGoals !== 'function'
-        || typeof window.__hrGoalBaseline !== 'function') { skip('no accrual/goal-baseline api'); return; }
-    const snap = snapshotG();
-    /* `_eventCountersKnown` is SCRATCH, so snapshotG (a deliberate allowlist)
-       does not carry it — and leaving it set would hand a later test, or the
-       live page, a "the counter is known" claim no envelope earned. That is the
-       very bug under test, injected by the suite. Restore it by hand. */
-    const knownWas = Object.prototype.hasOwnProperty.call(window.G, '_eventCountersKnown')
-      ? window.G._eventCountersKnown : undefined;
-    const host = document.createElement('div');
-    const shown = () => {
-      window.renderDailyGoals(host);
-      const el = host.querySelector('.dg-progress');
-      return { text: el ? el.textContent.trim() : null, done: !!host.querySelector('.daily-goal.done'), pending: !!(el && el.querySelector('.bal-pending')) };
-    };
-    try {
-      window.getGoalsForToday();                       // make sure a slate exists
-      const dayKey = window.G.dailyGoals.dayKey;
-      /* THE FIRST BOOT: the slate rolls before any envelope has landed, so the
-         mirrored counter is genuinely UNKNOWN (absent, not zero). */
-      window.G.stats = Object.assign({}, window.G.stats);
-      delete window.G.stats.planted;
-      delete window.G._eventCountersKnown;
-      window.G.dailyGoals = { dayKey, picks: ['plant'], startValues: {}, claimed: {} };
-
-      const goals = window.getGoalsForToday();
-      assert(goals.length === 1 && goals[0].id === 'plant',
-        'the fixture slate did not hold the plant goal, got ' + JSON.stringify(goals.map((g) => g.id)));
-      const target = goals[0].target;
-      assert(!Object.prototype.hasOwnProperty.call(window.G.dailyGoals.startValues, 'plant'),
-        'the baseline was taken against an UNKNOWN counter — that 0 is what makes the arriving '
-        + 'lifetime count read as a completed goal');
-      assert(window.__hrGoalBaseline(window.G.dailyGoals, goals[0]).known === false,
-        'an untaken baseline must report known:false');
-      let s = shown();
-      assert(s.pending && !/0 \/ \d/.test(s.text),   // GOALS-PENDING: unknown is the dash, never "0 / N"
-        'a goal with no measurable baseline must render the pending dash / ' + target + ', got ' + s.text);
-      assert(!s.done, 'a goal with no measurable baseline must never render as complete');
-
-      /* THE ENVELOPE LANDS: a COMPLETE statement carrying the backfilled
-         lifetime count. The baseline is taken NOW, at 120, so the goal is still
-         0 / target — the player is asked to plant three crops today, not
-         handed a completion for last week's farming. */
-      A.reconcileEventCounters(window.G, {
-        progress_truncated: false,
-        progress: [{ kind: 'stat', key: 'ev:planted', period: '', value: 120, state: 'active' }],
-      });
-      assert(window.G.stats.planted === 120, 'the lifetime counter did not project, got ' + window.G.stats.planted);
-      s = shown();
-      assert(window.G.dailyGoals.startValues.plant === 120,
-        'the baseline was not re-taken once the counter was known, got '
-        + window.G.dailyGoals.startValues.plant);
-      assert(s.text === '0 / ' + target && !s.done && !s.pending,
-        'THE BUG: the backfilled lifetime count completed the daily goal — got ' + s.text
-        + (s.done ? ' (rendered COMPLETE)' : ''));
-
-      // A REAL PLANT, credited the only way it can be: the server's next statement.
-      A.reconcileEventCounters(window.G, {
-        progress_truncated: false,
-        progress: [{ kind: 'stat', key: 'ev:planted', period: '', value: 121, state: 'active' }],
-      });
-      s = shown();
-      assert(s.text === '1 / ' + target,
-        'a real plant did not move the goal after the re-baseline, got ' + s.text);
-
-      /* THE RESIDUE CASE. `dailyGoals` is persisted, so a slate rolled by the
-         PRE-FIX build is on disk carrying the poisoned `startValues.plant = 0`
-         and no `counterBaselined` flag. Presence alone would honour it for the
-         rest of the day; the flag is what heals it. */
-      window.G.dailyGoals = { dayKey, picks: ['plant'], startValues: { plant: 0 }, claimed: {} };
-      s = shown();
-      assert(window.G.dailyGoals.startValues.plant === 121 && s.text === '0 / ' + target && !s.done,
-        'a pre-fix slate carrying startValues.plant = 0 was not healed — got ' + s.text
-        + ' with baseline ' + window.G.dailyGoals.startValues.plant);
-
-      /* AND A NON-MIRRORED GOAL IS UNTOUCHED: its baseline is client-counted and
-         must never be re-taken mid-day, which would erase real progress. */
-      window.G.stats.kills = 50;
-      window.G.dailyGoals = { dayKey, picks: ['kill_any'], startValues: { kill_any: 40 }, claimed: {} };
-      const ka = window.getGoalsForToday()[0];
-      assert(window.G.dailyGoals.startValues.kill_any === 40,
-        'a locally-counted goal was re-baselined, erasing real progress — got '
-        + window.G.dailyGoals.startValues.kill_any);
-      assert(window.__hrGoalBaseline(window.G.dailyGoals, ka).known === true,
-        'a locally-counted goal must be treated as known with no counterBaselined flag');
-    } finally {
-      if (knownWas === undefined) delete window.G._eventCountersKnown;
-      else window.G._eventCountersKnown = knownWas;
       restoreG(snap);
     }
   }),

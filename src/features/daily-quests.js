@@ -5,7 +5,7 @@
 // from DAILY_TASK_POOL, paid by hr_claim_daily) and an older daily/weekly
 // goals board drawn and counted in the browser. The board is cut
 // (supabase/migrations/2026-10-16-goal-board-retire.sql); this module is the
-// Quests sheet, the pointer bar's daily chip and the topbar badge for the one list left.
+// Quests sheet and the pointer bar's daily chip for the one list left.
 //
 // EVERY NUMBER IS THE SERVER'S (CLAUDE.md §6). A row's count is today's
 // `ev:<type>` counter from hr_tally_state, the one hr_claim_daily grades; its
@@ -275,17 +275,6 @@ function openQuestsModal() {
   refresh(function (fresh) { if (fresh) render(); });
 }
 
-/** The topbar badge: quests not yet paid, and how many are ready to claim. */
-function questBadgeState() {
-  var out = { active: 0, claimable: 0 };
-  tasks().forEach(function (task) {
-    if (isPaid(task)) return;
-    out.active++;
-    if (isClaimable(task)) out.claimable++;
-  });
-  return out;
-}
-
 window.HearthriseTally = {
   peek: peek,
   refresh: refresh,
@@ -308,7 +297,6 @@ window.HearthriseDailyQuests = {
 };
 window.openQuestsModal = openQuestsModal;
 window.closeQuestsModal = closeQuestsModal;
-window.questBadgeState = questBadgeState;
 
 function boot(tries) {
   var E = window.HearthriseEvents;

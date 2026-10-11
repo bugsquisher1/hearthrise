@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/features/spine-pointer.js — THE ONE POINTER (window.HearthriseSpine).
 //
-// One bar under the topbar on every tab names the step the player is on, what
+// One bar in the topbar on every tab names the step the player is on, what
 // it still needs and one button: Go to the first thing missing, then Build,
 // Hire or Wear, then Claim when the step's server reward is waiting. Home
 // leads with the same step as its top card (src/features/home-dashboard.js
@@ -130,17 +130,17 @@ function onHome() {
 function ensureBar() {
   let bar = document.getElementById(BAR_ID);
   if (bar) return bar;
-  const main = document.querySelector('main.main') || document.querySelector('main');
-  if (!main) return null;
+  /* IN the topbar, between the player and the stats: the one row every tab
+     already has, so the pointer costs a landscape phone no height at all. */
+  const topbar = document.querySelector('main .topbar') || document.querySelector('.topbar');
+  if (!topbar) return null;
   bar = document.createElement('div');
   bar.id = BAR_ID;
   bar.className = 'sp-bar';
   bar.setAttribute('role', 'navigation');
   bar.setAttribute('aria-label', 'Your next step');
   bar.addEventListener('click', onClick);
-  const topbar = main.querySelector('.topbar');
-  if (topbar && topbar.nextSibling) main.insertBefore(bar, topbar.nextSibling);
-  else main.insertBefore(bar, main.firstChild);
+  topbar.insertBefore(bar, topbar.querySelector('.top-stats'));
   return bar;
 }
 

@@ -38,7 +38,7 @@ export const DUNGEON_KEYS = Object.freeze([...new Set(Object.values(DUNGEONS)
   .map((d) => d && d.cost && d.cost.key).filter(Boolean))]);
 
 const COMBAT_SKILLS = ['attack', 'strength', 'defense', 'hitpoints', 'ranged', 'magic', 'prayer'];
-const fought = [count('kills', 1)].concat(COMBAT_SKILLS.map(skill));
+const fought = [count('ev:kill_any', 1)].concat(COMBAT_SKILLS.map(skill));
 const bountied = [count('bounty_turnins', 1), skill('bountyHunter')];
 
 export const REVEALS = Object.freeze([
@@ -48,7 +48,7 @@ export const REVEALS = Object.freeze([
   row('pane:inventory', 1),
   row('pane:skills', 1),
   row('pane:shop', 0),
-  row('pane:journal', 3, [count('kills', 1), count('rare_drops', 1)]),
+  row('pane:journal', 3, [count('ev:kill_any', 1), count('rare_drops', 1)]),
   row('pane:combat', 3, fought),
   row('pane:farming', 4, [count('ev:planted', 1), skill('farming')]),
   row('pane:house', 5, [property(1)]),
@@ -83,11 +83,11 @@ export const REVEALS = Object.freeze([
   row('skill:smithing', 7, [skill('smithing')]),
   row('skill:bountyHunter', 9, bountied),
   row('skill:runecrafting', 10, [skill('runecrafting')]),
-  row('skill:stonemason', 10, [skill('stonemason')]),
+  row('skill:stonemason', 13, [skill('stonemason')]),
 
   // ── Home cards and chrome ──────────────────────────────────────────────
   row('card:upkeep', 2),
-  row('card:collection', 3, [count('kills', 1), count('rare_drops', 1)]),
+  row('card:collection', 3, [count('ev:kill_any', 1), count('rare_drops', 1)]),
   row('card:come-back', 4, [count('ev:planted', 1)]),
   row('card:holding', 5, [property(1)]),
   row('card:renown', 5, [property(1)]),

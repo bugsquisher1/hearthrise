@@ -1,10 +1,12 @@
-/* src/styles/spine-pointer.css — the pointer bar under the topbar and Home's
+/* src/styles/spine-pointer.css — the pointer bar in the topbar and Home's
  * step card (src/render/spine-pointer.js, driven by
  * src/features/spine-pointer.js). One line on every screen size: the step,
  * its name, what it still needs, the daily chip and one button. Tokens only. */
 .sp-bar {
-  border-bottom: 1px solid var(--line);
-  background: var(--gold-bg);
+  flex: 1 1 auto;
+  min-width: 0;
+  align-self: center;
+  margin: 0 12px;
   font-family: var(--f-ui);
   font-size: var(--t-micro);
   color: var(--ink-2);
@@ -13,9 +15,8 @@
 .sp-in {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 10px;
-  min-height: 40px;
-  padding: 4px 14px;
   min-width: 0;
 }
 .sp-step {
@@ -104,7 +105,8 @@
 /* A short landscape phone keeps ONE line: the step, its name, the part to do
    next, the chip and the button. */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
-  .sp-in { gap: 8px; min-height: 36px; padding: 2px 10px; }
+  .sp-bar { margin: 0 8px; }
+  .sp-in { gap: 8px; }
   .sp-bar .sp-part:not(.is-next) { display: none; }
   .sp-bar .sp-reward { display: none; }
   .sp-go, .sp-daily { min-height: 32px; padding: 0 10px; }

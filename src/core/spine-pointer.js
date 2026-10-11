@@ -13,9 +13,10 @@
 //
 // THE CURRENT STEP is the first row that is not done, or that is done with
 // its server reward still unclaimed (so the button reads Claim before the bar
-// moves on). A `wears` need is SOFT: the worn set can change after the step,
-// so it counts as met once a later step's hard needs are done, and taking the
-// boots off never sends a veteran back to step 7.
+// moves on). `wears`, `item` and `cleared` needs are SOFT: the worn set and
+// the bag can fall after the step, and no server fact counts a dungeon clear
+// yet, so each counts as met once a later step is fully done. Taking the boots
+// off never sends a veteran back to step 7.
 // ════════════════════════════════════════════════════════════════════════
 
 import { combatLevelOf } from './spine-progress.js?v=567';
@@ -23,7 +24,7 @@ import { levelFromXp } from './xp.js?v=567';
 
 const fin = (v) => typeof v === 'number' && Number.isFinite(v);
 const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
-const SOFT = new Set(['wears']);
+const SOFT = new Set(['wears', 'item', 'cleared']);
 
 /** The server's figure a need is measured against, or null when unknown. */
 export function factValue(facts, need) {
@@ -49,6 +50,10 @@ export function factValue(facts, need) {
     case 'gold': return fin(f.gold) ? f.gold : null;
     case 'property': return fin(f.property) ? f.property : null;
     case 'workers': return fin(f.workers) ? f.workers : null;
+    case 'cleared': {
+      const c = f.counts, k = 'dungeon_clear:' + need.dungeon;
+      return own(c, k) && fin(c[k]) ? c[k] : null;
+    }
     case 'wears': {
       const e = f.equipment;
       if (!e || typeof e !== 'object') return null;
@@ -64,16 +69,16 @@ export function needHolds(facts, need) {
   return v === null ? null : v >= need.min;
 }
 
-const hardDone = (facts, row) => row.need.length > 0
-  && row.need.every((n) => SOFT.has(n.fact) || needHolds(facts, n) === true);
+const holdsAll = (facts, row) => row.need.length > 0 && row.need.every((n) => needHolds(facts, n) === true);
 
-/** Which rows are done, with soft needs forgiven behind the furthest hard-done step. */
+/** Which rows are done. A soft need (one that can fall, or that the server
+    cannot state yet) is forgiven behind the furthest step that is fully done. */
 export function doneSteps(facts, rows) {
   const list = Array.isArray(rows) ? rows : [];
   let furthest = 0;
-  list.forEach((r) => { if (hardDone(facts, r)) furthest = Math.max(furthest, r.step); });
-  return list.map((r) => hardDone(facts, r)
-    && r.need.every((n) => !SOFT.has(n.fact) || needHolds(facts, n) === true || furthest > r.step));
+  list.forEach((r) => { if (holdsAll(facts, r)) furthest = Math.max(furthest, r.step); });
+  return list.map((r) => r.need.length > 0 && r.need.every((n) => needHolds(facts, n) === true
+    || (SOFT.has(n.fact) && furthest > r.step)));
 }
 
 /** Is this row's linked quest complete on the server's count and not yet paid? */

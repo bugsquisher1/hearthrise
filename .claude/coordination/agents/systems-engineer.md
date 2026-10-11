@@ -3929,3 +3929,24 @@ the same toll as a lazy one and a new top-level function in legacy.js costs thre
 write the code where it belongs FIRST (core / render / the transport), and the ratchets are quiet.
 Four functions went into legacy.js and all four had to come back out — 20 minutes of churn that
 choosing the right file first would have avoided.
+
+---
+
+## 2026-10-11 — lane L1, the one pointer (`lane/b569-spine-pointer`)
+
+One bar under the topbar on every tab but Home, Home's top step card, the "Daily x/y" chip (the
+topbar Quests button is retired into it) and a first-sighting unlock moment. Data
+`src/data/spine-pointer.js` (display columns keyed by `src/data/spine.js` step id; reuses L2's
+`need`/`via`/`whenDone`), logic `src/core/spine-pointer.js`, render `src/render/spine-pointer.js`,
+guard `tests/spine.mjs` (+`--selftest`).
+
+1. *A non-monotonic fact needs a forgiveness rule, not a flag.* Worn gear and bag stacks fall, and a
+   dungeon clear has no server counter yet: they are SOFT needs, forgiven behind the furthest FULLY
+   done step. "Furthest hard-done" was wrong: an all-soft step is vacuously hard-done.
+2. *One key per fact.* Steps read `kills`/`cooked` while hr_claim_quest graded `ev:kill_any`/`ev:cooked`;
+   SP2 now requires a linked server-paid quest to be graded on a counter its step reads.
+3. *A route that refuses is not a route that is hidden.* quest-nav's `go()` silently refuses shut doors,
+   so the walk in SPINE-REVEAL-10 passed a dead Go button; SPINE-POINTER-8 asserts it is not DRAWN.
+
+Server gap (lane C): nothing projects a dungeon clear (`hr_dungeon_settle` journals the ledger only).
+Step 17 reads `dungeon_clear:<id>` progress rows, shows the pending dash, and is forgiven once the Keep stands.

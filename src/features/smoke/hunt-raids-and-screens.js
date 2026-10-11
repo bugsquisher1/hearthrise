@@ -1821,8 +1821,8 @@ export default [
     window.showTab('profile');
   }),
 
-  () => tryRun('clicks: topbar buttons (notif/save/settings/quests)', () => {
-    const ids = ['btn-notif', 'btn-settings', 'hr-quests-btn']; // b227: btn-save removed
+  () => tryRun('clicks: topbar buttons (notif/settings)', () => {
+    const ids = ['btn-notif', 'btn-settings'];
     let clicked = 0;
     for (const id of ids) {
       const el = document.getElementById(id);

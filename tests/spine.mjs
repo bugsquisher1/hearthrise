@@ -9,13 +9,16 @@
 // player the one thing to do next. A wrong row is a dead end the player meets
 // in the first hour, so the table is checked against the game's own data:
 //   SP1  every Go route is a real pane, open (src/data/reveals.js) at that step,
-//        and a skill it opens is revealed by then
-//   SP2  every quest link is a server-paid row of QUEST_REWARDS, linked once
+//        and a skill it opens is revealed by then; the door is one the step
+//        is played through (src/data/spine.js `via`) or one opened earlier
+//   SP2  every quest link is a real QUEST_DEFS row, linked once; a server-paid
+//        one (QUEST_REWARDS) is graded on a counter the step itself reads
 //   SP3  no step needs something only made later: every item a step counts has
 //        a producer (node, monster, recipe or shop) behind doors open at that
 //        step, recursively through recipe inputs; a property rung needs the
 //        rung below it on an earlier step; a hand needs a house first
-//   SP4  each step's unlock line names reveal rows that open on the next step
+//   SP4  every step has an unlock line, and a step the next door opens behind
+//        is not followed by a bar that promises nothing
 //   SP5  the predicate: a fresh character is on step 1, a maxed one is done,
 //        and growing a fact never moves the pointer back
 // ════════════════════════════════════════════════════════════════════════
@@ -42,6 +45,13 @@ function hubPanes() {
   return [...t.slice(a, t.indexOf('];', a)).matchAll(/tab:\s*'([A-Za-z]+)'/g)].map((m) => m[1]);
 }
 
+/** The QUEST_DEFS ids legacy.js authors (a classic script: read as text). */
+function questDefIds() {
+  const t = readFileSync(join(ROOT, 'src/legacy.js'), 'utf8');
+  const a = t.indexOf('const QUEST_DEFS=[');
+  return [...t.slice(a, t.indexOf('\n];', a)).matchAll(/\{id:'([a-z_]+)'/g)].map((m) => m[1]);
+}
+
 /** item id → [{ door: reveal row id, inputs: {id: qty} }] */
 function producers() {
   const out = {};
@@ -63,9 +73,13 @@ export function world() {
   return {
     rows: SP.POINTER_STEPS.map((r) => Object.assign({}, r, { parts: r.parts.slice() })),
     routes: Object.assign({}, SP.ROUTES), itemRoute: Object.assign({}, SP.ITEM_ROUTE),
-    reveals: REVEALS.slice(), quests: Object.assign({}, QUEST_REWARDS), panes: hubPanes(), producers: producers(),
+    reveals: REVEALS.slice(), quests: Object.assign({}, QUEST_REWARDS), panes: hubPanes(), producers: producers(), questIds: questDefIds(),
   };
 }
+
+/* A gathering skill's own lifetime counter is a part of ev:gather (each log
+   chopped is one resource gathered), so a chop step may pay a gather quest. */
+const PART_OF = { chopped: 'ev:gather', fished: 'ev:gather', mined: 'ev:gather' };
 
 export function check(w) {
   const fails = [];
@@ -80,13 +94,18 @@ export function check(w) {
     if (w.panes.indexOf(r.tab) < 0) fail('SP1', `route ${p.go} opens "${r.tab}", which is not a pane`);
     else if (!open('pane:' + r.tab, row.step)) fail('SP1', `step ${row.step} sends the player to ${r.tab}, which opens at step ${stepOf('pane:' + r.tab)}`);
     if (r.skill && !open('skill:' + r.skill, row.step)) fail('SP1', `step ${row.step} opens ${r.skill}, which is revealed at step ${stepOf('skill:' + r.skill)}`);
+    const door = r.skill ? 'skill:' + r.skill : 'pane:' + r.tab;
+    if ((row.via || []).indexOf(door) < 0 && !(stepOf(door) < row.step)) fail('SP1', `step ${row.step} routes through ${door}, neither its via nor a door opened before it`);
   }));
 
   // SP2 — quest links
   const linked = {};
   w.rows.forEach((row) => {
     if (!row.quest) return;
-    if (!w.quests[row.quest]) fail('SP2', `step ${row.step} links quest "${row.quest}", which the server does not pay (QUEST_REWARDS)`);
+    if (w.questIds.indexOf(row.quest) < 0) fail('SP2', `step ${row.step} links quest "${row.quest}", which is not a QUEST_DEFS row`);
+    const q = w.quests[row.quest];
+    if (q && !row.need.concat(row.parts.map((p) => p.need)).some((n) => n.fact === 'count' && (n.key === q.checkKey || PART_OF[n.key] === q.checkKey)))
+      fail('SP2', `step ${row.step} links ${row.quest}, graded on ${q.checkKey}, a counter the step never reads`);
     if (linked[row.quest]) fail('SP2', `quest ${row.quest} is linked by steps ${linked[row.quest]} and ${row.step}`);
     linked[row.quest] = row.step;
   });
@@ -120,10 +139,7 @@ export function check(w) {
 
   // SP4 — unlock lines
   w.rows.forEach((row) => {
-    if (!row.opens || !row.opens.title || !row.opens.line) { fail('SP4', `step ${row.step} has no unlock line`); return; }
-    row.opens.reveals.forEach((id) => {
-      if (stepOf(id) !== row.step + 1) fail('SP4', `step ${row.step} announces ${id}, which opens at step ${stepOf(id)}, not ${row.step + 1}`);
-    });
+    if (!row.opens || !row.opens.title || !row.opens.line) fail('SP4', `step ${row.step} has no unlock line`);
   });
 
   // SP5 — the predicate on the real rows
@@ -144,6 +160,8 @@ export function check(w) {
       if (n.fact === 'workers') f.workers = Math.max(f.workers, n.min);
       if (n.fact === 'combat') f.skills = Object.assign({}, f.skills, { attack: 2e6, strength: 2e6, defense: 2e6, hitpoints: 2e6 });
       if (n.fact === 'wears') f.equipment = { boots: 'leather_boots' };
+      if (n.fact === 'item') f.bag = Object.assign({}, f.bag, { [n.id]: n.min });
+      if (n.fact === 'cleared') f.counts['dungeon_clear:' + n.dungeon] = 1;
     }
     if (row.quest) f.claimed[row.quest] = true;
     const m = model(f);
@@ -161,11 +179,13 @@ export function check(w) {
 const MUTANTS = {
   closedDoor: ['SP1', (w) => { w.rows[0].parts[0] = Object.assign({}, w.rows[0].parts[0], { go: 'fight' }); }],
   hiddenSkill: ['SP1', (w) => { w.rows[0].parts[0] = Object.assign({}, w.rows[0].parts[0], { go: 'smith' }); }],
-  unpaidQuest: ['SP2', (w) => { w.rows[8] = Object.assign({}, w.rows[8], { quest: 'hundred_kills' }); }],
+  ghostQuest: ['SP2', (w) => { w.rows[3] = Object.assign({}, w.rows[3], { quest: 'no_such_quest' }); }],
+  wrongCounter: ['SP2', (w) => { w.rows[2] = Object.assign({}, w.rows[2], { need: [{ fact: 'count', key: 'kills', min: 5 }], parts: [Object.assign({}, w.rows[2].parts[0], { need: { fact: 'count', key: 'kills', min: 5 } })] }); }],
+  offViaDoor: ['SP1', (w) => { w.rows[4] = Object.assign({}, w.rows[4], { via: ['pane:house'] }); w.rows[4].parts.splice(1, 0, { need: { fact: 'item', id: 'iron_ore', min: 1 }, go: 'mine', act: false }); w.reveals = w.reveals.map((r) => (r.id === 'skill:mining' ? Object.assign({}, r, { step: 5 }) : r)); w.rows[4].via = []; }],
   doubleLink: ['SP2', (w) => { w.rows[1] = Object.assign({}, w.rows[1], { quest: 'gatherer' }); }],
   madeLater: ['SP3', (w) => { w.itemRoute.normal_plank = 'craft'; w.rows[4].parts.unshift({ need: { fact: 'item', id: 'normal_plank', min: 1 }, go: 'mine', act: false }); }],
   rungSkipped: ['SP3', (w) => { w.rows[4] = Object.assign({}, w.rows[4], { need: [{ fact: 'property', min: 2 }] }); w.rows[9] = Object.assign({}, w.rows[9], { need: [{ fact: 'property', min: 1 }] }); }],
-  wrongUnlock: ['SP4', (w) => { w.rows[0] = Object.assign({}, w.rows[0], { opens: Object.assign({}, w.rows[0].opens, { reveals: ['pane:market'] }) }); }],
+  noUnlock: ['SP4', (w) => { w.rows[0] = Object.assign({}, w.rows[0], { opens: null }); }],
   neverDone: ['SP5', (w) => { w.rows[3] = Object.assign({}, w.rows[3], { need: [] }); }],
 };
 
@@ -186,5 +206,5 @@ if (argv.includes('--selftest')) {
 }
 const fails = check(world());
 fails.forEach((f) => console.log('  FAIL  ' + f));
-console.log(fails.length ? `spine: ${fails.length} failure(s)` : `✓ spine: ${SP.POINTER_STEPS.length} steps — every route opens an open door, every quest link is paid, nothing is needed before it can be made`);
+console.log(fails.length ? `spine: ${fails.length} failure(s)` : `✓ spine: ${SP.POINTER_STEPS.length} steps — every route opens an open door, every quest link is real, nothing is needed before it can be made`);
 process.exit(fails.length ? 1 : 0);

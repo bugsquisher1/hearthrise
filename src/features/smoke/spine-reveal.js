@@ -44,6 +44,8 @@ function atStep(R, k) {
     if (n.fact === 'property') f.property = Math.max(f.property, n.min);
     if (n.fact === 'workers') f.workers = Math.max(f.workers, n.min);
     if (n.fact === 'combat') f.skills = Object.assign({}, f.skills, { attack: 1e6, strength: 1e6, defense: 1e6 });
+    if (n.fact === 'item') f.bag = Object.assign({}, f.bag, { [n.id]: n.min });
+    if (n.fact === 'cleared') f.counts['dungeon_clear:' + n.dungeon] = n.min;
   }));
   return f;
 }
@@ -151,7 +153,7 @@ export default [
         assert(R.combatLevel() === null, 'the reveal read a combat level the server never stated');
         /* Control: the same facts arriving in an ENVELOPE do reveal. */
         R.noteEnvelope({ progress_truncated: false, state: { slot: 1 }, workers: [{ uid: 'w1' }],
-          progress: [{ kind: 'stat', period: '', key: 'chopped', value: 20 }, { kind: 'stat', period: '', key: 'kills', value: 3 },
+          progress: [{ kind: 'stat', period: '', key: 'chopped', value: 20 }, { kind: 'stat', period: '', key: 'ev:kill_any', value: 3 },
             { kind: 'unlock', period: '', key: 'property:homestead', value: 1 }] });
         assert(R.shows('skill:fishing') && R.shows('pane:house') && R.shows('card:workers'),
           'a server envelope did not reveal what it confirms: ' + [...R.state().shown].join(','));
@@ -231,7 +233,7 @@ export default [
   () => tryRunAsync('SPINE-REVEAL-9: a door opens when its step becomes current, never earlier, and no step waits behind a shut door', async () => {
     const R = window.HearthriseReveal;
     const skip2 = atStep(R, 11);
-    skip2.counts.cooked = 0;
+    skip2.counts['ev:cooked'] = 0;
     await withPin(skip2, async () => {
       assert(R.state().progress.current === 2, 'step 2 is not current with only it open');
       assert(!R.shows('pane:market') && !R.shows('card:vigour'), 'a later step opened its doors out of order');
@@ -252,7 +254,7 @@ export default [
 
   () => tryRunAsync('SPINE-REVEAL-10: every Go route on Home and in the Quests modal leads through an open door', async () => {
     const R = window.HearthriseReveal;
-    const mid = { counts: { chopped: 20, fished: 6, cooked: 6, kills: 8, 'ev:planted': 2 }, countsComplete: true,
+    const mid = { counts: { chopped: 20, fished: 6, 'ev:cooked': 6, 'ev:kill_any': 8, 'ev:planted': 2 }, countsComplete: true,
       skills: { hitpoints: 2000, attack: 600, woodcutting: 900 }, property: 1, workers: 0, companions: 0, bag: {}, products: {} };
     const states = [['fresh', R.FRESH], ['mid', mid]];
     for (let k = 1; k <= R.steps.length + 1; k++) states.push(['step ' + k, atStep(R, k)]);

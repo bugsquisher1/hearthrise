@@ -9,8 +9,10 @@
 import { tryRun, tryRunAsync, assert, snapshotG, restoreG } from './_harness.js?v=567';
 
 const BASE = { counts: {}, countsComplete: true, skills: {}, property: 0, workers: 0, bag: {}, gold: 0, equipment: {}, claimed: {} };
-const FIRST4 = { chopped: 15, fished: 5, cooked: 5, kills: 5, 'ev:planted': 1 };
-const facts = (o) => Object.assign({}, BASE, o);
+const FIRST4 = { chopped: 15, fished: 5, 'ev:cooked': 5, 'ev:kill_any': 5, 'ev:planted': 1 };
+/* The first-day rewards, already paid: a fixture past a step is past its Claim. */
+const PAID = { gatherer: true, first_cook: true, first_blood: true, farmhand: true };
+const facts = (o) => Object.assign({}, BASE, { claimed: PAID }, o);
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
 /** Pin the facts, draw the bar on `tab`, hand the body the bar and the model. */
@@ -24,7 +26,8 @@ async function onBar(f, body, tab) {
     return await body(document.getElementById('hr-spine-bar'), SP);
   } finally { R.__pin(was); SP.__forget(); restoreG(snap); window.showTab('profile'); }
 }
-const text = (bar) => (bar.querySelector('.sp-in') || bar).textContent.replace(/\s+/g, ' ').trim();
+const text = (bar) => [...bar.querySelectorAll('.sp-step, .sp-title, .sp-part, .sp-reward, .sp-daily, .sp-go')]
+  .map((e) => e.textContent.replace(/\s+/g, ' ').trim()).join(' ');
 
 export default [
 
@@ -33,7 +36,7 @@ export default [
   () => tryRunAsync('SPINE-POINTER-1: a fresh character is on step 1, Go opens Woodcutting, and a server fact advances the bar', async () => {
     const SP = window.HearthriseSpine;
     assert(SP && typeof SP.model === 'function', 'window.HearthriseSpine is not published');
-    await onBar(facts({}), async (bar) => {
+    await onBar(facts({ claimed: {} }), async (bar) => {
       assert(bar && !bar.hidden, 'the pointer bar is not drawn on Skills');
       assert(/^Step 1 of 10 Chop 15 logs/.test(text(bar)) && /Logs chopped 0\/15/.test(text(bar)), 'fresh bar: ' + text(bar));
       const go = bar.querySelector('.sp-go');
@@ -86,7 +89,7 @@ export default [
     try {
       window.notify = () => {};
       window.HearthriseGoalClaim = { isSignedIn: () => true, claimQuest: (id) => { calls.push(id); return Promise.resolve({ ok: true, credited: true, quest: id, gold: 150, items: {} }); } };
-      await onBar(facts({ counts: { chopped: 15, 'ev:gather': 15 } }), async (bar, SP) => {
+      await onBar(facts({ counts: { chopped: 15, 'ev:gather': 15 }, claimed: {} }), async (bar, SP) => {
         assert(/^Step 1 of 10/.test(text(bar)) && /150 gold/.test(text(bar)), 'the step and its catalogue reward: ' + text(bar));
         const btn = bar.querySelector('.sp-go');
         assert(btn && btn.textContent === 'Claim', 'the button reads ' + (btn && btn.textContent));
@@ -132,8 +135,31 @@ export default [
         const chip = bar.querySelector('.sp-daily');
         assert(chip && chip.textContent === 'Daily 2/3' && chip.classList.contains('is-claim'),
           'one paid + one counted out of three, with a claim waiting: ' + (chip && chip.textContent));
-      } finally { TL.__feed(null); }
+        assert(!document.getElementById('hr-quests-btn'), 'the topbar Quests button is back beside the chip');
+        chip.click();
+        assert(document.getElementById('quests-modal-overlay'), 'the daily chip did not open the daily sheet');
+      } finally { TL.__feed(null); if (window.closeQuestsModal) window.closeQuestsModal(); }
     });
+  }),
+
+  /* -- regression suite -- the one daily list may not offer Go through a door
+     the reveal keeps shut: quest-nav refuses the walk, so a drawn button would
+     be dead. Mutation: drop `dest.open !== false` in daily-quests.js rowHtml. */
+  () => tryRunAsync('SPINE-POINTER-8: a daily quest row never draws Go to a hidden door', async () => {
+    const R = window.HearthriseReveal, TL = window.HearthriseTally;
+    const pool = window.DAILY_TASK_POOL.map((fn) => fn());
+    const row = async () => { window.openQuestsModal(); await tick(); const r = document.querySelector('#quests-modal-overlay .qm-quest'); const go = r && r.querySelector('.qm-q-go'); window.closeQuestsModal(); return { r, go }; };
+    const snap = snapshotG(), was = R.__pin(R.FRESH);
+    try {
+      window.G.daily = { lastReset: window.hrGoalDayKey(), tasks: [pool.find((t) => t.id === 'daily_kill')] };
+      TL.__feed({ day: { 'ev:kill_any': 3 }, week: {}, paid: [], offered: ['daily_kill'] });
+      let got = await row();
+      assert(got.r && !R.shows('pane:combat'), 'CONTROL: a fresh character with the kill quest on the sheet and Combat shut');
+      assert(!got.go, 'the daily row offers "' + (got.go && got.go.textContent) + '" through the shut Combat door');
+      R.__pin(R.FULL);
+      got = await row();
+      assert(got.go && got.go.textContent === 'Go fight', 'CONTROL: with Combat open the row must offer Go fight');
+    } finally { R.__pin(was); TL.__feed(null); restoreG(snap); }
   }),
 
   () => tryRunAsync('SPINE-POINTER-7: step 7 waits for the boots on your feet; the unlock moment speaks once per newly finished step', async () => {

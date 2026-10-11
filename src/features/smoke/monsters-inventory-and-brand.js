@@ -6676,27 +6676,6 @@ export default [
     }
   }),
 
-  /* The topbar quest badge derived its count with /(\d+)\s*active/ over the
-     quest strip's TEXT — a sentence renderStrip() stopped writing builds ago,
-     so it returned 0 for every player forever. The badge must read the game. */
-  () => tryRun('b371: the quest badge counts real quests, not a regex on another UI', () => {
-    assert(typeof window.questBadgeState === 'function',
-      'window.questBadgeState is missing — the badge is back to scraping the strip');
-    const st = window.questBadgeState();
-    assert(st && typeof st.active === 'number' && typeof st.claimable === 'number',
-      'questBadgeState returned ' + JSON.stringify(st));
-    const daily = (window.HearthriseDailyQuests && window.HearthriseDailyQuests.tasks()) || [];
-    assert(st.active <= daily.length, 'the active count (' + st.active + ') exceeds the daily quests on today\'s slate (' + daily.length + ')');
-    assert(st.claimable <= st.active, 'more quests are claimable than are active');
-    const btn = document.getElementById('hr-quests-btn');
-    assert(btn, 'the topbar quest button is missing');
-    const shown = parseInt((btn.querySelector('.hr-q-count') || {}).textContent, 10);
-    assert(isFinite(shown), 'the badge shows a non-number');
-    // The reported defect exactly: a claimable reward with a 0 on the badge.
-    assert(!(st.claimable > 0 && shown === 0),
-      st.claimable + ' quest rewards are claimable and the badge reads 0');
-  }),
-
   /* F23 — filed as "Replay tutorial does nothing"; NOT REPRODUCED at HEAD (the
      tour mounts and is topmost). What was true is that the row had no failure
      state, so a dead handler and a working one looked identical. Guard the

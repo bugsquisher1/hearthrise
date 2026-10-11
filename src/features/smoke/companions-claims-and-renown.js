@@ -2320,7 +2320,8 @@ export default [
       assert(row && !row.classList.contains('claimable'), 'THE BUG: the browser\'s 25/25 made the row claimable against server 7/25');
       assert(!row.querySelector('.qm-q-claim'), 'no Claim on a server-incomplete quest');
       assert(/7 \/ 25/.test(row.querySelector('.qm-q-progtext').textContent), 'the row reads the server 7 / 25, got ' + row.textContent);
-      assert(window.questBadgeState().claimable === 0 && window.questBadgeState().active === 1, 'the badge counts the server\'s picture');
+      const sum = window.HearthriseDailyQuests.summary();
+      assert(sum && !sum.claim && sum.done === 0 && sum.total === 1, 'the daily chip counts the server\'s picture: ' + JSON.stringify(sum));
       window.HearthriseDailyQuests.claim('daily_kill');
       assert(calls.length === 0, 'a claim on a server-incomplete quest must not reach the transport (calls=' + calls.length + ')');
       row = await rig.open({ day: { 'ev:kill_any': 31 } });
@@ -2330,7 +2331,7 @@ export default [
       assert(calls.length === 1 && calls[0] === 'daily_kill', 'Claim fires hr_claim_daily exactly once (calls=' + calls.length + ')');
       row = await rig.open({ day: { 'ev:kill_any': 31 }, paid: ['daily_kill'] });
       assert(row && /Paid/.test(row.textContent) && !row.querySelector('.qm-q-claim'), 'a quest the server paid reads Paid and offers nothing');
-      assert(window.questBadgeState().active === 0, 'a paid quest leaves the badge');
+      assert(window.HearthriseDailyQuests.summary().done === 1 && !window.HearthriseDailyQuests.summary().claim, 'a paid quest counts done and offers no claim');
       assert(!document.querySelector('#quests-modal-overlay .qm-tab[data-tab="weekly"]'), 'the weekly goals tab is gone with the board');
     });
   }),
@@ -2345,7 +2346,7 @@ export default [
       const chip = document.querySelector('#hr-spine-bar .sp-daily');
       assert(chip && /Daily —\/1/.test(chip.textContent), 'the daily chip shows the dash too, got: ' + (chip && chip.textContent));
       window.HearthriseDailyQuests.claim('daily_kill');
-      assert(calls.length === 0 && window.questBadgeState().claimable === 0, 'nothing claims from unknown state');
+      assert(calls.length === 0 && !window.HearthriseDailyQuests.summary().claim, 'nothing claims from unknown state');
     });
   }),
 

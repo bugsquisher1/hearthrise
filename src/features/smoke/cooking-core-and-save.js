@@ -2043,44 +2043,33 @@ export default [
     }
   }),
 
-  /* ── THE POINTER BAR IS ONE LINE ON EVERY SCREEN ──────────────────────
-     The bar replaced the quest strip, which phones hid to save height. The
-     bar is the one next step, so it stays on phones and must stay ONE line:
-     the live bar's markup against the shipped sheets, desktop and phone, each
-     in its own iframe so each is graded by its own viewport. */
-  () => tryRun('SPINE-BAR-FIT: the pointer bar shows on desktop and phone, one line, nothing spilling', () => {
-    window.showTab('skills');
-    window.HearthriseSpine.__forget(); window.HearthriseSpine.render();
-    const live = document.getElementById('hr-spine-bar');
-    assert(live && !live.hidden && live.querySelector('.sp-go'), 'the pointer bar did not draw a button on Skills');
-    let css = '';
-    for (const sheet of document.styleSheets) {
-      let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
-      const href = sheet.href || '';
-      if (href && !/(tokens|legacy|audit-overrides|theme-cozy|art-direction|spine-pointer)\.css/.test(href)) continue;
-      for (const r of rules) css += r.cssText + '\n';
-    }
-    const fitAt = (w, h) => {
-      const frame = document.createElement('iframe');
-      frame.setAttribute('style', `position:fixed;left:-4000px;top:0;width:${w}px;height:${h}px;border:0;visibility:hidden`);
-      document.body.appendChild(frame);
-      try {
-        const doc = frame.contentDocument;
-        doc.open();
-        doc.write('<!doctype html><html><head><meta charset="utf-8"><style>' + css + '</style></head>' +
-          '<body data-theme="hearthlight"><div id="app" class="app"><main class="main">' + live.outerHTML + '</main></div></body></html>');
-        doc.close();
-        const bar = doc.getElementById('hr-spine-bar'), inner = bar.querySelector('.sp-in');
-        return { display: doc.defaultView.getComputedStyle(bar).display, h: bar.getBoundingClientRect().height,
-          spill: inner.scrollWidth - inner.clientWidth };
-      } finally { frame.remove(); }
-    };
-    for (const [w, h] of [[1440, 900], [922, 423]]) {
-      const f = fitAt(w, h);
-      assert(f.display !== 'none', 'the pointer bar is hidden at ' + w + 'x' + h);
-      assert(f.h <= 48, 'the pointer bar wraps at ' + w + 'x' + h + ' (' + f.h + 'px tall)');
-      assert(f.spill <= 1, 'the pointer bar spills ' + f.spill + 'px sideways at ' + w + 'x' + h);
-    }
+  /* ── THE POINTER BAR LIVES IN THE TOPBAR, ON EVERY SCREEN SIZE ────────
+     The bar replaced the quest strip, which phones hid to save height. The bar
+     rides the topbar row instead, so it costs no height anywhere: the live app
+     at desktop and phone, each in its own iframe so it is graded by its own
+     viewport, with a step and its button drawn. */
+  () => tryRun('SPINE-BAR-FIT: the pointer bar sits inside the topbar on desktop and phone, between the player and the stats, its button on screen', () => {
+    const R = window.HearthriseReveal, SP = window.HearthriseSpine;
+    const was = R.__pin({ counts: { chopped: 15, fished: 5, 'ev:cooked': 5, 'ev:kill_any': 5, 'ev:planted': 1 }, countsComplete: true, skills: {},
+      property: 0, workers: 0, bag: { normal_log: 30, copper_ore: 4 }, gold: 100, equipment: {}, claimed: { gatherer: true, first_cook: true, first_blood: true } });
+    try {
+      window.showTab('skills');
+      SP.__forget(); SP.render();
+      const live = document.getElementById('hr-spine-bar');
+      assert(live && !live.hidden && live.querySelector('.sp-go'), 'the pointer bar did not draw a button on Skills');
+      const app = document.getElementById('app'), cls = document.body.className;
+      for (const [w, h] of [[1440, 900], [922, 423]]) {
+        phoneFrame(w, h, app.outerHTML, (doc) => {
+          doc.body.className = cls;
+          const R2 = (e) => e.getBoundingClientRect();
+          const bar = doc.getElementById('hr-spine-bar'), top = doc.querySelector('.topbar'), stats = doc.querySelector('.top-stats'), go = bar && bar.querySelector('.sp-go');
+          assert(bar && top && top.contains(bar), w + 'x' + h + ': the bar is not inside the topbar');
+          const b = R2(bar), t = R2(top), g = R2(go);
+          assert(b.width > 40 && b.top >= t.top - 0.5 && b.bottom <= t.bottom + 0.5, w + 'x' + h + ': the bar leaves the topbar row (' + Math.round(b.top) + '..' + Math.round(b.bottom) + ' vs ' + Math.round(t.top) + '..' + Math.round(t.bottom) + ')');
+          assert(g.width > 0 && g.right <= w && (!stats || g.right <= R2(stats).left + 0.5), w + 'x' + h + ': Go is off screen or under the stats');
+        });
+      }
+    } finally { R.__pin(was); SP.__forget(); window.showTab('profile'); }
   }),
 
   () => tryRun('b369: Character > Equipment survives a 922x423 landscape phone — square, contained, non-overlapping slots (Tyler: "the weapon sprite is floating over the Cape cell")', () => {

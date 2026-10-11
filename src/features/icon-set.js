@@ -269,11 +269,6 @@
         if (sg) railSet.innerHTML = sg;
       }
     });
-    var qic = document.querySelector('#hr-quests-btn .hr-q-ic');
-    if (qic && paths.uiQuests && !qic.querySelector('.hr-glyph')) {
-      var qg = glyph('uiQuests', 14, '--gold-2');
-      if (qg) qic.innerHTML = qg;
-    }
     var flame = document.querySelector('.streak-badge .flame');
     if (flame && paths.uiFlame && !flame.querySelector('.hr-glyph')) {
       var fg = glyph('uiFlame', 14, '--red');

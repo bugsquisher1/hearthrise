@@ -1016,7 +1016,7 @@ jobs:
       # this guard runs it on the replay, plus the carry (per-hero balances summed
       # once, journalled), the privilege probe as the real `authenticated` role, a
       # byte-identical re-apply and the edge receipt (gems_paid, not the price).
-      # --mutate: nine defects, each named by its arm. No credentials.
+      # --mutate: eleven defects, each named by its arm. No credentials.
       - name: Account wallet — gems are paid once per account and seen by every hero
         if: ${{ !cancelled() }}
         run: |

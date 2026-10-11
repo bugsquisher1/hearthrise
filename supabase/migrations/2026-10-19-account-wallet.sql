@@ -48,8 +48,12 @@
 --    raid_claim__ungated ('raid:<week>'), world_event_claim__ungated
 --    ('world_event:<day>'), hr_create_character ('start_kit'), hr_state_of
 --    (projects the wallet on every slot), hr_day_budget_used (gem dimension
---    summed over the ACCOUNT). A second hero claiming an already-paid reward is
+--    summed over the ACCOUNT), hr_ledger_prune (kind='wallet' rows are never
+--    pruned: the rollup keeps only gems_in, so a pruned debit or carry would
+--    vanish — Security F2). A second hero claiming an already-paid reward is
 --    paid its gold and 0 gems; the receipt says 0.
+--    LOCK RULE (Security C1): every caller of hr_wallet_debit takes the ACCOUNT
+--    advisory lock (uid:0) before anything else; §8 k5(c) asserts it.
 -- §5 hr_apply: FIVE anchored edits (gem block -> credit-only; no column write;
 --    its own ledger row gems_in 0; the wallet credit keyed
 --    'apply:<journal.intent>'; `gems_paid` on the envelope). The engine never
@@ -147,7 +151,7 @@ begin
     raise exception 'account-wallet §0: % is absent or not the body this file restates (md5 %) — another lane moved it; restate from that body instead', 'public.hr_buy_hero_slot__ungated(integer,integer,uuid)', v_md5;
   end if;
   v_md5 := (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = to_regprocedure('public.hr_buy_gem_unlock__ungated(text,integer,uuid)'));
-  if v_md5 is null or v_md5 not in ('f34d4123dc5e70718b11f0a0279f046d', '08463393d2dc5c9150189f7ec8ec98e2') then
+  if v_md5 is null or v_md5 not in ('f34d4123dc5e70718b11f0a0279f046d', '6c14c0acf21c5a10cecf506c201cf11a') then
     raise exception 'account-wallet §0: % is absent or not the body this file restates (md5 %) — another lane moved it; restate from that body instead', 'public.hr_buy_gem_unlock__ungated(text,integer,uuid)', v_md5;
   end if;
   v_md5 := (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = to_regprocedure('public.hr_claim_goal__ungated(text,boolean,integer,uuid)'));
@@ -194,6 +198,10 @@ begin
   v_md5 := (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = to_regprocedure('public.hr_apply(uuid,integer,bigint,uuid,jsonb)'));
   if v_md5 is null or v_md5 not in ('eb2aca03e9817420e9d586924e133f69', 'f7b13d32d90c5c1b436ca6606d3fe4ac') then
     raise exception 'account-wallet §0: % is absent or not the body this file restates (md5 %) — another lane moved it; restate from that body instead', 'public.hr_apply(uuid,integer,bigint,uuid,jsonb)', v_md5;
+  end if;
+  v_md5 := (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = to_regprocedure('public.hr_ledger_prune(integer)'));
+  if v_md5 is null or v_md5 not in ('a7e5085d34b8e4faa914c2724dff0fb9', '373aa1f22cca7ded4825c9f9f20db974') then
+    raise exception 'account-wallet §0: % is absent or not the body this file restates (md5 %) — another lane moved it; restate from that body instead', 'public.hr_ledger_prune(integer)', v_md5;
   end if;
 end $$;
 
@@ -675,7 +683,14 @@ begin
   --        header). The key is byte-identical to the one hr_apply takes, so this
   --        also serialises against an accrual settling the same character.
   --        Transaction-scoped (safe under the transaction pooler), re-entrant.
-  perform pg_advisory_xact_lock(hashtextextended(v_uid::text || ':' || v_slot::text, 0));
+  -- THE ACCOUNT LOCK FIRST (Security C1, 2026-10-11). Ownership is account-wide
+  -- (hr_gem_unlocks_of) and so is the wallet, so two heroes of one account
+  -- buying the same unlock must serialise on the ACCOUNT, or both read "not
+  -- owned" and both debit. House order, as hr_buy_hero_slot: uid:0 -> uid:slot.
+  perform pg_advisory_xact_lock(hashtextextended(v_uid::text || ':' || '0', 0));
+  if v_slot <> 0 then
+    perform pg_advisory_xact_lock(hashtextextended(v_uid::text || ':' || v_slot::text, 0));
+  end if;
 
   -- ── (4) IDEMPOTENCY IS PER (KEY, INTENT, SLOT), NOT PER KEY. player_intents is
   --        ONE namespace for every verb in this database, so a key claimed by
@@ -2456,6 +2471,73 @@ end $$;
 revoke execute on function public.hr_day_budget_used(uuid, integer, timestamp with time zone)
   from public, anon, authenticated, service_role;
 
+-- ── hr_ledger_prune ──
+create or replace function public.hr_ledger_prune(p_limit integer default 20000)
+ returns integer
+ language plpgsql
+ security definer
+ set search_path to 'public'
+as $$
+declare v_keep int; v_cut timestamptz; v_n int;
+begin
+  select retain_days into v_keep from public.hr_ledger_config;
+  -- One second of slack so the prune never argues with the trigger's own
+  -- boundary check about which side of `now()` a row is on.
+  v_cut := now() - make_interval(days => coalesce(v_keep, 90)) - interval '1 second';
+
+  -- THE WALLET JOURNAL IS EXEMPT (2026-10-19-account-wallet.sql, Security F2).
+  -- The rollup keeps only gems_in, so a pruned kind='wallet' row would lose
+  -- every gem DEBIT and the per-hero carry for good. Gem movements are rare
+  -- (claims and purchases, never per tick), so the premium currency keeps its
+  -- whole signed history: the wallet always equals the sum of its rows.
+  with doomed as (
+    select id, at from public.player_ledger
+     where at < v_cut
+       and kind <> 'wallet'
+     order by at, id
+     limit greatest(1, least(100000, coalesce(p_limit, 20000)))
+     for update skip locked
+  ),
+  rolled as (
+    insert into public.player_ledger_rollup as r
+      (user_id, slot, month, kind, n, gold_in, gold_out, xp_in, xp_out, qty_in, qty_out, gems_in)
+      select l.user_id, l.slot, date_trunc('month', l.at)::date, l.kind,
+             count(*),
+             sum(greatest(coalesce(l.gold, 0), 0)),
+             sum(greatest(-coalesce(l.gold, 0), 0)),
+             -- xp is SIGNED and carries NO non-negative CHECK (the constraint
+             -- named player_ledger_inflow_nonneg guards xp_in, a DIFFERENT
+             -- column). Clamping it here would delete the first XP debit this
+             -- game ever issues off a ranked surface. Security S-LR-1.
+             sum(greatest(coalesce(l.xp, 0), 0)),
+             sum(greatest(-coalesce(l.xp, 0), 0)),
+             -- qty is SIGNED: negative when items leave the bag (a market list,
+             -- a craft consuming reagents). Both directions are real movement and
+             -- both are kept, mirroring the gold pair.
+             sum(greatest(coalesce(l.qty, 0), 0)),
+             sum(greatest(-coalesce(l.qty, 0), 0)),
+             sum(greatest(coalesce(l.gems_in, 0), 0))
+        from public.player_ledger l join doomed d on d.id = l.id and d.at = l.at
+       group by 1,2,3,4
+    on conflict (user_id, slot, month, kind) do update
+      set n        = r.n        + excluded.n,
+          gold_in  = r.gold_in  + excluded.gold_in,
+          gold_out = r.gold_out + excluded.gold_out,
+          xp_in    = r.xp_in    + excluded.xp_in,
+          xp_out   = r.xp_out   + excluded.xp_out,
+          qty_in   = r.qty_in   + excluded.qty_in,
+          qty_out  = r.qty_out  + excluded.qty_out,
+          gems_in  = r.gems_in  + excluded.gems_in
+    returning 1
+  )
+  delete from public.player_ledger l
+   using doomed d where l.id = d.id and l.at = d.at;
+  get diagnostics v_n = row_count;
+  return v_n;
+end $$;
+revoke execute on function public.hr_ledger_prune(integer)
+  from public, anon, authenticated, service_role;
+
 -- ── §5 hr_apply — FIVE ANCHORED EDITS (RESTATEMENT-DEBT-ACK in the header) ──
 -- Each anchor must match EXACTLY once or the block raises. A body that already
 -- carries `v_wallet jsonb;` is this file's post-image: skipped.
@@ -2553,7 +2635,8 @@ end $$;
 -- Every account's per-hero balances summed into its wallet ONCE, journalled as
 -- one kind='wallet' row per account that held anything (gems_in 0: a carry is
 -- not an inflow and must not eat the day cap), then the per-hero columns go.
--- `meta.carry` keeps the per-slot balances, so the carry is auditable forever.
+-- `meta.carry` keeps the per-slot balances; the row is never pruned, because
+-- hr_ledger_prune exempts kind='wallet' (§4), so the carry stays auditable.
 do $$
 declare v_n int; v_g bigint;
 begin
@@ -2701,6 +2784,31 @@ begin
   if v_census is distinct from c_gem_identifier_ok then
     raise exception 'account-wallet §8 k5(b): the bodies naming a gems identifier are %, expected % — classify the new one or route it through hr_wallet_*',
       v_census, c_gem_identifier_ok; end if;
+  -- k5(c) THE LOCK RULE (Security C1). Every body that DEBITS the wallet takes
+  --    the ACCOUNT advisory lock (uid:0) before its first hr_wallet_debit call:
+  --    a spend's ownership check is account-wide, so a per-hero lock lets two
+  --    heroes both read "not owned" and both pay. Read off the comment-stripped
+  --    source (literals kept: the lock key IS a literal).
+  select array_agg(p.proname::text order by p.proname) into v_census
+    from pg_proc p,
+         lateral (select regexp_replace(regexp_replace(p.prosrc, '--[^\n]*', '', 'g'), '/\*.*?\*/', '', 'g') as s) c
+   where p.pronamespace = 'public'::regnamespace
+     and p.proname <> 'hr_wallet_debit'
+     and strpos(c.s, 'hr_wallet_debit(') > 0
+     and (strpos(c.s, 'pg_advisory_xact_lock(hashtextextended(v_uid::text || '':'' || ''0'', 0))') = 0
+          or strpos(c.s, 'pg_advisory_xact_lock(hashtextextended(v_uid::text || '':'' || ''0'', 0))')
+             > strpos(c.s, 'hr_wallet_debit('));
+  if v_census is not null then
+    raise exception 'account-wallet §8 k5(c): % debit the wallet without first taking the account lock (uid:0)', v_census; end if;
+  if (select count(*) from pg_proc p where p.pronamespace = 'public'::regnamespace
+        and p.proname <> 'hr_wallet_debit' and strpos(p.prosrc, 'hr_wallet_debit(') > 0) < 2 then
+    raise exception 'account-wallet §8 k5(c): fewer than the two known debit callers were found — the census is blind'; end if;
+  -- k7 THE WALLET JOURNAL IS NEVER PRUNED (Security F2): the prune's victim set
+  --    excludes kind='wallet' (driven on a replay by tests/account-wallet.mjs
+  --    W-PRUNE — never here, where a prune would touch real rows).
+  if strpos(regexp_replace((select prosrc from pg_proc where oid = 'public.hr_ledger_prune(integer)'::regprocedure),
+                           '--[^\n]*', '', 'g'), 'and kind <> ''wallet''') = 0 then
+    raise exception 'account-wallet §8 k7: hr_ledger_prune would prune the wallet journal'; end if;
 
   begin
     insert into auth.users (id) values (v_uid), (v_two) on conflict (id) do nothing;

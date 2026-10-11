@@ -32,7 +32,10 @@
 // --mutate: a per-slot grant key, a credit with no ledger row, the projection
 // reading the old per-hero column, a client grant on the wallet table, a claim
 // writing the wallet directly, a per-slot day cap, the engine allowed to spend,
-// a hero-slot buy debiting twice; + an edge mutant (receipt from the price).
+// a hero-slot buy debiting twice, a gem-unlock buy without the account lock
+// (Security C1), a prune that eats the wallet journal (Security F2); + an edge
+// mutant (receipt from the price). W-PRUNE (plain): an aged wallet row
+// survives hr_ledger_prune while an aged accrue row beside it does not.
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ============================================================================
@@ -132,6 +135,19 @@ if (!MUTATE) {
       if (!refused) return `W-PRIV: authenticated was not refused: ${p}`;
     }
     console.log(`  ✓ W-PRIV — authenticated is refused all ${probes.length} reads / writes / helper calls`);
+
+    // W-PRUNE — an aged wallet row survives the ledger prune; an aged accrue row
+    // beside it does not (the control that proves the prune ran at all).
+    await db.exec(`insert into auth.users (id) values ('${E}') on conflict (id) do nothing;`);
+    for (const k of ['wallet', 'accrue']) {
+      await db.query(`insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta, at)
+        values ($1, 0, $2, 'w-prune', 0, 0, 0, 0, 0, '{"gems": -5}'::jsonb, now() - interval '400 days')`, [E, k]);
+    }
+    await db.query('select public.hr_ledger_prune(100000)');
+    const left = (await db.query("select kind from public.player_ledger where user_id = $1 and intent = 'w-prune' order by kind", [E]))
+      .rows.map((r) => r.kind).join(',');
+    if (left !== 'wallet') return `W-PRUNE: after the prune the aged rows left are [${left}], expected [wallet] — the wallet journal must survive and the control row must go`;
+    console.log('  ✓ W-PRUNE — a 400-day-old wallet row survives hr_ledger_prune; the aged accrue row beside it is rolled up');
     return null;
   });
   if (applied) { red.push(applied.startsWith('W-') ? applied.split(':')[0] : 'W-APPLY'); console.log(`  ✗ ${applied}`); }
@@ -196,6 +212,11 @@ const MUTANTS = [
     edits: [['      where l.user_id = p_user and l.gems_in > 0\n', '      where l.user_id = p_user and l.gems_in > 0 and l.slot = p_slot\n']] },
   { name: 'engineSpends', why: 'hr_apply accepts a negative gem delta (the engine spends)', expect: /§8 v2/,
     edits: [["      if v_n < 0 then\n        perform public.hr_reject('bad_delta', jsonb_build_object(\n          'field', 'gems', 'why', 'the engine never spends gems'));\n      end if;\n", '']] },
+  { name: 'gemUnlockSlotLockOnly', why: 'a gem-unlock purchase locks only its hero (Security C1): two heroes both read "not owned" and both pay', expect: /§8 k5\(c\)/,
+    edits: [["  perform pg_advisory_xact_lock(hashtextextended(v_uid::text || ':' || '0', 0));\n  if v_slot <> 0 then\n    perform pg_advisory_xact_lock(hashtextextended(v_uid::text || ':' || v_slot::text, 0));\n  end if;\n\n  -- ── (4) IDEMPOTENCY",
+             "  perform pg_advisory_xact_lock(hashtextextended(v_uid::text || ':' || v_slot::text, 0));\n\n  -- ── (4) IDEMPOTENCY"]] },
+  { name: 'pruneEatsWallet', why: 'the ledger prune rolls kind=wallet rows up (Security F2): every gem debit and the carry vanish after 90 days', expect: /§8 k7/,
+    edits: [["     where at < v_cut\n       and kind <> 'wallet'\n", "     where at < v_cut\n"]] },
   { name: 'heroSlotDebitsTwice', why: 'a hero-slot purchase debits the wallet twice', expect: /§8 v3/,
     edits: [["  v_wallet := public.hr_wallet_debit(v_uid, v_slot, v_cat.cost_gems, v_intent,\n                jsonb_build_object('slot_id', v_cat.slot_id, 'idem', p_idem));\n",
              "  perform public.hr_wallet_debit(v_uid, v_slot, v_cat.cost_gems, v_intent || ':x', '{}'::jsonb);\n"

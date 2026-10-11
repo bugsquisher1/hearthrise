@@ -24,7 +24,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-10-11",
- "replay_ms": 38013,
+ "replay_ms": 4876,
  "counts": {
   "tracked_names": 89,
   "entries": 86
@@ -1716,17 +1716,18 @@
     "2026-09-23-frame-emit-from-apply.sql",
     "2026-09-28-buff-segment-from.sql",
     "2026-10-09-xp-frac-carry.sql",
+    "2026-10-11-name-moderation.sql",
     "2026-10-12-companion-xp-frac.sql"
    ],
    "live": {
-    "md5": "6e3fe1c873efdf5b65d2b88cf1f804fa",
-    "norm_len": 32575,
+    "md5": "2e64dafb3300321374cd374ea3a25d39",
+    "norm_len": 32818,
     "measured": "2026-10-11",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "6e3fe1c873efdf5b65d2b88cf1f804fa",
-    "norm_len": 32575,
+    "md5": "2e64dafb3300321374cd374ea3a25d39",
+    "norm_len": 32818,
     "source": "computed-from-replay"
    },
    "agree": true

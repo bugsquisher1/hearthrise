@@ -243,7 +243,10 @@ function guardEntry(root, rel, { contentOf, registered = new Map() } = {}) {
   const dir = directives(src);
   const errors = [];
   const referenced = referencedFiles(root, rel, src, lexed);
-  const lits = [...new Set(lexed.strings.map((s) => s).filter((s) => s.trim().length >= MIN_LITERAL))];
+  /* A path is a REFERENCE, not an anchor: 'src/net/gold.js' occurs in gold.js's own
+     header, and would make every file a guard names look anchored. */
+  const lits = [...new Set(lexed.strings.filter((s) => s.trim().length >= MIN_LITERAL
+    && !/^\/?[\w./@-]+\.(?:m?js|sql|json|ts|css|html|toml|ya?ml|sh|md)$/.test(s.split('?')[0])))];
   const res = compiledRegexes(lexed);
   const read = contentOf || ((f) => { try { return [readFileSync(join(root, f), 'utf8')]; } catch { return []; } });
   let anchored = referenced.filter((f) => read(f).some((t) => anchorsIn(t, lits, res)));
@@ -467,21 +470,10 @@ async function selftest() {
   ok(entries.every((e) => !e.errors.length), 'M3 every proof-capable guard has a derivable or declared anchor set'
     + (entries.some((e) => e.errors.length) ? ': ' + entries.filter((e) => e.errors.length).map((e) => e.guard).join(', ') : ''));
 
-  /* D — the base: an edit that DELETES the anchor must still trigger. Simulated with a
-     reader that serves the anchor only in the "base" version of gold.js. */
-  {
-    const gold = readFileSync(join(ROOT, 'src/net/gold.js'), 'utf8');
-    const anchor = 'export function resetGold() { pending = []; last = null; resetFrameGate(); }';
-    const stripped = gold.split(anchor).join('export function resetGold(){pending=[];last=null;resetFrameGate();}');
-    const headOnly = (f) => (f === 'src/net/gold.js' ? [stripped] : [readFileSync(join(ROOT, f), 'utf8')]);
-    const both = (f) => (f === 'src/net/gold.js' ? [stripped, gold] : [readFileSync(join(ROOT, f), 'utf8')]);
-    const a = guardEntry(ROOT, 'tests/envelope-frame-gate.mjs', { contentOf: headOnly });
-    const b = guardEntry(ROOT, 'tests/envelope-frame-gate.mjs', { contentOf: both });
-    ok(!a.anchors.includes('src/net/gold.js') && b.anchors.includes('src/net/gold.js'),
-      'D1 the deleted anchor is found at the base (HEAD alone would have lost it)');
-  }
-
-  /* X — a MISSING declaration is a failure, a declared one is not, a ghost path is. */
+  /* X — a MISSING declaration is a failure, a declared one is not, a ghost path is.
+     D — the base: an edit that DELETES the anchor must still trigger. A probe guard
+     names two files and anchors once in each; a reader serves gold.js WITHOUT its
+     anchor at HEAD, and with it only at the base. */
   {
     const tmpRel = 'tests/__guard-anchors-probe.mjs';
     const write = (await import('node:fs')).writeFileSync;
@@ -497,6 +489,18 @@ async function selftest() {
       write(join(ROOT, tmpRel), '// mutant-anchors: src/net/\n' + body);
       const t = triggered([guardEntry(ROOT, tmpRel)], ['src/net/gold.js']);
       ok(t.length === 1, 'X4 a declared directory anchor covers its subtree');
+      const anchor = 'export function resetGold() { pending = []; last = null; resetFrameGate(); }';
+      write(join(ROOT, tmpRel), "const F = ['src/net/gold.js', 'src/net/accrue.js'];\n"
+        + `const M = [${JSON.stringify(anchor)}, 'export function applyEnvelope(G, res) {'];\n` + body);
+      const gold = readFileSync(join(ROOT, 'src/net/gold.js'), 'utf8');
+      const stripped = gold.split(anchor).join('export function resetGold(){}');
+      const real = (f) => [readFileSync(join(ROOT, f), 'utf8')];
+      const headOnly = (f) => (f === 'src/net/gold.js' ? [stripped] : real(f));
+      const both = (f) => (f === 'src/net/gold.js' ? [stripped, gold] : real(f));
+      const a = guardEntry(ROOT, tmpRel, { contentOf: headOnly });
+      const b = guardEntry(ROOT, tmpRel, { contentOf: both });
+      ok(gold.includes(anchor) && !a.anchors.includes('src/net/gold.js') && b.anchors.includes('src/net/gold.js'),
+        'D1 an anchor the lane DELETED is found at the base (HEAD alone would have lost the edge)');
     } finally { rm(join(ROOT, tmpRel), { force: true }); }
   }
 
@@ -560,6 +564,13 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   const argv = process.argv.slice(2);
   if (argv.includes('--selftest')) {
     await selftest();
+  } else if (argv.includes('--why')) {
+    /* Which of <guard>'s literals anchor it on <file> — the reading behind one map edge. */
+    const [g, f] = argv.slice(argv.indexOf('--why') + 1);
+    const L = lex(readFileSync(join(ROOT, g), 'utf8'));
+    const text = readFileSync(join(ROOT, f), 'utf8').replace(/\r\n/g, '\n');
+    for (const s of new Set(L.strings)) if (s.trim().length >= MIN_LITERAL && text.includes(s)) console.log('literal  ' + JSON.stringify(s).slice(0, 140));
+    for (const r of compiledRegexes(L)) if (r.test(text)) console.log('regex    /' + r.source.slice(0, 120) + '/');
   } else if (argv.includes('--unregistered')) {
     const entries = catalogue(ROOT);
     const un = entries.filter((e) => !e.registered.length && e.none === null);

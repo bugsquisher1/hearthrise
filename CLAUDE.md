@@ -64,7 +64,13 @@ Rules that apply to every lane:
 - **Edge deploy before push** whenever `supabase/functions/**` changed: `node tools/pack-edge.mjs hr-accrue --out <dir>/supabase/functions/hr-accrue` + copy `supabase/config.toml`, then `npx --yes supabase@latest functions deploy hr-accrue --workdir <dir> --project-ref nezapsylztqbbwuwembx`, then verify the live `payload_sha256` equals `pack-edge --hash`. The in-page payload guard is red until they match.
 - **Push = live** (Pages deploys `main`). The Coordinator runs `git push` itself. After Pages serves the new `BUILD.cache`, play-gate, then post the release note with `node tools/post-changelog.mjs <file>` (dry-run first; 2000-char cap).
 
-### 3.3a Daily release (Tyler, 2026-09-12: "lets work on doing a daily release vs just pushing patches over and over")
+### 3.3b Ship continuously while nobody plays (Tyler, 2026-10-10 — supersedes the cut rules in 3.3a)
+Tyler: "the timing of the releases means less to me since no one is really playing" and "keep building the game as if no one is playing it." Until he says players are back (beta-3 keys or the Steam Early Access wipe):
+- **Each lane ships on its own as soon as ITS gates pass** (its CI green on GitHub, Security GO where money/XP/drops move, visual read if UI moved, played on live). No 20:00 UTC cut, no batching behind an unrelated red. One Discord note per day summarises what shipped.
+- **No player-protection staging:** no cohort percentages or day-long soaks to shield the current population. Arm channels for everyone after the Security GO; prove scale with synthetic load tests. Full wipe at the Steam Early Access release, so cut old content freely.
+- **Still held:** combat-engine changes are batched and spaced by the world-tick parity rule; Security keeps its veto; at most 3–4 heavy lanes on Tyler's PC at once (four parallel suites stalled for over an hour on 2026-10-10).
+
+### 3.3a Daily release (Tyler, 2026-09-12 — SUSPENDED by 3.3b while nobody plays)
 - **One release per day, not a patch per lane.** The day’s ready branches accumulate on a set branch (`set/b<NNN>`, never local `main`); each merge that changes code is pushed to `next` so GitHub runs the five-job matrix on the accumulating set while the Coordinator keeps dispatching. Local `main` equals `origin/main` between releases; docs-only commits go through a separate main checkout (`.claude/worktrees/coord-main`).
 - **The cut is 20:00 UTC (3 pm Chicago) every day.** At the cut: ONE in-page suite + `run-ci-local` (visual gate on the assembled set, screenshots READ) → bump → ONE CHANGELOG entry for the day (every shipped item, player-facing wording) → push `release/b<NNN>` FIRST, then `main` → GitHub checked → play gate on live → ONE Discord note. Branches that land after the cut wait for tomorrow; nothing is held back to “fill” a release either.
 - **The only out-of-band push is a P0/P1 player-visible bug via lane A** (a player cannot play, money moves wrongly, data is lost). It ships alone, with its own gates, and is folded into that day’s note. “Small and safe” is not a reason to skip the cut.
@@ -74,6 +80,15 @@ Rules that apply to every lane:
 The first hour of every session is PLAY: the QA account on live through the real loop (reload → claim → fight → gather → buy → water → reload) and a fresh account through the first thirty minutes. Every real bug this week came from someone playing, none from an audit. Only then the vitals, only then new feature lanes.
 
 At the start of every session run `node tools/vitals.mjs` (read-only, management endpoint, token from `~/.supabase-token`): plants/waters/harvests, fights/deaths, gathers/crafts/workers, buys/rooms, claims, market listings/sales, refused intents, users — per day for the last 7 days. `player_intents` journals ACCEPTED intents only; refusals ARE journalled in `hr_rejections` since 2026-08-11 as an aggregate per (user, slot, day, code) — 790 occurrences by 2026-09-11 — but without the VERB, so a burst of equip conflicts reads as ten "accrue" refusals, and `vitals.mjs` read the wrong table (pinned at zero) until lane `c-hr-rejections-journal` (staged 2026-09-11, Security review pending) added the verb map, 56 bodies of coverage and a real `refused` column + `--refusals` breakdown. A feature at zero for two days is a P1 by definition. Farming sat at zero from 2026-08-27 to 2026-09-06 and nobody could see it.
+
+### 3.5 The game must make sense and be fun — re-read it from the start (Tyler, 2026-10-10)
+Tyler: "start from the beginning and make sure the game makes sense… make sure it's genuinely a fun loop." The first audit (PRIORITY_BOARD.md, 2026-10-09 COHERENCE AUDIT) found the core loop sound but buried under clutter: 14 menu doors, two daily lists, 11 record screens, 40 unobtainable items, ammo that is better left empty, a Prayer skill that did nothing, and a shop that undercut Smithing.
+- **The game designer repeats the whole-game coherence and fun read every week, and after every batch of new content or systems.** Walk the new-player path from the first screen, check every skill (purpose, path, consumer, fun to level), the hour/day/week chase and the away-and-return moment. Rule keep / fix / merge / cut per system and rank the top changes by first-hour value. The result is a dated section on the priority board, and Tyler approves the cuts.
+- **Content and systems ship only if they fit the loop:** every item has a source and a use, and every skill has a consumer (the catalogue-coherence guard enforces the data half). A half-built feature stays hidden, not shown as "later".
+
+### 3.6 Keep the machinery lean (Tyler, 2026-10-10)
+- **Guards earn their runtime.** A guard whose every mutant is caught by another guard is merged or retired, with that proof in the commit; slow guards get pooled or cached. This is not loosening (§2): a unique catch is never removed. Targets: lane-done under 10 minutes; run-ci-local well under 3 hours.
+- **The Coordinator's memory stays pruned:** dated session logs are retired once their lessons are folded into durable notes or this file. A stale fact (e.g. "we need a test account") is deleted the moment it is found.
 
 ---
 

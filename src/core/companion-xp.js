@@ -67,16 +67,16 @@
 // companions.js) and by the Edge bundle (through accrual.js).
 // ============================================================================
 
-import { COMPANIONS } from '../data/companions.js?v=564';
+import { COMPANIONS } from '../data/companions.js?v=565';
 /* THE CURVE, REUSED — never re-copied. companion-perk.js already restates the
    client's XP curve and is pinned equal to src/features/companions.js by
    tests/companion-perk.mjs. Importing its cap here inherits that pin rather than
    opening a third copy that could drift. */
-import { companionXpToReach, COMPANION_MAX_LEVEL } from './companion-perk.js?v=564';
+import { companionXpToReach, COMPANION_MAX_LEVEL } from './companion-perk.js?v=565';
 /* THE CARRY'S ARITHMETIC, REUSED — the same fixed point grantXp carries a
    skill's remainder in (2026-10-09-xp-frac-carry.sql). One mechanism, two
    ledgers: a skill's remainder and a companion's. */
-import { XP_FRAC_SCALE, xpFracUnits } from './progression.js?v=564';
+import { XP_FRAC_SCALE, xpFracUnits } from './progression.js?v=565';
 
 /* THE CAP, DERIVED FROM THE SHARED CURVE. Cumulative XP to reach the max level —
    the same ceiling src/features/companions.js clamps to (COMPANION_XP_CAP). */

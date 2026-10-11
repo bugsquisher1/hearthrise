@@ -8323,7 +8323,10 @@ export default [
       await C.open();
       assert(T.sheetOpen(), 'the Codex is open but the toast queue does not see a sheet');
       for (let k = 1; k <= 7; k++) window.notify('burst ' + k, 'info');
-      assert(notifs.children.length === 0 && T.state().held === 5, 'held ' + T.state().held + ' of 7 (want the newest 5), ' + notifs.children.length + ' drawn');
+      /* Count only the burst: a live page toast (the day's blessing) drawn just before the
+         sheet opened is not this test's subject and made the gate flake (1 drawn). */
+      const drawnBurst = [...notifs.children].filter((e) => /burst \d/.test(e.textContent)).length;
+      assert(drawnBurst === 0 && T.state().held === 5, 'held ' + T.state().held + ' of 7 (want the newest 5), ' + drawnBurst + ' burst toast(s) drawn');
       C.close();
       await frames();
       const seen = [];

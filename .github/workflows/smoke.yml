@@ -2369,6 +2369,42 @@ jobs:
           node tests/world-tick-companion-xp.mjs
           node tests/world-tick-companion-xp.mjs --mutate
 
+      # F5 LOCKDOWN, ADOPTED (b569). Registered nowhere and red since the file
+      # entered the order (42P01: it replayed the WHOLE chain, which already
+      # dropped public.leaderboard, then looked for the hole to reproduce). It
+      # now replays up to its predecessor — the state the migration targets —
+      # reproduces F5, applies, proves the revoke + controls, and requires §5 to
+      # refuse five broken variants by name. Measured 12 s locally.
+      - name: Leaderboard view lockdown — F5 reproduces, closes, and §5 refuses five mutants
+        if: ${{ !cancelled() }}
+        run: node tests/leaderboard-lockdown-guard.mjs
+
+  # ── artisan-selftest ── tests/artisan-accrual.mjs --selftest (b569). Its plain
+  # run is in run-smoke; the 22-mutant proof was registered nowhere and was RED
+  # on origin/main (M1 double anchor, S5/S6 anchors removed by b374, M5/M8/M10
+  # unreachable since cooking was armed). It plants into the WORKING TREE
+  # (tests/mutation-safety.mjs restores and hash-verifies), so it shares a job
+  # with nothing. MEASURED 2026-10-11 locally on a loaded box: 28 min.
+  # Budget = measured x2 = 56; re-measure from the first GitHub run and tighten.
+  artisan-selftest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 56
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      - name: Artisan accrual — mutation proof (22 mutants, clean baseline first)
+        run: node tests/artisan-accrual.mjs --selftest
+
 
   # ── utc-midnight-replay ── SPLIT OUT OF db-replay 2026-09-19 (b550). The
   # GitHub run on ab7572e7 (branch next) measured db-replay's own steps: PGlite
@@ -3671,6 +3707,18 @@ jobs:
         run: |
           node tests/envelope-frame-gate.mjs --selftest
           node tests/envelope-frame-gate.mjs
+
+      # GUARD ANCHORS (b569). tools/lane-done.mjs re-runs the --selftest/--mutate
+      # of every guard whose mutants anchor on a file the lane changed (and the
+      # replay guards a changed migration's DDL targets reach). The plain run
+      # fails when a proof-capable guard has no derivable or declared anchor
+      # set; --selftest plants an anchor-breaking edit in src/net/gold.js and
+      # requires lane-done's scoped step to go RED on envelope-frame-gate, with
+      # the unplanted control green.
+      - name: Guard anchors — every proof guard's anchor set is known, and lane-done re-proves it
+        run: |
+          node tools/guard-anchors.mjs --selftest
+          node tools/guard-anchors.mjs
 
       # FRAME DROP STREAK (SEC_PUSH_CHANNEL_M5_2026-09-23.md S3). The gate's two
       # failure directions are not symmetric: a floor that is too LOW heals on

@@ -77,16 +77,6 @@
         "selftest": true
       }
     },
-    "leaderboard-lockdown-guard.mjs": {
-      "reason": "family pglite-chain-replay: the boards are not writable by a client. The live source property IS registered inside run-smoke (leaderboard-server-source).",
-      "family": "pglite-chain-replay",
-      "owner": "security-engineer",
-      "disposition": "adopt-via-shared-db",
-      "verified": {
-        "asserts": true,
-        "selftest": false
-      }
-    },
     "market-offers-guard.mjs": {
       "reason": "family pglite-chain-replay: market offer integrity. run-smoke already registers market-v2 and market-intent, which drive the market's value movement.",
       "family": "pglite-chain-replay",

@@ -30,6 +30,7 @@
 //   H1  ATTENDED honest: an hour on X credits X
 //   H4  two on-target credits do not count the same interval twice
 //   H2  earned target time survives a switch away (hold-retry) and does not grow
+//   H5  a knockout with the pointer still on the target adds no fight time
 //   W1  AWAY, through hr_apply: a goblin settle moves no X progress
 //   W2  AWAY control, through hr_apply: an X settle moves X progress
 // --mutate replays only UP TO this file (tests/schema-replay.mjs replayScopeError).
@@ -61,6 +62,8 @@ const MUTATIONS = {
     pairs: [offS5, [',\n                             coalesce(v_ab.fight_mark, v_ab.accepted_at))\n', ')\n']] },
   not_persisted: { why: 'fight_ms is never written back: earned target time is lost on a switch', expect: 'H2',
     pairs: [offS5, ['      update public.active_bounty set fight_ms = v_fight, fight_mark = now()\n       where user_id = v_uid and slot = v_slot;\n', '']] },
+  no_recovery_floor: { why: 'the target-fight run ignores the recovery line: a knockout on the target is billed as fight time', expect: 'H5',
+    pairs: [offS5, ['                             least(coalesce(v_recovering, v_ab.accepted_at), now()),\n', '']] },
   boss_allowlisted: { why: 'a boss is added to the board allowlist', expect: 'D1',
     pairs: [offS5, ["'wraith', 'wyrmling',", "'wraith', 'dragon', 'wyrmling',"],
       ["if v_n <> 94 then raise exception '§1:", "if v_n <> 95 then raise exception '§1:"]] },
@@ -215,6 +218,23 @@ async function run(mutate) {
     const fight3 = Number((await q('select fight_ms::text f from public.active_bounty where user_id = $1', [uid]))[0].f);
     ok('H2', Number(h2?.credited) === 3 && (await kills(X)) === 9 && fight3 === fight2,
       `a hold-retry after a switch answered ${JSON.stringify(h2)}, bestiary ${await kills(X)}, fight_ms ${fight2} -> ${fight3}`);
+
+    // ── H5: A KNOCKOUT ON TARGET IS NOT TARGET-FIGHT TIME (Security cond. 1) ──
+    //   On X → credit (stamps fight_mark) → the clock moves an hour (fixture:
+    //   fight_mark and the switch backdated) during which the character was
+    //   knocked out until 10 minutes ago, pointer still on X → credit again.
+    //   Only the ~10 minutes since recovery may be added.
+    await point(X, 7200);
+    await credit(X, 10, 'bt-ko-1');
+    const fko0 = Number((await q('select fight_ms::text f from public.active_bounty where user_id = $1', [uid]))[0].f);
+    await q("update public.active_bounty set fight_mark = now() - interval '1 hour' where user_id = $1", [uid]);
+    await q("update public.player_state set recovering_until = now() - interval '10 minutes' where user_id = $1 and slot = 0", [uid]);
+    const h5 = await credit(X, 11, 'bt-ko-2');
+    const fko1 = Number((await q('select fight_ms::text f from public.active_bounty where user_id = $1', [uid]))[0].f);
+    const inc = fko1 - fko0;
+    ok('H5', inc >= 600000 && inc < 660000,
+      `a credit after a knockout on ${X} added ${inc} ms of fight time (want ~600000: the knockout excluded): ${JSON.stringify(h5)}`);
+    await q('update public.player_state set recovering_until = null where user_id = $1 and slot = 0', [uid]);
 
     // ── W1 / W2: the AWAY settle, through hr_apply as the engine sends it ──
     const settle = async (id) => {

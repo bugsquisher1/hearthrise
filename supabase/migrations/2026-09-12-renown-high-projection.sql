@@ -1,6 +1,13 @@
 -- ════════════════════════════════════════════════════════════════════════
 -- 2026-09-12-renown-high-projection.sql
 --
+-- POST-APPLY AMENDMENT (self-check ONLY, no body/data; lane/b567 2026-10-17):
+--   the §(c2)/(c3) fixture's bounty contract moved from a BOSS (which
+--   2026-10-17-bestiary-target.sql refuses) to a tier-1 monster from the board
+--   allowlist, with the pointer on it, so this file still re-applies at chain
+--   end. No function body, splice, grant or row this file installs changed;
+--   production need not re-apply it.
+--
 -- PROJECT THE SERVER'S COUNTED RENOWN ON THE ENVELOPE, AND KEEP IT FRESH.
 -- Two anchored splices, no new table, no new column, no new RPC, no grant
 -- change, no value moved:
@@ -510,18 +517,29 @@ begin
       raise exception 'GATE(c2): FIXTURE — no bounty-eligible is_boss monster exists, so the boss '
                       'term cannot be exercised and the client-credit half below would prove nothing';
     end if;
-    -- (c3)'s CONTRACT TARGET (fixture revised 2026-10-17 with
-    -- 2026-10-17-bestiary-target.sql, which refuses a contract on a boss and
-    -- prices a credit only while the pointer is on the target): a tier-1 board
-    -- monster, seeded with kills below so the credit adds no new bestiary entry
-    -- and can move only the credited counters the discount must cancel. Valid
-    -- at this file's chain position and at chain end alike.
-    select m.monster_id into v_quarry
-      from public.hr_bounty_monsters m
-     where m.tier = 1
-       and not exists (select 1 from public.hr_activities a
-                        where a.kind = 'combat' and a.is_boss and a.activity_id = m.monster_id)
-     order by m.monster_id limit 1;
+    -- POST-APPLY AMENDMENT (self-check ONLY, no body/data; lane/b567 2026-10-17)
+    -- (c3)'s CONTRACT TARGET. 2026-10-17-bestiary-target.sql refuses a contract
+    -- on a boss and prices a credit only while the pointer is on the target, so
+    -- the fixture takes a tier-1 monster FROM THE BOARD ALLOWLIST
+    -- (hr_bounty_board_monsters) — never a boss or a field champion — seeded
+    -- with kills below so the credit adds no new bestiary entry and can move
+    -- only the credited counters the discount must cancel. At this file's own
+    -- chain position the allowlist does not exist yet and no champion exists
+    -- either (w0f lands later), so the pre-allowlist arm is the same rule.
+    if to_regclass('public.hr_bounty_board_monsters') is not null then
+      select b.monster_id into v_quarry
+        from public.hr_bounty_board_monsters b
+        join public.hr_bounty_monsters m on m.monster_id = b.monster_id
+       where m.tier = 1
+       order by b.monster_id limit 1;
+    else
+      select m.monster_id into v_quarry
+        from public.hr_bounty_monsters m
+       where m.tier = 1
+         and not exists (select 1 from public.hr_activities a
+                          where a.kind = 'combat' and a.is_boss and a.activity_id = m.monster_id)
+       order by m.monster_id limit 1;
+    end if;
     if v_quarry is null then
       raise exception 'GATE(c2): FIXTURE — no tier-1 non-boss monster exists for the (c3) contract';
     end if;

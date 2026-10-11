@@ -138,9 +138,11 @@
   // above the artisan anchor, which is the right side to err on for a reward
   // that costs a player their whole day's rally.
   //
-  // Every XP grant goes through window.addXp, so PACE, the fuse and the
-  // blessing all apply exactly as they do to played XP. There is no raw
-  // G.skills write anywhere in this file.
+  // The chest's XP is CREDITED BY THE SERVER inside the claim
+  // (2026-10-10-muster-chest-xp-credit.sql): both claim RPCs write
+  // player_skills and return the credited list, which this file only RENDERS.
+  // There is no addXp and no raw G.skills write anywhere in this file; the
+  // absolute skills arrive on the next envelope (CLAUDE.md §1, §6).
   var CHEST_ITEM_SHARE = 0.30;   // of the band's value, paid as domain materials
   var CHEST_XP_SHARE   = 0.20;   // of the band's value, paid as domain XP
   var XP_PER_GOLD      = 2;      // XP per gold of converted budget
@@ -627,7 +629,8 @@
     still_live:      'The rally is still running — claim when it closes',
     expired:         'That chest expired at the day roll',
     not_signed_in:   'Sign in to claim your rally chest',
-    network:         'Could not reach the server — try again in a moment'
+    daily_budget:    'You have reached today’s XP limit, so this chest cannot be taken today',
+    network:        'Could not reach the server — try again in a moment'
   };
   var PLEDGE_ERRORS = {
     window_open:      'That rally has already begun — join it live instead',
@@ -770,6 +773,9 @@
         return { action: 'forfeit', error: err };
       }
       if (err === 'day_open') return { action: 'hold', error: err };
+      // Over today's XP budget: refused BEFORE the settle, so the pledge is
+      // still owed — hold it for a later session (the budget is per UTC day).
+      if (err === 'daily_budget') return { action: 'hold', error: err };
       return { action: 'fail', error: err };
     }
     return { action: 'accept',
@@ -782,7 +788,10 @@
                 its local addItem on the inventory record seam so the credit is not
                 doubled once the inventory flip arms. Absent → no items are paid
                 (W0: the client never computes a chest of its own). */
-             items: Array.isArray(out.items) ? out.items : null };
+             items: Array.isArray(out.items) ? out.items : null,
+             /* The XP the server CREDITED to player_skills (b567) — rendered,
+                never added. */
+             xp:    sanitizeServerXp(out.xp) || [] };
   }
 
   // ── serverSkewMs ────────────────────────────────────────────
@@ -1026,9 +1035,9 @@
     renderAll();
   }
 
-  // The ONE payout path, shared by the live chest and half honors. XP goes
-  // through addXp so PACE, the fuse and the day's blessing all apply — a rally
-  // must never be a way to inject XP the rest of the game cannot see.
+  // The ONE payout path, shared by the live chest and half honors. The XP is
+  // NOT paid here: the claim RPC already credited it to player_skills, and the
+  // list in `c.xp` is the server's receipt, rendered by chestSummary only.
   function payChest(c) {
     var G = window.G;
     /* SECURITY (gold record-flip, Finding #2): world_event_claim PRICES the
@@ -1047,16 +1056,22 @@
     /* ITEMS (2026-08-20). The RPC has ALWAYS already written these materials into player_inventory (the record). Gate the local
        addItem on the inventory record seam exactly as gold is gated: pre-arm the
        server write is dark, so credit locally for display; post-arm the absolute
-       envelope carries the rows, so skip to avoid a double. XP flows through
-       addXp so PACE/fuse/blessing apply. */
+       envelope carries the rows, so skip to avoid a double. */
     var _mayInv = !window.clientMayWriteRecordField
       || window.clientMayWriteRecordField('inventory');
     (c.items || []).forEach(function (it) {
       if (it.qty > 0 && _mayInv && typeof window.addItem === 'function') window.addItem(it.id, it.qty);
     });
-    (c.xp || []).forEach(function (x) {
-      if (x.amount > 0 && typeof window.addXp === 'function') window.addXp(x.skill, x.amount);
-    });
+    /* XP (b567, P1 class-kill). This used to call window.addXp for each entry —
+       the server never wrote player_skills, so a non-combat theme's XP was
+       erased by the next envelope and a combat theme's rode
+       _combatXpPending -> hr_credit_combat_xp: client-authored ranked XP. Both
+       claim RPCs now credit it server-side and bump the version; ask for the
+       envelope that carries the absolute skills instead of predicting them. */
+    if ((c.xp || []).some(function (x) { return x && x.amount > 0; })
+        && typeof window.noteLiveSettleEvent === 'function') {
+      try { window.noteLiveSettleEvent('rally-chest'); } catch (e) {}
+    }
     persist();
   }
 
@@ -1139,7 +1154,7 @@
         catch (e) { return { action: 'hold', reason: 'network' }; }
         var d = reduceAbsence(r.status, r.json);
         noteRpc('world_event_absence_claim', d.action !== 'unsupported');
-        if (d.action === 'unsupported' || d.action === 'hold') return { action: 'hold', reason: d.action === 'hold' ? 'day_open' : 'unsupported' };
+        if (d.action === 'unsupported' || d.action === 'hold') return { action: 'hold', reason: d.action === 'hold' ? (d.error || 'day_open') : 'unsupported' };
         // A refusal we do not understand closes the pledge and pays NOTHING.
         // No payout is ever invented out of an error.
         if (d.action === 'forfeit' || d.action === 'fail') { writePledge(null); renderAll(); return d; }
@@ -1174,7 +1189,8 @@
        and the absolute envelope carries the rows. No list → no items (W0).
        Mirrors the online grant(). */
     var chest = { eventId: ev ? ev.id : null, gold: d.gold, gems: d.gems,
-                  items: Array.isArray(d.items) ? d.items : [], xp: [] };
+                  items: Array.isArray(d.items) ? d.items : [],
+                  xp: Array.isArray(d.xp) ? d.xp : [] };
     payChest(chest);
     toast('You answered ' + (ev ? ev.name : 'the rally') + ' in absence — half honors: ' +
           chestSummary(chest), 'levelup');

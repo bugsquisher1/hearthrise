@@ -199,6 +199,8 @@
     "node tests/renown-kill-faucet.mjs --selftest": "economy-selftests",
     "node tests/bounty-hunter-xp.mjs": "economy-selftests",
     "node tests/bounty-hunter-xp.mjs --selftest": "economy-selftests",
+    "node tests/muster-chest-xp-credit.mjs": "economy-selftests",
+    "node tests/muster-chest-xp-credit.mjs --selftest": "economy-selftests",
     "node tests/bounty-accept-bh-clamp.mjs": "economy-selftests",
     "node tests/bounty-accept-bh-clamp.mjs --selftest": "economy-selftests",
     "node tests/max-hp-tracks-hitpoints.mjs": "economy-selftests",

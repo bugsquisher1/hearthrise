@@ -1469,7 +1469,7 @@ export default [
     // The materials now live in player_inventory. Pre-arm the server write is
     // dark, so the client credits locally for display; post-arm the absolute
     // envelope carries the rows, so the client must NOT addItem them (double).
-    // This mirrors the gold gate. XP flows through addXp on every path.
+    // This mirrors the gold gate. XP is server-credited (b567) and never added.
     const M = window.HearthriseMuster;
     if (!M || typeof M._payChest !== 'function') return;
     const origAdd = window.addItem;
@@ -1498,11 +1498,59 @@ export default [
       M._payChest(chest, { serverItems: true });
       assert(!('iron_ore' in added2) && !('coal' in added2),
         'armed: server-credited materials are NOT locally re-minted; got ' + JSON.stringify(added2));
+      assert(xpCalls === 0, 'payChest must never call addXp (the claim RPC credits the XP); got ' + xpCalls + ' call(s)');
 
     } finally {
       window.addItem = origAdd;
       window.addXp = origXp;
       window.clientMayWriteRecordField = origMay;
+    }
+  }),
+
+  () => tryRunAsync('regression (b567): the rally chest XP is SERVER-credited — payChest authors none on either path (attended claim + absence claim), and asks for the envelope instead', async () => {
+    // P1 class-kill (CLAUDE.md §1). payChest called window.addXp for every
+    // entry of the claim's xp list while world_event_claim /
+    // world_event_absence_claim never wrote player_skills: a non-combat theme's
+    // XP was erased by the next envelope, and a combat theme's rode
+    // _combatXpPending -> hr_credit_combat_xp — client-authored ranked XP.
+    // 2026-10-10-muster-chest-xp-credit.sql moves the credit into both RPCs.
+    const M = window.HearthriseMuster;
+    if (!M || typeof M._payChest !== 'function' || typeof M._reduceClaim !== 'function'
+        || typeof M._reduceAbsence !== 'function') {
+      throw new Error('HearthriseMuster test seams missing — the regression cannot run');
+    }
+    const origXp = window.addXp, origAdd = window.addItem, origMay = window.clientMayWriteRecordField;
+    const origNote = window.noteLiveSettleEvent;
+    const snap = snapshotG();
+    let xpCalls = 0; const notes = [];
+    try {
+      window.addXp = function () { xpCalls++; };
+      window.addItem = function () {};
+      window.clientMayWriteRecordField = function () { return false; };
+      window.noteLiveSettleEvent = function (k) { notes.push(k); };
+      const skills0 = JSON.stringify((window.G && window.G.skills) || {});
+      // ATTENDED: a combat theme (ashen_horde) — the path that reached the ranked credit.
+      const online = M._reduceClaim(200, { ok: true, band: 'silver', held: true, gold: 3150, gems: 6,
+        items: [], xp: [{ skill: 'attack', amount: 600 }, { skill: 'defense', amount: 600 },
+                        { skill: 'strength', amount: 600 }], xp_total: 1800 });
+      assert(online.action === 'accept' && online.xp.length === 3, 'the reducer carries the credited list: ' + JSON.stringify(online));
+      M._payChest({ eventId: 'ashen_horde', gold: online.gold, gems: online.gems, items: [], xp: online.xp });
+      // AWAY: the absence claim, a non-combat theme (forge_levy).
+      const away = M._reduceAbsence(200, { ok: true, band: 'absent', gold: 750, gems: 1, items: [],
+        xp: [{ skill: 'crafting', amount: 150 }, { skill: 'smithing', amount: 150 }], xp_total: 300 });
+      assert(away.action === 'accept' && Array.isArray(away.xp) && away.xp.length === 2,
+        'the absence reducer carries the credited list (it used to drop it): ' + JSON.stringify(away));
+      M._payChest({ eventId: 'forge_levy', gold: away.gold, gems: away.gems, items: [], xp: away.xp });
+      assert(xpCalls === 0, 'payChest authored XP ' + xpCalls + ' time(s) — the server already credited it');
+      assert(JSON.stringify((window.G && window.G.skills) || {}) === skills0, 'G.skills moved on a chest payout');
+      assert(notes.length === 2, 'each XP-bearing chest asks for the settle that carries the absolute skills; got ' + JSON.stringify(notes));
+      // A budget refusal before the settle keeps the pledge owed.
+      assert(M._reduceAbsence(200, { ok: false, error: 'daily_budget' }).action === 'hold',
+        'daily_budget on the absence claim must HOLD the pledge, not forfeit it');
+    } finally {
+      window.addXp = origXp; window.addItem = origAdd; window.clientMayWriteRecordField = origMay;
+      window.noteLiveSettleEvent = origNote;
+      restoreG(snap);
     }
   }),
 

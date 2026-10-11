@@ -6,11 +6,11 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-10-08",
- "digest": "01b1f2b6bc6d24f7c2c457cd6247dca49c234b4ea423ac32682976f49d41fcb2",
+ "generated": "2026-10-11",
+ "digest": "3771e9a5b481d587cc6a22d053a8ae07ae65c776842bd376317e27d34468449d",
  "counts": {
   "relations": 147,
-  "functions": 359,
+  "functions": 360,
   "policies": 94,
   "indexes": 212,
   "triggers": 24,
@@ -427,6 +427,7 @@
    "hr_rally_pool()",
    "hr_rally_slot(p_day_key text, p_slot integer)",
    "hr_rally_theme(p_event_id text)",
+   "hr_rally_xp_credit(p_event_key text, p_chest jsonb)",
    "hr_rate_gate(p_user uuid, p_slot integer, p_bucket text)",
    "hr_rate_ok(p_user uuid, p_bucket text, p_limit integer, p_window interval)",
    "hr_rate_over(p_user uuid, p_bucket text)",

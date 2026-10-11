@@ -2535,6 +2535,19 @@ jobs:
           node tests/bounty-hunter-xp.mjs
           node tests/bounty-hunter-xp.mjs --selftest
 
+      # b567 (P1 class-kill, CLAUDE.md §1): the rally chest priced up to 3,000 XP
+      # and BOTH claim RPCs returned it without writing player_skills; the browser
+      # called addXp, so combat-theme XP reached hr_credit_combat_xp client-
+      # authored. 2026-10-10-muster-chest-xp-credit.sql credits it inside the
+      # consume. Attended AND absence path x combat AND non-combat theme: the
+      # player_skills delta must EQUAL the response; xp_in journalled; replay and
+      # budget refusals move nothing. Every mutation has a gate-blind twin.
+      - name: Muster chest XP — server-credited on both paths, every mutation caught
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/muster-chest-xp-credit.mjs
+          node tests/muster-chest-xp-credit.mjs --selftest
+
       # SA-048: crediting Bounty-Hunter XP (b504, the step above) made the board a
       # RANKED surface, but hr_accept_bounty gated the target TIER by SERVER COMBAT
       # level ONLY. The board's DIFFICULTY ladder is client-only: slot-3 'hard'

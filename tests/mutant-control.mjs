@@ -27,10 +27,10 @@
 // Register a guard here once it speaks the protocol.
 // ════════════════════════════════════════════════════════════════════════
 
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { writeFileSync, unlinkSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { tmpdir } from 'node:os';
+import { join, dirname, resolve } from 'node:path';
+import { tmpdir, availableParallelism } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -64,15 +64,22 @@ export function judgeControl(out) {
   return problems;
 }
 
-function runControl(file, flag) {
-  const r = spawnSync(process.execPath, [join(ROOT, file), flag], {
-    cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024,
-    env: { ...process.env, HR_MUTANT_CONTROL: '1', HR_REPLAY_SCOPE_CONTROL: '' },
+function runControlAsync(file, flag) {
+  return new Promise((done) => {
+    let out = '';
+    let err = '';
+    const child = spawn(process.execPath, [resolve(ROOT, file), flag], {
+      cwd: ROOT,
+      env: { ...process.env, HR_MUTANT_CONTROL: '1', HR_REPLAY_SCOPE_CONTROL: '' },
+    });
+    child.stdout.on('data', (b) => { out += b; });
+    child.stderr.on('data', (b) => { err += b; });
+    child.on('error', (e) => done(`${out}\n${err}\n${e.message}`));
+    child.on('close', () => done(`${out}\n${err}`));
   });
-  return `${r.stdout || ''}\n${r.stderr || ''}`;
 }
 
-function selftest() {
+async function selftest() {
   /* Fake guards, one per way a control can lie. Each must be judged as stated. */
   const cases = [
     ['honest: every arm survives', '[mutants] 2\n[mutant] A survived\n[mutant] B survived\n', true],
@@ -95,10 +102,9 @@ function selftest() {
   const leaky = join(tmpdir(), `hr-mutant-control-leaky-${process.pid}.mjs`);
   writeFileSync(leaky, "console.log('[mutants] 1');\nconsole.log('[mutant] X caught');\n");
   try {
-    const run = (f) => judgeControl(spawnSync(process.execPath, [f], {
-      encoding: 'utf8', env: { ...process.env, HR_MUTANT_CONTROL: '1' } }).stdout);
-    const a = run(fake).length === 0;
-    const b = run(leaky).length > 0;
+    // Through the SAME spawner the real run uses, so the env switch is proven to reach it.
+    const a = judgeControl(await runControlAsync(fake, '--mutate')).length === 0;
+    const b = judgeControl(await runControlAsync(leaky, '--mutate')).length > 0;
     console.log(`  ${a ? '✓' : '✗'} spawned honest guard → green`);
     console.log(`  ${b ? '✓' : '✗'} spawned guard that ignores the control → RED`);
     if (!a) bad += 1;
@@ -110,7 +116,7 @@ function selftest() {
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   if (process.argv.includes('--selftest')) {
     console.log('mutant-control --selftest — every lie a control can tell is judged RED');
-    const bad = selftest();
+    const bad = await selftest();
     if (bad) { console.log(`\nmutant-control --selftest: RED — ${bad} case(s) misjudged`); process.exit(1); }
     console.log('\nmutant-control --selftest: green');
     process.exit(0);
@@ -118,17 +124,26 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const only = process.argv.slice(2).filter((a) => !a.startsWith('--'));
   const set = only.length ? REGISTERED.filter(([f]) => only.some((o) => f.endsWith(o.replace(/\\/g, '/')))) : REGISTERED;
   if (!set.length) { console.log('mutant-control: no registered guard matched'); process.exit(2); }
+  /* The controls are independent processes (each plants into its own temp copy or
+     into memory, never the tree), so they run CONTROL_JOBS at a time — 404 s
+     one-by-one on GitHub (db-replay-7, run 38076651907). Each verdict is printed
+     whole when its guard finishes; the judgement per guard is unchanged. */
+  const jobs = Math.max(1, Number(process.env.HR_MUTANT_CONTROL_JOBS) || Math.min(4, availableParallelism()));
   let red = 0;
-  for (const [file, flag] of set) {
-    const t0 = Date.now();
-    const problems = judgeControl(runControl(file, flag));
-    const s = ((Date.now() - t0) / 1000).toFixed(1);
-    if (problems.length) {
-      red += 1;
-      console.log(`  ✗ ${file} ${flag} under HR_MUTANT_CONTROL=1 (${s} s)`);
-      for (const p of problems) console.log(`      ${p}`);
-    } else console.log(`  ✓ ${file} ${flag} — every arm survives with nothing planted (${s} s)`);
-  }
+  const queue = [...set];
+  await Promise.all(Array.from({ length: Math.min(jobs, queue.length) }, async () => {
+    while (queue.length) {
+      const [file, flag] = queue.shift();
+      const t0 = Date.now();
+      const problems = judgeControl(await runControlAsync(file, flag));
+      const s = ((Date.now() - t0) / 1000).toFixed(1);
+      if (problems.length) {
+        red += 1;
+        console.log(`  ✗ ${file} ${flag} under HR_MUTANT_CONTROL=1 (${s} s)`
+          + problems.map((p) => `\n      ${p}`).join(''));
+      } else console.log(`  ✓ ${file} ${flag} — every arm survives with nothing planted (${s} s)`);
+    }
+  }));
   if (red) { console.log(`\nmutant-control: RED — ${red} guard(s) have arms that are not their mutant's`); process.exit(1); }
   console.log('\nmutant-control: green — every registered arm is caught only when planted.');
 }

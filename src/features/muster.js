@@ -776,6 +776,11 @@
       // Over today's XP budget: refused BEFORE the settle, so the pledge is
       // still owed — hold it for a later session (the budget is per UTC day).
       if (err === 'daily_budget') return { action: 'hold', error: err };
+      // Refused BEFORE the settle too, so still owed: an unpaid window on the
+      // pledge's character (settle-before-mutate) or no character recorded.
+      if (err === 'settle_first' || err === 'party_hunt_running' || err === 'no_character') {
+        return { action: 'hold', error: err };
+      }
       return { action: 'fail', error: err };
     }
     return { action: 'accept',
@@ -1150,7 +1155,9 @@
         if (!isSignedIn()) return { action: 'hold', reason: 'signed_out' };
         if (rpcMissing('world_event_absence_claim')) return { action: 'hold', reason: 'unsupported' };
         var r;
-        try { r = await rpc('world_event_absence_claim', { p_day_key: p.dayKey }); }
+        var SFA = window.HearthriseSettleFirst;
+        var sendAbs = function () { return rpc('world_event_absence_claim', { p_day_key: p.dayKey }); };
+        try { r = await ((SFA && SFA.withSettleFirstRetry) ? SFA.withSettleFirstRetry(sendAbs) : sendAbs()); }
         catch (e) { return { action: 'hold', reason: 'network' }; }
         var d = reduceAbsence(r.status, r.json);
         noteRpc('world_event_absence_claim', d.action !== 'unsupported');

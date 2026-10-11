@@ -1545,8 +1545,10 @@ export default [
       assert(JSON.stringify((window.G && window.G.skills) || {}) === skills0, 'G.skills moved on a chest payout');
       assert(notes.length === 2, 'each XP-bearing chest asks for the settle that carries the absolute skills; got ' + JSON.stringify(notes));
       // A budget refusal before the settle keeps the pledge owed.
-      assert(M._reduceAbsence(200, { ok: false, error: 'daily_budget' }).action === 'hold',
-        'daily_budget on the absence claim must HOLD the pledge, not forfeit it');
+      ['daily_budget', 'settle_first', 'party_hunt_running', 'no_character'].forEach(function (code) {
+        assert(M._reduceAbsence(200, { ok: false, error: code }).action === 'hold',
+          code + ' on the absence claim is refused before the settle — the pledge must HOLD, not forfeit');
+      });
     } finally {
       window.addXp = origXp; window.addItem = origAdd; window.clientMayWriteRecordField = origMay;
       window.noteLiveSettleEvent = origNote;

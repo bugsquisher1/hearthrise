@@ -259,7 +259,7 @@
   function hireServer(G) {
     var Net = window.HearthriseWorkersNet;
     if (!Net || !Net.isSignedIn()) {
-      if (window.notify) notify('Connect to the server to hire workers', 'kill');
+      if (window.notify) notify('You need a connection to hire workers', 'kill');
       return null;
     }
     var latch = hireLatch();
@@ -333,7 +333,7 @@
     var e = res && res.error;
     if (e === 'crew_cap_reached') notify('Buy the next worker slot before hiring again', 'kill');
     else if (e === 'rate_limited') notify('Slow down — try again in a moment', 'kill');
-    else if (e === 'not_signed_in') notify('Connect to the server to hire workers', 'kill');
+    else if (e === 'not_signed_in') notify('You need a connection to hire workers', 'kill');
     else notify('Could not hire a worker' + (e ? ' (' + e + ')' : ''), 'kill');
   }
 
@@ -363,7 +363,7 @@
   function assignServer(w, uid, skill, targetId) {
     var Net = window.HearthriseWorkersNet;
     if (!Net || !Net.isSignedIn()) {
-      if (window.notify) notify('Connect to the server to assign workers', 'kill');
+      if (window.notify) notify('You need a connection to assign workers', 'kill');
       return false;
     }
     /* Local pre-check for instant feedback only — the SERVER re-checks YOUR level

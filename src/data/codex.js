@@ -71,7 +71,7 @@ export const CODEX_ENTRIES = f([
     { tab: 'combat' },
     [[0, 'falls'], [1, 'falls'], [2, 'falls']]),
   entry('auto-eat', 'fighting', 'Auto-Eat',
-    'Every hero starts owning Auto-Eat. When your health runs low it eats from your bag, in a fight you are watching or on a night away. Auto-Eat II, bought with Bounty Marks, lets you choose how low is low.',
+    'Every hero starts with Auto-Eat. When your health runs low it eats from your bag, in a fight you are watching or on a night away. Auto-Eat II, bought with Bounty Marks, lets you choose how low is low.',
     { tab: 'bounty' },
     [[0, 'autoEat'], [1, 'autoEat'], [2, 'autoEat']]),
   entry('bounty-marks', 'fighting', 'Bounty Marks',

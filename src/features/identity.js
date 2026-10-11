@@ -188,7 +188,7 @@
   var CLAIM_ERRORS = {
     taken:         'That name is already taken',
     not_signed_in: 'Sign in to claim a unique name',
-    network:       'Could not reach the server — try again in a moment'
+    network:       'Could not reach the realm — try again in a moment'
   };
 
   /**
@@ -813,7 +813,7 @@
                         { method: 'POST', headers: h, body: blob });
       try { json = await res.json(); } catch (e) { json = null; }
     } catch (e) {
-      return { action: 'fail', message: 'Could not reach the server — your portrait is saved on this device' };
+      return { action: 'fail', message: 'Could not reach the realm — your portrait is saved on this device' };
     }
     var d = reduceUpload(res.status, json);
     noteRpc('storage:avatars', d.action !== 'unsupported');

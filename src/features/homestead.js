@@ -492,11 +492,11 @@
       var insp = (typeof window.hrInspectAttrs === 'function') ? window.hrInspectAttrs(k) : '';
       var inspHint = (typeof window.hrInspectHint === 'function') ? window.hrInspectHint(k) : '';
       return '<span class="hh-req' + (ok ? ' is-met' : '') + '"' + insp + ' title="' +
-        name + ': you hold ' + (h.known ? have.toLocaleString() : 'an unknown amount') + ' of ' + need.toLocaleString() + inspHint + '">' +
+        name + (h.known ? ': you hold ' + have.toLocaleString() + ' of ' + need.toLocaleString() : ': need ' + need.toLocaleString() + ', still counting what you hold') + inspHint + '">' +
         '<span class="hh-req-art">' + art + '</span>' +
         '<span class="hh-req-name hr-si">' + name + '</span>' +
         '<b>' + (h.known ? Math.min(have, need).toLocaleString()
-          : '<span class="bal-pending" role="status" title="Waiting for the server">—</span>')
+          : '<span class="bal-pending" role="status" title="Waiting for the realm">—</span>')
         + ' / ' + need.toLocaleString() + '</b></span>';
     }).join('');
   }
@@ -1307,7 +1307,7 @@
         var chips = rung.cost.map(function (c) {
           return '<span class="hh-cost ' + (c.known === false ? 'is-pending' : (c.have >= c.need ? 'is-met' : 'is-short')) + '" title="' +
             esc(c.need.toLocaleString() + ' ' + c.label + ' — you have '
-              + (c.known === false ? 'no figure yet (waiting for the server)' : c.have.toLocaleString())) + '">' +
+              + (c.known === false ? 'no figure yet (still counting)' : c.have.toLocaleString())) + '">' +
             '<b>' + esc(c.need.toLocaleString()) + '</b> ' + esc(c.label) + '</span>';
         });
         /* b355 — the card is a decision point too. A blueprint requirement that

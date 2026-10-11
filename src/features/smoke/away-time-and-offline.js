@@ -7350,7 +7350,7 @@ export default [
     assert(/up to 15h/.test(known), 'the row must print the server cap (15h): ' + known);
     const unknown = row(null);
     // NIGHT-PLAN-PENDING-COPY: pending is its own sentence, not a dash mid-sentence.
-    assert(/the limit is being confirmed/i.test(unknown), 'an unknown cap must read as pending: ' + unknown);
+    assert(/checking how long it can run/i.test(unknown), 'an unknown cap must read as pending: ' + unknown);
     const unknownText = unknown.replace(/<[^>]*>/g, ' ');
     assert(!/\b0h\b|12h|null|NaN/.test(unknownText), 'an unknown cap printed a number: ' + unknown);
     assert(!/[—–]/.test(unknownText), 'an unknown cap reads as a dash mid-sentence: ' + unknownText);

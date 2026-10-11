@@ -1277,7 +1277,7 @@ export default [
       UI._setSupport('unsupported');
       UI.render(host);
       let html = host.innerHTML;
-      assert(/not chartered on the server yet/.test(html), 'the un-migrated state must say what is missing');
+      assert(/not chartered in the realm yet/.test(html), 'the un-migrated state must say what is missing');
       assert(html.indexOf('hr-cs-bar') < 0, 'the un-migrated panel must draw no bars at all');
       assert(/123,456/.test(html), 'it must still show the treasury it genuinely knows');
       assert(/hrcs-svg/.test(html), 'the hold itself is real even before the migration');
@@ -4288,8 +4288,8 @@ export default [
     assert(!/hunt-start/.test(unread), 'before any view read, Start is hidden (fail-safe "not open")');
     [['leader', 'The leader ended the hunt.'],
      ['too_few_hunters', 'The hunt ended: everyone else made camp or left. You\'re back to solo.'],
-     ['not_in_cohort', 'The hunt ended: party hunting was paused on the server. Nothing was lost.'],
-     ['gate', 'The hunt ended: party hunting was paused on the server. Nothing was lost.'],
+     ['not_in_cohort', 'The hunt ended: party hunting was paused across the realm. Nothing was lost.'],
+     ['gate', 'The hunt ended: party hunting was paused across the realm. Nothing was lost.'],
      ['stale_hunt', 'The hunt ended after going quiet.']].forEach(([by, line]) => {
       const e = H(party, { nowMs: now, hunt: { view: { ok: true, channel_open: true, members: [], events: [],
         hunt: { active_id: 'x', live: false, ended_at: iso(5), stopped_by: by } } } }).replace(/&#39;/g, "'");

@@ -376,11 +376,11 @@ export default [
         return el ? { t: el.textContent.replace(/\s+/g, ' ').trim(), p: !!el.querySelector('.bal-pending') } : null; };
       r.state({ enabled: true, food: null, pct: 25 });
       let c = chip();
-      assert(c && /Auto-eat: best in bag/.test(c.t) && !/Off/.test(c.t), 'enabled + null food must read "best in bag"; got ' + JSON.stringify(c));
+      assert(c && /Auto-Eat: best in bag/.test(c.t) && !/Off/.test(c.t), 'enabled + null food must read "best in bag"; got ' + JSON.stringify(c));
       r.state({ enabled: true, food: 'cooked_shrimp', pct: 25 });
-      c = chip(); assert(/Auto-eat: Cooked Shrimp/.test(c.t) && !c.p, 'enabled + a food must name it; got ' + JSON.stringify(c));
+      c = chip(); assert(/Auto-Eat: Cooked Shrimp/.test(c.t) && !c.p, 'enabled + a food must name it; got ' + JSON.stringify(c));
       r.state({ enabled: false, food: 'cooked_shrimp', pct: 25 });
-      c = chip(); assert(/Auto-eat: Off/.test(c.t), 'disabled must read Off; got ' + JSON.stringify(c));
+      c = chip(); assert(/Auto-Eat: Off/.test(c.t), 'disabled must read Off; got ' + JSON.stringify(c));
       r.state({});
       c = chip(); assert(c.p && /counting/.test(c.t) && !/Off/.test(c.t), 'an unstated config is pending, never Off; got ' + JSON.stringify(c));
     } finally { try { window.stopCombat(); } catch (e) {} r.done(); }
@@ -404,7 +404,7 @@ export default [
       assert(!r.toasts.some((t) => /set to/.test(t)), 'toasted before the server answered: ' + JSON.stringify(r.toasts));
       r.answer.resolve({ ok: true, auto_eat: { enabled: true, food: 'cooked_shrimp', pct: 25 } });
       await new Promise((ok) => setTimeout(ok, 40));
-      assert(r.toasts.some((t) => t === 'Auto-eat set to Cooked Shrimp.'), 'no success toast after the answer: ' + JSON.stringify(r.toasts));
+      assert(r.toasts.some((t) => t === 'Auto-Eat set to Cooked Shrimp.'), 'no success toast after the answer: ' + JSON.stringify(r.toasts));
       assert(aeApi().autoEatLabel().text === 'Cooked Shrimp', 'the chip does not print the answered food');
 
       // ── the realm refuses: no "set to", and the chip is the server's last state.

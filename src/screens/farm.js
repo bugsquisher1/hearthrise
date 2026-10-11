@@ -485,7 +485,7 @@ function renderFarm(){
       </div>
       <div class="row gap-sm">
         ${seedsPending ? `<button class="btn btn-sm bal-pending" disabled data-pending="seeds" role="status" title="Plant all · counting your seeds…" aria-label="Plant all · counting your seeds…">Plant all</button>`
-          : `<button class="btn btn-sm" onclick="window.plantAllEmpty()" ${plantable?'':'disabled'} title="${plantable?'Plant configured/best seed in every empty plot':'Every plot is already planted'}">${plantable?`Plant all (${plantable})`:'Plant all'}</button>`}
+          : `<button class="btn btn-sm" onclick="window.plantAllEmpty()" ${plantable?'':'disabled'} title="${plantable?'Plant your chosen seed, or the best one you have, in every empty plot':'Every plot is already planted'}">${plantable?`Plant all (${plantable})`:'Plant all'}</button>`}
         <button class="btn btn-sm" onclick="window.waterAllPlots()" ${waterable?'':'disabled'} title="${waterable?'Watering doubles growth speed for 2 hours':farmNextWaterText()}">${waterable?`Water all (${waterable})`:'Water all'}</button>
         <button class="btn btn-sm" onclick="window.toggleAutoReplant()" title="Auto-replant after harvest">${replant.enabled?'Auto-replant: on':'Auto-replant: off'}</button>
         <button class="btn btn-sm" onclick="showTab('house');if(typeof setHouseTab==='function')setHouseTab('plot')" title="Buy the next plot tier with gold (or a Farmer's Deed) in House → Plot">Upgrade Plot</button>

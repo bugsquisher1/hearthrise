@@ -1463,7 +1463,7 @@
     if (err === 'network' || err === 'no_config' || err === 'unsent' || err === 'bad_response') {
       return 'The Hearth could not be reached. Nothing was eaten — try again in a moment.';
     }
-    if (err === 'rpc_missing') return 'Resting is not available on this server yet. Nothing was eaten.';
+    if (err === 'rpc_missing') return 'Resting is not available yet. Nothing was eaten.';
     return 'The Hearth turned you away (' + err + '). Nothing was eaten.';
   }
 

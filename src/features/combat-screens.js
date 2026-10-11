@@ -1430,7 +1430,7 @@ function renderSession() {
   if (!s.ready) {
     /* No settled span yet — a 90s live-settle cadence means the first credit
        is seconds away; we will not fabricate a rate before it lands. */
-    clauses.push('<span class="fs-sess-idle">settles as the server credits your hunt</span>');
+    clauses.push('<span class="fs-sess-idle">fills in as the realm counts your hunt</span>');
   } else {
     ST.tallyRows(s).forEach((r) => {
       clauses.push(`<span class="fs-sess-stat"><b>${esc(r.value)}</b> ${esc(r.label)}</span>`);

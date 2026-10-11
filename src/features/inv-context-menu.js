@@ -220,7 +220,7 @@
       }});
       var owns = (typeof window.hasTrait === 'function') ? window.hasTrait('auto_eat') : false;
       if(food.autoEatable && owns){
-        opts.push({ label: 'Set as auto-eat food', action: function(){
+        opts.push({ label: 'Set as Auto-Eat food', action: function(){
           if(typeof window.setAutoEatFood === 'function') window.setAutoEatFood(id);
         }});
       }

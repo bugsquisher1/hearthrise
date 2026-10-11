@@ -93,9 +93,9 @@ export const DUNGEON_REFUSALS = Object.freeze({
      move is the Auto-Run or the phase run, so say which run is missing. */
   bad_mode: 'That dungeon has no scavenger run. Nothing was changed.',
   rate_limited: 'Slow down a moment — too many actions.',
-  no_character: 'The server has no character in this slot yet.',
+  no_character: 'No hero is loaded in this slot yet — try again in a moment.',
   version_conflict: 'Your state changed elsewhere. Try again.',
-  intent_mismatch: 'That did not match the run the server recorded.',
+  intent_mismatch: 'That did not match the run the realm recorded. Try again.',
 });
 /* The ready-at time, read from the refusal's OWN detail — the server's clock, never
    the client's arithmetic over a client-held stamp. `next_entry_at` is the canonical
@@ -112,7 +112,7 @@ function readyAtText(detail) {
 export function dungeonRefusalMessage(code, detail) {
   const k = String(code || '');
   const m = Object.prototype.hasOwnProperty.call(DUNGEON_REFUSALS, k) ? DUNGEON_REFUSALS[k]
-    : (k ? `The server refused that run (${k}).` : 'The server refused that run.');
+    : (k ? `That run did not go through (${k}).` : 'That run did not go through.');
   return m.indexOf('{ready}') === -1 ? m : m.replace('{ready}', readyAtText(detail));
 }
 

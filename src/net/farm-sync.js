@@ -253,7 +253,7 @@ export function farmPlantRefusalText(res, ctx) {
   const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
   switch (code) {
     case 'transport':
-      return "Couldn't reach the server — nothing was planted. Check your connection and try again.";
+      return "Couldn't reach the realm — nothing was planted. Check your connection and try again.";
     case 'plot_tier_locked': {
       const need = n(res.need_plot_level);
       const have = n(res.have_plot_level);

@@ -3348,4 +3348,28 @@ export default [
     assert(gc && gc.QUEST_REWARDS.farmhand.items.carrot_seed === 5 && !gc.QUEST_REWARDS.farmhand.items.wheat_seed,
       'the server catalogue must credit the carrot seeds the card promises');
   }),
+
+  /* b568 COPY-1 (Tyler, 2026-10-11: "craft 60 items in all — what? sounds like
+     broken english"). Every quest and daily label a player reads is plain
+     English: no "in all" padding, no "Kill"/"Defeat" split for the same goal,
+     dishes are dishes, and "a"/"an" never lands on a plural item. MUTATION:
+     restore 'Smith 60 items in all', or the vowel-only withArticle → red. */
+  () => tryRun('b568 COPY-1: quest and daily labels read as plain English, and no article lands on a plural item', () => {
+    const labels = (window.QUEST_DEFS || []).map((q) => q.label)
+      .concat((window.DAILY_TASK_POOL || []).map((f) => { try { return f().label; } catch (e) { return ''; } }));
+    assert(labels.length > 10, 'CONTROL: too few quest/daily labels to judge (' + labels.length + ')');
+    labels.forEach((l) => {
+      assert(!/\bin all\b/i.test(l), 'a label pads its count with "in all": ' + l);
+      assert(!/^Kill\b/.test(l), 'a label says Kill where every other goal says Defeat: ' + l);
+      assert(!/^Cook \d+ items\b/.test(l), 'a cooking goal counts "items", not dishes: ' + l);
+    });
+    const road = (window.QUEST_DEFS || []).filter((q) => q.chain === 'road').map((q) => q.label);
+    assert(road.indexOf('Smith your first 60 items') >= 0 && road.indexOf('Craft your first 60 items') >= 0,
+      'the road\'s smith/craft rows lost their wording: ' + JSON.stringify(road));
+    assert(typeof window.withArticle === 'function', 'withArticle is unpublished');
+    assert(window.withArticle('Apprentice Gloves') === 'Apprentice Gloves', 'a plural item took an article: ' + window.withArticle('Apprentice Gloves'));
+    assert(window.withArticle('Copper Studs') === 'Copper Studs', 'a plural item took an article: ' + window.withArticle('Copper Studs'));
+    assert(window.withArticle('Bone Key') === 'a Bone Key' && window.withArticle('Arcane Tome') === 'an Arcane Tome',
+      'singular items lost their article: ' + window.withArticle('Bone Key') + ' / ' + window.withArticle('Arcane Tome'));
+  }),
 ];

@@ -3427,7 +3427,7 @@ export default [
       'the armed summary must render the settled chest and scrip (got ' + html + ')');
     assert(!html.includes(name('big_bones')), 'THE BUG: the armed summary listed a client roll the server never paid');
     const pending = window.scavengerSummaryHtml(Object.assign({}, o, { verdict: null }));
-    assert(pending.includes('Settling with the server') && !pending.includes(name('big_bones')),
+    assert(pending.includes('Counting your rewards') && !pending.includes(name('big_bones')),
       'before the verdict the armed summary must say it is settling, and name no client roll (got ' + pending + ')');
   }),
 

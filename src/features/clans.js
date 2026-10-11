@@ -429,7 +429,7 @@
        Refuse BEFORE the fetch — no gold moves, and no treasury moves either. */
     if (typeof window.clientMayWriteRecordField === 'function'
         && !window.clientMayWriteRecordField('gold')) {
-      notify('Contributions are paused until the treasury moves server-side.', 'info');
+      notify('Clan contributions are paused for now.', 'info');
       return false;
     }
     if (!requireOnline() || !_myClan) return false;

@@ -605,7 +605,7 @@
       return;
     }
     if (res.action !== 'accept') {
-      host.innerHTML = '<div class="lb-empty">Could not reach the leaderboard server. It will be back.</div>';
+      host.innerHTML = '<div class="lb-empty">Could not reach the leaderboards. They will be back shortly.</div>';
       if (subEl) subEl.textContent = 'Unavailable';
       return;
     }

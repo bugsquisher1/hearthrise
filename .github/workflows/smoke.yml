@@ -3544,6 +3544,15 @@ jobs:
           node tests/breakpoint-guard.mjs --report
           node tests/breakpoint-guard.mjs --selftest
 
+      # b568 (Tyler: "craft 60 items in all ... sounds like broken english"):
+      # player copy carries no "in all" padding, no "item(s)" hack, no "a"/"an"
+      # before a plural item name, no double spaces and no glued "·".
+      - name: Presentation floor - copy reads like a person wrote it
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/copy-lint.mjs --report
+          node tests/copy-lint.mjs --selftest
+
       # Every full-screen layer is a sheet (.hr-scrim/.hr-sheet), or is counted:
       # a ratchet on the modal class that let the welcome-back card outgrow the
       # screen with nothing to scroll. The count may only fall.

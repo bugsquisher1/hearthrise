@@ -220,8 +220,8 @@
   var ENDED = {
     leader:          'The leader ended the hunt.',
     too_few_hunters: 'The hunt ended: everyone else made camp or left. You\'re back to solo.',
-    not_in_cohort:   'The hunt ended: party hunting was paused on the server. Nothing was lost.',
-    gate:            'The hunt ended: party hunting was paused on the server. Nothing was lost.',
+    not_in_cohort:   'The hunt ended: party hunting was paused across the realm. Nothing was lost.',
+    gate:            'The hunt ended: party hunting was paused across the realm. Nothing was lost.',
     stale_hunt:      'The hunt ended after going quiet.'
   };
   function endedSentence(by) { return ENDED[String(by || '')] || 'The hunt ended.'; }
@@ -229,8 +229,8 @@
   var WHY = {
     leader:          'the leader ended it',
     too_few_hunters: 'everyone else made camp or left',
-    not_in_cohort:   'party hunting was paused on the server',
-    gate:            'party hunting was paused on the server',
+    not_in_cohort:   'party hunting was paused across the realm',
+    gate:            'party hunting was paused across the realm',
     stale_hunt:      'it went quiet'
   };
 

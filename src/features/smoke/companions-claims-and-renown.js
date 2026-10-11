@@ -1036,7 +1036,7 @@ export default [
       //    prediction, exactly today's behaviour.
       window.clientMayWriteRecordField = function () { return true; };
       window.G.muster = { dayKey: null, eventKey: 'ev', slot: null, startMs: 0, endMs: 0,
-                          points: 500, pending: 0, rallied: false, claimed: false, server: true };
+                          points: 500, claimed: false, server: true };
       predZero(); window.G.gold = 0; claimCalls = 0; claimBody = null;
       const okUnarmed = await M.claim();
       assert(okUnarmed === true, 'pre-arm server claim must succeed');
@@ -1048,7 +1048,7 @@ export default [
       //    does NOT write gold locally — the server credited player_state.
       window.clientMayWriteRecordField = function (f) { return f !== 'gold' && f !== 'gems'; };
       window.G.muster = { dayKey: null, eventKey: 'ev', slot: null, startMs: 0, endMs: 0,
-                          points: 500, pending: 0, rallied: false, claimed: false, server: true };
+                          points: 500, claimed: false, server: true };
       predZero(); window.G.gold = 0; claimCalls = 0; claimBody = null;
       const okArmed = await M.claim();
       assert(okArmed === true, 'armed claim must PROCEED and succeed (the b411 defer is gone)');

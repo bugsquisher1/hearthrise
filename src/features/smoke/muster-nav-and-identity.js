@@ -404,12 +404,68 @@ export default [
       assert(M._reduceContribute(404, { code: 'PGRST202' }, 0).action === 'unsupported',
         'a missing world_event_contribute RPC must degrade, not break play');
 
-      // Contribution clamps mirror the server's, so the UI can never promise
-      // points the server will refuse.
-      delete G.muster; M.ensureState();
-      assert(M._addPoints(999999) === M.TOTAL_CAP, 'the per-muster cap must clamp: ' + M.TOTAL_CAP);
-      assert(M._addPoints(500) === 0, 'past the cap, further play adds nothing');
     } finally {
+      M._resetProbes();
+      if (saved === undefined) delete G.muster; else G.muster = saved;
+    }
+  }),
+
+  // b568 (2026-10-10-rally-points-server.sql): RALLY POINTS ARE THE SERVER'S.
+  // The browser used to score its own play (updateDaily -> pointsFor) and SEND
+  // the number (world_event_contribute p_points), and a one-shot "Rally" rolled
+  // a strike locally and sent that too — the band, and so the chest's gold and
+  // XP, rode a client value. Now the call carries no number and the mirror is
+  // REPLACED by the server's tally. Fails without the fix: the old flush sends
+  // p_points, keeps its local 6000 when the server says 37, and a kill moves
+  // G.muster.points.
+  () => tryRunAsync('b568: rally points are the server tally — no number is sent, the mirror is replaced, play scores nothing locally', async () => {
+    const M = window.HearthriseMuster;
+    assert(M && typeof M.refresh === 'function', 'HearthriseMuster.refresh is missing');
+    assert(M._addPoints === undefined && M._pointsFor === undefined && M.rally === undefined && M.flush === undefined,
+      'a client scoring path is exported again (addPoints / pointsFor / rally / flush)');
+    // Pure reducer: zero is a real tally, and a body with no number is a refusal.
+    const z = M._reduceContribute(200, { ok: true, points: 0, added: -6000, progress: 0, goal: 6000, met: false });
+    assert(z.action === 'accept' && z.points === 0, 'a server tally of 0 must replace the mirror: ' + JSON.stringify(z));
+    assert(M._reduceContribute(200, { ok: true }).action === 'fail', 'a body without a tally read as one');
+    assert(M._reduceContribute(200, { ok: true, points: '6000' }).action === 'fail', 'a string tally read as a number');
+
+    const G = window.G;
+    const saved = G.muster;
+    const origFetch = window.fetch;
+    let unstub = () => {};
+    let body = null, calls = 0;
+    try {
+      unstub = stubSignedIn(0);
+      window.fetch = function (url, init) {
+        if (String(url).indexOf('world_event_contribute') !== -1) {
+          calls++;
+          try { body = JSON.parse(init && init.body); } catch (e) { body = null; }
+          return Promise.resolve(new Response(JSON.stringify({ ok: true, points: 37, added: -5963,
+            progress: 37, goal: 6000, met: false, closed: false }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        }
+        return Promise.resolve(new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      };
+      // A joined, server-backed rally whose mirror holds a number the server
+      // never said (what the old client kept locally).
+      const t = M.now();
+      G.muster = { dayKey: M.todayKey(), eventKey: M.todayKey() + '#13', slot: 13,
+                   startMs: t - 60000, endMs: t + 60000, points: 6000, claimed: false, server: true };
+      // Play: the daily counter fires, the mirror does not move.
+      if (typeof window.updateDaily === 'function') window.updateDaily('kill_any', 5);
+      assert(G.muster.points === 6000, 'a kill moved the rally mirror locally (' + G.muster.points + ')');
+      await M.refresh();
+      assert(calls === 1, 'refresh must ask the server exactly once; saw ' + calls);
+      assert(body && Object.keys(body).join(',') === 'p_event_key' && body.p_event_key === G.muster.eventKey,
+        'the contribute call carried more than the event key: ' + JSON.stringify(body));
+      assert(G.muster.points === 37, 'the mirror was not REPLACED by the server tally (6000 -> 37), got ' + G.muster.points);
+      // A claimed rally stops asking.
+      G.muster.claimed = true; calls = 0;
+      await M.refresh();
+      assert(calls === 0, 'a claimed rally still polls the server');
+    } finally {
+      window.fetch = origFetch;
+      unstub();
       M._resetProbes();
       if (saved === undefined) delete G.muster; else G.muster = saved;
     }
@@ -462,7 +518,7 @@ export default [
       /* A day already joined, window closed, contribution made: the shape that
          used to fall through to the solo chest. */
       Object.assign(M.ensureState(), { dayKey: M.todayKey(), eventKey: w ? w.eventKey : 'x#0', slot: 0, startMs: 0,
-        endMs: 1, points: 500, pending: 0, rallied: false, claimed: false, server: false });
+        endMs: 1, points: 500, claimed: false, server: false });
       const paid = await M.claim();
       assert(paid === false, 'a signed-out claim returned true — a chest was paid with no server');
       assert(minted === 0, 'a signed-out claim minted ' + minted + ' item/XP grant(s) client-side');

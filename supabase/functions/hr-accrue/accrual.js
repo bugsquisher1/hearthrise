@@ -3031,8 +3031,14 @@ export function computeAccrual(input) {
          also the ONLY record of WHY a night ended: without it the Analyzer's
          "Stopped by" line would have to be guessed from a pointer that is
          already idle for four other reasons. */
+      /* `mon` NAMES WHAT THE KILLS WERE: the monster id of the pointer this
+         window settled (one pointer per window, so one id per row). Rally
+         points weight a kill by its tier (2026-10-10-rally-points-server.sql,
+         hr_rally_points_of) and the row is the only server record of which
+         monster a window's kills were. A scalar of at most ~24 bytes on a row
+         that already exists: no rows added. */
       meta: { ms: grantMs, ticks: summary.ticks, kills: summary.kills, capped,
-              ate: foodEaten,
+              ate: foodEaten, mon: String(inp.activeId).slice(0, 64),
               ...(stoppedBy ? { stopped: stoppedBy } : {}),
               ...(attended ? { att: { claimed: attClaimed, cap: attCap,
                                       sim: Math.floor(nat(summary.kills, 0)),

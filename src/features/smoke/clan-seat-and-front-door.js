@@ -597,7 +597,12 @@ export default [
     assert(typeof window.wrapUpdateDaily === 'function', 'wrapUpdateDaily seam missing');
     const chain = window.updateDaily;
     assert(chain.__wrappedBy instanceof Set, 'updateDaily carries no wrapper roster');
-    assert(chain.__wrappedBy.has('muster'), 'the Muster is not registered on the chain: '
+    /* The Muster LEFT this chain (2026-10-10-rally-points-server.sql): rally
+       points are derived by the server from the journal, so a client counter
+       feeding them would be a client-authored number again. */
+    assert(!chain.__wrappedBy.has('muster'), 'the Muster wraps updateDaily again — rally points are '
+      + 'server-derived; a browser counter must never feed them: ' + window.updateDailyWrappers().join(','));
+    assert(chain.__wrappedBy.has('castleLabour'), 'castle Labour is not registered on the chain: '
       + window.updateDailyWrappers().join(','));
     const snap = snapshotG();
     const restore = window.updateDaily;
@@ -614,9 +619,9 @@ export default [
       let threw = false;
       try { window.wrapUpdateDaily('__test_labour', () => {}); } catch (e) { threw = true; }
       assert(threw, 'double-wrapping under the same name must throw, not silently double-count');
-      let threwMuster = false;
-      try { window.wrapUpdateDaily('muster', () => {}); } catch (e) { threwMuster = true; }
-      assert(threwMuster, 'the live Muster registration did not protect itself');
+      let threwLive = false;
+      try { window.wrapUpdateDaily('castleLabour', () => {}); } catch (e) { threwLive = true; }
+      assert(threwLive, 'the live castle Labour registration did not protect itself');
       // An unnamed wrap is refused — a nameless layer is an invisible one.
       let threwAnon = false;
       try { window.wrapUpdateDaily('', () => {}); } catch (e) { threwAnon = true; }
@@ -1106,7 +1111,8 @@ export default [
       // second wrap under the same name throws rather than double-counting.
       const owners = window.updateDailyWrappers();
       assert(owners.indexOf('castleLabour') >= 0, 'castle Labour must be in the wrapper roster: ' + owners);
-      assert(owners.indexOf('muster') >= 0, 'the Muster must still be in the roster: ' + owners);
+      assert(owners.indexOf('muster') < 0, 'the Muster is back on the updateDaily chain — rally points are '
+        + 'server-derived (2026-10-10-rally-points-server.sql): ' + owners);
       let threw = false;
       try { window.wrapUpdateDaily('castleLabour', () => {}); } catch (e) { threw = true; }
       assert(threw, 'wrapping updateDaily twice under one name must throw');
@@ -2360,8 +2366,8 @@ export default [
   () => tryRun('b224: one real gather ticks the quest ladder and each updateDaily wrapper exactly once', () => {
     const G = window.G;
     const owners = window.updateDailyWrappers();
-    assert(owners.indexOf('muster') >= 0 && owners.indexOf('castleLabour') >= 0,
-      'the live wrapper chain is not both systems: ' + owners.join(','));
+    assert(owners.indexOf('castleLabour') >= 0 && owners.indexOf('muster') < 0,
+      'the live wrapper chain is not castle Labour alone (the Muster scores server-side): ' + owners.join(','));
     const snap = snapshotG();
     const saved = {
       chain: window.updateDaily,

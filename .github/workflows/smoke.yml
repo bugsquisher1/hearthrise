@@ -2548,6 +2548,18 @@ jobs:
           node tests/muster-chest-xp-credit.mjs
           node tests/muster-chest-xp-credit.mjs --selftest
 
+      # b568 (Security residual, CLAUDE.md §1): rally POINTS were client-asserted
+      # (world_event_contribute p_points, <= 400/call, 6,000/rally) and priced the
+      # band, so the chest's gold and its XP. 2026-10-10-rally-points-server.sql
+      # derives them from the join character's journalled activity in the window.
+      # Attended AND away rows, window bounds, forged stored tallies, the real
+      # join, grants, and the scoring table's drift against muster.js/artisan.js.
+      - name: Rally points — server-derived from the journal, every mutation caught
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/rally-points-server.mjs
+          node tests/rally-points-server.mjs --selftest
+
       # SA-048: crediting Bounty-Hunter XP (b504, the step above) made the board a
       # RANKED surface, but hr_accept_bounty gated the target TIER by SERVER COMBAT
       # level ONLY. The board's DIFFICULTY ladder is client-only: slot-3 'hard'

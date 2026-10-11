@@ -2658,7 +2658,7 @@ export default [
       G.activeMonster = 'slime';
       G.quests = [{ id: '__restored_probe', type: 'kill_any', progress: 0, goal: 1000, done: false }];
       G.muster = { dayKey: null, eventKey: null, slot: null, startMs: 0, endMs: 0,
-                   points: 0, pending: 0, rallied: false, claimed: false, server: false };
+                   points: 0, claimed: false, server: false };
       G.lastOfflineSummary = null;
 
       /* WATCH THE SEAM ITSELF, not only its effects. `updateDaily` is the single
@@ -2688,8 +2688,8 @@ export default [
       assert(dailyCalls.length === 0,
         'a restored receipt called updateDaily(' + JSON.stringify(dailyCalls) + ') — that is the seam the Muster '
         + 'wraps, so this is a world_event_contribute on a SHARED meter');
-      assert((G.muster.pending || 0) === 0,
-        'a restored receipt queued ' + G.muster.pending + ' points for world_event_contribute');
+      assert((G.muster.points || 0) === 0,
+        'a restored receipt moved the rally mirror to ' + G.muster.points + ' (rally points are server-derived)');
 
       // ── (3) THE CONTROL: THE SAME NIGHT, PAID NOW, STILL CREDITS ────────
       const paid = Object.assign({}, seeded); delete paid.restored;

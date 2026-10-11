@@ -1104,7 +1104,7 @@ for (const raw of SESSIONS) {
 
       // C12 — the journal row
       const meta = it.args.p_delta.journal.meta;
-      const ALLOWED = ['ms', 'ticks', 'kills', 'capped', 'ate', 'spent', 'w', 'from', 'to', 'src'];
+      const ALLOWED = ['ms', 'ticks', 'kills', 'capped', 'ate', 'mon', 'spent', 'w', 'from', 'to', 'src'];
       const keys = Object.keys(meta);
       const unknown = keys.filter((k) => !ALLOWED.includes(k));
       ok('C12', unknown.length === 0, `unknown journal meta key(s): ${unknown.join(', ')}`);
@@ -1113,6 +1113,10 @@ for (const raw of SESSIONS) {
       ok('C12', !('att' in meta),
         'a tick combat row carried an attended split — the refusal is what buys the key budget');
       ok('C12', meta.src === 'tick', 'the tick marker is missing — an operator cannot tell');
+      /* `mon` survives the fold: rally points weight a window's kills by the
+         tier of the monster this names (2026-10-10-rally-points-server.sql). */
+      ok('C12', meta.mon === c.activeId,
+        `the folded row names monster ${JSON.stringify(meta.mon)}, the pointer is ${c.activeId}`);
       ok('C12', it.args.p_delta.journal.kind === CHANNEL
         && it.args.p_delta.journal.intent === 'accrue',
         'the journal does not name kind=combat / intent=accrue');

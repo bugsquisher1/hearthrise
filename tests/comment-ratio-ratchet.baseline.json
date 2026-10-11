@@ -3,14 +3,14 @@
   "_method": "physical lines classified once each as BLANK / COMMENT / CODE; COMMENT = trimmed line starts // or /* or sits inside an unterminated block; a code line with a trailing comment counts as CODE; blanks belong to neither side; b-number line = a comment matching /\\bb\\d{3}\\b/ (trailing comments included); ratio = comment/code; the 16 largest files by total lines carry per-file ceilings, pinned BY PATH so rank shuffling moves nothing",
   "measured": "2026-10-11",
   "pinnedCount": 16,
-  "bnumTotal": 4048,
+  "bnumTotal": 4046,
   "files": {
     "src/legacy.js": {
-      "total": 18465,
-      "comment": 7718,
-      "code": 9828,
+      "total": 18456,
+      "comment": 7704,
+      "code": 9833,
       "ratio": 0.6985252179581195,
-      "bnum": 736
+      "bnum": 734
     },
     "src/features/smoke/monsters-inventory-and-brand.js": {
       "total": 9731,
@@ -90,17 +90,17 @@
       "bnum": 32
     },
     "src/features/smoke/farm-and-profile.js": {
-      "total": 3556,
-      "comment": 809,
-      "code": 2572,
-      "ratio": 0.3145412130637636,
+      "total": 3563,
+      "comment": 810,
+      "code": 2578,
+      "ratio": 0.31419705197827774,
       "bnum": 134
     },
     "src/features/smoke/quests-chronicle-and-bonus.js": {
-      "total": 3172,
-      "comment": 599,
-      "code": 2409,
-      "ratio": 0.24865089248650893,
+      "total": 3352,
+      "comment": 630,
+      "code": 2549,
+      "ratio": 0.2471557473519027,
       "bnum": 42
     },
     "src/features/smoke/bounty-and-artisan.js": {

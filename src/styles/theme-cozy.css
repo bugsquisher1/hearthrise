@@ -181,10 +181,6 @@ body[data-theme="classic"] {
 /* Title in the band — Cinzel, with a small flourish character */
 
 
-#panel-market .mk-form-row button:hover:not(:disabled),
-#panel-market #mk-list-btn:hover:not(:disabled) {
-  filter: brightness(1.08);
-}
 
 /* b230: the Cozy Day rules for #hr-store-link are deleted with the element.
    It was the "Premium Store" pill injected into the Market panel corner —
@@ -2403,6 +2399,9 @@ body[data-theme="hearthlight"] .activity-bar.v2 { background: var(--bg-card) !im
  *                 the entry is here so the personal homestead can adopt the
  *                 same component INSIDE #panel-house without needing to edit
  *                 this file again.
+ *   .mk-screen  — the Player Market. Rebuilt on tokens in
+ *                 src/styles/market.css; #panel-market also left the per-panel
+ *                 blankets below, the same exit #panel-profile took.
  * Home's hearth band (.hd-hearth) needs no entry: #panel-profile is not in the
  * blanket list at all (see the note there), which is the proof that a screen
  * built on tokens does not need this layer.
@@ -2415,10 +2414,10 @@ body[data-theme="hearthlight"] .activity-bar.v2 { background: var(--bg-card) !im
 
 /* text — headers gold, body light, hints muted (accent colours untouched) */
 body[data-theme="hearthlight"] .panel.active { color: var(--ink); }
-body[data-theme="hearthlight"] .panel.active .card-title:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *),
-body[data-theme="hearthlight"] .panel.active [class*="-title"]:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *),
-body[data-theme="hearthlight"] .panel.active [class*="-name"]:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *),
-body[data-theme="hearthlight"] .panel.active .card-head:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *),
+body[data-theme="hearthlight"] .panel.active .card-title:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
+body[data-theme="hearthlight"] .panel.active [class*="-title"]:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
+body[data-theme="hearthlight"] .panel.active [class*="-name"]:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
+body[data-theme="hearthlight"] .panel.active .card-head:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
 body[data-theme="hearthlight"] .panel.active .dash-milestone b { color: var(--gold-2) !important; }
 /* b217: the gilt wash band + full-width underline made every card-head look
    like a table header, and there are ~30 of them across the game. A heading
@@ -2432,15 +2431,15 @@ body[data-theme="hearthlight"] .card-head {
 body[data-theme="hearthlight"] .card-head .card-title,
 body[data-theme="hearthlight"] .card-head .card-title::before,
 body[data-theme="hearthlight"] .card-head .card-sub { color: var(--gold-2) !important; }
-body[data-theme="hearthlight"] .panel.active b:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *),
-body[data-theme="hearthlight"] .panel.active strong:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *),
-body[data-theme="hearthlight"] .panel.active p:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *),
-body[data-theme="hearthlight"] .panel.active li:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *),
+body[data-theme="hearthlight"] .panel.active b:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
+body[data-theme="hearthlight"] .panel.active strong:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
+body[data-theme="hearthlight"] .panel.active p:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
+body[data-theme="hearthlight"] .panel.active li:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
 body[data-theme="hearthlight"] .panel.active td { color: var(--ink) !important; }
-body[data-theme="hearthlight"] .panel.active span:not([class*="gold"]):not([class*="pill"]):not([class*="chip"]):not([class*="badge"]):not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *) { color: var(--ink); }
-body[data-theme="hearthlight"] .panel.active .card-sub:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *),
-body[data-theme="hearthlight"] .panel.active .muted:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *),
-body[data-theme="hearthlight"] .panel.active small:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *) { color: var(--ink-3) !important; }
+body[data-theme="hearthlight"] .panel.active span:not([class*="gold"]):not([class*="pill"]):not([class*="chip"]):not([class*="badge"]):not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *) { color: var(--ink); }
+body[data-theme="hearthlight"] .panel.active .card-sub:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
+body[data-theme="hearthlight"] .panel.active .muted:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
+body[data-theme="hearthlight"] .panel.active small:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *) { color: var(--ink-3) !important; }
 
 /* ============================================================
  * HEARTHLIGHT — single-theme finalization (b174)
@@ -2469,18 +2468,17 @@ body[data-theme="hearthlight"] .panel.active small:not(.shops-tabs,.bb-board,.sc
  *
  * Every remaining entry carves out the in-world surfaces (see the b222 note
  * above the readability layer). */
-body[data-theme="hearthlight"] #panel-character *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *),
-body[data-theme="hearthlight"] #panel-combat *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *),
-body[data-theme="hearthlight"] #panel-bounty *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *),
-body[data-theme="hearthlight"] #panel-skills *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *),
-body[data-theme="hearthlight"] #panel-inventory *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *),
-body[data-theme="hearthlight"] #panel-shop *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *),
-body[data-theme="hearthlight"] #panel-market *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *),
-body[data-theme="hearthlight"] #panel-dungeons *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *),
-body[data-theme="hearthlight"] #panel-stable *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *),
-body[data-theme="hearthlight"] #panel-farming *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *),
-body[data-theme="hearthlight"] #panel-house *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *),
-body[data-theme="hearthlight"] #panel-social *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *) { color: var(--ink) !important; }
+body[data-theme="hearthlight"] #panel-character *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
+body[data-theme="hearthlight"] #panel-combat *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
+body[data-theme="hearthlight"] #panel-bounty *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
+body[data-theme="hearthlight"] #panel-skills *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
+body[data-theme="hearthlight"] #panel-inventory *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
+body[data-theme="hearthlight"] #panel-shop *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
+body[data-theme="hearthlight"] #panel-dungeons *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
+body[data-theme="hearthlight"] #panel-stable *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
+body[data-theme="hearthlight"] #panel-farming *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
+body[data-theme="hearthlight"] #panel-house *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
+body[data-theme="hearthlight"] #panel-social *:not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *) { color: var(--ink) !important; }
 
 /* Cream card / input surfaces -> dark */
 body[data-theme="hearthlight"] #panel-bounty [class*="bounty-card"],
@@ -2490,14 +2488,6 @@ body[data-theme="hearthlight"] #panel-bounty [class*="bounty-option"],
 body[data-theme="hearthlight"] #panel-bounty .row.between > button,
 body[data-theme="hearthlight"] #panel-stable [class*="companion"],
 body[data-theme="hearthlight"] #panel-stable [class*="comp-card"],
-body[data-theme="hearthlight"] #panel-market [class*="listing"],
-body[data-theme="hearthlight"] #panel-market [class*="market-row"],
-body[data-theme="hearthlight"] #panel-market [class*="market-card"],
-body[data-theme="hearthlight"] #panel-market form,
-body[data-theme="hearthlight"] #panel-market fieldset,
-body[data-theme="hearthlight"] #panel-market section,
-body[data-theme="hearthlight"] #panel-market input,
-body[data-theme="hearthlight"] #panel-market select,
 /* b371 (F24): `:not(.iap-card)` excluded the CARD and nothing inside it, so this
    blanket painted `--bg-2` onto `.iap-icon`, `.iap-foot` and `.iap-price` —
    every product card on the real-money screen wore a 230x42px opaque slab of
@@ -2523,8 +2513,7 @@ body[data-theme="hearthlight"] #panel-bounty [class*="-title"],
 body[data-theme="hearthlight"] #panel-bounty [class*="kpi"] b,
 body[data-theme="hearthlight"] #panel-skills [class*="-title"],
 body[data-theme="hearthlight"] #panel-inventory [class*="hero-stat"] b,
-body[data-theme="hearthlight"] #panel-shop [class*="-title"],
-body[data-theme="hearthlight"] #panel-market [class*="-title"] { color: var(--gold) !important; }
+body[data-theme="hearthlight"] #panel-shop [class*="-title"] { color: var(--gold) !important; }
 
 /* Higher-specificity catch for detail sub-panels whose cocoa/cream rules use
    two ids (e.g. `#panel-skills #skill-detail *`). The repeated-id selector
@@ -2534,10 +2523,10 @@ body[data-theme="hearthlight"] #panel-market [class*="-title"] { color: var(--go
    parchment ink onto it produced light-on-light (store ribbons measured
    1.9:1). Excluding them here fixes the whole class instead of adding yet
    another higher-specificity patch per component. */
-body[data-theme="hearthlight"] #panel-skills#panel-skills *:not(.ribbon):not(.chip):not(.btn-gold):not(.btn-primary):not(.btn-danger):not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *),
-body[data-theme="hearthlight"] #panel-inventory#panel-inventory *:not(.ribbon):not(.chip):not(.btn-gold):not(.btn-primary):not(.btn-danger):not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *),
-body[data-theme="hearthlight"] #panel-bounty#panel-bounty *:not(.ribbon):not(.chip):not(.btn-gold):not(.btn-primary):not(.btn-danger):not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *),
-body[data-theme="hearthlight"] #panel-shop#panel-shop *:not(.ribbon):not(.chip):not(.btn-gold):not(.btn-primary):not(.btn-danger):not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *) { color: var(--ink) !important; }
+body[data-theme="hearthlight"] #panel-skills#panel-skills *:not(.ribbon):not(.chip):not(.btn-gold):not(.btn-primary):not(.btn-danger):not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
+body[data-theme="hearthlight"] #panel-inventory#panel-inventory *:not(.ribbon):not(.chip):not(.btn-gold):not(.btn-primary):not(.btn-danger):not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
+body[data-theme="hearthlight"] #panel-bounty#panel-bounty *:not(.ribbon):not(.chip):not(.btn-gold):not(.btn-primary):not(.btn-danger):not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *),
+body[data-theme="hearthlight"] #panel-shop#panel-shop *:not(.ribbon):not(.chip):not(.btn-gold):not(.btn-primary):not(.btn-danger):not(.shops-tabs,.bb-board,.sc-scene,.sc-counter,.iap-card,.hr-cs,.hr-room,.shops-tabs *,.bb-board *,.sc-scene *,.sc-counter *,.iap-card *,.hr-cs *,.hr-room *,.mk-screen,.mk-screen *) { color: var(--ink) !important; }
 
 /* Stray light-face buttons/tiles -> dark surfaces (2-id to win) */
 body[data-theme="hearthlight"] #panel-skills#panel-skills .act-tile,
@@ -2601,7 +2590,6 @@ body[data-theme="hearthlight"] #panel-combat [class*="combat-style"] {
    loads last). Do not reintroduce a background-image here. */
 /* Dark form inputs (were solid cream) — repeated-id to beat panel input rules */
 body[data-theme="hearthlight"] #panel-inventory#panel-inventory input,
-body[data-theme="hearthlight"] #panel-market#panel-market input,
 body[data-theme="hearthlight"] #panel-combat#panel-combat input,
 body[data-theme="hearthlight"] input.search,
 body[data-theme="hearthlight"] .topbar input {
@@ -2637,28 +2625,8 @@ body[data-theme="hearthlight"] #panel-combat .combat-arena .ce-mob .tiny {
   color: var(--ink-3, #a5896a) !important;
 }
 
-/* b213 (phase 2): market "List an item" card — cozy rules painted it cream
-   on the dark theme; restore its dark surface. */
-body[data-theme="hearthlight"] #panel-market .mk-list-form {
-  background: rgba(0,0,0,.3) !important;
-  border: 1px solid var(--line, rgba(122,94,58,.35)) !important;
-  color: var(--ink, #e9e2cf) !important;
-}
-body[data-theme="hearthlight"] #panel-market .mk-list-form * {
-  color: var(--ink, #e9e2cf) !important;
-}
-body[data-theme="hearthlight"] #panel-market .mk-list-form h3 {
-  color: var(--gold-2, #cda24a) !important;
-}
-body[data-theme="hearthlight"] #panel-market .mk-list-form .muted {
-  color: var(--ink-3, #a5896a) !important;
-}
-body[data-theme="hearthlight"] #panel-market .mk-list-form input,
-body[data-theme="hearthlight"] #panel-market .mk-list-form select {
-  background: var(--bg-2, #1a2130) !important;
-  border: 1px solid var(--line, rgba(122,94,58,.35)) !important;
-  color: var(--ink, #e9e2cf) !important;
-}
+/* The market's "List an item" overrides are gone — the screen is drawn
+   by src/styles/market.css on tokens, and .mk-screen is in the carve-out. */
 
 /* b213 (phase 2): generic modal sheet — the cozy cream gradient still won on
    .modal-card (settings, monster preview, quests, IAP…), leaving parchment

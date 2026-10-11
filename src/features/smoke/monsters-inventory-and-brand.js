@@ -6,8 +6,8 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 183 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { CHARM_CLASS_LORE, CHARM_RANK_LORE } from '../../data/charm-lore.js?v=567';
-import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot, closeOverlays, phoneFrame, feedServerQuests, serverBagFixture, withServerBacked } from './_harness.js?v=567';
+import { CHARM_CLASS_LORE, CHARM_RANK_LORE } from '../../data/charm-lore.js?v=568';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot, closeOverlays, phoneFrame, feedServerQuests, serverBagFixture, withServerBacked } from './_harness.js?v=568';
 
 /* SALVAGE-1's regression pin: the goblin drop panel as a player reads it (the
    text of each row, not the markup, so an icon path or cache bump cannot move
@@ -5163,7 +5163,7 @@ export default [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=567')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=568')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -5848,11 +5848,15 @@ export default [
       root = document.getElementById('market-root');
       const html = root.innerHTML;
       assert(html.indexOf('No trades yet') === -1, 'a populated ledger must not render the empty state');
-      assert(html.indexOf('1 sold') >= 0 && html.indexOf('1 bought') >= 0,
-        'the ledger header must total both sides');
+      const text = root.textContent;
+      assert(/Earned\s*\+200g\s*from 1 sale(?!s)/.test(text) && /Spent\s*90g\s*on 1 purchase(?!s)/.test(text),
+        'the ledger header must total both sides in words: ' + (root.querySelector('.mk-ledger') || root).textContent.slice(0, 300));
       assert(html.indexOf('+200g') >= 0, 'a sale must show the NET it actually paid');
       assert(html.indexOf('21g each') >= 0, 'a sale must show the per-unit price it traded at');
-      assert(html.indexOf('10g house tax') >= 0, 'a sale must name the house tax it lost');
+      assert(html.indexOf('10g tax') >= 0, 'a sale must name the tax it lost');
+      // Plain words for time ("1 hour ago"), never the log-style "1h ago".
+      assert(/1 hour ago/.test(text) && /2 hours ago/.test(text) && !/\b\d+h ago\b/.test(text),
+        'the ledger must say how long ago in words: ' + (root.querySelector('.mk-ledger') || root).textContent.slice(0, 300));
       assert(html.indexOf('mk-ledger-tab') >= 0, 'the All/Sold/Bought filter must render');
       /* NO COUNTERPARTY IDENTITY. market-v2 exposes no name on this table and
          publishing the auth UUID is the exact hole S17 closed — so the render
@@ -7202,7 +7206,7 @@ export default [
        fought a Dark Wizard the server settled from 6 straight into death #8).
        The rest of this test is UNCHANGED: away still owns hp mid-fight, and a
        heal still applies. */
-    const A = await import('../../net/accrue.js?v=567');
+    const A = await import('../../net/accrue.js?v=568');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 2, 'an IDLE client refused the server\'s hp (kept ' + G1.playerHp
@@ -7227,7 +7231,7 @@ export default [
        raised hp freely (next >= cur), so the live fight snapped to full and the
        player never took damage. A non-away envelope during a live fight must
        PRESERVE the client's combat hp; an away-return envelope still applies. */
-    const A = await import('../../net/accrue.js?v=567');
+    const A = await import('../../net/accrue.js?v=568');
 
     // Live sync: activeMonster set, NO away block, server hp full, client hp low.
     const G = { playerHp: 4, playerMaxHp: 10, activeMonster: 'goblin' };
@@ -7254,7 +7258,7 @@ export default [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../../net/accrue.js?v=567');
+    const A = await import('../../net/accrue.js?v=568');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);
@@ -7447,7 +7451,7 @@ export default [
        teaches the next author to delete the explanation. */
     const FILES = ['src/net/auth.js', 'src/net/supabase-chat-backend.js', 'src/bug-report.js'];
     for (const f of FILES) {
-      const raw = await (await fetch(f + '?v=567')).text();
+      const raw = await (await fetch(f + '?v=568')).text();
       assert(raw.length > 1000, 'could not read ' + f + ' to guard it — the guard is checking nothing');
       const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
       /* Any remote fetch of EXECUTABLE code: a dynamic import, or a <script>
@@ -7497,7 +7501,7 @@ export default [
        PREREQUISITE for integrity, not a substitute, so the code looked careful
        while verifying nothing. A compromise there is arbitrary JS in every
        player's page beside their session token. */
-    const raw = await (await fetch('src/observability.js?v=567')).text();
+    const raw = await (await fetch('src/observability.js?v=568')).text();
     assert(raw.length > 1000, 'could not read src/observability.js to guard it');
     const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
 
@@ -7601,7 +7605,7 @@ export default [
        pendingArt() names TODAY: the set is read live from monster-art.js, so
        the moment the batch ships and SHIPPED grows, the exemption evaporates
        and a leftover emoji fails again on its own — staleness by construction. */
-    const _art = await import('../../data/monster-art.js?v=567');
+    const _art = await import('../../data/monster-art.js?v=568');
     const _pendingIcons = new Set(
       _art.pendingArt().map((p) => ((window.MONSTERS || {})[p.id] || {}).icon).filter(Boolean)
         .map((s) => String(s).trim()));
@@ -8139,6 +8143,73 @@ export default [
     } finally { restoreGAndRecord(snap); window.__shopBuyLock.reset(); try { window.renderShop(); } catch (e) {} }
   }),
 
+  /* B568-1 — LIVE P1 (QA slot 0, 2026-10-11): Turnip Seed ×10 bought mid-fight;
+     the edge answered `version_conflict` (the combat settle bumped the version),
+     nobody retried, and the row read "Have: 33" against the server's 23 until a
+     reload. TWO halves, both driven: (a) the conflict is the CLIENT's retry, on a
+     new key, and the buy lands; (b) a second conflict leaves the bag at the
+     SERVER's count — the goods leg comes off before the refusal's envelope merges.
+     MUTATION: drop retryOnConflict in sendGoldIntent → (a) red; drop the goods
+     reversal in settleVerdict → (b) red ("Have: 33"). */
+  () => tryRunAsync('B568-1: a shop buy refused version_conflict is retried once, and a second refusal leaves the bag at the server\'s count', async () => {
+    const A = window.HearthriseAccrual, Gd = window.HearthriseGold, G = window.G;
+    const row = (window.SEED_SHOP || []).find((r) => r.id === 'turnip_seed') || (window.SEED_SHOP || [])[0];
+    assert(row && Gd && typeof Gd.noteGoodsPrediction === 'function', 'CONTROL: no seed row or the goods-leg seam is unpublished');
+    const snap = snapshotG(), bag = serverBagFixture(), realFetch = window.fetch, realNotify = window.notify;
+    const wasOn = A.isServerAccrualEnabled(), wasAck = A.isReplacementAcknowledged();
+    let ver = 5000, plan = [], sent = []; const said = [];
+    const env = (gold, have, ok, extra) => {
+      const skills = {}; for (const k of Object.keys(G.skills || {})) skills[k] = { xp: G.skills[k] };
+      const inventory = Object.assign({}, G.inventory); if (have > 0) inventory[row.id] = have; else delete inventory[row.id];
+      return Object.assign({ ok, verb: 'shop_buy', version: ++ver, now: Date.now(),
+        state: { gold, active_kind: 'combat', active_id: 'slime', accrued_to: null }, skills, inventory }, extra || {});
+    };
+    const conflict = () => ({ status: 409, body: env(19117, 23, false, { error: 'version_conflict', stage: 'apply' }) });
+    const drainLong = async () => { for (let i = 0; i < 40; i++) await new Promise((r) => setTimeout(r, 0)); };
+    const buy = async () => { sent = []; said.length = 0; window.buyShopItem(row.id, row.qty, row.cost); await drainLong(); };
+    try {
+      A.setServerAccrualEnabled(true); A.acknowledgeReplacement(true);
+      Gd.resetGold(); Gd.configureGold({ url: 'https://probe.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
+      window.notify = function (t) { said.push(String(t)); };
+      window.fetch = function (u, init) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        let b = null; try { b = JSON.parse(init.body); } catch (e) {}
+        if (!b || b.verb !== 'shop_buy' || !plan.length) return Promise.resolve(new Response('{"ok":false,"error":"rate_limited"}', { status: 429 }));
+        sent.push(b); const step = plan.shift();
+        return Promise.resolve(new Response(JSON.stringify(step.body), { status: step.status }));
+      };
+      const fresh = () => { G.gold = 19117; G.inventory = Object.assign({}, G.inventory, { [row.id]: 23 }); bag.agree(); stampBalanceLikeLoad(G); window.__shopBuyLock.reset(); };
+
+      // (a) ONE conflict, then the server buys: one tap, two sends, the server's 33.
+      fresh(); plan = [conflict(), { status: 200, body: Object.assign(env(19117 - row.cost, 23 + row.qty, true), { receipt: { item: row.id, qty: row.qty } }) }];
+      await buy();
+      assert(sent.length === 2, 'ONE tap sent ' + sent.length + ' shop_buy — a version_conflict is the client\'s retry (once), not the player\'s');
+      assert(sent[0].intentId !== sent[1].intentId, 'the retry reused the refused key — hr_apply can hand a stored decision back to it');
+      assert((G.inventory[row.id] || 0) === 23 + row.qty && G.gold === 19117 - row.cost, 'after the retry landed the bag reads ' + G.inventory[row.id] + ' / gold ' + G.gold + ' — the server said ' + (23 + row.qty) + ' / ' + (19117 - row.cost));
+      assert(said.some((m) => /^Bought/.test(m)) && !said.some((m) => /nothing was spent/i.test(m)), 'the player was told ' + JSON.stringify(said) + ' for a buy that landed');
+
+      // (b) TWO conflicts: bounded at one retry, and the bag shows the SERVER's count — never the phantom +qty.
+      fresh(); plan = [conflict(), conflict()];
+      await buy();
+      assert(sent.length === 2, 'two conflicts sent ' + sent.length + ' shop_buy — the retry is ONE, never a loop');
+      assert((G.inventory[row.id] || 0) === 23, 'after the server refused twice the bag reads ' + G.inventory[row.id] + ' ' + row.id + ' — the server holds 23 ("Have: 33" on live)');
+      assert(G.gold === 19117, 'a refused buy left gold at ' + G.gold + ', not the server\'s 19117');
+      assert(Object.keys(Gd.goodsPredictions()).length === 0, 'a goods leg outlived its answer: ' + JSON.stringify(Gd.goodsPredictions()));
+      assert(!said.some((m) => /^Bought/.test(m)) && said.some((m) => /nothing was spent/i.test(m)), 'a refused buy told the player ' + JSON.stringify(said));
+
+      // CONTROL: a refusal about the DELTA is the realm's answer — not retried, and the bag still settles to the server.
+      fresh(); plan = [{ status: 409, body: env(19117, 23, false, { error: 'insufficient_gold', stage: 'apply' }) }];
+      await buy();
+      assert(sent.length === 1 && (G.inventory[row.id] || 0) === 23, 'an insufficient_gold refusal sent ' + sent.length + ' and left ' + G.inventory[row.id]);
+    } finally {
+      window.fetch = realFetch; window.notify = realNotify;
+      Gd.resetGold(); Gd.configureGold(null);
+      A.acknowledgeReplacement(wasAck); restoreAccrualSwitch(wasOn);
+      restoreGAndRecord(snap); bag.restore(); window.__shopBuyLock.reset();
+      try { window.renderShop(); } catch (e) {}
+    }
+  }),
+
   /* GOLD-DEADLINE-1 — the deadline spans the BODY read: headers came back, the
      body never did. The call must end as a timeout (prediction stands, the lock
      waiting on it releases), not hang until reload. MUTATION: clear the deadline
@@ -8315,12 +8386,12 @@ export default [
     const hit = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
     const bad = [];
     try {
-      T.clear();
       await C.open();
+      T.clear();   // after the await: a page toast drawn while the Codex opened is not the burst under test
       assert(T.sheetOpen(), 'the Codex is open but the toast queue does not see a sheet');
       for (let k = 1; k <= 7; k++) window.notify('burst ' + k, 'info');
-      const drawn = [...notifs.children].filter((e) => /^burst /.test(e.textContent)).length;   // a live page toast may land during C.open()
-      assert(drawn === 0 && T.state().held === 5, 'held ' + T.state().held + ' of 7 (want the newest 5), ' + drawn + ' drawn');
+      const drawnBurst = [...notifs.children].filter((e) => /burst \d/.test(e.textContent)).length;
+      assert(drawnBurst === 0 && T.state().held === 5, 'held ' + T.state().held + ' of 7 (want the newest 5), ' + drawnBurst + ' burst toast(s) drawn');
       C.close();
       await frames();
       const seen = [];

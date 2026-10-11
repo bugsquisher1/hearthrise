@@ -1,0 +1,474 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   src/styles/market.css — the Player Market, drawn by src/market.js.
+
+   One screen, four areas, placed by name so the order can change with the
+   width without touching the markup:
+     SELL     pick an item → what you have / what it is worth → quantity and
+              price → total → List. The only contained surface on the screen,
+              because it is the only place the player fills something in.
+     YOURS    your live listings, each with time left and Cancel.
+     FOR SALE everything on the market (your own rows included and marked),
+              as a price board: fixed numeric columns, Buy at the end.
+     HISTORY  what came in, what went out, then the trades.
+   Two columns when the screen is at least 720px wide (the player's side on
+   the left, the market on the right), one column below that.
+
+   Tokens only, and no !important: .mk-screen is in the carve-out list in
+   theme-cozy.css, so the hearthlight readability blankets do not reach in,
+   and #panel-market left the per-panel blankets entirely.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+body[data-theme] .mk-screen {
+  container: mk / inline-size;
+  /* The bug and chat buttons float in the right edge column; the price board's
+     Buy column must never sit under them. */
+  padding-right: var(--hr-fab-col);
+  color: var(--ink);
+  font-family: var(--f-ui);
+}
+
+body[data-theme] .mk-rules {
+  margin: 2px 0 14px;
+  color: var(--ink-3);
+  font-size: var(--t-micro);
+  line-height: 1.45;
+}
+
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+body[data-theme] .mk-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "sell" "mine" "browse" "hist" "offers";
+  gap: 20px;
+  align-items: start;
+}
+body[data-theme] .mk-sell   { grid-area: sell; }
+body[data-theme] .mk-mine   { grid-area: mine; }
+body[data-theme] .mk-browse { grid-area: browse; }
+body[data-theme] .mk-ledger { grid-area: hist; }
+body[data-theme] .mk-offers { grid-area: offers; }
+@container mk (min-width: 720px) {
+  body[data-theme] .mk-grid {
+    grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+    grid-template-areas:
+      "sell   browse"
+      "mine   browse"
+      "hist   browse"
+      "offers browse";
+    /* The last row soaks up the height of a long price board, so the left
+       column's sections stay packed at the top. */
+    grid-template-rows: auto auto auto 1fr;
+    gap: 22px 28px;
+  }
+}
+
+/* ── Section heads: small caps over a fading rule (no boxes) ───────────── */
+body[data-theme] .mk-head {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 30px;
+  margin: 0 0 6px;
+  padding-bottom: 5px;
+}
+body[data-theme] .mk-head::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 1px;
+  background: var(--rule-fade);
+}
+body[data-theme] .mk-h {
+  margin: 0;
+  font-family: var(--f-label);
+  font-size: var(--t-h3);
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: none;
+  color: var(--gold-2);
+}
+body[data-theme] .mk-count {
+  margin-left: 4px;
+  font-family: var(--f-ui);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+/* The history filter sits on the head's right, as the game's sub-tabs. */
+body[data-theme] .mk-head .chips {
+  display: flex;
+  margin: 0 0 -6px;
+  border-bottom: 0;
+}
+
+/* ── Sell ───────────────────────────────────────────────────────────────── */
+body[data-theme] .mk-sell {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 14px 14px;
+  background: var(--surf-panel);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r);
+}
+body[data-theme] .mk-sell .mk-head { margin-bottom: 0; }
+body[data-theme] .mk-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+body[data-theme] .mk-lbl {
+  font-family: var(--f-label);
+  font-size: var(--t-micro);
+  letter-spacing: .04em;
+  color: var(--ink-3);
+}
+body[data-theme] .mk-form-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+body[data-theme] .mk-form-hint {
+  margin: -2px 0 0;
+  min-height: 1.45em;
+  font-size: var(--t-micro);
+  line-height: 1.45;
+  color: var(--ink-3);
+}
+body[data-theme] .mk-form-hint .mk-fact { white-space: nowrap; }
+body[data-theme] .mk-form-hint b { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+body[data-theme] .mk-gold-in { position: relative; display: block; }
+body[data-theme] .mk-gold-in input { padding-right: 26px; }
+body[data-theme] .mk-unit {
+  position: absolute;
+  right: 10px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink-3);
+  pointer-events: none;
+}
+body[data-theme] .mk-total {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  font-size: var(--t-small);
+  color: var(--ink-2);
+}
+body[data-theme] .mk-total-k { font-family: var(--f-label); font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
+body[data-theme] .mk-total-v { color: var(--gold-2); font-weight: 700; font-variant-numeric: tabular-nums; }
+body[data-theme] .mk-total-s { font-size: var(--t-micro); color: var(--ink-3); }
+body[data-theme] .mk-list-go { width: 100%; min-height: 38px; font-size: var(--t-small); }
+body[data-theme] .mk-list-go:disabled { filter: grayscale(.6); box-shadow: none; cursor: not-allowed; }
+
+/* ── Fields (sell form + browse toolbar) ────────────────────────────────── */
+body[data-theme] .mk-screen input,
+body[data-theme] .mk-screen select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 36px;
+  margin: 0;
+  padding: 6px 10px;
+  background: var(--surf-sunken);
+  box-shadow: var(--surf-sunken-edge);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-sm);
+  color: var(--ink);
+  font-family: var(--f-ui);
+  font-size: var(--t-small);
+  font-variant-numeric: tabular-nums;
+  outline: none;
+}
+/* A select is drawn as a field with a chevron, so it reads as "choose", not
+   as a box to type in. The chevron is two borders, in the hint ink. */
+body[data-theme] .mk-select { position: relative; display: block; min-width: 0; }
+body[data-theme] .mk-select::after {
+  content: '';
+  position: absolute;
+  right: 13px; top: 50%;
+  width: 6px; height: 6px;
+  border-right: 2px solid var(--ink-3);
+  border-bottom: 2px solid var(--ink-3);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+body[data-theme] .mk-screen select {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 32px;
+  cursor: pointer;
+  text-overflow: ellipsis;
+}
+body[data-theme] .mk-screen select option { background: var(--bg-2); color: var(--ink); }
+body[data-theme] .mk-screen input::placeholder { color: var(--ink-3); opacity: 1; }
+body[data-theme] .mk-screen input:focus-visible,
+body[data-theme] .mk-screen select:focus-visible { border-color: var(--line-strong); }
+body[data-theme] .mk-screen input:disabled,
+body[data-theme] .mk-screen select:disabled { opacity: .5; cursor: not-allowed; }
+
+body[data-theme] .mk-toolbar {
+  display: flex;
+  gap: 8px;
+  margin: 2px 0 8px;
+}
+body[data-theme] .mk-search-wrap { position: relative; flex: 1 1 auto; min-width: 0; }
+body[data-theme] .mk-search-wrap input { padding-right: 36px; }
+body[data-theme] .mk-toolbar .mk-select { flex: 0 0 auto; }
+body[data-theme] .mk-toolbar #mk-sort { width: auto; min-width: 160px; }
+body[data-theme] .mk-clear {
+  position: absolute;
+  right: 3px; top: 50%;
+  transform: translateY(-50%);
+  width: 30px; height: 30px;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: var(--r-sm);
+  color: var(--ink-3);
+  font-size: var(--t-body);
+  line-height: 1;
+  cursor: pointer;
+}
+body[data-theme] .mk-clear:hover { color: var(--gold-2); }
+
+/* ── Rows: one line per thing, hairlines between, no cards ─────────────── */
+body[data-theme] .mk-rows { display: flex; flex-direction: column; }
+body[data-theme] .mk-row,
+body[data-theme] .mk-colhead {
+  display: grid;
+  align-items: center;
+  column-gap: 10px;
+  padding: 5px 4px;
+}
+body[data-theme] .mk-row { min-height: 44px; border-top: 1px solid var(--line-soft); }
+body[data-theme] .mk-rows > .mk-row:first-child { border-top: 0; }
+body[data-theme] .mk-mine-row,
+body[data-theme] .mk-ledger-row { grid-template-columns: 32px minmax(0, 1fr) auto; }
+/* Numeric columns are sized in ch of the row's own face, wide enough for an
+   eight-digit stack and price ("×12,345,678", "12,345,678g"). */
+body[data-theme] .mk-lot,
+body[data-theme] .mk-colhead { grid-template-columns: 32px minmax(0, 1fr) 10ch 11ch 64px; }
+body[data-theme] .mk-colhead {
+  padding-top: 0;
+  padding-bottom: 2px;
+  font-family: var(--f-label);
+  font-size: var(--t-micro);
+  letter-spacing: .04em;
+  color: var(--ink-3);
+}
+body[data-theme] .mk-icon {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+  border-radius: var(--r-sm);
+  background: var(--surf-sunken);
+  box-shadow: var(--surf-sunken-edge);
+}
+body[data-theme] .mk-icon img { width: 100%; height: 100%; object-fit: contain; }
+body[data-theme] .mk-info { min-width: 0; }
+body[data-theme] .mk-name,
+body[data-theme] .mk-meta { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+body[data-theme] .mk-name { font-size: var(--t-small); font-weight: 700; color: var(--ink); }
+body[data-theme] .mk-x { color: var(--ink-3); font-weight: 600; font-variant-numeric: tabular-nums; }
+body[data-theme] .mk-meta { font-size: var(--t-micro); color: var(--ink-3); }
+body[data-theme] .mk-meta b { color: var(--ink-2); font-weight: 600; }
+body[data-theme] .mk-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+body[data-theme] .mk-q { font-size: var(--t-small); color: var(--ink-2); }
+body[data-theme] .mk-each { font-size: var(--t-small); font-weight: 700; color: var(--gold-2); }
+body[data-theme] .mk-action { display: flex; justify-content: flex-end; }
+body[data-theme] .mk-action .btn { white-space: nowrap; }
+body[data-theme] .mk-lot .mk-buy { min-width: 56px; }
+body[data-theme] .mk-yours {
+  font-family: var(--f-label);
+  font-size: var(--t-micro);
+  letter-spacing: .04em;
+  color: var(--ink-3);
+  padding-right: 8px;
+}
+/* Your own rows in the price board: a faint gilt wash from the left edge,
+   so you can find your price among everyone else's at a glance. */
+body[data-theme] .mk-lot.is-mine { background: linear-gradient(90deg, var(--gold-bg), transparent 75%); }
+
+body[data-theme] .mk-empty {
+  padding: 22px 12px;
+  text-align: center;
+  color: var(--ink-3);
+  font-size: var(--t-small);
+  line-height: 1.45;
+}
+body[data-theme] .mk-note {
+  padding: 8px 4px 0;
+  border-top: 1px solid var(--line-soft);
+  font-size: var(--t-micro);
+  color: var(--ink-3);
+}
+body[data-theme] .mk-mine .mk-empty,
+body[data-theme] .mk-ledger .mk-empty { padding: 12px 4px; text-align: left; }
+
+/* ── History ───────────────────────────────────────────────────────────── */
+body[data-theme] .mk-ledger-totals {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 22px;
+  margin: 4px 0 6px;
+}
+body[data-theme] .mk-sum { display: flex; align-items: baseline; gap: 6px; }
+body[data-theme] .mk-sum-k { font-family: var(--f-label); font-size: var(--t-micro); letter-spacing: .04em; color: var(--ink-3); }
+body[data-theme] .mk-sum-v { font-size: var(--t-lead); font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+body[data-theme] .mk-sum:first-child .mk-sum-v { color: var(--gold-2); }
+body[data-theme] .mk-sum-s { font-size: var(--t-micro); color: var(--ink-3); }
+body[data-theme] .mk-sum-note { flex-basis: 100%; font-size: var(--t-micro); color: var(--ink-3); }
+body[data-theme] .mk-amt { font-size: var(--t-small); font-weight: 700; color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+body[data-theme] .mk-ledger-row.is-sale .mk-amt { color: var(--gold-2); }
+
+/* ── Narrow price board (the board itself under 480px — a landscape phone) ── */
+body[data-theme] .mk-browse { container: mkboard / inline-size; }
+@container mkboard (max-width: 480px) {
+  body[data-theme] .mk-lot,
+  body[data-theme] .mk-colhead { column-gap: 8px; }
+  body[data-theme] .mk-toolbar .mk-select { flex: 0 1 46%; }
+  body[data-theme] .mk-toolbar #mk-sort { min-width: 0; width: 100%; }
+}
+
+/* ── Phone (landscape): every control a full tap target ───────────────── */
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  body[data-theme] .mk-screen input,
+  body[data-theme] .mk-screen select,
+  body[data-theme] .mk-list-go { min-height: var(--tap); }
+  body[data-theme] .mk-clear { width: 40px; height: 40px; right: 2px; }
+  body[data-theme] .mk-search-wrap input { padding-right: 44px; }
+  body[data-theme] .mk-rules { margin-bottom: 10px; }
+  body[data-theme] .mk-grid { gap: 16px 18px; }
+}
+
+/* ── The Buy sheet (#buy-modal, mounted on <body>) ─────────────────────────
+   The modal surface itself is the house dark sheet (.modal-card); this only
+   lays out what is inside it. Three readouts in a row at every width — on a
+   landscape phone they used to stack and push Quantity below the fold. */
+body[data-theme] #buy-modal .modal-card.buy-card {
+  width: min(540px, 92vw);
+  max-width: 540px;
+  max-height: 90vh;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--r-lg);
+}
+body[data-theme] #buy-modal .modal-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line-soft);
+}
+body[data-theme] #buy-modal .modal-title {
+  display: flex; align-items: center; gap: 10px; min-width: 0;
+  font-family: var(--f-label);
+  font-size: var(--t-h2);
+  font-weight: 700;
+  color: var(--gold-2);
+}
+body[data-theme] #buy-modal .bm-icon {
+  flex: 0 0 auto;
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+  border-radius: var(--r-sm);
+  background: var(--surf-sunken);
+  box-shadow: var(--surf-sunken-edge);
+}
+body[data-theme] #buy-modal .bm-icon img { width: 100%; height: 100%; object-fit: contain; }
+body[data-theme] #buy-modal #bm-close { font-size: var(--t-body); min-width: 34px; }
+body[data-theme] #buy-modal .bm-body { padding: 14px 16px; overflow-y: auto; }
+body[data-theme] #buy-modal .bm-stat-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+body[data-theme] #buy-modal .bm-stat {
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  background: var(--surf-sunken);
+  box-shadow: var(--surf-sunken-edge);
+}
+body[data-theme] #buy-modal .bm-lbl {
+  margin-bottom: 2px;
+  font-family: var(--f-label);
+  font-size: var(--t-micro);
+  letter-spacing: .04em;
+  color: var(--ink-3);
+}
+body[data-theme] #buy-modal .bm-val {
+  font-size: var(--t-lead);
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+body[data-theme] #buy-modal .bm-qty-row {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px;
+  margin-bottom: 12px;
+}
+body[data-theme] #buy-modal .bm-qty-row label {
+  font-family: var(--f-label);
+  font-size: var(--t-small);
+  color: var(--ink-2);
+}
+body[data-theme] #buy-modal #bm-qty {
+  box-sizing: border-box;
+  width: 110px;
+  min-height: 36px;
+  padding: 6px 10px;
+  background: var(--surf-sunken);
+  box-shadow: var(--surf-sunken-edge);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-sm);
+  color: var(--ink);
+  font-family: var(--f-ui);
+  font-size: var(--t-body);
+  font-variant-numeric: tabular-nums;
+  outline: none;
+}
+body[data-theme] #buy-modal #bm-qty:focus-visible { border-color: var(--line-strong); }
+body[data-theme] #buy-modal .bm-quick { display: flex; gap: 4px; }
+body[data-theme] #buy-modal .bm-quick .btn { min-width: 40px; }
+body[data-theme] #buy-modal .bm-summary {
+  margin: 4px 0 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-sm);
+  font-size: var(--t-small);
+}
+body[data-theme] #buy-modal .bm-line {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding: 4px 0;
+  color: var(--ink-2);
+}
+body[data-theme] #buy-modal .bm-line .num { color: var(--gold-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+body[data-theme] #buy-modal .bm-line.short,
+body[data-theme] #buy-modal .bm-line.short .num { color: var(--ink-3); }
+body[data-theme] #buy-modal .bm-line.total { margin-top: 2px; padding-top: 7px; border-top: 1px solid var(--line-soft); color: var(--ink); }
+body[data-theme] #buy-modal .bm-offer-toggle {
+  display: flex; align-items: center; gap: 8px;
+  font-size: var(--t-micro);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+body[data-theme] #buy-modal .bm-actions {
+  display: flex; justify-content: flex-end; gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--line-soft);
+}
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  body[data-theme] #buy-modal .modal-head { padding: 8px 12px; }
+  body[data-theme] #buy-modal .bm-body { padding: 10px 12px; }
+  body[data-theme] #buy-modal .bm-stat-row { gap: 6px; margin-bottom: 10px; }
+  body[data-theme] #buy-modal .bm-stat { padding: 6px 8px; }
+  body[data-theme] #buy-modal #bm-qty { min-height: var(--tap); }
+  body[data-theme] #buy-modal .bm-quick .btn { min-height: var(--tap); }
+  body[data-theme] #buy-modal .bm-actions { padding: 8px 12px; }
+}

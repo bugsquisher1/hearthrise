@@ -172,6 +172,8 @@
     clan_full: 'That hold is full',
     bad_name: 'Clan name must be 3–24 characters',
     name_taken: 'That clan name is taken',
+    name_blocked: "That name isn't allowed. Try another.",
+    name_charset: 'Clan names use letters, numbers, single spaces and _ ’ . - only',
     bad_policy: 'Unknown join policy',
     not_member: 'You are not in a clan',
     not_permitted: 'Only the hold’s leadership can do that',

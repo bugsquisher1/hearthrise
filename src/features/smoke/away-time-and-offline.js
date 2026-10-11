@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 116 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withClientOwnedSlots, awaySpan, tryRunRestampingBalance, xpOf, xpMap, predZero, goldOf, snapshotG, onFeet, drain, withResidueWire, seedPlayStreak, residuePurgeSnap, residuePurgeRestore, restoreG, restoreGAndRecord, autoEatMirrorReady, autoEatMirrorFixture, withCap, withStockedFight, on, snapshot, decideRestore, freshFrameGate } from './_harness.js?v=567';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stampBalanceLikeLoad, stampRecordLikeLoad, withLocalBlob, withClientOwnedSlots, awaySpan, tryRunRestampingBalance, xpOf, xpMap, predZero, goldOf, snapshotG, onFeet, drain, withResidueWire, seedPlayStreak, residuePurgeSnap, residuePurgeRestore, restoreG, restoreGAndRecord, autoEatMirrorReady, autoEatMirrorFixture, withCap, withStockedFight, on, snapshot, decideRestore, freshFrameGate } from './_harness.js?v=568';
 
 /* MODAL-FIT-1's probes. `mfClear` parks every layer that can sit above a sheet
    (scrims DETACHED, so no "another modal is up" check defers; toasts hidden) and
@@ -6216,9 +6216,8 @@ export default [
       ['world-events._hash', window.HearthriseWorldEvents && window.HearthriseWorldEvents._hash],
       ['core/botd.fnv1a', window.HearthriseCore && window.HearthriseCore.botd && window.HearthriseCore.botd.fnv1a],
       ['core/rng.hashSeed', window.HearthriseCore && window.HearthriseCore.rngMod && window.HearthriseCore.rngMod.hashSeed],
-      ['chat-filter._hash', window.ChatFilter && window.ChatFilter._hash],
     ].filter((c) => typeof c[1] === 'function');
-    assert(copies.length >= 4, 'an FNV-1a copy is unreachable from the page — this guard is checking less than it claims');
+    assert(copies.length >= 3, '(chat-filter._hash retired with the slur placeholders, 2026-10-11) an FNV-1a copy is unreachable from the page — this guard is checking less than it claims');
     for (const [name, fn] of copies) {
       for (const k of keys) {
         assert((fn(k) >>> 0) === reference(k),

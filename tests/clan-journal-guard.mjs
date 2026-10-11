@@ -205,7 +205,7 @@ declare
   i int;
   n_a int; n_b int; sum_a bigint; u_a uuid; t bigint;
 begin
-  insert into public.clans (name, created_by) values ('__jg_contrib__', a) returning id into c;
+  insert into public.clans (name, created_by) values ('Jg Contrib', a) returning id into c;
   insert into public.clan_members (clan_id, user_id, role) values (c, a, 'leader');
   insert into public.clan_members (clan_id, user_id, role) values (c, b, 'member');
 
@@ -251,7 +251,7 @@ declare
   c uuid;
   n0 int; n1 int; n2 int; t0 bigint; t1 bigint; t2 bigint; r jsonb;
 begin
-  insert into public.clans (name, created_by) values ('__jg_atomic__', a) returning id into c;
+  insert into public.clans (name, created_by) values ('Jg Atomic', a) returning id into c;
   insert into public.clan_members (clan_id, user_id, role) values (c, a, 'leader');
   select count(*) into n0 from public.clan_ledger where clan_id = c;
   select treasury into t0 from public.clans where id = c;
@@ -287,7 +287,7 @@ begin
   select t.task_id, t.counter into v_task, v_counter
     from public.hr_castle_board_tasks t where t.live and not t.weekly
     order by t.task_id limit 1;
-  insert into public.clans (name, created_by) values ('__jg_board__', a) returning id into c;
+  insert into public.clans (name, created_by) values ('Jg Board', a) returning id into c;
   insert into public.clan_members (clan_id, user_id, role) values (c, a, 'leader');
   insert into public.clan_members (clan_id, user_id, role) values (c, z, 'member');
   insert into public.clan_board (clan_id, task_id, period_key, target, progress)
@@ -325,7 +325,7 @@ declare
   c uuid; v_role text; v_bypass text;
   ins boolean := true; upd boolean := true; del boolean := true;
 begin
-  insert into public.clans (name, created_by) values ('__jg_ledgerw__', a) returning id into c;
+  insert into public.clans (name, created_by) values ('Jg Ledgerw', a) returning id into c;
   insert into public.clan_members (clan_id, user_id, role) values (c, a, 'leader');
   insert into public.clan_ledger (clan_id, user_id, kind, qty)
     values (c, a, 'contribute', 1);
@@ -358,7 +358,7 @@ declare
   kinds text[] := array['deposit','labour','tier','withdraw','upkeep','feast','board',
                         'rested','role','member','contribute','board_progress'];
 begin
-  insert into public.clans (name, created_by) values ('__jg_kinds__', a) returning id into c;
+  insert into public.clans (name, created_by) values ('Jg Kinds', a) returning id into c;
   foreach k in array kinds loop
     begin
       insert into public.clan_ledger (clan_id, user_id, kind, qty) values (c, a, k, 0);
@@ -380,7 +380,7 @@ declare
   n_supply int; feast_total bigint; i int; r jsonb;
 begin
   insert into public.clans (name, created_by, upgrades)
-    values ('__jg_known__', a, '{"tavern":"10"}'::jsonb) returning id into c;
+    values ('Jg Known', a, '{"tavern":"10"}'::jsonb) returning id into c;
   insert into public.clan_members (clan_id, user_id, role) values (c, a, 'leader');
 
   -- F7 · supply an order out of the clan stores and count the journal rows

@@ -24,11 +24,11 @@
 // when no other sheet or the FTUE is up, and the suite parks the watcher.
 // ════════════════════════════════════════════════════════════════════════
 
-import { CHARM_CLASS_LORE, CHARM_RANK_LORE } from '../data/charm-lore.js?v=567';
-import { CHARM_RANKS, CHARM_RANK_NAMES, MAX_CHARM_RANK } from '../data/bestiary-charms.js?v=567';
-import { charmRankAt, nextCharmAt, charmRowOfRank } from '../core/charms.js?v=567';
-import { TROPHY_STAGES, TROPHY_STAGE_NAMES, nextTrophyAt } from '../data/bestiary.js?v=567';
-import { MONSTER_CLASSES, classOfMonster } from '../core/bane.js?v=567';
+import { CHARM_CLASS_LORE, CHARM_RANK_LORE } from '../data/charm-lore.js?v=568';
+import { CHARM_RANKS, CHARM_RANK_NAMES, MAX_CHARM_RANK } from '../data/bestiary-charms.js?v=568';
+import { charmRankAt, nextCharmAt, charmRowOfRank } from '../core/charms.js?v=568';
+import { TROPHY_STAGES, TROPHY_STAGE_NAMES, nextTrophyAt } from '../data/bestiary.js?v=568';
+import { MONSTER_CLASSES, classOfMonster } from '../core/bane.js?v=568';
 
 const SEEN_KEY = 'hearthrise:charm-seen';
 const MAX_KEYS = 10;

@@ -1149,8 +1149,8 @@ async function run({ patches } = {}) {
       await db.query("select set_config('request.jwt.claim.sub',$1,true)", [uid]);
       await db.query('set local role authenticated');
       await db.query('insert into public.clans (name, created_by, join_policy) '
-        + "values ('hr__doorprobe', $1, 'open')", [uid]);
-      const cid = (await db.query("select id from public.clans where name='hr__doorprobe'")).rows[0].id;
+        + "values ('Door Probe Four', $1, 'open')", [uid]);
+      const cid = (await db.query("select id from public.clans where name='Door Probe Four'")).rows[0].id;
       await db.query("insert into public.clan_members (clan_id, user_id, role) "
         + "values ($1, $2, 'leader')", [cid, uid]);
     } catch (e) {

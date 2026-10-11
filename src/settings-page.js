@@ -652,7 +652,7 @@
     ];
     return ''
       + row('Profanity filter', chatToggle('profanityFilter', c.profanityFilter !== false))
-      + '<div class="ss-hint">Masks common curse words. Targeted slurs are always filtered regardless of this setting.</div>'
+      + '<div class="ss-hint">Masks common curse words in chat.</div>'
       + row('Show timestamps', chatToggle('showTimestamps', c.showTimestamps !== false))
       + row('Sound on @mention', chatToggle('soundOnMention', c.soundOnMention !== false))
       + selectRow('Allow whispers from', 'whisperPermission', c.whisperPermission || 'all', whisperOpts, 'chat')

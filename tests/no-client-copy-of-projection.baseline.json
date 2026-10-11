@@ -25,6 +25,7 @@
       "hunt_analyzer",
       "inventory",
       "inventory_complete",
+      "must_rename",
       "now",
       "ok",
       "place",
@@ -81,5 +82,5 @@
       "workers_accrued_to"
     ]
   },
-  "generatedAt": "2026-09-27"
+  "generatedAt": "2026-10-11"
 }

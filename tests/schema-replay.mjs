@@ -135,12 +135,21 @@ export async function chainFiles() {
    behind on production — including TRUNCATE, which bypasses row-level security
    entirely, so RLS is not a backstop for it. Measured: with this widening,
    2026-08-16-unlock-buy.sql §3(d) RAISES against a three-verb revoke and passes
-   against `revoke all`. Narrowing this back hides the class again. */
+   against `revoke all`. Narrowing this back hides the class again.
+   FUNCTIONS TOO (2026-10-11, Security #1 on name-moderation): production's
+   default ACL hands every function `postgres` creates in public EXECUTE for
+   service_role ({postgres=X, service_role=X}). Without this line a migration
+   that revoked only public/anon/authenticated passed its own "service_role
+   cannot execute" gate here and FAILED it on production. Proof:
+   tests/name-moderation.mjs --mutate `service_role_kept` is caught only with
+   this line in place. */
 const SCAFFOLD = `
 alter default privileges in schema public
   grant all on tables to anon, authenticated, service_role;
 alter default privileges in schema public
   grant usage, select on sequences to anon, authenticated, service_role;
+alter default privileges in schema public
+  grant execute on functions to service_role;
 grant all on all tables in schema public
   to anon, authenticated, service_role;
 
@@ -379,9 +388,20 @@ export async function bootReplay({ patches, seedBefore, tolerant = false, upTo, 
   // Closed once the tail is applied — see bootTemplated's timer note.
   let endCapture = () => 0;
 
+  /* THE CLOCK SEAM (tests/_utc-clock-shim.mjs). A no-op unless that preload is
+     loaded: it pins the database clock so file i of the chain begins its
+     transaction at a chosen, load-independent instant. Called AFTER any seed and
+     immediately before the file's own `begin`, on both the prefix and the tail
+     path, so no file is ever applied on the real clock under the shim. */
+  const fileIndex = new Map(files.map(([n], i) => [n, i]));
+  const pinClock = (name) => {
+    if (typeof globalThis.__HR_CLOCK_PIN__ === 'function') globalThis.__HR_CLOCK_PIN__(fileIndex.get(name), name);
+  };
+
   const applyOne = async (d, name) => {
     // Wrapped, because that is how a file is applied on this project: atomically.
     // A self-check `raise` must abort the whole file, not leave half installed.
+    pinClock(name);
     await d.exec(`begin;\n${sources.get(name)}\ncommit;`);
   };
 
@@ -460,6 +480,7 @@ export async function bootReplay({ patches, seedBefore, tolerant = false, upTo, 
     // A self-check `raise` must abort the whole file, not leave half installed.
     try {
       await seed(db, name);
+      pinClock(name);
       await db.exec(`begin;\n${sources.get(name)}\ncommit;`);
       applied.push(name);
     } catch (err) {

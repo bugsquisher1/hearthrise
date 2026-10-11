@@ -53,7 +53,7 @@ declare
   g0 bigint; g1 bigint; g2 bigint; t0 bigint; t1 bigint; t2 bigint;
   r1 jsonb; r2 jsonb; led bigint;
 begin
-  insert into public.clans (name, created_by) values ('__es_contrib__', a) returning id into c;
+  insert into public.clans (name, created_by) values ('Es Contrib', a) returning id into c;
   insert into public.clan_members (clan_id, user_id, role) values (c, a, 'leader');
   insert into public.player_state (user_id, slot, gold) values (a, 0, 15000000);
 
@@ -84,7 +84,7 @@ language plpgsql as $$
 declare
   a uuid := public.__mkuser('broke'); c uuid; g0 bigint; g1 bigint; t0 bigint; t1 bigint; n int; r jsonb;
 begin
-  insert into public.clans (name, created_by) values ('__es_broke__', a) returning id into c;
+  insert into public.clans (name, created_by) values ('Es Broke', a) returning id into c;
   insert into public.clan_members (clan_id, user_id, role) values (c, a, 'leader');
   insert into public.player_state (user_id, slot, gold) values (a, 0, 5000);
   perform set_config('request.jwt.claim.sub', a::text, true);
@@ -102,7 +102,7 @@ create or replace function public.__probe_contrib_cascade() returns jsonb
 language plpgsql as $$
 declare a uuid := public.__mkuser('casc'); c uuid; lv int; r jsonb;
 begin
-  insert into public.clans (name, created_by, level) values ('__es_casc__', a, 1) returning id into c;
+  insert into public.clans (name, created_by, level) values ('Es Casc', a, 1) returning id into c;
   insert into public.clan_members (clan_id, user_id, role) values (c, a, 'leader');
   insert into public.player_state (user_id, slot, gold) values (a, 0, 20000);
   perform set_config('request.jwt.claim.sub', a::text, true);
@@ -121,7 +121,7 @@ declare
   led bigint;
 begin
   insert into public.clans (name, created_by, upgrades)
-    values ('__es_feast__', a, '{"tavern":"5"}'::jsonb) returning id into c;  -- cap = 600 + 120*5 = 1200
+    values ('Es Feast', a, '{"tavern":"5"}'::jsonb) returning id into c;  -- cap = 600 + 120*5 = 1200
   insert into public.clan_members (clan_id, user_id, role) values (c, a, 'leader');
   insert into public.player_state (user_id, slot, gold) values (a, 0, 0);
   insert into public.player_inventory (user_id, slot, item_id, qty) values (a, 0, 'cooked_shark', 5);  -- heals 42
@@ -153,7 +153,7 @@ language plpgsql as $$
 declare a uuid := public.__mkuser('clamp'); c uuid; inv1 bigint; m1 int; r jsonb;
 begin
   insert into public.clans (name, created_by, upgrades)
-    values ('__es_clamp__', a, '{"tavern":"5"}'::jsonb) returning id into c;   -- cap 1200
+    values ('Es Clamp', a, '{"tavern":"5"}'::jsonb) returning id into c;   -- cap 1200
   insert into public.clan_members (clan_id, user_id, role) values (c, a, 'leader');
   insert into public.player_state (user_id, slot, gold) values (a, 0, 0);
   insert into public.player_inventory (user_id, slot, item_id, qty) values (a, 0, 'cooked_shark', 100);

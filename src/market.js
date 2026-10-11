@@ -542,6 +542,9 @@
     window.goldSettleCurrency({ gold: -totalCost }, 'market.buy', _bk);
     if(typeof window.addItem === 'function') window.addItem(l.itemId, qtyWanted);
     else window.G.inventory[l.itemId] = (window.G.inventory[l.itemId]||0) + qtyWanted;
+    /* The goods leg rides the gold leg's key; gold.js takes it back on
+       any answer that is not a receipt (a lost race must not leave phantom stock). */
+    if(_bS && _bk && typeof _bS.noteGoodsPrediction === 'function'){ var _bg = {}; _bg[l.itemId] = qtyWanted; _bS.noteGoodsPrediction(_bk, _bg); }
     if(_bS && _bk){
       var _bp = _bS.buyMarketListing(l.id, qtyWanted, _bk);
       if(_bp && _bp.catch) _bp.catch(function(){});
@@ -627,6 +630,7 @@
       window.goldSettleCurrency({ gold: -cost }, 'market.buy_aggregated', _ak);
       if(typeof window.addItem === 'function') window.addItem(itemId, take);
       else window.G.inventory[itemId] = (window.G.inventory[itemId]||0) + take;
+      if(_aS && _ak && typeof _aS.noteGoodsPrediction === 'function'){ var _ag = {}; _ag[itemId] = take; _aS.noteGoodsPrediction(_ak, _ag); }   // the goods leg, as above
       if(_aS && _ak){
         var _ap = _aS.buyMarketListing(list[lIdx].id, take, _ak);
         if(_ap && _ap.catch) _ap.catch(function(){});
@@ -861,6 +865,9 @@
        the gold prediction sweep; `listSheetSubscribed` is the leak probe. */
     refreshListSheet: function(){ return refreshListSheet(); },
     listSheetSubscribed: function(){ return !!_listSheet; },
+    /* Whose rows are "Your listings" — the same id render() splits on, so a
+       test can plant an own listing without guessing the session shape. */
+    currentSellerId: currentSellerId,
   };
 
   // ── UI: Market host ───────────────────────────────────────────
@@ -937,21 +944,49 @@
      read — say so), empty (read, genuinely nothing) and populated. Rendering
      "no trades yet" for a read that failed would be the client asserting
      something it cannot know. */
+  /* Plain words for a span of time ("3 hours ago", "47 hours left"). The
+     market is read by players, not by a log parser: no "3h", no "47.9h". */
+  function countWord(n, one){ return n.toLocaleString() + ' ' + one + (n === 1 ? '' : 's'); }
   function ledgerAgo(ms, now){
     var d = Math.max(0, now - ms);
     if(d < 60000) return 'just now';
     var m = Math.floor(d/60000);
-    if(m < 60) return m + 'm ago';
+    if(m < 60) return countWord(m, 'minute') + ' ago';
     var h = Math.floor(m/60);
-    if(h < 24) return h + 'h ago';
-    return Math.floor(h/24) + 'd ago';
+    if(h < 24) return countWord(h, 'hour') + ' ago';
+    return countWord(Math.floor(h/24), 'day') + ' ago';
+  }
+  /* Time left on a listing, from the SERVER's expires_at. Listings live 48
+     hours, so hours are the natural unit; the last hour counts minutes. */
+  function timeLeftWords(ms){
+    var m = Math.floor(ms / 60000);
+    if(!(m >= 1)) return 'ending now';
+    if(m < 60) return countWord(m, 'minute') + ' left';
+    var h = Math.floor(m / 60);
+    if(h < 72) return countWord(h, 'hour') + ' left';
+    return countWord(Math.floor(h / 24), 'day') + ' left';
+  }
+  /* One icon cell for every row on this screen: the item's art, or the atlas
+     fallback (never an emoji). */
+  function itemIconHtml(itemId, item){
+    return '<div class="mk-icon">' + ((window._itemPath && window._itemPath[itemId])
+      ? '<img src="' + window._itemPath[itemId] + '" alt="">'
+      : '<span>' + window.itemFallbackIcon(itemId, 22, item) + '</span>') + '</div>';
   }
 
   function historyBlockHtml(hist, filter, now, limit){
-    var head = '<div class="mk-block mk-ledger"><h3>Your trade history</h3>';
-    if(!hist || hist.status !== 'ok'){
-      return head + '<div class="mk-empty">Your sales and purchases will appear here once '
-        + 'the market ledger has been read. Sign in and open the market again.</div></div>';
+    var tabs = '<div class="chips mk-ledger-tabs" role="tablist">'
+      + [['all','All'],['sold','Sold'],['bought','Bought']].map(function(t){
+          return '<button class="chip mk-ledger-tab' + (filter === t[0] ? ' active' : '')
+            + '" role="tab" aria-selected="' + (filter === t[0]) + '" data-ledger="' + t[0] + '">' + t[1] + '</button>';
+        }).join('')
+      + '</div>';
+    var known = !!(hist && hist.status === 'ok');
+    var head = '<section class="mk-sec mk-block mk-ledger"><div class="mk-head"><h3 class="mk-h">Your trade history</h3>'
+      + (known ? tabs : '') + '</div>';
+    if(!known){
+      return head + '<div class="mk-empty">Your sales and purchases will show here once the market has '
+        + 'loaded them.</div></section>';
     }
     var all = hist.entries || [];
     var rows = all.filter(function(e){
@@ -966,63 +1001,56 @@
       if(e.role === 'sale'){ soldN++; earned += e.goldNet; }
       else { boughtN++; spent += e.goldGross; }
     });
-    /* The read is capped, so a full page is a window, not a lifetime — say so. */
-    var totals = '<div class="mk-stats mk-ledger-totals">'
-      + (limit && all.length >= limit ? '<span class="mk-stat">last ' + limit + ' trades</span>' : '')
-      + '<span class="mk-stat">' + soldN + ' sold <b>+' + earned.toLocaleString() + 'g</b></span>'
-      + '<span class="mk-stat">' + boughtN + ' bought <b>-' + spent.toLocaleString() + 'g</b></span>'
-      + '</div>';
-    var tabs = '<div class="mk-ledger-tabs">'
-      + [['all','All'],['sold','Sold'],['bought','Bought']].map(function(t){
-          return '<button class="mk-ledger-tab' + (filter === t[0] ? ' is-on' : '')
-            + '" data-ledger="' + t[0] + '">' + t[1] + '</button>';
-        }).join('')
-      + '</div>';
+    /* Two figures a player reads at a glance — what came in, what went out —
+       and, when the read is capped, which window they cover. */
+    var totals = all.length ? ('<div class="mk-ledger-totals">'
+      + '<div class="mk-sum"><span class="mk-sum-k">Earned</span> <b class="mk-sum-v">+' + earned.toLocaleString() + 'g</b>'
+      +   ' <span class="mk-sum-s">from ' + countWord(soldN, 'sale') + '</span></div>'
+      + '<div class="mk-sum"><span class="mk-sum-k">Spent</span> <b class="mk-sum-v">' + spent.toLocaleString() + 'g</b>'
+      +   ' <span class="mk-sum-s">on ' + countWord(boughtN, 'purchase') + '</span></div>'
+      + (limit && all.length >= limit ? '<div class="mk-sum-note">Your last ' + limit + ' trades</div>' : '')
+      + '</div>') : '';
     var body;
     if(!rows.length){
       body = '<div class="mk-empty">'
-        + (filter === 'sold' ? 'Nothing of yours has sold yet — list an item above and it will show up here.'
+        + (filter === 'sold' ? 'Nothing of yours has sold yet. When something does, it shows up here.'
          : filter === 'bought' ? 'You haven\'t bought anything from the market yet.'
          : 'No trades yet. Anything you buy or sell will be recorded here.')
         + '</div>';
     } else {
-      body = rows.map(function(e){
+      body = '<div class="mk-rows">' + rows.map(function(e){
         var item = window.ITEMS && window.ITEMS[e.itemId];
-        var iconHtml = (window._itemPath && window._itemPath[e.itemId])
-          ? '<img src="' + window._itemPath[e.itemId] + '" alt="">'
-          : '<span>' + window.itemFallbackIcon(e.itemId, 22, item) + '</span>';
         var sold = e.role === 'sale';
         /* GROSS per unit on both sides: it is the price the listing actually
            traded at, which is the same number for buyer and seller. The tax
            is a separate, seller-only clause below — folding it into "each"
            would quote a price no listing was ever posted at. */
         var each = e.qty > 0 ? Math.round(e.goldGross / e.qty) : 0;
-        var meta = (sold ? 'Sold' : 'Bought') + ' ' + each.toLocaleString() + 'g each · '
+        var meta = (sold ? 'Sold at ' : 'Bought at ') + each.toLocaleString() + 'g each · '
           + ledgerAgo(e.at, now)
-          + (sold && e.tax > 0 ? ' · ' + e.tax.toLocaleString() + 'g house tax' : '');
-        return '<div class="mk-row mk-ledger-row">'
-          + '<div class="mk-icon">' + iconHtml + '</div>'
+          + (sold && e.tax > 0 ? ' · ' + e.tax.toLocaleString() + 'g tax' : '');
+        return '<div class="mk-row mk-ledger-row' + (sold ? ' is-sale' : ' is-buy') + '">'
+          + itemIconHtml(e.itemId, item)
           + '<div class="mk-info">'
           +   '<div class="mk-name">' + escapeAttr((item && item.n) || e.itemId)
-          +     '<span class="mk-qty">×' + e.qty.toLocaleString() + '</span></div>'
+          +     ' <span class="mk-x">×' + e.qty.toLocaleString() + '</span></div>'
           +   '<div class="mk-meta">' + escapeAttr(meta) + '</div>'
           + '</div>'
-          /* +/− carries the direction, not colour — see the ledger block in
-             audit-overrides.css for the measurement behind that. */
-          + '<div class="mk-action"><span class="mk-qty">'
-          +   (sold ? '+' : '−') + Math.abs(e.goldDelta).toLocaleString() + 'g</span></div>'
+          /* +/− and "Sold"/"Bought" carry the direction in words; the colour
+             only repeats it. */
+          + '<div class="mk-amt">' + (sold ? '+' : '−') + Math.abs(e.goldDelta).toLocaleString() + 'g</div>'
           + '</div>';
-      }).join('');
+      }).join('') + '</div>';
     }
-    return head + totals + tabs + body + '</div>';
+    return head + totals + body + '</section>';
   }
 
   /* ── THE LIST SHEET'S MODEL, READ FRESH ─────────────────────────────────
      THE SERVER'S BAG, the same count listItem gates on (CLAUDE.md §6). One
      model for the first paint AND for every repaint of the open sheet, so the
      two cannot disagree about what is listable. */
-  var LIST_BAG_PENDING = 'Your bag is still being counted — listing opens once the realm has it.';
-  var LIST_PICK_HINT = 'Pick an item to see how many you have and the NPC vendor price.';
+  var LIST_BAG_PENDING = 'Your bag is still being counted. You can list as soon as it is.';
+  var LIST_PICK_HINT = 'Choose something from your bag to see how many you have and what it is worth.';
   function listSheetBagCount(id){
     if(!serverMarketActive()) return ((window.G && window.G.inventory) || {})[id] || 0;
     var A = window.HearthriseAccrual;
@@ -1052,17 +1080,36 @@
   }
   function listPickerOptionsHtml(m){
     return (m.unstated
-        ? '<option value="">— Your bag is still being counted —</option>'
-        : '<option value="">— Pick an item from your bag —</option>')
+        ? '<option value="">Counting your bag…</option>'
+        : (m.listable.length ? '<option value="">Choose an item…</option>' : '<option value="">Nothing in your bag can be sold</option>'))
       + m.listable.map(function(it){
           return '<option value="' + it.id + '" data-have="' + it.qty + '" data-vendor="' + it.v + '">'
-               + it.name + ' (' + it.qty.toLocaleString() + ')'
+               + escapeAttr(it.name) + ' (' + it.qty.toLocaleString() + ')'
                + '</option>';
         }).join('');
   }
+  /** The price the pick pre-fills: half again what the Local Shop pays. A
+   *  starting point for the player's own ask, never a number the server reads. */
+  function suggestedAsk(vendor){ return vendor > 0 ? Math.max(1, Math.ceil(vendor * 1.5)) : 0; }
+  /* Three readouts under the picker. Separated by real text (" · ") so the
+     sentence reads whole to a screen reader and to a copy-paste. */
   function listHintHtml(have, vendor){
-    return 'You have <b>' + have.toLocaleString() + '</b>. NPC vendor pays <b>' + vendor.toLocaleString()
-      + 'g</b> each. Suggested ask: <b>' + Math.max(1, Math.ceil(vendor * 1.5)).toLocaleString() + 'g</b>.';
+    var sug = suggestedAsk(vendor);
+    return '<span class="mk-fact">You have <b>' + have.toLocaleString() + '</b></span>'
+      + '<span class="mk-dot"> · </span><span class="mk-fact">Local Shop pays <b>' + vendor.toLocaleString() + 'g</b></span>'
+      + (sug ? '<span class="mk-dot"> · </span><span class="mk-fact">Suggested <b>' + sug.toLocaleString() + 'g</b></span>' : '');
+  }
+  /* The total line under the two inputs: the player's own quantity × price,
+     display only (the server prices the sale and takes the tax). */
+  function updateListTotal(form){
+    var out = form && form.querySelector('#mk-list-total');
+    if(!out) return;
+    var q = parseInt((form.querySelector('#mk-list-qty') || {}).value, 10);
+    var p = parseInt((form.querySelector('#mk-list-each') || {}).value, 10);
+    var picked = !!(form.querySelector('#mk-list-id') || {}).value;
+    if(!picked || !(q > 0) || !(p > 0)){ out.innerHTML = '<span class="mk-total-k">Total</span> <span class="mk-total-v">—</span>'; return; }
+    out.innerHTML = '<span class="mk-total-k">Total</span> <b class="mk-total-v">' + (q * p).toLocaleString() + 'g</b>'
+      + ' <span class="mk-total-s">if it all sells, before the ' + (HOUSE_TAX * 100) + '% tax</span>';
   }
 
   /* ── THE OPEN SHEET FOLLOWS EVERY ENVELOPE (CLAUDE.md §6) ────────────────
@@ -1124,11 +1171,12 @@
     for(var i = 0; i < m.listable.length; i++){ if(m.listable[i].id === prev){ it = m.listable[i]; break; } }
     picker.value = it ? it.id : '';
     if(hint) hint.classList.toggle('bal-pending', m.unstated);
-    if(m.unstated){ if(hint) hint.textContent = LIST_BAG_PENDING; return true; }
+    if(m.unstated){ if(hint) hint.textContent = LIST_BAG_PENDING; updateListTotal(form); return true; }
     if(!it){
       st.qtyDefault = null;
       qty.removeAttribute('max');
       if(hint) hint.textContent = LIST_PICK_HINT;
+      updateListTotal(form);
       return true;
     }
     qty.max = it.qty;
@@ -1136,6 +1184,7 @@
     if(st.qtyDefault !== null && qty.value === st.qtyDefault){ qty.value = it.qty; st.qtyDefault = qty.value; }
     else if(typed > it.qty) qty.value = it.qty;
     if(hint) hint.innerHTML = listHintHtml(it.qty, it.v);
+    updateListTotal(form);
     return true;
   }
 
@@ -1157,6 +1206,15 @@
     var seam = serverMarketActive();
     var mine = list.filter(function(l){ return l.sellerId === currentSellerId() && (!seam || onMarketUnderSeam(l)); });
     var others = list.filter(function(l){ return l.sellerId !== currentSellerId() && (!seam || isServerListingId(l.id)); });
+    /* WHAT IS FOR SALE INCLUDES YOUR OWN LISTINGS. The browse list used
+       to be `others` alone, so a player whose only live listing was their own
+       read "No open listings right now" seconds after listing — the screen
+       contradicting what they had just done. Your rows sit in the list at
+       their price (so you can see where you stand against other sellers),
+       marked as yours and without a Buy. A row still on its way to the server
+       is not on the market yet, so it stays in "Your listings" only. */
+    var mineOnMarket = mine.filter(function(l){ return !seam || isServerListingId(l.id); });
+    var forSale = others.concat(mineOnMarket);
 
     var ui = loadUiState();
     // ── Search + sort ──
@@ -1169,7 +1227,7 @@
             || l.itemId.toLowerCase().indexOf(qLower) !== -1
             || (l.sellerName||'').toLowerCase().indexOf(qLower) !== -1;
       };
-      others = others.filter(matches);
+      forSale = forSale.filter(matches);
     }
     var sorters = {
       'price-asc':  function(a,b){ return a.askEach - b.askEach; },
@@ -1183,33 +1241,45 @@
         return an.localeCompare(bn);
       },
     };
-    if(sorters[ui.sort]) others = others.slice().sort(sorters[ui.sort]);
+    if(sorters[ui.sort]) forSale = forSale.slice().sort(sorters[ui.sort]);
 
-    var listingRow = function(l, ownsIt){
+    var itemName = function(id){
+      var item = window.ITEMS && window.ITEMS[id];
+      return (item && item.n) || id;
+    };
+    /* A browse row: what, who, how many, how much, Buy. Fixed numeric columns
+       so the eye can run down "each" the way it runs down a price board. */
+    var forSaleRow = function(l){
       var item = window.ITEMS && window.ITEMS[l.itemId];
-      var icon = window.itemFallbackIcon(l.itemId, 22, item);
-      var iconHtml = (window._itemPath && window._itemPath[l.itemId])
-        ? '<img src="' + window._itemPath[l.itemId] + '" alt="">'
-        : '<span>' + icon + '</span>';
-      var total = l.askEach * l.qty;
+      var own = l.sellerId === currentSellerId();
+      return '<div class="mk-row mk-lot' + (own ? ' is-mine' : '') + '">'
+        + itemIconHtml(l.itemId, item)
+        + '<div class="mk-info">'
+        +   '<div class="mk-name" title="' + escapeAttr(itemName(l.itemId)) + '">' + escapeAttr(itemName(l.itemId)) + '</div>'
+        +   '<div class="mk-meta">' + (own ? 'Your listing' : 'Sold by <b>' + escapeAttr(l.sellerName) + '</b>') + '</div>'
+        + '</div>'
+        + '<div class="mk-num mk-q" title="Quantity">×' + l.qty.toLocaleString() + '</div>'
+        + '<div class="mk-num mk-each">' + l.askEach.toLocaleString() + 'g</div>'
+        + '<div class="mk-action">' + (own
+            ? '<span class="mk-yours">Yours</span>'
+            : '<button class="btn btn-sm btn-gold mk-buy" data-buy="' + l.id + '" data-item="' + l.itemId + '" data-each="' + l.askEach + '">Buy</button>')
+        + '</div>'
+        + '</div>';
+    };
+    /* One of the player's own listings: price, time left, Cancel. */
+    var mineRow = function(l){
+      var item = window.ITEMS && window.ITEMS[l.itemId];
       // Time left is the SERVER's expires_at; an own row still in flight has none yet.
-      var ttl = '';
-      if(ownsIt && !isServerListingId(l.id)) ttl = ' · sending…';
-      else if(Number.isFinite(l.expiresAt)){
-        var hLeft = (l.expiresAt - Date.now()) / 3600000;
-        ttl = ' · ' + (hLeft > 0 ? hLeft.toFixed(1) + 'h left' : 'expiring');
-      }
-      var actionBtn = ownsIt
-        ? '<button class="mk-cancel" data-cancel="' + l.id + '">Cancel</button>'
-        : '<button class="mk-buy" data-buy="' + l.id + '" data-item="' + l.itemId + '" data-each="' + l.askEach + '">Buy…</button>';
-      return '<div class="mk-row">' +
-        '<div class="mk-icon">' + iconHtml + '</div>' +
-        '<div class="mk-info">' +
-          '<div class="mk-name">' + (item ? item.n : l.itemId) + '<span class="mk-qty">×' + l.qty + '</span></div>' +
-          '<div class="mk-meta">' + l.askEach.toLocaleString() + 'g each · seller: <b>' + escapeAttr(l.sellerName) + '</b>' + ttl + '</div>' +
-        '</div>' +
-        '<div class="mk-action">' + actionBtn + '</div>' +
-      '</div>';
+      var when = !isServerListingId(l.id) ? 'sending to the market…'
+        : Number.isFinite(l.expiresAt) ? timeLeftWords(l.expiresAt - Date.now()) : '';
+      return '<div class="mk-row mk-mine-row">'
+        + itemIconHtml(l.itemId, item)
+        + '<div class="mk-info">'
+        +   '<div class="mk-name" title="' + escapeAttr(itemName(l.itemId)) + '">' + escapeAttr(itemName(l.itemId)) + ' <span class="mk-x">×' + l.qty.toLocaleString() + '</span></div>'
+        +   '<div class="mk-meta">' + l.askEach.toLocaleString() + 'g each' + (when ? ' · ' + when : '') + '</div>'
+        + '</div>'
+        + '<div class="mk-action"><button class="btn btn-sm mk-cancel" data-cancel="' + l.id + '">Cancel</button></div>'
+        + '</div>';
     };
 
     // ── My open buy offers (gold escrowed) ──
@@ -1217,18 +1287,13 @@
     var myOffers = allOffers.filter(function(o){ return o.buyerId === currentSellerId(); });
     var offerRow = function(o){
       var item = window.ITEMS && window.ITEMS[o.itemId];
-      var icon = window.itemFallbackIcon(o.itemId, 22, item);
-      var iconHtml = (window._itemPath && window._itemPath[o.itemId])
-        ? '<img src="' + window._itemPath[o.itemId] + '" alt="">'
-        : '<span>' + icon + '</span>';
-      var ageH = ((Date.now() - o.postedAt)/3600000).toFixed(1);
-      return '<div class="mk-row offer-row">'
-        + '<div class="mk-icon">' + iconHtml + '</div>'
+      return '<div class="mk-row mk-mine-row offer-row">'
+        + itemIconHtml(o.itemId, item)
         + '<div class="mk-info">'
-        +   '<div class="mk-name">' + (item ? item.n : o.itemId) + '<span class="mk-qty offer">Want ×' + o.qty + '</span></div>'
-        +   '<div class="mk-meta">Up to <b>' + o.maxEach.toLocaleString() + 'g</b> each · escrowed <b>' + (o.escrowed||(o.qty*o.maxEach)).toLocaleString() + 'g</b> · ' + ageH + 'h ago</div>'
+        +   '<div class="mk-name">' + escapeAttr(itemName(o.itemId)) + ' <span class="mk-x">wanted ×' + o.qty.toLocaleString() + '</span></div>'
+        +   '<div class="mk-meta">Up to <b>' + o.maxEach.toLocaleString() + 'g</b> each · <b>' + (o.escrowed||(o.qty*o.maxEach)).toLocaleString() + 'g</b> held · ' + ledgerAgo(o.postedAt, Date.now()) + '</div>'
         + '</div>'
-        + '<div class="mk-action"><button class="mk-cancel-offer mk-cancel" data-cancel-offer="' + o.id + '">Cancel offer</button></div>'
+        + '<div class="mk-action"><button class="btn btn-sm btn-ghost mk-cancel-offer" data-cancel-offer="' + o.id + '">Cancel offer</button></div>'
         + '</div>';
     };
     /* b355 — the buy-offer sub-market is HIDDEN under the seam (Security M5/M6):
@@ -1236,41 +1301,57 @@
        server market authority is on. Any pre-flip local offers stay in storage,
        untouched and unshown, and are wiped at cutover. */
     var offersBlock = (myOffers.length && !serverMarketActive())
-      ? ('<div class="mk-block"><h3>' + _mkGly('uiChest', 15) + ' Your buy offers (' + myOffers.length + ')</h3>'
-        + myOffers.map(offerRow).join('')
-        + '</div>')
+      ? ('<section class="mk-sec mk-block mk-offers"><div class="mk-head"><h3 class="mk-h">Your buy offers <span class="mk-count">' + myOffers.length + '</span></h3></div>'
+        + '<div class="mk-rows">' + myOffers.map(offerRow).join('') + '</div>'
+        + '</section>')
       : '';
 
-    var housing = '<div class="mk-strip"><b>Listings rules</b> · ' + (HOUSE_TAX*100) + '% house tax on sale · BoP items can\'t be listed · ' + listingLimit() + ' active listings per character · 48h expiry.</div>';
+    /* The house rules, said once, as a sentence, where a newcomer looks first. */
+    var rules = '<p class="mk-rules">Players set the prices here. A listing stays up for '
+      + Math.round(LISTING_TTL_MS / 3600000) + ' hours, you can have ' + listingLimit() + ' up at once, and '
+      + (HOUSE_TAX*100) + '% of each sale goes to the realm as tax. Bound items can\'t be sold.</p>';
 
     // ── Search + sort toolbar ──
+    var sortOpts = [['price-asc','Cheapest first'],['price-desc','Priciest first'],['qty-desc','Most in stock'],
+      ['newest','Newest first'],['oldest','Oldest first'],['name','Name, A to Z']];
     var toolbar = '<div class="mk-toolbar">'
-      + '<input type="search" id="mk-search" placeholder="Search by item or seller…" value="' + escapeAttr(ui.q || '') + '">'
-      + '<select id="mk-sort">'
-      +   '<option value="price-asc"' + (ui.sort==='price-asc'?' selected':'') + '>Price: low → high</option>'
-      +   '<option value="price-desc"' + (ui.sort==='price-desc'?' selected':'') + '>Price: high → low</option>'
-      +   '<option value="qty-desc"' + (ui.sort==='qty-desc'?' selected':'') + '>Qty: most first</option>'
-      +   '<option value="newest"' + (ui.sort==='newest'?' selected':'') + '>Newest first</option>'
-      +   '<option value="oldest"' + (ui.sort==='oldest'?' selected':'') + '>Oldest first</option>'
-      +   '<option value="name"' + (ui.sort==='name'?' selected':'') + '>Name A → Z</option>'
-      + '</select>'
-      + (ui.q ? '<button id="mk-clear-q" title="Clear search">×</button>' : '')
+      + '<span class="mk-search-wrap"><input type="search" id="mk-search" placeholder="Search items or sellers" aria-label="Search the market" value="' + escapeAttr(ui.q || '') + '">'
+      + (ui.q ? '<button id="mk-clear-q" class="mk-clear" title="Clear search" aria-label="Clear search">×</button>' : '')
+      + '</span>'
+      + '<span class="mk-select"><select id="mk-sort" aria-label="Sort listings">'
+      + sortOpts.map(function(o){ return '<option value="' + o[0] + '"' + (ui.sort === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('')
+      + '</select></span>'
       + '</div>';
 
-    var mineBlock = '<div class="mk-block"><h3>Your listings (' + mine.length + ' / ' + listingLimit() + ')</h3>' +
-      (mine.length ? mine.map(function(l){ return listingRow(l, true); }).join('') : '<div class="mk-empty">You haven\'t listed anything yet.</div>') +
-    '</div>';
-    var othersCount = known ? '(' + others.length + ')' : pendingMark();
-    var othersHeader = ui.q
-      ? 'Open listings — matching "' + escapeAttr(ui.q) + '" ' + othersCount
-      : 'Open listings ' + othersCount;
-    var othersBlock = '<div class="mk-block"><h3>' + othersHeader + '</h3>' +
-      (others.length
-        ? others.map(function(l){ return listingRow(l, false); }).join('')
-        : '<div class="mk-empty">' + (!known ? pendingMark() : ui.q
-            ? 'Nothing matches "' + escapeAttr(ui.q) + '" — try a different search.'
-            : 'No open listings right now. List something above and be first to market.') + '</div>') +
-    '</div>';
+    var mineBlock = '<section class="mk-sec mk-block mk-mine"><div class="mk-head"><h3 class="mk-h">Your listings '
+      + '<span class="mk-count">' + mine.length + ' of ' + listingLimit() + '</span></h3></div>'
+      + (mine.length
+          ? '<div class="mk-rows">' + mine.map(mineRow).join('') + '</div>'
+          : '<div class="mk-empty">Nothing listed yet. Choose an item under Sell and it will show up here.</div>')
+      + '</section>';
+    var saleCount = known
+      ? '<span class="mk-count">' + forSale.length.toLocaleString() + (ui.q ? ' matching' : '') + '</span>'
+      : pendingMark();
+    var onlyMine = forSale.length > 0 && forSale.every(function(l){ return l.sellerId === currentSellerId(); });
+    var browseBody;
+    /* Rows the mirror holds are shown even before a read lands (as before);
+       only the COUNT and the empty claim wait for the market's word. */
+    if(forSale.length){
+      browseBody = '<div class="mk-colhead" aria-hidden="true"><span></span><span>Item</span>'
+        + '<span class="mk-num">Qty</span><span class="mk-num">Each</span><span></span></div>'
+        + '<div class="mk-rows">' + forSale.map(forSaleRow).join('') + '</div>'
+        + (onlyMine && known && !ui.q ? '<div class="mk-note">No one else has anything for sale right now.</div>' : '');
+    } else if(!known){
+      browseBody = '<div class="mk-empty">Loading what is for sale… ' + pendingMark() + '</div>';
+    } else if(ui.q){
+      browseBody = '<div class="mk-empty">Nothing for sale matches “' + escapeAttr(ui.q) + '”. Try another name.</div>';
+    } else {
+      browseBody = '<div class="mk-empty">Nothing is for sale right now. Anything you list shows up here for every player.</div>';
+    }
+    var browseBlock = '<section class="mk-sec mk-block mk-browse"><div class="mk-head"><h3 class="mk-h">For sale ' + saleCount + '</h3></div>'
+      /* Searching an empty market is a dead end: the toolbar shows once there
+         is something to search, or while a search is being typed. */
+      + (known && !forSale.length && !ui.q ? '' : toolbar) + browseBody + '</section>';
     // Build a dropdown of every listable bag item — not BoP, has qty > 0,
     // and known to ITEMS so we can show its name. Sorted by name for the
     // player's convenience (typing the partial name still works as a search).
@@ -1288,26 +1369,34 @@
     var sheetModel = listSheetModel();
     var bagUnstated = sheetModel.unstated;
     var pickerOpts = listPickerOptionsHtml(sheetModel);
+    var shut = bagUnstated ? ' disabled' : '';
 
+    /* SELL: pick → see what you have and what it is worth → quantity and price
+       → total → List. The one contained surface on the screen, because it is
+       the one place the player fills something in. */
     var listForm =
-      '<div class="mk-list-form">' +
-        '<h3>List an item</h3>' +
-        '<div class="mk-form-row">' +
-          '<select id="mk-list-id"' + (bagUnstated ? ' disabled' : '') + '>' + pickerOpts + '</select>' +
-          '<input type="number" id="mk-list-qty" min="1" value="1" placeholder="qty"' + (bagUnstated ? ' disabled' : '') + '>' +
-          '<input type="number" id="mk-list-each" min="1" placeholder="asking each"' + (bagUnstated ? ' disabled' : '') + '>' +
-          '<button id="mk-list-btn"' + (bagUnstated ? ' disabled' : '') + '>List</button>' +
-        '</div>' +
+      '<section class="mk-sell mk-list-form">' +
+        '<div class="mk-head"><h3 class="mk-h">Sell</h3></div>' +
+        '<label class="mk-field mk-field-item"><span class="mk-lbl">Item</span>' +
+          '<span class="mk-select"><select id="mk-list-id"' + shut + '>' + pickerOpts + '</select></span></label>' +
         (bagUnstated
           ? '<div class="mk-form-hint bal-pending" id="mk-list-hint" role="status">' + BAG_PENDING + '</div>'
-          : '<div class="mk-form-hint" id="mk-list-hint">Pick an item to see how many you have and the NPC vendor price.</div>') +
-      '</div>';
+          : '<div class="mk-form-hint" id="mk-list-hint">' + LIST_PICK_HINT + '</div>') +
+        '<div class="mk-form-row">' +
+          '<label class="mk-field"><span class="mk-lbl">Quantity</span>' +
+            '<input type="number" id="mk-list-qty" min="1" value="1" inputmode="numeric"' + shut + '></label>' +
+          '<label class="mk-field"><span class="mk-lbl">Price each</span>' +
+            '<span class="mk-gold-in"><input type="number" id="mk-list-each" min="1" inputmode="numeric"' + shut + '><span class="mk-unit">g</span></span></label>' +
+        '</div>' +
+        '<div class="mk-total" id="mk-list-total" aria-live="polite"></div>' +
+        '<button id="mk-list-btn" class="btn btn-gold mk-list-go"' + shut + '>List for sale</button>' +
+      '</section>';
 
-    /* THE LEDGER. Placed directly under "Your listings", because the question
-       it answers ("did my stuff sell?") is the same question that block
-       raises. Refreshed lazily and coalesced — the module re-renders the panel
-       itself when a stale read lands, so this never blocks a paint and never
-       fires a request per keystroke. */
+    /* THE LEDGER. Under "Your listings", because the question it answers
+       ("did my stuff sell?") is the question that block raises. Refreshed
+       lazily and coalesced — the module re-renders the panel itself when a
+       stale read lands, so this never blocks a paint and never fires a
+       request per keystroke. */
     var MH = window.HearthriseMarketHistory;
     var historyBlock = '';
     if(MH){
@@ -1317,8 +1406,11 @@
       }catch(e){ historyBlock = ''; }
     }
 
-    panel.innerHTML = housing + listForm + mineBlock + historyBlock
-      + offersBlock + toolbar + othersBlock;
+    /* Two columns where there is room (the player's side | the market), one
+       below that — market.css places the four areas by name. */
+    panel.innerHTML = '<div class="mk-screen">' + rules
+      + '<div class="mk-grid">' + listForm + mineBlock + browseBlock + historyBlock + offersBlock + '</div>'
+      + '</div>';
 
     panel.querySelectorAll('button.mk-ledger-tab[data-ledger]').forEach(function(b){
       b.addEventListener('click', function(){
@@ -1368,7 +1460,8 @@
 
     // When the player picks an item, populate the qty input with the
     // amount they have and the asking-each field with a sensible default
-    // (1.5× the NPC vendor value). They can still override.
+    // (1.5× what the Local Shop pays). They can still override.
+    var listFormEl = panel.querySelector('.mk-list-form');
     var picker = panel.querySelector('#mk-list-id');
     var qtyInput = panel.querySelector('#mk-list-qty');
     var eachInput = panel.querySelector('#mk-list-each');
@@ -1376,7 +1469,8 @@
     picker.addEventListener('change', function(){
       var opt = picker.options[picker.selectedIndex];
       if(!opt || !opt.value){
-        if(hint) hint.textContent = 'Pick an item to see how many you have and the NPC vendor price.';
+        if(hint) hint.textContent = LIST_PICK_HINT;
+        updateListTotal(listFormEl);
         return;
       }
       /* Re-read at pick time: an envelope may have moved the server bag since paint. */
@@ -1386,11 +1480,15 @@
       var vendor = parseInt(opt.getAttribute('data-vendor'), 10) || 0;
       qtyInput.max = have;
       qtyInput.value = have;
-      if(!eachInput.value && vendor > 0){
-        eachInput.value = Math.max(1, Math.ceil(vendor * 1.5));
+      if(!eachInput.value && suggestedAsk(vendor) > 0){
+        eachInput.value = suggestedAsk(vendor);
       }
       if(hint) hint.innerHTML = listHintHtml(have, vendor);
+      updateListTotal(listFormEl);
     });
+    qtyInput.addEventListener('input', function(){ updateListTotal(listFormEl); });
+    eachInput.addEventListener('input', function(){ updateListTotal(listFormEl); });
+    updateListTotal(listFormEl);
 
     var listBtn = panel.querySelector('#mk-list-btn');
     listBtn.addEventListener('click', function(){
@@ -1453,27 +1551,27 @@
       +   '<div class="modal-head">'
       +     '<div class="modal-title"><div class="bm-icon">' + iconHtml + '</div>'
       +       'Buy ' + escapeAttr(item.n) + '</div>'
-      +     '<button class="btn btn-sm" id="bm-close">×</button>'
+      +     '<button class="btn btn-sm btn-ghost" id="bm-close" aria-label="Close">×</button>'
       +   '</div>'
       +   '<div class="bm-body">'
       +     '<div class="bm-stat-row">'
-      +       '<div class="bm-stat"><div class="bm-lbl">PRICE EACH</div><div class="bm-val">' + atPrice.toLocaleString() + 'g</div></div>'
-      +       '<div class="bm-stat"><div class="bm-lbl">AVAILABLE AT THIS PRICE</div><div class="bm-val">' + (listingsKnown() ? available.toLocaleString() : pendingMark()) + '</div></div>'
+      +       '<div class="bm-stat"><div class="bm-lbl">Price each</div><div class="bm-val">' + atPrice.toLocaleString() + 'g</div></div>'
+      +       '<div class="bm-stat"><div class="bm-lbl">For sale at this price</div><div class="bm-val">' + (listingsKnown() ? available.toLocaleString() : pendingMark()) + '</div></div>'
       /* The buyer's own purse, on the sheet where they commit gold. A pending
          balance renders as the dash — "0g" here would be a claim, and on this
          particular sheet a badly wrong one. */
-      +       '<div class="bm-stat"><div class="bm-lbl">YOUR GOLD</div><div class="bm-val">'
+      +       '<div class="bm-stat"><div class="bm-lbl">Your gold</div><div class="bm-val">'
       +         window.balMarkup('gold') + (window.balKnown('gold') ? 'g' : '') + '</div></div>'
       +     '</div>'
       +     '<div class="bm-qty-row">'
-      +       '<label>Quantity</label>'
-      +       '<input type="number" id="bm-qty" min="1" value="' + Math.max(1, available) + '">'
+      +       '<label for="bm-qty">Quantity</label>'
+      +       '<input type="number" id="bm-qty" min="1" inputmode="numeric" value="' + Math.max(1, available) + '">'
       +       '<div class="bm-quick">'
-      +         '<button data-q="1">1</button>'
-      +         '<button data-q="5">5</button>'
-      +         '<button data-q="10">10</button>'
-      +         '<button data-q="25">25</button>'
-      +         '<button data-q="all">Max</button>'
+      +         '<button class="btn btn-sm" data-q="1">1</button>'
+      +         '<button class="btn btn-sm" data-q="5">5</button>'
+      +         '<button class="btn btn-sm" data-q="10">10</button>'
+      +         '<button class="btn btn-sm" data-q="25">25</button>'
+      +         '<button class="btn btn-sm" data-q="all">Max</button>'
       +       '</div>'
       +     '</div>'
       +     '<div class="bm-summary" id="bm-summary"></div>'
@@ -1519,19 +1617,20 @@
       var lines = [];
       if(fillNow > 0){
         lines.push('<div class="bm-line">' +
-          '<span>Buy now: <b>' + fillNow.toLocaleString() + '</b> @ avg ' + Math.round(spend/Math.max(1,fillNow)).toLocaleString() + 'g</span>' +
+          '<span>Buy <b>' + fillNow.toLocaleString() + '</b> at ' + Math.round(spend/Math.max(1,fillNow)).toLocaleString() + 'g each'
+            + (spend !== fillNow * atPrice ? ' on average' : '') + '</span>' +
           '<span class="num">' + spend.toLocaleString() + 'g</span>' +
           '</div>');
       }
       if(hasResidual){
         if(offerOn()){
           lines.push('<div class="bm-line offer">' +
-            '<span>Buy offer (escrow): <b>' + residual.toLocaleString() + '</b> @ ' + atPrice.toLocaleString() + 'g</span>' +
+            '<span>Offer for <b>' + residual.toLocaleString() + '</b> more at ' + atPrice.toLocaleString() + 'g each (gold held)</span>' +
             '<span class="num">' + escrow.toLocaleString() + 'g</span>' +
             '</div>');
         } else {
           lines.push('<div class="bm-line short">' +
-            '<span>Short by ' + residual + ' (no offer will be placed)</span>' +
+            '<span>' + residual.toLocaleString() + ' more than is for sale at this price</span>' +
             '<span class="num">—</span>' +
             '</div>');
         }
@@ -1542,7 +1641,9 @@
       confirmEl.disabled = !canAfford || (fillNow === 0 && (!hasResidual || !offerOn()));
       confirmEl.textContent = canAfford
         ? (fillNow === qWanted ? 'Buy ' + fillNow : (offerOn() ? 'Buy ' + fillNow + ' + offer ' + residual : 'Buy ' + fillNow))
-        : 'Not enough gold';
+        /* Fail-closed while the purse is pending, but say so: "Not enough
+           gold" over a 250,000 purse the server has not stated yet is a lie. */
+        : (window.balKnown('gold') ? 'Not enough gold' : 'Checking your gold…');
     }
     updateSummary();
     /* Purse + Confirm may have painted from a pending (fail-closed) balance:

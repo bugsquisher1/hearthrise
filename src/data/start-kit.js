@@ -105,10 +105,17 @@ export const START_SKILL_XP = Object.freeze({
    `shrimp` stays (8 -> 10) because it is the INPUT half of that lesson: the
    `first_cook` quest asks for 5 dishes and `cook_shrimp` is the level-1 recipe.
    A kit with only cooked food would hand the player the output and hide the
-   verb. */
+   verb.
+
+   ── W0 · NO DEAD SEED IN THE KIT (Designer, coherence audit 2026-10-09) ─────
+   The kit used to carry `carrot_seed: 3`. Carrots need Farming 10 and a plot
+   upgrade, so on day one they were an item the player could neither plant nor
+   use. Those three seeds are turnips now (5 -> 8), which a fresh character can
+   plant on the camp's two plots the first minute. Carrot seeds arrive later as
+   the reward for the first harvest (`farmhand`, src/data/goal-catalogue.js),
+   when Farming 10 is in reach. Server half: 2026-10-16-first-day-seeds.sql. */
 export const START_INVENTORY = Object.freeze({
-  turnip_seed: 5,
-  carrot_seed: 3,
+  turnip_seed: 8,
   shrimp: 10,
   cooked_shrimp: 20,
 });

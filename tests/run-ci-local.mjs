@@ -74,10 +74,12 @@
 // could not be parsed, a declared skip no longer exists, or --job named a job
 // that is not there).
 // ════════════════════════════════════════════════════════════════════════
-import { readFile } from 'node:fs/promises';
+import { readFile, mkdir, symlink, unlink, rmdir } from 'node:fs/promises';
+import { createWriteStream, existsSync } from 'node:fs';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { availableParallelism } from 'node:os';
 
 export const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 export const WORKFLOW = join(ROOT, '.github', 'workflows', 'smoke.yml');
@@ -324,6 +326,131 @@ export function buildPlan(jobs, { all = false, job = null } = {}) {
   return plan;
 }
 
+// ── PARALLEL FAMILIES (guard diet, 2026-10-10) ─────────────────────────────
+// CI runs the thirteen families on thirteen runners at once; this file ran them
+// one after another, ~3 h on the dev box for a ~20 min matrix. Parallel mode runs
+// the families the way CI does: each in its OWN checkout of HEAD (a detached git
+// worktree under .ci-local/, so a guard that plants a mutant in a tracked file can
+// never be read by a guard of another family), its commands in file order, N
+// families at a time. The browser family runs LAST and ALONE in this tree — its
+// suite and its CPU-load control measure the machine (CLAUDE.md §3.3: one suite at
+// a time on a quiet machine). A dirty tree runs sequentially: parallel mode runs
+// the COMMIT, exactly as CI checks one out.
+//   -j N | --parallel N   N families at once     --serial   one at a time
+// Default N = min(4, cores/4); --job runs one family, sequentially.
+export function parallelism(argv, job) {
+  const at = Math.max(argv.indexOf('-j'), argv.indexOf('--parallel'));
+  const asked = at >= 0 ? Number(argv[at + 1]) : NaN;
+  if (argv.includes('--serial') || asked === 1) return { n: 1 };
+  if (job) return { n: 1 };
+  const n = Number.isInteger(asked) && asked > 1 ? asked
+    : Math.min(4, Math.max(1, Math.floor(availableParallelism() / 4)));
+  if (n <= 1) return { n: 1, why: 'fewer than eight cores' };
+  const dirty = spawnSync('git', ['status', '--porcelain'], { cwd: ROOT, encoding: 'utf8' });
+  if (dirty.status !== 0) return { n: 1, why: 'git status failed, so HEAD cannot be checked out per family' };
+  if (dirty.stdout.trim()) {
+    return { n: 1, why: 'uncommitted changes — parallel mode runs HEAD in a checkout per family, '
+      + 'as CI does; commit (WIP is fine) to run the families in parallel' };
+  }
+  return { n };
+}
+
+const BROWSER_JOB = 'in-page';
+
+function git(args, cwd = ROOT) {
+  return spawnSync('git', args, { cwd, encoding: 'utf8' });
+}
+
+function runAsync(cmd, cwd, log) {
+  return new Promise((resolveRun) => {
+    const parts = cmd.split(/\s+/);
+    let file = parts[0];
+    let args = parts.slice(1);
+    const opts = { cwd, env: process.env };
+    if (file === 'node') file = process.execPath;
+    else if (file !== 'bash') { opts.shell = true; file = cmd; args = []; }
+    let tail = '';
+    const keep = (b) => { log.write(b); tail = (tail + b.toString()).slice(-6000); };
+    let child;
+    try { child = spawn(file, args, opts); } catch (e) { resolveRun({ status: 2, error: e.message, tail }); return; }
+    child.stdout.on('data', keep);
+    child.stderr.on('data', keep);
+    child.on('error', (e) => resolveRun({ status: 2, error: e.message, tail }));
+    child.on('close', (code) => resolveRun({ status: code === null ? 2 : code, tail }));
+  });
+}
+
+/* The cache link is removed FIRST, as a link (never followed), so removing the
+   throwaway checkout can only ever delete the checkout. */
+async function dropTrees(trees) {
+  for (const wt of trees) {
+    const link = join(wt, 'tests', '.pglite-cache');
+    await unlink(link).catch(() => rmdir(link).catch(() => {}));
+    git(['worktree', 'remove', '--force', wt]);
+  }
+  git(['worktree', 'prune']);
+}
+
+async function runParallel(live, n) {
+  const base = join(ROOT, '.ci-local');
+  await mkdir(join(base, 'logs'), { recursive: true });
+  const cache = join(ROOT, 'tests', '.pglite-cache');
+  await mkdir(cache, { recursive: true });
+  const order = [...new Set(live.map((p) => p.job))];
+  const pooled = order.filter((j) => j !== BROWSER_JOB);
+  const results = new Map(order.map((j) => [j, []]));
+  const trees = [];
+  console.log(`  parallel: ${pooled.length} families, ${n} at a time, each in a checkout of HEAD under .ci-local/`);
+  const one = async (job) => {
+    const wt = join(base, job);
+    if (existsSync(wt)) git(['worktree', 'remove', '--force', wt]);
+    const add = git(['worktree', 'add', '--detach', '--force', wt, 'HEAD']);
+    if (add.status !== 0) throw new Error(`git worktree add ${wt}: ${add.stderr.trim()}`);
+    trees.push(wt);
+    /* One snapshot cache for every family: writes are temp+rename and every restore
+       is fingerprinted (tests/pglite-template.mjs), so sharing it is what the cache
+       was built for, and a cold family pays one replay instead of all of them. */
+    await symlink(cache, join(wt, 'tests', '.pglite-cache'), 'junction').catch(() => {});
+    const log = createWriteStream(join(base, 'logs', `${job}.log`));
+    for (const p of live.filter((s) => s.job === job)) {
+      for (const cmd of p.cmds) {
+        const started = Date.now();
+        log.write(`\n> [${job}] ${p.name}\n  $ ${cmd}\n`);
+        const r = await runAsync(cmd, wt, log);
+        const secs = ((Date.now() - started) / 1000).toFixed(1);
+        results.get(job).push({ job, step: p.name, cmd, status: r.status, secs, error: r.error, soft: !!p.soft });
+        const tag = r.status === 0 ? 'GREEN' : (p.soft ? 'REPORT' : 'RED');
+        console.log(`  [${job}] ${tag.padEnd(6)} ${secs.padStart(7)}s  ${cmd}`);
+        if (r.status !== 0 && !p.soft) console.log(r.tail.split('\n').slice(-25).map((l) => `      | ${l}`).join('\n'));
+      }
+    }
+    log.end();
+  };
+  try {
+    const queue = [...pooled];
+    await Promise.all(Array.from({ length: Math.min(n, queue.length) }, async () => {
+      while (queue.length) await one(queue.shift());
+    }));
+  } catch (e) {
+    console.error(`CI-LOCAL: parallel mode could not set up a family (${e.message}); running sequentially.`);
+    await dropTrees(trees);
+    return null;
+  }
+  await dropTrees(trees);
+  // The browser family: last, alone, in this tree, output inherited as before.
+  for (const p of live.filter((s) => s.job === BROWSER_JOB)) {
+    for (const cmd of p.cmds) {
+      const started = Date.now();
+      console.log(`\n> [${p.job}] ${p.name}\n  $ ${cmd}\n`);
+      const r = runCommand(cmd);
+      const secs = ((Date.now() - started) / 1000).toFixed(1);
+      results.get(BROWSER_JOB).push({ job: p.job, step: p.name, cmd, status: r.status, secs, error: r.error, soft: !!p.soft });
+    }
+  }
+  console.log(`  per-family logs: ${join(base, 'logs')}`);
+  return order.flatMap((j) => results.get(j));
+}
+
 async function main() {
   const argv = process.argv.slice(2);
   const ALL = argv.includes('--all');
@@ -349,6 +476,14 @@ async function main() {
       try { caught = selftest(wf, p).length > 0; } finally { console.log = quiet; }
       console.log(`  ${caught ? 'ok  ' : 'MISS'} parser mutant ${id} — ${caught ? 'caught' : 'NOT caught'}`);
       if (!caught) fails.push(`parser mutant ${id} was not caught — the proof is vacuous`);
+    }
+    /* PARALLEL MODE never runs a single family or an explicit --serial in parallel
+       (one family is sequential on its runner too). */
+    for (const [args, job, want] of [[['--serial'], null, 1], [['-j', '1'], null, 1],
+      [['-j', '6'], 'db-replay', 1], [['--parallel', '3'], 'edge', 1]]) {
+      const got = parallelism(args, job).n;
+      console.log(`  ${got === want ? 'ok  ' : 'RED '} parallelism(${args.join(' ')}${job ? `, --job ${job}` : ''}) = ${got}`);
+      if (got !== want) fails.push(`parallelism(${args.join(' ')}) = ${got}, want ${want}`);
     }
     for (const f of fails) console.log('  RED  ' + f);
     console.log(fails.length ? `run-ci-local --selftest FAILED (${fails.length})` : 'run-ci-local --selftest PASSED');
@@ -436,6 +571,11 @@ async function main() {
 
   const t0 = Date.now();
   const results = [];
+  const par = parallelism(argv, JOB);
+  if (par.n > 1) {
+    const r = await runParallel(live, par.n);
+    if (r) { results.push(...r); return report(results, t0, `parallel x${par.n}`); }
+  } else if (par.why) console.log(`  (sequential: ${par.why})\n`);
   for (const p of live) {
     for (const cmd of p.cmds) {
       const started = Date.now();
@@ -446,7 +586,10 @@ async function main() {
       console.log(`\n  ${r.status === 0 ? 'GREEN' : `EXIT ${r.status}${p.soft ? ' (continue-on-error — reported, not gating)' : ''}`} · ${secs}s`);
     }
   }
+  report(results, t0, 'sequential');
+}
 
+function report(results, t0, mode) {
   console.log(`\n${''.padEnd(78, '=')}\nCI-LOCAL RESULTS\n${''.padEnd(78, '-')}`);
   for (const r of results) {
     const tag = r.status === 0 ? 'GREEN  ' : (r.soft ? 'REPORT ' : 'RED    ');
@@ -472,7 +615,7 @@ async function main() {
      becomes a pass nobody reads. Named on its own. */
   console.log(`  ${results.length - red.length - soft.length}/${results.length} green · `
     + (soft.length ? `${soft.length} reported · ` : '')
-    + `${((Date.now() - t0) / 1000).toFixed(1)}s sequential`);
+    + `${((Date.now() - t0) / 1000).toFixed(1)}s ${mode}`);
   if (red.length) {
     console.log('\n  A RELEASE IS GREEN ONLY WHEN BOTH THIS RUN AND THE GITHUB RUN ON THE RELEASE');
     console.log('  COMMIT ARE GREEN. Fix the guard, never the guard\'s teeth.');

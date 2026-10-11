@@ -123,9 +123,57 @@ function declaredExports(sources) {
   return decls;
 }
 
+/* THE WORD-RUN INDEX (guard diet, 2026-10-10: 80 s -> seconds). The census used to
+   scan every file's full text once per exported name. For a name made only of \w
+   characters the two questions it asks of a file have exact answers in the file's
+   maximal \w runs: `\bNAME\b` matches exactly the runs equal to NAME, and
+   `text.includes(NAME)` holds exactly when some run contains NAME. So the files a
+   name can touch are read off the index; the per-file logic below is unchanged and
+   still runs on the real text. Names containing `$` (where \b is not a run edge)
+   keep the full scan. */
+function wordIndex(sources) {
+  const byRun = new Map(); // run -> Set(rel)
+  for (const [rel, text] of sources) {
+    for (const run of new Set(text.match(/\w+/g) || [])) {
+      let s = byRun.get(run);
+      if (!s) byRun.set(run, (s = new Set()));
+      s.add(rel);
+    }
+  }
+  // Trigram -> runs holding it, so a name (>= 3 chars) is only tested against runs
+  // that share its rarest trigram; `includes` stays the deciding test.
+  const runs = [...byRun.keys()];
+  const tri = new Map();
+  runs.forEach((run, i) => {
+    const seen = new Set();
+    for (let k = 0; k + 3 <= run.length; k++) {
+      const g = run.slice(k, k + 3);
+      if (seen.has(g)) continue;
+      seen.add(g);
+      let l = tri.get(g);
+      if (!l) tri.set(g, (l = []));
+      l.push(i);
+    }
+  });
+  return { byRun, runs, tri };
+}
+
+function filesContaining(name, sources, { byRun, runs, tri }) {
+  if (!/^\w+$/.test(name)) return [...sources.keys()];
+  let best = null;
+  for (let k = 0; k + 3 <= name.length; k++) {
+    const l = tri.get(name.slice(k, k + 3)) || [];
+    if (!best || l.length < best.length) best = l;
+  }
+  const hit = new Set();
+  for (const i of best) if (runs[i].includes(name)) for (const r of byRun.get(runs[i])) hit.add(r);
+  return [...sources.keys()].filter((r) => hit.has(r)); // corpus order, as before
+}
+
 function census(sources) {
   const decls = declaredExports(sources);
   const vendored = edgeVendoredFiles();
+  const byRun = wordIndex(sources);
   const rows = [];
   for (const [name, d] of decls) {
     if (name.length < 3) continue; // one/two-letter names are noise, not API
@@ -135,7 +183,8 @@ function census(sources) {
     let total = 0;
     const elsewhere = [];
     let dynamic = false;
-    for (const [rel, text] of sources) {
+    for (const rel of filesContaining(name, sources, byRun)) {
+      const text = sources.get(rel);
       if (!text.includes(name)) continue;
       if (quoted.test(text)) dynamic = true;
       const n = (text.match(tok) || []).length;

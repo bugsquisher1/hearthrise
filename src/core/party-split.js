@@ -123,7 +123,7 @@
 // therefore no precision to argue about.
 // ============================================================
 
-import { VIGOUR_DRY_MULT } from './hunt.js?v=566';
+import { VIGOUR_DRY_MULT } from './hunt.js?v=567';
 
 /** Basis points. Every share in this file is an integer out of this. */
 export const BP = 10000;

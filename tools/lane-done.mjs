@@ -3,7 +3,22 @@
 // Runs the cheap, machine-light guard set in the CURRENT worktree and exits non-zero on the
 // first red. It is a runner, not a guard: it adds no rule of its own, and it prints each
 // guard's own first failing lines so the lane fixes the cause where the code was written.
-import { spawnSync } from 'node:child_process';
+//
+// SPEED (guard diet, 2026-10-10: measured 25+ min on a busy dev box, target < 10).
+// Every step is a read-only process (mutation arms plant into temp copies or into
+// memory, never the tree), so they run N at a time. A step marked `solo` measures
+// time itself (utc-midnight-replay parks the clock relative to a probed delay) and
+// runs after the pool drains, alone. A step with `inputs` replays the migration
+// chain; its GREEN verdict is remembered under a content-addressed key of those
+// inputs plus its import closure (tools/verdict-cache.mjs) and printed `cached`
+// when nothing it reads has changed. `--no-cache` / HR_VERDICT_CACHE=0 runs all;
+// `-j 1` runs one at a time; `--fail-fast` stops at the first red.
+import { spawn } from 'node:child_process';
+import { availableParallelism } from 'node:os';
+import { verdictKey, lookup, record } from './verdict-cache.mjs';
+
+// What a chain replay reads besides its own import closure.
+const CHAIN = ['supabase', 'tests/sql', 'tests/schema-apply-order.json', 'tests/schema-drift.baseline.json'];
 const STEPS = [
   ['bash', ['./bump-version.sh', '--check']],
   ['node', ['tests/monolith-ratchet.mjs']],
@@ -37,7 +52,7 @@ const STEPS = [
   // 23h55m a day is written in a lane, not caught in CI.
   // Its CI home is its own utc-midnight-replay job, split out of db-replay 2026-09-19
   // (b550) once the family's own budget could no longer fit it (tests/guards-unregistered.json).
-  ['node', ['tests/utc-midnight-replay.mjs']],
+  ['node', ['tests/utc-midnight-replay.mjs'], { inputs: [...CHAIN, 'tests/schema-drift.mjs', 'tests/_utc-clock-shim.mjs'], solo: true }],
   // `accrued_to` advances to the time the simulation ACCOUNTED FOR, not to now()
   // (2026-09-16): the sub-tick carry is deferred to the next window, never
   // forfeited, and the four refusals that keep that from minting hold. Both arms
@@ -56,13 +71,13 @@ const STEPS = [
   // It replays the migration chain (~2 arms x chain), so it lives in the per-lane
   // runner for the same reason utc-midnight-replay does; its CI home is the db-replay
   // job (tests/guards-unregistered.json).
-  ['node', ['tests/ledger-rollup.mjs']],
-  ['node', ['tests/ledger-rollup.mjs', '--mutate']],
+  ['node', ['tests/ledger-rollup.mjs'], { inputs: CHAIN }],
+  ['node', ['tests/ledger-rollup.mjs', '--mutate'], { inputs: CHAIN }],
   // SETTLE BEFORE MUTATE (Security F1, 2026-09-28): every edge verb that adds a
   // priceable input settles the open window at the OLD state first — a pickaxe
   // or a feast at return must not re-price the absence. One chain replay, ~5 s
   // warm. Its CI home, with the --mutate arm, is the economy-selftests job.
-  ['node', ['tests/absence-priced-at-return.mjs']],
+  ['node', ['tests/absence-priced-at-return.mjs'], { inputs: [...CHAIN, 'src'] }],
   // Shipped copy promises no retired capability (local save, offline mode, save files). ~600 ms.
   ['node', ['tests/retired-capability-copy.mjs']],
   ['node', ['tests/retired-capability-copy.mjs', '--selftest']],
@@ -84,16 +99,53 @@ const STEPS = [
   // named continue-on-error step; when it is green, add the plain run here too.
   ['node', ['tests/snapshot-allowlist-guard.mjs', '--selftest']],
 ];
-let red = 0;
-for (const [cmd, args] of STEPS) {
-  const label = `${cmd} ${args.join(' ')}`;
-  const r = spawnSync(cmd, args, { encoding: 'utf8', shell: process.platform === 'win32' });
-  if (r.status === 0) { console.log(`  ok    ${label}`); continue; }
-  red++;
-  console.log(`  RED   ${label}`);
-  const out = `${r.stdout || ''}\n${r.stderr || ''}`.split('\n').filter((l) => /✗|RED|FAIL |MONO-|CR-|TF-|PATCH-|XP-|not classified|ORPHAN/.test(l)).slice(0, 4);
-  for (const l of out) console.log('        ' + l.trim().slice(0, 160));
-  if (process.argv.includes('--fail-fast')) break;
+const argv = process.argv.slice(2);
+const FAIL_FAST = argv.includes('--fail-fast');
+if (argv.includes('--no-cache')) process.env.HR_VERDICT_CACHE = '0';
+const jAt = argv.indexOf('-j');
+const POOL = jAt >= 0 && Number(argv[jAt + 1]) >= 1 ? Number(argv[jAt + 1])
+  : Math.min(4, Math.max(1, Math.floor(availableParallelism() / 4)));
+
+function run(cmd, args) {
+  return new Promise((done) => {
+    let out = '';
+    const child = spawn(cmd, args, { shell: process.platform === 'win32' });
+    child.stdout.on('data', (b) => { out += b; });
+    child.stderr.on('data', (b) => { out += b; });
+    child.on('error', (e) => done({ status: 2, out: out + e.message }));
+    child.on('close', (code) => done({ status: code === null ? 2 : code, out }));
+  });
 }
-console.log(red ? `\n${red} guard(s) red — the lane is not done.` : '\nlane-done: all green.');
+
+let red = 0;
+let stop = false;
+async function step([cmd, args, opt = {}]) {
+  if (stop) return;
+  const label = `${cmd} ${args.join(' ')}`;
+  const key = opt.inputs ? verdictKey(process.cwd(), [cmd, ...args], opt.inputs) : null;
+  const hit = key && lookup(key);
+  if (hit) { console.log(`  cached ${label}  (green ${new Date(hit.at).toISOString().slice(0, 16)}Z, key ${key.slice(0, 12)})`); return; }
+  const t0 = Date.now();
+  const r = await run(cmd, args);
+  const secs = ((Date.now() - t0) / 1000).toFixed(1);
+  if (r.status === 0) {
+    if (key) record(key, { status: 0, ms: Date.now() - t0, cmd: label });
+    console.log(`  ok    ${label}  ${secs}s`);
+    return;
+  }
+  red++;
+  console.log(`  RED   ${label}  ${secs}s`);
+  const lines = r.out.split('\n').filter((l) => /✗|RED|FAIL |MONO-|CR-|TF-|PATCH-|XP-|not classified|ORPHAN/.test(l)).slice(0, 4);
+  for (const l of lines) console.log('        ' + l.trim().slice(0, 160));
+  if (FAIL_FAST) stop = true;
+}
+
+const t0 = Date.now();
+const queue = STEPS.filter(([, , o]) => !o?.solo);
+await Promise.all(Array.from({ length: Math.min(POOL, queue.length) }, async () => {
+  while (queue.length && !stop) await step(queue.shift());
+}));
+for (const s of STEPS.filter(([, , o]) => o?.solo)) await step(s);
+const wall = `${((Date.now() - t0) / 1000).toFixed(0)} s, ${POOL} at a time`;
+console.log(red ? `\n${red} guard(s) red — the lane is not done. (${wall})` : `\nlane-done: all green. (${wall})`);
 process.exitCode = red ? 1 : 0;

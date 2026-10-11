@@ -4,6 +4,16 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 568 — 2026-10-11 (Even cards, honest farm)
+
+**Even skill cards.** Every card in every skill grid is now the same size, with its art centred in the same box. The bottom line always says either the level that unlocks it or how many you have and can make. Tabs show how many recipes each holds.
+
+**The farm tells the truth.** When your crops are ready, the farm says "4 ready to harvest" instead of "No crops growing".
+
+**Cleaner haul line.** "What your haul unlocks" now reads like a sentence: "craft a Shortbow, Apprentice Gloves and Copper Studs".
+
+**Clearer morning line.** If you set the night to run all night, your return now says whether the forecast held, not a confusing "you set about 8h".
+
 ## v0.9.2-beta build 567 — 2026-10-11 (A first day that makes sense)
 
 **Every seed you start with grows.** A new character starts with 8 turnip seeds and no carrot seeds. Carrots needed Farming 10, so they used to sit dead in the bag on day one. The first harvest task now pays carrot seeds (the next crop up) instead of wheat seeds two rungs away.

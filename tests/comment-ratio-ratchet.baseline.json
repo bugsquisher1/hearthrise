@@ -41,10 +41,10 @@
       "bnum": 127
     },
     "src/features/smoke/market-night-and-prices.js": {
-      "total": 5997,
-      "comment": 1826,
-      "code": 3814,
-      "ratio": 0.4787624541164132,
+      "total": 6021,
+      "comment": 1831,
+      "code": 3832,
+      "ratio": 0.47781837160751567,
       "bnum": 112
     },
     "src/features/smoke/hunt-raids-and-screens.js": {
@@ -97,10 +97,10 @@
       "bnum": 134
     },
     "src/features/smoke/quests-chronicle-and-bonus.js": {
-      "total": 3352,
-      "comment": 630,
-      "code": 2549,
-      "ratio": 0.2471557473519027,
+      "total": 3376,
+      "comment": 633,
+      "code": 2569,
+      "ratio": 0.24639937718956792,
       "bnum": 42
     },
     "src/features/smoke/bounty-and-artisan.js": {

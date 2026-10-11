@@ -44,12 +44,20 @@
 //   XP-4  THE CONTROL (--selftest). A planted `addXp('prayer', 5)` must go red,
 //         a planted `G.skills.prayer =` must go red, an allowlist entry that
 //         matches nothing must go red, and prose/strings naming addXp must NOT.
+//   XP-5  A (b) LABEL IS A CLAIM THE CHAIN MUST BACK (b567). Every (b) entry
+//         names its server RPC(s), and each one's chain-end body on the replay
+//         chain writes public.player_skills (directly or via a public.* callee).
+//         --selftest relabels a client mint (b) and must go red, on synthetic
+//         chains AND on the real one (completeQuest -> hr_claim_quest; payChest's
+//         old label on the chain without 2026-10-10-muster-chest-xp-credit.sql).
+//   XP-6  (c) CLIENT-AUTHORED entries are a debt register pinned at
+//         MAX_CLIENT_AUTHORED_DEBT, which may only fall.
 //
 // ── WHAT IT DELIBERATELY DOES NOT ASSERT ────────────────────────────────────
-// It does not try to decide (a) vs (b) automatically. Both are legitimate and
-// telling them apart needs the callee's settlement rules, not a regex — that
-// judgement lives in the ALLOWLIST comments below, one line per entry, written
-// by whoever added it. What this file guarantees is that the judgement was MADE.
+// It does not decide (a) vs (b) from the client code: that needs the callee's
+// settlement rules, so the judgement lives in the ALLOWLIST, one line per
+// entry. What it guarantees is that the judgement was MADE — and, since b567,
+// that a (b) judgement names a server credit that exists.
 //
 // src/features/smoke-test.js is excluded: it is the suite, it drives addXp on
 // purpose to assert on it, and counting it would make the ratchet a measure of
@@ -89,22 +97,40 @@ export const ALLOWED = [
     + 'the two branches of the inputs-aware override (burnt / normal).'],
 
   // ── (b) APPLYING A SERVER-CREDITED VALUE ──────────────────────────────────
+  // A (b) entry MUST name, as its fifth field, the server RPC(s) that credit the
+  // XP it applies — and XP-5 PROVES, on the replay chain
+  // (tests/schema-apply-order.json), that each one's final body writes
+  // public.player_skills, directly or through a public.* callee. A (b) label
+  // with no RPC behind it is how payChest sat here for 50+ builds as
+  // "server-credited" while no server code ever wrote the XP (b567).
   ['src/net/farm-sync.js', 'reconcileFarmResult', '(b)',
     'copies plant_xp / water_xp / xp out of the hr_farm_* RESPONSE exactly once. '
-    + 'Proven by tests/farm-sync.mjs; the gesture half is proven by tests/no-client-farm-mint.mjs.'],
-  ['src/legacy.js', 'completeQuest', '(b)',
-    'a quest payout the server catalogued (hrQuestItemsAreServerCredited + hrFireQuestClaim → '
-    + 'HearthriseGoalClaim.claimQuest). Routed through killXpRoute so it splits like a kill; '
-    + '{authored:true} keeps PACE.xp off a number the Designer wrote. tests/quest-reward-parity.mjs '
-    + 'binds data, client and server catalogue together.'],
+    + 'Proven by tests/farm-sync.mjs; the gesture half is proven by tests/no-client-farm-mint.mjs.',
+    ['hr_farm_plant', 'hr_farm_water', 'hr_farm_harvest']],
   ['src/legacy.js', 'claimQuestReward', '(b)',
     'the daily/weekly goal claim. The server verdict (hr_claim_goal) is taken FIRST and this branch '
     + 'only runs for a reward it accepted; an uncataloguable goal carries `blocked:` and is never '
-    + 'dealt (tests/modal-goal-claim.mjs binds the two).'],
-  ['src/features/muster.js', 'payChest', '(b)',
-    'the Muster claim response. Items are gated on the inventory record seam; the XP rides the same '
-    + 'claim the server answered.'],
+    + 'dealt (tests/modal-goal-claim.mjs binds the two).',
+    ['hr_claim_goal']],
+
+  // ── (c) CLIENT-AUTHORED — A DEBT REGISTER, NOT AN ENDORSEMENT ─────────────
+  // Found by XP-5 the day it was written (b567): this entry was labelled (b)
+  // "a quest payout the server catalogued", and hr_claim_quest's final body
+  // writes no player_skills at all. The only quest with combatXp is
+  // hundred_kills (1,500, no gold), which never fires a claim, so its XP is
+  // authored here and reaches hr_credit_combat_xp through _combatXpPending.
+  // It is named honestly so it cannot hide again; XP-6 pins the register at
+  // MAX_CLIENT_AUTHORED_DEBT, which may only FALL. The fix is a server credit
+  // in hr_claim_quest (or the quest's own XP retired) — a P1 for its own lane.
+  ['src/legacy.js', 'completeQuest', '(c)',
+    'DEBT (b567): the quest combatXp (hundred_kills, 1,500) is client-authored — hr_claim_quest '
+    + 'credits gold/items only. Route the XP into hr_claim_quest and re-label (b) naming it.'],
 ];
+
+/* ── XP-6: THE CLIENT-AUTHORED DEBT RATCHET ─────────────────────────────────
+   The number of class (c) entries above. It may only FALL; a new (c) entry is a
+   §1 violation that needs a server credit, not a bumped constant. */
+export const MAX_CLIENT_AUTHORED_DEBT = 1;
 
 /* ── XP-3's OWN RATCHET ─────────────────────────────────────────────────────
    A direct `G.skills.<id> =` is addXp() with the guard filed off: it skips the
@@ -246,7 +272,7 @@ export function audit(sources) {
     sites.push(...sitesIn(file, src));
     writes.push(...directWritesIn(file, src));
   }
-  const allowed = ALLOWED.map(([f, fn, cls, why]) => ({ f, fn, cls, why, hits: 0 }));
+  const allowed = ALLOWED.map(([f, fn, cls, why, rpcs]) => ({ f, fn, cls, why, rpcs, hits: 0 }));
   const unclassified = [];
   for (const s of sites) {
     const a = allowed.find((x) => x.f === s.file && x.fn === s.fn);
@@ -265,6 +291,101 @@ export function audit(sources) {
   return { sites, unclassified, stale, writes, direct, allowed: allowed.concat(writesAllowed) };
 }
 
+/* ── XP-5: A (b) LABEL MUST BE BACKED BY AN RPC THAT WRITES player_skills ──────
+   Static, over the REPLAY CHAIN: every file tests/schema-apply-order.json
+   places, read in that order, and the LAST `create [or replace] function
+   public.<name>(` body for each name is its chain-end body. A body "writes
+   player_skills" if, comments stripped, it contains `insert into
+   [public.]player_skills` or `update [public.]player_skills`, or calls a
+   `public.<fn>(` whose chain-end body does (depth <= 4; a wrapper reaches its
+   __ungated inner, an RPC reaches hr_apply).
+   CANNOT SEE: a body rewritten by a programmatic patch (execute of an edited
+   pg_get_functiondef) — the textual last definition is read. A patch that
+   REMOVED a player_skills write would read as still writing; the behavioural
+   proofs (each RPC's own PGlite guard, and the migration §4 blocks) are what
+   cover that, and this check is the floor that a (b) label is not a bare
+   assertion. */
+const FN_DEF = /create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?"?([a-z_][a-z0-9_]*)"?\s*\(/gi;
+const SKILLS_WRITE = /\b(?:insert\s+into|update)\s+(?:public\.)?player_skills\b/i;
+const stripSqlComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/--[^\n]*/g, ' ');
+
+/** name -> { file, body } for the chain-end definition of every function. */
+export function chainBodies(files) {
+  const last = new Map();
+  for (const [file, text] of files) {
+    const t = text.replace(/\r/g, '');
+    FN_DEF.lastIndex = 0;
+    let m;
+    while ((m = FN_DEF.exec(t))) {
+      const rest = t.slice(m.index);
+      const tag = /\bas\s+(\$[A-Za-z_]*\$)/i.exec(rest);
+      if (!tag) continue;
+      const start = tag.index + tag[0].length;
+      const end = rest.indexOf(tag[1], start);
+      if (end < 0) continue;
+      last.set(m[1].toLowerCase(), { file, body: stripSqlComments(rest.slice(start, end)) });
+    }
+  }
+  return last;
+}
+
+/** The call path by which `rpc` writes player_skills, or null. */
+export function skillsWritePath(bodies, rpc, seen = new Set(), depth = 0) {
+  let name = String(rpc || '').toLowerCase();
+  /* THE A9 GATE (2026-08-11-authenticated-surface-lockdown.sql §4) renames a
+     client RPC to <name>__ungated and creates a thin rate-gate wrapper under the
+     old name — both by DYNAMIC SQL (execute format), which no text read can
+     follow. So the last TEXTUAL body of <name> is often the pre-rename one, and
+     reading it would be reading a body that no longer exists. When the twin is
+     on the chain, the twin IS the body: the wrapper only gates and delegates,
+     and hr_assert_grant_hygiene is the detector that it does. */
+  if (!name.endsWith('__ungated') && bodies.has(name + '__ungated')) name += '__ungated';
+  const e = bodies.get(name);
+  if (!e || seen.has(name) || depth > 4) return null;
+  seen.add(name);
+  if (SKILLS_WRITE.test(e.body)) return [`${name} (${e.file})`];
+  for (const c of e.body.matchAll(/\bpublic\.([a-z_][a-z0-9_]*)\s*\(/gi)) {
+    const sub = skillsWritePath(bodies, c[1], seen, depth + 1);
+    if (sub) return [name, ...sub];
+  }
+  return null;
+}
+
+/** XP-5 / XP-6 over an allowlist and a chain. */
+export function auditClasses(allowed, bodies) {
+  const problems = [];
+  let debt = 0;
+  for (const a of allowed) {
+    if (a.cls === '(c)') { debt++; continue; }
+    if (a.cls !== '(b)') continue;
+    if (!Array.isArray(a.rpcs) || !a.rpcs.length) {
+      problems.push(`XP-5 ${a.f} ${a.fn}() is labelled (b) "server-credited" but names no server RPC. `
+        + 'Name the RPC(s) that credit the XP it applies, or it is (c).');
+      continue;
+    }
+    for (const rpc of a.rpcs) {
+      if (!bodies.has(String(rpc).toLowerCase())) {
+        problems.push(`XP-5 ${a.f} ${a.fn}(): its (b) RPC ${rpc} is defined nowhere on the replay chain.`);
+      } else if (!skillsWritePath(bodies, rpc)) {
+        problems.push(`XP-5 ${a.f} ${a.fn}(): its (b) RPC ${rpc} never writes player_skills on the replay `
+          + 'chain (chain-end body, callees followed). The label is false: the XP it applies is '
+          + 'client-authored. Credit it server-side, or re-label it (c) and pay the debt.');
+      }
+    }
+  }
+  return { problems, debt };
+}
+
+let chainCache = null;
+export async function loadChainBodies() {
+  if (chainCache) return chainCache;
+  const { chainFiles } = await import('./schema-replay.mjs');
+  const files = [];
+  for (const [name, path] of await chainFiles()) files.push([name, readFileSync(path, 'utf8')]);
+  chainCache = chainBodies(files);
+  return chainCache;
+}
+
 /* ── the real tree ─────────────────────────────────────────────────────────── */
 function walk(dir, out) {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
@@ -279,7 +400,7 @@ function walk(dir, out) {
 export function loadSrc() { return walk(join(ROOT, 'src'), {}); }
 
 // ── XP-4 THE CONTROL ────────────────────────────────────────────────────────
-function selftest() {
+async function selftest() {
   let bad = 0;
   const check = (what, ok, extra) => {
     console.log(`  ${ok ? '✓' : '✗'} ${what}`);
@@ -344,6 +465,69 @@ function selftest() {
     check(`not vacuous: ${writes.length} real G.skills write(s) located in src/`, writes.length >= 3);
   }
 
+  // ── XP-5 / XP-6 controls ────────────────────────────────────────────────
+  const entry = (cls, rpcs) => ({ f: 'fake.js', fn: 'buryBones', cls, why: 'x', rpcs, hits: 1 });
+  // THE MUTANT: a client mint RELABELLED (b) with no RPC behind it.
+  {
+    const { problems } = auditClasses([entry('(b)', undefined)], new Map());
+    check('bites: a client mint relabelled (b) that names no RPC (XP-5)',
+      problems.length === 1 && /names no server RPC/.test(problems[0]), JSON.stringify(problems));
+  }
+  // …relabelled (b) naming an RPC that only writes the inventory (the old
+  // world_event_claim shape: computes XP, journals it, never credits it).
+  {
+    const bodies = chainBodies([['a.sql',
+      "create or replace function public.fake_claim(p int) returns jsonb language plpgsql as $$\n"
+      + "begin return public.fake_claim__ungated(p); end $$;\n"
+      + "create or replace function public.fake_claim__ungated(p int) returns jsonb language plpgsql as $$\n"
+      + "begin\n  -- update public.player_skills set xp = xp + 1   (a comment is not a write)\n"
+      + "  insert into public.player_inventory (user_id) values (auth.uid());\n"
+      + "  return jsonb_build_object('xp', '[{\"skill\":\"attack\",\"amount\":600}]'::jsonb);\nend $$;\n"]]);
+    const { problems } = auditClasses([entry('(b)', ['fake_claim'])], bodies);
+    check('bites: a (b) RPC whose body only RETURNS xp (and names player_skills in a comment)',
+      problems.length === 1 && /never writes player_skills/.test(problems[0]), JSON.stringify(problems));
+    // POSITIVE CONTROL: a LATER file in the chain restating the inner with a real
+    // write turns it green — the chain-end body is the one read.
+    const fixed = chainBodies([['a.sql',"create or replace function public.fake_claim(p int) returns jsonb language plpgsql as $$\n"
+        + "begin return public.fake_claim__ungated(p); end $$;\n"],
+      ['b.sql', "create or replace function public.fake_claim__ungated(p int) returns jsonb language plpgsql as $fn$\n"
+        + "begin insert into public.player_skills as ps (user_id, slot, skill_id, xp) values (auth.uid(), p, 'attack', 1);\n"
+        + "return '{}'::jsonb; end $fn$;\n"]]);
+    const ok = auditClasses([entry('(b)', ['fake_claim'])], fixed);
+    check('passes: the wrapper reaches a chain-end inner that writes player_skills',
+      ok.problems.length === 0, JSON.stringify(ok.problems));
+    check('bites: a (b) RPC defined nowhere on the chain',
+      auditClasses([entry('(b)', ['no_such_rpc'])], fixed).problems.length === 1);
+  }
+  // THE REAL-CHAIN MUTANTS.
+  {
+    const real = await loadChainBodies();
+    check('not vacuous: the replay chain yields function bodies', real.size >= 200, String(real.size));
+    for (const rpc of ['world_event_claim', 'world_event_absence_claim']) {
+      check(`passes: ${rpc} writes player_skills on the replay chain (b567)`, !!skillsWritePath(real, rpc),
+        'no write path');
+    }
+    // completeQuest relabelled (b) naming the RPC it actually fires.
+    const q = auditClasses([entry('(b)', ['hr_claim_quest'])], real);
+    check('bites (real chain): completeQuest relabelled (b) naming hr_claim_quest, which writes no XP',
+      q.problems.length === 1, JSON.stringify(q.problems));
+    // payChest's OLD label on the chain WITHOUT this lane's migration.
+    const { chainFiles } = await import('./schema-replay.mjs');
+    const files = [];
+    for (const [name, path] of await chainFiles()) {
+      if (name === '2026-10-10-muster-chest-xp-credit.sql') continue;
+      files.push([name, readFileSync(path, 'utf8')]);
+    }
+    const before = auditClasses([entry('(b)', ['world_event_claim'])], chainBodies(files));
+    check('bites (real chain minus the b567 migration): payChest\'s old (b) label on world_event_claim',
+      before.problems.length === 1, JSON.stringify(before.problems));
+  }
+  // XP-6.
+  {
+    const { debt } = auditClasses([entry('(c)'), entry('(c)')], new Map());
+    check('counts: two (c) entries are two debts (XP-6 ratchet input)', debt === 2, String(debt));
+  }
+
   if (bad) { console.error(`no-client-xp-mint --selftest: ${bad} control(s) failed.`); process.exit(1); }
   console.log('no-client-xp-mint --selftest: all controls green.');
   process.exit(0);
@@ -353,8 +537,8 @@ const argv = process.argv.slice(2);
 const isMain = process.argv[1]
   && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/').split('/').pop());
 if (isMain) {
-  if (argv.includes('--selftest')) selftest();
-  const { sites, unclassified, stale, direct, writes } = audit(loadSrc());
+  if (argv.includes('--selftest')) await selftest();
+  const { sites, unclassified, stale, direct, writes, allowed } = audit(loadSrc());
   if (argv.includes('--list')) {
     for (const s of sites) console.log(`${s.file}:${s.line}  ${s.fn}()  ${s.text}`);
     console.log(`\n${sites.length} call site(s); ${sites.length - unclassified.length} allowlisted, `
@@ -378,6 +562,18 @@ if (isMain) {
     problems.push(`XP-3 ${d.file}:${d.line}: a direct G.skills write — addXp() with the guard filed off. `
       + `It bypasses the record seam, PACE, the level-up route and the reconcile. Source: ${d.text}`);
   }
+  let bodies;
+  try { bodies = await loadChainBodies(); }
+  catch (e) { console.error('no-client-xp-mint: cannot read the replay chain — ' + e.message); process.exit(2); }
+  const cls = auditClasses(allowed.filter((a) => 'cls' in a), bodies);
+  problems.push(...cls.problems);
+  if (cls.debt > MAX_CLIENT_AUTHORED_DEBT) {
+    problems.push(`XP-6 ${cls.debt} class (c) client-authored entries, the ratchet allows `
+      + `${MAX_CLIENT_AUTHORED_DEBT}. A new client XP mint needs a server credit, not a bumped constant.`);
+  } else if (cls.debt < MAX_CLIENT_AUTHORED_DEBT) {
+    problems.push(`XP-6 the debt register fell to ${cls.debt} — lower MAX_CLIENT_AUTHORED_DEBT to ${cls.debt} `
+      + 'in the same commit so it cannot creep back.');
+  }
   if (problems.length) {
     console.error(`no-client-xp-mint — ${problems.length} problem(s):`);
     for (const p of problems) console.error('  ✗ ' + p);
@@ -388,6 +584,6 @@ if (isMain) {
   console.log(`no-client-xp-mint — ${sites.length} addXp call site(s) in src/ across `
     + `${ALLOWED.length} classified path(s); ${unclassified.length}/${MAX_UNCLASSIFIED_SITES} `
     + `unclassified. ${writes.length} direct G.skills write(s), all ${DIRECT_ALLOWED.length} named. `
-    + 'The client predicts and applies; it authors nothing.');
+    + `Every (b) RPC writes player_skills on the replay chain; ${cls.debt} (c) debt entry(ies) registered.`);
   process.exit(0);
 }

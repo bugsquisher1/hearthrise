@@ -156,6 +156,23 @@ export function render() {
   if (home) return;
   const html = barHtml(model(), lookups());
   if (html !== lastBar) { bar.innerHTML = html; lastBar = html; }
+  fitRoom(bar);
+}
+
+/* On a landscape phone the pane strip (src/styles/menu-journal.css) also rides
+   the topbar's middle: the bar takes only the room right of it, and its title
+   gives way (ellipsis) before the button does. */
+function fitRoom(bar) {
+  const top = bar.parentElement, strip = bar.ownerDocument.getElementById('hub-tabs');
+  if (!top || !top.getBoundingClientRect) return;
+  const t = top.getBoundingClientRect(), b = bar.getBoundingClientRect();
+  let pad = 0;
+  if (strip && !strip.hidden) {
+    const r = strip.getBoundingClientRect();
+    if (r.width > 0 && r.top < t.bottom && r.bottom > t.top) pad = Math.max(0, Math.ceil(r.right - (b.left - (parseFloat(bar.style.paddingLeft) || 0)) + 8));
+  }
+  const want = pad + 'px';
+  if (bar.style.paddingLeft !== want) bar.style.paddingLeft = want;
 }
 
 /* ── THE UNLOCK MOMENT ───────────────────────────────────────────────── */
@@ -213,6 +230,7 @@ function liveTick() {
 if (typeof window !== 'undefined') {
   window.HearthriseSpine = Object.freeze({
     model, facts, go, act, render, homeCard, showMoment, observe, steps: POINTER_STEPS,
+    __fit: fitRoom,
     __park(on) { const was = parked; parked = !!on; return was; },
     __forget() { Object.keys(answered).forEach((k) => delete answered[k]); seen = null; seenKey = null; lastBar = null; },
   });

@@ -5,8 +5,10 @@
 .sp-bar {
   flex: 1 1 auto;
   min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
   align-self: center;
-  margin: 0 12px;
+  margin: 0 16px;
   font-family: var(--f-ui);
   font-size: var(--t-micro);
   color: var(--ink-2);
@@ -48,8 +50,13 @@
   gap: 4px 12px;
   overflow: hidden;
 }
-.sp-bar .sp-parts { flex-wrap: nowrap; }
+.sp-bar .sp-parts { display: block; flex: 0 1 auto; white-space: nowrap; text-overflow: ellipsis; }
+.sp-bar .sp-part { display: inline; }
+/* The bar names the ONE part to do next; Home's card lists them all. */
+.sp-bar .sp-part:not(.is-next) { display: none; }
 .sp-part {
+  min-width: 0;
+  overflow: hidden;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -64,6 +71,8 @@
 .sp-go,
 .sp-daily {
   flex: 0 0 auto;
+  align-self: center;
+  height: 32px;
   min-height: 32px;
   padding: 0 14px;
   border-radius: var(--r-sm);
@@ -107,8 +116,8 @@
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   .sp-bar { margin: 0 8px; }
   .sp-in { gap: 8px; }
-  .sp-bar .sp-part:not(.is-next) { display: none; }
-  .sp-bar .sp-reward { display: none; }
-  .sp-go, .sp-daily { min-height: 32px; padding: 0 10px; }
+  .sp-bar .sp-reward,
+  .sp-bar .sp-step { display: none; }
+  .sp-go, .sp-daily { padding: 0 10px; }
   .hd-spine .sp-acts { flex-direction: row; }
 }

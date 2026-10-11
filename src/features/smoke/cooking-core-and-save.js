@@ -2053,10 +2053,10 @@ export default [
     const was = R.__pin({ counts: { chopped: 15, fished: 5, 'ev:cooked': 5, 'ev:kill_any': 5, 'ev:planted': 1 }, countsComplete: true, skills: {},
       property: 0, workers: 0, bag: { normal_log: 30, copper_ore: 4 }, gold: 100, equipment: {}, claimed: { gatherer: true, first_cook: true, first_blood: true } });
     try {
-      window.showTab('skills');
+      window.showTab('farming');   // a hub with a pane strip, which shares the topbar on a phone
       SP.__forget(); SP.render();
       const live = document.getElementById('hr-spine-bar');
-      assert(live && !live.hidden && live.querySelector('.sp-go'), 'the pointer bar did not draw a button on Skills');
+      assert(live && !live.hidden && live.querySelector('.sp-go'), 'the pointer bar did not draw a button on the Farm');
       const app = document.getElementById('app'), cls = document.body.className;
       for (const [w, h] of [[1440, 900], [922, 423]]) {
         phoneFrame(w, h, app.outerHTML, (doc) => {
@@ -2064,9 +2064,13 @@ export default [
           const R2 = (e) => e.getBoundingClientRect();
           const bar = doc.getElementById('hr-spine-bar'), top = doc.querySelector('.topbar'), stats = doc.querySelector('.top-stats'), go = bar && bar.querySelector('.sp-go');
           assert(bar && top && top.contains(bar), w + 'x' + h + ': the bar is not inside the topbar');
+          SP.__fit(bar);   // the frame runs no scripts; the live render does this
           const b = R2(bar), t = R2(top), g = R2(go);
           assert(b.width > 40 && b.top >= t.top - 0.5 && b.bottom <= t.bottom + 0.5, w + 'x' + h + ': the bar leaves the topbar row (' + Math.round(b.top) + '..' + Math.round(b.bottom) + ' vs ' + Math.round(t.top) + '..' + Math.round(t.bottom) + ')');
           assert(g.width > 0 && g.right <= w && (!stats || g.right <= R2(stats).left + 0.5), w + 'x' + h + ': Go is off screen or under the stats');
+          const strip = doc.getElementById('hub-tabs'), s = strip && !strip.hidden && R2(strip);
+          const inner = R2(bar.querySelector('.sp-in'));
+          if (s && s.width > 0 && s.top < t.bottom && s.bottom > t.top) assert(inner.left >= s.right - 0.5, w + 'x' + h + ': the bar runs under the pane strip (' + Math.round(inner.left) + ' < ' + Math.round(s.right) + ')');
         });
       }
     } finally { R.__pin(was); SP.__forget(); window.showTab('profile'); }

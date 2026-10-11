@@ -1,6 +1,13 @@
 -- ════════════════════════════════════════════════════════════════════════
 -- 2026-09-12-renown-high-projection.sql
 --
+-- POST-APPLY AMENDMENT (self-check ONLY, no body/data; lane/b567 2026-10-17):
+--   the §(c2)/(c3) fixture's bounty contract moved from a BOSS (which
+--   2026-10-17-bestiary-target.sql refuses) to a tier-1 monster from the board
+--   allowlist, with the pointer on it, so this file still re-applies at chain
+--   end. No function body, splice, grant or row this file installs changed;
+--   production need not re-apply it.
+--
 -- PROJECT THE SERVER'S COUNTED RENOWN ON THE ENVELOPE, AND KEEP IT FRESH.
 -- Two anchored splices, no new table, no new column, no new RPC, no grant
 -- change, no value moved:
@@ -395,6 +402,7 @@ declare
   v_gold0 bigint;
   v_gold1 bigint;
   v_boss  text;
+  v_quarry text;
   v_uid   constant uuid := '000000d7-0000-0000-0000-0000000000d7';
   v_slot  constant int  := 0;
   c_j     constant jsonb := '{"kind":"admin","intent":"renown-high-projection:probe"}'::jsonb;
@@ -509,6 +517,32 @@ begin
       raise exception 'GATE(c2): FIXTURE — no bounty-eligible is_boss monster exists, so the boss '
                       'term cannot be exercised and the client-credit half below would prove nothing';
     end if;
+    -- POST-APPLY AMENDMENT (self-check ONLY, no body/data; lane/b567 2026-10-17)
+    -- (c3)'s CONTRACT TARGET. 2026-10-17-bestiary-target.sql refuses a contract
+    -- on a boss and prices a credit only while the pointer is on the target, so
+    -- the fixture takes a tier-1 monster FROM THE BOARD ALLOWLIST
+    -- (hr_bounty_board_monsters) — never a boss or a field champion — seeded
+    -- with kills below so the credit adds no new bestiary entry and can move
+    -- only the credited counters the discount must cancel. At this file's own
+    -- chain position the allowlist does not exist yet and no champion exists
+    -- either (w0f lands later), so the pre-allowlist arm is the same rule.
+    if to_regclass('public.hr_bounty_board_monsters') is not null then
+      select b.monster_id into v_quarry
+        from public.hr_bounty_board_monsters b
+        join public.hr_bounty_monsters m on m.monster_id = b.monster_id
+       where m.tier = 1
+       order by b.monster_id limit 1;
+    else
+      select m.monster_id into v_quarry
+        from public.hr_bounty_monsters m
+       where m.tier = 1
+         and not exists (select 1 from public.hr_activities a
+                          where a.kind = 'combat' and a.is_boss and a.activity_id = m.monster_id)
+       order by m.monster_id limit 1;
+    end if;
+    if v_quarry is null then
+      raise exception 'GATE(c2): FIXTURE — no tier-1 non-boss monster exists for the (c3) contract';
+    end if;
     -- The character must actually BE fighting that boss: hr_credit_kills' cap is
     -- 0 with reason `not_in_combat` otherwise (2026-09-01-kill-daily-credit.sql),
     -- and a zero credit would make (c3) vacuous. This is the honest fixture — a
@@ -527,7 +561,8 @@ begin
       on conflict (user_id, slot, skill_id) do update set xp = 13034431;
     insert into public.player_progress (user_id, slot, kind, key, value, period_key, state)
       values (v_uid, v_slot, 'stat', 'ev:kill_monster:' || v_boss, 100, '', 'active'),
-             (v_uid, v_slot, 'stat', 'ev:kill_any', 100, '', 'active')
+             (v_uid, v_slot, 'stat', 'ev:kill_monster:' || v_quarry, 100, '', 'active'),
+             (v_uid, v_slot, 'stat', 'ev:kill_any', 200, '', 'active')
       on conflict (user_id, slot, kind, key, period_key)
         do update set value = public.player_progress.value + excluded.value;
 
@@ -595,12 +630,15 @@ begin
     --      RUN BEFORE THE CLAIM ON PURPOSE: hr_claim_rank pays gold, gold feeds
     --      the goldLog term, and a fixture that let the reward move the score
     --      could not tell an honest rise from a banked credit.
-    v_r := public.hr_accept_bounty__ungated(v_slot, 'rhp', v_boss, 'cull', 'normal', 100);
+    update public.player_state
+       set active_id = v_quarry, active_since = now() - interval '60 minutes'
+     where user_id = v_uid and slot = v_slot;
+    v_r := public.hr_accept_bounty__ungated(v_slot, 'rhp', v_quarry, 'cull', 'normal', 100);
     if coalesce(v_r->>'ok', '') <> 'true' then
       raise exception 'GATE(c3): FIXTURE — accept failed: %', v_r; end if;
     update public.active_bounty set accepted_at = now() - interval '60 minutes'
       where user_id = v_uid and slot = v_slot;
-    v_r := public.hr_credit_kills__ungated(v_slot, v_boss, 400, 'rhp-idem-1');
+    v_r := public.hr_credit_kills__ungated(v_slot, v_quarry, 400, 'rhp-idem-1');
     if coalesce(v_r->>'ok', '') <> 'true' then
       raise exception 'GATE(c3): FIXTURE — the bounty credit failed: %', v_r; end if;
     if coalesce((v_r->>'credited')::bigint, 0) <= 0 then

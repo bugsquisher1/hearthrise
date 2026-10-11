@@ -42,6 +42,8 @@
     "node tests/client-state-retired-fields.mjs --selftest": "db-replay-4",
     "node tests/bounty-abandon-fee.mjs": "db-replay-4",
     "node tests/bounty-abandon-fee.mjs --mutate": "db-replay-4",
+    "node tests/bestiary-target.mjs": "db-replay-4",
+    "node tests/bestiary-target.mjs --mutate": "db-replay-4",
     "node tests/pglite-template.mjs --verify --for=db-replay-2": "db-replay-2",
     "node tests/renown-projection.mjs": "db-replay-2",
     "node tests/renown-projection.mjs --selftest": "db-replay-2",

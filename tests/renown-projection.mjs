@@ -471,13 +471,25 @@ async function runAll(db) {
       join public.hr_activities a on a.kind = 'combat' and a.is_boss and a.activity_id = m.monster_id
      order by m.monster_id limit 1`)).id;
   ok(!!boss, 'the catalogue has a bounty-eligible is_boss monster (the fixture needs one)');
+  /* R4's CONTRACT TARGET. A boss can no longer be a contract at all
+     (2026-10-17-bestiary-target.sql: hr_accept_bounty refuses not_board_eligible),
+     so the client credit R4 grades runs against a board monster. It is seeded
+     WITH kills here, before R1 measures anything, so the credit adds no new
+     bestiary entry and the only thing it can move is the credited counters the
+     discount must cancel. */
+  const quarry = (await one(db, `select m.monster_id as id from public.hr_bounty_monsters m
+      where m.tier = 1 and not exists (select 1 from public.hr_activities a
+                                        where a.kind = 'combat' and a.is_boss and a.activity_id = m.monster_id)
+     order by m.monster_id limit 1`)).id;
+  ok(!!quarry, 'the catalogue has a tier-1 non-boss monster (R4 needs one)');
   await db.exec(`insert into public.player_skills (user_id, slot, skill_id, xp)
                  select '${UID}', 0, s, 13034431
                    from unnest(array['attack','strength','defense','hitpoints','prayer','ranged','magic']) s
                  on conflict (user_id, slot, skill_id) do update set xp = 13034431;`);
   await db.exec(`insert into public.player_progress (user_id, slot, kind, key, value, period_key, state)
                  values ('${UID}', 0, 'stat', 'ev:kill_monster:${boss}', 100, '', 'active'),
-                        ('${UID}', 0, 'stat', 'ev:kill_any', 100, '', 'active')
+                        ('${UID}', 0, 'stat', 'ev:kill_monster:${quarry}', 100, '', 'active'),
+                        ('${UID}', 0, 'stat', 'ev:kill_any', 200, '', 'active')
                  on conflict (user_id, slot, kind, key, period_key)
                    do update set value = public.player_progress.value + excluded.value;`);
   await db.exec(`update public.player_state set active_kind = 'combat', active_id = '${boss}',
@@ -549,16 +561,21 @@ async function runAll(db) {
   await db.exec(`update public.player_state set gold = 2000 where user_id = '${UID}' and slot = 0;`);
 
   // ── R4. A CLIENT KILL CREDIT MOVES NOTHING ──────────────────────────────
-  // The real bounty verbs, against the real boss. This is the property that
-  // makes caching the score safe: an undiscounted cache would turn the
-  // 2026-09-02 faucet from a self-correcting over-count into a permanent one.
+  // The real bounty verbs, against a real board monster the character is
+  // fighting (the pointer is the contract's target, as the credit requires
+  // since 2026-10-17). This is the property that makes caching the score safe:
+  // an undiscounted cache would turn the 2026-09-02 faucet from a
+  // self-correcting over-count into a permanent one.
+  await db.exec(`update public.player_state set active_id = '${quarry}',
+                   active_since = now() - interval '60 minutes'
+                  where user_id = '${UID}' and slot = 0;`);
   const acc = (await one(db,
-    `select public.hr_accept_bounty__ungated(0, 'rpg', $1, 'cull', 'normal', 100) as r`, [boss])).r;
-  ok(acc && acc.ok === true, `the fixture accepted a bounty on ${boss} (got ${JSON.stringify(acc && acc.error)})`);
+    `select public.hr_accept_bounty__ungated(0, 'rpg', $1, 'cull', 'normal', 100) as r`, [quarry])).r;
+  ok(acc && acc.ok === true, `the fixture accepted a bounty on ${quarry} (got ${JSON.stringify(acc && acc.error)})`);
   await db.exec(`update public.active_bounty set accepted_at = now() - interval '60 minutes'
                   where user_id = '${UID}' and slot = 0;`);
   const cred = (await one(db,
-    `select public.hr_credit_kills__ungated(0, $1, 400, 'rpg-idem-1') as r`, [boss])).r;
+    `select public.hr_credit_kills__ungated(0, $1, 400, 'rpg-idem-1') as r`, [quarry])).r;
   ok(cred && cred.ok === true, `the client kill credit was accepted (got ${JSON.stringify(cred && cred.error)})`);
   ok(Number(cred && cred.credited) > 0,
      `the credit applied ${cred && cred.credited} kills — a zero credit would make this check vacuous`);

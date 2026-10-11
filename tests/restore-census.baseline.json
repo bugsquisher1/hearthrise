@@ -686,6 +686,11 @@
    "replay": 514,
    "note": "Generated from src/data/*.js by tools/gen-catalogues.mjs; content guarded by --check as a smoke preflight. 344 rows on 2026-08-15, 508 now. Rebuilt from repo, never restored."
   },
+  "hr_rally_action_s": {
+   "class": "seeded",
+   "replay": 406,
+   "note": "Generated catalogue (2026-10-10-rally-action-times.generated.sql, tools/gen-rally-action-times.mjs --check in CI): the paced seconds one gather/artisan action is worth in rally points (b568). Server-owned reference data derived from src/data; rebuilt from repo, never restored."
+  },
   "hr_bounty_monsters": {
    "class": "seeded",
    "replay": 108,

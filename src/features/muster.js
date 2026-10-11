@@ -50,7 +50,7 @@
   var WINDOW_MIN      = 45;
   var GOAL_PER_PLAYER = 2000;
   var MIN_GOAL        = 6000;
-  var TOTAL_CAP       = 6000;     // per muster    (mirrors the server)
+  var TOTAL_CAP       = 3000;     // per muster    (mirrors the server)
   var FLUSH_MS        = 30000;    // how often the server's tally is re-read while joined
   /* How long after the window closes the tally is still re-read. Activity
      inside the window can settle after it closes (attended ~90 s; an away
@@ -111,12 +111,26 @@
       desc: 'Every hand in the realm, whatever it holds.' }
   ];
 
-  // Points per unit of play. THE SERVER SCORES (2026-10-10-rally-points-server.sql,
-  // hr_rally_points_of): it reads the joined character's journalled activity in
-  // the window and applies hr_rally_point_rules, which restates this table and
-  // EVENTS[].sources (tests/rally-points-server.mjs RPS-9 holds them equal).
-  // The browser never computes or sends a point; it renders the server's tally.
-  var POINTS = { kill_any: null /* 10 x tier */, gather: 4, harvest: 6, cooked: 12, smithed: 12, crafted: 12 };
+  // THE SERVER SCORES (2026-10-10-rally-points-server.sql): it reads the joined
+  // character's journalled activity in the window and pays TIME — every gather
+  // or artisan action its paced seconds, 25 x tier per kill, 200 per harvested
+  // plot — weighted by EVENTS[].sources. The weights live in ONE server table
+  // (hr_rally_point_rules); the browser never scores. These are DISPLAY
+  // mirrors of that table's fixed band thresholds, held equal by
+  // tests/rally-points-server.mjs RPS-9. The join bonus is shown from the
+  // server's join response, never assumed here.
+  var BANDS      = { answered: 600, silver: 1500, gold: 2500 };
+  // The band ladder as the player reads it: where they stand and what is next.
+  function bandLine(points) {
+    var p = Math.max(0, Math.floor(+points || 0));
+    var now = p >= BANDS.gold ? 'Gold' : p >= BANDS.silver ? 'Silver' : p >= BANDS.answered ? 'Answered' : null;
+    var next = p < BANDS.answered ? ['Answered', BANDS.answered] : p < BANDS.silver ? ['Silver', BANDS.silver]
+             : p < BANDS.gold ? ['Gold', BANDS.gold] : null;
+    return (now ? now + ' band' : 'No chest yet') +
+      (next ? ' · ' + (next[1] - p).toLocaleString() + ' to ' + next[0] : ' · the top band') +
+      ' (Answered ' + BANDS.answered.toLocaleString() + ' · Silver ' + BANDS.silver.toLocaleString() +
+      ' · Gold ' + BANDS.gold.toLocaleString() + ')';
+  }
 
   // ════════════════════════════════════════════════════════════
   // 1b · THE THEMED CHEST  (b231 — Tyler: "Forge Levy pays smithing")
@@ -476,7 +490,7 @@
   function rewardReady(ms) {
     var st = ensureState();
     ms = (ms == null) ? now() : ms;
-    return !!(st.eventKey && !st.claimed && st.points > 0 && ms >= st.endMs);
+    return !!(st.eventKey && !st.claimed && st.points >= BANDS.answered && ms >= st.endMs);
   }
 
   // ── The pre-selection, stored SEPARATELY from the muster mirror ──
@@ -633,6 +647,7 @@
     already_claimed: 'You have already taken today’s rally chest',
     not_joined:      'You did not join a rally today',
     no_contribution: 'You joined but never contributed — no chest today',
+    below_answered:  'Your rally fell short of Answered (' + BANDS.answered.toLocaleString() + ' points) — no chest today',
     still_live:      'The rally is still running — claim when it closes',
     expired:         'That chest expired at the day roll',
     not_signed_in:   'Sign in to claim your rally chest',
@@ -682,7 +697,8 @@
     return { action: 'accept', dayKey: out.day_key, eventKey: out.event_key,
              slot: +out.slot || null, endsAt: out.ends_at,
              participants: +out.participants || 0, goal: +out.goal || MIN_GOAL,
-             progress: +out.progress || 0 };
+             progress: +out.progress || 0, points: Math.max(0, Math.floor(+out.points || 0)),
+             bonus: Math.max(0, Math.floor(+out.bonus || 0)) };
   }
   function reduceContribute(status, out) {
     if (isMissingRpc(status, out)) return { action: 'unsupported' };
@@ -868,11 +884,11 @@
         toast(d.message, 'info'); renderAll(); return false;
       }
       if (d.action === 'accept') {
-        adopt({ dayKey: d.dayKey, eventKey: d.eventKey, slot: d.slot,
+        adopt({ dayKey: d.dayKey, eventKey: d.eventKey, slot: d.slot, points: d.points,
                 startMs: w.startMs, endMs: d.endsAt ? Date.parse(d.endsAt) : w.endMs,
                 server: true });
         community = { eventKey: d.eventKey, participants: d.participants, goal: d.goal, progress: d.progress, met: false };
-        announceJoin(w);
+        announceJoin(w, d.bonus);
         renderAll(); return true;
       }
     }
@@ -907,8 +923,10 @@
     return st;
   }
 
-  function announceJoin(w) {
-    var aura = ' — +' + Math.round(LIVE_XP_AURA * 100) + '% all XP while the rally runs.';
+  function announceJoin(w, bonus) {
+    // `bonus` is the SERVER's grant from the join response, never assumed.
+    var aura = (bonus > 0 ? ' — +' + bonus.toLocaleString() + ' points for answering' : '') +
+      ' — +' + Math.round(LIVE_XP_AURA * 100) + '% all XP while the rally runs.';
     toast(autoJoining ? (w.event.name + ' opened and you were here — you are in' + aura)
                       : ('You answer ' + w.event.name + aura), 'levelup');
   }
@@ -1544,7 +1562,8 @@
         '<div class="tiny" style="margin-bottom:10px">Contributes: <b style="color:var(--gold-2)">' + esc(ev.what) + '</b> · ' +
         fmtClock(live.endMs - now()) + ' left</div>' + communityHtml();
       if (joinedThisWindow()) {
-        body += '<div class="tiny" style="margin-top:8px">Your contribution: <b>' + st.points.toLocaleString() + '</b> points</div>';
+        body += '<div class="tiny" style="margin-top:8px">Your contribution: <b>' + st.points.toLocaleString() + '</b> points' +
+          ' · ' + esc(bandLine(st.points)) + '</div>';
         foot = '<div class="hr-mu-row"><button class="btn btn-sm" data-mu="events">Open Events</button></div>';
       } else if (st.dayKey === live.dayKey && st.eventKey) {
         body += '<div class="tiny muted" style="margin-top:8px">You already answered a muster today. ' +
@@ -1740,7 +1759,8 @@
       '<div class="card-body" style="padding:12px 14px">' +
         '<div class="tiny muted" style="margin-bottom:8px">' + esc(head.desc) + '</div>' +
         (live ? communityHtml() : '') +
-        (joinedThisWindow() ? '<div class="tiny" style="margin-top:6px">Your contribution: <b>' +
+        (joinedThisWindow() ? '<div class="tiny" style="margin-top:6px">' + esc(bandLine(st.points)) + '</div>' +
+          '<div class="tiny" style="margin-top:6px">Your contribution: <b>' +
             st.points.toLocaleString() + '</b> points · +' + Math.round(LIVE_XP_AURA * 100) + '% all XP while mustered</div>' : '') +
         slotsHtml(slots) +
         (cta ? '<div class="hr-mu-row">' + cta + '</div>' : '') +
@@ -1854,7 +1874,8 @@
     EVENTS: EVENTS,
     SLOT_UTC_HOURS: SLOT_UTC_HOURS, WINDOW_MIN: WINDOW_MIN,
     GOAL_PER_PLAYER: GOAL_PER_PLAYER, MIN_GOAL: MIN_GOAL,
-    TOTAL_CAP: TOTAL_CAP, LIVE_XP_AURA: LIVE_XP_AURA, POINTS: POINTS,
+    TOTAL_CAP: TOTAL_CAP, LIVE_XP_AURA: LIVE_XP_AURA, BANDS: BANDS,
+    bandLine: bandLine,
     liveAura: liveAura,   // b228: what the aura pays right now, for power-budget.js
     BASE_BAND: BASE_BAND, ABSENT_BAND: ABSENT_BAND, ABSENT_SHARE: ABSENT_SHARE,
     // clock + schedule

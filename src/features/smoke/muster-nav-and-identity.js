@@ -459,6 +459,14 @@ export default [
       assert(body && Object.keys(body).join(',') === 'p_event_key' && body.p_event_key === G.muster.eventKey,
         'the contribute call carried more than the event key: ' + JSON.stringify(body));
       assert(G.muster.points === 37, 'the mirror was not REPLACED by the server tally (6000 -> 37), got ' + G.muster.points);
+      // FIXED bands (designer ruling): no chest below Answered, and the copy
+      // names where the player stands.
+      assert(/Silver band/.test(M.bandLine(1600)) && /No chest yet/.test(M.bandLine(37))
+        && /Gold band/.test(M.bandLine(M.BANDS.gold)), 'the band copy is wrong: ' + M.bandLine(1600));
+      G.muster.endMs = M.now() - 1;
+      assert(M.rewardReady() === false, 'a tally below Answered (' + G.muster.points + ') offers a chest');
+      G.muster.points = M.BANDS.answered;
+      assert(M.rewardReady() === true, 'a tally at Answered offers no chest');
       // A claimed rally stops asking.
       G.muster.claimed = true; calls = 0;
       await M.refresh();
@@ -518,7 +526,7 @@ export default [
       /* A day already joined, window closed, contribution made: the shape that
          used to fall through to the solo chest. */
       Object.assign(M.ensureState(), { dayKey: M.todayKey(), eventKey: w ? w.eventKey : 'x#0', slot: 0, startMs: 0,
-        endMs: 1, points: 500, claimed: false, server: false });
+        endMs: 1, points: 1600, claimed: false, server: false });
       const paid = await M.claim();
       assert(paid === false, 'a signed-out claim returned true — a chest was paid with no server');
       assert(minted === 0, 'a signed-out claim minted ' + minted + ' item/XP grant(s) client-side');

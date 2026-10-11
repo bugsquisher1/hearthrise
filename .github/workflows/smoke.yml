@@ -2575,6 +2575,12 @@ jobs:
           node tests/rally-points-server.mjs
           node tests/rally-points-server.mjs --selftest
 
+      # b568 rev.2: rally points pay TIME, read from hr_rally_action_s. That table
+      # is GENERATED from src/data (node/recipe ms x PACE.actionMs), never typed.
+      - name: Rally action-time catalogue - generated from src/data, never hand-typed
+        if: ${{ !cancelled() }}
+        run: node tools/gen-rally-action-times.mjs --check
+
       # SA-048: crediting Bounty-Hunter XP (b504, the step above) made the board a
       # RANKED surface, but hr_accept_bounty gated the target TIER by SERVER COMBAT
       # level ONLY. The board's DIFFICULTY ladder is client-only: slot-3 'hard'

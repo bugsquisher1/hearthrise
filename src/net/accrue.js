@@ -890,13 +890,13 @@ export async function awaitSettleRaceClear() {
   return true;
 }
 
-/* ── ONE RETRY POLICY FOR EVERY EDGE INTENT (b568, live P1) ─────────────────
+/* ── ONE RETRY POLICY FOR EVERY EDGE INTENT (live P1) ──────────────────────
    A Turnip Seed buy during a fight was refused `version_conflict` (the combat
    settle bumped player_state.version between the edge's read and its apply),
    nothing retried it, and the player was handed the race. equip.js and
    activity.js already retried once; the gold verbs, eat, enchant, trophy_claim,
    dungeon_settle and quartermaster_buy did not. This is their one copy of the
-   rule equip.js states in full (b534):
+   rule equip.js states in full:
      · only an ANSWERED `version_conflict` whose body carries a finite `version`
        (the edge's fresh hr_state_of read) — a refusal applied NOTHING, so a
        second key cannot duplicate anything;
@@ -1097,7 +1097,7 @@ export function combatXpReflushPromise() { return reflushP; }
    resolves a step earlier, before resolveCombatXpDeferral runs. */
 let settleTail = null;
 /**
- * b568 — EVERY ATTENDED COMBAT CREDIT IS ON THE SERVER BEFORE A SWITCH LEAVES
+ * EVERY ATTENDED COMBAT CREDIT IS ON THE SERVER BEFORE A SWITCH LEAVES
  * COMBAT. Awaits the settle on the wire to its tail, then the re-flush that
  * settle fired. Bounded (SETTLE_RACE_WAIT_MS, then goal-claim.js's own request
  * deadline); never throws. activity.js calls it after flushAttendedCredits().

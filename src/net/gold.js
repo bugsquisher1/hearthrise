@@ -117,7 +117,7 @@ import { fetchWrite,
   showReplacementSheet, registerPredictionSeam, isReconcilePending,
   classifyFrame, commitFrame, resetFrameGate, getAppliedFrame, noteFrameDrop,   // the frame gate, §7.1
   applyCollectedReceipt,   // a verb that settled first hands its `collected` to the welcome card
-  retryOnConflict,         // b568 — the one version_conflict retry policy
+  retryOnConflict,         // the one version_conflict retry policy
 } from './accrue.js?v=567';
 import { SHOP_OFFERS } from '../data/shops.js?v=567';
 import { withSettleFirstRetry } from './settle-first.js?v=567';
@@ -450,7 +450,7 @@ export function rollbackPrediction(G, key) {
   return p.delta.gold;
 }
 
-/* ── THE GOODS LEG (b568, live P1: "Have: 33", the server held 23) ──────────
+/* ── THE GOODS LEG (live P1: "Have: 33", the server held 23) ──────────
    A buy moves TWO things: gold, predicted above and reconciled ABSOLUTELY, and
    goods, which the caller adds to the display bag. The bag is a one-way
    `Math.max` merge in prod (accrue.js reconcileInventory, isInventoryAbsolute()
@@ -1026,7 +1026,7 @@ function inert(outcome, verb, reason, detail, key) {
  * @param req  what buildGoldRequest needs, minus the transport bits
  * @param key  the intent key, ALREADY used by `settle` if the caller predicted
  *
- * ONE RETRY, AND ONLY FOR AN ANSWERED `version_conflict` (b568, live P1 — a
+ * ONE RETRY, AND ONLY FOR AN ANSWERED `version_conflict` (live P1 — a
  * Turnip Seed buy during a fight raced the combat settle, was refused, and the
  * client kept its +10 seeds). The rule is accrue.js `retryOnConflict`, shared
  * with eat / enchant / trophy / dungeon: a refusal applied NOTHING (hr_apply's

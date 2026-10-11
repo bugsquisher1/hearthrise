@@ -104,7 +104,7 @@ function buyShopItem(id,qty,cost){
      this gesture's prediction and no other. */
   const _k=goldIntentKey();
   goldSettle(-cost,'shop.buy',_k);
-  /* THE GOODS LEG RIDES THE SAME KEY (b568): gold.js takes it back on any
+  /* THE GOODS LEG RIDES THE SAME KEY: gold.js takes it back on any
      answer that is not a receipt, before that answer's envelope merges. */
   const H=window.HearthriseGold;
   if(addItem(id,qty)&&_k&&H&&typeof H.noteGoodsPrediction==='function') H.noteGoodsPrediction(_k,{[id]:qty});

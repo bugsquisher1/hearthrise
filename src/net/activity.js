@@ -664,7 +664,7 @@ function notifyPlayer(text) {
 }
 
 function notifySwitchRefused(kind, id) {
-  /* b568 (live: "Couldn't switch — still fighting Slime" on a tap TO Slime). A
+  /* (live: "Couldn't switch — still fighting Slime" on a tap TO Slime). A
      refused re-declaration whose target the server is ALREADY doing is not a
      failed switch: the player has what they asked for, so nothing is said. */
   const a = lastServerActivity;
@@ -1179,7 +1179,7 @@ export async function declareActivity(rawKind, rawId, opts) {
        runs INSIDE this flush, so pre-flushing there is a cycle. */
     if (!o.force && confirmed && confirmed.kind === 'combat') {
       try { await flushAttendedCredits(); } catch (e) {}
-      /* b568 (live: combat → Bronze Bar, `xp_credit_not_in_combat` 1.5 s AFTER the
+      /* (live: combat → Bronze Bar, `xp_credit_not_in_combat` 1.5 s AFTER the
          switch). A flush refused `settle_first` DEFERS its XP and asks for a
          settle; that settle's answer re-sends it (resolveCombatXpDeferral). The
          switch used to go out in between, so the re-send reached a server no

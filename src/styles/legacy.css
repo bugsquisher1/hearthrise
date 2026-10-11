@@ -2817,7 +2817,9 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 
 .act-grid{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(186px,1fr));
+  /* auto-FILL, not auto-fit — auto-fit collapsed the empty tracks and a
+     one-card lane drew its card the width of the panel. */
+  grid-template-columns:repeat(auto-fill,minmax(186px,1fr));
   /* b215: rows size to their CONTENT and the grid scrolls.
      This was `grid-auto-rows:minmax(0,1fr)` + `overflow:hidden`, which made
      every row share the panel height equally. That looked fine while a skill
@@ -3050,14 +3052,9 @@ body.hide-profile-overflow.has-prof-toolbar .eff-panel{grid-column:1 / span 2;gr
 .companion-card .cc-bar i{display:block;height:100%;background:linear-gradient(90deg,#7f9a4f,#7f9a4f)}
 
 /* ===== block 26: visual-polish-v1 ===== */
-/* Activity tile icons — bigger */
-.act-tile .at-icon img{
-  max-width:78% !important;
-  max-height:78% !important;
-}
-.act-tile .at-icon{
-  margin:8px 0 !important;
-}
+/* Activity tile icons: the box and the fit are owned by art-direction.css
+   (one fixed art box per card); the old 78%/!important sizing that lived
+   here made every sprite's own canvas margin show through. */
 
 /* Skill nav tiles — make icons proper size */
 .skill-tile img{

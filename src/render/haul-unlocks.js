@@ -147,10 +147,30 @@
     };
   }
 
+  /* A PAIR NOUN TAKES NO ARTICLE ("craft Apprentice Gloves", never "craft an
+     Apprentice Gloves"). The catalogue carries no plural flag and
+     should not need one: a name is plural when its HEAD noun is — the word
+     before " of " if there is one ("Ring of Thorns" is one ring), else the
+     last word — and that head ends in a lone -s (Gloves, Studs, Boots, Greaves,
+     Platelegs, Earrings), not -ss/-us/-is (Cutlass, Aegis). */
+  function isPlural(name) {
+    var head = String(name || '').split(/\s+of\s+/i)[0].trim().split(/\s+/).pop() || '';
+    return /[^su]s$/i.test(head) && !/is$/i.test(head);
+  }
   function article(name) { return /^[aeiou]/i.test(name) ? 'an' : 'a'; }
+  function noun(name) { return isPlural(name) ? name : article(name) + ' ' + name; }
+  function verbOf(u) { return u.kind === 'property' ? 'build' : (VERB[u.skill] || 'make'); }
   function phrase(u) {
     if (u.kind === 'property') return 'build your ' + u.name;
-    return (VERB[u.skill] || 'make') + ' ' + article(u.name) + ' ' + u.name;
+    return verbOf(u) + ' ' + noun(u.name);
+  }
+  /* One verb when every unlock shares it: "craft a Shortbow, Apprentice Gloves
+     and Copper Studs", not "craft …, craft … and craft …". */
+  function body(list) {
+    var v = verbOf(list[0]);
+    var same = list.length > 1 && list.every(function (u) { return u.kind !== 'property' && verbOf(u) === v; });
+    if (same) return v + ' ' + joinAnd(list.map(function (u) { return noun(u.name); }));
+    return joinAnd(list.map(phrase));
   }
   function joinAnd(list) {
     if (list.length < 2) return list.join('');
@@ -167,10 +187,10 @@
      own chip form); without, it is Home's standing line. */
   function lineFrom(list, haul) {
     if (!list.length) return '';
-    var body = 'you have enough to ' + joinAnd(list.map(phrase)) + '.';
+    var text = 'you have enough to ' + body(list) + '.';
     var v = haul ? list[0].via : null;
-    if (!v) return 'Y' + body.slice(1);
-    return 'With ' + v.qty.toLocaleString() + ' ' + itemName(v.id) + ' home, ' + body;
+    if (!v) return 'Y' + text.slice(1);
+    return 'With ' + v.qty.toLocaleString() + ' ' + itemName(v.id) + ' home, ' + text;
   }
   function line(haul) {
     try { return lineFrom(pick(context(haul)), plain(haul) ? haul : null); } catch (e) { return ''; }
@@ -184,6 +204,6 @@
     return t ? { g: 'uiHome', t: t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'), v: '' } : null;
   }
 
-  window.HearthriseHaulUnlocks = { MAX: MAX, pick: pick, context: context, lineFrom: lineFrom, line: line,
+  window.HearthriseHaulUnlocks = { MAX: MAX, pick: pick, context: context, lineFrom: lineFrom, line: line, isPlural: isPlural,
     welcomeRow: welcomeRow };
 })();

@@ -6,7 +6,7 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 59 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, stampRecordLikeLoad, withFarmServer, farmReplantFixtureG, farmHarvestThenPlant, withDeferredFarmPlant, goldOf, gemsOf, snapshotG, restoreG, snapRoundTrip, on, snapshot, serverBagFixture } from './_harness.js?v=567';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, stubSignedIn, stampRecordLikeLoad, withFarmServer, farmReplantFixtureG, farmHarvestThenPlant, withDeferredFarmPlant, goldOf, gemsOf, snapshotG, restoreG, snapRoundTrip, on, snapshot, serverBagFixture } from './_harness.js?v=568';
 
 /* The server mirrors snapshotG does not carry: put them back exactly, absent stays absent. */
 const keepServerMirrors = () => {
@@ -280,6 +280,33 @@ export default [
         'the "Water all" header action is missing');
       assert(document.getElementById('farm-next-water'), 'the "next watering" retention line is missing');
     } finally { restoreG(snap); try { window.showTab('profile'); } catch {} }
+  }),
+
+  /* -- regression suite -- FARM-HEAD-1: four READY tiles under a header
+     reading "No crops growing". The header reads the same per-plot predicate as the
+     tiles, for every mix. Mutation: restore the growing-only filter ⇒ (a) red. */
+  () => tryRun('FARM-HEAD-1: the farm header agrees with the tiles (ready / thirsty / watered / mixed / empty)', () => {
+    if (!document.getElementById('farm-panel')) return;
+    const snap = snapshotG(), now = Date.now(), hours = window.CROPS.turnip.hours;
+    const ready = () => ({ cropId: 'turnip', plantedAt: now - (hours + 1) * 3600000, waterings: [], state: 'ready' });
+    const dry = () => ({ cropId: 'wheat', plantedAt: now - 3600000, waterings: [], state: 'growing' });
+    const wet = () => ({ cropId: 'wheat', plantedAt: now - 3600000, waterings: [now - 60000], state: 'growing' });
+    const head = (plots) => { window.G.farmPlots = plots; window.renderFarm();
+      const el = document.getElementById('farm-next-water'); return el ? el.textContent : null; };
+    try {
+      window.G.homestead = { tier: 5 };
+      const a = head([ready(), ready(), ready(), ready()]);
+      assert(a === '4 ready to harvest', '(a) THE BUG: four ready plots read "' + a + '"');
+      assert(document.querySelectorAll('#farm-panel .farm-tile.ready').length === 4, 'CONTROL: the four tiles are not ready');
+      const b = head([dry(), dry()]);
+      assert(b === '2 plots are thirsty', '(b) two dry plots read "' + b + '"');
+      const c = head([wet()]);
+      assert(/^Next watering in /.test(c), '(c) a watered plot read "' + c + '"');
+      const d = head([ready(), dry(), null]);
+      assert(d === '1 ready to harvest · 1 plot is thirsty', '(d) mixed plots read "' + d + '"');
+      const e = head([null, null]);
+      assert(e === 'No crops growing', '(e) empty plots read "' + e + '"');
+    } finally { restoreG(snap); try { window.renderFarm(); } catch (e) {} }
   }),
 
   // ── b220 regression suite (backlog #15 the Muster + #14 discoverability) ──

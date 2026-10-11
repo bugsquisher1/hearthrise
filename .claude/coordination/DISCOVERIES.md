@@ -4,6 +4,10 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-10-11 · qa-engineer · utc-midnight-replay was load-dependent by construction; a killed child read as a red arm (lane fix-utc-midnight-flake)
+
+P2 (guard flake, blocks lane-done/CI intermittently). Two causes, both fixed. (1) The clock shim offset the REAL clock from process start, and the probe that turned "fixture seconds" into that offset was measured in one replay and spent on the next — so under load every file of the chain began at a load-dependent instant (12.9 s to the fixture idle; one baseline run took 20 min on this box) and an arm's label was a hope. Now `tests/schema-replay.mjs` calls `globalThis.__HR_CLOCK_PIN__(i, name)` before each file (no-op without the shim) and the shim serves file i at exactly midnight + k s + i ms, reads advancing 1 µs, timers advancing virtual time (Postgres re-arms its timeouts forever on a read-counted clock otherwise — measured: replay done, process alive 10 min). The probe is now an assertion (fixture reads 0 µs off its pin); every arm must show `HRCLOCK pins=<chain length>` or it is HARNESS. (2) MEASURED on this lane's own 20× run: arm "+0 s" died exit 143 with no output when something outside the guard SIGTERMed the node process tree — the bare "→" of both reports. Red now requires the replay's own verdict (`failed to apply:` / `SCHEMA DRIFT:`); anything else exits 2 naming exit code, signal and output. **Route (Coordinator):** something on the shared box kills msys-launched node trees mid-run (seen 2026-10-11 ~04:20 UTC); find the lane doing a broad `pkill`/`kill` of node.
+
 ## 2026-10-08 · qa-engineer · the replay bars ran ~4 000 engine chains on one core; db-replay-5 timed out (lane b565-ci-replay5-split)
 
 CI db-replay-5 (set/b565 @3ea45544, run 37725703255) was CANCELLED at 20 min: the parity-probe step went 42 s (main@e6a12d3a) → 367–899 s across today's next runs with NO code change between the 367 s and 765 s runs, so the cost was structural and the spread was runner variance. Root cause: 210c1065 put a seeded replay behind every combat probe (probe-bar: 12 replicas × 15 probes per read, PB-1/PB-2/PB-2p/every mutant re-running the same chains) and d051c835 took the evaluator's --selftest to 120 replicas × 12 probes; world-tick-vigour-line added 300 seeds per side; one shadow chain of a 4 h span is ~0.2 s, all on one core. Fixed without touching a replica count, fixture or bar: `tools/world-tick-replay-pool.mjs` runs the pure replica tasks across worker threads (results in task order; `HR_REPLAY_THREADS=1` = serial reference), probe-bar computes each distinct (chain, mutation, fixture, start, span, seed) once (`tests/_probe-bar-chains.mjs`; the reproduction re-run is never memoised; PB-0c proves pooled == inline). Every read diffs byte-identical to the serial code. The pricing family moved to a new `db-replay-8`. **Lead, not fixed (P3, route Systems Engineer):** in one process the engine gets ~2.5× slower per chain after the first ~25 replays at constant work — `--trace-deopt` shows `computeAccrual` (supabase/functions/hr-accrue/accrual.js) deopt-looping on "unexpected name in keyed access" / "wrong map". The live edge runs the same function per settle; worth a look for edge CPU, not changed here (it moves the payload hash).
@@ -3624,3 +3628,13 @@ intent + projection); the server half of 5 (sell-by-confirmed-quantity) may need
    when the server count was 0/unknown, and the Collection Log's "% complete" read `G.collection` /
    `G.bestiary`. The Journal prints the server's counts (`HearthriseTrophies`, `serverStats()`) or the
    pending dash; JOURNAL-SERVER-1 pins it.
+
+## 2026-10-11 · art-director · "uneven squares" was three causes, only one of them CSS (lane/b568-even-recipe-cards)
+1. Heights: `.act-grid{align-items:start}` (art-direction.css) plus a lock line only locked cards had.
+   Measured 194 vs 222.6 vs 247px in one Smelting row. Cards are now fixed slots (art box, name, meta,
+   two-line inputs, one pinned status line) and rows stretch.
+2. Icon size: every icon BOX was already equal; the sprite canvases are not (copper ingot fills ~70% of
+   256px, iron fills all of 128px). Fixed by an alpha-bbox crop via `object-view-box`, sized on the long
+   axis. A letterboxed view box still paints the cropped pixels, so `object-fit:contain` alone is wrong.
+3. Widths: grid tracks were equal (226.5px); `auto-fit` made one-card lanes (Castle Stores) full-width.
+   Now `auto-fill`.

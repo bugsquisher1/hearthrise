@@ -6,8 +6,8 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 183 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { CHARM_CLASS_LORE, CHARM_RANK_LORE } from '../../data/charm-lore.js?v=567';
-import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot, closeOverlays, phoneFrame, feedServerQuests, serverBagFixture, withServerBacked } from './_harness.js?v=567';
+import { CHARM_CLASS_LORE, CHARM_RANK_LORE } from '../../data/charm-lore.js?v=568';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot, closeOverlays, phoneFrame, feedServerQuests, serverBagFixture, withServerBacked } from './_harness.js?v=568';
 
 /* SALVAGE-1's regression pin: the goblin drop panel as a player reads it (the
    text of each row, not the markup, so an icon path or cache bump cannot move
@@ -5144,7 +5144,7 @@ export default [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=567')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=568')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -5829,11 +5829,15 @@ export default [
       root = document.getElementById('market-root');
       const html = root.innerHTML;
       assert(html.indexOf('No trades yet') === -1, 'a populated ledger must not render the empty state');
-      assert(html.indexOf('1 sold') >= 0 && html.indexOf('1 bought') >= 0,
-        'the ledger header must total both sides');
+      const text = root.textContent;
+      assert(/Earned\s*\+200g\s*from 1 sale(?!s)/.test(text) && /Spent\s*90g\s*on 1 purchase(?!s)/.test(text),
+        'the ledger header must total both sides in words: ' + (root.querySelector('.mk-ledger') || root).textContent.slice(0, 300));
       assert(html.indexOf('+200g') >= 0, 'a sale must show the NET it actually paid');
       assert(html.indexOf('21g each') >= 0, 'a sale must show the per-unit price it traded at');
-      assert(html.indexOf('10g house tax') >= 0, 'a sale must name the house tax it lost');
+      assert(html.indexOf('10g tax') >= 0, 'a sale must name the tax it lost');
+      // Plain words for time ("1 hour ago"), never the log-style "1h ago".
+      assert(/1 hour ago/.test(text) && /2 hours ago/.test(text) && !/\b\d+h ago\b/.test(text),
+        'the ledger must say how long ago in words: ' + (root.querySelector('.mk-ledger') || root).textContent.slice(0, 300));
       assert(html.indexOf('mk-ledger-tab') >= 0, 'the All/Sold/Bought filter must render');
       /* NO COUNTERPARTY IDENTITY. market-v2 exposes no name on this table and
          publishing the auth UUID is the exact hole S17 closed — so the render
@@ -7183,7 +7187,7 @@ export default [
        fought a Dark Wizard the server settled from 6 straight into death #8).
        The rest of this test is UNCHANGED: away still owns hp mid-fight, and a
        heal still applies. */
-    const A = await import('../../net/accrue.js?v=567');
+    const A = await import('../../net/accrue.js?v=568');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 2, 'an IDLE client refused the server\'s hp (kept ' + G1.playerHp
@@ -7208,7 +7212,7 @@ export default [
        raised hp freely (next >= cur), so the live fight snapped to full and the
        player never took damage. A non-away envelope during a live fight must
        PRESERVE the client's combat hp; an away-return envelope still applies. */
-    const A = await import('../../net/accrue.js?v=567');
+    const A = await import('../../net/accrue.js?v=568');
 
     // Live sync: activeMonster set, NO away block, server hp full, client hp low.
     const G = { playerHp: 4, playerMaxHp: 10, activeMonster: 'goblin' };
@@ -7235,7 +7239,7 @@ export default [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../../net/accrue.js?v=567');
+    const A = await import('../../net/accrue.js?v=568');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);
@@ -7428,7 +7432,7 @@ export default [
        teaches the next author to delete the explanation. */
     const FILES = ['src/net/auth.js', 'src/net/supabase-chat-backend.js', 'src/bug-report.js'];
     for (const f of FILES) {
-      const raw = await (await fetch(f + '?v=567')).text();
+      const raw = await (await fetch(f + '?v=568')).text();
       assert(raw.length > 1000, 'could not read ' + f + ' to guard it — the guard is checking nothing');
       const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
       /* Any remote fetch of EXECUTABLE code: a dynamic import, or a <script>
@@ -7478,7 +7482,7 @@ export default [
        PREREQUISITE for integrity, not a substitute, so the code looked careful
        while verifying nothing. A compromise there is arbitrary JS in every
        player's page beside their session token. */
-    const raw = await (await fetch('src/observability.js?v=567')).text();
+    const raw = await (await fetch('src/observability.js?v=568')).text();
     assert(raw.length > 1000, 'could not read src/observability.js to guard it');
     const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
 
@@ -7582,7 +7586,7 @@ export default [
        pendingArt() names TODAY: the set is read live from monster-art.js, so
        the moment the batch ships and SHIPPED grows, the exemption evaporates
        and a leftover emoji fails again on its own — staleness by construction. */
-    const _art = await import('../../data/monster-art.js?v=567');
+    const _art = await import('../../data/monster-art.js?v=568');
     const _pendingIcons = new Set(
       _art.pendingArt().map((p) => ((window.MONSTERS || {})[p.id] || {}).icon).filter(Boolean)
         .map((s) => String(s).trim()));
@@ -8520,7 +8524,8 @@ export default [
       await C.open();
       assert(T.sheetOpen(), 'the Codex is open but the toast queue does not see a sheet');
       for (let k = 1; k <= 7; k++) window.notify('burst ' + k, 'info');
-      assert(notifs.children.length === 0 && T.state().held === 5, 'held ' + T.state().held + ' of 7 (want the newest 5), ' + notifs.children.length + ' drawn');
+      const drawnBurst = [...notifs.children].filter((e) => /burst \d/.test(e.textContent)).length;
+      assert(drawnBurst === 0 && T.state().held === 5, 'held ' + T.state().held + ' of 7 (want the newest 5), ' + drawnBurst + ' burst toast(s) drawn');
       C.close();
       await frames();
       const seen = [];

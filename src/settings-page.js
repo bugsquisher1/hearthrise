@@ -758,7 +758,7 @@
       + '</div>';
 
     // ── Beta tester block — discord, bug report, build version, what's new ──
-    var DISCORD_INVITE = 'https://discord.gg/eJrUSUJM3M';
+    var DC = window.HearthriseDiscord;
     var build = (window.HearthriseBuild && window.HearthriseBuild.buildString && window.HearthriseBuild.buildString()) || 'unknown';
     var beta = ''
       + '<div class="ss-card" style="display:block">'
@@ -767,7 +767,8 @@
       +   '<div class="ss-row" style="margin-top:8px;gap:6px;flex-wrap:wrap">'
       +     '<button class="btn btn-sm" id="set-bug-report">Report bug</button>'
       +     '<button class="btn btn-sm" id="set-show-changelog">What\'s new</button>'
-      +     '<a class="btn btn-sm" href="' + esc(DISCORD_INVITE) + '" target="_blank" rel="noopener" style="text-decoration:none">Discord</a>'
+      +     (DC ? DC.linkHtml('Discord', 'btn btn-sm hr-dc-btn')
+      +       '<button class="btn btn-sm" type="button" data-hr-discord-gift>Claim Discord gift</button>' : '')
       +   '</div>'
       +   '<div class="ss-hint" style="margin-top:8px">Build <code>' + esc(build) + '</code></div>'
       + '</div>';

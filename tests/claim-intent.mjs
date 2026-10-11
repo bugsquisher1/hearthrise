@@ -636,6 +636,48 @@ async function run(mutate) {
       + 'registry treats it as optional would fail on the first row that omits it.');
   }
 
+  /* ── C0c. NO NON-PERIODIC CLAIMABLE MAY PAY GEMS (Security R1, 2026-10-11) ──
+     2026-10-19-account-wallet.sql pays an engine gem credit once per ACCOUNT
+     under the grant key 'apply:<journal.intent>', and that key EXPIRES after 8
+     days. A periodic claim's intent carries its period, so the key can never
+     recur. A non-periodic claim's intent does not — after 8 days the same key
+     would pay again on another hero. So a priced claimable with no period must
+     price ZERO gems; one whose pricer cannot be sampled is refused too (we
+     cannot show it pays none). Controls below prove the rule bites. */
+  {
+    const LOOKUPS = [
+      { today: '2026-01-02', prev: '2026-01-01', rows: {} },
+      { today: '2026-01-02', prev: '2026-01-01', rows: { '': { value: 1, state: 'done' } } },
+    ];
+    const gemPayers = (claimables, pricers) => {
+      const bad = [];
+      for (const id of Object.keys(claimables)) {
+        const spec = claimables[id];
+        if (spec.status !== 'priced' || spec.periodic) continue;
+        const pricer = pricers[id];
+        if (typeof pricer !== 'function') { bad.push(`${id}: no pricer to sample`); continue; }
+        let sampled = 0;
+        for (const lookup of LOOKUPS) {
+          let p;
+          try { p = pricer({ spec, lookup, env: {} }); } catch (e) { bad.push(`${id}: pricer threw (${e.message})`); break; }
+          if (!p || p.error) continue;
+          sampled += 1;
+          if (Number(p.gems) > 0) { bad.push(`${id}: prices ${p.gems} gems with no period`); break; }
+        }
+        if (!sampled && !bad.some((b) => b.startsWith(`${id}:`))) bad.push(`${id}: no sample priced, so zero gems is unproven`);
+      }
+      return bad;
+    };
+    const bad = gemPayers(rw.CLAIMABLES, cr.PRICERS);
+    ok(bad.length === 0,
+      `C0c: a priced claimable with NO PERIOD can pay gems — its account grant key ('apply:<intent>') `
+      + `expires after 8 days and would pay again on another hero: ${bad.join('; ')}`);
+    const probe = (gems) => gemPayers({ x: { status: 'priced', periodic: false } },
+      { x: () => ({ gold: 1, gems, add: 1, meta: {} }) });
+    ok(probe(5).length === 1, 'C0c-CONTROL: a non-periodic pricer paying 5 gems was NOT refused — the rule is blind');
+    ok(probe(0).length === 0, 'C0c-CONTROL: a non-periodic pricer paying 0 gems was refused — the rule over-fires');
+  }
+
   // ── C1. THE PARSER: A NAME, AND NOTHING ELSE ─────────────────────────────
   // The hostile body carries a period, an amount, a gold field and a poisoned
   // prototype. Every one of them must be inert BY CONSTRUCTION — parseIntent

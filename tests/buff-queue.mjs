@@ -130,6 +130,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { bootReplay, ROOT } from './schema-replay.mjs';
+import { PRE_WALLET } from './wallet-fixture.mjs';
 import { HR_APPLY_FINAL, HR_APPLY_S3_BLIND } from './hr-apply-final-body.mjs';
 import { HR_STATE_OF_FINAL, HR_STATE_OF_S3_BLIND } from './hr-state-of-final-body.mjs';
 import { runMutationProof } from './mutation-proof.mjs';
@@ -705,7 +706,13 @@ async function run(mutate, blind) {
   const { db } = await bootReplay(patched ? { patches: patched, upTo: HR_APPLY_LAST } : {});
 
   // ── [14] IDEMPOTENCY, taken FIRST, before any row exists ─────────────────
-  const defs = async () => (await db.query(
+  /* [14] re-applies these files where their OWN §4 fixtures can still run:
+     PRE_WALLET, the last chain position whose schema has player_state.gems
+     (2026-10-19-account-wallet.sql drops it; their fixtures insert it). Every
+     body they patch is already final there. A mutant run is cut at
+     HR_APPLY_LAST, before it, and keeps its own database. */
+  const db14 = patched ? db : (await bootReplay({ upTo: PRE_WALLET })).db;
+  const defs = async () => (await db14.query(
     `select pg_get_functiondef('public.hr_apply(uuid,int,bigint,uuid,jsonb)'::regprocedure) as a,
             pg_get_functiondef('public.hr_state_of(uuid,int)'::regprocedure) as s,
             pg_get_functiondef('public.hr_put_client_state__ungated(int,jsonb,uuid)'::regprocedure) as p`
@@ -755,7 +762,7 @@ async function run(mutate, blind) {
       sql = sql.replace(f, () => r);
     }
     let err = null;
-    try { await db.exec(`begin;\n${sql}\ncommit;`); } catch (e) { err = e; await db.exec('rollback').catch(() => {}); }
+    try { await db14.exec(`begin;\n${sql}\ncommit;`); } catch (e) { err = e; await db14.exec('rollback').catch(() => {}); }
     ok(!err, `[14] a second apply of ${file} did not run clean — ${err && String(err.message).split('\n')[0]}`);
   }
   /* [14b] THE RESTATEMENT'S OWN IDEMPOTENCY, MEASURED WHERE IT IS THE CHAIN END.
@@ -822,6 +829,7 @@ async function run(mutate, blind) {
     + 'idempotent, and it patches a body ten patches deep');
   ok(before.s === after.s, '[14] the hr_state_of body CHANGED on a second apply');
   ok(before.p === after.p, '[14] the hr_put_client_state body CHANGED on a second apply');
+  if (db14 !== db) await db14.close?.();
   const cons = (await db.query(
     `select count(*)::int n from pg_constraint
       where conrelid = 'public.player_state'::regclass and conname = 'player_state_buffs_sane'`)).rows[0].n;
@@ -869,8 +877,8 @@ async function run(mutate, blind) {
 
   // ── the character ────────────────────────────────────────────────────────
   await db.exec(`insert into auth.users (id) values ('${U}') on conflict (id) do nothing;`);
-  await db.exec(`insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version, accrued_to)
-    values ('${U}', 0, 100000, 0, 10, 10, 1, now())
+  await db.exec(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to)
+    values ('${U}', 0, 100000, 10, 10, 1, now())
     on conflict (user_id, slot) do update set gold = 100000, version = 1, buffs = '[]'::jsonb,
       client_state = '{}'::jsonb;`);
 

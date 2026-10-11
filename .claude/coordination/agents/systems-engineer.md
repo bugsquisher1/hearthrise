@@ -3930,6 +3930,27 @@ write the code where it belongs FIRST (core / render / the transport), and the r
 Four functions went into legacy.js and all four had to come back out — 20 minutes of churn that
 choosing the right file first would have avoided.
 
+## 2026-10-10 — lane/b567-discord-join (Discord invite + once-per-account gem gift, STAGED)
+
+· The invite URL had three copies (account-gate, settings, beta-banner). It now lives once in
+  `src/features/discord-invite.js` (classic script, loaded before account-gate.js); the gift sheet
+  delegates its click from the document because Home repaints its markup every 1.5 s.
+· hr_rpc_gate's splice chain hit PATCH-1 (two deep). Restating from the replay was safe ONLY
+  because live-hash-drift recorded live == replay; the restatement is PINNED to that pre-image md5
+  (and accepts its own post-image for re-apply), so a gate spliced by another lane in between is
+  refused rather than clobbered. §8 pins the post-image too: a dropped bucket is red at apply.
+· A cold PGlite replay in a fresh worktree took ~20 min on a loaded machine; once the prefix
+  template exists the guard is ~20 s. Start the first replay early.
+· Handoffs: Security GO on 2026-10-18-discord-gift.sql; Designer confirms 50 gems; Coordinator
+  rules on the operator rotation tool (CONFLICTS.md) and re-pins live-hash-drift after apply.
+· REDESIGNED after review (2026-10-11): THE REPO IS PUBLIC, so a committed sha256 of a short code
+  IS the code (29.7 bits cracks offline). A shared secret that must rotate belongs in Vault and is
+  DERIVED per period (HMAC over the ISO week), so rotation needs no write and nothing reaches git.
+  Assert oracle ACLs on aclexplode(proacl), not has_function_privilege (which misses hr_engine).
+  Test both environments: the no-Vault replay proves fail-closed, a Vault + pgcrypto-shim run
+  (tests/world-tick-token-shims.mjs) proves the paying half and pins the derivation against Node.
+  Amount ruled 25 gems.
+
 ## 2026-10-10 — W0a cuts and copy (lane/w0a-cuts-and-copy)
 
 · Catalogue coherence is now DERIVED (src/data/catalogue-coherence.js) and guarded (tests/catalogue-coherence.mjs, C1-C7, 9 mutants). A guard that mutates data objects must import them through the SAME module specifier the code under test uses (?v=NNN) — a bare import is a second module instance and the plant never reaches the function. Fixed by re-exporting the identities from the module.

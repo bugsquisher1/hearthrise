@@ -38,6 +38,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, inventory, ROOT } from './schema-replay.mjs';
+import { PRE_WALLET } from './wallet-fixture.mjs';
 import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
 import { generateBountyBoard } from '../src/core/bounty.js';
@@ -166,7 +167,9 @@ async function run(mutate) {
   }
 
   const patches = mutate ? new Map([[MIG, MUTATIONS[mutate].pairs]]) : undefined;
-  const { db } = await bootReplay(mutate ? { patches, upTo: MIG } : {});
+  // Plain run at PRE_WALLET: B1 re-applies MIG, whose §4 fixture inserts
+  // player_state.gems, which 2026-10-19-account-wallet.sql drops (tests/wallet-fixture.mjs).
+  const { db } = await bootReplay(mutate ? { patches, upTo: MIG } : { upTo: PRE_WALLET });
   const q = async (sql, p) => (await db.query(sql, p)).rows;
   const asUser = async (uid, sql, p) => {
     await q("select set_config('request.jwt.claim.sub',$1,false)", [uid]);

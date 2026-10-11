@@ -82,7 +82,9 @@ async function run(mutate) {
   const sqlText = await migText(mutate);
   const patches = mutate ? new Map([[MIG, MUTATIONS[mutate].pairs]]) : undefined;
   let boot;
-  try { boot = await bootReplay(mutate ? { patches, upTo: MIG } : {}); }
+  // The plain run judges at MIG too: B1 re-applies this file, whose §13 fixture
+  // inserts player_state.gems, which 2026-10-19-account-wallet.sql (next) drops.
+  try { boot = await bootReplay(mutate ? { patches, upTo: MIG } : { upTo: MIG }); }
   catch (e) {
     if (e && e.replay && mutate) return { fails: [`REPLAY: ${String(e.failures?.at(-1)?.error || e.message).slice(0, 200)}`] };
     throw e;
@@ -170,7 +172,7 @@ async function run(mutate) {
     const V = await mk('nm-b');
     await gate();
     await as('authenticated', V, 'select public.claim_display_name($1) as r', ['Bramble Probe']);
-    await q('insert into public.player_state (user_id, slot, gold, gems, marks, version) values ($1,0,777777,0,0,1) on conflict do nothing', [V]);
+    await q('insert into public.player_state (user_id, slot, gold, marks, version) values ($1,0,777777,0,1) on conflict do nothing', [V]);
     await as('authenticated', V, "insert into public.chat_messages (channel, from_id, from_name, body) values ('global', $1, 'spoof', 'hi') returning id as r", [V]);
     const mr = (await q("select public.hr_mod_force_rename($1::uuid, 'guard probe') as r", [V]))[0].r;
     const place = mr?.placeholder;

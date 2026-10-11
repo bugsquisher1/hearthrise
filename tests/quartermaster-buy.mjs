@@ -108,8 +108,8 @@ async function boot(mutate) {
 /** A fresh character with `scrip` Dungeon Scrip and no ledger. */
 async function seed(db, uid, scrip = 1000) {
   await db.exec(`insert into auth.users (id) values ('${uid}') on conflict (id) do nothing;`);
-  await db.exec(`insert into public.player_state (user_id, slot, gold, gems, dungeon_scrip, version)
-                 values ('${uid}', 0, 0, 0, ${scrip}, 1)
+  await db.exec(`insert into public.player_state (user_id, slot, gold, dungeon_scrip, version)
+                 values ('${uid}', 0, 0, ${scrip}, 1)
                  on conflict (user_id, slot) do update set dungeon_scrip = ${scrip}, version = 1;`);
 }
 

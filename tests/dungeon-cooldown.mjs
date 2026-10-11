@@ -200,8 +200,8 @@ async function boot(mutate) {
 /** A fresh, max-combat character with entry keys. No ledger touch. */
 async function seed(db, uid, { slot = 0, keys = 3 } = {}) {
   await db.exec(`insert into auth.users (id) values ('${uid}') on conflict (id) do nothing;`);
-  await db.exec(`insert into public.player_state (user_id, slot, gold, gems, dungeon_scrip, version)
-                 values ('${uid}', ${slot}, 0, 0, 0, 1)
+  await db.exec(`insert into public.player_state (user_id, slot, gold, dungeon_scrip, version)
+                 values ('${uid}', ${slot}, 0, 0, 1)
                  on conflict (user_id, slot) do update set dungeon_scrip = 0, version = 1;`);
   await db.exec(`insert into public.player_skills (user_id, slot, skill_id, xp)
                  select '${uid}', ${slot}, s, ${XP99}

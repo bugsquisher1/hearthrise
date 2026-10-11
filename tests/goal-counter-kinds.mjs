@@ -294,8 +294,8 @@ async function runAll(db) {
   // LIFETIME ev:planted row, and no daily one.
   const stock = target * 40;
   await db.exec(`insert into auth.users (id) values ('${UID}') on conflict (id) do nothing;`);
-  await db.exec(`insert into public.player_state (user_id, slot, gold, gems, version)
-                 values ('${UID}', 0, 0, 0, 1)
+  await db.exec(`insert into public.player_state (user_id, slot, gold, version)
+                 values ('${UID}', 0, 0, 1)
                  on conflict (user_id, slot) do update set version = 1;`);
   await db.exec(`insert into public.player_progress (user_id, slot, kind, key, value, period_key, state)
                  values ('${UID}', 0, 'stat', 'ev:planted', ${stock}, '', 'active')

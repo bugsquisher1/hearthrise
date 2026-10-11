@@ -93,9 +93,9 @@ async function arms(db, { log = true } = {}) {
   const mark25 = (await one("select date_trunc('second', now()) - interval '25 hours' as t")).t;
   for (const [u, kind, act, acc] of [[PA, 'combat', cact, mark25], [PB, 'combat', cact, mark25],
     [UG, 'gather', gact, null], [UG2, 'gather', gact, null], [UC, 'combat', cact, null]]) {
-    await q(`insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version, accrued_to,
+    await q(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
                                               active_kind, active_id, active_since)
-             values ($1, 0, 500, 0, 10, 10, 1, coalesce($4::timestamptz, now() - interval '5 minutes'), $2, $3,
+             values ($1, 0, 500, 10, 10, 1, coalesce($4::timestamptz, now() - interval '5 minutes'), $2, $3,
                      '2000-01-01 00:00:00+00')`, [u, kind, act, acc]);
   }
   const party = (await one('insert into public.party (leader_user, leader_slot) values ($1, 0) returning id', [PA])).id;

@@ -59,8 +59,8 @@
 //
 // CURRENCIES AND WHERE THEY LIVE SERVER-SIDE
 //   gold           player_state.gold
-//   gems           player_state.gems
-//   hearth_tokens  player_state.hearth_tokens   (IAP-only; never PvE-minted)
+//   gems           account_wallet.gems            (one per ACCOUNT)
+//   hearth_tokens  account_wallet.hearth_tokens   (one per ACCOUNT; IAP-only; never PvE-minted)
 //   marks          NOWHERE — Bounty Marks have no server column today
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
@@ -859,10 +859,10 @@ export const SHOP_CURRENCIES = {
     "server": "player_state.gold"
   },
   "gems": {
-    "server": "player_state.gems"
+    "server": "account_wallet.gems"
   },
   "hearth_tokens": {
-    "server": "player_state.hearth_tokens"
+    "server": "account_wallet.hearth_tokens"
   },
   "marks": {
     "server": null

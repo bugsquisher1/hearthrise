@@ -77,9 +77,9 @@ async function arms(db, { log = true } = {}) {
     const users = Array.from({ length: n }, () => uid(++seq));
     for (const u of users) {
       await q('insert into auth.users (id) values ($1) on conflict do nothing', [u]);
-      await q(`insert into public.player_state (user_id, slot, gold, gems, hp, max_hp, version, accrued_to,
+      await q(`insert into public.player_state (user_id, slot, gold, hp, max_hp, version, accrued_to,
                                                 active_kind, active_id, active_since, consec_falls, recovering_until)
-               values ($1, 0, 500, 0, 7, 10, 1, $2, 'combat', $3, '2000-01-01 00:00:00+00', 2, '2001-01-01 00:00:00+00')`,
+               values ($1, 0, 500, 7, 10, 1, $2, 'combat', $3, '2000-01-01 00:00:00+00', 2, '2001-01-01 00:00:00+00')`,
         [u, iso(markMs), cact]);
     }
     const pid = (await one('insert into public.party (leader_user, leader_slot) values ($1, 0) returning id', [users[0]])).id;

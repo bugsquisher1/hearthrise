@@ -1370,3 +1370,28 @@ So the migration and the Edge deploy are safe in **either order**.
 | blessings, feast, muster aura, consumable buffs | out of scope **by ruling**, not omission (`AWAY_SCOPE`) |
 
 Every gap is an **under**-payment.
+
+## 11. The ACCOUNT WALLET (2026-10-19) — contract
+
+Game Designer ruling 2026-10-11: gems and the Hearth Token bond are **one balance per account**;
+gold stays per hero. Source of truth: `supabase/migrations/2026-10-19-account-wallet.sql` (its
+header is the full contract); guard: `tests/account-wallet.mjs` (+ `--mutate`).
+
+* **Schema.** `account_wallet(user_id PK, gems, hearth_tokens, version)` and
+  `account_gem_grants(user_id, grant_key) PK`. RLS forced, zero policies, no client / engine /
+  tick privilege. `player_state.gems` and `player_state.hearth_tokens` no longer exist.
+* **The choke point.** Only `hr_wallet_credit(uid, slot, gems, grant_key, expires_at)` and
+  `hr_wallet_debit(uid, slot, gems, intent, meta)` write the wallet (owner-only; every gem RPC
+  and `hr_apply` call them). A credit pays **once per account per grant key** (`rank:<id>`,
+  `milestone:<id>`, `goal:<id>:<period>`, `raid:<week>`, `world_event:<day>`, `start_kit`,
+  `apply:<journal.intent>`) — a second hero is paid 0 and its receipt says 0. The 5,000/day gem
+  ceiling is the **account's** (`hr_day_budget_used` sums the gem dimension over every slot), and
+  a credit past it raises `daily_budget` so the caller's whole claim rolls back. The engine never
+  spends gems: a negative gem delta is `bad_delta`.
+* **Journal.** Every movement is exactly one `player_ledger` row `kind='wallet'` on the acting
+  hero's slot (provenance), `meta.gems` signed, `meta.balance` after, `gems_in` the inflow. Only
+  wallet rows carry `meta.gems`; a purchase / claim row may echo `gems_paid`, never `gems`.
+* **Lock order.** account advisory (`uid:0`) → character advisory (`uid:slot`) → character row
+  → **wallet row (leaf)**. No helper takes a lock after the wallet row.
+* **Projection.** `hr_state_of` projects the wallet as `state.gems` / `state.hearth_tokens` on
+  every slot; the client contract is unchanged and the client computes nothing.

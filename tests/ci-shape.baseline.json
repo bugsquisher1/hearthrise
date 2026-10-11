@@ -247,6 +247,8 @@
     "node tests/claim-intent.mjs --selftest": "economy-selftests",
     "node tests/login-reward.mjs": "economy-selftests",
     "node tests/login-reward.mjs --mutate": "economy-selftests",
+    "node tests/daily-harvest-eligibility.mjs": "economy-selftests",
+    "node tests/daily-harvest-eligibility.mjs --mutate": "economy-selftests",
     "node tests/clan-journal-guard.mjs": "economy-selftests",
     "node tests/clan-journal-guard.mjs --selftest": "economy-selftests",
     "node tests/anon-rate-gate.mjs": "economy-selftests",

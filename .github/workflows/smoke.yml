@@ -2464,9 +2464,12 @@ jobs:
   # Budget RAISED 30 -> 32, still measured x2.
   # + login-reward (2026-10-10, measured locally): 6 s plain + 315 s mutate =
   # 321 s (5.4 min); budget x2 = +11, so 32 -> 43.
+  # + daily-harvest-eligibility (2026-10-11, estimated from login-reward's
+  # per-replay cost: 1 replay plain + 4 SQL mutants ~ 4 min); budget x2 = +8,
+  # so 43 -> 51.
   economy-selftests:
     runs-on: ubuntu-latest
-    timeout-minutes: 43
+    timeout-minutes: 51
 
     steps:
       - uses: actions/checkout@v4
@@ -2969,6 +2972,17 @@ jobs:
         run: |
           node tests/login-reward.mjs
           node tests/login-reward.mjs --mutate
+
+      # THE HARVEST DAILY IS DEALT ONLY TO A FARMER (2026-10-16-daily-harvest-
+      # eligibility.sql, game-designer 2026-10-10). No seeds or no plot -> never
+      # offered; plantable seeds + a plot -> offered; SQL and JS rules agree over
+      # every input; the client slate equals the server's on a played character.
+      # --mutate: two JS and four SQL defects.
+      - name: Harvest daily — offered only with plantable seeds and a plot (base + mutate)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/daily-harvest-eligibility.mjs
+          node tests/daily-harvest-eligibility.mjs --mutate
 
       # THE CLAN JOURNAL INVARIANT (F1 + F3, 2026-08-13). "Every RPC that writes
       # a shared table emits a clan_ledger row in the same transaction" — proven

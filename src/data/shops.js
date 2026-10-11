@@ -16,14 +16,14 @@
 //   hand-authored source, tools/gen-shops.mjs is deleted, and the preflight
 //   goes with it. The filename does not change, so nothing downstream moves.
 //
-//   catalogue digest: d155035845080c54891a51302b8056db7a7ed9be4af6971e8e5284dfcb168440
-//   121 offers · 217 cost lines · 6 prices that are formulas, not data
+//   catalogue digest: 6cb4e2fa0379915a4377594b38e251f475046607158d97b344571c0aee7b1ea6
+//   124 offers · 220 cost lines · 6 prices that are formulas, not data
 //
 // EXTRACTED FROM
 //   room              40  src/legacy.js
 //   plot               4  src/legacy.js
 //   theme              6  src/legacy.js
-//   seed              13  src/legacy.js
+//   seed              16  src/legacy.js
 //   equip             11  src/legacy.js
 //   bounty             5  src/legacy.js
 //   trait              2  src/legacy.js
@@ -65,7 +65,7 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-export const SHOPS_DIGEST = "d155035845080c54891a51302b8056db7a7ed9be4af6971e8e5284dfcb168440";
+export const SHOPS_DIGEST = "6cb4e2fa0379915a4377594b38e251f475046607158d97b344571c0aee7b1ea6";
 
 /** Every offer whose price is fully known as data. */
 export const SHOP_OFFERS = [
@@ -676,10 +676,31 @@ export const SHOP_OFFERS = [
     grant: [{ kind: "unlock", id: "room:workshop", amount: 5 }],
   },
   {
+    id: "seed.air_rune", table: "seed",
+    name: "Air Rune",
+    cost: [{ kind: "currency", id: "gold", amount: 60 }],
+    grant: [{ kind: "item", id: "air_rune", amount: 50 }],
+    repeatable: true,
+  },
+  {
+    id: "seed.bronze_arrows", table: "seed",
+    name: "Bronze Arrows",
+    cost: [{ kind: "currency", id: "gold", amount: 60 }],
+    grant: [{ kind: "item", id: "bronze_arrows", amount: 50 }],
+    repeatable: true,
+  },
+  {
     id: "seed.carrot_seed", table: "seed",
     name: "Carrot Seed",
     cost: [{ kind: "currency", id: "gold", amount: 100 }],
     grant: [{ kind: "item", id: "carrot_seed", amount: 10 }],
+    repeatable: true,
+  },
+  {
+    id: "seed.coarse_whetstone", table: "seed",
+    name: "Coarse Whetstone",
+    cost: [{ kind: "currency", id: "gold", amount: 60 }],
+    grant: [{ kind: "item", id: "coarse_whetstone", amount: 10 }],
     repeatable: true,
   },
   {
@@ -741,8 +762,8 @@ export const SHOP_OFFERS = [
   {
     id: "seed.rune_blank", table: "seed",
     name: "Blank Rune",
-    cost: [{ kind: "currency", id: "gold", amount: 140 }],
-    grant: [{ kind: "item", id: "rune_blank", amount: 20 }],
+    cost: [{ kind: "currency", id: "gold", amount: 300 }],
+    grant: [{ kind: "item", id: "rune_blank", amount: 18 }],
     repeatable: true,
   },
   {
@@ -902,7 +923,7 @@ export const SHOP_TABLES = [
     "anchor": "const SEED_SHOP=[",
     "spends_at": "legacy.js buyShopItem(id, qty, cost)",
     "note": "the price is per BUNDLE of qty, not per unit",
-    "count": 13
+    "count": 16
   },
   {
     "table": "equip",

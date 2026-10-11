@@ -120,8 +120,7 @@ export const QTY_ALLOW = Object.freeze({
   fletch_rune_arrows:      'arrows: as above',
   fletch_emberhead_arrows: 'arrows: as above',
   fletch_dawnpoint_arrows: 'arrows: as above, x1000 at tier 7',
-  bind_air_runes:          'runes: one cast per swing, same per-swing burn seam as ammo',
-  bind_earth_runes:        'runes: as above',
+  bind_earth_runes:        'runes: one cast per swing, same per-swing burn seam as ammo',
   deepbind_earth:          'runes: as above',
   bind_water_runes:        'runes: as above',
   deepbind_water:          'runes: as above',
@@ -153,6 +152,7 @@ export const RATIO_ALLOW = Object.freeze({
   dress_rubble:   'REVIEW (game-designer): 11.0x, ~60k g/hr — stonemason dressing margin',
   dress_granite:  'REVIEW (game-designer): 10.6x, ~163k g/hr — as above',
   dress_basalt:   'REVIEW (game-designer): 9.6x, ~322k g/hr — as above',
+  mine_rune_essence: 'gathering step (W0 Runecrafting ruling): no inputs, the quarry pattern on the Runecrafting bench',
 });
 
 /* ── THE GEAR-LADDER RUNG CAP (CHECK 4) ───────────────────────────────────

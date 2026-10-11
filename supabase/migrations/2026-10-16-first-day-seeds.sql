@@ -74,8 +74,12 @@ begin
   --     A third shape is someone else's change; stop rather than overwrite it.
   select coalesce(string_agg(item_id || ':' || qty::text, ',' order by item_id), '(empty)')
     into v_now from public.hr_start_inventory;
+  -- COMBINED W0 SHAPE (lane w0e, 2026-10-10): the chain-end kit also carries the
+  -- three free tier-1 ammo stacks (2026-10-16-w0e-ammo-runecraft.sql, applied
+  -- AFTER this file). The regenerated catalogue replays first and carries it.
   if v_now not in ('carrot_seed:3,cooked_shrimp:20,shrimp:10,turnip_seed:5',
-                   'cooked_shrimp:20,shrimp:10,turnip_seed:8') then
+                   'cooked_shrimp:20,shrimp:10,turnip_seed:8',
+                   'air_rune:50,bronze_arrows:50,coarse_whetstone:10,cooked_shrimp:20,shrimp:10,turnip_seed:8') then
     raise exception 'PRECONDITION: hr_start_inventory is "%" - neither the food-bridge kit nor the W0 kit. '
                     'Production has drifted from what this file was reviewed against.', v_now;
   end if;
@@ -178,7 +182,9 @@ begin
   --     grants is a crop a Farming-1 character can plant.
   select coalesce(string_agg(item_id || ':' || qty::text, ',' order by item_id), '(empty)')
     into v_now from public.hr_start_inventory;
-  if v_now <> 'cooked_shrimp:20,shrimp:10,turnip_seed:8' then
+  -- COMBINED W0 SHAPE (lane w0e): see §0 (i) — the only other accepted kit.
+  if v_now not in ('cooked_shrimp:20,shrimp:10,turnip_seed:8',
+                   'air_rune:50,bronze_arrows:50,coarse_whetstone:10,cooked_shrimp:20,shrimp:10,turnip_seed:8') then
     raise exception 'VERIFY(b): the starting kit is "%", not the W0 kit', v_now;
   end if;
   select count(*) into v_n from public.hr_start_inventory s
@@ -211,7 +217,10 @@ begin
     end if;
     select coalesce(jsonb_object_agg(item_id, qty), '{}'::jsonb) into v_inv0
       from public.player_inventory where user_id = v_uid and slot = v_slot;
-    if v_inv0 <> '{"cooked_shrimp": 20, "shrimp": 10, "turnip_seed": 8}'::jsonb then
+    -- COMBINED W0 SHAPE (lane w0e): the only other accepted bag adds the three
+    -- free tier-1 ammo stacks (see §0 (i)).
+    if v_inv0 <> '{"cooked_shrimp": 20, "shrimp": 10, "turnip_seed": 8}'::jsonb
+       and v_inv0 <> '{"cooked_shrimp": 20, "shrimp": 10, "turnip_seed": 8, "air_rune": 50, "bronze_arrows": 50, "coarse_whetstone": 10}'::jsonb then
       raise exception 'VERIFY(c): a new character''s bag is %, not the W0 kit', v_inv0;
     end if;
 

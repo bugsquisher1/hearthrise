@@ -6,8 +6,8 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 1f0175faded929e547d745f7440a0b958755aaeb40a77e54bce80baabd00655d
---   rows: 505 items (21 untradeable) ·
+--   catalogue digest: 344a900d15777f509013e3dbdbc9d5c662cabe12412062431992fa377746bdb2
+--   rows: 506 items (21 untradeable) ·
 --         268 item-slot pairs · 15 equip slots ·
 --         17 skills · 9 crops · 522 activities ·
 --         3 runes
@@ -184,7 +184,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('adept_gloves','Adept Gloves',true,'armor',65,'defense',15,null,false),
   ('adept_helmet','Adept Hat',true,'armor',110,'defense',15,null,false),
   ('adept_pants','Adept Robe Bottom',true,'armor',200,'defense',15,null,false),
-  ('air_rune','Air Rune',true,'ammo',1,'magic',1,null,false),
+  ('air_rune','Air Rune',true,'ammo',0,'magic',1,null,false),
   ('alpha_cloak','Alpha Cloak',true,'armor',1500,'defense',30,null,false),
   ('alpha_fang','Alpha Fang',true,null,450,null,null,null,false),
   ('alpha_pattern','Alpha Cloak Pattern',true,null,0,null,null,null,false),
@@ -231,7 +231,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('bone_needle','Bone Needle',true,'tool',70,null,null,null,false),
   ('bones','Bones',true,null,1,null,null,null,false),
   ('bramble_blade','Bramble Blade',true,'weapon',130,'attack',15,null,false),
-  ('bronze_arrows','Bronze Arrows',true,'ammo',1,'ranged',1,null,false),
+  ('bronze_arrows','Bronze Arrows',true,'ammo',0,'ranged',1,null,false),
   ('bronze_axe','Bronze Axe',true,'tool',60,null,null,null,false),
   ('bronze_bar','Bronze Bar',true,null,32,null,null,null,false),
   ('bronze_belt','Bronze Belt',true,'armor',110,'defense',1,null,false),
@@ -265,7 +265,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('choirbone','Choirbone',true,null,3800,null,null,null,false),
   ('choirbone_gauntlets','Choirbone Gauntlets',true,'armor',63000,'defense',88,null,false),
   ('coal','Coal',true,null,40,null,null,null,false),
-  ('coarse_whetstone','Coarse Whetstone',true,'ammo',4,'attack',1,null,false),
+  ('coarse_whetstone','Coarse Whetstone',true,'ammo',0,'attack',1,null,false),
   ('cooked_bear_meat','Cooked Bear Meat',true,null,42,null,null,13,true),
   ('cooked_copper_crab','Steamed Copper Crab',true,null,100,null,null,18,true),
   ('cooked_frostfin','Frostfin Supper',true,null,1300,null,null,38,true),
@@ -505,6 +505,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('rune_belt','Rune Belt',true,'armor',3600,'defense',60,null,false),
   ('rune_blank','Blank Rune',true,null,5,null,null,null,false),
   ('rune_boots','Rune Boots',true,'armor',3600,'defense',60,null,false),
+  ('rune_essence','Rune Essence',true,null,15,null,null,null,false),
   ('rune_frag','Rune Fragment',true,null,30,null,null,null,false),
   ('rune_gauntlets','Rune Gauntlets',true,'armor',3150,'defense',60,null,false),
   ('rune_hammer','Rune Hammer',true,'tool',9200,null,null,null,false),
@@ -1001,11 +1002,10 @@ insert into public.hr_crops (crop_id, seed_item, prod_item, base_hours, req_lv, 
 
 insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, is_boss) values
   ('artisan','banish_demon_shard','prayer',65,null,false),
-  ('artisan','bind_air_runes','runecrafting',1,null,false),
   ('artisan','bind_blood_runes','runecrafting',88,null,false),
   ('artisan','bind_chaos_runes','runecrafting',60,null,false),
   ('artisan','bind_death_runes','runecrafting',75,null,false),
-  ('artisan','bind_earth_runes','runecrafting',15,null,false),
+  ('artisan','bind_earth_runes','runecrafting',1,null,false),
   ('artisan','bind_ember_rune','runecrafting',25,null,false),
   ('artisan','bind_fire_runes','runecrafting',45,null,false),
   ('artisan','bind_frost_rune','runecrafting',25,null,false),
@@ -1176,7 +1176,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','cut_ashlar','stonemason',45,null,false),
   ('artisan','cut_deep_blanks','stonemason',74,null,false),
   ('artisan','cut_fine_blanks','stonemason',38,null,false),
-  ('artisan','cut_rune_blanks','stonemason',1,null,false),
+  ('artisan','cut_rune_blanks','runecrafting',1,null,false),
   ('artisan','deepbind_blood','runecrafting',93,null,false),
   ('artisan','deepbind_chaos','runecrafting',69,null,false),
   ('artisan','deepbind_earth','runecrafting',24,null,false),
@@ -1328,6 +1328,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','make_willow_staff','crafting',36,null,false),
   ('artisan','make_yew_bow','crafting',65,null,false),
   ('artisan','make_yew_staff','crafting',66,null,false),
+  ('artisan','mine_rune_essence','runecrafting',1,null,false),
   ('artisan','offer_ancient_claw','prayer',92,null,false),
   ('artisan','offer_razor_claw','prayer',52,null,false),
   ('artisan','purge_void_chitin','prayer',99,null,false),
@@ -1355,7 +1356,7 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','smelt_steel','smithing',30,null,false),
   ('artisan','smelt_verdite','smithing',42,null,false),
   ('artisan','smith_iron_fitting','smithing',25,null,false),
-  ('artisan','split_rune_blanks','stonemason',22,null,false),
+  ('artisan','split_rune_blanks','runecrafting',12,null,false),
   ('artisan','tailor_dawnlit_mantle','crafting',91,null,false),
   ('artisan','tailor_houndskin_cloak','crafting',28,null,false),
   ('artisan','tailor_leather_boots','crafting',8,null,false),
@@ -1539,6 +1540,9 @@ insert into public.hr_start_skill_xp (skill_id, xp) values
   ('hitpoints',1154);
 
 insert into public.hr_start_inventory (item_id, qty) values
+  ('air_rune',50),
+  ('bronze_arrows',50),
+  ('coarse_whetstone',10),
   ('cooked_shrimp',20),
   ('shrimp',10),
   ('turnip_seed',8);
@@ -1552,7 +1556,7 @@ insert into public.hr_runes (rune_id, element) values
   ('poison_rune','poison');
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '1f0175faded929e547d745f7440a0b958755aaeb40a77e54bce80baabd00655d', now())
+  values (true, '344a900d15777f509013e3dbdbc9d5c662cabe12412062431992fa377746bdb2', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -1580,7 +1584,7 @@ do $$
 declare v_bad int; v_n int;
 begin
   select count(*) into v_n from public.hr_items;
-  if v_n <> 505 then raise exception 'hr_items has % rows, generator emitted 505', v_n; end if;
+  if v_n <> 506 then raise exception 'hr_items has % rows, generator emitted 506', v_n; end if;
   select count(*) into v_n from public.hr_items where not tradeable;
   if v_n <> 21 then
     raise exception 'untradeable count is %, generator emitted 21', v_n;
@@ -1717,7 +1721,7 @@ begin
   select count(*) into v_n from public.hr_runes;
   if v_n <> 3 then raise exception 'hr_runes has % rows, generator emitted 3', v_n; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 1f0175faded929e547d745f7440a0b958755aaeb40a77e54bce80baabd00655d',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 344a900d15777f509013e3dbdbc9d5c662cabe12412062431992fa377746bdb2',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

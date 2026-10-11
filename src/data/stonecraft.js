@@ -178,6 +178,9 @@ const AMMO_RARITY = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'legenda
    Arrows today too): at `ammoPerShot: 0` a single Air Rune is a permanent
    supply, so the batch of 42 is generous rather than necessary. That is fine —
    it is a clean first Runecrafting action and an honest XP rung. */
+/* W0 (Security #1): the free tier-1 rungs also BOOK at v 0 — they are kit and
+   shop stock, so a vendor bid would turn every new kit and every shop bundle
+   into gold (the 1 g floor made the 50% buy-back cap unreachable). */
 const FREE = 0;
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -209,6 +212,9 @@ export const STONECRAFT_ITEMS = {
      That is paid for by magic's 2,520 ms cast interval — it burns 16% fewer
      consumables per hour than a bow at identical item values (§6.2). The
      deeper chain buys the cheaper burn. */
+  /* W0: Runecrafting's own blank stock, mined on its bench (RAW_QUARRIED).
+     v 15 keeps the essence->blank cuts at 3.0x/3.3x vendor, 1.0x/1.1x book. */
+  rune_essence:    { n: 'Rune Essence',    icon: '🪨', v: 15, tier: 1, rarity: 'common' },
   rune_blank:      { n: 'Blank Rune',      icon: '⬜', v: 5,  tier: 1, rarity: 'common' },
   fine_rune_blank: { n: 'Fine Blank Rune', icon: '🔲', v: 28, tier: 3, rarity: 'uncommon' },
   deep_rune_blank: { n: 'Deep Blank Rune', icon: '🔳', v: 60, tier: 5, rarity: 'rare' },
@@ -223,7 +229,7 @@ export const STONECRAFT_ITEMS = {
      The names are picked so PHASE TWO can hang elements on them with no
      renames — an Ice Troll weak to both arrows and fire is the target shape,
      and none of it ships in round 2. */
-  air_rune:   { n: 'Air Rune',   icon: '🌀', v: 1,  type: 'ammo', slot: 'ammo', tier: 1, rarity: AMMO_RARITY[0], reqSkill: 'magic', reqLv: AMMO_REQ_LV[0], magicStrB: AMMO_STAT[0], ammoPerShot: FREE },
+  air_rune:   { n: 'Air Rune',   icon: '🌀', v: 0,  type: 'ammo', slot: 'ammo', tier: 1, rarity: AMMO_RARITY[0], reqSkill: 'magic', reqLv: AMMO_REQ_LV[0], magicStrB: AMMO_STAT[0], ammoPerShot: FREE },
   earth_rune: { n: 'Earth Rune', icon: '🌍', v: 1,  type: 'ammo', slot: 'ammo', tier: 2, rarity: AMMO_RARITY[1], reqSkill: 'magic', reqLv: AMMO_REQ_LV[1], magicStrB: AMMO_STAT[1], ammoPerShot: 1 },
   water_rune: { n: 'Water Rune', icon: '💧', v: 2,  type: 'ammo', slot: 'ammo', tier: 3, rarity: AMMO_RARITY[2], reqSkill: 'magic', reqLv: AMMO_REQ_LV[2], magicStrB: AMMO_STAT[2], ammoPerShot: 1 },
   fire_rune:  { n: 'Fire Rune',  icon: '🔥', v: 4,  type: 'ammo', slot: 'ammo', tier: 4, rarity: AMMO_RARITY[3], reqSkill: 'magic', reqLv: AMMO_REQ_LV[3], magicStrB: AMMO_STAT[3], ammoPerShot: 1 },
@@ -258,7 +264,7 @@ export const STONECRAFT_ITEMS = {
      is stated in the item copy rather than hidden.
 
      `strB` only — see the stat-curve note above. */
-  coarse_whetstone:  { n: 'Coarse Whetstone',   icon: '🪨', v: 4,   type: 'ammo', slot: 'ammo', tier: 1, rarity: AMMO_RARITY[0], reqSkill: 'attack', reqLv: AMMO_REQ_LV[0], strB: AMMO_STAT[0], ammoPerShot: FREE },
+  coarse_whetstone:  { n: 'Coarse Whetstone',   icon: '🪨', v: 0,   type: 'ammo', slot: 'ammo', tier: 1, rarity: AMMO_RARITY[0], reqSkill: 'attack', reqLv: AMMO_REQ_LV[0], strB: AMMO_STAT[0], ammoPerShot: FREE },
   copper_whetstone:  { n: 'Copper Whetstone',   icon: '🪨', v: 15,  type: 'ammo', slot: 'ammo', tier: 2, rarity: AMMO_RARITY[1], reqSkill: 'attack', reqLv: AMMO_REQ_LV[1], strB: AMMO_STAT[1], ammoPerShot: 0.02 },
   iron_whetstone:    { n: 'Iron Whetstone',     icon: '🪨', v: 48,  type: 'ammo', slot: 'ammo', tier: 3, rarity: AMMO_RARITY[2], reqSkill: 'attack', reqLv: AMMO_REQ_LV[2], strB: AMMO_STAT[2], ammoPerShot: 0.02 },
   steel_whetstone:   { n: 'Steel Whetstone',    icon: '🪨', v: 108, type: 'ammo', slot: 'ammo', tier: 4, rarity: AMMO_RARITY[3], reqSkill: 'attack', reqLv: AMMO_REQ_LV[3], strB: AMMO_STAT[3], ammoPerShot: 0.02 },
@@ -316,8 +322,15 @@ export const STONECRAFT_RECIPES = {
        ignores it, so moving staves to Runecrafting is a two-line generator
        change expressed as data. Left alone here because that same field routes
        BOWS to Fletching and that agent owns the change.) */
-    { id: 'bind_air_runes',     name: 'Bind Air Runes',       icon: '🌀', inputs: { rune_blank: 6 },              output: 'air_rune',   outputQty: 42, xp: 9,   req: 1,  ms: 3200 },
-    { id: 'bind_earth_runes',   name: 'Bind Earth Runes',     icon: '🌍', inputs: { rune_blank: 6 },              output: 'earth_rune', outputQty: 45, xp: 50,  req: 15, ms: 3400 },
+    /* W0 RUNECRAFTING RULING (2026-10-09): the first rung makes a SPENT rune
+       (Earth, at 1); air runes are kit + shop only; the skill mines its own
+       essence (a bench row paid to Mining, the quarry pattern: a level-1 ROCKS
+       node would break the one-node-per-level bench gate) and cuts its own
+       blanks. Elements stay at 25; fine/deep blanks stay with Stonemason. */
+    { id: 'mine_rune_essence',  name: 'Mine Rune Essence',    icon: '🪨', inputs: {},                             output: 'rune_essence', outputQty: 2, xp: 6, req: 1, ms: 3000, xpSkill: 'mining' },
+    { id: 'cut_rune_blanks',    name: 'Cut Blank Runes',      icon: '⬜', inputs: { rune_essence: 4 },            output: 'rune_blank', outputQty: 12, xp: 8,   req: 1,  ms: 2800 },
+    { id: 'bind_earth_runes',   name: 'Bind Earth Runes',     icon: '🌍', inputs: { rune_blank: 6 },              output: 'earth_rune', outputQty: 45, xp: 12,  req: 1,  ms: 3400 },
+    { id: 'split_rune_blanks',  name: 'Split Blank Runes',    icon: '⬜', inputs: { rune_essence: 6 },            output: 'rune_blank', outputQty: 20, xp: 40,  req: 12, ms: 3000 },
     { id: 'deepbind_earth',     name: 'Deepbind Earth Runes', icon: '🌍', inputs: { rune_blank: 7 },              output: 'earth_rune', outputQty: 58, xp: 105,  req: 24, ms: 3600 },
     { id: 'bind_water_runes',   name: 'Bind Water Runes',     icon: '💧', inputs: { rune_blank: 6, coal: 1 },     output: 'water_rune', outputQty: 48, xp: 185,  req: 30, ms: 3600 },
     { id: 'deepbind_water',     name: 'Deepbind Water Runes', icon: '💧', inputs: { rune_blank: 7, coal: 1 },     output: 'water_rune', outputQty: 60, xp: 330, req: 39, ms: 3800 },
@@ -430,8 +443,7 @@ export const STONECRAFT_RECIPES = {
        (a blank costs 2 dressed blocks, and dressing is the level-1 rung), and the
        gold route stays the lazy route at 400 g per 50. A player who picks
        Runecrafting first is now self-supplying at level 1 of both skills. */
-    { id: 'cut_rune_blanks',   name: 'Cut Blank Runes',      icon: '⬜', inputs: { dressed_block: 2 },                       output: 'rune_blank',      outputQty: 12, xp: 36,  req: 1,  ms: 2800 },
-    { id: 'split_rune_blanks', name: 'Split Blank Runes',    icon: '⬜', inputs: { dressed_block: 3 },                       output: 'rune_blank',      outputQty: 20, xp: 92,  req: 22, ms: 3000 },
+    /* W0: the two base blank cuts moved to Runecrafting (from essence). */
     { id: 'cut_fine_blanks',   name: 'Cut Fine Blank Runes', icon: '🔲', inputs: { granite_block: 2, dressed_block: 2 },     output: 'fine_rune_blank', outputQty: 14, xp: 400, req: 38, ms: 3400 },
     { id: 'cut_deep_blanks',   name: 'Cut Deep Blank Runes', icon: '🔳', inputs: { basalt_block: 3, magic_essence: 1 },      output: 'deep_rune_blank', outputQty: 20, xp: 1500, req: 74, ms: 4000 },
 

@@ -113,11 +113,23 @@ export const START_SKILL_XP = Object.freeze({
    use. Those three seeds are turnips now (5 -> 8), which a fresh character can
    plant on the camp's two plots the first minute. Carrot seeds arrive later as
    the reward for the first harvest (`farmhand`, src/data/goal-catalogue.js),
-   when Farming 10 is in reach. Server half: 2026-10-16-first-day-seeds.sql. */
+   when Farming 10 is in reach. Server half: 2026-10-16-first-day-seeds.sql.
+
+   ── W0 · EVERY STYLE STARTS SUPPLIED (coherence audit Top-10 #7, 2026-10-09) ──
+   An empty ammo slot on a bow or a staff now counts as "run dry" (x0.25 max
+   hit, src/core/ammo.js AMMO_EMPTY_SLOT_IS_DRY), so the kit carries the FREE
+   tier-1 rung of all three ladders. Each is `ammoPerShot: 0` and never
+   depletes, so the quantity is a stack that reads as a supply, not a clock:
+   whichever weapon the player picks up first, its ammo is already in the bag.
+   The same three are on the Local Shop counter (legacy.js SEED_SHOP), so a
+   player who sells them is never locked out. */
 export const START_INVENTORY = Object.freeze({
   turnip_seed: 8,
   shrimp: 10,
   cooked_shrimp: 20,
+  bronze_arrows: 50,
+  air_rune: 50,
+  coarse_whetstone: 10,
 });
 
 /* Equipment. equip_slot -> item_id. Every pair must exist in

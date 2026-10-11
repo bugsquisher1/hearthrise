@@ -53,6 +53,14 @@ import { join } from 'node:path';
 import { bootReplay, LAST_PATCHED, ROOT } from './schema-replay.mjs';
 import { DAILY_TASK_REWARDS, QUEST_REWARDS } from '../src/data/goal-catalogue.js';
 
+/* The daily rows THIS file prices. Both boots stop at MIG, and daily_harvest
+   became creditable only later (2026-10-16-daily-harvest-credit.sql, whose §4
+   pays it with the offer forced and whose chain-end arm
+   tests/goal-catalogue-drift.mjs binds to DAILY_TASK_REWARDS). Graded here it
+   would be judged against a body that never priced it. */
+const RETUNED_DAILY = Object.fromEntries(
+  Object.entries(DAILY_TASK_REWARDS).filter(([id]) => id !== 'daily_harvest'));
+
 const MIG = '2026-09-04-goal-gold-retune.sql';
 const problems = [];
 const ok = (cond, msg) => { if (!cond) problems.push(msg); };
@@ -328,7 +336,7 @@ async function run(mutate) {
     await stampDay(key, 5000);
   }
   for (const task of offered) {
-    if (!DAILY_TASK_REWARDS[task]) continue;         // daily_harvest is not creditable
+    if (!RETUNED_DAILY[task]) continue;              // daily_harvest: not creditable as of MIG
     const before = await goldOf();
     await gate();
     const r = await asUser(uid, 'select public.hr_claim_daily($1,0) as r', [task]);
@@ -417,7 +425,7 @@ function grade(o) {
     + 'fixture for GATE(e)/C9 — this file must not touch it.');
   ok(o.rowCount === 19, `T1: hr_goal_rewards holds ${o.rowCount} rows, expected 19`);
 
-  for (const [id, cat] of Object.entries(DAILY_TASK_REWARDS)) {
+  for (const [id, cat] of Object.entries(RETUNED_DAILY)) {
     ok(o.dailyDef.includes(
       `when '${id}' then v_type := '${cat.type}'; v_goal := ${cat.goal}; v_gold := ${cat.gold};`)
       || o.dailyDef.includes(
@@ -490,7 +498,7 @@ function grade(o) {
     `T3: today's slate (${(o.offered || []).join(',')}) offered no creditable daily task, so the `
     + 'daily half of the retune was not exercised at all.');
   for (const [task, r] of paid) {
-    const want = DAILY_TASK_REWARDS[task].gold;
+    const want = RETUNED_DAILY[task].gold;
     ok(r.ok === true && r.gold === want && r.said === want,
       `T3: daily task '${task}' paid ${r.gold} gold (receipt said ${r.said}), expected the `
       + `catalogued ${want}. The server is paying a different number from the one the client shows.`);

@@ -119,6 +119,7 @@ const HOUR = 3600000;
 const NOW_MS = Date.UTC(2026, 7, 16, 9, 0, 0);
 
 // ── the harness ───────────────────────────────────────────────────────────
+const OPEN_DBS = [];   // every database a run() boots; run() closes them all
 async function boot(patches) {
   /* A mutant stops at the newest file it patches (replayScopeError). Every
      --mutate arm is a JS mutant (loadMutant), so HR_REPLAY_SCOPE_CONTROL —
@@ -127,6 +128,7 @@ async function boot(patches) {
      each anchor and loads an UNMUTATED copy; all 13 must then read GREEN
      (tests/mutant-control.mjs runs it). */
   const { db } = await bootReplay(patches ? { patches, upTo: LAST_PATCHED } : {});
+  OPEN_DBS.push(db);
   await db.query('insert into auth.users (id) values ($1) on conflict do nothing', [USER]);
   await db.query("select set_config('request.jwt.claim.sub', $1, false)", [USER]);
   const r = await db.query('select public.hr_create_character(0) as r');
@@ -203,8 +205,18 @@ function gatherNight(over) {
 }
 
 // ════════════════════════════════════════════════════════════════════════
+/* EVERY ARM CLOSES ITS DATABASES. Each run() boots FIVE whole-chain PGlites (the
+   main one plus four `fresh` probes, ~1.2 GB of WASM heap together that GC cannot
+   reclaim while an instance is open); --mutate runs 15 runs in one process, and without the close the control peaked at ~22 GB RSS and
+   the 7 GB CI runner killed it (exit 143). RUN_RSS_CEILING_MB is the regression
+   tripwire: the mutate loop fails if the process grows past it. */
+const RUN_RSS_CEILING_MB = 4096;
 async function run(patches) {
   const db = await boot(patches);
+  try { await runOn(db, patches); }
+  finally { for (const d of OPEN_DBS.splice(0)) await d.close().catch(() => {}); }
+}
+async function runOn(db, patches) {
   const G = goalsMod;
 
   // ── G0 · THE FIXTURES ARE REAL ────────────────────────────────────────
@@ -1115,6 +1127,11 @@ async function mutate() {
     try { await run(null); }
     catch (e) { problems.push(`threw: ${String(e?.message || e).split('\n')[0]}`); }
     finally { computeAccrualFn = realEngine; goalsMod = realGoals; stateGoalTypes = STATE_GOAL_TYPES; }
+    const rssMb = process.memoryUsage().rss / 1048576;
+    if (rssMb > RUN_RSS_CEILING_MB) {
+      escapes.push(`RSS ${rssMb.toFixed(0)} MB after ${m.name.split(' ')[0]} exceeds ${RUN_RSS_CEILING_MB} MB — an arm is leaking its database`);
+      break;
+    }
     const caught = problems.length > 0;
     console.log(`[mutant] ${m.name.split(' ')[0]} ${caught ? 'caught' : 'survived'}`);
     console.log(`  ${caught ? 'RED  ' : 'GREEN'}  ${m.name}${caught ? ` (${problems.length})` : ''}`);

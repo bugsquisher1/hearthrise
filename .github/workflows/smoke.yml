@@ -3653,6 +3653,18 @@ jobs:
           node tests/no-client-xp-mint.mjs --selftest
           node tests/no-client-xp-mint.mjs
 
+      # NO UPWARD MERGE (b568, CLAUDE.md §6). Every two-sided Math.max in the
+      # envelope-reconcile layer (src/net) is classified or red, and the real
+      # reconcileInventory is driven: bag 33 + envelope 23 reads 23 on every
+      # branch, the armed bag drops what the projection omits, a prediction
+      # never reaches gateItemCount, the bag ships armed. --selftest plants five
+      # defects in a copy of src/ (merge max, completeness gate, stage off,
+      # skills max, equip re-coupling) and needs each red, the control green.
+      - name: No upward merge — the browser never ratchets a server number up
+        run: |
+          node tests/no-upward-merge.mjs --selftest
+          node tests/no-upward-merge.mjs
+
       # THE FRAME GATE (M5, docs/design/LIVE_COUNTERS_PUSH.md §7). Before it, the
       # client had NO whole-envelope version gate: isEnvelopeApplicable asked
       # only that `version` be a finite number, and the monotonic rule lived in

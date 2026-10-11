@@ -1611,3 +1611,14 @@ tests/accrual-engine.mjs CHARM-W4 byte-compares 32 forged input shapes against t
 **RESOLVED 2026-09-14 (Security condition 8), narrowly:** the block now opens with `if (!serverOwnedItem(id)) continue;`, so it can no longer reach an EXCLUDED id — `cooked_shrimp` was the live case, and deleting a dish on an omission is the loss the exclusion exists for. The block is kept, not retired: its owned half (the seeds, `shrimp`) is still the narrowest fix for a server row that is DELETED at zero. `INV-STAGE-10` measures the block's own receipt (`written.startKitHintDropped`) rather than the bag, because a dish also leaves the bag by the phantom-food rule and that would have made the test pass for the wrong reason.
 
 **Also recorded:** `INVENTORY_ARM_STAGE` ships `'off'`, so none of the above changes behaviour for a live player today.
+
+---
+
+## 2026-10-11 — SEMANTIC CONFLICT: the bag goes ABSOLUTE (b568, lane/b568-absolute-bag) — Security must see it before the cut
+**Lane:** systems-engineer, `lane/b568-absolute-bag` (on `lane/b568-intent-conflict-phantom`). CLAUDE.md §6 class-kill of the merge-upward bag.
+
+**What moved.** `INVENTORY_ARM_STAGE = 'on'`; `isInventoryAbsolute()` no longer reads the per-session equip ack; the ARMED branch of `reconcileInventory` is now "the bag IS the projection" (no completeness gate, no not-owned omitted-keep carve-out); the MERGE branch assigns every key it names (no `Math.max(have, q)`); named skill XP is assigned (no `Math.max(have, xp)` carve-out). Guard: `tests/no-upward-merge.mjs` (+ `--selftest`, five mutants).
+
+**Why it crosses Security's line.** The C2/C3 carve-outs and the completeness gate were reviewed as "never delete" rules. They are retired on the argument that `G.inventory` is never saved or sent (no local blob, not residue, no intent reads it) and hr_state_of projects the whole of `player_inventory` — so the replace can only correct a DISPLAY. The soak query (SELECT-only, 2026-10-11) read 72/102 `inv_flip_drift` sessions with destructive owned omissions; the lane reads those as the phantom being counted, not a hazard. The START-KIT hint block above is now reachable only on the merge path. **Security: confirm or veto before this rides a cut.** Fastest way back is unchanged: `hr_flags.inventory_absolute = false`.
+
+**Designer, display-only ratchet left in place:** `src/core/goal-display.js` keeps the goal bar at its high-water (`Math.max(prevShown, confirmed, predicted)`); `canClaim` reads `confirmed` only, so nothing spends it, but the bar can sit above the server after a prediction overshoot until the period rolls. Not changed here — it is R5's stated "never a decrement" rule.

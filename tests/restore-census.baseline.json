@@ -691,6 +691,11 @@
    "replay": 108,
    "note": "Generated catalogue (2026-08-23-bounty-monsters.generated.sql, tools/gen-bounty-monsters.mjs --check, a smoke preflight): which monsters a cull bounty may target, at which tier. Server-owned reference data — a stale copy credits a bounty at the wrong tier's reward, which is why the generator has its own --check. Rebuilt from repo, never restored."
   },
+  "hr_bounty_board_monsters": {
+   "class": "seeded",
+   "replay": 94,
+   "note": "The board-eligible ALLOWLIST (2026-10-17-bestiary-target.sql §1: src/data/monsters.js minus boss/champion, drift-guarded by tests/bestiary-target.mjs D1/D2). hr_accept_bounty refuses any target not in it, so a rebuild that came back EMPTY would refuse every contract (fail closed, loud); a stale copy would refuse a new board monster. Server-owned reference data, rebuilt from repo, never restored."
+  },
   "hr_castle_board_tasks": {
    "class": "seeded",
    "replay": 9,

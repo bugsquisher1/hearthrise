@@ -117,10 +117,11 @@ import { fetchWrite,
   showReplacementSheet, registerPredictionSeam, isReconcilePending,
   classifyFrame, commitFrame, resetFrameGate, getAppliedFrame, noteFrameDrop,   // the frame gate, §7.1
   applyCollectedReceipt,   // a verb that settled first hands its `collected` to the welcome card
-} from './accrue.js?v=568';
-import { SHOP_OFFERS } from '../data/shops.js?v=568';
-import { withSettleFirstRetry } from './settle-first.js?v=568';
-import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=568';
+  retryOnConflict,         // the one version_conflict retry policy
+} from './accrue.js?v=567';
+import { SHOP_OFFERS } from '../data/shops.js?v=567';
+import { withSettleFirstRetry } from './settle-first.js?v=567';
+import { GOLD_SITE_LEDGER, isWiredSite } from './gold-sites.js?v=567';
 
 export const SHOP_BUY_VERB = 'shop_buy';
 export const VENDOR_SELL_VERB = 'vendor_sell';
@@ -317,7 +318,7 @@ export function goldPredictions() {
 }
 export function predictedGold() { return pending.reduce((s, p) => s + p.delta.gold, 0); }
 export function predictedGems() { return pending.reduce((s, p) => s + p.delta.gems, 0); }
-export function resetGold() { pending = []; last = null; resetFrameGate(); }  // the floor is per character (§7.1)
+export function resetGold() { pending = []; goods = new Map(); last = null; resetFrameGate(); }  // the floor is per character (§7.1)
 
 /** A finite integer-ish amount, or 0. F8: `Number(x) || 0` maps NaN to 0 but
  *  lets `Infinity` straight through, and an Infinity in the prediction ledger
@@ -447,6 +448,58 @@ export function rollbackPrediction(G, key) {
   }
   announceResolved();
   return p.delta.gold;
+}
+
+/* ── THE GOODS LEG (live P1: "Have: 33", the server held 23) ──────────
+   A buy moves TWO things: gold, predicted above and reconciled ABSOLUTELY, and
+   goods, which the caller adds to the display bag. The bag is a one-way
+   `Math.max` merge in prod (accrue.js reconcileInventory, isInventoryAbsolute()
+   false), so an over-predicted stack is NEVER corrected by any envelope: a
+   refused buy kept its +10 seeds until reload. So the goods leg lives beside
+   the gold leg under the SAME key, and is taken back on EVERY outcome that is
+   not a receipt (applied/replayed) — BEFORE that answer's envelope is applied.
+   Taking back on an unanswered call is safe in the max-merge direction: if the
+   server did deliver, the next envelope's figure restores it; if it did not,
+   nothing ever would have. Under-showing self-heals; over-showing never does. */
+let goods = new Map();   // key -> { id: qty }
+export function noteGoodsPrediction(key, items) {
+  if (!isIntentKey(key) || !items || typeof items !== 'object') return false;
+  const leg = {};
+  for (const id of Object.keys(items)) {
+    const q = Math.floor(Number(items[id]));
+    if (ITEM_ID_RE.test(id) && Number.isFinite(q) && q > 0) leg[id] = q;
+  }
+  if (!Object.keys(leg).length) return false;
+  goods.set(key, leg);
+  return true;
+}
+export function goodsPredictions() {
+  const out = {};
+  for (const [k, leg] of goods) out[k] = { ...leg };
+  return out;
+}
+/** Take a goods leg back off the display bag (never below zero). */
+export function reverseGoods(G, key) {
+  const leg = goods.get(key);
+  if (!leg) return 0;
+  goods.delete(key);
+  let n = 0;
+  if (G && typeof G === 'object' && G.inventory && typeof G.inventory === 'object') {
+    for (const id of Object.keys(leg)) {
+      const left = (Number(G.inventory[id]) || 0) - leg[id];
+      if (left > 0) G.inventory[id] = left; else delete G.inventory[id];
+      n += leg[id];
+    }
+  }
+  return n;
+}
+/** A retry under a new key carries both legs with it. */
+export function rekeyPrediction(oldKey, newKey) {
+  if (!oldKey || !newKey || oldKey === newKey) return false;
+  const p = pending.find((x) => x.key === oldKey);
+  if (p) p.key = newKey;
+  if (goods.has(oldKey)) { goods.set(newKey, goods.get(oldKey)); goods.delete(oldKey); }
+  return !!p;
 }
 
 /**
@@ -899,7 +952,8 @@ function tokenOf() {
   catch (e) { return null; }
 }
 
-let hooks = { onEnvelope: null, onOutcome: null, onRollback: null, onAbandon: null, onResolved: null };
+let hooks = { onEnvelope: null, onOutcome: null, onRollback: null, onAbandon: null, onResolved: null,
+  onGoodsReverse: null };
 export function setGoldHooks(h) { hooks = { ...hooks, ...(h || {}) }; }
 function fire(name, a, b) {
   const fn = hooks && hooks[name];
@@ -959,6 +1013,7 @@ function inert(outcome, verb, reason, detail, key) {
   if (key) {
     if (outcome === 'switch-off') dropPrediction(key);
     else fire('onRollback', key, { outcome, verb, reason });
+    fire('onGoodsReverse', key); goods.delete(key);   // nothing was sent: the goods leg is a phantom
   }
   last = { outcome, verb, reason: reason || null, detail: detail || null, at: Date.now(), key: key || null };
   fire('onOutcome', last);
@@ -971,13 +1026,16 @@ function inert(outcome, verb, reason, detail, key) {
  * @param req  what buildGoldRequest needs, minus the transport bits
  * @param key  the intent key, ALREADY used by `settle` if the caller predicted
  *
- * ONE ATTEMPT, NO AUTOMATIC RETRY. Deliberate, and narrower than activity.js:
- * a rejected key stays rejected for up to 25 hours (hr_apply records the
- * DECISION), so retrying a refusal cannot succeed; and an UNANSWERED value
- * transfer is the one case where a client must not decide anything on its own —
- * the next envelope settles it. `version_conflict` is the single code that
- * would be safe to retry and it is left to the caller's next gesture, because
- * an automatic retry of a purchase is a purchase the player did not make twice.
+ * ONE RETRY, AND ONLY FOR AN ANSWERED `version_conflict` (live P1 — a
+ * Turnip Seed buy during a fight raced the combat settle, was refused, and the
+ * client kept its +10 seeds). The rule is accrue.js `retryOnConflict`, shared
+ * with eat / enchant / trophy / dungeon: a refusal applied NOTHING (hr_apply's
+ * protected block), so a NEW key — never the old one, whose stored decision
+ * may be handed back — re-asks a question the player asked once; it is not a
+ * second purchase. The prediction (gold AND goods) moves to the new key so the
+ * retry's envelope retires exactly it. Every other refusal is the realm's
+ * considered answer and is settled at once; an UNANSWERED call is never
+ * retried here (the next envelope settles it).
  *
  * @param opts  { timeoutMs } — the call's deadline (default GOLD_TIMEOUT_MS); it
  *              spans the body read too (callDeadline).
@@ -988,10 +1046,18 @@ export async function sendGoldIntent(req, key, opts) {
   const token = tokenOf();
   if (!token) return inert('unconfigured', verb, 'no_token', null, key);
   if (!isIntentKey(key)) return inert('unsendable', verb, 'no_intent_key', null, key);
+  const verdict = await retryOnConflict((k) => attemptGoldOnce(req, k, opts), key,
+    () => { const n = newIntentKey(); return isIntentKey(n) ? n : null; }, rekeyPrediction);
+  return settleVerdict(verdict, verb, verdict.key);
+}
 
-  const slot = resolveActiveSlot(config.slot);
+/** ONE ATTEMPT, UNSETTLED — the verdict is settled by sendGoldIntent once the
+ *  retry policy has decided it is final. */
+async function attemptGoldOnce(req, key, opts) {
+  const token = tokenOf();
+  const slot = resolveActiveSlot(config ? config.slot : null);
   const { url, init } = buildGoldRequest({
-    ...req, url: config.url, apiKey: config.apiKey, token, slot, intentId: key,
+    ...req, url: config ? config.url : '', apiKey: config ? config.apiKey : '', token, slot, intentId: key,
   });
 
   let ac = null;
@@ -1005,21 +1071,26 @@ export async function sendGoldIntent(req, key, opts) {
   } catch (e) {
     dl.clear();
     /* NEVER ANSWERED. The prediction STANDS — see the header. */
-    return settleVerdict({ outcome: dl.fired ? 'timeout' : 'unreachable',
-      reason: String((e && e.message) || e) }, verb, key);
+    return { outcome: dl.fired ? 'timeout' : 'unreachable', reason: String((e && e.message) || e), key };
   }
   const read = await dl.body(res);
   dl.clear();
   /* Headers came back but the body never did: no verdict was READ, so this is a
      timeout (the prediction stands), not a malformed answer. */
-  if (read.timedOut) return settleVerdict({ outcome: 'timeout', reason: 'body_stalled', status: res.status }, verb, key);
-  return settleVerdict({ ...classifyGoldResponse(res.status, read.body), status: res.status }, verb, key);
+  if (read.timedOut) return { outcome: 'timeout', reason: 'body_stalled', status: res.status, key };
+  return { ...classifyGoldResponse(res.status, read.body), status: res.status, key };
 }
 
 function settleVerdict(verdict, verb, key) {
   const body = verdict.body || null;
   const env = envelopeOf(body);
   const applied = { envelope: false, rolledBack: 0, unresolved: false };
+
+  /* THE GOODS LEG FIRST, so a refusal's envelope merges onto the bag WITHOUT
+     the phantom (max(33, 23) was the live bug). A receipt keeps it: the
+     answer's own bag names the goods. */
+  if (verdict.outcome === 'applied' || verdict.outcome === 'replayed') goods.delete(key);
+  else { applied.goodsReversed = fire('onGoodsReverse', key) || 0; goods.delete(key); }
 
   if (env) {
     const wrote = fire('onEnvelope', body, { ...verdict, verb, key });
@@ -1423,6 +1494,7 @@ if (typeof window !== 'undefined') {
     onEnvelope: (body, v) => applyGoldEnvelope(window.G, body, v && v.key),
     onRollback: (key) => rollbackPrediction(window.G, key),
     onAbandon: (key) => abandonPrediction(key),
+    onGoodsReverse: (key) => { const n = reverseGoods(window.G, key); if (n) announceResolved(); return n; },
     onResolved: () => { try { window.dispatchEvent(new CustomEvent(BALANCE_RESOLVED_EVENT)); } catch (e) {} },
   });
 
@@ -1438,6 +1510,7 @@ if (typeof window !== 'undefined') {
     buildGoldRequest, newIntentKey, isIntentKey, resolvePurchase, shopOfferIndex,
     configureGold, getGoldConfig, setGoldHooks, getGoldState, resetGold,
     buyShop, buyUnlock, sellItem, sellItems, claimReward, sendGoldIntent,
+    noteGoodsPrediction, goodsPredictions, reverseGoods, rekeyPrediction,
     UNLOCK_BUY_VERB, UNLOCK_OFFER_ID_RE,
     /* The permanent-trait purchase (hr_trait_buy). NOT a gold verb and NOT a
        prediction — see its header. legacy.js buyTrait() is the only caller. */

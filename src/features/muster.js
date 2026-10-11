@@ -789,7 +789,7 @@
                 doubled once the inventory flip arms. Absent → no items are paid
                 (W0: the client never computes a chest of its own). */
              items: Array.isArray(out.items) ? out.items : null,
-             /* The XP the server CREDITED to player_skills (b567) — rendered,
+             /* The XP the server CREDITED to player_skills — rendered,
                 never added. */
              xp:    sanitizeServerXp(out.xp) || [] };
   }
@@ -1062,7 +1062,7 @@
     (c.items || []).forEach(function (it) {
       if (it.qty > 0 && _mayInv && typeof window.addItem === 'function') window.addItem(it.id, it.qty);
     });
-    /* XP (b567, P1 class-kill). This used to call window.addXp for each entry —
+    /* XP (P1 class-kill). This used to call window.addXp for each entry —
        the server never wrote player_skills, so a non-combat theme's XP was
        erased by the next envelope and a combat theme's rode
        _combatXpPending -> hr_credit_combat_xp: client-authored ranked XP. Both

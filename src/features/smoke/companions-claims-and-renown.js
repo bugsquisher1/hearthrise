@@ -1469,7 +1469,7 @@ export default [
     // The materials now live in player_inventory. Pre-arm the server write is
     // dark, so the client credits locally for display; post-arm the absolute
     // envelope carries the rows, so the client must NOT addItem them (double).
-    // This mirrors the gold gate. XP is server-credited (b567) and never added.
+    // This mirrors the gold gate. XP is server-credited (2026-10-10-muster-chest-xp-credit.sql) and never added.
     const M = window.HearthriseMuster;
     if (!M || typeof M._payChest !== 'function') return;
     const origAdd = window.addItem;
@@ -1507,7 +1507,7 @@ export default [
     }
   }),
 
-  () => tryRunAsync('regression (b567): the rally chest XP is SERVER-credited — payChest authors none on either path (attended claim + absence claim), and asks for the envelope instead', async () => {
+  () => tryRunAsync('regression (rally chest XP): the rally chest XP is SERVER-credited — payChest authors none on either path (attended claim + absence claim), and asks for the envelope instead', async () => {
     // P1 class-kill (CLAUDE.md §1). payChest called window.addXp for every
     // entry of the claim's xp list while world_event_claim /
     // world_event_absence_claim never wrote player_skills: a non-combat theme's

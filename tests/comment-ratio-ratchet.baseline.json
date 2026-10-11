@@ -13,17 +13,17 @@
       "bnum": 733
     },
     "src/features/smoke/monsters-inventory-and-brand.js": {
-      "total": 9731,
-      "comment": 2552,
-      "code": 6546,
-      "ratio": 0.389618320610687,
+      "total": 9803,
+      "comment": 2564,
+      "code": 6602,
+      "ratio": 0.38836716146622235,
       "bnum": 130
     },
     "src/features/smoke/record-seam-and-hydration.js": {
-      "total": 9240,
-      "comment": 2434,
-      "code": 6179,
-      "ratio": 0.3939148729567891,
+      "total": 9273,
+      "comment": 2439,
+      "code": 6206,
+      "ratio": 0.39300676764421527,
       "bnum": 144
     },
     "src/features/smoke/away-time-and-offline.js": {
@@ -34,10 +34,10 @@
       "bnum": 133
     },
     "src/net/accrue.js": {
-      "total": 7106,
-      "comment": 3797,
-      "code": 2797,
-      "ratio": 1.3575259206292456,
+      "total": 7169,
+      "comment": 3821,
+      "code": 2834,
+      "ratio": 1.3482709950599858,
       "bnum": 127
     },
     "src/features/smoke/market-night-and-prices.js": {
@@ -76,10 +76,10 @@
       "bnum": 81
     },
     "src/features/smoke/companions-claims-and-renown.js": {
-      "total": 3832,
-      "comment": 755,
-      "code": 2874,
-      "ratio": 0.26260869565217393,
+      "total": 3891,
+      "comment": 762,
+      "code": 2925,
+      "ratio": 0.2605128205128205,
       "bnum": 36
     },
     "src/features/clan-seat-ui.js": {

@@ -4,6 +4,18 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 565 — 2026-10-08 (The strongest foes pay best)
+
+**Experience comes from the damage you deal.** A swing that hits harder than the monster has health left no longer pays experience for the overkill. A maxed fighter on a Slime used to earn more per swing than on a Death Knight; now the strongest foes are the best experience again. Known issue: on monsters of 12 health or less, small experience bonuses (an early Trophy rung, for example) can round away to nothing. The fix is built and ships in the next update.
+
+**Shops buy back at half price.** A shopkeeper pays at most half of what they charge for anything they also sell, so buying and reselling can never make gold. Steel platebody and the farm seeds sold back at full price until today. Cooked food sold to a shop pays a little less; the player market is now the best place to sell your cooking.
+
+**Sell a whole stack in one go.** Bulk selling is back, settled by the realm in one sale with one answer.
+
+**A lost answer heals itself.** If the realm's reply to something you did never reaches you, the game now reads your character again within seconds instead of waiting for the next update.
+
+**A tired hunt slows at the right moment.** A hunt that runs past your Vigour line slows from that moment on, not as an average over the whole night.
+
 ## v0.9.2-beta build 564 — 2026-10-07 (Numbers you can read)
 
 **Big numbers read cleanly.** Counts across the bag popup, Sell All, the shop, the farm and the house now print with separators: 46,733 ore, not 46733.

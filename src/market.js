@@ -1338,7 +1338,7 @@
         + '<div class="mk-rows">' + forSale.map(forSaleRow).join('') + '</div>'
         + (onlyMine && known && !ui.q ? '<div class="mk-note">No one else has anything for sale right now.</div>' : '');
     } else if(!known){
-      browseBody = '<div class="mk-empty">' + pendingMark() + '</div>';
+      browseBody = '<div class="mk-empty">Loading what is for sale… ' + pendingMark() + '</div>';
     } else if(ui.q){
       browseBody = '<div class="mk-empty">Nothing for sale matches “' + escapeAttr(ui.q) + '”. Try another name.</div>';
     } else {

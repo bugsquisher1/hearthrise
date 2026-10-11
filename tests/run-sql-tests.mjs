@@ -593,6 +593,8 @@ const ALSO_LINTED = [
      here so the grant lints read their revoke-then-grant. */
   '2026-10-16-login-reward.sql',
   '2026-10-16-goal-board-retire.sql',
+  /* restates hr_claim_daily__ungated (daily_harvest pays); revoke restated. */
+  '2026-10-16-daily-harvest-credit.sql',
 ];
 
 // ── THE hr_apply DERIVATION CHAIN ────────────────────────────────────────

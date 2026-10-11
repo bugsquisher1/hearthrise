@@ -6,8 +6,8 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-10-10",
- "digest": "f8c975fc420e1e02ec5fc50006a0541e3a124f6cc736af1b651aa574ea8b52f4",
+ "generated": "2026-10-11",
+ "digest": "1e4181727523438af6d02a42cdcbd475644e26f5478a7596246d3aadd4a7dce5",
  "counts": {
   "relations": 146,
   "functions": 361,
@@ -370,7 +370,7 @@
    "hr_load(p_slot integer)",
    "hr_login_catalogue()",
    "hr_login_claim_verify(p_uid uuid, p_slot integer, p_period text, p_delta jsonb)",
-   "hr_login_price(p_streak integer)",
+   "hr_login_price(p_streak integer, p_straight boolean)",
    "hr_login_streak(p_user uuid, p_slot integer)",
    "hr_market_buy(p_user uuid, p_slot integer, p_version bigint, p_intent_id uuid, p_listing_id uuid, p_qty bigint)",
    "hr_market_cancel(p_user uuid, p_slot integer, p_version bigint, p_intent_id uuid, p_listing_id uuid)",

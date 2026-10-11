@@ -26,7 +26,9 @@
 //             the tally rows)
 //   P-CLIENT  no client file reads share_bp / xp / gold off an hr_party_view
 //             row (A2 retired them), and no client file reads
-//             party_hunt_roster_log or party_hunt_tally directly
+//             party_hunt_roster_log or party_hunt_tally directly. The hunt-view
+//             readers (huntMemberRow, partyReceiptLine) are exempt by name:
+//             those keys live on hr_party_hunt_view rows.
 //
 // --mutate plants a defect in §0-§6 of the file's text, executes it, then runs
 // the UNCHANGED §7 and requires it to refuse on the named arm. The four the
@@ -73,14 +75,40 @@ async function tryApply(db, sql, after) {
   }
 }
 
+/* The b569 hunt card reads share_bp / xp / gold off hr_party_hunt_view's
+   member rows, where they LIVE (the per-hunt tally, §4). A2 retired them from
+   hr_party_view's ROSTER rows only. These named functions take a hunt-view
+   answer and nothing else, so their bodies are cut out of the scan: a retired
+   key read anywhere else in either file (the roster row, the screen) is still
+   red, and an exempt reader that disappears or is renamed is red too. */
+const HUNT_VIEW_READERS = { 'src/render/party-panel.js': ['huntMemberRow', 'partyReceiptLine'] };
+
+/** Cut `function name(…) { … }` out of code; null when it is not there. */
+function cutFunction(code, name) {
+  const at = code.indexOf('function ' + name + '(');
+  if (at < 0) return null;
+  const open = code.indexOf('{', at);
+  let depth = 0;
+  for (let i = open; i < code.length; i++) {
+    if (code[i] === '{') depth++;
+    else if (code[i] === '}' && --depth === 0) return code.slice(0, at) + code.slice(i + 1);
+  }
+  return null;
+}
+
 /** P-CLIENT: the static half of A2 and of "the view is the only read path". */
-async function clientScan() {
+async function clientScan(override = {}) {
   const files = ['src/net/party.js', 'src/render/party-panel.js'];
   const bad = [];
   for (const f of files) {
-    const src = await readFile(join(ROOT, f), 'utf8');
+    const src = f in override ? override[f] : await readFile(join(ROOT, f), 'utf8');
     // Code only: strip line and block comments so the header prose may name them.
-    const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+    let code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+    for (const fn of HUNT_VIEW_READERS[f] || []) {
+      const cut = cutFunction(code, fn);
+      if (cut === null) { bad.push(`${f} has no hunt-view reader ${fn}() — the exemption names nothing`); continue; }
+      code = cut;
+    }
     for (const k of ['share_bp', '.xp', '.gold', "['xp']", "['gold']"]) {
       if (code.includes(k)) bad.push(`${f} reads ${k}`);
     }
@@ -89,6 +117,37 @@ async function clientScan() {
     }
   }
   return bad;
+}
+
+/* The scan's own mutation proof (--mutate): each plant must turn P-CLIENT red. */
+async function scanMutantList() {
+  const panel = await readFile(join(ROOT, 'src/render/party-panel.js'), 'utf8');
+  const net = await readFile(join(ROOT, 'src/net/party.js'), 'utf8');
+  const plant = (src, anchor, add) => {
+    if (src.split(anchor).length - 1 !== 1) { console.error(`harness: scan mutant anchor matched != 1: ${anchor}`); process.exit(2); }
+    return src.replace(anchor, () => anchor + add);
+  };
+  const M = [
+    { name: 'rosterRowReadsXp', why: 'the ROSTER row (hr_party_view) renders a retired xp key',
+      over: { 'src/render/party-panel.js': plant(panel, '  function memberRow(m, opts) {\n', '    var leak = m.xp;\n') } },
+    { name: 'netReadsShare', why: 'the net layer reads share_bp off the roster answer',
+      over: { 'src/net/party.js': net + '\nfunction leak(v) { return v.members[0].share_bp; }\n' } },
+    { name: 'exemptReaderRenamed', why: 'an exempt hunt-view reader is renamed, so the exemption silently names nothing',
+      over: { 'src/render/party-panel.js': panel.split('function partyReceiptLine(').join('function partyReceiptLine2(') } },
+  ];
+  return M;
+}
+
+async function runScanMutants(M) {
+  let survived = 0;
+  for (const m of M) {
+    const bad = CONTROL ? await clientScan() : await clientScan(m.over);
+    const hit = bad.length > 0;
+    console.log(`[mutant] ${m.name} ${hit ? 'caught' : 'survived'}`);
+    if (hit) console.log(`  ✓ ${m.name} — ${m.why}: RED via P-CLIENT: ${bad[0]}`);
+    else { survived++; console.log(`  ✗ ${m.name} — ${m.why}: SURVIVED`); }
+  }
+  return { n: M.length, survived };
 }
 
 let db;
@@ -179,10 +238,14 @@ const MUTANTS = [
 ];
 
 console.log('\nparty-hunt-view --mutate: every mutant must go RED on its named arm');
+if ((await clientScan()).length) { console.error('harness: the unmutated client scan is red'); process.exit(2); }
+const SCAN = await scanMutantList();
 const control = await tryApply(db, SQL);
 if (control) { console.error(`harness: the unmutated file is red (${control})`); process.exit(2); }
-console.log(`[mutants] ${MUTANTS.length}`);
-let survived = 0;
+/* ONE declaration for every arm this run reports (tests/mutant-control.mjs counts them). */
+console.log(`[mutants] ${MUTANTS.length + SCAN.length}`);
+const scan = await runScanMutants(SCAN);
+let survived = scan.survived;
 for (const m of MUTANTS) {
   const n = SQL.split(m.find).length - 1;
   if (n !== 1) { console.error(`harness: ${m.name}: anchor matched ${n}x`); process.exit(2); }
@@ -198,8 +261,8 @@ for (const m of MUTANTS) {
 }
 await db.close();
 if (CONTROL) {
-  console.log(`\nHR_MUTANT_CONTROL: nothing planted; ${MUTANTS.length - survived} arm(s) read caught`);
-  process.exit(survived === MUTANTS.length ? 0 : 1);
+  console.log(`\nHR_MUTANT_CONTROL: nothing planted; ${MUTANTS.length + scan.n - survived} arm(s) read caught`);
+  process.exit(survived === MUTANTS.length + scan.n ? 0 : 1);
 }
-console.log(survived ? `\n${survived} mutant(s) survived` : `\nall ${MUTANTS.length} mutants red on their named arm`);
+console.log(survived ? `\n${survived} mutant(s) survived` : `\nall ${MUTANTS.length + scan.n} mutants red on their named arm`);
 process.exit(survived ? 1 : 0);

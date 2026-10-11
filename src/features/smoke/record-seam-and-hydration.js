@@ -6228,6 +6228,7 @@ export default [
       inventory: G.inventory, los: G.lastOfflineSummary, _record: G._record };
     const realFetch = window.fetch;
     const wasOn = A.isServerAccrualEnabled();
+    const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
     let seen = [];
     let plan = [];
     try {
@@ -6293,6 +6294,7 @@ export default [
       try { window.stopCombat(); } catch (e) {}
       Object.assign(G, save);
       try { window.saveLocal(); } catch (e) {}
+      bagHeld.restore();
     }
   }),
 

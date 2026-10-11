@@ -948,13 +948,14 @@ export default [
       window.HR.icon = (key) => '[' + key + ']';           // a readable glyph, so the toast can be graded
       window.clientMayWriteRecordField = function (f) { return f !== 'gold' && f !== 'gems'; };  // ARMED
 
-      // A RANK WITH A GEM REWARD, claimed on the account's second hero.
-      if (!window.G.stats) window.G.stats = {};
-      window.G.stats.kills = 60000;
+      // A RANK WITH A GEM REWARD, claimed on the account's second hero. The
+      // high-water is what every rank gate reads (effectiveRenown), so it is
+      // the one seed that makes Baron claimable regardless of the kill formula.
+      window.G.renownHigh = 200000;
       window.G.renown = { claimed: [], seenRank: 0 };
       predZero(); window.G.gold = 0; window.G.gems = 0;
       const rank = R.getClaimable(window.G).find((r) => r.reward && r.reward.gems > 0);
-      assert(rank, 'a claimable rank with a gem reward must exist at 60,000 kills');
+      assert(rank, 'a claimable rank with a gem reward must exist at a 200,000 renown high-water');
       window.fetch = function (url) {
         if (String(url).indexOf('hr_claim_rank') !== -1) {
           return reply({ ok: true, rank: rank.id, gold: rank.reward.gold || 0, gems: 0, renown_high: 99999, slot: 1, credited: true });

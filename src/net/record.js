@@ -1735,6 +1735,12 @@ function settle(verdict) {
     hydrationStep('client-state', () => applyClientState(verdict.body, G));
     // The contract's server figure (top-level `bounty`, hr_state_of) on an idle boot too.
     hydrationStep('bounty', () => { if (typeof window !== 'undefined' && typeof window.hrNoteServerBounty === 'function') window.hrNoteServerBounty(verdict.body); });
+    /* The boot envelope's `must_rename` (2026-10-11-name-moderation.sql): an idle
+       reload never reaches applyEnvelopeState, so the prompt is fed here too. */
+    hydrationStep('identity', () => {
+      const I = typeof window !== 'undefined' ? window.HearthriseIdentity : null;
+      if (I && typeof I.noteEnvelope === 'function') I.noteEnvelope(verdict.body);
+    });
     /* ── ADOPT THE SERVER'S HP AT BOOT (b511) ───────────────────────────────────
        FOURTH INSTANCE OF THE IDLE-BOOT HYDRATION CLASS (b467 inventory, b477
        crew, SA-016 hero slots, now hp). hp lived ONLY in accrue.js's

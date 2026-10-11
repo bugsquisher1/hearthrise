@@ -9,6 +9,10 @@
 -- supabase/functions/hr-accrue/claim-reward.js reports `granted.gems` from the
 -- apply's `gems_paid` (deploy after this file). No client contract change: the
 -- envelope keeps `gems` and `hearth_tokens`, now the account's.
+-- CHAIN POSITION: after 2026-10-11-name-moderation.sql (Security ordering
+-- ruling 2026-10-11). hr_state_of is restated from the POST-moderation body
+-- (`must_rename` kept, §8 v3c) and §0 accepts only that body; the other ten
+-- pins equal production as measured read-only on 2026-10-11.
 --
 -- ── THE RULING (Game Designer, final, 2026-10-11) ──────────────────────────
 --   Gems and Hearth Tokens are ONE balance per account (Idle Clans). Why: hero
@@ -176,7 +180,11 @@ begin
     raise exception 'account-wallet §0: % is absent or not the body this file restates (md5 %) — another lane moved it; restate from that body instead', 'public.hr_create_character(integer)', v_md5;
   end if;
   v_md5 := (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = to_regprocedure('public.hr_state_of(uuid,integer)'));
-  if v_md5 is null or v_md5 not in ('888304fc35ac4515f678aba7f3096d71', 'c7120f1f09188ac7a6f7d1c9fa7c5ddf') then
+  -- POST-MODERATION ONLY (Security ordering ruling 2026-10-11): the body
+  -- 2026-10-11-name-moderation.sql leaves, with `must_rename` projected. The
+  -- pre-moderation body (888304fc…) is refused on purpose: restating over it
+  -- would ship a projection that moderation's later anchor could not find.
+  if v_md5 is null or v_md5 not in ('9a8d651827010eba5ddc25b0012f9ff0', '7e38c7f1632b1124665ff3e5a561b9a3') then
     raise exception 'account-wallet §0: % is absent or not the body this file restates (md5 %) — another lane moved it; restate from that body instead', 'public.hr_state_of(uuid,integer)', v_md5;
   end if;
   v_md5 := (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = to_regprocedure('public.hr_day_budget_used(uuid,integer,timestamp with time zone)'));
@@ -2386,6 +2394,10 @@ begin
     -- ── inventory_complete — the STAMPED completeness signal, fail-closed ──
     --    introduced by 2026-08-24-inventory-complete.sql
     --    the third (worker) arm was added by 2026-08-25-workers.sql
+    -- ── must_rename (2026-10-11-name-moderation.sql) ── the player's own
+    --    moderation flag; the client opens a non-dismissable rename prompt.
+    'must_rename', coalesce((select pr.must_rename from public.profiles pr
+                              where pr.id = p_user), false),
     'inventory_complete', (
       case
         when v_st.active_kind is null
@@ -2718,7 +2730,14 @@ begin
        or (public.hr_state_of(v_uid, 1)->'state'->>'gems')::bigint <> 400 then
       raise exception 'account-wallet §8 v3: the slots disagree on the balance (% / %)',
         public.hr_state_of(v_uid, 0)->'state'->>'gems', public.hr_state_of(v_uid, 1)->'state'->>'gems'; end if;
-    update public.player_state set renown_high = 5000 where user_id = v_uid;
+    -- v3c THE RESTATEMENT KEPT name-moderation's projection: `must_rename` is a
+    --     top-level boolean on every slot's envelope (false for this account).
+    if jsonb_typeof(public.hr_state_of(v_uid, 0)->'must_rename') is distinct from 'boolean'
+       or jsonb_typeof(public.hr_state_of(v_uid, 1)->'must_rename') is distinct from 'boolean'
+       or (public.hr_state_of(v_uid, 1)->>'must_rename')::boolean then
+      raise exception 'account-wallet §8 v3c: hr_state_of lost or mis-projects must_rename (%)',
+        public.hr_state_of(v_uid, 1)->'must_rename'; end if;
+    update public.player_state set renown_high = greatest(coalesce(renown_high, 0), 5000) where user_id = v_uid;
 
     -- v1 A GEM GRANT CLAIMED ON HERO A PAYS NO GEMS ON HERO B (its gold still pays).
     v := public.hr_claim_rank__ungated('baron', 0);

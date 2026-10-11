@@ -39,11 +39,12 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, inventory, ROOT } from './schema-replay.mjs';
+import { PRE_WALLET } from './wallet-fixture.mjs';
 
 const MUTATE = process.argv.includes('--mutate') || process.argv.includes('--selftest');
 const CONTROL = Boolean(process.env.HR_MUTANT_CONTROL);
 const MIG = '2026-10-19-account-wallet.sql';
-const PREV = '2026-10-16-first-day-seeds.sql';
+const PREV = PRE_WALLET;   // the file before the wallet, derived from the apply order
 const SQL = (await readFile(join(ROOT, 'supabase', 'migrations', MIG), 'utf8')).replace(/\r\n/g, '\n');
 const EDGE_FILE = 'supabase/functions/hr-accrue/claim-reward.js';
 const EDGE = (await readFile(join(ROOT, EDGE_FILE), 'utf8')).replace(/\r\n/g, '\n');

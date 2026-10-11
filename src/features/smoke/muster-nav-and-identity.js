@@ -1581,7 +1581,7 @@ export default [
       input.value = 'Clover Probe';
       input.dispatchEvent(new Event('input'));
       scrim.querySelector('.btn-primary').click();
-      await new Promise((r) => setTimeout(r, 300));
+      await new Promise((r) => setTimeout(r, 600));   // past the 350 ms availability debounce
       assert(!document.querySelector('.hr-id-scrim') && I.mustRename() === false,
         'a confirmed claim did not clear the forced prompt');
       // The server's next envelope is the authority both ways.

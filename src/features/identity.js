@@ -1287,6 +1287,7 @@
       say('Checking…', 'muted');
       var mine = ++seq;
       timer = setTimeout(function () {
+        if (!scrim.isConnected) return;                   // the sheet closed: nobody to tell
         checkAvailability(raw).then(function (d) {
           if (mine !== seq) return;                       // a newer keystroke won
           if (d.action === 'available') say(d.mine ? 'This is already your name' : v.name + ' is available', 'ok');

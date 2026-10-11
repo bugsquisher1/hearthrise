@@ -51,8 +51,8 @@
 
 import {
   TROPHY_STAGES, TROPHY_STAGE_NAMES, MAX_TROPHY_STAGE, trophyStageAt, nextTrophyAt,
-} from '../data/bestiary.js?v=565';
-import { trophyIndex, trophyStageFor } from '../core/trophies.js?v=565';
+} from '../data/bestiary.js?v=566';
+import { trophyIndex, trophyStageFor } from '../core/trophies.js?v=566';
 
 const w = () => (typeof window !== 'undefined' ? window : {});
 const g = () => w().G || {};
@@ -393,10 +393,8 @@ export async function claim(id, stage) {
   /* REPAINT FROM WHATEVER THE SERVER NOW SAYS — success or refusal alike. A
      `not_yet` carries an envelope precisely so the client that was ahead can be
      put back, and repainting only on success is how the stale number survives. */
-  if (typeof w().openBestiary === 'function' && typeof document !== 'undefined') {
-    const ov = document.getElementById('best-overlay');
-    if (ov && ov.classList.contains('show')) { try { w().openBestiary(); } catch (e) { /* display only */ } }
-  }
+  const J = w().HearthriseJournal;
+  if (J) { try { J.repaint('bestiary'); } catch (e) { /* display only */ } }
   return verdict;
 }
 

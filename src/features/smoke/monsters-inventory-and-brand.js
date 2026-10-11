@@ -6,8 +6,8 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 183 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { CHARM_CLASS_LORE, CHARM_RANK_LORE } from '../../data/charm-lore.js?v=565';
-import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot, closeOverlays, phoneFrame, feedServerQuests, serverBagFixture, withServerBacked } from './_harness.js?v=565';
+import { CHARM_CLASS_LORE, CHARM_RANK_LORE } from '../../data/charm-lore.js?v=566';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, withCookingArmed, stampBalanceLikeLoad, stampRecordLikeLoad, withRoomServer, applyAwayEnvelope, armEquipFlipForTest, tryRunRestampingBalance, findToast, xpMap, predZero, snapshotG, armActivityTransport, drain, restoreAccrualSwitch, cameFromArc, restoreG, restoreGAndRecord, combatScreen, on, snapshot, closeOverlays, phoneFrame, feedServerQuests, serverBagFixture, withServerBacked } from './_harness.js?v=566';
 
 /* SALVAGE-1's regression pin: the goblin drop panel as a player reads it (the
    text of each row, not the markup, so an icon path or cache bump cannot move
@@ -5163,7 +5163,7 @@ export default [
        would be a silently-401ing settle, and the failure is invisible at
        runtime — the request goes out, the player sees nothing wrong, and the
        span is never paid. Read the shipped source and refuse it. */
-    const raw = await (await fetch('src/net/accrue.js?v=565')).text();
+    const raw = await (await fetch('src/net/accrue.js?v=566')).text();
     assert(raw.length > 1000, 'could not read the accrual module source to guard it');
     /* COMMENTS STRIPPED FIRST. This file EXPLAINS at length why sendBeacon is
        unusable, and a guard that cannot tell a warning from a call site would
@@ -7202,7 +7202,7 @@ export default [
        fought a Dark Wizard the server settled from 6 straight into death #8).
        The rest of this test is UNCHANGED: away still owns hp mid-fight, and a
        heal still applies. */
-    const A = await import('../../net/accrue.js?v=565');
+    const A = await import('../../net/accrue.js?v=566');
     const G1 = { playerHp: 10, playerMaxHp: 10, activeMonster: null };
     A.applyEnvelopeState(G1, { state: { hp: 2, max_hp: 10 } });
     assert(G1.playerHp === 2, 'an IDLE client refused the server\'s hp (kept ' + G1.playerHp
@@ -7227,7 +7227,7 @@ export default [
        raised hp freely (next >= cur), so the live fight snapped to full and the
        player never took damage. A non-away envelope during a live fight must
        PRESERVE the client's combat hp; an away-return envelope still applies. */
-    const A = await import('../../net/accrue.js?v=565');
+    const A = await import('../../net/accrue.js?v=566');
 
     // Live sync: activeMonster set, NO away block, server hp full, client hp low.
     const G = { playerHp: 4, playerMaxHp: 10, activeMonster: 'goblin' };
@@ -7254,7 +7254,7 @@ export default [
        reliably carry, so the cap lagged until a reload re-derived it. */
     assert(typeof window.xpForLevel === 'function' && typeof window.levelFromXp === 'function',
       'xp helpers unavailable');
-    const A = await import('../../net/accrue.js?v=565');
+    const A = await import('../../net/accrue.js?v=566');
 
     // Server envelope grants enough hitpoints xp for level 11; client sits at 10.
     const xp11 = window.xpForLevel(11);
@@ -7447,7 +7447,7 @@ export default [
        teaches the next author to delete the explanation. */
     const FILES = ['src/net/auth.js', 'src/net/supabase-chat-backend.js', 'src/bug-report.js'];
     for (const f of FILES) {
-      const raw = await (await fetch(f + '?v=565')).text();
+      const raw = await (await fetch(f + '?v=566')).text();
       assert(raw.length > 1000, 'could not read ' + f + ' to guard it — the guard is checking nothing');
       const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
       /* Any remote fetch of EXECUTABLE code: a dynamic import, or a <script>
@@ -7497,7 +7497,7 @@ export default [
        PREREQUISITE for integrity, not a substitute, so the code looked careful
        while verifying nothing. A compromise there is arbitrary JS in every
        player's page beside their session token. */
-    const raw = await (await fetch('src/observability.js?v=565')).text();
+    const raw = await (await fetch('src/observability.js?v=566')).text();
     assert(raw.length > 1000, 'could not read src/observability.js to guard it');
     const src = raw.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
 
@@ -7601,7 +7601,7 @@ export default [
        pendingArt() names TODAY: the set is read live from monster-art.js, so
        the moment the batch ships and SHIPPED grows, the exemption evaporates
        and a leftover emoji fails again on its own — staleness by construction. */
-    const _art = await import('../../data/monster-art.js?v=565');
+    const _art = await import('../../data/monster-art.js?v=566');
     const _pendingIcons = new Set(
       _art.pendingArt().map((p) => ((window.MONSTERS || {})[p.id] || {}).icon).filter(Boolean)
         .map((s) => String(s).trim()));
@@ -9390,26 +9390,22 @@ export default [
       restoreG(snap);
       restore();
     }
-    /* Collection log detail: '<1%', its own established rule. */
-    const CL = window.HearthriseCollection;
+    /* The Journal's drop table: '<1%', its own established rule. */
     const prev = { bestiary: G.bestiary };
     try {
       G.bestiary = Object.assign({}, G.bestiary, { small_wolf: Object.assign({ kills: 1 }, (G.bestiary || {}).small_wolf) });
-      assert(CL && typeof CL.open === 'function', 'setup: the collection log is unpublished');
-      CL.open();
-      const tab = document.querySelector('#hr-cl-modal [data-cl-tab="bestiary"]');
-      if (tab) tab.click();                      // the log remembers its last tab
-      const cell = document.querySelector('#hr-cl-modal [data-mon="small_wolf"]');
-      assert(cell, 'the collection log has no small_wolf cell');
+      assert(window.HearthriseJournal, 'setup: the Journal is unpublished');
+      window.HearthriseJournal.open('bestiary');
+      const cell = document.querySelector('#panel-journal [data-jr-mon="small_wolf"]');
+      assert(cell, 'the Bestiary has no small_wolf row');
       cell.click();
-      const rowEl = [...document.querySelectorAll('.hr-cl-drop')].find((el) => /Wolfbone Torc/.test(el.textContent));
-      assert(rowEl && /<1%/.test(rowEl.textContent), 'the collection-log detail does not list Wolfbone Torc at <1%: ' + (rowEl ? rowEl.textContent : 'no row'));
-      const back = document.querySelector('#hr-cl-modal [data-cl-back]');
-      if (back) back.click();                    // leave the log on its grid, as found
+      const rowEl = [...document.querySelectorAll('#panel-journal .hr-cl-drop')].find((el) => /Wolfbone Torc/.test(el.textContent));
+      assert(rowEl && /<1%/.test(rowEl.textContent), 'the drop table does not list Wolfbone Torc at <1%: ' + (rowEl ? rowEl.textContent : 'no row'));
+      const back = document.querySelector('#panel-journal [data-jr-back]');
+      if (back) back.click();                    // leave the Bestiary on its list, as found
     } finally {
       G.bestiary = prev.bestiary;
-      const modal = document.getElementById('hr-cl-modal');
-      if (modal) modal.remove();
+      try { window.showTab('profile'); } catch (e) {}
       closeOverlays();
     }
   }),
@@ -9622,7 +9618,7 @@ export default [
     const run = CHARM_RANK_LORE.marked.split(' ').pop() + ' ' + CHARM_CLASS_LORE.undead.split(' ')[0];
     assert(!box.textContent.includes(run), 'the sheet reads "' + run + '"');
   }),
-  () => tryRun('HLEDGER-4: the Home card is pending while unknown, never 0, and absent when empty', () => {
+  () => tryRun('HLEDGER-4: the Bestiary head is pending while unknown, never 0, and absent when empty', () => {
     const HL = window.HearthriseHuntersLedger;
     if (!HL) { skip('seam absent'); return; }
     const unk = HL.cardHtml(null);

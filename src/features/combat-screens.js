@@ -41,14 +41,14 @@
 // "long fight — pays on the kill" rather than quoting a number.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MONSTERS } from '../data/monsters.js?v=565';
-import { ITEMS } from '../data/items.js?v=565';
-import * as ST from './session-tally.js?v=565';
-import { fill } from './signposts.js?v=565';
-import { foeFamily } from '../render/foe-family.js?v=565';
-import { weaknessWords } from '../render/foe-weakness.js?v=565';
-import { SIGNPOSTS } from '../data/signposts.js?v=565';
-import { compactNumber } from '../net/balance.js?v=565';
+import { MONSTERS } from '../data/monsters.js?v=566';
+import { ITEMS } from '../data/items.js?v=566';
+import * as ST from './session-tally.js?v=566';
+import { fill } from './signposts.js?v=566';
+import { foeFamily } from '../render/foe-family.js?v=566';
+import { weaknessWords } from '../render/foe-weakness.js?v=566';
+import { SIGNPOSTS } from '../data/signposts.js?v=566';
+import { compactNumber } from '../net/balance.js?v=566';
 
 /* ── small shared helpers ────────────────────────────────────────────────*/
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
@@ -880,7 +880,7 @@ function destinations() {
     });
   }
 
-  // ── Clan raid ──────────────────────────────────────────────────────────
+  // ── The Clan Hunt ──────────────────────────────────────────────────────
   const R = window.HearthriseRaids;
   if (R) {
     let boss = null;
@@ -900,10 +900,10 @@ function destinations() {
       return !!(CL && typeof CL.clanLaunched === 'function' && !CL.clanLaunched());
     }());
     out.push({
-      kick: 'Clan Raid', glyph: 'uiShield',
-      name: (boss && (boss.name || boss.n)) || 'Weekly Hunt',
+      kick: 'Clan Hunt', glyph: 'uiShield',
+      name: (boss && (boss.name || boss.n)) || 'Clan Hunt',
       meta: clanShut ? 'a weekly boss no one downs alone' : 'strike with your clan',
-      verb: 'Join ▸', go: 'tab', tab: 'clan',
+      verb: 'Join ▸', go: 'tab', tab: 'events',
       locked: clanShut ? SIGNPOSTS.labels['war.clanClosed'] : null,
     });
   }

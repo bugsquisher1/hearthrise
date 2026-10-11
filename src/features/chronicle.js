@@ -1,5 +1,6 @@
 // ============================================================
-// src/features/chronicle.js — the Chronicle. The bell's panel.
+// src/features/chronicle.js — the Chronicle, in the Journal's Deeds tab (the
+// topbar bell opens it there).
 //
 // WHY THIS EXISTS
 // The b227 click-through audit (docs/reports/AUDIT-2026-08-08-clickthrough.md
@@ -64,8 +65,8 @@
 //   record(kind, text, opts)  → { added, entry } — idempotent on opts.id
 //   recordToast(text, type)   → the toasts.js choke-point feed
 //   reconcile(opts)           → derive + record whatever state proves
-//   open() / close() / isOpen()
-//   unseen() / markSeen()     → badge count, cleared on open
+//   paint(host)               → the Journal's Deeds tab draws it
+//   unseen() / markSeen()     → badge count, cleared on paint
 //   entries() / recent()      → reads
 //   ensureState() / MILESTONE_KINDS / _compact / _relTime / _derive
 //
@@ -429,14 +430,6 @@
     var s = document.createElement('style');
     s.id = 'hr-ch-css';
     s.textContent = [
-      '.hr-ch-scrim{z-index:100000;background:rgba(0,0,0,.72);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center}',
-      '.hr-ch-wrap{position:relative;background:var(--bg-1,#1f1a14);border:1px solid var(--line-strong,#b8893e);border-radius:var(--r-lg,5px);width:100%;max-width:560px;color:var(--ink,#f4e4bc);box-shadow:0 18px 50px -12px rgba(0,0,0,.72);font-family:var(--f-ui,system-ui,sans-serif);font-size:16px}',
-      '.hr-ch-top{padding:16px 46px 13px 18px;background:var(--bg-1,#1f1a14);border-bottom:1px solid var(--line,rgba(184,137,62,.3))}',
-      '.hr-ch-eyebrow{font-family:var(--f-label,var(--f-ui,sans-serif));font-size:14.5px;letter-spacing:.1em;color:var(--ink-3,#8a7656)}',
-      '.hr-ch-hn{font-family:var(--f-display,serif);font-size:21.5px;font-weight:600;color:var(--gold,#c9a24a);line-height:1.2;margin-top:2px}',
-      '.hr-ch-sub{font-size:14.5px;color:var(--ink-2,#c8b088);margin-top:3px}',
-      '.hr-ch-x{position:absolute;top:13px;right:14px;background:transparent;border:1px solid var(--line,rgba(184,137,62,.3));color:var(--ink-2,#c8b088);width:28px;height:28px;border-radius:var(--r-sm,2px);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;line-height:0}',
-      '.hr-ch-x:hover{border-color:var(--gold,#c9a24a);color:var(--gold,#c9a24a)}',
       '.hr-ch-sec{font-family:var(--f-label,var(--f-ui,sans-serif));font-size:15.5px;letter-spacing:.06em;color:var(--gold,#c9a24a);padding:16px 18px 5px}',
       '.hr-ch-rule{height:1px;margin:0 18px 6px;background:var(--rule-fade,linear-gradient(90deg,var(--line-strong,#b8893e),transparent))}',
       '.hr-ch-note{font-size:14.5px;color:var(--ink-3,#8a7656);padding:2px 18px 8px;line-height:1.45}',
@@ -449,10 +442,6 @@
       '.hr-ch-row.rec .hr-ch-txt{font-size:15px;color:var(--ink-2,#c8b088)}',
       '.hr-ch-xn{font-size:14.5px;color:var(--gold,#c9a24a);font-variant-numeric:tabular-nums;margin-left:6px}',
       '.hr-ch-empty{font-size:15px;color:var(--ink-3,#8a7656);padding:4px 18px 12px;line-height:1.5}',
-      '.hr-ch-foot{padding:12px 18px 16px;border-top:1px solid var(--line,rgba(184,137,62,.3));margin-top:10px}',
-      '.hr-ch-foot .hr-ch-note{padding-left:0;padding-right:0}',
-      '.hr-ch-link{background:transparent;border:1px solid var(--line-strong,#b8893e);color:var(--gold,#c9a24a);border-radius:var(--r-sm,2px);padding:7px 13px;font-size:15px;font-family:inherit;cursor:pointer}',
-      '.hr-ch-link:hover{background:var(--gold-bg,rgba(184,137,62,.18))}',
       // The badge. Gilt, not oxblood: --red is destructive-and-lethal only, and
       // "you have something new" is the interactive/attention role.
       '#nb-dot{background:var(--gold,#c9a24a);color:var(--bg-0,#12100c);border:1px solid var(--bg-0,#12100c);font-size:14.5px;min-width:17px;height:17px;top:-3px;right:-3px;box-shadow:0 1px 3px rgba(0,0,0,.55);font-variant-numeric:tabular-nums}'
@@ -529,7 +518,7 @@
 
     sectionLabel(host, 'Milestones');
     if (!dated.length && !undated.length) {
-      note(host, 'Nothing recorded yet. Rank-ups, mastered skills, first kills, new companions and every raise of your homestead are written here the moment they happen.', 'hr-ch-empty');
+      note(host, window.HearthriseSignposts ? window.HearthriseSignposts.fill('chronicle.milestonesNone') : '', 'hr-ch-empty');
     } else {
       dated.forEach(function (e) {
         host.appendChild(row('', (KINDS[e.kind] || {}).glyph || 'star', e.text, relTime(e.ts, now)));
@@ -553,88 +542,18 @@
       }
       note(host, 'Kept for this session only. Anything worth keeping is written above.');
     }
-
-    var foot = document.createElement('div');
-    foot.className = 'hr-ch-foot';
-    note(foot, 'The Chronicle records events. Items and monsters you have discovered are kept in the Collection Log.');
-    var btn = document.createElement('button');
-    btn.className = 'hr-ch-link'; btn.type = 'button';
-    btn.textContent = 'Open the Collection Log';
-    btn.addEventListener('click', function () {
-      close();
-      try { if (window.HearthriseCollection && window.HearthriseCollection.open) window.HearthriseCollection.open(); } catch (e) {}
-    });
-    foot.appendChild(btn);
-    host.appendChild(foot);
   }
 
-  var escHandler = null;
-
-  function close() {
-    var m = document.getElementById('hr-ch-modal');
-    if (m) m.remove();
-    if (escHandler) { document.removeEventListener('keydown', escHandler, true); escHandler = null; }
-  }
-  function isOpen() { return !!document.getElementById('hr-ch-modal'); }
-
-  function open() {
-    close();
+  /* Paint the Chronicle into a Journal host. A sweep first, so a milestone
+     earned offline (or mirrored down since the last poll) is in the list the
+     player is about to read; reading it clears the bell. */
+  function paint(host) {
+    if (!host) return;
     ensureStyle();
-    // A sweep on open means a milestone earned offline (or mirrored down from
-    // the server since the last poll) is in the list the player is about to read.
     try { reconcile(); } catch (e) {}
-
-    var c = ensureState();
-    var total = c ? c.entries.length : 0;
-
-    var scrim = document.createElement('div');
-    scrim.className = 'hr-ch-scrim hr-scrim';   // layout: art-direction.css
-    scrim.id = 'hr-ch-modal';
-
-    var wrap = document.createElement('div');
-    wrap.className = 'hr-ch-wrap hr-sheet';
-    wrap.setAttribute('role', 'dialog');
-    wrap.setAttribute('aria-modal', 'true');
-    wrap.setAttribute('aria-label', 'Chronicle');
-    wrap.tabIndex = -1;
-
-    var top = document.createElement('div');
-    top.className = 'hr-ch-top hr-sheet-head';
-    var eb = document.createElement('div'); eb.className = 'hr-ch-eyebrow'; eb.textContent = 'Chronicle';
-    var hn = document.createElement('div'); hn.className = 'hr-ch-hn'; hn.textContent = 'What you have done';
-    var sb = document.createElement('div'); sb.className = 'hr-ch-sub';
-    sb.textContent = total === 0
-      ? (window.HearthriseSignposts ? window.HearthriseSignposts.fill('chronicle.milestonesNone') : '')
-      : (total + ' milestone' + (total === 1 ? '' : 's') + ' recorded');
-    top.appendChild(eb); top.appendChild(hn); top.appendChild(sb);
-
-    var x = document.createElement('button');
-    x.className = 'hr-ch-x'; x.type = 'button';
-    x.setAttribute('aria-label', 'Close');
-    x.innerHTML = '<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">' +
-      '<path stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M4 4l8 8M12 4l-8 8"/></svg>';
-    x.addEventListener('click', close);
-
-    var body = document.createElement('div'); body.className = 'hr-sheet-body';
-    wrap.appendChild(top);
-    wrap.appendChild(x);
-    renderBody(body);
-    wrap.appendChild(body);
-    scrim.appendChild(wrap);
-    scrim.addEventListener('click', function (e) { if (e.target === scrim) close(); });
-    document.body.appendChild(scrim);
-
-    // Audit finding #10: the newer scrim family binds Escape to itself and
-    // never takes focus, so its handler can never fire. Bind at the document
-    // (capture) and move focus into the dialog.
-    escHandler = function (ev) {
-      if (ev.key === 'Escape' || ev.keyCode === 27) { ev.stopPropagation(); close(); }
-    };
-    document.addEventListener('keydown', escHandler, true);
-    try { wrap.focus(); } catch (e) {}
-
+    host.textContent = '';
+    renderBody(host);
     markSeen();
-    return scrim;
   }
 
   // ── Hooks at the source ───────────────────────────────────
@@ -881,10 +800,9 @@
     if (!bell || bell.__hrChron) return;
     bell.__hrChron = 1;
     bell.setAttribute('title', 'Chronicle');
-    bell.setAttribute('aria-haspopup', 'dialog');
     bell.addEventListener('click', function (e) {
       e.preventDefault();
-      if (isOpen()) close(); else open();
+      if (window.HearthriseJournal) window.HearthriseJournal.open('deeds');
     });
   }
 
@@ -923,9 +841,7 @@
     unseen: unseen,
     markSeen: markSeen,
     updateBadge: updateBadge,
-    open: open,
-    close: close,
-    isOpen: isOpen,
+    paint: paint,
     // Pure seams for the suite.
     _compact: compact,
     _relTime: relTime,

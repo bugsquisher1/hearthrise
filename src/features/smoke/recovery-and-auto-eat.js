@@ -6,8 +6,8 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 30 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, fail, tryRun, tryRunAsync, assert, skip, snapshotG, drain, restoreG, stubSignedIn, on, snapshot, closeOverlays } from './_harness.js?v=565';
-import { MONSTER_NOTES } from '../../data/monster-notes.js?v=565';
+import { pass, fail, tryRun, tryRunAsync, assert, skip, snapshotG, drain, restoreG, stubSignedIn, on, snapshot, closeOverlays } from './_harness.js?v=566';
+import { MONSTER_NOTES } from '../../data/monster-notes.js?v=566';
 
 /* aeRig — a signed-in page whose server auto-eat belief is `state(b)`; the verb
    is stubbed and answers only when the test resolves `answer`. */
@@ -3015,10 +3015,10 @@ export default [
       D._render(Object.assign({}, base, { actions: [] }), { monsterId: 'goblin' });
       document.querySelector('#hr-death-scrim [data-act="notes"]').click();
       assert(!document.getElementById('hr-death-scrim').classList.contains('show'), 'the sheet stayed over the Bestiary');
-      const ov = document.getElementById('best-overlay');
-      assert(ov && ov.classList.contains('show'), 'the Bestiary did not open');
+      assert(document.querySelector('#panel-journal.active .jr-tab.active[data-jr-tab="bestiary"]'), 'the Bestiary did not open');
+      assert(/Goblin/.test((document.querySelector('#panel-journal .hr-cl-detail') || {}).textContent || ''), 'Field notes did not open the goblin\'s own drop table');
     } finally {
-      const ov = document.getElementById('best-overlay'); if (ov) ov.classList.remove('show');
+      try { window.showTab('profile'); } catch (e) {}
       D.__resetForTest();
     }
   }),

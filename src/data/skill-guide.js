@@ -25,6 +25,6 @@ export const SKILL_GUIDE = Object.freeze({
   crafting: g('Logs become planks, hides and cloth become armour, and a steady hand turns out bows, arrows and rings at the one bench', 'planks, bows, arrows, light armour and jewellery', 'Artificer'),
   smithing: g('Ore becomes bars and bars become blades, plate and the iron fittings no manor can be raised without', 'weapons, armour, tools and your homestead\'s fittings', 'Smith'),
   runecrafting: g('Blank stones take a rune the way wax takes a seal, and a mage without runes is only a person holding a stick', 'runes for every staff, and elemental enchants for your weapon', 'Runebinder'),
-  stonemason: g('The quarry asks nothing of you but time, and the stone it gives back ends up in every wall worth standing behind', 'ashlar for your manor, blank runes and whetstones', 'Mason'),
+  stonemason: g('Stonemason is the builder\'s skill, and the stone you cut here becomes the walls of your manor, its rooms and your clan\'s castle', 'the builder\'s stone for your manor, rooms and castle, and whetstones', 'Mason'),
   bountyHunter: g('Bounty Hunter is earned at the board rather than in the field, one finished contract at a time', 'your standing with the hunt masters', 'Bounty Hunter'),
 });

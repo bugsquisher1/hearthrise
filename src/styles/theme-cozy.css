@@ -705,7 +705,6 @@ body[data-theme="classic"] {
     padding: 0 10px !important;
   }
   .panel .chip,
-  .panel .shops-tab,
   .invc-topbar .invc-actions button,
   .invc-topbar .invc-actions .btn {
     min-height: var(--tap) !important;
@@ -1681,8 +1680,6 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
 /* But NOT button text on wax-red / colored buttons */
 .modal-card button.btn-danger,
 .modal-card button.btn-danger *,
-.stats-modal button.btn-danger,
-.stats-modal button.btn-danger *,
 .welcome-overlay button.btn-danger,
 .welcome-overlay button.btn-danger * {
   color: #fff8e2 !important;
@@ -1699,8 +1696,6 @@ button, a, [role="button"], .btn, .nav-btn, .bn-btn,
 .modal::before,
 .modal-overlay,
 .welcome-overlay,
-.stats-modal,
-.lifetime-stats,
 .ach-overlay,
 .acq-overlay {
   background: rgba(40,25,12,.55) !important;

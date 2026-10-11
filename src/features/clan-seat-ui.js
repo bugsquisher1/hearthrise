@@ -2725,7 +2725,7 @@
   // not the same room with different words in it.
   function perkLabel(k) {
     return { goldFind: 'gold find', craftSpeed: 'crafting speed', smithSpeed: 'smithing speed',
-             raidPower: 'raid power', allXP: 'all XP', restedXp: 'rested XP' }[k] || k;
+             raidPower: 'Hunt power', allXP: 'all XP', restedXp: 'rested XP' }[k] || k;
   }
   /* b228: the Tavern pays a flat XP quantum per Rested charge, not a potency;
      every other building pays whole percents at levels 4, 7 and 10, and the

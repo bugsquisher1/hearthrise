@@ -223,6 +223,8 @@
     // castle. `uiPeople` is already in the atlas — a handful of figures against
     // the keep above it, which is exactly the difference between the two.
     party: 'uiPeople',
+    // The Homestead door (Farm, House, Stable): the house is the thing you build.
+    homestead: 'navHouse',
     // b230: one door for all three shops. `navStore` (a shopfront) and not
     // `navMarket` (a balance) or `gems` — the entry has to read as a PLACE you
     // walk into, the way the other two Realm entries are a castle and a

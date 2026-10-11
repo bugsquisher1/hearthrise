@@ -2697,4 +2697,4 @@ body[data-hr-desktop-mode] .hr-scrim { top: var(--hr-dm-banner-h, 0px); }
    (src/render/modal-sheet.js), the Spoils sheet included (VG5). Its layer
    lives here, not inline, so this can. */
 #hr-net-banner { z-index: 99997; }
-body:has(.modal.show, .stats-modal.show, .hr-scrim) #hr-net-banner { z-index: 1; }
+body:has(.modal.show, .hr-scrim) #hr-net-banner { z-index: 1; }

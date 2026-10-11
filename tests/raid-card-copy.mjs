@@ -62,7 +62,10 @@ async function observe() {
   // Same test-only bypass run-smoke.mjs uses; the wall itself is guarded there.
   await page.addInitScript(() => { window.__HR_TEST_HARNESS__ = true; });
   await page.goto(url, { waitUntil: 'load' });
-  await page.waitForFunction(() => window.HearthriseRaids && window.G, null, { timeout: 30000 });
+  // The card mounts into the Events panel's slot, which muster.js builds at
+  // boot (+420 ms). Since w0d deleted the #panel-dungeons fallback, render()
+  // before the slot exists paints nothing: wait for the slot, not just the module.
+  await page.waitForFunction(() => window.HearthriseRaids && window.G && document.getElementById('hr-events-raid'), null, { timeout: 30000 });
   const out = await page.evaluate(readCard);
   await page.close();
   return out;

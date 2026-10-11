@@ -18,8 +18,8 @@
 //            /rest/v1/party_hunt, no bare `party_hunt` outside comments
 //
 // --mutate: two SQL mutants (the policy left in place, the grant left in
-// place) must be refused by §4 on their named arm; one scanner mutant (a
-// planted client read) must be found by P-GREP.
+// place) must be refused by §4 on their named arm; three scanner mutants (a
+// planted PostgREST, REST-URL and raw-SQL read) must be found by P-GREP.
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ============================================================================
@@ -36,10 +36,12 @@ const SQL = (await readFile(join(ROOT, 'supabase', 'migrations', MIG), 'utf8')).
 const SELF = '-- ── §4 SELF-CHECK';
 if (SQL.indexOf(SELF) < 0) { console.error('harness: no §4 marker'); process.exit(2); }
 
-/** Comment-stripped code mentions of party_hunt AS A TABLE (not _view, _start, ...). */
+/** Comment-stripped code mentions of party_hunt AS A TABLE — not _view, _start, …
+    and not the refusal code `no_party_hunt`: an identifier char on either side
+    makes it another name (the b569 party UI branches on that code). */
 export function tableReads(src) {
   const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:\\])\/\/.*$/gm, '$1');
-  return [...code.matchAll(/party_hunt(?![a-z_])/g)].map((m) => code.slice(Math.max(0, m.index - 30), m.index + 20));
+  return [...code.matchAll(/(?<![A-Za-z0-9_])party_hunt(?![a-z_])/g)].map((m) => code.slice(Math.max(0, m.index - 30), m.index + 20));
 }
 async function walk(dir, out = []) {
   for (const e of await readdir(dir, { withFileTypes: true })) {
@@ -99,7 +101,15 @@ const MUTANTS = [
     repl: '\nrevoke select on public.party_hunt from anon;\n' },
   { name: 'clientReadPlanted', why: 'a client file reads the table through PostgREST', expect: /P-GREP/, js: true,
     src: "export async function hunt(sb) { return sb.from('party_hunt').select('*'); }\n" },
+  { name: 'restReadPlanted', why: 'a client fetches the table over REST by URL', expect: /P-GREP/, js: true,
+    src: "export const u = base + '/rest/v1/party_hunt?select=stopped_by';\n" },
+  { name: 'edgeSqlPlanted', why: 'the edge selects the table in raw SQL', expect: /P-GREP/, js: true,
+    src: "const r = await sql`select stopped_by from public.party_hunt where id = ${id}`;\n" },
 ];
+/* The scanner's negative control: the refusal CODE is not a table read. */
+if (tableReads("if (code === 'no_party_hunt') refresh();\n").length) {
+  console.error('harness: tableReads flags the refusal code no_party_hunt as a table read'); process.exit(2);
+}
 console.log('\nparty-hunt-select-lockdown --mutate: every mutant must go RED on its named arm');
 const control = await tryApply(db, SQL);
 if (control) { console.error(`harness: the unmutated file is red (${control})`); process.exit(2); }

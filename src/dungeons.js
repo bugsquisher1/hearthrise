@@ -682,11 +682,9 @@
     if(!panel) return;
     var grouped = { dungeon: [], raid: [], worldboss: [] };
     Object.entries(DUNGEONS).forEach(function(kv){ grouped[kv[1].kind].push([kv[0], kv[1]]); });
-    /* b213 QA: these key-gated runs are SOLO content (the run engine has no
-       party code) — stop advertising phantom "4 players"/"24 players"
-       multiplayer. Real multiplayer raiding is the weekly clan raid card
-       above (b209). */
-    var sectionLabel = { dungeon: 'Dungeons (Solo)', raid: 'Epic Dungeons (Solo)', worldboss: 'Legendary Hunts (Solo)' };
+    /* One word per thing: every one of these is a solo DUNGEON; "raid" and
+       "hunt" belong to the Clan Hunt alone. The kind ids are catalogue keys. */
+    var sectionLabel = { dungeon: 'Dungeons', raid: 'Epic Dungeons', worldboss: 'Legendary Dungeons' };
     /* b281: Scrip banner + Quartermaster entry at the top of the dungeon panel.
        Reads through scripHeld() so the banner follows the server-authority arm. */
     var _scrip = scripHeld();
@@ -842,38 +840,13 @@
   }
   window.renderDungeons = renderDungeons;
 
-  // ---- The Dungeons panel ----
-  // b220 (#14): injectNav() is GONE. It created a `nav-btn[data-tab=dungeons]`
-  // that theme-cozy.css immediately hid with `display:none !important` — an
-  // entry that existed only to be invisible, which is why dungeons (and the
-  // clan raid card rendered inside their panel) could not be found at all.
-  // Dungeons are now a section of the real top-level `Events` destination
-  // (index.html nav + src/features/muster.js), which relocates this panel into
-  // itself on boot. `showTab('dungeons')` still works — Muster's showTab tap
-  // maps it to 'events' — so every existing deep link keeps functioning.
-  function injectPanel(){
-    if(document.getElementById('panel-dungeons')) return;
-    var main = document.querySelector('main.main');
-    if(!main) return;
-    var panel = document.createElement('section');
-    panel.className = 'panel';
-    panel.id = 'panel-dungeons';
-    main.appendChild(panel);
-  }
-
-  // Hook showTab to render the panel when entering this tab
+  // ---- The Dungeons pane (static #panel-dungeons, a pane of the Combat door) ----
   function wireShowTab(){
     window.HearthriseShowTab.wrapShowTab('dungeons-render', function(name){
-      if(name === 'dungeons' || name === 'events') setTimeout(renderDungeons, 0);
+      if(name === 'dungeons') setTimeout(renderDungeons, 0);
     });
   }
-
-  document.addEventListener('DOMContentLoaded', function(){
-    setTimeout(function(){ injectPanel(); wireShowTab(); }, 50);
-  });
-  if(document.readyState !== 'loading'){
-    setTimeout(function(){ injectPanel(); wireShowTab(); }, 50);
-  }
+  wireShowTab();
 
   // ════════════════════════════════════════════════════════════
   // Manual run modal — interactive 3-phase mini-game

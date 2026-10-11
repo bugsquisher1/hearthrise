@@ -1,65 +1,37 @@
 // ============================================================
-// src/render/bestiary.js — Bestiary modal (render layer)
+// src/render/bestiary.js — the Bestiary (render layer, the Journal's Bestiary tab)
 //
-// FOURTH render-layer strangler-fig extraction out of src/legacy.js
-// (structural track, 2026-08-18). See docs/design/render-extraction-pattern.md
-// for the playbook every extraction follows.
+// The READ-ONLY monster list: window.MONSTERS (the published catalogue) plus
+// the per-player record, painted as one row per monster with the charm strip
+// above it. It computes and mutates NOTHING authoritative. Every count on a row
+// is the SERVER's (window.HearthriseTrophies reads the mirrored server block and
+// fails safe); G.bestiary is the locally-written residue and is read for one
+// thing only, whether a row is named. The kill-tracking LOGIC that writes it
+// stays in legacy.js. All colour lives in the .bestiary-* selectors.
 //
-// WHAT THIS IS: the READ-ONLY Bestiary modal (openBestiary) — a self-contained
-// presentation surface that reads window.MONSTERS (the read-only published
-// monster catalogue) + G.bestiary (per-player kill/discovery state) and paints a
-// sorted list of discovered/undiscovered rows. It reuses the shared .ach-overlay
-// / .ach-modal shell (same as Achievements) plus its own .bestiary-* selectors.
-// It computes and mutates NOTHING authoritative — the kill tracking that WRITES
-// G.bestiary (the killMonster wrapper + the milestone-notify logic) is LOGIC and
-// stays in legacy.js on purpose, exactly the render/logic seam Achievements used
-// (checkAchievements stayed; only the toast+modal moved). Blast radius is one
-// dialog; zero risk to the economy or save path.
-//
-// PURE REFACTOR. Byte-for-byte the same DOM and behaviour that used to live at
-// legacy.js window.openBestiary — moved out, not redesigned. There are NO
-// hardcoded theme colours in this JS: the only inline styles are colourless
-// (font-size:calc(19px * var(--ui-scale, 1)) on the emoji fallback and
-// margin-top:12px;width:100% on the Close button), and the 📖 glyph is
-// pre-existing content. All colour lives in the .ach-* / .bestiary-* selectors
-// in src/styles/legacy.css, which are already tokenised (var(--ink),
-// var(--gold-2), var(--line-soft)) and left unchanged.
-//
-// Globals are read via window.* (the established src/features/* convention),
-// resolved at call time so this script may load in any order after legacy.js.
-// openBestiary is re-exported onto window because two inline
-// onclick="openBestiary()" handlers (the profile buttons row + the profile
-// toolbar) invoke it from legacy.js template strings.
+// window.HearthriseBestiary.html() is the whole tab; a named row carries
+// data-jr-mon so the Journal can open its drop table.
 // ============================================================
 (function () {
   'use strict';
 
-  window.openBestiary = function () {
+  function html() {
     var G = window.G || {};
     var MONSTERS = window.MONSTERS;
 
-    var ov = document.getElementById('best-overlay');
-    if (!ov) {
-      ov = document.createElement('div'); ov.id = 'best-overlay'; ov.className = 'ach-overlay hr-scrim';
-      ov.innerHTML = '<div class="ach-modal hr-sheet" onclick="event.stopPropagation()"><h2 class="hr-sheet-head">Bestiary</h2><div class="hr-sheet-body"><div id="best-charms" class="charm-strip"></div><details id="best-luck" class="luck-ledger"></details><div id="best-list" class="bestiary-list"></div></div><button class="btn hr-sheet-foot" data-hr-dismiss onclick="document.getElementById(\'best-overlay\').classList.remove(\'show\')" style="margin-top:12px;width:100%">Close</button></div>';
-      ov.addEventListener('click', function (e) { if (e.target === ov) ov.classList.remove('show'); });
-      document.body.appendChild(ov);
-    }
     G.bestiary = G.bestiary || {};
-    var list = document.getElementById('best-list');
-    if (typeof MONSTERS === 'undefined' || !MONSTERS) { list.innerHTML = '<div class="muted">Monsters not loaded.</div>'; ov.classList.add('show'); return; }
+    if (!MONSTERS) return '<div class="muted">Monsters not loaded.</div>';
     /* BESTIARY CHARMS (phase 1). Resolved at CALL TIME, unwired-safe: without
        the ESM half this is null and every charm affordance is simply absent —
-       the modal renders exactly as it did before. Fail-safe, never a gate. */
+       the list renders without them. Fail-safe, never a gate. */
     var C = window.HearthriseCharms || null;
     /* BESTIARY TROPHIES (docs/design/BESTIARY_LADDER.md) — the LONG ladder,
        resolved at CALL TIME and unwired-safe exactly like the charms above:
        without the ESM half this is null and every trophy affordance is simply
        absent. Fail-safe, never a gate. */
     var T = window.HearthriseTrophies || null;
-    paintCharmStrip(C);
-    window.HearthriseLuckLedger && window.HearthriseLuckLedger.paint();
-    list.innerHTML = Object.entries(MONSTERS).map(function (kv) {
+    var pending = '<span class="bal-pending" aria-label="Not counted yet" title="Waiting for the realm to count this.">—</span>';
+    var rows = Object.entries(MONSTERS).map(function (kv) {
       var id = kv[0], m = kv[1];
       var entry = G.bestiary[id] || { kills: 0 };
       var disc = entry.kills > 0;
@@ -87,9 +59,9 @@
         ? ('<div class="br-trophy">' + T.badgeHtml(id) + T.nextThresholdHtml(id)
            + T.claimButtonHtml(id) + '</div>')
         : '';
-      /* The server's count wins the `×` too when it has one: two numbers for
-         one fact on one row is how a player learns not to trust either. */
-      var shown = tKills > 0 ? tKills : entry.kills;
+      /* The `×` is the SERVER's count or the pending dash, never the residue:
+         two numbers for one fact is how a player learns to trust neither. */
+      var countsKnown = !!(T && typeof T.countsKnown === 'function' && T.countsKnown());
       var named = disc || tKills > 0;
       var note = (window.HearthriseMonsterNotes || {})[id];
       /* The note is a full-card-width teaser BELOW the row, clamped to two
@@ -98,14 +70,16 @@
          rides title/aria-label; the collection log prints it whole. */
       var noteHtml = (named && typeof note === 'string')
         ? ('<small class="br-note" title="' + note + '" aria-label="' + note + '">' + note + '</small>') : '';
-      return '<div class="bestiary-row ' + (named ? 'discovered' : 'undiscovered') + '">' +
+      return '<div class="bestiary-row ' + (named ? 'discovered' : 'undiscovered') + '"' +
+        (named ? ' data-jr-mon="' + id + '" role="button" tabindex="0" title="' + m.name + ': drop table"' : '') + '>' +
         '<div class="br-icon">' + img + '</div>' +
         '<div class="br-info"><b>' + (named ? m.name : '???') + '</b><small>Tier ' + m.tier + (disc ? ' · ' + m.hp + ' HP' : '') + '</small>' + el + trophy + '</div>' +
-        '<div class="br-kills">' + (shown > 0 ? shown.toLocaleString() + '×' : '—') + '</div>' + noteHtml +
+        '<div class="br-kills">' + (!countsKnown ? pending : (tKills > 0 ? tKills.toLocaleString() + '×' : '—')) + '</div>' + noteHtml +
       '</div>';
     }).join('');
-    ov.classList.add('show');
-  };
+    return '<div id="best-charms" class="charm-strip">' + charmStripHtml(C) + '</div><div id="best-list" class="bestiary-list">' + rows + '</div>';
+  }
+  window.HearthriseBestiary = { html: html };
 
   /* ── THE CHARM STRIP ────────────────────────────────────────────────────
      One chip per monster class the SERVER has counted kills for: the class
@@ -118,13 +92,10 @@
      block, scratch, `_`-prefixed) and NEVER `G.bestiary` — that is the
      locally-written residue field, and gating a capability on it is the
      residue-ahead bug class. No counters mirrored yet ⇒ a pending line, never "No charms". */
-  function paintCharmStrip(C) {
-    var strip = document.getElementById('best-charms');
-    if (!strip) return;
-    if (!C) { strip.innerHTML = ''; return; }
+  function charmStripHtml(C) {
+    if (!C) return '';
     if (typeof C.countersKnown === 'function' && !C.countersKnown()) {
-      strip.innerHTML = '<div class="muted charm-pending" data-charm-pending="1">Charm kills not counted yet <span class="bal-pending" aria-label="Not counted yet" title="Waiting for the realm to count this.">—</span></div>';
-      return;
+      return '<div class="muted charm-pending" data-charm-pending="1">Charm kills not counted yet <span class="bal-pending" aria-label="Not counted yet" title="Waiting for the realm to count this.">—</span></div>';
     }
     /* The class list, its order and its display names are DERIVED from the
        taxonomy + roster by C.charmClasses() — not listed here. A hardcoded
@@ -139,10 +110,10 @@
         + C.nextThresholdHtml(r.cls)
         + '</div>';
     });
-    strip.innerHTML = chips.length
+    return chips.length
       ? chips.join('')
       : '<div class="muted charm-empty">No charms yet — 25 kills in any monster class earns your first.</div>';
   }
 
-  console.log('Bestiary modal: loaded');
+  console.log('Bestiary: loaded');
 })();

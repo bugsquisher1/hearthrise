@@ -20,14 +20,14 @@
 // Imports: SKILLS_DEF, action tables
 // Exports: setupCharacterPage()
 
-import { SKILLS_DEF } from '../data/skills.js?v=565';
-import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=565';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=565';
-import { SKILL_GUIDE } from '../data/skill-guide.js?v=565';
+import { SKILLS_DEF } from '../data/skills.js?v=566';
+import { TREES, ROCKS, FISH_SPOTS, CROPS, EQUIP_SLOTS } from '../data/gathering.js?v=566';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=566';
+import { SKILL_GUIDE } from '../data/skill-guide.js?v=566';
 /* The UNKNOWN-balance accessor. This screen prints the purse, so it is one of
    the surfaces that must render a pending balance rather than a number. */
-import { balanceMarkup, countMarkup, UNKNOWN_TEXT } from '../net/balance.js?v=565';
-import { heroClass } from '../render/skill-guide.js?v=565';
+import { balanceMarkup, countMarkup, UNKNOWN_TEXT } from '../net/balance.js?v=566';
+import { heroClass } from '../render/skill-guide.js?v=566';
 
 /* b431 — skill-xp READ accessor (src/net/skill-record.js), DORMANT no-op today;
    the ESM analogue of the b429 legacy skillXp() sweep. */
@@ -224,7 +224,7 @@ function buildHeroCard() {
    survives the 2s auto-refresh. Quests and Bounties are the realm's lifetime
    counts, Achievements the deeds the realm's counts have met, and Days running
    is the server's play streak, each a pending dash until stated; Collections is
-   still read from the client's own record. The foot row is the Lifetime Stats door. */
+   the realm's completion. The foot row is the Journal's door. */
 function buildAccountStatGrid() {
   const G = window.G || {};
   const clv = typeof window.getCombatLevel === 'function' ? window.getCombatLevel() : '?';
@@ -236,11 +236,11 @@ function buildAccountStatGrid() {
   const ach = Array.isArray(window.ACHIEVEMENTS) ? window.ACHIEVEMENTS : [];
   const D = window.HearthriseDeeds;
   const achN = D ? D.doneCount(D.readers()) : null;
-  let colPct = '0%';
+  let colPct = countMarkup(null);
   try {
-    if (window.HearthriseCollection && window.HearthriseCollection.getStats) {
-      colPct = Math.round(window.HearthriseCollection.getStats(G).overall * 100) + '%';
-    }
+    const o = window.HearthriseCollection && window.HearthriseCollection.serverStats
+      ? window.HearthriseCollection.serverStats(G).overall : null;
+    if (o != null) colPct = Math.round(o * 100) + '%';
   } catch (e) { /* collection optional */ }
   let rank = '—';
   try {
@@ -268,7 +268,7 @@ function buildAccountStatGrid() {
       ${cell(esc(rank), 'Renown')}
       ${cell(days, 'Days running')}
     </div>
-    <div class="cr-acct-foot"><button class="btn" type="button" onclick="window.openLifetimeStats&&window.openLifetimeStats()">${crGlyph('uiTrend')}Lifetime Stats</button></div></div>`;
+    <div class="cr-acct-foot"><button class="btn" type="button" onclick="window.HearthriseJournal&&window.HearthriseJournal.open('stats')">${crGlyph('uiBook')}Journal</button></div></div>`;
 }
 
 function buildCombatCard() {

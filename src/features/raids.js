@@ -1049,7 +1049,7 @@
   }
   // The chest a pre-Hunt server implies: the boss's own b209 reward, verbatim.
   function legacyChest(boss) {
-    return { tier: 0, name: 'Weekly Raid', gold: boss.reward.gold, gems: boss.reward.gems,
+    return { tier: 0, name: 'Clan Hunt', gold: boss.reward.gold, gems: boss.reward.gems,
              items: boss.reward.items, standing: 0, sigChance: 0, sig: null };
   }
 
@@ -1099,15 +1099,9 @@
   }
 
   /* ══════════════════════════════════════════════════════════════
-     11. THE HUNT CARD (§6) — the ACTION surface, in the Events panel.
-
-     b220 (#14) moved this card out of #panel-dungeons — a panel whose nav
-     entry was injected and then hidden in CSS, so the game's flagship SOCIAL
-     feature was nested inside an unreachable COMBAT sub-panel. It now lives in
-     the top-level Events destination next to the muster, and it renders at its
-     true height there (#panel-dungeons was `.panel.active{display:grid}` with
-     no row template, so the injected card became an implicit grid row in a
-     fixed-height container and collapsed to 16px).
+     11. THE HUNT CARD (§6) — the ACTION surface, in the Events panel, next
+     to the muster: the game's flagship SOCIAL feature is a top-level door,
+     never nested inside a combat sub-panel. "Hunt" names this and nothing else.
 
      The castle panel carries the STATUS surface ("what does my clan need") and
      is another agent's file. Both read the same state; neither duplicates the
@@ -1145,7 +1139,7 @@
 
   async function render() {
     var host = document.getElementById('hr-raid-card');
-    var slot = document.getElementById('hr-events-raid') || document.getElementById('panel-dungeons');
+    var slot = document.getElementById('hr-events-raid');
     if (!slot) return;
     ensureStyle();
     ensureState();
@@ -1163,12 +1157,9 @@
         host.className = 'card';
         host.style.cssText = 'margin-bottom:10px';
       }
-      if (host.parentNode !== slot) {
-        if (slot.id === 'hr-events-raid') slot.appendChild(host);
-        else slot.insertBefore(host, slot.firstChild);
-      }
+      if (host.parentNode !== slot) slot.appendChild(host);
       host.innerHTML = (typeof CL.comingSoonHtml === 'function')
-        ? CL.comingSoonHtml('The Weekly Clan Boss',
+        ? CL.comingSoonHtml('The Clan Hunt',
             'Every week your whole clan hunts one boss no member could down alone — ' +
             'strike together across the week, then split a shared chest by how hard you ' +
             'fought. It opens with clans, once the realm is populated enough for a hold ' +
@@ -1182,12 +1173,7 @@
       host.className = 'card';
       host.style.cssText = 'margin-bottom:10px';
     }
-    if (host.parentNode !== slot) {
-      // In the Events panel the slot carries its own section label, so append;
-      // in the legacy dungeons panel the card is the first thing on the screen.
-      if (slot.id === 'hr-events-raid') slot.appendChild(host);
-      else slot.insertBefore(host, slot.firstChild);
-    }
+    if (host.parentNode !== slot) slot.appendChild(host);
     /* The solo card is painted BEFORE the first await, deliberately. An async
        function runs synchronously up to its first `await`, so a signed-out or
        offline player — who needs no network at all — gets a card in the same
@@ -1243,12 +1229,12 @@
       esc(boss.glyph + ' ' + boss.name);
     var sub = tier
       ? 'Clan Hunt · pool scaled to ' + atDeclare + ' members at declaration'
-      : 'Clan raid';
+      : 'Clan Hunt';
 
     var action = downed
       ? (claimed
         ? '<div class="tiny" style="color:var(--gold-2)">Chest claimed — a new quarry rises next week.</div>'
-        : '<button class="btn btn-primary btn-sm" data-hr-settle-latch onclick="window.HearthriseRaids.claim()">Claim raid chest</button>')
+        : '<button class="btn btn-primary btn-sm" data-hr-settle-latch onclick="window.HearthriseRaids.claim()">Claim the Hunt chest</button>')
       : '<button class="btn ' + (struckToday ? '' : 'btn-primary') + ' btn-sm" ' + (struckToday ? 'disabled' : '') +
         ' onclick="window.HearthriseRaids.strike()">' +
         (struckToday ? 'Struck today — return tomorrow' : 'Strike the boss (1/day)') + '</button>';
@@ -1341,7 +1327,7 @@
         (downed
           ? (claimed
             ? '<div class="tiny" style="color:var(--gold-2)">Chest claimed — a new quarry rises next week.</div>'
-            : '<button class="btn btn-primary btn-sm" data-hr-settle-latch onclick="window.HearthriseRaids.claim()">Claim raid chest</button>')
+            : '<button class="btn btn-primary btn-sm" data-hr-settle-latch onclick="window.HearthriseRaids.claim()">Claim the Hunt chest</button>')
           : '<button class="btn ' + (struckToday ? '' : 'btn-primary') + ' btn-sm" ' + (struckToday ? 'disabled' : '') +
             ' onclick="window.HearthriseRaids.strike()">' +
             (struckToday ? 'Struck today — return tomorrow' : 'Strike the boss (1/day)') + '</button>') +
@@ -1391,12 +1377,12 @@
       ensureState();
       render();
       setInterval(function () {
-        var p = document.getElementById('panel-events') || document.getElementById('panel-dungeons');
+        var p = document.getElementById('panel-events');
         if (p && p.classList.contains('active')) render();
       }, 15000);
-      // re-render when the Events tab is shown (or the legacy dungeons route)
+      // re-render when the Events tab is shown
       document.addEventListener('click', function (e) {
-        var t = e.target && e.target.closest && e.target.closest('[data-tab="events"],[data-tab="dungeons"]');
+        var t = e.target && e.target.closest && e.target.closest('[data-tab="events"]');
         if (t) setTimeout(render, 150);
       });
     } catch (e) {}

@@ -264,6 +264,7 @@
   var stats = { viewReads: 0, lastViewAt: 0, lastReadAt: 0, verbCalls: 0 };
   var visible = false;
   var timer = null;
+  var huntTimer = null;
   var inFlight = null;
   /* ── THE READ'S GENERATION, and it exists because dropping the HANDLE to an
      in-flight read does not stop the read.
@@ -405,6 +406,9 @@
        the projection is out of date, and that is exactly the case where showing
        the player the truth matters most. */
     await refresh(name);
+    /* Membership moved, so the hunt card follows: into a party it reads the
+       view once; out of one it blanks without asking (refreshHunt's own rule). */
+    await refreshHunt(name);
     return res;
   }
 
@@ -429,15 +433,23 @@
     visible = !!on;
     if (visible) {
       if (!timer) timer = setInterval(pollNow, Math.round(SLOW_REFRESH_MS / 3));
-      refresh('open');
+      /* The hunt card's own clock: a tick every two seconds that spends a read
+         only when huntPollDue says the 10 s / 60 s cadence has come round. */
+      if (!huntTimer) huntTimer = setInterval(pollHuntNow, 2000);
+      var openEpoch = epoch;
+      refresh('open').then(function () {
+        if (openEpoch === epoch && visible) return refreshHunt('open');
+        return null;
+      }).catch(function () {});
     } else {
       /* CLOSING RETIRES THE READ IN FLIGHT, which is what makes the module's own
          first line — "A closed panel reads NOTHING" — true of a panel closed
          mid-read as well as one closed between reads. Unconditional: a flight
          can be open with no timer (a gesture's re-read), and that flight is
          exactly the one that used to keep spending requests after the close. */
-      epoch += 1; inFlight = null;
+      epoch += 1; inFlight = null; huntInFlight = null;
       if (timer) { clearInterval(timer); timer = null; }
+      if (huntTimer) { clearInterval(huntTimer); huntTimer = null; }
     }
   }
 
@@ -447,6 +459,210 @@
   function pollNow() {
     if (!slowRefreshDue(Date.now())) return null;
     return refresh('slow');
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     THE PARTY HUNT (stage 2). docs/planning/SEC_GATHER_ARM_RUNBOOK_2026-10-06.md,
+     "Party hunt as the player sees it" — the Game Designer's FINAL copy.
+
+     Three calls and nothing else: hr_party_hunt_start(slot, activity, stance,
+     stop, idem), hr_party_hunt_stop(slot, idem) and hr_party_hunt_view(slot).
+     The same rules as the membership half above:
+       · a verb never predicts. Start does not write a hunt into the projection
+         and Stop does not end one; each re-reads the VIEW, and the card paints
+         from that read alone (§6);
+       · the view is REPLACED whole on every read and never merged, and a read
+         that does not land keeps the last one rather than evicting it;
+       · `G._partyHunt` is `_`-prefixed scratch, never persisted, never residue.
+
+     THE CADENCE (A3) is the designer's and has its OWN server bucket,
+     `party_hunt_view` at 20/min, so it never spends the 12/min `party` bucket
+     a leader's Stop needs: every HUNT_LIVE_MS while the panel is on screen and
+     the view says a hunt is live, every HUNT_IDLE_MS while it is on screen and
+     idle, and NEVER while the panel is closed. Out of a party there is nothing
+     to view, so nothing is asked.
+     ══════════════════════════════════════════════════════════════════════ */
+  var HUNT_LIVE_MS = 10000;
+  var HUNT_IDLE_MS = 60000;
+  var huntStats = { viewReads: 0, lastAt: 0, verbCalls: 0 };
+  var huntInFlight = null;
+
+  /* THE REFUSALS A HUNT VERB CAN ANSWER, in the spec's exact words (§1, §3, §6).
+     A function per code where the server's `detail` fills a slot; a value the
+     server did not send prints as nothing rather than as an invented one. */
+  function dflt(v, alt) { return (v === null || typeof v === 'undefined' || v === '') ? alt : String(v); }
+  var HUNT_SENTENCES = {
+    party_too_small:         function () { return 'You need at least 2 in the party to hunt together. Invite someone.'; },
+    party_full:              function () { return 'Too many in the party. Hunts take up to 4.'; },
+    party_level_spread:      function (d) {
+      return 'Levels are too far apart (' + dflt(d.low, '?') + '–' + dflt(d.high, '?') + '). Hunts allow a gap of ' + dflt(d.max, '?') + '.';
+    },
+    party_member_recovering: function (d) { return dflt(d.member, 'A member') + ' is still recovering. Ready in ' + mmss(d.remaining_ms) + '.'; },
+    party_hunt_running:      function () { return 'Your party is already hunting.'; },
+    not_party_leader:        function () { return 'Only the party leader can start a hunt.'; },
+    hunt_channel_disarmed:   function () { return 'Party hunting isn\'t open yet. It switches on during the beta.'; },
+    hunt_not_in_cohort:      function () { return 'Party hunting isn\'t open yet. It switches on during the beta.'; },
+    party_settle_churn:      function () { return 'Lots of party changes today. Hunts may settle a little later.'; },
+    unknown_activity:        function () { return 'Couldn\'t start the hunt. Refresh and try again.'; },
+    bad_stance:              function () { return 'Couldn\'t start the hunt. Refresh and try again.'; },
+    bad_stop:                function () { return 'Couldn\'t start the hunt. Refresh and try again.'; },
+    bad_slot:                function () { return 'Couldn\'t start the hunt. Refresh and try again.'; },
+    intent_mismatch:         function () { return 'Couldn\'t start the hunt. Refresh and try again.'; },
+    not_in_party:            function () { return 'Couldn\'t start the hunt. Refresh and try again.'; },
+    member_uncollectable:    function () { return 'Couldn\'t start the hunt. Refresh and try again.'; }
+  };
+  /** m:ss of a server-stated span. Display only — a countdown of the server's
+      own `remaining_ms`, which nothing reads to decide anything. */
+  function mmss(ms) {
+    var v = Number(ms);
+    if (!isFinite(v) || v < 0) v = 0;
+    var s = Math.ceil(v / 1000);
+    var m = Math.floor(s / 60);
+    var r = s % 60;
+    return m + ':' + (r < 10 ? '0' : '') + r;
+  }
+  function huntRefusalSentence(code, detail) {
+    var f = code && HUNT_SENTENCES[String(code)];
+    if (f) return f(detail && typeof detail === 'object' ? detail : {});
+    return refusalSentence(code);
+  }
+
+  function huntBlank() {
+    return {
+      known: false,       // has a view read landed for this party?
+      view: null,         // hr_party_hunt_view's answer, verbatim (ok:true only)
+      notice: null,       // the inline sentence under [Start hunt] / [Stop hunt]
+      busy: false,
+      /* party_member_recovering's countdown: the server's remaining_ms pinned
+         to the browser clock the moment it arrived. A WALL CLOCK — the button
+         it disables re-enables at 0 and nothing retries on its own. */
+      waitUntilMs: 0,
+      waitMember: null,
+      readAt: 0
+    };
+  }
+  function huntState() {
+    var G = window.G;
+    if (!G) return huntBlank();
+    if (!G._partyHunt) G._partyHunt = huntBlank();
+    return G._partyHunt;
+  }
+  function huntPut(next) {
+    var G = window.G;
+    if (G) G._partyHunt = next;
+    repaint();
+    return next;
+  }
+  function huntLive() {
+    var h = huntState();
+    return !!(h.view && h.view.hunt && h.view.hunt.live === true);
+  }
+  function inParty() { var s = state(); return !!(s && s.partyId); }
+
+  /** ONE view read, single-flighted, abandoned if the panel closes under it. */
+  function refreshHunt(reason) {
+    if (huntInFlight) return huntInFlight;
+    var p = doRefreshHunt(reason).then(function (v) { huntInFlight = null; return v; },
+                                       function (e) { huntInFlight = null; throw e; });
+    huntInFlight = p;
+    return p;
+  }
+  async function doRefreshHunt() {
+    var myEpoch = epoch;
+    var cur = huntState();
+    if (!isSignedIn() || !inParty()) {
+      // No party, no hunt: the blank card, and no request spent learning it.
+      return huntPut(huntBlank());
+    }
+    huntStats.viewReads += 1;
+    huntStats.lastAt = Date.now();
+    var res = await rpcPost('hr_party_hunt_view', { p_slot: activeSlot() });
+    if (myEpoch !== epoch) return cur;
+    var next = Object.assign({}, huntState());
+    if (res && res.ok === true) {
+      next.view = res;          // REPLACED, never merged
+      next.known = true;
+      next.readAt = Date.now();
+    } else if (res && res.error === 'not_in_party') {
+      next = huntBlank();
+      next.known = true;
+    }
+    /* Anything else (rate_limited, network, rpc_missing): the last view stands
+       and nothing is evicted on the uncertainty (§6). rpc_missing on a realm
+       that has not applied the view yet leaves `known:false`, which the card
+       draws as "not open yet" — the fail-safe of "not unlocked". */
+    return huntPut(next);
+  }
+
+  /** True when the poll may spend a read now: on screen, in a party, and past
+      the cadence the hunt's own state sets. */
+  function huntPollDue(nowMs) {
+    if (!visible || !inParty()) return false;
+    var every = huntLive() ? HUNT_LIVE_MS : HUNT_IDLE_MS;
+    return (nowMs - huntStats.lastAt) >= every;
+  }
+  function pollHuntNow() {
+    if (!huntPollDue(Date.now())) return null;
+    return refreshHunt('poll');
+  }
+
+  async function huntGesture(name, body) {
+    var cur = huntState();
+    huntPut(Object.assign({}, cur, { busy: true, notice: null }));
+    huntStats.verbCalls += 1;
+    var res = await rpcPost(name, body);
+    var after = Object.assign({}, huntState(), { busy: false, notice: null, waitUntilMs: 0, waitMember: null });
+    if (!(res && res.ok === true)) {
+      var code = res && res.error;
+      var d = (res && res.detail) || {};
+      /* `no_party_hunt` on Stop means it already ended: refresh silently (§3). */
+      if (!(name === 'hr_party_hunt_stop' && code === 'no_party_hunt')) {
+        after.notice = huntRefusalSentence(code, d);
+      }
+      if (code === 'party_member_recovering') {
+        var left = Number(d.remaining_ms);
+        after.waitUntilMs = Date.now() + (isFinite(left) && left > 0 ? left : 0);
+        after.waitMember = d.member == null ? null : String(d.member);
+      }
+    }
+    huntPut(after);
+    /* Unconditional, like the membership verbs: a refusal (party_hunt_running)
+       is exactly when the truth matters most. */
+    await refreshHunt(name);
+    return res;
+  }
+
+  /** The leader's Start. `activity` is the monster id the solo picker offers;
+      `stance` is the solo stance id; `stop` is the solo default (run until
+      stopped), so `{}` — there is no stop-rule picker for beta. */
+  function startHunt(activity, stance) {
+    return huntGesture('hr_party_hunt_start', {
+      p_slot: activeSlot(),
+      p_active_id: String(activity == null ? '' : activity),
+      p_stance: String(stance == null ? '' : stance),
+      p_stop: {},
+      p_idem: newIdem()
+    });
+  }
+  function stopHunt() { return huntGesture('hr_party_hunt_stop', { p_slot: activeSlot(), p_idem: newIdem() }); }
+
+  /* ── THE RETURN RECEIPT'S READ (§5). One view read per away receipt, keyed on
+     the receipt's own `at`, and only for a player the roster says is partied —
+     or, before the panel was ever opened, one probe the realm answers
+     `not_in_party` to. Never a poll: the Home card asks every repaint and gets
+     the cached answer. */
+  var receiptRead = { key: null, view: null, pending: false };
+  function huntForReceipt(key) {
+    if (key == null) return null;
+    if (receiptRead.key === key) return receiptRead.view;
+    if (receiptRead.pending || !isSignedIn()) return null;
+    var s = state();
+    if (s.known && !s.partyId) return null;
+    receiptRead = { key: key, view: null, pending: true };
+    rpcPost('hr_party_hunt_view', { p_slot: activeSlot() }).then(function (res) {
+      receiptRead = { key: key, view: (res && res.ok === true) ? res : null, pending: false };
+    }, function () { receiptRead = { key: key, view: null, pending: false }; });
+    return null;
   }
 
   window.HearthriseParty = {
@@ -467,6 +683,18 @@
     accept: accept,
     leave: leave,
     kick: kick,
+    HUNT_LIVE_MS: HUNT_LIVE_MS,
+    HUNT_IDLE_MS: HUNT_IDLE_MS,
+    getHunt: huntState,
+    huntStats: function () {
+      return { viewReads: huntStats.viewReads, lastAt: huntStats.lastAt, verbCalls: huntStats.verbCalls };
+    },
+    huntRefusalSentence: huntRefusalSentence,
+    refreshHunt: refreshHunt,
+    pollHuntNow: pollHuntNow,
+    startHunt: startHunt,
+    stopHunt: stopHunt,
+    huntForReceipt: huntForReceipt,
     /* Test seam: the suite drives a stubbed fetch and needs the module back at
        its boot state between arms. It resets the METER and the projection, and
        nothing else — there is no hidden state for it to miss. */
@@ -477,9 +705,13 @@
          still in flight would otherwise finish against the next test's stub. */
       epoch += 1;
       inFlight = null;
+      huntInFlight = null;
       visible = false;
       if (timer) { clearInterval(timer); timer = null; }
-      if (window.G) window.G._party = blank();
+      if (huntTimer) { clearInterval(huntTimer); huntTimer = null; }
+      huntStats = { viewReads: 0, lastAt: 0, verbCalls: 0 };
+      receiptRead = { key: null, view: null, pending: false };
+      if (window.G) { window.G._party = blank(); window.G._partyHunt = huntBlank(); }
     }
   };
 }());

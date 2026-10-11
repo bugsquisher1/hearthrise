@@ -24,11 +24,11 @@
 // when no other sheet or the FTUE is up, and the suite parks the watcher.
 // ════════════════════════════════════════════════════════════════════════
 
-import { CHARM_CLASS_LORE, CHARM_RANK_LORE } from '../data/charm-lore.js?v=565';
-import { CHARM_RANKS, CHARM_RANK_NAMES, MAX_CHARM_RANK } from '../data/bestiary-charms.js?v=565';
-import { charmRankAt, nextCharmAt, charmRowOfRank } from '../core/charms.js?v=565';
-import { TROPHY_STAGES, TROPHY_STAGE_NAMES, nextTrophyAt } from '../data/bestiary.js?v=565';
-import { MONSTER_CLASSES, classOfMonster } from '../core/bane.js?v=565';
+import { CHARM_CLASS_LORE, CHARM_RANK_LORE } from '../data/charm-lore.js?v=566';
+import { CHARM_RANKS, CHARM_RANK_NAMES, MAX_CHARM_RANK } from '../data/bestiary-charms.js?v=566';
+import { charmRankAt, nextCharmAt, charmRowOfRank } from '../core/charms.js?v=566';
+import { TROPHY_STAGES, TROPHY_STAGE_NAMES, nextTrophyAt } from '../data/bestiary.js?v=566';
+import { MONSTER_CLASSES, classOfMonster } from '../core/bane.js?v=566';
 
 const SEEN_KEY = 'hearthrise:charm-seen';
 const MAX_KEYS = 10;
@@ -136,9 +136,9 @@ function rowHtml(r) {
     + '</div>';
 }
 
-/** Home's status-rail card. Unknown ⇒ pending marks, never 0; known and empty ⇒ ''. */
+/** The Journal's Bestiary head. Unknown ⇒ pending marks, never 0; known and empty ⇒ ''. */
 export function cardHtml(snap) {
-  const head = '<div class="hd-h"><h3>Hunter\'s ledger</h3><a data-hl-open="bestiary">Bestiary →</a></div>';
+  const head = '<div class="hd-h"><h3>Hunter\'s ledger</h3></div>';
   if (!snap) {
     return '<div class="hl-card">' + head + '<div class="hd-card hl-rows">'
       + '<div class="hl-row"><div class="hd-mile-title">Nearest charm</div><div class="hd-mile-sub">' + PENDING + '</div></div>'
@@ -273,7 +273,7 @@ function openMoment(ups) {
     const b = e.target.closest && e.target.closest('[data-hl-moment]');
     if (!b) return;
     scrim.remove();
-    if (b.getAttribute('data-hl-moment') === 'open' && typeof window.openBestiary === 'function') window.openBestiary();
+    if (b.getAttribute('data-hl-moment') === 'open' && window.HearthriseJournal) window.HearthriseJournal.open('bestiary');
   });
   document.body.appendChild(scrim);
   const primary = scrim.querySelector('[data-hl-moment="open"]');
@@ -344,7 +344,7 @@ export function setupHuntersLedger() {
   };
   document.addEventListener('click', (e) => {
     const a = e.target && e.target.closest && e.target.closest('[data-hl-open="bestiary"]');
-    if (a && typeof window.openBestiary === 'function') window.openBestiary();
+    if (a && window.HearthriseJournal) window.HearthriseJournal.open('bestiary');
   });
   setInterval(() => { try { liveTick(); } catch (e) { /* display only */ } }, 1000);
 }

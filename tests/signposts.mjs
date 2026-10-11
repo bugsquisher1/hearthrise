@@ -8,7 +8,8 @@
 // class, a stalled bench, a locked card). Six rules, text and data only:
 //   SIGN-1  every line and label key is used: bag.<id> through the bag's CATEGORIES ids,
 //           every other key as a literal string somewhere in src/ (not smoke)
-//   SIGN-2  a door opens a real tab (index.html data-tab) or a real skill
+//   SIGN-2  a door opens a real tab (index.html data-tab or a HUBS pane in
+//           src/nav-consolidation.js) or a real skill
 //   SIGN-3  lines 30-200 chars, labels 3-40; no digits, emoji or < > &
 //   SIGN-4  every CATEGORIES id but recipes has bag.<id>, plus bag.hidden
 //   SIGN-5  a line's {placeholders} equal its declared vars
@@ -38,6 +39,14 @@ function walk(dir, out = []) {
   return out;
 }
 
+/** The pane tabs of the menu table: every `tab: '<id>'` inside `var HUBS = [ … ];`. */
+function hubPanes(nav) {
+  const at = nav.indexOf('var HUBS = [');
+  if (at < 0) return [];
+  const block = nav.slice(at, nav.indexOf('];', at));
+  return [...block.matchAll(/\btab:\s*'([\w-]+)'/g)].map((m) => m[1]);
+}
+
 async function world() {
   const { SIGNPOSTS } = await import('../src/data/signposts.js');
   const { SKILLS_DEF } = await import('../src/data/skills.js');
@@ -57,7 +66,13 @@ async function world() {
     lines: JSON.parse(JSON.stringify(SIGNPOSTS.lines)),
     labels: { ...SIGNPOSTS.labels },
     categoryIds: [...catBlock.matchAll(/\{id:'(\w+)'/g)].map((m) => m[1]),
-    tabs: [...new Set([...readFileSync(join(ROOT, 'index.html'), 'utf8').matchAll(/data-tab="([\w-]+)"/g)].map((m) => m[1]))],
+    // A door opens a real screen: a rail button (index.html data-tab) or a
+    // pane of the nine-door menu (HUBS in src/nav-consolidation.js, w0d) —
+    // panes like the Stable have no rail button of their own any more.
+    tabs: [...new Set([
+      ...[...readFileSync(join(ROOT, 'index.html'), 'utf8').matchAll(/data-tab="([\w-]+)"/g)].map((m) => m[1]),
+      ...hubPanes(readFileSync(join(ROOT, 'src/nav-consolidation.js'), 'utf8')),
+    ])],
     skills: Object.keys(SKILLS_DEF),
     sources,
     packOrigins: packed.files.map((f) => f.origin || f.name),
@@ -129,7 +144,7 @@ export function check(w) {
   }
   for (const [key, l] of Object.entries(w.lines)) {
     const d = l.door;
-    if (d && d.tab && !w.tabs.includes(d.tab)) fail('SIGN-2', `${key} door tab '${d.tab}' is not a data-tab`);
+    if (d && d.tab && !w.tabs.includes(d.tab)) fail('SIGN-2', `${key} door tab '${d.tab}' is not a data-tab or menu pane`);
     if (d && d.skill && !w.skills.includes(d.skill)) fail('SIGN-2', `${key} door skill '${d.skill}' is not in SKILLS_DEF`);
     if (d && !d.tab === !d.skill) fail('SIGN-2', `${key} door needs exactly one of tab or skill`);
     if (d && (String(d.label || '').length < 3 || String(d.label).length > 40 || BAD_CHARS.test(d.label))) fail('SIGN-3', `${key} door label '${d.label}'`);
@@ -169,6 +184,7 @@ export function check(w) {
 const MUTATIONS = {
   unreferencedKey: ['SIGN-1', (w) => { w.lines['zz.orphan'] = { text: 'A line nobody in the game ever shows to a player.' }; }],
   badTab: ['SIGN-2', (w) => { w.lines['bag.all'].door.tab = 'nope'; }],
+  paneDropped: ['SIGN-2', (w) => { w.tabs = w.tabs.filter((t) => t !== 'stable'); }],
   digit: ['SIGN-3', (w) => { w.lines['farm.noSeeds'].text += ' Costs 5 gold.'; }],
   missingBagTools: ['SIGN-4', (w) => { delete w.lines['bag.tools']; }],
   undeclaredVar: ['SIGN-5', (w) => { w.lines['home.dailyDone'].text += ' {x}'; }],

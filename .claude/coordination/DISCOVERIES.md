@@ -3609,3 +3609,18 @@ confirmed buy). 5: "Sell All 37 · 74g" sells the stack the server last confirme
 count; unconfirmed reads "Sell All · counting…" (disabled, title "Not counted yet — the realm is
 still counting your bag"); the receipt reports what the server sold. Owner: systems-engineer (client
 intent + projection); the server half of 5 (sell-by-confirmed-quantity) may need backend-architect.
+
+## 2026-10-10 · art-director · three things found while merging the records into the Journal
+
+1. `window.activeTab` does not exist — legacy.js keeps `let activeTab` private. Every smoke test that
+   saved `const prevTab = window.activeTab` and restored it has been restoring `undefined` (falls back to
+   'profile'). The menu reads the open screen from the DOM (`main .panel.active`), the one truth every
+   module can see.
+2. The Collection Log's Four Hearthfinds section rendered UNSTYLED on any session where no Hearthfind
+   reveal had opened first (`collectionSection` never called hearthfind's `ensureStyle`): icons stacked
+   over text, and the `.rr-unique` rarity glow ringed every UNFOUND row in teal. Fixed (ensureStyle +
+   `.miss{box-shadow:none}`).
+3. The bestiary's `×` count and the drop table's "N slain" fell back to `G.bestiary` (client residue)
+   when the server count was 0/unknown, and the Collection Log's "% complete" read `G.collection` /
+   `G.bestiary`. The Journal prints the server's counts (`HearthriseTrophies`, `serverStats()`) or the
+   pending dash; JOURNAL-SERVER-1 pins it.

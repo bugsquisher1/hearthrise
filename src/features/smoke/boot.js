@@ -6,8 +6,8 @@
 // one live G, in order, and the order is the contract. Moved here verbatim from
 // the monolith by tools/split-smoke-suite.mjs — 31 tests, not one renamed.
 // ══════════════════════════════════════════════════════════════════════
-import { pass, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, withFarmServer, snapshotG, restoreG, restoreGAndRecord, on, overlayResidue, captureShellLocks, residueProbe, serverBagFixture } from './_harness.js?v=565';
-import { SCREEN_PRIMERS } from '../../data/screen-primers.js?v=565';
+import { pass, tryRun, tryRunAsync, assert, skip, stampRecordLikeLoad, withFarmServer, snapshotG, restoreG, restoreGAndRecord, on, overlayResidue, captureShellLocks, residueProbe, serverBagFixture } from './_harness.js?v=566';
+import { SCREEN_PRIMERS } from '../../data/screen-primers.js?v=566';
 
 /* The primer markers on this device, so a PRIMER test can put them back exactly. */
 const primerSnap = (S) => S.keys().filter((k) => k.indexOf('hearthrise:primer:') === 0).map((k) => [k, S.get(k)]);
@@ -135,7 +135,7 @@ export default [
     const EXPECTED = [
       'inv-new', 'bounty-tab', 'combat-style-selector', 'character-render', 'panel-extras',
       'clan-activity', 'inv-fancy', 'inv-dragdrop', 'auto-open-activity',
-      'character-rebuild', 'dungeons-render', 'nav-consol-bootall', 'obs-tabchange',
+      'character-rebuild', 'dungeons-render', 'nav-hub-strip', 'journal', 'obs-tabchange',
       'character-page', 'stable-render', 'combat-tier-chips',
       'combat-screens-nav', 'identity-decorate', 'home-dashboard', 'ui-overlap',
       'muster-events', 'screen-primers',
@@ -375,7 +375,7 @@ export default [
         'clicking the spotlit Skills tab through the shade did not navigate');
       assert(/Step 4 of/.test(stepLabel()), 'the forwarded click did not advance the tour, at ' + stepLabel());
       // Over-forwarding guard: a click on a NON-target tab must do nothing.
-      const wrong = [...document.querySelectorAll('button[data-tab="house"]')].filter(laidOut)[0];
+      const wrong = [...document.querySelectorAll('button[data-tab="homestead"]')].filter(laidOut)[0];
       if (wrong) {
         const wr = wrong.getBoundingClientRect();
         shade.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: wr.left + wr.width / 2, clientY: wr.top + wr.height / 2 }));
@@ -384,7 +384,7 @@ export default [
            Wait past the full budget, then read. */
         await sleep(900);
         assert(/Step 4 of/.test(stepLabel()), 'a click on a non-target tab advanced/changed the tour: ' + stepLabel());
-        const housePanel = document.getElementById('panel-house');
+        const housePanel = document.getElementById('panel-farming');
         assert(!housePanel || getComputedStyle(housePanel).display === 'none',
           'a shaded click on a NON-target tab navigated — the forwarder is too permissive');
       }

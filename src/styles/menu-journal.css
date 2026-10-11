@@ -1,0 +1,186 @@
+/* ============================================================
+   src/styles/menu-journal.css — the pane strip and the Journal.
+
+   THE PANE STRIP (#hub-tabs, src/nav-consolidation.js). The rail says
+   which door you are behind; this row says which room. It is the
+   second level of the menu, so it is deliberately QUIETER than the
+   folder tabs a screen draws inside itself (Character's Skills /
+   Equipment / Hero, the Journal's four): no boxes, no fill — a line of
+   labelled glyphs on the seam above the screen, with one gilt rule
+   under the room you are in. Containment is earned, and a strip of
+   three choices has not earned a card.
+
+   THE JOURNAL (#panel-journal, src/features/journal.js) is a page that
+   scrolls: folder tabs like the Character screen's, then the records
+   in plain sections. Tokens only.
+   ============================================================ */
+
+.hub-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 0 var(--gap);
+  border-bottom: 1px solid var(--line);
+}
+.hub-tabs[hidden] { display: none; }
+.hub-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  background: transparent;
+  border: 0;
+  color: var(--ink-3);
+  font-family: var(--f-ui);
+  font-weight: 700;
+  font-size: calc(15px * var(--ui-scale, 1));
+  letter-spacing: .02em;
+  cursor: pointer;
+  transition: color .12s;
+}
+.hub-tab:hover { color: var(--ink); }
+.hub-tab .ic { display: inline-flex; width: 17px; height: 17px; opacity: .8; }
+.hub-tab.active { color: var(--gold-2); }
+.hub-tab.active .ic { opacity: 1; }
+.hub-tab.active::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -1px;
+  height: 2px;
+  background: var(--gold-2);
+}
+.hub-tab:focus-visible { outline: 2px solid var(--gold-2); outline-offset: -3px; }
+.hub-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gold-2);
+  margin-left: -2px;
+}
+
+/* ── The Journal ─────────────────────────────────────────────── */
+#panel-journal.active { display: block; overflow-y: auto; }
+.jr-shell { display: flex; flex-direction: column; min-width: 0; }
+.jr-tabs {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--gold-2);
+  margin-bottom: 16px;
+}
+.jr-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  border-radius: 8px 8px 0 0;
+  border: 1px solid var(--line);
+  border-bottom: none;
+  margin-bottom: -1px;
+  background: transparent;
+  color: var(--ink-3);
+  font-family: var(--f-ui);
+  font-weight: 700;
+  font-size: calc(15px * var(--ui-scale, 1));
+  letter-spacing: .02em;
+  cursor: pointer;
+}
+.jr-tab .ic { display: inline-flex; width: 16px; height: 16px; }
+.jr-tab:hover { color: var(--ink-2); }
+.jr-tab.active { background: var(--tab-active); color: var(--gold-2); border-color: var(--gold-2); }
+.jr-body { min-width: 0; }
+.jr-sec + .jr-sec, .jr-h + .jr-sec { margin-top: 10px; }
+.jr-h {
+  margin: 22px 0 8px;
+  font-family: var(--f-label, var(--f-ui));
+  font-size: calc(15.5px * var(--ui-scale, 1));
+  letter-spacing: .06em;
+  color: var(--gold-2);
+  font-weight: 700;
+}
+
+/* Deeds: the Chronicle beside the deeds list; Stats: the ledger in two
+   columns under the headline tiles. A label 1,200px from its number is a
+   table nobody can read. */
+.jr-body[data-jr-tab="deeds"] { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 36px; align-items: start; }
+.jr-body[data-jr-tab="deeds"] .jr-col > .jr-h:first-child { margin-top: 16px; }
+.jr-stats { column-count: 2; column-gap: 36px; }
+.jr-stats .stats-grid { column-span: all; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.jr-stats .stats-section { break-inside: avoid; margin-top: 0; padding-top: 14px; }
+.jr-week { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 36px; align-items: start; }
+#panel-journal .hr-ch-sec { padding-left: 2px; padding-right: 2px; }
+#panel-journal .hr-ch-rule { margin-left: 2px; margin-right: 2px; }
+#panel-journal .hr-ch-row, #panel-journal .hr-ch-note, #panel-journal .hr-ch-empty { padding-left: 2px; padding-right: 2px; }
+
+/* Home's status blocks (Hunter's ledger, Your week, Standings) are drawn
+   by their owners with Home's class names; here they read as sections. */
+#panel-journal .hd-h { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 18px 0 8px; }
+#panel-journal .hd-h h3 { margin: 0; font-family: var(--f-label, var(--f-ui)); font-size: calc(15.5px * var(--ui-scale, 1)); letter-spacing: .06em; color: var(--gold-2); }
+#panel-journal .hd-h a { color: var(--ink-3); font-size: calc(14.5px * var(--ui-scale, 1)); cursor: pointer; }
+#panel-journal .hd-rows, #panel-journal .hl-rows { display: flex; flex-direction: column; }
+#panel-journal .hd-card { padding: 9px 2px; border-top: 1px solid var(--line-soft); }
+#panel-journal .hd-card:first-child { border-top: 0; }
+#panel-journal .hd-duo { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+#panel-journal .hd-duo .t { font-weight: 700; color: var(--ink); }
+#panel-journal .hd-duo .s, #panel-journal .hd-mini { color: var(--ink-3); font-size: calc(14.5px * var(--ui-scale, 1)); }
+#panel-journal .hd-duo .when { color: var(--ink); font-variant-numeric: tabular-nums; font-weight: 700; }
+#panel-journal .hl-rows { gap: 12px; padding: 4px 2px; }
+#panel-journal .hd-mile-title { font-weight: 700; color: var(--ink); }
+#panel-journal .hd-mile-sub { color: var(--ink-3); font-size: calc(14.5px * var(--ui-scale, 1)); margin-top: 2px; }
+#panel-journal .hd-bar { height: 6px; margin-top: 6px; border-radius: 99px; background: var(--line-soft); overflow: hidden; }
+#panel-journal .hd-bar > i { display: block; height: 100%; background: var(--gold-2); }
+
+/* Deeds are a ruled list, not a stack of boxes. */
+#panel-journal .ach-list { gap: 0; }
+#panel-journal .ach-list h4 { margin: 18px 0 4px; }
+#panel-journal .ach-row { background: transparent; border: 0; border-bottom: 1px solid var(--line-soft); border-radius: 0; padding: 9px 2px; }
+#panel-journal .ach-row.unlocked { background: transparent; }
+
+/* The collection grid was sized for a 520px modal: 64px cells cut every
+   two-word name to "Raw Shr…". On a page the cells take the room they need
+   and a name wraps instead of being cut. */
+#panel-journal .hr-cl-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; padding: 10px 2px; }
+#panel-journal .hr-cl-cell { aspect-ratio: auto; min-height: 88px; justify-content: flex-start; gap: 6px; padding: 10px 4px 8px; }
+#panel-journal .hr-cl-nm { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.15; }
+#panel-journal .hr-cl-sec { padding: 14px 2px 2px; }
+
+/* A named bestiary row opens its drop table. */
+#panel-journal .bestiary-row[data-jr-mon] { cursor: pointer; }
+#panel-journal .bestiary-row[data-jr-mon]:hover { border-color: var(--line-strong); }
+#panel-journal .jr-detail .hr-cl-detail { max-width: 640px; }
+
+/* A landscape phone has no height to give: the strip moves INTO the top bar's
+   empty middle (between the avatar and the stats) and costs zero rows. The
+   right edge stops short of the stats by their measured width
+   (--hr-top-stats-w, published by src/nav-consolidation.js); the strip
+   scrolls sideways before it would ever run under them. */
+@media (max-height: 540px) and (orientation: landscape) and (max-width: 1024px) {
+  .hub-tabs {
+    position: absolute;
+    top: 0;
+    left: 48px;
+    z-index: 3;
+    height: var(--tap);
+    max-width: calc(100% - 56px - var(--hr-top-stats-w, 360px));
+    border-bottom: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .hub-tabs::-webkit-scrollbar { display: none; }
+  .hub-tab { min-height: 0; height: 100%; white-space: nowrap; flex: 0 0 auto; }
+  .hub-tab.active::after { bottom: 0; }
+}
+
+@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
+  .hub-tabs { padding: 0 6px; gap: 2px; }
+  .hub-tab { min-height: 36px; padding: 0 10px; gap: 6px; font-size: calc(14.5px * var(--ui-scale, 1)); }
+  .jr-tabs { flex-wrap: wrap; margin-bottom: 10px; }
+  .jr-tab { padding: 0 12px; min-height: var(--tap); }
+  .jr-body[data-jr-tab="deeds"], .jr-week { grid-template-columns: minmax(0, 1fr); }
+  .jr-stats { column-count: 1; }
+}

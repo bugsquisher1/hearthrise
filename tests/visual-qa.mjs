@@ -74,7 +74,7 @@ const VIEWPORTS = [
   { key: 'desktop', width: 1440, height: 900 },
   { key: 'landscape', width: 852, height: 393 },
 ];
-const SCREENS = ['profile', 'character', 'combat', 'skills', 'farming', 'inventory', 'house', 'events', 'shops', 'clan', 'party', 'social', 'bounty'];
+const SCREENS = ['profile', 'character', 'inventory', 'journal', 'skills', 'combat', 'bounty', 'dungeons', 'farming', 'house', 'stable', 'clan', 'party', 'events', 'shops', 'market', 'social'];
 
 /* Injected into the page — runs against a REAL rendered layout.
    ARG is an object, not a bare label: the text-metric detectors are only honest

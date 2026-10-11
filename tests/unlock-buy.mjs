@@ -51,7 +51,7 @@ import { xpForLevel } from '../src/core/xp.js';
    newer migration's lock or self-check cannot refuse first: the newest file it names;
    its arms buy through the hr_unlock_buy signature and catalogue as of there.
    (tests/schema-replay.mjs replayScopeError). The plain run is the whole chain. */
-const REPLAY_UPTO = '2026-10-06-world-tick-parity-probe.sql';
+const REPLAY_UPTO = '2026-10-10-world-tick-presence-horizon.sql';
 
 /* An UNGATED cooking recipe for the burn measurement, chosen by the PROPERTY
    that matters — cheapest inputs, so a long span never runs dry — rather than
@@ -191,7 +191,7 @@ const MUTATIONS = {
         + 'create table if not exists public.hr_client_write_baseline (',
   },
   detector_still_narrow: {
-    migration: '2026-10-06-world-tick-parity-probe.sql',
+    migration: '2026-10-10-world-tick-presence-horizon.sql',   // b566: the detector's last restatement
     why: 'C3 — check (4) goes back to TRUNCATE/REFERENCES/TRIGGER only, so a client write grant on '
        + 'a table with RLS on and no write policy is invisible again',
     /* Anchored on the BASELINE JOIN inside the LIVE detector body (the last

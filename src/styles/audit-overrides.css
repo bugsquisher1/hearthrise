@@ -2564,6 +2564,7 @@ body.in-combat #combat-area {
   body[data-theme] .dgn-qm-btn,
   body[data-theme] .mk-buy,
   body[data-theme] .mk-cancel,
+  body[data-theme] .mk-form-row button, /* the Market's List button: 42px on the landscape phone once Market became its own pane (w0d) */
   body[data-theme] .ftue-btn,
   body[data-theme] .mp-fight,
   body[data-theme] .scv-finish {

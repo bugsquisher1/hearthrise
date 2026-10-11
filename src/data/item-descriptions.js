@@ -3,9 +3,9 @@
 // voice, original IP. Surfaced in the item detail/tooltip (the "what is it" line).
 // SAFE TO EXTEND: an item with no entry here just shows no flavour line — nothing breaks.
 
-import { WAVE3_DESC } from './wave3-uniques.js?v=565';
-import { SLOT_DESC } from './slot-ladders.js?v=565';
-import { LIB2_DESC } from './library2-items.js?v=565';
+import { WAVE3_DESC } from './wave3-uniques.js?v=566';
+import { SLOT_DESC } from './slot-ladders.js?v=566';
+import { LIB2_DESC } from './library2-items.js?v=566';
 
 export const ITEM_DESC = {
   ...WAVE3_DESC, // b247: the 14 Wave-3 unique item flavour lines
@@ -122,7 +122,7 @@ export const ITEM_DESC = {
   'dragon_bones': 'Dense, blackened bones of a dragon, the richest burial offering of all',
   'dragon_gem': 'A gem cut from a dragon\'s hoard, the rarest jewel a smith can set',
   'dragon_marrow_recipe': 'Grim notes on forging a spear from dragon marrow',
-  'dragon_relic': 'A legendary relic of a slain dragon, prize of the greatest raids',
+  'dragon_relic': 'A legendary relic of a slain dragon, prize of the deepest dungeons',
   'dragon_scale': 'A single scale prised from a dragon, prized armouring material',
   'dragon_stew': 'A fierce pot simmered with dragon-flesh, a feast that drives your combat learning',
   'dragonfang_pike': 'A pike tipped with a fang torn from Elderscale itself, the Wyrm\'s own ferocity in your grip',

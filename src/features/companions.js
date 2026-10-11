@@ -13,10 +13,10 @@
 // Online-readiness: every state mutation here goes through emit() so a future
 // network adapter can ship companion changes to the backend.
 
-import { COMPANIONS } from '../data/companions.js?v=565';
-import { companionLore } from '../data/lore-notes.js?v=565';
-import { emit } from '../net/events.js?v=565';
-import { companionPaidBonus, companionPaidLines } from '../render/companion-lines.js?v=565';
+import { COMPANIONS } from '../data/companions.js?v=566';
+import { companionLore } from '../data/lore-notes.js?v=566';
+import { emit } from '../net/events.js?v=566';
+import { companionPaidBonus, companionPaidLines } from '../render/companion-lines.js?v=566';
 /* THE SERVER-OF-RECORD ARM SWITCH for companion XP — ARMED. The accrual
    engine is the sole writer (a `stat companion_xp:<id>` op priced at
    settle AND away over the same role-matched actions this client seam counts),
@@ -29,7 +29,7 @@ import { companionPaidBonus, companionPaidLines } from '../render/companion-line
      `true`, so `awardCompanionXp` already returned for every caller. With this
      switch also false there was NO writer anywhere and every pet was frozen at
      level 1 — Paione's live report. See src/core/companion-xp.js. */
-import { COMPANION_XP_SERVER_BACKED } from '../core/companion-xp.js?v=565';
+import { COMPANION_XP_SERVER_BACKED } from '../core/companion-xp.js?v=566';
 
 // b229 (Asset Director — "pet icons"): every companion in COMPANIONS still
 // carries an emoji `icon` field (data stays as-authored — other consumers may
@@ -742,32 +742,7 @@ function wireDragonEggHatch() {
   };
 }
 
-// ── UI: Stable panel, profile card, sidebar nav ──
-
-function injectNavButton() {
-  const sidebar = document.querySelector('.sidebar') || document.querySelector('aside');
-  if (!sidebar || document.querySelector('[data-tab="stable"]')) return;
-  // b269: the Stable belongs under Homestead (Tyler) — pets are a homestead
-  // fixture, not an adventuring activity. Final placement (incl. timing retries)
-  // is owned by legacy.js moveStableNav(); this just creates the button under
-  // Homestead when the label is present.
-  const labels = sidebar.querySelectorAll('.nav-group-label');
-  let groupLabel = null;
-  labels.forEach((l) => { if (l.textContent.trim() === 'Homestead') groupLabel = l; });
-  const btn = document.createElement('button');
-  btn.className = 'nav-btn';
-  btn.dataset.tab = 'stable';
-  btn.innerHTML = '<span class="ic">' + ((window.HR && window.HR.icon) ? (window.HR.icon('navStable', 19, 'currentColor') || '') : '') + '</span><span class="lbl">Stable</span>';
-  btn.addEventListener('click', () => window.showTab && window.showTab('stable'));
-  if (groupLabel) {
-    let next = groupLabel.nextElementSibling;
-    while (next && !next.classList.contains('nav-group-label')) next = next.nextElementSibling;
-    if (next) sidebar.insertBefore(btn, next);
-    else sidebar.appendChild(btn);
-  } else {
-    sidebar.appendChild(btn);
-  }
-}
+// ── UI: Stable panel and profile card (the door is Homestead, src/nav-consolidation.js) ──
 
 function injectPanel() {
   if (document.getElementById('panel-stable')) return;
@@ -939,7 +914,6 @@ export function setupCompanions() {
 
   // Boot UI
   function boot() {
-    injectNavButton();
     injectPanel();
     ensureState();
   }

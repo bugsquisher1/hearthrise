@@ -78,8 +78,9 @@
 --
 --   world_event_absence_claim__ungated, NEW: after the settle, player_state
 --   gold += the chest's gold, gems += its gems (each clamped to [0, the band]:
---   750 g / 1 gem — the existing absence caps), own row only, version + 1, same
---   transaction. The ledger row's `gold` is the credited gold and meta.gems the
+--   750 g / 1 gem — the existing absence caps) on the pledge's CHARACTER —
+--   world_event_pledges.char_slot (muster rev.2), NEVER pledges.slot, which is
+--   the rally WINDOW (1 | 13) — own row only, version + 1, same transaction. The ledger row's `gold` is the credited gold and meta.gems the
 --   credited gems — the attended claim's journal shape exactly. RESPONSE: `gold`
 --   / `gems` are the CREDITED amounts (previously the band, which overstated
 --   what the player received once the chest took its item/XP share), plus
@@ -177,9 +178,14 @@ begin
   -- The installed absence body is the muster file's (it writes player_skills).
   select prosrc into v_src from pg_proc
    where oid = 'public.world_event_absence_claim__ungated(text)'::regprocedure;
-  if strpos(v_src, 'insert into public.player_skills') = 0 then
-    raise exception '§0: world_event_absence_claim__ungated does not credit XP — apply '
-                    '2026-10-10-muster-chest-xp-credit.sql FIRST (this file restates its body)';
+  if strpos(v_src, 'insert into public.player_skills') = 0
+     or strpos(v_src, 'v_cs := v_p.char_slot;') = 0 then
+    raise exception '§0: world_event_absence_claim__ungated is not the char_slot, XP-crediting body — apply '
+                    '2026-10-10-muster-chest-xp-credit.sql (rev.2) FIRST (this file restates its body)';
+  end if;
+  if not exists (select 1 from information_schema.columns
+                  where table_schema = 'public' and table_name = 'world_event_pledges' and column_name = 'char_slot') then
+    raise exception '§0: world_event_pledges.char_slot is missing — the absence credit has no character to pay';
   end if;
 end $$;
 
@@ -362,7 +368,8 @@ end $$;
 revoke execute on function public.hr_claim_quest__ungated(text, int) from public, anon, authenticated, service_role;
 grant  execute on function public.hr_claim_quest(text, int) to authenticated;
 
--- ── 3. THE ABSENCE CLAIM (restated from 2026-10-10-muster-chest-xp-credit.sql §3)
+-- ── 3. THE ABSENCE CLAIM (restated from 2026-10-10-muster-chest-xp-credit.sql §3,
+--       the char_slot revision; only the gold/gem credit, journal and receipt change)
 create or replace function public.world_event_absence_claim__ungated(p_day_key text)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
@@ -385,6 +392,7 @@ declare
   v_bud      jsonb;
   v_sk       text;
   v_amt      bigint;
+  v_cs       int;     -- the pledge's CHARACTER slot (char_slot), never its window
   -- gold/gem credit locals (2026-10-10-quest-xp-absence-pay.sql)
   v_gold_out bigint;
   v_gems_out int;
@@ -427,11 +435,16 @@ begin
     return jsonb_build_object('ok', false, 'error', 'answered_live', 'day_key', v_day_key);
   end if;
 
-  -- The credit target is the pledge's own (user, slot): it must still be a
-  -- character. Checked BEFORE the settle so a deleted character never spends
-  -- the pledge.
-  if not exists (select 1 from public.player_state where user_id = auth.uid() and slot = v_p.slot) then
-    return jsonb_build_object('ok', false, 'error', 'no_character', 'slot', v_p.slot);
+  -- THE CREDIT TARGET IS world_event_pledges.char_slot — the CHARACTER the
+  -- server recorded at pledge time — NEVER world_event_pledges.slot, which is
+  -- the rally WINDOW (1 or 13; Security block on b567 @4968b813: crediting
+  -- `slot` refused every #13 pledge and paid whoever sat in character slot 1
+  -- for every #1 pledge). A pledge without one, or whose character is gone,
+  -- is refused BEFORE the settle, so it stays owed and nothing moves.
+  v_cs := v_p.char_slot;
+  if v_cs is null
+     or not exists (select 1 from public.player_state where user_id = auth.uid() and slot = v_cs) then
+    return jsonb_build_object('ok', false, 'error', 'no_character', 'slot', v_cs);
   end if;
 
   -- ── THE THEMED CHEST, priced BEFORE the settle (pure), and its XP checked
@@ -444,9 +457,9 @@ begin
   v_xc       := public.hr_rally_xp_credit(v_p.event_key, v_chest);
   v_xp_total := coalesce((v_xc->>'total')::bigint, 0);
   if v_xp_total > 0 then
-    v_bud := public.hr_day_budget_check(auth.uid(), v_p.slot, 0, v_xp_total, 0, 0);
+    v_bud := public.hr_day_budget_check(auth.uid(), v_cs, 0, v_xp_total, 0, 0);
     if v_bud is not null then
-      return jsonb_build_object('ok', false, 'error', 'daily_budget', 'detail', v_bud, 'slot', v_p.slot);
+      return jsonb_build_object('ok', false, 'error', 'daily_budget', 'detail', v_bud, 'slot', v_cs);
     end if;
   end if;
 
@@ -459,52 +472,54 @@ begin
     return jsonb_build_object('ok', false, 'error', 'already_settled');
   end if;
 
-  -- ── THE GOLD AND GEMS (after the settle guard → exactly once). Own row only,
-  --    same transaction as the settle; the version moves, so a held envelope is
-  --    stale and the next read carries the absolute gold/gems/skills.
-  update public.player_state
-     set gold = coalesce(gold, 0) + v_gold_out,
-         gems = coalesce(gems, 0) + v_gems_out,
-         version = version + 1,
-         updated_at = now()
-   where user_id = auth.uid() and slot = v_p.slot;
-
   -- ── THE XP (after the settle guard → exactly once). Own row only.
   for v_sk, v_amt in select key, value::bigint from jsonb_each_text(v_xc->'by_skill') loop
     insert into public.player_skills as ps (user_id, slot, skill_id, xp)
-      values (auth.uid(), v_p.slot, v_sk, v_amt)
+      values (auth.uid(), v_cs, v_sk, v_amt)
       on conflict (user_id, slot, skill_id) do update set xp = ps.xp + excluded.xp;
   end loop;
 
-  -- ── THE ITEMS (after the settle guard → exactly once). Additive upsert,
-  --    scoped to the caller's own (user_id, slot).
+  -- ── THE ITEMS (after the settle guard → exactly once). Written to
+  --    player_inventory — the source of truth the accrual absolute envelope is
+  --    built FROM. Same transaction as the settle; additive upsert, scoped to the
+  --    caller's own (user_id, slot).
   for v_it in select * from jsonb_array_elements(v_chest->'items') loop
     v_iid  := v_it->>'id';
     v_iqty := coalesce((v_it->>'qty')::bigint, 0);
     if v_iid is not null and v_iqty > 0 then
       insert into public.player_inventory as pi (user_id, slot, item_id, qty)
-        values (auth.uid(), v_p.slot, v_iid, v_iqty)
+        values (auth.uid(), v_cs, v_iid, v_iqty)
         on conflict (user_id, slot, item_id) do update set qty = pi.qty + excluded.qty;
       v_qty_total := v_qty_total + v_iqty;
     end if;
   end loop;
+
+  -- ── THE GOLD AND GEMS (after the settle guard → exactly once), on the
+  --    pledge's CHARACTER (v_cs), own row only, same transaction as the settle.
+  --    The version moves, so a held envelope is stale and the next read carries
+  --    the absolute gold/gems/skills/inventory.
+  update public.player_state
+     set gold = coalesce(gold, 0) + v_gold_out,
+         gems = coalesce(gems, 0) + v_gems_out,
+         version = version + 1,
+         updated_at = now()
+   where user_id = auth.uid() and slot = v_cs;
 
   -- ── JOURNAL — the attended claim's shape: `gold` is the credited gold,
   --    meta.gems the credited gems, xp_in the credited XP.
   insert into public.player_ledger
     (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta)
   values
-    (auth.uid(), v_p.slot, 'rally', 'world_event_absence_claim:' || v_day_key,
+    (auth.uid(), v_cs, 'rally', 'world_event_absence_claim:' || v_day_key,
      v_gold_out, 0, v_xp_total, 0, 0,
      jsonb_build_object('band', 'absent', 'day_key', v_day_key,
-                        'event_key', v_p.event_key, 'gems', v_gems_out,
-                        'absence_gold', c_gold, 'absence_gems', c_gems,
-                        'items', v_chest->'items',
+                        'event_key', v_p.event_key, 'window', v_p.slot, 'gems', v_gems_out, 'absence_gold', c_gold,
+                        'absence_gems', c_gems, 'items', v_chest->'items',
                         'item_qty', v_qty_total, 'xp', v_xc->'list',
                         'xp_chest', v_chest->'xp'));
 
   return jsonb_build_object('ok', true, 'band', 'absent', 'day_key', v_day_key,
-    'event_key', v_p.event_key, 'slot', v_p.slot,
+    'event_key', v_p.event_key, 'slot', v_cs, 'window', v_p.slot,
     'gold', v_gold_out, 'gems', v_gems_out, 'band_gold', c_gold, 'band_gems', c_gems,
     'seals', 0, 'credited', true,
     'items', v_chest->'items', 'xp', v_xc->'list', 'xp_total', v_xp_total,
@@ -616,7 +631,8 @@ begin
   end if;
   select prosrc into v_src from pg_proc where oid = 'public.world_event_absence_claim__ungated(text)'::regprocedure;
   if strpos(v_src, 'insert into public.player_skills') = 0
-     or v_src !~ 'gold = coalesce\(gold, 0\) \+ v_gold_out' then
+     or v_src !~ 'gold = coalesce\(gold, 0\) \+ v_gold_out'
+     or strpos(v_src, 'where user_id = auth.uid() and slot = v_cs;') = 0 then
     raise exception 'GATE(b): the absence body does not credit XP AND gold';
   end if;
 
@@ -743,10 +759,15 @@ begin
     if public.hr_rally_day_close(v_pdk) is null or now() < public.hr_rally_day_close(v_pdk) then
       raise exception 'GATE(d) CANNOT RUN: prior day % is not closed', v_pdk;
     end if;
+    -- A DECOY character in slot 1 — the slot a '#1' rally WINDOW names. The
+    -- credit goes to char_slot (0); the decoy must never move.
+    insert into public.player_state (user_id, slot, gold, gems, version) values (v_a, 1, 0, 0, 1);
     foreach v_case in array array[v_ek_c, v_ek_n] loop
       delete from public.world_event_pledges where user_id = v_a;
-      insert into public.world_event_pledges (day_key, user_id, event_key, slot, settled)
-        values (v_pdk, v_a, v_case, 0, false);
+      -- THE REAL SHAPE world_event_pledge writes: slot = the WINDOW from the
+      -- event key, char_slot = the character (0).
+      insert into public.world_event_pledges (day_key, user_id, event_key, slot, char_slot, settled)
+        values (v_pdk, v_a, v_case, split_part(v_case, '#', 2)::int, 0, false);
       select gold, gems, version into v_g0, v_m0, v_ver0 from public.player_state where user_id = v_a and slot = 0;
       select gold, gems into v_gb0, v_mb0 from public.player_state where user_id = v_b and slot = 0;
       select count(*) into v_n from public.player_ledger where user_id = v_a and kind = 'rally';
@@ -772,6 +793,9 @@ begin
       select gold, gems into v_gb1, v_mb1 from public.player_state where user_id = v_b and slot = 0;
       if v_gb1 <> v_gb0 or v_mb1 <> v_mb0 then
         raise exception 'GATE(d) %: the claim moved ANOTHER player''s gold/gems', v_case;
+      end if;
+      if exists (select 1 from public.player_state where user_id = v_a and slot = 1 and (gold <> 0 or gems <> 0)) then
+        raise exception 'GATE(d) %: the claim paid character slot 1 — the WINDOW number, not char_slot', v_case;
       end if;
       select gold, meta into v_led from public.player_ledger
        where user_id = v_a and kind = 'rally' order by at desc, id desc limit 1;

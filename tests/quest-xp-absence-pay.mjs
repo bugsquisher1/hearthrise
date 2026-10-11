@@ -31,9 +31,10 @@
 //   QXA-5  DOUBLE CLAIM: the replay is refused already_claimed, nothing moves.
 //   QXA-6  over the XP day budget: refused daily_budget BEFORE the consume.
 //   QXA-7  a gold quest (gatherer) credits no XP (the catalogue read is per-quest).
-//   QXA-8  ABSENCE (away) on a combat and a non-combat theme: gold/gems deltas
-//          EQUAL the receipt, both > 0, within the band, journalled (ledger gold,
-//          meta.gems), version moves, the bystander does not move.
+//   QXA-8  ABSENCE (away), a REAL pledge (world_event_pledge) on window #1 and
+//          #13: gold/gems deltas EQUAL the receipt on the pledge's CHARACTER
+//          (char_slot), both > 0, within the band, journalled, version moves;
+//          the bystander and the slot-1 decoy (the window number) do not move.
 //   QXA-9  ATTENDED (world_event_claim) on the same themes: the same equality —
 //          the two paths credit by the same rule.
 //   QXA-10 the absence replay is refused already_settled and pays nothing.
@@ -64,7 +65,7 @@ const A_GOLD = '  update public.player_state\n'
   + '         gems = coalesce(gems, 0) + v_gems_out,\n'
   + '         version = version + 1,\n'
   + '         updated_at = now()\n'
-  + '   where user_id = auth.uid() and slot = v_p.slot;\n';
+  + '   where user_id = auth.uid() and slot = v_cs;\n';
 const OTHER_USER = '(select o.user_id from public.player_state o where o.user_id <> auth.uid() order by o.user_id limit 1)';
 
 const MUTATIONS = {
@@ -101,12 +102,16 @@ const MUTATIONS = {
   absence_no_credit: {
     why: 'THE BUG restored: the absence claim returns gold/gems and credits nothing',
     p: [[A_GOLD, '  update public.player_state set version = version + 1, updated_at = now()\n'
-      + '   where user_id = auth.uid() and slot = v_p.slot;\n']],
+      + '   where user_id = auth.uid() and slot = v_cs;\n']],
   },
   absence_wrong_user: {
     why: 'the absence gold/gems land on ANOTHER player\'s row',
-    p: [[A_GOLD, A_GOLD.replace('where user_id = auth.uid() and slot = v_p.slot',
-      `where user_id = ${OTHER_USER} and slot = v_p.slot`)]],
+    p: [[A_GOLD, A_GOLD.replace('where user_id = auth.uid() and slot = v_cs',
+      `where user_id = ${OTHER_USER} and slot = v_cs`)]],
+  },
+  absence_window_slot: {
+    why: 'THE SECURITY BLOCK restored: the gold/gems are credited to pledges.slot (the rally WINDOW), not char_slot',
+    p: [[A_GOLD, A_GOLD.replace('where user_id = auth.uid() and slot = v_cs', 'where user_id = auth.uid() and slot = v_p.slot')]],
   },
   absence_double_claim: {
     why: 'the settle guard is gone: a replay pays the gold/gems again',
@@ -169,6 +174,13 @@ export async function run(mutate) {
   };
   const bys = await mk('qxa-bystander@probe.invalid');
   const uid = await mk('qxa@probe.invalid');
+  /* A DECOY character in slot 1 — the slot a '#1' rally WINDOW names. The
+     character in play (latest heartbeat) is slot 0; the decoy must never move. */
+  await q('insert into public.player_state (user_id, slot, gold, gems, version) values ($1, 1, 0, 0, 1)', [uid]);
+  await q("update public.player_state set last_seen_at = now() - interval '1 hour' where user_id=$1 and slot=1", [uid]);
+  await q('update public.player_state set last_seen_at = now() where user_id=$1 and slot=0', [uid]);
+  const decoy = async () => (await q('select gold::text g, gems::text m from public.player_state where user_id=$1 and slot=1', [uid]))
+    .map((r) => N(r.g) + N(r.m))[0];
 
   const skills = async (u) => Object.fromEntries((await q(
     'select skill_id, xp::text xp from public.player_skills where user_id=$1 and slot=0', [u]))
@@ -265,14 +277,25 @@ export async function run(mutate) {
            (select k from k where public.hr_rally_event_for_key(k) = 'forge_levy'  limit 1) as craft`))[0];
   ok(keys.combat && keys.craft, `FIXTURE: no event keys found ${JSON.stringify(keys)}`);
   const today = (await q('select public.hr_utc_day_key() as k'))[0].k;
-  const pday = (await q("select to_char((now() at time zone 'utc')::date - 1, 'YYYY-MM-DD') as d"))[0].d;
-  const pdk = (await q("select public.hr_utc_day_key(((public.hr_rally_day($1)) + interval '12 hours') at time zone 'utc') as k", [pday]))[0].k;
   const rallyRows = async () => q("select gold::text gold, meta from public.player_ledger where user_id=$1 and kind='rally' order by id", [uid]);
 
-  for (const [tag, path, ek] of [['QXA-8', 'away', keys.combat], ['QXA-8', 'away', keys.craft],
+  /* THE REAL PLEDGE: world_event_pledge answers only BEFORE a window opens and
+     the absence claim only AFTER the day closes, so a test-only shim over
+     hr_rally_slot shifts every window by `qxa.shift` (+1 day to pledge, -1 day
+     to close) — the muster lane's MXC-10 technique. Nothing else moves. */
+  await q('alter function public.hr_rally_slot(text,integer) rename to hr_rally_slot__qxa');
+  await q(`create function public.hr_rally_slot(p_day_key text, p_slot int)
+           returns table (day_key text, slot int, event_key text, started_at timestamptz, ends_at timestamptz)
+           language sql stable as $f$
+             select r.day_key, r.slot, r.event_key, r.started_at + s.v, r.ends_at + s.v
+               from public.hr_rally_slot__qxa(p_day_key, p_slot) r,
+                    (select coalesce(nullif(current_setting('qxa.shift', true), ''), '0 s')::interval v) s
+           $f$`);
+  for (const [tag, path, ek] of [['QXA-8', 'away', today + '#1'], ['QXA-8', 'away', today + '#13'],
     ['QXA-9', 'attended', keys.combat], ['QXA-9', 'attended', keys.craft]]) {
     await q('delete from public.world_event_joins where user_id=$1', [uid]);
     await q('delete from public.world_event_pledges where user_id=$1', [uid]);
+    await q("select set_config('qxa.shift', '0 s', false)");
     let call;
     if (path === 'attended') {
       await q(`insert into public.world_event_totals (event_key, participants, goal, progress, met_at)
@@ -281,9 +304,13 @@ export async function run(mutate) {
                values ($1, $2, $3, 0, now() - interval '1 minute', 500)`, [today, uid, ek]);
       call = () => asUser(uid, 'select public.world_event_claim($1, 0) as r', [today]);
     } else {
-      await q(`insert into public.world_event_pledges (day_key, user_id, event_key, slot, settled)
-               values ($1, $2, $3, 0, false)`, [pdk, uid, ek]);
-      call = () => asUser(uid, 'select public.world_event_absence_claim($1) as r', [pday]);
+      await q("select set_config('qxa.shift', '1 day', false)");
+      const pl = await asUser(uid, 'select public.world_event_pledge($1) as r', [ek]);
+      const row = (await q('select slot, char_slot from public.world_event_pledges where user_id=$1', [uid]))[0] || {};
+      ok(pl?.ok === true && row.char_slot === 0 && N(row.slot) === N(ek.split('#')[1]),
+        `${tag} ${ek}: the real pledge was ${JSON.stringify(pl)} / row ${JSON.stringify(row)} — expected window ${ek.split('#')[1]}, char_slot 0`);
+      await q("select set_config('qxa.shift', '-1 day', false)");
+      call = () => asUser(uid, 'select public.world_event_absence_claim($1) as r', [today]);
     }
     const st0 = await state(uid); const b0 = await state(bys); const l0 = (await rallyRows()).length;
     const r = await call();
@@ -298,6 +325,7 @@ export async function run(mutate) {
     ok(st1.gems - st0.gems === N(r?.gems), `${tag} ${path}/${ek}: gems moved +${st1.gems - st0.gems}, the receipt says ${r?.gems}`);
     ok(st1.version > st0.version, `${tag} ${path}/${ek}: the version did not move`);
     ok(JSON.stringify(await state(bys)) === JSON.stringify(b0), `${tag} ${path}/${ek}: ANOTHER player's gold/gems moved`);
+    ok(await decoy() === 0, `${tag} ${path}/${ek}: character slot 1 (the WINDOW number) was paid`);
     const last = led[led.length - 1] || {};
     ok(led.length === l0 + 1, `${tag} ${path}/${ek}: expected one new rally ledger row, have ${l0} -> ${led.length}`);
     ok(N(last.gold) === N(r?.gold) && N(last.meta?.gems) === N(r?.gems),
@@ -309,6 +337,10 @@ export async function run(mutate) {
     ok(JSON.stringify(await state(uid)) === JSON.stringify(st1), `QXA-10 ${path}/${ek}: a refused replay paid`);
     ok((await rallyRows()).length === l0 + 1, `QXA-10 ${path}/${ek}: a refused replay journalled`);
   }
+
+  await q("select set_config('qxa.shift', '0 s', false)");
+  await q('drop function public.hr_rally_slot(text,integer)');
+  await q('alter function public.hr_rally_slot__qxa(text,integer) rename to hr_rally_slot');
 
   // ── QXA-11 grants ────────────────────────────────────────────────────────
   for (const sig of ['public.hr_claim_quest__ungated(text,integer)', 'public.world_event_absence_claim__ungated(text)']) {

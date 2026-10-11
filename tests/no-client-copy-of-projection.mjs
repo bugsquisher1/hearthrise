@@ -60,6 +60,7 @@
 //   node tests/no-client-copy-of-projection.mjs --write --execute  # + re-pin the keys
 //   node tests/no-client-copy-of-projection.mjs --selftest   # mutation proof
 // ════════════════════════════════════════════════════════════════════════════
+// migration-arm: --execute hr_state_of
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';

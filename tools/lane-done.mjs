@@ -138,7 +138,7 @@ let stop = false;
 const scoped = scopedProofs(process.cwd(), { changed: CHANGED });
 const fixed = new Set(STEPS.map(([c, a]) => `${c} ${a.join(' ')}`));
 const SCOPED = scoped.steps
-  .map((s) => ['node', [s.guard, s.arm], { inputs: [...CHAIN, 'src', ...s.anchors], solo: s.solo }])
+  .map((s) => ['node', [s.guard, ...(s.arm ? [s.arm] : [])], { inputs: [...CHAIN, 'src', ...s.anchors], solo: s.solo }])
   .filter(([c, a]) => !fixed.has(`${c} ${a.join(' ')}`));
 const PLAN = SCOPED_ONLY ? SCOPED : [...STEPS, ...SCOPED];
 console.log(`scoped proofs: ${SCOPED.length} arm(s) anchored on ${(scoped.changed || []).length} changed file(s)`

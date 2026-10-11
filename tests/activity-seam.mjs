@@ -52,6 +52,7 @@
 // ============================================================================
 
 import { readFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = new URL('../', import.meta.url);
@@ -279,6 +280,57 @@ export async function runAll() {
     if (w.activity.kind !== 'artisan' || w.activity.id !== p) {
       fail(`ACTIVITY SEAM S6 CONTROL: buildActivityRequest rewrote a payable artisan declaration as `
         + JSON.stringify(w.activity));
+    }
+  }
+
+  /* ── S6d (b569): BOTH HALVES, DRIVEN WITH THE GATE CLOSED. Since the cooking
+     settlement was armed `blocked` is empty, so the S6 block above holds nothing —
+     and artisan-accrual's M8 (set_activity accepts an unpayable bench) and M10
+     (the client stops downgrading) both SLIPPED on origin/main. The exclusion still
+     guards every BENCH_DESTRUCTIVE_KEYS bench whose key is not server-owned, so
+     it is driven through artisan-sim's own test seam, disarmed:
+       · CLIENT — on the instance src/net/activity.js imports (its `?v=` URL is a
+         distinct module), always reset;
+       · SERVER — in a child process, because catalogue.js fixes
+         ARTISAN_RECIPES_PAYABLE at load: the seam is set before set-activity.js
+         is imported, and the real intent must refuse on shape. */
+  {
+    const actSrc = await readFile(at('src/net/activity.js'), 'utf8');
+    const q = (/from '\.\.\/core\/artisan-sim\.js(\?[^']*)?'/.exec(actSrc) || [])[1] || '';
+    const clientSim = await import(mod('src/core/artisan-sim.js' + q));
+    let shut = null;
+    clientSim.__setCookingSettlementArm(false);
+    try {
+      shut = Object.keys(idx).find((id) => !clientSim.recipePayable(idx, id)) || null;
+      if (!shut) {
+        fail('ACTIVITY SEAM S6d: with the cooking settlement disarmed no recipe is unpayable — the '
+          + 'per-recipe downgrade is untestable');
+      } else {
+        const d = client.declarationFor('artisan', shut);
+        if (!d || d.kind !== 'idle' || d.id !== null) {
+          fail(`ACTIVITY SEAM S6d: with its bench unpayable, declarationFor('artisan', '${shut}') produced `
+            + `${JSON.stringify(d)}. It must declare \`idle\` — declaring it earns a 409 and leaves the server `
+            + 'paying for the previous activity (b348).');
+        }
+      }
+    } finally { clientSim.__setCookingSettlementArm(null); }
+    if (shut) {
+      const probe = `const s = await import(${JSON.stringify(mod('src/core/artisan-sim.js'))});`
+        + 's.__setCookingSettlementArm(false);'
+        + `const a = await import(${JSON.stringify(mod('supabase/functions/hr-accrue/set-activity.js'))});`
+        + "const r = await a.runSetActivity({ exec: async () => { throw new Error('reached the database'); },"
+        + " user: '00000000-0000-4000-8000-000000000056', slot: 0,"
+        + " intentId: '00000000-0000-4000-8000-000000000001',"
+        + ` activity: { kind: 'artisan', id: ${JSON.stringify(shut)} } });`
+        + 'console.log(JSON.stringify({ status: r.status, error: r.body && r.body.error }));';
+      const r = spawnSync(process.execPath, ['--input-type=module', '-e', probe], { encoding: 'utf8' });
+      let got = null;
+      try { got = JSON.parse(String(r.stdout || '').trim().split('\n').pop()); } catch { got = null; }
+      if (!got || got.status !== 409 || got.error !== 'activity_unsupported') {
+        fail(`ACTIVITY SEAM S6d: with its bench unpayable, set_activity answered ${JSON.stringify(got)} for `
+          + `'${shut}' (${String(r.stderr || '').trim().slice(0, 120)}). It must be 409 activity_unsupported, `
+          + 'or the pointer can hold a bench the engine refuses — the switch lockout.');
+      }
     }
   }
 

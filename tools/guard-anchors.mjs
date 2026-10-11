@@ -28,6 +28,11 @@
 //               FAILURE, not a skip: "nothing to re-prove" must be a written decision.
 // The guard's own file is always an anchor (an edited guard re-proves itself).
 //
+// MIGRATIONS. A changed supabase/migrations/*.sql also re-runs, plainly, every chain-
+// replay guard whose SQL names an object that migration creates/alters/drops/grants
+// on, plus any guard's declared `// migration-arm: <flag> <object>…` (see
+// migrationSteps — the 2026-10-11 name-moderation miss).
+//
 // WHICH ARM. The proof flag(s) smoke.yml registers for the file; if none, --selftest
 // when the file branches on it, else --mutate. A guard whose proof writes into the
 // working tree (it imports tests/mutation-safety.mjs, writes without a temp dir, or
@@ -346,20 +351,93 @@ function triggered(entries, changed) {
   return hit;
 }
 
+// ── MIGRATION SCOPE (b569, the second miss) ───────────────────────────────
+/* Name-moderation's migration added a charset check to `clans`; tests/vigour.mjs
+   seeds a clan named `__vigour_probe__` and went red, and hr_state_of grew
+   `must_rename`, which no-client-copy-of-projection's --execute pin refuses. Both
+   ran only in GitHub's replay jobs. So a lane that adds or changes a migration
+   re-runs every CHAIN-REPLAY guard whose own SQL names an object the migration
+   creates, alters, drops, grants on or attaches a policy/trigger/index to — read
+   from the migration (HEAD and base) and from the guard's string literals, never
+   from a list. A guard may also declare `// migration-arm: <flag> <object> …` to
+   run that arm when one of those objects moves (no-client-copy-of-projection:
+   `--execute hr_state_of`). */
+const MIGRATION_FILE = /^supabase\/(?:migrations\/[^/]+|schema)\.sql$/;
+const REPLAY_IMPORT = /from\s+['"]\.\/(?:schema-replay|pglite-chain|pglite-template)\.mjs['"]/;
+const NOT_OBJECTS = new Set(['public', 'auth', 'schema', 'extensions', 'storage', 'only', 'if', 'not', 'exists']);
+
+function ddlTargets(sql) {
+  const s = sql.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/--[^\n]*/g, ' ');
+  const out = new Set();
+  const NAME = '((?:"?[\\w]+"?\\.)?"?[\\w]+"?)';
+  const KIND = '(?:materialized\\s+view|view|table|function|procedure|type|sequence|index|trigger|domain)';
+  const res = [
+    new RegExp(`\\bcreate\\s+(?:or\\s+replace\\s+)?(?:unique\\s+)?(?:constraint\\s+)?${KIND}\\s+(?:concurrently\\s+)?(?:if\\s+not\\s+exists\\s+)?${NAME}`, 'gi'),
+    new RegExp(`\\b(?:alter|drop)\\s+${KIND}\\s+(?:concurrently\\s+)?(?:if\\s+exists\\s+)?(?:only\\s+)?${NAME}`, 'gi'),
+    new RegExp(`\\b(?:create|alter|drop)\\s+(?:policy|trigger|rule)\\s+(?:if\\s+exists\\s+)?"?\\w+"?[^;]*?\\bon\\s+(?:table\\s+)?${NAME}`, 'gi'),
+    new RegExp(`\\bcreate\\s+(?:unique\\s+)?index\\b[^;]*?\\bon\\s+(?:only\\s+)?${NAME}`, 'gi'),
+    new RegExp(`\\b(?:grant|revoke)\\b[^;]*?\\bon\\s+(?:table\\s+|function\\s+|procedure\\s+|sequence\\s+)?${NAME}`, 'gi'),
+  ];
+  for (const re of res) {
+    for (const m of s.matchAll(re)) {
+      const name = m[1].replace(/"/g, '').split('.').pop().toLowerCase();
+      if (name.length >= 3 && !NOT_OBJECTS.has(name)) out.add(name);
+    }
+  }
+  return out;
+}
+
+/** `// migration-arm: --flag obj obj …` lines. */
+function migrationArms(src) {
+  const out = [];
+  for (const m of src.matchAll(/^\s*\/\/\s*migration-arm:\s*(--[\w-]+)\s+(.+?)\s*$/gm)) {
+    out.push({ arm: m[1], objects: m[2].split(/[\s,]+/).filter(Boolean).map((x) => x.toLowerCase()) });
+  }
+  return out;
+}
+
+/** Plain runs (and declared arms) of the replay guards whose SQL names a moved object. */
+function migrationSteps(root, changed, read) {
+  const migs = changed.filter((f) => MIGRATION_FILE.test(f));
+  if (!migs.length) return [];
+  const targets = new Map();      // object -> migration that moved it
+  for (const m of migs) for (const text of read(m)) for (const t of ddlTargets(text)) if (!targets.has(t)) targets.set(t, m);
+  if (!targets.size) return [];
+  const steps = [];
+  for (const g of proofGuards(root).filter((x) => x.startsWith('tests/'))) {
+    const src = readFileSync(join(root, g), 'utf8');
+    for (const a of migrationArms(src)) {
+      const hit = a.objects.filter((o) => targets.has(o));
+      if (hit.length) steps.push({ guard: g, arm: a.arm, solo: false, because: hit.map((o) => `${targets.get(o)} moves ${o}`), anchors: [] });
+    }
+    if (!REPLAY_IMPORT.test(src)) continue;
+    const sqlText = lex(src).strings.join('\n').toLowerCase();
+    const hit = [...targets.keys()].filter((t) => new RegExp(`(?<![\\w])${t}(?![\\w])`).test(sqlText));
+    if (hit.length) {
+      steps.push({ guard: g, arm: null, solo: false, anchors: [],
+        because: hit.slice(0, 3).map((o) => `${targets.get(o)} moves ${o}`).concat(hit.length > 3 ? [`+${hit.length - 3} more`] : []) });
+    }
+  }
+  return steps;
+}
+
 /** Everything lane-done needs: the steps to run, and the catalogue's own failures. */
 export function scopedProofs(root = ROOT, { changed = null, base = undefined } = {}) {
   const b = base === undefined ? laneBase(root) : base;
   if (!changed && !b) return { error: 'no merge base with origin/main or main — cannot scope the proofs', steps: [], errors: [] };
   const ch = changed || laneChanges(root, b);
-  const entries = catalogue(root, { contentOf: versionsReader(root, b, ch) });
+  const reader = versionsReader(root, b, ch);
+  const entries = catalogue(root, { contentOf: reader });
   const errors = entries.flatMap((e) => e.errors.map((x) => `${e.guard} ${x}`));
   /* HR_SCOPED_GUARDS narrows the run to named guards — set ONLY by this file's own
      end-to-end arm, which must not re-enter itself (its selftest plants into
      src/net/gold.js, which it anchors on) and needs one guard, not the fan-out. */
   const only = (process.env.HR_SCOPED_GUARDS || '').split(',').filter(Boolean);
-  const steps = triggered(entries, ch).filter((e) => !only.length || only.includes(e.guard)).flatMap((e) => e.arms.map((arm) => ({
+  const anchorSteps = triggered(entries, ch).flatMap((e) => e.arms.map((arm) => ({
     guard: e.guard, arm, solo: e.solo, because: e.because, anchors: e.anchors,
   })));
+  const steps = [...anchorSteps, ...migrationSteps(root, ch, reader)]
+    .filter((s) => !only.length || only.includes(s.guard));
   return { base: b, changed: ch, steps, errors };
 }
 
@@ -422,6 +500,28 @@ async function selftest() {
     } finally { rm(join(ROOT, tmpRel), { force: true }); }
   }
 
+  /* G — the migration scope, on the two shapes that missed on 2026-10-11: a charset
+     constraint on `clans` (tests/vigour.mjs seeds one) and an hr_state_of rewrite
+     (the projection's --execute pin). A comment naming an object is not DDL. */
+  {
+    const t = ddlTargets("-- alter table public.ghosts\nalter table if exists public.clans add constraint clans_name_charset check (name ~ '^[a-z]');\n"
+      + 'create or replace function public.hr_state_of(p_slot int) returns jsonb language sql as $$ select 1 $$;\n'
+      + 'create index if not exists x_idx on public.player_ledger (user_id);\ngrant execute on function public.hr_rest(int) to authenticated;');
+    ok(t.has('clans') && t.has('hr_state_of') && t.has('player_ledger') && t.has('hr_rest') && !t.has('ghosts'),
+      `G1 DDL targets parsed (${[...t].join(', ')})`);
+    const fake = 'supabase/migrations/2099-01-01-name-moderation-probe.sql';
+    const read = (f) => (f === fake
+      ? ["alter table public.clans add constraint clans_name_charset check (name ~ '^[A-Za-z ]+$');\n"
+        + 'create or replace function public.hr_state_of(p_slot int) returns jsonb language sql as $$ select 1 $$;']
+      : []);
+    const st = migrationSteps(ROOT, [fake], read);
+    ok(st.some((s) => s.guard === 'tests/vigour.mjs' && s.arm === null),
+      'G2 a migration that alters clans re-runs tests/vigour.mjs (plain)');
+    ok(st.some((s) => s.guard === 'tests/no-client-copy-of-projection.mjs' && s.arm === '--execute'),
+      'G3 a migration that rewrites hr_state_of runs no-client-copy-of-projection --execute');
+    ok(!migrationSteps(ROOT, ['src/net/gold.js'], read).length, 'G4 no migration in the diff, no replay steps');
+  }
+
   /* E — END TO END: plant an anchor-breaking edit, lane-done's scoped step goes RED;
      restore it, the same step goes green (the control). The plant is one byte of
      whitespace inside envelope-frame-gate's gold_copy_restored anchor — the exact
@@ -469,7 +569,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
     const files = argv.includes('--for') ? argv.slice(argv.indexOf('--for') + 1).filter((a) => !a.startsWith('--')) : null;
     const r = scopedProofs(ROOT, { changed: files });
     if (r.error) { console.log(r.error); process.exit(2); }
-    for (const s of r.steps) console.log(`node ${s.guard} ${s.arm}${s.solo ? '  (solo)' : ''}   <- ${s.because.join(', ')}`);
+    for (const s of r.steps) console.log(`node ${s.guard} ${s.arm || '(plain)'}${s.solo ? '  (solo)' : ''}   <- ${s.because.join(', ')}`);
     for (const e of r.errors) console.log('MISSING ' + e);
     console.log(`\n${r.steps.length} proof arm(s) for ${r.changed.length} changed file(s).`);
     process.exitCode = r.errors.length ? 1 : 0;

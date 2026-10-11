@@ -6183,7 +6183,23 @@ export async function runAll() {
   return problems.slice();
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+/* `--fuse-only` (b569): just the clamp and day-budget sweeps, the only guards the
+   fuse-sizing mutants in tests/artisan-accrual.mjs --selftest can reach. A probe,
+   not a gate: the plain run (every guard) is what CI and run-smoke execute. */
+async function fuseSizingOnly(part) {
+  problems.length = 0;
+  if (part !== 'day') await clampGuard();
+  if (part !== 'clamp') await dayBudgetGuard();
+  return problems.slice();
+}
+
+const FUSE_ARG = process.argv.find((a) => a === '--fuse-only' || a.startsWith('--fuse-only='));
+if (import.meta.url === pathToFileURL(process.argv[1] || '').href && FUSE_ARG) {
+  const found = await fuseSizingOnly(FUSE_ARG.split('=')[1] || null);
+  for (const p of found) console.log('  x ' + p);
+  console.log(found.length ? 'Accrual engine fuse sizing — FAILED' : 'Accrual engine fuse sizing — green');
+  process.exit(found.length ? 1 : 0);
+} else if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
   const found = await runAll();
   if (found.length) {
     console.log('Accrual engine guard — FAILED:');

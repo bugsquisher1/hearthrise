@@ -7,7 +7,7 @@
 // This module never fetches, never reads the player record, and a count it
 // does not have renders the pending dash, never 0 (CLAUDE.md §6).
 // ════════════════════════════════════════════════════════════════════════
-import { THIS_WEEK, THIS_WEEK_QUIET, THIS_WEEK_TODAY } from '../data/this-week.js?v=565';
+import { THIS_WEEK, THIS_WEEK_QUIET, THIS_WEEK_TODAY } from '../data/this-week.js?v=566';
 
 var MAX_ROWS = 6;
 var LEAD_AT = 0.25;

@@ -30,7 +30,7 @@
 import { spawn } from 'node:child_process';
 import { writeFileSync, unlinkSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
-import { tmpdir, availableParallelism } from 'node:os';
+import { tmpdir, availableParallelism, totalmem } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -48,6 +48,28 @@ export const REGISTERED = [
   ['tests/party-hunt-view.mjs', '--mutate'],
   ['tests/party-hunt-select-lockdown.mjs', '--mutate'],
 ];
+
+/* HOW MANY CONTROLS AT ONCE. Each control is a full PGlite chain replay. Four of
+   them at once killed the 2-core / 7 GB hosted runner (db-replay-7 "runner has
+   received a shutdown signal", exit 143, ~3 min in — runs 38114515222,
+   38117913634), so the pool is derived from the machine, never four blind:
+     HR_MC_POOL (or the older HR_MUTANT_CONTROL_JOBS) ≥ 1 → exactly that;
+     CI set → 1 (a hosted runner is shared with the job's other steps);
+     else min(4, cores, half of RAM ÷ one control's peak budget), ≥ 1.
+   MEASURED 2026-10-11 (process.resourceUsage().maxRSS of each control run alone,
+   Windows, 47.8 GB / 20 cores): goal-counters 21,492 MB (it grows to whatever
+   heap ceiling the box allows), world-tick-token-failclosed 1,752, every other
+   arm 958–1,092. The budget is 8 GB a control: this box fits 2 at a time
+   (goal-counters beside the rest), a 16 GB box fits 1. */
+export const CONTROL_PEAK_BYTES = 8 * 1024 * 1024 * 1024;
+export function controlPool(env = process.env, mem = totalmem(), cores = availableParallelism()) {
+  const forced = Math.floor(Number(env.HR_MC_POOL || env.HR_MUTANT_CONTROL_JOBS));
+  if (forced >= 1) return { n: forced, why: 'HR_MC_POOL override' };
+  if (env.CI) return { n: 1, why: 'CI is set — one control at a time' };
+  const byMem = Math.floor((mem / 2) / CONTROL_PEAK_BYTES);
+  const n = Math.max(1, Math.min(4, cores, byMem));
+  return { n, why: `${cores} cores, ${(mem / 2 ** 30).toFixed(1)} GB RAM fits ${byMem} at ${CONTROL_PEAK_BYTES / 2 ** 20} MB each` };
+}
 
 /** Parse a guard's control-run output. Returns the list of problems (empty = honest). */
 export function judgeControl(out) {
@@ -95,6 +117,22 @@ async function selftest() {
     if (!okay) bad += 1;
     console.log(`  ${okay ? '✓' : '✗'} ${name} → ${p.length ? 'RED' : 'green'}`);
   }
+  /* The pool: one at a time on CI, more than one on a big quiet machine, one
+     on a machine whose RAM cannot hold two controls, and the override wins. */
+  const GB = 2 ** 30;
+  for (const [name, env, mem, cores, want] of [
+    ['CI=1 on the 2-core / 7 GB hosted runner', { CI: '1' }, 7 * GB, 2, (n) => n === 1],
+    ['CI=true even on a 64 GB / 16-core box', { CI: 'true' }, 64 * GB, 16, (n) => n === 1],
+    ['local 32 GB / 16 cores', {}, 32 * GB, 16, (n) => n > 1 && n <= 4],
+    ['local, RAM too small for two', {}, 2 * CONTROL_PEAK_BYTES + 1, 16, (n) => n === 1],
+    ['local, one core', {}, 64 * GB, 1, (n) => n === 1],
+    ['HR_MC_POOL=3 under CI', { CI: '1', HR_MC_POOL: '3' }, 7 * GB, 2, (n) => n === 3],
+  ]) {
+    const { n } = controlPool(env, mem, cores);
+    const okay = want(n);
+    if (!okay) bad += 1;
+    console.log(`  ${okay ? '✓' : '✗'} pool, ${name} → ${n}`);
+  }
   /* And end to end through a spawned file, so the env switch is proven to reach it. */
   const fake = join(tmpdir(), `hr-mutant-control-fake-${process.pid}.mjs`);
   writeFileSync(fake, "console.log('[mutants] 1');\n"
@@ -125,10 +163,12 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const set = only.length ? REGISTERED.filter(([f]) => only.some((o) => f.endsWith(o.replace(/\\/g, '/')))) : REGISTERED;
   if (!set.length) { console.log('mutant-control: no registered guard matched'); process.exit(2); }
   /* The controls are independent processes (each plants into its own temp copy or
-     into memory, never the tree), so they run CONTROL_JOBS at a time — 404 s
-     one-by-one on GitHub (db-replay-7, run 38076651907). Each verdict is printed
+     into memory, never the tree), so locally they run controlPool() at a time;
+     on CI one by one (404 s on db-replay-7, run 38076651907 — slow but alive;
+     in parallel the runner was killed). Each verdict is printed
      whole when its guard finishes; the judgement per guard is unchanged. */
-  const jobs = Math.max(1, Number(process.env.HR_MUTANT_CONTROL_JOBS) || Math.min(4, availableParallelism()));
+  const { n: jobs, why } = controlPool();
+  console.log(`mutant-control: ${set.length} guard(s), ${jobs} at a time (${why})`);
   let red = 0;
   const queue = [...set];
   await Promise.all(Array.from({ length: Math.min(jobs, queue.length) }, async () => {

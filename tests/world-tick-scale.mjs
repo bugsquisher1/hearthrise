@@ -905,22 +905,39 @@ async function arms(db, { log = true, tick = TICK, tickGather = TICK_GATHER, hfT
     //     are 1 in 25 per action instead of 1 in 100-400 hours, so a real
     //     `hearthfind` delta appears inside 8 windows. Pay must equal 8 single
     //     fires, and the find window must be its own row.
+    //     THE FIXTURE IS CHOSEN, NOT HOPED FOR (b567 flake, 2026-10-11). Each
+    //     window's PRNG is hr_seed(user, slot, 'accrue:'||accrued_to), and
+    //     accrued_to is now() - 1200 s, so the seed moves with the wall clock:
+    //     at 1 in 25 a window finds ~half the time, and ~3.5% of clocks gave
+    //     fewer than 2 find windows, which turned F10 (and the --mutate
+    //     control) red with nothing wrong. The clock cannot be pinned in
+    //     PGlite, so the fixture walks a fixed ladder of characters (770..777)
+    //     and keeps the first whose 8 single fires carry >= 2 finds. Every
+    //     candidate tried is held to the full pay-equality differential; a
+    //     ladder with no such seed (p ~ 0.035^8) reads RED, never green.
     if (!hfTick) throw Object.assign(new Error('F10 needs the hearthfind fixture engine'), { harness: true });
-    await db.exec('delete from public.hr_tick_ownership;');
-    const hf = await char(U(770), { ageS: 1200 });
-    await q("update public.player_state set active_id = 'normal_tree' where user_id = $1", [hf]);
-    await q(`insert into public.player_skills (user_id, slot, skill_id, xp) values ($1, 0, 'woodcutting', $2)
-             on conflict (user_id, slot, skill_id) do update set xp = excluded.xp`, [hf, xpForLevel(60) + 1]);
-    await leaseTo(hf);
-    const d10 = await differential(hf, F, hfTick);
     const finds = (rows) => rows.filter((r) => ((r.meta.delta || {}).k || []).includes('hearthfind'));
-    const findsA = finds(d10.a); const findsC = finds(d10.c);
+    const HF_LADDER = 8;
+    let d10 = null; let findsA = []; let findsC = []; const tried = [];
+    for (let k = 0; k < HF_LADDER; k++) {
+      await db.exec('delete from public.hr_tick_ownership;');
+      const hf = await char(U(770 + k), { ageS: 1200 });
+      await q("update public.player_state set active_id = 'normal_tree' where user_id = $1", [hf]);
+      await q(`insert into public.player_skills (user_id, slot, skill_id, xp) values ($1, 0, 'woodcutting', $2)
+               on conflict (user_id, slot, skill_id) do update set xp = excluded.xp`, [hf, xpForLevel(60) + 1]);
+      await leaseTo(hf);
+      d10 = await differential(hf, F, hfTick);
+      findsA = finds(d10.a); findsC = finds(d10.c);
+      const same = value(d10.A.snap) === value(d10.C.snap);
+      tried.push({ k, findsA: findsA.length, same });
+      if (!same || findsA.length >= 2) break;   // a pay mismatch is judged on the spot, never skipped
+    }
     ok('F10', findsA.length >= 2 && value(d10.A.snap) === value(d10.C.snap)
         && findsC.length === findsA.length && d10.c.length <= F
         && JSON.stringify(findsC.map((r) => [r.meta.from, r.meta.to])) === JSON.stringify(findsA.map((r) => [r.meta.from, r.meta.to])),
       `${findsA.length} hearthfind window(s) inside 8: each settled as its own row (same span as the single fire), `
       + `${d10.c.length} rows in all, pay (trophies included, under the 3/day cap) identical to 8 single fires`,
-      JSON.stringify({ findsA: findsA.length, findsC: findsC.length, rowsA: d10.a.length, rowsC: d10.c.length,
+      JSON.stringify({ tried, findsA: findsA.length, findsC: findsC.length, rowsA: d10.a.length, rowsC: d10.c.length,
         same: value(d10.A.snap) === value(d10.C.snap), fires: d10.C.fires.map((f) => ({ c: f.catchup, r: f.reasons })) }));
 
     // F11 ★ COMPANION XP THROUGH A FOLD (2026-10-08, lane b566-tick-companion-xp).

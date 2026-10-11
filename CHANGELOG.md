@@ -4,6 +4,14 @@ The welcome modal reads this file on first load after a new build. New entries
 go at the top. Format: each version is a `## v0.x.x — YYYY-MM-DD` heading,
 followed by bullets. Keep entries short and player-friendly (not commit-log style).
 
+## v0.9.2-beta build 567 — 2026-10-11 (A first day that makes sense)
+
+**Every seed you start with grows.** A new character starts with 8 turnip seeds and no carrot seeds. Carrots needed Farming 10, so they used to sit dead in the bag on day one. The first harvest task now pays carrot seeds (the next crop up) instead of wheat seeds two rungs away.
+
+**A first goal that leads home.** The early goals now point you to upgrading to a Homestead, so the first hour builds toward a place of your own.
+
+**What your haul unlocks.** When you come back, and on Home, one short line tells you what your bag is now enough for: "enough to build your Homestead", or the gear piece you can now forge, craft or cook. It is at most three items, and only ones you truly can make.
+
 ## v0.9.2-beta build 566 — 2026-10-11 (Fewer doors, one Journal)
 
 **Fewer doors.** The menu has nine entries instead of fourteen. Bounty Board and Dungeons now live inside Combat; Farm, House and Stable sit together under Homestead; Party moved into Clan.

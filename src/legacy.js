@@ -65,7 +65,7 @@ function xpPct(xp){return window.HearthriseCore.xp.xpPct(xp);}
 
 const SKILLS_DEF={
   attack:{name:'Attack',icon:'⚔️',cat:'combat'},strength:{name:'Strength',icon:'💪',cat:'combat'},
-  defense:{name:'Defence',icon:'🛡️',cat:'combat'},hitpoints:{name:'Hitpoints',icon:'❤️',cat:'combat'},
+  defense:{name:'Defense',icon:'🛡️',cat:'combat'},hitpoints:{name:'Hitpoints',icon:'❤️',cat:'combat'},
   prayer:{name:'Prayer',icon:'🙏',cat:'combat'},magic:{name:'Magic',icon:'🔮',cat:'combat'},
   ranged:{name:'Ranged',icon:'🏹',cat:'combat'},
   woodcutting:{name:'Woodcutting',icon:'🪓',cat:'gather'},mining:{name:'Mining',icon:'⛏️',cat:'gather'},
@@ -11868,7 +11868,7 @@ console.log('Activity bar: loaded');
           <div class="mp-stat-val">${m.atk||0}</div>
         </div>
         <div class="mp-stat-card">
-          <div class="mp-stat-label">Defence</div>
+          <div class="mp-stat-label">Defense</div>
           <div class="mp-stat-val">${m.def||0}</div>
         </div>
         <div class="mp-stat-card">
@@ -11888,7 +11888,7 @@ console.log('Activity bar: loaded');
           <div class="mp-mystats">
             <div><span>${_hrGly('attack',15)}</span><b>Lv ${atkLv}</b><small>Attack</small></div>
             <div><span>${_hrGly('strength',15)}</span><b>Lv ${strLv}</b><small>Strength</small></div>
-            <div><span>${_hrGly('defense',15)}</span><b>Lv ${defLv}</b><small>Defence</small></div>
+            <div><span>${_hrGly('defense',15)}</span><b>Lv ${defLv}</b><small>Defense</small></div>
             <div><span>${_hrGly('hitpoints',15)}</span><b>Lv ${hpLv}</b><small>HP</small></div>
             <div><span>${_hrGly('ranged',15)}</span><b>Lv ${rngLv}</b><small>Ranged</small></div>
             <div><span>${_hrGly('magic',15)}</span><b>Lv ${magLv}</b><small>Magic</small></div>
@@ -13640,7 +13640,7 @@ window._renderCharacterExtras = function(){
     '<div class="combat-stats-grid">'+
       '<div class="cs-stat"><b>'+totAtk+'</b><span>Attack</span><small>Lv '+lvl('attack')+' + '+(eq.atkB||0)+' gear</small></div>'+
       '<div class="cs-stat"><b>'+totStr+'</b><span>Strength</span><small>Lv '+lvl('strength')+' + '+(eq.strB||0)+' gear</small></div>'+
-      '<div class="cs-stat"><b>'+totDef+'</b><span>Defence</span><small>Lv '+lvl('defense')+' + '+(eq.defB||0)+' gear</small></div>'+
+      '<div class="cs-stat"><b>'+totDef+'</b><span>Defense</span><small>Lv '+lvl('defense')+' + '+(eq.defB||0)+' gear</small></div>'+
       '<div class="cs-stat"><b>'+lvl('hitpoints')+'</b><span>HP</span><small>Max health</small></div>'+
       '<div class="cs-stat"><b>'+lvl('magic')+'</b><span>Magic</span><small>Spell power</small></div>'+
       '<div class="cs-stat"><b>'+lvl('ranged')+'</b><span>Ranged</span><small>Bow accuracy</small></div>'+
@@ -16614,7 +16614,7 @@ function buildCombatCard(){
       + '<div class="cr-style-stats">'
         + '<div class="cr-stat-row"><span>Attack</span><b>Lv '+lvAtk+'</b><span class="cr-bonus">+'+st.atk+'</span></div>'
         + '<div class="cr-stat-row"><span>Strength</span><b>Lv '+lvStr+'</b><span class="cr-bonus">+'+st.str+'</span></div>'
-        + '<div class="cr-stat-row"><span>Defence</span><b>Lv '+lvDef+'</b><span class="cr-bonus">+'+st.def+'</span></div>'
+        + '<div class="cr-stat-row"><span>Defense</span><b>Lv '+lvDef+'</b><span class="cr-bonus">+'+st.def+'</span></div>'
         + '<div class="cr-stat-row"><span>Crit</span><b>'+(st.crit*100).toFixed(0)+'%</b><span class="cr-bonus"></span></div>'
       + '</div>'
     + '</div>';

@@ -279,7 +279,7 @@ function buildCombatCard() {
       <div class="cr-style-stats">
         <div class="cr-stat-row"><span>Attack</span><b>Lv ${lvAtk}</b><span class="cr-bonus">+${st.atk}</span></div>
         <div class="cr-stat-row"><span>Strength</span><b>Lv ${lvStr}</b><span class="cr-bonus">+${st.str}</span></div>
-        <div class="cr-stat-row"><span>Defence</span><b>Lv ${lvDef}</b><span class="cr-bonus">+${st.def}</span></div>
+        <div class="cr-stat-row"><span>Defense</span><b>Lv ${lvDef}</b><span class="cr-bonus">+${st.def}</span></div>
         <div class="cr-stat-row" title="Gear + set bonus + active buffs — what your hits roll against"><span>Crit</span><b>${crit == null ? '—' : Math.round(crit * 100) + '%'}</b><span class="cr-bonus"></span></div>
       </div>
     </div>`;

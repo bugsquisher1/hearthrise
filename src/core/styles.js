@@ -53,7 +53,7 @@ export const COMBAT_STYLES = {
   sword: {
     accurate: { name: 'Accurate', trains: 'Attack', desc: '+5% accuracy', accuracyMod: 1.05, damageMod: 1.00, defenseMod: 1.00, speedMod: 1.00, xp: { attack: 1 } },
     aggressive: { name: 'Aggressive', trains: 'Strength', desc: '+5% max hit', accuracyMod: 1.00, damageMod: 1.05, defenseMod: 1.00, speedMod: 1.00, xp: { strength: 1 } },
-    defensive: { name: 'Defensive', trains: 'Defence', desc: 'No accuracy or damage bonus', accuracyMod: 1.00, damageMod: 1.00, defenseMod: 1.05, speedMod: 1.00, xp: { defense: 1 } },
+    defensive: { name: 'Defensive', trains: 'Defense', desc: 'No accuracy or damage bonus', accuracyMod: 1.00, damageMod: 1.00, defenseMod: 1.05, speedMod: 1.00, xp: { defense: 1 } },
     controlled: { name: 'Controlled', trains: 'Atk/Str/Def', desc: '+2% accuracy and max hit', accuracyMod: 1.02, damageMod: 1.02, defenseMod: 1.02, speedMod: 1.00, xp: { attack: 0.33, strength: 0.33, defense: 0.34 } },
   },
   hammer: {

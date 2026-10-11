@@ -19,7 +19,7 @@ const row = (group, id, name, glyph, source, target, desc, lore) =>
   Object.freeze({ id, group, name, glyph, source, target, desc, lore });
 
 const ANY = 'Reach level {n} in any skill';
-const MELEE = 'Train Attack, Strength, Defence and Hitpoints to level {n}';
+const MELEE = 'Train Attack, Strength, Defense and Hitpoints to level {n}';
 
 export const DEEDS = Object.freeze([
   row('fight', 'first_kill', 'First Blood', 'uiSword', 'tally:kills', 1, 'Slay your first monster',

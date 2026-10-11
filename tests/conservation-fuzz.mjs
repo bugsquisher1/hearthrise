@@ -251,6 +251,13 @@ const INJECTION_FINAL_BODIES = Object.freeze({
      not a workaround here, it is the only honest target, and the arm is scored
      by reconcile() as it was before 2026-08-11. */
   'reject-final': 'public.hr_record_rejection(uuid,int,text,text,jsonb,bigint)',
+  /* 2026-10-19 (b570 bundle), the same re-author rule a third time:
+     2026-10-19-account-wallet.sql RESTATES hr_day_budget_used whole (the gem
+     dimension summed over the ACCOUNT), so the two budget plants that lived in
+     2026-08-15-gem-daily-budget.sql would be replaced by the clean body. Their
+     gates (gem-daily-budget §10) run long before the wallet, so the honest
+     target is the body the chain ends with, scored by reconcile(). */
+  'budget-final': 'public.hr_day_budget_used(uuid,integer,timestamp with time zone)',
 });
 
 // ── args ────────────────────────────────────────────────────────────────
@@ -539,14 +546,10 @@ const INJECTIONS = {
 
   budget_kind_scoped: {
     what: "the budget only counts kind='accrue' rows — and journal.kind is caller-chosen",
-    file: 'apply-live',
-    /* Re-anchored 2026-08-17 onto the LIVE body, and the gate moved with it:
-       2026-08-15-gem-daily-budget.sql §10(b)(i) mints gems and reads the sum
-       back, so a kind-scoped sum reports zero and the file refuses to install.
-       (The old gate named daily-budget.sql §8(e), which is a file this plant no
-       longer touches — a gate that can no longer fire is a gate that quietly
-       downgrades a catch to a harness error.) */
-    gate: /hr_day_budget_used reports gems=0 after minting/,
+    /* Re-anchored 2026-08-17 onto the LIVE body (gate: gem-daily-budget §10(b)(i)),
+       and 2026-10-19 onto the FINAL body: the account wallet re-authors
+       hr_day_budget_used after that gate has run (see 'budget-final'). */
+    final: 'budget-final',
     patches: [[
       `   where user_id = p_user
      and slot    = p_slot
@@ -560,8 +563,7 @@ const INJECTIONS = {
 
   budget_no_day_window: {
     what: 'the budget sums ALL time instead of the UTC day — one big day locks the account out forever',
-    file: 'apply-live',
-    gate: /day|budget/i,
+    final: 'budget-final',   // the wallet re-authors hr_day_budget_used (see 'budget-final')
     patches: [[
       `     and at >= public.hr_utc_day_start(p_at)
      and at <  public.hr_utc_day_start(p_at) + interval '1 day';`,
@@ -1127,7 +1129,7 @@ async function runFuzz({ seed, ops, injection }) {
   const wearables = await q(
     `select i.item_id, s.equip_slot from hr_items i
        join hr_item_slots s using (item_id)
-      where i.tradeable and i.req_lv is null
+      where i.tradeable and coalesce(i.req_lv, 1) <= 1   -- a level-1 character can wear it (W0 rules every wearable, the starters at 1)
       order by i.item_id, s.equip_slot limit 400`);
   const untradeable = (await q('select item_id from hr_items where not tradeable order by item_id limit 20')).map((r) => r.item_id);
   const activities = await q("select kind, activity_id from hr_activities where req_lv is null order by kind, activity_id limit 200");

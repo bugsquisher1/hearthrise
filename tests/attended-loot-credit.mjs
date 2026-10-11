@@ -258,11 +258,16 @@ function a1_productionWindow() {
      && att.top === out.attendedTopUp && att.cap === out.attendedCap,
     `A1: meta.att is not the whole attended split: ${JSON.stringify(att)}`);
   /* THE AGGREGATE BOUND, asserted here as well as in accrual-engine's SHAPE
-     block, because THIS file is the one that adds a key to that object. Eight is
-     "aggregate, never a per-kill log" made countable — the game_events lesson. */
-  ok(Object.keys(out.delta.journal.meta).length <= 8,
-    `A1: the journal meta grew to ${Object.keys(out.delta.journal.meta).length} keys. It is an `
-    + 'AGGREGATE (one row per accrual); raising the bound is how a ledger becomes game_events.');
+     block, because THIS file is the one that adds a key to that object. It was a
+     COUNT (<= 8); accrual-engine replaced its count with an ALLOWLIST on
+     2026-09-18 (a per-kill log cannot be spelled without a key that is not on
+     it), and the rally `mon` scalar (2026-10-10, no rows added) is the ninth key
+     an attended window carries. Same allowlist here, never a raised number. */
+  const META_KEYS = ['ms', 'ticks', 'kills', 'capped', 'ate', 'mon', 'att', 'spent', 'w', 'from', 'to', 'stopped'];
+  const extra = Object.keys(out.delta.journal.meta).filter((k) => !META_KEYS.includes(k));
+  ok(extra.length === 0,
+    `A1: the journal meta grew key(s) ${extra.join(', ')}. It is an `
+    + 'AGGREGATE (one row per accrual); a key off the allowlist is how a ledger becomes game_events.');
 }
 
 // ── A2 — THE CAP BINDS, AND IT IS THE ENGINE'S, NOT THE SQL ONE ───────────

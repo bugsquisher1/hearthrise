@@ -1330,12 +1330,15 @@
       : pendingMark();
     var onlyMine = forSale.length > 0 && forSale.every(function(l){ return l.sellerId === currentSellerId(); });
     var browseBody;
-    if(!known) browseBody = '<div class="mk-empty">' + pendingMark() + '</div>';
-    else if(forSale.length){
+    /* Rows the mirror holds are shown even before a read lands (as before);
+       only the COUNT and the empty claim wait for the market's word. */
+    if(forSale.length){
       browseBody = '<div class="mk-colhead" aria-hidden="true"><span></span><span>Item</span>'
         + '<span class="mk-num">Qty</span><span class="mk-num">Each</span><span></span></div>'
         + '<div class="mk-rows">' + forSale.map(forSaleRow).join('') + '</div>'
-        + (onlyMine && !ui.q ? '<div class="mk-note">No one else has anything for sale right now.</div>' : '');
+        + (onlyMine && known && !ui.q ? '<div class="mk-note">No one else has anything for sale right now.</div>' : '');
+    } else if(!known){
+      browseBody = '<div class="mk-empty">' + pendingMark() + '</div>';
     } else if(ui.q){
       browseBody = '<div class="mk-empty">Nothing for sale matches “' + escapeAttr(ui.q) + '”. Try another name.</div>';
     } else {

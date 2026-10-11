@@ -5,7 +5,7 @@
 //   node tools/deploy-differential.mjs <oldSha> <newSha> --probe <probe.json>
 //   node tools/deploy-differential.mjs <sha> <sha> --probe <p> --plant <name>
 //                                     one defect planted in the NEW pack copy
-//   node tools/deploy-differential.mjs <sha> --probe <p> --selftest
+//   node tools/deploy-differential.mjs <sha> --probe <p> --prove
 //                                     every plant must exit 1, the control 0
 //
 // docs/planning/SEC_GATHER_ARM_RUNBOOK_2026-10-06.md: once gather is armed it
@@ -53,7 +53,7 @@ const GEOM = { cadenceMs: STEP_MS, flushMs: 90000 };
 
 function harness(msg) { console.error(`deploy-differential: ${msg}`); process.exit(2); }
 
-/* THE PLANTS (--selftest / --plant): one defect each, in the NEW pack copy
+/* THE PLANTS (--prove / --plant): one defect each, in the NEW pack copy
    only, each a different arm's subject. */
 const FN = 'supabase/functions/hr-accrue/';
 const PLANTS = {
@@ -72,9 +72,9 @@ const valueOf = (flag) => { const i = args.indexOf(flag); return i >= 0 ? args[i
 const probePath = valueOf('--probe');
 const plant = valueOf('--plant');
 const positional = args.filter((a, i) => !a.startsWith('--') && !['--probe', '--plant'].includes(args[i - 1]));
-if (args.includes('--selftest')) {
+if (args.includes('--prove')) {
   const sha = positional[0];
-  if (!sha || !probePath) harness('usage: node tools/deploy-differential.mjs <sha> --probe <probe.json> --selftest');
+  if (!sha || !probePath) harness('usage: node tools/deploy-differential.mjs <sha> --probe <probe.json> --prove');
   const run = (extra) => spawnSync(process.execPath, [process.argv[1], sha, sha, '--probe', probePath, ...extra],
     { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 26 });
   let bad = 0;
@@ -88,8 +88,8 @@ if (args.includes('--selftest')) {
     console.log(`  ${caught ? '✓' : '✗'} plant ${name} -> exit ${r.status}, red [${arms}], wanted [${p.arms}]`);
     if (!caught) bad++;
   }
-  console.log(bad ? `\ndeploy-differential --selftest: RED (${bad})`
-    : '\ndeploy-differential --selftest: green — the control passes, every plant is caught.');
+  console.log(bad ? `\ndeploy-differential --prove: RED (${bad})`
+    : '\ndeploy-differential --prove: green — the control passes, every plant is caught.');
   process.exit(bad ? 1 : 0);
 }
 const [oldSha, newSha] = positional;

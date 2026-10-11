@@ -23,7 +23,7 @@
 //           src/core/artisan.js) appears in any ladder — a level alone never
 //           opens it, so naming it would be "client says X, server refuses"
 //   SKG-11  every farming rung whose crop needs plot tier > 1 names
-//           "plot tier N" (the server refuses 'plot_tier_locked'); turnip
+//           "Soil Lv N" (w0f player copy for plot tier N) (the server refuses 'plot_tier_locked'); turnip
 //           does not
 //   SKG-12  neither new file is in the hr-accrue payload (client-only text
 //           must never move the edge hash)
@@ -122,10 +122,10 @@ export function check(ctx) {
     const tier = ctx.plotTier(id);
     const rung = farm.find((r) => r.name === c.name || r.name.startsWith(c.name + ' ('));
     if (!rung) { add('SKG-11', `crop ${id} has no farming rung`); continue; }
-    if (tier > 1 && !rung.name.includes(`(plot tier ${tier})`)) add('SKG-11', `farming rung "${rung.name}" hides plot tier ${tier}`);
-    if (tier <= 1 && /plot tier/.test(rung.name)) add('SKG-11', `farming rung "${rung.name}" names a plot tier it does not need`);
+    if (tier > 1 && !rung.name.includes(`(Soil Lv ${tier})`)) add('SKG-11', `farming rung "${rung.name}" hides plot tier ${tier}`);
+    if (tier <= 1 && /Soil Lv/.test(rung.name)) add('SKG-11', `farming rung "${rung.name}" names a plot tier it does not need`);
   }
-  if (farm.some((r) => /^Turnip/.test(r.name) && /plot tier/.test(r.name))) add('SKG-11', 'turnip names a plot tier');
+  if (farm.some((r) => /^Turnip/.test(r.name) && /Soil Lv/.test(r.name))) add('SKG-11', 'turnip names a plot tier');
 
   // SKG-12
   for (const f of NEW_FILES) if ((ctx.origins || []).includes(f)) add('SKG-12', `${f} is in the hr-accrue payload`);

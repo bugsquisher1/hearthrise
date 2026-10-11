@@ -100,7 +100,7 @@ export const SENDERS = {
 };
 
 export const LATCH_SURFACES = [
-  'src/legacy.js',                  // daily/weekly goal claim
+  'src/features/daily-quests.js',   // the one daily list's claim (w0c retired the legacy goals board)
   'src/features/collection-log.js', // milestone claim
   'src/features/renown.js',         // rank claim
   'src/render/shop.js',             // trait buy

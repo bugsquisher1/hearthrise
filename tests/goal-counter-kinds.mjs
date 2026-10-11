@@ -103,17 +103,19 @@ const GATE_BLIND = [
   raise notice 'SEC 4 SHORT-CIRCUITED FOR THE MUTATION PROOF';
   return;
   -- (a) A validated check constraint pins the column, whatever its name.`],
+  /* The chain end is 2026-10-10-quest-xp-absence-pay.sql since the b570 bundle
+     (it restates hr_claim_quest__ungated last); these are ITS gates. */
   [QUEST_MIG,
     `  if position('ev:planted' in v_src) > 0 then
-    raise exception 'VERIFY(c): hr_claim_quest__ungated names ev:planted`,
+    raise exception 'GATE(b): the quest body names ev:planted`,
     `  if false then
-    raise exception 'VERIFY(c): hr_claim_quest__ungated names ev:planted`],
+    raise exception 'GATE(b): the quest body names ev:planted`],
   /* …and its exact-arm-count check, which a FIFTH-style extra arm also trips. */
   [QUEST_MIG,
-    `  if v_n <> 10 then
-    raise exception 'VERIFY(c): the body has % quest arm(s), expected 10', v_n;`,
+    `  if v_n <> 11 then
+    raise exception 'GATE(b): the quest body has % arm(s), expected 11', v_n;`,
     `  if false then
-    raise exception 'VERIFY(c): the body has % quest arm(s), expected 10', v_n;`],
+    raise exception 'GATE(b): the quest body has % arm(s), expected 11', v_n;`],
 ];
 
 /* ── MUTATIONS ─────────────────────────────────────────────────────────────

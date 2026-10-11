@@ -12,6 +12,9 @@
 -- shows the server's refusal text for `name_blocked` as a generic failure, and
 -- a new client against the old server never sees `must_rename` (absent = false).
 --
+-- RESTATEMENT-DEBT-ACK: one additive key in hr_state_of (37k chars, 8 patches deep) is a P1 moderation fix; a full restatement is cleanup slice 7, not this lane.
+--   The patch is ONE anchor asserted exactly once ('inventory_complete'), §0 and §12.
+
 -- ── THE FINDING (Security, verified read-only 2026-10-11) ────────────────────
 --   A live player's Total Level leaderboard name is a racial slur. The server
 --   had NO content filter: hr_validate_display_name checked length, charset and
@@ -130,8 +133,6 @@
 -- must_rename line by hand. A rename that already happened is journalled and
 -- is NOT reversed by dropping anything here (the player picks a new name).
 --
--- RESTATEMENT-DEBT-ACK: hr_state_of is a live-hash-tracked body patched
---   programmatically at ONE anchor asserted exactly once ('inventory_complete').
 -- ⚠ AFTER APPLYING: `node tests/live-hash-drift.mjs --live --write` (hr_state_of),
 --   why from `--codediff`; restore-census classifies hr_name_blocklist (catalogue,
 --   reseeded by this file) and hr_name_holds (PLAYER-DERIVED moderation state:

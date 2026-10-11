@@ -6216,10 +6216,8 @@ export default [
       ['world-events._hash', window.HearthriseWorldEvents && window.HearthriseWorldEvents._hash],
       ['core/botd.fnv1a', window.HearthriseCore && window.HearthriseCore.botd && window.HearthriseCore.botd.fnv1a],
       ['core/rng.hashSeed', window.HearthriseCore && window.HearthriseCore.rngMod && window.HearthriseCore.rngMod.hashSeed],
-      /* chat-filter._hash went with the placeholder slur layer (2026-10-11): the
-         copy no longer exists, so there are three to check, not four. */
     ].filter((c) => typeof c[1] === 'function');
-    assert(copies.length >= 3, 'an FNV-1a copy is unreachable from the page — this guard is checking less than it claims');
+    assert(copies.length >= 3, '(chat-filter._hash retired with the slur placeholders, 2026-10-11) an FNV-1a copy is unreachable from the page — this guard is checking less than it claims');
     for (const [name, fn] of copies) {
       for (const k of keys) {
         assert((fn(k) >>> 0) === reference(k),

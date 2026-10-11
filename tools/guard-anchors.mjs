@@ -461,6 +461,17 @@ async function selftest() {
     ok(L.strings.includes("x's"), 'L4 quote alignment survives an apostrophe in a comment');
   }
 
+  /* A0 — THE INCIDENT ANCHOR, DERIVED. The first draft of this proof hard-coded
+     envelope-frame-gate's gold.js anchor and went stale the first time main moved
+     both files — the very failure this file exists to catch. So it is read from the
+     guard: its longest one-line literal that occurs exactly once in gold.js. */
+  const GOLD = readFileSync(join(ROOT, 'src/net/gold.js'), 'utf8');
+  const goldAnchor = lex(readFileSync(join(ROOT, 'tests/envelope-frame-gate.mjs'), 'utf8')).strings
+    .filter((s) => s.length >= 30 && !/\n/.test(s) && GOLD.split(s).length === 2)
+    .sort((a, b) => b.length - a.length)[0] || null;
+  ok(!!goldAnchor, `A0 envelope-frame-gate holds a literal anchored once in src/net/gold.js (${String(goldAnchor).slice(0, 50)}…)`);
+  if (!goldAnchor) { for (const f of fails) console.log('  x  ' + f); process.exit(1); }
+
   /* M — the map, against the real tree: the incident guard must list the incident file. */
   const entries = catalogue(ROOT);
   const efg = entries.find((e) => e.guard === 'tests/envelope-frame-gate.mjs');
@@ -489,11 +500,11 @@ async function selftest() {
       write(join(ROOT, tmpRel), '// mutant-anchors: src/net/\n' + body);
       const t = triggered([guardEntry(ROOT, tmpRel)], ['src/net/gold.js']);
       ok(t.length === 1, 'X4 a declared directory anchor covers its subtree');
-      const anchor = 'export function resetGold() { pending = []; last = null; resetFrameGate(); }';
+      const anchor = goldAnchor;
       write(join(ROOT, tmpRel), "const F = ['src/net/gold.js', 'src/net/accrue.js'];\n"
         + `const M = [${JSON.stringify(anchor)}, 'export function applyEnvelope(G, res) {'];\n` + body);
-      const gold = readFileSync(join(ROOT, 'src/net/gold.js'), 'utf8');
-      const stripped = gold.split(anchor).join('export function resetGold(){}');
+      const gold = GOLD;
+      const stripped = gold.split(anchor).join('/* anchor deleted by the lane */');
       const real = (f) => [readFileSync(join(ROOT, f), 'utf8')];
       const headOnly = (f) => (f === 'src/net/gold.js' ? [stripped] : real(f));
       const both = (f) => (f === 'src/net/gold.js' ? [stripped, gold] : real(f));
@@ -535,8 +546,8 @@ async function selftest() {
     const { snapshot, assertNoResidue, finish } = await import('../tests/mutation-safety.mjs');
     const { writeFileSync } = await import('node:fs');
     const file = 'src/net/gold.js';
-    const from = 'export function resetGold() { pending = []; last = null; resetFrameGate(); }';
-    const to = 'export function resetGold() {  pending = []; last = null; resetFrameGate(); }';
+    const from = goldAnchor;
+    const to = goldAnchor.replace(' ', '  ');
     assertNoResidue([{ file, from, to }]);
     const orig = snapshot(file);
     const lane = (extra) => spawnSync(process.execPath, [join(ROOT, 'tools/lane-done.mjs'), '--scoped-only', '--no-cache', '--changed', file, ...extra],

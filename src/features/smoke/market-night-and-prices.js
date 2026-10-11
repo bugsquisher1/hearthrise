@@ -8,7 +8,7 @@
 // ══════════════════════════════════════════════════════════════════════
 import { pass, fail, tryRun, tryRunAsync, assert, skip, withCap, stampBalanceLikeLoad, stampRecordLikeLoad, withServerBacked, awaySpan, awayGatherSpan, awayArtisanSpan, applyAwayEnvelope, xpOf, predZero, goldOf, snapshotG, setAway, drain, restoreAccrualSwitch, seedPlayStreak, restoreG, restoreGAndRecord, nightWorld, retreatFixture, retreatReload, withLiveLine, restoreBankCap, hfPoll, on, snapshot, decideRestore, serverBagFixture } from './_harness.js?v=565';
 
-/* regression (b567, quest-xp): hundred_kills paid 1,500 combat XP through
+/* regression (quest-xp): hundred_kills paid 1,500 combat XP through
    window.addXp — client-authored XP into hr_credit_combat_xp. The server now
    credits it (hr_claim_quest, 2026-10-10-quest-xp-absence-pay.sql); the client
    fires the claim and never adds XP. ATTENDED: the completion tick. AWAY: a
@@ -48,7 +48,7 @@ const quest100 = (path) => async () => {
     assert(q() && q().progress === 40 && !q().done, 'the quest must reach the save and mirror 40/100: ' + JSON.stringify(q()));
     const before = skillsNow();
 
-    /* THE CARD SAYS WHAT THE SERVER PAYS (Designer copy, b567): the reward line
+    /* THE CARD SAYS WHAT THE SERVER PAYS (Designer copy): the reward line
        names Hitpoints XP and the row's tooltip carries the note about the
        bigger health pool. */
     const H = window.HearthriseHome;

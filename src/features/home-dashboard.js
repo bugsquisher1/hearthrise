@@ -1108,9 +1108,9 @@
     if ((r.gold || 0) > 0) return true;
     try {
       var gc = window.HearthriseCore && window.HearthriseCore.goalCatalogue;
-      if (gc && typeof gc.questItemsAreServerCredited === 'function') {
-        return !!gc.questItemsAreServerCredited(q.id);
-      }
+      if (gc && typeof gc.questItemsAreServerCredited === 'function' && gc.questItemsAreServerCredited(q.id)) return true;
+      /* XP-only quests (hundred_kills) are server-credited by hr_claim_quest too. */
+      if (gc && typeof gc.questXpIsServerCredited === 'function') return !!gc.questXpIsServerCredited(q.id);
     } catch (e) {}
     return false;
   }
@@ -1163,6 +1163,10 @@
         pct: Math.max(0, Math.min(100, Math.round((progress / goal) * 100))),
         state: state,
         reward: q.reward || {},
+        /* The step's own words (QUEST_DEFS `note`) — for an XP reward this is
+           what the XP DOES (hundred_kills: the bigger health pool), so it is
+           the row's tooltip beside the route. */
+        note: q.note || '',
         goalRow: q,
       });
     });
@@ -1193,7 +1197,14 @@
       bits.push(gly('gold', 13, '', 'var(--gold-2)') + '<span>' + num(r.gold) + '</span>');
     }
     if (r.item) bits.push('<span>' + num(r.qty || 1) + '× ' + esc(itemName(r.item)) + '</span>');
-    if ((r.combatXp || 0) > 0) bits.push('<span>' + num(r.combatXp) + ' combat XP</span>');
+    /* XP is server-credited by hr_claim_quest; this only names it. */
+    if (r.xp && typeof r.xp === 'object') {
+      Object.keys(r.xp).forEach(function (sk) {
+        var n = Math.floor(Number(r.xp[sk]) || 0);
+        var def = window.SKILLS_DEF && window.SKILLS_DEF[sk];
+        if (n > 0) bits.push('<span>' + num(n) + ' ' + esc((def && def.name) || sk) + ' XP</span>');
+      });
+    }
     /* A separator, because two rewards on one row read as one number followed
        by a stray quantity ("200 30× Raw Shrimp"). Same middot the rest of Home
        uses between facts. */
@@ -1229,7 +1240,9 @@
       var r = questRoute(s.goalRow);
       var go = !done && r.open;
       out += '<div class="hd-card hd-quest hd-fl-row is-' + s.state + '"' + (go ? ' data-hd="fl" data-i="' + i + '"' : '') +
-        (r.label ? ' title="' + esc(r.label) + '"' : '') + '>' +
+        ((r.label || (s.note && s.reward && s.reward.xp))
+          ? ' title="' + esc([r.label, (s.reward && s.reward.xp) ? s.note : ''].filter(Boolean).join(' — ')) + '"'
+          : '') + '>' +
         '<div class="hd-qic">' + slot + '</div>' +
         '<div class="hd-qbody">' +
         '<div class="hd-qtitle">' + esc(s.label) + '</div>' +

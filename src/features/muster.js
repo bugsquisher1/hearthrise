@@ -795,7 +795,9 @@
       var err = out.error || '';
       // Not a failure: the server found a live join (or an earlier settlement)
       // for that day. The pledge did its job — close it, pay nothing.
-      if (err === 'answered_live' || err === 'already_settled' || err === 'no_pledge') {
+      // no_activity: the character never played that day, so the pledge
+      // EXPIRED server-side (the zero-play faucet is closed) — close it too.
+      if (err === 'answered_live' || err === 'already_settled' || err === 'no_pledge' || err === 'no_activity') {
         return { action: 'forfeit', error: err };
       }
       if (err === 'day_open') return { action: 'hold', error: err };
@@ -1060,8 +1062,12 @@
        _combatXpPending -> hr_credit_combat_xp: client-authored ranked XP. Both
        claim RPCs now credit it server-side and bump the version; ask for the
        envelope that carries the absolute skills instead of predicting them. */
-    if ((c.xp || []).some(function (x) { return x && x.amount > 0; })
-        && typeof window.noteLiveSettleEvent === 'function') {
+    /* Both claims credit gold/gems server-side too (the absence claim since
+       2026-10-10-quest-xp-absence-pay.sql); under the arm the local write
+       no-ops, so the same envelope request carries them. */
+    var serverPaid = (c.xp || []).some(function (x) { return x && x.amount > 0; })
+      || (!_mayGold && (c.gold || 0) > 0) || (!_mayGems && (c.gems || 0) > 0);
+    if (serverPaid && typeof window.noteLiveSettleEvent === 'function') {
       try { window.noteLiveSettleEvent('rally-chest'); } catch (e) {}
     }
     persist();

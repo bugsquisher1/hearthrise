@@ -78,6 +78,50 @@ export async function chainEndMigration(re, orderOverride) {
   return end;
 }
 export const SEED_RE = /insert into public\.hr_quest_rewards \(quest_id, items\) values/i;
+/* THE XP HALF (2026-10-10-quest-xp-absence-pay.sql): hr_quest_rewards.xp is
+   seeded by its own insert, so the item seed's chain end is untouched. */
+export const XP_SEED_RE = /insert into public\.hr_quest_rewards \(quest_id, xp\) values/i;
+async function xpSeedMigration() {
+  const end = await chainEndMigration(XP_SEED_RE);
+  if (!end) throw new Error('no file in tests/schema-apply-order.json `order` seeds hr_quest_rewards.xp');
+  return end;
+}
+export function parseXpSeed(sql) {
+  const block = sql.match(/insert into public\.hr_quest_rewards \(quest_id, xp\) values([\s\S]*?)(?:on conflict|;)/i);
+  if (!block) return null;
+  const out = new Map();
+  for (const m of block[1].matchAll(/\(\s*'([a-z0-9_]+)'\s*,\s*'(\{[^']*\})'\s*\)/gi)) {
+    let xp;
+    try { xp = JSON.parse(m[2]); } catch (e) { return { __bad: `${m[1]}: xp is not valid JSON — ${m[2]}` }; }
+    const norm = {};
+    for (const [k, v] of Object.entries(xp)) norm[k] = Math.floor(Number(v) || 0);
+    out.set(m[1], norm);
+  }
+  return out;
+}
+/* QUEST_DEFS reward.xp — `xp:{skill:N,...}` inside the row's reward. */
+export function parseQuestDefsXp(legacySrcRaw) {
+  const legacySrc = stripComments(legacySrcRaw);
+  const at = legacySrc.indexOf('const QUEST_DEFS=');
+  if (at < 0) return null;
+  const open = legacySrc.indexOf('[', at);
+  let depth = 0; let body = null;
+  for (let i = open; i < legacySrc.length; i++) {
+    if (legacySrc[i] === '[') depth++;
+    else if (legacySrc[i] === ']' && --depth === 0) { body = legacySrc.slice(open, i + 1); break; }
+  }
+  if (!body) return null;
+  const out = new Map();
+  for (const row of splitTopLevelObjects(body)) {
+    const id = (row.match(/\bid:\s*'([a-z0-9_]+)'/) || [])[1];
+    if (!id) continue;
+    const m = row.match(/reward:\s*\{[^{}]*\bxp:\s*\{([^{}]*)\}/);
+    const xp = {};
+    if (m) for (const e of m[1].matchAll(/([a-z_]+)\s*:\s*(\d+)/g)) xp[e[1]] = Number(e[2]);
+    out.set(id, xp);
+  }
+  return out;
+}
 async function seedMigration() {
   const end = await chainEndMigration(SEED_RE);
   if (!end) throw new Error('no file in tests/schema-apply-order.json `order` seeds hr_quest_rewards');
@@ -268,6 +312,52 @@ export async function questRewardParityGuard(over = {}) {
     }
   }
 
+  // ── THE XP HALF: QUEST_DEFS reward.xp == QUEST_REWARDS[id].xp == the chain-end
+  //    hr_quest_rewards.xp seed, and every skill is a real one (src/data/skills.js,
+  //    which hr_skills is generated from). An XP quest the server does not seed is
+  //    a claim that pays nothing; a seeded one the client does not show is XP the
+  //    player was never promised.
+  let questRewardXp; let SKILLS_DEF;
+  try { ({ questRewardXp } = await import('../src/data/goal-catalogue.js')); }
+  catch (e) { return [`cannot import questRewardXp — ${e.message}`]; }
+  try { ({ SKILLS_DEF } = await import('../src/data/skills.js')); }
+  catch (e) { return [`cannot import src/data/skills.js — ${e.message}`]; }
+  const xpSql = over.xpSql ?? (await xpSeedMigration()).sql;
+  const xseed = parseXpSeed(xpSql);
+  if (!xseed) return [...problems, 'CONTROL: the hr_quest_rewards (quest_id, xp) INSERT could not be found — the anchor moved.'];
+  if (xseed.__bad) return [...problems, `CONTROL: ${xseed.__bad}`];
+  const xdefs = parseQuestDefsXp(legacySrc) || new Map();
+  const xcat = new Map();
+  for (const [id, row] of Object.entries(QUEST_REWARDS)) {
+    const xp = questRewardXp(row);
+    if (Object.keys(xp).length) xcat.set(id, xp);
+  }
+  if (xcat.size === 0) problems.push('CONTROL: no QUEST_REWARDS row authors XP — hundred_kills lost its server credit.');
+  for (const [id, xp] of xdefs) {
+    if (!Object.keys(xp).length) continue;
+    if (!xcat.has(id)) problems.push(`QUEST_DEFS '${id}' shows ${JSON.stringify(xp)} XP but goal-catalogue.js authors none — `
+      + 'the server never credits it, and the client no longer mints XP.');
+  }
+  for (const [id, xp] of xcat) {
+    const d = xdefs.get(id);
+    if (d === undefined) problems.push(`goal-catalogue.js authors XP for '${id}' but QUEST_DEFS has no such quest.`);
+    else if (!same(xp, d)) problems.push(`'${id}': QUEST_DEFS shows XP ${JSON.stringify(d)} but goal-catalogue.js authors ${JSON.stringify(xp)}.`);
+    const sx = xseed.get(id);
+    if (!sx) problems.push(`goal-catalogue.js authors XP for '${id}' but the chain-end xp seed has no row — hr_claim_quest pays no XP.`);
+    else if (!same(xp, sx)) problems.push(`'${id}': goal-catalogue.js authors XP ${JSON.stringify(xp)} but the migration seeds ${JSON.stringify(sx)} — the SQL is what gets credited.`);
+  }
+  for (const [id, sx] of xseed) {
+    if (!xcat.has(id)) problems.push(`the migration seeds XP ${JSON.stringify(sx)} for '${id}' but goal-catalogue.js authors none.`);
+  }
+  for (const [label, src] of [['goal-catalogue.js', xcat], ['the xp seed', xseed]]) {
+    for (const [id, xp] of src) {
+      for (const [sk, n] of Object.entries(xp)) {
+        if (!SKILLS_DEF[sk]) problems.push(`${label} pays '${sk}' XP on quest '${id}' — not a skill in src/data/skills.js (hr_skills); it would be skipped.`);
+        if (!(Number.isInteger(n) && n > 0)) problems.push(`${label} pays '${sk}' x${n} on quest '${id}' — an amount must be a positive integer.`);
+      }
+    }
+  }
+
   return problems;
 }
 
@@ -320,6 +410,17 @@ const MUTATIONS = [
     apply: (s) => ({ sql: s.sql.replace("('road_harvest', '{\"potato_seed\": 10}')", "('road_harvest', '{\"potato_seed\": 1}')") }) },
   { name: 'road: catalogue iron_pickaxe qty drift against both other sides',
     apply: (s, cat) => ({ QUEST_REWARDS: { ...cat, road_forge: { ...cat.road_forge, items: { iron_pickaxe: 2 } } } }) },
+  /* ── the XP half (2026-10-10-quest-xp-absence-pay.sql) */
+  { name: 'xp: chain-end seed amount drift (hundred_kills 1500 -> 15000)',
+    apply: (s) => ({ xpSql: s.xpSql.replace("('hundred_kills', '{\"hitpoints\": 1500}')", "('hundred_kills', '{\"hitpoints\": 15000}')") }) },
+  { name: 'xp: chain-end seed row removed (hr_claim_quest pays hundred_kills nothing)',
+    apply: (s) => ({ xpSql: s.xpSql.replace("('hundred_kills', '{\"hitpoints\": 1500}')", "('nobody', '{}')") }) },
+  { name: 'xp: chain-end seed names a skill that does not exist',
+    apply: (s) => ({ xpSql: s.xpSql.replace("('hundred_kills', '{\"hitpoints\": 1500}')", "('hundred_kills', '{\"combat\": 1500}')") }) },
+  { name: 'xp: legacy shows a different skill than the server pays',
+    apply: (s) => ({ legacy: s.legacy.replace('reward:{xp:{hitpoints:1500}}', 'reward:{xp:{attack:1500}}') }) },
+  { name: 'xp: catalogue XP emptied (the client stops claiming hundred_kills)',
+    apply: (s, cat) => ({ QUEST_REWARDS: { ...cat, hundred_kills: { ...cat.hundred_kills, xp: {} } } }) },
   { name: 'road: chain-end seed row removed (road_cook pays gold only)',
     apply: (s) => ({ sql: s.sql.replace("  ('road_cook',    '{\"oak_rod\": 1}'),\n", '') }) },
 ];
@@ -327,7 +428,7 @@ const MUTATIONS = [
 async function selftest() {
   const end = await seedMigration();
   process.stdout.write(`  chain-end seed: ${end.file}\n`);
-  const base = { legacy: await readFile(LEGACY, 'utf8'), sql: end.sql };
+  const base = { legacy: await readFile(LEGACY, 'utf8'), sql: end.sql, xpSql: (await xpSeedMigration()).sql };
   const { QUEST_REWARDS } = await import('../src/data/goal-catalogue.js');
 
   const clean = await questRewardParityGuard();
@@ -341,7 +442,7 @@ async function selftest() {
   let missed = 0;
   for (const m of MUTATIONS) {
     const over = { ...base, ...m.apply(base, QUEST_REWARDS) };
-    if (over.legacy === base.legacy && over.sql === base.sql && !over.QUEST_REWARDS) {
+    if (over.legacy === base.legacy && over.sql === base.sql && over.xpSql === base.xpSql && !over.QUEST_REWARDS) {
       process.stdout.write(`  FAIL  "${m.name}" — the mutation changed NOTHING; its anchor moved and it is proving nothing.\n`);
       missed++; continue;
     }

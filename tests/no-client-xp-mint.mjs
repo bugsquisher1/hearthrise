@@ -48,8 +48,9 @@
 //         names its server RPC(s), and each one's chain-end body on the replay
 //         chain writes public.player_skills (directly or via a public.* callee).
 //         --selftest relabels a client mint (b) and must go red, on synthetic
-//         chains AND on the real one (completeQuest -> hr_claim_quest; payChest's
-//         old label on the chain without 2026-10-10-muster-chest-xp-credit.sql).
+//         chains AND on the real one (completeQuest -> hr_claim_quest on the
+//         chain without 2026-10-10-quest-xp-absence-pay.sql; payChest's old
+//         label on the chain without 2026-10-10-muster-chest-xp-credit.sql).
 //   XP-6  (c) CLIENT-AUTHORED entries are a debt register pinned at
 //         MAX_CLIENT_AUTHORED_DEBT, which may only fall.
 //
@@ -114,23 +115,16 @@ export const ALLOWED = [
     ['hr_claim_goal']],
 
   // ── (c) CLIENT-AUTHORED — A DEBT REGISTER, NOT AN ENDORSEMENT ─────────────
-  // Found by XP-5 the day it was written (b567): this entry was labelled (b)
-  // "a quest payout the server catalogued", and hr_claim_quest's final body
-  // writes no player_skills at all. The only quest with combatXp is
-  // hundred_kills (1,500, no gold), which never fires a claim, so its XP is
-  // authored here and reaches hr_credit_combat_xp through _combatXpPending.
-  // It is named honestly so it cannot hide again; XP-6 pins the register at
-  // MAX_CLIENT_AUTHORED_DEBT, which may only FALL. The fix is a server credit
-  // in hr_claim_quest (or the quest's own XP retired) — a P1 for its own lane.
-  ['src/legacy.js', 'completeQuest', '(c)',
-    'DEBT (b567): the quest combatXp (hundred_kills, 1,500) is client-authored — hr_claim_quest '
-    + 'credits gold/items only. Route the XP into hr_claim_quest and re-label (b) naming it.'],
+  // EMPTY since 2026-10-10-quest-xp-absence-pay.sql. The last entry was
+  // completeQuest (hundred_kills' 1,500 combat XP, minted by the browser); the
+  // XP is now credited by hr_claim_quest and completeQuest has no addXp at all.
+  // A new (c) entry is a §1 violation: XP-6 refuses it while the ratchet is 0.
 ];
 
 /* ── XP-6: THE CLIENT-AUTHORED DEBT RATCHET ─────────────────────────────────
    The number of class (c) entries above. It may only FALL; a new (c) entry is a
    §1 violation that needs a server credit, not a bumped constant. */
-export const MAX_CLIENT_AUTHORED_DEBT = 1;
+export const MAX_CLIENT_AUTHORED_DEBT = 0;
 
 /* ── XP-3's OWN RATCHET ─────────────────────────────────────────────────────
    A direct `G.skills.<id> =` is addXp() with the guard filed off: it skips the
@@ -507,20 +501,25 @@ async function selftest() {
       check(`passes: ${rpc} writes player_skills on the replay chain (b567)`, !!skillsWritePath(real, rpc),
         'no write path');
     }
-    // completeQuest relabelled (b) naming the RPC it actually fires.
-    const q = auditClasses([entry('(b)', ['hr_claim_quest'])], real);
-    check('bites (real chain): completeQuest relabelled (b) naming hr_claim_quest, which writes no XP',
-      q.problems.length === 1, JSON.stringify(q.problems));
-    // payChest's OLD label on the chain WITHOUT this lane's migration.
+    check('passes: hr_claim_quest writes player_skills on the replay chain (quest XP)',
+      !!skillsWritePath(real, 'hr_claim_quest'), 'no write path');
+    // The two real (b) labels on the chain WITHOUT the migration that backs each.
     const { chainFiles } = await import('./schema-replay.mjs');
-    const files = [];
-    for (const [name, path] of await chainFiles()) {
-      // ...and every later restatement of the claim body FROM it (b568 restates
-      // world_event_claim__ungated with the credit intact).
-      if (name === '2026-10-10-muster-chest-xp-credit.sql' || name === '2026-10-10-rally-points-server.sql') continue;
-      files.push([name, readFileSync(path, 'utf8')]);
-    }
-    const before = auditClasses([entry('(b)', ['world_event_claim'])], chainBodies(files));
+    // `drop` is the migration that backs the label plus every later restatement
+    // of the same body FROM it (b568 restates world_event_claim__ungated with the
+    // credit intact), so the bite measures the chain as it was before the credit.
+    const without = async (...drop) => {
+      const files = [];
+      for (const [name, path] of await chainFiles()) {
+        if (drop.includes(name)) continue;
+        files.push([name, readFileSync(path, 'utf8')]);
+      }
+      return chainBodies(files);
+    };
+    const q = auditClasses([entry('(b)', ['hr_claim_quest'])], await without('2026-10-10-quest-xp-absence-pay.sql'));
+    check('bites (real chain minus the quest-xp migration): completeQuest labelled (b) on hr_claim_quest, which then writes no XP',
+      q.problems.length === 1, JSON.stringify(q.problems));
+    const before = auditClasses([entry('(b)', ['world_event_claim'])], await without('2026-10-10-muster-chest-xp-credit.sql', '2026-10-10-rally-points-server.sql'));
     check('bites (real chain minus the b567 migration): payChest\'s old (b) label on world_event_claim',
       before.problems.length === 1, JSON.stringify(before.problems));
   }

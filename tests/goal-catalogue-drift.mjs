@@ -108,9 +108,19 @@ export async function goalCatalogueDriftGuard(over = {}) {
         if (cat && goalM) ok(cat.goal === Number(goalM[1]),
           `QUEST_DEFS '${id}' goal=${goalM[1]} != catalogue ${cat.goal}`);
       } else {
-        // A no-gold quest (hundred_kills) must NOT be in the catalogue.
-        ok(!QUEST_REWARDS[id], `QUEST_DEFS '${id}' has no gold reward but IS in QUEST_REWARDS — `
-          + 'a non-gold quest never fires a claim; remove it from the catalogue.');
+        /* A no-gold quest is in the catalogue only if the server credits
+           something else for it (hundred_kills: XP, 2026-10-10-quest-xp-absence-pay.sql),
+           and then its catalogue gold must be 0 and its goal must match. A
+           no-gold, no-xp, no-item row is a claim that pays nothing. */
+        const cat = QUEST_REWARDS[id];
+        if (cat) {
+          const pays = Object.keys(cat.xp || {}).length > 0 || Object.keys(cat.items || {}).length > 0;
+          ok(pays, `QUEST_DEFS '${id}' has no gold reward and its QUEST_REWARDS row pays no XP or items — `
+            + 'a claim that pays nothing; remove it from the catalogue.');
+          ok(cat.gold === 0, `QUEST_DEFS '${id}' shows no gold but the catalogue pays ${cat.gold}`);
+          const goalM = row.match(/goal:\s*(\d+)/);
+          if (goalM) ok(cat.goal === Number(goalM[1]), `QUEST_DEFS '${id}' goal=${goalM[1]} != catalogue ${cat.goal}`);
+        }
       }
     }
   }
@@ -403,6 +413,12 @@ const MUTATIONS = [
     apply: (b) => ({ questSql: b.questSql.replace(
       "    when 'farmhand'    then v_key := 'ev:harvest';  v_goal := 6;  v_gold := 500;\n    -- Journeyman",
       "    when 'farmhand'    then v_key := 'ev:harvest';  v_goal := 6;  v_gold := 5000;\n    -- Journeyman") }) },
+  { name: 'chain-end hundred_kills goal drift (100 -> 10: the XP pays at a tenth of the work)',
+    apply: (b) => ({ questSql: b.questSql.replace(
+      "when 'hundred_kills' then v_key := 'ev:kill_any'; v_goal := 100; v_gold := 0;",
+      "when 'hundred_kills' then v_key := 'ev:kill_any'; v_goal := 10; v_gold := 0;") }) },
+  { name: 'legacy hundred_kills shows gold the catalogue does not pay',
+    apply: (b) => ({ legacy: b.legacy.replace("reward:{xp:{hitpoints:1500}},", "reward:{gold:50,xp:{hitpoints:1500}},") }) },
   { name: 'chain-end pays a quest the catalogue does not know',
     apply: (b) => ({ questSql: b.questSql.replace(
       "    when 'road_hunt' then",

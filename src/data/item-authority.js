@@ -245,8 +245,37 @@ export const INVENTORY_ARM_ENABLED = true;   // LIVE since b454 (2026-08-22 post
    PER ENVIRONMENT: add a hostname to INVENTORY_ARM_STAGE_HOSTS to arm staging
    (or a local origin) while the default stays 'off' for production. The host is
    matched exactly against `location.hostname`; an unknown or absent host falls
-   back to the default, which is the fail-safe direction. */
-export const INVENTORY_ARM_STAGE = 'off';                    // 'on' | 'off' — THE ONE LINE THAT ARMS IT
+   back to the default, which is the fail-safe direction.
+
+   ── ARMED 'on' (2026-10-11) — CLAUDE.md §6, a P1 class-kill ────────────────
+   The merge this stage kept alive is the "browser says one thing, server says
+   another" class: Tyler's live QA bag showed 33 seeds after a refused +10 buy
+   while player_inventory held 23, and NO later envelope could lower it. The
+   reasons the stage was held, answered one by one:
+     · "it can DELETE a player's item" — it cannot any more. G.inventory is not
+       saved anywhere (loadLocal reads no blob, `inventory` is not a residue
+       field) and hr_state_of projects the WHOLE of player_inventory. A few
+       gestures DO size an intent from it — sell-one, the context menu, the
+       quick-sell slider, legacy hasItem — by design: vendor_sell collects the
+       open window first, so a just-gathered log is real on the server
+       (SELL-SRV-1/5). The server re-checks every quantity under its row lock.
+       Replacing the bag can only correct what is DISPLAYED; every real item is
+       a row the next envelope restates.
+     · "the 24 h soak must read clean" — read SELECT-only on 2026-10-11:
+       `inv_flip_drift` 102 sessions since 10-05, 72 with destructiveOwnedOmissions
+       > 0 (magnitude 4–10). Under a server that owns every mint, a "destructive
+       omission" is the client showing MORE than the server holds — i.e. the
+       phantom itself, counted. The soak measured the bug, not a hazard.
+     · "pending unsettled gains would vanish" — they are predictions, and
+       predictions are display-only: every spend gate reads `G._serverBag` via
+       gateItemCount, never G.inventory, and the next envelope replaces
+       the display. See accrue.js `bagPrediction` / `gateItemCount`.
+     · "a per-session equip acknowledgement decided it" — removed from
+       isInventoryAbsolute: the equip verb is server-side, so
+       the server's bag already excludes the worn copy.
+   Ways back are unchanged: `hr_flags.inventory_absolute = false` (no deploy),
+   `localStorage['hr:envelopeMerge'] = 'on'` (one device), or this line. */
+export const INVENTORY_ARM_STAGE = 'on';                     // 'on' | 'off' — THE ONE LINE THAT ARMS IT
 export const INVENTORY_ARM_STAGE_HOSTS = Object.freeze({});  // { 'localhost': 'on' } — per-environment override
 
 /** Is the absolute-inventory flip STAGED ON for this host? Fail-safe: anything

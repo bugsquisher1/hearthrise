@@ -1813,7 +1813,7 @@ function settle(verdict) {
          of the ladder this session will see. Fail-closed on a missing `progress`
          array (leaves G.bank alone) and idempotent on a non-idle boot. */
       reconcileBankRungs(G, verdict.body);
-      reconcileInventory(G, verdict.body);  // merge-ratchets the full server bag in
+      reconcileInventory(G, verdict.body);  // assigns every key the server names (never a max)
       /* b477 — SAME IDLE-BOOT CLASS FOR THE CREW. The worker roster hydrated ONLY
          via applyEnvelopeState (accrue.js), which runs ONLY on accrued:true. On an
          IDLE boot hr-accrue answers {accrued:false}, so a player with a producing

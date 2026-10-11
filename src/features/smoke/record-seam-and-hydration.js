@@ -3743,8 +3743,8 @@ export default [
       const written = A.applyEnvelope(G2, envelope);
       assert(written && G2.gold === 500,
         'the acknowledged replacement did not apply — ' + JSON.stringify({ written, G2 }));
-      assert(G2.skills.woodcutting === 5000000 && G2.inventory.normal_log === 400,
-        'live-earned XP/items the envelope omits must SURVIVE it — ' + JSON.stringify({ skills: G2.skills, inv: G2.inventory }));
+      assert(G2.skills.woodcutting === 0 && G2.inventory.normal_log === 400,
+        'a NAMED skill must take the server figure and an OMITTED stack survive merge — ' + JSON.stringify({ skills: G2.skills, inv: G2.inventory }));
 
       /* CONTROL: a device with NOTHING to lose must never see the sheet. A gate
          that fires on every player is a gate nobody reads. */

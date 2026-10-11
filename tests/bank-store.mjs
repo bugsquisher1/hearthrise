@@ -132,16 +132,23 @@ export async function bankStoreGuard() {
     A.noteServerBagMove(OWN_A);
     if (A.__serverBagMoves().indexOf(OWN_A) < 0) fail('noteServerBagMove did not record ' + OWN_A);
     // Drained by the next envelope that STATES the bag, and only that.
+    /* THE WHOLE STACK DEPOSITED: the server deletes the bag row, so the envelope
+       OMITS the id. On the merge branch an omission is "unknown" — only the
+       confirmed-move note makes it a statement of zero. (A NAMED figure no
+       longer needs the note: since b568 the merge assigns every key it names.) */
     const G = { bank: {}, inventory: { [OWN_A]: 876 } };
     A.reconcileInventory(G, { bank: {} }, false, false);
     if (A.__serverBagMoves().indexOf(OWN_A) < 0) fail('an envelope with NO inventory projection consumed the confirmed-move note — absence is not a statement');
-    A.reconcileInventory(G, { inventory: { [OWN_A]: 866 } }, false, false);
-    if (G.inventory[OWN_A] !== 866) fail('the bag kept ' + G.inventory[OWN_A] + ' after the server confirmed the move and stated 866 — the merge max is exactly the live b544 symptom ("bones stayed 876")');
+    A.reconcileInventory(G, { inventory: {} }, false, false);
+    if (OWN_A in G.inventory) fail('the bag kept ' + G.inventory[OWN_A] + ' after the server confirmed depositing the whole stack — the live b544 symptom ("bones stayed 876")');
     if (A.__serverBagMoves().length) fail('the confirmed-move note was not drained: ' + JSON.stringify(A.__serverBagMoves()));
-    // And with no note, the bag stays a ratchet (nothing else changed).
+    // With no note, an OMITTED key is still unknown on merge (the incident lever never deletes)…
     const H = { inventory: { [OWN_A]: 876 } };
+    A.reconcileInventory(H, { inventory: {} }, false, false);
+    if (H.inventory[OWN_A] !== 876) fail('the merge branch deleted an OMITTED id with no confirmed move — merge must never delete (' + H.inventory[OWN_A] + ')');
+    // …but a NAMED figure is believed downward (b568, CLAUDE.md §6 — never merged upward).
     A.reconcileInventory(H, { inventory: { [OWN_A]: 866 } }, false, false);
-    if (H.inventory[OWN_A] !== 876) fail('the merge branch lowered a bag figure with NO confirmed move — this fold must stay a ratchet for everything else (' + H.inventory[OWN_A] + ')');
+    if (H.inventory[OWN_A] !== 866) fail('the merge branch kept ' + H.inventory[OWN_A] + ' over a NAMED 866 — the upward merge (Math.max) is back');
   }
 
   return problems;

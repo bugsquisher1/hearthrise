@@ -374,8 +374,8 @@
        NULL = no envelope has stated the bag yet: wait, never guess. With the seam
        off the local book is the judge, so its own bag is the count. */
     var _A = window.HearthriseAccrual;
-    var have = !serverMarketActive() ? ((window.G && window.G.inventory[itemId]) || 0)
-      : (_A && typeof _A.gateItemCount === 'function') ? _A.gateItemCount(window.G, itemId) : null;
+    var have = (_A && typeof _A.gateItemCount === 'function') ? _A.gateItemCount(window.G, itemId) : null;
+    if(have === null && !serverMarketActive()) have = (window.G && window.G.inventory[itemId]) || 0;   // no server at all: the local book
     if(have === null) return { ok:false, reason:'Your bag is still being counted — try again in a moment' };
     if(have < qty) return { ok:false, reason:'You only have ' + have + ' to list' };
 

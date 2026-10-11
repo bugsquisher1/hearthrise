@@ -8139,6 +8139,73 @@ export default [
     } finally { restoreGAndRecord(snap); window.__shopBuyLock.reset(); try { window.renderShop(); } catch (e) {} }
   }),
 
+  /* B568-1 — LIVE P1 (QA slot 0, 2026-10-11): Turnip Seed ×10 bought mid-fight;
+     the edge answered `version_conflict` (the combat settle bumped the version),
+     nobody retried, and the row read "Have: 33" against the server's 23 until a
+     reload. TWO halves, both driven: (a) the conflict is the CLIENT's retry, on a
+     new key, and the buy lands; (b) a second conflict leaves the bag at the
+     SERVER's count — the goods leg comes off before the refusal's envelope merges.
+     MUTATION: drop retryOnConflict in sendGoldIntent → (a) red; drop the goods
+     reversal in settleVerdict → (b) red ("Have: 33"). */
+  () => tryRunAsync('B568-1: a shop buy refused version_conflict is retried once, and a second refusal leaves the bag at the server\'s count', async () => {
+    const A = window.HearthriseAccrual, Gd = window.HearthriseGold, G = window.G;
+    const row = (window.SEED_SHOP || []).find((r) => r.id === 'turnip_seed') || (window.SEED_SHOP || [])[0];
+    assert(row && Gd && typeof Gd.noteGoodsPrediction === 'function', 'CONTROL: no seed row or the goods-leg seam is unpublished');
+    const snap = snapshotG(), bag = serverBagFixture(), realFetch = window.fetch, realNotify = window.notify;
+    const wasOn = A.isServerAccrualEnabled(), wasAck = A.isReplacementAcknowledged();
+    let ver = 5000, plan = [], sent = []; const said = [];
+    const env = (gold, have, ok, extra) => {
+      const skills = {}; for (const k of Object.keys(G.skills || {})) skills[k] = { xp: G.skills[k] };
+      const inventory = Object.assign({}, G.inventory); if (have > 0) inventory[row.id] = have; else delete inventory[row.id];
+      return Object.assign({ ok, verb: 'shop_buy', version: ++ver, now: Date.now(),
+        state: { gold, active_kind: 'combat', active_id: 'slime', accrued_to: null }, skills, inventory }, extra || {});
+    };
+    const conflict = () => ({ status: 409, body: env(19117, 23, false, { error: 'version_conflict', stage: 'apply' }) });
+    const drainLong = async () => { for (let i = 0; i < 40; i++) await new Promise((r) => setTimeout(r, 0)); };
+    const buy = async () => { sent = []; said.length = 0; window.buyShopItem(row.id, row.qty, row.cost); await drainLong(); };
+    try {
+      A.setServerAccrualEnabled(true); A.acknowledgeReplacement(true);
+      Gd.resetGold(); Gd.configureGold({ url: 'https://probe.supabase.co', apiKey: 'anon', authToken: () => 'jwt' });
+      window.notify = function (t) { said.push(String(t)); };
+      window.fetch = function (u, init) {
+        if (!/hr-accrue/.test(String(u))) return realFetch.apply(this, arguments);
+        let b = null; try { b = JSON.parse(init.body); } catch (e) {}
+        if (!b || b.verb !== 'shop_buy' || !plan.length) return Promise.resolve(new Response('{"ok":false,"error":"rate_limited"}', { status: 429 }));
+        sent.push(b); const step = plan.shift();
+        return Promise.resolve(new Response(JSON.stringify(step.body), { status: step.status }));
+      };
+      const fresh = () => { G.gold = 19117; G.inventory = Object.assign({}, G.inventory, { [row.id]: 23 }); bag.agree(); stampBalanceLikeLoad(G); window.__shopBuyLock.reset(); };
+
+      // (a) ONE conflict, then the server buys: one tap, two sends, the server's 33.
+      fresh(); plan = [conflict(), { status: 200, body: Object.assign(env(19117 - row.cost, 23 + row.qty, true), { receipt: { item: row.id, qty: row.qty } }) }];
+      await buy();
+      assert(sent.length === 2, 'ONE tap sent ' + sent.length + ' shop_buy — a version_conflict is the client\'s retry (once), not the player\'s');
+      assert(sent[0].intentId !== sent[1].intentId, 'the retry reused the refused key — hr_apply can hand a stored decision back to it');
+      assert((G.inventory[row.id] || 0) === 23 + row.qty && G.gold === 19117 - row.cost, 'after the retry landed the bag reads ' + G.inventory[row.id] + ' / gold ' + G.gold + ' — the server said ' + (23 + row.qty) + ' / ' + (19117 - row.cost));
+      assert(said.some((m) => /^Bought/.test(m)) && !said.some((m) => /nothing was spent/i.test(m)), 'the player was told ' + JSON.stringify(said) + ' for a buy that landed');
+
+      // (b) TWO conflicts: bounded at one retry, and the bag shows the SERVER's count — never the phantom +qty.
+      fresh(); plan = [conflict(), conflict()];
+      await buy();
+      assert(sent.length === 2, 'two conflicts sent ' + sent.length + ' shop_buy — the retry is ONE, never a loop');
+      assert((G.inventory[row.id] || 0) === 23, 'after the server refused twice the bag reads ' + G.inventory[row.id] + ' ' + row.id + ' — the server holds 23 ("Have: 33" on live)');
+      assert(G.gold === 19117, 'a refused buy left gold at ' + G.gold + ', not the server\'s 19117');
+      assert(Object.keys(Gd.goodsPredictions()).length === 0, 'a goods leg outlived its answer: ' + JSON.stringify(Gd.goodsPredictions()));
+      assert(!said.some((m) => /^Bought/.test(m)) && said.some((m) => /nothing was spent/i.test(m)), 'a refused buy told the player ' + JSON.stringify(said));
+
+      // CONTROL: a refusal about the DELTA is the realm's answer — not retried, and the bag still settles to the server.
+      fresh(); plan = [{ status: 409, body: env(19117, 23, false, { error: 'insufficient_gold', stage: 'apply' }) }];
+      await buy();
+      assert(sent.length === 1 && (G.inventory[row.id] || 0) === 23, 'an insufficient_gold refusal sent ' + sent.length + ' and left ' + G.inventory[row.id]);
+    } finally {
+      window.fetch = realFetch; window.notify = realNotify;
+      Gd.resetGold(); Gd.configureGold(null);
+      A.acknowledgeReplacement(wasAck); restoreAccrualSwitch(wasOn);
+      restoreGAndRecord(snap); bag.restore(); window.__shopBuyLock.reset();
+      try { window.renderShop(); } catch (e) {}
+    }
+  }),
+
   /* GOLD-DEADLINE-1 — the deadline spans the BODY read: headers came back, the
      body never did. The call must end as a timeout (prediction stands, the lock
      waiting on it releases), not hang until reload. MUTATION: clear the deadline

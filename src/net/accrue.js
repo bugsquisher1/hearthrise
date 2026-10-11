@@ -890,6 +890,40 @@ export async function awaitSettleRaceClear() {
   return true;
 }
 
+/* ── ONE RETRY POLICY FOR EVERY EDGE INTENT (b568, live P1) ─────────────────
+   A Turnip Seed buy during a fight was refused `version_conflict` (the combat
+   settle bumped player_state.version between the edge's read and its apply),
+   nothing retried it, and the player was handed the race. equip.js and
+   activity.js already retried once; the gold verbs, eat, enchant, trophy_claim,
+   dungeon_settle and quartermaster_buy did not. This is their one copy of the
+   rule equip.js states in full (b534):
+     · only an ANSWERED `version_conflict` whose body carries a finite `version`
+       (the edge's fresh hr_state_of read) — a refusal applied NOTHING, so a
+       second key cannot duplicate anything;
+     · a NEW key — hr_apply may hand a stored decision back to a reused one;
+     · after the settle on the wire clears, so the retry does not re-enter the
+       window it just lost; ONE retry, never a loop. */
+export const CONFLICT_MAX_TRIES = 2;
+export function isRetryableConflict(verdict) {
+  if (!verdict || verdict.outcome !== 'refused') return false;
+  const b = (verdict.body && typeof verdict.body === 'object') ? verdict.body : null;
+  const code = verdict.reason || verdict.error || (b && b.error);
+  return code === 'version_conflict' && !!b && Number.isFinite(Number(b.version));
+}
+/** `send(key)` makes ONE attempt (key undefined ⇒ the sender mints); `mintKey()`
+ *  yields the retry's key; `onRekey(old, next)` moves anything keyed to the old one. */
+export async function retryOnConflict(send, firstKey, mintKey, onRekey) {
+  let verdict = await send(firstKey);
+  for (let attempt = 1; attempt < CONFLICT_MAX_TRIES && isRetryableConflict(verdict); attempt++) {
+    await awaitSettleRaceClear();
+    const next = (typeof mintKey === 'function') ? mintKey() : null;
+    if (!next) break;
+    if (typeof onRekey === 'function') onRekey(verdict.key || firstKey || null, next);
+    verdict = await send(next);
+  }
+  return verdict;
+}
+
 /* ── C1: A REFUSED OR LATCHED WINDOW IS OWNED BY THE SETTLE ─────────────────
    The settle-first rule makes the server refuse (`settle_first`) — or makes the
    client skip — a credit whose window the away sim is about to pay. The observed
@@ -1057,6 +1091,29 @@ export function restorePendingCombatXp(snap, g) {
    forced-caller path awaits accrual, so awaiting here would deadlock. */
 let reflushP = null;
 export function combatXpReflushPromise() { return reflushP; }
+
+/* THE TAIL OF THE SETTLE ON THE WIRE — resolved only after its answer has been
+   applied AND any `settle_first` deferral handed back (reflushP set). `inFlight`
+   resolves a step earlier, before resolveCombatXpDeferral runs. */
+let settleTail = null;
+/**
+ * b568 — EVERY ATTENDED COMBAT CREDIT IS ON THE SERVER BEFORE A SWITCH LEAVES
+ * COMBAT. Awaits the settle on the wire to its tail, then the re-flush that
+ * settle fired. Bounded (SETTLE_RACE_WAIT_MS, then goal-claim.js's own request
+ * deadline); never throws. activity.js calls it after flushAttendedCredits().
+ */
+export async function awaitAttendedCreditsClear() {
+  const t = settleTail;
+  if (t) {
+    let timer = null;
+    try {
+      await Promise.race([t, new Promise((r) => { timer = setTimeout(r, SETTLE_RACE_WAIT_MS); })]);
+    } catch (e) {} finally { if (timer) clearTimeout(timer); }
+  }
+  const rf = reflushP;
+  if (rf) { try { await rf; } catch (e) {} }
+  return !!(t || rf);
+}
 
 /**
  * A settle answered. ONLY `accrued`/`nothing` mean the away window is closed.
@@ -1332,6 +1389,9 @@ export async function requestAccrual(opts) {
     } finally { e.clearTimer(timer); }
   })();
 
+  let tailDone = null;
+  const tail = new Promise((r) => { tailDone = r; });
+  settleTail = tail;
   try {
     const out = await inFlight;
     /* THE GAP HEAL, AWAY + POLL HALVES. A settle that ended with no envelope
@@ -1356,7 +1416,10 @@ export async function requestAccrual(opts) {
        deferral stands for the next flush. */
     try { if (out) resolveCombatXpDeferral(out.outcome); } catch (e) {}
     return out;
-  } finally { inFlight = null; inFlightSince = 0; if (o.heal != null) endFloorHeal(o.heal); }
+  } finally {
+    inFlight = null; inFlightSince = 0; if (o.heal != null) endFloorHeal(o.heal);
+    tailDone(); if (settleTail === tail) settleTail = null;
+  }
 }
 
 /** The ONE place an outcome becomes state. Everything funnels here. */
@@ -7084,11 +7147,11 @@ if (typeof window !== 'undefined') {
     nextAccrualBackoffMs, ACCRUE_HALT_AFTER_TRIES, playStreakKnown,
     awaySettleDone, __resetAwaySettleLatch, settleInFlight, dropPendingCombatXp,   // settle-first, read by legacy.js's combat-XP cadence
     deferPendingCombatXp, pendingCombatXpDeferral, resolveCombatXpDeferral, __resetCombatXpDeferral,   // a `settle_first` refusal defers, never discards
-    restorePendingCombatXp, combatXpReflushPromise, retireCombatXpDeferral,   // …and a CONFIRMED settle re-submits it so the server's span top-up is claimable
+    restorePendingCombatXp, combatXpReflushPromise, awaitAttendedCreditsClear, retireCombatXpDeferral,   // …and a CONFIRMED settle re-submits it so the server's span top-up is claimable
     /* …to the character that EARNED it and nobody else (QA-DEFER-ID). The
        switch path and the sign-out path call these; nothing else may. */
     accrualIdentity, sameAccrualIdentity, clearCombatXpDeferral, resetAccrualIdentity,
-    requestAccrual, awaitSettleRaceClear, bootSettlePending, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, capHoursFromVigour, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
+    requestAccrual, awaitSettleRaceClear, retryOnConflict, isRetryableConflict, CONFLICT_MAX_TRIES, bootSettlePending, beginServerAccrual, applyEnvelope, applyEnvelopeState, reconcileFall, reconcileHp, serverHp, __resetServerHp, reconcileInventory, bagHydrated, __forgetBagHydrated, reconcileBank, lastBankFoldMode, __resetBankFoldMode, noteServerBagMove, __serverBagMoves, reconcileBankRungs, reconcileWorkers, reconcileCompanions, reconcileFarm, reconcileTraits, hydrateHunt, capHoursFromVigour, reconcileHeroSlots, reconcileGemUnlocks, reconcileRecipes, reconcileDungeonCooldowns, reconcileBuffs, reconcileEventCounters, EVENT_COUNTER_PROJECTION, reconcileCombatStyle, summaryFromAway, reconcileAwayReceipt,
     SYNC_MAX_MS, receiptCredit, receiptDied, receiptDeathCause, classifyReceipt, receiptNotice, receiptSentence,
     getLastAwayReceipt, __resetAwayReceipt, collectedOf, awayFromCollected, applyCollectedReceipt,
     fallRecord, announceFall,

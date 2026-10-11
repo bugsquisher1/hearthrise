@@ -542,6 +542,9 @@
     window.goldSettleCurrency({ gold: -totalCost }, 'market.buy', _bk);
     if(typeof window.addItem === 'function') window.addItem(l.itemId, qtyWanted);
     else window.G.inventory[l.itemId] = (window.G.inventory[l.itemId]||0) + qtyWanted;
+    /* b568 — the goods leg rides the gold leg's key; gold.js takes it back on
+       any answer that is not a receipt (a lost race must not leave phantom stock). */
+    if(_bS && _bk && typeof _bS.noteGoodsPrediction === 'function'){ var _bg = {}; _bg[l.itemId] = qtyWanted; _bS.noteGoodsPrediction(_bk, _bg); }
     if(_bS && _bk){
       var _bp = _bS.buyMarketListing(l.id, qtyWanted, _bk);
       if(_bp && _bp.catch) _bp.catch(function(){});
@@ -627,6 +630,7 @@
       window.goldSettleCurrency({ gold: -cost }, 'market.buy_aggregated', _ak);
       if(typeof window.addItem === 'function') window.addItem(itemId, take);
       else window.G.inventory[itemId] = (window.G.inventory[itemId]||0) + take;
+      if(_aS && _ak && typeof _aS.noteGoodsPrediction === 'function'){ var _ag = {}; _ag[itemId] = take; _aS.noteGoodsPrediction(_ak, _ag); }   // b568
       if(_aS && _ak){
         var _ap = _aS.buyMarketListing(list[lIdx].id, take, _ak);
         if(_ap && _ap.catch) _ap.catch(function(){});

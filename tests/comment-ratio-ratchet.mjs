@@ -104,6 +104,7 @@
 // Exit: 0 green (or green-with-note) · 1 a ratio rose · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
 
+// mutant-anchors: none — the proof drives the classifier and ratchet on in-memory fixtures
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, normalize, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';

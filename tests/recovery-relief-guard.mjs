@@ -36,6 +36,7 @@
 // NO ?v= on the imports (this is tests/**, not a browser module — b332).
 // ════════════════════════════════════════════════════════════════════════
 
+// mutant-anchors: src/data/ supabase/migrations/2026-09-10-dungeon-catalogue.generated.sql
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';

@@ -64,6 +64,7 @@
 // the tree), with their imports re-pointed at the real files, and re-run every
 // claim against them. Credential-free, database-free, no browser.
 // ════════════════════════════════════════════════════════════════════════
+// mutant-anchors: src/net/accrue.js src/net/live.js src/net/client-state.js
 import { readFile, writeFile, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';

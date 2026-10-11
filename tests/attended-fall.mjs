@@ -67,6 +67,7 @@
 // uses. NO ?v= on the imports below: this is tests/**, not a browser module (b332).
 // ════════════════════════════════════════════════════════════════════════
 
+// mutant-anchors: src/net/accrue.js src/legacy.js src/features/death-sheet.js src/net/goal-claim.js
 import { readFile, writeFile, cp, mkdtemp, rm } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { join } from 'node:path';

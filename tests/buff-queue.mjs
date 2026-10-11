@@ -191,10 +191,18 @@ const MIG_RETIRED = '2026-09-23-client-state-retired-fields.sql';
    most recently-splicable text. Moving this constant when a new file patches
    hr_apply is the registration step; [14] then covers the newest patch rather
    than a body two files behind it. */
-const HR_APPLY_LAST = '2026-09-28-buff-segment-from.sql';
-/* The two hr_apply touchers before it, kept in [14]'s loop rather than dropped
+/* Moved 2026-10-10 (b566): xp-frac-carry, companion-xp-frac and
+   party-settle-frac-keys splice hr_apply after the segment-start file, and the
+   b566 edge reads hr_accrue_cap_ms (world-tick-presence-horizon, order 249)
+   at its accrue/spend sites — a mutant cut at the segment-start file booted a
+   chain the [16]-[18] edge drive could not call (the arm THREW). */
+const HR_APPLY_LAST = '2026-10-13-party-settle-frac-keys.sql';
+/* The segment-start file (Security F3, 2026-09-28): its §3 is blinded below. */
+const MIG_SEG_FROM = '2026-09-28-buff-segment-from.sql';
+/* The hr_apply touchers before it, kept in [14]'s loop rather than dropped
    when the constant moved: each must still re-apply clean at chain end. */
-const HR_APPLY_PRIOR = ['2026-09-17-attended-xp-on-settle.sql', '2026-09-28-settle-before-mutate.sql'];
+const HR_APPLY_PRIOR = ['2026-09-17-attended-xp-on-settle.sql', '2026-09-28-settle-before-mutate.sql',
+  MIG_SEG_FROM, '2026-10-09-xp-frac-carry.sql', '2026-10-12-companion-xp-frac.sql'];
 
 /* ── THE §4 BLINDS ─────────────────────────────────────────────────────────
    Each migration's self-check is short-circuited with a `return;` at the head of
@@ -276,7 +284,7 @@ const BLIND = {
      and asserts where each segment starts, so a mutation to the tail rule
      (second_helping_restarts) makes it raise at apply time — a tick for the
      migration, not for this guard. Blinded at its first assertion. */
-  [HR_APPLY_LAST]: ['  -- (d0) THE TEXT. Both patches present; the grant posture unchanged.',
+  [MIG_SEG_FROM]: ['  -- (d0) THE TEXT. Both patches present; the grant posture unchanged.',
     ['  return;  -- §3 SHORT-CIRCUITED FOR THE MUTATION PROOF (tests/buff-queue.mjs)',
       '  -- (d0) THE TEXT. Both patches present; the grant posture unchanged.'].join('\n')],
   [MIG_DENY]: ["  v_def := pg_get_functiondef('public.hr_put_client_state__ungated(int,jsonb,uuid)'::regprocedure);",
@@ -732,7 +740,13 @@ async function run(mutate, blind) {
      it is MOVED to [14c] below, where MIG_DENY is the chain end and the question
      "is this file idempotent" is the one actually being asked. MIG_RETIRED joins
      the loop in its place, because it is now this body's chain end. */
-  for (const file of [MIG, MIG_SCALE, ...HR_APPLY_PRIOR, HR_APPLY_LAST, MIG_RETIRED]) {
+  /* HR_APPLY_LAST (party-settle-frac-keys) is NOT in this full-chain loop:
+     its §0 pins hr_party_tick_settle's prosrc md5, and 2026-10-14-world-tick-
+     m4-party-horizon.sql re-cuts that body later in the chain, so a second
+     apply at chain END is a refusal BY DESIGN (the same b484 protection as the
+     restatement, measured 2026-10-10). The file is replayed by its own guards,
+     tests/delta-key-allowlists.mjs and tests/world-tick-m4-party-horizon.mjs. */
+  for (const file of [MIG, MIG_SCALE, ...HR_APPLY_PRIOR, MIG_RETIRED]) {
     let sql = (await readFile(join(ROOT, 'supabase', 'migrations', file), 'utf8')).replace(/\r\n/g, '\n');
     /* The SAME patched text the chain was built from, so under a mutation this
        measures the MUTATED file's idempotency rather than a mismatch. */

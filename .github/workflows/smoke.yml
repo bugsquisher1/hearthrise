@@ -2099,7 +2099,7 @@ jobs:
       # names never ids, its own 20/min bucket; the per-(hunt, member) tally is
       # the ledger; hr_party_view retires share_bp/xp/gold. §7 drives the REAL
       # settle: ATTENDED (a present hunter's windows) and AWAY (camping →
-      # rejoining → hunting, camping_today at the clamp). --mutate: 18 mutants
+      # rejoining → hunting, camping_today at the clamp). --mutate: 18 SQL mutants + 3 client-scan mutants
       # (non-member reads, ids leak, another party's hunt/events, rate gate
       # bypassed, ...). Measured locally 2026-10-15: 2 s plain + 6 s mutate
       # template-warm (~30 s each cold).
@@ -2112,7 +2112,7 @@ jobs:
       # party_hunt SELECT lockdown (2026-10-15-party-hunt-select-lockdown.sql,
       # Security GO-WITH-CHANGES #2): stopped_by can carry a co-member uuid, so
       # no client reads party_hunt directly — zero policies, no client grant,
-      # a grep proof over src/** + supabase/functions/**. --mutate: 3 mutants.
+      # a grep proof over src/** + supabase/functions/**. --mutate: 5 mutants.
       - name: Party hunt — no client reads the table directly
         if: ${{ !cancelled() }}
         run: |

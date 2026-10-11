@@ -2092,7 +2092,7 @@ export default [
       window.HearthriseGoalClaim = {
         isSignedIn: () => true,
         creditCombatXp: (m) => {
-          const r = refuse; refuse = false;   // the first credit is refused settle_first; the re-send is admitted
+          const r = refuse;   // refused settle_first until the settle has answered (the watermark is stale until then)
           order.push(r ? 'credit:settle_first' : 'credit:ok');
           return Promise.resolve(r ? { ok: false, error: 'settle_first' } : { ok: true, credited: m });
         },
@@ -2104,7 +2104,7 @@ export default [
         const verb = (b && b.verb) || 'accrue';
         order.push(verb);
         if (verb === 'accrue') {   // the settle takes a real round trip
-          return new Promise((r) => setTimeout(() => r(new Response(JSON.stringify({ ok: true, accrued: false, reason: 'idle', version: 1, now: new Date().toISOString() }), { status: 200 })), 40));
+          return new Promise((r) => setTimeout(() => { refuse = false; r(new Response(JSON.stringify({ ok: true, accrued: false, reason: 'idle', version: 1, now: new Date().toISOString() }), { status: 200 })); }, 40));
         }
         return Promise.resolve(new Response('{"ok":false,"error":"rate_limited"}', { status: 429 }));
       };
@@ -2116,7 +2116,7 @@ export default [
       await M.declareActivity('idle', null);
       for (let i = 0; i < 20; i++) await new Promise((r) => setTimeout(r, 10));
       const sw = order.indexOf('set_activity'), ok = order.indexOf('credit:ok');
-      assert(order[0] === 'credit:settle_first' && order.indexOf('accrue') > 0, 'CONTROL: the fixture did not reproduce the refused flush + settle: ' + JSON.stringify(order));
+      assert(order[0] === 'credit:settle_first' && order.indexOf('accrue') > 0 && order.indexOf('accrue') < ok, 'CONTROL: the fixture did not reproduce the refused flush + settle: ' + JSON.stringify(order));
       assert(sw > 0 && ok > 0, 'CONTROL: the switch or the re-flush never went out: ' + JSON.stringify(order));
       assert(ok < sw, 'the deferred combat XP re-flush went out AFTER the switch (' + JSON.stringify(order) + ') — the server is no longer in combat and answers not_in_combat, so the XP the player saw is never paid');
     } finally {

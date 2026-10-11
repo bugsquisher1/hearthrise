@@ -169,7 +169,13 @@ export default [
          MUTATION: put `G.gems = (G.gems||0) + rw.gems` back in daily-reward → RED. */
       Gd.resetGold();
       A.acknowledgeReplacement(true);
-      seedPlayStreak(7);
+      /* Day 7 reached STRAIGHT (day 6 claimed yesterday, on the server's own
+         rows): the only arrival that pays gems since W0's skip-exploit fix. */
+      {
+        const B = window.HearthriseCore.botd, n = B.utcDayNumber(Date.now());
+        D.noteServerStreak({ now: new Date().toISOString(), state: {},
+          progress: [{ kind: 'daily', key: 'login', period: B.utcDayKey((n - 1) * 86400000), value: 6, state: 'claimed' }] });
+      }
       G.dailyReward = { lastClaimDay: 0 };
       G.gold = 0; G.gems = 0;
       const rw = D.rewardFor(G);
@@ -297,6 +303,7 @@ export default [
         + Gd.predictedGold() + ') — from here every comparison against gold answers false (F8)');
     } finally {
       window.fetch = realFetch;
+      try { D.noteServerStreak(null); } catch (e) {}
       try { A.hideReplacementSheet(); } catch (e) {}
       Gd.resetGold(); Gd.configureGold(null);
       A.acknowledgeReplacement(wasAck);

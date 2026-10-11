@@ -2552,38 +2552,29 @@ export default [
     } finally { restoreG(snap); }
   })),
 
-  () => tryRun('b220: the harvest daily scales with the farm it measures', () => {
+  () => tryRun('b220 (re-ruled W0): the harvest daily is ONE harvest round at the camp, a fixed row the server pays', () => {
+    /* It used to scale with the client's plot cap, which the server cannot see,
+       so hr_claim_daily answered it not_creditable on every day it was dealt
+       (Security, 2026-10-10: 17 of 31 days). It is a fixed row now, priced by
+       src/data/goal-catalogue.js and 2026-10-16-daily-harvest-credit.sql. The
+       b495 floor still holds: the camp's one harvest round finishes it. */
     const snap = snapshotG();
     try {
       const pool = window.DAILY_TASK_POOL;
       assert(Array.isArray(pool), 'DAILY_TASK_POOL is not exposed for testing');
       assert(pool.map((f) => f()).filter((t) => t.type === 'harvest').length === 1,
-        'expected exactly one harvest daily after folding daily_harvest_big away');
-      window.G.homestead = { tier: 0 };                    // Wanderer's Camp — 2 plots
-      const small = pool.map((f) => f()).find((t) => t.type === 'harvest');
-      /* b495 (balance audit): the floor was 10 and it was UNREACHABLE at the
-         starting property. Two plots of 4h turnips yielding 2-4 is ~6 produce a
-         cycle, so a floor of 10 meant TWO grow cycles — ~8 wall-clock hours —
-         for a daily that resets at UTC midnight. The floor is now 6 = ONE
-         harvest round at the camp. Derived, not copied: the expectation below is
-         computed from the crop the camp actually grows, so a change to turnip's
-         yield moves the test with the game rather than against it. */
+        'expected exactly one harvest daily');
+      const cat = window.HearthriseCore && window.HearthriseCore.goalCatalogue;
+      const row = cat && cat.DAILY_TASK_REWARDS && cat.DAILY_TASK_REWARDS.daily_harvest;
+      for (const tier of [0, 5]) {
+        window.G.homestead = { tier };
+        const t = pool.map((f) => f()).find((x) => x.type === 'harvest');
+        assert(t.goal === 6 && t.reward === 300, 'tier ' + tier + ': the harvest daily is ' + t.goal + ' crops / ' + t.reward + 'g, not the fixed 6 / 300');
+        if (row) assert(row.goal === t.goal && row.gold === t.reward, 'the client row and the server catalogue disagree');
+      }
       const camp = 2;
       const perRound = camp * ((window.CROPS.turnip.yield[0] + window.CROPS.turnip.yield[1]) / 2);
-      assert(small.goal === 6,
-        'a 2-plot camp goal must floor at 6, got ' + small.goal);
-      assert(small.goal <= perRound,
-        'the camp harvest daily asks for ' + small.goal + ' crops but ONE full harvest round at the '
-        + 'starting property yields ~' + perRound + ' — that is more than one 4h grow cycle, which is '
-        + 'the b495 defect (a same-day daily that needs two cycles cannot be finished after noon)');
-      assert(small.reward === small.goal * 30,
-        'the camp reward must scale with the goal, got ' + small.reward);
-      window.G.homestead = { tier: 5 };                    // Hearthrise Castle — 12 plots
-      const big = pool.map((f) => f()).find((t) => t.type === 'harvest');
-      assert(big.goal === 36, 'a 12-plot castle goal must be 3 x 12 = 36, got ' + big.goal);
-      assert(big.reward === big.goal * 30, 'the reward must scale with the goal, got ' + big.reward);
-      assert(!/Harvest 25 crops/.test(small.label + '|' + big.label),
-        'the fixed "Harvest 25 crops" daily must be gone');
+      assert(6 <= perRound, 'one harvest round at the camp (~' + perRound + ') no longer finishes the 6-crop daily (b495)');
     } finally { restoreG(snap); }
   }),
 

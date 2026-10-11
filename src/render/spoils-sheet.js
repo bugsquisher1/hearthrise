@@ -19,7 +19,7 @@
 // Layout is the .hr-scrim/.hr-sheet primitive; skin is src/styles/spoils.css.
 // Escape presses the Done button (src/render/modal-sheet.js).
 // ============================================================
-import { DUNGEON_CLEAR_LORE } from '../data/dungeon-lore.js?v=565';
+import { DUNGEON_CLEAR_LORE } from '../data/dungeon-lore.js?v=566';
 
 function esc(x) {
   return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;')

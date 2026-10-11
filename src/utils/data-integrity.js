@@ -20,7 +20,7 @@
 // LEGACY-ONECOPY-1.
 //
 // Imported for side effects only:
-//   import './utils/data-integrity.js?v=565';
+//   import './utils/data-integrity.js?v=566';
 // ============================================================
 
 const RUN_DELAY_MS = 1500;        // wait for legacy.js to finish publishing

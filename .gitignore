@@ -103,7 +103,12 @@ tests/smoke-run.log
 
 # PGlite chain snapshots (tests/pglite-template.mjs). Content-addressed, rebuilt
 # on demand, never a source of truth. Deleting the directory is always safe.
-tests/.pglite-cache/
+# No trailing slash: in a run-ci-local family checkout it is a junction to the
+# shared cache, and a `dir/` pattern does not match a link.
+tests/.pglite-cache
+
+# tests/run-ci-local.mjs parallel mode: one throwaway checkout of HEAD per family.
+.ci-local/
 
 # tools/css-ab-pixel-diff.mjs: the reference stylesheets it materialises from a
 # git ref while it runs, and the diff PNGs it writes when pixels actually moved.

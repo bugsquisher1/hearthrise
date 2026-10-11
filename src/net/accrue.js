@@ -4228,6 +4228,12 @@ function applyEnvelopeStateBody(G, res, ownKey) {
   /* The contract's server figure: settle, switch, gold, death; the idle boot is
      record.js hydrationStep('bounty'). Its own try, so a throw above cannot skip it. */
   try { const w = (typeof window !== 'undefined') ? window : null; if (w && typeof w.hrNoteServerBounty === 'function') w.hrNoteServerBounty(res); } catch (e) {}
+  /* MODERATION (2026-10-11-name-moderation.sql) — hr_state_of's top-level
+     `must_rename` opens the non-dismissable rename prompt. Own try. */
+  try {
+    const w = (typeof window !== 'undefined') ? window : null;
+    if (w && w.HearthriseIdentity && typeof w.HearthriseIdentity.noteEnvelope === 'function') w.HearthriseIdentity.noteEnvelope(res);
+  } catch (e) {}
   written.absolute = absolute;
 
   /* THE PRICED WINDOW, OBSERVED - same KEY-PRESENCE rule; `accrued_to` answers

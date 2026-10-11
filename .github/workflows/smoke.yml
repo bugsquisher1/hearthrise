@@ -795,6 +795,19 @@ jobs:
           node tests/bestiary-target.mjs
           node tests/bestiary-target.mjs --mutate
 
+      # 2026-10-11-name-moderation.sql (Security): a name other players see is
+      # the server's to refuse and to take back. On the WHOLE chain, as the
+      # client roles: blocked variants refused name_blocked (never echoed), the
+      # Scunthorpe set passes, no direct clan insert, the moderator RPC and the
+      # blocklist unreachable, a moderator rename reaches the board, the ledger,
+      # the stamped copies and the envelope. --mutate plants five defects, each
+      # CAUGHT by a named §13 gate.
+      - name: Name moderation — server content filter, moderator rename
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/name-moderation.mjs
+          node tests/name-moderation.mjs --mutate
+
   # ── db-replay-2 ── THE SECOND HALF OF db-replay, SPLIT OUT 2026-09-20. Same
   # inputs (an applied migration chain), same reason for the split as
   # utc-midnight-replay: the family had outgrown one job's budget with no

@@ -2126,6 +2126,16 @@ jobs:
           node tests/discord-gift.mjs
           node tests/discord-gift.mjs --mutate
 
+      # Absence claim -> the account wallet (2026-10-19-absence-claim-wallet.sql,
+      # Security F1): an attended claim pays gold on the pledge's character and
+      # its gem into the wallet once per account per day; replay refused.
+      # --mutate: 6 SQL mutants, each red on its named §2 arm.
+      - name: Absence claim — gold on char_slot, the gem into the account wallet once
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/absence-claim-wallet.mjs
+          node tests/absence-claim-wallet.mjs --mutate
+
       # NO SELF-ECHO FRAMES (2026-10-09-frame-self-echo.sql). A player's own
       # HTTP write is not pushed back to their own topic; another character's
       # write, a world-tick settle and every client-shaped request still are.

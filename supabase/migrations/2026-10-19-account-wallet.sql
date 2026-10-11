@@ -115,6 +115,13 @@
 --   anchor (untouched here) and reads gems_in per (user, slot) in
 --   hr_login_bonus_ready: it must read the ACCOUNT (kind='wallet' rows, any
 --   slot). Both branches conflict with origin/main today and were not merged.
+--   b570 BUNDLE (set/b570-bundle): this file now follows muster-chest-xp-credit,
+--   rally-points-server and quest-xp-absence-pay; world_event_claim__ungated is
+--   restated from rally-points-server's body (§0). The absence claim's gem moves
+--   to the wallet in 2026-10-19-absence-claim-wallet.sql, applied IMMEDIATELY
+--   after this file (Security F1); discord-gift and the w0c files follow it, and
+--   2026-10-16-w0f-fun-content.sql restates hr_claim_milestone__ungated from
+--   this file's post-image.
 --
 -- RESTATEMENT-DEBT-ACK: hr_apply (173 kB, the money body) takes five anchored gem edits here because restating it whole in the same lane as a currency move is the larger risk; every other gem body is restated whole and pinned, and slice 7 owns the hr_apply restatement.
 --
@@ -176,10 +183,12 @@ begin
     raise exception 'account-wallet §0: % is absent or not the body this file restates (md5 %) — another lane moved it; restate from that body instead', 'public.raid_claim__ungated(text,uuid,text,integer)', v_md5;
   end if;
   v_md5 := (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = to_regprocedure('public.world_event_claim__ungated(text,integer)'));
-  -- POST-w0a ONLY: 2026-10-10-w0a-catalogue-cuts.sql removes the Muster Seal
-  -- lines from this body and applies first; restating over the pre-w0a body
-  -- (a9674b40…, production until w0a applies) would undo that cut.
-  if v_md5 is null or v_md5 not in ('b2a7161463b9dff9e893d1a20221f2a6', 'dba6d5012a9419f88e1683710dbe8e9d') then
+  -- POST-RALLY ONLY (b570 bundle): the chain is w0a-catalogue-cuts (Muster
+  -- Seal cut, b2a71614…) -> muster-chest-xp-credit (XP credit) ->
+  -- rally-points-server (points from the journal, 7919d955…). This file is
+  -- restated from that last body; restating over any earlier one would undo
+  -- a cut, the XP credit or the server-derived points.
+  if v_md5 is null or v_md5 not in ('7919d955630bd87862f4e9e64d42fa62', '4358d8a73b95b0c6e96337e6682218d6') then
     raise exception 'account-wallet §0: % is absent or not the body this file restates (md5 %) — another lane moved it; restate from that body instead', 'public.world_event_claim__ungated(text,integer)', v_md5;
   end if;
   v_md5 := (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = to_regprocedure('public.hr_create_character(integer)'));
@@ -1505,7 +1514,6 @@ as $$
 declare
   v_join     public.world_event_joins%rowtype;
   v_tot      public.world_event_totals%rowtype;
-  v_median   numeric;
   v_rows     int;
   v_slot     int := coalesce(p_slot, 0);
   v_gold     bigint := 0;
@@ -1520,14 +1528,20 @@ declare
   v_iid      text;
   v_iqty     bigint;
   v_qty_total bigint := 0;
+  -- XP credit locals (2026-10-10-muster-chest-xp-credit.sql)
+  v_xc       jsonb;
+  v_xp_total bigint := 0;
+  v_bud      jsonb;
+  v_sk       text;
+  v_amt      bigint;
+  -- the server's tally and its fixed bands (2026-10-10-rally-points-server.sql)
+  v_ref      jsonb;
+  v_bands    jsonb;
 begin
   if auth.uid() is null then
     return jsonb_build_object('ok', false, 'error', 'not_signed_in');
   end if;
 
-  -- The credit target must be one of the caller's OWN characters. Checked BEFORE
-  -- any consume, so a bad/foreign slot never spends the claim. auth.uid() scopes
-  -- it to the caller, so a forged slot can only miss the caller's own rows.
   if not exists (select 1 from public.player_state where user_id = auth.uid() and slot = v_slot) then
     return jsonb_build_object('ok', false, 'error', 'no_character', 'slot', v_slot);
   end if;
@@ -1540,9 +1554,6 @@ begin
   if v_join.claimed then
     return jsonb_build_object('ok', false, 'error', 'already_claimed');
   end if;
-  if v_join.points <= 0 then
-    return jsonb_build_object('ok', false, 'error', 'no_contribution');
-  end if;
   if p_day_key is distinct from public.hr_utc_day_key() then
     return jsonb_build_object('ok', false, 'error', 'expired');
   end if;
@@ -1551,29 +1562,50 @@ begin
                               'ends_at', v_join.window_end);
   end if;
 
+  -- ── THE TALLY IS THE SERVER'S. Re-derived from the join character's
+  --    journalled activity in [joined_at, window_end] and SET on the row (and
+  --    the bar) before anything reads it. A stored number is never trusted.
+  v_ref := public.hr_rally_refresh(auth.uid(), p_day_key);
+  select * into v_join from public.world_event_joins
+    where day_key = p_day_key and user_id = auth.uid();
+  v_bands := public.hr_rally_point_rules(public.hr_rally_event_for_key(v_join.event_key))->'bands';
+  if v_join.points <= 0 then
+    return jsonb_build_object('ok', false, 'error', 'no_contribution');
+  end if;
+  if v_join.points < (v_bands->>'answered')::bigint then
+    return jsonb_build_object('ok', false, 'error', 'below_answered',
+                              'points', v_join.points, 'need', (v_bands->>'answered')::bigint);
+  end if;
+
   select * into v_tot from public.world_event_totals where event_key = v_join.event_key;
   v_held := v_tot.met_at is not null;
 
-  select percentile_cont(0.5) within group (order by points)
-    into v_median
-    from public.world_event_joins
-   where event_key = v_join.event_key and points >= 200;
-  v_median := coalesce(nullif(v_median, 0), 200);
-
-  -- Ceiling per §5.2: 7,500 gold · 10 gems. No hearth_token. (W0: the Rally
-  -- Seal is cut — this body no longer computes, journals or returns one.)
+  -- FIXED bands (game-designer ruling 2026-10-10): nobody else's tally moves
+  -- yours. Ceiling per §5.2: 7,500 gold · 10 gems. No hearth_token.
   v_gold := 1500; v_gems := 2; v_band := 'answered';
-  if v_join.points >= v_median * 0.60 then
+  if v_join.points >= (v_bands->>'silver')::bigint then
     v_gold := v_gold + 1500; v_gems := v_gems + 2; v_band := 'silver';
   end if;
-  if v_join.points >= v_median * 1.50 then
+  if v_join.points >= (v_bands->>'gold')::bigint then
     v_gold := v_gold + 2000; v_gems := v_gems + 2; v_band := 'gold';
   end if;
   if v_held then
     v_gold := (v_gold * 1.5)::bigint; v_gems := v_gems + 2;
   end if;
 
-  -- ── THE CONSUME. Conditional flip; row_count = 0 means a replay already took it.
+  v_chest    := public.hr_rally_chest(v_join.event_key, v_gold, v_gems, 0);
+  v_gold_out := coalesce((v_chest->>'gold')::bigint, v_gold);
+  v_gems_out := coalesce((v_chest->>'gems')::int,    v_gems);
+
+  v_xc       := public.hr_rally_xp_credit(v_join.event_key, v_chest);
+  v_xp_total := coalesce((v_xc->>'total')::bigint, 0);
+  if v_xp_total > 0 then
+    v_bud := public.hr_day_budget_check(auth.uid(), v_slot, 0, v_xp_total, 0, 0);
+    if v_bud is not null then
+      return jsonb_build_object('ok', false, 'error', 'daily_budget', 'detail', v_bud, 'slot', v_slot);
+    end if;
+  end if;
+
   update public.world_event_joins
      set claimed = true, claimed_at = now()
    where day_key = p_day_key and user_id = auth.uid() and claimed = false;
@@ -1582,16 +1614,6 @@ begin
     return jsonb_build_object('ok', false, 'error', 'already_claimed');
   end if;
 
-  -- ── THE THEMED CHEST. Server owns the pool AND the conversion (rally-v2 §3).
-  --    Converts a slice of the band gold into domain materials + XP and returns
-  --    the reduced gold (goldOut). No client value crosses in — event_key is the
-  --    server's own join row, hr_rally_chest re-derives the theme from it.
-  v_chest    := public.hr_rally_chest(v_join.event_key, v_gold, v_gems, 0);
-  v_gold_out := coalesce((v_chest->>'gold')::bigint, v_gold);
-  v_gems_out := coalesce((v_chest->>'gems')::int,    v_gems);
-
-  -- ── THE CREDIT (after the consume guard → exactly once). Same transaction as
-  --    the consume, so a rollback undoes both; a replay never reaches here.
   update public.player_state
      set gold = coalesce(gold, 0) + v_gold_out,
          version = version + 1,
@@ -1603,10 +1625,12 @@ begin
                      'world_event:' || p_day_key, now() + interval '2 days') ->> 'paid')::int;
   end if;
 
-  -- ── THE ITEMS. Written to player_inventory — the source of truth the accrual
-  --    absolute envelope is built FROM, so a credited item survives the flip by
-  --    construction. Additive upsert (existing qty + granted), scoped to the
-  --    caller's own (user_id, slot).
+  for v_sk, v_amt in select key, value::bigint from jsonb_each_text(v_xc->'by_skill') loop
+    insert into public.player_skills as ps (user_id, slot, skill_id, xp)
+      values (auth.uid(), v_slot, v_sk, v_amt)
+      on conflict (user_id, slot, skill_id) do update set xp = ps.xp + excluded.xp;
+  end loop;
+
   for v_it in select * from jsonb_array_elements(v_chest->'items') loop
     v_iid  := v_it->>'id';
     v_iqty := coalesce((v_it->>'qty')::bigint, 0);
@@ -1622,17 +1646,20 @@ begin
     (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta)
   values
     (auth.uid(), v_slot, 'rally', 'world_event_claim:' || p_day_key,
-     v_gold_out, 0, 0, 0, 0,
+     v_gold_out, 0, v_xp_total, 0, 0,
      jsonb_build_object('band', v_band, 'held', v_held, 'gems_paid', v_gems_out,
                         'day_key', p_day_key,
                         'event_key', v_join.event_key,
                         'band_gold', v_gold, 'items', v_chest->'items',
-                        'item_qty', v_qty_total, 'xp', v_chest->'xp'));
+                        'item_qty', v_qty_total, 'xp', v_xc->'list',
+                        'xp_chest', v_chest->'xp',
+                        'points', v_join.points, 'bonus', v_join.bonus,
+                        'char_slot', v_join.char_slot, 'points_by', v_ref->'by'));
 
   return jsonb_build_object('ok', true, 'band', v_band, 'held', v_held,
     'gold', v_gold_out, 'band_gold', v_gold, 'gems', v_gems_out,
-    'items', v_chest->'items', 'xp', v_chest->'xp',
-    'points', v_join.points, 'median', v_median,
+    'items', v_chest->'items', 'xp', v_xc->'list', 'xp_total', v_xp_total,
+    'points', v_join.points,
     'day_key', p_day_key, 'event_key', v_join.event_key, 'slot', v_slot,
     'credited', true, 'chest', true);
 end $$;

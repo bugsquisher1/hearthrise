@@ -48,6 +48,7 @@ export const REGISTERED = [
   ['tests/party-hunt-view.mjs', '--mutate'],
   ['tests/party-hunt-select-lockdown.mjs', '--mutate'],
   ['tests/discord-gift.mjs', '--mutate'],
+  ['tests/absence-claim-wallet.mjs', '--mutate'],
   ['tests/progress-coalesce.mjs', '--mutate'],
 ];
 

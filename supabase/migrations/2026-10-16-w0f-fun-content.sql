@@ -4,8 +4,9 @@
 -- A DATA CLOSURE (§1/§2) PLUS ONE RAISE-ONLY FUNCTION RESTATEMENT (§3/§4).
 -- NO NEW GRANT, NO NEW OBJECT:
 --
---   §3    hr_claim_milestone__ungated restated VERBATIM from
---         2026-09-27-ledger-of-firsts.sql with ONE number changed: hunterAll
+--   §3    hr_claim_milestone__ungated restated VERBATIM from the
+--         2026-10-19-account-wallet.sql post-image (b570 bundle: gems go to
+--         the account wallet; pinned in §0) with ONE number changed: hunterAll
 --         ("Bestiary Master", slay every monster) 108 -> 113, because five
 --         monsters join the roster. Same reward, harder to reach. §4 walks it.
 --
@@ -529,15 +530,17 @@ end $$;
 -- milestones.js MONSTER_TOTAL, src/features/collection-log.js, and the CHAIN-END
 -- restatement of this function — which is now THIS file). Five monsters joined
 -- the roster, so the threshold rises with them.
--- The body is 2026-09-27-ledger-of-firsts.sql §1 VERBATIM; the ONLY change is
+-- The body is the 2026-10-19-account-wallet.sql restatement VERBATIM (§0 pins
+-- it; ledger-of-firsts' original wrote player_state.gems, which the wallet
+-- drops); the ONLY change is
 -- the hunterAll arm's v_thresh, 108 -> 113. RAISE-ONLY: the reward (50,000 gold
--- + 25 gems, once per character) is unchanged and is now HARDER to reach, so no
+-- per character + 25 gems once per account) is unchanged and is now HARDER to reach, so no
 -- faucet moves; a character who already claimed it keeps it (the once-guard row
 -- is untouched). The wrapper hr_claim_milestone, its grants and the refusal
 -- journal are not restated (see the ledger-of-firsts header for why).
--- live-hash-drift: this function carries no body pin (ledger-of-firsts §0 note);
+-- live-hash-drift: §0 now pins the pre-image (the wallet post-image d67a74d1…) or this file's own;
 -- the Coordinator re-measures after the apply as for any restatement.
--- REVERSIBILITY: re-apply 2026-09-27-ledger-of-firsts.sql §1 (the 108 body).
+-- REVERSIBILITY: restate the 2026-10-19-account-wallet.sql body (the 108 body).
 
 do $$
 begin
@@ -546,10 +549,23 @@ begin
     raise exception 'PRECONDITION: hr_claim_milestone(+__ungated) missing — apply 2026-09-27-ledger-of-firsts.sql first'; end if;
   if to_regprocedure('public.hr_bestiary_of(uuid,integer)') is null then
     raise exception 'PRECONDITION: hr_bestiary_of(uuid,int) missing'; end if;
+  -- b570 bundle: restated from the ACCOUNT-WALLET post-image (gems credit the
+  -- wallet once per account, 'milestone:<id>'), never from ledger-of-firsts,
+  -- whose body writes player_state.gems — a column the wallet drops.
+  if to_regprocedure('public.hr_wallet_credit(uuid,integer,bigint,text,timestamp with time zone)') is null then
+    raise exception 'PRECONDITION: hr_wallet_credit missing — apply 2026-10-19-account-wallet.sql first'; end if;
+  if (select md5(replace(prosrc, chr(13), '')) from pg_proc
+       where oid = to_regprocedure('public.hr_claim_milestone__ungated(text,integer)'))
+     not in ('d67a74d12284e0a01718918f32cb5548', '1e71e9e68d6efe753c17279a214088c3') then
+    raise exception 'w0f §0: hr_claim_milestone__ungated is not the account-wallet post-image (or this file''s) — another lane moved it; restate from that body instead'; end if;
 end $$;
 
-create or replace function public.hr_claim_milestone__ungated(p_milestone_id text, p_slot int)
-returns jsonb language plpgsql security definer set search_path = public as $$
+create or replace function public.hr_claim_milestone__ungated(p_milestone_id text, p_slot integer)
+ returns jsonb
+ language plpgsql
+ security definer
+ set search_path to 'public'
+as $$
 declare
   v_slot   int := coalesce(p_slot, 0);
   v_domain text;
@@ -607,22 +623,29 @@ begin
   -- CREDIT (after the guard → exactly once, same transaction as the consume).
   update public.player_state
      set gold = coalesce(gold, 0) + v_gold,
-         gems = coalesce(gems, 0) + v_gems,
          version = version + 1, updated_at = now()
    where user_id = auth.uid() and slot = v_slot;
+  -- GEMS -> THE ACCOUNT WALLET, ONCE PER ACCOUNT (2026-10-19-account-wallet.sql).
+  --   The grant key 'milestone:<id>' is the account's, not this character's: a second
+  --   character claiming the same reward is paid its gold and NO gems (paid 0).
+  --   v_gems becomes what the wallet actually paid, so the journal and the
+  --   receipt below can never claim gems that did not land.
+  if v_gems > 0 then
+    v_gems := (public.hr_wallet_credit(auth.uid(), v_slot, v_gems, 'milestone:' || p_milestone_id, null) ->> 'paid')::int;
+  end if;
   insert into public.player_ledger
     (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta)
   values
     (auth.uid(), v_slot, 'collection', 'milestone_claim:' || p_milestone_id,
      v_gold, 0, 0, 0, 0,
      jsonb_build_object('milestone', p_milestone_id, 'domain', v_domain,
-                        'goal', v_thresh, 'have', v_have, 'gems', v_gems));
+                        'goal', v_thresh, 'have', v_have, 'gems_paid', v_gems));
 
   return jsonb_build_object('ok', true, 'milestone', p_milestone_id, 'gold', v_gold,
     'gems', v_gems, 'slot', v_slot, 'credited', true);
 end $$;
-
-revoke execute on function public.hr_claim_milestone__ungated(text, int) from public, anon, authenticated, service_role;
+revoke execute on function public.hr_claim_milestone__ungated(text, integer)
+  from public, anon, authenticated, service_role;
 
 -- ── 4. SELF-CHECK for §3 — proven by EXECUTION ─────────────────────────────
 do $$
@@ -645,9 +668,9 @@ begin
   begin
     perform set_config('request.jwt.claim.sub', v_uid::text, true);
     insert into auth.users (id) values (v_uid) on conflict (id) do nothing;
-    insert into public.player_state (user_id, slot, gold, gems, version)
-      values (v_uid, v_slot, 1000, 0, 1)
-      on conflict (user_id, slot) do update set gold = 1000, gems = 0;
+    insert into public.player_state (user_id, slot, gold, version)
+      values (v_uid, v_slot, 1000, 1)
+      on conflict (user_id, slot) do update set gold = 1000;
     -- 112 distinct kills: the OLD threshold would have paid at 108; the new one refuses.
     insert into public.player_progress (user_id, slot, kind, key, value, period_key, state)
       select v_uid, v_slot, 'stat', 'ev:kill_monster:m' || g::text, 1, '', 'active'
@@ -665,12 +688,14 @@ begin
     -- the 113th distinct kill: exactly 50,000 gold + 25 gems, once.
     insert into public.player_progress (user_id, slot, kind, key, value, period_key, state)
       values (v_uid, v_slot, 'stat', 'ev:kill_monster:m113', 1, '', 'active');
-    select gold, gems into v_g0, v_gm0 from public.player_state where user_id = v_uid and slot = v_slot;
+    select gold into v_g0 from public.player_state where user_id = v_uid and slot = v_slot;
+    select coalesce((select gems from public.account_wallet where user_id = v_uid), 0) into v_gm0;
     v := public.hr_claim_milestone__ungated('hunterAll', v_slot);
     if coalesce(v->>'ok', '') <> 'true' then
       raise exception 'SELF-CHECK(c): hunterAll at 113 distinct did not credit: %', v;
     end if;
-    select gold, gems into v_g1, v_gm1 from public.player_state where user_id = v_uid and slot = v_slot;
+    select gold into v_g1 from public.player_state where user_id = v_uid and slot = v_slot;
+    select coalesce((select gems from public.account_wallet where user_id = v_uid), 0) into v_gm1;
     if v_g1 - v_g0 <> 50000 or v_gm1 - v_gm0 <> 25 then
       raise exception 'SELF-CHECK(c): hunterAll credited % gold / % gems, the catalogue says 50000 / 25',
         v_g1 - v_g0, v_gm1 - v_gm0;
@@ -695,6 +720,8 @@ begin
      or exists (select 1 from public.player_ledger   where user_id = v_uid)
      or exists (select 1 from public.player_progress where user_id = v_uid)
      or exists (select 1 from public.hr_rejections   where user_id = v_uid)
+     or exists (select 1 from public.account_wallet  where user_id = v_uid)
+     or exists (select 1 from public.account_gem_grants where user_id = v_uid)
      or exists (select 1 from auth.users where id = v_uid) then
     raise exception 'SELF-CHECK: §4 LEAKED a probe row';
   end if;

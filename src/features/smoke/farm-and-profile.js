@@ -1935,7 +1935,7 @@ export default [
       window.HearthriseAuto.setEat({ enabled: true, threshold: 0.5, foodId: 'cooked_shrimp' });
       r = row();
       assert(r.hasPicker, 'auto-eat picker must render once the trait is owned');
-      assert(/falls below 50%/.test(r.note), 'the note must state the threshold, got: ' + r.note);
+      assert(/is below 50%/.test(r.note), 'the note must state the threshold, got: ' + r.note);
       assert(/never auto-eaten/i.test(r.note), 'the note must say Feasts are never auto-eaten, got: ' + r.note);
 
       // Full HP → Eat is an honest disabled state, not a silent no-op.

@@ -16,7 +16,7 @@
 //   hand-authored source, tools/gen-shops.mjs is deleted, and the preflight
 //   goes with it. The filename does not change, so nothing downstream moves.
 //
-//   catalogue digest: 82582f59780ef67e571ef0e4e3aa8d9397bce0cfc6f61d94bf1aa9fac7c71cff
+//   catalogue digest: 37ff4c6a08f52022a6ec74b83df26c2f5b3285fa8fc35ff66cbf379d8aff8d3f
 //   132 offers · 228 cost lines · 6 prices that are formulas, not data
 //
 // EXTRACTED FROM
@@ -65,7 +65,7 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-export const SHOPS_DIGEST = "82582f59780ef67e571ef0e4e3aa8d9397bce0cfc6f61d94bf1aa9fac7c71cff";
+export const SHOPS_DIGEST = "37ff4c6a08f52022a6ec74b83df26c2f5b3285fa8fc35ff66cbf379d8aff8d3f";
 
 /** Every offer whose price is fully known as data. */
 export const SHOP_OFFERS = [
@@ -818,8 +818,8 @@ export const SHOP_OFFERS = [
   {
     id: "seed.rune_blank", table: "seed",
     name: "Blank Rune",
-    cost: [{ kind: "currency", id: "gold", amount: 140 }],
-    grant: [{ kind: "item", id: "rune_blank", amount: 20 }],
+    cost: [{ kind: "currency", id: "gold", amount: 300 }],
+    grant: [{ kind: "item", id: "rune_blank", amount: 18 }],
     repeatable: true,
   },
   {

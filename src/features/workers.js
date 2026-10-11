@@ -533,6 +533,12 @@
 
   function renderInto(host) {
     if (!host) return;
+    /* The crew arrives with the spine's sixth step, or the moment the server
+       projects a hired hand (src/data/reveals.js `card:workers`). */
+    var R = window.HearthriseReveal;
+    var want = (!R || R.shows('card:workers')) ? '' : 'none';
+    if (host.style.display !== want) host.style.display = want;
+    if (want) return;
     ensureState();
     var G = G_();
     var s = slots();

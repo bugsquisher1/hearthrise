@@ -342,7 +342,13 @@
       var r = all[i].getBoundingClientRect();
       if(r.width > 0 && r.height > 0) return all[i];
     }
-    return all[0] || null;
+    /* A door the progressive reveal holds back (inline display:none, see
+       nav-consolidation.js paintDoors) is not "briefly un-rendered": its step
+       becomes a centred card rather than a spotlight on the corner. */
+    for(var j = 0; j < all.length; j++){
+      if(all[j].style.display !== 'none') return all[j];
+    }
+    return null;
   }
 
   // ── Step rendering ──────────────────────────────────────────
@@ -539,7 +545,7 @@
      step used to sell an away-combat night the engine does not deliver. A
      promise nothing reads cannot be tested, so the steps are published and
      AWAY-HONEST-5 asserts the copy against what the engine actually pays. */
-  window.HearthriseFTUE = { steps: function(){ return STEPS.slice(); } };
+  window.HearthriseFTUE = { steps: function(){ return STEPS.slice(); }, findTarget: findTarget };
 
   // ── Auto-boot ───────────────────────────────────────────────
   // b224: the tour is the SECOND thing a new player meets, not the first.

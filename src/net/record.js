@@ -1920,6 +1920,7 @@ function settle(verdict) {
        `progress_truncated === false` — see reconcileEventCounters' header. */
     hydrationStep('event-counters', () => reconcileEventCounters(G, verdict.body));
     hydrationStep('lifetime', () => { if (typeof window !== 'undefined' && window.HearthriseLifetime) window.HearthriseLifetime.noteEnvelope(verdict.body); });
+    hydrationStep('reveal', () => { if (typeof window !== 'undefined' && window.HearthriseReveal) window.HearthriseReveal.noteEnvelope(verdict.body); });
     /* b465 — the server's daily-login claim row closes the daily-reward sheet's
        question at boot (the residue marker kept losing tab/save races and the
        sheet re-opened on a paid reward). Guarded like its neighbours. */

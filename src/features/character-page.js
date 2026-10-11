@@ -390,8 +390,15 @@ function skillTile(id) {
   </button>`;
 }
 
+/* A skill shows once its spine step arrives or the server says it has XP
+   (src/data/reveals.js `skill:<id>`); no reveal module means every skill. */
+function skillShown(id) {
+  const R = window.HearthriseReveal;
+  return !R || R.shows('skill:' + id);
+}
+
 function buildSkillGrid() {
-  const tiles = orderedSkillIds().map(skillTile).join('');
+  const tiles = orderedSkillIds().filter(skillShown).map(skillTile).join('');
   return `<div class="csk-grid">${tiles}</div>`;
 }
 
@@ -560,6 +567,9 @@ export function setupCharacterPage() {
       window._charPane = paneOf(window._charPane);
       setTimeout(renderCharacter, 30);
     }
+  });
+  window.addEventListener('hearthrise:reveal', () => {
+    if (document.querySelector('#panel-character.active') && paneOf(window._charPane) === 'skills') refreshSkillsPane();
   });
   console.log('[Character Page ESM] overview screen loaded');
 }

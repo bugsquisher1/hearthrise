@@ -4962,6 +4962,7 @@ export default [
       // screen and activity bar, not a test host. The meter's price is 6,917, a
       // number no level formula yields, so finding it proves it came off the wire.
       ...(() => {
+        const SPENT = () => Object.assign(METER(), { spent_min: 627, remaining_min: 406 }); // past half: the bar chip shows
         const DRY = () => Object.assign(METER(), { grant_min: 720, refills: 0, refills_left: 5,
           next_refill_gold: 6917, level: 12, bought_min: 0, budget_min: 720, spent_min: 1237, remaining_min: 0 });
         const fight = async (meter, body) => {
@@ -5006,7 +5007,7 @@ export default [
           assert(window.HearthriseBarFit && window.HearthriseBarFit.xpChip === xpChip && typeof window.xpForLevel === 'function', 'the XP chip builder (render/bar-fit.js) is not what legacy.js reaches');
           const xp98 = () => xpChip({ skill: 'strength', name: 'Strength', level: 98, toGo: window.xpForLevel(99) - window.xpForLevel(98), glyph: window.HR.icon('strength', 13, 'currentColor') });
           const bh = G.bountyHunter, hp = G.playerHp, parked = LT.__swapView(null);
-          const kind = { 'stated+bounty': [METER, true], stated: [METER, false], 'dry+bounty': [DRY, true], dry: [DRY, false] };
+          const kind = { 'stated+bounty': [SPENT, true], stated: [SPENT, false], 'dry+bounty': [DRY, true], dry: [DRY, false] };
           const frames = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
           try {
             for (const state of states) {
@@ -5208,7 +5209,7 @@ export default [
             const parked = LT.__swapView({ counts: { kills: { n: 1284905, exact: true } } });
             const bad = [];
             try {
-              for (const [state, meter] of [['stated', METER()], ['dry', DRY()]]) {
+              for (const [state, meter] of [['stated', SPENT()], ['dry', DRY()]]) {
                 await fight(meter, async (m) => {
                   m.paint();
                   window.refreshActivityBar();

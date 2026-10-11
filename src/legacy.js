@@ -8259,7 +8259,7 @@ function renderSkillsList(){
       }).join('')}
     </div>`).join('');
 }
-let openSkill=null;
+let openSkill=null;window.addEventListener('hearthrise:reveal',()=>{if(document.querySelector('#panel-skills.active'))renderSkillsList();});
 function openSkillDetail(id){openSkill=id;try{window.__viewedSkillId=id;}catch(e){}showTab('skills');setTimeout(()=>renderSkillDetail(id),0);}
 function renderSkillDetail(id){
   if(!id)return;const s=SKILLS_DEF[id];if(!s)return;
@@ -15388,10 +15388,10 @@ function patchSkillsList(){
   window.renderSkillsList = function(){
     var el = document.getElementById('skills-list');
     if(!el) return;
-    var cats = {gather:'Gathering', artisan:'Artisan'};
+    var cats = {gather:'Gathering', artisan:'Artisan'}, R = window.HearthriseReveal; /* a skill shows once its spine step arrives or it has XP (src/data/reveals.js) */
     var html = Object.entries(cats).map(function(pair){
       var cat = pair[0], label = pair[1];
-      var skills = Object.entries(SKILLS_DEF).filter(function(kv){return kv[1].cat===cat;});
+      var skills = Object.entries(SKILLS_DEF).filter(function(kv){return kv[1].cat===cat && (!R || R.shows('skill:'+kv[0]));});
       var rows = skills.map(function(kv){
         var id = kv[0], s = kv[1];
         var xp = skillXp(id), lv = getLevel(id), pct = Math.floor(xpPct(xp)*100);
@@ -15416,8 +15416,8 @@ function patchSkillsList(){
           +'<span class="slv">'+lv+'</span>'
           +'</button>';
       }).join('');
-      return '<div class="skill-cat">'+label+'</div>'
-        +'<div class="skill-board">'+rows+'</div>';
+      return rows && ('<div class="skill-cat">'+label+'</div>'
+        +'<div class="skill-board">'+rows+'</div>');
     }).join('');
     el.innerHTML = html;
 
@@ -18318,7 +18318,7 @@ HearthriseIcons.installIconLayer({ getActiveTab: function(){ return activeTab; }
            because the only thing left to do there is Claim, and one row should
            only ever have one primary action. */
         var goDest = destOf(g);
-        var goBtn = (!done && goDest)
+        var goBtn = (!done && goDest && goDest.open !== false)
           ? '<button class="qm-q-go" data-goto="'+g.id+'" data-weekly="'+(isWeekly?1:0)+'"'
             +' title="'+esc(goDest.label)+'">'+esc(goDest.verb)+'</button>'
           : '';

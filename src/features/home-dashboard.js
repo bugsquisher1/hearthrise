@@ -957,7 +957,7 @@
     var build = list.some(function (u) { return u.kind === 'property'; });
     return '<div class="hd-card hd-mini hd-unlocks"><div class="mi">' + gly('uiHome', 20, '', 'var(--gold-2)') +
       '</div><div class="hd-bank-txt">' + esc(t) + '</div>' +
-      (build ? '<button class="hd-cta ghost go" data-hd="house">Go build</button>' : '') + '</div>';
+      (build && shown('pane:house') ? '<button class="hd-cta ghost go" data-hd="house">Go build</button>' : '') + '</div>';
   }
   function awayCapHours() {
     try { if (typeof window.offlineCapHours === 'function') return window.offlineCapHours(); } catch (e) {}
@@ -1014,12 +1014,13 @@
     var d = (QN && typeof QN.destination === 'function') ? QN.destination(task) : null;
     if (!d) {
       // quest-nav is a separate <script>; a missing resolver is a wiring break.
-      return { key: 'bountyHunter', verb: 'Go', go: function () { nav('skills'); } };
+      return { key: 'bountyHunter', verb: 'Go', open: true, go: function () { nav('skills'); } };
     }
     return {
       key: d.glyph,
       verb: d.verb,
       label: d.label,
+      open: d.open !== false,   // a Go button is drawn only through an open door
       go: function () { if (QN && typeof QN.go === 'function') QN.go(task); },
     };
   }
@@ -1226,7 +1227,8 @@
             : num(s.count)) + ' / ' + num(s.goal) + '</span>' +
           (reward ? '<span class="r">' + reward + '</span>' : '');
       var r = questRoute(s.goalRow);
-      out += '<div class="hd-card hd-quest hd-fl-row is-' + s.state + '" data-hd="fl" data-i="' + i + '"' +
+      var go = !done && r.open;
+      out += '<div class="hd-card hd-quest hd-fl-row is-' + s.state + '"' + (go ? ' data-hd="fl" data-i="' + i + '"' : '') +
         (r.label ? ' title="' + esc(r.label) + '"' : '') + '>' +
         '<div class="hd-qic">' + slot + '</div>' +
         '<div class="hd-qbody">' +
@@ -1239,8 +1241,8 @@
            is a visible handle on that same door, and its click bubbles to the
            row's one handler. Wiring both would run the navigation twice — the
            shape of a double-open that only shows up on the slowest screen. */
-        (done ? '' : '<button class="hd-cta' + (s.state === 'current' ? '' : ' ghost') +
-          '">' + esc(r.verb) + '</button>') +
+        (go ? '<button class="hd-cta' + (s.state === 'current' ? '' : ' ghost') +
+          '">' + esc(r.verb) + '</button>' : '') +
         '</div>';
     });
     return out + '</div></div>';
@@ -1276,6 +1278,14 @@
     var R = window.HearthriseRecord;
     if (!R || typeof R.isRecordPending !== 'function') return true;
     try { return !!R.isRecordPending(); } catch (e) { return true; }
+  }
+
+  /* The progressive reveal (src/features/spine-reveal.js): a card shows once
+     its spine step arrives or the server says the player uses it. No module
+     yet means show, so Home never loses a card to a load-order race. */
+  function shown(id) {
+    var R = window.HearthriseReveal;
+    return !R || R.shows(id);
   }
 
   function render() {
@@ -1595,8 +1605,8 @@
           (rewardHtml ? '<span class="r">' + rewardHtml + '</span>' : '') + '</div>' +
           '<div class="hd-bar" style="--accent:var(--green)"><i style="width:' + pct + '%"></i></div>' +
           '</div>' +
-          '<button class="hd-cta ghost" data-hd="q" data-i="' + i + '"' +
-            (r.label ? ' title="' + esc(r.label) + '"' : '') + '>' + esc(r.verb) + '</button>' +
+          (r.open ? '<button class="hd-cta ghost" data-hd="q" data-i="' + i + '"' +
+            (r.label ? ' title="' + esc(r.label) + '"' : '') + '>' + esc(r.verb) + '</button>' : '') +
           '</div>';
       });
     }
@@ -1617,7 +1627,7 @@
     // This is the long-arc build order: what you live in, what it grants you,
     // and exactly what the next tier costs — with what you're short of called
     // out, so the section is a plan rather than a boast.
-    if (hsDef) {
+    if (hsDef && shown('card:holding')) {
       html += '<div><div class="hd-h"><h3>Your holding</h3><a data-hd="house">Homestead →</a></div><div class="hd-rows">';
       var grants = [];
       grants.push((HS.maxPlots ? HS.maxPlots() : hsDef.plots) + ' farm plots');
@@ -1671,7 +1681,7 @@
     // two can never drift. Account gate: HearthriseProfile.profile is null until
     // the account wall opens, so signed-out we render nothing at all.
     var HP = window.HearthriseProfile;
-    if (HP && HP.profile && typeof HP.slotRows === 'function') {
+    if (HP && HP.profile && typeof HP.slotRows === 'function' && shown('card:heroes')) {
       try {
         var heroRows = HP.slotRows();
         if (heroRows.length) {
@@ -1756,11 +1766,11 @@
       if (STN && typeof STN.strip === 'function') html += STN.strip(G);
     } catch (e) { /* a forecast is never worth a broken Home */ }
     html += '</div>';
-    try { var CBK = window.HearthriseComeBack; if (CBK && typeof CBK.card === 'function') html += CBK.card(G); } catch (e) {}
+    try { var CBK = window.HearthriseComeBack; if (CBK && typeof CBK.card === 'function' && shown('card:come-back')) html += CBK.card(G); } catch (e) {}
 
     // Renown — the long game. Status, so it lives in the status rail.
     var RN = window.HearthriseRenown;
-    if (RN && RN.getState) {
+    if (RN && RN.getState && shown('card:renown')) {
       try {
         var rs = RN.getState(G);
         var claimN = (RN.getClaimable ? RN.getClaimable(G) : []).length;
@@ -1783,7 +1793,7 @@
     // described in the realm's words. b560: no rate, yield or gold figure — the
     // engine pays no blessing layer (CONFLICTS.md 2026-09-28).
     var WE = window.HearthriseWorldEvents;
-    if (WE && WE.daily) {
+    if (WE && WE.daily && shown('card:realm')) {
       try {
         var wd = WE.daily(), ww = WE.weekly && WE.weekly();
         // b227: read the world-events module's own glyph map when it has one,
@@ -1821,8 +1831,9 @@
     var _buffs = (typeof window.effectiveBuffRows === 'function')
       ? window.effectiveBuffRows()
       : (Array.isArray(G.buffs) ? G.buffs : []).filter(function (b) { return b && b.remainingMs > 0; });
-    html += '<div><div class="hd-h"><h3>Upkeep</h3></div><div class="hd-rows">';
-    if (!_buffs.length) {
+    var showUpkeep = shown('card:upkeep'), showCollection = shown('card:collection');
+    if (showUpkeep || showCollection) html += '<div><div class="hd-h"><h3>Upkeep</h3></div><div class="hd-rows">';
+    if (!showUpkeep) { /* the buff ladder arrives with the spine's cooking step */ } else if (!_buffs.length) {
       html += '<div class="hd-card hd-mini"><div class="mi">' + gly('cooking', 20, '', 'var(--ink-2)') + '</div>' +
         '<div>No food buff. <span class="hd-link" data-hd="cook">Cook something →</span></div></div>';
     } else {
@@ -1847,7 +1858,7 @@
         gly('uiHourglass', 20, '', 'var(--ink-3)') + '</div>' +
         '<div>Real time — buff clocks run down whether you are here or away.</div></div>';
     }
-    if (window.HearthriseCollection && window.HearthriseCollection.serverStats) {
+    if (showCollection && window.HearthriseCollection && window.HearthriseCollection.serverStats) {
       try {
         var _clo = window.HearthriseCollection.serverStats(G).overall;
         var _clp = _clo == null ? pend() : Math.round(_clo * 100) + '%';
@@ -1862,7 +1873,7 @@
           '<b class="go" style="font-variant-numeric:tabular-nums">' + _clp + '</b></div>';
       } catch (e) {}
     }
-    html += '</div></div>';
+    if (showUpkeep || showCollection) html += '</div></div>';
 
     html += '</div></div></div>';
 
@@ -1959,6 +1970,7 @@
   });
   // keep fresh while visible (progress bars, live activity)
   setInterval(maybeRender, 1500);
+  window.addEventListener('hearthrise:reveal', maybeRender);
   // initial
   if (document.readyState !== 'loading') setTimeout(maybeRender, 300);
   else document.addEventListener('DOMContentLoaded', function () { setTimeout(maybeRender, 300); });

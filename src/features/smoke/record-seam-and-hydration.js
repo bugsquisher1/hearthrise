@@ -7978,12 +7978,15 @@ export default [
     const said = [], seen = [];
 
     const bagHeld = serverBagFixture();   // its envelopes state a bag: the triple goes back in the finally
+    const cadences = [window.HearthriseTown, window.HearthriseNetStatus, window.HearthriseLive, window.HearthriseMuster, window.HearthriseHearthfind]
+      .filter((m) => m && typeof m.__pauseForTest === 'function' && typeof m.__resumeForTest === 'function');
     try {
       A.setServerAccrualEnabled(true);
       A.acknowledgeReplacement(true);
       assert(window.clientMayWriteRecordField('gold') === false,
         'CONTROL: gold is not armed in this fixture, so claimQuestReward takes its DORMANT branch and '
         + 'the server path under test never runs');
+      cadences.forEach((m) => m.__pauseForTest());   // the stub-origin class (STUB-ORIGIN-1): no 25 s heartbeat into the probe
       window.HearthriseSupabase = { getConfig: () => ({ url: 'https://probe.supabase.co', anonKey: 'anon' }) };
       window.HearthriseAuth = { getSession: () => ({ user: { id: 'qa' }, access_token: 'jwt' }) };
       R.configureRecord({ url: 'https://probe.supabase.co', apiKey: 'anon', authToken: () => 'jwt', slot: 0 });
@@ -8083,6 +8086,7 @@ export default [
       try { window.updateTopbar(); } catch (e) {}
       try { window.saveLocal(); } catch (e) {}
       bagHeld.restore();
+      cadences.forEach((m) => m.__resumeForTest());
     }
   }),
 

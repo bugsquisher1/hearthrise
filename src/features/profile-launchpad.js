@@ -287,6 +287,7 @@
         var xp = srXpOf(sid) | 0;
         var lv = window.levelFromXp(xp);
         if(lv >= 99) continue; // maxed — no milestone
+        if(window.HearthriseReveal && !window.HearthriseReveal.shows('skill:' + sid)) continue; // not reached yet, so not what is next
         var nextXp = window.xpForLevel(lv + 1);
         var prevXp = window.xpForLevel(lv);
         var pct = nextXp > prevXp ? (xp - prevXp) / (nextXp - prevXp) : 0;
@@ -338,6 +339,7 @@
          renderer can label the button with the same verb. */
       var qdest = (window.HearthriseQuestNav && window.HearthriseQuestNav.destination)
         ? window.HearthriseQuestNav.destination(q) : null;
+      if(qdest && qdest.open === false) continue;   // its door is not open yet, so not what is next
       var qcand = {
         kind: 'quest',
         label: q.label || q.id,

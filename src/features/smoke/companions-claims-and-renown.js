@@ -1585,6 +1585,9 @@ export default [
       assert(window.G.gold === g0 && window.G.gems === m0,
         'payChest wrote G.gold/G.gems under the arm — a second, client copy of a server credit');
       assert(notes.length === 2, 'each server-paid chest must ask for the envelope that carries the gold; got ' + JSON.stringify(notes));
+      // Zero play: the server EXPIRED the pledge — the client closes it, pays nothing.
+      assert(M._reduceAbsence(200, { ok: false, error: 'no_activity' }).action === 'forfeit',
+        'no_activity (the pledge expired server-side) must close the pledge, not hold or retry it');
     } finally {
       window.clientMayWriteRecordField = origMay; window.noteLiveSettleEvent = origNote; window.addItem = origAdd;
       restoreG(snap);

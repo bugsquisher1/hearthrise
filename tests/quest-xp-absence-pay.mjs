@@ -39,6 +39,10 @@
 //          the two paths credit by the same rule.
 //   QXA-10 the absence replay is refused already_settled and pays nothing.
 //   QXA-11 no client role can execute the inners; the wrappers stay callable.
+//   QXA-12 ZERO PLAY: a pledge with no non-tick activity on the day expires,
+//          pays nothing, one zero-value journal row; a tick row is not play.
+//   QXA-13 a char_slot = 2 pledge at slot 2's XP ceiling: daily_budget, owed.
+//   QXA-14 gem budget exhausted: daily_budget (dim gems), owed, nothing moves.
 //
 // ── WHAT IT CANNOT PROVE ────────────────────────────────────────────────
 //   · TRUE CONCURRENCY (PGlite is one backend) — the once-guards are exercised
@@ -112,6 +116,35 @@ const MUTATIONS = {
   absence_window_slot: {
     why: 'THE SECURITY BLOCK restored: the gold/gems are credited to pledges.slot (the rally WINDOW), not char_slot',
     p: [[A_GOLD, A_GOLD.replace('where user_id = auth.uid() and slot = v_cs', 'where user_id = auth.uid() and slot = v_p.slot')]],
+  },
+  absence_budget_slot0: {
+    why: 'Security\'s surviving mutant: the absence budget is checked on character slot 0, not char_slot',
+    p: [['  v_bud := public.hr_day_budget_check(auth.uid(), v_cs, v_gold_out, v_xp_total, 0, v_gems_out);\n',
+      '  v_bud := public.hr_day_budget_check(auth.uid(), 0, v_gold_out, v_xp_total, 0, v_gems_out);\n']],
+  },
+  absence_no_gem_budget: {
+    why: 'the absence gems are not priced against the day budget (gems 0 in the check)',
+    p: [['  v_bud := public.hr_day_budget_check(auth.uid(), v_cs, v_gold_out, v_xp_total, 0, v_gems_out);\n',
+      '  v_bud := public.hr_day_budget_check(auth.uid(), v_cs, v_gold_out, v_xp_total, 0, 0);\n']],
+  },
+  absence_gems_in_zero: {
+    why: 'the absence gems/gold are not journalled (gold_in/gems_in 0) — invisible to the next budget check',
+    p: [['     v_gold_out, v_gold_out, v_xp_total, 0, v_gems_out,\n', '     v_gold_out, 0, v_xp_total, 0, 0,\n']],
+  },
+  absence_zero_play_pays: {
+    why: 'THE ZERO-PLAY FAUCET reopened: the activity gate is gone, a pledge that never played pays',
+    p: [["                    and coalesce(l.meta->>'src', '') <> 'tick'\n"
+      + "                    and not (l.kind = 'rally' and l.intent like 'world_event_absence%')) then\n",
+    "                    and coalesce(l.meta->>'src', '') <> 'tick'\n"
+      + "                    and not (l.kind = 'rally' and l.intent like 'world_event_absence%')) and false then\n"]],
+  },
+  absence_creation_is_play: {
+    why: 'the create_character (admin) row counts as play: a fresh account pledges and is paid without playing',
+    p: [["                    and l.kind <> 'admin'\n", '']],
+  },
+  absence_tick_is_play: {
+    why: 'a world-tick ledger row (the server paying an absent character) counts as the player showing up',
+    p: [["                    and coalesce(l.meta->>'src', '') <> 'tick'\n", '']],
   },
   absence_double_claim: {
     why: 'the settle guard is gone: a replay pays the gold/gems again',
@@ -277,7 +310,7 @@ export async function run(mutate) {
            (select k from k where public.hr_rally_event_for_key(k) = 'forge_levy'  limit 1) as craft`))[0];
   ok(keys.combat && keys.craft, `FIXTURE: no event keys found ${JSON.stringify(keys)}`);
   const today = (await q('select public.hr_utc_day_key() as k'))[0].k;
-  const rallyRows = async () => q("select gold::text gold, meta from public.player_ledger where user_id=$1 and kind='rally' order by id", [uid]);
+  const rallyRows = async () => q("select gold::text gold, gold_in::text gold_in, gems_in::text gems_in, meta from public.player_ledger where user_id=$1 and kind='rally' order by id", [uid]);
 
   /* THE REAL PLEDGE: world_event_pledge answers only BEFORE a window opens and
      the absence claim only AFTER the day closes, so a test-only shim over
@@ -330,12 +363,92 @@ export async function run(mutate) {
     ok(led.length === l0 + 1, `${tag} ${path}/${ek}: expected one new rally ledger row, have ${l0} -> ${led.length}`);
     ok(N(last.gold) === N(r?.gold) && N(last.meta?.gems) === N(r?.gems),
       `${tag} ${path}/${ek}: the journal does not carry the credit (gold ${last.gold}, meta.gems ${last.meta?.gems})`);
+    if (path === 'away') {
+      ok(N(last.gold_in) === N(r?.gold) && N(last.gems_in) === N(r?.gems),
+        `${tag} ${path}/${ek}: gold_in/gems_in ${last.gold_in}/${last.gems_in} do not journal the credit ${r?.gold}/${r?.gems}`);
+    }
     // QXA-10 replay
     const again = await call();
     ok(again?.ok === false && /already_(claimed|settled)/.test(again?.error || ''),
       `QXA-10 ${path}/${ek}: the replay was not refused: ${JSON.stringify(again)}`);
     ok(JSON.stringify(await state(uid)) === JSON.stringify(st1), `QXA-10 ${path}/${ek}: a refused replay paid`);
     ok((await rallyRows()).length === l0 + 1, `QXA-10 ${path}/${ek}: a refused replay journalled`);
+  }
+
+  // ── QXA-12 ZERO PLAY: a character that pledged and never played on the day
+  //    is paid NOTHING — the pledge expires (settled 'expired'), one zero-value
+  //    journal row; a world-tick row is not play. A fresh account, so the only
+  //    rows it has are the ones this test writes.
+  {
+    const idle = await mk('qxa-idle@probe.invalid');
+    obs.qxa12_creation_rows = await q('select kind, intent from public.player_ledger where user_id=$1', [idle]);
+    await q(`insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta)
+             values ($1, 0, 'accrue', 'qxa-tick-probe', 0, 0, 0, 0, 0, '{"src":"tick"}')`, [idle]);
+    await q("select set_config('qxa.shift', '1 day', false)");
+    const pl = await asUser(idle, 'select public.world_event_pledge($1) as r', [today + '#13']);
+    ok(pl?.ok === true, `QXA-12: the idle pledge was refused ${JSON.stringify(pl)}`);
+    await q("select set_config('qxa.shift', '-1 day', false)");
+    const st0 = await state(idle);
+    const r = await asUser(idle, 'select public.world_event_absence_claim($1) as r', [today]);
+    obs.qxa12 = r;
+    const st1 = await state(idle);
+    const pledge = (await q('select settled, outcome from public.world_event_pledges where user_id=$1', [idle]))[0] || {};
+    const led = await q("select gold::text g, gold_in::text gi, gems_in::text mi, xp_in::text xi from public.player_ledger where user_id=$1 and intent like 'world_event_absence_expired:%'", [idle]);
+    ok(r?.ok === false && r?.error === 'no_activity', `QXA-12: a zero-play absence claim answered ${JSON.stringify(r)}`);
+    ok(st1.gold === st0.gold && st1.gems === st0.gems, `QXA-12: a zero-play claim paid gold/gems ${JSON.stringify([st0, st1])}`);
+    ok(pledge.settled === true && pledge.outcome === 'expired', `QXA-12: the zero-play pledge is ${JSON.stringify(pledge)}, expected expired`);
+    ok(led.length === 1 && N(led[0].g) + N(led[0].gi) + N(led[0].mi) + N(led[0].xi) === 0,
+      `QXA-12: the expiry is not ONE zero-value journal row: ${JSON.stringify(led)}`);
+    const again = await asUser(idle, 'select public.world_event_absence_claim($1) as r', [today]);
+    ok(again?.error === 'already_settled', `QXA-12: an expired pledge was claimable again: ${JSON.stringify(again)}`);
+  }
+
+  // ── QXA-13 THE BUDGET IS char_slot's: a slot-2 character at its XP ceiling
+  //    pledges (latest heartbeat), played today, and is refused daily_budget;
+  //    the pledge stays owed and nothing moves. A check keyed on slot 0 pays it.
+  {
+    await q('insert into public.player_state (user_id, slot, gold, gems, version) values ($1, 2, 0, 0, 1)', [uid]);
+    await q("update public.player_state set last_seen_at = now() + interval '1 minute' where user_id=$1 and slot=2", [uid]);
+    await q(`insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta)
+             values ($1, 2, 'accrue', 'qxa-play', 0, 0, 0, 0, 0, '{}'),
+                    ($1, 2, 'admin', 'qxa-budget-probe', 0, 0, (public.hr_day_budget_limits()->>'xp')::bigint, 0, 0, '{}')`, [uid]);
+    await q('delete from public.world_event_pledges where user_id=$1', [uid]);
+    await q('delete from public.world_event_joins where user_id=$1', [uid]);
+    await q("select set_config('qxa.shift', '1 day', false)");
+    const pl = await asUser(uid, 'select public.world_event_pledge($1) as r', [today + '#1']);
+    const row = (await q('select char_slot from public.world_event_pledges where user_id=$1', [uid]))[0] || {};
+    ok(pl?.ok === true && row.char_slot === 2, `QXA-13 FIXTURE: the pledge did not record char_slot 2: ${JSON.stringify([pl, row])}`);
+    await q("select set_config('qxa.shift', '-1 day', false)");
+    const s2 = async () => (await q('select gold::text g, gems::text m from public.player_state where user_id=$1 and slot=2', [uid])).map((x) => N(x.g) + N(x.m))[0];
+    const r = await asUser(uid, 'select public.world_event_absence_claim($1) as r', [today]);
+    obs.qxa13 = r;
+    const owed = (await q('select settled from public.world_event_pledges where user_id=$1', [uid]))[0]?.settled;
+    ok(r?.ok === false && r?.error === 'daily_budget', `QXA-13: a char_slot 2 pledge at its XP ceiling answered ${JSON.stringify(r)}`);
+    ok(owed === false, 'QXA-13: the budget refusal SPENT the pledge');
+    ok(await s2() === 0, 'QXA-13: character slot 2 was paid over its budget');
+    await q("update public.player_state set last_seen_at = now() - interval '2 hours' where user_id=$1 and slot=2", [uid]);
+  }
+
+  // ── QXA-14 GEMS: slot 0's gem budget exhausted -> daily_budget (dim gems),
+  //    the pledge stays owed, nothing moves.
+  {
+    await q('delete from public.world_event_pledges where user_id=$1', [uid]);
+    await q("select set_config('qxa.shift', '1 day', false)");
+    const pl = await asUser(uid, 'select public.world_event_pledge($1) as r', [today + '#13']);
+    const row = (await q('select char_slot from public.world_event_pledges where user_id=$1', [uid]))[0] || {};
+    ok(pl?.ok === true && row.char_slot === 0, `QXA-14 FIXTURE: ${JSON.stringify([pl, row])}`);
+    await q("select set_config('qxa.shift', '-1 day', false)");
+    await q(`insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta)
+             values ($1, 0, 'admin', 'qxa-gem-budget-probe', 0, 0, 0, 0, (public.hr_day_budget_limits()->>'gems')::bigint, '{}')`, [uid]);
+    const st0 = await state(uid);
+    const r = await asUser(uid, 'select public.world_event_absence_claim($1) as r', [today]);
+    obs.qxa14 = r;
+    const st1 = await state(uid);
+    const owed = (await q('select settled from public.world_event_pledges where user_id=$1', [uid]))[0]?.settled;
+    ok(r?.ok === false && r?.error === 'daily_budget' && r?.detail?.dim === 'gems',
+      `QXA-14: over the GEM budget the absence claim answered ${JSON.stringify(r)}`);
+    ok(owed === false, 'QXA-14: the gem-budget refusal SPENT the pledge');
+    ok(st1.gold === st0.gold && st1.gems === st0.gems, 'QXA-14: the gem-budget refusal moved gold/gems');
   }
 
   await q("select set_config('qxa.shift', '0 s', false)");

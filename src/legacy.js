@@ -4859,7 +4859,7 @@ const QUEST_DEFS=[
   {id:'hundred_kills',type:'kill_any',mirror:'stats.evKillAny',
    label:'Defeat 100 monsters',goal:100,progress:0,
    reward:{xp:{hitpoints:1500}},
-   note:'One hundred monsters down — you have the measure of a fight now.',
+   note:'One hundred monsters down. 1,500 Hitpoints XP: a fresh fighter goes from about Hitpoints 10 to 15–16, half again the health you started with.',
    done:false},
   /* JOURNEYMAN'S ROAD (chain:'road', own Home card): mirrors server ev:* projections; server-paid.
      "in all" (ruling B2) keeps the labels apart from weeklies wk_smith/wk_craft. */

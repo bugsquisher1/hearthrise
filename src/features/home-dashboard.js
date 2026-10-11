@@ -1089,9 +1089,9 @@
     if ((r.gold || 0) > 0) return true;
     try {
       var gc = window.HearthriseCore && window.HearthriseCore.goalCatalogue;
-      if (gc && typeof gc.questItemsAreServerCredited === 'function') {
-        return !!gc.questItemsAreServerCredited(q.id);
-      }
+      if (gc && typeof gc.questItemsAreServerCredited === 'function' && gc.questItemsAreServerCredited(q.id)) return true;
+      /* XP-only quests (hundred_kills) are server-credited by hr_claim_quest too. */
+      if (gc && typeof gc.questXpIsServerCredited === 'function') return !!gc.questXpIsServerCredited(q.id);
     } catch (e) {}
     return false;
   }
@@ -1144,6 +1144,10 @@
         pct: Math.max(0, Math.min(100, Math.round((progress / goal) * 100))),
         state: state,
         reward: q.reward || {},
+        /* The step's own words (QUEST_DEFS `note`) — for an XP reward this is
+           what the XP DOES (hundred_kills: the bigger health pool), so it is
+           the row's tooltip beside the route. */
+        note: q.note || '',
         goalRow: q,
       });
     });
@@ -1216,7 +1220,9 @@
           (reward ? '<span class="r">' + reward + '</span>' : '');
       var r = questRoute(s.goalRow);
       out += '<div class="hd-card hd-quest hd-fl-row is-' + s.state + '" data-hd="fl" data-i="' + i + '"' +
-        (r.label ? ' title="' + esc(r.label) + '"' : '') + '>' +
+        ((r.label || (s.note && s.reward && s.reward.xp))
+          ? ' title="' + esc([r.label, (s.reward && s.reward.xp) ? s.note : ''].filter(Boolean).join(' — ')) + '"'
+          : '') + '>' +
         '<div class="hd-qic">' + slot + '</div>' +
         '<div class="hd-qbody">' +
         '<div class="hd-qtitle">' + esc(s.label) + '</div>' +

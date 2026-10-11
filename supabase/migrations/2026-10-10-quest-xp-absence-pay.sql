@@ -86,7 +86,18 @@
 --   what the player received once the chest took its item/XP share), plus
 --   `band_gold`, `band_gems` and `credited: true`.
 --
---   ERROR TAXONOMY (additive): hr_claim_quest gains 'daily_budget' {detail}.
+--   The absence claim also checks gold, XP and gems against hr_day_budget_check
+--   on char_slot BEFORE the settle, and journals gold_in / xp_in / gems_in.
+--
+--   ZERO-PLAY FAUCET CLOSED (Coordinator ruling 2026-10-11): the absence claim
+--   pays only if char_slot shows server-observed activity on the rally's UTC
+--   day — a non-tick, non-admin player_ledger row (meta.src <> 'tick'; the
+--   create_character row and absence rows are not evidence). Otherwise the pledge EXPIRES (settled, outcome 'expired',
+--   0/0), one zero-value rally row is journalled
+--   ('world_event_absence_expired:<day>'), and the claim answers 'no_activity'.
+--
+--   ERROR TAXONOMY (additive): hr_claim_quest gains 'daily_budget' {detail};
+--   world_event_absence_claim gains 'no_activity' (terminal: the pledge expired).
 --
 -- ── CONCURRENCY / IDEMPOTENCY ───────────────────────────────────────────────
 -- Unchanged once-guards. Quest: `insert … on conflict do nothing` on the
@@ -447,6 +458,40 @@ begin
     return jsonb_build_object('ok', false, 'error', 'no_character', 'slot', v_cs);
   end if;
 
+  -- ── THE ZERO-PLAY FAUCET IS CLOSED (Coordinator ruling, 2026-10-11, ahead of
+  --    the Steam EA sign-ups). Half honours pay only a character the SERVER saw
+  --    play on the rally's UTC day: a non-tick ledger row for (uid, char_slot)
+  --    inside [day, day + 1) — an attended intent, a settled accrual window, a
+  --    claim. World-tick rows (meta.src = 'tick') are the server paying an
+  --    absent character, not the player showing up; 'admin' rows (character
+  --    creation, operator writes) are not play; and an absence claim is never
+  --    its own evidence. Pledging and never playing pays nothing: the
+  --    pledge EXPIRES (settled, outcome 'expired', gold/gems 0) and is
+  --    journalled with one zero-value rally row. Served by player_ledger_user_idx
+  --    (user_id, slot, at desc).
+  if not exists (select 1 from public.player_ledger l
+                  where l.user_id = auth.uid() and l.slot = v_cs
+                    and l.at >= (v_day::timestamp at time zone 'utc')
+                    and l.at <  ((v_day + 1)::timestamp at time zone 'utc')
+                    and l.kind <> 'admin'
+                    and coalesce(l.meta->>'src', '') <> 'tick'
+                    and not (l.kind = 'rally' and l.intent like 'world_event_absence%')) then
+    update public.world_event_pledges
+       set settled = true, settled_at = now(), outcome = 'expired', gold = 0, gems = 0
+     where day_key = v_day_key and user_id = auth.uid() and settled = false;
+    get diagnostics v_rows = row_count;
+    if v_rows = 0 then
+      return jsonb_build_object('ok', false, 'error', 'already_settled');
+    end if;
+    insert into public.player_ledger
+      (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta)
+    values
+      (auth.uid(), v_cs, 'rally', 'world_event_absence_expired:' || v_day_key, 0, 0, 0, 0, 0,
+       jsonb_build_object('band', 'expired', 'reason', 'no_activity', 'day_key', v_day_key,
+                          'event_key', v_p.event_key, 'window', v_p.slot));
+    return jsonb_build_object('ok', false, 'error', 'no_activity', 'day_key', v_day_key, 'slot', v_cs);
+  end if;
+
   -- ── THE THEMED CHEST, priced BEFORE the settle (pure), and its XP checked
   --    against the ONE day budget, so a refusal spends nothing.
   v_chest    := public.hr_rally_chest(v_p.event_key, c_gold, c_gems, 0);
@@ -456,11 +501,12 @@ begin
   v_gems_out := least(greatest(coalesce((v_chest->>'gems')::int,    c_gems), 0), c_gems);
   v_xc       := public.hr_rally_xp_credit(v_p.event_key, v_chest);
   v_xp_total := coalesce((v_xc->>'total')::bigint, 0);
-  if v_xp_total > 0 then
-    v_bud := public.hr_day_budget_check(auth.uid(), v_cs, 0, v_xp_total, 0, 0);
-    if v_bud is not null then
-      return jsonb_build_object('ok', false, 'error', 'daily_budget', 'detail', v_bud, 'slot', v_cs);
-    end if;
+  -- Security GO-WITH-CHANGES (1): gold, XP AND gems are checked against the ONE
+  -- day budget on the pledge's CHARACTER, before the settle — a refusal spends
+  -- nothing and the pledge stays owed.
+  v_bud := public.hr_day_budget_check(auth.uid(), v_cs, v_gold_out, v_xp_total, 0, v_gems_out);
+  if v_bud is not null then
+    return jsonb_build_object('ok', false, 'error', 'daily_budget', 'detail', v_bud, 'slot', v_cs);
   end if;
 
   -- ── THE SETTLE. Conditional flip; row_count = 0 means a replay already took it.
@@ -505,13 +551,14 @@ begin
          updated_at = now()
    where user_id = auth.uid() and slot = v_cs;
 
-  -- ── JOURNAL — the attended claim's shape: `gold` is the credited gold,
-  --    meta.gems the credited gems, xp_in the credited XP.
+  -- ── JOURNAL. `gold` and gold_in are the credited gold, gems_in (and
+  --    meta.gems) the credited gems, xp_in the credited XP — every dimension the
+  --    budget check above priced is journalled so the next check counts it.
   insert into public.player_ledger
     (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta)
   values
     (auth.uid(), v_cs, 'rally', 'world_event_absence_claim:' || v_day_key,
-     v_gold_out, 0, v_xp_total, 0, 0,
+     v_gold_out, v_gold_out, v_xp_total, 0, v_gems_out,
      jsonb_build_object('band', 'absent', 'day_key', v_day_key,
                         'event_key', v_p.event_key, 'window', v_p.slot, 'gems', v_gems_out, 'absence_gold', c_gold,
                         'absence_gems', c_gems, 'items', v_chest->'items',
@@ -632,7 +679,9 @@ begin
   select prosrc into v_src from pg_proc where oid = 'public.world_event_absence_claim__ungated(text)'::regprocedure;
   if strpos(v_src, 'insert into public.player_skills') = 0
      or v_src !~ 'gold = coalesce\(gold, 0\) \+ v_gold_out'
-     or strpos(v_src, 'where user_id = auth.uid() and slot = v_cs;') = 0 then
+     or strpos(v_src, 'where user_id = auth.uid() and slot = v_cs;') = 0
+     or strpos(v_src, 'hr_day_budget_check(auth.uid(), v_cs, v_gold_out, v_xp_total, 0, v_gems_out)') = 0
+     or strpos(v_src, 'outcome = ''expired''') = 0 then
     raise exception 'GATE(b): the absence body does not credit XP AND gold';
   end if;
 
@@ -762,6 +811,35 @@ begin
     -- A DECOY character in slot 1 — the slot a '#1' rally WINDOW names. The
     -- credit goes to char_slot (0); the decoy must never move.
     insert into public.player_state (user_id, slot, gold, gems, version) values (v_a, 1, 0, 0, 1);
+
+    -- (d0) ZERO PLAY: no activity on the pledge day -> 'no_activity', the pledge
+    --      EXPIRES, one zero-value journal row, nothing paid.
+    insert into public.world_event_pledges (day_key, user_id, event_key, slot, char_slot, settled)
+      values (v_pdk, v_a, v_ek_c, split_part(v_ek_c, '#', 2)::int, 0, false);
+    select gold, gems into v_g0, v_m0 from public.player_state where user_id = v_a and slot = 0;
+    v_r := public.world_event_absence_claim__ungated(to_char(v_pday, 'YYYY-MM-DD'));
+    select gold, gems into v_g1, v_m1 from public.player_state where user_id = v_a and slot = 0;
+    if coalesce(v_r->>'error', '') <> 'no_activity' or v_g1 <> v_g0 or v_m1 <> v_m0
+       or not exists (select 1 from public.world_event_pledges where user_id = v_a and settled and outcome = 'expired')
+       or (select count(*) from public.player_ledger
+            where user_id = v_a and intent = 'world_event_absence_expired:' || v_pdk and gold = 0) <> 1 then
+      raise exception 'GATE(d0): a zero-play pledge was not expired-and-journalled with nothing paid: %', v_r;
+    end if;
+    -- a world-tick row is NOT evidence of play
+    insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta, at)
+      values (v_a, 0, 'accrue', 'quest-xp-probe-tick', 0, 0, 0, 0, 0, '{"src": "tick"}'::jsonb,
+              (v_pday::timestamp at time zone 'utc') + interval '6 hours');
+    delete from public.world_event_pledges where user_id = v_a;
+    insert into public.world_event_pledges (day_key, user_id, event_key, slot, char_slot, settled)
+      values (v_pdk, v_a, v_ek_c, split_part(v_ek_c, '#', 2)::int, 0, false);
+    v_r := public.world_event_absence_claim__ungated(to_char(v_pday, 'YYYY-MM-DD'));
+    if coalesce(v_r->>'error', '') <> 'no_activity' then
+      raise exception 'GATE(d0): a world-tick row counted as play: %', v_r;
+    end if;
+    -- the evidence the rest of (d) runs on: one attended row on the pledge day
+    insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta, at)
+      values (v_a, 0, 'accrue', 'quest-xp-probe-play', 0, 0, 0, 0, 0, '{}'::jsonb,
+              (v_pday::timestamp at time zone 'utc') + interval '7 hours');
     foreach v_case in array array[v_ek_c, v_ek_n] loop
       delete from public.world_event_pledges where user_id = v_a;
       -- THE REAL SHAPE world_event_pledge writes: slot = the WINDOW from the
@@ -797,9 +875,11 @@ begin
       if exists (select 1 from public.player_state where user_id = v_a and slot = 1 and (gold <> 0 or gems <> 0)) then
         raise exception 'GATE(d) %: the claim paid character slot 1 — the WINDOW number, not char_slot', v_case;
       end if;
-      select gold, meta into v_led from public.player_ledger
+      select gold, gold_in, gems_in, meta into v_led from public.player_ledger
        where user_id = v_a and kind = 'rally' order by at desc, id desc limit 1;
-      if v_led.gold <> (v_r->>'gold')::bigint or (v_led.meta->>'gems')::bigint <> (v_r->>'gems')::bigint
+      if v_led.gold <> (v_r->>'gold')::bigint or v_led.gold_in <> (v_r->>'gold')::bigint
+         or v_led.gems_in <> (v_r->>'gems')::bigint
+         or (v_led.meta->>'gems')::bigint <> (v_r->>'gems')::bigint
          or (select count(*) from public.player_ledger where user_id = v_a and kind = 'rally') <> v_n + 1 then
         raise exception 'GATE(d) %: the journal does not carry the credit (gold %, meta.gems %)',
           v_case, v_led.gold, v_led.meta->>'gems';
@@ -814,6 +894,40 @@ begin
         raise exception 'GATE(d) %: the refused replay paid or journalled', v_case;
       end if;
     end loop;
+
+    -- (d2) THE BUDGET IS THE PLEDGE CHARACTER'S. A character in slot 2 at its
+    --      XP ceiling (slot 0 untouched): a char_slot = 2 pledge is refused
+    --      daily_budget and stays owed. A check keyed on slot 0 would pay it.
+    insert into public.player_state (user_id, slot, gold, gems, version) values (v_a, 2, 0, 0, 1);
+    insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta, at)
+      values (v_a, 2, 'accrue', 'quest-xp-probe-play', 0, 0, 0, 0, 0, '{}'::jsonb,
+              (v_pday::timestamp at time zone 'utc') + interval '7 hours'),
+             (v_a, 2, 'admin', 'quest-xp-budget-probe', 0, 0,
+              ((public.hr_day_budget_limits())->>'xp')::bigint, 0, 0, '{}'::jsonb, now());
+    delete from public.world_event_pledges where user_id = v_a;
+    insert into public.world_event_pledges (day_key, user_id, event_key, slot, char_slot, settled)
+      values (v_pdk, v_a, v_ek_c, split_part(v_ek_c, '#', 2)::int, 2, false);
+    v_r := public.world_event_absence_claim__ungated(to_char(v_pday, 'YYYY-MM-DD'));
+    if coalesce(v_r->>'error', '') <> 'daily_budget'
+       or (select settled from public.world_event_pledges where user_id = v_a)
+       or exists (select 1 from public.player_state where user_id = v_a and slot = 2 and (gold <> 0 or gems <> 0)) then
+      raise exception 'GATE(d2): a char_slot 2 pledge at its XP ceiling was not refused daily_budget and kept owed: %', v_r;
+    end if;
+    -- (d3) GEMS: slot 0's gem budget exhausted -> daily_budget, owed, nothing moves.
+    delete from public.world_event_pledges where user_id = v_a;
+    insert into public.world_event_pledges (day_key, user_id, event_key, slot, char_slot, settled)
+      values (v_pdk, v_a, v_ek_n, split_part(v_ek_n, '#', 2)::int, 0, false);
+    insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta)
+      values (v_a, 0, 'admin', 'quest-xp-gem-budget-probe', 0, 0, 0, 0,
+              ((public.hr_day_budget_limits())->>'gems')::bigint, '{}'::jsonb);
+    select gold, gems into v_g0, v_m0 from public.player_state where user_id = v_a and slot = 0;
+    v_r := public.world_event_absence_claim__ungated(to_char(v_pday, 'YYYY-MM-DD'));
+    select gold, gems into v_g1, v_m1 from public.player_state where user_id = v_a and slot = 0;
+    if coalesce(v_r->>'error', '') <> 'daily_budget' or coalesce(v_r#>>'{detail,dim}', '') <> 'gems'
+       or (select settled from public.world_event_pledges where user_id = v_a)
+       or v_g1 <> v_g0 or v_m1 <> v_m0 then
+      raise exception 'GATE(d3): an absence claim over the GEM budget was not refused and kept owed: %', v_r;
+    end if;
 
     raise exception using errcode = 'HR871', message = 'quest-xp-absence-pay §4 complete — rolling back';
   exception when sqlstate 'HR871' then null;

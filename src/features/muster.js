@@ -769,7 +769,9 @@
       var err = out.error || '';
       // Not a failure: the server found a live join (or an earlier settlement)
       // for that day. The pledge did its job — close it, pay nothing.
-      if (err === 'answered_live' || err === 'already_settled' || err === 'no_pledge') {
+      // no_activity: the character never played that day, so the pledge
+      // EXPIRED server-side (the zero-play faucet is closed) — close it too.
+      if (err === 'answered_live' || err === 'already_settled' || err === 'no_pledge' || err === 'no_activity') {
         return { action: 'forfeit', error: err };
       }
       if (err === 'day_open') return { action: 'hold', error: err };

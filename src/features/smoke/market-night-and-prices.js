@@ -48,6 +48,18 @@ const quest100 = (path) => async () => {
     assert(q() && q().progress === 40 && !q().done, 'the quest must reach the save and mirror 40/100: ' + JSON.stringify(q()));
     const before = skillsNow();
 
+    /* THE CARD SAYS WHAT THE SERVER PAYS (Designer copy, b567): the reward line
+       names Hitpoints XP and the row's tooltip carries the note about the
+       bigger health pool. */
+    const H = window.HearthriseHome;
+    if (path === 'ATTENDED' && H && typeof H.__firstDayHtml === 'function') {
+      const html = H.__firstDayHtml(H.__firstDayModel()) || '';
+      const row = (html.split('hd-fl-row').find((part) => part.indexOf('Defeat 100 monsters') >= 0) || '');
+      assert(/1,500 Hitpoints XP/.test(row), 'the first-day card must show "1,500 Hitpoints XP" on the hundred-kill row: ' + row.slice(0, 300));
+      assert(/title="[^"]*Hitpoints 10 to 15–16[^"]*"/.test(row), 'the hundred-kill row tooltip must explain the bigger health pool: ' + row.slice(0, 300));
+      assert(!/combat XP/i.test(row), 'the card still promises "combat XP": ' + row.slice(0, 300));
+    }
+
     if (path === 'ATTENDED') {
       G.stats.evKillAny = 100;
       window.updateQuest('kill_any', 1);

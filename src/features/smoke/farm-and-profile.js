@@ -3097,9 +3097,7 @@ export default [
     const F = window.HearthriseFarm, FS = window.HearthriseFarmSync, G = window.G, L = window.HearthriseIntentLatch;
     assert(F && FS && L && typeof FS.__resetFarmLatch === 'function' && typeof FS.__useFarmLatchClock === 'function',
       'farm-progression.js / farm-sync.js / intent-latch.js did not load (or the latch clock seam is gone)');
-    /* THE HOLD RUNS ON A MANUAL CLOCK, advanced explicitly. On wall time a loaded
-       machine could stretch a 150 ms wait past the 600 ms floor and the "double
-       click" became two deliberate taps (the flake this replaced). */
+    /* A MANUAL CLOCK: wall time let a loaded machine turn the double click into two taps. */
     const clock = { t: 1e6, timers: [], now() { return this.t; },
       setTimer(fn, ms) { const h = { at: this.t + ms, fn }; this.timers.push(h); return h; },
       clearTimer(h) { this.timers = this.timers.filter((x) => x !== h); },

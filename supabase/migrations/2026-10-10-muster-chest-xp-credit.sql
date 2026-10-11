@@ -57,6 +57,23 @@
 --   consume; absence also gains 'no_character' (the pledge's slot has no
 --   character — previously an FK raise on the item insert).
 --
+-- ── THE ABSENCE CREDIT TARGET (Security BLOCK on @4968b813, rev.2) ─────────
+-- world_event_pledges.slot is the rally WINDOW (1 | 13, split from the event
+-- key by world_event_pledge__ungated), never a character, so crediting it
+-- refused every '#13' pledge and paid character slot 1 for every '#1'. Rev.2:
+--   · world_event_pledges.char_slot (new, CHECK 0..5) — the CHARACTER, derived
+--     SERVER-SIDE at pledge time by hr_rally_pledge_char(uid) (new, no client
+--     grant): the caller's own character with the latest heartbeat
+--     (player_state.last_seen_at), lowest slot on a tie. world_event_pledge(text)
+--     keeps its client signature; no client value names the character.
+--   · world_event_pledge__ungated restated (from rally-v2; live == repo modulo
+--     CRLF) to record char_slot (and refresh it on a same-answer re-pledge).
+--   · the absence claim credits, budget-checks and journals against char_slot;
+--     char_slot null or no such character -> no_character BEFORE the settle.
+--   · the world_event_absence_claim WRAPPER gains the settle-before-mutate
+--     prefix (hr_settle_first_noted on char_slot) and journals refusals against
+--     char_slot (-1 when unknown), not 0. Arity and grants unchanged.
+--
 -- ── WHY xp_in IS SET (a deliberate departure from the b422 convention) ──────
 -- b422 kept once-per-period chest rewards out of the shared day budget (xp_in
 -- 0). Security's ruling for this lane is the opposite: the credit is checked
@@ -109,6 +126,18 @@ begin
   end if;
   if to_regclass('public.hr_skills') is null or to_regclass('public.player_skills') is null then
     raise exception '§0: hr_skills / player_skills missing';
+  end if;
+  if to_regprocedure('public.world_event_pledge__ungated(text)') is null
+     or to_regprocedure('public.hr_rally_slot(text,integer)') is null then
+    raise exception '§0: the pledge surface (world_event_pledge__ungated, hr_rally_slot) is missing';
+  end if;
+  if to_regprocedure('public.hr_settle_first_noted(text,uuid,integer)') is null
+     or to_regprocedure('public.hr_note_rejection(text,integer,jsonb)') is null then
+    raise exception '§0: settle-before-mutate / hr_note_rejection missing — apply 2026-09-28-settle-before-mutate.sql';
+  end if;
+  if not exists (select 1 from information_schema.columns where table_schema = 'public'
+                  and table_name = 'player_state' and column_name = 'last_seen_at') then
+    raise exception '§0: player_state.last_seen_at missing — apply 2026-09-13-town-presence.sql (the pledge character is derived from it)';
   end if;
   -- CHAIN POSITION: the online body must already be w0a's (Seal-free). This
   -- file restates FROM that body; applying it before w0a would be fine for XP
@@ -340,6 +369,126 @@ end $$;
 revoke execute on function public.world_event_claim__ungated(text, int) from public;
 revoke execute on function public.world_event_claim__ungated(text, int) from anon, authenticated, service_role;
 
+-- ── 2b. THE PLEDGE RECORDS WHICH CHARACTER IT IS FOR ───────────────────────
+-- world_event_pledges.slot is the rally WINDOW (1 | 13, from the event key) and
+-- always was; nothing recorded the character. char_slot is that record. It is
+-- SERVER-DERIVED at pledge time — world_event_pledge(text) carries no slot and
+-- its client signature does not move: the caller's own character with the most
+-- recent heartbeat (player_state.last_seen_at, stamped by hr_heartbeat on the
+-- server clock for the tab that is playing), lowest slot on a tie. Ownership is
+-- by construction (auth.uid()'s own rows); a caller with no character is
+-- refused no_character. Production had 0 pledge rows on 2026-10-10, so no row
+-- predates the column; a pre-column row (char_slot null) is refused at the
+-- claim and stays owed rather than being guessed.
+alter table public.world_event_pledges add column if not exists char_slot int;
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'world_event_pledges_char_slot_ck'
+                  and conrelid = 'public.world_event_pledges'::regclass) then
+    alter table public.world_event_pledges
+      add constraint world_event_pledges_char_slot_ck check (char_slot is null or char_slot between 0 and 5);
+  end if;
+end $$;
+comment on column public.world_event_pledges.char_slot is
+  'The CHARACTER slot the absence claim credits, server-derived at pledge time '
+  '(2026-10-10-muster-chest-xp-credit.sql). `slot` is the rally WINDOW (1|13), never a character.';
+
+-- The derivation, as its own function so §4 can execute it at any hour (the
+-- pledge itself only answers before a window opens). No client grant.
+create or replace function public.hr_rally_pledge_char(p_user uuid)
+returns int language sql stable set search_path = public as $$
+  select ps.slot from public.player_state ps
+   where ps.user_id = p_user
+   order by ps.last_seen_at desc nulls last, ps.slot
+   limit 1
+$$;
+revoke execute on function public.hr_rally_pledge_char(uuid) from public;
+revoke execute on function public.hr_rally_pledge_char(uuid) from anon, authenticated, service_role;
+
+-- Restated from 2026-08-09-rally-v2.sql (live body identical modulo CRLF,
+-- measured 2026-10-10); the only change is char_slot.
+create or replace function public.world_event_pledge__ungated(p_event_key text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  v_day_key text;
+  v_slot    int;
+  v_char    int;
+  w  record;
+  cw record;
+  v_p public.world_event_pledges%rowtype;
+  v_joined boolean := false;
+begin
+  if auth.uid() is null then
+    return jsonb_build_object('ok', false, 'error', 'not_signed_in');
+  end if;
+  if p_event_key is null or p_event_key !~ '^[0-9]{4}-[0-9]{1,2}-[0-9]{1,2}#(1|13)$' then
+    return jsonb_build_object('ok', false, 'error', 'unknown_slot');
+  end if;
+  v_day_key := split_part(p_event_key, '#', 1);
+  v_slot    := split_part(p_event_key, '#', 2)::int;
+
+  if v_day_key is distinct from public.hr_utc_day_key() then
+    return jsonb_build_object('ok', false, 'error', 'not_today',
+                              'day_key', public.hr_utc_day_key());
+  end if;
+
+  -- THE CHARACTER this pledge pays: the caller's own, most recently present.
+  v_char := public.hr_rally_pledge_char(auth.uid());
+  if v_char is null then
+    return jsonb_build_object('ok', false, 'error', 'no_character');
+  end if;
+
+  select * into w from public.hr_rally_slot(v_day_key, v_slot);
+  if w.event_key is null then
+    return jsonb_build_object('ok', false, 'error', 'unknown_slot');
+  end if;
+  if now() >= w.started_at then
+    return jsonb_build_object('ok', false, 'error', 'window_open');
+  end if;
+  if to_regclass('public.world_event_joins') is not null then
+    execute 'select exists (select 1 from public.world_event_joins j
+                             where j.day_key = $1 and j.user_id = $2)'
+      into v_joined using v_day_key, auth.uid();
+    if v_joined then
+      return jsonb_build_object('ok', false, 'error', 'already_answered');
+    end if;
+  end if;
+
+  select * into v_p from public.world_event_pledges
+   where day_key = v_day_key and user_id = auth.uid();
+  if v_p.user_id is not null then
+    if v_p.event_key = p_event_key then
+      -- Same answer again: the character it pays follows the one playing now.
+      update public.world_event_pledges set char_slot = v_char
+       where day_key = v_day_key and user_id = auth.uid() and settled = false
+         and char_slot is distinct from v_char;
+      return jsonb_build_object('ok', true, 'day_key', v_day_key, 'event_key', p_event_key,
+                                'slot', v_slot, 'char_slot', v_char,
+                                'starts_at', w.started_at, 'changed', false);
+    end if;
+    if v_p.settled then
+      return jsonb_build_object('ok', false, 'error', 'already_settled');
+    end if;
+    select * into cw from public.hr_rally_slot(v_p.day_key, v_p.slot);
+    if cw.started_at is not null and now() >= cw.started_at then
+      return jsonb_build_object('ok', false, 'error', 'locked', 'event_key', v_p.event_key);
+    end if;
+  end if;
+
+  insert into public.world_event_pledges (day_key, user_id, event_key, slot, char_slot)
+  values (v_day_key, auth.uid(), p_event_key, v_slot, v_char)
+  on conflict (day_key, user_id) do update
+    set event_key = excluded.event_key, slot = excluded.slot, char_slot = excluded.char_slot,
+        changed_at = now()
+    where world_event_pledges.settled = false;
+
+  return jsonb_build_object('ok', true, 'day_key', v_day_key, 'event_key', p_event_key,
+                            'slot', v_slot, 'char_slot', v_char, 'starts_at', w.started_at,
+                            'changed', v_p.user_id is not null);
+end $$;
+revoke execute on function public.world_event_pledge__ungated(text) from public;
+revoke execute on function public.world_event_pledge__ungated(text) from anon, authenticated, service_role;
+
 -- ── 3. THE ABSENCE CLAIM (restated from 2026-08-22-absence-chest-items.sql §2;
 --       live body measured identical modulo comments, 2026-10-10) ────────────
 create or replace function public.world_event_absence_claim__ungated(p_day_key text)
@@ -364,6 +513,7 @@ declare
   v_bud      jsonb;
   v_sk       text;
   v_amt      bigint;
+  v_cs       int;     -- the pledge's CHARACTER slot (char_slot), never its window
 begin
   if auth.uid() is null then
     return jsonb_build_object('ok', false, 'error', 'not_signed_in');
@@ -403,11 +553,16 @@ begin
     return jsonb_build_object('ok', false, 'error', 'answered_live', 'day_key', v_day_key);
   end if;
 
-  -- The credit target is the pledge's own (user, slot): it must still be a
-  -- character. Checked BEFORE the settle so a deleted character never spends
-  -- the pledge (previously an FK raise on the item insert).
-  if not exists (select 1 from public.player_state where user_id = auth.uid() and slot = v_p.slot) then
-    return jsonb_build_object('ok', false, 'error', 'no_character', 'slot', v_p.slot);
+  -- THE CREDIT TARGET IS world_event_pledges.char_slot — the CHARACTER the
+  -- server recorded at pledge time — NEVER world_event_pledges.slot, which is
+  -- the rally WINDOW (1 or 13; Security block on b567 @4968b813: crediting
+  -- `slot` refused every #13 pledge and paid whoever sat in character slot 1
+  -- for every #1 pledge). A pledge without one, or whose character is gone,
+  -- is refused BEFORE the settle, so it stays owed and nothing moves.
+  v_cs := v_p.char_slot;
+  if v_cs is null
+     or not exists (select 1 from public.player_state where user_id = auth.uid() and slot = v_cs) then
+    return jsonb_build_object('ok', false, 'error', 'no_character', 'slot', v_cs);
   end if;
 
   -- ── THE THEMED CHEST, priced BEFORE the settle (pure), and its XP checked
@@ -416,9 +571,9 @@ begin
   v_xc       := public.hr_rally_xp_credit(v_p.event_key, v_chest);
   v_xp_total := coalesce((v_xc->>'total')::bigint, 0);
   if v_xp_total > 0 then
-    v_bud := public.hr_day_budget_check(auth.uid(), v_p.slot, 0, v_xp_total, 0, 0);
+    v_bud := public.hr_day_budget_check(auth.uid(), v_cs, 0, v_xp_total, 0, 0);
     if v_bud is not null then
-      return jsonb_build_object('ok', false, 'error', 'daily_budget', 'detail', v_bud, 'slot', v_p.slot);
+      return jsonb_build_object('ok', false, 'error', 'daily_budget', 'detail', v_bud, 'slot', v_cs);
     end if;
   end if;
 
@@ -434,7 +589,7 @@ begin
   -- ── THE XP (after the settle guard → exactly once). Own row only.
   for v_sk, v_amt in select key, value::bigint from jsonb_each_text(v_xc->'by_skill') loop
     insert into public.player_skills as ps (user_id, slot, skill_id, xp)
-      values (auth.uid(), v_p.slot, v_sk, v_amt)
+      values (auth.uid(), v_cs, v_sk, v_amt)
       on conflict (user_id, slot, skill_id) do update set xp = ps.xp + excluded.xp;
   end loop;
 
@@ -447,7 +602,7 @@ begin
     v_iqty := coalesce((v_it->>'qty')::bigint, 0);
     if v_iid is not null and v_iqty > 0 then
       insert into public.player_inventory as pi (user_id, slot, item_id, qty)
-        values (auth.uid(), v_p.slot, v_iid, v_iqty)
+        values (auth.uid(), v_cs, v_iid, v_iqty)
         on conflict (user_id, slot, item_id) do update set qty = pi.qty + excluded.qty;
       v_qty_total := v_qty_total + v_iqty;
     end if;
@@ -458,7 +613,7 @@ begin
   if v_xp_total > 0 or v_qty_total > 0 then
     update public.player_state
        set version = version + 1, updated_at = now()
-     where user_id = auth.uid() and slot = v_p.slot;
+     where user_id = auth.uid() and slot = v_cs;
   end if;
 
   -- ── JOURNAL. gold=0: absence gold is NOT server-credited here (the gold arm
@@ -466,22 +621,59 @@ begin
   insert into public.player_ledger
     (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta)
   values
-    (auth.uid(), v_p.slot, 'rally', 'world_event_absence_claim:' || v_day_key,
+    (auth.uid(), v_cs, 'rally', 'world_event_absence_claim:' || v_day_key,
      0, 0, v_xp_total, 0, 0,
      jsonb_build_object('band', 'absent', 'day_key', v_day_key,
-                        'event_key', v_p.event_key, 'absence_gold', c_gold,
+                        'event_key', v_p.event_key, 'window', v_p.slot, 'absence_gold', c_gold,
                         'absence_gems', c_gems, 'items', v_chest->'items',
                         'item_qty', v_qty_total, 'xp', v_xc->'list',
                         'xp_chest', v_chest->'xp'));
 
   return jsonb_build_object('ok', true, 'band', 'absent', 'day_key', v_day_key,
-    'event_key', v_p.event_key, 'slot', v_p.slot,
+    'event_key', v_p.event_key, 'slot', v_cs, 'window', v_p.slot,
     'gold', c_gold, 'gems', c_gems, 'seals', 0,
     'items', v_chest->'items', 'xp', v_xc->'list', 'xp_total', v_xp_total,
     'chest', v_chest);
 end $$;
 revoke execute on function public.world_event_absence_claim__ungated(text) from public;
 revoke execute on function public.world_event_absence_claim__ungated(text) from anon, authenticated, service_role;
+
+-- ── 3b. THE ABSENCE WRAPPER: SETTLE-BEFORE-MUTATE, ON THE PLEDGE'S CHARACTER ─
+-- Restated from the A9 template (2026-08-11-authenticated-surface-lockdown.sql)
+-- with the 2026-09-28-settle-before-mutate.sql prefix world_event_claim already
+-- carries: the absence claim now writes player_skills, a priced input, so it
+-- may not land while that character has an unpaid window open. The character
+-- is the pledge's char_slot (the claim takes no slot), and the refusal journal
+-- names it too (hr_note_rejection maps a missing one to -1, never to 0).
+create or replace function public.world_event_absence_claim(p_day_key text)
+returns jsonb language plpgsql volatile security definer
+set search_path = public, pg_catalog as $w$
+declare
+  v_day date;
+  v_cs  int;
+begin
+  -- SETTLE-BEFORE-MUTATE (2026-09-28-settle-before-mutate.sql, Security F2),
+  -- keyed on the pledge's CHARACTER. A nested block, no subtransaction.
+  v_day := public.hr_rally_day($1);
+  if v_day is not null and auth.uid() is not null then
+    select p.char_slot into v_cs from public.world_event_pledges p
+     where p.day_key = public.hr_utc_day_key((v_day + interval '12 hours') at time zone 'utc')
+       and p.user_id = auth.uid();
+  end if;
+  if v_cs is not null then
+    declare v_settle jsonb := public.hr_settle_first_noted('world_event_absence_claim', auth.uid(), v_cs);
+    begin
+      if v_settle is not null then return v_settle; end if;
+    end;
+  end if;
+  if not public.hr_rpc_gate('world_event_absence_claim') then
+    return jsonb_build_object('ok', false, 'error', 'rate_limited')::jsonb;
+  end if;
+  return public.hr_note_rejection('world_event_absence_claim', coalesce(v_cs, -1),
+                                  public.world_event_absence_claim__ungated($1));
+end $w$;
+revoke execute on function public.world_event_absence_claim(text) from public, anon, service_role;
+grant execute on function public.world_event_absence_claim(text) to authenticated;
 
 -- ── 4. SELF-VERIFYING COMMIT GATE (§4) ─────────────────────────────────────
 -- Every property EXECUTED. ONE block, no begin/commit (tools/apply-migration.mjs
@@ -514,7 +706,9 @@ begin
   -- (a) GRANTS. Inners and the calculator: no client role. Wrappers: authenticated.
   foreach v_k in array array['public.world_event_claim__ungated(text,integer)',
                              'public.world_event_absence_claim__ungated(text)',
-                             'public.hr_rally_xp_credit(text,jsonb)'] loop
+                             'public.hr_rally_xp_credit(text,jsonb)',
+                             'public.world_event_pledge__ungated(text)',
+                             'public.hr_rally_pledge_char(uuid)'] loop
     if has_function_privilege('authenticated', v_k, 'execute')
        or has_function_privilege('anon', v_k, 'execute') then
       raise exception 'GATE(a): % is client-executable', v_k;
@@ -538,14 +732,29 @@ begin
   if strpos(v_def, 'insert into public.player_skills') = 0 then
     raise exception 'GATE(a): the absence body does not write player_skills';
   end if;
+  -- the absence credit target is the pledge's CHARACTER, never its window.
+  -- (v_p.slot may appear ONLY as the reported 'window'.)
+  if strpos(v_def, 'v_cs := v_p.char_slot;') = 0
+     or regexp_replace(v_def, '''window'', v_p\.slot', '', 'g') ~ 'v_p\.slot\M' then
+    raise exception 'GATE(a): the absence body does not credit world_event_pledges.char_slot';
+  end if;
+  select prosrc into v_def from pg_proc where oid = 'public.world_event_absence_claim(text)'::regprocedure;
+  if strpos(v_def, 'hr_settle_first_noted') = 0 or strpos(v_def, 'hr_rpc_gate') = 0 then
+    raise exception 'GATE(a): the absence wrapper lost settle-before-mutate or the rate gate';
+  end if;
+  if exists (select 1 from information_schema.role_table_grants
+              where table_schema = 'public' and table_name = 'world_event_pledges'
+                and grantee in ('anon', 'authenticated') and privilege_type in ('INSERT', 'UPDATE', 'DELETE')) then
+    raise exception 'GATE(a): a client write grant exists on world_event_pledges — char_slot would be client-authored';
+  end if;
 
   -- (b) THE CALCULATOR refuses what is not the theme's, and clamps.
   -- find event keys for a combat and a non-combat theme (deterministic search).
   for v_d in select generate_series((now() at time zone 'utc')::date - 400, (now() at time zone 'utc')::date, interval '1 day')::date loop
     foreach v_h in array array[1, 13] loop
       v_k := public.hr_utc_day_key((v_d + interval '12 hours') at time zone 'utc') || '#' || v_h;
-      if v_ek_c is null and public.hr_rally_event_for_key(v_k) = 'ashen_horde' then v_ek_c := v_k; end if;
-      if v_ek_n is null and public.hr_rally_event_for_key(v_k) = 'forge_levy'  then v_ek_n := v_k; end if;
+      if v_ek_c is null and v_h = 1  and public.hr_rally_event_for_key(v_k) = 'ashen_horde' then v_ek_c := v_k; end if;
+      if v_ek_n is null and v_h = 13 and public.hr_rally_event_for_key(v_k) = 'forge_levy'  then v_ek_n := v_k; end if;
     end loop;
     exit when v_ek_c is not null and v_ek_n is not null;
   end loop;
@@ -579,6 +788,25 @@ begin
     perform set_config('request.jwt.claim.sub', v_uid::text, true);
     v_r := public.hr_create_character(0);
     if v_r->>'created' <> 'true' then raise exception 'GATE(c): no probe character: %', v_r; end if;
+    -- A SECOND character in slot 1 — the slot a '#1' WINDOW number would name
+    -- if the credit ever read world_event_pledges.slot again. It must never move.
+    insert into public.player_state (user_id, slot, gold, gems, version)
+      values (v_uid, 1, 0, 0, 1);
+    update public.player_state set last_seen_at = now() - interval '1 hour' where user_id = v_uid and slot = 1;
+    update public.player_state set last_seen_at = now()                      where user_id = v_uid and slot = 0;
+
+    -- (c0) THE PLEDGE'S CHARACTER is the caller's most recently present one.
+    if public.hr_rally_pledge_char(v_uid) is distinct from 0 then
+      raise exception 'GATE(c0): pledge character should be slot 0 (present now), got %', public.hr_rally_pledge_char(v_uid);
+    end if;
+    update public.player_state set last_seen_at = now() + interval '1 second' where user_id = v_uid and slot = 1;
+    if public.hr_rally_pledge_char(v_uid) is distinct from 1 then
+      raise exception 'GATE(c0): pledge character should follow presence to slot 1, got %', public.hr_rally_pledge_char(v_uid);
+    end if;
+    update public.player_state set last_seen_at = now() - interval '1 hour' where user_id = v_uid and slot = 1;
+    if public.hr_rally_pledge_char(gen_random_uuid()) is not null then
+      raise exception 'GATE(c0): a caller with no character got a pledge character';
+    end if;
 
     v_pdk := public.hr_utc_day_key(((public.hr_rally_day(to_char(v_pday, 'YYYY-MM-DD'))) + interval '12 hours') at time zone 'utc');
     if public.hr_rally_day_close(v_pdk) is null or now() < public.hr_rally_day_close(v_pdk) then
@@ -608,9 +836,14 @@ begin
           values (v_today, v_uid, v_case.ek, 0, now() - interval '1 minute', 500);
         v_r := public.world_event_claim(v_today, 0);
       else
-        insert into public.world_event_pledges (day_key, user_id, event_key, slot, settled)
-          values (v_pdk, v_uid, v_case.ek, 0, false);
-        v_r := public.world_event_absence_claim__ungated(to_char(v_pday, 'YYYY-MM-DD'));
+        -- THE REAL SHAPE world_event_pledge writes: slot = the WINDOW from the
+        -- event key (1 | 13), char_slot = the character (0 here).
+        insert into public.world_event_pledges (day_key, user_id, event_key, slot, char_slot, settled)
+          values (v_pdk, v_uid, v_case.ek, split_part(v_case.ek, '#', 2)::int, 0, false);
+        v_r := public.world_event_absence_claim(to_char(v_pday, 'YYYY-MM-DD'));
+      end if;
+      if exists (select 1 from public.player_skills where user_id = v_uid and slot = 1) then
+        raise exception 'GATE(c) %/%: the claim credited character slot 1 (the WINDOW number)', v_case.path, v_case.ek;
       end if;
       if coalesce(v_r->>'ok', 'false') <> 'true' then
         raise exception 'GATE(c) %/%: the claim did not pay: %', v_case.path, v_case.ek, v_r;
@@ -675,7 +908,7 @@ begin
           raise exception 'GATE(d) online: replay not refused: %', v_r;
         end if;
       else
-        v_r := public.world_event_absence_claim__ungated(to_char(v_pday, 'YYYY-MM-DD'));
+        v_r := public.world_event_absence_claim(to_char(v_pday, 'YYYY-MM-DD'));
         if coalesce(v_r->>'error', '') <> 'already_settled' then
           raise exception 'GATE(d) absence: replay not refused: %', v_r;
         end if;
@@ -690,6 +923,37 @@ begin
         raise exception 'GATE(d) %/%: a refused replay journalled', v_case.path, v_case.ek;
       end if;
     end loop;
+
+    -- (d2) A pledge that names no character (char_slot null — a pre-column row)
+    --      is refused no_character BEFORE the settle: it stays owed, nothing moves.
+    delete from public.world_event_pledges where user_id = v_uid;
+    insert into public.world_event_pledges (day_key, user_id, event_key, slot, settled)
+      values (v_pdk, v_uid, v_ek_c, 1, false);
+    select count(*) into v_rows0 from public.player_ledger where user_id = v_uid and kind = 'rally';
+    v_r := public.world_event_absence_claim(to_char(v_pday, 'YYYY-MM-DD'));
+    if coalesce(v_r->>'error', '') <> 'no_character'
+       or (select settled from public.world_event_pledges where user_id = v_uid)
+       or exists (select 1 from public.player_skills where user_id = v_uid and slot = 1)
+       or (select count(*) from public.player_ledger where user_id = v_uid and kind = 'rally') <> v_rows0 then
+      raise exception 'GATE(d2): a pledge with no character was not refused cleanly: %', v_r;
+    end if;
+
+    -- (d3) SETTLE-BEFORE-MUTATE on the pledge's character: an unpaid combat
+    --      window refuses settle_first, the pledge stays owed, nothing moves.
+    update public.world_event_pledges set char_slot = 0 where user_id = v_uid;
+    update public.player_state set active_kind = 'combat', active_id = 'rat', accrued_to = now() - interval '10 minutes'
+     where user_id = v_uid and slot = 0;
+    select coalesce(jsonb_object_agg(skill_id, xp), '{}'::jsonb) into v_before
+      from public.player_skills where user_id = v_uid and slot = 0;
+    v_r := public.world_event_absence_claim(to_char(v_pday, 'YYYY-MM-DD'));
+    select coalesce(jsonb_object_agg(skill_id, xp), '{}'::jsonb) into v_after
+      from public.player_skills where user_id = v_uid and slot = 0;
+    if coalesce(v_r->>'error', '') <> 'settle_first'
+       or (select settled from public.world_event_pledges where user_id = v_uid)
+       or v_after <> v_before then
+      raise exception 'GATE(d3): the absence wrapper did not settle-first on the pledge''s character: %', v_r;
+    end if;
+    update public.player_state set active_kind = 'idle', active_id = null, accrued_to = now() where user_id = v_uid and slot = 0;
 
     -- (e) THE DAY BUDGET: a character at its XP ceiling is refused BEFORE the
     --     consume — nothing moves and the claim stays claimable.

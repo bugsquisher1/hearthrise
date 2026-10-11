@@ -37,6 +37,13 @@
 //   MXC-8  no client role can execute the inners or hr_rally_xp_credit.
 //   MXC-9  the calculator credits only theme skills that exist, numbers only,
 //          each and the total clamped to 3000; an unknown event key pays none.
+//   MXC-10 (Security block, rev.2) THE REAL PLEDGE: world_event_pledge records
+//          slot = the WINDOW and char_slot = the character in play; the absence
+//          claim on it credits that character, never character slot 1. A
+//          second character sits in slot 1 throughout and must never move;
+//          absence fixtures use the real shape (slot = split_part(ek,'#',2)).
+//   MXC-11 a pledge with no char_slot is refused no_character and stays owed.
+//   MXC-12 the absence wrapper settles-before-mutate on char_slot.
 //
 // ── WHAT IT CANNOT PROVE ────────────────────────────────────────────────
 //   · TRUE CONCURRENCY (PGlite is one backend) — the once-guard is exercised as
@@ -62,7 +69,7 @@ const GATE_BLIND = [
 const ONLINE_CREDIT = '    insert into public.player_skills as ps (user_id, slot, skill_id, xp)\n'
   + '      values (auth.uid(), v_slot, v_sk, v_amt)\n';
 const AWAY_CREDIT = '    insert into public.player_skills as ps (user_id, slot, skill_id, xp)\n'
-  + '      values (auth.uid(), v_p.slot, v_sk, v_amt)\n';
+  + '      values (auth.uid(), v_cs, v_sk, v_amt)\n';
 
 const MUTATIONS = {
   online_no_credit: {
@@ -107,6 +114,27 @@ const MUTATIONS = {
     repl: "revoke execute on function public.world_event_absence_claim__ungated(text) from anon, service_role;\n"
         + "grant execute on function public.world_event_absence_claim__ungated(text) to authenticated;\n",
   },
+  window_slot: {
+    why: 'THE SECURITY BLOCK, restored: the absence claim credits world_event_pledges.slot — the rally '
+       + 'WINDOW — so #13 refuses and #1 pays whoever sits in character slot 1',
+    find: '  v_cs := v_p.char_slot;\n',
+    repl: '  v_cs := v_p.slot;\n',
+  },
+  slot_13: {
+    why: 'the absence claim credits a planted slot 13 (Security\'s mutant)',
+    find: '  v_cs := v_p.char_slot;\n',
+    repl: '  v_cs := 13;\n',
+  },
+  pledge_records_window: {
+    why: 'the pledge records the WINDOW as the character (char_slot := slot)',
+    find: '  values (v_day_key, auth.uid(), p_event_key, v_slot, v_char)\n',
+    repl: '  values (v_day_key, auth.uid(), p_event_key, v_slot, v_slot)\n',
+  },
+  no_settle_first: {
+    why: 'the absence wrapper drops settle-before-mutate: XP lands on a character with an unpaid window open',
+    find: '      if v_settle is not null then return v_settle; end if;\n',
+    repl: '      null;\n',
+  },
 };
 /* Every body defect again with §4 blinded, so it is THIS guard that catches it. */
 for (const id of Object.keys(MUTATIONS)) {
@@ -147,14 +175,23 @@ export async function run(mutate) {
   await q('insert into public.profiles (id) values ($1) on conflict do nothing', [uid]);
   const cr = await asUser(uid, 'select public.hr_create_character(0) as r');
   ok(cr?.ok === true || cr?.created === true, `FIXTURE: hr_create_character refused: ${JSON.stringify(cr)}`);
+  /* A SECOND character in slot 1 — the slot a '#1' rally WINDOW number names.
+     Inserted as a row (a hero slot is a gem purchase with its own guard); it is
+     the decoy the Security block found being paid, and it must never move. The
+     character in play (latest heartbeat) is slot 0. */
+  await q('insert into public.player_state (user_id, slot, gold, gems, version) values ($1, 1, 0, 0, 1)', [uid]);
+  await q("update public.player_state set last_seen_at = now() - interval '1 hour' where user_id=$1 and slot=1", [uid]);
+  await q('update public.player_state set last_seen_at = now() where user_id=$1 and slot=0', [uid]);
 
+  // One key per WINDOW, so the absence path is driven with a '#1' pledge (the
+  // window that names a real character slot) AND a '#13' pledge (one that names none).
   const keys = (await q(`
     with d as (select generate_series((now() at time zone 'utc')::date - 400, (now() at time zone 'utc')::date,
                                       interval '1 day')::date as d),
-         k as (select public.hr_utc_day_key((d + interval '12 hours') at time zone 'utc') || '#' || h as k
+         k as (select public.hr_utc_day_key((d + interval '12 hours') at time zone 'utc') || '#' || h as k, h
                  from d cross join (values (1), (13)) h(h))
-    select (select k from k where public.hr_rally_event_for_key(k) = 'ashen_horde' limit 1) as combat,
-           (select k from k where public.hr_rally_event_for_key(k) = 'forge_levy'  limit 1) as craft`))[0];
+    select (select k from k where h = 1  and public.hr_rally_event_for_key(k) = 'ashen_horde' limit 1) as combat,
+           (select k from k where h = 13 and public.hr_rally_event_for_key(k) = 'forge_levy'  limit 1) as craft`))[0];
   ok(keys.combat && keys.craft, `FIXTURE: no event keys found ${JSON.stringify(keys)}`);
   const today = (await q('select public.hr_utc_day_key() as k'))[0].k;
   const pday = (await q("select to_char((now() at time zone 'utc')::date - 1, 'YYYY-MM-DD') as d"))[0].d;
@@ -180,10 +217,15 @@ export async function run(mutate) {
                values ($1, $2, $3, 0, now() - interval '1 minute', 500)`, [today, uid, ek]);
       return () => asUser(uid, 'select public.world_event_claim($1, 0) as r', [today]);
     }
-    await q(`insert into public.world_event_pledges (day_key, user_id, event_key, slot, settled)
-             values ($1, $2, $3, 0, false)`, [pdk, uid, ek]);
+    /* THE REAL SHAPE world_event_pledge__ungated writes (Security, rev.2):
+       slot = the WINDOW split from the event key, char_slot = the character the
+       server derived (the one in play, slot 0). MXC-10 drives the real pledge. */
+    await q(`insert into public.world_event_pledges (day_key, user_id, event_key, slot, char_slot, settled)
+             values ($1, $2, $3, split_part($3, '#', 2)::int, 0, false)`, [pdk, uid, ek]);
     return () => asUser(uid, 'select public.world_event_absence_claim($1) as r', [pday]);
   };
+  const decoySkills = async () => N((await q(
+    'select count(*)::text n from public.player_skills where user_id=$1 and slot=1', [uid]))[0].n);
 
   // ── MXC-1..6 ─────────────────────────────────────────────────────────────
   const cases = [['MXC-1', 'attended', keys.combat], ['MXC-2', 'attended', keys.craft],
@@ -195,7 +237,8 @@ export async function run(mutate) {
     const s1 = await skills(); const v1 = await version(); const led = await rallyRows();
     obs[tag] = { path, ek, xp: r?.xp, xp_total: r?.xp_total };
     ok(r?.ok === true, `${tag} ${path}/${ek}: the claim did not pay: ${JSON.stringify(r)}`);
-    const list = Array.isArray(r?.xp) ? r.xp : [];
+    ok(await decoySkills() === 0, `${tag} ${path}/${ek}: character slot 1 (the WINDOW number) was credited`);
+    const list =Array.isArray(r?.xp) ? r.xp : [];
     ok(list.length > 0 && N(r?.xp_total) > 0, `${tag}: CONTROL — the response credits no XP (${JSON.stringify(r)}); `
       + 'the equality below would be vacuous');
     const want = {}; let sum = 0;
@@ -225,21 +268,6 @@ export async function run(mutate) {
     ok((await rallyRows()).length === l0 + 1, `MXC-6 ${tag}: a refused replay journalled`);
   }
 
-  // ── MXC-7 the day budget, refused before the consume ─────────────────────
-  {
-    const call = await claimOnce('attended', keys.combat);
-    await q(`insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta)
-             values ($1, 0, 'admin', 'mxc-budget-probe', 0, 0, (public.hr_day_budget_limits()->>'xp')::bigint, 0, 0, '{}')`, [uid]);
-    const s0 = await skills(); const l0 = (await rallyRows()).length;
-    const r = await call();
-    obs.mxc7 = r;
-    ok(r?.ok === false && r?.error === 'daily_budget', `MXC-7: over the XP budget the claim answered ${JSON.stringify(r)}`);
-    const claimed = (await q('select claimed from public.world_event_joins where user_id=$1', [uid]))[0]?.claimed;
-    ok(claimed === false, 'MXC-7: the budget refusal SPENT the claim');
-    ok(JSON.stringify(await skills()) === JSON.stringify(s0), 'MXC-7: the budget refusal moved player_skills');
-    ok((await rallyRows()).length === l0, 'MXC-7: the budget refusal journalled');
-  }
-
   // ── MXC-9 the calculator refuses what is not the theme's ─────────────────
   //    hr_rally_chest only ever emits theme skills, so the claims cannot show
   //    this; the calculator is driven directly (as its owner) with the refusals
@@ -256,9 +284,93 @@ export async function run(mutate) {
     ok(N(none?.total) === 0, `MXC-9: an unknown event key credited ${JSON.stringify(none)}`);
   }
 
+  // ── MXC-10 THE REAL PLEDGE -> ABSENCE CLAIM, end to end ──────────────────
+  //    world_event_pledge only answers BEFORE a window opens and the absence
+  //    claim only AFTER the day closes, so the test drives the rally clock: a
+  //    test-only shim over hr_rally_slot shifts every window by `mxc.shift`
+  //    (+1 day to pledge today's '#1', -1 day to close it). Nothing else moves.
+  {
+    await q('alter function public.hr_rally_slot(text,integer) rename to hr_rally_slot__mxc');
+    await q(`create function public.hr_rally_slot(p_day_key text, p_slot int)
+             returns table (day_key text, slot int, event_key text, started_at timestamptz, ends_at timestamptz)
+             language sql stable as $f$
+               select r.day_key, r.slot, r.event_key, r.started_at + s.v, r.ends_at + s.v
+                 from public.hr_rally_slot__mxc(p_day_key, p_slot) r,
+                      (select coalesce(nullif(current_setting('mxc.shift', true), ''), '0 s')::interval v) s
+             $f$`);
+    await q('delete from public.world_event_joins where user_id=$1', [uid]);
+    await q('delete from public.world_event_pledges where user_id=$1', [uid]);
+    const ek = today + '#1';
+    await q("select set_config('mxc.shift', '1 day', false)");
+    const pl = await asUser(uid, 'select public.world_event_pledge($1) as r', [ek]);
+    const row = (await q('select slot, char_slot from public.world_event_pledges where user_id=$1', [uid]))[0] || {};
+    obs.mxc10 = { pledge: pl, row };
+    ok(pl?.ok === true, `MXC-10: the real pledge was refused: ${JSON.stringify(pl)}`);
+    ok(N(row.slot) === 1 && row.char_slot === 0,
+      `MXC-10: the pledge row is ${JSON.stringify(row)} — expected window slot 1 and char_slot 0 (the character in play)`);
+    await q("select set_config('mxc.shift', '-1 day', false)");
+    const s0 = await skills();
+    const r = await asUser(uid, 'select public.world_event_absence_claim($1) as r', [today]);
+    const s1 = await skills();
+    obs.mxc10.claim = r;
+    const credited = (Array.isArray(r?.xp) ? r.xp : []).reduce((a, x) => a + N(x.amount), 0);
+    const moved = Object.keys(s1).reduce((a, k) => a + (N(s1[k]) - N(s0[k])), 0);
+    ok(r?.ok === true && credited > 0 && moved === credited,
+      `MXC-10: the absence claim on a real '#1' pledge credited slot 0 by ${moved}, response ${JSON.stringify(r)}`);
+    ok(await decoySkills() === 0, 'MXC-10: the real pledge paid character slot 1 — the WINDOW number');
+    await q("select set_config('mxc.shift', '0 s', false)");
+    await q('drop function public.hr_rally_slot(text,integer)');
+    await q('alter function public.hr_rally_slot__mxc(text,integer) rename to hr_rally_slot');
+  }
+
+  // ── MXC-11 a pledge naming no character stays owed ───────────────────────
+  {
+    await q('delete from public.world_event_pledges where user_id=$1', [uid]);
+    await q(`insert into public.world_event_pledges (day_key, user_id, event_key, slot, settled)
+             values ($1, $2, $3, 1, false)`, [pdk, uid, keys.combat]);
+    const r = await asUser(uid, 'select public.world_event_absence_claim($1) as r', [pday]);
+    const st = (await q('select settled from public.world_event_pledges where user_id=$1', [uid]))[0]?.settled;
+    ok(r?.error === 'no_character' && st === false && await decoySkills() === 0,
+      `MXC-11: a pledge with no char_slot answered ${JSON.stringify(r)} (settled ${st})`);
+  }
+
+  // ── MXC-12 settle-before-mutate on the pledge's character ────────────────
+  {
+    await q('delete from public.world_event_pledges where user_id=$1', [uid]);
+    await q(`insert into public.world_event_pledges (day_key, user_id, event_key, slot, char_slot, settled)
+             values ($1, $2, $3, 13, 0, false)`, [pdk, uid, keys.craft]);
+    const st0 = (await q('select active_kind, active_id, accrued_to from public.player_state where user_id=$1 and slot=0', [uid]))[0];
+    await q("update public.player_state set active_kind='combat', active_id='rat', accrued_to = now() - interval '10 minutes' where user_id=$1 and slot=0", [uid]);
+    const s0 = await skills();
+    const r = await asUser(uid, 'select public.world_event_absence_claim($1) as r', [pday]);
+    const st = (await q('select settled from public.world_event_pledges where user_id=$1', [uid]))[0]?.settled;
+    obs.mxc12 = r;
+    ok(r?.error === 'settle_first' && st === false && JSON.stringify(await skills()) === JSON.stringify(s0),
+      `MXC-12: an unpaid combat window on the pledge's character did not refuse settle_first: ${JSON.stringify(r)} (settled ${st})`);
+    await q('update public.player_state set active_kind=$2, active_id=$4, accrued_to=$3 where user_id=$1 and slot=0',
+      [uid, st0.active_kind, st0.accrued_to, st0.active_id]);
+  }
+
+  // ── MXC-7 the day budget, refused before the consume (LAST: it fills the
+  //    day's XP budget for slot 0) ────────────────────────────────────────
+  {
+    const call = await claimOnce('attended', keys.combat);
+    await q(`insert into public.player_ledger (user_id, slot, kind, intent, gold, gold_in, xp_in, qty_in, gems_in, meta)
+             values ($1, 0, 'admin', 'mxc-budget-probe', 0, 0, (public.hr_day_budget_limits()->>'xp')::bigint, 0, 0, '{}')`, [uid]);
+    const s0 = await skills(); const l0 = (await rallyRows()).length;
+    const r = await call();
+    obs.mxc7 = r;
+    ok(r?.ok === false && r?.error === 'daily_budget', `MXC-7: over the XP budget the claim answered ${JSON.stringify(r)}`);
+    const claimed = (await q('select claimed from public.world_event_joins where user_id=$1', [uid]))[0]?.claimed;
+    ok(claimed === false, 'MXC-7: the budget refusal SPENT the claim');
+    ok(JSON.stringify(await skills()) === JSON.stringify(s0), 'MXC-7: the budget refusal moved player_skills');
+    ok((await rallyRows()).length === l0, 'MXC-7: the budget refusal journalled');
+  }
+
   // ── MXC-8 the grants ─────────────────────────────────────────────────────
   for (const sig of ['public.world_event_claim__ungated(text,integer)', 'public.world_event_absence_claim__ungated(text)',
-    'public.hr_rally_xp_credit(text,jsonb)']) {
+    'public.hr_rally_xp_credit(text,jsonb)', 'public.world_event_pledge__ungated(text)',
+    'public.hr_rally_pledge_char(uuid)']) {
     const r = (await q(`select has_function_privilege('authenticated', $1, 'execute') a,
                                has_function_privilege('anon', $1, 'execute') b`, [sig]))[0];
     ok(!r.a && !r.b, `MXC-8: ${sig} is client-executable`);

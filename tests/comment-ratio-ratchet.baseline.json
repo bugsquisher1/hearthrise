@@ -3,14 +3,14 @@
   "_method": "physical lines classified once each as BLANK / COMMENT / CODE; COMMENT = trimmed line starts // or /* or sits inside an unterminated block; a code line with a trailing comment counts as CODE; blanks belong to neither side; b-number line = a comment matching /\\bb\\d{3}\\b/ (trailing comments included); ratio = comment/code; the 16 largest files by total lines carry per-file ceilings, pinned BY PATH so rank shuffling moves nothing",
   "measured": "2026-10-11",
   "pinnedCount": 16,
-  "bnumTotal": 3967,
+  "bnumTotal": 3965,
   "files": {
     "src/legacy.js": {
-      "total": 17094,
-      "comment": 7208,
-      "code": 8998,
+      "total": 17085,
+      "comment": 7194,
+      "code": 9003,
       "ratio": 0.6985252179581195,
-      "bnum": 684
+      "bnum": 682
     },
     "src/features/smoke/monsters-inventory-and-brand.js": {
       "total": 9653,
@@ -23,7 +23,7 @@
       "total": 9230,
       "comment": 2433,
       "code": 6171,
-      "ratio": 0.3940424154120123,
+      "ratio": 0.3939148729567891,
       "bnum": 144
     },
     "src/features/smoke/away-time-and-offline.js": {
@@ -90,11 +90,18 @@
       "bnum": 34
     },
     "src/features/smoke/farm-and-profile.js": {
-      "total": 3436,
-      "comment": 774,
-      "code": 2493,
-      "ratio": 0.3104693140794224,
+      "total": 3443,
+      "comment": 775,
+      "code": 2499,
+      "ratio": 0.31012404961984796,
       "bnum": 133
+    },
+    "src/features/smoke/quests-chronicle-and-bonus.js": {
+      "total": 3233,
+      "comment": 594,
+      "code": 2472,
+      "ratio": 0.24029126213592233,
+      "bnum": 38
     },
     "src/features/smoke/bounty-and-artisan.js": {
       "total": 3124,
@@ -102,13 +109,6 @@
       "code": 2140,
       "ratio": 0.37124364308830327,
       "bnum": 52
-    },
-    "src/features/smoke/quests-chronicle-and-bonus.js": {
-      "total": 3053,
-      "comment": 563,
-      "code": 2332,
-      "ratio": 0.24142367066895368,
-      "bnum": 38
     },
     "src/features/smoke/recovery-and-auto-eat.js": {
       "total": 3048,

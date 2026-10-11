@@ -120,7 +120,7 @@ async function clientScan(override = {}) {
 }
 
 /* The scan's own mutation proof (--mutate): each plant must turn P-CLIENT red. */
-async function scanMutants() {
+async function scanMutantList() {
   const panel = await readFile(join(ROOT, 'src/render/party-panel.js'), 'utf8');
   const net = await readFile(join(ROOT, 'src/net/party.js'), 'utf8');
   const plant = (src, anchor, add) => {
@@ -135,6 +135,10 @@ async function scanMutants() {
     { name: 'exemptReaderRenamed', why: 'an exempt hunt-view reader is renamed, so the exemption silently names nothing',
       over: { 'src/render/party-panel.js': panel.split('function partyReceiptLine(').join('function partyReceiptLine2(') } },
   ];
+  return M;
+}
+
+async function runScanMutants(M) {
   let survived = 0;
   for (const m of M) {
     const bad = CONTROL ? await clientScan() : await clientScan(m.over);
@@ -235,10 +239,12 @@ const MUTANTS = [
 
 console.log('\nparty-hunt-view --mutate: every mutant must go RED on its named arm');
 if ((await clientScan()).length) { console.error('harness: the unmutated client scan is red'); process.exit(2); }
-const scan = await scanMutants();
+const SCAN = await scanMutantList();
 const control = await tryApply(db, SQL);
 if (control) { console.error(`harness: the unmutated file is red (${control})`); process.exit(2); }
-console.log(`[mutants] ${MUTANTS.length}`);
+/* ONE declaration for every arm this run reports (tests/mutant-control.mjs counts them). */
+console.log(`[mutants] ${MUTANTS.length + SCAN.length}`);
+const scan = await runScanMutants(SCAN);
 let survived = scan.survived;
 for (const m of MUTANTS) {
   const n = SQL.split(m.find).length - 1;

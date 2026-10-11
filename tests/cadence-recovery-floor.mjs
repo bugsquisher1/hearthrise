@@ -786,11 +786,62 @@ MUTATIONS.marker_guard_removed.repl =
   '  if false then\n'
   + "    raise notice 'hr_credit_combat_xp__ungated already carries the recovery floor";
 
+/* ── THE LIVE BODY, NOT ONLY THIS FILE (Security, lane/b567 2026-10-17) ─────
+   This file PATCHES hr_credit_kills__ungated in place. Any LATER migration that
+   RESTATES the body in full (2026-10-17-bestiary-target.sql did) becomes the
+   live body, and a floor that survives here but was dropped there passed every
+   check above. So the static run also finds, by apply order, the LAST file that
+   restates the function and requires the floor in THAT body. `latest: true`
+   mutations are planted in that file's text instead of this one. */
+const LATEST_FN = /create\s+or\s+replace\s+function\s+public\.hr_credit_kills__ungated\s*\(/i;
+const LATEST_CHECKS = [
+  ['the knocked-out short-circuit', (b) => b.includes('if v_recovering is not null and now() < v_recovering then')],
+  ['the bounty-free window floor', (b) => b.includes('v_anchor := greatest(v_anchor, least(coalesce(v_recovering, v_anchor), now()));')],
+  ['the bounty window floor', (b) => b.includes('least(coalesce(v_recovering, v_ab.accepted_at), now())')],
+  ['the not-in-combat end cap', (b) => b.includes("v_combat_end := case when v_active_kind is distinct from 'combat'")],
+];
+Object.assign(MUTATIONS, {
+  latest_bounty_floor_removed: {
+    latest: true,
+    why: 'the LATEST restatement of hr_credit_kills__ungated drops the bounty-window recovery floor — '
+       + 'the knockout is billed as target-fight time while this file still reads perfect',
+    find: '                             least(coalesce(v_recovering, v_ab.accepted_at), now()),\n',
+    repl: '',
+  },
+  latest_free_floor_removed: {
+    latest: true,
+    why: 'the LATEST restatement drops the bounty-free window floor',
+    find: '    v_anchor := greatest(v_anchor, least(coalesce(v_recovering, v_anchor), now()));',
+    repl: '    v_anchor := greatest(v_anchor, v_anchor);',
+  },
+});
+
+function latestRestatement(mutate) {
+  let order;
+  try { order = JSON.parse(readFileSync(ORDER_FILE, 'utf8')); }
+  catch { throw harness('tests/schema-apply-order.json is unreadable'); }
+  let file = null, text = null;
+  for (const f of order.order) {
+    let t; try { t = readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n'); } catch { continue; }
+    if (LATEST_FN.test(t)) { file = f; text = t; }
+  }
+  if (!file) throw harness('no migration in the apply order restates hr_credit_kills__ungated');
+  const m = mutate && MUTATIONS[mutate];
+  if (m && m.latest) {
+    if (!text.includes(m.find)) throw harness(`mutation '${mutate}' did not match ${file} — repair it, do NOT drop it.`);
+    text = text.replace(m.find, m.repl);
+  }
+  const start = text.search(LATEST_FN);
+  const end = text.indexOf('$function$;', start) >= 0 ? text.indexOf('$function$;', start) : text.indexOf('$$;', start);
+  return { file, body: text.slice(start, end > start ? end : undefined) };
+}
+
 // ── THE RUN ────────────────────────────────────────────────────────────────
 function load(mutate) {
   let text;
   try { text = readFileSync(MIG, 'utf8'); }
   catch { throw harness(`${FILE} is missing — Security F1 is not fixed at all`); }
+  if (mutate && MUTATIONS[mutate] && MUTATIONS[mutate].latest) return text;
   if (mutate) {
     const m = MUTATIONS[mutate];
     if (!m) throw harness(`unknown mutation '${mutate}' (see --list)`);
@@ -805,9 +856,16 @@ function load(mutate) {
   return text;
 }
 
-function runStatic(text) {
+function runStatic(text, mutate) {
   const sec = sections(text);
   for (const [name, pred, why] of CHECKS) ok(pred(sec[name]), `[${name}] ${why}`);
+
+  // The LIVE body: the last full restatement in apply order must still carry
+  // every arm this file patched in.
+  const live = latestRestatement(mutate);
+  for (const [what, pred] of LATEST_CHECKS) {
+    ok(pred(live.body), `[latest] ${live.file} restates hr_credit_kills__ungated without ${what} — the live body lost Security F1`);
+  }
 
   // The apply order must ACCOUNT for the file, or a rebuilt database — the
   // disaster-recovery contract — silently omits the fix.
@@ -1002,7 +1060,7 @@ async function runReplay() {
 
 async function run(mutate, { replay = false } = {}) {
   failed = 0;
-  try { runStatic(load(mutate)); }
+  try { runStatic(load(mutate), mutate); }
   catch (e) { if (e.harness) throw e; failed++; console.error(`  FAIL  ${e.message}`); }
   if (replay) await runReplay();
   return failed;

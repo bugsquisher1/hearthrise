@@ -129,6 +129,12 @@ const CONSUMERS = new Map([
     why: 'the launchpad property card — tier name, next rung, plots/workers figures. '
        + 'Renders only; the Upgrade action is HH.upgradeProperty().',
   }],
+  ['src/render/haul-unlocks.js', {
+    kind: 'DISPLAY',
+    why: '"what your haul unlocks": names the next tier (HH.nextTier, only once '
+       + 'HH.serverRungKnown()) when the server bag + gold cover its cost. A sentence on '
+       + 'the receipt and Home; the build itself is still HH.upgradeProperty().',
+  }],
 ]);
 
 /* ── THE STRIPPER, AND WHY IT IS NOT THE ONE arm-homing-guard USES ───────────

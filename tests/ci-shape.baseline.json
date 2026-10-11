@@ -205,6 +205,7 @@
     "node tests/muster-chest-xp-credit.mjs --selftest": "economy-selftests",
     "node tests/rally-points-server.mjs": "economy-selftests",
     "node tests/rally-points-server.mjs --selftest": "economy-selftests",
+    "node tools/gen-rally-action-times.mjs --check": "economy-selftests",
     "node tests/bounty-accept-bh-clamp.mjs": "economy-selftests",
     "node tests/bounty-accept-bh-clamp.mjs --selftest": "economy-selftests",
     "node tests/max-hp-tracks-hitpoints.mjs": "economy-selftests",

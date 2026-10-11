@@ -1634,7 +1634,9 @@
       confirmEl.disabled = !canAfford || (fillNow === 0 && (!hasResidual || !offerOn()));
       confirmEl.textContent = canAfford
         ? (fillNow === qWanted ? 'Buy ' + fillNow : (offerOn() ? 'Buy ' + fillNow + ' + offer ' + residual : 'Buy ' + fillNow))
-        : 'Not enough gold';
+        /* Fail-closed while the purse is pending, but say so: "Not enough
+           gold" over a 250,000 purse the server has not stated yet is a lie. */
+        : (window.balKnown('gold') ? 'Not enough gold' : 'Checking your gold…');
     }
     updateSummary();
     /* Purse + Confirm may have painted from a pending (fail-closed) balance:

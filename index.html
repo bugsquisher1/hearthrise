@@ -86,14 +86,14 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Hearthrise">
 <meta property="og:title" content="Hearthrise — cozy multiplayer idle RPG">
-<meta property="og:description" content="Fight, gather, craft and build your homestead in a shared, server-run world. Free, in your browser, progresses while you're away. Open beta.">
+<meta property="og:description" content="Fight, gather, craft and build your homestead in a shared, server-run world. Free, in your browser, progresses while you're away. Early Access.">
 <meta property="og:url" content="https://hearthrise.net/">
 <meta property="og:image" content="https://hearthrise.net/assets/brand/og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Hearthrise — cozy multiplayer idle RPG">
-<meta name="twitter:description" content="Fight, gather, craft and build your homestead in a shared, server-run world. Free, in your browser. Open beta.">
+<meta name="twitter:description" content="Fight, gather, craft and build your homestead in a shared, server-run world. Free, in your browser. Early Access.">
 <meta name="twitter:image" content="https://hearthrise.net/assets/brand/og-image.png">
 <!-- ══ CONTENT SECURITY POLICY (2026-08-23, open-beta hardening) ═════════════
      GitHub Pages cannot set response headers, so this is a <meta> policy. It is
@@ -969,7 +969,6 @@
        the game's rules and never two. Placed before main.js so the core is up
        before any feature module boots. -->
   <script type="module" src="src/core-bridge.js?v=565"></script>
-  <script src="src/save-migrations.js?v=565"></script>
   <!-- b133: foundation APIs — load BEFORE legacy.js so killMonster() can call recordKill() -->
   <!-- b136: farm-progression sits next to the others (Plot Lv API + deed drop hooks) -->
   <script src="src/features/auto-actions.js?v=565"></script>
@@ -1193,7 +1192,6 @@
        it now also covers bell/save/settings + strips chip/sub-tab emoji. -->
 
   <script src="src/activity-bar-clickable.js?v=565"></script>
-  <script src="src/post-signup-welcome.js?v=565"></script>
   <script src="src/mobile-keyboard.js?v=565"></script>
   <script src="src/combat-mobile-tabs.js?v=565"></script>
   <script src="src/mobile-more-chat.js?v=565"></script>
@@ -1202,7 +1200,6 @@
   <script src="src/bug-report.js?v=565"></script>
   <script src="src/welcome-modal.js?v=565"></script>
   <!-- b141 — beta launch prep: one-time disclaimer + Discord invite for new players -->
-  <script src="src/beta-banner.js?v=565"></script>
   <script src="src/network-status.js?v=565"></script>
   <script src="src/desktop-mode-detector.js?v=565"></script>
   <script src="src/error-boundary.js?v=565"></script>

@@ -586,11 +586,6 @@ export const MONSTERS = {
     hp: 484, atk: 99, def: 55, xp: 1198, gp: [300, 646],
     drops: [{ id: 'dragon_bones', ch: 1 }, { id: 'dragon_scale', ch: .8 }, { id: 'dragon_gem', ch: .05 }, { id: 'ancient_claw', ch: .2 }, { id: 'alpha_pattern', ch: .03 },
       { id: 'dragonrib_bow', ch: .0008, lucky: true }] },
-    /* NOTE: `dragon_marrow_recipe` was the obvious flavour drop here and is
-       deliberately NOT wired — its target item (`dragonbone_spear`) does not
-       exist, and the b145 rule is that a recipe unlocking nothing is a
-       confusing dead end. It is a HOOK for the itemisation wave, not an
-       omission. The b227 guard fails the build if it is added early. */
   ashwing: { name: 'Ashwing', icon: '🔥', tier: 6, cls: 'dragon', family: 'Dragon', boss: true,
     /* Draconia's opposite — one weekly rotation slot, two opposite loadouts. */
     elementWeak: 'frost', elementResist: ['ember'],

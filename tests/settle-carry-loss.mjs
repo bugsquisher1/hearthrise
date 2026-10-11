@@ -109,11 +109,11 @@ const FIXTURES = [
     userId: '00000000-0000-4000-8000-000000000002', slot: 0,
     activeKind: 'combat', activeId: 'slime', capMs: 43200000, seed: 305419896,
     hp: 99, maxHp: 99, gold: 0, skills: { ...MAXED },
-    inventory: { hearthbread: 4000 },
+    inventory: { cooked_shark: 4000 },
     equipment: { weapon: 'dragonfang_pike', helmet: 'regent_helm', body: 'slagheart_platebody',
                  pants: 'abyssal_greaves', boots: 'dawn_boots', gloves: 'choirbone_gauntlets',
                  belt: 'warden_girdle', cape: 'wyrmgilt_mantle' },
-    autoEatEnabled: true, autoEatPct: 50, autoEatFood: 'hearthbread',
+    autoEatEnabled: true, autoEatPct: 50, autoEatFood: 'cooked_shark',
   },
   {
     name: 'bow user vs rat',
@@ -134,7 +134,7 @@ const FIXTURES = [
     userId: '00000000-0000-4000-8000-000000000004', slot: 0,
     activeKind: 'combat', activeId: 'iron_colossus', capMs: 43200000, seed: 77777777,
     hp: 990, maxHp: 990, gold: 0, skills: { ...MAXED },
-    inventory: { hearthbread: 9000 },
+    inventory: { cooked_shark: 9000 },
     /* Maxed defence and the best armour so the character SURVIVES (this fixture
        must measure kill LENGTH, not the recovery ladder), with the game's
        weakest weapon so a 518 hp foe takes many minutes and every kill straddles
@@ -142,7 +142,7 @@ const FIXTURES = [
     equipment: { weapon: 'bronze_sword', helmet: 'regent_helm', body: 'slagheart_platebody',
                  pants: 'abyssal_greaves', boots: 'dawn_boots', gloves: 'choirbone_gauntlets',
                  belt: 'warden_girdle', cape: 'wyrmgilt_mantle' },
-    autoEatEnabled: true, autoEatPct: 50, autoEatFood: 'hearthbread',
+    autoEatEnabled: true, autoEatPct: 50, autoEatFood: 'cooked_shark',
   },
   {
     /* FAST KILL. 9 hp vs a maxed melee character: a kill per swing, so the
@@ -152,11 +152,11 @@ const FIXTURES = [
     userId: '00000000-0000-4000-8000-000000000005', slot: 0,
     activeKind: 'combat', activeId: 'rat', capMs: 43200000, seed: 24681357,
     hp: 99, maxHp: 99, gold: 0, skills: { ...MAXED },
-    inventory: { hearthbread: 4000 },
+    inventory: { cooked_shark: 4000 },
     equipment: { weapon: 'dragonfang_pike', helmet: 'regent_helm', body: 'slagheart_platebody',
                  pants: 'abyssal_greaves', boots: 'dawn_boots', gloves: 'choirbone_gauntlets',
                  belt: 'warden_girdle', cape: 'wyrmgilt_mantle' },
-    autoEatEnabled: true, autoEatPct: 50, autoEatFood: 'hearthbread',
+    autoEatEnabled: true, autoEatPct: 50, autoEatFood: 'cooked_shark',
   },
 ];
 

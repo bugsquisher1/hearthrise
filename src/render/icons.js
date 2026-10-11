@@ -145,15 +145,15 @@ function itemGlyphKey(id, def){
    declaration, which in a classic script IS a property of the global object.
    A bare `itemGlyphKey(...)` inside itemFallbackIcon therefore resolved
    through the scope chain to `window.itemGlyphKey` — and two feature modules
-   REPLACE that property after legacy.js loads: muster.js wraps it for
-   `muster_seal`, clan-seat-ui.js for the four castle goods. The wrappers are
-   additive and delegate to the previous function, so the chain worked.
+   REPLACE that property after legacy.js loads: clan-seat-ui.js wraps it for
+   the four castle goods. The wrapper is
+   additive and delegates to the previous function, so the chain worked.
 
    Inside this file the same helpers are closure-locals of the module IIFE, so
    a bare call would bind to the local declaration and silently bypass both
    wrappers. Measured, not assumed: tools/js-ab-icon-diff.mjs reported exactly
-   three ids drawing a different glyph than main — iron_fitting, timber_beam
-   and muster_seal, i.e. the wrapped ones. Going through `window` restores the
+   the ids drawing a different glyph than main — iron_fitting and timber_beam,
+   i.e. the wrapped ones (and the since-cut muster_seal). Going through `window` restores the
    original resolution and keeps the wrap-point a wrap-point. */
 function itemFallbackIcon(id, px, def){
   var g = (window.HR && window.HR.icon)

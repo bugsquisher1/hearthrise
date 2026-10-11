@@ -3943,3 +3943,10 @@ choosing the right file first would have avoided.
   template exists the guard is ~20 s. Start the first replay early.
 · Handoffs: Security GO on 2026-10-18-discord-gift.sql; Designer confirms 50 gems; Coordinator
   rules on the operator rotation tool (CONFLICTS.md) and re-pins live-hash-drift after apply.
+
+## 2026-10-10 — W0a cuts and copy (lane/w0a-cuts-and-copy)
+
+· Catalogue coherence is now DERIVED (src/data/catalogue-coherence.js) and guarded (tests/catalogue-coherence.mjs, C1-C7, 9 mutants). A guard that mutates data objects must import them through the SAME module specifier the code under test uses (?v=NNN) — a bare import is a second module instance and the plant never reaches the function. Fixed by re-exporting the identities from the module.
+· Regenerating 2026-08-11-catalogue.generated.sql after a REMOVAL cascades into later applied files that name the removed rows or pin exact counts (09-12 req-lv, 09-18 unlock count). Replay-only POST-APPLY AMENDMENTS are the precedent; run schema-drift right after any catalogue regeneration.
+· legacy.js now authors NO table: ITEMS/SKILLS_DEF/TREES/ROCKS/FISH_SPOTS/CROPS are empty bindings (b356 rule); __LEGACY_INLINE_COUNTS + LEGACY-ONECOPY-1.
+· Handoffs: w0f owns the 7 PENDING_USE ids (boss mats/trophies) and w0e owns PENDING_CONSUMER prayer in tests/catalogue-coherence.mjs — delete the row in the commit that gives each a use (a stale row fails). Muster chest XP is still client-authored via addXp (world_event_claim credits no XP) — flagged, not in scope.

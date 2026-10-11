@@ -1464,29 +1464,6 @@ export default [
       assert(window.addItem(ids[1], 1) === true && G.inventory[ids[1]] === 1, 'new stack fits after expansion');
     } finally { G.inventory = saved.inv; G.bank = saved.bank; restoreBankCap(saved.cap); }
   }),
-  () => tryRun('b269: v10→v11 migration grandfathers cap above existing distinct stacks', () => {
-    assert(typeof window.applyMigrations === 'function', 'applyMigrations missing');
-    const inv = {}; for (let i = 0; i < 260; i++) inv['probe_item_' + i] = 1; // 260 stacks > BASE_CAP
-    const out = window.applyMigrations({ v: 10, inventory: inv });
-    assert(out.bank && typeof out.bank.grandfather === 'number', 'migration must seed G.bank');
-    const cap = window.BANK_SPACE.BASE_CAP + out.bank.goldBuys * window.BANK_SPACE.gold.slots
-      + out.bank.gemBuys * window.BANK_SPACE.gem.slots + out.bank.grandfather;
-    assert(cap >= 260, 'grandfathered cap (' + cap + ') must cover existing 260 stacks — nobody worse off');
-    // Idempotent: re-running must not inflate the cap further.
-    const out2 = window.applyMigrations(out);
-    assert(out2.bank.grandfather === out.bank.grandfather, 'migration must be idempotent');
-  }),
-  () => tryRun('b217: migration grandfathers pre-v6 saves that already had auto-eat', () => {
-    assert(typeof window.applyMigrations === 'function', 'window.applyMigrations missing');
-    // A pre-v6 save with auto-eat enabled must come out with the trait granted.
-    const legacy = window.applyMigrations({ v: 5, autoActions: { eat: { enabled: true, threshold: 0.5, foodId: 'cooked_shrimp' } } });
-    assert(legacy.traits && legacy.traits.auto_eat === true,
-      'existing players with auto-eat enabled must be grandfathered the trait on load');
-    // A pre-v6 save that never used auto-eat must NOT get it for free.
-    const clean = window.applyMigrations({ v: 5, autoActions: { eat: { enabled: false, threshold: 0.5, foodId: null } } });
-    assert(!(clean.traits && clean.traits.auto_eat),
-      'players who never enabled auto-eat must not be granted the trait');
-  }),
   // b206 wrote this test against the ORIGINAL ladder (+25% allXP, +8% gather,
   // +5% artisan, +3h offline, all earned by banking gold). b223 re-scoped that
   // ladder to a membership BASELINE — clan-overhaul §8.3 — because with the
@@ -1531,7 +1508,7 @@ export default [
     assert(window.IAP && typeof window.IAP.buy === 'function', 'window.IAP.buy exposed');
     const src = window.IAP.buy.toString();
     assert(src.indexOf('mock:true') === -1, 'web branch must not mint a mock receipt');
-    assert(/not available in the web beta/.test(src), 'web branch should refuse honestly');
+    assert(/not available in this build/.test(src), 'web branch should refuse honestly');
     assert(window.IAP.detectPlatform() === 'web', 'test env detects web platform');
   }),
   /* CLIENT-AUTHORITATIVE, deliberately. This test's subject is the redemption
@@ -2848,15 +2825,15 @@ export default [
       if (['weapon', 'armor', 'jewelry', 'tool', 'ammo', 'companion'].includes(it.type)) return true;
       if (it.heals || it.buff || it.buryXp) return true;
       if (['key', 'currency', 'housing', 'cosmetic', 'castle', 'crafting-mat'].includes(it.tag)) return true;
-      if (it.unlocks || it.recipe || it.premium || it.musterOnly) return true;
+      if (it.unlocks || it.recipe || it.premium) return true;
       return false;
     };
     // Known, intentional vendor-trash (sold for gold) — an EXPLICIT exemption so the
     // guard is a tripwire for NEW dead-ends, not a demand to route every legacy drop.
-    const VENDOR_TRASH = window.__DROP_SINK_EXEMPT || [];
+    const VENDOR_TRASH = (window.HearthriseCatalogue && window.HearthriseCatalogue.VENDOR_TRASH) || [];
     const orphans = [...drops].filter(id => I[id] && !hasUse(id) && !VENDOR_TRASH.includes(id));
     assert(orphans.length === 0,
-      orphans.length + ' drop(s) go nowhere (no recipe/use). Route them or add to __DROP_SINK_EXEMPT: ' + orphans.slice(0, 30).join(', '));
+      orphans.length + ' drop(s) go nowhere (no recipe/use). Route them or add to VENDOR_TRASH (src/data/catalogue-coherence.js): ' + orphans.slice(0, 30).join(', '));
   }),
 
   () => tryRun('WAVE6b: every dungeon has a real encounter, not a bare loot roll', () => {
@@ -4110,18 +4087,22 @@ export default [
      (catalogue.js vendorPriceOf); the bag must show exactly them (CLAUDE.md §6). */
   () => tryRun('b565 regression: the vendor pays at most half the cheapest shop unit price', () => {
     assert(window.SHOP_BUYBACK_RATE === 0.5, 'SHOP_BUYBACK_RATE must be 0.5, got ' + window.SHOP_BUYBACK_RATE);
-    assert(window.SHOP_UNIT_PRICE && window.SHOP_UNIT_PRICE.steel_platebody === 1500,
+    assert(window.SHOP_UNIT_PRICE && window.SHOP_UNIT_PRICE.stone_maul === 140,
       'window.SHOP_UNIT_PRICE is not published from the catalogue — vendorPrice bids nothing without it');
     const EXPECT = {
-      steel_platebody: 750, carrot_seed: 5, potato_seed: 10, pumpkin_seed: 25, turnip_seed: 2,
+      carrot_seed: 5, potato_seed: 10, pumpkin_seed: 25, turnip_seed: 2,
       wheat_seed: 7, tomato_seed: 15, stone_maul: 70, shortbow: 60, apprentice_staff: 60,
-      iron_warhammer: 375, longbow: 325, rune_blank: 3, goldenroot_seed: 75, emberfruit_seed: 150,
+      rune_blank: 3, goldenroot_seed: 75, emberfruit_seed: 150,
       cooked_lobster: 200, cooked_trout: 45, cooked_shrimp: 15,
     };
     const wrong = Object.keys(EXPECT).filter((id) => window.vendorPrice(id) !== EXPECT[id])
       .map((id) => id + ' shows ' + window.vendorPrice(id) + ', server pays ' + EXPECT[id]);
     assert(wrong.length === 0, 'the bag disagrees with the server buy-back: ' + wrong.join('; '));
     assert(window.ITEMS.steel_platebody.v === 1500, 'steel_platebody book value moved');
+    /* W0: the shop sells starter gear only, so steel_platebody has no shop unit
+       price and the cap does not apply — it vends at book, exactly as the edge pays. */
+    assert(!('steel_platebody' in window.SHOP_UNIT_PRICE) && window.vendorPrice('steel_platebody') === 1500,
+      'an item the shop no longer sells must bid its full book value, got ' + window.vendorPrice('steel_platebody'));
   }),
 
   /* ── regression suite — ONE BUY GREYED EVERY BUY (live, QA account) ──

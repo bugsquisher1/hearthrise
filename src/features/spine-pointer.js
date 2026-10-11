@@ -169,7 +169,7 @@ function fitRoom(bar) {
   let pad = 0;
   if (strip && !strip.hidden) {
     const r = strip.getBoundingClientRect();
-    if (r.width > 0 && r.top < t.bottom && r.bottom > t.top) pad = Math.max(0, Math.ceil(r.right - (b.left - (parseFloat(bar.style.paddingLeft) || 0)) + 8));
+    if (r.width > 0 && r.top < t.bottom && r.bottom > t.top) pad = Math.max(0, Math.ceil(r.right - b.left + 8));
   }
   const want = pad + 'px';
   if (bar.style.paddingLeft !== want) bar.style.paddingLeft = want;

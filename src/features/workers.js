@@ -569,7 +569,7 @@
         (s > 0 && canHire
           ? '<button class="btn btn-sm" style="margin-top:8px" onclick="window.HearthriseWorkers.hire()">Hire worker — ' + hireCost().toLocaleString() + 'g</button>'
           : '') +
-        (s > 0 ? '<div class="tiny muted" style="margin-top:6px">Workers gather while you\'re away (up to 24h). They only do what you\'ve mastered yourself.</div>' : '') +
+        (s > 0 ? '<div class="tiny muted" style="margin-top:6px">The realm works your crew, not this page: they gather whether you are playing or away, and what they bring in lands straight in your bag. They only work spots you have reached yourself.</div>' : '') +
         ledgerHtml() +
       '</div>';
   }

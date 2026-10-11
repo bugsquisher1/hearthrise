@@ -435,6 +435,9 @@
           if (PR && typeof PR.notePropertyGranted === 'function') PR.notePropertyGranted(nxtIndex);
         } catch (e) {}
         advanceTierTo(G, nxtIndex);
+        /* The first-day "Upgrade to a Homestead" step counts the server rung the
+           line above just recorded; tick it now rather than on the next kill. */
+        try { if (typeof window.updateQuest === 'function') window.updateQuest('property'); } catch (e) {}
         if (c.owned) { if (window.notify) notify('' + nxt.name + ' is already yours.', 'info'); renderCard(); }
         else announceBuilt(nxt);
       } else if (window.notify) {

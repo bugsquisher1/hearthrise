@@ -167,9 +167,7 @@ export function lintText(text, pluralRe) {
 /* A waiver is one known literal the next edge deploy removes (edge-bundled
    files move only with that deploy). A waiver that no longer matches is stale
    and fails the gate, so it is deleted the day its fix lands. */
-const WAIVERS = [
-  { file: 'src/core/styles.js', rule: 'spelling', text: 'All XP to Defence' },
-];
+const WAIVERS = [];
 const usedWaivers = new Set();
 function waived(root, f, rule, text) {
   const rel = relative(root, f).split(sep).join('/');
